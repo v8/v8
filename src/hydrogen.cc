@@ -6165,9 +6165,11 @@ void HGraphBuilder::VisitCall(Call* expr) {
       if (TryInlineCall(expr, true)) {   // Drop function from environment.
         return;
       } else {
-        call = PreProcessCall(new(zone()) HInvokeFunction(context,
-                                                          function,
-                                                          argument_count));
+        call = PreProcessCall(
+            new(zone()) HInvokeFunction(context,
+                                        function,
+                                        expr->target(),
+                                        argument_count));
         Drop(1);  // The function.
       }
 

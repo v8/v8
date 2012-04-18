@@ -1644,14 +1644,26 @@ class HInvokeFunction: public HBinaryCall {
       : HBinaryCall(context, function, argument_count) {
   }
 
+  HInvokeFunction(HValue* context,
+                  HValue* function,
+                  Handle<JSFunction> known_function,
+                  int argument_count)
+      : HBinaryCall(context, function, argument_count),
+        known_function_(known_function) {
+  }
+
   virtual Representation RequiredInputRepresentation(int index) {
     return Representation::Tagged();
   }
 
   HValue* context() { return first(); }
   HValue* function() { return second(); }
+  Handle<JSFunction> known_function() { return known_function_; }
 
   DECLARE_CONCRETE_INSTRUCTION(InvokeFunction)
+
+ private:
+  Handle<JSFunction> known_function_;
 };
 
 

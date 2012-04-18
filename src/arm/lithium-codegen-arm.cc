@@ -2962,7 +2962,8 @@ void LCodeGen::DoGlobalReceiver(LGlobalReceiver* instr) {
 void LCodeGen::CallKnownFunction(Handle<JSFunction> function,
                                  int arity,
                                  LInstruction* instr,
-                                 CallKind call_kind) {
+                                 CallKind call_kind,
+                                 R1State r1_state) {
   bool can_invoke_directly = !function->NeedsArgumentsAdaption() ||
       function->shared()->formal_parameter_count() == arity;
 
@@ -2970,7 +2971,10 @@ void LCodeGen::CallKnownFunction(Handle<JSFunction> function,
   RecordPosition(pointers->position());
 
   if (can_invoke_directly) {
-    __ LoadHeapObject(r1, function);
+    if (r1_state == R1_UNINITIALIZED) {
+      __ LoadHeapObject(r1, function);
+    }
+
     // Change context if needed.
     bool change_context =
         (info()->closure()->context() != function->context()) ||
@@ -3009,7 +3013,8 @@ void LCodeGen::DoCallConstantFunction(LCallConstantFunction* instr) {
   CallKnownFunction(instr->function(),
                     instr->arity(),
                     instr,
-                    CALL_AS_METHOD);
+                    CALL_AS_METHOD,
+                    R1_UNINITIALIZED);
 }
 
 
@@ -3434,12 +3439,21 @@ void LCodeGen::DoInvokeFunction(LInvokeFunction* instr) {
   ASSERT(ToRegister(instr->function()).is(r1));
   ASSERT(instr->HasPointerMap());
   ASSERT(instr->HasDeoptimizationEnvironment());
-  LPointerMap* pointers = instr->pointer_map();
-  RecordPosition(pointers->position());
-  SafepointGenerator generator(this, pointers, Safepoint::kLazyDeopt);
-  ParameterCount count(instr->arity());
-  __ InvokeFunction(r1, count, CALL_FUNCTION, generator, CALL_AS_METHOD);
-  __ ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
+
+  if (instr->known_function().is_null()) {
+    LPointerMap* pointers = instr->pointer_map();
+    RecordPosition(pointers->position());
+    SafepointGenerator generator(this, pointers, Safepoint::kLazyDeopt);
+    ParameterCount count(instr->arity());
+    __ InvokeFunction(r1, count, CALL_FUNCTION, generator, CALL_AS_METHOD);
+    __ ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
+  } else {
+    CallKnownFunction(instr->known_function(),
+                      instr->arity(),
+                      instr,
+                      CALL_AS_METHOD,
+                      R1_CONTAINS_TARGET);
+  }
 }
 
 
@@ -3494,7 +3508,11 @@ void LCodeGen::DoCallGlobal(LCallGlobal* instr) {
 
 void LCodeGen::DoCallKnownGlobal(LCallKnownGlobal* instr) {
   ASSERT(ToRegister(instr->result()).is(r0));
-  CallKnownFunction(instr->target(), instr->arity(), instr, CALL_AS_FUNCTION);
+  CallKnownFunction(instr->target(),
+                    instr->arity(),
+                    instr,
+                    CALL_AS_FUNCTION,
+                    R1_UNINITIALIZED);
 }
 
 

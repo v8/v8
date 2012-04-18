@@ -1447,6 +1447,7 @@ class LInvokeFunction: public LTemplateInstruction<1, 1, 0> {
   virtual void PrintDataTo(StringStream* stream);
 
   int arity() const { return hydrogen()->argument_count() - 1; }
+  Handle<JSFunction> known_function() { return hydrogen()->known_function(); }
 };
 
 
