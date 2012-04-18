@@ -3567,14 +3567,16 @@ void LCodeGen::DoStoreKeyedFastDoubleElement(
             Operand(FixedDoubleArray::kHeaderSize - kHeapObjectTag));
   }
 
-  Label is_nan;
-  // Check for NaN. All NaNs must be canonicalized.
-  __ BranchF(NULL, &is_nan, eq, value, value);
-  __ Branch(&not_nan);
+  if (instr->NeedsCanonicalization()) {
+    Label is_nan;
+    // Check for NaN. All NaNs must be canonicalized.
+    __ BranchF(NULL, &is_nan, eq, value, value);
+    __ Branch(&not_nan);
 
-  // Only load canonical NaN if the comparison above set the overflow.
-  __ bind(&is_nan);
-  __ Move(value, FixedDoubleArray::canonical_not_the_hole_nan_as_double());
+    // Only load canonical NaN if the comparison above set the overflow.
+    __ bind(&is_nan);
+    __ Move(value, FixedDoubleArray::canonical_not_the_hole_nan_as_double());
+  }
 
   __ bind(&not_nan);
   __ sdc1(value, MemOperand(scratch));
