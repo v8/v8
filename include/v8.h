@@ -3975,7 +3975,7 @@ class Internals {
 
   static inline internal::Object** GetRoot(v8::Isolate* isolate, int index) {
     uint8_t* addr = reinterpret_cast<uint8_t*>(isolate) + kIsolateRootsOffset;
-    return &reinterpret_cast<internal::Object**>(addr)[index];
+    return reinterpret_cast<internal::Object**>(addr + index * kApiPointerSize);
   }
 
   template <typename T>
