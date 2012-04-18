@@ -4255,6 +4255,11 @@ class Code: public HeapObject {
   inline void set_allow_osr_at_loop_nesting_level(int level);
   inline int allow_osr_at_loop_nesting_level();
 
+  // [profiler_ticks]: For FUNCTION kind, tells for how many profiler ticks
+  // the code object was seen on the stack with no IC patching going on.
+  inline int profiler_ticks();
+  inline void set_profiler_ticks(int ticks);
+
   // [stack_slots]: For kind OPTIMIZED_FUNCTION, the number of stack slots
   // reserved in the code prologue.
   inline unsigned stack_slots();
@@ -4423,6 +4428,7 @@ class Code: public HeapObject {
 #ifdef DEBUG
   void CodeVerify();
 #endif
+  void ClearInlineCaches();
 
   // Max loop nesting marker used to postpose OSR. We don't take loop
   // nesting that is deeper than 5 levels into account.
@@ -4473,6 +4479,7 @@ class Code: public HeapObject {
   static const int kBinaryOpReturnTypeOffset = kBinaryOpTypeOffset + 1;
 
   static const int kAllowOSRAtLoopNestingLevelOffset = kFullCodeFlags + 1;
+  static const int kProfilerTicksOffset = kAllowOSRAtLoopNestingLevelOffset + 1;
 
   static const int kSafepointTableOffsetOffset = kStackSlotsOffset + kIntSize;
   static const int kStackCheckTableOffsetOffset = kStackSlotsOffset + kIntSize;
@@ -5323,16 +5330,18 @@ class SharedFunctionInfo: public HeapObject {
   inline int compiler_hints();
   inline void set_compiler_hints(int value);
 
+  inline int ast_node_count();
+  inline void set_ast_node_count(int count);
+
   // A counter used to determine when to stress the deoptimizer with a
   // deopt.
   inline int deopt_counter();
   inline void set_deopt_counter(int counter);
 
-  inline int profiler_ticks();
-  inline void set_profiler_ticks(int ticks);
-
-  inline int ast_node_count();
-  inline void set_ast_node_count(int count);
+  // Inline cache age is used to infer whether the function survived a context
+  // disposal or not. In the former case we reset the opt_count.
+  inline int ic_age();
+  inline void set_ic_age(int age);
 
   // Add information on assignments of the form this.x = ...;
   void SetThisPropertyAssignmentsInfo(
@@ -5478,12 +5487,16 @@ class SharedFunctionInfo: public HeapObject {
   void SharedFunctionInfoVerify();
 #endif
 
+  void ResetForNewContext(int new_ic_age);
+
   // Helpers to compile the shared code.  Returns true on success, false on
   // failure (e.g., stack overflow during compilation).
   static bool EnsureCompiled(Handle<SharedFunctionInfo> shared,
                              ClearExceptionFlag flag);
   static bool CompileLazy(Handle<SharedFunctionInfo> shared,
                           ClearExceptionFlag flag);
+
+  void SharedFunctionInfoIterateBody(ObjectVisitor* v);
 
   // Casting.
   static inline SharedFunctionInfo* cast(Object* obj);
@@ -5508,12 +5521,13 @@ class SharedFunctionInfo: public HeapObject {
       kInferredNameOffset + kPointerSize;
   static const int kThisPropertyAssignmentsOffset =
       kInitialMapOffset + kPointerSize;
-  static const int kProfilerTicksOffset =
-      kThisPropertyAssignmentsOffset + kPointerSize;
+  // ic_age is a Smi field. It could be grouped with another Smi field into a
+  // PSEUDO_SMI_ACCESSORS pair (on x64), if one becomes available.
+  static const int kICAgeOffset = kThisPropertyAssignmentsOffset + kPointerSize;
 #if V8_HOST_ARCH_32_BIT
   // Smi fields.
   static const int kLengthOffset =
-      kProfilerTicksOffset + kPointerSize;
+      kICAgeOffset + kPointerSize;
   static const int kFormalParameterCountOffset = kLengthOffset + kPointerSize;
   static const int kExpectedNofPropertiesOffset =
       kFormalParameterCountOffset + kPointerSize;
@@ -5532,8 +5546,9 @@ class SharedFunctionInfo: public HeapObject {
   static const int kOptCountOffset =
       kThisPropertyAssignmentsCountOffset + kPointerSize;
   static const int kAstNodeCountOffset = kOptCountOffset + kPointerSize;
-  static const int kDeoptCounterOffset =
-      kAstNodeCountOffset + kPointerSize;
+  static const int kDeoptCounterOffset = kAstNodeCountOffset + kPointerSize;
+
+
   // Total size.
   static const int kSize = kDeoptCounterOffset + kPointerSize;
 #else
@@ -5547,7 +5562,7 @@ class SharedFunctionInfo: public HeapObject {
   // word is not set and thus this word cannot be treated as pointer
   // to HeapObject during old space traversal.
   static const int kLengthOffset =
-      kProfilerTicksOffset + kPointerSize;
+      kICAgeOffset + kPointerSize;
   static const int kFormalParameterCountOffset =
       kLengthOffset + kIntSize;
 
@@ -6562,8 +6577,8 @@ class TypeFeedbackInfo: public Struct {
   inline int ic_total_count();
   inline void set_ic_total_count(int count);
 
-  inline int ic_with_typeinfo_count();
-  inline void set_ic_with_typeinfo_count(int count);
+  inline int ic_with_type_info_count();
+  inline void set_ic_with_type_info_count(int count);
 
   DECL_ACCESSORS(type_feedback_cells, TypeFeedbackCells)
 
@@ -8530,6 +8545,8 @@ class ObjectVisitor BASE_EMBEDDED {
 
   // Visit pointer embedded into a code object.
   virtual void VisitEmbeddedPointer(RelocInfo* rinfo);
+
+  virtual void VisitSharedFunctionInfo(SharedFunctionInfo* shared) {}
 
   // Visits a contiguous arrays of external references (references to the C++
   // heap) in the half-open range [start, end). Any or all of the values

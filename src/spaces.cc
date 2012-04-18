@@ -1198,13 +1198,15 @@ MaybeObject* NewSpace::SlowAllocateRaw(int size_in_bytes) {
         allocation_info_.limit + inline_allocation_limit_step_,
         high);
     int bytes_allocated = static_cast<int>(new_top - top_on_previous_step_);
-    heap()->incremental_marking()->Step(bytes_allocated);
+    heap()->incremental_marking()->Step(
+        bytes_allocated, IncrementalMarking::GC_VIA_STACK_GUARD);
     top_on_previous_step_ = new_top;
     return AllocateRaw(size_in_bytes);
   } else if (AddFreshPage()) {
     // Switched to new page. Try allocating again.
     int bytes_allocated = static_cast<int>(old_top - top_on_previous_step_);
-    heap()->incremental_marking()->Step(bytes_allocated);
+    heap()->incremental_marking()->Step(
+        bytes_allocated, IncrementalMarking::GC_VIA_STACK_GUARD);
     top_on_previous_step_ = to_space_.page_low();
     return AllocateRaw(size_in_bytes);
   } else {

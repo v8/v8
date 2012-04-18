@@ -537,6 +537,10 @@ Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
           : isolate()->strict_mode_function_map(),
       pretenure);
 
+  if (function_info->ic_age() != isolate()->heap()->global_ic_age()) {
+    function_info->ResetForNewContext(isolate()->heap()->global_ic_age());
+  }
+
   result->set_context(*context);
   if (!function_info->bound()) {
     int number_of_literals = function_info->num_literals();

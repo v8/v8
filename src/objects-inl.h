@@ -3088,6 +3088,19 @@ void Code::set_allow_osr_at_loop_nesting_level(int level) {
 }
 
 
+int Code::profiler_ticks() {
+  ASSERT(kind() == FUNCTION);
+  return READ_BYTE_FIELD(this, kProfilerTicksOffset);
+}
+
+
+void Code::set_profiler_ticks(int ticks) {
+  ASSERT(kind() == FUNCTION);
+  ASSERT(ticks < 256);
+  WRITE_BYTE_FIELD(this, kProfilerTicksOffset, ticks);
+}
+
+
 unsigned Code::stack_slots() {
   ASSERT(kind() == OPTIMIZED_FUNCTION);
   return READ_UINT32_FIELD(this, kStackSlotsOffset);
@@ -3507,8 +3520,8 @@ ACCESSORS(SharedFunctionInfo, debug_info, Object, kDebugInfoOffset)
 ACCESSORS(SharedFunctionInfo, inferred_name, String, kInferredNameOffset)
 ACCESSORS(SharedFunctionInfo, this_property_assignments, Object,
           kThisPropertyAssignmentsOffset)
+SMI_ACCESSORS(SharedFunctionInfo, ic_age, kICAgeOffset)
 
-SMI_ACCESSORS(SharedFunctionInfo, profiler_ticks, kProfilerTicksOffset)
 
 BOOL_ACCESSORS(FunctionTemplateInfo, flag, hidden_prototype,
                kHiddenPrototypeBit)
@@ -4814,7 +4827,7 @@ Object* TypeFeedbackCells::RawUninitializedSentinel(Heap* heap) {
 
 
 SMI_ACCESSORS(TypeFeedbackInfo, ic_total_count, kIcTotalCountOffset)
-SMI_ACCESSORS(TypeFeedbackInfo, ic_with_typeinfo_count,
+SMI_ACCESSORS(TypeFeedbackInfo, ic_with_type_info_count,
               kIcWithTypeinfoCountOffset)
 ACCESSORS(TypeFeedbackInfo, type_feedback_cells, TypeFeedbackCells,
           kTypeFeedbackCellsOffset)
