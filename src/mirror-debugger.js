@@ -596,6 +596,23 @@ ObjectMirror.prototype.protoObject = function() {
 };
 
 
+/**
+ * Return the primitive value if this is object of Boolean, Number or String
+ * type (but not Date). Otherwise return undefined. 
+ */
+ObjectMirror.prototype.primitiveValue = function() {
+  if (!IS_STRING_WRAPPER(this.value_) && !IS_NUMBER_WRAPPER(this.value_) &&
+      !IS_BOOLEAN_WRAPPER(this.value_)) {
+    return void 0;
+  }
+  var primitiveValue = %_ValueOf(this.value_);
+  if (IS_UNDEFINED(primitiveValue)) {
+    return void 0;
+  }
+  return MakeMirror(primitiveValue);
+};
+
+
 ObjectMirror.prototype.hasNamedInterceptor = function() {
   // Get information on interceptors for this object.
   var x = %GetInterceptorInfo(this.value_);
@@ -2233,6 +2250,11 @@ JSONProtocolSerializer.prototype.serializeObject_ = function(mirror, content,
       this.serializeReference(mirror.constructorFunction());
   content.protoObject = this.serializeReference(mirror.protoObject());
   content.prototypeObject = this.serializeReference(mirror.prototypeObject());
+  
+  var primitiveValue = mirror.primitiveValue();
+  if (!IS_UNDEFINED(primitiveValue)) {
+    content.primitiveValue = this.serializeReference(primitiveValue);
+  }
 
   // Add flags to indicate whether there are interceptors.
   if (mirror.hasNamedInterceptor()) {
