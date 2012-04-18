@@ -817,10 +817,10 @@ void FullCodeGenerator::VisitVariableDeclaration(
   bool hole_init = mode == CONST || mode == CONST_HARMONY || mode == LET;
   switch (variable->location()) {
     case Variable::UNALLOCATED:
-      globals_.Add(variable->name());
-      globals_.Add(variable->binding_needs_init()
-                       ? isolate()->factory()->the_hole_value()
-                       : isolate()->factory()->undefined_value());
+      globals_->Add(variable->name());
+      globals_->Add(variable->binding_needs_init()
+                        ? isolate()->factory()->the_hole_value()
+                        : isolate()->factory()->undefined_value());
       break;
 
     case Variable::PARAMETER:
@@ -877,12 +877,12 @@ void FullCodeGenerator::VisitFunctionDeclaration(
   Variable* variable = proxy->var();
   switch (variable->location()) {
     case Variable::UNALLOCATED: {
-      globals_.Add(variable->name());
+      globals_->Add(variable->name());
       Handle<SharedFunctionInfo> function =
           Compiler::BuildFunctionInfo(declaration->fun(), script());
       // Check for stack-overflow exception.
       if (function.is_null()) return SetStackOverflow();
-      globals_.Add(function);
+      globals_->Add(function);
       break;
     }
 
@@ -930,15 +930,24 @@ void FullCodeGenerator::VisitFunctionDeclaration(
 void FullCodeGenerator::VisitModuleDeclaration(ModuleDeclaration* declaration) {
   VariableProxy* proxy = declaration->proxy();
   Variable* variable = proxy->var();
+  Handle<JSModule> instance = declaration->module()->interface()->Instance();
+  ASSERT(!instance.is_null());
+
   switch (variable->location()) {
-    case Variable::UNALLOCATED:
-      // TODO(rossberg): initialize module instance object
+    case Variable::UNALLOCATED: {
+      Comment cmnt(masm_, "[ ModuleDeclaration");
+      globals_->Add(variable->name());
+      globals_->Add(instance);
+      Visit(declaration->module());
       break;
+    }
 
     case Variable::CONTEXT: {
       Comment cmnt(masm_, "[ ModuleDeclaration");
       EmitDebugCheckDeclarationContext(variable);
-      // TODO(rossberg): initialize module instance object
+      __ li(a1, Operand(instance));
+      __ sw(a1, ContextOperand(cp, variable->index()));
+      Visit(declaration->module());
       break;
     }
 
@@ -4575,7 +4584,8 @@ void FullCodeGenerator::LoadContextField(Register dst, int context_index) {
 
 void FullCodeGenerator::PushFunctionArgumentForContextAllocation() {
   Scope* declaration_scope = scope()->DeclarationScope();
-  if (declaration_scope->is_global_scope()) {
+  if (declaration_scope->is_global_scope() ||
+      declaration_scope->is_module_scope()) {
     // Contexts nested in the global context have a canonical empty function
     // as their closure, not the anonymous closure containing the global
     // code.  Pass a smi sentinel and let the runtime look up the empty
