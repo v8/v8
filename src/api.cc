@@ -2101,17 +2101,21 @@ bool StackFrame::IsConstructor() const {
 
 // --- D a t a ---
 
-bool Value::IsUndefined() const {
+bool Value::FullIsUndefined() const {
   if (IsDeadCheck(i::Isolate::Current(), "v8::Value::IsUndefined()")) {
     return false;
   }
-  return Utils::OpenHandle(this)->IsUndefined();
+  bool result = Utils::OpenHandle(this)->IsUndefined();
+  ASSERT_EQ(result, QuickIsUndefined());
+  return result;
 }
 
 
-bool Value::IsNull() const {
+bool Value::FullIsNull() const {
   if (IsDeadCheck(i::Isolate::Current(), "v8::Value::IsNull()")) return false;
-  return Utils::OpenHandle(this)->IsNull();
+  bool result = Utils::OpenHandle(this)->IsNull();
+  ASSERT_EQ(result, QuickIsNull());
+  return result;
 }
 
 
