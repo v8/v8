@@ -1163,7 +1163,7 @@ double power_double_double(double x, double y) {
 
   if (x == 2.0) {
     int y_int = static_cast<int>(y);
-    if (y == y_int) return ldexp(1.0, y);
+    if (y == y_int) return ldexp(1.0, y_int);
   }
 #endif
 
