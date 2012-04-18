@@ -2083,14 +2083,10 @@ void V8HeapExplorer::ExtractReferences(HeapObject* obj) {
                            "descriptors", map->instance_descriptors(),
                            Map::kInstanceDescriptorsOrBitField3Offset);
     }
-    if (map->prototype_transitions() != heap_->empty_fixed_array()) {
-      TagObject(map->prototype_transitions(), "(prototype transitions)");
-      SetInternalReference(obj,
-                           entry,
-                           "prototype_transitions",
-                           map->prototype_transitions(),
-                           Map::kPrototypeTransitionsOffset);
-    }
+    TagObject(map->prototype_transitions(), "(prototype transitions)");
+    SetInternalReference(obj, entry,
+                         "prototype_transitions", map->prototype_transitions(),
+                         Map::kPrototypeTransitionsOffset);
     SetInternalReference(obj, entry,
                          "code_cache", map->code_cache(),
                          Map::kCodeCacheOffset);
