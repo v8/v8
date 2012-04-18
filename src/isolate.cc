@@ -1854,6 +1854,9 @@ bool Isolate::Init(Deserializer* des) {
     LOG(this, LogCompiledFunctions());
   }
 
+  CHECK(OFFSET_OF(Isolate, state_) == Internals::kIsolateStateOffset);
+  CHECK(OFFSET_OF(Isolate, heap_.roots_) == Internals::kIsolateRootsOffset);
+
   state_ = INITIALIZED;
   time_millis_at_init_ = OS::TimeCurrentMillis();
   return true;

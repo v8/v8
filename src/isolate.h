@@ -1101,6 +1101,7 @@ class Isolate {
   };
 
   State state_;
+  Heap heap_;
   EntryStackItem* entry_stack_;
 
   // Allocate and insert PerIsolateThreadData into the ThreadDataTable
@@ -1161,7 +1162,6 @@ class Isolate {
   Mutex* break_access_;
   Atomic32 debugger_initialized_;
   Mutex* debugger_access_;
-  Heap heap_;
   Logger* logger_;
   StackGuard stack_guard_;
   StatsTable* stats_table_;
