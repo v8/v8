@@ -1,3 +1,15 @@
+2012-04-19: Version 3.10.4
+
+        Fixed issues when stressing compaction with WeakMaps.
+
+        Fixed missing GVN flag for new-space promotion. (Chromium issue 123919)
+
+        Simplify invocation sequence at monomorphic function invocation sites.
+        (issue 2079)
+
+        Performance and stability improvements on all platforms.
+
+
 2012-04-17: Version 3.10.3
 
         Fixed several bugs in heap profiles (including issue 2078).
