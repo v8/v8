@@ -1918,6 +1918,8 @@ class HBitNot: public HUnaryOperation {
   }
   virtual HType CalculateInferredType();
 
+  virtual HValue* Canonicalize();
+
   DECLARE_CONCRETE_INSTRUCTION(BitNot)
 
  protected:
