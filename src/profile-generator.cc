@@ -2655,11 +2655,39 @@ void V8HeapExplorer::SetGcSubrootReference(
     VisitorSynchronization::SyncTag tag, bool is_weak, Object* child_obj) {
   HeapEntry* child_entry = GetEntry(child_obj);
   if (child_entry != NULL) {
-    filler_->SetIndexedAutoIndexReference(
-        is_weak ? HeapGraphEdge::kWeak : HeapGraphEdge::kElement,
-        GetNthGcSubrootObject(tag), snapshot_->gc_subroot(tag),
-        child_obj, child_entry);
+    const char* name = GetStrongGcSubrootName(child_obj);
+    if (name != NULL) {
+      filler_->SetNamedReference(
+          HeapGraphEdge::kInternal,
+          GetNthGcSubrootObject(tag), snapshot_->gc_subroot(tag),
+          name,
+          child_obj, child_entry);
+    } else {
+      filler_->SetIndexedAutoIndexReference(
+          is_weak ? HeapGraphEdge::kWeak : HeapGraphEdge::kElement,
+          GetNthGcSubrootObject(tag), snapshot_->gc_subroot(tag),
+          child_obj, child_entry);
+    }
   }
+}
+
+
+const char* V8HeapExplorer::GetStrongGcSubrootName(Object* object) {
+  if (strong_gc_subroot_names_.is_empty()) {
+#define NAME_ENTRY(name) strong_gc_subroot_names_.SetTag(heap_->name(), #name);
+#define ROOT_NAME(type, name, camel_name) NAME_ENTRY(name)
+    STRONG_ROOT_LIST(ROOT_NAME)
+#undef ROOT_NAME
+#define STRUCT_MAP_NAME(NAME, Name, name) NAME_ENTRY(name##_map)
+    STRUCT_LIST(STRUCT_MAP_NAME)
+#undef STRUCT_MAP_NAME
+#define SYMBOL_NAME(name, str) NAME_ENTRY(name)
+    SYMBOL_LIST(SYMBOL_NAME)
+#undef SYMBOL_NAME
+#undef NAME_ENTRY
+    CHECK(!strong_gc_subroot_names_.is_empty());
+  }
+  return strong_gc_subroot_names_.GetTag(object);
 }
 
 

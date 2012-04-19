@@ -897,6 +897,7 @@ class HeapObjectsSet {
   void Insert(Object* obj);
   const char* GetTag(Object* obj);
   void SetTag(Object* obj, const char* tag);
+  bool is_empty() const { return entries_.occupancy() == 0; }
 
  private:
   HashMap entries_;
@@ -1025,6 +1026,7 @@ class V8HeapExplorer : public HeapEntriesAllocator {
   void SetGcRootsReference(VisitorSynchronization::SyncTag tag);
   void SetGcSubrootReference(
       VisitorSynchronization::SyncTag tag, bool is_weak, Object* child);
+  const char* GetStrongGcSubrootName(Object* object);
   void SetObjectName(HeapObject* object);
   void TagObject(Object* obj, const char* tag);
 
@@ -1039,6 +1041,7 @@ class V8HeapExplorer : public HeapEntriesAllocator {
   SnapshottingProgressReportingInterface* progress_;
   SnapshotFillerInterface* filler_;
   HeapObjectsSet objects_tags_;
+  HeapObjectsSet strong_gc_subroot_names_;
 
   static HeapObject* const kGcRootsObject;
   static HeapObject* const kFirstGcSubrootObject;

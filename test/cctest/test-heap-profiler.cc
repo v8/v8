@@ -4,6 +4,8 @@
 
 #include "v8.h"
 
+#include <ctype.h>
+
 #include "cctest.h"
 #include "heap-profiler.h"
 #include "snapshot.h"
@@ -1620,4 +1622,26 @@ TEST(PersistentHandleCount) {
            v8::HeapProfiler::GetPersistentHandleCount());
   p_BBB.Dispose();
   CHECK_EQ(global_handle_count, v8::HeapProfiler::GetPersistentHandleCount());
+}
+
+
+TEST(AllStrongGcRootsHaveNames) {
+  v8::HandleScope scope;
+  LocalContext env;
+
+  CompileRun("foo = {};");
+  const v8::HeapSnapshot* snapshot =
+      v8::HeapProfiler::TakeSnapshot(v8_str("snapshot"));
+  const v8::HeapGraphNode* gc_roots = GetNode(
+      snapshot->GetRoot(), v8::HeapGraphNode::kObject, "(GC roots)");
+  CHECK_NE(NULL, gc_roots);
+  const v8::HeapGraphNode* strong_roots = GetNode(
+      gc_roots, v8::HeapGraphNode::kObject, "(Strong roots)");
+  CHECK_NE(NULL, strong_roots);
+  for (int i = 0; i < strong_roots->GetChildrenCount(); ++i) {
+    const v8::HeapGraphEdge* edge = strong_roots->GetChild(i);
+    CHECK_EQ(v8::HeapGraphEdge::kInternal, edge->GetType());
+    v8::String::AsciiValue name(edge->GetName());
+    CHECK(isalpha(**name));
+  }
 }
