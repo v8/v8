@@ -210,8 +210,8 @@ class LInstruction: public ZoneObject {
   virtual void CompileToNative(LCodeGen* generator) = 0;
   virtual const char* Mnemonic() const = 0;
   virtual void PrintTo(StringStream* stream);
-  virtual void PrintDataTo(StringStream* stream) = 0;
-  virtual void PrintOutputOperandTo(StringStream* stream) = 0;
+  virtual void PrintDataTo(StringStream* stream);
+  virtual void PrintOutputOperandTo(StringStream* stream);
 
   enum Opcode {
     // Declare a unique enum value for each instruction.
@@ -305,9 +305,6 @@ class LTemplateInstruction: public LInstruction {
 
   int TempCount() { return T; }
   LOperand* TempAt(int i) { return temps_[i]; }
-
-  virtual void PrintDataTo(StringStream* stream);
-  virtual void PrintOutputOperandTo(StringStream* stream);
 
  protected:
   EmbeddedContainer<LOperand*, R> results_;
