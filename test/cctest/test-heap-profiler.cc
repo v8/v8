@@ -2,9 +2,9 @@
 //
 // Tests for heap profiler
 
-#include "v8.h"
-
 #include <ctype.h>
+
+#include "v8.h"
 
 #include "cctest.h"
 #include "heap-profiler.h"
