@@ -2515,15 +2515,17 @@ void V8HeapExplorer::SetInternalReference(HeapObject* parent_obj,
                                           Object* child_obj,
                                           int field_offset) {
   HeapEntry* child_entry = GetEntry(child_obj);
-  if (child_entry != NULL) {
+  if (child_entry == NULL) return;
+  // We have to use raw_unchecked_* version because when the
+  // empty_fixed_array itself is being processed all its inline properties
+  // are invalid and the check in empty_fixed_array() function fails.
+  if (child_obj != heap_->raw_unchecked_empty_fixed_array()) {
     filler_->SetNamedReference(HeapGraphEdge::kInternal,
-                               parent_obj,
-                               parent_entry,
+                               parent_obj, parent_entry,
                                reference_name,
-                               child_obj,
-                               child_entry);
-    IndexedReferencesExtractor::MarkVisitedField(parent_obj, field_offset);
+                               child_obj, child_entry);
   }
+  IndexedReferencesExtractor::MarkVisitedField(parent_obj, field_offset);
 }
 
 
@@ -2533,15 +2535,15 @@ void V8HeapExplorer::SetInternalReference(HeapObject* parent_obj,
                                           Object* child_obj,
                                           int field_offset) {
   HeapEntry* child_entry = GetEntry(child_obj);
-  if (child_entry != NULL) {
+  if (child_entry == NULL) return;
+  // See the comment regarding raw_unchecked_* above.
+  if (child_obj != heap_->raw_unchecked_empty_fixed_array()) {
     filler_->SetNamedReference(HeapGraphEdge::kInternal,
-                               parent_obj,
-                               parent_entry,
+                               parent_obj, parent_entry,
                                collection_->names()->GetName(index),
-                               child_obj,
-                               child_entry);
-    IndexedReferencesExtractor::MarkVisitedField(parent_obj, field_offset);
+                               child_obj, child_entry);
   }
+  IndexedReferencesExtractor::MarkVisitedField(parent_obj, field_offset);
 }
 
 
