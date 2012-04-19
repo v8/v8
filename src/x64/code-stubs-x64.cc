@@ -3628,8 +3628,9 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
 
 
 void CallFunctionStub::Generate(MacroAssembler* masm) {
-  // rdi : the function to call
   // rbx : cache cell for call target
+  // rdi : the function to call
+  Isolate* isolate = masm->isolate();
   Label slow, non_function;
 
   // The receiver might implicitly be the global object. This is
@@ -3644,9 +3645,9 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
     __ CompareRoot(rax, Heap::kTheHoleValueRootIndex);
     __ j(not_equal, &call, Label::kNear);
     // Patch the receiver on the stack with the global receiver object.
-    __ movq(rbx, GlobalObjectOperand());
-    __ movq(rbx, FieldOperand(rbx, GlobalObject::kGlobalReceiverOffset));
-    __ movq(Operand(rsp, (argc_ + 1) * kPointerSize), rbx);
+    __ movq(rcx, GlobalObjectOperand());
+    __ movq(rcx, FieldOperand(rcx, GlobalObject::kGlobalReceiverOffset));
+    __ movq(Operand(rsp, (argc_ + 1) * kPointerSize), rcx);
     __ bind(&call);
   }
 
@@ -3655,6 +3656,10 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
   // Goto slow case if we do not have a function.
   __ CmpObjectType(rdi, JS_FUNCTION_TYPE, rcx);
   __ j(not_equal, &slow);
+
+  if (RecordCallTarget()) {
+    GenerateRecordCallTarget(masm);
+  }
 
   // Fast-case: Just invoke the function.
   ParameterCount actual(argc_);
@@ -3678,6 +3683,13 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
 
   // Slow-case: Non-function called.
   __ bind(&slow);
+  if (RecordCallTarget()) {
+    // If there is a call target cache, mark it megamorphic in the
+    // non-function case.  MegamorphicSentinel is an immortal immovable
+    // object (undefined) so no write barrier is needed.
+    __ Move(FieldOperand(rbx, JSGlobalPropertyCell::kValueOffset),
+            TypeFeedbackCells::MegamorphicSentinel(isolate));
+  }
   // Check for function proxy.
   __ CmpInstanceType(rcx, JS_FUNCTION_PROXY_TYPE);
   __ j(not_equal, &non_function);
