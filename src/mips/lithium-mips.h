@@ -1453,6 +1453,7 @@ class LInvokeFunction: public LTemplateInstruction<1, 1, 0> {
   virtual void PrintDataTo(StringStream* stream);
 
   int arity() const { return hydrogen()->argument_count() - 1; }
+  Handle<JSFunction> known_function() { return hydrogen()->known_function(); }
 };
 
 
@@ -1732,6 +1733,8 @@ class LStoreKeyedFastDoubleElement: public LTemplateInstruction<0, 3, 0> {
   LOperand* elements() { return inputs_[0]; }
   LOperand* key() { return inputs_[1]; }
   LOperand* value() { return inputs_[2]; }
+
+  bool NeedsCanonicalization() { return hydrogen()->NeedsCanonicalization(); }
 };
 
 

@@ -1153,6 +1153,20 @@ double power_double_int(double x, int y) {
 
 
 double power_double_double(double x, double y) {
+#ifdef __MINGW64_VERSION_MAJOR
+  // MinGW64 has a custom implementation for pow.  This handles certain
+  // special cases that are different.
+  if ((x == 0.0 || isinf(x)) && isfinite(y)) {
+    double f;
+    if (modf(y, &f) != 0.0) return ((x == 0.0) ^ (y > 0)) ? V8_INFINITY : 0;
+  }
+
+  if (x == 2.0) {
+    int y_int = static_cast<int>(y);
+    if (y == y_int) return ldexp(1.0, y_int);
+  }
+#endif
+
   // The checks for special cases can be dropped in ia32 because it has already
   // been done in generated code before bailing out here.
   if (isnan(y) || ((x == 1 || x == -1) && isinf(y))) return OS::nan_value();

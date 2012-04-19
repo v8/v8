@@ -680,6 +680,7 @@ const int kExternalArrayTypeCount =
 
 STATIC_CHECK(JS_OBJECT_TYPE == Internals::kJSObjectType);
 STATIC_CHECK(FIRST_NONSTRING_TYPE == Internals::kFirstNonstringType);
+STATIC_CHECK(ODDBALL_TYPE == Internals::kOddballType);
 STATIC_CHECK(FOREIGN_TYPE == Internals::kForeignType);
 
 
@@ -7635,6 +7636,10 @@ class Oddball: public HeapObject {
   typedef FixedBodyDescriptor<kToStringOffset,
                               kToNumberOffset + kPointerSize,
                               kSize> BodyDescriptor;
+
+  STATIC_CHECK(kKindOffset == Internals::kOddballKindOffset);
+  STATIC_CHECK(kNull == Internals::kNullOddballKind);
+  STATIC_CHECK(kUndefined == Internals::kUndefinedOddballKind);
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(Oddball);

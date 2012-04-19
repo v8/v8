@@ -6095,37 +6095,11 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   // a2: result string length
   __ lw(t0, FieldMemOperand(v0, String::kLengthOffset));
   __ sra(t0, t0, 1);
+  // Return original string.
   __ Branch(&return_v0, eq, a2, Operand(t0));
-
-
-  Label result_longer_than_two;
-  // Check for special case of two character ASCII string, in which case
-  // we do a lookup in the symbol table first.
-  __ li(t0, 2);
-  __ Branch(&result_longer_than_two, gt, a2, Operand(t0));
-  __ Branch(&runtime, lt, a2, Operand(t0));
-
-  __ JumpIfInstanceTypeIsNotSequentialAscii(a1, a1, &runtime);
-
-  // Get the two characters forming the sub string.
-  __ Addu(v0, v0, Operand(a3));
-  __ lbu(a3, FieldMemOperand(v0, SeqAsciiString::kHeaderSize));
-  __ lbu(t0, FieldMemOperand(v0, SeqAsciiString::kHeaderSize + 1));
-
-  // Try to lookup two character string in symbol table.
-  Label make_two_character_string;
-  StringHelper::GenerateTwoCharacterSymbolTableProbe(
-      masm, a3, t0, a1, t1, t2, t3, t4, &make_two_character_string);
-  __ jmp(&return_v0);
-
-  // a2: result string length.
-  // a3: two characters combined into halfword in little endian byte order.
-  __ bind(&make_two_character_string);
-  __ AllocateAsciiString(v0, a2, t0, t1, t4, &runtime);
-  __ sh(a3, FieldMemOperand(v0, SeqAsciiString::kHeaderSize));
-  __ jmp(&return_v0);
-
-  __ bind(&result_longer_than_two);
+  // Longer than original string's length or negative: unsafe arguments.
+  __ Branch(&runtime, hi, a2, Operand(t0));
+  // Shorter than original string's length: an actual substring.
 
   // Deal with different string types: update the index if necessary
   // and put the underlying string into t1.

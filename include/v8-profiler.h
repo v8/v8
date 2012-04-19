@@ -446,9 +446,8 @@ class V8EXPORT HeapProfiler {
    * time interval entry contains information on the current heap objects
    * population size. The method also updates aggregated statistics and
    * reports updates for all previous time intervals via the OutputStream
-   * object. Updates on each time interval are provided as a triplet. It has
-   * time interval index, updated heap objects count and updated heap objects
-   * size.
+   * object. Updates on each time interval are provided as a stream of the
+   * HeapStatsUpdate structure instances.
    *
    * StartHeapObjectsTracking must be called before the first call to this
    * method.
@@ -556,6 +555,19 @@ class V8EXPORT RetainedObjectInfo {  // NOLINT
  private:
   RetainedObjectInfo(const RetainedObjectInfo&);
   RetainedObjectInfo& operator=(const RetainedObjectInfo&);
+};
+
+
+/**
+ * A struct for exporting HeapStats data from V8, using "push" model.
+ * See HeapProfiler::PushHeapObjectsStats.
+ */
+struct HeapStatsUpdate {
+  HeapStatsUpdate(uint32_t index, uint32_t count, uint32_t size)
+    : index(index), count(count), size(size) { }
+  uint32_t index;  // Index of the time interval that was changed.
+  uint32_t count;  // New value of count field for the interval with this index.
+  uint32_t size;  // New value of size field for the interval with this index.
 };
 
 

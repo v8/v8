@@ -1024,6 +1024,7 @@ REGULAR_NODE(IfStatement)
 REGULAR_NODE(ContinueStatement)
 REGULAR_NODE(BreakStatement)
 REGULAR_NODE(ReturnStatement)
+REGULAR_NODE(SwitchStatement)
 REGULAR_NODE(Conditional)
 REGULAR_NODE(Literal)
 REGULAR_NODE(ObjectLiteral)
@@ -1056,7 +1057,6 @@ DONT_OPTIMIZE_NODE(TryFinallyStatement)
 DONT_OPTIMIZE_NODE(DebuggerStatement)
 DONT_OPTIMIZE_NODE(SharedFunctionInfoLiteral)
 
-DONT_INLINE_NODE(SwitchStatement)
 DONT_INLINE_NODE(FunctionLiteral)
 DONT_INLINE_NODE(RegExpLiteral)  // TODO(1322): Allow materialized literals.
 DONT_INLINE_NODE(ArrayLiteral)  // TODO(1322): Allow materialized literals.

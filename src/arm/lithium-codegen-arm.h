@@ -215,12 +215,18 @@ class LCodeGen BASE_EMBEDDED {
                                int argc,
                                LInstruction* instr);
 
+  enum R1State {
+    R1_UNINITIALIZED,
+    R1_CONTAINS_TARGET
+  };
+
   // Generate a direct call to a known function.  Expects the function
   // to be in r1.
   void CallKnownFunction(Handle<JSFunction> function,
                          int arity,
                          LInstruction* instr,
-                         CallKind call_kind);
+                         CallKind call_kind,
+                         R1State r1_state);
 
   void LoadHeapObject(Register result, Handle<HeapObject> object);
 

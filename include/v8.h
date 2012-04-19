@@ -863,13 +863,13 @@ class Value : public Data {
    * Returns true if this value is the undefined value.  See ECMA-262
    * 4.3.10.
    */
-  V8EXPORT bool IsUndefined() const;
+  inline bool IsUndefined() const;
 
   /**
    * Returns true if this value is the null value.  See ECMA-262
    * 4.3.11.
    */
-  V8EXPORT bool IsNull() const;
+  inline bool IsNull() const;
 
    /**
    * Returns true if this value is true.
@@ -983,7 +983,11 @@ class Value : public Data {
   V8EXPORT bool StrictEquals(Handle<Value> that) const;
 
  private:
+  inline bool QuickIsUndefined() const;
+  inline bool QuickIsNull() const;
   inline bool QuickIsString() const;
+  V8EXPORT bool FullIsUndefined() const;
+  V8EXPORT bool FullIsNull() const;
   V8EXPORT bool FullIsString() const;
 };
 
@@ -3742,13 +3746,18 @@ class V8EXPORT Locker {
 
 
 /**
+ * A struct for exporting HeapStats data from V8, using "push" model.
+ */
+struct HeapStatsUpdate;
+
+
+/**
  * An interface for exporting data from V8, using "push" model.
  */
 class V8EXPORT OutputStream {  // NOLINT
  public:
   enum OutputEncoding {
-    kAscii = 0,  // 7-bit ASCII.
-    kUint32 = 1
+    kAscii = 0  // 7-bit ASCII.
   };
   enum WriteResult {
     kContinue = 0,
@@ -3772,9 +3781,7 @@ class V8EXPORT OutputStream {  // NOLINT
    * can be stopped by returning kAbort as function result. EndOfStream
    * will not be called in case writing was aborted.
    */
-  // TODO(loislo): Make this pure virtual when WebKit's V8 bindings
-  // have been updated.
-  virtual WriteResult WriteUint32Chunk(uint32_t* data, int count) {
+  virtual WriteResult WriteHeapStatsChunk(HeapStatsUpdate* data, int count) {
     return kAbort;
   };
 };
@@ -3891,6 +3898,7 @@ class Internals {
   static const int kStringResourceOffset =
       InternalConstants<kApiPointerSize>::kStringResourceOffset;
 
+  static const int kOddballKindOffset = 3 * kApiPointerSize;
   static const int kForeignAddressOffset = kApiPointerSize;
   static const int kJSObjectHeaderSize = 3 * kApiPointerSize;
   static const int kFullStringRepresentationMask = 0x07;
@@ -3898,7 +3906,11 @@ class Internals {
 
   static const int kJSObjectType = 0xaa;
   static const int kFirstNonstringType = 0x80;
+  static const int kOddballType = 0x82;
   static const int kForeignType = 0x85;
+
+  static const int kUndefinedOddballKind = 5;
+  static const int kNullOddballKind = 3;
 
   static inline bool HasHeapObjectTag(internal::Object* value) {
     return ((reinterpret_cast<intptr_t>(value) & kHeapObjectTagMask) ==
@@ -3917,6 +3929,11 @@ class Internals {
     typedef internal::Object O;
     O* map = ReadField<O*>(obj, kHeapObjectMapOffset);
     return ReadField<uint8_t>(map, kMapInstanceTypeOffset);
+  }
+
+  static inline int GetOddballKind(internal::Object* obj) {
+    typedef internal::Object O;
+    return SmiValue(ReadField<O*>(obj, kOddballKindOffset));
   }
 
   static inline void* GetExternalPointerFromSmi(internal::Object* value) {
@@ -4197,6 +4214,42 @@ String::ExternalStringResource* String::GetExternalStringResource() const {
   VerifyExternalStringResource(result);
 #endif
   return result;
+}
+
+
+bool Value::IsUndefined() const {
+#ifdef V8_ENABLE_CHECKS
+  return FullIsUndefined();
+#else
+  return QuickIsUndefined();
+#endif
+}
+
+bool Value::QuickIsUndefined() const {
+  typedef internal::Object O;
+  typedef internal::Internals I;
+  O* obj = *reinterpret_cast<O**>(const_cast<Value*>(this));
+  if (!I::HasHeapObjectTag(obj)) return false;
+  if (I::GetInstanceType(obj) != I::kOddballType) return false;
+  return (I::GetOddballKind(obj) == I::kUndefinedOddballKind);
+}
+
+
+bool Value::IsNull() const {
+#ifdef V8_ENABLE_CHECKS
+  return FullIsNull();
+#else
+  return QuickIsNull();
+#endif
+}
+
+bool Value::QuickIsNull() const {
+  typedef internal::Object O;
+  typedef internal::Internals I;
+  O* obj = *reinterpret_cast<O**>(const_cast<Value*>(this));
+  if (!I::HasHeapObjectTag(obj)) return false;
+  if (I::GetInstanceType(obj) != I::kOddballType) return false;
+  return (I::GetOddballKind(obj) == I::kNullOddballKind);
 }
 
 

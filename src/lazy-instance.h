@@ -250,7 +250,7 @@ struct LazyInstance {
 
 
 template <typename T,
-          typename CreateTrait = DefaultConstructTrait<T>,
+          typename CreateTrait = DefaultCreateTrait<T>,
           typename InitOnceTrait = SingleThreadInitOnceTrait,
           typename DestroyTrait = LeakyInstanceTrait<T> >
 struct LazyDynamicInstance {
