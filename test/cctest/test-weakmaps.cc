@@ -65,6 +65,7 @@ static void WeakPointerCallback(v8::Persistent<v8::Value> handle, void* id) {
 
 
 TEST(Weakness) {
+  FLAG_incremental_marking = false;
   LocalContext context;
   v8::HandleScope scope;
   Handle<JSWeakMap> weakmap = AllocateJSWeakMap();
