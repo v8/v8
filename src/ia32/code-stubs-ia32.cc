@@ -1734,6 +1734,9 @@ void BinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
             FloatingPointHelper::ARGS_IN_REGISTERS);
         FloatingPointHelper::CheckFloatOperandsAreInt32(masm, &not_int32);
         if (op_ == Token::MOD) {
+          // The operands are now on the FPU stack, but we don't need them.
+          __ fstp(0);
+          __ fstp(0);
           GenerateRegisterArgsPush(masm);
           __ InvokeBuiltin(Builtins::MOD, JUMP_FUNCTION);
         } else {
