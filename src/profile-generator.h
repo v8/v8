@@ -980,6 +980,7 @@ class V8HeapExplorer : public HeapEntriesAllocator {
   void ExtractPropertyReferences(JSObject* js_obj, HeapEntry* entry);
   void ExtractElementReferences(JSObject* js_obj, HeapEntry* entry);
   void ExtractInternalReferences(JSObject* js_obj, HeapEntry* entry);
+  bool IsEssentialObject(Object* object);
   void SetClosureReference(HeapObject* parent_obj,
                            HeapEntry* parent,
                            String* reference_name,

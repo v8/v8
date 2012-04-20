@@ -1645,3 +1645,22 @@ TEST(AllStrongGcRootsHaveNames) {
     CHECK(isalpha(**name));
   }
 }
+
+
+TEST(NoRefsToNonEssentialEntries) {
+  v8::HandleScope scope;
+  LocalContext env;
+  CompileRun("global_object = {};\n");
+  const v8::HeapSnapshot* snapshot =
+      v8::HeapProfiler::TakeSnapshot(v8_str("snapshot"));
+  const v8::HeapGraphNode* global = GetGlobalObject(snapshot);
+  const v8::HeapGraphNode* global_object =
+      GetProperty(global, v8::HeapGraphEdge::kProperty, "global_object");
+  CHECK_NE(NULL, global_object);
+  const v8::HeapGraphNode* properties =
+      GetProperty(global_object, v8::HeapGraphEdge::kInternal, "properties");
+  CHECK_EQ(NULL, properties);
+  const v8::HeapGraphNode* elements =
+      GetProperty(global_object, v8::HeapGraphEdge::kInternal, "elements");
+  CHECK_EQ(NULL, elements);
+}

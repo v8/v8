@@ -2480,6 +2480,20 @@ void V8HeapExplorer::SetObjectName(HeapObject* object) {
 }
 
 
+bool V8HeapExplorer::IsEssentialObject(Object* object) {
+  // We have to use raw_unchecked_* versions because checked versions
+  // would fail during iteration over object properties.
+  return object->IsHeapObject()
+      && !object->IsOddball()
+      && object != heap_->raw_unchecked_empty_byte_array()
+      && object != heap_->raw_unchecked_empty_fixed_array()
+      && object != heap_->raw_unchecked_empty_descriptor_array()
+      && object != heap_->raw_unchecked_fixed_array_map()
+      && object != heap_->raw_unchecked_global_property_cell_map()
+      && object != heap_->raw_unchecked_shared_function_info_map();
+}
+
+
 void V8HeapExplorer::SetClosureReference(HeapObject* parent_obj,
                                          HeapEntry* parent_entry,
                                          String* reference_name,
@@ -2535,10 +2549,7 @@ void V8HeapExplorer::SetInternalReference(HeapObject* parent_obj,
                                           int field_offset) {
   HeapEntry* child_entry = GetEntry(child_obj);
   if (child_entry == NULL) return;
-  // We have to use raw_unchecked_* version because when the
-  // empty_fixed_array itself is being processed all its inline properties
-  // are invalid and the check in empty_fixed_array() function fails.
-  if (child_obj != heap_->raw_unchecked_empty_fixed_array()) {
+  if (IsEssentialObject(child_obj)) {
     filler_->SetNamedReference(HeapGraphEdge::kInternal,
                                parent_obj, parent_entry,
                                reference_name,
@@ -2555,8 +2566,7 @@ void V8HeapExplorer::SetInternalReference(HeapObject* parent_obj,
                                           int field_offset) {
   HeapEntry* child_entry = GetEntry(child_obj);
   if (child_entry == NULL) return;
-  // See the comment regarding raw_unchecked_* above.
-  if (child_obj != heap_->raw_unchecked_empty_fixed_array()) {
+  if (IsEssentialObject(child_obj)) {
     filler_->SetNamedReference(HeapGraphEdge::kInternal,
                                parent_obj, parent_entry,
                                collection_->names()->GetName(index),
@@ -2571,7 +2581,7 @@ void V8HeapExplorer::SetHiddenReference(HeapObject* parent_obj,
                                         int index,
                                         Object* child_obj) {
   HeapEntry* child_entry = GetEntry(child_obj);
-  if (child_entry != NULL) {
+  if (child_entry != NULL && IsEssentialObject(child_obj)) {
     filler_->SetIndexedReference(HeapGraphEdge::kHidden,
                                  parent_obj,
                                  parent_entry,
@@ -2711,11 +2721,7 @@ const char* V8HeapExplorer::GetStrongGcSubrootName(Object* object) {
 
 
 void V8HeapExplorer::TagObject(Object* obj, const char* tag) {
-  if (obj->IsHeapObject() &&
-      !obj->IsOddball() &&
-      obj != heap_->raw_unchecked_empty_byte_array() &&
-      obj != heap_->raw_unchecked_empty_fixed_array() &&
-      obj != heap_->raw_unchecked_empty_descriptor_array()) {
+  if (IsEssentialObject(obj)) {
     objects_tags_.SetTag(obj, tag);
   }
 }
