@@ -97,6 +97,8 @@ namespace internal {
   F(AllocateInNewSpace, 1, 1) \
   F(SetNativeFlag, 1, 1) \
   F(StoreArrayLiteralElement, 5, 1) \
+  F(DebugCallbackSupportsStepping, 1, 1) \
+  F(DebugPrepareStepInIfStepping, 1, 1) \
   \
   /* Array join support */ \
   F(PushIfAbsent, 2, 1) \

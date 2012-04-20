@@ -4696,6 +4696,36 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StoreArrayLiteralElement) {
 }
 
 
+// Check whether debugger and is about to step into the callback that is passed
+// to a built-in function such as Array.forEach.
+RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugCallbackSupportsStepping) {
+  if (!isolate->IsDebuggerActive()) return isolate->heap()->false_value();
+  CONVERT_ARG_CHECKED(Object, callback, 0);
+  // We do not step into the callback if it's a builtin or not even a function.
+  if (!callback->IsJSFunction() || JSFunction::cast(callback)->IsBuiltin()) {
+    return isolate->heap()->false_value();
+  }
+  return isolate->heap()->true_value();
+}
+
+
+// Set one shot breakpoints for the callback function that is passed to a
+// built-in function such as Array.forEach to enable stepping into the callback.
+RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugPrepareStepInIfStepping) {
+  Debug* debug = isolate->debug();
+  if (!debug->IsStepping()) return NULL;
+  CONVERT_ARG_CHECKED(Object, callback, 0);
+  HandleScope scope(isolate);
+  Handle<SharedFunctionInfo> shared_info(JSFunction::cast(callback)->shared());
+  // When leaving the callback, step out has been activated, but not performed
+  // if we do not leave the builtin.  To be able to step into the callback
+  // again, we need to clear the step out at this point.
+  debug->ClearStepOut();
+  debug->FloodWithOneShot(shared_info);
+  return NULL;
+}
+
+
 // Set a local property, even if it is READ_ONLY.  If the property does not
 // exist, it will be added with attributes NONE.
 RUNTIME_FUNCTION(MaybeObject*, Runtime_IgnoreAttributesAndSetProperty) {

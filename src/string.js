@@ -266,6 +266,10 @@ function StringReplace(search, replace) {
   // Compute the string to replace with.
   if (IS_SPEC_FUNCTION(replace)) {
     var receiver = %GetDefaultReceiver(replace);
+    // Prepare break slots for debugger step in.
+    if (%DebugCallbackSupportsStepping(replace)) {
+      %DebugPrepareStepInIfStepping(replace);
+    }
     builder.add(%_CallFunction(receiver,
                                search,
                                start,
@@ -434,24 +438,49 @@ function StringReplaceGlobalRegExpWithFunction(subject, regexp, replace) {
     var match_start = 0;
     var override = new InternalArray(null, 0, subject);
     var receiver = %GetDefaultReceiver(replace);
-    while (i < len) {
-      var elem = res[i];
-      if (%_IsSmi(elem)) {
-        if (elem > 0) {
-          match_start = (elem >> 11) + (elem & 0x7ff);
+    if (%DebugCallbackSupportsStepping(replace)) {
+      while (i < len) {
+        var elem = res[i];
+        if (%_IsSmi(elem)) {
+          if (elem > 0) {
+            match_start = (elem >> 11) + (elem & 0x7ff);
+          } else {
+            match_start = res[++i] - elem;
+          }
         } else {
-          match_start = res[++i] - elem;
+          override[0] = elem;
+          override[1] = match_start;
+          lastMatchInfoOverride = override;
+          %DebugPrepareStepInIfStepping(replace);
+          var func_result =
+              %_CallFunction(receiver, elem, match_start, subject, replace);
+          res[i] = TO_STRING_INLINE(func_result);
+          match_start += elem.length;
         }
-      } else {
-        override[0] = elem;
-        override[1] = match_start;
-        lastMatchInfoOverride = override;
-        var func_result =
-            %_CallFunction(receiver, elem, match_start, subject, replace);
-        res[i] = TO_STRING_INLINE(func_result);
-        match_start += elem.length;
+        i++;
       }
-      i++;
+    } else {
+      // This is a duplicate of the previous loop sans debug stepping.
+      while (i < len) {
+        var elem = res[i];
+        if (%_IsSmi(elem)) {
+          if (elem > 0) {
+            match_start = (elem >> 11) + (elem & 0x7ff);
+          } else {
+            match_start = res[++i] - elem;
+          }
+        } else {
+          override[0] = elem;
+          override[1] = match_start;
+          lastMatchInfoOverride = override;
+          var func_result =
+              %_CallFunction(receiver, elem, match_start, subject, replace);
+          res[i] = TO_STRING_INLINE(func_result);
+          match_start += elem.length;
+        }
+        i++;
+      }
+      // End of duplicate.
     }
   } else {
     var receiver = %GetDefaultReceiver(replace);
@@ -491,9 +520,12 @@ function StringReplaceNonGlobalRegExpWithFunction(subject, regexp, replace) {
   if (m == 1) {
     // No captures, only the match, which is always valid.
     var s = SubString(subject, index, endOfMatch);
+    // Prepare break slots for debugger step in.
+    if (%DebugCallbackSupportsStepping(replace)) {
+      %DebugPrepareStepInIfStepping(replace);
+    }
     // Don't call directly to avoid exposing the built-in global object.
-    replacement =
-        %_CallFunction(receiver, s, index, subject, replace);
+    replacement = %_CallFunction(receiver, s, index, subject, replace);
   } else {
     var parameters = new InternalArray(m + 2);
     for (var j = 0; j < m; j++) {
