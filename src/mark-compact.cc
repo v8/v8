@@ -296,8 +296,6 @@ void MarkCompactCollector::CollectGarbage() {
 
   if (!collect_maps_) ReattachInitialMaps();
 
-  heap_->isolate()->inner_pointer_to_code_cache()->Flush();
-
   Finish();
 
   tracer_ = NULL;
@@ -3422,6 +3420,8 @@ void MarkCompactCollector::EvacuateNewSpaceAndCandidates() {
   // Visit invalidated code (we ignored all slots on it) and clear mark-bits
   // under it.
   ProcessInvalidatedCode(&updating_visitor);
+
+  heap_->isolate()->inner_pointer_to_code_cache()->Flush();
 
 #ifdef DEBUG
   if (FLAG_verify_heap) {
