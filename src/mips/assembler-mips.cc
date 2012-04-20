@@ -2137,19 +2137,12 @@ Address Assembler::target_address_at(Address pc) {
 }
 
 
-#define MIPS_QNAN_HI 0x7ff7ffff
-#define MIPS_QNAN_LO 0xffffffff
-
-
+// MIPS and ia32 use opposite encoding for qNaN and sNaN, such that ia32
+// qNaN is a MIPS sNaN, and ia32 sNaN is MIPS qNaN. If running from a heap
+// snapshot generated on ia32, the resulting MIPS sNaN must be quieted.
+// OS::nan_value() returns a qNaN.
 void Assembler::QuietNaN(HeapObject* object) {
-  // Mips has a different encoding of qNaN than ia32, so any heap NaN built
-  // with simulator must be re-encoded for the snapshot. Performance hit not
-  // critical at mksnapshot/build time.  We can't use set_value because that
-  // will put the NaN in an fp register, which changes the bits.
-  uint64_t mips_qnan_bits =
-      (static_cast<uint64_t>(MIPS_QNAN_HI) << 32) | MIPS_QNAN_LO;
-  Address value_ptr = object->address() + HeapNumber::kValueOffset;
-  memcpy(value_ptr, &mips_qnan_bits, sizeof(mips_qnan_bits));
+  HeapNumber::cast(object)->set_value(OS::nan_value());
 }
 
 

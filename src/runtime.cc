@@ -8432,6 +8432,12 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CheckIsBootstrapping) {
 }
 
 
+RUNTIME_FUNCTION(MaybeObject*, Runtime_GetRootNaN) {
+  RUNTIME_ASSERT(isolate->bootstrapper()->IsActive());
+  return isolate->heap()->nan_value();
+}
+
+
 RUNTIME_FUNCTION(MaybeObject*, Runtime_Call) {
   HandleScope scope(isolate);
   ASSERT(args.length() >= 2);
