@@ -12376,6 +12376,46 @@ THREADED_TEST(ForceDeleteIC) {
 }
 
 
+TEST(InlinedFunctionAcrossContexts) {
+  i::FLAG_allow_natives_syntax = true;
+  v8::HandleScope outer_scope;
+  v8::Persistent<v8::Context> ctx1 = v8::Context::New();
+  v8::Persistent<v8::Context> ctx2 = v8::Context::New();
+  ctx1->Enter();
+
+  {
+    v8::HandleScope inner_scope;
+    CompileRun("var G = 42; function foo() { return G; }");
+    v8::Local<v8::Value> foo = ctx1->Global()->Get(v8_str("foo"));
+    ctx2->Enter();
+    ctx2->Global()->Set(v8_str("o"), foo);
+    v8::Local<v8::Value> res = CompileRun(
+        "function f() { return o(); }"
+        "for (var i = 0; i < 10; ++i) f();"
+        "%OptimizeFunctionOnNextCall(f);"
+        "f();");
+    CHECK_EQ(42, res->Int32Value());
+    ctx2->Exit();
+    v8::Handle<v8::String> G_property = v8::String::New("G");
+    CHECK(ctx1->Global()->ForceDelete(G_property));
+    ctx2->Enter();
+    ExpectString(
+        "(function() {"
+        "  try {"
+        "    return f();"
+        "  } catch(e) {"
+        "    return e.toString();"
+        "  }"
+        " })()",
+        "ReferenceError: G is not defined");
+    ctx2->Exit();
+    ctx1->Exit();
+    ctx1.Dispose();
+  }
+  ctx2.Dispose();
+}
+
+
 v8::Persistent<Context> calling_context0;
 v8::Persistent<Context> calling_context1;
 v8::Persistent<Context> calling_context2;
@@ -16407,4 +16447,3 @@ TEST(SecondaryStubCache) {
 TEST(PrimaryStubCache) {
   StubCacheHelper(false);
 }
-

@@ -2813,9 +2813,13 @@ bool v8::Object::ForceDelete(v8::Handle<Value> key) {
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
   i::Handle<i::Object> key_obj = Utils::OpenHandle(*key);
 
-  // When turning on access checks for a global object deoptimize all functions
-  // as optimized code does not always handle access checks.
-  i::Deoptimizer::DeoptimizeGlobalObject(*self);
+  // When deleting a property on the global object using ForceDelete
+  // deoptimize all functions as optimized code does not check for the hole
+  // value with DontDelete properties.  We have to deoptimize all contexts
+  // because of possible cross-context inlined functions.
+  if (self->IsJSGlobalProxy() || self->IsGlobalObject()) {
+    i::Deoptimizer::DeoptimizeAll();
+  }
 
   EXCEPTION_PREAMBLE(isolate);
   i::Handle<i::Object> obj = i::ForceDeleteProperty(self, key_obj);
