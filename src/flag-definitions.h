@@ -165,7 +165,12 @@ DEFINE_bool(eliminate_dead_phis, true, "eliminate dead phis")
 DEFINE_bool(use_gvn, true, "use hydrogen global value numbering")
 DEFINE_bool(use_canonicalizing, true, "use hydrogen instruction canonicalizing")
 DEFINE_bool(use_inlining, true, "use function inlining")
-DEFINE_bool(limit_inlining, true, "limit code size growth from inlining")
+DEFINE_int(max_inlined_source_size, 600,
+           "maximum source size in bytes considered for a single inlining")
+DEFINE_int(max_inlined_nodes, 196,
+           "maximum number of AST nodes considered for a single inlining")
+DEFINE_int(max_inlined_nodes_cumulative, 196,
+           "maximum cumulative number of AST nodes considered for inlining")
 DEFINE_bool(loop_invariant_code_motion, true, "loop invariant code motion")
 DEFINE_bool(collect_megamorphic_maps_from_stub_cache,
             true,
