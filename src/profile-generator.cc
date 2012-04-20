@@ -2024,6 +2024,7 @@ void V8HeapExplorer::ExtractReferences(HeapObject* obj) {
                            bound ? "bindings" : "literals",
                            js_fun->literals_or_bindings(),
                            JSFunction::kLiteralsOffset);
+      TagObject(shared_info, "(shared function info)");
       SetInternalReference(js_fun, entry,
                            "shared", shared_info,
                            JSFunction::kSharedFunctionInfoOffset);
@@ -2095,8 +2096,9 @@ void V8HeapExplorer::ExtractReferences(HeapObject* obj) {
     SetInternalReference(obj, entry,
                          "name", shared->name(),
                          SharedFunctionInfo::kNameOffset);
+    TagObject(shared->code(), "(code)");
     SetInternalReference(obj, entry,
-                         "code", shared->unchecked_code(),
+                         "code", shared->code(),
                          SharedFunctionInfo::kCodeOffset);
     TagObject(shared->scope_info(), "(function scope info)");
     SetInternalReference(obj, entry,
@@ -2108,6 +2110,23 @@ void V8HeapExplorer::ExtractReferences(HeapObject* obj) {
     SetInternalReference(obj, entry,
                          "script", shared->script(),
                          SharedFunctionInfo::kScriptOffset);
+    TagObject(shared->construct_stub(), "(code)");
+    SetInternalReference(obj, entry,
+                         "construct_stub", shared->construct_stub(),
+                         SharedFunctionInfo::kConstructStubOffset);
+    SetInternalReference(obj, entry,
+                         "function_data", shared->function_data(),
+                         SharedFunctionInfo::kFunctionDataOffset);
+    SetInternalReference(obj, entry,
+                         "debug_info", shared->debug_info(),
+                         SharedFunctionInfo::kDebugInfoOffset);
+    SetInternalReference(obj, entry,
+                         "inferred_name", shared->inferred_name(),
+                         SharedFunctionInfo::kInferredNameOffset);
+    SetInternalReference(obj, entry,
+                         "this_property_assignments",
+                         shared->this_property_assignments(),
+                         SharedFunctionInfo::kThisPropertyAssignmentsOffset);
     SetWeakReference(obj, entry,
                      1, shared->initial_map(),
                      SharedFunctionInfo::kInitialMapOffset);
