@@ -132,6 +132,8 @@ public:
 
 // Flags for language modes and experimental language features.
 DEFINE_bool(use_strict, false, "enforce strict mode")
+DEFINE_bool(es52_globals, false,
+            "activate new semantics for global var declarations")
 
 DEFINE_bool(harmony_typeof, false, "enable harmony semantics for typeof")
 DEFINE_bool(harmony_scoping, false, "enable harmony block scoping")

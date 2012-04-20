@@ -1300,7 +1300,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DeclareGlobals) {
       // value of the variable if the property is already there.
       // Do the lookup locally only, see ES5 errata.
       LookupResult lookup(isolate);
-      global->LocalLookup(*name, &lookup);
+      if (FLAG_es52_globals)
+        global->LocalLookup(*name, &lookup);
+      else
+        global->Lookup(*name, &lookup);
       if (lookup.IsProperty()) {
         // We found an existing property. Unless it was an interceptor
         // that claims the property is absent, skip this declaration.

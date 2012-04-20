@@ -12483,6 +12483,7 @@ THREADED_TEST(GetCallingContext) {
 // Check that a variable declaration with no explicit initialization
 // value does shadow an existing property in the prototype chain.
 THREADED_TEST(InitGlobalVarInProtoChain) {
+  i::FLAG_es52_globals = true;
   v8::HandleScope scope;
   LocalContext context;
   // Introduce a variable in the prototype chain.
