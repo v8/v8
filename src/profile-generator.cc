@@ -2068,19 +2068,30 @@ void V8HeapExplorer::ExtractReferences(HeapObject* obj) {
       SetInternalReference(obj, entry, "parent", ss->parent());
     }
     extract_indexed_refs = false;
-  } else if (obj->IsGlobalContext()) {
+  } else if (obj->IsContext()) {
     Context* context = Context::cast(obj);
-    TagObject(context->jsfunction_result_caches(),
-              "(context func. result caches)");
-    TagObject(context->normalized_map_cache(), "(context norm. map cache)");
-    TagObject(context->runtime_context(), "(runtime context)");
-    TagObject(context->data(), "(context data)");
-    for (int i = Context::FIRST_WEAK_SLOT;
-         i < Context::GLOBAL_CONTEXT_SLOTS;
-         ++i) {
-      SetWeakReference(obj, entry,
-                       i, context->get(i),
-                       FixedArray::OffsetOfElementAt(i));
+#define EXTRACT_CONTEXT_FIELD(index, type, name) \
+    SetInternalReference(context, entry, #name, context->get(Context::index), \
+        FixedArray::OffsetOfElementAt(Context::index));
+    EXTRACT_CONTEXT_FIELD(CLOSURE_INDEX, JSFunction, closure);
+    EXTRACT_CONTEXT_FIELD(PREVIOUS_INDEX, Context, previous);
+    EXTRACT_CONTEXT_FIELD(EXTENSION_INDEX, Object, extension);
+    EXTRACT_CONTEXT_FIELD(GLOBAL_INDEX, GlobalObject, global);
+    if (obj->IsGlobalContext()) {
+      TagObject(context->jsfunction_result_caches(),
+                "(context func. result caches)");
+      TagObject(context->normalized_map_cache(), "(context norm. map cache)");
+      TagObject(context->runtime_context(), "(runtime context)");
+      TagObject(context->data(), "(context data)");
+      GLOBAL_CONTEXT_FIELDS(EXTRACT_CONTEXT_FIELD);
+#undef EXTRACT_CONTEXT_FIELD
+      for (int i = Context::FIRST_WEAK_SLOT;
+           i < Context::GLOBAL_CONTEXT_SLOTS;
+           ++i) {
+        SetWeakReference(obj, entry,
+                         i, context->get(i),
+                         FixedArray::OffsetOfElementAt(i));
+      }
     }
   } else if (obj->IsMap()) {
     Map* map = Map::cast(obj);
@@ -2187,9 +2198,6 @@ void V8HeapExplorer::ExtractClosureReferences(JSObject* js_obj,
   if (!js_obj->IsJSFunction()) return;
 
   JSFunction* func = JSFunction::cast(js_obj);
-  Context* context = func->context()->declaration_context();
-  ScopeInfo* scope_info = context->closure()->shared()->scope_info();
-
   if (func->shared()->bound()) {
     FixedArray* bindings = func->function_bindings();
     SetNativeBindReference(js_obj, entry, "bound_this",
@@ -2205,6 +2213,8 @@ void V8HeapExplorer::ExtractClosureReferences(JSObject* js_obj,
                              bindings->get(i));
     }
   } else {
+    Context* context = func->context()->declaration_context();
+    ScopeInfo* scope_info = context->closure()->shared()->scope_info();
     // Add context allocated locals.
     int context_locals = scope_info->ContextLocalCount();
     for (int i = 0; i < context_locals; ++i) {
