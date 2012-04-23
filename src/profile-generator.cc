@@ -2037,6 +2037,17 @@ void V8HeapExplorer::ExtractReferences(HeapObject* obj) {
            i += kPointerSize) {
         SetWeakReference(js_fun, entry, i, *HeapObject::RawField(js_fun, i), i);
       }
+    } else if (obj->IsGlobalObject()) {
+      GlobalObject* global_obj = GlobalObject::cast(obj);
+      SetInternalReference(global_obj, entry,
+                           "builtins", global_obj->builtins(),
+                           GlobalObject::kBuiltinsOffset);
+      SetInternalReference(global_obj, entry,
+                           "global_context", global_obj->global_context(),
+                           GlobalObject::kGlobalContextOffset);
+      SetInternalReference(global_obj, entry,
+                           "global_receiver", global_obj->global_receiver(),
+                           GlobalObject::kGlobalReceiverOffset);
     }
     TagObject(js_obj->properties(), "(object properties)");
     SetInternalReference(obj, entry,
