@@ -110,22 +110,17 @@ void LInstruction::PrintTo(StringStream* stream) {
 }
 
 
-template<int R, int I, int T>
-void LTemplateInstruction<R, I, T>::PrintDataTo(StringStream* stream) {
+void LInstruction::PrintDataTo(StringStream* stream) {
   stream->Add("= ");
-  for (int i = 0; i < inputs_.length(); i++) {
+  for (int i = 0; i < InputCount(); i++) {
     if (i > 0) stream->Add(" ");
-    inputs_[i]->PrintTo(stream);
+    InputAt(i)->PrintTo(stream);
   }
 }
 
 
-template<int R, int I, int T>
-void LTemplateInstruction<R, I, T>::PrintOutputOperandTo(StringStream* stream) {
-  for (int i = 0; i < results_.length(); i++) {
-    if (i > 0) stream->Add(" ");
-    results_[i]->PrintTo(stream);
-  }
+void LInstruction::PrintOutputOperandTo(StringStream* stream) {
+  if (HasResult()) result()->PrintTo(stream);
 }
 
 
@@ -1285,6 +1280,7 @@ LInstruction* LChunkBuilder::DoBitwise(HBitwise* instr) {
 LInstruction* LChunkBuilder::DoBitNot(HBitNot* instr) {
   ASSERT(instr->value()->representation().IsInteger32());
   ASSERT(instr->representation().IsInteger32());
+  if (instr->HasNoUses()) return NULL;
   LOperand* input = UseRegisterAtStart(instr->value());
   LBitNotI* result = new(zone()) LBitNotI(input);
   return DefineSameAsFirst(result);

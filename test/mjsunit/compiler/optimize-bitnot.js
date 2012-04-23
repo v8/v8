@@ -1,4 +1,4 @@
-// Copyright 2008 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,21 +25,18 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Make sure that we're not overwriting global
-// properties defined in the prototype chain too
-// early when shadowing them with var/const
-// declarations.
+// Flags: --allow-natives-syntax
 
-// This exercises the code in runtime.cc in
-// DeclareGlobal...Locally().
+function f(x) {
+  return ~~x;
+}
 
-// Flags: --es52_globals
-
-this.__proto__.foo = 42;
-this.__proto__.bar = 87;
-
-eval("assertEquals(undefined, foo); var foo = 87;");
-assertEquals(87, foo);
-
-eval("assertEquals(undefined, bar); const bar = 42;");
-assertEquals(42, bar);
+f(42);
+f(42);
+%OptimizeFunctionOnNextCall(f);
+assertEquals(42, f(42));
+assertEquals(42, f(42.5));
+assertEquals(1/0, 1/f(-0));
+assertEquals(-1, f(0xffffffff));
+assertEquals(0, f(undefined));
+assertEquals(0, f("abc"));

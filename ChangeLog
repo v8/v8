@@ -1,3 +1,14 @@
+2012-04-23: Version 3.10.5
+
+        Put new global var semantics behind a flag until WebKit tests are
+        cleaned up.
+
+        Enabled stepping into callback passed to builtins.
+        (Chromium issue 109564)
+
+        Performance and stability improvements on all platforms.
+
+
 2012-04-19: Version 3.10.4
 
         Fixed issues when stressing compaction with WeakMaps.

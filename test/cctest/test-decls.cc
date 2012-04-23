@@ -521,6 +521,7 @@ class ExistsInPrototypeContext: public DeclarationContext {
 
 
 TEST(ExistsInPrototype) {
+  i::FLAG_es52_globals = true;
   HandleScope scope;
 
   // Sanity check to make sure that the holder of the interceptor
@@ -583,6 +584,7 @@ class AbsentInPrototypeContext: public DeclarationContext {
 
 
 TEST(AbsentInPrototype) {
+  i::FLAG_es52_globals = true;
   HandleScope scope;
 
   { AbsentInPrototypeContext context;

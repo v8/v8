@@ -1444,8 +1444,6 @@ void Serializer::ObjectSerializer::Serialize() {
     sink_->PutSection(space, "NewPageSpace");
   }
 
-  if (object_->IsNaN()) Assembler::QuietNaN(object_);
-
   // Serialize the map (first word of the object).
   serializer_->SerializeObject(object_->map(), kPlain, kStartOfObject);
 

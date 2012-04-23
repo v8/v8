@@ -2388,6 +2388,18 @@ void FullCodeGenerator::EmitCallWithStub(Call* expr, CallFunctionFlags flags) {
   }
   // Record source position for debugger.
   SetSourcePosition(expr->position());
+
+  // Record call targets in unoptimized code, but not in the snapshot.
+  if (!Serializer::enabled()) {
+    flags = static_cast<CallFunctionFlags>(flags | RECORD_CALL_TARGET);
+    Handle<Object> uninitialized =
+        TypeFeedbackCells::UninitializedSentinel(isolate());
+    Handle<JSGlobalPropertyCell> cell =
+        isolate()->factory()->NewJSGlobalPropertyCell(uninitialized);
+    RecordTypeFeedbackCell(expr->id(), cell);
+    __ li(a2, Operand(cell));
+  }
+
   CallFunctionStub stub(arg_count, flags);
   __ lw(a1, MemOperand(sp, (arg_count + 1) * kPointerSize));
   __ CallStub(&stub);

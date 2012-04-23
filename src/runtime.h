@@ -77,6 +77,7 @@ namespace internal {
   \
   /* Utilities */ \
   F(CheckIsBootstrapping, 0, 1) \
+  F(GetRootNaN, 0, 1) \
   F(Call, -1 /* >= 2 */, 1) \
   F(Apply, 5, 1) \
   F(GetFunctionDelegate, 1, 1) \
@@ -97,6 +98,8 @@ namespace internal {
   F(AllocateInNewSpace, 1, 1) \
   F(SetNativeFlag, 1, 1) \
   F(StoreArrayLiteralElement, 5, 1) \
+  F(DebugCallbackSupportsStepping, 1, 1) \
+  F(DebugPrepareStepInIfStepping, 1, 1) \
   \
   /* Array join support */ \
   F(PushIfAbsent, 2, 1) \

@@ -492,8 +492,7 @@ function StringReplaceNonGlobalRegExpWithFunction(subject, regexp, replace) {
     // No captures, only the match, which is always valid.
     var s = SubString(subject, index, endOfMatch);
     // Don't call directly to avoid exposing the built-in global object.
-    replacement =
-        %_CallFunction(receiver, s, index, subject, replace);
+    replacement = %_CallFunction(receiver, s, index, subject, replace);
   } else {
     var parameters = new InternalArray(m + 2);
     for (var j = 0; j < m; j++) {

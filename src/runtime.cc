@@ -1300,7 +1300,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DeclareGlobals) {
       // value of the variable if the property is already there.
       // Do the lookup locally only, see ES5 errata.
       LookupResult lookup(isolate);
-      global->LocalLookup(*name, &lookup);
+      if (FLAG_es52_globals)
+        global->LocalLookup(*name, &lookup);
+      else
+        global->Lookup(*name, &lookup);
       if (lookup.IsProperty()) {
         // We found an existing property. Unless it was an interceptor
         // that claims the property is absent, skip this declaration.
@@ -4693,6 +4696,36 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StoreArrayLiteralElement) {
     object_array->set(store_index, *value);
   }
   return *object;
+}
+
+
+// Check whether debugger and is about to step into the callback that is passed
+// to a built-in function such as Array.forEach.
+RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugCallbackSupportsStepping) {
+  if (!isolate->IsDebuggerActive()) return isolate->heap()->false_value();
+  CONVERT_ARG_CHECKED(Object, callback, 0);
+  // We do not step into the callback if it's a builtin or not even a function.
+  if (!callback->IsJSFunction() || JSFunction::cast(callback)->IsBuiltin()) {
+    return isolate->heap()->false_value();
+  }
+  return isolate->heap()->true_value();
+}
+
+
+// Set one shot breakpoints for the callback function that is passed to a
+// built-in function such as Array.forEach to enable stepping into the callback.
+RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugPrepareStepInIfStepping) {
+  Debug* debug = isolate->debug();
+  if (!debug->IsStepping()) return NULL;
+  CONVERT_ARG_CHECKED(Object, callback, 0);
+  HandleScope scope(isolate);
+  Handle<SharedFunctionInfo> shared_info(JSFunction::cast(callback)->shared());
+  // When leaving the callback, step out has been activated, but not performed
+  // if we do not leave the builtin.  To be able to step into the callback
+  // again, we need to clear the step out at this point.
+  debug->ClearStepOut();
+  debug->FloodWithOneShot(shared_info);
+  return NULL;
 }
 
 
@@ -8396,6 +8429,12 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CompileForOnStackReplacement) {
 RUNTIME_FUNCTION(MaybeObject*, Runtime_CheckIsBootstrapping) {
   RUNTIME_ASSERT(isolate->bootstrapper()->IsActive());
   return isolate->heap()->undefined_value();
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_GetRootNaN) {
+  RUNTIME_ASSERT(isolate->bootstrapper()->IsActive());
+  return isolate->heap()->nan_value();
 }
 
 

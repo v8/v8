@@ -1027,13 +1027,28 @@ function ArrayFilter(f, receiver) {
   var result = new $Array();
   var accumulator = new InternalArray();
   var accumulator_length = 0;
-  for (var i = 0; i < length; i++) {
-    if (i in array) {
-      var element = array[i];
-      if (%_CallFunction(receiver, element, i, array, f)) {
-        accumulator[accumulator_length++] = element;
+  if (%DebugCallbackSupportsStepping(f)) {
+    for (var i = 0; i < length; i++) {
+      if (i in array) {
+        var element = array[i];
+        // Prepare break slots for debugger step in.
+        %DebugPrepareStepInIfStepping(f);
+        if (%_CallFunction(receiver, element, i, array, f)) {
+          accumulator[accumulator_length++] = element;
+        }
       }
     }
+  } else {
+    // This is a duplicate of the previous loop sans debug stepping.
+    for (var i = 0; i < length; i++) {
+      if (i in array) {
+        var element = array[i];
+        if (%_CallFunction(receiver, element, i, array, f)) {
+          accumulator[accumulator_length++] = element;
+        }
+      }
+    }
+    // End of duplicate.
   }
   %MoveArrayContents(accumulator, result);
   return result;
@@ -1059,12 +1074,24 @@ function ArrayForEach(f, receiver) {
   } else if (!IS_SPEC_OBJECT(receiver)) {
     receiver = ToObject(receiver);
   }
-
-  for (var i = 0; i < length; i++) {
-    if (i in array) {
-      var element = array[i];
-      %_CallFunction(receiver, element, i, array, f);
+  if (%DebugCallbackSupportsStepping(f)) {
+    for (var i = 0; i < length; i++) {
+      if (i in array) {
+        var element = array[i];
+        // Prepare break slots for debugger step in.
+        %DebugPrepareStepInIfStepping(f);
+        %_CallFunction(receiver, element, i, array, f);
+      }
     }
+  } else {
+    // This is a duplicate of the previous loop sans debug stepping.
+    for (var i = 0; i < length; i++) {
+      if (i in array) {
+        var element = array[i];
+        %_CallFunction(receiver, element, i, array, f);
+      }
+    }
+    // End of duplicate.
   }
 }
 
@@ -1091,11 +1118,24 @@ function ArraySome(f, receiver) {
     receiver = ToObject(receiver);
   }
 
-  for (var i = 0; i < length; i++) {
-    if (i in array) {
-      var element = array[i];
-      if (%_CallFunction(receiver, element, i, array, f)) return true;
+  if (%DebugCallbackSupportsStepping(f)) {
+    for (var i = 0; i < length; i++) {
+      if (i in array) {
+        var element = array[i];
+        // Prepare break slots for debugger step in.
+        %DebugPrepareStepInIfStepping(f);
+        if (%_CallFunction(receiver, element, i, array, f)) return true;
+      }
     }
+  } else {
+    // This is a duplicate of the previous loop sans debug stepping.
+    for (var i = 0; i < length; i++) {
+      if (i in array) {
+        var element = array[i];
+        if (%_CallFunction(receiver, element, i, array, f)) return true;
+      }
+    }
+    // End of duplicate.
   }
   return false;
 }
@@ -1121,11 +1161,24 @@ function ArrayEvery(f, receiver) {
     receiver = ToObject(receiver);
   }
 
-  for (var i = 0; i < length; i++) {
-    if (i in array) {
-      var element = array[i];
-      if (!%_CallFunction(receiver, element, i, array, f)) return false;
+  if (%DebugCallbackSupportsStepping(f)) {
+    for (var i = 0; i < length; i++) {
+      if (i in array) {
+        var element = array[i];
+        // Prepare break slots for debugger step in.
+        %DebugPrepareStepInIfStepping(f);
+        if (!%_CallFunction(receiver, element, i, array, f)) return false;
+      }
     }
+  } else {
+    // This is a duplicate of the previous loop sans debug stepping.
+    for (var i = 0; i < length; i++) {
+      if (i in array) {
+        var element = array[i];
+        if (!%_CallFunction(receiver, element, i, array, f)) return false;
+      }
+    }
+    // End of duplicate.
   }
   return true;
 }
@@ -1152,11 +1205,24 @@ function ArrayMap(f, receiver) {
 
   var result = new $Array();
   var accumulator = new InternalArray(length);
-  for (var i = 0; i < length; i++) {
-    if (i in array) {
-      var element = array[i];
-      accumulator[i] = %_CallFunction(receiver, element, i, array, f);
+  if (%DebugCallbackSupportsStepping(f)) {
+    for (var i = 0; i < length; i++) {
+      if (i in array) {
+        var element = array[i];
+        // Prepare break slots for debugger step in.
+        %DebugPrepareStepInIfStepping(f);
+        accumulator[i] = %_CallFunction(receiver, element, i, array, f);
+      }
     }
+  } else {
+    // This is a duplicate of the previous loop sans debug stepping.
+    for (var i = 0; i < length; i++) {
+      if (i in array) {
+        var element = array[i];
+        accumulator[i] = %_CallFunction(receiver, element, i, array, f);
+      }
+    }
+    // End of duplicate.
   }
   %MoveArrayContents(accumulator, result);
   return result;
@@ -1311,11 +1377,27 @@ function ArrayReduce(callback, current) {
   }
 
   var receiver = %GetDefaultReceiver(callback);
-  for (; i < length; i++) {
-    if (i in array) {
-      var element = array[i];
-      current = %_CallFunction(receiver, current, element, i, array, callback);
+
+  if (%DebugCallbackSupportsStepping(callback)) {
+    for (; i < length; i++) {
+      if (i in array) {
+        var element = array[i];
+        // Prepare break slots for debugger step in.
+        %DebugPrepareStepInIfStepping(callback);
+        current =
+          %_CallFunction(receiver, current, element, i, array, callback);
+      }
     }
+  } else {
+    // This is a duplicate of the previous loop sans debug stepping.
+    for (; i < length; i++) {
+      if (i in array) {
+        var element = array[i];
+        current =
+          %_CallFunction(receiver, current, element, i, array, callback);
+      }
+    }
+    // End of duplicate.
   }
   return current;
 }
@@ -1348,11 +1430,27 @@ function ArrayReduceRight(callback, current) {
   }
 
   var receiver = %GetDefaultReceiver(callback);
-  for (; i >= 0; i--) {
-    if (i in array) {
-      var element = array[i];
-      current = %_CallFunction(receiver, current, element, i, array, callback);
+
+  if (%DebugCallbackSupportsStepping(callback)) {
+    for (; i >= 0; i--) {
+      if (i in array) {
+        var element = array[i];
+        // Prepare break slots for debugger step in.
+        %DebugPrepareStepInIfStepping(callback);
+        current =
+          %_CallFunction(receiver, current, element, i, array, callback);
+      }
     }
+  } else {
+    // This is a duplicate of the previous loop sans debug stepping.
+    for (; i >= 0; i--) {
+      if (i in array) {
+        var element = array[i];
+        current =
+          %_CallFunction(receiver, current, element, i, array, callback);
+      }
+    }
+    // End of duplicate.
   }
   return current;
 }

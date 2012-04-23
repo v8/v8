@@ -2813,9 +2813,13 @@ bool v8::Object::ForceDelete(v8::Handle<Value> key) {
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
   i::Handle<i::Object> key_obj = Utils::OpenHandle(*key);
 
-  // When turning on access checks for a global object deoptimize all functions
-  // as optimized code does not always handle access checks.
-  i::Deoptimizer::DeoptimizeGlobalObject(*self);
+  // When deleting a property on the global object using ForceDelete
+  // deoptimize all functions as optimized code does not check for the hole
+  // value with DontDelete properties.  We have to deoptimize all contexts
+  // because of possible cross-context inlined functions.
+  if (self->IsJSGlobalProxy() || self->IsGlobalObject()) {
+    i::Deoptimizer::DeoptimizeAll();
+  }
 
   EXCEPTION_PREAMBLE(isolate);
   i::Handle<i::Object> obj = i::ForceDeleteProperty(self, key_obj);
@@ -6317,7 +6321,11 @@ static void SetFlagsFromString(const char* flags) {
 
 void Testing::PrepareStressRun(int run) {
   static const char* kLazyOptimizations =
-      "--prepare-always-opt --nolimit-inlining --noalways-opt";
+      "--prepare-always-opt "
+      "--max-inlined-source-size=999999 "
+      "--max-inlined-nodes=999999 "
+      "--max-inlined-nodes-cumulative=999999 "
+      "--noalways-opt";
   static const char* kForcedOptimizations = "--always-opt";
 
   // If deoptimization stressed turn on frequent deoptimization. If no value

@@ -5355,8 +5355,8 @@ bool HGraphBuilder::TryInline(CallKind call_kind,
 
   // Do a quick check on source code length to avoid parsing large
   // inlining candidates.
-  if ((FLAG_limit_inlining && target_shared->SourceSize() > kMaxSourceSize)
-      || target_shared->SourceSize() > kUnlimitedMaxSourceSize) {
+  if (target_shared->SourceSize() >
+      Min(FLAG_max_inlined_source_size, kUnlimitedMaxInlinedSourceSize)) {
     TraceInline(target, caller, "target text too big");
     return false;
   }
@@ -5372,8 +5372,7 @@ bool HGraphBuilder::TryInline(CallKind call_kind,
   }
 
   int nodes_added = target_shared->ast_node_count();
-  if ((FLAG_limit_inlining && nodes_added > kMaxInlinedSize) ||
-      nodes_added > kUnlimitedMaxInlinedSize) {
+  if (nodes_added > Min(FLAG_max_inlined_nodes, kUnlimitedMaxInlinedNodes)) {
     TraceInline(target, caller, "target AST is too large [early]");
     return false;
   }
@@ -5415,8 +5414,8 @@ bool HGraphBuilder::TryInline(CallKind call_kind,
   }
 
   // We don't want to add more than a certain number of nodes from inlining.
-  if ((FLAG_limit_inlining && inlined_count_ > kMaxInlinedNodes) ||
-      inlined_count_ > kUnlimitedMaxInlinedNodes) {
+  if (inlined_count_ > Min(FLAG_max_inlined_nodes_cumulative,
+                           kUnlimitedMaxInlinedNodesCumulative)) {
     TraceInline(target, caller, "cumulative AST node limit reached");
     return false;
   }
@@ -5443,8 +5442,7 @@ bool HGraphBuilder::TryInline(CallKind call_kind,
   // The following conditions must be checked again after re-parsing, because
   // earlier the information might not have been complete due to lazy parsing.
   nodes_added = function->ast_node_count();
-  if ((FLAG_limit_inlining && nodes_added > kMaxInlinedSize) ||
-      nodes_added > kUnlimitedMaxInlinedSize) {
+  if (nodes_added > Min(FLAG_max_inlined_nodes, kUnlimitedMaxInlinedNodes)) {
     TraceInline(target, caller, "target AST is too large [late]");
     return false;
   }
