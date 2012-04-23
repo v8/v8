@@ -33,9 +33,15 @@ def FAIL_OK = FAIL, OKAY
 # '__proto__' should be treated as a normal property in JSON.
 S15.12.2_A1: FAIL
 
+# Sequencing of getter side effects on receiver and argument properties
+# is wrong. The receiver callback should be called before any arguments
+# are evaluated.
 # V8 Bug: http://code.google.com/p/v8/issues/detail?id=691
 11.2.3-3_3: FAIL
 
+# Prototypal inheritance of properties does not maintain accessibility.
+# The [[CanPut]] operation should traverse the prototype chain to
+# determine whether given property is writable or not.
 # V8 Bug: http://code.google.com/p/v8/issues/detail?id=1475
 8.14.4-8-b_1: FAIL
 8.14.4-8-b_2: FAIL
@@ -43,9 +49,6 @@ S15.12.2_A1: FAIL
 15.2.3.6-4-410: FAIL
 15.2.3.6-4-415: FAIL
 15.2.3.6-4-420: FAIL
-
-# V8 Bug: http://code.google.com/p/v8/issues/detail?id=1982
-15.10.4.1-5: FAIL
 
 ##################### DELIBERATE INCOMPATIBILITIES #####################
 
