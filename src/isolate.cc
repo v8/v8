@@ -1857,12 +1857,12 @@ bool Isolate::Init(Deserializer* des) {
     LOG(this, LogCompiledFunctions());
   }
 
-  CHECK_EQ(OFFSET_OF(Isolate, state_),
-           static_cast<intptr_t>(Internals::kIsolateStateOffset));
-  CHECK_EQ(OFFSET_OF(Isolate, embedder_data_),
-           static_cast<intptr_t>(Internals::kIsolateEmbedderDataOffset));
-  CHECK_EQ(OFFSET_OF(Isolate, heap_.roots_),
-           static_cast<intptr_t>(Internals::kIsolateRootsOffset));
+  CHECK_EQ(static_cast<int>(OFFSET_OF(Isolate, state_)),
+           Internals::kIsolateStateOffset);
+  CHECK_EQ(static_cast<int>(OFFSET_OF(Isolate, embedder_data_)),
+           Internals::kIsolateEmbedderDataOffset);
+  CHECK_EQ(static_cast<int>(OFFSET_OF(Isolate, heap_.roots_)),
+           Internals::kIsolateRootsOffset);
 
   state_ = INITIALIZED;
   time_millis_at_init_ = OS::TimeCurrentMillis();
