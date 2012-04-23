@@ -1419,6 +1419,11 @@ class Heap {
     kRootListLength
   };
 
+  STATIC_CHECK(kUndefinedValueRootIndex == Internals::kUndefinedValueRootIndex);
+  STATIC_CHECK(kNullValueRootIndex == Internals::kNullValueRootIndex);
+  STATIC_CHECK(kTrueValueRootIndex == Internals::kTrueValueRootIndex);
+  STATIC_CHECK(kFalseValueRootIndex == Internals::kFalseValueRootIndex);
+
   MUST_USE_RESULT MaybeObject* NumberToString(
       Object* number, bool check_number_string_cache = true);
   MUST_USE_RESULT MaybeObject* Uint32ToString(
@@ -1613,6 +1618,8 @@ class Heap {
   // more expedient to get at the isolate directly from within Heap methods.
   Isolate* isolate_;
 
+  Object* roots_[kRootListLength];
+
   intptr_t code_range_size_;
   int reserved_semispace_size_;
   int max_semispace_size_;
@@ -1727,8 +1734,6 @@ class Heap {
   // Indicates that an allocation has failed in the old generation since the
   // last GC.
   int old_gen_exhausted_;
-
-  Object* roots_[kRootListLength];
 
   Object* global_contexts_list_;
 
