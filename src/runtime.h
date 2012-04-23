@@ -77,6 +77,7 @@ namespace internal {
   \
   /* Utilities */ \
   F(CheckIsBootstrapping, 0, 1) \
+  F(GetRootNaN, 0, 1) \
   F(Call, -1 /* >= 2 */, 1) \
   F(Apply, 5, 1) \
   F(GetFunctionDelegate, 1, 1) \

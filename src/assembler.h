@@ -62,6 +62,10 @@ class AssemblerBase: public Malloced {
   Isolate* isolate() const { return isolate_; }
   int jit_cookie() { return jit_cookie_; }
 
+  // Overwrite a host NaN with a quiet target NaN.  Used by mksnapshot for
+  // cross-snapshotting.
+  static void QuietNaN(HeapObject* nan) { }
+
  private:
   Isolate* isolate_;
   int jit_cookie_;
