@@ -2501,7 +2501,10 @@ bool V8HeapExplorer::IsEssentialObject(Object* object) {
       && object != heap_->raw_unchecked_empty_descriptor_array()
       && object != heap_->raw_unchecked_fixed_array_map()
       && object != heap_->raw_unchecked_global_property_cell_map()
-      && object != heap_->raw_unchecked_shared_function_info_map();
+      && object != heap_->raw_unchecked_shared_function_info_map()
+      && object != heap_->raw_unchecked_free_space_map()
+      && object != heap_->raw_unchecked_one_pointer_filler_map()
+      && object != heap_->raw_unchecked_two_pointer_filler_map();
 }
 
 
