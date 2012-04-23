@@ -196,6 +196,7 @@ macro SET_UTC_DATE_VALUE(arg, value) = (%DateSetValue(arg, value, 1));
 macro SET_LOCAL_DATE_VALUE(arg, value) = (%DateSetValue(arg, value, 0));
 
 # Last input and last subject of regexp matches.
+const LAST_SUBJECT_INDEX = 1;
 macro LAST_SUBJECT(array) = ((array)[1]);
 macro LAST_INPUT(array) = ((array)[2]);
 

@@ -237,10 +237,28 @@ function StringReplace(search, replace) {
                                                         replace);
       }
     } else {
-      return %StringReplaceRegExpWithString(subject,
-                                            search,
-                                            TO_STRING_INLINE(replace),
-                                            lastMatchInfo);
+      if (lastMatchInfoOverride == null) {
+        return %StringReplaceRegExpWithString(subject,
+                                              search,
+                                              TO_STRING_INLINE(replace),
+                                              lastMatchInfo);
+      } else {
+        // We use this hack to detect whether StringReplaceRegExpWithString
+        // found at least one hit.  In that case we need to remove any
+        // override.
+        var saved_subject = lastMatchInfo[LAST_SUBJECT_INDEX];
+        lastMatchInfo[LAST_SUBJECT_INDEX] = 0;
+        var answer = %StringReplaceRegExpWithString(subject,
+                                                    search,
+                                                    TO_STRING_INLINE(replace),
+                                                    lastMatchInfo);
+        if (%_IsSmi(lastMatchInfo[LAST_SUBJECT_INDEX])) {
+          lastMatchInfo[LAST_SUBJECT_INDEX] = saved_subject;
+        } else {
+          lastMatchInfoOverride = null;
+        }
+        return answer;
+      }
     }
   }
 
@@ -429,14 +447,22 @@ function StringReplaceGlobalRegExpWithFunction(subject, regexp, replace) {
     return subject;
   }
   var len = res.length;
-  var i = 0;
   if (NUMBER_OF_CAPTURES(lastMatchInfo) == 2) {
+    // If the number of captures is two then there are no explicit captures in
+    // the regexp, just the implicit capture that captures the whole match.  In
+    // this case we can simplify quite a bit and end up with something faster.
+    // The builder will consist of some integers that indicate slices of the
+    // input string and some replacements that were returned from the replace
+    // function.
     var match_start = 0;
     var override = new InternalArray(null, 0, subject);
     var receiver = %GetDefaultReceiver(replace);
-    while (i < len) {
+    for (var i = 0; i < len; i++) {
       var elem = res[i];
       if (%_IsSmi(elem)) {
+        // Integers represent slices of the original string.  Use these to
+        // get the offsets we need for the override array (so things like
+        // RegExp.leftContext work during the callback function.
         if (elem > 0) {
           match_start = (elem >> 11) + (elem & 0x7ff);
         } else {
@@ -448,23 +474,25 @@ function StringReplaceGlobalRegExpWithFunction(subject, regexp, replace) {
         lastMatchInfoOverride = override;
         var func_result =
             %_CallFunction(receiver, elem, match_start, subject, replace);
+        // Overwrite the i'th element in the results with the string we got
+        // back from the callback function.
         res[i] = TO_STRING_INLINE(func_result);
         match_start += elem.length;
       }
-      i++;
     }
   } else {
     var receiver = %GetDefaultReceiver(replace);
-    while (i < len) {
+    for (var i = 0; i < len; i++) {
       var elem = res[i];
       if (!%_IsSmi(elem)) {
         // elem must be an Array.
         // Use the apply argument as backing for global RegExp properties.
         lastMatchInfoOverride = elem;
         var func_result = %Apply(replace, receiver, elem, 0, elem.length);
+        // Overwrite the i'th element in the results with the string we got
+        // back from the callback function.
         res[i] = TO_STRING_INLINE(func_result);
       }
-      i++;
     }
   }
   var resultBuilder = new ReplaceResultBuilder(subject, res);
