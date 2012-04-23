@@ -132,7 +132,6 @@ class LCodeGen;
   V(LoadNamedField)                             \
   V(LoadNamedFieldPolymorphic)                  \
   V(LoadNamedGeneric)                           \
-  V(MathFloorOfDiv)                             \
   V(ModI)                                       \
   V(MulI)                                       \
   V(NumberTagD)                                 \
@@ -577,21 +576,6 @@ class LDivI: public LTemplateInstruction<1, 2, 0> {
 
   DECLARE_CONCRETE_INSTRUCTION(DivI, "div-i")
   DECLARE_HYDROGEN_ACCESSOR(Div)
-};
-
-
-class LMathFloorOfDiv: public LTemplateInstruction<1, 2, 1> {
- public:
-  LMathFloorOfDiv(LOperand* left,
-                  LOperand* right,
-                  LOperand* temp = NULL) {
-    inputs_[0] = left;
-    inputs_[1] = right;
-    temps_[0] = temp;
-  }
-
-  DECLARE_CONCRETE_INSTRUCTION(MathFloorOfDiv, "math-floor-of-div")
-  DECLARE_HYDROGEN_ACCESSOR(MathFloorOfDiv)
 };
 
 
@@ -2302,10 +2286,6 @@ class LChunkBuilder BASE_EMBEDDED {
 #define DECLARE_DO(type) LInstruction* Do##type(H##type* node);
   HYDROGEN_CONCRETE_INSTRUCTION_LIST(DECLARE_DO)
 #undef DECLARE_DO
-
-  static bool HasMagicNumberForDivisor(int32_t divisor);
-  static HValue* SimplifiedDividendForMathFloorOfDiv(HValue* val);
-  static HValue* SimplifiedDivisorForMathFloorOfDiv(HValue* val);
 
  private:
   enum Status {

@@ -40,9 +40,6 @@ class CompilerIntrinsics {
   // Returns number of zero bits following most significant 1 bit.
   // Undefined for zero value.
   INLINE(static int CountLeadingZeros(uint32_t value));
-
-  // Returns the number of bits set.
-  INLINE(static int CountSetBits(uint32_t value));
 };
 
 #ifdef __GNUC__
@@ -52,10 +49,6 @@ int CompilerIntrinsics::CountTrailingZeros(uint32_t value) {
 
 int CompilerIntrinsics::CountLeadingZeros(uint32_t value) {
   return __builtin_clz(value);
-}
-
-int CompilerIntrinsics::CountSetBits(uint32_t value) {
-  return __builtin_popcount(value);
 }
 
 #elif defined(_MSC_VER)
@@ -73,10 +66,6 @@ int CompilerIntrinsics::CountLeadingZeros(uint32_t value) {
   unsigned long result;  //NOLINT
   _BitScanReverse(&result, static_cast<long>(value));  //NOLINT
   return 31 - static_cast<int>(result);
-}
-
-int CompilerIntrinsics::CountSetBits(uint32_t value) {
-  return __popcnt(value);
 }
 
 #else

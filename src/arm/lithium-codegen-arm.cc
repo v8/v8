@@ -1034,100 +1034,6 @@ void LCodeGen::DoModI(LModI* instr) {
 }
 
 
-void LCodeGen::EmitSignedIntegerDivisionByConstant(
-    Register result,
-    Register dividend,
-    int32_t divisor,
-    Register remainder,
-    Register scratch,
-    LEnvironment* environment) {
-  ASSERT(!AreAliased(dividend, scratch, ip));
-  ASSERT(LChunkBuilder::HasMagicNumberForDivisor(divisor));
-
-  uint32_t divisor_abs = abs(divisor);
-
-  int32_t power_of_2_factor =
-    CompilerIntrinsics::CountTrailingZeros(divisor_abs);
-
-  switch (divisor_abs) {
-    case 0:
-      DeoptimizeIf(al, environment);
-      return;
-
-    case 1:
-      if (divisor > 0) {
-        __ Move(result, dividend);
-      } else {
-        __ rsb(result, dividend, Operand(0), SetCC);
-        DeoptimizeIf(vs, environment);
-      }
-      // Compute the remainder.
-      __ mov(remainder, Operand(0));
-      return;
-
-    default:
-      if (IsPowerOf2(divisor_abs)) {
-        // Branch and condition free code for integer division by a power
-        // of two.
-        int32_t power = WhichPowerOf2(divisor_abs);
-        if (power > 1) {
-          __ mov(scratch, Operand(dividend, ASR, power - 1));
-        }
-        __ add(scratch, dividend, Operand(scratch, LSR, 32 - power));
-        __ mov(result, Operand(scratch, ASR, power));
-        // Negate if necessary.
-        // We don't need to check for overflow because the case '-1' is
-        // handled separately.
-        if (divisor < 0) {
-          ASSERT(divisor != -1);
-          __ rsb(result, result, Operand(0));
-        }
-        // Compute the remainder.
-        if (divisor > 0) {
-          __ sub(remainder, dividend, Operand(result, LSL, power));
-        } else {
-          __ add(remainder, dividend, Operand(result, LSL, power));
-        }
-        return;
-      } else {
-        // Use magic numbers for a few specific divisors.
-        // Details and proofs can be found in:
-        // - Hacker's Delight, Henry S. Warren, Jr.
-        // - The PowerPC Compiler Writer’s Guide
-        // and probably many others.
-        //
-        // We handle
-        //   <divisor with magic numbers> * <power of 2>
-        // but not
-        //   <divisor with magic numbers> * <other divisor with magic numbers>
-        DivMagicNumbers magic_numbers =
-          DivMagicNumberFor(divisor_abs >> power_of_2_factor);
-        // Branch and condition free code for integer division by a power
-        // of two.
-        const int32_t M = magic_numbers.M;
-        const int32_t s = magic_numbers.s + power_of_2_factor;
-
-        __ mov(ip, Operand(M));
-        __ smull(ip, scratch, dividend, ip);
-        if (M < 0) {
-          __ add(scratch, scratch, Operand(dividend));
-        }
-        if (s > 0) {
-          __ mov(scratch, Operand(scratch, ASR, s));
-        }
-        __ add(result, scratch, Operand(dividend, LSR, 31));
-        if (divisor < 0) __ rsb(result, result, Operand(0));
-        // Compute the remainder.
-        __ mov(ip, Operand(divisor));
-        // This sequence could be replaced with 'mls' when
-        // it gets implemented.
-        __ mul(scratch, result, ip);
-        __ sub(remainder, dividend, scratch);
-      }
-  }
-}
-
-
 void LCodeGen::DoDivI(LDivI* instr) {
   class DeferredDivI: public LDeferredCode {
    public:
@@ -1206,34 +1112,6 @@ void LCodeGen::DoDivI(LDivI* instr) {
   __ bind(&deoptimize);
   DeoptimizeIf(al, instr->environment());
   __ bind(&done);
-}
-
-
-void LCodeGen::DoMathFloorOfDiv(LMathFloorOfDiv* instr) {
-  const Register result = ToRegister(instr->result());
-  const Register left = ToRegister(instr->InputAt(0));
-  const Register remainder = ToRegister(instr->TempAt(0));
-  const Register scratch = scratch0();
-
-  // We only optimize this for division by constants, because the standard
-  // integer division routine is usually slower than transitionning to VFP.
-  // This could be optimized on processors with SDIV available.
-  ASSERT(instr->InputAt(1)->IsConstantOperand());
-  int32_t divisor = ToInteger32(LConstantOperand::cast(instr->InputAt(1)));
-  if (divisor < 0) {
-    __ cmp(left, Operand(0));
-    DeoptimizeIf(eq, instr->environment());
-  }
-  EmitSignedIntegerDivisionByConstant(result,
-                                      left,
-                                      divisor,
-                                      remainder,
-                                      scratch,
-                                      instr->environment());
-  // We operated a truncating division. Correct the result if necessary.
-  __ cmp(remainder, Operand(0));
-  __ teq(remainder, Operand(divisor), ne);
-  __ sub(result, result, Operand(1), LeaveCC, mi);
 }
 
 
