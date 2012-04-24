@@ -140,6 +140,7 @@ class LChunkBuilder;
   V(LoadNamedField)                            \
   V(LoadNamedFieldPolymorphic)                 \
   V(LoadNamedGeneric)                          \
+  V(MathFloorOfDiv)                            \
   V(Mod)                                       \
   V(Mul)                                       \
   V(ObjectLiteral)                             \
@@ -1992,15 +1993,7 @@ class HUnaryMathOperation: public HTemplateInstruction<2> {
     }
   }
 
-  virtual HValue* Canonicalize() {
-    // If the input is integer32 then we replace the floor instruction
-    // with its inputs.  This happens before the representation changes are
-    // introduced.
-    if (op() == kMathFloor) {
-      if (value()->representation().IsInteger32()) return value();
-    }
-    return this;
-  }
+  virtual HValue* Canonicalize();
 
   BuiltinFunctionId op() const { return op_; }
   const char* OpName() const;
@@ -2755,6 +2748,25 @@ class HBitwiseBinaryOperation: public HBinaryOperation {
   virtual HType CalculateInferredType();
 
   DECLARE_ABSTRACT_INSTRUCTION(BitwiseBinaryOperation)
+};
+
+
+class HMathFloorOfDiv: public HBinaryOperation {
+ public:
+  HMathFloorOfDiv(HValue* context, HValue* left, HValue* right)
+      : HBinaryOperation(context, left, right) {
+    set_representation(Representation::Integer32());
+    SetFlag(kUseGVN);
+  }
+
+  virtual Representation RequiredInputRepresentation(int index) {
+    return Representation::Integer32();
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(MathFloorOfDiv)
+
+ protected:
+  virtual bool DataEquals(HValue* other) { return true; }
 };
 
 

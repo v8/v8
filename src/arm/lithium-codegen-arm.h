@@ -323,6 +323,17 @@ class LCodeGen BASE_EMBEDDED {
                     Register source,
                     int* offset);
 
+  // Emit optimized code for integer division.
+  // Inputs are signed.
+  // All registers are clobbered.
+  // If 'remainder' is no_reg, it is not computed.
+  void EmitSignedIntegerDivisionByConstant(Register result,
+                                           Register dividend,
+                                           int32_t divisor,
+                                           Register remainder,
+                                           Register scratch,
+                                           LEnvironment* environment);
+
   struct JumpTableEntry {
     explicit inline JumpTableEntry(Address entry)
         : label(),

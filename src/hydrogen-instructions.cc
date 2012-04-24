@@ -931,6 +931,62 @@ void HJSArrayLength::PrintDataTo(StringStream* stream) {
 }
 
 
+HValue* HUnaryMathOperation::Canonicalize() {
+  if (op() == kMathFloor) {
+    // If the input is integer32 then we replace the floor instruction
+    // with its input. This happens before the representation changes are
+    // introduced.
+    if (value()->representation().IsInteger32()) return value();
+
+#ifdef V8_TARGET_ARCH_ARM
+    if (value()->IsDiv() && (value()->UseCount() == 1)) {
+      // TODO(2038): Implement this optimization for non ARM architectures.
+      HDiv* hdiv = HDiv::cast(value());
+      HValue* left = hdiv->left();
+      HValue* right = hdiv->right();
+      // Try to simplify left and right values of the division.
+      HValue* new_left =
+        LChunkBuilder::SimplifiedDividendForMathFloorOfDiv(left);
+      HValue* new_right =
+        LChunkBuilder::SimplifiedDivisorForMathFloorOfDiv(right);
+
+      // Return if left or right are not optimizable.
+      if ((new_left == NULL) || (new_right == NULL)) return this;
+
+      // Insert the new values in the graph.
+      if (new_left->IsInstruction() &&
+          !HInstruction::cast(new_left)->IsLinked()) {
+        HInstruction::cast(new_left)->InsertBefore(this);
+      }
+      if (new_right->IsInstruction() &&
+          !HInstruction::cast(new_right)->IsLinked()) {
+        HInstruction::cast(new_right)->InsertBefore(this);
+      }
+      HMathFloorOfDiv* instr =  new HMathFloorOfDiv(context(),
+          new_left,
+          new_right);
+      // Replace this HMathFloor instruction by the new HMathFloorOfDiv.
+      instr->InsertBefore(this);
+      ReplaceAllUsesWith(instr);
+      Kill();
+      // We know the division had no other uses than this HMathFloor. Delete it.
+      // Also delete the arguments of the division if they are not used any
+      // more.
+      hdiv->DeleteAndReplaceWith(NULL);
+      ASSERT(left->IsChange() || left->IsConstant());
+      ASSERT(right->IsChange() || right->IsConstant());
+      if (left->HasNoUses())  left->DeleteAndReplaceWith(NULL);
+      if (right->HasNoUses())  right->DeleteAndReplaceWith(NULL);
+
+      // Return NULL to remove this instruction from the graph.
+      return NULL;
+    }
+#endif  // V8_TARGET_ARCH_ARM
+  }
+  return this;
+}
+
+
 HValue* HCheckInstanceType::Canonicalize() {
   if (check_ == IS_STRING &&
       !value()->type().IsUninitialized() &&

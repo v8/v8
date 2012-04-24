@@ -1305,6 +1305,12 @@ LInstruction* LChunkBuilder::DoDiv(HDiv* instr) {
 }
 
 
+LInstruction* LChunkBuilder::DoMathFloorOfDiv(HMathFloorOfDiv* instr) {
+  UNIMPLEMENTED();
+  return NULL;
+}
+
+
 LInstruction* LChunkBuilder::DoMod(HMod* instr) {
   if (instr->representation().IsInteger32()) {
     ASSERT(instr->left()->representation().IsInteger32());

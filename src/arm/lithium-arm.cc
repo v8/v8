@@ -1315,6 +1315,75 @@ LInstruction* LChunkBuilder::DoDiv(HDiv* instr) {
 }
 
 
+bool LChunkBuilder::HasMagicNumberForDivisor(int32_t divisor) {
+  uint32_t divisor_abs = abs(divisor);
+  // Dividing by 0, 1, and powers of 2 is easy.
+  // Note that IsPowerOf2(0) returns true;
+  ASSERT(IsPowerOf2(0) == true);
+  if (IsPowerOf2(divisor_abs)) return true;
+
+  // We have magic numbers for a few specific divisors.
+  // Details and proofs can be found in:
+  // - Hacker's Delight, Henry S. Warren, Jr.
+  // - The PowerPC Compiler Writer’s Guide
+  // and probably many others.
+  //
+  // We handle
+  //   <divisor with magic numbers> * <power of 2>
+  // but not
+  //   <divisor with magic numbers> * <other divisor with magic numbers>
+  int32_t power_of_2_factor =
+    CompilerIntrinsics::CountTrailingZeros(divisor_abs);
+  DivMagicNumbers magic_numbers =
+    DivMagicNumberFor(divisor_abs >> power_of_2_factor);
+  if (magic_numbers.M != InvalidDivMagicNumber.M) return true;
+
+  return false;
+}
+
+
+HValue* LChunkBuilder::SimplifiedDividendForMathFloorOfDiv(HValue* dividend) {
+  // A value with an integer representation does not need to be transformed.
+  if (dividend->representation().IsInteger32()) {
+    return dividend;
+  // A change from an integer32 can be replaced by the integer32 value.
+  } else if (dividend->IsChange() &&
+      HChange::cast(dividend)->from().IsInteger32()) {
+    return HChange::cast(dividend)->value();
+  }
+  return NULL;
+}
+
+
+HValue* LChunkBuilder::SimplifiedDivisorForMathFloorOfDiv(HValue* divisor) {
+  // Only optimize when we have magic numbers for the divisor.
+  // The standard integer division routine is usually slower than transitionning
+  // to VFP.
+  if (divisor->IsConstant() &&
+      HConstant::cast(divisor)->HasInteger32Value()) {
+    HConstant* constant_val = HConstant::cast(divisor);
+    int32_t int32_val = constant_val->Integer32Value();
+    if (LChunkBuilder::HasMagicNumberForDivisor(int32_val)) {
+      return constant_val->CopyToRepresentation(Representation::Integer32());
+    }
+  }
+  return NULL;
+}
+
+
+LInstruction* LChunkBuilder::DoMathFloorOfDiv(HMathFloorOfDiv* instr) {
+    HValue* right = instr->right();
+    LOperand* dividend = UseRegister(instr->left());
+    LOperand* divisor = UseRegisterOrConstant(right);
+    LOperand* remainder = TempRegister();
+    ASSERT(right->IsConstant() &&
+           HConstant::cast(right)->HasInteger32Value() &&
+           HasMagicNumberForDivisor(HConstant::cast(right)->Integer32Value()));
+    return AssignEnvironment(DefineAsRegister(
+          new LMathFloorOfDiv(dividend, divisor, remainder)));
+}
+
+
 LInstruction* LChunkBuilder::DoMod(HMod* instr) {
   if (instr->representation().IsInteger32()) {
     ASSERT(instr->left()->representation().IsInteger32());
