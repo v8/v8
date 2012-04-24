@@ -76,11 +76,6 @@ int CompilerIntrinsics::CountLeadingZeros(uint32_t value) {
 }
 
 int CompilerIntrinsics::CountSetBits(uint32_t value) {
-  // __popcnt is only supported from VS2008.
-#define _MSC_VER_VS2008 1500
-#if _MSC_VER >= _MSC_VER_VS2008
-  return __popcnt(value);
-#else
   // Manually count set bits.
   value = ((value >>  1) & 0x55555555) + (value & 0x55555555);
   value = ((value >>  2) & 0x33333333) + (value & 0x33333333);
@@ -88,8 +83,6 @@ int CompilerIntrinsics::CountSetBits(uint32_t value) {
   value = ((value >>  8) & 0x00ff00ff) + (value & 0x00ff00ff);
   value = ((value >> 16) & 0x0000ffff) + (value & 0x0000ffff);
   return value;
-#endif
-#undef _MSC_VER_VS2008
 }
 
 #else
