@@ -16504,3 +16504,21 @@ TEST(StaticGettersAfterDeath) {
   CHECK(v8::False(isolate).IsEmpty());
   CHECK_EQ(9, fatal_error_callback_counter);
 }
+
+
+TEST(IsolateEmbedderData) {
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  CHECK_EQ(NULL, isolate->GetData());
+  CHECK_EQ(NULL, ISOLATE->GetData());
+  static void* data1 = reinterpret_cast<void*>(0xacce55ed);
+  isolate->SetData(data1);
+  CHECK_EQ(data1, isolate->GetData());
+  CHECK_EQ(data1, ISOLATE->GetData());
+  static void* data2 = reinterpret_cast<void*>(0xdecea5ed);
+  ISOLATE->SetData(data2);
+  CHECK_EQ(data2, isolate->GetData());
+  CHECK_EQ(data2, ISOLATE->GetData());
+  ISOLATE->TearDown();
+  CHECK_EQ(data2, isolate->GetData());
+  CHECK_EQ(data2, ISOLATE->GetData());
+}

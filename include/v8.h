@@ -2816,13 +2816,13 @@ class V8EXPORT Isolate {
   /**
    * Associate embedder-specific data with the isolate
    */
-  void SetData(void* data);
+  inline void SetData(void* data);
 
   /**
-   * Retrive embedder-specific data from the isolate.
+   * Retrieve embedder-specific data from the isolate.
    * Returns NULL if SetData has never been called.
    */
-  void* GetData();
+  inline void* GetData();
 
  private:
   Isolate();
@@ -3961,6 +3961,18 @@ class Internals {
     return *reinterpret_cast<int*>(addr) == 1;
   }
 
+  static inline void SetEmbedderData(v8::Isolate* isolate, void* data) {
+    uint8_t* addr = reinterpret_cast<uint8_t*>(isolate) +
+        kIsolateEmbedderDataOffset;
+    *reinterpret_cast<void**>(addr) = data;
+  }
+
+  static inline void* GetEmbedderData(v8::Isolate* isolate) {
+    uint8_t* addr = reinterpret_cast<uint8_t*>(isolate) +
+        kIsolateEmbedderDataOffset;
+    return *reinterpret_cast<void**>(addr);
+  }
+
   static inline internal::Object** GetRoot(v8::Isolate* isolate, int index) {
     uint8_t* addr = reinterpret_cast<uint8_t*>(isolate) + kIsolateRootsOffset;
     return reinterpret_cast<internal::Object**>(addr + index * kApiPointerSize);
@@ -4421,6 +4433,18 @@ Handle<Boolean> False(Isolate* isolate) {
   if (!I::IsInitialized(isolate)) return False();
   S* slot = I::GetRoot(isolate, I::kFalseValueRootIndex);
   return Handle<Boolean>(reinterpret_cast<Boolean*>(slot));
+}
+
+
+void Isolate::SetData(void* data) {
+  typedef internal::Internals I;
+  I::SetEmbedderData(this, data);
+}
+
+
+void* Isolate::GetData() {
+  typedef internal::Internals I;
+  return I::GetEmbedderData(this);
 }
 
 
