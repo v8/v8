@@ -1552,14 +1552,97 @@ void HGlobalValueNumberer::ComputeBlockSideEffects() {
 }
 
 
+SmartArrayPointer<char> GetGVNFlagsString(GVNFlagSet flags) {
+#if DEBUG
+  char buffer[kLastFlag * 128];
+  const char* separator = "";
+  const char* comma = ", ";
+  buffer[0] = 0;
+  uint32_t set_depends_on = 0;
+  uint32_t set_changes = 0;
+  for (int bit = 0; bit < kLastFlag; ++bit) {
+    if ((flags.ToIntegral() & (1 << bit)) != 0) {
+      if (bit % 2 == 0) {
+        set_changes++;
+      } else {
+        set_depends_on++;
+      }
+    }
+  }
+  bool positive_changes = set_changes < (kLastFlag / 2);
+  bool positive_depends_on = set_depends_on < (kLastFlag / 2);
+  if (set_changes > 0) {
+    if (positive_changes) {
+      strcat(buffer, "changes [");
+    } else {
+      strcat(buffer, "changes all except [");
+    }
+    for (int bit = 0; bit < kLastFlag; ++bit) {
+      if (((flags.ToIntegral() & (1 << bit)) != 0) == positive_changes) {
+        switch (static_cast<GVNFlag>(bit)) {
+#define DECLARE_FLAG(type)                \
+          case kChanges##type:            \
+            strcat(buffer, separator);    \
+            strcat(buffer, #type);        \
+            separator = comma;            \
+            break;
+GVN_TRACKED_FLAG_LIST(DECLARE_FLAG)
+GVN_UNTRACKED_FLAG_LIST(DECLARE_FLAG)
+#undef DECLARE_FLAG
+          default:
+              break;
+        }
+      }
+    }
+    strcat(buffer, "]");
+  }
+  if (set_depends_on > 0) {
+    separator = "";
+    if (set_changes > 0) {
+      strcat(buffer, ", ");
+    }
+    if (positive_depends_on) {
+      strcat(buffer, "depends on [");
+    } else {
+      strcat(buffer, "depends on all except [");
+    }
+    for (int bit = 0; bit < kLastFlag; ++bit) {
+      if (((flags.ToIntegral() & (1 << bit)) != 0) == positive_depends_on) {
+        switch (static_cast<GVNFlag>(bit)) {
+#define DECLARE_FLAG(type)                  \
+          case kDependsOn##type:            \
+            strcat(buffer, separator);      \
+            strcat(buffer, #type);          \
+            separator = comma;              \
+            break;
+GVN_TRACKED_FLAG_LIST(DECLARE_FLAG)
+GVN_UNTRACKED_FLAG_LIST(DECLARE_FLAG)
+#undef DECLARE_FLAG
+          default:
+            break;
+        }
+      }
+    }
+    strcat(buffer, "]");
+  }
+#else
+  char buffer[128];
+  snprintf(buffer, 128, "0x%08X", flags.ToIntegral());
+#endif
+  char* result = new char[strlen(buffer) + 1];
+  strcpy(result, buffer);
+  return SmartArrayPointer<char>(result);
+}
+
+
 void HGlobalValueNumberer::LoopInvariantCodeMotion() {
   for (int i = graph_->blocks()->length() - 1; i >= 0; --i) {
     HBasicBlock* block = graph_->blocks()->at(i);
     if (block->IsLoopHeader()) {
       GVNFlagSet side_effects = loop_side_effects_[block->block_id()];
-      TraceGVN("Try loop invariant motion for block B%d effects=0x%x\n",
+      TraceGVN("Try loop invariant motion for block B%d %s\n",
                block->block_id(),
-               side_effects.ToIntegral());
+               *GetGVNFlagsString(side_effects));
 
       GVNFlagSet accumulated_first_time_depends;
       GVNFlagSet accumulated_first_time_changes;
@@ -1582,20 +1665,19 @@ void HGlobalValueNumberer::ProcessLoopBlock(
     GVNFlagSet* first_time_changes) {
   HBasicBlock* pre_header = loop_header->predecessors()->at(0);
   GVNFlagSet depends_flags = HValue::ConvertChangesToDependsFlags(loop_kills);
-  TraceGVN("Loop invariant motion for B%d depends_flags=0x%x\n",
+  TraceGVN("Loop invariant motion for B%d %s\n",
            block->block_id(),
-           depends_flags.ToIntegral());
+           *GetGVNFlagsString(depends_flags));
   HInstruction* instr = block->first();
   while (instr != NULL) {
     HInstruction* next = instr->next();
     bool hoisted = false;
     if (instr->CheckFlag(HValue::kUseGVN)) {
-      TraceGVN("Checking instruction %d (%s) instruction GVN flags 0x%X, "
-               "loop kills 0x%X\n",
+      TraceGVN("Checking instruction %d (%s) %s. Loop %s\n",
                instr->id(),
                instr->Mnemonic(),
-               instr->gvn_flags().ToIntegral(),
-               depends_flags.ToIntegral());
+               *GetGVNFlagsString(instr->gvn_flags()),
+               *GetGVNFlagsString(loop_kills));
       bool can_hoist = !instr->gvn_flags().ContainsAnyOf(depends_flags);
       if (instr->IsTransitionElementsKind()) {
         // It's possible to hoist transitions out of a loop as long as the
@@ -1619,14 +1701,14 @@ void HGlobalValueNumberer::ProcessLoopBlock(
           hoist_change_blockers.Add(kChangesArrayElements);
         }
         TraceGVN("Checking dependencies on HTransitionElementsKind %d (%s) "
-                 "hoist depends blockers 0x%X, hoist change blockers 0x%X, "
-                 "accumulated depends 0x%X, accumulated changes 0x%X\n",
+                 "hoist blockers: %s %s; "
+                 "first-time accumulated: %s %s\n",
                  instr->id(),
                  instr->Mnemonic(),
-                 hoist_depends_blockers.ToIntegral(),
-                 hoist_change_blockers.ToIntegral(),
-                 first_time_depends->ToIntegral(),
-                 first_time_changes->ToIntegral());
+                 *GetGVNFlagsString(hoist_depends_blockers),
+                 *GetGVNFlagsString(hoist_change_blockers),
+                 *GetGVNFlagsString(*first_time_depends),
+                 *GetGVNFlagsString(*first_time_changes));
         // It's possible to hoist transition from the current loop loop only if
         // they dominate all of the successor blocks in the same loop and there
         // are not any instructions that have Changes/DependsOn that intervene
@@ -1661,8 +1743,18 @@ void HGlobalValueNumberer::ProcessLoopBlock(
     if (!hoisted) {
       // If an instruction is not hoisted, we have to account for its side
       // effects when hoisting later HTransitionElementsKind instructions.
+      GVNFlagSet previous_depends = *first_time_depends;
+      GVNFlagSet previous_changes = *first_time_changes;
       first_time_depends->Add(instr->DependsOnFlags());
       first_time_changes->Add(instr->ChangesFlags());
+      if (!(previous_depends == *first_time_depends)) {
+        TraceGVN("Updated first-time accumulated %s\n",
+                 *GetGVNFlagsString(*first_time_depends));
+      }
+      if (!(previous_changes == *first_time_changes)) {
+        TraceGVN("Updated first-time accumulated %s\n",
+                 *GetGVNFlagsString(*first_time_changes));
+      }
     }
     instr = next;
   }
