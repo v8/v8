@@ -1084,6 +1084,7 @@ class String : public Primitive {
    * A zero length string.
    */
   V8EXPORT static v8::Local<v8::String> Empty();
+  inline static v8::Local<v8::String> Empty(Isolate* isolate);
 
   /**
    * Returns true if the string is external
@@ -3903,6 +3904,7 @@ class Internals {
   static const int kNullValueRootIndex = 7;
   static const int kTrueValueRootIndex = 8;
   static const int kFalseValueRootIndex = 9;
+  static const int kEmptySymbolRootIndex = 128;
 
   static const int kJSObjectType = 0xaa;
   static const int kFirstNonstringType = 0x80;
@@ -4218,6 +4220,15 @@ String* String::Cast(v8::Value* value) {
   CheckCast(value);
 #endif
   return static_cast<String*>(value);
+}
+
+
+Local<String> String::Empty(Isolate* isolate) {
+  typedef internal::Object* S;
+  typedef internal::Internals I;
+  if (!I::IsInitialized(isolate)) return Empty();
+  S* slot = I::GetRoot(isolate, I::kEmptySymbolRootIndex);
+  return Local<String>(reinterpret_cast<String*>(slot));
 }
 
 

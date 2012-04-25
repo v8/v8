@@ -4630,7 +4630,9 @@ void* External::Value() const {
 
 Local<String> v8::String::Empty() {
   i::Isolate* isolate = i::Isolate::Current();
-  EnsureInitializedForIsolate(isolate, "v8::String::Empty()");
+  if (!EnsureInitializedForIsolate(isolate, "v8::String::Empty()")) {
+    return v8::Local<String>();
+  }
   LOG_API(isolate, "String::Empty()");
   return Utils::ToLocal(isolate->factory()->empty_symbol());
 }

@@ -1423,6 +1423,7 @@ class Heap {
   STATIC_CHECK(kNullValueRootIndex == Internals::kNullValueRootIndex);
   STATIC_CHECK(kTrueValueRootIndex == Internals::kTrueValueRootIndex);
   STATIC_CHECK(kFalseValueRootIndex == Internals::kFalseValueRootIndex);
+  STATIC_CHECK(kempty_symbolRootIndex == Internals::kEmptySymbolRootIndex);
 
   MUST_USE_RESULT MaybeObject* NumberToString(
       Object* number, bool check_number_string_cache = true);
