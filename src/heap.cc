@@ -6142,11 +6142,6 @@ void Heap::SetStackLimits() {
 
 
 void Heap::TearDown() {
-#ifdef DEBUG
-  if (FLAG_verify_heap) {
-    Verify();
-  }
-#endif
   if (FLAG_print_cumulative_gc_stat) {
     PrintF("\n\n");
     PrintF("gc_count=%d ", gc_count_);
