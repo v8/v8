@@ -1553,8 +1553,10 @@ void HGlobalValueNumberer::ComputeBlockSideEffects() {
 
 
 SmartArrayPointer<char> GetGVNFlagsString(GVNFlagSet flags) {
+  char underlying_buffer[kLastFlag * 128];
+  Vector<char> buffer(underlying_buffer, sizeof(underlying_buffer));
 #if DEBUG
-  char buffer[kLastFlag * 128];
+  int offset = 0;
   const char* separator = "";
   const char* comma = ", ";
   buffer[0] = 0;
@@ -1573,18 +1575,18 @@ SmartArrayPointer<char> GetGVNFlagsString(GVNFlagSet flags) {
   bool positive_depends_on = set_depends_on < (kLastFlag / 2);
   if (set_changes > 0) {
     if (positive_changes) {
-      strcat(buffer, "changes [");
+      offset += OS::SNPrintF(buffer + offset, "changes [");
     } else {
-      strcat(buffer, "changes all except [");
+      offset += OS::SNPrintF(buffer + offset, "changes all except [");
     }
     for (int bit = 0; bit < kLastFlag; ++bit) {
       if (((flags.ToIntegral() & (1 << bit)) != 0) == positive_changes) {
         switch (static_cast<GVNFlag>(bit)) {
-#define DECLARE_FLAG(type)                \
-          case kChanges##type:            \
-            strcat(buffer, separator);    \
-            strcat(buffer, #type);        \
-            separator = comma;            \
+#define DECLARE_FLAG(type)                                       \
+          case kChanges##type:                                   \
+            offset += OS::SNPrintF(buffer + offset, separator);  \
+            offset += OS::SNPrintF(buffer + offset, #type);      \
+            separator = comma;                                   \
             break;
 GVN_TRACKED_FLAG_LIST(DECLARE_FLAG)
 GVN_UNTRACKED_FLAG_LIST(DECLARE_FLAG)
@@ -1594,26 +1596,26 @@ GVN_UNTRACKED_FLAG_LIST(DECLARE_FLAG)
         }
       }
     }
-    strcat(buffer, "]");
+    offset += OS::SNPrintF(buffer + offset, "]");
   }
   if (set_depends_on > 0) {
     separator = "";
     if (set_changes > 0) {
-      strcat(buffer, ", ");
+      offset += OS::SNPrintF(buffer + offset, ", ");
     }
     if (positive_depends_on) {
-      strcat(buffer, "depends on [");
+      offset += OS::SNPrintF(buffer + offset, "depends on [");
     } else {
-      strcat(buffer, "depends on all except [");
+      offset += OS::SNPrintF(buffer + offset, "depends on all except [");
     }
     for (int bit = 0; bit < kLastFlag; ++bit) {
       if (((flags.ToIntegral() & (1 << bit)) != 0) == positive_depends_on) {
         switch (static_cast<GVNFlag>(bit)) {
-#define DECLARE_FLAG(type)                  \
-          case kDependsOn##type:            \
-            strcat(buffer, separator);      \
-            strcat(buffer, #type);          \
-            separator = comma;              \
+#define DECLARE_FLAG(type)                                       \
+          case kDependsOn##type:                                 \
+            offset += OS::SNPrintF(buffer + offset, separator);  \
+            offset += OS::SNPrintF(buffer + offset, #type);      \
+            separator = comma;                                   \
             break;
 GVN_TRACKED_FLAG_LIST(DECLARE_FLAG)
 GVN_UNTRACKED_FLAG_LIST(DECLARE_FLAG)
@@ -1623,14 +1625,15 @@ GVN_UNTRACKED_FLAG_LIST(DECLARE_FLAG)
         }
       }
     }
-    strcat(buffer, "]");
+    offset += OS::SNPrintF(buffer + offset, "]");
   }
 #else
-  char buffer[128];
-  snprintf(buffer, 128, "0x%08X", flags.ToIntegral());
+  OS::SNPrintF(buffer, "0x%08X", flags.ToIntegral());
 #endif
-  char* result = new char[strlen(buffer) + 1];
-  strcpy(result, buffer);
+  uint32_t string_len = strlen(underlying_buffer) + 1;
+  ASSERT(string_len <= sizeof(underlying_buffer));
+  char* result = new char[strlen(underlying_buffer) + 1];
+  memcpy(result, underlying_buffer, string_len);
   return SmartArrayPointer<char>(result);
 }
 
