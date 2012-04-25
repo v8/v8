@@ -1978,24 +1978,28 @@ void V8HeapExplorer::ExtractReferences(HeapObject* obj) {
 
   bool extract_indexed_refs = true;
   if (obj->IsJSGlobalProxy()) {
-    ExtractJSGlobalProxy(JSGlobalProxy::cast(obj));
+    ExtractJSGlobalProxyReferences(JSGlobalProxy::cast(obj));
   } else if (obj->IsJSObject()) {
-    ExtractJSObject(entry, JSObject::cast(obj));
+    ExtractJSObjectReferences(entry, JSObject::cast(obj));
   } else if (obj->IsString()) {
-    ExtractString(entry, String::cast(obj));
+    ExtractStringReferences(entry, String::cast(obj));
     extract_indexed_refs = false;
   } else if (obj->IsContext()) {
-    ExtractContext(entry, Context::cast(obj));
+    ExtractContextReferences(entry, Context::cast(obj));
   } else if (obj->IsMap()) {
-    ExtractMap(entry, Map::cast(obj));
+    ExtractMapReferences(entry, Map::cast(obj));
   } else if (obj->IsSharedFunctionInfo()) {
-    ExtractSharedFunctionInfo(entry, SharedFunctionInfo::cast(obj));
+    ExtractSharedFunctionInfoReferences(entry, SharedFunctionInfo::cast(obj));
   } else if (obj->IsScript()) {
-    ExtractScript(entry, Script::cast(obj));
+    ExtractScriptReferences(entry, Script::cast(obj));
   } else if (obj->IsCodeCache()) {
-    ExtractCodeCache(entry, CodeCache::cast(obj));
+    ExtractCodeCacheReferences(entry, CodeCache::cast(obj));
   } else if (obj->IsCode()) {
-    ExtractCode(entry, Code::cast(obj));
+    ExtractCodeReferences(entry, Code::cast(obj));
+  } else if (obj->IsJSGlobalPropertyCell()) {
+    ExtractJSGlobalPropertyCellReferences(
+        entry, JSGlobalPropertyCell::cast(obj));
+    extract_indexed_refs = false;
   }
   if (extract_indexed_refs) {
     SetInternalReference(obj, entry, "map", obj->map(), HeapObject::kMapOffset);
@@ -2005,7 +2009,7 @@ void V8HeapExplorer::ExtractReferences(HeapObject* obj) {
 }
 
 
-void V8HeapExplorer::ExtractJSGlobalProxy(JSGlobalProxy* proxy) {
+void V8HeapExplorer::ExtractJSGlobalProxyReferences(JSGlobalProxy* proxy) {
   // We need to reference JS global objects from snapshot's root.
   // We use JSGlobalProxy because this is what embedder (e.g. browser)
   // uses for the global object.
@@ -2021,7 +2025,8 @@ void V8HeapExplorer::ExtractJSGlobalProxy(JSGlobalProxy* proxy) {
 }
 
 
-void V8HeapExplorer::ExtractJSObject(HeapEntry* entry, JSObject* js_obj) {
+void V8HeapExplorer::ExtractJSObjectReferences(
+    HeapEntry* entry, JSObject* js_obj) {
   HeapObject* obj = js_obj;
   ExtractClosureReferences(js_obj, entry);
   ExtractPropertyReferences(js_obj, entry);
@@ -2090,20 +2095,20 @@ void V8HeapExplorer::ExtractJSObject(HeapEntry* entry, JSObject* js_obj) {
 }
 
 
-void V8HeapExplorer::ExtractString(HeapEntry* entry, String* string) {
+void V8HeapExplorer::ExtractStringReferences(HeapEntry* entry, String* string) {
   if (string->IsConsString()) {
     ConsString* cs = ConsString::cast(string);
-    SetInternalReference(cs, entry, 1, cs->first());
-    SetInternalReference(cs, entry, 2, cs->second());
-  }
-  if (string->IsSlicedString()) {
+    SetInternalReference(cs, entry, "first", cs->first());
+    SetInternalReference(cs, entry, "second", cs->second());
+  } else if (string->IsSlicedString()) {
     SlicedString* ss = SlicedString::cast(string);
     SetInternalReference(ss, entry, "parent", ss->parent());
   }
 }
 
 
-void V8HeapExplorer::ExtractContext(HeapEntry* entry, Context* context) {
+void V8HeapExplorer::ExtractContextReferences(
+    HeapEntry* entry, Context* context) {
 #define EXTRACT_CONTEXT_FIELD(index, type, name) \
   SetInternalReference(context, entry, #name, context->get(Context::index), \
       FixedArray::OffsetOfElementAt(Context::index));
@@ -2129,7 +2134,7 @@ void V8HeapExplorer::ExtractContext(HeapEntry* entry, Context* context) {
 }
 
 
-void V8HeapExplorer::ExtractMap(HeapEntry* entry, Map* map) {
+void V8HeapExplorer::ExtractMapReferences(HeapEntry* entry, Map* map) {
   SetInternalReference(map, entry,
                        "prototype", map->prototype(), Map::kPrototypeOffset);
   SetInternalReference(map, entry,
@@ -2151,7 +2156,7 @@ void V8HeapExplorer::ExtractMap(HeapEntry* entry, Map* map) {
 }
 
 
-void V8HeapExplorer::ExtractSharedFunctionInfo(
+void V8HeapExplorer::ExtractSharedFunctionInfoReferences(
     HeapEntry* entry, SharedFunctionInfo* shared) {
   HeapObject* obj = shared;
   SetInternalReference(obj, entry,
@@ -2194,7 +2199,7 @@ void V8HeapExplorer::ExtractSharedFunctionInfo(
 }
 
 
-void V8HeapExplorer::ExtractScript(HeapEntry* entry, Script* script) {
+void V8HeapExplorer::ExtractScriptReferences(HeapEntry* entry, Script* script) {
   HeapObject* obj = script;
   SetInternalReference(obj, entry,
                        "source", script->source(),
@@ -2215,7 +2220,8 @@ void V8HeapExplorer::ExtractScript(HeapEntry* entry, Script* script) {
 }
 
 
-void V8HeapExplorer::ExtractCodeCache(HeapEntry* entry, CodeCache* code_cache) {
+void V8HeapExplorer::ExtractCodeCacheReferences(
+    HeapEntry* entry, CodeCache* code_cache) {
   TagObject(code_cache->default_cache(), "(default code cache)");
   SetInternalReference(code_cache, entry,
                        "default_cache", code_cache->default_cache(),
@@ -2227,9 +2233,30 @@ void V8HeapExplorer::ExtractCodeCache(HeapEntry* entry, CodeCache* code_cache) {
 }
 
 
-void V8HeapExplorer::ExtractCode(HeapEntry* entry, Code* code) {
-  TagObject(code->unchecked_relocation_info(), "(code relocation info)");
-  TagObject(code->unchecked_deoptimization_data(), "(code deopt data)");
+void V8HeapExplorer::ExtractCodeReferences(HeapEntry* entry, Code* code) {
+  TagObject(code->relocation_info(), "(code relocation info)");
+  SetInternalReference(code, entry,
+                       "relocation_info", code->relocation_info(),
+                       Code::kRelocationInfoOffset);
+  SetInternalReference(code, entry,
+                       "handler_table", code->handler_table(),
+                       Code::kHandlerTableOffset);
+  TagObject(code->deoptimization_data(), "(code deopt data)");
+  SetInternalReference(code, entry,
+                       "deoptimization_data", code->deoptimization_data(),
+                       Code::kDeoptimizationDataOffset);
+  SetInternalReference(code, entry,
+                       "type_feedback_info", code->type_feedback_info(),
+                       Code::kTypeFeedbackInfoOffset);
+  SetInternalReference(code, entry,
+                       "gc_metadata", code->gc_metadata(),
+                       Code::kGCMetadataOffset);
+}
+
+
+void V8HeapExplorer::ExtractJSGlobalPropertyCellReferences(
+    HeapEntry* entry, JSGlobalPropertyCell* cell) {
+  SetInternalReference(cell, entry, "value", cell->value());
 }
 
 
