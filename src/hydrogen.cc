@@ -1630,7 +1630,7 @@ GVN_UNTRACKED_FLAG_LIST(DECLARE_FLAG)
 #else
   OS::SNPrintF(buffer, "0x%08X", flags.ToIntegral());
 #endif
-  uint32_t string_len = strlen(underlying_buffer) + 1;
+  size_t string_len = strlen(underlying_buffer) + 1;
   ASSERT(string_len <= sizeof(underlying_buffer));
   char* result = new char[strlen(underlying_buffer) + 1];
   memcpy(result, underlying_buffer, string_len);
