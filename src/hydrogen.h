@@ -241,7 +241,7 @@ class HLoopInformation: public ZoneObject {
   HStackCheck* stack_check_;
 };
 
-
+class BoundsCheckTable;
 class HGraph: public ZoneObject {
  public:
   explicit HGraph(CompilationInfo* info);
@@ -266,6 +266,7 @@ class HGraph: public ZoneObject {
   void OrderBlocks();
   void AssignDominators();
   void ReplaceCheckedValues();
+  void EliminateRedundantBoundsChecks();
   void PropagateDeoptimizingMark();
 
   // Returns false if there are phi-uses of the arguments-object
@@ -358,6 +359,7 @@ class HGraph: public ZoneObject {
   void InferTypes(ZoneList<HValue*>* worklist);
   void InitializeInferredTypes(int from_inclusive, int to_inclusive);
   void CheckForBackEdge(HBasicBlock* block, HBasicBlock* successor);
+  void EliminateRedundantBoundsChecks(HBasicBlock* bb, BoundsCheckTable* table);
 
   Isolate* isolate_;
   int next_block_id_;

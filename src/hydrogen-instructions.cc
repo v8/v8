@@ -416,6 +416,7 @@ void HValue::Kill() {
   SetFlag(kIsDead);
   for (int i = 0; i < OperandCount(); ++i) {
     HValue* operand = OperandAt(i);
+    if (operand == NULL) continue;
     HUseListNode* first = operand->use_list_;
     if (first != NULL && first->value() == this && first->index() == i) {
       operand->use_list_ = first->tail();
@@ -612,6 +613,7 @@ void HInstruction::Verify() {
   HBasicBlock* cur_block = block();
   for (int i = 0; i < OperandCount(); ++i) {
     HValue* other_operand = OperandAt(i);
+    if (other_operand == NULL) continue;
     HBasicBlock* other_block = other_operand->block();
     if (cur_block == other_block) {
       if (!other_operand->IsPhi()) {
