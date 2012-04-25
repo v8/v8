@@ -296,6 +296,8 @@ MaybeObject* PagedSpace::AllocateRaw(int size_in_bytes) {
 MaybeObject* NewSpace::AllocateRaw(int size_in_bytes) {
   Address old_top = allocation_info_.top;
 #ifdef DEBUG
+  // If we are stressing compaction we waste some memory in new space
+  // in order to get more frequent GCs.
   if (FLAG_stress_compaction && !HEAP->linear_allocation()) {
     if (allocation_info_.limit - old_top >= size_in_bytes * 4) {
       int filler_size = size_in_bytes * 4;
