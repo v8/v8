@@ -238,9 +238,14 @@ int Heap::GcSafeSizeOfOldObject(HeapObject* object) {
 GarbageCollector Heap::SelectGarbageCollector(AllocationSpace space,
                                               const char** reason) {
   // Is global GC requested?
-  if (space != NEW_SPACE || FLAG_gc_global) {
+  if (space != NEW_SPACE) {
     isolate_->counters()->gc_compactor_caused_by_request()->Increment();
     *reason = "GC in old space requested";
+    return MARK_COMPACTOR;
+  }
+
+  if (FLAG_gc_global || (FLAG_stress_compaction && (gc_count_ & 1) != 0)) {
+    *reason = "GC in old space forced by flags";
     return MARK_COMPACTOR;
   }
 
@@ -5696,6 +5701,11 @@ bool Heap::ConfigureHeap(int max_semispace_size,
                          intptr_t max_executable_size) {
   if (HasBeenSetUp()) return false;
 
+  if (FLAG_stress_compaction) {
+    // This will cause more frequent GCs when stressing.
+    max_semispace_size_ = Page::kPageSize;
+  }
+
   if (max_semispace_size > 0) {
     if (max_semispace_size < Page::kPageSize) {
       max_semispace_size = Page::kPageSize;
@@ -6132,6 +6142,9 @@ void Heap::SetStackLimits() {
 
 
 void Heap::TearDown() {
+  if (FLAG_verify_heap) {
+    Verify();
+  }
   if (FLAG_print_cumulative_gc_stat) {
     PrintF("\n\n");
     PrintF("gc_count=%d ", gc_count_);

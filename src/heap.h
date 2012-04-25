@@ -1456,6 +1456,8 @@ class Heap {
   inline bool NextGCIsLikelyToBeFull() {
     if (FLAG_gc_global) return true;
 
+    if (FLAG_stress_compaction && (gc_count_ & 1) != 0) return true;
+
     intptr_t total_promoted = PromotedTotalSize();
 
     intptr_t adjusted_promotion_limit =

@@ -295,11 +295,25 @@ MaybeObject* PagedSpace::AllocateRaw(int size_in_bytes) {
 
 MaybeObject* NewSpace::AllocateRaw(int size_in_bytes) {
   Address old_top = allocation_info_.top;
+#ifdef DEBUG
+  if (FLAG_stress_compaction && !HEAP->linear_allocation()) {
+    if (allocation_info_.limit - old_top >= size_in_bytes * 4) {
+      int filler_size = size_in_bytes * 4;
+      for (int i = 0; i < filler_size; i += kPointerSize) {
+        *(reinterpret_cast<Object**>(old_top + i)) =
+            HEAP->one_pointer_filler_map();
+      }
+      old_top += filler_size;
+      allocation_info_.top += filler_size;
+    }
+  }
+#endif
+
   if (allocation_info_.limit - old_top < size_in_bytes) {
     return SlowAllocateRaw(size_in_bytes);
   }
 
-  Object* obj = HeapObject::FromAddress(allocation_info_.top);
+  Object* obj = HeapObject::FromAddress(old_top);
   allocation_info_.top += size_in_bytes;
   ASSERT_SEMISPACE_ALLOCATION_INFO(allocation_info_, to_space_);
 

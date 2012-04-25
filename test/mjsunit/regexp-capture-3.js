@@ -149,6 +149,8 @@ no_last_match(function() { cons.replace("e", "E"); });
 assertEquals("bar", RegExp.$1);
 
 
+// A test that initially does a zero width match, but later does a non-zero
+// width match.
 var a = "foo bar baz".replace(/^|bar/g, "");
 assertEquals("foo  baz", a);
 
