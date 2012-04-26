@@ -2426,15 +2426,9 @@ void TextNode::GetQuickCheckDetails(QuickCheckDetails* details,
         QuickCheckDetails::Position* pos =
             details->positions(characters_filled_in);
         uc16 c = quarks[i];
-        if (c > char_mask) {
-          // If we expect a non-ASCII character from an ASCII string,
-          // there is no way we can match. Not even case independent
-          // matching can turn an ASCII character into non-ASCII or
-          // vice versa.
-          details->set_cannot_match();
-          pos->determines_perfectly = false;
-          return;
-        }
+        // We should already have filtered out nodes that have non-ASCII
+        // characters if we are matching against an ASCII string.
+        ASSERT(c <= char_mask);
         if (compiler->ignore_case()) {
           unibrow::uchar chars[unibrow::Ecma262UnCanonicalize::kMaxWidth];
           int length = GetCaseIndependentLetters(isolate, c, compiler->ascii(),
@@ -2496,11 +2490,9 @@ void TextNode::GetQuickCheckDetails(QuickCheckDetails* details,
         int first_range = 0;
         while (ranges->at(first_range).from() > char_mask) {
           first_range++;
-          if (first_range == ranges->length()) {
-            details->set_cannot_match();
-            pos->determines_perfectly = false;
-            return;
-          }
+          // We should already have filtered out nodes that cannot match
+          // so the first range should be a valid range.
+          ASSERT(first_range != ranges->length());
         }
         CharacterRange range = ranges->at(first_range);
         uc16 from = range.from();
@@ -2627,6 +2619,144 @@ class VisitMarker {
  private:
   NodeInfo* info_;
 };
+
+
+RegExpNode* SeqRegExpNode::FilterASCII(int depth) {
+  if (info()->replacement_calculated) return replacement();
+  if (depth < 0) return this;
+  ASSERT(!info()->visited);
+  VisitMarker marker(info());
+  return FilterSuccessor(depth - 1);
+}
+
+
+RegExpNode* SeqRegExpNode::FilterSuccessor(int depth) {
+  RegExpNode* next = on_success_->FilterASCII(depth - 1);
+  if (next == NULL) return set_replacement(NULL);
+  on_success_ = next;
+  return set_replacement(this);
+}
+
+
+RegExpNode* TextNode::FilterASCII(int depth) {
+  if (info()->replacement_calculated) return replacement();
+  if (depth < 0) return this;
+  ASSERT(!info()->visited);
+  VisitMarker marker(info());
+  int element_count = elms_->length();
+  for (int i = 0; i < element_count; i++) {
+    TextElement elm = elms_->at(i);
+    if (elm.type == TextElement::ATOM) {
+      Vector<const uc16> quarks = elm.data.u_atom->data();
+      for (int j = 0; j < quarks.length(); j++) {
+        // We don't need special handling for case independence
+        // because of the rule that case independence cannot make
+        // a non-ASCII character match an ASCII character.
+        if (quarks[j] > String::kMaxAsciiCharCode) {
+          return set_replacement(NULL);
+        }
+      }
+    } else {
+      ASSERT(elm.type == TextElement::CHAR_CLASS);
+      RegExpCharacterClass* cc = elm.data.u_char_class;
+      ZoneList<CharacterRange>* ranges = cc->ranges();
+      if (!CharacterRange::IsCanonical(ranges)) {
+        CharacterRange::Canonicalize(ranges);
+      }
+      // Now they are in order so we only need to look at the first.
+      int range_count = ranges->length();
+      if (cc->is_negated()) {
+        if (range_count != 0 &&
+            ranges->at(0).from() == 0 &&
+            ranges->at(0).to() >= String::kMaxAsciiCharCode) {
+          return set_replacement(NULL);
+        }
+      } else {
+        if (range_count == 0 ||
+            ranges->at(0).from() > String::kMaxAsciiCharCode) {
+          return set_replacement(NULL);
+        }
+      }
+    }
+  }
+  return FilterSuccessor(depth - 1);
+}
+
+
+RegExpNode* LoopChoiceNode::FilterASCII(int depth) {
+  if (info()->replacement_calculated) return replacement();
+  if (depth < 0) return this;
+  if (info()->visited) return this;
+  VisitMarker marker(info());
+
+  RegExpNode* continue_replacement = continue_node_->FilterASCII(depth - 1);
+  // If we can't continue after the loop then there is no sense in doing the
+  // loop.
+  if (continue_replacement == NULL) return set_replacement(NULL);
+
+  return ChoiceNode::FilterASCII(depth - 1);
+}
+
+
+RegExpNode* ChoiceNode::FilterASCII(int depth) {
+  if (info()->replacement_calculated) return replacement();
+  if (depth < 0) return this;
+  if (info()->visited) return this;
+  VisitMarker marker(info());
+  int choice_count = alternatives_->length();
+  int surviving = 0;
+  RegExpNode* survivor = NULL;
+  for (int i = 0; i < choice_count; i++) {
+    GuardedAlternative alternative = alternatives_->at(i);
+    RegExpNode* replacement = alternative.node()->FilterASCII(depth - 1);
+    ASSERT(replacement != this);  // No missing EMPTY_MATCH_CHECK.
+    alternatives_->at(i).set_node(replacement);
+    if (replacement != NULL) {
+      surviving++;
+      survivor = replacement;
+    }
+  }
+  if (surviving < 2) return set_replacement(survivor);
+
+  set_replacement(this);
+  if (surviving == choice_count) {
+    return this;
+  }
+  // Only some of the nodes survived the filtering.  We need to rebuild the
+  // alternatives list.
+  ZoneList<GuardedAlternative>* new_alternatives =
+      new ZoneList<GuardedAlternative>(surviving);
+  for (int i = 0; i < choice_count; i++) {
+    GuardedAlternative alternative = alternatives_->at(i);
+    if (alternative.node() != NULL) {
+      new_alternatives->Add(alternative);
+    }
+  }
+  alternatives_ = new_alternatives;
+  return this;
+}
+
+
+RegExpNode* NegativeLookaheadChoiceNode::FilterASCII(int depth) {
+  if (info()->replacement_calculated) return replacement();
+  if (depth < 0) return this;
+  if (info()->visited) return this;
+  VisitMarker marker(info());
+  // Alternative 0 is the negative lookahead, alternative 1 is what comes
+  // afterwards.
+  RegExpNode* node = alternatives_->at(1).node();
+  RegExpNode* replacement = node->FilterASCII(depth - 1);
+  if (replacement == NULL) return set_replacement(NULL);
+  alternatives_->at(1).set_node(replacement);
+
+  RegExpNode* neg_node = alternatives_->at(0).node();
+  RegExpNode* neg_replacement = neg_node->FilterASCII(depth - 1);
+  // If the negative lookahead is always going to fail then
+  // we don't need to check it.
+  if (neg_replacement == NULL) return set_replacement(replacement);
+  alternatives_->at(0).set_node(neg_replacement);
+  return set_replacement(this);
+}
 
 
 void LoopChoiceNode::GetQuickCheckDetails(QuickCheckDetails* details,
@@ -5690,6 +5820,9 @@ RegExpEngine::CompilationResult RegExpEngine::Compile(
       node = loop_node;
     }
   }
+  if (is_ascii) node = node->FilterASCII(RegExpCompiler::kMaxRecursion);
+
+  if (node == NULL) node = new EndNode(EndNode::BACKTRACK);
   data->node = node;
   Analysis analysis(ignore_case, is_ascii);
   analysis.EnsureAnalyzed(node);
