@@ -487,12 +487,10 @@ void Thread::set_name(const char* name) {
 
 
 void Thread::Start() {
-  pthread_attr_t* attr_ptr = NULL;
   pthread_attr_t attr;
   if (stack_size_ > 0) {
     pthread_attr_init(&attr);
     pthread_attr_setstacksize(&attr, static_cast<size_t>(stack_size_));
-    attr_ptr = &attr;
   }
   pthread_create(&data_->thread_, NULL, ThreadEntry, this);
   ASSERT(data_->thread_ != kNoThread);
