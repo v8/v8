@@ -8375,6 +8375,10 @@ void Code::Disassemble(const char* name, FILE* out) {
     if (is_call_stub() || is_keyed_call_stub()) {
       PrintF(out, "argc = %d\n", arguments_count());
     }
+    if (is_compare_ic_stub()) {
+      CompareIC::State state = CompareIC::ComputeState(this);
+      PrintF(out, "compare_state = %s\n", CompareIC::GetStateName(state));
+    }
   }
   if ((name != NULL) && (name[0] != '\0')) {
     PrintF(out, "name = %s\n", name);
