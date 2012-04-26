@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,26 +25,26 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Check that RegExp.prototype is itself a RegExp object.
+// Flags: --allow-natives-syntax --expose-gc
 
-var proto = RegExp.prototype;
-assertEquals("[object RegExp]", Object.prototype.toString.call(proto));
+// Test that a GC inside a constructor frame is correctly handled right
+// after we deoptimize from an inlined constructor to a constructor stub
+// stack frame.
 
-assertEquals("(?:)", proto.source);
-assertEquals(false, proto.global);
-assertEquals(false, proto.multiline);
-assertEquals(false, proto.ignoreCase);
-assertEquals(0, proto.lastIndex);
+function f(deopt) {
+  var x = 1;
+  if (deopt) {
+    x = x + "foo";
+    gc();
+  }
+  this.x = x;
+}
 
-assertEquals("/(?:)/", proto.toString());
+function g(deopt) {
+  return new f(deopt);
+}
 
-var execResult = proto.exec("argle");
-assertEquals(1, execResult.length);
-assertEquals("", execResult[0]);
-assertEquals("argle", execResult.input);
-assertEquals(0, execResult.index);
-
-assertTrue(proto.test("argle"));
-
-// We disallow re-compiling the RegExp.prototype object.
-assertThrows(function(){ proto.compile("something"); }, TypeError);
+assertEquals({x:1}, g(false));
+assertEquals({x:1}, g(false));
+%OptimizeFunctionOnNextCall(g);
+assertEquals({x:"1foo"}, g(true));

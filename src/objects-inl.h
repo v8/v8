@@ -3511,7 +3511,6 @@ ACCESSORS(SharedFunctionInfo, debug_info, Object, kDebugInfoOffset)
 ACCESSORS(SharedFunctionInfo, inferred_name, String, kInferredNameOffset)
 ACCESSORS(SharedFunctionInfo, this_property_assignments, Object,
           kThisPropertyAssignmentsOffset)
-SMI_ACCESSORS(SharedFunctionInfo, ic_age, kICAgeOffset)
 
 
 BOOL_ACCESSORS(FunctionTemplateInfo, flag, hidden_prototype,
@@ -3562,6 +3561,8 @@ SMI_ACCESSORS(SharedFunctionInfo, this_property_assignments_count,
 SMI_ACCESSORS(SharedFunctionInfo, opt_count, kOptCountOffset)
 SMI_ACCESSORS(SharedFunctionInfo, ast_node_count, kAstNodeCountOffset)
 SMI_ACCESSORS(SharedFunctionInfo, deopt_counter, kDeoptCounterOffset)
+SMI_ACCESSORS(SharedFunctionInfo, ic_age, kICAgeOffset)
+SMI_ACCESSORS(SharedFunctionInfo, opt_reenable_tries, kOptReenableTriesOffset)
 #else
 
 #define PSEUDO_SMI_ACCESSORS_LO(holder, name, offset)             \
@@ -3615,6 +3616,11 @@ PSEUDO_SMI_ACCESSORS_HI(SharedFunctionInfo, opt_count, kOptCountOffset)
 
 PSEUDO_SMI_ACCESSORS_LO(SharedFunctionInfo, ast_node_count, kAstNodeCountOffset)
 PSEUDO_SMI_ACCESSORS_HI(SharedFunctionInfo, deopt_counter, kDeoptCounterOffset)
+
+PSEUDO_SMI_ACCESSORS_LO(SharedFunctionInfo, ic_age, kICAgeOffset)
+PSEUDO_SMI_ACCESSORS_HI(SharedFunctionInfo,
+                        opt_reenable_tries,
+                        kOptReenableTriesOffset)
 #endif
 
 
@@ -3654,6 +3660,7 @@ void SharedFunctionInfo::set_optimization_disabled(bool disable) {
   // it will not be counted as optimizable code.
   if ((code()->kind() == Code::FUNCTION) && disable) {
     code()->set_optimizable(false);
+    code()->set_profiler_ticks(0);
   }
 }
 
@@ -3688,6 +3695,23 @@ void SharedFunctionInfo::set_language_mode(LanguageMode language_mode) {
 bool SharedFunctionInfo::is_classic_mode() {
   return !BooleanBit::get(compiler_hints(), kStrictModeFunction);
 }
+
+
+void SharedFunctionInfo::TryReenableOptimization() {
+  int tries = opt_reenable_tries();
+  if (tries == Smi::kMaxValue) {
+    tries = 0;
+  }
+  set_opt_reenable_tries(tries + 1);
+  // We reenable optimization whenever the number of tries is a large
+  // enough power of 2.
+  if (tries >= 4 && (((tries - 1) & tries) == 0)) {
+    set_optimization_disabled(false);
+    set_opt_count(0);
+    code()->set_optimizable(true);
+  }
+}
+
 
 BOOL_GETTER(SharedFunctionInfo, compiler_hints, is_extended_mode,
             kExtendedModeFunction)

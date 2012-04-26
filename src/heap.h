@@ -243,7 +243,8 @@ namespace internal {
   V(compare_ic_symbol, ".compare_ic")                                    \
   V(infinity_symbol, "Infinity")                                         \
   V(minus_infinity_symbol, "-Infinity")                                  \
-  V(hidden_stack_trace_symbol, "v8::hidden_stack_trace")
+  V(hidden_stack_trace_symbol, "v8::hidden_stack_trace")                 \
+  V(query_colon_symbol, "(?:)")
 
 // Forward declarations.
 class GCTracer;
@@ -1418,6 +1419,12 @@ class Heap {
     kRootListLength
   };
 
+  STATIC_CHECK(kUndefinedValueRootIndex == Internals::kUndefinedValueRootIndex);
+  STATIC_CHECK(kNullValueRootIndex == Internals::kNullValueRootIndex);
+  STATIC_CHECK(kTrueValueRootIndex == Internals::kTrueValueRootIndex);
+  STATIC_CHECK(kFalseValueRootIndex == Internals::kFalseValueRootIndex);
+  STATIC_CHECK(kempty_symbolRootIndex == Internals::kEmptySymbolRootIndex);
+
   MUST_USE_RESULT MaybeObject* NumberToString(
       Object* number, bool check_number_string_cache = true);
   MUST_USE_RESULT MaybeObject* Uint32ToString(
@@ -1448,6 +1455,8 @@ class Heap {
 
   inline bool NextGCIsLikelyToBeFull() {
     if (FLAG_gc_global) return true;
+
+    if (FLAG_stress_compaction && (gc_count_ & 1) != 0) return true;
 
     intptr_t total_promoted = PromotedTotalSize();
 
@@ -1612,6 +1621,8 @@ class Heap {
   // more expedient to get at the isolate directly from within Heap methods.
   Isolate* isolate_;
 
+  Object* roots_[kRootListLength];
+
   intptr_t code_range_size_;
   int reserved_semispace_size_;
   int max_semispace_size_;
@@ -1726,8 +1737,6 @@ class Heap {
   // Indicates that an allocation has failed in the old generation since the
   // last GC.
   int old_gen_exhausted_;
-
-  Object* roots_[kRootListLength];
 
   Object* global_contexts_list_;
 

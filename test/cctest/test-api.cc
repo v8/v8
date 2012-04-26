@@ -16448,3 +16448,95 @@ TEST(SecondaryStubCache) {
 TEST(PrimaryStubCache) {
   StubCacheHelper(false);
 }
+
+
+static int fatal_error_callback_counter = 0;
+static void CountingErrorCallback(const char* location, const char* message) {
+  printf("CountingErrorCallback(\"%s\", \"%s\")\n", location, message);
+  fatal_error_callback_counter++;
+}
+
+
+TEST(StaticGetters) {
+  v8::HandleScope scope;
+  LocalContext context;
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  i::Handle<i::Object> undefined_value = FACTORY->undefined_value();
+  CHECK(*v8::Utils::OpenHandle(*v8::Undefined()) == *undefined_value);
+  CHECK(*v8::Utils::OpenHandle(*v8::Undefined(isolate)) == *undefined_value);
+  i::Handle<i::Object> null_value = FACTORY->null_value();
+  CHECK(*v8::Utils::OpenHandle(*v8::Null()) == *null_value);
+  CHECK(*v8::Utils::OpenHandle(*v8::Null(isolate)) == *null_value);
+  i::Handle<i::Object> true_value = FACTORY->true_value();
+  CHECK(*v8::Utils::OpenHandle(*v8::True()) == *true_value);
+  CHECK(*v8::Utils::OpenHandle(*v8::True(isolate)) == *true_value);
+  i::Handle<i::Object> false_value = FACTORY->false_value();
+  CHECK(*v8::Utils::OpenHandle(*v8::False()) == *false_value);
+  CHECK(*v8::Utils::OpenHandle(*v8::False(isolate)) == *false_value);
+
+  // Test after-death behavior.
+  CHECK(i::Internals::IsInitialized(isolate));
+  CHECK_EQ(0, fatal_error_callback_counter);
+  v8::V8::SetFatalErrorHandler(CountingErrorCallback);
+  v8::Utils::ReportApiFailure("StaticGetters()", "Kill V8");
+  i::Isolate::Current()->TearDown();
+  CHECK(!i::Internals::IsInitialized(isolate));
+  CHECK_EQ(1, fatal_error_callback_counter);
+  CHECK(v8::Undefined().IsEmpty());
+  CHECK_EQ(2, fatal_error_callback_counter);
+  CHECK(v8::Undefined(isolate).IsEmpty());
+  CHECK_EQ(3, fatal_error_callback_counter);
+  CHECK(v8::Null().IsEmpty());
+  CHECK_EQ(4, fatal_error_callback_counter);
+  CHECK(v8::Null(isolate).IsEmpty());
+  CHECK_EQ(5, fatal_error_callback_counter);
+  CHECK(v8::True().IsEmpty());
+  CHECK_EQ(6, fatal_error_callback_counter);
+  CHECK(v8::True(isolate).IsEmpty());
+  CHECK_EQ(7, fatal_error_callback_counter);
+  CHECK(v8::False().IsEmpty());
+  CHECK_EQ(8, fatal_error_callback_counter);
+  CHECK(v8::False(isolate).IsEmpty());
+  CHECK_EQ(9, fatal_error_callback_counter);
+}
+
+
+TEST(IsolateEmbedderData) {
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  CHECK_EQ(NULL, isolate->GetData());
+  CHECK_EQ(NULL, ISOLATE->GetData());
+  static void* data1 = reinterpret_cast<void*>(0xacce55ed);
+  isolate->SetData(data1);
+  CHECK_EQ(data1, isolate->GetData());
+  CHECK_EQ(data1, ISOLATE->GetData());
+  static void* data2 = reinterpret_cast<void*>(0xdecea5ed);
+  ISOLATE->SetData(data2);
+  CHECK_EQ(data2, isolate->GetData());
+  CHECK_EQ(data2, ISOLATE->GetData());
+  ISOLATE->TearDown();
+  CHECK_EQ(data2, isolate->GetData());
+  CHECK_EQ(data2, ISOLATE->GetData());
+}
+
+
+TEST(StringEmpty) {
+  v8::HandleScope scope;
+  LocalContext context;
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  i::Handle<i::Object> empty_string = FACTORY->empty_symbol();
+  CHECK(*v8::Utils::OpenHandle(*v8::String::Empty()) == *empty_string);
+  CHECK(*v8::Utils::OpenHandle(*v8::String::Empty(isolate)) == *empty_string);
+
+  // Test after-death behavior.
+  CHECK(i::Internals::IsInitialized(isolate));
+  CHECK_EQ(0, fatal_error_callback_counter);
+  v8::V8::SetFatalErrorHandler(CountingErrorCallback);
+  v8::Utils::ReportApiFailure("StringEmpty()", "Kill V8");
+  i::Isolate::Current()->TearDown();
+  CHECK(!i::Internals::IsInitialized(isolate));
+  CHECK_EQ(1, fatal_error_callback_counter);
+  CHECK(v8::String::Empty().IsEmpty());
+  CHECK_EQ(2, fatal_error_callback_counter);
+  CHECK(v8::String::Empty(isolate).IsEmpty());
+  CHECK_EQ(3, fatal_error_callback_counter);
+}

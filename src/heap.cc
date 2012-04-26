@@ -238,9 +238,14 @@ int Heap::GcSafeSizeOfOldObject(HeapObject* object) {
 GarbageCollector Heap::SelectGarbageCollector(AllocationSpace space,
                                               const char** reason) {
   // Is global GC requested?
-  if (space != NEW_SPACE || FLAG_gc_global) {
+  if (space != NEW_SPACE) {
     isolate_->counters()->gc_compactor_caused_by_request()->Increment();
     *reason = "GC in old space requested";
+    return MARK_COMPACTOR;
+  }
+
+  if (FLAG_gc_global || (FLAG_stress_compaction && (gc_count_ & 1) != 0)) {
+    *reason = "GC in old space forced by flags";
     return MARK_COMPACTOR;
   }
 
@@ -3010,7 +3015,6 @@ MaybeObject* Heap::AllocateSharedFunctionInfo(Object* name) {
   share->set_this_property_assignments(undefined_value(), SKIP_WRITE_BARRIER);
   share->set_ast_node_count(0);
   share->set_deopt_counter(FLAG_deopt_every_n_times);
-  share->set_ic_age(0);
 
   // Set integer fields (smi or int, depending on the architecture).
   share->set_length(0);
@@ -3024,6 +3028,8 @@ MaybeObject* Heap::AllocateSharedFunctionInfo(Object* name) {
   share->set_compiler_hints(0);
   share->set_this_property_assignments_count(0);
   share->set_opt_count(0);
+  share->set_ic_age(0);
+  share->set_opt_reenable_tries(0);
 
   return share;
 }
@@ -5694,6 +5700,11 @@ bool Heap::ConfigureHeap(int max_semispace_size,
                          intptr_t max_old_gen_size,
                          intptr_t max_executable_size) {
   if (HasBeenSetUp()) return false;
+
+  if (FLAG_stress_compaction) {
+    // This will cause more frequent GCs when stressing.
+    max_semispace_size_ = Page::kPageSize;
+  }
 
   if (max_semispace_size > 0) {
     if (max_semispace_size < Page::kPageSize) {

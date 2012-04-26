@@ -1552,14 +1552,100 @@ void HGlobalValueNumberer::ComputeBlockSideEffects() {
 }
 
 
+SmartArrayPointer<char> GetGVNFlagsString(GVNFlagSet flags) {
+  char underlying_buffer[kLastFlag * 128];
+  Vector<char> buffer(underlying_buffer, sizeof(underlying_buffer));
+#if DEBUG
+  int offset = 0;
+  const char* separator = "";
+  const char* comma = ", ";
+  buffer[0] = 0;
+  uint32_t set_depends_on = 0;
+  uint32_t set_changes = 0;
+  for (int bit = 0; bit < kLastFlag; ++bit) {
+    if ((flags.ToIntegral() & (1 << bit)) != 0) {
+      if (bit % 2 == 0) {
+        set_changes++;
+      } else {
+        set_depends_on++;
+      }
+    }
+  }
+  bool positive_changes = set_changes < (kLastFlag / 2);
+  bool positive_depends_on = set_depends_on < (kLastFlag / 2);
+  if (set_changes > 0) {
+    if (positive_changes) {
+      offset += OS::SNPrintF(buffer + offset, "changes [");
+    } else {
+      offset += OS::SNPrintF(buffer + offset, "changes all except [");
+    }
+    for (int bit = 0; bit < kLastFlag; ++bit) {
+      if (((flags.ToIntegral() & (1 << bit)) != 0) == positive_changes) {
+        switch (static_cast<GVNFlag>(bit)) {
+#define DECLARE_FLAG(type)                                       \
+          case kChanges##type:                                   \
+            offset += OS::SNPrintF(buffer + offset, separator);  \
+            offset += OS::SNPrintF(buffer + offset, #type);      \
+            separator = comma;                                   \
+            break;
+GVN_TRACKED_FLAG_LIST(DECLARE_FLAG)
+GVN_UNTRACKED_FLAG_LIST(DECLARE_FLAG)
+#undef DECLARE_FLAG
+          default:
+              break;
+        }
+      }
+    }
+    offset += OS::SNPrintF(buffer + offset, "]");
+  }
+  if (set_depends_on > 0) {
+    separator = "";
+    if (set_changes > 0) {
+      offset += OS::SNPrintF(buffer + offset, ", ");
+    }
+    if (positive_depends_on) {
+      offset += OS::SNPrintF(buffer + offset, "depends on [");
+    } else {
+      offset += OS::SNPrintF(buffer + offset, "depends on all except [");
+    }
+    for (int bit = 0; bit < kLastFlag; ++bit) {
+      if (((flags.ToIntegral() & (1 << bit)) != 0) == positive_depends_on) {
+        switch (static_cast<GVNFlag>(bit)) {
+#define DECLARE_FLAG(type)                                       \
+          case kDependsOn##type:                                 \
+            offset += OS::SNPrintF(buffer + offset, separator);  \
+            offset += OS::SNPrintF(buffer + offset, #type);      \
+            separator = comma;                                   \
+            break;
+GVN_TRACKED_FLAG_LIST(DECLARE_FLAG)
+GVN_UNTRACKED_FLAG_LIST(DECLARE_FLAG)
+#undef DECLARE_FLAG
+          default:
+            break;
+        }
+      }
+    }
+    offset += OS::SNPrintF(buffer + offset, "]");
+  }
+#else
+  OS::SNPrintF(buffer, "0x%08X", flags.ToIntegral());
+#endif
+  size_t string_len = strlen(underlying_buffer) + 1;
+  ASSERT(string_len <= sizeof(underlying_buffer));
+  char* result = new char[strlen(underlying_buffer) + 1];
+  memcpy(result, underlying_buffer, string_len);
+  return SmartArrayPointer<char>(result);
+}
+
+
 void HGlobalValueNumberer::LoopInvariantCodeMotion() {
   for (int i = graph_->blocks()->length() - 1; i >= 0; --i) {
     HBasicBlock* block = graph_->blocks()->at(i);
     if (block->IsLoopHeader()) {
       GVNFlagSet side_effects = loop_side_effects_[block->block_id()];
-      TraceGVN("Try loop invariant motion for block B%d effects=0x%x\n",
+      TraceGVN("Try loop invariant motion for block B%d %s\n",
                block->block_id(),
-               side_effects.ToIntegral());
+               *GetGVNFlagsString(side_effects));
 
       GVNFlagSet accumulated_first_time_depends;
       GVNFlagSet accumulated_first_time_changes;
@@ -1582,20 +1668,19 @@ void HGlobalValueNumberer::ProcessLoopBlock(
     GVNFlagSet* first_time_changes) {
   HBasicBlock* pre_header = loop_header->predecessors()->at(0);
   GVNFlagSet depends_flags = HValue::ConvertChangesToDependsFlags(loop_kills);
-  TraceGVN("Loop invariant motion for B%d depends_flags=0x%x\n",
+  TraceGVN("Loop invariant motion for B%d %s\n",
            block->block_id(),
-           depends_flags.ToIntegral());
+           *GetGVNFlagsString(depends_flags));
   HInstruction* instr = block->first();
   while (instr != NULL) {
     HInstruction* next = instr->next();
     bool hoisted = false;
     if (instr->CheckFlag(HValue::kUseGVN)) {
-      TraceGVN("Checking instruction %d (%s) instruction GVN flags 0x%X, "
-               "loop kills 0x%X\n",
+      TraceGVN("Checking instruction %d (%s) %s. Loop %s\n",
                instr->id(),
                instr->Mnemonic(),
-               instr->gvn_flags().ToIntegral(),
-               depends_flags.ToIntegral());
+               *GetGVNFlagsString(instr->gvn_flags()),
+               *GetGVNFlagsString(loop_kills));
       bool can_hoist = !instr->gvn_flags().ContainsAnyOf(depends_flags);
       if (instr->IsTransitionElementsKind()) {
         // It's possible to hoist transitions out of a loop as long as the
@@ -1619,14 +1704,14 @@ void HGlobalValueNumberer::ProcessLoopBlock(
           hoist_change_blockers.Add(kChangesArrayElements);
         }
         TraceGVN("Checking dependencies on HTransitionElementsKind %d (%s) "
-                 "hoist depends blockers 0x%X, hoist change blockers 0x%X, "
-                 "accumulated depends 0x%X, accumulated changes 0x%X\n",
+                 "hoist blockers: %s %s; "
+                 "first-time accumulated: %s %s\n",
                  instr->id(),
                  instr->Mnemonic(),
-                 hoist_depends_blockers.ToIntegral(),
-                 hoist_change_blockers.ToIntegral(),
-                 first_time_depends->ToIntegral(),
-                 first_time_changes->ToIntegral());
+                 *GetGVNFlagsString(hoist_depends_blockers),
+                 *GetGVNFlagsString(hoist_change_blockers),
+                 *GetGVNFlagsString(*first_time_depends),
+                 *GetGVNFlagsString(*first_time_changes));
         // It's possible to hoist transition from the current loop loop only if
         // they dominate all of the successor blocks in the same loop and there
         // are not any instructions that have Changes/DependsOn that intervene
@@ -1661,8 +1746,18 @@ void HGlobalValueNumberer::ProcessLoopBlock(
     if (!hoisted) {
       // If an instruction is not hoisted, we have to account for its side
       // effects when hoisting later HTransitionElementsKind instructions.
+      GVNFlagSet previous_depends = *first_time_depends;
+      GVNFlagSet previous_changes = *first_time_changes;
       first_time_depends->Add(instr->DependsOnFlags());
       first_time_changes->Add(instr->ChangesFlags());
+      if (!(previous_depends == *first_time_depends)) {
+        TraceGVN("Updated first-time accumulated %s\n",
+                 *GetGVNFlagsString(*first_time_depends));
+      }
+      if (!(previous_changes == *first_time_changes)) {
+        TraceGVN("Updated first-time accumulated %s\n",
+                 *GetGVNFlagsString(*first_time_changes));
+      }
     }
     instr = next;
   }
@@ -2632,29 +2727,328 @@ HGraph* HGraphBuilder::CreateGraph() {
   HStackCheckEliminator sce(graph());
   sce.Process();
 
-  // Replace the results of check instructions with the original value, if the
-  // result is used. This is safe now, since we don't do code motion after this
-  // point. It enables better register allocation since the value produced by
-  // check instructions is really a copy of the original value.
-  graph()->ReplaceCheckedValues();
+  graph()->EliminateRedundantBoundsChecks();
 
   return graph();
 }
 
 
-void HGraph::ReplaceCheckedValues() {
-  HPhase phase("H_Replace checked values", this);
-  for (int i = 0; i < blocks()->length(); ++i) {
-    HInstruction* instr = blocks()->at(i)->first();
-    while (instr != NULL) {
-      if (instr->IsBoundsCheck()) {
-        // Replace all uses of the checked value with the original input.
-        ASSERT(instr->UseCount() > 0);
-        instr->ReplaceAllUsesWith(HBoundsCheck::cast(instr)->index());
+// We try to "factor up" HBoundsCheck instructions towards the root of the
+// dominator tree.
+// For now we handle checks where the index is like "exp + int32value".
+// If in the dominator tree we check "exp + v1" and later (dominated)
+// "exp + v2", if v2 <= v1 we can safely remove the second check, and if
+// v2 > v1 we can use v2 in the 1st check and again remove the second.
+// To do so we keep a dictionary of all checks where the key if the pair
+// "exp, length".
+// The class BoundsCheckKey represents this key.
+class BoundsCheckKey : public ZoneObject {
+ public:
+  HValue* IndexBase() const { return index_base_; }
+  HValue* Length() const { return length_; }
+
+  uint32_t Hash() {
+    return static_cast<uint32_t>(index_base_->Hashcode() ^ length_->Hashcode());
+  }
+
+  static BoundsCheckKey* Create(Zone* zone,
+                                HBoundsCheck* check,
+                                int32_t* offset) {
+    HValue* index_base = NULL;
+    HConstant* constant = NULL;
+    bool is_sub = false;
+
+    if (check->index()->IsAdd()) {
+      HAdd* index = HAdd::cast(check->index());
+      if (index->left()->IsConstant()) {
+        constant = HConstant::cast(index->left());
+        index_base = index->right();
+      } else if (index->right()->IsConstant()) {
+        constant = HConstant::cast(index->right());
+        index_base = index->left();
       }
-      instr = instr->next();
+    } else if (check->index()->IsSub()) {
+      HSub* index = HSub::cast(check->index());
+      is_sub = true;
+      if (index->left()->IsConstant()) {
+        constant = HConstant::cast(index->left());
+        index_base = index->right();
+      } else if (index->right()->IsConstant()) {
+        constant = HConstant::cast(index->right());
+        index_base = index->left();
+      }
+    }
+
+    if (constant != NULL && constant->HasInteger32Value()) {
+      *offset = is_sub ? - constant->Integer32Value()
+                       : constant->Integer32Value();
+    } else {
+      *offset = 0;
+      index_base = check->index();
+    }
+
+    return new(zone) BoundsCheckKey(index_base, check->length());
+  }
+
+ private:
+  BoundsCheckKey(HValue* index_base, HValue* length)
+    : index_base_(index_base),
+      length_(length) { }
+
+  HValue* index_base_;
+  HValue* length_;
+};
+
+
+// Data about each HBoundsCheck that can be eliminated or moved.
+// It is the "value" in the dictionary indexed by "base-index, length"
+// (the key is BoundsCheckKey).
+// We scan the code with a dominator tree traversal.
+// Traversing the dominator tree we keep a stack (implemented as a singly
+// linked list) of "data" for each basic block that contains a relevant check
+// with the same key (the dictionary holds the head of the list).
+// We also keep all the "data" created for a given basic block in a list, and
+// use it to "clean up" the dictionary when backtracking in the dominator tree
+// traversal.
+// Doing this each dictionary entry always directly points to the check that
+// is dominating the code being examined now.
+// We also track the current "offset" of the index expression and use it to
+// decide if any check is already "covered" (so it can be removed) or not.
+class BoundsCheckBbData: public ZoneObject {
+ public:
+  BoundsCheckKey* Key() const { return key_; }
+  int32_t LowerOffset() const { return lower_offset_; }
+  int32_t UpperOffset() const { return upper_offset_; }
+  HBasicBlock* BasicBlock() const { return basic_block_; }
+  HBoundsCheck* Check() const { return check_; }
+  BoundsCheckBbData* NextInBasicBlock() const { return next_in_bb_; }
+  BoundsCheckBbData* FatherInDominatorTree() const { return father_in_dt_; }
+
+  bool OffsetIsCovered(int32_t offset) const {
+    return offset >= LowerOffset() && offset <= UpperOffset();
+  }
+
+  // This method removes new_check and modifies the current check so that it
+  // also "covers" what new_check covered.
+  // The obvious precondition is that new_check follows Check() in the
+  // same basic block, and that new_offset is not covered (otherwise we
+  // could simply remove new_check).
+  // As a consequence LowerOffset() or UpperOffset() change (the covered
+  // range grows).
+  //
+  // In the general case the check covering the current range should be like
+  // these two checks:
+  // 0 <= Key()->IndexBase() + LowerOffset()
+  // Key()->IndexBase() + UpperOffset() < Key()->Length()
+  //
+  // We can transform the second check like this:
+  // Key()->IndexBase() + LowerOffset() <
+  //     Key()->Length() + (LowerOffset() - UpperOffset())
+  // so we can handle both checks with a single unsigned comparison.
+  //
+  // The bulk of this method changes Check()->index() and Check()->length()
+  // replacing them with new HAdd instructions to perform the transformation
+  // described above.
+  void CoverCheck(HBoundsCheck* new_check,
+                  int32_t new_offset) {
+    ASSERT(new_check->index()->representation().IsInteger32());
+
+    if (new_offset > upper_offset_) {
+      upper_offset_ = new_offset;
+    } else if (new_offset < lower_offset_) {
+      lower_offset_ = new_offset;
+    } else {
+      ASSERT(false);
+    }
+
+    BuildOffsetAdd(&added_index_,
+                   &added_index_offset_,
+                   Key()->IndexBase(),
+                   new_check->index()->representation(),
+                   lower_offset_);
+    Check()->SetOperandAt(0, added_index_);
+    BuildOffsetAdd(&added_length_,
+                   &added_length_offset_,
+                   Key()->Length(),
+                   new_check->length()->representation(),
+                   lower_offset_ - upper_offset_);
+    Check()->SetOperandAt(1, added_length_);
+
+    new_check->DeleteAndReplaceWith(NULL);
+  }
+
+  void RemoveZeroOperations() {
+    RemoveZeroAdd(&added_index_, &added_index_offset_);
+    RemoveZeroAdd(&added_length_, &added_length_offset_);
+  }
+
+  BoundsCheckBbData(BoundsCheckKey* key,
+                    int32_t lower_offset,
+                    int32_t upper_offset,
+                    HBasicBlock* bb,
+                    HBoundsCheck* check,
+                    BoundsCheckBbData* next_in_bb,
+                    BoundsCheckBbData* father_in_dt)
+  : key_(key),
+    lower_offset_(lower_offset),
+    upper_offset_(upper_offset),
+    basic_block_(bb),
+    check_(check),
+    added_index_offset_(NULL),
+    added_index_(NULL),
+    added_length_offset_(NULL),
+    added_length_(NULL),
+    next_in_bb_(next_in_bb),
+    father_in_dt_(father_in_dt) { }
+
+ private:
+  BoundsCheckKey* key_;
+  int32_t lower_offset_;
+  int32_t upper_offset_;
+  HBasicBlock* basic_block_;
+  HBoundsCheck* check_;
+  HConstant* added_index_offset_;
+  HAdd* added_index_;
+  HConstant* added_length_offset_;
+  HAdd* added_length_;
+  BoundsCheckBbData* next_in_bb_;
+  BoundsCheckBbData* father_in_dt_;
+
+  void BuildOffsetAdd(HAdd** add,
+                      HConstant** constant,
+                      HValue* original_value,
+                      Representation representation,
+                      int32_t new_offset) {
+    HConstant* new_constant = new(BasicBlock()->zone())
+        HConstant(Handle<Object>(Smi::FromInt(new_offset)),
+                  Representation::Integer32());
+    if (*add == NULL) {
+      new_constant->InsertBefore(Check());
+      *add = new(BasicBlock()->zone()) HAdd(NULL,
+                                            original_value,
+                                            new_constant);
+      (*add)->AssumeRepresentation(representation);
+      (*add)->InsertBefore(Check());
+    } else {
+      new_constant->InsertBefore(*add);
+      (*constant)->DeleteAndReplaceWith(new_constant);
+    }
+    *constant = new_constant;
+  }
+
+  void RemoveZeroAdd(HAdd** add, HConstant** constant) {
+    if (*add != NULL && (*constant)->Integer32Value() == 0) {
+      (*add)->DeleteAndReplaceWith((*add)->left());
+      (*constant)->DeleteAndReplaceWith(NULL);
     }
   }
+};
+
+
+static bool BoundsCheckKeyMatch(void* key1, void* key2) {
+  BoundsCheckKey* k1 = static_cast<BoundsCheckKey*>(key1);
+  BoundsCheckKey* k2 = static_cast<BoundsCheckKey*>(key2);
+  return k1->IndexBase() == k2->IndexBase() && k1->Length() == k2->Length();
+}
+
+
+class BoundsCheckTable : private ZoneHashMap {
+ public:
+  BoundsCheckBbData** LookupOrInsert(BoundsCheckKey* key) {
+    return reinterpret_cast<BoundsCheckBbData**>(
+        &(Lookup(key, key->Hash(), true)->value));
+  }
+
+  void Insert(BoundsCheckKey* key, BoundsCheckBbData* data) {
+    Lookup(key, key->Hash(), true)->value = data;
+  }
+
+  void Delete(BoundsCheckKey* key) {
+    Remove(key, key->Hash());
+  }
+
+  BoundsCheckTable() : ZoneHashMap(BoundsCheckKeyMatch) { }
+};
+
+
+// Eliminates checks in bb and recursively in the dominated blocks.
+// Also replace the results of check instructions with the original value, if
+// the result is used. This is safe now, since we don't do code motion after
+// this point. It enables better register allocation since the value produced
+// by check instructions is really a copy of the original value.
+void HGraph::EliminateRedundantBoundsChecks(HBasicBlock* bb,
+                                            BoundsCheckTable* table) {
+  BoundsCheckBbData* bb_data_list = NULL;
+
+  for (HInstruction* i = bb->first(); i != NULL; i = i->next()) {
+    if (!i->IsBoundsCheck()) continue;
+
+    HBoundsCheck* check = HBoundsCheck::cast(i);
+    check->ReplaceAllUsesWith(check->index());
+
+    isolate()->counters()->array_bounds_checks_seen()->Increment();
+    if (!FLAG_array_bounds_checks_elimination) continue;
+
+    int32_t offset;
+    BoundsCheckKey* key =
+        BoundsCheckKey::Create(bb->zone(), check, &offset);
+    BoundsCheckBbData** data_p = table->LookupOrInsert(key);
+    BoundsCheckBbData* data = *data_p;
+    if (data == NULL) {
+      bb_data_list = new(zone()) BoundsCheckBbData(key,
+                                                   offset,
+                                                   offset,
+                                                   bb,
+                                                   check,
+                                                   bb_data_list,
+                                                   NULL);
+      *data_p = bb_data_list;
+    } else if (data->OffsetIsCovered(offset)) {
+      check->DeleteAndReplaceWith(NULL);
+      isolate()->counters()->array_bounds_checks_removed()->Increment();
+    } else if (data->BasicBlock() == bb) {
+      data->CoverCheck(check, offset);
+      isolate()->counters()->array_bounds_checks_removed()->Increment();
+    } else {
+      int32_t new_lower_offset = offset < data->LowerOffset()
+          ? offset
+          : data->LowerOffset();
+      int32_t new_upper_offset = offset > data->UpperOffset()
+          ? offset
+          : data->UpperOffset();
+      bb_data_list = new(bb->zone()) BoundsCheckBbData(key,
+                                                       new_lower_offset,
+                                                       new_upper_offset,
+                                                       bb,
+                                                       check,
+                                                       bb_data_list,
+                                                       data);
+      table->Insert(key, bb_data_list);
+    }
+  }
+
+  for (int i = 0; i < bb->dominated_blocks()->length(); ++i) {
+    EliminateRedundantBoundsChecks(bb->dominated_blocks()->at(i), table);
+  }
+
+  for (BoundsCheckBbData* data = bb_data_list;
+       data != NULL;
+       data = data->NextInBasicBlock()) {
+    data->RemoveZeroOperations();
+    if (data->FatherInDominatorTree()) {
+      table->Insert(data->Key(), data->FatherInDominatorTree());
+    } else {
+      table->Delete(data->Key());
+    }
+  }
+}
+
+
+void HGraph::EliminateRedundantBoundsChecks() {
+  HPhase phase("H_Eliminate bounds checks", this);
+  AssertNoAllocation no_gc;
+  BoundsCheckTable checks_table;
+  EliminateRedundantBoundsChecks(entry_block(), &checks_table);
 }
 
 

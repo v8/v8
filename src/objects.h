@@ -5461,6 +5461,13 @@ class SharedFunctionInfo: public HeapObject {
   inline int opt_count();
   inline void set_opt_count(int opt_count);
 
+  // Number of times we tried to reenable optimization.
+  inline int opt_reenable_tries();
+  inline void set_opt_reenable_tries(int opt_reenable_tries);
+
+  inline void TryReenableOptimization();
+
+
   // Source size of this function.
   int SourceSize();
 
@@ -5517,13 +5524,10 @@ class SharedFunctionInfo: public HeapObject {
       kInferredNameOffset + kPointerSize;
   static const int kThisPropertyAssignmentsOffset =
       kInitialMapOffset + kPointerSize;
-  // ic_age is a Smi field. It could be grouped with another Smi field into a
-  // PSEUDO_SMI_ACCESSORS pair (on x64), if one becomes available.
-  static const int kICAgeOffset = kThisPropertyAssignmentsOffset + kPointerSize;
 #if V8_HOST_ARCH_32_BIT
   // Smi fields.
   static const int kLengthOffset =
-      kICAgeOffset + kPointerSize;
+      kThisPropertyAssignmentsOffset + kPointerSize;
   static const int kFormalParameterCountOffset = kLengthOffset + kPointerSize;
   static const int kExpectedNofPropertiesOffset =
       kFormalParameterCountOffset + kPointerSize;
@@ -5543,10 +5547,10 @@ class SharedFunctionInfo: public HeapObject {
       kThisPropertyAssignmentsCountOffset + kPointerSize;
   static const int kAstNodeCountOffset = kOptCountOffset + kPointerSize;
   static const int kDeoptCounterOffset = kAstNodeCountOffset + kPointerSize;
-
-
+  static const int kICAgeOffset = kDeoptCounterOffset + kPointerSize;
+  static const int kOptReenableTriesOffset = kICAgeOffset + kPointerSize;
   // Total size.
-  static const int kSize = kDeoptCounterOffset + kPointerSize;
+  static const int kSize = kOptReenableTriesOffset + kPointerSize;
 #else
   // The only reason to use smi fields instead of int fields
   // is to allow iteration without maps decoding during
@@ -5558,7 +5562,7 @@ class SharedFunctionInfo: public HeapObject {
   // word is not set and thus this word cannot be treated as pointer
   // to HeapObject during old space traversal.
   static const int kLengthOffset =
-      kICAgeOffset + kPointerSize;
+      kThisPropertyAssignmentsOffset + kPointerSize;
   static const int kFormalParameterCountOffset =
       kLengthOffset + kIntSize;
 
@@ -5585,8 +5589,11 @@ class SharedFunctionInfo: public HeapObject {
   static const int kAstNodeCountOffset = kOptCountOffset + kIntSize;
   static const int kDeoptCounterOffset = kAstNodeCountOffset + kIntSize;
 
+  static const int kICAgeOffset = kDeoptCounterOffset + kIntSize;
+  static const int kOptReenableTriesOffset = kICAgeOffset + kIntSize;
+
   // Total size.
-  static const int kSize = kDeoptCounterOffset + kIntSize;
+  static const int kSize = kOptReenableTriesOffset + kIntSize;
 
 #endif
 

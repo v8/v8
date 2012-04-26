@@ -5175,45 +5175,6 @@ void CharacterRange::Negate(ZoneList<CharacterRange>* ranges,
 }
 
 
-
-// -------------------------------------------------------------------
-// Interest propagation
-
-
-RegExpNode* RegExpNode::TryGetSibling(NodeInfo* info) {
-  for (int i = 0; i < siblings_.length(); i++) {
-    RegExpNode* sibling = siblings_.Get(i);
-    if (sibling->info()->Matches(info))
-      return sibling;
-  }
-  return NULL;
-}
-
-
-RegExpNode* RegExpNode::EnsureSibling(NodeInfo* info, bool* cloned) {
-  ASSERT_EQ(false, *cloned);
-  siblings_.Ensure(this);
-  RegExpNode* result = TryGetSibling(info);
-  if (result != NULL) return result;
-  result = this->Clone();
-  NodeInfo* new_info = result->info();
-  new_info->ResetCompilationState();
-  new_info->AddFromPreceding(info);
-  AddSibling(result);
-  *cloned = true;
-  return result;
-}
-
-
-template <class C>
-static RegExpNode* PropagateToEndpoint(C* node, NodeInfo* info) {
-  NodeInfo full_info(*node->info());
-  full_info.AddFromPreceding(info);
-  bool cloned = false;
-  return RegExpNode::EnsureSibling(node, &full_info, &cloned);
-}
-
-
 // -------------------------------------------------------------------
 // Splay tree
 

@@ -975,7 +975,20 @@ class V8HeapExplorer : public HeapEntriesAllocator {
                       int children_count,
                       int retainers_count);
   const char* GetSystemEntryName(HeapObject* object);
+
   void ExtractReferences(HeapObject* obj);
+  void ExtractJSGlobalProxyReferences(JSGlobalProxy* proxy);
+  void ExtractJSObjectReferences(HeapEntry* entry, JSObject* js_obj);
+  void ExtractStringReferences(HeapEntry* entry, String* obj);
+  void ExtractContextReferences(HeapEntry* entry, Context* context);
+  void ExtractMapReferences(HeapEntry* entry, Map* map);
+  void ExtractSharedFunctionInfoReferences(HeapEntry* entry,
+                                           SharedFunctionInfo* shared);
+  void ExtractScriptReferences(HeapEntry* entry, Script* script);
+  void ExtractCodeCacheReferences(HeapEntry* entry, CodeCache* code_cache);
+  void ExtractCodeReferences(HeapEntry* entry, Code* code);
+  void ExtractJSGlobalPropertyCellReferences(HeapEntry* entry,
+                                             JSGlobalPropertyCell* cell);
   void ExtractClosureReferences(JSObject* js_obj, HeapEntry* entry);
   void ExtractPropertyReferences(JSObject* js_obj, HeapEntry* entry);
   void ExtractElementReferences(JSObject* js_obj, HeapEntry* entry);

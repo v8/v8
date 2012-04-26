@@ -1783,6 +1783,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_RegExpInitializeObject) {
   ASSERT(args.length() == 5);
   CONVERT_ARG_CHECKED(JSRegExp, regexp, 0);
   CONVERT_ARG_CHECKED(String, source, 1);
+  // If source is the empty string we set it to "(?:)" instead as
+  // suggested by ECMA-262, 5th, section 15.10.4.1.
+  if (source->length() == 0) source = isolate->heap()->query_colon_symbol();
 
   Object* global = args[2];
   if (!global->IsTrue()) global = isolate->heap()->false_value();
@@ -2882,12 +2885,79 @@ void FindStringIndicesDispatch(Isolate* isolate,
 }
 
 
+// Two smis before and after the match, for very long strings.
+const int kMaxBuilderEntriesPerRegExpMatch = 5;
+
+
+static void SetLastMatchInfoNoCaptures(Handle<String> subject,
+                                       Handle<JSArray> last_match_info,
+                                       int match_start,
+                                       int match_end) {
+  // Fill last_match_info with a single capture.
+  last_match_info->EnsureSize(2 + RegExpImpl::kLastMatchOverhead);
+  AssertNoAllocation no_gc;
+  FixedArray* elements = FixedArray::cast(last_match_info->elements());
+  RegExpImpl::SetLastCaptureCount(elements, 2);
+  RegExpImpl::SetLastInput(elements, *subject);
+  RegExpImpl::SetLastSubject(elements, *subject);
+  RegExpImpl::SetCapture(elements, 0, match_start);
+  RegExpImpl::SetCapture(elements, 1, match_end);
+}
+
+
+template <typename SubjectChar, typename PatternChar>
+static bool SearchStringMultiple(Isolate* isolate,
+                                 Vector<const SubjectChar> subject,
+                                 Vector<const PatternChar> pattern,
+                                 String* pattern_string,
+                                 FixedArrayBuilder* builder,
+                                 int* match_pos) {
+  int pos = *match_pos;
+  int subject_length = subject.length();
+  int pattern_length = pattern.length();
+  int max_search_start = subject_length - pattern_length;
+  StringSearch<PatternChar, SubjectChar> search(isolate, pattern);
+  while (pos <= max_search_start) {
+    if (!builder->HasCapacity(kMaxBuilderEntriesPerRegExpMatch)) {
+      *match_pos = pos;
+      return false;
+    }
+    // Position of end of previous match.
+    int match_end = pos + pattern_length;
+    int new_pos = search.Search(subject, match_end);
+    if (new_pos >= 0) {
+      // A match.
+      if (new_pos > match_end) {
+        ReplacementStringBuilder::AddSubjectSlice(builder,
+            match_end,
+            new_pos);
+      }
+      pos = new_pos;
+      builder->Add(pattern_string);
+    } else {
+      break;
+    }
+  }
+
+  if (pos < max_search_start) {
+    ReplacementStringBuilder::AddSubjectSlice(builder,
+                                              pos + pattern_length,
+                                              subject_length);
+  }
+  *match_pos = pos;
+  return true;
+}
+
+
+
+
 template<typename ResultSeqString>
-MUST_USE_RESULT static MaybeObject* StringReplaceStringWithString(
+MUST_USE_RESULT static MaybeObject* StringReplaceAtomRegExpWithString(
     Isolate* isolate,
     Handle<String> subject,
     Handle<JSRegExp> pattern_regexp,
-    Handle<String> replacement) {
+    Handle<String> replacement,
+    Handle<JSArray> last_match_info) {
   ASSERT(subject->IsFlat());
   ASSERT(replacement->IsFlat());
 
@@ -2946,6 +3016,12 @@ MUST_USE_RESULT static MaybeObject* StringReplaceStringWithString(
                         subject_pos,
                         subject_len);
   }
+
+  SetLastMatchInfoNoCaptures(subject,
+                             last_match_info,
+                             indices.at(matches - 1),
+                             indices.at(matches - 1) + pattern_len);
+
   return *result;
 }
 
@@ -2994,11 +3070,19 @@ MUST_USE_RESULT static MaybeObject* StringReplaceRegExpWithString(
       compiled_replacement.simple_hint()) {
     if (subject_handle->HasOnlyAsciiChars() &&
         replacement_handle->HasOnlyAsciiChars()) {
-      return StringReplaceStringWithString<SeqAsciiString>(
-          isolate, subject_handle, regexp_handle, replacement_handle);
+      return StringReplaceAtomRegExpWithString<SeqAsciiString>(
+          isolate,
+          subject_handle,
+          regexp_handle,
+          replacement_handle,
+          last_match_info_handle);
     } else {
-      return StringReplaceStringWithString<SeqTwoByteString>(
-          isolate, subject_handle, regexp_handle, replacement_handle);
+      return StringReplaceAtomRegExpWithString<SeqTwoByteString>(
+          isolate,
+          subject_handle,
+          regexp_handle,
+          replacement_handle,
+          last_match_info_handle);
     }
   }
 
@@ -3087,21 +3171,29 @@ MUST_USE_RESULT static MaybeObject* StringReplaceRegExpWithEmptyString(
 
   Handle<String> subject_handle(subject);
   Handle<JSRegExp> regexp_handle(regexp);
+  Handle<JSArray> last_match_info_handle(last_match_info);
 
   // Shortcut for simple non-regexp global replacements
   if (regexp_handle->GetFlags().is_global() &&
       regexp_handle->TypeTag() == JSRegExp::ATOM) {
     Handle<String> empty_string_handle(HEAP->empty_string());
     if (subject_handle->HasOnlyAsciiChars()) {
-      return StringReplaceStringWithString<SeqAsciiString>(
-          isolate, subject_handle, regexp_handle, empty_string_handle);
+      return StringReplaceAtomRegExpWithString<SeqAsciiString>(
+          isolate,
+          subject_handle,
+          regexp_handle,
+          empty_string_handle,
+          last_match_info_handle);
     } else {
-      return StringReplaceStringWithString<SeqTwoByteString>(
-          isolate, subject_handle, regexp_handle, empty_string_handle);
+      return StringReplaceAtomRegExpWithString<SeqTwoByteString>(
+          isolate,
+          subject_handle,
+          regexp_handle,
+          empty_string_handle,
+          last_match_info_handle);
     }
   }
 
-  Handle<JSArray> last_match_info_handle(last_match_info);
   Handle<Object> match = RegExpImpl::Exec(regexp_handle,
                                           subject_handle,
                                           0,
@@ -3121,6 +3213,10 @@ MUST_USE_RESULT static MaybeObject* StringReplaceRegExpWithEmptyString(
     end = RegExpImpl::GetCapture(match_info_array, 1);
   }
 
+  bool global = regexp_handle->GetFlags().is_global();
+
+  if (start == end && !global) return *subject_handle;
+
   int length = subject_handle->length();
   int new_length = length - (end - start);
   if (new_length == 0) {
@@ -3136,7 +3232,7 @@ MUST_USE_RESULT static MaybeObject* StringReplaceRegExpWithEmptyString(
   }
 
   // If the regexp isn't global, only match once.
-  if (!regexp_handle->GetFlags().is_global()) {
+  if (!global) {
     if (start > 0) {
       String::WriteToFlat(*subject_handle,
                           answer->GetChars(),
@@ -3635,70 +3731,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringMatch) {
 }
 
 
-// Two smis before and after the match, for very long strings.
-const int kMaxBuilderEntriesPerRegExpMatch = 5;
-
-
-static void SetLastMatchInfoNoCaptures(Handle<String> subject,
-                                       Handle<JSArray> last_match_info,
-                                       int match_start,
-                                       int match_end) {
-  // Fill last_match_info with a single capture.
-  last_match_info->EnsureSize(2 + RegExpImpl::kLastMatchOverhead);
-  AssertNoAllocation no_gc;
-  FixedArray* elements = FixedArray::cast(last_match_info->elements());
-  RegExpImpl::SetLastCaptureCount(elements, 2);
-  RegExpImpl::SetLastInput(elements, *subject);
-  RegExpImpl::SetLastSubject(elements, *subject);
-  RegExpImpl::SetCapture(elements, 0, match_start);
-  RegExpImpl::SetCapture(elements, 1, match_end);
-}
-
-
-template <typename SubjectChar, typename PatternChar>
-static bool SearchStringMultiple(Isolate* isolate,
-                                 Vector<const SubjectChar> subject,
-                                 Vector<const PatternChar> pattern,
-                                 String* pattern_string,
-                                 FixedArrayBuilder* builder,
-                                 int* match_pos) {
-  int pos = *match_pos;
-  int subject_length = subject.length();
-  int pattern_length = pattern.length();
-  int max_search_start = subject_length - pattern_length;
-  StringSearch<PatternChar, SubjectChar> search(isolate, pattern);
-  while (pos <= max_search_start) {
-    if (!builder->HasCapacity(kMaxBuilderEntriesPerRegExpMatch)) {
-      *match_pos = pos;
-      return false;
-    }
-    // Position of end of previous match.
-    int match_end = pos + pattern_length;
-    int new_pos = search.Search(subject, match_end);
-    if (new_pos >= 0) {
-      // A match.
-      if (new_pos > match_end) {
-        ReplacementStringBuilder::AddSubjectSlice(builder,
-            match_end,
-            new_pos);
-      }
-      pos = new_pos;
-      builder->Add(pattern_string);
-    } else {
-      break;
-    }
-  }
-
-  if (pos < max_search_start) {
-    ReplacementStringBuilder::AddSubjectSlice(builder,
-                                              pos + pattern_length,
-                                              subject_length);
-  }
-  *match_pos = pos;
-  return true;
-}
-
-
 static bool SearchStringMultiple(Isolate* isolate,
                                  Handle<String> subject,
                                  Handle<String> pattern,
@@ -3838,6 +3870,8 @@ static RegExpImpl::IrregexpResult SearchRegExpNoCaptureMultiple(
 }
 
 
+// Only called from Runtime_RegExpExecMultiple so it doesn't need to maintain
+// separate last match info.  See comment on that function.
 static RegExpImpl::IrregexpResult SearchRegExpMultiple(
     Isolate* isolate,
     Handle<String> subject,
@@ -3866,10 +3900,6 @@ static RegExpImpl::IrregexpResult SearchRegExpMultiple(
   // End of previous match. Differs from pos if match was empty.
   int match_end = 0;
   if (result == RegExpImpl::RE_SUCCESS) {
-    // Need to keep a copy of the previous match for creating last_match_info
-    // at the end, so we have two vectors that we swap between.
-    OffsetsVector registers2(required_registers, isolate);
-    Vector<int> prev_register_vector(registers2.vector(), registers2.length());
     bool first = true;
     do {
       int match_start = register_vector[0];
@@ -3922,11 +3952,6 @@ static RegExpImpl::IrregexpResult SearchRegExpMultiple(
         elements->set(capture_count + 2, *subject);
         builder->Add(*isolate->factory()->NewJSArrayWithElements(elements));
       }
-      // Swap register vectors, so the last successful match is in
-      // prev_register_vector.
-      Vector<int32_t> tmp = prev_register_vector;
-      prev_register_vector = register_vector;
-      register_vector = tmp;
 
       if (match_end > match_start) {
         pos = match_end;
@@ -3958,12 +3983,12 @@ static RegExpImpl::IrregexpResult SearchRegExpMultiple(
       last_match_array->EnsureSize(last_match_array_size);
       AssertNoAllocation no_gc;
       FixedArray* elements = FixedArray::cast(last_match_array->elements());
+      // We have to set this even though the rest of the last match array is
+      // ignored.
       RegExpImpl::SetLastCaptureCount(elements, last_match_capture_count);
+      // These are also read without consulting the override.
       RegExpImpl::SetLastSubject(elements, *subject);
       RegExpImpl::SetLastInput(elements, *subject);
-      for (int i = 0; i < last_match_capture_count; i++) {
-        RegExpImpl::SetCapture(elements, i, prev_register_vector[i]);
-      }
       return RegExpImpl::RE_SUCCESS;
     }
   }
@@ -3972,6 +3997,9 @@ static RegExpImpl::IrregexpResult SearchRegExpMultiple(
 }
 
 
+// This is only called for StringReplaceGlobalRegExpWithFunction.  This sets
+// lastMatchInfoOverride to maintain the last match info, so we don't need to
+// set any other last match array info.
 RUNTIME_FUNCTION(MaybeObject*, Runtime_RegExpExecMultiple) {
   ASSERT(args.length() == 4);
   HandleScope handles(isolate);

@@ -1978,201 +1978,28 @@ void V8HeapExplorer::ExtractReferences(HeapObject* obj) {
 
   bool extract_indexed_refs = true;
   if (obj->IsJSGlobalProxy()) {
-    // We need to reference JS global objects from snapshot's root.
-    // We use JSGlobalProxy because this is what embedder (e.g. browser)
-    // uses for the global object.
-    JSGlobalProxy* proxy = JSGlobalProxy::cast(obj);
-    Object* object = proxy->map()->prototype();
-    bool is_debug_object = false;
-#ifdef ENABLE_DEBUGGER_SUPPORT
-    is_debug_object = object->IsGlobalObject() &&
-        Isolate::Current()->debug()->IsDebugGlobal(GlobalObject::cast(object));
-#endif
-    if (!is_debug_object) {
-      SetUserGlobalReference(object);
-    }
+    ExtractJSGlobalProxyReferences(JSGlobalProxy::cast(obj));
   } else if (obj->IsJSObject()) {
-    JSObject* js_obj = JSObject::cast(obj);
-    ExtractClosureReferences(js_obj, entry);
-    ExtractPropertyReferences(js_obj, entry);
-    ExtractElementReferences(js_obj, entry);
-    ExtractInternalReferences(js_obj, entry);
-    SetPropertyReference(
-        obj, entry, heap_->Proto_symbol(), js_obj->GetPrototype());
-    if (obj->IsJSFunction()) {
-      JSFunction* js_fun = JSFunction::cast(js_obj);
-      Object* proto_or_map = js_fun->prototype_or_initial_map();
-      if (!proto_or_map->IsTheHole()) {
-        if (!proto_or_map->IsMap()) {
-          SetPropertyReference(
-              obj, entry,
-              heap_->prototype_symbol(), proto_or_map,
-              NULL,
-              JSFunction::kPrototypeOrInitialMapOffset);
-        } else {
-          SetPropertyReference(
-              obj, entry,
-              heap_->prototype_symbol(), js_fun->prototype());
-        }
-      }
-      SharedFunctionInfo* shared_info = js_fun->shared();
-      // JSFunction has either bindings or literals and never both.
-      bool bound = shared_info->bound();
-      TagObject(js_fun->literals_or_bindings(),
-                bound ? "(function bindings)" : "(function literals)");
-      SetInternalReference(js_fun, entry,
-                           bound ? "bindings" : "literals",
-                           js_fun->literals_or_bindings(),
-                           JSFunction::kLiteralsOffset);
-      TagObject(shared_info, "(shared function info)");
-      SetInternalReference(js_fun, entry,
-                           "shared", shared_info,
-                           JSFunction::kSharedFunctionInfoOffset);
-      TagObject(js_fun->unchecked_context(), "(context)");
-      SetInternalReference(js_fun, entry,
-                           "context", js_fun->unchecked_context(),
-                           JSFunction::kContextOffset);
-      for (int i = JSFunction::kNonWeakFieldsEndOffset;
-           i < JSFunction::kSize;
-           i += kPointerSize) {
-        SetWeakReference(js_fun, entry, i, *HeapObject::RawField(js_fun, i), i);
-      }
-    } else if (obj->IsGlobalObject()) {
-      GlobalObject* global_obj = GlobalObject::cast(obj);
-      SetInternalReference(global_obj, entry,
-                           "builtins", global_obj->builtins(),
-                           GlobalObject::kBuiltinsOffset);
-      SetInternalReference(global_obj, entry,
-                           "global_context", global_obj->global_context(),
-                           GlobalObject::kGlobalContextOffset);
-      SetInternalReference(global_obj, entry,
-                           "global_receiver", global_obj->global_receiver(),
-                           GlobalObject::kGlobalReceiverOffset);
-    }
-    TagObject(js_obj->properties(), "(object properties)");
-    SetInternalReference(obj, entry,
-                         "properties", js_obj->properties(),
-                         JSObject::kPropertiesOffset);
-    TagObject(js_obj->elements(), "(object elements)");
-    SetInternalReference(obj, entry,
-                         "elements", js_obj->elements(),
-                         JSObject::kElementsOffset);
+    ExtractJSObjectReferences(entry, JSObject::cast(obj));
   } else if (obj->IsString()) {
-    if (obj->IsConsString()) {
-      ConsString* cs = ConsString::cast(obj);
-      SetInternalReference(obj, entry, 1, cs->first());
-      SetInternalReference(obj, entry, 2, cs->second());
-    }
-    if (obj->IsSlicedString()) {
-      SlicedString* ss = SlicedString::cast(obj);
-      SetInternalReference(obj, entry, "parent", ss->parent());
-    }
+    ExtractStringReferences(entry, String::cast(obj));
     extract_indexed_refs = false;
-  } else if (obj->IsGlobalContext()) {
-    Context* context = Context::cast(obj);
-    TagObject(context->jsfunction_result_caches(),
-              "(context func. result caches)");
-    TagObject(context->normalized_map_cache(), "(context norm. map cache)");
-    TagObject(context->runtime_context(), "(runtime context)");
-    TagObject(context->data(), "(context data)");
-    for (int i = Context::FIRST_WEAK_SLOT;
-         i < Context::GLOBAL_CONTEXT_SLOTS;
-         ++i) {
-      SetWeakReference(obj, entry,
-                       i, context->get(i),
-                       FixedArray::OffsetOfElementAt(i));
-    }
+  } else if (obj->IsContext()) {
+    ExtractContextReferences(entry, Context::cast(obj));
   } else if (obj->IsMap()) {
-    Map* map = Map::cast(obj);
-    SetInternalReference(obj, entry,
-                         "prototype", map->prototype(), Map::kPrototypeOffset);
-    SetInternalReference(obj, entry,
-                         "constructor", map->constructor(),
-                         Map::kConstructorOffset);
-    if (!map->instance_descriptors()->IsEmpty()) {
-      TagObject(map->instance_descriptors(), "(map descriptors)");
-      SetInternalReference(obj, entry,
-                           "descriptors", map->instance_descriptors(),
-                           Map::kInstanceDescriptorsOrBitField3Offset);
-    }
-    TagObject(map->prototype_transitions(), "(prototype transitions)");
-    SetInternalReference(obj, entry,
-                         "prototype_transitions", map->prototype_transitions(),
-                         Map::kPrototypeTransitionsOffset);
-    SetInternalReference(obj, entry,
-                         "code_cache", map->code_cache(),
-                         Map::kCodeCacheOffset);
+    ExtractMapReferences(entry, Map::cast(obj));
   } else if (obj->IsSharedFunctionInfo()) {
-    SharedFunctionInfo* shared = SharedFunctionInfo::cast(obj);
-    SetInternalReference(obj, entry,
-                         "name", shared->name(),
-                         SharedFunctionInfo::kNameOffset);
-    TagObject(shared->code(), "(code)");
-    SetInternalReference(obj, entry,
-                         "code", shared->code(),
-                         SharedFunctionInfo::kCodeOffset);
-    TagObject(shared->scope_info(), "(function scope info)");
-    SetInternalReference(obj, entry,
-                         "scope_info", shared->scope_info(),
-                         SharedFunctionInfo::kScopeInfoOffset);
-    SetInternalReference(obj, entry,
-                         "instance_class_name", shared->instance_class_name(),
-                         SharedFunctionInfo::kInstanceClassNameOffset);
-    SetInternalReference(obj, entry,
-                         "script", shared->script(),
-                         SharedFunctionInfo::kScriptOffset);
-    TagObject(shared->construct_stub(), "(code)");
-    SetInternalReference(obj, entry,
-                         "construct_stub", shared->construct_stub(),
-                         SharedFunctionInfo::kConstructStubOffset);
-    SetInternalReference(obj, entry,
-                         "function_data", shared->function_data(),
-                         SharedFunctionInfo::kFunctionDataOffset);
-    SetInternalReference(obj, entry,
-                         "debug_info", shared->debug_info(),
-                         SharedFunctionInfo::kDebugInfoOffset);
-    SetInternalReference(obj, entry,
-                         "inferred_name", shared->inferred_name(),
-                         SharedFunctionInfo::kInferredNameOffset);
-    SetInternalReference(obj, entry,
-                         "this_property_assignments",
-                         shared->this_property_assignments(),
-                         SharedFunctionInfo::kThisPropertyAssignmentsOffset);
-    SetWeakReference(obj, entry,
-                     1, shared->initial_map(),
-                     SharedFunctionInfo::kInitialMapOffset);
+    ExtractSharedFunctionInfoReferences(entry, SharedFunctionInfo::cast(obj));
   } else if (obj->IsScript()) {
-    Script* script = Script::cast(obj);
-    SetInternalReference(obj, entry,
-                         "source", script->source(),
-                         Script::kSourceOffset);
-    SetInternalReference(obj, entry,
-                         "name", script->name(),
-                         Script::kNameOffset);
-    SetInternalReference(obj, entry,
-                         "data", script->data(),
-                         Script::kDataOffset);
-    SetInternalReference(obj, entry,
-                         "context_data", script->context_data(),
-                         Script::kContextOffset);
-    TagObject(script->line_ends(), "(script line ends)");
-    SetInternalReference(obj, entry,
-                         "line_ends", script->line_ends(),
-                         Script::kLineEndsOffset);
+    ExtractScriptReferences(entry, Script::cast(obj));
   } else if (obj->IsCodeCache()) {
-    CodeCache* code_cache = CodeCache::cast(obj);
-    TagObject(code_cache->default_cache(), "(default code cache)");
-    SetInternalReference(obj, entry,
-                         "default_cache", code_cache->default_cache(),
-                         CodeCache::kDefaultCacheOffset);
-    TagObject(code_cache->normal_type_cache(), "(code type cache)");
-    SetInternalReference(obj, entry,
-                         "type_cache", code_cache->normal_type_cache(),
-                         CodeCache::kNormalTypeCacheOffset);
+    ExtractCodeCacheReferences(entry, CodeCache::cast(obj));
   } else if (obj->IsCode()) {
-    Code* code = Code::cast(obj);
-    TagObject(code->unchecked_relocation_info(), "(code relocation info)");
-    TagObject(code->unchecked_deoptimization_data(), "(code deopt data)");
+    ExtractCodeReferences(entry, Code::cast(obj));
+  } else if (obj->IsJSGlobalPropertyCell()) {
+    ExtractJSGlobalPropertyCellReferences(
+        entry, JSGlobalPropertyCell::cast(obj));
+    extract_indexed_refs = false;
   }
   if (extract_indexed_refs) {
     SetInternalReference(obj, entry, "map", obj->map(), HeapObject::kMapOffset);
@@ -2182,14 +2009,262 @@ void V8HeapExplorer::ExtractReferences(HeapObject* obj) {
 }
 
 
+void V8HeapExplorer::ExtractJSGlobalProxyReferences(JSGlobalProxy* proxy) {
+  // We need to reference JS global objects from snapshot's root.
+  // We use JSGlobalProxy because this is what embedder (e.g. browser)
+  // uses for the global object.
+  Object* object = proxy->map()->prototype();
+  bool is_debug_object = false;
+#ifdef ENABLE_DEBUGGER_SUPPORT
+  is_debug_object = object->IsGlobalObject() &&
+      Isolate::Current()->debug()->IsDebugGlobal(GlobalObject::cast(object));
+#endif
+  if (!is_debug_object) {
+    SetUserGlobalReference(object);
+  }
+}
+
+
+void V8HeapExplorer::ExtractJSObjectReferences(
+    HeapEntry* entry, JSObject* js_obj) {
+  HeapObject* obj = js_obj;
+  ExtractClosureReferences(js_obj, entry);
+  ExtractPropertyReferences(js_obj, entry);
+  ExtractElementReferences(js_obj, entry);
+  ExtractInternalReferences(js_obj, entry);
+  SetPropertyReference(
+      obj, entry, heap_->Proto_symbol(), js_obj->GetPrototype());
+  if (obj->IsJSFunction()) {
+    JSFunction* js_fun = JSFunction::cast(js_obj);
+    Object* proto_or_map = js_fun->prototype_or_initial_map();
+    if (!proto_or_map->IsTheHole()) {
+      if (!proto_or_map->IsMap()) {
+        SetPropertyReference(
+            obj, entry,
+            heap_->prototype_symbol(), proto_or_map,
+            NULL,
+            JSFunction::kPrototypeOrInitialMapOffset);
+      } else {
+        SetPropertyReference(
+            obj, entry,
+            heap_->prototype_symbol(), js_fun->prototype());
+      }
+    }
+    SharedFunctionInfo* shared_info = js_fun->shared();
+    // JSFunction has either bindings or literals and never both.
+    bool bound = shared_info->bound();
+    TagObject(js_fun->literals_or_bindings(),
+              bound ? "(function bindings)" : "(function literals)");
+    SetInternalReference(js_fun, entry,
+                         bound ? "bindings" : "literals",
+                         js_fun->literals_or_bindings(),
+                         JSFunction::kLiteralsOffset);
+    TagObject(shared_info, "(shared function info)");
+    SetInternalReference(js_fun, entry,
+                         "shared", shared_info,
+                         JSFunction::kSharedFunctionInfoOffset);
+    TagObject(js_fun->unchecked_context(), "(context)");
+    SetInternalReference(js_fun, entry,
+                         "context", js_fun->unchecked_context(),
+                         JSFunction::kContextOffset);
+    for (int i = JSFunction::kNonWeakFieldsEndOffset;
+         i < JSFunction::kSize;
+         i += kPointerSize) {
+      SetWeakReference(js_fun, entry, i, *HeapObject::RawField(js_fun, i), i);
+    }
+  } else if (obj->IsGlobalObject()) {
+    GlobalObject* global_obj = GlobalObject::cast(obj);
+    SetInternalReference(global_obj, entry,
+                         "builtins", global_obj->builtins(),
+                         GlobalObject::kBuiltinsOffset);
+    SetInternalReference(global_obj, entry,
+                         "global_context", global_obj->global_context(),
+                         GlobalObject::kGlobalContextOffset);
+    SetInternalReference(global_obj, entry,
+                         "global_receiver", global_obj->global_receiver(),
+                         GlobalObject::kGlobalReceiverOffset);
+  }
+  TagObject(js_obj->properties(), "(object properties)");
+  SetInternalReference(obj, entry,
+                       "properties", js_obj->properties(),
+                       JSObject::kPropertiesOffset);
+  TagObject(js_obj->elements(), "(object elements)");
+  SetInternalReference(obj, entry,
+                       "elements", js_obj->elements(),
+                       JSObject::kElementsOffset);
+}
+
+
+void V8HeapExplorer::ExtractStringReferences(HeapEntry* entry, String* string) {
+  if (string->IsConsString()) {
+    ConsString* cs = ConsString::cast(string);
+    SetInternalReference(cs, entry, "first", cs->first());
+    SetInternalReference(cs, entry, "second", cs->second());
+  } else if (string->IsSlicedString()) {
+    SlicedString* ss = SlicedString::cast(string);
+    SetInternalReference(ss, entry, "parent", ss->parent());
+  }
+}
+
+
+void V8HeapExplorer::ExtractContextReferences(
+    HeapEntry* entry, Context* context) {
+#define EXTRACT_CONTEXT_FIELD(index, type, name) \
+  SetInternalReference(context, entry, #name, context->get(Context::index), \
+      FixedArray::OffsetOfElementAt(Context::index));
+  EXTRACT_CONTEXT_FIELD(CLOSURE_INDEX, JSFunction, closure);
+  EXTRACT_CONTEXT_FIELD(PREVIOUS_INDEX, Context, previous);
+  EXTRACT_CONTEXT_FIELD(EXTENSION_INDEX, Object, extension);
+  EXTRACT_CONTEXT_FIELD(GLOBAL_INDEX, GlobalObject, global);
+  if (context->IsGlobalContext()) {
+    TagObject(context->jsfunction_result_caches(),
+              "(context func. result caches)");
+    TagObject(context->normalized_map_cache(), "(context norm. map cache)");
+    TagObject(context->runtime_context(), "(runtime context)");
+    TagObject(context->data(), "(context data)");
+    GLOBAL_CONTEXT_FIELDS(EXTRACT_CONTEXT_FIELD);
+#undef EXTRACT_CONTEXT_FIELD
+    for (int i = Context::FIRST_WEAK_SLOT;
+         i < Context::GLOBAL_CONTEXT_SLOTS;
+         ++i) {
+      SetWeakReference(context, entry, i, context->get(i),
+          FixedArray::OffsetOfElementAt(i));
+    }
+  }
+}
+
+
+void V8HeapExplorer::ExtractMapReferences(HeapEntry* entry, Map* map) {
+  SetInternalReference(map, entry,
+                       "prototype", map->prototype(), Map::kPrototypeOffset);
+  SetInternalReference(map, entry,
+                       "constructor", map->constructor(),
+                       Map::kConstructorOffset);
+  if (!map->instance_descriptors()->IsEmpty()) {
+    TagObject(map->instance_descriptors(), "(map descriptors)");
+    SetInternalReference(map, entry,
+                         "descriptors", map->instance_descriptors(),
+                         Map::kInstanceDescriptorsOrBitField3Offset);
+  }
+  TagObject(map->prototype_transitions(), "(prototype transitions)");
+  SetInternalReference(map, entry,
+                       "prototype_transitions", map->prototype_transitions(),
+                       Map::kPrototypeTransitionsOffset);
+  SetInternalReference(map, entry,
+                       "code_cache", map->code_cache(),
+                       Map::kCodeCacheOffset);
+}
+
+
+void V8HeapExplorer::ExtractSharedFunctionInfoReferences(
+    HeapEntry* entry, SharedFunctionInfo* shared) {
+  HeapObject* obj = shared;
+  SetInternalReference(obj, entry,
+                       "name", shared->name(),
+                       SharedFunctionInfo::kNameOffset);
+  TagObject(shared->code(), "(code)");
+  SetInternalReference(obj, entry,
+                       "code", shared->code(),
+                       SharedFunctionInfo::kCodeOffset);
+  TagObject(shared->scope_info(), "(function scope info)");
+  SetInternalReference(obj, entry,
+                       "scope_info", shared->scope_info(),
+                       SharedFunctionInfo::kScopeInfoOffset);
+  SetInternalReference(obj, entry,
+                       "instance_class_name", shared->instance_class_name(),
+                       SharedFunctionInfo::kInstanceClassNameOffset);
+  SetInternalReference(obj, entry,
+                       "script", shared->script(),
+                       SharedFunctionInfo::kScriptOffset);
+  TagObject(shared->construct_stub(), "(code)");
+  SetInternalReference(obj, entry,
+                       "construct_stub", shared->construct_stub(),
+                       SharedFunctionInfo::kConstructStubOffset);
+  SetInternalReference(obj, entry,
+                       "function_data", shared->function_data(),
+                       SharedFunctionInfo::kFunctionDataOffset);
+  SetInternalReference(obj, entry,
+                       "debug_info", shared->debug_info(),
+                       SharedFunctionInfo::kDebugInfoOffset);
+  SetInternalReference(obj, entry,
+                       "inferred_name", shared->inferred_name(),
+                       SharedFunctionInfo::kInferredNameOffset);
+  SetInternalReference(obj, entry,
+                       "this_property_assignments",
+                       shared->this_property_assignments(),
+                       SharedFunctionInfo::kThisPropertyAssignmentsOffset);
+  SetWeakReference(obj, entry,
+                   1, shared->initial_map(),
+                   SharedFunctionInfo::kInitialMapOffset);
+}
+
+
+void V8HeapExplorer::ExtractScriptReferences(HeapEntry* entry, Script* script) {
+  HeapObject* obj = script;
+  SetInternalReference(obj, entry,
+                       "source", script->source(),
+                       Script::kSourceOffset);
+  SetInternalReference(obj, entry,
+                       "name", script->name(),
+                       Script::kNameOffset);
+  SetInternalReference(obj, entry,
+                       "data", script->data(),
+                       Script::kDataOffset);
+  SetInternalReference(obj, entry,
+                       "context_data", script->context_data(),
+                       Script::kContextOffset);
+  TagObject(script->line_ends(), "(script line ends)");
+  SetInternalReference(obj, entry,
+                       "line_ends", script->line_ends(),
+                       Script::kLineEndsOffset);
+}
+
+
+void V8HeapExplorer::ExtractCodeCacheReferences(
+    HeapEntry* entry, CodeCache* code_cache) {
+  TagObject(code_cache->default_cache(), "(default code cache)");
+  SetInternalReference(code_cache, entry,
+                       "default_cache", code_cache->default_cache(),
+                       CodeCache::kDefaultCacheOffset);
+  TagObject(code_cache->normal_type_cache(), "(code type cache)");
+  SetInternalReference(code_cache, entry,
+                       "type_cache", code_cache->normal_type_cache(),
+                       CodeCache::kNormalTypeCacheOffset);
+}
+
+
+void V8HeapExplorer::ExtractCodeReferences(HeapEntry* entry, Code* code) {
+  TagObject(code->relocation_info(), "(code relocation info)");
+  SetInternalReference(code, entry,
+                       "relocation_info", code->relocation_info(),
+                       Code::kRelocationInfoOffset);
+  SetInternalReference(code, entry,
+                       "handler_table", code->handler_table(),
+                       Code::kHandlerTableOffset);
+  TagObject(code->deoptimization_data(), "(code deopt data)");
+  SetInternalReference(code, entry,
+                       "deoptimization_data", code->deoptimization_data(),
+                       Code::kDeoptimizationDataOffset);
+  SetInternalReference(code, entry,
+                       "type_feedback_info", code->type_feedback_info(),
+                       Code::kTypeFeedbackInfoOffset);
+  SetInternalReference(code, entry,
+                       "gc_metadata", code->gc_metadata(),
+                       Code::kGCMetadataOffset);
+}
+
+
+void V8HeapExplorer::ExtractJSGlobalPropertyCellReferences(
+    HeapEntry* entry, JSGlobalPropertyCell* cell) {
+  SetInternalReference(cell, entry, "value", cell->value());
+}
+
+
 void V8HeapExplorer::ExtractClosureReferences(JSObject* js_obj,
                                               HeapEntry* entry) {
   if (!js_obj->IsJSFunction()) return;
 
   JSFunction* func = JSFunction::cast(js_obj);
-  Context* context = func->context()->declaration_context();
-  ScopeInfo* scope_info = context->closure()->shared()->scope_info();
-
   if (func->shared()->bound()) {
     FixedArray* bindings = func->function_bindings();
     SetNativeBindReference(js_obj, entry, "bound_this",
@@ -2205,6 +2280,8 @@ void V8HeapExplorer::ExtractClosureReferences(JSObject* js_obj,
                              bindings->get(i));
     }
   } else {
+    Context* context = func->context()->declaration_context();
+    ScopeInfo* scope_info = context->closure()->shared()->scope_info();
     // Add context allocated locals.
     int context_locals = scope_info->ContextLocalCount();
     for (int i = 0; i < context_locals; ++i) {

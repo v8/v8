@@ -467,25 +467,6 @@ struct NodeInfo {
 };
 
 
-class SiblingList {
- public:
-  SiblingList() : list_(NULL) { }
-  int length() {
-    return list_ == NULL ? 0 : list_->length();
-  }
-  void Ensure(RegExpNode* parent) {
-    if (list_ == NULL) {
-      list_ = new ZoneList<RegExpNode*>(2);
-      list_->Add(parent);
-    }
-  }
-  void Add(RegExpNode* node) { list_->Add(node); }
-  RegExpNode* Get(int index) { return list_->at(index); }
- private:
-  ZoneList<RegExpNode*>* list_;
-};
-
-
 // Details of a quick mask-compare check that can look ahead in the
 // input stream.
 class QuickCheckDetails {
@@ -540,7 +521,7 @@ class QuickCheckDetails {
 
 class RegExpNode: public ZoneObject {
  public:
-  RegExpNode() : first_character_set_(NULL), trace_count_(0) {
+  RegExpNode() : trace_count_(0) {
     bm_info_[0] = bm_info_[1] = NULL;
   }
   virtual ~RegExpNode();
@@ -609,46 +590,14 @@ class RegExpNode: public ZoneObject {
 
   NodeInfo* info() { return &info_; }
 
-  void AddSibling(RegExpNode* node) { siblings_.Add(node); }
-
-  // Static version of EnsureSibling that expresses the fact that the
-  // result has the same type as the input.
-  template <class C>
-  static C* EnsureSibling(C* node, NodeInfo* info, bool* cloned) {
-    return static_cast<C*>(node->EnsureSibling(info, cloned));
-  }
-
-  SiblingList* siblings() { return &siblings_; }
-  void set_siblings(SiblingList* other) { siblings_ = *other; }
-
-  // Get and set the cached first character set value.
-  ZoneList<CharacterRange>* first_character_set() {
-    return first_character_set_;
-  }
-  void set_first_character_set(ZoneList<CharacterRange>* character_set) {
-    first_character_set_ = character_set;
-  }
   BoyerMooreLookahead* bm_info(bool not_at_start) {
     return bm_info_[not_at_start ? 1 : 0];
   }
 
  protected:
   enum LimitResult { DONE, CONTINUE };
-  static const int kComputeFirstCharacterSetFail = -1;
 
   LimitResult LimitVersions(RegExpCompiler* compiler, Trace* trace);
-
-  // Returns a sibling of this node whose interests and assumptions
-  // match the ones in the given node info.  If no sibling exists NULL
-  // is returned.
-  RegExpNode* TryGetSibling(NodeInfo* info);
-
-  // Returns a sibling of this node whose interests match the ones in
-  // the given node info.  The info must not contain any assertions.
-  // If no node exists a new one will be created by cloning the current
-  // node.  The result will always be an instance of the same concrete
-  // class as this node.
-  RegExpNode* EnsureSibling(NodeInfo* info, bool* cloned);
 
   // Returns a clone of this node initialized using the copy constructor
   // of its concrete class.  Note that the node may have to be pre-
@@ -663,8 +612,6 @@ class RegExpNode: public ZoneObject {
   static const int kFirstCharBudget = 10;
   Label label_;
   NodeInfo info_;
-  SiblingList siblings_;
-  ZoneList<CharacterRange>* first_character_set_;
   // This variable keeps track of how many times code has been generated for
   // this node (in different traces).  We don't keep track of where the
   // generated code is located unless the code is generated at the start of
