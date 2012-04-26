@@ -204,8 +204,7 @@ class LInstruction: public ZoneObject {
   LInstruction()
       :  environment_(NULL),
          hydrogen_value_(NULL),
-         is_call_(false),
-         is_save_doubles_(false) { }
+         is_call_(false) { }
 
   virtual ~LInstruction() { }
 
@@ -248,22 +247,12 @@ class LInstruction: public ZoneObject {
   void set_hydrogen_value(HValue* value) { hydrogen_value_ = value; }
   HValue* hydrogen_value() const { return hydrogen_value_; }
 
-  void set_deoptimization_environment(LEnvironment* env) {
-    deoptimization_environment_.set(env);
-  }
-  LEnvironment* deoptimization_environment() const {
-    return deoptimization_environment_.get();
-  }
-  bool HasDeoptimizationEnvironment() const {
-    return deoptimization_environment_.is_set();
-  }
-
   void MarkAsCall() { is_call_ = true; }
-  void MarkAsSaveDoubles() { is_save_doubles_ = true; }
+
+  virtual void SetDeferredLazyDeoptimizationEnvironment(LEnvironment* env) { }
 
   // Interface to the register allocator and iterators.
   bool IsMarkedAsCall() const { return is_call_; }
-  bool IsMarkedAsSaveDoubles() const { return is_save_doubles_; }
 
   virtual bool HasResult() const = 0;
   virtual LOperand* result() = 0;
@@ -284,9 +273,7 @@ class LInstruction: public ZoneObject {
   LEnvironment* environment_;
   SetOncePointer<LPointerMap> pointer_map_;
   HValue* hydrogen_value_;
-  SetOncePointer<LEnvironment> deoptimization_environment_;
   bool is_call_;
-  bool is_save_doubles_;
 };
 
 
@@ -828,6 +815,15 @@ class LInstanceOfKnownGlobal: public LTemplateInstruction<1, 1, 1> {
   DECLARE_HYDROGEN_ACCESSOR(InstanceOfKnownGlobal)
 
   Handle<JSFunction> function() const { return hydrogen()->function(); }
+  LEnvironment* GetDeferredLazyDeoptimizationEnvironment() {
+    return lazy_deopt_env_;
+  }
+  virtual void SetDeferredLazyDeoptimizationEnvironment(LEnvironment* env) {
+    lazy_deopt_env_ = env;
+  }
+
+ private:
+  LEnvironment* lazy_deopt_env_;
 };
 
 
@@ -2348,11 +2344,6 @@ class LChunkBuilder BASE_EMBEDDED {
       LInstruction* instr,
       HInstruction* hinstr,
       CanDeoptimize can_deoptimize = CANNOT_DEOPTIMIZE_EAGERLY);
-  LInstruction* MarkAsSaveDoubles(LInstruction* instr);
-
-  LInstruction* SetInstructionPendingDeoptimizationEnvironment(
-      LInstruction* instr, int ast_id);
-  void ClearInstructionPendingDeoptimizationEnvironment();
 
   LEnvironment* CreateEnvironment(HEnvironment* hydrogen_env,
                                   int* argument_index_accumulator);

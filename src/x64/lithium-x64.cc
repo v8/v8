@@ -722,22 +722,6 @@ LInstruction* LChunkBuilder::AssignEnvironment(LInstruction* instr) {
 }
 
 
-LInstruction* LChunkBuilder::SetInstructionPendingDeoptimizationEnvironment(
-    LInstruction* instr, int ast_id) {
-  ASSERT(instruction_pending_deoptimization_environment_ == NULL);
-  ASSERT(pending_deoptimization_ast_id_ == AstNode::kNoNumber);
-  instruction_pending_deoptimization_environment_ = instr;
-  pending_deoptimization_ast_id_ = ast_id;
-  return instr;
-}
-
-
-void LChunkBuilder::ClearInstructionPendingDeoptimizationEnvironment() {
-  instruction_pending_deoptimization_environment_ = NULL;
-  pending_deoptimization_ast_id_ = AstNode::kNoNumber;
-}
-
-
 LInstruction* LChunkBuilder::MarkAsCall(LInstruction* instr,
                                         HInstruction* hinstr,
                                         CanDeoptimize can_deoptimize) {
@@ -750,8 +734,10 @@ LInstruction* LChunkBuilder::MarkAsCall(LInstruction* instr,
   if (hinstr->HasObservableSideEffects()) {
     ASSERT(hinstr->next()->IsSimulate());
     HSimulate* sim = HSimulate::cast(hinstr->next());
-    instr = SetInstructionPendingDeoptimizationEnvironment(
-        instr, sim->ast_id());
+    ASSERT(instruction_pending_deoptimization_environment_ == NULL);
+    ASSERT(pending_deoptimization_ast_id_ == AstNode::kNoNumber);
+    instruction_pending_deoptimization_environment_ = instr;
+    pending_deoptimization_ast_id_ = sim->ast_id();
   }
 
   // If instruction does not have side-effects lazy deoptimization
@@ -765,12 +751,6 @@ LInstruction* LChunkBuilder::MarkAsCall(LInstruction* instr,
     instr = AssignEnvironment(instr);
   }
 
-  return instr;
-}
-
-
-LInstruction* LChunkBuilder::MarkAsSaveDoubles(LInstruction* instr) {
-  instr->MarkAsSaveDoubles();
   return instr;
 }
 
@@ -2243,9 +2223,12 @@ LInstruction* LChunkBuilder::DoSimulate(HSimulate* instr) {
   if (pending_deoptimization_ast_id_ == instr->ast_id()) {
     LLazyBailout* lazy_bailout = new(zone()) LLazyBailout;
     LInstruction* result = AssignEnvironment(lazy_bailout);
+    // Store the lazy deopt environment with the instruction if needed. Right
+    // now it is only used for LInstanceOfKnownGlobal.
     instruction_pending_deoptimization_environment_->
-        set_deoptimization_environment(result->environment());
-    ClearInstructionPendingDeoptimizationEnvironment();
+        SetDeferredLazyDeoptimizationEnvironment(result->environment());
+    instruction_pending_deoptimization_environment_ = NULL;
+    pending_deoptimization_ast_id_ = AstNode::kNoNumber;
     return result;
   }
 
