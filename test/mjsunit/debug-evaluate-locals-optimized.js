@@ -46,11 +46,6 @@ function arraySum(arr) {
   return arr.reduce(function (a, b) { return a + b; }, 0);
 }
 
-function isCurrentlyOptimized(fun) {
-  // See runtime.cc.
-  return (%GetOptimizationStatus(fun) & 1) != 0;
-}
-
 function listener(event, exec_state, event_data, data) {
   try {
     if (event == Debug.DebugEvent.Break)
@@ -147,16 +142,6 @@ function listener(event, exec_state, event_data, data) {
           assertFalse(frame.isOptimizedFrame());
           assertFalse(frame.isInlinedFrame());
         }
-      }
-
-      // When function f is optimized we expect an optimized frame for f.  We
-      // can't say whether or not the top 3 frames (g1, g2 and g3) are
-      // optimized and inlined.
-      var frame4 = exec_state.frame(4);
-       
-      if (isCurrentlyOptimized(f)) {
-        assertTrue(frame4.isOptimizedFrame());
-        assertFalse(frame4.isInlinedFrame());
       }
 
       // Indicate that all was processed.

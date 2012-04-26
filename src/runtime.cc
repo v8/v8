@@ -8316,10 +8316,13 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetOptimizationStatus) {
   if (!V8::UseCrankshaft()) {
     return Smi::FromInt(4);  // 4 == "never".
   }
-  if (FLAG_always_opt) {
-    return Smi::FromInt(3);  // 3 == "always".
-  }
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
+  if (FLAG_always_opt) {
+    // We may have always opt, but that is more best-effort than a real
+    // promise, so we still say "no" if it is not optimized.
+    return function->IsOptimized() ? Smi::FromInt(3)   // 3 == "always".
+                                   : Smi::FromInt(2);  // 2 == "no".
+  }
   return function->IsOptimized() ? Smi::FromInt(1)   // 1 == "yes".
                                  : Smi::FromInt(2);  // 2 == "no".
 }
