@@ -1,3 +1,14 @@
+2012-04-26: Version 3.10.6
+
+        Fixed some bugs in accessing details of the last regexp match.
+
+        Fixed source property of empty RegExp objects. (issue 1982)
+
+        Enabled inlining some V8 API functions.
+
+        Performance and stability improvements on all platforms.
+
+
 2012-04-23: Version 3.10.5
 
         Put new global var semantics behind a flag until WebKit tests are
