@@ -2754,7 +2754,6 @@ void BinaryOpStub::GenerateSmiCode(
   Register left = a1;
   Register right = a0;
   Register scratch1 = t3;
-  Register scratch2 = t5;
 
   // Perform combined smi check on both operands.
   __ Or(scratch1, left, Operand(right));
@@ -3459,7 +3458,6 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
 
     Label no_update;
     Label skip_cache;
-    const Register heap_number_map = t2;
 
     // Call C function to calculate the result and update the cache.
     // Register a0 holds precalculated cache entry address; preserve
