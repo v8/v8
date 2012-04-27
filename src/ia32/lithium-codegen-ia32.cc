@@ -2115,7 +2115,7 @@ void LCodeGen::DoLoadGlobalCell(LLoadGlobalCell* instr) {
 
 void LCodeGen::DoLoadGlobalGeneric(LLoadGlobalGeneric* instr) {
   ASSERT(ToRegister(instr->context()).is(esi));
-  ASSERT(ToRegister(instr->global_object()).is(eax));
+  ASSERT(ToRegister(instr->global_object()).is(edx));
   ASSERT(ToRegister(instr->result()).is(eax));
 
   __ mov(ecx, instr->name());
@@ -2313,7 +2313,7 @@ void LCodeGen::DoLoadNamedFieldPolymorphic(LLoadNamedFieldPolymorphic* instr) {
 
 void LCodeGen::DoLoadNamedGeneric(LLoadNamedGeneric* instr) {
   ASSERT(ToRegister(instr->context()).is(esi));
-  ASSERT(ToRegister(instr->object()).is(eax));
+  ASSERT(ToRegister(instr->object()).is(edx));
   ASSERT(ToRegister(instr->result()).is(eax));
 
   __ mov(ecx, instr->name());
@@ -2534,7 +2534,7 @@ void LCodeGen::DoLoadKeyedSpecializedArrayElement(
 void LCodeGen::DoLoadKeyedGeneric(LLoadKeyedGeneric* instr) {
   ASSERT(ToRegister(instr->context()).is(esi));
   ASSERT(ToRegister(instr->object()).is(edx));
-  ASSERT(ToRegister(instr->key()).is(eax));
+  ASSERT(ToRegister(instr->key()).is(ecx));
 
   Handle<Code> ic = isolate()->builtins()->KeyedLoadIC_Initialize();
   CallCode(ic, RelocInfo::CODE_TARGET, instr);

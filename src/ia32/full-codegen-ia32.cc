@@ -1286,7 +1286,7 @@ void FullCodeGenerator::EmitLoadGlobalCheckExtensions(Variable* var,
 
   // All extension objects were empty and it is safe to use a global
   // load IC call.
-  __ mov(eax, GlobalObjectOperand());
+  __ mov(edx, GlobalObjectOperand());
   __ mov(ecx, var->name());
   Handle<Code> ic = isolate()->builtins()->LoadIC_Initialize();
   RelocInfo::Mode mode = (typeof_state == INSIDE_TYPEOF)
@@ -1370,7 +1370,7 @@ void FullCodeGenerator::EmitVariableLoad(VariableProxy* proxy) {
       Comment cmnt(masm_, "Global variable");
       // Use inline caching. Variable name is passed in ecx and the global
       // object in eax.
-      __ mov(eax, GlobalObjectOperand());
+      __ mov(edx, GlobalObjectOperand());
       __ mov(ecx, var->name());
       Handle<Code> ic = isolate()->builtins()->LoadIC_Initialize();
       CallIC(ic, RelocInfo::CODE_TARGET_CONTEXT);
@@ -1764,9 +1764,9 @@ void FullCodeGenerator::VisitAssignment(Assignment* expr) {
       break;
     case NAMED_PROPERTY:
       if (expr->is_compound()) {
-        // We need the receiver both on the stack and in the accumulator.
-        VisitForAccumulatorValue(property->obj());
-        __ push(result_register());
+        // We need the receiver both on the stack and in edx.
+        VisitForStackValue(property->obj());
+        __ mov(edx, Operand(esp, 0));
       } else {
         VisitForStackValue(property->obj());
       }
@@ -1774,9 +1774,9 @@ void FullCodeGenerator::VisitAssignment(Assignment* expr) {
     case KEYED_PROPERTY: {
       if (expr->is_compound()) {
         VisitForStackValue(property->obj());
-        VisitForAccumulatorValue(property->key());
-        __ mov(edx, Operand(esp, 0));
-        __ push(eax);
+        VisitForStackValue(property->key());
+        __ mov(edx, Operand(esp, kPointerSize));  // Object.
+        __ mov(ecx, Operand(esp, 0));             // Key.
       } else {
         VisitForStackValue(property->obj());
         VisitForStackValue(property->key());
@@ -2019,7 +2019,7 @@ void FullCodeGenerator::EmitAssignment(Expression* expr) {
       VisitForStackValue(prop->obj());
       VisitForAccumulatorValue(prop->key());
       __ mov(ecx, eax);
-      __ pop(edx);
+      __ pop(edx);  // Receiver.
       __ pop(eax);  // Restore value.
       Handle<Code> ic = is_classic_mode()
           ? isolate()->builtins()->KeyedStoreIC_Initialize()
@@ -2125,6 +2125,9 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var,
 
 void FullCodeGenerator::EmitNamedPropertyAssignment(Assignment* expr) {
   // Assignment to a property, using a named store IC.
+  // eax    : value
+  // esp[0] : receiver
+
   Property* prop = expr->target()->AsProperty();
   ASSERT(prop != NULL);
   ASSERT(prop->key()->AsLiteral() != NULL);
@@ -2167,6 +2170,9 @@ void FullCodeGenerator::EmitNamedPropertyAssignment(Assignment* expr) {
 
 void FullCodeGenerator::EmitKeyedPropertyAssignment(Assignment* expr) {
   // Assignment to a property, using a keyed store IC.
+  // eax               : value
+  // esp[0]            : key
+  // esp[kPointerSize] : receiver
 
   // If the assignment starts a block of assignments to the same object,
   // change to slow case to avoid the quadratic behavior of repeatedly
@@ -2179,7 +2185,7 @@ void FullCodeGenerator::EmitKeyedPropertyAssignment(Assignment* expr) {
     __ pop(result_register());
   }
 
-  __ pop(ecx);
+  __ pop(ecx);  // Key.
   if (expr->ends_initialization_block()) {
     __ mov(edx, Operand(esp, 0));  // Leave receiver on the stack for later.
   } else {
@@ -2212,12 +2218,14 @@ void FullCodeGenerator::VisitProperty(Property* expr) {
 
   if (key->IsPropertyName()) {
     VisitForAccumulatorValue(expr->obj());
+    __ mov(edx, result_register());
     EmitNamedPropertyLoad(expr);
     context()->Plug(eax);
   } else {
     VisitForStackValue(expr->obj());
     VisitForAccumulatorValue(expr->key());
-    __ pop(edx);
+    __ pop(edx);                     // Object.
+    __ mov(ecx, result_register());  // Key.
     EmitKeyedPropertyLoad(expr);
     context()->Plug(eax);
   }
@@ -4109,15 +4117,16 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
       __ push(Immediate(Smi::FromInt(0)));
     }
     if (assign_type == NAMED_PROPERTY) {
-      // Put the object both on the stack and in the accumulator.
+      // Put the object both on the stack and in edx.
       VisitForAccumulatorValue(prop->obj());
       __ push(eax);
+      __ mov(edx, eax);
       EmitNamedPropertyLoad(prop);
     } else {
       VisitForStackValue(prop->obj());
-      VisitForAccumulatorValue(prop->key());
-      __ mov(edx, Operand(esp, 0));
-      __ push(eax);
+      VisitForStackValue(prop->key());
+      __ mov(edx, Operand(esp, kPointerSize));  // Object.
+      __ mov(ecx, Operand(esp, 0));             // Key.
       EmitKeyedPropertyLoad(prop);
     }
   }
@@ -4264,7 +4273,7 @@ void FullCodeGenerator::VisitForTypeofValue(Expression* expr) {
 
   if (proxy != NULL && proxy->var()->IsUnallocated()) {
     Comment cmnt(masm_, "Global variable");
-    __ mov(eax, GlobalObjectOperand());
+    __ mov(edx, GlobalObjectOperand());
     __ mov(ecx, Immediate(proxy->name()));
     Handle<Code> ic = isolate()->builtins()->LoadIC_Initialize();
     // Use a regular load, not a contextual load, to avoid a reference

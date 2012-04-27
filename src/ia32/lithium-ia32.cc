@@ -1849,7 +1849,7 @@ LInstruction* LChunkBuilder::DoLoadGlobalCell(HLoadGlobalCell* instr) {
 
 LInstruction* LChunkBuilder::DoLoadGlobalGeneric(HLoadGlobalGeneric* instr) {
   LOperand* context = UseFixed(instr->context(), esi);
-  LOperand* global_object = UseFixed(instr->global_object(), eax);
+  LOperand* global_object = UseFixed(instr->global_object(), edx);
   LLoadGlobalGeneric* result =
       new(zone()) LLoadGlobalGeneric(context, global_object);
   return MarkAsCall(DefineFixed(result, eax), instr);
@@ -1909,7 +1909,7 @@ LInstruction* LChunkBuilder::DoLoadNamedFieldPolymorphic(
   ASSERT(instr->representation().IsTagged());
   if (instr->need_generic()) {
     LOperand* context = UseFixed(instr->context(), esi);
-    LOperand* obj = UseFixed(instr->object(), eax);
+    LOperand* obj = UseFixed(instr->object(), edx);
     LLoadNamedFieldPolymorphic* result =
         new(zone()) LLoadNamedFieldPolymorphic(context, obj);
     return MarkAsCall(DefineFixed(result, eax), instr);
@@ -1925,7 +1925,7 @@ LInstruction* LChunkBuilder::DoLoadNamedFieldPolymorphic(
 
 LInstruction* LChunkBuilder::DoLoadNamedGeneric(HLoadNamedGeneric* instr) {
   LOperand* context = UseFixed(instr->context(), esi);
-  LOperand* object = UseFixed(instr->object(), eax);
+  LOperand* object = UseFixed(instr->object(), edx);
   LLoadNamedGeneric* result = new(zone()) LLoadNamedGeneric(context, object);
   return MarkAsCall(DefineFixed(result, eax), instr);
 }
@@ -2004,7 +2004,7 @@ LInstruction* LChunkBuilder::DoLoadKeyedSpecializedArrayElement(
 LInstruction* LChunkBuilder::DoLoadKeyedGeneric(HLoadKeyedGeneric* instr) {
   LOperand* context = UseFixed(instr->context(), esi);
   LOperand* object = UseFixed(instr->object(), edx);
-  LOperand* key = UseFixed(instr->key(), eax);
+  LOperand* key = UseFixed(instr->key(), ecx);
 
   LLoadKeyedGeneric* result =
       new(zone()) LLoadKeyedGeneric(context, object, key);
