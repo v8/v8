@@ -72,6 +72,9 @@ js1_2/function/Number: SKIP
 # TODO(2018): Temporarily allow timeout in debug mode.
 js1_5/GC/regress-203278-2: PASS || TIMEOUT if $mode == debug
 
+# TODO(2108): r11460 made this crash.
+js1_5/Regress/regress-346801: SKIP
+
 ##################### SLOW TESTS #####################
 
 # This takes a long time to run (~100 seconds). It should only be run
