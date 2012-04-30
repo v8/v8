@@ -2885,7 +2885,7 @@ Handle<Code> KeyedLoadStubCompiler::CompileLoadField(Handle<String> name,
   __ cmp(ecx, Immediate(name));
   __ j(not_equal, &miss);
 
-  GenerateLoadField(receiver, holder, edx, ebx, ecx, edi, index, name, &miss);
+  GenerateLoadField(receiver, holder, edx, ebx, eax, edi, index, name, &miss);
 
   __ bind(&miss);
   __ DecrementCounter(counters->keyed_load_field(), 1);
