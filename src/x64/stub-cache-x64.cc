@@ -3401,29 +3401,27 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
     } else {
       // Perform float-to-int conversion with truncation (round-to-zero)
       // behavior.
+      // Fast path: use machine instruction to convert to int64. If that
+      // fails (out-of-range), go into the runtime.
+      __ cvttsd2siq(rdx, xmm0);
+      __ Set(kScratchRegister, V8_UINT64_C(0x8000000000000000));
+      __ cmpq(rdx, kScratchRegister);
+      __ j(equal, &slow);
 
-      // Convert to int32 and store the low byte/word.
-      // If the value is NaN or +/-infinity, the result is 0x80000000,
-      // which is automatically zero when taken mod 2^n, n < 32.
       // rdx: value (converted to an untagged integer)
       // rdi: untagged index
       // rbx: base pointer of external storage
       switch (elements_kind) {
         case EXTERNAL_BYTE_ELEMENTS:
         case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
-          __ cvttsd2si(rdx, xmm0);
           __ movb(Operand(rbx, rdi, times_1, 0), rdx);
           break;
         case EXTERNAL_SHORT_ELEMENTS:
         case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
-          __ cvttsd2si(rdx, xmm0);
           __ movw(Operand(rbx, rdi, times_2, 0), rdx);
           break;
         case EXTERNAL_INT_ELEMENTS:
         case EXTERNAL_UNSIGNED_INT_ELEMENTS:
-          // Convert to int64, so that NaN and infinities become
-          // 0x8000000000000000, which is zero mod 2^32.
-          __ cvttsd2siq(rdx, xmm0);
           __ movl(Operand(rbx, rdi, times_4, 0), rdx);
           break;
         case EXTERNAL_PIXEL_ELEMENTS:
