@@ -729,22 +729,6 @@ LInstruction* LChunkBuilder::AssignEnvironment(LInstruction* instr) {
 }
 
 
-LInstruction* LChunkBuilder::SetInstructionPendingDeoptimizationEnvironment(
-    LInstruction* instr, int ast_id) {
-  ASSERT(instruction_pending_deoptimization_environment_ == NULL);
-  ASSERT(pending_deoptimization_ast_id_ == AstNode::kNoNumber);
-  instruction_pending_deoptimization_environment_ = instr;
-  pending_deoptimization_ast_id_ = ast_id;
-  return instr;
-}
-
-
-void LChunkBuilder::ClearInstructionPendingDeoptimizationEnvironment() {
-  instruction_pending_deoptimization_environment_ = NULL;
-  pending_deoptimization_ast_id_ = AstNode::kNoNumber;
-}
-
-
 LInstruction* LChunkBuilder::MarkAsCall(LInstruction* instr,
                                         HInstruction* hinstr,
                                         CanDeoptimize can_deoptimize) {
@@ -757,8 +741,10 @@ LInstruction* LChunkBuilder::MarkAsCall(LInstruction* instr,
   if (hinstr->HasObservableSideEffects()) {
     ASSERT(hinstr->next()->IsSimulate());
     HSimulate* sim = HSimulate::cast(hinstr->next());
-    instr = SetInstructionPendingDeoptimizationEnvironment(
-        instr, sim->ast_id());
+    ASSERT(instruction_pending_deoptimization_environment_ == NULL);
+    ASSERT(pending_deoptimization_ast_id_ == AstNode::kNoNumber);
+    instruction_pending_deoptimization_environment_ = instr;
+    pending_deoptimization_ast_id_ = sim->ast_id();
   }
 
   // If instruction does not have side-effects lazy deoptimization
@@ -772,12 +758,6 @@ LInstruction* LChunkBuilder::MarkAsCall(LInstruction* instr,
     instr = AssignEnvironment(instr);
   }
 
-  return instr;
-}
-
-
-LInstruction* LChunkBuilder::MarkAsSaveDoubles(LInstruction* instr) {
-  instr->MarkAsSaveDoubles();
   return instr;
 }
 
@@ -1869,7 +1849,7 @@ LInstruction* LChunkBuilder::DoLoadGlobalCell(HLoadGlobalCell* instr) {
 
 LInstruction* LChunkBuilder::DoLoadGlobalGeneric(HLoadGlobalGeneric* instr) {
   LOperand* context = UseFixed(instr->context(), esi);
-  LOperand* global_object = UseFixed(instr->global_object(), eax);
+  LOperand* global_object = UseFixed(instr->global_object(), edx);
   LLoadGlobalGeneric* result =
       new(zone()) LLoadGlobalGeneric(context, global_object);
   return MarkAsCall(DefineFixed(result, eax), instr);
@@ -1929,7 +1909,7 @@ LInstruction* LChunkBuilder::DoLoadNamedFieldPolymorphic(
   ASSERT(instr->representation().IsTagged());
   if (instr->need_generic()) {
     LOperand* context = UseFixed(instr->context(), esi);
-    LOperand* obj = UseFixed(instr->object(), eax);
+    LOperand* obj = UseFixed(instr->object(), edx);
     LLoadNamedFieldPolymorphic* result =
         new(zone()) LLoadNamedFieldPolymorphic(context, obj);
     return MarkAsCall(DefineFixed(result, eax), instr);
@@ -1945,7 +1925,7 @@ LInstruction* LChunkBuilder::DoLoadNamedFieldPolymorphic(
 
 LInstruction* LChunkBuilder::DoLoadNamedGeneric(HLoadNamedGeneric* instr) {
   LOperand* context = UseFixed(instr->context(), esi);
-  LOperand* object = UseFixed(instr->object(), eax);
+  LOperand* object = UseFixed(instr->object(), edx);
   LLoadNamedGeneric* result = new(zone()) LLoadNamedGeneric(context, object);
   return MarkAsCall(DefineFixed(result, eax), instr);
 }
@@ -2024,7 +2004,7 @@ LInstruction* LChunkBuilder::DoLoadKeyedSpecializedArrayElement(
 LInstruction* LChunkBuilder::DoLoadKeyedGeneric(HLoadKeyedGeneric* instr) {
   LOperand* context = UseFixed(instr->context(), esi);
   LOperand* object = UseFixed(instr->object(), edx);
-  LOperand* key = UseFixed(instr->key(), eax);
+  LOperand* key = UseFixed(instr->key(), ecx);
 
   LLoadKeyedGeneric* result =
       new(zone()) LLoadKeyedGeneric(context, object, key);
@@ -2355,9 +2335,12 @@ LInstruction* LChunkBuilder::DoSimulate(HSimulate* instr) {
     ASSERT(pending_deoptimization_ast_id_ == instr->ast_id());
     LLazyBailout* lazy_bailout = new(zone()) LLazyBailout;
     LInstruction* result = AssignEnvironment(lazy_bailout);
+    // Store the lazy deopt environment with the instruction if needed. Right
+    // now it is only used for LInstanceOfKnownGlobal.
     instruction_pending_deoptimization_environment_->
-        set_deoptimization_environment(result->environment());
-    ClearInstructionPendingDeoptimizationEnvironment();
+        SetDeferredLazyDeoptimizationEnvironment(result->environment());
+    instruction_pending_deoptimization_environment_ = NULL;
+    pending_deoptimization_ast_id_ = AstNode::kNoNumber;
     return result;
   }
 

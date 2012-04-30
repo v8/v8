@@ -2016,8 +2016,7 @@ void LCodeGen::DoDeferredInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr,
                     RECORD_SAFEPOINT_WITH_REGISTERS,
                     2);
     ASSERT(delta == masm_->SizeOfCodeGeneratedSince(map_check));
-    ASSERT(instr->HasDeoptimizationEnvironment());
-    LEnvironment* env = instr->deoptimization_environment();
+    LEnvironment* env = instr->GetDeferredLazyDeoptimizationEnvironment();
     safepoints_.RecordLazyDeoptimizationIndex(env->deoptimization_index());
     // Move result to a register that survives the end of the
     // PushSafepointRegisterScope.
@@ -2626,7 +2625,7 @@ void LCodeGen::DoApplyArguments(LApplyArguments* instr) {
 
   // Invoke the function.
   __ bind(&invoke);
-  ASSERT(instr->HasPointerMap() && instr->HasDeoptimizationEnvironment());
+  ASSERT(instr->HasPointerMap());
   LPointerMap* pointers = instr->pointer_map();
   RecordPosition(pointers->position());
   SafepointGenerator safepoint_generator(
@@ -3187,7 +3186,6 @@ void LCodeGen::DoUnaryMathOperation(LUnaryMathOperation* instr) {
 void LCodeGen::DoInvokeFunction(LInvokeFunction* instr) {
   ASSERT(ToRegister(instr->function()).is(rdi));
   ASSERT(instr->HasPointerMap());
-  ASSERT(instr->HasDeoptimizationEnvironment());
 
   if (instr->known_function().is_null()) {
     LPointerMap* pointers = instr->pointer_map();
@@ -4622,7 +4620,7 @@ void LCodeGen::DoDeleteProperty(LDeleteProperty* instr) {
   LOperand* key = instr->key();
   EmitPushTaggedOperand(obj);
   EmitPushTaggedOperand(key);
-  ASSERT(instr->HasPointerMap() && instr->HasDeoptimizationEnvironment());
+  ASSERT(instr->HasPointerMap());
   LPointerMap* pointers = instr->pointer_map();
   RecordPosition(pointers->position());
   // Create safepoint generator that will also ensure enough space in the
@@ -4640,7 +4638,7 @@ void LCodeGen::DoIn(LIn* instr) {
   LOperand* key = instr->key();
   EmitPushTaggedOperand(key);
   EmitPushTaggedOperand(obj);
-  ASSERT(instr->HasPointerMap() && instr->HasDeoptimizationEnvironment());
+  ASSERT(instr->HasPointerMap());
   LPointerMap* pointers = instr->pointer_map();
   RecordPosition(pointers->position());
   SafepointGenerator safepoint_generator(

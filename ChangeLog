@@ -1,3 +1,8 @@
+2012-04-30: Version 3.10.7
+
+        Performance and stability improvements on all platforms.
+
+
 2012-04-26: Version 3.10.6
 
         Fixed some bugs in accessing details of the last regexp match.

@@ -1150,13 +1150,38 @@ void HRangeAnalysis::AddRange(HValue* value, Range* range) {
 
 
 void TraceGVN(const char* msg, ...) {
-  if (FLAG_trace_gvn) {
-    va_list arguments;
-    va_start(arguments, msg);
-    OS::VPrint(msg, arguments);
-    va_end(arguments);
-  }
+  va_list arguments;
+  va_start(arguments, msg);
+  OS::VPrint(msg, arguments);
+  va_end(arguments);
 }
+
+// Wrap TraceGVN in macros to avoid the expense of evaluating its arguments when
+// --trace-gvn is off.
+#define TRACE_GVN_1(msg, a1)                    \
+  if (FLAG_trace_gvn) {                         \
+    TraceGVN(msg, a1);                          \
+  }
+
+#define TRACE_GVN_2(msg, a1, a2)                \
+  if (FLAG_trace_gvn) {                         \
+    TraceGVN(msg, a1, a2);                      \
+  }
+
+#define TRACE_GVN_3(msg, a1, a2, a3)            \
+  if (FLAG_trace_gvn) {                         \
+    TraceGVN(msg, a1, a2, a3);                  \
+  }
+
+#define TRACE_GVN_4(msg, a1, a2, a3, a4)        \
+  if (FLAG_trace_gvn) {                         \
+    TraceGVN(msg, a1, a2, a3, a4);              \
+  }
+
+#define TRACE_GVN_5(msg, a1, a2, a3, a4, a5)    \
+  if (FLAG_trace_gvn) {                         \
+    TraceGVN(msg, a1, a2, a3, a4, a5);          \
+  }
 
 
 HValueMap::HValueMap(Zone* zone, const HValueMap* other)
@@ -1643,9 +1668,9 @@ void HGlobalValueNumberer::LoopInvariantCodeMotion() {
     HBasicBlock* block = graph_->blocks()->at(i);
     if (block->IsLoopHeader()) {
       GVNFlagSet side_effects = loop_side_effects_[block->block_id()];
-      TraceGVN("Try loop invariant motion for block B%d %s\n",
-               block->block_id(),
-               *GetGVNFlagsString(side_effects));
+      TRACE_GVN_2("Try loop invariant motion for block B%d %s\n",
+                  block->block_id(),
+                  *GetGVNFlagsString(side_effects));
 
       GVNFlagSet accumulated_first_time_depends;
       GVNFlagSet accumulated_first_time_changes;
@@ -1668,19 +1693,19 @@ void HGlobalValueNumberer::ProcessLoopBlock(
     GVNFlagSet* first_time_changes) {
   HBasicBlock* pre_header = loop_header->predecessors()->at(0);
   GVNFlagSet depends_flags = HValue::ConvertChangesToDependsFlags(loop_kills);
-  TraceGVN("Loop invariant motion for B%d %s\n",
-           block->block_id(),
-           *GetGVNFlagsString(depends_flags));
+  TRACE_GVN_2("Loop invariant motion for B%d %s\n",
+              block->block_id(),
+              *GetGVNFlagsString(depends_flags));
   HInstruction* instr = block->first();
   while (instr != NULL) {
     HInstruction* next = instr->next();
     bool hoisted = false;
     if (instr->CheckFlag(HValue::kUseGVN)) {
-      TraceGVN("Checking instruction %d (%s) %s. Loop %s\n",
-               instr->id(),
-               instr->Mnemonic(),
-               *GetGVNFlagsString(instr->gvn_flags()),
-               *GetGVNFlagsString(loop_kills));
+      TRACE_GVN_4("Checking instruction %d (%s) %s. Loop %s\n",
+                  instr->id(),
+                  instr->Mnemonic(),
+                  *GetGVNFlagsString(instr->gvn_flags()),
+                  *GetGVNFlagsString(loop_kills));
       bool can_hoist = !instr->gvn_flags().ContainsAnyOf(depends_flags);
       if (instr->IsTransitionElementsKind()) {
         // It's possible to hoist transitions out of a loop as long as the
@@ -1703,15 +1728,19 @@ void HGlobalValueNumberer::ProcessLoopBlock(
         if (trans->transitioned_map()->has_fast_double_elements()) {
           hoist_change_blockers.Add(kChangesArrayElements);
         }
-        TraceGVN("Checking dependencies on HTransitionElementsKind %d (%s) "
-                 "hoist blockers: %s %s; "
-                 "first-time accumulated: %s %s\n",
-                 instr->id(),
-                 instr->Mnemonic(),
-                 *GetGVNFlagsString(hoist_depends_blockers),
-                 *GetGVNFlagsString(hoist_change_blockers),
-                 *GetGVNFlagsString(*first_time_depends),
-                 *GetGVNFlagsString(*first_time_changes));
+        if (FLAG_trace_gvn) {
+          GVNFlagSet hoist_blockers = hoist_depends_blockers;
+          hoist_blockers.Add(hoist_change_blockers);
+          GVNFlagSet first_time = *first_time_changes;
+          first_time.Add(*first_time_depends);
+          TRACE_GVN_4("Checking dependencies on HTransitionElementsKind "
+                      "%d (%s) hoist blockers: %s; "
+                      "first-time accumulated: %s\n",
+                      instr->id(),
+                      instr->Mnemonic(),
+                      *GetGVNFlagsString(hoist_blockers),
+                      *GetGVNFlagsString(first_time));
+        }
         // It's possible to hoist transition from the current loop loop only if
         // they dominate all of the successor blocks in the same loop and there
         // are not any instructions that have Changes/DependsOn that intervene
@@ -1734,7 +1763,7 @@ void HGlobalValueNumberer::ProcessLoopBlock(
         }
 
         if (inputs_loop_invariant && ShouldMove(instr, loop_header)) {
-          TraceGVN("Hoisting loop invariant instruction %d\n", instr->id());
+          TRACE_GVN_1("Hoisting loop invariant instruction %d\n", instr->id());
           // Move the instruction out of the loop.
           instr->Unlink();
           instr->InsertBefore(pre_header->end());
@@ -1751,12 +1780,12 @@ void HGlobalValueNumberer::ProcessLoopBlock(
       first_time_depends->Add(instr->DependsOnFlags());
       first_time_changes->Add(instr->ChangesFlags());
       if (!(previous_depends == *first_time_depends)) {
-        TraceGVN("Updated first-time accumulated %s\n",
-                 *GetGVNFlagsString(*first_time_depends));
+        TRACE_GVN_1("Updated first-time accumulated %s\n",
+                    *GetGVNFlagsString(*first_time_depends));
       }
       if (!(previous_changes == *first_time_changes)) {
-        TraceGVN("Updated first-time accumulated %s\n",
-                 *GetGVNFlagsString(*first_time_changes));
+        TRACE_GVN_1("Updated first-time accumulated %s\n",
+                    *GetGVNFlagsString(*first_time_changes));
       }
     }
     instr = next;
@@ -1800,9 +1829,9 @@ GVNFlagSet HGlobalValueNumberer::CollectSideEffectsOnPathsToDominatedBlock(
 void HGlobalValueNumberer::AnalyzeBlock(HBasicBlock* block,
                                         HValueMap* map,
                                         HSideEffectMap* dominators) {
-  TraceGVN("Analyzing block B%d%s\n",
-           block->block_id(),
-           block->IsLoopHeader() ? " (loop header)" : "");
+  TRACE_GVN_2("Analyzing block B%d%s\n",
+              block->block_id(),
+              block->IsLoopHeader() ? " (loop header)" : "");
 
   // If this is a loop header kill everything killed by the loop.
   if (block->IsLoopHeader()) {
@@ -1819,18 +1848,19 @@ void HGlobalValueNumberer::AnalyzeBlock(HBasicBlock* block,
       // Store instruction as the dominating one for tracked side effects.
       map->Kill(flags);
       dominators->Store(flags, instr);
-      TraceGVN("Instruction %d kills\n", instr->id());
+      TRACE_GVN_2("Instruction %d %s\n", instr->id(),
+                  *GetGVNFlagsString(flags));
     }
     if (instr->CheckFlag(HValue::kUseGVN)) {
       ASSERT(!instr->HasObservableSideEffects());
       HValue* other = map->Lookup(instr);
       if (other != NULL) {
         ASSERT(instr->Equals(other) && other->Equals(instr));
-        TraceGVN("Replacing value %d (%s) with value %d (%s)\n",
-                 instr->id(),
-                 instr->Mnemonic(),
-                 other->id(),
-                 other->Mnemonic());
+        TRACE_GVN_4("Replacing value %d (%s) with value %d (%s)\n",
+                    instr->id(),
+                    instr->Mnemonic(),
+                    other->id(),
+                    other->Mnemonic());
         if (instr->HasSideEffects()) removed_side_effects_ = true;
         instr->DeleteAndReplaceWith(other);
       } else {
@@ -1844,12 +1874,12 @@ void HGlobalValueNumberer::AnalyzeBlock(HBasicBlock* block,
         GVNFlag depends_on_flag = HValue::DependsOnFlagFromInt(i);
         if (instr->DependsOnFlags().Contains(depends_on_flag) &&
             (other != NULL)) {
-          TraceGVN("Side-effect #%d in %d (%s) is dominated by %d (%s)\n",
-                   i,
-                   instr->id(),
-                   instr->Mnemonic(),
-                   other->id(),
-                   other->Mnemonic());
+          TRACE_GVN_5("Side-effect #%d in %d (%s) is dominated by %d (%s)\n",
+                      i,
+                      instr->id(),
+                      instr->Mnemonic(),
+                      other->id(),
+                      other->Mnemonic());
           instr->SetSideEffectDominator(changes_flag, other);
         }
       }

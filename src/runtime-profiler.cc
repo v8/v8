@@ -65,17 +65,11 @@ static const int kSizeLimit = 1500;
 // Number of times a function has to be seen on the stack before it is
 // optimized.
 static const int kProfilerTicksBeforeOptimization = 2;
-// If the function optimization was disabled due to high deoptimization count,
-// but the function is hot and has been seen on the stack this number of times,
-// then we try to reenable optimization for this function.
-static const int kProfilerTicksBeforeReenablingOptimization = 250;
 // If a function does not have enough type info (according to
 // FLAG_type_info_threshold), but has seen a huge number of ticks,
 // optimize it as it is.
 static const int kTicksWhenNotEnoughTypeInfo = 100;
 // We only have one byte to store the number of ticks.
-STATIC_ASSERT(kProfilerTicksBeforeOptimization < 256);
-STATIC_ASSERT(kProfilerTicksBeforeReenablingOptimization < 256);
 STATIC_ASSERT(kTicksWhenNotEnoughTypeInfo < 256);
 
 // Maximum size in bytes of generated code for a function to be optimized
@@ -269,8 +263,7 @@ void RuntimeProfiler::OptimizeNow() {
       }
     }
 
-    SharedFunctionInfo* shared = function->shared();
-    Code* shared_code = shared->code();
+    Code* shared_code = function->shared()->code();
     if (shared_code->kind() != Code::FUNCTION) continue;
 
     if (function->IsMarkedForLazyRecompilation()) {
@@ -280,31 +273,19 @@ void RuntimeProfiler::OptimizeNow() {
       shared_code->set_allow_osr_at_loop_nesting_level(new_nesting);
     }
 
+    // Do not record non-optimizable functions.
+    if (!function->IsOptimizable()) continue;
+    if (function->shared()->optimization_disabled()) continue;
+
     // Only record top-level code on top of the execution stack and
     // avoid optimizing excessively large scripts since top-level code
     // will be executed only once.
     const int kMaxToplevelSourceSize = 10 * 1024;
-    if (shared->is_toplevel() &&
-        (frame_count > 1 || shared->SourceSize() > kMaxToplevelSourceSize)) {
+    if (function->shared()->is_toplevel()
+        && (frame_count > 1
+            || function->shared()->SourceSize() > kMaxToplevelSourceSize)) {
       continue;
     }
-
-    // Do not record non-optimizable functions.
-    if (shared->optimization_disabled()) {
-      if (shared->opt_count() >= Compiler::kDefaultMaxOptCount) {
-        // If optimization was disabled due to many deoptimizations,
-        // then check if the function is hot and try to reenable optimization.
-        int ticks = shared_code->profiler_ticks();
-        if (ticks >= kProfilerTicksBeforeReenablingOptimization) {
-          shared_code->set_profiler_ticks(0);
-          shared->TryReenableOptimization();
-        } else {
-          shared_code->set_profiler_ticks(ticks + 1);
-        }
-      }
-      continue;
-    }
-    if (!function->IsOptimizable()) continue;
 
     if (FLAG_watch_ic_patching) {
       int ticks = shared_code->profiler_ticks();
@@ -328,7 +309,7 @@ void RuntimeProfiler::OptimizeNow() {
           }
         }
       } else if (!any_ic_changed_ &&
-                 shared_code->instruction_size() < kMaxSizeEarlyOpt) {
+          shared_code->instruction_size() < kMaxSizeEarlyOpt) {
         // If no IC was patched since the last tick and this function is very
         // small, optimistically optimize it now.
         Optimize(function, "small function");
@@ -338,7 +319,7 @@ void RuntimeProfiler::OptimizeNow() {
     } else {  // !FLAG_watch_ic_patching
       samples[sample_count++] = function;
 
-      int function_size = shared->SourceSize();
+      int function_size = function->shared()->SourceSize();
       int threshold_size_factor = (function_size > kSizeLimit)
           ? sampler_threshold_size_factor_
           : 1;

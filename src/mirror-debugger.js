@@ -913,6 +913,22 @@ FunctionMirror.prototype.constructedBy = function(opt_max_instances) {
 };
 
 
+FunctionMirror.prototype.scopeCount = function() {
+  if (this.resolved()) {
+    return %GetFunctionScopeCount(this.value());
+  } else {
+    return 0;
+  }
+};
+
+
+FunctionMirror.prototype.scope = function(index) {
+  if (this.resolved()) {
+    return new ScopeMirror(void 0, this, index);
+  }
+};
+
+
 FunctionMirror.prototype.toText = function() {
   return this.source();
 };
@@ -1589,7 +1605,7 @@ FrameMirror.prototype.scopeCount = function() {
 
 
 FrameMirror.prototype.scope = function(index) {
-  return new ScopeMirror(this, index);
+  return new ScopeMirror(this, void 0, index);
 };
 
 
@@ -1752,39 +1768,54 @@ FrameMirror.prototype.toText = function(opt_locals) {
 var kScopeDetailsTypeIndex = 0;
 var kScopeDetailsObjectIndex = 1;
 
-function ScopeDetails(frame, index) {
-  this.break_id_ = frame.break_id_;
-  this.details_ = %GetScopeDetails(frame.break_id_,
-                                   frame.details_.frameId(),
-                                   frame.details_.inlinedFrameIndex(),
-                                   index);
+function ScopeDetails(frame, fun, index) {
+  if (frame) {
+    this.break_id_ = frame.break_id_;
+    this.details_ = %GetScopeDetails(frame.break_id_,
+                                     frame.details_.frameId(),
+                                     frame.details_.inlinedFrameIndex(),
+                                     index);
+  } else {
+    this.details_ = %GetFunctionScopeDetails(fun.value(), index);
+    this.break_id_ = undefined;
+  }
 }
 
 
 ScopeDetails.prototype.type = function() {
-  %CheckExecutionState(this.break_id_);
+  if (!IS_UNDEFINED(this.break_id_)) {
+    %CheckExecutionState(this.break_id_);
+  }
   return this.details_[kScopeDetailsTypeIndex];
 };
 
 
 ScopeDetails.prototype.object = function() {
-  %CheckExecutionState(this.break_id_);
+  if (!IS_UNDEFINED(this.break_id_)) {
+    %CheckExecutionState(this.break_id_);
+  }
   return this.details_[kScopeDetailsObjectIndex];
 };
 
 
 /**
- * Mirror object for scope.
+ * Mirror object for scope of frame or function. Either frame or function must
+ * be specified.
  * @param {FrameMirror} frame The frame this scope is a part of
+ * @param {FunctionMirror} function The function this scope is a part of
  * @param {number} index The scope index in the frame
  * @constructor
  * @extends Mirror
  */
-function ScopeMirror(frame, index) {
+function ScopeMirror(frame, function, index) {
   %_CallFunction(this, SCOPE_TYPE, Mirror);
-  this.frame_index_ = frame.index_;
+  if (frame) {
+    this.frame_index_ = frame.index_;
+  } else {
+    this.frame_index_ = undefined;
+  }
   this.scope_index_ = index;
-  this.details_ = new ScopeDetails(frame, index);
+  this.details_ = new ScopeDetails(frame, function, index);
 }
 inherits(ScopeMirror, Mirror);
 
@@ -2280,6 +2311,15 @@ JSONProtocolSerializer.prototype.serializeObject_ = function(mirror, content,
       content.scriptId = mirror.script().id();
 
       serializeLocationFields(mirror.sourceLocation(), content);
+    }
+
+    content.scopes = [];
+    for (var i = 0; i < mirror.scopeCount(); i++) {
+      var scope = mirror.scope(i);
+      content.scopes.push({
+        type: scope.scopeType(),
+        index: i
+      });
     }
   }
 

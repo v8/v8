@@ -8316,10 +8316,13 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetOptimizationStatus) {
   if (!V8::UseCrankshaft()) {
     return Smi::FromInt(4);  // 4 == "never".
   }
-  if (FLAG_always_opt) {
-    return Smi::FromInt(3);  // 3 == "always".
-  }
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
+  if (FLAG_always_opt) {
+    // We may have always opt, but that is more best-effort than a real
+    // promise, so we still say "no" if it is not optimized.
+    return function->IsOptimized() ? Smi::FromInt(3)   // 3 == "always".
+                                   : Smi::FromInt(2);  // 2 == "no".
+  }
   return function->IsOptimized() ? Smi::FromInt(1)   // 1 == "yes".
                                  : Smi::FromInt(2);  // 2 == "no".
 }
@@ -11015,10 +11018,10 @@ static Handle<JSObject> MaterializeModuleScope(
 }
 
 
-// Iterate over the actual scopes visible from a stack frame. The iteration
-// proceeds from the innermost visible nested scope outwards. All scopes are
-// backed by an actual context except the local scope, which is inserted
-// "artificially" in the context chain.
+// Iterate over the actual scopes visible from a stack frame or from a closure.
+// The iteration proceeds from the innermost visible nested scope outwards.
+// All scopes are backed by an actual context except the local scope,
+// which is inserted "artificially" in the context chain.
 class ScopeIterator {
  public:
   enum ScopeType {
@@ -11116,6 +11119,18 @@ class ScopeIterator {
         // completely stack allocated scopes or stack allocated locals.
         UNREACHABLE();
       }
+    }
+  }
+
+  ScopeIterator(Isolate* isolate,
+                Handle<JSFunction> function)
+    : isolate_(isolate),
+      frame_(NULL),
+      inlined_jsframe_index_(0),
+      function_(function),
+      context_(function->context()) {
+    if (function->IsBuiltin()) {
+      context_ = Handle<Context>();
     }
   }
 
@@ -11339,6 +11354,22 @@ static const int kScopeDetailsTypeIndex = 0;
 static const int kScopeDetailsObjectIndex = 1;
 static const int kScopeDetailsSize = 2;
 
+
+static MaybeObject* MaterializeScopeDetails(Isolate* isolate,
+    ScopeIterator* it) {
+  // Calculate the size of the result.
+  int details_size = kScopeDetailsSize;
+  Handle<FixedArray> details = isolate->factory()->NewFixedArray(details_size);
+
+  // Fill in scope details.
+  details->set(kScopeDetailsTypeIndex, Smi::FromInt(it->Type()));
+  Handle<JSObject> scope_object = it->ScopeObject();
+  RETURN_IF_EMPTY_HANDLE(isolate, scope_object);
+  details->set(kScopeDetailsObjectIndex, *scope_object);
+
+  return *isolate->factory()->NewJSArrayWithElements(details);
+}
+
 // Return an array with scope details
 // args[0]: number: break id
 // args[1]: number: frame index
@@ -11376,18 +11407,46 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetScopeDetails) {
   if (it.Done()) {
     return isolate->heap()->undefined_value();
   }
+  return MaterializeScopeDetails(isolate, &it);
+}
 
-  // Calculate the size of the result.
-  int details_size = kScopeDetailsSize;
-  Handle<FixedArray> details = isolate->factory()->NewFixedArray(details_size);
 
-  // Fill in scope details.
-  details->set(kScopeDetailsTypeIndex, Smi::FromInt(it.Type()));
-  Handle<JSObject> scope_object = it.ScopeObject();
-  RETURN_IF_EMPTY_HANDLE(isolate, scope_object);
-  details->set(kScopeDetailsObjectIndex, *scope_object);
+RUNTIME_FUNCTION(MaybeObject*, Runtime_GetFunctionScopeCount) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 1);
 
-  return *isolate->factory()->NewJSArrayWithElements(details);
+  // Check arguments.
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, fun, 0);
+
+  // Count the visible scopes.
+  int n = 0;
+  for (ScopeIterator it(isolate, fun); !it.Done(); it.Next()) {
+    n++;
+  }
+
+  return Smi::FromInt(n);
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_GetFunctionScopeDetails) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 2);
+
+  // Check arguments.
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, fun, 0);
+  CONVERT_NUMBER_CHECKED(int, index, Int32, args[1]);
+
+  // Find the requested scope.
+  int n = 0;
+  ScopeIterator it(isolate, fun);
+  for (; !it.Done() && n < index; it.Next()) {
+    n++;
+  }
+  if (it.Done()) {
+    return isolate->heap()->undefined_value();
+  }
+
+  return MaterializeScopeDetails(isolate, &it);
 }
 
 

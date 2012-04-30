@@ -1275,6 +1275,13 @@ TEST(GrowAndShrinkNewSpace) {
   InitializeVM();
   NewSpace* new_space = HEAP->new_space();
 
+  if (HEAP->ReservedSemiSpaceSize() == HEAP->InitialSemiSpaceSize()) {
+    // The max size cannot exceed the reserved size, since semispaces must be
+    // always within the reserved space.  We can't test new space growing and
+    // shrinking if the reserved size is the same as the minimum (initial) size.
+    return;
+  }
+
   // Explicitly growing should double the space capacity.
   intptr_t old_capacity, new_capacity;
   old_capacity = new_space->Capacity();
@@ -1315,6 +1322,14 @@ TEST(GrowAndShrinkNewSpace) {
 
 TEST(CollectingAllAvailableGarbageShrinksNewSpace) {
   InitializeVM();
+
+  if (HEAP->ReservedSemiSpaceSize() == HEAP->InitialSemiSpaceSize()) {
+    // The max size cannot exceed the reserved size, since semispaces must be
+    // always within the reserved space.  We can't test new space growing and
+    // shrinking if the reserved size is the same as the minimum (initial) size.
+    return;
+  }
+
   v8::HandleScope scope;
   NewSpace* new_space = HEAP->new_space();
   intptr_t old_capacity, new_capacity;

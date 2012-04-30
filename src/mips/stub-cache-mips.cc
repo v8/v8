@@ -1176,9 +1176,8 @@ void StubCompiler::GenerateLoadConstant(Handle<JSObject> object,
   __ JumpIfSmi(receiver, miss, scratch1);
 
   // Check that the maps haven't changed.
-  Register reg =
-      CheckPrototypes(object, receiver, holder,
-                      scratch1, scratch2, scratch3, name, miss);
+  CheckPrototypes(object, receiver, holder,
+                  scratch1, scratch2, scratch3, name, miss);
 
   // Return the constant value.
   __ LoadHeapObject(v0, value);
@@ -4273,7 +4272,6 @@ void KeyedStoreStubCompiler::GenerateStoreFastElement(
   Register elements_reg = a3;
   Register length_reg = t1;
   Register scratch2 = t2;
-  Register scratch3 = t3;
 
   // This stub is meant to be tail-jumped to, the receiver must already
   // have been verified by the caller to not be a smi.

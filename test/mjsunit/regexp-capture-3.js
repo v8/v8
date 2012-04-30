@@ -156,3 +156,34 @@ assertEquals("foo  baz", a);
 
 a = "foo bar baz".replace(/^|bar/g, "*");
 assertEquals("*foo * baz", a);
+
+// We test FilterASCII using regexps that will backtrack forever.  Since
+// a regexp with a non-ASCII character in it can never match an ASCII
+// string we can test that the relevant node is removed by verifying that
+// there is no hang.
+function NoHang(re) {
+  print(re);
+  "This is an ASCII string that could take forever".match(re);
+}
+
+
+NoHang(/(((.*)*)*x)å/);  // Continuation after loop is filtered, so is loop.
+NoHang(/(((.*)*)*å)foo/);  // Body of loop filtered.
+NoHang(/å(((.*)*)*x)/);   // Everything after a filtered character is filtered.
+NoHang(/(((.*)*)*x)å/);   // Everything before a filtered character is filtered.
+NoHang(/[æøå](((.*)*)*x)/);   // Everything after a filtered class is filtered.
+NoHang(/(((.*)*)*x)[æøå]/);   // Everything before a filtered class is filtered.
+NoHang(/[^\x00-\x7f](((.*)*)*x)/);   // After negated class.
+NoHang(/(((.*)*)*x)[^\x00-\x7f]/);   // Before negated class.
+NoHang(/(?!(((.*)*)*x)å)foo/);  // Negative lookahead is filtered.
+NoHang(/(?!(((.*)*)*x))å/);  // Continuation branch of negative lookahead.
+NoHang(/(?=(((.*)*)*x)å)foo/);  // Positive lookahead is filtered.
+NoHang(/(?=(((.*)*)*x))å/);  // Continuation branch of positive lookahead.
+NoHang(/(?=å)(((.*)*)*x)/);  // Positive lookahead also prunes continuation.
+NoHang(/(æ|ø|å)(((.*)*)*x)/);  // All branches of alternation are filtered.
+NoHang(/(a|b|(((.*)*)*x))å/);  // 1 out of 3 branches pruned.
+NoHang(/(a|(((.*)*)*x)ø|(((.*)*)*x)å)/);  // 2 out of 3 branches pruned.
+
+var s = "Don't prune based on a repetition of length 0";
+assertEquals(null, s.match(/å{1,1}prune/));
+assertEquals("prune", (s.match(/å{0,0}prune/)[0]));

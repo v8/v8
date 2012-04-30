@@ -225,6 +225,8 @@ enum ElementInSetsRelation {
 };
 
 
+// Represents code units in the range from from_ to to_, both ends are
+// inclusive.
 class CharacterRange {
  public:
   CharacterRange() : from_(0), to_(0) { }
@@ -414,7 +416,8 @@ struct NodeInfo {
         follows_newline_interest(false),
         follows_start_interest(false),
         at_end(false),
-        visited(false) { }
+        visited(false),
+        replacement_calculated(false) { }
 
   // Returns true if the interests and assumptions of this node
   // matches the given one.
@@ -464,6 +467,7 @@ struct NodeInfo {
 
   bool at_end: 1;
   bool visited: 1;
+  bool replacement_calculated: 1;
 };
 
 
@@ -519,9 +523,12 @@ class QuickCheckDetails {
 };
 
 
+extern int kUninitializedRegExpNodePlaceHolder;
+
+
 class RegExpNode: public ZoneObject {
  public:
-  RegExpNode() : trace_count_(0) {
+  RegExpNode() : replacement_(NULL), trace_count_(0) {
     bm_info_[0] = bm_info_[1] = NULL;
   }
   virtual ~RegExpNode();
@@ -572,6 +579,22 @@ class RegExpNode: public ZoneObject {
       int offset, BoyerMooreLookahead* bm, bool not_at_start) {
     UNREACHABLE();
   }
+
+  // If we know that the input is ASCII then there are some nodes that can
+  // never match.  This method returns a node that can be substituted for
+  // itself, or NULL if the node can never match.
+  virtual RegExpNode* FilterASCII(int depth) { return this; }
+  // Helper for FilterASCII.
+  RegExpNode* replacement() {
+    ASSERT(info()->replacement_calculated);
+    return replacement_;
+  }
+  RegExpNode* set_replacement(RegExpNode* replacement) {
+    info()->replacement_calculated = true;
+    replacement_ =  replacement;
+    return replacement;  // For convenience.
+  }
+
   // We want to avoid recalculating the lookahead info, so we store it on the
   // node.  Only info that is for this node is stored.  We can tell that the
   // info is for this node when offset == 0, so the information is calculated
@@ -596,13 +619,9 @@ class RegExpNode: public ZoneObject {
 
  protected:
   enum LimitResult { DONE, CONTINUE };
+  RegExpNode* replacement_;
 
   LimitResult LimitVersions(RegExpCompiler* compiler, Trace* trace);
-
-  // Returns a clone of this node initialized using the copy constructor
-  // of its concrete class.  Note that the node may have to be pre-
-  // processed before it is on a usable state.
-  virtual RegExpNode* Clone() = 0;
 
   void set_bm_info(bool not_at_start, BoyerMooreLookahead* bm) {
     bm_info_[not_at_start ? 1 : 0] = bm;
@@ -655,11 +674,16 @@ class SeqRegExpNode: public RegExpNode {
       : on_success_(on_success) { }
   RegExpNode* on_success() { return on_success_; }
   void set_on_success(RegExpNode* node) { on_success_ = node; }
+  virtual RegExpNode* FilterASCII(int depth);
   virtual void FillInBMInfo(
       int offset, BoyerMooreLookahead* bm, bool not_at_start) {
     on_success_->FillInBMInfo(offset, bm, not_at_start);
     if (offset == 0) set_bm_info(not_at_start, bm);
   }
+
+ protected:
+  RegExpNode* FilterSuccessor(int depth);
+
  private:
   RegExpNode* on_success_;
 };
@@ -711,7 +735,6 @@ class ActionNode: public SeqRegExpNode {
   Type type() { return type_; }
   // TODO(erikcorry): We should allow some action nodes in greedy loops.
   virtual int GreedyLoopTextLength() { return kNodeIsTooComplexForGreedyLoops; }
-  virtual ActionNode* Clone() { return new ActionNode(*this); }
 
  private:
   union {
@@ -778,12 +801,8 @@ class TextNode: public SeqRegExpNode {
       RegExpCompiler* compiler);
   virtual void FillInBMInfo(
       int offset, BoyerMooreLookahead* bm, bool not_at_start);
-  virtual TextNode* Clone() {
-    TextNode* result = new TextNode(*this);
-    result->CalculateOffsets();
-    return result;
-  }
   void CalculateOffsets();
+  virtual RegExpNode* FilterASCII(int depth);
 
  private:
   enum TextEmitPassType {
@@ -842,7 +861,6 @@ class AssertionNode: public SeqRegExpNode {
                                     bool not_at_start);
   virtual void FillInBMInfo(
       int offset, BoyerMooreLookahead* bm, bool not_at_start);
-  virtual AssertionNode* Clone() { return new AssertionNode(*this); }
   AssertionNodeType type() { return type_; }
   void set_type(AssertionNodeType type) { type_ = type; }
 
@@ -881,7 +899,6 @@ class BackReferenceNode: public SeqRegExpNode {
   }
   virtual void FillInBMInfo(
       int offset, BoyerMooreLookahead* bm, bool not_at_start);
-  virtual BackReferenceNode* Clone() { return new BackReferenceNode(*this); }
 
  private:
   int start_reg_;
@@ -910,7 +927,7 @@ class EndNode: public RegExpNode {
     // Returning 0 from EatsAtLeast should ensure we never get here.
     UNREACHABLE();
   }
-  virtual EndNode* Clone() { return new EndNode(*this); }
+
  private:
   Action action_;
 };
@@ -997,13 +1014,13 @@ class ChoiceNode: public RegExpNode {
                                     bool not_at_start);
   virtual void FillInBMInfo(
       int offset, BoyerMooreLookahead* bm, bool not_at_start);
-  virtual ChoiceNode* Clone() { return new ChoiceNode(*this); }
 
   bool being_calculated() { return being_calculated_; }
   bool not_at_start() { return not_at_start_; }
   void set_not_at_start() { not_at_start_ = true; }
   void set_being_calculated(bool b) { being_calculated_ = b; }
   virtual bool try_to_emit_quick_check_for_alternative(int i) { return true; }
+  virtual RegExpNode* FilterASCII(int depth);
 
  protected:
   int GreedyLoopTextLengthForAlternative(GuardedAlternative* alternative);
@@ -1056,6 +1073,7 @@ class NegativeLookaheadChoiceNode: public ChoiceNode {
   // characters, but on a negative lookahead the negative branch did not take
   // part in that calculation (EatsAtLeast) so the assumptions don't hold.
   virtual bool try_to_emit_quick_check_for_alternative(int i) { return i != 0; }
+  virtual RegExpNode* FilterASCII(int depth);
 };
 
 
@@ -1078,11 +1096,11 @@ class LoopChoiceNode: public ChoiceNode {
                                     bool not_at_start);
   virtual void FillInBMInfo(
       int offset, BoyerMooreLookahead* bm, bool not_at_start);
-  virtual LoopChoiceNode* Clone() { return new LoopChoiceNode(*this); }
   RegExpNode* loop_node() { return loop_node_; }
   RegExpNode* continue_node() { return continue_node_; }
   bool body_can_be_zero_length() { return body_can_be_zero_length_; }
   virtual void Accept(NodeVisitor* visitor);
+  virtual RegExpNode* FilterASCII(int depth);
 
  private:
   // AddAlternative is made private for loop nodes because alternatives
