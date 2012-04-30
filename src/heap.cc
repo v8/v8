@@ -3015,6 +3015,7 @@ MaybeObject* Heap::AllocateSharedFunctionInfo(Object* name) {
   share->set_this_property_assignments(undefined_value(), SKIP_WRITE_BARRIER);
   share->set_ast_node_count(0);
   share->set_deopt_counter(FLAG_deopt_every_n_times);
+  share->set_ic_age(0);
 
   // Set integer fields (smi or int, depending on the architecture).
   share->set_length(0);
@@ -3028,8 +3029,6 @@ MaybeObject* Heap::AllocateSharedFunctionInfo(Object* name) {
   share->set_compiler_hints(0);
   share->set_this_property_assignments_count(0);
   share->set_opt_count(0);
-  share->set_ic_age(0);
-  share->set_opt_reenable_tries(0);
 
   return share;
 }
