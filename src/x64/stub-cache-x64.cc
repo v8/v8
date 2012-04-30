@@ -3403,9 +3403,9 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
       // behavior.
       // Fast path: use machine instruction to convert to int64. If that
       // fails (out-of-range), go into the runtime.
-      __ cvttsd2siq(rdx, xmm0);
+      __ cvttsd2siq(r8, xmm0);
       __ Set(kScratchRegister, V8_UINT64_C(0x8000000000000000));
-      __ cmpq(rdx, kScratchRegister);
+      __ cmpq(r8, kScratchRegister);
       __ j(equal, &slow);
 
       // rdx: value (converted to an untagged integer)
@@ -3414,15 +3414,15 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
       switch (elements_kind) {
         case EXTERNAL_BYTE_ELEMENTS:
         case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
-          __ movb(Operand(rbx, rdi, times_1, 0), rdx);
+          __ movb(Operand(rbx, rdi, times_1, 0), r8);
           break;
         case EXTERNAL_SHORT_ELEMENTS:
         case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
-          __ movw(Operand(rbx, rdi, times_2, 0), rdx);
+          __ movw(Operand(rbx, rdi, times_2, 0), r8);
           break;
         case EXTERNAL_INT_ELEMENTS:
         case EXTERNAL_UNSIGNED_INT_ELEMENTS:
-          __ movl(Operand(rbx, rdi, times_4, 0), rdx);
+          __ movl(Operand(rbx, rdi, times_4, 0), r8);
           break;
         case EXTERNAL_PIXEL_ELEMENTS:
         case EXTERNAL_FLOAT_ELEMENTS:

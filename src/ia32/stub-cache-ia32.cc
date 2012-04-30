@@ -3644,6 +3644,7 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
             case EXTERNAL_INT_ELEMENTS:
             case EXTERNAL_UNSIGNED_INT_ELEMENTS:
               __ mov(Operand(edi, ecx, times_2, 0), ebx);
+              break;
             default:
               UNREACHABLE();
               break;
