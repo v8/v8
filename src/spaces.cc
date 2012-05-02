@@ -362,13 +362,20 @@ Address MemoryAllocator::AllocateAlignedMemory(size_t size,
   if (base == NULL) return NULL;
 
   if (executable == EXECUTABLE) {
-    CommitCodePage(&reservation, base, size);
-  } else {
-    if (!reservation.Commit(base,
-                            size,
-                            executable == EXECUTABLE)) {
-      return NULL;
+    if (!CommitCodePage(&reservation, base, size)) {
+      base = NULL;
     }
+  } else {
+    if (!reservation.Commit(base, size, false)) {
+      base = NULL;
+    }
+  }
+
+  if (base == NULL) {
+    // Failed to commit the body. Release the mapping and any partially
+    // commited regions inside it.
+    reservation.Release();
+    return NULL;
   }
 
   controller->TakeControl(&reservation);

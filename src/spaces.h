@@ -1039,7 +1039,9 @@ class MemoryAllocator {
     return CodePageAreaEndOffset() - CodePageAreaStartOffset();
   }
 
-  static bool CommitCodePage(VirtualMemory* vm, Address start, size_t size);
+  MUST_USE_RESULT static bool CommitCodePage(VirtualMemory* vm,
+                                             Address start,
+                                             size_t size);
 
  private:
   Isolate* isolate_;
