@@ -5014,11 +5014,9 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   __ j(not_equal, &not_outermost_js, Label::kNear);
   __ mov(Operand::StaticVariable(js_entry_sp), ebp);
   __ push(Immediate(Smi::FromInt(StackFrame::OUTERMOST_JSENTRY_FRAME)));
-  Label cont;
-  __ jmp(&cont, Label::kNear);
+  __ jmp(&invoke, Label::kNear);
   __ bind(&not_outermost_js);
   __ push(Immediate(Smi::FromInt(StackFrame::INNER_JSENTRY_FRAME)));
-  __ bind(&cont);
 
   // Jump to a faked try block that does the invoke, with a faked catch
   // block that sets the pending exception.
