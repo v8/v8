@@ -1383,7 +1383,9 @@ void JSObject::initialize_properties() {
 
 
 void JSObject::initialize_elements() {
-  ASSERT(map()->has_fast_elements() || map()->has_fast_smi_only_elements());
+  ASSERT(map()->has_fast_elements() ||
+         map()->has_fast_smi_only_elements() ||
+         map()->has_fast_double_elements());
   ASSERT(!GetHeap()->InNewSpace(GetHeap()->empty_fixed_array()));
   WRITE_FIELD(this, kElementsOffset, GetHeap()->empty_fixed_array());
 }
