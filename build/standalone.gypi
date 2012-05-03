@@ -71,6 +71,10 @@
         'want_separate_host_toolset': 0,
       }],
     ],
+    # Default ARM variable settings.
+    'armv7%': 1,
+    'arm_neon%': 0,
+    'arm_fpu%': 'vfpv3',
   },
   'target_defaults': {
     'default_configuration': 'Debug',

@@ -173,8 +173,11 @@
             'defines': [
               'V8_TARGET_ARCH_MIPS',
             ],
+            'variables': {
+              'mipscompiler': '<!($(echo ${CXX:-$(which g++)}) -v 2>&1 | grep -q "^Target: mips-" && echo "yes" || echo "no")',
+            },
             'conditions': [
-              [ 'target_arch=="mips"', {
+              ['mipscompiler=="yes"', {
                 'target_conditions': [
                   ['_toolset=="target"', {
                     'cflags': ['-EL'],
