@@ -2426,9 +2426,15 @@ void TextNode::GetQuickCheckDetails(QuickCheckDetails* details,
         QuickCheckDetails::Position* pos =
             details->positions(characters_filled_in);
         uc16 c = quarks[i];
-        // We should already have filtered out nodes that have non-ASCII
-        // characters if we are matching against an ASCII string.
-        ASSERT(c <= char_mask);
+        if (c > char_mask) {
+          // If we expect a non-ASCII character from an ASCII string,
+          // there is no way we can match. Not even case independent
+          // matching can turn an ASCII character into non-ASCII or
+          // vice versa.
+          details->set_cannot_match();
+          pos->determines_perfectly = false;
+          return;
+        }
         if (compiler->ignore_case()) {
           unibrow::uchar chars[unibrow::Ecma262UnCanonicalize::kMaxWidth];
           int length = GetCaseIndependentLetters(isolate, c, compiler->ascii(),
@@ -2490,9 +2496,11 @@ void TextNode::GetQuickCheckDetails(QuickCheckDetails* details,
         int first_range = 0;
         while (ranges->at(first_range).from() > char_mask) {
           first_range++;
-          // We should already have filtered out nodes that cannot match
-          // so the first range should be a valid range.
-          ASSERT(first_range != ranges->length());
+          if (first_range == ranges->length()) {
+            details->set_cannot_match();
+            pos->determines_perfectly = false;
+            return;
+          }
         }
         CharacterRange range = ranges->at(first_range);
         uc16 from = range.from();
@@ -2540,10 +2548,12 @@ void TextNode::GetQuickCheckDetails(QuickCheckDetails* details,
     }
   }
   ASSERT(characters_filled_in != details->characters());
-  on_success()-> GetQuickCheckDetails(details,
-                                      compiler,
-                                      characters_filled_in,
-                                      true);
+  if (!details->cannot_match()) {
+    on_success()-> GetQuickCheckDetails(details,
+                                        compiler,
+                                        characters_filled_in,
+                                        true);
+  }
 }
 
 
@@ -2687,12 +2697,14 @@ RegExpNode* LoopChoiceNode::FilterASCII(int depth) {
   if (info()->replacement_calculated) return replacement();
   if (depth < 0) return this;
   if (info()->visited) return this;
-  VisitMarker marker(info());
+  {
+    VisitMarker marker(info());
 
-  RegExpNode* continue_replacement = continue_node_->FilterASCII(depth - 1);
-  // If we can't continue after the loop then there is no sense in doing the
-  // loop.
-  if (continue_replacement == NULL) return set_replacement(NULL);
+    RegExpNode* continue_replacement = continue_node_->FilterASCII(depth - 1);
+    // If we can't continue after the loop then there is no sense in doing the
+    // loop.
+    if (continue_replacement == NULL) return set_replacement(NULL);
+  }
 
   return ChoiceNode::FilterASCII(depth - 1);
 }
