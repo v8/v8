@@ -1,3 +1,25 @@
+2012-05-03: Version 3.10.8
+
+        Enabled MIPS cross-compilation.
+
+        Ensured reload of elements pointer in StoreFastDoubleElement stub.
+        (Chromium issue 125515)
+
+        Fixed corner cases in truncation behavior when storing to
+        TypedArrays. (issue 2110)
+
+        Fixed failure to properly recognize and report out-of-memory
+        conditions when allocating code space pages. (Chromium issue
+        118625)
+
+        Fixed idle notifications to perform a round of incremental GCs
+        after context disposal. (issue 2107)
+
+        Fixed preparser for try statement. (issue 2109)
+
+        Performance and stability improvements on all platforms.
+
+
 2012-04-30: Version 3.10.7
 
         Performance and stability improvements on all platforms.
