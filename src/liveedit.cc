@@ -1522,7 +1522,8 @@ static const char* DropFrames(Vector<StackFrame*> frames,
 
   if (unused_stack_top > unused_stack_bottom) {
     if (frame_has_padding) {
-      int shortage_bytes = unused_stack_top - unused_stack_bottom;
+      int shortage_bytes =
+          static_cast<int>(unused_stack_top - unused_stack_bottom);
 
       Address padding_start = pre_top_frame->fp() -
           Debug::FramePaddingLayout::kFrameBaseSize * kPointerSize;
