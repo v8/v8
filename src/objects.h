@@ -4291,6 +4291,11 @@ class Code: public HeapObject {
   inline byte compare_state();
   inline void set_compare_state(byte value);
 
+  // [compare_operation]: For kind COMPARE_IC tells what compare operation the
+  // stub was generated for.
+  inline byte compare_operation();
+  inline void set_compare_operation(byte value);
+
   // [to_boolean_foo]: For kind TO_BOOLEAN_IC tells what state the stub is in.
   inline byte to_boolean_state();
   inline void set_to_boolean_state(byte value);
@@ -4473,6 +4478,8 @@ class Code: public HeapObject {
   class FullCodeFlagsIsCompiledOptimizable: public BitField<bool, 2, 1> {};
 
   static const int kBinaryOpReturnTypeOffset = kBinaryOpTypeOffset + 1;
+
+  static const int kCompareOperationOffset = kCompareStateOffset + 1;
 
   static const int kAllowOSRAtLoopNestingLevelOffset = kFullCodeFlags + 1;
   static const int kProfilerTicksOffset = kAllowOSRAtLoopNestingLevelOffset + 1;

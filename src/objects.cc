@@ -8378,6 +8378,10 @@ void Code::Disassemble(const char* name, FILE* out) {
       CompareIC::State state = CompareIC::ComputeState(this);
       PrintF(out, "compare_state = %s\n", CompareIC::GetStateName(state));
     }
+    if (is_compare_ic_stub() && major_key() == CodeStub::CompareIC) {
+      Token::Value op = CompareIC::ComputeOperation(this);
+      PrintF(out, "compare_operation = %s\n", Token::Name(op));
+    }
   }
   if ((name != NULL) && (name[0] != '\0')) {
     PrintF(out, "name = %s\n", name);

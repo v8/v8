@@ -3193,6 +3193,18 @@ void Code::set_compare_state(byte value) {
 }
 
 
+byte Code::compare_operation() {
+  ASSERT(is_compare_ic_stub());
+  return READ_BYTE_FIELD(this, kCompareOperationOffset);
+}
+
+
+void Code::set_compare_operation(byte value) {
+  ASSERT(is_compare_ic_stub());
+  WRITE_BYTE_FIELD(this, kCompareOperationOffset, value);
+}
+
+
 byte Code::to_boolean_state() {
   ASSERT(is_to_boolean_ic_stub());
   return READ_BYTE_FIELD(this, kToBooleanTypeOffset);
