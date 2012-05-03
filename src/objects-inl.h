@@ -3082,6 +3082,7 @@ void Code::set_allow_osr_at_loop_nesting_level(int level) {
 
 
 int Code::profiler_ticks() {
+  if (kind() == OPTIMIZED_FUNCTION) return 0;
   ASSERT_EQ(FUNCTION, kind());
   return READ_BYTE_FIELD(this, kProfilerTicksOffset);
 }
