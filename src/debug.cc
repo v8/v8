@@ -2227,6 +2227,13 @@ void Debug::FramesHaveBeenDropped(StackFrame::Id new_break_frame_id,
 }
 
 
+const int Debug::FramePaddingLayout::kInitialSize = 1;
+
+
+// Any even value bigger than kInitialSize as needed for stack scanning.
+const int Debug::FramePaddingLayout::kPaddingValue = kInitialSize + 1;
+
+
 bool Debug::IsDebugGlobal(GlobalObject* global) {
   return IsLoaded() && global == debug_context()->global();
 }
