@@ -187,3 +187,28 @@ NoHang(/(a|(((.*)*)*x)ø|(((.*)*)*x)å)/);  // 2 out of 3 branches pruned.
 var s = "Don't prune based on a repetition of length 0";
 assertEquals(null, s.match(/å{1,1}prune/));
 assertEquals("prune", (s.match(/å{0,0}prune/)[0]));
+
+// Some very deep regexps where FilterASCII gives up in order not to make the
+// stack overflow.
+var regex6 = /a*\u0100*\w/;
+var input0 = "a";
+regex6.exec(input0);
+
+var re = "\u0100*\\w";
+
+for (var i = 0; i < 200; i++) re = "a*" + re;
+
+var regex7 = new RegExp(re);
+regex7.exec(input0);
+
+var regex8 = new RegExp(re, "i");
+regex8.exec(input0);
+
+re = "[\u0100]*\\w";
+for (var i = 0; i < 200; i++) re = "a*" + re;
+
+var regex9 = new RegExp(re);
+regex9.exec(input0);
+
+var regex10 = new RegExp(re, "i");
+regex10.exec(input0);

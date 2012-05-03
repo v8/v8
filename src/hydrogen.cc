@@ -5662,6 +5662,39 @@ void HGraphBuilder::AddCheckConstantFunction(Call* expr,
 }
 
 
+class FunctionSorter {
+ public:
+  FunctionSorter() : index_(0), ticks_(0), ast_length_(0), src_length_(0) { }
+  FunctionSorter(int index, int ticks, int ast_length, int src_length)
+      : index_(index),
+        ticks_(ticks),
+        ast_length_(ast_length),
+        src_length_(src_length) { }
+
+  int index() const { return index_; }
+  int ticks() const { return ticks_; }
+  int ast_length() const { return ast_length_; }
+  int src_length() const { return src_length_; }
+
+ private:
+  int index_;
+  int ticks_;
+  int ast_length_;
+  int src_length_;
+};
+
+
+static int CompareHotness(void const* a, void const* b) {
+  FunctionSorter const* function1 = reinterpret_cast<FunctionSorter const*>(a);
+  FunctionSorter const* function2 = reinterpret_cast<FunctionSorter const*>(b);
+  int diff = function1->ticks() - function2->ticks();
+  if (diff != 0) return -diff;
+  diff = function1->ast_length() - function2->ast_length();
+  if (diff != 0) return diff;
+  return function1->src_length() - function2->src_length();
+}
+
+
 void HGraphBuilder::HandlePolymorphicCallNamed(Call* expr,
                                                HValue* receiver,
                                                SmallMapList* types,
@@ -5670,51 +5703,73 @@ void HGraphBuilder::HandlePolymorphicCallNamed(Call* expr,
   // maps are identical. In that case we can avoid repeatedly generating the
   // same prototype map checks.
   int argument_count = expr->arguments()->length() + 1;  // Includes receiver.
-  int count = 0;
   HBasicBlock* join = NULL;
-  for (int i = 0; i < types->length() && count < kMaxCallPolymorphism; ++i) {
+  FunctionSorter order[kMaxCallPolymorphism];
+  int ordered_functions = 0;
+  for (int i = 0;
+       i < types->length() && ordered_functions < kMaxCallPolymorphism;
+       ++i) {
     Handle<Map> map = types->at(i);
     if (expr->ComputeTarget(map, name)) {
-      if (count == 0) {
-        // Only needed once.
-        AddInstruction(new(zone()) HCheckNonSmi(receiver));
-        join = graph()->CreateBasicBlock();
-      }
-      ++count;
-      HBasicBlock* if_true = graph()->CreateBasicBlock();
-      HBasicBlock* if_false = graph()->CreateBasicBlock();
-      HCompareMap* compare =
-          new(zone()) HCompareMap(receiver, map, if_true, if_false);
-      current_block()->Finish(compare);
-
-      set_current_block(if_true);
-      AddCheckConstantFunction(expr, receiver, map, false);
-      if (FLAG_trace_inlining && FLAG_polymorphic_inlining) {
-        PrintF("Trying to inline the polymorphic call to %s\n",
-               *name->ToCString());
-      }
-      if (FLAG_polymorphic_inlining && TryInlineCall(expr)) {
-        // Trying to inline will signal that we should bailout from the
-        // entire compilation by setting stack overflow on the visitor.
-        if (HasStackOverflow()) return;
-      } else {
-        HCallConstantFunction* call =
-            new(zone()) HCallConstantFunction(expr->target(), argument_count);
-        call->set_position(expr->position());
-        PreProcessCall(call);
-        AddInstruction(call);
-        if (!ast_context()->IsEffect()) Push(call);
-      }
-
-      if (current_block() != NULL) current_block()->Goto(join);
-      set_current_block(if_false);
+      order[ordered_functions++] =
+          FunctionSorter(i,
+                         expr->target()->shared()->code()->profiler_ticks(),
+                         InliningAstSize(expr->target()),
+                         expr->target()->shared()->SourceSize());
     }
+  }
+
+  qsort(reinterpret_cast<void*>(&order[0]),
+        ordered_functions,
+        sizeof(order[0]),
+        &CompareHotness);
+
+  for (int fn = 0; fn < ordered_functions; ++fn) {
+    int i = order[fn].index();
+    Handle<Map> map = types->at(i);
+    if (fn == 0) {
+      // Only needed once.
+      AddInstruction(new(zone()) HCheckNonSmi(receiver));
+      join = graph()->CreateBasicBlock();
+    }
+    HBasicBlock* if_true = graph()->CreateBasicBlock();
+    HBasicBlock* if_false = graph()->CreateBasicBlock();
+    HCompareMap* compare =
+        new(zone()) HCompareMap(receiver, map, if_true, if_false);
+    current_block()->Finish(compare);
+
+    set_current_block(if_true);
+    expr->ComputeTarget(map, name);
+    AddCheckConstantFunction(expr, receiver, map, false);
+    if (FLAG_trace_inlining && FLAG_polymorphic_inlining) {
+      Handle<JSFunction> caller = info()->closure();
+      SmartArrayPointer<char> caller_name =
+          caller->shared()->DebugName()->ToCString();
+      PrintF("Trying to inline the polymorphic call to %s from %s\n",
+             *name->ToCString(),
+             *caller_name);
+    }
+    if (FLAG_polymorphic_inlining && TryInlineCall(expr)) {
+      // Trying to inline will signal that we should bailout from the
+      // entire compilation by setting stack overflow on the visitor.
+      if (HasStackOverflow()) return;
+    } else {
+      HCallConstantFunction* call =
+          new(zone()) HCallConstantFunction(expr->target(), argument_count);
+      call->set_position(expr->position());
+      PreProcessCall(call);
+      AddInstruction(call);
+      if (!ast_context()->IsEffect()) Push(call);
+    }
+
+    if (current_block() != NULL) current_block()->Goto(join);
+    set_current_block(if_false);
   }
 
   // Finish up.  Unconditionally deoptimize if we've handled all the maps we
   // know about and do not want to handle ones we've never seen.  Otherwise
   // use a generic IC.
-  if (count == types->length() && FLAG_deoptimize_uncommon_cases) {
+  if (ordered_functions == types->length() && FLAG_deoptimize_uncommon_cases) {
     current_block()->FinishExitWithDeoptimization(HDeoptimize::kNoUses);
   } else {
     HValue* context = environment()->LookupContext();
@@ -5763,14 +5818,11 @@ void HGraphBuilder::TraceInline(Handle<JSFunction> target,
 }
 
 
-bool HGraphBuilder::TryInline(CallKind call_kind,
-                              Handle<JSFunction> target,
-                              ZoneList<Expression*>* arguments,
-                              HValue* receiver,
-                              int ast_id,
-                              int return_id,
-                              ReturnHandlingFlag return_handling) {
-  if (!FLAG_use_inlining) return false;
+static const int kNotInlinable = 1000000000;
+
+
+int HGraphBuilder::InliningAstSize(Handle<JSFunction> target) {
+  if (!FLAG_use_inlining) return kNotInlinable;
 
   // Precondition: call is monomorphic and we have found a target with the
   // appropriate arity.
@@ -5782,24 +5834,42 @@ bool HGraphBuilder::TryInline(CallKind call_kind,
   if (target_shared->SourceSize() >
       Min(FLAG_max_inlined_source_size, kUnlimitedMaxInlinedSourceSize)) {
     TraceInline(target, caller, "target text too big");
-    return false;
+    return kNotInlinable;
   }
 
   // Target must be inlineable.
   if (!target->IsInlineable()) {
     TraceInline(target, caller, "target not inlineable");
-    return false;
+    return kNotInlinable;
   }
   if (target_shared->dont_inline() || target_shared->dont_optimize()) {
     TraceInline(target, caller, "target contains unsupported syntax [early]");
-    return false;
+    return kNotInlinable;
   }
 
   int nodes_added = target_shared->ast_node_count();
+  return nodes_added;
+}
+
+
+bool HGraphBuilder::TryInline(CallKind call_kind,
+                              Handle<JSFunction> target,
+                              ZoneList<Expression*>* arguments,
+                              HValue* receiver,
+                              int ast_id,
+                              int return_id,
+                              ReturnHandlingFlag return_handling) {
+  int nodes_added = InliningAstSize(target);
+  if (nodes_added == kNotInlinable) return false;
+
+  Handle<JSFunction> caller = info()->closure();
+
   if (nodes_added > Min(FLAG_max_inlined_nodes, kUnlimitedMaxInlinedNodes)) {
     TraceInline(target, caller, "target AST is too large [early]");
     return false;
   }
+
+  Handle<SharedFunctionInfo> target_shared(target->shared());
 
 #if !defined(V8_TARGET_ARCH_IA32)
   // Target must be able to use caller's context.

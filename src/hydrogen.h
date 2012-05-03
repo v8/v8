@@ -1010,6 +1010,7 @@ class HGraphBuilder: public AstVisitor {
   // Try to optimize fun.apply(receiver, arguments) pattern.
   bool TryCallApply(Call* expr);
 
+  int InliningAstSize(Handle<JSFunction> target);
   bool TryInline(CallKind call_kind,
                  Handle<JSFunction> target,
                  ZoneList<Expression*>* arguments,

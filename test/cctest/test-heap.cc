@@ -1214,7 +1214,9 @@ TEST(TestSizeOfObjects) {
   // The heap size should go back to initial size after a full GC, even
   // though sweeping didn't finish yet.
   HEAP->CollectAllGarbage(Heap::kNoGCFlags);
-  CHECK(!HEAP->old_pointer_space()->IsSweepingComplete());
+
+  // Normally sweeping would not be complete here, but no guarantees.
+
   CHECK_EQ(initial_size, static_cast<int>(HEAP->SizeOfObjects()));
 
   // Advancing the sweeper step-wise should not change the heap size.
@@ -1648,6 +1650,15 @@ TEST(ResetSharedFunctionInfoCountersDuringIncrementalMarking) {
 
   while (!marking->IsStopped() && !marking->IsComplete()) {
     marking->Step(1 * MB, IncrementalMarking::NO_GC_VIA_STACK_GUARD);
+  }
+  if (!marking->IsStopped() || marking->should_hurry()) {
+    // We don't normally finish a GC via Step(), we normally finish by
+    // setting the stack guard and then do the final steps in the stack
+    // guard interrupt.  But here we didn't ask for that, and there is no
+    // JS code running to trigger the interrupt, so we explicitly finalize
+    // here.
+    HEAP->CollectAllGarbage(Heap::kNoGCFlags,
+                            "Test finalizing incremental mark-sweep");
   }
 
   CHECK_EQ(HEAP->global_ic_age(), f->shared()->ic_age());

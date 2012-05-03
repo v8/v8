@@ -3595,12 +3595,39 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
       // (code-stubs-ia32.cc) is roughly what is needed here though the
       // conversion failure case does not need to be handled.
       if (CpuFeatures::IsSupported(SSE2)) {
-        if (elements_kind != EXTERNAL_INT_ELEMENTS &&
-            elements_kind != EXTERNAL_UNSIGNED_INT_ELEMENTS) {
+        if ((elements_kind == EXTERNAL_INT_ELEMENTS ||
+             elements_kind == EXTERNAL_UNSIGNED_INT_ELEMENTS) &&
+            CpuFeatures::IsSupported(SSE3)) {
+          CpuFeatures::Scope scope(SSE3);
+          // fisttp stores values as signed integers. To represent the
+          // entire range of int and unsigned int arrays, store as a
+          // 64-bit int and discard the high 32 bits.
+          __ fld_d(FieldOperand(eax, HeapNumber::kValueOffset));
+          __ sub(esp, Immediate(2 * kPointerSize));
+          __ fisttp_d(Operand(esp, 0));
+
+          // If conversion failed (NaN, infinity, or a number outside
+          // signed int64 range), the result is 0x8000000000000000, and
+          // we must handle this case in the runtime.
+          Label ok;
+          __ cmp(Operand(esp, kPointerSize), Immediate(0x80000000u));
+          __ j(not_equal, &ok);
+          __ cmp(Operand(esp, 0), Immediate(0));
+          __ j(not_equal, &ok);
+          __ add(esp, Immediate(2 * kPointerSize));  // Restore the stack.
+          __ jmp(&slow);
+
+          __ bind(&ok);
+          __ pop(ebx);
+          __ add(esp, Immediate(kPointerSize));
+          __ mov(Operand(edi, ecx, times_2, 0), ebx);
+        } else {
           ASSERT(CpuFeatures::IsSupported(SSE2));
           CpuFeatures::Scope scope(SSE2);
           __ cvttsd2si(ebx, FieldOperand(eax, HeapNumber::kValueOffset));
-          // ecx: untagged integer value
+          __ cmp(ebx, 0x80000000u);
+          __ j(equal, &slow);
+          // ebx: untagged integer value
           switch (elements_kind) {
             case EXTERNAL_PIXEL_ELEMENTS:
               __ ClampUint8(ebx);
@@ -3614,41 +3641,14 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
             case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
               __ mov_w(Operand(edi, ecx, times_1, 0), ebx);
               break;
+            case EXTERNAL_INT_ELEMENTS:
+            case EXTERNAL_UNSIGNED_INT_ELEMENTS:
+              __ mov(Operand(edi, ecx, times_2, 0), ebx);
+              break;
             default:
               UNREACHABLE();
               break;
           }
-        } else {
-          if (CpuFeatures::IsSupported(SSE3)) {
-            CpuFeatures::Scope scope(SSE3);
-            // fisttp stores values as signed integers. To represent the
-            // entire range of int and unsigned int arrays, store as a
-            // 64-bit int and discard the high 32 bits.
-            // If the value is NaN or +/-infinity, the result is 0x80000000,
-            // which is automatically zero when taken mod 2^n, n < 32.
-            __ fld_d(FieldOperand(eax, HeapNumber::kValueOffset));
-            __ sub(esp, Immediate(2 * kPointerSize));
-            __ fisttp_d(Operand(esp, 0));
-            __ pop(ebx);
-            __ add(esp, Immediate(kPointerSize));
-          } else {
-            ASSERT(CpuFeatures::IsSupported(SSE2));
-            CpuFeatures::Scope scope(SSE2);
-            // We can easily implement the correct rounding behavior for the
-            // range [0, 2^31-1]. For the time being, to keep this code simple,
-            // make the slow runtime call for values outside this range.
-            // Note: we could do better for signed int arrays.
-            __ movd(xmm0, FieldOperand(eax, HeapNumber::kValueOffset));
-            // We will need the key if we have to make the slow runtime call.
-            __ push(ebx);
-            __ LoadPowerOf2(xmm1, ebx, 31);
-            __ pop(ebx);
-            __ ucomisd(xmm1, xmm0);
-            __ j(above_equal, &slow);
-            __ cvttsd2si(ebx, Operand(xmm0));
-          }
-          // ebx: untagged integer value
-          __ mov(Operand(edi, ecx, times_2, 0), ebx);
         }
         __ ret(0);  // Return original value.
       }

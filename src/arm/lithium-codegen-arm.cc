@@ -4824,6 +4824,23 @@ void LCodeGen::EmitDeepCopy(Handle<JSObject> object,
 
 void LCodeGen::DoFastLiteral(LFastLiteral* instr) {
   int size = instr->hydrogen()->total_size();
+  ElementsKind boilerplate_elements_kind =
+      instr->hydrogen()->boilerplate()->GetElementsKind();
+
+  // Deopt if the literal boilerplate ElementsKind is of a type different than
+  // the expected one. The check isn't necessary if the boilerplate has already
+  // been converted to FAST_ELEMENTS.
+  if (boilerplate_elements_kind != FAST_ELEMENTS) {
+    __ LoadHeapObject(r1, instr->hydrogen()->boilerplate());
+    // Load map into r2.
+    __ ldr(r2, FieldMemOperand(r1, HeapObject::kMapOffset));
+    // Load the map's "bit field 2".
+    __ ldrb(r2, FieldMemOperand(r2, Map::kBitField2Offset));
+    // Retrieve elements_kind from bit field 2.
+    __ ubfx(r2, r2, Map::kElementsKindShift, Map::kElementsKindBitCount);
+    __ cmp(r2, Operand(boilerplate_elements_kind));
+    DeoptimizeIf(ne, instr->environment());
+  }
 
   // Allocate all objects that are part of the literal in one big
   // allocation. This avoids multiple limit checks.

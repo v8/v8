@@ -1990,13 +1990,6 @@ class Heap {
     return (scavenges_since_last_idle_round_ >= kIdleScavengeThreshold);
   }
 
-  bool WorthStartingGCWhenIdle() {
-    if (contexts_disposed_ > 0) {
-      return true;
-    }
-    return incremental_marking()->WorthActivating();
-  }
-
   // Estimates how many milliseconds a Mark-Sweep would take to complete.
   // In idle notification handler we assume that this function will return:
   // - a number less than 10 for small heaps, which are less than 8Mb.

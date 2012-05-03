@@ -4462,6 +4462,13 @@ void LCodeGen::EmitDeepCopy(Handle<JSObject> object,
     __ LoadHeapObject(ecx, object);
     __ cmp(source, ecx);
     __ Assert(equal, "Unexpected object literal boilerplate");
+    __ mov(ecx, FieldOperand(source, HeapObject::kMapOffset));
+    __ cmp(ecx, Handle<Map>(object->map()));
+    __ Assert(equal, "Unexpected boilerplate map");
+    __ mov(ecx, FieldOperand(ecx, Map::kBitField2Offset));
+    __ and_(ecx, Map::kElementsKindMask);
+    __ cmp(ecx, object->GetElementsKind() << Map::kElementsKindShift);
+    __ Assert(equal, "Unexpected boilerplate elements kind");
   }
 
   // Only elements backing stores for non-COW arrays need to be copied.
@@ -4558,6 +4565,23 @@ void LCodeGen::EmitDeepCopy(Handle<JSObject> object,
 void LCodeGen::DoFastLiteral(LFastLiteral* instr) {
   ASSERT(ToRegister(instr->context()).is(esi));
   int size = instr->hydrogen()->total_size();
+  ElementsKind boilerplate_elements_kind =
+      instr->hydrogen()->boilerplate()->GetElementsKind();
+
+  // Deopt if the literal boilerplate ElementsKind is of a type different than
+  // the expected one. The check isn't necessary if the boilerplate has already
+  // been converted to FAST_ELEMENTS.
+  if (boilerplate_elements_kind != FAST_ELEMENTS) {
+    __ LoadHeapObject(ebx, instr->hydrogen()->boilerplate());
+    __ mov(ecx, FieldOperand(ebx, HeapObject::kMapOffset));
+    // Load the map's "bit field 2". We only need the first byte,
+    // but the following masking takes care of that anyway.
+    __ mov(ecx, FieldOperand(ecx, Map::kBitField2Offset));
+    // Retrieve elements_kind from bit field 2.
+    __ and_(ecx, Map::kElementsKindMask);
+    __ cmp(ecx, boilerplate_elements_kind << Map::kElementsKindShift);
+    DeoptimizeIf(not_equal, instr->environment());
+  }
 
   // Allocate all objects that are part of the literal in one big
   // allocation. This avoids multiple limit checks.

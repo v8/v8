@@ -13995,74 +13995,103 @@ TEST(SourceURLInStackTrace) {
 }
 
 
-// Test that idle notification can be handled and eventually returns true.
-// This just checks the contract of the IdleNotification() function,
-// and does not verify that it does reasonable work.
-THREADED_TEST(IdleNotification) {
+static void CreateGarbageInOldSpace() {
   v8::HandleScope scope;
-  LocalContext env;
-  {
-    // Create garbage in old-space to generate work for idle notification.
-    i::AlwaysAllocateScope always_allocate;
-    for (int i = 0; i < 100; i++) {
-      FACTORY->NewFixedArray(1000, i::TENURED);
-    }
+  i::AlwaysAllocateScope always_allocate;
+  for (int i = 0; i < 1000; i++) {
+    FACTORY->NewFixedArray(1000, i::TENURED);
   }
-  bool finshed_idle_work = false;
-  for (int i = 0; i < 100 && !finshed_idle_work; i++) {
-    finshed_idle_work = v8::V8::IdleNotification();
-  }
-  CHECK(finshed_idle_work);
 }
 
 // Test that idle notification can be handled and eventually returns true.
-// This just checks the contract of the IdleNotification() function,
-// and does not verify that it does reasonable work.
+TEST(IdleNotification) {
+  const intptr_t MB = 1024 * 1024;
+  v8::HandleScope scope;
+  LocalContext env;
+  intptr_t initial_size = HEAP->SizeOfObjects();
+  CreateGarbageInOldSpace();
+  intptr_t size_with_garbage = HEAP->SizeOfObjects();
+  CHECK_GT(size_with_garbage, initial_size + MB);
+  bool finished = false;
+  for (int i = 0; i < 200 && !finished; i++) {
+    finished = v8::V8::IdleNotification();
+  }
+  intptr_t final_size = HEAP->SizeOfObjects();
+  CHECK(finished);
+  CHECK_LT(final_size, initial_size + 1);
+}
+
+
+// Test that idle notification can be handled and eventually collects garbage.
 TEST(IdleNotificationWithSmallHint) {
+  const intptr_t MB = 1024 * 1024;
+  const int IdlePauseInMs = 900;
   v8::HandleScope scope;
   LocalContext env;
-  {
-    // Create garbage in old-space to generate work for idle notification.
-    i::AlwaysAllocateScope always_allocate;
-    for (int i = 0; i < 100; i++) {
-      FACTORY->NewFixedArray(1000, i::TENURED);
-    }
+  intptr_t initial_size = HEAP->SizeOfObjects();
+  CreateGarbageInOldSpace();
+  intptr_t size_with_garbage = HEAP->SizeOfObjects();
+  CHECK_GT(size_with_garbage, initial_size + MB);
+  bool finished = false;
+  for (int i = 0; i < 200 && !finished; i++) {
+    finished = v8::V8::IdleNotification(IdlePauseInMs);
   }
-  intptr_t old_size = HEAP->SizeOfObjects();
-  bool finshed_idle_work = false;
-  bool no_idle_work = v8::V8::IdleNotification(10);
-  for (int i = 0; i < 200 && !finshed_idle_work; i++) {
-    finshed_idle_work = v8::V8::IdleNotification(10);
-  }
-  intptr_t new_size = HEAP->SizeOfObjects();
-  CHECK(finshed_idle_work);
-  CHECK(no_idle_work || new_size < old_size);
+  intptr_t final_size = HEAP->SizeOfObjects();
+  CHECK(finished);
+  CHECK_LT(final_size, initial_size + 1);
 }
 
 
-// This just checks the contract of the IdleNotification() function,
-// and does not verify that it does reasonable work.
+// Test that idle notification can be handled and eventually collects garbage.
 TEST(IdleNotificationWithLargeHint) {
+  const intptr_t MB = 1024 * 1024;
+  const int IdlePauseInMs = 900;
   v8::HandleScope scope;
   LocalContext env;
-  {
-    // Create garbage in old-space to generate work for idle notification.
-    i::AlwaysAllocateScope always_allocate;
-    for (int i = 0; i < 100; i++) {
-      FACTORY->NewFixedArray(1000, i::TENURED);
-    }
+  intptr_t initial_size = HEAP->SizeOfObjects();
+  CreateGarbageInOldSpace();
+  intptr_t size_with_garbage = HEAP->SizeOfObjects();
+  CHECK_GT(size_with_garbage, initial_size + MB);
+  bool finished = false;
+  for (int i = 0; i < 200 && !finished; i++) {
+    finished = v8::V8::IdleNotification(IdlePauseInMs);
   }
-  intptr_t old_size = HEAP->SizeOfObjects();
-  bool finshed_idle_work = false;
-  bool no_idle_work = v8::V8::IdleNotification(900);
-  for (int i = 0; i < 200 && !finshed_idle_work; i++) {
-    finshed_idle_work = v8::V8::IdleNotification(900);
-  }
-  intptr_t new_size = HEAP->SizeOfObjects();
-  CHECK(finshed_idle_work);
-  CHECK(no_idle_work || new_size < old_size);
+  intptr_t final_size = HEAP->SizeOfObjects();
+  CHECK(finished);
+  CHECK_LT(final_size, initial_size + 1);
 }
 
+
+TEST(Regress2107) {
+  const intptr_t MB = 1024 * 1024;
+  const int kShortIdlePauseInMs = 100;
+  const int kLongIdlePauseInMs = 1000;
+  v8::HandleScope scope;
+  LocalContext env;
+  intptr_t initial_size = HEAP->SizeOfObjects();
+  // Send idle notification to start a round of incremental GCs.
+  v8::V8::IdleNotification(kShortIdlePauseInMs);
+  // Emulate 7 page reloads.
+  for (int i = 0; i < 7; i++) {
+    v8::Persistent<v8::Context> ctx = v8::Context::New();
+    ctx->Enter();
+    CreateGarbageInOldSpace();
+    ctx->Exit();
+    ctx.Dispose();
+    v8::V8::ContextDisposedNotification();
+    v8::V8::IdleNotification(kLongIdlePauseInMs);
+  }
+  // Create garbage and check that idle notification still collects it.
+  CreateGarbageInOldSpace();
+  intptr_t size_with_garbage = HEAP->SizeOfObjects();
+  CHECK_GT(size_with_garbage, initial_size + MB);
+  bool finished = false;
+  for (int i = 0; i < 200 && !finished; i++) {
+    finished = v8::V8::IdleNotification(kShortIdlePauseInMs);
+  }
+  intptr_t final_size = HEAP->SizeOfObjects();
+  CHECK_LT(final_size, initial_size + 1);
+}
 
 static uint32_t* stack_limit;
 
