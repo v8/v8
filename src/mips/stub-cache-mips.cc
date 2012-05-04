@@ -4537,6 +4537,8 @@ void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
     // Increment the length of the array.
     __ li(length_reg, Operand(Smi::FromInt(1)));
     __ sw(length_reg, FieldMemOperand(receiver_reg, JSArray::kLengthOffset));
+    __ lw(elements_reg,
+          FieldMemOperand(receiver_reg, JSObject::kElementsOffset));
     __ jmp(&finish_store);
 
     __ bind(&check_capacity);
