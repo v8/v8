@@ -2925,11 +2925,13 @@ void LCodeGen::DoMathFloor(LUnaryMathOperation* instr) {
     __ cmp(output_reg, 0x80000000u);
     DeoptimizeIf(equal, instr->environment());
   } else {
+    Label negative_sign;
     Label done;
-    // Deoptimize on negative numbers.
+    // Deoptimize on unordered.
     __ xorps(xmm_scratch, xmm_scratch);  // Zero the register.
     __ ucomisd(input_reg, xmm_scratch);
-    DeoptimizeIf(below, instr->environment());
+    DeoptimizeIf(parity_even, instr->environment());
+    __ j(below, &negative_sign, Label::kNear);
 
     if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
       // Check for negative zero.
@@ -2945,10 +2947,21 @@ void LCodeGen::DoMathFloor(LUnaryMathOperation* instr) {
 
     // Use truncating instruction (OK because input is positive).
     __ cvttsd2si(output_reg, Operand(input_reg));
-
     // Overflow is signalled with minint.
     __ cmp(output_reg, 0x80000000u);
     DeoptimizeIf(equal, instr->environment());
+    __ jmp(&done, Label::kNear);
+
+    // Non-zero negative reaches here
+    __ bind(&negative_sign);
+    // Truncate, then compare and compensate
+    __ cvttsd2si(output_reg, Operand(input_reg));
+    __ cvtsi2sd(xmm_scratch, output_reg);
+    __ ucomisd(input_reg, xmm_scratch);
+    __ j(equal, &done, Label::kNear);
+    __ sub(output_reg, Immediate(1));
+    DeoptimizeIf(overflow, instr->environment());
+
     __ bind(&done);
   }
 }
