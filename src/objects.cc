@@ -8320,6 +8320,20 @@ void Code::ClearInlineCaches() {
 }
 
 
+void Code::ClearTypeFeedbackCells(Heap* heap) {
+  Object* raw_info = type_feedback_info();
+  if (raw_info->IsTypeFeedbackInfo()) {
+    TypeFeedbackCells* type_feedback_cells =
+        TypeFeedbackInfo::cast(raw_info)->type_feedback_cells();
+    for (int i = 0; i < type_feedback_cells->CellCount(); i++) {
+      ASSERT(type_feedback_cells->AstId(i)->IsSmi());
+      JSGlobalPropertyCell* cell = type_feedback_cells->Cell(i);
+      cell->set_value(TypeFeedbackCells::RawUninitializedSentinel(heap));
+    }
+  }
+}
+
+
 #ifdef ENABLE_DISASSEMBLER
 
 void DeoptimizationInputData::DeoptimizationInputDataPrint(FILE* out) {

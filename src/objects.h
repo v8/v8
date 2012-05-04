@@ -4440,6 +4440,7 @@ class Code: public HeapObject {
   void CodeVerify();
 #endif
   void ClearInlineCaches();
+  void ClearTypeFeedbackCells(Heap* heap);
 
   // Max loop nesting marker used to postpose OSR. We don't take loop
   // nesting that is deeper than 5 levels into account.
