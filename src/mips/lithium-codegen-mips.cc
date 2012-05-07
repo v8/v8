@@ -3225,7 +3225,7 @@ void LCodeGen::DoRandom(LRandom* instr) {
   // state[0] = 18273 * (state[0] & 0xFFFF) + (state[0] >> 16)
   __ And(a3, a1, Operand(0xFFFF));
   __ li(t0, Operand(18273));
-  __ mul(a3, a3, t0);
+  __ Mul(a3, a3, t0);
   __ srl(a1, a1, 16);
   __ Addu(a1, a3, a1);
   // Save state[0].
@@ -3234,7 +3234,7 @@ void LCodeGen::DoRandom(LRandom* instr) {
   // state[1] = 36969 * (state[1] & 0xFFFF) + (state[1] >> 16)
   __ And(a3, a0, Operand(0xFFFF));
   __ li(t0, Operand(36969));
-  __ mul(a3, a3, t0);
+  __ Mul(a3, a3, t0);
   __ srl(a0, a0, 16),
   __ Addu(a0, a3, a0);
   // Save state[1].
