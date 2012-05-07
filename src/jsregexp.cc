@@ -2722,8 +2722,8 @@ RegExpNode* ChoiceNode::FilterASCII(int depth) {
     GuardedAlternative alternative = alternatives_->at(i);
     RegExpNode* replacement = alternative.node()->FilterASCII(depth - 1);
     ASSERT(replacement != this);  // No missing EMPTY_MATCH_CHECK.
-    alternatives_->at(i).set_node(replacement);
     if (replacement != NULL) {
+      alternatives_->at(i).set_node(replacement);
       surviving++;
       survivor = replacement;
     }
@@ -2739,9 +2739,11 @@ RegExpNode* ChoiceNode::FilterASCII(int depth) {
   ZoneList<GuardedAlternative>* new_alternatives =
       new ZoneList<GuardedAlternative>(surviving);
   for (int i = 0; i < choice_count; i++) {
-    GuardedAlternative alternative = alternatives_->at(i);
-    if (alternative.node() != NULL) {
-      new_alternatives->Add(alternative);
+    RegExpNode* replacement =
+        alternatives_->at(i).node()->FilterASCII(depth - 1);
+    if (replacement != NULL) {
+      alternatives_->at(i).set_node(replacement);
+      new_alternatives->Add(alternatives_->at(i));
     }
   }
   alternatives_ = new_alternatives;
@@ -5832,7 +5834,12 @@ RegExpEngine::CompilationResult RegExpEngine::Compile(
       node = loop_node;
     }
   }
-  if (is_ascii) node = node->FilterASCII(RegExpCompiler::kMaxRecursion);
+  if (is_ascii) {
+    node = node->FilterASCII(RegExpCompiler::kMaxRecursion);
+    // Do it again to propagate the new nodes to places where they were not
+    // put because they had not been calculated yet.
+    if (node != NULL) node = node->FilterASCII(RegExpCompiler::kMaxRecursion);
+  }
 
   if (node == NULL) node = new EndNode(EndNode::BACKTRACK);
   data->node = node;

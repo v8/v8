@@ -383,7 +383,7 @@ static Operand GenerateMappedArgumentsLookup(MacroAssembler* masm,
   __ j(below, slow_case);
 
   // Check that the key is a positive smi.
-  __ test(key, Immediate(0x8000001));
+  __ test(key, Immediate(0x80000001));
   __ j(not_zero, slow_case);
 
   // Load the elements into scratch1 and check its map.
@@ -396,7 +396,7 @@ static Operand GenerateMappedArgumentsLookup(MacroAssembler* masm,
   __ mov(scratch2, FieldOperand(scratch1, FixedArray::kLengthOffset));
   __ sub(scratch2, Immediate(Smi::FromInt(2)));
   __ cmp(key, scratch2);
-  __ j(greater_equal, unmapped_case);
+  __ j(above_equal, unmapped_case);
 
   // Load element index and check whether it is the hole.
   const int kHeaderSize = FixedArray::kHeaderSize + 2 * kPointerSize;
