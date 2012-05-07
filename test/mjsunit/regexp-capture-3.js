@@ -212,3 +212,7 @@ regex9.exec(input0);
 
 var regex10 = new RegExp(re, "i");
 regex10.exec(input0);
+
+var regex11 = /^(?:[^\u0000-\u0080]|[0-9a-z?,.!&\s#()])+$/i;
+regex11.exec(input0);
+
