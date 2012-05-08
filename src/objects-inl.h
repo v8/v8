@@ -3082,7 +3082,6 @@ void Code::set_allow_osr_at_loop_nesting_level(int level) {
 
 
 int Code::profiler_ticks() {
-  if (kind() == OPTIMIZED_FUNCTION) return 0;
   ASSERT_EQ(FUNCTION, kind());
   return READ_BYTE_FIELD(this, kProfilerTicksOffset);
 }
@@ -3670,6 +3669,12 @@ void SharedFunctionInfo::set_optimization_disabled(bool disable) {
   if ((code()->kind() == Code::FUNCTION) && disable) {
     code()->set_optimizable(false);
   }
+}
+
+
+int SharedFunctionInfo::profiler_ticks() {
+  if (code()->kind() != Code::FUNCTION) return 0;
+  return code()->profiler_ticks();
 }
 
 

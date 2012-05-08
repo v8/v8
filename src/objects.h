@@ -5351,6 +5351,8 @@ class SharedFunctionInfo: public HeapObject {
   inline int deopt_counter();
   inline void set_deopt_counter(int counter);
 
+  inline int profiler_ticks();
+
   // Inline cache age is used to infer whether the function survived a context
   // disposal or not. In the former case we reset the opt_count.
   inline int ic_age();

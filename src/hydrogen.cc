@@ -5713,7 +5713,7 @@ void HGraphBuilder::HandlePolymorphicCallNamed(Call* expr,
     if (expr->ComputeTarget(map, name)) {
       order[ordered_functions++] =
           FunctionSorter(i,
-                         expr->target()->shared()->code()->profiler_ticks(),
+                         expr->target()->shared()->profiler_ticks(),
                          InliningAstSize(expr->target()),
                          expr->target()->shared()->SourceSize());
     }
