@@ -1603,6 +1603,7 @@ HLoadNamedFieldPolymorphic::HLoadNamedFieldPolymorphic(HValue* context,
   SetOperandAt(1, object);
   set_representation(Representation::Tagged());
   SetGVNFlag(kDependsOnMaps);
+  int map_transitions = 0;
   for (int i = 0;
        i < types->length() && types_.length() < kMaxLoadPolymorphism;
        ++i) {
@@ -1624,13 +1625,20 @@ HLoadNamedFieldPolymorphic::HLoadNamedFieldPolymorphic(HValue* context,
         case CONSTANT_FUNCTION:
           types_.Add(types->at(i));
           break;
+        case MAP_TRANSITION:
+          // We should just ignore these since they are not relevant to a load
+          // operation.  This means we will deopt if we actually see this map
+          // from optimized code.
+          map_transitions++;
+          break;
         default:
           break;
       }
     }
   }
 
-  if (types_.length() == types->length() && FLAG_deoptimize_uncommon_cases) {
+  if (types_.length() + map_transitions == types->length() &&
+      FLAG_deoptimize_uncommon_cases) {
     SetFlag(kUseGVN);
   } else {
     SetAllSideEffects();
