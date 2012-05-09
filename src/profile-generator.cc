@@ -931,12 +931,11 @@ void ProfileGenerator::RecordTickSample(const TickSample& sample) {
 }
 
 
-HeapGraphEdge::HeapGraphEdge(
-    Type type, const char* name, int from, int to) :
-    type_(type),
-    from_index_(from),
-    to_index_(to),
-    name_(name) {
+HeapGraphEdge::HeapGraphEdge(Type type, const char* name, int from, int to)
+    : type_(type),
+      from_index_(from),
+      to_index_(to),
+      name_(name) {
   ASSERT(type == kContextVariable
       || type == kProperty
       || type == kInternal
@@ -944,11 +943,11 @@ HeapGraphEdge::HeapGraphEdge(
 }
 
 
-HeapGraphEdge::HeapGraphEdge(Type type, int index, int from, int to) :
-    type_(type),
-    from_index_(from),
-    to_index_(to),
-    index_(index) {
+HeapGraphEdge::HeapGraphEdge(Type type, int index, int from, int to)
+    : type_(type),
+      from_index_(from),
+      to_index_(to),
+      index_(index) {
   ASSERT(type == kElement || type == kHidden || type == kWeak);
 }
 
@@ -964,20 +963,20 @@ HeapEntry::HeapEntry(HeapSnapshot* snapshot,
                      Type type,
                      const char* name,
                      SnapshotObjectId id,
-                     int self_size) :
-    painted_(false),
-    user_reachable_(false),
-    dominator_(kNoEntry),
-    type_(type),
-    retainers_count_(0),
-    retainers_index_(-1),
-    children_count_(0),
-    children_index_(-1),
-    self_size_(self_size),
-    retained_size_(0),
-    id_(id),
-    snapshot_(snapshot),
-    name_(name) { }
+                     int self_size)
+    : painted_(false),
+      user_reachable_(false),
+      dominator_(kNoEntry),
+      type_(type),
+      retainers_count_(0),
+      retainers_index_(-1),
+      children_count_(0),
+      children_index_(-1),
+      self_size_(self_size),
+      retained_size_(0),
+      id_(id),
+      snapshot_(snapshot),
+      name_(name) { }
 
 
 void HeapEntry::SetNamedReference(HeapGraphEdge::Type type,
@@ -1275,7 +1274,7 @@ void HeapSnapshot::Print(int max_depth) {
 
 
 template<typename T, class P>
-static size_t GetMemoryUsedByList(const List<T,P>& list) {
+static size_t GetMemoryUsedByList(const List<T, P>& list) {
   return list.capacity() * sizeof(T);
 }
 
