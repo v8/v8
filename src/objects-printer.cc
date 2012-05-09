@@ -331,14 +331,16 @@ void JSObject::PrintElements(FILE* out) {
     }
     case FAST_DOUBLE_ELEMENTS: {
       // Print in array notation for non-sparse arrays.
-      FixedDoubleArray* p = FixedDoubleArray::cast(elements());
-      for (int i = 0; i < p->length(); i++) {
-        if (p->is_the_hole(i)) {
-          PrintF(out, "   %d: <the hole>", i);
-        } else {
-          PrintF(out, "   %d: %g", i, p->get_scalar(i));
+      if (elements()->length() > 0) {
+        FixedDoubleArray* p = FixedDoubleArray::cast(elements());
+        for (int i = 0; i < p->length(); i++) {
+          if (p->is_the_hole(i)) {
+            PrintF(out, "   %d: <the hole>", i);
+          } else {
+            PrintF(out, "   %d: %g", i, p->get_scalar(i));
+          }
+          PrintF(out, "\n");
         }
-        PrintF(out, "\n");
       }
       break;
     }
