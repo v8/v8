@@ -8621,8 +8621,10 @@ MaybeObject* JSObject::SetFastElementsCapacityAndLength(
   ElementsKind to_kind = (elements_kind == FAST_SMI_ONLY_ELEMENTS)
       ? FAST_SMI_ONLY_ELEMENTS
       : FAST_ELEMENTS;
-  //  int copy_size = Min(old_elements_raw->length(), new_elements->length());
-  accessor->CopyElements(this, new_elements, to_kind);
+  { MaybeObject* maybe_obj =
+        accessor->CopyElements(this, new_elements, to_kind);
+    if (maybe_obj->IsFailure()) return maybe_obj;
+  }
   if (elements_kind != NON_STRICT_ARGUMENTS_ELEMENTS) {
     set_map_and_elements(new_map, new_elements);
   } else {
@@ -8666,7 +8668,10 @@ MaybeObject* JSObject::SetFastDoubleElementsCapacityAndLength(
   FixedArrayBase* old_elements = elements();
   ElementsKind elements_kind = GetElementsKind();
   ElementsAccessor* accessor = ElementsAccessor::ForKind(elements_kind);
-  accessor->CopyElements(this, elems, FAST_DOUBLE_ELEMENTS);
+  { MaybeObject* maybe_obj =
+        accessor->CopyElements(this, elems, FAST_DOUBLE_ELEMENTS);
+    if (maybe_obj->IsFailure()) return maybe_obj;
+  }
   if (elements_kind != NON_STRICT_ARGUMENTS_ELEMENTS) {
     set_map_and_elements(new_map, elems);
   } else {
