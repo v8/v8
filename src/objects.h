@@ -6139,7 +6139,7 @@ class JSDate: public JSObject {
 
   // Returns the date field with the specified index.
   // See FieldIndex for the list of date fields.
-  static MaybeObject* GetField(Object* date, Smi* index);
+  static Object* GetField(Object* date, Smi* index);
 
   void SetValue(Object* value, bool is_value_nan);
 

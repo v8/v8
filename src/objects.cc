@@ -12987,7 +12987,7 @@ int BreakPointInfo::GetBreakPointCount() {
 #endif  // ENABLE_DEBUGGER_SUPPORT
 
 
-MaybeObject* JSDate::GetField(Object* object, Smi* index) {
+Object* JSDate::GetField(Object* object, Smi* index) {
   return JSDate::cast(object)->DoGetField(
       static_cast<FieldIndex>(index->value()));
 }
