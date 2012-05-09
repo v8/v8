@@ -34,10 +34,10 @@ class NamedEntriesDetector {
     CheckEntry(root);
     while (!list.is_empty()) {
       i::HeapEntry* entry = list.RemoveLast();
-      i::Vector<i::HeapGraphEdge> children = entry->children();
+      i::Vector<i::HeapGraphEdge*> children = entry->children();
       for (int i = 0; i < children.length(); ++i) {
-        if (children[i].type() == i::HeapGraphEdge::kShortcut) continue;
-        i::HeapEntry* child = children[i].to();
+        if (children[i]->type() == i::HeapGraphEdge::kShortcut) continue;
+        i::HeapEntry* child = children[i]->to();
         if (!child->painted()) {
           list.Add(child);
           child->paint();
