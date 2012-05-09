@@ -642,13 +642,6 @@ class MarkCompactCollector {
 
   void ProcessNewlyMarkedObject(HeapObject* obj);
 
-  // Creates back pointers for all map transitions, stores them in
-  // the prototype field.  The original prototype pointers are restored
-  // in ClearNonLiveTransitions().  All JSObject maps
-  // connected by map transitions have the same prototype object, which
-  // is why we can use this field temporarily for back pointers.
-  void CreateBackPointers();
-
   // Mark a Map and its DescriptorArray together, skipping transitions.
   void MarkMapContents(Map* map);
   void MarkAccessorPairSlot(HeapObject* accessors, int offset);

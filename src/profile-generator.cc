@@ -2146,10 +2146,16 @@ void V8HeapExplorer::ExtractMapReferences(HeapEntry* entry, Map* map) {
                          "descriptors", map->instance_descriptors(),
                          Map::kInstanceDescriptorsOrBitField3Offset);
   }
-  TagObject(map->prototype_transitions(), "(prototype transitions)");
-  SetInternalReference(map, entry,
-                       "prototype_transitions", map->prototype_transitions(),
-                       Map::kPrototypeTransitionsOffset);
+  if (map->unchecked_prototype_transitions()->IsFixedArray()) {
+    TagObject(map->prototype_transitions(), "(prototype transitions)");
+    SetInternalReference(map, entry,
+                         "prototype_transitions", map->prototype_transitions(),
+                         Map::kPrototypeTransitionsOrBackPointerOffset);
+  } else {
+    SetInternalReference(map, entry,
+                         "back_pointer", map->GetBackPointer(),
+                         Map::kPrototypeTransitionsOrBackPointerOffset);
+  }
   SetInternalReference(map, entry,
                        "code_cache", map->code_cache(),
                        Map::kCodeCacheOffset);

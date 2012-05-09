@@ -2020,7 +2020,7 @@ MaybeObject* Heap::AllocateMap(InstanceType instance_type,
   map->set_pre_allocated_property_fields(0);
   map->init_instance_descriptors();
   map->set_code_cache(empty_fixed_array(), SKIP_WRITE_BARRIER);
-  map->set_prototype_transitions(empty_fixed_array(), SKIP_WRITE_BARRIER);
+  map->init_prototype_transitions(undefined_value());
   map->set_unused_property_fields(0);
   map->set_bit_field(0);
   map->set_bit_field2(1 << Map::kIsExtensible);
@@ -2159,15 +2159,15 @@ bool Heap::CreateInitialMaps() {
   // Fix the instance_descriptors for the existing maps.
   meta_map()->init_instance_descriptors();
   meta_map()->set_code_cache(empty_fixed_array());
-  meta_map()->set_prototype_transitions(empty_fixed_array());
+  meta_map()->init_prototype_transitions(undefined_value());
 
   fixed_array_map()->init_instance_descriptors();
   fixed_array_map()->set_code_cache(empty_fixed_array());
-  fixed_array_map()->set_prototype_transitions(empty_fixed_array());
+  fixed_array_map()->init_prototype_transitions(undefined_value());
 
   oddball_map()->init_instance_descriptors();
   oddball_map()->set_code_cache(empty_fixed_array());
-  oddball_map()->set_prototype_transitions(empty_fixed_array());
+  oddball_map()->init_prototype_transitions(undefined_value());
 
   // Fix prototype object for existing maps.
   meta_map()->set_prototype(null_value());

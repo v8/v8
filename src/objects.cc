@@ -1604,6 +1604,7 @@ MaybeObject* JSObject::AddFastProperty(String* name,
   // We have now allocated all the necessary objects.
   // All the changes can be applied at once, so they are atomic.
   map()->set_instance_descriptors(old_descriptors);
+  new_map->SetBackPointer(map());
   new_map->set_instance_descriptors(DescriptorArray::cast(new_descriptors));
   set_map(new_map);
   return FastPropertyAtPut(index, value);
@@ -1664,6 +1665,7 @@ MaybeObject* JSObject::AddConstantFunctionProperty(
     }
   }
   old_map->set_instance_descriptors(DescriptorArray::cast(new_descriptors));
+  Map::cast(new_map)->SetBackPointer(old_map);
 
   return function;
 }
@@ -1824,6 +1826,7 @@ MaybeObject* JSObject::ConvertDescriptorToFieldAndMapTransition(
     }
   }
   old_map->set_instance_descriptors(DescriptorArray::cast(new_descriptors));
+  map()->SetBackPointer(old_map);
   return result;
 }
 
@@ -2408,6 +2411,7 @@ MaybeObject* Map::AddElementsTransition(ElementsKind elements_kind,
     return maybe_new_descriptors;
   }
   set_instance_descriptors(DescriptorArray::cast(new_descriptors));
+  transitioned_map->SetBackPointer(this);
   return this;
 }
 
@@ -4653,6 +4657,7 @@ static MaybeObject* CreateFreshAccessor(JSObject* obj,
   // step 6: everything went well so far, so we make our changes visible
   obj->set_map(map2);
   map1->set_instance_descriptors(descriptors1);
+  map2->SetBackPointer(map1);
   return obj;
 }
 
@@ -4705,6 +4710,7 @@ static MaybeObject* NewCallbackTransition(JSObject* obj,
   // step 4: everything went well so far, so we make our changes visible
   obj->set_map(map3);
   accessors2->set(component, map3);
+  map3->SetBackPointer(map2);
   return obj;
 }
 
@@ -5137,7 +5143,7 @@ class IntrusiveMapTransitionIterator {
 // underlying array while it is running.
 class IntrusivePrototypeTransitionIterator {
  public:
-  explicit IntrusivePrototypeTransitionIterator(FixedArray* proto_trans)
+  explicit IntrusivePrototypeTransitionIterator(HeapObject* proto_trans)
       : proto_trans_(proto_trans) { }
 
   void Start() {
@@ -5162,7 +5168,7 @@ class IntrusivePrototypeTransitionIterator {
 
  private:
   bool HasTransitions() {
-    return proto_trans_->length() >= Map::kProtoTransitionHeaderSize;
+    return proto_trans_->map()->IsSmi() || proto_trans_->IsFixedArray();
   }
 
   Object** Header() {
@@ -5170,12 +5176,16 @@ class IntrusivePrototypeTransitionIterator {
   }
 
   int NumberOfTransitions() {
-    Object* num = proto_trans_->get(Map::kProtoTransitionNumberOfEntriesOffset);
+    ASSERT(HasTransitions());
+    FixedArray* proto_trans = reinterpret_cast<FixedArray*>(proto_trans_);
+    Object* num = proto_trans->get(Map::kProtoTransitionNumberOfEntriesOffset);
     return Smi::cast(num)->value();
   }
 
   Map* GetTransition(int transitionNumber) {
-    return Map::cast(proto_trans_->get(IndexFor(transitionNumber)));
+    ASSERT(HasTransitions());
+    FixedArray* proto_trans = reinterpret_cast<FixedArray*>(proto_trans_);
+    return Map::cast(proto_trans->get(IndexFor(transitionNumber)));
   }
 
   int IndexFor(int transitionNumber) {
@@ -5184,7 +5194,7 @@ class IntrusivePrototypeTransitionIterator {
         transitionNumber * Map::kProtoTransitionElementsPerEntry;
   }
 
-  FixedArray* proto_trans_;
+  HeapObject* proto_trans_;
 };
 
 
@@ -7346,85 +7356,23 @@ void String::PrintOn(FILE* file) {
 }
 
 
-void Map::CreateOneBackPointer(Object* transition_target) {
-  if (!transition_target->IsMap()) return;
-  Map* target = Map::cast(transition_target);
-#ifdef DEBUG
-  // Verify target.
-  Object* source_prototype = prototype();
-  Object* target_prototype = target->prototype();
-  ASSERT(source_prototype->IsJSReceiver() ||
-         source_prototype->IsMap() ||
-         source_prototype->IsNull());
-  ASSERT(target_prototype->IsJSReceiver() ||
-         target_prototype->IsNull());
-  ASSERT(source_prototype->IsMap() ||
-         source_prototype == target_prototype);
-#endif
-  // Point target back to source.  set_prototype() will not let us set
-  // the prototype to a map, as we do here.
-  *RawField(target, kPrototypeOffset) = this;
-}
-
-
-void Map::CreateBackPointers() {
-  DescriptorArray* descriptors = instance_descriptors();
-  for (int i = 0; i < descriptors->number_of_descriptors(); i++) {
-    switch (descriptors->GetType(i)) {
-      case MAP_TRANSITION:
-      case CONSTANT_TRANSITION:
-        CreateOneBackPointer(descriptors->GetValue(i));
-        break;
-      case ELEMENTS_TRANSITION: {
-        Object* object = descriptors->GetValue(i);
-        if (object->IsMap()) {
-          CreateOneBackPointer(object);
-        } else {
-          FixedArray* array = FixedArray::cast(object);
-          for (int i = 0; i < array->length(); ++i) {
-            CreateOneBackPointer(array->get(i));
-          }
-        }
-        break;
-      }
-      case CALLBACKS: {
-        Object* object = descriptors->GetValue(i);
-        if (object->IsAccessorPair()) {
-          AccessorPair* accessors = AccessorPair::cast(object);
-          CreateOneBackPointer(accessors->getter());
-          CreateOneBackPointer(accessors->setter());
-        }
-        break;
-      }
-      case NORMAL:
-      case FIELD:
-      case CONSTANT_FUNCTION:
-      case HANDLER:
-      case INTERCEPTOR:
-      case NULL_DESCRIPTOR:
-        break;
-    }
-  }
-}
-
-
-bool Map::RestoreOneBackPointer(Object* object,
-                                Object* real_prototype,
-                                bool* keep_entry) {
-  if (!object->IsMap()) return false;
-  Map* map = Map::cast(object);
+// Clear a possible back pointer in case the transition leads to a dead map.
+// Return true in case a back pointer has been cleared and false otherwise.
+// Set *keep_entry to true when a live map transition has been found.
+static bool ClearBackPointer(Heap* heap, Object* target, bool* keep_entry) {
+  if (!target->IsMap()) return false;
+  Map* map = Map::cast(target);
   if (Marking::MarkBitFrom(map).Get()) {
     *keep_entry = true;
     return false;
+  } else {
+    map->SetBackPointer(heap->undefined_value(), SKIP_WRITE_BARRIER);
+    return true;
   }
-  ASSERT(map->prototype() == this || map->prototype() == real_prototype);
-  // Getter prototype() is read-only, set_prototype() has side effects.
-  *RawField(map, Map::kPrototypeOffset) = real_prototype;
-  return true;
 }
 
 
-void Map::ClearNonLiveTransitions(Heap* heap, Object* real_prototype) {
+void Map::ClearNonLiveTransitions(Heap* heap) {
   DescriptorArray* d = DescriptorArray::cast(
       *RawField(this, Map::kInstanceDescriptorsOrBitField3Offset));
   if (d->IsEmpty()) return;
@@ -7437,24 +7385,22 @@ void Map::ClearNonLiveTransitions(Heap* heap, Object* real_prototype) {
     // If the pair (value, details) is a map transition, check if the target is
     // live. If not, null the descriptor. Also drop the back pointer for that
     // map transition, so that this map is not reached again by following a back
-    // pointer from a non-live object.
+    // pointer from that non-live map.
     bool keep_entry = false;
     PropertyDetails details(Smi::cast(contents->get(i + 1)));
     switch (details.type()) {
       case MAP_TRANSITION:
       case CONSTANT_TRANSITION:
-        RestoreOneBackPointer(contents->get(i), real_prototype, &keep_entry);
+        ClearBackPointer(heap, contents->get(i), &keep_entry);
         break;
       case ELEMENTS_TRANSITION: {
         Object* object = contents->get(i);
         if (object->IsMap()) {
-          RestoreOneBackPointer(object, real_prototype, &keep_entry);
+          ClearBackPointer(heap, object, &keep_entry);
         } else {
           FixedArray* array = FixedArray::cast(object);
           for (int j = 0; j < array->length(); ++j) {
-            if (RestoreOneBackPointer(array->get(j),
-                                      real_prototype,
-                                      &keep_entry)) {
+            if (ClearBackPointer(heap, array->get(j), &keep_entry)) {
               array->set_undefined(j);
             }
           }
@@ -7465,14 +7411,10 @@ void Map::ClearNonLiveTransitions(Heap* heap, Object* real_prototype) {
         Object* object = contents->get(i);
         if (object->IsAccessorPair()) {
           AccessorPair* accessors = AccessorPair::cast(object);
-          if (RestoreOneBackPointer(accessors->getter(),
-                                    real_prototype,
-                                    &keep_entry)) {
+          if (ClearBackPointer(heap, accessors->getter(), &keep_entry)) {
             accessors->set_getter(heap->the_hole_value());
           }
-          if (RestoreOneBackPointer(accessors->setter(),
-                                    real_prototype,
-                                    &keep_entry)) {
+          if (ClearBackPointer(heap, accessors->setter(), &keep_entry)) {
             accessors->set_setter(heap->the_hole_value());
           }
         } else {

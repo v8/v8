@@ -3407,14 +3407,66 @@ void Map::set_bit_field3(int value) {
 }
 
 
-FixedArray* Map::unchecked_prototype_transitions() {
-  return reinterpret_cast<FixedArray*>(
-      READ_FIELD(this, kPrototypeTransitionsOffset));
+Object* Map::GetBackPointer() {
+  Object* object = READ_FIELD(this, kPrototypeTransitionsOrBackPointerOffset);
+  if (object->IsFixedArray()) {
+    return FixedArray::cast(object)->get(kProtoTransitionBackPointerOffset);
+  } else {
+    return object;
+  }
+}
+
+
+void Map::SetBackPointer(Object* value, WriteBarrierMode mode) {
+  Heap* heap = GetHeap();
+  ASSERT(instance_type() >= FIRST_JS_RECEIVER_TYPE);
+  ASSERT((value->IsUndefined() && GetBackPointer()->IsMap()) ||
+         (value->IsMap() && GetBackPointer()->IsUndefined()));
+  Object* object = READ_FIELD(this, kPrototypeTransitionsOrBackPointerOffset);
+  if (object->IsFixedArray()) {
+    FixedArray::cast(object)->set(
+        kProtoTransitionBackPointerOffset, value, mode);
+  } else {
+    WRITE_FIELD(this, kPrototypeTransitionsOrBackPointerOffset, value);
+    CONDITIONAL_WRITE_BARRIER(
+        heap, this, kPrototypeTransitionsOrBackPointerOffset, value, mode);
+  }
+}
+
+
+FixedArray* Map::prototype_transitions() {
+  Object* object = READ_FIELD(this, kPrototypeTransitionsOrBackPointerOffset);
+  if (object->IsFixedArray()) {
+    return FixedArray::cast(object);
+  } else {
+    return GetHeap()->empty_fixed_array();
+  }
+}
+
+
+void Map::set_prototype_transitions(FixedArray* value, WriteBarrierMode mode) {
+  Heap* heap = GetHeap();
+  ASSERT(value != heap->empty_fixed_array());
+  value->set(kProtoTransitionBackPointerOffset, GetBackPointer());
+  WRITE_FIELD(this, kPrototypeTransitionsOrBackPointerOffset, value);
+  CONDITIONAL_WRITE_BARRIER(
+      heap, this, kPrototypeTransitionsOrBackPointerOffset, value, mode);
+}
+
+
+void Map::init_prototype_transitions(Object* undefined) {
+  ASSERT(undefined->IsUndefined());
+  WRITE_FIELD(this, kPrototypeTransitionsOrBackPointerOffset, undefined);
+}
+
+
+HeapObject* Map::unchecked_prototype_transitions() {
+  Object* object = READ_FIELD(this, kPrototypeTransitionsOrBackPointerOffset);
+  return reinterpret_cast<HeapObject*>(object);
 }
 
 
 ACCESSORS(Map, code_cache, Object, kCodeCacheOffset)
-ACCESSORS(Map, prototype_transitions, FixedArray, kPrototypeTransitionsOffset)
 ACCESSORS(Map, constructor, Object, kConstructorOffset)
 
 ACCESSORS(JSFunction, shared, SharedFunctionInfo, kSharedFunctionInfoOffset)

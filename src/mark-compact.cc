@@ -680,7 +680,6 @@ void MarkCompactCollector::Prepare(GCTracer* tracer) {
 
   ASSERT(!FLAG_never_compact || !FLAG_always_compact);
 
-  if (collect_maps_) CreateBackPointers();
 #ifdef ENABLE_GDB_JIT_INTERFACE
   if (FLAG_gdbjit) {
     // If GDBJIT interface is active disable compaction.
@@ -1816,13 +1815,19 @@ void MarkCompactCollector::ProcessNewlyMarkedObject(HeapObject* object) {
 void MarkCompactCollector::MarkMapContents(Map* map) {
   // Mark prototype transitions array but don't push it into marking stack.
   // This will make references from it weak. We will clean dead prototype
-  // transitions in ClearNonLiveTransitions.
-  FixedArray* prototype_transitions = map->prototype_transitions();
-  MarkBit mark = Marking::MarkBitFrom(prototype_transitions);
-  if (!mark.Get()) {
-    mark.Set();
-    MemoryChunk::IncrementLiveBytesFromGC(prototype_transitions->address(),
-                                          prototype_transitions->Size());
+  // transitions in ClearNonLiveTransitions. But make sure that back pointers
+  // stored inside prototype transitions arrays are marked.
+  Object* raw_proto_transitions = map->unchecked_prototype_transitions();
+  if (raw_proto_transitions->IsFixedArray()) {
+    FixedArray* prototype_transitions = FixedArray::cast(raw_proto_transitions);
+    MarkBit mark = Marking::MarkBitFrom(prototype_transitions);
+    if (!mark.Get()) {
+      mark.Set();
+      MemoryChunk::IncrementLiveBytesFromGC(prototype_transitions->address(),
+                                            prototype_transitions->Size());
+      MarkObjectAndPush(HeapObject::cast(
+          prototype_transitions->get(Map::kProtoTransitionBackPointerOffset)));
+    }
   }
 
   Object** raw_descriptor_array_slot =
@@ -1918,23 +1923,6 @@ void MarkCompactCollector::MarkDescriptorArray(
   // The DescriptorArray descriptors contains a pointer to its contents array,
   // but the contents array is already marked.
   marking_deque_.PushBlack(descriptors);
-}
-
-
-void MarkCompactCollector::CreateBackPointers() {
-  HeapObjectIterator iterator(heap()->map_space());
-  for (HeapObject* next_object = iterator.Next();
-       next_object != NULL; next_object = iterator.Next()) {
-    if (next_object->IsMap()) {  // Could also be FreeSpace object on free list.
-      Map* map = Map::cast(next_object);
-      STATIC_ASSERT(LAST_TYPE == LAST_JS_RECEIVER_TYPE);
-      if (map->instance_type() >= FIRST_JS_RECEIVER_TYPE) {
-        map->CreateBackPointers();
-      } else {
-        ASSERT(map->instance_descriptors() == heap()->empty_descriptor_array());
-      }
-    }
-  }
 }
 
 
@@ -2461,15 +2449,8 @@ void MarkCompactCollector::ReattachInitialMaps() {
 void MarkCompactCollector::ClearNonLiveTransitions() {
   HeapObjectIterator map_iterator(heap()->map_space());
   // Iterate over the map space, setting map transitions that go from
-  // a marked map to an unmarked map to null transitions.  At the same time,
-  // set all the prototype fields of maps back to their original value,
-  // dropping the back pointers temporarily stored in the prototype field.
-  // Setting the prototype field requires following the linked list of
-  // back pointers, reversing them all at once.  This allows us to find
-  // those maps with map transitions that need to be nulled, and only
-  // scan the descriptor arrays of those maps, not all maps.
-  // All of these actions are carried out only on maps of JSObjects
-  // and related subtypes.
+  // a marked map to an unmarked map to null transitions.  This action
+  // is carried out only on maps of JSObjects and related subtypes.
   for (HeapObject* obj = map_iterator.Next();
        obj != NULL; obj = map_iterator.Next()) {
     Map* map = reinterpret_cast<Map*>(obj);
@@ -2545,36 +2526,16 @@ void MarkCompactCollector::ClearNonLivePrototypeTransitions(Map* map) {
 
 void MarkCompactCollector::ClearNonLiveMapTransitions(Map* map,
                                                       MarkBit map_mark) {
-  // Follow the chain of back pointers to find the prototype.
-  Object* real_prototype = map;
-  while (real_prototype->IsMap()) {
-    real_prototype = Map::cast(real_prototype)->prototype();
-    ASSERT(real_prototype->IsHeapObject());
-  }
+  Object* potential_parent = map->GetBackPointer();
+  if (!potential_parent->IsMap()) return;
+  Map* parent = Map::cast(potential_parent);
 
-  // Follow back pointers, setting them to prototype, clearing map transitions
-  // when necessary.
-  Map* current = map;
+  // Follow back pointer, check whether we are dealing with a map transition
+  // from a live map to a dead path and in case clear transitions of parent.
   bool current_is_alive = map_mark.Get();
-  bool on_dead_path = !current_is_alive;
-  while (current->IsMap()) {
-    Object* next = current->prototype();
-    // There should never be a dead map above a live map.
-    ASSERT(on_dead_path || current_is_alive);
-
-    // A live map above a dead map indicates a dead transition. This test will
-    // always be false on the first iteration.
-    if (on_dead_path && current_is_alive) {
-      on_dead_path = false;
-      current->ClearNonLiveTransitions(heap(), real_prototype);
-    }
-
-    Object** slot = HeapObject::RawField(current, Map::kPrototypeOffset);
-    *slot = real_prototype;
-    if (current_is_alive) RecordSlot(slot, slot, real_prototype);
-
-    current = reinterpret_cast<Map*>(next);
-    current_is_alive = Marking::MarkBitFrom(current).Get();
+  bool parent_is_alive = Marking::MarkBitFrom(parent).Get();
+  if (!current_is_alive && parent_is_alive) {
+    parent->ClearNonLiveTransitions(heap());
   }
 }
 
