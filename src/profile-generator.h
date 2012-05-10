@@ -526,6 +526,7 @@ class HeapEntry BASE_EMBEDDED {
   HeapSnapshot* snapshot() { return snapshot_; }
   Type type() { return static_cast<Type>(type_); }
   const char* name() { return name_; }
+  void set_name(const char* name) { name_ = name; }
   inline SnapshotObjectId id() { return id_; }
   int self_size() { return self_size_; }
   int retained_size() { return retained_size_; }

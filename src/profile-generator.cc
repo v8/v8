@@ -1710,8 +1710,7 @@ HeapEntry* V8HeapExplorer::AddEntry(HeapObject* object) {
              object->IsFixedDoubleArray() ||
              object->IsByteArray() ||
              object->IsExternalArray()) {
-    const char* tag = objects_tags_.GetTag(object);
-    return AddEntry(object, HeapEntry::kArray, tag != NULL ? tag : "");
+    return AddEntry(object, HeapEntry::kArray, "");
   } else if (object->IsHeapNumber()) {
     return AddEntry(object, HeapEntry::kHeapNumber, "number");
   }
@@ -2635,7 +2634,10 @@ const char* V8HeapExplorer::GetStrongGcSubrootName(Object* object) {
 
 void V8HeapExplorer::TagObject(Object* obj, const char* tag) {
   if (IsEssentialObject(obj)) {
-    objects_tags_.SetTag(obj, tag);
+    HeapEntry* entry = GetEntry(obj);
+    if (entry->name()[0] == '\0') {
+      entry->set_name(tag);
+    }
   }
 }
 
