@@ -2345,8 +2345,7 @@ void LCodeGen::DoLoadNamedFieldPolymorphic(LLoadNamedFieldPolymorphic* instr) {
   Register scratch = scratch0();
   int map_count = instr->hydrogen()->types()->length();
   Handle<String> name = instr->hydrogen()->name();
-  if (map_count == 0) {
-    ASSERT(instr->hydrogen()->need_generic());
+  if (map_count == 0 && instr->hydrogen()->need_generic()) {
     __ li(a2, Operand(name));
     Handle<Code> ic = isolate()->builtins()->LoadIC_Initialize();
     CallCode(ic, RelocInfo::CODE_TARGET, instr);
@@ -2361,19 +2360,26 @@ void LCodeGen::DoLoadNamedFieldPolymorphic(LLoadNamedFieldPolymorphic* instr) {
       __ Branch(&done);
       __ bind(&next);
     }
-    Handle<Map> map = instr->hydrogen()->types()->last();
     if (instr->hydrogen()->need_generic()) {
-      Label generic;
-      __ Branch(&generic, ne, scratch, Operand(map));
-      EmitLoadFieldOrConstantFunction(result, object, map, name);
-      __ Branch(&done);
-      __ bind(&generic);
+      if (map_count != 0) {
+        Handle<Map> map = instr->hydrogen()->types()->last();
+        Label generic;
+        __ Branch(&generic, ne, scratch, Operand(map));
+        EmitLoadFieldOrConstantFunction(result, object, map, name);
+        __ Branch(&done);
+        __ bind(&generic);
+      }
       __ li(a2, Operand(name));
       Handle<Code> ic = isolate()->builtins()->LoadIC_Initialize();
       CallCode(ic, RelocInfo::CODE_TARGET, instr);
     } else {
-      DeoptimizeIf(ne, instr->environment(), scratch, Operand(map));
-      EmitLoadFieldOrConstantFunction(result, object, map, name);
+      if (map_count != 0) {
+        Handle<Map> map = instr->hydrogen()->types()->last();
+        DeoptimizeIf(ne, instr->environment(), scratch, Operand(map));
+        EmitLoadFieldOrConstantFunction(result, object, map, name);
+      } else {
+        DeoptimizeIf(al, instr->environment(), zero_reg, Operand(zero_reg));
+      }
     }
     __ bind(&done);
   }

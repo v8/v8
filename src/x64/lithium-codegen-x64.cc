@@ -2225,8 +2225,7 @@ void LCodeGen::DoLoadNamedFieldPolymorphic(LLoadNamedFieldPolymorphic* instr) {
   int map_count = instr->hydrogen()->types()->length();
   Handle<String> name = instr->hydrogen()->name();
 
-  if (map_count == 0) {
-    ASSERT(instr->hydrogen()->need_generic());
+  if (map_count == 0 && instr->hydrogen()->need_generic()) {
     __ Move(rcx, instr->hydrogen()->name());
     Handle<Code> ic = isolate()->builtins()->LoadIC_Initialize();
     CallCode(ic, RelocInfo::CODE_TARGET, instr);
@@ -2241,20 +2240,28 @@ void LCodeGen::DoLoadNamedFieldPolymorphic(LLoadNamedFieldPolymorphic* instr) {
       __ jmp(&done, Label::kNear);
       __ bind(&next);
     }
-    Handle<Map> map = instr->hydrogen()->types()->last();
-    __ Cmp(FieldOperand(object, HeapObject::kMapOffset), map);
     if (instr->hydrogen()->need_generic()) {
-      Label generic;
-      __ j(not_equal, &generic, Label::kNear);
-      EmitLoadFieldOrConstantFunction(result, object, map, name);
-      __ jmp(&done, Label::kNear);
-      __ bind(&generic);
+      if (map_count != 0) {
+        Handle<Map> map = instr->hydrogen()->types()->last();
+        __ Cmp(FieldOperand(object, HeapObject::kMapOffset), map);
+        Label generic;
+        __ j(not_equal, &generic, Label::kNear);
+        EmitLoadFieldOrConstantFunction(result, object, map, name);
+        __ jmp(&done, Label::kNear);
+        __ bind(&generic);
+      }
       __ Move(rcx, instr->hydrogen()->name());
       Handle<Code> ic = isolate()->builtins()->LoadIC_Initialize();
       CallCode(ic, RelocInfo::CODE_TARGET, instr);
     } else {
-      DeoptimizeIf(not_equal, instr->environment());
-      EmitLoadFieldOrConstantFunction(result, object, map, name);
+      if (map_count != 0) {
+        Handle<Map> map = instr->hydrogen()->types()->last();
+        __ Cmp(FieldOperand(object, HeapObject::kMapOffset), map);
+        DeoptimizeIf(not_equal, instr->environment());
+        EmitLoadFieldOrConstantFunction(result, object, map, name);
+      } else {
+        DeoptimizeIf(no_condition, instr->environment());
+      }
     }
     __ bind(&done);
   }
