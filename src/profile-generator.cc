@@ -1675,7 +1675,15 @@ HeapEntry* V8HeapExplorer::AddEntry(HeapObject* object) {
                     HeapEntry::kRegExp,
                     collection_->names()->GetName(re->Pattern()));
   } else if (object->IsJSObject()) {
-    return AddEntry(object, HeapEntry::kObject, "");
+    const char* name = collection_->names()->GetName(
+        GetConstructorName(JSObject::cast(object)));
+    if (object->IsJSGlobalObject()) {
+      const char* tag = objects_tags_.GetTag(object);
+      if (tag != NULL) {
+        name = collection_->names()->GetFormatted("%s / %s", name, tag);
+      }
+    }
+    return AddEntry(object, HeapEntry::kObject, name);
   } else if (object->IsString()) {
     return AddEntry(object,
                     HeapEntry::kString,
@@ -2393,32 +2401,6 @@ bool V8HeapExplorer::IterateAndExtractReferences(
   extractor.FillReferences(this);
   filler_ = NULL;
   return progress_->ProgressReport(true);
-}
-
-
-bool V8HeapExplorer::IterateAndSetObjectNames(SnapshotFillerInterface* filler) {
-  HeapIterator iterator(HeapIterator::kFilterUnreachable);
-  filler_ = filler;
-  for (HeapObject* obj = iterator.next(); obj != NULL; obj = iterator.next()) {
-    SetObjectName(obj);
-  }
-  return true;
-}
-
-
-void V8HeapExplorer::SetObjectName(HeapObject* object) {
-  if (!object->IsJSObject() || object->IsJSRegExp() || object->IsJSFunction()) {
-    return;
-  }
-  const char* name = collection_->names()->GetName(
-      GetConstructorName(JSObject::cast(object)));
-  if (object->IsJSGlobalObject()) {
-    const char* tag = objects_tags_.GetTag(object);
-    if (tag != NULL) {
-      name = collection_->names()->GetFormatted("%s / %s", name, tag);
-    }
-  }
-  GetEntry(object)->set_name(name);
 }
 
 
@@ -3149,15 +3131,8 @@ void HeapSnapshotGenerator::SetProgressTotal(int iterations_count) {
 bool HeapSnapshotGenerator::FillReferences() {
   SnapshotFiller filler(snapshot_, &entries_);
   v8_heap_explorer_.AddRootEntries(&filler);
-  // IterateAndExtractReferences cannot set object names because
-  // it makes call to JSObject::LocalLookupRealNamedProperty which
-  // in turn may relocate objects in property maps thus changing the heap
-  // layout and affecting retainer counts. This is not acceptable because
-  // number of retainers must not change between count and fill passes.
-  // To avoid this there's a separate postpass that set object names.
   return v8_heap_explorer_.IterateAndExtractReferences(&filler)
-      && dom_explorer_.IterateAndExtractReferences(&filler)
-      && v8_heap_explorer_.IterateAndSetObjectNames(&filler);
+      && dom_explorer_.IterateAndExtractReferences(&filler);
 }
 
 
