@@ -2274,47 +2274,35 @@ void LCodeGen::DoLoadNamedFieldPolymorphic(LLoadNamedFieldPolymorphic* instr) {
   Register result = ToRegister(instr->result());
 
   int map_count = instr->hydrogen()->types()->length();
+  bool need_generic = instr->hydrogen()->need_generic();
+
+  if (map_count == 0 && !need_generic) {
+    DeoptimizeIf(no_condition, instr->environment());
+    return;
+  }
   Handle<String> name = instr->hydrogen()->name();
-  if (map_count == 0 && instr->hydrogen()->need_generic()) {
-    __ mov(ecx, name);
-    Handle<Code> ic = isolate()->builtins()->LoadIC_Initialize();
-    CallCode(ic, RelocInfo::CODE_TARGET, instr);
-  } else {
-    Label done;
-    for (int i = 0; i < map_count - 1; ++i) {
-      Handle<Map> map = instr->hydrogen()->types()->at(i);
+  Label done;
+  for (int i = 0; i < map_count; ++i) {
+    bool last = (i == map_count - 1);
+    Handle<Map> map = instr->hydrogen()->types()->at(i);
+    __ cmp(FieldOperand(object, HeapObject::kMapOffset), map);
+    if (last && !need_generic) {
+      DeoptimizeIf(not_equal, instr->environment());
+      EmitLoadFieldOrConstantFunction(result, object, map, name);
+    } else {
       Label next;
-      __ cmp(FieldOperand(object, HeapObject::kMapOffset), map);
       __ j(not_equal, &next, Label::kNear);
       EmitLoadFieldOrConstantFunction(result, object, map, name);
       __ jmp(&done, Label::kNear);
       __ bind(&next);
     }
-    if (instr->hydrogen()->need_generic()) {
-      if (map_count != 0) {
-        Handle<Map> map = instr->hydrogen()->types()->last();
-        __ cmp(FieldOperand(object, HeapObject::kMapOffset), map);
-        Label generic;
-        __ j(not_equal, &generic, Label::kNear);
-        EmitLoadFieldOrConstantFunction(result, object, map, name);
-        __ jmp(&done, Label::kNear);
-        __ bind(&generic);
-      }
-      __ mov(ecx, name);
-      Handle<Code> ic = isolate()->builtins()->LoadIC_Initialize();
-      CallCode(ic, RelocInfo::CODE_TARGET, instr);
-    } else {
-      if (map_count != 0) {
-        Handle<Map> map = instr->hydrogen()->types()->last();
-        __ cmp(FieldOperand(object, HeapObject::kMapOffset), map);
-        DeoptimizeIf(not_equal, instr->environment());
-        EmitLoadFieldOrConstantFunction(result, object, map, name);
-      } else {
-        DeoptimizeIf(no_condition, instr->environment());
-      }
-    }
-    __ bind(&done);
   }
+  if (need_generic) {
+    __ mov(ecx, name);
+    Handle<Code> ic = isolate()->builtins()->LoadIC_Initialize();
+    CallCode(ic, RelocInfo::CODE_TARGET, instr);
+  }
+  __ bind(&done);
 }
 
 

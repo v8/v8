@@ -2344,45 +2344,35 @@ void LCodeGen::DoLoadNamedFieldPolymorphic(LLoadNamedFieldPolymorphic* instr) {
   Register result = ToRegister(instr->result());
   Register scratch = scratch0();
   int map_count = instr->hydrogen()->types()->length();
+  bool need_generic = instr->hydrogen()->need_generic();
+
+  if (map_count == 0 && !need_generic) {
+    DeoptimizeIf(al, instr->environment());
+    return;
+  }
   Handle<String> name = instr->hydrogen()->name();
-  if (map_count == 0 && instr->hydrogen()->need_generic()) {
-    __ li(a2, Operand(name));
-    Handle<Code> ic = isolate()->builtins()->LoadIC_Initialize();
-    CallCode(ic, RelocInfo::CODE_TARGET, instr);
-  } else {
-    Label done;
-    __ lw(scratch, FieldMemOperand(object, HeapObject::kMapOffset));
-    for (int i = 0; i < map_count - 1; ++i) {
-      Handle<Map> map = instr->hydrogen()->types()->at(i);
+  Label done;
+  __ lw(scratch, FieldMemOperand(object, HeapObject::kMapOffset));
+  for (int i = 0; i < map_count; ++i) {
+    bool last = (i == map_count - 1);
+    Handle<Map> map = instr->hydrogen()->types()->at(i);
+    if (last && !need_generic) {
+      Handle<Map> map = instr->hydrogen()->types()->last();
+      DeoptimizeIf(ne, instr->environment(), scratch, Operand(map));
+    } else {
       Label next;
       __ Branch(&next, ne, scratch, Operand(map));
       EmitLoadFieldOrConstantFunction(result, object, map, name);
       __ Branch(&done);
       __ bind(&next);
     }
-    if (instr->hydrogen()->need_generic()) {
-      if (map_count != 0) {
-        Handle<Map> map = instr->hydrogen()->types()->last();
-        Label generic;
-        __ Branch(&generic, ne, scratch, Operand(map));
-        EmitLoadFieldOrConstantFunction(result, object, map, name);
-        __ Branch(&done);
-        __ bind(&generic);
-      }
-      __ li(a2, Operand(name));
-      Handle<Code> ic = isolate()->builtins()->LoadIC_Initialize();
-      CallCode(ic, RelocInfo::CODE_TARGET, instr);
-    } else {
-      if (map_count != 0) {
-        Handle<Map> map = instr->hydrogen()->types()->last();
-        DeoptimizeIf(ne, instr->environment(), scratch, Operand(map));
-        EmitLoadFieldOrConstantFunction(result, object, map, name);
-      } else {
-        DeoptimizeIf(al, instr->environment(), zero_reg, Operand(zero_reg));
-      }
-    }
-    __ bind(&done);
   }
+  if (need_generic) {
+    __ li(a2, Operand(name));
+    Handle<Code> ic = isolate()->builtins()->LoadIC_Initialize();
+    CallCode(ic, RelocInfo::CODE_TARGET, instr);
+  }
+  __ bind(&done);
 }
 
 
