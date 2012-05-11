@@ -3193,6 +3193,18 @@ void Code::set_compare_state(byte value) {
 }
 
 
+byte Code::compare_operation() {
+  ASSERT(is_compare_ic_stub());
+  return READ_BYTE_FIELD(this, kCompareOperationOffset);
+}
+
+
+void Code::set_compare_operation(byte value) {
+  ASSERT(is_compare_ic_stub());
+  WRITE_BYTE_FIELD(this, kCompareOperationOffset, value);
+}
+
+
 byte Code::to_boolean_state() {
   ASSERT(is_to_boolean_ic_stub());
   return READ_BYTE_FIELD(this, kToBooleanTypeOffset);
@@ -3395,14 +3407,66 @@ void Map::set_bit_field3(int value) {
 }
 
 
-FixedArray* Map::unchecked_prototype_transitions() {
-  return reinterpret_cast<FixedArray*>(
-      READ_FIELD(this, kPrototypeTransitionsOffset));
+Object* Map::GetBackPointer() {
+  Object* object = READ_FIELD(this, kPrototypeTransitionsOrBackPointerOffset);
+  if (object->IsFixedArray()) {
+    return FixedArray::cast(object)->get(kProtoTransitionBackPointerOffset);
+  } else {
+    return object;
+  }
+}
+
+
+void Map::SetBackPointer(Object* value, WriteBarrierMode mode) {
+  Heap* heap = GetHeap();
+  ASSERT(instance_type() >= FIRST_JS_RECEIVER_TYPE);
+  ASSERT((value->IsUndefined() && GetBackPointer()->IsMap()) ||
+         (value->IsMap() && GetBackPointer()->IsUndefined()));
+  Object* object = READ_FIELD(this, kPrototypeTransitionsOrBackPointerOffset);
+  if (object->IsFixedArray()) {
+    FixedArray::cast(object)->set(
+        kProtoTransitionBackPointerOffset, value, mode);
+  } else {
+    WRITE_FIELD(this, kPrototypeTransitionsOrBackPointerOffset, value);
+    CONDITIONAL_WRITE_BARRIER(
+        heap, this, kPrototypeTransitionsOrBackPointerOffset, value, mode);
+  }
+}
+
+
+FixedArray* Map::prototype_transitions() {
+  Object* object = READ_FIELD(this, kPrototypeTransitionsOrBackPointerOffset);
+  if (object->IsFixedArray()) {
+    return FixedArray::cast(object);
+  } else {
+    return GetHeap()->empty_fixed_array();
+  }
+}
+
+
+void Map::set_prototype_transitions(FixedArray* value, WriteBarrierMode mode) {
+  Heap* heap = GetHeap();
+  ASSERT(value != heap->empty_fixed_array());
+  value->set(kProtoTransitionBackPointerOffset, GetBackPointer());
+  WRITE_FIELD(this, kPrototypeTransitionsOrBackPointerOffset, value);
+  CONDITIONAL_WRITE_BARRIER(
+      heap, this, kPrototypeTransitionsOrBackPointerOffset, value, mode);
+}
+
+
+void Map::init_prototype_transitions(Object* undefined) {
+  ASSERT(undefined->IsUndefined());
+  WRITE_FIELD(this, kPrototypeTransitionsOrBackPointerOffset, undefined);
+}
+
+
+HeapObject* Map::unchecked_prototype_transitions() {
+  Object* object = READ_FIELD(this, kPrototypeTransitionsOrBackPointerOffset);
+  return reinterpret_cast<HeapObject*>(object);
 }
 
 
 ACCESSORS(Map, code_cache, Object, kCodeCacheOffset)
-ACCESSORS(Map, prototype_transitions, FixedArray, kPrototypeTransitionsOffset)
 ACCESSORS(Map, constructor, Object, kConstructorOffset)
 
 ACCESSORS(JSFunction, shared, SharedFunctionInfo, kSharedFunctionInfoOffset)
@@ -3657,6 +3721,12 @@ void SharedFunctionInfo::set_optimization_disabled(bool disable) {
   if ((code()->kind() == Code::FUNCTION) && disable) {
     code()->set_optimizable(false);
   }
+}
+
+
+int SharedFunctionInfo::profiler_ticks() {
+  if (code()->kind() != Code::FUNCTION) return 0;
+  return code()->profiler_ticks();
 }
 
 

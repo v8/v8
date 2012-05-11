@@ -27,70 +27,62 @@
 
 // Flags: --expose-debug-as debug
 // Get the Debug object exposed from the debug context global object.
-Debug = debug.Debug
-var exception = false;
 
-function sendCommand(state, cmd) {
-  // Get the debug command processor in paused state.
-  var dcp = state.debugCommandProcessor(false);
-  var request = JSON.stringify(cmd);
-  var response = dcp.processDebugJSONRequest(request);
-}
+Debug = debug.Debug;
 
-var state = 0;
+SlimFunction = eval(
+    "(function() {\n " +
+    "  return 'Cat';\n" +
+    "})\n"
+);
+
+var script = Debug.findScript(SlimFunction);
+
+Debug.setScriptBreakPointById(script.id, 1, 0);
+
+var orig_animal = "'Cat'";
+var patch_pos = script.source.indexOf(orig_animal);
+var new_animal_patch = "'Capybara'";
+
+debugger_handler = (function() {
+  var already_called = false;
+  return function() {
+    if (already_called) {
+      return;
+    }
+    already_called = true;
+
+    var change_log = new Array();
+    try {
+      Debug.LiveEdit.TestApi.ApplySingleChunkPatch(script, patch_pos,
+          orig_animal.length, new_animal_patch, change_log);
+    } finally {
+      print("Change log: " + JSON.stringify(change_log) + "\n");
+    }
+  };
+})();
+
+var saved_exception = null;
 
 function listener(event, exec_state, event_data, data) {
-  try {
-    if (event == Debug.DebugEvent.Break) {
-      var line = event_data.sourceLineText();
-      print('break: ' + line);
-      print('event data: ' + event_data.toJSONProtocol());
-      print();
-      assertEquals('// BREAK', line.substr(-8),
-                   "should not break outside evaluate");
-
-      switch (state) {
-      case 0:
-        state = 1;
-        // While in the debugger and stepping through a set of instructions
-        // executed in the evaluate command, the stepping must stop at the end
-        // of the said set of instructions and not step further into native
-        // debugger code.
-        sendCommand(exec_state, {
-          seq : 0,
-          type : "request",
-          command : "evaluate",
-          arguments : {
-            'expression' : 'print("A"); debugger; print("B"); // BREAK',
-            'global' : true
-          }
-        });
-        break;
-      case 1:
-        sendCommand(exec_state, {
-          seq : 0,
-          type : "request",
-          command : "continue",
-          arguments : {
-            stepaction : "next"
-          }
-        });
-        break;
-      }
+  if (event == Debug.DebugEvent.Break) {
+    try {
+      debugger_handler();
+    } catch (e) {
+      saved_exception = e;
     }
-  } catch (e) {
-    print(e);
-    exception = true;
+  } else {
+    print("Other: " + event);
   }
 }
 
-// Add the debug event listener.
 Debug.setListener(listener);
 
-function a() {
-} // BREAK
+var animal = SlimFunction();
 
-// Set a break point and call to invoke the debug event listener.
-Debug.setBreakPoint(a, 0, 0);
-a();
-assertFalse(exception);
+if (saved_exception) {
+  print("Exception: " + saved_exception);
+  assertUnreachable();
+}
+
+assertEquals("Capybara", animal);

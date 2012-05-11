@@ -2223,41 +2223,35 @@ void LCodeGen::DoLoadNamedFieldPolymorphic(LLoadNamedFieldPolymorphic* instr) {
   Register result = ToRegister(instr->result());
 
   int map_count = instr->hydrogen()->types()->length();
-  Handle<String> name = instr->hydrogen()->name();
+  bool need_generic = instr->hydrogen()->need_generic();
 
-  if (map_count == 0) {
-    ASSERT(instr->hydrogen()->need_generic());
-    __ Move(rcx, instr->hydrogen()->name());
-    Handle<Code> ic = isolate()->builtins()->LoadIC_Initialize();
-    CallCode(ic, RelocInfo::CODE_TARGET, instr);
-  } else {
-    Label done;
-    for (int i = 0; i < map_count - 1; ++i) {
-      Handle<Map> map = instr->hydrogen()->types()->at(i);
+  if (map_count == 0 && !need_generic) {
+    DeoptimizeIf(no_condition, instr->environment());
+    return;
+  }
+  Handle<String> name = instr->hydrogen()->name();
+  Label done;
+  for (int i = 0; i < map_count; ++i) {
+    bool last = (i == map_count - 1);
+    Handle<Map> map = instr->hydrogen()->types()->at(i);
+    __ Cmp(FieldOperand(object, HeapObject::kMapOffset), map);
+    if (last && !need_generic) {
+      DeoptimizeIf(not_equal, instr->environment());
+      EmitLoadFieldOrConstantFunction(result, object, map, name);
+    } else {
       Label next;
-      __ Cmp(FieldOperand(object, HeapObject::kMapOffset), map);
       __ j(not_equal, &next, Label::kNear);
       EmitLoadFieldOrConstantFunction(result, object, map, name);
       __ jmp(&done, Label::kNear);
       __ bind(&next);
     }
-    Handle<Map> map = instr->hydrogen()->types()->last();
-    __ Cmp(FieldOperand(object, HeapObject::kMapOffset), map);
-    if (instr->hydrogen()->need_generic()) {
-      Label generic;
-      __ j(not_equal, &generic, Label::kNear);
-      EmitLoadFieldOrConstantFunction(result, object, map, name);
-      __ jmp(&done, Label::kNear);
-      __ bind(&generic);
-      __ Move(rcx, instr->hydrogen()->name());
-      Handle<Code> ic = isolate()->builtins()->LoadIC_Initialize();
-      CallCode(ic, RelocInfo::CODE_TARGET, instr);
-    } else {
-      DeoptimizeIf(not_equal, instr->environment());
-      EmitLoadFieldOrConstantFunction(result, object, map, name);
-    }
-    __ bind(&done);
   }
+  if (need_generic) {
+    __ Move(rcx, name);
+    Handle<Code> ic = isolate()->builtins()->LoadIC_Initialize();
+    CallCode(ic, RelocInfo::CODE_TARGET, instr);
+  }
+  __ bind(&done);
 }
 
 

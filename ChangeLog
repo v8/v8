@@ -1,3 +1,39 @@
+2012-05-11: Version 3.11.0
+
+        Fixed compose-discard crasher from r11524 (issue 2123).
+
+        Activated new global semantics by default. Global variables can
+        now shadow properties of the global object (ES5.1 erratum).
+
+        Properly set ElementsKind of empty FAST_DOUBLE_ELEMENTS arrays when
+        transitioning (Chromium issue 117409).
+
+        Made Error.prototype.name writable again, as required by the spec and
+        the web (Chromium issue 69187).
+
+        Implemented map collection with incremental marking (issue 1465).
+
+        Regexp: Fixed overflow in min-match-length calculation
+        (Chromium issue 126412).
+
+        MIPS: Fixed illegal instruction use on Loongson in code for
+        Math.random() (issue 2115).
+
+        Fixed crash bug in VisitChoice (Chromium issue 126272).
+
+        Fixed unsigned-Smi check in MappedArgumentsLookup
+        (Chromium issue 126414).
+
+        Fixed LiveEdit for function with no locals (issue 825).
+
+        Fixed register clobbering in LoadIC for interceptors
+        (Chromium issue 125988).
+
+        Implemented clearing of CompareICs (issue 2102).
+
+        Performance and stability improvements on all platforms.
+
+
 2012-05-03: Version 3.10.8
 
         Enabled MIPS cross-compilation.

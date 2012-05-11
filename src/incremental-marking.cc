@@ -951,7 +951,7 @@ void IncrementalMarking::ResetStepCounters() {
 
 
 int64_t IncrementalMarking::SpaceLeftInOldSpace() {
-  return heap_->MaxOldGenerationSize() - heap_->PromotedSpaceSize();
+  return heap_->MaxOldGenerationSize() - heap_->PromotedSpaceSizeOfObjects();
 }
 
 } }  // namespace v8::internal

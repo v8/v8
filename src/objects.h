@@ -704,12 +704,13 @@ enum CompareResult {
                          WriteBarrierMode mode = UPDATE_WRITE_BARRIER); \
 
 
+class AccessorPair;
 class DictionaryElementsAccessor;
 class ElementsAccessor;
+class Failure;
 class FixedArrayBase;
 class ObjectVisitor;
 class StringStream;
-class Failure;
 
 struct ValueInfo : public Malloced {
   ValueInfo() : type(FIRST_TYPE), ptr(NULL), str(NULL), number(0) { }
@@ -1642,6 +1643,14 @@ class JSObject: public JSReceiver {
                                               Object* getter,
                                               Object* setter,
                                               PropertyAttributes attributes);
+  // Try to define a single accessor paying attention to map transitions.
+  // Returns a JavaScript null if this was not possible and we have to use the
+  // slow case. Note that we can fail due to allocations, too.
+  MUST_USE_RESULT MaybeObject* DefineFastAccessor(
+      String* name,
+      AccessorComponent component,
+      Object* accessor,
+      PropertyAttributes attributes);
   Object* LookupAccessor(String* name, AccessorComponent component);
 
   MUST_USE_RESULT MaybeObject* DefineAccessor(AccessorInfo* info);
@@ -2599,6 +2608,9 @@ class DescriptorArray: public FixedArray {
 #ifdef DEBUG
   // Is the descriptor array sorted and without duplicates?
   bool IsSortedNoDuplicates();
+
+  // Is the descriptor array consistent with the back pointers in targets?
+  bool IsConsistentWithBackPointers(Map* current_map);
 
   // Are two DescriptorArrays equal?
   bool IsEqualTo(DescriptorArray* other);
@@ -4291,6 +4303,11 @@ class Code: public HeapObject {
   inline byte compare_state();
   inline void set_compare_state(byte value);
 
+  // [compare_operation]: For kind COMPARE_IC tells what compare operation the
+  // stub was generated for.
+  inline byte compare_operation();
+  inline void set_compare_operation(byte value);
+
   // [to_boolean_foo]: For kind TO_BOOLEAN_IC tells what state the stub is in.
   inline byte to_boolean_state();
   inline void set_to_boolean_state(byte value);
@@ -4426,6 +4443,7 @@ class Code: public HeapObject {
   void CodeVerify();
 #endif
   void ClearInlineCaches();
+  void ClearTypeFeedbackCells(Heap* heap);
 
   // Max loop nesting marker used to postpose OSR. We don't take loop
   // nesting that is deeper than 5 levels into account.
@@ -4473,6 +4491,8 @@ class Code: public HeapObject {
   class FullCodeFlagsIsCompiledOptimizable: public BitField<bool, 2, 1> {};
 
   static const int kBinaryOpReturnTypeOffset = kBinaryOpTypeOffset + 1;
+
+  static const int kCompareOperationOffset = kCompareStateOffset + 1;
 
   static const int kAllowOSRAtLoopNestingLevelOffset = kFullCodeFlags + 1;
   static const int kProfilerTicksOffset = kAllowOSRAtLoopNestingLevelOffset + 1;
@@ -4702,19 +4722,30 @@ class Map: public HeapObject {
   // [stub cache]: contains stubs compiled for this map.
   DECL_ACCESSORS(code_cache, Object)
 
+  // [back pointer]: points back to the parent map from which a transition
+  // leads to this map. The field overlaps with prototype transitions and the
+  // back pointer will be moved into the prototype transitions array if
+  // required.
+  inline Object* GetBackPointer();
+  inline void SetBackPointer(Object* value,
+                             WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
   // [prototype transitions]: cache of prototype transitions.
   // Prototype transition is a transition that happens
   // when we change object's prototype to a new one.
   // Cache format:
   //    0: finger - index of the first free cell in the cache
-  //    1 + 2 * i: prototype
-  //    2 + 2 * i: target map
+  //    1: back pointer that overlaps with prototype transitions field.
+  //    2 + 2 * i: prototype
+  //    3 + 2 * i: target map
   DECL_ACCESSORS(prototype_transitions, FixedArray)
 
-  inline FixedArray* unchecked_prototype_transitions();
+  inline void init_prototype_transitions(Object* undefined);
+  inline HeapObject* unchecked_prototype_transitions();
 
-  static const int kProtoTransitionHeaderSize = 1;
+  static const int kProtoTransitionHeaderSize = 2;
   static const int kProtoTransitionNumberOfEntriesOffset = 0;
+  static const int kProtoTransitionBackPointerOffset = 1;
   static const int kProtoTransitionElementsPerEntry = 2;
   static const int kProtoTransitionPrototypeOffset = 0;
   static const int kProtoTransitionMapOffset = 1;
@@ -4786,25 +4817,10 @@ class Map: public HeapObject {
   // Removes a code object from the code cache at the given index.
   void RemoveFromCodeCache(String* name, Code* code, int index);
 
-  // For every transition in this map, makes the transition's
-  // target's prototype pointer point back to this map.
-  // This is undone in MarkCompactCollector::ClearNonLiveTransitions().
-  void CreateBackPointers();
-
-  void CreateOneBackPointer(Object* transition_target);
-
-  // Set all map transitions from this map to dead maps to null.
-  // Also, restore the original prototype on the targets of these
-  // transitions, so that we do not process this map again while
-  // following back pointers.
-  void ClearNonLiveTransitions(Heap* heap, Object* real_prototype);
-
-  // Restore a possible back pointer in the prototype field of object.
-  // Return true in that case and false otherwise. Set *keep_entry to
-  // true when a live map transition has been found.
-  bool RestoreOneBackPointer(Object* object,
-                             Object* real_prototype,
-                             bool* keep_entry);
+  // Set all map transitions from this map to dead maps to null.  Also clear
+  // back pointers in transition targets so that we do not process this map
+  // again while following back pointers.
+  void ClearNonLiveTransitions(Heap* heap);
 
   // Computes a hash value for this map, to be used in HashTables and such.
   int Hash();
@@ -4886,16 +4902,17 @@ class Map: public HeapObject {
       kConstructorOffset + kPointerSize;
   static const int kCodeCacheOffset =
       kInstanceDescriptorsOrBitField3Offset + kPointerSize;
-  static const int kPrototypeTransitionsOffset =
+  static const int kPrototypeTransitionsOrBackPointerOffset =
       kCodeCacheOffset + kPointerSize;
-  static const int kPadStart = kPrototypeTransitionsOffset + kPointerSize;
+  static const int kPadStart =
+      kPrototypeTransitionsOrBackPointerOffset + kPointerSize;
   static const int kSize = MAP_POINTER_ALIGN(kPadStart);
 
   // Layout of pointer fields. Heap iteration code relies on them
   // being continuously allocated.
   static const int kPointerFieldsBeginOffset = Map::kPrototypeOffset;
   static const int kPointerFieldsEndOffset =
-      Map::kPrototypeTransitionsOffset + kPointerSize;
+      kPrototypeTransitionsOrBackPointerOffset + kPointerSize;
 
   // Byte offsets within kInstanceSizesOffset.
   static const int kInstanceSizeOffset = kInstanceSizesOffset + 0;
@@ -5333,6 +5350,8 @@ class SharedFunctionInfo: public HeapObject {
   // deopt.
   inline int deopt_counter();
   inline void set_deopt_counter(int counter);
+
+  inline int profiler_ticks();
 
   // Inline cache age is used to infer whether the function survived a context
   // disposal or not. In the former case we reset the opt_count.
@@ -6120,7 +6139,7 @@ class JSDate: public JSObject {
 
   // Returns the date field with the specified index.
   // See FieldIndex for the list of date fields.
-  static MaybeObject* GetField(Object* date, Smi* index);
+  static Object* GetField(Object* date, Smi* index);
 
   void SetValue(Object* value, bool is_value_nan);
 
@@ -6869,7 +6888,7 @@ class String: public HeapObject {
   inline void Set(int index, uint16_t value);
   // Get individual two byte char in the string.  Repeated calls
   // to this method are not efficient unless the string is flat.
-  inline uint16_t Get(int index);
+  INLINE(uint16_t Get(int index));
 
   // Try to flatten the string.  Checks first inline to see if it is
   // necessary.  Does nothing if the string is not a cons string.
@@ -8100,6 +8119,18 @@ class AccessorPair: public Struct {
   static inline AccessorPair* cast(Object* obj);
 
   MUST_USE_RESULT MaybeObject* CopyWithoutTransitions();
+
+  Object* get(AccessorComponent component) {
+    return component == ACCESSOR_GETTER ? getter() : setter();
+  }
+
+  void set(AccessorComponent component, Object* value) {
+    if (component == ACCESSOR_GETTER) {
+      set_getter(value);
+    } else {
+      set_setter(value);
+    }
+  }
 
   // Note: Returns undefined instead in case of a hole.
   Object* GetComponent(AccessorComponent component);

@@ -25,67 +25,9 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --expose-debug-as debug
-// Get the Debug object exposed from the debug context global object.
-Debug = debug.Debug
-var breaks = 0;
-var exception = false;
-
-function sendCommand(state, cmd) {
-  // Get the debug command processor in paused state.
-  var dcp = state.debugCommandProcessor(false);
-  var request = JSON.stringify(cmd);
-  var response = dcp.processDebugJSONRequest(request);
-}
-
-function listener(event, exec_state, event_data, data) {
-  try {
-    if (event == Debug.DebugEvent.Break) {
-      var line = event_data.sourceLineText();
-      print('break: ' + line);
-
-      assertEquals(-1, line.indexOf('NOBREAK'),
-                   "should not break on unexpected lines")
-      assertEquals('BREAK ' + breaks, line.substr(-7));
-      breaks++;
-      if (breaks < 4) {
-        sendCommand(exec_state, {
-          seq: 0,
-          type: "request",
-          command: "continue",
-          arguments: { stepaction: "next" }
-        });
-      }
-    }
-  } catch (e) {
-    print(e);
-    exception = true;
-  }
-}
-
-// Add the debug event listener.
-Debug.setListener(listener);
-
-function a(f) {
-  if (f) {  // NOBREAK: should not break here!
-    try {
-      f();
-    } catch(e) {
-    }
-  }
-}  // BREAK 2
-
-function b() {
-  c();  // BREAK 0
-}  // BREAK 1
-
-function c() {
-  a();
-}
-
-// Set a break point and call to invoke the debug event listener.
-Debug.setBreakPoint(b, 0, 0);
-a(b);
-a(); // BREAK 3
-
-assertFalse(exception);
+"".match(/(A{9999999999}B|C*)*D/);
+"C".match(/(A{9999999999}B|C*)*D/);
+"".match(/(A{9999999999}B|C*)*/ );
+"C".match(/(A{9999999999}B|C*)*/ );
+"".match(/(9u|(2\`shj{2147483649,}\r|3|f|y|3*)+8\B)\W93+/);
+"9u8 ".match(/(9u|(2\`shj{2147483649,}\r|3|f|y|3*)+8\B)\W93+/);

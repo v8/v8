@@ -25,67 +25,28 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --expose-debug-as debug
-// Get the Debug object exposed from the debug context global object.
-Debug = debug.Debug
-var breaks = 0;
-var exception = false;
+// Flags: --expose-gc
 
-function sendCommand(state, cmd) {
-  // Get the debug command processor in paused state.
-  var dcp = state.debugCommandProcessor(false);
-  var request = JSON.stringify(cmd);
-  var response = dcp.processDebugJSONRequest(request);
-}
+function KeyedStoreIC(a) { a[0] = Math.E; }
 
-function listener(event, exec_state, event_data, data) {
-  try {
-    if (event == Debug.DebugEvent.Break) {
-      var line = event_data.sourceLineText();
-      print('break: ' + line);
+// Create literal with a fast double elements backing store
+var literal = [1.2];
 
-      assertEquals(-1, line.indexOf('NOBREAK'),
-                   "should not break on unexpected lines")
-      assertEquals('BREAK ' + breaks, line.substr(-7));
-      breaks++;
-      if (breaks < 4) {
-        sendCommand(exec_state, {
-          seq: 0,
-          type: "request",
-          command: "continue",
-          arguments: { stepaction: "next" }
-        });
-      }
-    }
-  } catch (e) {
-    print(e);
-    exception = true;
-  }
-}
+// Specialize the IC for fast double elements
+KeyedStoreIC(literal);
+KeyedStoreIC(literal);
 
-// Add the debug event listener.
-Debug.setListener(listener);
+// Trruncate array to 0 elements, at which point backing store will be replaced
+// with empty fixed array.
+literal.length = 0;
 
-function a(f) {
-  if (f) {  // NOBREAK: should not break here!
-    try {
-      f();
-    } catch(e) {
-    }
-  }
-}  // BREAK 2
+// ArrayPush built-in will replace empty fixed array backing store with 19
+// elements fixed array backing store.  This leads to a mismatch between the map
+// and the backing store.  Debug mode will crash here in set_elements accessor.
+literal.push(Math.E, Math.E);
 
-function b() {
-  c();  // BREAK 0
-}  // BREAK 1
+// Corrupt the backing store!
+KeyedStoreIC(literal);
 
-function c() {
-  a();
-}
-
-// Set a break point and call to invoke the debug event listener.
-Debug.setBreakPoint(b, 0, 0);
-a(b);
-a(); // BREAK 3
-
-assertFalse(exception);
+// Release mode will crash here when trying to visit parts of E as pointers.
+gc();
