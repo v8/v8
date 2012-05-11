@@ -169,6 +169,9 @@
       },
     }],  # OS=="win"
     ['OS=="mac"', {
+      'xcode_settings': {
+        'SYMROOT': '<(DEPTH)/xcodebuild',
+      },
       'target_defaults': {
         'xcode_settings': {
           'ALWAYS_SEARCH_USER_PATHS': 'NO',
@@ -188,6 +191,7 @@
           'GCC_WARN_ABOUT_MISSING_NEWLINE': 'YES',  # -Wnewline-eof
           'MACOSX_DEPLOYMENT_TARGET': '10.4',       # -mmacosx-version-min=10.4
           'PREBINDING': 'NO',                       # No -Wl,-prebind
+          'SYMROOT': '<(DEPTH)/xcodebuild',
           'USE_HEADERMAP': 'NO',
           'OTHER_CFLAGS': [
             '-fno-strict-aliasing',
