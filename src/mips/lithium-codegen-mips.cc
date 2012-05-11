@@ -2823,7 +2823,6 @@ void LCodeGen::DoDeclareGlobals(LDeclareGlobals* instr) {
 
 
 void LCodeGen::DoGlobalObject(LGlobalObject* instr) {
-  Register context = ToRegister(instr->context());
   Register result = ToRegister(instr->result());
   __ lw(result, ContextOperand(cp, Context::GLOBAL_INDEX));
 }
@@ -3210,7 +3209,7 @@ void LCodeGen::DoRandom(LRandom* instr) {
   // state[0] = 18273 * (state[0] & 0xFFFF) + (state[0] >> 16)
   __ And(a3, a1, Operand(0xFFFF));
   __ li(t0, Operand(18273));
-  __ mul(a3, a3, t0);
+  __ Mul(a3, a3, t0);
   __ srl(a1, a1, 16);
   __ Addu(a1, a3, a1);
   // Save state[0].
@@ -3219,7 +3218,7 @@ void LCodeGen::DoRandom(LRandom* instr) {
   // state[1] = 36969 * (state[1] & 0xFFFF) + (state[1] >> 16)
   __ And(a3, a0, Operand(0xFFFF));
   __ li(t0, Operand(36969));
-  __ mul(a3, a3, t0);
+  __ Mul(a3, a3, t0);
   __ srl(a0, a0, 16),
   __ Addu(a0, a3, a0);
   // Save state[1].
@@ -4124,7 +4123,6 @@ void LCodeGen::DoDoubleToI(LDoubleToI* instr) {
   Register scratch1 = scratch0();
   Register scratch2 = ToRegister(instr->TempAt(0));
   DoubleRegister double_input = ToDoubleRegister(instr->InputAt(0));
-  DoubleRegister double_scratch = double_scratch0();
   FPURegister single_scratch = double_scratch0().low();
 
   if (instr->truncating()) {

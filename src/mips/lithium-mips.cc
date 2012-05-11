@@ -1460,7 +1460,6 @@ LInstruction* LChunkBuilder::DoRandom(HRandom* instr) {
 
 
 LInstruction* LChunkBuilder::DoCompareGeneric(HCompareGeneric* instr) {
-  Representation r = instr->GetInputRepresentation();
   ASSERT(instr->left()->representation().IsTagged());
   ASSERT(instr->right()->representation().IsTagged());
   LOperand* left = UseFixed(instr->left(), a1);
