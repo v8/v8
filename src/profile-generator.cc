@@ -3499,16 +3499,9 @@ int HeapSnapshotJSONSerializer::GetStringId(const char* s) {
 }
 
 
-// This function won't work correctly for MIN_INT but this is not
-// a problem in case of heap snapshots serialization.
-static int itoa(int value, const Vector<char>& buffer, int buffer_pos) {
-  if (value < 0) {
-    buffer[buffer_pos++] = '-';
-    value = -value;
-  }
-
+static int utoa(unsigned value, const Vector<char>& buffer, int buffer_pos) {
   int number_of_digits = 0;
-  int t = value;
+  unsigned t = value;
   do {
     ++number_of_digits;
   } while (t /= 10);
@@ -3538,11 +3531,11 @@ void HeapSnapshotJSONSerializer::SerializeEdge(HeapGraphEdge* edge,
   if (!first_edge) {
     buffer[buffer_pos++] = ',';
   }
-  buffer_pos = itoa(edge->type(), buffer, buffer_pos);
+  buffer_pos = utoa(edge->type(), buffer, buffer_pos);
   buffer[buffer_pos++] = ',';
-  buffer_pos = itoa(edge_name_or_index, buffer, buffer_pos);
+  buffer_pos = utoa(edge_name_or_index, buffer, buffer_pos);
   buffer[buffer_pos++] = ',';
-  buffer_pos = itoa(entry_index(edge->to()), buffer, buffer_pos);
+  buffer_pos = utoa(entry_index(edge->to()), buffer, buffer_pos);
   buffer[buffer_pos++] = '\0';
   writer_->AddString(buffer.start());
 }
@@ -3571,23 +3564,23 @@ void HeapSnapshotJSONSerializer::SerializeNode(HeapEntry* entry,
       + 7 + 1 + 1;
   EmbeddedVector<char, kBufferSize> buffer;
   int buffer_pos = 0;
-  buffer[buffer_pos++] = '\n';
   if (entry_index(entry) != 0) {
     buffer[buffer_pos++] = ',';
   }
-  buffer_pos = itoa(entry->type(), buffer, buffer_pos);
+  buffer_pos = utoa(entry->type(), buffer, buffer_pos);
   buffer[buffer_pos++] = ',';
-  buffer_pos = itoa(GetStringId(entry->name()), buffer, buffer_pos);
+  buffer_pos = utoa(GetStringId(entry->name()), buffer, buffer_pos);
   buffer[buffer_pos++] = ',';
-  buffer_pos = itoa(entry->id(), buffer, buffer_pos);
+  buffer_pos = utoa(entry->id(), buffer, buffer_pos);
   buffer[buffer_pos++] = ',';
-  buffer_pos = itoa(entry->self_size(), buffer, buffer_pos);
+  buffer_pos = utoa(entry->self_size(), buffer, buffer_pos);
   buffer[buffer_pos++] = ',';
-  buffer_pos = itoa(entry->retained_size(), buffer, buffer_pos);
+  buffer_pos = utoa(entry->retained_size(), buffer, buffer_pos);
   buffer[buffer_pos++] = ',';
-  buffer_pos = itoa(entry_index(entry->dominator()), buffer, buffer_pos);
+  buffer_pos = utoa(entry_index(entry->dominator()), buffer, buffer_pos);
   buffer[buffer_pos++] = ',';
-  buffer_pos = itoa(edges_index, buffer, buffer_pos);
+  buffer_pos = utoa(edges_index, buffer, buffer_pos);
+  buffer[buffer_pos++] = '\n';
   buffer[buffer_pos++] = '\0';
   writer_->AddString(buffer.start());
 }
