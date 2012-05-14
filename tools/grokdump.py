@@ -108,6 +108,24 @@ class Descriptor(object):
     return Raw
 
 
+def do_dump(reader, heap):
+  """Dump all available memory regions."""
+  def dump_region(reader, start, size, location):
+    print "%s - %s" % (reader.FormatIntPtr(start),
+                       reader.FormatIntPtr(start + size))
+    for slot in xrange(start,
+                       start + size,
+                       reader.PointerSize()):
+      maybe_address = reader.ReadUIntPtr(slot)
+      heap_object = heap.FindObject(maybe_address)
+      print "%s: %s" % (reader.FormatIntPtr(slot),
+                        reader.FormatIntPtr(maybe_address))
+      if heap_object:
+        heap_object.Print(Printer())
+        print
+
+  reader.ForEachMemoryRegion(dump_region)
+
 # Set of structures and constants that describe the layout of minidump
 # files. Based on MSDN and Google Breakpad.
 
@@ -774,7 +792,10 @@ class ConsString(String):
     self.right = self.ObjectField(self.RightOffset())
 
   def GetChars(self):
-    return self.left.GetChars() + self.right.GetChars()
+    try:
+      return self.left.GetChars() + self.right.GetChars()
+    except:
+      return "***CAUGHT EXCEPTION IN GROKDUMP***"
 
 
 class Oddball(HeapObject):
@@ -1110,6 +1131,9 @@ def AnalyzeMinidump(options, minidump_name):
     print FormatDisasmLine(start, heap, line)
   print
 
+  if options.full:
+    do_dump(reader, heap)
+
   if options.shell:
     InspectionShell(reader, heap).cmdloop("type help to get help")
   else:
@@ -1129,6 +1153,7 @@ def AnalyzeMinidump(options, minidump_name):
 if __name__ == "__main__":
   parser = optparse.OptionParser(USAGE)
   parser.add_option("-s", "--shell", dest="shell", action="store_true")
+  parser.add_option("-f", "--full", dest="full", action="store_true")
   options, args = parser.parse_args()
   if len(args) != 1:
     parser.print_help()
