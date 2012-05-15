@@ -745,7 +745,7 @@ function GetPositionInLine(message) {
 
 
 function GetStackTraceLine(recv, fun, pos, isGlobal) {
-  return FormatSourcePosition(new CallSite(recv, fun, pos));
+  return new CallSite(recv, fun, pos).toString();
 }
 
 // ----------------------------------------------------------------------------
@@ -919,6 +919,65 @@ function CallSiteIsConstructor() {
   return this.fun === constructor;
 }
 
+function CallSiteToString() {
+  var fileName;
+  var fileLocation = "";
+  if (this.isNative()) {
+    fileLocation = "native";
+  } else if (this.isEval()) {
+    fileName = this.getScriptNameOrSourceURL();
+    if (!fileName) {
+      fileLocation = this.getEvalOrigin();
+    }
+  } else {
+    fileName = this.getFileName();
+  }
+
+  if (fileName) {
+    fileLocation += fileName;
+    var lineNumber = this.getLineNumber();
+    if (lineNumber != null) {
+      fileLocation += ":" + lineNumber;
+      var columnNumber = this.getColumnNumber();
+      if (columnNumber) {
+        fileLocation += ":" + columnNumber;
+      }
+    }
+  }
+
+  if (!fileLocation) {
+    fileLocation = "unknown source";
+  }
+  var line = "";
+  var functionName = this.getFunction().name;
+  var addPrefix = true;
+  var isConstructor = this.isConstructor();
+  var isMethodCall = !(this.isToplevel() || isConstructor);
+  if (isMethodCall) {
+    var methodName = this.getMethodName();
+    line += this.getTypeName() + ".";
+    if (functionName) {
+      line += functionName;
+      if (methodName && (methodName != functionName)) {
+        line += " [as " + methodName + "]";
+      }
+    } else {
+      line += methodName || "<anonymous>";
+    }
+  } else if (isConstructor) {
+    line += "new " + (functionName || "<anonymous>");
+  } else if (functionName) {
+    line += functionName;
+  } else {
+    line += fileLocation;
+    addPrefix = false;
+  }
+  if (addPrefix) {
+    line += " (" + fileLocation + ")";
+  }
+  return line;
+}
+
 SetUpLockedPrototype(CallSite, $Array("receiver", "fun", "pos"), $Array(
   "getThis", CallSiteGetThis,
   "getTypeName", CallSiteGetTypeName,
@@ -934,7 +993,8 @@ SetUpLockedPrototype(CallSite, $Array("receiver", "fun", "pos"), $Array(
   "getColumnNumber", CallSiteGetColumnNumber,
   "isNative", CallSiteIsNative,
   "getPosition", CallSiteGetPosition,
-  "isConstructor", CallSiteIsConstructor
+  "isConstructor", CallSiteIsConstructor,
+  "toString", CallSiteToString
 ));
 
 
@@ -976,65 +1036,6 @@ function FormatEvalOrigin(script) {
   return eval_origin;
 }
 
-function FormatSourcePosition(frame) {
-  var fileName;
-  var fileLocation = "";
-  if (frame.isNative()) {
-    fileLocation = "native";
-  } else if (frame.isEval()) {
-    fileName = frame.getScriptNameOrSourceURL();
-    if (!fileName) {
-      fileLocation = frame.getEvalOrigin();
-    }
-  } else {
-    fileName = frame.getFileName();
-  }
-
-  if (fileName) {
-    fileLocation += fileName;
-    var lineNumber = frame.getLineNumber();
-    if (lineNumber != null) {
-      fileLocation += ":" + lineNumber;
-      var columnNumber = frame.getColumnNumber();
-      if (columnNumber) {
-        fileLocation += ":" + columnNumber;
-      }
-    }
-  }
-
-  if (!fileLocation) {
-    fileLocation = "unknown source";
-  }
-  var line = "";
-  var functionName = frame.getFunction().name;
-  var addPrefix = true;
-  var isConstructor = frame.isConstructor();
-  var isMethodCall = !(frame.isToplevel() || isConstructor);
-  if (isMethodCall) {
-    var methodName = frame.getMethodName();
-    line += frame.getTypeName() + ".";
-    if (functionName) {
-      line += functionName;
-      if (methodName && (methodName != functionName)) {
-        line += " [as " + methodName + "]";
-      }
-    } else {
-      line += methodName || "<anonymous>";
-    }
-  } else if (isConstructor) {
-    line += "new " + (functionName || "<anonymous>");
-  } else if (functionName) {
-    line += functionName;
-  } else {
-    line += fileLocation;
-    addPrefix = false;
-  }
-  if (addPrefix) {
-    line += " (" + fileLocation + ")";
-  }
-  return line;
-}
-
 function FormatStackTrace(error, frames) {
   var lines = [];
   try {
@@ -1050,7 +1051,7 @@ function FormatStackTrace(error, frames) {
     var frame = frames[i];
     var line;
     try {
-      line = FormatSourcePosition(frame);
+      line = frame.toString();
     } catch (e) {
       try {
         line = "<error: " + e + ">";
