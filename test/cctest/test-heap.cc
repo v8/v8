@@ -1759,11 +1759,11 @@ TEST(Regress1465) {
 
   #define TRANSITION_COUNT 256
   for (int i = 0; i < TRANSITION_COUNT; i++) {
-    EmbeddedVector<char, 32> buffer;
-    OS::SNPrintF(buffer, "var o = {}; o.prop%d = %d;", i);
+    EmbeddedVector<char, 64> buffer;
+    OS::SNPrintF(buffer, "var o = new Object; o.prop%d = %d;", i, i);
     CompileRun(buffer.start());
   }
-  CompileRun("var root = {};");
+  CompileRun("var root = new Object;");
   Handle<JSObject> root =
       v8::Utils::OpenHandle(
           *v8::Handle<v8::Object>::Cast(
