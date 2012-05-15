@@ -1,3 +1,12 @@
+2012-05-15: Version 3.11.1
+
+        Added a readbuffer function to d8 that reads a file into an ArrayBuffer.
+
+        Fix freebsd build. (V8 issue 2126)
+
+        Performance and stability improvements on all platforms.
+
+
 2012-05-11: Version 3.11.0
 
         Fixed compose-discard crasher from r11524 (issue 2123).
