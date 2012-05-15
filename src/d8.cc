@@ -835,6 +835,8 @@ Handle<ObjectTemplate> Shell::CreateGlobalTemplate() {
   global_template->Set(String::New("read"), FunctionTemplate::New(Read));
   global_template->Set(String::New("readbinary"),
                        FunctionTemplate::New(ReadBinary));
+  global_template->Set(String::New("readbuffer"),
+                       FunctionTemplate::New(ReadBuffer));
   global_template->Set(String::New("readline"),
                        FunctionTemplate::New(ReadLine));
   global_template->Set(String::New("load"), FunctionTemplate::New(Load));
@@ -1067,6 +1069,32 @@ Handle<Value> Shell::ReadBinary(const Arguments& args) {
   // backing store for the external string with 8-bit characters.
   BinaryResource* resource = new BinaryResource(chars, size);
   return String::NewExternal(resource);
+}
+
+
+Handle<Value> Shell::ReadBuffer(const Arguments& args) {
+  String::Utf8Value filename(args[0]);
+  int length;
+  if (*filename == NULL) {
+    return ThrowException(String::New("Error loading file"));
+  }
+  char* data = ReadChars(*filename, &length);
+  if (data == NULL) {
+    return ThrowException(String::New("Error reading file"));
+  }
+
+  Handle<Object> buffer = Object::New();
+  buffer->Set(String::New(kArrayBufferMarkerPropName), True(), ReadOnly);
+
+  Persistent<Object> persistent_buffer = Persistent<Object>::New(buffer);
+  persistent_buffer.MakeWeak(data, ExternalArrayWeakCallback);
+  persistent_buffer.MarkIndependent();
+
+  buffer->SetIndexedPropertiesToExternalArrayData(
+      reinterpret_cast<uint8_t*>(data), kExternalUnsignedByteArray, length);
+  buffer->Set(String::New("byteLength"),
+             Int32::New(static_cast<int32_t>(length)), ReadOnly);
+  return buffer;
 }
 
 
