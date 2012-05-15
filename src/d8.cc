@@ -315,8 +315,8 @@ static size_t convertToUint(Local<Value> value_in, TryCatch* try_catch) {
 }
 
 
-const char kArrayBufferReferencePropName[] = "_is_array_buffer_";
-const char kArrayBufferMarkerPropName[] = "_array_buffer_ref_";
+const char kArrayBufferMarkerPropName[] = "_is_array_buffer_";
+const char kArrayBufferReferencePropName[] = "_array_buffer_ref_";
 
 static const int kExternalArrayAllocationHeaderSize = 2;
 
@@ -353,10 +353,11 @@ Handle<Value> Shell::CreateExternalArray(const Arguments& args,
 
   Local<Value> length_value = (args.Length() < 3)
       ? (first_arg_is_array_buffer
-         ? args[0]->ToObject()->Get(String::New("length"))
+         ? args[0]->ToObject()->Get(String::New("byteLength"))
          : args[0])
       : args[2];
-  size_t length = convertToUint(length_value, &try_catch);
+  size_t byteLength = convertToUint(length_value, &try_catch);
+  size_t length = byteLength;
   if (try_catch.HasCaught()) return try_catch.Exception();
 
   void* data = NULL;
@@ -368,7 +369,7 @@ Handle<Value> Shell::CreateExternalArray(const Arguments& args,
     data = derived_from->GetIndexedPropertiesExternalArrayData();
 
     size_t array_buffer_length = convertToUint(
-        derived_from->Get(String::New("length")),
+        derived_from->Get(String::New("byteLength")),
         &try_catch);
     if (try_catch.HasCaught()) return try_catch.Exception();
 
@@ -451,10 +452,20 @@ Handle<Value> Shell::CreateExternalArray(const Arguments& args,
   array->SetIndexedPropertiesToExternalArrayData(
       reinterpret_cast<uint8_t*>(data) + offset, type,
       static_cast<int>(length));
-  array->Set(String::New("length"),
-             Int32::New(static_cast<int32_t>(length)), ReadOnly);
-  array->Set(String::New("BYTES_PER_ELEMENT"),
-             Int32::New(static_cast<int32_t>(element_size)));
+  array->Set(String::New("byteLength"),
+             Int32::New(static_cast<int32_t>(byteLength)), ReadOnly);
+  if (!is_array_buffer_construct) {
+    array->Set(String::New("length"),
+               Int32::New(static_cast<int32_t>(length)), ReadOnly);
+    array->Set(String::New("byteOffset"),
+               Int32::New(static_cast<int32_t>(offset)), ReadOnly);
+    array->Set(String::New("BYTES_PER_ELEMENT"),
+               Int32::New(static_cast<int32_t>(element_size)));
+    // We currently support 'buffer' property only if constructed from a buffer.
+    if (first_arg_is_array_buffer) {
+      array->Set(String::New("buffer"), args[0], ReadOnly);
+    }
+  }
   return array;
 }
 
