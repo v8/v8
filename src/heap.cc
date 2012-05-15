@@ -171,6 +171,9 @@ Heap::Heap()
   global_contexts_list_ = NULL;
   mark_compact_collector_.heap_ = this;
   external_string_table_.heap_ = this;
+  // Put a dummy entry in the remembered pages so we can find the list the
+  // minidump even if there are no real unmapped pages.
+  RememberUnmappedPage(NULL, false);
 }
 
 
