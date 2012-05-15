@@ -4855,6 +4855,14 @@ class Map: public HeapObject {
   Handle<Map> FindTransitionedMap(MapHandleList* candidates);
   Map* FindTransitionedMap(MapList* candidates);
 
+  // Zaps the contents of backing data structures in debug mode. Note that the
+  // heap verifier (i.e. VerifyMarkingVisitor) relies on zapping of objects
+  // holding weak references when incremental marking is used, because it also
+  // iterates over objects that are otherwise unreachable.
+#ifdef DEBUG
+  void ZapInstanceDescriptors();
+  void ZapPrototypeTransitions();
+#endif
 
   // Dispatched behavior.
 #ifdef OBJECT_PRINT
