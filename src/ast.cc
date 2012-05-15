@@ -962,6 +962,14 @@ RegExpDisjunction::RegExpDisjunction(ZoneList<RegExpTree*>* alternatives)
 }
 
 
+static int IncreaseBy(int previous, int increase) {
+  if (RegExpTree::kInfinity - previous < increase) {
+    return RegExpTree::kInfinity;
+  } else {
+    return previous + increase;
+  }
+}
+
 RegExpAlternative::RegExpAlternative(ZoneList<RegExpTree*>* nodes)
     : nodes_(nodes) {
   ASSERT(nodes->length() > 1);
@@ -969,13 +977,10 @@ RegExpAlternative::RegExpAlternative(ZoneList<RegExpTree*>* nodes)
   max_match_ = 0;
   for (int i = 0; i < nodes->length(); i++) {
     RegExpTree* node = nodes->at(i);
-    min_match_ += node->min_match();
+    int node_min_match = node->min_match();
+    min_match_ = IncreaseBy(min_match_, node_min_match);
     int node_max_match = node->max_match();
-    if (kInfinity - max_match_ < node_max_match) {
-      max_match_ = kInfinity;
-    } else {
-      max_match_ += node->max_match();
-    }
+    max_match_ = IncreaseBy(max_match_, node_max_match);
   }
 }
 
