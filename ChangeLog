@@ -1,3 +1,13 @@
+2012-05-16: Version 3.11.2
+
+        Revert r11496. (Chromium issue 128146)
+
+        Implement map collection for incremental marking. (issue 1465)
+
+        Add toString method to CallSite (which describes a frame of the
+        stack trace).
+
+
 2012-05-15: Version 3.11.1
 
         Added a readbuffer function to d8 that reads a file into an ArrayBuffer.
