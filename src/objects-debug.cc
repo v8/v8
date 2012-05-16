@@ -992,6 +992,28 @@ void NormalizedMapCache::NormalizedMapCacheVerify() {
 }
 
 
+void Map::ZapInstanceDescriptors() {
+  DescriptorArray* descriptors = instance_descriptors();
+  if (descriptors == GetHeap()->empty_descriptor_array()) return;
+  FixedArray* contents = FixedArray::cast(
+      descriptors->get(DescriptorArray::kContentArrayIndex));
+  MemsetPointer(descriptors->data_start(),
+                GetHeap()->the_hole_value(),
+                descriptors->length());
+  MemsetPointer(contents->data_start(),
+                GetHeap()->the_hole_value(),
+                contents->length());
+}
+
+
+void Map::ZapPrototypeTransitions() {
+  FixedArray* proto_transitions = prototype_transitions();
+  MemsetPointer(proto_transitions->data_start(),
+                GetHeap()->the_hole_value(),
+                proto_transitions->length());
+}
+
+
 #endif  // DEBUG
 
 } }  // namespace v8::internal

@@ -3351,6 +3351,9 @@ void Map::clear_instance_descriptors() {
   Object* object = READ_FIELD(this,
                               kInstanceDescriptorsOrBitField3Offset);
   if (!object->IsSmi()) {
+#ifdef DEBUG
+    ZapInstanceDescriptors();
+#endif
     WRITE_FIELD(
         this,
         kInstanceDescriptorsOrBitField3Offset,
@@ -3376,6 +3379,11 @@ void Map::set_instance_descriptors(DescriptorArray* value,
     }
   }
   ASSERT(!is_shared());
+#ifdef DEBUG
+  if (value != instance_descriptors()) {
+    ZapInstanceDescriptors();
+  }
+#endif
   WRITE_FIELD(this, kInstanceDescriptorsOrBitField3Offset, value);
   CONDITIONAL_WRITE_BARRIER(
       heap, this, kInstanceDescriptorsOrBitField3Offset, value, mode);
@@ -3448,6 +3456,11 @@ void Map::set_prototype_transitions(FixedArray* value, WriteBarrierMode mode) {
   Heap* heap = GetHeap();
   ASSERT(value != heap->empty_fixed_array());
   value->set(kProtoTransitionBackPointerOffset, GetBackPointer());
+#ifdef DEBUG
+  if (value != prototype_transitions()) {
+    ZapPrototypeTransitions();
+  }
+#endif
   WRITE_FIELD(this, kPrototypeTransitionsOrBackPointerOffset, value);
   CONDITIONAL_WRITE_BARRIER(
       heap, this, kPrototypeTransitionsOrBackPointerOffset, value, mode);

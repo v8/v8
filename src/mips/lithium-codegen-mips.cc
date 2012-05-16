@@ -2343,6 +2343,7 @@ void LCodeGen::DoLoadNamedFieldPolymorphic(LLoadNamedFieldPolymorphic* instr) {
   Register object = ToRegister(instr->object());
   Register result = ToRegister(instr->result());
   Register scratch = scratch0();
+
   int map_count = instr->hydrogen()->types()->length();
   bool need_generic = instr->hydrogen()->need_generic();
 
@@ -2357,8 +2358,8 @@ void LCodeGen::DoLoadNamedFieldPolymorphic(LLoadNamedFieldPolymorphic* instr) {
     bool last = (i == map_count - 1);
     Handle<Map> map = instr->hydrogen()->types()->at(i);
     if (last && !need_generic) {
-      Handle<Map> map = instr->hydrogen()->types()->last();
       DeoptimizeIf(ne, instr->environment(), scratch, Operand(map));
+      EmitLoadFieldOrConstantFunction(result, object, map, name);
     } else {
       Label next;
       __ Branch(&next, ne, scratch, Operand(map));

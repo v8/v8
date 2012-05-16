@@ -4417,12 +4417,7 @@ MaybeObject* JSObject::CreateAccessorPairFor(String* name) {
   LookupResult result(GetHeap()->isolate());
   LocalLookupRealNamedProperty(name, &result);
   if (result.IsProperty() && result.type() == CALLBACKS) {
-    // Note that the result can actually have IsDontDelete() == true when we
-    // e.g. have to fall back to the slow case while adding a setter after
-    // successfully reusing a map transition for a getter. Nevertheless, this is
-    // OK, because the assertion only holds for the whole addition of both
-    // accessors, not for the addition of each part. See first comment in
-    // DefinePropertyAccessor below.
+    ASSERT(!result.IsDontDelete());
     Object* obj = result.GetCallbackObject();
     if (obj->IsAccessorPair()) {
       return AccessorPair::cast(obj)->CopyWithoutTransitions();
@@ -4436,28 +4431,6 @@ MaybeObject* JSObject::DefinePropertyAccessor(String* name,
                                               Object* getter,
                                               Object* setter,
                                               PropertyAttributes attributes) {
-  // We could assert that the property is configurable here, but we would need
-  // to do a lookup, which seems to be a bit of overkill.
-  Heap* heap = GetHeap();
-  bool only_attribute_changes = getter->IsNull() && setter->IsNull();
-  if (HasFastProperties() && !only_attribute_changes) {
-    MaybeObject* getterOk = heap->undefined_value();
-    if (!getter->IsNull()) {
-      getterOk = DefineFastAccessor(name, ACCESSOR_GETTER, getter, attributes);
-      if (getterOk->IsFailure()) return getterOk;
-    }
-
-    MaybeObject* setterOk = heap->undefined_value();
-    if (getterOk != heap->null_value() && !setter->IsNull()) {
-      setterOk = DefineFastAccessor(name, ACCESSOR_SETTER, setter, attributes);
-      if (setterOk->IsFailure()) return setterOk;
-    }
-
-    if (getterOk != heap->null_value() && setterOk != heap->null_value()) {
-      return heap->undefined_value();
-    }
-  }
-
   AccessorPair* accessors;
   { MaybeObject* maybe_accessors = CreateAccessorPairFor(name);
     if (!maybe_accessors->To(&accessors)) return maybe_accessors;
@@ -4604,159 +4577,6 @@ MaybeObject* JSObject::DefineAccessor(String* name,
   return name->AsArrayIndex(&index) ?
       DefineElementAccessor(index, getter, setter, attributes) :
       DefinePropertyAccessor(name, getter, setter, attributes);
-}
-
-
-static MaybeObject* CreateFreshAccessor(JSObject* obj,
-                                        String* name,
-                                        AccessorComponent component,
-                                        Object* accessor,
-                                        PropertyAttributes attributes) {
-  // step 1: create a new getter/setter pair with only the accessor in it
-  Heap* heap = obj->GetHeap();
-  AccessorPair* accessors2;
-  { MaybeObject* maybe_accessors2 = heap->AllocateAccessorPair();
-    if (!maybe_accessors2->To(&accessors2)) return maybe_accessors2;
-  }
-  accessors2->set(component, accessor);
-
-  // step 2: create a copy of the descriptors, incl. the new getter/setter pair
-  Map* map1 = obj->map();
-  CallbacksDescriptor callbacks_descr2(name, accessors2, attributes);
-  DescriptorArray* descriptors2;
-  { MaybeObject* maybe_descriptors2 =
-        map1->instance_descriptors()->CopyInsert(&callbacks_descr2,
-                                                 REMOVE_TRANSITIONS);
-    if (!maybe_descriptors2->To(&descriptors2)) return maybe_descriptors2;
-  }
-
-  // step 3: create a new map with the new descriptors
-  Map* map2;
-  { MaybeObject* maybe_map2 = map1->CopyDropDescriptors();
-    if (!maybe_map2->To(&map2)) return maybe_map2;
-  }
-  map2->set_instance_descriptors(descriptors2);
-
-  // step 4: create a new getter/setter pair with a transition to the new map
-  AccessorPair* accessors1;
-  { MaybeObject* maybe_accessors1 = heap->AllocateAccessorPair();
-    if (!maybe_accessors1->To(&accessors1)) return maybe_accessors1;
-  }
-  accessors1->set(component, map2);
-
-  // step 5: create a copy of the descriptors, incl. the new getter/setter pair
-  // with the transition
-  CallbacksDescriptor callbacks_descr1(name, accessors1, attributes);
-  DescriptorArray* descriptors1;
-  { MaybeObject* maybe_descriptors1 =
-        map1->instance_descriptors()->CopyInsert(&callbacks_descr1,
-                                                 KEEP_TRANSITIONS);
-    if (!maybe_descriptors1->To(&descriptors1)) return maybe_descriptors1;
-  }
-
-  // step 6: everything went well so far, so we make our changes visible
-  obj->set_map(map2);
-  map1->set_instance_descriptors(descriptors1);
-  map2->SetBackPointer(map1);
-  return obj;
-}
-
-
-static bool TransitionToSameAccessor(Object* map,
-                                     String* name,
-                                     AccessorComponent component,
-                                     Object* accessor,
-                                     PropertyAttributes attributes ) {
-  DescriptorArray* descs = Map::cast(map)->instance_descriptors();
-  int number = descs->SearchWithCache(name);
-  ASSERT(number != DescriptorArray::kNotFound);
-  Object* target_accessor =
-      AccessorPair::cast(descs->GetCallbacksObject(number))->get(component);
-  PropertyAttributes target_attributes = descs->GetDetails(number).attributes();
-  return target_accessor == accessor && target_attributes == attributes;
-}
-
-
-static MaybeObject* NewCallbackTransition(JSObject* obj,
-                                          String* name,
-                                          AccessorComponent component,
-                                          Object* accessor,
-                                          PropertyAttributes attributes,
-                                          AccessorPair* accessors2) {
-  // step 1: copy the old getter/setter pair and set the new accessor
-  AccessorPair* accessors3;
-  { MaybeObject* maybe_accessors3 = accessors2->CopyWithoutTransitions();
-    if (!maybe_accessors3->To(&accessors3)) return maybe_accessors3;
-  }
-  accessors3->set(component, accessor);
-
-  // step 2: create a copy of the descriptors, incl. the new getter/setter pair
-  Map* map2 = obj->map();
-  CallbacksDescriptor callbacks_descr3(name, accessors3, attributes);
-  DescriptorArray* descriptors3;
-  { MaybeObject* maybe_descriptors3 =
-        map2->instance_descriptors()->CopyInsert(&callbacks_descr3,
-                                                 REMOVE_TRANSITIONS);
-    if (!maybe_descriptors3->To(&descriptors3)) return maybe_descriptors3;
-  }
-
-  // step 3: create a new map with the new descriptors
-  Map* map3;
-  { MaybeObject* maybe_map3 = map2->CopyDropDescriptors();
-    if (!maybe_map3->To(&map3)) return maybe_map3;
-  }
-  map3->set_instance_descriptors(descriptors3);
-
-  // step 4: everything went well so far, so we make our changes visible
-  obj->set_map(map3);
-  accessors2->set(component, map3);
-  map3->SetBackPointer(map2);
-  return obj;
-}
-
-
-MaybeObject* JSObject::DefineFastAccessor(String* name,
-                                          AccessorComponent component,
-                                          Object* accessor,
-                                          PropertyAttributes attributes) {
-  ASSERT(accessor->IsSpecFunction() || accessor->IsUndefined());
-  LookupResult result(GetIsolate());
-  LocalLookup(name, &result);
-
-  // If we have a new property, create a fresh accessor plus a transition to it.
-  if (!result.IsFound()) {
-    return CreateFreshAccessor(this, name, component, accessor, attributes);
-  }
-
-  // If the property is not a JavaScript accessor, fall back to the slow case.
-  if (result.type() != CALLBACKS) return GetHeap()->null_value();
-  Object* callback_value = result.GetValue();
-  if (!callback_value->IsAccessorPair()) return GetHeap()->null_value();
-  AccessorPair* accessors = AccessorPair::cast(callback_value);
-
-  // Follow a callback transition, if there is a fitting one.
-  Object* entry = accessors->get(component);
-  if (entry->IsMap() &&
-      TransitionToSameAccessor(entry, name, component, accessor, attributes)) {
-    set_map(Map::cast(entry));
-    return this;
-  }
-
-  // When we re-add the same accessor again, there is nothing to do.
-  if (entry == accessor && result.GetAttributes() == attributes) return this;
-
-  // Only the other accessor has been set so far, create a new transition.
-  if (entry->IsTheHole()) {
-    return NewCallbackTransition(this,
-                                 name,
-                                 component,
-                                 accessor,
-                                 attributes,
-                                 accessors);
-  }
-
-  // Nothing from the above worked, so we have to fall back to the slow case.
-  return GetHeap()->null_value();
 }
 
 
@@ -6127,8 +5947,8 @@ MaybeObject* AccessorPair::CopyWithoutTransitions() {
 
 
 Object* AccessorPair::GetComponent(AccessorComponent component) {
-  Object* accessor = get(component);
-  return accessor->IsTheHole() ? GetHeap()->undefined_value() : accessor;
+    Object* accessor = (component == ACCESSOR_GETTER) ? getter() : setter();
+    return accessor->IsTheHole() ? GetHeap()->undefined_value() : accessor;
 }
 
 

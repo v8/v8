@@ -412,14 +412,12 @@ static inline MaybeObject* EnsureJSArrayWithWritableFastElements(
   HeapObject* elms = array->elements();
   Map* map = elms->map();
   if (map == heap->fixed_array_map()) {
-    if (array->HasFastElements()) return elms;
-    if (args == NULL) {
-      if (array->HasFastDoubleElements()) {
-        ASSERT(elms == heap->empty_fixed_array());
-        MaybeObject* maybe_transition =
-            array->TransitionElementsKind(FAST_ELEMENTS);
-        if (maybe_transition->IsFailure()) return maybe_transition;
-      }
+    if (args == NULL || array->HasFastElements()) return elms;
+    if (array->HasFastDoubleElements()) {
+      ASSERT(elms == heap->empty_fixed_array());
+      MaybeObject* maybe_transition =
+          array->TransitionElementsKind(FAST_ELEMENTS);
+      if (maybe_transition->IsFailure()) return maybe_transition;
       return elms;
     }
   } else if (map == heap->fixed_cow_array_map()) {
