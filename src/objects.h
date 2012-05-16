@@ -704,13 +704,12 @@ enum CompareResult {
                          WriteBarrierMode mode = UPDATE_WRITE_BARRIER); \
 
 
-class AccessorPair;
 class DictionaryElementsAccessor;
 class ElementsAccessor;
-class Failure;
 class FixedArrayBase;
 class ObjectVisitor;
 class StringStream;
+class Failure;
 
 struct ValueInfo : public Malloced {
   ValueInfo() : type(FIRST_TYPE), ptr(NULL), str(NULL), number(0) { }
@@ -1643,14 +1642,6 @@ class JSObject: public JSReceiver {
                                               Object* getter,
                                               Object* setter,
                                               PropertyAttributes attributes);
-  // Try to define a single accessor paying attention to map transitions.
-  // Returns a JavaScript null if this was not possible and we have to use the
-  // slow case. Note that we can fail due to allocations, too.
-  MUST_USE_RESULT MaybeObject* DefineFastAccessor(
-      String* name,
-      AccessorComponent component,
-      Object* accessor,
-      PropertyAttributes attributes);
   Object* LookupAccessor(String* name, AccessorComponent component);
 
   MUST_USE_RESULT MaybeObject* DefineAccessor(AccessorInfo* info);
@@ -8127,18 +8118,6 @@ class AccessorPair: public Struct {
   static inline AccessorPair* cast(Object* obj);
 
   MUST_USE_RESULT MaybeObject* CopyWithoutTransitions();
-
-  Object* get(AccessorComponent component) {
-    return component == ACCESSOR_GETTER ? getter() : setter();
-  }
-
-  void set(AccessorComponent component, Object* value) {
-    if (component == ACCESSOR_GETTER) {
-      set_getter(value);
-    } else {
-      set_setter(value);
-    }
-  }
 
   // Note: Returns undefined instead in case of a hole.
   Object* GetComponent(AccessorComponent component);
