@@ -1735,3 +1735,60 @@ TEST(OptimizedAllocationAlwaysInNewSpace) {
 
   CHECK(HEAP->InNewSpace(*o));
 }
+
+
+static int CountMapTransitions(Map* map) {
+  int result = 0;
+  DescriptorArray* descs = map->instance_descriptors();
+  for (int i = 0; i < descs->number_of_descriptors(); i++) {
+    if (descs->IsTransitionOnly(i)) {
+      result++;
+    }
+  }
+  return result;
+}
+
+
+// Test that map transitions are cleared and maps are collected with
+// incremental marking as well.
+TEST(Regress1465) {
+  i::FLAG_allow_natives_syntax = true;
+  i::FLAG_trace_incremental_marking = true;
+  InitializeVM();
+  v8::HandleScope scope;
+
+  #define TRANSITION_COUNT 256
+  for (int i = 0; i < TRANSITION_COUNT; i++) {
+    EmbeddedVector<char, 64> buffer;
+    OS::SNPrintF(buffer, "var o = new Object; o.prop%d = %d;", i, i);
+    CompileRun(buffer.start());
+  }
+  CompileRun("var root = new Object;");
+  Handle<JSObject> root =
+      v8::Utils::OpenHandle(
+          *v8::Handle<v8::Object>::Cast(
+              v8::Context::GetCurrent()->Global()->Get(v8_str("root"))));
+
+  // Count number of live transitions before marking.
+  int transitions_before = CountMapTransitions(root->map());
+  CompileRun("%DebugPrint(root);");
+  CHECK_EQ(TRANSITION_COUNT, transitions_before);
+
+  // Go through all incremental marking steps in one swoop.
+  IncrementalMarking* marking = HEAP->incremental_marking();
+  CHECK(marking->IsStopped());
+  marking->Start();
+  CHECK(marking->IsMarking());
+  while (!marking->IsComplete()) {
+    marking->Step(MB, IncrementalMarking::NO_GC_VIA_STACK_GUARD);
+  }
+  CHECK(marking->IsComplete());
+  HEAP->CollectAllGarbage(Heap::kNoGCFlags);
+  CHECK(marking->IsStopped());
+
+  // Count number of live transitions after marking.  Note that one transition
+  // is left, because 'o' still holds an instance of one transition target.
+  int transitions_after = CountMapTransitions(root->map());
+  CompileRun("%DebugPrint(root);");
+  CHECK_EQ(1, transitions_after);
+}
