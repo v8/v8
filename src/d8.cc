@@ -26,7 +26,8 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-#ifdef USING_V8_SHARED  // Defined when linking against shared lib on Windows.
+// Defined when linking against shared lib on Windows.
+#if defined(USING_V8_SHARED) && !defined(V8_SHARED)
 #define V8_SHARED
 #endif
 

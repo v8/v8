@@ -61,18 +61,21 @@ function FormatString(format, message) {
 
 
 // To check if something is a native error we need to check the
-// concrete native error types. It is not enough to check "obj
-// instanceof $Error" because user code can replace
-// NativeError.prototype.__proto__. User code cannot replace
-// NativeError.prototype though and therefore this is a safe test.
+// concrete native error types. It is not sufficient to use instanceof
+// since it possible to create an object that has Error.prototype on
+// its prototype chain. This is the case for DOMException for example.
 function IsNativeErrorObject(obj) {
-  return (obj instanceof $Error) ||
-      (obj instanceof $EvalError) ||
-      (obj instanceof $RangeError) ||
-      (obj instanceof $ReferenceError) ||
-      (obj instanceof $SyntaxError) ||
-      (obj instanceof $TypeError) ||
-      (obj instanceof $URIError);
+  switch (%_ClassOf(obj)) {
+    case 'Error':
+    case 'EvalError':
+    case 'RangeError':
+    case 'ReferenceError':
+    case 'SyntaxError':
+    case 'TypeError':
+    case 'URIError':
+      return true;
+  }
+  return false;
 }
 
 

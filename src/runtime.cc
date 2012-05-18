@@ -10026,36 +10026,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_EstimateNumberOfElements) {
 }
 
 
-RUNTIME_FUNCTION(MaybeObject*, Runtime_SwapElements) {
-  HandleScope handle_scope(isolate);
-
-  ASSERT_EQ(3, args.length());
-
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 0);
-  Handle<Object> key1 = args.at<Object>(1);
-  Handle<Object> key2 = args.at<Object>(2);
-
-  uint32_t index1, index2;
-  if (!key1->ToArrayIndex(&index1)
-      || !key2->ToArrayIndex(&index2)) {
-    return isolate->ThrowIllegalOperation();
-  }
-
-  Handle<JSObject> jsobject = Handle<JSObject>::cast(object);
-  Handle<Object> tmp1 = Object::GetElement(jsobject, index1);
-  RETURN_IF_EMPTY_HANDLE(isolate, tmp1);
-  Handle<Object> tmp2 = Object::GetElement(jsobject, index2);
-  RETURN_IF_EMPTY_HANDLE(isolate, tmp2);
-
-  RETURN_IF_EMPTY_HANDLE(
-      isolate, JSObject::SetElement(jsobject, index1, tmp2, NONE, kStrictMode));
-  RETURN_IF_EMPTY_HANDLE(
-      isolate, JSObject::SetElement(jsobject, index2, tmp1, NONE, kStrictMode));
-
-  return isolate->heap()->undefined_value();
-}
-
-
 // Returns an array that tells you where in the [0, length) interval an array
 // might have elements.  Can either return keys (positive integers) or
 // intervals (pair of a negative integer (-start-1) followed by a

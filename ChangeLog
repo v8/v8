@@ -1,3 +1,15 @@
+2012-05-18: Version 3.11.3
+
+        Disable optimization for functions that have scopes that cannot be
+        reconstructed from the context chain. (issue 2071)
+
+        Define V8_EXPORT to nothing for clients of v8. (Chromium issue 90078)
+
+        Correctly check for native error objects.  (Chromium issue 2138)
+
+        Performance and stability improvements on all platforms.
+
+
 2012-05-16: Version 3.11.2
 
         Revert r11496. (Chromium issue 128146)
