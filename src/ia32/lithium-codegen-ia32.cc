@@ -2421,9 +2421,11 @@ void LCodeGen::DoLoadKeyedFastElement(LLoadKeyedFastElement* instr) {
 
   // Load the result.
   __ mov(result,
-         BuildFastArrayOperand(instr->elements(), instr->key(),
+         BuildFastArrayOperand(instr->elements(),
+                               instr->key(),
                                FAST_ELEMENTS,
-                               FixedArray::kHeaderSize - kHeapObjectTag));
+                               FixedArray::kHeaderSize - kHeapObjectTag,
+                               instr->additional_index()));
 
   // Check for the hole value.
   if (instr->hydrogen()->RequiresHoleCheck()) {
@@ -2442,13 +2444,17 @@ void LCodeGen::DoLoadKeyedFastDoubleElement(
   Operand hole_check_operand = BuildFastArrayOperand(
       instr->elements(), instr->key(),
       FAST_DOUBLE_ELEMENTS,
-      offset);
+      offset,
+      instr->additional_index());
   __ cmp(hole_check_operand, Immediate(kHoleNanUpper32));
   DeoptimizeIf(equal, instr->environment());
 
   Operand double_load_operand = BuildFastArrayOperand(
-      instr->elements(), instr->key(), FAST_DOUBLE_ELEMENTS,
-      FixedDoubleArray::kHeaderSize - kHeapObjectTag);
+      instr->elements(),
+      instr->key(),
+      FAST_DOUBLE_ELEMENTS,
+      FixedDoubleArray::kHeaderSize - kHeapObjectTag,
+      instr->additional_index());
   __ movdbl(result, double_load_operand);
 }
 
@@ -2457,7 +2463,8 @@ Operand LCodeGen::BuildFastArrayOperand(
     LOperand* elements_pointer,
     LOperand* key,
     ElementsKind elements_kind,
-    uint32_t offset) {
+    uint32_t offset,
+    uint32_t additional_index) {
   Register elements_pointer_reg = ToRegister(elements_pointer);
   int shift_size = ElementsKindToShiftSize(elements_kind);
   if (key->IsConstantOperand()) {
@@ -2466,10 +2473,14 @@ Operand LCodeGen::BuildFastArrayOperand(
       Abort("array index constant value too big");
     }
     return Operand(elements_pointer_reg,
-                   constant_value * (1 << shift_size) + offset);
+                   ((constant_value + additional_index) << shift_size)
+                       + offset);
   } else {
     ScaleFactor scale_factor = static_cast<ScaleFactor>(shift_size);
-    return Operand(elements_pointer_reg, ToRegister(key), scale_factor, offset);
+    return Operand(elements_pointer_reg,
+                   ToRegister(key),
+                   scale_factor,
+                   offset + (additional_index << shift_size));
   }
 }
 
@@ -2478,7 +2489,10 @@ void LCodeGen::DoLoadKeyedSpecializedArrayElement(
     LLoadKeyedSpecializedArrayElement* instr) {
   ElementsKind elements_kind = instr->elements_kind();
   Operand operand(BuildFastArrayOperand(instr->external_pointer(),
-                                        instr->key(), elements_kind, 0));
+                                        instr->key(),
+                                        elements_kind,
+                                        0,
+                                        instr->additional_index()));
   if (elements_kind == EXTERNAL_FLOAT_ELEMENTS) {
     XMMRegister result(ToDoubleRegister(instr->result()));
     __ movss(result, operand);
@@ -3415,7 +3429,10 @@ void LCodeGen::DoStoreKeyedSpecializedArrayElement(
     LStoreKeyedSpecializedArrayElement* instr) {
   ElementsKind elements_kind = instr->elements_kind();
   Operand operand(BuildFastArrayOperand(instr->external_pointer(),
-                                        instr->key(), elements_kind, 0));
+                                        instr->key(),
+                                        elements_kind,
+                                        0,
+                                        instr->additional_index()));
   if (elements_kind == EXTERNAL_FLOAT_ELEMENTS) {
     __ cvtsd2ss(xmm0, ToDoubleRegister(instr->value()));
     __ movss(operand, xmm0);
@@ -3456,31 +3473,21 @@ void LCodeGen::DoStoreKeyedFastElement(LStoreKeyedFastElement* instr) {
   Register elements = ToRegister(instr->object());
   Register key = instr->key()->IsRegister() ? ToRegister(instr->key()) : no_reg;
 
-  // Do the store.
-  if (instr->key()->IsConstantOperand()) {
-    ASSERT(!instr->hydrogen()->NeedsWriteBarrier());
-    LConstantOperand* const_operand = LConstantOperand::cast(instr->key());
-    int offset =
-        ToInteger32(const_operand) * kPointerSize + FixedArray::kHeaderSize;
-    __ mov(FieldOperand(elements, offset), value);
-  } else {
-    __ mov(FieldOperand(elements,
-                        key,
-                        times_pointer_size,
-                        FixedArray::kHeaderSize),
-           value);
-  }
+  Operand operand = BuildFastArrayOperand(
+      instr->object(),
+      instr->key(),
+      FAST_ELEMENTS,
+      FixedArray::kHeaderSize - kHeapObjectTag,
+      instr->additional_index());
+  __ mov(operand, value);
 
   if (instr->hydrogen()->NeedsWriteBarrier()) {
+    ASSERT(!instr->key()->IsConstantOperand());
     HType type = instr->hydrogen()->value()->type();
     SmiCheck check_needed =
         type.IsHeapObject() ? OMIT_SMI_CHECK : INLINE_SMI_CHECK;
     // Compute address of modified element and store it into key register.
-    __ lea(key,
-           FieldOperand(elements,
-                        key,
-                        times_pointer_size,
-                        FixedArray::kHeaderSize));
+    __ lea(key, operand);
     __ RecordWrite(elements,
                    key,
                    value,
@@ -3508,8 +3515,11 @@ void LCodeGen::DoStoreKeyedFastDoubleElement(
   }
 
   Operand double_store_operand = BuildFastArrayOperand(
-      instr->elements(), instr->key(), FAST_DOUBLE_ELEMENTS,
-      FixedDoubleArray::kHeaderSize - kHeapObjectTag);
+      instr->elements(),
+      instr->key(),
+      FAST_DOUBLE_ELEMENTS,
+      FixedDoubleArray::kHeaderSize - kHeapObjectTag,
+      instr->additional_index());
   __ movdbl(double_store_operand, value);
 }
 
