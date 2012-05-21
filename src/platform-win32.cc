@@ -1849,8 +1849,18 @@ bool Win32Socket::Shutdown() {
 
 int Win32Socket::Send(const char* data, int len) const {
   if (len <= 0) return 0;
-  int status = send(socket_, data, len, 0);
-  return (status == SOCKET_ERROR) ? 0 : status;
+  int written = 0;
+  while (written < len) {
+    int status = send(socket_, data + written, len - written, 0);
+    if (status == 0) {
+      break;
+    } else if (status > 0) {
+      written += status;
+    } else {
+      return 0;
+    }
+  }
+  return written;
 }
 
 
