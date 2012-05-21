@@ -8513,7 +8513,7 @@ MaybeObject* JSObject::SetFastDoubleElementsCapacityAndLength(
   // We should never end in here with a pixel or external array.
   ASSERT(!HasExternalArrayElements());
 
-  FixedDoubleArray* elems;
+  FixedArrayBase* elems;
   { MaybeObject* maybe_obj =
         heap->AllocateUninitializedFixedDoubleArray(capacity);
     if (!maybe_obj->To(&elems)) return maybe_obj;
@@ -9664,9 +9664,10 @@ MaybeObject* JSObject::TransitionElementsKind(ElementsKind to_kind) {
   ElementsKind from_kind = map()->elements_kind();
 
   Isolate* isolate = GetIsolate();
-  if (from_kind == FAST_SMI_ONLY_ELEMENTS &&
-      (to_kind == FAST_ELEMENTS ||
-       elements() == isolate->heap()->empty_fixed_array())) {
+  if ((from_kind == FAST_SMI_ONLY_ELEMENTS ||
+      elements() == isolate->heap()->empty_fixed_array()) &&
+      to_kind == FAST_ELEMENTS) {
+    ASSERT(from_kind != FAST_ELEMENTS);
     MaybeObject* maybe_new_map = GetElementsTransitionMap(isolate, to_kind);
     Map* new_map;
     if (!maybe_new_map->To(&new_map)) return maybe_new_map;
