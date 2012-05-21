@@ -1848,14 +1848,16 @@ bool Win32Socket::Shutdown() {
 
 
 int Win32Socket::Send(const char* data, int len) const {
+  if (len <= 0) return 0;
   int status = send(socket_, data, len, 0);
-  return status;
+  return (status == SOCKET_ERROR) ? 0 : status;
 }
 
 
 int Win32Socket::Receive(char* data, int len) const {
+  if (len <= 0) return 0;
   int status = recv(socket_, data, len, 0);
-  return status;
+  return (status == SOCKET_ERROR) ? 0 : status;
 }
 
 

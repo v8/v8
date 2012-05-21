@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -467,14 +467,16 @@ bool POSIXSocket::Shutdown() {
 
 
 int POSIXSocket::Send(const char* data, int len) const {
+  if (len <= 0) return 0;
   int status = send(socket_, data, len, 0);
-  return status;
+  return (status < 0) ? 0 : status;
 }
 
 
 int POSIXSocket::Receive(char* data, int len) const {
+  if (len <= 0) return 0;
   int status = recv(socket_, data, len, 0);
-  return status;
+  return (status < 0) ? 0 : status;
 }
 
 
