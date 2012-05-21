@@ -16135,6 +16135,30 @@ THREADED_TEST(Regress93759) {
 }
 
 
+THREADED_TEST(Regress125988) {
+  v8::HandleScope scope;
+  Handle<FunctionTemplate> intercept = FunctionTemplate::New();
+  AddInterceptor(intercept, EmptyInterceptorGetter, EmptyInterceptorSetter);
+  LocalContext env;
+  env->Global()->Set(v8_str("Intercept"), intercept->GetFunction());
+  CompileRun("var a = new Object();"
+             "var b = new Intercept();"
+             "var c = new Object();"
+             "c.__proto__ = b;"
+             "b.__proto__ = a;"
+             "a.x = 23;"
+             "for (var i = 0; i < 3; i++) c.x;");
+  ExpectBoolean("c.hasOwnProperty('x')", false);
+  ExpectInt32("c.x", 23);
+  CompileRun("a.y = 42;"
+             "for (var i = 0; i < 3; i++) c.x;");
+  ExpectBoolean("c.hasOwnProperty('x')", false);
+  ExpectInt32("c.x", 23);
+  ExpectBoolean("c.hasOwnProperty('y')", false);
+  ExpectInt32("c.y", 42);
+}
+
+
 static void TestReceiver(Local<Value> expected_result,
                          Local<Value> expected_receiver,
                          const char* code) {

@@ -1104,13 +1104,20 @@ void StubCompiler::GenerateLoadInterceptor(Handle<JSObject> object,
                                           name, miss);
     ASSERT(holder_reg.is(receiver) || holder_reg.is(scratch1));
 
+    // Preserve the receiver register explicitly whenever it is different from
+    // the holder and it is needed should the interceptor return without any
+    // result. The CALLBACKS case needs the receiver to be passed into C++ code,
+    // the FIELD case might cause a miss during the prototype check.
+    bool must_perfrom_prototype_check = *interceptor_holder != lookup->holder();
+    bool must_preserve_receiver_reg = !receiver.is(holder_reg) &&
+        (lookup->type() == CALLBACKS || must_perfrom_prototype_check);
+
     // Save necessary data before invoking an interceptor.
     // Requires a frame to make GC aware of pushed pointers.
     {
       FrameScope frame_scope(masm(), StackFrame::INTERNAL);
 
-      if (lookup->type() == CALLBACKS && !receiver.is(holder_reg)) {
-        // CALLBACKS case needs a receiver to be passed into C++ callback.
+      if (must_preserve_receiver_reg) {
         __ push(receiver);
       }
       __ push(holder_reg);
@@ -1136,7 +1143,7 @@ void StubCompiler::GenerateLoadInterceptor(Handle<JSObject> object,
       __ bind(&interceptor_failed);
       __ pop(name_reg);
       __ pop(holder_reg);
-      if (lookup->type() == CALLBACKS && !receiver.is(holder_reg)) {
+      if (must_preserve_receiver_reg) {
         __ pop(receiver);
       }
 
@@ -1145,7 +1152,7 @@ void StubCompiler::GenerateLoadInterceptor(Handle<JSObject> object,
 
     // Check that the maps from interceptor's holder to lookup's holder
     // haven't changed.  And load lookup's holder into |holder| register.
-    if (*interceptor_holder != lookup->holder()) {
+    if (must_perfrom_prototype_check) {
       holder_reg = CheckPrototypes(interceptor_holder,
                                    holder_reg,
                                    Handle<JSObject>(lookup->holder()),
