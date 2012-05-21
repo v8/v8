@@ -7465,14 +7465,6 @@ void HGraphBuilder::GenerateNumberToString(CallRuntime* call) {
 }
 
 
-// Fast swapping of elements. Takes three expressions, the object and two
-// indices. This should only be used if the indices are known to be
-// non-negative and within bounds of the elements array at the call site.
-void HGraphBuilder::GenerateSwapElements(CallRuntime* call) {
-  return Bailout("inlined runtime function: SwapElements");
-}
-
-
 // Fast call for custom callbacks.
 void HGraphBuilder::GenerateCallFunction(CallRuntime* call) {
   // 1 ~ The function to call is not itself an argument to the call.
