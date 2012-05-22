@@ -110,131 +110,117 @@
       ['v8_enable_gdbjit==1', {
         'defines': ['ENABLE_GDB_JIT_INTERFACE',],
       }],
-      ['OS!="mac"', {
-        # TODO(mark): The OS!="mac" conditional is temporary. It can be
-        # removed once the Mac Chromium build stops setting target_arch to
-        # ia32 and instead sets it to mac. Other checks in this file for
-        # OS=="mac" can be removed at that time as well. This can be cleaned
-        # up once http://crbug.com/44205 is fixed.
+      ['v8_target_arch=="arm"', {
+        'defines': [
+          'V8_TARGET_ARCH_ARM',
+        ],
         'conditions': [
-          ['v8_target_arch=="arm"', {
+          [ 'v8_can_use_unaligned_accesses=="true"', {
             'defines': [
-              'V8_TARGET_ARCH_ARM',
-            ],
-            'conditions': [
-              [ 'v8_can_use_unaligned_accesses=="true"', {
-                'defines': [
-                  'CAN_USE_UNALIGNED_ACCESSES=1',
-                ],
-              }],
-              [ 'v8_can_use_unaligned_accesses=="false"', {
-                'defines': [
-                  'CAN_USE_UNALIGNED_ACCESSES=0',
-                ],
-              }],
-              [ 'v8_can_use_vfp_instructions=="true"', {
-                'defines': [
-                  'CAN_USE_VFP_INSTRUCTIONS',
-                ],
-              }],
-              [ 'v8_use_arm_eabi_hardfloat=="true"', {
-                'defines': [
-                  'USE_EABI_HARDFLOAT=1',
-                  'CAN_USE_VFP_INSTRUCTIONS',
-                ],
-                'target_conditions': [
-                  ['_toolset=="target"', {
-                    'cflags': ['-mfloat-abi=hard',],
-                  }],
-                ],
-              }, {
-                'defines': [
-                  'USE_EABI_HARDFLOAT=0',
-                ],
-              }],
+              'CAN_USE_UNALIGNED_ACCESSES=1',
             ],
           }],
-          ['v8_target_arch=="ia32"', {
+          [ 'v8_can_use_unaligned_accesses=="false"', {
             'defines': [
-              'V8_TARGET_ARCH_IA32',
+              'CAN_USE_UNALIGNED_ACCESSES=0',
             ],
           }],
-          ['v8_target_arch=="mips"', {
+          [ 'v8_can_use_vfp_instructions=="true"', {
             'defines': [
-              'V8_TARGET_ARCH_MIPS',
-            ],
-            'variables': {
-              'mipscompiler': '<!($(echo ${CXX:-$(which g++)}) -v 2>&1 | grep -q "^Target: mips-" && echo "yes" || echo "no")',
-            },
-            'conditions': [
-              ['mipscompiler=="yes"', {
-                'target_conditions': [
-                  ['_toolset=="target"', {
-                    'cflags': ['-EL'],
-                    'ldflags': ['-EL'],
-                    'conditions': [
-                      [ 'v8_use_mips_abi_hardfloat=="true"', {
-                        'cflags': ['-mhard-float'],
-                        'ldflags': ['-mhard-float'],
-                      }, {
-                        'cflags': ['-msoft-float'],
-                        'ldflags': ['-msoft-float'],
-                      }],
-                      ['mips_arch_variant=="mips32r2"', {
-                        'cflags': ['-mips32r2', '-Wa,-mips32r2'],
-                      }],
-                      ['mips_arch_variant=="loongson"', {
-                        'cflags': ['-mips3', '-Wa,-mips3'],
-                      }, {
-                        'cflags': ['-mips32', '-Wa,-mips32'],
-                      }],
-                    ],
-                  }],
-                ],
-              }],
-              [ 'v8_can_use_fpu_instructions=="true"', {
-                'defines': [
-                  'CAN_USE_FPU_INSTRUCTIONS',
-                ],
-              }],
-              [ 'v8_use_mips_abi_hardfloat=="true"', {
-                'defines': [
-                  '__mips_hard_float=1',
-                  'CAN_USE_FPU_INSTRUCTIONS',
-                ],
-              }, {
-                'defines': [
-                  '__mips_soft_float=1'
-                ],
-              }],
-              ['mips_arch_variant=="mips32r2"', {
-                'defines': ['_MIPS_ARCH_MIPS32R2',],
-              }],
-              ['mips_arch_variant=="loongson"', {
-                'defines': ['_MIPS_ARCH_LOONGSON',],
-              }],
+              'CAN_USE_VFP_INSTRUCTIONS',
             ],
           }],
-          ['v8_target_arch=="x64"', {
+          [ 'v8_use_arm_eabi_hardfloat=="true"', {
             'defines': [
-              'V8_TARGET_ARCH_X64',
+              'USE_EABI_HARDFLOAT=1',
+              'CAN_USE_VFP_INSTRUCTIONS',
+            ],
+            'target_conditions': [
+              ['_toolset=="target"', {
+                'cflags': ['-mfloat-abi=hard',],
+              }],
+            ],
+          }, {
+            'defines': [
+              'USE_EABI_HARDFLOAT=0',
             ],
           }],
         ],
-      }, {  # Section for OS=="mac".
+      }],  # v8_target_arch=="arm"
+      ['v8_target_arch=="ia32"', {
+        'defines': [
+          'V8_TARGET_ARCH_IA32',
+        ],
+      }],  # v8_target_arch=="ia32"
+      ['v8_target_arch=="mips"', {
+        'defines': [
+          'V8_TARGET_ARCH_MIPS',
+        ],
+        'variables': {
+          'mipscompiler': '<!($(echo ${CXX:-$(which g++)}) -v 2>&1 | grep -q "^Target: mips-" && echo "yes" || echo "no")',
+        },
         'conditions': [
-          ['target_arch=="ia32"', {
-            'xcode_settings': {
-              'ARCHS': ['i386'],
-            }
+          ['mipscompiler=="yes"', {
+            'target_conditions': [
+              ['_toolset=="target"', {
+                'cflags': ['-EL'],
+                'ldflags': ['-EL'],
+                'conditions': [
+                  [ 'v8_use_mips_abi_hardfloat=="true"', {
+                    'cflags': ['-mhard-float'],
+                    'ldflags': ['-mhard-float'],
+                  }, {
+                    'cflags': ['-msoft-float'],
+                    'ldflags': ['-msoft-float'],
+                  }],
+                  ['mips_arch_variant=="mips32r2"', {
+                    'cflags': ['-mips32r2', '-Wa,-mips32r2'],
+                  }],
+                  ['mips_arch_variant=="loongson"', {
+                    'cflags': ['-mips3', '-Wa,-mips3'],
+                  }, {
+                    'cflags': ['-mips32', '-Wa,-mips32'],
+                  }],
+                ],
+              }],
+            ],
           }],
-          ['target_arch=="x64"', {
-            'xcode_settings': {
-              'ARCHS': ['x86_64'],
-            }
+          [ 'v8_can_use_fpu_instructions=="true"', {
+            'defines': [
+              'CAN_USE_FPU_INSTRUCTIONS',
+            ],
+          }],
+          [ 'v8_use_mips_abi_hardfloat=="true"', {
+            'defines': [
+              '__mips_hard_float=1',
+              'CAN_USE_FPU_INSTRUCTIONS',
+            ],
+          }, {
+            'defines': [
+              '__mips_soft_float=1'
+            ],
+          }],
+          ['mips_arch_variant=="mips32r2"', {
+            'defines': ['_MIPS_ARCH_MIPS32R2',],
+          }],
+          ['mips_arch_variant=="loongson"', {
+            'defines': ['_MIPS_ARCH_LOONGSON',],
           }],
         ],
-      }],
+      }],  # v8_target_arch=="mips"
+      ['v8_target_arch=="x64"', {
+        'defines': [
+          'V8_TARGET_ARCH_X64',
+        ],
+        'xcode_settings': {
+          'ARCHS': [ 'x86_64' ],
+        },
+        'msvs_settings': {
+          'VCLinkerTool': {
+            'StackReserveSize': '2097152',
+          },
+        },
+      }],  # v8_target_arch=="x64"
       ['v8_use_liveobjectlist=="true"', {
         'defines': [
           'ENABLE_DEBUGGER_SUPPORT',
@@ -257,13 +243,6 @@
         'msvs_settings': {
           'VCLinkerTool': {
             'GenerateMapFile': 'true',
-          },
-        },
-      }],
-      ['OS=="win" and v8_target_arch=="x64"', {
-        'msvs_settings': {
-          'VCLinkerTool': {
-            'StackReserveSize': '2097152',
           },
         },
       }],
@@ -291,6 +270,9 @@
             },
             'cflags': [ '<(m32flag)' ],
             'ldflags': [ '<(m32flag)' ],
+            'xcode_settings': {
+              'ARCHS': [ 'i386' ],
+            },
           }],
           ['_toolset=="target"', {
             'variables': {
@@ -298,8 +280,17 @@
             },
             'cflags': [ '<(m32flag)' ],
             'ldflags': [ '<(m32flag)' ],
+            'xcode_settings': {
+              'ARCHS': [ 'i386' ],
+            },
           }],
         ],
+      }],
+      ['OS=="freebsd" or OS=="openbsd"', {
+        'cflags': [ '-I/usr/local/include' ],
+      }],
+      ['OS=="netbsd"', {
+        'cflags': [ '-I/usr/pkg/include' ],
       }],
     ],  # conditions
     'configurations': {
@@ -327,12 +318,6 @@
           },
         },
         'conditions': [
-          ['OS=="freebsd" or OS=="openbsd"', {
-            'cflags': [ '-I/usr/local/include' ],
-          }],
-          ['OS=="netbsd"', {
-            'cflags': [ '-I/usr/pkg/include' ],
-          }],
           ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="netbsd"', {
             'cflags': [ '-Wall', '<(werror)', '-W', '-Wno-unused-parameter',
                         '-Wnon-virtual-dtor', '-Woverloaded-virtual' ],
@@ -361,12 +346,6 @@
                 ],
               }],
             ],
-          }],
-          ['OS=="freebsd" or OS=="openbsd"', {
-            'cflags': [ '-I/usr/local/include' ],
-          }],
-          ['OS=="netbsd"', {
-            'cflags': [ '-I/usr/pkg/include' ],
           }],
           ['OS=="mac"', {
             'xcode_settings': {
