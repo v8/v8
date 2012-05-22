@@ -790,6 +790,18 @@ Handle<HeapObject> RegExpMacroAssemblerIA32::GetCode(Handle<String> source) {
   // position registers.
   __ mov(Operand(ebp, kInputStartMinusOne), eax);
 
+#ifdef WIN32
+  // Ensure that we write to each stack page, in order. Skipping a page
+  // on Windows can cause segmentation faults. Assuming page size is 4k.
+  const int kPageSize = 4096;
+  const int kRegistersPerPage = kPageSize / kPointerSize;
+  for (int i = num_saved_registers_ + kRegistersPerPage - 1;
+      i < num_registers_;
+      i += kRegistersPerPage) {
+    __ mov(register_location(i), eax);  // One write every page.
+  }
+#endif  // WIN32
+
   Label load_char_start_regexp, start_regexp;
   // Load newline if index is at start, previous character otherwise.
   __ cmp(Operand(ebp, kStartIndex), Immediate(0));

@@ -855,6 +855,18 @@ Handle<HeapObject> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
   // position registers.
   __ movq(Operand(rbp, kInputStartMinusOne), rax);
 
+#ifdef WIN32
+  // Ensure that we have written to each stack page, in order. Skipping a page
+  // on Windows can cause segmentation faults. Assuming page size is 4k.
+  const int kPageSize = 4096;
+  const int kRegistersPerPage = kPageSize / kPointerSize;
+  for (int i = num_saved_registers_ + kRegistersPerPage - 1;
+      i < num_registers_;
+      i += kRegistersPerPage) {
+    __ movq(register_location(i), rax);  // One write every page.
+  }
+#endif  // WIN32
+
   // Initialize code object pointer.
   __ Move(code_object_pointer(), masm_.CodeObject());
 
