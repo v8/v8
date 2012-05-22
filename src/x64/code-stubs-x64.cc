@@ -2864,30 +2864,37 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ IncrementCounter(counters->regexp_entry_native(), 1);
 
   // Isolates: note we add an additional parameter here (isolate pointer).
-  static const int kRegExpExecuteArguments = 8;
+  static const int kRegExpExecuteArguments = 9;
   int argument_slots_on_stack =
       masm->ArgumentStackSlotsForCFunctionCall(kRegExpExecuteArguments);
   __ EnterApiExitFrame(argument_slots_on_stack);
 
-  // Argument 8: Pass current isolate address.
+  // Argument 9: Pass current isolate address.
   // __ movq(Operand(rsp, (argument_slots_on_stack - 1) * kPointerSize),
   //     Immediate(ExternalReference::isolate_address()));
   __ LoadAddress(kScratchRegister, ExternalReference::isolate_address());
   __ movq(Operand(rsp, (argument_slots_on_stack - 1) * kPointerSize),
           kScratchRegister);
 
-  // Argument 7: Indicate that this is a direct call from JavaScript.
+  // Argument 8: Indicate that this is a direct call from JavaScript.
   __ movq(Operand(rsp, (argument_slots_on_stack - 2) * kPointerSize),
           Immediate(1));
 
-  // Argument 6: Start (high end) of backtracking stack memory area.
+  // Argument 7: Start (high end) of backtracking stack memory area.
   __ movq(kScratchRegister, address_of_regexp_stack_memory_address);
   __ movq(r9, Operand(kScratchRegister, 0));
   __ movq(kScratchRegister, address_of_regexp_stack_memory_size);
   __ addq(r9, Operand(kScratchRegister, 0));
-  // Argument 6 passed in r9 on Linux and on the stack on Windows.
-#ifdef _WIN64
   __ movq(Operand(rsp, (argument_slots_on_stack - 3) * kPointerSize), r9);
+
+  // Argument 6: Set the number of capture registers to zero to force global
+  // regexps to behave as non-global.  This does not affect non-global regexps.
+  // Argument 6 is passed in r9 on Linux and on the stack on Windows.
+#ifdef _WIN64
+  __ movq(Operand(rsp, (argument_slots_on_stack - 4) * kPointerSize),
+          Immediate(0));
+#else
+  __ Set(r9, 0);
 #endif
 
   // Argument 5: static offsets vector buffer.
@@ -2895,7 +2902,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
                  ExternalReference::address_of_static_offsets_vector(isolate));
   // Argument 5 passed in r8 on Linux and on the stack on Windows.
 #ifdef _WIN64
-  __ movq(Operand(rsp, (argument_slots_on_stack - 4) * kPointerSize), r8);
+  __ movq(Operand(rsp, (argument_slots_on_stack - 5) * kPointerSize), r8);
 #endif
 
   // First four arguments are passed in registers on both Linux and Windows.
@@ -2960,7 +2967,9 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // Check the result.
   Label success;
   Label exception;
-  __ cmpl(rax, Immediate(NativeRegExpMacroAssembler::SUCCESS));
+  __ cmpl(rax, Immediate(1));
+  // We expect exactly one result since we force the called regexp to behave
+  // as non-global.
   __ j(equal, &success, Label::kNear);
   __ cmpl(rax, Immediate(NativeRegExpMacroAssembler::EXCEPTION));
   __ j(equal, &exception);

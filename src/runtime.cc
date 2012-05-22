@@ -3795,62 +3795,73 @@ static bool SearchStringMultiple(Isolate* isolate,
 }
 
 
-static RegExpImpl::IrregexpResult SearchRegExpNoCaptureMultiple(
+static int SearchRegExpNoCaptureMultiple(
     Isolate* isolate,
     Handle<String> subject,
     Handle<JSRegExp> regexp,
     Handle<JSArray> last_match_array,
     FixedArrayBuilder* builder) {
   ASSERT(subject->IsFlat());
+  ASSERT(regexp->CaptureCount() == 0);
   int match_start = -1;
   int match_end = 0;
   int pos = 0;
-  int required_registers = RegExpImpl::IrregexpPrepare(regexp, subject);
-  if (required_registers < 0) return RegExpImpl::RE_EXCEPTION;
+  int registers_per_match = RegExpImpl::IrregexpPrepare(regexp, subject);
+  if (registers_per_match < 0) return RegExpImpl::RE_EXCEPTION;
 
-  OffsetsVector registers(required_registers, isolate);
+  int max_matches;
+  int num_registers = RegExpImpl::GlobalOffsetsVectorSize(regexp,
+                                                          registers_per_match,
+                                                          &max_matches);
+  OffsetsVector registers(num_registers, isolate);
   Vector<int32_t> register_vector(registers.vector(), registers.length());
   int subject_length = subject->length();
   bool first = true;
-
   for (;;) {  // Break on failure, return on exception.
-    RegExpImpl::IrregexpResult result =
-        RegExpImpl::IrregexpExecOnce(regexp,
-                                     subject,
-                                     pos,
-                                     register_vector);
-    if (result == RegExpImpl::RE_SUCCESS) {
-      match_start = register_vector[0];
-      builder->EnsureCapacity(kMaxBuilderEntriesPerRegExpMatch);
-      if (match_end < match_start) {
-        ReplacementStringBuilder::AddSubjectSlice(builder,
-                                                  match_end,
-                                                  match_start);
+    int num_matches = RegExpImpl::IrregexpExecRaw(regexp,
+                                                  subject,
+                                                  pos,
+                                                  register_vector);
+    if (num_matches > 0) {
+      for (int match_index = 0; match_index < num_matches; match_index++) {
+        int32_t* current_match = &register_vector[match_index * 2];
+        match_start = current_match[0];
+        builder->EnsureCapacity(kMaxBuilderEntriesPerRegExpMatch);
+        if (match_end < match_start) {
+          ReplacementStringBuilder::AddSubjectSlice(builder,
+                                                    match_end,
+                                                    match_start);
+        }
+        match_end = current_match[1];
+        HandleScope loop_scope(isolate);
+        if (!first) {
+          builder->Add(*isolate->factory()->NewProperSubString(subject,
+                                                               match_start,
+                                                               match_end));
+        } else {
+          builder->Add(*isolate->factory()->NewSubString(subject,
+                                                         match_start,
+                                                         match_end));
+          first = false;
+        }
       }
-      match_end = register_vector[1];
-      HandleScope loop_scope(isolate);
-      if (!first) {
-        builder->Add(*isolate->factory()->NewProperSubString(subject,
-                                                             match_start,
-                                                             match_end));
-      } else {
-        builder->Add(*isolate->factory()->NewSubString(subject,
-                                                       match_start,
-                                                       match_end));
-      }
+
+      // If we did not get the maximum number of matches, we can stop here
+      // since there are no matches left.
+      if (num_matches < max_matches) break;
+
       if (match_start != match_end) {
         pos = match_end;
       } else {
         pos = match_end + 1;
         if (pos > subject_length) break;
       }
-    } else if (result == RegExpImpl::RE_FAILURE) {
+    } else if (num_matches == 0) {
       break;
     } else {
-      ASSERT_EQ(result, RegExpImpl::RE_EXCEPTION);
-      return result;
+      ASSERT_EQ(num_matches, RegExpImpl::RE_EXCEPTION);
+      return RegExpImpl::RE_EXCEPTION;
     }
-    first = false;
   }
 
   if (match_start >= 0) {
@@ -3872,7 +3883,7 @@ static RegExpImpl::IrregexpResult SearchRegExpNoCaptureMultiple(
 
 // Only called from Runtime_RegExpExecMultiple so it doesn't need to maintain
 // separate last match info.  See comment on that function.
-static RegExpImpl::IrregexpResult SearchRegExpMultiple(
+static int SearchRegExpMultiple(
     Isolate* isolate,
     Handle<String> subject,
     Handle<JSRegExp> regexp,
@@ -3880,17 +3891,20 @@ static RegExpImpl::IrregexpResult SearchRegExpMultiple(
     FixedArrayBuilder* builder) {
 
   ASSERT(subject->IsFlat());
-  int required_registers = RegExpImpl::IrregexpPrepare(regexp, subject);
-  if (required_registers < 0) return RegExpImpl::RE_EXCEPTION;
+  int registers_per_match = RegExpImpl::IrregexpPrepare(regexp, subject);
+  if (registers_per_match < 0) return RegExpImpl::RE_EXCEPTION;
 
-  OffsetsVector registers(required_registers, isolate);
+  int max_matches;
+  int num_registers = RegExpImpl::GlobalOffsetsVectorSize(regexp,
+                                                          registers_per_match,
+                                                          &max_matches);
+  OffsetsVector registers(num_registers, isolate);
   Vector<int32_t> register_vector(registers.vector(), registers.length());
 
-  RegExpImpl::IrregexpResult result =
-      RegExpImpl::IrregexpExecOnce(regexp,
-                                   subject,
-                                   0,
-                                   register_vector);
+  int num_matches = RegExpImpl::IrregexpExecRaw(regexp,
+                                                subject,
+                                                0,
+                                                register_vector);
 
   int capture_count = regexp->CaptureCount();
   int subject_length = subject->length();
@@ -3899,59 +3913,64 @@ static RegExpImpl::IrregexpResult SearchRegExpMultiple(
   int pos = 0;
   // End of previous match. Differs from pos if match was empty.
   int match_end = 0;
-  if (result == RegExpImpl::RE_SUCCESS) {
-    bool first = true;
-    do {
-      int match_start = register_vector[0];
-      builder->EnsureCapacity(kMaxBuilderEntriesPerRegExpMatch);
-      if (match_end < match_start) {
-        ReplacementStringBuilder::AddSubjectSlice(builder,
-                                                  match_end,
-                                                  match_start);
-      }
-      match_end = register_vector[1];
+  bool first = true;
 
-      {
-        // Avoid accumulating new handles inside loop.
-        HandleScope temp_scope(isolate);
-        // Arguments array to replace function is match, captures, index and
-        // subject, i.e., 3 + capture count in total.
-        Handle<FixedArray> elements =
-            isolate->factory()->NewFixedArray(3 + capture_count);
-        Handle<String> match;
-        if (!first) {
-          match = isolate->factory()->NewProperSubString(subject,
-                                                         match_start,
-                                                         match_end);
-        } else {
-          match = isolate->factory()->NewSubString(subject,
-                                                   match_start,
-                                                   match_end);
+  if (num_matches > 0) {
+    do {
+      int match_start = 0;
+      for (int match_index = 0; match_index < num_matches; match_index++) {
+        int32_t* current_match =
+            &register_vector[match_index * registers_per_match];
+        match_start = current_match[0];
+        builder->EnsureCapacity(kMaxBuilderEntriesPerRegExpMatch);
+        if (match_end < match_start) {
+          ReplacementStringBuilder::AddSubjectSlice(builder,
+                                                    match_end,
+                                                    match_start);
         }
-        elements->set(0, *match);
-        for (int i = 1; i <= capture_count; i++) {
-          int start = register_vector[i * 2];
-          if (start >= 0) {
-            int end = register_vector[i * 2 + 1];
-            ASSERT(start <= end);
-            Handle<String> substring;
-            if (!first) {
-              substring = isolate->factory()->NewProperSubString(subject,
-                                                                 start,
-                                                                 end);
-            } else {
-              substring = isolate->factory()->NewSubString(subject, start, end);
-            }
-            elements->set(i, *substring);
+        match_end = current_match[1];
+
+        {
+          // Avoid accumulating new handles inside loop.
+          HandleScope temp_scope(isolate);
+          // Arguments array to replace function is match, captures, index and
+          // subject, i.e., 3 + capture count in total.
+          Handle<FixedArray> elements =
+              isolate->factory()->NewFixedArray(3 + capture_count);
+          Handle<String> match;
+          if (!first) {
+            match = isolate->factory()->NewProperSubString(subject,
+                                                           match_start,
+                                                           match_end);
           } else {
-            ASSERT(register_vector[i * 2 + 1] < 0);
-            elements->set(i, isolate->heap()->undefined_value());
+            match = isolate->factory()->NewSubString(subject,
+                                                     match_start,
+                                                     match_end);
+            first = false;
           }
+          elements->set(0, *match);
+          for (int i = 1; i <= capture_count; i++) {
+            int start = current_match[i * 2];
+            if (start >= 0) {
+              int end = current_match[i * 2 + 1];
+              ASSERT(start <= end);
+              Handle<String> substring =
+                  isolate->factory()->NewProperSubString(subject, start, end);
+              elements->set(i, *substring);
+            } else {
+              ASSERT(current_match[i * 2 + 1] < 0);
+              elements->set(i, isolate->heap()->undefined_value());
+            }
+          }
+          elements->set(capture_count + 1, Smi::FromInt(match_start));
+          elements->set(capture_count + 2, *subject);
+          builder->Add(*isolate->factory()->NewJSArrayWithElements(elements));
         }
-        elements->set(capture_count + 1, Smi::FromInt(match_start));
-        elements->set(capture_count + 2, *subject);
-        builder->Add(*isolate->factory()->NewJSArrayWithElements(elements));
       }
+
+      // If we did not get the maximum number of matches, we can stop here
+      // since there are no matches left.
+      if (num_matches < max_matches) break;
 
       if (match_end > match_start) {
         pos = match_end;
@@ -3962,14 +3981,13 @@ static RegExpImpl::IrregexpResult SearchRegExpMultiple(
         }
       }
 
-      result = RegExpImpl::IrregexpExecOnce(regexp,
-                                            subject,
-                                            pos,
-                                            register_vector);
-      first = false;
-    } while (result == RegExpImpl::RE_SUCCESS);
+      num_matches = RegExpImpl::IrregexpExecRaw(regexp,
+                                                subject,
+                                                pos,
+                                                register_vector);
+    } while (num_matches > 0);
 
-    if (result != RegExpImpl::RE_EXCEPTION) {
+    if (num_matches != RegExpImpl::RE_EXCEPTION) {
       // Finished matching, with at least one match.
       if (match_end < subject_length) {
         ReplacementStringBuilder::AddSubjectSlice(builder,
@@ -3993,7 +4011,7 @@ static RegExpImpl::IrregexpResult SearchRegExpMultiple(
     }
   }
   // No matches at all, return failure or exception result directly.
-  return result;
+  return num_matches;
 }
 
 
@@ -4035,7 +4053,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_RegExpExecMultiple) {
 
   ASSERT_EQ(regexp->TypeTag(), JSRegExp::IRREGEXP);
 
-  RegExpImpl::IrregexpResult result;
+  int result;
   if (regexp->CaptureCount() == 0) {
     result = SearchRegExpNoCaptureMultiple(isolate,
                                            subject,
