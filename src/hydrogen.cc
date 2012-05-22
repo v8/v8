@@ -2758,6 +2758,7 @@ HGraph* HGraphBuilder::CreateGraph() {
   sce.Process();
 
   graph()->EliminateRedundantBoundsChecks();
+  graph()->DehoistSimpleArrayIndexComputations();
 
   return graph();
 }
@@ -3016,7 +3017,6 @@ void HGraph::EliminateRedundantBoundsChecks(HBasicBlock* bb,
     HBoundsCheck* check = HBoundsCheck::cast(i);
     check->ReplaceAllUsesWith(check->index());
 
-    isolate()->counters()->array_bounds_checks_seen()->Increment();
     if (!FLAG_array_bounds_checks_elimination) continue;
 
     int32_t offset;
@@ -3035,10 +3035,8 @@ void HGraph::EliminateRedundantBoundsChecks(HBasicBlock* bb,
       *data_p = bb_data_list;
     } else if (data->OffsetIsCovered(offset)) {
       check->DeleteAndReplaceWith(NULL);
-      isolate()->counters()->array_bounds_checks_removed()->Increment();
     } else if (data->BasicBlock() == bb) {
       data->CoverCheck(check, offset);
-      isolate()->counters()->array_bounds_checks_removed()->Increment();
     } else {
       int32_t new_lower_offset = offset < data->LowerOffset()
           ? offset
@@ -3079,6 +3077,93 @@ void HGraph::EliminateRedundantBoundsChecks() {
   AssertNoAllocation no_gc;
   BoundsCheckTable checks_table;
   EliminateRedundantBoundsChecks(entry_block(), &checks_table);
+}
+
+
+static void DehoistArrayIndex(ArrayInstructionInterface* array_operation) {
+  HValue* index = array_operation->GetKey();
+
+  HConstant* constant;
+  HValue* subexpression;
+  int32_t sign;
+  if (index->IsAdd()) {
+    sign = 1;
+    HAdd* add = HAdd::cast(index);
+    if (add->left()->IsConstant()) {
+      subexpression = add->right();
+      constant = HConstant::cast(add->left());
+    } else if (add->right()->IsConstant()) {
+      subexpression = add->left();
+      constant = HConstant::cast(add->right());
+    } else {
+      return;
+    }
+  } else if (index->IsSub()) {
+    sign = -1;
+    HSub* sub = HSub::cast(index);
+    if (sub->left()->IsConstant()) {
+      subexpression = sub->right();
+      constant = HConstant::cast(sub->left());
+    } else if (sub->right()->IsConstant()) {
+      subexpression = sub->left();
+      constant = HConstant::cast(sub->right());
+    } return;
+  } else {
+    return;
+  }
+
+  if (!constant->HasInteger32Value()) return;
+  int32_t value = constant->Integer32Value() * sign;
+  // We limit offset values to 30 bits because we want to avoid the risk of
+  // overflows when the offset is added to the object header size.
+  if (value >= 1 << 30 || value < 0) return;
+  array_operation->SetKey(subexpression);
+  if (index->HasNoUses()) {
+    index->DeleteAndReplaceWith(NULL);
+  }
+  ASSERT(value >= 0);
+  array_operation->SetIndexOffset(static_cast<uint32_t>(value));
+  array_operation->SetDehoisted(true);
+}
+
+
+void HGraph::DehoistSimpleArrayIndexComputations() {
+  if (!FLAG_array_index_dehoisting) return;
+
+  HPhase phase("H_Dehoist index computations", this);
+  for (int i = 0; i < blocks()->length(); ++i) {
+    for (HInstruction* instr = blocks()->at(i)->first();
+        instr != NULL;
+        instr = instr->next()) {
+      ArrayInstructionInterface* array_instruction = NULL;
+      if (instr->IsLoadKeyedFastElement()) {
+        HLoadKeyedFastElement* op = HLoadKeyedFastElement::cast(instr);
+        array_instruction = static_cast<ArrayInstructionInterface*>(op);
+      } else if (instr->IsLoadKeyedFastDoubleElement()) {
+        HLoadKeyedFastDoubleElement* op =
+            HLoadKeyedFastDoubleElement::cast(instr);
+        array_instruction = static_cast<ArrayInstructionInterface*>(op);
+      } else if (instr->IsLoadKeyedSpecializedArrayElement()) {
+        HLoadKeyedSpecializedArrayElement* op =
+            HLoadKeyedSpecializedArrayElement::cast(instr);
+        array_instruction = static_cast<ArrayInstructionInterface*>(op);
+      } else if (instr->IsStoreKeyedFastElement()) {
+        HStoreKeyedFastElement* op = HStoreKeyedFastElement::cast(instr);
+        array_instruction = static_cast<ArrayInstructionInterface*>(op);
+      } else if (instr->IsStoreKeyedFastDoubleElement()) {
+        HStoreKeyedFastDoubleElement* op =
+            HStoreKeyedFastDoubleElement::cast(instr);
+        array_instruction = static_cast<ArrayInstructionInterface*>(op);
+      } else if (instr->IsStoreKeyedSpecializedArrayElement()) {
+        HStoreKeyedSpecializedArrayElement* op =
+            HStoreKeyedSpecializedArrayElement::cast(instr);
+        array_instruction = static_cast<ArrayInstructionInterface*>(op);
+      } else {
+        continue;
+      }
+      DehoistArrayIndex(array_instruction);
+    }
+  }
 }
 
 

@@ -3606,9 +3606,9 @@ void HeapSnapshotJSONSerializer::SerializeSnapshot() {
   writer_->AddString(",\"meta\":");
   // The object describing node serialization layout.
   // We use a set of macros to improve readability.
-#define JSON_A(s) "["s"]"
-#define JSON_O(s) "{"s"}"
-#define JSON_S(s) "\""s"\""
+#define JSON_A(s) "[" s "]"
+#define JSON_O(s) "{" s "}"
+#define JSON_S(s) "\"" s "\""
   writer_->AddString(JSON_O(
     JSON_S("node_fields") ":" JSON_A(
         JSON_S("type") ","

@@ -267,6 +267,7 @@ class HGraph: public ZoneObject {
   void AssignDominators();
   void ReplaceCheckedValues();
   void EliminateRedundantBoundsChecks();
+  void DehoistSimpleArrayIndexComputations();
   void PropagateDeoptimizingMark();
 
   // Returns false if there are phi-uses of the arguments-object

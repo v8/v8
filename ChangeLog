@@ -1,3 +1,23 @@
+2012-05-22: Version 3.11.4
+
+        Some cleanup to common.gypi. This fixes some host/target combinations
+        that weren't working in the Make build on Mac.
+
+        Handle EINTR in socket functions and continue incomplete sends.
+        (issue 2098)
+
+        Fixed python deprecations.  (issue 1391)
+
+        Made socket send and receive more robust and return 0 on failure.
+        (Chromium issue 15719)
+
+        Fixed GCC 4.7 (C++11) compilation.  (issue 2136)
+
+        Set '-m32' option for host and target platforms
+
+        Performance and stability improvements on all platforms.
+
+
 2012-05-18: Version 3.11.3
 
         Disable optimization for functions that have scopes that cannot be
