@@ -458,7 +458,14 @@ void String::StringVerify() {
     ConsString::cast(this)->ConsStringVerify();
   } else if (IsSlicedString()) {
     SlicedString::cast(this)->SlicedStringVerify();
+  } else if (IsSeqAsciiString()) {
+    SeqAsciiString::cast(this)->SeqAsciiStringVerify();
   }
+}
+
+
+void SeqAsciiString::SeqAsciiStringVerify() {
+  CHECK(String::IsAscii(GetChars(), length()));
 }
 
 

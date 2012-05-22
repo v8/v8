@@ -3326,6 +3326,8 @@ MaybeObject* Heap::AllocateExternalStringFromAscii(
     return Failure::OutOfMemoryException();
   }
 
+  ASSERT(String::IsAscii(resource->data(), length));
+
   Map* map = external_ascii_string_map();
   Object* result;
   { MaybeObject* maybe_result = Allocate(map, NEW_SPACE);
@@ -4490,6 +4492,16 @@ MaybeObject* Heap::AllocateRawAsciiString(int length, PretenureFlag pretenure) {
   String::cast(result)->set_length(length);
   String::cast(result)->set_hash_field(String::kEmptyHashField);
   ASSERT_EQ(size, HeapObject::cast(result)->Size());
+
+#ifdef DEBUG
+  if (FLAG_verify_heap) {
+    // Initialize string's content to ensure ASCII-ness (character range 0-127)
+    // as required when verifying the heap.
+    char* dest = SeqAsciiString::cast(result)->GetChars();
+    memset(dest, 0x0F, length * kCharSize);
+  }
+#endif  // DEBUG
+
   return result;
 }
 
