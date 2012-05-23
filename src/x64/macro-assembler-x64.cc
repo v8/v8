@@ -4059,7 +4059,7 @@ void MacroAssembler::LoadTransitionedArrayMapConditional(
   movq(scratch, Operand(scratch,
                         Context::SlotOffset(Context::JS_ARRAY_MAPS_INDEX)));
 
-  size_t offset = expected_kind * kPointerSize +
+  int offset = expected_kind * kPointerSize +
       FixedArrayBase::kHeaderSize;
   cmpq(map_in_out, FieldOperand(scratch, offset));
   j(not_equal, no_map_match);
