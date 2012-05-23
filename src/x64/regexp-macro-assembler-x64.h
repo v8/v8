@@ -156,7 +156,8 @@ class RegExpMacroAssemblerX64: public NativeRegExpMacroAssembler {
   static const int kRegisterOutput = kInputEnd + kPointerSize;
   // For the case of global regular expression, we have room to store at least
   // one set of capture results.  For the case of non-global regexp, we ignore
-  // this value.
+  // this value. NumOutputRegisters is passed as 32-bit value.  The upper
+  // 32 bit of this 64-bit stack slot may contain garbage.
   static const int kNumOutputRegisters = kRegisterOutput + kPointerSize;
   static const int kStackHighEnd = kNumOutputRegisters + kPointerSize;
   // DirectCall is passed as 32 bit int (values 0 or 1).
@@ -195,7 +196,7 @@ class RegExpMacroAssemblerX64: public NativeRegExpMacroAssembler {
   static const int kLastCalleeSaveRegister = kBackup_rbx;
 #endif
 
-  static const int kSuccessfulCaptures = kBackup_rbx - kPointerSize;
+  static const int kSuccessfulCaptures = kLastCalleeSaveRegister - kPointerSize;
   // When adding local variables remember to push space for them in
   // the frame in GetCode.
   static const int kInputStartMinusOne = kSuccessfulCaptures - kPointerSize;
