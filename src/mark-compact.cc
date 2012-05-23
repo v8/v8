@@ -2740,7 +2740,7 @@ static void UpdatePointer(HeapObject** p, HeapObject* object) {
     // spurious newspace pointers in the old space.
     // TODO(mstarzinger): This was changed to a sentinel value to track down
     // rare crashes, change it back to Smi::FromInt(0) later.
-    *p = reinterpret_cast<HeapObject*>(Smi::FromInt(0x0f100d00 >> 1)); // flood
+    *p = reinterpret_cast<HeapObject*>(Smi::FromInt(0x0f100d00 >> 1));  // flood
   }
 }
 
