@@ -6045,13 +6045,6 @@ int HeapGraphNode::GetSelfSize() const {
 }
 
 
-int HeapGraphNode::GetRetainedSize() const {
-  i::Isolate* isolate = i::Isolate::Current();
-  IsDeadCheck(isolate, "v8::HeapSnapshot::GetRetainedSize");
-  return ToInternal(this)->retained_size();
-}
-
-
 int HeapGraphNode::GetChildrenCount() const {
   i::Isolate* isolate = i::Isolate::Current();
   IsDeadCheck(isolate, "v8::HeapSnapshot::GetChildrenCount");
@@ -6064,28 +6057,6 @@ const HeapGraphEdge* HeapGraphNode::GetChild(int index) const {
   IsDeadCheck(isolate, "v8::HeapSnapshot::GetChild");
   return reinterpret_cast<const HeapGraphEdge*>(
       ToInternal(this)->children()[index]);
-}
-
-
-int HeapGraphNode::GetRetainersCount() const {
-  i::Isolate* isolate = i::Isolate::Current();
-  IsDeadCheck(isolate, "v8::HeapSnapshot::GetRetainersCount");
-  return ToInternal(this)->retainers().length();
-}
-
-
-const HeapGraphEdge* HeapGraphNode::GetRetainer(int index) const {
-  i::Isolate* isolate = i::Isolate::Current();
-  IsDeadCheck(isolate, "v8::HeapSnapshot::GetRetainer");
-  return reinterpret_cast<const HeapGraphEdge*>(
-      ToInternal(this)->retainers()[index]);
-}
-
-
-const HeapGraphNode* HeapGraphNode::GetDominatorNode() const {
-  i::Isolate* isolate = i::Isolate::Current();
-  IsDeadCheck(isolate, "v8::HeapSnapshot::GetDominatorNode");
-  return reinterpret_cast<const HeapGraphNode*>(ToInternal(this)->dominator());
 }
 
 
