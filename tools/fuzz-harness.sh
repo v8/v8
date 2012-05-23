@@ -64,6 +64,20 @@ jsfunfuzz_dir="$v8_root/tools/jsfunfuzz"
 if [ ! -d "$jsfunfuzz_dir" ]; then
   echo "Unpacking into $jsfunfuzz_dir ..."
   unzip "$jsfunfuzz_file" -d "$jsfunfuzz_dir" || exit 1
+  echo "Patching runner ..."
+  cat << EOF | patch -s -p0 -d "$v8_root"
+--- tools/jsfunfuzz/jsfunfuzz/multi_timed_run.py~
++++ tools/jsfunfuzz/jsfunfuzz/multi_timed_run.py
+@@ -125,7 +125,7 @@
+ 
+ def many_timed_runs():
+     iteration = 0
+-    while True:
++    while iteration < 100:
+         iteration += 1
+         logfilename = "w%d" % iteration
+         one_timed_run(logfilename)
+EOF
 fi
 
 flags='--debug-code --expose-gc --verify-gc'
