@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -376,7 +376,7 @@ delete large_array2[5];
 // Convert back to fast elements and make sure the contents of the array are
 // unchanged.
 large_array2[25] = new Object();
-assertTrue(%HasFastElements(large_array2));
+assertTrue(%HasFastObjectElements(large_array2));
 for (var i= 0; i < approx_dict_to_elements_threshold; i += 500 ) {
   if (i != 25 && i != 5) {
     assertEquals(expected_array_value(i), large_array2[i]);

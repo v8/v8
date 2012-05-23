@@ -6002,12 +6002,12 @@ struct AheadOfTimeWriteBarrierStubList kAheadOfTime[] = {
   // KeyedStoreStubCompiler::GenerateStoreFastElement.
   { REG(rdi), REG(rbx), REG(rcx), EMIT_REMEMBERED_SET},
   { REG(rdx), REG(rdi), REG(rbx), EMIT_REMEMBERED_SET},
-  // ElementsTransitionGenerator::GenerateSmiOnlyToObject
-  // and ElementsTransitionGenerator::GenerateSmiOnlyToObject
+  // ElementsTransitionGenerator::GenerateMapChangeElementTransition
+  // and ElementsTransitionGenerator::GenerateSmiToDouble
   // and ElementsTransitionGenerator::GenerateDoubleToObject
   { REG(rdx), REG(rbx), REG(rdi), EMIT_REMEMBERED_SET},
   { REG(rdx), REG(rbx), REG(rdi), OMIT_REMEMBERED_SET},
-  // ElementsTransitionGenerator::GenerateSmiOnlyToDouble
+  // ElementsTransitionGenerator::GenerateSmiToDouble
   // and ElementsTransitionGenerator::GenerateDoubleToObject
   { REG(rdx), REG(r11), REG(r15), EMIT_REMEMBERED_SET},
   // ElementsTransitionGenerator::GenerateDoubleToObject
@@ -6281,9 +6281,9 @@ void StoreArrayLiteralElementStub::Generate(MacroAssembler* masm) {
 
   __ CheckFastElements(rdi, &double_elements);
 
-  // FAST_SMI_ONLY_ELEMENTS or FAST_ELEMENTS
+  // FAST_*_SMI_ELEMENTS or FAST_*_ELEMENTS
   __ JumpIfSmi(rax, &smi_element);
-  __ CheckFastSmiOnlyElements(rdi, &fast_elements);
+  __ CheckFastSmiElements(rdi, &fast_elements);
 
   // Store into the array literal requires a elements transition. Call into
   // the runtime.
@@ -6301,7 +6301,7 @@ void StoreArrayLiteralElementStub::Generate(MacroAssembler* masm) {
                  // place.
   __ TailCallRuntime(Runtime::kStoreArrayLiteralElement, 5, 1);
 
-  // Array literal has ElementsKind of FAST_ELEMENTS and value is an object.
+  // Array literal has ElementsKind of FAST_*_ELEMENTS and value is an object.
   __ bind(&fast_elements);
   __ SmiToInteger32(kScratchRegister, rcx);
   __ movq(rbx, FieldOperand(rbx, JSObject::kElementsOffset));
@@ -6315,8 +6315,8 @@ void StoreArrayLiteralElementStub::Generate(MacroAssembler* masm) {
                  OMIT_SMI_CHECK);
   __ ret(0);
 
-  // Array literal has ElementsKind of FAST_SMI_ONLY_ELEMENTS or
-  // FAST_ELEMENTS, and value is Smi.
+  // Array literal has ElementsKind of FAST_*_SMI_ELEMENTS or
+  // FAST_*_ELEMENTS, and value is Smi.
   __ bind(&smi_element);
   __ SmiToInteger32(kScratchRegister, rcx);
   __ movq(rbx, FieldOperand(rbx, JSObject::kElementsOffset));

@@ -1092,7 +1092,7 @@ bool Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
 
     // Check the state of the object.
     ASSERT(result->HasFastProperties());
-    ASSERT(result->HasFastElements());
+    ASSERT(result->HasFastObjectElements());
 #endif
   }
 
@@ -1185,7 +1185,7 @@ bool Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
 
     // Check the state of the object.
     ASSERT(result->HasFastProperties());
-    ASSERT(result->HasFastElements());
+    ASSERT(result->HasFastObjectElements());
 #endif
   }
 
@@ -1635,7 +1635,7 @@ bool Genesis::InstallNatives() {
         array_function->initial_map()->CopyDropTransitions();
     Map* new_map;
     if (!maybe_map->To<Map>(&new_map)) return false;
-    new_map->set_elements_kind(FAST_ELEMENTS);
+    new_map->set_elements_kind(FAST_HOLEY_ELEMENTS);
     array_function->set_initial_map(new_map);
 
     // Make "length" magic on instances.

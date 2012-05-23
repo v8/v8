@@ -2448,8 +2448,10 @@ void LCodeGen::DoLoadElements(LLoadElements* instr) {
     __ lbu(scratch, FieldMemOperand(scratch, Map::kBitField2Offset));
     __ Ext(scratch, scratch, Map::kElementsKindShift,
            Map::kElementsKindBitCount);
-    __ Branch(&done, eq, scratch,
-              Operand(FAST_ELEMENTS));
+    __ Branch(&fail, lt, scratch,
+              Operand(GetInitialFastElementsKind()));
+    __ Branch(&done, le, scratch,
+              Operand(TERMINAL_FAST_ELEMENTS_KIND));
     __ Branch(&fail, lt, scratch,
               Operand(FIRST_EXTERNAL_ARRAY_ELEMENTS_KIND));
     __ Branch(&done, le, scratch,
@@ -2542,8 +2544,10 @@ void LCodeGen::DoLoadKeyedFastDoubleElement(
             Operand(FixedDoubleArray::kHeaderSize - kHeapObjectTag));
   }
 
-  __ lw(scratch, MemOperand(elements, sizeof(kHoleNanLower32)));
-  DeoptimizeIf(eq, instr->environment(), scratch, Operand(kHoleNanUpper32));
+  if (instr->hydrogen()->RequiresHoleCheck()) {
+    __ lw(scratch, MemOperand(elements, sizeof(kHoleNanLower32)));
+    DeoptimizeIf(eq, instr->environment(), scratch, Operand(kHoleNanUpper32));
+  }
 
   __ ldc1(result, MemOperand(elements));
 }
@@ -2623,7 +2627,10 @@ void LCodeGen::DoLoadKeyedSpecializedArrayElement(
       case EXTERNAL_DOUBLE_ELEMENTS:
       case FAST_DOUBLE_ELEMENTS:
       case FAST_ELEMENTS:
-      case FAST_SMI_ONLY_ELEMENTS:
+      case FAST_SMI_ELEMENTS:
+      case FAST_HOLEY_DOUBLE_ELEMENTS:
+      case FAST_HOLEY_ELEMENTS:
+      case FAST_HOLEY_SMI_ELEMENTS:
       case DICTIONARY_ELEMENTS:
       case NON_STRICT_ARGUMENTS_ELEMENTS:
         UNREACHABLE();
@@ -3641,7 +3648,10 @@ void LCodeGen::DoStoreKeyedSpecializedArrayElement(
       case EXTERNAL_DOUBLE_ELEMENTS:
       case FAST_DOUBLE_ELEMENTS:
       case FAST_ELEMENTS:
-      case FAST_SMI_ONLY_ELEMENTS:
+      case FAST_SMI_ELEMENTS:
+      case FAST_HOLEY_DOUBLE_ELEMENTS:
+      case FAST_HOLEY_ELEMENTS:
+      case FAST_HOLEY_SMI_ELEMENTS:
       case DICTIONARY_ELEMENTS:
       case NON_STRICT_ARGUMENTS_ELEMENTS:
         UNREACHABLE();
@@ -3679,20 +3689,21 @@ void LCodeGen::DoTransitionElementsKind(LTransitionElementsKind* instr) {
   __ Branch(&not_applicable, ne, scratch, Operand(from_map));
 
   __ li(new_map_reg, Operand(to_map));
-  if (from_kind == FAST_SMI_ONLY_ELEMENTS && to_kind == FAST_ELEMENTS) {
+  if (IsFastSmiElementsKind(from_kind) && IsFastObjectElementsKind(to_kind)) {
     __ sw(new_map_reg, FieldMemOperand(object_reg, HeapObject::kMapOffset));
     // Write barrier.
     __ RecordWriteField(object_reg, HeapObject::kMapOffset, new_map_reg,
                         scratch, kRAHasBeenSaved, kDontSaveFPRegs);
-  } else if (from_kind == FAST_SMI_ONLY_ELEMENTS &&
-      to_kind == FAST_DOUBLE_ELEMENTS) {
+  } else if (IsFastSmiElementsKind(from_kind) &&
+             IsFastDoubleElementsKind(to_kind)) {
     Register fixed_object_reg = ToRegister(instr->temp_reg());
     ASSERT(fixed_object_reg.is(a2));
     ASSERT(new_map_reg.is(a3));
     __ mov(fixed_object_reg, object_reg);
     CallCode(isolate()->builtins()->TransitionElementsSmiToDouble(),
              RelocInfo::CODE_TARGET, instr);
-  } else if (from_kind == FAST_DOUBLE_ELEMENTS && to_kind == FAST_ELEMENTS) {
+  } else if (IsFastDoubleElementsKind(from_kind) &&
+             IsFastObjectElementsKind(to_kind)) {
     Register fixed_object_reg = ToRegister(instr->temp_reg());
     ASSERT(fixed_object_reg.is(a2));
     ASSERT(new_map_reg.is(a3));
@@ -4447,8 +4458,9 @@ void LCodeGen::DoArrayLiteral(LArrayLiteral* instr) {
 
   // Deopt if the array literal boilerplate ElementsKind is of a type different
   // than the expected one. The check isn't necessary if the boilerplate has
-  // already been converted to FAST_ELEMENTS.
-  if (boilerplate_elements_kind != FAST_ELEMENTS) {
+  // already been converted to TERMINAL_FAST_ELEMENTS_KIND.
+  if (CanTransitionToMoreGeneralFastElementsKind(
+          boilerplate_elements_kind, true)) {
     __ LoadHeapObject(a1, instr->hydrogen()->boilerplate_object());
     // Load map into a2.
     __ lw(a2, FieldMemOperand(a1, HeapObject::kMapOffset));
@@ -4601,10 +4613,11 @@ void LCodeGen::DoFastLiteral(LFastLiteral* instr) {
   ElementsKind boilerplate_elements_kind =
       instr->hydrogen()->boilerplate()->GetElementsKind();
 
-  // Deopt if the literal boilerplate ElementsKind is of a type different than
-  // the expected one. The check isn't necessary if the boilerplate has already
-  // been converted to FAST_ELEMENTS.
-  if (boilerplate_elements_kind != FAST_ELEMENTS) {
+  // Deopt if the array literal boilerplate ElementsKind is of a type different
+  // than the expected one. The check isn't necessary if the boilerplate has
+  // already been converted to TERMINAL_FAST_ELEMENTS_KIND.
+  if (CanTransitionToMoreGeneralFastElementsKind(
+          boilerplate_elements_kind, true)) {
     __ LoadHeapObject(a1, instr->hydrogen()->boilerplate());
     // Load map into a2.
     __ lw(a2, FieldMemOperand(a1, HeapObject::kMapOffset));

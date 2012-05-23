@@ -286,12 +286,11 @@ void JSObject::JSObjectVerify() {
              (map()->inobject_properties() + properties()->length() -
               map()->NextFreePropertyIndex()));
   }
-  ASSERT_EQ((map()->has_fast_elements() ||
-             map()->has_fast_smi_only_elements() ||
+  ASSERT_EQ((map()->has_fast_smi_or_object_elements() ||
              (elements() == GetHeap()->empty_fixed_array())),
             (elements()->map() == GetHeap()->fixed_array_map() ||
              elements()->map() == GetHeap()->fixed_cow_array_map()));
-  ASSERT(map()->has_fast_elements() == HasFastElements());
+  ASSERT(map()->has_fast_object_elements() == HasFastObjectElements());
 }
 
 
@@ -517,7 +516,7 @@ void JSGlobalProxy::JSGlobalProxyVerify() {
   VerifyObjectField(JSGlobalProxy::kContextOffset);
   // Make sure that this object has no properties, elements.
   CHECK_EQ(0, properties()->length());
-  CHECK(HasFastElements());
+  CHECK(HasFastObjectElements());
   CHECK_EQ(0, FixedArray::cast(elements())->length());
 }
 
@@ -812,6 +811,11 @@ void JSObject::IncrementSpillStatistics(SpillInformation* info) {
   }
   // Indexed properties
   switch (GetElementsKind()) {
+    case FAST_HOLEY_SMI_ELEMENTS:
+    case FAST_SMI_ELEMENTS:
+    case FAST_HOLEY_DOUBLE_ELEMENTS:
+    case FAST_DOUBLE_ELEMENTS:
+    case FAST_HOLEY_ELEMENTS:
     case FAST_ELEMENTS: {
       info->number_of_objects_with_fast_elements_++;
       int holes = 0;
@@ -825,6 +829,14 @@ void JSObject::IncrementSpillStatistics(SpillInformation* info) {
       info->number_of_fast_unused_elements_ += holes;
       break;
     }
+    case EXTERNAL_BYTE_ELEMENTS:
+    case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
+    case EXTERNAL_SHORT_ELEMENTS:
+    case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
+    case EXTERNAL_INT_ELEMENTS:
+    case EXTERNAL_UNSIGNED_INT_ELEMENTS:
+    case EXTERNAL_FLOAT_ELEMENTS:
+    case EXTERNAL_DOUBLE_ELEMENTS:
     case EXTERNAL_PIXEL_ELEMENTS: {
       info->number_of_objects_with_fast_elements_++;
       ExternalPixelArray* e = ExternalPixelArray::cast(elements());
@@ -838,8 +850,7 @@ void JSObject::IncrementSpillStatistics(SpillInformation* info) {
           dict->Capacity() - dict->NumberOfElements();
       break;
     }
-    default:
-      UNREACHABLE();
+    case NON_STRICT_ARGUMENTS_ELEMENTS:
       break;
   }
 }

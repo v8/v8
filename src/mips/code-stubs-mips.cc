@@ -7362,8 +7362,8 @@ static const AheadOfTimeWriteBarrierStubList kAheadOfTime[] = {
   // KeyedStoreStubCompiler::GenerateStoreFastElement.
   { REG(a3), REG(a2), REG(t0), EMIT_REMEMBERED_SET },
   { REG(a2), REG(a3), REG(t0), EMIT_REMEMBERED_SET },
-  // ElementsTransitionGenerator::GenerateSmiOnlyToObject
-  // and ElementsTransitionGenerator::GenerateSmiOnlyToDouble
+  // ElementsTransitionGenerator::GenerateMapChangeElementTransition
+  // and ElementsTransitionGenerator::GenerateSmiToDouble
   // and ElementsTransitionGenerator::GenerateDoubleToObject
   { REG(a2), REG(a3), REG(t5), EMIT_REMEMBERED_SET },
   { REG(a2), REG(a3), REG(t5), OMIT_REMEMBERED_SET },
@@ -7629,9 +7629,9 @@ void StoreArrayLiteralElementStub::Generate(MacroAssembler* masm) {
   Label fast_elements;
 
   __ CheckFastElements(a2, t1, &double_elements);
-  // FAST_SMI_ONLY_ELEMENTS or FAST_ELEMENTS
+  // Check for FAST_*_SMI_ELEMENTS or FAST_*_ELEMENTS elements
   __ JumpIfSmi(a0, &smi_element);
-  __ CheckFastSmiOnlyElements(a2, t1, &fast_elements);
+  __ CheckFastSmiElements(a2, t1, &fast_elements);
 
   // Store into the array literal requires a elements transition. Call into
   // the runtime.
@@ -7643,7 +7643,7 @@ void StoreArrayLiteralElementStub::Generate(MacroAssembler* masm) {
   __ Push(t1, t0);
   __ TailCallRuntime(Runtime::kStoreArrayLiteralElement, 5, 1);
 
-  // Array literal has ElementsKind of FAST_ELEMENTS and value is an object.
+  // Array literal has ElementsKind of FAST_*_ELEMENTS and value is an object.
   __ bind(&fast_elements);
   __ lw(t1, FieldMemOperand(a1, JSObject::kElementsOffset));
   __ sll(t2, a3, kPointerSizeLog2 - kSmiTagSize);
@@ -7656,8 +7656,8 @@ void StoreArrayLiteralElementStub::Generate(MacroAssembler* masm) {
   __ Ret(USE_DELAY_SLOT);
   __ mov(v0, a0);
 
-  // Array literal has ElementsKind of FAST_SMI_ONLY_ELEMENTS or
-  // FAST_ELEMENTS, and value is Smi.
+  // Array literal has ElementsKind of FAST_*_SMI_ELEMENTS or FAST_*_ELEMENTS,
+  // and value is Smi.
   __ bind(&smi_element);
   __ lw(t1, FieldMemOperand(a1, JSObject::kElementsOffset));
   __ sll(t2, a3, kPointerSizeLog2 - kSmiTagSize);
@@ -7666,7 +7666,7 @@ void StoreArrayLiteralElementStub::Generate(MacroAssembler* masm) {
   __ Ret(USE_DELAY_SLOT);
   __ mov(v0, a0);
 
-  // Array literal has ElementsKind of FAST_DOUBLE_ELEMENTS.
+  // Array literal has ElementsKind of FAST_*_DOUBLE_ELEMENTS.
   __ bind(&double_elements);
   __ lw(t1, FieldMemOperand(a1, JSObject::kElementsOffset));
   __ StoreNumberToDoubleElements(a0, a3, a1, t1, t2, t3, t5, a2,
