@@ -3822,20 +3822,24 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ IncrementCounter(counters->regexp_entry_native(), 1);
 
   // Isolates: note we add an additional parameter here (isolate pointer).
-  static const int kRegExpExecuteArguments = 8;
+  static const int kRegExpExecuteArguments = 9;
   __ EnterApiExitFrame(kRegExpExecuteArguments);
 
-  // Argument 8: Pass current isolate address.
-  __ mov(Operand(esp, 7 * kPointerSize),
+  // Argument 9: Pass current isolate address.
+  __ mov(Operand(esp, 8 * kPointerSize),
       Immediate(ExternalReference::isolate_address()));
 
-  // Argument 7: Indicate that this is a direct call from JavaScript.
-  __ mov(Operand(esp, 6 * kPointerSize), Immediate(1));
+  // Argument 8: Indicate that this is a direct call from JavaScript.
+  __ mov(Operand(esp, 7 * kPointerSize), Immediate(1));
 
-  // Argument 6: Start (high end) of backtracking stack memory area.
+  // Argument 7: Start (high end) of backtracking stack memory area.
   __ mov(esi, Operand::StaticVariable(address_of_regexp_stack_memory_address));
   __ add(esi, Operand::StaticVariable(address_of_regexp_stack_memory_size));
-  __ mov(Operand(esp, 5 * kPointerSize), esi);
+  __ mov(Operand(esp, 6 * kPointerSize), esi);
+
+  // Argument 6: Set the number of capture registers to zero to force global
+  // regexps to behave as non-global.  This does not affect non-global regexps.
+  __ mov(Operand(esp, 5 * kPointerSize), Immediate(0));
 
   // Argument 5: static offsets vector buffer.
   __ mov(Operand(esp, 4 * kPointerSize),
@@ -3898,7 +3902,9 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
 
   // Check the result.
   Label success;
-  __ cmp(eax, NativeRegExpMacroAssembler::SUCCESS);
+  __ cmp(eax, 1);
+  // We expect exactly one result since we force the called regexp to behave
+  // as non-global.
   __ j(equal, &success);
   Label failure;
   __ cmp(eax, NativeRegExpMacroAssembler::FAILURE);

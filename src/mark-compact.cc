@@ -2738,7 +2738,9 @@ static void UpdatePointer(HeapObject** p, HeapObject* object) {
     // We have to zap this pointer, because the store buffer may overflow later,
     // and then we have to scan the entire heap and we don't want to find
     // spurious newspace pointers in the old space.
-    *p = reinterpret_cast<HeapObject*>(Smi::FromInt(0));
+    // TODO(mstarzinger): This was changed to a sentinel value to track down
+    // rare crashes, change it back to Smi::FromInt(0) later.
+    *p = reinterpret_cast<HeapObject*>(Smi::FromInt(0x0f100d00 >> 1));  // flood
   }
 }
 

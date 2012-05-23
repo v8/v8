@@ -1,3 +1,8 @@
+2012-05-23: Version 3.11.5
+
+        Performance and stability improvements on all platforms.
+
+
 2012-05-22: Version 3.11.4
 
         Some cleanup to common.gypi. This fixes some host/target combinations

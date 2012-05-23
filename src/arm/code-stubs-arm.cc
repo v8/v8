@@ -4824,27 +4824,32 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ IncrementCounter(isolate->counters()->regexp_entry_native(), 1, r0, r2);
 
   // Isolates: note we add an additional parameter here (isolate pointer).
-  const int kRegExpExecuteArguments = 8;
+  const int kRegExpExecuteArguments = 9;
   const int kParameterRegisters = 4;
   __ EnterExitFrame(false, kRegExpExecuteArguments - kParameterRegisters);
 
   // Stack pointer now points to cell where return address is to be written.
   // Arguments are before that on the stack or in registers.
 
-  // Argument 8 (sp[16]): Pass current isolate address.
+  // Argument 9 (sp[20]): Pass current isolate address.
   __ mov(r0, Operand(ExternalReference::isolate_address()));
+  __ str(r0, MemOperand(sp, 5 * kPointerSize));
+
+  // Argument 8 (sp[16]): Indicate that this is a direct call from JavaScript.
+  __ mov(r0, Operand(1));
   __ str(r0, MemOperand(sp, 4 * kPointerSize));
 
-  // Argument 7 (sp[12]): Indicate that this is a direct call from JavaScript.
-  __ mov(r0, Operand(1));
-  __ str(r0, MemOperand(sp, 3 * kPointerSize));
-
-  // Argument 6 (sp[8]): Start (high end) of backtracking stack memory area.
+  // Argument 7 (sp[12]): Start (high end) of backtracking stack memory area.
   __ mov(r0, Operand(address_of_regexp_stack_memory_address));
   __ ldr(r0, MemOperand(r0, 0));
   __ mov(r2, Operand(address_of_regexp_stack_memory_size));
   __ ldr(r2, MemOperand(r2, 0));
   __ add(r0, r0, Operand(r2));
+  __ str(r0, MemOperand(sp, 3 * kPointerSize));
+
+  // Argument 6: Set the number of capture registers to zero to force global
+  // regexps to behave as non-global.  This does not affect non-global regexps.
+  __ mov(r0, Operand(0));
   __ str(r0, MemOperand(sp, 2 * kPointerSize));
 
   // Argument 5 (sp[4]): static offsets vector buffer.
@@ -4893,7 +4898,9 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // Check the result.
   Label success;
 
-  __ cmp(r0, Operand(NativeRegExpMacroAssembler::SUCCESS));
+  __ cmp(r0, Operand(1));
+  // We expect exactly one result since we force the called regexp to behave
+  // as non-global.
   __ b(eq, &success);
   Label failure;
   __ cmp(r0, Operand(NativeRegExpMacroAssembler::FAILURE));

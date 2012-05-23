@@ -659,7 +659,7 @@ void FullCodeGenerator::DoTest(Expression* condition,
                                Label* fall_through) {
   ToBooleanStub stub(result_register());
   __ push(result_register());
-  __ CallStub(&stub);
+  __ CallStub(&stub, condition->test_id());
   __ testq(result_register(), result_register());
   // The stub returns nonzero for true.
   Split(not_zero, if_true, if_false, fall_through);
@@ -2287,7 +2287,7 @@ void FullCodeGenerator::EmitCallWithStub(Call* expr, CallFunctionFlags flags) {
 
   CallFunctionStub stub(arg_count, flags);
   __ movq(rdi, Operand(rsp, (arg_count + 1) * kPointerSize));
-  __ CallStub(&stub);
+  __ CallStub(&stub, expr->id());
   RecordJSReturnSite(expr);
   // Restore context register.
   __ movq(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));

@@ -7242,6 +7242,10 @@ class SeqAsciiString: public SeqString {
                                                       unsigned* offset,
                                                       unsigned chars);
 
+#ifdef DEBUG
+  void SeqAsciiStringVerify();
+#endif
+
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(SeqAsciiString);
 };
