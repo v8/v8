@@ -3326,7 +3326,7 @@ MaybeObject* Heap::AllocateExternalStringFromAscii(
     return Failure::OutOfMemoryException();
   }
 
-  ASSERT(String::IsAscii(resource->data(), length));
+  ASSERT(String::IsAscii(resource->data(), static_cast<int>(length)));
 
   Map* map = external_ascii_string_map();
   Object* result;
