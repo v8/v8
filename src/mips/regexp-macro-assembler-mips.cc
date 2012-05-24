@@ -833,7 +833,8 @@ Handle<HeapObject> RegExpMacroAssemblerMIPS::GetCode(Handle<String> source) {
         // Special case for zero-length matches.
         // t7: capture start index
         // Not a zero-length match, restart.
-        __ Branch(&load_char_start_regexp, ne, current_input_offset(), Operand(t7));
+        __ Branch(
+            &load_char_start_regexp, ne, current_input_offset(), Operand(t7));
         // Offset from the end is zero if we already reached the end.
         __ Branch(&exit_label_, eq, current_input_offset(), Operand(zero_reg));
         // Advance current position after a zero-length match.
