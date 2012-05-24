@@ -2469,7 +2469,7 @@ bool Heap::CreateApiObjects() {
   // bottleneck to trap the Smi-only -> fast elements transition, and there
   // appears to be no benefit for optimize this case.
   Map* new_neander_map = Map::cast(obj);
-  new_neander_map->set_elements_kind(FAST_ELEMENTS);
+  new_neander_map->set_elements_kind(TERMINAL_FAST_ELEMENTS_KIND);
   set_neander_map(new_neander_map);
 
   { MaybeObject* maybe_obj = AllocateJSObjectFromMap(neander_map());
@@ -3050,6 +3050,7 @@ MaybeObject* Heap::AllocateJSMessageObject(String* type,
   }
   JSMessageObject* message = JSMessageObject::cast(result);
   message->set_properties(Heap::empty_fixed_array(), SKIP_WRITE_BARRIER);
+  message->initialize_elements();
   message->set_elements(Heap::empty_fixed_array(), SKIP_WRITE_BARRIER);
   message->set_type(type);
   message->set_arguments(arguments);
@@ -3753,7 +3754,7 @@ MaybeObject* Heap::AllocateArgumentsObject(Object* callee, int length) {
 
   // Check the state of the object
   ASSERT(JSObject::cast(result)->HasFastProperties());
-  ASSERT(JSObject::cast(result)->HasFastElements());
+  ASSERT(JSObject::cast(result)->HasFastObjectElements());
 
   return result;
 }
@@ -3798,7 +3799,7 @@ MaybeObject* Heap::AllocateInitialMap(JSFunction* fun) {
   map->set_inobject_properties(in_object_properties);
   map->set_unused_property_fields(in_object_properties);
   map->set_prototype(prototype);
-  ASSERT(map->has_fast_elements());
+  ASSERT(map->has_fast_object_elements());
 
   // If the function has only simple this property assignments add
   // field descriptors for these to the initial map as the object
@@ -3915,8 +3916,7 @@ MaybeObject* Heap::AllocateJSObjectFromMap(Map* map, PretenureFlag pretenure) {
   InitializeJSObjectFromMap(JSObject::cast(obj),
                             FixedArray::cast(properties),
                             map);
-  ASSERT(JSObject::cast(obj)->HasFastSmiOnlyElements() ||
-         JSObject::cast(obj)->HasFastElements());
+  ASSERT(JSObject::cast(obj)->HasFastSmiOrObjectElements());
   return obj;
 }
 
@@ -3961,6 +3961,9 @@ MaybeObject* Heap::AllocateJSArrayAndStorage(
     ArrayStorageAllocationMode mode,
     PretenureFlag pretenure) {
   ASSERT(capacity >= length);
+  if (length != 0 && mode == INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE) {
+    elements_kind = GetHoleyElementsKind(elements_kind);
+  }
   MaybeObject* maybe_array = AllocateJSArray(elements_kind, pretenure);
   JSArray* array;
   if (!maybe_array->To(&array)) return maybe_array;
@@ -3981,8 +3984,7 @@ MaybeObject* Heap::AllocateJSArrayAndStorage(
       maybe_elms = AllocateFixedDoubleArrayWithHoles(capacity);
     }
   } else {
-    ASSERT(elements_kind == FAST_ELEMENTS ||
-           elements_kind == FAST_SMI_ONLY_ELEMENTS);
+    ASSERT(IsFastSmiOrObjectElementsKind(elements_kind));
     if (mode == DONT_INITIALIZE_ARRAY_ELEMENTS) {
       maybe_elms = AllocateUninitializedFixedArray(capacity);
     } else {
@@ -4008,6 +4010,7 @@ MaybeObject* Heap::AllocateJSArrayWithElements(
 
   array->set_elements(elements);
   array->set_length(Smi::FromInt(elements->length()));
+  array->ValidateElements();
   return array;
 }
 
@@ -4548,13 +4551,13 @@ MaybeObject* Heap::AllocateJSArray(
   Context* global_context = isolate()->context()->global_context();
   JSFunction* array_function = global_context->array_function();
   Map* map = array_function->initial_map();
-  if (elements_kind == FAST_DOUBLE_ELEMENTS) {
-    map = Map::cast(global_context->double_js_array_map());
-  } else if (elements_kind == FAST_ELEMENTS || !FLAG_smi_only_arrays) {
-    map = Map::cast(global_context->object_js_array_map());
-  } else {
-    ASSERT(elements_kind == FAST_SMI_ONLY_ELEMENTS);
-    ASSERT(map == global_context->smi_js_array_map());
+  Object* maybe_map_array = global_context->js_array_maps();
+  if (!maybe_map_array->IsUndefined()) {
+    Object* maybe_transitioned_map =
+        FixedArray::cast(maybe_map_array)->get(elements_kind);
+    if (!maybe_transitioned_map->IsUndefined()) {
+      map = Map::cast(maybe_transitioned_map);
+    }
   }
 
   return AllocateJSObjectFromMap(map, pretenure);
@@ -4839,9 +4842,7 @@ MaybeObject* Heap::AllocateGlobalContext() {
   }
   Context* context = reinterpret_cast<Context*>(result);
   context->set_map_no_write_barrier(global_context_map());
-  context->set_smi_js_array_map(undefined_value());
-  context->set_double_js_array_map(undefined_value());
-  context->set_object_js_array_map(undefined_value());
+  context->set_js_array_maps(undefined_value());
   ASSERT(context->IsGlobalContext());
   ASSERT(result->IsContext());
   return result;

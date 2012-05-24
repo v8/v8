@@ -2083,28 +2083,21 @@ class HCheckMaps: public HTemplateInstruction<2> {
     HCheckMaps* check_map = new HCheckMaps(object, map);
     SmallMapList* map_set = check_map->map_set();
 
-    // If the map to check has the untransitioned elements, it can be hoisted
-    // above TransitionElements instructions.
-    if (map->has_fast_smi_only_elements()) {
-      check_map->ClearGVNFlag(kDependsOnElementsKind);
-    }
+    // Since transitioned elements maps of the initial map don't fail the map
+    // check, the CheckMaps instruction doesn't need to depend on ElementsKinds.
+    check_map->ClearGVNFlag(kDependsOnElementsKind);
 
-    Map* transitioned_fast_element_map =
-        map->LookupElementsTransitionMap(FAST_ELEMENTS, NULL);
-    ASSERT(transitioned_fast_element_map == NULL ||
-           map->elements_kind() != FAST_ELEMENTS);
-    if (transitioned_fast_element_map != NULL) {
-      map_set->Add(Handle<Map>(transitioned_fast_element_map));
-    }
-    Map* transitioned_double_map =
-        map->LookupElementsTransitionMap(FAST_DOUBLE_ELEMENTS, NULL);
-    ASSERT(transitioned_double_map == NULL ||
-           map->elements_kind() == FAST_SMI_ONLY_ELEMENTS);
-    if (transitioned_double_map != NULL) {
-      map_set->Add(Handle<Map>(transitioned_double_map));
-    }
+    ElementsKind kind = map->elements_kind();
+    bool packed = IsFastPackedElementsKind(kind);
+    while (CanTransitionToMoreGeneralFastElementsKind(kind, packed)) {
+      kind = GetNextMoreGeneralFastElementsKind(kind, packed);
+      Map* transitioned_map =
+          map->LookupElementsTransitionMap(kind, NULL);
+      if (transitioned_map) {
+        map_set->Add(Handle<Map>(transitioned_map));
+      }
+    };
     map_set->Sort();
-
     return check_map;
   }
 
@@ -3956,11 +3949,12 @@ class ArrayInstructionInterface {
   virtual ~ArrayInstructionInterface() { };
 };
 
+
+enum HoleCheckMode { PERFORM_HOLE_CHECK, OMIT_HOLE_CHECK };
+
 class HLoadKeyedFastElement
     : public HTemplateInstruction<2>, public ArrayInstructionInterface {
  public:
-  enum HoleCheckMode { PERFORM_HOLE_CHECK, OMIT_HOLE_CHECK };
-
   HLoadKeyedFastElement(HValue* obj,
                         HValue* key,
                         HoleCheckMode hole_check_mode = PERFORM_HOLE_CHECK)
@@ -4015,14 +4009,19 @@ class HLoadKeyedFastElement
 class HLoadKeyedFastDoubleElement
     : public HTemplateInstruction<2>, public ArrayInstructionInterface {
  public:
-  HLoadKeyedFastDoubleElement(HValue* elements, HValue* key)
-      : index_offset_(0), is_dehoisted_(false) {
-    SetOperandAt(0, elements);
-    SetOperandAt(1, key);
-    set_representation(Representation::Double());
+  HLoadKeyedFastDoubleElement(
+    HValue* elements,
+    HValue* key,
+    HoleCheckMode hole_check_mode = PERFORM_HOLE_CHECK)
+    : index_offset_(0),
+      is_dehoisted_(false),
+      hole_check_mode_(hole_check_mode) {
+        SetOperandAt(0, elements);
+        SetOperandAt(1, key);
+        set_representation(Representation::Double());
     SetGVNFlag(kDependsOnDoubleArrayElements);
     SetFlag(kUseGVN);
-  }
+      }
 
   HValue* elements() { return OperandAt(0); }
   HValue* key() { return OperandAt(1); }
@@ -4040,16 +4039,26 @@ class HLoadKeyedFastDoubleElement
       : Representation::Integer32();
   }
 
+  bool RequiresHoleCheck() {
+    return hole_check_mode_ == PERFORM_HOLE_CHECK;
+  }
+
   virtual void PrintDataTo(StringStream* stream);
 
   DECLARE_CONCRETE_INSTRUCTION(LoadKeyedFastDoubleElement)
 
  protected:
-  virtual bool DataEquals(HValue* other) { return true; }
+  virtual bool DataEquals(HValue* other) {
+    if (!other->IsLoadKeyedFastDoubleElement()) return false;
+    HLoadKeyedFastDoubleElement* other_load =
+        HLoadKeyedFastDoubleElement::cast(other);
+    return hole_check_mode_ == other_load->hole_check_mode_;
+  }
 
  private:
   uint32_t index_offset_;
   bool is_dehoisted_;
+  HoleCheckMode hole_check_mode_;
 };
 
 
@@ -4256,7 +4265,7 @@ class HStoreKeyedFastElement
   HValue* key() { return OperandAt(1); }
   HValue* value() { return OperandAt(2); }
   bool value_is_smi() {
-    return elements_kind_ == FAST_SMI_ONLY_ELEMENTS;
+    return IsFastSmiElementsKind(elements_kind_);
   }
   uint32_t index_offset() { return index_offset_; }
   void SetIndexOffset(uint32_t index_offset) { index_offset_ = index_offset; }
@@ -4427,9 +4436,19 @@ class HTransitionElementsKind: public HTemplateInstruction<1> {
         transitioned_map_(transitioned_map) {
     SetOperandAt(0, object);
     SetFlag(kUseGVN);
+    // Don't set GVN DependOn flags here. That would defeat GVN's detection of
+    // congruent HTransitionElementsKind instructions. Instruction hoisting
+    // handles HTransitionElementsKind instruction specially, explicitly adding
+    // DependsOn flags during its dependency calculations.
     SetGVNFlag(kChangesElementsKind);
-    SetGVNFlag(kChangesElementsPointer);
-    SetGVNFlag(kChangesNewSpacePromotion);
+    if (original_map->has_fast_double_elements()) {
+      SetGVNFlag(kChangesElementsPointer);
+      SetGVNFlag(kChangesNewSpacePromotion);
+    }
+    if (transitioned_map->has_fast_double_elements()) {
+      SetGVNFlag(kChangesElementsPointer);
+      SetGVNFlag(kChangesNewSpacePromotion);
+    }
     set_representation(Representation::Tagged());
   }
 
@@ -4667,7 +4686,7 @@ class HArrayLiteral: public HMaterializedLiteral<1> {
   HValue* context() { return OperandAt(0); }
   ElementsKind boilerplate_elements_kind() const {
     if (!boilerplate_object_->IsJSObject()) {
-      return FAST_ELEMENTS;
+      return TERMINAL_FAST_ELEMENTS_KIND;
     }
     return Handle<JSObject>::cast(boilerplate_object_)->GetElementsKind();
   }

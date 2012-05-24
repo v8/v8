@@ -278,6 +278,10 @@ function TrimRegExp(regexp) {
 
 
 function RegExpToString() {
+  if (!IS_REGEXP(this)) {
+    throw MakeTypeError('incompatible_method_receiver',
+                        ['RegExp.prototype.toString', this]);
+  }
   var result = '/' + this.source + '/';
   if (this.global) result += 'g';
   if (this.ignoreCase) result += 'i';

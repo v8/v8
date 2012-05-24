@@ -1,3 +1,11 @@
+2012-05-24: Version 3.11.6
+
+        Fixed RegExp.prototype.toString for incompatible receivers
+        (issue 1981).
+
+        Performance and stability improvements on all platforms.
+
+
 2012-05-23: Version 3.11.5
 
         Performance and stability improvements on all platforms.
