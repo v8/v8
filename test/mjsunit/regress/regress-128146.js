@@ -25,14 +25,9 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// Define accessor properties, resulting in an AccessorPair with 2 transitions.
 Object.defineProperty({},"foo",{set:function(){},configurable:false});
 Object.defineProperty({},"foo",{get:function(){},configurable:false});
+
+// Define a data property under the same name.
 Object.defineProperty({},"foo",{});
-
-// From WebKit layout tests (fast/js/prototypes.html)
-var wasSet = false;
-var o = { };
-o.__defineGetter__("__proto__", function() { wasSet = true });
-o.__proto__;
-assertFalse(wasSet);
-
