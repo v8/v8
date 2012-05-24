@@ -5043,7 +5043,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
                       1, a0, a2);
 
   // Isolates: note we add an additional parameter here (isolate pointer).
-  const int kRegExpExecuteArguments = 8;
+  const int kRegExpExecuteArguments = 9;
   const int kParameterRegisters = 4;
   __ EnterExitFrame(false, kRegExpExecuteArguments - kParameterRegisters);
 
@@ -5054,27 +5054,33 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // allocating space for the c argument slots, we don't need to calculate
   // that into the argument positions on the stack. This is how the stack will
   // look (sp meaning the value of sp at this moment):
+  // [sp + 5] - Argument 9
   // [sp + 4] - Argument 8
   // [sp + 3] - Argument 7
   // [sp + 2] - Argument 6
   // [sp + 1] - Argument 5
   // [sp + 0] - saved ra
 
-  // Argument 8: Pass current isolate address.
+  // Argument 9: Pass current isolate address.
   // CFunctionArgumentOperand handles MIPS stack argument slots.
   __ li(a0, Operand(ExternalReference::isolate_address()));
+  __ sw(a0, MemOperand(sp, 5 * kPointerSize));
+
+  // Argument 8: Indicate that this is a direct call from JavaScript.
+  __ li(a0, Operand(1));
   __ sw(a0, MemOperand(sp, 4 * kPointerSize));
 
-  // Argument 7: Indicate that this is a direct call from JavaScript.
-  __ li(a0, Operand(1));
-  __ sw(a0, MemOperand(sp, 3 * kPointerSize));
-
-  // Argument 6: Start (high end) of backtracking stack memory area.
+  // Argument 7: Start (high end) of backtracking stack memory area.
   __ li(a0, Operand(address_of_regexp_stack_memory_address));
   __ lw(a0, MemOperand(a0, 0));
   __ li(a2, Operand(address_of_regexp_stack_memory_size));
   __ lw(a2, MemOperand(a2, 0));
   __ addu(a0, a0, a2);
+  __ sw(a0, MemOperand(sp, 3 * kPointerSize));
+
+  // Argument 6: Set the number of capture registers to zero to force global
+  // regexps to behave as non-global.  This does not affect non-global regexps.
+  __ mov(a0, zero_reg);
   __ sw(a0, MemOperand(sp, 2 * kPointerSize));
 
   // Argument 5: static offsets vector buffer.
@@ -5125,7 +5131,9 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // Check the result.
 
   Label success;
-  __ Branch(&success, eq, v0, Operand(NativeRegExpMacroAssembler::SUCCESS));
+  __ Branch(&success, eq, v0, Operand(1));
+  // We expect exactly one result since we force the called regexp to behave
+  // as non-global.
   Label failure;
   __ Branch(&failure, eq, v0, Operand(NativeRegExpMacroAssembler::FAILURE));
   // If not exception it can only be retry. Handle that in the runtime system.
