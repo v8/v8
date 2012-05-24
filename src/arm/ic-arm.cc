@@ -774,7 +774,7 @@ static MemOperand GenerateMappedArgumentsLookup(MacroAssembler* masm,
   __ b(lt, slow_case);
 
   // Check that the key is a positive smi.
-  __ tst(key, Operand(0x8000001));
+  __ tst(key, Operand(0x80000001));
   __ b(ne, slow_case);
 
   // Load the elements into scratch1 and check its map.
