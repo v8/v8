@@ -1347,35 +1347,34 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
   __ LoadRoot(at, Heap::kHeapNumberMapRootIndex);
   __ Branch(&non_double_value, ne, t0, Operand(at));
 
-
-  // Value is a double. Transition FAST_SMI_ELEMENTS -> FAST_DOUBLE_ELEMENTS
-  // and complete the store.
-  __ LoadTransitionedArrayMapConditional(FAST_SMI_ELEMENTS,
+  // Value is a double. Transition FAST_SMI_ONLY_ELEMENTS ->
+  // FAST_DOUBLE_ELEMENTS and complete the store.
+  __ LoadTransitionedArrayMapConditional(FAST_SMI_ONLY_ELEMENTS,
                                          FAST_DOUBLE_ELEMENTS,
                                          receiver_map,
                                          t0,
                                          &slow);
   ASSERT(receiver_map.is(a3));  // Transition code expects map in a3
-  ElementsTransitionGenerator::GenerateSmiToDouble(masm, &slow);
+  ElementsTransitionGenerator::GenerateSmiOnlyToDouble(masm, &slow);
   __ lw(elements, FieldMemOperand(receiver, JSObject::kElementsOffset));
   __ jmp(&fast_double_without_map_check);
 
   __ bind(&non_double_value);
-  // Value is not a double, FAST_SMI_ELEMENTS -> FAST_ELEMENTS
-  __ LoadTransitionedArrayMapConditional(FAST_SMI_ELEMENTS,
+  // Value is not a double, FAST_SMI_ONLY_ELEMENTS -> FAST_ELEMENTS
+  __ LoadTransitionedArrayMapConditional(FAST_SMI_ONLY_ELEMENTS,
                                          FAST_ELEMENTS,
                                          receiver_map,
                                          t0,
                                          &slow);
   ASSERT(receiver_map.is(a3));  // Transition code expects map in a3
-  ElementsTransitionGenerator::GenerateMapChangeElementsTransition(masm);
+  ElementsTransitionGenerator::GenerateSmiOnlyToObject(masm);
   __ lw(elements, FieldMemOperand(receiver, JSObject::kElementsOffset));
   __ jmp(&finish_object_store);
 
   __ bind(&transition_double_elements);
-  // Elements are double, but value is an Object that's not a HeapNumber. Make
-  // sure that the receiver is a Array with Object elements and transition array
-  // from double elements to Object elements.
+  // Elements are FAST_DOUBLE_ELEMENTS, but value is an Object that's not a
+  // HeapNumber. Make sure that the receiver is a Array with FAST_ELEMENTS and
+  // transition array from FAST_DOUBLE_ELEMENTS to FAST_ELEMENTS
   __ LoadTransitionedArrayMapConditional(FAST_DOUBLE_ELEMENTS,
                                          FAST_ELEMENTS,
                                          receiver_map,
@@ -1472,7 +1471,7 @@ void KeyedStoreIC::GenerateTransitionElementsSmiToDouble(MacroAssembler* masm) {
   // Must return the modified receiver in v0.
   if (!FLAG_trace_elements_transitions) {
     Label fail;
-    ElementsTransitionGenerator::GenerateSmiToDouble(masm, &fail);
+    ElementsTransitionGenerator::GenerateSmiOnlyToDouble(masm, &fail);
     __ Ret(USE_DELAY_SLOT);
     __ mov(v0, a2);
     __ bind(&fail);

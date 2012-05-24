@@ -324,7 +324,7 @@ Handle<Object> RegExpImpl::AtomExec(Handle<JSRegExp> re,
                                index)));
     if (index == -1) return isolate->factory()->null_value();
   }
-  ASSERT(last_match_info->HasFastObjectElements());
+  ASSERT(last_match_info->HasFastElements());
 
   {
     NoHandleAllocation no_handles;

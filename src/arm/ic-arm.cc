@@ -1249,7 +1249,7 @@ void KeyedStoreIC::GenerateTransitionElementsSmiToDouble(MacroAssembler* masm) {
   // Must return the modified receiver in r0.
   if (!FLAG_trace_elements_transitions) {
     Label fail;
-    ElementsTransitionGenerator::GenerateSmiToDouble(masm, &fail);
+    ElementsTransitionGenerator::GenerateSmiOnlyToDouble(masm, &fail);
     __ mov(r0, r2);
     __ Ret();
     __ bind(&fail);
@@ -1462,27 +1462,27 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
   __ CompareRoot(r4, Heap::kHeapNumberMapRootIndex);
   __ b(ne, &non_double_value);
 
-  // Value is a double. Transition FAST_SMI_ELEMENTS ->
+  // Value is a double. Transition FAST_SMI_ONLY_ELEMENTS ->
   // FAST_DOUBLE_ELEMENTS and complete the store.
-  __ LoadTransitionedArrayMapConditional(FAST_SMI_ELEMENTS,
+  __ LoadTransitionedArrayMapConditional(FAST_SMI_ONLY_ELEMENTS,
                                          FAST_DOUBLE_ELEMENTS,
                                          receiver_map,
                                          r4,
                                          &slow);
   ASSERT(receiver_map.is(r3));  // Transition code expects map in r3
-  ElementsTransitionGenerator::GenerateSmiToDouble(masm, &slow);
+  ElementsTransitionGenerator::GenerateSmiOnlyToDouble(masm, &slow);
   __ ldr(elements, FieldMemOperand(receiver, JSObject::kElementsOffset));
   __ jmp(&fast_double_without_map_check);
 
   __ bind(&non_double_value);
-  // Value is not a double, FAST_SMI_ELEMENTS -> FAST_ELEMENTS
-  __ LoadTransitionedArrayMapConditional(FAST_SMI_ELEMENTS,
+  // Value is not a double, FAST_SMI_ONLY_ELEMENTS -> FAST_ELEMENTS
+  __ LoadTransitionedArrayMapConditional(FAST_SMI_ONLY_ELEMENTS,
                                          FAST_ELEMENTS,
                                          receiver_map,
                                          r4,
                                          &slow);
   ASSERT(receiver_map.is(r3));  // Transition code expects map in r3
-  ElementsTransitionGenerator::GenerateMapChangeElementsTransition(masm);
+  ElementsTransitionGenerator::GenerateSmiOnlyToObject(masm);
   __ ldr(elements, FieldMemOperand(receiver, JSObject::kElementsOffset));
   __ jmp(&finish_object_store);
 

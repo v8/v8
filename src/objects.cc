@@ -56,6 +56,11 @@
 namespace v8 {
 namespace internal {
 
+void PrintElementsKind(FILE* out, ElementsKind kind) {
+  ElementsAccessor* accessor = ElementsAccessor::ForKind(kind);
+  PrintF(out, "%s", accessor->name());
+}
+
 
 MUST_USE_RESULT static MaybeObject* CreateJSValue(JSFunction* constructor,
                                                   Object* value) {
@@ -538,7 +543,7 @@ bool JSObject::IsDirty() {
   // If the object is fully fast case and has the same map it was
   // created with then no changes can have been made to it.
   return map() != fun->initial_map()
-      || !HasFastObjectElements()
+      || !HasFastElements()
       || !HasFastProperties();
 }
 
@@ -1062,9 +1067,7 @@ void String::StringShortPrint(StringStream* accumulator) {
 void JSObject::JSObjectShortPrint(StringStream* accumulator) {
   switch (map()->instance_type()) {
     case JS_ARRAY_TYPE: {
-      double length = JSArray::cast(this)->length()->IsUndefined()
-          ? 0
-          : JSArray::cast(this)->length()->Number();
+      double length = JSArray::cast(this)->length()->Number();
       accumulator->Add("<JS Array[%u]>", static_cast<uint32_t>(length));
       break;
     }
@@ -2199,28 +2202,33 @@ static Handle<T> MaybeNull(T* p) {
 
 
 Handle<Map> Map::FindTransitionedMap(MapHandleList* candidates) {
-  ElementsKind kind = elements_kind();
-  Handle<Map> transitioned_map = Handle<Map>::null();
-  Handle<Map> current_map(this);
-  bool packed = IsFastPackedElementsKind(kind);
-  if (IsTransitionableFastElementsKind(kind)) {
-    while (CanTransitionToMoreGeneralFastElementsKind(kind, false)) {
-      kind = GetNextMoreGeneralFastElementsKind(kind, false);
-      bool dummy = true;
-      Handle<Map> maybe_transitioned_map =
-          MaybeNull(current_map->LookupElementsTransitionMap(kind, &dummy));
-      if (maybe_transitioned_map.is_null()) break;
-      if (ContainsMap(candidates, maybe_transitioned_map) &&
-          (packed || !IsFastPackedElementsKind(kind))) {
-        transitioned_map = maybe_transitioned_map;
-        if (!IsFastPackedElementsKind(kind)) packed = false;
-      }
-      current_map = maybe_transitioned_map;
+  ElementsKind elms_kind = elements_kind();
+  if (elms_kind == FAST_DOUBLE_ELEMENTS) {
+    bool dummy = true;
+    Handle<Map> fast_map =
+        MaybeNull(LookupElementsTransitionMap(FAST_ELEMENTS, &dummy));
+    if (!fast_map.is_null() && ContainsMap(candidates, fast_map)) {
+      return fast_map;
     }
+    return Handle<Map>::null();
   }
-  return transitioned_map;
+  if (elms_kind == FAST_SMI_ONLY_ELEMENTS) {
+    bool dummy = true;
+    Handle<Map> double_map =
+        MaybeNull(LookupElementsTransitionMap(FAST_DOUBLE_ELEMENTS, &dummy));
+    // In the current implementation, if the DOUBLE map doesn't exist, the
+    // FAST map can't exist either.
+    if (double_map.is_null()) return Handle<Map>::null();
+    Handle<Map> fast_map =
+        MaybeNull(double_map->LookupElementsTransitionMap(FAST_ELEMENTS,
+                                                          &dummy));
+    if (!fast_map.is_null() && ContainsMap(candidates, fast_map)) {
+      return fast_map;
+    }
+    if (ContainsMap(candidates, double_map)) return double_map;
+  }
+  return Handle<Map>::null();
 }
-
 
 static Map* GetElementsTransitionMapFromDescriptor(Object* descriptor_contents,
                                                    ElementsKind elements_kind) {
@@ -2330,36 +2338,24 @@ Object* Map::GetDescriptorContents(String* sentinel_name,
 }
 
 
-Map* Map::LookupElementsTransitionMap(ElementsKind to_kind,
+Map* Map::LookupElementsTransitionMap(ElementsKind elements_kind,
                                       bool* safe_to_add_transition) {
-  ElementsKind from_kind = elements_kind();
-  if (IsFastElementsKind(from_kind) && IsFastElementsKind(to_kind)) {
-    if (!IsMoreGeneralElementsKindTransition(from_kind, to_kind)) {
-      if (safe_to_add_transition) *safe_to_add_transition = false;
-      return NULL;
-    }
-    ElementsKind transitioned_from_kind =
-        GetNextMoreGeneralFastElementsKind(from_kind, false);
-
-
-    // If the transition is a single step in the transition sequence, fall
-    // through to looking it up and returning it. If it requires several steps,
-    // divide and conquer.
-    if (transitioned_from_kind != to_kind) {
-      // If the transition is several steps in the lattice, divide and conquer.
-      Map* from_map = LookupElementsTransitionMap(transitioned_from_kind,
-                                                  safe_to_add_transition);
-      if (from_map == NULL) return NULL;
-      return from_map->LookupElementsTransitionMap(to_kind,
+  // Special case: indirect SMI->FAST transition (cf. comment in
+  // AddElementsTransition()).
+  if (this->elements_kind() == FAST_SMI_ONLY_ELEMENTS &&
+      elements_kind == FAST_ELEMENTS) {
+    Map* double_map = this->LookupElementsTransitionMap(FAST_DOUBLE_ELEMENTS,
+                                                        safe_to_add_transition);
+    if (double_map == NULL) return double_map;
+    return double_map->LookupElementsTransitionMap(FAST_ELEMENTS,
                                                    safe_to_add_transition);
-    }
   }
   Object* descriptor_contents = GetDescriptorContents(
       elements_transition_sentinel_name(), safe_to_add_transition);
   if (descriptor_contents != NULL) {
     Map* maybe_transition_map =
         GetElementsTransitionMapFromDescriptor(descriptor_contents,
-                                               to_kind);
+                                               elements_kind);
     ASSERT(maybe_transition_map == NULL || maybe_transition_map->IsMap());
     return maybe_transition_map;
   }
@@ -2367,35 +2363,29 @@ Map* Map::LookupElementsTransitionMap(ElementsKind to_kind,
 }
 
 
-MaybeObject* Map::AddElementsTransition(ElementsKind to_kind,
+MaybeObject* Map::AddElementsTransition(ElementsKind elements_kind,
                                         Map* transitioned_map) {
-  ElementsKind from_kind = elements_kind();
-  if (IsFastElementsKind(from_kind) && IsFastElementsKind(to_kind)) {
-    ASSERT(IsMoreGeneralElementsKindTransition(from_kind, to_kind));
-    ElementsKind transitioned_from_kind =
-        GetNextMoreGeneralFastElementsKind(from_kind, false);
-    // The map transitions graph should be a tree, therefore transitions to
-    // ElementsKind that are not adjacent in the ElementsKind sequence are not
-    // done directly, but instead by going through intermediate ElementsKinds
-    // first.
-    if (to_kind != transitioned_from_kind) {
-      bool safe_to_add = true;
-      Map* intermediate_map = LookupElementsTransitionMap(
-          transitioned_from_kind, &safe_to_add);
-      // This method is only called when safe_to_add has been found to be true
-      // earlier.
-      ASSERT(safe_to_add);
+  // The map transition graph should be a tree, therefore the transition
+  // from SMI to FAST elements is not done directly, but by going through
+  // DOUBLE elements first.
+  if (this->elements_kind() == FAST_SMI_ONLY_ELEMENTS &&
+      elements_kind == FAST_ELEMENTS) {
+    bool safe_to_add = true;
+    Map* double_map = this->LookupElementsTransitionMap(
+        FAST_DOUBLE_ELEMENTS, &safe_to_add);
+    // This method is only called when safe_to_add_transition has been found
+    // to be true earlier.
+    ASSERT(safe_to_add);
 
-      if (intermediate_map == NULL) {
-        MaybeObject* maybe_map = CopyDropTransitions();
-        if (!maybe_map->To(&intermediate_map)) return maybe_map;
-        intermediate_map->set_elements_kind(transitioned_from_kind);
-        MaybeObject* maybe_transition = AddElementsTransition(
-            transitioned_from_kind, intermediate_map);
-        if (maybe_transition->IsFailure()) return maybe_transition;
-      }
-      return intermediate_map->AddElementsTransition(to_kind, transitioned_map);
+    if (double_map == NULL) {
+      MaybeObject* maybe_map = this->CopyDropTransitions();
+      if (!maybe_map->To(&double_map)) return maybe_map;
+      double_map->set_elements_kind(FAST_DOUBLE_ELEMENTS);
+      MaybeObject* maybe_double_transition = this->AddElementsTransition(
+          FAST_DOUBLE_ELEMENTS, double_map);
+      if (maybe_double_transition->IsFailure()) return maybe_double_transition;
     }
+    return double_map->AddElementsTransition(FAST_ELEMENTS, transitioned_map);
   }
 
   bool safe_to_add_transition = true;
@@ -2447,11 +2437,10 @@ MaybeObject* JSObject::GetElementsTransitionMapSlow(ElementsKind to_kind) {
       !current_map->IsUndefined() &&
       !current_map->is_shared();
 
-  // Prevent long chains of DICTIONARY -> FAST_*_ELEMENTS maps caused by objects
+  // Prevent long chains of DICTIONARY -> FAST_ELEMENTS maps caused by objects
   // with elements that switch back and forth between dictionary and fast
-  // element modes.
-  if (from_kind == DICTIONARY_ELEMENTS &&
-      IsFastElementsKind(to_kind)) {
+  // element mode.
+  if (from_kind == DICTIONARY_ELEMENTS && to_kind == FAST_ELEMENTS) {
     safe_to_add_transition = false;
   }
 
@@ -3487,7 +3476,8 @@ MaybeObject* JSObject::NormalizeElements() {
   }
   if (array->IsDictionary()) return array;
 
-  ASSERT(HasFastSmiOrObjectElements() ||
+  ASSERT(HasFastElements() ||
+         HasFastSmiOnlyElements() ||
          HasFastDoubleElements() ||
          HasFastArgumentsElements());
   // Compute the effective length and allocate a new backing store.
@@ -3522,7 +3512,8 @@ MaybeObject* JSObject::NormalizeElements() {
         if (!maybe_value_object->ToObject(&value)) return maybe_value_object;
       }
     } else {
-      ASSERT(old_map->has_fast_smi_or_object_elements());
+      ASSERT(old_map->has_fast_elements() ||
+             old_map->has_fast_smi_only_elements());
       value = FixedArray::cast(array)->get(i);
     }
     PropertyDetails details = PropertyDetails(NONE, NORMAL);
@@ -4009,9 +4000,9 @@ MaybeObject* JSReceiver::DeleteProperty(String* name, DeleteMode mode) {
 bool JSObject::ReferencesObjectFromElements(FixedArray* elements,
                                             ElementsKind kind,
                                             Object* object) {
-  ASSERT(IsFastObjectElementsKind(kind) ||
+  ASSERT(kind == FAST_ELEMENTS ||
          kind == DICTIONARY_ELEMENTS);
-  if (IsFastObjectElementsKind(kind)) {
+  if (kind == FAST_ELEMENTS) {
     int length = IsJSArray()
         ? Smi::cast(JSArray::cast(this)->length())->value()
         : elements->length();
@@ -4063,15 +4054,12 @@ bool JSObject::ReferencesObject(Object* obj) {
     case EXTERNAL_FLOAT_ELEMENTS:
     case EXTERNAL_DOUBLE_ELEMENTS:
     case FAST_DOUBLE_ELEMENTS:
-    case FAST_HOLEY_DOUBLE_ELEMENTS:
       // Raw pixels and external arrays do not reference other
       // objects.
       break;
-    case FAST_SMI_ELEMENTS:
-    case FAST_HOLEY_SMI_ELEMENTS:
+    case FAST_SMI_ONLY_ELEMENTS:
       break;
     case FAST_ELEMENTS:
-    case FAST_HOLEY_ELEMENTS:
     case DICTIONARY_ELEMENTS: {
       FixedArray* elements = FixedArray::cast(this->elements());
       if (ReferencesObjectFromElements(elements, kind, obj)) return true;
@@ -4087,8 +4075,7 @@ bool JSObject::ReferencesObject(Object* obj) {
       }
       // Check the arguments.
       FixedArray* arguments = FixedArray::cast(parameter_map->get(1));
-      kind = arguments->IsDictionary() ? DICTIONARY_ELEMENTS :
-          FAST_HOLEY_ELEMENTS;
+      kind = arguments->IsDictionary() ? DICTIONARY_ELEMENTS : FAST_ELEMENTS;
       if (ReferencesObjectFromElements(arguments, kind, obj)) return true;
       break;
     }
@@ -4322,7 +4309,7 @@ void JSReceiver::Lookup(String* name, LookupResult* result) {
 }
 
 
-// Search object and its prototype chain for callback properties.
+// Search object and it's prototype chain for callback properties.
 void JSObject::LookupCallback(String* name, LookupResult* result) {
   Heap* heap = GetHeap();
   for (Object* current = this;
@@ -4366,12 +4353,9 @@ MaybeObject* JSObject::DefineElementAccessor(uint32_t index,
                                              Object* setter,
                                              PropertyAttributes attributes) {
   switch (GetElementsKind()) {
-    case FAST_SMI_ELEMENTS:
+    case FAST_SMI_ONLY_ELEMENTS:
     case FAST_ELEMENTS:
     case FAST_DOUBLE_ELEMENTS:
-    case FAST_HOLEY_SMI_ELEMENTS:
-    case FAST_HOLEY_ELEMENTS:
-    case FAST_HOLEY_DOUBLE_ELEMENTS:
       break;
     case EXTERNAL_PIXEL_ELEMENTS:
     case EXTERNAL_BYTE_ELEMENTS:
@@ -4461,7 +4445,7 @@ bool JSObject::CanSetCallback(String* name) {
          GetIsolate()->MayNamedAccess(this, name, v8::ACCESS_SET));
 
   // Check if there is an API defined callback object which prohibits
-  // callback overwriting in this object or its prototype chain.
+  // callback overwriting in this object or it's prototype chain.
   // This mechanism is needed for instance in a browser setting, where
   // certain accessors such as window.location should not be allowed
   // to be overwritten because allowing overwriting could potentially
@@ -4632,12 +4616,9 @@ MaybeObject* JSObject::DefineAccessor(AccessorInfo* info) {
 
     // Accessors overwrite previous callbacks (cf. with getters/setters).
     switch (GetElementsKind()) {
-      case FAST_SMI_ELEMENTS:
+      case FAST_SMI_ONLY_ELEMENTS:
       case FAST_ELEMENTS:
       case FAST_DOUBLE_ELEMENTS:
-      case FAST_HOLEY_SMI_ELEMENTS:
-      case FAST_HOLEY_ELEMENTS:
-      case FAST_HOLEY_DOUBLE_ELEMENTS:
         break;
       case EXTERNAL_PIXEL_ELEMENTS:
       case EXTERNAL_BYTE_ELEMENTS:
@@ -8426,7 +8407,7 @@ void Code::Disassemble(const char* name, FILE* out) {
 MaybeObject* JSObject::SetFastElementsCapacityAndLength(
     int capacity,
     int length,
-    SetFastElementsCapacitySmiMode smi_mode) {
+    SetFastElementsCapacityMode set_capacity_mode) {
   Heap* heap = GetHeap();
   // We should never end in here with a pixel or external array.
   ASSERT(!HasExternalArrayElements());
@@ -8437,40 +8418,34 @@ MaybeObject* JSObject::SetFastElementsCapacityAndLength(
     if (!maybe->To(&new_elements)) return maybe;
   }
 
-  ElementsKind elements_kind = GetElementsKind();
-  ElementsKind new_elements_kind;
-  // The resized array has FAST_*_SMI_ELEMENTS if the capacity mode forces it,
-  // or if it's allowed and the old elements array contained only SMIs.
-  bool has_fast_smi_elements =
-      (smi_mode == kForceSmiElements) ||
-      ((smi_mode == kAllowSmiElements) && HasFastSmiElements());
-  if (has_fast_smi_elements) {
-    if (IsHoleyElementsKind(elements_kind)) {
-      new_elements_kind = FAST_HOLEY_SMI_ELEMENTS;
-    } else {
-      new_elements_kind = FAST_SMI_ELEMENTS;
-    }
-  } else {
-    if (IsHoleyElementsKind(elements_kind)) {
-      new_elements_kind = FAST_HOLEY_ELEMENTS;
-    } else {
-      new_elements_kind = FAST_ELEMENTS;
-    }
+  // Find the new map to use for this object if there is a map change.
+  Map* new_map = NULL;
+  if (elements()->map() != heap->non_strict_arguments_elements_map()) {
+    // The resized array has FAST_SMI_ONLY_ELEMENTS if the capacity mode forces
+    // it, or if it's allowed and the old elements array contained only SMIs.
+    bool has_fast_smi_only_elements =
+        (set_capacity_mode == kForceSmiOnlyElements) ||
+        ((set_capacity_mode == kAllowSmiOnlyElements) &&
+         (elements()->map()->has_fast_smi_only_elements() ||
+          elements() == heap->empty_fixed_array()));
+    ElementsKind elements_kind = has_fast_smi_only_elements
+        ? FAST_SMI_ONLY_ELEMENTS
+        : FAST_ELEMENTS;
+    MaybeObject* maybe = GetElementsTransitionMap(GetIsolate(), elements_kind);
+    if (!maybe->To(&new_map)) return maybe;
   }
+
   FixedArrayBase* old_elements = elements();
+  ElementsKind elements_kind = GetElementsKind();
   ElementsAccessor* accessor = ElementsAccessor::ForKind(elements_kind);
+  ElementsKind to_kind = (elements_kind == FAST_SMI_ONLY_ELEMENTS)
+      ? FAST_SMI_ONLY_ELEMENTS
+      : FAST_ELEMENTS;
   { MaybeObject* maybe_obj =
-        accessor->CopyElements(this, new_elements, new_elements_kind);
+        accessor->CopyElements(this, new_elements, to_kind);
     if (maybe_obj->IsFailure()) return maybe_obj;
   }
   if (elements_kind != NON_STRICT_ARGUMENTS_ELEMENTS) {
-    Map* new_map = map();
-    if (new_elements_kind != elements_kind) {
-      MaybeObject* maybe =
-          GetElementsTransitionMap(GetIsolate(), new_elements_kind);
-      if (!maybe->To(&new_map)) return maybe;
-    }
-    ValidateElements();
     set_map_and_elements(new_map, new_elements);
   } else {
     FixedArray* parameter_map = FixedArray::cast(old_elements);
@@ -8482,9 +8457,11 @@ MaybeObject* JSObject::SetFastElementsCapacityAndLength(
                             GetElementsKind(), new_elements);
   }
 
+  // Update the length if necessary.
   if (IsJSArray()) {
     JSArray::cast(this)->set_length(Smi::FromInt(length));
   }
+
   return new_elements;
 }
 
@@ -8502,28 +8479,20 @@ MaybeObject* JSObject::SetFastDoubleElementsCapacityAndLength(
     if (!maybe_obj->To(&elems)) return maybe_obj;
   }
 
-  ElementsKind elements_kind = GetElementsKind();
-  ElementsKind new_elements_kind = elements_kind;
-  if (IsHoleyElementsKind(elements_kind)) {
-    new_elements_kind = FAST_HOLEY_DOUBLE_ELEMENTS;
-  } else {
-    new_elements_kind = FAST_DOUBLE_ELEMENTS;
-  }
-
   Map* new_map;
   { MaybeObject* maybe_obj =
-        GetElementsTransitionMap(heap->isolate(), new_elements_kind);
+        GetElementsTransitionMap(heap->isolate(), FAST_DOUBLE_ELEMENTS);
     if (!maybe_obj->To(&new_map)) return maybe_obj;
   }
 
   FixedArrayBase* old_elements = elements();
+  ElementsKind elements_kind = GetElementsKind();
   ElementsAccessor* accessor = ElementsAccessor::ForKind(elements_kind);
   { MaybeObject* maybe_obj =
         accessor->CopyElements(this, elems, FAST_DOUBLE_ELEMENTS);
     if (maybe_obj->IsFailure()) return maybe_obj;
   }
   if (elements_kind != NON_STRICT_ARGUMENTS_ELEMENTS) {
-    ValidateElements();
     set_map_and_elements(new_map, elems);
   } else {
     FixedArray* parameter_map = FixedArray::cast(old_elements);
@@ -8532,7 +8501,7 @@ MaybeObject* JSObject::SetFastDoubleElementsCapacityAndLength(
 
   if (FLAG_trace_elements_transitions) {
     PrintElementsTransition(stdout, elements_kind, old_elements,
-                            GetElementsKind(), elems);
+                            FAST_DOUBLE_ELEMENTS, elems);
   }
 
   if (IsJSArray()) {
@@ -8812,10 +8781,8 @@ JSObject::LocalElementType JSObject::HasLocalElement(uint32_t index) {
   }
 
   switch (GetElementsKind()) {
-    case FAST_SMI_ELEMENTS:
-    case FAST_ELEMENTS:
-    case FAST_HOLEY_SMI_ELEMENTS:
-    case FAST_HOLEY_ELEMENTS: {
+    case FAST_SMI_ONLY_ELEMENTS:
+    case FAST_ELEMENTS: {
       uint32_t length = IsJSArray() ?
           static_cast<uint32_t>
               (Smi::cast(JSArray::cast(this)->length())->value()) :
@@ -8826,8 +8793,7 @@ JSObject::LocalElementType JSObject::HasLocalElement(uint32_t index) {
       }
       break;
     }
-    case FAST_DOUBLE_ELEMENTS:
-    case FAST_HOLEY_DOUBLE_ELEMENTS: {
+    case FAST_DOUBLE_ELEMENTS: {
       uint32_t length = IsJSArray() ?
           static_cast<uint32_t>
               (Smi::cast(JSArray::cast(this)->length())->value()) :
@@ -9111,7 +9077,7 @@ MaybeObject* JSObject::SetFastElement(uint32_t index,
                                       Object* value,
                                       StrictModeFlag strict_mode,
                                       bool check_prototype) {
-  ASSERT(HasFastSmiOrObjectElements() ||
+  ASSERT(HasFastTypeElements() ||
          HasFastArgumentsElements());
 
   FixedArray* backing_store = FixedArray::cast(elements());
@@ -9137,29 +9103,13 @@ MaybeObject* JSObject::SetFastElement(uint32_t index,
   // Check if the length property of this object needs to be updated.
   uint32_t array_length = 0;
   bool must_update_array_length = false;
-  bool introduces_holes = true;
   if (IsJSArray()) {
     CHECK(JSArray::cast(this)->length()->ToArrayIndex(&array_length));
-    introduces_holes = index > array_length;
     if (index >= array_length) {
       must_update_array_length = true;
       array_length = index + 1;
     }
-  } else {
-    introduces_holes = index >= capacity;
   }
-
-  // If the array is growing, and it's not growth by a single element at the
-  // end, make sure that the ElementsKind is HOLEY.
-  ElementsKind elements_kind = GetElementsKind();
-  if (introduces_holes &&
-      IsFastElementsKind(elements_kind) &&
-      !IsFastHoleyElementsKind(elements_kind)) {
-    ElementsKind transitioned_kind = GetHoleyElementsKind(elements_kind);
-    MaybeObject* maybe = TransitionElementsKind(transitioned_kind);
-    if (maybe->IsFailure()) return maybe;
-  }
-
   // Check if the capacity of the backing store needs to be increased, or if
   // a transition to slow elements is necessary.
   if (index >= capacity) {
@@ -9179,44 +9129,42 @@ MaybeObject* JSObject::SetFastElement(uint32_t index,
     }
   }
   // Convert to fast double elements if appropriate.
-  if (HasFastSmiElements() && !value->IsSmi() && value->IsNumber()) {
+  if (HasFastSmiOnlyElements() && !value->IsSmi() && value->IsNumber()) {
     MaybeObject* maybe =
         SetFastDoubleElementsCapacityAndLength(new_capacity, array_length);
     if (maybe->IsFailure()) return maybe;
     FixedDoubleArray::cast(elements())->set(index, value->Number());
-    ValidateElements();
     return value;
   }
-  // Change elements kind from Smi-only to generic FAST if necessary.
-  if (HasFastSmiElements() && !value->IsSmi()) {
+  // Change elements kind from SMI_ONLY to generic FAST if necessary.
+  if (HasFastSmiOnlyElements() && !value->IsSmi()) {
     Map* new_map;
-    ElementsKind kind = HasFastHoleyElements()
-        ? FAST_HOLEY_ELEMENTS
-        : FAST_ELEMENTS;
-    MaybeObject* maybe_new_map = GetElementsTransitionMap(GetIsolate(),
-                                                          kind);
-    if (!maybe_new_map->To(&new_map)) return maybe_new_map;
-
+    { MaybeObject* maybe_new_map = GetElementsTransitionMap(GetIsolate(),
+                                                            FAST_ELEMENTS);
+      if (!maybe_new_map->To(&new_map)) return maybe_new_map;
+    }
     set_map(new_map);
+    if (FLAG_trace_elements_transitions) {
+      PrintElementsTransition(stdout, FAST_SMI_ONLY_ELEMENTS, elements(),
+                              FAST_ELEMENTS, elements());
+    }
   }
   // Increase backing store capacity if that's been decided previously.
   if (new_capacity != capacity) {
     FixedArray* new_elements;
-    SetFastElementsCapacitySmiMode smi_mode =
-        value->IsSmi() && HasFastSmiElements()
-            ? kAllowSmiElements
-            : kDontAllowSmiElements;
+    SetFastElementsCapacityMode set_capacity_mode =
+        value->IsSmi() && HasFastSmiOnlyElements()
+            ? kAllowSmiOnlyElements
+            : kDontAllowSmiOnlyElements;
     { MaybeObject* maybe =
           SetFastElementsCapacityAndLength(new_capacity,
                                            array_length,
-                                           smi_mode);
+                                           set_capacity_mode);
       if (!maybe->To(&new_elements)) return maybe;
     }
     new_elements->set(index, value);
-    ValidateElements();
     return value;
   }
-
   // Finally, set the new element and length.
   ASSERT(elements()->IsFixedArray());
   backing_store->set(index, value);
@@ -9340,21 +9288,20 @@ MaybeObject* JSObject::SetDictionaryElement(uint32_t index,
     } else {
       new_length = dictionary->max_number_key() + 1;
     }
-    SetFastElementsCapacitySmiMode smi_mode = FLAG_smi_only_arrays
-        ? kAllowSmiElements
-        : kDontAllowSmiElements;
+    SetFastElementsCapacityMode set_capacity_mode = FLAG_smi_only_arrays
+        ? kAllowSmiOnlyElements
+        : kDontAllowSmiOnlyElements;
     bool has_smi_only_elements = false;
     bool should_convert_to_fast_double_elements =
         ShouldConvertToFastDoubleElements(&has_smi_only_elements);
     if (has_smi_only_elements) {
-      smi_mode = kForceSmiElements;
+      set_capacity_mode = kForceSmiOnlyElements;
     }
     MaybeObject* result = should_convert_to_fast_double_elements
         ? SetFastDoubleElementsCapacityAndLength(new_length, new_length)
         : SetFastElementsCapacityAndLength(new_length,
                                            new_length,
-                                           smi_mode);
-    ValidateElements();
+                                           set_capacity_mode);
     if (result->IsFailure()) return result;
 #ifdef DEBUG
     if (FLAG_trace_normalization) {
@@ -9393,39 +9340,26 @@ MUST_USE_RESULT MaybeObject* JSObject::SetFastDoubleElement(
   // If the value object is not a heap number, switch to fast elements and try
   // again.
   bool value_is_smi = value->IsSmi();
-  bool introduces_holes = true;
-  uint32_t length = elms_length;
-  if (IsJSArray()) {
-    CHECK(JSArray::cast(this)->length()->ToArrayIndex(&length));
-    introduces_holes = index > length;
-  } else {
-    introduces_holes = index >= elms_length;
-  }
-
   if (!value->IsNumber()) {
+    Object* obj;
+    uint32_t length = elms_length;
+    if (IsJSArray()) {
+      CHECK(JSArray::cast(this)->length()->ToArrayIndex(&length));
+    }
     MaybeObject* maybe_obj = SetFastElementsCapacityAndLength(
         elms_length,
         length,
-        kDontAllowSmiElements);
-    if (maybe_obj->IsFailure()) return maybe_obj;
-    maybe_obj = SetFastElement(index, value, strict_mode, check_prototype);
-    if (maybe_obj->IsFailure()) return maybe_obj;
-    ValidateElements();
-    return maybe_obj;
+        kDontAllowSmiOnlyElements);
+    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
+    return SetFastElement(index,
+                          value,
+                          strict_mode,
+                          check_prototype);
   }
 
   double double_value = value_is_smi
       ? static_cast<double>(Smi::cast(value)->value())
       : HeapNumber::cast(value)->value();
-
-  // If the array is growing, and it's not growth by a single element at the
-  // end, make sure that the ElementsKind is HOLEY.
-  ElementsKind elements_kind = GetElementsKind();
-  if (introduces_holes && !IsFastHoleyElementsKind(elements_kind)) {
-    ElementsKind transitioned_kind = GetHoleyElementsKind(elements_kind);
-    MaybeObject* maybe = TransitionElementsKind(transitioned_kind);
-    if (maybe->IsFailure()) return maybe;
-  }
 
   // Check whether there is extra space in the fixed array.
   if (index < elms_length) {
@@ -9448,11 +9382,13 @@ MUST_USE_RESULT MaybeObject* JSObject::SetFastDoubleElement(
     int new_capacity = NewElementsCapacity(index+1);
     if (!ShouldConvertToSlowElements(new_capacity)) {
       ASSERT(static_cast<uint32_t>(new_capacity) > index);
-      MaybeObject* maybe_obj =
-          SetFastDoubleElementsCapacityAndLength(new_capacity, index + 1);
-      if (maybe_obj->IsFailure()) return maybe_obj;
+      Object* obj;
+      { MaybeObject* maybe_obj =
+            SetFastDoubleElementsCapacityAndLength(new_capacity,
+                                                   index + 1);
+        if (!maybe_obj->ToObject(&obj)) return maybe_obj;
+      }
       FixedDoubleArray::cast(elements())->set(index, double_value);
-      ValidateElements();
       return value;
     }
   }
@@ -9596,13 +9532,10 @@ MaybeObject* JSObject::SetElementWithoutInterceptor(uint32_t index,
          (attr & (DONT_DELETE | DONT_ENUM | READ_ONLY)) == 0);
   Isolate* isolate = GetIsolate();
   switch (GetElementsKind()) {
-    case FAST_SMI_ELEMENTS:
+    case FAST_SMI_ONLY_ELEMENTS:
     case FAST_ELEMENTS:
-    case FAST_HOLEY_SMI_ELEMENTS:
-    case FAST_HOLEY_ELEMENTS:
       return SetFastElement(index, value, strict_mode, check_prototype);
     case FAST_DOUBLE_ELEMENTS:
-    case FAST_HOLEY_DOUBLE_ELEMENTS:
       return SetFastDoubleElement(index, value, strict_mode, check_prototype);
     case EXTERNAL_PIXEL_ELEMENTS: {
       ExternalPixelArray* pixels = ExternalPixelArray::cast(elements());
@@ -9693,19 +9626,11 @@ Handle<Object> JSObject::TransitionElementsKind(Handle<JSObject> object,
 MaybeObject* JSObject::TransitionElementsKind(ElementsKind to_kind) {
   ElementsKind from_kind = map()->elements_kind();
 
-  if (IsFastHoleyElementsKind(from_kind)) {
-    to_kind = GetHoleyElementsKind(to_kind);
-  }
-
   Isolate* isolate = GetIsolate();
-  if (elements() == isolate->heap()->empty_fixed_array() ||
-      (IsFastSmiOrObjectElementsKind(from_kind) &&
-       IsFastSmiOrObjectElementsKind(to_kind)) ||
-      (from_kind == FAST_DOUBLE_ELEMENTS &&
-       to_kind == FAST_HOLEY_DOUBLE_ELEMENTS)) {
-    ASSERT(from_kind != TERMINAL_FAST_ELEMENTS_KIND);
-    // No change is needed to the elements() buffer, the transition
-    // only requires a map change.
+  if ((from_kind == FAST_SMI_ONLY_ELEMENTS ||
+      elements() == isolate->heap()->empty_fixed_array()) &&
+      to_kind == FAST_ELEMENTS) {
+    ASSERT(from_kind != FAST_ELEMENTS);
     MaybeObject* maybe_new_map = GetElementsTransitionMap(isolate, to_kind);
     Map* new_map;
     if (!maybe_new_map->To(&new_map)) return maybe_new_map;
@@ -9732,21 +9657,18 @@ MaybeObject* JSObject::TransitionElementsKind(ElementsKind to_kind) {
     }
   }
 
-  if (IsFastSmiElementsKind(from_kind) &&
-      IsFastDoubleElementsKind(to_kind)) {
+  if (from_kind == FAST_SMI_ONLY_ELEMENTS &&
+      to_kind == FAST_DOUBLE_ELEMENTS) {
     MaybeObject* maybe_result =
         SetFastDoubleElementsCapacityAndLength(capacity, length);
     if (maybe_result->IsFailure()) return maybe_result;
-    ValidateElements();
     return this;
   }
 
-  if (IsFastDoubleElementsKind(from_kind) &&
-      IsFastObjectElementsKind(to_kind)) {
+  if (from_kind == FAST_DOUBLE_ELEMENTS && to_kind == FAST_ELEMENTS) {
     MaybeObject* maybe_result = SetFastElementsCapacityAndLength(
-        capacity, length, kDontAllowSmiElements);
+        capacity, length, kDontAllowSmiOnlyElements);
     if (maybe_result->IsFailure()) return maybe_result;
-    ValidateElements();
     return this;
   }
 
@@ -9760,14 +9682,10 @@ MaybeObject* JSObject::TransitionElementsKind(ElementsKind to_kind) {
 // static
 bool Map::IsValidElementsTransition(ElementsKind from_kind,
                                     ElementsKind to_kind) {
-  // Transitions can't go backwards.
-  if (!IsMoreGeneralElementsKindTransition(from_kind, to_kind)) {
-    return false;
-  }
-
-  // Transitions from HOLEY -> PACKED are not allowed.
-  return !IsFastHoleyElementsKind(from_kind) ||
-      IsFastHoleyElementsKind(to_kind);
+  return
+      (from_kind == FAST_SMI_ONLY_ELEMENTS &&
+          (to_kind == FAST_DOUBLE_ELEMENTS || to_kind == FAST_ELEMENTS)) ||
+      (from_kind == FAST_DOUBLE_ELEMENTS && to_kind == FAST_ELEMENTS);
 }
 
 
@@ -9858,10 +9776,8 @@ void JSObject::GetElementsCapacityAndUsage(int* capacity, int* used) {
         break;
       }
       // Fall through.
-    case FAST_SMI_ELEMENTS:
+    case FAST_SMI_ONLY_ELEMENTS:
     case FAST_ELEMENTS:
-    case FAST_HOLEY_SMI_ELEMENTS:
-    case FAST_HOLEY_ELEMENTS:
       backing_store = FixedArray::cast(backing_store_base);
       *capacity = backing_store->length();
       for (int i = 0; i < *capacity; ++i) {
@@ -9875,8 +9791,7 @@ void JSObject::GetElementsCapacityAndUsage(int* capacity, int* used) {
       *used = dictionary->NumberOfElements();
       break;
     }
-    case FAST_DOUBLE_ELEMENTS:
-    case FAST_HOLEY_DOUBLE_ELEMENTS: {
+    case FAST_DOUBLE_ELEMENTS: {
       FixedDoubleArray* elms = FixedDoubleArray::cast(elements());
       *capacity = elms->length();
       for (int i = 0; i < *capacity; i++) {
@@ -10146,19 +10061,16 @@ bool JSObject::HasRealElementProperty(uint32_t index) {
   if (this->IsStringObjectWithCharacterAt(index)) return true;
 
   switch (GetElementsKind()) {
-    case FAST_SMI_ELEMENTS:
-    case FAST_ELEMENTS:
-    case FAST_HOLEY_SMI_ELEMENTS:
-    case FAST_HOLEY_ELEMENTS: {
-     uint32_t length = IsJSArray() ?
+    case FAST_SMI_ONLY_ELEMENTS:
+    case FAST_ELEMENTS: {
+      uint32_t length = IsJSArray() ?
           static_cast<uint32_t>(
               Smi::cast(JSArray::cast(this)->length())->value()) :
           static_cast<uint32_t>(FixedArray::cast(elements())->length());
       return (index < length) &&
           !FixedArray::cast(elements())->get(index)->IsTheHole();
     }
-    case FAST_DOUBLE_ELEMENTS:
-    case FAST_HOLEY_DOUBLE_ELEMENTS: {
+    case FAST_DOUBLE_ELEMENTS: {
       uint32_t length = IsJSArray() ?
           static_cast<uint32_t>(
               Smi::cast(JSArray::cast(this)->length())->value()) :
@@ -10358,7 +10270,7 @@ int JSObject::NumberOfLocalElements(PropertyAttributes filter) {
 
 int JSObject::NumberOfEnumElements() {
   // Fast case for objects with no elements.
-  if (!IsJSValue() && HasFastObjectElements()) {
+  if (!IsJSValue() && HasFastElements()) {
     uint32_t length = IsJSArray() ?
         static_cast<uint32_t>(
             Smi::cast(JSArray::cast(this)->length())->value()) :
@@ -10374,10 +10286,8 @@ int JSObject::GetLocalElementKeys(FixedArray* storage,
                                   PropertyAttributes filter) {
   int counter = 0;
   switch (GetElementsKind()) {
-    case FAST_SMI_ELEMENTS:
-    case FAST_ELEMENTS:
-    case FAST_HOLEY_SMI_ELEMENTS:
-    case FAST_HOLEY_ELEMENTS: {
+    case FAST_SMI_ONLY_ELEMENTS:
+    case FAST_ELEMENTS: {
       int length = IsJSArray() ?
           Smi::cast(JSArray::cast(this)->length())->value() :
           FixedArray::cast(elements())->length();
@@ -10392,8 +10302,7 @@ int JSObject::GetLocalElementKeys(FixedArray* storage,
       ASSERT(!storage || storage->length() >= counter);
       break;
     }
-    case FAST_DOUBLE_ELEMENTS:
-    case FAST_HOLEY_DOUBLE_ELEMENTS: {
+    case FAST_DOUBLE_ELEMENTS: {
       int length = IsJSArray() ?
           Smi::cast(JSArray::cast(this)->length())->value() :
           FixedDoubleArray::cast(elements())->length();
@@ -11326,9 +11235,10 @@ MaybeObject* JSObject::PrepareElementsForSort(uint32_t limit) {
     // Convert to fast elements.
 
     Object* obj;
-    MaybeObject* maybe_obj = GetElementsTransitionMap(GetIsolate(),
-                                                      FAST_HOLEY_ELEMENTS);
-    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
+    { MaybeObject* maybe_obj = GetElementsTransitionMap(GetIsolate(),
+                                                        FAST_ELEMENTS);
+      if (!maybe_obj->ToObject(&obj)) return maybe_obj;
+    }
     Map* new_map = Map::cast(obj);
 
     PretenureFlag tenure = heap->InNewSpace(this) ? NOT_TENURED: TENURED;
@@ -11339,9 +11249,9 @@ MaybeObject* JSObject::PrepareElementsForSort(uint32_t limit) {
     }
     FixedArray* fast_elements = FixedArray::cast(new_array);
     dict->CopyValuesTo(fast_elements);
-    ValidateElements();
 
-    set_map_and_elements(new_map, fast_elements);
+    set_map(new_map);
+    set_elements(fast_elements);
   } else if (HasExternalArrayElements()) {
     // External arrays cannot have holes or undefined elements.
     return Smi::FromInt(ExternalArray::cast(elements())->length());
@@ -11351,7 +11261,7 @@ MaybeObject* JSObject::PrepareElementsForSort(uint32_t limit) {
       if (!maybe_obj->ToObject(&obj)) return maybe_obj;
     }
   }
-  ASSERT(HasFastSmiOrObjectElements() || HasFastDoubleElements());
+  ASSERT(HasFastTypeElements() || HasFastDoubleElements());
 
   // Collect holes at the end, undefined before that and the rest at the
   // start, and return the number of non-hole, non-undefined values.

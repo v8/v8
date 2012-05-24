@@ -295,8 +295,6 @@
             '../../src/dtoa.h',
             '../../src/elements.cc',
             '../../src/elements.h',
-            '../../src/elements-kind.cc',
-            '../../src/elements-kind.h',
             '../../src/execution.cc',
             '../../src/execution.h',
             '../../src/factory.cc',
