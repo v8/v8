@@ -5277,9 +5277,8 @@ class TraversableMap : public Map {
     } else {
       DescriptorArray* descriptor_array =
           static_cast<DescriptorArray*>(object);
-      Object* map =
-          *HeapObject::RawField(descriptor_array, DescriptorArray::kMapOffset);
-      ASSERT(map->IsSmi());
+      ASSERT(*HeapObject::RawField(descriptor_array,
+                                   DescriptorArray::kMapOffset)->IsSmi());
       return descriptor_array;
     }
   }
