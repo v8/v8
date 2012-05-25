@@ -5088,39 +5088,40 @@ class IntrusiveMapTransitionIterator {
 
   void Start() {
     ASSERT(!IsIterating());
-    if (HasContentArray()) *ContentHeader() = Smi::FromInt(0);
+    if (HasDescriptors()) *DescriptorArrayHeader() = Smi::FromInt(0);
   }
 
   bool IsIterating() {
-    return HasContentArray() && (*ContentHeader())->IsSmi();
+    return HasDescriptors() && (*DescriptorArrayHeader())->IsSmi();
   }
 
   Map* Next() {
     ASSERT(IsIterating());
-    FixedArray* contents = ContentArray();
-    // Attention, tricky index manipulation ahead: Every entry in the contents
-    // array consists of a value/details pair, so the index is typically even.
-    // An exception is made for CALLBACKS entries: An even index means we look
-    // at its getter, and an odd index means we look at its setter.
-    int index = Smi::cast(*ContentHeader())->value();
-    while (index < contents->length()) {
-      PropertyDetails details(Smi::cast(contents->get(index | 1)));
+    // Attention, tricky index manipulation ahead: Two consecutive indices are
+    // assigned to each descriptor. Most descriptors directly advance to the
+    // next descriptor by adding 2 to the index. The exceptions are the
+    // CALLBACKS entries: An even index means we look at its getter, and an odd
+    // index means we look at its setter.
+    int raw_index = Smi::cast(*DescriptorArrayHeader())->value();
+    int index = raw_index / 2;
+    while (index < descriptor_array_->number_of_descriptors()) {
+      PropertyDetails details(RawGetDetails(index));
       switch (details.type()) {
         case MAP_TRANSITION:
         case CONSTANT_TRANSITION:
         case ELEMENTS_TRANSITION:
           // We definitely have a map transition.
-          *ContentHeader() = Smi::FromInt(index + 2);
-          return static_cast<Map*>(contents->get(index));
+          *DescriptorArrayHeader() = Smi::FromInt(raw_index + 2);
+          return static_cast<Map*>(RawGetValue(index));
         case CALLBACKS: {
           // We might have a map transition in a getter or in a setter.
           AccessorPair* accessors =
-              static_cast<AccessorPair*>(contents->get(index & ~1));
-          Object* accessor =
-              ((index & 1) == 0) ? accessors->getter() : accessors->setter();
-          index++;
+              static_cast<AccessorPair*>(RawGetValue(index));
+          Object* accessor = ((raw_index & 1) == 0)
+              ? accessors->getter()
+              : accessors->setter();
           if (accessor->IsMap()) {
-            *ContentHeader() = Smi::FromInt(index);
+            *DescriptorArrayHeader() = Smi::FromInt(raw_index + 1);
             return static_cast<Map*>(accessor);
           }
           break;
@@ -5132,27 +5133,41 @@ class IntrusiveMapTransitionIterator {
         case INTERCEPTOR:
         case NULL_DESCRIPTOR:
           // We definitely have no map transition.
-          index += 2;
+          raw_index += 2;
+          ++index;
           break;
       }
     }
-    *ContentHeader() = descriptor_array_->GetHeap()->fixed_array_map();
+    *DescriptorArrayHeader() = descriptor_array_->GetHeap()->fixed_array_map();
     return NULL;
   }
 
  private:
-  bool HasContentArray() {
-    return descriptor_array_-> length() > DescriptorArray::kContentArrayIndex;
+  bool HasDescriptors() {
+    return descriptor_array_-> length() > DescriptorArray::kFirstIndex;
   }
 
-  FixedArray* ContentArray() {
-    Object* array = descriptor_array_->get(DescriptorArray::kContentArrayIndex);
-    return static_cast<FixedArray*>(array);
+  Object** DescriptorArrayHeader() {
+    return HeapObject::RawField(descriptor_array_, DescriptorArray::kMapOffset);
   }
 
-  Object** ContentHeader() {
-    return HeapObject::RawField(ContentArray(), DescriptorArray::kMapOffset);
+  FixedArray* RawGetContentArray() {
+      Object* array =
+          descriptor_array_->get(DescriptorArray::kContentArrayIndex);
+      return static_cast<FixedArray*>(array);
   }
+
+  Object* RawGetValue(int descriptor_number) {
+    return RawGetContentArray()->get(
+        DescriptorArray::ToValueIndex(descriptor_number));
+  }
+
+  PropertyDetails RawGetDetails(int descriptor_number) {
+    Object* details = RawGetContentArray()->get(
+        DescriptorArray::ToDetailsIndex(descriptor_number));
+    return PropertyDetails(Smi::cast(details));
+  }
+
 
   DescriptorArray* descriptor_array_;
 };
@@ -5252,6 +5267,23 @@ class TraversableMap : public Map {
     return old_parent;
   }
 
+  // Can either be Smi (no instance descriptors), or a descriptor array with the
+  // header overwritten as a Smi (thus iterating).
+  DescriptorArray* MutatedInstanceDescriptors() {
+    Object* object =
+        *HeapObject::RawField(this, kInstanceDescriptorsOrBitField3Offset);
+    if (object->IsSmi()) {
+      return GetHeap()->empty_descriptor_array();
+    } else {
+      DescriptorArray* descriptor_array =
+          static_cast<DescriptorArray*>(object);
+      Object* map =
+          *HeapObject::RawField(descriptor_array, DescriptorArray::kMapOffset);
+      ASSERT(map->IsSmi());
+      return descriptor_array;
+    }
+  }
+
   // Start iterating over this map's children, possibly destroying a FixedArray
   // map (see explanation above).
   void ChildIteratorStart() {
@@ -5263,15 +5295,16 @@ class TraversableMap : public Map {
   // If we have an unvisited child map, return that one and advance. If we have
   // none, return NULL and reset any destroyed FixedArray maps.
   TraversableMap* ChildIteratorNext() {
-    IntrusiveMapTransitionIterator descriptor_iterator(instance_descriptors());
-    if (descriptor_iterator.IsIterating()) {
-      Map* next = descriptor_iterator.Next();
-      if (next != NULL) return static_cast<TraversableMap*>(next);
-    }
     IntrusivePrototypeTransitionIterator
         proto_iterator(unchecked_prototype_transitions());
     if (proto_iterator.IsIterating()) {
       Map* next = proto_iterator.Next();
+      if (next != NULL) return static_cast<TraversableMap*>(next);
+    }
+    IntrusiveMapTransitionIterator
+        descriptor_iterator(MutatedInstanceDescriptors());
+    if (descriptor_iterator.IsIterating()) {
+      Map* next = descriptor_iterator.Next();
       if (next != NULL) return static_cast<TraversableMap*>(next);
     }
     return NULL;
