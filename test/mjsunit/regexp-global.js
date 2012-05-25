@@ -125,3 +125,8 @@ str = str.replace(/(FOUR|TWO) \u817f (GOOD|BAD)/g,
                     return match.length - 7;
                   });
 assertEquals("4, 2!", str);
+
+// Test capture that is a real substring.
+var str = "Beasts of England, beasts of Ireland";
+str = str.replace(/(.*)/g, function(match) { return '~'; });
+assertEquals("~~", str);
