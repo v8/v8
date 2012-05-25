@@ -427,6 +427,7 @@ function SetUpRegExp() {
     LAST_INPUT(lastMatchInfo) = ToString(string);
   };
 
+  %OptimizeObjectForAddingMultipleProperties($RegExp, 22);
   %DefineOrRedefineAccessorProperty($RegExp, 'input', RegExpGetInput,
                                     RegExpSetInput, DONT_DELETE);
   %DefineOrRedefineAccessorProperty($RegExp, '$_', RegExpGetInput,
@@ -481,6 +482,7 @@ function SetUpRegExp() {
                                       RegExpMakeCaptureGetter(i), NoOpSetter,
                                       DONT_DELETE);
   }
+  %ToFastProperties($RegExp);
 }
 
 SetUpRegExp();

@@ -397,8 +397,6 @@ DEFINE_int(random_seed, 0,
 
 // objects.cc
 DEFINE_bool(use_verbose_printer, true, "allows verbose printing")
-DEFINE_bool(fast_accessor_properties, false,
-            "use map transitions for JavaScript accessors")
 
 // parser.cc
 DEFINE_bool(allow_natives_syntax, false, "allow natives syntax")

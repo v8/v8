@@ -4456,8 +4456,7 @@ MaybeObject* JSObject::DefinePropertyAccessor(String* name,
   // to do a lookup, which seems to be a bit of overkill.
   Heap* heap = GetHeap();
   bool only_attribute_changes = getter->IsNull() && setter->IsNull();
-  if (FLAG_fast_accessor_properties &&
-      HasFastProperties() && !only_attribute_changes) {
+  if (HasFastProperties() && !only_attribute_changes) {
     MaybeObject* getterOk = heap->undefined_value();
     if (!getter->IsNull()) {
       getterOk = DefineFastAccessor(name, ACCESSOR_GETTER, getter, attributes);
