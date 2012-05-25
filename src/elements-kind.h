@@ -199,8 +199,9 @@ ElementsKind GetNextMoreGeneralFastElementsKind(ElementsKind elements_kind,
 inline bool CanTransitionToMoreGeneralFastElementsKind(
     ElementsKind elements_kind,
     bool allow_only_packed) {
-  return elements_kind != TERMINAL_FAST_ELEMENTS_KIND &&
-      (!allow_only_packed || elements_kind != FAST_ELEMENTS);
+  return IsFastElementsKind(elements_kind) &&
+      (elements_kind != TERMINAL_FAST_ELEMENTS_KIND &&
+       (!allow_only_packed || elements_kind != FAST_ELEMENTS));
 }
 
 
