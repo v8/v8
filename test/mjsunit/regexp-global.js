@@ -129,4 +129,4 @@ assertEquals("4, 2!", str);
 // Test capture that is a real substring.
 var str = "Beasts of England, beasts of Ireland";
 str = str.replace(/(.*)/g, function(match) { return '~'; });
-assertEquals("~~");
+assertEquals("~~", str);
