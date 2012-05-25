@@ -2588,8 +2588,6 @@ class DescriptorArray: public FixedArray {
   static const int kMaxNumberOfDescriptors = 1024 + 512;
 
  private:
-  friend class IntrusiveMapTransitionIterator;
-
   // An entry in a DescriptorArray, represented as an (array, index) pair.
   class Entry {
    public:
@@ -2628,7 +2626,6 @@ class DescriptorArray: public FixedArray {
   FixedArray* GetContentArray() {
     return FixedArray::cast(get(kContentArrayIndex));
   }
-
   DISALLOW_IMPLICIT_CONSTRUCTORS(DescriptorArray);
 };
 
