@@ -3955,7 +3955,6 @@ static int SearchRegExpMultiple(
             match = isolate->factory()->NewSubString(subject,
                                                      match_start,
                                                      match_end);
-            first = false;
           }
           elements->set(0, *match);
           for (int i = 1; i <= capture_count; i++) {
@@ -3963,8 +3962,14 @@ static int SearchRegExpMultiple(
             if (start >= 0) {
               int end = current_match[i * 2 + 1];
               ASSERT(start <= end);
-              Handle<String> substring =
-                  isolate->factory()->NewProperSubString(subject, start, end);
+              Handle<String> substring;
+              if (!first) {
+                substring =
+                    isolate->factory()->NewProperSubString(subject, start, end);
+              } else {
+                substring =
+                    isolate->factory()->NewSubString(subject, start, end);
+              }
               elements->set(i, *substring);
             } else {
               ASSERT(current_match[i * 2 + 1] < 0);
@@ -3975,6 +3980,7 @@ static int SearchRegExpMultiple(
           elements->set(capture_count + 2, *subject);
           builder->Add(*isolate->factory()->NewJSArrayWithElements(elements));
         }
+        first = false;
       }
 
       // If we did not get the maximum number of matches, we can stop here
