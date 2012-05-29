@@ -7708,11 +7708,13 @@ class JSProxy: public JSReceiver {
       uint32_t index);
 
   MUST_USE_RESULT MaybeObject* SetPropertyWithHandler(
+      JSReceiver* receiver,
       String* name,
       Object* value,
       PropertyAttributes attributes,
       StrictModeFlag strict_mode);
   MUST_USE_RESULT MaybeObject* SetElementWithHandler(
+      JSReceiver* receiver,
       uint32_t index,
       Object* value,
       StrictModeFlag strict_mode);
@@ -7720,6 +7722,7 @@ class JSProxy: public JSReceiver {
   // If the handler defines an accessor property, invoke its setter
   // (or throw if only a getter exists) and set *found to true. Otherwise false.
   MUST_USE_RESULT MaybeObject* SetPropertyWithHandlerIfDefiningSetter(
+      JSReceiver* receiver,
       String* name,
       Object* value,
       PropertyAttributes attributes,

@@ -248,13 +248,14 @@ MaybeObject* JSProxy::GetElementWithHandler(Object* receiver,
 }
 
 
-MaybeObject* JSProxy::SetElementWithHandler(uint32_t index,
+MaybeObject* JSProxy::SetElementWithHandler(JSReceiver* receiver,
+                                            uint32_t index,
                                             Object* value,
                                             StrictModeFlag strict_mode) {
   String* name;
   MaybeObject* maybe = GetHeap()->Uint32ToString(index);
   if (!maybe->To<String>(&name)) return maybe;
-  return SetPropertyWithHandler(name, value, NONE, strict_mode);
+  return SetPropertyWithHandler(receiver, name, value, NONE, strict_mode);
 }
 
 
@@ -2085,7 +2086,7 @@ MaybeObject* JSObject::SetElementWithCallbackSetterInPrototypes(
         return maybe;
       }
       return JSProxy::cast(pt)->SetPropertyWithHandlerIfDefiningSetter(
-          name, value, NONE, strict_mode, found);
+          this, name, value, NONE, strict_mode, found);
     }
     if (!JSObject::cast(pt)->HasDictionaryElements()) {
       continue;
@@ -2140,7 +2141,7 @@ MaybeObject* JSObject::SetPropertyWithCallbackSetterInPrototypes(
       Handle<Object> hvalue(value);
       MaybeObject* result =
           accessor_result.proxy()->SetPropertyWithHandlerIfDefiningSetter(
-              name, value, attributes, strict_mode, &found);
+              this, name, value, attributes, strict_mode, &found);
       if (found) return result;
       // The proxy does not define the property as an accessor.
       // Consequently, it has no effect on setting the receiver.
@@ -2624,7 +2625,7 @@ MaybeObject* JSReceiver::SetProperty(LookupResult* result,
                                      StrictModeFlag strict_mode) {
   if (result->IsFound() && result->type() == HANDLER) {
     return result->proxy()->SetPropertyWithHandler(
-        key, value, attributes, strict_mode);
+        this, key, value, attributes, strict_mode);
   } else {
     return JSObject::cast(this)->SetPropertyForResult(
         result, key, value, attributes, strict_mode);
@@ -2648,13 +2649,14 @@ bool JSProxy::HasPropertyWithHandler(String* name_raw) {
 
 
 MUST_USE_RESULT MaybeObject* JSProxy::SetPropertyWithHandler(
+    JSReceiver* receiver_raw,
     String* name_raw,
     Object* value_raw,
     PropertyAttributes attributes,
     StrictModeFlag strict_mode) {
   Isolate* isolate = GetIsolate();
   HandleScope scope(isolate);
-  Handle<Object> receiver(this);
+  Handle<JSReceiver> receiver(receiver_raw);
   Handle<Object> name(name_raw);
   Handle<Object> value(value_raw);
 
@@ -2667,6 +2669,7 @@ MUST_USE_RESULT MaybeObject* JSProxy::SetPropertyWithHandler(
 
 
 MUST_USE_RESULT MaybeObject* JSProxy::SetPropertyWithHandlerIfDefiningSetter(
+    JSReceiver* receiver_raw,
     String* name_raw,
     Object* value_raw,
     PropertyAttributes attributes,
@@ -2674,6 +2677,7 @@ MUST_USE_RESULT MaybeObject* JSProxy::SetPropertyWithHandlerIfDefiningSetter(
     bool* found) {
   *found = true;  // except where defined otherwise...
   Isolate* isolate = GetHeap()->isolate();
+  Handle<JSReceiver> receiver(receiver_raw);
   Handle<JSProxy> proxy(this);
   Handle<Object> handler(this->handler());  // Trap might morph proxy.
   Handle<String> name(name_raw);
@@ -2715,7 +2719,7 @@ MUST_USE_RESULT MaybeObject* JSProxy::SetPropertyWithHandlerIfDefiningSetter(
     if (!setter->IsUndefined()) {
       // We have a setter -- invoke it.
       // TODO(rossberg): nicer would be to cast to some JSCallable here...
-      return proxy->SetPropertyWithDefinedSetter(
+      return receiver->SetPropertyWithDefinedSetter(
           JSReceiver::cast(*setter), *value);
     } else {
       Handle<String> get_name = isolate->factory()->LookupAsciiSymbol("get_");
@@ -9657,7 +9661,7 @@ MaybeObject* JSReceiver::SetElement(uint32_t index,
                                     bool check_proto) {
   if (IsJSProxy()) {
     return JSProxy::cast(this)->SetElementWithHandler(
-        index, value, strict_mode);
+        this, index, value, strict_mode);
   } else {
     return JSObject::cast(this)->SetElement(
         index, value, attributes, strict_mode, check_proto);

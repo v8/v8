@@ -572,6 +572,7 @@ TestSetThrow(Proxy.create({
 }))
 
 
+var rec
 var key
 var val
 
@@ -611,6 +612,7 @@ function TestSetForDerived2(create, handler) {
 
   assertEquals(46, o.p_setter = 46)
   assertEquals("p_setter", key)
+  assertSame(o, rec)
   assertEquals(46, val)  // written to parent
   assertFalse(Object.prototype.hasOwnProperty.call(o, "p_setter"))
 
@@ -641,8 +643,14 @@ TestSetForDerived({
     switch (k) {
       case "p_writable": return {writable: true, configurable: true}
       case "p_nonwritable": return {writable: false, configurable: true}
-      case "p_setter":return {set: function(x) { val = x }, configurable: true}
-      case "p_nosetter": return {get: function() { return 1 }, configurable: true}
+      case "p_setter":return {
+        set: function(x) { rec = this; val = x },
+        configurable: true
+      }
+      case "p_nosetter": return {
+        get: function() { return 1 },
+        configurable: true
+      }
       case "p_nonconf":return {}
       case "p_throw": throw "myexn"
       case "p_setterthrow": return {set: function(x) { throw "myexn" }}
