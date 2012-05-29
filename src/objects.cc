@@ -2978,12 +2978,18 @@ MaybeObject* JSObject::SetPropertyForResult(LookupResult* result,
       // Preserve the attributes of this existing property.
       attributes = result->GetAttributes();
       return ConvertDescriptorToField(name, value, attributes);
-    case CALLBACKS:
-      return SetPropertyWithCallback(result->GetCallbackObject(),
+    case CALLBACKS: {
+      Object* callback_object = result->GetCallbackObject();
+      if (callback_object->IsAccessorPair() &&
+          !AccessorPair::cast(callback_object)->ContainsAccessor()) {
+        return ConvertDescriptorToField(name, value, attributes);
+      }
+      return SetPropertyWithCallback(callback_object,
                                      name,
                                      value,
                                      result->holder(),
                                      strict_mode);
+    }
     case INTERCEPTOR:
       return SetPropertyWithInterceptor(name, value, attributes, strict_mode);
     case CONSTANT_TRANSITION: {
