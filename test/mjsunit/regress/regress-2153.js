@@ -25,13 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax
-
-// This tests that concatenating a fast smi-only array and a fast object array
-// results in a fast object array.
-
-var fast_array = ['a', 'b'];
-var array = fast_array.concat(fast_array);
-
-assertTrue(%HasFastObjectElements(fast_array));
-assertTrue(%HasFastObjectElements(array));
+var o = {};
+o.__defineGetter__('foo', function () { return null; });
+var o = {};
+o.foo = 42;
+assertEquals(42, o.foo);

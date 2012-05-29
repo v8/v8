@@ -2207,7 +2207,7 @@ void V8HeapExplorer::ExtractPropertyReferences(JSObject* js_obj, int entry) {
 
 
 void V8HeapExplorer::ExtractElementReferences(JSObject* js_obj, int entry) {
-  if (js_obj->HasFastElements()) {
+  if (js_obj->HasFastObjectElements()) {
     FixedArray* elements = FixedArray::cast(js_obj->elements());
     int length = js_obj->IsJSArray() ?
         Smi::cast(JSArray::cast(js_obj)->length())->value() :

@@ -7102,8 +7102,8 @@ static const AheadOfTimeWriteBarrierStubList kAheadOfTime[] = {
   // KeyedStoreStubCompiler::GenerateStoreFastElement.
   { REG(r3), REG(r2), REG(r4), EMIT_REMEMBERED_SET },
   { REG(r2), REG(r3), REG(r4), EMIT_REMEMBERED_SET },
-  // ElementsTransitionGenerator::GenerateSmiOnlyToObject
-  // and ElementsTransitionGenerator::GenerateSmiOnlyToDouble
+  // ElementsTransitionGenerator::GenerateMapChangeElementTransition
+  // and ElementsTransitionGenerator::GenerateSmiToDouble
   // and ElementsTransitionGenerator::GenerateDoubleToObject
   { REG(r2), REG(r3), REG(r9), EMIT_REMEMBERED_SET },
   { REG(r2), REG(r3), REG(r9), OMIT_REMEMBERED_SET },
@@ -7366,9 +7366,9 @@ void StoreArrayLiteralElementStub::Generate(MacroAssembler* masm) {
   Label fast_elements;
 
   __ CheckFastElements(r2, r5, &double_elements);
-  // FAST_SMI_ONLY_ELEMENTS or FAST_ELEMENTS
+  // FAST_*_SMI_ELEMENTS or FAST_*_ELEMENTS
   __ JumpIfSmi(r0, &smi_element);
-  __ CheckFastSmiOnlyElements(r2, r5, &fast_elements);
+  __ CheckFastSmiElements(r2, r5, &fast_elements);
 
   // Store into the array literal requires a elements transition. Call into
   // the runtime.
@@ -7380,7 +7380,7 @@ void StoreArrayLiteralElementStub::Generate(MacroAssembler* masm) {
   __ Push(r5, r4);
   __ TailCallRuntime(Runtime::kStoreArrayLiteralElement, 5, 1);
 
-  // Array literal has ElementsKind of FAST_ELEMENTS and value is an object.
+  // Array literal has ElementsKind of FAST_*_ELEMENTS and value is an object.
   __ bind(&fast_elements);
   __ ldr(r5, FieldMemOperand(r1, JSObject::kElementsOffset));
   __ add(r6, r5, Operand(r3, LSL, kPointerSizeLog2 - kSmiTagSize));
@@ -7391,8 +7391,8 @@ void StoreArrayLiteralElementStub::Generate(MacroAssembler* masm) {
                  EMIT_REMEMBERED_SET, OMIT_SMI_CHECK);
   __ Ret();
 
-  // Array literal has ElementsKind of FAST_SMI_ONLY_ELEMENTS or
-  // FAST_ELEMENTS, and value is Smi.
+  // Array literal has ElementsKind of FAST_*_SMI_ELEMENTS or FAST_*_ELEMENTS,
+  // and value is Smi.
   __ bind(&smi_element);
   __ ldr(r5, FieldMemOperand(r1, JSObject::kElementsOffset));
   __ add(r6, r5, Operand(r3, LSL, kPointerSizeLog2 - kSmiTagSize));

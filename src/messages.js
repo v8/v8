@@ -788,15 +788,7 @@ function CallSiteGetThis() {
 }
 
 function CallSiteGetTypeName() {
-  var constructor = this.receiver.constructor;
-  if (!constructor) {
-    return %_CallFunction(this.receiver, ObjectToString);
-  }
-  var constructorName = constructor.name;
-  if (!constructorName) {
-    return %_CallFunction(this.receiver, ObjectToString);
-  }
-  return constructorName;
+  return GetTypeName(this, false);
 }
 
 function CallSiteIsToplevel() {
@@ -830,8 +822,10 @@ function CallSiteGetFunctionName() {
   var name = this.fun.name;
   if (name) {
     return name;
-  } else {
-    return %FunctionGetInferredName(this.fun);
+  }
+  name = %FunctionGetInferredName(this.fun);
+  if (name) {
+    return name;
   }
   // Maybe this is an evaluation?
   var script = %FunctionGetScript(this.fun);
@@ -952,20 +946,24 @@ function CallSiteToString() {
     fileLocation = "unknown source";
   }
   var line = "";
-  var functionName = this.getFunction().name;
-  var addPrefix = true;
+  var functionName = this.getFunctionName();
+  var addSuffix = true;
   var isConstructor = this.isConstructor();
   var isMethodCall = !(this.isToplevel() || isConstructor);
   if (isMethodCall) {
+    var typeName = GetTypeName(this, true);
     var methodName = this.getMethodName();
-    line += this.getTypeName() + ".";
     if (functionName) {
+      if (typeName && functionName.indexOf(typeName) != 0) {
+        line += typeName + ".";
+      }
       line += functionName;
-      if (methodName && (methodName != functionName)) {
+      if (methodName && functionName.lastIndexOf("." + methodName) !=
+          functionName.length - methodName.length - 1) {
         line += " [as " + methodName + "]";
       }
     } else {
-      line += methodName || "<anonymous>";
+      line += typeName + "." + (methodName || "<anonymous>");
     }
   } else if (isConstructor) {
     line += "new " + (functionName || "<anonymous>");
@@ -973,9 +971,9 @@ function CallSiteToString() {
     line += functionName;
   } else {
     line += fileLocation;
-    addPrefix = false;
+    addSuffix = false;
   }
-  if (addPrefix) {
+  if (addSuffix) {
     line += " (" + fileLocation + ")";
   }
   return line;
@@ -1085,6 +1083,19 @@ function FormatRawStackTrace(error, raw_stack) {
   }
 }
 
+function GetTypeName(obj, requireConstructor) {
+  var constructor = obj.receiver.constructor;
+  if (!constructor) {
+    return requireConstructor ? null :
+        %_CallFunction(obj.receiver, ObjectToString);
+  }
+  var constructorName = constructor.name;
+  if (!constructorName) {
+    return requireConstructor ? null :
+        %_CallFunction(obj.receiver, ObjectToString);
+  }
+  return constructorName;
+}
 
 function captureStackTrace(obj, cons_opt) {
   var stackTraceLimit = $Error.stackTraceLimit;

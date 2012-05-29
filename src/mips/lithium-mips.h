@@ -1224,7 +1224,8 @@ class LLoadKeyedFastDoubleElement: public LTemplateInstruction<1, 2, 0> {
 
 class LLoadKeyedSpecializedArrayElement: public LTemplateInstruction<1, 2, 0> {
  public:
-    LLoadKeyedSpecializedArrayElement(LOperand* external_pointer, LOperand* key) {
+    LLoadKeyedSpecializedArrayElement(LOperand* external_pointer,
+                                      LOperand* key) {
     inputs_[0] = external_pointer;
     inputs_[1] = key;
   }

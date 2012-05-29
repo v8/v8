@@ -673,7 +673,7 @@ TEST(JSArray) {
   array->SetElementsLength(Smi::FromInt(0))->ToObjectChecked();
   CHECK_EQ(Smi::FromInt(0), array->length());
   // Must be in fast mode.
-  CHECK(array->HasFastTypeElements());
+  CHECK(array->HasFastSmiOrObjectElements());
 
   // array[length] = name.
   array->SetElement(0, *name, NONE, kNonStrictMode)->ToObjectChecked();
@@ -811,7 +811,9 @@ TEST(Iteration) {
 
   // Allocate a JS array to OLD_POINTER_SPACE and NEW_SPACE
   objs[next_objs_index++] = FACTORY->NewJSArray(10);
-  objs[next_objs_index++] = FACTORY->NewJSArray(10, FAST_ELEMENTS, TENURED);
+  objs[next_objs_index++] = FACTORY->NewJSArray(10,
+                                                FAST_HOLEY_ELEMENTS,
+                                                TENURED);
 
   // Allocate a small string to OLD_DATA_SPACE and NEW_SPACE
   objs[next_objs_index++] =
@@ -1595,7 +1597,7 @@ TEST(PrototypeTransitionClearing) {
   Handle<JSObject> prototype;
   PagedSpace* space = HEAP->old_pointer_space();
   do {
-    prototype = FACTORY->NewJSArray(32 * KB, FAST_ELEMENTS, TENURED);
+    prototype = FACTORY->NewJSArray(32 * KB, FAST_HOLEY_ELEMENTS, TENURED);
   } while (space->FirstPage() == space->LastPage() ||
       !space->LastPage()->Contains(prototype->address()));
 
