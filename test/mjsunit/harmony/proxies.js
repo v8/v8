@@ -1630,8 +1630,8 @@ TestPropertyNames([], {
   getOwnPropertyNames: function() { return [] }
 })
 
-TestPropertyNames(["a", "zz", " ", "0"], {
-  getOwnPropertyNames: function() { return ["a", "zz", " ", 0] }
+TestPropertyNames(["a", "zz", " ", "0", "toString"], {
+  getOwnPropertyNames: function() { return ["a", "zz", " ", 0, "toString"] }
 })
 
 TestPropertyNames(["throw", "function "], {
@@ -1678,8 +1678,8 @@ TestKeys([], {
   keys: function() { return [] }
 })
 
-TestKeys(["a", "zz", " ", "0"], {
-  keys: function() { return ["a", "zz", " ", 0] }
+TestKeys(["a", "zz", " ", "0", "toString"], {
+  keys: function() { return ["a", "zz", " ", 0, "toString"] }
 })
 
 TestKeys(["throw", "function "], {
