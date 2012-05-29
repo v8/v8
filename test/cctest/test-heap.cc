@@ -1794,3 +1794,105 @@ TEST(Regress1465) {
   CompileRun("%DebugPrint(root);");
   CHECK_EQ(1, transitions_after);
 }
+
+
+TEST(Regress2143a) {
+  i::FLAG_collect_maps = true;
+  i::FLAG_incremental_marking = true;
+  InitializeVM();
+  v8::HandleScope scope;
+
+  // Prepare a map transition from the root object together with a yet
+  // untransitioned root object.
+  CompileRun("var root = new Object;"
+             "root.foo = 0;"
+             "root = new Object;");
+
+  // Go through all incremental marking steps in one swoop.
+  IncrementalMarking* marking = HEAP->incremental_marking();
+  CHECK(marking->IsStopped());
+  marking->Start();
+  CHECK(marking->IsMarking());
+  while (!marking->IsComplete()) {
+    marking->Step(MB, IncrementalMarking::NO_GC_VIA_STACK_GUARD);
+  }
+  CHECK(marking->IsComplete());
+
+  // Compile a StoreIC that performs the prepared map transition. This
+  // will restart incremental marking and should make sure the root is
+  // marked grey again.
+  CompileRun("function f(o) {"
+             "  o.foo = 0;"
+             "}"
+             "f(new Object);"
+             "f(root);");
+
+  // This bug only triggers with aggressive IC clearing.
+  HEAP->AgeInlineCaches();
+
+  // Explicitly request GC to perform final marking step and sweeping.
+  HEAP->CollectAllGarbage(Heap::kNoGCFlags);
+  CHECK(marking->IsStopped());
+
+  Handle<JSObject> root =
+      v8::Utils::OpenHandle(
+          *v8::Handle<v8::Object>::Cast(
+              v8::Context::GetCurrent()->Global()->Get(v8_str("root"))));
+
+  // The root object should be in a sane state.
+  CHECK(root->IsJSObject());
+  CHECK(root->map()->IsMap());
+}
+
+
+TEST(Regress2143b) {
+  i::FLAG_collect_maps = true;
+  i::FLAG_incremental_marking = true;
+  i::FLAG_allow_natives_syntax = true;
+  InitializeVM();
+  v8::HandleScope scope;
+
+  // Prepare a map transition from the root object together with a yet
+  // untransitioned root object.
+  CompileRun("var root = new Object;"
+             "root.foo = 0;"
+             "root = new Object;");
+
+  // Go through all incremental marking steps in one swoop.
+  IncrementalMarking* marking = HEAP->incremental_marking();
+  CHECK(marking->IsStopped());
+  marking->Start();
+  CHECK(marking->IsMarking());
+  while (!marking->IsComplete()) {
+    marking->Step(MB, IncrementalMarking::NO_GC_VIA_STACK_GUARD);
+  }
+  CHECK(marking->IsComplete());
+
+  // Compile an optimized LStoreNamedField that performs the prepared
+  // map transition. This will restart incremental marking and should
+  // make sure the root is marked grey again.
+  CompileRun("function f(o) {"
+             "  o.foo = 0;"
+             "}"
+             "f(new Object);"
+             "f(new Object);"
+             "%OptimizeFunctionOnNextCall(f);"
+             "f(root);"
+             "%DeoptimizeFunction(f);");
+
+  // This bug only triggers with aggressive IC clearing.
+  HEAP->AgeInlineCaches();
+
+  // Explicitly request GC to perform final marking step and sweeping.
+  HEAP->CollectAllGarbage(Heap::kNoGCFlags);
+  CHECK(marking->IsStopped());
+
+  Handle<JSObject> root =
+      v8::Utils::OpenHandle(
+          *v8::Handle<v8::Object>::Cast(
+              v8::Context::GetCurrent()->Global()->Get(v8_str("root"))));
+
+  // The root object should be in a sane state.
+  CHECK(root->IsJSObject());
+  CHECK(root->map()->IsMap());
+}
