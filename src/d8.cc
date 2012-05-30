@@ -338,8 +338,8 @@ Handle<Value> Shell::CreateExternalArray(const Arguments& args,
   }
   bool first_arg_is_array_buffer =
       args[0]->IsObject() &&
-      args[0]->ToObject()->GetHiddenValue(
-          String::New(kArrayBufferMarkerPropName))->IsTrue();
+      !args[0]->ToObject()->GetHiddenValue(
+          String::New(kArrayBufferMarkerPropName)).IsEmpty();
   // Currently, only the following constructors are supported:
   //   ArrayBuffer(unsigned long length)
   //   TypedArray(unsigned long length)
@@ -373,6 +373,9 @@ Handle<Value> Shell::CreateExternalArray(const Arguments& args,
     } else {
       byteOffset = convertToUint(args[1], &try_catch);
       if (try_catch.HasCaught()) return try_catch.Exception();
+      if (byteOffset > byteLength) {
+        return ThrowException(String::New("byteOffset out of bounds"));
+      }
       if (byteOffset % element_size != 0) {
         return ThrowException(
             String::New("byteOffset must be multiple of element_size"));
@@ -391,8 +394,7 @@ Handle<Value> Shell::CreateExternalArray(const Arguments& args,
     }
 
     if (byteOffset + length * element_size > byteLength) {
-      return ThrowException(
-          String::New("byteOffset or length out of bounds"));
+      return ThrowException(String::New("length out of bounds"));
     }
     byteLength = byteOffset + length * element_size;
 
@@ -454,7 +456,7 @@ void Shell::ExternalArrayWeakCallback(Persistent<Value> object, void* data) {
   Handle<String> prop_name = String::New(kArrayBufferReferencePropName);
   Handle<Object> converted_object = object->ToObject();
   Local<Value> prop_value = converted_object->GetHiddenValue(prop_name);
-  if (data != NULL && !prop_value->IsObject()) {
+  if (data != NULL && prop_value.IsEmpty()) {
     data = reinterpret_cast<size_t*>(data) - kExternalArrayAllocationHeaderSize;
     V8::AdjustAmountOfExternalAllocatedMemory(
         -static_cast<int>(*reinterpret_cast<size_t*>(data)));
