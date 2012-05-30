@@ -2453,6 +2453,7 @@ class DescriptorArray: public FixedArray {
   // Accessors for fetching instance descriptor at descriptor number.
   inline String* GetKey(int descriptor_number);
   inline Object* GetValue(int descriptor_number);
+  inline Object** GetValueSlot(int descriptor_number);
   inline PropertyDetails GetDetails(int descriptor_number);
   inline PropertyType GetType(int descriptor_number);
   inline int GetFieldIndex(int descriptor_number);
@@ -2463,6 +2464,14 @@ class DescriptorArray: public FixedArray {
   inline bool IsTransitionOnly(int descriptor_number);
   inline bool IsNullDescriptor(int descriptor_number);
 
+  // WhitenessWitness is used to prove that a specific descriptor array is white
+  // (unmarked), so incremental write barriers can be skipped because the
+  // marking invariant cannot be broken and slots pointing into evacuation
+  // candidates will be discovered when the object is scanned. A witness is
+  // always stack-allocated right after creating a descriptor array. By
+  // allocating a witness, incremental marking is globally disabled. The witness
+  // is then passed along wherever needed to statically prove that the
+  // descriptor array is known to be white.
   class WhitenessWitness {
    public:
     inline explicit WhitenessWitness(DescriptorArray* array);

@@ -6069,7 +6069,10 @@ MaybeObject* DescriptorArray::RemoveTransitions() {
   return new_descriptors;
 }
 
-
+// We need the whiteness witness since sort will reshuffle the entries in the
+// descriptor array. If the descriptor array were to be black, the shuffling
+// would move a slot that was already recorded as pointing into an evacuation
+// candidate. This would result in missing updates upon evacuation.
 void DescriptorArray::SortUnchecked(const WhitenessWitness& witness) {
   // In-place heap sort.
   int len = number_of_descriptors();
