@@ -1579,18 +1579,23 @@ TEST(PrototypeTransitionClearing) {
           *v8::Handle<v8::Object>::Cast(
               v8::Context::GetCurrent()->Global()->Get(v8_str("base"))));
 
-  // Verify that only dead prototype transitions are cleared.
-  CHECK_EQ(10, baseObject->map()->NumberOfProtoTransitions());
+  // Verify that only dead prototype transitions are cleared.  There is an
+  // extra, 11th, prototype transition on the Object map, which is the
+  // transition to a map with the used_for_prototype flag set (the key is
+  // the_hole).
+  CHECK_EQ(11, baseObject->map()->NumberOfProtoTransitions());
   HEAP->CollectAllGarbage(Heap::kNoGCFlags);
-  CHECK_EQ(10 - 3, baseObject->map()->NumberOfProtoTransitions());
+  const int transitions = 11 - 3;
+  CHECK_EQ(transitions, baseObject->map()->NumberOfProtoTransitions());
 
   // Verify that prototype transitions array was compacted.
   FixedArray* trans = baseObject->map()->prototype_transitions();
-  for (int i = 0; i < 10 - 3; i++) {
+  for (int i = 0; i < transitions; i++) {
     int j = Map::kProtoTransitionHeaderSize +
         i * Map::kProtoTransitionElementsPerEntry;
     CHECK(trans->get(j + Map::kProtoTransitionMapOffset)->IsMap());
-    CHECK(trans->get(j + Map::kProtoTransitionPrototypeOffset)->IsJSObject());
+    Object* proto = trans->get(j + Map::kProtoTransitionPrototypeOffset);
+    CHECK(proto->IsTheHole() || proto->IsJSObject());
   }
 
   // Make sure next prototype is placed on an old-space evacuation candidate.

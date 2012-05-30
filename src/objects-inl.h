@@ -1611,13 +1611,21 @@ bool JSObject::HasFastProperties() {
 }
 
 
-int JSObject::MaxFastProperties() {
+bool JSObject::TooManyFastProperties(int properties) {
   // Allow extra fast properties if the object has more than
-  // kMaxFastProperties in-object properties. When this is the case,
+  // kFastPropertiesSoftLimit in-object properties. When this is the case,
   // it is very unlikely that the object is being used as a dictionary
   // and there is a good chance that allowing more map transitions
   // will be worth it.
-  return Max(map()->inobject_properties(), kMaxFastProperties);
+  int inobject = map()->inobject_properties();
+
+  int limit;
+  if (map()->used_for_prototype()) {
+    limit = Max(inobject, kMaxFastProperties);
+  } else {
+    limit = Max(inobject, kFastPropertiesSoftLimit);
+  }
+  return properties >= limit;
 }
 
 
@@ -2924,6 +2932,20 @@ bool Map::is_shared() {
 }
 
 
+void Map::set_used_for_prototype(bool value) {
+  if (value) {
+    set_bit_field3(bit_field3() | (1 << kUsedForPrototype));
+  } else {
+    set_bit_field3(bit_field3() & ~(1 << kUsedForPrototype));
+  }
+}
+
+
+bool Map::used_for_prototype() {
+  return ((1 << kUsedForPrototype) & bit_field3()) != 0;
+}
+
+
 JSFunction* Map::unchecked_constructor() {
   return reinterpret_cast<JSFunction*>(READ_FIELD(this, kConstructorOffset));
 }
@@ -4073,6 +4095,7 @@ Object* JSFunction::prototype() {
   if (map()->has_non_instance_prototype()) return map()->constructor();
   return instance_prototype();
 }
+
 
 bool JSFunction::should_have_prototype() {
   return map()->function_with_prototype();
