@@ -1580,7 +1580,7 @@ MaybeObject* JSObject::AddFastProperty(String* name,
   }
 
   if (map()->unused_property_fields() == 0) {
-    if (TooManyFastProperties(properties()->length())) {
+    if (properties()->length() > MaxFastProperties()) {
       Object* obj;
       { MaybeObject* maybe_obj =
             NormalizeProperties(CLEAR_INOBJECT_PROPERTIES, 0);
@@ -1833,7 +1833,7 @@ MaybeObject* JSObject::ConvertDescriptorToField(String* name,
                                                 Object* new_value,
                                                 PropertyAttributes attributes) {
   if (map()->unused_property_fields() == 0 &&
-      TooManyFastProperties(properties()->length())) {
+      properties()->length() > MaxFastProperties()) {
     Object* obj;
     { MaybeObject* maybe_obj =
           NormalizeProperties(CLEAR_INOBJECT_PROPERTIES, 0);
@@ -5039,7 +5039,6 @@ MaybeObject* Map::CopyDropTransitions() {
   return new_map;
 }
 
-
 void Map::UpdateCodeCache(Handle<Map> map,
                           Handle<String> name,
                           Handle<Code> code) {
@@ -7622,57 +7621,9 @@ bool JSFunction::IsInlineable() {
 }
 
 
-MaybeObject* JSObject::OptimizeAsPrototype() {
-  if (IsGlobalObject()) return this;
-
-  // Make sure prototypes are fast objects and their maps have the bit set
-  // so they remain fast.
-  Map* proto_map = map();
-  if (!proto_map->used_for_prototype()) {
-    if (!HasFastProperties()) {
-      MaybeObject* new_proto = TransformToFastProperties(0);
-      if (new_proto->IsFailure()) return new_proto;
-      ASSERT(new_proto == this);
-      proto_map = map();
-      if (!proto_map->is_shared()) {
-        proto_map->set_used_for_prototype(true);
-      }
-    } else {
-      Heap* heap = GetHeap();
-      // We use the hole value as a singleton key in the prototype transition
-      // map so that we don't multiply the number of maps unnecessarily.
-      Map* new_map =
-          proto_map->GetPrototypeTransition(heap->the_hole_value());
-      if (new_map == NULL) {
-        MaybeObject* maybe_new_map = proto_map->CopyDropTransitions();
-        if (!maybe_new_map->To<Map>(&new_map)) return maybe_new_map;
-        new_map->set_used_for_prototype(true);
-        MaybeObject* ok =
-            proto_map->PutPrototypeTransition(heap->the_hole_value(),
-                                              new_map);
-        if (ok->IsFailure()) return ok;
-      }
-      ASSERT(!proto_map->is_shared() && !new_map->is_shared());
-      set_map(new_map);
-    }
-  }
-  return this;
-}
-
-
 MaybeObject* JSFunction::SetInstancePrototype(Object* value) {
   ASSERT(value->IsJSReceiver());
   Heap* heap = GetHeap();
-
-  // First some logic for the map of the prototype to make sure the
-  // used_for_prototype flag is set.
-  if (value->IsJSObject()) {
-    MaybeObject* ok = JSObject::cast(value)->OptimizeAsPrototype();
-    if (ok->IsFailure()) return ok;
-  }
-
-  // Now some logic for the maps of the objects that are created by using this
-  // function as a constructor.
   if (has_initial_map()) {
     // If the function has allocated the initial map
     // replace it with a copy containing the new prototype.
@@ -8844,7 +8795,7 @@ MaybeObject* JSArray::SetElementsLength(Object* len) {
 }
 
 
-Map* Map::GetPrototypeTransition(Object* prototype) {
+Object* Map::GetPrototypeTransition(Object* prototype) {
   FixedArray* cache = prototype_transitions();
   int number_of_transitions = NumberOfProtoTransitions();
   const int proto_offset =
@@ -8854,7 +8805,8 @@ Map* Map::GetPrototypeTransition(Object* prototype) {
   for (int i = 0; i < number_of_transitions; i++) {
     if (cache->get(proto_offset + i * step) == prototype) {
       Object* map = cache->get(map_offset + i * step);
-      return Map::cast(map);
+      ASSERT(map->IsMap());
+      return map;
     }
   }
   return NULL;
@@ -8962,26 +8914,21 @@ MaybeObject* JSReceiver::SetPrototype(Object* value,
   // Nothing to do if prototype is already set.
   if (map->prototype() == value) return value;
 
-  if (value->IsJSObject()) {
-    MaybeObject* ok = JSObject::cast(value)->OptimizeAsPrototype();
-    if (ok->IsFailure()) return ok;
-  }
-
-  Map* new_map = map->GetPrototypeTransition(value);
+  Object* new_map = map->GetPrototypeTransition(value);
   if (new_map == NULL) {
     { MaybeObject* maybe_new_map = map->CopyDropTransitions();
-      if (!maybe_new_map->To<Map>(&new_map)) return maybe_new_map;
+      if (!maybe_new_map->ToObject(&new_map)) return maybe_new_map;
     }
 
     { MaybeObject* maybe_new_cache =
-          map->PutPrototypeTransition(value, new_map);
+          map->PutPrototypeTransition(value, Map::cast(new_map));
       if (maybe_new_cache->IsFailure()) return maybe_new_cache;
     }
 
-    new_map->set_prototype(value);
+    Map::cast(new_map)->set_prototype(value);
   }
-  ASSERT(new_map->prototype() == value);
-  real_receiver->set_map(new_map);
+  ASSERT(Map::cast(new_map)->prototype() == value);
+  real_receiver->set_map(Map::cast(new_map));
 
   heap->ClearInstanceofCache();
   ASSERT(size == Size());

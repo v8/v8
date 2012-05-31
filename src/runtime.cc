@@ -13455,8 +13455,6 @@ ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(ExternalIntElements)
 ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(ExternalUnsignedIntElements)
 ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(ExternalFloatElements)
 ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(ExternalDoubleElements)
-// Properties test sitting with elements tests - not fooling anyone.
-ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(FastProperties)
 
 #undef ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION
 

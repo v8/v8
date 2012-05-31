@@ -1583,8 +1583,6 @@ class JSObject: public JSReceiver {
   MUST_USE_RESULT MaybeObject* DeleteNormalizedProperty(String* name,
                                                         DeleteMode mode);
 
-  MUST_USE_RESULT MaybeObject* OptimizeAsPrototype();
-
   // Retrieve interceptors.
   InterceptorInfo* GetNamedInterceptor();
   InterceptorInfo* GetIndexedInterceptor();
@@ -2055,7 +2053,7 @@ class JSObject: public JSReceiver {
   // Maximal number of fast properties for the JSObject. Used to
   // restrict the number of map transitions to avoid an explosion in
   // the number of maps for objects used as dictionaries.
-  inline bool TooManyFastProperties(int properties);
+  inline int MaxFastProperties();
 
   // Maximal number of elements (numbered 0 .. kMaxElementCount - 1).
   // Also maximal value of JSArray's length property.
@@ -2077,8 +2075,7 @@ class JSObject: public JSReceiver {
   static const int kMaxUncheckedOldFastElementsLength = 500;
 
   static const int kInitialMaxFastElementArray = 100000;
-  static const int kFastPropertiesSoftLimit = 12;
-  static const int kMaxFastProperties = 32;
+  static const int kMaxFastProperties = 12;
   static const int kMaxInstanceSize = 255 * kPointerSize;
   // When extending the backing storage for property values, we increase
   // its size by more than the 1 entry necessary, so sequentially adding fields
@@ -4678,15 +4675,8 @@ class Map: public HeapObject {
   // behavior. If true, the map should never be modified, instead a clone
   // should be created and modified.
   inline void set_is_shared(bool value);
-  inline bool is_shared();
 
-  // Tells whether the map is used for an object that is a prototype for another
-  // object or is the prototype on a function.  Such maps are made faster by
-  // tweaking the heuristics that distinguish between regular object-oriented
-  // objects and the objects that are being used as hash maps.  This flag is
-  // for optimization, not correctness.
-  inline void set_used_for_prototype(bool value);
-  inline bool used_for_prototype();
+  inline bool is_shared();
 
   // Tells whether the instance needs security checks when accessing its
   // properties.
@@ -4876,18 +4866,9 @@ class Map: public HeapObject {
 
   void TraverseTransitionTree(TraverseCallback callback, void* data);
 
-  // When you set the prototype of an object using the __proto__ accessor you
-  // need a new map for the object (the prototype is stored in the map).  In
-  // order not to multiply maps unnecessarily we store these as transitions in
-  // the original map.  That way we can transition to the same map if the same
-  // prototype is set, rather than creating a new map every time.  The
-  // transitions are in the form of a map where the keys are prototype objects
-  // and the values are the maps the are transitioned to.  The special key
-  // the_hole denotes the map we should transition to when the
-  // used_for_prototype flag is set.
   static const int kMaxCachedPrototypeTransitions = 256;
 
-  Map* GetPrototypeTransition(Object* prototype);
+  Object* GetPrototypeTransition(Object* prototype);
 
   MUST_USE_RESULT MaybeObject* PutPrototypeTransition(Object* prototype,
                                                       Map* map);
@@ -4980,7 +4961,6 @@ class Map: public HeapObject {
   // Bit positions for bit field 3
   static const int kIsShared = 0;
   static const int kFunctionWithPrototype = 1;
-  static const int kUsedForPrototype = 2;
 
   // Layout of the default cache. It holds alternating name and code objects.
   static const int kCodeCacheEntrySize = 2;
