@@ -575,8 +575,10 @@ class RegExpNode: public ZoneObject {
   // we look forward.  This is used for a Boyer-Moore-like string searching
   // implementation.  TODO(erikcorry):  This should share more code with
   // EatsAtLeast, GetQuickCheckDetails.
-  virtual void FillInBMInfo(
-      int offset, BoyerMooreLookahead* bm, bool not_at_start) {
+  virtual void FillInBMInfo(int offset,
+                            int recursion_depth,
+                            BoyerMooreLookahead* bm,
+                            bool not_at_start) {
     UNREACHABLE();
   }
 
@@ -675,9 +677,11 @@ class SeqRegExpNode: public RegExpNode {
   RegExpNode* on_success() { return on_success_; }
   void set_on_success(RegExpNode* node) { on_success_ = node; }
   virtual RegExpNode* FilterASCII(int depth);
-  virtual void FillInBMInfo(
-      int offset, BoyerMooreLookahead* bm, bool not_at_start) {
-    on_success_->FillInBMInfo(offset, bm, not_at_start);
+  virtual void FillInBMInfo(int offset,
+                            int recursion_depth,
+                            BoyerMooreLookahead* bm,
+                            bool not_at_start) {
+    on_success_->FillInBMInfo(offset, recursion_depth + 1, bm, not_at_start);
     if (offset == 0) set_bm_info(not_at_start, bm);
   }
 
@@ -730,8 +734,10 @@ class ActionNode: public SeqRegExpNode {
     return on_success()->GetQuickCheckDetails(
         details, compiler, filled_in, not_at_start);
   }
-  virtual void FillInBMInfo(
-      int offset, BoyerMooreLookahead* bm, bool not_at_start);
+  virtual void FillInBMInfo(int offset,
+                            int recursion_depth,
+                            BoyerMooreLookahead* bm,
+                            bool not_at_start);
   Type type() { return type_; }
   // TODO(erikcorry): We should allow some action nodes in greedy loops.
   virtual int GreedyLoopTextLength() { return kNodeIsTooComplexForGreedyLoops; }
@@ -799,8 +805,10 @@ class TextNode: public SeqRegExpNode {
   virtual int GreedyLoopTextLength();
   virtual RegExpNode* GetSuccessorOfOmnivorousTextNode(
       RegExpCompiler* compiler);
-  virtual void FillInBMInfo(
-      int offset, BoyerMooreLookahead* bm, bool not_at_start);
+  virtual void FillInBMInfo(int offset,
+                            int recursion_depth,
+                            BoyerMooreLookahead* bm,
+                            bool not_at_start);
   void CalculateOffsets();
   virtual RegExpNode* FilterASCII(int depth);
 
@@ -859,8 +867,10 @@ class AssertionNode: public SeqRegExpNode {
                                     RegExpCompiler* compiler,
                                     int filled_in,
                                     bool not_at_start);
-  virtual void FillInBMInfo(
-      int offset, BoyerMooreLookahead* bm, bool not_at_start);
+  virtual void FillInBMInfo(int offset,
+                            int recursion_depth,
+                            BoyerMooreLookahead* bm,
+                            bool not_at_start);
   AssertionNodeType type() { return type_; }
   void set_type(AssertionNodeType type) { type_ = type; }
 
@@ -897,8 +907,10 @@ class BackReferenceNode: public SeqRegExpNode {
                                     bool not_at_start) {
     return;
   }
-  virtual void FillInBMInfo(
-      int offset, BoyerMooreLookahead* bm, bool not_at_start);
+  virtual void FillInBMInfo(int offset,
+                            int recursion_depth,
+                            BoyerMooreLookahead* bm,
+                            bool not_at_start);
 
  private:
   int start_reg_;
@@ -922,8 +934,10 @@ class EndNode: public RegExpNode {
     // Returning 0 from EatsAtLeast should ensure we never get here.
     UNREACHABLE();
   }
-  virtual void FillInBMInfo(
-      int offset, BoyerMooreLookahead* bm, bool not_at_start) {
+  virtual void FillInBMInfo(int offset,
+                            int recursion_depth,
+                            BoyerMooreLookahead* bm,
+                            bool not_at_start) {
     // Returning 0 from EatsAtLeast should ensure we never get here.
     UNREACHABLE();
   }
@@ -1012,8 +1026,10 @@ class ChoiceNode: public RegExpNode {
                                     RegExpCompiler* compiler,
                                     int characters_filled_in,
                                     bool not_at_start);
-  virtual void FillInBMInfo(
-      int offset, BoyerMooreLookahead* bm, bool not_at_start);
+  virtual void FillInBMInfo(int offset,
+                            int recursion_depth,
+                            BoyerMooreLookahead* bm,
+                            bool not_at_start);
 
   bool being_calculated() { return being_calculated_; }
   bool not_at_start() { return not_at_start_; }
@@ -1062,9 +1078,12 @@ class NegativeLookaheadChoiceNode: public ChoiceNode {
                                     RegExpCompiler* compiler,
                                     int characters_filled_in,
                                     bool not_at_start);
-  virtual void FillInBMInfo(
-      int offset, BoyerMooreLookahead* bm, bool not_at_start) {
-    alternatives_->at(1).node()->FillInBMInfo(offset, bm, not_at_start);
+  virtual void FillInBMInfo(int offset,
+                            int recursion_depth,
+                            BoyerMooreLookahead* bm,
+                            bool not_at_start) {
+    alternatives_->at(1).node()->FillInBMInfo(
+        offset, recursion_depth + 1, bm, not_at_start);
     if (offset == 0) set_bm_info(not_at_start, bm);
   }
   // For a negative lookahead we don't emit the quick check for the
@@ -1094,8 +1113,10 @@ class LoopChoiceNode: public ChoiceNode {
                                     RegExpCompiler* compiler,
                                     int characters_filled_in,
                                     bool not_at_start);
-  virtual void FillInBMInfo(
-      int offset, BoyerMooreLookahead* bm, bool not_at_start);
+  virtual void FillInBMInfo(int offset,
+                            int recursion_depth,
+                            BoyerMooreLookahead* bm,
+                            bool not_at_start);
   RegExpNode* loop_node() { return loop_node_; }
   RegExpNode* continue_node() { return continue_node_; }
   bool body_can_be_zero_length() { return body_can_be_zero_length_; }
