@@ -1131,8 +1131,18 @@ void Isolate::DoThrow(Object* exception, MessageLocation* location) {
       // to the console for easier debugging.
       int line_number = GetScriptLineNumberSafe(location->script(),
                                                 location->start_pos());
-      OS::PrintError("Extension or internal compilation error at line %d.\n",
-                     line_number);
+      if (exception->IsString()) {
+        OS::PrintError(
+            "Extension or internal compilation error: %s in %s at line %d.\n",
+            *String::cast(exception)->ToCString(),
+            *String::cast(location->script()->name())->ToCString(),
+            line_number);
+      } else {
+        OS::PrintError(
+            "Extension or internal compilation error in %s at line %d.\n",
+            *String::cast(location->script()->name())->ToCString(),
+            line_number);
+      }
     }
   }
 
