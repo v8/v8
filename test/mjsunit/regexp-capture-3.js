@@ -216,3 +216,5 @@ regex10.exec(input0);
 var regex11 = /^(?:[^\u0000-\u0080]|[0-9a-z?,.!&\s#()])+$/i;
 regex11.exec(input0);
 
+var regex12 = /u(\xf0{8}?\D*?|( ? !)$h??(|)*?(||)+?\6((?:\W\B|--\d-*-|)?$){0, }?|^Y( ? !1)\d+)+a/;
+regex12.exec("");
