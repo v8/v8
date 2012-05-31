@@ -1,3 +1,20 @@
+2012-05-31: Version 3.11.8
+
+        Avoid overdeep recursion in regexp where a guarded expression with a
+        minimum repetition count is inside another quantifier.
+        (Chromium issue 129926)
+
+        Fixed missing write barrier in store field stub.
+        (issues 2143, 1465, Chromium issue 129355)
+
+        Proxies: Fixed receiver for setters inherited from proxies.
+        Proxies: Fixed ToStringArray function so that it does not reject some
+        keys.
+        (issue 1543)
+
+        Performance and stability improvements on all platforms.
+
+
 2012-05-29: Version 3.11.7
 
         Get better function names in stack traces.
