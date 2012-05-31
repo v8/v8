@@ -1650,11 +1650,12 @@ class LSmiUntag: public LTemplateInstruction<1, 1, 0> {
 };
 
 
-class LStoreNamedField: public LTemplateInstruction<0, 2, 0> {
+class LStoreNamedField: public LTemplateInstruction<0, 2, 1> {
  public:
-  LStoreNamedField(LOperand* obj, LOperand* val) {
+  LStoreNamedField(LOperand* obj, LOperand* val, LOperand* temp) {
     inputs_[0] = obj;
     inputs_[1] = val;
+    temps_[0] = temp;
   }
 
   DECLARE_CONCRETE_INSTRUCTION(StoreNamedField, "store-named-field")

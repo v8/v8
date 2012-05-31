@@ -782,10 +782,19 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
   }
 
   if (!transition.is_null()) {
-    // Update the map of the object; no write barrier updating is
-    // needed because the map is never in new space.
-    __ mov(FieldOperand(receiver_reg, HeapObject::kMapOffset),
-           Immediate(transition));
+    // Update the map of the object.
+    __ mov(scratch, Immediate(transition));
+    __ mov(FieldOperand(receiver_reg, HeapObject::kMapOffset), scratch);
+
+    // Update the write barrier for the map field and pass the now unused
+    // name_reg as scratch register.
+    __ RecordWriteField(receiver_reg,
+                        HeapObject::kMapOffset,
+                        scratch,
+                        name_reg,
+                        kDontSaveFPRegs,
+                        OMIT_REMEMBERED_SET,
+                        OMIT_SMI_CHECK);
   }
 
   // Adjust for the number of properties stored in the object. Even in the

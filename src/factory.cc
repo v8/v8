@@ -34,6 +34,7 @@
 #include "macro-assembler.h"
 #include "objects.h"
 #include "objects-visiting.h"
+#include "platform.h"
 #include "scopeinfo.h"
 
 namespace v8 {
@@ -675,6 +676,43 @@ Handle<Object> Factory::NewError(const char* type,
 }
 
 
+Handle<String> Factory::EmergencyNewError(const char* type,
+                                          Handle<JSArray> args) {
+  const int kBufferSize = 1000;
+  char buffer[kBufferSize];
+  size_t space = kBufferSize;
+  char* p = &buffer[0];
+
+  Vector<char> v(buffer, kBufferSize);
+  OS::StrNCpy(v, type, space);
+  space -= Min(space, strlen(type));
+  p = &buffer[kBufferSize] - space;
+
+  for (unsigned i = 0; i < ARRAY_SIZE(args); i++) {
+    if (space > 0) {
+      *p++ = ' ';
+      space--;
+      if (space > 0) {
+        MaybeObject* maybe_arg = args->GetElement(i);
+        Handle<String> arg_str(reinterpret_cast<String*>(maybe_arg));
+        const char* arg = *arg_str->ToCString();
+        Vector<char> v2(p, space);
+        OS::StrNCpy(v2, arg, space);
+        space -= Min(space, strlen(arg));
+        p = &buffer[kBufferSize] - space;
+      }
+    }
+  }
+  if (space > 0) {
+    *p = '\0';
+  } else {
+    buffer[kBufferSize - 1] = '\0';
+  }
+  Handle<String> error_string = NewStringFromUtf8(CStrVector(buffer), TENURED);
+  return error_string;
+}
+
+
 Handle<Object> Factory::NewError(const char* maker,
                                  const char* type,
                                  Handle<JSArray> args) {
@@ -683,8 +721,9 @@ Handle<Object> Factory::NewError(const char* maker,
       isolate()->js_builtins_object()->GetPropertyNoExceptionThrown(*make_str));
   // If the builtins haven't been properly configured yet this error
   // constructor may not have been defined.  Bail out.
-  if (!fun_obj->IsJSFunction())
-    return undefined_value();
+  if (!fun_obj->IsJSFunction()) {
+    return EmergencyNewError(type, args);
+  }
   Handle<JSFunction> fun = Handle<JSFunction>::cast(fun_obj);
   Handle<Object> type_obj = LookupAsciiSymbol(type);
   Handle<Object> argv[] = { type_obj, args };

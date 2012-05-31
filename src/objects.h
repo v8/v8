@@ -2450,6 +2450,7 @@ class DescriptorArray: public FixedArray {
   // Accessors for fetching instance descriptor at descriptor number.
   inline String* GetKey(int descriptor_number);
   inline Object* GetValue(int descriptor_number);
+  inline Object** GetValueSlot(int descriptor_number);
   inline PropertyDetails GetDetails(int descriptor_number);
   inline PropertyType GetType(int descriptor_number);
   inline int GetFieldIndex(int descriptor_number);
@@ -2460,6 +2461,14 @@ class DescriptorArray: public FixedArray {
   inline bool IsTransitionOnly(int descriptor_number);
   inline bool IsNullDescriptor(int descriptor_number);
 
+  // WhitenessWitness is used to prove that a specific descriptor array is white
+  // (unmarked), so incremental write barriers can be skipped because the
+  // marking invariant cannot be broken and slots pointing into evacuation
+  // candidates will be discovered when the object is scanned. A witness is
+  // always stack-allocated right after creating a descriptor array. By
+  // allocating a witness, incremental marking is globally disabled. The witness
+  // is then passed along wherever needed to statically prove that the
+  // descriptor array is known to be white.
   class WhitenessWitness {
    public:
     inline explicit WhitenessWitness(DescriptorArray* array);
@@ -2588,6 +2597,8 @@ class DescriptorArray: public FixedArray {
   static const int kMaxNumberOfDescriptors = 1024 + 512;
 
  private:
+  friend class IntrusiveMapTransitionIterator;
+
   // An entry in a DescriptorArray, represented as an (array, index) pair.
   class Entry {
    public:
@@ -2626,6 +2637,7 @@ class DescriptorArray: public FixedArray {
   FixedArray* GetContentArray() {
     return FixedArray::cast(get(kContentArrayIndex));
   }
+
   DISALLOW_IMPLICIT_CONSTRUCTORS(DescriptorArray);
 };
 
@@ -7708,11 +7720,13 @@ class JSProxy: public JSReceiver {
       uint32_t index);
 
   MUST_USE_RESULT MaybeObject* SetPropertyWithHandler(
+      JSReceiver* receiver,
       String* name,
       Object* value,
       PropertyAttributes attributes,
       StrictModeFlag strict_mode);
   MUST_USE_RESULT MaybeObject* SetElementWithHandler(
+      JSReceiver* receiver,
       uint32_t index,
       Object* value,
       StrictModeFlag strict_mode);
@@ -7720,6 +7734,7 @@ class JSProxy: public JSReceiver {
   // If the handler defines an accessor property, invoke its setter
   // (or throw if only a getter exists) and set *found to true. Otherwise false.
   MUST_USE_RESULT MaybeObject* SetPropertyWithHandlerIfDefiningSetter(
+      JSReceiver* receiver,
       String* name,
       Object* value,
       PropertyAttributes attributes,

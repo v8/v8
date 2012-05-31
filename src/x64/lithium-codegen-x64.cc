@@ -3318,7 +3318,22 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
   int offset = instr->offset();
 
   if (!instr->transition().is_null()) {
-    __ Move(FieldOperand(object, HeapObject::kMapOffset), instr->transition());
+    if (!instr->hydrogen()->NeedsWriteBarrierForMap()) {
+      __ Move(FieldOperand(object, HeapObject::kMapOffset),
+              instr->transition());
+    } else {
+      Register temp = ToRegister(instr->TempAt(0));
+      __ Move(kScratchRegister, instr->transition());
+      __ movq(FieldOperand(object, HeapObject::kMapOffset), kScratchRegister);
+      // Update the write barrier for the map field.
+      __ RecordWriteField(object,
+                          HeapObject::kMapOffset,
+                          kScratchRegister,
+                          temp,
+                          kSaveFPRegs,
+                          OMIT_REMEMBERED_SET,
+                          OMIT_SMI_CHECK);
+    }
   }
 
   // Do the store.

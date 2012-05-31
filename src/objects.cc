@@ -248,13 +248,14 @@ MaybeObject* JSProxy::GetElementWithHandler(Object* receiver,
 }
 
 
-MaybeObject* JSProxy::SetElementWithHandler(uint32_t index,
+MaybeObject* JSProxy::SetElementWithHandler(JSReceiver* receiver,
+                                            uint32_t index,
                                             Object* value,
                                             StrictModeFlag strict_mode) {
   String* name;
   MaybeObject* maybe = GetHeap()->Uint32ToString(index);
   if (!maybe->To<String>(&name)) return maybe;
-  return SetPropertyWithHandler(name, value, NONE, strict_mode);
+  return SetPropertyWithHandler(receiver, name, value, NONE, strict_mode);
 }
 
 
@@ -2085,7 +2086,7 @@ MaybeObject* JSObject::SetElementWithCallbackSetterInPrototypes(
         return maybe;
       }
       return JSProxy::cast(pt)->SetPropertyWithHandlerIfDefiningSetter(
-          name, value, NONE, strict_mode, found);
+          this, name, value, NONE, strict_mode, found);
     }
     if (!JSObject::cast(pt)->HasDictionaryElements()) {
       continue;
@@ -2140,7 +2141,7 @@ MaybeObject* JSObject::SetPropertyWithCallbackSetterInPrototypes(
       Handle<Object> hvalue(value);
       MaybeObject* result =
           accessor_result.proxy()->SetPropertyWithHandlerIfDefiningSetter(
-              name, value, attributes, strict_mode, &found);
+              this, name, value, attributes, strict_mode, &found);
       if (found) return result;
       // The proxy does not define the property as an accessor.
       // Consequently, it has no effect on setting the receiver.
@@ -2624,7 +2625,7 @@ MaybeObject* JSReceiver::SetProperty(LookupResult* result,
                                      StrictModeFlag strict_mode) {
   if (result->IsFound() && result->type() == HANDLER) {
     return result->proxy()->SetPropertyWithHandler(
-        key, value, attributes, strict_mode);
+        this, key, value, attributes, strict_mode);
   } else {
     return JSObject::cast(this)->SetPropertyForResult(
         result, key, value, attributes, strict_mode);
@@ -2648,13 +2649,14 @@ bool JSProxy::HasPropertyWithHandler(String* name_raw) {
 
 
 MUST_USE_RESULT MaybeObject* JSProxy::SetPropertyWithHandler(
+    JSReceiver* receiver_raw,
     String* name_raw,
     Object* value_raw,
     PropertyAttributes attributes,
     StrictModeFlag strict_mode) {
   Isolate* isolate = GetIsolate();
   HandleScope scope(isolate);
-  Handle<Object> receiver(this);
+  Handle<JSReceiver> receiver(receiver_raw);
   Handle<Object> name(name_raw);
   Handle<Object> value(value_raw);
 
@@ -2667,6 +2669,7 @@ MUST_USE_RESULT MaybeObject* JSProxy::SetPropertyWithHandler(
 
 
 MUST_USE_RESULT MaybeObject* JSProxy::SetPropertyWithHandlerIfDefiningSetter(
+    JSReceiver* receiver_raw,
     String* name_raw,
     Object* value_raw,
     PropertyAttributes attributes,
@@ -2674,6 +2677,7 @@ MUST_USE_RESULT MaybeObject* JSProxy::SetPropertyWithHandlerIfDefiningSetter(
     bool* found) {
   *found = true;  // except where defined otherwise...
   Isolate* isolate = GetHeap()->isolate();
+  Handle<JSReceiver> receiver(receiver_raw);
   Handle<JSProxy> proxy(this);
   Handle<Object> handler(this->handler());  // Trap might morph proxy.
   Handle<String> name(name_raw);
@@ -2715,7 +2719,7 @@ MUST_USE_RESULT MaybeObject* JSProxy::SetPropertyWithHandlerIfDefiningSetter(
     if (!setter->IsUndefined()) {
       // We have a setter -- invoke it.
       // TODO(rossberg): nicer would be to cast to some JSCallable here...
-      return proxy->SetPropertyWithDefinedSetter(
+      return receiver->SetPropertyWithDefinedSetter(
           JSReceiver::cast(*setter), *value);
     } else {
       Handle<String> get_name = isolate->factory()->LookupAsciiSymbol("get_");
@@ -5094,39 +5098,46 @@ class IntrusiveMapTransitionIterator {
 
   void Start() {
     ASSERT(!IsIterating());
-    if (HasContentArray()) *ContentHeader() = Smi::FromInt(0);
+    if (HasDescriptors()) *DescriptorArrayHeader() = Smi::FromInt(0);
   }
 
   bool IsIterating() {
-    return HasContentArray() && (*ContentHeader())->IsSmi();
+    return HasDescriptors() && (*DescriptorArrayHeader())->IsSmi();
   }
 
   Map* Next() {
     ASSERT(IsIterating());
-    FixedArray* contents = ContentArray();
-    // Attention, tricky index manipulation ahead: Every entry in the contents
-    // array consists of a value/details pair, so the index is typically even.
-    // An exception is made for CALLBACKS entries: An even index means we look
-    // at its getter, and an odd index means we look at its setter.
-    int index = Smi::cast(*ContentHeader())->value();
-    while (index < contents->length()) {
-      PropertyDetails details(Smi::cast(contents->get(index | 1)));
+    // Attention, tricky index manipulation ahead: Two consecutive indices are
+    // assigned to each descriptor. Most descriptors directly advance to the
+    // next descriptor by adding 2 to the index. The exceptions are the
+    // CALLBACKS entries: An even index means we look at its getter, and an odd
+    // index means we look at its setter.
+    int raw_index = Smi::cast(*DescriptorArrayHeader())->value();
+    int index = raw_index / 2;
+    int number_of_descriptors = descriptor_array_->number_of_descriptors();
+    while (index < number_of_descriptors) {
+      PropertyDetails details(RawGetDetails(index));
       switch (details.type()) {
         case MAP_TRANSITION:
         case CONSTANT_TRANSITION:
         case ELEMENTS_TRANSITION:
           // We definitely have a map transition.
-          *ContentHeader() = Smi::FromInt(index + 2);
-          return static_cast<Map*>(contents->get(index));
+          *DescriptorArrayHeader() = Smi::FromInt(raw_index + 2);
+          return static_cast<Map*>(RawGetValue(index));
         case CALLBACKS: {
           // We might have a map transition in a getter or in a setter.
           AccessorPair* accessors =
-              static_cast<AccessorPair*>(contents->get(index & ~1));
-          Object* accessor =
-              ((index & 1) == 0) ? accessors->getter() : accessors->setter();
-          index++;
+              static_cast<AccessorPair*>(RawGetValue(index));
+          Object* accessor;
+          if ((raw_index & 1) == 0) {
+            accessor = accessors->setter();
+          } else {
+            ++index;
+            accessor = accessors->getter();
+          }
+          ++raw_index;
           if (accessor->IsMap()) {
-            *ContentHeader() = Smi::FromInt(index);
+            *DescriptorArrayHeader() = Smi::FromInt(raw_index);
             return static_cast<Map*>(accessor);
           }
           break;
@@ -5138,27 +5149,41 @@ class IntrusiveMapTransitionIterator {
         case INTERCEPTOR:
         case NULL_DESCRIPTOR:
           // We definitely have no map transition.
-          index += 2;
+          raw_index += 2;
+          ++index;
           break;
       }
     }
-    *ContentHeader() = descriptor_array_->GetHeap()->fixed_array_map();
+    *DescriptorArrayHeader() = descriptor_array_->GetHeap()->fixed_array_map();
     return NULL;
   }
 
  private:
-  bool HasContentArray() {
-    return descriptor_array_-> length() > DescriptorArray::kContentArrayIndex;
+  bool HasDescriptors() {
+    return descriptor_array_->length() > DescriptorArray::kFirstIndex;
   }
 
-  FixedArray* ContentArray() {
-    Object* array = descriptor_array_->get(DescriptorArray::kContentArrayIndex);
-    return static_cast<FixedArray*>(array);
+  Object** DescriptorArrayHeader() {
+    return HeapObject::RawField(descriptor_array_, DescriptorArray::kMapOffset);
   }
 
-  Object** ContentHeader() {
-    return HeapObject::RawField(ContentArray(), DescriptorArray::kMapOffset);
+  FixedArray* RawGetContentArray() {
+      Object* array =
+          descriptor_array_->get(DescriptorArray::kContentArrayIndex);
+      return static_cast<FixedArray*>(array);
   }
+
+  Object* RawGetValue(int descriptor_number) {
+    return RawGetContentArray()->get(
+        DescriptorArray::ToValueIndex(descriptor_number));
+  }
+
+  PropertyDetails RawGetDetails(int descriptor_number) {
+    Object* details = RawGetContentArray()->get(
+        DescriptorArray::ToDetailsIndex(descriptor_number));
+    return PropertyDetails(Smi::cast(details));
+  }
+
 
   DescriptorArray* descriptor_array_;
 };
@@ -5258,6 +5283,20 @@ class TraversableMap : public Map {
     return old_parent;
   }
 
+  // Can either be Smi (no instance descriptors), or a descriptor array with the
+  // header overwritten as a Smi (thus iterating).
+  DescriptorArray* MutatedInstanceDescriptors() {
+    Object* object =
+        *HeapObject::RawField(this, kInstanceDescriptorsOrBitField3Offset);
+    if (object->IsSmi()) {
+      return GetHeap()->empty_descriptor_array();
+    } else {
+      DescriptorArray* descriptor_array =
+          static_cast<DescriptorArray*>(object);
+      return descriptor_array;
+    }
+  }
+
   // Start iterating over this map's children, possibly destroying a FixedArray
   // map (see explanation above).
   void ChildIteratorStart() {
@@ -5269,15 +5308,16 @@ class TraversableMap : public Map {
   // If we have an unvisited child map, return that one and advance. If we have
   // none, return NULL and reset any destroyed FixedArray maps.
   TraversableMap* ChildIteratorNext() {
-    IntrusiveMapTransitionIterator descriptor_iterator(instance_descriptors());
-    if (descriptor_iterator.IsIterating()) {
-      Map* next = descriptor_iterator.Next();
-      if (next != NULL) return static_cast<TraversableMap*>(next);
-    }
     IntrusivePrototypeTransitionIterator
         proto_iterator(unchecked_prototype_transitions());
     if (proto_iterator.IsIterating()) {
       Map* next = proto_iterator.Next();
+      if (next != NULL) return static_cast<TraversableMap*>(next);
+    }
+    IntrusiveMapTransitionIterator
+        descriptor_iterator(MutatedInstanceDescriptors());
+    if (descriptor_iterator.IsIterating()) {
+      Map* next = descriptor_iterator.Next();
       if (next != NULL) return static_cast<TraversableMap*>(next);
     }
     return NULL;
@@ -6028,7 +6068,10 @@ MaybeObject* DescriptorArray::RemoveTransitions() {
   return new_descriptors;
 }
 
-
+// We need the whiteness witness since sort will reshuffle the entries in the
+// descriptor array. If the descriptor array were to be black, the shuffling
+// would move a slot that was already recorded as pointing into an evacuation
+// candidate. This would result in missing updates upon evacuation.
 void DescriptorArray::SortUnchecked(const WhitenessWitness& witness) {
   // In-place heap sort.
   int len = number_of_descriptors();
@@ -9657,7 +9700,7 @@ MaybeObject* JSReceiver::SetElement(uint32_t index,
                                     bool check_proto) {
   if (IsJSProxy()) {
     return JSProxy::cast(this)->SetElementWithHandler(
-        index, value, strict_mode);
+        this, index, value, strict_mode);
   } else {
     return JSObject::cast(this)->SetElement(
         index, value, attributes, strict_mode, check_proto);

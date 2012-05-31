@@ -1931,6 +1931,12 @@ String* DescriptorArray::GetKey(int descriptor_number) {
 }
 
 
+Object** DescriptorArray::GetValueSlot(int descriptor_number) {
+  ASSERT(descriptor_number < number_of_descriptors());
+  return GetContentArray()->data_start() + ToValueIndex(descriptor_number);
+}
+
+
 Object* DescriptorArray::GetValue(int descriptor_number) {
   ASSERT(descriptor_number < number_of_descriptors());
   return GetContentArray()->get(ToValueIndex(descriptor_number));

@@ -1872,17 +1872,16 @@ void Marker<T>::MarkDescriptorArray(DescriptorArray* descriptors) {
   if (!base_marker()->MarkObjectAndPush(descriptors)) return;
   FixedArray* contents = FixedArray::cast(
       descriptors->get(DescriptorArray::kContentArrayIndex));
-  ASSERT(contents->length() >= 2);
   ASSERT(Marking::IsWhite(Marking::MarkBitFrom(contents)));
   base_marker()->MarkObjectWithoutPush(contents);
 
-  // Contents contains (value, details) pairs.  If the descriptor contains a
-  // transition (value is a Map), we don't mark the value as live.  It might
-  // be set to the NULL_DESCRIPTOR in ClearNonLiveTransitions later.
-  for (int i = 0; i < contents->length(); i += 2) {
-    PropertyDetails details(Smi::cast(contents->get(i + 1)));
+  // If the descriptor contains a transition (value is a Map), we don't mark the
+  // value as live. It might be set to the NULL_DESCRIPTOR in
+  // ClearNonLiveTransitions later.
+  for (int i = 0; i < descriptors->number_of_descriptors(); ++i) {
+    PropertyDetails details(descriptors->GetDetails(i));
+    Object** slot = descriptors->GetValueSlot(i);
 
-    Object** slot = contents->data_start() + i;
     if (!(*slot)->IsHeapObject()) continue;
     HeapObject* value = HeapObject::cast(*slot);
 

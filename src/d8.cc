@@ -316,8 +316,8 @@ static size_t convertToUint(Local<Value> value_in, TryCatch* try_catch) {
 }
 
 
-const char kArrayBufferMarkerPropName[] = "_is_array_buffer_";
-const char kArrayBufferReferencePropName[] = "_array_buffer_ref_";
+const char kArrayBufferMarkerPropName[] = "d8::_is_array_buffer_";
+const char kArrayBufferReferencePropName[] = "d8::_array_buffer_ref_";
 
 static const int kExternalArrayAllocationHeaderSize = 2;
 
@@ -334,132 +334,112 @@ Handle<Value> Shell::CreateExternalArray(const Arguments& args,
          element_size == 8);
   if (args.Length() == 0) {
     return ThrowException(
-        String::New("Array constructor must have at least one "
-                    "parameter."));
+        String::New("Array constructor must have at least one parameter."));
   }
   bool first_arg_is_array_buffer =
       args[0]->IsObject() &&
-      args[0]->ToObject()->Get(
-          String::New(kArrayBufferMarkerPropName))->IsTrue();
+      !args[0]->ToObject()->GetHiddenValue(
+          String::New(kArrayBufferMarkerPropName)).IsEmpty();
   // Currently, only the following constructors are supported:
+  //   ArrayBuffer(unsigned long length)
   //   TypedArray(unsigned long length)
   //   TypedArray(ArrayBuffer buffer,
   //              optional unsigned long byteOffset,
   //              optional unsigned long length)
-  if (args.Length() > 3) {
-    return ThrowException(
-        String::New("Array constructor from ArrayBuffer must "
-                    "have 1-3 parameters."));
-  }
-
-  Local<Value> length_value = (args.Length() < 3)
-      ? (first_arg_is_array_buffer
-         ? args[0]->ToObject()->Get(String::New("byteLength"))
-         : args[0])
-      : args[2];
-  size_t byteLength = convertToUint(length_value, &try_catch);
-  size_t length = byteLength;
-  if (try_catch.HasCaught()) return try_catch.Exception();
-
+  size_t length;
+  size_t byteLength;
+  size_t byteOffset;
   void* data = NULL;
-  size_t offset = 0;
-
   Handle<Object> array = Object::New();
-  if (first_arg_is_array_buffer) {
-    Handle<Object> derived_from = args[0]->ToObject();
-    data = derived_from->GetIndexedPropertiesExternalArrayData();
-
-    size_t array_buffer_length = convertToUint(
-        derived_from->Get(String::New("byteLength")),
-        &try_catch);
+  if (is_array_buffer_construct) {
+    byteLength = convertToUint(args[0], &try_catch);
     if (try_catch.HasCaught()) return try_catch.Exception();
+    byteOffset = 0;
+    length = byteLength;
 
-    if (data == NULL && array_buffer_length != 0) {
-      return ThrowException(
-          String::New("ArrayBuffer doesn't have data"));
+    array->SetHiddenValue(String::New(kArrayBufferMarkerPropName), True());
+  } else if (first_arg_is_array_buffer) {
+    Handle<Object> buffer = args[0]->ToObject();
+    data = buffer->GetIndexedPropertiesExternalArrayData();
+    byteLength =
+        convertToUint(buffer->Get(String::New("byteLength")), &try_catch);
+    if (try_catch.HasCaught()) return try_catch.Exception();
+    if (data == NULL && byteLength != 0) {
+      return ThrowException(String::New("ArrayBuffer does not have data"));
     }
 
-    if (args.Length() > 1) {
-      offset = convertToUint(args[1], &try_catch);
+    if (args.Length() < 2 || args[1]->IsUndefined()) {
+      byteOffset = 0;
+    } else {
+      byteOffset = convertToUint(args[1], &try_catch);
       if (try_catch.HasCaught()) return try_catch.Exception();
-
-      // The given byteOffset must be a multiple of the element size of the
-      // specific type, otherwise an exception is raised.
-      if (offset % element_size != 0) {
+      if (byteOffset > byteLength) {
+        return ThrowException(String::New("byteOffset out of bounds"));
+      }
+      if (byteOffset % element_size != 0) {
         return ThrowException(
-            String::New("offset must be multiple of element_size"));
+            String::New("byteOffset must be multiple of element_size"));
       }
     }
 
-    if (offset > array_buffer_length) {
-      return ThrowException(
-          String::New("byteOffset must be less than ArrayBuffer length."));
-    }
-
-    if (args.Length() == 2) {
-      // If length is not explicitly specified, the length of the ArrayBuffer
-      // minus the byteOffset must be a multiple of the element size of the
-      // specific type, or an exception is raised.
-      length = array_buffer_length - offset;
-    }
-
-    if (args.Length() != 3) {
-      if (length % element_size != 0) {
+    if (args.Length() < 3 || args[2]->IsUndefined()) {
+      if (byteLength % element_size != 0) {
         return ThrowException(
-            String::New("ArrayBuffer length minus the byteOffset must be a "
-                        "multiple of the element size"));
+            String::New("buffer size must be multiple of element_size"));
       }
-      length /= element_size;
+      length = (byteLength - byteOffset) / element_size;
+    } else {
+      length = convertToUint(args[2], &try_catch);
+      if (try_catch.HasCaught()) return try_catch.Exception();
     }
 
-    // If a given byteOffset and length references an area beyond the end of
-    // the ArrayBuffer an exception is raised.
-    if (offset + (length * element_size) > array_buffer_length) {
-      return ThrowException(
-          String::New("length references an area beyond the end of the "
-                      "ArrayBuffer"));
+    if (byteOffset + length * element_size > byteLength) {
+      return ThrowException(String::New("length out of bounds"));
     }
+    byteLength = byteOffset + length * element_size;
 
     // Hold a reference to the ArrayBuffer so its buffer doesn't get collected.
-    array->Set(String::New(kArrayBufferReferencePropName), args[0], ReadOnly);
-  }
-
-  if (is_array_buffer_construct) {
-    array->Set(String::New(kArrayBufferMarkerPropName), True(), ReadOnly);
+    array->SetHiddenValue(
+        String::New(kArrayBufferReferencePropName), args[0]);
+  } else {
+    length = convertToUint(args[0], &try_catch);
+    byteLength = length * element_size;
+    byteOffset = 0;
   }
 
   Persistent<Object> persistent_array = Persistent<Object>::New(array);
-  if (data == NULL && length != 0) {
-    // Make sure the total size fits into a (signed) int.
+  if (data == NULL && byteLength != 0) {
+    ASSERT(byteOffset == 0);
+    // Prepend the size of the allocated chunk to the data itself.
+    int total_size =
+        byteLength + kExternalArrayAllocationHeaderSize * sizeof(size_t);
     static const int kMaxSize = 0x7fffffff;
-    if (length > (kMaxSize - sizeof(size_t)) / element_size) {
+    // Make sure the total size fits into a (signed) int.
+    if (total_size > kMaxSize) {
       return ThrowException(String::New("Array exceeds maximum size (2G)"));
     }
-    // Prepend the size of the allocated chunk to the data itself.
-    int total_size = length * element_size +
-        kExternalArrayAllocationHeaderSize * sizeof(size_t);
     data = malloc(total_size);
     if (data == NULL) {
       return ThrowException(String::New("Memory allocation failed."));
     }
     *reinterpret_cast<size_t*>(data) = total_size;
     data = reinterpret_cast<size_t*>(data) + kExternalArrayAllocationHeaderSize;
-    memset(data, 0, length * element_size);
+    memset(data, 0, byteLength);
     V8::AdjustAmountOfExternalAllocatedMemory(total_size);
   }
   persistent_array.MakeWeak(data, ExternalArrayWeakCallback);
   persistent_array.MarkIndependent();
 
   array->SetIndexedPropertiesToExternalArrayData(
-      reinterpret_cast<uint8_t*>(data) + offset, type,
+      reinterpret_cast<uint8_t*>(data) + byteOffset, type,
       static_cast<int>(length));
   array->Set(String::New("byteLength"),
              Int32::New(static_cast<int32_t>(byteLength)), ReadOnly);
   if (!is_array_buffer_construct) {
+    array->Set(String::New("byteOffset"),
+               Int32::New(static_cast<int32_t>(byteOffset)), ReadOnly);
     array->Set(String::New("length"),
                Int32::New(static_cast<int32_t>(length)), ReadOnly);
-    array->Set(String::New("byteOffset"),
-               Int32::New(static_cast<int32_t>(offset)), ReadOnly);
     array->Set(String::New("BYTES_PER_ELEMENT"),
                Int32::New(static_cast<int32_t>(element_size)));
     // We currently support 'buffer' property only if constructed from a buffer.
@@ -475,8 +455,8 @@ void Shell::ExternalArrayWeakCallback(Persistent<Value> object, void* data) {
   HandleScope scope;
   Handle<String> prop_name = String::New(kArrayBufferReferencePropName);
   Handle<Object> converted_object = object->ToObject();
-  Local<Value> prop_value = converted_object->Get(prop_name);
-  if (data != NULL && !prop_value->IsObject()) {
+  Local<Value> prop_value = converted_object->GetHiddenValue(prop_name);
+  if (data != NULL && prop_value.IsEmpty()) {
     data = reinterpret_cast<size_t*>(data) - kExternalArrayAllocationHeaderSize;
     V8::AdjustAmountOfExternalAllocatedMemory(
         -static_cast<int>(*reinterpret_cast<size_t*>(data)));
@@ -1066,7 +1046,7 @@ Handle<Value> Shell::ReadBuffer(const Arguments& args) {
   }
 
   Handle<Object> buffer = Object::New();
-  buffer->Set(String::New(kArrayBufferMarkerPropName), True(), ReadOnly);
+  buffer->SetHiddenValue(String::New(kArrayBufferMarkerPropName), True());
 
   Persistent<Object> persistent_buffer = Persistent<Object>::New(buffer);
   persistent_buffer.MakeWeak(data, ExternalArrayWeakCallback);

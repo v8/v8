@@ -4198,6 +4198,10 @@ class HStoreNamedField: public HTemplateInstruction<2> {
         ReceiverObjectNeedsWriteBarrier(object(), new_space_dominator());
   }
 
+  bool NeedsWriteBarrierForMap() {
+    return ReceiverObjectNeedsWriteBarrier(object(), new_space_dominator());
+  }
+
  private:
   Handle<String> name_;
   bool is_in_object_;
