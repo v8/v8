@@ -576,12 +576,12 @@ var rec
 var key
 var val
 
-function TestSetForDerived(handler) {
-  TestWithProxies(TestSetForDerived2, handler)
+function TestSetForDerived(trap) {
+  TestWithProxies(TestSetForDerived2, trap)
 }
 
-function TestSetForDerived2(create, handler) {
-  var p = create(handler)
+function TestSetForDerived2(create, trap) {
+  var p = create({getPropertyDescriptor: trap, getOwnPropertyDescriptor: trap})
   var o = Object.create(p, {x: {value: 88, writable: true},
                             '1': {value: 89, writable: true}})
 
@@ -608,8 +608,13 @@ function TestSetForDerived2(create, handler) {
 
   assertEquals(45, o.p_nonwritable = 45)
   assertEquals("p_nonwritable", key)
-  assertEquals(45, o.p_nonwritable)
+  assertFalse(Object.prototype.hasOwnProperty.call(o, "p_nonwritable"))
 
+  assertThrows(function(){ "use strict"; o.p_nonwritable = 45 }, TypeError)
+  assertEquals("p_nonwritable", key)
+  assertFalse(Object.prototype.hasOwnProperty.call(o, "p_nonwritable"))
+
+  val = ""
   assertEquals(46, o.p_setter = 46)
   assertEquals("p_setter", key)
   assertSame(o, rec)
@@ -626,24 +631,29 @@ function TestSetForDerived2(create, handler) {
   assertThrows(function(){ "use strict"; o.p_nosetter = 50 }, TypeError)
   assertEquals("p_nosetter", key)
   assertEquals("", val)  // not written at all
+  assertFalse(Object.prototype.hasOwnProperty.call(o, "p_nosetter"));
 
   assertThrows(function(){ o.p_nonconf = 53 }, TypeError)
   assertEquals("p_nonconf", key)
+  assertFalse(Object.prototype.hasOwnProperty.call(o, "p_nonconf"));
 
   assertThrows(function(){ o.p_throw = 51 }, "myexn")
   assertEquals("p_throw", key)
+  assertFalse(Object.prototype.hasOwnProperty.call(o, "p_throw"));
 
   assertThrows(function(){ o.p_setterthrow = 52 }, "myexn")
   assertEquals("p_setterthrow", key)
+  assertFalse(Object.prototype.hasOwnProperty.call(o, "p_setterthrow"));
 }
 
-TestSetForDerived({
-  getPropertyDescriptor: function(k) {
+
+TestSetForDerived(
+  function(k) {
     key = k;
     switch (k) {
       case "p_writable": return {writable: true, configurable: true}
       case "p_nonwritable": return {writable: false, configurable: true}
-      case "p_setter":return {
+      case "p_setter": return {
         set: function(x) { rec = this; val = x },
         configurable: true
       }
@@ -651,13 +661,13 @@ TestSetForDerived({
         get: function() { return 1 },
         configurable: true
       }
-      case "p_nonconf":return {}
+      case "p_nonconf": return {}
       case "p_throw": throw "myexn"
       case "p_setterthrow": return {set: function(x) { throw "myexn" }}
       default: return undefined
     }
   }
-})
+)
 
 
 // Evil proxy-induced side-effects shouldn't crash.

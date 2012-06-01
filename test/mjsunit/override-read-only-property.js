@@ -38,19 +38,19 @@ F.prototype = Number;
 var original_number_max = Number.MAX_VALUE;
 
 // Assignment to a property which does not exist on the object itself,
-// but is read-only in a prototype takes effect.
+// but is read-only in a prototype does not take effect.
 var f = new F();
 assertEquals(original_number_max, f.MAX_VALUE);
 f.MAX_VALUE = 42;
-assertEquals(42, f.MAX_VALUE);
+assertEquals(original_number_max, f.MAX_VALUE);
 
 // Assignment to a property which does not exist on the object itself,
-// but is read-only in a prototype takes effect.
+// but is read-only in a prototype does not take effect.
 f = new F();
 with (f) {
   MAX_VALUE = 42;
 }
-assertEquals(42, f.MAX_VALUE);
+assertEquals(original_number_max, f.MAX_VALUE);
 
 // Assignment to read-only property on the object itself is ignored.
 Number.MAX_VALUE = 42;

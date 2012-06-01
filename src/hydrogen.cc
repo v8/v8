@@ -4359,7 +4359,8 @@ void HGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
             property->RecordTypeFeedback(oracle());
             CHECK_ALIVE(VisitForValue(value));
             HValue* value = Pop();
-            HInstruction* store = BuildStoreNamed(literal, value, property);
+            HInstruction* store;
+            CHECK_ALIVE(store = BuildStoreNamed(literal, value, property));
             AddInstruction(store);
             if (store->HasObservableSideEffects()) AddSimulate(key->id());
           } else {
@@ -4526,9 +4527,36 @@ HInstruction* HGraphBuilder::BuildStoreNamedField(HValue* object,
                                                   Handle<Map> type,
                                                   LookupResult* lookup,
                                                   bool smi_and_map_check) {
+  ASSERT(lookup->IsFound());
   if (smi_and_map_check) {
     AddInstruction(new(zone()) HCheckNonSmi(object));
     AddInstruction(HCheckMaps::NewWithTransitions(object, type));
+  }
+
+  // If the property does not exist yet, we have to check that it wasn't made
+  // readonly or turned into a setter by some meanwhile modifications on the
+  // prototype chain.
+  if (!lookup->IsProperty()) {
+    Object* proto = type->prototype();
+    // First check that the prototype chain isn't affected already.
+    LookupResult proto_result(isolate());
+    proto->Lookup(*name, &proto_result);
+    if (proto_result.IsProperty()) {
+      // If the inherited property could induce readonly-ness, bail out.
+      if (proto_result.IsReadOnly() || !proto_result.IsCacheable()) {
+        Bailout("improper object on prototype chain for store");
+        return NULL;
+      }
+      // We only need to check up to the preexisting property.
+      proto = proto_result.holder();
+    } else {
+      // Otherwise, find the top prototype.
+      while (proto->GetPrototype()->IsJSObject()) proto = proto->GetPrototype();
+    }
+    ASSERT(proto->IsJSObject());
+    AddInstruction(new(zone()) HCheckPrototypeMaps(
+        Handle<JSObject>(JSObject::cast(type->prototype())),
+        Handle<JSObject>(JSObject::cast(proto))));
   }
 
   int index = ComputeLoadStoreFieldIndex(type, name, lookup);
@@ -4687,8 +4715,9 @@ void HGraphBuilder::HandlePolymorphicStoreNamedField(Assignment* expr,
       current_block()->Finish(compare);
 
       set_current_block(if_true);
-      HInstruction* instr =
-          BuildStoreNamedField(object, name, value, map, &lookup, false);
+      HInstruction* instr;
+      CHECK_ALIVE(instr =
+          BuildStoreNamedField(object, name, value, map, &lookup, false));
       instr->set_position(expr->position());
       // Goto will add the HSimulate for the store.
       AddInstruction(instr);
@@ -4756,10 +4785,8 @@ void HGraphBuilder::HandlePropertyAssignment(Assignment* expr) {
     ASSERT(!name.is_null());
 
     SmallMapList* types = expr->GetReceiverTypes();
-    LookupResult lookup(isolate());
-
     if (expr->IsMonomorphic()) {
-      instr = BuildStoreNamed(object, value, expr);
+      CHECK_ALIVE(instr = BuildStoreNamed(object, value, expr));
 
     } else if (types != NULL && types->length() > 1) {
       HandlePolymorphicStoreNamedField(expr, object, value, types, name);
@@ -4938,7 +4965,8 @@ void HGraphBuilder::HandleCompoundAssignment(Assignment* expr) {
       PushAndAdd(instr);
       if (instr->HasObservableSideEffects()) AddSimulate(operation->id());
 
-      HInstruction* store = BuildStoreNamed(obj, instr, prop);
+      HInstruction* store;
+      CHECK_ALIVE(store = BuildStoreNamed(obj, instr, prop));
       AddInstruction(store);
       // Drop the simulated receiver and value.  Return the value.
       Drop(2);
@@ -7213,7 +7241,8 @@ void HGraphBuilder::VisitCountOperation(CountOperation* expr) {
       after = BuildIncrement(returns_original_input, expr);
       input = Pop();
 
-      HInstruction* store = BuildStoreNamed(obj, after, prop);
+      HInstruction* store;
+      CHECK_ALIVE(store = BuildStoreNamed(obj, after, prop));
       AddInstruction(store);
 
       // Overwrite the receiver in the bailout environment with the result

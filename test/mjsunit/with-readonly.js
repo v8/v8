@@ -36,8 +36,8 @@ function f() {
   with (o) {
     length = 23;
     length = 24;
-    assertEquals(24, length);
+    assertEquals(2, length);
   }
+  assertEquals(2, o.length);
 }
 f();
-
