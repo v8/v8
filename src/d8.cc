@@ -443,8 +443,9 @@ Handle<Value> Shell::CreateExternalArray(const Arguments& args,
 
 void Shell::ExternalArrayWeakCallback(Persistent<Value> object, void* data) {
   HandleScope scope;
-  Local<Value> length = object->ToObject()->Get(String::New("byteLength"));
-  V8::AdjustAmountOfExternalAllocatedMemory(-length->Uint32Value());
+  int32_t length =
+      object->ToObject()->Get(String::New("byteLength"))->Uint32Value();
+  V8::AdjustAmountOfExternalAllocatedMemory(-length);
   delete[] static_cast<uint8_t*>(data);
   object.Dispose();
 }
