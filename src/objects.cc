@@ -7440,23 +7440,20 @@ void Map::ClearNonLiveTransitions(Heap* heap) {
   if (d->IsEmpty()) return;
   Smi* NullDescriptorDetails =
     PropertyDetails(NONE, NULL_DESCRIPTOR).AsSmi();
-  FixedArray* contents = FixedArray::cast(
-      d->get(DescriptorArray::kContentArrayIndex));
-  ASSERT(contents->length() >= 2);
-  for (int i = 0; i < contents->length(); i += 2) {
+  for (int i = 0; i < d->number_of_descriptors(); ++i) {
     // If the pair (value, details) is a map transition, check if the target is
     // live. If not, null the descriptor. Also drop the back pointer for that
     // map transition, so that this map is not reached again by following a back
     // pointer from that non-live map.
     bool keep_entry = false;
-    PropertyDetails details(Smi::cast(contents->get(i + 1)));
+    PropertyDetails details(d->GetDetails(i));
     switch (details.type()) {
       case MAP_TRANSITION:
       case CONSTANT_TRANSITION:
-        ClearBackPointer(heap, contents->get(i), &keep_entry);
+        ClearBackPointer(heap, d->GetValue(i), &keep_entry);
         break;
       case ELEMENTS_TRANSITION: {
-        Object* object = contents->get(i);
+        Object* object = d->GetValue(i);
         if (object->IsMap()) {
           ClearBackPointer(heap, object, &keep_entry);
         } else {
@@ -7470,7 +7467,7 @@ void Map::ClearNonLiveTransitions(Heap* heap) {
         break;
       }
       case CALLBACKS: {
-        Object* object = contents->get(i);
+        Object* object = d->GetValue(i);
         if (object->IsAccessorPair()) {
           AccessorPair* accessors = AccessorPair::cast(object);
           if (ClearBackPointer(heap, accessors->getter(), &keep_entry)) {
@@ -7497,8 +7494,8 @@ void Map::ClearNonLiveTransitions(Heap* heap) {
     // What we *really* want to do here is removing this entry completely, but
     // for technical reasons we can't do this, so we zero it out instead.
     if (!keep_entry) {
-      contents->set_unchecked(i + 1, NullDescriptorDetails);
-      contents->set_null_unchecked(heap, i);
+      d->SetDetailsUnchecked(i, NullDescriptorDetails);
+      d->SetNullValueUnchecked(i, heap);
     }
   }
 }
