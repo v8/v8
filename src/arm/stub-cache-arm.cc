@@ -511,14 +511,14 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
 
   if (!transition.is_null()) {
     // Update the map of the object.
-    __ mov(scratch, Operand(transition));
-    __ str(scratch, FieldMemOperand(receiver_reg, HeapObject::kMapOffset));
+    __ mov(scratch1, Operand(transition));
+    __ str(scratch1, FieldMemOperand(receiver_reg, HeapObject::kMapOffset));
 
     // Update the write barrier for the map field and pass the now unused
     // name_reg as scratch register.
     __ RecordWriteField(receiver_reg,
                         HeapObject::kMapOffset,
-                        scratch,
+                        scratch1,
                         name_reg,
                         kLRHasNotBeenSaved,
                         kDontSaveFPRegs,
