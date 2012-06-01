@@ -162,7 +162,6 @@ assertEquals("*foo * baz", a);
 // string we can test that the relevant node is removed by verifying that
 // there is no hang.
 function NoHang(re) {
-  print(re);
   "This is an ASCII string that could take forever".match(re);
 }
 

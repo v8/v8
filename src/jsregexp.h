@@ -580,9 +580,12 @@ class RegExpNode: public ZoneObject {
   // Collects information on the possible code units (mod 128) that can match if
   // we look forward.  This is used for a Boyer-Moore-like string searching
   // implementation.  TODO(erikcorry):  This should share more code with
-  // EatsAtLeast, GetQuickCheckDetails.
+  // EatsAtLeast, GetQuickCheckDetails.  The budget argument is used to limit
+  // the number of nodes we are willing to look at in order to create this data.
+  static const int kFillInBMBudget = 200;
   virtual void FillInBMInfo(int offset,
                             int recursion_depth,
+                            int budget,
                             BoyerMooreLookahead* bm,
                             bool not_at_start) {
     UNREACHABLE();
@@ -685,9 +688,11 @@ class SeqRegExpNode: public RegExpNode {
   virtual RegExpNode* FilterASCII(int depth);
   virtual void FillInBMInfo(int offset,
                             int recursion_depth,
+                            int budget,
                             BoyerMooreLookahead* bm,
                             bool not_at_start) {
-    on_success_->FillInBMInfo(offset, recursion_depth + 1, bm, not_at_start);
+    on_success_->FillInBMInfo(
+        offset, recursion_depth + 1, budget - 1, bm, not_at_start);
     if (offset == 0) set_bm_info(not_at_start, bm);
   }
 
@@ -742,6 +747,7 @@ class ActionNode: public SeqRegExpNode {
   }
   virtual void FillInBMInfo(int offset,
                             int recursion_depth,
+                            int budget,
                             BoyerMooreLookahead* bm,
                             bool not_at_start);
   Type type() { return type_; }
@@ -813,6 +819,7 @@ class TextNode: public SeqRegExpNode {
       RegExpCompiler* compiler);
   virtual void FillInBMInfo(int offset,
                             int recursion_depth,
+                            int budget,
                             BoyerMooreLookahead* bm,
                             bool not_at_start);
   void CalculateOffsets();
@@ -875,6 +882,7 @@ class AssertionNode: public SeqRegExpNode {
                                     bool not_at_start);
   virtual void FillInBMInfo(int offset,
                             int recursion_depth,
+                            int budget,
                             BoyerMooreLookahead* bm,
                             bool not_at_start);
   AssertionNodeType type() { return type_; }
@@ -915,6 +923,7 @@ class BackReferenceNode: public SeqRegExpNode {
   }
   virtual void FillInBMInfo(int offset,
                             int recursion_depth,
+                            int budget,
                             BoyerMooreLookahead* bm,
                             bool not_at_start);
 
@@ -942,6 +951,7 @@ class EndNode: public RegExpNode {
   }
   virtual void FillInBMInfo(int offset,
                             int recursion_depth,
+                            int budget,
                             BoyerMooreLookahead* bm,
                             bool not_at_start) {
     // Returning 0 from EatsAtLeast should ensure we never get here.
@@ -1034,6 +1044,7 @@ class ChoiceNode: public RegExpNode {
                                     bool not_at_start);
   virtual void FillInBMInfo(int offset,
                             int recursion_depth,
+                            int budget,
                             BoyerMooreLookahead* bm,
                             bool not_at_start);
 
@@ -1086,10 +1097,11 @@ class NegativeLookaheadChoiceNode: public ChoiceNode {
                                     bool not_at_start);
   virtual void FillInBMInfo(int offset,
                             int recursion_depth,
+                            int budget,
                             BoyerMooreLookahead* bm,
                             bool not_at_start) {
     alternatives_->at(1).node()->FillInBMInfo(
-        offset, recursion_depth + 1, bm, not_at_start);
+        offset, recursion_depth + 1, budget - 1, bm, not_at_start);
     if (offset == 0) set_bm_info(not_at_start, bm);
   }
   // For a negative lookahead we don't emit the quick check for the
@@ -1121,6 +1133,7 @@ class LoopChoiceNode: public ChoiceNode {
                                     bool not_at_start);
   virtual void FillInBMInfo(int offset,
                             int recursion_depth,
+                            int budget,
                             BoyerMooreLookahead* bm,
                             bool not_at_start);
   RegExpNode* loop_node() { return loop_node_; }
