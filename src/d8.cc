@@ -1020,7 +1020,7 @@ static char* ReadChars(const char* name, int* size_out) {
 
 
 Handle<Value> Shell::ReadBuffer(const Arguments& args) {
-  STATIC_ASSERT(sizeof(char) == sizeof(uint8_t));  // NOLINT
+  ASSERT(sizeof(char) == sizeof(uint8_t));  // NOLINT
   String::Utf8Value filename(args[0]);
   int length;
   if (*filename == NULL) {
