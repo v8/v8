@@ -5116,18 +5116,18 @@ class IntrusiveMapTransitionIterator {
     int index = raw_index / 2;
     int number_of_descriptors = descriptor_array_->number_of_descriptors();
     while (index < number_of_descriptors) {
-      PropertyDetails details(RawGetDetails(index));
+      PropertyDetails details(descriptor_array_->GetDetails(index));
       switch (details.type()) {
         case MAP_TRANSITION:
         case CONSTANT_TRANSITION:
         case ELEMENTS_TRANSITION:
           // We definitely have a map transition.
           *DescriptorArrayHeader() = Smi::FromInt(raw_index + 2);
-          return static_cast<Map*>(RawGetValue(index));
+          return static_cast<Map*>(descriptor_array_->GetValue(index));
         case CALLBACKS: {
           // We might have a map transition in a getter or in a setter.
           AccessorPair* accessors =
-              static_cast<AccessorPair*>(RawGetValue(index));
+              static_cast<AccessorPair*>(descriptor_array_->GetValue(index));
           Object* accessor;
           if ((raw_index & 1) == 0) {
             accessor = accessors->setter();
@@ -5166,24 +5166,6 @@ class IntrusiveMapTransitionIterator {
   Object** DescriptorArrayHeader() {
     return HeapObject::RawField(descriptor_array_, DescriptorArray::kMapOffset);
   }
-
-  FixedArray* RawGetContentArray() {
-      Object* array =
-          descriptor_array_->get(DescriptorArray::kContentArrayIndex);
-      return static_cast<FixedArray*>(array);
-  }
-
-  Object* RawGetValue(int descriptor_number) {
-    return RawGetContentArray()->get(
-        DescriptorArray::ToValueIndex(descriptor_number));
-  }
-
-  PropertyDetails RawGetDetails(int descriptor_number) {
-    Object* details = RawGetContentArray()->get(
-        DescriptorArray::ToDetailsIndex(descriptor_number));
-    return PropertyDetails(Smi::cast(details));
-  }
-
 
   DescriptorArray* descriptor_array_;
 };
@@ -5883,13 +5865,7 @@ MaybeObject* DescriptorArray::Allocate(int number_of_descriptors) {
   // Do not use DescriptorArray::cast on incomplete object.
   FixedArray* result = FixedArray::cast(array);
 
-  // Allocate the content array and set it in the descriptor array.
-  { MaybeObject* maybe_array =
-        heap->AllocateFixedArray(number_of_descriptors << 1);
-    if (!maybe_array->ToObject(&array)) return maybe_array;
-  }
   result->set(kBitField3StorageIndex, Smi::FromInt(0));
-  result->set(kContentArrayIndex, array);
   result->set(kEnumerationIndexIndex,
               Smi::FromInt(PropertyDetails::kInitialIndex));
   return result;
@@ -6216,9 +6192,9 @@ bool DescriptorArray::IsEqualTo(DescriptorArray* other) {
   if (other->IsEmpty()) return false;
   if (length() != other->length()) return false;
   for (int i = 0; i < length(); ++i) {
-    if (get(i) != other->get(i) && i != kContentArrayIndex) return false;
+    if (get(i) != other->get(i)) return false;
   }
-  return GetContentArray()->IsEqualTo(other->GetContentArray());
+  return true;
 }
 #endif
 

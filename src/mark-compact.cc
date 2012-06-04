@@ -1867,25 +1867,42 @@ void Marker<T>::MarkDescriptorArray(DescriptorArray* descriptors) {
   // Empty descriptor array is marked as a root before any maps are marked.
   ASSERT(descriptors != descriptors->GetHeap()->empty_descriptor_array());
 
-  // The DescriptorArray contains a pointer to its contents array, but the
-  // contents array will be marked black and hence not be visited again.
-  if (!base_marker()->MarkObjectAndPush(descriptors)) return;
-  FixedArray* contents = FixedArray::cast(
-      descriptors->get(DescriptorArray::kContentArrayIndex));
-  ASSERT(Marking::IsWhite(Marking::MarkBitFrom(contents)));
-  base_marker()->MarkObjectWithoutPush(contents);
+  if (!base_marker()->MarkObjectWithoutPush(descriptors)) return;
+  Object** descriptor_start = descriptors->data_start();
+
+  // Since the descriptor array itself is not pushed for scanning, all fields
+  // that point to objects manually have to be pushed, marked, and their slots
+  // recorded.
+  if (descriptors->HasEnumCache()) {
+    Object** enum_cache_slot = descriptors->GetEnumCacheSlot();
+    Object* enum_cache = *enum_cache_slot;
+    base_marker()->MarkObjectAndPush(
+        reinterpret_cast<HeapObject*>(enum_cache));
+    mark_compact_collector()->RecordSlot(descriptor_start,
+                                         enum_cache_slot,
+                                         enum_cache);
+  }
 
   // If the descriptor contains a transition (value is a Map), we don't mark the
   // value as live. It might be set to the NULL_DESCRIPTOR in
   // ClearNonLiveTransitions later.
   for (int i = 0; i < descriptors->number_of_descriptors(); ++i) {
+    Object** key_slot = descriptors->GetKeySlot(i);
+    Object* key = *key_slot;
+    if (key->IsHeapObject()) {
+      base_marker()->MarkObjectAndPush(reinterpret_cast<HeapObject*>(key));
+      mark_compact_collector()->RecordSlot(descriptor_start, key_slot, key);
+    }
+
+    Object** value_slot = descriptors->GetValueSlot(i);
+    if (!(*value_slot)->IsHeapObject()) continue;
+    HeapObject* value = HeapObject::cast(*value_slot);
+
+    mark_compact_collector()->RecordSlot(descriptor_start,
+                                         value_slot,
+                                         value);
+
     PropertyDetails details(descriptors->GetDetails(i));
-    Object** slot = descriptors->GetValueSlot(i);
-
-    if (!(*slot)->IsHeapObject()) continue;
-    HeapObject* value = HeapObject::cast(*slot);
-
-    mark_compact_collector()->RecordSlot(slot, slot, *slot);
 
     switch (details.type()) {
       case NORMAL:

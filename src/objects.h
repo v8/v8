@@ -2403,7 +2403,7 @@ class DescriptorArray: public FixedArray {
   int number_of_descriptors() {
     ASSERT(length() > kFirstIndex || IsEmpty());
     int len = length();
-    return len <= kFirstIndex ? 0 : len - kFirstIndex;
+    return len <= kFirstIndex ? 0 : (len - kFirstIndex) / kDescriptorSize;
   }
 
   int NextEnumerationIndex() {
@@ -2433,6 +2433,12 @@ class DescriptorArray: public FixedArray {
     return bridge->get(kEnumCacheBridgeCacheIndex);
   }
 
+  Object** GetEnumCacheSlot() {
+    ASSERT(HasEnumCache());
+    return HeapObject::RawField(reinterpret_cast<HeapObject*>(this),
+                                kEnumerationIndexOffset);
+  }
+
   // TODO(1399): It should be possible to make room for bit_field3 in the map
   //             without overloading the instance descriptors field in the map
   //             (and storing it in the DescriptorArray when the map has one).
@@ -2447,6 +2453,7 @@ class DescriptorArray: public FixedArray {
 
   // Accessors for fetching instance descriptor at descriptor number.
   inline String* GetKey(int descriptor_number);
+  inline Object** GetKeySlot(int descriptor_number);
   inline Object* GetValue(int descriptor_number);
   inline Object** GetValueSlot(int descriptor_number);
   inline void SetNullValueUnchecked(int descriptor_number, Heap* heap);
@@ -2552,9 +2559,8 @@ class DescriptorArray: public FixedArray {
   static const int kNotFound = -1;
 
   static const int kBitField3StorageIndex = 0;
-  static const int kContentArrayIndex = 1;
-  static const int kEnumerationIndexIndex = 2;
-  static const int kFirstIndex = 3;
+  static const int kEnumerationIndexIndex = 1;
+  static const int kFirstIndex = 2;
 
   // The length of the "bridge" to the enum cache.
   static const int kEnumCacheBridgeLength = 3;
@@ -2564,14 +2570,20 @@ class DescriptorArray: public FixedArray {
 
   // Layout description.
   static const int kBitField3StorageOffset = FixedArray::kHeaderSize;
-  static const int kContentArrayOffset = kBitField3StorageOffset + kPointerSize;
-  static const int kEnumerationIndexOffset = kContentArrayOffset + kPointerSize;
+  static const int kEnumerationIndexOffset = kBitField3StorageOffset +
+                                             kPointerSize;
   static const int kFirstOffset = kEnumerationIndexOffset + kPointerSize;
 
   // Layout description for the bridge array.
   static const int kEnumCacheBridgeEnumOffset = FixedArray::kHeaderSize;
   static const int kEnumCacheBridgeCacheOffset =
     kEnumCacheBridgeEnumOffset + kPointerSize;
+
+  // Layout of descriptor.
+  static const int kDescriptorKey = 0;
+  static const int kDescriptorDetails = 1;
+  static const int kDescriptorValue = 2;
+  static const int kDescriptorSize = 3;
 
 #ifdef OBJECT_PRINT
   // Print all the descriptors.
@@ -2597,8 +2609,6 @@ class DescriptorArray: public FixedArray {
   static const int kMaxNumberOfDescriptors = 1024 + 512;
 
  private:
-  friend class IntrusiveMapTransitionIterator;
-
   // An entry in a DescriptorArray, represented as an (array, index) pair.
   class Entry {
    public:
@@ -2615,15 +2625,21 @@ class DescriptorArray: public FixedArray {
 
   // Conversion from descriptor number to array indices.
   static int ToKeyIndex(int descriptor_number) {
-    return descriptor_number+kFirstIndex;
+    return kFirstIndex +
+           (descriptor_number * kDescriptorSize) +
+           kDescriptorKey;
   }
 
   static int ToDetailsIndex(int descriptor_number) {
-    return (descriptor_number << 1) + 1;
+    return kFirstIndex +
+           (descriptor_number * kDescriptorSize) +
+           kDescriptorDetails;
   }
 
   static int ToValueIndex(int descriptor_number) {
-    return descriptor_number << 1;
+    return kFirstIndex +
+           (descriptor_number * kDescriptorSize) +
+           kDescriptorValue;
   }
 
   // Swap operation on FixedArray without using write barriers.
@@ -2633,10 +2649,6 @@ class DescriptorArray: public FixedArray {
   // Swap descriptor first and second.
   inline void NoIncrementalWriteBarrierSwapDescriptors(
       int first, int second);
-
-  FixedArray* GetContentArray() {
-    return FixedArray::cast(get(kContentArrayIndex));
-  }
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(DescriptorArray);
 };
