@@ -3705,7 +3705,7 @@ void KeyedLoadStubCompiler::GenerateLoadExternalArray(
       __ li(t0, 0x7ff);
       __ Xor(t1, t5, Operand(0xFF));
       __ Movz(t5, t0, t1);  // Set t5 to 0x7ff only if t5 is equal to 0xff.
-      __ Branch(&exponent_rebiased, eq, t0, Operand(0xff));
+      __ Branch(&exponent_rebiased, eq, t1, Operand(zero_reg));
 
       // Rebias exponent.
       __ Addu(t5,
@@ -4005,7 +4005,7 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
         __ xor_(t1, t6, t5);
         __ li(t2, kBinary32ExponentMask);
         __ Movz(t6, t2, t1);  // Only if t6 is equal to t5.
-        __ Branch(&nan_or_infinity_or_zero, eq, t6, Operand(t5));
+        __ Branch(&nan_or_infinity_or_zero, eq, t1, Operand(zero_reg));
 
         // Rebias exponent.
         __ srl(t6, t6, HeapNumber::kExponentShift);
@@ -4036,7 +4036,7 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
 
         __ bind(&done);
         __ sll(t9, key, 1);
-        __ addu(t9, a2, t9);
+        __ addu(t9, a3, t9);
         __ sw(t3, MemOperand(t9, 0));
 
         // Entry registers are intact, a0 holds the value which is the return
@@ -4054,7 +4054,7 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
         __ or_(t3, t6, t4);
         __ Branch(&done);
       } else if (elements_kind == EXTERNAL_DOUBLE_ELEMENTS) {
-        __ sll(t8, t0, 3);
+        __ sll(t8, key, 2);
         __ addu(t8, a3, t8);
         // t8: effective address of destination element.
         __ sw(t4, MemOperand(t8, 0));
