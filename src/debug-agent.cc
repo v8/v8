@@ -157,7 +157,9 @@ void DebuggerAgent::OnSessionClosed(DebuggerAgentSession* session) {
   ScopedLock with(session_access_);
   ASSERT(session == session_);
   if (session == session_) {
-    CloseSession();
+    session_->Shutdown();
+    delete session_;
+    session_ = NULL;
   }
 }
 
