@@ -5927,7 +5927,12 @@ RegExpEngine::CompilationResult RegExpEngine::Compile(
     macro_assembler.SetCurrentPositionFromEnd(max_length);
   }
 
-  macro_assembler.set_global(is_global);
+  if (is_global) {
+    macro_assembler.set_global_mode(
+        (data->tree->min_match() > 0)
+            ? RegExpMacroAssembler::GLOBAL_NO_ZERO_LENGTH_CHECK
+            : RegExpMacroAssembler::GLOBAL);
+  }
 
   return compiler.Assemble(&macro_assembler,
                            node,

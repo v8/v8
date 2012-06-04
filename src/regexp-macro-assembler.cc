@@ -37,7 +37,7 @@ namespace internal {
 
 RegExpMacroAssembler::RegExpMacroAssembler()
   : slow_safe_compiler_(false),
-    global_(false) {
+    global_mode_(NOT_GLOBAL) {
 }
 
 

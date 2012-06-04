@@ -857,7 +857,7 @@ Handle<HeapObject> RegExpMacroAssemblerIA32::GetCode(Handle<String> source) {
       }
       for (int i = 0; i < num_saved_registers_; i++) {
         __ mov(eax, register_location(i));
-        if (i == 0 && global()) {
+        if (i == 0 && global_with_zero_length_check()) {
           // Keep capture start in edx for the zero-length check later.
           __ mov(edx, eax);
         }
@@ -890,20 +890,23 @@ Handle<HeapObject> RegExpMacroAssemblerIA32::GetCode(Handle<String> source) {
       // Prepare eax to initialize registers with its value in the next run.
       __ mov(eax, Operand(ebp, kInputStartMinusOne));
 
-      // Special case for zero-length matches.
-      // edx: capture start index
-      __ cmp(edi, edx);
-      // Not a zero-length match, restart.
-      __ j(not_equal, &load_char_start_regexp);
-      // edi (offset from the end) is zero if we already reached the end.
-      __ test(edi, edi);
-      __ j(zero, &exit_label_, Label::kNear);
-      // Advance current position after a zero-length match.
-      if (mode_ == UC16) {
-        __ add(edi, Immediate(2));
-      } else {
-        __ inc(edi);
+      if (global_with_zero_length_check()) {
+        // Special case for zero-length matches.
+        // edx: capture start index
+        __ cmp(edi, edx);
+        // Not a zero-length match, restart.
+        __ j(not_equal, &load_char_start_regexp);
+        // edi (offset from the end) is zero if we already reached the end.
+        __ test(edi, edi);
+        __ j(zero, &exit_label_, Label::kNear);
+        // Advance current position after a zero-length match.
+        if (mode_ == UC16) {
+          __ add(edi, Immediate(2));
+        } else {
+          __ inc(edi);
+        }
       }
+
       __ jmp(&load_char_start_regexp);
     } else {
       __ mov(eax, Immediate(SUCCESS));
