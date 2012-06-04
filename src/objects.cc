@@ -6040,6 +6040,7 @@ MaybeObject* DescriptorArray::RemoveTransitions() {
     }
   }
   ASSERT(next_descriptor == new_descriptors->number_of_descriptors());
+  new_descriptors->SetNextEnumerationIndex(NextEnumerationIndex());
 
   return new_descriptors;
 }
