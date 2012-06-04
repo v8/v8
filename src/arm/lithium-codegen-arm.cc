@@ -631,7 +631,8 @@ void LCodeGen::RegisterEnvironmentForDeoptimization(LEnvironment* environment,
         ++jsframe_count;
       }
     }
-    Translation translation(&translations_, frame_count, jsframe_count);
+    Translation translation(&translations_, frame_count, jsframe_count,
+                            zone());
     WriteTranslation(environment, &translation);
     int deoptimization_index = deoptimizations_.length();
     int pc_offset = masm()->pc_offset();
@@ -761,7 +762,7 @@ void LCodeGen::RecordSafepoint(
   for (int i = 0; i < operands->length(); i++) {
     LOperand* pointer = operands->at(i);
     if (pointer->IsStackSlot()) {
-      safepoint.DefinePointerSlot(pointer->index());
+      safepoint.DefinePointerSlot(pointer->index(), zone());
     } else if (pointer->IsRegister() && (kind & Safepoint::kWithRegisters)) {
       safepoint.DefinePointerRegister(ToRegister(pointer));
     }

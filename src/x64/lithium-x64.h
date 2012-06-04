@@ -2231,7 +2231,7 @@ class LChunkBuilder BASE_EMBEDDED {
       : chunk_(NULL),
         info_(info),
         graph_(graph),
-        zone_(graph->isolate()->zone()),
+        zone_(graph->zone()),
         status_(UNUSED),
         current_instruction_(NULL),
         current_block_(NULL),

@@ -687,7 +687,7 @@ HGraph::HGraph(CompilationInfo* info)
 }
 
 
-Handle<Code> HGraph::Compile(CompilationInfo* info) {
+Handle<Code> HGraph::Compile(CompilationInfo* info, Zone* zone) {
   int values = GetMaximumValueID();
   if (values > LUnallocated::kMaxVirtualRegisters) {
     if (FLAG_trace_bailout) {
@@ -708,7 +708,7 @@ Handle<Code> HGraph::Compile(CompilationInfo* info) {
   }
 
   MacroAssembler assembler(info->isolate(), NULL, 0);
-  LCodeGen generator(chunk, &assembler, info);
+  LCodeGen generator(chunk, &assembler, info, zone);
 
   chunk->MarkEmptyBlocks();
 

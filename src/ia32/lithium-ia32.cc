@@ -991,7 +991,8 @@ LEnvironment* LChunkBuilder::CreateEnvironment(
                                hydrogen_env->parameter_count(),
                                argument_count_,
                                value_count,
-                               outer);
+                               outer,
+                               zone());
   int argument_index = *argument_index_accumulator;
   for (int i = 0; i < value_count; ++i) {
     if (hydrogen_env->is_special_index(i)) continue;

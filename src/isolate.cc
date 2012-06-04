@@ -256,7 +256,7 @@ void Isolate::PreallocatedStorageInit(size_t size) {
 
 void* Isolate::PreallocatedStorageNew(size_t size) {
   if (!preallocated_storage_preallocated_) {
-    return FreeStoreAllocationPolicy::New(size);
+    return FreeStoreAllocationPolicy().New(size);
   }
   ASSERT(free_list_.next_ != &free_list_);
   ASSERT(free_list_.previous_ != &free_list_);

@@ -46,7 +46,8 @@ class SafepointGenerator;
 
 class LCodeGen BASE_EMBEDDED {
  public:
-  LCodeGen(LChunk* chunk, MacroAssembler* assembler, CompilationInfo* info)
+  LCodeGen(LChunk* chunk, MacroAssembler* assembler, CompilationInfo* info,
+           Zone* zone)
       : chunk_(chunk),
         masm_(assembler),
         info_(info),
@@ -58,11 +59,14 @@ class LCodeGen BASE_EMBEDDED {
         inlined_function_count_(0),
         scope_(info->scope()),
         status_(UNUSED),
+        translations_(zone),
         deferred_(8),
         osr_pc_offset_(-1),
         last_lazy_deopt_pc_(0),
+        safepoints_(zone),
         resolver_(this),
-        expected_safepoint_kind_(Safepoint::kSimple) {
+        expected_safepoint_kind_(Safepoint::kSimple),
+        zone_(zone) {
     PopulateDeoptimizationLiteralsWithInlinedFunctions();
   }
 
@@ -72,6 +76,7 @@ class LCodeGen BASE_EMBEDDED {
   Isolate* isolate() const { return info_->isolate(); }
   Factory* factory() const { return isolate()->factory(); }
   Heap* heap() const { return isolate()->heap(); }
+  Zone* zone() const { return zone_; }
 
   // Support for converting LOperands to assembler types.
   Operand ToOperand(LOperand* op) const;
@@ -348,6 +353,8 @@ class LCodeGen BASE_EMBEDDED {
   LGapResolver resolver_;
 
   Safepoint::Kind expected_safepoint_kind_;
+
+  Zone* zone_;
 
   class PushSafepointRegistersScope BASE_EMBEDDED {
    public:

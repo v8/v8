@@ -796,12 +796,11 @@ class FullCodeGenerator: public AstVisitor {
 // A map from property names to getter/setter pairs allocated in the zone.
 class AccessorTable: public TemplateHashMap<Literal,
                                             ObjectLiteral::Accessors,
-                                            ZoneListAllocationPolicy> {
+                                            ZoneAllocationPolicy> {
  public:
   explicit AccessorTable(Zone* zone) :
-      TemplateHashMap<Literal,
-                      ObjectLiteral::Accessors,
-                      ZoneListAllocationPolicy>(Literal::Match),
+      TemplateHashMap<Literal, ObjectLiteral::Accessors,
+                      ZoneAllocationPolicy>(Literal::Match),
       zone_(zone) { }
 
   Iterator lookup(Literal* literal) {

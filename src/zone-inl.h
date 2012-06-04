@@ -90,7 +90,7 @@ ZoneSplayTree<Config>::~ZoneSplayTree() {
   // Reset the root to avoid unneeded iteration over all tree nodes
   // in the destructor.  For a zone-allocated tree, nodes will be
   // freed by the Zone.
-  SplayTree<Config, ZoneListAllocationPolicy>::ResetRoot();
+  SplayTree<Config, ZoneAllocationPolicy>::ResetRoot();
 }
 
 
@@ -105,9 +105,12 @@ void* ZoneObject::operator new(size_t size, Zone* zone) {
   return zone->New(static_cast<int>(size));
 }
 
-
-inline void* ZoneListAllocationPolicy::New(int size) {
-  return ZONE->New(size);
+inline void* ZoneAllocationPolicy::New(size_t size) {
+  if (zone_) {
+    return zone_->New(size);
+  } else {
+    return ZONE->New(size);
+  }
 }
 
 

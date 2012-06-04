@@ -416,7 +416,9 @@ class Block: public BreakableStatement {
  public:
   DECLARE_NODE_TYPE(Block)
 
-  void AddStatement(Statement* statement) { statements_.Add(statement); }
+  void AddStatement(Statement* statement, Zone* zone) {
+    statements_.Add(statement, zone);
+  }
 
   ZoneList<Statement*>* statements() { return &statements_; }
   bool is_initializer_block() const { return is_initializer_block_; }

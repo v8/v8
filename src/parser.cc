@@ -86,8 +86,8 @@ class PositionStack  {
 };
 
 
-RegExpBuilder::RegExpBuilder()
-    : zone_(Isolate::Current()->zone()),
+RegExpBuilder::RegExpBuilder(Zone* zone)
+    : zone_(zone),
       pending_empty_(false),
       characters_(NULL),
       terms_(),
@@ -535,7 +535,8 @@ Parser::FunctionState::~FunctionState() {
 Parser::Parser(Handle<Script> script,
                int parser_flags,
                v8::Extension* extension,
-               ScriptDataImpl* pre_data)
+               ScriptDataImpl* pre_data,
+               Zone* zone)
     : isolate_(script->GetIsolate()),
       symbol_cache_(pre_data ? pre_data->symbol_count() : 0),
       script_(script),
@@ -551,7 +552,8 @@ Parser::Parser(Handle<Script> script,
       allow_lazy_((parser_flags & kAllowLazy) != 0),
       allow_modules_((parser_flags & kAllowModules) != 0),
       stack_overflow_(false),
-      parenthesized_function_(false) {
+      parenthesized_function_(false),
+      zone_(zone) {
   isolate_->set_ast_node_id(0);
   if ((parser_flags & kLanguageModeMask) == EXTENDED_MODE) {
     scanner().SetHarmonyScoping(true);
@@ -1325,7 +1327,7 @@ Module* Parser::ParseModuleLiteral(bool* ok) {
     while (peek() != Token::RBRACE) {
       Statement* stat = ParseModuleElement(NULL, CHECK_OK);
       if (stat && !stat->IsEmpty()) {
-        body->AddStatement(stat);
+        body->AddStatement(stat, zone());
         block_finder.Update(stat);
       }
     }
@@ -1677,7 +1679,7 @@ Statement* Parser::ParseStatement(ZoneStringList* labels, bool* ok) {
       if (statement) {
         statement->set_statement_pos(statement_pos);
       }
-      if (result) result->AddStatement(statement);
+      if (result) result->AddStatement(statement, zone());
       return result;
     }
 
@@ -1991,7 +1993,7 @@ Block* Parser::ParseBlock(ZoneStringList* labels, bool* ok) {
   while (peek() != Token::RBRACE) {
     Statement* stat = ParseStatement(NULL, CHECK_OK);
     if (stat && !stat->IsEmpty()) {
-      result->AddStatement(stat);
+      result->AddStatement(stat, zone());
       block_finder.Update(stat);
     }
   }
@@ -2022,7 +2024,7 @@ Block* Parser::ParseScopedBlock(ZoneStringList* labels, bool* ok) {
     while (peek() != Token::RBRACE) {
       Statement* stat = ParseBlockElement(NULL, CHECK_OK);
       if (stat && !stat->IsEmpty()) {
-        body->AddStatement(stat);
+        body->AddStatement(stat, zone());
         block_finder.Update(stat);
       }
     }
@@ -2329,7 +2331,8 @@ Block* Parser::ParseVariableDeclarations(
             arguments);
       }
 
-      block->AddStatement(factory()->NewExpressionStatement(initialize));
+      block->AddStatement(factory()->NewExpressionStatement(initialize),
+                          zone());
     } else if (needs_init) {
       // Constant initializations always assign to the declared constant which
       // is always at the function scope level. This is only relevant for
@@ -2343,7 +2346,8 @@ Block* Parser::ParseVariableDeclarations(
       ASSERT(value != NULL);
       Assignment* assignment =
           factory()->NewAssignment(init_op, proxy, value, position);
-      block->AddStatement(factory()->NewExpressionStatement(assignment));
+      block->AddStatement(factory()->NewExpressionStatement(assignment),
+                          zone());
       value = NULL;
     }
 
@@ -2358,7 +2362,8 @@ Block* Parser::ParseVariableDeclarations(
           initialization_scope->NewUnresolved(factory(), name);
       Assignment* assignment =
           factory()->NewAssignment(init_op, proxy, value, position);
-      block->AddStatement(factory()->NewExpressionStatement(assignment));
+      block->AddStatement(factory()->NewExpressionStatement(assignment),
+                          zone());
     }
 
     if (fni_ != NULL) fni_->Leave();
@@ -2769,7 +2774,7 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
         index, try_block, catch_scope, catch_variable, catch_block);
     statement->set_escaping_targets(try_collector.targets());
     try_block = factory()->NewBlock(NULL, 1, false);
-    try_block->AddStatement(statement);
+    try_block->AddStatement(statement, zone());
     catch_block = NULL;  // Clear to indicate it's been handled.
   }
 
@@ -2875,8 +2880,8 @@ Statement* Parser::ParseForStatement(ZoneStringList* labels, bool* ok) {
         Statement* body = ParseStatement(NULL, CHECK_OK);
         loop->Initialize(each, enumerable, body);
         Block* result = factory()->NewBlock(NULL, 2, false);
-        result->AddStatement(variable_statement);
-        result->AddStatement(loop);
+        result->AddStatement(variable_statement, zone());
+        result->AddStatement(loop, zone());
         top_scope_ = saved_scope;
         for_scope->set_end_position(scanner().location().end_pos);
         for_scope = for_scope->FinalizeBlockScope();
@@ -2925,9 +2930,9 @@ Statement* Parser::ParseForStatement(ZoneStringList* labels, bool* ok) {
             Token::ASSIGN, each, temp_proxy, RelocInfo::kNoPosition);
         Statement* assignment_statement =
             factory()->NewExpressionStatement(assignment);
-        body_block->AddStatement(variable_statement);
-        body_block->AddStatement(assignment_statement);
-        body_block->AddStatement(body);
+        body_block->AddStatement(variable_statement, zone());
+        body_block->AddStatement(assignment_statement, zone());
+        body_block->AddStatement(body, zone());
         loop->Initialize(temp_proxy, enumerable, body_block);
         top_scope_ = saved_scope;
         for_scope->set_end_position(scanner().location().end_pos);
@@ -3010,8 +3015,8 @@ Statement* Parser::ParseForStatement(ZoneStringList* labels, bool* ok) {
     //   }
     ASSERT(init != NULL);
     Block* result = factory()->NewBlock(NULL, 2, false);
-    result->AddStatement(init);
-    result->AddStatement(loop);
+    result->AddStatement(init, zone());
+    result->AddStatement(loop, zone());
     result->set_scope(for_scope);
     if (loop) loop->Initialize(NULL, cond, next, body);
     return result;
@@ -5146,7 +5151,7 @@ RegExpTree* RegExpParser::ParsePattern() {
 //   Atom Quantifier
 RegExpTree* RegExpParser::ParseDisjunction() {
   // Used to store current state while parsing subexpressions.
-  RegExpParserState initial_state(NULL, INITIAL, 0);
+  RegExpParserState initial_state(NULL, INITIAL, 0, zone());
   RegExpParserState* stored_state = &initial_state;
   // Cache the builder in a local variable for quick access.
   RegExpBuilder* builder = initial_state.builder();
@@ -5266,9 +5271,8 @@ RegExpTree* RegExpParser::ParseDisjunction() {
         captures_->Add(NULL);
       }
       // Store current state and begin new disjunction parsing.
-      stored_state = new(zone()) RegExpParserState(stored_state,
-                                           type,
-                                           captures_started());
+      stored_state = new(zone()) RegExpParserState(stored_state, type,
+                                                   captures_started(), zone());
       builder = stored_state->builder();
       continue;
     }
@@ -6020,7 +6024,7 @@ bool ParserApi::Parse(CompilationInfo* info, int parsing_flags) {
   }
   if (info->is_lazy()) {
     ASSERT(!info->is_eval());
-    Parser parser(script, parsing_flags, NULL, NULL);
+    Parser parser(script, parsing_flags, NULL, NULL, info->isolate()->zone());
     if (info->shared_info()->is_function()) {
       result = parser.ParseLazy(info);
     } else {
@@ -6028,7 +6032,8 @@ bool ParserApi::Parse(CompilationInfo* info, int parsing_flags) {
     }
   } else {
     ScriptDataImpl* pre_data = info->pre_parse_data();
-    Parser parser(script, parsing_flags, info->extension(), pre_data);
+    Parser parser(script, parsing_flags, info->extension(), pre_data,
+                  info->isolate()->zone());
     if (pre_data != NULL && pre_data->has_error()) {
       Scanner::Location loc = pre_data->MessageLocation();
       const char* message = pre_data->BuildMessage();

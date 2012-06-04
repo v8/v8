@@ -280,7 +280,7 @@ class HGraph: public ZoneObject {
 
   void CollectPhis();
 
-  Handle<Code> Compile(CompilationInfo* info);
+  Handle<Code> Compile(CompilationInfo* info, Zone* zone);
 
   void set_undefined_constant(HConstant* constant) {
     undefined_constant_.set(constant);

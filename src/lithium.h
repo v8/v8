@@ -459,7 +459,8 @@ class LEnvironment: public ZoneObject {
                int parameter_count,
                int argument_count,
                int value_count,
-               LEnvironment* outer)
+               LEnvironment* outer,
+               Zone* zone)
       : closure_(closure),
         frame_type_(frame_type),
         arguments_stack_height_(argument_count),
@@ -472,7 +473,8 @@ class LEnvironment: public ZoneObject {
         is_tagged_(value_count, closure->GetHeap()->isolate()->zone()),
         spilled_registers_(NULL),
         spilled_double_registers_(NULL),
-        outer_(outer) { }
+        outer_(outer),
+        zone_(zone) { }
 
   Handle<JSFunction> closure() const { return closure_; }
   FrameType frame_type() const { return frame_type_; }
@@ -520,6 +522,8 @@ class LEnvironment: public ZoneObject {
 
   void PrintTo(StringStream* stream);
 
+  Zone* zone() { return zone_; }
+
  private:
   Handle<JSFunction> closure_;
   FrameType frame_type_;
@@ -539,6 +543,8 @@ class LEnvironment: public ZoneObject {
   LOperand** spilled_double_registers_;
 
   LEnvironment* outer_;
+
+  Zone* zone_;
 };
 
 
