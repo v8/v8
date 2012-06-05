@@ -422,21 +422,59 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
                                       Handle<JSObject> object,
                                       int index,
                                       Handle<Map> transition,
+                                      Handle<String> name,
                                       Register receiver_reg,
                                       Register name_reg,
-                                      Register scratch,
+                                      Register scratch1,
+                                      Register scratch2,
                                       Label* miss_label) {
   // a0 : value.
   Label exit;
+
+  LookupResult lookup(masm->isolate());
+  object->Lookup(*name, &lookup);
+  if (lookup.IsFound() && (lookup.IsReadOnly() || !lookup.IsCacheable())) {
+    // In sloppy mode, we could just return the value and be done. However, we
+    // might be in strict mode, where we have to throw. Since we cannot tell,
+    // go into slow case unconditionally.
+    __ jmp(miss_label);
+    return;
+  }
+
   // Check that the map of the object hasn't changed.
   CompareMapMode mode = transition.is_null() ? ALLOW_ELEMENT_TRANSITION_MAPS
                                              : REQUIRE_EXACT_MAP;
-  __ CheckMap(receiver_reg, scratch, Handle<Map>(object->map()), miss_label,
+  __ CheckMap(receiver_reg, scratch1, Handle<Map>(object->map()), miss_label,
               DO_SMI_CHECK, mode);
 
   // Perform global security token check if needed.
   if (object->IsJSGlobalProxy()) {
-    __ CheckAccessGlobalProxy(receiver_reg, scratch, miss_label);
+    __ CheckAccessGlobalProxy(receiver_reg, scratch1, miss_label);
+  }
+
+  // Check that we are allowed to write this.
+  if (!transition.is_null() && object->GetPrototype()->IsJSObject()) {
+    JSObject* holder;
+    if (lookup.IsFound()) {
+      holder = lookup.holder();
+    } else {
+      // Find the top object.
+      holder = *object;
+      do {
+        holder = JSObject::cast(holder->GetPrototype());
+      } while (holder->GetPrototype()->IsJSObject());
+    }
+    // We need an extra register, push
+    __ push(name_reg);
+    Label miss_pop, done_check;
+    CheckPrototypes(object, receiver_reg, Handle<JSObject>(holder), name_reg,
+                    scratch1, scratch2, name, &miss_pop);
+    __ jmp(&done_check);
+    __ bind(&miss_pop);
+    __ pop(name_reg);
+    __ jmp(miss_label);
+    __ bind(&done_check);
+    __ pop(name_reg);
   }
 
   // Stub never generated for non-global objects that require access
@@ -459,14 +497,14 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
 
   if (!transition.is_null()) {
     // Update the map of the object.
-    __ li(scratch, Operand(transition));
-    __ sw(scratch, FieldMemOperand(receiver_reg, HeapObject::kMapOffset));
+    __ li(scratch1, Operand(transition));
+    __ sw(scratch1, FieldMemOperand(receiver_reg, HeapObject::kMapOffset));
 
     // Update the write barrier for the map field and pass the now unused
     // name_reg as scratch register.
     __ RecordWriteField(receiver_reg,
                         HeapObject::kMapOffset,
-                        scratch,
+                        scratch1,
                         name_reg,
                         kRAHasNotBeenSaved,
                         kDontSaveFPRegs,
@@ -485,7 +523,7 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
     __ sw(a0, FieldMemOperand(receiver_reg, offset));
 
     // Skip updating write barrier if storing a smi.
-    __ JumpIfSmi(a0, &exit, scratch);
+    __ JumpIfSmi(a0, &exit, scratch1);
 
     // Update the write barrier for the array address.
     // Pass the now unused name_reg as a scratch register.
@@ -493,15 +531,16 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
     __ RecordWriteField(receiver_reg,
                         offset,
                         name_reg,
-                        scratch,
+                        scratch1,
                         kRAHasNotBeenSaved,
                         kDontSaveFPRegs);
   } else {
     // Write to the properties array.
     int offset = index * kPointerSize + FixedArray::kHeaderSize;
     // Get the properties array.
-    __ lw(scratch, FieldMemOperand(receiver_reg, JSObject::kPropertiesOffset));
-    __ sw(a0, FieldMemOperand(scratch, offset));
+    __ lw(scratch1,
+          FieldMemOperand(receiver_reg, JSObject::kPropertiesOffset));
+    __ sw(a0, FieldMemOperand(scratch1, offset));
 
     // Skip updating write barrier if storing a smi.
     __ JumpIfSmi(a0, &exit);
@@ -509,7 +548,7 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
     // Update the write barrier for the array address.
     // Ok to clobber receiver_reg and name_reg, since we return.
     __ mov(name_reg, a0);
-    __ RecordWriteField(scratch,
+    __ RecordWriteField(scratch1,
                         offset,
                         name_reg,
                         receiver_reg,
@@ -2570,7 +2609,13 @@ Handle<Code> StoreStubCompiler::CompileStoreField(Handle<JSObject> object,
   Label miss;
 
   // Name register might be clobbered.
-  GenerateStoreField(masm(), object, index, transition, a1, a2, a3, &miss);
+  GenerateStoreField(masm(),
+                     object,
+                     index,
+                     transition,
+                     name,
+                     a1, a2, a3, t0,
+                     &miss);
   __ bind(&miss);
   __ li(a2, Operand(Handle<String>(name)));  // Restore name.
   Handle<Code> ic = masm()->isolate()->builtins()->Builtins::StoreIC_Miss();
@@ -3109,7 +3154,13 @@ Handle<Code> KeyedStoreStubCompiler::CompileStoreField(Handle<JSObject> object,
 
   // a3 is used as scratch register. a1 and a2 keep their values if a jump to
   // the miss label is generated.
-  GenerateStoreField(masm(), object, index, transition, a2, a1, a3, &miss);
+  GenerateStoreField(masm(),
+                     object,
+                     index,
+                     transition,
+                     name,
+                     a2, a1, a3, t0,
+                     &miss);
   __ bind(&miss);
 
   __ DecrementCounter(counters->keyed_store_field(), 1, a3, t0);
