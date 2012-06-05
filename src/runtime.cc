@@ -2182,7 +2182,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetCode) {
     Handle<JSFunction> fun = Handle<JSFunction>::cast(code);
     Handle<SharedFunctionInfo> shared(fun->shared());
 
-    if (!SharedFunctionInfo::EnsureCompiled(shared, KEEP_EXCEPTION)) {
+    if (!JSFunction::CompileLazy(fun, KEEP_EXCEPTION)) {
       return Failure::Exception();
     }
     // Since we don't store the source for this we should never
@@ -12503,8 +12503,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugDisassembleFunction) {
   ASSERT(args.length() == 1);
   // Get the function and make sure it is compiled.
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, func, 0);
-  Handle<SharedFunctionInfo> shared(func->shared());
-  if (!SharedFunctionInfo::EnsureCompiled(shared, KEEP_EXCEPTION)) {
+  if (!JSFunction::CompileLazy(func, KEEP_EXCEPTION)) {
     return Failure::Exception();
   }
   func->code()->PrintLn();
@@ -12519,11 +12518,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugDisassembleConstructor) {
   ASSERT(args.length() == 1);
   // Get the function and make sure it is compiled.
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, func, 0);
-  Handle<SharedFunctionInfo> shared(func->shared());
-  if (!SharedFunctionInfo::EnsureCompiled(shared, KEEP_EXCEPTION)) {
+  if (!JSFunction::CompileLazy(func, KEEP_EXCEPTION)) {
     return Failure::Exception();
   }
-  shared->construct_stub()->PrintLn();
+  func->shared()->construct_stub()->PrintLn();
 #endif  // DEBUG
   return isolate->heap()->undefined_value();
 }
