@@ -1359,9 +1359,14 @@ HSideEffectMap::HSideEffectMap() : count_(0) {
 
 
 HSideEffectMap::HSideEffectMap(HSideEffectMap* other) : count_(other->count_) {
-  memcpy(data_, other->data_, kNumberOfTrackedSideEffects * kPointerSize);
+  *this = *other;  // Calls operator=.
 }
 
+
+HSideEffectMap& HSideEffectMap::operator= (const HSideEffectMap& other) {
+  memcpy(data_, other.data_, kNumberOfTrackedSideEffects * kPointerSize);
+  return *this;
+}
 
 void HSideEffectMap::Kill(GVNFlagSet flags) {
   for (int i = 0; i < kNumberOfTrackedSideEffects; i++) {
@@ -1491,9 +1496,7 @@ class HGlobalValueNumberer BASE_EMBEDDED {
   GVNFlagSet CollectSideEffectsOnPathsToDominatedBlock(
       HBasicBlock* dominator,
       HBasicBlock* dominated);
-  void AnalyzeBlock(HBasicBlock* block,
-                    HValueMap* map,
-                    HSideEffectMap* dominators);
+  void AnalyzeGraph();
   void ComputeBlockSideEffects();
   void LoopInvariantCodeMotion();
   void ProcessLoopBlock(HBasicBlock* block,
@@ -1530,9 +1533,7 @@ bool HGlobalValueNumberer::Analyze() {
   if (FLAG_loop_invariant_code_motion) {
     LoopInvariantCodeMotion();
   }
-  HValueMap* map = new(zone()) HValueMap();
-  HSideEffectMap side_effect_dominators;
-  AnalyzeBlock(graph_->entry_block(), map, &side_effect_dominators);
+  AnalyzeGraph();
   return removed_side_effects_;
 }
 
@@ -1826,89 +1827,220 @@ GVNFlagSet HGlobalValueNumberer::CollectSideEffectsOnPathsToDominatedBlock(
 }
 
 
-void HGlobalValueNumberer::AnalyzeBlock(HBasicBlock* block,
-                                        HValueMap* map,
-                                        HSideEffectMap* dominators) {
-  TRACE_GVN_2("Analyzing block B%d%s\n",
-              block->block_id(),
-              block->IsLoopHeader() ? " (loop header)" : "");
-
-  // If this is a loop header kill everything killed by the loop.
-  if (block->IsLoopHeader()) {
-    map->Kill(loop_side_effects_[block->block_id()]);
+// Each instance of this class is like a "stack frame" for the recursive
+// traversal of the dominator tree done during GVN (the stack is handled
+// as a double linked list).
+// We reuse frames when possible so the list length is limited by the depth
+// of the dominator tree but this forces us to initialize each frame calling
+// an explicit "Initialize" method instead of a using constructor.
+class GvnBasicBlockState: public ZoneObject {
+ public:
+  static GvnBasicBlockState* CreateEntry(Zone* zone,
+                                         HBasicBlock* entry_block,
+                                         HValueMap* entry_map) {
+    return new(zone)
+        GvnBasicBlockState(NULL, entry_block, entry_map, NULL, zone);
   }
 
-  // Go through all instructions of the current block.
-  HInstruction* instr = block->first();
-  while (instr != NULL) {
-    HInstruction* next = instr->next();
-    GVNFlagSet flags = instr->ChangesFlags();
-    if (!flags.IsEmpty()) {
-      // Clear all instructions in the map that are affected by side effects.
-      // Store instruction as the dominating one for tracked side effects.
-      map->Kill(flags);
-      dominators->Store(flags, instr);
-      TRACE_GVN_2("Instruction %d %s\n", instr->id(),
-                  *GetGVNFlagsString(flags));
-    }
-    if (instr->CheckFlag(HValue::kUseGVN)) {
-      ASSERT(!instr->HasObservableSideEffects());
-      HValue* other = map->Lookup(instr);
-      if (other != NULL) {
-        ASSERT(instr->Equals(other) && other->Equals(instr));
-        TRACE_GVN_4("Replacing value %d (%s) with value %d (%s)\n",
-                    instr->id(),
-                    instr->Mnemonic(),
-                    other->id(),
-                    other->Mnemonic());
-        if (instr->HasSideEffects()) removed_side_effects_ = true;
-        instr->DeleteAndReplaceWith(other);
+  HBasicBlock* block() { return block_; }
+  HValueMap* map() { return map_; }
+  HSideEffectMap* dominators() { return &dominators_; }
+
+  GvnBasicBlockState* next_in_dominator_tree_traversal(
+      Zone* zone,
+      HBasicBlock** dominator) {
+    // This assignment needs to happen before calling next_dominated() because
+    // that call can reuse "this" if we are at the last dominated block.
+    *dominator = block();
+    GvnBasicBlockState* result = next_dominated(zone);
+    if (result == NULL) {
+      GvnBasicBlockState* dominator_state = pop();
+      if (dominator_state != NULL) {
+        // This branch is guaranteed not to return NULL because pop() never
+        // returns a state where "is_done() == true".
+        *dominator = dominator_state->block();
+        result = dominator_state->next_dominated(zone);
       } else {
-        map->Add(instr);
+        // Unnecessary (we are returning NULL) but done for cleanness.
+        *dominator = NULL;
       }
     }
-    if (instr->CheckFlag(HValue::kTrackSideEffectDominators)) {
-      for (int i = 0; i < kNumberOfTrackedSideEffects; i++) {
-        HValue* other = dominators->at(i);
-        GVNFlag changes_flag = HValue::ChangesFlagFromInt(i);
-        GVNFlag depends_on_flag = HValue::DependsOnFlagFromInt(i);
-        if (instr->DependsOnFlags().Contains(depends_on_flag) &&
-            (other != NULL)) {
-          TRACE_GVN_5("Side-effect #%d in %d (%s) is dominated by %d (%s)\n",
-                      i,
+    return result;
+  }
+
+ private:
+  void Initialize(HBasicBlock* block,
+                  HValueMap* map,
+                  HSideEffectMap* dominators,
+                  bool copy_map,
+                  Zone* zone) {
+    block_ = block;
+    map_ = copy_map ? map->Copy(zone) : map;
+    dominated_index_ = -1;
+    length_ = block->dominated_blocks()->length();
+    if (dominators != NULL) {
+      dominators_ = *dominators;
+    }
+  }
+  bool is_done() { return dominated_index_ >= length_; }
+
+  GvnBasicBlockState(GvnBasicBlockState* previous,
+                     HBasicBlock* block,
+                     HValueMap* map,
+                     HSideEffectMap* dominators,
+                     Zone* zone)
+      : previous_(previous), next_(NULL) {
+    Initialize(block, map, dominators, true, zone);
+  }
+
+  GvnBasicBlockState* next_dominated(Zone* zone) {
+    dominated_index_++;
+    if (dominated_index_ == length_ - 1) {
+      // No need to copy the map for the last child in the dominator tree.
+      Initialize(block_->dominated_blocks()->at(dominated_index_),
+                 map(),
+                 dominators(),
+                 false,
+                 zone);
+      return this;
+    } else if (dominated_index_ < length_) {
+      return push(zone,
+                  block_->dominated_blocks()->at(dominated_index_),
+                  dominators());
+    } else {
+      return NULL;
+    }
+  }
+
+  GvnBasicBlockState* push(Zone* zone,
+                           HBasicBlock* block,
+                           HSideEffectMap* dominators) {
+    if (next_ == NULL) {
+      next_ =
+          new(zone) GvnBasicBlockState(this, block, map(), dominators, zone);
+    } else {
+      next_->Initialize(block, map(), dominators, true, zone);
+    }
+    return next_;
+  }
+  GvnBasicBlockState* pop() {
+    GvnBasicBlockState* result = previous_;
+    while (result != NULL && result->is_done()) {
+      TRACE_GVN_2("Backtracking from block B%d to block b%d\n",
+                  block()->block_id(),
+                  previous_->block()->block_id())
+      result = result->previous_;
+    }
+    return result;
+  }
+
+  GvnBasicBlockState* previous_;
+  GvnBasicBlockState* next_;
+  HBasicBlock* block_;
+  HValueMap* map_;
+  HSideEffectMap dominators_;
+  int dominated_index_;
+  int length_;
+};
+
+// This is a recursive traversal of the dominator tree but it has been turned
+// into a loop to avoid stack overflows.
+// The logical "stack frames" of the recursion are kept in a list of
+// GvnBasicBlockState instances.
+void HGlobalValueNumberer::AnalyzeGraph() {
+  HBasicBlock* entry_block = graph_->entry_block();
+  HValueMap* entry_map = new(zone()) HValueMap();
+  GvnBasicBlockState* current =
+      GvnBasicBlockState::CreateEntry(zone(), entry_block, entry_map);
+
+  while (current != NULL) {
+    HBasicBlock* block = current->block();
+    HValueMap* map = current->map();
+    HSideEffectMap* dominators = current->dominators();
+
+    TRACE_GVN_2("Analyzing block B%d%s\n",
+                block->block_id(),
+                block->IsLoopHeader() ? " (loop header)" : "");
+
+    // If this is a loop header kill everything killed by the loop.
+    if (block->IsLoopHeader()) {
+      map->Kill(loop_side_effects_[block->block_id()]);
+    }
+
+    // Go through all instructions of the current block.
+    HInstruction* instr = block->first();
+    while (instr != NULL) {
+      HInstruction* next = instr->next();
+      GVNFlagSet flags = instr->ChangesFlags();
+      if (!flags.IsEmpty()) {
+        // Clear all instructions in the map that are affected by side effects.
+        // Store instruction as the dominating one for tracked side effects.
+        map->Kill(flags);
+        dominators->Store(flags, instr);
+        TRACE_GVN_2("Instruction %d %s\n", instr->id(),
+                    *GetGVNFlagsString(flags));
+      }
+      if (instr->CheckFlag(HValue::kUseGVN)) {
+        ASSERT(!instr->HasObservableSideEffects());
+        HValue* other = map->Lookup(instr);
+        if (other != NULL) {
+          ASSERT(instr->Equals(other) && other->Equals(instr));
+          TRACE_GVN_4("Replacing value %d (%s) with value %d (%s)\n",
                       instr->id(),
                       instr->Mnemonic(),
                       other->id(),
                       other->Mnemonic());
-          instr->SetSideEffectDominator(changes_flag, other);
+          if (instr->HasSideEffects()) removed_side_effects_ = true;
+          instr->DeleteAndReplaceWith(other);
+        } else {
+          map->Add(instr);
         }
       }
+      if (instr->CheckFlag(HValue::kTrackSideEffectDominators)) {
+        for (int i = 0; i < kNumberOfTrackedSideEffects; i++) {
+          HValue* other = dominators->at(i);
+          GVNFlag changes_flag = HValue::ChangesFlagFromInt(i);
+          GVNFlag depends_on_flag = HValue::DependsOnFlagFromInt(i);
+          if (instr->DependsOnFlags().Contains(depends_on_flag) &&
+              (other != NULL)) {
+            TRACE_GVN_5("Side-effect #%d in %d (%s) is dominated by %d (%s)\n",
+                        i,
+                        instr->id(),
+                        instr->Mnemonic(),
+                        other->id(),
+                        other->Mnemonic());
+            instr->SetSideEffectDominator(changes_flag, other);
+          }
+        }
+      }
+      instr = next;
     }
-    instr = next;
-  }
 
-  // Recursively continue analysis for all immediately dominated blocks.
-  int length = block->dominated_blocks()->length();
-  for (int i = 0; i < length; ++i) {
-    HBasicBlock* dominated = block->dominated_blocks()->at(i);
-    // No need to copy the map for the last child in the dominator tree.
-    HValueMap* successor_map = (i == length - 1) ? map : map->Copy(zone());
-    HSideEffectMap successor_dominators(dominators);
+    HBasicBlock* dominator_block;
+    GvnBasicBlockState* next =
+        current->next_in_dominator_tree_traversal(zone(), &dominator_block);
 
-    // Kill everything killed on any path between this block and the
-    // dominated block.  We don't have to traverse these paths if the
-    // value map and the dominators list is already empty.  If the range
-    // of block ids (block_id, dominated_id) is empty there are no such
-    // paths.
-    if ((!successor_map->IsEmpty() || !successor_dominators.IsEmpty()) &&
-        block->block_id() + 1 < dominated->block_id()) {
-      visited_on_paths_.Clear();
-      GVNFlagSet side_effects_on_all_paths =
-          CollectSideEffectsOnPathsToDominatedBlock(block, dominated);
-      successor_map->Kill(side_effects_on_all_paths);
-      successor_dominators.Kill(side_effects_on_all_paths);
+    if (next != NULL) {
+      HBasicBlock* dominated = next->block();
+      HValueMap* successor_map = next->map();
+      HSideEffectMap* successor_dominators = next->dominators();
+
+      // Kill everything killed on any path between this block and the
+      // dominated block.  We don't have to traverse these paths if the
+      // value map and the dominators list is already empty.  If the range
+      // of block ids (block_id, dominated_id) is empty there are no such
+      // paths.
+      if ((!successor_map->IsEmpty() || !successor_dominators->IsEmpty()) &&
+          dominator_block->block_id() + 1 < dominated->block_id()) {
+        visited_on_paths_.Clear();
+        GVNFlagSet side_effects_on_all_paths =
+            CollectSideEffectsOnPathsToDominatedBlock(dominator_block,
+                                                      dominated);
+        successor_map->Kill(side_effects_on_all_paths);
+        successor_dominators->Kill(side_effects_on_all_paths);
+      }
     }
-    AnalyzeBlock(dominated, successor_map, &successor_dominators);
+    current = next;
   }
 }
 
