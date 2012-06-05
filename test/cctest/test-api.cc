@@ -10260,6 +10260,7 @@ static v8::Handle<Value> ChildGetter(Local<String> name,
 
 
 THREADED_TEST(Overriding) {
+  i::FLAG_es5_readonly = true;
   v8::HandleScope scope;
   LocalContext context;
 

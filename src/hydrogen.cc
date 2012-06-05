@@ -4684,6 +4684,7 @@ HInstruction* HGraphBuilder::BuildStoreNamedField(HValue* object,
     } else {
       // Otherwise, find the top prototype.
       while (proto->GetPrototype()->IsJSObject()) proto = proto->GetPrototype();
+      ASSERT(proto->GetPrototype()->IsNull());
     }
     ASSERT(proto->IsJSObject());
     AddInstruction(new(zone()) HCheckPrototypeMaps(

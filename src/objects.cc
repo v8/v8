@@ -2117,6 +2117,7 @@ MaybeObject* JSObject::SetPropertyViaPrototypes(
         break;
       }
       case CALLBACKS: {
+        if (!FLAG_es5_readonly && result.IsReadOnly()) break;
         *done = true;
         return SetPropertyWithCallback(result.GetCallbackObject(),
             name, value, result.holder(), strict_mode);
@@ -2550,6 +2551,7 @@ void JSObject::LookupRealNamedPropertyInPrototypes(String* name,
       return result->HandlerResult(JSProxy::cast(pt));
     }
     JSObject::cast(pt)->LocalLookupRealNamedProperty(name, result);
+    ASSERT(!(result->IsProperty() && result->type() == INTERCEPTOR));
     if (result->IsProperty()) return;
   }
   result->NotFound();
