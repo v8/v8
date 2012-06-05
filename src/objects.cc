@@ -7397,17 +7397,12 @@ void String::PrintOn(FILE* file) {
 
 // Clear a possible back pointer in case the transition leads to a dead map.
 // Return true in case a back pointer has been cleared and false otherwise.
-// Set *keep_entry to true when a live map transition has been found.
-static bool ClearBackPointer(Heap* heap, Object* target, bool* keep_entry) {
-  if (!target->IsMap()) return false;
+static bool ClearBackPointer(Heap* heap, Object* target) {
+  ASSERT(target->IsMap());
   Map* map = Map::cast(target);
-  if (Marking::MarkBitFrom(map).Get()) {
-    *keep_entry = true;
-    return false;
-  } else {
-    map->SetBackPointer(heap->undefined_value(), SKIP_WRITE_BARRIER);
-    return true;
-  }
+  if (Marking::MarkBitFrom(map).Get()) return false;
+  map->SetBackPointer(heap->undefined_value(), SKIP_WRITE_BARRIER);
+  return true;
 }
 
 
@@ -7427,17 +7422,22 @@ void Map::ClearNonLiveTransitions(Heap* heap) {
     switch (details.type()) {
       case MAP_TRANSITION:
       case CONSTANT_TRANSITION:
-        ClearBackPointer(heap, d->GetValue(i), &keep_entry);
+        keep_entry = !ClearBackPointer(heap, d->GetValue(i));
         break;
       case ELEMENTS_TRANSITION: {
         Object* object = d->GetValue(i);
         if (object->IsMap()) {
-          ClearBackPointer(heap, object, &keep_entry);
+          keep_entry = !ClearBackPointer(heap, object);
         } else {
           FixedArray* array = FixedArray::cast(object);
           for (int j = 0; j < array->length(); ++j) {
-            if (ClearBackPointer(heap, array->get(j), &keep_entry)) {
-              array->set_undefined(j);
+            Object* target = array->get(j);
+            if (target->IsMap()) {
+              if (ClearBackPointer(heap, target)) {
+                array->set_undefined(j);
+              } else {
+                keep_entry = true;
+              }
             }
           }
         }
@@ -7447,11 +7447,25 @@ void Map::ClearNonLiveTransitions(Heap* heap) {
         Object* object = d->GetValue(i);
         if (object->IsAccessorPair()) {
           AccessorPair* accessors = AccessorPair::cast(object);
-          if (ClearBackPointer(heap, accessors->getter(), &keep_entry)) {
-            accessors->set_getter(heap->the_hole_value());
+          Object* getter = accessors->getter();
+          if (getter->IsMap()) {
+            if (ClearBackPointer(heap, getter)) {
+              accessors->set_getter(heap->the_hole_value());
+            } else {
+              keep_entry = true;
+            }
+          } else if (!getter->IsTheHole()) {
+            keep_entry = true;
           }
-          if (ClearBackPointer(heap, accessors->setter(), &keep_entry)) {
-            accessors->set_setter(heap->the_hole_value());
+          Object* setter = accessors->setter();
+          if (setter->IsMap()) {
+            if (ClearBackPointer(heap, setter)) {
+              accessors->set_setter(heap->the_hole_value());
+            } else {
+              keep_entry = true;
+            }
+          } else if (!getter->IsTheHole()) {
+            keep_entry = true;
           }
         } else {
           keep_entry = true;
