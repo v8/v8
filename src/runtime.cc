@@ -2182,7 +2182,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetCode) {
     Handle<JSFunction> fun = Handle<JSFunction>::cast(code);
     Handle<SharedFunctionInfo> shared(fun->shared());
 
-    if (!JSFunction::CompileLazy(fun, KEEP_EXCEPTION)) {
+    if (!SharedFunctionInfo::EnsureCompiled(shared, KEEP_EXCEPTION)) {
       return Failure::Exception();
     }
     // Since we don't store the source for this we should never
