@@ -2175,12 +2175,14 @@ int ActionNode::EatsAtLeast(int still_to_find,
 
 void ActionNode::FillInBMInfo(int offset,
                               int recursion_depth,
+                              int budget,
                               BoyerMooreLookahead* bm,
                               bool not_at_start) {
   if (type_ == BEGIN_SUBMATCH) {
     bm->SetRest(offset);
   } else if (type_ != POSITIVE_SUBMATCH_SUCCESS) {
-    on_success()->FillInBMInfo(offset, recursion_depth + 1, bm, not_at_start);
+    on_success()->FillInBMInfo(
+        offset, recursion_depth + 1, budget - 1, bm, not_at_start);
   }
   SaveBMInfo(bm, not_at_start, offset);
 }
@@ -2204,11 +2206,13 @@ int AssertionNode::EatsAtLeast(int still_to_find,
 
 void AssertionNode::FillInBMInfo(int offset,
                                  int recursion_depth,
+                                 int budget,
                                  BoyerMooreLookahead* bm,
                                  bool not_at_start) {
   // Match the behaviour of EatsAtLeast on this node.
   if (type() == AT_START && not_at_start) return;
-  on_success()->FillInBMInfo(offset, recursion_depth + 1, bm, not_at_start);
+  on_success()->FillInBMInfo(
+      offset, recursion_depth + 1, budget - 1, bm, not_at_start);
   SaveBMInfo(bm, not_at_start, offset);
 }
 
@@ -2791,15 +2795,18 @@ void LoopChoiceNode::GetQuickCheckDetails(QuickCheckDetails* details,
 
 void LoopChoiceNode::FillInBMInfo(int offset,
                                   int recursion_depth,
+                                  int budget,
                                   BoyerMooreLookahead* bm,
                                   bool not_at_start) {
   if (body_can_be_zero_length_ ||
-      recursion_depth > RegExpCompiler::kMaxRecursion) {
+      recursion_depth > RegExpCompiler::kMaxRecursion ||
+      budget <= 0) {
     bm->SetRest(offset);
     SaveBMInfo(bm, not_at_start, offset);
     return;
   }
-  ChoiceNode::FillInBMInfo(offset, recursion_depth + 1, bm, not_at_start);
+  ChoiceNode::FillInBMInfo(
+      offset, recursion_depth + 1, budget - 1, bm, not_at_start);
   SaveBMInfo(bm, not_at_start, offset);
 }
 
@@ -2901,7 +2908,7 @@ void AssertionNode::EmitBoundaryCheck(RegExpCompiler* compiler, Trace* trace) {
     if (eats_at_least >= 1) {
       BoyerMooreLookahead* bm =
           new BoyerMooreLookahead(eats_at_least, compiler);
-      FillInBMInfo(0, 0, bm, not_at_start);
+      FillInBMInfo(0, 0, kFillInBMBudget, bm, not_at_start);
       if (bm->at(0)->is_non_word()) next_is_word_character = Trace::FALSE;
       if (bm->at(0)->is_word()) next_is_word_character = Trace::TRUE;
     }
@@ -3839,7 +3846,7 @@ void ChoiceNode::Emit(RegExpCompiler* compiler, Trace* trace) {
             BoyerMooreLookahead* bm =
                 new BoyerMooreLookahead(eats_at_least, compiler);
             GuardedAlternative alt0 = alternatives_->at(0);
-            alt0.node()->FillInBMInfo(0, 0, bm, not_at_start);
+            alt0.node()->FillInBMInfo(0, 0, kFillInBMBudget, bm, not_at_start);
             skip_was_emitted = bm->EmitSkipInstructions(macro_assembler);
           }
         } else {
@@ -5580,6 +5587,7 @@ void Analysis::VisitAssertion(AssertionNode* that) {
 
 void BackReferenceNode::FillInBMInfo(int offset,
                                      int recursion_depth,
+                                     int budget,
                                      BoyerMooreLookahead* bm,
                                      bool not_at_start) {
   // Working out the set of characters that a backreference can match is too
@@ -5595,9 +5603,11 @@ STATIC_ASSERT(BoyerMoorePositionInfo::kMapSize ==
 
 void ChoiceNode::FillInBMInfo(int offset,
                               int recursion_depth,
+                              int budget,
                               BoyerMooreLookahead* bm,
                               bool not_at_start) {
   ZoneList<GuardedAlternative>* alts = alternatives();
+  budget = (budget - 1) / alts->length();
   for (int i = 0; i < alts->length(); i++) {
     GuardedAlternative& alt = alts->at(i);
     if (alt.guards() != NULL && alt.guards()->length() != 0) {
@@ -5605,7 +5615,8 @@ void ChoiceNode::FillInBMInfo(int offset,
       SaveBMInfo(bm, not_at_start, offset);
       return;
     }
-    alt.node()->FillInBMInfo(offset, recursion_depth + 1, bm, not_at_start);
+    alt.node()->FillInBMInfo(
+        offset, recursion_depth + 1, budget, bm, not_at_start);
   }
   SaveBMInfo(bm, not_at_start, offset);
 }
@@ -5613,6 +5624,7 @@ void ChoiceNode::FillInBMInfo(int offset,
 
 void TextNode::FillInBMInfo(int initial_offset,
                             int recursion_depth,
+                            int budget,
                             BoyerMooreLookahead* bm,
                             bool not_at_start) {
   if (initial_offset >= bm->length()) return;
@@ -5669,6 +5681,7 @@ void TextNode::FillInBMInfo(int initial_offset,
   }
   on_success()->FillInBMInfo(offset,
                              recursion_depth + 1,
+                             budget - 1,
                              bm,
                              true);  // Not at start after a text node.
   if (initial_offset == 0) set_bm_info(not_at_start, bm);
