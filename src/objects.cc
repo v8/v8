@@ -2134,6 +2134,7 @@ MaybeObject* JSObject::SetPropertyViaPrototypes(
   }
 
   // If we get here with *done true, we have encountered a read-only property.
+  if (!FLAG_es5_readonly) *done = false;
   if (*done) {
     if (strict_mode == kNonStrictMode) return value;
     Handle<Object> args[] = { Handle<Object>(name), Handle<Object>(this)};
