@@ -1925,6 +1925,14 @@ int DescriptorArray::SearchWithCache(String* name) {
 }
 
 
+Object** DescriptorArray::GetKeySlot(int descriptor_number) {
+  ASSERT(descriptor_number < number_of_descriptors());
+  return HeapObject::RawField(
+      reinterpret_cast<HeapObject*>(this),
+      OffsetOfElementAt(ToKeyIndex(descriptor_number)));
+}
+
+
 String* DescriptorArray::GetKey(int descriptor_number) {
   ASSERT(descriptor_number < number_of_descriptors());
   return String::cast(get(ToKeyIndex(descriptor_number)));
@@ -1933,20 +1941,34 @@ String* DescriptorArray::GetKey(int descriptor_number) {
 
 Object** DescriptorArray::GetValueSlot(int descriptor_number) {
   ASSERT(descriptor_number < number_of_descriptors());
-  return GetContentArray()->data_start() + ToValueIndex(descriptor_number);
+  return HeapObject::RawField(
+      reinterpret_cast<HeapObject*>(this),
+      OffsetOfElementAt(ToValueIndex(descriptor_number)));
 }
 
 
 Object* DescriptorArray::GetValue(int descriptor_number) {
   ASSERT(descriptor_number < number_of_descriptors());
-  return GetContentArray()->get(ToValueIndex(descriptor_number));
+  return get(ToValueIndex(descriptor_number));
+}
+
+
+void DescriptorArray::SetNullValueUnchecked(int descriptor_number, Heap* heap) {
+  ASSERT(descriptor_number < number_of_descriptors());
+  set_null_unchecked(heap, ToValueIndex(descriptor_number));
 }
 
 
 PropertyDetails DescriptorArray::GetDetails(int descriptor_number) {
   ASSERT(descriptor_number < number_of_descriptors());
-  Object* details = GetContentArray()->get(ToDetailsIndex(descriptor_number));
+  Object* details = get(ToDetailsIndex(descriptor_number));
   return PropertyDetails(Smi::cast(details));
+}
+
+
+void DescriptorArray::SetDetailsUnchecked(int descriptor_number, Smi* value) {
+  ASSERT(descriptor_number < number_of_descriptors());
+  set_unchecked(ToDetailsIndex(descriptor_number), value);
 }
 
 
@@ -2030,11 +2052,10 @@ void DescriptorArray::Set(int descriptor_number,
   NoIncrementalWriteBarrierSet(this,
                                ToKeyIndex(descriptor_number),
                                desc->GetKey());
-  FixedArray* content_array = GetContentArray();
-  NoIncrementalWriteBarrierSet(content_array,
+  NoIncrementalWriteBarrierSet(this,
                                ToValueIndex(descriptor_number),
                                desc->GetValue());
-  NoIncrementalWriteBarrierSet(content_array,
+  NoIncrementalWriteBarrierSet(this,
                                ToDetailsIndex(descriptor_number),
                                desc->GetDetails().AsSmi());
 }
@@ -2043,11 +2064,10 @@ void DescriptorArray::Set(int descriptor_number,
 void DescriptorArray::NoIncrementalWriteBarrierSwapDescriptors(
     int first, int second) {
   NoIncrementalWriteBarrierSwap(this, ToKeyIndex(first), ToKeyIndex(second));
-  FixedArray* content_array = GetContentArray();
-  NoIncrementalWriteBarrierSwap(content_array,
+  NoIncrementalWriteBarrierSwap(this,
                                 ToValueIndex(first),
                                 ToValueIndex(second));
-  NoIncrementalWriteBarrierSwap(content_array,
+  NoIncrementalWriteBarrierSwap(this,
                                 ToDetailsIndex(first),
                                 ToDetailsIndex(second));
 }
@@ -2058,7 +2078,6 @@ DescriptorArray::WhitenessWitness::WhitenessWitness(DescriptorArray* array)
   marking_->EnterNoMarkingScope();
   if (array->number_of_descriptors() > 0) {
     ASSERT(Marking::Color(array) == Marking::WHITE_OBJECT);
-    ASSERT(Marking::Color(array->GetContentArray()) == Marking::WHITE_OBJECT);
   }
 }
 

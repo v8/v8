@@ -128,10 +128,6 @@ class RegExpMacroAssembler {
   // array, and if the found byte is non-zero, we jump to the on_bit_set label.
   virtual void CheckBitInTable(Handle<ByteArray> table, Label* on_bit_set) = 0;
 
-  virtual void CheckNotRegistersEqual(int reg1,
-                                      int reg2,
-                                      Label* on_not_equal) = 0;
-
   // Checks whether the given offset from the current position is before
   // the end of the string.  May overwrite the current character.
   virtual void CheckPosition(int cp_offset, Label* on_outside_input) {
@@ -184,14 +180,18 @@ class RegExpMacroAssembler {
   void set_slow_safe(bool ssc) { slow_safe_compiler_ = ssc; }
   bool slow_safe() { return slow_safe_compiler_; }
 
+  enum GlobalMode { NOT_GLOBAL, GLOBAL, GLOBAL_NO_ZERO_LENGTH_CHECK };
   // Set whether the regular expression has the global flag.  Exiting due to
   // a failure in a global regexp may still mean success overall.
-  void set_global(bool global) { global_ = global; }
-  bool global() { return global_; }
+  inline void set_global_mode(GlobalMode mode) { global_mode_ = mode; }
+  inline bool global() { return global_mode_ != NOT_GLOBAL; }
+  inline bool global_with_zero_length_check() {
+    return global_mode_ == GLOBAL;
+  }
 
  private:
   bool slow_safe_compiler_;
-  bool global_;
+  bool global_mode_;
 };
 
 

@@ -1357,7 +1357,7 @@ void HeapObjectsMap::UpdateHeapObjectsMap() {
 }
 
 
-void HeapObjectsMap::PushHeapObjectsStats(OutputStream* stream) {
+SnapshotObjectId HeapObjectsMap::PushHeapObjectsStats(OutputStream* stream) {
   UpdateHeapObjectsMap();
   time_intervals_.Add(TimeInterval(next_id_));
   int prefered_chunk_size = stream->GetChunkSize();
@@ -1387,7 +1387,7 @@ void HeapObjectsMap::PushHeapObjectsStats(OutputStream* stream) {
       if (stats_buffer.length() >= prefered_chunk_size) {
         OutputStream::WriteResult result = stream->WriteHeapStatsChunk(
             &stats_buffer.first(), stats_buffer.length());
-        if (result == OutputStream::kAbort) return;
+        if (result == OutputStream::kAbort) return last_assigned_id();
         stats_buffer.Clear();
       }
     }
@@ -1396,9 +1396,10 @@ void HeapObjectsMap::PushHeapObjectsStats(OutputStream* stream) {
   if (!stats_buffer.is_empty()) {
     OutputStream::WriteResult result = stream->WriteHeapStatsChunk(
         &stats_buffer.first(), stats_buffer.length());
-    if (result == OutputStream::kAbort) return;
+    if (result == OutputStream::kAbort) return last_assigned_id();
   }
   stream->EndOfStream();
+  return last_assigned_id();
 }
 
 

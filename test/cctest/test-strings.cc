@@ -672,3 +672,20 @@ TEST(RobustSubStringStub) {
   CompileRun("var slice = long.slice(1, 15);");
   CheckException("%_SubString(slice, 0, 17);");
 }
+
+
+TEST(RegExpOverflow) {
+  // Result string has the length 2^32, causing a 32-bit integer overflow.
+  InitializeVM();
+  HandleScope scope;
+  LocalContext context;
+  v8::V8::IgnoreOutOfMemoryException();
+  v8::Local<v8::Value> result = CompileRun(
+      "var a = 'a';                     "
+      "for (var i = 0; i < 16; i++) {   "
+      "  a += a;                        "
+      "}                                "
+      "a.replace(/a/g, a);              ");
+  CHECK(result.IsEmpty());
+  CHECK(context->HasOutOfMemoryException());
+}

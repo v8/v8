@@ -1,3 +1,14 @@
+2012-06-06: Version 3.11.9
+
+        Implemented ES5-conformant semantics for inherited setters and read-only
+        properties. Currently behind --es5_readonly flag, because it breaks
+        WebKit bindings.
+
+        Exposed last seen heap object id via v8 public api.
+
+        Performance and stability improvements on all platforms.
+
+
 2012-05-31: Version 3.11.8
 
         Avoid overdeep recursion in regexp where a guarded expression with a

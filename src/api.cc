@@ -6229,7 +6229,7 @@ void HeapProfiler::StopHeapObjectsTracking() {
 }
 
 
-void HeapProfiler::PushHeapObjectsStats(OutputStream* stream) {
+SnapshotObjectId HeapProfiler::PushHeapObjectsStats(OutputStream* stream) {
   i::Isolate* isolate = i::Isolate::Current();
   IsDeadCheck(isolate, "v8::HeapProfiler::PushHeapObjectsStats");
   return i::HeapProfiler::PushHeapObjectsStats(stream);

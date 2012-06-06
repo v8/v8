@@ -512,7 +512,8 @@ static RegExpNode* Compile(const char* input, bool multiline, bool is_ascii) {
                         multiline,
                         pattern,
                         sample_subject,
-                        is_ascii);
+                        is_ascii,
+                        isolate->zone());
   return compile_data.node;
 }
 

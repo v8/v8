@@ -691,9 +691,13 @@ class TestStatsStream : public v8::OutputStream {
 
 }  // namespace
 
-static TestStatsStream GetHeapStatsUpdate() {
+static TestStatsStream GetHeapStatsUpdate(
+    v8::SnapshotObjectId* object_id = NULL) {
   TestStatsStream stream;
-  v8::HeapProfiler::PushHeapObjectsStats(&stream);
+  v8::SnapshotObjectId last_seen_id =
+      v8::HeapProfiler::PushHeapObjectsStats(&stream);
+  if (object_id)
+    *object_id = last_seen_id;
   CHECK_EQ(1, stream.eos_signaled());
   return stream;
 }
@@ -710,9 +714,10 @@ TEST(HeapSnapshotObjectsStats) {
     HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
   }
 
+  v8::SnapshotObjectId initial_id;
   {
     // Single chunk of data expected in update. Initial data.
-    TestStatsStream stats_update = GetHeapStatsUpdate();
+    TestStatsStream stats_update = GetHeapStatsUpdate(&initial_id);
     CHECK_EQ(1, stats_update.intervals_count());
     CHECK_EQ(1, stats_update.updates_written());
     CHECK_LT(0, stats_update.entries_size());
@@ -720,13 +725,18 @@ TEST(HeapSnapshotObjectsStats) {
   }
 
   // No data expected in update because nothing has happened.
-  CHECK_EQ(0, GetHeapStatsUpdate().updates_written());
+  v8::SnapshotObjectId same_id;
+  CHECK_EQ(0, GetHeapStatsUpdate(&same_id).updates_written());
+  CHECK_EQ_SNAPSHOT_OBJECT_ID(initial_id, same_id);
+
   {
+    v8::SnapshotObjectId additional_string_id;
     v8::HandleScope inner_scope_1;
     v8_str("string1");
     {
       // Single chunk of data with one new entry expected in update.
-      TestStatsStream stats_update = GetHeapStatsUpdate();
+      TestStatsStream stats_update = GetHeapStatsUpdate(&additional_string_id);
+      CHECK_LT(same_id, additional_string_id);
       CHECK_EQ(1, stats_update.intervals_count());
       CHECK_EQ(1, stats_update.updates_written());
       CHECK_LT(0, stats_update.entries_size());
@@ -735,7 +745,9 @@ TEST(HeapSnapshotObjectsStats) {
     }
 
     // No data expected in update because nothing happened.
-    CHECK_EQ(0, GetHeapStatsUpdate().updates_written());
+    v8::SnapshotObjectId last_id;
+    CHECK_EQ(0, GetHeapStatsUpdate(&last_id).updates_written());
+    CHECK_EQ_SNAPSHOT_OBJECT_ID(additional_string_id, last_id);
 
     {
       v8::HandleScope inner_scope_2;

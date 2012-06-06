@@ -1290,7 +1290,7 @@ Object* FrameDescription::GetExpression(int index) {
 }
 
 
-void TranslationBuffer::Add(int32_t value) {
+void TranslationBuffer::Add(int32_t value, Zone* zone) {
   // Encode the sign bit in the least significant bit.
   bool is_negative = (value < 0);
   uint32_t bits = ((is_negative ? -value : value) << 1) |
@@ -1299,7 +1299,7 @@ void TranslationBuffer::Add(int32_t value) {
   // each byte to indicate whether or not more bytes follow.
   do {
     uint32_t next = bits >> 7;
-    contents_.Add(((bits << 1) & 0xFF) | (next != 0));
+    contents_.Add(((bits << 1) & 0xFF) | (next != 0), zone);
     bits = next;
   } while (bits != 0);
 }
@@ -1332,76 +1332,76 @@ Handle<ByteArray> TranslationBuffer::CreateByteArray() {
 
 
 void Translation::BeginConstructStubFrame(int literal_id, unsigned height) {
-  buffer_->Add(CONSTRUCT_STUB_FRAME);
-  buffer_->Add(literal_id);
-  buffer_->Add(height);
+  buffer_->Add(CONSTRUCT_STUB_FRAME, zone());
+  buffer_->Add(literal_id, zone());
+  buffer_->Add(height, zone());
 }
 
 
 void Translation::BeginArgumentsAdaptorFrame(int literal_id, unsigned height) {
-  buffer_->Add(ARGUMENTS_ADAPTOR_FRAME);
-  buffer_->Add(literal_id);
-  buffer_->Add(height);
+  buffer_->Add(ARGUMENTS_ADAPTOR_FRAME, zone());
+  buffer_->Add(literal_id, zone());
+  buffer_->Add(height, zone());
 }
 
 
 void Translation::BeginJSFrame(int node_id, int literal_id, unsigned height) {
-  buffer_->Add(JS_FRAME);
-  buffer_->Add(node_id);
-  buffer_->Add(literal_id);
-  buffer_->Add(height);
+  buffer_->Add(JS_FRAME, zone());
+  buffer_->Add(node_id, zone());
+  buffer_->Add(literal_id, zone());
+  buffer_->Add(height, zone());
 }
 
 
 void Translation::StoreRegister(Register reg) {
-  buffer_->Add(REGISTER);
-  buffer_->Add(reg.code());
+  buffer_->Add(REGISTER, zone());
+  buffer_->Add(reg.code(), zone());
 }
 
 
 void Translation::StoreInt32Register(Register reg) {
-  buffer_->Add(INT32_REGISTER);
-  buffer_->Add(reg.code());
+  buffer_->Add(INT32_REGISTER, zone());
+  buffer_->Add(reg.code(), zone());
 }
 
 
 void Translation::StoreDoubleRegister(DoubleRegister reg) {
-  buffer_->Add(DOUBLE_REGISTER);
-  buffer_->Add(DoubleRegister::ToAllocationIndex(reg));
+  buffer_->Add(DOUBLE_REGISTER, zone());
+  buffer_->Add(DoubleRegister::ToAllocationIndex(reg), zone());
 }
 
 
 void Translation::StoreStackSlot(int index) {
-  buffer_->Add(STACK_SLOT);
-  buffer_->Add(index);
+  buffer_->Add(STACK_SLOT, zone());
+  buffer_->Add(index, zone());
 }
 
 
 void Translation::StoreInt32StackSlot(int index) {
-  buffer_->Add(INT32_STACK_SLOT);
-  buffer_->Add(index);
+  buffer_->Add(INT32_STACK_SLOT, zone());
+  buffer_->Add(index, zone());
 }
 
 
 void Translation::StoreDoubleStackSlot(int index) {
-  buffer_->Add(DOUBLE_STACK_SLOT);
-  buffer_->Add(index);
+  buffer_->Add(DOUBLE_STACK_SLOT, zone());
+  buffer_->Add(index, zone());
 }
 
 
 void Translation::StoreLiteral(int literal_id) {
-  buffer_->Add(LITERAL);
-  buffer_->Add(literal_id);
+  buffer_->Add(LITERAL, zone());
+  buffer_->Add(literal_id, zone());
 }
 
 
 void Translation::StoreArgumentsObject() {
-  buffer_->Add(ARGUMENTS_OBJECT);
+  buffer_->Add(ARGUMENTS_OBJECT, zone());
 }
 
 
 void Translation::MarkDuplicate() {
-  buffer_->Add(DUPLICATE);
+  buffer_->Add(DUPLICATE, zone());
 }
 
 

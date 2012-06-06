@@ -1,4 +1,4 @@
-// Copyright 2009 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,42 +25,18 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --es5_readonly
+var x = {a: 1, b: 2, c: 3};
 
-// According to ECMA-262, sections 8.6.2.2 and 8.6.2.3 you're not
-// allowed to override read-only properties, not even if the read-only
-// property is in the prototype chain.
-//
-// However, for compatibility with WebKit/JSC, we allow the overriding
-// of read-only properties in prototype chains.
+x.__proto__ = {};
 
-function F() {};
-F.prototype = Number;
+delete x.b;
 
-var original_number_max = Number.MAX_VALUE;
+x.d = 4;
 
-// Assignment to a property which does not exist on the object itself,
-// but is read-only in a prototype does not take effect.
-var f = new F();
-assertEquals(original_number_max, f.MAX_VALUE);
-f.MAX_VALUE = 42;
-assertEquals(original_number_max, f.MAX_VALUE);
+s = "";
 
-// Assignment to a property which does not exist on the object itself,
-// but is read-only in a prototype does not take effect.
-f = new F();
-with (f) {
-  MAX_VALUE = 42;
+for (key in x) {
+    s += x[key];
 }
-assertEquals(original_number_max, f.MAX_VALUE);
 
-// Assignment to read-only property on the object itself is ignored.
-Number.MAX_VALUE = 42;
-assertEquals(original_number_max, Number.MAX_VALUE);
-
-// G should be read-only on the global object and the assignment is
-// ignored.
-(function G() {
-  eval("G = 42;");
-  assertTrue(typeof G === 'function');
-})();
+assertEquals("134", s);

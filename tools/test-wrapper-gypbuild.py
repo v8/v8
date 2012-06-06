@@ -245,9 +245,6 @@ def Main():
                          ['--arch=' + arch] +
                          ['--mode=' + mode] +
                          ['--shell=' + shell])
-      # TODO(jkummerow): This print is temporary.
-      print "Executing: %s" % cmdline
-
       child = subprocess.Popen(cmdline,
                                shell=True,
                                cwd=workspace,

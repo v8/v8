@@ -1746,7 +1746,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_RegExpExec) {
   Handle<Object> result = RegExpImpl::Exec(regexp,
                                            subject,
                                            index,
-                                           last_match_info);
+                                           last_match_info,
+                                           isolate->zone());
   if (result.is_null()) return Failure::Exception();
   return *result;
 }
@@ -2984,7 +2985,15 @@ MUST_USE_RESULT static MaybeObject* StringReplaceAtomRegExpWithString(
   int matches = indices.length();
   if (matches == 0) return *subject;
 
-  int result_len = (replacement_len - pattern_len) * matches + subject_len;
+  // Detect integer overflow.
+  int64_t result_len_64 =
+      (static_cast<int64_t>(replacement_len) -
+       static_cast<int64_t>(pattern_len)) *
+      static_cast<int64_t>(matches) +
+      static_cast<int64_t>(subject_len);
+  if (result_len_64 > INT_MAX) return Failure::OutOfMemoryException();
+  int result_len = static_cast<int>(result_len_64);
+
   int subject_pos = 0;
   int result_pos = 0;
 
@@ -3054,7 +3063,8 @@ MUST_USE_RESULT static MaybeObject* StringReplaceRegExpWithString(
   Handle<Object> match = RegExpImpl::Exec(regexp_handle,
                                           subject_handle,
                                           0,
-                                          last_match_info_handle);
+                                          last_match_info_handle,
+                                          isolate->zone());
   if (match.is_null()) {
     return Failure::Exception();
   }
@@ -3153,7 +3163,8 @@ MUST_USE_RESULT static MaybeObject* StringReplaceRegExpWithString(
     match = RegExpImpl::Exec(regexp_handle,
                              subject_handle,
                              next,
-                             last_match_info_handle);
+                             last_match_info_handle,
+                             isolate->zone());
     if (match.is_null()) {
       return Failure::Exception();
     }
@@ -3206,7 +3217,8 @@ MUST_USE_RESULT static MaybeObject* StringReplaceRegExpWithEmptyString(
   Handle<Object> match = RegExpImpl::Exec(regexp_handle,
                                           subject_handle,
                                           0,
-                                          last_match_info_handle);
+                                          last_match_info_handle,
+                                          isolate->zone());
   if (match.is_null()) return Failure::Exception();
   if (match->IsNull()) return *subject_handle;
 
@@ -3280,7 +3292,8 @@ MUST_USE_RESULT static MaybeObject* StringReplaceRegExpWithEmptyString(
     match = RegExpImpl::Exec(regexp_handle,
                              subject_handle,
                              next,
-                             last_match_info_handle);
+                             last_match_info_handle,
+                             isolate->zone());
     if (match.is_null()) return Failure::Exception();
     if (match->IsNull()) break;
 
@@ -3693,7 +3706,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringMatch) {
   CONVERT_ARG_HANDLE_CHECKED(JSArray, regexp_info, 2);
   HandleScope handles;
 
-  Handle<Object> match = RegExpImpl::Exec(regexp, subject, 0, regexp_info);
+  Handle<Object> match = RegExpImpl::Exec(regexp, subject, 0, regexp_info,
+                                          isolate->zone());
 
   if (match.is_null()) {
     return Failure::Exception();
@@ -3717,7 +3731,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringMatch) {
     offsets.Add(start);
     offsets.Add(end);
     if (start == end) if (++end > length) break;
-    match = RegExpImpl::Exec(regexp, subject, end, regexp_info);
+    match = RegExpImpl::Exec(regexp, subject, end, regexp_info,
+                             isolate->zone());
     if (match.is_null()) {
       return Failure::Exception();
     }
@@ -3815,7 +3830,8 @@ static int SearchRegExpNoCaptureMultiple(
   int match_start = -1;
   int match_end = 0;
   int pos = 0;
-  int registers_per_match = RegExpImpl::IrregexpPrepare(regexp, subject);
+  int registers_per_match = RegExpImpl::IrregexpPrepare(regexp, subject,
+                                                        isolate->zone());
   if (registers_per_match < 0) return RegExpImpl::RE_EXCEPTION;
 
   int max_matches;
@@ -3830,7 +3846,8 @@ static int SearchRegExpNoCaptureMultiple(
     int num_matches = RegExpImpl::IrregexpExecRaw(regexp,
                                                   subject,
                                                   pos,
-                                                  register_vector);
+                                                  register_vector,
+                                                  isolate->zone());
     if (num_matches > 0) {
       for (int match_index = 0; match_index < num_matches; match_index++) {
         int32_t* current_match = &register_vector[match_index * 2];
@@ -3900,7 +3917,8 @@ static int SearchRegExpMultiple(
     FixedArrayBuilder* builder) {
 
   ASSERT(subject->IsFlat());
-  int registers_per_match = RegExpImpl::IrregexpPrepare(regexp, subject);
+  int registers_per_match = RegExpImpl::IrregexpPrepare(regexp, subject,
+                                                        isolate->zone());
   if (registers_per_match < 0) return RegExpImpl::RE_EXCEPTION;
 
   int max_matches;
@@ -3913,7 +3931,8 @@ static int SearchRegExpMultiple(
   int num_matches = RegExpImpl::IrregexpExecRaw(regexp,
                                                 subject,
                                                 0,
-                                                register_vector);
+                                                register_vector,
+                                                isolate->zone());
 
   int capture_count = regexp->CaptureCount();
   int subject_length = subject->length();
@@ -3999,7 +4018,8 @@ static int SearchRegExpMultiple(
       num_matches = RegExpImpl::IrregexpExecRaw(regexp,
                                                 subject,
                                                 pos,
-                                                register_vector);
+                                                register_vector,
+                                                isolate->zone());
     } while (num_matches > 0);
 
     if (num_matches != RegExpImpl::RE_EXCEPTION) {
@@ -12491,8 +12511,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugDisassembleFunction) {
   ASSERT(args.length() == 1);
   // Get the function and make sure it is compiled.
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, func, 0);
-  Handle<SharedFunctionInfo> shared(func->shared());
-  if (!SharedFunctionInfo::EnsureCompiled(shared, KEEP_EXCEPTION)) {
+  if (!JSFunction::CompileLazy(func, KEEP_EXCEPTION)) {
     return Failure::Exception();
   }
   func->code()->PrintLn();
@@ -12507,11 +12526,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugDisassembleConstructor) {
   ASSERT(args.length() == 1);
   // Get the function and make sure it is compiled.
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, func, 0);
-  Handle<SharedFunctionInfo> shared(func->shared());
-  if (!SharedFunctionInfo::EnsureCompiled(shared, KEEP_EXCEPTION)) {
+  if (!JSFunction::CompileLazy(func, KEEP_EXCEPTION)) {
     return Failure::Exception();
   }
-  shared->construct_stub()->PrintLn();
+  func->shared()->construct_stub()->PrintLn();
 #endif  // DEBUG
   return isolate->heap()->undefined_value();
 }

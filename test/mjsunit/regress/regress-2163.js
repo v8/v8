@@ -1,4 +1,4 @@
-// Copyright 2009 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,42 +25,46 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --es5_readonly
+// Flags: --expose-gc
 
-// According to ECMA-262, sections 8.6.2.2 and 8.6.2.3 you're not
-// allowed to override read-only properties, not even if the read-only
-// property is in the prototype chain.
-//
-// However, for compatibility with WebKit/JSC, we allow the overriding
-// of read-only properties in prototype chains.
+// Handy abbreviation.
+var dp = Object.defineProperty;
 
-function F() {};
-F.prototype = Number;
+function getter() { return 111; }
+function setter(x) { print(222); }
+function anotherGetter() { return 333; }
+function anotherSetter(x) { print(444); }
+var obj1, obj2;
 
-var original_number_max = Number.MAX_VALUE;
+// obj1 and obj2 share the getter accessor.
+obj1 = {};
+dp(obj1, "alpha", { get: getter, set: setter });
+obj2 = {}
+dp(obj2, "alpha", { get: getter });
+obj1 = {};
+assertEquals(111, obj2.alpha);
+gc();
+assertEquals(111, obj2.alpha);
 
-// Assignment to a property which does not exist on the object itself,
-// but is read-only in a prototype does not take effect.
-var f = new F();
-assertEquals(original_number_max, f.MAX_VALUE);
-f.MAX_VALUE = 42;
-assertEquals(original_number_max, f.MAX_VALUE);
+// obj1, obj2, and obj3 share the getter accessor.
+obj1 = {};
+dp(obj1, "alpha", { get: getter, set: setter });
+obj2 = {}
+dp(obj2, "alpha", { get: getter });
+obj1 = {};
+gc();
+obj3 = {}
+dp(obj3, "alpha", { get: getter });
 
-// Assignment to a property which does not exist on the object itself,
-// but is read-only in a prototype does not take effect.
-f = new F();
-with (f) {
-  MAX_VALUE = 42;
-}
-assertEquals(original_number_max, f.MAX_VALUE);
 
-// Assignment to read-only property on the object itself is ignored.
-Number.MAX_VALUE = 42;
-assertEquals(original_number_max, Number.MAX_VALUE);
-
-// G should be read-only on the global object and the assignment is
-// ignored.
-(function G() {
-  eval("G = 42;");
-  assertTrue(typeof G === 'function');
-})();
+// obj1 and obj2 share the getter and setter accessor.
+obj1 = {};
+dp(obj1, "alpha", { get: getter, set: setter });
+obj1.beta = 10;
+obj2 = {}
+dp(obj2, "alpha", { get: getter, set: setter });
+obj1 = {};
+assertEquals(111, obj2.alpha);
+gc();
+obj2.alpha = 100
+assertEquals(111, obj2.alpha);

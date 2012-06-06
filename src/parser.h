@@ -270,7 +270,7 @@ class BufferedZoneList {
 // Accumulates RegExp atoms and assertions into lists of terms and alternatives.
 class RegExpBuilder: public ZoneObject {
  public:
-  RegExpBuilder();
+  explicit RegExpBuilder(Zone* zone);
   void AddCharacter(uc16 character);
   // "Adds" an empty expression. Does nothing except consume a
   // following quantifier
@@ -368,9 +368,10 @@ class RegExpParser {
    public:
     RegExpParserState(RegExpParserState* previous_state,
                       SubexpressionType group_type,
-                      int disjunction_capture_index)
+                      int disjunction_capture_index,
+                      Zone* zone)
         : previous_state_(previous_state),
-          builder_(new RegExpBuilder()),
+          builder_(new RegExpBuilder(zone)),
           group_type_(group_type),
           disjunction_capture_index_(disjunction_capture_index) {}
     // Parser state of containing expression, if any.
@@ -433,7 +434,8 @@ class Parser {
   Parser(Handle<Script> script,
          int parsing_flags,  // Combination of ParsingFlags
          v8::Extension* extension,
-         ScriptDataImpl* pre_data);
+         ScriptDataImpl* pre_data,
+         Zone* zone);
   virtual ~Parser() {
     delete reusable_preparser_;
     reusable_preparser_ = NULL;
@@ -546,7 +548,7 @@ class Parser {
                              ZoneScope* zone_scope);
 
   Isolate* isolate() { return isolate_; }
-  Zone* zone() { return isolate_->zone(); }
+  Zone* zone() { return zone_; }
 
   // Called by ParseProgram after setting up the scanner.
   FunctionLiteral* DoParseProgram(CompilationInfo* info,
@@ -834,6 +836,7 @@ class Parser {
   // so never lazily compile it.
   bool parenthesized_function_;
 
+  Zone* zone_;
   friend class BlockState;
   friend class FunctionState;
 };

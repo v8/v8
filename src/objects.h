@@ -1837,7 +1837,6 @@ class JSObject: public JSReceiver {
   void LocalLookupRealNamedProperty(String* name, LookupResult* result);
   void LookupRealNamedProperty(String* name, LookupResult* result);
   void LookupRealNamedPropertyInPrototypes(String* name, LookupResult* result);
-  void LookupCallbackSetterInPrototypes(String* name, LookupResult* result);
   MUST_USE_RESULT MaybeObject* SetElementWithCallbackSetterInPrototypes(
       uint32_t index, Object* value, bool* found, StrictModeFlag strict_mode);
   void LookupCallback(String* name, LookupResult* result);
@@ -2122,17 +2121,16 @@ class JSObject: public JSReceiver {
       bool check_prototype,
       SetPropertyMode set_mode);
 
-  // Searches the prototype chain for a callback setter and sets the property
-  // with the setter if it finds one. The '*found' flag indicates whether
-  // a setter was found or not.
-  // This function can cause GC and can return a failure result with
-  // '*found==true'.
-  MUST_USE_RESULT MaybeObject* SetPropertyWithCallbackSetterInPrototypes(
+  // Searches the prototype chain for property 'name'. If it is found and
+  // has a setter, invoke it and set '*done' to true. If it is found and is
+  // read-only, reject and set '*done' to true. Otherwise, set '*done' to
+  // false. Can cause GC and can return a failure result with '*done==true'.
+  MUST_USE_RESULT MaybeObject* SetPropertyViaPrototypes(
       String* name,
       Object* value,
       PropertyAttributes attributes,
-      bool* found,
-      StrictModeFlag strict_mode);
+      StrictModeFlag strict_mode,
+      bool* done);
 
   MUST_USE_RESULT MaybeObject* DeletePropertyPostInterceptor(String* name,
                                                              DeleteMode mode);
@@ -2405,7 +2403,7 @@ class DescriptorArray: public FixedArray {
   int number_of_descriptors() {
     ASSERT(length() > kFirstIndex || IsEmpty());
     int len = length();
-    return len <= kFirstIndex ? 0 : len - kFirstIndex;
+    return len <= kFirstIndex ? 0 : (len - kFirstIndex) / kDescriptorSize;
   }
 
   int NextEnumerationIndex() {
@@ -2435,6 +2433,12 @@ class DescriptorArray: public FixedArray {
     return bridge->get(kEnumCacheBridgeCacheIndex);
   }
 
+  Object** GetEnumCacheSlot() {
+    ASSERT(HasEnumCache());
+    return HeapObject::RawField(reinterpret_cast<HeapObject*>(this),
+                                kEnumerationIndexOffset);
+  }
+
   // TODO(1399): It should be possible to make room for bit_field3 in the map
   //             without overloading the instance descriptors field in the map
   //             (and storing it in the DescriptorArray when the map has one).
@@ -2449,9 +2453,12 @@ class DescriptorArray: public FixedArray {
 
   // Accessors for fetching instance descriptor at descriptor number.
   inline String* GetKey(int descriptor_number);
+  inline Object** GetKeySlot(int descriptor_number);
   inline Object* GetValue(int descriptor_number);
   inline Object** GetValueSlot(int descriptor_number);
+  inline void SetNullValueUnchecked(int descriptor_number, Heap* heap);
   inline PropertyDetails GetDetails(int descriptor_number);
+  inline void SetDetailsUnchecked(int descriptor_number, Smi* value);
   inline PropertyType GetType(int descriptor_number);
   inline int GetFieldIndex(int descriptor_number);
   inline JSFunction* GetConstantFunction(int descriptor_number);
@@ -2552,9 +2559,8 @@ class DescriptorArray: public FixedArray {
   static const int kNotFound = -1;
 
   static const int kBitField3StorageIndex = 0;
-  static const int kContentArrayIndex = 1;
-  static const int kEnumerationIndexIndex = 2;
-  static const int kFirstIndex = 3;
+  static const int kEnumerationIndexIndex = 1;
+  static const int kFirstIndex = 2;
 
   // The length of the "bridge" to the enum cache.
   static const int kEnumCacheBridgeLength = 3;
@@ -2564,14 +2570,20 @@ class DescriptorArray: public FixedArray {
 
   // Layout description.
   static const int kBitField3StorageOffset = FixedArray::kHeaderSize;
-  static const int kContentArrayOffset = kBitField3StorageOffset + kPointerSize;
-  static const int kEnumerationIndexOffset = kContentArrayOffset + kPointerSize;
+  static const int kEnumerationIndexOffset = kBitField3StorageOffset +
+                                             kPointerSize;
   static const int kFirstOffset = kEnumerationIndexOffset + kPointerSize;
 
   // Layout description for the bridge array.
   static const int kEnumCacheBridgeEnumOffset = FixedArray::kHeaderSize;
   static const int kEnumCacheBridgeCacheOffset =
     kEnumCacheBridgeEnumOffset + kPointerSize;
+
+  // Layout of descriptor.
+  static const int kDescriptorKey = 0;
+  static const int kDescriptorDetails = 1;
+  static const int kDescriptorValue = 2;
+  static const int kDescriptorSize = 3;
 
 #ifdef OBJECT_PRINT
   // Print all the descriptors.
@@ -2597,8 +2609,6 @@ class DescriptorArray: public FixedArray {
   static const int kMaxNumberOfDescriptors = 1024 + 512;
 
  private:
-  friend class IntrusiveMapTransitionIterator;
-
   // An entry in a DescriptorArray, represented as an (array, index) pair.
   class Entry {
    public:
@@ -2615,15 +2625,21 @@ class DescriptorArray: public FixedArray {
 
   // Conversion from descriptor number to array indices.
   static int ToKeyIndex(int descriptor_number) {
-    return descriptor_number+kFirstIndex;
+    return kFirstIndex +
+           (descriptor_number * kDescriptorSize) +
+           kDescriptorKey;
   }
 
   static int ToDetailsIndex(int descriptor_number) {
-    return (descriptor_number << 1) + 1;
+    return kFirstIndex +
+           (descriptor_number * kDescriptorSize) +
+           kDescriptorDetails;
   }
 
   static int ToValueIndex(int descriptor_number) {
-    return descriptor_number << 1;
+    return kFirstIndex +
+           (descriptor_number * kDescriptorSize) +
+           kDescriptorValue;
   }
 
   // Swap operation on FixedArray without using write barriers.
@@ -2633,10 +2649,6 @@ class DescriptorArray: public FixedArray {
   // Swap descriptor first and second.
   inline void NoIncrementalWriteBarrierSwapDescriptors(
       int first, int second);
-
-  FixedArray* GetContentArray() {
-    return FixedArray::cast(get(kContentArrayIndex));
-  }
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(DescriptorArray);
 };
@@ -7731,15 +7743,17 @@ class JSProxy: public JSReceiver {
       Object* value,
       StrictModeFlag strict_mode);
 
-  // If the handler defines an accessor property, invoke its setter
-  // (or throw if only a getter exists) and set *found to true. Otherwise false.
-  MUST_USE_RESULT MaybeObject* SetPropertyWithHandlerIfDefiningSetter(
+  // If the handler defines an accessor property with a setter, invoke it.
+  // If it defines an accessor property without a setter, or a data property
+  // that is read-only, throw. In all these cases set '*done' to true,
+  // otherwise set it to false.
+  MUST_USE_RESULT MaybeObject* SetPropertyViaPrototypesWithHandler(
       JSReceiver* receiver,
       String* name,
       Object* value,
       PropertyAttributes attributes,
       StrictModeFlag strict_mode,
-      bool* found);
+      bool* done);
 
   MUST_USE_RESULT MaybeObject* DeletePropertyWithHandler(
       String* name,

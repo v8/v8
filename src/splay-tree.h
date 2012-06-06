@@ -50,7 +50,7 @@ namespace internal {
 // Forward defined as
 // template <typename Config, class Allocator = FreeStoreAllocationPolicy>
 //     class SplayTree;
-template <typename Config, class Allocator>
+template <typename Config, class AllocationPolicy>
 class SplayTree {
  public:
   typedef typename Config::Key Key;
@@ -61,15 +61,19 @@ class SplayTree {
   SplayTree() : root_(NULL) { }
   ~SplayTree();
 
-  INLINE(void* operator new(size_t size)) {
-    return Allocator::New(static_cast<int>(size));
+  INLINE(void* operator new(size_t size,
+                            AllocationPolicy allocator = AllocationPolicy())) {
+    return allocator.New(static_cast<int>(size));
   }
-  INLINE(void operator delete(void* p, size_t)) { return Allocator::Delete(p); }
+  INLINE(void operator delete(void* p, size_t)) {
+    AllocationPolicy::Delete(p);
+  }
 
   // Inserts the given key in this tree with the given value.  Returns
   // true if a node was inserted, otherwise false.  If found the locator
   // is enabled and provides access to the mapping for the key.
-  bool Insert(const Key& key, Locator* locator);
+  bool Insert(const Key& key, Locator* locator,
+              AllocationPolicy allocator = AllocationPolicy());
 
   // Looks up the key in this tree and returns true if it was found,
   // otherwise false.  If the node is found the locator is enabled and
@@ -112,11 +116,11 @@ class SplayTree {
           left_(NULL),
           right_(NULL) { }
 
-    INLINE(void* operator new(size_t size)) {
-      return Allocator::New(static_cast<int>(size));
+    INLINE(void* operator new(size_t size, AllocationPolicy allocator)) {
+      return allocator.New(static_cast<int>(size));
     }
     INLINE(void operator delete(void* p, size_t)) {
-      return Allocator::Delete(p);
+      return AllocationPolicy::Delete(p);
     }
 
     Key key() { return key_; }
@@ -184,14 +188,15 @@ class SplayTree {
   class NodeDeleter BASE_EMBEDDED {
    public:
     NodeDeleter() { }
-    void Call(Node* node) { delete node; }
+    void Call(Node* node) { AllocationPolicy::Delete(node); }
 
    private:
     DISALLOW_COPY_AND_ASSIGN(NodeDeleter);
   };
 
   template <class Callback>
-  void ForEachNode(Callback* callback);
+  void ForEachNode(Callback* callback,
+                   AllocationPolicy allocator = AllocationPolicy());
 
   Node* root_;
 

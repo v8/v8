@@ -649,7 +649,7 @@ class HeapObjectsMap {
   }
 
   void StopHeapObjectsTracking();
-  void PushHeapObjectsStats(OutputStream* stream);
+  SnapshotObjectId PushHeapObjectsStats(OutputStream* stream);
 
   static SnapshotObjectId GenerateId(v8::RetainedObjectInfo* info);
   static inline SnapshotObjectId GetNthGcSubrootId(int delta);
@@ -707,7 +707,7 @@ class HeapSnapshotsCollection {
   ~HeapSnapshotsCollection();
 
   bool is_tracking_objects() { return is_tracking_objects_; }
-  void PushHeapObjectsStats(OutputStream* stream) {
+  SnapshotObjectId PushHeapObjectsStats(OutputStream* stream) {
     return ids_.PushHeapObjectsStats(stream);
   }
   void StartHeapObjectsTracking() { is_tracking_objects_ = true; }

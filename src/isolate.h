@@ -315,7 +315,7 @@ class ThreadLocalTop BASE_EMBEDDED {
   V(uint32_t, private_random_seed, 2)                                          \
   ISOLATE_INIT_DEBUG_ARRAY_LIST(V)
 
-typedef List<HeapObject*, PreallocatedStorage> DebugObjectCache;
+typedef List<HeapObject*, PreallocatedStorageAllocationPolicy> DebugObjectCache;
 
 #define ISOLATE_INIT_LIST(V)                                                   \
   /* SerializerDeserializer state. */                                          \

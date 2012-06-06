@@ -78,7 +78,8 @@ class RegExpImpl {
   static Handle<Object> Exec(Handle<JSRegExp> regexp,
                              Handle<String> subject,
                              int index,
-                             Handle<JSArray> lastMatchInfo);
+                             Handle<JSArray> lastMatchInfo,
+                             Zone* zone);
 
   // Prepares a JSRegExp object with Irregexp-specific data.
   static void IrregexpInitialize(Handle<JSRegExp> re,
@@ -107,7 +108,8 @@ class RegExpImpl {
   // as its "registers" argument. If the regexp cannot be compiled,
   // an exception is set as pending, and this function returns negative.
   static int IrregexpPrepare(Handle<JSRegExp> regexp,
-                             Handle<String> subject);
+                             Handle<String> subject,
+                             Zone* zone);
 
   // Calculate the size of offsets vector for the case of global regexp
   // and the number of matches this vector is able to store.
@@ -124,7 +126,8 @@ class RegExpImpl {
   static int IrregexpExecRaw(Handle<JSRegExp> regexp,
                              Handle<String> subject,
                              int index,
-                             Vector<int> registers);
+                             Vector<int> registers,
+                             Zone* zone);
 
   // Execute an Irregexp bytecode pattern.
   // On a successful match, the result is a JSArray containing
@@ -133,7 +136,8 @@ class RegExpImpl {
   static Handle<Object> IrregexpExec(Handle<JSRegExp> regexp,
                                      Handle<String> subject,
                                      int index,
-                                     Handle<JSArray> lastMatchInfo);
+                                     Handle<JSArray> lastMatchInfo,
+                                     Zone* zone);
 
   // Array index in the lastMatchInfo array.
   static const int kLastCaptureCount = 0;
@@ -198,9 +202,11 @@ class RegExpImpl {
   static String* two_byte_cached_string_;
 
   static bool CompileIrregexp(
-      Handle<JSRegExp> re, Handle<String> sample_subject, bool is_ascii);
+      Handle<JSRegExp> re, Handle<String> sample_subject, bool is_ascii,
+      Zone* zone);
   static inline bool EnsureCompiledIrregexp(
-      Handle<JSRegExp> re, Handle<String> sample_subject, bool is_ascii);
+      Handle<JSRegExp> re, Handle<String> sample_subject, bool is_ascii,
+      Zone* zone);
 
 
   // Set the subject cache.  The previous string buffer is not deleted, so the
@@ -534,7 +540,8 @@ extern int kUninitializedRegExpNodePlaceHolder;
 
 class RegExpNode: public ZoneObject {
  public:
-  RegExpNode() : replacement_(NULL), trace_count_(0) {
+  explicit RegExpNode(Zone* zone)
+  : replacement_(NULL), trace_count_(0), zone_(zone) {
     bm_info_[0] = bm_info_[1] = NULL;
   }
   virtual ~RegExpNode();
@@ -580,9 +587,12 @@ class RegExpNode: public ZoneObject {
   // Collects information on the possible code units (mod 128) that can match if
   // we look forward.  This is used for a Boyer-Moore-like string searching
   // implementation.  TODO(erikcorry):  This should share more code with
-  // EatsAtLeast, GetQuickCheckDetails.
+  // EatsAtLeast, GetQuickCheckDetails.  The budget argument is used to limit
+  // the number of nodes we are willing to look at in order to create this data.
+  static const int kFillInBMBudget = 200;
   virtual void FillInBMInfo(int offset,
                             int recursion_depth,
+                            int budget,
                             BoyerMooreLookahead* bm,
                             bool not_at_start) {
     UNREACHABLE();
@@ -625,6 +635,8 @@ class RegExpNode: public ZoneObject {
     return bm_info_[not_at_start ? 1 : 0];
   }
 
+  Zone* zone() { return zone_; }
+
  protected:
   enum LimitResult { DONE, CONTINUE };
   RegExpNode* replacement_;
@@ -646,6 +658,8 @@ class RegExpNode: public ZoneObject {
   // deferred operations in the current trace and generating a goto.
   int trace_count_;
   BoyerMooreLookahead* bm_info_[2];
+
+  Zone* zone_;
 };
 
 
@@ -679,15 +693,17 @@ class Interval {
 class SeqRegExpNode: public RegExpNode {
  public:
   explicit SeqRegExpNode(RegExpNode* on_success)
-      : on_success_(on_success) { }
+      : RegExpNode(on_success->zone()), on_success_(on_success) { }
   RegExpNode* on_success() { return on_success_; }
   void set_on_success(RegExpNode* node) { on_success_ = node; }
   virtual RegExpNode* FilterASCII(int depth);
   virtual void FillInBMInfo(int offset,
                             int recursion_depth,
+                            int budget,
                             BoyerMooreLookahead* bm,
                             bool not_at_start) {
-    on_success_->FillInBMInfo(offset, recursion_depth + 1, bm, not_at_start);
+    on_success_->FillInBMInfo(
+        offset, recursion_depth + 1, budget - 1, bm, not_at_start);
     if (offset == 0) set_bm_info(not_at_start, bm);
   }
 
@@ -742,6 +758,7 @@ class ActionNode: public SeqRegExpNode {
   }
   virtual void FillInBMInfo(int offset,
                             int recursion_depth,
+                            int budget,
                             BoyerMooreLookahead* bm,
                             bool not_at_start);
   Type type() { return type_; }
@@ -794,8 +811,8 @@ class TextNode: public SeqRegExpNode {
   TextNode(RegExpCharacterClass* that,
            RegExpNode* on_success)
       : SeqRegExpNode(on_success),
-        elms_(new ZoneList<TextElement>(1)) {
-    elms_->Add(TextElement::CharClass(that));
+        elms_(new ZoneList<TextElement>(1, zone())) {
+    elms_->Add(TextElement::CharClass(that), zone());
   }
   virtual void Accept(NodeVisitor* visitor);
   virtual void Emit(RegExpCompiler* compiler, Trace* trace);
@@ -813,6 +830,7 @@ class TextNode: public SeqRegExpNode {
       RegExpCompiler* compiler);
   virtual void FillInBMInfo(int offset,
                             int recursion_depth,
+                            int budget,
                             BoyerMooreLookahead* bm,
                             bool not_at_start);
   void CalculateOffsets();
@@ -875,6 +893,7 @@ class AssertionNode: public SeqRegExpNode {
                                     bool not_at_start);
   virtual void FillInBMInfo(int offset,
                             int recursion_depth,
+                            int budget,
                             BoyerMooreLookahead* bm,
                             bool not_at_start);
   AssertionNodeType type() { return type_; }
@@ -915,6 +934,7 @@ class BackReferenceNode: public SeqRegExpNode {
   }
   virtual void FillInBMInfo(int offset,
                             int recursion_depth,
+                            int budget,
                             BoyerMooreLookahead* bm,
                             bool not_at_start);
 
@@ -927,7 +947,8 @@ class BackReferenceNode: public SeqRegExpNode {
 class EndNode: public RegExpNode {
  public:
   enum Action { ACCEPT, BACKTRACK, NEGATIVE_SUBMATCH_SUCCESS };
-  explicit EndNode(Action action) : action_(action) { }
+  explicit EndNode(Action action, Zone* zone)
+      : RegExpNode(zone), action_(action) { }
   virtual void Accept(NodeVisitor* visitor);
   virtual void Emit(RegExpCompiler* compiler, Trace* trace);
   virtual int EatsAtLeast(int still_to_find,
@@ -942,6 +963,7 @@ class EndNode: public RegExpNode {
   }
   virtual void FillInBMInfo(int offset,
                             int recursion_depth,
+                            int budget,
                             BoyerMooreLookahead* bm,
                             bool not_at_start) {
     // Returning 0 from EatsAtLeast should ensure we never get here.
@@ -958,8 +980,9 @@ class NegativeSubmatchSuccess: public EndNode {
   NegativeSubmatchSuccess(int stack_pointer_reg,
                           int position_reg,
                           int clear_capture_count,
-                          int clear_capture_start)
-      : EndNode(NEGATIVE_SUBMATCH_SUCCESS),
+                          int clear_capture_start,
+                          Zone* zone)
+      : EndNode(NEGATIVE_SUBMATCH_SUCCESS, zone),
         stack_pointer_register_(stack_pointer_reg),
         current_position_register_(position_reg),
         clear_capture_count_(clear_capture_count),
@@ -1011,13 +1034,16 @@ class AlternativeGeneration;
 
 class ChoiceNode: public RegExpNode {
  public:
-  explicit ChoiceNode(int expected_size)
-      : alternatives_(new ZoneList<GuardedAlternative>(expected_size)),
+  explicit ChoiceNode(int expected_size, Zone* zone)
+      : RegExpNode(zone),
+        alternatives_(new ZoneList<GuardedAlternative>(expected_size, zone)),
         table_(NULL),
         not_at_start_(false),
         being_calculated_(false) { }
   virtual void Accept(NodeVisitor* visitor);
-  void AddAlternative(GuardedAlternative node) { alternatives()->Add(node); }
+  void AddAlternative(GuardedAlternative node) {
+    alternatives()->Add(node, zone());
+  }
   ZoneList<GuardedAlternative>* alternatives() { return alternatives_; }
   DispatchTable* GetTable(bool ignore_case);
   virtual void Emit(RegExpCompiler* compiler, Trace* trace);
@@ -1034,6 +1060,7 @@ class ChoiceNode: public RegExpNode {
                                     bool not_at_start);
   virtual void FillInBMInfo(int offset,
                             int recursion_depth,
+                            int budget,
                             BoyerMooreLookahead* bm,
                             bool not_at_start);
 
@@ -1072,8 +1099,9 @@ class ChoiceNode: public RegExpNode {
 class NegativeLookaheadChoiceNode: public ChoiceNode {
  public:
   explicit NegativeLookaheadChoiceNode(GuardedAlternative this_must_fail,
-                                       GuardedAlternative then_do_this)
-      : ChoiceNode(2) {
+                                       GuardedAlternative then_do_this,
+                                       Zone* zone)
+      : ChoiceNode(2, zone) {
     AddAlternative(this_must_fail);
     AddAlternative(then_do_this);
   }
@@ -1086,10 +1114,11 @@ class NegativeLookaheadChoiceNode: public ChoiceNode {
                                     bool not_at_start);
   virtual void FillInBMInfo(int offset,
                             int recursion_depth,
+                            int budget,
                             BoyerMooreLookahead* bm,
                             bool not_at_start) {
     alternatives_->at(1).node()->FillInBMInfo(
-        offset, recursion_depth + 1, bm, not_at_start);
+        offset, recursion_depth + 1, budget - 1, bm, not_at_start);
     if (offset == 0) set_bm_info(not_at_start, bm);
   }
   // For a negative lookahead we don't emit the quick check for the
@@ -1104,8 +1133,8 @@ class NegativeLookaheadChoiceNode: public ChoiceNode {
 
 class LoopChoiceNode: public ChoiceNode {
  public:
-  explicit LoopChoiceNode(bool body_can_be_zero_length)
-      : ChoiceNode(2),
+  explicit LoopChoiceNode(bool body_can_be_zero_length, Zone* zone)
+      : ChoiceNode(2, zone),
         loop_node_(NULL),
         continue_node_(NULL),
         body_can_be_zero_length_(body_can_be_zero_length) { }
@@ -1121,6 +1150,7 @@ class LoopChoiceNode: public ChoiceNode {
                                     bool not_at_start);
   virtual void FillInBMInfo(int offset,
                             int recursion_depth,
+                            int budget,
                             BoyerMooreLookahead* bm,
                             bool not_at_start);
   RegExpNode* loop_node() { return loop_node_; }
@@ -1189,15 +1219,15 @@ ContainedInLattice AddRange(ContainedInLattice a,
 
 class BoyerMoorePositionInfo : public ZoneObject {
  public:
-  BoyerMoorePositionInfo()
-      : map_(new ZoneList<bool>(kMapSize)),
+  explicit BoyerMoorePositionInfo(Zone* zone)
+      : map_(new ZoneList<bool>(kMapSize, zone)),
         map_count_(0),
         w_(kNotYet),
         s_(kNotYet),
         d_(kNotYet),
         surrogate_(kNotYet) {
      for (int i = 0; i < kMapSize; i++) {
-       map_->Add(false);
+       map_->Add(false, zone);
      }
   }
 
@@ -1226,7 +1256,7 @@ class BoyerMoorePositionInfo : public ZoneObject {
 
 class BoyerMooreLookahead : public ZoneObject {
  public:
-  BoyerMooreLookahead(int length, RegExpCompiler* compiler);
+  BoyerMooreLookahead(int length, RegExpCompiler* compiler, Zone* zone);
 
   int length() { return length_; }
   int max_char() { return max_char_; }
@@ -1576,7 +1606,7 @@ class RegExpEngine: public AllStatic {
                                    bool multiline,
                                    Handle<String> pattern,
                                    Handle<String> sample_subject,
-                                   bool is_ascii);
+                                   bool is_ascii, Zone* zone);
 
   static void DotPrint(const char* label, RegExpNode* node, bool ignore_case);
 };

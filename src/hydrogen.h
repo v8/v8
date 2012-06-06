@@ -280,7 +280,7 @@ class HGraph: public ZoneObject {
 
   void CollectPhis();
 
-  Handle<Code> Compile(CompilationInfo* info);
+  Handle<Code> Compile(CompilationInfo* info, Zone* zone);
 
   void set_undefined_constant(HConstant* constant) {
     undefined_constant_.set(constant);
@@ -1242,6 +1242,7 @@ class HSideEffectMap BASE_EMBEDDED {
  public:
   HSideEffectMap();
   explicit HSideEffectMap(HSideEffectMap* other);
+  HSideEffectMap& operator= (const HSideEffectMap& other);
 
   void Kill(GVNFlagSet flags);
 

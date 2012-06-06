@@ -1462,6 +1462,9 @@ class InspectionShell(cmd.Cmd):
     for slot in xrange(start,
                        start + self.reader.PointerSize() * 10,
                        self.reader.PointerSize()):
+      if not self.reader.IsValidAddress(slot):
+        print "Address is not contained within the minidump!"
+        return
       maybe_address = self.reader.ReadUIntPtr(slot)
       heap_object = self.padawan.SenseObject(maybe_address)
       print "%s: %s %s" % (self.reader.FormatIntPtr(slot),
