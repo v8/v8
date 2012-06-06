@@ -1133,6 +1133,12 @@ ExternalReference ExternalReference::math_log_double_function(
 }
 
 
+ExternalReference ExternalReference::page_flags(Page* page) {
+  return ExternalReference(reinterpret_cast<Address>(page) +
+                           MemoryChunk::kFlagsOffset);
+}
+
+
 // Helper function to compute x^y, where y is known to be an
 // integer. Uses binary decomposition to limit the number of
 // multiplications; see the discussion in "Hacker's Delight" by Henry
