@@ -2175,60 +2175,58 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetCode) {
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, target, 0);
   Handle<Object> code = args.at<Object>(1);
 
-  Handle<Context> context(target->context());
+  if (code->IsNull()) return *target;
+  RUNTIME_ASSERT(code->IsJSFunction());
+  Handle<JSFunction> source = Handle<JSFunction>::cast(code);
+  Handle<SharedFunctionInfo> target_shared(target->shared());
+  Handle<SharedFunctionInfo> source_shared(source->shared());
 
-  if (!code->IsNull()) {
-    RUNTIME_ASSERT(code->IsJSFunction());
-    Handle<JSFunction> fun = Handle<JSFunction>::cast(code);
-    Handle<SharedFunctionInfo> shared(fun->shared());
-
-    if (!SharedFunctionInfo::EnsureCompiled(shared, KEEP_EXCEPTION)) {
-      return Failure::Exception();
-    }
-    // Since we don't store the source for this we should never
-    // optimize this.
-    shared->code()->set_optimizable(false);
-    // Set the code, scope info, formal parameter count,
-    // and the length of the target function.
-    target->shared()->set_code(shared->code());
-    target->ReplaceCode(shared->code());
-    target->shared()->set_scope_info(shared->scope_info());
-    target->shared()->set_length(shared->length());
-    target->shared()->set_formal_parameter_count(
-        shared->formal_parameter_count());
-    // Set the source code of the target function to undefined.
-    // SetCode is only used for built-in constructors like String,
-    // Array, and Object, and some web code
-    // doesn't like seeing source code for constructors.
-    target->shared()->set_script(isolate->heap()->undefined_value());
-    target->shared()->code()->set_optimizable(false);
-    // Clear the optimization hints related to the compiled code as these are no
-    // longer valid when the code is overwritten.
-    target->shared()->ClearThisPropertyAssignmentsInfo();
-    context = Handle<Context>(fun->context());
-
-    // Make sure we get a fresh copy of the literal vector to avoid
-    // cross context contamination.
-    int number_of_literals = fun->NumberOfLiterals();
-    Handle<FixedArray> literals =
-        isolate->factory()->NewFixedArray(number_of_literals, TENURED);
-    if (number_of_literals > 0) {
-      // Insert the object, regexp and array functions in the literals
-      // array prefix.  These are the functions that will be used when
-      // creating object, regexp and array literals.
-      literals->set(JSFunction::kLiteralGlobalContextIndex,
-                    context->global_context());
-    }
-    target->set_literals(*literals);
-    target->set_next_function_link(isolate->heap()->undefined_value());
-
-    if (isolate->logger()->is_logging() || CpuProfiler::is_profiling(isolate)) {
-      isolate->logger()->LogExistingFunction(
-          shared, Handle<Code>(shared->code()));
-    }
+  if (!source->is_compiled() &&
+      !JSFunction::CompileLazy(source, KEEP_EXCEPTION)) {
+    return Failure::Exception();
   }
 
+  // Set the code, scope info, formal parameter count, and the length
+  // of the target shared function info.  Set the source code of the
+  // target function to undefined.  SetCode is only used for built-in
+  // constructors like String, Array, and Object, and some web code
+  // doesn't like seeing source code for constructors.
+  target_shared->set_code(source_shared->code());
+  target_shared->set_scope_info(source_shared->scope_info());
+  target_shared->set_length(source_shared->length());
+  target_shared->set_formal_parameter_count(
+      source_shared->formal_parameter_count());
+  target_shared->set_script(isolate->heap()->undefined_value());
+
+  // Since we don't store the source we should never optimize this.
+  target_shared->code()->set_optimizable(false);
+
+  // Clear the optimization hints related to the compiled code as these
+  // are no longer valid when the code is overwritten.
+  target_shared->ClearThisPropertyAssignmentsInfo();
+
+  // Set the code of the target function.
+  target->ReplaceCode(source_shared->code());
+
+  // Make sure we get a fresh copy of the literal vector to avoid cross
+  // context contamination.
+  Handle<Context> context(source->context());
+  int number_of_literals = source->NumberOfLiterals();
+  Handle<FixedArray> literals =
+      isolate->factory()->NewFixedArray(number_of_literals, TENURED);
+  if (number_of_literals > 0) {
+    literals->set(JSFunction::kLiteralGlobalContextIndex,
+                  context->global_context());
+  }
   target->set_context(*context);
+  target->set_literals(*literals);
+  target->set_next_function_link(isolate->heap()->undefined_value());
+
+  if (isolate->logger()->is_logging() || CpuProfiler::is_profiling(isolate)) {
+    isolate->logger()->LogExistingFunction(
+        source_shared, Handle<Code>(source_shared->code()));
+  }
+
   return *target;
 }
 
