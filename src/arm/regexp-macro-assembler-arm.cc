@@ -436,16 +436,6 @@ void RegExpMacroAssemblerARM::CheckNotBackReference(
 }
 
 
-void RegExpMacroAssemblerARM::CheckNotRegistersEqual(int reg1,
-                                                     int reg2,
-                                                     Label* on_not_equal) {
-  __ ldr(r0, register_location(reg1));
-  __ ldr(r1, register_location(reg2));
-  __ cmp(r0, r1);
-  BranchOrBacktrack(ne, on_not_equal);
-}
-
-
 void RegExpMacroAssemblerARM::CheckNotCharacter(unsigned c,
                                                 Label* on_not_equal) {
   __ cmp(current_character(), Operand(c));
