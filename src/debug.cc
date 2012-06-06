@@ -1784,20 +1784,19 @@ void Debug::ClearStepNext() {
 
 
 // Helper function to compile full code for debugging. This code will
-// have debug break slots and deoptimization
-// information. Deoptimization information is required in case that an
-// optimized version of this function is still activated on the
-// stack. It will also make sure that the full code is compiled with
-// the same flags as the previous version - that is flags which can
-// change the code generated. The current method of mapping from
-// already compiled full code without debug break slots to full code
-// with debug break slots depends on the generated code is otherwise
-// exactly the same.
-static bool CompileFullCodeForDebugging(Handle<SharedFunctionInfo> shared,
+// have debug break slots and deoptimization information. Deoptimization
+// information is required in case that an optimized version of this
+// function is still activated on the stack. It will also make sure that
+// the full code is compiled with the same flags as the previous version,
+// that is flags which can change the code generated. The current method
+// of mapping from already compiled full code without debug break slots
+// to full code with debug break slots depends on the generated code is
+// otherwise exactly the same.
+static bool CompileFullCodeForDebugging(Handle<JSFunction> function,
                                         Handle<Code> current_code) {
   ASSERT(!current_code->has_debug_break_slots());
 
-  CompilationInfo info(shared);
+  CompilationInfo info(function);
   info.MarkCompilingForDebugging(current_code);
   ASSERT(!info.shared_info()->is_compiled());
   ASSERT(!info.isolate()->has_pending_exception());
@@ -1809,7 +1808,7 @@ static bool CompileFullCodeForDebugging(Handle<SharedFunctionInfo> shared,
   info.isolate()->clear_pending_exception();
 #if DEBUG
   if (result) {
-    Handle<Code> new_code(shared->code());
+    Handle<Code> new_code(function->shared()->code());
     ASSERT(new_code->has_debug_break_slots());
     ASSERT(current_code->is_compiled_optimizable() ==
            new_code->is_compiled_optimizable());
@@ -2013,6 +2012,7 @@ void Debug::PrepareForBreakPoints() {
     // patch the return address to run in the new compiled code.
     for (int i = 0; i < active_functions.length(); i++) {
       Handle<JSFunction> function = active_functions[i];
+      Handle<SharedFunctionInfo> shared(function->shared());
 
       if (function->code()->kind() == Code::FUNCTION &&
           function->code()->has_debug_break_slots()) {
@@ -2020,7 +2020,6 @@ void Debug::PrepareForBreakPoints() {
         continue;
       }
 
-      Handle<SharedFunctionInfo> shared(function->shared());
       // If recompilation is not possible just skip it.
       if (shared->is_toplevel() ||
           !shared->allows_lazy_compilation() ||
@@ -2040,7 +2039,7 @@ void Debug::PrepareForBreakPoints() {
             isolate_->debugger()->force_debugger_active();
         isolate_->debugger()->set_force_debugger_active(true);
         ASSERT(current_code->kind() == Code::FUNCTION);
-        CompileFullCodeForDebugging(shared, current_code);
+        CompileFullCodeForDebugging(function, current_code);
         isolate_->debugger()->set_force_debugger_active(
             prev_force_debugger_active);
         if (!shared->is_compiled()) {
