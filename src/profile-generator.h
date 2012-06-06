@@ -1072,10 +1072,10 @@ class HeapSnapshotJSONSerializer {
   int GetStringId(const char* s);
   int entry_index(HeapEntry* e) { return e->index() * kNodeFieldsCount; }
   void SerializeEdge(HeapGraphEdge* edge, bool first_edge);
-  void SerializeEdges(const List<HeapEntry>& nodes);
+  void SerializeEdges();
   void SerializeImpl();
-  void SerializeNode(HeapEntry* entry, int edges_index);
-  void SerializeNodes(const List<HeapEntry>& nodes);
+  void SerializeNode(HeapEntry* entry);
+  void SerializeNodes();
   void SerializeSnapshot();
   void SerializeString(const unsigned char* s);
   void SerializeStrings();

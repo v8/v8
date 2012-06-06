@@ -3248,7 +3248,6 @@ HeapSnapshot* HeapSnapshotJSONSerializer::CreateFakeSnapshot() {
 
 
 void HeapSnapshotJSONSerializer::SerializeImpl() {
-  List<HeapEntry>& nodes = snapshot_->entries();
   ASSERT(0 == snapshot_->root()->index());
   writer_->AddCharacter('{');
   writer_->AddString("\"snapshot\":{");
@@ -3256,11 +3255,11 @@ void HeapSnapshotJSONSerializer::SerializeImpl() {
   if (writer_->aborted()) return;
   writer_->AddString("},\n");
   writer_->AddString("\"nodes\":[");
-  SerializeNodes(nodes);
+  SerializeNodes();
   if (writer_->aborted()) return;
   writer_->AddString("],\n");
   writer_->AddString("\"edges\":[");
-  SerializeEdges(nodes);
+  SerializeEdges();
   if (writer_->aborted()) return;
   writer_->AddString("],\n");
   writer_->AddString("\"strings\":[");
@@ -3302,9 +3301,9 @@ static int utoa(unsigned value, const Vector<char>& buffer, int buffer_pos) {
 
 void HeapSnapshotJSONSerializer::SerializeEdge(HeapGraphEdge* edge,
                                                bool first_edge) {
-  // The buffer needs space for 3 ints, 3 commas and \0
+  // The buffer needs space for 3 unsigned ints, 3 commas and \0
   static const int kBufferSize =
-      MaxDecimalDigitsIn<sizeof(int)>::kSigned * 3 + 3 + 1;  // NOLINT
+      MaxDecimalDigitsIn<sizeof(unsigned)>::kUnsigned * 3 + 3 + 1;  // NOLINT
   EmbeddedVector<char, kBufferSize> buffer;
   int edge_name_or_index = edge->type() == HeapGraphEdge::kElement
       || edge->type() == HeapGraphEdge::kHidden
@@ -3324,25 +3323,21 @@ void HeapSnapshotJSONSerializer::SerializeEdge(HeapGraphEdge* edge,
 }
 
 
-void HeapSnapshotJSONSerializer::SerializeEdges(const List<HeapEntry>& nodes) {
-  bool first_edge = true;
-  for (int i = 0; i < nodes.length(); ++i) {
-    HeapEntry* entry = &nodes[i];
-    Vector<HeapGraphEdge*> children = entry->children();
-    for (int j = 0; j < children.length(); ++j) {
-      SerializeEdge(children[j], first_edge);
-      first_edge = false;
-      if (writer_->aborted()) return;
-    }
+void HeapSnapshotJSONSerializer::SerializeEdges() {
+  List<HeapGraphEdge*>& edges = snapshot_->children();
+  for (int i = 0; i < edges.length(); ++i) {
+    ASSERT(i == 0 ||
+           edges[i - 1]->from()->index() <= edges[i]->from()->index());
+    SerializeEdge(edges[i], i == 0);
+    if (writer_->aborted()) return;
   }
 }
 
 
-void HeapSnapshotJSONSerializer::SerializeNode(HeapEntry* entry,
-                                               int edges_index) {
-  // The buffer needs space for 5 uint32_t, 5 commas, \n and \0
+void HeapSnapshotJSONSerializer::SerializeNode(HeapEntry* entry) {
+  // The buffer needs space for 5 unsigned ints, 5 commas, \n and \0
   static const int kBufferSize =
-      5 * MaxDecimalDigitsIn<sizeof(uint32_t)>::kUnsigned  // NOLINT
+      5 * MaxDecimalDigitsIn<sizeof(unsigned)>::kUnsigned  // NOLINT
       + 5 + 1 + 1;
   EmbeddedVector<char, kBufferSize> buffer;
   int buffer_pos = 0;
@@ -3357,19 +3352,17 @@ void HeapSnapshotJSONSerializer::SerializeNode(HeapEntry* entry,
   buffer[buffer_pos++] = ',';
   buffer_pos = utoa(entry->self_size(), buffer, buffer_pos);
   buffer[buffer_pos++] = ',';
-  buffer_pos = utoa(edges_index, buffer, buffer_pos);
+  buffer_pos = utoa(entry->children_count(), buffer, buffer_pos);
   buffer[buffer_pos++] = '\n';
   buffer[buffer_pos++] = '\0';
   writer_->AddString(buffer.start());
 }
 
 
-void HeapSnapshotJSONSerializer::SerializeNodes(const List<HeapEntry>& nodes) {
-  int edges_index = 0;
-  for (int i = 0; i < nodes.length(); ++i) {
-    HeapEntry* entry = &nodes[i];
-    SerializeNode(entry, edges_index);
-    edges_index += entry->children().length() * kEdgeFieldsCount;
+void HeapSnapshotJSONSerializer::SerializeNodes() {
+  List<HeapEntry>& entries = snapshot_->entries();
+  for (int i = 0; i < entries.length(); ++i) {
+    SerializeNode(&entries[i]);
     if (writer_->aborted()) return;
   }
 }
@@ -3393,7 +3386,7 @@ void HeapSnapshotJSONSerializer::SerializeSnapshot() {
         JSON_S("name") ","
         JSON_S("id") ","
         JSON_S("self_size") ","
-        JSON_S("edges_index")) ","
+        JSON_S("edge_count")) ","
     JSON_S("node_types") ":" JSON_A(
         JSON_A(
             JSON_S("hidden") ","
