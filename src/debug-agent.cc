@@ -399,7 +399,7 @@ bool DebuggerAgentUtil::SendMessage(const Socket* conn,
     uint16_t character = message[i];
     buffer_position +=
         unibrow::Utf8::Encode(buffer + buffer_position, character, previous);
-    ASSERT(buffer_position < kBufferSize);
+    ASSERT(buffer_position <= kBufferSize);
 
     // Send buffer if full or last character is encoded.
     if (kBufferSize - buffer_position <
