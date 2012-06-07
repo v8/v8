@@ -1611,7 +1611,8 @@ bool JSObject::HasFastProperties() {
 }
 
 
-bool JSObject::TooManyFastProperties(int properties) {
+bool JSObject::TooManyFastProperties(int properties,
+                                     JSObject::StoreFromKeyed store_mode) {
   // Allow extra fast properties if the object has more than
   // kFastPropertiesSoftLimit in-object properties. When this is the case,
   // it is very unlikely that the object is being used as a dictionary
@@ -1620,7 +1621,8 @@ bool JSObject::TooManyFastProperties(int properties) {
   int inobject = map()->inobject_properties();
 
   int limit;
-  if (map()->used_for_prototype()) {
+  if (store_mode == CERTAINLY_NOT_STORE_FROM_KEYED ||
+      map()->used_for_prototype()) {
     limit = Max(inobject, kMaxFastProperties);
   } else {
     limit = Max(inobject, kFastPropertiesSoftLimit);
