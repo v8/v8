@@ -66,6 +66,35 @@ function AddPropsNonKeyed(obj) {
   obj.x25 = 0;
 }
 
+function AddProps3(obj) {
+  obj["x0"] = 0;
+  obj["x1"] = 0;
+  obj["x2"] = 0;
+  obj["x3"] = 0;
+  obj["x4"] = 0;
+  obj["x5"] = 0;
+  obj["x6"] = 0;
+  obj["x7"] = 0;
+  obj["x8"] = 0;
+  obj["x9"] = 0;
+  obj["x10"] = 0;
+  obj["x11"] = 0;
+  obj["x12"] = 0;
+  obj["x13"] = 0;
+  obj["x14"] = 0;
+  obj["x15"] = 0;
+  obj["x16"] = 0;
+  obj["x17"] = 0;
+  obj["x18"] = 0;
+  obj["x19"] = 0;
+  obj["x20"] = 0;
+  obj["x21"] = 0;
+  obj["x22"] = 0;
+  obj["x23"] = 0;
+  obj["x24"] = 0;
+  obj["x25"] = 0;
+}
+
 
 var keyed = {};
 AddProps(keyed);
@@ -74,3 +103,11 @@ assertFalse(%HasFastProperties(keyed));
 var non_keyed = {};
 AddPropsNonKeyed(non_keyed);
 assertTrue(%HasFastProperties(non_keyed));
+
+var obj3 = {};
+AddProps3(obj3);
+assertTrue(%HasFastProperties(obj3));
+
+var bad_name = {};
+bad_name[".foo"] = 0;
+assertFalse(%HasFastProperties(bad_name));
