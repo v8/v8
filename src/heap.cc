@@ -66,21 +66,26 @@ Heap::Heap()
     : isolate_(NULL),
 // semispace_size_ should be a power of 2 and old_generation_size_ should be
 // a multiple of Page::kPageSize.
-#if defined(ANDROID)
-#define LUMP_OF_MEMORY (128 * KB)
-      code_range_size_(0),
-#elif defined(V8_TARGET_ARCH_X64)
+#if defined(V8_TARGET_ARCH_X64)
 #define LUMP_OF_MEMORY (2 * MB)
       code_range_size_(512*MB),
 #else
 #define LUMP_OF_MEMORY MB
       code_range_size_(0),
 #endif
+#if defined(ANDROID)
+      reserved_semispace_size_(4 * Max(LUMP_OF_MEMORY, Page::kPageSize)),
+      max_semispace_size_(4 * Max(LUMP_OF_MEMORY, Page::kPageSize)),
+      initial_semispace_size_(Page::kPageSize),
+      max_old_generation_size_(192*MB),
+      max_executable_size_(max_old_generation_size_),
+#else
       reserved_semispace_size_(8 * Max(LUMP_OF_MEMORY, Page::kPageSize)),
       max_semispace_size_(8 * Max(LUMP_OF_MEMORY, Page::kPageSize)),
       initial_semispace_size_(Page::kPageSize),
       max_old_generation_size_(700ul * LUMP_OF_MEMORY),
       max_executable_size_(256l * LUMP_OF_MEMORY),
+#endif
 
 // Variables set based on semispace_size_ and old_generation_size_ in
 // ConfigureHeap (survived_since_last_expansion_, external_allocation_limit_)
