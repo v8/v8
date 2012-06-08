@@ -137,6 +137,12 @@ ENVFILE = $(OUTDIR)/environment
 # Target definitions. "all" is the default.
 all: $(MODES)
 
+# Special target for the buildbots to use. Depends on $(OUTDIR)/Makefile
+# having been created before.
+buildbot:
+	$(MAKE) -C "$(OUTDIR)" BUILDTYPE=$(BUILDTYPE) \
+	        builddir="$(abspath $(OUTDIR))/$(BUILDTYPE)"
+
 # Compile targets. MODES and ARCHES are convenience targets.
 .SECONDEXPANSION:
 $(MODES): $(addsuffix .$$@,$(DEFAULT_ARCHES))
