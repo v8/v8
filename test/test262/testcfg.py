@@ -31,6 +31,7 @@ import os
 from os.path import join, exists
 import urllib
 import hashlib
+import sys
 import tarfile
 
 
@@ -117,7 +118,11 @@ class Test262TestConfiguration(test.TestConfiguration):
         if md5.hexdigest() != TEST_262_ARCHIVE_MD5:
           raise Exception("Hash mismatch of test data file")
         archive = tarfile.open(archive_name, 'r:bz2')
-        archive.extractall(join(self.root))
+        if sys.platform in ('win32', 'cygwin'):
+          # Magic incantation to allow longer path names on Windows.
+          archive.extractall(u'\\\\?\\%s' % self.root)
+        else:
+          archive.extractall(self.root)
       if not exists(join(self.root, 'data')):
         os.symlink(directory_name, join(self.root, 'data'))
 

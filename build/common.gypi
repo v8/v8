@@ -262,6 +262,13 @@
           },
         },
       }],
+      ['OS=="win" and v8_target_arch=="x64"', {
+        'msvs_settings': {
+          'VCLinkerTool': {
+            'StackReserveSize': '2097152',
+          },
+        },
+      }],
       ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="solaris" \
          or OS=="netbsd"', {
         'conditions': [
@@ -300,10 +307,6 @@
           },
           'VCLinkerTool': {
             'LinkIncremental': '2',
-            # For future reference, the stack size needs to be increased
-            # when building for Windows 64-bit, otherwise some test cases
-            # can cause stack overflow.
-            # 'StackReserveSize': '297152',
           },
         },
         'conditions': [
@@ -385,12 +388,7 @@
               'VCLinkerTool': {
                 'LinkIncremental': '1',
                 'OptimizeReferences': '2',
-                'OptimizeForWindows98': '1',
                 'EnableCOMDATFolding': '2',
-                # For future reference, the stack size needs to be
-                # increased when building for Windows 64-bit, otherwise
-                # some test cases can cause stack overflow.
-                # 'StackReserveSize': '297152',
               },
             },
           }],  # OS=="win"
