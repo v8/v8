@@ -2860,8 +2860,9 @@ Handle<Code> LoadStubCompiler::CompileLoadViaGetter(
 
     // Call the JavaScript getter with the receiver on the stack.
     __ push(a0);
-    __ InvokeFunction(getter, ParameterCount(0), CALL_FUNCTION,
-                      NullCallWrapper(), CALL_AS_METHOD);
+    ParameterCount actual(0);
+    __ InvokeFunction(getter, actual, CALL_FUNCTION, NullCallWrapper(),
+                      CALL_AS_METHOD);
 
     // Restore context register.
     __ lw(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
