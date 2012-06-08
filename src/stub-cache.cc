@@ -171,6 +171,25 @@ Handle<Code> StubCache::ComputeLoadCallback(Handle<String> name,
 }
 
 
+Handle<Code> StubCache::ComputeLoadViaGetter(Handle<String> name,
+                                             Handle<JSObject> receiver,
+                                             Handle<JSObject> holder,
+                                             Handle<JSFunction> getter) {
+  ASSERT(IC::GetCodeCacheForObject(*receiver, *holder) == OWN_MAP);
+  Code::Flags flags = Code::ComputeMonomorphicFlags(Code::LOAD_IC, CALLBACKS);
+  Handle<Object> probe(receiver->map()->FindInCodeCache(*name, flags));
+  if (probe->IsCode()) return Handle<Code>::cast(probe);
+
+  LoadStubCompiler compiler(isolate_);
+  Handle<Code> code =
+      compiler.CompileLoadViaGetter(name, receiver, holder, getter);
+  PROFILE(isolate_, CodeCreateEvent(Logger::LOAD_IC_TAG, *code, *name));
+  GDBJIT(AddCode(GDBJITInterface::LOAD_IC, *name, *code));
+  JSObject::UpdateMapCodeCache(receiver, name, code);
+  return code;
+}
+
+
 Handle<Code> StubCache::ComputeLoadConstant(Handle<String> name,
                                             Handle<JSObject> receiver,
                                             Handle<JSObject> holder,
