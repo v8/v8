@@ -684,6 +684,7 @@ void AccessorInfo::AccessorInfoVerify() {
   VerifyPointer(name());
   VerifyPointer(data());
   VerifyPointer(flag());
+  VerifyPointer(expected_receiver_type());
 }
 
 

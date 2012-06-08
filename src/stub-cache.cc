@@ -944,6 +944,7 @@ RUNTIME_FUNCTION(MaybeObject*, LoadCallbackProperty) {
   Address getter_address = v8::ToCData<Address>(callback->getter());
   v8::AccessorGetter fun = FUNCTION_CAST<v8::AccessorGetter>(getter_address);
   ASSERT(fun != NULL);
+  ASSERT(callback->IsCompatibleReceiver(args[0]));
   v8::AccessorInfo info(&args[0]);
   HandleScope scope(isolate);
   v8::Handle<v8::Value> result;
@@ -965,6 +966,7 @@ RUNTIME_FUNCTION(MaybeObject*, StoreCallbackProperty) {
   Address setter_address = v8::ToCData<Address>(callback->setter());
   v8::AccessorSetter fun = FUNCTION_CAST<v8::AccessorSetter>(setter_address);
   ASSERT(fun != NULL);
+  ASSERT(callback->IsCompatibleReceiver(recv));
   Handle<String> name = args.at<String>(2);
   Handle<Object> value = args.at<Object>(3);
   HandleScope scope(isolate);
