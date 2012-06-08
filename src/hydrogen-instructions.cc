@@ -1298,14 +1298,33 @@ void HPhi::InitRealUses(int phi_id) {
   for (HUseIterator it(uses()); !it.Done(); it.Advance()) {
     HValue* value = it.value();
     if (!value->IsPhi()) {
-      Representation rep = value->RequiredInputRepresentation(it.index());
+      Representation rep = value->ObservedInputRepresentation(it.index());
       non_phi_uses_[rep.kind()] += value->LoopWeight();
+      if (FLAG_trace_representation) {
+        PrintF("%d %s is used by %d %s as %s\n",
+               this->id(),
+               this->Mnemonic(),
+               value->id(),
+               value->Mnemonic(),
+               rep.Mnemonic());
+      }
     }
   }
 }
 
 
 void HPhi::AddNonPhiUsesFrom(HPhi* other) {
+  if (FLAG_trace_representation) {
+    PrintF("adding to %d %s uses of %d %s: i%d d%d t%d\n",
+           this->id(),
+           this->Mnemonic(),
+           other->id(),
+           other->Mnemonic(),
+           other->non_phi_uses_[Representation::kInteger32],
+           other->non_phi_uses_[Representation::kDouble],
+           other->non_phi_uses_[Representation::kTagged]);
+  }
+
   for (int i = 0; i < Representation::kNumRepresentations; i++) {
     indirect_uses_[i] += other->non_phi_uses_[i];
   }
@@ -1316,6 +1335,12 @@ void HPhi::AddIndirectUsesTo(int* dest) {
   for (int i = 0; i < Representation::kNumRepresentations; i++) {
     dest[i] += indirect_uses_[i];
   }
+}
+
+
+void HPhi::ResetInteger32Uses() {
+  non_phi_uses_[Representation::kInteger32] = 0;
+  indirect_uses_[Representation::kInteger32] = 0;
 }
 
 

@@ -2140,8 +2140,16 @@ Representation HInferRepresentation::TryChange(HValue* value) {
 
   for (HUseIterator it(value->uses()); !it.Done(); it.Advance()) {
     HValue* use = it.value();
-    Representation rep = use->RequiredInputRepresentation(it.index());
+    Representation rep = use->ObservedInputRepresentation(it.index());
     if (rep.IsNone()) continue;
+    if (FLAG_trace_representation) {
+      PrintF("%d %s is used by %d %s as %s\n",
+             value->id(),
+             value->Mnemonic(),
+             use->id(),
+             use->Mnemonic(),
+             rep.Mnemonic());
+    }
     if (use->IsPhi()) HPhi::cast(use)->AddIndirectUsesTo(&use_count[0]);
     use_count[rep.kind()] += use->LoopWeight();
   }
@@ -2205,21 +2213,34 @@ void HInferRepresentation::Analyze() {
     }
   }
 
-  // (3) Use the phi reachability information from step 2 to
-  //     (a) sum up the non-phi use counts of all connected phis.
-  //     (b) push information about values which can't be converted to integer
-  //         without deoptimization through the phi use-def chains, avoiding
-  //         unnecessary deoptimizations later.
+  // (3a) Use the phi reachability information from step 2 to
+  // push information about values which can't be converted to integer
+  // without deoptimization through the phi use-def chains, avoiding
+  // unnecessary deoptimizations later.
   for (int i = 0; i < phi_count; ++i) {
     HPhi* phi = phi_list->at(i);
     bool cti = phi->AllOperandsConvertibleToInteger();
+    if (cti) continue;
+
+    for (BitVector::Iterator it(connected_phis.at(i));
+         !it.Done();
+         it.Advance()) {
+      HPhi* phi = phi_list->at(it.Current());
+      phi->set_is_convertible_to_integer(false);
+      phi->ResetInteger32Uses();
+    }
+  }
+
+  // (3b) Use the phi reachability information from step 2 to
+  // sum up the non-phi use counts of all connected phis.
+  for (int i = 0; i < phi_count; ++i) {
+    HPhi* phi = phi_list->at(i);
     for (BitVector::Iterator it(connected_phis.at(i));
          !it.Done();
          it.Advance()) {
       int index = it.Current();
-      HPhi* it_use = phi_list->at(it.Current());
-      if (index != i) phi->AddNonPhiUsesFrom(it_use);  // Don't count twice!
-      if (!cti) it_use->set_is_convertible_to_integer(false);
+      HPhi* it_use = phi_list->at(index);
+      if (index != i) phi->AddNonPhiUsesFrom(it_use);  // Don't count twice.
     }
   }
 
@@ -7503,8 +7524,10 @@ HInstruction* HGraphBuilder::BuildBinaryOperation(BinaryOperation* expr,
   }
   Representation rep = ToRepresentation(info);
   // We only generate either int32 or generic tagged bitwise operations.
-  if (instr->IsBitwiseBinaryOperation() && rep.IsDouble()) {
-    rep = Representation::Integer32();
+  if (instr->IsBitwiseBinaryOperation()) {
+    HBitwiseBinaryOperation::cast(instr)->
+         InitializeObservedInputRepresentation(rep);
+    if (rep.IsDouble()) rep = Representation::Integer32();
   }
   TraceRepresentation(expr->op(), info, instr, rep);
   instr->AssumeRepresentation(rep);

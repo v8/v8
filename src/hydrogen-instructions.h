@@ -720,6 +720,11 @@ class HValue: public ZoneObject {
     return representation();
   }
 
+  // Type feedback access.
+  virtual Representation ObservedInputRepresentation(int index) {
+    return RequiredInputRepresentation(index);
+  }
+
   // This gives the instruction an opportunity to replace itself with an
   // instruction that does the same in some better way.  To replace an
   // instruction with a new one, first add the new instruction to the graph,
@@ -2402,10 +2407,14 @@ class HPhi: public HValue {
 
   bool AllOperandsConvertibleToInteger() {
     for (int i = 0; i < OperandCount(); ++i) {
-      if (!OperandAt(i)->IsConvertibleToInteger()) return false;
+      if (!OperandAt(i)->IsConvertibleToInteger()) {
+        return false;
+      }
     }
     return true;
   }
+
+  void ResetInteger32Uses();
 
  protected:
   virtual void DeleteFromGraph();
@@ -2556,6 +2565,7 @@ class HBinaryOperation: public HTemplateInstruction<3> {
     if (IsCommutative() && left()->IsConstant()) return right();
     return left();
   }
+
   HValue* MostConstantOperand() {
     if (IsCommutative() && left()->IsConstant()) return left();
     return right();
@@ -2721,6 +2731,9 @@ class HBitwiseBinaryOperation: public HBinaryOperation {
     set_representation(Representation::Tagged());
     SetFlag(kFlexibleRepresentation);
     SetAllSideEffects();
+    observed_input_representation_[0] = Representation::Tagged();
+    observed_input_representation_[1] = Representation::None();
+    observed_input_representation_[2] = Representation::None();
   }
 
   virtual Representation RequiredInputRepresentation(int index) {
@@ -2740,7 +2753,19 @@ class HBitwiseBinaryOperation: public HBinaryOperation {
 
   virtual HType CalculateInferredType();
 
+  virtual Representation ObservedInputRepresentation(int index) {
+    return observed_input_representation_[index];
+  }
+
+  void InitializeObservedInputRepresentation(Representation r) {
+    observed_input_representation_[1] = r;
+    observed_input_representation_[2] = r;
+  }
+
   DECLARE_ABSTRACT_INSTRUCTION(BitwiseBinaryOperation)
+
+ private:
+  Representation observed_input_representation_[3];
 };
 
 
