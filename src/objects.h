@@ -4327,6 +4327,8 @@ class Code: public HeapObject {
   inline bool has_function_cache();
   inline void set_has_function_cache(bool flag);
 
+  bool allowed_in_shared_map_code_cache();
+
   // Get the safepoint entry for the given pc.
   SafepointEntry GetSafepointEntry(Address pc);
 
@@ -4679,13 +4681,11 @@ class Map: public HeapObject {
   }
 
   inline bool has_external_array_elements() {
-    ElementsKind kind(elements_kind());
-    return kind >= FIRST_EXTERNAL_ARRAY_ELEMENTS_KIND &&
-        kind <= LAST_EXTERNAL_ARRAY_ELEMENTS_KIND;
+    return IsExternalArrayElementsKind(elements_kind());
   }
 
   inline bool has_dictionary_elements() {
-    return elements_kind() == DICTIONARY_ELEMENTS;
+    return IsDictionaryElementsKind(elements_kind());
   }
 
   inline bool has_slow_elements_kind() {

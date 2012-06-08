@@ -403,7 +403,7 @@ Handle<Code> StubCache::ComputeStoreField(Handle<String> name,
 
 
 Handle<Code> StubCache::ComputeKeyedLoadOrStoreElement(
-    Handle<JSObject> receiver,
+    Handle<Map> receiver_map,
     KeyedIC::StubKind stub_kind,
     StrictModeFlag strict_mode) {
   KeyedAccessGrowMode grow_mode =
@@ -431,7 +431,6 @@ Handle<Code> StubCache::ComputeKeyedLoadOrStoreElement(
       UNREACHABLE();
       break;
   }
-  Handle<Map> receiver_map(receiver->map());
   Handle<Object> probe(receiver_map->FindInCodeCache(*name, flags));
   if (probe->IsCode()) return Handle<Code>::cast(probe);
 
@@ -466,7 +465,7 @@ Handle<Code> StubCache::ComputeKeyedLoadOrStoreElement(
   } else {
     PROFILE(isolate_, CodeCreateEvent(Logger::KEYED_STORE_IC_TAG, *code, 0));
   }
-  JSObject::UpdateMapCodeCache(receiver, name, code);
+  Map::UpdateCodeCache(receiver_map, name, code);
   return code;
 }
 

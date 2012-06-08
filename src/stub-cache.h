@@ -174,7 +174,7 @@ class StubCache {
                                       Handle<Map> transition,
                                       StrictModeFlag strict_mode);
 
-  Handle<Code> ComputeKeyedLoadOrStoreElement(Handle<JSObject> receiver,
+  Handle<Code> ComputeKeyedLoadOrStoreElement(Handle<Map> receiver_map,
                                               KeyedIC::StubKind stub_kind,
                                               StrictModeFlag strict_mode);
 

@@ -559,6 +559,8 @@ void Map::MapPrint(FILE* out) {
   prototype()->ShortPrint(out);
   PrintF(out, "\n - constructor: ");
   constructor()->ShortPrint(out);
+  PrintF(out, "\n - code cache: ");
+  code_cache()->ShortPrint(out);
   PrintF(out, "\n");
 }
 

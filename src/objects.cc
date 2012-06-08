@@ -3302,14 +3302,20 @@ MaybeObject* NormalizedMapCache::Get(JSObject* obj,
       Map::cast(result)->SharedMapVerify();
     }
     if (FLAG_enable_slow_asserts) {
-      // The cached map should match newly created normalized map bit-by-bit.
+      // The cached map should match newly created normalized map bit-by-bit,
+      // except for the code cache, which can contain some ics which can be
+      // applied to the shared map.
       Object* fresh;
       { MaybeObject* maybe_fresh =
             fast->CopyNormalized(mode, SHARED_NORMALIZED_MAP);
         if (maybe_fresh->ToObject(&fresh)) {
           ASSERT(memcmp(Map::cast(fresh)->address(),
                         Map::cast(result)->address(),
-                        Map::kSize) == 0);
+                        Map::kCodeCacheOffset) == 0);
+          int offset = Map::kCodeCacheOffset + kPointerSize;
+          ASSERT(memcmp(Map::cast(fresh)->address() + offset,
+                        Map::cast(result)->address() + offset,
+                        Map::kSize - offset) == 0);
         }
       }
     }
@@ -5040,6 +5046,7 @@ MaybeObject* Map::CopyNormalized(PropertyNormalizationMode mode,
   Map::cast(result)->set_bit_field(bit_field());
   Map::cast(result)->set_bit_field2(bit_field2());
   Map::cast(result)->set_bit_field3(bit_field3());
+  Map::cast(result)->set_code_cache(code_cache());
 
   Map::cast(result)->set_is_shared(sharing == SHARED_NORMALIZED_MAP);
 
@@ -5077,6 +5084,8 @@ void Map::UpdateCodeCache(Handle<Map> map,
 }
 
 MaybeObject* Map::UpdateCodeCache(String* name, Code* code) {
+  ASSERT(!is_shared() || code->allowed_in_shared_map_code_cache());
+
   // Allocate the code cache if not present.
   if (code_cache()->IsFixedArray()) {
     Object* result;
@@ -8400,6 +8409,11 @@ void Code::ClearTypeFeedbackCells(Heap* heap) {
       cell->set_value(TypeFeedbackCells::RawUninitializedSentinel(heap));
     }
   }
+}
+
+
+bool Code::allowed_in_shared_map_code_cache() {
+  return is_keyed_load_stub() || is_keyed_store_stub();
 }
 
 

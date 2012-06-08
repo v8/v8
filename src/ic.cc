@@ -1581,38 +1581,43 @@ Handle<Code> KeyedIC::ComputeStub(Handle<JSObject> receiver,
   }
 
   bool monomorphic = false;
+  bool is_transition_stub = IsTransitionStubKind(stub_kind);
+  Handle<Map> receiver_map(receiver->map());
+  Handle<Map> monomorphic_map = receiver_map;
   MapHandleList target_receiver_maps;
-  if (ic_state != UNINITIALIZED && ic_state != PREMONOMORPHIC) {
+  if (ic_state == UNINITIALIZED || ic_state == PREMONOMORPHIC) {
+    // Optimistically assume that ICs that haven't reached the MONOMORPHIC state
+    // yet will do so and stay there.
+    monomorphic = true;
+  } else {
     GetReceiverMapsForStub(Handle<Code>(target()), &target_receiver_maps);
-  }
-  if (!IsTransitionStubKind(stub_kind)) {
-    if (ic_state == UNINITIALIZED || ic_state == PREMONOMORPHIC) {
-      monomorphic = true;
-    } else {
-      if (ic_state == MONOMORPHIC) {
-        // The first time a receiver is seen that is a transitioned version of
-        // the previous monomorphic receiver type, assume the new ElementsKind
-        // is the monomorphic type. This benefits global arrays that only
-        // transition once, and all call sites accessing them are faster if they
-        // remain monomorphic. If this optimistic assumption is not true, the IC
-        // will miss again and it will become polymorphic and support both the
-        // untransitioned and transitioned maps.
-        monomorphic = IsMoreGeneralElementsKindTransition(
-            target_receiver_maps.at(0)->elements_kind(),
-            receiver->GetElementsKind());
-      }
+    if (ic_state == MONOMORPHIC && is_transition_stub) {
+      // The first time a receiver is seen that is a transitioned version of the
+      // previous monomorphic receiver type, assume the new ElementsKind is the
+      // monomorphic type. This benefits global arrays that only transition
+      // once, and all call sites accessing them are faster if they remain
+      // monomorphic. If this optimistic assumption is not true, the IC will
+      // miss again and it will become polymorphic and support both the
+      // untransitioned and transitioned maps.
+      monomorphic = IsMoreGeneralElementsKindTransition(
+          target_receiver_maps.at(0)->elements_kind(),
+          receiver->GetElementsKind());
     }
   }
 
   if (monomorphic) {
+    if (is_transition_stub) {
+      monomorphic_map = ComputeTransitionedMap(receiver, stub_kind);
+      ASSERT(*monomorphic_map != *receiver_map);
+      stub_kind = GetNoTransitionStubKind(stub_kind);
+    }
     return ComputeMonomorphicStub(
-        receiver, stub_kind, strict_mode, generic_stub);
+        monomorphic_map, stub_kind, strict_mode, generic_stub);
   }
   ASSERT(target() != *generic_stub);
 
   // Determine the list of receiver maps that this call site has seen,
   // adding the map that was just encountered.
-  Handle<Map> receiver_map(receiver->map());
   bool map_added =
       AddOneReceiverMapIfMissing(&target_receiver_maps, receiver_map);
   if (IsTransitionStubKind(stub_kind)) {
@@ -1673,16 +1678,16 @@ Handle<Code> KeyedIC::ComputeMonomorphicStubWithoutMapCheck(
 }
 
 
-Handle<Code> KeyedIC::ComputeMonomorphicStub(Handle<JSObject> receiver,
+Handle<Code> KeyedIC::ComputeMonomorphicStub(Handle<Map> receiver_map,
                                              StubKind stub_kind,
                                              StrictModeFlag strict_mode,
                                              Handle<Code> generic_stub) {
-  if (receiver->HasFastSmiOrObjectElements() ||
-      receiver->HasExternalArrayElements() ||
-      receiver->HasFastDoubleElements() ||
-      receiver->HasDictionaryElements()) {
+  ElementsKind elements_kind = receiver_map->elements_kind();
+  if (IsFastElementsKind(elements_kind) ||
+      IsExternalArrayElementsKind(elements_kind) ||
+      IsDictionaryElementsKind(elements_kind)) {
     return isolate()->stub_cache()->ComputeKeyedLoadOrStoreElement(
-        receiver, stub_kind, strict_mode);
+        receiver_map, stub_kind, strict_mode);
   } else {
     return generic_stub;
   }

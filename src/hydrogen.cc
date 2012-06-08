@@ -5584,7 +5584,7 @@ HValue* HGraphBuilder::HandlePolymorphicElementAccess(HValue* object,
       AddInstruction(transition);
     } else {
       type_todo[map->elements_kind()] = true;
-      if (map->elements_kind() >= FIRST_EXTERNAL_ARRAY_ELEMENTS_KIND) {
+      if (IsExternalArrayElementsKind(map->elements_kind())) {
         todo_external_array = true;
       }
       num_untransitionable_maps++;
