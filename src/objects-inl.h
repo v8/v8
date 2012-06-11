@@ -3673,7 +3673,7 @@ ACCESSORS(SharedFunctionInfo, debug_info, Object, kDebugInfoOffset)
 ACCESSORS(SharedFunctionInfo, inferred_name, String, kInferredNameOffset)
 ACCESSORS(SharedFunctionInfo, this_property_assignments, Object,
           kThisPropertyAssignmentsOffset)
-SMI_ACCESSORS(SharedFunctionInfo, ic_age, kICAgeOffset)
+SMI_ACCESSORS(SharedFunctionInfo, ast_node_count, kAstNodeCountOffset)
 
 
 BOOL_ACCESSORS(FunctionTemplateInfo, flag, hidden_prototype,
@@ -3722,8 +3722,10 @@ SMI_ACCESSORS(SharedFunctionInfo, compiler_hints,
 SMI_ACCESSORS(SharedFunctionInfo, this_property_assignments_count,
               kThisPropertyAssignmentsCountOffset)
 SMI_ACCESSORS(SharedFunctionInfo, opt_count, kOptCountOffset)
-SMI_ACCESSORS(SharedFunctionInfo, ast_node_count, kAstNodeCountOffset)
-SMI_ACCESSORS(SharedFunctionInfo, deopt_counter, kDeoptCounterOffset)
+SMI_ACCESSORS(SharedFunctionInfo, counters, kCountersOffset)
+SMI_ACCESSORS(SharedFunctionInfo,
+              stress_deopt_counter,
+              kStressDeoptCounterOffset)
 #else
 
 #define PSEUDO_SMI_ACCESSORS_LO(holder, name, offset)             \
@@ -3775,8 +3777,10 @@ PSEUDO_SMI_ACCESSORS_LO(SharedFunctionInfo,
                         kThisPropertyAssignmentsCountOffset)
 PSEUDO_SMI_ACCESSORS_HI(SharedFunctionInfo, opt_count, kOptCountOffset)
 
-PSEUDO_SMI_ACCESSORS_LO(SharedFunctionInfo, ast_node_count, kAstNodeCountOffset)
-PSEUDO_SMI_ACCESSORS_HI(SharedFunctionInfo, deopt_counter, kDeoptCounterOffset)
+PSEUDO_SMI_ACCESSORS_LO(SharedFunctionInfo, counters, kCountersOffset)
+PSEUDO_SMI_ACCESSORS_HI(SharedFunctionInfo,
+                        stress_deopt_counter,
+                        kStressDeoptCounterOffset)
 #endif
 
 
@@ -3977,9 +3981,61 @@ void SharedFunctionInfo::set_code_age(int code_age) {
 }
 
 
+int SharedFunctionInfo::ic_age() {
+  return ICAgeBits::decode(counters());
+}
+
+
+void SharedFunctionInfo::set_ic_age(int ic_age) {
+  set_counters(ICAgeBits::update(counters(), ic_age));
+}
+
+
+int SharedFunctionInfo::deopt_count() {
+  return DeoptCountBits::decode(counters());
+}
+
+
+void SharedFunctionInfo::set_deopt_count(int deopt_count) {
+  set_counters(DeoptCountBits::update(counters(), deopt_count));
+}
+
+
+void SharedFunctionInfo::increment_deopt_count() {
+  int value = counters();
+  int deopt_count = DeoptCountBits::decode(value);
+  deopt_count = (deopt_count + 1) & DeoptCountBits::kMax;
+  set_counters(DeoptCountBits::update(value, deopt_count));
+}
+
+
+int SharedFunctionInfo::opt_reenable_tries() {
+  return OptReenableTriesBits::decode(counters());
+}
+
+
+void SharedFunctionInfo::set_opt_reenable_tries(int tries) {
+  set_counters(OptReenableTriesBits::update(counters(), tries));
+}
+
+
 bool SharedFunctionInfo::has_deoptimization_support() {
   Code* code = this->code();
   return code->kind() == Code::FUNCTION && code->has_deoptimization_support();
+}
+
+
+void SharedFunctionInfo::TryReenableOptimization() {
+  int tries = opt_reenable_tries();
+  set_opt_reenable_tries((tries + 1) & OptReenableTriesBits::kMax);
+  // We reenable optimization whenever the number of tries is a large
+  // enough power of 2.
+  if (tries >= 16 && (((tries - 1) & tries) == 0)) {
+    set_optimization_disabled(false);
+    set_opt_count(0);
+    set_deopt_count(0);
+    code()->set_optimizable(true);
+  }
 }
 
 

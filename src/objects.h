@@ -5412,8 +5412,8 @@ class SharedFunctionInfo: public HeapObject {
 
   // A counter used to determine when to stress the deoptimizer with a
   // deopt.
-  inline int deopt_counter();
-  inline void set_deopt_counter(int counter);
+  inline int stress_deopt_counter();
+  inline void set_stress_deopt_counter(int counter);
 
   inline int profiler_ticks();
 
@@ -5541,8 +5541,25 @@ class SharedFunctionInfo: public HeapObject {
   bool HasSourceCode();
   Handle<Object> GetSourceCode();
 
+  // Number of times the function was optimized.
   inline int opt_count();
   inline void set_opt_count(int opt_count);
+
+  // Number of times the function was deoptimized.
+  inline void set_deopt_count(int value);
+  inline int deopt_count();
+  inline void increment_deopt_count();
+
+  // Number of time we tried to re-enable optimization after it
+  // was disabled due to high number of deoptimizations.
+  inline void set_opt_reenable_tries(int value);
+  inline int opt_reenable_tries();
+
+  inline void TryReenableOptimization();
+
+  // Stores deopt_count, opt_reenable_tries and ic_age as bit-fields.
+  inline void set_counters(int value);
+  inline int counters();
 
   // Source size of this function.
   int SourceSize();
@@ -5600,13 +5617,14 @@ class SharedFunctionInfo: public HeapObject {
       kInferredNameOffset + kPointerSize;
   static const int kThisPropertyAssignmentsOffset =
       kInitialMapOffset + kPointerSize;
-  // ic_age is a Smi field. It could be grouped with another Smi field into a
-  // PSEUDO_SMI_ACCESSORS pair (on x64), if one becomes available.
-  static const int kICAgeOffset = kThisPropertyAssignmentsOffset + kPointerSize;
+  // ast_node_count is a Smi field. It could be grouped with another Smi field
+  // into a PSEUDO_SMI_ACCESSORS pair (on x64), if one becomes available.
+  static const int kAstNodeCountOffset =
+      kThisPropertyAssignmentsOffset + kPointerSize;
 #if V8_HOST_ARCH_32_BIT
   // Smi fields.
   static const int kLengthOffset =
-      kICAgeOffset + kPointerSize;
+      kAstNodeCountOffset + kPointerSize;
   static const int kFormalParameterCountOffset = kLengthOffset + kPointerSize;
   static const int kExpectedNofPropertiesOffset =
       kFormalParameterCountOffset + kPointerSize;
@@ -5624,12 +5642,11 @@ class SharedFunctionInfo: public HeapObject {
       kCompilerHintsOffset + kPointerSize;
   static const int kOptCountOffset =
       kThisPropertyAssignmentsCountOffset + kPointerSize;
-  static const int kAstNodeCountOffset = kOptCountOffset + kPointerSize;
-  static const int kDeoptCounterOffset = kAstNodeCountOffset + kPointerSize;
-
+  static const int kCountersOffset = kOptCountOffset + kPointerSize;
+  static const int kStressDeoptCounterOffset = kCountersOffset + kPointerSize;
 
   // Total size.
-  static const int kSize = kDeoptCounterOffset + kPointerSize;
+  static const int kSize = kStressDeoptCounterOffset + kPointerSize;
 #else
   // The only reason to use smi fields instead of int fields
   // is to allow iteration without maps decoding during
@@ -5641,7 +5658,7 @@ class SharedFunctionInfo: public HeapObject {
   // word is not set and thus this word cannot be treated as pointer
   // to HeapObject during old space traversal.
   static const int kLengthOffset =
-      kICAgeOffset + kPointerSize;
+      kAstNodeCountOffset + kPointerSize;
   static const int kFormalParameterCountOffset =
       kLengthOffset + kIntSize;
 
@@ -5665,11 +5682,11 @@ class SharedFunctionInfo: public HeapObject {
   static const int kOptCountOffset =
       kThisPropertyAssignmentsCountOffset + kIntSize;
 
-  static const int kAstNodeCountOffset = kOptCountOffset + kIntSize;
-  static const int kDeoptCounterOffset = kAstNodeCountOffset + kIntSize;
+  static const int kCountersOffset = kOptCountOffset + kIntSize;
+  static const int kStressDeoptCounterOffset = kCountersOffset + kIntSize;
 
   // Total size.
-  static const int kSize = kDeoptCounterOffset + kIntSize;
+  static const int kSize = kStressDeoptCounterOffset + kIntSize;
 
 #endif
 
@@ -5721,6 +5738,10 @@ class SharedFunctionInfo: public HeapObject {
     kDontInline,
     kCompilerHintsCount  // Pseudo entry
   };
+
+  class DeoptCountBits: public BitField<int, 0, 4> {};
+  class OptReenableTriesBits: public BitField<int, 4, 18> {};
+  class ICAgeBits: public BitField<int, 22, 8> {};
 
  private:
 #if V8_HOST_ARCH_32_BIT

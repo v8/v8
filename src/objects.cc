@@ -7983,6 +7983,7 @@ void SharedFunctionInfo::ResetForNewContext(int new_ic_age) {
       code()->set_optimizable(true);
     }
     set_opt_count(0);
+    set_deopt_count(0);
   }
 }
 

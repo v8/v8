@@ -566,19 +566,22 @@ void LCodeGen::DeoptimizeIf(Condition cc, LEnvironment* environment) {
     __ push(eax);
     __ push(ebx);
     __ mov(ebx, shared);
-    __ mov(eax, FieldOperand(ebx, SharedFunctionInfo::kDeoptCounterOffset));
+    __ mov(eax,
+           FieldOperand(ebx, SharedFunctionInfo::kStressDeoptCounterOffset));
     __ sub(Operand(eax), Immediate(Smi::FromInt(1)));
     __ j(not_zero, &no_deopt, Label::kNear);
     if (FLAG_trap_on_deopt) __ int3();
     __ mov(eax, Immediate(Smi::FromInt(FLAG_deopt_every_n_times)));
-    __ mov(FieldOperand(ebx, SharedFunctionInfo::kDeoptCounterOffset), eax);
+    __ mov(FieldOperand(ebx, SharedFunctionInfo::kStressDeoptCounterOffset),
+           eax);
     __ pop(ebx);
     __ pop(eax);
     __ popfd();
     __ jmp(entry, RelocInfo::RUNTIME_ENTRY);
 
     __ bind(&no_deopt);
-    __ mov(FieldOperand(ebx, SharedFunctionInfo::kDeoptCounterOffset), eax);
+    __ mov(FieldOperand(ebx, SharedFunctionInfo::kStressDeoptCounterOffset),
+           eax);
     __ pop(ebx);
     __ pop(eax);
     __ popfd();

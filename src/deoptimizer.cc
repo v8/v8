@@ -378,6 +378,7 @@ Deoptimizer::Deoptimizer(Isolate* isolate,
            reinterpret_cast<intptr_t>(from),
            fp_to_sp_delta - (2 * kPointerSize));
   }
+  function->shared()->increment_deopt_count();
   // Find the optimized code.
   if (type == EAGER) {
     ASSERT(from == NULL);
