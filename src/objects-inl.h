@@ -1881,9 +1881,14 @@ Object** FixedArray::data_start() {
 
 bool DescriptorArray::IsEmpty() {
   ASSERT(this->IsSmi() ||
-         this->length() > kFirstIndex ||
+         this->MayContainTransitions() ||
          this == HEAP->empty_descriptor_array());
-  return this->IsSmi() || length() <= kFirstIndex;
+  return this->IsSmi() || length() < kFirstIndex;
+}
+
+
+bool DescriptorArray::MayContainTransitions() {
+  return length() >= kTransitionsIndex;
 }
 
 
@@ -1893,7 +1898,7 @@ int DescriptorArray::bit_field3_storage() {
 }
 
 void DescriptorArray::set_bit_field3_storage(int value) {
-  ASSERT(!IsEmpty());
+  ASSERT(this->MayContainTransitions());
   WRITE_FIELD(this, kBitField3StorageOffset, Smi::FromInt(value));
 }
 
@@ -1917,7 +1922,7 @@ int DescriptorArray::Search(String* name) {
   // Fast case: do linear search for small arrays.
   const int kMaxElementsForLinearSearch = 8;
   if (StringShape(name).IsSymbol() && nof < kMaxElementsForLinearSearch) {
-    return LinearSearch(name, nof);
+    return LinearSearch(EXPECT_SORTED, name, nof);
   }
 
   // Slow case: perform binary search.
@@ -1932,6 +1937,30 @@ int DescriptorArray::SearchWithCache(String* name) {
     GetIsolate()->descriptor_lookup_cache()->Update(this, name, number);
   }
   return number;
+}
+
+
+Map* DescriptorArray::elements_transition_map() {
+  if (!this->MayContainTransitions()) {
+    return NULL;
+  }
+  Object* transition_map = get(kTransitionsIndex);
+  if (transition_map == Smi::FromInt(0)) {
+    return NULL;
+  } else {
+    return Map::cast(transition_map);
+  }
+}
+
+
+void DescriptorArray::set_elements_transition_map(
+    Map* transition_map, WriteBarrierMode mode) {
+  ASSERT(this->length() > kTransitionsIndex);
+  Heap* heap = GetHeap();
+  WRITE_FIELD(this, kTransitionsOffset, transition_map);
+  CONDITIONAL_WRITE_BARRIER(
+      heap, this, kTransitionsOffset, transition_map, mode);
+  ASSERT(DescriptorArray::cast(this));
 }
 
 
@@ -2020,7 +2049,6 @@ bool DescriptorArray::IsTransitionOnly(int descriptor_number) {
   switch (GetType(descriptor_number)) {
     case MAP_TRANSITION:
     case CONSTANT_TRANSITION:
-    case ELEMENTS_TRANSITION:
       return true;
     case CALLBACKS: {
       Object* value = GetValue(descriptor_number);
@@ -3476,6 +3504,16 @@ Object* Map::GetBackPointer() {
 }
 
 
+Map* Map::elements_transition_map() {
+  return instance_descriptors()->elements_transition_map();
+}
+
+
+void Map::set_elements_transition_map(Map* transitioned_map) {
+  return instance_descriptors()->set_elements_transition_map(transitioned_map);
+}
+
+
 void Map::SetBackPointer(Object* value, WriteBarrierMode mode) {
   Heap* heap = GetHeap();
   ASSERT(instance_type() >= FIRST_JS_RECEIVER_TYPE);
@@ -4072,15 +4110,12 @@ MaybeObject* JSFunction::set_initial_map_and_cache_transitions(
     maps->set(kind, current_map);
     for (int i = GetSequenceIndexFromFastElementsKind(kind) + 1;
          i < kFastElementsKindCount; ++i) {
-      ElementsKind transitioned_kind = GetFastElementsKindFromSequenceIndex(i);
-      MaybeObject* maybe_new_map = current_map->CopyDropTransitions();
-      Map* new_map = NULL;
-      if (!maybe_new_map->To<Map>(&new_map)) return maybe_new_map;
-      new_map->set_elements_kind(transitioned_kind);
-      maybe_new_map = current_map->AddElementsTransition(transitioned_kind,
-                                                         new_map);
-      if (maybe_new_map->IsFailure()) return maybe_new_map;
-      maps->set(transitioned_kind, new_map);
+      Map* new_map;
+      ElementsKind next_kind = GetFastElementsKindFromSequenceIndex(i);
+      MaybeObject* maybe_new_map =
+          current_map->CreateNextElementsTransition(next_kind);
+      if (!maybe_new_map->To(&new_map)) return maybe_new_map;
+      maps->set(next_kind, new_map);
       current_map = new_map;
     }
     global_context->set_js_array_maps(maps);

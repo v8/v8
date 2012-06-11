@@ -3671,7 +3671,8 @@ MaybeObject* Heap::AllocateFunctionPrototype(JSFunction* function) {
   Map* new_map;
   ASSERT(object_function->has_initial_map());
   { MaybeObject* maybe_map =
-        object_function->initial_map()->CopyDropTransitions();
+        object_function->initial_map()->CopyDropTransitions(
+            DescriptorArray::MAY_BE_SHARED);
     if (!maybe_map->To<Map>(&new_map)) return maybe_map;
   }
   Object* prototype;
@@ -3819,7 +3820,8 @@ MaybeObject* Heap::AllocateInitialMap(JSFunction* fun) {
       fun->shared()->ForbidInlineConstructor();
     } else {
       DescriptorArray* descriptors;
-      { MaybeObject* maybe_descriptors_obj = DescriptorArray::Allocate(count);
+      { MaybeObject* maybe_descriptors_obj =
+            DescriptorArray::Allocate(count, DescriptorArray::MAY_BE_SHARED);
         if (!maybe_descriptors_obj->To<DescriptorArray>(&descriptors)) {
           return maybe_descriptors_obj;
         }

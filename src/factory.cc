@@ -115,7 +115,8 @@ Handle<ObjectHashTable> Factory::NewObjectHashTable(int at_least_space_for) {
 Handle<DescriptorArray> Factory::NewDescriptorArray(int number_of_descriptors) {
   ASSERT(0 <= number_of_descriptors);
   CALL_HEAP_FUNCTION(isolate(),
-                     DescriptorArray::Allocate(number_of_descriptors),
+                     DescriptorArray::Allocate(number_of_descriptors,
+                                               DescriptorArray::MAY_BE_SHARED),
                      DescriptorArray);
 }
 
@@ -496,7 +497,9 @@ Handle<Map> Factory::CopyMap(Handle<Map> src,
 
 
 Handle<Map> Factory::CopyMapDropTransitions(Handle<Map> src) {
-  CALL_HEAP_FUNCTION(isolate(), src->CopyDropTransitions(), Map);
+  CALL_HEAP_FUNCTION(isolate(),
+                     src->CopyDropTransitions(DescriptorArray::MAY_BE_SHARED),
+                     Map);
 }
 
 
@@ -939,7 +942,7 @@ Handle<DescriptorArray> Factory::CopyAppendCallbackDescriptors(
     Handle<String> key =
         SymbolFromString(Handle<String>(String::cast(entry->name())));
     // Check if a descriptor with this name already exists before writing.
-    if (result->LinearSearch(*key, descriptor_count) ==
+    if (result->LinearSearch(EXPECT_UNSORTED, *key, descriptor_count) ==
         DescriptorArray::kNotFound) {
       CallbacksDescriptor desc(*key, *entry, entry->property_attributes());
       result->Set(descriptor_count, &desc, witness);

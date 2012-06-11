@@ -507,7 +507,6 @@ bool Call::ComputeTarget(Handle<Map> type, Handle<String> name) {
           // We don't know the target.
           return false;
         case MAP_TRANSITION:
-        case ELEMENTS_TRANSITION:
         case CONSTANT_TRANSITION:
         case NULL_DESCRIPTOR:
           // Perhaps something interesting is up in the prototype chain...

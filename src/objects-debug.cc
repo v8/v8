@@ -929,21 +929,6 @@ bool DescriptorArray::IsConsistentWithBackPointers(Map* current_map) {
           return false;
         }
         break;
-      case ELEMENTS_TRANSITION: {
-        Object* object = GetValue(i);
-        if (!CheckOneBackPointer(current_map, object)) {
-          return false;
-        }
-        if (object->IsFixedArray()) {
-          FixedArray* array = FixedArray::cast(object);
-          for (int i = 0; i < array->length(); ++i) {
-            if (!CheckOneBackPointer(current_map, array->get(i))) {
-              return false;
-            }
-          }
-        }
-        break;
-      }
       case CALLBACKS: {
         Object* object = GetValue(i);
         if (object->IsAccessorPair()) {

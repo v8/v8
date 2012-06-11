@@ -2097,7 +2097,7 @@ class HCheckMaps: public HTemplateInstruction<2> {
     while (CanTransitionToMoreGeneralFastElementsKind(kind, packed)) {
       kind = GetNextMoreGeneralFastElementsKind(kind, packed);
       Map* transitioned_map =
-          map->LookupElementsTransitionMap(kind, NULL);
+          map->LookupElementsTransitionMap(kind);
       if (transitioned_map) {
         map_set->Add(Handle<Map>(transitioned_map));
       }
