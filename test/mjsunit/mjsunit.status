@@ -28,7 +28,7 @@
 prefix mjsunit
 
 # All tests in the bug directory are expected to fail.
-bugs: FAIL
+bugs/*: FAIL
 
 ##############################################################################
 # Fails.
@@ -38,6 +38,9 @@ regress/regress-1119: FAIL
 
 # NewGC: BUG(1719) slow to collect arrays over several contexts.
 regress/regress-524: SKIP
+# When that bug is fixed, revert the expectation to:
+# Skip long running test in debug and allow it to timeout in release mode.
+# regress/regress-524: (PASS || TIMEOUT), SKIP if $mode == debug
 
 ##############################################################################
 # Too slow in debug mode with --stress-opt
@@ -57,9 +60,6 @@ array-constructor: PASS || TIMEOUT
 
 # Very slow on ARM and MIPS, contains no architecture dependent code.
 unicode-case-overoptimization: PASS, TIMEOUT if ($arch == arm || $arch == mips)
-
-# Skip long running test in debug and allow it to timeout in release mode.
-regress/regress-524: (PASS || TIMEOUT), SKIP if $mode == debug
 
 # Stack manipulations in LiveEdit are buggy - see bug 915
 debug-liveedit-check-stack: SKIP

@@ -126,13 +126,13 @@ ecma/Date/15.9.2.2-5: PASS || FAIL
 ecma/Date/15.9.2.2-6: PASS || FAIL
 
 # 1026139: These date tests fail on arm and mips
-ecma/Date/15.9.5.29-1: PASS || (($ARM || $MIPS) && FAIL)
-ecma/Date/15.9.5.34-1: PASS || (($ARM || $MIPS) && FAIL)
-ecma/Date/15.9.5.28-1: PASS || (($ARM || $MIPS) && FAIL)
+ecma/Date/15.9.5.29-1: PASS || FAIL if ($arch == arm || $arch == mips)
+ecma/Date/15.9.5.34-1: PASS || FAIL if ($arch == arm || $arch == mips)
+ecma/Date/15.9.5.28-1: PASS || FAIL if ($arch == arm || $arch == mips)
 
 # 1050186: Arm/MIPS vm is broken; probably unrelated to dates
-ecma/Array/15.4.4.5-3: PASS || (($ARM || $MIPS) && FAIL)
-ecma/Date/15.9.5.22-2: PASS || (($ARM || $MIPS) && FAIL)
+ecma/Array/15.4.4.5-3: PASS || FAIL if ($arch == arm || $arch == mips)
+ecma/Date/15.9.5.22-2: PASS || FAIL if ($arch == arm || $arch == mips)
 
 # Flaky test that fails due to what appears to be a bug in the test.
 # Occurs depending on current time
