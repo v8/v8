@@ -1267,30 +1267,25 @@ MaybeObject* JSObject::EnsureCanContainElements(Object** objects,
   if (current_kind == FAST_HOLEY_ELEMENTS) return this;
   Heap* heap = GetHeap();
   Object* the_hole = heap->the_hole_value();
-  Object* heap_number_map = heap->heap_number_map();
   for (uint32_t i = 0; i < count; ++i) {
     Object* current = *objects++;
     if (current == the_hole) {
       is_holey = true;
       target_kind = GetHoleyElementsKind(target_kind);
     } else if (!current->IsSmi()) {
-      if (mode == ALLOW_CONVERTED_DOUBLE_ELEMENTS &&
-          HeapObject::cast(current)->map() == heap_number_map &&
-          IsFastSmiElementsKind(target_kind)) {
-        if (is_holey) {
-          target_kind = FAST_HOLEY_DOUBLE_ELEMENTS;
-        } else {
-          target_kind = FAST_DOUBLE_ELEMENTS;
-        }
-      } else {
-        if (!current->IsNumber()) {
+      if (mode == ALLOW_CONVERTED_DOUBLE_ELEMENTS && current->IsNumber()) {
+        if (IsFastSmiElementsKind(target_kind)) {
           if (is_holey) {
-            target_kind = FAST_HOLEY_ELEMENTS;
-            break;
+            target_kind = FAST_HOLEY_DOUBLE_ELEMENTS;
           } else {
-            target_kind = FAST_ELEMENTS;
+            target_kind = FAST_DOUBLE_ELEMENTS;
           }
         }
+      } else if (is_holey) {
+        target_kind = FAST_HOLEY_ELEMENTS;
+        break;
+      } else {
+        target_kind = FAST_ELEMENTS;
       }
     }
   }
