@@ -132,8 +132,6 @@ public:
 
 // Flags for language modes and experimental language features.
 DEFINE_bool(use_strict, false, "enforce strict mode")
-DEFINE_bool(es5_readonly, false,
-            "activate correct semantics for inheriting readonliness")
 DEFINE_bool(es52_globals, false,
             "activate new semantics for global var declarations")
 

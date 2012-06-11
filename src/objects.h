@@ -1837,6 +1837,7 @@ class JSObject: public JSReceiver {
   void LocalLookupRealNamedProperty(String* name, LookupResult* result);
   void LookupRealNamedProperty(String* name, LookupResult* result);
   void LookupRealNamedPropertyInPrototypes(String* name, LookupResult* result);
+  void LookupCallbackSetterInPrototypes(String* name, LookupResult* result);
   MUST_USE_RESULT MaybeObject* SetElementWithCallbackSetterInPrototypes(
       uint32_t index, Object* value, bool* found, StrictModeFlag strict_mode);
   void LookupCallback(String* name, LookupResult* result);
@@ -2121,16 +2122,17 @@ class JSObject: public JSReceiver {
       bool check_prototype,
       SetPropertyMode set_mode);
 
-  // Searches the prototype chain for property 'name'. If it is found and
-  // has a setter, invoke it and set '*done' to true. If it is found and is
-  // read-only, reject and set '*done' to true. Otherwise, set '*done' to
-  // false. Can cause GC and can return a failure result with '*done==true'.
-  MUST_USE_RESULT MaybeObject* SetPropertyViaPrototypes(
+  // Searches the prototype chain for a callback setter and sets the property
+  // with the setter if it finds one. The '*found' flag indicates whether
+  // a setter was found or not.
+  // This function can cause GC and can return a failure result with
+  // '*found==true'.
+  MUST_USE_RESULT MaybeObject* SetPropertyWithCallbackSetterInPrototypes(
       String* name,
       Object* value,
       PropertyAttributes attributes,
-      StrictModeFlag strict_mode,
-      bool* done);
+      bool* found,
+      StrictModeFlag strict_mode);
 
   MUST_USE_RESULT MaybeObject* DeletePropertyPostInterceptor(String* name,
                                                              DeleteMode mode);
@@ -7743,17 +7745,15 @@ class JSProxy: public JSReceiver {
       Object* value,
       StrictModeFlag strict_mode);
 
-  // If the handler defines an accessor property with a setter, invoke it.
-  // If it defines an accessor property without a setter, or a data property
-  // that is read-only, throw. In all these cases set '*done' to true,
-  // otherwise set it to false.
-  MUST_USE_RESULT MaybeObject* SetPropertyViaPrototypesWithHandler(
+  // If the handler defines an accessor property, invoke its setter
+  // (or throw if only a getter exists) and set *found to true. Otherwise false.
+  MUST_USE_RESULT MaybeObject* SetPropertyWithHandlerIfDefiningSetter(
       JSReceiver* receiver,
       String* name,
       Object* value,
       PropertyAttributes attributes,
       StrictModeFlag strict_mode,
-      bool* done);
+      bool* found);
 
   MUST_USE_RESULT MaybeObject* DeletePropertyWithHandler(
       String* name,

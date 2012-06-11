@@ -7662,7 +7662,7 @@ THREADED_TEST(ShadowObject) {
   value = Script::Compile(v8_str("f()"))->Run();
   CHECK_EQ(42, value->Int32Value());
 
-  Script::Compile(v8_str("y = 43"))->Run();
+  Script::Compile(v8_str("y = 42"))->Run();
   CHECK_EQ(1, shadow_y_setter_call_count);
   value = Script::Compile(v8_str("y"))->Run();
   CHECK_EQ(1, shadow_y_getter_call_count);
@@ -10260,7 +10260,6 @@ static v8::Handle<Value> ChildGetter(Local<String> name,
 
 
 THREADED_TEST(Overriding) {
-  i::FLAG_es5_readonly = true;
   v8::HandleScope scope;
   LocalContext context;
 
@@ -10307,11 +10306,11 @@ THREADED_TEST(Overriding) {
   value = v8_compile("o.g")->Run();
   CHECK_EQ(42, value->Int32Value());
 
-  // Check that 'h' cannot be shadowed.
+  // Check 'h' can be shadowed.
   value = v8_compile("o.h = 3; o.h")->Run();
-  CHECK_EQ(1, value->Int32Value());
+  CHECK_EQ(3, value->Int32Value());
 
-  // Check that 'i' cannot be shadowed or changed.
+  // Check 'i' is cannot be shadowed or changed.
   value = v8_compile("o.i = 3; o.i")->Run();
   CHECK_EQ(42, value->Int32Value());
 }
@@ -12149,10 +12148,9 @@ TEST(RegExpStringModification) {
 }
 
 
-// Test that we cannot set a property on the global object if there
+// Test that we can set a property on the global object even if there
 // is a read-only property in the prototype chain.
 TEST(ReadOnlyPropertyInGlobalProto) {
-  i::FLAG_es5_readonly = true;
   v8::HandleScope scope;
   v8::Handle<v8::ObjectTemplate> templ = v8::ObjectTemplate::New();
   LocalContext context(0, templ);
@@ -12164,13 +12162,12 @@ TEST(ReadOnlyPropertyInGlobalProto) {
   // Check without 'eval' or 'with'.
   v8::Handle<v8::Value> res =
       CompileRun("function f() { x = 42; return x; }; f()");
-  CHECK_EQ(v8::Integer::New(0), res);
   // Check with 'eval'.
-  res = CompileRun("function f() { eval('1'); y = 43; return y; }; f()");
-  CHECK_EQ(v8::Integer::New(0), res);
+  res = CompileRun("function f() { eval('1'); y = 42; return y; }; f()");
+  CHECK_EQ(v8::Integer::New(42), res);
   // Check with 'with'.
-  res = CompileRun("function f() { with (this) { y = 44 }; return y; }; f()");
-  CHECK_EQ(v8::Integer::New(0), res);
+  res = CompileRun("function f() { with (this) { y = 42 }; return y; }; f()");
+  CHECK_EQ(v8::Integer::New(42), res);
 }
 
 static int force_set_set_count = 0;

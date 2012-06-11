@@ -1762,11 +1762,14 @@ MaybeObject* JSObject::SetPropertyPostInterceptor(
     // found.  Use set property to handle all these cases.
     return SetProperty(&result, name, value, attributes, strict_mode);
   }
-  bool done = false;
+  bool found = false;
   MaybeObject* result_object;
-  result_object =
-      SetPropertyViaPrototypes(name, value, attributes, strict_mode, &done);
-  if (done) return result_object;
+  result_object = SetPropertyWithCallbackSetterInPrototypes(name,
+                                                            value,
+                                                            attributes,
+                                                            &found,
+                                                            strict_mode);
+  if (found) return result_object;
   // Add a new real property.
   return AddProperty(name, value, attributes, strict_mode);
 }
@@ -2046,6 +2049,26 @@ MaybeObject* JSReceiver::SetPropertyWithDefinedSetter(JSReceiver* setter,
 }
 
 
+void JSObject::LookupCallbackSetterInPrototypes(String* name,
+                                                LookupResult* result) {
+  Heap* heap = GetHeap();
+  for (Object* pt = GetPrototype();
+       pt != heap->null_value();
+       pt = pt->GetPrototype()) {
+    if (pt->IsJSProxy()) {
+      return result->HandlerResult(JSProxy::cast(pt));
+    }
+    JSObject::cast(pt)->LocalLookupRealNamedProperty(name, result);
+    if (result->IsProperty()) {
+      if (result->type() == CALLBACKS && !result->IsReadOnly()) return;
+      // Found non-callback or read-only callback, stop looking.
+      break;
+    }
+  }
+  result->NotFound();
+}
+
+
 MaybeObject* JSObject::SetElementWithCallbackSetterInPrototypes(
     uint32_t index,
     Object* value,
@@ -2062,7 +2085,7 @@ MaybeObject* JSObject::SetElementWithCallbackSetterInPrototypes(
         *found = true;  // Force abort
         return maybe;
       }
-      return JSProxy::cast(pt)->SetPropertyViaPrototypesWithHandler(
+      return JSProxy::cast(pt)->SetPropertyWithHandlerIfDefiningSetter(
           this, name, value, NONE, strict_mode, found);
     }
     if (!JSObject::cast(pt)->HasDictionaryElements()) {
@@ -2087,61 +2110,45 @@ MaybeObject* JSObject::SetElementWithCallbackSetterInPrototypes(
   return heap->the_hole_value();
 }
 
-MaybeObject* JSObject::SetPropertyViaPrototypes(
+MaybeObject* JSObject::SetPropertyWithCallbackSetterInPrototypes(
     String* name,
     Object* value,
     PropertyAttributes attributes,
-    StrictModeFlag strict_mode,
-    bool* done) {
+    bool* found,
+    StrictModeFlag strict_mode) {
   Heap* heap = GetHeap();
-  Isolate* isolate = heap->isolate();
-
-  *done = false;
   // We could not find a local property so let's check whether there is an
-  // accessor that wants to handle the property, or whether the property is
-  // read-only on the prototype chain.
-  LookupResult result(isolate);
-  LookupRealNamedPropertyInPrototypes(name, &result);
-  if (result.IsFound()) {
-    switch (result.type()) {
-      case NORMAL:
-      case FIELD:
-      case CONSTANT_FUNCTION:
-        *done = result.IsReadOnly();
-        break;
-      case INTERCEPTOR: {
-        PropertyAttributes attr =
-            result.holder()->GetPropertyAttributeWithInterceptor(
-                this, name, true);
-        *done = !!(attr & READ_ONLY);
-        break;
-      }
-      case CALLBACKS: {
-        if (!FLAG_es5_readonly && result.IsReadOnly()) break;
-        *done = true;
-        return SetPropertyWithCallback(result.GetCallbackObject(),
-            name, value, result.holder(), strict_mode);
-      }
-      case HANDLER: {
-        return result.proxy()->SetPropertyViaPrototypesWithHandler(
-            this, name, value, attributes, strict_mode, done);
-      }
-      case MAP_TRANSITION:
-      case CONSTANT_TRANSITION:
-      case NULL_DESCRIPTOR:
-      case ELEMENTS_TRANSITION:
-        break;
+  // accessor that wants to handle the property.
+  LookupResult accessor_result(heap->isolate());
+  LookupCallbackSetterInPrototypes(name, &accessor_result);
+  if (accessor_result.IsFound()) {
+    *found = true;
+    if (accessor_result.type() == CALLBACKS) {
+      return SetPropertyWithCallback(accessor_result.GetCallbackObject(),
+                                     name,
+                                     value,
+                                     accessor_result.holder(),
+                                     strict_mode);
+    } else if (accessor_result.type() == HANDLER) {
+      // There is a proxy in the prototype chain. Invoke its
+      // getPropertyDescriptor trap.
+      bool found = false;
+      // SetPropertyWithHandlerIfDefiningSetter can cause GC,
+      // make sure to use the handlified references after calling
+      // the function.
+      Handle<JSObject> self(this);
+      Handle<String> hname(name);
+      Handle<Object> hvalue(value);
+      MaybeObject* result =
+          accessor_result.proxy()->SetPropertyWithHandlerIfDefiningSetter(
+              this, name, value, attributes, strict_mode, &found);
+      if (found) return result;
+      // The proxy does not define the property as an accessor.
+      // Consequently, it has no effect on setting the receiver.
+      return self->AddProperty(*hname, *hvalue, attributes, strict_mode);
     }
   }
-
-  // If we get here with *done true, we have encountered a read-only property.
-  if (!FLAG_es5_readonly) *done = false;
-  if (*done) {
-    if (strict_mode == kNonStrictMode) return value;
-    Handle<Object> args[] = { Handle<Object>(name), Handle<Object>(this)};
-    return isolate->Throw(*isolate->factory()->NewTypeError(
-      "strict_read_only_property", HandleVector(args, ARRAY_SIZE(args))));
-  }
+  *found = false;
   return heap->the_hole_value();
 }
 
@@ -2546,13 +2553,9 @@ void JSObject::LookupRealNamedPropertyInPrototypes(String* name,
   Heap* heap = GetHeap();
   for (Object* pt = GetPrototype();
        pt != heap->null_value();
-       pt = pt->GetPrototype()) {
-    if (pt->IsJSProxy()) {
-      return result->HandlerResult(JSProxy::cast(pt));
-    }
+       pt = JSObject::cast(pt)->GetPrototype()) {
     JSObject::cast(pt)->LocalLookupRealNamedProperty(name, result);
-    ASSERT(!(result->IsProperty() && result->type() == INTERCEPTOR));
-    if (result->IsProperty()) return;
+    if (result->IsProperty() && (result->type() != INTERCEPTOR)) return;
   }
   result->NotFound();
 }
@@ -2566,7 +2569,7 @@ MaybeObject* JSObject::SetPropertyWithFailedAccessCheck(
     bool check_prototype,
     StrictModeFlag strict_mode) {
   if (check_prototype && !result->IsProperty()) {
-    LookupRealNamedPropertyInPrototypes(name, result);
+    LookupCallbackSetterInPrototypes(name, result);
   }
 
   if (result->IsProperty()) {
@@ -2639,7 +2642,7 @@ bool JSProxy::HasPropertyWithHandler(String* name_raw) {
   Handle<Object> args[] = { name };
   Handle<Object> result = CallTrap(
     "has", isolate->derived_has_trap(), ARRAY_SIZE(args), args);
-  if (isolate->has_pending_exception()) return false;
+  if (isolate->has_pending_exception()) return Failure::Exception();
 
   return result->ToBoolean()->IsTrue();
 }
@@ -2665,92 +2668,79 @@ MUST_USE_RESULT MaybeObject* JSProxy::SetPropertyWithHandler(
 }
 
 
-MUST_USE_RESULT MaybeObject* JSProxy::SetPropertyViaPrototypesWithHandler(
+MUST_USE_RESULT MaybeObject* JSProxy::SetPropertyWithHandlerIfDefiningSetter(
     JSReceiver* receiver_raw,
     String* name_raw,
     Object* value_raw,
     PropertyAttributes attributes,
     StrictModeFlag strict_mode,
-    bool* done) {
-  Isolate* isolate = GetIsolate();
-  Handle<JSProxy> proxy(this);
+    bool* found) {
+  *found = true;  // except where defined otherwise...
+  Isolate* isolate = GetHeap()->isolate();
   Handle<JSReceiver> receiver(receiver_raw);
+  Handle<JSProxy> proxy(this);
+  Handle<Object> handler(this->handler());  // Trap might morph proxy.
   Handle<String> name(name_raw);
   Handle<Object> value(value_raw);
-  Handle<Object> handler(this->handler());  // Trap might morph proxy.
-
-  *done = true;  // except where redefined...
   Handle<Object> args[] = { name };
   Handle<Object> result = proxy->CallTrap(
       "getPropertyDescriptor", Handle<Object>(), ARRAY_SIZE(args), args);
   if (isolate->has_pending_exception()) return Failure::Exception();
 
-  if (result->IsUndefined()) {
-    *done = false;
-    return GetHeap()->the_hole_value();
-  }
+  if (!result->IsUndefined()) {
+    // The proxy handler cares about this property.
+    // Check whether it is virtualized as an accessor.
+    // Emulate [[GetProperty]] semantics for proxies.
+    bool has_pending_exception;
+    Handle<Object> argv[] = { result };
+    Handle<Object> desc =
+        Execution::Call(isolate->to_complete_property_descriptor(), result,
+                        ARRAY_SIZE(argv), argv, &has_pending_exception);
+    if (has_pending_exception) return Failure::Exception();
 
-  // Emulate [[GetProperty]] semantics for proxies.
-  bool has_pending_exception;
-  Handle<Object> argv[] = { result };
-  Handle<Object> desc =
-      Execution::Call(isolate->to_complete_property_descriptor(), result,
-                      ARRAY_SIZE(argv), argv, &has_pending_exception);
-  if (has_pending_exception) return Failure::Exception();
-
-  // [[GetProperty]] requires to check that all properties are configurable.
-  Handle<String> configurable_name =
-      isolate->factory()->LookupAsciiSymbol("configurable_");
-  Handle<Object> configurable(
-      v8::internal::GetProperty(desc, configurable_name));
-  ASSERT(!isolate->has_pending_exception());
-  ASSERT(configurable->IsTrue() || configurable->IsFalse());
-  if (configurable->IsFalse()) {
-    Handle<String> trap =
-        isolate->factory()->LookupAsciiSymbol("getPropertyDescriptor");
-    Handle<Object> args[] = { handler, trap, name };
-    Handle<Object> error = isolate->factory()->NewTypeError(
-        "proxy_prop_not_configurable", HandleVector(args, ARRAY_SIZE(args)));
-    return isolate->Throw(*error);
-  }
-  ASSERT(configurable->IsTrue());
-
-  // Check for DataDescriptor.
-  Handle<String> hasWritable_name =
-      isolate->factory()->LookupAsciiSymbol("hasWritable_");
-  Handle<Object> hasWritable(v8::internal::GetProperty(desc, hasWritable_name));
-  ASSERT(!isolate->has_pending_exception());
-  ASSERT(hasWritable->IsTrue() || hasWritable->IsFalse());
-  if (hasWritable->IsTrue()) {
-    Handle<String> writable_name =
-        isolate->factory()->LookupAsciiSymbol("writable_");
-    Handle<Object> writable(v8::internal::GetProperty(desc, writable_name));
+    Handle<String> conf_name =
+        isolate->factory()->LookupAsciiSymbol("configurable_");
+    Handle<Object> configurable(v8::internal::GetProperty(desc, conf_name));
     ASSERT(!isolate->has_pending_exception());
-    ASSERT(writable->IsTrue() || writable->IsFalse());
-    *done = writable->IsFalse();
-    if (!*done) return GetHeap()->the_hole_value();
-    if (strict_mode == kNonStrictMode) return *value;
-    Handle<Object> args[] = { name, receiver };
-    Handle<Object> error = isolate->factory()->NewTypeError(
-        "strict_read_only_property", HandleVector(args, ARRAY_SIZE(args)));
-    return isolate->Throw(*error);
+    if (configurable->IsFalse()) {
+      Handle<String> trap =
+          isolate->factory()->LookupAsciiSymbol("getPropertyDescriptor");
+      Handle<Object> args[] = { handler, trap, name };
+      Handle<Object> error = isolate->factory()->NewTypeError(
+          "proxy_prop_not_configurable", HandleVector(args, ARRAY_SIZE(args)));
+      return isolate->Throw(*error);
+    }
+    ASSERT(configurable->IsTrue());
+
+    // Check for AccessorDescriptor.
+    Handle<String> set_name = isolate->factory()->LookupAsciiSymbol("set_");
+    Handle<Object> setter(v8::internal::GetProperty(desc, set_name));
+    ASSERT(!isolate->has_pending_exception());
+    if (!setter->IsUndefined()) {
+      // We have a setter -- invoke it.
+      // TODO(rossberg): nicer would be to cast to some JSCallable here...
+      return receiver->SetPropertyWithDefinedSetter(
+          JSReceiver::cast(*setter), *value);
+    } else {
+      Handle<String> get_name = isolate->factory()->LookupAsciiSymbol("get_");
+      Handle<Object> getter(v8::internal::GetProperty(desc, get_name));
+      ASSERT(!isolate->has_pending_exception());
+      if (!getter->IsUndefined()) {
+        // We have a getter but no setter -- the property may not be
+        // written. In strict mode, throw an error.
+        if (strict_mode == kNonStrictMode) return *value;
+        Handle<Object> args[] = { name, proxy };
+        Handle<Object> error = isolate->factory()->NewTypeError(
+            "no_setter_in_callback", HandleVector(args, ARRAY_SIZE(args)));
+        return isolate->Throw(*error);
+      }
+    }
+    // Fall-through.
   }
 
-  // We have an AccessorDescriptor.
-  Handle<String> set_name = isolate->factory()->LookupAsciiSymbol("set_");
-  Handle<Object> setter(v8::internal::GetProperty(desc, set_name));
-  ASSERT(!isolate->has_pending_exception());
-  if (!setter->IsUndefined()) {
-    // TODO(rossberg): nicer would be to cast to some JSCallable here...
-    return receiver->SetPropertyWithDefinedSetter(
-        JSReceiver::cast(*setter), *value);
-  }
-
-  if (strict_mode == kNonStrictMode) return *value;
-  Handle<Object> args2[] = { name, proxy };
-  Handle<Object> error = isolate->factory()->NewTypeError(
-      "no_setter_in_callback", HandleVector(args2, ARRAY_SIZE(args2)));
-  return isolate->Throw(*error);
+  // The proxy does not define the property as an accessor.
+  *found = false;
+  return *value;
 }
 
 
@@ -2943,11 +2933,18 @@ MaybeObject* JSObject::SetPropertyForResult(LookupResult* result,
   }
 
   if (!result->IsProperty() && !IsJSContextExtensionObject()) {
-    bool done = false;
-    MaybeObject* result_object =
-        SetPropertyViaPrototypes(name, value, attributes, strict_mode, &done);
-    if (done) return result_object;
+    bool found = false;
+    MaybeObject* result_object;
+    result_object = SetPropertyWithCallbackSetterInPrototypes(name,
+                                                              value,
+                                                              attributes,
+                                                              &found,
+                                                              strict_mode);
+    if (found) return result_object;
   }
+
+  // At this point, no GC should have happened, as this would invalidate
+  // 'result', which we cannot handlify!
 
   if (!result->IsFound()) {
     // Neither properties nor transitions found.

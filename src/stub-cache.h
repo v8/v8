@@ -460,16 +460,14 @@ class StubCompiler BASE_EMBEDDED {
                                             Register scratch2,
                                             Label* miss_label);
 
-  void GenerateStoreField(MacroAssembler* masm,
-                          Handle<JSObject> object,
-                          int index,
-                          Handle<Map> transition,
-                          Handle<String> name,
-                          Register receiver_reg,
-                          Register name_reg,
-                          Register scratch1,
-                          Register scratch2,
-                          Label* miss_label);
+  static void GenerateStoreField(MacroAssembler* masm,
+                                 Handle<JSObject> object,
+                                 int index,
+                                 Handle<Map> transition,
+                                 Register receiver_reg,
+                                 Register name_reg,
+                                 Register scratch,
+                                 Label* miss_label);
 
   static void GenerateLoadMiss(MacroAssembler* masm,
                                Code::Kind kind);
@@ -512,7 +510,6 @@ class StubCompiler BASE_EMBEDDED {
                            Handle<String> name,
                            int save_at_depth,
                            Label* miss);
-
 
  protected:
   Handle<Code> GetCodeWithFlags(Code::Flags flags, const char* name);

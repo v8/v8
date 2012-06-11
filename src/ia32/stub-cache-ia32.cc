@@ -745,22 +745,10 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
                                       Handle<JSObject> object,
                                       int index,
                                       Handle<Map> transition,
-                                      Handle<String> name,
                                       Register receiver_reg,
                                       Register name_reg,
-                                      Register scratch1,
-                                      Register scratch2,
+                                      Register scratch,
                                       Label* miss_label) {
-  LookupResult lookup(masm->isolate());
-  object->Lookup(*name, &lookup);
-  if (lookup.IsFound() && (lookup.IsReadOnly() || !lookup.IsCacheable())) {
-    // In sloppy mode, we could just return the value and be done. However, we
-    // might be in strict mode, where we have to throw. Since we cannot tell,
-    // go into slow case unconditionally.
-    __ jmp(miss_label);
-    return;
-  }
-
   // Check that the map of the object hasn't changed.
   CompareMapMode mode = transition.is_null() ? ALLOW_ELEMENT_TRANSITION_MAPS
                                              : REQUIRE_EXACT_MAP;
@@ -769,32 +757,7 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
 
   // Perform global security token check if needed.
   if (object->IsJSGlobalProxy()) {
-    __ CheckAccessGlobalProxy(receiver_reg, scratch1, miss_label);
-  }
-
-  // Check that we are allowed to write this.
-  if (!transition.is_null() && object->GetPrototype()->IsJSObject()) {
-    JSObject* holder;
-    if (lookup.IsFound()) {
-      holder = lookup.holder();
-    } else {
-      // Find the top object.
-      holder = *object;
-      do {
-        holder = JSObject::cast(holder->GetPrototype());
-      } while (holder->GetPrototype()->IsJSObject());
-    }
-    // We need an extra register, push
-    __ push(name_reg);
-    Label miss_pop, done_check;
-    CheckPrototypes(object, receiver_reg, Handle<JSObject>(holder), name_reg,
-                    scratch1, scratch2, name, &miss_pop);
-    __ jmp(&done_check);
-    __ bind(&miss_pop);
-    __ pop(name_reg);
-    __ jmp(miss_label);
-    __ bind(&done_check);
-    __ pop(name_reg);
+    __ CheckAccessGlobalProxy(receiver_reg, scratch, miss_label);
   }
 
   // Stub never generated for non-global objects that require access
@@ -805,11 +768,11 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
   if (!transition.is_null() && (object->map()->unused_property_fields() == 0)) {
     // The properties must be extended before we can store the value.
     // We jump to a runtime call that extends the properties array.
-    __ pop(scratch1);  // Return address.
+    __ pop(scratch);  // Return address.
     __ push(receiver_reg);
     __ push(Immediate(transition));
     __ push(eax);
-    __ push(scratch1);
+    __ push(scratch);
     __ TailCallExternalReference(
         ExternalReference(IC_Utility(IC::kSharedStoreIC_ExtendStorage),
                           masm->isolate()),
@@ -820,14 +783,14 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
 
   if (!transition.is_null()) {
     // Update the map of the object.
-    __ mov(scratch1, Immediate(transition));
-    __ mov(FieldOperand(receiver_reg, HeapObject::kMapOffset), scratch1);
+    __ mov(scratch, Immediate(transition));
+    __ mov(FieldOperand(receiver_reg, HeapObject::kMapOffset), scratch);
 
     // Update the write barrier for the map field and pass the now unused
     // name_reg as scratch register.
     __ RecordWriteField(receiver_reg,
                         HeapObject::kMapOffset,
-                        scratch1,
+                        scratch,
                         name_reg,
                         kDontSaveFPRegs,
                         OMIT_REMEMBERED_SET,
@@ -850,19 +813,19 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
     __ RecordWriteField(receiver_reg,
                         offset,
                         name_reg,
-                        scratch1,
+                        scratch,
                         kDontSaveFPRegs);
   } else {
     // Write to the properties array.
     int offset = index * kPointerSize + FixedArray::kHeaderSize;
     // Get the properties array (optimistically).
-    __ mov(scratch1, FieldOperand(receiver_reg, JSObject::kPropertiesOffset));
-    __ mov(FieldOperand(scratch1, offset), eax);
+    __ mov(scratch, FieldOperand(receiver_reg, JSObject::kPropertiesOffset));
+    __ mov(FieldOperand(scratch, offset), eax);
 
     // Update the write barrier for the array address.
     // Pass the value being stored in the now unused name_reg.
     __ mov(name_reg, eax);
-    __ RecordWriteField(scratch1,
+    __ RecordWriteField(scratch,
                         offset,
                         name_reg,
                         receiver_reg,
@@ -2521,13 +2484,8 @@ Handle<Code> StoreStubCompiler::CompileStoreField(Handle<JSObject> object,
   Label miss;
 
   // Generate store field code.  Trashes the name register.
-  GenerateStoreField(masm(),
-                     object,
-                     index,
-                     transition,
-                     name,
-                     edx, ecx, ebx, edi,
-                     &miss);
+  GenerateStoreField(masm(), object, index, transition, edx, ecx, ebx, &miss);
+
   // Handle store cache miss.
   __ bind(&miss);
   __ mov(ecx, Immediate(name));  // restore name
@@ -2700,13 +2658,7 @@ Handle<Code> KeyedStoreStubCompiler::CompileStoreField(Handle<JSObject> object,
   __ j(not_equal, &miss);
 
   // Generate store field code.  Trashes the name register.
-  GenerateStoreField(masm(),
-                     object,
-                     index,
-                     transition,
-                     name,
-                     edx, ecx, ebx, edi,
-                     &miss);
+  GenerateStoreField(masm(), object, index, transition, edx, ecx, ebx, &miss);
 
   // Handle store cache miss.
   __ bind(&miss);

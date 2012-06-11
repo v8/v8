@@ -27,8 +27,6 @@
 
 // Test that readonly variables are treated correctly.
 
-// Flags: --es5_readonly
-
 // Create an object with a read-only length property in the prototype
 // chain by putting the string split function in the prototype chain.
 var o = {};
@@ -38,8 +36,8 @@ function f() {
   with (o) {
     length = 23;
     length = 24;
-    assertEquals(2, length);
+    assertEquals(24, length);
   }
-  assertEquals(2, o.length);
 }
 f();
+
