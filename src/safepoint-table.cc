@@ -128,20 +128,19 @@ Safepoint SafepointTableBuilder::DefineSafepoint(
     Safepoint::DeoptMode deopt_mode) {
   ASSERT(arguments >= 0);
   DeoptimizationInfo info;
-  Zone* zone = assembler->zone();
   info.pc = assembler->pc_offset();
   info.arguments = arguments;
   info.has_doubles = (kind & Safepoint::kWithDoubles);
-  deoptimization_info_.Add(info, zone);
-  deopt_index_list_.Add(Safepoint::kNoDeoptimizationIndex, zone);
+  deoptimization_info_.Add(info, zone_);
+  deopt_index_list_.Add(Safepoint::kNoDeoptimizationIndex, zone_);
   if (deopt_mode == Safepoint::kNoLazyDeopt) {
     last_lazy_safepoint_ = deopt_index_list_.length();
   }
-  indexes_.Add(new(zone) ZoneList<int>(8, zone), zone);
+  indexes_.Add(new(zone_) ZoneList<int>(8, zone_), zone_);
   registers_.Add((kind & Safepoint::kWithRegisters)
-      ? new(zone) ZoneList<int>(4, zone)
+      ? new(zone_) ZoneList<int>(4, zone_)
       : NULL,
-      zone);
+      zone_);
   return Safepoint(indexes_.last(), registers_.last());
 }
 
@@ -162,7 +161,6 @@ void SafepointTableBuilder::Emit(Assembler* assembler, int bits_per_entry) {
   // For lazy deoptimization we need space to patch a call after every call.
   // Ensure there is always space for such patching, even if the code ends
   // in a call.
-  Zone* zone = assembler->zone();
   int target_offset = assembler->pc_offset() + Deoptimizer::patch_size();
   while (assembler->pc_offset() < target_offset) {
     assembler->nop();
@@ -193,12 +191,12 @@ void SafepointTableBuilder::Emit(Assembler* assembler, int bits_per_entry) {
   }
 
   // Emit table of bitmaps.
-  ZoneList<uint8_t> bits(bytes_per_entry, zone);
+  ZoneList<uint8_t> bits(bytes_per_entry, zone_);
   for (int i = 0; i < length; i++) {
     ZoneList<int>* indexes = indexes_[i];
     ZoneList<int>* registers = registers_[i];
     bits.Clear();
-    bits.AddBlock(0, bytes_per_entry, zone);
+    bits.AddBlock(0, bytes_per_entry, zone_);
 
     // Run through the registers (if any).
     ASSERT(IsAligned(kNumSafepointRegisters, kBitsPerByte));

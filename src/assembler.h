@@ -57,7 +57,7 @@ const unsigned kNoASTId = -1;
 
 class AssemblerBase: public Malloced {
  public:
-  AssemblerBase(Isolate* isolate, Zone* zone);
+  explicit AssemblerBase(Isolate* isolate);
 
   Isolate* isolate() const { return isolate_; }
   int jit_cookie() { return jit_cookie_; }
@@ -66,12 +66,9 @@ class AssemblerBase: public Malloced {
   // cross-snapshotting.
   static void QuietNaN(HeapObject* nan) { }
 
-  Zone* zone() const { return zone_; }
-
  private:
   Isolate* isolate_;
   int jit_cookie_;
-  Zone* zone_;
 };
 
 
