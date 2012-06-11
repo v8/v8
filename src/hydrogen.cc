@@ -1364,7 +1364,9 @@ HSideEffectMap::HSideEffectMap(HSideEffectMap* other) : count_(other->count_) {
 
 
 HSideEffectMap& HSideEffectMap::operator= (const HSideEffectMap& other) {
-  memcpy(data_, other.data_, kNumberOfTrackedSideEffects * kPointerSize);
+  if (this != &other) {
+    memcpy(data_, other.data_, kNumberOfTrackedSideEffects * kPointerSize);
+  }
   return *this;
 }
 
