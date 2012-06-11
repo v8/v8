@@ -336,7 +336,8 @@ HUseListNode* HValue::RemoveUse(HValue* value, int index) {
   // Do not reuse use list nodes in debug mode, zap them.
   if (current != NULL) {
     HUseListNode* temp =
-        new HUseListNode(current->value(), current->index(), NULL);
+        new(block()->zone())
+        HUseListNode(current->value(), current->index(), NULL);
     current->Zap();
     current = temp;
   }
@@ -495,8 +496,8 @@ void HValue::RegisterUse(int index, HValue* new_value) {
 
   if (new_value != NULL) {
     if (removed == NULL) {
-      new_value->use_list_ =
-          new HUseListNode(this, index, new_value->use_list_);
+      new_value->use_list_ = new(new_value->block()->zone()) HUseListNode(
+          this, index, new_value->use_list_);
     } else {
       removed->set_tail(new_value->use_list_);
       new_value->use_list_ = removed;
@@ -964,7 +965,7 @@ HValue* HUnaryMathOperation::Canonicalize() {
           !HInstruction::cast(new_right)->IsLinked()) {
         HInstruction::cast(new_right)->InsertBefore(this);
       }
-      HMathFloorOfDiv* instr =  new HMathFloorOfDiv(context(),
+      HMathFloorOfDiv* instr =  new(block()->zone()) HMathFloorOfDiv(context(),
           new_left,
           new_right);
       // Replace this HMathFloor instruction by the new HMathFloorOfDiv.
@@ -1251,7 +1252,7 @@ void HPhi::PrintTo(StringStream* stream) {
 
 
 void HPhi::AddInput(HValue* value) {
-  inputs_.Add(NULL);
+  inputs_.Add(NULL, value->block()->zone());
   SetOperandAt(OperandCount() - 1, value);
   // Mark phis that may have 'arguments' directly or indirectly as an operand.
   if (!CheckFlag(kIsArguments) && value->CheckFlag(kIsArguments)) {
@@ -1397,18 +1398,18 @@ HConstant::HConstant(Handle<Object> handle, Representation r)
 }
 
 
-HConstant* HConstant::CopyToRepresentation(Representation r) const {
+HConstant* HConstant::CopyToRepresentation(Representation r, Zone* zone) const {
   if (r.IsInteger32() && !has_int32_value_) return NULL;
   if (r.IsDouble() && !has_double_value_) return NULL;
-  return new HConstant(handle_, r);
+  return new(zone) HConstant(handle_, r);
 }
 
 
-HConstant* HConstant::CopyToTruncatedInt32() const {
+HConstant* HConstant::CopyToTruncatedInt32(Zone* zone) const {
   if (!has_double_value_) return NULL;
   int32_t truncated = NumberToInt32(*handle_);
-  return new HConstant(FACTORY->NewNumberFromInt(truncated),
-                       Representation::Integer32());
+  return new(zone) HConstant(FACTORY->NewNumberFromInt(truncated),
+                             Representation::Integer32());
 }
 
 
@@ -1620,8 +1621,9 @@ void HLoadNamedField::PrintDataTo(StringStream* stream) {
 HLoadNamedFieldPolymorphic::HLoadNamedFieldPolymorphic(HValue* context,
                                                        HValue* object,
                                                        SmallMapList* types,
-                                                       Handle<String> name)
-    : types_(Min(types->length(), kMaxLoadPolymorphism)),
+                                                       Handle<String> name,
+                                                       Zone* zone)
+    : types_(Min(types->length(), kMaxLoadPolymorphism), zone),
       name_(name),
       need_generic_(false) {
   SetOperandAt(0, context);
@@ -1644,11 +1646,11 @@ HLoadNamedFieldPolymorphic::HLoadNamedFieldPolymorphic(HValue* context,
           } else {
             SetGVNFlag(kDependsOnBackingStoreFields);
           }
-          types_.Add(types->at(i));
+          types_.Add(types->at(i), zone);
           break;
         }
         case CONSTANT_FUNCTION:
-          types_.Add(types->at(i));
+          types_.Add(types->at(i), zone);
           break;
         case MAP_TRANSITION:
           // We should just ignore these since they are not relevant to a load
@@ -1765,10 +1767,10 @@ HValue* HLoadKeyedGeneric::Canonicalize() {
             index_cache,
             key_load->key(),
             OMIT_HOLE_CHECK);
-        HLoadFieldByIndex* load = new(block()->zone()) HLoadFieldByIndex(
-            object(), index);
         map_check->InsertBefore(this);
         index->InsertBefore(this);
+        HLoadFieldByIndex* load = new(block()->zone()) HLoadFieldByIndex(
+            object(), index);
         load->InsertBefore(this);
         return load;
       }

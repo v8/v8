@@ -41,6 +41,7 @@
 #include "mips/constants-mips.h"
 #endif
 #include "v8checks.h"
+#include "zone.h"
 
 
 //
@@ -3471,7 +3472,7 @@ class ScopeInfo : public FixedArray {
   // must be a symbol (canonicalized).
   int FunctionContextSlotIndex(String* name, VariableMode* mode);
 
-  static Handle<ScopeInfo> Create(Scope* scope);
+  static Handle<ScopeInfo> Create(Scope* scope, Zone* zone);
 
   // Serializes empty scope info.
   static ScopeInfo* Empty();

@@ -553,7 +553,7 @@ void LCodeGen::DeoptimizeIf(Condition cc, LEnvironment* environment) {
     // jump entry if this is the case.
     if (jump_table_.is_empty() ||
         jump_table_.last().address != entry) {
-      jump_table_.Add(JumpTableEntry(entry));
+      jump_table_.Add(JumpTableEntry(entry), zone());
     }
     __ j(cc, &jump_table_.last().label);
   }
@@ -598,7 +598,7 @@ int LCodeGen::DefineDeoptimizationLiteral(Handle<Object> literal) {
   for (int i = 0; i < deoptimization_literals_.length(); ++i) {
     if (deoptimization_literals_[i].is_identical_to(literal)) return i;
   }
-  deoptimization_literals_.Add(literal);
+  deoptimization_literals_.Add(literal, zone());
   return result;
 }
 
@@ -647,12 +647,12 @@ void LCodeGen::RecordSafepoint(
     if (pointer->IsStackSlot()) {
       safepoint.DefinePointerSlot(pointer->index(), zone());
     } else if (pointer->IsRegister() && (kind & Safepoint::kWithRegisters)) {
-      safepoint.DefinePointerRegister(ToRegister(pointer));
+      safepoint.DefinePointerRegister(ToRegister(pointer), zone());
     }
   }
   if (kind & Safepoint::kWithRegisters) {
     // Register rsi always contains a pointer to the context.
-    safepoint.DefinePointerRegister(rsi);
+    safepoint.DefinePointerRegister(rsi, zone());
   }
 }
 
@@ -664,7 +664,7 @@ void LCodeGen::RecordSafepoint(LPointerMap* pointers,
 
 
 void LCodeGen::RecordSafepoint(Safepoint::DeoptMode deopt_mode) {
-  LPointerMap empty_pointers(RelocInfo::kNoPosition);
+  LPointerMap empty_pointers(RelocInfo::kNoPosition, zone());
   RecordSafepoint(&empty_pointers, deopt_mode);
 }
 
@@ -1942,7 +1942,7 @@ void LCodeGen::DoInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr) {
 
 
   DeferredInstanceOfKnownGlobal* deferred;
-  deferred = new DeferredInstanceOfKnownGlobal(this, instr);
+  deferred = new(zone()) DeferredInstanceOfKnownGlobal(this, instr);
 
   Label done, false_result;
   Register object = ToRegister(instr->InputAt(0));
@@ -2880,7 +2880,7 @@ void LCodeGen::DoMathAbs(LUnaryMathOperation* instr) {
     EmitIntegerMathAbs(instr);
   } else {  // Tagged case.
     DeferredMathAbsTaggedHeapNumber* deferred =
-        new DeferredMathAbsTaggedHeapNumber(this, instr);
+        new(zone()) DeferredMathAbsTaggedHeapNumber(this, instr);
     Register input_reg = ToRegister(instr->InputAt(0));
     // Smi check.
     __ JumpIfNotSmi(input_reg, deferred->entry());
@@ -3072,7 +3072,7 @@ void LCodeGen::DoRandom(LRandom* instr) {
     LRandom* instr_;
   };
 
-  DeferredDoRandom* deferred = new DeferredDoRandom(this, instr);
+  DeferredDoRandom* deferred = new(zone()) DeferredDoRandom(this, instr);
 
   // Having marked this instruction as a call we can use any
   // registers.
@@ -3614,7 +3614,7 @@ void LCodeGen::DoStringCharCodeAt(LStringCharCodeAt* instr) {
   };
 
   DeferredStringCharCodeAt* deferred =
-      new DeferredStringCharCodeAt(this, instr);
+      new(zone()) DeferredStringCharCodeAt(this, instr);
 
   StringCharLoadGenerator::Generate(masm(),
                                     ToRegister(instr->string()),
@@ -3668,7 +3668,7 @@ void LCodeGen::DoStringCharFromCode(LStringCharFromCode* instr) {
   };
 
   DeferredStringCharFromCode* deferred =
-      new DeferredStringCharFromCode(this, instr);
+      new(zone()) DeferredStringCharFromCode(this, instr);
 
   ASSERT(instr->hydrogen()->value()->representation().IsInteger32());
   Register char_code = ToRegister(instr->char_code());
@@ -3748,7 +3748,7 @@ void LCodeGen::DoNumberTagD(LNumberTagD* instr) {
   Register reg = ToRegister(instr->result());
   Register tmp = ToRegister(instr->TempAt(0));
 
-  DeferredNumberTagD* deferred = new DeferredNumberTagD(this, instr);
+  DeferredNumberTagD* deferred = new(zone()) DeferredNumberTagD(this, instr);
   if (FLAG_inline_new) {
     __ AllocateHeapNumber(reg, tmp, deferred->entry());
   } else {
@@ -3908,7 +3908,7 @@ void LCodeGen::DoTaggedToI(LTaggedToI* instr) {
   ASSERT(input->Equals(instr->result()));
 
   Register input_reg = ToRegister(input);
-  DeferredTaggedToI* deferred = new DeferredTaggedToI(this, instr);
+  DeferredTaggedToI* deferred = new(zone()) DeferredTaggedToI(this, instr);
   __ JumpIfNotSmi(input_reg, deferred->entry());
   __ SmiToInteger32(input_reg, input_reg);
   __ bind(deferred->exit());
@@ -4162,7 +4162,8 @@ void LCodeGen::DoAllocateObject(LAllocateObject* instr) {
     LAllocateObject* instr_;
   };
 
-  DeferredAllocateObject* deferred = new DeferredAllocateObject(this, instr);
+  DeferredAllocateObject* deferred =
+      new(zone()) DeferredAllocateObject(this, instr);
 
   Register result = ToRegister(instr->result());
   Register scratch = ToRegister(instr->TempAt(0));
@@ -4784,7 +4785,7 @@ void LCodeGen::DoStackCheck(LStackCheck* instr) {
     ASSERT(instr->hydrogen()->is_backwards_branch());
     // Perform stack overflow check if this goto needs it before jumping.
     DeferredStackCheck* deferred_stack_check =
-        new DeferredStackCheck(this, instr);
+        new(zone()) DeferredStackCheck(this, instr);
     __ CompareRoot(rsp, Heap::kStackLimitRootIndex);
     __ j(below, deferred_stack_check->entry());
     EnsureSpaceForLazyDeopt(Deoptimizer::patch_size());

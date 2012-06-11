@@ -327,8 +327,10 @@ class LGap: public LTemplateInstruction<0, 0, 0> {
     LAST_INNER_POSITION = AFTER
   };
 
-  LParallelMove* GetOrCreateParallelMove(InnerPosition pos)  {
-    if (parallel_moves_[pos] == NULL) parallel_moves_[pos] = new LParallelMove;
+  LParallelMove* GetOrCreateParallelMove(InnerPosition pos, Zone* zone)  {
+    if (parallel_moves_[pos] == NULL) {
+      parallel_moves_[pos] = new(zone) LParallelMove(zone);
+    }
     return parallel_moves_[pos];
   }
 
@@ -2307,9 +2309,9 @@ class LChunk: public ZoneObject {
     : spill_slot_count_(0),
       info_(info),
       graph_(graph),
-      instructions_(32),
-      pointer_maps_(8),
-      inlined_closures_(1) { }
+      instructions_(32, graph->zone()),
+      pointer_maps_(8, graph->zone()),
+      inlined_closures_(1, graph->zone()) { }
 
   void AddInstruction(LInstruction* instruction, HBasicBlock* block);
   LConstantOperand* DefineConstantOperand(HConstant* constant);
@@ -2354,8 +2356,10 @@ class LChunk: public ZoneObject {
   }
 
   void AddInlinedClosure(Handle<JSFunction> closure) {
-    inlined_closures_.Add(closure);
+    inlined_closures_.Add(closure, zone());
   }
+
+  Zone* zone() const { return graph_->zone(); }
 
  private:
   int spill_slot_count_;
@@ -2403,7 +2407,7 @@ class LChunkBuilder BASE_EMBEDDED {
   LChunk* chunk() const { return chunk_; }
   CompilationInfo* info() const { return info_; }
   HGraph* graph() const { return graph_; }
-  Zone* zone() { return zone_; }
+  Zone* zone() const { return zone_; }
 
   bool is_unused() const { return status_ == UNUSED; }
   bool is_building() const { return status_ == BUILDING; }

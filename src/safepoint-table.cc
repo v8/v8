@@ -116,8 +116,8 @@ void SafepointTable::PrintBits(uint8_t byte, int digits) {
 }
 
 
-void Safepoint::DefinePointerRegister(Register reg) {
-  registers_->Add(reg.code());
+void Safepoint::DefinePointerRegister(Register reg, Zone* zone) {
+  registers_->Add(reg.code(), zone);
 }
 
 
@@ -128,18 +128,20 @@ Safepoint SafepointTableBuilder::DefineSafepoint(
     Safepoint::DeoptMode deopt_mode) {
   ASSERT(arguments >= 0);
   DeoptimizationInfo info;
+  Zone* zone = assembler->zone();
   info.pc = assembler->pc_offset();
   info.arguments = arguments;
   info.has_doubles = (kind & Safepoint::kWithDoubles);
-  deoptimization_info_.Add(info);
-  deopt_index_list_.Add(Safepoint::kNoDeoptimizationIndex);
+  deoptimization_info_.Add(info, zone);
+  deopt_index_list_.Add(Safepoint::kNoDeoptimizationIndex, zone);
   if (deopt_mode == Safepoint::kNoLazyDeopt) {
     last_lazy_safepoint_ = deopt_index_list_.length();
   }
-  indexes_.Add(new ZoneList<int>(8));
+  indexes_.Add(new(zone) ZoneList<int>(8, zone), zone);
   registers_.Add((kind & Safepoint::kWithRegisters)
-      ? new ZoneList<int>(4)
-      : NULL);
+      ? new(zone) ZoneList<int>(4, zone)
+      : NULL,
+      zone);
   return Safepoint(indexes_.last(), registers_.last());
 }
 
@@ -160,6 +162,7 @@ void SafepointTableBuilder::Emit(Assembler* assembler, int bits_per_entry) {
   // For lazy deoptimization we need space to patch a call after every call.
   // Ensure there is always space for such patching, even if the code ends
   // in a call.
+  Zone* zone = assembler->zone();
   int target_offset = assembler->pc_offset() + Deoptimizer::patch_size();
   while (assembler->pc_offset() < target_offset) {
     assembler->nop();
@@ -190,12 +193,12 @@ void SafepointTableBuilder::Emit(Assembler* assembler, int bits_per_entry) {
   }
 
   // Emit table of bitmaps.
-  ZoneList<uint8_t> bits(bytes_per_entry);
+  ZoneList<uint8_t> bits(bytes_per_entry, zone);
   for (int i = 0; i < length; i++) {
     ZoneList<int>* indexes = indexes_[i];
     ZoneList<int>* registers = registers_[i];
     bits.Clear();
-    bits.AddBlock(0, bytes_per_entry);
+    bits.AddBlock(0, bytes_per_entry, zone);
 
     // Run through the registers (if any).
     ASSERT(IsAligned(kNumSafepointRegisters, kBitsPerByte));

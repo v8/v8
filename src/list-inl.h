@@ -147,7 +147,11 @@ void List<T, P>::Allocate(int length, P allocator) {
 template<typename T, class P>
 void List<T, P>::Clear() {
   DeleteData(data_);
-  Initialize(0);
+  // We don't call Initialize(0) since that requires passing a Zone,
+  // which we don't really need.
+  data_ = NULL;
+  capacity_ = 0;
+  length_ = 0;
 }
 
 

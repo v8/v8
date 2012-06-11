@@ -376,9 +376,9 @@ int LChunk::GetNextSpillIndex(bool is_double) {
 LOperand* LChunk::GetNextSpillSlot(bool is_double) {
   int index = GetNextSpillIndex(is_double);
   if (is_double) {
-    return LDoubleStackSlot::Create(index);
+    return LDoubleStackSlot::Create(index, zone());
   } else {
-    return LStackSlot::Create(index);
+    return LStackSlot::Create(index, zone());
   }
 }
 
@@ -474,23 +474,23 @@ void LChunk::AddInstruction(LInstruction* instr, HBasicBlock* block) {
   LInstructionGap* gap = new(graph_->zone()) LInstructionGap(block);
   int index = -1;
   if (instr->IsControl()) {
-    instructions_.Add(gap);
+    instructions_.Add(gap, zone());
     index = instructions_.length();
-    instructions_.Add(instr);
+    instructions_.Add(instr, zone());
   } else {
     index = instructions_.length();
-    instructions_.Add(instr);
-    instructions_.Add(gap);
+    instructions_.Add(instr, zone());
+    instructions_.Add(gap, zone());
   }
   if (instr->HasPointerMap()) {
-    pointer_maps_.Add(instr->pointer_map());
+    pointer_maps_.Add(instr->pointer_map(), zone());
     instr->pointer_map()->set_lithium_position(index);
   }
 }
 
 
 LConstantOperand* LChunk::DefineConstantOperand(HConstant* constant) {
-  return LConstantOperand::Create(constant->id());
+  return LConstantOperand::Create(constant->id(), zone());
 }
 
 
@@ -529,7 +529,8 @@ int LChunk::NearestGapPos(int index) const {
 
 
 void LChunk::AddGapMove(int index, LOperand* from, LOperand* to) {
-  GetGapAt(index)->GetOrCreateParallelMove(LGap::START)->AddMove(from, to);
+  GetGapAt(index)->GetOrCreateParallelMove(
+      LGap::START, zone())->AddMove(from, to, zone());
 }
 
 
@@ -764,7 +765,7 @@ LInstruction* LChunkBuilder::MarkAsCall(LInstruction* instr,
 
 LInstruction* LChunkBuilder::AssignPointerMap(LInstruction* instr) {
   ASSERT(!instr->HasPointerMap());
-  instr->set_pointer_map(new(zone()) LPointerMap(position_));
+  instr->set_pointer_map(new(zone()) LPointerMap(position_, zone()));
   return instr;
 }
 
@@ -1545,7 +1546,7 @@ LInstruction* LChunkBuilder::DoIsObjectAndBranch(HIsObjectAndBranch* instr) {
 LInstruction* LChunkBuilder::DoIsStringAndBranch(HIsStringAndBranch* instr) {
   ASSERT(instr->value()->representation().IsTagged());
   LOperand* temp = TempRegister();
-  return new LIsStringAndBranch(UseRegister(instr->value()), temp);
+  return new(zone()) LIsStringAndBranch(UseRegister(instr->value()), temp);
 }
 
 
@@ -1571,7 +1572,7 @@ LInstruction* LChunkBuilder::DoStringCompareAndBranch(
   LOperand* left = UseFixed(instr->left(), edx);
   LOperand* right = UseFixed(instr->right(), eax);
 
-  LStringCompareAndBranch* result = new
+  LStringCompareAndBranch* result = new(zone())
       LStringCompareAndBranch(context, left, right);
 
   return MarkAsCall(result, instr);

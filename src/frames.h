@@ -888,7 +888,7 @@ class StackFrameLocator BASE_EMBEDDED {
 
 // Reads all frames on the current stack and copies them into the current
 // zone memory.
-Vector<StackFrame*> CreateStackMap();
+Vector<StackFrame*> CreateStackMap(Zone* zone);
 
 } }  // namespace v8::internal
 

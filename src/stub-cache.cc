@@ -43,7 +43,8 @@ namespace internal {
 // StubCache implementation.
 
 
-StubCache::StubCache(Isolate* isolate) : isolate_(isolate) {
+StubCache::StubCache(Isolate* isolate, Zone* zone)
+    : isolate_(isolate), zone_(zone) {
   ASSERT(isolate == Isolate::Current());
 }
 
@@ -919,7 +920,7 @@ void StubCache::CollectMatchingMaps(SmallMapList* types,
       int offset = PrimaryOffset(name, flags, map);
       if (entry(primary_, offset) == &primary_[i] &&
           !TypeFeedbackOracle::CanRetainOtherContext(map, *global_context)) {
-        types->Add(Handle<Map>(map));
+        types->Add(Handle<Map>(map), zone());
       }
     }
   }
@@ -943,7 +944,7 @@ void StubCache::CollectMatchingMaps(SmallMapList* types,
       int offset = SecondaryOffset(name, flags, primary_offset);
       if (entry(secondary_, offset) == &secondary_[i] &&
           !TypeFeedbackOracle::CanRetainOtherContext(map, *global_context)) {
-        types->Add(Handle<Map>(map));
+        types->Add(Handle<Map>(map), zone());
       }
     }
   }

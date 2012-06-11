@@ -1394,7 +1394,6 @@ class PostponeInterruptsScope BASE_EMBEDDED {
 #define HEAP (v8::internal::Isolate::Current()->heap())
 #define FACTORY (v8::internal::Isolate::Current()->factory())
 #define ISOLATE (v8::internal::Isolate::Current())
-#define ZONE (v8::internal::Isolate::Current()->zone())
 #define LOGGER (v8::internal::Isolate::Current()->logger())
 
 

@@ -595,7 +595,7 @@ class Translation BASE_EMBEDDED {
   void StoreArgumentsObject();
   void MarkDuplicate();
 
-  Zone* zone() { return zone_; }
+  Zone* zone() const { return zone_; }
 
   static int NumberOfOperandsFor(Opcode opcode);
 

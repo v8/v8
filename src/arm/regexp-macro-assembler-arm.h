@@ -45,7 +45,7 @@ class RegExpMacroAssemblerARM: public RegExpMacroAssembler {
 #else  // V8_INTERPRETED_REGEXP
 class RegExpMacroAssemblerARM: public NativeRegExpMacroAssembler {
  public:
-  RegExpMacroAssemblerARM(Mode mode, int registers_to_save);
+  RegExpMacroAssemblerARM(Mode mode, int registers_to_save, Zone* zone);
   virtual ~RegExpMacroAssemblerARM();
   virtual int stack_limit_slack();
   virtual void AdvanceCurrentPosition(int by);

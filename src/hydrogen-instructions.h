@@ -992,7 +992,8 @@ class HSoftDeoptimize: public HTemplateInstruction<0> {
 
 class HDeoptimize: public HControlInstruction {
  public:
-  explicit HDeoptimize(int environment_length) : values_(environment_length) { }
+  HDeoptimize(int environment_length, Zone* zone)
+      : values_(environment_length, zone) { }
 
   virtual Representation RequiredInputRepresentation(int index) {
     return Representation::None();
@@ -1011,8 +1012,8 @@ class HDeoptimize: public HControlInstruction {
     UNREACHABLE();
   }
 
-  void AddEnvironmentValue(HValue* value) {
-    values_.Add(NULL);
+  void AddEnvironmentValue(HValue* value, Zone* zone) {
+    values_.Add(NULL, zone);
     SetOperandAt(values_.length() - 1, value);
   }
 
@@ -1280,11 +1281,12 @@ class HClampToUint8: public HUnaryOperation {
 
 class HSimulate: public HInstruction {
  public:
-  HSimulate(int ast_id, int pop_count)
+  HSimulate(int ast_id, int pop_count, Zone* zone)
       : ast_id_(ast_id),
         pop_count_(pop_count),
-        values_(2),
-        assigned_indexes_(2) {}
+        values_(2, zone),
+        assigned_indexes_(2, zone),
+        zone_(zone) {}
   virtual ~HSimulate() {}
 
   virtual void PrintDataTo(StringStream* stream);
@@ -1332,9 +1334,9 @@ class HSimulate: public HInstruction {
  private:
   static const int kNoIndex = -1;
   void AddValue(int index, HValue* value) {
-    assigned_indexes_.Add(index);
+    assigned_indexes_.Add(index, zone_);
     // Resize the list of pushed values.
-    values_.Add(NULL);
+    values_.Add(NULL, zone_);
     // Set the operand through the base method in HValue to make sure that the
     // use lists are correctly updated.
     SetOperandAt(values_.length() - 1, value);
@@ -1343,6 +1345,7 @@ class HSimulate: public HInstruction {
   int pop_count_;
   ZoneList<HValue*> values_;
   ZoneList<int> assigned_indexes_;
+  Zone* zone_;
 };
 
 
@@ -2060,7 +2063,8 @@ class HLoadExternalArrayPointer: public HUnaryOperation {
 
 class HCheckMaps: public HTemplateInstruction<2> {
  public:
-  HCheckMaps(HValue* value, Handle<Map> map, HValue* typecheck = NULL) {
+  HCheckMaps(HValue* value, Handle<Map> map, Zone* zone,
+             HValue* typecheck = NULL) {
     SetOperandAt(0, value);
     // If callers don't depend on a typecheck, they can pass in NULL. In that
     // case we use a copy of the |value| argument as a dummy value.
@@ -2069,9 +2073,9 @@ class HCheckMaps: public HTemplateInstruction<2> {
     SetFlag(kUseGVN);
     SetGVNFlag(kDependsOnMaps);
     SetGVNFlag(kDependsOnElementsKind);
-    map_set()->Add(map);
+    map_set()->Add(map, zone);
   }
-  HCheckMaps(HValue* value, SmallMapList* maps) {
+  HCheckMaps(HValue* value, SmallMapList* maps, Zone* zone) {
     SetOperandAt(0, value);
     SetOperandAt(1, value);
     set_representation(Representation::Tagged());
@@ -2079,13 +2083,14 @@ class HCheckMaps: public HTemplateInstruction<2> {
     SetGVNFlag(kDependsOnMaps);
     SetGVNFlag(kDependsOnElementsKind);
     for (int i = 0; i < maps->length(); i++) {
-      map_set()->Add(maps->at(i));
+      map_set()->Add(maps->at(i), zone);
     }
     map_set()->Sort();
   }
 
-  static HCheckMaps* NewWithTransitions(HValue* object, Handle<Map> map) {
-    HCheckMaps* check_map = new HCheckMaps(object, map);
+  static HCheckMaps* NewWithTransitions(HValue* object, Handle<Map> map,
+                                        Zone* zone) {
+    HCheckMaps* check_map = new(zone) HCheckMaps(object, map, zone);
     SmallMapList* map_set = check_map->map_set();
 
     // Since transitioned elements maps of the initial map don't fail the map
@@ -2099,7 +2104,7 @@ class HCheckMaps: public HTemplateInstruction<2> {
       Map* transitioned_map =
           map->LookupElementsTransitionMap(kind);
       if (transitioned_map) {
-        map_set->Add(Handle<Map>(transitioned_map));
+        map_set->Add(Handle<Map>(transitioned_map), zone);
       }
     };
     map_set->Sort();
@@ -2168,17 +2173,17 @@ class HCheckFunction: public HUnaryOperation {
 
 class HCheckInstanceType: public HUnaryOperation {
  public:
-  static HCheckInstanceType* NewIsSpecObject(HValue* value) {
-    return new HCheckInstanceType(value, IS_SPEC_OBJECT);
+  static HCheckInstanceType* NewIsSpecObject(HValue* value, Zone* zone) {
+    return new(zone) HCheckInstanceType(value, IS_SPEC_OBJECT);
   }
-  static HCheckInstanceType* NewIsJSArray(HValue* value) {
-    return new HCheckInstanceType(value, IS_JS_ARRAY);
+  static HCheckInstanceType* NewIsJSArray(HValue* value, Zone* zone) {
+    return new(zone) HCheckInstanceType(value, IS_JS_ARRAY);
   }
-  static HCheckInstanceType* NewIsString(HValue* value) {
-    return new HCheckInstanceType(value, IS_STRING);
+  static HCheckInstanceType* NewIsString(HValue* value, Zone* zone) {
+    return new(zone) HCheckInstanceType(value, IS_STRING);
   }
-  static HCheckInstanceType* NewIsSymbol(HValue* value) {
-    return new HCheckInstanceType(value, IS_SYMBOL);
+  static HCheckInstanceType* NewIsSymbol(HValue* value, Zone* zone) {
+    return new(zone) HCheckInstanceType(value, IS_SYMBOL);
   }
 
   virtual void PrintDataTo(StringStream* stream);
@@ -2327,8 +2332,8 @@ class HCheckSmi: public HUnaryOperation {
 
 class HPhi: public HValue {
  public:
-  explicit HPhi(int merged_index)
-      : inputs_(2),
+  HPhi(int merged_index, Zone* zone)
+      : inputs_(2, zone),
         merged_index_(merged_index),
         phi_id_(-1),
         is_live_(false),
@@ -2487,8 +2492,8 @@ class HConstant: public HTemplateInstruction<0> {
   virtual void PrintDataTo(StringStream* stream);
   virtual HType CalculateInferredType();
   bool IsInteger() const { return handle_->IsSmi(); }
-  HConstant* CopyToRepresentation(Representation r) const;
-  HConstant* CopyToTruncatedInt32() const;
+  HConstant* CopyToRepresentation(Representation r, Zone* zone) const;
+  HConstant* CopyToTruncatedInt32(Zone* zone) const;
   bool HasInteger32Value() const { return has_int32_value_; }
   int32_t Integer32Value() const {
     ASSERT(HasInteger32Value());
@@ -3887,7 +3892,8 @@ class HLoadNamedFieldPolymorphic: public HTemplateInstruction<2> {
   HLoadNamedFieldPolymorphic(HValue* context,
                              HValue* object,
                              SmallMapList* types,
-                             Handle<String> name);
+                             Handle<String> name,
+                             Zone* zone);
 
   HValue* context() { return OperandAt(0); }
   HValue* object() { return OperandAt(1); }

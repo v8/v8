@@ -41,7 +41,7 @@ namespace internal {
 
 class RegExpMacroAssemblerX64: public NativeRegExpMacroAssembler {
  public:
-  RegExpMacroAssemblerX64(Mode mode, int registers_to_save);
+  RegExpMacroAssemblerX64(Mode mode, int registers_to_save, Zone* zone);
   virtual ~RegExpMacroAssemblerX64();
   virtual int stack_limit_slack();
   virtual void AdvanceCurrentPosition(int by);
@@ -240,7 +240,7 @@ class RegExpMacroAssemblerX64: public NativeRegExpMacroAssembler {
   void BranchOrBacktrack(Condition condition, Label* to);
 
   void MarkPositionForCodeRelativeFixup() {
-    code_relative_fixup_positions_.Add(masm_.pc_offset());
+    code_relative_fixup_positions_.Add(masm_.pc_offset(), zone());
   }
 
   void FixupCodeRelativePositions();

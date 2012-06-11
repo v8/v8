@@ -313,7 +313,7 @@ static void InitCoverageLog();
 #endif
 
 Assembler::Assembler(Isolate* arg_isolate, void* buffer, int buffer_size)
-    : AssemblerBase(arg_isolate),
+    : AssemblerBase(arg_isolate, arg_isolate->zone()),
       positions_recorder_(this),
       emit_debug_code_(FLAG_debug_code) {
   if (buffer == NULL) {

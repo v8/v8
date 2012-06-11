@@ -305,9 +305,10 @@ class StubCache {
   Isolate* isolate() { return isolate_; }
   Heap* heap() { return isolate()->heap(); }
   Factory* factory() { return isolate()->factory(); }
+  Zone* zone() const { return zone_; }
 
  private:
-  explicit StubCache(Isolate* isolate);
+  StubCache(Isolate* isolate, Zone* zone);
 
   Handle<Code> ComputeCallInitialize(int argc,
                                      RelocInfo::Mode mode,
@@ -380,6 +381,7 @@ class StubCache {
   Entry primary_[kPrimaryTableSize];
   Entry secondary_[kSecondaryTableSize];
   Isolate* isolate_;
+  Zone* zone_;
 
   friend class Isolate;
   friend class SCTableReference;

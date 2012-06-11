@@ -245,7 +245,8 @@ class CharacterRange {
   // For compatibility with the CHECK_OK macro
   CharacterRange(void* null) { ASSERT_EQ(NULL, null); }  //NOLINT
   CharacterRange(uc16 from, uc16 to) : from_(from), to_(to) { }
-  static void AddClassEscape(uc16 type, ZoneList<CharacterRange>* ranges);
+  static void AddClassEscape(uc16 type, ZoneList<CharacterRange>* ranges,
+                             Zone* zone);
   static Vector<const int> GetWordBounds();
   static inline CharacterRange Singleton(uc16 value) {
     return CharacterRange(value, value);
@@ -265,11 +266,13 @@ class CharacterRange {
   bool is_valid() { return from_ <= to_; }
   bool IsEverything(uc16 max) { return from_ == 0 && to_ >= max; }
   bool IsSingleton() { return (from_ == to_); }
-  void AddCaseEquivalents(ZoneList<CharacterRange>* ranges, bool is_ascii);
+  void AddCaseEquivalents(ZoneList<CharacterRange>* ranges, bool is_ascii,
+                          Zone* zone);
   static void Split(ZoneList<CharacterRange>* base,
                     Vector<const int> overlay,
                     ZoneList<CharacterRange>** included,
-                    ZoneList<CharacterRange>** excluded);
+                    ZoneList<CharacterRange>** excluded,
+                    Zone* zone);
   // Whether a range list is in canonical form: Ranges ordered by from value,
   // and ranges non-overlapping and non-adjacent.
   static bool IsCanonical(ZoneList<CharacterRange>* ranges);
@@ -280,7 +283,8 @@ class CharacterRange {
   static void Canonicalize(ZoneList<CharacterRange>* ranges);
   // Negate the contents of a character range in canonical form.
   static void Negate(ZoneList<CharacterRange>* src,
-                     ZoneList<CharacterRange>* dst);
+                     ZoneList<CharacterRange>* dst,
+                     Zone* zone);
   static const int kStartMarker = (1 << 24);
   static const int kPayloadMask = (1 << 24) - 1;
 
@@ -295,7 +299,7 @@ class CharacterRange {
 class OutSet: public ZoneObject {
  public:
   OutSet() : first_(0), remaining_(NULL), successors_(NULL) { }
-  OutSet* Extend(unsigned value);
+  OutSet* Extend(unsigned value, Zone* zone);
   bool Get(unsigned value);
   static const unsigned kFirstLimit = 32;
 
@@ -303,12 +307,12 @@ class OutSet: public ZoneObject {
   // Destructively set a value in this set.  In most cases you want
   // to use Extend instead to ensure that only one instance exists
   // that contains the same values.
-  void Set(unsigned value);
+  void Set(unsigned value, Zone* zone);
 
   // The successors are a list of sets that contain the same values
   // as this set and the one more value that is not present in this
   // set.
-  ZoneList<OutSet*>* successors() { return successors_; }
+  ZoneList<OutSet*>* successors(Zone* zone) { return successors_; }
 
   OutSet(uint32_t first, ZoneList<unsigned>* remaining)
       : first_(first), remaining_(remaining), successors_(NULL) { }
@@ -323,6 +327,8 @@ class OutSet: public ZoneObject {
 // Used for mapping character ranges to choices.
 class DispatchTable : public ZoneObject {
  public:
+  explicit DispatchTable(Zone* zone) : tree_(zone) { }
+
   class Entry {
    public:
     Entry() : from_(0), to_(0), out_set_(NULL) { }
@@ -331,7 +337,9 @@ class DispatchTable : public ZoneObject {
     uc16 from() { return from_; }
     uc16 to() { return to_; }
     void set_to(uc16 value) { to_ = value; }
-    void AddValue(int value) { out_set_ = out_set_->Extend(value); }
+    void AddValue(int value, Zone* zone) {
+      out_set_ = out_set_->Extend(value, zone);
+    }
     OutSet* out_set() { return out_set_; }
    private:
     uc16 from_;
@@ -355,12 +363,14 @@ class DispatchTable : public ZoneObject {
     }
   };
 
-  void AddRange(CharacterRange range, int value);
+  void AddRange(CharacterRange range, int value, Zone* zone);
   OutSet* Get(uc16 value);
   void Dump();
 
   template <typename Callback>
-  void ForEach(Callback* callback) { return tree()->ForEach(callback); }
+  void ForEach(Callback* callback) {
+    return tree()->ForEach(callback);
+  }
 
  private:
   // There can't be a static empty set since it allocates its
@@ -635,7 +645,7 @@ class RegExpNode: public ZoneObject {
     return bm_info_[not_at_start ? 1 : 0];
   }
 
-  Zone* zone() { return zone_; }
+  Zone* zone() const { return zone_; }
 
  protected:
   enum LimitResult { DONE, CONTINUE };
@@ -811,7 +821,7 @@ class TextNode: public SeqRegExpNode {
   TextNode(RegExpCharacterClass* that,
            RegExpNode* on_success)
       : SeqRegExpNode(on_success),
-        elms_(new ZoneList<TextElement>(1, zone())) {
+        elms_(new(zone()) ZoneList<TextElement>(1, zone())) {
     elms_->Add(TextElement::CharClass(that), zone());
   }
   virtual void Accept(NodeVisitor* visitor);
@@ -868,19 +878,19 @@ class AssertionNode: public SeqRegExpNode {
     AFTER_NEWLINE
   };
   static AssertionNode* AtEnd(RegExpNode* on_success) {
-    return new AssertionNode(AT_END, on_success);
+    return new(on_success->zone()) AssertionNode(AT_END, on_success);
   }
   static AssertionNode* AtStart(RegExpNode* on_success) {
-    return new AssertionNode(AT_START, on_success);
+    return new(on_success->zone()) AssertionNode(AT_START, on_success);
   }
   static AssertionNode* AtBoundary(RegExpNode* on_success) {
-    return new AssertionNode(AT_BOUNDARY, on_success);
+    return new(on_success->zone()) AssertionNode(AT_BOUNDARY, on_success);
   }
   static AssertionNode* AtNonBoundary(RegExpNode* on_success) {
-    return new AssertionNode(AT_NON_BOUNDARY, on_success);
+    return new(on_success->zone()) AssertionNode(AT_NON_BOUNDARY, on_success);
   }
   static AssertionNode* AfterNewline(RegExpNode* on_success) {
-    return new AssertionNode(AFTER_NEWLINE, on_success);
+    return new(on_success->zone()) AssertionNode(AFTER_NEWLINE, on_success);
   }
   virtual void Accept(NodeVisitor* visitor);
   virtual void Emit(RegExpCompiler* compiler, Trace* trace);
@@ -1018,7 +1028,7 @@ class Guard: public ZoneObject {
 class GuardedAlternative {
  public:
   explicit GuardedAlternative(RegExpNode* node) : node_(node), guards_(NULL) { }
-  void AddGuard(Guard* guard);
+  void AddGuard(Guard* guard, Zone* zone);
   RegExpNode* node() { return node_; }
   void set_node(RegExpNode* node) { node_ = node; }
   ZoneList<Guard*>* guards() { return guards_; }
@@ -1036,7 +1046,8 @@ class ChoiceNode: public RegExpNode {
  public:
   explicit ChoiceNode(int expected_size, Zone* zone)
       : RegExpNode(zone),
-        alternatives_(new ZoneList<GuardedAlternative>(expected_size, zone)),
+        alternatives_(new(zone)
+                      ZoneList<GuardedAlternative>(expected_size, zone)),
         table_(NULL),
         not_at_start_(false),
         being_calculated_(false) { }
@@ -1220,7 +1231,7 @@ ContainedInLattice AddRange(ContainedInLattice a,
 class BoyerMoorePositionInfo : public ZoneObject {
  public:
   explicit BoyerMoorePositionInfo(Zone* zone)
-      : map_(new ZoneList<bool>(kMapSize, zone)),
+      : map_(new(zone) ZoneList<bool>(kMapSize, zone)),
         map_count_(0),
         w_(kNotYet),
         s_(kNotYet),
@@ -1458,12 +1469,13 @@ class Trace {
   void AdvanceCurrentPositionInTrace(int by, RegExpCompiler* compiler);
 
  private:
-  int FindAffectedRegisters(OutSet* affected_registers);
+  int FindAffectedRegisters(OutSet* affected_registers, Zone* zone);
   void PerformDeferredActions(RegExpMacroAssembler* macro,
-                               int max_register,
-                               OutSet& affected_registers,
-                               OutSet* registers_to_pop,
-                               OutSet* registers_to_clear);
+                              int max_register,
+                              OutSet& affected_registers,
+                              OutSet* registers_to_pop,
+                              OutSet* registers_to_clear,
+                              Zone* zone);
   void RestoreAffectedRegisters(RegExpMacroAssembler* macro,
                                 int max_register,
                                 OutSet& registers_to_pop,
@@ -1496,15 +1508,17 @@ FOR_EACH_NODE_TYPE(DECLARE_VISIT)
 // dispatch table of a choice node.
 class DispatchTableConstructor: public NodeVisitor {
  public:
-  DispatchTableConstructor(DispatchTable* table, bool ignore_case)
+  DispatchTableConstructor(DispatchTable* table, bool ignore_case,
+                           Zone* zone)
       : table_(table),
         choice_index_(-1),
-        ignore_case_(ignore_case) { }
+        ignore_case_(ignore_case),
+        zone_(zone) { }
 
   void BuildTable(ChoiceNode* node);
 
   void AddRange(CharacterRange range) {
-    table()->AddRange(range, choice_index_);
+    table()->AddRange(range, choice_index_, zone_);
   }
 
   void AddInverse(ZoneList<CharacterRange>* ranges);
@@ -1521,6 +1535,7 @@ FOR_EACH_NODE_TYPE(DECLARE_VISIT)
   DispatchTable* table_;
   int choice_index_;
   bool ignore_case_;
+  Zone* zone_;
 };
 
 
