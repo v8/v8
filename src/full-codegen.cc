@@ -1287,7 +1287,11 @@ void FullCodeGenerator::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
   // is thrown.  The exception is in the result register, and must be
   // preserved by the finally block.  Call the finally block and then
   // rethrow the exception if it returns.
+  // Also preserve the pending message corresponding to the thrown error when
+  // executing the finally block.
+  SavePendingMessage();
   __ Call(&finally_entry);
+  RestorePendingMessage();
   __ push(result_register());
   __ CallRuntime(Runtime::kReThrow, 1);
 
