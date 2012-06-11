@@ -2762,7 +2762,7 @@ RegExpNode* ChoiceNode::FilterASCII(int depth) {
       return this;
     }
   }
-      
+
   int surviving = 0;
   RegExpNode* survivor = NULL;
   for (int i = 0; i < choice_count; i++) {
