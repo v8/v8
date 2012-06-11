@@ -4477,46 +4477,6 @@ void FullCodeGenerator::ExitFinallyBlock() {
 }
 
 
-void FullCodeGenerator::SavePendingMessage() {
-  ASSERT(!result_register().is(rdx));
-  // Store pending message while executing finally block upon exception.
-  ExternalReference pending_message_obj =
-      ExternalReference::address_of_pending_message_obj(isolate());
-  __ Load(rdx, pending_message_obj);
-  __ push(rdx);
-
-  ExternalReference has_pending_message =
-      ExternalReference::address_of_has_pending_message(isolate());
-  __ Load(rdx, has_pending_message);
-  __ push(rdx);
-
-  ExternalReference pending_message_script =
-      ExternalReference::address_of_pending_message_script(isolate());
-  __ Load(rdx, pending_message_script);
-  __ push(rdx);
-}
-
-
-void FullCodeGenerator::RestorePendingMessage() {
-  ASSERT(!result_register().is(rdx));
-  // Restore pending message.
-  __ pop(rdx);
-  ExternalReference pending_message_script =
-      ExternalReference::address_of_pending_message_script(isolate());
-  __ Store(pending_message_script, rdx);
-
-  __ pop(rdx);
-  ExternalReference has_pending_message =
-      ExternalReference::address_of_has_pending_message(isolate());
-  __ Store(has_pending_message, rdx);
-
-  __ pop(rdx);
-  ExternalReference pending_message_obj =
-      ExternalReference::address_of_pending_message_obj(isolate());
-  __ Store(pending_message_obj, rdx);
-}
-
-
 #undef __
 
 #define __ ACCESS_MASM(masm())

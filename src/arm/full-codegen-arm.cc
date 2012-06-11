@@ -4508,52 +4508,6 @@ void FullCodeGenerator::ExitFinallyBlock() {
 }
 
 
-void FullCodeGenerator::SavePendingMessage() {
-  ASSERT(!result_register().is(r1));
-  // Store pending message while executing finally block upon exception.
-  ExternalReference pending_message_obj =
-      ExternalReference::address_of_pending_message_obj(isolate());
-  __ mov(ip, Operand(pending_message_obj));
-  __ ldr(r1, MemOperand(ip));
-  __ push(r1);
-
-  ExternalReference has_pending_message =
-      ExternalReference::address_of_has_pending_message(isolate());
-  __ mov(ip, Operand(has_pending_message));
-  __ ldr(r1, MemOperand(ip));
-  __ push(r1);
-
-  ExternalReference pending_message_script =
-      ExternalReference::address_of_pending_message_script(isolate());
-  __ mov(ip, Operand(pending_message_script));
-  __ ldr(r1, MemOperand(ip));
-  __ push(r1);
-}
-
-
-void FullCodeGenerator::RestorePendingMessage() {
-  ASSERT(!result_register().is(r1));
-  // Restore pending message.
-  __ pop(r1);
-  ExternalReference pending_message_script =
-      ExternalReference::address_of_pending_message_script(isolate());
-  __ mov(ip, Operand(pending_message_script));
-  __ str(r1, MemOperand(ip));
-
-  __ pop(r1);
-  ExternalReference has_pending_message =
-      ExternalReference::address_of_has_pending_message(isolate());
-  __ mov(ip, Operand(has_pending_message));
-  __ str(r1, MemOperand(ip));
-
-  __ pop(r1);
-  ExternalReference pending_message_obj =
-      ExternalReference::address_of_pending_message_obj(isolate());
-  __ mov(ip, Operand(pending_message_obj));
-  __ str(r1, MemOperand(ip));
-}
-
-
 #undef __
 
 #define __ ACCESS_MASM(masm())

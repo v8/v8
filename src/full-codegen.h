@@ -527,8 +527,6 @@ class FullCodeGenerator: public AstVisitor {
   // Non-local control flow support.
   void EnterFinallyBlock();
   void ExitFinallyBlock();
-  void SavePendingMessage();
-  void RestorePendingMessage();
 
   // Loop nesting counter.
   int loop_depth() { return loop_depth_; }

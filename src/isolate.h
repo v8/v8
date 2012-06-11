@@ -578,20 +578,6 @@ class Isolate {
   MaybeObject** scheduled_exception_address() {
     return &thread_local_top_.scheduled_exception_;
   }
-
-  Address pending_message_obj_address() {
-    return reinterpret_cast<Address>(&thread_local_top_.pending_message_obj_);
-  }
-
-  Address has_pending_message_address() {
-    return reinterpret_cast<Address>(&thread_local_top_.has_pending_message_);
-  }
-
-  Address pending_message_script_address() {
-    return reinterpret_cast<Address>(
-        &thread_local_top_.pending_message_script_);
-  }
-
   MaybeObject* scheduled_exception() {
     ASSERT(has_scheduled_exception());
     return thread_local_top_.scheduled_exception_;
@@ -722,7 +708,7 @@ class Isolate {
   // Re-throw an exception.  This involves no error reporting since
   // error reporting was handled when the exception was thrown
   // originally.
-  Failure* ReThrow(MaybeObject* exception);
+  Failure* ReThrow(MaybeObject* exception, MessageLocation* location = NULL);
   void ScheduleThrow(Object* exception);
   void ReportPendingMessages();
   Failure* ThrowIllegalOperation();
