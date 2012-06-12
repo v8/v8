@@ -4529,14 +4529,55 @@ void FullCodeGenerator::EnterFinallyBlock() {
   ASSERT_EQ(1, kSmiTagSize + kSmiShiftSize);
   STATIC_ASSERT(0 == kSmiTag);
   __ Addu(a1, a1, Operand(a1));  // Convert to smi.
+
+  // Store result register while executing finally block.
+  __ push(a1);
+
+  // Store pending message while executing finally block.
+  ExternalReference pending_message_obj =
+      ExternalReference::address_of_pending_message_obj(isolate());
+  __ li(at, Operand(pending_message_obj));
+  __ lw(a1, MemOperand(at));
+  __ push(a1);
+
+  ExternalReference has_pending_message =
+      ExternalReference::address_of_has_pending_message(isolate());
+  __ li(at, Operand(has_pending_message));
+  __ lw(a1, MemOperand(at));
+  __ push(a1);
+
+  ExternalReference pending_message_script =
+      ExternalReference::address_of_pending_message_script(isolate());
+  __ li(at, Operand(pending_message_script));
+  __ lw(a1, MemOperand(at));
   __ push(a1);
 }
 
 
 void FullCodeGenerator::ExitFinallyBlock() {
   ASSERT(!result_register().is(a1));
+  // Restore pending message from stack.
+  __ pop(a1);
+  ExternalReference pending_message_script =
+      ExternalReference::address_of_pending_message_script(isolate());
+  __ li(at, Operand(pending_message_script));
+  __ sw(a1, MemOperand(at));
+
+  __ pop(a1);
+  ExternalReference has_pending_message =
+      ExternalReference::address_of_has_pending_message(isolate());
+  __ li(at, Operand(has_pending_message));
+  __ sw(a1, MemOperand(at));
+
+  __ pop(a1);
+  ExternalReference pending_message_obj =
+      ExternalReference::address_of_pending_message_obj(isolate());
+  __ li(at, Operand(pending_message_obj));
+  __ sw(a1, MemOperand(at));
+
   // Restore result register from stack.
   __ pop(a1);
+
   // Uncook return address and return.
   __ pop(result_register());
   ASSERT_EQ(1, kSmiTagSize + kSmiShiftSize);
