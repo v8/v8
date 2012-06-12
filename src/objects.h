@@ -5439,6 +5439,12 @@ class SharedFunctionInfo: public HeapObject {
   // when doing GC if we expect that the function will no longer be used.
   DECL_BOOLEAN_ACCESSORS(allows_lazy_compilation)
 
+  // Indicates if this function can be lazy compiled without a context.
+  // This is used to determine if we can force compilation without reaching
+  // the function through program execution but through other means (e.g. heap
+  // iteration by the debugger).
+  DECL_BOOLEAN_ACCESSORS(allows_lazy_compilation_without_context)
+
   // Indicates how many full GCs this function has survived with assigned
   // code object. Used to determine when it is relatively safe to flush
   // this code object and replace it with lazy compilation stub.
@@ -5585,10 +5591,9 @@ class SharedFunctionInfo: public HeapObject {
 
   void ResetForNewContext(int new_ic_age);
 
-  // Helpers to compile the shared code.  Returns true on success, false on
-  // failure (e.g., stack overflow during compilation).
-  static bool EnsureCompiled(Handle<SharedFunctionInfo> shared,
-                             ClearExceptionFlag flag);
+  // Helper to compile the shared code.  Returns true on success, false on
+  // failure (e.g., stack overflow during compilation). This is only used by
+  // the debugger, it is not possible to compile without a context otherwise.
   static bool CompileLazy(Handle<SharedFunctionInfo> shared,
                           ClearExceptionFlag flag);
 
@@ -5722,6 +5727,7 @@ class SharedFunctionInfo: public HeapObject {
   enum CompilerHints {
     kHasOnlySimpleThisPropertyAssignments,
     kAllowLazyCompilation,
+    kAllowLazyCompilationWithoutContext,
     kLiveObjectsMayExist,
     kCodeAgeShift,
     kOptimizationDisabled = kCodeAgeShift + kCodeAgeSize,
@@ -5870,6 +5876,8 @@ class JSFunction: public JSObject {
 
   // Helpers to compile this function.  Returns true on success, false on
   // failure (e.g., stack overflow during compilation).
+  static bool EnsureCompiled(Handle<JSFunction> function,
+                             ClearExceptionFlag flag);
   static bool CompileLazy(Handle<JSFunction> function,
                           ClearExceptionFlag flag);
   static bool CompileOptimized(Handle<JSFunction> function,

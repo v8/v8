@@ -3697,6 +3697,10 @@ BOOL_ACCESSORS(SharedFunctionInfo,
                kAllowLazyCompilation)
 BOOL_ACCESSORS(SharedFunctionInfo,
                compiler_hints,
+               allows_lazy_compilation_without_context,
+               kAllowLazyCompilationWithoutContext)
+BOOL_ACCESSORS(SharedFunctionInfo,
+               compiler_hints,
                uses_arguments,
                kUsesArguments)
 BOOL_ACCESSORS(SharedFunctionInfo,

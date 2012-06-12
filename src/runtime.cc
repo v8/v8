@@ -2183,8 +2183,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetCode) {
   Handle<SharedFunctionInfo> target_shared(target->shared());
   Handle<SharedFunctionInfo> source_shared(source->shared());
 
-  if (!source->is_compiled() &&
-      !JSFunction::CompileLazy(source, KEEP_EXCEPTION)) {
+  if (!JSFunction::EnsureCompiled(source, KEEP_EXCEPTION)) {
     return Failure::Exception();
   }
 
@@ -4855,14 +4854,13 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugCallbackSupportsStepping) {
 RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugPrepareStepInIfStepping) {
   Debug* debug = isolate->debug();
   if (!debug->IsStepping()) return NULL;
-  CONVERT_ARG_CHECKED(Object, callback, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, callback, 0);
   HandleScope scope(isolate);
-  Handle<SharedFunctionInfo> shared_info(JSFunction::cast(callback)->shared());
   // When leaving the callback, step out has been activated, but not performed
   // if we do not leave the builtin.  To be able to step into the callback
   // again, we need to clear the step out at this point.
   debug->ClearStepOut();
-  debug->FloodWithOneShot(shared_info);
+  debug->FloodWithOneShot(callback);
   return NULL;
 }
 
@@ -8140,12 +8138,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NewObject) {
   }
 
   // The function should be compiled for the optimization hints to be
-  // available. We cannot use EnsureCompiled because that forces a
-  // compilation through the shared function info which makes it
-  // impossible for us to optimize.
-  if (!function->is_compiled()) {
-    JSFunction::CompileLazy(function, CLEAR_EXCEPTION);
-  }
+  // available.
+  JSFunction::EnsureCompiled(function, CLEAR_EXCEPTION);
 
   Handle<SharedFunctionInfo> shared(function->shared(), isolate);
   if (!function->has_initial_map() &&
@@ -11155,7 +11149,7 @@ class ScopeIterator {
     }
 
     // Get the debug info (create it if it does not exist).
-    if (!isolate->debug()->EnsureDebugInfo(shared_info)) {
+    if (!isolate->debug()->EnsureDebugInfo(shared_info, function_)) {
       // Return if ensuring debug info failed.
       return;
     }
@@ -11678,30 +11672,14 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetBreakLocations) {
 }
 
 
-// Set a break point in a function
-// args[0]: function
-// args[1]: number: break source position (within the function source)
-// args[2]: number: break point object
-RUNTIME_FUNCTION(MaybeObject*, Runtime_SetFunctionBreakPoint) {
-  HandleScope scope(isolate);
-  ASSERT(args.length() == 3);
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, fun, 0);
-  Handle<SharedFunctionInfo> shared(fun->shared());
-  CONVERT_NUMBER_CHECKED(int32_t, source_position, Int32, args[1]);
-  RUNTIME_ASSERT(source_position >= 0);
-  Handle<Object> break_point_object_arg = args.at<Object>(2);
-
-  // Set break point.
-  isolate->debug()->SetBreakPoint(shared, break_point_object_arg,
-                                  &source_position);
-
-  return Smi::FromInt(source_position);
-}
-
-
 Object* Runtime::FindSharedFunctionInfoInScript(Isolate* isolate,
                                                 Handle<Script> script,
                                                 int position) {
+  // The below fix-point iteration depends on all functions that cannot be
+  // compiled lazily without a context to not be compiled at all. Compilation
+  // will be triggered at points where we do not need a context.
+  isolate->debug()->PrepareForBreakPoints();
+
   // Iterate the heap looking for SharedFunctionInfo generated from the
   // script. The inner most SharedFunctionInfo containing the source position
   // for the requested break point is found.
@@ -11723,6 +11701,12 @@ Object* Runtime::FindSharedFunctionInfoInScript(Isolate* isolate,
            obj != NULL; obj = iterator.next()) {
         if (obj->IsSharedFunctionInfo()) {
           Handle<SharedFunctionInfo> shared(SharedFunctionInfo::cast(obj));
+          if (!shared->allows_lazy_compilation_without_context() &&
+              !shared->is_compiled()) {
+            // Skip functions that we cannot compile lazily without a context,
+            // which is not available here.
+            continue;
+          }
           if (shared->script() == *script) {
             // If the SharedFunctionInfo found has the requested script data and
             // contains the source position it is a candidate.
@@ -11767,18 +11751,39 @@ Object* Runtime::FindSharedFunctionInfoInScript(Isolate* isolate,
       return isolate->heap()->undefined_value();
     }
 
-    // If the candidate found is compiled we are done. NOTE: when lazy
-    // compilation of inner functions is introduced some additional checking
-    // needs to be done here to compile inner functions.
+    // If the candidate found is compiled we are done.
     done = target->is_compiled();
     if (!done) {
-      // If the candidate is not compiled compile it to reveal any inner
-      // functions which might contain the requested source position.
+      // If the candidate is not compiled, compile it to reveal any inner
+      // functions which might contain the requested source position. This
+      // will compile all inner functions that cannot be compiled without a
+      // context, because Compiler::BuildFunctionInfo checks whether the
+      // debugger is active.
       SharedFunctionInfo::CompileLazy(target, KEEP_EXCEPTION);
     }
   }  // End while loop.
 
   return *target;
+}
+
+
+// Set a break point in a function.
+// args[0]: function
+// args[1]: number: break source position (within the function source)
+// args[2]: number: break point object
+RUNTIME_FUNCTION(MaybeObject*, Runtime_SetFunctionBreakPoint) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 3);
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
+  CONVERT_NUMBER_CHECKED(int32_t, source_position, Int32, args[1]);
+  RUNTIME_ASSERT(source_position >= 0);
+  Handle<Object> break_point_object_arg = args.at<Object>(2);
+
+  // Set break point.
+  isolate->debug()->SetBreakPoint(function, break_point_object_arg,
+                                  &source_position);
+
+  return Smi::FromInt(source_position);
 }
 
 
@@ -11800,23 +11805,13 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetScriptBreakPoint) {
   RUNTIME_ASSERT(wrapper->value()->IsScript());
   Handle<Script> script(Script::cast(wrapper->value()));
 
-  Object* result = Runtime::FindSharedFunctionInfoInScript(
-      isolate, script, source_position);
-  if (!result->IsUndefined()) {
-    Handle<SharedFunctionInfo> shared(SharedFunctionInfo::cast(result));
-    // Find position within function. The script position might be before the
-    // source position of the first function.
-    int position;
-    if (shared->start_position() > source_position) {
-      position = 0;
-    } else {
-      position = source_position - shared->start_position();
-    }
-    isolate->debug()->SetBreakPoint(shared, break_point_object_arg, &position);
-    position += shared->start_position();
-    return Smi::FromInt(position);
+  // Set break point.
+  if (!isolate->debug()->SetBreakPointForScript(script, break_point_object_arg,
+                                                &source_position)) {
+    return  isolate->heap()->undefined_value();
   }
-  return  isolate->heap()->undefined_value();
+
+  return Smi::FromInt(source_position);
 }
 
 
@@ -12540,7 +12535,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugDisassembleFunction) {
   ASSERT(args.length() == 1);
   // Get the function and make sure it is compiled.
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, func, 0);
-  if (!JSFunction::CompileLazy(func, KEEP_EXCEPTION)) {
+  if (!JSFunction::EnsureCompiled(func, KEEP_EXCEPTION)) {
     return Failure::Exception();
   }
   func->code()->PrintLn();
@@ -12555,7 +12550,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugDisassembleConstructor) {
   ASSERT(args.length() == 1);
   // Get the function and make sure it is compiled.
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, func, 0);
-  if (!JSFunction::CompileLazy(func, KEEP_EXCEPTION)) {
+  if (!JSFunction::EnsureCompiled(func, KEEP_EXCEPTION)) {
     return Failure::Exception();
   }
   func->shared()->construct_stub()->PrintLn();

@@ -374,8 +374,8 @@ class Scope: public ZoneObject {
   // Determine if we can use lazy compilation for this scope.
   bool AllowsLazyCompilation() const;
 
-  // True if we can lazily recompile functions with this scope.
-  bool AllowsLazyRecompilation() const;
+  // Determine if we can use lazy compilation for this scope without a context.
+  bool AllowsLazyCompilationWithoutContext() const;
 
   // True if the outer context of this scope is always the global context.
   bool HasTrivialOuterContext() const;
