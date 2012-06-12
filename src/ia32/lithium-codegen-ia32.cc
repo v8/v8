@@ -79,6 +79,10 @@ bool LCodeGen::GenerateCode() {
   // the frame (that is done in GeneratePrologue).
   FrameScope frame_scope(masm_, StackFrame::MANUAL);
 
+  dynamic_frame_alignment_ = (chunk()->num_double_slots() > 2 &&
+                              !chunk()->graph()->is_recursive()) ||
+                             info()->osr_ast_id() != AstNode::kNoNumber;
+
   return GeneratePrologue() &&
       GenerateBody() &&
       GenerateDeferredCode() &&
@@ -153,14 +157,52 @@ bool LCodeGen::GeneratePrologue() {
     __ bind(&ok);
   }
 
+
+  if (dynamic_frame_alignment_) {
+    // Move state of dynamic frame alignment into edx.
+    __ mov(edx, Immediate(kNoAlignmentPadding));
+
+    Label do_not_pad, align_loop;
+    STATIC_ASSERT(kDoubleSize == 2 * kPointerSize);
+    // Align esp + 4 to a multiple of 2 * kPointerSize.
+    __ test(esp, Immediate(kPointerSize));
+    __ j(not_zero, &do_not_pad, Label::kNear);
+    __ push(Immediate(0));
+    __ mov(ebx, esp);
+    __ mov(edx, Immediate(kAlignmentPaddingPushed));
+    // Copy arguments, receiver, and return address.
+    __ mov(ecx, Immediate(scope()->num_parameters() + 2));
+
+    __ bind(&align_loop);
+    __ mov(eax, Operand(ebx, 1 * kPointerSize));
+    __ mov(Operand(ebx, 0), eax);
+    __ add(Operand(ebx), Immediate(kPointerSize));
+    __ dec(ecx);
+    __ j(not_zero, &align_loop, Label::kNear);
+    __ mov(Operand(ebx, 0), Immediate(kAlignmentZapValue));
+    __ bind(&do_not_pad);
+  }
+
   __ push(ebp);  // Caller's frame pointer.
   __ mov(ebp, esp);
   __ push(esi);  // Callee's context.
   __ push(edi);  // Callee's JS function.
 
+  if (dynamic_frame_alignment_ && FLAG_debug_code) {
+    __ test(esp, Immediate(kPointerSize));
+    __ Assert(zero, "frame is expected to be aligned");
+  }
+
   // Reserve space for the stack slots needed by the code.
   int slots = GetStackSlotCount();
-  if (slots > 0) {
+  ASSERT_GE(slots, 1);
+  if (slots == 1) {
+    if (dynamic_frame_alignment_) {
+      __ push(edx);
+    } else {
+      __ push(Immediate(kNoAlignmentPadding));
+    }
+  } else {
     if (FLAG_debug_code) {
       __ mov(Operand(eax), Immediate(slots));
       Label loop;
@@ -170,7 +212,7 @@ bool LCodeGen::GeneratePrologue() {
       __ j(not_zero, &loop);
     } else {
       __ sub(Operand(esp), Immediate(slots * kPointerSize));
-#ifdef _MSC_VER
+  #ifdef _MSC_VER
       // On windows, you may not access the stack more than one page below
       // the most recently mapped page. To make the allocated area randomly
       // accessible, we write to each page in turn (the value is irrelevant).
@@ -180,7 +222,18 @@ bool LCodeGen::GeneratePrologue() {
            offset -= kPageSize) {
         __ mov(Operand(esp, offset), eax);
       }
-#endif
+  #endif
+    }
+
+    // Store dynamic frame alignment state in the first local.
+    if (dynamic_frame_alignment_) {
+      __ mov(Operand(ebp,
+                     JavaScriptFrameConstants::kDynamicAlignmentStateOffset),
+             edx);
+    } else {
+      __ mov(Operand(ebp,
+                     JavaScriptFrameConstants::kDynamicAlignmentStateOffset),
+             Immediate(kNoAlignmentPadding));
     }
   }
 
@@ -2101,8 +2154,25 @@ void LCodeGen::DoReturn(LReturn* instr) {
     __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
     __ CallRuntime(Runtime::kTraceExit, 1);
   }
+  if (dynamic_frame_alignment_) {
+    // Fetch the state of the dynamic frame alignment.
+    __ mov(edx, Operand(ebp,
+      JavaScriptFrameConstants::kDynamicAlignmentStateOffset));
+  }
   __ mov(esp, ebp);
   __ pop(ebp);
+  if (dynamic_frame_alignment_) {
+    Label no_padding;
+    __ cmp(edx, Immediate(kNoAlignmentPadding));
+    __ j(equal, &no_padding);
+    if (FLAG_debug_code) {
+      __ cmp(Operand(esp, (GetParameterCount() + 2) * kPointerSize),
+             Immediate(kAlignmentZapValue));
+      __ Assert(equal, "expected alignment marker");
+    }
+    __ Ret((GetParameterCount() + 2) * kPointerSize, ecx);
+    __ bind(&no_padding);
+  }
   __ Ret((GetParameterCount() + 1) * kPointerSize, ecx);
 }
 

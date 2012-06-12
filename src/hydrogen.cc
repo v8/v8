@@ -681,7 +681,8 @@ HGraph::HGraph(CompilationInfo* info, Zone* zone)
       blocks_(8, zone),
       values_(16, zone),
       phi_list_(NULL),
-      zone_(zone) {
+      zone_(zone),
+      is_recursive_(false) {
   start_environment_ =
       new(zone) HEnvironment(NULL, info->scope(), info->closure(), zone);
   start_environment_->set_ast_id(AstNode::kFunctionEntryId);
@@ -6927,6 +6928,11 @@ void HGraphBuilder::VisitCall(Call* expr) {
           return;
         }
         if (TryInlineCall(expr)) return;
+
+        if (expr->target().is_identical_to(info()->closure())) {
+          graph()->MarkRecursive();
+        }
+
         call = PreProcessCall(new(zone()) HCallKnownGlobal(expr->target(),
                                                            argument_count));
       } else {

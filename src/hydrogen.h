@@ -336,6 +336,14 @@ class HGraph: public ZoneObject {
     osr_values_.set(values);
   }
 
+  void MarkRecursive() {
+    is_recursive_ = true;
+  }
+
+  bool is_recursive() const {
+    return is_recursive_;
+  }
+
  private:
   void Postorder(HBasicBlock* block,
                  BitVector* visited,
@@ -381,6 +389,8 @@ class HGraph: public ZoneObject {
   SetOncePointer<ZoneList<HUnknownOSRValue*> > osr_values_;
 
   Zone* zone_;
+
+  bool is_recursive_;
 
   DISALLOW_COPY_AND_ASSIGN(HGraph);
 };

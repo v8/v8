@@ -1451,7 +1451,7 @@ void Debug::PrepareStep(StepAction step_action, int step_count) {
     // Remember source position and frame to handle step next.
     thread_local_.last_statement_position_ =
         debug_info->code()->SourceStatementPosition(frame->pc());
-    thread_local_.last_fp_ = frame->fp();
+    thread_local_.last_fp_ = frame->UnpaddedFP();
   } else {
     // If there's restarter frame on top of the stack, just get the pointer
     // to function which is going to be restarted.
@@ -1520,7 +1520,7 @@ void Debug::PrepareStep(StepAction step_action, int step_count) {
       // propagated on the next Debug::Break.
       thread_local_.last_statement_position_ =
           debug_info->code()->SourceStatementPosition(frame->pc());
-      thread_local_.last_fp_ = frame->fp();
+      thread_local_.last_fp_ = frame->UnpaddedFP();
     }
 
     // Step in or Step in min
@@ -1555,7 +1555,7 @@ bool Debug::StepNextContinue(BreakLocationIterator* break_location_iterator,
     // Continue if we are still on the same frame and in the same statement.
     int current_statement_position =
         break_location_iterator->code()->SourceStatementPosition(frame->pc());
-    return thread_local_.last_fp_ == frame->fp() &&
+    return thread_local_.last_fp_ == frame->UnpaddedFP() &&
         thread_local_.last_statement_position_ == current_statement_position;
   }
 
@@ -1756,7 +1756,7 @@ void Debug::ClearOneShot() {
 
 void Debug::ActivateStepIn(StackFrame* frame) {
   ASSERT(!StepOutActive());
-  thread_local_.step_into_fp_ = frame->fp();
+  thread_local_.step_into_fp_ = frame->UnpaddedFP();
 }
 
 
@@ -1767,7 +1767,7 @@ void Debug::ClearStepIn() {
 
 void Debug::ActivateStepOut(StackFrame* frame) {
   ASSERT(!StepInActive());
-  thread_local_.step_out_fp_ = frame->fp();
+  thread_local_.step_out_fp_ = frame->UnpaddedFP();
 }
 
 

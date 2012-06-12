@@ -61,6 +61,7 @@ class LCodeGen BASE_EMBEDDED {
         status_(UNUSED),
         translations_(zone),
         deferred_(8, zone),
+        dynamic_frame_alignment_(false),
         osr_pc_offset_(-1),
         last_lazy_deopt_pc_(0),
         safepoints_(zone),
@@ -342,6 +343,7 @@ class LCodeGen BASE_EMBEDDED {
   Status status_;
   TranslationBuffer translations_;
   ZoneList<LDeferredCode*> deferred_;
+  bool dynamic_frame_alignment_;
   int osr_pc_offset_;
   int last_lazy_deopt_pc_;
 

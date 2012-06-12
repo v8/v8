@@ -2307,6 +2307,7 @@ class LChunk: public ZoneObject {
  public:
   LChunk(CompilationInfo* info, HGraph* graph)
     : spill_slot_count_(0),
+      num_double_slots_(0),
       info_(info),
       graph_(graph),
       instructions_(32, graph->zone()),
@@ -2324,6 +2325,7 @@ class LChunk: public ZoneObject {
   int ParameterAt(int index);
   int GetParameterStackSlot(int index) const;
   int spill_slot_count() const { return spill_slot_count_; }
+  int num_double_slots() const { return num_double_slots_; }
   CompilationInfo* info() const { return info_; }
   HGraph* graph() const { return graph_; }
   const ZoneList<LInstruction*>* instructions() const { return &instructions_; }
@@ -2363,6 +2365,7 @@ class LChunk: public ZoneObject {
 
  private:
   int spill_slot_count_;
+  int num_double_slots_;
   CompilationInfo* info_;
   HGraph* const graph_;
   ZoneList<LInstruction*> instructions_;

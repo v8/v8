@@ -221,6 +221,10 @@ class Deoptimizer : public Malloced {
   }
   static int output_offset() { return OFFSET_OF(Deoptimizer, output_); }
 
+  static int has_alignment_padding_offset() {
+    return OFFSET_OF(Deoptimizer, has_alignment_padding_);
+  }
+
   static int GetDeoptimizedCodeCount(Isolate* isolate);
 
   static const int kNotDeoptimizationEntry = -1;
@@ -322,6 +326,7 @@ class Deoptimizer : public Malloced {
   BailoutType bailout_type_;
   Address from_;
   int fp_to_sp_delta_;
+  int has_alignment_padding_;
 
   // Input frame description.
   FrameDescription* input_;
