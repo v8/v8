@@ -2723,6 +2723,15 @@ RegExpNode* ChoiceNode::FilterASCII(int depth) {
   if (info()->visited) return this;
   VisitMarker marker(info());
   int choice_count = alternatives_->length();
+
+  for (int i = 0; i < choice_count; i++) {
+    GuardedAlternative alternative = alternatives_->at(i);
+    if (alternative.guards() != NULL && alternative.guards()->length() != 0) {
+      set_replacement(this);
+      return this;
+    }
+  }
+
   int surviving = 0;
   RegExpNode* survivor = NULL;
   for (int i = 0; i < choice_count; i++) {
