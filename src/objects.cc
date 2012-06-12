@@ -10023,6 +10023,12 @@ void JSObject::GetElementsCapacityAndUsage(int* capacity, int* used) {
       // Fall through.
     case FAST_SMI_ELEMENTS:
     case FAST_ELEMENTS:
+      if (IsJSArray()) {
+        *capacity = backing_store_base->length();
+        *used = Smi::cast(JSArray::cast(this)->length())->value();
+        break;
+      }
+      // Fall through if packing is not guaranteed.
     case FAST_HOLEY_SMI_ELEMENTS:
     case FAST_HOLEY_ELEMENTS:
       backing_store = FixedArray::cast(backing_store_base);
@@ -10039,6 +10045,12 @@ void JSObject::GetElementsCapacityAndUsage(int* capacity, int* used) {
       break;
     }
     case FAST_DOUBLE_ELEMENTS:
+      if (IsJSArray()) {
+        *capacity = backing_store_base->length();
+        *used = Smi::cast(JSArray::cast(this)->length())->value();
+        break;
+      }
+      // Fall through if packing is not guaranteed.
     case FAST_HOLEY_DOUBLE_ELEMENTS: {
       FixedDoubleArray* elms = FixedDoubleArray::cast(elements());
       *capacity = elms->length();
