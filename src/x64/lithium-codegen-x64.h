@@ -301,7 +301,8 @@ class LCodeGen BASE_EMBEDDED {
   void EmitLoadFieldOrConstantFunction(Register result,
                                        Register object,
                                        Handle<Map> type,
-                                       Handle<String> name);
+                                       Handle<String> name,
+                                       LEnvironment* env);
 
   // Emits code for pushing either a tagged constant, a (non-double)
   // register, or a stack slot operand.

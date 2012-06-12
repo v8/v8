@@ -119,7 +119,8 @@ if (support_smi_only_arrays) {
   %OptimizeFunctionOnNextCall(testExactMapHoisting2);
   testExactMapHoisting2(new Array(5));
   testExactMapHoisting2(new Array(5));
-  assertTrue(2 != %GetOptimizationStatus(testExactMapHoisting2));
+  // Temporarily disabled - see bug 2176.
+  // assertTrue(2 != %GetOptimizationStatus(testExactMapHoisting2));
 
   // Make sure that non-element related map checks do get hoisted if they use
   // the transitioned map for the check and all transitions that they depend

@@ -2195,12 +2195,12 @@ void LCodeGen::DoLoadNamedField(LLoadNamedField* instr) {
 void LCodeGen::EmitLoadFieldOrConstantFunction(Register result,
                                                Register object,
                                                Handle<Map> type,
-                                               Handle<String> name) {
+                                               Handle<String> name,
+                                               LEnvironment* env) {
   LookupResult lookup(isolate());
   type->LookupInDescriptors(NULL, *name, &lookup);
-  ASSERT(lookup.IsFound() &&
-         (lookup.type() == FIELD || lookup.type() == CONSTANT_FUNCTION));
-  if (lookup.type() == FIELD) {
+  ASSERT(lookup.IsFound() || lookup.IsCacheable());
+  if (lookup.IsFound() && lookup.type() == FIELD) {
     int index = lookup.GetLocalFieldIndexFromMap(*type);
     int offset = index * kPointerSize;
     if (index < 0) {
@@ -2212,9 +2212,23 @@ void LCodeGen::EmitLoadFieldOrConstantFunction(Register result,
       __ movq(result, FieldOperand(object, JSObject::kPropertiesOffset));
       __ movq(result, FieldOperand(result, offset + FixedArray::kHeaderSize));
     }
-  } else {
+  } else if (lookup.IsFound() && lookup.type() == CONSTANT_FUNCTION) {
     Handle<JSFunction> function(lookup.GetConstantFunctionFromMap(*type));
     __ LoadHeapObject(result, function);
+  } else {
+    // Negative lookup.
+    // Check prototypes.
+    HeapObject* current = HeapObject::cast((*type)->prototype());
+    Heap* heap = type->GetHeap();
+    while (current != heap->null_value()) {
+      Handle<HeapObject> link(current);
+      __ LoadHeapObject(result, link);
+      __ Cmp(FieldOperand(result, HeapObject::kMapOffset),
+                          Handle<Map>(JSObject::cast(current)->map()));
+      DeoptimizeIf(not_equal, env);
+      current = HeapObject::cast(current->map()->prototype());
+    }
+    __ LoadRoot(result, Heap::kUndefinedValueRootIndex);
   }
 }
 
@@ -2232,18 +2246,36 @@ void LCodeGen::DoLoadNamedFieldPolymorphic(LLoadNamedFieldPolymorphic* instr) {
   }
   Handle<String> name = instr->hydrogen()->name();
   Label done;
+  bool compact_code = true;
+  for (int i = 0; i < map_count; ++i) {
+    LookupResult lookup(isolate());
+    Handle<Map> map = instr->hydrogen()->types()->at(i);
+    map->LookupInDescriptors(NULL, *name, &lookup);
+    if (!lookup.IsFound() ||
+        (lookup.type() != FIELD && lookup.type() != CONSTANT_FUNCTION)) {
+      // The two cases above cause a bounded amount of code to be emitted.  This
+      // is not necessarily the case for other lookup results.
+      compact_code = false;
+      break;
+    }
+  }
   for (int i = 0; i < map_count; ++i) {
     bool last = (i == map_count - 1);
     Handle<Map> map = instr->hydrogen()->types()->at(i);
-    __ Cmp(FieldOperand(object, HeapObject::kMapOffset), map);
+    Label check_passed;
+    __ CompareMap(object, map, &check_passed, ALLOW_ELEMENT_TRANSITION_MAPS);
     if (last && !need_generic) {
       DeoptimizeIf(not_equal, instr->environment());
-      EmitLoadFieldOrConstantFunction(result, object, map, name);
+      __ bind(&check_passed);
+      EmitLoadFieldOrConstantFunction(
+          result, object, map, name, instr->environment());
     } else {
       Label next;
       __ j(not_equal, &next, Label::kNear);
-      EmitLoadFieldOrConstantFunction(result, object, map, name);
-      __ jmp(&done, Label::kNear);
+      __ bind(&check_passed);
+      EmitLoadFieldOrConstantFunction(
+          result, object, map, name, instr->environment());
+      __ jmp(&done, compact_code ? Label::kNear: Label::kFar);
       __ bind(&next);
     }
   }

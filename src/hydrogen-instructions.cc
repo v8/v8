@@ -1618,6 +1618,38 @@ void HLoadNamedField::PrintDataTo(StringStream* stream) {
 }
 
 
+// Returns true if an instance of this map can never find a property with this
+// name in its prototype chain.  This means all prototypes up to the top are
+// fast and don't have the name in them.  It would be good if we could optimize
+// polymorphic loads where the property is sometimes found in the prototype
+// chain.
+static bool PrototypeChainCanNeverResolve(
+    Handle<Map> map, Handle<String> name) {
+  Isolate* isolate = map->GetIsolate();
+  Object* current = map->prototype();
+  while (current != isolate->heap()->null_value()) {
+    if (current->IsJSGlobalProxy() ||
+        current->IsGlobalObject() ||
+        !current->IsJSObject() ||
+        JSObject::cast(current)->IsAccessCheckNeeded() ||
+        !JSObject::cast(current)->HasFastProperties()) {
+      return false;
+    }
+
+    LookupResult lookup(isolate);
+    JSObject::cast(current)->map()->LookupInDescriptors(NULL, *name, &lookup);
+    if (lookup.IsFound()) {
+      if (lookup.type() != MAP_TRANSITION) return false;
+    } else if (!lookup.IsCacheable()) {
+      return false;
+    }
+
+    current = JSObject::cast(current)->GetPrototype();
+  }
+  return true;
+}
+
+
 HLoadNamedFieldPolymorphic::HLoadNamedFieldPolymorphic(HValue* context,
                                                        HValue* object,
                                                        SmallMapList* types,
@@ -1630,7 +1662,7 @@ HLoadNamedFieldPolymorphic::HLoadNamedFieldPolymorphic(HValue* context,
   SetOperandAt(1, object);
   set_representation(Representation::Tagged());
   SetGVNFlag(kDependsOnMaps);
-  int map_transitions = 0;
+  SmallMapList negative_lookups;
   for (int i = 0;
        i < types->length() && types_.length() < kMaxLoadPolymorphism;
        ++i) {
@@ -1653,21 +1685,32 @@ HLoadNamedFieldPolymorphic::HLoadNamedFieldPolymorphic(HValue* context,
           types_.Add(types->at(i), zone);
           break;
         case MAP_TRANSITION:
-          // We should just ignore these since they are not relevant to a load
-          // operation.  This means we will deopt if we actually see this map
-          // from optimized code.
-          map_transitions++;
+          if (PrototypeChainCanNeverResolve(map, name)) {
+            negative_lookups.Add(types->at(i), zone);
+          }
           break;
         default:
           break;
       }
+    } else if (lookup.IsCacheable()) {
+      if (PrototypeChainCanNeverResolve(map, name)) {
+        negative_lookups.Add(types->at(i), zone);
+      }
     }
   }
 
-  if (types_.length() + map_transitions == types->length() &&
-      FLAG_deoptimize_uncommon_cases) {
+  bool need_generic =
+      (types->length() != negative_lookups.length() + types_.length());
+  if (!need_generic && FLAG_deoptimize_uncommon_cases) {
     SetFlag(kUseGVN);
+    for (int i = 0; i < negative_lookups.length(); i++) {
+      types_.Add(negative_lookups.at(i), zone);
+    }
   } else {
+    // We don't have an easy way to handle both a call (to the generic stub) and
+    // a deopt in the same hydrogen instruction, so in this case we don't add
+    // the negative lookups which can deopt - just let the generic stub handle
+    // them.
     SetAllSideEffects();
     need_generic_ = true;
   }
