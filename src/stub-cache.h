@@ -162,6 +162,11 @@ class StubCache {
                                     Handle<AccessorInfo> callback,
                                     StrictModeFlag strict_mode);
 
+  Handle<Code> ComputeStoreViaSetter(Handle<String> name,
+                                     Handle<JSObject> receiver,
+                                     Handle<JSFunction> setter,
+                                     StrictModeFlag strict_mode);
+
   Handle<Code> ComputeStoreInterceptor(Handle<String> name,
                                        Handle<JSObject> receiver,
                                        StrictModeFlag strict_mode);
@@ -692,6 +697,10 @@ class StoreStubCompiler: public StubCompiler {
   Handle<Code> CompileStoreCallback(Handle<JSObject> object,
                                     Handle<AccessorInfo> callback,
                                     Handle<String> name);
+
+  Handle<Code> CompileStoreViaSetter(Handle<JSObject> receiver,
+                                     Handle<JSFunction> setter,
+                                     Handle<String> name);
 
   Handle<Code> CompileStoreInterceptor(Handle<JSObject> object,
                                        Handle<String> name);

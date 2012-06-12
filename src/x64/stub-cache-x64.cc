@@ -2424,6 +2424,52 @@ Handle<Code> StoreStubCompiler::CompileStoreCallback(
 }
 
 
+Handle<Code> StoreStubCompiler::CompileStoreViaSetter(
+    Handle<JSObject> receiver,
+    Handle<JSFunction> setter,
+    Handle<String> name) {
+  // ----------- S t a t e -------------
+  //  -- rax    : value
+  //  -- rcx    : name
+  //  -- rdx    : receiver
+  //  -- rsp[0] : return address
+  // -----------------------------------
+  Label miss;
+
+  // Check that the map of the object hasn't changed.
+  __ CheckMap(rdx, Handle<Map>(receiver->map()), &miss, DO_SMI_CHECK,
+              ALLOW_ELEMENT_TRANSITION_MAPS);
+
+  {
+    FrameScope scope(masm(), StackFrame::INTERNAL);
+
+    // Save value register, so we can restore it later.
+    __ push(rax);
+
+    // Call the JavaScript getter with the receiver and the value on the stack.
+    __ push(rdx);
+    __ push(rax);
+    ParameterCount actual(1);
+    __ InvokeFunction(setter, actual, CALL_FUNCTION, NullCallWrapper(),
+                      CALL_AS_METHOD);
+
+    // We have to return the passed value, not the return value of the setter.
+    __ pop(rax);
+
+    // Restore context register.
+    __ movq(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
+  }
+  __ ret(0);
+
+  __ bind(&miss);
+  Handle<Code> ic = isolate()->builtins()->StoreIC_Miss();
+  __ Jump(ic, RelocInfo::CODE_TARGET);
+
+  // Return the generated code.
+  return GetCode(CALLBACKS, name);
+}
+
+
 Handle<Code> StoreStubCompiler::CompileStoreInterceptor(
     Handle<JSObject> receiver,
     Handle<String> name) {

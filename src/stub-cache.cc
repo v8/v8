@@ -515,6 +515,24 @@ Handle<Code> StubCache::ComputeStoreCallback(Handle<String> name,
 }
 
 
+Handle<Code> StubCache::ComputeStoreViaSetter(Handle<String> name,
+                                              Handle<JSObject> receiver,
+                                              Handle<JSFunction> setter,
+                                              StrictModeFlag strict_mode) {
+  Code::Flags flags = Code::ComputeMonomorphicFlags(
+      Code::STORE_IC, CALLBACKS, strict_mode);
+  Handle<Object> probe(receiver->map()->FindInCodeCache(*name, flags));
+  if (probe->IsCode()) return Handle<Code>::cast(probe);
+
+  StoreStubCompiler compiler(isolate_, strict_mode);
+  Handle<Code> code = compiler.CompileStoreViaSetter(receiver, setter, name);
+  PROFILE(isolate_, CodeCreateEvent(Logger::STORE_IC_TAG, *code, *name));
+  GDBJIT(AddCode(GDBJITInterface::STORE_IC, *name, *code));
+  JSObject::UpdateMapCodeCache(receiver, name, code);
+  return code;
+}
+
+
 Handle<Code> StubCache::ComputeStoreInterceptor(Handle<String> name,
                                                 Handle<JSObject> receiver,
                                                 StrictModeFlag strict_mode) {

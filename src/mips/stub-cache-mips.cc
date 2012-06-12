@@ -2672,6 +2672,52 @@ Handle<Code> StoreStubCompiler::CompileStoreCallback(
 }
 
 
+Handle<Code> StoreStubCompiler::CompileStoreViaSetter(
+    Handle<JSObject> receiver,
+    Handle<JSFunction> setter,
+    Handle<String> name) {
+  // ----------- S t a t e -------------
+  //  -- a0    : value
+  //  -- a1    : receiver
+  //  -- a2    : name
+  //  -- ra    : return address
+  // -----------------------------------
+  Label miss;
+
+  // Check that the map of the object hasn't changed.
+  __ CheckMap(a1, a3, Handle<Map>(receiver->map()), &miss, DO_SMI_CHECK,
+              ALLOW_ELEMENT_TRANSITION_MAPS);
+
+  {
+    FrameScope scope(masm(), StackFrame::INTERNAL);
+
+    // Save value register, so we can restore it later.
+    __ push(a0);
+
+    // Call the JavaScript getter with the receiver and the value on the stack.
+    __ push(a1);
+    __ push(a0);
+    ParameterCount actual(1);
+    __ InvokeFunction(setter, actual, CALL_FUNCTION, NullCallWrapper(),
+                      CALL_AS_METHOD);
+
+    // We have to return the passed value, not the return value of the setter.
+    __ pop(a0);
+
+    // Restore context register.
+    __ lw(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
+  }
+  __ Ret();
+
+  __ bind(&miss);
+  Handle<Code> ic = masm()->isolate()->builtins()->StoreIC_Miss();
+  __ Jump(ic, RelocInfo::CODE_TARGET);
+
+  // Return the generated code.
+  return GetCode(CALLBACKS, name);
+}
+
+
 Handle<Code> StoreStubCompiler::CompileStoreInterceptor(
     Handle<JSObject> receiver,
     Handle<String> name) {
