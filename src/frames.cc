@@ -470,7 +470,7 @@ StackFrame::Type StackFrame::GetCallerState(State* state) const {
 
 
 Address StackFrame::UnpaddedFP() const {
-#if defined(V8_TARGET_ARCH_IA32) || defined(V8_HOST_ARCH_IA32)
+#if defined(V8_TARGET_ARCH_IA32)
   if (!is_optimized()) return fp();
   int32_t alignment_state = Memory::int32_at(
     fp() + JavaScriptFrameConstants::kDynamicAlignmentStateOffset);
