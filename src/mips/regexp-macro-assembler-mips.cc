@@ -833,7 +833,8 @@ Handle<HeapObject> RegExpMacroAssemblerMIPS::GetCode(Handle<String> source) {
           __ Branch(
               &load_char_start_regexp, ne, current_input_offset(), Operand(t7));
           // Offset from the end is zero if we already reached the end.
-          __ Branch(&exit_label_, eq, current_input_offset(), Operand(zero_reg));
+          __ Branch(&exit_label_, eq, current_input_offset(),
+                    Operand(zero_reg));
           // Advance current position after a zero-length match.
           __ Addu(current_input_offset(),
                   current_input_offset(),
