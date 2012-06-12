@@ -34,9 +34,10 @@ bugs/*: FAIL
 # Fails.
 regress/regress-1119: FAIL
 
-##############################################################################
+# Issue 2177: Debugger on ARM broken due to variable literal pool size.
+debug-liveedit-breakpoints: PASS, SKIP if ($arch == arm)
 
-# NewGC: BUG(1719) slow to collect arrays over several contexts.
+# Issue 1719: Slow to collect arrays over several contexts.
 regress/regress-524: SKIP
 # When that bug is fixed, revert the expectation to:
 # Skip long running test in debug and allow it to timeout in release mode.
