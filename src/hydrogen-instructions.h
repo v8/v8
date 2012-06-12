@@ -1848,7 +1848,9 @@ class HCallRuntime: public HCall<1> {
 
 class HJSArrayLength: public HTemplateInstruction<2> {
  public:
-  HJSArrayLength(HValue* value, HValue* typecheck) {
+  HJSArrayLength(HValue* value, HValue* typecheck,
+                 HType type = HType::Tagged()) {
+    set_type(type);
     // The length of an array is stored as a tagged value in the array
     // object. It is guaranteed to be 32 bit integer, but it can be
     // represented as either a smi or heap number.
@@ -1872,7 +1874,7 @@ class HJSArrayLength: public HTemplateInstruction<2> {
   DECLARE_CONCRETE_INSTRUCTION(JSArrayLength)
 
  protected:
-  virtual bool DataEquals(HValue* other) { return true; }
+  virtual bool DataEquals(HValue* other_raw) { return true; }
 };
 
 
@@ -3980,18 +3982,19 @@ class ArrayInstructionInterface {
   virtual ~ArrayInstructionInterface() { };
 };
 
-
-enum HoleCheckMode { PERFORM_HOLE_CHECK, OMIT_HOLE_CHECK };
-
 class HLoadKeyedFastElement
     : public HTemplateInstruction<2>, public ArrayInstructionInterface {
  public:
   HLoadKeyedFastElement(HValue* obj,
                         HValue* key,
-                        HoleCheckMode hole_check_mode = PERFORM_HOLE_CHECK)
-      : hole_check_mode_(hole_check_mode),
-        index_offset_(0),
-        is_dehoisted_(false) {
+                        ElementsKind elements_kind = FAST_ELEMENTS)
+      : bit_field_(0) {
+    ASSERT(IsFastSmiOrObjectElementsKind(elements_kind));
+    bit_field_ = ElementsKindField::encode(elements_kind);
+    if (IsFastSmiElementsKind(elements_kind) &&
+        IsFastPackedElementsKind(elements_kind)) {
+      set_type(HType::Smi());
+    }
     SetOperandAt(0, obj);
     SetOperandAt(1, key);
     set_representation(Representation::Tagged());
@@ -4001,12 +4004,19 @@ class HLoadKeyedFastElement
 
   HValue* object() { return OperandAt(0); }
   HValue* key() { return OperandAt(1); }
-  uint32_t index_offset() { return index_offset_; }
-  void SetIndexOffset(uint32_t index_offset) { index_offset_ = index_offset; }
+  uint32_t index_offset() { return IndexOffsetField::decode(bit_field_); }
+  void SetIndexOffset(uint32_t index_offset) {
+    bit_field_ = IndexOffsetField::update(bit_field_, index_offset);
+  }
   HValue* GetKey() { return key(); }
   void SetKey(HValue* key) { SetOperandAt(1, key); }
-  bool IsDehoisted() { return is_dehoisted_; }
-  void SetDehoisted(bool is_dehoisted) { is_dehoisted_ = is_dehoisted; }
+  bool IsDehoisted() { return IsDehoistedField::decode(bit_field_); }
+  void SetDehoisted(bool is_dehoisted) {
+    bit_field_ = IsDehoistedField::update(bit_field_, is_dehoisted);
+  }
+  ElementsKind elements_kind() const {
+    return ElementsKindField::decode(bit_field_);
+  }
 
   virtual Representation RequiredInputRepresentation(int index) {
     // The key is supposed to be Integer32.
@@ -4025,16 +4035,20 @@ class HLoadKeyedFastElement
   virtual bool DataEquals(HValue* other) {
     if (!other->IsLoadKeyedFastElement()) return false;
     HLoadKeyedFastElement* other_load = HLoadKeyedFastElement::cast(other);
-    if (is_dehoisted_ && index_offset_ != other_load->index_offset_)
+    if (IsDehoisted() && index_offset() != other_load->index_offset())
       return false;
-    return hole_check_mode_ == other_load->hole_check_mode_;
+    return elements_kind() == other_load->elements_kind();
   }
 
  private:
-  HoleCheckMode hole_check_mode_;
-  uint32_t index_offset_;
-  bool is_dehoisted_;
+  class ElementsKindField:  public BitField<ElementsKind, 0, 4> {};
+  class IndexOffsetField:   public BitField<uint32_t, 4, 27> {};
+  class IsDehoistedField:   public BitField<bool, 31, 1> {};
+  uint32_t bit_field_;
 };
+
+
+enum HoleCheckMode { PERFORM_HOLE_CHECK, OMIT_HOLE_CHECK };
 
 
 class HLoadKeyedFastDoubleElement
@@ -4044,15 +4058,15 @@ class HLoadKeyedFastDoubleElement
     HValue* elements,
     HValue* key,
     HoleCheckMode hole_check_mode = PERFORM_HOLE_CHECK)
-    : index_offset_(0),
-      is_dehoisted_(false),
-      hole_check_mode_(hole_check_mode) {
-        SetOperandAt(0, elements);
-        SetOperandAt(1, key);
-        set_representation(Representation::Double());
+      : index_offset_(0),
+        is_dehoisted_(false),
+        hole_check_mode_(hole_check_mode) {
+    SetOperandAt(0, elements);
+    SetOperandAt(1, key);
+    set_representation(Representation::Double());
     SetGVNFlag(kDependsOnDoubleArrayElements);
     SetFlag(kUseGVN);
-      }
+  }
 
   HValue* elements() { return OperandAt(0); }
   HValue* key() { return OperandAt(1); }

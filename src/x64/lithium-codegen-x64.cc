@@ -2389,8 +2389,13 @@ void LCodeGen::DoLoadKeyedFastElement(LLoadKeyedFastElement* instr) {
 
   // Check for the hole value.
   if (instr->hydrogen()->RequiresHoleCheck()) {
-    __ CompareRoot(result, Heap::kTheHoleValueRootIndex);
-    DeoptimizeIf(equal, instr->environment());
+    if (IsFastSmiElementsKind(instr->hydrogen()->elements_kind())) {
+      Condition smi = __ CheckSmi(result);
+      DeoptimizeIf(NegateCondition(smi), instr->environment());
+    } else {
+      __ CompareRoot(result, Heap::kTheHoleValueRootIndex);
+      DeoptimizeIf(equal, instr->environment());
+    }
   }
 }
 
@@ -3790,6 +3795,10 @@ void LCodeGen::DoSmiUntag(LSmiUntag* instr) {
   if (instr->needs_check()) {
     Condition is_smi = __ CheckSmi(input);
     DeoptimizeIf(NegateCondition(is_smi), instr->environment());
+  } else {
+    if (FLAG_debug_code) {
+      __ AbortIfNotSmi(input);
+    }
   }
   __ SmiToInteger32(input, input);
 }

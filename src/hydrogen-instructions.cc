@@ -1712,14 +1712,14 @@ void HLoadKeyedFastElement::PrintDataTo(StringStream* stream) {
   stream->Add("[");
   key()->PrintNameTo(stream);
   stream->Add("]");
-  if (hole_check_mode_ == PERFORM_HOLE_CHECK) {
+  if (RequiresHoleCheck()) {
     stream->Add(" check_hole");
   }
 }
 
 
 bool HLoadKeyedFastElement::RequiresHoleCheck() {
-  if (hole_check_mode_ == OMIT_HOLE_CHECK) {
+  if (IsFastPackedElementsKind(elements_kind())) {
     return false;
   }
 
@@ -1765,8 +1765,7 @@ HValue* HLoadKeyedGeneric::Canonicalize() {
             new(block()->zone()) HCheckMapValue(object(), names_cache->map());
         HInstruction* index = new(block()->zone()) HLoadKeyedFastElement(
             index_cache,
-            key_load->key(),
-            OMIT_HOLE_CHECK);
+            key_load->key());
         map_check->InsertBefore(this);
         index->InsertBefore(this);
         HLoadFieldByIndex* load = new(block()->zone()) HLoadFieldByIndex(

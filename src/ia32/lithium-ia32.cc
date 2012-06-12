@@ -1707,8 +1707,9 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
     } else {
       ASSERT(to.IsInteger32());
       LOperand* value = UseRegister(instr->value());
-      bool needs_check = !instr->value()->type().IsSmi();
-      if (needs_check) {
+      if (instr->value()->type().IsSmi()) {
+        return DefineSameAsFirst(new(zone()) LSmiUntag(value, false));
+      } else {
         bool truncating = instr->CanTruncateToInt32();
         LOperand* xmm_temp =
             (truncating && CpuFeatures::IsSupported(SSE3))
@@ -1716,8 +1717,6 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
             : FixedTemp(xmm1);
         LTaggedToI* res = new(zone()) LTaggedToI(value, xmm_temp);
         return AssignEnvironment(DefineSameAsFirst(res));
-      } else {
-        return DefineSameAsFirst(new(zone()) LSmiUntag(value, needs_check));
       }
     }
   } else if (from.IsDouble()) {

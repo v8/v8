@@ -243,8 +243,6 @@ void MacroAssembler::RecordWriteForMap(
     Register scratch1,
     Register scratch2,
     SaveFPRegsMode save_fp) {
-  // First, check if a write barrier is even needed. The tests below
-  // catch stores of Smis.
   Label done;
 
   Register address = scratch1;
@@ -281,7 +279,7 @@ void MacroAssembler::RecordWriteForMap(
                       Label::kNear);
 
   // Delay the initialization of |address| and |value| for the stub until it's
-  // known that the will be needed. Up until this point their value are not
+  // known that the will be needed. Up until this point their values are not
   // needed since they are embedded in the operands of instructions that need
   // them.
   lea(address, FieldOperand(object, HeapObject::kMapOffset));
