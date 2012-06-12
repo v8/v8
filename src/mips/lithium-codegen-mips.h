@@ -51,20 +51,20 @@ class LCodeGen BASE_EMBEDDED {
         current_block_(-1),
         current_instruction_(-1),
         instructions_(chunk->instructions()),
-        deoptimizations_(4),
-        deopt_jump_table_(4),
-        deoptimization_literals_(8),
+        deoptimizations_(4, zone),
+        deopt_jump_table_(4, zone),
+        deoptimization_literals_(8, zone),
         inlined_function_count_(0),
         scope_(info->scope()),
         status_(UNUSED),
         translations_(zone),
-        deferred_(8),
+        deferred_(8, zone),
         osr_pc_offset_(-1),
         last_lazy_deopt_pc_(0),
         safepoints_(zone),
+        zone_(zone),
         resolver_(this),
-        expected_safepoint_kind_(Safepoint::kSimple),
-        zone_(zone) {
+        expected_safepoint_kind_(Safepoint::kSimple) {
     PopulateDeoptimizationLiteralsWithInlinedFunctions();
   }
 
@@ -178,7 +178,7 @@ class LCodeGen BASE_EMBEDDED {
   void Abort(const char* format, ...);
   void Comment(const char* format, ...);
 
-  void AddDeferredCode(LDeferredCode* code) { deferred_.Add(code); }
+  void AddDeferredCode(LDeferredCode* code) { deferred_.Add(code, zone()); }
 
   // Code generation passes.  Returns true if code generation should
   // continue.
@@ -375,12 +375,12 @@ class LCodeGen BASE_EMBEDDED {
   // itself is emitted at the end of the generated code.
   SafepointTableBuilder safepoints_;
 
+  Zone* zone_;
+
   // Compiler from a set of parallel moves to a sequential list of moves.
   LGapResolver resolver_;
 
   Safepoint::Kind expected_safepoint_kind_;
-
-  Zone* zone_;
 
   class PushSafepointRegistersScope BASE_EMBEDDED {
    public:
