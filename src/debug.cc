@@ -2118,8 +2118,8 @@ bool Debug::EnsureDebugInfo(Handle<SharedFunctionInfo> shared,
     return true;
   }
 
-  // Make sure we are prepared to handle breakpoints.
-  ASSERT(has_break_points_);
+  // There will be at least one break point when we are done.
+  has_break_points_ = true;
 
   // Ensure function is compiled. Return false if this failed.
   if (!function.is_null() &&
