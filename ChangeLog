@@ -1,3 +1,19 @@
+2012-06-13: Version 3.11.10
+
+        Implemented heap profiler memory usage reporting.
+
+        Preserved error message during finally block in try..finally.
+        (Chromium issue 129171)
+
+        Fixed EnsureCanContainElements to properly handle double values.
+        (issue 2170)
+
+        Improved heuristics to keep objects in fast mode with inherited
+        constructors.
+
+        Performance and stability improvements on all platforms.
+
+
 2012-06-06: Version 3.11.9
 
         Implemented ES5-conformant semantics for inherited setters and read-only
