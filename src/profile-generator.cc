@@ -1261,8 +1261,8 @@ static size_t GetMemoryUsedByList(const List<T, P>& list) {
 
 
 size_t HeapSnapshot::RawSnapshotSize() const {
-  STATIC_CHECK(sizeof(*this) ==
-      SnapshotSizeConstants<kPointerSize>::kExpectedHeapSnapshotSize);
+  STATIC_CHECK(SnapshotSizeConstants<kPointerSize>::kExpectedHeapSnapshotSize ==
+      sizeof(HeapSnapshot));  // NOLINT
   return
       sizeof(*this) +
       GetMemoryUsedByList(entries_) +
@@ -1551,9 +1551,9 @@ Handle<HeapObject> HeapSnapshotsCollection::FindHeapObjectById(
 
 
 size_t HeapSnapshotsCollection::GetUsedMemorySize() const {
-  STATIC_CHECK(
-      sizeof(*this) == SnapshotSizeConstants<kPointerSize>::
-          kExpectedHeapSnapshotsCollectionSize);
+  STATIC_CHECK(SnapshotSizeConstants<kPointerSize>::
+      kExpectedHeapSnapshotsCollectionSize ==
+      sizeof(HeapSnapshotsCollection));  // NOLINT
   size_t size = sizeof(*this);
   size += names_.GetUsedMemorySize();
   size += ids_.GetUsedMemorySize();
