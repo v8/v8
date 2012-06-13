@@ -2357,6 +2357,18 @@ void LCodeGen::EmitPushTaggedOperand(LOperand* operand) {
 }
 
 
+// Check for cases where EmitLoadFieldOrConstantFunction needs to walk the
+// prototype chain, which causes unbounded code generation.
+static bool CompactEmit(
+    SmallMapList* list, Handle<String> name, int i, Isolate* isolate) {
+  LookupResult lookup(isolate);
+  Handle<Map> map = list->at(i);
+  map->LookupInDescriptors(NULL, *name, &lookup);
+  return lookup.IsFound() &&
+      (lookup.type() == FIELD || lookup.type() == CONSTANT_FUNCTION);
+}
+
+
 void LCodeGen::DoLoadNamedFieldPolymorphic(LLoadNamedFieldPolymorphic* instr) {
   Register object = ToRegister(instr->object());
   Register result = ToRegister(instr->result());
@@ -2370,16 +2382,10 @@ void LCodeGen::DoLoadNamedFieldPolymorphic(LLoadNamedFieldPolymorphic* instr) {
   }
   Handle<String> name = instr->hydrogen()->name();
   Label done;
-  bool compact_code = true;
+  bool all_are_compact = true;
   for (int i = 0; i < map_count; ++i) {
-    LookupResult lookup(isolate());
-    Handle<Map> map = instr->hydrogen()->types()->at(i);
-    map->LookupInDescriptors(NULL, *name, &lookup);
-    if (!lookup.IsFound() ||
-        (lookup.type() != FIELD && lookup.type() != CONSTANT_FUNCTION)) {
-      // The two cases above cause a bounded amount of code to be emitted.  This
-      // is not necessarily the case for other lookup results.
-      compact_code = false;
+    if (!CompactEmit(instr->hydrogen()->types(), name, i, isolate())) {
+      all_are_compact = false;
       break;
     }
   }
@@ -2395,11 +2401,13 @@ void LCodeGen::DoLoadNamedFieldPolymorphic(LLoadNamedFieldPolymorphic* instr) {
           result, object, map, name, instr->environment());
     } else {
       Label next;
-      __ j(not_equal, &next, Label::kNear);
+      bool compact = all_are_compact ? true :
+          CompactEmit(instr->hydrogen()->types(), name, i, isolate());
+      __ j(not_equal, &next, compact ? Label::kNear : Label::kFar);
       __ bind(&check_passed);
       EmitLoadFieldOrConstantFunction(
           result, object, map, name, instr->environment());
-      __ jmp(&done, compact_code ? Label::kNear : Label::kFar);
+      __ jmp(&done, all_are_compact ? Label::kNear : Label::kFar);
       __ bind(&next);
     }
   }
