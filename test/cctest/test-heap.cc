@@ -1198,7 +1198,6 @@ TEST(TestSizeOfObjects) {
   HEAP->CollectAllGarbage(Heap::kNoGCFlags);
   HEAP->CollectAllGarbage(Heap::kNoGCFlags);
   HEAP->CollectAllGarbage(Heap::kNoGCFlags);
-  HEAP->CollectAllGarbage(Heap::kNoGCFlags);
   CHECK(HEAP->old_pointer_space()->IsSweepingComplete());
   int initial_size = static_cast<int>(HEAP->SizeOfObjects());
 

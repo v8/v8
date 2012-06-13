@@ -637,6 +637,11 @@ bool Scope::AllocateVariables(CompilationInfo* info,
 }
 
 
+bool Scope::AllowsLazyCompilation() const {
+  return !force_eager_compilation_ && HasTrivialOuterContext();
+}
+
+
 bool Scope::HasTrivialContext() const {
   // A function scope has a trivial context if it always is the global
   // context. We iteratively scan out the context chain to see if
@@ -661,14 +666,9 @@ bool Scope::HasTrivialOuterContext() const {
 }
 
 
-bool Scope::AllowsLazyCompilation() const {
+bool Scope::AllowsLazyRecompilation() const {
   return !force_eager_compilation_ &&
          !TrivialDeclarationScopesBeforeWithScope();
-}
-
-
-bool Scope::AllowsLazyCompilationWithoutContext() const {
-  return !force_eager_compilation_ && HasTrivialOuterContext();
 }
 
 

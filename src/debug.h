@@ -239,15 +239,12 @@ class Debug {
                                         int count,
                                         int end));
   Object* Break(Arguments args);
-  void SetBreakPoint(Handle<JSFunction> function,
+  void SetBreakPoint(Handle<SharedFunctionInfo> shared,
                      Handle<Object> break_point_object,
                      int* source_position);
-  bool SetBreakPointForScript(Handle<Script> script,
-                              Handle<Object> break_point_object,
-                              int* source_position);
   void ClearBreakPoint(Handle<Object> break_point_object);
   void ClearAllBreakPoints();
-  void FloodWithOneShot(Handle<JSFunction> function);
+  void FloodWithOneShot(Handle<SharedFunctionInfo> shared);
   void FloodBoundFunctionWithOneShot(Handle<JSFunction> function);
   void FloodHandlerWithOneShot();
   void ChangeBreakOnException(ExceptionBreakType type, bool enable);
@@ -263,11 +260,8 @@ class Debug {
 
   void PrepareForBreakPoints();
 
-  // Returns whether the operation succeeded. Compilation can only be triggered
-  // if a valid closure is passed as the second argument, otherwise the shared
-  // function needs to be compiled already.
-  bool EnsureDebugInfo(Handle<SharedFunctionInfo> shared,
-                       Handle<JSFunction> function);
+  // Returns whether the operation succeeded.
+  bool EnsureDebugInfo(Handle<SharedFunctionInfo> shared);
 
   // Returns true if the current stub call is patched to call the debugger.
   static bool IsDebugBreak(Address addr);
