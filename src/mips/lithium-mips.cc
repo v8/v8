@@ -1647,10 +1647,9 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
     } else {
       ASSERT(to.IsInteger32());
       LOperand* value = UseRegisterAtStart(instr->value());
-      bool needs_check = !instr->value()->type().IsSmi();
       LInstruction* res = NULL;
-      if (!needs_check) {
-        res = DefineAsRegister(new(zone()) LSmiUntag(value, needs_check));
+      if (instr->value()->type().IsSmi()) {
+        res = DefineAsRegister(new(zone()) LSmiUntag(value, false));
       } else {
         LOperand* temp1 = TempRegister();
         LOperand* temp2 = instr->CanTruncateToInt32() ? TempRegister()
