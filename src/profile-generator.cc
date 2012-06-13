@@ -169,6 +169,15 @@ const char* StringsStorage::GetName(int index) {
 }
 
 
+size_t StringsStorage::GetUsedMemorySize() const {
+  size_t size = sizeof(*this);
+  size += sizeof(HashMap::Entry) * names_.capacity();
+  for (HashMap::Entry* p = names_.Start(); p != NULL; p = names_.Next(p)) {
+    size += strlen(reinterpret_cast<const char*>(p->value)) + 1;
+  }
+  return size;
+}
+
 const char* const CodeEntry::kEmptyNamePrefix = "";
 
 
@@ -1083,12 +1092,16 @@ template <size_t ptr_size> struct SnapshotSizeConstants;
 template <> struct SnapshotSizeConstants<4> {
   static const int kExpectedHeapGraphEdgeSize = 12;
   static const int kExpectedHeapEntrySize = 24;
+  static const int kExpectedHeapSnapshotsCollectionSize = 96;
+  static const int kExpectedHeapSnapshotSize = 136;
   static const size_t kMaxSerializableSnapshotRawSize = 256 * MB;
 };
 
 template <> struct SnapshotSizeConstants<8> {
   static const int kExpectedHeapGraphEdgeSize = 24;
   static const int kExpectedHeapEntrySize = 32;
+  static const int kExpectedHeapSnapshotsCollectionSize = 144;
+  static const int kExpectedHeapSnapshotSize = 168;
   static const uint64_t kMaxSerializableSnapshotRawSize =
       static_cast<uint64_t>(6000) * MB;
 };
@@ -1243,12 +1256,15 @@ void HeapSnapshot::Print(int max_depth) {
 
 template<typename T, class P>
 static size_t GetMemoryUsedByList(const List<T, P>& list) {
-  return list.capacity() * sizeof(T);
+  return list.length() * sizeof(T) + sizeof(list);
 }
 
 
 size_t HeapSnapshot::RawSnapshotSize() const {
+  STATIC_CHECK(sizeof(*this) ==
+      SnapshotSizeConstants<kPointerSize>::kExpectedHeapSnapshotSize);
   return
+      sizeof(*this) +
       GetMemoryUsedByList(entries_) +
       GetMemoryUsedByList(edges_) +
       GetMemoryUsedByList(children_) +
@@ -1446,6 +1462,15 @@ SnapshotObjectId HeapObjectsMap::GenerateId(v8::RetainedObjectInfo* info) {
 }
 
 
+size_t HeapObjectsMap::GetUsedMemorySize() const {
+  return
+      sizeof(*this) +
+      sizeof(HashMap::Entry) * entries_map_.capacity() +
+      GetMemoryUsedByList(entries_) +
+      GetMemoryUsedByList(time_intervals_);
+}
+
+
 HeapSnapshotsCollection::HeapSnapshotsCollection()
     : is_tracking_objects_(false),
       snapshots_uids_(HeapSnapshotsMatch),
@@ -1522,6 +1547,22 @@ Handle<HeapObject> HeapSnapshotsCollection::FindHeapObjectById(
     }
   }
   return object != NULL ? Handle<HeapObject>(object) : Handle<HeapObject>();
+}
+
+
+size_t HeapSnapshotsCollection::GetUsedMemorySize() const {
+  STATIC_CHECK(
+      sizeof(*this) == SnapshotSizeConstants<kPointerSize>::
+          kExpectedHeapSnapshotsCollectionSize);
+  size_t size = sizeof(*this);
+  size += names_.GetUsedMemorySize();
+  size += ids_.GetUsedMemorySize();
+  size += sizeof(HashMap::Entry) * snapshots_uids_.capacity();
+  size += GetMemoryUsedByList(snapshots_);
+  for (int i = 0; i < snapshots_.length(); ++i) {
+    size += snapshots_[i]->RawSnapshotSize();
+  }
+  return size;
 }
 
 

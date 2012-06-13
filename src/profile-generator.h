@@ -72,6 +72,7 @@ class StringsStorage {
   const char* GetName(int index);
   inline const char* GetFunctionName(String* name);
   inline const char* GetFunctionName(const char* name);
+  size_t GetUsedMemorySize() const;
 
  private:
   static const int kMaxNameSize = 1024;
@@ -650,6 +651,7 @@ class HeapObjectsMap {
 
   void StopHeapObjectsTracking();
   SnapshotObjectId PushHeapObjectsStats(OutputStream* stream);
+  size_t GetUsedMemorySize() const;
 
   static SnapshotObjectId GenerateId(v8::RetainedObjectInfo* info);
   static inline SnapshotObjectId GetNthGcSubrootId(int delta);
@@ -734,6 +736,7 @@ class HeapSnapshotsCollection {
   SnapshotObjectId last_assigned_id() const {
     return ids_.last_assigned_id();
   }
+  size_t GetUsedMemorySize() const;
 
  private:
   INLINE(static bool HeapSnapshotsMatch(void* key1, void* key2)) {

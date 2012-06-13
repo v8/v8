@@ -482,6 +482,9 @@ class V8EXPORT HeapProfiler {
 
   /** Returns the number of currently existing persistent handles. */
   static int GetPersistentHandleCount();
+
+  /** Returns memory used for profiler internal data and snapshots. */
+  static size_t GetMemorySizeUsedByProfiler();
 };
 
 

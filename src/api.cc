@@ -6270,6 +6270,11 @@ int HeapProfiler::GetPersistentHandleCount() {
 }
 
 
+size_t HeapProfiler::GetMemorySizeUsedByProfiler() {
+  return i::HeapProfiler::GetMemorySizeUsedByProfiler();
+}
+
+
 v8::Testing::StressType internal::Testing::stress_type_ =
     v8::Testing::kStressTypeOpt;
 
