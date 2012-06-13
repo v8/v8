@@ -443,8 +443,9 @@ Handle<Value> Shell::CreateExternalArray(const Arguments& args,
 
 void Shell::ExternalArrayWeakCallback(Persistent<Value> object, void* data) {
   HandleScope scope;
-  Local<Value> length = object->ToObject()->Get(String::New("byteLength"));
-  V8::AdjustAmountOfExternalAllocatedMemory(-length->Uint32Value());
+  int32_t length =
+      object->ToObject()->Get(String::New("byteLength"))->Uint32Value();
+  V8::AdjustAmountOfExternalAllocatedMemory(-length);
   delete[] static_cast<uint8_t*>(data);
   object.Dispose();
 }
@@ -1019,7 +1020,7 @@ static char* ReadChars(const char* name, int* size_out) {
 
 
 Handle<Value> Shell::ReadBuffer(const Arguments& args) {
-  STATIC_ASSERT(sizeof(char) == sizeof(uint8_t));  // NOLINT
+  ASSERT(sizeof(char) == sizeof(uint8_t));  // NOLINT
   String::Utf8Value filename(args[0]);
   int length;
   if (*filename == NULL) {

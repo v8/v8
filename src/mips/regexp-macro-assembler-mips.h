@@ -47,7 +47,7 @@ class RegExpMacroAssemblerMIPS: public RegExpMacroAssembler {
 #else  // V8_INTERPRETED_REGEXP
 class RegExpMacroAssemblerMIPS: public NativeRegExpMacroAssembler {
  public:
-  RegExpMacroAssemblerMIPS(Mode mode, int registers_to_save);
+  RegExpMacroAssemblerMIPS(Mode mode, int registers_to_save, Zone* zone);
   virtual ~RegExpMacroAssemblerMIPS();
   virtual int stack_limit_slack();
   virtual void AdvanceCurrentPosition(int by);

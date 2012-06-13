@@ -63,7 +63,7 @@ class RegExpMacroAssembler {
     kCheckStackLimit = true
   };
 
-  RegExpMacroAssembler();
+  explicit RegExpMacroAssembler(Zone* zone);
   virtual ~RegExpMacroAssembler();
   // The maximal number of pushes between stack checks. Users must supply
   // kCheckStackLimit flag to push operations (instead of kNoStackLimitCheck)
@@ -189,9 +189,12 @@ class RegExpMacroAssembler {
     return global_mode_ == GLOBAL;
   }
 
+  Zone* zone() const { return zone_; }
+
  private:
   bool slow_safe_compiler_;
   bool global_mode_;
+  Zone* zone_;
 };
 
 
@@ -213,7 +216,7 @@ class NativeRegExpMacroAssembler: public RegExpMacroAssembler {
   //        capture positions.
   enum Result { RETRY = -2, EXCEPTION = -1, FAILURE = 0, SUCCESS = 1 };
 
-  NativeRegExpMacroAssembler();
+  explicit NativeRegExpMacroAssembler(Zone* zone);
   virtual ~NativeRegExpMacroAssembler();
   virtual bool CanReadUnaligned();
 

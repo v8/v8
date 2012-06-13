@@ -565,7 +565,7 @@ TEST(HeapSnapshotJSONSerialization) {
   // Get node and edge "member" offsets.
   v8::Local<v8::Value> meta_analysis_result = CompileRun(
       "var meta = parsed.snapshot.meta;\n"
-      "var edges_index_offset = meta.node_fields.indexOf('edges_index');\n"
+      "var edge_count_offset = meta.node_fields.indexOf('edge_count');\n"
       "var node_fields_count = meta.node_fields.length;\n"
       "var edge_fields_count = meta.edge_fields.length;\n"
       "var edge_type_offset = meta.edge_fields.indexOf('type');\n"
@@ -575,7 +575,13 @@ TEST(HeapSnapshotJSONSerialization) {
       "    meta.edge_types[edge_type_offset].indexOf('property');\n"
       "var shortcut_type ="
       "    meta.edge_types[edge_type_offset].indexOf('shortcut');\n"
-      "parsed.nodes.concat(0, 0, 0, 0, 0, 0, parsed.edges.length);");
+      "var node_count = parsed.nodes.length / node_fields_count;\n"
+      "var first_edge_indexes = parsed.first_edge_indexes = [];\n"
+      "for (var i = 0, first_edge_index = 0; i < node_count; ++i) {\n"
+      "  first_edge_indexes[i] = first_edge_index;\n"
+      "  first_edge_index += edge_fields_count *\n"
+      "      parsed.nodes[i * node_fields_count + edge_count_offset];\n"
+      "}\n");
   CHECK(!meta_analysis_result.IsEmpty());
 
   // A helper function for processing encoded nodes.
@@ -584,8 +590,9 @@ TEST(HeapSnapshotJSONSerialization) {
       "  var nodes = parsed.nodes;\n"
       "  var edges = parsed.edges;\n"
       "  var strings = parsed.strings;\n"
-      "  for (var i = nodes[pos + edges_index_offset],\n"
-      "      count = nodes[pos + node_fields_count + edges_index_offset];\n"
+      "  var node_ordinal = pos / node_fields_count;\n"
+      "  for (var i = parsed.first_edge_indexes[node_ordinal],\n"
+      "      count = parsed.first_edge_indexes[node_ordinal + 1];\n"
       "      i < count; i += edge_fields_count) {\n"
       "    if (edges[i + edge_type_offset] === prop_type\n"
       "        && strings[edges[i + edge_name_offset]] === prop_name)\n"
@@ -598,8 +605,7 @@ TEST(HeapSnapshotJSONSerialization) {
       "GetChildPosByProperty(\n"
       "  GetChildPosByProperty(\n"
       "    GetChildPosByProperty("
-      "      parsed.edges[parsed.nodes[edges_index_offset]"
-      "                   + edge_to_node_offset],"
+      "      parsed.edges[edge_to_node_offset],"
       "      \"b\", property_type),\n"
       "    \"x\", property_type),"
       "  \"s\", property_type)");

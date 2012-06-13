@@ -187,8 +187,8 @@ class LUnallocated: public LOperand {
     value_ = VirtualRegisterField::update(value_, id);
   }
 
-  LUnallocated* CopyUnconstrained() {
-    LUnallocated* result = new LUnallocated(ANY);
+  LUnallocated* CopyUnconstrained(Zone* zone) {
+    LUnallocated* result = new(zone) LUnallocated(ANY);
     result->set_virtual_register(virtual_register());
     return result;
   }
@@ -260,10 +260,10 @@ class LMoveOperands BASE_EMBEDDED {
 
 class LConstantOperand: public LOperand {
  public:
-  static LConstantOperand* Create(int index) {
+  static LConstantOperand* Create(int index, Zone* zone) {
     ASSERT(index >= 0);
     if (index < kNumCachedOperands) return &cache[index];
-    return new LConstantOperand(index);
+    return new(zone) LConstantOperand(index);
   }
 
   static LConstantOperand* cast(LOperand* op) {
@@ -296,10 +296,10 @@ class LArgument: public LOperand {
 
 class LStackSlot: public LOperand {
  public:
-  static LStackSlot* Create(int index) {
+  static LStackSlot* Create(int index, Zone* zone) {
     ASSERT(index >= 0);
     if (index < kNumCachedOperands) return &cache[index];
-    return new LStackSlot(index);
+    return new(zone) LStackSlot(index);
   }
 
   static LStackSlot* cast(LOperand* op) {
@@ -321,10 +321,10 @@ class LStackSlot: public LOperand {
 
 class LDoubleStackSlot: public LOperand {
  public:
-  static LDoubleStackSlot* Create(int index) {
+  static LDoubleStackSlot* Create(int index, Zone* zone) {
     ASSERT(index >= 0);
     if (index < kNumCachedOperands) return &cache[index];
-    return new LDoubleStackSlot(index);
+    return new(zone) LDoubleStackSlot(index);
   }
 
   static LDoubleStackSlot* cast(LOperand* op) {
@@ -346,10 +346,10 @@ class LDoubleStackSlot: public LOperand {
 
 class LRegister: public LOperand {
  public:
-  static LRegister* Create(int index) {
+  static LRegister* Create(int index, Zone* zone) {
     ASSERT(index >= 0);
     if (index < kNumCachedOperands) return &cache[index];
-    return new LRegister(index);
+    return new(zone) LRegister(index);
   }
 
   static LRegister* cast(LOperand* op) {
@@ -371,10 +371,10 @@ class LRegister: public LOperand {
 
 class LDoubleRegister: public LOperand {
  public:
-  static LDoubleRegister* Create(int index) {
+  static LDoubleRegister* Create(int index, Zone* zone) {
     ASSERT(index >= 0);
     if (index < kNumCachedOperands) return &cache[index];
-    return new LDoubleRegister(index);
+    return new(zone) LDoubleRegister(index);
   }
 
   static LDoubleRegister* cast(LOperand* op) {
@@ -396,10 +396,10 @@ class LDoubleRegister: public LOperand {
 
 class LParallelMove : public ZoneObject {
  public:
-  LParallelMove() : move_operands_(4) { }
+  explicit LParallelMove(Zone* zone) : move_operands_(4, zone) { }
 
-  void AddMove(LOperand* from, LOperand* to) {
-    move_operands_.Add(LMoveOperands(from, to));
+  void AddMove(LOperand* from, LOperand* to, Zone* zone) {
+    move_operands_.Add(LMoveOperands(from, to), zone);
   }
 
   bool IsRedundant() const;
@@ -417,9 +417,9 @@ class LParallelMove : public ZoneObject {
 
 class LPointerMap: public ZoneObject {
  public:
-  explicit LPointerMap(int position)
-      : pointer_operands_(8),
-        untagged_operands_(0),
+  explicit LPointerMap(int position, Zone* zone)
+      : pointer_operands_(8, zone),
+        untagged_operands_(0, zone),
         position_(position),
         lithium_position_(-1) { }
 
@@ -438,9 +438,9 @@ class LPointerMap: public ZoneObject {
     lithium_position_ = pos;
   }
 
-  void RecordPointer(LOperand* op);
+  void RecordPointer(LOperand* op, Zone* zone);
   void RemovePointer(LOperand* op);
-  void RecordUntagged(LOperand* op);
+  void RecordUntagged(LOperand* op, Zone* zone);
   void PrintTo(StringStream* stream);
 
  private:
@@ -469,7 +469,7 @@ class LEnvironment: public ZoneObject {
         ast_id_(ast_id),
         parameter_count_(parameter_count),
         pc_offset_(-1),
-        values_(value_count),
+        values_(value_count, zone),
         is_tagged_(value_count, closure->GetHeap()->isolate()->zone()),
         spilled_registers_(NULL),
         spilled_double_registers_(NULL),
@@ -492,7 +492,7 @@ class LEnvironment: public ZoneObject {
   LEnvironment* outer() const { return outer_; }
 
   void AddValue(LOperand* operand, Representation representation) {
-    values_.Add(operand);
+    values_.Add(operand, zone());
     if (representation.IsTagged()) {
       is_tagged_.Add(values_.length() - 1);
     }
@@ -522,7 +522,7 @@ class LEnvironment: public ZoneObject {
 
   void PrintTo(StringStream* stream);
 
-  Zone* zone() { return zone_; }
+  Zone* zone() const { return zone_; }
 
  private:
   Handle<JSFunction> closure_;

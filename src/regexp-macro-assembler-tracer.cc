@@ -35,6 +35,7 @@ namespace internal {
 
 RegExpMacroAssemblerTracer::RegExpMacroAssemblerTracer(
     RegExpMacroAssembler* assembler) :
+  RegExpMacroAssembler(assembler->zone()),
   assembler_(assembler) {
   unsigned int type = assembler->Implementation();
   ASSERT(type < 5);

@@ -58,7 +58,8 @@ class SplayTree {
 
   class Locator;
 
-  SplayTree() : root_(NULL) { }
+  SplayTree(AllocationPolicy allocator = AllocationPolicy())
+      : root_(NULL), allocator_(allocator) { }
   ~SplayTree();
 
   INLINE(void* operator new(size_t size,
@@ -72,8 +73,7 @@ class SplayTree {
   // Inserts the given key in this tree with the given value.  Returns
   // true if a node was inserted, otherwise false.  If found the locator
   // is enabled and provides access to the mapping for the key.
-  bool Insert(const Key& key, Locator* locator,
-              AllocationPolicy allocator = AllocationPolicy());
+  bool Insert(const Key& key, Locator* locator);
 
   // Looks up the key in this tree and returns true if it was found,
   // otherwise false.  If the node is found the locator is enabled and
@@ -195,10 +195,10 @@ class SplayTree {
   };
 
   template <class Callback>
-  void ForEachNode(Callback* callback,
-                   AllocationPolicy allocator = AllocationPolicy());
+  void ForEachNode(Callback* callback);
 
   Node* root_;
+  AllocationPolicy allocator_;
 
   DISALLOW_COPY_AND_ASSIGN(SplayTree);
 };

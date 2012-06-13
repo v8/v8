@@ -297,7 +297,7 @@ void TemplateHashMapImpl<AllocationPolicy>::Resize(AllocationPolicy allocator) {
   // Rehash all current entries.
   for (Entry* p = map; n > 0; p++) {
     if (p->key != NULL) {
-      Lookup(p->key, p->hash, true)->value = p->value;
+      Lookup(p->key, p->hash, true, allocator)->value = p->value;
       n--;
     }
   }
@@ -349,8 +349,9 @@ class TemplateHashMap: private TemplateHashMapImpl<AllocationPolicy> {
 
   Iterator begin() const { return Iterator(this, this->Start()); }
   Iterator end() const { return Iterator(this, NULL); }
-  Iterator find(Key* key, bool insert = false) {
-    return Iterator(this, this->Lookup(key, key->Hash(), insert));
+  Iterator find(Key* key, bool insert = false,
+                AllocationPolicy allocator = AllocationPolicy()) {
+    return Iterator(this, this->Lookup(key, key->Hash(), insert, allocator));
   }
 };
 

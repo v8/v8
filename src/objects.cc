@@ -178,6 +178,16 @@ MaybeObject* JSObject::GetPropertyWithCallback(Object* receiver,
   // api style callbacks.
   if (structure->IsAccessorInfo()) {
     AccessorInfo* data = AccessorInfo::cast(structure);
+    if (!data->IsCompatibleReceiver(receiver)) {
+      Handle<Object> name_handle(name);
+      Handle<Object> receiver_handle(receiver);
+      Handle<Object> args[2] = { name_handle, receiver_handle };
+      Handle<Object> error =
+          isolate->factory()->NewTypeError("incompatible_method_receiver",
+                                           HandleVector(args,
+                                                        ARRAY_SIZE(args)));
+      return isolate->Throw(*error);
+    }
     Object* fun_obj = data->getter();
     v8::AccessorGetter call_fun = v8::ToCData<v8::AccessorGetter>(fun_obj);
     HandleScope scope(isolate);
@@ -629,7 +639,6 @@ MaybeObject* Object::GetProperty(Object* receiver,
           recvr, name, attributes);
     }
     case MAP_TRANSITION:
-    case ELEMENTS_TRANSITION:
     case CONSTANT_TRANSITION:
     case NULL_DESCRIPTOR:
       break;
@@ -1514,7 +1523,8 @@ static bool IsIdentifier(UnicodeCache* cache,
 
 MaybeObject* JSObject::AddFastProperty(String* name,
                                        Object* value,
-                                       PropertyAttributes attributes) {
+                                       PropertyAttributes attributes,
+                                       StoreFromKeyed store_mode) {
   ASSERT(!IsJSGlobalProxy());
 
   // Normalize the object if the name is an actual string (not the
@@ -1552,10 +1562,7 @@ MaybeObject* JSObject::AddFastProperty(String* name,
 
   // Element transitions are stored in the descriptor for property "", which is
   // not a identifier and should have forced a switch to slow properties above.
-  ASSERT(descriptor_index == DescriptorArray::kNotFound ||
-      old_descriptors->GetType(descriptor_index) != ELEMENTS_TRANSITION);
-  bool can_insert_transition = descriptor_index == DescriptorArray::kNotFound ||
-      old_descriptors->GetType(descriptor_index) == ELEMENTS_TRANSITION;
+  bool can_insert_transition = descriptor_index == DescriptorArray::kNotFound;
   bool allow_map_transition =
       can_insert_transition &&
       (isolate->context()->global_context()->object_function()->map() != map());
@@ -1580,7 +1587,7 @@ MaybeObject* JSObject::AddFastProperty(String* name,
   }
 
   if (map()->unused_property_fields() == 0) {
-    if (properties()->length() > MaxFastProperties()) {
+    if (TooManyFastProperties(properties()->length(), store_mode)) {
       Object* obj;
       { MaybeObject* maybe_obj =
             NormalizeProperties(CLEAR_INOBJECT_PROPERTIES, 0);
@@ -1601,7 +1608,9 @@ MaybeObject* JSObject::AddFastProperty(String* name,
   }
   // We have now allocated all the necessary objects.
   // All the changes can be applied at once, so they are atomic.
-  map()->set_instance_descriptors(old_descriptors);
+  if (allow_map_transition) {
+    map()->set_instance_descriptors(old_descriptors);
+  }
   new_map->SetBackPointer(map());
   new_map->set_instance_descriptors(DescriptorArray::cast(new_descriptors));
   set_map(new_map);
@@ -1710,7 +1719,8 @@ MaybeObject* JSObject::AddSlowProperty(String* name,
 MaybeObject* JSObject::AddProperty(String* name,
                                    Object* value,
                                    PropertyAttributes attributes,
-                                   StrictModeFlag strict_mode) {
+                                   StrictModeFlag strict_mode,
+                                   JSReceiver::StoreFromKeyed store_mode) {
   ASSERT(!IsJSGlobalProxy());
   Map* map_of_this = map();
   Heap* heap = GetHeap();
@@ -1733,7 +1743,7 @@ MaybeObject* JSObject::AddProperty(String* name,
                                            JSFunction::cast(value),
                                            attributes);
       } else {
-        return AddFastProperty(name, value, attributes);
+        return AddFastProperty(name, value, attributes, store_mode);
       }
     } else {
       // Normalize the object to prevent very large instance descriptors.
@@ -1762,14 +1772,11 @@ MaybeObject* JSObject::SetPropertyPostInterceptor(
     // found.  Use set property to handle all these cases.
     return SetProperty(&result, name, value, attributes, strict_mode);
   }
-  bool found = false;
+  bool done = false;
   MaybeObject* result_object;
-  result_object = SetPropertyWithCallbackSetterInPrototypes(name,
-                                                            value,
-                                                            attributes,
-                                                            &found,
-                                                            strict_mode);
-  if (found) return result_object;
+  result_object =
+      SetPropertyViaPrototypes(name, value, attributes, strict_mode, &done);
+  if (done) return result_object;
   // Add a new real property.
   return AddProperty(name, value, attributes, strict_mode);
 }
@@ -1833,7 +1840,7 @@ MaybeObject* JSObject::ConvertDescriptorToField(String* name,
                                                 Object* new_value,
                                                 PropertyAttributes attributes) {
   if (map()->unused_property_fields() == 0 &&
-      properties()->length() > MaxFastProperties()) {
+      TooManyFastProperties(properties()->length(), MAY_BE_STORE_FROM_KEYED)) {
     Object* obj;
     { MaybeObject* maybe_obj =
           NormalizeProperties(CLEAR_INOBJECT_PROPERTIES, 0);
@@ -1948,10 +1955,11 @@ Handle<Object> JSReceiver::SetProperty(Handle<JSReceiver> object,
 MaybeObject* JSReceiver::SetProperty(String* name,
                                      Object* value,
                                      PropertyAttributes attributes,
-                                     StrictModeFlag strict_mode) {
+                                     StrictModeFlag strict_mode,
+                                     JSReceiver::StoreFromKeyed store_mode) {
   LookupResult result(GetIsolate());
   LocalLookup(name, &result);
-  return SetProperty(&result, name, value, attributes, strict_mode);
+  return SetProperty(&result, name, value, attributes, strict_mode, store_mode);
 }
 
 
@@ -1984,6 +1992,16 @@ MaybeObject* JSObject::SetPropertyWithCallback(Object* structure,
   if (structure->IsAccessorInfo()) {
     // api style callbacks
     AccessorInfo* data = AccessorInfo::cast(structure);
+    if (!data->IsCompatibleReceiver(this)) {
+      Handle<Object> name_handle(name);
+      Handle<Object> receiver_handle(this);
+      Handle<Object> args[2] = { name_handle, receiver_handle };
+      Handle<Object> error =
+          isolate->factory()->NewTypeError("incompatible_method_receiver",
+                                           HandleVector(args,
+                                                        ARRAY_SIZE(args)));
+      return isolate->Throw(*error);
+    }
     Object* call_obj = data->setter();
     v8::AccessorSetter call_fun = v8::ToCData<v8::AccessorSetter>(call_obj);
     if (call_fun == NULL) return value;
@@ -2049,26 +2067,6 @@ MaybeObject* JSReceiver::SetPropertyWithDefinedSetter(JSReceiver* setter,
 }
 
 
-void JSObject::LookupCallbackSetterInPrototypes(String* name,
-                                                LookupResult* result) {
-  Heap* heap = GetHeap();
-  for (Object* pt = GetPrototype();
-       pt != heap->null_value();
-       pt = pt->GetPrototype()) {
-    if (pt->IsJSProxy()) {
-      return result->HandlerResult(JSProxy::cast(pt));
-    }
-    JSObject::cast(pt)->LocalLookupRealNamedProperty(name, result);
-    if (result->IsProperty()) {
-      if (result->type() == CALLBACKS && !result->IsReadOnly()) return;
-      // Found non-callback or read-only callback, stop looking.
-      break;
-    }
-  }
-  result->NotFound();
-}
-
-
 MaybeObject* JSObject::SetElementWithCallbackSetterInPrototypes(
     uint32_t index,
     Object* value,
@@ -2085,7 +2083,7 @@ MaybeObject* JSObject::SetElementWithCallbackSetterInPrototypes(
         *found = true;  // Force abort
         return maybe;
       }
-      return JSProxy::cast(pt)->SetPropertyWithHandlerIfDefiningSetter(
+      return JSProxy::cast(pt)->SetPropertyViaPrototypesWithHandler(
           this, name, value, NONE, strict_mode, found);
     }
     if (!JSObject::cast(pt)->HasDictionaryElements()) {
@@ -2110,45 +2108,60 @@ MaybeObject* JSObject::SetElementWithCallbackSetterInPrototypes(
   return heap->the_hole_value();
 }
 
-MaybeObject* JSObject::SetPropertyWithCallbackSetterInPrototypes(
+MaybeObject* JSObject::SetPropertyViaPrototypes(
     String* name,
     Object* value,
     PropertyAttributes attributes,
-    bool* found,
-    StrictModeFlag strict_mode) {
+    StrictModeFlag strict_mode,
+    bool* done) {
   Heap* heap = GetHeap();
+  Isolate* isolate = heap->isolate();
+
+  *done = false;
   // We could not find a local property so let's check whether there is an
-  // accessor that wants to handle the property.
-  LookupResult accessor_result(heap->isolate());
-  LookupCallbackSetterInPrototypes(name, &accessor_result);
-  if (accessor_result.IsFound()) {
-    *found = true;
-    if (accessor_result.type() == CALLBACKS) {
-      return SetPropertyWithCallback(accessor_result.GetCallbackObject(),
-                                     name,
-                                     value,
-                                     accessor_result.holder(),
-                                     strict_mode);
-    } else if (accessor_result.type() == HANDLER) {
-      // There is a proxy in the prototype chain. Invoke its
-      // getPropertyDescriptor trap.
-      bool found = false;
-      // SetPropertyWithHandlerIfDefiningSetter can cause GC,
-      // make sure to use the handlified references after calling
-      // the function.
-      Handle<JSObject> self(this);
-      Handle<String> hname(name);
-      Handle<Object> hvalue(value);
-      MaybeObject* result =
-          accessor_result.proxy()->SetPropertyWithHandlerIfDefiningSetter(
-              this, name, value, attributes, strict_mode, &found);
-      if (found) return result;
-      // The proxy does not define the property as an accessor.
-      // Consequently, it has no effect on setting the receiver.
-      return self->AddProperty(*hname, *hvalue, attributes, strict_mode);
+  // accessor that wants to handle the property, or whether the property is
+  // read-only on the prototype chain.
+  LookupResult result(isolate);
+  LookupRealNamedPropertyInPrototypes(name, &result);
+  if (result.IsFound()) {
+    switch (result.type()) {
+      case NORMAL:
+      case FIELD:
+      case CONSTANT_FUNCTION:
+        *done = result.IsReadOnly();
+        break;
+      case INTERCEPTOR: {
+        PropertyAttributes attr =
+            result.holder()->GetPropertyAttributeWithInterceptor(
+                this, name, true);
+        *done = !!(attr & READ_ONLY);
+        break;
+      }
+      case CALLBACKS: {
+        if (!FLAG_es5_readonly && result.IsReadOnly()) break;
+        *done = true;
+        return SetPropertyWithCallback(result.GetCallbackObject(),
+            name, value, result.holder(), strict_mode);
+      }
+      case HANDLER: {
+        return result.proxy()->SetPropertyViaPrototypesWithHandler(
+            this, name, value, attributes, strict_mode, done);
+      }
+      case MAP_TRANSITION:
+      case CONSTANT_TRANSITION:
+      case NULL_DESCRIPTOR:
+        break;
     }
   }
-  *found = false;
+
+  // If we get here with *done true, we have encountered a read-only property.
+  if (!FLAG_es5_readonly) *done = false;
+  if (*done) {
+    if (strict_mode == kNonStrictMode) return value;
+    Handle<Object> args[] = { Handle<Object>(name), Handle<Object>(this)};
+    return isolate->Throw(*isolate->factory()->NewTypeError(
+      "strict_read_only_property", HandleVector(args, ARRAY_SIZE(args))));
+  }
   return heap->the_hole_value();
 }
 
@@ -2207,9 +2220,8 @@ Handle<Map> Map::FindTransitionedMap(MapHandleList* candidates) {
   if (IsTransitionableFastElementsKind(kind)) {
     while (CanTransitionToMoreGeneralFastElementsKind(kind, false)) {
       kind = GetNextMoreGeneralFastElementsKind(kind, false);
-      bool dummy = true;
       Handle<Map> maybe_transitioned_map =
-          MaybeNull(current_map->LookupElementsTransitionMap(kind, &dummy));
+          MaybeNull(current_map->LookupElementsTransitionMap(kind));
       if (maybe_transitioned_map.is_null()) break;
       if (ContainsMap(candidates, maybe_transitioned_map) &&
           (packed || !IsFastPackedElementsKind(kind))) {
@@ -2223,207 +2235,68 @@ Handle<Map> Map::FindTransitionedMap(MapHandleList* candidates) {
 }
 
 
-static Map* GetElementsTransitionMapFromDescriptor(Object* descriptor_contents,
-                                                   ElementsKind elements_kind) {
-  if (descriptor_contents->IsMap()) {
-    Map* map = Map::cast(descriptor_contents);
-    if (map->elements_kind() == elements_kind) {
-      return map;
+static Map* FindClosestElementsTransition(Map* map, ElementsKind to_kind) {
+  Map* current_map = map;
+  int index = GetSequenceIndexFromFastElementsKind(map->elements_kind());
+  int to_index = GetSequenceIndexFromFastElementsKind(to_kind);
+  for (; index < to_index; ++index) {
+    Map* next_map = current_map->elements_transition_map();
+    if (next_map == NULL) {
+      return current_map;
     }
-    return NULL;
+    current_map = next_map;
   }
-
-  FixedArray* map_array = FixedArray::cast(descriptor_contents);
-  for (int i = 0; i < map_array->length(); ++i) {
-    Object* current = map_array->get(i);
-    // Skip undefined slots, they are sentinels for reclaimed maps.
-    if (!current->IsUndefined()) {
-      Map* current_map = Map::cast(map_array->get(i));
-      if (current_map->elements_kind() == elements_kind) {
-        return current_map;
-      }
-    }
-  }
-
-  return NULL;
+  ASSERT(current_map->elements_kind() == to_kind);
+  return current_map;
 }
 
 
-static MaybeObject* AddElementsTransitionMapToDescriptor(
-    Object* descriptor_contents,
-    Map* new_map) {
-  // Nothing was in the descriptor for an ELEMENTS_TRANSITION,
-  // simply add the map.
-  if (descriptor_contents == NULL) {
-    return new_map;
-  }
-
-  // There was already a map in the descriptor, create a 2-element FixedArray
-  // to contain the existing map plus the new one.
-  FixedArray* new_array;
-  Heap* heap = new_map->GetHeap();
-  if (descriptor_contents->IsMap()) {
-    // Must tenure, DescriptorArray expects no new-space objects.
-    MaybeObject* maybe_new_array = heap->AllocateFixedArray(2, TENURED);
-    if (!maybe_new_array->To<FixedArray>(&new_array)) {
-      return maybe_new_array;
-    }
-    new_array->set(0, descriptor_contents);
-    new_array->set(1, new_map);
-    return new_array;
-  }
-
-  // The descriptor already contained a list of maps for different ElementKinds
-  // of ELEMENTS_TRANSITION, first check the existing array for an undefined
-  // slot, and if that's not available, create a FixedArray to hold the existing
-  // maps plus the new one and fill it in.
-  FixedArray* array = FixedArray::cast(descriptor_contents);
-  for (int i = 0; i < array->length(); ++i) {
-    if (array->get(i)->IsUndefined()) {
-      array->set(i, new_map);
-      return array;
-    }
-  }
-
-  // Must tenure, DescriptorArray expects no new-space objects.
-  MaybeObject* maybe_new_array =
-      heap->AllocateFixedArray(array->length() + 1, TENURED);
-  if (!maybe_new_array->To<FixedArray>(&new_array)) {
-    return maybe_new_array;
-  }
-  int i = 0;
-  while (i < array->length()) {
-    new_array->set(i, array->get(i));
-    ++i;
-  }
-  new_array->set(i, new_map);
-  return new_array;
-}
-
-
-String* Map::elements_transition_sentinel_name() {
-  return GetHeap()->empty_symbol();
-}
-
-
-Object* Map::GetDescriptorContents(String* sentinel_name,
-                                   bool* safe_to_add_transition) {
-  // Get the cached index for the descriptors lookup, or find and cache it.
-  DescriptorArray* descriptors = instance_descriptors();
-  DescriptorLookupCache* cache = GetIsolate()->descriptor_lookup_cache();
-  int index = cache->Lookup(descriptors, sentinel_name);
-  if (index == DescriptorLookupCache::kAbsent) {
-    index = descriptors->Search(sentinel_name);
-    cache->Update(descriptors, sentinel_name, index);
-  }
-  // If the transition already exists, return its descriptor.
-  if (index != DescriptorArray::kNotFound) {
-    PropertyDetails details = descriptors->GetDetails(index);
-    if (details.type() == ELEMENTS_TRANSITION) {
-      return descriptors->GetValue(index);
-    } else {
-      if (safe_to_add_transition != NULL) {
-        *safe_to_add_transition = false;
-      }
+Map* Map::LookupElementsTransitionMap(ElementsKind to_kind) {
+  if (this->instance_descriptors()->MayContainTransitions() &&
+      IsMoreGeneralElementsKindTransition(this->elements_kind(), to_kind)) {
+    Map* to_map = FindClosestElementsTransition(this, to_kind);
+    if (to_map->elements_kind() == to_kind) {
+      return to_map;
     }
   }
   return NULL;
 }
 
 
-Map* Map::LookupElementsTransitionMap(ElementsKind to_kind,
-                                      bool* safe_to_add_transition) {
-  ElementsKind from_kind = elements_kind();
-  if (IsFastElementsKind(from_kind) && IsFastElementsKind(to_kind)) {
-    if (!IsMoreGeneralElementsKindTransition(from_kind, to_kind)) {
-      if (safe_to_add_transition) *safe_to_add_transition = false;
-      return NULL;
-    }
-    ElementsKind transitioned_from_kind =
-        GetNextMoreGeneralFastElementsKind(from_kind, false);
+MaybeObject* Map::CreateNextElementsTransition(ElementsKind next_kind) {
+    ASSERT(elements_transition_map() == NULL);
+    ASSERT(GetSequenceIndexFromFastElementsKind(elements_kind()) ==
+           (GetSequenceIndexFromFastElementsKind(next_kind) - 1));
 
+    Map* next_map;
+    MaybeObject* maybe_next_map =
+        this->CopyDropTransitions(DescriptorArray::CANNOT_BE_SHARED);
+    if (!maybe_next_map->To(&next_map)) return maybe_next_map;
 
-    // If the transition is a single step in the transition sequence, fall
-    // through to looking it up and returning it. If it requires several steps,
-    // divide and conquer.
-    if (transitioned_from_kind != to_kind) {
-      // If the transition is several steps in the lattice, divide and conquer.
-      Map* from_map = LookupElementsTransitionMap(transitioned_from_kind,
-                                                  safe_to_add_transition);
-      if (from_map == NULL) return NULL;
-      return from_map->LookupElementsTransitionMap(to_kind,
-                                                   safe_to_add_transition);
-    }
-  }
-  Object* descriptor_contents = GetDescriptorContents(
-      elements_transition_sentinel_name(), safe_to_add_transition);
-  if (descriptor_contents != NULL) {
-    Map* maybe_transition_map =
-        GetElementsTransitionMapFromDescriptor(descriptor_contents,
-                                               to_kind);
-    ASSERT(maybe_transition_map == NULL || maybe_transition_map->IsMap());
-    return maybe_transition_map;
-  }
-  return NULL;
+    next_map->set_elements_kind(next_kind);
+    next_map->SetBackPointer(this);
+    this->set_elements_transition_map(next_map);
+    return next_map;
 }
 
 
-MaybeObject* Map::AddElementsTransition(ElementsKind to_kind,
-                                        Map* transitioned_map) {
-  ElementsKind from_kind = elements_kind();
-  if (IsFastElementsKind(from_kind) && IsFastElementsKind(to_kind)) {
-    ASSERT(IsMoreGeneralElementsKindTransition(from_kind, to_kind));
-    ElementsKind transitioned_from_kind =
-        GetNextMoreGeneralFastElementsKind(from_kind, false);
-    // The map transitions graph should be a tree, therefore transitions to
-    // ElementsKind that are not adjacent in the ElementsKind sequence are not
-    // done directly, but instead by going through intermediate ElementsKinds
-    // first.
-    if (to_kind != transitioned_from_kind) {
-      bool safe_to_add = true;
-      Map* intermediate_map = LookupElementsTransitionMap(
-          transitioned_from_kind, &safe_to_add);
-      // This method is only called when safe_to_add has been found to be true
-      // earlier.
-      ASSERT(safe_to_add);
+static MaybeObject* AddMissingElementsTransitions(Map* map,
+                                                  ElementsKind to_kind) {
+  int index = GetSequenceIndexFromFastElementsKind(map->elements_kind()) + 1;
+  int to_index = GetSequenceIndexFromFastElementsKind(to_kind);
+  ASSERT(index <= to_index);
 
-      if (intermediate_map == NULL) {
-        MaybeObject* maybe_map = CopyDropTransitions();
-        if (!maybe_map->To(&intermediate_map)) return maybe_map;
-        intermediate_map->set_elements_kind(transitioned_from_kind);
-        MaybeObject* maybe_transition = AddElementsTransition(
-            transitioned_from_kind, intermediate_map);
-        if (maybe_transition->IsFailure()) return maybe_transition;
-      }
-      return intermediate_map->AddElementsTransition(to_kind, transitioned_map);
-    }
+  Map* current_map = map;
+
+  for (; index <= to_index; ++index) {
+      ElementsKind next_kind = GetFastElementsKindFromSequenceIndex(index);
+      MaybeObject* maybe_next_map =
+          current_map->CreateNextElementsTransition(next_kind);
+      if (!maybe_next_map->To(&current_map)) return maybe_next_map;
   }
 
-  bool safe_to_add_transition = true;
-  Object* descriptor_contents = GetDescriptorContents(
-      elements_transition_sentinel_name(), &safe_to_add_transition);
-  // This method is only called when safe_to_add_transition has been found
-  // to be true earlier.
-  ASSERT(safe_to_add_transition);
-  MaybeObject* maybe_new_contents =
-      AddElementsTransitionMapToDescriptor(descriptor_contents,
-                                           transitioned_map);
-  Object* new_contents;
-  if (!maybe_new_contents->ToObject(&new_contents)) {
-    return maybe_new_contents;
-  }
-
-  ElementsTransitionDescriptor desc(elements_transition_sentinel_name(),
-                                    new_contents);
-  Object* new_descriptors;
-  MaybeObject* maybe_new_descriptors =
-      instance_descriptors()->CopyInsert(&desc, KEEP_TRANSITIONS);
-  if (!maybe_new_descriptors->ToObject(&new_descriptors)) {
-    return maybe_new_descriptors;
-  }
-  set_instance_descriptors(DescriptorArray::cast(new_descriptors));
-  transitioned_map->SetBackPointer(this);
-  return this;
+  ASSERT(current_map->elements_kind() == to_kind);
+  return current_map;
 }
 
 
@@ -2436,58 +2309,60 @@ Handle<Map> JSObject::GetElementsTransitionMap(Handle<JSObject> object,
 }
 
 
+// If the map is using the empty descriptor array, install a new empty
+// descriptor array that will contain an element transition.
+// TODO(verwaest) Goes away once the descriptor array is immutable.
+static MaybeObject* EnsureMayContainTransitions(Map* map) {
+  if (map->instance_descriptors()->MayContainTransitions()) return map;
+  DescriptorArray* descriptor_array;
+  MaybeObject* maybe_descriptor_array =
+      DescriptorArray::Allocate(0, DescriptorArray::CANNOT_BE_SHARED);
+  if (!maybe_descriptor_array->To(&descriptor_array)) {
+    return maybe_descriptor_array;
+  }
+  map->set_instance_descriptors(descriptor_array);
+  return map;
+}
+
+
 MaybeObject* JSObject::GetElementsTransitionMapSlow(ElementsKind to_kind) {
-  Map* current_map = map();
-  ElementsKind from_kind = current_map->elements_kind();
+  Map* start_map = map();
+  ElementsKind from_kind = start_map->elements_kind();
 
-  if (from_kind == to_kind) return current_map;
-
-  // Only objects with FastProperties can have DescriptorArrays and can track
-  // element-related maps. Also don't add descriptors to maps that are shared.
-  bool safe_to_add_transition = HasFastProperties() &&
-      !current_map->IsUndefined() &&
-      !current_map->is_shared();
-
-  // Prevent long chains of DICTIONARY -> FAST_*_ELEMENTS maps caused by objects
-  // with elements that switch back and forth between dictionary and fast
-  // element modes.
-  if (from_kind == DICTIONARY_ELEMENTS &&
-      IsFastElementsKind(to_kind)) {
-    safe_to_add_transition = false;
+  if (from_kind == to_kind) {
+    return start_map;
   }
 
-  if (safe_to_add_transition) {
-    // It's only safe to manipulate the descriptor array if it would be
-    // safe to add a transition.
-    Map* maybe_transition_map = current_map->LookupElementsTransitionMap(
-        to_kind, &safe_to_add_transition);
-    if (maybe_transition_map != NULL) {
-      return maybe_transition_map;
-    }
-  }
-
-  Map* new_map = NULL;
-
-  // No transition to an existing map for the given ElementsKind. Make a new
-  // one.
-  { MaybeObject* maybe_map = current_map->CopyDropTransitions();
-    if (!maybe_map->To(&new_map)) return maybe_map;
-  }
-
-  new_map->set_elements_kind(to_kind);
-
-  // Only remember the map transition if the object's map is NOT equal to the
-  // global object_function's map and there is not an already existing
-  // non-matching element transition.
   Context* global_context = GetIsolate()->context()->global_context();
-  bool allow_map_transition = safe_to_add_transition &&
-      (global_context->object_function()->map() != map());
-  if (allow_map_transition) {
-    MaybeObject* maybe_transition =
-        current_map->AddElementsTransition(to_kind, new_map);
-    if (maybe_transition->IsFailure()) return maybe_transition;
+  bool allow_store_transition =
+      // Only remember the map transition if the object's map is NOT equal to
+      // the global object_function's map and there is not an already existing
+      // non-matching element transition.
+      (global_context->object_function()->map() != map()) &&
+      !start_map->IsUndefined() && !start_map->is_shared() &&
+      // Only store fast element maps in ascending generality.
+      IsTransitionableFastElementsKind(from_kind) &&
+      IsFastElementsKind(to_kind) &&
+      IsMoreGeneralElementsKindTransition(from_kind, to_kind);
+
+  if (!allow_store_transition) {
+    // Create a new free-floating map only if we are not allowed to store it.
+    Map* new_map = NULL;
+    MaybeObject* maybe_new_map =
+        start_map->CopyDropTransitions(DescriptorArray::MAY_BE_SHARED);
+    if (!maybe_new_map->To(&new_map)) return maybe_new_map;
+    new_map->set_elements_kind(to_kind);
+    return new_map;
   }
-  return new_map;
+
+  EnsureMayContainTransitions(start_map);
+  Map* closest_map = FindClosestElementsTransition(start_map, to_kind);
+
+  if (closest_map->elements_kind() == to_kind) {
+    return closest_map;
+  }
+
+  return AddMissingElementsTransitions(closest_map, to_kind);
 }
 
 
@@ -2553,9 +2428,13 @@ void JSObject::LookupRealNamedPropertyInPrototypes(String* name,
   Heap* heap = GetHeap();
   for (Object* pt = GetPrototype();
        pt != heap->null_value();
-       pt = JSObject::cast(pt)->GetPrototype()) {
+       pt = pt->GetPrototype()) {
+    if (pt->IsJSProxy()) {
+      return result->HandlerResult(JSProxy::cast(pt));
+    }
     JSObject::cast(pt)->LocalLookupRealNamedProperty(name, result);
-    if (result->IsProperty() && (result->type() != INTERCEPTOR)) return;
+    ASSERT(!(result->IsProperty() && result->type() == INTERCEPTOR));
+    if (result->IsProperty()) return;
   }
   result->NotFound();
 }
@@ -2569,7 +2448,7 @@ MaybeObject* JSObject::SetPropertyWithFailedAccessCheck(
     bool check_prototype,
     StrictModeFlag strict_mode) {
   if (check_prototype && !result->IsProperty()) {
-    LookupCallbackSetterInPrototypes(name, result);
+    LookupRealNamedPropertyInPrototypes(name, result);
   }
 
   if (result->IsProperty()) {
@@ -2622,13 +2501,14 @@ MaybeObject* JSReceiver::SetProperty(LookupResult* result,
                                      String* key,
                                      Object* value,
                                      PropertyAttributes attributes,
-                                     StrictModeFlag strict_mode) {
+                                     StrictModeFlag strict_mode,
+                                     JSReceiver::StoreFromKeyed store_mode) {
   if (result->IsFound() && result->type() == HANDLER) {
     return result->proxy()->SetPropertyWithHandler(
         this, key, value, attributes, strict_mode);
   } else {
     return JSObject::cast(this)->SetPropertyForResult(
-        result, key, value, attributes, strict_mode);
+        result, key, value, attributes, strict_mode, store_mode);
   }
 }
 
@@ -2642,7 +2522,7 @@ bool JSProxy::HasPropertyWithHandler(String* name_raw) {
   Handle<Object> args[] = { name };
   Handle<Object> result = CallTrap(
     "has", isolate->derived_has_trap(), ARRAY_SIZE(args), args);
-  if (isolate->has_pending_exception()) return Failure::Exception();
+  if (isolate->has_pending_exception()) return false;
 
   return result->ToBoolean()->IsTrue();
 }
@@ -2668,79 +2548,92 @@ MUST_USE_RESULT MaybeObject* JSProxy::SetPropertyWithHandler(
 }
 
 
-MUST_USE_RESULT MaybeObject* JSProxy::SetPropertyWithHandlerIfDefiningSetter(
+MUST_USE_RESULT MaybeObject* JSProxy::SetPropertyViaPrototypesWithHandler(
     JSReceiver* receiver_raw,
     String* name_raw,
     Object* value_raw,
     PropertyAttributes attributes,
     StrictModeFlag strict_mode,
-    bool* found) {
-  *found = true;  // except where defined otherwise...
-  Isolate* isolate = GetHeap()->isolate();
-  Handle<JSReceiver> receiver(receiver_raw);
+    bool* done) {
+  Isolate* isolate = GetIsolate();
   Handle<JSProxy> proxy(this);
-  Handle<Object> handler(this->handler());  // Trap might morph proxy.
+  Handle<JSReceiver> receiver(receiver_raw);
   Handle<String> name(name_raw);
   Handle<Object> value(value_raw);
+  Handle<Object> handler(this->handler());  // Trap might morph proxy.
+
+  *done = true;  // except where redefined...
   Handle<Object> args[] = { name };
   Handle<Object> result = proxy->CallTrap(
       "getPropertyDescriptor", Handle<Object>(), ARRAY_SIZE(args), args);
   if (isolate->has_pending_exception()) return Failure::Exception();
 
-  if (!result->IsUndefined()) {
-    // The proxy handler cares about this property.
-    // Check whether it is virtualized as an accessor.
-    // Emulate [[GetProperty]] semantics for proxies.
-    bool has_pending_exception;
-    Handle<Object> argv[] = { result };
-    Handle<Object> desc =
-        Execution::Call(isolate->to_complete_property_descriptor(), result,
-                        ARRAY_SIZE(argv), argv, &has_pending_exception);
-    if (has_pending_exception) return Failure::Exception();
-
-    Handle<String> conf_name =
-        isolate->factory()->LookupAsciiSymbol("configurable_");
-    Handle<Object> configurable(v8::internal::GetProperty(desc, conf_name));
-    ASSERT(!isolate->has_pending_exception());
-    if (configurable->IsFalse()) {
-      Handle<String> trap =
-          isolate->factory()->LookupAsciiSymbol("getPropertyDescriptor");
-      Handle<Object> args[] = { handler, trap, name };
-      Handle<Object> error = isolate->factory()->NewTypeError(
-          "proxy_prop_not_configurable", HandleVector(args, ARRAY_SIZE(args)));
-      return isolate->Throw(*error);
-    }
-    ASSERT(configurable->IsTrue());
-
-    // Check for AccessorDescriptor.
-    Handle<String> set_name = isolate->factory()->LookupAsciiSymbol("set_");
-    Handle<Object> setter(v8::internal::GetProperty(desc, set_name));
-    ASSERT(!isolate->has_pending_exception());
-    if (!setter->IsUndefined()) {
-      // We have a setter -- invoke it.
-      // TODO(rossberg): nicer would be to cast to some JSCallable here...
-      return receiver->SetPropertyWithDefinedSetter(
-          JSReceiver::cast(*setter), *value);
-    } else {
-      Handle<String> get_name = isolate->factory()->LookupAsciiSymbol("get_");
-      Handle<Object> getter(v8::internal::GetProperty(desc, get_name));
-      ASSERT(!isolate->has_pending_exception());
-      if (!getter->IsUndefined()) {
-        // We have a getter but no setter -- the property may not be
-        // written. In strict mode, throw an error.
-        if (strict_mode == kNonStrictMode) return *value;
-        Handle<Object> args[] = { name, proxy };
-        Handle<Object> error = isolate->factory()->NewTypeError(
-            "no_setter_in_callback", HandleVector(args, ARRAY_SIZE(args)));
-        return isolate->Throw(*error);
-      }
-    }
-    // Fall-through.
+  if (result->IsUndefined()) {
+    *done = false;
+    return GetHeap()->the_hole_value();
   }
 
-  // The proxy does not define the property as an accessor.
-  *found = false;
-  return *value;
+  // Emulate [[GetProperty]] semantics for proxies.
+  bool has_pending_exception;
+  Handle<Object> argv[] = { result };
+  Handle<Object> desc =
+      Execution::Call(isolate->to_complete_property_descriptor(), result,
+                      ARRAY_SIZE(argv), argv, &has_pending_exception);
+  if (has_pending_exception) return Failure::Exception();
+
+  // [[GetProperty]] requires to check that all properties are configurable.
+  Handle<String> configurable_name =
+      isolate->factory()->LookupAsciiSymbol("configurable_");
+  Handle<Object> configurable(
+      v8::internal::GetProperty(desc, configurable_name));
+  ASSERT(!isolate->has_pending_exception());
+  ASSERT(configurable->IsTrue() || configurable->IsFalse());
+  if (configurable->IsFalse()) {
+    Handle<String> trap =
+        isolate->factory()->LookupAsciiSymbol("getPropertyDescriptor");
+    Handle<Object> args[] = { handler, trap, name };
+    Handle<Object> error = isolate->factory()->NewTypeError(
+        "proxy_prop_not_configurable", HandleVector(args, ARRAY_SIZE(args)));
+    return isolate->Throw(*error);
+  }
+  ASSERT(configurable->IsTrue());
+
+  // Check for DataDescriptor.
+  Handle<String> hasWritable_name =
+      isolate->factory()->LookupAsciiSymbol("hasWritable_");
+  Handle<Object> hasWritable(v8::internal::GetProperty(desc, hasWritable_name));
+  ASSERT(!isolate->has_pending_exception());
+  ASSERT(hasWritable->IsTrue() || hasWritable->IsFalse());
+  if (hasWritable->IsTrue()) {
+    Handle<String> writable_name =
+        isolate->factory()->LookupAsciiSymbol("writable_");
+    Handle<Object> writable(v8::internal::GetProperty(desc, writable_name));
+    ASSERT(!isolate->has_pending_exception());
+    ASSERT(writable->IsTrue() || writable->IsFalse());
+    *done = writable->IsFalse();
+    if (!*done) return GetHeap()->the_hole_value();
+    if (strict_mode == kNonStrictMode) return *value;
+    Handle<Object> args[] = { name, receiver };
+    Handle<Object> error = isolate->factory()->NewTypeError(
+        "strict_read_only_property", HandleVector(args, ARRAY_SIZE(args)));
+    return isolate->Throw(*error);
+  }
+
+  // We have an AccessorDescriptor.
+  Handle<String> set_name = isolate->factory()->LookupAsciiSymbol("set_");
+  Handle<Object> setter(v8::internal::GetProperty(desc, set_name));
+  ASSERT(!isolate->has_pending_exception());
+  if (!setter->IsUndefined()) {
+    // TODO(rossberg): nicer would be to cast to some JSCallable here...
+    return receiver->SetPropertyWithDefinedSetter(
+        JSReceiver::cast(*setter), *value);
+  }
+
+  if (strict_mode == kNonStrictMode) return *value;
+  Handle<Object> args2[] = { name, proxy };
+  Handle<Object> error = isolate->factory()->NewTypeError(
+      "no_setter_in_callback", HandleVector(args2, ARRAY_SIZE(args2)));
+  return isolate->Throw(*error);
 }
 
 
@@ -2898,7 +2791,8 @@ MaybeObject* JSObject::SetPropertyForResult(LookupResult* result,
                                             String* name,
                                             Object* value,
                                             PropertyAttributes attributes,
-                                            StrictModeFlag strict_mode) {
+                                            StrictModeFlag strict_mode,
+                                            StoreFromKeyed store_mode) {
   Heap* heap = GetHeap();
   // Make sure that the top context does not change when doing callbacks or
   // interceptor calls.
@@ -2929,26 +2823,19 @@ MaybeObject* JSObject::SetPropertyForResult(LookupResult* result,
     if (proto->IsNull()) return value;
     ASSERT(proto->IsJSGlobalObject());
     return JSObject::cast(proto)->SetPropertyForResult(
-        result, name, value, attributes, strict_mode);
+        result, name, value, attributes, strict_mode, store_mode);
   }
 
   if (!result->IsProperty() && !IsJSContextExtensionObject()) {
-    bool found = false;
-    MaybeObject* result_object;
-    result_object = SetPropertyWithCallbackSetterInPrototypes(name,
-                                                              value,
-                                                              attributes,
-                                                              &found,
-                                                              strict_mode);
-    if (found) return result_object;
+    bool done = false;
+    MaybeObject* result_object =
+        SetPropertyViaPrototypes(name, value, attributes, strict_mode, &done);
+    if (done) return result_object;
   }
-
-  // At this point, no GC should have happened, as this would invalidate
-  // 'result', which we cannot handlify!
 
   if (!result->IsFound()) {
     // Neither properties nor transitions found.
-    return AddProperty(name, value, attributes, strict_mode);
+    return AddProperty(name, value, attributes, strict_mode, store_mode);
   }
   if (result->IsReadOnly() && result->IsProperty()) {
     if (strict_mode == kStrictMode) {
@@ -3015,7 +2902,6 @@ MaybeObject* JSObject::SetPropertyForResult(LookupResult* result,
       return ConvertDescriptorToFieldAndMapTransition(name, value, attributes);
     }
     case NULL_DESCRIPTOR:
-    case ELEMENTS_TRANSITION:
       return ConvertDescriptorToFieldAndMapTransition(name, value, attributes);
     case HANDLER:
       UNREACHABLE();
@@ -3113,9 +2999,7 @@ MaybeObject* JSObject::SetLocalPropertyIgnoreAttributes(
     case CONSTANT_TRANSITION:
       // Replace with a MAP_TRANSITION to a new map with a FIELD, even
       // if the value is a function.
-      return ConvertDescriptorToFieldAndMapTransition(name, value, attributes);
     case NULL_DESCRIPTOR:
-    case ELEMENTS_TRANSITION:
       return ConvertDescriptorToFieldAndMapTransition(name, value, attributes);
     case HANDLER:
       UNREACHABLE();
@@ -3274,14 +3158,20 @@ MaybeObject* NormalizedMapCache::Get(JSObject* obj,
       Map::cast(result)->SharedMapVerify();
     }
     if (FLAG_enable_slow_asserts) {
-      // The cached map should match newly created normalized map bit-by-bit.
+      // The cached map should match newly created normalized map bit-by-bit,
+      // except for the code cache, which can contain some ics which can be
+      // applied to the shared map.
       Object* fresh;
       { MaybeObject* maybe_fresh =
             fast->CopyNormalized(mode, SHARED_NORMALIZED_MAP);
         if (maybe_fresh->ToObject(&fresh)) {
           ASSERT(memcmp(Map::cast(fresh)->address(),
                         Map::cast(result)->address(),
-                        Map::kSize) == 0);
+                        Map::kCodeCacheOffset) == 0);
+          int offset = Map::kCodeCacheOffset + kPointerSize;
+          ASSERT(memcmp(Map::cast(fresh)->address() + offset,
+                        Map::cast(result)->address() + offset,
+                        Map::kSize - offset) == 0);
         }
       }
     }
@@ -3406,7 +3296,6 @@ MaybeObject* JSObject::NormalizeProperties(PropertyNormalizationMode mode,
       case CONSTANT_TRANSITION:
       case NULL_DESCRIPTOR:
       case INTERCEPTOR:
-      case ELEMENTS_TRANSITION:
         break;
       case HANDLER:
       case NORMAL:
@@ -4192,7 +4081,8 @@ MaybeObject* JSObject::PreventExtensions() {
   // Do a map transition, other objects with this map may still
   // be extensible.
   Map* new_map;
-  { MaybeObject* maybe = map()->CopyDropTransitions();
+  { MaybeObject* maybe =
+        map()->CopyDropTransitions(DescriptorArray::MAY_BE_SHARED);
     if (!maybe->To<Map>(&new_map)) return maybe;
   }
   new_map->set_is_extensible(false);
@@ -4972,7 +4862,8 @@ MaybeObject* Map::CopyDropDescriptors() {
     JSFunction* ctor = JSFunction::cast(constructor());
     Object* descriptors;
     { MaybeObject* maybe_descriptors =
-          ctor->initial_map()->instance_descriptors()->RemoveTransitions();
+          ctor->initial_map()->instance_descriptors()->RemoveTransitions(
+              DescriptorArray::MAY_BE_SHARED);
       if (!maybe_descriptors->ToObject(&descriptors)) return maybe_descriptors;
     }
     Map::cast(result)->set_instance_descriptors(
@@ -5012,6 +4903,7 @@ MaybeObject* Map::CopyNormalized(PropertyNormalizationMode mode,
   Map::cast(result)->set_bit_field(bit_field());
   Map::cast(result)->set_bit_field2(bit_field2());
   Map::cast(result)->set_bit_field3(bit_field3());
+  Map::cast(result)->set_code_cache(code_cache());
 
   Map::cast(result)->set_is_shared(sharing == SHARED_NORMALIZED_MAP);
 
@@ -5025,19 +4917,21 @@ MaybeObject* Map::CopyNormalized(PropertyNormalizationMode mode,
 }
 
 
-MaybeObject* Map::CopyDropTransitions() {
+MaybeObject* Map::CopyDropTransitions(
+    DescriptorArray::SharedMode shared_mode) {
   Object* new_map;
   { MaybeObject* maybe_new_map = CopyDropDescriptors();
     if (!maybe_new_map->ToObject(&new_map)) return maybe_new_map;
   }
   Object* descriptors;
   { MaybeObject* maybe_descriptors =
-        instance_descriptors()->RemoveTransitions();
+        instance_descriptors()->RemoveTransitions(shared_mode);
     if (!maybe_descriptors->ToObject(&descriptors)) return maybe_descriptors;
   }
   cast(new_map)->set_instance_descriptors(DescriptorArray::cast(descriptors));
   return new_map;
 }
+
 
 void Map::UpdateCodeCache(Handle<Map> map,
                           Handle<String> name,
@@ -5048,6 +4942,8 @@ void Map::UpdateCodeCache(Handle<Map> map,
 }
 
 MaybeObject* Map::UpdateCodeCache(String* name, Code* code) {
+  ASSERT(!is_shared() || code->allowed_in_shared_map_code_cache());
+
   // Allocate the code cache if not present.
   if (code_cache()->IsFixedArray()) {
     Object* result;
@@ -5098,11 +4994,13 @@ class IntrusiveMapTransitionIterator {
 
   void Start() {
     ASSERT(!IsIterating());
-    if (HasDescriptors()) *DescriptorArrayHeader() = Smi::FromInt(0);
+    if (descriptor_array_->MayContainTransitions())
+      *DescriptorArrayHeader() = Smi::FromInt(0);
   }
 
   bool IsIterating() {
-    return HasDescriptors() && (*DescriptorArrayHeader())->IsSmi();
+    return descriptor_array_->MayContainTransitions() &&
+           (*DescriptorArrayHeader())->IsSmi();
   }
 
   Map* Next() {
@@ -5120,7 +5018,6 @@ class IntrusiveMapTransitionIterator {
       switch (details.type()) {
         case MAP_TRANSITION:
         case CONSTANT_TRANSITION:
-        case ELEMENTS_TRANSITION:
           // We definitely have a map transition.
           *DescriptorArrayHeader() = Smi::FromInt(raw_index + 2);
           return static_cast<Map*>(descriptor_array_->GetValue(index));
@@ -5154,15 +5051,18 @@ class IntrusiveMapTransitionIterator {
           break;
       }
     }
+    if (index == descriptor_array_->number_of_descriptors()) {
+      Map* elements_transition = descriptor_array_->elements_transition_map();
+      if (elements_transition != NULL) {
+        *DescriptorArrayHeader() = Smi::FromInt(index + 1);
+        return elements_transition;
+      }
+    }
     *DescriptorArrayHeader() = descriptor_array_->GetHeap()->fixed_array_map();
     return NULL;
   }
 
  private:
-  bool HasDescriptors() {
-    return descriptor_array_->length() > DescriptorArray::kFirstIndex;
-  }
-
   Object** DescriptorArrayHeader() {
     return HeapObject::RawField(descriptor_array_, DescriptorArray::kMapOffset);
   }
@@ -5851,23 +5751,30 @@ bool FixedArray::IsEqualTo(FixedArray* other) {
 #endif
 
 
-MaybeObject* DescriptorArray::Allocate(int number_of_descriptors) {
+MaybeObject* DescriptorArray::Allocate(int number_of_descriptors,
+                                       SharedMode shared_mode) {
   Heap* heap = Isolate::Current()->heap();
-  if (number_of_descriptors == 0) {
-    return heap->empty_descriptor_array();
-  }
-  // Allocate the array of keys.
-  Object* array;
-  { MaybeObject* maybe_array =
-        heap->AllocateFixedArray(ToKeyIndex(number_of_descriptors));
-    if (!maybe_array->ToObject(&array)) return maybe_array;
-  }
   // Do not use DescriptorArray::cast on incomplete object.
-  FixedArray* result = FixedArray::cast(array);
-
+  FixedArray* result;
+  if (number_of_descriptors == 0) {
+    if (shared_mode == MAY_BE_SHARED) {
+      return heap->empty_descriptor_array();
+    }
+    { MaybeObject* maybe_array =
+          heap->AllocateFixedArray(kTransitionsIndex + 1);
+      if (!maybe_array->To(&result)) return maybe_array;
+    }
+  } else {
+    // Allocate the array of keys.
+    { MaybeObject* maybe_array =
+          heap->AllocateFixedArray(ToKeyIndex(number_of_descriptors));
+      if (!maybe_array->To(&result)) return maybe_array;
+    }
+    result->set(kEnumerationIndexIndex,
+                Smi::FromInt(PropertyDetails::kInitialIndex));
+  }
   result->set(kBitField3StorageIndex, Smi::FromInt(0));
-  result->set(kEnumerationIndexIndex,
-              Smi::FromInt(PropertyDetails::kInitialIndex));
+  result->set(kTransitionsIndex, Smi::FromInt(0));
   return result;
 }
 
@@ -5969,7 +5876,8 @@ MaybeObject* DescriptorArray::CopyInsert(Descriptor* descriptor,
   }
 
   DescriptorArray* new_descriptors;
-  { MaybeObject* maybe_result = Allocate(new_size);
+  { SharedMode mode = remove_transitions ? MAY_BE_SHARED : CANNOT_BE_SHARED;
+    MaybeObject* maybe_result = Allocate(new_size, mode);
     if (!maybe_result->To(&new_descriptors)) return maybe_result;
   }
 
@@ -5985,6 +5893,10 @@ MaybeObject* DescriptorArray::CopyInsert(Descriptor* descriptor,
       descriptor->SetEnumerationIndex(enumeration_index);
       ++enumeration_index;
     }
+  }
+  Map* old_elements_transition = elements_transition_map();
+  if ((!remove_transitions) && (old_elements_transition != NULL)) {
+    new_descriptors->set_elements_transition_map(old_elements_transition);
   }
   new_descriptors->SetNextEnumerationIndex(enumeration_index);
 
@@ -6009,6 +5921,8 @@ MaybeObject* DescriptorArray::CopyInsert(Descriptor* descriptor,
     }
   }
   if (insertion_index < 0) insertion_index = to_index++;
+
+  ASSERT(insertion_index < new_descriptors->number_of_descriptors());
   new_descriptors->Set(insertion_index, descriptor, witness);
 
   ASSERT(to_index == new_descriptors->number_of_descriptors());
@@ -6018,14 +5932,15 @@ MaybeObject* DescriptorArray::CopyInsert(Descriptor* descriptor,
 }
 
 
-MaybeObject* DescriptorArray::RemoveTransitions() {
+MaybeObject* DescriptorArray::RemoveTransitions(SharedMode shared_mode) {
   // Allocate the new descriptor array.
   int new_number_of_descriptors = 0;
   for (int i = 0; i < number_of_descriptors(); i++) {
     if (IsProperty(i)) new_number_of_descriptors++;
   }
   DescriptorArray* new_descriptors;
-  { MaybeObject* maybe_result = Allocate(new_number_of_descriptors);
+  { MaybeObject* maybe_result = Allocate(new_number_of_descriptors,
+                                         shared_mode);
     if (!maybe_result->To(&new_descriptors)) return maybe_result;
   }
 
@@ -6110,42 +6025,37 @@ void DescriptorArray::Sort(const WhitenessWitness& witness) {
 
 int DescriptorArray::BinarySearch(String* name, int low, int high) {
   uint32_t hash = name->Hash();
+  int limit = high;
 
-  while (low <= high) {
+  ASSERT(low <= high);
+
+  while (low != high) {
     int mid = (low + high) / 2;
     String* mid_name = GetKey(mid);
     uint32_t mid_hash = mid_name->Hash();
 
-    if (mid_hash > hash) {
-      high = mid - 1;
-      continue;
-    }
-    if (mid_hash < hash) {
+    if (mid_hash >= hash) {
+      high = mid;
+    } else {
       low = mid + 1;
-      continue;
     }
-    // Found an element with the same hash-code.
-    ASSERT(hash == mid_hash);
-    // There might be more, so we find the first one and
-    // check them all to see if we have a match.
-    if (name == mid_name  && !IsNullDescriptor(mid)) return mid;
-    while ((mid > low) && (GetKey(mid - 1)->Hash() == hash)) mid--;
-    for (; (mid <= high) && (GetKey(mid)->Hash() == hash); mid++) {
-      if (GetKey(mid)->Equals(name) && !IsNullDescriptor(mid)) return mid;
-    }
-    break;
   }
+
+  for (; low <= limit && GetKey(low)->Hash() == hash; ++low) {
+    if (GetKey(low)->Equals(name) && !IsNullDescriptor(low))
+      return low;
+  }
+
   return kNotFound;
 }
 
 
-int DescriptorArray::LinearSearch(String* name, int len) {
+int DescriptorArray::LinearSearch(SearchMode mode, String* name, int len) {
   uint32_t hash = name->Hash();
   for (int number = 0; number < len; number++) {
     String* entry = GetKey(number);
-    if ((entry->Hash() == hash) &&
-        name->Equals(entry) &&
-        !IsNullDescriptor(number)) {
+    if (mode == EXPECT_SORTED && entry->Hash() > hash) break;
+    if (name->Equals(entry) && !IsNullDescriptor(number)) {
       return number;
     }
   }
@@ -7424,25 +7334,6 @@ void Map::ClearNonLiveTransitions(Heap* heap) {
       case CONSTANT_TRANSITION:
         keep_entry = !ClearBackPointer(heap, d->GetValue(i));
         break;
-      case ELEMENTS_TRANSITION: {
-        Object* object = d->GetValue(i);
-        if (object->IsMap()) {
-          keep_entry = !ClearBackPointer(heap, object);
-        } else {
-          FixedArray* array = FixedArray::cast(object);
-          for (int j = 0; j < array->length(); ++j) {
-            Object* target = array->get(j);
-            if (target->IsMap()) {
-              if (ClearBackPointer(heap, target)) {
-                array->set_undefined(j);
-              } else {
-                keep_entry = true;
-              }
-            }
-          }
-        }
-        break;
-      }
       case CALLBACKS: {
         Object* object = d->GetValue(i);
         if (object->IsAccessorPair()) {
@@ -7609,14 +7500,64 @@ bool JSFunction::IsInlineable() {
 }
 
 
+MaybeObject* JSObject::OptimizeAsPrototype() {
+  if (IsGlobalObject()) return this;
+
+  // Make sure prototypes are fast objects and their maps have the bit set
+  // so they remain fast.
+  Map* proto_map = map();
+  if (!proto_map->used_for_prototype()) {
+    if (!HasFastProperties()) {
+      MaybeObject* new_proto = TransformToFastProperties(0);
+      if (new_proto->IsFailure()) return new_proto;
+      ASSERT(new_proto == this);
+      proto_map = map();
+      if (!proto_map->is_shared()) {
+        proto_map->set_used_for_prototype(true);
+      }
+    } else {
+      Heap* heap = GetHeap();
+      // We use the hole value as a singleton key in the prototype transition
+      // map so that we don't multiply the number of maps unnecessarily.
+      Map* new_map =
+          proto_map->GetPrototypeTransition(heap->the_hole_value());
+      if (new_map == NULL) {
+        MaybeObject* maybe_new_map =
+            proto_map->CopyDropTransitions(DescriptorArray::MAY_BE_SHARED);
+        if (!maybe_new_map->To<Map>(&new_map)) return maybe_new_map;
+        new_map->set_used_for_prototype(true);
+        MaybeObject* ok =
+            proto_map->PutPrototypeTransition(heap->the_hole_value(),
+                                              new_map);
+        if (ok->IsFailure()) return ok;
+      }
+      ASSERT(!proto_map->is_shared() && !new_map->is_shared());
+      set_map(new_map);
+    }
+  }
+  return this;
+}
+
+
 MaybeObject* JSFunction::SetInstancePrototype(Object* value) {
   ASSERT(value->IsJSReceiver());
   Heap* heap = GetHeap();
+
+  // First some logic for the map of the prototype to make sure the
+  // used_for_prototype flag is set.
+  if (value->IsJSObject()) {
+    MaybeObject* ok = JSObject::cast(value)->OptimizeAsPrototype();
+    if (ok->IsFailure()) return ok;
+  }
+
+  // Now some logic for the maps of the objects that are created by using this
+  // function as a constructor.
   if (has_initial_map()) {
     // If the function has allocated the initial map
     // replace it with a copy containing the new prototype.
     Map* new_map;
-    MaybeObject* maybe_new_map = initial_map()->CopyDropTransitions();
+    MaybeObject* maybe_new_map =
+        initial_map()->CopyDropTransitions(DescriptorArray::MAY_BE_SHARED);
     if (!maybe_new_map->To(&new_map)) return maybe_new_map;
     new_map->set_prototype(value);
     MaybeObject* maybe_object =
@@ -7646,7 +7587,8 @@ MaybeObject* JSFunction::SetPrototype(Object* value) {
     // Remove map transitions because they point to maps with a
     // different prototype.
     Map* new_map;
-    { MaybeObject* maybe_new_map = map()->CopyDropTransitions();
+    { MaybeObject* maybe_new_map =
+          map()->CopyDropTransitions(DescriptorArray::MAY_BE_SHARED);
       if (!maybe_new_map->To(&new_map)) return maybe_new_map;
     }
     Heap* heap = new_map->GetHeap();
@@ -8041,6 +7983,7 @@ void SharedFunctionInfo::ResetForNewContext(int new_ic_age) {
       code()->set_optimizable(true);
     }
     set_opt_count(0);
+    set_deopt_count(0);
   }
 }
 
@@ -8326,6 +8269,11 @@ void Code::ClearTypeFeedbackCells(Heap* heap) {
 }
 
 
+bool Code::allowed_in_shared_map_code_cache() {
+  return is_keyed_load_stub() || is_keyed_store_stub();
+}
+
+
 #ifdef ENABLE_DISASSEMBLER
 
 void DeoptimizationInputData::DeoptimizationInputDataPrint(FILE* out) {
@@ -8513,7 +8461,6 @@ const char* Code::PropertyType2String(PropertyType type) {
     case HANDLER: return "HANDLER";
     case INTERCEPTOR: return "INTERCEPTOR";
     case MAP_TRANSITION: return "MAP_TRANSITION";
-    case ELEMENTS_TRANSITION: return "ELEMENTS_TRANSITION";
     case CONSTANT_TRANSITION: return "CONSTANT_TRANSITION";
     case NULL_DESCRIPTOR: return "NULL_DESCRIPTOR";
   }
@@ -8783,7 +8730,7 @@ MaybeObject* JSArray::SetElementsLength(Object* len) {
 }
 
 
-Object* Map::GetPrototypeTransition(Object* prototype) {
+Map* Map::GetPrototypeTransition(Object* prototype) {
   FixedArray* cache = prototype_transitions();
   int number_of_transitions = NumberOfProtoTransitions();
   const int proto_offset =
@@ -8793,8 +8740,7 @@ Object* Map::GetPrototypeTransition(Object* prototype) {
   for (int i = 0; i < number_of_transitions; i++) {
     if (cache->get(proto_offset + i * step) == prototype) {
       Object* map = cache->get(map_offset + i * step);
-      ASSERT(map->IsMap());
-      return map;
+      return Map::cast(map);
     }
   }
   return NULL;
@@ -8902,21 +8848,27 @@ MaybeObject* JSReceiver::SetPrototype(Object* value,
   // Nothing to do if prototype is already set.
   if (map->prototype() == value) return value;
 
-  Object* new_map = map->GetPrototypeTransition(value);
+  if (value->IsJSObject()) {
+    MaybeObject* ok = JSObject::cast(value)->OptimizeAsPrototype();
+    if (ok->IsFailure()) return ok;
+  }
+
+  Map* new_map = map->GetPrototypeTransition(value);
   if (new_map == NULL) {
-    { MaybeObject* maybe_new_map = map->CopyDropTransitions();
-      if (!maybe_new_map->ToObject(&new_map)) return maybe_new_map;
+    { MaybeObject* maybe_new_map =
+          map->CopyDropTransitions(DescriptorArray::MAY_BE_SHARED);
+      if (!maybe_new_map->To(&new_map)) return maybe_new_map;
     }
 
     { MaybeObject* maybe_new_cache =
-          map->PutPrototypeTransition(value, Map::cast(new_map));
+          map->PutPrototypeTransition(value, new_map);
       if (maybe_new_cache->IsFailure()) return maybe_new_cache;
     }
 
-    Map::cast(new_map)->set_prototype(value);
+    new_map->set_prototype(value);
   }
-  ASSERT(Map::cast(new_map)->prototype() == value);
-  real_receiver->set_map(Map::cast(new_map));
+  ASSERT(new_map->prototype() == value);
+  real_receiver->set_map(new_map);
 
   heap->ClearInstanceofCache();
   ASSERT(size == Size());
@@ -10071,6 +10023,12 @@ void JSObject::GetElementsCapacityAndUsage(int* capacity, int* used) {
       // Fall through.
     case FAST_SMI_ELEMENTS:
     case FAST_ELEMENTS:
+      if (IsJSArray()) {
+        *capacity = backing_store_base->length();
+        *used = Smi::cast(JSArray::cast(this)->length())->value();
+        break;
+      }
+      // Fall through if packing is not guaranteed.
     case FAST_HOLEY_SMI_ELEMENTS:
     case FAST_HOLEY_ELEMENTS:
       backing_store = FixedArray::cast(backing_store_base);
@@ -10087,6 +10045,12 @@ void JSObject::GetElementsCapacityAndUsage(int* capacity, int* used) {
       break;
     }
     case FAST_DOUBLE_ELEMENTS:
+      if (IsJSArray()) {
+        *capacity = backing_store_base->length();
+        *used = Smi::cast(JSArray::cast(this)->length())->value();
+        break;
+      }
+      // Fall through if packing is not guaranteed.
     case FAST_HOLEY_DOUBLE_ELEMENTS: {
       FixedDoubleArray* elms = FixedDoubleArray::cast(elements());
       *capacity = elms->length();
@@ -11185,7 +11149,6 @@ bool StringDictionary::ContainsTransition(int entry) {
   switch (DetailsAt(entry).type()) {
     case MAP_TRANSITION:
     case CONSTANT_TRANSITION:
-    case ELEMENTS_TRANSITION:
       return true;
     case CALLBACKS: {
       Object* value = ValueAt(entry);
@@ -12635,7 +12598,8 @@ MaybeObject* StringDictionary::TransformPropertiesToFastFor(
   // Allocate the instance descriptor.
   DescriptorArray* descriptors;
   { MaybeObject* maybe_descriptors =
-        DescriptorArray::Allocate(instance_descriptor_length);
+        DescriptorArray::Allocate(instance_descriptor_length,
+                                  DescriptorArray::MAY_BE_SHARED);
     if (!maybe_descriptors->To<DescriptorArray>(&descriptors)) {
       return maybe_descriptors;
     }

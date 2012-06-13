@@ -184,7 +184,7 @@ class Safepoint BASE_EMBEDDED {
       (1 << (SafepointEntry::kDeoptIndexBits)) - 1;
 
   void DefinePointerSlot(int index, Zone* zone) { indexes_->Add(index, zone); }
-  void DefinePointerRegister(Register reg);
+  void DefinePointerRegister(Register reg, Zone* zone);
 
  private:
   Safepoint(ZoneList<int>* indexes, ZoneList<int>* registers) :

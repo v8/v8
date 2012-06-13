@@ -49,6 +49,8 @@ class HeapProfiler {
   static void SetUp();
   static void TearDown();
 
+  static size_t GetMemorySizeUsedByProfiler();
+
   static HeapSnapshot* TakeSnapshot(const char* name,
                                     int type,
                                     v8::ActivityControl* control);

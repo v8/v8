@@ -168,6 +168,14 @@ void HeapProfiler::StopHeapObjectsTrackingImpl() {
 }
 
 
+size_t HeapProfiler::GetMemorySizeUsedByProfiler() {
+  HeapProfiler* profiler = Isolate::Current()->heap_profiler();
+  ASSERT(profiler != NULL);
+  size_t size = profiler->snapshots_->GetUsedMemorySize();
+  return size;
+}
+
+
 int HeapProfiler::GetSnapshotsCount() {
   HeapProfiler* profiler = Isolate::Current()->heap_profiler();
   ASSERT(profiler != NULL);

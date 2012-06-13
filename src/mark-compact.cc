@@ -1883,6 +1883,17 @@ void Marker<T>::MarkDescriptorArray(DescriptorArray* descriptors) {
                                          enum_cache);
   }
 
+  // TODO(verwaest) Make sure we free unused transitions.
+  if (descriptors->elements_transition_map() != NULL) {
+    Object** transitions_slot = descriptors->GetTransitionsSlot();
+    Object* transitions = *transitions_slot;
+    base_marker()->MarkObjectAndPush(
+        reinterpret_cast<HeapObject*>(transitions));
+    mark_compact_collector()->RecordSlot(descriptor_start,
+                                         transitions_slot,
+                                         transitions);
+  }
+
   // If the descriptor contains a transition (value is a Map), we don't mark the
   // value as live. It might be set to the NULL_DESCRIPTOR in
   // ClearNonLiveTransitions later.
@@ -1920,12 +1931,6 @@ void Marker<T>::MarkDescriptorArray(DescriptorArray* descriptors) {
           MarkAccessorPairSlot(accessors, AccessorPair::kGetterOffset);
           MarkAccessorPairSlot(accessors, AccessorPair::kSetterOffset);
         }
-        break;
-      case ELEMENTS_TRANSITION:
-        // For maps with multiple elements transitions, the transition maps are
-        // stored in a FixedArray. Keep the fixed array alive but not the maps
-        // that it refers to.
-        if (value->IsFixedArray()) base_marker()->MarkObjectWithoutPush(value);
         break;
       case MAP_TRANSITION:
       case CONSTANT_TRANSITION:

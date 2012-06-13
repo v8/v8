@@ -148,7 +148,6 @@ class Zone {
 class ZoneObject {
  public:
   // Allocate a new ZoneObject of 'size' bytes in the Zone.
-  INLINE(void* operator new(size_t size));
   INLINE(void* operator new(size_t size, Zone* zone));
 
   // Ideally, the delete operator should be private instead of
@@ -168,7 +167,7 @@ class ZoneObject {
 // structures to allocate themselves and their elements in the Zone.
 struct ZoneAllocationPolicy {
  public:
-  explicit ZoneAllocationPolicy(Zone* zone = NULL) : zone_(zone) { }
+  explicit ZoneAllocationPolicy(Zone* zone) : zone_(zone) { }
   INLINE(void* New(size_t size));
   INLINE(static void Delete(void *pointer)) { }
 
@@ -186,14 +185,13 @@ class ZoneList: public List<T, ZoneAllocationPolicy> {
  public:
   // Construct a new ZoneList with the given capacity; the length is
   // always zero. The capacity must be non-negative.
-  explicit ZoneList(int capacity, Zone* zone = NULL)
+  ZoneList(int capacity, Zone* zone)
       : List<T, ZoneAllocationPolicy>(capacity, ZoneAllocationPolicy(zone)) { }
 
   INLINE(void* operator new(size_t size, Zone* zone));
-  INLINE(void* operator new(size_t size));
 
   // Construct a new ZoneList by copying the elements of the given ZoneList.
-  explicit ZoneList(const ZoneList<T>& other, Zone* zone = NULL)
+  ZoneList(const ZoneList<T>& other, Zone* zone)
       : List<T, ZoneAllocationPolicy>(other.length(),
                                       ZoneAllocationPolicy(zone)) {
     AddAll(other, ZoneAllocationPolicy(zone));
@@ -201,28 +199,28 @@ class ZoneList: public List<T, ZoneAllocationPolicy> {
 
   // We add some convenience wrappers so that we can pass in a Zone
   // instead of a (less convenient) ZoneAllocationPolicy.
-  INLINE(void Add(const T& element, Zone* zone = NULL)) {
+  INLINE(void Add(const T& element, Zone* zone)) {
     List<T, ZoneAllocationPolicy>::Add(element, ZoneAllocationPolicy(zone));
   }
   INLINE(void AddAll(const List<T, ZoneAllocationPolicy>& other,
-                     Zone* zone = NULL)) {
+                     Zone* zone)) {
     List<T, ZoneAllocationPolicy>::AddAll(other, ZoneAllocationPolicy(zone));
   }
-  INLINE(void AddAll(const Vector<T>& other, Zone* zone = NULL)) {
+  INLINE(void AddAll(const Vector<T>& other, Zone* zone)) {
     List<T, ZoneAllocationPolicy>::AddAll(other, ZoneAllocationPolicy(zone));
   }
-  INLINE(void InsertAt(int index, const T& element, Zone* zone = NULL)) {
+  INLINE(void InsertAt(int index, const T& element, Zone* zone)) {
     List<T, ZoneAllocationPolicy>::InsertAt(index, element,
                                             ZoneAllocationPolicy(zone));
   }
-  INLINE(Vector<T> AddBlock(T value, int count, Zone* zone = NULL)) {
+  INLINE(Vector<T> AddBlock(T value, int count, Zone* zone)) {
     return List<T, ZoneAllocationPolicy>::AddBlock(value, count,
                                                    ZoneAllocationPolicy(zone));
   }
-  INLINE(void Allocate(int length, Zone* zone = NULL)) {
+  INLINE(void Allocate(int length, Zone* zone)) {
     List<T, ZoneAllocationPolicy>::Allocate(length, ZoneAllocationPolicy(zone));
   }
-  INLINE(void Initialize(int capacity, Zone* zone = NULL)) {
+  INLINE(void Initialize(int capacity, Zone* zone)) {
     List<T, ZoneAllocationPolicy>::Initialize(capacity,
                                               ZoneAllocationPolicy(zone));
   }
@@ -263,8 +261,8 @@ class ZoneScope BASE_EMBEDDED {
 template <typename Config>
 class ZoneSplayTree: public SplayTree<Config, ZoneAllocationPolicy> {
  public:
-  ZoneSplayTree()
-      : SplayTree<Config, ZoneAllocationPolicy>() {}
+  explicit ZoneSplayTree(Zone* zone)
+      : SplayTree<Config, ZoneAllocationPolicy>(ZoneAllocationPolicy(zone)) {}
   ~ZoneSplayTree();
 };
 

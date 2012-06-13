@@ -1632,9 +1632,10 @@ bool Genesis::InstallNatives() {
     // through a common bottleneck that would make the SMI_ONLY -> FAST_ELEMENT
     // transition easy to trap. Moreover, they rarely are smi-only.
     MaybeObject* maybe_map =
-        array_function->initial_map()->CopyDropTransitions();
+        array_function->initial_map()->CopyDropTransitions(
+            DescriptorArray::MAY_BE_SHARED);
     Map* new_map;
-    if (!maybe_map->To<Map>(&new_map)) return false;
+    if (!maybe_map->To(&new_map)) return false;
     new_map->set_elements_kind(FAST_HOLEY_ELEMENTS);
     array_function->set_initial_map(new_map);
 
@@ -2191,7 +2192,6 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
           break;
         }
         case MAP_TRANSITION:
-        case ELEMENTS_TRANSITION:
         case CONSTANT_TRANSITION:
         case NULL_DESCRIPTOR:
           // Ignore non-properties.

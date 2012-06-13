@@ -119,8 +119,10 @@ namespace internal {
 
 RegExpMacroAssemblerARM::RegExpMacroAssemblerARM(
     Mode mode,
-    int registers_to_save)
-    : masm_(new MacroAssembler(Isolate::Current(), NULL, kRegExpCodeSize)),
+    int registers_to_save,
+    Zone* zone)
+    : NativeRegExpMacroAssembler(zone),
+      masm_(new MacroAssembler(Isolate::Current(), NULL, kRegExpCodeSize)),
       mode_(mode),
       num_registers_(registers_to_save),
       num_saved_registers_(registers_to_save),
