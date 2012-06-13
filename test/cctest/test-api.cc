@@ -16785,7 +16785,7 @@ TEST(TryFinallyMessage) {
         "  var x = 0;               \n"
         "  x++;                     \n"  // Trigger an IC initialization here.
         "}                          \n";
-    Local<Value> result = CompileRun(trigger_ic);
+    CompileRun(trigger_ic);
     CHECK(try_catch.HasCaught());
     Local<Message> message = try_catch.Message();
     CHECK(!message.IsEmpty());
@@ -16804,7 +16804,7 @@ TEST(TryFinallyMessage) {
         "  x++;                      \n"
         "  throw new Error('again'); \n"  // This is the new uncaught error.
         "}                           \n";
-    Local<Value> result = CompileRun(throw_again);
+    CompileRun(throw_again);
     CHECK(try_catch.HasCaught());
     Local<Message> message = try_catch.Message();
     CHECK(!message.IsEmpty());
