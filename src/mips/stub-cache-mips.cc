@@ -2702,7 +2702,7 @@ Handle<Code> StoreStubCompiler::CompileStoreViaSetter(
                       CALL_AS_METHOD);
 
     // We have to return the passed value, not the return value of the setter.
-    __ pop(a0);
+    __ pop(v0);
 
     // Restore context register.
     __ lw(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
