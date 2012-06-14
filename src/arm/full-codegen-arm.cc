@@ -73,9 +73,6 @@ class JumpPatchSite BASE_EMBEDDED {
     Assembler::BlockConstPoolScope block_const_pool(masm_);
     __ bind(&patch_site_);
     __ cmp(reg, Operand(reg));
-    // Don't use b(al, ...) as that might emit the constant pool right after the
-    // branch. After patching when the branch is no longer unconditional
-    // execution can continue into the constant pool.
     __ b(eq, target);  // Always taken before patched.
   }
 
@@ -90,6 +87,8 @@ class JumpPatchSite BASE_EMBEDDED {
   }
 
   void EmitPatchInfo() {
+    // Block literal pool emission whilst recording patch site information.
+    Assembler::BlockConstPoolScope block_const_pool(masm_);
     if (patch_site_.is_bound()) {
       int delta_to_patch_site = masm_->InstructionsGeneratedSince(&patch_site_);
       Register reg;
@@ -344,6 +343,8 @@ static const int kBackEdgeDistanceDivisor = 142;
 void FullCodeGenerator::EmitStackCheck(IterationStatement* stmt,
                                        Label* back_edge_target) {
   Comment cmnt(masm_, "[ Stack check");
+  // Block literal pools whilst emitting stack check code.
+  Assembler::BlockConstPoolScope block_const_pool(masm_);
   Label ok;
 
   if (FLAG_count_based_interrupts) {
