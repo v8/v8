@@ -1309,12 +1309,18 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DeclareGlobals) {
     if (is_var || is_const) {
       // Lookup the property in the global object, and don't set the
       // value of the variable if the property is already there.
-      // Do the lookup locally only, see ES5 errata.
+      // Do the lookup locally only, see ES5 erratum.
       LookupResult lookup(isolate);
-      if (FLAG_es52_globals)
-        global->LocalLookup(*name, &lookup);
-      else
+      if (FLAG_es52_globals) {
+        Object* obj = *global;
+        do {
+          JSObject::cast(obj)->LocalLookup(*name, &lookup);
+          obj = obj->GetPrototype();
+        } while (!lookup.IsFound() && obj->IsJSObject() &&
+                 JSObject::cast(obj)->map()->is_hidden_prototype());
+      } else {
         global->Lookup(*name, &lookup);
+      }
       if (lookup.IsProperty()) {
         // We found an existing property. Unless it was an interceptor
         // that claims the property is absent, skip this declaration.
