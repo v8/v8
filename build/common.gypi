@@ -95,7 +95,7 @@
 
     # For a shared library build, results in "libv8-<(soname_version).so".
     'soname_version%': '',
-    
+
     # Interpreted regexp engine exists as platform-independent alternative
     # based where the regular expression is compiled to a bytecode.
     'v8_interpreted_regexp%': 0,
