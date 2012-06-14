@@ -1868,29 +1868,48 @@ static void RedirectActivationsToRecompiledCodeOnThread(
       continue;
     }
 
-    intptr_t delta = frame->pc() - frame_code->instruction_start();
-    int debug_break_slot_count = 0;
-    int mask = RelocInfo::ModeMask(RelocInfo::DEBUG_BREAK_SLOT);
+    // Iterate over the RelocInfo in the original code to compute the sum of the
+    // constant pools sizes. (See Assembler::CheckConstPool())
+    // Note that this is only useful for architectures using constant pools.
+    int constpool_mask = RelocInfo::ModeMask(RelocInfo::CONST_POOL);
+    int frame_const_pool_size = 0;
+    for (RelocIterator it(*frame_code, constpool_mask); !it.done(); it.next()) {
+      RelocInfo* info = it.rinfo();
+      if (info->pc() >= frame->pc()) break;
+      frame_const_pool_size += info->data();
+    }
+    intptr_t frame_offset =
+      frame->pc() - frame_code->instruction_start() - frame_const_pool_size;
+
+    // Iterate over the RelocInfo for new code to find the number of bytes
+    // generated for debug slots and constant pools.
+    int debug_break_slot_bytes = 0;
+    int new_code_const_pool_size = 0;
+    int mask = RelocInfo::ModeMask(RelocInfo::DEBUG_BREAK_SLOT) |
+               RelocInfo::ModeMask(RelocInfo::CONST_POOL);
     for (RelocIterator it(*new_code, mask); !it.done(); it.next()) {
       // Check if the pc in the new code with debug break
       // slots is before this slot.
       RelocInfo* info = it.rinfo();
-      int debug_break_slot_bytes =
-          debug_break_slot_count * Assembler::kDebugBreakSlotLength;
-      intptr_t new_delta =
-          info->pc() -
-          new_code->instruction_start() -
-          debug_break_slot_bytes;
-      if (new_delta > delta) {
+      intptr_t new_offset = info->pc() - new_code->instruction_start() -
+                            new_code_const_pool_size - debug_break_slot_bytes;
+      if (new_offset >= frame_offset) {
         break;
       }
 
-      // Passed a debug break slot in the full code with debug
-      // break slots.
-      debug_break_slot_count++;
+      if (RelocInfo::IsDebugBreakSlot(info->rmode())) {
+        debug_break_slot_bytes += Assembler::kDebugBreakSlotLength;
+      } else {
+        ASSERT(RelocInfo::IsConstPool(info->rmode()));
+        // The size of the constant pool is encoded in the data.
+        new_code_const_pool_size += info->data();
+      }
     }
-    int debug_break_slot_bytes =
-        debug_break_slot_count * Assembler::kDebugBreakSlotLength;
+
+    // Compute the equivalent pc in the new code.
+    byte* new_pc = new_code->instruction_start() + frame_offset +
+                   debug_break_slot_bytes + new_code_const_pool_size;
+
     if (FLAG_trace_deopt) {
       PrintF("Replacing code %08" V8PRIxPTR " - %08" V8PRIxPTR " (%d) "
              "with %08" V8PRIxPTR " - %08" V8PRIxPTR " (%d) "
@@ -1907,14 +1926,12 @@ static void RedirectActivationsToRecompiledCodeOnThread(
              new_code->instruction_size(),
              new_code->instruction_size(),
              reinterpret_cast<intptr_t>(frame->pc()),
-             reinterpret_cast<intptr_t>(new_code->instruction_start()) +
-             delta + debug_break_slot_bytes);
+             reinterpret_cast<intptr_t>(new_pc));
     }
 
     // Patch the return address to return into the code with
     // debug break slots.
-    frame->set_pc(
-        new_code->instruction_start() + delta + debug_break_slot_bytes);
+    frame->set_pc(new_pc);
   }
 }
 
