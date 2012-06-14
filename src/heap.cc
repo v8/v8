@@ -6636,7 +6636,7 @@ void PathTracer::TracePathFrom(Object** root) {
   ASSERT((search_target_ == kAnyGlobalObject) ||
          search_target_->IsHeapObject());
   found_target_in_trace_ = false;
-  object_stack_.Clear();
+  Reset();
 
   MarkVisitor mark_visitor(this);
   MarkRecursively(root, &mark_visitor);
@@ -6740,11 +6740,7 @@ void PathTracer::ProcessResults() {
     for (int i = 0; i < object_stack_.length(); i++) {
       if (i > 0) PrintF("\n     |\n     |\n     V\n\n");
       Object* obj = object_stack_[i];
-#ifdef OBJECT_PRINT
       obj->Print();
-#else
-      obj->ShortPrint();
-#endif
     }
     PrintF("=====================================\n");
   }

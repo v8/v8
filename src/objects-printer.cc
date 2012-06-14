@@ -761,8 +761,10 @@ void SharedFunctionInfo::SharedFunctionInfoPrint(FILE* out) {
   instance_class_name()->Print(out);
   PrintF(out, "\n - code = ");
   code()->ShortPrint(out);
-  PrintF(out, "\n - source code = ");
-  GetSourceCode()->ShortPrint(out);
+  if (HasSourceCode()) {
+    PrintF(out, "\n - source code = ");
+    GetSourceCode()->ShortPrint(out);
+  }
   // Script files are often large, hard to read.
   // PrintF(out, "\n - script =");
   // script()->Print(out);
