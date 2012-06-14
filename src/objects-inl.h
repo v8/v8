@@ -3663,6 +3663,8 @@ ACCESSORS(BreakPointInfo, break_point_objects, Object, kBreakPointObjectsIndex)
 #endif
 
 ACCESSORS(SharedFunctionInfo, name, Object, kNameOffset)
+ACCESSORS(SharedFunctionInfo, optimized_code_map, Object,
+                 kOptimizedCodeMapOffset)
 ACCESSORS(SharedFunctionInfo, construct_stub, Code, kConstructStubOffset)
 ACCESSORS(SharedFunctionInfo, initial_map, Object, kInitialMapOffset)
 ACCESSORS(SharedFunctionInfo, instance_class_name, Object,
@@ -3873,6 +3875,17 @@ BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, is_function, kIsFunction)
 BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, dont_optimize,
                kDontOptimize)
 BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, dont_inline, kDontInline)
+
+void SharedFunctionInfo::BeforeVisitingPointers() {
+  if (IsInobjectSlackTrackingInProgress()) DetachInitialMap();
+
+  // Flush optimized code map on major GC.
+  // Note: we may experiment with rebuilding it or retaining entries
+  // which should survive as we iterate through optimized functions
+  // anyway.
+  set_optimized_code_map(Smi::FromInt(0));
+}
+
 
 ACCESSORS(CodeCache, default_cache, FixedArray, kDefaultCacheOffset)
 ACCESSORS(CodeCache, normal_type_cache, Object, kNormalTypeCacheOffset)

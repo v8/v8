@@ -616,6 +616,25 @@ bool Compiler::CompileLazy(CompilationInfo* info) {
   int compiled_size = shared->end_position() - shared->start_position();
   isolate->counters()->total_compile_size()->Increment(compiled_size);
 
+  if (FLAG_cache_optimized_code && info->IsOptimizing()) {
+    Handle<JSFunction> function = info->closure();
+    ASSERT(!function.is_null());
+    Handle<Context> global_context(function->context()->global_context());
+    int index = function->shared()->SearchOptimizedCodeMap(*global_context);
+    if (index > 0) {
+      if (FLAG_trace_opt) {
+        PrintF("  [Found optimized code for");
+        function->PrintName();
+        PrintF("\n");
+      }
+      Code* code = Code::cast(
+          FixedArray::cast(shared->optimized_code_map())->get(index));
+      ASSERT(code != NULL);
+      function->ReplaceCode(code);
+      return true;
+    }
+  }
+
   // Generate the AST for the lazily compiled function.
   if (ParserApi::Parse(info, kNoParsingFlags)) {
     // Measure how long it takes to do the lazy compilation; only take the
@@ -647,6 +666,26 @@ bool Compiler::CompileLazy(CompilationInfo* info) {
       if (info->IsOptimizing()) {
         ASSERT(shared->scope_info() != ScopeInfo::Empty());
         function->ReplaceCode(*code);
+        if (FLAG_cache_optimized_code &&
+            code->kind() == Code::OPTIMIZED_FUNCTION) {
+          Handle<SharedFunctionInfo> shared(function->shared());
+          Handle<Context> global_context(function->context()->global_context());
+
+          // Create literals array that will be shared for this global context.
+          int number_of_literals = shared->num_literals();
+          Handle<FixedArray> literals =
+              isolate->factory()->NewFixedArray(number_of_literals);
+          if (number_of_literals > 0) {
+            // Store the object, regexp and array functions in the literals
+            // array prefix.  These functions will be used when creating
+            // object, regexp and array literals in this function.
+            literals->set(JSFunction::kLiteralGlobalContextIndex,
+                          function->context()->global_context());
+          }
+
+          SharedFunctionInfo::AddToOptimizedCodeMap(
+              shared, global_context, code, literals);
+        }
       } else {
         // Update the shared function info with the compiled code and the
         // scope info.  Please note, that the order of the shared function

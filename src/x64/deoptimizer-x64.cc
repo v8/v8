@@ -52,6 +52,10 @@ void Deoptimizer::DeoptimizeFunction(JSFunction* function) {
 
   if (!function->IsOptimized()) return;
 
+  // The optimized code is going to be patched, so we cannot use it
+  // any more.  Play safe and reset the whole cache.
+  function->shared()->ClearOptimizedCodeMap();
+
   // Get the optimized code.
   Code* code = function->code();
 
@@ -100,8 +104,19 @@ void Deoptimizer::DeoptimizeFunction(JSFunction* function) {
   // ignore all slots that might have been recorded on it.
   isolate->heap()->mark_compact_collector()->InvalidateCode(code);
 
-  // Set the code for the function to non-optimized version.
-  function->ReplaceCode(function->shared()->code());
+  // Iterate over all the functions which share the same code object
+  // and make them use unoptimized version.
+  Context* context = function->context()->global_context();
+  Object* element = context->get(Context::OPTIMIZED_FUNCTIONS_LIST);
+  SharedFunctionInfo* shared = function->shared();
+  while (!element->IsUndefined()) {
+    JSFunction* func = JSFunction::cast(element);
+    // Grab element before code replacement as ReplaceCode alters the list.
+    element = func->next_function_link();
+    if (func->code() == code) {
+      func->ReplaceCode(shared->code());
+    }
+  }
 
   if (FLAG_trace_deopt) {
     PrintF("[forced deoptimization: ");
@@ -234,9 +249,9 @@ void Deoptimizer::DoComputeOsrOutputFrame() {
   unsigned node_id = iterator.Next();
   USE(node_id);
   ASSERT(node_id == ast_id);
-  JSFunction* function = JSFunction::cast(ComputeLiteral(iterator.Next()));
-  USE(function);
-  ASSERT(function == function_);
+  int closure_id = iterator.Next();
+  USE(closure_id);
+  ASSERT_EQ(Translation::kSelfLiteralId, closure_id);
   unsigned height = iterator.Next();
   unsigned height_in_bytes = height * kPointerSize;
   USE(height_in_bytes);
@@ -341,15 +356,15 @@ void Deoptimizer::DoComputeOsrOutputFrame() {
     output_[0]->SetPc(pc);
   }
   Code* continuation =
-      function->GetIsolate()->builtins()->builtin(Builtins::kNotifyOSR);
+      function_->GetIsolate()->builtins()->builtin(Builtins::kNotifyOSR);
   output_[0]->SetContinuation(
       reinterpret_cast<intptr_t>(continuation->entry()));
 
   if (FLAG_trace_osr) {
     PrintF("[on-stack replacement translation %s: 0x%08" V8PRIxPTR " ",
            ok ? "finished" : "aborted",
-           reinterpret_cast<intptr_t>(function));
-    function->PrintName();
+           reinterpret_cast<intptr_t>(function_));
+    function_->PrintName();
     PrintF(" => pc=0x%0" V8PRIxPTR "]\n", output_[0]->GetPc());
   }
 }
@@ -579,7 +594,15 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslationIterator* iterator,
 void Deoptimizer::DoComputeJSFrame(TranslationIterator* iterator,
                                    int frame_index) {
   int node_id = iterator->Next();
-  JSFunction* function = JSFunction::cast(ComputeLiteral(iterator->Next()));
+  JSFunction* function;
+  if (frame_index != 0) {
+    function = JSFunction::cast(ComputeLiteral(iterator->Next()));
+  } else {
+    int closure_id = iterator->Next();
+    USE(closure_id);
+    ASSERT_EQ(Translation::kSelfLiteralId, closure_id);
+    function = function_;
+  }
   unsigned height = iterator->Next();
   unsigned height_in_bytes = height * kPointerSize;
   if (FLAG_trace_deopt) {

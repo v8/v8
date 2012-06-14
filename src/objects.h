@@ -5229,6 +5229,25 @@ class SharedFunctionInfo: public HeapObject {
   // [code]: Function code.
   DECL_ACCESSORS(code, Code)
 
+  // [optimized_code_map]: Map from global context to optimized code
+  // and a shared literals array or Smi 0 if none.
+  DECL_ACCESSORS(optimized_code_map, Object)
+
+  // Returns index i of the entry with the specified context. At position
+  // i - 1 is the context, position i the code, and i + 1 the literals array.
+  // Returns -1 when no matching entry is found.
+  int SearchOptimizedCodeMap(Context* global_context);
+
+  // Clear optimized code map.
+  void ClearOptimizedCodeMap();
+
+  // Add a new entry to the optimized code map.
+  static void AddToOptimizedCodeMap(Handle<SharedFunctionInfo> shared,
+                                    Handle<Context> global_context,
+                                    Handle<Code> code,
+                                    Handle<FixedArray> literals);
+  static const int kEntryLength = 3;
+
   // [scope_info]: Scope info.
   DECL_ACCESSORS(scope_info, ScopeInfo)
 
@@ -5335,6 +5354,10 @@ class SharedFunctionInfo: public HeapObject {
   // Completes the tracking.
   // IsInobjectSlackTrackingInProgress is false after this call.
   void CompleteInobjectSlackTracking();
+
+  // Invoked before pointers in SharedFunctionInfo are being marked.
+  // Also clears the optimized code map.
+  inline void BeforeVisitingPointers();
 
   // Clears the initial_map before the GC marking phase to ensure the reference
   // is weak. IsInobjectSlackTrackingInProgress is false after this call.
@@ -5613,7 +5636,8 @@ class SharedFunctionInfo: public HeapObject {
   // Pointer fields.
   static const int kNameOffset = HeapObject::kHeaderSize;
   static const int kCodeOffset = kNameOffset + kPointerSize;
-  static const int kScopeInfoOffset = kCodeOffset + kPointerSize;
+  static const int kOptimizedCodeMapOffset = kCodeOffset + kPointerSize;
+  static const int kScopeInfoOffset = kOptimizedCodeMapOffset + kPointerSize;
   static const int kConstructStubOffset = kScopeInfoOffset + kPointerSize;
   static const int kInstanceClassNameOffset =
       kConstructStubOffset + kPointerSize;

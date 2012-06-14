@@ -1296,9 +1296,7 @@ class StaticMarkingVisitor : public StaticVisitorBase {
 
 
   static void VisitSharedFunctionInfoGeneric(Map* map, HeapObject* object) {
-    SharedFunctionInfo* shared = reinterpret_cast<SharedFunctionInfo*>(object);
-
-    if (shared->IsInobjectSlackTrackingInProgress()) shared->DetachInitialMap();
+    SharedFunctionInfo::cast(object)->BeforeVisitingPointers();
 
     FixedBodyVisitor<StaticMarkingVisitor,
                      SharedFunctionInfo::BodyDescriptor,
@@ -1402,7 +1400,7 @@ class StaticMarkingVisitor : public StaticVisitorBase {
     Heap* heap = map->GetHeap();
     SharedFunctionInfo* shared = reinterpret_cast<SharedFunctionInfo*>(object);
 
-    if (shared->IsInobjectSlackTrackingInProgress()) shared->DetachInitialMap();
+    shared->BeforeVisitingPointers();
 
     if (!known_flush_code_candidate) {
       known_flush_code_candidate = IsFlushable(heap, shared);
@@ -1539,8 +1537,8 @@ class StaticMarkingVisitor : public StaticVisitorBase {
     }
 
     VisitPointers(heap,
-                  SLOT_ADDR(object, SharedFunctionInfo::kScopeInfoOffset),
-                  SLOT_ADDR(object, SharedFunctionInfo::kSize));
+        SLOT_ADDR(object, SharedFunctionInfo::kOptimizedCodeMapOffset),
+        SLOT_ADDR(object, SharedFunctionInfo::kSize));
   }
 
   #undef SLOT_ADDR

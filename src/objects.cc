@@ -7471,6 +7471,54 @@ bool SharedFunctionInfo::CompileLazy(Handle<SharedFunctionInfo> shared,
 }
 
 
+void SharedFunctionInfo::ClearOptimizedCodeMap() {
+  set_optimized_code_map(Smi::FromInt(0));
+}
+
+
+void SharedFunctionInfo::AddToOptimizedCodeMap(
+    Handle<SharedFunctionInfo> shared,
+    Handle<Context> global_context,
+    Handle<Code> code,
+    Handle<FixedArray> literals) {
+  ASSERT(code->kind() == Code::OPTIMIZED_FUNCTION);
+  ASSERT(global_context->IsGlobalContext());
+  STATIC_ASSERT(kEntryLength == 3);
+  Object* value = shared->optimized_code_map();
+  Handle<FixedArray> new_code_map;
+  if (value->IsSmi()) {
+    // No optimized code map.
+    ASSERT_EQ(0, Smi::cast(value)->value());
+    // Crate 3 entries per context {context, code, literals}.
+    new_code_map = FACTORY->NewFixedArray(kEntryLength);
+    new_code_map->set(0, *global_context);
+    new_code_map->set(1, *code);
+    new_code_map->set(2, *literals);
+  } else {
+    // Copy old map and append one new entry.
+    Handle<FixedArray> old_code_map(FixedArray::cast(value));
+    ASSERT_EQ(-1, shared->SearchOptimizedCodeMap(*global_context));
+    int old_length = old_code_map->length();
+    int new_length = old_length + kEntryLength;
+    new_code_map = FACTORY->NewFixedArray(new_length);
+    old_code_map->CopyTo(0, *new_code_map, 0, old_length);
+    new_code_map->set(old_length, *global_context);
+    new_code_map->set(old_length + 1, *code);
+    new_code_map->set(old_length + 2, *literals);
+  }
+#ifdef DEBUG
+  for (int i = 0; i < new_code_map->length(); i += kEntryLength) {
+    ASSERT(new_code_map->get(i)->IsGlobalContext());
+    ASSERT(new_code_map->get(i + 1)->IsCode());
+    ASSERT(Code::cast(new_code_map->get(i + 1))->kind() ==
+           Code::OPTIMIZED_FUNCTION);
+    ASSERT(new_code_map->get(i + 2)->IsFixedArray());
+  }
+#endif
+  shared->set_optimized_code_map(*new_code_map);
+}
+
+
 bool JSFunction::CompileLazy(Handle<JSFunction> function,
                              ClearExceptionFlag flag) {
   bool result = true;
@@ -8040,6 +8088,22 @@ void SharedFunctionInfo::CompleteInobjectSlackTracking() {
 }
 
 
+int SharedFunctionInfo::SearchOptimizedCodeMap(Context* global_context) {
+  ASSERT(global_context->IsGlobalContext());
+  Object* value = optimized_code_map();
+  if (!value->IsSmi()) {
+    FixedArray* optimized_code_map = FixedArray::cast(value);
+    int length = optimized_code_map->length();
+    for (int i = 0; i < length; i += 3) {
+      if (optimized_code_map->get(i) == global_context) {
+        return i + 1;
+      }
+    }
+  }
+  return -1;
+}
+
+
 void SharedFunctionInfo::SharedFunctionInfoIterateBody(ObjectVisitor* v) {
   v->VisitSharedFunctionInfo(this);
   SharedFunctionInfo::BodyDescriptor::IterateBody(this, v);
@@ -8331,11 +8395,14 @@ void DeoptimizationInputData::DeoptimizationInputDataPrint(FILE* out) {
         case Translation::JS_FRAME: {
           int ast_id = iterator.Next();
           int function_id = iterator.Next();
-          JSFunction* function =
-              JSFunction::cast(LiteralArray()->get(function_id));
           unsigned height = iterator.Next();
           PrintF(out, "{ast_id=%d, function=", ast_id);
-          function->PrintName(out);
+          if (function_id != Translation::kSelfLiteralId) {
+            Object* function = LiteralArray()->get(function_id);
+            JSFunction::cast(function)->PrintName(out);
+          } else {
+            PrintF(out, "<self>");
+          }
           PrintF(out, ", height=%u}", height);
           break;
         }

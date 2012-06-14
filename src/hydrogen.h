@@ -1156,6 +1156,8 @@ class HGraphBuilder: public AstVisitor {
 
   HValue* BuildContextChainWalk(Variable* var);
 
+  HInstruction* BuildThisFunction();
+
   void AddCheckConstantFunction(Call* expr,
                                 HValue* receiver,
                                 Handle<Map> receiver_map,

@@ -502,6 +502,7 @@ void SharedFunctionInfo::SharedFunctionInfoVerify() {
   CHECK(IsSharedFunctionInfo());
   VerifyObjectField(kNameOffset);
   VerifyObjectField(kCodeOffset);
+  VerifyObjectField(kOptimizedCodeMapOffset);
   VerifyObjectField(kScopeInfoOffset);
   VerifyObjectField(kInstanceClassNameOffset);
   VerifyObjectField(kFunctionDataOffset);

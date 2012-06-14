@@ -8366,6 +8366,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NotifyDeoptimized) {
   } else {
     Deoptimizer::DeoptimizeFunction(*function);
   }
+  // Flush optimized code cache for this function.
+  function->shared()->ClearOptimizedCodeMap();
+
   return isolate->heap()->undefined_value();
 }
 

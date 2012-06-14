@@ -554,18 +554,44 @@ Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
   }
 
   result->set_context(*context);
+
+  int index = FLAG_cache_optimized_code
+      ? function_info->SearchOptimizedCodeMap(context->global_context())
+      : -1;
   if (!function_info->bound()) {
-    int number_of_literals = function_info->num_literals();
-    Handle<FixedArray> literals = NewFixedArray(number_of_literals, pretenure);
-    if (number_of_literals > 0) {
-      // Store the object, regexp and array functions in the literals
-      // array prefix.  These functions will be used when creating
-      // object, regexp and array literals in this function.
-      literals->set(JSFunction::kLiteralGlobalContextIndex,
-                    context->global_context());
+    if (index > 0) {
+      FixedArray* code_map =
+          FixedArray::cast(function_info->optimized_code_map());
+      FixedArray* cached_literals = FixedArray::cast(code_map->get(index + 1));
+      ASSERT(cached_literals != NULL);
+      ASSERT(function_info->num_literals() == 0 ||
+             (code_map->get(index - 1) ==
+              cached_literals->get(JSFunction::kLiteralGlobalContextIndex)));
+      result->set_literals(cached_literals);
+    } else {
+      int number_of_literals = function_info->num_literals();
+      Handle<FixedArray> literals =
+          NewFixedArray(number_of_literals, pretenure);
+      if (number_of_literals > 0) {
+        // Store the object, regexp and array functions in the literals
+        // array prefix.  These functions will be used when creating
+        // object, regexp and array literals in this function.
+        literals->set(JSFunction::kLiteralGlobalContextIndex,
+                      context->global_context());
+      }
+      result->set_literals(*literals);
     }
-    result->set_literals(*literals);
   }
+
+  if (index > 0) {
+    // Caching of optimized code enabled and optimized code found.
+    Code* code = Code::cast(
+        FixedArray::cast(function_info->optimized_code_map())->get(index));
+    ASSERT(code != NULL);
+    result->ReplaceCode(code);
+    return result;
+  }
+
   if (V8::UseCrankshaft() &&
       FLAG_always_opt &&
       result->is_compiled() &&

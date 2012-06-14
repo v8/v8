@@ -7963,13 +7963,25 @@ void HGraphBuilder::HandleLiteralCompareNil(CompareOperation* expr,
 }
 
 
+HInstruction* HGraphBuilder::BuildThisFunction() {
+  // If we share optimized code between different closures, the
+  // this-function is not a constant, except inside an inlined body.
+  if (function_state()->outer() != NULL) {
+      return new(zone()) HConstant(
+          function_state()->compilation_info()->closure(),
+          Representation::Tagged());
+  } else {
+      return new(zone()) HThisFunction;
+  }
+}
+
+
 void HGraphBuilder::VisitThisFunction(ThisFunction* expr) {
   ASSERT(!HasStackOverflow());
   ASSERT(current_block() != NULL);
   ASSERT(current_block()->HasPredecessor());
-  HThisFunction* self = new(zone()) HThisFunction(
-      function_state()->compilation_info()->closure());
-  return ast_context()->ReturnInstruction(self, expr->id());
+  HInstruction* instr = BuildThisFunction();
+  return ast_context()->ReturnInstruction(instr, expr->id());
 }
 
 

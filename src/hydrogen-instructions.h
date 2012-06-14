@@ -1469,7 +1469,7 @@ class HPushArgument: public HUnaryOperation {
 
 class HThisFunction: public HTemplateInstruction<0> {
  public:
-  explicit HThisFunction(Handle<JSFunction> closure) : closure_(closure) {
+  HThisFunction() {
     set_representation(Representation::Tagged());
     SetFlag(kUseGVN);
   }
@@ -1478,18 +1478,10 @@ class HThisFunction: public HTemplateInstruction<0> {
     return Representation::None();
   }
 
-  Handle<JSFunction> closure() const { return closure_; }
-
   DECLARE_CONCRETE_INSTRUCTION(ThisFunction)
 
  protected:
-  virtual bool DataEquals(HValue* other) {
-    HThisFunction* b = HThisFunction::cast(other);
-    return *closure() == *b->closure();
-  }
-
- private:
-  Handle<JSFunction> closure_;
+  virtual bool DataEquals(HValue* other) { return true; }
 };
 
 
