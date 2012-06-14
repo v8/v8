@@ -95,6 +95,10 @@
 
     # For a shared library build, results in "libv8-<(soname_version).so".
     'soname_version%': '',
+    
+    # Interpreted regexp engine exists as platform-independent alternative
+    # based where the regular expression is compiled to a bytecode.
+    'v8_interpreted_regexp%': 0,
   },
   'target_defaults': {
     'conditions': [
@@ -109,6 +113,9 @@
       }],
       ['v8_enable_gdbjit==1', {
         'defines': ['ENABLE_GDB_JIT_INTERFACE',],
+      }],
+      ['v8_interpreted_regexp==1', {
+        'defines': ['V8_INTERPRETED_REGEXP',],
       }],
       ['v8_target_arch=="arm"', {
         'defines': [
