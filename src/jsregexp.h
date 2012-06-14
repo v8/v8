@@ -78,8 +78,7 @@ class RegExpImpl {
   static Handle<Object> Exec(Handle<JSRegExp> regexp,
                              Handle<String> subject,
                              int index,
-                             Handle<JSArray> lastMatchInfo,
-                             Zone* zone);
+                             Handle<JSArray> lastMatchInfo);
 
   // Prepares a JSRegExp object with Irregexp-specific data.
   static void IrregexpInitialize(Handle<JSRegExp> re,
@@ -108,8 +107,7 @@ class RegExpImpl {
   // as its "registers" argument. If the regexp cannot be compiled,
   // an exception is set as pending, and this function returns negative.
   static int IrregexpPrepare(Handle<JSRegExp> regexp,
-                             Handle<String> subject,
-                             Zone* zone);
+                             Handle<String> subject);
 
   // Calculate the size of offsets vector for the case of global regexp
   // and the number of matches this vector is able to store.
@@ -126,8 +124,7 @@ class RegExpImpl {
   static int IrregexpExecRaw(Handle<JSRegExp> regexp,
                              Handle<String> subject,
                              int index,
-                             Vector<int> registers,
-                             Zone* zone);
+                             Vector<int> registers);
 
   // Execute an Irregexp bytecode pattern.
   // On a successful match, the result is a JSArray containing
@@ -136,8 +133,7 @@ class RegExpImpl {
   static Handle<Object> IrregexpExec(Handle<JSRegExp> regexp,
                                      Handle<String> subject,
                                      int index,
-                                     Handle<JSArray> lastMatchInfo,
-                                     Zone* zone);
+                                     Handle<JSArray> lastMatchInfo);
 
   // Array index in the lastMatchInfo array.
   static const int kLastCaptureCount = 0;
@@ -202,11 +198,9 @@ class RegExpImpl {
   static String* two_byte_cached_string_;
 
   static bool CompileIrregexp(
-      Handle<JSRegExp> re, Handle<String> sample_subject, bool is_ascii,
-      Zone* zone);
+      Handle<JSRegExp> re, Handle<String> sample_subject, bool is_ascii);
   static inline bool EnsureCompiledIrregexp(
-      Handle<JSRegExp> re, Handle<String> sample_subject, bool is_ascii,
-      Zone* zone);
+      Handle<JSRegExp> re, Handle<String> sample_subject, bool is_ascii);
 
 
   // Set the subject cache.  The previous string buffer is not deleted, so the

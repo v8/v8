@@ -1341,7 +1341,8 @@ TEST(MacroAssemblerNativeLotsOfRegisters) {
 TEST(MacroAssembler) {
   V8::Initialize(NULL);
   byte codes[1024];
-  RegExpMacroAssemblerIrregexp m(Vector<byte>(codes, 1024));
+  RegExpMacroAssemblerIrregexp m(Vector<byte>(codes, 1024),
+                                 Isolate::Current()->zone());
   // ^f(o)o.
   Label fail, fail2, start;
   uc16 foo_chars[3];
