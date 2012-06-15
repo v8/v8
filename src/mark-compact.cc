@@ -3817,8 +3817,9 @@ void MarkCompactCollector::SweepSpace(PagedSpace* space, SweeperType sweeper) {
 
   intptr_t old_space_size = heap()->PromotedSpaceSizeOfObjects();
   intptr_t space_left =
-      Min(heap()->OldGenPromotionLimit(old_space_size),
-          heap()->OldGenAllocationLimit(old_space_size)) - old_space_size;
+      Min(heap()->OldGenLimit(old_space_size, Heap::kMinPromotionLimit),
+          heap()->OldGenLimit(old_space_size, Heap::kMinAllocationLimit)) -
+      old_space_size;
 
   while (it.has_next()) {
     Page* p = it.next();
