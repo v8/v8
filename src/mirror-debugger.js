@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2006-2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -1746,6 +1746,15 @@ FrameMirror.prototype.localsText = function() {
     }
   }
 
+  return result;
+};
+
+
+FrameMirror.prototype.restart = function() {
+  var result = %LiveEditRestartFrame(this.break_id_, this.index_);
+  if (IS_UNDEFINED(result)) {
+    result = "Failed to find requested frame";
+  }
   return result;
 };
 

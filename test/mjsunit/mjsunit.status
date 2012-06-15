@@ -63,6 +63,7 @@ unicode-case-overoptimization: PASS, TIMEOUT if ($arch == arm || $arch == mips)
 debug-liveedit-check-stack: SKIP
 debug-liveedit-patch-positions-replace: SKIP
 debug-liveedit-stack-padding: SKIP
+debug-liveedit-restart-frame: SKIP
 
 # Test Crankshaft compilation time.  Expected to take too long in debug mode.
 regress/regress-1969: PASS, SKIP if $mode == debug
