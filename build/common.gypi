@@ -150,16 +150,6 @@
                   'USE_EABI_HARDFLOAT=0',
                 ],
               }],
-              # The ARM assembler assumes the host is 32 bits,
-              # so force building 32-bit host tools.
-              ['host_arch=="x64" or OS=="android"', {
-                'target_conditions': [
-                  ['_toolset=="host"', {
-                    'cflags': ['-m32'],
-                    'ldflags': ['-m32'],
-                  }],
-                ],
-              }],
             ],
           }],
           ['v8_target_arch=="ia32"', {
@@ -218,16 +208,6 @@
               ['mips_arch_variant=="loongson"', {
                 'defines': ['_MIPS_ARCH_LOONGSON',],
               }],
-              # The MIPS assembler assumes the host is 32 bits,
-              # so force building 32-bit host tools.
-              ['host_arch=="x64"', {
-                'target_conditions': [
-                  ['_toolset=="host"', {
-                    'cflags': ['-m32'],
-                    'ldflags': ['-m32'],
-                  }],
-                ],
-              }],
             ],
           }],
           ['v8_target_arch=="x64"', {
@@ -272,10 +252,6 @@
       ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="solaris" \
          or OS=="netbsd"', {
         'conditions': [
-          [ 'target_arch=="ia32"', {
-            'cflags': [ '-m32' ],
-            'ldflags': [ '-m32' ],
-          }],
           [ 'v8_no_strict_aliasing==1', {
             'cflags': [ '-fno-strict-aliasing' ],
           }],
@@ -283,6 +259,29 @@
       }],
       ['OS=="solaris"', {
         'defines': [ '__C99FEATURES__=1' ],  # isinf() etc.
+      }],
+      ['(OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="solaris" \
+         or OS=="netbsd" or OS=="mac" or OS=="android") and \
+        (v8_target_arch=="arm" or v8_target_arch=="ia32" or \
+         v8_target_arch=="mips")', {
+        # Check whether the host compiler and target compiler support the
+        # '-m32' option and set it if so.
+        'target_conditions': [
+          ['_toolset=="host"', {
+            'variables': {
+              'm32flag': '<!((echo | $(echo ${CXX_host:-$(which g++)}) -m32 -E - > /dev/null 2>&1) && echo -n "-m32" || true)',
+            },
+            'cflags': [ '<(m32flag)' ],
+            'ldflags': [ '<(m32flag)' ],
+          }],
+          ['_toolset=="target"', {
+            'variables': {
+              'm32flag': '<!((echo | $(echo ${CXX_target:-${CXX:-$(which g++)}}) -m32 -E - > /dev/null 2>&1) && echo -n "-m32" || true)',
+            },
+            'cflags': [ '<(m32flag)' ],
+            'ldflags': [ '<(m32flag)' ],
+          }],
+        ],
       }],
     ],  # conditions
     'configurations': {
