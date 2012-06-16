@@ -59,12 +59,6 @@ array-constructor: PASS || TIMEOUT
 # Very slow on ARM and MIPS, contains no architecture dependent code.
 unicode-case-overoptimization: PASS, TIMEOUT if ($arch == arm || $arch == mips)
 
-# Stack manipulations in LiveEdit are buggy - see bug 915
-debug-liveedit-check-stack: SKIP
-debug-liveedit-patch-positions-replace: SKIP
-debug-liveedit-stack-padding: SKIP
-debug-liveedit-restart-frame: SKIP
-
 # Test Crankshaft compilation time.  Expected to take too long in debug mode.
 regress/regress-1969: PASS, SKIP if $mode == debug
 
@@ -127,6 +121,11 @@ regress/regress-3247124: SKIP
 # should be platform-independent.
 regress/regress-1132: SKIP
 
+# Stack manipulations in LiveEdit is not implemented for this arch.
+debug-liveedit-check-stack: SKIP
+debug-liveedit-stack-padding: SKIP
+debug-liveedit-restart-frame: SKIP
+
 ##############################################################################
 [ $arch == mips ]
 
@@ -175,3 +174,9 @@ regress/regress-3247124: SKIP
 # the test requires too much time to run.  However, the problem test covers
 # should be platform-independent.
 regress/regress-1132: SKIP
+
+# Stack manipulations in LiveEdit is not implemented for this arch.
+debug-liveedit-check-stack: SKIP
+debug-liveedit-stack-padding: SKIP
+debug-liveedit-restart-frame: SKIP
+

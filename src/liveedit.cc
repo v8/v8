@@ -923,37 +923,35 @@ void LiveEdit::WrapSharedFunctionInfos(Handle<JSArray> array) {
 }
 
 
-// Visitor that collects all references to a particular code object,
-// including "CODE_TARGET" references in other code objects.
-// It works in context of ZoneScope.
-class ReferenceCollectorVisitor : public ObjectVisitor {
+// Visitor that finds all references to a particular code object,
+// including "CODE_TARGET" references in other code objects and replaces
+// them on the fly.
+class ReplacingVisitor : public ObjectVisitor {
  public:
-  ReferenceCollectorVisitor(Code* original, Zone* zone)
-      : original_(original),
-        rvalues_(10, zone),
-        reloc_infos_(10, zone),
-        code_entries_(10, zone),
-        zone_(zone) {
+  explicit ReplacingVisitor(Code* original, Code* substitution)
+    : original_(original), substitution_(substitution) {
   }
 
   virtual void VisitPointers(Object** start, Object** end) {
     for (Object** p = start; p < end; p++) {
       if (*p == original_) {
-        rvalues_.Add(p, zone_);
+        *p = substitution_;
       }
     }
   }
 
   virtual void VisitCodeEntry(Address entry) {
     if (Code::GetObjectFromEntryAddress(entry) == original_) {
-      code_entries_.Add(entry, zone_);
+      Address substitution_entry = substitution_->instruction_start();
+      Memory::Address_at(entry) = substitution_entry;
     }
   }
 
   virtual void VisitCodeTarget(RelocInfo* rinfo) {
     if (RelocInfo::IsCodeTarget(rinfo->rmode()) &&
         Code::GetCodeFromTargetAddress(rinfo->target_address()) == original_) {
-      reloc_infos_.Add(*rinfo, zone_);
+      Address substitution_entry = substitution_->instruction_start();
+      rinfo->set_target_address(substitution_entry);
     }
   }
 
@@ -961,28 +959,9 @@ class ReferenceCollectorVisitor : public ObjectVisitor {
     VisitCodeTarget(rinfo);
   }
 
-  // Post-visiting method that iterates over all collected references and
-  // modifies them.
-  void Replace(Code* substitution) {
-    for (int i = 0; i < rvalues_.length(); i++) {
-      *(rvalues_[i]) = substitution;
-    }
-    Address substitution_entry = substitution->instruction_start();
-    for (int i = 0; i < reloc_infos_.length(); i++) {
-      reloc_infos_[i].set_target_address(substitution_entry);
-    }
-    for (int i = 0; i < code_entries_.length(); i++) {
-      Address entry = code_entries_[i];
-      Memory::Address_at(entry) = substitution_entry;
-    }
-  }
-
  private:
   Code* original_;
-  ZoneList<Object**> rvalues_;
-  ZoneList<RelocInfo> reloc_infos_;
-  ZoneList<Address> code_entries_;
-  Zone* zone_;
+  Code* substitution_;
 };
 
 
@@ -990,28 +969,21 @@ class ReferenceCollectorVisitor : public ObjectVisitor {
 static void ReplaceCodeObject(Code* original, Code* substitution) {
   ASSERT(!HEAP->InNewSpace(substitution));
 
-  HeapIterator iterator;
   AssertNoAllocation no_allocations_please;
 
-  // A zone scope for ReferenceCollectorVisitor.
-  ZoneScope scope(Isolate::Current(), DELETE_ON_EXIT);
-
-  ReferenceCollectorVisitor visitor(original, Isolate::Current()->zone());
+  ReplacingVisitor visitor(original, substitution);
 
   // Iterate over all roots. Stack frames may have pointer into original code,
   // so temporary replace the pointers with offset numbers
   // in prologue/epilogue.
-  {
-    HEAP->IterateStrongRoots(&visitor, VISIT_ALL);
-  }
+  HEAP->IterateRoots(&visitor, VISIT_ALL);
 
   // Now iterate over all pointers of all objects, including code_target
   // implicit pointers.
+  HeapIterator iterator;
   for (HeapObject* obj = iterator.next(); obj != NULL; obj = iterator.next()) {
     obj->Iterate(&visitor);
   }
-
-  visitor.Replace(substitution);
 }
 
 
