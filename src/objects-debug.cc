@@ -922,6 +922,11 @@ static bool CheckOneBackPointer(Map* current_map, Object* target) {
 
 
 bool DescriptorArray::IsConsistentWithBackPointers(Map* current_map) {
+  Map* elements_transition = elements_transition_map();
+  if (elements_transition != NULL &&
+      !CheckOneBackPointer(current_map, elements_transition)) {
+    return false;
+  }
   for (int i = 0; i < number_of_descriptors(); ++i) {
     switch (GetType(i)) {
       case MAP_TRANSITION:

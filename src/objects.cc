@@ -7353,6 +7353,11 @@ void Map::ClearNonLiveTransitions(Heap* heap) {
   DescriptorArray* d = DescriptorArray::cast(
       *RawField(this, Map::kInstanceDescriptorsOrBitField3Offset));
   if (d->IsEmpty()) return;
+  Map* elements_transition = d->elements_transition_map();
+  if (elements_transition != NULL &&
+      ClearBackPointer(heap, elements_transition)) {
+    d->ClearElementsTransition();
+  }
   Smi* NullDescriptorDetails =
     PropertyDetails(NONE, NULL_DESCRIPTOR).AsSmi();
   for (int i = 0; i < d->number_of_descriptors(); ++i) {

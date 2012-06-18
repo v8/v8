@@ -1881,12 +1881,9 @@ void Marker<T>::MarkDescriptorArray(DescriptorArray* descriptors) {
                                          enum_cache);
   }
 
-  // TODO(verwaest) Make sure we free unused transitions.
   if (descriptors->elements_transition_map() != NULL) {
     Object** transitions_slot = descriptors->GetTransitionsSlot();
     Object* transitions = *transitions_slot;
-    base_marker()->MarkObjectAndPush(
-        reinterpret_cast<HeapObject*>(transitions));
     mark_compact_collector()->RecordSlot(descriptor_start,
                                          transitions_slot,
                                          transitions);

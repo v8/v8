@@ -1958,6 +1958,11 @@ void DescriptorArray::set_elements_transition_map(
 }
 
 
+void DescriptorArray::ClearElementsTransition() {
+  WRITE_FIELD(this, kTransitionsOffset, Smi::FromInt(0));
+}
+
+
 Object** DescriptorArray::GetKeySlot(int descriptor_number) {
   ASSERT(descriptor_number < number_of_descriptors());
   return HeapObject::RawField(

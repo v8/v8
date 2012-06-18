@@ -2438,6 +2438,7 @@ class DescriptorArray: public FixedArray {
   inline bool MayContainTransitions();
 
   DECL_ACCESSORS(elements_transition_map, Map)
+  inline void ClearElementsTransition();
 
   // Returns the number of descriptors in the array.
   int number_of_descriptors() {
