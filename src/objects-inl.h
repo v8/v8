@@ -1874,15 +1874,14 @@ Object** FixedArray::data_start() {
 
 
 bool DescriptorArray::IsEmpty() {
-  ASSERT(this->IsSmi() ||
-         this->MayContainTransitions() ||
+  ASSERT(length() >= kFirstIndex ||
          this == HEAP->empty_descriptor_array());
-  return this->IsSmi() || length() < kFirstIndex;
+  return length() < kFirstIndex;
 }
 
 
 bool DescriptorArray::MayContainTransitions() {
-  return length() >= kTransitionsIndex;
+  return !IsEmpty();
 }
 
 
