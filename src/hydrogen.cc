@@ -937,10 +937,9 @@ class PostorderProcessor : public ZoneObject {
         }
       case NONE:
         return father_;
-      default:
-        UNREACHABLE();
-        return NULL;
     }
+    UNREACHABLE();
+    return NULL;
   }
 
   // Walks up the stack.
