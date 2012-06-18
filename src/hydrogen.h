@@ -345,14 +345,6 @@ class HGraph: public ZoneObject {
   }
 
  private:
-  void Postorder(HBasicBlock* block,
-                 BitVector* visited,
-                 ZoneList<HBasicBlock*>* order,
-                 HBasicBlock* loop_header);
-  void PostorderLoopBlocks(HLoopInformation* loop,
-                           BitVector* visited,
-                           ZoneList<HBasicBlock*>* order,
-                           HBasicBlock* loop_header);
   HConstant* GetConstant(SetOncePointer<HConstant>* pointer,
                          Object* value);
 
