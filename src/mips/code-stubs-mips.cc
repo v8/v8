@@ -159,7 +159,6 @@ void FastNewClosureStub::Generate(MacroAssembler* masm) {
   __ lw(t0, FieldMemOperand(a1, FixedArray::kHeaderSize + kPointerSize));
   __ lw(t1, FieldMemOperand(a1, FixedArray::kHeaderSize));
   __ Branch(&install_optimized, eq, a2, Operand(t1));
-  __ Branch(&install_unoptimized);
 
   // Iterate through the rest of map backwards.  t0 holds an index as a Smi.
   Label loop;
