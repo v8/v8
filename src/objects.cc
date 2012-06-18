@@ -7562,12 +7562,10 @@ MaybeObject* JSObject::OptimizeAsPrototype() {
 
   // Make sure prototypes are fast objects and their maps have the bit set
   // so they remain fast.
-  Map* proto_map = map();
   if (!HasFastProperties()) {
     MaybeObject* new_proto = TransformToFastProperties(0);
     if (new_proto->IsFailure()) return new_proto;
     ASSERT(new_proto == this);
-    proto_map = map();
   }
   return this;
 }
