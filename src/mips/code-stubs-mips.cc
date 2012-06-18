@@ -87,6 +87,8 @@ void ToNumberStub::Generate(MacroAssembler* masm) {
 void FastNewClosureStub::Generate(MacroAssembler* masm) {
   // Create a new closure from the given function info in new
   // space. Set the context to the current context in cp.
+  Counters* counters = masm->isolate()->counters();
+
   Label gc;
 
   // Pop the function info from the stack.
@@ -100,6 +102,8 @@ void FastNewClosureStub::Generate(MacroAssembler* masm) {
                         &gc,
                         TAG_OBJECT);
 
+  __ IncrementCounter(counters->fast_new_closure_total(), 1, t2, t3);
+
   int map_index = (language_mode_ == CLASSIC_MODE)
       ? Context::FUNCTION_MAP_INDEX
       : Context::STRICT_MODE_FUNCTION_MAP_INDEX;
@@ -108,29 +112,106 @@ void FastNewClosureStub::Generate(MacroAssembler* masm) {
   // as the map of the allocated object.
   __ lw(a2, MemOperand(cp, Context::SlotOffset(Context::GLOBAL_INDEX)));
   __ lw(a2, FieldMemOperand(a2, GlobalObject::kGlobalContextOffset));
-  __ lw(a2, MemOperand(a2, Context::SlotOffset(map_index)));
-  __ sw(a2, FieldMemOperand(v0, HeapObject::kMapOffset));
+  __ lw(t1, MemOperand(a2, Context::SlotOffset(map_index)));
+  __ sw(t1, FieldMemOperand(v0, HeapObject::kMapOffset));
 
   // Initialize the rest of the function. We don't have to update the
   // write barrier because the allocated object is in new space.
   __ LoadRoot(a1, Heap::kEmptyFixedArrayRootIndex);
-  __ LoadRoot(a2, Heap::kTheHoleValueRootIndex);
-  __ LoadRoot(t0, Heap::kUndefinedValueRootIndex);
+  __ LoadRoot(t1, Heap::kTheHoleValueRootIndex);
   __ sw(a1, FieldMemOperand(v0, JSObject::kPropertiesOffset));
   __ sw(a1, FieldMemOperand(v0, JSObject::kElementsOffset));
-  __ sw(a2, FieldMemOperand(v0, JSFunction::kPrototypeOrInitialMapOffset));
+  __ sw(t1, FieldMemOperand(v0, JSFunction::kPrototypeOrInitialMapOffset));
   __ sw(a3, FieldMemOperand(v0, JSFunction::kSharedFunctionInfoOffset));
   __ sw(cp, FieldMemOperand(v0, JSFunction::kContextOffset));
   __ sw(a1, FieldMemOperand(v0, JSFunction::kLiteralsOffset));
-  __ sw(t0, FieldMemOperand(v0, JSFunction::kNextFunctionLinkOffset));
 
   // Initialize the code pointer in the function to be the one
   // found in the shared function info object.
+  // But first check if there is an optimized version for our context.
+  Label check_optimized;
+  Label install_unoptimized;
+  if (FLAG_cache_optimized_code) {
+    __ lw(a1,
+          FieldMemOperand(a3, SharedFunctionInfo::kOptimizedCodeMapOffset));
+    __ And(at, a1, a1);
+    __ Branch(&check_optimized, ne, at, Operand(zero_reg));
+  }
+  __ bind(&install_unoptimized);
+  __ LoadRoot(t0, Heap::kUndefinedValueRootIndex);
+  __ sw(t0, FieldMemOperand(v0, JSFunction::kNextFunctionLinkOffset));
   __ lw(a3, FieldMemOperand(a3, SharedFunctionInfo::kCodeOffset));
   __ Addu(a3, a3, Operand(Code::kHeaderSize - kHeapObjectTag));
 
   // Return result. The argument function info has been popped already.
   __ sw(a3, FieldMemOperand(v0, JSFunction::kCodeEntryOffset));
+  __ Ret();
+
+  __ bind(&check_optimized);
+
+  __ IncrementCounter(counters->fast_new_closure_try_optimized(), 1, t2, t3);
+
+  // a2 holds global context, a1 points to fixed array of 3-element entries
+  // (global context, optimized code, literals).
+  // The optimized code map must never be empty, so check the first elements.
+  Label install_optimized;
+  // Speculatively move code object into t0.
+  __ lw(t0, FieldMemOperand(a1, FixedArray::kHeaderSize + kPointerSize));
+  __ lw(t1, FieldMemOperand(a1, FixedArray::kHeaderSize));
+  __ Branch(&install_optimized, eq, a2, Operand(t1));
+  __ Branch(&install_unoptimized);
+
+  // Iterate through the rest of map backwards.  t0 holds an index as a Smi.
+  Label loop;
+  __ lw(t0, FieldMemOperand(a1, FixedArray::kLengthOffset));
+  __ bind(&loop);
+  // Do not double check first entry.
+
+  __ Branch(&install_unoptimized, eq, t0,
+            Operand(Smi::FromInt(SharedFunctionInfo::kEntryLength)));
+  __ Subu(t0, t0, Operand(
+      Smi::FromInt(SharedFunctionInfo::kEntryLength)));  // Skip an entry.
+  __ Addu(t1, a1, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
+  __ sll(at, t0, kPointerSizeLog2 - kSmiTagSize);
+  __ Addu(t1, t1, Operand(at));
+  __ lw(t1, MemOperand(t1));
+  __ Branch(&loop, ne, a2, Operand(t1));
+  // Hit: fetch the optimized code.
+  __ Addu(t1, a1, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
+  __ sll(at, t0, kPointerSizeLog2 - kSmiTagSize);
+  __ Addu(t1, t1, Operand(at));
+  __ Addu(t1, t1, Operand(kPointerSize));
+  __ lw(t0, MemOperand(t1));
+
+  __ bind(&install_optimized);
+  __ IncrementCounter(counters->fast_new_closure_install_optimized(),
+                      1, t2, t3);
+
+  // TODO(fschneider): Idea: store proper code pointers in the map and either
+  // unmangle them on marking or do nothing as the whole map is discarded on
+  // major GC anyway.
+  __ Addu(t0, t0, Operand(Code::kHeaderSize - kHeapObjectTag));
+  __ sw(t0, FieldMemOperand(v0, JSFunction::kCodeEntryOffset));
+
+  // Now link a function into a list of optimized functions.
+  __ lw(t0, ContextOperand(a2, Context::OPTIMIZED_FUNCTIONS_LIST));
+
+  __ sw(t0, FieldMemOperand(v0, JSFunction::kNextFunctionLinkOffset));
+  // No need for write barrier as JSFunction (eax) is in the new space.
+
+  __ sw(v0, ContextOperand(a2, Context::OPTIMIZED_FUNCTIONS_LIST));
+  // Store JSFunction (eax) into edx before issuing write barrier as
+  // it clobbers all the registers passed.
+  __ mov(t0, v0);
+  __ RecordWriteContextSlot(
+      a2,
+      Context::SlotOffset(Context::OPTIMIZED_FUNCTIONS_LIST),
+      t0,
+      a1,
+      kRAHasNotBeenSaved,
+      kDontSaveFPRegs);
+
+  // Return result. The argument function info has been popped already.
   __ Ret();
 
   // Create a new closure through the slower runtime call.
@@ -7380,6 +7461,8 @@ static const AheadOfTimeWriteBarrierStubList kAheadOfTime[] = {
   { REG(a2), REG(t2), REG(t5), EMIT_REMEMBERED_SET },
   // StoreArrayLiteralElementStub::Generate
   { REG(t1), REG(a0), REG(t2), EMIT_REMEMBERED_SET },
+  // FastNewClosureStub::Generate
+  { REG(a2), REG(t0), REG(a1), EMIT_REMEMBERED_SET },
   // Null termination.
   { REG(no_reg), REG(no_reg), REG(no_reg), EMIT_REMEMBERED_SET}
 };
