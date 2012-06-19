@@ -1608,7 +1608,7 @@ void Isolate::PushToPartialSnapshotCache(Object* obj) {
   int capacity = serialize_partial_snapshot_cache_capacity();
 
   if (length >= capacity) {
-    int new_capacity = (capacity + 10) * 1.2;
+    int new_capacity = static_cast<int>((capacity + 10) * 1.2);
     Object** new_array = new Object*[new_capacity];
     for (int i = 0; i < length; i++) {
       new_array[i] = serialize_partial_snapshot_cache()[i];
