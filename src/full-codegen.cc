@@ -315,7 +315,7 @@ bool FullCodeGenerator::MakeCode(CompilationInfo* info) {
   Handle<Code> code = CodeGenerator::MakeCodeEpilogue(&masm, flags, info);
   code->set_optimizable(info->IsOptimizable() &&
                         !info->function()->flags()->Contains(kDontOptimize) &&
-                        info->function()->scope()->AllowsLazyRecompilation());
+                        info->function()->scope()->AllowsLazyCompilation());
   cgen.PopulateDeoptimizationData(code);
   cgen.PopulateTypeFeedbackInfo(code);
   cgen.PopulateTypeFeedbackCells(code);

@@ -7472,12 +7472,6 @@ void JSFunction::MarkForLazyRecompilation() {
 }
 
 
-bool SharedFunctionInfo::EnsureCompiled(Handle<SharedFunctionInfo> shared,
-                                        ClearExceptionFlag flag) {
-  return shared->is_compiled() || CompileLazy(shared, flag);
-}
-
-
 static bool CompileLazyHelper(CompilationInfo* info,
                               ClearExceptionFlag flag) {
   // Compile the source information to a code object.
@@ -7494,6 +7488,7 @@ static bool CompileLazyHelper(CompilationInfo* info,
 
 bool SharedFunctionInfo::CompileLazy(Handle<SharedFunctionInfo> shared,
                                      ClearExceptionFlag flag) {
+  ASSERT(shared->allows_lazy_compilation_without_context());
   CompilationInfo info(shared);
   return CompileLazyHelper(&info, flag);
 }
@@ -7554,6 +7549,7 @@ bool JSFunction::CompileLazy(Handle<JSFunction> function,
     function->ReplaceCode(function->shared()->code());
     function->shared()->set_code_age(0);
   } else {
+    ASSERT(function->shared()->allows_lazy_compilation());
     CompilationInfo info(function);
     result = CompileLazyHelper(&info, flag);
     ASSERT(!result || function->is_compiled());
@@ -7568,6 +7564,12 @@ bool JSFunction::CompileOptimized(Handle<JSFunction> function,
   CompilationInfo info(function);
   info.SetOptimizing(osr_ast_id);
   return CompileLazyHelper(&info, flag);
+}
+
+
+bool JSFunction::EnsureCompiled(Handle<JSFunction> function,
+                                ClearExceptionFlag flag) {
+  return function->is_compiled() || CompileLazy(function, flag);
 }
 
 

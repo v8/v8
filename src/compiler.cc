@@ -118,7 +118,7 @@ bool CompilationInfo::ShouldSelfOptimize() {
       FLAG_crankshaft &&
       !function()->flags()->Contains(kDontSelfOptimize) &&
       !function()->flags()->Contains(kDontOptimize) &&
-      function()->scope()->AllowsLazyRecompilation() &&
+      function()->scope()->AllowsLazyCompilation() &&
       (shared_info().is_null() || !shared_info()->optimization_disabled());
 }
 
@@ -137,9 +137,8 @@ void CompilationInfo::AbortOptimization() {
 // all. However crankshaft support recompilation of functions, so in this case
 // the full compiler need not be be used if a debugger is attached, but only if
 // break points has actually been set.
-static bool is_debugging_active() {
+static bool IsDebuggerActive(Isolate* isolate) {
 #ifdef ENABLE_DEBUGGER_SUPPORT
-  Isolate* isolate = Isolate::Current();
   return V8::UseCrankshaft() ?
     isolate->debug()->has_break_points() :
     isolate->debugger()->IsDebuggerActive();
@@ -149,8 +148,8 @@ static bool is_debugging_active() {
 }
 
 
-static bool AlwaysFullCompiler() {
-  return FLAG_always_full_compiler || is_debugging_active();
+static bool AlwaysFullCompiler(Isolate* isolate) {
+  return FLAG_always_full_compiler || IsDebuggerActive(isolate);
 }
 
 
@@ -205,7 +204,7 @@ static bool MakeCrankshaftCode(CompilationInfo* info) {
   // Fall back to using the full code generator if it's not possible
   // to use the Hydrogen-based optimizing compiler. We already have
   // generated code for this from the shared function object.
-  if (AlwaysFullCompiler()) {
+  if (AlwaysFullCompiler(info->isolate())) {
     info->SetCode(code);
     return true;
   }
@@ -758,8 +757,14 @@ Handle<SharedFunctionInfo> Compiler::BuildFunctionInfo(FunctionLiteral* literal,
   // builtins cannot be handled lazily by the parser, since we have to know
   // if a function uses the special natives syntax, which is something the
   // parser records.
+  // If the debugger requests compilation for break points, we cannot be
+  // aggressive about lazy compilation, because it might trigger compilation
+  // of functions without an outer context when setting a breakpoint through
+  // Runtime::FindSharedFunctionInfoInScript.
+  bool allow_lazy_without_ctx = literal->AllowsLazyCompilationWithoutContext();
   bool allow_lazy = literal->AllowsLazyCompilation() &&
-      !LiveEditFunctionTracker::IsActive(info.isolate());
+      !LiveEditFunctionTracker::IsActive(info.isolate()) &&
+      (!info.isolate()->DebuggerHasBreakPoints() || allow_lazy_without_ctx);
 
   Handle<ScopeInfo> scope_info(ScopeInfo::Empty());
 
@@ -784,6 +789,7 @@ Handle<SharedFunctionInfo> Compiler::BuildFunctionInfo(FunctionLiteral* literal,
   SetFunctionInfo(result, literal, false, script);
   RecordFunctionCompilation(Logger::FUNCTION_TAG, &info, result);
   result->set_allows_lazy_compilation(allow_lazy);
+  result->set_allows_lazy_compilation_without_context(allow_lazy_without_ctx);
 
   // Set the expected number of properties for instances and return
   // the resulting function.
@@ -816,6 +822,8 @@ void Compiler::SetFunctionInfo(Handle<SharedFunctionInfo> function_info,
       lit->has_only_simple_this_property_assignments(),
       *lit->this_property_assignments());
   function_info->set_allows_lazy_compilation(lit->AllowsLazyCompilation());
+  function_info->set_allows_lazy_compilation_without_context(
+      lit->AllowsLazyCompilationWithoutContext());
   function_info->set_language_mode(lit->language_mode());
   function_info->set_uses_arguments(lit->scope()->arguments() != NULL);
   function_info->set_has_duplicate_parameters(lit->has_duplicate_parameters());
