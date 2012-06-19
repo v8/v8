@@ -12105,7 +12105,11 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugEvaluate) {
   Handle<Context> context =
       isolate->factory()->NewFunctionContext(Context::MIN_CONTEXT_SLOTS,
                                              go_between);
-  context->set_extension(*local_scope);
+
+  // Use the materialized local scope in a with context.
+  context =
+      isolate->factory()->NewWithContext(go_between, context, local_scope);
+
   // Copy any with contexts present and chain them in front of this context.
   Handle<Context> frame_context(Context::cast(frame->context()));
   Handle<Context> function_context;
