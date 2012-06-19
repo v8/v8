@@ -374,8 +374,8 @@ TEST(OptimizedCodeSharing) {
         *v8::Local<v8::Function>::Cast(env->Global()->Get(v8_str("closure1"))));
     Handle<JSFunction> fun2 = v8::Utils::OpenHandle(
         *v8::Local<v8::Function>::Cast(env->Global()->Get(v8_str("closure2"))));
-    CHECK(fun1->IsOptimized() || !FLAG_crankshaft);
-    CHECK(fun2->IsOptimized() || !FLAG_crankshaft);
+    CHECK(fun1->IsOptimized() || !fun1->IsOptimizable());
+    CHECK(fun2->IsOptimized() || !fun2->IsOptimizable());
     CHECK_EQ(fun1->code(), fun2->code());
   }
 }
