@@ -1876,7 +1876,7 @@ static void RedirectActivationsToRecompiledCodeOnThread(
     for (RelocIterator it(*frame_code, constpool_mask); !it.done(); it.next()) {
       RelocInfo* info = it.rinfo();
       if (info->pc() >= frame->pc()) break;
-      frame_const_pool_size += info->data();
+      frame_const_pool_size += static_cast<int>(info->data());
     }
     intptr_t frame_offset =
       frame->pc() - frame_code->instruction_start() - frame_const_pool_size;
@@ -1902,7 +1902,7 @@ static void RedirectActivationsToRecompiledCodeOnThread(
       } else {
         ASSERT(RelocInfo::IsConstPool(info->rmode()));
         // The size of the constant pool is encoded in the data.
-        new_code_const_pool_size += info->data();
+        new_code_const_pool_size += static_cast<int>(info->data());
       }
     }
 

@@ -363,7 +363,7 @@ void RelocInfoWriter::Write(const RelocInfo* rinfo) {
     ASSERT(begin_pos - pos_ >= RelocInfo::kMinRelocCommentSize);
   } else if (RelocInfo::IsConstPool(rmode)) {
       WriteExtraTaggedPC(pc_delta, kPCJumpExtraTag);
-      WriteExtraTaggedConstPoolData(rinfo->data());
+      WriteExtraTaggedConstPoolData(static_cast<int>(rinfo->data()));
   } else {
     ASSERT(rmode > RelocInfo::LAST_COMPACT_ENUM);
     int saved_mode = rmode - RelocInfo::LAST_COMPACT_ENUM;

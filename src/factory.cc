@@ -725,7 +725,7 @@ Handle<String> Factory::EmergencyNewError(const char* type,
         MaybeObject* maybe_arg = args->GetElement(i);
         Handle<String> arg_str(reinterpret_cast<String*>(maybe_arg));
         const char* arg = *arg_str->ToCString();
-        Vector<char> v2(p, space);
+        Vector<char> v2(p, static_cast<int>(space));
         OS::StrNCpy(v2, arg, space);
         space -= Min(space, strlen(arg));
         p = &buffer[kBufferSize] - space;
