@@ -227,6 +227,7 @@
             'StackReserveSize': '2097152',
           },
         },
+        'msvs_configuration_platform': 'x64',
       }],  # v8_target_arch=="x64"
       ['v8_use_liveobjectlist=="true"', {
         'defines': [
