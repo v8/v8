@@ -2822,7 +2822,7 @@ void Heap::AllocateFullSizeNumberStringCache() {
   // The idea is to have a small number string cache in the snapshot to keep
   // boot-time memory usage down.  If we expand the number string cache already
   // while creating the snapshot then that didn't work out.
-  ASSERT(!Serializer::enabled());
+  ASSERT(!Serializer::enabled() || FLAG_extra_code != NULL);
   MaybeObject* maybe_obj =
       AllocateFixedArray(FullSizeNumberStringCacheLength(), TENURED);
   Object* new_cache;

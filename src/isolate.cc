@@ -1550,6 +1550,11 @@ void Isolate::TearDown() {
     thread_data_table_->RemoveAllThreads(this);
   }
 
+  if (serialize_partial_snapshot_cache_ != NULL) {
+    delete[] serialize_partial_snapshot_cache_;
+    serialize_partial_snapshot_cache_ = NULL;
+  }
+
   if (!IsDefaultIsolate()) {
     delete this;
   }
@@ -1595,6 +1600,26 @@ void Isolate::Deinit() {
     // The default isolate is re-initializable due to legacy API.
     state_ = UNINITIALIZED;
   }
+}
+
+
+void Isolate::PushToPartialSnapshotCache(Object* obj) {
+  int length = serialize_partial_snapshot_cache_length();
+  int capacity = serialize_partial_snapshot_cache_capacity();
+
+  if (length >= capacity) {
+    int new_capacity = (capacity + 10) * 1.2;
+    Object** new_array = new Object*[new_capacity];
+    for (int i = 0; i < length; i++) {
+      new_array[i] = serialize_partial_snapshot_cache()[i];
+    }
+    if (capacity != 0) delete[] serialize_partial_snapshot_cache();
+    set_serialize_partial_snapshot_cache(new_array);
+    set_serialize_partial_snapshot_cache_capacity(new_capacity);
+  }
+
+  serialize_partial_snapshot_cache()[length] = obj;
+  set_serialize_partial_snapshot_cache_length(length + 1);
 }
 
 
@@ -1815,6 +1840,11 @@ bool Isolate::Init(Deserializer* des) {
     return false;
   }
 
+  if (create_heap_objects) {
+    // Terminate the cache array with the sentinel so we can iterate.
+    PushToPartialSnapshotCache(heap_.undefined_value());
+  }
+
   InitializeThreadLocal();
 
   bootstrapper_->Initialize(create_heap_objects);
@@ -1841,7 +1871,7 @@ bool Isolate::Init(Deserializer* des) {
 #endif
 
   // If we are deserializing, read the state into the now-empty heap.
-  if (des != NULL) {
+  if (!create_heap_objects) {
     des->Deserialize();
   }
   stub_cache_->Initialize();
@@ -1856,7 +1886,7 @@ bool Isolate::Init(Deserializer* des) {
   heap_.SetStackLimits();
 
   // Quiet the heap NaN if needed on target platform.
-  if (des != NULL) Assembler::QuietNaN(heap_.nan_value());
+  if (create_heap_objects) Assembler::QuietNaN(heap_.nan_value());
 
   deoptimizer_data_ = new DeoptimizerData;
   runtime_profiler_ = new RuntimeProfiler(this);
@@ -1864,7 +1894,7 @@ bool Isolate::Init(Deserializer* des) {
 
   // If we are deserializing, log non-function code objects and compiled
   // functions found in the snapshot.
-  if (des != NULL && (FLAG_log_code || FLAG_ll_prof)) {
+  if (create_heap_objects && (FLAG_log_code || FLAG_ll_prof)) {
     HandleScope scope;
     LOG(this, LogCodeObjects());
     LOG(this, LogCompiledFunctions());

@@ -451,6 +451,10 @@ DEFINE_string(testing_serialization_file, "/tmp/serdes",
               "file in which to serialize heap")
 #endif
 
+// mksnapshot.cc
+DEFINE_string(extra_code, NULL, "A filename with extra code to be included in"
+                  " the snapshot (mksnapshot only)")
+
 //
 // Dev shell flags
 //
@@ -609,6 +613,7 @@ DEFINE_bool(sliding_state_window, false,
             "Update sliding state window counters.")
 DEFINE_string(logfile, "v8.log", "Specify the name of the log file.")
 DEFINE_bool(ll_prof, false, "Enable low-level linux profiler.")
+
 
 //
 // Disassembler only flags

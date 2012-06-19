@@ -210,7 +210,6 @@ class SnapshotByteSource {
 class SerializerDeserializer: public ObjectVisitor {
  public:
   static void Iterate(ObjectVisitor* visitor);
-  static void SetSnapshotCacheSize(int size);
 
  protected:
   // Where the pointed-to object can be found:
