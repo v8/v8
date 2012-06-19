@@ -7392,7 +7392,7 @@ void Map::ClearNonLiveTransitions(Heap* heap) {
             } else {
               keep_entry = true;
             }
-          } else if (!getter->IsTheHole()) {
+          } else if (!setter->IsTheHole()) {
             keep_entry = true;
           }
         } else {
