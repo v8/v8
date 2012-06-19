@@ -79,7 +79,12 @@ function SetDelete(key) {
   if (IS_UNDEFINED(key)) {
     key = undefined_sentinel;
   }
-  return %SetDelete(this, key);
+  if (%SetHas(this, key)) {
+    %SetDelete(this, key);
+    return true;
+  } else {
+    return false;
+  }
 }
 
 

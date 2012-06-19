@@ -754,7 +754,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetAdd) {
   Handle<ObjectHashSet> table(ObjectHashSet::cast(holder->table()));
   table = ObjectHashSetAdd(table, key);
   holder->set_table(*table);
-  return isolate->heap()->undefined_symbol();
+  return isolate->heap()->undefined_value();
 }
 
 
@@ -776,7 +776,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetDelete) {
   Handle<ObjectHashSet> table(ObjectHashSet::cast(holder->table()));
   table = ObjectHashSetRemove(table, key);
   holder->set_table(*table);
-  return isolate->heap()->undefined_symbol();
+  return isolate->heap()->undefined_value();
 }
 
 
@@ -808,7 +808,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_MapSet) {
   Handle<ObjectHashTable> table(ObjectHashTable::cast(holder->table()));
   Handle<ObjectHashTable> new_table = PutIntoObjectHashTable(table, key, value);
   holder->set_table(*new_table);
-  return *value;
+  return isolate->heap()->undefined_value();
 }
 
 
@@ -842,7 +842,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_WeakMapSet) {
   Handle<ObjectHashTable> table(ObjectHashTable::cast(weakmap->table()));
   Handle<ObjectHashTable> new_table = PutIntoObjectHashTable(table, key, value);
   weakmap->set_table(*new_table);
-  return *value;
+  return isolate->heap()->undefined_value();
 }
 
 
