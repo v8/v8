@@ -1051,12 +1051,30 @@ class ConsString(String):
 
 
 class Oddball(HeapObject):
+  # Should match declarations in objects.h
+  KINDS = [
+    "False",
+    "True",
+    "TheHole",
+    "Null",
+    "ArgumentMarker",
+    "Undefined",
+    "Other"
+  ]
+
   def ToStringOffset(self):
     return self.heap.PointerSize()
+
+  def ToNumberOffset(self):
+    return self.ToStringOffset() + self.heap.PointerSize()
+
+  def KindOffset(self):
+    return self.ToNumberOffset() + self.heap.PointerSize()
 
   def __init__(self, heap, map, address):
     HeapObject.__init__(self, heap, map, address)
     self.to_string = self.ObjectField(self.ToStringOffset())
+    self.kind = self.SmiField(self.KindOffset())
 
   def Print(self, p):
     p.Print(str(self))
@@ -1065,7 +1083,10 @@ class Oddball(HeapObject):
     if self.to_string:
       return "Oddball(%08x, <%s>)" % (self.address, self.to_string.GetChars())
     else:
-      return "Oddball(%08x, kind=%s)" % (self.address, "???")
+      kind = "???"
+      if 0 <= self.kind < len(Oddball.KINDS):
+        kind = Oddball.KINDS[self.kind]
+      return "Oddball(%08x, kind=%s)" % (self.address, kind)
 
 
 class FixedArray(HeapObject):

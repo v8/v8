@@ -605,8 +605,7 @@ HConstant* HGraph::GetConstantHole() {
 
 
 HGraphBuilder::HGraphBuilder(CompilationInfo* info,
-                             TypeFeedbackOracle* oracle,
-                             Zone* zone)
+                             TypeFeedbackOracle* oracle)
     : function_state_(NULL),
       initial_function_state_(this, info, oracle, NORMAL_RETURN),
       ast_context_(NULL),
@@ -614,8 +613,8 @@ HGraphBuilder::HGraphBuilder(CompilationInfo* info,
       graph_(NULL),
       current_block_(NULL),
       inlined_count_(0),
-      globals_(10, zone),
-      zone_(zone),
+      globals_(10, info->zone()),
+      zone_(info->zone()),
       inline_bailout_(false) {
   // This is not initialized in the initializer list because the
   // constructor for the initial state relies on function_state_ == NULL
@@ -674,24 +673,25 @@ void HBasicBlock::FinishExit(HControlInstruction* instruction) {
 }
 
 
-HGraph::HGraph(CompilationInfo* info, Zone* zone)
+HGraph::HGraph(CompilationInfo* info)
     : isolate_(info->isolate()),
       next_block_id_(0),
       entry_block_(NULL),
-      blocks_(8, zone),
-      values_(16, zone),
+      blocks_(8, info->zone()),
+      values_(16, info->zone()),
       phi_list_(NULL),
-      zone_(zone),
+      info_(info),
+      zone_(info->zone()),
       is_recursive_(false) {
   start_environment_ =
-      new(zone) HEnvironment(NULL, info->scope(), info->closure(), zone);
+      new(zone_) HEnvironment(NULL, info->scope(), info->closure(), zone_);
   start_environment_->set_ast_id(AstNode::kFunctionEntryId);
   entry_block_ = CreateBasicBlock();
   entry_block_->SetInitialEnvironment(start_environment_);
 }
 
 
-Handle<Code> HGraph::Compile(CompilationInfo* info, Zone* zone) {
+Handle<Code> HGraph::Compile() {
   int values = GetMaximumValueID();
   if (values > LUnallocated::kMaxVirtualRegisters) {
     if (FLAG_trace_bailout) {
@@ -700,7 +700,7 @@ Handle<Code> HGraph::Compile(CompilationInfo* info, Zone* zone) {
     return Handle<Code>::null();
   }
   LAllocator allocator(values, this);
-  LChunkBuilder builder(info, this, &allocator);
+  LChunkBuilder builder(info(), this, &allocator);
   LChunk* chunk = builder.Build();
   if (chunk == NULL) return Handle<Code>::null();
 
@@ -711,8 +711,8 @@ Handle<Code> HGraph::Compile(CompilationInfo* info, Zone* zone) {
     return Handle<Code>::null();
   }
 
-  MacroAssembler assembler(info->isolate(), NULL, 0);
-  LCodeGen generator(chunk, &assembler, info, zone);
+  MacroAssembler assembler(isolate(), NULL, 0);
+  LCodeGen generator(chunk, &assembler, info());
 
   chunk->MarkEmptyBlocks();
 
@@ -720,12 +720,12 @@ Handle<Code> HGraph::Compile(CompilationInfo* info, Zone* zone) {
     if (FLAG_trace_codegen) {
       PrintF("Crankshaft Compiler - ");
     }
-    CodeGenerator::MakeCodePrologue(info);
+    CodeGenerator::MakeCodePrologue(info());
     Code::Flags flags = Code::ComputeFlags(Code::OPTIMIZED_FUNCTION);
     Handle<Code> code =
-        CodeGenerator::MakeCodeEpilogue(&assembler, flags, info);
+        CodeGenerator::MakeCodeEpilogue(&assembler, flags, info());
     generator.FinishCode(code);
-    CodeGenerator::PrintCode(code, info);
+    CodeGenerator::PrintCode(code, info());
     return code;
   }
   return Handle<Code>::null();
@@ -752,6 +752,300 @@ void HGraph::Canonicalize() {
   }
 }
 
+// Block ordering was implemented with two mutually recursive methods,
+// HGraph::Postorder and HGraph::PostorderLoopBlocks.
+// The recursion could lead to stack overflow so the algorithm has been
+// implemented iteratively.
+// At a high level the algorithm looks like this:
+//
+// Postorder(block, loop_header) : {
+//   if (block has already been visited or is of another loop) return;
+//   mark block as visited;
+//   if (block is a loop header) {
+//     VisitLoopMembers(block, loop_header);
+//     VisitSuccessorsOfLoopHeader(block);
+//   } else {
+//     VisitSuccessors(block)
+//   }
+//   put block in result list;
+// }
+//
+// VisitLoopMembers(block, outer_loop_header) {
+//   foreach (block b in block loop members) {
+//     VisitSuccessorsOfLoopMember(b, outer_loop_header);
+//     if (b is loop header) VisitLoopMembers(b);
+//   }
+// }
+//
+// VisitSuccessorsOfLoopMember(block, outer_loop_header) {
+//   foreach (block b in block successors) Postorder(b, outer_loop_header)
+// }
+//
+// VisitSuccessorsOfLoopHeader(block) {
+//   foreach (block b in block successors) Postorder(b, block)
+// }
+//
+// VisitSuccessors(block, loop_header) {
+//   foreach (block b in block successors) Postorder(b, loop_header)
+// }
+//
+// The ordering is started calling Postorder(entry, NULL).
+//
+// Each instance of PostorderProcessor represents the "stack frame" of the
+// recursion, and particularly keeps the state of the loop (iteration) of the
+// "Visit..." function it represents.
+// To recycle memory we keep all the frames in a double linked list but
+// this means that we cannot use constructors to initialize the frames.
+//
+class PostorderProcessor : public ZoneObject {
+ public:
+  // Back link (towards the stack bottom).
+  PostorderProcessor* parent() {return father_; }
+  // Forward link (towards the stack top).
+  PostorderProcessor* child() {return child_; }
+  HBasicBlock* block() { return block_; }
+  HLoopInformation* loop() { return loop_; }
+  HBasicBlock* loop_header() { return loop_header_; }
+
+  static PostorderProcessor* CreateEntryProcessor(Zone* zone,
+                                                  HBasicBlock* block,
+                                                  BitVector* visited) {
+    PostorderProcessor* result = new(zone) PostorderProcessor(NULL);
+    return result->SetupSuccessors(zone, block, NULL, visited);
+  }
+
+  PostorderProcessor* PerformStep(Zone* zone,
+                                  BitVector* visited,
+                                  ZoneList<HBasicBlock*>* order) {
+    PostorderProcessor* next =
+        PerformNonBacktrackingStep(zone, visited, order);
+    if (next != NULL) {
+      return next;
+    } else {
+      return Backtrack(zone, visited, order);
+    }
+  }
+
+ private:
+  explicit PostorderProcessor(PostorderProcessor* father)
+      : father_(father), child_(NULL), successor_iterator(NULL) { }
+
+  // Each enum value states the cycle whose state is kept by this instance.
+  enum LoopKind {
+    NONE,
+    SUCCESSORS,
+    SUCCESSORS_OF_LOOP_HEADER,
+    LOOP_MEMBERS,
+    SUCCESSORS_OF_LOOP_MEMBER
+  };
+
+  // Each "Setup..." method is like a constructor for a cycle state.
+  PostorderProcessor* SetupSuccessors(Zone* zone,
+                                      HBasicBlock* block,
+                                      HBasicBlock* loop_header,
+                                      BitVector* visited) {
+    if (block == NULL || visited->Contains(block->block_id()) ||
+        block->parent_loop_header() != loop_header) {
+      kind_ = NONE;
+      block_ = NULL;
+      loop_ = NULL;
+      loop_header_ = NULL;
+      return this;
+    } else {
+      block_ = block;
+      loop_ = NULL;
+      visited->Add(block->block_id());
+
+      if (block->IsLoopHeader()) {
+        kind_ = SUCCESSORS_OF_LOOP_HEADER;
+        loop_header_ = block;
+        InitializeSuccessors();
+        PostorderProcessor* result = Push(zone);
+        return result->SetupLoopMembers(zone, block, block->loop_information(),
+                                        loop_header);
+      } else {
+        ASSERT(block->IsFinished());
+        kind_ = SUCCESSORS;
+        loop_header_ = loop_header;
+        InitializeSuccessors();
+        return this;
+      }
+    }
+  }
+
+  PostorderProcessor* SetupLoopMembers(Zone* zone,
+                                       HBasicBlock* block,
+                                       HLoopInformation* loop,
+                                       HBasicBlock* loop_header) {
+    kind_ = LOOP_MEMBERS;
+    block_ = block;
+    loop_ = loop;
+    loop_header_ = loop_header;
+    InitializeLoopMembers();
+    return this;
+  }
+
+  PostorderProcessor* SetupSuccessorsOfLoopMember(
+      HBasicBlock* block,
+      HLoopInformation* loop,
+      HBasicBlock* loop_header) {
+    kind_ = SUCCESSORS_OF_LOOP_MEMBER;
+    block_ = block;
+    loop_ = loop;
+    loop_header_ = loop_header;
+    InitializeSuccessors();
+    return this;
+  }
+
+  // This method "allocates" a new stack frame.
+  PostorderProcessor* Push(Zone* zone) {
+    if (child_ == NULL) {
+      child_ = new(zone) PostorderProcessor(this);
+    }
+    return child_;
+  }
+
+  void ClosePostorder(ZoneList<HBasicBlock*>* order, Zone* zone) {
+    ASSERT(block_->end()->FirstSuccessor() == NULL ||
+           order->Contains(block_->end()->FirstSuccessor()) ||
+           block_->end()->FirstSuccessor()->IsLoopHeader());
+    ASSERT(block_->end()->SecondSuccessor() == NULL ||
+           order->Contains(block_->end()->SecondSuccessor()) ||
+           block_->end()->SecondSuccessor()->IsLoopHeader());
+    order->Add(block_, zone);
+  }
+
+  // This method is the basic block to walk up the stack.
+  PostorderProcessor* Pop(Zone* zone,
+                          BitVector* visited,
+                          ZoneList<HBasicBlock*>* order) {
+    switch (kind_) {
+      case SUCCESSORS:
+      case SUCCESSORS_OF_LOOP_HEADER:
+        ClosePostorder(order, zone);
+        return father_;
+      case LOOP_MEMBERS:
+        return father_;
+      case SUCCESSORS_OF_LOOP_MEMBER:
+        if (block()->IsLoopHeader() && block() != loop_->loop_header()) {
+          // In this case we need to perform a LOOP_MEMBERS cycle so we
+          // initialize it and return this instead of father.
+          return SetupLoopMembers(zone, block(),
+                                  block()->loop_information(), loop_header_);
+        } else {
+          return father_;
+        }
+      case NONE:
+        return father_;
+    }
+    UNREACHABLE();
+    return NULL;
+  }
+
+  // Walks up the stack.
+  PostorderProcessor* Backtrack(Zone* zone,
+                                BitVector* visited,
+                                ZoneList<HBasicBlock*>* order) {
+    PostorderProcessor* parent = Pop(zone, visited, order);
+    while (parent != NULL) {
+      PostorderProcessor* next =
+          parent->PerformNonBacktrackingStep(zone, visited, order);
+      if (next != NULL) {
+        return next;
+      } else {
+        parent = parent->Pop(zone, visited, order);
+      }
+    }
+    return NULL;
+  }
+
+  PostorderProcessor* PerformNonBacktrackingStep(
+      Zone* zone,
+      BitVector* visited,
+      ZoneList<HBasicBlock*>* order) {
+    HBasicBlock* next_block;
+    switch (kind_) {
+      case SUCCESSORS:
+        next_block = AdvanceSuccessors();
+        if (next_block != NULL) {
+          PostorderProcessor* result = Push(zone);
+          return result->SetupSuccessors(zone, next_block,
+                                         loop_header_, visited);
+        }
+        break;
+      case SUCCESSORS_OF_LOOP_HEADER:
+        next_block = AdvanceSuccessors();
+        if (next_block != NULL) {
+          PostorderProcessor* result = Push(zone);
+          return result->SetupSuccessors(zone, next_block,
+                                         block(), visited);
+        }
+        break;
+      case LOOP_MEMBERS:
+        next_block = AdvanceLoopMembers();
+        if (next_block != NULL) {
+          PostorderProcessor* result = Push(zone);
+          return result->SetupSuccessorsOfLoopMember(next_block,
+                                                     loop_, loop_header_);
+        }
+        break;
+      case SUCCESSORS_OF_LOOP_MEMBER:
+        next_block = AdvanceSuccessors();
+        if (next_block != NULL) {
+          PostorderProcessor* result = Push(zone);
+          return result->SetupSuccessors(zone, next_block,
+                                         loop_header_, visited);
+        }
+        break;
+      case NONE:
+        return NULL;
+    }
+    return NULL;
+  }
+
+  // The following two methods implement a "foreach b in successors" cycle.
+  void InitializeSuccessors() {
+    loop_index = 0;
+    loop_length = 0;
+    successor_iterator = HSuccessorIterator(block_->end());
+  }
+
+  HBasicBlock* AdvanceSuccessors() {
+    if (!successor_iterator.Done()) {
+      HBasicBlock* result = successor_iterator.Current();
+      successor_iterator.Advance();
+      return result;
+    }
+    return NULL;
+  }
+
+  // The following two methods implement a "foreach b in loop members" cycle.
+  void InitializeLoopMembers() {
+    loop_index = 0;
+    loop_length = loop_->blocks()->length();
+  }
+
+  HBasicBlock* AdvanceLoopMembers() {
+    if (loop_index < loop_length) {
+      HBasicBlock* result = loop_->blocks()->at(loop_index);
+      loop_index++;
+      return result;
+    } else {
+      return NULL;
+    }
+  }
+
+  LoopKind kind_;
+  PostorderProcessor* father_;
+  PostorderProcessor* child_;
+  HLoopInformation* loop_;
+  HBasicBlock* block_;
+  HBasicBlock* loop_header_;
+  int loop_index;
+  int loop_length;
+  HSuccessorIterator successor_iterator;
+};
+
 
 void HGraph::OrderBlocks() {
   HPhase phase("H_Block ordering");
@@ -759,8 +1053,11 @@ void HGraph::OrderBlocks() {
 
   ZoneList<HBasicBlock*> reverse_result(8, zone());
   HBasicBlock* start = blocks_[0];
-  Postorder(start, &visited, &reverse_result, NULL);
-
+  PostorderProcessor* postorder =
+      PostorderProcessor::CreateEntryProcessor(zone(), start, &visited);
+  while (postorder != NULL) {
+    postorder = postorder->PerformStep(zone(), &visited, &reverse_result);
+  }
   blocks_.Rewind(0);
   int index = 0;
   for (int i = reverse_result.length() - 1; i >= 0; --i) {
@@ -768,50 +1065,6 @@ void HGraph::OrderBlocks() {
     blocks_.Add(b, zone());
     b->set_block_id(index++);
   }
-}
-
-
-void HGraph::PostorderLoopBlocks(HLoopInformation* loop,
-                                 BitVector* visited,
-                                 ZoneList<HBasicBlock*>* order,
-                                 HBasicBlock* loop_header) {
-  for (int i = 0; i < loop->blocks()->length(); ++i) {
-    HBasicBlock* b = loop->blocks()->at(i);
-    for (HSuccessorIterator it(b->end()); !it.Done(); it.Advance()) {
-      Postorder(it.Current(), visited, order, loop_header);
-    }
-    if (b->IsLoopHeader() && b != loop->loop_header()) {
-      PostorderLoopBlocks(b->loop_information(), visited, order, loop_header);
-    }
-  }
-}
-
-
-void HGraph::Postorder(HBasicBlock* block,
-                       BitVector* visited,
-                       ZoneList<HBasicBlock*>* order,
-                       HBasicBlock* loop_header) {
-  if (block == NULL || visited->Contains(block->block_id())) return;
-  if (block->parent_loop_header() != loop_header) return;
-  visited->Add(block->block_id());
-  if (block->IsLoopHeader()) {
-    PostorderLoopBlocks(block->loop_information(), visited, order, loop_header);
-    for (HSuccessorIterator it(block->end()); !it.Done(); it.Advance()) {
-      Postorder(it.Current(), visited, order, block);
-    }
-  } else {
-    ASSERT(block->IsFinished());
-    for (HSuccessorIterator it(block->end()); !it.Done(); it.Advance()) {
-      Postorder(it.Current(), visited, order, loop_header);
-    }
-  }
-  ASSERT(block->end()->FirstSuccessor() == NULL ||
-         order->Contains(block->end()->FirstSuccessor()) ||
-         block->end()->FirstSuccessor()->IsLoopHeader());
-  ASSERT(block->end()->SecondSuccessor() == NULL ||
-         order->Contains(block->end()->SecondSuccessor()) ||
-         block->end()->SecondSuccessor()->IsLoopHeader());
-  order->Add(block, zone());
 }
 
 
@@ -2795,7 +3048,7 @@ void HGraphBuilder::VisitExpressions(ZoneList<Expression*>* exprs) {
 
 
 HGraph* HGraphBuilder::CreateGraph() {
-  graph_ = new(zone()) HGraph(info(), zone());
+  graph_ = new(zone()) HGraph(info());
   if (FLAG_hydrogen_stats) HStatistics::Instance()->Initialize(info());
 
   {
@@ -4698,7 +4951,7 @@ HInstruction* HGraphBuilder::BuildStoreNamedField(HValue* object,
   // If the property does not exist yet, we have to check that it wasn't made
   // readonly or turned into a setter by some meanwhile modifications on the
   // prototype chain.
-  if (!lookup->IsProperty()) {
+  if (!lookup->IsProperty() && type->prototype()->IsJSReceiver()) {
     Object* proto = type->prototype();
     // First check that the prototype chain isn't affected already.
     LookupResult proto_result(isolate());
@@ -6223,7 +6476,7 @@ bool HGraphBuilder::TryInline(CallKind call_kind,
   }
 
   // Parse and allocate variables.
-  CompilationInfo target_info(target);
+  CompilationInfo target_info(target, zone());
   if (!ParserApi::Parse(&target_info, kNoParsingFlags) ||
       !Scope::Analyze(&target_info)) {
     if (target_info.isolate()->has_pending_exception()) {
@@ -7963,13 +8216,25 @@ void HGraphBuilder::HandleLiteralCompareNil(CompareOperation* expr,
 }
 
 
+HInstruction* HGraphBuilder::BuildThisFunction() {
+  // If we share optimized code between different closures, the
+  // this-function is not a constant, except inside an inlined body.
+  if (function_state()->outer() != NULL) {
+      return new(zone()) HConstant(
+          function_state()->compilation_info()->closure(),
+          Representation::Tagged());
+  } else {
+      return new(zone()) HThisFunction;
+  }
+}
+
+
 void HGraphBuilder::VisitThisFunction(ThisFunction* expr) {
   ASSERT(!HasStackOverflow());
   ASSERT(current_block() != NULL);
   ASSERT(current_block()->HasPredecessor());
-  HThisFunction* self = new(zone()) HThisFunction(
-      function_state()->compilation_info()->closure());
-  return ast_context()->ReturnInstruction(self, expr->id());
+  HInstruction* instr = BuildThisFunction();
+  return ast_context()->ReturnInstruction(instr, expr->id());
 }
 
 
@@ -8789,8 +9054,6 @@ HEnvironment* HEnvironment::CopyForInlining(
     bool is_construct) const {
   ASSERT(frame_type() == JS_FUNCTION);
 
-  Zone* zone = closure()->GetIsolate()->zone();
-
   // Outer environment is a copy of this one without the arguments.
   int arity = function->scope()->num_parameters();
 
@@ -8811,7 +9074,7 @@ HEnvironment* HEnvironment::CopyForInlining(
   }
 
   HEnvironment* inner =
-      new(zone) HEnvironment(outer, function->scope(), target, zone);
+      new(zone()) HEnvironment(outer, function->scope(), target, zone());
   // Get the argument values from the original environment.
   for (int i = 0; i <= arity; ++i) {  // Include receiver.
     HValue* push = (i <= arguments) ?

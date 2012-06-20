@@ -118,8 +118,8 @@ Heap::Heap()
       debug_utils_(NULL),
 #endif  // DEBUG
       new_space_high_promotion_mode_active_(false),
-      old_gen_promotion_limit_(kMinimumPromotionLimit),
-      old_gen_allocation_limit_(kMinimumAllocationLimit),
+      old_gen_promotion_limit_(kMinPromotionLimit),
+      old_gen_allocation_limit_(kMinAllocationLimit),
       old_gen_limit_factor_(1),
       size_of_old_gen_at_last_old_space_gc_(0),
       external_allocation_limit_(0),
@@ -829,9 +829,9 @@ bool Heap::PerformGarbageCollection(GarbageCollector collector,
     }
 
     old_gen_promotion_limit_ =
-        OldGenPromotionLimit(size_of_old_gen_at_last_old_space_gc_);
+        OldGenLimit(size_of_old_gen_at_last_old_space_gc_, kMinPromotionLimit);
     old_gen_allocation_limit_ =
-        OldGenAllocationLimit(size_of_old_gen_at_last_old_space_gc_);
+        OldGenLimit(size_of_old_gen_at_last_old_space_gc_, kMinAllocationLimit);
 
     old_gen_exhausted_ = false;
   } else {
@@ -2822,7 +2822,7 @@ void Heap::AllocateFullSizeNumberStringCache() {
   // The idea is to have a small number string cache in the snapshot to keep
   // boot-time memory usage down.  If we expand the number string cache already
   // while creating the snapshot then that didn't work out.
-  ASSERT(!Serializer::enabled());
+  ASSERT(!Serializer::enabled() || FLAG_extra_code != NULL);
   MaybeObject* maybe_obj =
       AllocateFixedArray(FullSizeNumberStringCacheLength(), TENURED);
   Object* new_cache;
@@ -3010,6 +3010,7 @@ MaybeObject* Heap::AllocateSharedFunctionInfo(Object* name) {
   share->set_name(name);
   Code* illegal = isolate_->builtins()->builtin(Builtins::kIllegal);
   share->set_code(illegal);
+  share->ClearOptimizedCodeMap();
   share->set_scope_info(ScopeInfo::Empty());
   Code* construct_stub =
       isolate_->builtins()->builtin(Builtins::kJSConstructStubGeneric);
@@ -6635,7 +6636,7 @@ void PathTracer::TracePathFrom(Object** root) {
   ASSERT((search_target_ == kAnyGlobalObject) ||
          search_target_->IsHeapObject());
   found_target_in_trace_ = false;
-  object_stack_.Clear();
+  Reset();
 
   MarkVisitor mark_visitor(this);
   MarkRecursively(root, &mark_visitor);
@@ -6739,11 +6740,7 @@ void PathTracer::ProcessResults() {
     for (int i = 0; i < object_stack_.length(); i++) {
       if (i > 0) PrintF("\n     |\n     |\n     V\n\n");
       Object* obj = object_stack_[i];
-#ifdef OBJECT_PRINT
       obj->Print();
-#else
-      obj->ShortPrint();
-#endif
     }
     PrintF("=====================================\n");
   }

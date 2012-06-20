@@ -260,7 +260,8 @@ class StubCache {
   void CollectMatchingMaps(SmallMapList* types,
                            String* name,
                            Code::Flags flags,
-                           Handle<Context> global_context);
+                           Handle<Context> global_context,
+                           Zone* zone);
 
   // Generate code for probing the stub cache table.
   // Arguments extra, extra2 and extra3 may be used to pass additional scratch
@@ -310,7 +311,6 @@ class StubCache {
   Isolate* isolate() { return isolate_; }
   Heap* heap() { return isolate()->heap(); }
   Factory* factory() { return isolate()->factory(); }
-  Zone* zone() const { return zone_; }
 
  private:
   StubCache(Isolate* isolate, Zone* zone);
@@ -386,7 +386,6 @@ class StubCache {
   Entry primary_[kPrimaryTableSize];
   Entry secondary_[kSecondaryTableSize];
   Isolate* isolate_;
-  Zone* zone_;
 
   friend class Isolate;
   friend class SCTableReference;

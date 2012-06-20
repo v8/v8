@@ -763,7 +763,6 @@ MaybeObject* Object::GetHash(CreationFlag flag) {
 
 bool Object::SameValue(Object* other) {
   if (other == this) return true;
-  if (!IsHeapObject() || !other->IsHeapObject()) return false;
 
   // The object is either a number, a string, an odd-ball,
   // a real JS object, or a Harmony proxy.
@@ -7353,6 +7352,11 @@ void Map::ClearNonLiveTransitions(Heap* heap) {
   DescriptorArray* d = DescriptorArray::cast(
       *RawField(this, Map::kInstanceDescriptorsOrBitField3Offset));
   if (d->IsEmpty()) return;
+  Map* elements_transition = d->elements_transition_map();
+  if (elements_transition != NULL &&
+      ClearBackPointer(heap, elements_transition)) {
+    d->ClearElementsTransition();
+  }
   Smi* NullDescriptorDetails =
     PropertyDetails(NONE, NULL_DESCRIPTOR).AsSmi();
   for (int i = 0; i < d->number_of_descriptors(); ++i) {
@@ -7388,7 +7392,7 @@ void Map::ClearNonLiveTransitions(Heap* heap) {
             } else {
               keep_entry = true;
             }
-          } else if (!getter->IsTheHole()) {
+          } else if (!setter->IsTheHole()) {
             keep_entry = true;
           }
         } else {
@@ -7468,12 +7472,6 @@ void JSFunction::MarkForLazyRecompilation() {
 }
 
 
-bool SharedFunctionInfo::EnsureCompiled(Handle<SharedFunctionInfo> shared,
-                                        ClearExceptionFlag flag) {
-  return shared->is_compiled() || CompileLazy(shared, flag);
-}
-
-
 static bool CompileLazyHelper(CompilationInfo* info,
                               ClearExceptionFlag flag) {
   // Compile the source information to a code object.
@@ -7490,8 +7488,57 @@ static bool CompileLazyHelper(CompilationInfo* info,
 
 bool SharedFunctionInfo::CompileLazy(Handle<SharedFunctionInfo> shared,
                                      ClearExceptionFlag flag) {
-  CompilationInfo info(shared);
+  ASSERT(shared->allows_lazy_compilation_without_context());
+  CompilationInfoWithZone info(shared);
   return CompileLazyHelper(&info, flag);
+}
+
+
+void SharedFunctionInfo::ClearOptimizedCodeMap() {
+  set_optimized_code_map(Smi::FromInt(0));
+}
+
+
+void SharedFunctionInfo::AddToOptimizedCodeMap(
+    Handle<SharedFunctionInfo> shared,
+    Handle<Context> global_context,
+    Handle<Code> code,
+    Handle<FixedArray> literals) {
+  ASSERT(code->kind() == Code::OPTIMIZED_FUNCTION);
+  ASSERT(global_context->IsGlobalContext());
+  STATIC_ASSERT(kEntryLength == 3);
+  Object* value = shared->optimized_code_map();
+  Handle<FixedArray> new_code_map;
+  if (value->IsSmi()) {
+    // No optimized code map.
+    ASSERT_EQ(0, Smi::cast(value)->value());
+    // Crate 3 entries per context {context, code, literals}.
+    new_code_map = FACTORY->NewFixedArray(kEntryLength);
+    new_code_map->set(0, *global_context);
+    new_code_map->set(1, *code);
+    new_code_map->set(2, *literals);
+  } else {
+    // Copy old map and append one new entry.
+    Handle<FixedArray> old_code_map(FixedArray::cast(value));
+    ASSERT_EQ(-1, shared->SearchOptimizedCodeMap(*global_context));
+    int old_length = old_code_map->length();
+    int new_length = old_length + kEntryLength;
+    new_code_map = FACTORY->NewFixedArray(new_length);
+    old_code_map->CopyTo(0, *new_code_map, 0, old_length);
+    new_code_map->set(old_length, *global_context);
+    new_code_map->set(old_length + 1, *code);
+    new_code_map->set(old_length + 2, *literals);
+  }
+#ifdef DEBUG
+  for (int i = 0; i < new_code_map->length(); i += kEntryLength) {
+    ASSERT(new_code_map->get(i)->IsGlobalContext());
+    ASSERT(new_code_map->get(i + 1)->IsCode());
+    ASSERT(Code::cast(new_code_map->get(i + 1))->kind() ==
+           Code::OPTIMIZED_FUNCTION);
+    ASSERT(new_code_map->get(i + 2)->IsFixedArray());
+  }
+#endif
+  shared->set_optimized_code_map(*new_code_map);
 }
 
 
@@ -7502,7 +7549,8 @@ bool JSFunction::CompileLazy(Handle<JSFunction> function,
     function->ReplaceCode(function->shared()->code());
     function->shared()->set_code_age(0);
   } else {
-    CompilationInfo info(function);
+    ASSERT(function->shared()->allows_lazy_compilation());
+    CompilationInfoWithZone info(function);
     result = CompileLazyHelper(&info, flag);
     ASSERT(!result || function->is_compiled());
   }
@@ -7513,9 +7561,15 @@ bool JSFunction::CompileLazy(Handle<JSFunction> function,
 bool JSFunction::CompileOptimized(Handle<JSFunction> function,
                                   int osr_ast_id,
                                   ClearExceptionFlag flag) {
-  CompilationInfo info(function);
+  CompilationInfoWithZone info(function);
   info.SetOptimizing(osr_ast_id);
   return CompileLazyHelper(&info, flag);
+}
+
+
+bool JSFunction::EnsureCompiled(Handle<JSFunction> function,
+                                ClearExceptionFlag flag) {
+  return function->is_compiled() || CompileLazy(function, flag);
 }
 
 
@@ -8039,6 +8093,22 @@ void SharedFunctionInfo::CompleteInobjectSlackTracking() {
 }
 
 
+int SharedFunctionInfo::SearchOptimizedCodeMap(Context* global_context) {
+  ASSERT(global_context->IsGlobalContext());
+  Object* value = optimized_code_map();
+  if (!value->IsSmi()) {
+    FixedArray* optimized_code_map = FixedArray::cast(value);
+    int length = optimized_code_map->length();
+    for (int i = 0; i < length; i += 3) {
+      if (optimized_code_map->get(i) == global_context) {
+        return i + 1;
+      }
+    }
+  }
+  return -1;
+}
+
+
 void SharedFunctionInfo::SharedFunctionInfoIterateBody(ObjectVisitor* v) {
   v->VisitSharedFunctionInfo(this);
   SharedFunctionInfo::BodyDescriptor::IterateBody(this, v);
@@ -8330,11 +8400,14 @@ void DeoptimizationInputData::DeoptimizationInputDataPrint(FILE* out) {
         case Translation::JS_FRAME: {
           int ast_id = iterator.Next();
           int function_id = iterator.Next();
-          JSFunction* function =
-              JSFunction::cast(LiteralArray()->get(function_id));
           unsigned height = iterator.Next();
           PrintF(out, "{ast_id=%d, function=", ast_id);
-          function->PrintName(out);
+          if (function_id != Translation::kSelfLiteralId) {
+            Object* function = LiteralArray()->get(function_id);
+            JSFunction::cast(function)->PrintName(out);
+          } else {
+            PrintF(out, "<self>");
+          }
           PrintF(out, ", height=%u}", height);
           break;
         }

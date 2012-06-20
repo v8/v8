@@ -95,6 +95,10 @@ endif
 ifeq ($(strictaliasing), off)
   GYPFLAGS += -Dv8_no_strict_aliasing=1
 endif
+# regexp=interpreted
+ifeq ($(regexp), interpreted)
+  GYPFLAGS += -Dv8_interpreted_regexp=1
+endif
 
 # ----------------- available targets: --------------------
 # - "dependencies": pulls in external dependencies (currently: GYP)

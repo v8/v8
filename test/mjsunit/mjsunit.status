@@ -34,9 +34,6 @@ bugs/*: FAIL
 # Fails.
 regress/regress-1119: FAIL
 
-# Issue 2177: Debugger on ARM broken due to variable literal pool size.
-debug-liveedit-breakpoints: PASS, SKIP if ($arch == arm)
-
 # Issue 1719: Slow to collect arrays over several contexts.
 regress/regress-524: SKIP
 # When that bug is fixed, revert the expectation to:
@@ -61,11 +58,6 @@ array-constructor: PASS || TIMEOUT
 
 # Very slow on ARM and MIPS, contains no architecture dependent code.
 unicode-case-overoptimization: PASS, TIMEOUT if ($arch == arm || $arch == mips)
-
-# Stack manipulations in LiveEdit are buggy - see bug 915
-debug-liveedit-check-stack: SKIP
-debug-liveedit-patch-positions-replace: SKIP
-debug-liveedit-stack-padding: SKIP
 
 # Test Crankshaft compilation time.  Expected to take too long in debug mode.
 regress/regress-1969: PASS, SKIP if $mode == debug
@@ -129,6 +121,11 @@ regress/regress-3247124: SKIP
 # should be platform-independent.
 regress/regress-1132: SKIP
 
+# Stack manipulations in LiveEdit is not implemented for this arch.
+debug-liveedit-check-stack: SKIP
+debug-liveedit-stack-padding: SKIP
+debug-liveedit-restart-frame: SKIP
+
 ##############################################################################
 [ $arch == mips ]
 
@@ -177,3 +174,9 @@ regress/regress-3247124: SKIP
 # the test requires too much time to run.  However, the problem test covers
 # should be platform-independent.
 regress/regress-1132: SKIP
+
+# Stack manipulations in LiveEdit is not implemented for this arch.
+debug-liveedit-check-stack: SKIP
+debug-liveedit-stack-padding: SKIP
+debug-liveedit-restart-frame: SKIP
+

@@ -218,7 +218,10 @@ int RuntimeProfiler::LookupSample(JSFunction* function) {
   for (int i = 0; i < kSamplerWindowSize; i++) {
     Object* sample = sampler_window_[i];
     if (sample != NULL) {
-      if (function == sample) {
+      bool fits = FLAG_lookup_sample_by_shared
+          ? (function->shared() == JSFunction::cast(sample)->shared())
+          : (function == JSFunction::cast(sample));
+      if (fits) {
         weight += sampler_window_weight_[i];
       }
     }

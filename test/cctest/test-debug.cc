@@ -197,10 +197,9 @@ static bool HasDebugInfo(v8::Handle<v8::Function> fun) {
 // number.
 static int SetBreakPoint(Handle<v8::internal::JSFunction> fun, int position) {
   static int break_point = 0;
-  Handle<v8::internal::SharedFunctionInfo> shared(fun->shared());
   v8::internal::Debug* debug = v8::internal::Isolate::Current()->debug();
   debug->SetBreakPoint(
-      shared,
+      fun,
       Handle<Object>(v8::internal::Smi::FromInt(++break_point)),
       &position);
   return break_point;
@@ -515,7 +514,7 @@ void CheckDebugBreakFunction(DebugLocalContext* env,
   // there
   ClearBreakPoint(bp);
   CHECK(!debug->HasDebugInfo(shared));
-  CHECK(debug->EnsureDebugInfo(shared));
+  CHECK(debug->EnsureDebugInfo(shared, fun));
   TestBreakLocationIterator it2(Debug::GetDebugInfo(shared));
   it2.FindBreakLocationFromPosition(position);
   actual_mode = it2.it()->rinfo()->rmode();

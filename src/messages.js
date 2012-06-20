@@ -921,17 +921,25 @@ function CallSiteToString() {
   var fileLocation = "";
   if (this.isNative()) {
     fileLocation = "native";
-  } else if (this.isEval()) {
-    fileName = this.getScriptNameOrSourceURL();
-    if (!fileName) {
-      fileLocation = this.getEvalOrigin();
-    }
   } else {
-    fileName = this.getFileName();
-  }
+    if (this.isEval()) {
+      fileName = this.getScriptNameOrSourceURL();
+      if (!fileName) {
+        fileLocation = this.getEvalOrigin();
+        fileLocation += ", ";  // Expecting source position to follow.
+      }
+    } else {
+      fileName = this.getFileName();
+    }
 
-  if (fileName) {
-    fileLocation += fileName;
+    if (fileName) {
+      fileLocation += fileName;
+    } else {
+      // Source code does not originate from a file and is not native, but we
+      // can still get the source position inside the source string, e.g. in
+      // an eval string.
+      fileLocation += "<anonymous>";
+    }
     var lineNumber = this.getLineNumber();
     if (lineNumber != null) {
       fileLocation += ":" + lineNumber;
@@ -942,9 +950,6 @@ function CallSiteToString() {
     }
   }
 
-  if (!fileLocation) {
-    fileLocation = "unknown source";
-  }
   var line = "";
   var functionName = this.getFunctionName();
   var addSuffix = true;

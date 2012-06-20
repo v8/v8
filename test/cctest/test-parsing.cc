@@ -1016,12 +1016,11 @@ TEST(ScopePositions) {
         FACTORY->NewStringFromUtf8(i::CStrVector(program.start())));
     CHECK_EQ(source->length(), kProgramSize);
     i::Handle<i::Script> script = FACTORY->NewScript(source);
-    i::Parser parser(script, i::kAllowLazy | i::EXTENDED_MODE, NULL, NULL,
-                     i::Isolate::Current()->zone());
-    i::CompilationInfo info(script);
+    i::CompilationInfoWithZone info(script);
+    i::Parser parser(&info, i::kAllowLazy | i::EXTENDED_MODE, NULL, NULL);
     info.MarkAsGlobal();
     info.SetLanguageMode(source_data[i].language_mode);
-    i::FunctionLiteral* function = parser.ParseProgram(&info);
+    i::FunctionLiteral* function = parser.ParseProgram();
     CHECK(function != NULL);
 
     // Check scope types and positions.
@@ -1061,10 +1060,10 @@ void TestParserSync(i::Handle<i::String> source, int flags) {
   i::Handle<i::Script> script = FACTORY->NewScript(source);
   bool save_harmony_scoping = i::FLAG_harmony_scoping;
   i::FLAG_harmony_scoping = harmony_scoping;
-  i::Parser parser(script, flags, NULL, NULL, i::Isolate::Current()->zone());
-  i::CompilationInfo info(script);
+  i::CompilationInfoWithZone info(script);
+  i::Parser parser(&info, flags, NULL, NULL);
   info.MarkAsGlobal();
-  i::FunctionLiteral* function = parser.ParseProgram(&info);
+  i::FunctionLiteral* function = parser.ParseProgram();
   i::FLAG_harmony_scoping = save_harmony_scoping;
 
   i::String* type_string = NULL;

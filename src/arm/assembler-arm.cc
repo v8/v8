@@ -2435,6 +2435,14 @@ void Assembler::RecordComment(const char* msg) {
 }
 
 
+void Assembler::RecordConstPool(int size) {
+  // We only need this for debugger support, to correctly compute offsets in the
+  // code.
+#ifdef ENABLE_DEBUGGER_SUPPORT
+  RecordRelocInfo(RelocInfo::CONST_POOL, static_cast<intptr_t>(size));
+#endif
+}
+
 void Assembler::GrowBuffer() {
   if (!own_buffer_) FATAL("external code buffer is too small");
 
@@ -2511,12 +2519,15 @@ void Assembler::dd(uint32_t data) {
 void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
   // We do not try to reuse pool constants.
   RelocInfo rinfo(pc_, rmode, data, NULL);
-  if (rmode >= RelocInfo::JS_RETURN && rmode <= RelocInfo::DEBUG_BREAK_SLOT) {
+  if (((rmode >= RelocInfo::JS_RETURN) &&
+       (rmode <= RelocInfo::DEBUG_BREAK_SLOT)) ||
+      (rmode == RelocInfo::CONST_POOL)) {
     // Adjust code for new modes.
     ASSERT(RelocInfo::IsDebugBreakSlot(rmode)
            || RelocInfo::IsJSReturn(rmode)
            || RelocInfo::IsComment(rmode)
-           || RelocInfo::IsPosition(rmode));
+           || RelocInfo::IsPosition(rmode)
+           || RelocInfo::IsConstPool(rmode));
     // These modes do not need an entry in the constant pool.
   } else {
     ASSERT(num_pending_reloc_info_ < kMaxNumPendingRelocInfo);
@@ -2602,21 +2613,21 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
   // pool (include the jump over the pool and the constant pool marker and
   // the gap to the relocation information).
   int jump_instr = require_jump ? kInstrSize : 0;
-  int needed_space = jump_instr + kInstrSize +
-                     num_pending_reloc_info_ * kInstrSize + kGap;
+  int size = jump_instr + kInstrSize + num_pending_reloc_info_ * kPointerSize;
+  int needed_space = size + kGap;
   while (buffer_space() <= needed_space) GrowBuffer();
 
   {
     // Block recursive calls to CheckConstPool.
     BlockConstPoolScope block_const_pool(this);
+    RecordComment("[ Constant Pool");
+    RecordConstPool(size);
 
     // Emit jump over constant pool if necessary.
     Label after_pool;
     if (require_jump) {
       b(&after_pool);
     }
-
-    RecordComment("[ Constant Pool");
 
     // Put down constant pool marker "Undefined instruction" as specified by
     // A5.6 (ARMv7) Instruction set encoding.
@@ -2627,7 +2638,8 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
       RelocInfo& rinfo = pending_reloc_info_[i];
       ASSERT(rinfo.rmode() != RelocInfo::COMMENT &&
              rinfo.rmode() != RelocInfo::POSITION &&
-             rinfo.rmode() != RelocInfo::STATEMENT_POSITION);
+             rinfo.rmode() != RelocInfo::STATEMENT_POSITION &&
+             rinfo.rmode() != RelocInfo::CONST_POOL);
 
       Instr instr = instr_at(rinfo.pc());
       // Instruction to patch must be 'ldr rd, [pc, #offset]' with offset == 0.

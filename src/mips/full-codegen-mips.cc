@@ -332,7 +332,7 @@ void FullCodeGenerator::EmitProfilingCounterReset() {
   }
   if (isolate()->IsDebuggerActive()) {
     // Detect debug break requests as soon as possible.
-    reset_value = 10;
+    reset_value = FLAG_interrupt_budget >> 4;
   }
   __ li(a2, Operand(profiling_counter_));
   __ li(a3, Operand(Smi::FromInt(reset_value)));
@@ -1614,7 +1614,7 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
   // marked expressions, no store code is emitted.
   expr->CalculateEmitStore(zone());
 
-  AccessorTable accessor_table(isolate()->zone());
+  AccessorTable accessor_table(zone());
   for (int i = 0; i < expr->properties()->length(); i++) {
     ObjectLiteral::Property* property = expr->properties()->at(i);
     if (property->IsCompileTimeValue()) continue;

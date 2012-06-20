@@ -1219,6 +1219,25 @@ class Assembler : public AssemblerBase {
   // Use --code-comments to enable.
   void RecordComment(const char* msg);
 
+  // Record the emission of a constant pool.
+  //
+  // The emission of constant pool depends on the size of the code generated and
+  // the number of RelocInfo recorded.
+  // The Debug mechanism needs to map code offsets between two versions of a
+  // function, compiled with and without debugger support (see for example
+  // Debug::PrepareForBreakPoints()).
+  // Compiling functions with debugger support generates additional code
+  // (Debug::GenerateSlot()). This may affect the emission of the constant
+  // pools and cause the version of the code with debugger support to have
+  // constant pools generated in different places.
+  // Recording the position and size of emitted constant pools allows to
+  // correctly compute the offset mappings between the different versions of a
+  // function in all situations.
+  //
+  // The parameter indicates the size of the constant pool (in bytes), including
+  // the marker and branch over the data.
+  void RecordConstPool(int size);
+
   // Writes a single byte or word of data in the code stream.  Used
   // for inline tables, e.g., jump-tables. The constant pool should be
   // emitted before any use of db and dd to ensure that constant pools

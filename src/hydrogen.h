@@ -244,10 +244,11 @@ class HLoopInformation: public ZoneObject {
 class BoundsCheckTable;
 class HGraph: public ZoneObject {
  public:
-  HGraph(CompilationInfo* info, Zone* zone);
+  explicit HGraph(CompilationInfo* info);
 
   Isolate* isolate() { return isolate_; }
   Zone* zone() const { return zone_; }
+  CompilationInfo* info() const { return info_; }
 
   const ZoneList<HBasicBlock*>* blocks() const { return &blocks_; }
   const ZoneList<HPhi*>* phi_list() const { return phi_list_; }
@@ -280,7 +281,7 @@ class HGraph: public ZoneObject {
 
   void CollectPhis();
 
-  Handle<Code> Compile(CompilationInfo* info, Zone* zone);
+  Handle<Code> Compile();
 
   void set_undefined_constant(HConstant* constant) {
     undefined_constant_.set(constant);
@@ -345,14 +346,6 @@ class HGraph: public ZoneObject {
   }
 
  private:
-  void Postorder(HBasicBlock* block,
-                 BitVector* visited,
-                 ZoneList<HBasicBlock*>* order,
-                 HBasicBlock* loop_header);
-  void PostorderLoopBlocks(HLoopInformation* loop,
-                           BitVector* visited,
-                           ZoneList<HBasicBlock*>* order,
-                           HBasicBlock* loop_header);
   HConstant* GetConstant(SetOncePointer<HConstant>* pointer,
                          Object* value);
 
@@ -388,6 +381,7 @@ class HGraph: public ZoneObject {
   SetOncePointer<HBasicBlock> osr_loop_entry_;
   SetOncePointer<ZoneList<HUnknownOSRValue*> > osr_values_;
 
+  CompilationInfo* info_;
   Zone* zone_;
 
   bool is_recursive_;
@@ -838,7 +832,7 @@ class HGraphBuilder: public AstVisitor {
     BreakAndContinueScope* next_;
   };
 
-  HGraphBuilder(CompilationInfo* info, TypeFeedbackOracle* oracle, Zone* zone);
+  HGraphBuilder(CompilationInfo* info, TypeFeedbackOracle* oracle);
 
   HGraph* CreateGraph();
 
@@ -1155,6 +1149,8 @@ class HGraphBuilder: public AstVisitor {
                                        HValue* value);
 
   HValue* BuildContextChainWalk(Variable* var);
+
+  HInstruction* BuildThisFunction();
 
   void AddCheckConstantFunction(Call* expr,
                                 HValue* receiver,

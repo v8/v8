@@ -352,6 +352,35 @@ TEST(GetScriptLineNumber) {
 }
 
 
+// Test that optimized code for different closures is actually shared
+// immediately by the FastNewClosureStub when run in the same context.
+TEST(OptimizedCodeSharing) {
+  FLAG_allow_natives_syntax = true;
+  InitializeVM();
+  v8::HandleScope scope;
+  for (int i = 0; i < 10; i++) {
+    LocalContext env;
+    env->Global()->Set(v8::String::New("x"), v8::Integer::New(i));
+    CompileRun("function MakeClosure() {"
+               "  return function() { return x; };"
+               "}"
+               "var closure0 = MakeClosure();"
+               "%DebugPrint(closure0());"
+               "%OptimizeFunctionOnNextCall(closure0);"
+               "%DebugPrint(closure0());"
+               "var closure1 = MakeClosure();"
+               "var closure2 = MakeClosure();");
+    Handle<JSFunction> fun1 = v8::Utils::OpenHandle(
+        *v8::Local<v8::Function>::Cast(env->Global()->Get(v8_str("closure1"))));
+    Handle<JSFunction> fun2 = v8::Utils::OpenHandle(
+        *v8::Local<v8::Function>::Cast(env->Global()->Get(v8_str("closure2"))));
+    CHECK(fun1->IsOptimized() || !fun1->IsOptimizable());
+    CHECK(fun2->IsOptimized() || !fun2->IsOptimizable());
+    CHECK_EQ(fun1->code(), fun2->code());
+  }
+}
+
+
 #ifdef ENABLE_DISASSEMBLER
 static Handle<JSFunction> GetJSFunction(v8::Handle<v8::Object> obj,
                                  const char* property_name) {

@@ -317,10 +317,6 @@ void FullCodeGenerator::EmitProfilingCounterReset() {
     // Self-optimization is a one-off thing: if it fails, don't try again.
     reset_value = Smi::kMaxValue;
   }
-  if (isolate()->IsDebuggerActive()) {
-    // Detect debug break requests as soon as possible.
-    reset_value = 10;
-  }
   __ mov(ebx, Immediate(profiling_counter_));
   __ mov(FieldOperand(ebx, JSGlobalPropertyCell::kValueOffset),
          Immediate(Smi::FromInt(reset_value)));
@@ -1559,7 +1555,7 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
   // marked expressions, no store code is emitted.
   expr->CalculateEmitStore(zone());
 
-  AccessorTable accessor_table(isolate()->zone());
+  AccessorTable accessor_table(zone());
   for (int i = 0; i < expr->properties()->length(); i++) {
     ObjectLiteral::Property* property = expr->properties()->at(i);
     if (property->IsCompileTimeValue()) continue;

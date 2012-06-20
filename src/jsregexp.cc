@@ -167,7 +167,9 @@ static bool HasFewDifferentCharacters(Handle<String> pattern) {
 
 Handle<Object> RegExpImpl::Compile(Handle<JSRegExp> re,
                                    Handle<String> pattern,
-                                   Handle<String> flag_str) {
+                                   Handle<String> flag_str,
+                                   Zone* zone) {
+  ZoneScope zone_scope(zone, DELETE_ON_EXIT);
   Isolate* isolate = re->GetIsolate();
   JSRegExp::Flags flags = RegExpFlagsFromString(flag_str);
   CompilationCache* compilation_cache = isolate->compilation_cache();
@@ -181,12 +183,11 @@ Handle<Object> RegExpImpl::Compile(Handle<JSRegExp> re,
     return re;
   }
   pattern = FlattenGetString(pattern);
-  ZoneScope zone_scope(isolate, DELETE_ON_EXIT);
   PostponeInterruptsScope postpone(isolate);
   RegExpCompileData parse_result;
   FlatStringReader reader(isolate, pattern);
   if (!RegExpParser::ParseRegExp(&reader, flags.is_multiline(),
-                                 &parse_result)) {
+                                 &parse_result, zone)) {
     // Throw an exception if we fail to parse the pattern.
     ThrowRegExpException(re,
                          pattern,
@@ -231,14 +232,13 @@ Handle<Object> RegExpImpl::Compile(Handle<JSRegExp> re,
 Handle<Object> RegExpImpl::Exec(Handle<JSRegExp> regexp,
                                 Handle<String> subject,
                                 int index,
-                                Handle<JSArray> last_match_info,
-                                Zone* zone) {
+                                Handle<JSArray> last_match_info) {
   switch (regexp->TypeTag()) {
     case JSRegExp::ATOM:
       return AtomExec(regexp, subject, index, last_match_info);
     case JSRegExp::IRREGEXP: {
       Handle<Object> result =
-          IrregexpExec(regexp, subject, index, last_match_info, zone);
+          IrregexpExec(regexp, subject, index, last_match_info);
       ASSERT(!result.is_null() ||
              regexp->GetIsolate()->has_pending_exception());
       return result;
@@ -345,8 +345,7 @@ Handle<Object> RegExpImpl::AtomExec(Handle<JSRegExp> re,
 // If compilation fails, an exception is thrown and this function
 // returns false.
 bool RegExpImpl::EnsureCompiledIrregexp(
-    Handle<JSRegExp> re, Handle<String> sample_subject, bool is_ascii,
-    Zone* zone) {
+    Handle<JSRegExp> re, Handle<String> sample_subject, bool is_ascii) {
   Object* compiled_code = re->DataAt(JSRegExp::code_index(is_ascii));
 #ifdef V8_INTERPRETED_REGEXP
   if (compiled_code->IsByteArray()) return true;
@@ -362,7 +361,7 @@ bool RegExpImpl::EnsureCompiledIrregexp(
     ASSERT(compiled_code->IsSmi());
     return true;
   }
-  return CompileIrregexp(re, sample_subject, is_ascii, zone);
+  return CompileIrregexp(re, sample_subject, is_ascii);
 }
 
 
@@ -384,11 +383,10 @@ static bool CreateRegExpErrorObjectAndThrow(Handle<JSRegExp> re,
 
 bool RegExpImpl::CompileIrregexp(Handle<JSRegExp> re,
                                  Handle<String> sample_subject,
-                                 bool is_ascii,
-                                 Zone* zone) {
+                                 bool is_ascii) {
   // Compile the RegExp.
   Isolate* isolate = re->GetIsolate();
-  ZoneScope zone_scope(isolate, DELETE_ON_EXIT);
+  ZoneScope zone_scope(isolate->runtime_zone(), DELETE_ON_EXIT);
   PostponeInterruptsScope postpone(isolate);
   // If we had a compilation error the last time this is saved at the
   // saved code index.
@@ -419,8 +417,10 @@ bool RegExpImpl::CompileIrregexp(Handle<JSRegExp> re,
   if (!pattern->IsFlat()) FlattenString(pattern);
   RegExpCompileData compile_data;
   FlatStringReader reader(isolate, pattern);
+  Zone* zone = isolate->runtime_zone();
   if (!RegExpParser::ParseRegExp(&reader, flags.is_multiline(),
-                                 &compile_data)) {
+                                 &compile_data,
+                                 zone)) {
     // Throw an exception if we fail to parse the pattern.
     // THIS SHOULD NOT HAPPEN. We already pre-parsed it successfully once.
     ThrowRegExpException(re,
@@ -502,13 +502,12 @@ void RegExpImpl::IrregexpInitialize(Handle<JSRegExp> re,
 
 
 int RegExpImpl::IrregexpPrepare(Handle<JSRegExp> regexp,
-                                Handle<String> subject,
-                                Zone* zone) {
+                                Handle<String> subject) {
   if (!subject->IsFlat()) FlattenString(subject);
 
   // Check the asciiness of the underlying storage.
   bool is_ascii = subject->IsAsciiRepresentationUnderneath();
-  if (!EnsureCompiledIrregexp(regexp, subject, is_ascii, zone)) return -1;
+  if (!EnsureCompiledIrregexp(regexp, subject, is_ascii)) return -1;
 
 #ifdef V8_INTERPRETED_REGEXP
   // Byte-code regexp needs space allocated for all its registers.
@@ -541,8 +540,7 @@ int RegExpImpl::IrregexpExecRaw(
     Handle<JSRegExp> regexp,
     Handle<String> subject,
     int index,
-    Vector<int> output,
-    Zone* zone) {
+    Vector<int> output) {
   Isolate* isolate = regexp->GetIsolate();
 
   Handle<FixedArray> irregexp(FixedArray::cast(regexp->data()), isolate);
@@ -556,7 +554,7 @@ int RegExpImpl::IrregexpExecRaw(
 #ifndef V8_INTERPRETED_REGEXP
   ASSERT(output.length() >= (IrregexpNumberOfCaptures(*irregexp) + 1) * 2);
   do {
-    EnsureCompiledIrregexp(regexp, subject, is_ascii, zone);
+    EnsureCompiledIrregexp(regexp, subject, is_ascii);
     Handle<Code> code(IrregexpNativeCode(*irregexp, is_ascii), isolate);
     NativeRegExpMacroAssembler::Result res =
         NativeRegExpMacroAssembler::Match(code,
@@ -582,7 +580,7 @@ int RegExpImpl::IrregexpExecRaw(
     // the, potentially, different subject (the string can switch between
     // being internal and external, and even between being ASCII and UC16,
     // but the characters are always the same).
-    IrregexpPrepare(regexp, subject, zone);
+    IrregexpPrepare(regexp, subject);
     is_ascii = subject->IsAsciiRepresentationUnderneath();
   } while (true);
   UNREACHABLE();
@@ -617,8 +615,7 @@ int RegExpImpl::IrregexpExecRaw(
 Handle<Object> RegExpImpl::IrregexpExec(Handle<JSRegExp> jsregexp,
                                         Handle<String> subject,
                                         int previous_index,
-                                        Handle<JSArray> last_match_info,
-                                        Zone* zone) {
+                                        Handle<JSArray> last_match_info) {
   Isolate* isolate = jsregexp->GetIsolate();
   ASSERT_EQ(jsregexp->TypeTag(), JSRegExp::IRREGEXP);
 
@@ -632,7 +629,7 @@ Handle<Object> RegExpImpl::IrregexpExec(Handle<JSRegExp> jsregexp,
   }
 #endif
 #endif
-  int required_registers = RegExpImpl::IrregexpPrepare(jsregexp, subject, zone);
+  int required_registers = RegExpImpl::IrregexpPrepare(jsregexp, subject);
   if (required_registers < 0) {
     // Compiling failed with an exception.
     ASSERT(isolate->has_pending_exception());
@@ -643,8 +640,7 @@ Handle<Object> RegExpImpl::IrregexpExec(Handle<JSRegExp> jsregexp,
 
   int res = RegExpImpl::IrregexpExecRaw(jsregexp, subject, previous_index,
                                         Vector<int>(registers.vector(),
-                                                    registers.length()),
-                                        zone);
+                                                    registers.length()));
   if (res == RE_SUCCESS) {
     int capture_register_count =
         (IrregexpNumberOfCaptures(FixedArray::cast(jsregexp->data())) + 1) * 2;
@@ -5987,7 +5983,7 @@ RegExpEngine::CompilationResult RegExpEngine::Compile(
 #else  // V8_INTERPRETED_REGEXP
   // Interpreted regexp implementation.
   EmbeddedVector<byte, 1024> codes;
-  RegExpMacroAssemblerIrregexp macro_assembler(codes);
+  RegExpMacroAssemblerIrregexp macro_assembler(codes, zone);
 #endif  // V8_INTERPRETED_REGEXP
 
   // Inserted here, instead of in Assembler, because it depends on information

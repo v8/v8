@@ -2697,7 +2697,7 @@ TEST(HugeConsStringOutOfMemory) {
   static const int K = 1024;
   v8::ResourceConstraints constraints;
   constraints.set_max_young_space_size(256 * K);
-  constraints.set_max_old_space_size(2 * K * K);
+  constraints.set_max_old_space_size(3 * K * K);
   v8::SetResourceConstraints(&constraints);
 
   // Execute a script that causes out of memory.
@@ -3360,6 +3360,30 @@ THREADED_TEST(TryCatchAndFinally) {
       "  native_with_try_catch();\n"
       "}\n");
   CHECK(try_catch.HasCaught());
+}
+
+
+static void TryCatchNestedHelper(int depth) {
+  if (depth > 0) {
+    v8::TryCatch try_catch;
+    try_catch.SetVerbose(true);
+    TryCatchNestedHelper(depth - 1);
+    CHECK(try_catch.HasCaught());
+    try_catch.ReThrow();
+  } else {
+    v8::ThrowException(v8_str("back"));
+  }
+}
+
+
+TEST(TryCatchNested) {
+  v8::V8::Initialize();
+  v8::HandleScope scope;
+  LocalContext context;
+  v8::TryCatch try_catch;
+  TryCatchNestedHelper(5);
+  CHECK(try_catch.HasCaught());
+  CHECK_EQ(0, strcmp(*v8::String::Utf8Value(try_catch.Exception()), "back"));
 }
 
 

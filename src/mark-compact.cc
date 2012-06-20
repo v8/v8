@@ -1296,9 +1296,7 @@ class StaticMarkingVisitor : public StaticVisitorBase {
 
 
   static void VisitSharedFunctionInfoGeneric(Map* map, HeapObject* object) {
-    SharedFunctionInfo* shared = reinterpret_cast<SharedFunctionInfo*>(object);
-
-    if (shared->IsInobjectSlackTrackingInProgress()) shared->DetachInitialMap();
+    SharedFunctionInfo::cast(object)->BeforeVisitingPointers();
 
     FixedBodyVisitor<StaticMarkingVisitor,
                      SharedFunctionInfo::BodyDescriptor,
@@ -1402,7 +1400,7 @@ class StaticMarkingVisitor : public StaticVisitorBase {
     Heap* heap = map->GetHeap();
     SharedFunctionInfo* shared = reinterpret_cast<SharedFunctionInfo*>(object);
 
-    if (shared->IsInobjectSlackTrackingInProgress()) shared->DetachInitialMap();
+    shared->BeforeVisitingPointers();
 
     if (!known_flush_code_candidate) {
       known_flush_code_candidate = IsFlushable(heap, shared);
@@ -1539,8 +1537,8 @@ class StaticMarkingVisitor : public StaticVisitorBase {
     }
 
     VisitPointers(heap,
-                  SLOT_ADDR(object, SharedFunctionInfo::kScopeInfoOffset),
-                  SLOT_ADDR(object, SharedFunctionInfo::kSize));
+        SLOT_ADDR(object, SharedFunctionInfo::kOptimizedCodeMapOffset),
+        SLOT_ADDR(object, SharedFunctionInfo::kSize));
   }
 
   #undef SLOT_ADDR
@@ -1883,12 +1881,9 @@ void Marker<T>::MarkDescriptorArray(DescriptorArray* descriptors) {
                                          enum_cache);
   }
 
-  // TODO(verwaest) Make sure we free unused transitions.
   if (descriptors->elements_transition_map() != NULL) {
     Object** transitions_slot = descriptors->GetTransitionsSlot();
     Object* transitions = *transitions_slot;
-    base_marker()->MarkObjectAndPush(
-        reinterpret_cast<HeapObject*>(transitions));
     mark_compact_collector()->RecordSlot(descriptor_start,
                                          transitions_slot,
                                          transitions);
@@ -3819,8 +3814,9 @@ void MarkCompactCollector::SweepSpace(PagedSpace* space, SweeperType sweeper) {
 
   intptr_t old_space_size = heap()->PromotedSpaceSizeOfObjects();
   intptr_t space_left =
-      Min(heap()->OldGenPromotionLimit(old_space_size),
-          heap()->OldGenAllocationLimit(old_space_size)) - old_space_size;
+      Min(heap()->OldGenLimit(old_space_size, Heap::kMinPromotionLimit),
+          heap()->OldGenLimit(old_space_size, Heap::kMinAllocationLimit)) -
+      old_space_size;
 
   while (it.has_next()) {
     Page* p = it.next();

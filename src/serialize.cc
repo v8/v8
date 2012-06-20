@@ -37,6 +37,7 @@
 #include "platform.h"
 #include "runtime.h"
 #include "serialize.h"
+#include "snapshot.h"
 #include "stub-cache.h"
 #include "v8threads.h"
 
@@ -674,10 +675,6 @@ void Deserializer::Deserialize() {
   ASSERT_EQ(NULL, isolate_->thread_manager()->FirstThreadStateInUse());
   // No active handles.
   ASSERT(isolate_->handle_scope_implementer()->blocks()->is_empty());
-  // Make sure the entire partial snapshot cache is traversed, filling it with
-  // valid object pointers.
-  isolate_->set_serialize_partial_snapshot_cache_length(
-      Isolate::kPartialSnapshotCacheCapacity);
   ASSERT_EQ(NULL, external_reference_decoder_);
   external_reference_decoder_ = new ExternalReferenceDecoder();
   isolate_->heap()->IterateStrongRoots(this, VISIT_ONLY_STRONG);
@@ -1149,22 +1146,6 @@ void StartupSerializer::SerializeStrongReferences() {
 
 void PartialSerializer::Serialize(Object** object) {
   this->VisitPointer(object);
-  Isolate* isolate = Isolate::Current();
-
-  // After we have done the partial serialization the partial snapshot cache
-  // will contain some references needed to decode the partial snapshot.  We
-  // fill it up with undefineds so it has a predictable length so the
-  // deserialization code doesn't need to know the length.
-  for (int index = isolate->serialize_partial_snapshot_cache_length();
-       index < Isolate::kPartialSnapshotCacheCapacity;
-       index++) {
-    isolate->serialize_partial_snapshot_cache()[index] =
-        isolate->heap()->undefined_value();
-    startup_serializer_->VisitPointer(
-        &isolate->serialize_partial_snapshot_cache()[index]);
-  }
-  isolate->set_serialize_partial_snapshot_cache_length(
-      Isolate::kPartialSnapshotCacheCapacity);
 }
 
 
@@ -1194,26 +1175,29 @@ void Serializer::VisitPointers(Object** start, Object** end) {
 
 // This ensures that the partial snapshot cache keeps things alive during GC and
 // tracks their movement.  When it is called during serialization of the startup
-// snapshot the partial snapshot is empty, so nothing happens.  When the partial
-// (context) snapshot is created, this array is populated with the pointers that
-// the partial snapshot will need. As that happens we emit serialized objects to
-// the startup snapshot that correspond to the elements of this cache array.  On
-// deserialization we therefore need to visit the cache array.  This fills it up
-// with pointers to deserialized objects.
+// snapshot nothing happens.  When the partial (context) snapshot is created,
+// this array is populated with the pointers that the partial snapshot will
+// need. As that happens we emit serialized objects to the startup snapshot
+// that correspond to the elements of this cache array.  On deserialization we
+// therefore need to visit the cache array.  This fills it up with pointers to
+// deserialized objects.
 void SerializerDeserializer::Iterate(ObjectVisitor* visitor) {
+  if (Serializer::enabled()) return;
   Isolate* isolate = Isolate::Current();
-  visitor->VisitPointers(
-      isolate->serialize_partial_snapshot_cache(),
-      &isolate->serialize_partial_snapshot_cache()[
-          isolate->serialize_partial_snapshot_cache_length()]);
-}
-
-
-// When deserializing we need to set the size of the snapshot cache.  This means
-// the root iteration code (above) will iterate over array elements, writing the
-// references to deserialized objects in them.
-void SerializerDeserializer::SetSnapshotCacheSize(int size) {
-  Isolate::Current()->set_serialize_partial_snapshot_cache_length(size);
+  for (int i = 0; ; i++) {
+    if (isolate->serialize_partial_snapshot_cache_length() <= i) {
+      // Extend the array ready to get a value from the visitor when
+      // deserializing.
+      isolate->PushToPartialSnapshotCache(Smi::FromInt(0));
+    }
+    Object** cache = isolate->serialize_partial_snapshot_cache();
+    visitor->VisitPointers(&cache[i], &cache[i + 1]);
+    // Sentinel is the undefined object, which is a root so it will not normally
+    // be found in the cache.
+    if (cache[i] == isolate->heap()->undefined_value()) {
+      break;
+    }
+  }
 }
 
 
@@ -1231,14 +1215,11 @@ int PartialSerializer::PartialSnapshotCacheIndex(HeapObject* heap_object) {
   // then visit the pointer so that it becomes part of the startup snapshot
   // and we can refer to it from the partial snapshot.
   int length = isolate->serialize_partial_snapshot_cache_length();
-  CHECK(length < Isolate::kPartialSnapshotCacheCapacity);
-  isolate->serialize_partial_snapshot_cache()[length] = heap_object;
-  startup_serializer_->VisitPointer(
-      &isolate->serialize_partial_snapshot_cache()[length]);
+  isolate->PushToPartialSnapshotCache(heap_object);
+  startup_serializer_->VisitPointer(reinterpret_cast<Object**>(&heap_object));
   // We don't recurse from the startup snapshot generator into the partial
   // snapshot generator.
-  ASSERT(length == isolate->serialize_partial_snapshot_cache_length());
-  isolate->set_serialize_partial_snapshot_cache_length(length + 1);
+  ASSERT(length == isolate->serialize_partial_snapshot_cache_length() - 1);
   return length;
 }
 
@@ -1337,12 +1318,14 @@ void StartupSerializer::SerializeObject(
 
 
 void StartupSerializer::SerializeWeakReferences() {
-  for (int i = Isolate::Current()->serialize_partial_snapshot_cache_length();
-       i < Isolate::kPartialSnapshotCacheCapacity;
-       i++) {
-    sink_->Put(kRootArray + kPlain + kStartOfObject, "RootSerialization");
-    sink_->PutInt(Heap::kUndefinedValueRootIndex, "root_index");
-  }
+  // This phase comes right after the partial serialization (of the snapshot).
+  // After we have done the partial serialization the partial snapshot cache
+  // will contain some references needed to decode the partial snapshot.  We
+  // add one entry with 'undefined' which is the sentinel that the deserializer
+  // uses to know it is done deserializing the array.
+  Isolate* isolate = Isolate::Current();
+  Object* undefined = isolate->heap()->undefined_value();
+  VisitPointer(&undefined);
   HEAP->IterateWeakRoots(this, VISIT_ALL);
 }
 

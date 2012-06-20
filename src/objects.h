@@ -2438,6 +2438,7 @@ class DescriptorArray: public FixedArray {
   inline bool MayContainTransitions();
 
   DECL_ACCESSORS(elements_transition_map, Map)
+  inline void ClearElementsTransition();
 
   // Returns the number of descriptors in the array.
   int number_of_descriptors() {
@@ -5217,6 +5218,25 @@ class SharedFunctionInfo: public HeapObject {
   // [code]: Function code.
   DECL_ACCESSORS(code, Code)
 
+  // [optimized_code_map]: Map from global context to optimized code
+  // and a shared literals array or Smi 0 if none.
+  DECL_ACCESSORS(optimized_code_map, Object)
+
+  // Returns index i of the entry with the specified context. At position
+  // i - 1 is the context, position i the code, and i + 1 the literals array.
+  // Returns -1 when no matching entry is found.
+  int SearchOptimizedCodeMap(Context* global_context);
+
+  // Clear optimized code map.
+  void ClearOptimizedCodeMap();
+
+  // Add a new entry to the optimized code map.
+  static void AddToOptimizedCodeMap(Handle<SharedFunctionInfo> shared,
+                                    Handle<Context> global_context,
+                                    Handle<Code> code,
+                                    Handle<FixedArray> literals);
+  static const int kEntryLength = 3;
+
   // [scope_info]: Scope info.
   DECL_ACCESSORS(scope_info, ScopeInfo)
 
@@ -5323,6 +5343,10 @@ class SharedFunctionInfo: public HeapObject {
   // Completes the tracking.
   // IsInobjectSlackTrackingInProgress is false after this call.
   void CompleteInobjectSlackTracking();
+
+  // Invoked before pointers in SharedFunctionInfo are being marked.
+  // Also clears the optimized code map.
+  inline void BeforeVisitingPointers();
 
   // Clears the initial_map before the GC marking phase to ensure the reference
   // is weak. IsInobjectSlackTrackingInProgress is false after this call.
@@ -5435,6 +5459,12 @@ class SharedFunctionInfo: public HeapObject {
   // This is used to determine if we can safely flush code from a function
   // when doing GC if we expect that the function will no longer be used.
   DECL_BOOLEAN_ACCESSORS(allows_lazy_compilation)
+
+  // Indicates if this function can be lazy compiled without a context.
+  // This is used to determine if we can force compilation without reaching
+  // the function through program execution but through other means (e.g. heap
+  // iteration by the debugger).
+  DECL_BOOLEAN_ACCESSORS(allows_lazy_compilation_without_context)
 
   // Indicates how many full GCs this function has survived with assigned
   // code object. Used to determine when it is relatively safe to flush
@@ -5582,10 +5612,9 @@ class SharedFunctionInfo: public HeapObject {
 
   void ResetForNewContext(int new_ic_age);
 
-  // Helpers to compile the shared code.  Returns true on success, false on
-  // failure (e.g., stack overflow during compilation).
-  static bool EnsureCompiled(Handle<SharedFunctionInfo> shared,
-                             ClearExceptionFlag flag);
+  // Helper to compile the shared code.  Returns true on success, false on
+  // failure (e.g., stack overflow during compilation). This is only used by
+  // the debugger, it is not possible to compile without a context otherwise.
   static bool CompileLazy(Handle<SharedFunctionInfo> shared,
                           ClearExceptionFlag flag);
 
@@ -5601,7 +5630,8 @@ class SharedFunctionInfo: public HeapObject {
   // Pointer fields.
   static const int kNameOffset = HeapObject::kHeaderSize;
   static const int kCodeOffset = kNameOffset + kPointerSize;
-  static const int kScopeInfoOffset = kCodeOffset + kPointerSize;
+  static const int kOptimizedCodeMapOffset = kCodeOffset + kPointerSize;
+  static const int kScopeInfoOffset = kOptimizedCodeMapOffset + kPointerSize;
   static const int kConstructStubOffset = kScopeInfoOffset + kPointerSize;
   static const int kInstanceClassNameOffset =
       kConstructStubOffset + kPointerSize;
@@ -5719,6 +5749,7 @@ class SharedFunctionInfo: public HeapObject {
   enum CompilerHints {
     kHasOnlySimpleThisPropertyAssignments,
     kAllowLazyCompilation,
+    kAllowLazyCompilationWithoutContext,
     kLiveObjectsMayExist,
     kCodeAgeShift,
     kOptimizationDisabled = kCodeAgeShift + kCodeAgeSize,
@@ -5867,6 +5898,8 @@ class JSFunction: public JSObject {
 
   // Helpers to compile this function.  Returns true on success, false on
   // failure (e.g., stack overflow during compilation).
+  static bool EnsureCompiled(Handle<JSFunction> function,
+                             ClearExceptionFlag flag);
   static bool CompileLazy(Handle<JSFunction> function,
                           ClearExceptionFlag flag);
   static bool CompileOptimized(Handle<JSFunction> function,

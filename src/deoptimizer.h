@@ -608,6 +608,9 @@ class Translation BASE_EMBEDDED {
   static const char* StringFor(Opcode opcode);
 #endif
 
+  // A literal id which refers to the JSFunction itself.
+  static const int kSelfLiteralId = -239;
+
  private:
   TranslationBuffer* buffer_;
   int index_;

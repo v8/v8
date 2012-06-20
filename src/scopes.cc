@@ -274,7 +274,8 @@ bool Scope::Analyze(CompilationInfo* info) {
 
   // Allocate the variables.
   {
-    AstNodeFactory<AstNullVisitor> ast_node_factory(info->isolate());
+    AstNodeFactory<AstNullVisitor> ast_node_factory(info->isolate(),
+                                                    info->zone());
     if (!top->AllocateVariables(info, &ast_node_factory)) return false;
   }
 
@@ -637,11 +638,6 @@ bool Scope::AllocateVariables(CompilationInfo* info,
 }
 
 
-bool Scope::AllowsLazyCompilation() const {
-  return !force_eager_compilation_ && HasTrivialOuterContext();
-}
-
-
 bool Scope::HasTrivialContext() const {
   // A function scope has a trivial context if it always is the global
   // context. We iteratively scan out the context chain to see if
@@ -666,9 +662,14 @@ bool Scope::HasTrivialOuterContext() const {
 }
 
 
-bool Scope::AllowsLazyRecompilation() const {
+bool Scope::AllowsLazyCompilation() const {
   return !force_eager_compilation_ &&
          !TrivialDeclarationScopesBeforeWithScope();
+}
+
+
+bool Scope::AllowsLazyCompilationWithoutContext() const {
+  return !force_eager_compilation_ && HasTrivialOuterContext();
 }
 
 

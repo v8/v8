@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -276,7 +276,7 @@ void ArmDebugger::Debug() {
   // make them invisible to all commands.
   UndoBreakpoints();
 
-  while (!done) {
+  while (!done && !sim_->has_bad_pc()) {
     if (last_pc != sim_->get_pc()) {
       disasm::NameConverter converter;
       disasm::Disassembler dasm(converter);

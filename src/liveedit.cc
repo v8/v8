@@ -601,7 +601,7 @@ static void CompileScriptForTracker(Isolate* isolate, Handle<Script> script) {
   PostponeInterruptsScope postpone(isolate);
 
   // Build AST.
-  CompilationInfo info(script);
+  CompilationInfoWithZone info(script);
   info.MarkAsGlobal();
   // Parse and don't allow skipping lazy functions.
   if (ParserApi::Parse(&info, kNoParsingFlags)) {
@@ -894,7 +894,6 @@ class FunctionInfoListener {
 JSArray* LiveEdit::GatherCompileInfo(Handle<Script> script,
                                      Handle<String> source) {
   Isolate* isolate = Isolate::Current();
-  ZoneScope zone_scope(isolate, DELETE_ON_EXIT);
 
   FunctionInfoListener listener;
   Handle<Object> original_source = Handle<Object>(script->source());
@@ -923,37 +922,35 @@ void LiveEdit::WrapSharedFunctionInfos(Handle<JSArray> array) {
 }
 
 
-// Visitor that collects all references to a particular code object,
-// including "CODE_TARGET" references in other code objects.
-// It works in context of ZoneScope.
-class ReferenceCollectorVisitor : public ObjectVisitor {
+// Visitor that finds all references to a particular code object,
+// including "CODE_TARGET" references in other code objects and replaces
+// them on the fly.
+class ReplacingVisitor : public ObjectVisitor {
  public:
-  ReferenceCollectorVisitor(Code* original, Zone* zone)
-      : original_(original),
-        rvalues_(10, zone),
-        reloc_infos_(10, zone),
-        code_entries_(10, zone),
-        zone_(zone) {
+  explicit ReplacingVisitor(Code* original, Code* substitution)
+    : original_(original), substitution_(substitution) {
   }
 
   virtual void VisitPointers(Object** start, Object** end) {
     for (Object** p = start; p < end; p++) {
       if (*p == original_) {
-        rvalues_.Add(p, zone_);
+        *p = substitution_;
       }
     }
   }
 
   virtual void VisitCodeEntry(Address entry) {
     if (Code::GetObjectFromEntryAddress(entry) == original_) {
-      code_entries_.Add(entry, zone_);
+      Address substitution_entry = substitution_->instruction_start();
+      Memory::Address_at(entry) = substitution_entry;
     }
   }
 
   virtual void VisitCodeTarget(RelocInfo* rinfo) {
     if (RelocInfo::IsCodeTarget(rinfo->rmode()) &&
         Code::GetCodeFromTargetAddress(rinfo->target_address()) == original_) {
-      reloc_infos_.Add(*rinfo, zone_);
+      Address substitution_entry = substitution_->instruction_start();
+      rinfo->set_target_address(substitution_entry);
     }
   }
 
@@ -961,28 +958,9 @@ class ReferenceCollectorVisitor : public ObjectVisitor {
     VisitCodeTarget(rinfo);
   }
 
-  // Post-visiting method that iterates over all collected references and
-  // modifies them.
-  void Replace(Code* substitution) {
-    for (int i = 0; i < rvalues_.length(); i++) {
-      *(rvalues_[i]) = substitution;
-    }
-    Address substitution_entry = substitution->instruction_start();
-    for (int i = 0; i < reloc_infos_.length(); i++) {
-      reloc_infos_[i].set_target_address(substitution_entry);
-    }
-    for (int i = 0; i < code_entries_.length(); i++) {
-      Address entry = code_entries_[i];
-      Memory::Address_at(entry) = substitution_entry;
-    }
-  }
-
  private:
   Code* original_;
-  ZoneList<Object**> rvalues_;
-  ZoneList<RelocInfo> reloc_infos_;
-  ZoneList<Address> code_entries_;
-  Zone* zone_;
+  Code* substitution_;
 };
 
 
@@ -990,28 +968,21 @@ class ReferenceCollectorVisitor : public ObjectVisitor {
 static void ReplaceCodeObject(Code* original, Code* substitution) {
   ASSERT(!HEAP->InNewSpace(substitution));
 
-  HeapIterator iterator;
   AssertNoAllocation no_allocations_please;
 
-  // A zone scope for ReferenceCollectorVisitor.
-  ZoneScope scope(Isolate::Current(), DELETE_ON_EXIT);
-
-  ReferenceCollectorVisitor visitor(original, Isolate::Current()->zone());
+  ReplacingVisitor visitor(original, substitution);
 
   // Iterate over all roots. Stack frames may have pointer into original code,
   // so temporary replace the pointers with offset numbers
   // in prologue/epilogue.
-  {
-    HEAP->IterateStrongRoots(&visitor, VISIT_ALL);
-  }
+  HEAP->IterateRoots(&visitor, VISIT_ALL);
 
   // Now iterate over all pointers of all objects, including code_target
   // implicit pointers.
+  HeapIterator iterator;
   for (HeapObject* obj = iterator.next(); obj != NULL; obj = iterator.next()) {
     obj->Iterate(&visitor);
   }
-
-  visitor.Replace(substitution);
 }
 
 
@@ -1595,17 +1566,36 @@ static bool IsDropableFrame(StackFrame* frame) {
   return !frame->is_exit();
 }
 
-// Fills result array with statuses of functions. Modifies the stack
-// removing all listed function if possible and if do_drop is true.
-static const char* DropActivationsInActiveThread(
-    Handle<JSArray> shared_info_array, Handle<JSArray> result, bool do_drop,
-    Zone* zone) {
+
+// Describes a set of call frames that execute any of listed functions.
+// Finding no such frames does not mean error.
+class MultipleFunctionTarget {
+ public:
+  MultipleFunctionTarget(Handle<JSArray> shared_info_array,
+      Handle<JSArray> result)
+      : m_shared_info_array(shared_info_array),
+        m_result(result) {}
+  bool MatchActivation(StackFrame* frame,
+      LiveEdit::FunctionPatchabilityStatus status) {
+    return CheckActivation(m_shared_info_array, m_result, frame, status);
+  }
+  const char* GetNotFoundMessage() {
+    return NULL;
+  }
+ private:
+  Handle<JSArray> m_shared_info_array;
+  Handle<JSArray> m_result;
+};
+
+// Drops all call frame matched by target and all frames above them.
+template<typename TARGET>
+static const char* DropActivationsInActiveThreadImpl(
+    TARGET& target, bool do_drop, Zone* zone) {
   Isolate* isolate = Isolate::Current();
   Debug* debug = isolate->debug();
-  ZoneScope scope(isolate, DELETE_ON_EXIT);
+  ZoneScope scope(zone, DELETE_ON_EXIT);
   Vector<StackFrame*> frames = CreateStackMap(zone);
 
-  int array_len = Smi::cast(shared_info_array->length())->value();
 
   int top_frame_index = -1;
   int frame_index = 0;
@@ -1615,8 +1605,8 @@ static const char* DropActivationsInActiveThread(
       top_frame_index = frame_index;
       break;
     }
-    if (CheckActivation(shared_info_array, result, frame,
-                        LiveEdit::FUNCTION_BLOCKED_UNDER_NATIVE_CODE)) {
+    if (target.MatchActivation(
+            frame, LiveEdit::FUNCTION_BLOCKED_UNDER_NATIVE_CODE)) {
       // We are still above break_frame. It is not a target frame,
       // it is a problem.
       return "Debugger mark-up on stack is not found";
@@ -1625,7 +1615,7 @@ static const char* DropActivationsInActiveThread(
 
   if (top_frame_index == -1) {
     // We haven't found break frame, but no function is blocking us anyway.
-    return NULL;
+    return target.GetNotFoundMessage();
   }
 
   bool target_frame_found = false;
@@ -1638,8 +1628,8 @@ static const char* DropActivationsInActiveThread(
       c_code_found = true;
       break;
     }
-    if (CheckActivation(shared_info_array, result, frame,
-                        LiveEdit::FUNCTION_BLOCKED_ON_ACTIVE_STACK)) {
+    if (target.MatchActivation(
+            frame, LiveEdit::FUNCTION_BLOCKED_ON_ACTIVE_STACK)) {
       target_frame_found = true;
       bottom_js_frame_index = frame_index;
     }
@@ -1651,8 +1641,8 @@ static const char* DropActivationsInActiveThread(
     for (; frame_index < frames.length(); frame_index++) {
       StackFrame* frame = frames[frame_index];
       if (frame->is_java_script()) {
-        if (CheckActivation(shared_info_array, result, frame,
-                            LiveEdit::FUNCTION_BLOCKED_UNDER_NATIVE_CODE)) {
+        if (target.MatchActivation(
+                frame, LiveEdit::FUNCTION_BLOCKED_UNDER_NATIVE_CODE)) {
           // Cannot drop frame under C frames.
           return NULL;
         }
@@ -1667,7 +1657,7 @@ static const char* DropActivationsInActiveThread(
 
   if (!target_frame_found) {
     // Nothing to drop.
-    return NULL;
+    return target.GetNotFoundMessage();
   }
 
   Debug::FrameDropMode drop_mode = Debug::FRAMES_UNTOUCHED;
@@ -1690,6 +1680,23 @@ static const char* DropActivationsInActiveThread(
   }
   debug->FramesHaveBeenDropped(new_id, drop_mode,
                                restarter_frame_function_pointer);
+  return NULL;
+}
+
+// Fills result array with statuses of functions. Modifies the stack
+// removing all listed function if possible and if do_drop is true.
+static const char* DropActivationsInActiveThread(
+    Handle<JSArray> shared_info_array, Handle<JSArray> result, bool do_drop,
+    Zone* zone) {
+  MultipleFunctionTarget target(shared_info_array, result);
+
+  const char* message =
+      DropActivationsInActiveThreadImpl(target, do_drop, zone);
+  if (message) {
+    return message;
+  }
+
+  int array_len = Smi::cast(shared_info_array->length())->value();
 
   // Replace "blocked on active" with "replaced on active" status.
   for (int i = 0; i < array_len; i++) {
@@ -1763,6 +1770,41 @@ Handle<JSArray> LiveEdit::CheckAndDropActivations(
     SetElementNonStrict(result, len, str);
   }
   return result;
+}
+
+
+// Describes a single callframe a target. Not finding this frame
+// means an error.
+class SingleFrameTarget {
+ public:
+  explicit SingleFrameTarget(JavaScriptFrame* frame) : m_frame(frame) {}
+
+  bool MatchActivation(StackFrame* frame,
+      LiveEdit::FunctionPatchabilityStatus status) {
+    if (frame->fp() == m_frame->fp()) {
+      m_saved_status = status;
+      return true;
+    }
+    return false;
+  }
+  const char* GetNotFoundMessage() {
+    return "Failed to found requested frame";
+  }
+  LiveEdit::FunctionPatchabilityStatus saved_status() {
+    return m_saved_status;
+  }
+ private:
+  JavaScriptFrame* m_frame;
+  LiveEdit::FunctionPatchabilityStatus m_saved_status;
+};
+
+
+// Finds a drops required frame and all frames above.
+// Returns error message or NULL.
+const char* LiveEdit::RestartFrame(JavaScriptFrame* frame, Zone* zone) {
+  SingleFrameTarget target(frame);
+
+  return DropActivationsInActiveThreadImpl(target, true, zone);
 }
 
 

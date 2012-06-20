@@ -284,9 +284,9 @@ Handle<Value> Shell::Load(const Arguments& args) {
   return Undefined();
 }
 
-static size_t convertToUint(Local<Value> value_in, TryCatch* try_catch) {
-  if (value_in->IsUint32()) {
-    return value_in->Uint32Value();
+static int32_t convertToUint(Local<Value> value_in, TryCatch* try_catch) {
+  if (value_in->IsInt32()) {
+    return value_in->Int32Value();
   }
 
   Local<Value> number = value_in->ToNumber();
@@ -312,7 +312,7 @@ static size_t convertToUint(Local<Value> value_in, TryCatch* try_catch) {
     ThrowException(
         String::New("Array length exceeds maximum length."));
   }
-  return static_cast<size_t>(raw_value);
+  return raw_value;
 }
 
 

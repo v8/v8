@@ -268,20 +268,29 @@ void Deoptimizer::DeoptimizeGlobalObject(JSObject* object) {
 
 void Deoptimizer::VisitAllOptimizedFunctionsForContext(
     Context* context, OptimizedFunctionVisitor* visitor) {
+  Isolate* isolate = context->GetIsolate();
+  ZoneScope zone_scope(isolate->runtime_zone(), DELETE_ON_EXIT);
   AssertNoAllocation no_allocation;
 
   ASSERT(context->IsGlobalContext());
 
   visitor->EnterContext(context);
-  // Run through the list of optimized functions and deoptimize them.
+
+  // Create a snapshot of the optimized functions list. This is needed because
+  // visitors might remove more than one link from the list at once.
+  ZoneList<JSFunction*> snapshot(1, isolate->runtime_zone());
   Object* element = context->OptimizedFunctionsListHead();
   while (!element->IsUndefined()) {
     JSFunction* element_function = JSFunction::cast(element);
-    // Get the next link before deoptimizing as deoptimizing will clear the
-    // next link.
+    snapshot.Add(element_function, isolate->runtime_zone());
     element = element_function->next_function_link();
-    visitor->VisitFunction(element_function);
   }
+
+  // Run through the snapshot of optimized functions and visit them.
+  for (int i = 0; i < snapshot.length(); ++i) {
+    visitor->VisitFunction(snapshot.at(i));
+  }
+
   visitor->LeaveContext(context);
 }
 

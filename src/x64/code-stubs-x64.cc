@@ -62,8 +62,12 @@ void ToNumberStub::Generate(MacroAssembler* masm) {
 void FastNewClosureStub::Generate(MacroAssembler* masm) {
   // Create a new closure from the given function info in new
   // space. Set the context to the current context in rsi.
+  Counters* counters = masm->isolate()->counters();
+
   Label gc;
   __ AllocateInNewSpace(JSFunction::kSize, rax, rbx, rcx, &gc, TAG_OBJECT);
+
+  __ IncrementCounter(counters->fast_new_closure_total(), 1);
 
   // Get the function info from the stack.
   __ movq(rdx, Operand(rsp, 1 * kPointerSize));
@@ -76,31 +80,108 @@ void FastNewClosureStub::Generate(MacroAssembler* masm) {
   // as the map of the allocated object.
   __ movq(rcx, Operand(rsi, Context::SlotOffset(Context::GLOBAL_INDEX)));
   __ movq(rcx, FieldOperand(rcx, GlobalObject::kGlobalContextOffset));
-  __ movq(rcx, Operand(rcx, Context::SlotOffset(map_index)));
-  __ movq(FieldOperand(rax, JSObject::kMapOffset), rcx);
+  __ movq(rbx, Operand(rcx, Context::SlotOffset(map_index)));
+  __ movq(FieldOperand(rax, JSObject::kMapOffset), rbx);
 
   // Initialize the rest of the function. We don't have to update the
   // write barrier because the allocated object is in new space.
   __ LoadRoot(rbx, Heap::kEmptyFixedArrayRootIndex);
-  __ LoadRoot(rcx, Heap::kTheHoleValueRootIndex);
+  __ LoadRoot(r8, Heap::kTheHoleValueRootIndex);
   __ LoadRoot(rdi, Heap::kUndefinedValueRootIndex);
   __ movq(FieldOperand(rax, JSObject::kPropertiesOffset), rbx);
   __ movq(FieldOperand(rax, JSObject::kElementsOffset), rbx);
-  __ movq(FieldOperand(rax, JSFunction::kPrototypeOrInitialMapOffset), rcx);
+  __ movq(FieldOperand(rax, JSFunction::kPrototypeOrInitialMapOffset), r8);
   __ movq(FieldOperand(rax, JSFunction::kSharedFunctionInfoOffset), rdx);
   __ movq(FieldOperand(rax, JSFunction::kContextOffset), rsi);
   __ movq(FieldOperand(rax, JSFunction::kLiteralsOffset), rbx);
-  __ movq(FieldOperand(rax, JSFunction::kNextFunctionLinkOffset), rdi);
 
   // Initialize the code pointer in the function to be the one
   // found in the shared function info object.
+  // But first check if there is an optimized version for our context.
+  Label check_optimized;
+  Label install_unoptimized;
+  if (FLAG_cache_optimized_code) {
+    __ movq(rbx,
+            FieldOperand(rdx, SharedFunctionInfo::kOptimizedCodeMapOffset));
+    __ testq(rbx, rbx);
+    __ j(not_zero, &check_optimized, Label::kNear);
+  }
+  __ bind(&install_unoptimized);
+  __ movq(FieldOperand(rax, JSFunction::kNextFunctionLinkOffset),
+          rdi);  // Initialize with undefined.
   __ movq(rdx, FieldOperand(rdx, SharedFunctionInfo::kCodeOffset));
   __ lea(rdx, FieldOperand(rdx, Code::kHeaderSize));
   __ movq(FieldOperand(rax, JSFunction::kCodeEntryOffset), rdx);
 
+  // Return and remove the on-stack parameter.
+  __ ret(1 * kPointerSize);
+
+  __ bind(&check_optimized);
+
+  __ IncrementCounter(counters->fast_new_closure_try_optimized(), 1);
+
+  // rcx holds global context, ebx points to fixed array of 3-element entries
+  // (global context, optimized code, literals).
+  // The optimized code map must never be empty, so check the first elements.
+  Label install_optimized;
+  // Speculatively move code object into edx.
+  __ movq(rdx, FieldOperand(rbx, FixedArray::kHeaderSize + kPointerSize));
+  __ cmpq(rcx, FieldOperand(rbx, FixedArray::kHeaderSize));
+  __ j(equal, &install_optimized);
+
+  // Iterate through the rest of map backwards. rdx holds an index.
+  Label loop;
+  Label restore;
+  __ movq(rdx, FieldOperand(rbx, FixedArray::kLengthOffset));
+  __ SmiToInteger32(rdx, rdx);
+  __ bind(&loop);
+  // Do not double check first entry.
+  __ cmpq(rdx, Immediate(SharedFunctionInfo::kEntryLength));
+  __ j(equal, &restore);
+  __ subq(rdx, Immediate(SharedFunctionInfo::kEntryLength));  // Skip an entry.
+  __ cmpq(rcx, FieldOperand(rbx,
+                            rdx,
+                            times_pointer_size,
+                            FixedArray::kHeaderSize));
+  __ j(not_equal, &loop, Label::kNear);
+  // Hit: fetch the optimized code.
+  __ movq(rdx, FieldOperand(rbx,
+                            rdx,
+                            times_pointer_size,
+                            FixedArray::kHeaderSize + 1 * kPointerSize));
+
+  __ bind(&install_optimized);
+  __ IncrementCounter(counters->fast_new_closure_install_optimized(), 1);
+
+  // TODO(fschneider): Idea: store proper code pointers in the map and either
+  // unmangle them on marking or do nothing as the whole map is discarded on
+  // major GC anyway.
+  __ lea(rdx, FieldOperand(rdx, Code::kHeaderSize));
+  __ movq(FieldOperand(rax, JSFunction::kCodeEntryOffset), rdx);
+
+  // Now link a function into a list of optimized functions.
+  __ movq(rdx, ContextOperand(rcx, Context::OPTIMIZED_FUNCTIONS_LIST));
+
+  __ movq(FieldOperand(rax, JSFunction::kNextFunctionLinkOffset), rdx);
+  // No need for write barrier as JSFunction (rax) is in the new space.
+
+  __ movq(ContextOperand(rcx, Context::OPTIMIZED_FUNCTIONS_LIST), rax);
+  // Store JSFunction (rax) into rdx before issuing write barrier as
+  // it clobbers all the registers passed.
+  __ movq(rdx, rax);
+  __ RecordWriteContextSlot(
+      rcx,
+      Context::SlotOffset(Context::OPTIMIZED_FUNCTIONS_LIST),
+      rdx,
+      rbx,
+      kDontSaveFPRegs);
 
   // Return and remove the on-stack parameter.
   __ ret(1 * kPointerSize);
+
+  __ bind(&restore);
+  __ movq(rdx, Operand(rsp, 1 * kPointerSize));
+  __ jmp(&install_unoptimized);
 
   // Create a new closure through the slower runtime call.
   __ bind(&gc);
@@ -6014,6 +6095,8 @@ struct AheadOfTimeWriteBarrierStubList kAheadOfTime[] = {
   { REG(r11), REG(rax), REG(r15), EMIT_REMEMBERED_SET},
   // StoreArrayLiteralElementStub::Generate
   { REG(rbx), REG(rax), REG(rcx), EMIT_REMEMBERED_SET},
+  // FastNewClosureStub::Generate
+  { REG(rcx), REG(rdx), REG(rbx), EMIT_REMEMBERED_SET},
   // Null termination.
   { REG(no_reg), REG(no_reg), REG(no_reg), EMIT_REMEMBERED_SET}
 };
