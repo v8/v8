@@ -777,18 +777,36 @@ function ArraySort(comparefn) {
     }
   };
 
+  var GetThirdIndex = function(a, from, to) {
+    var t_array = [];
+    // Use both 'from' and 'to' to determine the pivot candidates.
+    var increment = 200 + ((to - from) & 15);
+    for (var i = from + 1; i < to - 1; i += increment) {
+      t_array.push([i, a[i]]);
+    }
+    t_array.sort(function(a, b) {
+        return %_CallFunction(receiver, a[1], b[1], comparefn) } );
+    var third_index = t_array[t_array.length >> 1][0];
+    return third_index;
+  }
+
   var QuickSort = function QuickSort(a, from, to) {
+    var third_index = 0;
     while (true) {
       // Insertion sort is faster for short arrays.
       if (to - from <= 10) {
         InsertionSort(a, from, to);
         return;
       }
+      if (to - from > 1000) {
+        third_index = GetThirdIndex(a, from, to);
+      } else {
+        third_index = from + ((to - from) >> 1);
+      }
       // Find a pivot as the median of first, last and middle element.
       var v0 = a[from];
       var v1 = a[to - 1];
-      var middle_index = from + ((to - from) >> 1);
-      var v2 = a[middle_index];
+      var v2 = a[third_index];
       var c01 = %_CallFunction(receiver, v0, v1, comparefn);
       if (c01 > 0) {
         // v1 < v0, so swap them.
@@ -819,7 +837,7 @@ function ArraySort(comparefn) {
       var pivot = v1;
       var low_end = from + 1;   // Upper bound of elements lower than pivot.
       var high_start = to - 1;  // Lower bound of elements greater than pivot.
-      a[middle_index] = a[low_end];
+      a[third_index] = a[low_end];
       a[low_end] = pivot;
 
       // From low_end to i are elements equal to pivot.
