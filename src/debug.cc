@@ -1840,7 +1840,7 @@ static bool CompileFullCodeForDebugging(Handle<JSFunction> function,
                                         Handle<Code> current_code) {
   ASSERT(!current_code->has_debug_break_slots());
 
-  CompilationInfo info(function);
+  CompilationInfoWithZone info(function);
   info.MarkCompilingForDebugging(current_code);
   ASSERT(!info.shared_info()->is_compiled());
   ASSERT(!info.isolate()->has_pending_exception());
@@ -2097,7 +2097,6 @@ void Debug::PrepareForBreakPoints() {
         // Try to compile the full code with debug break slots. If it
         // fails just keep the current code.
         Handle<Code> current_code(function->shared()->code());
-        ZoneScope zone_scope(isolate_, DELETE_ON_EXIT);
         shared->set_code(*lazy_compile);
         bool prev_force_debugger_active =
             isolate_->debugger()->force_debugger_active();

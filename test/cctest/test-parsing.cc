@@ -1017,8 +1017,8 @@ TEST(ScopePositions) {
     CHECK_EQ(source->length(), kProgramSize);
     i::Handle<i::Script> script = FACTORY->NewScript(source);
     i::Parser parser(script, i::kAllowLazy | i::EXTENDED_MODE, NULL, NULL,
-                     i::Isolate::Current()->zone());
-    i::CompilationInfo info(script);
+                     i::Isolate::Current()->runtime_zone());
+    i::CompilationInfoWithZone info(script);
     info.MarkAsGlobal();
     info.SetLanguageMode(source_data[i].language_mode);
     i::FunctionLiteral* function = parser.ParseProgram(&info);
@@ -1061,8 +1061,9 @@ void TestParserSync(i::Handle<i::String> source, int flags) {
   i::Handle<i::Script> script = FACTORY->NewScript(source);
   bool save_harmony_scoping = i::FLAG_harmony_scoping;
   i::FLAG_harmony_scoping = harmony_scoping;
-  i::Parser parser(script, flags, NULL, NULL, i::Isolate::Current()->zone());
-  i::CompilationInfo info(script);
+  i::Parser parser(script, flags, NULL, NULL,
+                   i::Isolate::Current()->runtime_zone());
+  i::CompilationInfoWithZone info(script);
   info.MarkAsGlobal();
   i::FunctionLiteral* function = parser.ParseProgram(&info);
   i::FLAG_harmony_scoping = save_harmony_scoping;

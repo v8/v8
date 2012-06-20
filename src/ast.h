@@ -2639,9 +2639,9 @@ class AstNullVisitor BASE_EMBEDDED {
 template<class Visitor>
 class AstNodeFactory BASE_EMBEDDED {
  public:
-  explicit AstNodeFactory(Isolate* isolate)
+  AstNodeFactory(Isolate* isolate, Zone* zone)
       : isolate_(isolate),
-        zone_(isolate_->zone()) { }
+        zone_(zone) { }
 
   Visitor* visitor() { return &visitor_; }
 
@@ -2711,10 +2711,9 @@ class AstNodeFactory BASE_EMBEDDED {
 
   Block* NewBlock(ZoneStringList* labels,
                   int capacity,
-                  bool is_initializer_block,
-                  Zone* zone) {
+                  bool is_initializer_block) {
     Block* block = new(zone_) Block(
-        isolate_, labels, capacity, is_initializer_block, zone);
+        isolate_, labels, capacity, is_initializer_block, zone_);
     VISIT_AND_RETURN(Block, block)
   }
 

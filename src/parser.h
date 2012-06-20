@@ -306,11 +306,13 @@ class RegExpParser {
  public:
   RegExpParser(FlatStringReader* in,
                Handle<String>* error,
-               bool multiline_mode);
+               bool multiline_mode,
+               Zone* zone);
 
   static bool ParseRegExp(FlatStringReader* input,
                           bool multiline,
-                          RegExpCompileData* result);
+                          RegExpCompileData* result,
+                          Zone* zone);
 
   RegExpTree* ParsePattern();
   RegExpTree* ParseDisjunction();
@@ -398,7 +400,7 @@ class RegExpParser {
   };
 
   Isolate* isolate() { return isolate_; }
-  Zone* zone() const { return isolate_->zone(); }
+  Zone* zone() const { return zone_; }
 
   uc32 current() { return current_; }
   bool has_more() { return has_more_; }
@@ -408,6 +410,7 @@ class RegExpParser {
   void ScanForCaptures();
 
   Isolate* isolate_;
+  Zone* zone_;
   Handle<String>* error_;
   ZoneList<RegExpCapture*>* captures_;
   FlatStringReader* in_;

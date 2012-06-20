@@ -303,7 +303,7 @@ bool FullCodeGenerator::MakeCode(CompilationInfo* info) {
   masm.positions_recorder()->StartGDBJITLineInfoRecording();
 #endif
 
-  FullCodeGenerator cgen(&masm, info, isolate->zone());
+  FullCodeGenerator cgen(&masm, info);
   cgen.Generate();
   if (cgen.HasStackOverflow()) {
     ASSERT(!isolate->has_pending_exception());

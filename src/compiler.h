@@ -41,13 +41,16 @@ class ScriptDataImpl;
 // is constructed based on the resources available at compile-time.
 class CompilationInfo BASE_EMBEDDED {
  public:
-  explicit CompilationInfo(Handle<Script> script);
-  explicit CompilationInfo(Handle<SharedFunctionInfo> shared_info);
-  explicit CompilationInfo(Handle<JSFunction> closure);
+  CompilationInfo(Handle<Script> script, Zone* zone);
+  CompilationInfo(Handle<SharedFunctionInfo> shared_info, Zone* zone);
+  CompilationInfo(Handle<JSFunction> closure, Zone* zone);
 
   Isolate* isolate() {
     ASSERT(Isolate::Current() == isolate_);
     return isolate_;
+  }
+  Zone* zone() {
+    return zone_;
   }
   bool is_lazy() const { return IsLazy::decode(flags_); }
   bool is_eval() const { return IsEval::decode(flags_); }
@@ -184,8 +187,6 @@ class CompilationInfo BASE_EMBEDDED {
     NONOPT
   };
 
-  CompilationInfo() : function_(NULL) {}
-
   void Initialize(Mode mode) {
     mode_ = V8::UseCrankshaft() ? mode : NONOPT;
     ASSERT(!script_.is_null());
@@ -254,7 +255,34 @@ class CompilationInfo BASE_EMBEDDED {
   Mode mode_;
   int osr_ast_id_;
 
+  // The zone from which the compilation pipeline working on this
+  // CompilationInfo allocates.
+  Zone* zone_;
+
   DISALLOW_COPY_AND_ASSIGN(CompilationInfo);
+};
+
+
+// Exactly like a CompilationInfo, except also creates and enters a
+// Zone on construction and deallocates it on exit.
+class CompilationInfoWithZone: public CompilationInfo {
+ public:
+  explicit CompilationInfoWithZone(Handle<Script> script)
+      : CompilationInfo(script, &zone_),
+        zone_(script->GetIsolate()),
+        zone_scope_(&zone_, DELETE_ON_EXIT) {}
+  explicit CompilationInfoWithZone(Handle<SharedFunctionInfo> shared_info)
+      : CompilationInfo(shared_info, &zone_),
+        zone_(shared_info->GetIsolate()),
+        zone_scope_(&zone_, DELETE_ON_EXIT) {}
+  explicit CompilationInfoWithZone(Handle<JSFunction> closure)
+      : CompilationInfo(closure, &zone_),
+        zone_(closure->GetIsolate()),
+        zone_scope_(&zone_, DELETE_ON_EXIT) {}
+
+ private:
+  Zone zone_;
+  ZoneScope zone_scope_;
 };
 
 

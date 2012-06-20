@@ -7489,7 +7489,7 @@ static bool CompileLazyHelper(CompilationInfo* info,
 bool SharedFunctionInfo::CompileLazy(Handle<SharedFunctionInfo> shared,
                                      ClearExceptionFlag flag) {
   ASSERT(shared->allows_lazy_compilation_without_context());
-  CompilationInfo info(shared);
+  CompilationInfoWithZone info(shared);
   return CompileLazyHelper(&info, flag);
 }
 
@@ -7550,7 +7550,7 @@ bool JSFunction::CompileLazy(Handle<JSFunction> function,
     function->shared()->set_code_age(0);
   } else {
     ASSERT(function->shared()->allows_lazy_compilation());
-    CompilationInfo info(function);
+    CompilationInfoWithZone info(function);
     result = CompileLazyHelper(&info, flag);
     ASSERT(!result || function->is_compiled());
   }
@@ -7561,7 +7561,7 @@ bool JSFunction::CompileLazy(Handle<JSFunction> function,
 bool JSFunction::CompileOptimized(Handle<JSFunction> function,
                                   int osr_ast_id,
                                   ClearExceptionFlag flag) {
-  CompilationInfo info(function);
+  CompilationInfoWithZone info(function);
   info.SetOptimizing(osr_ast_id);
   return CompileLazyHelper(&info, flag);
 }

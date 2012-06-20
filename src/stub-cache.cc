@@ -44,7 +44,7 @@ namespace internal {
 
 
 StubCache::StubCache(Isolate* isolate, Zone* zone)
-    : isolate_(isolate), zone_(zone) {
+    : isolate_(isolate) {
   ASSERT(isolate == Isolate::Current());
 }
 
@@ -927,7 +927,8 @@ void StubCache::Clear() {
 void StubCache::CollectMatchingMaps(SmallMapList* types,
                                     String* name,
                                     Code::Flags flags,
-                                    Handle<Context> global_context) {
+                                    Handle<Context> global_context,
+                                    Zone* zone) {
   for (int i = 0; i < kPrimaryTableSize; i++) {
     if (primary_[i].key == name) {
       Map* map = primary_[i].value->FindFirstMap();
@@ -938,7 +939,7 @@ void StubCache::CollectMatchingMaps(SmallMapList* types,
       int offset = PrimaryOffset(name, flags, map);
       if (entry(primary_, offset) == &primary_[i] &&
           !TypeFeedbackOracle::CanRetainOtherContext(map, *global_context)) {
-        types->Add(Handle<Map>(map), zone());
+        types->Add(Handle<Map>(map), zone);
       }
     }
   }
@@ -962,7 +963,7 @@ void StubCache::CollectMatchingMaps(SmallMapList* types,
       int offset = SecondaryOffset(name, flags, primary_offset);
       if (entry(secondary_, offset) == &secondary_[i] &&
           !TypeFeedbackOracle::CanRetainOtherContext(map, *global_context)) {
-        types->Add(Handle<Map>(map), zone());
+        types->Add(Handle<Map>(map), zone);
       }
     }
   }

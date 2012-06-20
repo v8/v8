@@ -493,7 +493,7 @@ Parser::FunctionState::FunctionState(Parser* parser,
       outer_function_state_(parser->current_function_state_),
       outer_scope_(parser->top_scope_),
       saved_ast_node_id_(isolate->ast_node_id()),
-      factory_(isolate) {
+      factory_(isolate, parser->zone()) {
   parser->top_scope_ = scope;
   parser->current_function_state_ = this;
   isolate->set_ast_node_id(AstNode::kDeclarationsId + 1);
@@ -565,7 +565,7 @@ Parser::Parser(Handle<Script> script,
 
 
 FunctionLiteral* Parser::ParseProgram(CompilationInfo* info) {
-  ZoneScope zone_scope(isolate(), DONT_DELETE_ON_EXIT);
+  ZoneScope zone_scope(info->zone(), DONT_DELETE_ON_EXIT);
 
   HistogramTimerScope timer(isolate()->counters()->parse());
   Handle<String> source(String::cast(script_->source()));
@@ -663,7 +663,7 @@ FunctionLiteral* Parser::DoParseProgram(CompilationInfo* info,
 
 
 FunctionLiteral* Parser::ParseLazy(CompilationInfo* info) {
-  ZoneScope zone_scope(isolate(), DONT_DELETE_ON_EXIT);
+  ZoneScope zone_scope(info->zone(), DONT_DELETE_ON_EXIT);
   HistogramTimerScope timer(isolate()->counters()->parse_lazy());
   Handle<String> source(String::cast(script_->source()));
   isolate()->counters()->total_parse_size()->Increment(source->length());
@@ -1251,7 +1251,7 @@ Block* Parser::ParseModuleDeclaration(ZoneStringList* names, bool* ok) {
   //    'module' Identifier Module
 
   // Create new block with one expected declaration.
-  Block* block = factory()->NewBlock(NULL, 1, true, zone());
+  Block* block = factory()->NewBlock(NULL, 1, true);
   Handle<String> name = ParseIdentifier(CHECK_OK);
 
 #ifdef DEBUG
@@ -1314,7 +1314,7 @@ Module* Parser::ParseModuleLiteral(bool* ok) {
   //    '{' ModuleElement '}'
 
   // Construct block expecting 16 statements.
-  Block* body = factory()->NewBlock(NULL, 16, false, zone());
+  Block* body = factory()->NewBlock(NULL, 16, false);
 #ifdef DEBUG
   if (FLAG_print_interface_details) PrintF("# Literal ");
 #endif
@@ -1468,7 +1468,7 @@ Block* Parser::ParseImportDeclaration(bool* ok) {
 
   // Generate a separate declaration for each identifier.
   // TODO(ES6): once we implement destructuring, make that one declaration.
-  Block* block = factory()->NewBlock(NULL, 1, true, zone());
+  Block* block = factory()->NewBlock(NULL, 1, true);
   for (int i = 0; i < names.length(); ++i) {
 #ifdef DEBUG
     if (FLAG_print_interface_details)
@@ -1683,7 +1683,7 @@ Statement* Parser::ParseStatement(ZoneStringList* labels, bool* ok) {
       // one must take great care not to treat it as a
       // fall-through. It is much easier just to wrap the entire
       // try-statement in a statement block and put the labels there
-      Block* result = factory()->NewBlock(labels, 1, false, zone());
+      Block* result = factory()->NewBlock(labels, 1, false);
       Target target(&this->target_stack_, result);
       TryStatement* statement = ParseTryStatement(CHECK_OK);
       if (statement) {
@@ -1996,7 +1996,7 @@ Block* Parser::ParseBlock(ZoneStringList* labels, bool* ok) {
   // (ECMA-262, 3rd, 12.2)
   //
   // Construct block expecting 16 statements.
-  Block* result = factory()->NewBlock(labels, 16, false, zone());
+  Block* result = factory()->NewBlock(labels, 16, false);
   Target target(&this->target_stack_, result);
   Expect(Token::LBRACE, CHECK_OK);
   InitializationBlockFinder block_finder(top_scope_, target_stack_);
@@ -2019,7 +2019,7 @@ Block* Parser::ParseScopedBlock(ZoneStringList* labels, bool* ok) {
   //   '{' BlockElement* '}'
 
   // Construct block expecting 16 statements.
-  Block* body = factory()->NewBlock(labels, 16, false, zone());
+  Block* body = factory()->NewBlock(labels, 16, false);
   Scope* block_scope = NewScope(top_scope_, BLOCK_SCOPE);
 
   // Parse the statements and collect escaping labels.
@@ -2176,7 +2176,7 @@ Block* Parser::ParseVariableDeclarations(
   // is inside an initializer block, it is ignored.
   //
   // Create new block with one expected declaration.
-  Block* block = factory()->NewBlock(NULL, 1, true, zone());
+  Block* block = factory()->NewBlock(NULL, 1, true);
   int nvars = 0;  // the number of variables declared
   Handle<String> name;
   do {
@@ -2787,7 +2787,7 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
     TryCatchStatement* statement = factory()->NewTryCatchStatement(
         index, try_block, catch_scope, catch_variable, catch_block);
     statement->set_escaping_targets(try_collector.targets());
-    try_block = factory()->NewBlock(NULL, 1, false, zone());
+    try_block = factory()->NewBlock(NULL, 1, false);
     try_block->AddStatement(statement, zone());
     catch_block = NULL;  // Clear to indicate it's been handled.
   }
@@ -2893,7 +2893,7 @@ Statement* Parser::ParseForStatement(ZoneStringList* labels, bool* ok) {
 
         Statement* body = ParseStatement(NULL, CHECK_OK);
         loop->Initialize(each, enumerable, body);
-        Block* result = factory()->NewBlock(NULL, 2, false, zone());
+        Block* result = factory()->NewBlock(NULL, 2, false);
         result->AddStatement(variable_statement, zone());
         result->AddStatement(loop, zone());
         top_scope_ = saved_scope;
@@ -2939,7 +2939,7 @@ Statement* Parser::ParseForStatement(ZoneStringList* labels, bool* ok) {
         Expect(Token::RPAREN, CHECK_OK);
 
         Statement* body = ParseStatement(NULL, CHECK_OK);
-        Block* body_block = factory()->NewBlock(NULL, 3, false, zone());
+        Block* body_block = factory()->NewBlock(NULL, 3, false);
         Assignment* assignment = factory()->NewAssignment(
             Token::ASSIGN, each, temp_proxy, RelocInfo::kNoPosition);
         Statement* assignment_statement =
@@ -3028,7 +3028,7 @@ Statement* Parser::ParseForStatement(ZoneStringList* labels, bool* ok) {
     //     for (; c; n) b
     //   }
     ASSERT(init != NULL);
-    Block* result = factory()->NewBlock(NULL, 2, false, zone());
+    Block* result = factory()->NewBlock(NULL, 2, false);
     result->AddStatement(init, zone());
     result->AddStatement(loop, zone());
     result->set_scope(for_scope);
@@ -5066,8 +5066,10 @@ Expression* Parser::NewThrowError(Handle<String> constructor,
 
 RegExpParser::RegExpParser(FlatStringReader* in,
                            Handle<String>* error,
-                           bool multiline)
+                           bool multiline,
+                           Zone* zone)
     : isolate_(Isolate::Current()),
+      zone_(zone),
       error_(error),
       captures_(NULL),
       in_(in),
@@ -5098,7 +5100,7 @@ void RegExpParser::Advance() {
     StackLimitCheck check(isolate());
     if (check.HasOverflowed()) {
       ReportError(CStrVector(Isolate::kStackOverflowMessage));
-    } else if (isolate()->zone()->excess_allocation()) {
+    } else if (zone()->excess_allocation()) {
       ReportError(CStrVector("Regular expression too large"));
     } else {
       current_ = in()->Get(next_pos_);
@@ -6000,9 +6002,10 @@ ScriptDataImpl* ParserApi::PreParse(Utf16CharacterStream* source,
 
 bool RegExpParser::ParseRegExp(FlatStringReader* input,
                                bool multiline,
-                               RegExpCompileData* result) {
+                               RegExpCompileData* result,
+                               Zone* zone) {
   ASSERT(result != NULL);
-  RegExpParser parser(input, &result->error, multiline);
+  RegExpParser parser(input, &result->error, multiline, zone);
   RegExpTree* tree = parser.ParsePattern();
   if (parser.failed()) {
     ASSERT(tree == NULL);
@@ -6038,7 +6041,7 @@ bool ParserApi::Parse(CompilationInfo* info, int parsing_flags) {
   }
   if (info->is_lazy()) {
     ASSERT(!info->is_eval());
-    Parser parser(script, parsing_flags, NULL, NULL, info->isolate()->zone());
+    Parser parser(script, parsing_flags, NULL, NULL, info->zone());
     if (info->shared_info()->is_function()) {
       result = parser.ParseLazy(info);
     } else {
@@ -6047,7 +6050,7 @@ bool ParserApi::Parse(CompilationInfo* info, int parsing_flags) {
   } else {
     ScriptDataImpl* pre_data = info->pre_parse_data();
     Parser parser(script, parsing_flags, info->extension(), pre_data,
-                  info->isolate()->zone());
+                  info->zone());
     if (pre_data != NULL && pre_data->has_error()) {
       Scanner::Location loc = pre_data->MessageLocation();
       const char* message = pre_data->BuildMessage();

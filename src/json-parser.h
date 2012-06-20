@@ -326,7 +326,7 @@ Handle<Object> JsonParser<seq_ascii>::ParseJsonObject() {
 // Parse a JSON array. Position must be right at '['.
 template <bool seq_ascii>
 Handle<Object> JsonParser<seq_ascii>::ParseJsonArray() {
-  ZoneScope zone_scope(isolate(), DELETE_ON_EXIT);
+  ZoneScope zone_scope(zone(), DELETE_ON_EXIT);
   ZoneList<Handle<Object> > elements(4, zone());
   ASSERT_EQ(c0_, '[');
 

@@ -82,7 +82,7 @@ static void InitializeBuildingBlocks(
     Handle<String> building_blocks[NUMBER_OF_BUILDING_BLOCKS]) {
   // A list of pointers that we don't have any interest in cleaning up.
   // If they are reachable from a root then leak detection won't complain.
-  Zone* zone = Isolate::Current()->zone();
+  Zone* zone = Isolate::Current()->runtime_zone();
   for (int i = 0; i < NUMBER_OF_BUILDING_BLOCKS; i++) {
     int len = gen() % 16;
     if (len > 14) {
@@ -234,7 +234,7 @@ TEST(Traverse) {
   InitializeVM();
   v8::HandleScope scope;
   Handle<String> building_blocks[NUMBER_OF_BUILDING_BLOCKS];
-  ZoneScope zone(Isolate::Current(), DELETE_ON_EXIT);
+  ZoneScope zone(Isolate::Current()->runtime_zone(), DELETE_ON_EXIT);
   InitializeBuildingBlocks(building_blocks);
   Handle<String> flat = ConstructBalanced(building_blocks);
   FlattenString(flat);
@@ -349,11 +349,11 @@ TEST(Utf8Conversion) {
 
 
 TEST(ExternalShortStringAdd) {
-  ZoneScope zonescope(Isolate::Current(), DELETE_ON_EXIT);
+  ZoneScope zonescope(Isolate::Current()->runtime_zone(), DELETE_ON_EXIT);
 
   InitializeVM();
   v8::HandleScope handle_scope;
-  Zone* zone = Isolate::Current()->zone();
+  Zone* zone = Isolate::Current()->runtime_zone();
 
   // Make sure we cover all always-flat lengths and at least one above.
   static const int kMaxLength = 20;
@@ -440,7 +440,7 @@ TEST(CachedHashOverflow) {
   // We incorrectly allowed strings to be tagged as array indices even if their
   // values didn't fit in the hash field.
   // See http://code.google.com/p/v8/issues/detail?id=728
-  ZoneScope zone(Isolate::Current(), DELETE_ON_EXIT);
+  ZoneScope zone(Isolate::Current()->runtime_zone(), DELETE_ON_EXIT);
 
   InitializeVM();
   v8::HandleScope handle_scope;

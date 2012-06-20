@@ -38,12 +38,12 @@ namespace internal {
 
 class Processor: public AstVisitor {
  public:
-  explicit Processor(Variable* result)
+  Processor(Variable* result, Zone* zone)
       : result_(result),
         result_assigned_(false),
         is_set_(false),
         in_try_(false),
-        factory_(isolate()) { }
+        factory_(isolate(), zone) { }
 
   virtual ~Processor() { }
 
@@ -243,7 +243,7 @@ bool Rewriter::Rewrite(CompilationInfo* info) {
   if (!body->is_empty()) {
     Variable* result = scope->NewTemporary(
         info->isolate()->factory()->result_symbol());
-    Processor processor(result);
+    Processor processor(result, info->zone());
     processor.Process(body);
     if (processor.HasStackOverflow()) return false;
 
@@ -262,7 +262,7 @@ bool Rewriter::Rewrite(CompilationInfo* info) {
       Statement* result_statement =
           processor.factory()->NewReturnStatement(result_proxy);
       result_statement->set_statement_pos(position);
-      body->Add(result_statement, info->isolate()->zone());
+      body->Add(result_statement, info->zone());
     }
   }
 

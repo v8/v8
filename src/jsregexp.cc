@@ -167,7 +167,9 @@ static bool HasFewDifferentCharacters(Handle<String> pattern) {
 
 Handle<Object> RegExpImpl::Compile(Handle<JSRegExp> re,
                                    Handle<String> pattern,
-                                   Handle<String> flag_str) {
+                                   Handle<String> flag_str,
+                                   Zone* zone) {
+  ZoneScope zone_scope(zone, DELETE_ON_EXIT);
   Isolate* isolate = re->GetIsolate();
   JSRegExp::Flags flags = RegExpFlagsFromString(flag_str);
   CompilationCache* compilation_cache = isolate->compilation_cache();
@@ -181,12 +183,11 @@ Handle<Object> RegExpImpl::Compile(Handle<JSRegExp> re,
     return re;
   }
   pattern = FlattenGetString(pattern);
-  ZoneScope zone_scope(isolate, DELETE_ON_EXIT);
   PostponeInterruptsScope postpone(isolate);
   RegExpCompileData parse_result;
   FlatStringReader reader(isolate, pattern);
   if (!RegExpParser::ParseRegExp(&reader, flags.is_multiline(),
-                                 &parse_result)) {
+                                 &parse_result, zone)) {
     // Throw an exception if we fail to parse the pattern.
     ThrowRegExpException(re,
                          pattern,
@@ -385,7 +386,7 @@ bool RegExpImpl::CompileIrregexp(Handle<JSRegExp> re,
                                  bool is_ascii) {
   // Compile the RegExp.
   Isolate* isolate = re->GetIsolate();
-  ZoneScope zone_scope(isolate, DELETE_ON_EXIT);
+  ZoneScope zone_scope(isolate->runtime_zone(), DELETE_ON_EXIT);
   PostponeInterruptsScope postpone(isolate);
   // If we had a compilation error the last time this is saved at the
   // saved code index.
@@ -416,8 +417,10 @@ bool RegExpImpl::CompileIrregexp(Handle<JSRegExp> re,
   if (!pattern->IsFlat()) FlattenString(pattern);
   RegExpCompileData compile_data;
   FlatStringReader reader(isolate, pattern);
+  Zone* zone = isolate->runtime_zone();
   if (!RegExpParser::ParseRegExp(&reader, flags.is_multiline(),
-                                 &compile_data)) {
+                                 &compile_data,
+                                 zone)) {
     // Throw an exception if we fail to parse the pattern.
     // THIS SHOULD NOT HAPPEN. We already pre-parsed it successfully once.
     ThrowRegExpException(re,
@@ -434,7 +437,7 @@ bool RegExpImpl::CompileIrregexp(Handle<JSRegExp> re,
                             pattern,
                             sample_subject,
                             is_ascii,
-                            isolate->zone());
+                            zone);
   if (result.error_message != NULL) {
     // Unable to compile regexp.
     Handle<String> error_message =

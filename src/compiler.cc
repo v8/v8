@@ -51,7 +51,7 @@ namespace v8 {
 namespace internal {
 
 
-CompilationInfo::CompilationInfo(Handle<Script> script)
+CompilationInfo::CompilationInfo(Handle<Script> script, Zone* zone)
     : isolate_(script->GetIsolate()),
       flags_(LanguageModeField::encode(CLASSIC_MODE)),
       function_(NULL),
@@ -60,12 +60,14 @@ CompilationInfo::CompilationInfo(Handle<Script> script)
       script_(script),
       extension_(NULL),
       pre_parse_data_(NULL),
-      osr_ast_id_(AstNode::kNoNumber) {
+      osr_ast_id_(AstNode::kNoNumber),
+      zone_(zone) {
   Initialize(BASE);
 }
 
 
-CompilationInfo::CompilationInfo(Handle<SharedFunctionInfo> shared_info)
+CompilationInfo::CompilationInfo(Handle<SharedFunctionInfo> shared_info,
+                                 Zone* zone)
     : isolate_(shared_info->GetIsolate()),
       flags_(LanguageModeField::encode(CLASSIC_MODE) |
              IsLazy::encode(true)),
@@ -76,12 +78,13 @@ CompilationInfo::CompilationInfo(Handle<SharedFunctionInfo> shared_info)
       script_(Handle<Script>(Script::cast(shared_info->script()))),
       extension_(NULL),
       pre_parse_data_(NULL),
-      osr_ast_id_(AstNode::kNoNumber) {
+      osr_ast_id_(AstNode::kNoNumber),
+      zone_(zone) {
   Initialize(BASE);
 }
 
 
-CompilationInfo::CompilationInfo(Handle<JSFunction> closure)
+CompilationInfo::CompilationInfo(Handle<JSFunction> closure, Zone* zone)
     : isolate_(closure->GetIsolate()),
       flags_(LanguageModeField::encode(CLASSIC_MODE) |
              IsLazy::encode(true)),
@@ -93,7 +96,8 @@ CompilationInfo::CompilationInfo(Handle<JSFunction> closure)
       script_(Handle<Script>(Script::cast(shared_info_->script()))),
       extension_(NULL),
       pre_parse_data_(NULL),
-      osr_ast_id_(AstNode::kNoNumber) {
+      osr_ast_id_(AstNode::kNoNumber),
+      zone_(zone) {
   Initialize(BASE);
 }
 
@@ -261,7 +265,7 @@ static bool MakeCrankshaftCode(CompilationInfo* info) {
   bool should_recompile = !info->shared_info()->has_deoptimization_support();
   if (should_recompile || FLAG_hydrogen_stats) {
     HPhase phase(HPhase::kFullCodeGen);
-    CompilationInfo unoptimized(info->shared_info());
+    CompilationInfoWithZone unoptimized(info->shared_info());
     // Note that we use the same AST that we will use for generating the
     // optimized code.
     unoptimized.SetFunction(info->function());
@@ -294,8 +298,8 @@ static bool MakeCrankshaftCode(CompilationInfo* info) {
 
   Handle<Context> global_context(info->closure()->context()->global_context());
   TypeFeedbackOracle oracle(code, global_context, info->isolate(),
-                            info->isolate()->zone());
-  HGraphBuilder builder(info, &oracle, info->isolate()->zone());
+                            info->zone());
+  HGraphBuilder builder(info, &oracle);
   HPhase phase(HPhase::kTotal);
   HGraph* graph = builder.CreateGraph();
   if (info->isolate()->has_pending_exception()) {
@@ -304,7 +308,7 @@ static bool MakeCrankshaftCode(CompilationInfo* info) {
   }
 
   if (graph != NULL) {
-    Handle<Code> optimized_code = graph->Compile(info, graph->zone());
+    Handle<Code> optimized_code = graph->Compile();
     if (!optimized_code.is_null()) {
       info->SetCode(optimized_code);
       FinishOptimization(info->closure(), start);
@@ -347,7 +351,7 @@ bool Compiler::MakeCodeForLiveEdit(CompilationInfo* info) {
   bool succeeded = MakeCode(info);
   if (!info->shared_info().is_null()) {
     Handle<ScopeInfo> scope_info = ScopeInfo::Create(info->scope(),
-                                                     info->isolate()->zone());
+                                                     info->zone());
     info->shared_info()->set_scope_info(*scope_info);
   }
   return succeeded;
@@ -357,7 +361,7 @@ bool Compiler::MakeCodeForLiveEdit(CompilationInfo* info) {
 
 static Handle<SharedFunctionInfo> MakeFunctionInfo(CompilationInfo* info) {
   Isolate* isolate = info->isolate();
-  ZoneScope zone_scope(isolate, DELETE_ON_EXIT);
+  ZoneScope zone_scope(info->zone(), DELETE_ON_EXIT);
   PostponeInterruptsScope postpone(isolate);
 
   ASSERT(!isolate->global_context().is_null());
@@ -421,7 +425,7 @@ static Handle<SharedFunctionInfo> MakeFunctionInfo(CompilationInfo* info) {
           lit->name(),
           lit->materialized_literal_count(),
           info->code(),
-          ScopeInfo::Create(info->scope(), info->isolate()->zone()));
+          ScopeInfo::Create(info->scope(), info->zone()));
 
   ASSERT_EQ(RelocInfo::kNoPosition, lit->function_token_position());
   Compiler::SetFunctionInfo(result, lit, true, script);
@@ -463,7 +467,7 @@ static Handle<SharedFunctionInfo> MakeFunctionInfo(CompilationInfo* info) {
       script, Debugger::NO_AFTER_COMPILE_FLAGS);
 #endif
 
-  live_edit_tracker.RecordFunctionInfo(result, lit, isolate->zone());
+  live_edit_tracker.RecordFunctionInfo(result, lit, info->zone());
 
   return result;
 }
@@ -521,7 +525,7 @@ Handle<SharedFunctionInfo> Compiler::Compile(Handle<String> source,
                                            : *script_data);
 
     // Compile the function and add it to the cache.
-    CompilationInfo info(script);
+    CompilationInfoWithZone info(script);
     info.MarkAsGlobal();
     info.SetExtension(extension);
     info.SetPreParseData(pre_data);
@@ -569,7 +573,7 @@ Handle<SharedFunctionInfo> Compiler::CompileEval(Handle<String> source,
   if (result.is_null()) {
     // Create a script object describing the script to be compiled.
     Handle<Script> script = isolate->factory()->NewScript(source);
-    CompilationInfo info(script);
+    CompilationInfoWithZone info(script);
     info.MarkAsEval();
     if (is_global) info.MarkAsGlobal();
     info.SetLanguageMode(language_mode);
@@ -604,7 +608,7 @@ Handle<SharedFunctionInfo> Compiler::CompileEval(Handle<String> source,
 bool Compiler::CompileLazy(CompilationInfo* info) {
   Isolate* isolate = info->isolate();
 
-  ZoneScope zone_scope(isolate, DELETE_ON_EXIT);
+  ZoneScope zone_scope(info->zone(), DELETE_ON_EXIT);
 
   // The VM is in the COMPILER state until exiting this function.
   VMState state(isolate, COMPILER);
@@ -692,7 +696,7 @@ bool Compiler::CompileLazy(CompilationInfo* info) {
         // trigger a GC, causing the ASSERT below to be invalid if the code
         // was flushed. By setting the code object last we avoid this.
         Handle<ScopeInfo> scope_info =
-            ScopeInfo::Create(info->scope(), info->isolate()->zone());
+            ScopeInfo::Create(info->scope(), info->zone());
         shared->set_scope_info(*scope_info);
         shared->set_code(*code);
         if (!function.is_null()) {
@@ -727,7 +731,7 @@ bool Compiler::CompileLazy(CompilationInfo* info) {
           // active as it makes no sense to compile optimized code then.
           if (FLAG_always_opt &&
               !Isolate::Current()->DebuggerHasBreakPoints()) {
-            CompilationInfo optimized(function);
+            CompilationInfoWithZone optimized(function);
             optimized.SetOptimizing(AstNode::kNoNumber);
             return CompileLazy(&optimized);
           }
@@ -746,7 +750,7 @@ bool Compiler::CompileLazy(CompilationInfo* info) {
 Handle<SharedFunctionInfo> Compiler::BuildFunctionInfo(FunctionLiteral* literal,
                                                        Handle<Script> script) {
   // Precondition: code has been parsed and scopes have been analyzed.
-  CompilationInfo info(script);
+  CompilationInfoWithZone info(script);
   info.SetFunction(literal);
   info.SetScope(literal->scope());
   info.SetLanguageMode(literal->scope()->language_mode());
@@ -775,7 +779,7 @@ Handle<SharedFunctionInfo> Compiler::BuildFunctionInfo(FunctionLiteral* literal,
   } else if ((V8::UseCrankshaft() && MakeCrankshaftCode(&info)) ||
              (!V8::UseCrankshaft() && FullCodeGenerator::MakeCode(&info))) {
     ASSERT(!info.code().is_null());
-    scope_info = ScopeInfo::Create(info.scope(), info.isolate()->zone());
+    scope_info = ScopeInfo::Create(info.scope(), info.zone());
   } else {
     return Handle<SharedFunctionInfo>::null();
   }
@@ -795,7 +799,7 @@ Handle<SharedFunctionInfo> Compiler::BuildFunctionInfo(FunctionLiteral* literal,
   // the resulting function.
   SetExpectedNofPropertiesFromEstimate(result,
                                        literal->expected_property_count());
-  live_edit_tracker.RecordFunctionInfo(result, literal, info.isolate()->zone());
+  live_edit_tracker.RecordFunctionInfo(result, literal, info.zone());
   return result;
 }
 

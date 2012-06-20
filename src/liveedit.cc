@@ -601,7 +601,7 @@ static void CompileScriptForTracker(Isolate* isolate, Handle<Script> script) {
   PostponeInterruptsScope postpone(isolate);
 
   // Build AST.
-  CompilationInfo info(script);
+  CompilationInfoWithZone info(script);
   info.MarkAsGlobal();
   // Parse and don't allow skipping lazy functions.
   if (ParserApi::Parse(&info, kNoParsingFlags)) {
@@ -894,7 +894,6 @@ class FunctionInfoListener {
 JSArray* LiveEdit::GatherCompileInfo(Handle<Script> script,
                                      Handle<String> source) {
   Isolate* isolate = Isolate::Current();
-  ZoneScope zone_scope(isolate, DELETE_ON_EXIT);
 
   FunctionInfoListener listener;
   Handle<Object> original_source = Handle<Object>(script->source());
@@ -1594,7 +1593,7 @@ static const char* DropActivationsInActiveThreadImpl(
     TARGET& target, bool do_drop, Zone* zone) {
   Isolate* isolate = Isolate::Current();
   Debug* debug = isolate->debug();
-  ZoneScope scope(isolate, DELETE_ON_EXIT);
+  ZoneScope scope(zone, DELETE_ON_EXIT);
   Vector<StackFrame*> frames = CreateStackMap(zone);
 
 

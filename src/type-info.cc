@@ -511,7 +511,8 @@ void TypeFeedbackOracle::CollectReceiverTypes(unsigned ast_id,
     isolate_->stub_cache()->CollectMatchingMaps(types,
                                                 *name,
                                                 flags,
-                                                global_context_);
+                                                global_context_,
+                                                zone());
   }
 }
 

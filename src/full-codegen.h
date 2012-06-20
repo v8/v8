@@ -77,8 +77,7 @@ class FullCodeGenerator: public AstVisitor {
     TOS_REG
   };
 
-  FullCodeGenerator(MacroAssembler* masm, CompilationInfo* info,
-                    Zone* zone)
+  FullCodeGenerator(MacroAssembler* masm, CompilationInfo* info)
       : masm_(masm),
         info_(info),
         scope_(info->scope()),
@@ -87,12 +86,14 @@ class FullCodeGenerator: public AstVisitor {
         globals_(NULL),
         context_(NULL),
         bailout_entries_(info->HasDeoptimizationSupport()
-                         ? info->function()->ast_node_count() : 0, zone),
-        stack_checks_(2, zone),  // There's always at least one.
+                         ? info->function()->ast_node_count() : 0,
+                         info->zone()),
+        stack_checks_(2, info->zone()),  // There's always at least one.
         type_feedback_cells_(info->HasDeoptimizationSupport()
-                             ? info->function()->ast_node_count() : 0, zone),
+                             ? info->function()->ast_node_count() : 0,
+                             info->zone()),
         ic_total_count_(0),
-        zone_(zone) { }
+        zone_(info->zone()) { }
 
   static bool MakeCode(CompilationInfo* info);
 

@@ -605,8 +605,7 @@ HConstant* HGraph::GetConstantHole() {
 
 
 HGraphBuilder::HGraphBuilder(CompilationInfo* info,
-                             TypeFeedbackOracle* oracle,
-                             Zone* zone)
+                             TypeFeedbackOracle* oracle)
     : function_state_(NULL),
       initial_function_state_(this, info, oracle, NORMAL_RETURN),
       ast_context_(NULL),
@@ -614,8 +613,8 @@ HGraphBuilder::HGraphBuilder(CompilationInfo* info,
       graph_(NULL),
       current_block_(NULL),
       inlined_count_(0),
-      globals_(10, zone),
-      zone_(zone),
+      globals_(10, info->zone()),
+      zone_(info->zone()),
       inline_bailout_(false) {
   // This is not initialized in the initializer list because the
   // constructor for the initial state relies on function_state_ == NULL
@@ -674,24 +673,25 @@ void HBasicBlock::FinishExit(HControlInstruction* instruction) {
 }
 
 
-HGraph::HGraph(CompilationInfo* info, Zone* zone)
+HGraph::HGraph(CompilationInfo* info)
     : isolate_(info->isolate()),
       next_block_id_(0),
       entry_block_(NULL),
-      blocks_(8, zone),
-      values_(16, zone),
+      blocks_(8, info->zone()),
+      values_(16, info->zone()),
       phi_list_(NULL),
-      zone_(zone),
+      info_(info),
+      zone_(info->zone()),
       is_recursive_(false) {
   start_environment_ =
-      new(zone) HEnvironment(NULL, info->scope(), info->closure(), zone);
+      new(zone_) HEnvironment(NULL, info->scope(), info->closure(), zone_);
   start_environment_->set_ast_id(AstNode::kFunctionEntryId);
   entry_block_ = CreateBasicBlock();
   entry_block_->SetInitialEnvironment(start_environment_);
 }
 
 
-Handle<Code> HGraph::Compile(CompilationInfo* info, Zone* zone) {
+Handle<Code> HGraph::Compile() {
   int values = GetMaximumValueID();
   if (values > LUnallocated::kMaxVirtualRegisters) {
     if (FLAG_trace_bailout) {
@@ -700,7 +700,7 @@ Handle<Code> HGraph::Compile(CompilationInfo* info, Zone* zone) {
     return Handle<Code>::null();
   }
   LAllocator allocator(values, this);
-  LChunkBuilder builder(info, this, &allocator);
+  LChunkBuilder builder(info(), this, &allocator);
   LChunk* chunk = builder.Build();
   if (chunk == NULL) return Handle<Code>::null();
 
@@ -711,8 +711,8 @@ Handle<Code> HGraph::Compile(CompilationInfo* info, Zone* zone) {
     return Handle<Code>::null();
   }
 
-  MacroAssembler assembler(info->isolate(), NULL, 0);
-  LCodeGen generator(chunk, &assembler, info, zone);
+  MacroAssembler assembler(isolate(), NULL, 0);
+  LCodeGen generator(chunk, &assembler, info());
 
   chunk->MarkEmptyBlocks();
 
@@ -720,12 +720,12 @@ Handle<Code> HGraph::Compile(CompilationInfo* info, Zone* zone) {
     if (FLAG_trace_codegen) {
       PrintF("Crankshaft Compiler - ");
     }
-    CodeGenerator::MakeCodePrologue(info);
+    CodeGenerator::MakeCodePrologue(info());
     Code::Flags flags = Code::ComputeFlags(Code::OPTIMIZED_FUNCTION);
     Handle<Code> code =
-        CodeGenerator::MakeCodeEpilogue(&assembler, flags, info);
+        CodeGenerator::MakeCodeEpilogue(&assembler, flags, info());
     generator.FinishCode(code);
-    CodeGenerator::PrintCode(code, info);
+    CodeGenerator::PrintCode(code, info());
     return code;
   }
   return Handle<Code>::null();
@@ -3048,7 +3048,7 @@ void HGraphBuilder::VisitExpressions(ZoneList<Expression*>* exprs) {
 
 
 HGraph* HGraphBuilder::CreateGraph() {
-  graph_ = new(zone()) HGraph(info(), zone());
+  graph_ = new(zone()) HGraph(info());
   if (FLAG_hydrogen_stats) HStatistics::Instance()->Initialize(info());
 
   {
@@ -6476,7 +6476,7 @@ bool HGraphBuilder::TryInline(CallKind call_kind,
   }
 
   // Parse and allocate variables.
-  CompilationInfo target_info(target);
+  CompilationInfo target_info(target, zone());
   if (!ParserApi::Parse(&target_info, kNoParsingFlags) ||
       !Scope::Analyze(&target_info)) {
     if (target_info.isolate()->has_pending_exception()) {
@@ -9054,8 +9054,6 @@ HEnvironment* HEnvironment::CopyForInlining(
     bool is_construct) const {
   ASSERT(frame_type() == JS_FUNCTION);
 
-  Zone* zone = closure()->GetIsolate()->zone();
-
   // Outer environment is a copy of this one without the arguments.
   int arity = function->scope()->num_parameters();
 
@@ -9076,7 +9074,7 @@ HEnvironment* HEnvironment::CopyForInlining(
   }
 
   HEnvironment* inner =
-      new(zone) HEnvironment(outer, function->scope(), target, zone);
+      new(zone()) HEnvironment(outer, function->scope(), target, zone());
   // Get the argument values from the original environment.
   for (int i = 0; i <= arity; ++i) {  // Include receiver.
     HValue* push = (i <= arguments) ?

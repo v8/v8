@@ -470,7 +470,7 @@ class LEnvironment: public ZoneObject {
         parameter_count_(parameter_count),
         pc_offset_(-1),
         values_(value_count, zone),
-        is_tagged_(value_count, closure->GetHeap()->isolate()->zone()),
+        is_tagged_(value_count, zone),
         spilled_registers_(NULL),
         spilled_double_registers_(NULL),
         outer_(outer),

@@ -1190,7 +1190,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_RegExpCompile) {
   CONVERT_ARG_HANDLE_CHECKED(JSRegExp, re, 0);
   CONVERT_ARG_HANDLE_CHECKED(String, pattern, 1);
   CONVERT_ARG_HANDLE_CHECKED(String, flags, 2);
-  Handle<Object> result = RegExpImpl::Compile(re, pattern, flags);
+  Handle<Object> result =
+      RegExpImpl::Compile(re, pattern, flags, isolate->runtime_zone());
   if (result.is_null()) return Failure::Exception();
   return *result;
 }
@@ -2995,8 +2996,8 @@ MUST_USE_RESULT static MaybeObject* StringReplaceAtomRegExpWithString(
   ASSERT(subject->IsFlat());
   ASSERT(replacement->IsFlat());
 
-  ZoneScope zone_space(isolate, DELETE_ON_EXIT);
-  ZoneList<int> indices(8, isolate->zone());
+  ZoneScope zone_space(isolate->runtime_zone(), DELETE_ON_EXIT);
+  ZoneList<int> indices(8, isolate->runtime_zone());
   ASSERT_EQ(JSRegExp::ATOM, pattern_regexp->TypeTag());
   String* pattern =
       String::cast(pattern_regexp->DataAt(JSRegExp::kAtomPatternIndex));
@@ -3100,8 +3101,8 @@ MUST_USE_RESULT static MaybeObject* StringReplaceRegExpWithString(
   int capture_count = regexp_handle->CaptureCount();
 
   // CompiledReplacement uses zone allocation.
-  ZoneScope zonescope(isolate, DELETE_ON_EXIT);
-  CompiledReplacement compiled_replacement(isolate->zone());
+  ZoneScope zonescope(zone, DELETE_ON_EXIT);
+  CompiledReplacement compiled_replacement(zone);
   compiled_replacement.Compile(replacement_handle,
                                capture_count,
                                length);
@@ -3396,7 +3397,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringReplaceRegExpWithString) {
 
   ASSERT(last_match_info->HasFastObjectElements());
 
-  Zone* zone = isolate->zone();
+  Zone* zone = isolate->runtime_zone();
   if (replacement->length() == 0) {
     if (subject->HasOnlyAsciiChars()) {
       return StringReplaceRegExpWithEmptyString<SeqAsciiString>(
@@ -3745,8 +3746,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringMatch) {
   }
   int length = subject->length();
 
-  Zone* zone = isolate->zone();
-  ZoneScope zone_space(isolate, DELETE_ON_EXIT);
+  Zone* zone = isolate->runtime_zone();
+  ZoneScope zone_space(zone, DELETE_ON_EXIT);
   ZoneList<int> offsets(8, zone);
   int start;
   int end;
@@ -3940,7 +3941,8 @@ static int SearchRegExpMultiple(
     Handle<String> subject,
     Handle<JSRegExp> regexp,
     Handle<JSArray> last_match_array,
-    FixedArrayBuilder* builder) {
+    FixedArrayBuilder* builder,
+    Zone* zone) {
 
   ASSERT(subject->IsFlat());
   int registers_per_match = RegExpImpl::IrregexpPrepare(regexp, subject);
@@ -4123,7 +4125,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_RegExpExecMultiple) {
                                   subject,
                                   regexp,
                                   last_match_info,
-                                  &builder);
+                                  &builder,
+                                  isolate->runtime_zone());
   }
   if (result == RegExpImpl::RE_SUCCESS) return *builder.ToJSArray(result_array);
   if (result == RegExpImpl::RE_FAILURE) return isolate->heap()->null_value();
@@ -6457,8 +6460,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringSplit) {
 
   static const int kMaxInitialListCapacity = 16;
 
-  Zone* zone = isolate->zone();
-  ZoneScope scope(isolate, DELETE_ON_EXIT);
+  Zone* zone = isolate->runtime_zone();
+  ZoneScope scope(zone, DELETE_ON_EXIT);
 
   // Find (up to limit) indices of separator and end-of-string in subject
   int initial_capacity = Min<uint32_t>(kMaxInitialListCapacity, limit);
@@ -9306,7 +9309,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ParseJson) {
   ASSERT_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(String, source, 0);
 
-  Zone* zone = isolate->zone();
+  Zone* zone = isolate->runtime_zone();
   source = Handle<String>(source->TryFlattenGetString());
   // Optimized fast case where we only have ASCII characters.
   Handle<Object> result;
@@ -11173,7 +11176,6 @@ class ScopeIterator {
       if (scope_info->Type() != EVAL_SCOPE) nested_scope_chain_.Add(scope_info);
     } else {
       // Reparse the code and analyze the scopes.
-      ZoneScope zone_scope(isolate, DELETE_ON_EXIT);
       Handle<Script> script(Script::cast(shared_info->script()));
       Scope* scope = NULL;
 
@@ -11181,7 +11183,7 @@ class ScopeIterator {
       Handle<ScopeInfo> scope_info(shared_info->scope_info());
       if (scope_info->Type() != FUNCTION_SCOPE) {
         // Global or eval code.
-        CompilationInfo info(script);
+        CompilationInfoWithZone info(script);
         if (scope_info->Type() == GLOBAL_SCOPE) {
           info.MarkAsGlobal();
         } else {
@@ -11192,25 +11194,14 @@ class ScopeIterator {
         if (ParserApi::Parse(&info, kNoParsingFlags) && Scope::Analyze(&info)) {
           scope = info.function()->scope();
         }
+        RetrieveScopeChain(scope, shared_info);
       } else {
         // Function code
-        CompilationInfo info(shared_info);
+        CompilationInfoWithZone info(shared_info);
         if (ParserApi::Parse(&info, kNoParsingFlags) && Scope::Analyze(&info)) {
           scope = info.function()->scope();
         }
-      }
-
-      // Retrieve the scope chain for the current position.
-      if (scope != NULL) {
-        int source_position = shared_info->code()->SourcePosition(frame_->pc());
-        scope->GetNestedScopeChain(&nested_scope_chain_, source_position);
-      } else {
-        // A failed reparse indicates that the preparser has diverged from the
-        // parser or that the preparse data given to the initial parse has been
-        // faulty. We fail in debug mode but in release mode we only provide the
-        // information we get from the context chain but nothing about
-        // completely stack allocated scopes or stack allocated locals.
-        UNREACHABLE();
+        RetrieveScopeChain(scope, shared_info);
       }
     }
   }
@@ -11409,6 +11400,21 @@ class ScopeIterator {
   Handle<JSFunction> function_;
   Handle<Context> context_;
   List<Handle<ScopeInfo> > nested_scope_chain_;
+
+  void RetrieveScopeChain(Scope* scope,
+                          Handle<SharedFunctionInfo> shared_info) {
+    if (scope != NULL) {
+      int source_position = shared_info->code()->SourcePosition(frame_->pc());
+      scope->GetNestedScopeChain(&nested_scope_chain_, source_position);
+    } else {
+      // A failed reparse indicates that the preparser has diverged from the
+      // parser or that the preparse data given to the initial parse has been
+      // faulty. We fail in debug mode but in release mode we only provide the
+      // information we get from the context chain but nothing about
+      // completely stack allocated scopes or stack allocated locals.
+      UNREACHABLE();
+    }
+  }
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(ScopeIterator);
 };
@@ -12788,7 +12794,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_LiveEditCheckAndDropActivations) {
   CONVERT_BOOLEAN_ARG_CHECKED(do_drop, 1);
 
   return *LiveEdit::CheckAndDropActivations(shared_array, do_drop,
-                                            isolate->zone());
+                                            isolate->runtime_zone());
 }
 
 // Compares 2 strings line-by-line, then token-wise and returns diff in form
@@ -12835,7 +12841,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_LiveEditRestartFrame) {
   if (it.done()) return heap->undefined_value();
 
   const char* error_message =
-      LiveEdit::RestartFrame(it.frame(), isolate->zone());
+      LiveEdit::RestartFrame(it.frame(), isolate->runtime_zone());
   if (error_message) {
     return *(isolate->factory()->LookupAsciiSymbol(error_message));
   }
