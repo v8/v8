@@ -345,7 +345,7 @@ int main(int argc, char** argv) {
       fprintf(stderr, "Failure compiling '%s' (see above)\n", name);
       exit(1);
     }
-    Handle<Value> ret = script->Run();
+    script->Run();
     if (try_catch.HasCaught()) {
       fprintf(stderr, "Failure running '%s'\n", name);
       Local<Message> message = try_catch.Message();
