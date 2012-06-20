@@ -434,19 +434,18 @@ class SingletonLogger;
 
 class Parser {
  public:
-  Parser(Handle<Script> script,
+  Parser(CompilationInfo* info,
          int parsing_flags,  // Combination of ParsingFlags
          v8::Extension* extension,
-         ScriptDataImpl* pre_data,
-         Zone* zone);
+         ScriptDataImpl* pre_data);
   virtual ~Parser() {
     delete reusable_preparser_;
     reusable_preparser_ = NULL;
   }
 
   // Returns NULL if parsing failed.
-  FunctionLiteral* ParseProgram(CompilationInfo* info);
-  FunctionLiteral* ParseLazy(CompilationInfo* info);
+  FunctionLiteral* ParseProgram();
+  FunctionLiteral* ParseLazy();
 
   void ReportMessageAt(Scanner::Location loc,
                        const char* message,
@@ -546,12 +545,12 @@ class Parser {
 
 
 
-  FunctionLiteral* ParseLazy(CompilationInfo* info,
-                             Utf16CharacterStream* source,
+  FunctionLiteral* ParseLazy(Utf16CharacterStream* source,
                              ZoneScope* zone_scope);
 
   Isolate* isolate() { return isolate_; }
   Zone* zone() const { return zone_; }
+  CompilationInfo* info() const { return info_; }
 
   // Called by ParseProgram after setting up the scanner.
   FunctionLiteral* DoParseProgram(CompilationInfo* info,
@@ -840,6 +839,7 @@ class Parser {
   bool parenthesized_function_;
 
   Zone* zone_;
+  CompilationInfo* info_;
   friend class BlockState;
   friend class FunctionState;
 };

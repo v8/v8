@@ -532,14 +532,13 @@ Parser::FunctionState::~FunctionState() {
 // ----------------------------------------------------------------------------
 // Implementation of Parser
 
-Parser::Parser(Handle<Script> script,
+Parser::Parser(CompilationInfo* info,
                int parser_flags,
                v8::Extension* extension,
-               ScriptDataImpl* pre_data,
-               Zone* zone)
-    : isolate_(script->GetIsolate()),
-      symbol_cache_(pre_data ? pre_data->symbol_count() : 0, zone),
-      script_(script),
+               ScriptDataImpl* pre_data)
+    : isolate_(info->isolate()),
+      symbol_cache_(pre_data ? pre_data->symbol_count() : 0, info->zone()),
+      script_(info->script()),
       scanner_(isolate_->unicode_cache()),
       reusable_preparser_(NULL),
       top_scope_(NULL),
@@ -553,7 +552,9 @@ Parser::Parser(Handle<Script> script,
       allow_modules_((parser_flags & kAllowModules) != 0),
       stack_overflow_(false),
       parenthesized_function_(false),
-      zone_(zone) {
+      zone_(info->zone()),
+      info_(info) {
+  ASSERT(!script_.is_null());
   isolate_->set_ast_node_id(0);
   if ((parser_flags & kLanguageModeMask) == EXTENDED_MODE) {
     scanner().SetHarmonyScoping(true);
@@ -564,8 +565,8 @@ Parser::Parser(Handle<Script> script,
 }
 
 
-FunctionLiteral* Parser::ParseProgram(CompilationInfo* info) {
-  ZoneScope zone_scope(info->zone(), DONT_DELETE_ON_EXIT);
+FunctionLiteral* Parser::ParseProgram() {
+  ZoneScope zone_scope(zone(), DONT_DELETE_ON_EXIT);
 
   HistogramTimerScope timer(isolate()->counters()->parse());
   Handle<String> source(String::cast(script_->source()));
@@ -581,11 +582,11 @@ FunctionLiteral* Parser::ParseProgram(CompilationInfo* info) {
     ExternalTwoByteStringUtf16CharacterStream stream(
         Handle<ExternalTwoByteString>::cast(source), 0, source->length());
     scanner_.Initialize(&stream);
-    return DoParseProgram(info, source, &zone_scope);
+    return DoParseProgram(info(), source, &zone_scope);
   } else {
     GenericStringUtf16CharacterStream stream(source, 0, source->length());
     scanner_.Initialize(&stream);
-    return DoParseProgram(info, source, &zone_scope);
+    return DoParseProgram(info(), source, &zone_scope);
   }
 }
 
@@ -662,13 +663,13 @@ FunctionLiteral* Parser::DoParseProgram(CompilationInfo* info,
 }
 
 
-FunctionLiteral* Parser::ParseLazy(CompilationInfo* info) {
-  ZoneScope zone_scope(info->zone(), DONT_DELETE_ON_EXIT);
+FunctionLiteral* Parser::ParseLazy() {
+  ZoneScope zone_scope(zone(), DONT_DELETE_ON_EXIT);
   HistogramTimerScope timer(isolate()->counters()->parse_lazy());
   Handle<String> source(String::cast(script_->source()));
   isolate()->counters()->total_parse_size()->Increment(source->length());
 
-  Handle<SharedFunctionInfo> shared_info = info->shared_info();
+  Handle<SharedFunctionInfo> shared_info = info()->shared_info();
   // Initialize parser state.
   source->TryFlatten();
   if (source->IsExternalTwoByteString()) {
@@ -676,22 +677,21 @@ FunctionLiteral* Parser::ParseLazy(CompilationInfo* info) {
         Handle<ExternalTwoByteString>::cast(source),
         shared_info->start_position(),
         shared_info->end_position());
-    FunctionLiteral* result = ParseLazy(info, &stream, &zone_scope);
+    FunctionLiteral* result = ParseLazy(&stream, &zone_scope);
     return result;
   } else {
     GenericStringUtf16CharacterStream stream(source,
                                              shared_info->start_position(),
                                              shared_info->end_position());
-    FunctionLiteral* result = ParseLazy(info, &stream, &zone_scope);
+    FunctionLiteral* result = ParseLazy(&stream, &zone_scope);
     return result;
   }
 }
 
 
-FunctionLiteral* Parser::ParseLazy(CompilationInfo* info,
-                                   Utf16CharacterStream* source,
+FunctionLiteral* Parser::ParseLazy(Utf16CharacterStream* source,
                                    ZoneScope* zone_scope) {
-  Handle<SharedFunctionInfo> shared_info = info->shared_info();
+  Handle<SharedFunctionInfo> shared_info = info()->shared_info();
   scanner_.Initialize(source);
   ASSERT(top_scope_ == NULL);
   ASSERT(target_stack_ == NULL);
@@ -708,16 +708,16 @@ FunctionLiteral* Parser::ParseLazy(CompilationInfo* info,
   {
     // Parse the function literal.
     Scope* scope = NewScope(top_scope_, GLOBAL_SCOPE);
-    info->SetGlobalScope(scope);
-    if (!info->closure().is_null()) {
-      scope = Scope::DeserializeScopeChain(info->closure()->context(), scope,
+    info()->SetGlobalScope(scope);
+    if (!info()->closure().is_null()) {
+      scope = Scope::DeserializeScopeChain(info()->closure()->context(), scope,
                                            zone());
     }
     FunctionState function_state(this, scope, isolate());
-    ASSERT(scope->language_mode() != STRICT_MODE || !info->is_classic_mode());
+    ASSERT(scope->language_mode() != STRICT_MODE || !info()->is_classic_mode());
     ASSERT(scope->language_mode() != EXTENDED_MODE ||
-           info->is_extended_mode());
-    ASSERT(info->language_mode() == shared_info->language_mode());
+           info()->is_extended_mode());
+    ASSERT(info()->language_mode() == shared_info->language_mode());
     scope->SetLanguageMode(shared_info->language_mode());
     FunctionLiteral::Type type = shared_info->is_expression()
         ? (shared_info->is_anonymous()
@@ -6041,16 +6041,15 @@ bool ParserApi::Parse(CompilationInfo* info, int parsing_flags) {
   }
   if (info->is_lazy()) {
     ASSERT(!info->is_eval());
-    Parser parser(script, parsing_flags, NULL, NULL, info->zone());
+    Parser parser(info, parsing_flags, NULL, NULL);
     if (info->shared_info()->is_function()) {
-      result = parser.ParseLazy(info);
+      result = parser.ParseLazy();
     } else {
-      result = parser.ParseProgram(info);
+      result = parser.ParseProgram();
     }
   } else {
     ScriptDataImpl* pre_data = info->pre_parse_data();
-    Parser parser(script, parsing_flags, info->extension(), pre_data,
-                  info->zone());
+    Parser parser(info, parsing_flags, info->extension(), pre_data);
     if (pre_data != NULL && pre_data->has_error()) {
       Scanner::Location loc = pre_data->MessageLocation();
       const char* message = pre_data->BuildMessage();
@@ -6063,7 +6062,7 @@ bool ParserApi::Parse(CompilationInfo* info, int parsing_flags) {
       DeleteArray(args.start());
       ASSERT(info->isolate()->has_pending_exception());
     } else {
-      result = parser.ParseProgram(info);
+      result = parser.ParseProgram();
     }
   }
   info->SetFunction(result);
