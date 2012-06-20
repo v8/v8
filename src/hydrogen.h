@@ -1239,6 +1239,7 @@ class HSideEffectMap BASE_EMBEDDED {
  public:
   HSideEffectMap();
   explicit HSideEffectMap(HSideEffectMap* other);
+  HSideEffectMap& operator= (const HSideEffectMap& other);
 
   void Kill(GVNFlagSet flags);
 
