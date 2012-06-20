@@ -1,3 +1,19 @@
+2012-06-20: Version 3.12.0
+
+        Fixed Chromium issues:
+        115100, 129628, 131994, 132727, 132741, 132742, 133211
+
+        Fixed V8 issues:
+        915, 1914, 2034, 2087, 2094, 2134, 2156, 2166, 2172, 2177, 2179, 2185
+
+        Added --extra-code flag to mksnapshot to load JS code into the VM
+        before creating the snapshot.
+
+        Support 'restart call frame' command in the debugger.
+
+        Performance and stability improvements on all platforms.
+
+
 2012-06-13: Version 3.11.10
 
         Implemented heap profiler memory usage reporting.
