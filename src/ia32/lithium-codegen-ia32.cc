@@ -1022,6 +1022,109 @@ void LCodeGen::DoDivI(LDivI* instr) {
 }
 
 
+void LCodeGen::DoMathFloorOfDiv(LMathFloorOfDiv* instr) {
+  ASSERT(instr->InputAt(1)->IsConstantOperand());
+
+  Register dividend = ToRegister(instr->InputAt(0));
+  int32_t divisor = ToInteger32(LConstantOperand::cast(instr->InputAt(1)));
+  Register result = ToRegister(instr->result());
+
+  switch (divisor) {
+  case 0:
+    DeoptimizeIf(no_condition, instr->environment());
+    return;
+
+  case 1:
+    __ Move(result, dividend);
+    return;
+
+  case -1:
+    __ Move(result, dividend);
+    __ neg(result);
+    if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
+      DeoptimizeIf(zero, instr->environment());
+    }
+    if (instr->hydrogen()->CheckFlag(HValue::kCanOverflow)) {
+      DeoptimizeIf(overflow, instr->environment());
+    }
+    return;
+  }
+
+  uint32_t divisor_abs = abs(divisor);
+  if (IsPowerOf2(divisor_abs)) {
+    int32_t power = WhichPowerOf2(divisor_abs);
+    if (divisor < 0) {
+      // Input[dividend] is clobbered.
+      // The sequence is tedious because neg(dividend) might overflow.
+      __ mov(result, dividend);
+      __ sar(dividend, 31);
+      __ neg(result);
+      if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
+        DeoptimizeIf(zero, instr->environment());
+      }
+      __ shl(dividend, 32 - power);
+      __ sar(result, power);
+      __ not_(dividend);
+      // Clear result.sign if dividend.sign is set.
+      __ and_(result, dividend);
+    } else {
+      __ Move(result, dividend);
+      __ sar(result, power);
+    }
+  } else {
+    ASSERT(ToRegister(instr->InputAt(0)).is(eax));
+    ASSERT(ToRegister(instr->result()).is(edx));
+    Register scratch = ToRegister(instr->TempAt(0));
+
+    // Find b which: 2^b < divisor_abs < 2^(b+1).
+    unsigned b = 31 - CompilerIntrinsics::CountLeadingZeros(divisor_abs);
+    unsigned shift = 32 + b;  // Precision +1bit (effectively).
+    double multiplier_f =
+        static_cast<double>(static_cast<uint64_t>(1) << shift) / divisor_abs;
+    int64_t multiplier;
+    if (multiplier_f - floor(multiplier_f) < 0.5) {
+        multiplier = floor(multiplier_f);
+    } else {
+        multiplier = floor(multiplier_f) + 1;
+    }
+    // The multiplier is a uint32.
+    ASSERT(multiplier > 0 &&
+           multiplier < (static_cast<int64_t>(1) << 32));
+    __ mov(scratch, dividend);
+    if (divisor < 0 &&
+        instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
+      __ test(dividend, dividend);
+      DeoptimizeIf(zero, instr->environment());
+    }
+    __ mov(edx, multiplier);
+    __ imul(edx);
+    if (static_cast<int32_t>(multiplier) < 0) {
+      __ add(edx, scratch);
+    }
+    Register reg_lo = eax;
+    Register reg_byte_scratch = scratch;
+    if (!reg_byte_scratch.is_byte_register()) {
+        __ xchg(reg_lo, reg_byte_scratch);
+        reg_lo = scratch;
+        reg_byte_scratch = eax;
+    }
+    if (divisor < 0) {
+      __ xor_(reg_byte_scratch, reg_byte_scratch);
+      __ cmp(reg_lo, 0x40000000);
+      __ setcc(above, reg_byte_scratch);
+      __ neg(edx);
+      __ sub(edx, reg_byte_scratch);
+    } else {
+      __ xor_(reg_byte_scratch, reg_byte_scratch);
+      __ cmp(reg_lo, 0xC0000000);
+      __ setcc(above_equal, reg_byte_scratch);
+      __ add(edx, reg_byte_scratch);
+    }
+    __ sar(edx, shift - 32);
+  }
+}
+
+
 void LCodeGen::DoMulI(LMulI* instr) {
   Register left = ToRegister(instr->InputAt(0));
   LOperand* right = instr->InputAt(1);

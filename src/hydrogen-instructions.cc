@@ -941,7 +941,8 @@ HValue* HUnaryMathOperation::Canonicalize() {
     // introduced.
     if (value()->representation().IsInteger32()) return value();
 
-#ifdef V8_TARGET_ARCH_ARM
+#if defined(V8_TARGET_ARCH_ARM) || defined(V8_TARGET_ARCH_IA32) || \
+        defined(V8_TARGET_ARCH_X64)
     if (value()->IsDiv() && (value()->UseCount() == 1)) {
       // TODO(2038): Implement this optimization for non ARM architectures.
       HDiv* hdiv = HDiv::cast(value());
@@ -2219,6 +2220,13 @@ HValue* HDiv::EnsureAndPropagateNotMinusZero(BitVector* visited) {
   if (range() == NULL || range()->CanBeMinusZero()) {
     SetFlag(kBailoutOnMinusZero);
   }
+  return NULL;
+}
+
+
+HValue* HMathFloorOfDiv::EnsureAndPropagateNotMinusZero(BitVector* visited) {
+  visited->Add(id());
+  SetFlag(kBailoutOnMinusZero);
   return NULL;
 }
 

@@ -2774,7 +2774,10 @@ class HMathFloorOfDiv: public HBinaryOperation {
       : HBinaryOperation(context, left, right) {
     set_representation(Representation::Integer32());
     SetFlag(kUseGVN);
+    SetFlag(kCanOverflow);
   }
+
+  virtual HValue* EnsureAndPropagateNotMinusZero(BitVector* visited);
 
   virtual Representation RequiredInputRepresentation(int index) {
     return Representation::Integer32();

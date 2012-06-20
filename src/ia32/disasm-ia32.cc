@@ -553,6 +553,7 @@ int DisassemblerIA32::F7Instruction(byte* data) {
       case 2: mnem = "not"; break;
       case 3: mnem = "neg"; break;
       case 4: mnem = "mul"; break;
+      case 5: mnem = "imul"; break;
       case 7: mnem = "idiv"; break;
       default: UnimplementedInstruction();
     }
