@@ -4536,8 +4536,7 @@ HGraphBuilder::GlobalPropertyAccess HGraphBuilder::LookupGlobalProperty(
   }
   Handle<GlobalObject> global(info()->global_object());
   global->Lookup(*var->name(), lookup);
-  if (!lookup->IsFound() ||
-      lookup->type() != NORMAL ||
+  if (!lookup->IsNormal() ||
       (is_store && lookup->IsReadOnly()) ||
       lookup->holder() != *global) {
     return kUseGeneric;
@@ -4916,9 +4915,8 @@ static bool ComputeLoadStoreField(Handle<Map> type,
                                   LookupResult* lookup,
                                   bool is_store) {
   type->LookupInDescriptors(NULL, *name, lookup);
-  if (!lookup->IsFound()) return false;
-  if (lookup->type() == FIELD) return true;
-  return is_store && (lookup->type() == MAP_TRANSITION) &&
+  if (lookup->IsField()) return true;
+  return is_store && lookup->IsMapTransition() &&
       (type->unused_property_fields() > 0);
 }
 
@@ -4926,8 +4924,8 @@ static bool ComputeLoadStoreField(Handle<Map> type,
 static int ComputeLoadStoreFieldIndex(Handle<Map> type,
                                       Handle<String> name,
                                       LookupResult* lookup) {
-  ASSERT(lookup->type() == FIELD || lookup->type() == MAP_TRANSITION);
-  if (lookup->type() == FIELD) {
+  ASSERT(lookup->IsField() || lookup->type() == MAP_TRANSITION);
+  if (lookup->IsField()) {
     return lookup->GetLocalFieldIndexFromMap(*type);
   } else {
     Map* transition = lookup->GetTransitionMapFromMap(*type);
@@ -5626,13 +5624,13 @@ HInstruction* HGraphBuilder::BuildLoadNamed(HValue* obj,
                                             Handle<String> name) {
   LookupResult lookup(isolate());
   map->LookupInDescriptors(NULL, *name, &lookup);
-  if (lookup.IsFound() && lookup.type() == FIELD) {
+  if (lookup.IsField()) {
     return BuildLoadNamedField(obj,
                                expr,
                                map,
                                &lookup,
                                true);
-  } else if (lookup.IsFound() && lookup.type() == CONSTANT_FUNCTION) {
+  } else if (lookup.IsConstantFunction()) {
     AddInstruction(new(zone()) HCheckNonSmi(obj));
     AddInstruction(HCheckMaps::NewWithTransitions(obj, map, zone()));
     Handle<JSFunction> function(lookup.GetConstantFunctionFromMap(*map));
@@ -8116,9 +8114,7 @@ void HGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
       Handle<GlobalObject> global(info()->global_object());
       LookupResult lookup(isolate());
       global->Lookup(*name, &lookup);
-      if (lookup.IsFound() &&
-          lookup.type() == NORMAL &&
-          lookup.GetValue()->IsJSFunction()) {
+      if (lookup.IsNormal() && lookup.GetValue()->IsJSFunction()) {
         Handle<JSFunction> candidate(JSFunction::cast(lookup.GetValue()));
         // If the function is in new space we assume it's more likely to
         // change and thus prefer the general IC code.
