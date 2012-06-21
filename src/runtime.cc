@@ -1318,8 +1318,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DeclareGlobals) {
         Object* obj = *global;
         do {
           JSObject::cast(obj)->LocalLookup(*name, &lookup);
+          if (lookup.IsProperty()) break;
           obj = obj->GetPrototype();
-        } while (!lookup.IsFound() && obj->IsJSObject() &&
+        } while (obj->IsJSObject() &&
                  JSObject::cast(obj)->map()->is_hidden_prototype());
       } else {
         global->Lookup(*name, &lookup);
