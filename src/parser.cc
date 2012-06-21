@@ -6026,7 +6026,6 @@ bool RegExpParser::ParseRegExp(FlatStringReader* input,
 bool ParserApi::Parse(CompilationInfo* info, int parsing_flags) {
   ASSERT(info->function() == NULL);
   FunctionLiteral* result = NULL;
-  Handle<Script> script = info->script();
   ASSERT((parsing_flags & kLanguageModeMask) == CLASSIC_MODE);
   if (!info->is_native() && FLAG_harmony_scoping) {
     // Harmony scoping is requested.

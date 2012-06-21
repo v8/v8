@@ -886,6 +886,89 @@ void LCodeGen::DoModI(LModI* instr) {
 }
 
 
+void LCodeGen::DoMathFloorOfDiv(LMathFloorOfDiv* instr) {
+  ASSERT(instr->InputAt(1)->IsConstantOperand());
+
+  const Register dividend = ToRegister(instr->InputAt(0));
+  int32_t divisor = ToInteger32(LConstantOperand::cast(instr->InputAt(1)));
+  const Register result = ToRegister(instr->result());
+
+  switch (divisor) {
+  case 0:
+    DeoptimizeIf(no_condition, instr->environment());
+    return;
+
+  case 1:
+    if (!result.is(dividend)) {
+        __ movl(result, dividend);
+    }
+    return;
+
+  case -1:
+    if (!result.is(dividend)) {
+      __ movl(result, dividend);
+    }
+    __ negl(result);
+    if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
+      DeoptimizeIf(zero, instr->environment());
+    }
+    if (instr->hydrogen()->CheckFlag(HValue::kCanOverflow)) {
+      DeoptimizeIf(overflow, instr->environment());
+    }
+    return;
+  }
+
+  uint32_t divisor_abs = abs(divisor);
+  if (IsPowerOf2(divisor_abs)) {
+    int32_t power = WhichPowerOf2(divisor_abs);
+    if (divisor < 0) {
+      __ movsxlq(result, dividend);
+      __ neg(result);
+      if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
+        DeoptimizeIf(zero, instr->environment());
+      }
+      __ sar(result, Immediate(power));
+    } else {
+      if (!result.is(dividend)) {
+        __ movl(result, dividend);
+      }
+      __ sarl(result, Immediate(power));
+    }
+  } else {
+    Register reg1 = ToRegister(instr->TempAt(0));
+    Register reg2 = ToRegister(instr->result());
+
+    // Find b which: 2^b < divisor_abs < 2^(b+1).
+    unsigned b = 31 - CompilerIntrinsics::CountLeadingZeros(divisor_abs);
+    unsigned shift = 32 + b;  // Precision +1bit (effectively).
+    double multiplier_f =
+        static_cast<double>(static_cast<uint64_t>(1) << shift) / divisor_abs;
+    int64_t multiplier;
+    if (multiplier_f - floor(multiplier_f) < 0.5) {
+        multiplier = static_cast<int64_t>(floor(multiplier_f));
+    } else {
+        multiplier = static_cast<int64_t>(floor(multiplier_f)) + 1;
+    }
+    // The multiplier is a uint32.
+    ASSERT(multiplier > 0 &&
+           multiplier < (static_cast<int64_t>(1) << 32));
+    // The multiply is int64, so sign-extend to r64.
+    __ movsxlq(reg1, dividend);
+    if (divisor < 0 &&
+        instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
+      __ neg(reg1);
+      DeoptimizeIf(zero, instr->environment());
+    }
+    __ movq(reg2, multiplier, RelocInfo::NONE);
+    // Result just fit in r64, because it's int32 * uint32.
+    __ imul(reg2, reg1);
+
+    __ addq(reg2, Immediate(1 << 30));
+    __ sar(reg2, Immediate(shift));
+  }
+}
+
+
 void LCodeGen::DoDivI(LDivI* instr) {
   LOperand* right = instr->InputAt(1);
   ASSERT(ToRegister(instr->result()).is(rax));
@@ -2221,15 +2304,15 @@ void LCodeGen::EmitLoadFieldOrConstantFunction(Register result,
   } else {
     // Negative lookup.
     // Check prototypes.
-    HeapObject* current = HeapObject::cast((*type)->prototype());
+    Handle<HeapObject> current(HeapObject::cast((*type)->prototype()));
     Heap* heap = type->GetHeap();
-    while (current != heap->null_value()) {
-      Handle<HeapObject> link(current);
-      __ LoadHeapObject(result, link);
+    while (*current != heap->null_value()) {
+      __ LoadHeapObject(result, current);
       __ Cmp(FieldOperand(result, HeapObject::kMapOffset),
-                          Handle<Map>(JSObject::cast(current)->map()));
+                          Handle<Map>(current->map()));
       DeoptimizeIf(not_equal, env);
-      current = HeapObject::cast(current->map()->prototype());
+      current =
+          Handle<HeapObject>(HeapObject::cast(current->map()->prototype()));
     }
     __ LoadRoot(result, Heap::kUndefinedValueRootIndex);
   }

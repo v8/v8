@@ -27,7 +27,7 @@
 
 // These tests used to time out before this was fixed.
 
-var LEN = 1e5;
+var LEN = 3e4;
 
 function short() {
   var sum = 0;

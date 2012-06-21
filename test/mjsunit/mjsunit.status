@@ -126,6 +126,9 @@ debug-liveedit-check-stack: SKIP
 debug-liveedit-stack-padding: SKIP
 debug-liveedit-restart-frame: SKIP
 
+# Currently always deopt on minus zero
+math-floor-of-div-minus-zero: SKIP
+
 ##############################################################################
 [ $arch == mips ]
 
