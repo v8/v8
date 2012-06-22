@@ -5227,6 +5227,10 @@ class SharedFunctionInfo: public HeapObject {
   // Returns -1 when no matching entry is found.
   int SearchOptimizedCodeMap(Context* global_context);
 
+  // Installs optimized code from the code map on the given closure. The
+  // index has to be consistent with a search result as defined above.
+  void InstallFromOptimizedCodeMap(JSFunction* function, int index);
+
   // Clear optimized code map.
   void ClearOptimizedCodeMap();
 
