@@ -1468,7 +1468,9 @@ static const char* DropFrames(Vector<StackFrame*> frames,
       isolate->builtins()->builtin(
           Builtins::kFrameDropper_LiveEdit)) {
     // OK, we can drop our own code.
-    *mode = Debug::FRAME_DROPPED_IN_DIRECT_CALL;
+    pre_top_frame = frames[top_frame_index - 2];
+    top_frame = frames[top_frame_index - 1];
+    *mode = Debug::CURRENTLY_SET_MODE;
     frame_has_padding = false;
   } else if (pre_top_frame_code ==
       isolate->builtins()->builtin(Builtins::kReturn_DebugBreak)) {
@@ -1482,6 +1484,15 @@ static const char* DropFrames(Vector<StackFrame*> frames,
     // We don't have a padding from 'debugger' statement call.
     // Here the stub is CEntry, it's not debug-only and can't be padded.
     // If anyone would complain, a proxy padded stub could be added.
+    frame_has_padding = false;
+  } else if (pre_top_frame->type() == StackFrame::ARGUMENTS_ADAPTOR) {
+    // This must be adaptor that remain from the frame dropping that
+    // is still on stack. A frame dropper frame must be above it.
+    ASSERT(frames[top_frame_index - 2]->LookupCode() ==
+        isolate->builtins()->builtin(Builtins::kFrameDropper_LiveEdit));
+    pre_top_frame = frames[top_frame_index - 3];
+    top_frame = frames[top_frame_index - 2];
+    *mode = Debug::CURRENTLY_SET_MODE;
     frame_has_padding = false;
   } else {
     return "Unknown structure of stack above changing function";
