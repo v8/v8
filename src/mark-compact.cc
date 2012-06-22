@@ -534,7 +534,6 @@ void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
   static const intptr_t kFreenessThreshold = 50;
 
   if (over_reserved >= 2 * space->AreaSize()) {
-
     // If reduction of memory footprint was requested, we are aggressive
     // about choosing pages to free.  We expect that half-empty pages
     // are easier to compact so slightly bump the limit.
