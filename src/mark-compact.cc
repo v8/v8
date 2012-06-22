@@ -3823,12 +3823,6 @@ void MarkCompactCollector::SweepSpace(PagedSpace* space, SweeperType sweeper) {
   bool lazy_sweeping_active = false;
   bool unused_page_present = false;
 
-  intptr_t old_space_size = heap()->PromotedSpaceSizeOfObjects();
-  intptr_t space_left =
-      Min(heap()->OldGenLimit(old_space_size, Heap::kMinPromotionLimit),
-          heap()->OldGenLimit(old_space_size, Heap::kMinAllocationLimit)) -
-      old_space_size;
-
   while (it.has_next()) {
     Page* p = it.next();
 
@@ -3888,7 +3882,7 @@ void MarkCompactCollector::SweepSpace(PagedSpace* space, SweeperType sweeper) {
         }
         freed_bytes += SweepConservatively(space, p);
         pages_swept++;
-        if (space_left + freed_bytes > newspace_size) {
+        if (freed_bytes > 2 * newspace_size) {
           space->SetPagesToSweep(p->next_page());
           lazy_sweeping_active = true;
         } else {
