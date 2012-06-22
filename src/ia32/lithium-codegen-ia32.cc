@@ -2412,7 +2412,7 @@ void LCodeGen::EmitLoadFieldOrConstantFunction(Register result,
   LookupResult lookup(isolate());
   type->LookupInDescriptors(NULL, *name, &lookup);
   ASSERT(lookup.IsFound() || lookup.IsCacheable());
-  if (lookup.IsFound() && lookup.type() == FIELD) {
+  if (lookup.IsField()) {
     int index = lookup.GetLocalFieldIndexFromMap(*type);
     int offset = index * kPointerSize;
     if (index < 0) {
@@ -2424,7 +2424,7 @@ void LCodeGen::EmitLoadFieldOrConstantFunction(Register result,
       __ mov(result, FieldOperand(object, JSObject::kPropertiesOffset));
       __ mov(result, FieldOperand(result, offset + FixedArray::kHeaderSize));
     }
-  } else if (lookup.IsFound() && lookup.type() == CONSTANT_FUNCTION) {
+  } else if (lookup.IsConstantFunction()) {
     Handle<JSFunction> function(lookup.GetConstantFunctionFromMap(*type));
     __ LoadHeapObject(result, function);
   } else {
@@ -2464,13 +2464,17 @@ void LCodeGen::EmitPushTaggedOperand(LOperand* operand) {
 
 // Check for cases where EmitLoadFieldOrConstantFunction needs to walk the
 // prototype chain, which causes unbounded code generation.
-static bool CompactEmit(
-    SmallMapList* list, Handle<String> name, int i, Isolate* isolate) {
-  LookupResult lookup(isolate);
+static bool CompactEmit(SmallMapList* list,
+                        Handle<String> name,
+                        int i,
+                        Isolate* isolate) {
   Handle<Map> map = list->at(i);
+  // If the map has ElementsKind transitions, we will generate map checks
+  // for each kind in __ CompareMap(..., ALLOW_ELEMENTS_TRANSITION_MAPS).
+  if (map->elements_transition_map() != NULL) return false;
+  LookupResult lookup(isolate);
   map->LookupInDescriptors(NULL, *name, &lookup);
-  return lookup.IsFound() &&
-      (lookup.type() == FIELD || lookup.type() == CONSTANT_FUNCTION);
+  return lookup.IsField() || lookup.IsConstantFunction();
 }
 
 

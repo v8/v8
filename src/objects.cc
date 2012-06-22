@@ -415,7 +415,10 @@ PropertyAttributes JSObject::GetPropertyAttributeWithFailedAccessCheck(
         break;
       }
 
-      default:
+      case HANDLER:
+      case MAP_TRANSITION:
+      case CONSTANT_TRANSITION:
+      case NONEXISTENT:
         UNREACHABLE();
     }
   }
@@ -2417,10 +2420,11 @@ void JSObject::LocalLookupRealNamedProperty(String* name,
       // We return all of these result types because
       // LocalLookupRealNamedProperty is used when setting properties
       // where map transitions and null descriptors are handled.
-      ASSERT(result->holder() == this && result->type() != NORMAL);
+      ASSERT(result->holder() == this && result->IsFastPropertyType());
       // Disallow caching for uninitialized constants. These can only
       // occur as fields.
-      if (result->IsReadOnly() && result->type() == FIELD &&
+      if (result->IsField() &&
+          result->IsReadOnly() &&
           FastPropertyAt(result->GetFieldIndex())->IsTheHole()) {
         result->DisallowCaching();
       }
@@ -2537,7 +2541,7 @@ MaybeObject* JSReceiver::SetProperty(LookupResult* result,
                                      PropertyAttributes attributes,
                                      StrictModeFlag strict_mode,
                                      JSReceiver::StoreFromKeyed store_mode) {
-  if (result->IsFound() && result->type() == HANDLER) {
+  if (result->IsHandler()) {
     return result->proxy()->SetPropertyWithHandler(
         this, key, value, attributes, strict_mode);
   } else {
@@ -3908,7 +3912,7 @@ MaybeObject* JSObject::DeleteProperty(String* name, DeleteMode mode) {
       return isolate->heap()->false_value();
     }
     // Check for interceptor.
-    if (result.type() == INTERCEPTOR) {
+    if (result.IsInterceptor()) {
       // Skip interceptor if forcing a deletion.
       if (mode == FORCE_DELETION) {
         return DeletePropertyPostInterceptor(name, mode);
@@ -4267,7 +4271,7 @@ void JSObject::LookupCallback(String* name, LookupResult* result) {
        current != heap->null_value() && current->IsJSObject();
        current = JSObject::cast(current)->GetPrototype()) {
     JSObject::cast(current)->LocalLookupRealNamedProperty(name, result);
-    if (result->IsFound() && result->type() == CALLBACKS) return;
+    if (result->IsCallbacks()) return;
   }
   result->NotFound();
 }
@@ -4370,7 +4374,7 @@ MaybeObject* JSObject::DefineElementAccessor(uint32_t index,
 MaybeObject* JSObject::CreateAccessorPairFor(String* name) {
   LookupResult result(GetHeap()->isolate());
   LocalLookupRealNamedProperty(name, &result);
-  if (result.IsProperty() && result.type() == CALLBACKS) {
+  if (result.IsProperty() && result.IsCallbacks()) {
     // Note that the result can actually have IsDontDelete() == true when we
     // e.g. have to fall back to the slow case while adding a setter after
     // successfully reusing a map transition for a getter. Nevertheless, this is
@@ -4840,7 +4844,7 @@ Object* JSObject::LookupAccessor(String* name, AccessorComponent component) {
       JSObject::cast(obj)->LocalLookup(name, &result);
       if (result.IsProperty()) {
         if (result.IsReadOnly()) return heap->undefined_value();
-        if (result.type() == CALLBACKS) {
+        if (result.IsCallbacks()) {
           Object* obj = result.GetCallbackObject();
           if (obj->IsAccessorPair()) {
             return AccessorPair::cast(obj)->GetComponent(component);
@@ -7788,9 +7792,7 @@ bool SharedFunctionInfo::CanGenerateInlineConstructor(Object* prototype) {
       LookupResult result(heap->isolate());
       String* name = GetThisPropertyAssignmentName(i);
       js_object->LocalLookupRealNamedProperty(name, &result);
-      if (result.IsFound() && result.type() == CALLBACKS) {
-        return false;
-      }
+      if (result.IsCallbacks()) return false;
     }
   }
 
@@ -10385,7 +10387,7 @@ bool JSObject::HasRealNamedProperty(String* key) {
 
   LookupResult result(isolate);
   LocalLookupRealNamedProperty(key, &result);
-  return result.IsProperty() && (result.type() != INTERCEPTOR);
+  return result.IsProperty() && !result.IsInterceptor();
 }
 
 
@@ -10465,7 +10467,7 @@ bool JSObject::HasRealNamedCallbackProperty(String* key) {
 
   LookupResult result(isolate);
   LocalLookupRealNamedProperty(key, &result);
-  return result.IsFound() && (result.type() == CALLBACKS);
+  return result.IsCallbacks();
 }
 
 

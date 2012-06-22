@@ -189,7 +189,7 @@ class LookupResult BASE_EMBEDDED {
         lookup_type_(NOT_FOUND),
         holder_(NULL),
         cacheable_(true),
-        details_(NONE, NORMAL) {
+        details_(NONE, NONEXISTENT) {
     isolate->SetTopLookupResult(this);
   }
 
@@ -237,6 +237,7 @@ class LookupResult BASE_EMBEDDED {
 
   void NotFound() {
     lookup_type_ = NOT_FOUND;
+    details_ = PropertyDetails(NONE, NONEXISTENT);
     holder_ = NULL;
   }
 
@@ -264,12 +265,47 @@ class LookupResult BASE_EMBEDDED {
     return details_;
   }
 
-  bool IsReadOnly() { return details_.IsReadOnly(); }
+  bool IsFastPropertyType() {
+    ASSERT(IsFound());
+    return type() != NORMAL;
+  }
+
+  bool IsReadOnly() {
+    ASSERT(IsFound());
+    return details_.IsReadOnly();
+  }
+
+  bool IsCallbacks() {
+    ASSERT(!(details_.type() == CALLBACKS && !IsFound()));
+    return details_.type() == CALLBACKS;
+  }
+
+  bool IsField() {
+    ASSERT(!(details_.type() == FIELD && !IsFound()));
+    return details_.type() == FIELD;
+  }
+
+  bool IsNormal() {
+    ASSERT(!(details_.type() == NORMAL && !IsFound()));
+    return details_.type() == NORMAL;
+  }
+
+  bool IsConstantFunction() {
+    ASSERT(!(details_.type() == CONSTANT_FUNCTION && !IsFound()));
+    return details_.type() == CONSTANT_FUNCTION;
+  }
+
+  bool IsMapTransition() {
+    ASSERT(!(details_.type() == MAP_TRANSITION && !IsFound()));
+    return details_.type() == MAP_TRANSITION;
+  }
+
   bool IsDontDelete() { return details_.IsDontDelete(); }
   bool IsDontEnum() { return details_.IsDontEnum(); }
   bool IsDeleted() { return details_.IsDeleted(); }
   bool IsFound() { return lookup_type_ != NOT_FOUND; }
   bool IsHandler() { return lookup_type_ == HANDLER_TYPE; }
+  bool IsInterceptor() { return lookup_type_ == INTERCEPTOR_TYPE; }
 
   // Is the result is a property excluding transitions and the null descriptor?
   bool IsProperty() {
@@ -298,7 +334,6 @@ class LookupResult BASE_EMBEDDED {
     }
   }
 
-
   Map* GetTransitionMap() {
     ASSERT(lookup_type_ == DESCRIPTOR_TYPE);
     ASSERT(type() == MAP_TRANSITION ||
@@ -314,13 +349,13 @@ class LookupResult BASE_EMBEDDED {
 
   int GetFieldIndex() {
     ASSERT(lookup_type_ == DESCRIPTOR_TYPE);
-    ASSERT(type() == FIELD);
+    ASSERT(IsField());
     return Descriptor::IndexFromValue(GetValue());
   }
 
   int GetLocalFieldIndexFromMap(Map* map) {
     ASSERT(lookup_type_ == DESCRIPTOR_TYPE);
-    ASSERT(type() == FIELD);
+    ASSERT(IsField());
     return Descriptor::IndexFromValue(
         map->instance_descriptors()->GetValue(number_)) -
         map->inobject_properties();

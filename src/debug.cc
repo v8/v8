@@ -896,8 +896,18 @@ void Debug::PutValuesOnStackAndDie(int start,
                                    Address c_entry_fp,
                                    Address last_fp,
                                    Address larger_fp,
+                                   Address last_in_fp,
+                                   Address last_out_fp,
                                    int count,
                                    int end) {
+  OS::PrintError("start:       %d\n", start);
+  OS::PrintError("c_entry_fp:  %p\n", static_cast<void*>(c_entry_fp));
+  OS::PrintError("last_fp:     %p\n", static_cast<void*>(last_fp));
+  OS::PrintError("larger_fp:   %p\n", static_cast<void*>(larger_fp));
+  OS::PrintError("last_in_fp:  %p\n", static_cast<void*>(last_in_fp));
+  OS::PrintError("last_out_fp: %p\n", static_cast<void*>(last_out_fp));
+  OS::PrintError("count:       %d\n", count);
+  OS::PrintError("end:         %d\n", end);
   OS::Abort();
 }
 
@@ -1010,6 +1020,8 @@ Object* Debug::Break(Arguments args) {
                                frame->fp(),
                                thread_local_.last_fp_,
                                NULL,
+                               thread_local_.step_into_fp_,
+                               thread_local_.step_out_fp_,
                                count,
                                0xFEEEEEEE);
       } else if (it.frame()->fp() != thread_local_.last_fp_) {
@@ -1018,6 +1030,8 @@ Object* Debug::Break(Arguments args) {
                                frame->fp(),
                                thread_local_.last_fp_,
                                it.frame()->fp(),
+                               thread_local_.step_into_fp_,
+                               thread_local_.step_out_fp_,
                                count,
                                0xFEEEEEEE);
       }

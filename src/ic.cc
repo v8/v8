@@ -435,9 +435,7 @@ static void LookupForRead(Handle<Object> object,
     // Besides normal conditions (property not found or it's not
     // an interceptor), bail out if lookup is not cacheable: we won't
     // be able to IC it anyway and regular lookup should work fine.
-    if (!lookup->IsFound()
-        || (lookup->type() != INTERCEPTOR)
-        || !lookup->IsCacheable()) {
+    if (!lookup->IsInterceptor() || !lookup->IsCacheable()) {
       return;
     }
 
@@ -448,7 +446,7 @@ static void LookupForRead(Handle<Object> object,
 
     holder->LocalLookupRealNamedProperty(*name, lookup);
     if (lookup->IsProperty()) {
-      ASSERT(lookup->type() != INTERCEPTOR);
+      ASSERT(!lookup->IsInterceptor());
       return;
     }
 
@@ -554,7 +552,7 @@ MaybeObject* CallICBase::LoadFunction(State state,
       Object::GetProperty(object, object, &lookup, name, &attr);
   RETURN_IF_EMPTY_HANDLE(isolate(), result);
 
-  if (lookup.type() == INTERCEPTOR && attr == ABSENT) {
+  if (lookup.IsInterceptor() && attr == ABSENT) {
     // If the object does not have the requested property, check which
     // exception we need to throw.
     return IsContextual(object)
@@ -915,8 +913,7 @@ MaybeObject* LoadIC::Load(State state,
   }
 
   PropertyAttributes attr;
-  if (lookup.IsFound() &&
-      (lookup.type() == INTERCEPTOR || lookup.type() == HANDLER)) {
+  if (lookup.IsInterceptor() || lookup.IsHandler()) {
     // Get the property.
     Handle<Object> result =
         Object::GetProperty(object, object, &lookup, name, &attr);
@@ -1177,7 +1174,7 @@ MaybeObject* KeyedLoadIC::Load(State state,
     }
 
     PropertyAttributes attr;
-    if (lookup.IsFound() && lookup.type() == INTERCEPTOR) {
+    if (lookup.IsInterceptor()) {
       // Get the property.
       Handle<Object> result =
           Object::GetProperty(object, object, &lookup, name, &attr);
@@ -1321,7 +1318,7 @@ static bool LookupForWrite(Handle<JSObject> receiver,
     return false;
   }
 
-  if (lookup->type() == INTERCEPTOR &&
+  if (lookup->IsInterceptor() &&
       receiver->GetNamedInterceptor()->setter()->IsUndefined()) {
     receiver->LocalLookupRealNamedProperty(*name, lookup);
     return StoreICableLookup(lookup);
@@ -1438,7 +1435,7 @@ void StoreIC::UpdateCaches(LookupResult* lookup,
   ASSERT(!receiver->IsJSGlobalProxy());
   ASSERT(StoreICableLookup(lookup));
   // These are not cacheable, so we never see such LookupResults here.
-  ASSERT(lookup->type() != HANDLER);
+  ASSERT(!lookup->IsHandler());
   // We get only called for properties or transitions, see StoreICableLookup.
   ASSERT(lookup->type() != NULL_DESCRIPTOR);
 
@@ -1940,7 +1937,7 @@ void KeyedStoreIC::UpdateCaches(LookupResult* lookup,
   ASSERT(!receiver->IsJSGlobalProxy());
   ASSERT(StoreICableLookup(lookup));
   // These are not cacheable, so we never see such LookupResults here.
-  ASSERT(lookup->type() != HANDLER);
+  ASSERT(!lookup->IsHandler());
   // We get only called for properties or transitions, see StoreICableLookup.
   ASSERT(lookup->type() != NULL_DESCRIPTOR);
 
@@ -2116,7 +2113,7 @@ RUNTIME_FUNCTION(MaybeObject*, StoreIC_ArrayLength) {
   // The length property has to be a writable callback property.
   LookupResult debug_lookup(isolate);
   receiver->LocalLookup(isolate->heap()->length_symbol(), &debug_lookup);
-  ASSERT(debug_lookup.type() == CALLBACKS && !debug_lookup.IsReadOnly());
+  ASSERT(debug_lookup.IsCallbacks() && !debug_lookup.IsReadOnly());
 #endif
 
   Object* result;
