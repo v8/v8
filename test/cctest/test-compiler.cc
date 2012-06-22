@@ -355,6 +355,9 @@ TEST(GetScriptLineNumber) {
 // Test that optimized code for different closures is actually shared
 // immediately by the FastNewClosureStub when run in the same context.
 TEST(OptimizedCodeSharing) {
+  // Skip test if --cache-optimized-code is not activated by default because
+  // FastNewClosureStub that is baked into the snapshot is incorrect.
+  if (!FLAG_cache_optimized_code) return;
   FLAG_allow_natives_syntax = true;
   InitializeVM();
   v8::HandleScope scope;
