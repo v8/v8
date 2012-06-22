@@ -1,3 +1,14 @@
+2012-06-22: Version 3.12.2
+
+        Made near-jump check more strict in LoadNamedFieldPolymorphic on
+        ia32/x64. (Chromium issue 134055)
+
+        Fixed lazy sweeping heuristics to prevent old-space expansion.
+        (issue 2194)
+
+        Performance and stability improvements on all platforms.
+
+
 2012-06-21: Version 3.12.1
 
         Performance and stability improvements on all platforms.
