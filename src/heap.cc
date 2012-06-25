@@ -320,48 +320,52 @@ void Heap::ReportStatisticsBeforeGC() {
 
 void Heap::PrintShortHeapStatistics() {
   if (!FLAG_trace_gc_verbose) return;
-  PrintF("Memory allocator,   used: %8" V8_PTR_PREFIX "d"
-             ", available: %8" V8_PTR_PREFIX "d\n",
-         isolate_->memory_allocator()->Size(),
-         isolate_->memory_allocator()->Available());
-  PrintF("New space,          used: %8" V8_PTR_PREFIX "d"
-             ", available: %8" V8_PTR_PREFIX "d\n",
-         Heap::new_space_.Size(),
-         new_space_.Available());
-  PrintF("Old pointers,       used: %8" V8_PTR_PREFIX "d"
-             ", available: %8" V8_PTR_PREFIX "d"
-             ", waste: %8" V8_PTR_PREFIX "d\n",
-         old_pointer_space_->Size(),
-         old_pointer_space_->Available(),
-         old_pointer_space_->Waste());
-  PrintF("Old data space,     used: %8" V8_PTR_PREFIX "d"
-             ", available: %8" V8_PTR_PREFIX "d"
-             ", waste: %8" V8_PTR_PREFIX "d\n",
-         old_data_space_->Size(),
-         old_data_space_->Available(),
-         old_data_space_->Waste());
-  PrintF("Code space,         used: %8" V8_PTR_PREFIX "d"
-             ", available: %8" V8_PTR_PREFIX "d"
-             ", waste: %8" V8_PTR_PREFIX "d\n",
-         code_space_->Size(),
-         code_space_->Available(),
-         code_space_->Waste());
-  PrintF("Map space,          used: %8" V8_PTR_PREFIX "d"
-             ", available: %8" V8_PTR_PREFIX "d"
-             ", waste: %8" V8_PTR_PREFIX "d\n",
-         map_space_->Size(),
-         map_space_->Available(),
-         map_space_->Waste());
-  PrintF("Cell space,         used: %8" V8_PTR_PREFIX "d"
-             ", available: %8" V8_PTR_PREFIX "d"
-             ", waste: %8" V8_PTR_PREFIX "d\n",
-         cell_space_->Size(),
-         cell_space_->Available(),
-         cell_space_->Waste());
-  PrintF("Large object space, used: %8" V8_PTR_PREFIX "d"
-             ", available: %8" V8_PTR_PREFIX "d\n",
-         lo_space_->Size(),
-         lo_space_->Available());
+  PrintF("Memory allocator,   used: %6" V8_PTR_PREFIX "d KB"
+             ", available: %6" V8_PTR_PREFIX "d KB\n",
+         isolate_->memory_allocator()->Size() / KB,
+         isolate_->memory_allocator()->Available() / KB);
+  PrintF("New space,          used: %6" V8_PTR_PREFIX "d KB"
+             ", available: %6" V8_PTR_PREFIX "d KB"
+             ", committed: %6" V8_PTR_PREFIX "d KB\n",
+         new_space_.Size() / KB,
+         new_space_.Available() / KB,
+         new_space_.CommittedMemory() / KB);
+  PrintF("Old pointers,       used: %6" V8_PTR_PREFIX "d KB"
+             ", available: %6" V8_PTR_PREFIX "d KB"
+             ", committed: %6" V8_PTR_PREFIX "d KB\n",
+         old_pointer_space_->SizeOfObjects() / KB,
+         old_pointer_space_->Available() / KB,
+         old_pointer_space_->CommittedMemory() / KB);
+  PrintF("Old data space,     used: %6" V8_PTR_PREFIX "d KB"
+             ", available: %6" V8_PTR_PREFIX "d KB"
+             ", committed: %6" V8_PTR_PREFIX "d KB\n",
+         old_data_space_->SizeOfObjects() / KB,
+         old_data_space_->Available() / KB,
+         old_data_space_->CommittedMemory() / KB);
+  PrintF("Code space,         used: %6" V8_PTR_PREFIX "d KB"
+             ", available: %6" V8_PTR_PREFIX "d KB"
+             ", committed: %6" V8_PTR_PREFIX "d KB\n",
+         code_space_->SizeOfObjects() / KB,
+         code_space_->Available() / KB,
+         code_space_->CommittedMemory() / KB);
+  PrintF("Map space,          used: %6" V8_PTR_PREFIX "d KB"
+             ", available: %6" V8_PTR_PREFIX "d KB"
+             ", committed: %6" V8_PTR_PREFIX "d KB\n",
+         map_space_->SizeOfObjects() / KB,
+         map_space_->Available() / KB,
+         map_space_->CommittedMemory() / KB);
+  PrintF("Cell space,         used: %6" V8_PTR_PREFIX "d KB"
+             ", available: %6" V8_PTR_PREFIX "d KB"
+             ", committed: %6" V8_PTR_PREFIX "d KB\n",
+         cell_space_->SizeOfObjects() / KB,
+         cell_space_->Available() / KB,
+         cell_space_->CommittedMemory() / KB);
+  PrintF("Large object space, used: %6" V8_PTR_PREFIX "d KB"
+             ", available: %6" V8_PTR_PREFIX "d KB"
+             ", committed: %6" V8_PTR_PREFIX "d KB\n",
+         lo_space_->SizeOfObjects() / KB,
+         lo_space_->Available() / KB,
+         lo_space_->CommittedMemory() / KB);
 }
 
 
