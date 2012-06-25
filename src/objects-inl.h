@@ -3029,7 +3029,7 @@ Code::ExtraICState Code::extra_ic_state() {
 }
 
 
-PropertyType Code::type() {
+Code::StubType Code::type() {
   return ExtractTypeFromFlags(flags());
 }
 
@@ -3301,7 +3301,7 @@ bool Code::is_inline_cache_stub() {
 Code::Flags Code::ComputeFlags(Kind kind,
                                InlineCacheState ic_state,
                                ExtraICState extra_ic_state,
-                               PropertyType type,
+                               StubType type,
                                int argc,
                                InlineCacheHolderFlag holder) {
   // Extra IC state is only allowed for call IC stubs or for store IC
@@ -3322,7 +3322,7 @@ Code::Flags Code::ComputeFlags(Kind kind,
 
 
 Code::Flags Code::ComputeMonomorphicFlags(Kind kind,
-                                          PropertyType type,
+                                          StubType type,
                                           ExtraICState extra_ic_state,
                                           InlineCacheHolderFlag holder,
                                           int argc) {
@@ -3345,7 +3345,7 @@ Code::ExtraICState Code::ExtractExtraICStateFromFlags(Flags flags) {
 }
 
 
-PropertyType Code::ExtractTypeFromFlags(Flags flags) {
+Code::StubType Code::ExtractTypeFromFlags(Flags flags) {
   return TypeField::decode(flags);
 }
 

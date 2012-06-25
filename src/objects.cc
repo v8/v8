@@ -418,7 +418,7 @@ PropertyAttributes JSObject::GetPropertyAttributeWithFailedAccessCheck(
       case HANDLER:
       case MAP_TRANSITION:
       case CONSTANT_TRANSITION:
-      case NONEXISTENT:
+      case NULL_DESCRIPTOR:
         UNREACHABLE();
     }
   }
@@ -5274,7 +5274,7 @@ MaybeObject* CodeCache::Update(String* name, Code* code) {
   // The number of monomorphic stubs for normal load/store/call IC's can grow to
   // a large number and therefore they need to go into a hash table. They are
   // used to load global properties from cells.
-  if (code->type() == NORMAL) {
+  if (code->type() == Code::NORMAL) {
     // Make sure that a hash table is allocated for the normal load code cache.
     if (normal_type_cache()->IsUndefined()) {
       Object* result;
@@ -5365,7 +5365,7 @@ MaybeObject* CodeCache::UpdateNormalTypeCache(String* name, Code* code) {
 
 
 Object* CodeCache::Lookup(String* name, Code::Flags flags) {
-  if (Code::ExtractTypeFromFlags(flags) == NORMAL) {
+  if (Code::ExtractTypeFromFlags(flags) == Code::NORMAL) {
     return LookupNormalTypeCache(name, flags);
   } else {
     return LookupDefaultCache(name, flags);
@@ -5403,7 +5403,7 @@ Object* CodeCache::LookupNormalTypeCache(String* name, Code::Flags flags) {
 
 
 int CodeCache::GetIndex(Object* name, Code* code) {
-  if (code->type() == NORMAL) {
+  if (code->type() == Code::NORMAL) {
     if (normal_type_cache()->IsUndefined()) return -1;
     CodeCacheHashTable* cache = CodeCacheHashTable::cast(normal_type_cache());
     return cache->GetIndex(String::cast(name), code->flags());
@@ -5419,7 +5419,7 @@ int CodeCache::GetIndex(Object* name, Code* code) {
 
 
 void CodeCache::RemoveByIndex(Object* name, Code* code, int index) {
-  if (code->type() == NORMAL) {
+  if (code->type() == Code::NORMAL) {
     ASSERT(!normal_type_cache()->IsUndefined());
     CodeCacheHashTable* cache = CodeCacheHashTable::cast(normal_type_cache());
     ASSERT(cache->GetIndex(String::cast(name), code->flags()) == index);
@@ -8554,17 +8554,15 @@ const char* Code::ICState2String(InlineCacheState state) {
 }
 
 
-const char* Code::PropertyType2String(PropertyType type) {
+const char* Code::StubType2String(StubType type) {
   switch (type) {
     case NORMAL: return "NORMAL";
     case FIELD: return "FIELD";
     case CONSTANT_FUNCTION: return "CONSTANT_FUNCTION";
     case CALLBACKS: return "CALLBACKS";
-    case HANDLER: return "HANDLER";
     case INTERCEPTOR: return "INTERCEPTOR";
     case MAP_TRANSITION: return "MAP_TRANSITION";
-    case CONSTANT_TRANSITION: return "CONSTANT_TRANSITION";
-    case NULL_DESCRIPTOR: return "NULL_DESCRIPTOR";
+    case NONEXISTENT: return "NONEXISTENT";
   }
   UNREACHABLE();  // keep the compiler happy
   return NULL;
@@ -8602,7 +8600,7 @@ void Code::Disassemble(const char* name, FILE* out) {
     PrintF(out, "ic_state = %s\n", ICState2String(ic_state()));
     PrintExtraICState(out, kind(), extra_ic_state());
     if (ic_state() == MONOMORPHIC) {
-      PrintF(out, "type = %s\n", PropertyType2String(type()));
+      PrintF(out, "type = %s\n", StubType2String(type()));
     }
     if (is_call_stub() || is_keyed_call_stub()) {
       PrintF(out, "argc = %d\n", arguments_count());

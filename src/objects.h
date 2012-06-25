@@ -4199,6 +4199,17 @@ class Code: public HeapObject {
     LAST_IC_KIND = TO_BOOLEAN_IC
   };
 
+  // Types of stubs.
+  enum StubType {
+    NORMAL,
+    FIELD,
+    CONSTANT_FUNCTION,
+    CALLBACKS,
+    INTERCEPTOR,
+    MAP_TRANSITION,
+    NONEXISTENT
+  };
+
   enum {
     NUMBER_OF_KINDS = LAST_IC_KIND + 1
   };
@@ -4211,7 +4222,7 @@ class Code: public HeapObject {
   // Printing
   static const char* Kind2String(Kind kind);
   static const char* ICState2String(InlineCacheState state);
-  static const char* PropertyType2String(PropertyType type);
+  static const char* StubType2String(StubType type);
   static void PrintExtraICState(FILE* out, Kind kind, ExtraICState extra);
   inline void Disassemble(const char* name) {
     Disassemble(name, stdout);
@@ -4261,7 +4272,7 @@ class Code: public HeapObject {
   inline Kind kind();
   inline InlineCacheState ic_state();  // Only valid for IC stubs.
   inline ExtraICState extra_ic_state();  // Only valid for IC stubs.
-  inline PropertyType type();  // Only valid for monomorphic IC stubs.
+  inline StubType type();  // Only valid for monomorphic IC stubs.
   inline int arguments_count();  // Only valid for call IC stubs.
 
   // Testers for IC stub kinds.
@@ -4404,19 +4415,19 @@ class Code: public HeapObject {
       Kind kind,
       InlineCacheState ic_state = UNINITIALIZED,
       ExtraICState extra_ic_state = kNoExtraICState,
-      PropertyType type = NORMAL,
+      StubType type = NORMAL,
       int argc = -1,
       InlineCacheHolderFlag holder = OWN_MAP);
 
   static inline Flags ComputeMonomorphicFlags(
       Kind kind,
-      PropertyType type,
+      StubType type,
       ExtraICState extra_ic_state = kNoExtraICState,
       InlineCacheHolderFlag holder = OWN_MAP,
       int argc = -1);
 
   static inline InlineCacheState ExtractICStateFromFlags(Flags flags);
-  static inline PropertyType ExtractTypeFromFlags(Flags flags);
+  static inline StubType ExtractTypeFromFlags(Flags flags);
   static inline Kind ExtractKindFromFlags(Flags flags);
   static inline InlineCacheHolderFlag ExtractCacheHolderFromFlags(Flags flags);
   static inline ExtraICState ExtractExtraICStateFromFlags(Flags flags);
@@ -4552,14 +4563,14 @@ class Code: public HeapObject {
 
   // Flags layout.  BitField<type, shift, size>.
   class ICStateField: public BitField<InlineCacheState, 0, 3> {};
-  class TypeField: public BitField<PropertyType, 3, 4> {};
-  class CacheHolderField: public BitField<InlineCacheHolderFlag, 7, 1> {};
-  class KindField: public BitField<Kind, 8, 4> {};
-  class ExtraICStateField: public BitField<ExtraICState, 12, 2> {};
-  class IsPregeneratedField: public BitField<bool, 14, 1> {};
+  class TypeField: public BitField<StubType, 3, 3> {};
+  class CacheHolderField: public BitField<InlineCacheHolderFlag, 6, 1> {};
+  class KindField: public BitField<Kind, 7, 4> {};
+  class ExtraICStateField: public BitField<ExtraICState, 11, 2> {};
+  class IsPregeneratedField: public BitField<bool, 13, 1> {};
 
   // Signed field cannot be encoded using the BitField class.
-  static const int kArgumentsCountShift = 15;
+  static const int kArgumentsCountShift = 14;
   static const int kArgumentsCountMask = ~((1 << kArgumentsCountShift) - 1);
 
   // This constant should be encodable in an ARM instruction.

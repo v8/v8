@@ -189,7 +189,7 @@ class LookupResult BASE_EMBEDDED {
         lookup_type_(NOT_FOUND),
         holder_(NULL),
         cacheable_(true),
-        details_(NONE, NONEXISTENT) {
+        details_(NONE, NULL_DESCRIPTOR) {
     isolate->SetTopLookupResult(this);
   }
 
@@ -237,7 +237,7 @@ class LookupResult BASE_EMBEDDED {
 
   void NotFound() {
     lookup_type_ = NOT_FOUND;
-    details_ = PropertyDetails(NONE, NONEXISTENT);
+    details_ = PropertyDetails(NONE, NULL_DESCRIPTOR);
     holder_ = NULL;
   }
 

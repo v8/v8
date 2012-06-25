@@ -1583,7 +1583,7 @@ Handle<Code> KeyedIC::ComputeStub(Handle<JSObject> receiver,
   // Don't handle megamorphic property accesses for INTERCEPTORS or CALLBACKS
   // via megamorphic stubs, since they don't have a map in their relocation info
   // and so the stubs can't be harvested for the object needed for a map check.
-  if (target()->type() != NORMAL) {
+  if (target()->type() != Code::NORMAL) {
     TRACE_GENERIC_IC("KeyedIC", "non-NORMAL target type");
     return generic_stub;
   }

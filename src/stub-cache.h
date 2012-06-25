@@ -628,7 +628,7 @@ class LoadStubCompiler: public StubCompiler {
                                  bool is_dont_delete);
 
  private:
-  Handle<Code> GetCode(PropertyType type, Handle<String> name);
+  Handle<Code> GetCode(Code::StubType type, Handle<String> name);
 };
 
 
@@ -676,7 +676,7 @@ class KeyedLoadStubCompiler: public StubCompiler {
   static void GenerateLoadDictionaryElement(MacroAssembler* masm);
 
  private:
-  Handle<Code> GetCode(PropertyType type,
+  Handle<Code> GetCode(Code::StubType type,
                        Handle<String> name,
                        InlineCacheState state = MONOMORPHIC);
 };
@@ -709,7 +709,7 @@ class StoreStubCompiler: public StubCompiler {
                                   Handle<String> name);
 
  private:
-  Handle<Code> GetCode(PropertyType type, Handle<String> name);
+  Handle<Code> GetCode(Code::StubType type, Handle<String> name);
 
   StrictModeFlag strict_mode_;
 };
@@ -750,7 +750,7 @@ class KeyedStoreStubCompiler: public StubCompiler {
   static void GenerateStoreDictionaryElement(MacroAssembler* masm);
 
  private:
-  Handle<Code> GetCode(PropertyType type,
+  Handle<Code> GetCode(Code::StubType type,
                        Handle<String> name,
                        InlineCacheState state = MONOMORPHIC);
 
@@ -830,7 +830,7 @@ class CallStubCompiler: public StubCompiler {
                                   Handle<JSFunction> function,
                                   Handle<String> name);
 
-  Handle<Code> GetCode(PropertyType type, Handle<String> name);
+  Handle<Code> GetCode(Code::StubType type, Handle<String> name);
   Handle<Code> GetCode(Handle<JSFunction> function);
 
   const ParameterCount& arguments() { return arguments_; }
