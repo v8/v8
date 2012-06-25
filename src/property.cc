@@ -89,8 +89,8 @@ void LookupResult::Print(FILE* out) {
       GetTransitionMap()->Print(out);
       PrintF(out, "\n");
       break;
-    case NULL_DESCRIPTOR:
-      PrintF(out, " =type = null descriptor\n");
+    case NONEXISTENT:
+      UNREACHABLE();
       break;
   }
 }
@@ -123,8 +123,10 @@ bool Descriptor::ContainsTransition() {
     case CONSTANT_FUNCTION:
     case HANDLER:
     case INTERCEPTOR:
-    case NULL_DESCRIPTOR:
       return false;
+    case NONEXISTENT:
+      UNREACHABLE();
+      break;
   }
   UNREACHABLE();  // Keep the compiler happy.
   return false;

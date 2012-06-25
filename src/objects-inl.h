@@ -1863,7 +1863,7 @@ void FixedArray::set_unchecked(Heap* heap,
 
 void FixedArray::set_null_unchecked(Heap* heap, int index) {
   ASSERT(index >= 0 && index < this->length());
-  ASSERT(!HEAP->InNewSpace(heap->null_value()));
+  ASSERT(!heap->InNewSpace(heap->null_value()));
   WRITE_FIELD(this, kHeaderSize + index * kPointerSize, heap->null_value());
 }
 
@@ -1976,6 +1976,17 @@ String* DescriptorArray::GetKey(int descriptor_number) {
 }
 
 
+void DescriptorArray::SetKeyUnchecked(Heap* heap,
+                                      int descriptor_number,
+                                      String* key) {
+  ASSERT(descriptor_number < number_of_descriptors());
+  set_unchecked(heap,
+                ToKeyIndex(descriptor_number),
+                key,
+                UPDATE_WRITE_BARRIER);
+}
+
+
 Object** DescriptorArray::GetValueSlot(int descriptor_number) {
   ASSERT(descriptor_number < number_of_descriptors());
   return HeapObject::RawField(
@@ -1990,9 +2001,21 @@ Object* DescriptorArray::GetValue(int descriptor_number) {
 }
 
 
-void DescriptorArray::SetNullValueUnchecked(int descriptor_number, Heap* heap) {
+void DescriptorArray::SetNullValueUnchecked(Heap* heap, int descriptor_number) {
   ASSERT(descriptor_number < number_of_descriptors());
   set_null_unchecked(heap, ToValueIndex(descriptor_number));
+}
+
+
+
+void DescriptorArray::SetValueUnchecked(Heap* heap,
+                                        int descriptor_number,
+                                        Object* value) {
+  ASSERT(descriptor_number < number_of_descriptors());
+  set_unchecked(heap,
+                ToValueIndex(descriptor_number),
+                value,
+                UPDATE_WRITE_BARRIER);
 }
 
 
@@ -2059,16 +2082,13 @@ bool DescriptorArray::IsTransitionOnly(int descriptor_number) {
     case CONSTANT_FUNCTION:
     case HANDLER:
     case INTERCEPTOR:
-    case NULL_DESCRIPTOR:
       return false;
+    case NONEXISTENT:
+      UNREACHABLE();
+      break;
   }
   UNREACHABLE();  // Keep the compiler happy.
   return false;
-}
-
-
-bool DescriptorArray::IsNullDescriptor(int descriptor_number) {
-  return GetType(descriptor_number) == NULL_DESCRIPTOR;
 }
 
 
@@ -3464,10 +3484,23 @@ int Map::bit_field3() {
 }
 
 
+void Map::ClearDescriptorArray() {
+  int bitfield3 = bit_field3();
+#ifdef DEBUG
+  Object* object = READ_FIELD(this, kInstanceDescriptorsOrBitField3Offset);
+  if (!object->IsSmi()) {
+    ZapInstanceDescriptors();
+  }
+#endif
+  WRITE_FIELD(this,
+              kInstanceDescriptorsOrBitField3Offset,
+              Smi::FromInt(bitfield3));
+}
+
+
 void Map::set_bit_field3(int value) {
   ASSERT(Smi::IsValid(value));
-  Object* object = READ_FIELD(this,
-                              kInstanceDescriptorsOrBitField3Offset);
+  Object* object = READ_FIELD(this, kInstanceDescriptorsOrBitField3Offset);
   if (object->IsSmi()) {
     WRITE_FIELD(this,
                 kInstanceDescriptorsOrBitField3Offset,

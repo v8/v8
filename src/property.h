@@ -173,8 +173,10 @@ bool IsPropertyDescriptor(T* desc) {
     }
     case MAP_TRANSITION:
     case CONSTANT_TRANSITION:
-    case NULL_DESCRIPTOR:
       return false;
+    case NONEXISTENT:
+      UNREACHABLE();
+      break;
   }
   UNREACHABLE();  // keep the compiler happy
   return false;
@@ -189,7 +191,7 @@ class LookupResult BASE_EMBEDDED {
         lookup_type_(NOT_FOUND),
         holder_(NULL),
         cacheable_(true),
-        details_(NONE, NULL_DESCRIPTOR) {
+        details_(NONE, NONEXISTENT) {
     isolate->SetTopLookupResult(this);
   }
 
@@ -237,7 +239,7 @@ class LookupResult BASE_EMBEDDED {
 
   void NotFound() {
     lookup_type_ = NOT_FOUND;
-    details_ = PropertyDetails(NONE, NULL_DESCRIPTOR);
+    details_ = PropertyDetails(NONE, NONEXISTENT);
     holder_ = NULL;
   }
 

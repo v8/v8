@@ -1901,8 +1901,7 @@ void Marker<T>::MarkDescriptorArray(DescriptorArray* descriptors) {
   }
 
   // If the descriptor contains a transition (value is a Map), we don't mark the
-  // value as live. It might be set to the NULL_DESCRIPTOR in
-  // ClearNonLiveTransitions later.
+  // value as live. It might be removed by ClearNonLiveTransitions later.
   for (int i = 0; i < descriptors->number_of_descriptors(); ++i) {
     Object** key_slot = descriptors->GetKeySlot(i);
     Object* key = *key_slot;
@@ -1940,7 +1939,9 @@ void Marker<T>::MarkDescriptorArray(DescriptorArray* descriptors) {
         break;
       case MAP_TRANSITION:
       case CONSTANT_TRANSITION:
-      case NULL_DESCRIPTOR:
+        break;
+      case NONEXISTENT:
+        UNREACHABLE();
         break;
     }
   }

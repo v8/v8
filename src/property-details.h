@@ -64,7 +64,8 @@ enum PropertyType {
   // All properties before MAP_TRANSITION are real.
   MAP_TRANSITION            = 6,  // only in fast mode
   CONSTANT_TRANSITION       = 7,  // only in fast mode
-  NULL_DESCRIPTOR           = 8  // only in fast mode
+  // Only used as a marker in LookupResult.
+  NONEXISTENT               = 8
 };
 
 

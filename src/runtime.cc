@@ -10286,9 +10286,9 @@ static MaybeObject* DebugLookupResultValue(Heap* heap,
     case INTERCEPTOR:
     case MAP_TRANSITION:
     case CONSTANT_TRANSITION:
-    case NULL_DESCRIPTOR:
       return heap->undefined_value();
     case HANDLER:
+    case NONEXISTENT:
       UNREACHABLE();
       return heap->undefined_value();
   }

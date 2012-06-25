@@ -922,24 +922,17 @@ Handle<DescriptorArray> Factory::CopyAppendCallbackDescriptors(
     Handle<Object> descriptors) {
   v8::NeanderArray callbacks(descriptors);
   int nof_callbacks = callbacks.length();
+  int descriptor_count = array->number_of_descriptors();
   Handle<DescriptorArray> result =
-      NewDescriptorArray(array->number_of_descriptors() + nof_callbacks);
-
-  // Number of descriptors added to the result so far.
-  int descriptor_count = 0;
+      NewDescriptorArray(descriptor_count + nof_callbacks);
 
   // Ensure that marking will not progress and change color of objects.
   DescriptorArray::WhitenessWitness witness(*result);
 
   // Copy the descriptors from the array.
-  for (int i = 0; i < array->number_of_descriptors(); i++) {
-    if (!array->IsNullDescriptor(i)) {
-      DescriptorArray::CopyFrom(result, descriptor_count++, array, i, witness);
-    }
+  for (int i = 0; i < descriptor_count; i++) {
+    DescriptorArray::CopyFrom(result, i, array, i, witness);
   }
-
-  // Number of duplicates detected.
-  int duplicates = 0;
 
   // Fill in new callback descriptors.  Process the callbacks from
   // back to front so that the last callback with a given name takes
@@ -956,18 +949,14 @@ Handle<DescriptorArray> Factory::CopyAppendCallbackDescriptors(
       CallbacksDescriptor desc(*key, *entry, entry->property_attributes());
       result->Set(descriptor_count, &desc, witness);
       descriptor_count++;
-    } else {
-      duplicates++;
     }
   }
 
   // If duplicates were detected, allocate a result of the right size
   // and transfer the elements.
-  if (duplicates > 0) {
-    int number_of_descriptors = result->number_of_descriptors() - duplicates;
-    Handle<DescriptorArray> new_result =
-        NewDescriptorArray(number_of_descriptors);
-    for (int i = 0; i < number_of_descriptors; i++) {
+  if (descriptor_count < result->length()) {
+    Handle<DescriptorArray> new_result = NewDescriptorArray(descriptor_count);
+    for (int i = 0; i < descriptor_count; i++) {
       DescriptorArray::CopyFrom(new_result, i, result, i, witness);
     }
     result = new_result;

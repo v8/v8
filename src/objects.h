@@ -2501,9 +2501,13 @@ class DescriptorArray: public FixedArray {
   // Accessors for fetching instance descriptor at descriptor number.
   inline String* GetKey(int descriptor_number);
   inline Object** GetKeySlot(int descriptor_number);
+  inline void SetKeyUnchecked(Heap* heap, int descriptor_number, String* value);
   inline Object* GetValue(int descriptor_number);
   inline Object** GetValueSlot(int descriptor_number);
-  inline void SetNullValueUnchecked(int descriptor_number, Heap* heap);
+  inline void SetNullValueUnchecked(Heap* heap, int descriptor_number);
+  inline void SetValueUnchecked(Heap* heap,
+                                int descriptor_number,
+                                Object* value);
   inline PropertyDetails GetDetails(int descriptor_number);
   inline void SetDetailsUnchecked(int descriptor_number, Smi* value);
   inline PropertyType GetType(int descriptor_number);
@@ -2513,7 +2517,6 @@ class DescriptorArray: public FixedArray {
   inline AccessorDescriptor* GetCallbacks(int descriptor_number);
   inline bool IsProperty(int descriptor_number);
   inline bool IsTransitionOnly(int descriptor_number);
-  inline bool IsNullDescriptor(int descriptor_number);
 
   // WhitenessWitness is used to prove that a specific descriptor array is white
   // (unmarked), so incremental write barriers can be skipped because the
@@ -4779,6 +4782,10 @@ class Map: public HeapObject {
 
   // [instance descriptors]: describes the object.
   DECL_ACCESSORS(instance_descriptors, DescriptorArray)
+
+  // Should only be called to clear a descriptor array that was only used to
+  // store transitions and does not contain any live transitions anymore.
+  inline void ClearDescriptorArray();
 
   // Sets the instance descriptor array for the map to be an empty descriptor
   // array.
