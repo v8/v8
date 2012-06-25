@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -129,7 +129,7 @@ function MapHas(key) {
   if (IS_UNDEFINED(key)) {
     key = undefined_sentinel;
   }
-  return !IS_UNDEFINED(%MapGet(this, key));
+  return %MapHas(this, key);
 }
 
 
@@ -141,12 +141,7 @@ function MapDelete(key) {
   if (IS_UNDEFINED(key)) {
     key = undefined_sentinel;
   }
-  if (!IS_UNDEFINED(%MapGet(this, key))) {
-    %MapSet(this, key, void 0);
-    return true;
-  } else {
-    return false;
-  }
+  return %MapDelete(this, key);
 }
 
 
@@ -191,7 +186,7 @@ function WeakMapHas(key) {
   if (!IS_SPEC_OBJECT(key)) {
     throw %MakeTypeError('invalid_weakmap_key', [this, key]);
   }
-  return !IS_UNDEFINED(%WeakMapGet(this, key));
+  return %WeakMapHas(this, key);
 }
 
 
@@ -203,12 +198,7 @@ function WeakMapDelete(key) {
   if (!IS_SPEC_OBJECT(key)) {
     throw %MakeTypeError('invalid_weakmap_key', [this, key]);
   }
-  if (!IS_UNDEFINED(%WeakMapGet(this, key))) {
-    %WeakMapSet(this, key, void 0);
-    return true;
-  } else {
-    return false;
-  }
+  return %WeakMapDelete(this, key);
 }
 
 // -------------------------------------------------------------------

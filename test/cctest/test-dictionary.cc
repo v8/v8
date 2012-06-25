@@ -48,24 +48,24 @@ TEST(ObjectHashTable) {
   table = PutIntoObjectHashTable(table, a, b);
   CHECK_EQ(table->NumberOfElements(), 1);
   CHECK_EQ(table->Lookup(*a), *b);
-  CHECK_EQ(table->Lookup(*b), HEAP->undefined_value());
+  CHECK_EQ(table->Lookup(*b), HEAP->the_hole_value());
 
   // Keys still have to be valid after objects were moved.
   HEAP->CollectGarbage(NEW_SPACE);
   CHECK_EQ(table->NumberOfElements(), 1);
   CHECK_EQ(table->Lookup(*a), *b);
-  CHECK_EQ(table->Lookup(*b), HEAP->undefined_value());
+  CHECK_EQ(table->Lookup(*b), HEAP->the_hole_value());
 
   // Keys that are overwritten should not change number of elements.
   table = PutIntoObjectHashTable(table, a, FACTORY->NewJSArray(13));
   CHECK_EQ(table->NumberOfElements(), 1);
   CHECK_NE(table->Lookup(*a), *b);
 
-  // Keys mapped to undefined should be removed permanently.
-  table = PutIntoObjectHashTable(table, a, FACTORY->undefined_value());
+  // Keys mapped to the hole should be removed permanently.
+  table = PutIntoObjectHashTable(table, a, FACTORY->the_hole_value());
   CHECK_EQ(table->NumberOfElements(), 0);
   CHECK_EQ(table->NumberOfDeletedElements(), 1);
-  CHECK_EQ(table->Lookup(*a), HEAP->undefined_value());
+  CHECK_EQ(table->Lookup(*a), HEAP->the_hole_value());
 
   // Keys should map back to their respective values and also should get
   // an identity hash code generated.
@@ -85,7 +85,7 @@ TEST(ObjectHashTable) {
     Handle<JSObject> key = FACTORY->NewJSArray(7);
     CHECK(key->GetIdentityHash(ALLOW_CREATION)->ToObjectChecked()->IsSmi());
     CHECK_EQ(table->FindEntry(*key), ObjectHashTable::kNotFound);
-    CHECK_EQ(table->Lookup(*key), HEAP->undefined_value());
+    CHECK_EQ(table->Lookup(*key), HEAP->the_hole_value());
     CHECK(key->GetIdentityHash(OMIT_CREATION)->ToObjectChecked()->IsSmi());
   }
 
@@ -93,7 +93,7 @@ TEST(ObjectHashTable) {
   // should not get an identity hash code generated.
   for (int i = 0; i < 100; i++) {
     Handle<JSObject> key = FACTORY->NewJSArray(7);
-    CHECK_EQ(table->Lookup(*key), HEAP->undefined_value());
+    CHECK_EQ(table->Lookup(*key), HEAP->the_hole_value());
     CHECK_EQ(key->GetIdentityHash(OMIT_CREATION), HEAP->undefined_value());
   }
 }

@@ -302,11 +302,15 @@ namespace internal {
   /* Harmony maps */ \
   F(MapInitialize, 1, 1) \
   F(MapGet, 2, 1) \
+  F(MapHas, 2, 1) \
+  F(MapDelete, 2, 1) \
   F(MapSet, 3, 1) \
   \
   /* Harmony weakmaps */ \
   F(WeakMapInitialize, 1, 1) \
   F(WeakMapGet, 2, 1) \
+  F(WeakMapHas, 2, 1) \
+  F(WeakMapDelete, 2, 1) \
   F(WeakMapSet, 3, 1) \
   \
   /* Statements */ \

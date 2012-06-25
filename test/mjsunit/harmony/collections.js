@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -119,12 +119,12 @@ TestMapBehavior2(new Map);
 // Test expected querying behavior of Maps and WeakMaps
 function TestQuery(m) {
   var key = new Object;
-  TestMapping(m, key, 'to-be-present');
-  assertTrue(m.has(key));
-  assertFalse(m.has(new Object));
-  TestMapping(m, key, undefined);
-  assertFalse(m.has(key));
-  assertFalse(m.has(new Object));
+  var values = [ 'x', 0, +Infinity, -Infinity, true, false, null, undefined ];
+  for (var i = 0; i < values.length; i++) {
+    TestMapping(m, key, values[i]);
+    assertTrue(m.has(key));
+    assertFalse(m.has(new Object));
+  }
 }
 TestQuery(new Map);
 TestQuery(new WeakMap);

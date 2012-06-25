@@ -12931,11 +12931,11 @@ Object* ObjectHashTable::Lookup(Object* key) {
   // If the object does not have an identity hash, it was never used as a key.
   { MaybeObject* maybe_hash = key->GetHash(OMIT_CREATION);
     if (maybe_hash->ToObjectUnchecked()->IsUndefined()) {
-      return GetHeap()->undefined_value();
+      return GetHeap()->the_hole_value();
     }
   }
   int entry = FindEntry(key);
-  if (entry == kNotFound) return GetHeap()->undefined_value();
+  if (entry == kNotFound) return GetHeap()->the_hole_value();
   return get(EntryToIndex(entry) + 1);
 }
 
@@ -12952,7 +12952,7 @@ MaybeObject* ObjectHashTable::Put(Object* key, Object* value) {
   int entry = FindEntry(key);
 
   // Check whether to perform removal operation.
-  if (value->IsUndefined()) {
+  if (value->IsTheHole()) {
     if (entry == kNotFound) return this;
     RemoveEntry(entry);
     return Shrink(key);

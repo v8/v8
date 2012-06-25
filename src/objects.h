@@ -3325,12 +3325,12 @@ class ObjectHashTable: public HashTable<ObjectHashTableShape<2>, Object*> {
     return reinterpret_cast<ObjectHashTable*>(obj);
   }
 
-  // Looks up the value associated with the given key. The undefined value is
+  // Looks up the value associated with the given key. The hole value is
   // returned in case the key is not present.
   Object* Lookup(Object* key);
 
   // Adds (or overwrites) the value associated with the given key. Mapping a
-  // key to the undefined value causes removal of the whole entry.
+  // key to the hole value causes removal of the whole entry.
   MUST_USE_RESULT MaybeObject* Put(Object* key, Object* value);
 
  private:
