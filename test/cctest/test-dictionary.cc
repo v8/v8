@@ -134,7 +134,7 @@ TEST(ObjectHashTableCausesGC) {
   FLAG_gc_interval = 0;
 
   // Calling Lookup() should not cause GC ever.
-  CHECK(table->Lookup(*key)->IsUndefined());
+  CHECK(table->Lookup(*key)->IsTheHole());
 
   // Calling Put() should request GC by returning a failure.
   CHECK(table->Put(*key, *key)->IsRetryAfterGC());
