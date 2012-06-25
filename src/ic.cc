@@ -1385,12 +1385,13 @@ MaybeObject* StoreIC::Store(State state,
   }
 
   // Lookup the property locally in the receiver.
-  if (FLAG_use_ic && !receiver->IsJSGlobalProxy()) {
+  if (!receiver->IsJSGlobalProxy()) {
     LookupResult lookup(isolate());
 
     if (LookupForWrite(receiver, name, &lookup)) {
-      // Generate a stub for this store.
-      UpdateCaches(&lookup, state, strict_mode, receiver, name, value);
+      if (FLAG_use_ic) {  // Generate a stub for this store.
+        UpdateCaches(&lookup, state, strict_mode, receiver, name, value);
+      }
     } else {
       // Strict mode doesn't allow setting non-existent global property
       // or an assignment to a read only property.
