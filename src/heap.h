@@ -1359,13 +1359,24 @@ class Heap {
     return max_old_generation_size_ - PromotedTotalSize();
   }
 
-  static const intptr_t kMinPromotionLimit = 5 * Page::kPageSize;
-  static const intptr_t kMinAllocationLimit =
+  static const intptr_t kMinimumPromotionLimit = 5 * Page::kPageSize;
+  static const intptr_t kMinimumAllocationLimit =
       8 * (Page::kPageSize > MB ? Page::kPageSize : MB);
 
-  intptr_t OldGenLimit(intptr_t old_gen_size, intptr_t min_limit) {
+  intptr_t OldGenPromotionLimit(intptr_t old_gen_size) {
+    const int divisor = FLAG_stress_compaction ? 10 : 3;
+    intptr_t limit =
+        Max(old_gen_size + old_gen_size / divisor, kMinimumPromotionLimit);
+    limit += new_space_.Capacity();
+    limit *= old_gen_limit_factor_;
+    intptr_t halfway_to_the_max = (old_gen_size + max_old_generation_size_) / 2;
+    return Min(limit, halfway_to_the_max);
+  }
+
+  intptr_t OldGenAllocationLimit(intptr_t old_gen_size) {
     const int divisor = FLAG_stress_compaction ? 8 : 2;
-    intptr_t limit = Max(old_gen_size + old_gen_size / divisor, min_limit);
+    intptr_t limit =
+        Max(old_gen_size + old_gen_size / divisor, kMinimumAllocationLimit);
     limit += new_space_.Capacity();
     limit *= old_gen_limit_factor_;
     intptr_t halfway_to_the_max = (old_gen_size + max_old_generation_size_) / 2;

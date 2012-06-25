@@ -118,8 +118,8 @@ Heap::Heap()
       debug_utils_(NULL),
 #endif  // DEBUG
       new_space_high_promotion_mode_active_(false),
-      old_gen_promotion_limit_(kMinPromotionLimit),
-      old_gen_allocation_limit_(kMinAllocationLimit),
+      old_gen_promotion_limit_(kMinimumPromotionLimit),
+      old_gen_allocation_limit_(kMinimumAllocationLimit),
       old_gen_limit_factor_(1),
       size_of_old_gen_at_last_old_space_gc_(0),
       external_allocation_limit_(0),
@@ -829,9 +829,9 @@ bool Heap::PerformGarbageCollection(GarbageCollector collector,
     }
 
     old_gen_promotion_limit_ =
-        OldGenLimit(size_of_old_gen_at_last_old_space_gc_, kMinPromotionLimit);
+        OldGenPromotionLimit(size_of_old_gen_at_last_old_space_gc_);
     old_gen_allocation_limit_ =
-        OldGenLimit(size_of_old_gen_at_last_old_space_gc_, kMinAllocationLimit);
+        OldGenAllocationLimit(size_of_old_gen_at_last_old_space_gc_);
 
     old_gen_exhausted_ = false;
   } else {

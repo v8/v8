@@ -623,17 +623,15 @@ bool Compiler::CompileLazy(CompilationInfo* info) {
     Handle<JSFunction> function = info->closure();
     ASSERT(!function.is_null());
     Handle<Context> global_context(function->context()->global_context());
-    int index = function->shared()->SearchOptimizedCodeMap(*global_context);
+    int index = shared->SearchOptimizedCodeMap(*global_context);
     if (index > 0) {
       if (FLAG_trace_opt) {
-        PrintF("  [Found optimized code for");
+        PrintF("[found optimized code for: ");
         function->PrintName();
-        PrintF("\n");
+        PrintF(" / %" V8PRIxPTR "]\n", reinterpret_cast<intptr_t>(*function));
       }
-      Code* code = Code::cast(
-          FixedArray::cast(shared->optimized_code_map())->get(index));
-      ASSERT(code != NULL);
-      function->ReplaceCode(code);
+      // Caching of optimized code enabled and optimized code found.
+      shared->InstallFromOptimizedCodeMap(*function, index);
       return true;
     }
   }
@@ -672,20 +670,8 @@ bool Compiler::CompileLazy(CompilationInfo* info) {
         if (FLAG_cache_optimized_code &&
             code->kind() == Code::OPTIMIZED_FUNCTION) {
           Handle<SharedFunctionInfo> shared(function->shared());
+          Handle<FixedArray> literals(function->literals());
           Handle<Context> global_context(function->context()->global_context());
-
-          // Create literals array that will be shared for this global context.
-          int number_of_literals = shared->num_literals();
-          Handle<FixedArray> literals =
-              isolate->factory()->NewFixedArray(number_of_literals);
-          if (number_of_literals > 0) {
-            // Store the object, regexp and array functions in the literals
-            // array prefix.  These functions will be used when creating
-            // object, regexp and array literals in this function.
-            literals->set(JSFunction::kLiteralGlobalContextIndex,
-                          function->context()->global_context());
-          }
-
           SharedFunctionInfo::AddToOptimizedCodeMap(
               shared, global_context, code, literals);
         }

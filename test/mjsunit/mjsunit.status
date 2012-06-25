@@ -125,6 +125,7 @@ regress/regress-1132: SKIP
 debug-liveedit-check-stack: SKIP
 debug-liveedit-stack-padding: SKIP
 debug-liveedit-restart-frame: SKIP
+debug-liveedit-double-call: SKIP
 
 # Currently always deopt on minus zero
 math-floor-of-div-minus-zero: SKIP

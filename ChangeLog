@@ -1,3 +1,13 @@
+2012-06-25: Version 3.12.3
+
+        Reverted r11835 'Unify promotion and allocation limit computation' due
+        to V8 Splay performance regression on Mac.  (Chromium issue 134183)
+
+        Fixed sharing of literal boilerplates for optimized code.  (issue 2193)
+
+        Performance and stability improvements on all platforms.
+
+
 2012-06-22: Version 3.12.2
 
         Made near-jump check more strict in LoadNamedFieldPolymorphic on

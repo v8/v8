@@ -2331,7 +2331,9 @@ bool Debug::IsBreakAtReturn(JavaScriptFrame* frame) {
 void Debug::FramesHaveBeenDropped(StackFrame::Id new_break_frame_id,
                                   FrameDropMode mode,
                                   Object** restarter_frame_function_pointer) {
-  thread_local_.frame_drop_mode_ = mode;
+  if (mode != CURRENTLY_SET_MODE) {
+    thread_local_.frame_drop_mode_ = mode;
+  }
   thread_local_.break_frame_id_ = new_break_frame_id;
   thread_local_.restarter_frame_function_pointer_ =
       restarter_frame_function_pointer;

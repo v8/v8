@@ -635,6 +635,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateArrayLiteral) {
   // Check if boilerplate exists. If not, create it first.
   Handle<Object> boilerplate(literals->get(literals_index), isolate);
   if (*boilerplate == isolate->heap()->undefined_value()) {
+    ASSERT(*elements != isolate->heap()->empty_fixed_array());
     boilerplate =
         Runtime::CreateArrayLiteralBoilerplate(isolate, literals, elements);
     if (boilerplate.is_null()) return Failure::Exception();

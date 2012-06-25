@@ -448,7 +448,8 @@ class Debug {
     // The top JS frame had been calling some C++ function. The return address
     // gets patched automatically.
     FRAME_DROPPED_IN_DIRECT_CALL,
-    FRAME_DROPPED_IN_RETURN_CALL
+    FRAME_DROPPED_IN_RETURN_CALL,
+    CURRENTLY_SET_MODE
   };
 
   void FramesHaveBeenDropped(StackFrame::Id new_break_frame_id,
