@@ -444,6 +444,56 @@ void Heap::GarbageCollectionEpilogue() {
       symbol_table()->Capacity());
   isolate_->counters()->number_of_symbols()->Set(
       symbol_table()->NumberOfElements());
+
+  isolate_->counters()->new_space_bytes_available()->Set(
+      static_cast<int>(new_space()->Available()));
+  isolate_->counters()->new_space_bytes_committed()->Set(
+      static_cast<int>(new_space()->CommittedMemory()));
+  isolate_->counters()->new_space_bytes_used()->Set(
+      static_cast<int>(new_space()->SizeOfObjects()));
+
+  isolate_->counters()->old_pointer_space_bytes_available()->Set(
+      static_cast<int>(old_pointer_space()->Available()));
+  isolate_->counters()->old_pointer_space_bytes_committed()->Set(
+      static_cast<int>(old_pointer_space()->CommittedMemory()));
+  isolate_->counters()->old_pointer_space_bytes_used()->Set(
+      static_cast<int>(old_pointer_space()->SizeOfObjects()));
+
+  isolate_->counters()->old_data_space_bytes_available()->Set(
+      static_cast<int>(old_data_space()->Available()));
+  isolate_->counters()->old_data_space_bytes_committed()->Set(
+      static_cast<int>(old_data_space()->CommittedMemory()));
+  isolate_->counters()->old_data_space_bytes_used()->Set(
+      static_cast<int>(old_data_space()->SizeOfObjects()));
+
+  isolate_->counters()->code_space_bytes_available()->Set(
+      static_cast<int>(code_space()->Available()));
+  isolate_->counters()->code_space_bytes_committed()->Set(
+      static_cast<int>(code_space()->CommittedMemory()));
+  isolate_->counters()->code_space_bytes_used()->Set(
+      static_cast<int>(code_space()->SizeOfObjects()));
+
+  isolate_->counters()->map_space_bytes_available()->Set(
+      static_cast<int>(map_space()->Available()));
+  isolate_->counters()->map_space_bytes_committed()->Set(
+      static_cast<int>(map_space()->CommittedMemory()));
+  isolate_->counters()->map_space_bytes_used()->Set(
+      static_cast<int>(map_space()->SizeOfObjects()));
+
+  isolate_->counters()->cell_space_bytes_available()->Set(
+      static_cast<int>(cell_space()->Available()));
+  isolate_->counters()->cell_space_bytes_committed()->Set(
+      static_cast<int>(cell_space()->CommittedMemory()));
+  isolate_->counters()->cell_space_bytes_used()->Set(
+      static_cast<int>(cell_space()->SizeOfObjects()));
+
+  isolate_->counters()->lo_space_bytes_available()->Set(
+      static_cast<int>(lo_space()->Available()));
+  isolate_->counters()->lo_space_bytes_committed()->Set(
+      static_cast<int>(lo_space()->CommittedMemory()));
+  isolate_->counters()->lo_space_bytes_used()->Set(
+      static_cast<int>(lo_space()->SizeOfObjects()));
+
 #if defined(DEBUG)
   ReportStatisticsAfterGC();
 #endif  // DEBUG
