@@ -183,4 +183,5 @@ regress/regress-1132: SKIP
 debug-liveedit-check-stack: SKIP
 debug-liveedit-stack-padding: SKIP
 debug-liveedit-restart-frame: SKIP
+debug-liveedit-double-call: SKIP
 
