@@ -7444,6 +7444,9 @@ static bool ClearNonLiveTransitionsFromDescriptor(Heap* heap,
 }
 
 
+// TODO(mstarzinger): This method should be moved into MarkCompactCollector,
+// because it cannot be called from outside the GC and we already have methods
+// depending on the transitions layout in the GC anyways.
 void Map::ClearNonLiveTransitions(Heap* heap) {
   Object* array = *RawField(this, Map::kInstanceDescriptorsOrBitField3Offset);
   // If there are no descriptors to be cleared, return.
@@ -7457,9 +7460,18 @@ void Map::ClearNonLiveTransitions(Heap* heap) {
   for (int i = 0; i < d->number_of_descriptors(); ++i) {
     if (!ClearNonLiveTransitionsFromDescriptor(heap, d, i)) {
       if (i != descriptor_index) {
-        d->SetKeyUnchecked(heap, descriptor_index, d->GetKey(i));
+        String* key = d->GetKey(i);
+        Object* value = d->GetValue(i);
+        d->SetKeyUnchecked(heap, descriptor_index, key);
         d->SetDetailsUnchecked(descriptor_index, d->GetDetails(i).AsSmi());
-        d->SetValueUnchecked(heap, descriptor_index, d->GetValue(i));
+        d->SetValueUnchecked(heap, descriptor_index, value);
+        MarkCompactCollector* collector = heap->mark_compact_collector();
+        Object** key_slot = d->GetKeySlot(descriptor_index);
+        collector->RecordSlot(key_slot, key_slot, key);
+        if (value->IsHeapObject()) {
+          Object** value_slot = d->GetValueSlot(descriptor_index);
+          collector->RecordSlot(value_slot, value_slot, value);
+        }
       }
       descriptor_index++;
     }
