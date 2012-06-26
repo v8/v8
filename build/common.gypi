@@ -348,7 +348,6 @@
             'cflags': [
               '-fdata-sections',
               '-ffunction-sections',
-              '-fomit-frame-pointer',
               '-O3',
             ],
             'conditions': [
@@ -378,7 +377,6 @@
                 'InlineFunctionExpansion': '2',
                 'EnableIntrinsicFunctions': 'true',
                 'FavorSizeOrSpeed': '0',
-                'OmitFramePointers': 'true',
                 'StringPooling': 'true',
                 'conditions': [
                   ['OS=="win" and component=="shared_library"', {
