@@ -774,6 +774,11 @@ class MacroAssembler: public Assembler {
   // Move if the registers are not identical.
   void Move(Register target, Register source);
 
+  // Support for constant splitting.
+  bool IsUnsafeInt(const int x);
+  void SafeMove(Register dst, Smi* src);
+  void SafePush(Smi* src);
+
   // Bit-field support.
   void TestBit(const Operand& dst, int bit_index);
 

@@ -795,8 +795,35 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_MapGet) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 2);
   CONVERT_ARG_HANDLE_CHECKED(JSMap, holder, 0);
-  Handle<Object> key(args[1]);
-  return ObjectHashTable::cast(holder->table())->Lookup(*key);
+  CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
+  Handle<ObjectHashTable> table(ObjectHashTable::cast(holder->table()));
+  Handle<Object> lookup(table->Lookup(*key));
+  return lookup->IsTheHole() ? isolate->heap()->undefined_value() : *lookup;
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_MapHas) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 2);
+  CONVERT_ARG_HANDLE_CHECKED(JSMap, holder, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
+  Handle<ObjectHashTable> table(ObjectHashTable::cast(holder->table()));
+  Handle<Object> lookup(table->Lookup(*key));
+  return isolate->heap()->ToBoolean(!lookup->IsTheHole());
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_MapDelete) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 2);
+  CONVERT_ARG_HANDLE_CHECKED(JSMap, holder, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
+  Handle<ObjectHashTable> table(ObjectHashTable::cast(holder->table()));
+  Handle<Object> lookup(table->Lookup(*key));
+  Handle<ObjectHashTable> new_table =
+      PutIntoObjectHashTable(table, key, isolate->factory()->the_hole_value());
+  holder->set_table(*new_table);
+  return isolate->heap()->ToBoolean(!lookup->IsTheHole());
 }
 
 
@@ -804,8 +831,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_MapSet) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 3);
   CONVERT_ARG_HANDLE_CHECKED(JSMap, holder, 0);
-  Handle<Object> key(args[1]);
-  Handle<Object> value(args[2]);
+  CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
+  CONVERT_ARG_HANDLE_CHECKED(Object, value, 2);
   Handle<ObjectHashTable> table(ObjectHashTable::cast(holder->table()));
   Handle<ObjectHashTable> new_table = PutIntoObjectHashTable(table, key, value);
   holder->set_table(*new_table);
@@ -826,11 +853,38 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_WeakMapInitialize) {
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_WeakMapGet) {
-  NoHandleAllocation ha;
+  HandleScope scope(isolate);
   ASSERT(args.length() == 2);
   CONVERT_ARG_HANDLE_CHECKED(JSWeakMap, weakmap, 0);
   CONVERT_ARG_HANDLE_CHECKED(JSReceiver, key, 1);
-  return ObjectHashTable::cast(weakmap->table())->Lookup(*key);
+  Handle<ObjectHashTable> table(ObjectHashTable::cast(weakmap->table()));
+  Handle<Object> lookup(table->Lookup(*key));
+  return lookup->IsTheHole() ? isolate->heap()->undefined_value() : *lookup;
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_WeakMapHas) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 2);
+  CONVERT_ARG_HANDLE_CHECKED(JSWeakMap, weakmap, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, key, 1);
+  Handle<ObjectHashTable> table(ObjectHashTable::cast(weakmap->table()));
+  Handle<Object> lookup(table->Lookup(*key));
+  return isolate->heap()->ToBoolean(!lookup->IsTheHole());
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_WeakMapDelete) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 2);
+  CONVERT_ARG_HANDLE_CHECKED(JSWeakMap, weakmap, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, key, 1);
+  Handle<ObjectHashTable> table(ObjectHashTable::cast(weakmap->table()));
+  Handle<Object> lookup(table->Lookup(*key));
+  Handle<ObjectHashTable> new_table =
+      PutIntoObjectHashTable(table, key, isolate->factory()->the_hole_value());
+  weakmap->set_table(*new_table);
+  return isolate->heap()->ToBoolean(!lookup->IsTheHole());
 }
 
 
@@ -10286,9 +10340,9 @@ static MaybeObject* DebugLookupResultValue(Heap* heap,
     case INTERCEPTOR:
     case MAP_TRANSITION:
     case CONSTANT_TRANSITION:
-    case NULL_DESCRIPTOR:
       return heap->undefined_value();
     case HANDLER:
+    case NONEXISTENT:
       UNREACHABLE();
       return heap->undefined_value();
   }

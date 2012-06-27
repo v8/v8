@@ -173,8 +173,10 @@ bool IsPropertyDescriptor(T* desc) {
     }
     case MAP_TRANSITION:
     case CONSTANT_TRANSITION:
-    case NULL_DESCRIPTOR:
       return false;
+    case NONEXISTENT:
+      UNREACHABLE();
+      break;
   }
   UNREACHABLE();  // keep the compiler happy
   return false;

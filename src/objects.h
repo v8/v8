@@ -2501,9 +2501,13 @@ class DescriptorArray: public FixedArray {
   // Accessors for fetching instance descriptor at descriptor number.
   inline String* GetKey(int descriptor_number);
   inline Object** GetKeySlot(int descriptor_number);
+  inline void SetKeyUnchecked(Heap* heap, int descriptor_number, String* value);
   inline Object* GetValue(int descriptor_number);
   inline Object** GetValueSlot(int descriptor_number);
-  inline void SetNullValueUnchecked(int descriptor_number, Heap* heap);
+  inline void SetNullValueUnchecked(Heap* heap, int descriptor_number);
+  inline void SetValueUnchecked(Heap* heap,
+                                int descriptor_number,
+                                Object* value);
   inline PropertyDetails GetDetails(int descriptor_number);
   inline void SetDetailsUnchecked(int descriptor_number, Smi* value);
   inline PropertyType GetType(int descriptor_number);
@@ -2513,7 +2517,6 @@ class DescriptorArray: public FixedArray {
   inline AccessorDescriptor* GetCallbacks(int descriptor_number);
   inline bool IsProperty(int descriptor_number);
   inline bool IsTransitionOnly(int descriptor_number);
-  inline bool IsNullDescriptor(int descriptor_number);
 
   // WhitenessWitness is used to prove that a specific descriptor array is white
   // (unmarked), so incremental write barriers can be skipped because the
@@ -3322,12 +3325,12 @@ class ObjectHashTable: public HashTable<ObjectHashTableShape<2>, Object*> {
     return reinterpret_cast<ObjectHashTable*>(obj);
   }
 
-  // Looks up the value associated with the given key. The undefined value is
+  // Looks up the value associated with the given key. The hole value is
   // returned in case the key is not present.
   Object* Lookup(Object* key);
 
   // Adds (or overwrites) the value associated with the given key. Mapping a
-  // key to the undefined value causes removal of the whole entry.
+  // key to the hole value causes removal of the whole entry.
   MUST_USE_RESULT MaybeObject* Put(Object* key, Object* value);
 
  private:
@@ -4199,6 +4202,17 @@ class Code: public HeapObject {
     LAST_IC_KIND = TO_BOOLEAN_IC
   };
 
+  // Types of stubs.
+  enum StubType {
+    NORMAL,
+    FIELD,
+    CONSTANT_FUNCTION,
+    CALLBACKS,
+    INTERCEPTOR,
+    MAP_TRANSITION,
+    NONEXISTENT
+  };
+
   enum {
     NUMBER_OF_KINDS = LAST_IC_KIND + 1
   };
@@ -4211,7 +4225,7 @@ class Code: public HeapObject {
   // Printing
   static const char* Kind2String(Kind kind);
   static const char* ICState2String(InlineCacheState state);
-  static const char* PropertyType2String(PropertyType type);
+  static const char* StubType2String(StubType type);
   static void PrintExtraICState(FILE* out, Kind kind, ExtraICState extra);
   inline void Disassemble(const char* name) {
     Disassemble(name, stdout);
@@ -4261,7 +4275,7 @@ class Code: public HeapObject {
   inline Kind kind();
   inline InlineCacheState ic_state();  // Only valid for IC stubs.
   inline ExtraICState extra_ic_state();  // Only valid for IC stubs.
-  inline PropertyType type();  // Only valid for monomorphic IC stubs.
+  inline StubType type();  // Only valid for monomorphic IC stubs.
   inline int arguments_count();  // Only valid for call IC stubs.
 
   // Testers for IC stub kinds.
@@ -4404,19 +4418,19 @@ class Code: public HeapObject {
       Kind kind,
       InlineCacheState ic_state = UNINITIALIZED,
       ExtraICState extra_ic_state = kNoExtraICState,
-      PropertyType type = NORMAL,
+      StubType type = NORMAL,
       int argc = -1,
       InlineCacheHolderFlag holder = OWN_MAP);
 
   static inline Flags ComputeMonomorphicFlags(
       Kind kind,
-      PropertyType type,
+      StubType type,
       ExtraICState extra_ic_state = kNoExtraICState,
       InlineCacheHolderFlag holder = OWN_MAP,
       int argc = -1);
 
   static inline InlineCacheState ExtractICStateFromFlags(Flags flags);
-  static inline PropertyType ExtractTypeFromFlags(Flags flags);
+  static inline StubType ExtractTypeFromFlags(Flags flags);
   static inline Kind ExtractKindFromFlags(Flags flags);
   static inline InlineCacheHolderFlag ExtractCacheHolderFromFlags(Flags flags);
   static inline ExtraICState ExtractExtraICStateFromFlags(Flags flags);
@@ -4552,14 +4566,14 @@ class Code: public HeapObject {
 
   // Flags layout.  BitField<type, shift, size>.
   class ICStateField: public BitField<InlineCacheState, 0, 3> {};
-  class TypeField: public BitField<PropertyType, 3, 4> {};
-  class CacheHolderField: public BitField<InlineCacheHolderFlag, 7, 1> {};
-  class KindField: public BitField<Kind, 8, 4> {};
-  class ExtraICStateField: public BitField<ExtraICState, 12, 2> {};
-  class IsPregeneratedField: public BitField<bool, 14, 1> {};
+  class TypeField: public BitField<StubType, 3, 3> {};
+  class CacheHolderField: public BitField<InlineCacheHolderFlag, 6, 1> {};
+  class KindField: public BitField<Kind, 7, 4> {};
+  class ExtraICStateField: public BitField<ExtraICState, 11, 2> {};
+  class IsPregeneratedField: public BitField<bool, 13, 1> {};
 
   // Signed field cannot be encoded using the BitField class.
-  static const int kArgumentsCountShift = 15;
+  static const int kArgumentsCountShift = 14;
   static const int kArgumentsCountMask = ~((1 << kArgumentsCountShift) - 1);
 
   // This constant should be encodable in an ARM instruction.
@@ -4768,6 +4782,10 @@ class Map: public HeapObject {
 
   // [instance descriptors]: describes the object.
   DECL_ACCESSORS(instance_descriptors, DescriptorArray)
+
+  // Should only be called to clear a descriptor array that was only used to
+  // store transitions and does not contain any live transitions anymore.
+  inline void ClearDescriptorArray();
 
   // Sets the instance descriptor array for the map to be an empty descriptor
   // array.

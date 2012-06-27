@@ -320,48 +320,52 @@ void Heap::ReportStatisticsBeforeGC() {
 
 void Heap::PrintShortHeapStatistics() {
   if (!FLAG_trace_gc_verbose) return;
-  PrintF("Memory allocator,   used: %8" V8_PTR_PREFIX "d"
-             ", available: %8" V8_PTR_PREFIX "d\n",
-         isolate_->memory_allocator()->Size(),
-         isolate_->memory_allocator()->Available());
-  PrintF("New space,          used: %8" V8_PTR_PREFIX "d"
-             ", available: %8" V8_PTR_PREFIX "d\n",
-         Heap::new_space_.Size(),
-         new_space_.Available());
-  PrintF("Old pointers,       used: %8" V8_PTR_PREFIX "d"
-             ", available: %8" V8_PTR_PREFIX "d"
-             ", waste: %8" V8_PTR_PREFIX "d\n",
-         old_pointer_space_->Size(),
-         old_pointer_space_->Available(),
-         old_pointer_space_->Waste());
-  PrintF("Old data space,     used: %8" V8_PTR_PREFIX "d"
-             ", available: %8" V8_PTR_PREFIX "d"
-             ", waste: %8" V8_PTR_PREFIX "d\n",
-         old_data_space_->Size(),
-         old_data_space_->Available(),
-         old_data_space_->Waste());
-  PrintF("Code space,         used: %8" V8_PTR_PREFIX "d"
-             ", available: %8" V8_PTR_PREFIX "d"
-             ", waste: %8" V8_PTR_PREFIX "d\n",
-         code_space_->Size(),
-         code_space_->Available(),
-         code_space_->Waste());
-  PrintF("Map space,          used: %8" V8_PTR_PREFIX "d"
-             ", available: %8" V8_PTR_PREFIX "d"
-             ", waste: %8" V8_PTR_PREFIX "d\n",
-         map_space_->Size(),
-         map_space_->Available(),
-         map_space_->Waste());
-  PrintF("Cell space,         used: %8" V8_PTR_PREFIX "d"
-             ", available: %8" V8_PTR_PREFIX "d"
-             ", waste: %8" V8_PTR_PREFIX "d\n",
-         cell_space_->Size(),
-         cell_space_->Available(),
-         cell_space_->Waste());
-  PrintF("Large object space, used: %8" V8_PTR_PREFIX "d"
-             ", available: %8" V8_PTR_PREFIX "d\n",
-         lo_space_->Size(),
-         lo_space_->Available());
+  PrintF("Memory allocator,   used: %6" V8_PTR_PREFIX "d KB"
+             ", available: %6" V8_PTR_PREFIX "d KB\n",
+         isolate_->memory_allocator()->Size() / KB,
+         isolate_->memory_allocator()->Available() / KB);
+  PrintF("New space,          used: %6" V8_PTR_PREFIX "d KB"
+             ", available: %6" V8_PTR_PREFIX "d KB"
+             ", committed: %6" V8_PTR_PREFIX "d KB\n",
+         new_space_.Size() / KB,
+         new_space_.Available() / KB,
+         new_space_.CommittedMemory() / KB);
+  PrintF("Old pointers,       used: %6" V8_PTR_PREFIX "d KB"
+             ", available: %6" V8_PTR_PREFIX "d KB"
+             ", committed: %6" V8_PTR_PREFIX "d KB\n",
+         old_pointer_space_->SizeOfObjects() / KB,
+         old_pointer_space_->Available() / KB,
+         old_pointer_space_->CommittedMemory() / KB);
+  PrintF("Old data space,     used: %6" V8_PTR_PREFIX "d KB"
+             ", available: %6" V8_PTR_PREFIX "d KB"
+             ", committed: %6" V8_PTR_PREFIX "d KB\n",
+         old_data_space_->SizeOfObjects() / KB,
+         old_data_space_->Available() / KB,
+         old_data_space_->CommittedMemory() / KB);
+  PrintF("Code space,         used: %6" V8_PTR_PREFIX "d KB"
+             ", available: %6" V8_PTR_PREFIX "d KB"
+             ", committed: %6" V8_PTR_PREFIX "d KB\n",
+         code_space_->SizeOfObjects() / KB,
+         code_space_->Available() / KB,
+         code_space_->CommittedMemory() / KB);
+  PrintF("Map space,          used: %6" V8_PTR_PREFIX "d KB"
+             ", available: %6" V8_PTR_PREFIX "d KB"
+             ", committed: %6" V8_PTR_PREFIX "d KB\n",
+         map_space_->SizeOfObjects() / KB,
+         map_space_->Available() / KB,
+         map_space_->CommittedMemory() / KB);
+  PrintF("Cell space,         used: %6" V8_PTR_PREFIX "d KB"
+             ", available: %6" V8_PTR_PREFIX "d KB"
+             ", committed: %6" V8_PTR_PREFIX "d KB\n",
+         cell_space_->SizeOfObjects() / KB,
+         cell_space_->Available() / KB,
+         cell_space_->CommittedMemory() / KB);
+  PrintF("Large object space, used: %6" V8_PTR_PREFIX "d KB"
+             ", available: %6" V8_PTR_PREFIX "d KB"
+             ", committed: %6" V8_PTR_PREFIX "d KB\n",
+         lo_space_->SizeOfObjects() / KB,
+         lo_space_->Available() / KB,
+         lo_space_->CommittedMemory() / KB);
 }
 
 
@@ -440,6 +444,56 @@ void Heap::GarbageCollectionEpilogue() {
       symbol_table()->Capacity());
   isolate_->counters()->number_of_symbols()->Set(
       symbol_table()->NumberOfElements());
+
+  isolate_->counters()->new_space_bytes_available()->Set(
+      static_cast<int>(new_space()->Available()));
+  isolate_->counters()->new_space_bytes_committed()->Set(
+      static_cast<int>(new_space()->CommittedMemory()));
+  isolate_->counters()->new_space_bytes_used()->Set(
+      static_cast<int>(new_space()->SizeOfObjects()));
+
+  isolate_->counters()->old_pointer_space_bytes_available()->Set(
+      static_cast<int>(old_pointer_space()->Available()));
+  isolate_->counters()->old_pointer_space_bytes_committed()->Set(
+      static_cast<int>(old_pointer_space()->CommittedMemory()));
+  isolate_->counters()->old_pointer_space_bytes_used()->Set(
+      static_cast<int>(old_pointer_space()->SizeOfObjects()));
+
+  isolate_->counters()->old_data_space_bytes_available()->Set(
+      static_cast<int>(old_data_space()->Available()));
+  isolate_->counters()->old_data_space_bytes_committed()->Set(
+      static_cast<int>(old_data_space()->CommittedMemory()));
+  isolate_->counters()->old_data_space_bytes_used()->Set(
+      static_cast<int>(old_data_space()->SizeOfObjects()));
+
+  isolate_->counters()->code_space_bytes_available()->Set(
+      static_cast<int>(code_space()->Available()));
+  isolate_->counters()->code_space_bytes_committed()->Set(
+      static_cast<int>(code_space()->CommittedMemory()));
+  isolate_->counters()->code_space_bytes_used()->Set(
+      static_cast<int>(code_space()->SizeOfObjects()));
+
+  isolate_->counters()->map_space_bytes_available()->Set(
+      static_cast<int>(map_space()->Available()));
+  isolate_->counters()->map_space_bytes_committed()->Set(
+      static_cast<int>(map_space()->CommittedMemory()));
+  isolate_->counters()->map_space_bytes_used()->Set(
+      static_cast<int>(map_space()->SizeOfObjects()));
+
+  isolate_->counters()->cell_space_bytes_available()->Set(
+      static_cast<int>(cell_space()->Available()));
+  isolate_->counters()->cell_space_bytes_committed()->Set(
+      static_cast<int>(cell_space()->CommittedMemory()));
+  isolate_->counters()->cell_space_bytes_used()->Set(
+      static_cast<int>(cell_space()->SizeOfObjects()));
+
+  isolate_->counters()->lo_space_bytes_available()->Set(
+      static_cast<int>(lo_space()->Available()));
+  isolate_->counters()->lo_space_bytes_committed()->Set(
+      static_cast<int>(lo_space()->CommittedMemory()));
+  isolate_->counters()->lo_space_bytes_used()->Set(
+      static_cast<int>(lo_space()->SizeOfObjects()));
+
 #if defined(DEBUG)
   ReportStatisticsAfterGC();
 #endif  // DEBUG

@@ -406,15 +406,16 @@ static void CheckCodeForUnsafeLiteral(Handle<JSFunction> f) {
     Address end = pc + decode_size;
 
     v8::internal::EmbeddedVector<char, 128> decode_buffer;
+    v8::internal::EmbeddedVector<char, 128> smi_hex_buffer;
+    Smi* smi = Smi::FromInt(12345678);
+    OS::SNPrintF(smi_hex_buffer, "0x%lx", reinterpret_cast<intptr_t>(smi));
     while (pc < end) {
       int num_const = d.ConstantPoolSizeAt(pc);
       if (num_const >= 0) {
         pc += (num_const + 1) * kPointerSize;
       } else {
         pc += d.InstructionDecode(decode_buffer, pc);
-        CHECK(strstr(decode_buffer.start(), "mov eax,0x178c29c") == NULL);
-        CHECK(strstr(decode_buffer.start(), "push 0x178c29c") == NULL);
-        CHECK(strstr(decode_buffer.start(), "0x178c29c") == NULL);
+        CHECK(strstr(decode_buffer.start(), smi_hex_buffer.start()) == NULL);
       }
     }
   }

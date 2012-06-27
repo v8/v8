@@ -643,7 +643,9 @@ MaybeObject* Object::GetProperty(Object* receiver,
     }
     case MAP_TRANSITION:
     case CONSTANT_TRANSITION:
-    case NULL_DESCRIPTOR:
+      break;
+    case NONEXISTENT:
+      UNREACHABLE();
       break;
   }
   UNREACHABLE();
@@ -2156,7 +2158,9 @@ MaybeObject* JSObject::SetPropertyViaPrototypes(
       }
       case MAP_TRANSITION:
       case CONSTANT_TRANSITION:
-      case NULL_DESCRIPTOR:
+        break;
+      case NONEXISTENT:
+        UNREACHABLE();
         break;
     }
   }
@@ -2939,9 +2943,8 @@ MaybeObject* JSObject::SetPropertyForResult(LookupResult* result,
       // FIELD, even if the value is a constant function.
       return ConvertDescriptorToFieldAndMapTransition(name, value, attributes);
     }
-    case NULL_DESCRIPTOR:
-      return ConvertDescriptorToFieldAndMapTransition(name, value, attributes);
     case HANDLER:
+    case NONEXISTENT:
       UNREACHABLE();
       return value;
   }
@@ -3037,9 +3040,9 @@ MaybeObject* JSObject::SetLocalPropertyIgnoreAttributes(
     case CONSTANT_TRANSITION:
       // Replace with a MAP_TRANSITION to a new map with a FIELD, even
       // if the value is a function.
-    case NULL_DESCRIPTOR:
       return ConvertDescriptorToFieldAndMapTransition(name, value, attributes);
     case HANDLER:
+    case NONEXISTENT:
       UNREACHABLE();
   }
   UNREACHABLE();  // keep the compiler happy
@@ -3332,11 +3335,11 @@ MaybeObject* JSObject::NormalizeProperties(PropertyNormalizationMode mode,
       }
       case MAP_TRANSITION:
       case CONSTANT_TRANSITION:
-      case NULL_DESCRIPTOR:
       case INTERCEPTOR:
         break;
       case HANDLER:
       case NORMAL:
+      case NONEXISTENT:
         UNREACHABLE();
         break;
     }
@@ -3680,8 +3683,7 @@ MaybeObject* JSObject::GetHiddenPropertiesDictionary(bool create_if_absent) {
             this->FastPropertyAt(descriptors->GetFieldIndex(0));
         return StringDictionary::cast(hidden_store);
       } else {
-        ASSERT(descriptors->GetType(0) == NULL_DESCRIPTOR ||
-               descriptors->GetType(0) == MAP_TRANSITION);
+        ASSERT(descriptors->GetType(0) == MAP_TRANSITION);
       }
     }
   } else {
@@ -3729,8 +3731,7 @@ MaybeObject* JSObject::SetHiddenPropertiesDictionary(
         this->FastPropertyAtPut(descriptors->GetFieldIndex(0), dictionary);
         return this;
       } else {
-        ASSERT(descriptors->GetType(0) == NULL_DESCRIPTOR ||
-               descriptors->GetType(0) == MAP_TRANSITION);
+        ASSERT(descriptors->GetType(0) == MAP_TRANSITION);
       }
     }
   }
@@ -4177,9 +4178,7 @@ int Map::NumberOfDescribedProperties(PropertyAttributes filter) {
 int Map::PropertyIndexFor(String* name) {
   DescriptorArray* descs = instance_descriptors();
   for (int i = 0; i < descs->number_of_descriptors(); i++) {
-    if (name->Equals(descs->GetKey(i)) && !descs->IsNullDescriptor(i)) {
-      return descs->GetFieldIndex(i);
-    }
+    if (name->Equals(descs->GetKey(i))) return descs->GetFieldIndex(i);
   }
   return -1;
 }
@@ -5086,10 +5085,12 @@ class IntrusiveMapTransitionIterator {
         case CONSTANT_FUNCTION:
         case HANDLER:
         case INTERCEPTOR:
-        case NULL_DESCRIPTOR:
           // We definitely have no map transition.
           raw_index += 2;
           ++index;
+          break;
+        case NONEXISTENT:
+          UNREACHABLE();
           break;
       }
     }
@@ -5274,7 +5275,7 @@ MaybeObject* CodeCache::Update(String* name, Code* code) {
   // The number of monomorphic stubs for normal load/store/call IC's can grow to
   // a large number and therefore they need to go into a hash table. They are
   // used to load global properties from cells.
-  if (code->type() == NORMAL) {
+  if (code->type() == Code::NORMAL) {
     // Make sure that a hash table is allocated for the normal load code cache.
     if (normal_type_cache()->IsUndefined()) {
       Object* result;
@@ -5365,7 +5366,7 @@ MaybeObject* CodeCache::UpdateNormalTypeCache(String* name, Code* code) {
 
 
 Object* CodeCache::Lookup(String* name, Code::Flags flags) {
-  if (Code::ExtractTypeFromFlags(flags) == NORMAL) {
+  if (Code::ExtractTypeFromFlags(flags) == Code::NORMAL) {
     return LookupNormalTypeCache(name, flags);
   } else {
     return LookupDefaultCache(name, flags);
@@ -5403,7 +5404,7 @@ Object* CodeCache::LookupNormalTypeCache(String* name, Code::Flags flags) {
 
 
 int CodeCache::GetIndex(Object* name, Code* code) {
-  if (code->type() == NORMAL) {
+  if (code->type() == Code::NORMAL) {
     if (normal_type_cache()->IsUndefined()) return -1;
     CodeCacheHashTable* cache = CodeCacheHashTable::cast(normal_type_cache());
     return cache->GetIndex(String::cast(name), code->flags());
@@ -5419,7 +5420,7 @@ int CodeCache::GetIndex(Object* name, Code* code) {
 
 
 void CodeCache::RemoveByIndex(Object* name, Code* code, int index) {
-  if (code->type() == NORMAL) {
+  if (code->type() == Code::NORMAL) {
     ASSERT(!normal_type_cache()->IsUndefined());
     CodeCacheHashTable* cache = CodeCacheHashTable::cast(normal_type_cache());
     ASSERT(cache->GetIndex(String::cast(name), code->flags()) == index);
@@ -5880,7 +5881,6 @@ MaybeObject* DescriptorArray::CopyInsert(Descriptor* descriptor,
   // removing all other transitions is not supported.
   bool remove_transitions = transition_flag == REMOVE_TRANSITIONS;
   ASSERT(remove_transitions == !descriptor->ContainsTransition());
-  ASSERT(descriptor->GetDetails().type() != NULL_DESCRIPTOR);
 
   // Ensure the key is a symbol.
   { MaybeObject* maybe_result = descriptor->KeyToSymbol();
@@ -5889,7 +5889,6 @@ MaybeObject* DescriptorArray::CopyInsert(Descriptor* descriptor,
 
   int new_size = 0;
   for (int i = 0; i < number_of_descriptors(); i++) {
-    if (IsNullDescriptor(i)) continue;
     if (remove_transitions && IsTransitionOnly(i)) continue;
     new_size++;
   }
@@ -5947,8 +5946,7 @@ MaybeObject* DescriptorArray::CopyInsert(Descriptor* descriptor,
       insertion_index = to_index++;
       if (replacing) from_index++;
     } else {
-      if (!(IsNullDescriptor(from_index) ||
-            (remove_transitions && IsTransitionOnly(from_index)))) {
+      if (!(remove_transitions && IsTransitionOnly(from_index))) {
         MaybeObject* copy_result =
             new_descriptors->CopyFrom(to_index++, this, from_index, witness);
         if (copy_result->IsFailure()) return copy_result;
@@ -6078,8 +6076,7 @@ int DescriptorArray::BinarySearch(String* name, int low, int high) {
   }
 
   for (; low <= limit && GetKey(low)->Hash() == hash; ++low) {
-    if (GetKey(low)->Equals(name) && !IsNullDescriptor(low))
-      return low;
+    if (GetKey(low)->Equals(name)) return low;
   }
 
   return kNotFound;
@@ -6091,9 +6088,7 @@ int DescriptorArray::LinearSearch(SearchMode mode, String* name, int len) {
   for (int number = 0; number < len; number++) {
     String* entry = GetKey(number);
     if (mode == EXPECT_SORTED && entry->Hash() > hash) break;
-    if (name->Equals(entry) && !IsNullDescriptor(number)) {
-      return number;
-    }
+    if (name->Equals(entry)) return number;
   }
   return kNotFound;
 }
@@ -7352,74 +7347,158 @@ static bool ClearBackPointer(Heap* heap, Object* target) {
 }
 
 
+// This function should only be called from within the GC, since it uses
+// IncrementLiveBytesFromGC. If called from anywhere else, this results in an
+// inconsistent live-bytes count.
+static void RightTrimFixedArray(Heap* heap, FixedArray* elms, int to_trim) {
+  ASSERT(elms->map() != HEAP->fixed_cow_array_map());
+  // For now this trick is only applied to fixed arrays in new and paged space.
+  // In large object space the object's start must coincide with chunk
+  // and thus the trick is just not applicable.
+  ASSERT(!HEAP->lo_space()->Contains(elms));
+
+  const int len = elms->length();
+
+  ASSERT(to_trim < len);
+
+  Address new_end = elms->address() + FixedArray::SizeFor(len - to_trim);
+
+#ifdef DEBUG
+  // If we are doing a big trim in old space then we zap the space.
+  Object** zap = reinterpret_cast<Object**>(new_end);
+  for (int i = 1; i < to_trim; i++) {
+    *zap++ = Smi::FromInt(0);
+  }
+#endif
+
+  int size_delta = to_trim * kPointerSize;
+
+  // Technically in new space this write might be omitted (except for
+  // debug mode which iterates through the heap), but to play safer
+  // we still do it.
+  heap->CreateFillerObjectAt(new_end, size_delta);
+
+  elms->set_length(len - to_trim);
+
+  // Maintain marking consistency for IncrementalMarking.
+  if (Marking::IsBlack(Marking::MarkBitFrom(elms))) {
+    MemoryChunk::IncrementLiveBytesFromGC(elms->address(), -size_delta);
+  }
+}
+
+
+// If the descriptor describes a transition to a dead map, the back pointer
+// of this map is cleared and we return true. Otherwise we return false.
+static bool ClearNonLiveTransitionsFromDescriptor(Heap* heap,
+                                                  DescriptorArray* d,
+                                                  int descriptor_index) {
+  // If the pair (value, details) is a map transition, check if the target is
+  // live. If not, null the descriptor. Also drop the back pointer for that
+  // map transition, so that this map is not reached again by following a back
+  // pointer from that non-live map.
+  PropertyDetails details(d->GetDetails(descriptor_index));
+  switch (details.type()) {
+    case MAP_TRANSITION:
+    case CONSTANT_TRANSITION:
+      return ClearBackPointer(heap, d->GetValue(descriptor_index));
+    case CALLBACKS: {
+      Object* object = d->GetValue(descriptor_index);
+      if (object->IsAccessorPair()) {
+        bool cleared = true;
+        AccessorPair* accessors = AccessorPair::cast(object);
+        Object* getter = accessors->getter();
+        if (getter->IsMap()) {
+          if (ClearBackPointer(heap, getter)) {
+            accessors->set_getter(heap->the_hole_value());
+          } else {
+            cleared = false;
+          }
+        } else if (!getter->IsTheHole()) {
+          cleared = false;
+        }
+        Object* setter = accessors->setter();
+        if (setter->IsMap()) {
+          if (ClearBackPointer(heap, setter)) {
+            accessors->set_setter(heap->the_hole_value());
+          } else {
+            cleared = false;
+          }
+        } else if (!setter->IsTheHole()) {
+          cleared = false;
+        }
+        return cleared;
+      }
+      return false;
+    }
+    case NORMAL:
+    case FIELD:
+    case CONSTANT_FUNCTION:
+    case HANDLER:
+    case INTERCEPTOR:
+      return false;
+    case NONEXISTENT:
+      break;
+  }
+  UNREACHABLE();
+  return true;
+}
+
+
+// TODO(mstarzinger): This method should be moved into MarkCompactCollector,
+// because it cannot be called from outside the GC and we already have methods
+// depending on the transitions layout in the GC anyways.
 void Map::ClearNonLiveTransitions(Heap* heap) {
-  DescriptorArray* d = DescriptorArray::cast(
-      *RawField(this, Map::kInstanceDescriptorsOrBitField3Offset));
-  if (d->IsEmpty()) return;
+  Object* array = *RawField(this, Map::kInstanceDescriptorsOrBitField3Offset);
+  // If there are no descriptors to be cleared, return.
+  // TODO(verwaest) Should be an assert, otherwise back pointers are not
+  // properly cleared.
+  if (array->IsSmi()) return;
+  DescriptorArray* d = DescriptorArray::cast(array);
+
+  int descriptor_index = 0;
+  // Compact all live descriptors to the left.
+  for (int i = 0; i < d->number_of_descriptors(); ++i) {
+    if (!ClearNonLiveTransitionsFromDescriptor(heap, d, i)) {
+      if (i != descriptor_index) {
+        String* key = d->GetKey(i);
+        Object* value = d->GetValue(i);
+        d->SetKeyUnchecked(heap, descriptor_index, key);
+        d->SetDetailsUnchecked(descriptor_index, d->GetDetails(i).AsSmi());
+        d->SetValueUnchecked(heap, descriptor_index, value);
+        MarkCompactCollector* collector = heap->mark_compact_collector();
+        Object** key_slot = d->GetKeySlot(descriptor_index);
+        collector->RecordSlot(key_slot, key_slot, key);
+        if (value->IsHeapObject()) {
+          Object** value_slot = d->GetValueSlot(descriptor_index);
+          collector->RecordSlot(value_slot, value_slot, value);
+        }
+      }
+      descriptor_index++;
+    }
+  }
+
   Map* elements_transition = d->elements_transition_map();
   if (elements_transition != NULL &&
       ClearBackPointer(heap, elements_transition)) {
+    elements_transition = NULL;
     d->ClearElementsTransition();
+  } else {
+    // If there are no descriptors to be cleared, return.
+    // TODO(verwaest) Should be an assert, otherwise back pointers are not
+    // properly cleared.
+    if (descriptor_index == d->number_of_descriptors()) return;
   }
-  Smi* NullDescriptorDetails =
-    PropertyDetails(NONE, NULL_DESCRIPTOR).AsSmi();
-  for (int i = 0; i < d->number_of_descriptors(); ++i) {
-    // If the pair (value, details) is a map transition, check if the target is
-    // live. If not, null the descriptor. Also drop the back pointer for that
-    // map transition, so that this map is not reached again by following a back
-    // pointer from that non-live map.
-    bool keep_entry = false;
-    PropertyDetails details(d->GetDetails(i));
-    switch (details.type()) {
-      case MAP_TRANSITION:
-      case CONSTANT_TRANSITION:
-        keep_entry = !ClearBackPointer(heap, d->GetValue(i));
-        break;
-      case CALLBACKS: {
-        Object* object = d->GetValue(i);
-        if (object->IsAccessorPair()) {
-          AccessorPair* accessors = AccessorPair::cast(object);
-          Object* getter = accessors->getter();
-          if (getter->IsMap()) {
-            if (ClearBackPointer(heap, getter)) {
-              accessors->set_getter(heap->the_hole_value());
-            } else {
-              keep_entry = true;
-            }
-          } else if (!getter->IsTheHole()) {
-            keep_entry = true;
-          }
-          Object* setter = accessors->setter();
-          if (setter->IsMap()) {
-            if (ClearBackPointer(heap, setter)) {
-              accessors->set_setter(heap->the_hole_value());
-            } else {
-              keep_entry = true;
-            }
-          } else if (!setter->IsTheHole()) {
-            keep_entry = true;
-          }
-        } else {
-          keep_entry = true;
-        }
-        break;
-      }
-      case NORMAL:
-      case FIELD:
-      case CONSTANT_FUNCTION:
-      case HANDLER:
-      case INTERCEPTOR:
-      case NULL_DESCRIPTOR:
-        keep_entry = true;
-        break;
-    }
-    // Make sure that an entry containing only dead transitions gets collected.
-    // What we *really* want to do here is removing this entry completely, but
-    // for technical reasons we can't do this, so we zero it out instead.
-    if (!keep_entry) {
-      d->SetDetailsUnchecked(i, NullDescriptorDetails);
-      d->SetNullValueUnchecked(i, heap);
-    }
+
+  // If the final descriptor array does not contain any live descriptors, remove
+  // the descriptor array from the map.
+  if (descriptor_index == 0 && elements_transition == NULL) {
+    ClearDescriptorArray();
+    return;
+  }
+
+  int trim = d->number_of_descriptors() - descriptor_index;
+  if (trim > 0) {
+    RightTrimFixedArray(heap, d, trim * DescriptorArray::kDescriptorSize);
   }
 }
 
@@ -8554,17 +8633,15 @@ const char* Code::ICState2String(InlineCacheState state) {
 }
 
 
-const char* Code::PropertyType2String(PropertyType type) {
+const char* Code::StubType2String(StubType type) {
   switch (type) {
     case NORMAL: return "NORMAL";
     case FIELD: return "FIELD";
     case CONSTANT_FUNCTION: return "CONSTANT_FUNCTION";
     case CALLBACKS: return "CALLBACKS";
-    case HANDLER: return "HANDLER";
     case INTERCEPTOR: return "INTERCEPTOR";
     case MAP_TRANSITION: return "MAP_TRANSITION";
-    case CONSTANT_TRANSITION: return "CONSTANT_TRANSITION";
-    case NULL_DESCRIPTOR: return "NULL_DESCRIPTOR";
+    case NONEXISTENT: return "NONEXISTENT";
   }
   UNREACHABLE();  // keep the compiler happy
   return NULL;
@@ -8602,7 +8679,7 @@ void Code::Disassemble(const char* name, FILE* out) {
     PrintF(out, "ic_state = %s\n", ICState2String(ic_state()));
     PrintExtraICState(out, kind(), extra_ic_state());
     if (ic_state() == MONOMORPHIC) {
-      PrintF(out, "type = %s\n", PropertyType2String(type()));
+      PrintF(out, "type = %s\n", StubType2String(type()));
     }
     if (is_call_stub() || is_keyed_call_stub()) {
       PrintF(out, "argc = %d\n", arguments_count());
@@ -11263,8 +11340,10 @@ bool StringDictionary::ContainsTransition(int entry) {
     case CONSTANT_FUNCTION:
     case HANDLER:
     case INTERCEPTOR:
-    case NULL_DESCRIPTOR:
       return false;
+    case NONEXISTENT:
+      UNREACHABLE();
+      break;
   }
   UNREACHABLE();  // Keep the compiler happy.
   return false;
@@ -12864,11 +12943,11 @@ Object* ObjectHashTable::Lookup(Object* key) {
   // If the object does not have an identity hash, it was never used as a key.
   { MaybeObject* maybe_hash = key->GetHash(OMIT_CREATION);
     if (maybe_hash->ToObjectUnchecked()->IsUndefined()) {
-      return GetHeap()->undefined_value();
+      return GetHeap()->the_hole_value();
     }
   }
   int entry = FindEntry(key);
-  if (entry == kNotFound) return GetHeap()->undefined_value();
+  if (entry == kNotFound) return GetHeap()->the_hole_value();
   return get(EntryToIndex(entry) + 1);
 }
 
@@ -12885,7 +12964,7 @@ MaybeObject* ObjectHashTable::Put(Object* key, Object* value) {
   int entry = FindEntry(key);
 
   // Check whether to perform removal operation.
-  if (value->IsUndefined()) {
+  if (value->IsTheHole()) {
     if (entry == kNotFound) return this;
     RemoveEntry(entry);
     return Shrink(key);

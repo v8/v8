@@ -714,9 +714,9 @@ TEST(HeapSnapshotObjectsStats) {
   LocalContext env;
 
   v8::HeapProfiler::StartHeapObjectsTracking();
-  // We have to call GC 5 times. In other case the garbage will be
+  // We have to call GC 6 times. In other case the garbage will be
   // the reason of flakiness.
-  for (int i = 0; i < 5; ++i) {
+  for (int i = 0; i < 6; ++i) {
     HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
   }
 

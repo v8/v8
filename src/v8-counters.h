@@ -246,7 +246,30 @@ namespace internal {
   SC(smi_checks_removed, V8.SmiChecksRemoved)                         \
   SC(map_checks_removed, V8.MapChecksRemoved)                         \
   SC(quote_json_char_count, V8.QuoteJsonCharacterCount)               \
-  SC(quote_json_char_recount, V8.QuoteJsonCharacterReCount)
+  SC(quote_json_char_recount, V8.QuoteJsonCharacterReCount)           \
+  SC(new_space_bytes_available, V8.MemoryNewSpaceBytesAvailable)      \
+  SC(new_space_bytes_committed, V8.MemoryNewSpaceBytesCommitted)      \
+  SC(new_space_bytes_used, V8.MemoryNewSpaceBytesUsed)                \
+  SC(old_pointer_space_bytes_available,                               \
+     V8.MemoryOldPointerSpaceBytesAvailable)                          \
+  SC(old_pointer_space_bytes_committed,                               \
+     V8.MemoryOldPointerSpaceBytesCommitted)                          \
+  SC(old_pointer_space_bytes_used, V8.MemoryOldPointerSpaceBytesUsed) \
+  SC(old_data_space_bytes_available, V8.MemoryOldDataSpaceBytesAvailable) \
+  SC(old_data_space_bytes_committed, V8.MemoryOldDataSpaceBytesCommitted) \
+  SC(old_data_space_bytes_used, V8.MemoryOldDataSpaceBytesUsed)       \
+  SC(code_space_bytes_available, V8.MemoryCodeSpaceBytesAvailable)    \
+  SC(code_space_bytes_committed, V8.MemoryCodeSpaceBytesCommitted)    \
+  SC(code_space_bytes_used, V8.MemoryCodeSpaceBytesUsed)              \
+  SC(map_space_bytes_available, V8.MemoryMapSpaceBytesAvailable)      \
+  SC(map_space_bytes_committed, V8.MemoryMapSpaceBytesCommitted)      \
+  SC(map_space_bytes_used, V8.MemoryMapSpaceBytesUsed)                \
+  SC(cell_space_bytes_available, V8.MemoryCellSpaceBytesAvailable)    \
+  SC(cell_space_bytes_committed, V8.MemoryCellSpaceBytesCommitted)    \
+  SC(cell_space_bytes_used, V8.MemoryCellSpaceBytesUsed)              \
+  SC(lo_space_bytes_available, V8.MemoryLoSpaceBytesAvailable)        \
+  SC(lo_space_bytes_committed, V8.MemoryLoSpaceBytesCommitted)        \
+  SC(lo_space_bytes_used, V8.MemoryLoSpaceBytesUsed)
 
 
 // This file contains all the v8 counters that are in use.

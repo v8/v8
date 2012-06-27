@@ -953,7 +953,9 @@ bool DescriptorArray::IsConsistentWithBackPointers(Map* current_map) {
       case CONSTANT_FUNCTION:
       case HANDLER:
       case INTERCEPTOR:
-      case NULL_DESCRIPTOR:
+        break;
+      case NONEXISTENT:
+        UNREACHABLE();
         break;
     }
   }

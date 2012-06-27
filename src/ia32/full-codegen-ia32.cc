@@ -227,7 +227,7 @@ void FullCodeGenerator::Generate() {
     __ lea(edx,
            Operand(ebp, StandardFrameConstants::kCallerSPOffset + offset));
     __ push(edx);
-    __ SafePush(Immediate(Smi::FromInt(num_parameters)));
+    __ push(Immediate(Smi::FromInt(num_parameters)));
     // Arguments to ArgumentsAccessStub:
     //   function, receiver address, parameter count.
     // The stub will rewrite receiver and parameter count if the previous
@@ -2491,7 +2491,7 @@ void FullCodeGenerator::VisitCallNew(CallNew* expr) {
   SetSourcePosition(expr->position());
 
   // Load function and argument count into edi and eax.
-  __ SafeSet(eax, Immediate(arg_count));
+  __ Set(eax, Immediate(arg_count));
   __ mov(edi, Operand(esp, arg_count * kPointerSize));
 
   // Record call targets in unoptimized code, but not in the snapshot.
@@ -2849,7 +2849,7 @@ void FullCodeGenerator::EmitArguments(CallRuntime* expr) {
   // parameter count in eax.
   VisitForAccumulatorValue(args->at(0));
   __ mov(edx, eax);
-  __ SafeSet(eax, Immediate(Smi::FromInt(info_->scope()->num_parameters())));
+  __ Set(eax, Immediate(Smi::FromInt(info_->scope()->num_parameters())));
   ArgumentsAccessStub stub(ArgumentsAccessStub::READ_ELEMENT);
   __ CallStub(&stub);
   context()->Plug(eax);
@@ -2861,7 +2861,7 @@ void FullCodeGenerator::EmitArgumentsLength(CallRuntime* expr) {
 
   Label exit;
   // Get the number of formal parameters.
-  __ SafeSet(eax, Immediate(Smi::FromInt(info_->scope()->num_parameters())));
+  __ Set(eax, Immediate(Smi::FromInt(info_->scope()->num_parameters())));
 
   // Check if the calling frame is an arguments adaptor frame.
   __ mov(ebx, Operand(ebp, StandardFrameConstants::kCallerFPOffset));

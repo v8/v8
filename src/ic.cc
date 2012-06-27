@@ -1298,7 +1298,7 @@ void KeyedLoadIC::UpdateCaches(LookupResult* lookup,
 
 static bool StoreICableLookup(LookupResult* lookup) {
   // Bail out if we didn't find a result.
-  if (!lookup->IsFound() || lookup->type() == NULL_DESCRIPTOR) return false;
+  if (!lookup->IsFound()) return false;
 
   // Bail out if inline caching is not allowed.
   if (!lookup->IsCacheable()) return false;
@@ -1385,12 +1385,13 @@ MaybeObject* StoreIC::Store(State state,
   }
 
   // Lookup the property locally in the receiver.
-  if (FLAG_use_ic && !receiver->IsJSGlobalProxy()) {
+  if (!receiver->IsJSGlobalProxy()) {
     LookupResult lookup(isolate());
 
     if (LookupForWrite(receiver, name, &lookup)) {
-      // Generate a stub for this store.
-      UpdateCaches(&lookup, state, strict_mode, receiver, name, value);
+      if (FLAG_use_ic) {  // Generate a stub for this store.
+        UpdateCaches(&lookup, state, strict_mode, receiver, name, value);
+      }
     } else {
       // Strict mode doesn't allow setting non-existent global property
       // or an assignment to a read only property.
@@ -1434,10 +1435,10 @@ void StoreIC::UpdateCaches(LookupResult* lookup,
                            Handle<Object> value) {
   ASSERT(!receiver->IsJSGlobalProxy());
   ASSERT(StoreICableLookup(lookup));
+  ASSERT(lookup->IsFound());
+
   // These are not cacheable, so we never see such LookupResults here.
   ASSERT(!lookup->IsHandler());
-  // We get only called for properties or transitions, see StoreICableLookup.
-  ASSERT(lookup->type() != NULL_DESCRIPTOR);
 
   // If the property has a non-field type allowing map transitions
   // where there is extra room in the object, we leave the IC in its
@@ -1509,8 +1510,8 @@ void StoreIC::UpdateCaches(LookupResult* lookup,
     case CONSTANT_FUNCTION:
     case CONSTANT_TRANSITION:
       return;
+    case NONEXISTENT:
     case HANDLER:
-    case NULL_DESCRIPTOR:
       UNREACHABLE();
       return;
   }
@@ -1583,7 +1584,7 @@ Handle<Code> KeyedIC::ComputeStub(Handle<JSObject> receiver,
   // Don't handle megamorphic property accesses for INTERCEPTORS or CALLBACKS
   // via megamorphic stubs, since they don't have a map in their relocation info
   // and so the stubs can't be harvested for the object needed for a map check.
-  if (target()->type() != NORMAL) {
+  if (target()->type() != Code::NORMAL) {
     TRACE_GENERIC_IC("KeyedIC", "non-NORMAL target type");
     return generic_stub;
   }
@@ -1936,10 +1937,10 @@ void KeyedStoreIC::UpdateCaches(LookupResult* lookup,
                                 Handle<Object> value) {
   ASSERT(!receiver->IsJSGlobalProxy());
   ASSERT(StoreICableLookup(lookup));
+  ASSERT(lookup->IsFound());
+
   // These are not cacheable, so we never see such LookupResults here.
   ASSERT(!lookup->IsHandler());
-  // We get only called for properties or transitions, see StoreICableLookup.
-  ASSERT(lookup->type() != NULL_DESCRIPTOR);
 
   // If the property has a non-field type allowing map transitions
   // where there is extra room in the object, we leave the IC in its
@@ -1978,7 +1979,7 @@ void KeyedStoreIC::UpdateCaches(LookupResult* lookup,
           : generic_stub();
       break;
     case HANDLER:
-    case NULL_DESCRIPTOR:
+    case NONEXISTENT:
       UNREACHABLE();
       return;
   }

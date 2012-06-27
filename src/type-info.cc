@@ -97,7 +97,7 @@ bool TypeFeedbackOracle::LoadIsMonomorphicNormal(Property* expr) {
     Handle<Code> code = Handle<Code>::cast(map_or_code);
     return code->is_keyed_load_stub() &&
         code->ic_state() == MONOMORPHIC &&
-        Code::ExtractTypeFromFlags(code->flags()) == NORMAL &&
+        Code::ExtractTypeFromFlags(code->flags()) == Code::NORMAL &&
         code->FindFirstMap() != NULL &&
         !CanRetainOtherContext(code->FindFirstMap(), *global_context_);
   }
@@ -129,7 +129,7 @@ bool TypeFeedbackOracle::StoreIsMonomorphicNormal(Expression* expr) {
     return code->is_keyed_store_stub() &&
         !allow_growth &&
         code->ic_state() == MONOMORPHIC &&
-        Code::ExtractTypeFromFlags(code->flags()) == NORMAL &&
+        Code::ExtractTypeFromFlags(code->flags()) == Code::NORMAL &&
         code->FindFirstMap() != NULL &&
         !CanRetainOtherContext(code->FindFirstMap(), *global_context_);
   }
@@ -214,7 +214,8 @@ Handle<Map> TypeFeedbackOracle::StoreMonomorphicReceiverType(Expression* expr) {
 void TypeFeedbackOracle::LoadReceiverTypes(Property* expr,
                                            Handle<String> name,
                                            SmallMapList* types) {
-  Code::Flags flags = Code::ComputeMonomorphicFlags(Code::LOAD_IC, NORMAL);
+  Code::Flags flags =
+      Code::ComputeMonomorphicFlags(Code::LOAD_IC, Code::NORMAL);
   CollectReceiverTypes(expr->id(), name, flags, types);
 }
 
@@ -222,7 +223,8 @@ void TypeFeedbackOracle::LoadReceiverTypes(Property* expr,
 void TypeFeedbackOracle::StoreReceiverTypes(Assignment* expr,
                                             Handle<String> name,
                                             SmallMapList* types) {
-  Code::Flags flags = Code::ComputeMonomorphicFlags(Code::STORE_IC, NORMAL);
+  Code::Flags flags =
+      Code::ComputeMonomorphicFlags(Code::STORE_IC, Code::NORMAL);
   CollectReceiverTypes(expr->id(), name, flags, types);
 }
 
@@ -239,7 +241,7 @@ void TypeFeedbackOracle::CallReceiverTypes(Call* expr,
       CallIC::Contextual::encode(call_kind == CALL_AS_FUNCTION);
 
   Code::Flags flags = Code::ComputeMonomorphicFlags(Code::CALL_IC,
-                                                    NORMAL,
+                                                    Code::NORMAL,
                                                     extra_ic_state,
                                                     OWN_MAP,
                                                     arity);

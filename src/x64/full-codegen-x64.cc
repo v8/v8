@@ -504,12 +504,20 @@ void FullCodeGenerator::EffectContext::Plug(Handle<Object> lit) const {
 
 void FullCodeGenerator::AccumulatorValueContext::Plug(
     Handle<Object> lit) const {
-  __ Move(result_register(), lit);
+  if (lit->IsSmi()) {
+    __ SafeMove(result_register(), Smi::cast(*lit));
+  } else {
+    __ Move(result_register(), lit);
+  }
 }
 
 
 void FullCodeGenerator::StackValueContext::Plug(Handle<Object> lit) const {
-  __ Push(lit);
+  if (lit->IsSmi()) {
+    __ SafePush(Smi::cast(*lit));
+  } else {
+    __ Push(lit);
+  }
 }
 
 
