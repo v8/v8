@@ -29,6 +29,26 @@
 
 // Test that we can inline functions containing materialized literals.
 
+function a2(b, c) {
+  return [b, c, b + c];
+}
+
+function a1(a, b, c) {
+  return [a, a2(b, c)];
+}
+
+function TestArrayLiteral(a, b, c) {
+  var expected = [a, [b, c, b + c]];
+  var result = a1(a, b, c);
+  assertEquals(expected, result, "TestArrayLiteral");
+}
+
+TestArrayLiteral(1, 2, 3);
+TestArrayLiteral(1, 2, 3);
+%OptimizeFunctionOnNextCall(TestArrayLiteral);
+TestArrayLiteral(1, 2, 3);
+TestArrayLiteral('a', 'b', 'c');
+
 function o2(b, c) {
   return { 'b':b, 'c':c, 'y':b + c };
 }

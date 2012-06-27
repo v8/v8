@@ -1048,6 +1048,7 @@ REGULAR_NODE(Conditional)
 REGULAR_NODE(Literal)
 REGULAR_NODE(ObjectLiteral)
 REGULAR_NODE(RegExpLiteral)
+REGULAR_NODE(ArrayLiteral)
 REGULAR_NODE(Assignment)
 REGULAR_NODE(Throw)
 REGULAR_NODE(Property)
@@ -1078,7 +1079,6 @@ DONT_OPTIMIZE_NODE(DebuggerStatement)
 DONT_OPTIMIZE_NODE(SharedFunctionInfoLiteral)
 
 DONT_INLINE_NODE(FunctionLiteral)
-DONT_INLINE_NODE(ArrayLiteral)  // TODO(1322): Allow materialized literals.
 
 DONT_SELFOPTIMIZE_NODE(DoWhileStatement)
 DONT_SELFOPTIMIZE_NODE(WhileStatement)
