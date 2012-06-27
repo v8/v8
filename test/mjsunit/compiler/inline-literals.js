@@ -48,3 +48,22 @@ TestObjectLiteral(1, 2, 3);
 %OptimizeFunctionOnNextCall(TestObjectLiteral);
 TestObjectLiteral(1, 2, 3);
 TestObjectLiteral('a', 'b', 'c');
+
+function r2(s, x, y) {
+  return s.replace(/a/, x + y);
+}
+
+function r1(s, x, y) {
+  return r2(s, x, y).replace(/b/, y + x);
+}
+
+function TestRegExpLiteral(s, x, y, expected) {
+  var result = r1(s, x, y);
+  assertEquals(expected, result, "TestRegExpLiteral");
+}
+
+TestRegExpLiteral("a-", "reg", "exp", "regexp-");
+TestRegExpLiteral("-b", "reg", "exp", "-expreg");
+%OptimizeFunctionOnNextCall(TestRegExpLiteral);
+TestRegExpLiteral("ab", "reg", "exp", "regexpexpreg");
+TestRegExpLiteral("ab", 12345, 54321, "6666666666");

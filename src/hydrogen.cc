@@ -4647,9 +4647,12 @@ void HGraphBuilder::VisitRegExpLiteral(RegExpLiteral* expr) {
   ASSERT(!HasStackOverflow());
   ASSERT(current_block() != NULL);
   ASSERT(current_block()->HasPredecessor());
+  Handle<JSFunction> closure = function_state()->compilation_info()->closure();
+  Handle<FixedArray> literals(closure->literals());
   HValue* context = environment()->LookupContext();
 
   HRegExpLiteral* instr = new(zone()) HRegExpLiteral(context,
+                                                     literals,
                                                      expr->pattern(),
                                                      expr->flags(),
                                                      expr->literal_index());
