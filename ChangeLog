@@ -1,3 +1,21 @@
+2012-06-27: Version 3.12.4
+
+        Removed -fomit-frame-pointer flag from Release builds to make
+        the stack walkable by TCMalloc (Chromium issue 133723).
+
+        Ported r7868 (constant masking) to x64 (issue 1374).
+
+        Expose more detailed memory statistics (issue 2201).
+
+        Fixed Harmony Maps and WeakMaps for undefined values
+        (Chromium issue 132744).
+
+        Correctly throw reference error in strict mode with ICs disabled
+        (issue 2119).
+
+        Performance and stability improvements on all platforms.
+
+
 2012-06-25: Version 3.12.3
 
         Reverted r11835 'Unify promotion and allocation limit computation' due
