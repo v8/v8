@@ -1373,7 +1373,7 @@ void Assembler::bind_to(Label* L, int pos) {
     ASSERT(offset_to_next <= 0);
     // Relative address, relative to point after address.
     int disp = pos - fixup_pos - sizeof(int8_t);
-    ASSERT(0 <= disp && disp <= 127);
+    CHECK(0 <= disp && disp <= 127);
     set_byte_at(fixup_pos, disp);
     if (offset_to_next < 0) {
       L->link_to(fixup_pos + offset_to_next, Label::kNear);
