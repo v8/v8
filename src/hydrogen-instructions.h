@@ -4792,10 +4792,12 @@ class HObjectLiteral: public HMaterializedLiteral<1> {
 class HRegExpLiteral: public HMaterializedLiteral<1> {
  public:
   HRegExpLiteral(HValue* context,
+                 Handle<FixedArray> literals,
                  Handle<String> pattern,
                  Handle<String> flags,
                  int literal_index)
       : HMaterializedLiteral<1>(literal_index, 0),
+        literals_(literals),
         pattern_(pattern),
         flags_(flags) {
     SetOperandAt(0, context);
@@ -4803,6 +4805,7 @@ class HRegExpLiteral: public HMaterializedLiteral<1> {
   }
 
   HValue* context() { return OperandAt(0); }
+  Handle<FixedArray> literals() { return literals_; }
   Handle<String> pattern() { return pattern_; }
   Handle<String> flags() { return flags_; }
 
@@ -4814,6 +4817,7 @@ class HRegExpLiteral: public HMaterializedLiteral<1> {
   DECLARE_CONCRETE_INSTRUCTION(RegExpLiteral)
 
  private:
+  Handle<FixedArray> literals_;
   Handle<String> pattern_;
   Handle<String> flags_;
 };

@@ -1,3 +1,14 @@
+2012-06-28: Version 3.12.5
+
+        Fixed lazy parsing heuristics to respect outer scope.
+        (Chromium issue 135008)
+
+        Allow using test-wrapper-gypbuild.py on Windows when no python
+        interpreter is registered.
+
+        Performance and stability improvements on all platforms.
+
+
 2012-06-27: Version 3.12.4
 
         Removed -fomit-frame-pointer flag from Release builds to make

@@ -4754,7 +4754,7 @@ void LCodeGen::DoDeferredAllocateObject(LAllocateObject* instr) {
 
 
 void LCodeGen::DoArrayLiteral(LArrayLiteral* instr) {
-  Heap* heap = isolate()->heap();
+  Handle<FixedArray> literals(instr->environment()->closure()->literals());
   ElementsKind boilerplate_elements_kind =
       instr->hydrogen()->boilerplate_elements_kind();
 
@@ -4774,12 +4774,12 @@ void LCodeGen::DoArrayLiteral(LArrayLiteral* instr) {
     DeoptimizeIf(ne, instr->environment());
   }
 
-  __ ldr(r3, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
-  __ ldr(r3, FieldMemOperand(r3, JSFunction::kLiteralsOffset));
+  // Set up the parameters to the stub/runtime call.
+  __ LoadHeapObject(r3, literals);
   __ mov(r2, Operand(Smi::FromInt(instr->hydrogen()->literal_index())));
   // Boilerplate already exists, constant elements are never accessed.
   // Pass an empty fixed array.
-  __ mov(r1, Operand(Handle<FixedArray>(heap->empty_fixed_array())));
+  __ mov(r1, Operand(isolate()->factory()->empty_fixed_array()));
   __ Push(r3, r2, r1);
 
   // Pick the right runtime function or stub to call.
@@ -4987,15 +4987,13 @@ void LCodeGen::DoToFastProperties(LToFastProperties* instr) {
 void LCodeGen::DoRegExpLiteral(LRegExpLiteral* instr) {
   Label materialized;
   // Registers will be used as follows:
-  // r3 = JS function.
   // r7 = literals array.
   // r1 = regexp literal.
   // r0 = regexp literal clone.
   // r2 and r4-r6 are used as temporaries.
-  __ ldr(r3, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
-  __ ldr(r7, FieldMemOperand(r3, JSFunction::kLiteralsOffset));
-  int literal_offset = FixedArray::kHeaderSize +
-      instr->hydrogen()->literal_index() * kPointerSize;
+  int literal_offset =
+      FixedArray::OffsetOfElementAt(instr->hydrogen()->literal_index());
+  __ LoadHeapObject(r7, instr->hydrogen()->literals());
   __ ldr(r1, FieldMemOperand(r7, literal_offset));
   __ LoadRoot(ip, Heap::kUndefinedValueRootIndex);
   __ cmp(r1, ip);

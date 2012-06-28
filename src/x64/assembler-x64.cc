@@ -467,7 +467,7 @@ void Assembler::bind_to(Label* L, int pos) {
         static_cast<int>(*reinterpret_cast<int8_t*>(addr_at(fixup_pos)));
     ASSERT(offset_to_next <= 0);
     int disp = pos - (fixup_pos + sizeof(int8_t));
-    ASSERT(is_int8(disp));
+    CHECK(is_int8(disp));
     set_byte_at(fixup_pos, disp);
     if (offset_to_next < 0) {
       L->link_to(fixup_pos + offset_to_next, Label::kNear);
