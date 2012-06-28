@@ -4521,6 +4521,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> function_name,
     // The heuristics are:
     // - It must not have been prohibited by the caller to Parse (some callers
     //   need a full AST).
+    // - The outer scope must allow lazy compilation of inner functions.
     // - The function mustn't be a function expression with an open parenthesis
     //   before; we consider that a hint that the function will be called
     //   immediately, and it would be a waste of time to make it lazily
@@ -4528,6 +4529,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> function_name,
     // These are all things we can know at this point, without looking at the
     // function itself.
     bool is_lazily_compiled = (mode() == PARSE_LAZILY &&
+                               top_scope_->AllowsLazyCompilation() &&
                                !parenthesized_function_);
     parenthesized_function_ = false;  // The bit was set for this function only.
 
