@@ -493,7 +493,7 @@ Handle<Value> Shell::CreateExternalArray(const Arguments& args,
     ASSERT(!try_catch.HasCaught() && array_buffer->IsFunction());
     Handle<Value> buffer_args[] = { Uint32::New(byteLength) };
     Handle<Value> result = Handle<Function>::Cast(array_buffer)->NewInstance(
-        ARRAY_SIZE(buffer_args), buffer_args);
+        1, buffer_args);
     if (try_catch.HasCaught()) return result;
     buffer = result->ToObject();
   }
@@ -566,7 +566,7 @@ Handle<Value> Shell::SubArray(const Arguments& args) {
   Handle<Value> construct_args[] = {
     buffer, Uint32::New(byteOffset), Uint32::New(length)
   };
-  return constructor->NewInstance(ARRAY_SIZE(construct_args), construct_args);
+  return constructor->NewInstance(3, construct_args);
 }
 
 
