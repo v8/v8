@@ -6374,27 +6374,11 @@ char* HandleScopeImplementer::RestoreThread(char* storage) {
 
 
 void HandleScopeImplementer::IterateThis(ObjectVisitor* v) {
-#ifdef DEBUG
-  bool found_block_before_deferred = false;
-#endif
   // Iterate over all handles in the blocks except for the last.
   for (int i = blocks()->length() - 2; i >= 0; --i) {
     Object** block = blocks()->at(i);
-    if (last_handle_before_deferred_block_ != NULL &&
-        (last_handle_before_deferred_block_ < &block[kHandleBlockSize]) &&
-        (last_handle_before_deferred_block_ >= block)) {
-      v->VisitPointers(block, last_handle_before_deferred_block_);
-      ASSERT(!found_block_before_deferred);
-#ifdef DEBUG
-      found_block_before_deferred = true;
-#endif
-    } else {
-      v->VisitPointers(block, &block[kHandleBlockSize]);
-    }
+    v->VisitPointers(block, &block[kHandleBlockSize]);
   }
-
-  ASSERT(last_handle_before_deferred_block_ == NULL ||
-         found_block_before_deferred);
 
   // Iterate over live handles in the last block (if any).
   if (!blocks()->is_empty()) {
@@ -6404,12 +6388,6 @@ void HandleScopeImplementer::IterateThis(ObjectVisitor* v) {
   if (!saved_contexts_.is_empty()) {
     Object** start = reinterpret_cast<Object**>(&saved_contexts_.first());
     v->VisitPointers(start, start + saved_contexts_.length());
-  }
-
-  for (DeferredHandles* deferred = deferred_handles_head_;
-       deferred != NULL;
-       deferred = deferred->next_) {
-    deferred->Iterate(v);
   }
 }
 
@@ -6428,76 +6406,5 @@ char* HandleScopeImplementer::Iterate(ObjectVisitor* v, char* storage) {
   scope_implementer->IterateThis(v);
   return storage + ArchiveSpacePerThread();
 }
-
-
-DeferredHandles* HandleScopeImplementer::Detach(Object** prev_limit) {
-  DeferredHandles* deferred = new DeferredHandles(
-      deferred_handles_head_, isolate()->handle_scope_data()->next, this);
-
-  while (!blocks_.is_empty()) {
-    Object** block_start = blocks_.last();
-    Object** block_limit = &block_start[kHandleBlockSize];
-    // We should not need to check for NoHandleAllocation here. Assert
-    // this.
-    ASSERT(prev_limit == block_limit ||
-           !(block_start <= prev_limit && prev_limit <= block_limit));
-    if (prev_limit == block_limit) break;
-    deferred->blocks_.Add(blocks_.last());
-    blocks_.RemoveLast();
-  }
-
-  ASSERT(!blocks_.is_empty() && prev_limit != NULL);
-  deferred_handles_head_ = deferred;
-  ASSERT(last_handle_before_deferred_block_ != NULL);
-  last_handle_before_deferred_block_ = NULL;
-  return deferred;
-}
-
-
-void HandleScopeImplementer::DestroyDeferredHandles(DeferredHandles* deferred) {
-  if (deferred_handles_head_ == deferred) {
-    deferred_handles_head_ = deferred_handles_head_->next_;
-  }
-  if (deferred->next_ != NULL) {
-    deferred->next_->previous_ = deferred->previous_;
-  }
-  if (deferred->previous_ != NULL) {
-    deferred->previous_->next_ = deferred->next_;
-  }
-  for (int i = 0; i < deferred->blocks_.length(); i++) {
-#ifdef DEBUG
-    HandleScope::ZapRange(deferred->blocks_[i],
-                          &deferred->blocks_[i][kHandleBlockSize]);
-#endif
-    if (spare_ != NULL) DeleteArray(spare_);
-    spare_ = deferred->blocks_[i];
-  }
-}
-
-
-void HandleScopeImplementer::BeginDeferredScope() {
-  ASSERT(last_handle_before_deferred_block_ == NULL);
-  last_handle_before_deferred_block_ = isolate()->handle_scope_data()->next;
-}
-
-
-DeferredHandles::~DeferredHandles() {
-  impl_->DestroyDeferredHandles(this);
-}
-
-
-void DeferredHandles::Iterate(ObjectVisitor* v) {
-  ASSERT(!blocks_.is_empty());
-
-  for (int i = 0; i < (blocks_.length() - 1); i++) {
-    v->VisitPointers(blocks_[i], &blocks_[i][kHandleBlockSize]);
-  }
-
-  ASSERT((last_block_limit_ >= blocks_.last()) &&
-         (last_block_limit_ < &(blocks_.last())[kHandleBlockSize]));
-
-  v->VisitPointers(blocks_.last(), last_block_limit_);
-}
-
 
 } }  // namespace v8::internal

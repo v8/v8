@@ -95,9 +95,6 @@ class Handle {
 };
 
 
-class HandleScopeImplementer;
-
-
 // A stack-allocated class that governs a number of local handles.
 // After a handle scope has been created, all local handles will be
 // allocated within that handle scope until either the handle scope is
@@ -160,34 +157,7 @@ class HandleScope {
   static void ZapRange(internal::Object** start, internal::Object** end);
 
   friend class v8::HandleScope;
-  friend class v8::internal::HandleScopeImplementer;
   friend class v8::ImplementationUtilities;
-};
-
-
-class DeferredHandles;
-
-
-class DeferredHandleScope {
- public:
-  explicit DeferredHandleScope(Isolate* isolate);
-  // The DeferredHandles object returned stores the Handles created
-  // since the creation of this DeferredHandleScope.  The Handles are
-  // alive as long as the DeferredHandles object is alive.
-  DeferredHandles* Detach();
-  ~DeferredHandleScope();
-
- private:
-  Object** prev_limit_;
-  Object** prev_next_;
-  HandleScopeImplementer* impl_;
-
-#ifdef DEBUG
-  bool handles_detached_;
-  int prev_level_;
-#endif
-
-  friend class HandleScopeImplementer;
 };
 
 

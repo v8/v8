@@ -61,8 +61,7 @@ CompilationInfo::CompilationInfo(Handle<Script> script, Zone* zone)
       extension_(NULL),
       pre_parse_data_(NULL),
       osr_ast_id_(AstNode::kNoNumber),
-      zone_(zone),
-      deferred_handles_(NULL) {
+      zone_(zone) {
   Initialize(BASE);
 }
 
@@ -80,8 +79,7 @@ CompilationInfo::CompilationInfo(Handle<SharedFunctionInfo> shared_info,
       extension_(NULL),
       pre_parse_data_(NULL),
       osr_ast_id_(AstNode::kNoNumber),
-      zone_(zone),
-      deferred_handles_(NULL) {
+      zone_(zone) {
   Initialize(BASE);
 }
 
@@ -99,14 +97,8 @@ CompilationInfo::CompilationInfo(Handle<JSFunction> closure, Zone* zone)
       extension_(NULL),
       pre_parse_data_(NULL),
       osr_ast_id_(AstNode::kNoNumber),
-      zone_(zone),
-      deferred_handles_(NULL) {
+      zone_(zone) {
   Initialize(BASE);
-}
-
-
-CompilationInfo::~CompilationInfo() {
-  delete deferred_handles_;
 }
 
 
