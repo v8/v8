@@ -1435,6 +1435,9 @@ class JSReceiver: public HeapObject {
   // Return the object's prototype (might be Heap::null_value()).
   inline Object* GetPrototype();
 
+  // Return the constructor function (may be Heap::null_value()).
+  inline Object* GetConstructor();
+
   // Set the object's prototype (only JSReceiver and null are allowed).
   MUST_USE_RESULT MaybeObject* SetPrototype(Object* value,
                                             bool skip_hidden_prototypes);

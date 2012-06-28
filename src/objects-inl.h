@@ -4798,6 +4798,11 @@ Object* JSReceiver::GetPrototype() {
 }
 
 
+Object* JSReceiver::GetConstructor() {
+  return map()->constructor();
+}
+
+
 bool JSReceiver::HasProperty(String* name) {
   if (IsJSProxy()) {
     return JSProxy::cast(this)->HasPropertyWithHandler(name);
