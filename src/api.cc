@@ -3031,6 +3031,17 @@ Local<String> v8::Object::ObjectProtoToString() {
 }
 
 
+Local<Value> v8::Object::GetConstructor() {
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  ON_BAILOUT(isolate, "v8::Object::GetConstructor()",
+             return Local<v8::Function>());
+  ENTER_V8(isolate);
+  i::Handle<i::JSObject> self = Utils::OpenHandle(this);
+  i::Handle<i::Object> constructor(self->GetConstructor());
+  return Utils::ToLocal(constructor);
+}
+
+
 Local<String> v8::Object::GetConstructorName() {
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
   ON_BAILOUT(isolate, "v8::Object::GetConstructorName()",

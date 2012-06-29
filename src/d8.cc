@@ -284,7 +284,7 @@ Handle<Value> Shell::Load(const Arguments& args) {
   return Undefined();
 }
 
-static int32_t convertToUint(Local<Value> value_in, TryCatch* try_catch) {
+static int32_t convertToInt(Local<Value> value_in, TryCatch* try_catch) {
   if (value_in->IsInt32()) {
     return value_in->Int32Value();
   }
@@ -296,7 +296,15 @@ static int32_t convertToUint(Local<Value> value_in, TryCatch* try_catch) {
   Local<Int32> int32 = number->ToInt32();
   if (try_catch->HasCaught() || int32.IsEmpty()) return 0;
 
-  int32_t raw_value = int32->Int32Value();
+  int32_t value = int32->Int32Value();
+  if (try_catch->HasCaught()) return 0;
+
+  return value;
+}
+
+
+static int32_t convertToUint(Local<Value> value_in, TryCatch* try_catch) {
+  int32_t raw_value = convertToInt(value_in, try_catch);
   if (try_catch->HasCaught()) return 0;
 
   if (raw_value < 0) {
@@ -317,9 +325,11 @@ static int32_t convertToUint(Local<Value> value_in, TryCatch* try_catch) {
 
 
 const char kArrayBufferMarkerPropName[] = "d8::_is_array_buffer_";
+const char kArrayMarkerPropName[] = "d8::_is_typed_array_";
 
 
-Handle<Value> Shell::CreateExternalArrayBuffer(int32_t length) {
+Handle<Value> Shell::CreateExternalArrayBuffer(Handle<Object> buffer,
+                                               int32_t length) {
   static const int32_t kMaxSize = 0x7fffffff;
   // Make sure the total size fits into a (signed) int.
   if (length < 0 || length > kMaxSize) {
@@ -331,7 +341,6 @@ Handle<Value> Shell::CreateExternalArrayBuffer(int32_t length) {
   }
   memset(data, 0, length);
 
-  Handle<Object> buffer = Object::New();
   buffer->SetHiddenValue(String::New(kArrayBufferMarkerPropName), True());
   Persistent<Object> persistent_array = Persistent<Object>::New(buffer);
   persistent_array.MakeWeak(data, ExternalArrayWeakCallback);
@@ -346,7 +355,15 @@ Handle<Value> Shell::CreateExternalArrayBuffer(int32_t length) {
 }
 
 
-Handle<Value> Shell::CreateExternalArrayBuffer(const Arguments& args) {
+Handle<Value> Shell::ArrayBuffer(const Arguments& args) {
+  if (!args.IsConstructCall()) {
+    Handle<Value>* rec_args = new Handle<Value>[args.Length()];
+    for (int i = 0; i < args.Length(); ++i) rec_args[i] = args[i];
+    Handle<Value> result = args.Callee()->NewInstance(args.Length(), rec_args);
+    delete[] rec_args;
+    return result;
+  }
+
   if (args.Length() == 0) {
     return ThrowException(
         String::New("ArrayBuffer constructor must have one parameter."));
@@ -355,19 +372,56 @@ Handle<Value> Shell::CreateExternalArrayBuffer(const Arguments& args) {
   int32_t length = convertToUint(args[0], &try_catch);
   if (try_catch.HasCaught()) return try_catch.Exception();
 
-  return CreateExternalArrayBuffer(length);
+  return CreateExternalArrayBuffer(args.This(), length);
+}
+
+
+Handle<Object> Shell::CreateExternalArray(Handle<Object> array,
+                                          Handle<Object> buffer,
+                                          ExternalArrayType type,
+                                          int32_t length,
+                                          int32_t byteLength,
+                                          int32_t byteOffset,
+                                          int32_t element_size) {
+  ASSERT(element_size == 1 || element_size == 2 ||
+         element_size == 4 || element_size == 8);
+  ASSERT(byteLength == length * element_size);
+
+  void* data = buffer->GetIndexedPropertiesExternalArrayData();
+  ASSERT(data != NULL);
+
+  array->SetIndexedPropertiesToExternalArrayData(
+      static_cast<uint8_t*>(data) + byteOffset, type, length);
+  array->SetHiddenValue(String::New(kArrayMarkerPropName), Int32::New(type));
+  array->Set(String::New("byteLength"), Int32::New(byteLength), ReadOnly);
+  array->Set(String::New("byteOffset"), Int32::New(byteOffset), ReadOnly);
+  array->Set(String::New("length"), Int32::New(length), ReadOnly);
+  array->Set(String::New("BYTES_PER_ELEMENT"), Int32::New(element_size));
+  array->Set(String::New("buffer"), buffer, ReadOnly);
+
+  return array;
 }
 
 
 Handle<Value> Shell::CreateExternalArray(const Arguments& args,
                                          ExternalArrayType type,
                                          int32_t element_size) {
+  if (!args.IsConstructCall()) {
+    Handle<Value>* rec_args = new Handle<Value>[args.Length()];
+    for (int i = 0; i < args.Length(); ++i) rec_args[i] = args[i];
+    Handle<Value> result = args.Callee()->NewInstance(args.Length(), rec_args);
+    delete[] rec_args;
+    return result;
+  }
+
   TryCatch try_catch;
   ASSERT(element_size == 1 || element_size == 2 ||
          element_size == 4 || element_size == 8);
 
-  // Currently, only the following constructors are supported:
+  // All of the following constructors are supported:
   //   TypedArray(unsigned long length)
+  //   TypedArray(type[] array)
+  //   TypedArray(TypedArray array)
   //   TypedArray(ArrayBuffer buffer,
   //              optional unsigned long byteOffset,
   //              optional unsigned long length)
@@ -375,13 +429,15 @@ Handle<Value> Shell::CreateExternalArray(const Arguments& args,
   int32_t length;
   int32_t byteLength;
   int32_t byteOffset;
+  bool init_from_array = false;
   if (args.Length() == 0) {
     return ThrowException(
         String::New("Array constructor must have at least one parameter."));
   }
   if (args[0]->IsObject() &&
-     !args[0]->ToObject()->GetHiddenValue(
-         String::New(kArrayBufferMarkerPropName)).IsEmpty()) {
+      !args[0]->ToObject()->GetHiddenValue(
+          String::New(kArrayBufferMarkerPropName)).IsEmpty()) {
+    // Construct from ArrayBuffer.
     buffer = args[0]->ToObject();
     int32_t bufferLength =
         convertToUint(buffer->Get(String::New("byteLength")), &try_catch);
@@ -417,27 +473,100 @@ Handle<Value> Shell::CreateExternalArray(const Arguments& args,
       }
     }
   } else {
-    length = convertToUint(args[0], &try_catch);
+    if (args[0]->IsObject() &&
+        args[0]->ToObject()->Has(String::New("length"))) {
+      // Construct from array.
+      length = convertToUint(
+          args[0]->ToObject()->Get(String::New("length")), &try_catch);
+      if (try_catch.HasCaught()) return try_catch.Exception();
+      init_from_array = true;
+    } else {
+      // Construct from size.
+      length = convertToUint(args[0], &try_catch);
+      if (try_catch.HasCaught()) return try_catch.Exception();
+    }
     byteLength = length * element_size;
     byteOffset = 0;
-    Handle<Value> result = CreateExternalArrayBuffer(byteLength);
-    if (!result->IsObject()) return result;
+
+    Handle<Object> global = Context::GetCurrent()->Global();
+    Handle<Value> array_buffer = global->Get(String::New("ArrayBuffer"));
+    ASSERT(!try_catch.HasCaught() && array_buffer->IsFunction());
+    Handle<Value> buffer_args[] = { Uint32::New(byteLength) };
+    Handle<Value> result = Handle<Function>::Cast(array_buffer)->NewInstance(
+        1, buffer_args);
+    if (try_catch.HasCaught()) return result;
     buffer = result->ToObject();
   }
 
-  void* data = buffer->GetIndexedPropertiesExternalArrayData();
-  ASSERT(data != NULL);
+  Handle<Object> array = CreateExternalArray(
+      args.This(), buffer, type, length, byteLength, byteOffset, element_size);
 
-  Handle<Object> array = Object::New();
-  array->SetIndexedPropertiesToExternalArrayData(
-      static_cast<uint8_t*>(data) + byteOffset, type, length);
-  array->Set(String::New("byteLength"), Int32::New(byteLength), ReadOnly);
-  array->Set(String::New("byteOffset"), Int32::New(byteOffset), ReadOnly);
-  array->Set(String::New("length"), Int32::New(length), ReadOnly);
-  array->Set(String::New("BYTES_PER_ELEMENT"), Int32::New(element_size));
-  array->Set(String::New("buffer"), buffer, ReadOnly);
+  if (init_from_array) {
+    Handle<Object> init = args[0]->ToObject();
+    for (int i = 0; i < length; ++i) array->Set(i, init->Get(i));
+  }
 
   return array;
+}
+
+
+Handle<Value> Shell::SubArray(const Arguments& args) {
+  TryCatch try_catch;
+
+  if (!args.This()->IsObject()) {
+    return ThrowException(
+        String::New("subarray invoked on non-object receiver."));
+  }
+
+  Local<Object> self = args.This();
+  Local<Value> marker = self->GetHiddenValue(String::New(kArrayMarkerPropName));
+  if (marker.IsEmpty()) {
+    return ThrowException(
+        String::New("subarray invoked on wrong receiver type."));
+  }
+
+  Handle<Object> buffer = self->Get(String::New("buffer"))->ToObject();
+  if (try_catch.HasCaught()) return try_catch.Exception();
+  int32_t length =
+      convertToUint(self->Get(String::New("length")), &try_catch);
+  if (try_catch.HasCaught()) return try_catch.Exception();
+  int32_t byteOffset =
+      convertToUint(self->Get(String::New("byteOffset")), &try_catch);
+  if (try_catch.HasCaught()) return try_catch.Exception();
+  int32_t element_size =
+      convertToUint(self->Get(String::New("BYTES_PER_ELEMENT")), &try_catch);
+  if (try_catch.HasCaught()) return try_catch.Exception();
+
+  if (args.Length() == 0) {
+    return ThrowException(
+        String::New("subarray must have at least one parameter."));
+  }
+  int32_t begin = convertToInt(args[0], &try_catch);
+  if (try_catch.HasCaught()) return try_catch.Exception();
+  if (begin < 0) begin += length;
+  if (begin < 0) begin = 0;
+  if (begin > length) begin = length;
+
+  int32_t end;
+  if (args.Length() < 2 || args[1]->IsUndefined()) {
+    end = length;
+  } else {
+    end = convertToInt(args[1], &try_catch);
+    if (try_catch.HasCaught()) return try_catch.Exception();
+    if (end < 0) end += length;
+    if (end < 0) end = 0;
+    if (end > length) end = length;
+    if (end < begin) end = begin;
+  }
+
+  length = end - begin;
+  byteOffset += begin * element_size;
+
+  Local<Function> constructor = Local<Function>::Cast(self->GetConstructor());
+  Handle<Value> construct_args[] = {
+    buffer, Uint32::New(byteOffset), Uint32::New(length)
+  };
+  return constructor->NewInstance(3, construct_args);
 }
 
 
@@ -448,11 +577,6 @@ void Shell::ExternalArrayWeakCallback(Persistent<Value> object, void* data) {
   V8::AdjustAmountOfExternalAllocatedMemory(-length);
   delete[] static_cast<uint8_t*>(data);
   object.Dispose();
-}
-
-
-Handle<Value> Shell::ArrayBuffer(const Arguments& args) {
-  return CreateExternalArrayBuffer(args);
 }
 
 
@@ -472,8 +596,8 @@ Handle<Value> Shell::Int16Array(const Arguments& args) {
 
 
 Handle<Value> Shell::Uint16Array(const Arguments& args) {
-  return CreateExternalArray(args, kExternalUnsignedShortArray,
-                             sizeof(uint16_t));
+  return CreateExternalArray(
+      args, kExternalUnsignedShortArray, sizeof(uint16_t));
 }
 
 
@@ -488,18 +612,18 @@ Handle<Value> Shell::Uint32Array(const Arguments& args) {
 
 
 Handle<Value> Shell::Float32Array(const Arguments& args) {
-  return CreateExternalArray(args, kExternalFloatArray,
-                             sizeof(float));  // NOLINT
+  return CreateExternalArray(
+      args, kExternalFloatArray, sizeof(float));  // NOLINT
 }
 
 
 Handle<Value> Shell::Float64Array(const Arguments& args) {
-  return CreateExternalArray(args, kExternalDoubleArray,
-                             sizeof(double));  // NOLINT
+  return CreateExternalArray(
+      args, kExternalDoubleArray, sizeof(double));  // NOLINT
 }
 
 
-Handle<Value> Shell::PixelArray(const Arguments& args) {
+Handle<Value> Shell::Uint8ClampedArray(const Arguments& args) {
   return CreateExternalArray(args, kExternalPixelArray, sizeof(uint8_t));
 }
 
@@ -794,6 +918,15 @@ class BZip2Decompressor : public v8::StartupDataDecompressor {
 };
 #endif
 
+
+Handle<FunctionTemplate> Shell::CreateArrayTemplate(InvocationCallback fun) {
+  Handle<FunctionTemplate> array_template = FunctionTemplate::New(fun);
+  Local<Template> proto_template = array_template->PrototypeTemplate();
+  proto_template->Set(String::New("subarray"), FunctionTemplate::New(SubArray));
+  return array_template;
+}
+
+
 Handle<ObjectTemplate> Shell::CreateGlobalTemplate() {
   Handle<ObjectTemplate> global_template = ObjectTemplate::New();
   global_template->Set(String::New("print"), FunctionTemplate::New(Print));
@@ -812,26 +945,28 @@ Handle<ObjectTemplate> Shell::CreateGlobalTemplate() {
                        FunctionTemplate::New(DisableProfiler));
 
   // Bind the handlers for external arrays.
+  PropertyAttribute attr =
+      static_cast<PropertyAttribute>(ReadOnly | DontDelete);
   global_template->Set(String::New("ArrayBuffer"),
-                       FunctionTemplate::New(ArrayBuffer));
+                       CreateArrayTemplate(ArrayBuffer), attr);
   global_template->Set(String::New("Int8Array"),
-                       FunctionTemplate::New(Int8Array));
+                       CreateArrayTemplate(Int8Array), attr);
   global_template->Set(String::New("Uint8Array"),
-                       FunctionTemplate::New(Uint8Array));
+                       CreateArrayTemplate(Uint8Array), attr);
   global_template->Set(String::New("Int16Array"),
-                       FunctionTemplate::New(Int16Array));
+                       CreateArrayTemplate(Int16Array), attr);
   global_template->Set(String::New("Uint16Array"),
-                       FunctionTemplate::New(Uint16Array));
+                       CreateArrayTemplate(Uint16Array), attr);
   global_template->Set(String::New("Int32Array"),
-                       FunctionTemplate::New(Int32Array));
+                       CreateArrayTemplate(Int32Array), attr);
   global_template->Set(String::New("Uint32Array"),
-                       FunctionTemplate::New(Uint32Array));
+                       CreateArrayTemplate(Uint32Array), attr);
   global_template->Set(String::New("Float32Array"),
-                       FunctionTemplate::New(Float32Array));
+                       CreateArrayTemplate(Float32Array), attr);
   global_template->Set(String::New("Float64Array"),
-                       FunctionTemplate::New(Float64Array));
-  global_template->Set(String::New("PixelArray"),
-                       FunctionTemplate::New(PixelArray));
+                       CreateArrayTemplate(Float64Array), attr);
+  global_template->Set(String::New("Uint8ClampedArray"),
+                       CreateArrayTemplate(Uint8ClampedArray), attr);
 
 #ifdef LIVE_OBJECT_LIST
   global_template->Set(String::New("lol_is_enabled"), True());

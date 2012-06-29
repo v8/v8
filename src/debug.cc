@@ -896,17 +896,17 @@ void Debug::PutValuesOnStackAndDie(int start,
                                    Address c_entry_fp,
                                    Address last_fp,
                                    Address larger_fp,
-                                   Address last_in_fp,
-                                   Address last_out_fp,
                                    int count,
+                                   char* stack,
                                    int end) {
   OS::PrintError("start:       %d\n", start);
   OS::PrintError("c_entry_fp:  %p\n", static_cast<void*>(c_entry_fp));
   OS::PrintError("last_fp:     %p\n", static_cast<void*>(last_fp));
   OS::PrintError("larger_fp:   %p\n", static_cast<void*>(larger_fp));
-  OS::PrintError("last_in_fp:  %p\n", static_cast<void*>(last_in_fp));
-  OS::PrintError("last_out_fp: %p\n", static_cast<void*>(last_out_fp));
   OS::PrintError("count:       %d\n", count);
+  if (stack != NULL) {
+    OS::PrintError("stack:       %s\n", stack);
+  }
   OS::PrintError("end:         %d\n", end);
   OS::Abort();
 }
@@ -1014,25 +1014,27 @@ Object* Debug::Break(Arguments args) {
       // - FP of the frame at which we plan to stop stepping out (last FP).
       // - current FP that's larger than last FP.
       // - Counter for the number of steps to step out.
+      // - stack trace string.
       if (it.done()) {
         // We crawled the entire stack, never reaching last_fp_.
         PutValuesOnStackAndDie(0xBEEEEEEE,
                                frame->fp(),
                                thread_local_.last_fp_,
-                               NULL,
-                               thread_local_.step_into_fp_,
-                               thread_local_.step_out_fp_,
+                               reinterpret_cast<Address>(0xDEADDEAD),
                                count,
-                               0xFEEEEEEE);
+                               NULL,
+                               0xCEEEEEEE);
       } else if (it.frame()->fp() != thread_local_.last_fp_) {
         // We crawled over last_fp_, without getting a match.
-        PutValuesOnStackAndDie(0xBEEEEEEE,
+        Handle<String> stack = isolate_->StackTraceString();
+        char buffer[2048];
+        String::WriteToFlat(*stack, buffer, 0, 2047);
+        PutValuesOnStackAndDie(0xDEEEEEEE,
                                frame->fp(),
                                thread_local_.last_fp_,
                                it.frame()->fp(),
-                               thread_local_.step_into_fp_,
-                               thread_local_.step_out_fp_,
                                count,
+                               buffer,
                                0xFEEEEEEE);
       }
 

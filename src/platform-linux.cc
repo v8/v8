@@ -161,48 +161,43 @@ bool OS::ArmCpuHasFeature(CpuFeature feature) {
 }
 
 
-// Simple helper function to detect whether the C code is compiled with
-// option -mfloat-abi=hard. The register d0 is loaded with 1.0 and the register
-// pair r0, r1 is loaded with 0.0. If -mfloat-abi=hard is pased to GCC then
-// calling this will return 1.0 and otherwise 0.0.
-static void ArmUsingHardFloatHelper() {
-  asm("mov r0, #0":::"r0");
-#if defined(__VFP_FP__) && !defined(__SOFTFP__)
-  // Load 0x3ff00000 into r1 using instructions available in both ARM
-  // and Thumb mode.
-  asm("mov r1, #3":::"r1");
-  asm("mov r2, #255":::"r2");
-  asm("lsl r1, r1, #8":::"r1");
-  asm("orr r1, r1, r2":::"r1");
-  asm("lsl r1, r1, #20":::"r1");
-  // For vmov d0, r0, r1 use ARM mode.
-#ifdef __thumb__
-  asm volatile(
-    "@   Enter ARM Mode  \n\t"
-    "    adr r3, 1f      \n\t"
-    "    bx  r3          \n\t"
-    "    .ALIGN 4        \n\t"
-    "    .ARM            \n"
-    "1:  vmov d0, r0, r1 \n\t"
-    "@   Enter THUMB Mode\n\t"
-    "    adr r3, 2f+1    \n\t"
-    "    bx  r3          \n\t"
-    "    .THUMB          \n"
-    "2:                  \n\t":::"r3");
-#else
-  asm("vmov d0, r0, r1");
-#endif  // __thumb__
-#endif  // defined(__VFP_FP__) && !defined(__SOFTFP__)
-  asm("mov r1, #0":::"r1");
-}
-
-
 bool OS::ArmUsingHardFloat() {
-  // Cast helper function from returning void to returning double.
-  typedef double (*F)();
-  F f = FUNCTION_CAST<F>(FUNCTION_ADDR(ArmUsingHardFloatHelper));
-  return f() == 1.0;
+  // GCC versions 4.6 and above define __ARM_PCS or __ARM_PCS_VFP to specify
+  // the Floating Point ABI used (PCS stands for Procedure Call Standard).
+  // We use these as well as a couple of other defines to statically determine
+  // what FP ABI used.
+  // GCC versions 4.4 and below don't support hard-fp.
+  // GCC versions 4.5 may support hard-fp without defining __ARM_PCS or
+  // __ARM_PCS_VFP.
+
+#define GCC_VERSION (__GNUC__ * 10000                                          \
+                     + __GNUC_MINOR__ * 100                                    \
+                     + __GNUC_PATCHLEVEL__)
+#if GCC_VERSION >= 40600
+#if defined(__ARM_PCS_VFP)
+  return true;
+#else
+  return false;
+#endif
+
+#elif GCC_VERSION < 40500
+  return false;
+
+#else
+#if defined(__ARM_PCS_VFP)
+  return true;
+#elif defined(__ARM_PCS) || defined(__SOFTFP) || !defined(__VFP_FP__)
+  return false;
+#else
+#error "Your version of GCC does not report the FP ABI compiled for."          \
+       "Please report it on this issue"                                        \
+       "http://code.google.com/p/v8/issues/detail?id=2140"
+
+#endif
+#endif
+#undef GCC_VERSION
 }
+
 #endif  // def __arm__
 
 

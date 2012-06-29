@@ -236,9 +236,8 @@ class Debug {
                                         Address c_entry_fp,
                                         Address last_fp,
                                         Address larger_fp,
-                                        Address last_in_fp,
-                                        Address last_out_fp,
                                         int count,
+                                        char* stack,
                                         int end));
   Object* Break(Arguments args);
   void SetBreakPoint(Handle<JSFunction> function,
