@@ -159,6 +159,7 @@ a = new Float64Array(7);
 assertSame(a.buffer, (new Uint16Array(a.buffer)).buffer);
 assertSame(a.buffer, (new Float32Array(a.buffer,4)).buffer);
 assertSame(a.buffer, (new Int8Array(a.buffer,3,51)).buffer);
+assertInstance(a.buffer, ArrayBuffer);
 
 // Test the correct behavior of the |BYTES_PER_ELEMENT| property (which is
 // "constant", but not read-only).
@@ -459,6 +460,7 @@ assertEquals(0, a.length);
 assertEquals(0, a.byteLength);
 assertEquals(0, a.buffer.byteLength);
 assertEquals(4, a.BYTES_PER_ELEMENT);
+assertInstance(a.buffer, ArrayBuffer);
 a = new Uint16Array([1,2,3]);
 assertInstance(a, Uint16Array);
 assertEquals(3, a.length);
@@ -467,6 +469,7 @@ assertEquals(6, a.buffer.byteLength);
 assertEquals(2, a.BYTES_PER_ELEMENT);
 assertEquals(1, a[0]);
 assertEquals(3, a[2]);
+assertInstance(a.buffer, ArrayBuffer);
 a = new Uint32Array(a);
 assertInstance(a, Uint32Array);
 assertEquals(3, a.length);
@@ -475,7 +478,7 @@ assertEquals(12, a.buffer.byteLength);
 assertEquals(4, a.BYTES_PER_ELEMENT);
 assertEquals(1, a[0]);
 assertEquals(3, a[2]);
-
+assertInstance(a.buffer, ArrayBuffer);
 
 // Check subarrays.
 a = new Uint16Array([1,2,3,4,5,6]);
