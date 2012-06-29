@@ -117,7 +117,6 @@ Persistent<Context> Shell::utility_context_;
 
 LineEditor* Shell::console = NULL;
 Persistent<Context> Shell::evaluation_context_;
-Persistent<FunctionTemplate> Shell::array_buffer_template_;
 ShellOptions Shell::options;
 const char* Shell::kPrompt = "d8> ";
 
@@ -489,7 +488,8 @@ Handle<Value> Shell::CreateExternalArray(const Arguments& args,
     byteLength = length * element_size;
     byteOffset = 0;
 
-    Handle<Value> array_buffer = array_buffer_template_->GetFunction();
+    Handle<Object> global = Context::GetCurrent()->Global();
+    Handle<Value> array_buffer = global->Get(String::New("ArrayBuffer"));
     ASSERT(!try_catch.HasCaught() && array_buffer->IsFunction());
     Handle<Value> buffer_args[] = { Uint32::New(byteLength) };
     Handle<Value> result = Handle<Function>::Cast(array_buffer)->NewInstance(
@@ -947,10 +947,8 @@ Handle<ObjectTemplate> Shell::CreateGlobalTemplate() {
   // Bind the handlers for external arrays.
   PropertyAttribute attr =
       static_cast<PropertyAttribute>(ReadOnly | DontDelete);
-  array_buffer_template_ =
-      Persistent<FunctionTemplate>::New(CreateArrayTemplate(ArrayBuffer));
   global_template->Set(String::New("ArrayBuffer"),
-                       array_buffer_template_, attr);
+                       CreateArrayTemplate(ArrayBuffer), attr);
   global_template->Set(String::New("Int8Array"),
                        CreateArrayTemplate(Int8Array), attr);
   global_template->Set(String::New("Uint8Array"),

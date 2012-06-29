@@ -367,7 +367,6 @@ class Shell : public i::AllStatic {
 
  private:
   static Persistent<Context> evaluation_context_;
-  static Persistent<FunctionTemplate> array_buffer_template_;
 #ifndef V8_SHARED
   static Persistent<Context> utility_context_;
   static CounterMap* counter_map_;
