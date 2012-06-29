@@ -1,3 +1,10 @@
+2012-06-29: Version 3.12.6
+
+        Cleaned up hardfp ABI detection for ARM (V8 issue 2140).
+
+        Extended TypedArray support in d8.
+
+
 2012-06-28: Version 3.12.5
 
         Fixed lazy parsing heuristics to respect outer scope.
