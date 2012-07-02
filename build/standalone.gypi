@@ -33,6 +33,7 @@
     'component%': 'static_library',
     'visibility%': 'hidden',
     'msvs_multi_core_compile%': '1',
+    'mac_deployment_target%': '10.5',
     'variables': {
       'variables': {
         'variables': {
@@ -191,7 +192,8 @@
           'GCC_TREAT_WARNINGS_AS_ERRORS': 'YES',    # -Werror
           'GCC_VERSION': '4.2',
           'GCC_WARN_ABOUT_MISSING_NEWLINE': 'YES',  # -Wnewline-eof
-          'MACOSX_DEPLOYMENT_TARGET': '10.4',       # -mmacosx-version-min=10.4
+          # MACOSX_DEPLOYMENT_TARGET maps to -mmacosx-version-min
+          'MACOSX_DEPLOYMENT_TARGET': '<(mac_deployment_target)',
           'PREBINDING': 'NO',                       # No -Wl,-prebind
           'SYMROOT': '<(DEPTH)/xcodebuild',
           'USE_HEADERMAP': 'NO',
