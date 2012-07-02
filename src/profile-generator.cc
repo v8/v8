@@ -2182,16 +2182,31 @@ void V8HeapExplorer::ExtractPropertyReferences(JSObject* js_obj, int entry) {
       switch (descs->GetType(i)) {
         case FIELD: {
           int index = descs->GetFieldIndex(i);
+
+          String* k = descs->GetKey(i);
           if (index < js_obj->map()->inobject_properties()) {
-            SetPropertyReference(
-                js_obj, entry,
-                descs->GetKey(i), js_obj->InObjectPropertyAt(index),
-                NULL,
-                js_obj->GetInObjectPropertyOffset(index));
+            Object* value = js_obj->InObjectPropertyAt(index);
+            if (k != heap_->hidden_symbol()) {
+              SetPropertyReference(
+                  js_obj, entry,
+                  k, value,
+                  NULL,
+                  js_obj->GetInObjectPropertyOffset(index));
+            } else {
+              TagObject(value, "(hidden properties)");
+              SetInternalReference(
+                  js_obj, entry,
+                  "hidden_properties", value,
+                  js_obj->GetInObjectPropertyOffset(index));
+            }
           } else {
-            SetPropertyReference(
-                js_obj, entry,
-                descs->GetKey(i), js_obj->FastPropertyAt(index));
+            Object* value = js_obj->FastPropertyAt(index);
+            if (k != heap_->hidden_symbol()) {
+              SetPropertyReference(js_obj, entry, k, value);
+            } else {
+              TagObject(value, "(hidden properties)");
+              SetInternalReference(js_obj, entry, "hidden_properties", value);
+            }
           }
           break;
         }
@@ -2237,7 +2252,7 @@ void V8HeapExplorer::ExtractPropertyReferences(JSObject* js_obj, int entry) {
         Object* value = target->IsJSGlobalPropertyCell()
             ? JSGlobalPropertyCell::cast(target)->value()
             : target;
-        if (String::cast(k)->length() > 0) {
+        if (k != heap_->hidden_symbol()) {
           SetPropertyReference(js_obj, entry, String::cast(k), value);
         } else {
           TagObject(value, "(hidden properties)");
