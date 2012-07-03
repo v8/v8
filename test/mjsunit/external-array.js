@@ -565,3 +565,101 @@ assertInstance(a, Float32Array)
 assertSame(b, a.buffer)
 assertEquals(128, a.byteOffset)
 assertEquals(4, a.byteLength)
+
+
+// Test array.set in different combinations.
+
+function assertArrayPrefix(expected, array) {
+  for (var i = 0; i < expected.length; ++i) {
+    assertEquals(expected[i], array[i]);
+  }
+}
+
+var a11 = new Int16Array([1, 2, 3, 4, 0, -1])
+var a12 = new Uint16Array(15)
+a12.set(a11, 3)
+assertArrayPrefix([0, 0, 0, 1, 2, 3, 4, 0, 0xffff, 0, 0], a12)
+assertThrows(function(){ a11.set(a12) })
+
+var a21 = [1, undefined, 10, NaN, 0, -1, {valueOf: function() {return 3}}]
+var a22 = new Int32Array(12)
+a22.set(a21, 2)
+assertArrayPrefix([0, 0, 1, 0, 10, 0, 0, -1, 3, 0], a22)
+
+var a31 = new Float32Array([2, 4, 6, 8, 11, NaN, 1/0, -3])
+var a32 = a31.subarray(2, 6)
+a31.set(a32, 4)
+assertArrayPrefix([2, 4, 6, 8, 6, 8, 11, NaN], a31)
+assertArrayPrefix([6, 8, 6, 8], a32)
+
+var a4 = new Uint8ClampedArray([3,2,5,6])
+a4.set(a4)
+assertArrayPrefix([3, 2, 5, 6], a4)
+
+// Cases with overlapping backing store but different element sizes.
+var b = new ArrayBuffer(4)
+var a5 = new Int16Array(b)
+var a50 = new Int8Array(b)
+var a51 = new Int8Array(b, 0, 2)
+var a52 = new Int8Array(b, 1, 2)
+var a53 = new Int8Array(b, 2, 2)
+
+a5.set([0x5050, 0x0a0a])
+assertArrayPrefix([0x50, 0x50, 0x0a, 0x0a], a50)
+assertArrayPrefix([0x50, 0x50], a51)
+assertArrayPrefix([0x50, 0x0a], a52)
+assertArrayPrefix([0x0a, 0x0a], a53)
+
+a50.set([0x50, 0x50, 0x0a, 0x0a])
+a51.set(a5)
+assertArrayPrefix([0x50, 0x0a, 0x0a, 0x0a], a50)
+
+a50.set([0x50, 0x50, 0x0a, 0x0a])
+a52.set(a5)
+assertArrayPrefix([0x50, 0x50, 0x0a, 0x0a], a50)
+
+a50.set([0x50, 0x50, 0x0a, 0x0a])
+a53.set(a5)
+assertArrayPrefix([0x50, 0x50, 0x50, 0x0a], a50)
+
+a50.set([0x50, 0x51, 0x0a, 0x0b])
+a5.set(a51)
+assertArrayPrefix([0x0050, 0x0051], a5)
+
+a50.set([0x50, 0x51, 0x0a, 0x0b])
+a5.set(a52)
+assertArrayPrefix([0x0051, 0x000a], a5)
+
+a50.set([0x50, 0x51, 0x0a, 0x0b])
+a5.set(a53)
+assertArrayPrefix([0x000a, 0x000b], a5)
+
+// Mixed types of same size.
+var a61 = new Float32Array([1.2, 12.3])
+var a62 = new Int32Array(2)
+a62.set(a61)
+assertArrayPrefix([1, 12], a62)
+a61.set(a62)
+assertArrayPrefix([1, 12], a61)
+
+// Invalid source
+assertThrows(function() { a.set(0) })
+assertThrows(function() { a.set({}) })
+
+
+// Test arraybuffer.slice
+
+var a0 = new Int8Array([1, 2, 3, 4, 5, 6])
+var b0 = a0.buffer
+
+var b1 = b0.slice(0)
+assertEquals(b0.byteLength, b1.byteLength)
+assertArrayPrefix([1, 2, 3, 4, 5, 6], Int8Array(b1))
+
+var b2 = b0.slice(3)
+assertEquals(b0.byteLength - 3, b2.byteLength)
+assertArrayPrefix([4, 5, 6], Int8Array(b2))
+
+var b3 = b0.slice(2, 4)
+assertEquals(2, b3.byteLength)
+assertArrayPrefix([3, 4], Int8Array(b3))
