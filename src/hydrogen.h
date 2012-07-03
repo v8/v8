@@ -1101,12 +1101,25 @@ class HGraphBuilder: public AstVisitor {
                                        ElementsKind elements_kind,
                                        bool is_store);
 
+  HInstruction* TryBuildConsolidatedElementLoad(HValue* object,
+                                                HValue* key,
+                                                HValue* val,
+                                                SmallMapList* maps);
+
+  HInstruction* BuildUncheckedMonomorphicElementAccess(HValue* object,
+                                                       HValue* key,
+                                                       HValue* val,
+                                                       HCheckMaps* mapcheck,
+                                                       Handle<Map> map,
+                                                       bool is_store);
+
   HInstruction* BuildMonomorphicElementAccess(HValue* object,
                                               HValue* key,
                                               HValue* val,
                                               HValue* dependency,
                                               Handle<Map> map,
                                               bool is_store);
+
   HValue* HandlePolymorphicElementAccess(HValue* object,
                                          HValue* key,
                                          HValue* val,

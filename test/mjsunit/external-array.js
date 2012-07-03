@@ -540,3 +540,28 @@ assertSame(a.buffer, aa.buffer);
 assertThrows(function(){ a.subarray.call({}, 0) });
 assertThrows(function(){ a.subarray.call([], 0) });
 assertThrows(function(){ a.subarray.call(a) });
+
+
+// Call constructors directly as functions, and through .call and .apply
+
+b = ArrayBuffer(100)
+a = Int8Array(b, 5, 77)
+assertInstance(b, ArrayBuffer)
+assertInstance(a, Int8Array)
+assertSame(b, a.buffer)
+assertEquals(5, a.byteOffset)
+assertEquals(77, a.byteLength)
+b = ArrayBuffer.call(null, 10)
+a = Uint16Array.call(null, b, 2, 4)
+assertInstance(b, ArrayBuffer)
+assertInstance(a, Uint16Array)
+assertSame(b, a.buffer)
+assertEquals(2, a.byteOffset)
+assertEquals(8, a.byteLength)
+b = ArrayBuffer.apply(null, [1000])
+a = Float32Array.apply(null, [b, 128, 1])
+assertInstance(b, ArrayBuffer)
+assertInstance(a, Float32Array)
+assertSame(b, a.buffer)
+assertEquals(128, a.byteOffset)
+assertEquals(4, a.byteLength)

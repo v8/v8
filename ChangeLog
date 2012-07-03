@@ -1,3 +1,19 @@
+2012-07-03: Version 3.12.7
+
+        Fixed lazy compilation for strict eval scopes.
+        (Chromium issue 135066)
+
+        Made MACOSX_DEPLOYMENT_TARGET configurable in GYP.
+        (issue 2151)
+
+        Report "hidden properties" in heap profiler for properties case.
+        (issue 2212)
+
+        Activated optimization of packed arrays by default.
+
+        Performance and stability improvements on all platforms.
+
+
 2012-06-29: Version 3.12.6
 
         Cleaned up hardfp ABI detection for ARM (V8 issue 2140).

@@ -1449,6 +1449,36 @@ TEST(FastCaseGetter) {
   CHECK_NE(NULL, setterFunction);
 }
 
+TEST(HiddenPropertiesFastCase) {
+  v8::HandleScope scope;
+  LocalContext env;
+
+  CompileRun(
+      "function C(x) { this.a = this; this.b = x; }\n"
+      "c = new C(2012);\n");
+  const v8::HeapSnapshot* snapshot =
+      v8::HeapProfiler::TakeSnapshot(v8_str("HiddenPropertiesFastCase1"));
+  const v8::HeapGraphNode* global = GetGlobalObject(snapshot);
+  const v8::HeapGraphNode* c =
+      GetProperty(global, v8::HeapGraphEdge::kProperty, "c");
+  CHECK_NE(NULL, c);
+  const v8::HeapGraphNode* hidden_props =
+      GetProperty(c, v8::HeapGraphEdge::kInternal, "hidden_properties");
+  CHECK_EQ(NULL, hidden_props);
+
+  v8::Handle<v8::Value> cHandle = env->Global()->Get(v8::String::New("c"));
+  CHECK(!cHandle.IsEmpty() && cHandle->IsObject());
+  cHandle->ToObject()->GetIdentityHash();
+
+  snapshot = v8::HeapProfiler::TakeSnapshot(
+      v8_str("HiddenPropertiesFastCase2"));
+  global = GetGlobalObject(snapshot);
+  c = GetProperty(global, v8::HeapGraphEdge::kProperty, "c");
+  CHECK_NE(NULL, c);
+  hidden_props = GetProperty(c, v8::HeapGraphEdge::kInternal,
+      "hidden_properties");
+  CHECK_NE(NULL, hidden_props);
+}
 
 bool HasWeakEdge(const v8::HeapGraphNode* node) {
   for (int i = 0; i < node->GetChildrenCount(); ++i) {

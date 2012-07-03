@@ -35,6 +35,7 @@ GYPFLAGS ?=
 TESTFLAGS ?=
 ANDROID_NDK_ROOT ?=
 ANDROID_TOOL_PREFIX = $(ANDROID_NDK_ROOT)/toolchain/bin/arm-linux-androideabi
+ANDROID_V8 ?= /data/local/v8
 
 # Special build flags. Use them like this: "make library=shared"
 
@@ -107,7 +108,7 @@ endif
 # - every combination <arch>.<mode>, e.g. "ia32.release"
 # - "native": current host's architecture, release mode
 # - any of the above with .check appended, e.g. "ia32.release.check"
-# - "android": cross-compile for Android/ARM (release mode)
+# - "android": cross-compile for Android/ARM
 # - default (no target specified): build all DEFAULT_ARCHES and MODES
 # - "check": build all targets and run all tests
 # - "<arch>.clean" for any <arch> in ARCHES
@@ -120,6 +121,7 @@ endif
 ARCHES = ia32 x64 arm mips
 DEFAULT_ARCHES = ia32 x64 arm
 MODES = release debug
+ANDROID_MODES = android.release android.debug
 
 # List of files that trigger Makefile regeneration:
 GYPFILES = build/all.gyp build/common.gypi build/standalone.gypi \
@@ -166,8 +168,9 @@ native: $(OUTDIR)/Makefile.native
 	         CXX="$(CXX)" LINK="$(LINK)" BUILDTYPE=Release \
 	         builddir="$(shell pwd)/$(OUTDIR)/$@"
 
-# TODO(jkummerow): add "android.debug" when we need it.
-android android.release: $(OUTDIR)/Makefile.android
+android: $(ANDROID_MODES)
+
+$(ANDROID_MODES): $(OUTDIR)/Makefile.android
 	@$(MAKE) -C "$(OUTDIR)" -f Makefile.android \
 	        CXX="$(ANDROID_TOOL_PREFIX)-g++" \
 	        AR="$(ANDROID_TOOL_PREFIX)-ar" \
@@ -175,8 +178,9 @@ android android.release: $(OUTDIR)/Makefile.android
 	        CC="$(ANDROID_TOOL_PREFIX)-gcc" \
 	        LD="$(ANDROID_TOOL_PREFIX)-ld" \
 	        LINK="$(ANDROID_TOOL_PREFIX)-g++" \
-	        BUILDTYPE=Release \
-	        builddir="$(shell pwd)/$(OUTDIR)/android.release"
+	        BUILDTYPE=$(shell echo $(subst .,,$(suffix $@)) | \
+	                    python -c "print raw_input().capitalize()") \
+	        builddir="$(shell pwd)/$(OUTDIR)/$@"
 
 # Test targets.
 check: all
@@ -195,6 +199,17 @@ $(addsuffix .check,$(ARCHES)): $$(basename $$@)
 $(CHECKS): $$(basename $$@)
 	@tools/test-wrapper-gypbuild.py $(TESTJOBS) --outdir=$(OUTDIR) \
 	    --arch-and-mode=$(basename $@) $(TESTFLAGS)
+
+$(addsuffix .sync, $(ANDROID_MODES)): $$(basename $$@)
+	@tools/android-sync.sh $(basename $@) $(OUTDIR) \
+	                       $(shell pwd) $(ANDROID_V8)
+
+$(addsuffix .check, $(ANDROID_MODES)): $$(basename $$@).sync
+	@tools/test-wrapper-gypbuild.py $(TESTJOBS) --outdir=$(OUTDIR) \
+	     --arch-and-mode=$(basename $@) \
+	     --special-command="tools/android-run.py @"
+
+android.check: android.release.check android.debug.check
 
 native.check: native
 	@tools/test-wrapper-gypbuild.py $(TESTJOBS) --outdir=$(OUTDIR)/native \

@@ -965,12 +965,21 @@ class ReplacingVisitor : public ObjectVisitor {
 
 
 // Finds all references to original and replaces them with substitution.
-static void ReplaceCodeObject(Code* original, Code* substitution) {
-  ASSERT(!HEAP->InNewSpace(substitution));
+static void ReplaceCodeObject(Handle<Code> original,
+                              Handle<Code> substitution) {
+  // Perform a full GC in order to ensure that we are not in the middle of an
+  // incremental marking phase when we are replacing the code object.
+  // Since we are not in an incremental marking phase we can write pointers
+  // to code objects (that are never in new space) without worrying about
+  // write barriers.
+  HEAP->CollectAllGarbage(Heap::kMakeHeapIterableMask,
+                          "liveedit.cc ReplaceCodeObject");
+
+  ASSERT(!HEAP->InNewSpace(*substitution));
 
   AssertNoAllocation no_allocations_please;
 
-  ReplacingVisitor visitor(original, substitution);
+  ReplacingVisitor visitor(*original, *substitution);
 
   // Iterate over all roots. Stack frames may have pointer into original code,
   // so temporary replace the pointers with offset numbers
@@ -1066,8 +1075,8 @@ MaybeObject* LiveEdit::ReplaceFunctionCode(
 
   if (IsJSFunctionCode(shared_info->code())) {
     Handle<Code> code = compile_info_wrapper.GetFunctionCode();
-    ReplaceCodeObject(shared_info->code(), *code);
-    Handle<Object> code_scope_info =  compile_info_wrapper.GetCodeScopeInfo();
+    ReplaceCodeObject(Handle<Code>(shared_info->code()), code);
+    Handle<Object> code_scope_info = compile_info_wrapper.GetCodeScopeInfo();
     if (code_scope_info->IsFixedArray()) {
       shared_info->set_scope_info(ScopeInfo::cast(*code_scope_info));
     }
@@ -1309,7 +1318,7 @@ MaybeObject* LiveEdit::PatchFunctionPositions(
       // on stack (it is safe to substitute the code object on stack, because
       // we only change the structure of rinfo and leave instructions
       // untouched).
-      ReplaceCodeObject(info->code(), *patched_code);
+      ReplaceCodeObject(Handle<Code>(info->code()), patched_code);
     }
   }
 

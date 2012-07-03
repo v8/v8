@@ -54,7 +54,7 @@ test-profile-generator/RecordStackTraceAtStartProfiling: PASS || FAIL
 test-weakmaps/Shrinking: FAIL
 
 ##############################################################################
-[ $arch == arm ]
+[ $arch == arm || $arch == android ]
 
 # We cannot assume that we can throw OutOfMemory exceptions in all situations.
 # Apparently our ARM box is in such a state. Skip the test as it also runs for

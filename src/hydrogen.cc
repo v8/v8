@@ -5748,16 +5748,31 @@ HInstruction* HGraphBuilder::BuildMonomorphicElementAccess(HValue* object,
                                                            HValue* dependency,
                                                            Handle<Map> map,
                                                            bool is_store) {
-  HInstruction* mapcheck =
-      AddInstruction(new(zone()) HCheckMaps(object, map, zone(), dependency));
+  HCheckMaps* mapcheck = new(zone()) HCheckMaps(object, map,
+                                                zone(), dependency);
+  AddInstruction(mapcheck);
+  if (dependency) {
+    mapcheck->ClearGVNFlag(kDependsOnElementsKind);
+  }
+  return BuildUncheckedMonomorphicElementAccess(object, key, val,
+                                                mapcheck, map, is_store);
+}
+
+
+HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
+    HValue* object,
+    HValue* key,
+    HValue* val,
+    HCheckMaps* mapcheck,
+    Handle<Map> map,
+    bool is_store) {
   // No GVNFlag is necessary for ElementsKind if there is an explicit dependency
   // on a HElementsTransition instruction. The flag can also be removed if the
   // map to check has FAST_HOLEY_ELEMENTS, since there can be no further
   // ElementsKind transitions. Finally, the dependency can be removed for stores
   // for FAST_ELEMENTS, since a transition to HOLEY elements won't change the
   // generated store code.
-  if (dependency ||
-      (map->elements_kind() == FAST_HOLEY_ELEMENTS) ||
+  if ((map->elements_kind() == FAST_HOLEY_ELEMENTS) ||
       (map->elements_kind() == FAST_ELEMENTS && is_store)) {
     mapcheck->ClearGVNFlag(kDependsOnElementsKind);
   }
@@ -5796,6 +5811,59 @@ HInstruction* HGraphBuilder::BuildMonomorphicElementAccess(HValue* object,
 }
 
 
+HInstruction* HGraphBuilder::TryBuildConsolidatedElementLoad(
+    HValue* object,
+    HValue* key,
+    HValue* val,
+    SmallMapList* maps) {
+  // For polymorphic loads of similar elements kinds (i.e. all tagged or all
+  // double), always use the "worst case" code without a transition.  This is
+  // much faster than transitioning the elements to the worst case, trading a
+  // HTransitionElements for a HCheckMaps, and avoiding mutation of the array.
+  bool has_double_maps = false;
+  bool has_smi_or_object_maps = false;
+  bool has_js_array_access = false;
+  bool has_non_js_array_access = false;
+  Handle<Map> most_general_consolidated_map;
+  for (int i = 0; i < maps->length(); ++i) {
+    Handle<Map> map = maps->at(i);
+    // Don't allow mixing of JSArrays with JSObjects.
+    if (map->instance_type() == JS_ARRAY_TYPE) {
+      if (has_non_js_array_access) return NULL;
+      has_js_array_access = true;
+    } else if (has_js_array_access) {
+      return NULL;
+    } else {
+      has_non_js_array_access = true;
+    }
+    // Don't allow mixed, incompatible elements kinds.
+    if (map->has_fast_double_elements()) {
+      if (has_smi_or_object_maps) return NULL;
+      has_double_maps = true;
+    } else if (map->has_fast_smi_or_object_elements()) {
+      if (has_double_maps) return NULL;
+      has_smi_or_object_maps = true;
+    } else {
+      return NULL;
+    }
+    // Remember the most general elements kind, the code for its load will
+    // properly handle all of the more specific cases.
+    if ((i == 0) || IsMoreGeneralElementsKindTransition(
+            most_general_consolidated_map->elements_kind(),
+            map->elements_kind())) {
+      most_general_consolidated_map = map;
+    }
+  }
+  if (!has_double_maps && !has_smi_or_object_maps) return NULL;
+
+  HCheckMaps* check_maps = new(zone()) HCheckMaps(object, maps, zone());
+  AddInstruction(check_maps);
+  HInstruction* instr = BuildUncheckedMonomorphicElementAccess(
+      object, key, val, check_maps, most_general_consolidated_map, false);
+  return instr;
+}
+
+
 HValue* HGraphBuilder::HandlePolymorphicElementAccess(HValue* object,
                                                       HValue* key,
                                                       HValue* val,
@@ -5808,6 +5876,17 @@ HValue* HGraphBuilder::HandlePolymorphicElementAccess(HValue* object,
   AddInstruction(new(zone()) HCheckNonSmi(object));
   SmallMapList* maps = prop->GetReceiverTypes();
   bool todo_external_array = false;
+
+  if (!is_store) {
+    HInstruction* consolidated_load =
+        TryBuildConsolidatedElementLoad(object, key, val, maps);
+    if (consolidated_load != NULL) {
+      AddInstruction(consolidated_load);
+      *has_side_effects |= consolidated_load->HasObservableSideEffects();
+      consolidated_load->set_position(position);
+      return consolidated_load;
+    }
+  }
 
   static const int kNumElementTypes = kElementsKindCount;
   bool type_todo[kNumElementTypes];
