@@ -1522,6 +1522,24 @@ class InspectionShell(cmd.Cmd):
     else:
       print "Page header is not available!"
 
+  def do_da(self, address):
+    """
+     Print ASCII string starting at specified address.
+    """
+    address = int(address, 16)
+    string = ""
+    while self.reader.IsValidAddress(address):
+      code = self.reader.ReadU8(address)
+      if code < 128:
+        string += chr(code)
+      else:
+        break
+      address += 1
+    if string == "":
+      print "Not an ASCII string at %s" % self.reader.FormatIntPtr(address)
+    else:
+      print "%s\n" % string
+
   def do_k(self, arguments):
     """
      Teach V8 heap layout information to the inspector. This increases
