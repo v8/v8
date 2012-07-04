@@ -2675,9 +2675,10 @@ Handle<Code> StoreStubCompiler::CompileStoreCallback(
 
 
 Handle<Code> StoreStubCompiler::CompileStoreViaSetter(
+    Handle<String> name,
     Handle<JSObject> receiver,
-    Handle<JSFunction> setter,
-    Handle<String> name) {
+    Handle<JSObject> holder,
+    Handle<JSFunction> setter) {
   // ----------- S t a t e -------------
   //  -- a0    : value
   //  -- a1    : receiver
@@ -2686,9 +2687,9 @@ Handle<Code> StoreStubCompiler::CompileStoreViaSetter(
   // -----------------------------------
   Label miss;
 
-  // Check that the map of the object hasn't changed.
-  __ CheckMap(a1, a3, Handle<Map>(receiver->map()), &miss, DO_SMI_CHECK,
-              ALLOW_ELEMENT_TRANSITION_MAPS);
+  // Check that the maps haven't changed.
+  __ JumpIfSmi(a1, &miss);
+  CheckPrototypes(receiver, a1, holder, a3, t0, t1, name, &miss);
 
   {
     FrameScope scope(masm(), StackFrame::INTERNAL);
@@ -2696,7 +2697,7 @@ Handle<Code> StoreStubCompiler::CompileStoreViaSetter(
     // Save value register, so we can restore it later.
     __ push(a0);
 
-    // Call the JavaScript getter with the receiver and the value on the stack.
+    // Call the JavaScript setter with the receiver and the value on the stack.
     __ push(a1);
     __ push(a0);
     ParameterCount actual(1);

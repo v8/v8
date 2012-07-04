@@ -1315,7 +1315,15 @@ static bool LookupForWrite(Handle<JSObject> receiver,
                            LookupResult* lookup) {
   receiver->LocalLookup(*name, lookup);
   if (!StoreICableLookup(lookup)) {
-    return false;
+    // 2nd chance: There can be accessors somewhere in the prototype chain, but
+    // for compatibility reasons we have to hide this behind a flag. Note that
+    // we explicitly exclude native accessors for now, because the stubs are not
+    // yet prepared for this scenario.
+    if (!FLAG_es5_readonly) return false;
+    receiver->Lookup(*name, lookup);
+    if (!lookup->IsCallbacks()) return false;
+    Handle<Object> callback(lookup->GetCallbackObject());
+    return callback->IsAccessorPair() && StoreICableLookup(lookup);
   }
 
   if (lookup->IsInterceptor() &&
@@ -1494,7 +1502,8 @@ void StoreIC::UpdateCaches(LookupResult* lookup,
         if (holder->IsGlobalObject()) return;
         if (!receiver->HasFastProperties()) return;
         code = isolate()->stub_cache()->ComputeStoreViaSetter(
-            name, receiver, Handle<JSFunction>::cast(setter), strict_mode);
+            name, receiver, holder, Handle<JSFunction>::cast(setter),
+            strict_mode);
       } else {
         ASSERT(callback->IsForeign());
         // No IC support for old-style native accessors.
