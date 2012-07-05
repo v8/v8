@@ -1027,8 +1027,8 @@ Object* Debug::Break(Arguments args) {
       } else if (it.frame()->fp() != thread_local_.last_fp_) {
         // We crawled over last_fp_, without getting a match.
         Handle<String> stack = isolate_->StackTraceString();
-        char buffer[2048];
-        String::WriteToFlat(*stack, buffer, 0, 2047);
+        char buffer[8192];
+        String::WriteToFlat(*stack, buffer, 0, 8191);
         PutValuesOnStackAndDie(0xDEEEEEEE,
                                frame->fp(),
                                thread_local_.last_fp_,
