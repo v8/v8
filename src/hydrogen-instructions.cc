@@ -1638,9 +1638,10 @@ static bool PrototypeChainCanNeverResolve(
     }
 
     LookupResult lookup(isolate);
-    JSObject::cast(current)->map()->LookupInDescriptors(NULL, *name, &lookup);
+    Map* map = JSObject::cast(current)->map();
+    map->LookupTransitionOrDescriptor(NULL, *name, &lookup);
     if (lookup.IsFound()) {
-      if (lookup.type() != MAP_TRANSITION) return false;
+      if (!lookup.IsTransition()) return false;
     } else if (!lookup.IsCacheable()) {
       return false;
     }
@@ -1669,7 +1670,7 @@ HLoadNamedFieldPolymorphic::HLoadNamedFieldPolymorphic(HValue* context,
        ++i) {
     Handle<Map> map = types->at(i);
     LookupResult lookup(map->GetIsolate());
-    map->LookupInDescriptors(NULL, *name, &lookup);
+    map->LookupTransitionOrDescriptor(NULL, *name, &lookup);
     if (lookup.IsFound()) {
       switch (lookup.type()) {
         case FIELD: {
@@ -1685,12 +1686,18 @@ HLoadNamedFieldPolymorphic::HLoadNamedFieldPolymorphic(HValue* context,
         case CONSTANT_FUNCTION:
           types_.Add(types->at(i), zone);
           break;
-        case MAP_TRANSITION:
+        case CALLBACKS:
+          break;
+        case TRANSITION:
           if (PrototypeChainCanNeverResolve(map, name)) {
             negative_lookups.Add(types->at(i), zone);
           }
           break;
-        default:
+        case INTERCEPTOR:
+        case NONEXISTENT:
+        case NORMAL:
+        case HANDLER:
+          UNREACHABLE();
           break;
       }
     } else if (lookup.IsCacheable()) {

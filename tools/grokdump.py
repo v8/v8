@@ -1107,7 +1107,13 @@ class FixedArray(HeapObject):
     base_offset = self.ElementsOffset()
     for i in xrange(self.length):
       offset = base_offset + 4 * i
-      p.Print("[%08d] = %s" % (i, self.ObjectField(offset)))
+      try:
+        p.Print("[%08d] = %s" % (i, self.ObjectField(offset)))
+      except TypeError:
+        p.Dedent()
+        p.Print("...")
+        p.Print("}")
+        return
     p.Dedent()
     p.Print("}")
 

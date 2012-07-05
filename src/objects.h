@@ -780,6 +780,7 @@ class MaybeObject BASE_EMBEDDED {
   V(JSModule)                                  \
   V(Map)                                       \
   V(DescriptorArray)                           \
+  V(TransitionArray)                           \
   V(DeoptimizationInputData)                   \
   V(DeoptimizationOutputData)                  \
   V(TypeFeedbackCells)                         \
@@ -1901,7 +1902,8 @@ class JSObject: public JSReceiver {
   // new_map.
   MUST_USE_RESULT MaybeObject* AddFastPropertyUsingMap(Map* new_map,
                                                        String* name,
-                                                       Object* value);
+                                                       Object* value,
+                                                       int field_index);
 
   // Add a constant function property to a fast-case object.
   // This leaves a CONSTANT_TRANSITION in the old map, and
@@ -2059,6 +2061,10 @@ class JSObject: public JSReceiver {
     PrintElements(stdout);
   }
   void PrintElements(FILE* out);
+  inline void PrintTransitions() {
+    PrintTransitions(stdout);
+  }
+  void PrintTransitions(FILE* out);
 #endif
 
   void PrintElementsTransition(
@@ -2212,7 +2218,6 @@ class JSObject: public JSReceiver {
       Object* getter,
       Object* setter,
       PropertyAttributes attributes);
-  void LookupInDescriptor(String* name, LookupResult* result);
 
   // Returns the hidden properties backing store object, currently
   // a StringDictionary, stored on this object.
@@ -2247,6 +2252,8 @@ class FixedArrayBase: public HeapObject {
 
 
 class FixedDoubleArray;
+class IncrementalMarking;
+
 
 // FixedArray describes fixed-sized arrays with element type Object*.
 class FixedArray: public FixedArrayBase {
@@ -2342,6 +2349,23 @@ class FixedArray: public FixedArrayBase {
     }
   };
 
+  // WhitenessWitness is used to prove that a descriptor array is white
+  // (unmarked), so incremental write barriers can be skipped because the
+  // marking invariant cannot be broken and slots pointing into evacuation
+  // candidates will be discovered when the object is scanned. A witness is
+  // always stack-allocated right after creating an array. By allocating a
+  // witness, incremental marking is globally disabled. The witness is then
+  // passed along wherever needed to statically prove that the array is known to
+  // be white.
+  class WhitenessWitness {
+   public:
+    inline explicit WhitenessWitness(FixedArray* array);
+    inline ~WhitenessWitness();
+
+   private:
+    IncrementalMarking* marking_;
+  };
+
  protected:
   // Set operation on FixedArray without using write barriers. Can
   // only be used for storing old space objects or smis.
@@ -2416,9 +2440,6 @@ class FixedDoubleArray: public FixedArrayBase {
 };
 
 
-class IncrementalMarking;
-
-
 // DescriptorArrays are fixed arrays used to hold instance descriptors.
 // The format of the these objects is:
 // TODO(1399): It should be possible to make room for bit_field3 in the map
@@ -2430,7 +2451,7 @@ class IncrementalMarking;
 //          [0]: next enumeration index (Smi)
 //          [1]: pointer to fixed array with enum cache
 //   [3]: first key
-//   [length() - 1]: last key
+//   [length() - kDescriptorSize]: last key
 //
 class DescriptorArray: public FixedArray {
  public:
@@ -2439,16 +2460,19 @@ class DescriptorArray: public FixedArray {
   // yet used.
   inline bool IsEmpty();
   inline bool MayContainTransitions();
+  inline bool HasTransitionArray();
 
-  DECL_ACCESSORS(elements_transition_map, Map)
-  inline void ClearElementsTransition();
+  DECL_ACCESSORS(transitions, TransitionArray)
+  inline void ClearTransitions();
 
   // Returns the number of descriptors in the array.
   int number_of_descriptors() {
-    ASSERT(length() >= kFirstIndex || IsEmpty());
+    ASSERT(MayContainTransitions() || IsEmpty());
     int len = length();
     return len <= kFirstIndex ? 0 : (len - kFirstIndex) / kDescriptorSize;
   }
+
+  inline int number_of_entries() { return number_of_descriptors(); }
 
   int NextEnumerationIndex() {
     if (IsEmpty()) return PropertyDetails::kInitialIndex;
@@ -2484,7 +2508,6 @@ class DescriptorArray: public FixedArray {
   }
 
   Object** GetTransitionsSlot() {
-    ASSERT(elements_transition_map() != NULL);
     return HeapObject::RawField(reinterpret_cast<HeapObject*>(this),
                                 kTransitionsOffset);
   }
@@ -2504,39 +2527,14 @@ class DescriptorArray: public FixedArray {
   // Accessors for fetching instance descriptor at descriptor number.
   inline String* GetKey(int descriptor_number);
   inline Object** GetKeySlot(int descriptor_number);
-  inline void SetKeyUnchecked(Heap* heap, int descriptor_number, String* value);
   inline Object* GetValue(int descriptor_number);
   inline Object** GetValueSlot(int descriptor_number);
-  inline void SetNullValueUnchecked(Heap* heap, int descriptor_number);
-  inline void SetValueUnchecked(Heap* heap,
-                                int descriptor_number,
-                                Object* value);
   inline PropertyDetails GetDetails(int descriptor_number);
-  inline void SetDetailsUnchecked(int descriptor_number, Smi* value);
   inline PropertyType GetType(int descriptor_number);
   inline int GetFieldIndex(int descriptor_number);
   inline JSFunction* GetConstantFunction(int descriptor_number);
   inline Object* GetCallbacksObject(int descriptor_number);
   inline AccessorDescriptor* GetCallbacks(int descriptor_number);
-  inline bool IsProperty(int descriptor_number);
-  inline bool IsTransitionOnly(int descriptor_number);
-
-  // WhitenessWitness is used to prove that a specific descriptor array is white
-  // (unmarked), so incremental write barriers can be skipped because the
-  // marking invariant cannot be broken and slots pointing into evacuation
-  // candidates will be discovered when the object is scanned. A witness is
-  // always stack-allocated right after creating a descriptor array. By
-  // allocating a witness, incremental marking is globally disabled. The witness
-  // is then passed along wherever needed to statically prove that the
-  // descriptor array is known to be white.
-  class WhitenessWitness {
-   public:
-    inline explicit WhitenessWitness(DescriptorArray* array);
-    inline ~WhitenessWitness();
-
-   private:
-    IncrementalMarking* marking_;
-  };
 
   // Accessor for complete descriptor.
   inline void Get(int descriptor_number, Descriptor* desc);
@@ -2565,8 +2563,7 @@ class DescriptorArray: public FixedArray {
   // or null), its enumeration index is kept as is.
   // If adding a real property, map transitions must be removed.  If adding
   // a transition, they must not be removed.  All null descriptors are removed.
-  MUST_USE_RESULT MaybeObject* CopyInsert(Descriptor* descriptor,
-                                          TransitionFlag transition_flag);
+  MUST_USE_RESULT MaybeObject* CopyInsert(Descriptor* descriptor);
 
   // Indicates whether the search function should expect a sorted or an unsorted
   // descriptor array as input.
@@ -2577,7 +2574,7 @@ class DescriptorArray: public FixedArray {
 
   // Return a copy of the array with all transitions and null descriptors
   // removed. Return a Failure object in case of an allocation failure.
-  MUST_USE_RESULT MaybeObject* RemoveTransitions(SharedMode shared_mode);
+  MUST_USE_RESULT MaybeObject* Copy(SharedMode shared_mode);
 
   // Sort the instance descriptors by the hash codes of their keys.
   // Does not check for duplicates.
@@ -2596,17 +2593,6 @@ class DescriptorArray: public FixedArray {
 
   // Tells whether the name is present int the array.
   bool Contains(String* name) { return kNotFound != Search(name); }
-
-  // Perform a binary search in the instance descriptors represented
-  // by this fixed array.  low and high are descriptor indices.  If there
-  // are three instance descriptors in this array it should be called
-  // with low=0 and high=2.
-  int BinarySearch(String* name, int low, int high);
-
-  // Perform a linear search in the instance descriptors represented
-  // by this fixed array.  len is the number of descriptor indices that are
-  // valid.
-  int LinearSearch(SearchMode mode, String* name, int len);
 
   // Allocates a DescriptorArray, but returns the singleton
   // empty descriptor array object if number_of_descriptors is 0.
@@ -2632,8 +2618,8 @@ class DescriptorArray: public FixedArray {
 
   // Layout description.
   static const int kBitField3StorageOffset = FixedArray::kHeaderSize;
-  static const int kEnumerationIndexOffset =
-      kBitField3StorageOffset + kPointerSize;
+  static const int kEnumerationIndexOffset = kBitField3StorageOffset +
+                                             kPointerSize;
   static const int kTransitionsOffset = kEnumerationIndexOffset + kPointerSize;
   static const int kFirstOffset = kTransitionsOffset + kPointerSize;
 
@@ -2709,12 +2695,20 @@ class DescriptorArray: public FixedArray {
   static inline void NoIncrementalWriteBarrierSwap(
       FixedArray* array, int first, int second);
 
-  // Swap descriptor first and second.
+  // Swap first and second descriptor.
   inline void NoIncrementalWriteBarrierSwapDescriptors(
       int first, int second);
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(DescriptorArray);
 };
+
+
+template<typename T>
+inline int LinearSearch(T* array, SearchMode mode, String* name, int len);
+
+
+template<typename T>
+inline int Search(T* array, String* name);
 
 
 // HashTable is a subclass of FixedArray that implements a hash table
@@ -3181,8 +3175,6 @@ class StringDictionary: public Dictionary<StringDictionaryShape, String*> {
   // Find entry for key, otherwise return kNotFound. Optimized version of
   // HashTable::FindEntry.
   int FindEntry(String* key);
-
-  bool ContainsTransition(int entry);
 };
 
 
@@ -4631,6 +4623,7 @@ class Map: public HeapObject {
   // DescriptorArray when the map has one).
   inline int bit_field3();
   inline void set_bit_field3(int value);
+  inline void SetOwnBitField3(int value);
 
   // Tells whether the object in the prototype property will be used
   // for instances created from this function.  If the prototype
@@ -4751,8 +4744,17 @@ class Map: public HeapObject {
   static bool IsValidElementsTransition(ElementsKind from_kind,
                                         ElementsKind to_kind);
 
+  inline bool HasTransitionArray();
+  inline bool HasElementsTransition();
   inline Map* elements_transition_map();
-  inline void set_elements_transition_map(Map* transitioned_map);
+  MUST_USE_RESULT inline MaybeObject* set_elements_transition_map(
+      Map* transitioned_map);
+  inline TransitionArray* transitions();
+  MUST_USE_RESULT inline MaybeObject* AddTransition(String* key,
+                                                    Object* value);
+  MUST_USE_RESULT inline MaybeObject* set_transitions(
+      TransitionArray* transitions);
+  inline void ClearTransitions();
 
   // Tells whether the map is attached to SharedFunctionInfo
   // (for inobject slack tracking).
@@ -4842,9 +4844,17 @@ class Map: public HeapObject {
   // Lookup in the map's instance descriptors and fill out the result
   // with the given holder if the name is found. The holder may be
   // NULL when this function is used from the compiler.
-  void LookupInDescriptors(JSObject* holder,
-                           String* name,
-                           LookupResult* result);
+  void LookupDescriptor(JSObject* holder,
+                        String* name,
+                        LookupResult* result);
+
+  void LookupTransition(JSObject* holder,
+                        String* name,
+                        LookupResult* result);
+
+  void LookupTransitionOrDescriptor(JSObject* holder,
+                                    String* name,
+                                    LookupResult* result);
 
   MUST_USE_RESULT MaybeObject* CopyDropDescriptors();
 
@@ -4928,8 +4938,8 @@ class Map: public HeapObject {
   // holding weak references when incremental marking is used, because it also
   // iterates over objects that are otherwise unreachable.
 #ifdef DEBUG
-  void ZapInstanceDescriptors();
   void ZapPrototypeTransitions();
+  void ZapTransitions();
 #endif
 
   // Dispatched behavior.

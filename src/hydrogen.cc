@@ -4917,17 +4917,18 @@ static bool ComputeLoadStoreField(Handle<Map> type,
                                   Handle<String> name,
                                   LookupResult* lookup,
                                   bool is_store) {
-  type->LookupInDescriptors(NULL, *name, lookup);
+  type->LookupTransitionOrDescriptor(NULL, *name, lookup);
   if (lookup->IsField()) return true;
-  return is_store && lookup->IsMapTransition() &&
-      (type->unused_property_fields() > 0);
+  return is_store &&
+         lookup->IsTransitionToField(*type) &&
+         (type->unused_property_fields() > 0);
 }
 
 
 static int ComputeLoadStoreFieldIndex(Handle<Map> type,
                                       Handle<String> name,
                                       LookupResult* lookup) {
-  ASSERT(lookup->IsField() || lookup->type() == MAP_TRANSITION);
+  ASSERT(lookup->IsField() || lookup->IsTransitionToField(*type));
   if (lookup->IsField()) {
     return lookup->GetLocalFieldIndexFromMap(*type);
   } else {
@@ -4988,7 +4989,7 @@ HInstruction* HGraphBuilder::BuildStoreNamedField(HValue* object,
   }
   HStoreNamedField* instr =
       new(zone()) HStoreNamedField(object, name, value, is_in_object, offset);
-  if (lookup->type() == MAP_TRANSITION) {
+  if (lookup->IsTransitionToField(*type)) {
     Handle<Map> transition(lookup->GetTransitionMapFromMap(*type));
     instr->set_transition(transition);
     // TODO(fschneider): Record the new map type of the object in the IR to
@@ -5626,7 +5627,7 @@ HInstruction* HGraphBuilder::BuildLoadNamed(HValue* obj,
                                             Handle<Map> map,
                                             Handle<String> name) {
   LookupResult lookup(isolate());
-  map->LookupInDescriptors(NULL, *name, &lookup);
+  map->LookupDescriptor(NULL, *name, &lookup);
   if (lookup.IsField()) {
     return BuildLoadNamedField(obj,
                                expr,

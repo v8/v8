@@ -729,7 +729,7 @@ Handle<FixedArray> GetEnumPropertyKeys(Handle<JSObject> object,
         Handle<DescriptorArray>(object->map()->instance_descriptors(), isolate);
 
     for (int i = 0; i < descs->number_of_descriptors(); i++) {
-      if (descs->IsProperty(i) && !descs->GetDetails(i).IsDontEnum()) {
+      if (!descs->GetDetails(i).IsDontEnum()) {
         storage->set(index, descs->GetKey(i));
         PropertyDetails details = descs->GetDetails(i);
         sort_array->set(index, Smi::FromInt(details.index()));

@@ -1304,9 +1304,10 @@ static bool StoreICableLookup(LookupResult* lookup) {
   if (!lookup->IsCacheable()) return false;
 
   // If the property is read-only, we leave the IC in its current state.
-  if (lookup->IsReadOnly()) return false;
-
-  return true;
+  if (lookup->IsTransition()) {
+    return !lookup->GetTransitionDetails().IsReadOnly();
+  }
+  return !lookup->IsReadOnly();
 }
 
 
@@ -1466,14 +1467,6 @@ void StoreIC::UpdateCaches(LookupResult* lookup,
                                                         Handle<Map>::null(),
                                                         strict_mode);
       break;
-    case MAP_TRANSITION: {
-      if (lookup->GetAttributes() != NONE) return;
-      Handle<Map> transition(lookup->GetTransitionMap());
-      int index = transition->PropertyIndexFor(*name);
-      code = isolate()->stub_cache()->ComputeStoreField(
-          name, receiver, index, transition, strict_mode);
-      break;
-    }
     case NORMAL:
       if (receiver->IsGlobalObject()) {
         // The stub generated for the global object picks the value directly
@@ -1517,8 +1510,26 @@ void StoreIC::UpdateCaches(LookupResult* lookup,
           name, receiver, strict_mode);
       break;
     case CONSTANT_FUNCTION:
-    case CONSTANT_TRANSITION:
       return;
+    case TRANSITION: {
+      Object* value = lookup->GetTransitionValue();
+      // Callbacks.
+      if (value->IsAccessorPair()) return;
+
+      Handle<Map> transition(Map::cast(value));
+      DescriptorArray* target_descriptors = transition->instance_descriptors();
+      int descriptor = target_descriptors->SearchWithCache(*name);
+      ASSERT(descriptor != DescriptorArray::kNotFound);
+      PropertyDetails details = target_descriptors->GetDetails(descriptor);
+
+      if (details.type() != FIELD || details.attributes() != NONE) return;
+
+      int field_index = target_descriptors->GetFieldIndex(descriptor);
+      code = isolate()->stub_cache()->ComputeStoreField(
+          name, receiver, field_index, transition, strict_mode);
+
+      break;
+    }
     case NONEXISTENT:
     case HANDLER:
       UNREACHABLE();
@@ -1967,20 +1978,34 @@ void KeyedStoreIC::UpdateCaches(LookupResult* lookup,
           name, receiver, lookup->GetFieldIndex(),
           Handle<Map>::null(), strict_mode);
       break;
-    case MAP_TRANSITION:
-      if (lookup->GetAttributes() == NONE) {
-        Handle<Map> transition(lookup->GetTransitionMap());
-        int index = transition->PropertyIndexFor(*name);
+    case TRANSITION: {
+      Object* value = lookup->GetTransitionValue();
+      // Callbacks transition.
+      if (value->IsAccessorPair()) {
+        code = (strict_mode == kStrictMode)
+            ? generic_stub_strict()
+            : generic_stub();
+        break;
+      }
+
+      Handle<Map> transition(Map::cast(value));
+      DescriptorArray* target_descriptors = transition->instance_descriptors();
+      int descriptor = target_descriptors->SearchWithCache(*name);
+      ASSERT(descriptor != DescriptorArray::kNotFound);
+      PropertyDetails details = target_descriptors->GetDetails(descriptor);
+
+      if (details.type() == FIELD && details.attributes() == NONE) {
+        int field_index = target_descriptors->GetFieldIndex(descriptor);
         code = isolate()->stub_cache()->ComputeKeyedStoreField(
-            name, receiver, index, transition, strict_mode);
+            name, receiver, field_index, transition, strict_mode);
         break;
       }
       // fall through.
+    }
     case NORMAL:
     case CONSTANT_FUNCTION:
     case CALLBACKS:
     case INTERCEPTOR:
-    case CONSTANT_TRANSITION:
       // Always rewrite to the generic case so that we do not
       // repeatedly try to rewrite.
       code = (strict_mode == kStrictMode)

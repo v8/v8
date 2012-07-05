@@ -303,7 +303,10 @@ void Map::MapVerify() {
   VerifyHeapPointer(prototype());
   VerifyHeapPointer(instance_descriptors());
   SLOW_ASSERT(instance_descriptors()->IsSortedNoDuplicates());
-  SLOW_ASSERT(instance_descriptors()->IsConsistentWithBackPointers(this));
+  if (HasTransitionArray()) {
+    SLOW_ASSERT(transitions()->IsSortedNoDuplicates());
+    SLOW_ASSERT(transitions()->IsConsistentWithBackPointers(this));
+  }
 }
 
 
@@ -916,47 +919,46 @@ bool DescriptorArray::IsSortedNoDuplicates() {
 }
 
 
+bool TransitionArray::IsSortedNoDuplicates() {
+  String* current_key = NULL;
+  uint32_t current = 0;
+  for (int i = 0; i < number_of_transitions(); i++) {
+    String* key = GetKey(i);
+    if (key == current_key) {
+      PrintTransitions();
+      return false;
+    }
+    current_key = key;
+    uint32_t hash = GetKey(i)->Hash();
+    if (hash < current) {
+      PrintTransitions();
+      return false;
+    }
+    current = hash;
+  }
+  return true;
+}
+
+
 static bool CheckOneBackPointer(Map* current_map, Object* target) {
   return !target->IsMap() || Map::cast(target)->GetBackPointer() == current_map;
 }
 
 
-bool DescriptorArray::IsConsistentWithBackPointers(Map* current_map) {
-  Map* elements_transition = elements_transition_map();
-  if (elements_transition != NULL &&
-      !CheckOneBackPointer(current_map, elements_transition)) {
+bool TransitionArray::IsConsistentWithBackPointers(Map* current_map) {
+  if (HasElementsTransition() &&
+      !CheckOneBackPointer(current_map, elements_transition())) {
     return false;
   }
-  for (int i = 0; i < number_of_descriptors(); ++i) {
-    switch (GetType(i)) {
-      case MAP_TRANSITION:
-      case CONSTANT_TRANSITION:
-        if (!CheckOneBackPointer(current_map, GetValue(i))) {
-          return false;
-        }
-        break;
-      case CALLBACKS: {
-        Object* object = GetValue(i);
-        if (object->IsAccessorPair()) {
-          AccessorPair* accessors = AccessorPair::cast(object);
-          if (!CheckOneBackPointer(current_map, accessors->getter())) {
-            return false;
-          }
-          if (!CheckOneBackPointer(current_map, accessors->setter())) {
-            return false;
-          }
-        }
-        break;
-      }
-      case NORMAL:
-      case FIELD:
-      case CONSTANT_FUNCTION:
-      case HANDLER:
-      case INTERCEPTOR:
-        break;
-      case NONEXISTENT:
-        UNREACHABLE();
-        break;
+  for (int i = 0; i < number_of_transitions(); ++i) {
+    Object* value = GetValue(i);
+    if (value->IsAccessorPair()) {
+      AccessorPair* accessors = AccessorPair::cast(value);
+      if (!CheckOneBackPointer(current_map, accessors->getter())) return false;
+      if (!CheckOneBackPointer(current_map, accessors->setter())) return false;
+    } else {
+      ASSERT(value->IsMap());
+      if (!CheckOneBackPointer(current_map, value)) return false;
     }
   }
   return true;
@@ -1004,12 +1006,12 @@ void NormalizedMapCache::NormalizedMapCacheVerify() {
 }
 
 
-void Map::ZapInstanceDescriptors() {
-  DescriptorArray* descriptors = instance_descriptors();
-  if (descriptors == GetHeap()->empty_descriptor_array()) return;
-  MemsetPointer(descriptors->data_start(),
+void Map::ZapTransitions() {
+  TransitionArray* transition_array = transitions();
+  if (transition_array == NULL) return;
+  MemsetPointer(transition_array->data_start(),
                 GetHeap()->the_hole_value(),
-                descriptors->length());
+                transition_array->length());
 }
 
 

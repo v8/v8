@@ -2233,9 +2233,8 @@ void V8HeapExplorer::ExtractPropertyReferences(JSObject* js_obj, int entry) {
         case NORMAL:  // only in slow mode
         case HANDLER:  // only in lookup results, not in descriptors
         case INTERCEPTOR:  // only in lookup results, not in descriptors
-        case MAP_TRANSITION:  // we do not care about transitions here...
-        case CONSTANT_TRANSITION:
           break;
+        case TRANSITION:
         case NONEXISTENT:
           UNREACHABLE();
           break;

@@ -1892,12 +1892,13 @@ void Marker<T>::MarkDescriptorArray(DescriptorArray* descriptors) {
                                          enum_cache);
   }
 
-  if (descriptors->elements_transition_map() != NULL) {
+  if (descriptors->HasTransitionArray()) {
     Object** transitions_slot = descriptors->GetTransitionsSlot();
     Object* transitions = *transitions_slot;
     mark_compact_collector()->RecordSlot(descriptor_start,
                                          transitions_slot,
                                          transitions);
+    MarkTransitionArray(reinterpret_cast<TransitionArray*>(transitions));
   }
 
   // If the descriptor contains a transition (value is a Map), we don't mark the
@@ -1906,7 +1907,7 @@ void Marker<T>::MarkDescriptorArray(DescriptorArray* descriptors) {
     Object** key_slot = descriptors->GetKeySlot(i);
     Object* key = *key_slot;
     if (key->IsHeapObject()) {
-      base_marker()->MarkObjectAndPush(reinterpret_cast<HeapObject*>(key));
+      base_marker()->MarkObjectAndPush(HeapObject::cast(key));
       mark_compact_collector()->RecordSlot(descriptor_start, key_slot, key);
     }
 
@@ -1937,12 +1938,46 @@ void Marker<T>::MarkDescriptorArray(DescriptorArray* descriptors) {
           MarkAccessorPairSlot(accessors, AccessorPair::kSetterOffset);
         }
         break;
-      case MAP_TRANSITION:
-      case CONSTANT_TRANSITION:
-        break;
+      case TRANSITION:
       case NONEXISTENT:
         UNREACHABLE();
         break;
+    }
+  }
+}
+
+template <class T>
+void Marker<T>::MarkTransitionArray(TransitionArray* transitions) {
+  if (!base_marker()->MarkObjectWithoutPush(transitions)) return;
+  Object** transitions_start = transitions->data_start();
+
+  if (transitions->HasElementsTransition()) {
+    mark_compact_collector()->RecordSlot(transitions_start,
+                                         transitions->GetElementsSlot(),
+                                         transitions->elements_transition());
+  }
+
+  for (int i = 0; i < transitions->number_of_transitions(); ++i) {
+    Object** key_slot = transitions->GetKeySlot(i);
+    Object* key = *key_slot;
+    if (key->IsHeapObject()) {
+      base_marker()->MarkObjectAndPush(HeapObject::cast(key));
+      mark_compact_collector()->RecordSlot(transitions_start, key_slot, key);
+    }
+
+    Object** value_slot = transitions->GetValueSlot(i);
+    if (!(*value_slot)->IsHeapObject()) continue;
+    HeapObject* value = HeapObject::cast(*value_slot);
+
+    if (value->IsAccessorPair()) {
+      mark_compact_collector()->RecordSlot(transitions_start,
+                                           value_slot,
+                                           value);
+
+      base_marker()->MarkObjectWithoutPush(value);
+      AccessorPair* accessors = AccessorPair::cast(value);
+      MarkAccessorPairSlot(accessors, AccessorPair::kGetterOffset);
+      MarkAccessorPairSlot(accessors, AccessorPair::kSetterOffset);
     }
   }
 }
