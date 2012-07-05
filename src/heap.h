@@ -1392,14 +1392,14 @@ class Heap {
     STRONG_ROOT_LIST(ROOT_INDEX_DECLARATION)
 #undef ROOT_INDEX_DECLARATION
 
-// Utility type maps
-#define DECLARE_STRUCT_MAP(NAME, Name, name) k##Name##MapRootIndex,
-  STRUCT_LIST(DECLARE_STRUCT_MAP)
-#undef DECLARE_STRUCT_MAP
-
 #define SYMBOL_INDEX_DECLARATION(name, str) k##name##RootIndex,
     SYMBOL_LIST(SYMBOL_INDEX_DECLARATION)
 #undef SYMBOL_DECLARATION
+
+    // Utility type maps
+#define DECLARE_STRUCT_MAP(NAME, Name, name) k##Name##MapRootIndex,
+    STRUCT_LIST(DECLARE_STRUCT_MAP)
+#undef DECLARE_STRUCT_MAP
 
     kSymbolTableRootIndex,
     kStrongRootListLength = kSymbolTableRootIndex,
