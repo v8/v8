@@ -184,17 +184,9 @@ static void FinishOptimization(Handle<JSFunction> function, int64_t start) {
 
 
 static bool MakeCrankshaftCode(CompilationInfo* info) {
-  // Test if we can optimize this function when asked to. We can only
-  // do this after the scopes are computed.
-  if (!V8::UseCrankshaft()) {
-    info->DisableOptimization();
-  }
-
-  // In case we are not optimizing simply return the code from
-  // the full code generator.
-  if (!info->IsOptimizing()) {
-    return FullCodeGenerator::MakeCode(info);
-  }
+  ASSERT(V8::UseCrankshaft());
+  ASSERT(info->IsOptimizing());
+  ASSERT(!info->IsCompilingForDebugging());
 
   // We should never arrive here if there is not code object on the
   // shared function object.
@@ -330,9 +322,19 @@ static bool MakeCrankshaftCode(CompilationInfo* info) {
 
 
 static bool GenerateCode(CompilationInfo* info) {
-  return info->IsCompilingForDebugging() || !V8::UseCrankshaft() ?
-      FullCodeGenerator::MakeCode(info) :
-      MakeCrankshaftCode(info);
+  bool is_optimizing = V8::UseCrankshaft() &&
+                       !info->IsCompilingForDebugging() &&
+                       info->IsOptimizing();
+  if (is_optimizing) {
+    return MakeCrankshaftCode(info);
+  } else {
+    if (info->IsOptimizing()) {
+      // Have the CompilationInfo decide if the compilation should be
+      // BASE or NONOPT.
+      info->DisableOptimization();
+    }
+    return FullCodeGenerator::MakeCode(info);
+  }
 }
 
 
@@ -762,8 +764,7 @@ Handle<SharedFunctionInfo> Compiler::BuildFunctionInfo(FunctionLiteral* literal,
   if (FLAG_lazy && allow_lazy) {
     Handle<Code> code = info.isolate()->builtins()->LazyCompile();
     info.SetCode(code);
-  } else if ((V8::UseCrankshaft() && MakeCrankshaftCode(&info)) ||
-             (!V8::UseCrankshaft() && FullCodeGenerator::MakeCode(&info))) {
+  } else if (GenerateCode(&info)) {
     ASSERT(!info.code().is_null());
     scope_info = ScopeInfo::Create(info.scope(), info.zone());
   } else {
