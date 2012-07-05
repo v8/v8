@@ -4794,7 +4794,7 @@ bool String::AsArrayIndex(uint32_t* index) {
 
 
 Object* JSReceiver::GetPrototype() {
-  return HeapObject::cast(this)->map()->prototype();
+  return map()->prototype();
 }
 
 
