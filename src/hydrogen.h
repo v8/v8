@@ -347,7 +347,7 @@ class HGraph: public ZoneObject {
 
  private:
   HConstant* GetConstant(SetOncePointer<HConstant>* pointer,
-                         Object* value);
+                         Handle<Object> value);
 
   void MarkAsDeoptimizingRecursively(HBasicBlock* block);
   void InsertTypeConversions(HInstruction* instr);

@@ -1,3 +1,10 @@
+2012-07-05: Version 3.12.8
+
+        Implemented TypedArray.set and ArrayBuffer.slice in d8.
+
+        Performance and stability improvements on all platforms.
+
+
 2012-07-03: Version 3.12.7
 
         Fixed lazy compilation for strict eval scopes.

@@ -323,7 +323,9 @@ class Shell : public i::AllStatic {
   static Handle<Value> Float32Array(const Arguments& args);
   static Handle<Value> Float64Array(const Arguments& args);
   static Handle<Value> Uint8ClampedArray(const Arguments& args);
-  static Handle<Value> SubArray(const Arguments& args);
+  static Handle<Value> ArrayBufferSlice(const Arguments& args);
+  static Handle<Value> ArraySubArray(const Arguments& args);
+  static Handle<Value> ArraySet(const Arguments& args);
   // The OS object on the global object contains methods for performing
   // operating system calls:
   //
@@ -384,6 +386,7 @@ class Shell : public i::AllStatic {
   static void RunShell();
   static bool SetOptions(int argc, char* argv[]);
   static Handle<ObjectTemplate> CreateGlobalTemplate();
+  static Handle<FunctionTemplate> CreateArrayBufferTemplate(InvocationCallback);
   static Handle<FunctionTemplate> CreateArrayTemplate(InvocationCallback);
   static Handle<Value> CreateExternalArrayBuffer(Handle<Object> buffer,
                                                  int32_t size);

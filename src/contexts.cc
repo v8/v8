@@ -243,10 +243,12 @@ Handle<Object> Context::Lookup(Handle<String> name,
 void Context::AddOptimizedFunction(JSFunction* function) {
   ASSERT(IsGlobalContext());
 #ifdef DEBUG
-  Object* element = get(OPTIMIZED_FUNCTIONS_LIST);
-  while (!element->IsUndefined()) {
-    CHECK(element != function);
-    element = JSFunction::cast(element)->next_function_link();
+  if (FLAG_enable_slow_asserts) {
+    Object* element = get(OPTIMIZED_FUNCTIONS_LIST);
+    while (!element->IsUndefined()) {
+      CHECK(element != function);
+      element = JSFunction::cast(element)->next_function_link();
+    }
   }
 
   CHECK(function->next_function_link()->IsUndefined());

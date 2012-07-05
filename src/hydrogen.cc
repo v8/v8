@@ -568,9 +568,9 @@ void HGraph::Verify(bool do_full_verify) const {
 
 
 HConstant* HGraph::GetConstant(SetOncePointer<HConstant>* pointer,
-                               Object* value) {
+                               Handle<Object> value) {
   if (!pointer->is_set()) {
-    HConstant* constant = new(zone()) HConstant(Handle<Object>(value),
+    HConstant* constant = new(zone()) HConstant(value,
                                                 Representation::Tagged());
     constant->InsertAfter(GetConstantUndefined());
     pointer->set(constant);
@@ -580,27 +580,27 @@ HConstant* HGraph::GetConstant(SetOncePointer<HConstant>* pointer,
 
 
 HConstant* HGraph::GetConstant1() {
-  return GetConstant(&constant_1_, Smi::FromInt(1));
+  return GetConstant(&constant_1_, Handle<Smi>(Smi::FromInt(1)));
 }
 
 
 HConstant* HGraph::GetConstantMinus1() {
-  return GetConstant(&constant_minus1_, Smi::FromInt(-1));
+  return GetConstant(&constant_minus1_, Handle<Smi>(Smi::FromInt(-1)));
 }
 
 
 HConstant* HGraph::GetConstantTrue() {
-  return GetConstant(&constant_true_, isolate()->heap()->true_value());
+  return GetConstant(&constant_true_, isolate()->factory()->true_value());
 }
 
 
 HConstant* HGraph::GetConstantFalse() {
-  return GetConstant(&constant_false_, isolate()->heap()->false_value());
+  return GetConstant(&constant_false_, isolate()->factory()->false_value());
 }
 
 
 HConstant* HGraph::GetConstantHole() {
-  return GetConstant(&constant_hole_, isolate()->heap()->the_hole_value());
+  return GetConstant(&constant_hole_, isolate()->factory()->the_hole_value());
 }
 
 

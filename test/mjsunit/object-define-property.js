@@ -27,7 +27,7 @@
 
 // Tests the object.defineProperty method - ES 15.2.3.6
 
-// Flags: --allow-natives-syntax
+// Flags: --allow-natives-syntax --es5-readonly
 
 // Check that an exception is thrown when null is passed as object.
 var exception = false;
@@ -1085,3 +1085,90 @@ assertEquals(undefined, objectWithGetter.__lookupSetter__('foo'));
 var objectWithSetter = {};
 objectWithSetter.__defineSetter__('foo', function(x) {});
 assertEquals(undefined, objectWithSetter.__lookupGetter__('foo'));
+
+// An object with a getter on the prototype chain.
+function getter() { return 111; }
+function anotherGetter() { return 222; }
+
+function testGetterOnProto(expected, o) {
+  assertEquals(expected, o.quebec);
+}
+
+obj1 = {};
+Object.defineProperty(obj1, "quebec", { get: getter, configurable: true });
+obj2 = Object.create(obj1);
+obj3 = Object.create(obj2);
+
+testGetterOnProto(111, obj3);
+testGetterOnProto(111, obj3);
+%OptimizeFunctionOnNextCall(testGetterOnProto);
+testGetterOnProto(111, obj3);
+testGetterOnProto(111, obj3);
+
+Object.defineProperty(obj1, "quebec", { get: anotherGetter });
+
+testGetterOnProto(222, obj3);
+testGetterOnProto(222, obj3);
+%OptimizeFunctionOnNextCall(testGetterOnProto);
+testGetterOnProto(222, obj3);
+testGetterOnProto(222, obj3);
+
+// An object with a setter on the prototype chain.
+var modifyMe;
+function setter(x) { modifyMe = x+1; }
+function anotherSetter(x) { modifyMe = x+2; }
+
+function testSetterOnProto(expected, o) {
+  modifyMe = 333;
+  o.romeo = 444;
+  assertEquals(expected, modifyMe);
+}
+
+obj1 = {};
+Object.defineProperty(obj1, "romeo", { set: setter, configurable: true });
+obj2 = Object.create(obj1);
+obj3 = Object.create(obj2);
+
+testSetterOnProto(445, obj3);
+testSetterOnProto(445, obj3);
+%OptimizeFunctionOnNextCall(testSetterOnProto);
+testSetterOnProto(445, obj3);
+testSetterOnProto(445, obj3);
+
+Object.defineProperty(obj1, "romeo", { set: anotherSetter });
+
+testSetterOnProto(446, obj3);
+testSetterOnProto(446, obj3);
+%OptimizeFunctionOnNextCall(testSetterOnProto);
+testSetterOnProto(446, obj3);
+testSetterOnProto(446, obj3);
+
+// Removing a setter on the prototype chain.
+function testSetterOnProtoStrict(o) {
+  "use strict";
+  o.sierra = 12345;
+}
+
+obj1 = {};
+Object.defineProperty(obj1, "sierra",
+                      { get: getter, set: setter, configurable: true });
+obj2 = Object.create(obj1);
+obj3 = Object.create(obj2);
+
+testSetterOnProtoStrict(obj3);
+testSetterOnProtoStrict(obj3);
+%OptimizeFunctionOnNextCall(testSetterOnProtoStrict);
+testSetterOnProtoStrict(obj3);
+testSetterOnProtoStrict(obj3);
+
+Object.defineProperty(obj1, "sierra",
+                      { get: getter, set: undefined, configurable: true });
+
+exception = false;
+try {
+  testSetterOnProtoStrict(obj3);
+} catch (e) {
+  exception = true;
+  assertTrue(/which has only a getter/.test(e));
+}
+assertTrue(exception);
