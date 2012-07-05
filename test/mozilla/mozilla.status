@@ -633,7 +633,7 @@ js1_5/Expressions/regress-394673: FAIL
 
 # Bug 762: http://code.google.com/p/v8/issues/detail?id=762
 # We do not correctly handle assignments within "with"
-/ecma_3/Statements/12.10-01: FAIL
+ecma_3/Statements/12.10-01: FAIL
 
 # We do not throw an exception when a const is redeclared.
 # (We only fail section 1 of the test.)
@@ -818,12 +818,6 @@ js1_5/decompilation/regress-383721: PASS || FAIL
 js1_5/decompilation/regress-406555: PASS || FAIL
 js1_5/decompilation/regress-460870: PASS || FAIL
 
-# These tests take an unreasonable amount of time so we skip them
-# in fast mode.
-
-js1_5/Regress/regress-312588: TIMEOUT || SKIP if $FAST == yes
-js1_5/Regress/regress-271716-n: PASS || SKIP if $FAST == yes
-
 
 [ $arch == arm ]
 
@@ -848,39 +842,6 @@ js1_5/Regress/regress-451322: SKIP
 js1_5/GC/regress-203278-2: PASS || TIMEOUT
 
 
-[ $fast == yes && $arch == arm ]
-
-# In fast mode on arm we try to skip all tests that would time out,
-# since running the tests takes so long in the first place.
-
-js1_5/Regress/regress-280769-2: SKIP
-js1_5/Regress/regress-280769-3: SKIP
-js1_5/Regress/regress-244470: SKIP
-js1_5/Regress/regress-203278-1: SKIP
-js1_5/Regress/regress-290575: SKIP
-js1_5/Regress/regress-159334: SKIP
-js1_5/Regress/regress-321971: SKIP
-js1_5/Regress/regress-347306-01: SKIP
-js1_5/Regress/regress-280769-1: SKIP
-js1_5/Regress/regress-280769-5: SKIP
-js1_5/GC/regress-306788: SKIP
-js1_5/GC/regress-278725: SKIP
-js1_5/GC/regress-203278-3: SKIP
-js1_5/GC/regress-311497: SKIP
-js1_5/Array/regress-99120-02: SKIP
-ecma/Date/15.9.5.22-1: SKIP
-ecma/Date/15.9.5.20: SKIP
-ecma/Date/15.9.5.12-2: SKIP
-ecma/Date/15.9.5.8: SKIP
-ecma/Date/15.9.5.9: SKIP
-ecma/Date/15.9.5.11-2: SKIP
-ecma/Expressions/11.7.2: SKIP
-ecma/Expressions/11.10-2: SKIP
-ecma/Expressions/11.7.3: SKIP
-ecma/Expressions/11.10-3: SKIP
-ecma/Expressions/11.7.1: SKIP
-ecma_3/RegExp/regress-209067: SKIP
-
 [ $arch == mips ]
 
 # Times out and print so much output that we need to skip it to not
@@ -902,37 +863,3 @@ js1_5/Regress/regress-451322: SKIP
 
 # BUG(1040): Allow this test to timeout.
 js1_5/GC/regress-203278-2: PASS || TIMEOUT
-
-
-[ $fast == yes && $arch == mips ]
-
-# In fast mode on mips we try to skip all tests that would time out,
-# since running the tests takes so long in the first place.
-
-js1_5/Regress/regress-280769-2: SKIP
-js1_5/Regress/regress-280769-3: SKIP
-js1_5/Regress/regress-244470: SKIP
-js1_5/Regress/regress-203278-1: SKIP
-js1_5/Regress/regress-290575: SKIP
-js1_5/Regress/regress-159334: SKIP
-js1_5/Regress/regress-321971: SKIP
-js1_5/Regress/regress-347306-01: SKIP
-js1_5/Regress/regress-280769-1: SKIP
-js1_5/Regress/regress-280769-5: SKIP
-js1_5/GC/regress-306788: SKIP
-js1_5/GC/regress-278725: SKIP
-js1_5/GC/regress-203278-3: SKIP
-js1_5/GC/regress-311497: SKIP
-js1_5/Array/regress-99120-02: SKIP
-ecma/Date/15.9.5.22-1: SKIP
-ecma/Date/15.9.5.20: SKIP
-ecma/Date/15.9.5.12-2: SKIP
-ecma/Date/15.9.5.8: SKIP
-ecma/Date/15.9.5.9: SKIP
-ecma/Date/15.9.5.11-2: SKIP
-ecma/Expressions/11.7.2: SKIP
-ecma/Expressions/11.10-2: SKIP
-ecma/Expressions/11.7.3: SKIP
-ecma/Expressions/11.10-3: SKIP
-ecma/Expressions/11.7.1: SKIP
-ecma_3/RegExp/regress-209067: SKIP
