@@ -1997,7 +1997,7 @@ int DescriptorArray::SearchWithCache(String* name) {
 
 
 TransitionArray* DescriptorArray::transitions() {
-  if (!this->MayContainTransitions()) return NULL;
+  ASSERT(MayContainTransitions());
   Object* array = get(kTransitionsIndex);
   return TransitionArray::cast(array);
 }

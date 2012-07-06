@@ -7366,11 +7366,12 @@ static bool ClearNonLiveTransition(Heap* heap,
 // because it cannot be called from outside the GC and we already have methods
 // depending on the transitions layout in the GC anyways.
 void Map::ClearNonLiveTransitions(Heap* heap) {
-  TransitionArray* t = transitions();
   // If there are no transitions to be cleared, return.
   // TODO(verwaest) Should be an assert, otherwise back pointers are not
   // properly cleared.
-  if (t == NULL) return;
+  if (!HasTransitionArray()) return;
+
+  TransitionArray* t = transitions();
 
   int transition_index = 0;
 
