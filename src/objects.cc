@@ -2867,6 +2867,7 @@ MaybeObject* JSObject::SetPropertyForResult(LookupResult* result,
 
   // From this point on everything needs to be handlified, because
   // SetPropertyViaPrototypes might call back into JavaScript.
+  HandleScope scope(GetIsolate());
   Handle<JSObject> self(this);
   Handle<String> name(name_raw);
   Handle<Object> value(value_raw);
