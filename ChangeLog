@@ -1,3 +1,14 @@
+2012-07-06: Version 3.12.9
+
+        Correctly advance the scanner when scanning unicode regexp flag.
+        (Chromium issue 136084)
+
+        Fixed unhandlified code calling Harmony Proxy traps.
+        (issue 2219)
+
+        Performance and stability improvements on all platforms.
+
+
 2012-07-05: Version 3.12.8
 
         Implemented TypedArray.set and ArrayBuffer.slice in d8.
