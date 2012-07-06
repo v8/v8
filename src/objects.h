@@ -181,6 +181,8 @@ enum SearchMode {
 // Instance size sentinel for objects of variable size.
 const int kVariableSizeSentinel = 0;
 
+const int kStubMajorKeyBits = 6;
+const int kStubMinorKeyBits = kBitsPerInt - kSmiTagSize - kStubMajorKeyBits;
 
 // All Maps have a field instance_type containing a InstanceType.
 // It describes the type of the instances.
@@ -4520,28 +4522,20 @@ class Code: public HeapObject {
   static const int kICAgeOffset =
       kGCMetadataOffset + kPointerSize;
   static const int kFlagsOffset = kICAgeOffset + kIntSize;
-  static const int kKindSpecificFlagsOffset = kFlagsOffset + kIntSize;
-  static const int kKindSpecificFlagsSize = 2 * kIntSize;
+  static const int kKindSpecificFlags1Offset = kFlagsOffset + kIntSize;
+  static const int kKindSpecificFlags2Offset =
+      kKindSpecificFlags1Offset + kIntSize;
 
-  static const int kHeaderPaddingStart = kKindSpecificFlagsOffset +
-      kKindSpecificFlagsSize;
+  static const int kHeaderPaddingStart = kKindSpecificFlags2Offset + kIntSize;
 
   // Add padding to align the instruction start following right after
   // the Code object header.
   static const int kHeaderSize =
       (kHeaderPaddingStart + kCodeAlignmentMask) & ~kCodeAlignmentMask;
 
-  // Byte offsets within kKindSpecificFlagsOffset.
-  static const int kStubMajorKeyOffset = kKindSpecificFlagsOffset;
-  static const int kOptimizableOffset = kKindSpecificFlagsOffset;
-  static const int kStackSlotsOffset = kKindSpecificFlagsOffset;
-  static const int kCheckTypeOffset = kKindSpecificFlagsOffset;
-
-  static const int kUnaryOpTypeOffset = kStubMajorKeyOffset + 1;
-  static const int kBinaryOpTypeOffset = kStubMajorKeyOffset + 1;
-  static const int kCompareStateOffset = kStubMajorKeyOffset + 1;
-  static const int kToBooleanTypeOffset = kStubMajorKeyOffset + 1;
-  static const int kHasFunctionCacheOffset = kStubMajorKeyOffset + 1;
+  // Byte offsets within kKindSpecificFlags1Offset.
+  static const int kOptimizableOffset = kKindSpecificFlags1Offset;
+  static const int kCheckTypeOffset = kKindSpecificFlags1Offset;
 
   static const int kFullCodeFlags = kOptimizableOffset + 1;
   class FullCodeFlagsHasDeoptimizationSupportField:
@@ -4549,15 +4543,8 @@ class Code: public HeapObject {
   class FullCodeFlagsHasDebugBreakSlotsField: public BitField<bool, 1, 1> {};
   class FullCodeFlagsIsCompiledOptimizable: public BitField<bool, 2, 1> {};
 
-  static const int kBinaryOpReturnTypeOffset = kBinaryOpTypeOffset + 1;
-
-  static const int kCompareOperationOffset = kCompareStateOffset + 1;
-
   static const int kAllowOSRAtLoopNestingLevelOffset = kFullCodeFlags + 1;
   static const int kProfilerTicksOffset = kAllowOSRAtLoopNestingLevelOffset + 1;
-
-  static const int kSafepointTableOffsetOffset = kStackSlotsOffset + kIntSize;
-  static const int kStackCheckTableOffsetOffset = kStackSlotsOffset + kIntSize;
 
   // Flags layout.  BitField<type, shift, size>.
   class ICStateField: public BitField<InlineCacheState, 0, 3> {};
@@ -4566,6 +4553,77 @@ class Code: public HeapObject {
   class KindField: public BitField<Kind, 7, 4> {};
   class ExtraICStateField: public BitField<ExtraICState, 11, 2> {};
   class IsPregeneratedField: public BitField<bool, 13, 1> {};
+
+  // KindSpecificFlags1 layout (STUB and OPTIMIZED_FUNCTION)
+  static const int kStackSlotsFirstBit = 0;
+  static const int kStackSlotsBitCount = 24;
+  static const int kUnaryOpTypeFirstBit =
+      kStackSlotsFirstBit + kStackSlotsBitCount;
+  static const int kUnaryOpTypeBitCount = 3;
+  static const int kBinaryOpTypeFirstBit =
+      kStackSlotsFirstBit + kStackSlotsBitCount;
+  static const int kBinaryOpTypeBitCount = 3;
+  static const int kBinaryOpResultTypeFirstBit =
+      kBinaryOpTypeFirstBit + kBinaryOpTypeBitCount;
+  static const int kBinaryOpResultTypeBitCount = 3;
+  static const int kCompareStateFirstBit =
+      kStackSlotsFirstBit + kStackSlotsBitCount;
+  static const int kCompareStateBitCount = 3;
+  static const int kCompareOperationFirstBit =
+      kCompareStateFirstBit + kCompareStateBitCount;
+  static const int kCompareOperationBitCount = 4;
+  static const int kToBooleanStateFirstBit =
+      kStackSlotsFirstBit + kStackSlotsBitCount;
+  static const int kToBooleanStateBitCount = 8;
+  static const int kHasFunctionCacheFirstBit =
+      kStackSlotsFirstBit + kStackSlotsBitCount;
+  static const int kHasFunctionCacheBitCount = 1;
+
+  STATIC_ASSERT(kStackSlotsFirstBit + kStackSlotsBitCount <= 32);
+  STATIC_ASSERT(kUnaryOpTypeFirstBit + kUnaryOpTypeBitCount <= 32);
+  STATIC_ASSERT(kBinaryOpTypeFirstBit + kBinaryOpTypeBitCount <= 32);
+  STATIC_ASSERT(kBinaryOpResultTypeFirstBit +
+                kBinaryOpResultTypeBitCount <= 32);
+  STATIC_ASSERT(kCompareStateFirstBit + kCompareStateBitCount <= 32);
+  STATIC_ASSERT(kCompareOperationFirstBit + kCompareOperationBitCount <= 32);
+  STATIC_ASSERT(kToBooleanStateFirstBit + kToBooleanStateBitCount <= 32);
+  STATIC_ASSERT(kHasFunctionCacheFirstBit + kHasFunctionCacheBitCount <= 32);
+
+  class StackSlotsField: public BitField<int,
+      kStackSlotsFirstBit, kStackSlotsBitCount> {};  // NOLINT
+  class UnaryOpTypeField: public BitField<int,
+      kUnaryOpTypeFirstBit, kUnaryOpTypeBitCount> {};  // NOLINT
+  class BinaryOpTypeField: public BitField<int,
+      kBinaryOpTypeFirstBit, kBinaryOpTypeBitCount> {};  // NOLINT
+  class BinaryOpResultTypeField: public BitField<int,
+      kBinaryOpResultTypeFirstBit, kBinaryOpResultTypeBitCount> {};  // NOLINT
+  class CompareStateField: public BitField<int,
+      kCompareStateFirstBit, kCompareStateBitCount> {};  // NOLINT
+  class CompareOperationField: public BitField<int,
+      kCompareOperationFirstBit, kCompareOperationBitCount> {};  // NOLINT
+  class ToBooleanStateField: public BitField<int,
+      kToBooleanStateFirstBit, kToBooleanStateBitCount> {};  // NOLINT
+  class HasFunctionCacheField: public BitField<bool,
+      kHasFunctionCacheFirstBit, kHasFunctionCacheBitCount> {};  // NOLINT
+
+  // KindSpecificFlags2 layout (STUB and OPTIMIZED_FUNCTION)
+  static const int kStubMajorKeyFirstBit = 0;
+  static const int kSafepointTableOffsetFirstBit =
+      kStubMajorKeyFirstBit + kStubMajorKeyBits;
+  static const int kSafepointTableOffsetBitCount = 26;
+
+  STATIC_ASSERT(kStubMajorKeyFirstBit + kStubMajorKeyBits <= 32);
+  STATIC_ASSERT(kSafepointTableOffsetFirstBit +
+                kSafepointTableOffsetBitCount <= 32);
+
+  class SafepointTableOffsetField: public BitField<int,
+      kSafepointTableOffsetFirstBit,
+      kSafepointTableOffsetBitCount> {};  // NOLINT
+  class StubMajorKeyField: public BitField<int,
+      kStubMajorKeyFirstBit, kStubMajorKeyBits> {};  // NOLINT
+
+  // KindSpecificFlags2 layout (FUNCTION)
+  class StackCheckTableOffsetField: public BitField<int, 0, 31> {};
 
   // Signed field cannot be encoded using the BitField class.
   static const int kArgumentsCountShift = 14;

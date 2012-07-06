@@ -161,10 +161,6 @@ class CodeStub BASE_EMBEDDED {
   // Lookup the code in the (possibly custom) cache.
   bool FindCodeInCache(Code** code_out);
 
- protected:
-  static const int kMajorBits = 6;
-  static const int kMinorBits = kBitsPerInt - kSmiTagSize - kMajorBits;
-
  private:
   // Nonvirtual wrapper around the stub-specific Generate function.  Call
   // this function to set up the macro assembler and generate the code.
@@ -222,8 +218,9 @@ class CodeStub BASE_EMBEDDED {
            MajorKeyBits::encode(MajorKey());
   }
 
-  class MajorKeyBits: public BitField<uint32_t, 0, kMajorBits> {};
-  class MinorKeyBits: public BitField<uint32_t, kMajorBits, kMinorBits> {};
+  class MajorKeyBits: public BitField<uint32_t, 0, kStubMajorKeyBits> {};
+  class MinorKeyBits: public BitField<uint32_t,
+      kStubMajorKeyBits, kStubMinorKeyBits> {};  // NOLINT
 
   friend class BreakPointIterator;
 };
@@ -498,7 +495,7 @@ class ICCompareStub: public CodeStub {
 
   virtual void FinishCode(Handle<Code> code) {
     code->set_compare_state(state_);
-    code->set_compare_operation(op_);
+    code->set_compare_operation(op_ - Token::EQ);
   }
 
   virtual CodeStub::Major MajorKey() { return CompareIC; }

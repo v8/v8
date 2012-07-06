@@ -2589,7 +2589,8 @@ CompareIC::State CompareIC::ComputeState(Code* target) {
 
 Token::Value CompareIC::ComputeOperation(Code* target) {
   ASSERT(target->major_key() == CodeStub::CompareIC);
-  return static_cast<Token::Value>(target->compare_operation());
+  return static_cast<Token::Value>(
+      target->compare_operation() + Token::EQ);
 }
 
 
