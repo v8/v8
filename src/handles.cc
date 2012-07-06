@@ -958,4 +958,45 @@ int Utf8Length(Handle<String> str) {
   return len;
 }
 
+
+DeferredHandleScope::DeferredHandleScope(Isolate* isolate)
+    : impl_(isolate->handle_scope_implementer()) {
+  impl_->BeginDeferredScope();
+  Object** new_next = impl_->GetSpareOrNewBlock();
+  Object** new_limit = &new_next[kHandleBlockSize];
+  impl_->blocks()->Add(new_next);
+
+  v8::ImplementationUtilities::HandleScopeData* data =
+      impl_->isolate()->handle_scope_data();
+#ifdef DEBUG
+  prev_level_ = data->level;
+#endif
+  data->level++;
+  prev_limit_ = data->limit;
+  prev_next_ = data->next;
+  data->next = new_next;
+  data->limit = new_limit;
+}
+
+
+DeferredHandleScope::~DeferredHandleScope() {
+  impl_->isolate()->handle_scope_data()->level--;
+  ASSERT(handles_detached_);
+  ASSERT(impl_->isolate()->handle_scope_data()->level == prev_level_);
+}
+
+
+DeferredHandles* DeferredHandleScope::Detach() {
+  DeferredHandles* deferred = impl_->Detach(prev_limit_);
+  v8::ImplementationUtilities::HandleScopeData* data =
+      impl_->isolate()->handle_scope_data();
+  data->next = prev_next_;
+  data->limit = prev_limit_;
+#ifdef DEBUG
+  handles_detached_ = true;
+#endif
+  return deferred;
+}
+
+
 } }  // namespace v8::internal

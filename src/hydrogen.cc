@@ -3053,6 +3053,7 @@ HGraph* HGraphBuilder::CreateGraph() {
 
   {
     HPhase phase("H_Block building");
+    CompilationHandleScope handle_scope(info());
     current_block_ = graph()->entry_block();
 
     Scope* scope = info()->scope();
