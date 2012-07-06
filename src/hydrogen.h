@@ -1165,7 +1165,7 @@ class HGraphBuilder: public AstVisitor {
 
   HInstruction* BuildThisFunction();
 
-  void AddCheckConstantFunction(Call* expr,
+  void AddCheckConstantFunction(Handle<JSObject> holder,
                                 HValue* receiver,
                                 Handle<Map> receiver_map,
                                 bool smi_and_map_check);
