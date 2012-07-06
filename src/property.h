@@ -337,10 +337,8 @@ class LookupResult BASE_EMBEDDED {
   }
 
   int GetLocalFieldIndexFromMap(Map* map) {
-    ASSERT(lookup_type_ == DESCRIPTOR_TYPE);
     ASSERT(IsField());
-    return Descriptor::IndexFromValue(
-        map->instance_descriptors()->GetValue(number_)) -
+    return Descriptor::IndexFromValue(GetValueFromMap(map)) -
         map->inobject_properties();
   }
 
@@ -355,9 +353,8 @@ class LookupResult BASE_EMBEDDED {
   }
 
   JSFunction* GetConstantFunctionFromMap(Map* map) {
-    ASSERT(lookup_type_ == DESCRIPTOR_TYPE);
     ASSERT(type() == CONSTANT_FUNCTION);
-    return JSFunction::cast(map->instance_descriptors()->GetValue(number_));
+    return JSFunction::cast(GetValueFromMap(map));
   }
 
   Object* GetCallbackObject() {
@@ -377,12 +374,16 @@ class LookupResult BASE_EMBEDDED {
 
   Object* GetValue() {
     if (lookup_type_ == DESCRIPTOR_TYPE) {
-      DescriptorArray* descriptors = holder()->map()->instance_descriptors();
-      return descriptors->GetValue(number_);
+      return GetValueFromMap(holder()->map());
     }
     // In the dictionary case, the data is held in the value field.
     ASSERT(lookup_type_ == DICTIONARY_TYPE);
     return holder()->GetNormalizedProperty(this);
+  }
+
+  Object* GetValueFromMap(Map* map) const {
+    ASSERT(lookup_type_ == DESCRIPTOR_TYPE);
+    return map->instance_descriptors()->GetValue(number_);
   }
 
   void Iterate(ObjectVisitor* visitor);
