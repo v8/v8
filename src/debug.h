@@ -232,6 +232,7 @@ class Debug {
   void PreemptionWhileInDebugger();
   void Iterate(ObjectVisitor* v);
 
+  // TODO(131642): Remove this when fixed.
   NO_INLINE(void PutValuesOnStackAndDie(int start,
                                         Address c_entry_fp,
                                         Address last_fp,
