@@ -395,6 +395,7 @@ template<class BaseMarker> class Marker {
   // treating transitions or back pointers weak.
   void MarkMapContents(Map* map);
   void MarkDescriptorArray(DescriptorArray* descriptors);
+  void MarkTransitionArray(TransitionArray* transitions);
   void MarkAccessorPairSlot(AccessorPair* accessors, int offset);
 
  private:

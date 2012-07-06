@@ -2284,7 +2284,7 @@ void LCodeGen::EmitLoadFieldOrConstantFunction(Register result,
                                                Handle<String> name,
                                                LEnvironment* env) {
   LookupResult lookup(isolate());
-  type->LookupInDescriptors(NULL, *name, &lookup);
+  type->LookupDescriptor(NULL, *name, &lookup);
   ASSERT(lookup.IsFound() || lookup.IsCacheable());
   if (lookup.IsField()) {
     int index = lookup.GetLocalFieldIndexFromMap(*type);
@@ -2328,9 +2328,9 @@ static bool CompactEmit(SmallMapList* list,
   Handle<Map> map = list->at(i);
   // If the map has ElementsKind transitions, we will generate map checks
   // for each kind in __ CompareMap(..., ALLOW_ELEMENTS_TRANSITION_MAPS).
-  if (map->elements_transition_map() != NULL) return false;
+  if (map->HasElementsTransition()) return false;
   LookupResult lookup(isolate);
-  map->LookupInDescriptors(NULL, *name, &lookup);
+  map->LookupDescriptor(NULL, *name, &lookup);
   return lookup.IsField() || lookup.IsConstantFunction();
 }
 

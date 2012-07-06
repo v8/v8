@@ -126,6 +126,7 @@ class Debugger;
 class DebugInfo;
 class Descriptor;
 class DescriptorArray;
+class TransitionArray;
 class ExternalReference;
 class FixedArray;
 class FunctionTemplateInfo;
@@ -309,14 +310,6 @@ typedef enum {
 typedef void (*StoreBufferCallback)(Heap* heap,
                                     MemoryChunk* page,
                                     StoreBufferEvent event);
-
-
-// Whether to remove map transitions and constant transitions from a
-// DescriptorArray.
-enum TransitionFlag {
-  REMOVE_TRANSITIONS,
-  KEEP_TRANSITIONS
-};
 
 
 // Union used for fast testing of specific double values.

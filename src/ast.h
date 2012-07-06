@@ -1584,7 +1584,12 @@ class Call: public Expression {
   virtual bool IsMonomorphic() { return is_monomorphic_; }
   CheckType check_type() const { return check_type_; }
   Handle<JSFunction> target() { return target_; }
+
+  // A cache for the holder, set as a side effect of computing the target of the
+  // call. Note that it contains the null handle when the receiver is the same
+  // as the holder!
   Handle<JSObject> holder() { return holder_; }
+
   Handle<JSGlobalPropertyCell> cell() { return cell_; }
 
   bool ComputeTarget(Handle<Map> type, Handle<String> name);

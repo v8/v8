@@ -3053,6 +3053,7 @@ HGraph* HGraphBuilder::CreateGraph() {
 
   {
     HPhase phase("H_Block building");
+    CompilationHandleScope handle_scope(info());
     current_block_ = graph()->entry_block();
 
     Scope* scope = info()->scope();
@@ -4917,17 +4918,18 @@ static bool ComputeLoadStoreField(Handle<Map> type,
                                   Handle<String> name,
                                   LookupResult* lookup,
                                   bool is_store) {
-  type->LookupInDescriptors(NULL, *name, lookup);
+  type->LookupTransitionOrDescriptor(NULL, *name, lookup);
   if (lookup->IsField()) return true;
-  return is_store && lookup->IsMapTransition() &&
-      (type->unused_property_fields() > 0);
+  return is_store &&
+         lookup->IsTransitionToField(*type) &&
+         (type->unused_property_fields() > 0);
 }
 
 
 static int ComputeLoadStoreFieldIndex(Handle<Map> type,
                                       Handle<String> name,
                                       LookupResult* lookup) {
-  ASSERT(lookup->IsField() || lookup->type() == MAP_TRANSITION);
+  ASSERT(lookup->IsField() || lookup->IsTransitionToField(*type));
   if (lookup->IsField()) {
     return lookup->GetLocalFieldIndexFromMap(*type);
   } else {
@@ -4988,7 +4990,7 @@ HInstruction* HGraphBuilder::BuildStoreNamedField(HValue* object,
   }
   HStoreNamedField* instr =
       new(zone()) HStoreNamedField(object, name, value, is_in_object, offset);
-  if (lookup->type() == MAP_TRANSITION) {
+  if (lookup->IsTransitionToField(*type)) {
     Handle<Map> transition(lookup->GetTransitionMapFromMap(*type));
     instr->set_transition(transition);
     // TODO(fschneider): Record the new map type of the object in the IR to
@@ -5626,7 +5628,7 @@ HInstruction* HGraphBuilder::BuildLoadNamed(HValue* obj,
                                             Handle<Map> map,
                                             Handle<String> name) {
   LookupResult lookup(isolate());
-  map->LookupInDescriptors(NULL, *name, &lookup);
+  map->LookupDescriptor(NULL, *name, &lookup);
   if (lookup.IsField()) {
     return BuildLoadNamedField(obj,
                                expr,
@@ -6283,7 +6285,7 @@ void HGraphBuilder::VisitProperty(Property* expr) {
 }
 
 
-void HGraphBuilder::AddCheckConstantFunction(Call* expr,
+void HGraphBuilder::AddCheckConstantFunction(Handle<JSObject> holder,
                                              HValue* receiver,
                                              Handle<Map> receiver_map,
                                              bool smi_and_map_check) {
@@ -6295,10 +6297,9 @@ void HGraphBuilder::AddCheckConstantFunction(Call* expr,
     AddInstruction(HCheckMaps::NewWithTransitions(receiver, receiver_map,
                                                   zone()));
   }
-  if (!expr->holder().is_null()) {
+  if (!holder.is_null()) {
     AddInstruction(new(zone()) HCheckPrototypeMaps(
-        Handle<JSObject>(JSObject::cast(receiver_map->prototype())),
-        expr->holder()));
+        Handle<JSObject>(JSObject::cast(receiver_map->prototype())), holder));
   }
 }
 
@@ -6381,7 +6382,7 @@ void HGraphBuilder::HandlePolymorphicCallNamed(Call* expr,
 
     set_current_block(if_true);
     expr->ComputeTarget(map, name);
-    AddCheckConstantFunction(expr, receiver, map, false);
+    AddCheckConstantFunction(expr->holder(), receiver, map, false);
     if (FLAG_trace_inlining && FLAG_polymorphic_inlining) {
       Handle<JSFunction> caller = info()->closure();
       SmartArrayPointer<char> caller_name =
@@ -6888,7 +6889,7 @@ bool HGraphBuilder::TryInlineBuiltinMethodCall(Call* expr,
     case kMathCos:
     case kMathTan:
       if (argument_count == 2 && check_type == RECEIVER_MAP_CHECK) {
-        AddCheckConstantFunction(expr, receiver, receiver_map, true);
+        AddCheckConstantFunction(expr->holder(), receiver, receiver_map, true);
         HValue* argument = Pop();
         HValue* context = environment()->LookupContext();
         Drop(1);  // Receiver.
@@ -6901,7 +6902,7 @@ bool HGraphBuilder::TryInlineBuiltinMethodCall(Call* expr,
       break;
     case kMathPow:
       if (argument_count == 3 && check_type == RECEIVER_MAP_CHECK) {
-        AddCheckConstantFunction(expr, receiver, receiver_map, true);
+        AddCheckConstantFunction(expr->holder(), receiver, receiver_map, true);
         HValue* right = Pop();
         HValue* left = Pop();
         Pop();  // Pop receiver.
@@ -6943,7 +6944,7 @@ bool HGraphBuilder::TryInlineBuiltinMethodCall(Call* expr,
       break;
     case kMathRandom:
       if (argument_count == 1 && check_type == RECEIVER_MAP_CHECK) {
-        AddCheckConstantFunction(expr, receiver, receiver_map, true);
+        AddCheckConstantFunction(expr->holder(), receiver, receiver_map, true);
         Drop(1);  // Receiver.
         HValue* context = environment()->LookupContext();
         HGlobalObject* global_object = new(zone()) HGlobalObject(context);
@@ -6956,7 +6957,7 @@ bool HGraphBuilder::TryInlineBuiltinMethodCall(Call* expr,
     case kMathMax:
     case kMathMin:
       if (argument_count == 3 && check_type == RECEIVER_MAP_CHECK) {
-        AddCheckConstantFunction(expr, receiver, receiver_map, true);
+        AddCheckConstantFunction(expr->holder(), receiver, receiver_map, true);
         HValue* right = Pop();
         HValue* left = Pop();
         Pop();  // Pop receiver.
@@ -7072,7 +7073,7 @@ bool HGraphBuilder::TryCallApply(Call* expr) {
   VisitForValue(prop->obj());
   if (HasStackOverflow() || current_block() == NULL) return true;
   HValue* function = Top();
-  AddCheckConstantFunction(expr, function, function_map, true);
+  AddCheckConstantFunction(expr->holder(), function, function_map, true);
   Drop(1);
 
   VisitForValue(args->at(0));
@@ -7191,7 +7192,7 @@ void HGraphBuilder::VisitCall(Call* expr) {
         call = PreProcessCall(
             new(zone()) HCallNamed(context, name, argument_count));
       } else {
-        AddCheckConstantFunction(expr, receiver, receiver_map, true);
+        AddCheckConstantFunction(expr->holder(), receiver, receiver_map, true);
 
         if (TryInlineCall(expr)) return;
         call = PreProcessCall(

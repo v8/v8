@@ -503,7 +503,7 @@ bool Call::ComputeTarget(Handle<Map> type, Handle<String> name) {
   }
   LookupResult lookup(type->GetIsolate());
   while (true) {
-    type->LookupInDescriptors(NULL, *name, &lookup);
+    type->LookupDescriptor(NULL, *name, &lookup);
     if (lookup.IsFound()) {
       switch (lookup.type()) {
         case CONSTANT_FUNCTION:
@@ -518,10 +518,7 @@ bool Call::ComputeTarget(Handle<Map> type, Handle<String> name) {
         case INTERCEPTOR:
           // We don't know the target.
           return false;
-        case MAP_TRANSITION:
-        case CONSTANT_TRANSITION:
-          // Perhaps something interesting is up in the prototype chain...
-          break;
+        case TRANSITION:
         case NONEXISTENT:
           UNREACHABLE();
           break;

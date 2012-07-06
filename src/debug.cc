@@ -892,6 +892,7 @@ void Debug::Iterate(ObjectVisitor* v) {
 }
 
 
+// TODO(131642): Remove this when fixed.
 void Debug::PutValuesOnStackAndDie(int start,
                                    Address c_entry_fp,
                                    Address last_fp,
@@ -1009,6 +1010,7 @@ Object* Debug::Break(Arguments args) {
         it.Advance();
       }
 
+      // TODO(131642): Remove this when fixed.
       // Catch the cases that would lead to crashes and capture
       // - C entry FP at which to start stack crawl.
       // - FP of the frame at which we plan to stop stepping out (last FP).
@@ -1017,18 +1019,23 @@ Object* Debug::Break(Arguments args) {
       // - stack trace string.
       if (it.done()) {
         // We crawled the entire stack, never reaching last_fp_.
+        Handle<String> stack = isolate_->StackTraceString();
+        char buffer[8192];
+        int length = Min(8192, stack->length());
+        String::WriteToFlat(*stack, buffer, 0, length - 1);
         PutValuesOnStackAndDie(0xBEEEEEEE,
                                frame->fp(),
                                thread_local_.last_fp_,
                                reinterpret_cast<Address>(0xDEADDEAD),
                                count,
-                               NULL,
+                               buffer,
                                0xCEEEEEEE);
       } else if (it.frame()->fp() != thread_local_.last_fp_) {
         // We crawled over last_fp_, without getting a match.
         Handle<String> stack = isolate_->StackTraceString();
         char buffer[8192];
-        String::WriteToFlat(*stack, buffer, 0, 8191);
+        int length = Min(8192, stack->length());
+        String::WriteToFlat(*stack, buffer, 0, length - 1);
         PutValuesOnStackAndDie(0xDEEEEEEE,
                                frame->fp(),
                                thread_local_.last_fp_,

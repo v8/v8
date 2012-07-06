@@ -2191,14 +2191,11 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
           JSObject::SetNormalizedProperty(to, key, callbacks, d);
           break;
         }
-        case MAP_TRANSITION:
-        case CONSTANT_TRANSITION:
-          // Ignore non-properties.
-          break;
         case NORMAL:
           // Do not occur since the from object has fast properties.
         case HANDLER:
         case INTERCEPTOR:
+        case TRANSITION:
         case NONEXISTENT:
           // No element in instance descriptors have proxy or interceptor type.
           UNREACHABLE();

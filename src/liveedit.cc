@@ -1878,7 +1878,8 @@ LiveEditFunctionTracker::~LiveEditFunctionTracker() {
 
 
 void LiveEditFunctionTracker::RecordFunctionInfo(
-    Handle<SharedFunctionInfo> info, FunctionLiteral* lit) {
+    Handle<SharedFunctionInfo> info, FunctionLiteral* lit,
+    Zone* zone) {
 }
 
 

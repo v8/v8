@@ -1743,14 +1743,7 @@ TEST(OptimizedAllocationAlwaysInNewSpace) {
 
 
 static int CountMapTransitions(Map* map) {
-  int result = 0;
-  DescriptorArray* descs = map->instance_descriptors();
-  for (int i = 0; i < descs->number_of_descriptors(); i++) {
-    if (descs->IsTransitionOnly(i)) {
-      result++;
-    }
-  }
-  return result;
+  return map->transitions()->number_of_transitions();
 }
 
 

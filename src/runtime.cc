@@ -1170,7 +1170,7 @@ static MaybeObject* GetOwnProperty(Isolate* isolate,
   elms->set(ENUMERABLE_INDEX, heap->ToBoolean(!result.IsDontEnum()));
   elms->set(CONFIGURABLE_INDEX, heap->ToBoolean(!result.IsDontDelete()));
 
-  bool is_js_accessor = result.IsCallbacks() &&
+  bool is_js_accessor = result.IsPropertyCallbacks() &&
                         (result.GetCallbackObject()->IsAccessorPair());
 
   if (is_js_accessor) {
@@ -1421,7 +1421,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DeclareGlobals) {
       // as required for function declarations.
       if (lookup.IsProperty() && lookup.IsDontDelete()) {
         if (lookup.IsReadOnly() || lookup.IsDontEnum() ||
-            lookup.IsCallbacks()) {
+            lookup.IsPropertyCallbacks()) {
           return ThrowRedeclarationError(
               isolate, is_function ? "function" : "module", name);
         }
@@ -2182,7 +2182,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_FunctionSetReadOnlyPrototype) {
     // Construct a new field descriptors array containing the new descriptor.
     Object* descriptors_unchecked;
     { MaybeObject* maybe_descriptors_unchecked =
-        instance_desc->CopyInsert(&new_desc, REMOVE_TRANSITIONS);
+        instance_desc->CopyInsert(&new_desc);
       if (!maybe_descriptors_unchecked->ToObject(&descriptors_unchecked)) {
         return maybe_descriptors_unchecked;
       }
@@ -4566,7 +4566,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DefineOrRedefineDataProperty) {
   // correctly in the case where a property is a field and is reset with
   // new attributes.
   if (result.IsProperty() &&
-      (attr != result.GetAttributes() || result.IsCallbacks())) {
+      (attr != result.GetAttributes() || result.IsPropertyCallbacks())) {
     // New attributes - normalize to avoid writing to instance descriptor
     if (js_object->IsJSGlobalProxy()) {
       // Since the result is a property, the prototype will exist so
@@ -4892,6 +4892,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StoreArrayLiteralElement) {
 // Check whether debugger and is about to step into the callback that is passed
 // to a built-in function such as Array.forEach.
 RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugCallbackSupportsStepping) {
+#ifdef ENABLE_DEBUGGER_SUPPORT
   if (!isolate->IsDebuggerActive()) return isolate->heap()->false_value();
   CONVERT_ARG_CHECKED(Object, callback, 0);
   // We do not step into the callback if it's a builtin or not even a function.
@@ -4899,14 +4900,18 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugCallbackSupportsStepping) {
     return isolate->heap()->false_value();
   }
   return isolate->heap()->true_value();
+#else
+  return isolate->heap()->false_value();
+#endif  // ENABLE_DEBUGGER_SUPPORT
 }
 
 
 // Set one shot breakpoints for the callback function that is passed to a
 // built-in function such as Array.forEach to enable stepping into the callback.
 RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugPrepareStepInIfStepping) {
+#ifdef ENABLE_DEBUGGER_SUPPORT
   Debug* debug = isolate->debug();
-  if (!debug->IsStepping()) return NULL;
+  if (!debug->IsStepping()) return isolate->heap()->undefined_value();
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, callback, 0);
   HandleScope scope(isolate);
   // When leaving the callback, step out has been activated, but not performed
@@ -4914,7 +4919,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugPrepareStepInIfStepping) {
   // again, we need to clear the step out at this point.
   debug->ClearStepOut();
   debug->FloodWithOneShot(callback);
-  return NULL;
+#endif  // ENABLE_DEBUGGER_SUPPORT
+  return isolate->heap()->undefined_value();
 }
 
 
@@ -10338,8 +10344,7 @@ static MaybeObject* DebugLookupResultValue(Heap* heap,
       }
     }
     case INTERCEPTOR:
-    case MAP_TRANSITION:
-    case CONSTANT_TRANSITION:
+    case TRANSITION:
       return heap->undefined_value();
     case HANDLER:
     case NONEXISTENT:
@@ -10419,7 +10424,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugGetPropertyDetails) {
       // GC can happen later in this code so put the required fields into
       // local variables using handles when required for later use.
       Handle<Object> result_callback_obj;
-      if (result.IsCallbacks()) {
+      if (result.IsPropertyCallbacks()) {
         result_callback_obj = Handle<Object>(result.GetCallbackObject(),
                                              isolate);
       }
@@ -10437,7 +10442,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugGetPropertyDetails) {
 
       // If the callback object is a fixed array then it contains JavaScript
       // getter and/or setter.
-      bool hasJavaScriptAccessors = result.IsCallbacks() &&
+      bool hasJavaScriptAccessors = result.IsPropertyCallbacks() &&
                                     result_callback_obj->IsAccessorPair();
       Handle<FixedArray> details =
           isolate->factory()->NewFixedArray(hasJavaScriptAccessors ? 5 : 2);

@@ -729,7 +729,7 @@ Handle<FixedArray> GetEnumPropertyKeys(Handle<JSObject> object,
         Handle<DescriptorArray>(object->map()->instance_descriptors(), isolate);
 
     for (int i = 0; i < descs->number_of_descriptors(); i++) {
-      if (descs->IsProperty(i) && !descs->GetDetails(i).IsDontEnum()) {
+      if (!descs->GetDetails(i).IsDontEnum()) {
         storage->set(index, descs->GetKey(i));
         PropertyDetails details = descs->GetDetails(i);
         sort_array->set(index, Smi::FromInt(details.index()));
@@ -957,5 +957,48 @@ int Utf8Length(Handle<String> str) {
   } while (failure);
   return len;
 }
+
+
+DeferredHandleScope::DeferredHandleScope(Isolate* isolate)
+    : impl_(isolate->handle_scope_implementer()) {
+  ASSERT(impl_->isolate() == Isolate::Current());
+  impl_->BeginDeferredScope();
+  v8::ImplementationUtilities::HandleScopeData* data =
+      impl_->isolate()->handle_scope_data();
+  Object** new_next = impl_->GetSpareOrNewBlock();
+  Object** new_limit = &new_next[kHandleBlockSize];
+  ASSERT(data->limit == &impl_->blocks()->last()[kHandleBlockSize]);
+  impl_->blocks()->Add(new_next);
+
+#ifdef DEBUG
+  prev_level_ = data->level;
+#endif
+  data->level++;
+  prev_limit_ = data->limit;
+  prev_next_ = data->next;
+  data->next = new_next;
+  data->limit = new_limit;
+}
+
+
+DeferredHandleScope::~DeferredHandleScope() {
+  impl_->isolate()->handle_scope_data()->level--;
+  ASSERT(handles_detached_);
+  ASSERT(impl_->isolate()->handle_scope_data()->level == prev_level_);
+}
+
+
+DeferredHandles* DeferredHandleScope::Detach() {
+  DeferredHandles* deferred = impl_->Detach(prev_limit_);
+  v8::ImplementationUtilities::HandleScopeData* data =
+      impl_->isolate()->handle_scope_data();
+  data->next = prev_next_;
+  data->limit = prev_limit_;
+#ifdef DEBUG
+  handles_detached_ = true;
+#endif
+  return deferred;
+}
+
 
 } }  // namespace v8::internal

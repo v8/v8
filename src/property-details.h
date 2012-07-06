@@ -55,17 +55,18 @@ class Smi;
 // Must fit in the BitField PropertyDetails::TypeField.
 // A copy of this is in mirror-debugger.js.
 enum PropertyType {
-  NORMAL                    = 0,  // only in slow mode
-  FIELD                     = 1,  // only in fast mode
-  CONSTANT_FUNCTION         = 2,  // only in fast mode
+  // Only in slow mode.
+  NORMAL                    = 0,
+  // Only in fast mode.
+  FIELD                     = 1,
+  CONSTANT_FUNCTION         = 2,
   CALLBACKS                 = 3,
-  HANDLER                   = 4,  // only in lookup results, not in descriptors
-  INTERCEPTOR               = 5,  // only in lookup results, not in descriptors
-  // All properties before MAP_TRANSITION are real.
-  MAP_TRANSITION            = 6,  // only in fast mode
-  CONSTANT_TRANSITION       = 7,  // only in fast mode
+  // Only in lookup results, not in descriptors.
+  HANDLER                   = 4,
+  INTERCEPTOR               = 5,
+  TRANSITION                = 6,
   // Only used as a marker in LookupResult.
-  NONEXISTENT               = 8
+  NONEXISTENT               = 7
 };
 
 
@@ -112,10 +113,10 @@ class PropertyDetails BASE_EMBEDDED {
 
   // Bit fields in value_ (type, shift, size). Must be public so the
   // constants can be embedded in generated code.
-  class TypeField:       public BitField<PropertyType,       0, 4> {};
-  class AttributesField: public BitField<PropertyAttributes, 4, 3> {};
-  class DeletedField:    public BitField<uint32_t,           7, 1> {};
-  class StorageField:    public BitField<uint32_t,           8, 32-8> {};
+  class TypeField:       public BitField<PropertyType,       0, 3> {};
+  class AttributesField: public BitField<PropertyAttributes, 3, 3> {};
+  class DeletedField:    public BitField<uint32_t,           6, 1> {};
+  class StorageField:    public BitField<uint32_t,           7, 32-7> {};
 
   static const int kInitialIndex = 1;
 

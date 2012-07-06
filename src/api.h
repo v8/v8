@@ -392,6 +392,28 @@ class StringTracker {
 };
 
 
+class DeferredHandles {
+ public:
+  ~DeferredHandles();
+
+ private:
+  DeferredHandles(DeferredHandles* next, Object** first_block_limit,
+                  HandleScopeImplementer* impl)
+      : next_(next), previous_(NULL), first_block_limit_(first_block_limit),
+        impl_(impl) {}
+
+  void Iterate(ObjectVisitor* v);
+
+  List<Object**> blocks_;
+  DeferredHandles* next_;
+  DeferredHandles* previous_;
+  Object** first_block_limit_;
+  HandleScopeImplementer* impl_;
+
+  friend class HandleScopeImplementer;
+};
+
+
 // This class is here in order to be able to declare it a friend of
 // HandleScope.  Moving these methods to be members of HandleScope would be
 // neat in some ways, but it would expose internal implementation details in
@@ -409,7 +431,9 @@ class HandleScopeImplementer {
         entered_contexts_(0),
         saved_contexts_(0),
         spare_(NULL),
-        call_depth_(0) { }
+        call_depth_(0),
+        last_handle_before_deferred_block_(NULL),
+        deferred_handles_head_(NULL) { }
 
   ~HandleScopeImplementer() {
     DeleteArray(spare_);
@@ -445,6 +469,7 @@ class HandleScopeImplementer {
   inline bool HasSavedContexts();
 
   inline List<internal::Object**>* blocks() { return &blocks_; }
+  Isolate* isolate() const { return isolate_; }
 
  private:
   void ResetAfterArchive() {
@@ -452,6 +477,8 @@ class HandleScopeImplementer {
     entered_contexts_.Initialize(0);
     saved_contexts_.Initialize(0);
     spare_ = NULL;
+    deferred_handles_head_ = NULL;
+    last_handle_before_deferred_block_ = NULL;
     call_depth_ = 0;
   }
 
@@ -459,6 +486,7 @@ class HandleScopeImplementer {
     ASSERT(blocks_.length() == 0);
     ASSERT(entered_contexts_.length() == 0);
     ASSERT(saved_contexts_.length() == 0);
+    ASSERT(deferred_handles_head_ == NULL);
     blocks_.Free();
     entered_contexts_.Free();
     saved_contexts_.Free();
@@ -469,6 +497,10 @@ class HandleScopeImplementer {
     ASSERT(call_depth_ == 0);
   }
 
+  void BeginDeferredScope();
+  DeferredHandles* Detach(Object** prev_limit);
+  void DestroyDeferredHandles(DeferredHandles* handles);
+
   Isolate* isolate_;
   List<internal::Object**> blocks_;
   // Used as a stack to keep track of entered contexts.
@@ -477,12 +509,17 @@ class HandleScopeImplementer {
   List<Context*> saved_contexts_;
   Object** spare_;
   int call_depth_;
+  Object** last_handle_before_deferred_block_;
+  DeferredHandles* deferred_handles_head_;
   // This is only used for threading support.
   v8::ImplementationUtilities::HandleScopeData handle_scope_data_;
 
   void IterateThis(ObjectVisitor* v);
   char* RestoreThreadHelper(char* from);
   char* ArchiveThreadHelper(char* to);
+
+  friend class DeferredHandles;
+  friend class DeferredHandleScope;
 
   DISALLOW_COPY_AND_ASSIGN(HandleScopeImplementer);
 };

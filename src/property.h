@@ -29,6 +29,7 @@
 #define V8_PROPERTY_H_
 
 #include "allocation.h"
+#include "transitions.h"
 
 namespace v8 {
 namespace internal {
@@ -68,8 +69,6 @@ class Descriptor BASE_EMBEDDED {
     details_ = PropertyDetails(details_.attributes(), details_.type(), index);
   }
 
-  bool ContainsTransition();
-
  private:
   String* key_;
   Object* value_;
@@ -99,27 +98,6 @@ class Descriptor BASE_EMBEDDED {
         details_(attributes, type, index) { }
 
   friend class DescriptorArray;
-};
-
-// A pointer from a map to the new map that is created by adding
-// a named property.  These are key to the speed and functioning of V8.
-// The two maps should always have the same prototype, since
-// MapSpace::CreateBackPointers depends on this.
-class MapTransitionDescriptor: public Descriptor {
- public:
-  MapTransitionDescriptor(String* key, Map* map, PropertyAttributes attributes)
-      : Descriptor(key, map, attributes, MAP_TRANSITION) { }
-};
-
-// Marks a field name in a map so that adding the field is guaranteed
-// to create a FIELD descriptor in the new map.  Used after adding
-// a constant function the first time, creating a CONSTANT_FUNCTION
-// descriptor in the new map.  This avoids creating multiple maps with
-// the same CONSTANT_FUNCTION field.
-class ConstTransitionDescriptor: public Descriptor {
- public:
-  explicit ConstTransitionDescriptor(String* key, Map* map)
-      : Descriptor(key, map, NONE, CONSTANT_TRANSITION) { }
 };
 
 
@@ -153,36 +131,6 @@ class CallbacksDescriptor:  public Descriptor {
 };
 
 
-template <class T>
-bool IsPropertyDescriptor(T* desc) {
-  switch (desc->type()) {
-    case NORMAL:
-    case FIELD:
-    case CONSTANT_FUNCTION:
-    case HANDLER:
-    case INTERCEPTOR:
-      return true;
-    case CALLBACKS: {
-      Object* callback_object = desc->GetCallbackObject();
-      // Non-JavaScript (i.e. native) accessors are always a property, otherwise
-      // either the getter or the setter must be an accessor. Put another way:
-      // If we only see map transitions and holes in a pair, this is not a
-      // property.
-      return (!callback_object->IsAccessorPair() ||
-              AccessorPair::cast(callback_object)->ContainsAccessor());
-    }
-    case MAP_TRANSITION:
-    case CONSTANT_TRANSITION:
-      return false;
-    case NONEXISTENT:
-      UNREACHABLE();
-      break;
-  }
-  UNREACHABLE();  // keep the compiler happy
-  return false;
-}
-
-
 class LookupResult BASE_EMBEDDED {
  public:
   explicit LookupResult(Isolate* isolate)
@@ -204,6 +152,13 @@ class LookupResult BASE_EMBEDDED {
     lookup_type_ = DESCRIPTOR_TYPE;
     holder_ = holder;
     details_ = details;
+    number_ = number;
+  }
+
+  void TransitionResult(JSObject* holder, int number) {
+    lookup_type_ = TRANSITION_TYPE;
+    details_ = PropertyDetails(NONE, TRANSITION);
+    holder_ = holder;
     number_ = number;
   }
 
@@ -259,27 +214,39 @@ class LookupResult BASE_EMBEDDED {
   }
 
   PropertyAttributes GetAttributes() {
+    ASSERT(!IsTransition());
     ASSERT(IsFound());
+    ASSERT(details_.type() != NONEXISTENT);
     return details_.attributes();
   }
 
   PropertyDetails GetPropertyDetails() {
+    ASSERT(!IsTransition());
     return details_;
   }
 
   bool IsFastPropertyType() {
     ASSERT(IsFound());
-    return type() != NORMAL;
+    return IsTransition() || type() != NORMAL;
+  }
+
+  // Property callbacks does not include transitions to callbacks.
+  bool IsPropertyCallbacks() {
+    ASSERT(!(details_.type() == CALLBACKS && !IsFound()));
+    return details_.type() == CALLBACKS;
+  }
+
+  // Is callbacks contains both property callbacks and transitions to callbacks.
+  bool IsCallbacks() {
+    return IsPropertyCallbacks() ||
+           (IsTransition() && GetTransitionValue()->IsAccessorPair());
   }
 
   bool IsReadOnly() {
     ASSERT(IsFound());
+    ASSERT(!IsTransition());
+    ASSERT(details_.type() != NONEXISTENT);
     return details_.IsReadOnly();
-  }
-
-  bool IsCallbacks() {
-    ASSERT(!(details_.type() == CALLBACKS && !IsFound()));
-    return details_.type() == CALLBACKS;
   }
 
   bool IsField() {
@@ -297,21 +264,17 @@ class LookupResult BASE_EMBEDDED {
     return details_.type() == CONSTANT_FUNCTION;
   }
 
-  bool IsMapTransition() {
-    ASSERT(!(details_.type() == MAP_TRANSITION && !IsFound()));
-    return details_.type() == MAP_TRANSITION;
-  }
-
   bool IsDontDelete() { return details_.IsDontDelete(); }
   bool IsDontEnum() { return details_.IsDontEnum(); }
   bool IsDeleted() { return details_.IsDeleted(); }
   bool IsFound() { return lookup_type_ != NOT_FOUND; }
+  bool IsTransition() { return lookup_type_ == TRANSITION_TYPE; }
   bool IsHandler() { return lookup_type_ == HANDLER_TYPE; }
   bool IsInterceptor() { return lookup_type_ == INTERCEPTOR_TYPE; }
 
   // Is the result is a property excluding transitions and the null descriptor?
   bool IsProperty() {
-    return IsFound() && IsPropertyDescriptor(this);
+    return IsFound() && !IsTransition();
   }
 
   bool IsCacheable() { return cacheable_; }
@@ -336,17 +299,35 @@ class LookupResult BASE_EMBEDDED {
     }
   }
 
+  Object* GetTransitionValue() {
+    ASSERT(IsTransition());
+    TransitionArray* transitions = holder()->map()->transitions();
+    Object* value = transitions->GetValue(number_);
+    return value;
+  }
+
+  PropertyDetails GetTransitionDetails(Map* map) {
+    ASSERT(IsTransition());
+    TransitionArray* transitions = map->transitions();
+    return transitions->GetTargetDetails(number_);
+  }
+
+  PropertyDetails GetTransitionDetails() {
+    return GetTransitionDetails(holder()->map());
+  }
+
+  bool IsTransitionToField(Map* map) {
+    return IsTransition() && GetTransitionDetails(map).type() == FIELD;
+  }
+
   Map* GetTransitionMap() {
-    ASSERT(lookup_type_ == DESCRIPTOR_TYPE);
-    ASSERT(type() == MAP_TRANSITION ||
-           type() == CONSTANT_TRANSITION);
+    ASSERT(IsTransition());
     return Map::cast(GetValue());
   }
 
   Map* GetTransitionMapFromMap(Map* map) {
-    ASSERT(lookup_type_ == DESCRIPTOR_TYPE);
-    ASSERT(type() == MAP_TRANSITION);
-    return Map::cast(map->instance_descriptors()->GetValue(number_));
+    ASSERT(IsTransition());
+    return Map::cast(map->transitions()->GetValue(number_));
   }
 
   int GetFieldIndex() {
@@ -356,10 +337,8 @@ class LookupResult BASE_EMBEDDED {
   }
 
   int GetLocalFieldIndexFromMap(Map* map) {
-    ASSERT(lookup_type_ == DESCRIPTOR_TYPE);
     ASSERT(IsField());
-    return Descriptor::IndexFromValue(
-        map->instance_descriptors()->GetValue(number_)) -
+    return Descriptor::IndexFromValue(GetValueFromMap(map)) -
         map->inobject_properties();
   }
 
@@ -374,17 +353,19 @@ class LookupResult BASE_EMBEDDED {
   }
 
   JSFunction* GetConstantFunctionFromMap(Map* map) {
-    ASSERT(lookup_type_ == DESCRIPTOR_TYPE);
     ASSERT(type() == CONSTANT_FUNCTION);
-    return JSFunction::cast(map->instance_descriptors()->GetValue(number_));
+    return JSFunction::cast(GetValueFromMap(map));
   }
 
   Object* GetCallbackObject() {
-    if (lookup_type_ == CONSTANT_TYPE) {
-      // For now we only have the __proto__ as constant type.
-      return HEAP->prototype_accessors();
+    switch (lookup_type_) {
+      case CONSTANT_TYPE:
+        return HEAP->prototype_accessors();
+      case TRANSITION_TYPE:
+        return GetTransitionValue();
+      default:
+        return GetValue();
     }
-    return GetValue();
   }
 
 #ifdef OBJECT_PRINT
@@ -393,12 +374,16 @@ class LookupResult BASE_EMBEDDED {
 
   Object* GetValue() {
     if (lookup_type_ == DESCRIPTOR_TYPE) {
-      DescriptorArray* descriptors = holder()->map()->instance_descriptors();
-      return descriptors->GetValue(number_);
+      return GetValueFromMap(holder()->map());
     }
     // In the dictionary case, the data is held in the value field.
     ASSERT(lookup_type_ == DICTIONARY_TYPE);
     return holder()->GetNormalizedProperty(this);
+  }
+
+  Object* GetValueFromMap(Map* map) const {
+    ASSERT(lookup_type_ == DESCRIPTOR_TYPE);
+    return map->instance_descriptors()->GetValue(number_);
   }
 
   void Iterate(ObjectVisitor* visitor);
@@ -411,6 +396,7 @@ class LookupResult BASE_EMBEDDED {
   enum {
     NOT_FOUND,
     DESCRIPTOR_TYPE,
+    TRANSITION_TYPE,
     DICTIONARY_TYPE,
     HANDLER_TYPE,
     INTERCEPTOR_TYPE,

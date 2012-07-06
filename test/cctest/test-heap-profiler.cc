@@ -1559,6 +1559,7 @@ TEST(SfiAndJsFunctionWeakRefs) {
 }
 
 
+#ifdef ENABLE_DEBUGGER_SUPPORT
 TEST(NoDebugObjectInSnapshot) {
   v8::HandleScope scope;
   LocalContext env;
@@ -1581,6 +1582,7 @@ TEST(NoDebugObjectInSnapshot) {
   }
   CHECK_EQ(1, globals_count);
 }
+#endif  // ENABLE_DEBUGGER_SUPPORT
 
 
 TEST(PersistentHandleCount) {
