@@ -961,13 +961,15 @@ int Utf8Length(Handle<String> str) {
 
 DeferredHandleScope::DeferredHandleScope(Isolate* isolate)
     : impl_(isolate->handle_scope_implementer()) {
+  ASSERT(impl_->isolate() == Isolate::Current());
   impl_->BeginDeferredScope();
-  Object** new_next = impl_->GetSpareOrNewBlock();
-  Object** new_limit = &new_next[kHandleBlockSize];
-  impl_->blocks()->Add(new_next);
-
   v8::ImplementationUtilities::HandleScopeData* data =
       impl_->isolate()->handle_scope_data();
+  Object** new_next = impl_->GetSpareOrNewBlock();
+  Object** new_limit = &new_next[kHandleBlockSize];
+  ASSERT(data->limit == &impl_->blocks()->last()[kHandleBlockSize]);
+  impl_->blocks()->Add(new_next);
+
 #ifdef DEBUG
   prev_level_ = data->level;
 #endif

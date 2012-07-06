@@ -6457,6 +6457,12 @@ DeferredHandles* HandleScopeImplementer::Detach(Object** prev_limit) {
     blocks_.RemoveLast();
   }
 
+  // deferred->blocks_ now contains the blocks installed on the
+  // HandleScope stack since BeginDeferredScope was called, but in
+  // reverse order.
+
+  ASSERT(prev_limit == NULL || !blocks_.is_empty());
+
   ASSERT(!blocks_.is_empty() && prev_limit != NULL);
   deferred_handles_head_ = deferred;
   ASSERT(last_handle_before_deferred_block_ != NULL);
@@ -6466,6 +6472,13 @@ DeferredHandles* HandleScopeImplementer::Detach(Object** prev_limit) {
 
 
 void HandleScopeImplementer::DestroyDeferredHandles(DeferredHandles* deferred) {
+#ifdef DEBUG
+  DeferredHandles* deferred_iterator = deferred;
+  while (deferred_iterator->previous_ != NULL) {
+    deferred_iterator = deferred_iterator->previous_;
+  }
+  ASSERT(deferred_handles_head_ == deferred_iterator);
+#endif
   if (deferred_handles_head_ == deferred) {
     deferred_handles_head_ = deferred_handles_head_->next_;
   }
@@ -6500,14 +6513,14 @@ DeferredHandles::~DeferredHandles() {
 void DeferredHandles::Iterate(ObjectVisitor* v) {
   ASSERT(!blocks_.is_empty());
 
-  for (int i = 0; i < (blocks_.length() - 1); i++) {
+  ASSERT((first_block_limit_ >= blocks_.first()) &&
+         (first_block_limit_ < &(blocks_.first())[kHandleBlockSize]));
+
+  v->VisitPointers(blocks_.first(), first_block_limit_);
+
+  for (int i = 1; i < blocks_.length(); i++) {
     v->VisitPointers(blocks_[i], &blocks_[i][kHandleBlockSize]);
   }
-
-  ASSERT((last_block_limit_ >= blocks_.last()) &&
-         (last_block_limit_ < &(blocks_.last())[kHandleBlockSize]));
-
-  v->VisitPointers(blocks_.last(), last_block_limit_);
 }
 
 

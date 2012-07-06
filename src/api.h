@@ -397,9 +397,9 @@ class DeferredHandles {
   ~DeferredHandles();
 
  private:
-  DeferredHandles(DeferredHandles* next, Object** last_block_limit,
+  DeferredHandles(DeferredHandles* next, Object** first_block_limit,
                   HandleScopeImplementer* impl)
-      : next_(next), previous_(NULL), last_block_limit_(last_block_limit),
+      : next_(next), previous_(NULL), first_block_limit_(first_block_limit),
         impl_(impl) {}
 
   void Iterate(ObjectVisitor* v);
@@ -407,7 +407,7 @@ class DeferredHandles {
   List<Object**> blocks_;
   DeferredHandles* next_;
   DeferredHandles* previous_;
-  Object** last_block_limit_;
+  Object** first_block_limit_;
   HandleScopeImplementer* impl_;
 
   friend class HandleScopeImplementer;
@@ -477,6 +477,8 @@ class HandleScopeImplementer {
     entered_contexts_.Initialize(0);
     saved_contexts_.Initialize(0);
     spare_ = NULL;
+    deferred_handles_head_ = NULL;
+    last_handle_before_deferred_block_ = NULL;
     call_depth_ = 0;
   }
 
@@ -484,6 +486,7 @@ class HandleScopeImplementer {
     ASSERT(blocks_.length() == 0);
     ASSERT(entered_contexts_.length() == 0);
     ASSERT(saved_contexts_.length() == 0);
+    ASSERT(deferred_handles_head_ == NULL);
     blocks_.Free();
     entered_contexts_.Free();
     saved_contexts_.Free();
