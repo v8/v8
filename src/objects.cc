@@ -2827,8 +2827,8 @@ MUST_USE_RESULT Handle<Object> JSProxy::CallTrap(const char* name,
 
 
 MaybeObject* JSObject::SetPropertyForResult(LookupResult* result,
-                                            String* name,
-                                            Object* value,
+                                            String* name_raw,
+                                            Object* value_raw,
                                             PropertyAttributes attributes,
                                             StrictModeFlag strict_mode,
                                             StoreFromKeyed store_mode) {
@@ -2840,51 +2840,56 @@ MaybeObject* JSObject::SetPropertyForResult(LookupResult* result,
   // Optimization for 2-byte strings often used as keys in a decompression
   // dictionary.  We make these short keys into symbols to avoid constantly
   // reallocating them.
-  if (!name->IsSymbol() && name->length() <= 2) {
+  if (!name_raw->IsSymbol() && name_raw->length() <= 2) {
     Object* symbol_version;
-    { MaybeObject* maybe_symbol_version = heap->LookupSymbol(name);
+    { MaybeObject* maybe_symbol_version = heap->LookupSymbol(name_raw);
       if (maybe_symbol_version->ToObject(&symbol_version)) {
-        name = String::cast(symbol_version);
+        name_raw = String::cast(symbol_version);
       }
     }
   }
 
   // Check access rights if needed.
   if (IsAccessCheckNeeded()) {
-    if (!heap->isolate()->MayNamedAccess(this, name, v8::ACCESS_SET)) {
+    if (!heap->isolate()->MayNamedAccess(this, name_raw, v8::ACCESS_SET)) {
       return SetPropertyWithFailedAccessCheck(
-          result, name, value, true, strict_mode);
+          result, name_raw, value_raw, true, strict_mode);
     }
   }
 
   if (IsJSGlobalProxy()) {
     Object* proto = GetPrototype();
-    if (proto->IsNull()) return value;
+    if (proto->IsNull()) return value_raw;
     ASSERT(proto->IsJSGlobalObject());
     return JSObject::cast(proto)->SetPropertyForResult(
-        result, name, value, attributes, strict_mode, store_mode);
+        result, name_raw, value_raw, attributes, strict_mode, store_mode);
   }
 
-  if (!result->IsProperty() && !IsJSContextExtensionObject()) {
+  // From this point on everything needs to be handlified, because
+  // SetPropertyViaPrototypes might call back into JavaScript.
+  Handle<JSObject> self(this);
+  Handle<String> name(name_raw);
+  Handle<Object> value(value_raw);
+
+  if (!result->IsProperty() && !self->IsJSContextExtensionObject()) {
     bool done = false;
-    MaybeObject* result_object =
-        SetPropertyViaPrototypes(name, value, attributes, strict_mode, &done);
+    MaybeObject* result_object = self->SetPropertyViaPrototypes(
+        *name, *value, attributes, strict_mode, &done);
     if (done) return result_object;
   }
 
   if (!result->IsFound()) {
     // Neither properties nor transitions found.
-    return AddProperty(name, value, attributes, strict_mode, store_mode);
+    return self->AddProperty(
+        *name, *value, attributes, strict_mode, store_mode);
   }
   if (result->IsProperty() && result->IsReadOnly()) {
     if (strict_mode == kStrictMode) {
-      Handle<JSObject> self(this);
-      Handle<String> hname(name);
-      Handle<Object> args[] = { hname, self };
+      Handle<Object> args[] = { name, self };
       return heap->isolate()->Throw(*heap->isolate()->factory()->NewTypeError(
           "strict_read_only_property", HandleVector(args, ARRAY_SIZE(args))));
     } else {
-      return value;
+      return *value;
     }
   }
 
@@ -2892,76 +2897,82 @@ MaybeObject* JSObject::SetPropertyForResult(LookupResult* result,
   // transition or null descriptor and there are no setters in the prototypes.
   switch (result->type()) {
     case NORMAL:
-      return SetNormalizedProperty(result, value);
+      return self->SetNormalizedProperty(result, *value);
     case FIELD:
-      return FastPropertyAtPut(result->GetFieldIndex(), value);
+      return self->FastPropertyAtPut(result->GetFieldIndex(), *value);
     case CONSTANT_FUNCTION:
       // Only replace the function if necessary.
-      if (value == result->GetConstantFunction()) return value;
+      if (*value == result->GetConstantFunction()) return *value;
       // Preserve the attributes of this existing property.
       attributes = result->GetAttributes();
-      return ConvertDescriptorToField(name, value, attributes);
+      return self->ConvertDescriptorToField(*name, *value, attributes);
     case CALLBACKS: {
       Object* callback_object = result->GetCallbackObject();
-      return SetPropertyWithCallback(callback_object,
-                                     name,
-                                     value,
-                                     result->holder(),
-                                     strict_mode);
+      return self->SetPropertyWithCallback(callback_object,
+                                           *name,
+                                           *value,
+                                           result->holder(),
+                                           strict_mode);
     }
     case INTERCEPTOR:
-      return SetPropertyWithInterceptor(name, value, attributes, strict_mode);
+      return self->SetPropertyWithInterceptor(*name,
+                                              *value,
+                                              attributes,
+                                              strict_mode);
     case TRANSITION: {
       Object* transition = result->GetTransitionValue();
 
       if (transition->IsAccessorPair()) {
         if (!AccessorPair::cast(transition)->ContainsAccessor()) {
-          return ConvertDescriptorToField(name, value, attributes);
+          return self->ConvertDescriptorToField(*name,
+                                                *value,
+                                                attributes);
         }
-        return SetPropertyWithCallback(transition,
-                                       name,
-                                       value,
-                                       result->holder(),
-                                       strict_mode);
+        return self->SetPropertyWithCallback(transition,
+                                             *name,
+                                             *value,
+                                             result->holder(),
+                                             strict_mode);
       }
 
       Map* transition_map = Map::cast(transition);
       DescriptorArray* descriptors = transition_map->instance_descriptors();
-      int descriptor = descriptors->SearchWithCache(name);
+      int descriptor = descriptors->SearchWithCache(*name);
       PropertyDetails details = descriptors->GetDetails(descriptor);
       ASSERT(details.type() == FIELD || details.type() == CONSTANT_FUNCTION);
 
       if (details.type() == FIELD) {
         if (attributes == details.attributes()) {
           int field_index = descriptors->GetFieldIndex(descriptor);
-          return AddFastPropertyUsingMap(transition_map,
-                                         name,
-                                         value,
-                                         field_index);
+          return self->AddFastPropertyUsingMap(transition_map,
+                                               *name,
+                                               *value,
+                                               field_index);
         }
-        return ConvertDescriptorToField(name, value, attributes);
+        return self->ConvertDescriptorToField(*name, *value, attributes);
       }
 
       // Is transition to CONSTANT_FUNCTION.
       Object* constant_function = descriptors->GetValue(descriptor);
       // If the same constant function is being added we can simply
       // transition to the target map.
-      if (constant_function == value) {
-        set_map(transition_map);
+      if (constant_function == *value) {
+        self->set_map(transition_map);
         return this;
       }
       // Otherwise, replace with a map transition to a new map with a FIELD,
       // even if the value is a constant function.
-      return ConvertDescriptorToFieldAndMapTransition(
-          name, value, attributes);
+      return self->ConvertDescriptorToFieldAndMapTransition(*name,
+                                                            *value,
+                                                            attributes);
     }
     case HANDLER:
     case NONEXISTENT:
       UNREACHABLE();
-      return value;
+      return *value;
   }
   UNREACHABLE();  // keep the compiler happy
-  return value;
+  return *value;
 }
 
 
