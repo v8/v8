@@ -1325,7 +1325,6 @@ class ObjectLiteral: public MaterializedLiteral {
 
     // Type feedback information.
     void RecordTypeFeedback(TypeFeedbackOracle* oracle);
-    bool IsMonomorphic() { return !receiver_type_.is_null(); }
     Handle<Map> GetReceiverType() { return receiver_type_; }
 
     bool IsCompileTimeValue();
@@ -1529,6 +1528,11 @@ class Property: public Expression {
   void RecordTypeFeedback(TypeFeedbackOracle* oracle, Zone* zone);
   virtual bool IsMonomorphic() { return is_monomorphic_; }
   virtual SmallMapList* GetReceiverTypes() { return &receiver_types_; }
+
+  Handle<Map> GetReceiverType() {
+    return IsMonomorphic() ? GetReceiverTypes()->first() : Handle<Map>();
+  }
+
   bool IsArrayLength() { return is_array_length_; }
   bool IsUninitialized() { return is_uninitialized_; }
 
