@@ -2281,6 +2281,8 @@ class HCheckPrototypeMaps: public HTemplateInstruction<0> {
     return Representation::None();
   }
 
+  virtual void PrintDataTo(StringStream* stream);
+
   virtual intptr_t Hashcode() {
     ASSERT(!HEAP->IsAllocationAllowed());
     intptr_t hash = reinterpret_cast<intptr_t>(*prototype());
