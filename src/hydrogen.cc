@@ -5623,6 +5623,33 @@ HInstruction* HGraphBuilder::BuildLoadNamedGeneric(HValue* obj,
 }
 
 
+static void LookupInPrototypes(Handle<Map> map,
+                               Handle<String> name,
+                               LookupResult* lookup) {
+  while (map->prototype()->IsJSObject()) {
+    Handle<JSObject> holder(JSObject::cast(map->prototype()));
+    map = Handle<Map>(holder->map());
+    map->LookupDescriptor(*holder, *name, lookup);
+    if (lookup->IsFound()) return;
+  }
+  lookup->NotFound();
+}
+
+
+HInstruction* HGraphBuilder::BuildCallGetter(HValue* obj,
+                                             Property* expr,
+                                             Handle<Map> map,
+                                             Handle<Object> callback,
+                                             Handle<JSObject> holder) {
+  if (!callback->IsAccessorPair()) return BuildLoadNamedGeneric(obj, expr);
+  Handle<Object> getter(Handle<AccessorPair>::cast(callback)->getter());
+  Handle<JSFunction> function(Handle<JSFunction>::cast(getter));
+  AddCheckConstantFunction(holder, obj, map, true);
+  AddInstruction(new(zone()) HPushArgument(obj));
+  return new(zone()) HCallConstantFunction(function, 1);
+}
+
+
 HInstruction* HGraphBuilder::BuildLoadNamed(HValue* obj,
                                             Property* expr,
                                             Handle<Map> map,
@@ -5640,7 +5667,17 @@ HInstruction* HGraphBuilder::BuildLoadNamed(HValue* obj,
     AddInstruction(HCheckMaps::NewWithTransitions(obj, map, zone()));
     Handle<JSFunction> function(lookup.GetConstantFunctionFromMap(*map));
     return new(zone()) HConstant(function, Representation::Tagged());
+  } else if (lookup.IsPropertyCallbacks()) {
+    Handle<Object> callback(lookup.GetValueFromMap(*map));
+    Handle<JSObject> holder;
+    return BuildCallGetter(obj, expr, map, callback, holder);
   } else {
+    LookupInPrototypes(map, name, &lookup);
+    if (lookup.IsPropertyCallbacks()) {
+      Handle<Object> callback(lookup.GetValue());
+      Handle<JSObject> holder(lookup.holder());
+      return BuildCallGetter(obj, expr, map, callback, holder);
+    }
     return BuildLoadNamedGeneric(obj, expr);
   }
 }

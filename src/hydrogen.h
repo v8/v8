@@ -1138,6 +1138,11 @@ class HGraphBuilder: public AstVisitor {
                                    bool is_store,
                                    bool* has_side_effects);
 
+  HInstruction* BuildCallGetter(HValue* obj,
+                                Property* expr,
+                                Handle<Map> map,
+                                Handle<Object> callback,
+                                Handle<JSObject> holder);
   HInstruction* BuildLoadNamed(HValue* object,
                                Property* prop,
                                Handle<Map> map,
