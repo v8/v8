@@ -2600,7 +2600,7 @@ const char* CompareIC::GetStateName(State state) {
     case SMIS: return "SMIS";
     case HEAP_NUMBERS: return "HEAP_NUMBERS";
     case OBJECTS: return "OBJECTS";
-    case KNOWN_OBJECTS: return "OBJECTS";
+    case KNOWN_OBJECTS: return "KNOWN_OBJECTS";
     case SYMBOLS: return "SYMBOLS";
     case STRINGS: return "STRINGS";
     case GENERIC: return "GENERIC";
