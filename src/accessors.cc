@@ -859,10 +859,10 @@ Handle<AccessorInfo> Accessors::MakeModuleExport(
   info->set_all_can_write(true);
   info->set_name(*name);
   info->set_data(Smi::FromInt(index));
-  v8::AccessorGetter getter = &ModuleGetExport;
-  v8::AccessorSetter setter = &ModuleSetExport;
-  info->set_getter(*v8::FromCData(getter));
-  if (!(attributes & ReadOnly)) info->set_setter(*v8::FromCData(setter));
+  Handle<Foreign> getter = v8::FromCData(&ModuleGetExport);
+  Handle<Foreign> setter = v8::FromCData(&ModuleSetExport);
+  info->set_getter(*getter);
+  if (!(attributes & ReadOnly)) info->set_setter(*setter);
   return info;
 }
 

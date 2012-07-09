@@ -1378,7 +1378,7 @@ void Scope::LinkModules(CompilationInfo* info) {
             Accessors::MakeModuleExport(it.name(), var->index(), attr);
         Handle<Object> result = SetAccessor(instance, info);
         ASSERT(!(result.is_null() || result->IsUndefined()));
-	USE(result);
+        USE(result);
       }
     }
     USE(JSObject::PreventExtensions(instance));
