@@ -593,7 +593,6 @@ void FullCodeGenerator::VisitModuleLiteral(ModuleLiteral* module) {
   Block* block = module->body();
   Scope* saved_scope = scope();
   scope_ = block->scope();
-  Handle<ScopeInfo> scope_info = scope_->GetScopeInfo();
   Interface* interface = module->interface();
   Handle<JSModule> instance = interface->Instance();
 
