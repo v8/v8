@@ -4006,13 +4006,18 @@ MaybeObject* Heap::AllocateJSObject(JSFunction* constructor,
 }
 
 
-MaybeObject* Heap::AllocateJSModule() {
+MaybeObject* Heap::AllocateJSModule(Context* context, ScopeInfo* scope_info) {
   // Allocate a fresh map. Modules do not have a prototype.
   Map* map;
   MaybeObject* maybe_map = AllocateMap(JS_MODULE_TYPE, JSModule::kSize);
   if (!maybe_map->To(&map)) return maybe_map;
   // Allocate the object based on the map.
-  return AllocateJSObjectFromMap(map, TENURED);
+  JSModule* module;
+  MaybeObject* maybe_module = AllocateJSObjectFromMap(map, TENURED);
+  if (!maybe_module->To(&module)) return maybe_module;
+  module->set_context(context);
+  module->set_scope_info(scope_info);
+  return module;
 }
 
 
@@ -4911,18 +4916,16 @@ MaybeObject* Heap::AllocateGlobalContext() {
 }
 
 
-MaybeObject* Heap::AllocateModuleContext(Context* previous,
-                                         ScopeInfo* scope_info) {
+MaybeObject* Heap::AllocateModuleContext(ScopeInfo* scope_info) {
   Object* result;
   { MaybeObject* maybe_result =
-        AllocateFixedArrayWithHoles(scope_info->ContextLength(), TENURED);
+        AllocateFixedArray(scope_info->ContextLength(), TENURED);
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
   Context* context = reinterpret_cast<Context*>(result);
   context->set_map_no_write_barrier(module_context_map());
-  context->set_previous(previous);
-  context->set_extension(scope_info);
-  context->set_global(previous->global());
+  // Context links will be set later.
+  context->set_extension(Smi::FromInt(0));
   return context;
 }
 
@@ -4937,7 +4940,7 @@ MaybeObject* Heap::AllocateFunctionContext(int length, JSFunction* function) {
   context->set_map_no_write_barrier(function_context_map());
   context->set_closure(function);
   context->set_previous(function->context());
-  context->set_extension(NULL);
+  context->set_extension(Smi::FromInt(0));
   context->set_global(function->context()->global());
   return context;
 }

@@ -374,11 +374,9 @@ void FixedDoubleArray::FixedDoubleArrayVerify() {
 
 
 void JSModule::JSModuleVerify() {
-  Object* v = context();
-  if (v->IsHeapObject()) {
-    VerifyHeapPointer(v);
-  }
-  CHECK(v->IsUndefined() || v->IsModuleContext());
+  VerifyObjectField(kContextOffset);
+  VerifyObjectField(kScopeInfoOffset);
+  CHECK(context()->IsUndefined() || context()->IsModuleContext());
 }
 
 

@@ -586,7 +586,7 @@ class Parser {
   void* ParseSourceElements(ZoneList<Statement*>* processor,
                             int end_token, bool is_eval, bool* ok);
   Statement* ParseModuleElement(ZoneStringList* labels, bool* ok);
-  Block* ParseModuleDeclaration(ZoneStringList* names, bool* ok);
+  Statement* ParseModuleDeclaration(ZoneStringList* names, bool* ok);
   Module* ParseModule(bool* ok);
   Module* ParseModuleLiteral(bool* ok);
   Module* ParseModulePath(bool* ok);

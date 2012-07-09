@@ -190,6 +190,8 @@ enum BindingFlags {
 //                Dynamically declared variables/functions are also added
 //                to lazily allocated extension object. Context::Lookup
 //                searches the extension object for properties.
+//                For block contexts, contains the respective ScopeInfo.
+//                For module contexts, points back to the respective JSModule.
 //
 // [ global    ]  A pointer to the global object. Provided for quick
 //                access to the global object from inside the code (since
@@ -217,7 +219,7 @@ class Context: public FixedArray {
     // The extension slot is used for either the global object (in global
     // contexts), eval extension object (function contexts), subject of with
     // (with contexts), or the variable name (catch contexts), the serialized
-    // scope info (block contexts).
+    // scope info (block contexts), or the module instance (module contexts).
     EXTENSION_INDEX,
     GLOBAL_INDEX,
     MIN_CONTEXT_SLOTS,
@@ -303,7 +305,7 @@ class Context: public FixedArray {
 
   Context* previous() {
     Object* result = unchecked_previous();
-    ASSERT(IsBootstrappingOrContext(result));
+    ASSERT(IsBootstrappingOrValidParentContext(result, this));
     return reinterpret_cast<Context*>(result);
   }
   void set_previous(Context* context) { set(PREVIOUS_INDEX, context); }
@@ -311,6 +313,9 @@ class Context: public FixedArray {
   bool has_extension() { return extension() != NULL; }
   Object* extension() { return get(EXTENSION_INDEX); }
   void set_extension(Object* object) { set(EXTENSION_INDEX, object); }
+
+  JSModule* module() { return JSModule::cast(get(EXTENSION_INDEX)); }
+  void set_module(JSModule* module) { set(EXTENSION_INDEX, module); }
 
   // Get the context where var declarations will be hoisted to, which
   // may be the context itself.
@@ -426,7 +431,7 @@ class Context: public FixedArray {
 
 #ifdef DEBUG
   // Bootstrapping-aware type checks.
-  static bool IsBootstrappingOrContext(Object* object);
+  static bool IsBootstrappingOrValidParentContext(Object* object, Context* kid);
   static bool IsBootstrappingOrGlobalObject(Object* object);
 #endif
 };

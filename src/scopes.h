@@ -280,7 +280,8 @@ class Scope: public ZoneObject {
   bool is_block_scope() const { return type_ == BLOCK_SCOPE; }
   bool is_with_scope() const { return type_ == WITH_SCOPE; }
   bool is_declaration_scope() const {
-    return is_eval_scope() || is_function_scope() || is_global_scope();
+    return is_eval_scope() || is_function_scope() ||
+        is_module_scope() || is_global_scope();
   }
   bool is_classic_mode() const {
     return language_mode() == CLASSIC_MODE;
@@ -589,6 +590,13 @@ class Scope: public ZoneObject {
   MUST_USE_RESULT
   bool AllocateVariables(CompilationInfo* info,
                          AstNodeFactory<AstNullVisitor>* factory);
+
+  // Instance objects have to be created ahead of time (before code generation)
+  // because of potentially cyclic references between them.
+  // Linking also has to be a separate stage, since populating one object may
+  // potentially require (forward) references to others.
+  void AllocateModules(CompilationInfo* info);
+  void LinkModules(CompilationInfo* info);
 
  private:
   // Construct a scope based on the scope info.

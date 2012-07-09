@@ -8849,19 +8849,25 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_PushBlockContext) {
 }
 
 
+RUNTIME_FUNCTION(MaybeObject*, Runtime_IsJSModule) {
+  ASSERT(args.length() == 1);
+  Object* obj = args[0];
+  return isolate->heap()->ToBoolean(obj->IsJSModule());
+}
+
+
 RUNTIME_FUNCTION(MaybeObject*, Runtime_PushModuleContext) {
   NoHandleAllocation ha;
-  ASSERT(args.length() == 2);
-  CONVERT_ARG_CHECKED(ScopeInfo, scope_info, 0);
-  CONVERT_ARG_HANDLE_CHECKED(JSModule, instance, 1);
+  ASSERT(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSModule, instance, 0);
 
-  Context* context;
-  MaybeObject* maybe_context =
-      isolate->heap()->AllocateModuleContext(isolate->context(),
-                                             scope_info);
-  if (!maybe_context->To(&context)) return maybe_context;
-  // Also initialize the context slot of the instance object.
-  instance->set_context(context);
+  Context* context = Context::cast(instance->context());
+  Context* previous = isolate->context();
+  ASSERT(context->IsModuleContext());
+  // Initialize the context links.
+  context->set_previous(previous);
+  context->set_closure(previous->closure());
+  context->set_global(previous->global());
   isolate->set_context(context);
 
   return context;

@@ -27,138 +27,61 @@
 
 // Flags: --harmony-modules
 
-// Test basic module syntax, with and without automatic semicolon insertion.
+// Test that potential recompilation of the global scope does not screw up.
 
-module A {}
+"use strict";
 
-module A1 = A
-module A2 = A;
-module A3 = A2
+var N = 1e5;  // Number of loop iterations that trigger optimization.
+
+module A {
+  export var x = 1
+  export function f() { return x }
+}
+var f = A.f
+
+assertEquals(1, A.x)
+assertEquals(1, A.f())
+assertEquals(1, f())
+
+A.x = 2
+
+assertEquals(2, A.x)
+assertEquals(2, A.f())
+assertEquals(2, f())
+
+for (var i = 0; i < N; i++) {
+  if (i > N) print("impossible");
+}
+
+assertEquals(2, A.x)
+assertEquals(2, A.f())
+assertEquals(2, f())
+
+
+// Same test with loop inside a module.
 
 module B {
-  export vx
-  export vy, lz, c, f
+  module A {
+    export var x = 1
+    export function f() { return x }
+  }
+  var f = A.f
 
-  var vx
-  var vx, vy;
-  var vx = 0, vy
-  let lx, ly
-  let lz = 1
-  const c = 9
-  function f() {}
+  assertEquals(1, A.x)
+  assertEquals(1, A.f())
+  assertEquals(1, f())
 
-  module C0 {}
+  A.x = 2
 
-  export module C {
-    let x
-    export module D { export let x }
-    let y
+  assertEquals(2, A.x)
+  assertEquals(2, A.f())
+  assertEquals(2, f())
+
+  for (var i = 0; i < N; i++) {
+    if (i > N) print("impossible");
   }
 
-  let zz = ""
-
-  export var x0
-  export var x1, x2 = 6, x3
-  export let y0
-  export let y1 = 0, y2
-  export const z0 = 0
-  export const z1 = 2, z2 = 3
-  export function f0() {}
-  export module M1 {}
-  export module M2 = C.D
-  export module M3 at "http://where"
-
-  import i0 from I
-  import i1, i2, i3, M from I
-  //import i4, i5 from "http://where"
+  assertEquals(2, A.x)
+  assertEquals(2, A.f())
+  assertEquals(2, f())
 }
-
-module I {
-  export let i0, i1, i2, i3;
-  export module M {}
-}
-
-module C1 = B.C;
-module D1 = B.C.D
-module D2 = C1.D
-module D3 = D2
-
-module E1 at "http://where"
-module E2 at "http://where";
-module E3 = E1
-
-// Check that ASI does not interfere.
-
-module X
-{
-let x
-}
-
-module Y
-=
-X
-
-module Z
-at
-"file://local"
-
-import
-vx
-,
-vy
-from
-B
-
-
-module Wrap {
-export
-x
-,
-y
-
-var
-x
-,
-y
-
-export
-var
-v1 = 1
-
-export
-let
-v2 = 2
-
-export
-const
-v3 = 3
-
-export
-function
-f
-(
-)
-{
-}
-
-export
-module V
-{
-}
-}
-
-export A, A1, A2, A3, B, I, C1, D1, D2, D3, E1, E2, E3, X, Y, Z, Wrap, x, y, UU
-
-
-
-// Check that 'module' still works as an identifier.
-
-var module
-module = {}
-module["a"] = 6
-function module() {}
-function f(module) { return module }
-try {} catch (module) {}
-
-module
-v = 20

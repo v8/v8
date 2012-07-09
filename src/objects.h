@@ -3524,7 +3524,7 @@ class ScopeInfo : public FixedArray {
   FOR_EACH_NUMERIC_FIELD(DECL_INDEX)
 #undef DECL_INDEX
 #undef FOR_EACH_NUMERIC_FIELD
-  kVariablePartIndex
+    kVariablePartIndex
   };
 
   // The layout of the variable part of a ScopeInfo is as follows:
@@ -5623,6 +5623,9 @@ class SharedFunctionInfo: public HeapObject {
   // Indicates that the function cannot be inlined.
   DECL_BOOLEAN_ACCESSORS(dont_inline)
 
+  // Indicates that code for this function cannot be cached.
+  DECL_BOOLEAN_ACCESSORS(dont_cache)
+
   // Indicates whether or not the code in the shared function support
   // deoptimization.
   inline bool has_deoptimization_support();
@@ -5857,6 +5860,7 @@ class SharedFunctionInfo: public HeapObject {
     kIsFunction,
     kDontOptimize,
     kDontInline,
+    kDontCache,
     kCompilerHintsCount  // Pseudo entry
   };
 
@@ -5923,6 +5927,9 @@ class JSModule: public JSObject {
   // [context]: the context holding the module's locals, or undefined if none.
   DECL_ACCESSORS(context, Object)
 
+  // [scope_info]: Scope info.
+  DECL_ACCESSORS(scope_info, ScopeInfo)
+
   // Casting.
   static inline JSModule* cast(Object* obj);
 
@@ -5939,7 +5946,8 @@ class JSModule: public JSObject {
 
   // Layout description.
   static const int kContextOffset = JSObject::kHeaderSize;
-  static const int kSize = kContextOffset + kPointerSize;
+  static const int kScopeInfoOffset = kContextOffset + kPointerSize;
+  static const int kSize = kScopeInfoOffset + kPointerSize;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSModule);

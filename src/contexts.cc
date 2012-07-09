@@ -306,10 +306,15 @@ void Context::ClearOptimizedFunctions() {
 
 
 #ifdef DEBUG
-bool Context::IsBootstrappingOrContext(Object* object) {
+bool Context::IsBootstrappingOrValidParentContext(
+    Object* object, Context* child) {
   // During bootstrapping we allow all objects to pass as
   // contexts. This is necessary to fix circular dependencies.
-  return Isolate::Current()->bootstrapper()->IsActive() || object->IsContext();
+  if (Isolate::Current()->bootstrapper()->IsActive()) return true;
+  if (!object->IsContext()) return false;
+  Context* context = Context::cast(object);
+  return context->IsGlobalContext() || context->IsModuleContext() ||
+         !child->IsModuleContext();
 }
 
 

@@ -1246,12 +1246,10 @@ Statement* Parser::ParseModuleElement(ZoneStringList* labels,
 }
 
 
-Block* Parser::ParseModuleDeclaration(ZoneStringList* names, bool* ok) {
+Statement* Parser::ParseModuleDeclaration(ZoneStringList* names, bool* ok) {
   // ModuleDeclaration:
   //    'module' Identifier Module
 
-  // Create new block with one expected declaration.
-  Block* block = factory()->NewBlock(NULL, 1, true);
   Handle<String> name = ParseIdentifier(CHECK_OK);
 
 #ifdef DEBUG
@@ -1275,10 +1273,11 @@ Block* Parser::ParseModuleDeclaration(ZoneStringList* names, bool* ok) {
   }
 #endif
 
-  // TODO(rossberg): Add initialization statement to block.
-
   if (names) names->Add(name, zone());
-  return block;
+  if (module->body() == NULL)
+    return factory()->NewEmptyStatement();
+  else
+    return module->body();
 }
 
 
@@ -1344,16 +1343,23 @@ Module* Parser::ParseModuleLiteral(bool* ok) {
   scope->set_end_position(scanner().location().end_pos);
   body->set_scope(scope);
 
-  // Instance objects have to be created ahead of time (before code generation
-  // linking them) because of potentially cyclic references between them.
-  // We create them here, to avoid another pass over the AST.
+  // Check that all exports are bound.
   Interface* interface = scope->interface();
+  for (Interface::Iterator it = interface->iterator();
+       !it.done(); it.Advance()) {
+    if (scope->LocalLookup(it.name()) == NULL) {
+      Handle<String> name(it.name());
+      ReportMessage("module_export_undefined",
+                    Vector<Handle<String> >(&name, 1));
+      *ok = false;
+      return NULL;
+    }
+  }
+
   interface->MakeModule(ok);
-  ASSERT(ok);
-  interface->MakeSingleton(Isolate::Current()->factory()->NewJSModule(), ok);
-  ASSERT(ok);
+  ASSERT(*ok);
   interface->Freeze(ok);
-  ASSERT(ok);
+  ASSERT(*ok);
   return factory()->NewModuleLiteral(body, interface);
 }
 
@@ -1424,10 +1430,12 @@ Module* Parser::ParseModuleUrl(bool* ok) {
 
   Module* result = factory()->NewModuleUrl(symbol);
   Interface* interface = result->interface();
-  interface->MakeSingleton(Isolate::Current()->factory()->NewJSModule(), ok);
-  ASSERT(ok);
   interface->Freeze(ok);
-  ASSERT(ok);
+  ASSERT(*ok);
+  // Create dummy scope to avoid errors as long as the feature isn't finished.
+  Scope* scope = NewScope(top_scope_, MODULE_SCOPE);
+  interface->Unify(scope->interface(), zone(), ok);
+  ASSERT(*ok);
   return result;
 }
 
@@ -1743,7 +1751,7 @@ void Parser::Declare(Declaration* declaration, bool resolve, bool* ok) {
   Scope* declaration_scope = DeclarationScope(mode);
   Variable* var = NULL;
 
-  // If a function scope exists, then we can statically declare this
+  // If a suitable scope exists, then we can statically declare this
   // variable and also set its mode. In any case, a Declaration node
   // will be added to the scope so that the declaration can be added
   // to the corresponding activation frame at runtime if necessary.
@@ -1751,14 +1759,12 @@ void Parser::Declare(Declaration* declaration, bool resolve, bool* ok) {
   // to the calling function context.
   // Similarly, strict mode eval scope does not leak variable declarations to
   // the caller's scope so we declare all locals, too.
-  // Also for block scoped let/const bindings the variable can be
-  // statically declared.
   if (declaration_scope->is_function_scope() ||
       declaration_scope->is_strict_or_extended_eval_scope() ||
       declaration_scope->is_block_scope() ||
       declaration_scope->is_module_scope() ||
       declaration->AsModuleDeclaration() != NULL) {
-    // Declare the variable in the function scope.
+    // Declare the variable in the declaration scope.
     var = declaration_scope->LocalLookup(name);
     if (var == NULL) {
       // Declare the name.
