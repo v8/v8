@@ -4893,7 +4893,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StoreArrayLiteralElement) {
 // to a built-in function such as Array.forEach.
 RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugCallbackSupportsStepping) {
 #ifdef ENABLE_DEBUGGER_SUPPORT
-  if (!isolate->IsDebuggerActive()) return isolate->heap()->false_value();
+  if (!isolate->IsDebuggerActive() || !isolate->debug()->StepInActive()) {
+    return isolate->heap()->false_value();
+  }
   CONVERT_ARG_CHECKED(Object, callback, 0);
   // We do not step into the callback if it's a builtin or not even a function.
   if (!callback->IsJSFunction() || JSFunction::cast(callback)->IsBuiltin()) {
