@@ -4864,6 +4864,7 @@ class Map: public HeapObject {
   inline Object* GetBackPointer();
   inline void SetBackPointer(Object* value,
                              WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  inline void init_back_pointer(Object* undefined);
 
   // [prototype transitions]: cache of prototype transitions.
   // Prototype transition is a transition that happens
@@ -4873,27 +4874,29 @@ class Map: public HeapObject {
   //    1: back pointer that overlaps with prototype transitions field.
   //    2 + 2 * i: prototype
   //    3 + 2 * i: target map
-  DECL_ACCESSORS(prototype_transitions, FixedArray)
+  inline FixedArray* GetPrototypeTransitions();
+  MUST_USE_RESULT inline MaybeObject* SetPrototypeTransitions(
+      FixedArray* prototype_transitions);
+  inline bool HasPrototypeTransitions();
 
-  inline void init_prototype_transitions(Object* undefined);
-  inline HeapObject* unchecked_prototype_transitions();
+  inline HeapObject* UncheckedPrototypeTransitions();
+  inline TransitionArray* unchecked_transition_array();
 
-  static const int kProtoTransitionHeaderSize = 2;
+  static const int kProtoTransitionHeaderSize = 1;
   static const int kProtoTransitionNumberOfEntriesOffset = 0;
-  static const int kProtoTransitionBackPointerOffset = 1;
   static const int kProtoTransitionElementsPerEntry = 2;
   static const int kProtoTransitionPrototypeOffset = 0;
   static const int kProtoTransitionMapOffset = 1;
 
   inline int NumberOfProtoTransitions() {
-    FixedArray* cache = prototype_transitions();
+    FixedArray* cache = GetPrototypeTransitions();
     if (cache->length() == 0) return 0;
     return
         Smi::cast(cache->get(kProtoTransitionNumberOfEntriesOffset))->value();
   }
 
   inline void SetNumberOfProtoTransitions(int value) {
-    FixedArray* cache = prototype_transitions();
+    FixedArray* cache = GetPrototypeTransitions();
     ASSERT(cache->length() != 0);
     cache->set_unchecked(kProtoTransitionNumberOfEntriesOffset,
                          Smi::FromInt(value));
@@ -5053,17 +5056,14 @@ class Map: public HeapObject {
       kConstructorOffset + kPointerSize;
   static const int kCodeCacheOffset =
       kInstanceDescriptorsOrBitField3Offset + kPointerSize;
-  static const int kPrototypeTransitionsOrBackPointerOffset =
-      kCodeCacheOffset + kPointerSize;
-  static const int kPadStart =
-      kPrototypeTransitionsOrBackPointerOffset + kPointerSize;
+  static const int kBackPointerOffset = kCodeCacheOffset + kPointerSize;
+  static const int kPadStart = kBackPointerOffset + kPointerSize;
   static const int kSize = MAP_POINTER_ALIGN(kPadStart);
 
   // Layout of pointer fields. Heap iteration code relies on them
   // being continuously allocated.
   static const int kPointerFieldsBeginOffset = Map::kPrototypeOffset;
-  static const int kPointerFieldsEndOffset =
-      kPrototypeTransitionsOrBackPointerOffset + kPointerSize;
+  static const int kPointerFieldsEndOffset = kBackPointerOffset + kPointerSize;
 
   // Byte offsets within kInstanceSizesOffset.
   static const int kInstanceSizeOffset = kInstanceSizesOffset + 0;

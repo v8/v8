@@ -1823,24 +1823,6 @@ template void Marker<MarkCompactCollector>::MarkMapContents(Map* map);
 
 template <class T>
 void Marker<T>::MarkMapContents(Map* map) {
-  // Mark prototype transitions array but don't push it into marking stack.
-  // This will make references from it weak. We will clean dead prototype
-  // transitions in ClearNonLiveTransitions.
-  Object** proto_trans_slot =
-      HeapObject::RawField(map, Map::kPrototypeTransitionsOrBackPointerOffset);
-  HeapObject* prototype_transitions = HeapObject::cast(*proto_trans_slot);
-  if (prototype_transitions->IsFixedArray()) {
-    mark_compact_collector()->RecordSlot(proto_trans_slot,
-                                         proto_trans_slot,
-                                         prototype_transitions);
-    MarkBit mark = Marking::MarkBitFrom(prototype_transitions);
-    if (!mark.Get()) {
-      mark.Set();
-      MemoryChunk::IncrementLiveBytesFromGC(prototype_transitions->address(),
-                                            prototype_transitions->Size());
-    }
-  }
-
   // Make sure that the back pointer stored either in the map itself or inside
   // its prototype transitions array is marked. Treat pointers in the descriptor
   // array as weak and also mark that array to prevent visiting it later.
@@ -1855,13 +1837,12 @@ void Marker<T>::MarkMapContents(Map* map) {
 
   // Mark the Object* fields of the Map. Since the descriptor array has been
   // marked already, it is fine that one of these fields contains a pointer
-  // to it. But make sure to skip back pointer and prototype transitions.
+  // to it. But make sure to skip back pointer.
   STATIC_ASSERT(Map::kPointerFieldsEndOffset ==
-      Map::kPrototypeTransitionsOrBackPointerOffset + kPointerSize);
-  Object** start_slot = HeapObject::RawField(
-      map, Map::kPointerFieldsBeginOffset);
-  Object** end_slot = HeapObject::RawField(
-      map, Map::kPrototypeTransitionsOrBackPointerOffset);
+                Map::kBackPointerOffset + kPointerSize);
+  Object** start_slot =
+      HeapObject::RawField(map, Map::kPointerFieldsBeginOffset);
+  Object** end_slot = HeapObject::RawField(map, Map::kBackPointerOffset);
   for (Object** slot = start_slot; slot < end_slot; slot++) {
     Object* obj = *slot;
     if (!obj->NonFailureIsHeapObject()) continue;
@@ -1952,9 +1933,21 @@ void Marker<T>::MarkTransitionArray(TransitionArray* transitions) {
   Object** transitions_start = transitions->data_start();
 
   if (transitions->HasElementsTransition()) {
-    mark_compact_collector()->RecordSlot(transitions_start,
-                                         transitions->GetElementsSlot(),
-                                         transitions->elements_transition());
+    mark_compact_collector()->RecordSlot(
+        transitions_start,
+        transitions->GetElementsTransitionSlot(),
+        transitions->elements_transition());
+  }
+
+  if (transitions->HasPrototypeTransitions()) {
+    // Mark prototype transitions array but don't push it into marking stack.
+    // This will make references from it weak. We will clean dead prototype
+    // transitions in ClearNonLiveTransitions.
+    Object** proto_trans_slot = transitions->GetPrototypeTransitionsSlot();
+    HeapObject* prototype_transitions = HeapObject::cast(*proto_trans_slot);
+    base_marker()->MarkObjectWithoutPush(prototype_transitions);
+    mark_compact_collector()->RecordSlot(
+        transitions_start, proto_trans_slot, prototype_transitions);
   }
 
   for (int i = 0; i < transitions->number_of_transitions(); ++i) {
@@ -2545,7 +2538,7 @@ void MarkCompactCollector::ClearNonLiveTransitions() {
 
 void MarkCompactCollector::ClearNonLivePrototypeTransitions(Map* map) {
   int number_of_transitions = map->NumberOfProtoTransitions();
-  FixedArray* prototype_transitions = map->prototype_transitions();
+  FixedArray* prototype_transitions = map->GetPrototypeTransitions();
 
   int new_number_of_transitions = 0;
   const int header = Map::kProtoTransitionHeaderSize;

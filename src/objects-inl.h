@@ -3524,12 +3524,7 @@ void Map::set_bit_field3(int value) {
 
 
 Object* Map::GetBackPointer() {
-  Object* object = READ_FIELD(this, kPrototypeTransitionsOrBackPointerOffset);
-  if (object->IsFixedArray()) {
-    return FixedArray::cast(object)->get(kProtoTransitionBackPointerOffset);
-  } else {
-    return object;
-  }
+  return READ_FIELD(this, kBackPointerOffset);
 }
 
 
@@ -3567,9 +3562,9 @@ static MaybeObject* AllowTransitions(Map* map) {
 }
 
 
-// If the descriptor does not have a transition array, install a new
-// transition array that has room for an element transition.
-static MaybeObject* AllowElementsTransition(Map* map) {
+// If the descriptor is using the empty transition array, install a new empty
+// transition array that will have place for an element transition.
+static MaybeObject* EnsureHasTransitionArray(Map* map) {
   if (map->HasTransitionArray()) return map;
 
   AllowTransitions(map);
@@ -3584,10 +3579,38 @@ static MaybeObject* AllowElementsTransition(Map* map) {
 
 
 MaybeObject* Map::set_elements_transition_map(Map* transitioned_map) {
-  MaybeObject* allow_elements = AllowElementsTransition(this);
+  MaybeObject* allow_elements = EnsureHasTransitionArray(this);
   if (allow_elements->IsFailure()) return allow_elements;
   transitions()->set_elements_transition(transitioned_map);
   return this;
+}
+
+
+FixedArray* Map::GetPrototypeTransitions() {
+  if (!HasTransitionArray()) return GetHeap()->empty_fixed_array();
+  if (!transitions()->HasPrototypeTransitions()) {
+    return GetHeap()->empty_fixed_array();
+  }
+  return transitions()->GetPrototypeTransitions();
+}
+
+
+MaybeObject* Map::SetPrototypeTransitions(FixedArray* proto_transitions) {
+  MaybeObject* allow_prototype = EnsureHasTransitionArray(this);
+  if (allow_prototype->IsFailure()) return allow_prototype;
+#ifdef DEBUG
+  if (HasPrototypeTransitions()) {
+    ASSERT(GetPrototypeTransitions() != proto_transitions);
+    ZapPrototypeTransitions();
+  }
+#endif
+  transitions()->SetPrototypeTransitions(proto_transitions);
+  return this;
+}
+
+
+bool Map::HasPrototypeTransitions() {
+  return HasTransitionArray() && transitions()->HasPrototypeTransitions();
 }
 
 
@@ -3623,57 +3646,38 @@ MaybeObject* Map::set_transitions(TransitionArray* transitions_array) {
 }
 
 
+void Map::init_back_pointer(Object* undefined) {
+  ASSERT(undefined->IsUndefined());
+  WRITE_FIELD(this, kBackPointerOffset, undefined);
+}
+
+
 void Map::SetBackPointer(Object* value, WriteBarrierMode mode) {
   Heap* heap = GetHeap();
   ASSERT(instance_type() >= FIRST_JS_RECEIVER_TYPE);
   ASSERT((value->IsUndefined() && GetBackPointer()->IsMap()) ||
          (value->IsMap() && GetBackPointer()->IsUndefined()));
-  Object* object = READ_FIELD(this, kPrototypeTransitionsOrBackPointerOffset);
-  if (object->IsFixedArray()) {
-    FixedArray::cast(object)->set(
-        kProtoTransitionBackPointerOffset, value, mode);
-  } else {
-    WRITE_FIELD(this, kPrototypeTransitionsOrBackPointerOffset, value);
-    CONDITIONAL_WRITE_BARRIER(
-        heap, this, kPrototypeTransitionsOrBackPointerOffset, value, mode);
-  }
+  WRITE_FIELD(this, kBackPointerOffset, value);
+  CONDITIONAL_WRITE_BARRIER(heap, this, kBackPointerOffset, value, mode);
 }
 
 
-FixedArray* Map::prototype_transitions() {
-  Object* object = READ_FIELD(this, kPrototypeTransitionsOrBackPointerOffset);
-  if (object->IsFixedArray()) {
-    return FixedArray::cast(object);
-  } else {
-    return GetHeap()->empty_fixed_array();
-  }
+// Can either be Smi (no transitions), normal transition array, or a transition
+// array with the header overwritten as a Smi (thus iterating).
+TransitionArray* Map::unchecked_transition_array() {
+  ASSERT(HasTransitionArray());
+  Object* object = *HeapObject::RawField(instance_descriptors(),
+                                         DescriptorArray::kTransitionsOffset);
+  ASSERT(!object->IsSmi());
+  TransitionArray* transition_array = static_cast<TransitionArray*>(object);
+  return transition_array;
 }
 
 
-void Map::set_prototype_transitions(FixedArray* value, WriteBarrierMode mode) {
-  Heap* heap = GetHeap();
-  ASSERT(value != heap->empty_fixed_array());
-  value->set(kProtoTransitionBackPointerOffset, GetBackPointer());
-#ifdef DEBUG
-  if (value != prototype_transitions()) {
-    ZapPrototypeTransitions();
-  }
-#endif
-  WRITE_FIELD(this, kPrototypeTransitionsOrBackPointerOffset, value);
-  CONDITIONAL_WRITE_BARRIER(
-      heap, this, kPrototypeTransitionsOrBackPointerOffset, value, mode);
-}
-
-
-void Map::init_prototype_transitions(Object* undefined) {
-  ASSERT(undefined->IsUndefined());
-  WRITE_FIELD(this, kPrototypeTransitionsOrBackPointerOffset, undefined);
-}
-
-
-HeapObject* Map::unchecked_prototype_transitions() {
-  Object* object = READ_FIELD(this, kPrototypeTransitionsOrBackPointerOffset);
-  return reinterpret_cast<HeapObject*>(object);
+HeapObject* Map::UncheckedPrototypeTransitions() {
+  ASSERT(HasTransitionArray());
+  ASSERT(unchecked_transition_array()->HasPrototypeTransitions());
+  return unchecked_transition_array()->UncheckedPrototypeTransitions();
 }
 
 
