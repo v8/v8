@@ -4778,10 +4778,7 @@ void HGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
             CHECK_ALIVE(VisitForValue(value));
             HValue* value = Pop();
             HInstruction* store;
-            CHECK_ALIVE(store = BuildStoreNamed(literal,
-                                                value,
-                                                property->GetReceiverType(),
-                                                property->key()));
+            CHECK_ALIVE(store = BuildStoreNamed(literal, value, property));
             AddInstruction(store);
             if (store->HasObservableSideEffects()) AddSimulate(key->id());
           } else {
@@ -5019,17 +5016,40 @@ HInstruction* HGraphBuilder::BuildStoreNamedGeneric(HValue* object,
 
 HInstruction* HGraphBuilder::BuildStoreNamed(HValue* object,
                                              HValue* value,
-                                             Handle<Map> type,
-                                             Expression* key) {
-  Handle<String> name = Handle<String>::cast(key->AsLiteral()->handle());
+                                             ObjectLiteral::Property* prop) {
+  Literal* key = prop->key()->AsLiteral();
+  Handle<String> name = Handle<String>::cast(key->handle());
   ASSERT(!name.is_null());
 
   LookupResult lookup(isolate());
-  bool is_monomorphic = !type.is_null() &&
+  Handle<Map> type = prop->GetReceiverType();
+  bool is_monomorphic = prop->IsMonomorphic() &&
       ComputeLoadStoreField(type, name, &lookup, true);
 
   return is_monomorphic
       ? BuildStoreNamedField(object, name, value, type, &lookup,
+                             true)  // Needs smi and map check.
+      : BuildStoreNamedGeneric(object, name, value);
+}
+
+
+HInstruction* HGraphBuilder::BuildStoreNamed(HValue* object,
+                                             HValue* value,
+                                             Expression* expr) {
+  Property* prop = (expr->AsProperty() != NULL)
+      ? expr->AsProperty()
+      : expr->AsAssignment()->target()->AsProperty();
+  Literal* key = prop->key()->AsLiteral();
+  Handle<String> name = Handle<String>::cast(key->handle());
+  ASSERT(!name.is_null());
+
+  LookupResult lookup(isolate());
+  SmallMapList* types = expr->GetReceiverTypes();
+  bool is_monomorphic = expr->IsMonomorphic() &&
+      ComputeLoadStoreField(types->first(), name, &lookup, true);
+
+  return is_monomorphic
+      ? BuildStoreNamedField(object, name, value, types->first(), &lookup,
                              true)  // Needs smi and map check.
       : BuildStoreNamedGeneric(object, name, value);
 }
@@ -5186,12 +5206,7 @@ void HGraphBuilder::HandlePropertyAssignment(Assignment* expr) {
 
     SmallMapList* types = expr->GetReceiverTypes();
     if (expr->IsMonomorphic()) {
-      CHECK(expr->AsProperty() == NULL);
-      Property* prop = expr->AsAssignment()->target()->AsProperty();
-      CHECK_ALIVE(instr = BuildStoreNamed(object,
-                                          value,
-                                          prop->GetReceiverType(),
-                                          prop->key()));
+      CHECK_ALIVE(instr = BuildStoreNamed(object, value, expr));
 
     } else if (types != NULL && types->length() > 1) {
       HandlePolymorphicStoreNamedField(expr, object, value, types, name);
@@ -5371,10 +5386,7 @@ void HGraphBuilder::HandleCompoundAssignment(Assignment* expr) {
       if (instr->HasObservableSideEffects()) AddSimulate(operation->id());
 
       HInstruction* store;
-      CHECK_ALIVE(store = BuildStoreNamed(obj,
-                                          instr,
-                                          prop->GetReceiverType(),
-                                          prop->key()));
+      CHECK_ALIVE(store = BuildStoreNamed(obj, instr, prop));
       AddInstruction(store);
       // Drop the simulated receiver and value.  Return the value.
       Drop(2);
@@ -7775,10 +7787,7 @@ void HGraphBuilder::VisitCountOperation(CountOperation* expr) {
       input = Pop();
 
       HInstruction* store;
-      CHECK_ALIVE(store = BuildStoreNamed(obj,
-                                          after,
-                                          prop->GetReceiverType(),
-                                          prop->key()));
+      CHECK_ALIVE(store = BuildStoreNamed(obj, after, prop));
       AddInstruction(store);
 
       // Overwrite the receiver in the bailout environment with the result
