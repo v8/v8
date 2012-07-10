@@ -1236,3 +1236,26 @@ TEST(ParserSync) {
     }
   }
 }
+
+
+TEST(PreparserStrictOctal) {
+  // Test that syntax error caused by octal literal is reported correctly as
+  // such (issue 2220).
+  v8::internal::FLAG_min_preparse_length = 1;  // Force preparsing.
+  v8::V8::Initialize();
+  v8::HandleScope scope;
+  v8::Context::Scope context_scope(v8::Context::New());
+  v8::TryCatch try_catch;
+  const char* script =
+      "\"use strict\";       \n"
+      "a = function() {      \n"
+      "  b = function() {    \n"
+      "    01;               \n"
+      "  };                  \n"
+      "};                    \n";
+  v8::Script::Compile(v8::String::New(script));
+  CHECK(try_catch.HasCaught());
+  v8::String::Utf8Value exception(try_catch.Exception());
+  CHECK_EQ("SyntaxError: Octal literals are not allowed in strict mode.",
+           *exception);
+}
