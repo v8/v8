@@ -246,7 +246,7 @@ Handle<FixedArray> AddKeysFromJSArray(Handle<FixedArray>,
 // if none exists.
 Handle<JSValue> GetScriptWrapper(Handle<Script> script);
 
-// Script line number computations.
+// Script line number computations. Note that the line number is zero-based.
 void InitScriptLineEnds(Handle<Script> script);
 // For string calculates an array of line end positions. If the string
 // does not end with a new line character, this character may optionally be
