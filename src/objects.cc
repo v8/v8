@@ -2959,7 +2959,7 @@ MaybeObject* JSObject::SetPropertyForResult(LookupResult* result,
       // transition to the target map.
       if (constant_function == *value) {
         self->set_map(transition_map);
-        return this;
+        return constant_function;
       }
       // Otherwise, replace with a map transition to a new map with a FIELD,
       // even if the value is a constant function.
