@@ -3673,13 +3673,21 @@ void MacroAssembler::ClampDoubleToUint8(Register result_reg,
 
 
 void MacroAssembler::LoadInstanceDescriptors(Register map,
-                                             Register descriptors) {
+                                             Register descriptors,
+                                             Register scratch) {
   ldr(descriptors,
-      FieldMemOperand(map, Map::kInstanceDescriptorsOrBitField3Offset));
-  Label not_smi;
-  JumpIfNotSmi(descriptors, &not_smi);
+      FieldMemOperand(map, Map::kInstanceDescriptorsOrBackPointerOffset));
+
+  Label ok, fail;
+  CheckMap(descriptors,
+           scratch,
+           isolate()->factory()->fixed_array_map(),
+           &fail,
+           DONT_DO_SMI_CHECK);
+  jmp(&ok);
+  bind(&fail);
   mov(descriptors, Operand(FACTORY->empty_descriptor_array()));
-  bind(&not_smi);
+  bind(&ok);
 }
 
 
@@ -3704,8 +3712,13 @@ void MacroAssembler::CheckEnumCache(Register null_value, Label* call_runtime) {
   // check for an enum cache.  Leave the map in r2 for the subsequent
   // prototype load.
   ldr(r2, FieldMemOperand(r1, HeapObject::kMapOffset));
-  ldr(r3, FieldMemOperand(r2, Map::kInstanceDescriptorsOrBitField3Offset));
-  JumpIfSmi(r3, call_runtime);
+  ldr(r3, FieldMemOperand(r2, Map::kInstanceDescriptorsOrBackPointerOffset));
+
+  CheckMap(r3,
+           r7,
+           isolate()->factory()->fixed_array_map(),
+           call_runtime,
+           DONT_DO_SMI_CHECK);
 
   // Check that there is an enum cache in the non-empty instance
   // descriptors (r3).  This is the case if the next enumeration

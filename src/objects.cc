@@ -3411,9 +3411,7 @@ MaybeObject* JSObject::NormalizeProperties(PropertyNormalizationMode mode,
                                                -instance_size_delta);
   }
 
-
   set_map(new_map);
-  new_map->clear_instance_descriptors();
 
   set_properties(dictionary);
 
@@ -4927,12 +4925,7 @@ MaybeObject* Map::CopyDropDescriptors() {
   }
   Map::cast(result)->set_prototype(prototype());
   Map::cast(result)->set_constructor(constructor());
-  // Don't copy descriptors, so map transitions always remain a forest.
-  // If we retained the same descriptors we would have two maps
-  // pointing to the same transition which is bad because the garbage
-  // collector relies on being able to reverse pointers from transitions
-  // to maps.  If properties need to be retained use CopyDropTransitions.
-  Map::cast(result)->clear_instance_descriptors();
+
   // Please note instance_type and instance_size are set when allocated.
   Map::cast(result)->set_inobject_properties(inobject_properties());
   Map::cast(result)->set_unused_property_fields(unused_property_fields());
@@ -5824,7 +5817,6 @@ MaybeObject* DescriptorArray::Allocate(int number_of_descriptors,
     if (!maybe_array->To(&result)) return maybe_array;
   }
 
-  result->set(kBitField3StorageIndex, Smi::FromInt(0));
   result->set(kEnumerationIndexIndex,
               Smi::FromInt(PropertyDetails::kInitialIndex));
   result->set(kTransitionsIndex, Smi::FromInt(0));
@@ -7413,7 +7405,7 @@ void Map::ClearNonLiveTransitions(Heap* heap) {
   if (transition_index == 0 &&
       !t->HasElementsTransition() &&
       !t->HasPrototypeTransitions()) {
-    return ClearTransitions();
+    return ClearTransitions(heap);
   }
 
   int trim = t->number_of_transitions() - transition_index;

@@ -2514,11 +2514,7 @@ class DescriptorArray: public FixedArray {
                                 kTransitionsOffset);
   }
 
-  // TODO(1399): It should be possible to make room for bit_field3 in the map
-  //             without overloading the instance descriptors field in the map
-  //             (and storing it in the DescriptorArray when the map has one).
-  inline int bit_field3_storage();
-  inline void set_bit_field3_storage(int value);
+  DECL_ACCESSORS(back_pointer_storage, Object)
 
   // Initialize or change the enum cache,
   // using the supplied storage for the small "bridge".
@@ -2607,7 +2603,7 @@ class DescriptorArray: public FixedArray {
   // Constant for denoting key was not found.
   static const int kNotFound = -1;
 
-  static const int kBitField3StorageIndex = 0;
+  static const int kBackPointerStorageIndex = 0;
   static const int kEnumerationIndexIndex = 1;
   static const int kTransitionsIndex = 2;
   static const int kFirstIndex = 3;
@@ -2619,8 +2615,8 @@ class DescriptorArray: public FixedArray {
   static const int kEnumCacheBridgeIndicesCacheIndex = 2;
 
   // Layout description.
-  static const int kBitField3StorageOffset = FixedArray::kHeaderSize;
-  static const int kEnumerationIndexOffset = kBitField3StorageOffset +
+  static const int kBackPointerStorageOffset = FixedArray::kHeaderSize;
+  static const int kEnumerationIndexOffset = kBackPointerStorageOffset +
                                              kPointerSize;
   static const int kTransitionsOffset = kEnumerationIndexOffset + kPointerSize;
   static const int kFirstOffset = kTransitionsOffset + kPointerSize;
@@ -4676,12 +4672,8 @@ class Map: public HeapObject {
   inline void set_bit_field2(byte value);
 
   // Bit field 3.
-  // TODO(1399): It should be possible to make room for bit_field3 in the map
-  // without overloading the instance descriptors field (and storing it in the
-  // DescriptorArray when the map has one).
   inline int bit_field3();
   inline void set_bit_field3(int value);
-  inline void SetOwnBitField3(int value);
 
   // Tells whether the object in the prototype property will be used
   // for instances created from this function.  If the prototype
@@ -4812,7 +4804,8 @@ class Map: public HeapObject {
                                                     Object* value);
   MUST_USE_RESULT inline MaybeObject* set_transitions(
       TransitionArray* transitions);
-  inline void ClearTransitions();
+  inline void ClearTransitions(Heap* heap,
+                               WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   // Tells whether the map is attached to SharedFunctionInfo
   // (for inobject slack tracking).
@@ -4839,20 +4832,12 @@ class Map: public HeapObject {
 
   inline JSFunction* unchecked_constructor();
 
-  // Should only be called by the code that initializes map to set initial valid
-  // value of the instance descriptor member.
-  inline void init_instance_descriptors();
-
   // [instance descriptors]: describes the object.
   DECL_ACCESSORS(instance_descriptors, DescriptorArray)
 
   // Should only be called to clear a descriptor array that was only used to
   // store transitions and does not contain any live transitions anymore.
-  inline void ClearDescriptorArray();
-
-  // Sets the instance descriptor array for the map to be an empty descriptor
-  // array.
-  inline void clear_instance_descriptors();
+  inline void ClearDescriptorArray(Heap* heap, WriteBarrierMode mode);
 
   // [stub cache]: contains stubs compiled for this map.
   DECL_ACCESSORS(code_cache, Object)
@@ -5047,23 +5032,18 @@ class Map: public HeapObject {
   // map flags when unused (bit_field3). When the map has instance descriptors,
   // the flags are transferred to the instance descriptor array and accessed
   // through an extra indirection.
-  // TODO(1399): It should be possible to make room for bit_field3 in the map
-  // without overloading the instance descriptors field, but the map is
-  // currently perfectly aligned to 32 bytes and extending it at all would
-  // double its size.  After the increment GC work lands, this size restriction
-  // could be loosened and bit_field3 moved directly back in the map.
-  static const int kInstanceDescriptorsOrBitField3Offset =
+  static const int kInstanceDescriptorsOrBackPointerOffset =
       kConstructorOffset + kPointerSize;
   static const int kCodeCacheOffset =
-      kInstanceDescriptorsOrBitField3Offset + kPointerSize;
-  static const int kBackPointerOffset = kCodeCacheOffset + kPointerSize;
-  static const int kPadStart = kBackPointerOffset + kPointerSize;
+      kInstanceDescriptorsOrBackPointerOffset + kPointerSize;
+  static const int kBitField3Offset = kCodeCacheOffset + kPointerSize;
+  static const int kPadStart = kBitField3Offset + kPointerSize;
   static const int kSize = MAP_POINTER_ALIGN(kPadStart);
 
   // Layout of pointer fields. Heap iteration code relies on them
   // being continuously allocated.
   static const int kPointerFieldsBeginOffset = Map::kPrototypeOffset;
-  static const int kPointerFieldsEndOffset = kBackPointerOffset + kPointerSize;
+  static const int kPointerFieldsEndOffset = kBitField3Offset + kPointerSize;
 
   // Byte offsets within kInstanceSizesOffset.
   static const int kInstanceSizeOffset = kInstanceSizesOffset + 0;

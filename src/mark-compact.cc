@@ -1829,20 +1829,23 @@ void Marker<T>::MarkMapContents(Map* map) {
   base_marker()->MarkObjectAndPush(HeapObject::cast(map->GetBackPointer()));
 
   Object** descriptor_array_slot =
-      HeapObject::RawField(map, Map::kInstanceDescriptorsOrBitField3Offset);
+      HeapObject::RawField(map, Map::kInstanceDescriptorsOrBackPointerOffset);
   Object* descriptor_array = *descriptor_array_slot;
-  if (!descriptor_array->IsSmi()) {
+  if (descriptor_array->IsDescriptorArray()) {
     MarkDescriptorArray(reinterpret_cast<DescriptorArray*>(descriptor_array));
+  } else {
+    // Already marked by marking map->GetBackPointer().
+    ASSERT(descriptor_array->IsMap() || descriptor_array->IsUndefined());
   }
 
   // Mark the Object* fields of the Map. Since the descriptor array has been
   // marked already, it is fine that one of these fields contains a pointer
   // to it. But make sure to skip back pointer.
   STATIC_ASSERT(Map::kPointerFieldsEndOffset ==
-                Map::kBackPointerOffset + kPointerSize);
+                Map::kBitField3Offset + kPointerSize);
   Object** start_slot =
       HeapObject::RawField(map, Map::kPointerFieldsBeginOffset);
-  Object** end_slot = HeapObject::RawField(map, Map::kBackPointerOffset);
+  Object** end_slot = HeapObject::RawField(map, Map::kBitField3Offset);
   for (Object** slot = start_slot; slot < end_slot; slot++) {
     Object* obj = *slot;
     if (!obj->NonFailureIsHeapObject()) continue;

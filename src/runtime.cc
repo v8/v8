@@ -2190,13 +2190,13 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_FunctionSetReadOnlyPrototype) {
     DescriptorArray* new_descriptors =
         DescriptorArray::cast(descriptors_unchecked);
     // Create a new map featuring the new field descriptors array.
-    Object* map_unchecked;
-    { MaybeObject* maybe_map_unchecked = function->map()->CopyDropDescriptors();
-      if (!maybe_map_unchecked->ToObject(&map_unchecked)) {
+    Map* new_map;
+    { MaybeObject* maybe_map_unchecked =
+          function->map()->CopyDropDescriptors();
+      if (!maybe_map_unchecked->To(&new_map)) {
         return maybe_map_unchecked;
       }
     }
-    Map* new_map = Map::cast(map_unchecked);
     new_map->set_instance_descriptors(new_descriptors);
     function->set_map(new_map);
   } else {  // Dictionary properties.

@@ -2177,13 +2177,15 @@ class LForInPrepareMap: public LTemplateInstruction<1, 1, 0> {
 };
 
 
-class LForInCacheArray: public LTemplateInstruction<1, 1, 0> {
+class LForInCacheArray: public LTemplateInstruction<1, 1, 1> {
  public:
-  explicit LForInCacheArray(LOperand* map) {
+  explicit LForInCacheArray(LOperand* map, LOperand* scratch) {
     inputs_[0] = map;
+    temps_[0] = scratch;
   }
 
   LOperand* map() { return inputs_[0]; }
+  LOperand* scratch() { return temps_[0]; }
 
   DECLARE_CONCRETE_INSTRUCTION(ForInCacheArray, "for-in-cache-array")
 

@@ -2058,6 +2058,7 @@ MaybeObject* Heap::AllocatePartialMap(InstanceType instance_type,
   reinterpret_cast<Map*>(result)->set_unused_property_fields(0);
   reinterpret_cast<Map*>(result)->set_bit_field(0);
   reinterpret_cast<Map*>(result)->set_bit_field2(0);
+  reinterpret_cast<Map*>(result)->set_bit_field3(0);
   return result;
 }
 
@@ -2080,12 +2081,12 @@ MaybeObject* Heap::AllocateMap(InstanceType instance_type,
   map->set_instance_size(instance_size);
   map->set_inobject_properties(0);
   map->set_pre_allocated_property_fields(0);
-  map->init_instance_descriptors();
   map->set_code_cache(empty_fixed_array(), SKIP_WRITE_BARRIER);
   map->init_back_pointer(undefined_value());
   map->set_unused_property_fields(0);
   map->set_bit_field(0);
   map->set_bit_field2(1 << Map::kIsExtensible);
+  map->set_bit_field3(0);
   map->set_elements_kind(elements_kind);
 
   // If the map object is aligned fill the padding area with Smi 0 objects.
@@ -2219,15 +2220,12 @@ bool Heap::CreateInitialMaps() {
   set_empty_descriptor_array(DescriptorArray::cast(obj));
 
   // Fix the instance_descriptors for the existing maps.
-  meta_map()->init_instance_descriptors();
   meta_map()->set_code_cache(empty_fixed_array());
   meta_map()->init_back_pointer(undefined_value());
 
-  fixed_array_map()->init_instance_descriptors();
   fixed_array_map()->set_code_cache(empty_fixed_array());
   fixed_array_map()->init_back_pointer(undefined_value());
 
-  oddball_map()->init_instance_descriptors();
   oddball_map()->set_code_cache(empty_fixed_array());
   oddball_map()->init_back_pointer(undefined_value());
 
@@ -4191,7 +4189,6 @@ MaybeObject* Heap::AllocateGlobalObject(JSFunction* constructor) {
 
   // Set up the global object as a normalized object.
   global->set_map(new_map);
-  global->map()->clear_instance_descriptors();
   global->set_properties(dictionary);
 
   // Make sure result is a global object with properties in dictionary.
