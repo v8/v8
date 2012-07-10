@@ -46,22 +46,33 @@ namespace internal {
 // [length() - kTransitionSize] Last transition
 class TransitionArray: public FixedArray {
  public:
+  // Accessors for fetching instance transition at transition number.
+  inline String* GetKey(int transition_number);
+  inline void SetKey(int transition_number, String* value);
+  inline Object** GetKeySlot(int transition_number);
+
+  inline Object* GetValue(int transition_number);
+  inline void SetValue(int transition_number, Object* value);
+  inline Object** GetValueSlot(int transition_number);
+
+  inline Map* GetTargetMap(int transition_number);
+  inline PropertyDetails GetTargetDetails(int transition_number);
+
   inline Map* elements_transition();
   inline void set_elements_transition(
       Map* value,
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-  inline void ClearElementsTransition();
+  inline Object** GetElementsTransitionSlot();
   inline bool HasElementsTransition();
-  // Accessors for fetching instance transition at transition number.
-  inline String* GetKey(int transition_number);
-  inline Object** GetKeySlot(int transition_number);
-  inline void SetKey(int transition_number, String* value);
-  inline Object* GetValue(int transition_number);
-  inline Object** GetValueSlot(int transition_number);
-  inline void SetValue(int transition_number, Object* value);
-  inline Map* GetTargetMap(int transition_number);
-  inline PropertyDetails GetTargetDetails(int transition_number);
-  inline Object** GetElementsSlot();
+  inline void ClearElementsTransition();
+
+  inline FixedArray* GetPrototypeTransitions();
+  inline void SetPrototypeTransitions(
+      FixedArray* prototype_transitions,
+      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  inline Object** GetPrototypeTransitionsSlot();
+  inline bool HasPrototypeTransitions();
+  inline HeapObject* UncheckedPrototypeTransitions();
 
   // Returns the number of transitions in the array.
   int number_of_transitions() {
@@ -99,11 +110,14 @@ class TransitionArray: public FixedArray {
   static const int kNotFound = -1;
 
   static const int kElementsTransitionIndex = 0;
-  static const int kFirstIndex = 1;
+  static const int kPrototypeTransitionsIndex = 1;
+  static const int kFirstIndex = 2;
 
   // Layout transition array header.
   static const int kElementsTransitionOffset = FixedArray::kHeaderSize;
-  static const int kFirstOffset = kElementsTransitionOffset + kPointerSize;
+  static const int kPrototypeTransitionsOffset = kElementsTransitionOffset +
+                                                 kPointerSize;
+  static const int kFirstOffset = kPrototypeTransitionsOffset + kPointerSize;
 
   // Layout of map transition.
   static const int kTransitionKey = 0;

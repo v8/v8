@@ -2589,7 +2589,8 @@ CompareIC::State CompareIC::ComputeState(Code* target) {
 
 Token::Value CompareIC::ComputeOperation(Code* target) {
   ASSERT(target->major_key() == CodeStub::CompareIC);
-  return static_cast<Token::Value>(target->compare_operation());
+  return static_cast<Token::Value>(
+      target->compare_operation() + Token::EQ);
 }
 
 
@@ -2599,7 +2600,7 @@ const char* CompareIC::GetStateName(State state) {
     case SMIS: return "SMIS";
     case HEAP_NUMBERS: return "HEAP_NUMBERS";
     case OBJECTS: return "OBJECTS";
-    case KNOWN_OBJECTS: return "OBJECTS";
+    case KNOWN_OBJECTS: return "KNOWN_OBJECTS";
     case SYMBOLS: return "SYMBOLS";
     case STRINGS: return "STRINGS";
     case GENERIC: return "GENERIC";

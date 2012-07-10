@@ -589,27 +589,20 @@ void FullCodeGenerator::VisitDeclarations(
 
 
 void FullCodeGenerator::VisitModuleLiteral(ModuleLiteral* module) {
-  Handle<JSModule> instance = module->interface()->Instance();
-  ASSERT(!instance.is_null());
-
   // Allocate a module context statically.
   Block* block = module->body();
   Scope* saved_scope = scope();
   scope_ = block->scope();
-  Handle<ScopeInfo> scope_info = scope_->GetScopeInfo();
+  Interface* interface = module->interface();
+  Handle<JSModule> instance = interface->Instance();
 
-  // Generate code for module creation and linking.
   Comment cmnt(masm_, "[ ModuleLiteral");
   SetStatementPosition(block);
 
-  if (scope_info->HasContext()) {
-    // Set up module context.
-    __ Push(scope_info);
-    __ Push(instance);
-    __ CallRuntime(Runtime::kPushModuleContext, 2);
-    StoreToFrameField(
-        StandardFrameConstants::kContextOffset, context_register());
-  }
+  // Set up module context.
+  __ Push(instance);
+  __ CallRuntime(Runtime::kPushModuleContext, 1);
+  StoreToFrameField(StandardFrameConstants::kContextOffset, context_register());
 
   {
     Comment cmnt(masm_, "[ Declarations");
@@ -617,42 +610,21 @@ void FullCodeGenerator::VisitModuleLiteral(ModuleLiteral* module) {
   }
 
   scope_ = saved_scope;
-  if (scope_info->HasContext()) {
-    // Pop module context.
-    LoadContextField(context_register(), Context::PREVIOUS_INDEX);
-    // Update local stack frame context field.
-    StoreToFrameField(
-        StandardFrameConstants::kContextOffset, context_register());
-  }
-
-  // Populate module instance object.
-  const PropertyAttributes attr =
-      static_cast<PropertyAttributes>(READ_ONLY | DONT_DELETE | DONT_ENUM);
-  for (Interface::Iterator it = module->interface()->iterator();
-       !it.done(); it.Advance()) {
-    if (it.interface()->IsModule()) {
-      Handle<Object> value = it.interface()->Instance();
-      ASSERT(!value.is_null());
-      JSReceiver::SetProperty(instance, it.name(), value, attr, kStrictMode);
-    } else {
-      // TODO(rossberg): set proper getters instead of undefined...
-      // instance->DefineAccessor(*it.name(), ACCESSOR_GETTER, *getter, attr);
-      Handle<Object> value(isolate()->heap()->undefined_value());
-      JSReceiver::SetProperty(instance, it.name(), value, attr, kStrictMode);
-    }
-  }
-  USE(instance->PreventExtensions());
+  // Pop module context.
+  LoadContextField(context_register(), Context::PREVIOUS_INDEX);
+  // Update local stack frame context field.
+  StoreToFrameField(StandardFrameConstants::kContextOffset, context_register());
 }
 
 
 void FullCodeGenerator::VisitModuleVariable(ModuleVariable* module) {
-  // Noting to do.
+  // Nothing to do.
   // The instance object is resolved statically through the module's interface.
 }
 
 
 void FullCodeGenerator::VisitModulePath(ModulePath* module) {
-  // Noting to do.
+  // Nothing to do.
   // The instance object is resolved statically through the module's interface.
 }
 
@@ -916,25 +888,36 @@ void FullCodeGenerator::VisitBlock(Block* stmt) {
   Scope* saved_scope = scope();
   // Push a block context when entering a block with block scoped variables.
   if (stmt->scope() != NULL) {
-    { Comment cmnt(masm_, "[ Extend block context");
-      scope_ = stmt->scope();
-      Handle<ScopeInfo> scope_info = scope_->GetScopeInfo();
-      int heap_slots = scope_info->ContextLength() - Context::MIN_CONTEXT_SLOTS;
-      __ Push(scope_info);
-      PushFunctionArgumentForContextAllocation();
-      if (heap_slots <= FastNewBlockContextStub::kMaximumSlots) {
-        FastNewBlockContextStub stub(heap_slots);
-        __ CallStub(&stub);
-      } else {
-        __ CallRuntime(Runtime::kPushBlockContext, 2);
-      }
+    scope_ = stmt->scope();
+    if (scope_->is_module_scope()) {
+      // If this block is a module body, then we have already allocated and
+      // initialized the declarations earlier. Just push the context.
+      ASSERT(!scope_->interface()->Instance().is_null());
+      __ Push(scope_->interface()->Instance());
+      __ CallRuntime(Runtime::kPushModuleContext, 1);
+      StoreToFrameField(
+          StandardFrameConstants::kContextOffset, context_register());
+    } else {
+      { Comment cmnt(masm_, "[ Extend block context");
+        Handle<ScopeInfo> scope_info = scope_->GetScopeInfo();
+        int heap_slots =
+            scope_info->ContextLength() - Context::MIN_CONTEXT_SLOTS;
+        __ Push(scope_info);
+        PushFunctionArgumentForContextAllocation();
+        if (heap_slots <= FastNewBlockContextStub::kMaximumSlots) {
+          FastNewBlockContextStub stub(heap_slots);
+          __ CallStub(&stub);
+        } else {
+          __ CallRuntime(Runtime::kPushBlockContext, 2);
+        }
 
-      // Replace the context stored in the frame.
-      StoreToFrameField(StandardFrameConstants::kContextOffset,
-                        context_register());
-    }
-    { Comment cmnt(masm_, "[ Declarations");
-      VisitDeclarations(scope_->declarations());
+        // Replace the context stored in the frame.
+        StoreToFrameField(StandardFrameConstants::kContextOffset,
+                          context_register());
+      }
+      { Comment cmnt(masm_, "[ Declarations");
+        VisitDeclarations(scope_->declarations());
+      }
     }
   }
   PrepareForBailoutForId(stmt->EntryId(), NO_REGISTERS);

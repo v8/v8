@@ -1073,6 +1073,11 @@ void HCheckInstanceType::PrintDataTo(StringStream* stream) {
 }
 
 
+void HCheckPrototypeMaps::PrintDataTo(StringStream* stream) {
+  stream->Add("[receiver_prototype=%p,holder=%p]", *prototype(), *holder());
+}
+
+
 void HCallStub::PrintDataTo(StringStream* stream) {
   stream->Add("%s ",
               CodeStub::MajorName(major_key_, false));

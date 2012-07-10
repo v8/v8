@@ -82,6 +82,42 @@ void TransitionArray::set_elements_transition(Map* transition_map,
 }
 
 
+bool TransitionArray::HasPrototypeTransitions() {
+  Object* prototype_transitions = get(kPrototypeTransitionsIndex);
+  return prototype_transitions != Smi::FromInt(0);
+}
+
+
+FixedArray* TransitionArray::GetPrototypeTransitions() {
+  Object* prototype_transitions = get(kPrototypeTransitionsIndex);
+  return FixedArray::cast(prototype_transitions);
+}
+
+
+HeapObject* TransitionArray::UncheckedPrototypeTransitions() {
+  Object* prototype_transitions = get(kPrototypeTransitionsIndex);
+  if (prototype_transitions == Smi::FromInt(0)) return NULL;
+  return reinterpret_cast<HeapObject*>(prototype_transitions);
+}
+
+
+void TransitionArray::SetPrototypeTransitions(FixedArray* transitions,
+                                              WriteBarrierMode mode) {
+  ASSERT(this != NULL);
+  ASSERT(transitions->IsFixedArray());
+  Heap* heap = GetHeap();
+  WRITE_FIELD(this, kPrototypeTransitionsOffset, transitions);
+  CONDITIONAL_WRITE_BARRIER(
+      heap, this, kPrototypeTransitionsOffset, transitions, mode);
+}
+
+
+Object** TransitionArray::GetPrototypeTransitionsSlot() {
+  return HeapObject::RawField(reinterpret_cast<HeapObject*>(this),
+                              kPrototypeTransitionsOffset);
+}
+
+
 Object** TransitionArray::GetKeySlot(int transition_number) {
   ASSERT(transition_number < number_of_transitions());
   return HeapObject::RawField(
@@ -148,7 +184,7 @@ PropertyDetails TransitionArray::GetTargetDetails(int transition_number) {
 }
 
 
-Object** TransitionArray::GetElementsSlot() {
+Object** TransitionArray::GetElementsTransitionSlot() {
   return HeapObject::RawField(reinterpret_cast<HeapObject*>(this),
                               kElementsTransitionOffset);
 }

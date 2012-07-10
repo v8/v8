@@ -543,7 +543,7 @@ Handle<SharedFunctionInfo> Compiler::Compile(Handle<String> source,
       info.SetLanguageMode(FLAG_harmony_scoping ? EXTENDED_MODE : STRICT_MODE);
     }
     result = MakeFunctionInfo(&info);
-    if (extension == NULL && !result.is_null()) {
+    if (extension == NULL && !result.is_null() && !result->dont_cache()) {
       compilation_cache->PutScript(source, result);
     }
   } else {
@@ -602,8 +602,10 @@ Handle<SharedFunctionInfo> Compiler::CompileEval(Handle<String> source,
       // extended mode.
       ASSERT(language_mode != EXTENDED_MODE ||
              result->is_extended_mode());
-      compilation_cache->PutEval(
-          source, context, is_global, result, scope_position);
+      if (!result->dont_cache()) {
+        compilation_cache->PutEval(
+            source, context, is_global, result, scope_position);
+      }
     }
   } else {
     if (result->ic_age() != HEAP->global_ic_age()) {
@@ -717,6 +719,7 @@ bool Compiler::CompileLazy(CompilationInfo* info) {
         shared->set_code_age(0);
         shared->set_dont_optimize(lit->flags()->Contains(kDontOptimize));
         shared->set_dont_inline(lit->flags()->Contains(kDontInline));
+        shared->set_dont_cache(lit->flags()->Contains(kDontCache));
         shared->set_ast_node_count(lit->ast_node_count());
 
         if (V8::UseCrankshaft()&&
@@ -830,6 +833,7 @@ void Compiler::SetFunctionInfo(Handle<SharedFunctionInfo> function_info,
   function_info->set_is_function(lit->is_function());
   function_info->set_dont_optimize(lit->flags()->Contains(kDontOptimize));
   function_info->set_dont_inline(lit->flags()->Contains(kDontInline));
+  function_info->set_dont_cache(lit->flags()->Contains(kDontCache));
 }
 
 

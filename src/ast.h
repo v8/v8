@@ -165,7 +165,8 @@ enum AstPropertiesFlag {
   kDontInline,
   kDontOptimize,
   kDontSelfOptimize,
-  kDontSoftInline
+  kDontSoftInline,
+  kDontCache
 };
 
 
@@ -586,23 +587,27 @@ class ExportDeclaration: public Declaration {
  protected:
   template<class> friend class AstNodeFactory;
 
-  ExportDeclaration(VariableProxy* proxy,
-                    Scope* scope)
-      : Declaration(proxy, LET, scope) {
-  }
+  ExportDeclaration(VariableProxy* proxy, Scope* scope)
+      : Declaration(proxy, LET, scope) {}
 };
 
 
 class Module: public AstNode {
  public:
   Interface* interface() const { return interface_; }
+  Block* body() const { return body_; }
 
  protected:
-  explicit Module(Zone* zone) : interface_(Interface::NewModule(zone)) {}
-  explicit Module(Interface* interface) : interface_(interface) {}
+  explicit Module(Zone* zone)
+      : interface_(Interface::NewModule(zone)),
+        body_(NULL) {}
+  explicit Module(Interface* interface, Block* body = NULL)
+      : interface_(interface),
+        body_(body) {}
 
  private:
   Interface* interface_;
+  Block* body_;
 };
 
 
@@ -610,20 +615,10 @@ class ModuleLiteral: public Module {
  public:
   DECLARE_NODE_TYPE(ModuleLiteral)
 
-  Block* body() const { return body_; }
-  Handle<Context> context() const { return context_; }
-
  protected:
   template<class> friend class AstNodeFactory;
 
-  ModuleLiteral(Block* body, Interface* interface)
-      : Module(interface),
-        body_(body) {
-  }
-
- private:
-  Block* body_;
-  Handle<Context> context_;
+  ModuleLiteral(Block* body, Interface* interface) : Module(interface, body) {}
 };
 
 

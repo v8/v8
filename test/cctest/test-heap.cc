@@ -1587,7 +1587,7 @@ TEST(PrototypeTransitionClearing) {
   CHECK_EQ(transitions, baseObject->map()->NumberOfProtoTransitions());
 
   // Verify that prototype transitions array was compacted.
-  FixedArray* trans = baseObject->map()->prototype_transitions();
+  FixedArray* trans = baseObject->map()->GetPrototypeTransitions();
   for (int i = 0; i < transitions; i++) {
     int j = Map::kProtoTransitionHeaderSize +
         i * Map::kProtoTransitionElementsPerEntry;
@@ -1608,7 +1608,8 @@ TEST(PrototypeTransitionClearing) {
   // clearing correctly records slots in prototype transition array.
   i::FLAG_always_compact = true;
   Handle<Map> map(baseObject->map());
-  CHECK(!space->LastPage()->Contains(map->prototype_transitions()->address()));
+  CHECK(!space->LastPage()->Contains(
+      map->GetPrototypeTransitions()->address()));
   CHECK(space->LastPage()->Contains(prototype->address()));
   baseObject->SetPrototype(*prototype, false)->ToObjectChecked();
   CHECK(map->GetPrototypeTransition(*prototype)->IsMap());

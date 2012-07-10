@@ -1030,6 +1030,14 @@ CaseClause::CaseClause(Isolate* isolate,
     increase_node_count(); \
     add_flag(kDontSelfOptimize); \
   }
+#define DONT_CACHE_NODE(NodeType) \
+  void AstConstructionVisitor::Visit##NodeType(NodeType* node) { \
+    increase_node_count(); \
+    add_flag(kDontOptimize); \
+    add_flag(kDontInline); \
+    add_flag(kDontSelfOptimize); \
+    add_flag(kDontCache); \
+  }
 
 REGULAR_NODE(VariableDeclaration)
 REGULAR_NODE(FunctionDeclaration)
@@ -1061,10 +1069,13 @@ REGULAR_NODE(CallNew)
 // LOOKUP variables only result from constructs that cannot be inlined anyway.
 REGULAR_NODE(VariableProxy)
 
+// We currently do not optimize any modules. Note in particular, that module
+// instance objects associated with ModuleLiterals are allocated during
+// scope resolution, and references to them are embedded into the code.
+// That code may hence neither be cached nor re-compiled.
 DONT_OPTIMIZE_NODE(ModuleDeclaration)
 DONT_OPTIMIZE_NODE(ImportDeclaration)
 DONT_OPTIMIZE_NODE(ExportDeclaration)
-DONT_OPTIMIZE_NODE(ModuleLiteral)
 DONT_OPTIMIZE_NODE(ModuleVariable)
 DONT_OPTIMIZE_NODE(ModulePath)
 DONT_OPTIMIZE_NODE(ModuleUrl)
@@ -1081,6 +1092,8 @@ DONT_SELFOPTIMIZE_NODE(DoWhileStatement)
 DONT_SELFOPTIMIZE_NODE(WhileStatement)
 DONT_SELFOPTIMIZE_NODE(ForStatement)
 DONT_SELFOPTIMIZE_NODE(ForInStatement)
+
+DONT_CACHE_NODE(ModuleLiteral)
 
 void AstConstructionVisitor::VisitCallRuntime(CallRuntime* node) {
   increase_node_count();
@@ -1102,6 +1115,7 @@ void AstConstructionVisitor::VisitCallRuntime(CallRuntime* node) {
 #undef DONT_OPTIMIZE_NODE
 #undef DONT_INLINE_NODE
 #undef DONT_SELFOPTIMIZE_NODE
+#undef DONT_CACHE_NODE
 
 
 Handle<String> Literal::ToString() {

@@ -374,11 +374,9 @@ void FixedDoubleArray::FixedDoubleArrayVerify() {
 
 
 void JSModule::JSModuleVerify() {
-  Object* v = context();
-  if (v->IsHeapObject()) {
-    VerifyHeapPointer(v);
-  }
-  CHECK(v->IsUndefined() || v->IsModuleContext());
+  VerifyObjectField(kContextOffset);
+  VerifyObjectField(kScopeInfoOffset);
+  CHECK(context()->IsUndefined() || context()->IsModuleContext());
 }
 
 
@@ -1008,7 +1006,6 @@ void NormalizedMapCache::NormalizedMapCacheVerify() {
 
 void Map::ZapTransitions() {
   TransitionArray* transition_array = transitions();
-  if (transition_array == NULL) return;
   MemsetPointer(transition_array->data_start(),
                 GetHeap()->the_hole_value(),
                 transition_array->length());
@@ -1016,7 +1013,7 @@ void Map::ZapTransitions() {
 
 
 void Map::ZapPrototypeTransitions() {
-  FixedArray* proto_transitions = prototype_transitions();
+  FixedArray* proto_transitions = GetPrototypeTransitions();
   MemsetPointer(proto_transitions->data_start(),
                 GetHeap()->the_hole_value(),
                 proto_transitions->length());

@@ -3266,7 +3266,8 @@ class BoundsCheckBbData: public ZoneObject {
   int32_t LowerOffset() const { return lower_offset_; }
   int32_t UpperOffset() const { return upper_offset_; }
   HBasicBlock* BasicBlock() const { return basic_block_; }
-  HBoundsCheck* Check() const { return check_; }
+  HBoundsCheck* LowerCheck() const { return lower_check_; }
+  HBoundsCheck* UpperCheck() const { return upper_check_; }
   BoundsCheckBbData* NextInBasicBlock() const { return next_in_bb_; }
   BoundsCheckBbData* FatherInDominatorTree() const { return father_in_dt_; }
 
@@ -3274,76 +3275,85 @@ class BoundsCheckBbData: public ZoneObject {
     return offset >= LowerOffset() && offset <= UpperOffset();
   }
 
-  // This method removes new_check and modifies the current check so that it
-  // also "covers" what new_check covered.
-  // The obvious precondition is that new_check follows Check() in the
-  // same basic block, and that new_offset is not covered (otherwise we
-  // could simply remove new_check).
-  // As a consequence LowerOffset() or UpperOffset() change (the covered
+  bool HasSingleCheck() { return lower_check_ == upper_check_; }
+
+  // The goal of this method is to modify either upper_offset_ or
+  // lower_offset_ so that also new_offset is covered (the covered
   // range grows).
   //
-  // In the general case the check covering the current range should be like
-  // these two checks:
-  // 0 <= Key()->IndexBase() + LowerOffset()
-  // Key()->IndexBase() + UpperOffset() < Key()->Length()
+  // The precondition is that new_check follows UpperCheck() and
+  // LowerCheck() in the same basic block, and that new_offset is not
+  // covered (otherwise we could simply remove new_check).
   //
-  // We can transform the second check like this:
-  // Key()->IndexBase() + LowerOffset() <
-  //     Key()->Length() + (LowerOffset() - UpperOffset())
-  // so we can handle both checks with a single unsigned comparison.
-  //
-  // The bulk of this method changes Check()->index() and Check()->length()
-  // replacing them with new HAdd instructions to perform the transformation
-  // described above.
+  // If HasSingleCheck() is true then new_check is added as "second check"
+  // (either upper or lower; note that HasSingleCheck() becomes false).
+  // Otherwise one of the current checks is modified so that it also covers
+  // new_offset, and new_check is removed.
   void CoverCheck(HBoundsCheck* new_check,
                   int32_t new_offset) {
     ASSERT(new_check->index()->representation().IsInteger32());
+    bool keep_new_check = false;
 
     if (new_offset > upper_offset_) {
       upper_offset_ = new_offset;
+      if (HasSingleCheck()) {
+        keep_new_check = true;
+        upper_check_ = new_check;
+      } else {
+        BuildOffsetAdd(upper_check_,
+                       &added_upper_index_,
+                       &added_upper_offset_,
+                       Key()->IndexBase(),
+                       new_check->index()->representation(),
+                       new_offset);
+        upper_check_->SetOperandAt(0, added_upper_index_);
+      }
     } else if (new_offset < lower_offset_) {
       lower_offset_ = new_offset;
+      if (HasSingleCheck()) {
+        keep_new_check = true;
+        lower_check_ = new_check;
+      } else {
+        BuildOffsetAdd(lower_check_,
+                       &added_lower_index_,
+                       &added_lower_offset_,
+                       Key()->IndexBase(),
+                       new_check->index()->representation(),
+                       new_offset);
+        lower_check_->SetOperandAt(0, added_lower_index_);
+      }
     } else {
       ASSERT(false);
     }
 
-    BuildOffsetAdd(&added_index_,
-                   &added_index_offset_,
-                   Key()->IndexBase(),
-                   new_check->index()->representation(),
-                   lower_offset_);
-    Check()->SetOperandAt(0, added_index_);
-    BuildOffsetAdd(&added_length_,
-                   &added_length_offset_,
-                   Key()->Length(),
-                   new_check->length()->representation(),
-                   lower_offset_ - upper_offset_);
-    Check()->SetOperandAt(1, added_length_);
-
-    new_check->DeleteAndReplaceWith(NULL);
+    if (!keep_new_check) {
+      new_check->DeleteAndReplaceWith(NULL);
+    }
   }
 
   void RemoveZeroOperations() {
-    RemoveZeroAdd(&added_index_, &added_index_offset_);
-    RemoveZeroAdd(&added_length_, &added_length_offset_);
+    RemoveZeroAdd(&added_lower_index_, &added_lower_offset_);
+    RemoveZeroAdd(&added_upper_index_, &added_upper_offset_);
   }
 
   BoundsCheckBbData(BoundsCheckKey* key,
                     int32_t lower_offset,
                     int32_t upper_offset,
                     HBasicBlock* bb,
-                    HBoundsCheck* check,
+                    HBoundsCheck* lower_check,
+                    HBoundsCheck* upper_check,
                     BoundsCheckBbData* next_in_bb,
                     BoundsCheckBbData* father_in_dt)
   : key_(key),
     lower_offset_(lower_offset),
     upper_offset_(upper_offset),
     basic_block_(bb),
-    check_(check),
-    added_index_offset_(NULL),
-    added_index_(NULL),
-    added_length_offset_(NULL),
-    added_length_(NULL),
+    lower_check_(lower_check),
+    upper_check_(upper_check),
+    added_lower_index_(NULL),
+    added_lower_offset_(NULL),
+    added_upper_index_(NULL),
+    added_upper_offset_(NULL),
     next_in_bb_(next_in_bb),
     father_in_dt_(father_in_dt) { }
 
@@ -3352,15 +3362,17 @@ class BoundsCheckBbData: public ZoneObject {
   int32_t lower_offset_;
   int32_t upper_offset_;
   HBasicBlock* basic_block_;
-  HBoundsCheck* check_;
-  HConstant* added_index_offset_;
-  HAdd* added_index_;
-  HConstant* added_length_offset_;
-  HAdd* added_length_;
+  HBoundsCheck* lower_check_;
+  HBoundsCheck* upper_check_;
+  HAdd* added_lower_index_;
+  HConstant* added_lower_offset_;
+  HAdd* added_upper_index_;
+  HConstant* added_upper_offset_;
   BoundsCheckBbData* next_in_bb_;
   BoundsCheckBbData* father_in_dt_;
 
-  void BuildOffsetAdd(HAdd** add,
+  void BuildOffsetAdd(HBoundsCheck* check,
+                      HAdd** add,
                       HConstant** constant,
                       HValue* original_value,
                       Representation representation,
@@ -3369,12 +3381,12 @@ class BoundsCheckBbData: public ZoneObject {
         HConstant(Handle<Object>(Smi::FromInt(new_offset)),
                   Representation::Integer32());
     if (*add == NULL) {
-      new_constant->InsertBefore(Check());
+      new_constant->InsertBefore(check);
       *add = new(BasicBlock()->zone()) HAdd(NULL,
                                             original_value,
                                             new_constant);
       (*add)->AssumeRepresentation(representation);
-      (*add)->InsertBefore(Check());
+      (*add)->InsertBefore(check);
     } else {
       new_constant->InsertBefore(*add);
       (*constant)->DeleteAndReplaceWith(new_constant);
@@ -3447,6 +3459,7 @@ void HGraph::EliminateRedundantBoundsChecks(HBasicBlock* bb,
                                                    offset,
                                                    bb,
                                                    check,
+                                                   check,
                                                    bb_data_list,
                                                    NULL);
       *data_p = bb_data_list;
@@ -3465,7 +3478,8 @@ void HGraph::EliminateRedundantBoundsChecks(HBasicBlock* bb,
                                                    new_lower_offset,
                                                    new_upper_offset,
                                                    bb,
-                                                   check,
+                                                   data->LowerCheck(),
+                                                   data->UpperCheck(),
                                                    bb_data_list,
                                                    data);
       table->Insert(key, bb_data_list, zone());
@@ -5623,6 +5637,33 @@ HInstruction* HGraphBuilder::BuildLoadNamedGeneric(HValue* obj,
 }
 
 
+static void LookupInPrototypes(Handle<Map> map,
+                               Handle<String> name,
+                               LookupResult* lookup) {
+  while (map->prototype()->IsJSObject()) {
+    Handle<JSObject> holder(JSObject::cast(map->prototype()));
+    map = Handle<Map>(holder->map());
+    map->LookupDescriptor(*holder, *name, lookup);
+    if (lookup->IsFound()) return;
+  }
+  lookup->NotFound();
+}
+
+
+HInstruction* HGraphBuilder::BuildCallGetter(HValue* obj,
+                                             Property* expr,
+                                             Handle<Map> map,
+                                             Handle<Object> callback,
+                                             Handle<JSObject> holder) {
+  if (!callback->IsAccessorPair()) return BuildLoadNamedGeneric(obj, expr);
+  Handle<Object> getter(Handle<AccessorPair>::cast(callback)->getter());
+  Handle<JSFunction> function(Handle<JSFunction>::cast(getter));
+  AddCheckConstantFunction(holder, obj, map, true);
+  AddInstruction(new(zone()) HPushArgument(obj));
+  return new(zone()) HCallConstantFunction(function, 1);
+}
+
+
 HInstruction* HGraphBuilder::BuildLoadNamed(HValue* obj,
                                             Property* expr,
                                             Handle<Map> map,
@@ -5640,7 +5681,17 @@ HInstruction* HGraphBuilder::BuildLoadNamed(HValue* obj,
     AddInstruction(HCheckMaps::NewWithTransitions(obj, map, zone()));
     Handle<JSFunction> function(lookup.GetConstantFunctionFromMap(*map));
     return new(zone()) HConstant(function, Representation::Tagged());
+  } else if (lookup.IsPropertyCallbacks()) {
+    Handle<Object> callback(lookup.GetValueFromMap(*map));
+    Handle<JSObject> holder;
+    return BuildCallGetter(obj, expr, map, callback, holder);
   } else {
+    LookupInPrototypes(map, name, &lookup);
+    if (lookup.IsPropertyCallbacks()) {
+      Handle<Object> callback(lookup.GetValue());
+      Handle<JSObject> holder(lookup.holder());
+      return BuildCallGetter(obj, expr, map, callback, holder);
+    }
     return BuildLoadNamedGeneric(obj, expr);
   }
 }

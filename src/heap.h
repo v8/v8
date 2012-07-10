@@ -530,7 +530,8 @@ class Heap {
   MUST_USE_RESULT MaybeObject* AllocateJSObject(
       JSFunction* constructor, PretenureFlag pretenure = NOT_TENURED);
 
-  MUST_USE_RESULT MaybeObject* AllocateJSModule();
+  MUST_USE_RESULT MaybeObject* AllocateJSModule(Context* context,
+                                                ScopeInfo* scope_info);
 
   // Allocate a JSArray with no elements
   MUST_USE_RESULT MaybeObject* AllocateEmptyJSArray(
@@ -824,8 +825,7 @@ class Heap {
   MUST_USE_RESULT MaybeObject* AllocateGlobalContext();
 
   // Allocate a module context.
-  MUST_USE_RESULT MaybeObject* AllocateModuleContext(Context* previous,
-                                                     ScopeInfo* scope_info);
+  MUST_USE_RESULT MaybeObject* AllocateModuleContext(ScopeInfo* scope_info);
 
   // Allocate a function context.
   MUST_USE_RESULT MaybeObject* AllocateFunctionContext(int length,

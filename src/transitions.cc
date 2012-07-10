@@ -45,6 +45,7 @@ MaybeObject* TransitionArray::Allocate(int number_of_transitions) {
   }
 
   array->set(kElementsTransitionIndex, Smi::FromInt(0));
+  array->set(kPrototypeTransitionsIndex, Smi::FromInt(0));
   return array;
 }
 
@@ -96,6 +97,10 @@ MaybeObject* TransitionArray::CopyInsert(String* name, Object* value) {
 
   if (HasElementsTransition()) {
     result->set_elements_transition(elements_transition());
+  }
+
+  if (HasPrototypeTransitions()) {
+    result->SetPrototypeTransitions(GetPrototypeTransitions());
   }
 
   FixedArray::WhitenessWitness witness(result);

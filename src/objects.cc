@@ -2959,7 +2959,7 @@ MaybeObject* JSObject::SetPropertyForResult(LookupResult* result,
       // transition to the target map.
       if (constant_function == *value) {
         self->set_map(transition_map);
-        return this;
+        return constant_function;
       }
       // Otherwise, replace with a map transition to a new map with a FIELD,
       // even if the value is a constant function.
@@ -5147,11 +5147,11 @@ class IntrusivePrototypeTransitionIterator {
 
   void Start() {
     ASSERT(!IsIterating());
-    if (HasTransitions()) *Header() = Smi::FromInt(0);
+    *Header() = Smi::FromInt(0);
   }
 
   bool IsIterating() {
-    return HasTransitions() && (*Header())->IsSmi();
+    return (*Header())->IsSmi();
   }
 
   Map* Next() {
@@ -5166,23 +5166,17 @@ class IntrusivePrototypeTransitionIterator {
   }
 
  private:
-  bool HasTransitions() {
-    return proto_trans_->map()->IsSmi() || proto_trans_->IsFixedArray();
-  }
-
   Object** Header() {
     return HeapObject::RawField(proto_trans_, FixedArray::kMapOffset);
   }
 
   int NumberOfTransitions() {
-    ASSERT(HasTransitions());
     FixedArray* proto_trans = reinterpret_cast<FixedArray*>(proto_trans_);
     Object* num = proto_trans->get(Map::kProtoTransitionNumberOfEntriesOffset);
     return Smi::cast(num)->value();
   }
 
   Map* GetTransition(int transitionNumber) {
-    ASSERT(HasTransitions());
     FixedArray* proto_trans = reinterpret_cast<FixedArray*>(proto_trans_);
     return Map::cast(proto_trans->get(IndexFor(transitionNumber)));
   }
@@ -5232,42 +5226,41 @@ class TraversableMap : public Map {
     return old_parent;
   }
 
-  // Can either be Smi (no instance descriptors), or a descriptor array with the
-  // header overwritten as a Smi (thus iterating).
-  TransitionArray* MutatedTransitions() {
-    Object* object = *HeapObject::RawField(instance_descriptors(),
-                                           DescriptorArray::kTransitionsOffset);
-    TransitionArray* transition_array = static_cast<TransitionArray*>(object);
-    return transition_array;
-  }
-
   // Start iterating over this map's children, possibly destroying a FixedArray
   // map (see explanation above).
   void ChildIteratorStart() {
     if (HasTransitionArray()) {
+      if (HasPrototypeTransitions()) {
+        IntrusivePrototypeTransitionIterator(GetPrototypeTransitions()).Start();
+      }
+
       IntrusiveMapTransitionIterator(transitions()).Start();
     }
-    IntrusivePrototypeTransitionIterator(
-        unchecked_prototype_transitions()).Start();
   }
 
   // If we have an unvisited child map, return that one and advance. If we have
   // none, return NULL and reset any destroyed FixedArray maps.
   TraversableMap* ChildIteratorNext() {
-    IntrusivePrototypeTransitionIterator
-        proto_iterator(unchecked_prototype_transitions());
-    if (proto_iterator.IsIterating()) {
-      Map* next = proto_iterator.Next();
-      if (next != NULL) return static_cast<TraversableMap*>(next);
-    }
     if (HasTransitionArray()) {
-      IntrusiveMapTransitionIterator
-          transitions_iterator(MutatedTransitions());
-      if (transitions_iterator.IsIterating()) {
-        Map* next = transitions_iterator.Next();
+      TransitionArray* transition_array = unchecked_transition_array();
+
+      if (transition_array->HasPrototypeTransitions()) {
+        HeapObject* proto_transitions =
+            transition_array->UncheckedPrototypeTransitions();
+        IntrusivePrototypeTransitionIterator proto_iterator(proto_transitions);
+        if (proto_iterator.IsIterating()) {
+          Map* next = proto_iterator.Next();
+          if (next != NULL) return static_cast<TraversableMap*>(next);
+        }
+      }
+
+      IntrusiveMapTransitionIterator transition_iterator(transition_array);
+      if (transition_iterator.IsIterating()) {
+        Map* next = transition_iterator.Next();
         if (next != NULL) return static_cast<TraversableMap*>(next);
       }
     }
+
     return NULL;
   }
 };
@@ -7417,7 +7410,9 @@ void Map::ClearNonLiveTransitions(Heap* heap) {
 
   // If the final transition array does not contain any live transitions, remove
   // the transition array from the map.
-  if (transition_index == 0 && !t->HasElementsTransition()) {
+  if (transition_index == 0 &&
+      !t->HasElementsTransition() &&
+      !t->HasPrototypeTransitions()) {
     return ClearTransitions();
   }
 
@@ -8835,7 +8830,7 @@ MaybeObject* JSArray::SetElementsLength(Object* len) {
 
 
 Map* Map::GetPrototypeTransition(Object* prototype) {
-  FixedArray* cache = prototype_transitions();
+  FixedArray* cache = GetPrototypeTransitions();
   int number_of_transitions = NumberOfProtoTransitions();
   const int proto_offset =
       kProtoTransitionHeaderSize + kProtoTransitionPrototypeOffset;
@@ -8857,7 +8852,7 @@ MaybeObject* Map::PutPrototypeTransition(Object* prototype, Map* map) {
   // Don't cache prototype transition if this map is shared.
   if (is_shared() || !FLAG_cache_prototype_transitions) return this;
 
-  FixedArray* cache = prototype_transitions();
+  FixedArray* cache = GetPrototypeTransitions();
 
   const int step = kProtoTransitionElementsPerEntry;
   const int header = kProtoTransitionHeaderSize;
@@ -8880,7 +8875,8 @@ MaybeObject* Map::PutPrototypeTransition(Object* prototype, Map* map) {
       new_cache->set(i + header, cache->get(i + header));
     }
     cache = new_cache;
-    set_prototype_transitions(cache);
+    MaybeObject* set_result = SetPrototypeTransitions(cache);
+    if (set_result->IsFailure()) return set_result;
   }
 
   int last = transitions - 1;

@@ -50,7 +50,12 @@ function FormatString(format, message) {
         try {
           str = ToDetailString(args[arg_num]);
         } catch (e) {
-          str = "#<error>";
+          if (%IsJSModule(args[arg_num]))
+            str = "module";
+          else if (IS_SPEC_OBJECT(args[arg_num]))
+            str = "object";
+          else
+            str = "#<error>";
         }
       }
     }
@@ -251,6 +256,7 @@ function FormatMessage(message) {
       "harmony_const_assign",         ["Assignment to constant variable."],
       "invalid_module_path",          ["Module does not export '", "%0", "', or export is not itself a module"],
       "module_type_error",            ["Module '", "%0", "' used improperly"],
+      "module_export_undefined",      ["Export '", "%0", "' is not defined in module"],
     ];
     var messages = { __proto__ : null };
     for (var i = 0; i < messagesDictionary.length; i += 2) {

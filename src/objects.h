@@ -181,6 +181,8 @@ enum SearchMode {
 // Instance size sentinel for objects of variable size.
 const int kVariableSizeSentinel = 0;
 
+const int kStubMajorKeyBits = 6;
+const int kStubMinorKeyBits = kBitsPerInt - kSmiTagSize - kStubMajorKeyBits;
 
 // All Maps have a field instance_type containing a InstanceType.
 // It describes the type of the instances.
@@ -3522,7 +3524,7 @@ class ScopeInfo : public FixedArray {
   FOR_EACH_NUMERIC_FIELD(DECL_INDEX)
 #undef DECL_INDEX
 #undef FOR_EACH_NUMERIC_FIELD
-  kVariablePartIndex
+    kVariablePartIndex
   };
 
   // The layout of the variable part of a ScopeInfo is as follows:
@@ -4520,28 +4522,20 @@ class Code: public HeapObject {
   static const int kICAgeOffset =
       kGCMetadataOffset + kPointerSize;
   static const int kFlagsOffset = kICAgeOffset + kIntSize;
-  static const int kKindSpecificFlagsOffset = kFlagsOffset + kIntSize;
-  static const int kKindSpecificFlagsSize = 2 * kIntSize;
+  static const int kKindSpecificFlags1Offset = kFlagsOffset + kIntSize;
+  static const int kKindSpecificFlags2Offset =
+      kKindSpecificFlags1Offset + kIntSize;
 
-  static const int kHeaderPaddingStart = kKindSpecificFlagsOffset +
-      kKindSpecificFlagsSize;
+  static const int kHeaderPaddingStart = kKindSpecificFlags2Offset + kIntSize;
 
   // Add padding to align the instruction start following right after
   // the Code object header.
   static const int kHeaderSize =
       (kHeaderPaddingStart + kCodeAlignmentMask) & ~kCodeAlignmentMask;
 
-  // Byte offsets within kKindSpecificFlagsOffset.
-  static const int kStubMajorKeyOffset = kKindSpecificFlagsOffset;
-  static const int kOptimizableOffset = kKindSpecificFlagsOffset;
-  static const int kStackSlotsOffset = kKindSpecificFlagsOffset;
-  static const int kCheckTypeOffset = kKindSpecificFlagsOffset;
-
-  static const int kUnaryOpTypeOffset = kStubMajorKeyOffset + 1;
-  static const int kBinaryOpTypeOffset = kStubMajorKeyOffset + 1;
-  static const int kCompareStateOffset = kStubMajorKeyOffset + 1;
-  static const int kToBooleanTypeOffset = kStubMajorKeyOffset + 1;
-  static const int kHasFunctionCacheOffset = kStubMajorKeyOffset + 1;
+  // Byte offsets within kKindSpecificFlags1Offset.
+  static const int kOptimizableOffset = kKindSpecificFlags1Offset;
+  static const int kCheckTypeOffset = kKindSpecificFlags1Offset;
 
   static const int kFullCodeFlags = kOptimizableOffset + 1;
   class FullCodeFlagsHasDeoptimizationSupportField:
@@ -4549,15 +4543,8 @@ class Code: public HeapObject {
   class FullCodeFlagsHasDebugBreakSlotsField: public BitField<bool, 1, 1> {};
   class FullCodeFlagsIsCompiledOptimizable: public BitField<bool, 2, 1> {};
 
-  static const int kBinaryOpReturnTypeOffset = kBinaryOpTypeOffset + 1;
-
-  static const int kCompareOperationOffset = kCompareStateOffset + 1;
-
   static const int kAllowOSRAtLoopNestingLevelOffset = kFullCodeFlags + 1;
   static const int kProfilerTicksOffset = kAllowOSRAtLoopNestingLevelOffset + 1;
-
-  static const int kSafepointTableOffsetOffset = kStackSlotsOffset + kIntSize;
-  static const int kStackCheckTableOffsetOffset = kStackSlotsOffset + kIntSize;
 
   // Flags layout.  BitField<type, shift, size>.
   class ICStateField: public BitField<InlineCacheState, 0, 3> {};
@@ -4566,6 +4553,77 @@ class Code: public HeapObject {
   class KindField: public BitField<Kind, 7, 4> {};
   class ExtraICStateField: public BitField<ExtraICState, 11, 2> {};
   class IsPregeneratedField: public BitField<bool, 13, 1> {};
+
+  // KindSpecificFlags1 layout (STUB and OPTIMIZED_FUNCTION)
+  static const int kStackSlotsFirstBit = 0;
+  static const int kStackSlotsBitCount = 24;
+  static const int kUnaryOpTypeFirstBit =
+      kStackSlotsFirstBit + kStackSlotsBitCount;
+  static const int kUnaryOpTypeBitCount = 3;
+  static const int kBinaryOpTypeFirstBit =
+      kStackSlotsFirstBit + kStackSlotsBitCount;
+  static const int kBinaryOpTypeBitCount = 3;
+  static const int kBinaryOpResultTypeFirstBit =
+      kBinaryOpTypeFirstBit + kBinaryOpTypeBitCount;
+  static const int kBinaryOpResultTypeBitCount = 3;
+  static const int kCompareStateFirstBit =
+      kStackSlotsFirstBit + kStackSlotsBitCount;
+  static const int kCompareStateBitCount = 3;
+  static const int kCompareOperationFirstBit =
+      kCompareStateFirstBit + kCompareStateBitCount;
+  static const int kCompareOperationBitCount = 4;
+  static const int kToBooleanStateFirstBit =
+      kStackSlotsFirstBit + kStackSlotsBitCount;
+  static const int kToBooleanStateBitCount = 8;
+  static const int kHasFunctionCacheFirstBit =
+      kStackSlotsFirstBit + kStackSlotsBitCount;
+  static const int kHasFunctionCacheBitCount = 1;
+
+  STATIC_ASSERT(kStackSlotsFirstBit + kStackSlotsBitCount <= 32);
+  STATIC_ASSERT(kUnaryOpTypeFirstBit + kUnaryOpTypeBitCount <= 32);
+  STATIC_ASSERT(kBinaryOpTypeFirstBit + kBinaryOpTypeBitCount <= 32);
+  STATIC_ASSERT(kBinaryOpResultTypeFirstBit +
+                kBinaryOpResultTypeBitCount <= 32);
+  STATIC_ASSERT(kCompareStateFirstBit + kCompareStateBitCount <= 32);
+  STATIC_ASSERT(kCompareOperationFirstBit + kCompareOperationBitCount <= 32);
+  STATIC_ASSERT(kToBooleanStateFirstBit + kToBooleanStateBitCount <= 32);
+  STATIC_ASSERT(kHasFunctionCacheFirstBit + kHasFunctionCacheBitCount <= 32);
+
+  class StackSlotsField: public BitField<int,
+      kStackSlotsFirstBit, kStackSlotsBitCount> {};  // NOLINT
+  class UnaryOpTypeField: public BitField<int,
+      kUnaryOpTypeFirstBit, kUnaryOpTypeBitCount> {};  // NOLINT
+  class BinaryOpTypeField: public BitField<int,
+      kBinaryOpTypeFirstBit, kBinaryOpTypeBitCount> {};  // NOLINT
+  class BinaryOpResultTypeField: public BitField<int,
+      kBinaryOpResultTypeFirstBit, kBinaryOpResultTypeBitCount> {};  // NOLINT
+  class CompareStateField: public BitField<int,
+      kCompareStateFirstBit, kCompareStateBitCount> {};  // NOLINT
+  class CompareOperationField: public BitField<int,
+      kCompareOperationFirstBit, kCompareOperationBitCount> {};  // NOLINT
+  class ToBooleanStateField: public BitField<int,
+      kToBooleanStateFirstBit, kToBooleanStateBitCount> {};  // NOLINT
+  class HasFunctionCacheField: public BitField<bool,
+      kHasFunctionCacheFirstBit, kHasFunctionCacheBitCount> {};  // NOLINT
+
+  // KindSpecificFlags2 layout (STUB and OPTIMIZED_FUNCTION)
+  static const int kStubMajorKeyFirstBit = 0;
+  static const int kSafepointTableOffsetFirstBit =
+      kStubMajorKeyFirstBit + kStubMajorKeyBits;
+  static const int kSafepointTableOffsetBitCount = 26;
+
+  STATIC_ASSERT(kStubMajorKeyFirstBit + kStubMajorKeyBits <= 32);
+  STATIC_ASSERT(kSafepointTableOffsetFirstBit +
+                kSafepointTableOffsetBitCount <= 32);
+
+  class SafepointTableOffsetField: public BitField<int,
+      kSafepointTableOffsetFirstBit,
+      kSafepointTableOffsetBitCount> {};  // NOLINT
+  class StubMajorKeyField: public BitField<int,
+      kStubMajorKeyFirstBit, kStubMajorKeyBits> {};  // NOLINT
+
+  // KindSpecificFlags2 layout (FUNCTION)
+  class StackCheckTableOffsetField: public BitField<int, 0, 31> {};
 
   // Signed field cannot be encoded using the BitField class.
   static const int kArgumentsCountShift = 14;
@@ -4806,6 +4864,7 @@ class Map: public HeapObject {
   inline Object* GetBackPointer();
   inline void SetBackPointer(Object* value,
                              WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  inline void init_back_pointer(Object* undefined);
 
   // [prototype transitions]: cache of prototype transitions.
   // Prototype transition is a transition that happens
@@ -4815,27 +4874,29 @@ class Map: public HeapObject {
   //    1: back pointer that overlaps with prototype transitions field.
   //    2 + 2 * i: prototype
   //    3 + 2 * i: target map
-  DECL_ACCESSORS(prototype_transitions, FixedArray)
+  inline FixedArray* GetPrototypeTransitions();
+  MUST_USE_RESULT inline MaybeObject* SetPrototypeTransitions(
+      FixedArray* prototype_transitions);
+  inline bool HasPrototypeTransitions();
 
-  inline void init_prototype_transitions(Object* undefined);
-  inline HeapObject* unchecked_prototype_transitions();
+  inline HeapObject* UncheckedPrototypeTransitions();
+  inline TransitionArray* unchecked_transition_array();
 
-  static const int kProtoTransitionHeaderSize = 2;
+  static const int kProtoTransitionHeaderSize = 1;
   static const int kProtoTransitionNumberOfEntriesOffset = 0;
-  static const int kProtoTransitionBackPointerOffset = 1;
   static const int kProtoTransitionElementsPerEntry = 2;
   static const int kProtoTransitionPrototypeOffset = 0;
   static const int kProtoTransitionMapOffset = 1;
 
   inline int NumberOfProtoTransitions() {
-    FixedArray* cache = prototype_transitions();
+    FixedArray* cache = GetPrototypeTransitions();
     if (cache->length() == 0) return 0;
     return
         Smi::cast(cache->get(kProtoTransitionNumberOfEntriesOffset))->value();
   }
 
   inline void SetNumberOfProtoTransitions(int value) {
-    FixedArray* cache = prototype_transitions();
+    FixedArray* cache = GetPrototypeTransitions();
     ASSERT(cache->length() != 0);
     cache->set_unchecked(kProtoTransitionNumberOfEntriesOffset,
                          Smi::FromInt(value));
@@ -4995,17 +5056,14 @@ class Map: public HeapObject {
       kConstructorOffset + kPointerSize;
   static const int kCodeCacheOffset =
       kInstanceDescriptorsOrBitField3Offset + kPointerSize;
-  static const int kPrototypeTransitionsOrBackPointerOffset =
-      kCodeCacheOffset + kPointerSize;
-  static const int kPadStart =
-      kPrototypeTransitionsOrBackPointerOffset + kPointerSize;
+  static const int kBackPointerOffset = kCodeCacheOffset + kPointerSize;
+  static const int kPadStart = kBackPointerOffset + kPointerSize;
   static const int kSize = MAP_POINTER_ALIGN(kPadStart);
 
   // Layout of pointer fields. Heap iteration code relies on them
   // being continuously allocated.
   static const int kPointerFieldsBeginOffset = Map::kPrototypeOffset;
-  static const int kPointerFieldsEndOffset =
-      kPrototypeTransitionsOrBackPointerOffset + kPointerSize;
+  static const int kPointerFieldsEndOffset = kBackPointerOffset + kPointerSize;
 
   // Byte offsets within kInstanceSizesOffset.
   static const int kInstanceSizeOffset = kInstanceSizesOffset + 0;
@@ -5565,6 +5623,9 @@ class SharedFunctionInfo: public HeapObject {
   // Indicates that the function cannot be inlined.
   DECL_BOOLEAN_ACCESSORS(dont_inline)
 
+  // Indicates that code for this function cannot be cached.
+  DECL_BOOLEAN_ACCESSORS(dont_cache)
+
   // Indicates whether or not the code in the shared function support
   // deoptimization.
   inline bool has_deoptimization_support();
@@ -5799,6 +5860,7 @@ class SharedFunctionInfo: public HeapObject {
     kIsFunction,
     kDontOptimize,
     kDontInline,
+    kDontCache,
     kCompilerHintsCount  // Pseudo entry
   };
 
@@ -5865,6 +5927,9 @@ class JSModule: public JSObject {
   // [context]: the context holding the module's locals, or undefined if none.
   DECL_ACCESSORS(context, Object)
 
+  // [scope_info]: Scope info.
+  DECL_ACCESSORS(scope_info, ScopeInfo)
+
   // Casting.
   static inline JSModule* cast(Object* obj);
 
@@ -5881,7 +5946,8 @@ class JSModule: public JSObject {
 
   // Layout description.
   static const int kContextOffset = JSObject::kHeaderSize;
-  static const int kSize = kContextOffset + kPointerSize;
+  static const int kScopeInfoOffset = kContextOffset + kPointerSize;
+  static const int kSize = kScopeInfoOffset + kPointerSize;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSModule);

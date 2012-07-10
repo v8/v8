@@ -1136,12 +1136,12 @@ void Isolate::DoThrow(Object* exception, MessageLocation* location) {
             "Extension or internal compilation error: %s in %s at line %d.\n",
             *String::cast(exception)->ToCString(),
             *String::cast(location->script()->name())->ToCString(),
-            line_number);
+            line_number + 1);
       } else {
         OS::PrintError(
             "Extension or internal compilation error in %s at line %d.\n",
             *String::cast(location->script()->name())->ToCString(),
-            line_number);
+            line_number + 1);
       }
     }
   }

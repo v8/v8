@@ -457,6 +457,8 @@ void JSModule::JSModulePrint(FILE* out) {
   PrintF(out, " - map = 0x%p\n", reinterpret_cast<void*>(map()));
   PrintF(out, " - context = ");
   context()->Print(out);
+  PrintF(out, " - scope_info = ");
+  scope_info()->ShortPrint(out);
   PrintElementsKind(out, this->map()->elements_kind());
   PrintF(out, " {\n");
   PrintProperties(out);

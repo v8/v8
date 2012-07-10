@@ -3052,7 +3052,8 @@ int Code::major_key() {
          kind() == BINARY_OP_IC ||
          kind() == COMPARE_IC ||
          kind() == TO_BOOLEAN_IC);
-  return READ_BYTE_FIELD(this, kStubMajorKeyOffset);
+  return StubMajorKeyField::decode(
+      READ_UINT32_FIELD(this, kKindSpecificFlags2Offset));
 }
 
 
@@ -3063,7 +3064,9 @@ void Code::set_major_key(int major) {
          kind() == COMPARE_IC ||
          kind() == TO_BOOLEAN_IC);
   ASSERT(0 <= major && major < 256);
-  WRITE_BYTE_FIELD(this, kStubMajorKeyOffset, major);
+  int previous = READ_UINT32_FIELD(this, kKindSpecificFlags2Offset);
+  int updated = StubMajorKeyField::update(previous, major);
+  WRITE_UINT32_FIELD(this, kKindSpecificFlags2Offset, updated);
 }
 
 
@@ -3165,39 +3168,50 @@ void Code::set_profiler_ticks(int ticks) {
 
 unsigned Code::stack_slots() {
   ASSERT(kind() == OPTIMIZED_FUNCTION);
-  return READ_UINT32_FIELD(this, kStackSlotsOffset);
+  return StackSlotsField::decode(
+      READ_UINT32_FIELD(this, kKindSpecificFlags1Offset));
 }
 
 
 void Code::set_stack_slots(unsigned slots) {
+  CHECK(slots <= (1 << kStackSlotsBitCount));
   ASSERT(kind() == OPTIMIZED_FUNCTION);
-  WRITE_UINT32_FIELD(this, kStackSlotsOffset, slots);
+  int previous = READ_UINT32_FIELD(this, kKindSpecificFlags1Offset);
+  int updated = StackSlotsField::update(previous, slots);
+  WRITE_UINT32_FIELD(this, kKindSpecificFlags1Offset, updated);
 }
 
 
 unsigned Code::safepoint_table_offset() {
   ASSERT(kind() == OPTIMIZED_FUNCTION);
-  return READ_UINT32_FIELD(this, kSafepointTableOffsetOffset);
+  return SafepointTableOffsetField::decode(
+      READ_UINT32_FIELD(this, kKindSpecificFlags2Offset));
 }
 
 
 void Code::set_safepoint_table_offset(unsigned offset) {
+  CHECK(offset <= (1 << kSafepointTableOffsetBitCount));
   ASSERT(kind() == OPTIMIZED_FUNCTION);
   ASSERT(IsAligned(offset, static_cast<unsigned>(kIntSize)));
-  WRITE_UINT32_FIELD(this, kSafepointTableOffsetOffset, offset);
+  int previous = READ_UINT32_FIELD(this, kKindSpecificFlags2Offset);
+  int updated = SafepointTableOffsetField::update(previous, offset);
+  WRITE_UINT32_FIELD(this, kKindSpecificFlags2Offset, updated);
 }
 
 
 unsigned Code::stack_check_table_offset() {
   ASSERT_EQ(FUNCTION, kind());
-  return READ_UINT32_FIELD(this, kStackCheckTableOffsetOffset);
+  return StackCheckTableOffsetField::decode(
+      READ_UINT32_FIELD(this, kKindSpecificFlags2Offset));
 }
 
 
 void Code::set_stack_check_table_offset(unsigned offset) {
   ASSERT_EQ(FUNCTION, kind());
   ASSERT(IsAligned(offset, static_cast<unsigned>(kIntSize)));
-  WRITE_UINT32_FIELD(this, kStackCheckTableOffsetOffset, offset);
+  int previous = READ_UINT32_FIELD(this, kKindSpecificFlags2Offset);
+  int updated = StackCheckTableOffsetField::update(previous, offset);
+  WRITE_UINT32_FIELD(this, kKindSpecificFlags2Offset, updated);
 }
 
 
@@ -3216,85 +3230,106 @@ void Code::set_check_type(CheckType value) {
 
 byte Code::unary_op_type() {
   ASSERT(is_unary_op_stub());
-  return READ_BYTE_FIELD(this, kUnaryOpTypeOffset);
+  return UnaryOpTypeField::decode(
+      READ_UINT32_FIELD(this, kKindSpecificFlags1Offset));
 }
 
 
 void Code::set_unary_op_type(byte value) {
   ASSERT(is_unary_op_stub());
-  WRITE_BYTE_FIELD(this, kUnaryOpTypeOffset, value);
+  int previous = READ_UINT32_FIELD(this, kKindSpecificFlags1Offset);
+  int updated = UnaryOpTypeField::update(previous, value);
+  WRITE_UINT32_FIELD(this, kKindSpecificFlags1Offset, updated);
 }
 
 
 byte Code::binary_op_type() {
   ASSERT(is_binary_op_stub());
-  return READ_BYTE_FIELD(this, kBinaryOpTypeOffset);
+  return BinaryOpTypeField::decode(
+      READ_UINT32_FIELD(this, kKindSpecificFlags1Offset));
 }
 
 
 void Code::set_binary_op_type(byte value) {
   ASSERT(is_binary_op_stub());
-  WRITE_BYTE_FIELD(this, kBinaryOpTypeOffset, value);
+  int previous = READ_UINT32_FIELD(this, kKindSpecificFlags1Offset);
+  int updated = BinaryOpTypeField::update(previous, value);
+  WRITE_UINT32_FIELD(this, kKindSpecificFlags1Offset, updated);
 }
 
 
 byte Code::binary_op_result_type() {
   ASSERT(is_binary_op_stub());
-  return READ_BYTE_FIELD(this, kBinaryOpReturnTypeOffset);
+  return BinaryOpResultTypeField::decode(
+      READ_UINT32_FIELD(this, kKindSpecificFlags1Offset));
 }
 
 
 void Code::set_binary_op_result_type(byte value) {
   ASSERT(is_binary_op_stub());
-  WRITE_BYTE_FIELD(this, kBinaryOpReturnTypeOffset, value);
+  int previous = READ_UINT32_FIELD(this, kKindSpecificFlags1Offset);
+  int updated = BinaryOpResultTypeField::update(previous, value);
+  WRITE_UINT32_FIELD(this, kKindSpecificFlags1Offset, updated);
 }
 
 
 byte Code::compare_state() {
   ASSERT(is_compare_ic_stub());
-  return READ_BYTE_FIELD(this, kCompareStateOffset);
+  return CompareStateField::decode(
+      READ_UINT32_FIELD(this, kKindSpecificFlags1Offset));
 }
 
 
 void Code::set_compare_state(byte value) {
   ASSERT(is_compare_ic_stub());
-  WRITE_BYTE_FIELD(this, kCompareStateOffset, value);
+  int previous = READ_UINT32_FIELD(this, kKindSpecificFlags1Offset);
+  int updated = CompareStateField::update(previous, value);
+  WRITE_UINT32_FIELD(this, kKindSpecificFlags1Offset, updated);
 }
 
 
 byte Code::compare_operation() {
   ASSERT(is_compare_ic_stub());
-  return READ_BYTE_FIELD(this, kCompareOperationOffset);
+  return CompareOperationField::decode(
+      READ_UINT32_FIELD(this, kKindSpecificFlags1Offset));
 }
 
 
 void Code::set_compare_operation(byte value) {
   ASSERT(is_compare_ic_stub());
-  WRITE_BYTE_FIELD(this, kCompareOperationOffset, value);
+  int previous = READ_UINT32_FIELD(this, kKindSpecificFlags1Offset);
+  int updated = CompareOperationField::update(previous, value);
+  WRITE_UINT32_FIELD(this, kKindSpecificFlags1Offset, updated);
 }
 
 
 byte Code::to_boolean_state() {
   ASSERT(is_to_boolean_ic_stub());
-  return READ_BYTE_FIELD(this, kToBooleanTypeOffset);
+  return ToBooleanStateField::decode(
+      READ_UINT32_FIELD(this, kKindSpecificFlags1Offset));
 }
 
 
 void Code::set_to_boolean_state(byte value) {
   ASSERT(is_to_boolean_ic_stub());
-  WRITE_BYTE_FIELD(this, kToBooleanTypeOffset, value);
+  int previous = READ_UINT32_FIELD(this, kKindSpecificFlags1Offset);
+  int updated = ToBooleanStateField::update(previous, value);
+  WRITE_UINT32_FIELD(this, kKindSpecificFlags1Offset, updated);
 }
 
 
 bool Code::has_function_cache() {
   ASSERT(kind() == STUB);
-  return READ_BYTE_FIELD(this, kHasFunctionCacheOffset) != 0;
+  return HasFunctionCacheField::decode(
+      READ_UINT32_FIELD(this, kKindSpecificFlags1Offset));
 }
 
 
 void Code::set_has_function_cache(bool flag) {
   ASSERT(kind() == STUB);
-  WRITE_BYTE_FIELD(this, kHasFunctionCacheOffset, flag);
+  int previous = READ_UINT32_FIELD(this, kKindSpecificFlags1Offset);
+  int updated = HasFunctionCacheField::update(previous, flag);
+  WRITE_UINT32_FIELD(this, kKindSpecificFlags1Offset, updated);
 }
 
 
@@ -3489,12 +3524,7 @@ void Map::set_bit_field3(int value) {
 
 
 Object* Map::GetBackPointer() {
-  Object* object = READ_FIELD(this, kPrototypeTransitionsOrBackPointerOffset);
-  if (object->IsFixedArray()) {
-    return FixedArray::cast(object)->get(kProtoTransitionBackPointerOffset);
-  } else {
-    return object;
-  }
+  return READ_FIELD(this, kBackPointerOffset);
 }
 
 
@@ -3532,9 +3562,9 @@ static MaybeObject* AllowTransitions(Map* map) {
 }
 
 
-// If the descriptor does not have a transition array, install a new
-// transition array that has room for an element transition.
-static MaybeObject* AllowElementsTransition(Map* map) {
+// If the descriptor is using the empty transition array, install a new empty
+// transition array that will have place for an element transition.
+static MaybeObject* EnsureHasTransitionArray(Map* map) {
   if (map->HasTransitionArray()) return map;
 
   AllowTransitions(map);
@@ -3549,10 +3579,38 @@ static MaybeObject* AllowElementsTransition(Map* map) {
 
 
 MaybeObject* Map::set_elements_transition_map(Map* transitioned_map) {
-  MaybeObject* allow_elements = AllowElementsTransition(this);
+  MaybeObject* allow_elements = EnsureHasTransitionArray(this);
   if (allow_elements->IsFailure()) return allow_elements;
   transitions()->set_elements_transition(transitioned_map);
   return this;
+}
+
+
+FixedArray* Map::GetPrototypeTransitions() {
+  if (!HasTransitionArray()) return GetHeap()->empty_fixed_array();
+  if (!transitions()->HasPrototypeTransitions()) {
+    return GetHeap()->empty_fixed_array();
+  }
+  return transitions()->GetPrototypeTransitions();
+}
+
+
+MaybeObject* Map::SetPrototypeTransitions(FixedArray* proto_transitions) {
+  MaybeObject* allow_prototype = EnsureHasTransitionArray(this);
+  if (allow_prototype->IsFailure()) return allow_prototype;
+#ifdef DEBUG
+  if (HasPrototypeTransitions()) {
+    ASSERT(GetPrototypeTransitions() != proto_transitions);
+    ZapPrototypeTransitions();
+  }
+#endif
+  transitions()->SetPrototypeTransitions(proto_transitions);
+  return this;
+}
+
+
+bool Map::HasPrototypeTransitions() {
+  return HasTransitionArray() && transitions()->HasPrototypeTransitions();
 }
 
 
@@ -3588,57 +3646,38 @@ MaybeObject* Map::set_transitions(TransitionArray* transitions_array) {
 }
 
 
+void Map::init_back_pointer(Object* undefined) {
+  ASSERT(undefined->IsUndefined());
+  WRITE_FIELD(this, kBackPointerOffset, undefined);
+}
+
+
 void Map::SetBackPointer(Object* value, WriteBarrierMode mode) {
   Heap* heap = GetHeap();
   ASSERT(instance_type() >= FIRST_JS_RECEIVER_TYPE);
   ASSERT((value->IsUndefined() && GetBackPointer()->IsMap()) ||
          (value->IsMap() && GetBackPointer()->IsUndefined()));
-  Object* object = READ_FIELD(this, kPrototypeTransitionsOrBackPointerOffset);
-  if (object->IsFixedArray()) {
-    FixedArray::cast(object)->set(
-        kProtoTransitionBackPointerOffset, value, mode);
-  } else {
-    WRITE_FIELD(this, kPrototypeTransitionsOrBackPointerOffset, value);
-    CONDITIONAL_WRITE_BARRIER(
-        heap, this, kPrototypeTransitionsOrBackPointerOffset, value, mode);
-  }
+  WRITE_FIELD(this, kBackPointerOffset, value);
+  CONDITIONAL_WRITE_BARRIER(heap, this, kBackPointerOffset, value, mode);
 }
 
 
-FixedArray* Map::prototype_transitions() {
-  Object* object = READ_FIELD(this, kPrototypeTransitionsOrBackPointerOffset);
-  if (object->IsFixedArray()) {
-    return FixedArray::cast(object);
-  } else {
-    return GetHeap()->empty_fixed_array();
-  }
+// Can either be Smi (no transitions), normal transition array, or a transition
+// array with the header overwritten as a Smi (thus iterating).
+TransitionArray* Map::unchecked_transition_array() {
+  ASSERT(HasTransitionArray());
+  Object* object = *HeapObject::RawField(instance_descriptors(),
+                                         DescriptorArray::kTransitionsOffset);
+  ASSERT(!object->IsSmi());
+  TransitionArray* transition_array = static_cast<TransitionArray*>(object);
+  return transition_array;
 }
 
 
-void Map::set_prototype_transitions(FixedArray* value, WriteBarrierMode mode) {
-  Heap* heap = GetHeap();
-  ASSERT(value != heap->empty_fixed_array());
-  value->set(kProtoTransitionBackPointerOffset, GetBackPointer());
-#ifdef DEBUG
-  if (value != prototype_transitions()) {
-    ZapPrototypeTransitions();
-  }
-#endif
-  WRITE_FIELD(this, kPrototypeTransitionsOrBackPointerOffset, value);
-  CONDITIONAL_WRITE_BARRIER(
-      heap, this, kPrototypeTransitionsOrBackPointerOffset, value, mode);
-}
-
-
-void Map::init_prototype_transitions(Object* undefined) {
-  ASSERT(undefined->IsUndefined());
-  WRITE_FIELD(this, kPrototypeTransitionsOrBackPointerOffset, undefined);
-}
-
-
-HeapObject* Map::unchecked_prototype_transitions() {
-  Object* object = READ_FIELD(this, kPrototypeTransitionsOrBackPointerOffset);
-  return reinterpret_cast<HeapObject*>(object);
+HeapObject* Map::UncheckedPrototypeTransitions() {
+  ASSERT(HasTransitionArray());
+  ASSERT(unchecked_transition_array()->HasPrototypeTransitions());
+  return unchecked_transition_array()->UncheckedPrototypeTransitions();
 }
 
 
@@ -3958,6 +3997,7 @@ BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, is_function, kIsFunction)
 BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, dont_optimize,
                kDontOptimize)
 BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, dont_inline, kDontInline)
+BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, dont_cache, kDontCache)
 
 void SharedFunctionInfo::BeforeVisitingPointers() {
   if (IsInobjectSlackTrackingInProgress()) DetachInitialMap();
@@ -4408,6 +4448,7 @@ void Foreign::set_foreign_address(Address value) {
 
 
 ACCESSORS(JSModule, context, Object, kContextOffset)
+ACCESSORS(JSModule, scope_info, ScopeInfo, kScopeInfoOffset)
 
 
 JSModule* JSModule::cast(Object* obj) {

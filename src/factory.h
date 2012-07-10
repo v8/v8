@@ -163,8 +163,7 @@ class Factory {
   Handle<Context> NewGlobalContext();
 
   // Create a module context.
-  Handle<Context> NewModuleContext(Handle<Context> previous,
-                                   Handle<ScopeInfo> scope_info);
+  Handle<Context> NewModuleContext(Handle<ScopeInfo> scope_info);
 
   // Create a function context.
   Handle<Context> NewFunctionContext(int length, Handle<JSFunction> function);
@@ -267,7 +266,8 @@ class Factory {
   Handle<JSObject> NewJSObjectFromMap(Handle<Map> map);
 
   // JS modules are pretenured.
-  Handle<JSModule> NewJSModule();
+  Handle<JSModule> NewJSModule(Handle<Context> context,
+                               Handle<ScopeInfo> scope_info);
 
   // JS arrays are pretenured when allocated by the parser.
   Handle<JSArray> NewJSArray(
