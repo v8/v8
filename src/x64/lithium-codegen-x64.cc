@@ -5005,7 +5005,7 @@ void LCodeGen::DoForInCacheArray(LForInCacheArray* instr) {
   Register result = ToRegister(instr->result());
   __ LoadInstanceDescriptors(map, result);
   __ movq(result,
-          FieldOperand(result, DescriptorArray::kEnumerationIndexOffset));
+          FieldOperand(result, DescriptorArray::kLastAddedOffset));
   __ movq(result,
           FieldOperand(result, FixedArray::SizeFor(instr->idx())));
   Condition cc = masm()->CheckSmi(result);

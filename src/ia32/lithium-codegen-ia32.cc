@@ -5293,7 +5293,7 @@ void LCodeGen::DoForInCacheArray(LForInCacheArray* instr) {
   Register result = ToRegister(instr->result());
   __ LoadInstanceDescriptors(map, result);
   __ mov(result,
-         FieldOperand(result, DescriptorArray::kEnumerationIndexOffset));
+         FieldOperand(result, DescriptorArray::kLastAddedOffset));
   __ mov(result,
          FieldOperand(result, FixedArray::SizeFor(instr->idx())));
   __ test(result, result);

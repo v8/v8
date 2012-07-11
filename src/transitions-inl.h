@@ -177,8 +177,7 @@ Map* TransitionArray::GetTargetMap(int transition_number) {
 PropertyDetails TransitionArray::GetTargetDetails(int transition_number) {
   Map* map = GetTargetMap(transition_number);
   DescriptorArray* descriptors = map->instance_descriptors();
-  String* key = GetKey(transition_number);
-  int descriptor = descriptors->SearchWithCache(key);
+  int descriptor = descriptors->LastAdded();
   ASSERT(descriptor != DescriptorArray::kNotFound);
   return descriptors->GetDetails(descriptor);
 }

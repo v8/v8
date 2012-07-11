@@ -5360,7 +5360,7 @@ void LCodeGen::DoForInCacheArray(LForInCacheArray* instr) {
   Register scratch = ToRegister(instr->scratch());
   __ LoadInstanceDescriptors(map, result, scratch);
   __ ldr(result,
-         FieldMemOperand(result, DescriptorArray::kEnumerationIndexOffset));
+         FieldMemOperand(result, DescriptorArray::kLastAddedOffset));
   __ ldr(result,
          FieldMemOperand(result, FixedArray::SizeFor(instr->idx())));
   __ cmp(result, Operand(0));

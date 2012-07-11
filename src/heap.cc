@@ -3883,11 +3883,9 @@ MaybeObject* Heap::AllocateInitialMap(JSFunction* fun) {
       for (int i = 0; i < count; i++) {
         String* name = fun->shared()->GetThisPropertyAssignmentName(i);
         ASSERT(name->IsSymbol());
-        FieldDescriptor field(name, i, NONE);
-        field.SetEnumerationIndex(i);
+        FieldDescriptor field(name, i, NONE, i + 1);
         descriptors->Set(i, &field, witness);
       }
-      descriptors->SetNextEnumerationIndex(count);
       descriptors->SortUnchecked(witness);
 
       // The descriptors may contain duplicates because the compiler does not

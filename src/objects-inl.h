@@ -2095,6 +2095,7 @@ void DescriptorArray::Set(int descriptor_number,
                           const WhitenessWitness&) {
   // Range check.
   ASSERT(descriptor_number < number_of_descriptors());
+  ASSERT(desc->GetDetails().index() > 0);
 
   NoIncrementalWriteBarrierSet(this,
                                ToKeyIndex(descriptor_number),

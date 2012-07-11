@@ -2476,37 +2476,44 @@ class DescriptorArray: public FixedArray {
 
   inline int number_of_entries() { return number_of_descriptors(); }
 
-  int NextEnumerationIndex() {
-    if (IsEmpty()) return PropertyDetails::kInitialIndex;
-    Object* obj = get(kEnumerationIndexIndex);
+  int LastAdded() {
+    ASSERT(!IsEmpty());
+    Object* obj = get(kLastAddedIndex);
     if (obj->IsSmi()) {
       return Smi::cast(obj)->value();
     } else {
-      Object* index = FixedArray::cast(obj)->get(kEnumCacheBridgeEnumIndex);
+      Object* index = FixedArray::cast(obj)->get(kEnumCacheBridgeLastAdded);
       return Smi::cast(index)->value();
     }
   }
 
-  // Set next enumeration index and flush any enum cache.
-  void SetNextEnumerationIndex(int value) {
-    if (!IsEmpty()) {
-      set(kEnumerationIndexIndex, Smi::FromInt(value));
+  int NextEnumerationIndex() {
+    if (number_of_descriptors() == 0) {
+      return PropertyDetails::kInitialIndex;
     }
+    return GetDetails(LastAdded()).index() + 1;
   }
+
+  // Set index of the last added descriptor and flush any enum cache.
+  void SetLastAdded(int index) {
+    ASSERT(!IsEmpty() || index > 0);
+    set(kLastAddedIndex, Smi::FromInt(index));
+  }
+
   bool HasEnumCache() {
-    return !IsEmpty() && !get(kEnumerationIndexIndex)->IsSmi();
+    return !IsEmpty() && !get(kLastAddedIndex)->IsSmi();
   }
 
   Object* GetEnumCache() {
     ASSERT(HasEnumCache());
-    FixedArray* bridge = FixedArray::cast(get(kEnumerationIndexIndex));
+    FixedArray* bridge = FixedArray::cast(get(kLastAddedIndex));
     return bridge->get(kEnumCacheBridgeCacheIndex);
   }
 
   Object** GetEnumCacheSlot() {
     ASSERT(HasEnumCache());
     return HeapObject::RawField(reinterpret_cast<HeapObject*>(this),
-                                kEnumerationIndexOffset);
+                                kLastAddedOffset);
   }
 
   Object** GetTransitionsSlot() {
@@ -2604,27 +2611,27 @@ class DescriptorArray: public FixedArray {
   static const int kNotFound = -1;
 
   static const int kBackPointerStorageIndex = 0;
-  static const int kEnumerationIndexIndex = 1;
+  static const int kLastAddedIndex = 1;
   static const int kTransitionsIndex = 2;
   static const int kFirstIndex = 3;
 
   // The length of the "bridge" to the enum cache.
   static const int kEnumCacheBridgeLength = 3;
-  static const int kEnumCacheBridgeEnumIndex = 0;
+  static const int kEnumCacheBridgeLastAdded = 0;
   static const int kEnumCacheBridgeCacheIndex = 1;
   static const int kEnumCacheBridgeIndicesCacheIndex = 2;
 
   // Layout description.
   static const int kBackPointerStorageOffset = FixedArray::kHeaderSize;
-  static const int kEnumerationIndexOffset = kBackPointerStorageOffset +
-                                             kPointerSize;
-  static const int kTransitionsOffset = kEnumerationIndexOffset + kPointerSize;
+  static const int kLastAddedOffset = kBackPointerStorageOffset +
+                                      kPointerSize;
+  static const int kTransitionsOffset = kLastAddedOffset + kPointerSize;
   static const int kFirstOffset = kTransitionsOffset + kPointerSize;
 
   // Layout description for the bridge array.
-  static const int kEnumCacheBridgeEnumOffset = FixedArray::kHeaderSize;
+  static const int kEnumCacheBridgeLastAddedOffset = FixedArray::kHeaderSize;
   static const int kEnumCacheBridgeCacheOffset =
-    kEnumCacheBridgeEnumOffset + kPointerSize;
+    kEnumCacheBridgeLastAddedOffset + kPointerSize;
 
   // Layout of descriptor.
   static const int kDescriptorKey = 0;
@@ -3090,6 +3097,7 @@ class Dictionary: public HashTable<Shape, Key> {
 
   // Accessors for next enumeration index.
   void SetNextEnumerationIndex(int index) {
+    ASSERT(index != 0);
     this->set(kNextEnumerationIndexIndex, Smi::FromInt(index));
   }
 
