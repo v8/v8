@@ -80,8 +80,8 @@ static uint64_t CpuFeaturesImpliedByCompiler() {
 
 
 void CpuFeatures::Probe() {
-  unsigned standard_features = (OS::CpuFeaturesImpliedByPlatform() |
-                                CpuFeaturesImpliedByCompiler());
+  unsigned standard_features = static_cast<unsigned>(
+      OS::CpuFeaturesImpliedByPlatform() | CpuFeaturesImpliedByCompiler());
   ASSERT(supported_ == 0 || supported_ == standard_features);
 #ifdef DEBUG
   initialized_ = true;
@@ -746,7 +746,7 @@ static bool fits_shifter(uint32_t imm32,
         }
       }
     } else if ((*instr & kCmpCmnMask) == kCmpCmnPattern) {
-      if (fits_shifter(-imm32, rotate_imm, immed_8, NULL)) {
+      if (fits_shifter(-static_cast<int>(imm32), rotate_imm, immed_8, NULL)) {
         *instr ^= kCmpCmnFlip;
         return true;
       }
@@ -754,7 +754,7 @@ static bool fits_shifter(uint32_t imm32,
       Instr alu_insn = (*instr & kALUMask);
       if (alu_insn == ADD ||
           alu_insn == SUB) {
-        if (fits_shifter(-imm32, rotate_imm, immed_8, NULL)) {
+        if (fits_shifter(-static_cast<int>(imm32), rotate_imm, immed_8, NULL)) {
           *instr ^= kAddSubFlip;
           return true;
         }
