@@ -639,7 +639,7 @@ class LChunkBase: public ZoneObject {
 
   void AddInstruction(LInstruction* instruction, HBasicBlock* block);
   LConstantOperand* DefineConstantOperand(HConstant* constant);
-  Handle<Object> LookupLiteral(LConstantOperand* operand) const;
+  HConstant* LookupConstant(LConstantOperand* operand) const;
   Representation LookupLiteralRepresentation(LConstantOperand* operand) const;
 
   int ParameterAt(int index);

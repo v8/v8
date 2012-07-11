@@ -1385,41 +1385,78 @@ void HEnterInlined::PrintDataTo(StringStream* stream) {
 }
 
 
+static bool IsInteger32(double value) {
+  double roundtrip_value = static_cast<double>(static_cast<int32_t>(value));
+  return BitCast<int64_t>(roundtrip_value) == BitCast<int64_t>(value);
+}
+
+
 HConstant::HConstant(Handle<Object> handle, Representation r)
     : handle_(handle),
       has_int32_value_(false),
-      has_double_value_(false),
-      int32_value_(0),
-      double_value_(0)  {
+      has_double_value_(false) {
   set_representation(r);
   SetFlag(kUseGVN);
   if (handle_->IsNumber()) {
     double n = handle_->Number();
-    double roundtrip_value = static_cast<double>(static_cast<int32_t>(n));
-    has_int32_value_ = BitCast<int64_t>(roundtrip_value) == BitCast<int64_t>(n);
-    if (has_int32_value_) int32_value_ = static_cast<int32_t>(n);
+    has_int32_value_ = IsInteger32(n);
+    int32_value_ = DoubleToInt32(n);
     double_value_ = n;
     has_double_value_ = true;
   }
 }
 
 
+HConstant::HConstant(int32_t integer_value, Representation r)
+    : has_int32_value_(true),
+      has_double_value_(true),
+      int32_value_(integer_value),
+      double_value_(FastI2D(integer_value)) {
+  set_representation(r);
+  SetFlag(kUseGVN);
+}
+
+
+HConstant::HConstant(double double_value, Representation r)
+    : has_int32_value_(IsInteger32(double_value)),
+      has_double_value_(true),
+      int32_value_(DoubleToInt32(double_value)),
+      double_value_(double_value) {
+  set_representation(r);
+  SetFlag(kUseGVN);
+}
+
+
 HConstant* HConstant::CopyToRepresentation(Representation r, Zone* zone) const {
   if (r.IsInteger32() && !has_int32_value_) return NULL;
   if (r.IsDouble() && !has_double_value_) return NULL;
+  if (handle_.is_null()) {
+    ASSERT(has_int32_value_ || has_double_value_);
+    if (has_int32_value_) return new(zone) HConstant(int32_value_, r);
+    return new(zone) HConstant(double_value_, r);
+  }
   return new(zone) HConstant(handle_, r);
 }
 
 
 HConstant* HConstant::CopyToTruncatedInt32(Zone* zone) const {
-  if (!has_double_value_) return NULL;
-  int32_t truncated = NumberToInt32(*handle_);
-  return new(zone) HConstant(FACTORY->NewNumberFromInt(truncated),
-                             Representation::Integer32());
+  if (has_int32_value_) {
+    if (handle_.is_null()) {
+      return new(zone) HConstant(int32_value_, Representation::Integer32());
+    } else {
+      // Re-use the existing Handle if possible.
+      return new(zone) HConstant(handle_, Representation::Integer32());
+    }
+  } else if (has_double_value_) {
+    return new(zone) HConstant(DoubleToInt32(double_value_),
+                               Representation::Integer32());
+  } else {
+    return NULL;
+  }
 }
 
 
-bool HConstant::ToBoolean() const {
+bool HConstant::ToBoolean() {
   // Converts the constant's boolean value according to
   // ECMAScript section 9.2 ToBoolean conversion.
   if (HasInteger32Value()) return Integer32Value() != 0;
@@ -1427,17 +1464,25 @@ bool HConstant::ToBoolean() const {
     double v = DoubleValue();
     return v != 0 && !isnan(v);
   }
-  if (handle()->IsTrue()) return true;
-  if (handle()->IsFalse()) return false;
-  if (handle()->IsUndefined()) return false;
-  if (handle()->IsNull()) return false;
-  if (handle()->IsString() &&
-      String::cast(*handle())->length() == 0) return false;
+  Handle<Object> literal = handle();
+  if (literal->IsTrue()) return true;
+  if (literal->IsFalse()) return false;
+  if (literal->IsUndefined()) return false;
+  if (literal->IsNull()) return false;
+  if (literal->IsString() && String::cast(*literal)->length() == 0) {
+    return false;
+  }
   return true;
 }
 
 void HConstant::PrintDataTo(StringStream* stream) {
-  handle()->ShortPrint(stream);
+  if (has_int32_value_) {
+    stream->Add("%d ", int32_value_);
+  } else if (has_double_value_) {
+    stream->Add("%lf ", double_value_);
+  } else {
+    handle()->ShortPrint(stream);
+  }
 }
 
 
@@ -2089,6 +2134,10 @@ HType HPhi::CalculateInferredType() {
 
 
 HType HConstant::CalculateInferredType() {
+  if (has_int32_value_) {
+    return Smi::IsValid(int32_value_) ? HType::Smi() : HType::HeapNumber();
+  }
+  if (has_double_value_) return HType::HeapNumber();
   return HType::TypeFromValue(handle_);
 }
 

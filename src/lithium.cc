@@ -375,8 +375,8 @@ void LChunkBase::AddGapMove(int index, LOperand* from, LOperand* to) {
 }
 
 
-Handle<Object> LChunkBase::LookupLiteral(LConstantOperand* operand) const {
-  return HConstant::cast(graph_->LookupValue(operand->index()))->handle();
+HConstant* LChunkBase::LookupConstant(LConstantOperand* operand) const {
+  return HConstant::cast(graph_->LookupValue(operand->index()));
 }
 
 

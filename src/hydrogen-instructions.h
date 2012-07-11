@@ -2453,20 +2453,42 @@ class HArgumentsObject: public HTemplateInstruction<0> {
 class HConstant: public HTemplateInstruction<0> {
  public:
   HConstant(Handle<Object> handle, Representation r);
+  HConstant(int32_t value, Representation r);
+  HConstant(double value, Representation r);
 
-  Handle<Object> handle() const { return handle_; }
+  Handle<Object> handle() {
+    if (handle_.is_null()) {
+      handle_ = FACTORY->NewNumber(double_value_, TENURED);
+    }
+    ASSERT(has_int32_value_ || !handle_->IsSmi());
+    return handle_;
+  }
 
   bool InOldSpace() const { return !HEAP->InNewSpace(*handle_); }
 
   bool ImmortalImmovable() const {
+    if (has_int32_value_) {
+      return false;
+    }
+    if (has_double_value_) {
+      if (BitCast<int64_t>(double_value_) == BitCast<int64_t>(-0.0) ||
+          isnan(double_value_)) {
+        return true;
+      }
+      return false;
+    }
+
+    ASSERT(!handle_.is_null());
     Heap* heap = HEAP;
+    // We should have handled minus_zero_value and nan_value in the
+    // has_double_value_ clause above.
+    ASSERT(*handle_ != heap->minus_zero_value());
+    ASSERT(*handle_ != heap->nan_value());
     if (*handle_ == heap->undefined_value()) return true;
     if (*handle_ == heap->null_value()) return true;
     if (*handle_ == heap->true_value()) return true;
     if (*handle_ == heap->false_value()) return true;
     if (*handle_ == heap->the_hole_value()) return true;
-    if (*handle_ == heap->minus_zero_value()) return true;
-    if (*handle_ == heap->nan_value()) return true;
     if (*handle_ == heap->empty_string()) return true;
     return false;
   }
@@ -2476,18 +2498,14 @@ class HConstant: public HTemplateInstruction<0> {
   }
 
   virtual bool IsConvertibleToInteger() const {
-    if (handle_->IsSmi()) return true;
-    if (handle_->IsHeapNumber() &&
-        (HeapNumber::cast(*handle_)->value() ==
-         static_cast<double>(NumberToInt32(*handle_)))) return true;
-    return false;
+    return has_int32_value_;
   }
 
   virtual bool EmitAtUses() { return !representation().IsDouble(); }
   virtual HValue* Canonicalize();
   virtual void PrintDataTo(StringStream* stream);
   virtual HType CalculateInferredType();
-  bool IsInteger() const { return handle_->IsSmi(); }
+  bool IsInteger() { return handle()->IsSmi(); }
   HConstant* CopyToRepresentation(Representation r, Zone* zone) const;
   HConstant* CopyToTruncatedInt32(Zone* zone) const;
   bool HasInteger32Value() const { return has_int32_value_; }
@@ -2500,24 +2518,31 @@ class HConstant: public HTemplateInstruction<0> {
     ASSERT(HasDoubleValue());
     return double_value_;
   }
-  bool HasNumberValue() const { return has_int32_value_ || has_double_value_; }
+  bool HasNumberValue() const { return has_double_value_; }
   int32_t NumberValueAsInteger32() const {
     ASSERT(HasNumberValue());
-    if (has_int32_value_) return int32_value_;
-    return DoubleToInt32(double_value_);
+    // Irrespective of whether a numeric HConstant can be safely
+    // represented as an int32, we store the (in some cases lossy)
+    // representation of the number in int32_value_.
+    return int32_value_;
   }
-  bool HasStringValue() const { return handle_->IsString(); }
 
-  bool ToBoolean() const;
+  bool ToBoolean();
 
   virtual intptr_t Hashcode() {
     ASSERT(!HEAP->allow_allocation(false));
-    intptr_t hash = reinterpret_cast<intptr_t>(*handle());
-    // Prevent smis from having fewer hash values when truncated to
-    // the least significant bits.
-    const int kShiftSize = kSmiShiftSize + kSmiTagSize;
-    STATIC_ASSERT(kShiftSize != 0);
-    return hash ^ (hash >> kShiftSize);
+    intptr_t hash;
+
+    if (has_int32_value_) {
+      hash = static_cast<intptr_t>(int32_value_);
+    } else if (has_double_value_) {
+      hash = static_cast<intptr_t>(BitCast<int64_t>(double_value_));
+    } else {
+      ASSERT(!handle_.is_null());
+      hash = reinterpret_cast<intptr_t>(*handle_);
+    }
+
+    return hash;
   }
 
 #ifdef DEBUG
@@ -2531,15 +2556,32 @@ class HConstant: public HTemplateInstruction<0> {
 
   virtual bool DataEquals(HValue* other) {
     HConstant* other_constant = HConstant::cast(other);
-    return handle().is_identical_to(other_constant->handle());
+    if (has_int32_value_) {
+      return other_constant->has_int32_value_ &&
+          int32_value_ == other_constant->int32_value_;
+    } else if (has_double_value_) {
+      return other_constant->has_double_value_ &&
+          BitCast<int64_t>(double_value_) ==
+          BitCast<int64_t>(other_constant->double_value_);
+    } else {
+      ASSERT(!handle_.is_null());
+      return !other_constant->handle_.is_null() &&
+          *handle_ == *other_constant->handle_;
+    }
   }
 
  private:
+  // If this is a numerical constant, handle_ either points to to the
+  // HeapObject the constant originated from or is null.  If the
+  // constant is non-numeric, handle_ always points to a valid
+  // constant HeapObject.
   Handle<Object> handle_;
 
-  // The following two values represent the int32 and the double value of the
-  // given constant if there is a lossless conversion between the constant
-  // and the specific representation.
+  // We store the HConstant in the most specific form safely possible.
+  // The two flags, has_int32_value_ and has_double_value_ tell us if
+  // int32_value_ and double_value_ hold valid, safe representations
+  // of the constant.  has_int32_value_ implies has_double_value_ but
+  // not the converse.
   bool has_int32_value_ : 1;
   bool has_double_value_ : 1;
   int32_t int32_value_;
