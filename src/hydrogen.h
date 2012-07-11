@@ -1149,10 +1149,8 @@ class HGraphBuilder: public AstVisitor {
                                Handle<String> name);
   HInstruction* BuildStoreNamed(HValue* object,
                                 HValue* value,
-                                Expression* expr);
-  HInstruction* BuildStoreNamed(HValue* object,
-                                HValue* value,
-                                ObjectLiteral::Property* prop);
+                                Handle<Map> type,
+                                Expression* key);
   HInstruction* BuildStoreNamedField(HValue* object,
                                      Handle<String> name,
                                      HValue* value,
