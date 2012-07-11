@@ -78,7 +78,7 @@ S15.9.3.1_A5_T6: PASS || FAIL_OK
 S15.1.3.1_A2.5_T1: PASS, SKIP if $mode == debug
 S15.1.3.2_A2.5_T1: PASS, SKIP if $mode == debug
 
-[ $arch == arm || $arch == mips ]
+[ $arch == arm || $arch == mipsel ]
 
 # BUG(3251225): Tests that timeout with --nocrankshaft.
 S15.1.3.1_A2.4_T1: SKIP

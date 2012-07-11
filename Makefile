@@ -118,7 +118,7 @@ endif
 
 # Architectures and modes to be compiled. Consider these to be internal
 # variables, don't override them (use the targets instead).
-ARCHES = ia32 x64 arm mips
+ARCHES = ia32 x64 arm mipsel
 DEFAULT_ARCHES = ia32 x64 arm
 MODES = release debug
 ANDROID_MODES = android.release android.debug
@@ -148,6 +148,10 @@ all: $(MODES)
 buildbot:
 	$(MAKE) -C "$(OUTDIR)" BUILDTYPE=$(BUILDTYPE) \
 	        builddir="$(abspath $(OUTDIR))/$(BUILDTYPE)"
+
+mips mips.release mips.debug:
+	@echo "V8 does not support big-endian MIPS builds at the moment," \
+	      "please use little-endian builds (mipsel)."
 
 # Compile targets. MODES and ARCHES are convenience targets.
 .SECONDEXPANSION:

@@ -126,13 +126,13 @@ ecma/Date/15.9.2.2-5: PASS || FAIL
 ecma/Date/15.9.2.2-6: PASS || FAIL
 
 # 1026139: These date tests fail on arm and mips
-ecma/Date/15.9.5.29-1: PASS || FAIL if ($arch == arm || $arch == mips)
-ecma/Date/15.9.5.34-1: PASS || FAIL if ($arch == arm || $arch == mips)
-ecma/Date/15.9.5.28-1: PASS || FAIL if ($arch == arm || $arch == mips)
+ecma/Date/15.9.5.29-1: PASS || FAIL if ($arch == arm || $arch == mipsel)
+ecma/Date/15.9.5.34-1: PASS || FAIL if ($arch == arm || $arch == mipsel)
+ecma/Date/15.9.5.28-1: PASS || FAIL if ($arch == arm || $arch == mipsel)
 
 # 1050186: Arm/MIPS vm is broken; probably unrelated to dates
-ecma/Array/15.4.4.5-3: PASS || FAIL if ($arch == arm || $arch == mips)
-ecma/Date/15.9.5.22-2: PASS || FAIL if ($arch == arm || $arch == mips)
+ecma/Array/15.4.4.5-3: PASS || FAIL if ($arch == arm || $arch == mipsel)
+ecma/Date/15.9.5.22-2: PASS || FAIL if ($arch == arm || $arch == mipsel)
 
 # Flaky test that fails due to what appears to be a bug in the test.
 # Occurs depending on current time
@@ -842,7 +842,7 @@ js1_5/Regress/regress-451322: SKIP
 js1_5/GC/regress-203278-2: PASS || TIMEOUT
 
 
-[ $arch == mips ]
+[ $arch == mipsel ]
 
 # Times out and print so much output that we need to skip it to not
 # hang the builder.
