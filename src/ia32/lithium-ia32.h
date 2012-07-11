@@ -2319,74 +2319,19 @@ class LLoadFieldByIndex: public LTemplateInstruction<1, 2, 0> {
 
 
 class LChunkBuilder;
-class LChunk: public ZoneObject {
+class LChunk: public LChunkBase {
  public:
   LChunk(CompilationInfo* info, HGraph* graph)
-    : spill_slot_count_(0),
-      num_double_slots_(0),
-      info_(info),
-      graph_(graph),
-      instructions_(32, graph->zone()),
-      pointer_maps_(8, graph->zone()),
-      inlined_closures_(1, graph->zone()) { }
-
-  void AddInstruction(LInstruction* instruction, HBasicBlock* block);
-  LConstantOperand* DefineConstantOperand(HConstant* constant);
-  Handle<Object> LookupLiteral(LConstantOperand* operand) const;
-  Representation LookupLiteralRepresentation(LConstantOperand* operand) const;
+      : LChunkBase(info, graph),
+        num_double_slots_(0) { }
 
   int GetNextSpillIndex(bool is_double);
   LOperand* GetNextSpillSlot(bool is_double);
 
-  int ParameterAt(int index);
-  int GetParameterStackSlot(int index) const;
-  int spill_slot_count() const { return spill_slot_count_; }
   int num_double_slots() const { return num_double_slots_; }
-  CompilationInfo* info() const { return info_; }
-  HGraph* graph() const { return graph_; }
-  const ZoneList<LInstruction*>* instructions() const { return &instructions_; }
-  void AddGapMove(int index, LOperand* from, LOperand* to);
-  LGap* GetGapAt(int index) const;
-  bool IsGapAt(int index) const;
-  int NearestGapPos(int index) const;
-  void MarkEmptyBlocks();
-  const ZoneList<LPointerMap*>* pointer_maps() const { return &pointer_maps_; }
-  LLabel* GetLabel(int block_id) const {
-    HBasicBlock* block = graph_->blocks()->at(block_id);
-    int first_instruction = block->first_instruction_index();
-    return LLabel::cast(instructions_[first_instruction]);
-  }
-  int LookupDestination(int block_id) const {
-    LLabel* cur = GetLabel(block_id);
-    while (cur->replacement() != NULL) {
-      cur = cur->replacement();
-    }
-    return cur->block_id();
-  }
-  Label* GetAssemblyLabel(int block_id) const {
-    LLabel* label = GetLabel(block_id);
-    ASSERT(!label->HasReplacement());
-    return label->label();
-  }
-
-  const ZoneList<Handle<JSFunction> >* inlined_closures() const {
-    return &inlined_closures_;
-  }
-
-  void AddInlinedClosure(Handle<JSFunction> closure) {
-    inlined_closures_.Add(closure, zone());
-  }
-
-  Zone* zone() const { return graph_->zone(); }
 
  private:
-  int spill_slot_count_;
   int num_double_slots_;
-  CompilationInfo* info_;
-  HGraph* const graph_;
-  ZoneList<LInstruction*> instructions_;
-  ZoneList<LPointerMap*> pointer_maps_;
-  ZoneList<Handle<JSFunction> > inlined_closures_;
 };
 
 

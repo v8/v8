@@ -622,6 +622,64 @@ class DeepIterator BASE_EMBEDDED {
 };
 
 
+class LGap;
+class LLabel;
+
+// Superclass providing data and behavior common to all the
+// arch-specific LChunk classes.
+class LChunkBase: public ZoneObject {
+ public:
+  LChunkBase(CompilationInfo* info, HGraph* graph)
+    : spill_slot_count_(0),
+      info_(info),
+      graph_(graph),
+      instructions_(32, graph->zone()),
+      pointer_maps_(8, graph->zone()),
+      inlined_closures_(1, graph->zone()) { }
+
+  void AddInstruction(LInstruction* instruction, HBasicBlock* block);
+  LConstantOperand* DefineConstantOperand(HConstant* constant);
+  Handle<Object> LookupLiteral(LConstantOperand* operand) const;
+  Representation LookupLiteralRepresentation(LConstantOperand* operand) const;
+
+  int ParameterAt(int index);
+  int GetParameterStackSlot(int index) const;
+  int spill_slot_count() const { return spill_slot_count_; }
+  CompilationInfo* info() const { return info_; }
+  HGraph* graph() const { return graph_; }
+  const ZoneList<LInstruction*>* instructions() const { return &instructions_; }
+  void AddGapMove(int index, LOperand* from, LOperand* to);
+  LGap* GetGapAt(int index) const;
+  bool IsGapAt(int index) const;
+  int NearestGapPos(int index) const;
+  void MarkEmptyBlocks();
+  const ZoneList<LPointerMap*>* pointer_maps() const { return &pointer_maps_; }
+  LLabel* GetLabel(int block_id) const;
+  int LookupDestination(int block_id) const;
+  Label* GetAssemblyLabel(int block_id) const;
+
+  const ZoneList<Handle<JSFunction> >* inlined_closures() const {
+    return &inlined_closures_;
+  }
+
+  void AddInlinedClosure(Handle<JSFunction> closure) {
+    inlined_closures_.Add(closure, zone());
+  }
+
+  Zone* zone() const { return info_->zone(); }
+
+ protected:
+  int spill_slot_count_;
+
+ private:
+  CompilationInfo* info_;
+  HGraph* const graph_;
+  ZoneList<LInstruction*> instructions_;
+  ZoneList<LPointerMap*> pointer_maps_;
+  ZoneList<Handle<JSFunction> > inlined_closures_;
+};
+
+
 int ElementsKindToShiftSize(ElementsKind elements_kind);
 
 
