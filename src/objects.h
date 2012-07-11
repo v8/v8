@@ -4910,7 +4910,11 @@ class Map: public HeapObject {
                                     String* name,
                                     LookupResult* result);
 
+  MUST_USE_RESULT MaybeObject* RawCopy(int instance_size);
+  MUST_USE_RESULT MaybeObject* CopyWithPreallocatedFieldDescriptors();
   MUST_USE_RESULT MaybeObject* CopyDropDescriptors();
+  MUST_USE_RESULT MaybeObject* CopyReplaceDescriptors(
+      DescriptorArray* descriptors);
 
   MUST_USE_RESULT MaybeObject* CopyNormalized(PropertyNormalizationMode mode,
                                               NormalizedMapSharingMode sharing);

@@ -4180,10 +4180,10 @@ MaybeObject* Heap::AllocateGlobalObject(JSFunction* constructor) {
   InitializeJSObjectFromMap(global, dictionary, map);
 
   // Create a new map for the global object.
-  { MaybeObject* maybe_obj = map->CopyDropDescriptors();
-    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
+  Map* new_map;
+  { MaybeObject* maybe_map = map->CopyDropDescriptors();
+    if (!maybe_map->To(&new_map)) return maybe_map;
   }
-  Map* new_map = Map::cast(obj);
 
   // Set up the global object as a normalized object.
   global->set_map(new_map);

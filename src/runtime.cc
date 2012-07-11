@@ -2180,24 +2180,16 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_FunctionSetReadOnlyPrototype) {
         static_cast<PropertyAttributes>(details.attributes() | READ_ONLY),
         details.index());
     // Construct a new field descriptors array containing the new descriptor.
-    Object* descriptors_unchecked;
-    { MaybeObject* maybe_descriptors_unchecked =
-        instance_desc->CopyInsert(&new_desc);
-      if (!maybe_descriptors_unchecked->ToObject(&descriptors_unchecked)) {
-        return maybe_descriptors_unchecked;
-      }
+    DescriptorArray* new_descriptors;
+    { MaybeObject* maybe_descriptors = instance_desc->CopyInsert(&new_desc);
+      if (!maybe_descriptors->To(&new_descriptors)) return maybe_descriptors;
     }
-    DescriptorArray* new_descriptors =
-        DescriptorArray::cast(descriptors_unchecked);
     // Create a new map featuring the new field descriptors array.
     Map* new_map;
-    { MaybeObject* maybe_map_unchecked =
-          function->map()->CopyDropDescriptors();
-      if (!maybe_map_unchecked->To(&new_map)) {
-        return maybe_map_unchecked;
-      }
+    { MaybeObject* maybe_map =
+          function->map()->CopyReplaceDescriptors(new_descriptors);
+      if (!maybe_map->To(&new_map)) return maybe_map;
     }
-    new_map->set_instance_descriptors(new_descriptors);
     function->set_map(new_map);
   } else {  // Dictionary properties.
     // Directly manipulate the property details.

@@ -465,14 +465,15 @@ Handle<JSObject> Factory::NewFunctionPrototype(Handle<JSFunction> function) {
 }
 
 
-Handle<Map> Factory::CopyMapDropDescriptors(Handle<Map> src) {
-  CALL_HEAP_FUNCTION(isolate(), src->CopyDropDescriptors(), Map);
+Handle<Map> Factory::CopyWithPreallocatedFieldDescriptors(Handle<Map> src) {
+  CALL_HEAP_FUNCTION(
+      isolate(), src->CopyWithPreallocatedFieldDescriptors(), Map);
 }
 
 
 Handle<Map> Factory::CopyMap(Handle<Map> src,
                              int extra_inobject_properties) {
-  Handle<Map> copy = CopyMapDropDescriptors(src);
+  Handle<Map> copy = CopyWithPreallocatedFieldDescriptors(src);
   // Check that we do not overflow the instance size when adding the
   // extra inobject properties.
   int instance_size_delta = extra_inobject_properties * kPointerSize;
