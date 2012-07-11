@@ -1147,6 +1147,7 @@ TEST(ParserSync) {
     { "with ({})", "" },
     { "switch (12) { case 12: ", "}" },
     { "switch (12) { default: ", "}" },
+    { "switch (12) { ", "case 12: }" },
     { "label2: ", "" },
     { NULL, NULL }
   };
