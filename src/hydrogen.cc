@@ -1711,14 +1711,11 @@ class HGlobalValueNumberer BASE_EMBEDDED {
         block_side_effects_(graph->blocks()->length(), graph->zone()),
         loop_side_effects_(graph->blocks()->length(), graph->zone()),
         visited_on_paths_(graph->zone(), graph->blocks()->length()) {
-    ASSERT(info->isolate()->heap()->allow_allocation(false));
+    ASSERT(!info->isolate()->heap()->IsAllocationAllowed());
     block_side_effects_.AddBlock(GVNFlagSet(), graph_->blocks()->length(),
                                  graph_->zone());
     loop_side_effects_.AddBlock(GVNFlagSet(), graph_->blocks()->length(),
                                 graph_->zone());
-  }
-  ~HGlobalValueNumberer() {
-    ASSERT(!info_->isolate()->heap()->allow_allocation(true));
   }
 
   // Returns true if values with side effects are removed.
@@ -3085,6 +3082,9 @@ HGraph* HGraphBuilder::CreateGraph() {
 }
 
 bool HGraph::Optimize(SmartArrayPointer<char>* bailout_reason) {
+  NoHandleAllocation no_handles;
+  AssertNoAllocation no_gc;
+
   *bailout_reason = SmartArrayPointer<char>();
   OrderBlocks();
   AssignDominators();
@@ -3482,7 +3482,6 @@ void HGraph::EliminateRedundantBoundsChecks(HBasicBlock* bb,
 
 void HGraph::EliminateRedundantBoundsChecks() {
   HPhase phase("H_Eliminate bounds checks", this);
-  AssertNoAllocation no_gc;
   BoundsCheckTable checks_table(zone());
   EliminateRedundantBoundsChecks(entry_block(), &checks_table);
 }
