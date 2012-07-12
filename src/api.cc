@@ -33,7 +33,6 @@
 #include "../include/v8-profiler.h"
 #include "../include/v8-testing.h"
 #include "bootstrapper.h"
-#include "code-stubs.h"
 #include "compiler.h"
 #include "conversions-inl.h"
 #include "counters.h"
@@ -4230,11 +4229,6 @@ void v8::V8::SetEntropySource(EntropySource source) {
 void v8::V8::SetReturnAddressLocationResolver(
       ReturnAddressLocationResolver return_address_resolver) {
   i::V8::SetReturnAddressLocationResolver(return_address_resolver);
-}
-
-
-bool v8::V8::SetFunctionEntryHook(FunctionEntryHook entry_hook) {
-  return i::ProfileEntryHookStub::SetFunctionEntryHook(entry_hook);
 }
 
 

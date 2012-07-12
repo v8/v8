@@ -7513,63 +7513,6 @@ void StoreArrayLiteralElementStub::Generate(MacroAssembler* masm) {
   __ Ret();
 }
 
-
-void ProfileEntryHookStub::MaybeCallEntryHook(MacroAssembler* masm) {
-  if (entry_hook_ != NULL) {
-    ProfileEntryHookStub stub;
-    __ push(lr);
-    __ CallStub(&stub);
-    __ pop(lr);
-  }
-}
-
-
-void ProfileEntryHookStub::Generate(MacroAssembler* masm) {
-  // The entry hook is a "push lr" instruction, followed by a call.
-  const int32_t kReturnAddressDistanceFromFunctionStart =
-      Assembler::kCallTargetAddressOffset + Assembler::kInstrSize;
-
-  // Save live volatile registers.
-  __ Push(lr, r5, r1);
-  const int32_t kNumSavedRegs = 3;
-
-  // Compute the function's address for the first argument.
-  __ sub(r0, lr, Operand(kReturnAddressDistanceFromFunctionStart));
-
-  // The caller's return address is above the saved temporaries.
-  // Grab that for the second argument to the hook.
-  __ add(r1, sp, Operand(kNumSavedRegs * kPointerSize));
-
-  // Align the stack if necessary.
-  int frame_alignment = masm->ActivationFrameAlignment();
-  if (frame_alignment > kPointerSize) {
-    __ mov(r5, sp);
-    ASSERT(IsPowerOf2(frame_alignment));
-    __ and_(sp, sp, Operand(-frame_alignment));
-  }
-
-#if defined(V8_HOST_ARCH_ARM)
-  __ mov(ip, Operand(reinterpret_cast<int32_t>(&entry_hook_)));
-  __ ldr(ip, MemOperand(ip));
-#else
-  // Under the simulator we need to indirect the entry hook through a
-  // trampoline function at a known address.
-  ApiFunction dispatcher(reinterpret_cast<Address>(EntryHookTrampoline));
-  __ mov(ip, Operand(ExternalReference(&dispatcher,
-                                       ExternalReference::BUILTIN_CALL,
-                                       masm->isolate())));
-#endif
-  __ Call(ip);
-
-  // Restore the stack pointer if needed.
-  if (frame_alignment > kPointerSize) {
-    __ mov(sp, r5);
-  }
-
-  __ Pop(lr, r5, r1);
-  __ Ret();
-}
-
 #undef __
 
 } }  // namespace v8::internal

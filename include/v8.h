@@ -2915,31 +2915,13 @@ typedef bool (*EntropySource)(unsigned char* buffer, size_t length);
  * resolving the location of a return address on the stack. Profilers that
  * change the return address on the stack can use this to resolve the stack
  * location to whereever the profiler stashed the original return address.
- *
- * \param return_addr_location points to a location on stack where a machine
- *    return address resides.
- * \returns either return_addr_location, or else a pointer to the profiler's
- *    copy of the original return address.
- *
- * \note the resolver function must not cause garbage collection.
+ * When invoked, return_addr_location will point to a location on stack where
+ * a machine return address resides, this function should return either the
+ * same pointer, or a pointer to the profiler's copy of the original return
+ * address.
  */
 typedef uintptr_t (*ReturnAddressLocationResolver)(
     uintptr_t return_addr_location);
-
-
-/**
- * FunctionEntryHook is the type of the profile entry hook called at entry to
- * any generated function when function-level profiling is enabled.
- *
- * \param function the address of the function that's being entered.
- * \param return_addr_location points to a location on stack where the machine
- *    return address resides. This can be used to identify the caller of
- *    \p function, and/or modified to divert execution when \p function exits.
- *
- * \note the entry hook must not cause garbage collection.
- */
-typedef void (*FunctionEntryHook)(uintptr_t function,
-                                  uintptr_t return_addr_location);
 
 
 /**
@@ -3201,20 +3183,6 @@ class V8EXPORT V8 {
    */
   static void SetReturnAddressLocationResolver(
       ReturnAddressLocationResolver return_address_resolver);
-
-  /**
-   * Allows the host application to provide the address of a function that's
-   * invoked on entry to every V8-generated function.
-   * Note that \p entry_hook is invoked at the very start of each
-   * generated function.
-   *
-   * \param entry_hook a function that will be invoked on entry to every
-   *   V8-generated function.
-   * \returns true on success on supported platforms, false on failure.
-   * \note Setting a new entry hook function when one is already active will
-   *   fail.
-   */
-  static bool SetFunctionEntryHook(FunctionEntryHook entry_hook);
 
   /**
    * Adjusts the amount of registered external memory.  Used to give
