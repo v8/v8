@@ -281,8 +281,6 @@ class HGraph: public ZoneObject {
 
   void CollectPhis();
 
-  Handle<Code> Compile();
-
   void set_undefined_constant(HConstant* constant) {
     undefined_constant_.set(constant);
   }
@@ -312,6 +310,8 @@ class HGraph: public ZoneObject {
     if (id >= 0 && id < values_.length()) return values_[id];
     return NULL;
   }
+
+  bool Optimize(SmartArrayPointer<char>* bailout_reason);
 
 #ifdef DEBUG
   void Verify(bool do_full_verify) const;

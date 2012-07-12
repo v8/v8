@@ -703,47 +703,6 @@ HGraph::HGraph(CompilationInfo* info)
 }
 
 
-Handle<Code> HGraph::Compile() {
-  int values = GetMaximumValueID();
-  if (values > LUnallocated::kMaxVirtualRegisters) {
-    if (FLAG_trace_bailout) {
-      PrintF("Not enough virtual registers for (values).\n");
-    }
-    return Handle<Code>::null();
-  }
-  LAllocator allocator(values, this);
-  LChunkBuilder builder(info(), this, &allocator);
-  LChunk* chunk = builder.Build();
-  if (chunk == NULL) return Handle<Code>::null();
-
-  if (!allocator.Allocate(chunk)) {
-    if (FLAG_trace_bailout) {
-      PrintF("Not enough virtual registers (regalloc).\n");
-    }
-    return Handle<Code>::null();
-  }
-
-  MacroAssembler assembler(isolate(), NULL, 0);
-  LCodeGen generator(chunk, &assembler, info());
-
-  chunk->MarkEmptyBlocks();
-
-  if (generator.GenerateCode()) {
-    if (FLAG_trace_codegen) {
-      PrintF("Crankshaft Compiler - ");
-    }
-    CodeGenerator::MakeCodePrologue(info());
-    Code::Flags flags = Code::ComputeFlags(Code::OPTIMIZED_FUNCTION);
-    Handle<Code> code =
-        CodeGenerator::MakeCodeEpilogue(&assembler, flags, info());
-    generator.FinishCode(code);
-    CodeGenerator::PrintCode(code, info());
-    return code;
-  }
-  return Handle<Code>::null();
-}
-
-
 HBasicBlock* HGraph::CreateBasicBlock() {
   HBasicBlock* result = new(zone()) HBasicBlock(this);
   blocks_.Add(result, zone());
@@ -3122,48 +3081,55 @@ HGraph* HGraphBuilder::CreateGraph() {
     }
   }
 
-  graph()->OrderBlocks();
-  graph()->AssignDominators();
+  return graph();
+}
+
+bool HGraph::Optimize(SmartArrayPointer<char>* bailout_reason) {
+  *bailout_reason = SmartArrayPointer<char>();
+  OrderBlocks();
+  AssignDominators();
 
 #ifdef DEBUG
   // Do a full verify after building the graph and computing dominators.
-  graph()->Verify(true);
+  Verify(true);
 #endif
 
-  graph()->PropagateDeoptimizingMark();
-  if (!graph()->CheckConstPhiUses()) {
-    Bailout("Unsupported phi use of const variable");
-    return NULL;
+  PropagateDeoptimizingMark();
+  if (!CheckConstPhiUses()) {
+    *bailout_reason = SmartArrayPointer<char>(StrDup(
+        "Unsupported phi use of const variable"));
+    return false;
   }
-  graph()->EliminateRedundantPhis();
-  if (!graph()->CheckArgumentsPhiUses()) {
-    Bailout("Unsupported phi use of arguments");
-    return NULL;
+  EliminateRedundantPhis();
+  if (!CheckArgumentsPhiUses()) {
+    *bailout_reason = SmartArrayPointer<char>(StrDup(
+        "Unsupported phi use of arguments"));
+    return false;
   }
-  if (FLAG_eliminate_dead_phis) graph()->EliminateUnreachablePhis();
-  graph()->CollectPhis();
+  if (FLAG_eliminate_dead_phis) EliminateUnreachablePhis();
+  CollectPhis();
 
-  if (graph()->has_osr_loop_entry()) {
-    const ZoneList<HPhi*>* phis = graph()->osr_loop_entry()->phis();
+  if (has_osr_loop_entry()) {
+    const ZoneList<HPhi*>* phis = osr_loop_entry()->phis();
     for (int j = 0; j < phis->length(); j++) {
       HPhi* phi = phis->at(j);
-      graph()->osr_values()->at(phi->merged_index())->set_incoming_value(phi);
+      osr_values()->at(phi->merged_index())->set_incoming_value(phi);
     }
   }
 
-  HInferRepresentation rep(graph());
+  HInferRepresentation rep(this);
   rep.Analyze();
 
-  graph()->MarkDeoptimizeOnUndefined();
-  graph()->InsertRepresentationChanges();
+  MarkDeoptimizeOnUndefined();
+  InsertRepresentationChanges();
 
-  graph()->InitializeInferredTypes();
-  graph()->Canonicalize();
+  InitializeInferredTypes();
+  Canonicalize();
 
   // Perform common subexpression elimination and loop-invariant code motion.
   if (FLAG_use_gvn) {
-    HPhase phase("H_Global value numbering", graph());
-    HGlobalValueNumberer gvn(graph(), info());
+    HPhase phase("H_Global value numbering", this);
+    HGlobalValueNumberer gvn(this, info());
     bool removed_side_effects = gvn.Analyze();
     // Trigger a second analysis pass to further eliminate duplicate values that
     // could only be discovered by removing side-effect-generating instructions
@@ -3175,19 +3141,19 @@ HGraph* HGraphBuilder::CreateGraph() {
   }
 
   if (FLAG_use_range) {
-    HRangeAnalysis rangeAnalysis(graph());
+    HRangeAnalysis rangeAnalysis(this);
     rangeAnalysis.Analyze();
   }
-  graph()->ComputeMinusZeroChecks();
+  ComputeMinusZeroChecks();
 
   // Eliminate redundant stack checks on backwards branches.
-  HStackCheckEliminator sce(graph());
+  HStackCheckEliminator sce(this);
   sce.Process();
 
-  graph()->EliminateRedundantBoundsChecks();
-  graph()->DehoistSimpleArrayIndexComputations();
+  EliminateRedundantBoundsChecks();
+  DehoistSimpleArrayIndexComputations();
 
-  return graph();
+  return true;
 }
 
 

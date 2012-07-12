@@ -46,9 +46,9 @@ class SafepointGenerator;
 
 class LCodeGen BASE_EMBEDDED {
  public:
-  LCodeGen(LChunk* chunk, MacroAssembler* assembler, CompilationInfo* info)
+  LCodeGen(LChunkBase* chunk, MacroAssembler* assembler, CompilationInfo* info)
       : zone_(info->zone()),
-        chunk_(chunk),
+        chunk_(static_cast<LChunk*>(chunk)),
         masm_(assembler),
         info_(info),
         current_block_(-1),

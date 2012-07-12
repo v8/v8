@@ -31,12 +31,16 @@
 
 #if V8_TARGET_ARCH_IA32
 #include "ia32/lithium-ia32.h"
+#include "ia32/lithium-codegen-ia32.h"
 #elif V8_TARGET_ARCH_X64
 #include "x64/lithium-x64.h"
+#include "x64/lithium-codegen-x64.h"
 #elif V8_TARGET_ARCH_ARM
 #include "arm/lithium-arm.h"
+#include "arm/lithium-codegen-arm.h"
 #elif V8_TARGET_ARCH_MIPS
 #include "mips/lithium-mips.h"
+#include "mips/lithium-codegen-mips.h"
 #else
 #error "Unknown architecture."
 #endif
@@ -383,6 +387,52 @@ HConstant* LChunkBase::LookupConstant(LConstantOperand* operand) const {
 Representation LChunkBase::LookupLiteralRepresentation(
     LConstantOperand* operand) const {
   return graph_->LookupValue(operand->index())->representation();
+}
+
+
+LChunkBase* LChunkBase::NewChunk(HGraph* graph) {
+  int values = graph->GetMaximumValueID();
+  if (values > LUnallocated::kMaxVirtualRegisters) {
+    if (FLAG_trace_bailout) {
+      PrintF("Not enough virtual registers for (values).\n");
+    }
+    return NULL;
+  }
+  LAllocator allocator(values, graph);
+  LChunkBuilder builder(graph->info(), graph, &allocator);
+  LChunkBase* chunk = builder.Build();
+  if (chunk == NULL) return NULL;
+
+  if (!allocator.Allocate(chunk)) {
+    if (FLAG_trace_bailout) {
+      PrintF("Not enough virtual registers (regalloc).\n");
+    }
+    return NULL;
+  }
+
+  return chunk;
+}
+
+
+Handle<Code> LChunkBase::Codegen() {
+  MacroAssembler assembler(info()->isolate(), NULL, 0);
+  LCodeGen generator(this, &assembler, info());
+
+  MarkEmptyBlocks();
+
+  if (generator.GenerateCode()) {
+    if (FLAG_trace_codegen) {
+      PrintF("Crankshaft Compiler - ");
+    }
+    CodeGenerator::MakeCodePrologue(info());
+    Code::Flags flags = Code::ComputeFlags(Code::OPTIMIZED_FUNCTION);
+    Handle<Code> code =
+        CodeGenerator::MakeCodeEpilogue(&assembler, flags, info());
+    generator.FinishCode(code);
+    CodeGenerator::PrintCode(code, info());
+    return code;
+  }
+  return Handle<Code>::null();
 }
 
 

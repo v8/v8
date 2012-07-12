@@ -445,7 +445,7 @@ class LAllocator BASE_EMBEDDED {
   // Returns the register kind required by the given virtual register.
   RegisterKind RequiredRegisterKind(int virtual_register) const;
 
-  bool Allocate(LChunk* chunk);
+  bool Allocate(LChunkBase* chunk);
 
   const ZoneList<LiveRange*>* live_ranges() const { return &live_ranges_; }
   const Vector<LiveRange*>* fixed_live_ranges() const {
