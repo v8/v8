@@ -1,3 +1,28 @@
+2012-07-12: Version 3.12.11
+
+        Renamed "mips" arch to "mipsel" in the GYP build.
+
+        Fixed computation of call targets on prototypes in Crankshaft.
+        (Chromium issue 125148)
+
+        Removed use of __lookupGetter__ when generating stack trace.
+        (issue 1591)
+
+        Turned on ES 5.2 globals semantics by default.
+        (issue 1991, Chromium issue 80591)
+
+        Synced preparser and parser wrt syntax error in switch..case.
+        (issue 2210)
+
+        Fixed reporting of octal literals in strict mode when preparsing.
+        (issue 2220)
+
+        Fixed inline constructors for Harmony Proxy prototypes.
+        (issue 2225)
+
+        Performance and stability improvements on all platforms.
+
+
 2012-07-10: Version 3.12.10
 
         Re-enabled and fixed issue with array bounds check elimination
