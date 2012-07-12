@@ -2875,16 +2875,8 @@ MaybeObject* JSObject::SetPropertyForResult(LookupResult* result,
       Object* transition = result->GetTransitionValue();
 
       if (transition->IsAccessorPair()) {
-        if (!AccessorPair::cast(transition)->ContainsAccessor()) {
-          return self->ConvertDescriptorToField(*name,
-                                                *value,
-                                                attributes);
-        }
-        return self->SetPropertyWithCallback(transition,
-                                             *name,
-                                             *value,
-                                             result->holder(),
-                                             strict_mode);
+        ASSERT(!AccessorPair::cast(transition)->ContainsAccessor());
+        return ConvertDescriptorToField(*name, *value, attributes);
       }
 
       Map* transition_map = Map::cast(transition);
@@ -3008,6 +3000,7 @@ MaybeObject* JSObject::SetLocalPropertyIgnoreAttributes(
       Object* transition = result.GetTransitionValue();
 
       if (transition->IsAccessorPair()) {
+        ASSERT(!AccessorPair::cast(transition)->ContainsAccessor());
         return ConvertDescriptorToField(name, value, attributes);
       }
 
