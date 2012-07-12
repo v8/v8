@@ -2180,24 +2180,16 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_FunctionSetReadOnlyPrototype) {
         static_cast<PropertyAttributes>(details.attributes() | READ_ONLY),
         details.index());
     // Construct a new field descriptors array containing the new descriptor.
-    Object* descriptors_unchecked;
-    { MaybeObject* maybe_descriptors_unchecked =
-        instance_desc->CopyInsert(&new_desc);
-      if (!maybe_descriptors_unchecked->ToObject(&descriptors_unchecked)) {
-        return maybe_descriptors_unchecked;
-      }
+    DescriptorArray* new_descriptors;
+    { MaybeObject* maybe_descriptors = instance_desc->CopyInsert(&new_desc);
+      if (!maybe_descriptors->To(&new_descriptors)) return maybe_descriptors;
     }
-    DescriptorArray* new_descriptors =
-        DescriptorArray::cast(descriptors_unchecked);
     // Create a new map featuring the new field descriptors array.
-    Object* map_unchecked;
-    { MaybeObject* maybe_map_unchecked = function->map()->CopyDropDescriptors();
-      if (!maybe_map_unchecked->ToObject(&map_unchecked)) {
-        return maybe_map_unchecked;
-      }
+    Map* new_map;
+    { MaybeObject* maybe_map =
+          function->map()->CopyReplaceDescriptors(new_descriptors);
+      if (!maybe_map->To(&new_map)) return maybe_map;
     }
-    Map* new_map = Map::cast(map_unchecked);
-    new_map->set_instance_descriptors(new_descriptors);
     function->set_map(new_map);
   } else {  // Dictionary properties.
     // Directly manipulate the property details.
@@ -10257,11 +10249,12 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetArrayKeys) {
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_LookupAccessor) {
   ASSERT(args.length() == 3);
-  CONVERT_ARG_CHECKED(JSObject, obj, 0);
+  CONVERT_ARG_CHECKED(JSReceiver, receiver, 0);
   CONVERT_ARG_CHECKED(String, name, 1);
   CONVERT_SMI_ARG_CHECKED(flag, 2);
   AccessorComponent component = flag == 0 ? ACCESSOR_GETTER : ACCESSOR_SETTER;
-  return obj->LookupAccessor(name, component);
+  if (!receiver->IsJSObject()) return isolate->heap()->undefined_value();
+  return JSObject::cast(receiver)->LookupAccessor(name, component);
 }
 
 

@@ -1283,7 +1283,7 @@ def ProcessOptions(options):
     options.scons_flags.append("arch=" + options.arch)
   # Simulators are slow, therefore allow a longer default timeout.
   if options.timeout == -1:
-    if options.arch in ['android', 'arm', 'mips']:
+    if options.arch in ['android', 'arm', 'mipsel']:
       options.timeout = 2 * TIMEOUT_DEFAULT;
     else:
       options.timeout = TIMEOUT_DEFAULT;

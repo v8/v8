@@ -2011,7 +2011,7 @@ void V8HeapExplorer::ExtractMapReferences(int entry, Map* map) {
     TagObject(map->instance_descriptors(), "(map descriptors)");
     SetInternalReference(map, entry,
                          "descriptors", map->instance_descriptors(),
-                         Map::kInstanceDescriptorsOrBitField3Offset);
+                         Map::kInstanceDescriptorsOrBackPointerOffset);
   }
   SetInternalReference(map, entry,
                        "code_cache", map->code_cache(),

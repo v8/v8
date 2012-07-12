@@ -4362,6 +4362,7 @@ class SingletonLogger : public ParserRecorder {
                           int end,
                           const char* message,
                           const char* argument_opt) {
+    if (has_error_) return;
     has_error_ = true;
     start_ = start;
     end_ = end;

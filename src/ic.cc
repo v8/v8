@@ -1518,8 +1518,7 @@ void StoreIC::UpdateCaches(LookupResult* lookup,
 
       Handle<Map> transition(Map::cast(value));
       DescriptorArray* target_descriptors = transition->instance_descriptors();
-      int descriptor = target_descriptors->SearchWithCache(*name);
-      ASSERT(descriptor != DescriptorArray::kNotFound);
+      int descriptor = target_descriptors->LastAdded();
       PropertyDetails details = target_descriptors->GetDetails(descriptor);
 
       if (details.type() != FIELD || details.attributes() != NONE) return;
@@ -1990,8 +1989,7 @@ void KeyedStoreIC::UpdateCaches(LookupResult* lookup,
 
       Handle<Map> transition(Map::cast(value));
       DescriptorArray* target_descriptors = transition->instance_descriptors();
-      int descriptor = target_descriptors->SearchWithCache(*name);
-      ASSERT(descriptor != DescriptorArray::kNotFound);
+      int descriptor = target_descriptors->LastAdded();
       PropertyDetails details = target_descriptors->GetDetails(descriptor);
 
       if (details.type() == FIELD && details.attributes() == NONE) {

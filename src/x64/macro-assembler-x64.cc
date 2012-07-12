@@ -2853,11 +2853,17 @@ void MacroAssembler::ClampDoubleToUint8(XMMRegister input_reg,
 void MacroAssembler::LoadInstanceDescriptors(Register map,
                                              Register descriptors) {
   movq(descriptors, FieldOperand(map,
-                                 Map::kInstanceDescriptorsOrBitField3Offset));
-  Label not_smi;
-  JumpIfNotSmi(descriptors, &not_smi, Label::kNear);
+                                 Map::kInstanceDescriptorsOrBackPointerOffset));
+
+  Label ok, fail;
+  CheckMap(descriptors,
+           isolate()->factory()->fixed_array_map(),
+           &fail,
+           DONT_DO_SMI_CHECK);
+  jmp(&ok);
+  bind(&fail);
   Move(descriptors, isolate()->factory()->empty_descriptor_array());
-  bind(&not_smi);
+  bind(&ok);
 }
 
 
@@ -4457,13 +4463,17 @@ void MacroAssembler::CheckEnumCache(Register null_value, Label* call_runtime) {
   // check for an enum cache.  Leave the map in rbx for the subsequent
   // prototype load.
   movq(rbx, FieldOperand(rcx, HeapObject::kMapOffset));
-  movq(rdx, FieldOperand(rbx, Map::kInstanceDescriptorsOrBitField3Offset));
-  JumpIfSmi(rdx, call_runtime);
+  movq(rdx, FieldOperand(rbx, Map::kInstanceDescriptorsOrBackPointerOffset));
+
+  CheckMap(rdx,
+           isolate()->factory()->fixed_array_map(),
+           call_runtime,
+           DONT_DO_SMI_CHECK);
 
   // Check that there is an enum cache in the non-empty instance
   // descriptors (rdx).  This is the case if the next enumeration
   // index field does not contain a smi.
-  movq(rdx, FieldOperand(rdx, DescriptorArray::kEnumerationIndexOffset));
+  movq(rdx, FieldOperand(rdx, DescriptorArray::kLastAddedOffset));
   JumpIfSmi(rdx, call_runtime);
 
   // For all objects but the receiver, check that the cache is empty.

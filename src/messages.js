@@ -859,9 +859,9 @@ function CallSiteGetMethodName() {
   }
   var name = null;
   for (var prop in this.receiver) {
-    if (this.receiver.__lookupGetter__(prop) === this.fun ||
-        this.receiver.__lookupSetter__(prop) === this.fun ||
-        (!this.receiver.__lookupGetter__(prop) &&
+    if (%_CallFunction(this.receiver, prop, ObjectLookupGetter) === this.fun ||
+        %_CallFunction(this.receiver, prop, ObjectLookupSetter) === this.fun ||
+        (!%_CallFunction(this.receiver, prop, ObjectLookupGetter) &&
          this.receiver[prop] === this.fun)) {
       // If we find more than one match bail out to avoid confusion.
       if (name) {

@@ -2476,37 +2476,44 @@ class DescriptorArray: public FixedArray {
 
   inline int number_of_entries() { return number_of_descriptors(); }
 
-  int NextEnumerationIndex() {
-    if (IsEmpty()) return PropertyDetails::kInitialIndex;
-    Object* obj = get(kEnumerationIndexIndex);
+  int LastAdded() {
+    ASSERT(!IsEmpty());
+    Object* obj = get(kLastAddedIndex);
     if (obj->IsSmi()) {
       return Smi::cast(obj)->value();
     } else {
-      Object* index = FixedArray::cast(obj)->get(kEnumCacheBridgeEnumIndex);
+      Object* index = FixedArray::cast(obj)->get(kEnumCacheBridgeLastAdded);
       return Smi::cast(index)->value();
     }
   }
 
-  // Set next enumeration index and flush any enum cache.
-  void SetNextEnumerationIndex(int value) {
-    if (!IsEmpty()) {
-      set(kEnumerationIndexIndex, Smi::FromInt(value));
+  int NextEnumerationIndex() {
+    if (number_of_descriptors() == 0) {
+      return PropertyDetails::kInitialIndex;
     }
+    return GetDetails(LastAdded()).index() + 1;
   }
+
+  // Set index of the last added descriptor and flush any enum cache.
+  void SetLastAdded(int index) {
+    ASSERT(!IsEmpty() || index > 0);
+    set(kLastAddedIndex, Smi::FromInt(index));
+  }
+
   bool HasEnumCache() {
-    return !IsEmpty() && !get(kEnumerationIndexIndex)->IsSmi();
+    return !IsEmpty() && !get(kLastAddedIndex)->IsSmi();
   }
 
   Object* GetEnumCache() {
     ASSERT(HasEnumCache());
-    FixedArray* bridge = FixedArray::cast(get(kEnumerationIndexIndex));
+    FixedArray* bridge = FixedArray::cast(get(kLastAddedIndex));
     return bridge->get(kEnumCacheBridgeCacheIndex);
   }
 
   Object** GetEnumCacheSlot() {
     ASSERT(HasEnumCache());
     return HeapObject::RawField(reinterpret_cast<HeapObject*>(this),
-                                kEnumerationIndexOffset);
+                                kLastAddedOffset);
   }
 
   Object** GetTransitionsSlot() {
@@ -2514,11 +2521,7 @@ class DescriptorArray: public FixedArray {
                                 kTransitionsOffset);
   }
 
-  // TODO(1399): It should be possible to make room for bit_field3 in the map
-  //             without overloading the instance descriptors field in the map
-  //             (and storing it in the DescriptorArray when the map has one).
-  inline int bit_field3_storage();
-  inline void set_bit_field3_storage(int value);
+  DECL_ACCESSORS(back_pointer_storage, Object)
 
   // Initialize or change the enum cache,
   // using the supplied storage for the small "bridge".
@@ -2607,28 +2610,28 @@ class DescriptorArray: public FixedArray {
   // Constant for denoting key was not found.
   static const int kNotFound = -1;
 
-  static const int kBitField3StorageIndex = 0;
-  static const int kEnumerationIndexIndex = 1;
+  static const int kBackPointerStorageIndex = 0;
+  static const int kLastAddedIndex = 1;
   static const int kTransitionsIndex = 2;
   static const int kFirstIndex = 3;
 
   // The length of the "bridge" to the enum cache.
   static const int kEnumCacheBridgeLength = 3;
-  static const int kEnumCacheBridgeEnumIndex = 0;
+  static const int kEnumCacheBridgeLastAdded = 0;
   static const int kEnumCacheBridgeCacheIndex = 1;
   static const int kEnumCacheBridgeIndicesCacheIndex = 2;
 
   // Layout description.
-  static const int kBitField3StorageOffset = FixedArray::kHeaderSize;
-  static const int kEnumerationIndexOffset = kBitField3StorageOffset +
-                                             kPointerSize;
-  static const int kTransitionsOffset = kEnumerationIndexOffset + kPointerSize;
+  static const int kBackPointerStorageOffset = FixedArray::kHeaderSize;
+  static const int kLastAddedOffset = kBackPointerStorageOffset +
+                                      kPointerSize;
+  static const int kTransitionsOffset = kLastAddedOffset + kPointerSize;
   static const int kFirstOffset = kTransitionsOffset + kPointerSize;
 
   // Layout description for the bridge array.
-  static const int kEnumCacheBridgeEnumOffset = FixedArray::kHeaderSize;
+  static const int kEnumCacheBridgeLastAddedOffset = FixedArray::kHeaderSize;
   static const int kEnumCacheBridgeCacheOffset =
-    kEnumCacheBridgeEnumOffset + kPointerSize;
+    kEnumCacheBridgeLastAddedOffset + kPointerSize;
 
   // Layout of descriptor.
   static const int kDescriptorKey = 0;
@@ -3094,6 +3097,7 @@ class Dictionary: public HashTable<Shape, Key> {
 
   // Accessors for next enumeration index.
   void SetNextEnumerationIndex(int index) {
+    ASSERT(index != 0);
     this->set(kNextEnumerationIndexIndex, Smi::FromInt(index));
   }
 
@@ -4676,12 +4680,8 @@ class Map: public HeapObject {
   inline void set_bit_field2(byte value);
 
   // Bit field 3.
-  // TODO(1399): It should be possible to make room for bit_field3 in the map
-  // without overloading the instance descriptors field (and storing it in the
-  // DescriptorArray when the map has one).
   inline int bit_field3();
   inline void set_bit_field3(int value);
-  inline void SetOwnBitField3(int value);
 
   // Tells whether the object in the prototype property will be used
   // for instances created from this function.  If the prototype
@@ -4812,7 +4812,8 @@ class Map: public HeapObject {
                                                     Object* value);
   MUST_USE_RESULT inline MaybeObject* set_transitions(
       TransitionArray* transitions);
-  inline void ClearTransitions();
+  inline void ClearTransitions(Heap* heap,
+                               WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   // Tells whether the map is attached to SharedFunctionInfo
   // (for inobject slack tracking).
@@ -4839,20 +4840,12 @@ class Map: public HeapObject {
 
   inline JSFunction* unchecked_constructor();
 
-  // Should only be called by the code that initializes map to set initial valid
-  // value of the instance descriptor member.
-  inline void init_instance_descriptors();
-
   // [instance descriptors]: describes the object.
   DECL_ACCESSORS(instance_descriptors, DescriptorArray)
 
   // Should only be called to clear a descriptor array that was only used to
   // store transitions and does not contain any live transitions anymore.
-  inline void ClearDescriptorArray();
-
-  // Sets the instance descriptor array for the map to be an empty descriptor
-  // array.
-  inline void clear_instance_descriptors();
+  inline void ClearDescriptorArray(Heap* heap, WriteBarrierMode mode);
 
   // [stub cache]: contains stubs compiled for this map.
   DECL_ACCESSORS(code_cache, Object)
@@ -4917,7 +4910,11 @@ class Map: public HeapObject {
                                     String* name,
                                     LookupResult* result);
 
+  MUST_USE_RESULT MaybeObject* RawCopy(int instance_size);
+  MUST_USE_RESULT MaybeObject* CopyWithPreallocatedFieldDescriptors();
   MUST_USE_RESULT MaybeObject* CopyDropDescriptors();
+  MUST_USE_RESULT MaybeObject* CopyReplaceDescriptors(
+      DescriptorArray* descriptors);
 
   MUST_USE_RESULT MaybeObject* CopyNormalized(PropertyNormalizationMode mode,
                                               NormalizedMapSharingMode sharing);
@@ -5047,23 +5044,18 @@ class Map: public HeapObject {
   // map flags when unused (bit_field3). When the map has instance descriptors,
   // the flags are transferred to the instance descriptor array and accessed
   // through an extra indirection.
-  // TODO(1399): It should be possible to make room for bit_field3 in the map
-  // without overloading the instance descriptors field, but the map is
-  // currently perfectly aligned to 32 bytes and extending it at all would
-  // double its size.  After the increment GC work lands, this size restriction
-  // could be loosened and bit_field3 moved directly back in the map.
-  static const int kInstanceDescriptorsOrBitField3Offset =
+  static const int kInstanceDescriptorsOrBackPointerOffset =
       kConstructorOffset + kPointerSize;
   static const int kCodeCacheOffset =
-      kInstanceDescriptorsOrBitField3Offset + kPointerSize;
-  static const int kBackPointerOffset = kCodeCacheOffset + kPointerSize;
-  static const int kPadStart = kBackPointerOffset + kPointerSize;
+      kInstanceDescriptorsOrBackPointerOffset + kPointerSize;
+  static const int kBitField3Offset = kCodeCacheOffset + kPointerSize;
+  static const int kPadStart = kBitField3Offset + kPointerSize;
   static const int kSize = MAP_POINTER_ALIGN(kPadStart);
 
   // Layout of pointer fields. Heap iteration code relies on them
   // being continuously allocated.
   static const int kPointerFieldsBeginOffset = Map::kPrototypeOffset;
-  static const int kPointerFieldsEndOffset = kBackPointerOffset + kPointerSize;
+  static const int kPointerFieldsEndOffset = kBitField3Offset + kPointerSize;
 
   // Byte offsets within kInstanceSizesOffset.
   static const int kInstanceSizeOffset = kInstanceSizesOffset + 0;

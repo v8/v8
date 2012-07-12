@@ -92,7 +92,7 @@ class Descriptor BASE_EMBEDDED {
              Object* value,
              PropertyAttributes attributes,
              PropertyType type,
-             int index = 0)
+             int index)
       : key_(key),
         value_(value),
         details_(attributes, type, index) { }
@@ -106,7 +106,7 @@ class FieldDescriptor: public Descriptor {
   FieldDescriptor(String* key,
                   int field_index,
                   PropertyAttributes attributes,
-                  int index = 0)
+                  int index)
       : Descriptor(key, Smi::FromInt(field_index), attributes, FIELD, index) {}
 };
 
@@ -116,7 +116,7 @@ class ConstantFunctionDescriptor: public Descriptor {
   ConstantFunctionDescriptor(String* key,
                              JSFunction* function,
                              PropertyAttributes attributes,
-                             int index = 0)
+                             int index)
       : Descriptor(key, function, attributes, CONSTANT_FUNCTION, index) {}
 };
 
@@ -126,7 +126,7 @@ class CallbacksDescriptor:  public Descriptor {
   CallbacksDescriptor(String* key,
                       Object* foreign,
                       PropertyAttributes attributes,
-                      int index = 0)
+                      int index)
       : Descriptor(key, foreign, attributes, CALLBACKS, index) {}
 };
 

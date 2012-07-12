@@ -376,42 +376,6 @@ LOperand* LChunk::GetNextSpillSlot(bool is_double) {
 }
 
 
-void LChunk::MarkEmptyBlocks() {
-  HPhase phase("L_Mark empty blocks", this);
-  for (int i = 0; i < graph()->blocks()->length(); ++i) {
-    HBasicBlock* block = graph()->blocks()->at(i);
-    int first = block->first_instruction_index();
-    int last = block->last_instruction_index();
-    LInstruction* first_instr = instructions()->at(first);
-    LInstruction* last_instr = instructions()->at(last);
-
-    LLabel* label = LLabel::cast(first_instr);
-    if (last_instr->IsGoto()) {
-      LGoto* goto_instr = LGoto::cast(last_instr);
-      if (label->IsRedundant() &&
-          !label->is_loop_header()) {
-        bool can_eliminate = true;
-        for (int i = first + 1; i < last && can_eliminate; ++i) {
-          LInstruction* cur = instructions()->at(i);
-          if (cur->IsGap()) {
-            LGap* gap = LGap::cast(cur);
-            if (!gap->IsRedundant()) {
-              can_eliminate = false;
-            }
-          } else {
-            can_eliminate = false;
-          }
-        }
-
-        if (can_eliminate) {
-          label->set_replacement(GetLabel(goto_instr->block_id()));
-        }
-      }
-    }
-  }
-}
-
-
 void LStoreNamedField::PrintDataTo(StringStream* stream) {
   object()->PrintTo(stream);
   stream->Add(".");
@@ -460,81 +424,6 @@ void LStoreKeyedGeneric::PrintDataTo(StringStream* stream) {
 void LTransitionElementsKind::PrintDataTo(StringStream* stream) {
   object()->PrintTo(stream);
   stream->Add(" %p -> %p", *original_map(), *transitioned_map());
-}
-
-
-void LChunk::AddInstruction(LInstruction* instr, HBasicBlock* block) {
-  LInstructionGap* gap = new(graph_->zone()) LInstructionGap(block);
-  int index = -1;
-  if (instr->IsControl()) {
-    instructions_.Add(gap, zone());
-    index = instructions_.length();
-    instructions_.Add(instr, zone());
-  } else {
-    index = instructions_.length();
-    instructions_.Add(instr, zone());
-    instructions_.Add(gap, zone());
-  }
-  if (instr->HasPointerMap()) {
-    pointer_maps_.Add(instr->pointer_map(), zone());
-    instr->pointer_map()->set_lithium_position(index);
-  }
-}
-
-
-LConstantOperand* LChunk::DefineConstantOperand(HConstant* constant) {
-  return LConstantOperand::Create(constant->id(), zone());
-}
-
-
-int LChunk::GetParameterStackSlot(int index) const {
-  // The receiver is at index 0, the first parameter at index 1, so we
-  // shift all parameter indexes down by the number of parameters, and
-  // make sure they end up negative so they are distinguishable from
-  // spill slots.
-  int result = index - info()->scope()->num_parameters() - 1;
-  ASSERT(result < 0);
-  return result;
-}
-
-// A parameter relative to ebp in the arguments stub.
-int LChunk::ParameterAt(int index) {
-  ASSERT(-1 <= index);  // -1 is the receiver.
-  return (1 + info()->scope()->num_parameters() - index) *
-      kPointerSize;
-}
-
-
-LGap* LChunk::GetGapAt(int index) const {
-  return LGap::cast(instructions_[index]);
-}
-
-
-bool LChunk::IsGapAt(int index) const {
-  return instructions_[index]->IsGap();
-}
-
-
-int LChunk::NearestGapPos(int index) const {
-  while (!IsGapAt(index)) index--;
-  return index;
-}
-
-
-void LChunk::AddGapMove(int index, LOperand* from, LOperand* to) {
-  GetGapAt(index)->GetOrCreateParallelMove(
-      LGap::START, zone())->AddMove(from, to, zone());
-}
-
-
-Handle<Object> LChunk::LookupLiteral(LConstantOperand* operand) const {
-  return HConstant::cast(graph_->LookupValue(operand->index()))->handle();
-}
-
-
-Representation LChunk::LookupLiteralRepresentation(
-    LConstantOperand* operand) const {
-  return graph_->LookupValue(operand->index())->representation();
 }
 
 

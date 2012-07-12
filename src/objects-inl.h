@@ -1896,14 +1896,17 @@ bool DescriptorArray::HasTransitionArray() {
 }
 
 
-int DescriptorArray::bit_field3_storage() {
-  Object* storage = READ_FIELD(this, kBitField3StorageOffset);
-  return Smi::cast(storage)->value();
+Object* DescriptorArray::back_pointer_storage() {
+  return READ_FIELD(this, kBackPointerStorageOffset);
 }
 
-void DescriptorArray::set_bit_field3_storage(int value) {
-  ASSERT(length() > kBitField3StorageIndex);
-  WRITE_FIELD(this, kBitField3StorageOffset, Smi::FromInt(value));
+
+void DescriptorArray::set_back_pointer_storage(Object* value,
+                                               WriteBarrierMode mode) {
+  ASSERT(length() > kBackPointerStorageIndex);
+  Heap* heap = GetHeap();
+  WRITE_FIELD(this, kBackPointerStorageOffset, value);
+  CONDITIONAL_WRITE_BARRIER(heap, this, kBackPointerStorageOffset, value, mode);
 }
 
 
@@ -2092,6 +2095,7 @@ void DescriptorArray::Set(int descriptor_number,
                           const WhitenessWitness&) {
   // Range check.
   ASSERT(descriptor_number < number_of_descriptors());
+  ASSERT(desc->GetDetails().index() > 0);
 
   NoIncrementalWriteBarrierSet(this,
                                ToKeyIndex(descriptor_number),
@@ -3437,8 +3441,9 @@ void Map::set_prototype(Object* value, WriteBarrierMode mode) {
 
 
 DescriptorArray* Map::instance_descriptors() {
-  Object* object = READ_FIELD(this, kInstanceDescriptorsOrBitField3Offset);
-  if (object->IsSmi()) {
+  Object* object = READ_FIELD(this, kInstanceDescriptorsOrBackPointerOffset);
+  if (!object->IsDescriptorArray()) {
+    ASSERT(object->IsMap() || object->IsUndefined());
     return GetHeap()->empty_descriptor_array();
   } else {
     return DescriptorArray::cast(object);
@@ -3446,85 +3451,60 @@ DescriptorArray* Map::instance_descriptors() {
 }
 
 
-void Map::init_instance_descriptors() {
-  WRITE_FIELD(this, kInstanceDescriptorsOrBitField3Offset, Smi::FromInt(0));
-}
-
-
-void Map::clear_instance_descriptors() {
-  Object* object = READ_FIELD(this, kInstanceDescriptorsOrBitField3Offset);
-  if (!object->IsSmi()) {
-    WRITE_FIELD(
-        this,
-        kInstanceDescriptorsOrBitField3Offset,
-        Smi::FromInt(DescriptorArray::cast(object)->bit_field3_storage()));
-  }
-}
-
-
 void Map::set_instance_descriptors(DescriptorArray* value,
                                    WriteBarrierMode mode) {
-  Object* object = READ_FIELD(this,
-                              kInstanceDescriptorsOrBitField3Offset);
   Heap* heap = GetHeap();
+
   if (value == heap->empty_descriptor_array()) {
-    clear_instance_descriptors();
+    ClearDescriptorArray(heap, mode);
     return;
-  } else {
-    if (object->IsSmi()) {
-      value->set_bit_field3_storage(Smi::cast(object)->value());
-    } else {
-      value->set_bit_field3_storage(
-          DescriptorArray::cast(object)->bit_field3_storage());
-    }
   }
+
+  Object* object = READ_FIELD(this, kInstanceDescriptorsOrBackPointerOffset);
+
+  if (object->IsDescriptorArray()) {
+    value->set_back_pointer_storage(
+        DescriptorArray::cast(object)->back_pointer_storage());
+  } else {
+    ASSERT(object->IsMap() || object->IsUndefined());
+    value->set_back_pointer_storage(object);
+  }
+
   ASSERT(!is_shared());
-  WRITE_FIELD(this, kInstanceDescriptorsOrBitField3Offset, value);
+  WRITE_FIELD(this, kInstanceDescriptorsOrBackPointerOffset, value);
   CONDITIONAL_WRITE_BARRIER(
-      heap, this, kInstanceDescriptorsOrBitField3Offset, value, mode);
+      heap, this, kInstanceDescriptorsOrBackPointerOffset, value, mode);
 }
 
 
-int Map::bit_field3() {
-  Object* object = READ_FIELD(this,
-                              kInstanceDescriptorsOrBitField3Offset);
-  if (object->IsSmi()) {
-    return Smi::cast(object)->value();
-  } else {
-    return DescriptorArray::cast(object)->bit_field3_storage();
-  }
-}
+SMI_ACCESSORS(Map, bit_field3, kBitField3Offset)
 
 
-void Map::ClearDescriptorArray() {
-  int bitfield3 = bit_field3();
+void Map::ClearDescriptorArray(Heap* heap, WriteBarrierMode mode) {
+  Object* back_pointer = GetBackPointer();
 #ifdef DEBUG
-  Object* object = READ_FIELD(this, kInstanceDescriptorsOrBitField3Offset);
-  if (!object->IsSmi()) {
+  Object* object = READ_FIELD(this, kInstanceDescriptorsOrBackPointerOffset);
+  if (object->IsDescriptorArray()) {
     ZapTransitions();
+  } else {
+    ASSERT(object->IsMap() || object->IsUndefined());
   }
 #endif
-  WRITE_FIELD(this,
-              kInstanceDescriptorsOrBitField3Offset,
-              Smi::FromInt(bitfield3));
+  WRITE_FIELD(this, kInstanceDescriptorsOrBackPointerOffset, back_pointer);
+  CONDITIONAL_WRITE_BARRIER(
+      heap, this, kInstanceDescriptorsOrBackPointerOffset, back_pointer, mode);
 }
 
-
-void Map::set_bit_field3(int value) {
-  ASSERT(Smi::IsValid(value));
-  Object* object = READ_FIELD(this, kInstanceDescriptorsOrBitField3Offset);
-  if (object->IsSmi()) {
-    WRITE_FIELD(this,
-                kInstanceDescriptorsOrBitField3Offset,
-                Smi::FromInt(value));
-  } else {
-    DescriptorArray::cast(object)->set_bit_field3_storage(value);
-  }
-}
 
 
 Object* Map::GetBackPointer() {
-  return READ_FIELD(this, kBackPointerOffset);
+  Object* object = READ_FIELD(this, kInstanceDescriptorsOrBackPointerOffset);
+  if (object->IsDescriptorArray()) {
+    return DescriptorArray::cast(object)->back_pointer_storage();
+  } else {
+    ASSERT(object->IsMap() || object->IsUndefined());
+    return object;
+  }
 }
 
 
@@ -3549,8 +3529,8 @@ MaybeObject* Map::AddTransition(String* key, Object* value) {
 }
 
 
-// If the map does not have a descriptor array, install a new empty
-// descriptor array that has room for a transition array.
+// If the map is using the empty descriptor array, install a new empty
+// descriptor array that will contain an elements transition.
 static MaybeObject* AllowTransitions(Map* map) {
   if (map->instance_descriptors()->MayContainTransitions()) return map;
   DescriptorArray* descriptors;
@@ -3619,13 +3599,13 @@ TransitionArray* Map::transitions() {
 }
 
 
-void Map::ClearTransitions() {
+void Map::ClearTransitions(Heap* heap, WriteBarrierMode mode) {
 #ifdef DEBUG
   ZapTransitions();
 #endif
   DescriptorArray* descriptors = instance_descriptors();
   if (descriptors->number_of_descriptors() == 0) {
-    ClearDescriptorArray();
+    ClearDescriptorArray(heap, mode);
   } else {
     descriptors->ClearTransitions();
   }
@@ -3648,17 +3628,22 @@ MaybeObject* Map::set_transitions(TransitionArray* transitions_array) {
 
 void Map::init_back_pointer(Object* undefined) {
   ASSERT(undefined->IsUndefined());
-  WRITE_FIELD(this, kBackPointerOffset, undefined);
+  WRITE_FIELD(this, kInstanceDescriptorsOrBackPointerOffset, undefined);
 }
 
 
 void Map::SetBackPointer(Object* value, WriteBarrierMode mode) {
-  Heap* heap = GetHeap();
   ASSERT(instance_type() >= FIRST_JS_RECEIVER_TYPE);
   ASSERT((value->IsUndefined() && GetBackPointer()->IsMap()) ||
          (value->IsMap() && GetBackPointer()->IsUndefined()));
-  WRITE_FIELD(this, kBackPointerOffset, value);
-  CONDITIONAL_WRITE_BARRIER(heap, this, kBackPointerOffset, value, mode);
+  Object* object = READ_FIELD(this, kInstanceDescriptorsOrBackPointerOffset);
+  if (object->IsMap()) {
+    WRITE_FIELD(this, kInstanceDescriptorsOrBackPointerOffset, value);
+    CONDITIONAL_WRITE_BARRIER(
+        GetHeap(), this, kInstanceDescriptorsOrBackPointerOffset, value, mode);
+  } else {
+    DescriptorArray::cast(object)->set_back_pointer_storage(value);
+  }
 }
 
 

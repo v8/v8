@@ -399,8 +399,12 @@ class DeferredHandles {
  private:
   DeferredHandles(DeferredHandles* next, Object** first_block_limit,
                   HandleScopeImplementer* impl)
-      : next_(next), previous_(NULL), first_block_limit_(first_block_limit),
-        impl_(impl) {}
+      : next_(next),
+        previous_(NULL),
+        first_block_limit_(first_block_limit),
+        impl_(impl) {
+    if (next != NULL) next->previous_ = this;
+  }
 
   void Iterate(ObjectVisitor* v);
 

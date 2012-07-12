@@ -465,14 +465,15 @@ Handle<JSObject> Factory::NewFunctionPrototype(Handle<JSFunction> function) {
 }
 
 
-Handle<Map> Factory::CopyMapDropDescriptors(Handle<Map> src) {
-  CALL_HEAP_FUNCTION(isolate(), src->CopyDropDescriptors(), Map);
+Handle<Map> Factory::CopyWithPreallocatedFieldDescriptors(Handle<Map> src) {
+  CALL_HEAP_FUNCTION(
+      isolate(), src->CopyWithPreallocatedFieldDescriptors(), Map);
 }
 
 
 Handle<Map> Factory::CopyMap(Handle<Map> src,
                              int extra_inobject_properties) {
-  Handle<Map> copy = CopyMapDropDescriptors(src);
+  Handle<Map> copy = CopyWithPreallocatedFieldDescriptors(src);
   // Check that we do not overflow the instance size when adding the
   // extra inobject properties.
   int instance_size_delta = extra_inobject_properties * kPointerSize;
@@ -892,7 +893,7 @@ MUST_USE_RESULT static inline MaybeObject* DoCopyInsert(
     String* key,
     Object* value,
     PropertyAttributes attributes) {
-  CallbacksDescriptor desc(key, value, attributes);
+  CallbacksDescriptor desc(key, value, attributes, 0);
   MaybeObject* obj = array->CopyInsert(&desc);
   return obj;
 }
@@ -936,6 +937,8 @@ Handle<DescriptorArray> Factory::CopyAppendCallbackDescriptors(
   // Fill in new callback descriptors.  Process the callbacks from
   // back to front so that the last callback with a given name takes
   // precedence over previously added callbacks with that name.
+  int added_descriptor_count = descriptor_count;
+  int next_enum = array->NextEnumerationIndex();
   for (int i = nof_callbacks - 1; i >= 0; i--) {
     Handle<AccessorInfo> entry =
         Handle<AccessorInfo>(AccessorInfo::cast(callbacks.get(i)));
@@ -943,19 +946,26 @@ Handle<DescriptorArray> Factory::CopyAppendCallbackDescriptors(
     Handle<String> key =
         SymbolFromString(Handle<String>(String::cast(entry->name())));
     // Check if a descriptor with this name already exists before writing.
-    if (LinearSearch(*result, EXPECT_UNSORTED, *key, descriptor_count) ==
+    if (LinearSearch(*result, EXPECT_UNSORTED, *key, added_descriptor_count) ==
         DescriptorArray::kNotFound) {
-      CallbacksDescriptor desc(*key, *entry, entry->property_attributes());
-      result->Set(descriptor_count, &desc, witness);
-      descriptor_count++;
+      CallbacksDescriptor desc(*key,
+                               *entry,
+                               entry->property_attributes(),
+                               next_enum++);
+      result->Set(added_descriptor_count, &desc, witness);
+      added_descriptor_count++;
     }
   }
 
+  // Return the old descriptor array if there were no new elements.
+  if (added_descriptor_count == descriptor_count) return array;
+
   // If duplicates were detected, allocate a result of the right size
   // and transfer the elements.
-  if (descriptor_count < result->length()) {
-    Handle<DescriptorArray> new_result = NewDescriptorArray(descriptor_count);
-    for (int i = 0; i < descriptor_count; i++) {
+  if (added_descriptor_count < result->length()) {
+    Handle<DescriptorArray> new_result =
+        NewDescriptorArray(added_descriptor_count);
+    for (int i = 0; i < added_descriptor_count; i++) {
       DescriptorArray::CopyFrom(new_result, i, result, i, witness);
     }
     result = new_result;
@@ -963,6 +973,7 @@ Handle<DescriptorArray> Factory::CopyAppendCallbackDescriptors(
 
   // Sort the result before returning.
   result->Sort(witness);
+  ASSERT(result->NextEnumerationIndex() == next_enum);
   return result;
 }
 

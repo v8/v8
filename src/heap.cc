@@ -320,52 +320,52 @@ void Heap::ReportStatisticsBeforeGC() {
 
 void Heap::PrintShortHeapStatistics() {
   if (!FLAG_trace_gc_verbose) return;
-  PrintF("Memory allocator,   used: %6" V8_PTR_PREFIX "d KB"
-             ", available: %6" V8_PTR_PREFIX "d KB\n",
-         isolate_->memory_allocator()->Size() / KB,
-         isolate_->memory_allocator()->Available() / KB);
-  PrintF("New space,          used: %6" V8_PTR_PREFIX "d KB"
-             ", available: %6" V8_PTR_PREFIX "d KB"
-             ", committed: %6" V8_PTR_PREFIX "d KB\n",
-         new_space_.Size() / KB,
-         new_space_.Available() / KB,
-         new_space_.CommittedMemory() / KB);
-  PrintF("Old pointers,       used: %6" V8_PTR_PREFIX "d KB"
-             ", available: %6" V8_PTR_PREFIX "d KB"
-             ", committed: %6" V8_PTR_PREFIX "d KB\n",
-         old_pointer_space_->SizeOfObjects() / KB,
-         old_pointer_space_->Available() / KB,
-         old_pointer_space_->CommittedMemory() / KB);
-  PrintF("Old data space,     used: %6" V8_PTR_PREFIX "d KB"
-             ", available: %6" V8_PTR_PREFIX "d KB"
-             ", committed: %6" V8_PTR_PREFIX "d KB\n",
-         old_data_space_->SizeOfObjects() / KB,
-         old_data_space_->Available() / KB,
-         old_data_space_->CommittedMemory() / KB);
-  PrintF("Code space,         used: %6" V8_PTR_PREFIX "d KB"
-             ", available: %6" V8_PTR_PREFIX "d KB"
-             ", committed: %6" V8_PTR_PREFIX "d KB\n",
-         code_space_->SizeOfObjects() / KB,
-         code_space_->Available() / KB,
-         code_space_->CommittedMemory() / KB);
-  PrintF("Map space,          used: %6" V8_PTR_PREFIX "d KB"
-             ", available: %6" V8_PTR_PREFIX "d KB"
-             ", committed: %6" V8_PTR_PREFIX "d KB\n",
-         map_space_->SizeOfObjects() / KB,
-         map_space_->Available() / KB,
-         map_space_->CommittedMemory() / KB);
-  PrintF("Cell space,         used: %6" V8_PTR_PREFIX "d KB"
-             ", available: %6" V8_PTR_PREFIX "d KB"
-             ", committed: %6" V8_PTR_PREFIX "d KB\n",
-         cell_space_->SizeOfObjects() / KB,
-         cell_space_->Available() / KB,
-         cell_space_->CommittedMemory() / KB);
-  PrintF("Large object space, used: %6" V8_PTR_PREFIX "d KB"
-             ", available: %6" V8_PTR_PREFIX "d KB"
-             ", committed: %6" V8_PTR_PREFIX "d KB\n",
-         lo_space_->SizeOfObjects() / KB,
-         lo_space_->Available() / KB,
-         lo_space_->CommittedMemory() / KB);
+  PrintPID("Memory allocator,   used: %6" V8_PTR_PREFIX "d KB"
+               ", available: %6" V8_PTR_PREFIX "d KB\n",
+           isolate_->memory_allocator()->Size() / KB,
+           isolate_->memory_allocator()->Available() / KB);
+  PrintPID("New space,          used: %6" V8_PTR_PREFIX "d KB"
+               ", available: %6" V8_PTR_PREFIX "d KB"
+               ", committed: %6" V8_PTR_PREFIX "d KB\n",
+           new_space_.Size() / KB,
+           new_space_.Available() / KB,
+           new_space_.CommittedMemory() / KB);
+  PrintPID("Old pointers,       used: %6" V8_PTR_PREFIX "d KB"
+               ", available: %6" V8_PTR_PREFIX "d KB"
+               ", committed: %6" V8_PTR_PREFIX "d KB\n",
+           old_pointer_space_->SizeOfObjects() / KB,
+           old_pointer_space_->Available() / KB,
+           old_pointer_space_->CommittedMemory() / KB);
+  PrintPID("Old data space,     used: %6" V8_PTR_PREFIX "d KB"
+               ", available: %6" V8_PTR_PREFIX "d KB"
+               ", committed: %6" V8_PTR_PREFIX "d KB\n",
+           old_data_space_->SizeOfObjects() / KB,
+           old_data_space_->Available() / KB,
+           old_data_space_->CommittedMemory() / KB);
+  PrintPID("Code space,         used: %6" V8_PTR_PREFIX "d KB"
+               ", available: %6" V8_PTR_PREFIX "d KB"
+               ", committed: %6" V8_PTR_PREFIX "d KB\n",
+           code_space_->SizeOfObjects() / KB,
+           code_space_->Available() / KB,
+           code_space_->CommittedMemory() / KB);
+  PrintPID("Map space,          used: %6" V8_PTR_PREFIX "d KB"
+               ", available: %6" V8_PTR_PREFIX "d KB"
+               ", committed: %6" V8_PTR_PREFIX "d KB\n",
+           map_space_->SizeOfObjects() / KB,
+           map_space_->Available() / KB,
+           map_space_->CommittedMemory() / KB);
+  PrintPID("Cell space,         used: %6" V8_PTR_PREFIX "d KB"
+               ", available: %6" V8_PTR_PREFIX "d KB"
+               ", committed: %6" V8_PTR_PREFIX "d KB\n",
+           cell_space_->SizeOfObjects() / KB,
+           cell_space_->Available() / KB,
+           cell_space_->CommittedMemory() / KB);
+  PrintPID("Large object space, used: %6" V8_PTR_PREFIX "d KB"
+               ", available: %6" V8_PTR_PREFIX "d KB"
+               ", committed: %6" V8_PTR_PREFIX "d KB\n",
+           lo_space_->SizeOfObjects() / KB,
+           lo_space_->Available() / KB,
+           lo_space_->CommittedMemory() / KB);
 }
 
 
@@ -906,8 +906,8 @@ bool Heap::PerformGarbageCollection(GarbageCollector collector,
     // have to limit maximal capacity of the young generation.
     new_space_high_promotion_mode_active_ = true;
     if (FLAG_trace_gc) {
-      PrintF("Limited new space size due to high promotion rate: %d MB\n",
-             new_space_.InitialCapacity() / MB);
+      PrintPID("Limited new space size due to high promotion rate: %d MB\n",
+               new_space_.InitialCapacity() / MB);
     }
   } else if (new_space_high_promotion_mode_active_ &&
       IsStableOrDecreasingSurvivalTrend() &&
@@ -917,8 +917,8 @@ bool Heap::PerformGarbageCollection(GarbageCollector collector,
     // to grow again.
     new_space_high_promotion_mode_active_ = false;
     if (FLAG_trace_gc) {
-      PrintF("Unlimited new space size due to low promotion rate: %d MB\n",
-             new_space_.MaximumCapacity() / MB);
+      PrintPID("Unlimited new space size due to low promotion rate: %d MB\n",
+               new_space_.MaximumCapacity() / MB);
     }
   }
 
@@ -2058,6 +2058,7 @@ MaybeObject* Heap::AllocatePartialMap(InstanceType instance_type,
   reinterpret_cast<Map*>(result)->set_unused_property_fields(0);
   reinterpret_cast<Map*>(result)->set_bit_field(0);
   reinterpret_cast<Map*>(result)->set_bit_field2(0);
+  reinterpret_cast<Map*>(result)->set_bit_field3(0);
   return result;
 }
 
@@ -2080,12 +2081,12 @@ MaybeObject* Heap::AllocateMap(InstanceType instance_type,
   map->set_instance_size(instance_size);
   map->set_inobject_properties(0);
   map->set_pre_allocated_property_fields(0);
-  map->init_instance_descriptors();
   map->set_code_cache(empty_fixed_array(), SKIP_WRITE_BARRIER);
   map->init_back_pointer(undefined_value());
   map->set_unused_property_fields(0);
   map->set_bit_field(0);
   map->set_bit_field2(1 << Map::kIsExtensible);
+  map->set_bit_field3(0);
   map->set_elements_kind(elements_kind);
 
   // If the map object is aligned fill the padding area with Smi 0 objects.
@@ -2219,15 +2220,12 @@ bool Heap::CreateInitialMaps() {
   set_empty_descriptor_array(DescriptorArray::cast(obj));
 
   // Fix the instance_descriptors for the existing maps.
-  meta_map()->init_instance_descriptors();
   meta_map()->set_code_cache(empty_fixed_array());
   meta_map()->init_back_pointer(undefined_value());
 
-  fixed_array_map()->init_instance_descriptors();
   fixed_array_map()->set_code_cache(empty_fixed_array());
   fixed_array_map()->init_back_pointer(undefined_value());
 
-  oddball_map()->init_instance_descriptors();
   oddball_map()->set_code_cache(empty_fixed_array());
   oddball_map()->init_back_pointer(undefined_value());
 
@@ -3885,11 +3883,9 @@ MaybeObject* Heap::AllocateInitialMap(JSFunction* fun) {
       for (int i = 0; i < count; i++) {
         String* name = fun->shared()->GetThisPropertyAssignmentName(i);
         ASSERT(name->IsSymbol());
-        FieldDescriptor field(name, i, NONE);
-        field.SetEnumerationIndex(i);
+        FieldDescriptor field(name, i, NONE, i + 1);
         descriptors->Set(i, &field, witness);
       }
-      descriptors->SetNextEnumerationIndex(count);
       descriptors->SortUnchecked(witness);
 
       // The descriptors may contain duplicates because the compiler does not
@@ -4184,14 +4180,13 @@ MaybeObject* Heap::AllocateGlobalObject(JSFunction* constructor) {
   InitializeJSObjectFromMap(global, dictionary, map);
 
   // Create a new map for the global object.
-  { MaybeObject* maybe_obj = map->CopyDropDescriptors();
-    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
+  Map* new_map;
+  { MaybeObject* maybe_map = map->CopyDropDescriptors();
+    if (!maybe_map->To(&new_map)) return maybe_map;
   }
-  Map* new_map = Map::cast(obj);
 
   // Set up the global object as a normalized object.
   global->set_map(new_map);
-  global->map()->clear_instance_descriptors();
   global->set_properties(dictionary);
 
   // Make sure result is a global object with properties in dictionary.
@@ -5809,8 +5804,8 @@ bool Heap::ConfigureHeap(int max_semispace_size,
     if (max_semispace_size < Page::kPageSize) {
       max_semispace_size = Page::kPageSize;
       if (FLAG_trace_gc) {
-        PrintF("Max semispace size cannot be less than %dkbytes\n",
-               Page::kPageSize >> 10);
+        PrintPID("Max semispace size cannot be less than %dkbytes\n",
+                 Page::kPageSize >> 10);
       }
     }
     max_semispace_size_ = max_semispace_size;
@@ -5825,8 +5820,8 @@ bool Heap::ConfigureHeap(int max_semispace_size,
     if (max_semispace_size_ > reserved_semispace_size_) {
       max_semispace_size_ = reserved_semispace_size_;
       if (FLAG_trace_gc) {
-        PrintF("Max semispace size cannot be more than %dkbytes\n",
-               reserved_semispace_size_ >> 10);
+        PrintPID("Max semispace size cannot be more than %dkbytes\n",
+                 reserved_semispace_size_ >> 10);
       }
     }
   } else {
@@ -6920,7 +6915,7 @@ GCTracer::~GCTracer() {
     }
   }
 
-  PrintF("%8.0f ms: ", heap_->isolate()->time_millis_since_init());
+  PrintPID("%8.0f ms: ", heap_->isolate()->time_millis_since_init());
 
   if (!FLAG_trace_gc_nvp) {
     int external_time = static_cast<int>(scopes_[Scope::EXTERNAL]);

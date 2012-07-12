@@ -222,7 +222,7 @@ class Factory {
 
   Handle<JSObject> NewFunctionPrototype(Handle<JSFunction> function);
 
-  Handle<Map> CopyMapDropDescriptors(Handle<Map> map);
+  Handle<Map> CopyWithPreallocatedFieldDescriptors(Handle<Map> map);
 
   // Copy the map adding more inobject properties if possible without
   // overflowing the instance size.

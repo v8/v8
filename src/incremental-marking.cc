@@ -892,8 +892,8 @@ void IncrementalMarking::Step(intptr_t allocated_bytes,
 
   if ((steps_count_ % kAllocationMarkingFactorSpeedupInterval) == 0) {
     if (FLAG_trace_gc) {
-      PrintF("Speed up marking after %d steps\n",
-             static_cast<int>(kAllocationMarkingFactorSpeedupInterval));
+      PrintPID("Speed up marking after %d steps\n",
+               static_cast<int>(kAllocationMarkingFactorSpeedupInterval));
     }
     speed_up = true;
   }
@@ -907,7 +907,7 @@ void IncrementalMarking::Step(intptr_t allocated_bytes,
 
   if (space_left_is_very_small ||
       only_1_nth_of_space_that_was_available_still_left) {
-    if (FLAG_trace_gc) PrintF("Speed up marking because of low space left\n");
+    if (FLAG_trace_gc) PrintPID("Speed up marking because of low space left\n");
     speed_up = true;
   }
 
@@ -918,7 +918,7 @@ void IncrementalMarking::Step(intptr_t allocated_bytes,
   if (size_of_old_space_multiplied_by_n_during_marking) {
     speed_up = true;
     if (FLAG_trace_gc) {
-      PrintF("Speed up marking because of heap size increase\n");
+      PrintPID("Speed up marking because of heap size increase\n");
     }
   }
 
@@ -930,7 +930,7 @@ void IncrementalMarking::Step(intptr_t allocated_bytes,
   // We try to scan at at least twice the speed that we are allocating.
   if (promoted_during_marking > bytes_scanned_ / 2 + scavenge_slack + delay) {
     if (FLAG_trace_gc) {
-      PrintF("Speed up marking because marker was not keeping up\n");
+      PrintPID("Speed up marking because marker was not keeping up\n");
     }
     speed_up = true;
   }
@@ -938,7 +938,7 @@ void IncrementalMarking::Step(intptr_t allocated_bytes,
   if (speed_up) {
     if (state_ != MARKING) {
       if (FLAG_trace_gc) {
-        PrintF("Postponing speeding up marking until marking starts\n");
+        PrintPID("Postponing speeding up marking until marking starts\n");
       }
     } else {
       allocation_marking_factor_ += kAllocationMarkingFactorSpeedup;
@@ -946,7 +946,7 @@ void IncrementalMarking::Step(intptr_t allocated_bytes,
           Min(kMaxAllocationMarkingFactor,
               static_cast<intptr_t>(allocation_marking_factor_ * 1.3)));
       if (FLAG_trace_gc) {
-        PrintF("Marking speed increased to %d\n", allocation_marking_factor_);
+        PrintPID("Marking speed increased to %d\n", allocation_marking_factor_);
       }
     }
   }
