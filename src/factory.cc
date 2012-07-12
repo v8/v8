@@ -888,13 +888,13 @@ Handle<Code> Factory::CopyCode(Handle<Code> code, Vector<byte> reloc_info) {
 }
 
 
-MUST_USE_RESULT static inline MaybeObject* DoCopyInsert(
+MUST_USE_RESULT static inline MaybeObject* DoCopyAdd(
     DescriptorArray* array,
     String* key,
     Object* value,
     PropertyAttributes attributes) {
   CallbacksDescriptor desc(key, value, attributes, 0);
-  MaybeObject* obj = array->CopyInsert(&desc);
+  MaybeObject* obj = array->CopyAdd(&desc);
   return obj;
 }
 
@@ -906,7 +906,7 @@ Handle<DescriptorArray> Factory::CopyAppendForeignDescriptor(
     Handle<Object> value,
     PropertyAttributes attributes) {
   CALL_HEAP_FUNCTION(isolate(),
-                     DoCopyInsert(*array, *key, *value, attributes),
+                     DoCopyAdd(*array, *key, *value, attributes),
                      DescriptorArray);
 }
 

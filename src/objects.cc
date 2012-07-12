@@ -1553,8 +1553,7 @@ MaybeObject* JSObject::AddFastProperty(String* name,
   // Allocate new instance descriptors with (name, index) added
   FieldDescriptor new_field(name, index, attributes, 0);
   DescriptorArray* new_descriptors;
-  { MaybeObject* maybe_new_descriptors =
-        old_descriptors->CopyInsert(&new_field);
+  { MaybeObject* maybe_new_descriptors = old_descriptors->CopyAdd(&new_field);
     if (!maybe_new_descriptors->To(&new_descriptors)) {
       return maybe_new_descriptors;
     }
@@ -1615,7 +1614,7 @@ MaybeObject* JSObject::AddConstantFunctionProperty(
   ConstantFunctionDescriptor d(name, function, attributes, 0);
   DescriptorArray* new_descriptors;
   { MaybeObject* maybe_new_descriptors =
-        map()->instance_descriptors()->CopyInsert(&d);
+        map()->instance_descriptors()->CopyAdd(&d);
     if (!maybe_new_descriptors->To(&new_descriptors)) {
       return maybe_new_descriptors;
     }
@@ -4594,7 +4593,7 @@ static MaybeObject* CreateFreshAccessor(JSObject* obj,
   CallbacksDescriptor callbacks_descr2(name, accessors2, attributes, 0);
   DescriptorArray* descriptors2;
   { MaybeObject* maybe_descriptors2 =
-        map1->instance_descriptors()->CopyInsert(&callbacks_descr2);
+        map1->instance_descriptors()->CopyAdd(&callbacks_descr2);
     if (!maybe_descriptors2->To(&descriptors2)) return maybe_descriptors2;
   }
 
@@ -5863,6 +5862,41 @@ MaybeObject* DescriptorArray::CopyFrom(int dst_index,
   return this;
 }
 
+MaybeObject* DescriptorArray::CopyReplace(Descriptor* descriptor,
+                                          int insertion_index) {
+  ASSERT(0 <= insertion_index && insertion_index < number_of_descriptors());
+
+  // Ensure the key is a symbol.
+  { MaybeObject* maybe_result = descriptor->KeyToSymbol();
+    if (maybe_result->IsFailure()) return maybe_result;
+  }
+
+  int size = number_of_descriptors();
+
+  DescriptorArray* new_descriptors;
+  { MaybeObject* maybe_result = Allocate(size, MAY_BE_SHARED);
+    if (!maybe_result->To(&new_descriptors)) return maybe_result;
+  }
+
+  FixedArray::WhitenessWitness witness(new_descriptors);
+
+  // Copy the descriptors, replacing a descriptor.
+  for (int index = 0; index < size; ++index) {
+    if (index == insertion_index) continue;
+    MaybeObject* copy_result =
+        new_descriptors->CopyFrom(index, this, index, witness);
+    if (copy_result->IsFailure()) return copy_result;
+  }
+
+  descriptor->SetEnumerationIndex(GetDetails(insertion_index).index());
+  new_descriptors->Set(insertion_index, descriptor, witness);
+  new_descriptors->SetLastAdded(LastAdded());
+
+  SLOW_ASSERT(new_descriptors->IsSortedNoDuplicates());
+
+  return new_descriptors;
+}
+
 
 MaybeObject* DescriptorArray::CopyInsert(Descriptor* descriptor) {
   // Ensure the key is a symbol.
@@ -5870,20 +5904,23 @@ MaybeObject* DescriptorArray::CopyInsert(Descriptor* descriptor) {
     if (maybe_result->IsFailure()) return maybe_result;
   }
 
-  int new_size = number_of_descriptors();
-
-  // If key is in descriptor, we replace it in-place when filtering.
-  // Count a null descriptor for key as inserted, not replaced.
+  // We replace the key if it is already present.
   int index = SearchWithCache(descriptor->GetKey());
-  const bool replacing = (index != kNotFound);
-  bool keep_enumeration_index = false;
-  if (replacing) {
-    // We are replacing an existing descriptor. We keep the enumeration index
-    // of a visible property.
-    keep_enumeration_index = true;
-  } else {
-    ++new_size;
+  if (index == kNotFound) return CopyAdd(descriptor);
+  return CopyReplace(descriptor, index);
+}
+
+
+MaybeObject* DescriptorArray::CopyAdd(Descriptor* descriptor) {
+  // Ensure the key is a symbol.
+  { MaybeObject* maybe_result = descriptor->KeyToSymbol();
+    if (maybe_result->IsFailure()) return maybe_result;
   }
+
+  String* key = descriptor->GetKey();
+  ASSERT(Search(key) == kNotFound);
+
+  int new_size = number_of_descriptors() + 1;
 
   DescriptorArray* new_descriptors;
   { MaybeObject* maybe_result = Allocate(new_size, MAY_BE_SHARED);
@@ -5892,42 +5929,25 @@ MaybeObject* DescriptorArray::CopyInsert(Descriptor* descriptor) {
 
   FixedArray::WhitenessWitness witness(new_descriptors);
 
-  // Set the enumeration index in the descriptors and set the enumeration index
-  // in the result.
-  if (keep_enumeration_index) {
-    descriptor->SetEnumerationIndex(GetDetails(index).index());
-  } else {
-    descriptor->SetEnumerationIndex(NextEnumerationIndex());
-  }
-
-  // Copy the descriptors, inserting or replacing a descriptor.
-  int to_index = 0;
+  // Copy the descriptors, inserting a descriptor.
   int insertion_index = -1;
-  int from_index = 0;
-  while (from_index < number_of_descriptors()) {
-    if (insertion_index < 0 &&
-        InsertionPointFound(GetKey(from_index), descriptor->GetKey())) {
-      insertion_index = to_index++;
-      if (replacing) from_index++;
-    } else {
-      MaybeObject* copy_result =
-          new_descriptors->CopyFrom(to_index++, this, from_index, witness);
-      if (copy_result->IsFailure()) return copy_result;
-      from_index++;
+  int to = 0;
+  for (int from = 0; from < number_of_descriptors(); ++from) {
+    if (insertion_index < 0 && InsertionPointFound(GetKey(from), key)) {
+      insertion_index = to++;
     }
+    MaybeObject* copy_result =
+        new_descriptors->CopyFrom(to++, this, from, witness);
+    if (copy_result->IsFailure()) return copy_result;
   }
-  if (insertion_index < 0) insertion_index = to_index++;
+  if (insertion_index < 0) insertion_index = to++;
 
-  ASSERT(insertion_index < new_descriptors->number_of_descriptors());
+  ASSERT(to == new_descriptors->number_of_descriptors());
+
+  descriptor->SetEnumerationIndex(NextEnumerationIndex());
   new_descriptors->Set(insertion_index, descriptor, witness);
+  new_descriptors->SetLastAdded(insertion_index);
 
-  if (!replacing) {
-    new_descriptors->SetLastAdded(insertion_index);
-  } else {
-    new_descriptors->SetLastAdded(LastAdded());
-  }
-
-  ASSERT(to_index == new_descriptors->number_of_descriptors());
   SLOW_ASSERT(new_descriptors->IsSortedNoDuplicates());
 
   return new_descriptors;

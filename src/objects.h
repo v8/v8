@@ -2569,6 +2569,9 @@ class DescriptorArray: public FixedArray {
   // If adding a real property, map transitions must be removed.  If adding
   // a transition, they must not be removed.  All null descriptors are removed.
   MUST_USE_RESULT MaybeObject* CopyInsert(Descriptor* descriptor);
+  MUST_USE_RESULT MaybeObject* CopyAdd(Descriptor* descriptor);
+  MUST_USE_RESULT MaybeObject* CopyReplace(Descriptor* descriptor,
+                                           int insertion_index);
 
   // Indicates whether the search function should expect a sorted or an unsorted
   // descriptor array as input.
