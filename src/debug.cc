@@ -989,18 +989,17 @@ Object* Debug::Break(Arguments args) {
         it.Advance();
       }
 
-      // If we found original frame
-      if (it.frame()->fp() == thread_local_.last_fp_) {
-        if (step_count > 1) {
-          // Save old count and action to continue stepping after
-          // StepOut
-          thread_local_.queued_step_count_ = step_count - 1;
-        }
-
-        // Set up for StepOut to reach target frame
-        step_action = StepOut;
-        step_count = count;
+      // Check that we indeed found the frame we are looking for.
+      CHECK(!it.done() && (it.frame()->fp() == thread_local_.last_fp_));
+      if (step_count > 1) {
+        // Save old count and action to continue stepping after
+        // StepOut
+        thread_local_.queued_step_count_ = step_count - 1;
       }
+
+      // Set up for StepOut to reach target frame
+      step_action = StepOut;
+      step_count = count;
     }
 
     // Clear all current stepping setup.
