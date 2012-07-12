@@ -1539,10 +1539,10 @@ MaybeObject* JSObject::AddFastProperty(String* name,
       (map()->unused_property_fields() == 0 &&
        TooManyFastProperties(properties()->length(), store_mode))) {
     Object* obj;
-    { MaybeObject* maybe_obj =
-          NormalizeProperties(CLEAR_INOBJECT_PROPERTIES, 0);
-      if (!maybe_obj->ToObject(&obj)) return maybe_obj;
-    }
+    MaybeObject* maybe_obj =
+        NormalizeProperties(CLEAR_INOBJECT_PROPERTIES, 0);
+    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
+
     return AddSlowProperty(name, value, attributes);
   }
 
@@ -1552,16 +1552,15 @@ MaybeObject* JSObject::AddFastProperty(String* name,
 
   // Allocate new instance descriptors with (name, index) added
   FieldDescriptor new_field(name, index, attributes, 0);
+
   DescriptorArray* new_descriptors;
-  { MaybeObject* maybe_new_descriptors = old_descriptors->CopyAdd(&new_field);
-    if (!maybe_new_descriptors->To(&new_descriptors)) {
-      return maybe_new_descriptors;
-    }
+  MaybeObject* maybe_new_descriptors = old_descriptors->CopyAdd(&new_field);
+  if (!maybe_new_descriptors->To(&new_descriptors)) {
+    return maybe_new_descriptors;
   }
 
   // Only allow map transition if the object isn't the global object.
-  bool allow_map_transition =
-      (isolate->context()->global_context()->object_function()->map() != map());
+  bool allow_map_transition = isolate->empty_object_map() != map();
 
   ASSERT(index < map()->inobject_properties() ||
          (index - map()->inobject_properties()) < properties()->length() ||
@@ -1569,25 +1568,22 @@ MaybeObject* JSObject::AddFastProperty(String* name,
 
   // Allocate a new map for the object.
   Map* new_map;
-  { MaybeObject* maybe_r = map()->CopyReplaceDescriptors(new_descriptors);
-    if (!maybe_r->To(&new_map)) return maybe_r;
-  }
+  MaybeObject* maybe_r = map()->CopyReplaceDescriptors(new_descriptors);
+  if (!maybe_r->To(&new_map)) return maybe_r;
 
   TransitionArray* new_transitions = NULL;
   if (allow_map_transition) {
-    MaybeObject* maybe_new_transitions = map()->AddTransition(name, new_map);
-    if (!maybe_new_transitions->To(&new_transitions)) {
-      return maybe_new_transitions;
-    }
+    MaybeObject* maybe_transitions = map()->AddTransition(name, new_map);
+    if (!maybe_transitions->To(&new_transitions)) return maybe_transitions;
   }
 
   if (map()->unused_property_fields() == 0) {
     // Make room for the new value
     FixedArray* values;
-    { MaybeObject* maybe_values =
-          properties()->CopySize(properties()->length() + kFieldsAdded);
-      if (!maybe_values->To(&values)) return maybe_values;
-    }
+    MaybeObject* maybe_values =
+        properties()->CopySize(properties()->length() + kFieldsAdded);
+    if (!maybe_values->To(&values)) return maybe_values;
+
     set_properties(values);
     new_map->set_unused_property_fields(kFieldsAdded - 1);
   } else {
@@ -1612,60 +1608,48 @@ MaybeObject* JSObject::AddConstantFunctionProperty(
     PropertyAttributes attributes) {
   // Allocate new instance descriptors with (name, function) added
   ConstantFunctionDescriptor d(name, function, attributes, 0);
+
   DescriptorArray* new_descriptors;
-  { MaybeObject* maybe_new_descriptors =
-        map()->instance_descriptors()->CopyAdd(&d);
-    if (!maybe_new_descriptors->To(&new_descriptors)) {
-      return maybe_new_descriptors;
-    }
+  MaybeObject* maybe_new_descriptors =
+      map()->instance_descriptors()->CopyAdd(&d);
+  if (!maybe_new_descriptors->To(&new_descriptors)) {
+    return maybe_new_descriptors;
   }
 
   // Allocate a new map for the object.
   Map* new_map;
-  { MaybeObject* maybe_new_map = map()->CopyReplaceDescriptors(new_descriptors);
-    if (!maybe_new_map->To(&new_map)) return maybe_new_map;
-  }
+  MaybeObject* maybe_new_map = map()->CopyReplaceDescriptors(new_descriptors);
+  if (!maybe_new_map->To(&new_map)) return maybe_new_map;
 
   Map* old_map = map();
-  set_map(new_map);
 
-  // If the old map is the global object map (from new Object()),
-  // then transitions are not added to it, so we are done.
   Heap* heap = GetHeap();
-  if (old_map == heap->isolate()->context()->global_context()->
-      object_function()->map()) {
+  // Do not add transitions to the empty object map (map of "new Object()"), nor
+  // to global objects.
+  if (old_map == heap->isolate()->empty_object_map() || IsGlobalObject()) {
+    set_map(new_map);
     return function;
   }
 
-  // Do not add constant transitions to global objects
-  if (IsGlobalObject()) {
+  // Don't add transitions to special properties with non-trivial attributes.
+  // TODO(verwaest): Once we support attribute changes, these transitions should
+  // be kept as well.
+  if (attributes != NONE) {
+    set_map(new_map);
     return function;
   }
 
   // Add a constant transition to the old map, so future assignments to this
   // property on other objects of the same type will create a normal field, not
-  // a constant function. Don't do this for special properties, with non-trival
-  // attributes.
-  if (attributes != NONE) {
-    return function;
-  }
+  // a constant function.
+  TransitionArray* transitions;
+  MaybeObject* maybe_transitions = old_map->AddTransition(name, new_map);
+  if (!maybe_transitions->To(&transitions)) return maybe_transitions;
 
-  TransitionArray* new_transitions;
-  { MaybeObject* maybe_new_transitions =
-        old_map->AddTransition(name, new_map);
-    if (!maybe_new_transitions->To(&new_transitions)) {
-      // We have accomplished the main goal, so return success.
-      return function;
-    }
-  }
+  MaybeObject* transition_added = old_map->set_transitions(transitions);
+  if (transition_added->IsFailure()) return transition_added;
 
-  { MaybeObject* transition_added = old_map->set_transitions(new_transitions);
-    // We have accomplished the main goal, so return success.
-    if (transition_added->IsFailure()) {
-      return function;
-    }
-  }
-
+  set_map(new_map);
   new_map->SetBackPointer(old_map);
   return function;
 }
@@ -1800,41 +1784,37 @@ MaybeObject* JSObject::ConvertDescriptorToFieldAndMapTransition(
     Object* new_value,
     PropertyAttributes attributes) {
   Map* old_map = map();
+  FixedArray* old_properties = properties();
   Object* result;
 
-  { MaybeObject* maybe_result =
-        ConvertDescriptorToField(name, new_value, attributes);
-    if (!maybe_result->To(&result)) return maybe_result;
-  }
+  MaybeObject* maybe_result =
+      ConvertDescriptorToField(name, new_value, attributes);
+  if (!maybe_result->To(&result)) return maybe_result;
 
-  // If we get to this point we have succeeded - do not return failure
-  // after this point.  Later stuff is optional.
-  if (!HasFastProperties()) {
-    return result;
-  }
+  if (!HasFastProperties()) return result;
 
-  // Do not add transitions to the map of "new Object()".
-  if (map() == GetIsolate()->context()->global_context()->
-      object_function()->map()) {
-    return result;
-  }
+  // This method should only be used to convert existing transitions. Objects
+  // with the map of "new Object()" cannot have transitions in the first place.
+  ASSERT(map() != GetIsolate()->empty_object_map());
 
   TransitionArray* new_transitions;
-  { MaybeObject* maybe_new_transitions = old_map->AddTransition(name, map());
-    if (!maybe_new_transitions->To(&new_transitions)) {
-      // We have accomplished the main goal, so return success.
-      return result;
-    }
+  MaybeObject* maybe_new_transitions = old_map->AddTransition(name, map());
+  if (!maybe_new_transitions->To(&new_transitions)) {
+    // Undo changes and return failure.
+    set_map(old_map);
+    set_properties(old_properties);
+    return maybe_new_transitions;
   }
 
-  { MaybeObject* transition_added = old_map->set_transitions(new_transitions);
-    // Return success if failure since we accomplished the main goal. Otherwise
-    // also set backpointer.
-    if (!transition_added->IsFailure()) {
-      map()->SetBackPointer(old_map);
-    }
+  MaybeObject* transition_added = old_map->set_transitions(new_transitions);
+  if (transition_added->IsFailure()) {
+    // Undo changes and return failure.
+    set_map(old_map);
+    set_properties(old_properties);
+    return transition_added;
   }
 
+  map()->SetBackPointer(old_map);
   return result;
 }
 
@@ -1845,49 +1825,41 @@ MaybeObject* JSObject::ConvertDescriptorToField(String* name,
   if (map()->unused_property_fields() == 0 &&
       TooManyFastProperties(properties()->length(), MAY_BE_STORE_FROM_KEYED)) {
     Object* obj;
-    { MaybeObject* maybe_obj =
-          NormalizeProperties(CLEAR_INOBJECT_PROPERTIES, 0);
-      if (!maybe_obj->ToObject(&obj)) return maybe_obj;
-    }
+    MaybeObject* maybe_obj = NormalizeProperties(CLEAR_INOBJECT_PROPERTIES, 0);
+    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
     return ReplaceSlowProperty(name, new_value, attributes);
   }
 
   int index = map()->NextFreePropertyIndex();
   FieldDescriptor new_field(name, index, attributes, 0);
+
   // Make a new DescriptorArray replacing an entry with FieldDescriptor.
   DescriptorArray* new_descriptors;
-  { MaybeObject* maybe_descriptors =
-        map()->instance_descriptors()->CopyInsert(&new_field);
-    if (!maybe_descriptors->To(&new_descriptors)) return maybe_descriptors;
-  }
+  MaybeObject* maybe_descriptors =
+      map()->instance_descriptors()->CopyInsert(&new_field);
+  if (!maybe_descriptors->To(&new_descriptors)) return maybe_descriptors;
 
   // Make a new map for the object.
   Map* new_map;
-  { MaybeObject* maybe_new_map = map()->CopyReplaceDescriptors(new_descriptors);
-    if (!maybe_new_map->To(&new_map)) return maybe_new_map;
-  }
+  MaybeObject* maybe_new_map = map()->CopyReplaceDescriptors(new_descriptors);
+  if (!maybe_new_map->To(&new_map)) return maybe_new_map;
 
   // Make new properties array if necessary.
-  FixedArray* new_properties = 0;  // Will always be NULL or a valid pointer.
+  FixedArray* new_properties = NULL;
   int new_unused_property_fields = map()->unused_property_fields() - 1;
   if (map()->unused_property_fields() == 0) {
     new_unused_property_fields = kFieldsAdded - 1;
-    Object* new_properties_object;
-    { MaybeObject* maybe_new_properties_object =
-          properties()->CopySize(properties()->length() + kFieldsAdded);
-      if (!maybe_new_properties_object->ToObject(&new_properties_object)) {
-        return maybe_new_properties_object;
-      }
-    }
-    new_properties = FixedArray::cast(new_properties_object);
+    MaybeObject* maybe_new_properties =
+        properties()->CopySize(properties()->length() + kFieldsAdded);
+    if (!maybe_new_properties->To(&new_properties)) return maybe_new_properties;
   }
 
   // Update pointers to commit changes.
   // Object points to the new map.
   new_map->set_unused_property_fields(new_unused_property_fields);
   set_map(new_map);
-  if (new_properties) {
-    set_properties(FixedArray::cast(new_properties));
+  if (new_properties != NULL) {
+    set_properties(new_properties);
   }
   return FastPropertyAtPut(index, new_value);
 }
@@ -2349,12 +2321,11 @@ MaybeObject* JSObject::GetElementsTransitionMapSlow(ElementsKind to_kind) {
     return start_map;
   }
 
-  Context* global_context = GetIsolate()->context()->global_context();
   bool allow_store_transition =
       // Only remember the map transition if the object's map is NOT equal to
       // the global object_function's map and there is not an already existing
       // non-matching element transition.
-      (global_context->object_function()->map() != map()) &&
+      (GetIsolate()->empty_object_map() != map()) &&
       !start_map->IsUndefined() && !start_map->is_shared() &&
       IsFastElementsKind(from_kind);
 
@@ -3371,11 +3342,10 @@ MaybeObject* JSObject::NormalizeProperties(PropertyNormalizationMode mode,
   dictionary->SetNextEnumerationIndex(index);
 
   Map* new_map;
-  { MaybeObject* maybe_map =
-        current_heap->isolate()->context()->global_context()->
-        normalized_map_cache()->Get(this, mode);
-    if (!maybe_map->To(&new_map)) return maybe_map;
-  }
+  MaybeObject* maybe_map =
+      current_heap->isolate()->context()->global_context()->
+      normalized_map_cache()->Get(this, mode);
+  if (!maybe_map->To(&new_map)) return maybe_map;
 
   // We have now successfully allocated all the necessary objects.
   // Changes can now be made with the guarantee that all of them take effect.

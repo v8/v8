@@ -528,6 +528,11 @@ class Isolate {
     thread_local_top_.save_context_ = save;
   }
 
+  // Access to the map of "new Object()".
+  Map* empty_object_map() {
+    return context()->global_context()->object_function()->map();
+  }
+
   // Access to current thread id.
   ThreadId thread_id() { return thread_local_top_.thread_id_; }
   void set_thread_id(ThreadId id) { thread_local_top_.thread_id_ = id; }
