@@ -45,9 +45,9 @@ class SafepointGenerator;
 
 class LCodeGen BASE_EMBEDDED {
  public:
-  LCodeGen(LChunkBase* chunk, MacroAssembler* assembler, CompilationInfo* info)
+  LCodeGen(LChunk* chunk, MacroAssembler* assembler, CompilationInfo* info)
       : zone_(info->zone()),
-        chunk_(static_cast<LChunk*>(chunk)),
+        chunk_(static_cast<LPlatformChunk*>(chunk)),
         masm_(assembler),
         info_(info),
         current_block_(-1),
@@ -140,7 +140,7 @@ class LCodeGen BASE_EMBEDDED {
     return info()->is_classic_mode() ? kNonStrictMode : kStrictMode;
   }
 
-  LChunk* chunk() const { return chunk_; }
+  LPlatformChunk* chunk() const { return chunk_; }
   Scope* scope() const { return scope_; }
   HGraph* graph() const { return chunk_->graph(); }
 
@@ -325,7 +325,7 @@ class LCodeGen BASE_EMBEDDED {
   void EnsureSpaceForLazyDeopt(int space_needed);
 
   Zone* zone_;
-  LChunk* const chunk_;
+  LPlatformChunk* const chunk_;
   MacroAssembler* const masm_;
   CompilationInfo* const info_;
 

@@ -312,7 +312,7 @@ static bool MakeCrankshaftCode(CompilationInfo* info) {
     if (!graph->Optimize(&bailout_reason)) {
       if (!bailout_reason.is_empty()) builder.Bailout(*bailout_reason);
     } else {
-      LChunkBase* chunk = LChunkBase::NewChunk(graph);
+      LChunk* chunk = LChunk::NewChunk(graph);
       if (chunk != NULL) {
         Handle<Code> optimized_code = chunk->Codegen();
         if (!optimized_code.is_null()) {

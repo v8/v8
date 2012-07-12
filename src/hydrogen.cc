@@ -9229,7 +9229,7 @@ void HTracer::TraceCompilation(FunctionLiteral* function) {
 }
 
 
-void HTracer::TraceLithium(const char* name, LChunkBase* chunk) {
+void HTracer::TraceLithium(const char* name, LChunk* chunk) {
   Trace(name, chunk->graph(), chunk);
 }
 
@@ -9239,7 +9239,7 @@ void HTracer::TraceHydrogen(const char* name, HGraph* graph) {
 }
 
 
-void HTracer::Trace(const char* name, HGraph* graph, LChunkBase* chunk) {
+void HTracer::Trace(const char* name, HGraph* graph, LChunk* chunk) {
   Tag tag(this, "cfg");
   PrintStringProperty("name", name);
   const ZoneList<HBasicBlock*>* blocks = graph->blocks();
@@ -9501,7 +9501,7 @@ const char* const HPhase::kTotal = "Total";
 
 void HPhase::Begin(const char* name,
                    HGraph* graph,
-                   LChunkBase* chunk,
+                   LChunk* chunk,
                    LAllocator* allocator) {
   name_ = name;
   graph_ = graph;

@@ -48,7 +48,7 @@ class BitVector;
 class StringStream;
 
 class LArgument;
-class LChunk;
+class LPlatformChunk;
 class LOperand;
 class LUnallocated;
 class LConstantOperand;
@@ -445,7 +445,7 @@ class LAllocator BASE_EMBEDDED {
   // Returns the register kind required by the given virtual register.
   RegisterKind RequiredRegisterKind(int virtual_register) const;
 
-  bool Allocate(LChunkBase* chunk);
+  bool Allocate(LChunk* chunk);
 
   const ZoneList<LiveRange*>* live_ranges() const { return &live_ranges_; }
   const Vector<LiveRange*>* fixed_live_ranges() const {
@@ -455,7 +455,7 @@ class LAllocator BASE_EMBEDDED {
     return &fixed_double_live_ranges_;
   }
 
-  LChunk* chunk() const { return chunk_; }
+  LPlatformChunk* chunk() const { return chunk_; }
   HGraph* graph() const { return graph_; }
   Zone* zone() const { return zone_; }
 
@@ -598,7 +598,7 @@ class LAllocator BASE_EMBEDDED {
 
   Zone* zone_;
 
-  LChunk* chunk_;
+  LPlatformChunk* chunk_;
 
   // During liveness analysis keep a mapping from block id to live_in sets
   // for blocks already analyzed.

@@ -48,7 +48,7 @@ class HGraph;
 class HLoopInformation;
 class HTracer;
 class LAllocator;
-class LChunkBase;
+class LChunk;
 class LiveRange;
 
 
@@ -1336,7 +1336,7 @@ class HPhase BASE_EMBEDDED {
   HPhase(const char* name, HGraph* graph) {
     Begin(name, graph, NULL, NULL);
   }
-  HPhase(const char* name, LChunkBase* chunk) {
+  HPhase(const char* name, LChunk* chunk) {
     Begin(name, NULL, chunk, NULL);
   }
   HPhase(const char* name, LAllocator* allocator) {
@@ -1350,14 +1350,14 @@ class HPhase BASE_EMBEDDED {
  private:
   void Begin(const char* name,
              HGraph* graph,
-             LChunkBase* chunk,
+             LChunk* chunk,
              LAllocator* allocator);
   void End() const;
 
   int64_t start_;
   const char* name_;
   HGraph* graph_;
-  LChunkBase* chunk_;
+  LChunk* chunk_;
   LAllocator* allocator_;
   unsigned start_allocation_size_;
 };
@@ -1367,7 +1367,7 @@ class HTracer: public Malloced {
  public:
   void TraceCompilation(FunctionLiteral* function);
   void TraceHydrogen(const char* name, HGraph* graph);
-  void TraceLithium(const char* name, LChunkBase* chunk);
+  void TraceLithium(const char* name, LChunk* chunk);
   void TraceLiveRanges(const char* name, LAllocator* allocator);
 
   static HTracer* Instance() {
@@ -1408,7 +1408,7 @@ class HTracer: public Malloced {
   }
 
   void TraceLiveRange(LiveRange* range, const char* type, Zone* zone);
-  void Trace(const char* name, HGraph* graph, LChunkBase* chunk);
+  void Trace(const char* name, HGraph* graph, LChunk* chunk);
   void FlushToFile();
 
   void PrintEmptyProperty(const char* name) {
