@@ -5764,7 +5764,7 @@ MaybeObject* DescriptorArray::Allocate(int number_of_descriptors,
     if (!maybe_array->To(&result)) return maybe_array;
   }
 
-  result->set(kLastAddedIndex, Smi::FromInt(-1));
+  result->set(kLastAddedIndex, Smi::FromInt(kNoneAdded));
   result->set(kTransitionsIndex, Smi::FromInt(0));
   return result;
 }
@@ -5907,7 +5907,8 @@ MaybeObject* DescriptorArray::CopyAdd(Descriptor* descriptor) {
 
   ASSERT(to == new_descriptors->number_of_descriptors());
 
-  descriptor->SetEnumerationIndex(NextEnumerationIndex());
+  ASSERT(new_size == NextEnumerationIndex());
+  descriptor->SetEnumerationIndex(new_size);
   new_descriptors->Set(insertion_index, descriptor, witness);
   new_descriptors->SetLastAdded(insertion_index);
 
@@ -5949,6 +5950,9 @@ void DescriptorArray::SortUnchecked(const WhitenessWitness& witness) {
   int len = number_of_descriptors();
   // Nothing to sort.
   if (len == 0) return;
+
+  ASSERT(LastAdded() == kNoneAdded ||
+         GetDetails(LastAdded()).index() == number_of_descriptors());
 
   // Bottom-up max-heap construction.
   // Index of the last node with children
@@ -5997,18 +6001,29 @@ void DescriptorArray::SortUnchecked(const WhitenessWitness& witness) {
     }
   }
 
-  int last_enum_index = -1;
-  int last_added = -1;
-  for (int i = 0; i < len; ++i) {
-    int current_enum = GetDetails(i).index();
-    if (current_enum > last_enum_index) {
-      last_added = i;
-      last_enum_index = current_enum;
+#ifdef DEBUG
+  // Ensure that all enumeration indexes between 1 and length occur uniquely in
+  // the descriptor array.
+  for (int i = 1; i <= len; ++i) {
+    int j;
+    for (j = 0; j < len; ++j) {
+      if (GetDetails(j).index() == i) break;
+    }
+    ASSERT(j != len);
+    for (j++; j < len; ++j) {
+      ASSERT(GetDetails(j).index() != i);
     }
   }
-  SetLastAdded(last_added);
+#endif
 
-  ASSERT(LastAdded() != -1);
+  for (int i = 0; i < len; ++i) {
+    if (GetDetails(i).index() == len) {
+      SetLastAdded(i);
+      return;
+    }
+  }
+
+  UNREACHABLE();
 }
 
 

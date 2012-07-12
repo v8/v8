@@ -106,7 +106,7 @@ class FieldDescriptor: public Descriptor {
   FieldDescriptor(String* key,
                   int field_index,
                   PropertyAttributes attributes,
-                  int index)
+                  int index = 0)
       : Descriptor(key, Smi::FromInt(field_index), attributes, FIELD, index) {}
 };
 
@@ -126,7 +126,7 @@ class CallbacksDescriptor:  public Descriptor {
   CallbacksDescriptor(String* key,
                       Object* foreign,
                       PropertyAttributes attributes,
-                      int index)
+                      int index = 0)
       : Descriptor(key, foreign, attributes, CALLBACKS, index) {}
 };
 

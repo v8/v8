@@ -2095,6 +2095,7 @@ void DescriptorArray::Set(int descriptor_number,
                           const WhitenessWitness&) {
   // Range check.
   ASSERT(descriptor_number < number_of_descriptors());
+  ASSERT(desc->GetDetails().index() <= number_of_descriptors());
   ASSERT(desc->GetDetails().index() > 0);
 
   NoIncrementalWriteBarrierSet(this,
@@ -2106,6 +2107,16 @@ void DescriptorArray::Set(int descriptor_number,
   NoIncrementalWriteBarrierSet(this,
                                ToDetailsIndex(descriptor_number),
                                desc->GetDetails().AsSmi());
+}
+
+
+void DescriptorArray::Append(Descriptor* desc,
+                             const WhitenessWitness& witness) {
+  int descriptor_number = NumberOfSetDescriptors();
+  int enumeration_index = descriptor_number + 1;
+  desc->SetEnumerationIndex(enumeration_index);
+  Set(descriptor_number, desc, witness);
+  SetLastAdded(descriptor_number);
 }
 
 

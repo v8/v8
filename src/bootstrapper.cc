@@ -390,32 +390,25 @@ Handle<DescriptorArray> Genesis::ComputeFunctionInstanceDescriptor(
 
   DescriptorArray::WhitenessWitness witness(*descriptors);
 
-  int index = 0;
-
   {  // Add length.
     Handle<Foreign> f(factory()->NewForeign(&Accessors::FunctionLength));
-    CallbacksDescriptor d(*factory()->length_symbol(), *f, attribs, index + 1);
-    descriptors->Set(index, &d, witness);
-    ++index;
+    CallbacksDescriptor d(*factory()->length_symbol(), *f, attribs);
+    descriptors->Append(&d, witness);
   }
   {  // Add name.
     Handle<Foreign> f(factory()->NewForeign(&Accessors::FunctionName));
-    CallbacksDescriptor d(*factory()->name_symbol(), *f, attribs, index + 1);
-    descriptors->Set(index, &d, witness);
-    ++index;
+    CallbacksDescriptor d(*factory()->name_symbol(), *f, attribs);
+    descriptors->Append(&d, witness);
   }
   {  // Add arguments.
     Handle<Foreign> f(factory()->NewForeign(&Accessors::FunctionArguments));
-    CallbacksDescriptor d(
-        *factory()->arguments_symbol(), *f, attribs, index + 1);
-    descriptors->Set(index, &d, witness);
-    ++index;
+    CallbacksDescriptor d(*factory()->arguments_symbol(), *f, attribs);
+    descriptors->Append(&d, witness);
   }
   {  // Add caller.
     Handle<Foreign> f(factory()->NewForeign(&Accessors::FunctionCaller));
-    CallbacksDescriptor d(*factory()->caller_symbol(), *f, attribs, index + 1);
-    descriptors->Set(index, &d, witness);
-    ++index;
+    CallbacksDescriptor d(*factory()->caller_symbol(), *f, attribs);
+    descriptors->Append(&d, witness);
   }
   if (prototypeMode != DONT_ADD_PROTOTYPE) {
     // Add prototype.
@@ -423,9 +416,8 @@ Handle<DescriptorArray> Genesis::ComputeFunctionInstanceDescriptor(
       attribs = static_cast<PropertyAttributes>(attribs & ~READ_ONLY);
     }
     Handle<Foreign> f(factory()->NewForeign(&Accessors::FunctionPrototype));
-    CallbacksDescriptor d(
-        *factory()->prototype_symbol(), *f, attribs, index + 1);
-    descriptors->Set(index, &d, witness);
+    CallbacksDescriptor d(*factory()->prototype_symbol(), *f, attribs);
+    descriptors->Append(&d, witness);
   }
 
   descriptors->Sort(witness);
@@ -542,32 +534,25 @@ Handle<DescriptorArray> Genesis::ComputeStrictFunctionInstanceDescriptor(
 
   DescriptorArray::WhitenessWitness witness(*descriptors);
 
-  int index = 0;
   {  // Add length.
     Handle<Foreign> f(factory()->NewForeign(&Accessors::FunctionLength));
-    CallbacksDescriptor d(*factory()->length_symbol(), *f, attribs, index + 1);
-    descriptors->Set(index, &d, witness);
-    ++index;
+    CallbacksDescriptor d(*factory()->length_symbol(), *f, attribs);
+    descriptors->Append(&d, witness);
   }
   {  // Add name.
     Handle<Foreign> f(factory()->NewForeign(&Accessors::FunctionName));
-    CallbacksDescriptor d(*factory()->name_symbol(), *f, attribs, index + 1);
-    descriptors->Set(index, &d, witness);
-    ++index;
+    CallbacksDescriptor d(*factory()->name_symbol(), *f, attribs);
+    descriptors->Append(&d, witness);
   }
   {  // Add arguments.
     Handle<AccessorPair> arguments(factory()->NewAccessorPair());
-    CallbacksDescriptor d(
-        *factory()->arguments_symbol(), *arguments, attribs, index + 1);
-    descriptors->Set(index, &d, witness);
-    ++index;
+    CallbacksDescriptor d(*factory()->arguments_symbol(), *arguments, attribs);
+    descriptors->Append(&d, witness);
   }
   {  // Add caller.
     Handle<AccessorPair> caller(factory()->NewAccessorPair());
-    CallbacksDescriptor d(
-        *factory()->caller_symbol(), *caller, attribs, index + 1);
-    descriptors->Set(index, &d, witness);
-    ++index;
+    CallbacksDescriptor d(*factory()->caller_symbol(), *caller, attribs);
+    descriptors->Append(&d, witness);
   }
 
   if (prototypeMode != DONT_ADD_PROTOTYPE) {
@@ -576,9 +561,8 @@ Handle<DescriptorArray> Genesis::ComputeStrictFunctionInstanceDescriptor(
       attribs = static_cast<PropertyAttributes>(attribs | READ_ONLY);
     }
     Handle<Foreign> f(factory()->NewForeign(&Accessors::FunctionPrototype));
-    CallbacksDescriptor d(
-        *factory()->prototype_symbol(), *f, attribs, index + 1);
-    descriptors->Set(index, &d, witness);
+    CallbacksDescriptor d(*factory()->prototype_symbol(), *f, attribs);
+    descriptors->Append(&d, witness);
   }
 
   descriptors->Sort(witness);
@@ -967,42 +951,33 @@ bool Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
     DescriptorArray::WhitenessWitness witness(*descriptors);
     PropertyAttributes final =
         static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE | READ_ONLY);
-    int index = 0;
     {
       // ECMA-262, section 15.10.7.1.
       FieldDescriptor field(heap->source_symbol(),
                             JSRegExp::kSourceFieldIndex,
-                            final,
-                            index + 1);
-      descriptors->Set(index, &field, witness);
-      ++index;
+                            final);
+      descriptors->Append(&field, witness);
     }
     {
       // ECMA-262, section 15.10.7.2.
       FieldDescriptor field(heap->global_symbol(),
                             JSRegExp::kGlobalFieldIndex,
-                            final,
-                            index + 1);
-      descriptors->Set(index, &field, witness);
-      ++index;
+                            final);
+      descriptors->Append(&field, witness);
     }
     {
       // ECMA-262, section 15.10.7.3.
       FieldDescriptor field(heap->ignore_case_symbol(),
                             JSRegExp::kIgnoreCaseFieldIndex,
-                            final,
-                            index + 1);
-      descriptors->Set(index, &field, witness);
-      ++index;
+                            final);
+      descriptors->Append(&field, witness);
     }
     {
       // ECMA-262, section 15.10.7.4.
       FieldDescriptor field(heap->multiline_symbol(),
                             JSRegExp::kMultilineFieldIndex,
-                            final,
-                            index + 1);
-      descriptors->Set(index, &field, witness);
-      ++index;
+                            final);
+      descriptors->Append(&field, witness);
     }
     {
       // ECMA-262, section 15.10.7.5.
@@ -1010,9 +985,8 @@ bool Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
           static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE);
       FieldDescriptor field(heap->last_index_symbol(),
                             JSRegExp::kLastIndexFieldIndex,
-                            writable,
-                            index + 1);
-      descriptors->Set(index, &field, witness);
+                            writable);
+      descriptors->Append(&field, witness);
     }
     descriptors->Sort(witness);
 
@@ -1158,26 +1132,21 @@ bool Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
     // Create the descriptor array for the arguments object.
     Handle<DescriptorArray> descriptors = factory->NewDescriptorArray(3);
     DescriptorArray::WhitenessWitness witness(*descriptors);
-    int index = 0;
     {  // length
-      FieldDescriptor d(*factory->length_symbol(), 0, DONT_ENUM, index + 1);
-      descriptors->Set(index, &d, witness);
-      ++index;
+      FieldDescriptor d(*factory->length_symbol(), 0, DONT_ENUM);
+      descriptors->Append(&d, witness);
     }
     {  // callee
       CallbacksDescriptor d(*factory->callee_symbol(),
                             *callee,
-                            attributes,
-                            index + 1);
-      descriptors->Set(index, &d, witness);
-      ++index;
+                            attributes);
+      descriptors->Append(&d, witness);
     }
     {  // caller
       CallbacksDescriptor d(*factory->caller_symbol(),
                             *caller,
-                            attributes,
-                            index + 1);
-      descriptors->Set(index, &d, witness);
+                            attributes);
+      descriptors->Append(&d, witness);
     }
     descriptors->Sort(witness);
 
@@ -1775,22 +1744,20 @@ bool Genesis::InstallNatives() {
         reresult_descriptors->CopyFrom(0, *array_descriptors, old, witness);
     if (copy_result->IsFailure()) return false;
 
-    int index = 1;
+    reresult_descriptors->SetLastAdded(0);
+
     {
       FieldDescriptor index_field(heap()->index_symbol(),
                                   JSRegExpResult::kIndexIndex,
-                                  NONE,
-                                  index + 1);
-      reresult_descriptors->Set(index, &index_field, witness);
-      ++index;
+                                  NONE);
+      reresult_descriptors->Append(&index_field, witness);
     }
 
     {
       FieldDescriptor input_field(heap()->input_symbol(),
                                   JSRegExpResult::kInputIndex,
-                                  NONE,
-                                  index + 1);
-      reresult_descriptors->Set(index, &input_field, witness);
+                                  NONE);
+      reresult_descriptors->Append(&input_field, witness);
     }
     reresult_descriptors->Sort(witness);
 

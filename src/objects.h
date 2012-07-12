@@ -2475,6 +2475,7 @@ class DescriptorArray: public FixedArray {
   }
 
   inline int number_of_entries() { return number_of_descriptors(); }
+  inline int NextEnumerationIndex() { return number_of_descriptors() + 1; }
 
   int LastAdded() {
     ASSERT(!IsEmpty());
@@ -2487,17 +2488,16 @@ class DescriptorArray: public FixedArray {
     }
   }
 
-  int NextEnumerationIndex() {
-    if (number_of_descriptors() == 0) {
-      return PropertyDetails::kInitialIndex;
-    }
-    return GetDetails(LastAdded()).index() + 1;
-  }
-
   // Set index of the last added descriptor and flush any enum cache.
   void SetLastAdded(int index) {
     ASSERT(!IsEmpty() || index > 0);
     set(kLastAddedIndex, Smi::FromInt(index));
+  }
+
+  int NumberOfSetDescriptors() {
+    ASSERT(!IsEmpty());
+    if (LastAdded() == kNoneAdded) return 0;
+    return GetDetails(LastAdded()).index();
   }
 
   bool HasEnumCache() {
@@ -2546,6 +2546,11 @@ class DescriptorArray: public FixedArray {
   inline void Set(int descriptor_number,
                   Descriptor* desc,
                   const WhitenessWitness&);
+  // Append automatically sets the enumeration index. This should only be used
+  // to add descriptors in bulk at the end, followed by sorting the descriptor
+  // array.
+  inline void Append(Descriptor* desc,
+                     const WhitenessWitness&);
 
   // Transfer a complete descriptor from the src descriptor array to the dst
   // one, dropping map transitions in CALLBACKS.
@@ -2612,6 +2617,9 @@ class DescriptorArray: public FixedArray {
 
   // Constant for denoting key was not found.
   static const int kNotFound = -1;
+
+  // Constant for denoting that the LastAdded field was not yet set.
+  static const int kNoneAdded = -1;
 
   static const int kBackPointerStorageIndex = 0;
   static const int kLastAddedIndex = 1;
