@@ -6420,6 +6420,40 @@ void StoreArrayLiteralElementStub::Generate(MacroAssembler* masm) {
   __ ret(0);
 }
 
+
+void ProfileEntryHookStub::MaybeCallEntryHook(MacroAssembler* masm) {
+  if (entry_hook_ != NULL) {
+    ProfileEntryHookStub stub;
+    masm->CallStub(&stub);
+  }
+}
+
+
+void ProfileEntryHookStub::Generate(MacroAssembler* masm) {
+  // RCX is the only volatile register we must save.
+  __ push(rcx);
+
+  // Calculate the original stack pointer and store it in RDX, the second arg.
+  __ lea(rdx, Operand(rsp, kPointerSize));
+
+  // Calculate the function address to RCX, the first arg.
+  __ movq(rcx, Operand(rdx, 0));
+  __ subq(rcx, Immediate(Assembler::kShortCallInstructionLength));
+
+  // Reserve stack for the first 4 args.
+  __ subq(rsp, Immediate(4 * kPointerSize));
+
+  // Call the entry hook.
+  int64_t hook_location = reinterpret_cast<int64_t>(&entry_hook_);
+  __ movq(rax, hook_location, RelocInfo::NONE);
+  __ call(Operand(rax, 0));
+  __ addq(rsp, Immediate(4 * kPointerSize));
+
+  // Restore RCX.
+  __ pop(rcx);
+  __ ret(0);
+}
+
 #undef __
 
 } }  // namespace v8::internal
