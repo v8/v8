@@ -5637,6 +5637,7 @@ static void LookupInPrototypes(Handle<Map> map,
                                LookupResult* lookup) {
   while (map->prototype()->IsJSObject()) {
     Handle<JSObject> holder(JSObject::cast(map->prototype()));
+    if (!holder->HasFastProperties()) break;
     map = Handle<Map>(holder->map());
     map->LookupDescriptor(*holder, *name, lookup);
     if (lookup->IsFound()) return;
