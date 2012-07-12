@@ -1779,12 +1779,12 @@ MaybeObject* JSObject::ReplaceSlowProperty(String* name,
 }
 
 
-MaybeObject* JSObject::ConvertDescriptorToFieldAndMapTransition(
+MaybeObject* JSObject::ConvertTransitionToMapTransition(
+    int transition_index,
     String* name,
     Object* new_value,
     PropertyAttributes attributes) {
   Map* old_map = map();
-  FixedArray* old_properties = properties();
   Object* result;
 
   MaybeObject* maybe_result =
@@ -1797,23 +1797,10 @@ MaybeObject* JSObject::ConvertDescriptorToFieldAndMapTransition(
   // with the map of "new Object()" cannot have transitions in the first place.
   ASSERT(map() != GetIsolate()->empty_object_map());
 
-  TransitionArray* new_transitions;
-  MaybeObject* maybe_new_transitions = old_map->AddTransition(name, map());
-  if (!maybe_new_transitions->To(&new_transitions)) {
-    // Undo changes and return failure.
-    set_map(old_map);
-    set_properties(old_properties);
-    return maybe_new_transitions;
-  }
-
-  MaybeObject* transition_added = old_map->set_transitions(new_transitions);
-  if (transition_added->IsFailure()) {
-    // Undo changes and return failure.
-    set_map(old_map);
-    set_properties(old_properties);
-    return transition_added;
-  }
-
+  // TODO(verwaest): From here on we lose existing map transitions, causing
+  // invalid back pointers. This will change once we can store multiple
+  // transitions with the same key.
+  old_map->SetTransition(transition_index, map());
   map()->SetBackPointer(old_map);
   return result;
 }
@@ -2906,9 +2893,8 @@ MaybeObject* JSObject::SetPropertyForResult(LookupResult* result,
       }
       // Otherwise, replace with a map transition to a new map with a FIELD,
       // even if the value is a constant function.
-      return self->ConvertDescriptorToFieldAndMapTransition(*name,
-                                                            *value,
-                                                            attributes);
+      return ConvertTransitionToMapTransition(
+          result->GetTransitionIndex(), *name, *value, attributes);
     }
     case HANDLER:
     case NONEXISTENT:
@@ -3023,7 +3009,8 @@ MaybeObject* JSObject::SetLocalPropertyIgnoreAttributes(
 
       // Was transition to CONSTANT_FUNCTION. Replace with a map transition to a
       // new map with a FIELD, even if the value is a function.
-      return ConvertDescriptorToFieldAndMapTransition(name, value, attributes);
+      return ConvertTransitionToMapTransition(
+          result.GetTransitionIndex(), name, value, attributes);
     }
     case HANDLER:
     case NONEXISTENT:

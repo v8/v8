@@ -330,6 +330,11 @@ class LookupResult BASE_EMBEDDED {
     return Map::cast(map->transitions()->GetValue(number_));
   }
 
+  int GetTransitionIndex() {
+    ASSERT(IsTransition());
+    return number_;
+  }
+
   int GetFieldIndex() {
     ASSERT(lookup_type_ == DESCRIPTOR_TYPE);
     ASSERT(IsField());

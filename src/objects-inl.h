@@ -3539,6 +3539,10 @@ MaybeObject* Map::AddTransition(String* key, Object* value) {
   return TransitionArray::NewWith(key, value);
 }
 
+void Map::SetTransition(int transition_index, Object* value) {
+  transitions()->SetValue(transition_index, value);
+}
+
 
 // If the map is using the empty descriptor array, install a new empty
 // descriptor array that will contain an elements transition.

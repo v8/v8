@@ -1938,19 +1938,15 @@ class JSObject: public JSReceiver {
 
   MUST_USE_RESULT MaybeObject* TransitionElementsKind(ElementsKind to_kind);
 
-  // Converts a descriptor of any other type to a real field,
-  // backed by the properties array.  Descriptors of visible
-  // types, such as CONSTANT_FUNCTION, keep their enumeration order.
-  // Converts the descriptor on the original object's map to a
-  // map transition, and the the new field is on the object's new map.
-  MUST_USE_RESULT MaybeObject* ConvertDescriptorToFieldAndMapTransition(
+  // Replaces an existing transition with a transition to a map with a FIELD.
+  MUST_USE_RESULT MaybeObject* ConvertTransitionToMapTransition(
+      int transition_index,
       String* name,
       Object* new_value,
       PropertyAttributes attributes);
 
-  // Converts a descriptor of any other type to a real field,
-  // backed by the properties array.  Descriptors of visible
-  // types, such as CONSTANT_FUNCTION, keep their enumeration order.
+  // Converts a descriptor of any other type to a real field, backed by the
+  // properties array.
   MUST_USE_RESULT MaybeObject* ConvertDescriptorToField(
       String* name,
       Object* new_value,
@@ -4819,8 +4815,8 @@ class Map: public HeapObject {
   MUST_USE_RESULT inline MaybeObject* set_elements_transition_map(
       Map* transitioned_map);
   inline TransitionArray* transitions();
-  MUST_USE_RESULT inline MaybeObject* AddTransition(String* key,
-                                                    Object* value);
+  inline void SetTransition(int index, Object* value);
+  MUST_USE_RESULT inline MaybeObject* AddTransition(String* key, Object* value);
   MUST_USE_RESULT inline MaybeObject* set_transitions(
       TransitionArray* transitions);
   inline void ClearTransitions(Heap* heap,
