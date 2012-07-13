@@ -4911,11 +4911,18 @@ static bool ComputeLoadStoreField(Handle<Map> type,
                                   Handle<String> name,
                                   LookupResult* lookup,
                                   bool is_store) {
-  type->LookupTransitionOrDescriptor(NULL, *name, lookup);
+  // If we directly find a field, the access can be inlined.
+  type->LookupDescriptor(NULL, *name, lookup);
   if (lookup->IsField()) return true;
-  return is_store &&
-         lookup->IsTransitionToField(*type) &&
-         (type->unused_property_fields() > 0);
+
+  // For a load, we are out of luck if there is no such field.
+  if (!is_store) return false;
+
+  // 2nd chance: A store into a non-existent field can still be inlined if we
+  // have a matching transition and some room left in the object.
+  type->LookupTransition(NULL, *name, lookup);
+  return lookup->IsTransitionToField(*type) &&
+      (type->unused_property_fields() > 0);
 }
 
 
@@ -5007,21 +5014,71 @@ HInstruction* HGraphBuilder::BuildStoreNamedGeneric(HValue* object,
 }
 
 
+static void LookupInPrototypes(Handle<Map> map,
+                               Handle<String> name,
+                               LookupResult* lookup) {
+  while (map->prototype()->IsJSObject()) {
+    Handle<JSObject> holder(JSObject::cast(map->prototype()));
+    if (!holder->HasFastProperties()) break;
+    map = Handle<Map>(holder->map());
+    map->LookupDescriptor(*holder, *name, lookup);
+    if (lookup->IsFound()) return;
+  }
+  lookup->NotFound();
+}
+
+
+HInstruction* HGraphBuilder::BuildCallSetter(HValue* obj,
+                                             Handle<String> name,
+                                             HValue* value,
+                                             Handle<Map> map,
+                                             Handle<Object> callback,
+                                             Handle<JSObject> holder) {
+  if (!callback->IsAccessorPair()) {
+    return BuildStoreNamedGeneric(obj, name, value);
+  }
+  Handle<Object> setter(Handle<AccessorPair>::cast(callback)->setter());
+  Handle<JSFunction> function(Handle<JSFunction>::cast(setter));
+  AddCheckConstantFunction(holder, obj, map, true);
+  AddInstruction(new(zone()) HPushArgument(obj));
+  AddInstruction(new(zone()) HPushArgument(value));
+  return new(zone()) HCallConstantFunction(function, 2);
+}
+
+
 HInstruction* HGraphBuilder::BuildStoreNamed(HValue* object,
                                              HValue* value,
                                              Handle<Map> type,
                                              Expression* key) {
+  // If we don't know the monomorphic type, do a generic store.
   Handle<String> name = Handle<String>::cast(key->AsLiteral()->handle());
-  ASSERT(!name.is_null());
+  if (type.is_null()) return BuildStoreNamedGeneric(object, name, value);
 
+  // Handle a store to a known field.
   LookupResult lookup(isolate());
-  bool is_monomorphic = !type.is_null() &&
-      ComputeLoadStoreField(type, name, &lookup, true);
+  if (ComputeLoadStoreField(type, name, &lookup, true)) {
+    // true = needs smi and map check.
+    return BuildStoreNamedField(object, name, value, type, &lookup, true);
+  }
 
-  return is_monomorphic
-      ? BuildStoreNamedField(object, name, value, type, &lookup,
-                             true)  // Needs smi and map check.
-      : BuildStoreNamedGeneric(object, name, value);
+  // Handle a known setter directly in the receiver.
+  type->LookupDescriptor(NULL, *name, &lookup);
+  if (lookup.IsPropertyCallbacks()) {
+    Handle<Object> callback(lookup.GetValueFromMap(*type));
+    Handle<JSObject> holder;
+    return BuildCallSetter(object, name, value, type, callback, holder);
+  }
+
+  // Handle a known setter somewhere in the prototype chain.
+  LookupInPrototypes(type, name, &lookup);
+  if (lookup.IsPropertyCallbacks()) {
+    Handle<Object> callback(lookup.GetValue());
+    Handle<JSObject> holder(lookup.holder());
+    return BuildCallSetter(object, name, value, type, callback, holder);
+  }
+
+  // No luck, do a generic store.
+  return BuildStoreNamedGeneric(object, name, value);
 }
 
 
@@ -5594,20 +5651,6 @@ HInstruction* HGraphBuilder::BuildLoadNamedGeneric(HValue* obj,
   Handle<Object> name = expr->key()->AsLiteral()->handle();
   HValue* context = environment()->LookupContext();
   return new(zone()) HLoadNamedGeneric(context, obj, name);
-}
-
-
-static void LookupInPrototypes(Handle<Map> map,
-                               Handle<String> name,
-                               LookupResult* lookup) {
-  while (map->prototype()->IsJSObject()) {
-    Handle<JSObject> holder(JSObject::cast(map->prototype()));
-    if (!holder->HasFastProperties()) break;
-    map = Handle<Map>(holder->map());
-    map->LookupDescriptor(*holder, *name, lookup);
-    if (lookup->IsFound()) return;
-  }
-  lookup->NotFound();
 }
 
 

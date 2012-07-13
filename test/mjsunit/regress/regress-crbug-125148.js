@@ -66,3 +66,25 @@ assertEquals(111, boo(C));
 ToDictionaryMode(B);
 %OptimizeFunctionOnNextCall(boo);
 assertEquals(111, boo(C));
+
+// And once more for setters...
+A = {};
+Object.defineProperty(A, "huh", { set: function(x) { assertUnreachable(); }});
+
+B = Object.create(A);
+var setterValue;
+Object.defineProperty(B, "huh", { set: function(x) { setterValue = x; }});
+
+C = Object.create(B);
+
+function fuu(x) {
+  setterValue = 222;
+  x.huh = 111;
+  return setterValue;
+}
+
+assertEquals(111, fuu(C));
+assertEquals(111, fuu(C));
+ToDictionaryMode(B);
+%OptimizeFunctionOnNextCall(fuu);
+assertEquals(111, fuu(C));
