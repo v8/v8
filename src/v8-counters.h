@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -48,6 +48,23 @@ namespace internal {
   HT(compile, V8.Compile)                                             \
   HT(compile_eval, V8.CompileEval)                                    \
   HT(compile_lazy, V8.CompileLazy)
+
+
+#define HISTOGRAM_PERCENTAGE_LIST(HP)                                 \
+  HP(external_fragmentation_new_space,                                \
+     V8.MemoryExternalFragmentationNewSpace)                          \
+  HP(external_fragmentation_old_pointer_space,                        \
+     V8.MemoryExternalFragmentationOldPointerSpace)                   \
+  HP(external_fragmentation_old_data_space,                           \
+     V8.MemoryExternalFragmentationOldDataSpace)                      \
+  HP(external_fragmentation_code_space,                               \
+     V8.MemoryExternalFragmentationCodeSpace)                         \
+  HP(external_fragmentation_map_space,                                \
+     V8.MemoryExternalFragmentationMapSpace)                          \
+  HP(external_fragmentation_cell_space,                               \
+     V8.MemoryExternalFragmentationCellSpace)                         \
+  HP(external_fragmentation_lo_space,                                 \
+     V8.MemoryExternalFragmentationLoSpace)
 
 
 // WARNING: STATS_COUNTER_LIST_* is a very large macro that is causing MSVC
@@ -280,6 +297,11 @@ class Counters {
   HISTOGRAM_TIMER_LIST(HT)
 #undef HT
 
+#define HP(name, caption) \
+  Histogram* name() { return &name##_; }
+  HISTOGRAM_PERCENTAGE_LIST(HP)
+#undef HP
+
 #define SC(name, caption) \
   StatsCounter* name() { return &name##_; }
   STATS_COUNTER_LIST_1(SC)
@@ -290,6 +312,9 @@ class Counters {
 #define RATE_ID(name, caption) k_##name,
     HISTOGRAM_TIMER_LIST(RATE_ID)
 #undef RATE_ID
+#define PERCENTAGE_ID(name, caption) k_##name,
+    HISTOGRAM_PERCENTAGE_LIST(PERCENTAGE_ID)
+#undef PERCENTAGE_ID
 #define COUNTER_ID(name, caption) k_##name,
     STATS_COUNTER_LIST_1(COUNTER_ID)
     STATS_COUNTER_LIST_2(COUNTER_ID)
@@ -309,6 +334,11 @@ class Counters {
   HistogramTimer name##_;
   HISTOGRAM_TIMER_LIST(HT)
 #undef HT
+
+#define HP(name, caption) \
+  Histogram name##_;
+  HISTOGRAM_PERCENTAGE_LIST(HP)
+#undef HP
 
 #define SC(name, caption) \
   StatsCounter name##_;

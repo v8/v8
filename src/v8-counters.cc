@@ -1,4 +1,4 @@
-// Copyright 2007-2008 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -34,10 +34,16 @@ namespace internal {
 
 Counters::Counters() {
 #define HT(name, caption) \
-    HistogramTimer name = { #caption, NULL, false, 0, 0 }; \
+    HistogramTimer name = { {#caption, 0, 10000, 50, NULL, false}, 0, 0 }; \
     name##_ = name;
     HISTOGRAM_TIMER_LIST(HT)
 #undef HT
+
+#define HP(name, caption) \
+    Histogram name = { #caption, 0, 101, 100, NULL, false }; \
+    name##_ = name;
+    HISTOGRAM_PERCENTAGE_LIST(HP)
+#undef HP
 
 #define SC(name, caption) \
     StatsCounter name = { "c:" #caption, NULL, false };\
