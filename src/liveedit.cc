@@ -1824,7 +1824,14 @@ class SingleFrameTarget {
 const char* LiveEdit::RestartFrame(JavaScriptFrame* frame, Zone* zone) {
   SingleFrameTarget target(frame);
 
-  return DropActivationsInActiveThreadImpl(target, true, zone);
+  const char* result = DropActivationsInActiveThreadImpl(target, true, zone);
+  if (result != NULL) {
+    return result;
+  }
+  if (target.saved_status() == LiveEdit::FUNCTION_BLOCKED_UNDER_NATIVE_CODE) {
+    return "Function is blocked under native code";
+  }
+  return NULL;
 }
 
 
