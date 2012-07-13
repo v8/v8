@@ -30,6 +30,7 @@
 
 #include "allocation.h"
 #include "counters.h"
+#include "objects.h"
 #include "v8globals.h"
 
 namespace v8 {
@@ -308,6 +309,12 @@ class Counters {
   STATS_COUNTER_LIST_2(SC)
 #undef SC
 
+#define SC(name) \
+  StatsCounter* count_of_##name() { return &count_of_##name##_; } \
+  StatsCounter* size_of_##name() { return &size_of_##name##_; }
+  INSTANCE_TYPE_LIST(SC)
+#undef SC
+
   enum Id {
 #define RATE_ID(name, caption) k_##name,
     HISTOGRAM_TIMER_LIST(RATE_ID)
@@ -318,6 +325,9 @@ class Counters {
 #define COUNTER_ID(name, caption) k_##name,
     STATS_COUNTER_LIST_1(COUNTER_ID)
     STATS_COUNTER_LIST_2(COUNTER_ID)
+#undef COUNTER_ID
+#define COUNTER_ID(name) kCountOf##name, kSizeOf##name,
+    INSTANCE_TYPE_LIST(COUNTER_ID)
 #undef COUNTER_ID
 #define COUNTER_ID(name) k_##name,
     STATE_TAG_LIST(COUNTER_ID)
@@ -344,6 +354,12 @@ class Counters {
   StatsCounter name##_;
   STATS_COUNTER_LIST_1(SC)
   STATS_COUNTER_LIST_2(SC)
+#undef SC
+
+#define SC(name) \
+  StatsCounter size_of_##name##_; \
+  StatsCounter count_of_##name##_;
+  INSTANCE_TYPE_LIST(SC)
 #undef SC
 
   enum {

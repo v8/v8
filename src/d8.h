@@ -67,7 +67,7 @@ class CounterCollection {
   CounterCollection();
   Counter* GetNextCounter();
  private:
-  static const unsigned kMaxCounters = 256;
+  static const unsigned kMaxCounters = 512;
   uint32_t magic_number_;
   uint32_t max_counters_;
   uint32_t max_name_size_;

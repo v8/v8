@@ -53,6 +53,14 @@ Counters::Counters() {
     STATS_COUNTER_LIST_2(SC)
 #undef SC
 
+#define SC(name) \
+    StatsCounter count_of_##name = { "c:" "V8.CountOf_" #name, NULL, false };\
+    count_of_##name##_ = count_of_##name; \
+    StatsCounter size_of_##name = { "c:" "V8.SizeOf_" #name, NULL, false };\
+    size_of_##name##_ = size_of_##name;
+    INSTANCE_TYPE_LIST(SC)
+#undef SC
+
   StatsCounter state_counters[] = {
 #define COUNTER_NAME(name) \
     { "c:V8.State" #name, NULL, false },

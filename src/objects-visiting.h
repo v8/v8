@@ -46,71 +46,70 @@ namespace internal {
 // Base class for all static visitors.
 class StaticVisitorBase : public AllStatic {
  public:
+#define VISITOR_ID_LIST(V)    \
+  V(SeqAsciiString)           \
+  V(SeqTwoByteString)         \
+  V(ShortcutCandidate)        \
+  V(ByteArray)                \
+  V(FreeSpace)                \
+  V(FixedArray)               \
+  V(FixedDoubleArray)         \
+  V(GlobalContext)            \
+  V(DataObject2)              \
+  V(DataObject3)              \
+  V(DataObject4)              \
+  V(DataObject5)              \
+  V(DataObject6)              \
+  V(DataObject7)              \
+  V(DataObject8)              \
+  V(DataObject9)              \
+  V(DataObjectGeneric)        \
+  V(JSObject2)                \
+  V(JSObject3)                \
+  V(JSObject4)                \
+  V(JSObject5)                \
+  V(JSObject6)                \
+  V(JSObject7)                \
+  V(JSObject8)                \
+  V(JSObject9)                \
+  V(JSObjectGeneric)          \
+  V(Struct2)                  \
+  V(Struct3)                  \
+  V(Struct4)                  \
+  V(Struct5)                  \
+  V(Struct6)                  \
+  V(Struct7)                  \
+  V(Struct8)                  \
+  V(Struct9)                  \
+  V(StructGeneric)            \
+  V(ConsString)               \
+  V(SlicedString)             \
+  V(Oddball)                  \
+  V(Code)                     \
+  V(Map)                      \
+  V(PropertyCell)             \
+  V(SharedFunctionInfo)       \
+  V(JSFunction)               \
+  V(JSWeakMap)                \
+  V(JSRegExp)
+
+  // For data objects, JS objects and structs along with generic visitor which
+  // can visit object of any size we provide visitors specialized by
+  // object size in words.
+  // Ids of specialized visitors are declared in a linear order (without
+  // holes) starting from the id of visitor specialized for 2 words objects
+  // (base visitor id) and ending with the id of generic visitor.
+  // Method GetVisitorIdForSize depends on this ordering to calculate visitor
+  // id of specialized visitor from given instance size, base visitor id and
+  // generic visitor's id.
   enum VisitorId {
-    kVisitSeqAsciiString = 0,
-    kVisitSeqTwoByteString,
-    kVisitShortcutCandidate,
-    kVisitByteArray,
-    kVisitFreeSpace,
-    kVisitFixedArray,
-    kVisitFixedDoubleArray,
-    kVisitGlobalContext,
-
-    // For data objects, JS objects and structs along with generic visitor which
-    // can visit object of any size we provide visitors specialized by
-    // object size in words.
-    // Ids of specialized visitors are declared in a linear order (without
-    // holes) starting from the id of visitor specialized for 2 words objects
-    // (base visitor id) and ending with the id of generic visitor.
-    // Method GetVisitorIdForSize depends on this ordering to calculate visitor
-    // id of specialized visitor from given instance size, base visitor id and
-    // generic visitor's id.
-
-    kVisitDataObject,
-    kVisitDataObject2 = kVisitDataObject,
-    kVisitDataObject3,
-    kVisitDataObject4,
-    kVisitDataObject5,
-    kVisitDataObject6,
-    kVisitDataObject7,
-    kVisitDataObject8,
-    kVisitDataObject9,
-    kVisitDataObjectGeneric,
-
-    kVisitJSObject,
-    kVisitJSObject2 = kVisitJSObject,
-    kVisitJSObject3,
-    kVisitJSObject4,
-    kVisitJSObject5,
-    kVisitJSObject6,
-    kVisitJSObject7,
-    kVisitJSObject8,
-    kVisitJSObject9,
-    kVisitJSObjectGeneric,
-
-    kVisitStruct,
-    kVisitStruct2 = kVisitStruct,
-    kVisitStruct3,
-    kVisitStruct4,
-    kVisitStruct5,
-    kVisitStruct6,
-    kVisitStruct7,
-    kVisitStruct8,
-    kVisitStruct9,
-    kVisitStructGeneric,
-
-    kVisitConsString,
-    kVisitSlicedString,
-    kVisitOddball,
-    kVisitCode,
-    kVisitMap,
-    kVisitPropertyCell,
-    kVisitSharedFunctionInfo,
-    kVisitJSFunction,
-    kVisitJSWeakMap,
-    kVisitJSRegExp,
-
+#define VISITOR_ID_ENUM_DECL(id)  kVisit##id,
+    VISITOR_ID_LIST(VISITOR_ID_ENUM_DECL)
+#undef VISITOR_ID_ENUM_DECL
     kVisitorIdCount,
+    kVisitDataObject = kVisitDataObject2,
+    kVisitJSObject = kVisitJSObject2,
+    kVisitStruct = kVisitStruct2,
     kMinObjectSizeInWords = 2
   };
 

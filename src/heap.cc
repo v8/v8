@@ -179,6 +179,8 @@ Heap::Heap()
   // Put a dummy entry in the remembered pages so we can find the list the
   // minidump even if there are no real unmapped pages.
   RememberUnmappedPage(NULL, false);
+
+  ClearObjectStats(true);
 }
 
 
@@ -7195,6 +7197,37 @@ void Heap::RememberUnmappedPage(Address page, bool compacted) {
       reinterpret_cast<Address>(p);
   remembered_unmapped_pages_index_++;
   remembered_unmapped_pages_index_ %= kRememberedUnmappedPages;
+}
+
+
+void Heap::ClearObjectStats(bool clear_last_time_stats) {
+  memset(object_counts_, 0, sizeof(object_counts_));
+  memset(object_sizes_, 0, sizeof(object_sizes_));
+  if (clear_last_time_stats) {
+    memset(object_counts_last_time_, 0, sizeof(object_counts_last_time_));
+    memset(object_sizes_last_time_, 0, sizeof(object_sizes_last_time_));
+  }
+}
+
+
+static LazyMutex checkpoint_object_stats_mutex = LAZY_MUTEX_INITIALIZER;
+
+
+void Heap::CheckpointObjectStats() {
+  ScopedLock lock(checkpoint_object_stats_mutex.Pointer());
+  Counters* counters = isolate()->counters();
+#define ADJUST_LAST_TIME_OBJECT_COUNT(name) \
+  counters->count_of_##name()->Increment(object_counts_[name]); \
+  counters->count_of_##name()->Decrement(object_counts_last_time_[name]); \
+  counters->size_of_##name()->Increment(object_sizes_[name]); \
+  counters->size_of_##name()->Decrement(object_sizes_last_time_[name]);
+  INSTANCE_TYPE_LIST(ADJUST_LAST_TIME_OBJECT_COUNT)
+#undef ADJUST_LAST_TIME_OBJECT_COUNT
+  memcpy(object_counts_last_time_, object_counts_,
+         sizeof(object_counts_));
+  memcpy(object_sizes_last_time_, object_sizes_,
+         sizeof(object_sizes_));
+  ClearObjectStats();
 }
 
 } }  // namespace v8::internal
