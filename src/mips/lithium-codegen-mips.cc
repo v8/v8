@@ -5165,7 +5165,8 @@ void LCodeGen::DoForInPrepareMap(LForInPrepareMap* instr) {
 void LCodeGen::DoForInCacheArray(LForInCacheArray* instr) {
   Register map = ToRegister(instr->map());
   Register result = ToRegister(instr->result());
-  __ LoadInstanceDescriptors(map, result);
+  Register scratch = ToRegister(instr->scratch());
+  __ LoadInstanceDescriptors(map, result, scratch);
   __ lw(result,
         FieldMemOperand(result, DescriptorArray::kEnumerationIndexOffset));
   __ lw(result,

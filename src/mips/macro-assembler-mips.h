@@ -1396,7 +1396,9 @@ class MacroAssembler: public Assembler {
                           DoubleRegister temp_double_reg);
 
 
-  void LoadInstanceDescriptors(Register map, Register descriptors);
+  void LoadInstanceDescriptors(Register map,
+                               Register descriptors,
+                               Register scratch);
 
 
   // Activation support.
