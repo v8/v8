@@ -6420,68 +6420,6 @@ void StoreArrayLiteralElementStub::Generate(MacroAssembler* masm) {
   __ ret(0);
 }
 
-
-void ProfileEntryHookStub::MaybeCallEntryHook(MacroAssembler* masm) {
-  if (entry_hook_ != NULL) {
-    ProfileEntryHookStub stub;
-    masm->CallStub(&stub);
-  }
-}
-
-
-void ProfileEntryHookStub::Generate(MacroAssembler* masm) {
-  // Save volatile registers.
-#ifdef _WIN64
-  const int kNumSavedRegisters = 1;
-
-  __ push(rcx);
-#else
-  const int kNumSavedRegisters = 3;
-
-  __ push(rcx);
-  __ push(rdi);
-  __ push(rsi);
-#endif
-
-  // Calculate the original stack pointer and store it in the second arg.
-#ifdef _WIN64
-  __ lea(rdx, Operand(rsp, kNumSavedRegisters * kPointerSize));
-#else
-  __ lea(rsi, Operand(rsp, kNumSavedRegisters * kPointerSize));
-#endif
-
-  // Calculate the function address to the first arg.
-#ifdef _WIN64
-  __ movq(rcx, Operand(rdx, 0));
-  __ subq(rcx, Immediate(Assembler::kShortCallInstructionLength));
-#else
-  __ movq(rdi, Operand(rsi, 0));
-  __ subq(rdi, Immediate(Assembler::kShortCallInstructionLength));
-#endif
-
-  // Reserve stack for the first 4 args and align the stack.
-  __ movq(kScratchRegister, rsp);
-  __ subq(rsp, Immediate(4 * kPointerSize));
-  int frame_alignment = OS::ActivationFrameAlignment();
-  ASSERT(IsPowerOf2(frame_alignment));
-  __ and_(rsp, Immediate(-frame_alignment));
-
-  // Call the entry hook.
-  int64_t hook_location = reinterpret_cast<int64_t>(&entry_hook_);
-  __ movq(rax, hook_location, RelocInfo::NONE);
-  __ call(Operand(rax, 0));
-  __ movq(rsp, kScratchRegister);
-
-  // Restore volatile regs.
-#ifdef _WIN64
-  __ pop(rcx);
-#else
-  __ pop(rsi);
-  __ pop(rdi);
-  __ pop(rcx);
-#endif
-}
-
 #undef __
 
 } }  // namespace v8::internal

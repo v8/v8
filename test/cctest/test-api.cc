@@ -33,7 +33,6 @@
 #include "isolate.h"
 #include "compilation-cache.h"
 #include "execution.h"
-#include "objects.h"
 #include "snapshot.h"
 #include "platform.h"
 #include "utils.h"
@@ -10871,110 +10870,6 @@ THREADED_TEST(NestedHandleScopeAndContexts) {
   CHECK(!str.IsEmpty());
   env->Exit();
   env.Dispose();
-}
-
-
-static i::Handle<i::JSFunction>* foo_ptr = NULL;
-static int foo_count = 0;
-static i::Handle<i::JSFunction>* bar_ptr = NULL;
-static int bar_count = 0;
-
-
-static void entry_hook(uintptr_t function,
-                       uintptr_t return_addr_location) {
-  i::Code* code = i::Code::GetCodeFromTargetAddress(
-      reinterpret_cast<i::Address>(function));
-  CHECK(code != NULL);
-
-  if (bar_ptr != NULL && code == (*bar_ptr)->code())
-    ++bar_count;
-
-  if (foo_ptr != NULL && code == (*foo_ptr)->code())
-    ++foo_count;
-
-  // TODO(siggi): Verify return_addr_location.
-}
-
-
-static void RunLoopInNewEnv() {
-  bar_ptr = NULL;
-  foo_ptr = NULL;
-
-  v8::HandleScope outer;
-  v8::Persistent<Context> env = Context::New();
-  env->Enter();
-
-  const char* script =
-      "function bar() {"
-      "  var sum = 0;"
-      "  for (i = 0; i < 100; ++i)"
-      "    sum = foo(i);"
-      "  return sum;"
-      "}"
-      "function foo(i) { return i * i; }";
-  CompileRun(script);
-  i::Handle<i::JSFunction> bar =
-      i::Handle<i::JSFunction>::cast(
-          v8::Utils::OpenHandle(*env->Global()->Get(v8_str("bar"))));
-  ASSERT(*bar);
-
-  i::Handle<i::JSFunction> foo =
-      i::Handle<i::JSFunction>::cast(
-           v8::Utils::OpenHandle(*env->Global()->Get(v8_str("foo"))));
-  ASSERT(*foo);
-
-  bar_ptr = &bar;
-  foo_ptr = &foo;
-
-  v8::Handle<v8::Value> value = CompileRun("bar();");
-  CHECK(value->IsNumber());
-  CHECK_EQ(9801.0, v8::Number::Cast(*value)->Value());
-
-  // Test the optimized codegen path.
-  value = CompileRun("%OptimizeFunctionOnNextCall(foo);"
-                     "bar();");
-  CHECK(value->IsNumber());
-  CHECK_EQ(9801.0, v8::Number::Cast(*value)->Value());
-
-  env->Exit();
-}
-
-
-THREADED_TEST(SetFunctionEntryHook) {
-  i::FLAG_allow_natives_syntax = true;
-
-  // Test setting and resetting the entry hook.
-  // Nulling it should always succeed.
-  CHECK(v8::V8::SetFunctionEntryHook(NULL));
-
-  CHECK(v8::V8::SetFunctionEntryHook(entry_hook));
-  // Setting a hook while one's active should fail.
-  CHECK_EQ(false, v8::V8::SetFunctionEntryHook(entry_hook));
-
-  CHECK(v8::V8::SetFunctionEntryHook(NULL));
-
-  // Reset the entry count to zero and set the entry hook.
-  bar_count = 0;
-  foo_count = 0;
-  CHECK(v8::V8::SetFunctionEntryHook(entry_hook));
-  RunLoopInNewEnv();
-
-  CHECK_EQ(2, bar_count);
-  CHECK_EQ(200, foo_count);
-
-  // Clear the entry hook and count.
-  bar_count = 0;
-  foo_count = 0;
-  v8::V8::SetFunctionEntryHook(NULL);
-
-  // Clear the compilation cache to make sure we don't reuse the
-  // functions from the previous invocation.
-  v8::internal::Isolate::Current()->compilation_cache()->Clear();
-
-  // Verify that entry hooking is now disabled.
-  RunLoopInNewEnv();
-  CHECK(0u == bar_count);
-  CHECK(0u == foo_count);
 }
 
 
