@@ -1149,7 +1149,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   // We got a map in register v0. Get the enumeration cache from it.
   __ bind(&use_cache);
   __ LoadInstanceDescriptors(v0, a1, a2);
-  __ lw(a1, FieldMemOperand(a1, DescriptorArray::kEnumerationIndexOffset));
+  __ lw(a1, FieldMemOperand(a1, DescriptorArray::kLastAddedOffset));
   __ lw(a2, FieldMemOperand(a1, DescriptorArray::kEnumCacheBridgeCacheOffset));
 
   // Set up the four remaining stack slots.
