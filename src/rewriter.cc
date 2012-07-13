@@ -257,7 +257,7 @@ bool Rewriter::Rewrite(CompilationInfo* info) {
       // coincides with the end of the with scope which is the position of '1'.
       int position = function->end_position();
       VariableProxy* result_proxy = processor.factory()->NewVariableProxy(
-          result->name(), false, position);
+          result->name(), false, Interface::NewValue(), position);
       result_proxy->BindTo(result);
       Statement* result_statement =
           processor.factory()->NewReturnStatement(result_proxy);

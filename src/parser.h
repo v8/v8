@@ -771,7 +771,7 @@ class Parser {
   // Parser support
   VariableProxy* NewUnresolved(Handle<String> name,
                                VariableMode mode,
-                               Interface* interface = Interface::NewValue());
+                               Interface* interface);
   void Declare(Declaration* declaration, bool resolve, bool* ok);
 
   bool TargetStackContainsLabel(Handle<String> label);

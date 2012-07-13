@@ -1408,8 +1408,8 @@ Module* Parser::ParseModuleVariable(bool* ok) {
     PrintF("# Module variable %s ", name->ToAsciiArray());
 #endif
   VariableProxy* proxy = top_scope_->NewUnresolved(
-      factory(), name, scanner().location().beg_pos,
-      Interface::NewModule(zone()));
+      factory(), name, Interface::NewModule(zone()),
+      scanner().location().beg_pos);
 
   return factory()->NewModuleVariable(proxy);
 }
@@ -1499,7 +1499,6 @@ Block* Parser::ParseImportDeclaration(bool* ok) {
     Declaration* declaration =
         factory()->NewImportDeclaration(proxy, module, top_scope_);
     Declare(declaration, true, CHECK_OK);
-    // TODO(rossberg): Add initialization statement to block.
   }
 
   return block;
@@ -1740,7 +1739,7 @@ VariableProxy* Parser::NewUnresolved(
   // Let/const variables in harmony mode are always added to the immediately
   // enclosing scope.
   return DeclarationScope(mode)->NewUnresolved(
-      factory(), name, scanner().location().beg_pos, interface);
+      factory(), name, interface, scanner().location().beg_pos);
 }
 
 
@@ -1954,7 +1953,7 @@ Statement* Parser::ParseNativeDeclaration(bool* ok) {
   // TODO(1240846): It's weird that native function declarations are
   // introduced dynamically when we meet their declarations, whereas
   // other functions are set up when entering the surrounding scope.
-  VariableProxy* proxy = NewUnresolved(name, VAR);
+  VariableProxy* proxy = NewUnresolved(name, VAR, Interface::NewValue());
   Declaration* declaration =
       factory()->NewVariableDeclaration(proxy, VAR, top_scope_);
   Declare(declaration, true, CHECK_OK);
@@ -1983,7 +1982,7 @@ Statement* Parser::ParseFunctionDeclaration(ZoneStringList* names, bool* ok) {
   // scope, we treat is as such and introduce the function with it's
   // initial value upon entering the corresponding scope.
   VariableMode mode = is_extended_mode() ? LET : VAR;
-  VariableProxy* proxy = NewUnresolved(name, mode);
+  VariableProxy* proxy = NewUnresolved(name, mode, Interface::NewValue());
   Declaration* declaration =
       factory()->NewFunctionDeclaration(proxy, mode, fun, top_scope_);
   Declare(declaration, true, CHECK_OK);
@@ -2215,7 +2214,9 @@ Block* Parser::ParseVariableDeclarations(
     // For let/const declarations in harmony mode, we can also immediately
     // pre-resolve the proxy because it resides in the same scope as the
     // declaration.
-    VariableProxy* proxy = NewUnresolved(name, mode);
+    Interface* interface =
+        is_const ? Interface::NewConst() : Interface::NewValue();
+    VariableProxy* proxy = NewUnresolved(name, mode, interface);
     Declaration* declaration =
         factory()->NewVariableDeclaration(proxy, mode, top_scope_);
     Declare(declaration, mode != VAR, CHECK_OK);
@@ -2376,7 +2377,7 @@ Block* Parser::ParseVariableDeclarations(
       // if they are inside a 'with' statement - they may change a 'with' object
       // property).
       VariableProxy* proxy =
-          initialization_scope->NewUnresolved(factory(), name);
+          initialization_scope->NewUnresolved(factory(), name, interface);
       Assignment* assignment =
           factory()->NewAssignment(init_op, proxy, value, position);
       block->AddStatement(factory()->NewExpressionStatement(assignment),
@@ -2884,12 +2885,16 @@ Statement* Parser::ParseForStatement(ZoneStringList* labels, bool* ok) {
   for_scope->set_start_position(scanner().location().beg_pos);
   if (peek() != Token::SEMICOLON) {
     if (peek() == Token::VAR || peek() == Token::CONST) {
+      bool is_const = peek() == Token::CONST;
       Handle<String> name;
       Block* variable_statement =
           ParseVariableDeclarations(kForStatement, NULL, NULL, &name, CHECK_OK);
 
       if (peek() == Token::IN && !name.is_null()) {
-        VariableProxy* each = top_scope_->NewUnresolved(factory(), name);
+        Interface* interface =
+            is_const ? Interface::NewConst() : Interface::NewValue();
+        VariableProxy* each =
+            top_scope_->NewUnresolved(factory(), name, interface);
         ForInStatement* loop = factory()->NewForInStatement(labels);
         Target target(&this->target_stack_, loop);
 
@@ -2936,7 +2941,9 @@ Statement* Parser::ParseForStatement(ZoneStringList* labels, bool* ok) {
         // implementing stack allocated block scoped variables.
         Variable* temp = top_scope_->DeclarationScope()->NewTemporary(name);
         VariableProxy* temp_proxy = factory()->NewVariableProxy(temp);
-        VariableProxy* each = top_scope_->NewUnresolved(factory(), name);
+        Interface* interface = Interface::NewValue();
+        VariableProxy* each =
+            top_scope_->NewUnresolved(factory(), name, interface);
         ForInStatement* loop = factory()->NewForInStatement(labels);
         Target target(&this->target_stack_, loop);
 
@@ -3671,7 +3678,7 @@ Expression* Parser::ParsePrimaryExpression(bool* ok) {
 #endif
       Interface* interface = Interface::NewUnknown(zone());
       result = top_scope_->NewUnresolved(
-          factory(), name, scanner().location().beg_pos, interface);
+          factory(), name, interface, scanner().location().beg_pos);
       break;
     }
 
@@ -4517,7 +4524,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> function_name,
       VariableMode fvar_mode = is_extended_mode() ? CONST_HARMONY : CONST;
       fvar = new(zone()) Variable(top_scope_,
          function_name, fvar_mode, true /* is valid LHS */,
-         Variable::NORMAL, kCreatedInitialized);
+         Variable::NORMAL, kCreatedInitialized, Interface::NewConst());
       VariableProxy* proxy = factory()->NewVariableProxy(fvar);
       VariableDeclaration* fvar_declaration =
           factory()->NewVariableDeclaration(proxy, fvar_mode, top_scope_);
@@ -4607,8 +4614,8 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> function_name,
     if (!is_lazily_compiled) {
       body = new(zone()) ZoneList<Statement*>(8, zone());
       if (fvar != NULL) {
-        VariableProxy* fproxy =
-            top_scope_->NewUnresolved(factory(), function_name);
+        VariableProxy* fproxy = top_scope_->NewUnresolved(
+            factory(), function_name, Interface::NewConst());
         fproxy->BindTo(fvar);
         body->Add(factory()->NewExpressionStatement(
             factory()->NewAssignment(fvar_init_op,
