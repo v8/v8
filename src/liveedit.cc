@@ -1797,7 +1797,9 @@ Handle<JSArray> LiveEdit::CheckAndDropActivations(
 // means an error.
 class SingleFrameTarget {
  public:
-  explicit SingleFrameTarget(JavaScriptFrame* frame) : m_frame(frame) {}
+  explicit SingleFrameTarget(JavaScriptFrame* frame)
+      : m_frame(frame),
+        m_saved_status(LiveEdit::FUNCTION_AVAILABLE_FOR_PATCH) {}
 
   bool MatchActivation(StackFrame* frame,
       LiveEdit::FunctionPatchabilityStatus status) {
