@@ -91,9 +91,10 @@ def Main():
   android_workspace = os.getenv("ANDROID_V8", "/data/local/v8")
   args = [Escape(arg) for arg in sys.argv[1:]]
   script = (" ".join(args) + "\n"
-            "if [ $? -ne 0 ]\n"
-            "  then echo \"Error returned by test\";\n"
-            "fi\n")
+            "case $? in\n"
+            "  0) break;;\n"
+            "  *) echo \"Error returned by test\";;\n"
+            "esac\n")
   script = script.replace(workspace, android_workspace)
   script_file = WriteToTemporaryFile(script)
   android_script_file = android_workspace + "/" + script_file
