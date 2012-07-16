@@ -4477,6 +4477,7 @@ void FullCodeGenerator::EnterFinallyBlock() {
   ExternalReference has_pending_message =
       ExternalReference::address_of_has_pending_message(isolate());
   __ Load(rdx, has_pending_message);
+  __ Integer32ToSmi(rdx, rdx);
   __ push(rdx);
 
   ExternalReference pending_message_script =
@@ -4496,6 +4497,7 @@ void FullCodeGenerator::ExitFinallyBlock() {
   __ Store(pending_message_script, rdx);
 
   __ pop(rdx);
+  __ SmiToInteger32(rdx, rdx);
   ExternalReference has_pending_message =
       ExternalReference::address_of_has_pending_message(isolate());
   __ Store(has_pending_message, rdx);

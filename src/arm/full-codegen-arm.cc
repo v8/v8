@@ -4509,6 +4509,7 @@ void FullCodeGenerator::EnterFinallyBlock() {
       ExternalReference::address_of_has_pending_message(isolate());
   __ mov(ip, Operand(has_pending_message));
   __ ldr(r1, MemOperand(ip));
+  __ SmiTag(r1);
   __ push(r1);
 
   ExternalReference pending_message_script =
@@ -4529,6 +4530,7 @@ void FullCodeGenerator::ExitFinallyBlock() {
   __ str(r1, MemOperand(ip));
 
   __ pop(r1);
+  __ SmiUntag(r1);
   ExternalReference has_pending_message =
       ExternalReference::address_of_has_pending_message(isolate());
   __ mov(ip, Operand(has_pending_message));

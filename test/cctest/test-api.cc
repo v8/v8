@@ -16856,3 +16856,17 @@ THREADED_TEST(Regress137002b) {
              "var result = f(obj);");
   CHECK(context->Global()->Get(v8_str("result"))->IsUndefined());
 }
+
+
+THREADED_TEST(Regress137496) {
+  i::FLAG_expose_gc = true;
+  v8::HandleScope scope;
+  LocalContext context;
+
+  // Compile a try-finally clause where the finally block causes a GC
+  // while there still is a message pending for external reporting.
+  TryCatch try_catch;
+  try_catch.SetVerbose(true);
+  CompileRun("try { throw new Error(); } finally { gc(); }");
+  CHECK(try_catch.HasCaught());
+}
