@@ -1496,8 +1496,8 @@ class VariableProxy: public Expression {
   VariableProxy(Isolate* isolate,
                 Handle<String> name,
                 bool is_this,
-                int position,
-                Interface* interface);
+                Interface* interface,
+                int position);
 
   Handle<String> name_;
   Variable* var_;  // resolved variable, or NULL
@@ -2846,11 +2846,10 @@ class AstNodeFactory BASE_EMBEDDED {
 
   VariableProxy* NewVariableProxy(Handle<String> name,
                                   bool is_this,
-                                  int position = RelocInfo::kNoPosition,
-                                  Interface* interface =
-                                      Interface::NewValue()) {
+                                  Interface* interface = Interface::NewValue(),
+                                  int position = RelocInfo::kNoPosition) {
     VariableProxy* proxy =
-        new(zone_) VariableProxy(isolate_, name, is_this, position, interface);
+        new(zone_) VariableProxy(isolate_, name, is_this, interface, position);
     VISIT_AND_RETURN(VariableProxy, proxy)
   }
 

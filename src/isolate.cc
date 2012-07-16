@@ -1883,7 +1883,7 @@ bool Isolate::Init(Deserializer* des) {
   heap_.SetStackLimits();
 
   // Quiet the heap NaN if needed on target platform.
-  if (create_heap_objects) Assembler::QuietNaN(heap_.nan_value());
+  if (!create_heap_objects) Assembler::QuietNaN(heap_.nan_value());
 
   deoptimizer_data_ = new DeoptimizerData;
   runtime_profiler_ = new RuntimeProfiler(this);

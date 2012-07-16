@@ -984,7 +984,7 @@ TEST(TestCodeFlushing) {
 
 
 // Count the number of global contexts in the weak list of global contexts.
-static int CountGlobalContexts() {
+int CountGlobalContexts() {
   int count = 0;
   Object* object = HEAP->global_contexts_list();
   while (!object->IsUndefined()) {

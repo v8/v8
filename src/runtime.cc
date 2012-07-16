@@ -2181,7 +2181,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_FunctionSetReadOnlyPrototype) {
         details.index());
     // Construct a new field descriptors array containing the new descriptor.
     DescriptorArray* new_descriptors;
-    { MaybeObject* maybe_descriptors = instance_desc->CopyInsert(&new_desc);
+    { MaybeObject* maybe_descriptors =
+          instance_desc->CopyReplace(&new_desc, index);
       if (!maybe_descriptors->To(&new_descriptors)) return maybe_descriptors;
     }
     // Create a new map featuring the new field descriptors array.

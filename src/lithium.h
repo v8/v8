@@ -622,20 +622,15 @@ class DeepIterator BASE_EMBEDDED {
 };
 
 
+class LPlatformChunk;
 class LGap;
 class LLabel;
 
 // Superclass providing data and behavior common to all the
-// arch-specific LChunk classes.
-class LChunkBase: public ZoneObject {
+// arch-specific LPlatformChunk classes.
+class LChunk: public ZoneObject {
  public:
-  LChunkBase(CompilationInfo* info, HGraph* graph)
-    : spill_slot_count_(0),
-      info_(info),
-      graph_(graph),
-      instructions_(32, graph->zone()),
-      pointer_maps_(8, graph->zone()),
-      inlined_closures_(1, graph->zone()) { }
+  static LChunk* NewChunk(HGraph* graph);
 
   void AddInstruction(LInstruction* instruction, HBasicBlock* block);
   LConstantOperand* DefineConstantOperand(HConstant* constant);
@@ -668,7 +663,17 @@ class LChunkBase: public ZoneObject {
 
   Zone* zone() const { return info_->zone(); }
 
+  Handle<Code> Codegen();
+
  protected:
+  LChunk(CompilationInfo* info, HGraph* graph)
+      : spill_slot_count_(0),
+        info_(info),
+        graph_(graph),
+        instructions_(32, graph->zone()),
+        pointer_maps_(8, graph->zone()),
+        inlined_closures_(1, graph->zone()) { }
+
   int spill_slot_count_;
 
  private:

@@ -1301,20 +1301,24 @@ void Shell::OnExit() {
       counters[j].key = i.CurrentKey();
     }
     qsort(counters, number_of_counters, sizeof(counters[0]), CompareKeys);
-    printf("+--------------------------------------------+-------------+\n");
-    printf("| Name                                       | Value       |\n");
-    printf("+--------------------------------------------+-------------+\n");
+    printf("+----------------------------------------------------------------+"
+           "-------------+\n");
+    printf("| Name                                                           |"
+           " Value       |\n");
+    printf("+----------------------------------------------------------------+"
+           "-------------+\n");
     for (j = 0; j < number_of_counters; j++) {
       Counter* counter = counters[j].counter;
       const char* key = counters[j].key;
       if (counter->is_histogram()) {
-        printf("| c:%-40s | %11i |\n", key, counter->count());
-        printf("| t:%-40s | %11i |\n", key, counter->sample_total());
+        printf("| c:%-60s | %11i |\n", key, counter->count());
+        printf("| t:%-60s | %11i |\n", key, counter->sample_total());
       } else {
-        printf("| %-42s | %11i |\n", key, counter->count());
+        printf("| %-62s | %11i |\n", key, counter->count());
       }
     }
-    printf("+--------------------------------------------+-------------+\n");
+    printf("+----------------------------------------------------------------+"
+           "-------------+\n");
     delete [] counters;
   }
   delete counters_file_;

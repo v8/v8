@@ -989,6 +989,7 @@ void LoadIC::UpdateCaches(LookupResult* lookup,
         if (callback->IsAccessorInfo()) {
           Handle<AccessorInfo> info = Handle<AccessorInfo>::cast(callback);
           if (v8::ToCData<Address>(info->getter()) == 0) return;
+          if (!receiver->HasFastProperties()) return;
           if (!info->IsCompatibleReceiver(*receiver)) return;
           code = isolate()->stub_cache()->ComputeLoadCallback(
               name, receiver, holder, info);
@@ -1265,6 +1266,7 @@ void KeyedLoadIC::UpdateCaches(LookupResult* lookup,
         Handle<AccessorInfo> callback =
             Handle<AccessorInfo>::cast(callback_object);
         if (v8::ToCData<Address>(callback->getter()) == 0) return;
+        if (!receiver->HasFastProperties()) return;
         if (!callback->IsCompatibleReceiver(*receiver)) return;
         code = isolate()->stub_cache()->ComputeKeyedLoadCallback(
             name, receiver, holder, callback);
@@ -1316,11 +1318,9 @@ static bool LookupForWrite(Handle<JSObject> receiver,
                            LookupResult* lookup) {
   receiver->LocalLookup(*name, lookup);
   if (!StoreICableLookup(lookup)) {
-    // 2nd chance: There can be accessors somewhere in the prototype chain, but
-    // for compatibility reasons we have to hide this behind a flag. Note that
-    // we explicitly exclude native accessors for now, because the stubs are not
-    // yet prepared for this scenario.
-    if (!FLAG_es5_readonly) return false;
+    // 2nd chance: There can be accessors somewhere in the prototype chain. Note
+    // that we explicitly exclude native accessors for now, because the stubs
+    // are not yet prepared for this scenario.
     receiver->Lookup(*name, lookup);
     if (!lookup->IsCallbacks()) return false;
     Handle<Object> callback(lookup->GetCallbackObject());
@@ -1486,6 +1486,7 @@ void StoreIC::UpdateCaches(LookupResult* lookup,
       if (callback->IsAccessorInfo()) {
         Handle<AccessorInfo> info = Handle<AccessorInfo>::cast(callback);
         if (v8::ToCData<Address>(info->setter()) == 0) return;
+        if (!receiver->HasFastProperties()) return;
         ASSERT(info->IsCompatibleReceiver(*receiver));
         code = isolate()->stub_cache()->ComputeStoreCallback(
             name, receiver, info, strict_mode);

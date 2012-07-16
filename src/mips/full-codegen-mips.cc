@@ -1148,8 +1148,8 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
 
   // We got a map in register v0. Get the enumeration cache from it.
   __ bind(&use_cache);
-  __ LoadInstanceDescriptors(v0, a1);
-  __ lw(a1, FieldMemOperand(a1, DescriptorArray::kEnumerationIndexOffset));
+  __ LoadInstanceDescriptors(v0, a1, a2);
+  __ lw(a1, FieldMemOperand(a1, DescriptorArray::kLastAddedOffset));
   __ lw(a2, FieldMemOperand(a1, DescriptorArray::kEnumCacheBridgeCacheOffset));
 
   // Set up the four remaining stack slots.
@@ -2759,7 +2759,7 @@ void FullCodeGenerator::EmitIsStringWrapperSafeForDefaultValueOf(
   // Look for valueOf symbol in the descriptor array, and indicate false if
   // found. The type is not checked, so if it is a transition it is a false
   // negative.
-  __ LoadInstanceDescriptors(a1, t0);
+  __ LoadInstanceDescriptors(a1, t0, a3);
   __ lw(a3, FieldMemOperand(t0, FixedArray::kLengthOffset));
   // t0: descriptor array
   // a3: length of descriptor array

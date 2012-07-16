@@ -703,47 +703,6 @@ HGraph::HGraph(CompilationInfo* info)
 }
 
 
-Handle<Code> HGraph::Compile() {
-  int values = GetMaximumValueID();
-  if (values > LUnallocated::kMaxVirtualRegisters) {
-    if (FLAG_trace_bailout) {
-      PrintF("Not enough virtual registers for (values).\n");
-    }
-    return Handle<Code>::null();
-  }
-  LAllocator allocator(values, this);
-  LChunkBuilder builder(info(), this, &allocator);
-  LChunk* chunk = builder.Build();
-  if (chunk == NULL) return Handle<Code>::null();
-
-  if (!allocator.Allocate(chunk)) {
-    if (FLAG_trace_bailout) {
-      PrintF("Not enough virtual registers (regalloc).\n");
-    }
-    return Handle<Code>::null();
-  }
-
-  MacroAssembler assembler(isolate(), NULL, 0);
-  LCodeGen generator(chunk, &assembler, info());
-
-  chunk->MarkEmptyBlocks();
-
-  if (generator.GenerateCode()) {
-    if (FLAG_trace_codegen) {
-      PrintF("Crankshaft Compiler - ");
-    }
-    CodeGenerator::MakeCodePrologue(info());
-    Code::Flags flags = Code::ComputeFlags(Code::OPTIMIZED_FUNCTION);
-    Handle<Code> code =
-        CodeGenerator::MakeCodeEpilogue(&assembler, flags, info());
-    generator.FinishCode(code);
-    CodeGenerator::PrintCode(code, info());
-    return code;
-  }
-  return Handle<Code>::null();
-}
-
-
 HBasicBlock* HGraph::CreateBasicBlock() {
   HBasicBlock* result = new(zone()) HBasicBlock(this);
   blocks_.Add(result, zone());
@@ -1752,14 +1711,11 @@ class HGlobalValueNumberer BASE_EMBEDDED {
         block_side_effects_(graph->blocks()->length(), graph->zone()),
         loop_side_effects_(graph->blocks()->length(), graph->zone()),
         visited_on_paths_(graph->zone(), graph->blocks()->length()) {
-    ASSERT(info->isolate()->heap()->allow_allocation(false));
+    ASSERT(!info->isolate()->heap()->IsAllocationAllowed());
     block_side_effects_.AddBlock(GVNFlagSet(), graph_->blocks()->length(),
                                  graph_->zone());
     loop_side_effects_.AddBlock(GVNFlagSet(), graph_->blocks()->length(),
                                 graph_->zone());
-  }
-  ~HGlobalValueNumberer() {
-    ASSERT(!info_->isolate()->heap()->allow_allocation(true));
   }
 
   // Returns true if values with side effects are removed.
@@ -3122,48 +3078,58 @@ HGraph* HGraphBuilder::CreateGraph() {
     }
   }
 
-  graph()->OrderBlocks();
-  graph()->AssignDominators();
+  return graph();
+}
+
+bool HGraph::Optimize(SmartArrayPointer<char>* bailout_reason) {
+  NoHandleAllocation no_handles;
+  AssertNoAllocation no_gc;
+
+  *bailout_reason = SmartArrayPointer<char>();
+  OrderBlocks();
+  AssignDominators();
 
 #ifdef DEBUG
   // Do a full verify after building the graph and computing dominators.
-  graph()->Verify(true);
+  Verify(true);
 #endif
 
-  graph()->PropagateDeoptimizingMark();
-  if (!graph()->CheckConstPhiUses()) {
-    Bailout("Unsupported phi use of const variable");
-    return NULL;
+  PropagateDeoptimizingMark();
+  if (!CheckConstPhiUses()) {
+    *bailout_reason = SmartArrayPointer<char>(StrDup(
+        "Unsupported phi use of const variable"));
+    return false;
   }
-  graph()->EliminateRedundantPhis();
-  if (!graph()->CheckArgumentsPhiUses()) {
-    Bailout("Unsupported phi use of arguments");
-    return NULL;
+  EliminateRedundantPhis();
+  if (!CheckArgumentsPhiUses()) {
+    *bailout_reason = SmartArrayPointer<char>(StrDup(
+        "Unsupported phi use of arguments"));
+    return false;
   }
-  if (FLAG_eliminate_dead_phis) graph()->EliminateUnreachablePhis();
-  graph()->CollectPhis();
+  if (FLAG_eliminate_dead_phis) EliminateUnreachablePhis();
+  CollectPhis();
 
-  if (graph()->has_osr_loop_entry()) {
-    const ZoneList<HPhi*>* phis = graph()->osr_loop_entry()->phis();
+  if (has_osr_loop_entry()) {
+    const ZoneList<HPhi*>* phis = osr_loop_entry()->phis();
     for (int j = 0; j < phis->length(); j++) {
       HPhi* phi = phis->at(j);
-      graph()->osr_values()->at(phi->merged_index())->set_incoming_value(phi);
+      osr_values()->at(phi->merged_index())->set_incoming_value(phi);
     }
   }
 
-  HInferRepresentation rep(graph());
+  HInferRepresentation rep(this);
   rep.Analyze();
 
-  graph()->MarkDeoptimizeOnUndefined();
-  graph()->InsertRepresentationChanges();
+  MarkDeoptimizeOnUndefined();
+  InsertRepresentationChanges();
 
-  graph()->InitializeInferredTypes();
-  graph()->Canonicalize();
+  InitializeInferredTypes();
+  Canonicalize();
 
   // Perform common subexpression elimination and loop-invariant code motion.
   if (FLAG_use_gvn) {
-    HPhase phase("H_Global value numbering", graph());
-    HGlobalValueNumberer gvn(graph(), info());
+    HPhase phase("H_Global value numbering", this);
+    HGlobalValueNumberer gvn(this, info());
     bool removed_side_effects = gvn.Analyze();
     // Trigger a second analysis pass to further eliminate duplicate values that
     // could only be discovered by removing side-effect-generating instructions
@@ -3175,19 +3141,19 @@ HGraph* HGraphBuilder::CreateGraph() {
   }
 
   if (FLAG_use_range) {
-    HRangeAnalysis rangeAnalysis(graph());
+    HRangeAnalysis rangeAnalysis(this);
     rangeAnalysis.Analyze();
   }
-  graph()->ComputeMinusZeroChecks();
+  ComputeMinusZeroChecks();
 
   // Eliminate redundant stack checks on backwards branches.
-  HStackCheckEliminator sce(graph());
+  HStackCheckEliminator sce(this);
   sce.Process();
 
-  graph()->EliminateRedundantBoundsChecks();
-  graph()->DehoistSimpleArrayIndexComputations();
+  EliminateRedundantBoundsChecks();
+  DehoistSimpleArrayIndexComputations();
 
-  return graph();
+  return true;
 }
 
 
@@ -3516,7 +3482,6 @@ void HGraph::EliminateRedundantBoundsChecks(HBasicBlock* bb,
 
 void HGraph::EliminateRedundantBoundsChecks() {
   HPhase phase("H_Eliminate bounds checks", this);
-  AssertNoAllocation no_gc;
   BoundsCheckTable checks_table(zone());
   EliminateRedundantBoundsChecks(entry_block(), &checks_table);
 }
@@ -4946,11 +4911,18 @@ static bool ComputeLoadStoreField(Handle<Map> type,
                                   Handle<String> name,
                                   LookupResult* lookup,
                                   bool is_store) {
-  type->LookupTransitionOrDescriptor(NULL, *name, lookup);
+  // If we directly find a field, the access can be inlined.
+  type->LookupDescriptor(NULL, *name, lookup);
   if (lookup->IsField()) return true;
-  return is_store &&
-         lookup->IsTransitionToField(*type) &&
-         (type->unused_property_fields() > 0);
+
+  // For a load, we are out of luck if there is no such field.
+  if (!is_store) return false;
+
+  // 2nd chance: A store into a non-existent field can still be inlined if we
+  // have a matching transition and some room left in the object.
+  type->LookupTransition(NULL, *name, lookup);
+  return lookup->IsTransitionToField(*type) &&
+      (type->unused_property_fields() > 0);
 }
 
 
@@ -5042,21 +5014,71 @@ HInstruction* HGraphBuilder::BuildStoreNamedGeneric(HValue* object,
 }
 
 
+static void LookupInPrototypes(Handle<Map> map,
+                               Handle<String> name,
+                               LookupResult* lookup) {
+  while (map->prototype()->IsJSObject()) {
+    Handle<JSObject> holder(JSObject::cast(map->prototype()));
+    if (!holder->HasFastProperties()) break;
+    map = Handle<Map>(holder->map());
+    map->LookupDescriptor(*holder, *name, lookup);
+    if (lookup->IsFound()) return;
+  }
+  lookup->NotFound();
+}
+
+
+HInstruction* HGraphBuilder::BuildCallSetter(HValue* obj,
+                                             Handle<String> name,
+                                             HValue* value,
+                                             Handle<Map> map,
+                                             Handle<Object> callback,
+                                             Handle<JSObject> holder) {
+  if (!callback->IsAccessorPair()) {
+    return BuildStoreNamedGeneric(obj, name, value);
+  }
+  Handle<Object> setter(Handle<AccessorPair>::cast(callback)->setter());
+  Handle<JSFunction> function(Handle<JSFunction>::cast(setter));
+  AddCheckConstantFunction(holder, obj, map, true);
+  AddInstruction(new(zone()) HPushArgument(obj));
+  AddInstruction(new(zone()) HPushArgument(value));
+  return new(zone()) HCallConstantFunction(function, 2);
+}
+
+
 HInstruction* HGraphBuilder::BuildStoreNamed(HValue* object,
                                              HValue* value,
                                              Handle<Map> type,
                                              Expression* key) {
+  // If we don't know the monomorphic type, do a generic store.
   Handle<String> name = Handle<String>::cast(key->AsLiteral()->handle());
-  ASSERT(!name.is_null());
+  if (type.is_null()) return BuildStoreNamedGeneric(object, name, value);
 
+  // Handle a store to a known field.
   LookupResult lookup(isolate());
-  bool is_monomorphic = !type.is_null() &&
-      ComputeLoadStoreField(type, name, &lookup, true);
+  if (ComputeLoadStoreField(type, name, &lookup, true)) {
+    // true = needs smi and map check.
+    return BuildStoreNamedField(object, name, value, type, &lookup, true);
+  }
 
-  return is_monomorphic
-      ? BuildStoreNamedField(object, name, value, type, &lookup,
-                             true)  // Needs smi and map check.
-      : BuildStoreNamedGeneric(object, name, value);
+  // Handle a known setter directly in the receiver.
+  type->LookupDescriptor(NULL, *name, &lookup);
+  if (lookup.IsPropertyCallbacks()) {
+    Handle<Object> callback(lookup.GetValueFromMap(*type));
+    Handle<JSObject> holder;
+    return BuildCallSetter(object, name, value, type, callback, holder);
+  }
+
+  // Handle a known setter somewhere in the prototype chain.
+  LookupInPrototypes(type, name, &lookup);
+  if (lookup.IsPropertyCallbacks()) {
+    Handle<Object> callback(lookup.GetValue());
+    Handle<JSObject> holder(lookup.holder());
+    return BuildCallSetter(object, name, value, type, callback, holder);
+  }
+
+  // No luck, do a generic store.
+  return BuildStoreNamedGeneric(object, name, value);
 }
 
 
@@ -5632,20 +5654,6 @@ HInstruction* HGraphBuilder::BuildLoadNamedGeneric(HValue* obj,
 }
 
 
-static void LookupInPrototypes(Handle<Map> map,
-                               Handle<String> name,
-                               LookupResult* lookup) {
-  while (map->prototype()->IsJSObject()) {
-    Handle<JSObject> holder(JSObject::cast(map->prototype()));
-    if (!holder->HasFastProperties()) break;
-    map = Handle<Map>(holder->map());
-    map->LookupDescriptor(*holder, *name, lookup);
-    if (lookup->IsFound()) return;
-  }
-  lookup->NotFound();
-}
-
-
 HInstruction* HGraphBuilder::BuildCallGetter(HValue* obj,
                                              Property* expr,
                                              Handle<Map> map,
@@ -5932,7 +5940,9 @@ HValue* HGraphBuilder::HandlePolymorphicElementAccess(HValue* object,
     if (consolidated_load != NULL) {
       AddInstruction(consolidated_load);
       *has_side_effects |= consolidated_load->HasObservableSideEffects();
-      consolidated_load->set_position(position);
+      if (position != RelocInfo::kNoPosition) {
+        consolidated_load->set_position(position);
+      }
       return consolidated_load;
     }
   }
@@ -5998,7 +6008,7 @@ HValue* HGraphBuilder::HandlePolymorphicElementAccess(HValue* object,
           object, key, val, transition, untransitionable_map, is_store));
     }
     *has_side_effects |= instr->HasObservableSideEffects();
-    instr->set_position(position);
+    if (position != RelocInfo::kNoPosition) instr->set_position(position);
     return is_store ? NULL : instr;
   }
 
@@ -6100,7 +6110,7 @@ HValue* HGraphBuilder::HandlePolymorphicElementAccess(HValue* object,
             external_elements, checked_key, val, elements_kind, is_store));
       }
       *has_side_effects |= access->HasObservableSideEffects();
-      access->set_position(position);
+      if (position != RelocInfo::kNoPosition) access->set_position(position);
       if (!is_store) {
         Push(access);
       }
@@ -6147,7 +6157,7 @@ HValue* HGraphBuilder::HandleKeyedElementAccess(HValue* obj,
       instr = BuildLoadKeyedGeneric(obj, key);
     }
   }
-  instr->set_position(position);
+  if (position != RelocInfo::kNoPosition) instr->set_position(position);
   AddInstruction(instr);
   *has_side_effects = instr->HasObservableSideEffects();
   return instr;
@@ -7499,7 +7509,6 @@ void HGraphBuilder::VisitCallRuntime(CallRuntime* expr) {
     int argument_count = expr->arguments()->length();
     HCallRuntime* call =
         new(zone()) HCallRuntime(context, name, function, argument_count);
-    call->set_position(RelocInfo::kNoPosition);
     Drop(argument_count);
     return ast_context()->ReturnInstruction(call, expr->id());
   }
@@ -9263,7 +9272,7 @@ void HTracer::TraceCompilation(FunctionLiteral* function) {
 }
 
 
-void HTracer::TraceLithium(const char* name, LChunkBase* chunk) {
+void HTracer::TraceLithium(const char* name, LChunk* chunk) {
   Trace(name, chunk->graph(), chunk);
 }
 
@@ -9273,7 +9282,7 @@ void HTracer::TraceHydrogen(const char* name, HGraph* graph) {
 }
 
 
-void HTracer::Trace(const char* name, HGraph* graph, LChunkBase* chunk) {
+void HTracer::Trace(const char* name, HGraph* graph, LChunk* chunk) {
   Tag tag(this, "cfg");
   PrintStringProperty("name", name);
   const ZoneList<HBasicBlock*>* blocks = graph->blocks();
@@ -9535,7 +9544,7 @@ const char* const HPhase::kTotal = "Total";
 
 void HPhase::Begin(const char* name,
                    HGraph* graph,
-                   LChunkBase* chunk,
+                   LChunk* chunk,
                    LAllocator* allocator) {
   name_ = name;
   graph_ = graph;

@@ -292,7 +292,8 @@ Register LCodeGen::EmitLoadRegister(LOperand* op, Register scratch) {
     return ToRegister(op->index());
   } else if (op->IsConstantOperand()) {
     LConstantOperand* const_op = LConstantOperand::cast(op);
-    Handle<Object> literal = chunk_->LookupLiteral(const_op);
+    HConstant* constant = chunk_->LookupConstant(const_op);
+    Handle<Object> literal = constant->handle();
     Representation r = chunk_->LookupLiteralRepresentation(const_op);
     if (r.IsInteger32()) {
       ASSERT(literal->IsNumber());
@@ -330,7 +331,8 @@ DoubleRegister LCodeGen::EmitLoadDoubleRegister(LOperand* op,
     return ToDoubleRegister(op->index());
   } else if (op->IsConstantOperand()) {
     LConstantOperand* const_op = LConstantOperand::cast(op);
-    Handle<Object> literal = chunk_->LookupLiteral(const_op);
+    HConstant* constant = chunk_->LookupConstant(const_op);
+    Handle<Object> literal = constant->handle();
     Representation r = chunk_->LookupLiteralRepresentation(const_op);
     if (r.IsInteger32()) {
       ASSERT(literal->IsNumber());
@@ -354,9 +356,9 @@ DoubleRegister LCodeGen::EmitLoadDoubleRegister(LOperand* op,
 
 
 Handle<Object> LCodeGen::ToHandle(LConstantOperand* op) const {
-  Handle<Object> literal = chunk_->LookupLiteral(op);
+  HConstant* constant = chunk_->LookupConstant(op);
   ASSERT(chunk_->LookupLiteralRepresentation(op).IsTagged());
-  return literal;
+  return constant->handle();
 }
 
 
@@ -366,33 +368,33 @@ bool LCodeGen::IsInteger32(LConstantOperand* op) const {
 
 
 int LCodeGen::ToInteger32(LConstantOperand* op) const {
-  Handle<Object> value = chunk_->LookupLiteral(op);
+  HConstant* constant = chunk_->LookupConstant(op);
   ASSERT(chunk_->LookupLiteralRepresentation(op).IsInteger32());
-  ASSERT(static_cast<double>(static_cast<int32_t>(value->Number())) ==
-      value->Number());
-  return static_cast<int32_t>(value->Number());
+  ASSERT(constant->HasInteger32Value());
+  return constant->Integer32Value();
 }
 
 
 double LCodeGen::ToDouble(LConstantOperand* op) const {
-  Handle<Object> value = chunk_->LookupLiteral(op);
-  return value->Number();
+  HConstant* constant = chunk_->LookupConstant(op);
+  ASSERT(constant->HasDoubleValue());
+  return constant->DoubleValue();
 }
 
 
 Operand LCodeGen::ToOperand(LOperand* op) {
   if (op->IsConstantOperand()) {
     LConstantOperand* const_op = LConstantOperand::cast(op);
-    Handle<Object> literal = chunk_->LookupLiteral(const_op);
+    HConstant* constant = chunk()->LookupConstant(const_op);
     Representation r = chunk_->LookupLiteralRepresentation(const_op);
     if (r.IsInteger32()) {
-      ASSERT(literal->IsNumber());
-      return Operand(static_cast<int32_t>(literal->Number()));
+      ASSERT(constant->HasInteger32Value());
+      return Operand(constant->Integer32Value());
     } else if (r.IsDouble()) {
       Abort("ToOperand Unsupported double immediate.");
     }
     ASSERT(r.IsTagged());
-    return Operand(literal);
+    return Operand(constant->handle());
   } else if (op->IsRegister()) {
     return Operand(ToRegister(op));
   } else if (op->IsDoubleRegister()) {
@@ -521,8 +523,8 @@ void LCodeGen::AddToTranslation(Translation* translation,
     DoubleRegister reg = ToDoubleRegister(op);
     translation->StoreDoubleRegister(reg);
   } else if (op->IsConstantOperand()) {
-    Handle<Object> literal = chunk()->LookupLiteral(LConstantOperand::cast(op));
-    int src_index = DefineDeoptimizationLiteral(literal);
+    HConstant* constant = chunk()->LookupConstant(LConstantOperand::cast(op));
+    int src_index = DefineDeoptimizationLiteral(constant->handle());
     translation->StoreLiteral(src_index);
   } else {
     UNREACHABLE();
@@ -5165,9 +5167,10 @@ void LCodeGen::DoForInPrepareMap(LForInPrepareMap* instr) {
 void LCodeGen::DoForInCacheArray(LForInCacheArray* instr) {
   Register map = ToRegister(instr->map());
   Register result = ToRegister(instr->result());
-  __ LoadInstanceDescriptors(map, result);
+  Register scratch = ToRegister(instr->scratch());
+  __ LoadInstanceDescriptors(map, result, scratch);
   __ lw(result,
-        FieldMemOperand(result, DescriptorArray::kEnumerationIndexOffset));
+        FieldMemOperand(result, DescriptorArray::kLastAddedOffset));
   __ lw(result,
         FieldMemOperand(result, FixedArray::SizeFor(instr->idx())));
   DeoptimizeIf(eq, instr->environment(), result, Operand(zero_reg));

@@ -27,64 +27,15 @@
 
 // Flags: --allow-natives-syntax
 
-function ToDictionaryMode(x) {
-  %OptimizeObjectForAddingMultipleProperties(x, 100);
+function test(i) {
+  // Overwrite random parts of the transcendental cache.
+  Math.sin(i / 1779 * Math.PI);
+  // Check whether the first cache line has been accidentally overwritten
+  // with incorrect key.
+  assertEquals(0, Math.sin(0));
 }
 
-var A, B, C;
-
-// The initial bug report was about calling a know function...
-A = {};
-Object.defineProperty(A, "foo", { value: function() { assertUnreachable(); }});
-
-B = Object.create(A);
-Object.defineProperty(B, "foo", { value: function() { return 111; }});
-
-C = Object.create(B);
-
-function bar(x) { return x.foo(); }
-
-assertEquals(111, bar(C));
-assertEquals(111, bar(C));
-ToDictionaryMode(B);
-%OptimizeFunctionOnNextCall(bar);
-assertEquals(111, bar(C));
-
-// Although this was not in the initial bug report: The same for getters...
-A = {};
-Object.defineProperty(A, "baz", { get: function() { assertUnreachable(); }});
-
-B = Object.create(A);
-Object.defineProperty(B, "baz", { get: function() { return 111; }});
-
-C = Object.create(B);
-
-function boo(x) { return x.baz; }
-
-assertEquals(111, boo(C));
-assertEquals(111, boo(C));
-ToDictionaryMode(B);
-%OptimizeFunctionOnNextCall(boo);
-assertEquals(111, boo(C));
-
-// And once more for setters...
-A = {};
-Object.defineProperty(A, "huh", { set: function(x) { assertUnreachable(); }});
-
-B = Object.create(A);
-var setterValue;
-Object.defineProperty(B, "huh", { set: function(x) { setterValue = x; }});
-
-C = Object.create(B);
-
-function fuu(x) {
-  setterValue = 222;
-  x.huh = 111;
-  return setterValue;
+for (i = 0; i < 10000; ++i) {
+  test(i);
+  if (i == 0) %OptimizeFunctionOnNextCall(test);
 }
-
-assertEquals(111, fuu(C));
-assertEquals(111, fuu(C));
-ToDictionaryMode(B);
-%OptimizeFunctionOnNextCall(fuu);
-assertEquals(111, fuu(C));

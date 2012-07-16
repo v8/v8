@@ -857,9 +857,14 @@ class HInstruction: public HValue {
   void InsertBefore(HInstruction* next);
   void InsertAfter(HInstruction* previous);
 
+  // The position is a write-once variable.
   int position() const { return position_; }
   bool has_position() const { return position_ != RelocInfo::kNoPosition; }
-  void set_position(int position) { position_ = position; }
+  void set_position(int position) {
+    ASSERT(!has_position());
+    ASSERT(position != RelocInfo::kNoPosition);
+    position_ = position;
+  }
 
   bool CanTruncateToInt32() const { return CheckFlag(kTruncatingToInt32); }
 

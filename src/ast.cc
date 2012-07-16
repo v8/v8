@@ -85,8 +85,8 @@ VariableProxy::VariableProxy(Isolate* isolate, Variable* var)
 VariableProxy::VariableProxy(Isolate* isolate,
                              Handle<String> name,
                              bool is_this,
-                             int position,
-                             Interface* interface)
+                             Interface* interface,
+                             int position)
     : Expression(isolate),
       name_(name),
       var_(NULL),

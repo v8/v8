@@ -1797,7 +1797,9 @@ Handle<JSArray> LiveEdit::CheckAndDropActivations(
 // means an error.
 class SingleFrameTarget {
  public:
-  explicit SingleFrameTarget(JavaScriptFrame* frame) : m_frame(frame) {}
+  explicit SingleFrameTarget(JavaScriptFrame* frame)
+      : m_frame(frame),
+        m_saved_status(LiveEdit::FUNCTION_AVAILABLE_FOR_PATCH) {}
 
   bool MatchActivation(StackFrame* frame,
       LiveEdit::FunctionPatchabilityStatus status) {
@@ -1824,7 +1826,14 @@ class SingleFrameTarget {
 const char* LiveEdit::RestartFrame(JavaScriptFrame* frame, Zone* zone) {
   SingleFrameTarget target(frame);
 
-  return DropActivationsInActiveThreadImpl(target, true, zone);
+  const char* result = DropActivationsInActiveThreadImpl(target, true, zone);
+  if (result != NULL) {
+    return result;
+  }
+  if (target.saved_status() == LiveEdit::FUNCTION_BLOCKED_UNDER_NATIVE_CODE) {
+    return "Function is blocked under native code";
+  }
+  return NULL;
 }
 
 

@@ -1938,19 +1938,15 @@ class JSObject: public JSReceiver {
 
   MUST_USE_RESULT MaybeObject* TransitionElementsKind(ElementsKind to_kind);
 
-  // Converts a descriptor of any other type to a real field,
-  // backed by the properties array.  Descriptors of visible
-  // types, such as CONSTANT_FUNCTION, keep their enumeration order.
-  // Converts the descriptor on the original object's map to a
-  // map transition, and the the new field is on the object's new map.
-  MUST_USE_RESULT MaybeObject* ConvertDescriptorToFieldAndMapTransition(
+  // Replaces an existing transition with a transition to a map with a FIELD.
+  MUST_USE_RESULT MaybeObject* ConvertTransitionToMapTransition(
+      int transition_index,
       String* name,
       Object* new_value,
       PropertyAttributes attributes);
 
-  // Converts a descriptor of any other type to a real field,
-  // backed by the properties array.  Descriptors of visible
-  // types, such as CONSTANT_FUNCTION, keep their enumeration order.
+  // Converts a descriptor of any other type to a real field, backed by the
+  // properties array.
   MUST_USE_RESULT MaybeObject* ConvertDescriptorToField(
       String* name,
       Object* new_value,
@@ -2475,6 +2471,7 @@ class DescriptorArray: public FixedArray {
   }
 
   inline int number_of_entries() { return number_of_descriptors(); }
+  inline int NextEnumerationIndex() { return number_of_descriptors() + 1; }
 
   int LastAdded() {
     ASSERT(!IsEmpty());
@@ -2487,17 +2484,16 @@ class DescriptorArray: public FixedArray {
     }
   }
 
-  int NextEnumerationIndex() {
-    if (number_of_descriptors() == 0) {
-      return PropertyDetails::kInitialIndex;
-    }
-    return GetDetails(LastAdded()).index() + 1;
-  }
-
   // Set index of the last added descriptor and flush any enum cache.
   void SetLastAdded(int index) {
     ASSERT(!IsEmpty() || index > 0);
     set(kLastAddedIndex, Smi::FromInt(index));
+  }
+
+  int NumberOfSetDescriptors() {
+    ASSERT(!IsEmpty());
+    if (LastAdded() == kNoneAdded) return 0;
+    return GetDetails(LastAdded()).index();
   }
 
   bool HasEnumCache() {
@@ -2546,6 +2542,11 @@ class DescriptorArray: public FixedArray {
   inline void Set(int descriptor_number,
                   Descriptor* desc,
                   const WhitenessWitness&);
+  // Append automatically sets the enumeration index. This should only be used
+  // to add descriptors in bulk at the end, followed by sorting the descriptor
+  // array.
+  inline void Append(Descriptor* desc,
+                     const WhitenessWitness&);
 
   // Transfer a complete descriptor from the src descriptor array to the dst
   // one, dropping map transitions in CALLBACKS.
@@ -2569,6 +2570,9 @@ class DescriptorArray: public FixedArray {
   // If adding a real property, map transitions must be removed.  If adding
   // a transition, they must not be removed.  All null descriptors are removed.
   MUST_USE_RESULT MaybeObject* CopyInsert(Descriptor* descriptor);
+  MUST_USE_RESULT MaybeObject* CopyAdd(Descriptor* descriptor);
+  MUST_USE_RESULT MaybeObject* CopyReplace(Descriptor* descriptor,
+                                           int insertion_index);
 
   // Indicates whether the search function should expect a sorted or an unsorted
   // descriptor array as input.
@@ -2609,6 +2613,9 @@ class DescriptorArray: public FixedArray {
 
   // Constant for denoting key was not found.
   static const int kNotFound = -1;
+
+  // Constant for denoting that the LastAdded field was not yet set.
+  static const int kNoneAdded = -1;
 
   static const int kBackPointerStorageIndex = 0;
   static const int kLastAddedIndex = 1;
@@ -4808,8 +4815,8 @@ class Map: public HeapObject {
   MUST_USE_RESULT inline MaybeObject* set_elements_transition_map(
       Map* transitioned_map);
   inline TransitionArray* transitions();
-  MUST_USE_RESULT inline MaybeObject* AddTransition(String* key,
-                                                    Object* value);
+  inline void SetTransition(int index, Object* value);
+  MUST_USE_RESULT inline MaybeObject* AddTransition(String* key, Object* value);
   MUST_USE_RESULT inline MaybeObject* set_transitions(
       TransitionArray* transitions);
   inline void ClearTransitions(Heap* heap,

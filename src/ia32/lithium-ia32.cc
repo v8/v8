@@ -366,7 +366,7 @@ void LAccessArgumentsAt::PrintDataTo(StringStream* stream) {
 }
 
 
-int LChunk::GetNextSpillIndex(bool is_double) {
+int LPlatformChunk::GetNextSpillIndex(bool is_double) {
   // Skip a slot if for a double-width slot.
   if (is_double) {
     spill_slot_count_++;
@@ -377,7 +377,7 @@ int LChunk::GetNextSpillIndex(bool is_double) {
 }
 
 
-LOperand* LChunk::GetNextSpillSlot(bool is_double) {
+LOperand* LPlatformChunk::GetNextSpillSlot(bool is_double) {
   int index = GetNextSpillIndex(is_double);
   if (is_double) {
     return LDoubleStackSlot::Create(index, zone());
@@ -438,9 +438,9 @@ void LTransitionElementsKind::PrintDataTo(StringStream* stream) {
 }
 
 
-LChunk* LChunkBuilder::Build() {
+LPlatformChunk* LChunkBuilder::Build() {
   ASSERT(is_unused());
-  chunk_ = new(zone()) LChunk(info(), graph());
+  chunk_ = new(zone()) LPlatformChunk(info(), graph());
   HPhase phase("L_Building chunk", chunk_);
   status_ = BUILDING;
 
@@ -465,7 +465,7 @@ void LChunkBuilder::Abort(const char* format, ...) {
   if (FLAG_trace_bailout) {
     SmartArrayPointer<char> name(
         info()->shared_info()->DebugName()->ToCString());
-    PrintF("Aborting LChunk building in @\"%s\": ", *name);
+    PrintF("Aborting LPlatformChunk building in @\"%s\": ", *name);
     va_list arguments;
     va_start(arguments, format);
     OS::VPrint(format, arguments);

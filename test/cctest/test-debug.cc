@@ -7392,4 +7392,32 @@ TEST(Regress131642) {
   v8::Debug::SetDebugEventListener(NULL);
 }
 
+
+// Import from test-heap.cc
+int CountGlobalContexts();
+
+
+static void NopListener(v8::DebugEvent event,
+                        v8::Handle<v8::Object> exec_state,
+                        v8::Handle<v8::Object> event_data,
+                        v8::Handle<v8::Value> data) {
+}
+
+
+TEST(DebuggerCreatesContextIffActive) {
+  v8::HandleScope scope;
+  DebugLocalContext env;
+  CHECK_EQ(1, CountGlobalContexts());
+
+  v8::Debug::SetDebugEventListener(NULL);
+  CompileRun("debugger;");
+  CHECK_EQ(1, CountGlobalContexts());
+
+  v8::Debug::SetDebugEventListener(NopListener);
+  CompileRun("debugger;");
+  CHECK_EQ(2, CountGlobalContexts());
+
+  v8::Debug::SetDebugEventListener(NULL);
+}
+
 #endif  // ENABLE_DEBUGGER_SUPPORT

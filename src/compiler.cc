@@ -308,11 +308,19 @@ static bool MakeCrankshaftCode(CompilationInfo* info) {
   }
 
   if (graph != NULL) {
-    Handle<Code> optimized_code = graph->Compile();
-    if (!optimized_code.is_null()) {
-      info->SetCode(optimized_code);
-      FinishOptimization(info->closure(), start);
-      return true;
+    SmartArrayPointer<char> bailout_reason;
+    if (!graph->Optimize(&bailout_reason)) {
+      if (!bailout_reason.is_empty()) builder.Bailout(*bailout_reason);
+    } else {
+      LChunk* chunk = LChunk::NewChunk(graph);
+      if (chunk != NULL) {
+        Handle<Code> optimized_code = chunk->Codegen();
+        if (!optimized_code.is_null()) {
+          info->SetCode(optimized_code);
+          FinishOptimization(info->closure(), start);
+          return true;
+        }
+      }
     }
   }
 

@@ -1539,10 +1539,10 @@ MaybeObject* JSObject::AddFastProperty(String* name,
       (map()->unused_property_fields() == 0 &&
        TooManyFastProperties(properties()->length(), store_mode))) {
     Object* obj;
-    { MaybeObject* maybe_obj =
-          NormalizeProperties(CLEAR_INOBJECT_PROPERTIES, 0);
-      if (!maybe_obj->ToObject(&obj)) return maybe_obj;
-    }
+    MaybeObject* maybe_obj =
+        NormalizeProperties(CLEAR_INOBJECT_PROPERTIES, 0);
+    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
+
     return AddSlowProperty(name, value, attributes);
   }
 
@@ -1552,17 +1552,15 @@ MaybeObject* JSObject::AddFastProperty(String* name,
 
   // Allocate new instance descriptors with (name, index) added
   FieldDescriptor new_field(name, index, attributes, 0);
+
   DescriptorArray* new_descriptors;
-  { MaybeObject* maybe_new_descriptors =
-        old_descriptors->CopyInsert(&new_field);
-    if (!maybe_new_descriptors->To(&new_descriptors)) {
-      return maybe_new_descriptors;
-    }
+  MaybeObject* maybe_new_descriptors = old_descriptors->CopyAdd(&new_field);
+  if (!maybe_new_descriptors->To(&new_descriptors)) {
+    return maybe_new_descriptors;
   }
 
   // Only allow map transition if the object isn't the global object.
-  bool allow_map_transition =
-      (isolate->context()->global_context()->object_function()->map() != map());
+  bool allow_map_transition = isolate->empty_object_map() != map();
 
   ASSERT(index < map()->inobject_properties() ||
          (index - map()->inobject_properties()) < properties()->length() ||
@@ -1570,25 +1568,22 @@ MaybeObject* JSObject::AddFastProperty(String* name,
 
   // Allocate a new map for the object.
   Map* new_map;
-  { MaybeObject* maybe_r = map()->CopyReplaceDescriptors(new_descriptors);
-    if (!maybe_r->To(&new_map)) return maybe_r;
-  }
+  MaybeObject* maybe_r = map()->CopyReplaceDescriptors(new_descriptors);
+  if (!maybe_r->To(&new_map)) return maybe_r;
 
   TransitionArray* new_transitions = NULL;
   if (allow_map_transition) {
-    MaybeObject* maybe_new_transitions = map()->AddTransition(name, new_map);
-    if (!maybe_new_transitions->To(&new_transitions)) {
-      return maybe_new_transitions;
-    }
+    MaybeObject* maybe_transitions = map()->AddTransition(name, new_map);
+    if (!maybe_transitions->To(&new_transitions)) return maybe_transitions;
   }
 
   if (map()->unused_property_fields() == 0) {
     // Make room for the new value
     FixedArray* values;
-    { MaybeObject* maybe_values =
-          properties()->CopySize(properties()->length() + kFieldsAdded);
-      if (!maybe_values->To(&values)) return maybe_values;
-    }
+    MaybeObject* maybe_values =
+        properties()->CopySize(properties()->length() + kFieldsAdded);
+    if (!maybe_values->To(&values)) return maybe_values;
+
     set_properties(values);
     new_map->set_unused_property_fields(kFieldsAdded - 1);
   } else {
@@ -1613,60 +1608,48 @@ MaybeObject* JSObject::AddConstantFunctionProperty(
     PropertyAttributes attributes) {
   // Allocate new instance descriptors with (name, function) added
   ConstantFunctionDescriptor d(name, function, attributes, 0);
+
   DescriptorArray* new_descriptors;
-  { MaybeObject* maybe_new_descriptors =
-        map()->instance_descriptors()->CopyInsert(&d);
-    if (!maybe_new_descriptors->To(&new_descriptors)) {
-      return maybe_new_descriptors;
-    }
+  MaybeObject* maybe_new_descriptors =
+      map()->instance_descriptors()->CopyAdd(&d);
+  if (!maybe_new_descriptors->To(&new_descriptors)) {
+    return maybe_new_descriptors;
   }
 
   // Allocate a new map for the object.
   Map* new_map;
-  { MaybeObject* maybe_new_map = map()->CopyReplaceDescriptors(new_descriptors);
-    if (!maybe_new_map->To(&new_map)) return maybe_new_map;
-  }
+  MaybeObject* maybe_new_map = map()->CopyReplaceDescriptors(new_descriptors);
+  if (!maybe_new_map->To(&new_map)) return maybe_new_map;
 
   Map* old_map = map();
-  set_map(new_map);
 
-  // If the old map is the global object map (from new Object()),
-  // then transitions are not added to it, so we are done.
   Heap* heap = GetHeap();
-  if (old_map == heap->isolate()->context()->global_context()->
-      object_function()->map()) {
+  // Do not add transitions to the empty object map (map of "new Object()"), nor
+  // to global objects.
+  if (old_map == heap->isolate()->empty_object_map() || IsGlobalObject()) {
+    set_map(new_map);
     return function;
   }
 
-  // Do not add constant transitions to global objects
-  if (IsGlobalObject()) {
+  // Don't add transitions to special properties with non-trivial attributes.
+  // TODO(verwaest): Once we support attribute changes, these transitions should
+  // be kept as well.
+  if (attributes != NONE) {
+    set_map(new_map);
     return function;
   }
 
   // Add a constant transition to the old map, so future assignments to this
   // property on other objects of the same type will create a normal field, not
-  // a constant function. Don't do this for special properties, with non-trival
-  // attributes.
-  if (attributes != NONE) {
-    return function;
-  }
+  // a constant function.
+  TransitionArray* transitions;
+  MaybeObject* maybe_transitions = old_map->AddTransition(name, new_map);
+  if (!maybe_transitions->To(&transitions)) return maybe_transitions;
 
-  TransitionArray* new_transitions;
-  { MaybeObject* maybe_new_transitions =
-        old_map->AddTransition(name, new_map);
-    if (!maybe_new_transitions->To(&new_transitions)) {
-      // We have accomplished the main goal, so return success.
-      return function;
-    }
-  }
+  MaybeObject* transition_added = old_map->set_transitions(transitions);
+  if (transition_added->IsFailure()) return transition_added;
 
-  { MaybeObject* transition_added = old_map->set_transitions(new_transitions);
-    // We have accomplished the main goal, so return success.
-    if (transition_added->IsFailure()) {
-      return function;
-    }
-  }
-
+  set_map(new_map);
   new_map->SetBackPointer(old_map);
   return function;
 }
@@ -1796,46 +1779,29 @@ MaybeObject* JSObject::ReplaceSlowProperty(String* name,
 }
 
 
-MaybeObject* JSObject::ConvertDescriptorToFieldAndMapTransition(
+MaybeObject* JSObject::ConvertTransitionToMapTransition(
+    int transition_index,
     String* name,
     Object* new_value,
     PropertyAttributes attributes) {
   Map* old_map = map();
   Object* result;
 
-  { MaybeObject* maybe_result =
-        ConvertDescriptorToField(name, new_value, attributes);
-    if (!maybe_result->To(&result)) return maybe_result;
-  }
+  MaybeObject* maybe_result =
+      ConvertDescriptorToField(name, new_value, attributes);
+  if (!maybe_result->To(&result)) return maybe_result;
 
-  // If we get to this point we have succeeded - do not return failure
-  // after this point.  Later stuff is optional.
-  if (!HasFastProperties()) {
-    return result;
-  }
+  if (!HasFastProperties()) return result;
 
-  // Do not add transitions to the map of "new Object()".
-  if (map() == GetIsolate()->context()->global_context()->
-      object_function()->map()) {
-    return result;
-  }
+  // This method should only be used to convert existing transitions. Objects
+  // with the map of "new Object()" cannot have transitions in the first place.
+  ASSERT(map() != GetIsolate()->empty_object_map());
 
-  TransitionArray* new_transitions;
-  { MaybeObject* maybe_new_transitions = old_map->AddTransition(name, map());
-    if (!maybe_new_transitions->To(&new_transitions)) {
-      // We have accomplished the main goal, so return success.
-      return result;
-    }
-  }
-
-  { MaybeObject* transition_added = old_map->set_transitions(new_transitions);
-    // Return success if failure since we accomplished the main goal. Otherwise
-    // also set backpointer.
-    if (!transition_added->IsFailure()) {
-      map()->SetBackPointer(old_map);
-    }
-  }
-
+  // TODO(verwaest): From here on we lose existing map transitions, causing
+  // invalid back pointers. This will change once we can store multiple
+  // transitions with the same key.
+  old_map->SetTransition(transition_index, map());
+  map()->SetBackPointer(old_map);
   return result;
 }
 
@@ -1846,49 +1812,41 @@ MaybeObject* JSObject::ConvertDescriptorToField(String* name,
   if (map()->unused_property_fields() == 0 &&
       TooManyFastProperties(properties()->length(), MAY_BE_STORE_FROM_KEYED)) {
     Object* obj;
-    { MaybeObject* maybe_obj =
-          NormalizeProperties(CLEAR_INOBJECT_PROPERTIES, 0);
-      if (!maybe_obj->ToObject(&obj)) return maybe_obj;
-    }
+    MaybeObject* maybe_obj = NormalizeProperties(CLEAR_INOBJECT_PROPERTIES, 0);
+    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
     return ReplaceSlowProperty(name, new_value, attributes);
   }
 
   int index = map()->NextFreePropertyIndex();
   FieldDescriptor new_field(name, index, attributes, 0);
+
   // Make a new DescriptorArray replacing an entry with FieldDescriptor.
   DescriptorArray* new_descriptors;
-  { MaybeObject* maybe_descriptors =
-        map()->instance_descriptors()->CopyInsert(&new_field);
-    if (!maybe_descriptors->To(&new_descriptors)) return maybe_descriptors;
-  }
+  MaybeObject* maybe_descriptors =
+      map()->instance_descriptors()->CopyInsert(&new_field);
+  if (!maybe_descriptors->To(&new_descriptors)) return maybe_descriptors;
 
   // Make a new map for the object.
   Map* new_map;
-  { MaybeObject* maybe_new_map = map()->CopyReplaceDescriptors(new_descriptors);
-    if (!maybe_new_map->To(&new_map)) return maybe_new_map;
-  }
+  MaybeObject* maybe_new_map = map()->CopyReplaceDescriptors(new_descriptors);
+  if (!maybe_new_map->To(&new_map)) return maybe_new_map;
 
   // Make new properties array if necessary.
-  FixedArray* new_properties = 0;  // Will always be NULL or a valid pointer.
+  FixedArray* new_properties = NULL;
   int new_unused_property_fields = map()->unused_property_fields() - 1;
   if (map()->unused_property_fields() == 0) {
     new_unused_property_fields = kFieldsAdded - 1;
-    Object* new_properties_object;
-    { MaybeObject* maybe_new_properties_object =
-          properties()->CopySize(properties()->length() + kFieldsAdded);
-      if (!maybe_new_properties_object->ToObject(&new_properties_object)) {
-        return maybe_new_properties_object;
-      }
-    }
-    new_properties = FixedArray::cast(new_properties_object);
+    MaybeObject* maybe_new_properties =
+        properties()->CopySize(properties()->length() + kFieldsAdded);
+    if (!maybe_new_properties->To(&new_properties)) return maybe_new_properties;
   }
 
   // Update pointers to commit changes.
   // Object points to the new map.
   new_map->set_unused_property_fields(new_unused_property_fields);
   set_map(new_map);
-  if (new_properties) {
-    set_properties(FixedArray::cast(new_properties));
+  if (new_properties != NULL) {
+    set_properties(new_properties);
   }
   return FastPropertyAtPut(index, new_value);
 }
@@ -2350,12 +2308,11 @@ MaybeObject* JSObject::GetElementsTransitionMapSlow(ElementsKind to_kind) {
     return start_map;
   }
 
-  Context* global_context = GetIsolate()->context()->global_context();
   bool allow_store_transition =
       // Only remember the map transition if the object's map is NOT equal to
       // the global object_function's map and there is not an already existing
       // non-matching element transition.
-      (global_context->object_function()->map() != map()) &&
+      (GetIsolate()->empty_object_map() != map()) &&
       !start_map->IsUndefined() && !start_map->is_shared() &&
       IsFastElementsKind(from_kind);
 
@@ -2905,16 +2862,8 @@ MaybeObject* JSObject::SetPropertyForResult(LookupResult* result,
       Object* transition = result->GetTransitionValue();
 
       if (transition->IsAccessorPair()) {
-        if (!AccessorPair::cast(transition)->ContainsAccessor()) {
-          return self->ConvertDescriptorToField(*name,
-                                                *value,
-                                                attributes);
-        }
-        return self->SetPropertyWithCallback(transition,
-                                             *name,
-                                             *value,
-                                             result->holder(),
-                                             strict_mode);
+        ASSERT(!AccessorPair::cast(transition)->ContainsAccessor());
+        return ConvertDescriptorToField(*name, *value, attributes);
       }
 
       Map* transition_map = Map::cast(transition);
@@ -2944,9 +2893,8 @@ MaybeObject* JSObject::SetPropertyForResult(LookupResult* result,
       }
       // Otherwise, replace with a map transition to a new map with a FIELD,
       // even if the value is a constant function.
-      return self->ConvertDescriptorToFieldAndMapTransition(*name,
-                                                            *value,
-                                                            attributes);
+      return ConvertTransitionToMapTransition(
+          result->GetTransitionIndex(), *name, *value, attributes);
     }
     case HANDLER:
     case NONEXISTENT:
@@ -3038,6 +2986,7 @@ MaybeObject* JSObject::SetLocalPropertyIgnoreAttributes(
       Object* transition = result.GetTransitionValue();
 
       if (transition->IsAccessorPair()) {
+        ASSERT(!AccessorPair::cast(transition)->ContainsAccessor());
         return ConvertDescriptorToField(name, value, attributes);
       }
 
@@ -3060,7 +3009,8 @@ MaybeObject* JSObject::SetLocalPropertyIgnoreAttributes(
 
       // Was transition to CONSTANT_FUNCTION. Replace with a map transition to a
       // new map with a FIELD, even if the value is a function.
-      return ConvertDescriptorToFieldAndMapTransition(name, value, attributes);
+      return ConvertTransitionToMapTransition(
+          result.GetTransitionIndex(), name, value, attributes);
     }
     case HANDLER:
     case NONEXISTENT:
@@ -3372,11 +3322,10 @@ MaybeObject* JSObject::NormalizeProperties(PropertyNormalizationMode mode,
   dictionary->SetNextEnumerationIndex(index);
 
   Map* new_map;
-  { MaybeObject* maybe_map =
-        current_heap->isolate()->context()->global_context()->
-        normalized_map_cache()->Get(this, mode);
-    if (!maybe_map->To(&new_map)) return maybe_map;
-  }
+  MaybeObject* maybe_map =
+      current_heap->isolate()->context()->global_context()->
+      normalized_map_cache()->Get(this, mode);
+  if (!maybe_map->To(&new_map)) return maybe_map;
 
   // We have now successfully allocated all the necessary objects.
   // Changes can now be made with the guarantee that all of them take effect.
@@ -4594,7 +4543,7 @@ static MaybeObject* CreateFreshAccessor(JSObject* obj,
   CallbacksDescriptor callbacks_descr2(name, accessors2, attributes, 0);
   DescriptorArray* descriptors2;
   { MaybeObject* maybe_descriptors2 =
-        map1->instance_descriptors()->CopyInsert(&callbacks_descr2);
+        map1->instance_descriptors()->CopyAdd(&callbacks_descr2);
     if (!maybe_descriptors2->To(&descriptors2)) return maybe_descriptors2;
   }
 
@@ -5802,7 +5751,7 @@ MaybeObject* DescriptorArray::Allocate(int number_of_descriptors,
     if (!maybe_array->To(&result)) return maybe_array;
   }
 
-  result->set(kLastAddedIndex, Smi::FromInt(-1));
+  result->set(kLastAddedIndex, Smi::FromInt(kNoneAdded));
   result->set(kTransitionsIndex, Smi::FromInt(0));
   return result;
 }
@@ -5863,6 +5812,41 @@ MaybeObject* DescriptorArray::CopyFrom(int dst_index,
   return this;
 }
 
+MaybeObject* DescriptorArray::CopyReplace(Descriptor* descriptor,
+                                          int insertion_index) {
+  ASSERT(0 <= insertion_index && insertion_index < number_of_descriptors());
+
+  // Ensure the key is a symbol.
+  { MaybeObject* maybe_result = descriptor->KeyToSymbol();
+    if (maybe_result->IsFailure()) return maybe_result;
+  }
+
+  int size = number_of_descriptors();
+
+  DescriptorArray* new_descriptors;
+  { MaybeObject* maybe_result = Allocate(size, MAY_BE_SHARED);
+    if (!maybe_result->To(&new_descriptors)) return maybe_result;
+  }
+
+  FixedArray::WhitenessWitness witness(new_descriptors);
+
+  // Copy the descriptors, replacing a descriptor.
+  for (int index = 0; index < size; ++index) {
+    if (index == insertion_index) continue;
+    MaybeObject* copy_result =
+        new_descriptors->CopyFrom(index, this, index, witness);
+    if (copy_result->IsFailure()) return copy_result;
+  }
+
+  descriptor->SetEnumerationIndex(GetDetails(insertion_index).index());
+  new_descriptors->Set(insertion_index, descriptor, witness);
+  new_descriptors->SetLastAdded(LastAdded());
+
+  SLOW_ASSERT(new_descriptors->IsSortedNoDuplicates());
+
+  return new_descriptors;
+}
+
 
 MaybeObject* DescriptorArray::CopyInsert(Descriptor* descriptor) {
   // Ensure the key is a symbol.
@@ -5870,20 +5854,23 @@ MaybeObject* DescriptorArray::CopyInsert(Descriptor* descriptor) {
     if (maybe_result->IsFailure()) return maybe_result;
   }
 
-  int new_size = number_of_descriptors();
-
-  // If key is in descriptor, we replace it in-place when filtering.
-  // Count a null descriptor for key as inserted, not replaced.
+  // We replace the key if it is already present.
   int index = SearchWithCache(descriptor->GetKey());
-  const bool replacing = (index != kNotFound);
-  bool keep_enumeration_index = false;
-  if (replacing) {
-    // We are replacing an existing descriptor. We keep the enumeration index
-    // of a visible property.
-    keep_enumeration_index = true;
-  } else {
-    ++new_size;
+  if (index == kNotFound) return CopyAdd(descriptor);
+  return CopyReplace(descriptor, index);
+}
+
+
+MaybeObject* DescriptorArray::CopyAdd(Descriptor* descriptor) {
+  // Ensure the key is a symbol.
+  { MaybeObject* maybe_result = descriptor->KeyToSymbol();
+    if (maybe_result->IsFailure()) return maybe_result;
   }
+
+  String* key = descriptor->GetKey();
+  ASSERT(Search(key) == kNotFound);
+
+  int new_size = number_of_descriptors() + 1;
 
   DescriptorArray* new_descriptors;
   { MaybeObject* maybe_result = Allocate(new_size, MAY_BE_SHARED);
@@ -5892,42 +5879,26 @@ MaybeObject* DescriptorArray::CopyInsert(Descriptor* descriptor) {
 
   FixedArray::WhitenessWitness witness(new_descriptors);
 
-  // Set the enumeration index in the descriptors and set the enumeration index
-  // in the result.
-  if (keep_enumeration_index) {
-    descriptor->SetEnumerationIndex(GetDetails(index).index());
-  } else {
-    descriptor->SetEnumerationIndex(NextEnumerationIndex());
-  }
-
-  // Copy the descriptors, inserting or replacing a descriptor.
-  int to_index = 0;
+  // Copy the descriptors, inserting a descriptor.
   int insertion_index = -1;
-  int from_index = 0;
-  while (from_index < number_of_descriptors()) {
-    if (insertion_index < 0 &&
-        InsertionPointFound(GetKey(from_index), descriptor->GetKey())) {
-      insertion_index = to_index++;
-      if (replacing) from_index++;
-    } else {
-      MaybeObject* copy_result =
-          new_descriptors->CopyFrom(to_index++, this, from_index, witness);
-      if (copy_result->IsFailure()) return copy_result;
-      from_index++;
+  int to = 0;
+  for (int from = 0; from < number_of_descriptors(); ++from) {
+    if (insertion_index < 0 && InsertionPointFound(GetKey(from), key)) {
+      insertion_index = to++;
     }
+    MaybeObject* copy_result =
+        new_descriptors->CopyFrom(to++, this, from, witness);
+    if (copy_result->IsFailure()) return copy_result;
   }
-  if (insertion_index < 0) insertion_index = to_index++;
+  if (insertion_index < 0) insertion_index = to++;
 
-  ASSERT(insertion_index < new_descriptors->number_of_descriptors());
+  ASSERT(to == new_descriptors->number_of_descriptors());
+
+  ASSERT(new_size == NextEnumerationIndex());
+  descriptor->SetEnumerationIndex(new_size);
   new_descriptors->Set(insertion_index, descriptor, witness);
+  new_descriptors->SetLastAdded(insertion_index);
 
-  if (!replacing) {
-    new_descriptors->SetLastAdded(insertion_index);
-  } else {
-    new_descriptors->SetLastAdded(LastAdded());
-  }
-
-  ASSERT(to_index == new_descriptors->number_of_descriptors());
   SLOW_ASSERT(new_descriptors->IsSortedNoDuplicates());
 
   return new_descriptors;
@@ -5966,6 +5937,9 @@ void DescriptorArray::SortUnchecked(const WhitenessWitness& witness) {
   int len = number_of_descriptors();
   // Nothing to sort.
   if (len == 0) return;
+
+  ASSERT(LastAdded() == kNoneAdded ||
+         GetDetails(LastAdded()).index() == number_of_descriptors());
 
   // Bottom-up max-heap construction.
   // Index of the last node with children
@@ -6014,18 +5988,29 @@ void DescriptorArray::SortUnchecked(const WhitenessWitness& witness) {
     }
   }
 
-  int last_enum_index = -1;
-  int last_added = -1;
-  for (int i = 0; i < len; ++i) {
-    int current_enum = GetDetails(i).index();
-    if (current_enum > last_enum_index) {
-      last_added = i;
-      last_enum_index = current_enum;
+#ifdef DEBUG
+  // Ensure that all enumeration indexes between 1 and length occur uniquely in
+  // the descriptor array.
+  for (int i = 1; i <= len; ++i) {
+    int j;
+    for (j = 0; j < len; ++j) {
+      if (GetDetails(j).index() == i) break;
+    }
+    ASSERT(j != len);
+    for (j++; j < len; ++j) {
+      ASSERT(GetDetails(j).index() != i);
     }
   }
-  SetLastAdded(last_added);
+#endif
 
-  ASSERT(LastAdded() != -1);
+  for (int i = 0; i < len; ++i) {
+    if (GetDetails(i).index() == len) {
+      SetLastAdded(i);
+      return;
+    }
+  }
+
+  UNREACHABLE();
 }
 
 

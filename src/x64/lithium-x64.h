@@ -2178,10 +2178,10 @@ class LLoadFieldByIndex: public LTemplateInstruction<1, 2, 0> {
 
 
 class LChunkBuilder;
-class LChunk: public LChunkBase {
+class LPlatformChunk: public LChunk {
  public:
-  LChunk(CompilationInfo* info, HGraph* graph)
-      : LChunkBase(info, graph) { }
+  LPlatformChunk(CompilationInfo* info, HGraph* graph)
+      : LChunk(info, graph) { }
 
   int GetNextSpillIndex(bool is_double);
   LOperand* GetNextSpillSlot(bool is_double);
@@ -2206,7 +2206,7 @@ class LChunkBuilder BASE_EMBEDDED {
         pending_deoptimization_ast_id_(AstNode::kNoNumber) { }
 
   // Build the sequence for the graph.
-  LChunk* Build();
+  LPlatformChunk* Build();
 
   // Declare methods that deal with the individual node types.
 #define DECLARE_DO(type) LInstruction* Do##type(H##type* node);
@@ -2224,7 +2224,7 @@ class LChunkBuilder BASE_EMBEDDED {
     ABORTED
   };
 
-  LChunk* chunk() const { return chunk_; }
+  LPlatformChunk* chunk() const { return chunk_; }
   CompilationInfo* info() const { return info_; }
   HGraph* graph() const { return graph_; }
   Zone* zone() const { return zone_; }
@@ -2328,7 +2328,7 @@ class LChunkBuilder BASE_EMBEDDED {
   LInstruction* DoArithmeticT(Token::Value op,
                               HArithmeticBinaryOperation* instr);
 
-  LChunk* chunk_;
+  LPlatformChunk* chunk_;
   CompilationInfo* info_;
   HGraph* const graph_;
   Zone* zone_;

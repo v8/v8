@@ -166,14 +166,14 @@ class Scope: public ZoneObject {
   template<class Visitor>
   VariableProxy* NewUnresolved(AstNodeFactory<Visitor>* factory,
                                Handle<String> name,
-                               int position = RelocInfo::kNoPosition,
-                               Interface* interface = Interface::NewValue()) {
+                               Interface* interface = Interface::NewValue(),
+                               int position = RelocInfo::kNoPosition) {
     // Note that we must not share the unresolved variables with
     // the same name because they may be removed selectively via
     // RemoveUnresolved().
     ASSERT(!already_resolved());
     VariableProxy* proxy =
-        factory->NewVariableProxy(name, false, position, interface);
+        factory->NewVariableProxy(name, false, interface, position);
     unresolved_.Add(proxy, zone_);
     return proxy;
   }

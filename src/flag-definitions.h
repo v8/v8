@@ -367,6 +367,8 @@ DEFINE_bool(incremental_marking, true, "use incremental marking")
 DEFINE_bool(incremental_marking_steps, true, "do incremental marking steps")
 DEFINE_bool(trace_incremental_marking, false,
             "trace progress of the incremental marking")
+DEFINE_bool(track_gc_object_stats, false,
+            "track object counts and memory usage")
 
 // v8.cc
 DEFINE_bool(use_idle_notification, true,

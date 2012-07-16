@@ -832,6 +832,11 @@ Object* Execution::DebugBreakHelper() {
     return isolate->heap()->undefined_value();
   }
 
+  // Ignore debug break if debugger is not active.
+  if (!isolate->debugger()->IsDebuggerActive()) {
+    return isolate->heap()->undefined_value();
+  }
+
   StackLimitCheck check(isolate);
   if (check.HasOverflowed()) {
     return isolate->heap()->undefined_value();

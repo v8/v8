@@ -31,12 +31,16 @@
 
 #if V8_TARGET_ARCH_IA32
 #include "ia32/lithium-ia32.h"
+#include "ia32/lithium-codegen-ia32.h"
 #elif V8_TARGET_ARCH_X64
 #include "x64/lithium-x64.h"
+#include "x64/lithium-codegen-x64.h"
 #elif V8_TARGET_ARCH_ARM
 #include "arm/lithium-arm.h"
+#include "arm/lithium-codegen-arm.h"
 #elif V8_TARGET_ARCH_MIPS
 #include "mips/lithium-mips.h"
+#include "mips/lithium-codegen-mips.h"
 #else
 #error "Unknown architecture."
 #endif
@@ -253,14 +257,14 @@ int ElementsKindToShiftSize(ElementsKind elements_kind) {
 }
 
 
-LLabel* LChunkBase::GetLabel(int block_id) const {
+LLabel* LChunk::GetLabel(int block_id) const {
   HBasicBlock* block = graph_->blocks()->at(block_id);
   int first_instruction = block->first_instruction_index();
   return LLabel::cast(instructions_[first_instruction]);
 }
 
 
-int LChunkBase::LookupDestination(int block_id) const {
+int LChunk::LookupDestination(int block_id) const {
   LLabel* cur = GetLabel(block_id);
   while (cur->replacement() != NULL) {
     cur = cur->replacement();
@@ -268,13 +272,13 @@ int LChunkBase::LookupDestination(int block_id) const {
   return cur->block_id();
 }
 
-Label* LChunkBase::GetAssemblyLabel(int block_id) const {
+Label* LChunk::GetAssemblyLabel(int block_id) const {
   LLabel* label = GetLabel(block_id);
   ASSERT(!label->HasReplacement());
   return label->label();
 }
 
-void LChunkBase::MarkEmptyBlocks() {
+void LChunk::MarkEmptyBlocks() {
   HPhase phase("L_Mark empty blocks", this);
   for (int i = 0; i < graph()->blocks()->length(); ++i) {
     HBasicBlock* block = graph()->blocks()->at(i);
@@ -310,7 +314,7 @@ void LChunkBase::MarkEmptyBlocks() {
 }
 
 
-void LChunkBase::AddInstruction(LInstruction* instr, HBasicBlock* block) {
+void LChunk::AddInstruction(LInstruction* instr, HBasicBlock* block) {
   LInstructionGap* gap = new(graph_->zone()) LInstructionGap(block);
   int index = -1;
   if (instr->IsControl()) {
@@ -329,12 +333,12 @@ void LChunkBase::AddInstruction(LInstruction* instr, HBasicBlock* block) {
 }
 
 
-LConstantOperand* LChunkBase::DefineConstantOperand(HConstant* constant) {
+LConstantOperand* LChunk::DefineConstantOperand(HConstant* constant) {
   return LConstantOperand::Create(constant->id(), zone());
 }
 
 
-int LChunkBase::GetParameterStackSlot(int index) const {
+int LChunk::GetParameterStackSlot(int index) const {
   // The receiver is at index 0, the first parameter at index 1, so we
   // shift all parameter indexes down by the number of parameters, and
   // make sure they end up negative so they are distinguishable from
@@ -346,43 +350,92 @@ int LChunkBase::GetParameterStackSlot(int index) const {
 
 
 // A parameter relative to ebp in the arguments stub.
-int LChunkBase::ParameterAt(int index) {
+int LChunk::ParameterAt(int index) {
   ASSERT(-1 <= index);  // -1 is the receiver.
   return (1 + info()->scope()->num_parameters() - index) *
       kPointerSize;
 }
 
 
-LGap* LChunkBase::GetGapAt(int index) const {
+LGap* LChunk::GetGapAt(int index) const {
   return LGap::cast(instructions_[index]);
 }
 
 
-bool LChunkBase::IsGapAt(int index) const {
+bool LChunk::IsGapAt(int index) const {
   return instructions_[index]->IsGap();
 }
 
 
-int LChunkBase::NearestGapPos(int index) const {
+int LChunk::NearestGapPos(int index) const {
   while (!IsGapAt(index)) index--;
   return index;
 }
 
 
-void LChunkBase::AddGapMove(int index, LOperand* from, LOperand* to) {
+void LChunk::AddGapMove(int index, LOperand* from, LOperand* to) {
   GetGapAt(index)->GetOrCreateParallelMove(
       LGap::START, zone())->AddMove(from, to, zone());
 }
 
 
-HConstant* LChunkBase::LookupConstant(LConstantOperand* operand) const {
+HConstant* LChunk::LookupConstant(LConstantOperand* operand) const {
   return HConstant::cast(graph_->LookupValue(operand->index()));
 }
 
 
-Representation LChunkBase::LookupLiteralRepresentation(
+Representation LChunk::LookupLiteralRepresentation(
     LConstantOperand* operand) const {
   return graph_->LookupValue(operand->index())->representation();
+}
+
+
+LChunk* LChunk::NewChunk(HGraph* graph) {
+  NoHandleAllocation no_handles;
+  AssertNoAllocation no_gc;
+
+  int values = graph->GetMaximumValueID();
+  if (values > LUnallocated::kMaxVirtualRegisters) {
+    if (FLAG_trace_bailout) {
+      PrintF("Not enough virtual registers for (values).\n");
+    }
+    return NULL;
+  }
+  LAllocator allocator(values, graph);
+  LChunkBuilder builder(graph->info(), graph, &allocator);
+  LChunk* chunk = builder.Build();
+  if (chunk == NULL) return NULL;
+
+  if (!allocator.Allocate(chunk)) {
+    if (FLAG_trace_bailout) {
+      PrintF("Not enough virtual registers (regalloc).\n");
+    }
+    return NULL;
+  }
+
+  return chunk;
+}
+
+
+Handle<Code> LChunk::Codegen() {
+  MacroAssembler assembler(info()->isolate(), NULL, 0);
+  LCodeGen generator(this, &assembler, info());
+
+  MarkEmptyBlocks();
+
+  if (generator.GenerateCode()) {
+    if (FLAG_trace_codegen) {
+      PrintF("Crankshaft Compiler - ");
+    }
+    CodeGenerator::MakeCodePrologue(info());
+    Code::Flags flags = Code::ComputeFlags(Code::OPTIMIZED_FUNCTION);
+    Handle<Code> code =
+        CodeGenerator::MakeCodeEpilogue(&assembler, flags, info());
+    generator.FinishCode(code);
+    CodeGenerator::PrintCode(code, info());
+    return code;
+  }
+  return Handle<Code>::null();
 }
 
 
