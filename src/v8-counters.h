@@ -52,8 +52,8 @@ namespace internal {
 
 
 #define HISTOGRAM_PERCENTAGE_LIST(HP)                                 \
-  HP(external_fragmentation_new_space,                                \
-     V8.MemoryExternalFragmentationNewSpace)                          \
+  HP(external_fragmentation_total,                                    \
+     V8.MemoryExternalFragmentationTotal)                             \
   HP(external_fragmentation_old_pointer_space,                        \
      V8.MemoryExternalFragmentationOldPointerSpace)                   \
   HP(external_fragmentation_old_data_space,                           \

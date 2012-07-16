@@ -447,26 +447,38 @@ void Heap::GarbageCollectionEpilogue() {
   isolate_->counters()->number_of_symbols()->Set(
       symbol_table()->NumberOfElements());
 
-#define UPDATE_COUNTERS_FOR_SPACE(space)                                     \
-  isolate_->counters()->space##_bytes_available()->Set(                      \
-      static_cast<int>(space()->Available()));                               \
-  isolate_->counters()->space##_bytes_committed()->Set(                      \
-      static_cast<int>(space()->CommittedMemory()));                         \
-  isolate_->counters()->space##_bytes_used()->Set(                           \
-      static_cast<int>(space()->SizeOfObjects()));                           \
-  if (space()->CommittedMemory() > 0) {                                      \
-    isolate_->counters()->external_fragmentation_##space()->AddSample(       \
-        static_cast<int>(                                                    \
-            (space()->SizeOfObjects() * 100) / space()->CommittedMemory())); \
+  if (CommittedMemory() > 0) {
+    isolate_->counters()->external_fragmentation_total()->AddSample(
+        static_cast<int>(100 - (SizeOfObjects() * 100.0) / CommittedMemory()));
   }
+
+#define UPDATE_COUNTERS_FOR_SPACE(space)                                       \
+  isolate_->counters()->space##_bytes_available()->Set(                        \
+      static_cast<int>(space()->Available()));                                 \
+  isolate_->counters()->space##_bytes_committed()->Set(                        \
+      static_cast<int>(space()->CommittedMemory()));                           \
+  isolate_->counters()->space##_bytes_used()->Set(                             \
+      static_cast<int>(space()->SizeOfObjects()));
+#define UPDATE_FRAGMENTATION_FOR_SPACE(space)                                  \
+  if (space()->CommittedMemory() > 0) {                                        \
+    isolate_->counters()->external_fragmentation_##space()->AddSample(         \
+        static_cast<int>(100 -                                                 \
+            (space()->SizeOfObjects() * 100.0) / space()->CommittedMemory())); \
+  }
+#define UPDATE_COUNTERS_AND_FRAGMENTATION_FOR_SPACE(space)                     \
+  UPDATE_COUNTERS_FOR_SPACE(space)                                             \
+  UPDATE_FRAGMENTATION_FOR_SPACE(space)
+
   UPDATE_COUNTERS_FOR_SPACE(new_space)
-  UPDATE_COUNTERS_FOR_SPACE(old_pointer_space)
-  UPDATE_COUNTERS_FOR_SPACE(old_data_space)
-  UPDATE_COUNTERS_FOR_SPACE(code_space)
-  UPDATE_COUNTERS_FOR_SPACE(map_space)
-  UPDATE_COUNTERS_FOR_SPACE(cell_space)
-  UPDATE_COUNTERS_FOR_SPACE(lo_space)
+  UPDATE_COUNTERS_AND_FRAGMENTATION_FOR_SPACE(old_pointer_space)
+  UPDATE_COUNTERS_AND_FRAGMENTATION_FOR_SPACE(old_data_space)
+  UPDATE_COUNTERS_AND_FRAGMENTATION_FOR_SPACE(code_space)
+  UPDATE_COUNTERS_AND_FRAGMENTATION_FOR_SPACE(map_space)
+  UPDATE_COUNTERS_AND_FRAGMENTATION_FOR_SPACE(cell_space)
+  UPDATE_COUNTERS_AND_FRAGMENTATION_FOR_SPACE(lo_space)
 #undef UPDATE_COUNTERS_FOR_SPACE
+#undef UPDATE_FRAGMENTATION_FOR_SPACE
+#undef UPDATE_COUNTERS_AND_FRAGMENTATION_FOR_SPACE
 
 #if defined(DEBUG)
   ReportStatisticsAfterGC();
