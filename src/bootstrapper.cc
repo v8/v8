@@ -2175,7 +2175,7 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
           LookupResult result(isolate());
           to->LocalLookup(descs->GetKey(i), &result);
           // If the property is already there we skip it
-          if (result.IsProperty()) continue;
+          if (result.IsFound()) continue;
           HandleScope inner;
           ASSERT(!to->HasFastProperties());
           // Add to dictionary.
@@ -2208,7 +2208,7 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
         // If the property is already there we skip it.
         LookupResult result(isolate());
         to->LocalLookup(String::cast(raw_key), &result);
-        if (result.IsProperty()) continue;
+        if (result.IsFound()) continue;
         // Set the property.
         Handle<String> key = Handle<String>(String::cast(raw_key));
         Handle<Object> value = Handle<Object>(properties->ValueAt(i));

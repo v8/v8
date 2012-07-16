@@ -1361,11 +1361,8 @@ void StubCompiler::LookupPostInterceptor(Handle<JSObject> holder,
                                          Handle<String> name,
                                          LookupResult* lookup) {
   holder->LocalLookupRealNamedProperty(*name, lookup);
-  if (lookup->IsProperty()) return;
-
-  lookup->NotFound();
+  if (lookup->IsFound()) return;
   if (holder->GetPrototype()->IsNull()) return;
-
   holder->GetPrototype()->Lookup(*name, lookup);
 }
 

@@ -1876,7 +1876,7 @@ class JSObject: public JSReceiver {
   void LookupRealNamedPropertyInPrototypes(String* name, LookupResult* result);
   MUST_USE_RESULT MaybeObject* SetElementWithCallbackSetterInPrototypes(
       uint32_t index, Object* value, bool* found, StrictModeFlag strict_mode);
-  void LookupCallback(String* name, LookupResult* result);
+  void LookupCallbackProperty(String* name, LookupResult* result);
 
   // Returns the number of properties on this object filtering out properties
   // with the specified attributes (ignoring interceptors).

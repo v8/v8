@@ -406,13 +406,11 @@ PropertyAttributes JSObject::GetPropertyAttributeWithFailedAccessCheck(
         } else {
           result->holder()->LocalLookupRealNamedProperty(name, &r);
         }
-        if (r.IsProperty()) {
-          return GetPropertyAttributeWithFailedAccessCheck(receiver,
-                                                           &r,
-                                                           name,
-                                                           continue_search);
-        }
-        break;
+        if (!r.IsFound()) break;
+        return GetPropertyAttributeWithFailedAccessCheck(receiver,
+                                                         &r,
+                                                         name,
+                                                         continue_search);
       }
 
       case HANDLER:
@@ -1747,9 +1745,10 @@ MaybeObject* JSObject::SetPropertyPostInterceptor(
   // Check local property, ignore interceptor.
   LookupResult result(GetIsolate());
   LocalLookupRealNamedProperty(name, &result);
+  if (!result.IsFound()) map()->LookupTransition(this, name, &result);
   if (result.IsFound()) {
-    // An existing property, a map transition or a null descriptor was
-    // found.  Use set property to handle all these cases.
+    // An existing property or a map transition was found. Use set property to
+    // handle all these cases.
     return SetProperty(&result, name, value, attributes, strict_mode);
   }
   bool done = false;
@@ -1914,6 +1913,9 @@ MaybeObject* JSReceiver::SetProperty(String* name,
                                      JSReceiver::StoreFromKeyed store_mode) {
   LookupResult result(GetIsolate());
   LocalLookup(name, &result);
+  if (!result.IsFound()) {
+    map()->LookupTransition(JSObject::cast(this), name, &result);
+  }
   return SetProperty(&result, name, value, attributes, strict_mode, store_mode);
 }
 
@@ -2354,7 +2356,7 @@ void JSObject::LocalLookupRealNamedProperty(String* name,
   }
 
   if (HasFastProperties()) {
-    map()->LookupTransitionOrDescriptor(this, name, result);
+    map()->LookupDescriptor(this, name, result);
     // A property or a map transition was found. We return all of these result
     // types because LocalLookupRealNamedProperty is used when setting
     // properties where map transitions are handled.
@@ -2394,7 +2396,7 @@ void JSObject::LocalLookupRealNamedProperty(String* name,
 
 void JSObject::LookupRealNamedProperty(String* name, LookupResult* result) {
   LocalLookupRealNamedProperty(name, result);
-  if (result->IsProperty()) return;
+  if (result->IsFound()) return;
 
   LookupRealNamedPropertyInPrototypes(name, result);
 }
@@ -2410,8 +2412,8 @@ void JSObject::LookupRealNamedPropertyInPrototypes(String* name,
       return result->HandlerResult(JSProxy::cast(pt));
     }
     JSObject::cast(pt)->LocalLookupRealNamedProperty(name, result);
-    ASSERT(!(result->IsProperty() && result->type() == INTERCEPTOR));
-    if (result->IsProperty()) return;
+    ASSERT(!(result->IsFound() && result->type() == INTERCEPTOR));
+    if (result->IsFound()) return;
   }
   result->NotFound();
 }
@@ -2933,6 +2935,7 @@ MaybeObject* JSObject::SetLocalPropertyIgnoreAttributes(
   Isolate* isolate = GetIsolate();
   LookupResult result(isolate);
   LocalLookup(name, &result);
+  if (!result.IsFound()) map()->LookupTransition(this, name, &result);
   // Check access rights if needed.
   if (IsAccessCheckNeeded()) {
     if (!isolate->MayNamedAccess(this, name, v8::ACCESS_SET)) {
@@ -3021,7 +3024,7 @@ PropertyAttributes JSObject::GetPropertyAttributePostInterceptor(
   // Check local property, ignore interceptor.
   LookupResult result(GetIsolate());
   LocalLookupRealNamedProperty(name, &result);
-  if (result.IsProperty()) return result.GetAttributes();
+  if (result.IsFound()) return result.GetAttributes();
 
   if (continue_search) {
     // Continue searching via the prototype chain.
@@ -3114,7 +3117,7 @@ PropertyAttributes JSReceiver::GetPropertyAttribute(JSReceiver* receiver,
           receiver, result, name, continue_search);
     }
   }
-  if (result->IsProperty()) {
+  if (result->IsFound()) {
     switch (result->type()) {
       case NORMAL:  // fall through
       case FIELD:
@@ -3700,7 +3703,7 @@ MaybeObject* JSObject::DeletePropertyPostInterceptor(String* name,
   // Check local property, ignore interceptor.
   LookupResult result(GetIsolate());
   LocalLookupRealNamedProperty(name, &result);
-  if (!result.IsProperty()) return GetHeap()->true_value();
+  if (!result.IsFound()) return GetHeap()->true_value();
 
   // Normalize object if needed.
   Object* obj;
@@ -3849,7 +3852,7 @@ MaybeObject* JSObject::DeleteProperty(String* name, DeleteMode mode) {
   } else {
     LookupResult result(isolate);
     LocalLookup(name, &result);
-    if (!result.IsProperty()) return isolate->heap()->true_value();
+    if (!result.IsFound()) return isolate->heap()->true_value();
     // Ignore attributes if forcing a deletion.
     if (result.IsDontDelete() && mode != FORCE_DELETION) {
       if (mode == STRICT_DELETION) {
@@ -4199,21 +4202,22 @@ void JSReceiver::LocalLookup(String* name, LookupResult* result) {
 }
 
 
-void JSReceiver::Lookup(String* name, LookupResult* result) {
+void JSReceiver::Lookup(String* name,
+                        LookupResult* result) {
   // Ecma-262 3rd 8.6.2.4
   Heap* heap = GetHeap();
   for (Object* current = this;
        current != heap->null_value();
        current = JSObject::cast(current)->GetPrototype()) {
     JSReceiver::cast(current)->LocalLookup(name, result);
-    if (result->IsProperty()) return;
+    if (result->IsFound()) return;
   }
   result->NotFound();
 }
 
 
 // Search object and its prototype chain for callback properties.
-void JSObject::LookupCallback(String* name, LookupResult* result) {
+void JSObject::LookupCallbackProperty(String* name, LookupResult* result) {
   Heap* heap = GetHeap();
   for (Object* current = this;
        current != heap->null_value() && current->IsJSObject();
@@ -4384,8 +4388,8 @@ bool JSObject::CanSetCallback(String* name) {
   // to be overwritten because allowing overwriting could potentially
   // cause security problems.
   LookupResult callback_result(GetIsolate());
-  LookupCallback(name, &callback_result);
-  if (callback_result.IsProperty()) {
+  LookupCallbackProperty(name, &callback_result);
+  if (callback_result.IsFound()) {
     Object* obj = callback_result.GetCallbackObject();
     if (obj->IsAccessorInfo() &&
         AccessorInfo::cast(obj)->prohibits_overwriting()) {
@@ -4693,23 +4697,22 @@ MaybeObject* JSObject::DefineAccessor(AccessorInfo* info) {
         break;
     }
 
-    { MaybeObject* maybe_ok =
-          SetElementCallback(index, info, info->property_attributes());
-      if (maybe_ok->IsFailure()) return maybe_ok;
-    }
+    MaybeObject* maybe_ok =
+        SetElementCallback(index, info, info->property_attributes());
+    if (maybe_ok->IsFailure()) return maybe_ok;
   } else {
     // Lookup the name.
     LookupResult result(isolate);
     LocalLookup(name, &result);
     // ES5 forbids turning a property into an accessor if it's not
     // configurable (that is IsDontDelete in ES3 and v8), see 8.6.1 (Table 5).
-    if (result.IsProperty() && (result.IsReadOnly() || result.IsDontDelete())) {
+    if (result.IsFound() && (result.IsReadOnly() || result.IsDontDelete())) {
       return isolate->heap()->undefined_value();
     }
-    { MaybeObject* maybe_ok =
-          SetPropertyCallback(name, info, info->property_attributes());
-      if (maybe_ok->IsFailure()) return maybe_ok;
-    }
+
+    MaybeObject* maybe_ok =
+        SetPropertyCallback(name, info, info->property_attributes());
+    if (maybe_ok->IsFailure()) return maybe_ok;
   }
 
   return this;
@@ -4755,7 +4758,7 @@ Object* JSObject::LookupAccessor(String* name, AccessorComponent component) {
          obj = JSReceiver::cast(obj)->GetPrototype()) {
       LookupResult result(heap->isolate());
       JSReceiver::cast(obj)->LocalLookup(name, &result);
-      if (result.IsProperty()) {
+      if (result.IsFound()) {
         if (result.IsReadOnly()) return heap->undefined_value();
         if (result.IsPropertyCallbacks()) {
           Object* obj = result.GetCallbackObject();
@@ -7641,7 +7644,7 @@ bool SharedFunctionInfo::CanGenerateInlineConstructor(Object* prototype) {
       LookupResult result(heap->isolate());
       String* name = GetThisPropertyAssignmentName(i);
       receiver->LocalLookup(name, &result);
-      if (result.IsProperty()) {
+      if (result.IsFound()) {
         switch (result.type()) {
           case NORMAL:
           case FIELD:
@@ -10174,7 +10177,7 @@ MaybeObject* JSObject::GetPropertyPostInterceptor(
   // Check local property in holder, ignore interceptor.
   LookupResult result(GetIsolate());
   LocalLookupRealNamedProperty(name, &result);
-  if (result.IsProperty()) {
+  if (result.IsFound()) {
     return GetProperty(receiver, &result, name, attributes);
   }
   // Continue searching via the prototype chain.
@@ -10192,7 +10195,7 @@ MaybeObject* JSObject::GetLocalPropertyPostInterceptor(
   // Check local property in holder, ignore interceptor.
   LookupResult result(GetIsolate());
   LocalLookupRealNamedProperty(name, &result);
-  if (result.IsProperty()) {
+  if (result.IsFound()) {
     return GetProperty(receiver, &result, name, attributes);
   }
   return GetHeap()->undefined_value();
@@ -10251,7 +10254,7 @@ bool JSObject::HasRealNamedProperty(String* key) {
 
   LookupResult result(isolate);
   LocalLookupRealNamedProperty(key, &result);
-  return result.IsProperty() && !result.IsInterceptor();
+  return result.IsFound() && !result.IsInterceptor();
 }
 
 

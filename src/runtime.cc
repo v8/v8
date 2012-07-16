@@ -953,13 +953,13 @@ static void GetOwnPropertyImplementation(JSObject* obj,
                                          LookupResult* result) {
   obj->LocalLookupRealNamedProperty(name, result);
 
-  if (!result->IsProperty()) {
-    Object* proto = obj->GetPrototype();
-    if (proto->IsJSObject() &&
-      JSObject::cast(proto)->map()->is_hidden_prototype())
-      GetOwnPropertyImplementation(JSObject::cast(proto),
-                                   name, result);
-  }
+  if (result->IsFound()) return;
+
+  Object* proto = obj->GetPrototype();
+  if (proto->IsJSObject() &&
+    JSObject::cast(proto)->map()->is_hidden_prototype())
+    GetOwnPropertyImplementation(JSObject::cast(proto),
+                                 name, result);
 }
 
 
@@ -1373,14 +1373,14 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DeclareGlobals) {
         Object* obj = *global;
         do {
           JSObject::cast(obj)->LocalLookup(*name, &lookup);
-          if (lookup.IsProperty()) break;
+          if (lookup.IsFound()) break;
           obj = obj->GetPrototype();
         } while (obj->IsJSObject() &&
                  JSObject::cast(obj)->map()->is_hidden_prototype());
       } else {
         global->Lookup(*name, &lookup);
       }
-      if (lookup.IsProperty()) {
+      if (lookup.IsFound()) {
         // We found an existing property. Unless it was an interceptor
         // that claims the property is absent, skip this declaration.
         if (!lookup.IsInterceptor()) continue;
@@ -1416,10 +1416,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DeclareGlobals) {
 
     LanguageMode language_mode = DeclareGlobalsLanguageMode::decode(flags);
 
-    if (!lookup.IsProperty() || is_function || is_module) {
+    if (!lookup.IsFound() || is_function || is_module) {
       // If the local property exists, check that we can reconfigure it
       // as required for function declarations.
-      if (lookup.IsProperty() && lookup.IsDontDelete()) {
+      if (lookup.IsFound() && lookup.IsDontDelete()) {
         if (lookup.IsReadOnly() || lookup.IsDontEnum() ||
             lookup.IsPropertyCallbacks()) {
           return ThrowRedeclarationError(
@@ -1634,7 +1634,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_InitializeConstGlobal) {
   // We use SetLocalPropertyIgnoreAttributes instead
   LookupResult lookup(isolate);
   global->LocalLookup(*name, &lookup);
-  if (!lookup.IsProperty()) {
+  if (!lookup.IsFound()) {
     return global->SetLocalPropertyIgnoreAttributes(*name,
                                                     *value,
                                                     attributes);
@@ -4558,7 +4558,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DefineOrRedefineDataProperty) {
   // map. The current version of SetObjectProperty does not handle attributes
   // correctly in the case where a property is a field and is reset with
   // new attributes.
-  if (result.IsProperty() &&
+  if (result.IsFound() &&
       (attr != result.GetAttributes() || result.IsPropertyCallbacks())) {
     // New attributes - normalize to avoid writing to instance descriptor
     if (js_object->IsJSGlobalProxy()) {
@@ -10421,7 +10421,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugGetPropertyDetails) {
   for (int i = 0; i < length; i++) {
     LookupResult result(isolate);
     jsproto->LocalLookup(*name, &result);
-    if (result.IsProperty()) {
+    if (result.IsFound()) {
       // LookupResult is not GC safe as it holds raw object pointers.
       // GC can happen later in this code so put the required fields into
       // local variables using handles when required for later use.
@@ -10478,7 +10478,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugGetProperty) {
 
   LookupResult result(isolate);
   obj->Lookup(*name, &result);
-  if (result.IsProperty()) {
+  if (result.IsFound()) {
     return DebugLookupResultValue(isolate->heap(), *obj, *name, &result, NULL);
   }
   return isolate->heap()->undefined_value();

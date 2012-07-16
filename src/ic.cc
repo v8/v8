@@ -445,14 +445,14 @@ static void LookupForRead(Handle<Object> object,
     }
 
     holder->LocalLookupRealNamedProperty(*name, lookup);
-    if (lookup->IsProperty()) {
+    if (lookup->IsFound()) {
       ASSERT(!lookup->IsInterceptor());
       return;
     }
 
     Handle<Object> proto(holder->GetPrototype());
     if (proto->IsNull()) {
-      lookup->NotFound();
+      ASSERT(!lookup->IsFound());
       return;
     }
 
@@ -533,7 +533,7 @@ MaybeObject* CallICBase::LoadFunction(State state,
   LookupResult lookup(isolate());
   LookupForRead(object, name, &lookup);
 
-  if (!lookup.IsProperty()) {
+  if (!lookup.IsFound()) {
     // If the object does not have the requested property, check which
     // exception we need to throw.
     return IsContextual(object)
@@ -900,7 +900,7 @@ MaybeObject* LoadIC::Load(State state,
   LookupForRead(object, name, &lookup);
 
   // If we did not find a property, check if we need to throw an exception.
-  if (!lookup.IsProperty()) {
+  if (!lookup.IsFound()) {
     if (IsContextual(object)) {
       return ReferenceError("not_defined", name);
     }
@@ -1166,7 +1166,7 @@ MaybeObject* KeyedLoadIC::Load(State state,
     LookupForRead(object, name, &lookup);
 
     // If we did not find a property, check if we need to throw an exception.
-    if (!lookup.IsProperty() && IsContextual(object)) {
+    if (!lookup.IsFound() && IsContextual(object)) {
       return ReferenceError("not_defined", name);
     }
 
@@ -1317,6 +1317,9 @@ static bool LookupForWrite(Handle<JSObject> receiver,
                            Handle<String> name,
                            LookupResult* lookup) {
   receiver->LocalLookup(*name, lookup);
+  if (!lookup->IsFound()) {
+    receiver->map()->LookupTransition(*receiver, *name, lookup);
+  }
   if (!StoreICableLookup(lookup)) {
     // 2nd chance: There can be accessors somewhere in the prototype chain. Note
     // that we explicitly exclude native accessors for now, because the stubs
