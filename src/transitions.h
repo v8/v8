@@ -51,16 +51,15 @@ class TransitionArray: public FixedArray {
   inline void SetKey(int transition_number, String* value);
   inline Object** GetKeySlot(int transition_number);
 
-  inline Object* GetValue(int transition_number);
-  inline void SetValue(int transition_number, Object* value);
-  inline Object** GetValueSlot(int transition_number);
+  inline Map* GetTarget(int transition_number);
+  inline void SetTarget(int transition_number, Map* target);
+  inline Object** GetTargetSlot(int transition_number);
 
-  inline Map* GetTargetMap(int transition_number);
   inline PropertyDetails GetTargetDetails(int transition_number);
 
   inline Map* elements_transition();
   inline void set_elements_transition(
-      Map* value,
+      Map* target,
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   inline Object** GetElementsTransitionSlot();
   inline bool HasElementsTransition();
@@ -84,12 +83,12 @@ class TransitionArray: public FixedArray {
   inline int number_of_entries() { return number_of_transitions(); }
 
   // Allocate a new transition array with a single entry.
-  static MUST_USE_RESULT MaybeObject* NewWith(String* name, Object* map);
+  static MUST_USE_RESULT MaybeObject* NewWith(String* name, Map* target);
 
   // Copy the transition array, inserting a new transition.
   // TODO(verwaest): This should not cause an existing transition to be
   // overwritten.
-  MUST_USE_RESULT MaybeObject* CopyInsert(String* name, Object* map);
+  MUST_USE_RESULT MaybeObject* CopyInsert(String* name, Map* target);
 
   // Copy a single transition from the origin array.
   inline void CopyFrom(TransitionArray* origin,
@@ -121,7 +120,7 @@ class TransitionArray: public FixedArray {
 
   // Layout of map transition.
   static const int kTransitionKey = 0;
-  static const int kTransitionValue = 1;
+  static const int kTransitionTarget = 1;
   static const int kTransitionSize = 2;
 
 #ifdef OBJECT_PRINT
@@ -150,15 +149,15 @@ class TransitionArray: public FixedArray {
            kTransitionKey;
   }
 
-  static int ToValueIndex(int transition_number) {
+  static int ToTargetIndex(int transition_number) {
     return kFirstIndex +
            (transition_number * kTransitionSize) +
-           kTransitionValue;
+           kTransitionTarget;
   }
 
   inline void Set(int transition_number,
                   String* key,
-                  Object* value,
+                  Map* target,
                   const WhitenessWitness&);
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(TransitionArray);

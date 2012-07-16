@@ -2548,20 +2548,12 @@ class DescriptorArray: public FixedArray {
   inline void Append(Descriptor* desc,
                      const WhitenessWitness&);
 
-  // Transfer a complete descriptor from the src descriptor array to the dst
-  // one, dropping map transitions in CALLBACKS.
-  static void CopyFrom(Handle<DescriptorArray> dst,
-                       int dst_index,
-                       Handle<DescriptorArray> src,
-                       int src_index,
-                       const WhitenessWitness& witness);
-
   // Transfer a complete descriptor from the src descriptor array to this
-  // descriptor array, dropping map transitions in CALLBACKS.
-  MUST_USE_RESULT MaybeObject* CopyFrom(int dst_index,
-                                        DescriptorArray* src,
-                                        int src_index,
-                                        const WhitenessWitness&);
+  // descriptor array.
+  void CopyFrom(int dst_index,
+                DescriptorArray* src,
+                int src_index,
+                const WhitenessWitness&);
 
   // Copy the descriptor array, insert a new descriptor and optionally
   // remove map transitions.  If the descriptor is already present, it is
@@ -4815,8 +4807,8 @@ class Map: public HeapObject {
   MUST_USE_RESULT inline MaybeObject* set_elements_transition_map(
       Map* transitioned_map);
   inline TransitionArray* transitions();
-  inline void SetTransition(int index, Object* value);
-  MUST_USE_RESULT inline MaybeObject* AddTransition(String* key, Object* value);
+  inline void SetTransition(int index, Map* target);
+  MUST_USE_RESULT inline MaybeObject* AddTransition(String* key, Map* target);
   MUST_USE_RESULT inline MaybeObject* set_transitions(
       TransitionArray* transitions);
   inline void ClearTransitions(Heap* heap,
@@ -8347,7 +8339,7 @@ class AccessorPair: public Struct {
 
   static inline AccessorPair* cast(Object* obj);
 
-  MUST_USE_RESULT MaybeObject* CopyWithoutTransitions();
+  MUST_USE_RESULT MaybeObject* Copy();
 
   Object* get(AccessorComponent component) {
     return component == ACCESSOR_GETTER ? getter() : setter();

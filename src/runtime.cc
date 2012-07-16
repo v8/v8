@@ -1530,7 +1530,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DeclareContextSlot) {
         !object->IsJSContextExtensionObject()) {
       LookupResult lookup(isolate);
       object->Lookup(*name, &lookup);
-      if (lookup.IsCallbacks()) {
+      if (lookup.IsPropertyCallbacks()) {
         return ThrowRedeclarationError(isolate, "const", name);
       }
     }
@@ -4531,7 +4531,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DefineOrRedefineDataProperty) {
   js_object->LocalLookupRealNamedProperty(*name, &result);
 
   // Special case for callback properties.
-  if (result.IsCallbacks()) {
+  if (result.IsPropertyCallbacks()) {
     Object* callback = result.GetCallbackObject();
     // To be compatible with Safari we do not change the value on API objects
     // in Object.defineProperty(). Firefox disagrees here, and actually changes

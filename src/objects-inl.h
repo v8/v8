@@ -3534,13 +3534,14 @@ Map* Map::elements_transition_map() {
 }
 
 
-MaybeObject* Map::AddTransition(String* key, Object* value) {
-  if (HasTransitionArray()) return transitions()->CopyInsert(key, value);
-  return TransitionArray::NewWith(key, value);
+MaybeObject* Map::AddTransition(String* key, Map* target) {
+  if (HasTransitionArray()) return transitions()->CopyInsert(key, target);
+  return TransitionArray::NewWith(key, target);
 }
 
-void Map::SetTransition(int transition_index, Object* value) {
-  transitions()->SetValue(transition_index, value);
+
+void Map::SetTransition(int transition_index, Map* target) {
+  transitions()->SetTarget(transition_index, target);
 }
 
 

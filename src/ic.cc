@@ -1322,7 +1322,7 @@ static bool LookupForWrite(Handle<JSObject> receiver,
     // that we explicitly exclude native accessors for now, because the stubs
     // are not yet prepared for this scenario.
     receiver->Lookup(*name, lookup);
-    if (!lookup->IsCallbacks()) return false;
+    if (!lookup->IsPropertyCallbacks()) return false;
     Handle<Object> callback(lookup->GetCallbackObject());
     return callback->IsAccessorPair() && StoreICableLookup(lookup);
   }
@@ -1513,10 +1513,7 @@ void StoreIC::UpdateCaches(LookupResult* lookup,
     case CONSTANT_FUNCTION:
       return;
     case TRANSITION: {
-      Object* value = lookup->GetTransitionValue();
-      // Callbacks.
-      if (value->IsAccessorPair()) return;
-
+      Map* value = lookup->GetTransitionTarget();
       Handle<Map> transition(Map::cast(value));
       DescriptorArray* target_descriptors = transition->instance_descriptors();
       int descriptor = target_descriptors->LastAdded();
@@ -1979,16 +1976,8 @@ void KeyedStoreIC::UpdateCaches(LookupResult* lookup,
           Handle<Map>::null(), strict_mode);
       break;
     case TRANSITION: {
-      Object* value = lookup->GetTransitionValue();
-      // Callbacks transition.
-      if (value->IsAccessorPair()) {
-        code = (strict_mode == kStrictMode)
-            ? generic_stub_strict()
-            : generic_stub();
-        break;
-      }
+      Handle<Map> transition(lookup->GetTransitionTarget());
 
-      Handle<Map> transition(Map::cast(value));
       DescriptorArray* target_descriptors = transition->instance_descriptors();
       int descriptor = target_descriptors->LastAdded();
       PropertyDetails details = target_descriptors->GetDetails(descriptor);
@@ -2147,7 +2136,7 @@ RUNTIME_FUNCTION(MaybeObject*, StoreIC_ArrayLength) {
   // The length property has to be a writable callback property.
   LookupResult debug_lookup(isolate);
   receiver->LocalLookup(isolate->heap()->length_symbol(), &debug_lookup);
-  ASSERT(debug_lookup.IsCallbacks() && !debug_lookup.IsReadOnly());
+  ASSERT(debug_lookup.IsPropertyCallbacks() && !debug_lookup.IsReadOnly());
 #endif
 
   Object* result;

@@ -5329,37 +5329,9 @@ void Heap::Verify() {
   cell_space_->Verify(&no_dirty_regions_visitor);
 
   lo_space_->Verify();
-
-  VerifyNoAccessorPairSharing();
 }
 
 
-void Heap::VerifyNoAccessorPairSharing() {
-  // Verification is done in 2 phases: First we mark all AccessorPairs, checking
-  // that we mark only unmarked pairs, then we clear all marks, restoring the
-  // initial state. We use the Smi tag of the AccessorPair's getter as the
-  // marking bit, because we can never see a Smi as the getter.
-  for (int phase = 0; phase < 2; phase++) {
-    HeapObjectIterator iter(map_space());
-    for (HeapObject* obj = iter.Next(); obj != NULL; obj = iter.Next()) {
-      if (obj->IsMap()) {
-        DescriptorArray* descs = Map::cast(obj)->instance_descriptors();
-        for (int i = 0; i < descs->number_of_descriptors(); i++) {
-          if (descs->GetType(i) == CALLBACKS &&
-              descs->GetValue(i)->IsAccessorPair()) {
-            AccessorPair* accessors = AccessorPair::cast(descs->GetValue(i));
-            uintptr_t before = reinterpret_cast<intptr_t>(accessors->getter());
-            uintptr_t after = (phase == 0) ?
-                ((before & ~kSmiTagMask) | kSmiTag) :
-                ((before & ~kHeapObjectTag) | kHeapObjectTag);
-            CHECK(before != after);
-            accessors->set_getter(reinterpret_cast<Object*>(after));
-          }
-        }
-      }
-    }
-  }
-}
 #endif  // DEBUG
 
 

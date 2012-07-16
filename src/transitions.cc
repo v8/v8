@@ -54,10 +54,10 @@ void TransitionArray::CopyFrom(TransitionArray* origin,
                                int origin_transition,
                                int target_transition,
                                const WhitenessWitness& witness) {
-  this->Set(target_transition,
-            origin->GetKey(origin_transition),
-            origin->GetValue(origin_transition),
-            witness);
+  Set(target_transition,
+      origin->GetKey(origin_transition),
+      origin->GetTarget(origin_transition),
+      witness);
 }
 
 
@@ -66,7 +66,7 @@ static bool InsertionPointFound(String* key1, String* key2) {
 }
 
 
-MaybeObject* TransitionArray::NewWith(String* name, Object* value) {
+MaybeObject* TransitionArray::NewWith(String* name, Map* target) {
   TransitionArray* result;
 
   { MaybeObject* maybe_array;
@@ -76,12 +76,12 @@ MaybeObject* TransitionArray::NewWith(String* name, Object* value) {
 
   FixedArray::WhitenessWitness witness(result);
 
-  result->Set(0, name, value, witness);
+  result->Set(0, name, target, witness);
   return result;
 }
 
 
-MaybeObject* TransitionArray::CopyInsert(String* name, Object* value) {
+MaybeObject* TransitionArray::CopyInsert(String* name, Map* target) {
   TransitionArray* result;
 
   int number_of_transitions = this->number_of_transitions();
@@ -90,10 +90,9 @@ MaybeObject* TransitionArray::CopyInsert(String* name, Object* value) {
   int insertion_index = this->Search(name);
   if (insertion_index == kNotFound) ++new_size;
 
-  { MaybeObject* maybe_array;
-    maybe_array = TransitionArray::Allocate(new_size);
-    if (!maybe_array->To(&result)) return maybe_array;
-  }
+  MaybeObject* maybe_array;
+  maybe_array = TransitionArray::Allocate(new_size);
+  if (!maybe_array->To(&result)) return maybe_array;
 
   if (HasElementsTransition()) {
     result->set_elements_transition(elements_transition());
@@ -109,7 +108,7 @@ MaybeObject* TransitionArray::CopyInsert(String* name, Object* value) {
     for (int i = 0; i < number_of_transitions; ++i) {
       if (i != insertion_index) result->CopyFrom(this, i, i, witness);
     }
-    result->Set(insertion_index, name, value, witness);
+    result->Set(insertion_index, name, target, witness);
     return result;
   }
 
@@ -119,7 +118,7 @@ MaybeObject* TransitionArray::CopyInsert(String* name, Object* value) {
     result->CopyFrom(this, insertion_index, insertion_index, witness);
   }
 
-  result->Set(insertion_index, name, value, witness);
+  result->Set(insertion_index, name, target, witness);
 
   for (; insertion_index < number_of_transitions; ++insertion_index) {
     result->CopyFrom(this, insertion_index, insertion_index + 1, witness);

@@ -1934,16 +1934,8 @@ void Marker<T>::MarkDescriptorArray(DescriptorArray* descriptors) {
       case CONSTANT_FUNCTION:
       case HANDLER:
       case INTERCEPTOR:
-        base_marker()->MarkObjectAndPush(value);
-        break;
       case CALLBACKS:
-        if (!value->IsAccessorPair()) {
-          base_marker()->MarkObjectAndPush(value);
-        } else if (base_marker()->MarkObjectWithoutPush(value)) {
-          AccessorPair* accessors = AccessorPair::cast(value);
-          MarkAccessorPairSlot(accessors, AccessorPair::kGetterOffset);
-          MarkAccessorPairSlot(accessors, AccessorPair::kSetterOffset);
-        }
+        base_marker()->MarkObjectAndPush(value);
         break;
       case TRANSITION:
       case NONEXISTENT:
@@ -1982,21 +1974,6 @@ void Marker<T>::MarkTransitionArray(TransitionArray* transitions) {
     if (key->IsHeapObject()) {
       base_marker()->MarkObjectAndPush(HeapObject::cast(key));
       mark_compact_collector()->RecordSlot(transitions_start, key_slot, key);
-    }
-
-    Object** value_slot = transitions->GetValueSlot(i);
-    if (!(*value_slot)->IsHeapObject()) continue;
-    HeapObject* value = HeapObject::cast(*value_slot);
-
-    if (value->IsAccessorPair()) {
-      mark_compact_collector()->RecordSlot(transitions_start,
-                                           value_slot,
-                                           value);
-
-      base_marker()->MarkObjectWithoutPush(value);
-      AccessorPair* accessors = AccessorPair::cast(value);
-      MarkAccessorPairSlot(accessors, AccessorPair::kGetterOffset);
-      MarkAccessorPairSlot(accessors, AccessorPair::kSetterOffset);
     }
   }
 }

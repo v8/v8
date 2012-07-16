@@ -1237,10 +1237,6 @@ class Heap {
   // Verify the heap is in its normal state before or after a GC.
   void Verify();
 
-  // Verify that AccessorPairs are not shared, i.e. make sure that they have
-  // exactly one pointer to them.
-  void VerifyNoAccessorPairSharing();
-
   void OldPointerSpaceCheckStoreBuffer();
   void MapSpaceCheckStoreBuffer();
   void LargeObjectSpaceCheckStoreBuffer();

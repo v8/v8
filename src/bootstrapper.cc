@@ -1740,9 +1740,7 @@ bool Genesis::InstallNatives() {
     Handle<DescriptorArray> array_descriptors(
         array_function->initial_map()->instance_descriptors());
     int old = array_descriptors->SearchWithCache(heap()->length_symbol());
-    MaybeObject* copy_result =
-        reresult_descriptors->CopyFrom(0, *array_descriptors, old, witness);
-    if (copy_result->IsFailure()) return false;
+    reresult_descriptors->CopyFrom(0, *array_descriptors, old, witness);
 
     reresult_descriptors->SetLastAdded(0);
 

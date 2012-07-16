@@ -138,44 +138,28 @@ void TransitionArray::SetKey(int transition_number, String* key) {
 }
 
 
-Object* TransitionArray::GetValue(int transition_number) {
+Map* TransitionArray::GetTarget(int transition_number) {
   ASSERT(transition_number < number_of_transitions());
-  return get(ToValueIndex(transition_number));
+  return Map::cast(get(ToTargetIndex(transition_number)));
 }
 
 
-Object** TransitionArray::GetValueSlot(int transition_number) {
+Object** TransitionArray::GetTargetSlot(int transition_number) {
   ASSERT(transition_number < number_of_transitions());
   return HeapObject::RawField(
       reinterpret_cast<HeapObject*>(this),
-      OffsetOfElementAt(ToValueIndex(transition_number)));
+      OffsetOfElementAt(ToTargetIndex(transition_number)));
 }
 
 
-void TransitionArray::SetValue(int transition_number, Object* value) {
+void TransitionArray::SetTarget(int transition_number, Map* value) {
   ASSERT(transition_number < number_of_transitions());
-  set(ToValueIndex(transition_number), value);
-}
-
-
-Map* TransitionArray::GetTargetMap(int transition_number) {
-  Object* value = GetValue(transition_number);
-  if (value->IsAccessorPair()) {
-    // TODO(verwaest): Currently details are always taken from the getter if it
-    // is a transition, otherwise from the setter which in that case has to be a
-    // transition. Details should be dependent on which component is requested.
-    AccessorPair* accessors = AccessorPair::cast(value);
-    if (accessors->getter()->IsMap()) {
-      return Map::cast(accessors->getter());
-    }
-    return Map::cast(accessors->setter());
-  }
-  return Map::cast(value);
+  set(ToTargetIndex(transition_number), value);
 }
 
 
 PropertyDetails TransitionArray::GetTargetDetails(int transition_number) {
-  Map* map = GetTargetMap(transition_number);
+  Map* map = GetTarget(transition_number);
   DescriptorArray* descriptors = map->instance_descriptors();
   int descriptor = descriptors->LastAdded();
   ASSERT(descriptor != DescriptorArray::kNotFound);
@@ -196,14 +180,14 @@ int TransitionArray::Search(String* name) {
 
 void TransitionArray::Set(int transition_number,
                           String* key,
-                          Object* value,
+                          Map* target,
                           const WhitenessWitness&) {
   NoIncrementalWriteBarrierSet(this,
                                ToKeyIndex(transition_number),
                                key);
   NoIncrementalWriteBarrierSet(this,
-                               ToValueIndex(transition_number),
-                               value);
+                               ToTargetIndex(transition_number),
+                               target);
 }
 
 
