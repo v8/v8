@@ -4905,10 +4905,6 @@ class Map: public HeapObject {
                         String* name,
                         LookupResult* result);
 
-  void LookupTransitionOrDescriptor(JSObject* holder,
-                                    String* name,
-                                    LookupResult* result);
-
   MUST_USE_RESULT MaybeObject* RawCopy(int instance_size);
   MUST_USE_RESULT MaybeObject* CopyWithPreallocatedFieldDescriptors();
   MUST_USE_RESULT MaybeObject* CopyDropDescriptors();

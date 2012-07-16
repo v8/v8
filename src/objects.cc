@@ -2150,20 +2150,6 @@ void Map::LookupTransition(JSObject* holder,
 }
 
 
-void Map::LookupTransitionOrDescriptor(JSObject* holder,
-                                       String* name,
-                                       LookupResult* result) {
-  // AccessorPairs containing both a Descriptor and a Transition are shared
-  // between the DescriptorArray and the Transition array. This is why looking
-  // up the AccessorPair solely in the DescriptorArray works.
-  // TODO(verwaest) This should be implemented differently so the
-  // DescriptorArray is free of transitions; and so we can freely share it.
-  this->LookupDescriptor(holder, name, result);
-  if (result->IsFound()) return;
-  this->LookupTransition(holder, name, result);
-}
-
-
 static bool ContainsMap(MapHandleList* maps, Handle<Map> map) {
   ASSERT(!map.is_null());
   for (int i = 0; i < maps->length(); ++i) {
@@ -4202,8 +4188,7 @@ void JSReceiver::LocalLookup(String* name, LookupResult* result) {
 }
 
 
-void JSReceiver::Lookup(String* name,
-                        LookupResult* result) {
+void JSReceiver::Lookup(String* name, LookupResult* result) {
   // Ecma-262 3rd 8.6.2.4
   Heap* heap = GetHeap();
   for (Object* current = this;
@@ -12545,10 +12530,9 @@ MaybeObject* StringDictionary::TransformPropertiesToFastFor(
 
   // Allocate the fixed array for the fields.
   Object* fields;
-  { MaybeObject* maybe_fields =
-        heap->AllocateFixedArray(number_of_allocated_fields);
-    if (!maybe_fields->ToObject(&fields)) return maybe_fields;
-  }
+  MaybeObject* maybe_fields =
+      heap->AllocateFixedArray(number_of_allocated_fields);
+  if (!maybe_fields->ToObject(&fields)) return maybe_fields;
 
   // Fill in the instance descriptor and the fields.
   int next_descriptor = 0;

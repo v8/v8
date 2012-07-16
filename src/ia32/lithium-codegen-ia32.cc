@@ -2410,7 +2410,7 @@ void LCodeGen::EmitLoadFieldOrConstantFunction(Register result,
                                                Handle<String> name,
                                                LEnvironment* env) {
   LookupResult lookup(isolate());
-  type->LookupTransitionOrDescriptor(NULL, *name, &lookup);
+  type->LookupDescriptor(NULL, *name, &lookup);
   ASSERT(lookup.IsFound() || lookup.IsCacheable());
   if (lookup.IsField()) {
     int index = lookup.GetLocalFieldIndexFromMap(*type);
