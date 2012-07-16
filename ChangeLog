@@ -1,3 +1,21 @@
+2012-07-16: Version 3.12.12
+
+        Added an option to the tickprocessor to specify the directory for lib
+        lookup.
+
+        Fixed ICs for slow objects with native accessor (Chromium issue 137002).
+
+        Fixed transcendental cache on ARM in optimized code (issue 2234).
+
+        New heap inspection tools: counters for object sizes and counts,
+        histograms for external fragmentation.
+
+        Incorporated constness into inferred interfaces (in preparation for
+        handling imports) (issue 1569).
+
+        Performance and stability improvements on all platforms.
+
+
 2012-07-12: Version 3.12.11
 
         Renamed "mips" arch to "mipsel" in the GYP build.
