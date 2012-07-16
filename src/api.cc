@@ -6514,7 +6514,7 @@ void DeferredHandles::Iterate(ObjectVisitor* v) {
   ASSERT(!blocks_.is_empty());
 
   ASSERT((first_block_limit_ >= blocks_.first()) &&
-         (first_block_limit_ < &(blocks_.first())[kHandleBlockSize]));
+         (first_block_limit_ <= &(blocks_.first())[kHandleBlockSize]));
 
   v->VisitPointers(blocks_.first(), first_block_limit_);
 
