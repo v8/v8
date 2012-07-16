@@ -5940,7 +5940,9 @@ HValue* HGraphBuilder::HandlePolymorphicElementAccess(HValue* object,
     if (consolidated_load != NULL) {
       AddInstruction(consolidated_load);
       *has_side_effects |= consolidated_load->HasObservableSideEffects();
-      consolidated_load->set_position(position);
+      if (position != RelocInfo::kNoPosition) {
+        consolidated_load->set_position(position);
+      }
       return consolidated_load;
     }
   }
@@ -6006,7 +6008,7 @@ HValue* HGraphBuilder::HandlePolymorphicElementAccess(HValue* object,
           object, key, val, transition, untransitionable_map, is_store));
     }
     *has_side_effects |= instr->HasObservableSideEffects();
-    instr->set_position(position);
+    if (position != RelocInfo::kNoPosition) instr->set_position(position);
     return is_store ? NULL : instr;
   }
 
@@ -6108,7 +6110,7 @@ HValue* HGraphBuilder::HandlePolymorphicElementAccess(HValue* object,
             external_elements, checked_key, val, elements_kind, is_store));
       }
       *has_side_effects |= access->HasObservableSideEffects();
-      access->set_position(position);
+      if (position != RelocInfo::kNoPosition) access->set_position(position);
       if (!is_store) {
         Push(access);
       }
@@ -6155,7 +6157,7 @@ HValue* HGraphBuilder::HandleKeyedElementAccess(HValue* obj,
       instr = BuildLoadKeyedGeneric(obj, key);
     }
   }
-  instr->set_position(position);
+  if (position != RelocInfo::kNoPosition) instr->set_position(position);
   AddInstruction(instr);
   *has_side_effects = instr->HasObservableSideEffects();
   return instr;
@@ -7507,7 +7509,6 @@ void HGraphBuilder::VisitCallRuntime(CallRuntime* expr) {
     int argument_count = expr->arguments()->length();
     HCallRuntime* call =
         new(zone()) HCallRuntime(context, name, function, argument_count);
-    call->set_position(RelocInfo::kNoPosition);
     Drop(argument_count);
     return ast_context()->ReturnInstruction(call, expr->id());
   }
