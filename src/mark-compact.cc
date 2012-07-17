@@ -947,92 +947,10 @@ class StaticMarkingVisitor : public StaticVisitorBase {
   template<int id>
   class ObjectStatsTracker {
    public:
-    static inline void Visit(Map* map, HeapObject* obj) {
-      Heap* heap = map->GetHeap();
-      int object_size = obj->Size();
-      heap->RecordObjectStats(map->instance_type(), object_size);
-      non_count_table_.GetVisitorById(static_cast<VisitorId>(id))(map, obj);
-    }
+    static inline void Visit(Map* map, HeapObject* obj);
   };
 
-  static void Initialize() {
-    table_.Register(kVisitShortcutCandidate,
-                    &FixedBodyVisitor<StaticMarkingVisitor,
-                                      ConsString::BodyDescriptor,
-                                      void>::Visit);
-
-    table_.Register(kVisitConsString,
-                    &FixedBodyVisitor<StaticMarkingVisitor,
-                                      ConsString::BodyDescriptor,
-                                      void>::Visit);
-
-    table_.Register(kVisitSlicedString,
-                    &FixedBodyVisitor<StaticMarkingVisitor,
-                                      SlicedString::BodyDescriptor,
-                                      void>::Visit);
-
-    table_.Register(kVisitFixedArray,
-                    &FlexibleBodyVisitor<StaticMarkingVisitor,
-                                         FixedArray::BodyDescriptor,
-                                         void>::Visit);
-
-    table_.Register(kVisitGlobalContext, &VisitGlobalContext);
-
-    table_.Register(kVisitFixedDoubleArray, DataObjectVisitor::Visit);
-
-    table_.Register(kVisitByteArray, &DataObjectVisitor::Visit);
-    table_.Register(kVisitFreeSpace, &DataObjectVisitor::Visit);
-    table_.Register(kVisitSeqAsciiString, &DataObjectVisitor::Visit);
-    table_.Register(kVisitSeqTwoByteString, &DataObjectVisitor::Visit);
-
-    table_.Register(kVisitJSWeakMap, &VisitJSWeakMap);
-
-    table_.Register(kVisitOddball,
-                    &FixedBodyVisitor<StaticMarkingVisitor,
-                                      Oddball::BodyDescriptor,
-                                      void>::Visit);
-    table_.Register(kVisitMap,
-                    &FixedBodyVisitor<StaticMarkingVisitor,
-                                      Map::BodyDescriptor,
-                                      void>::Visit);
-
-    table_.Register(kVisitCode, &VisitCode);
-
-    table_.Register(kVisitSharedFunctionInfo,
-                    &VisitSharedFunctionInfoAndFlushCode);
-
-    table_.Register(kVisitJSFunction,
-                    &VisitJSFunctionAndFlushCode);
-
-    table_.Register(kVisitJSRegExp,
-                    &VisitRegExpAndFlushCode);
-
-    table_.Register(kVisitPropertyCell,
-                    &FixedBodyVisitor<StaticMarkingVisitor,
-                                      JSGlobalPropertyCell::BodyDescriptor,
-                                      void>::Visit);
-
-    table_.RegisterSpecializations<DataObjectVisitor,
-                                   kVisitDataObject,
-                                   kVisitDataObjectGeneric>();
-
-    table_.RegisterSpecializations<JSObjectVisitor,
-                                   kVisitJSObject,
-                                   kVisitJSObjectGeneric>();
-
-    table_.RegisterSpecializations<StructObjectVisitor,
-                                   kVisitStruct,
-                                   kVisitStructGeneric>();
-
-    if (FLAG_track_gc_object_stats) {
-      // Copy the visitor table to make call-through possible.
-      non_count_table_.CopyFrom(&table_);
-#define VISITOR_ID_COUNT_FUNCTION(id)\
-      table_.Register(kVisit##id, ObjectStatsTracker<kVisit##id>::Visit);
-      VISITOR_ID_LIST(VISITOR_ID_COUNT_FUNCTION)
-#undef VISITOR_ID_COUNT_FUNCTION
-    }
-  }
+  static void Initialize();
 
   INLINE(static void VisitPointer(Heap* heap, Object** p)) {
     MarkObjectByPointer(heap->mark_compact_collector(), p, p);
@@ -1579,6 +1497,112 @@ class StaticMarkingVisitor : public StaticVisitorBase {
   static VisitorDispatchTable<Callback> table_;
   static VisitorDispatchTable<Callback> non_count_table_;
 };
+
+
+template<int id>
+void StaticMarkingVisitor::ObjectStatsTracker<id>::Visit(
+    Map* map, HeapObject* obj) {
+  Heap* heap = map->GetHeap();
+  int object_size = obj->Size();
+  heap->RecordObjectStats(map->instance_type(), -1, object_size);
+  non_count_table_.GetVisitorById(static_cast<VisitorId>(id))(map, obj);
+}
+
+
+template<>
+class StaticMarkingVisitor::ObjectStatsTracker<
+  StaticMarkingVisitor::kVisitCode> {
+ public:
+  static inline void Visit(Map* map, HeapObject* obj) {
+    Heap* heap = map->GetHeap();
+    int object_size = obj->Size();
+    ASSERT(map->instance_type() == CODE_TYPE);
+    heap->RecordObjectStats(CODE_TYPE, -1, object_size);
+    heap->RecordObjectStats(CODE_TYPE, Code::cast(obj)->kind(), object_size);
+    non_count_table_.GetVisitorById(
+        static_cast<VisitorId>(kVisitCode))(map, obj);
+  }
+};
+
+
+void StaticMarkingVisitor::Initialize() {
+  table_.Register(kVisitShortcutCandidate,
+                  &FixedBodyVisitor<StaticMarkingVisitor,
+                  ConsString::BodyDescriptor,
+                  void>::Visit);
+
+  table_.Register(kVisitConsString,
+                  &FixedBodyVisitor<StaticMarkingVisitor,
+                  ConsString::BodyDescriptor,
+                  void>::Visit);
+
+  table_.Register(kVisitSlicedString,
+                  &FixedBodyVisitor<StaticMarkingVisitor,
+                  SlicedString::BodyDescriptor,
+                  void>::Visit);
+
+  table_.Register(kVisitFixedArray,
+                  &FlexibleBodyVisitor<StaticMarkingVisitor,
+                  FixedArray::BodyDescriptor,
+                  void>::Visit);
+
+  table_.Register(kVisitGlobalContext, &VisitGlobalContext);
+
+  table_.Register(kVisitFixedDoubleArray, DataObjectVisitor::Visit);
+
+  table_.Register(kVisitByteArray, &DataObjectVisitor::Visit);
+  table_.Register(kVisitFreeSpace, &DataObjectVisitor::Visit);
+  table_.Register(kVisitSeqAsciiString, &DataObjectVisitor::Visit);
+  table_.Register(kVisitSeqTwoByteString, &DataObjectVisitor::Visit);
+
+  table_.Register(kVisitJSWeakMap, &VisitJSWeakMap);
+
+  table_.Register(kVisitOddball,
+                  &FixedBodyVisitor<StaticMarkingVisitor,
+                  Oddball::BodyDescriptor,
+                  void>::Visit);
+  table_.Register(kVisitMap,
+                  &FixedBodyVisitor<StaticMarkingVisitor,
+                  Map::BodyDescriptor,
+                  void>::Visit);
+
+  table_.Register(kVisitCode, &VisitCode);
+
+  table_.Register(kVisitSharedFunctionInfo,
+                  &VisitSharedFunctionInfoAndFlushCode);
+
+  table_.Register(kVisitJSFunction,
+                  &VisitJSFunctionAndFlushCode);
+
+  table_.Register(kVisitJSRegExp,
+                  &VisitRegExpAndFlushCode);
+
+  table_.Register(kVisitPropertyCell,
+                  &FixedBodyVisitor<StaticMarkingVisitor,
+                  JSGlobalPropertyCell::BodyDescriptor,
+                  void>::Visit);
+
+  table_.RegisterSpecializations<DataObjectVisitor,
+      kVisitDataObject,
+      kVisitDataObjectGeneric>();
+
+  table_.RegisterSpecializations<JSObjectVisitor,
+      kVisitJSObject,
+      kVisitJSObjectGeneric>();
+
+  table_.RegisterSpecializations<StructObjectVisitor,
+      kVisitStruct,
+      kVisitStructGeneric>();
+
+  if (FLAG_track_gc_object_stats) {
+    // Copy the visitor table to make call-through possible.
+    non_count_table_.CopyFrom(&table_);
+#define VISITOR_ID_COUNT_FUNCTION(id)                                   \
+    table_.Register(kVisit##id, ObjectStatsTracker<kVisit##id>::Visit);
+    VISITOR_ID_LIST(VISITOR_ID_COUNT_FUNCTION)
+#undef VISITOR_ID_COUNT_FUNCTION
+  }
+}
 
 
 VisitorDispatchTable<StaticMarkingVisitor::Callback>

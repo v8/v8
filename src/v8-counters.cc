@@ -61,6 +61,16 @@ Counters::Counters() {
     INSTANCE_TYPE_LIST(SC)
 #undef SC
 
+#define SC(name) \
+    StatsCounter count_of_CODE_TYPE_##name = { \
+      "c:" "V8.CountOf_CODE_TYPE-" #name, NULL, false }; \
+    count_of_CODE_TYPE_##name##_ = count_of_CODE_TYPE_##name; \
+    StatsCounter size_of_CODE_TYPE_##name = { \
+      "c:" "V8.SizeOf_CODE_TYPE-" #name, NULL, false }; \
+    size_of_CODE_TYPE_##name##_ = size_of_CODE_TYPE_##name;
+    CODE_KIND_LIST(SC)
+#undef SC
+
   StatsCounter state_counters[] = {
 #define COUNTER_NAME(name) \
     { "c:V8.State" #name, NULL, false },

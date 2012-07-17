@@ -4178,29 +4178,37 @@ class Code: public HeapObject {
     FLAGS_MAX_VALUE = kMaxInt
   };
 
+#define CODE_KIND_LIST(V) \
+  V(FUNCTION)             \
+  V(OPTIMIZED_FUNCTION)   \
+  V(STUB)                 \
+  V(BUILTIN)              \
+  V(LOAD_IC)              \
+  V(KEYED_LOAD_IC)        \
+  V(CALL_IC)              \
+  V(KEYED_CALL_IC)        \
+  V(STORE_IC)             \
+  V(KEYED_STORE_IC)       \
+  V(UNARY_OP_IC)          \
+  V(BINARY_OP_IC)         \
+  V(COMPARE_IC)           \
+  V(TO_BOOLEAN_IC)
+
   enum Kind {
-    FUNCTION,
-    OPTIMIZED_FUNCTION,
-    STUB,
-    BUILTIN,
-    LOAD_IC,
-    KEYED_LOAD_IC,
-    CALL_IC,
-    KEYED_CALL_IC,
-    STORE_IC,
-    KEYED_STORE_IC,
-    UNARY_OP_IC,
-    BINARY_OP_IC,
-    COMPARE_IC,
-    TO_BOOLEAN_IC,
-    // No more than 16 kinds. The value currently encoded in four bits in
-    // Flags.
+#define DEFINE_CODE_KIND_ENUM(name) name,
+    CODE_KIND_LIST(DEFINE_CODE_KIND_ENUM)
+#undef DEFINE_CODE_KIND_ENUM
 
     // Pseudo-kinds.
+    LAST_CODE_KIND = TO_BOOLEAN_IC,
     REGEXP = BUILTIN,
     FIRST_IC_KIND = LOAD_IC,
     LAST_IC_KIND = TO_BOOLEAN_IC
   };
+
+  // No more than 16 kinds. The value is currently encoded in four bits in
+  // Flags.
+  STATIC_ASSERT(LAST_CODE_KIND < 16);
 
   // Types of stubs.
   enum StubType {

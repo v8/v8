@@ -7211,6 +7211,18 @@ void Heap::CheckpointObjectStats() {
       static_cast<int>(object_sizes_last_time_[name]));
   INSTANCE_TYPE_LIST(ADJUST_LAST_TIME_OBJECT_COUNT)
 #undef ADJUST_LAST_TIME_OBJECT_COUNT
+#define ADJUST_LAST_TIME_OBJECT_COUNT(name) \
+  counters->count_of_CODE_TYPE_##name()->Increment( \
+    object_counts_[FIRST_CODE_KIND_SUB_TYPE + Code::name]); \
+  counters->count_of_CODE_TYPE_##name()->Decrement( \
+    object_counts_last_time_[FIRST_CODE_KIND_SUB_TYPE + Code::name]); \
+  counters->size_of_CODE_TYPE_##name()->Increment( \
+    object_sizes_[FIRST_CODE_KIND_SUB_TYPE + Code::name]); \
+  counters->size_of_CODE_TYPE_##name()->Decrement( \
+    object_sizes_last_time_[FIRST_CODE_KIND_SUB_TYPE + Code::name]);
+  CODE_KIND_LIST(ADJUST_LAST_TIME_OBJECT_COUNT)
+#undef ADJUST_LAST_TIME_OBJECT_COUNT
+
   memcpy(object_counts_last_time_, object_counts_, sizeof(object_counts_));
   memcpy(object_sizes_last_time_, object_sizes_, sizeof(object_sizes_));
   ClearObjectStats();
