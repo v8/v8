@@ -12474,17 +12474,8 @@ MaybeObject* StringDictionary::TransformPropertiesToFastFor(
   // descriptors.
   if (NumberOfElements() > DescriptorArray::kMaxNumberOfDescriptors) return obj;
 
-  // Figure out if it is necessary to generate new enumeration indices.
-  int max_enumeration_index =
-      NextEnumerationIndex() +
-          (DescriptorArray::kMaxNumberOfDescriptors -
-           NumberOfElements());
-  if (!PropertyDetails::IsValidIndex(max_enumeration_index)) {
-    Object* result;
-    { MaybeObject* maybe_result = GenerateNewEnumerationIndices();
-      if (!maybe_result->ToObject(&result)) return maybe_result;
-    }
-  }
+  MaybeObject* maybe_result = GenerateNewEnumerationIndices();
+  if (maybe_result->IsFailure()) return maybe_result;
 
   int instance_descriptor_length = 0;
   int number_of_fields = 0;
@@ -12509,12 +12500,11 @@ MaybeObject* StringDictionary::TransformPropertiesToFastFor(
 
   // Allocate the instance descriptor.
   DescriptorArray* descriptors;
-  { MaybeObject* maybe_descriptors =
-        DescriptorArray::Allocate(instance_descriptor_length,
-                                  DescriptorArray::MAY_BE_SHARED);
-    if (!maybe_descriptors->To<DescriptorArray>(&descriptors)) {
-      return maybe_descriptors;
-    }
+  MaybeObject* maybe_descriptors =
+      DescriptorArray::Allocate(instance_descriptor_length,
+                                DescriptorArray::MAY_BE_SHARED);
+  if (!maybe_descriptors->To(&descriptors)) {
+    return maybe_descriptors;
   }
 
   FixedArray::WhitenessWitness witness(descriptors);
@@ -12529,10 +12519,10 @@ MaybeObject* StringDictionary::TransformPropertiesToFastFor(
   }
 
   // Allocate the fixed array for the fields.
-  Object* fields;
+  FixedArray* fields;
   MaybeObject* maybe_fields =
       heap->AllocateFixedArray(number_of_allocated_fields);
-  if (!maybe_fields->ToObject(&fields)) return maybe_fields;
+  if (!maybe_fields->To(&fields)) return maybe_fields;
 
   // Fill in the instance descriptor and the fields.
   int next_descriptor = 0;
@@ -12562,7 +12552,7 @@ MaybeObject* StringDictionary::TransformPropertiesToFastFor(
                                      UPDATE_WRITE_BARRIER);
         } else {
           int offset = current_offset - inobject_props;
-          FixedArray::cast(fields)->set(offset, value);
+          fields->set(offset, value);
         }
         FieldDescriptor d(key,
                           current_offset++,
@@ -12594,7 +12584,7 @@ MaybeObject* StringDictionary::TransformPropertiesToFastFor(
   // Transform the object.
   obj->set_map(new_map);
 
-  obj->set_properties(FixedArray::cast(fields));
+  obj->set_properties(fields);
   ASSERT(obj->IsJSObject());
 
   // Check that it really works.
