@@ -5979,31 +5979,6 @@ static ScriptDataImpl* DoPreParse(Utf16CharacterStream* source,
 }
 
 
-// Preparse, but only collect data that is immediately useful,
-// even if the preparser data is only used once.
-ScriptDataImpl* ParserApi::PartialPreParse(Handle<String> source,
-                                           v8::Extension* extension,
-                                           int flags) {
-  bool allow_lazy = FLAG_lazy && (extension == NULL);
-  if (!allow_lazy) {
-    // Partial preparsing is only about lazily compiled functions.
-    // If we don't allow lazy compilation, the log data will be empty.
-    return NULL;
-  }
-  flags |= kAllowLazy;
-  PartialParserRecorder recorder;
-  int source_length = source->length();
-  if (source->IsExternalTwoByteString()) {
-    ExternalTwoByteStringUtf16CharacterStream stream(
-        Handle<ExternalTwoByteString>::cast(source), 0, source_length);
-    return DoPreParse(&stream, flags, &recorder);
-  } else {
-    GenericStringUtf16CharacterStream stream(source, 0, source_length);
-    return DoPreParse(&stream, flags, &recorder);
-  }
-}
-
-
 ScriptDataImpl* ParserApi::PreParse(Utf16CharacterStream* source,
                                     v8::Extension* extension,
                                     int flags) {
