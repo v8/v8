@@ -7209,15 +7209,17 @@ void Heap::CheckpointObjectStats() {
       static_cast<int>(object_sizes_last_time_[name]));
   INSTANCE_TYPE_LIST(ADJUST_LAST_TIME_OBJECT_COUNT)
 #undef ADJUST_LAST_TIME_OBJECT_COUNT
-#define ADJUST_LAST_TIME_OBJECT_COUNT(name) \
-  counters->count_of_CODE_TYPE_##name()->Increment( \
-    object_counts_[FIRST_CODE_KIND_SUB_TYPE + Code::name]); \
-  counters->count_of_CODE_TYPE_##name()->Decrement( \
-    object_counts_last_time_[FIRST_CODE_KIND_SUB_TYPE + Code::name]); \
-  counters->size_of_CODE_TYPE_##name()->Increment( \
-    object_sizes_[FIRST_CODE_KIND_SUB_TYPE + Code::name]); \
-  counters->size_of_CODE_TYPE_##name()->Decrement( \
-    object_sizes_last_time_[FIRST_CODE_KIND_SUB_TYPE + Code::name]);
+  int index;
+#define ADJUST_LAST_TIME_OBJECT_COUNT(name)               \
+  index = FIRST_CODE_KIND_SUB_TYPE + Code::name;          \
+  counters->count_of_CODE_TYPE_##name()->Increment(       \
+      static_cast<int>(object_counts_[index]));           \
+  counters->count_of_CODE_TYPE_##name()->Decrement(       \
+      static_cast<int>(object_counts_last_time_[index])); \
+  counters->size_of_CODE_TYPE_##name()->Increment(        \
+      static_cast<int>(object_sizes_[index]));            \
+  counters->size_of_CODE_TYPE_##name()->Decrement(        \
+      static_cast<int>(object_sizes_last_time_[index]));
   CODE_KIND_LIST(ADJUST_LAST_TIME_OBJECT_COUNT)
 #undef ADJUST_LAST_TIME_OBJECT_COUNT
 
