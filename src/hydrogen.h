@@ -872,7 +872,7 @@ class HGraphBuilder: public AstVisitor {
   void VisitDeclarations(ZoneList<Declaration*>* declarations);
 
   void* operator new(size_t size, Zone* zone) {
-    return zone->New(size);
+    return zone->New(static_cast<int>(size));
   }
   void operator delete(void* ptr) { }
 
