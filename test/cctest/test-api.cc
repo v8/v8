@@ -10973,8 +10973,8 @@ TEST(SetFunctionEntryHook) {
 
   // Verify that entry hooking is now disabled.
   RunLoopInNewEnv();
-  CHECK(0u == bar_count);
-  CHECK(0u == foo_count);
+  CHECK_EQ(0u, bar_count);
+  CHECK_EQ(0u, foo_count);
 }
 
 
