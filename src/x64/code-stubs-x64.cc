@@ -6420,6 +6420,74 @@ void StoreArrayLiteralElementStub::Generate(MacroAssembler* masm) {
   __ ret(0);
 }
 
+
+void ProfileEntryHookStub::MaybeCallEntryHook(MacroAssembler* masm) {
+  if (entry_hook_ != NULL) {
+    ProfileEntryHookStub stub;
+    masm->CallStub(&stub);
+  }
+}
+
+
+void ProfileEntryHookStub::Generate(MacroAssembler* masm) {
+  // Save volatile registers.
+  // Live registers at this point are the same as at the start of any
+  // JS function:
+  //   o rdi: the JS function object being called (i.e. ourselves)
+  //   o rsi: our context
+  //   o rbp: our caller's frame pointer
+  //   o rsp: stack pointer (pointing to return address)
+  //   o rcx: rcx is zero for method calls and non-zero for function calls.
+#ifdef _WIN64
+  const int kNumSavedRegisters = 1;
+
+  __ push(rcx);
+#else
+  const int kNumSavedRegisters = 3;
+
+  __ push(rcx);
+  __ push(rdi);
+  __ push(rsi);
+#endif
+
+  // Calculate the original stack pointer and store it in the second arg.
+#ifdef _WIN64
+  __ lea(rdx, Operand(rsp, kNumSavedRegisters * kPointerSize));
+#else
+  __ lea(rsi, Operand(rsp, kNumSavedRegisters * kPointerSize));
+#endif
+
+  // Calculate the function address to the first arg.
+#ifdef _WIN64
+  __ movq(rcx, Operand(rdx, 0));
+  __ subq(rcx, Immediate(Assembler::kShortCallInstructionLength));
+#else
+  __ movq(rdi, Operand(rsi, 0));
+  __ subq(rdi, Immediate(Assembler::kShortCallInstructionLength));
+#endif
+
+  // Call the entry hook function.
+  __ movq(rax, &entry_hook_, RelocInfo::NONE);
+  __ movq(rax, Operand(rax, 0));
+
+  AllowExternalCallThatCantCauseGC scope(masm);
+
+  const int kArgumentCount = 2;
+  __ PrepareCallCFunction(kArgumentCount);
+  __ CallCFunction(rax, kArgumentCount);
+
+  // Restore volatile regs.
+#ifdef _WIN64
+  __ pop(rcx);
+#else
+  __ pop(rsi);
+  __ pop(rdi);
+  __ pop(rcx);
+#endif
+
+  __ Ret();
+}
+
 #undef __
 
 } }  // namespace v8::internal

@@ -123,6 +123,8 @@ void FullCodeGenerator::Generate() {
   SetFunctionPosition(function());
   Comment cmnt(masm_, "[ function compiled by full code generator");
 
+  ProfileEntryHookStub::MaybeCallEntryHook(masm_);
+
 #ifdef DEBUG
   if (strlen(FLAG_stop_at) > 0 &&
       info->function()->name()->IsEqualTo(CStrVector(FLAG_stop_at))) {
@@ -4551,7 +4553,6 @@ FullCodeGenerator::NestedStatement* FullCodeGenerator::TryFinally::Exit(
   *context_length = 0;
   return previous_;
 }
-
 
 #undef __
 
