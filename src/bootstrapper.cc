@@ -317,7 +317,7 @@ static void SetObjectPrototype(Handle<JSObject> object, Handle<Object> proto) {
   // object.__proto__ = proto;
   Factory* factory = object->GetIsolate()->factory();
   Handle<Map> old_to_map = Handle<Map>(object->map());
-  Handle<Map> new_to_map = factory->CopyMapDropTransitions(old_to_map);
+  Handle<Map> new_to_map = factory->CopyMap(old_to_map);
   new_to_map->set_prototype(*proto);
   object->set_map(*new_to_map);
 }
@@ -999,7 +999,7 @@ bool Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
     initial_map->set_visitor_id(StaticVisitorBase::GetVisitorId(*initial_map));
 
     // RegExp prototype object is itself a RegExp.
-    Handle<Map> proto_map = factory->CopyMapDropTransitions(initial_map);
+    Handle<Map> proto_map = factory->CopyMap(initial_map);
     proto_map->set_prototype(global_context()->initial_object_prototype());
     Handle<JSObject> proto = factory->NewJSObjectFromMap(proto_map);
     proto->InObjectPropertyAtPut(JSRegExp::kSourceFieldIndex,
@@ -1101,7 +1101,7 @@ bool Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
     elements->set(1, *array);
 
     Handle<Map> old_map(global_context()->arguments_boilerplate()->map());
-    Handle<Map> new_map = factory->CopyMapDropTransitions(old_map);
+    Handle<Map> new_map = factory->CopyMap(old_map);
     new_map->set_pre_allocated_property_fields(2);
     Handle<JSObject> result = factory->NewJSObjectFromMap(new_map);
     // Set elements kind after allocating the object because
@@ -1630,8 +1630,7 @@ bool Genesis::InstallNatives() {
     // through a common bottleneck that would make the SMI_ONLY -> FAST_ELEMENT
     // transition easy to trap. Moreover, they rarely are smi-only.
     MaybeObject* maybe_map =
-        array_function->initial_map()->CopyDropTransitions(
-            DescriptorArray::MAY_BE_SHARED);
+        array_function->initial_map()->Copy(DescriptorArray::MAY_BE_SHARED);
     Map* new_map;
     if (!maybe_map->To(&new_map)) return false;
     new_map->set_elements_kind(FAST_HOLEY_ELEMENTS);
@@ -1740,9 +1739,7 @@ bool Genesis::InstallNatives() {
     Handle<DescriptorArray> array_descriptors(
         array_function->initial_map()->instance_descriptors());
     int old = array_descriptors->SearchWithCache(heap()->length_symbol());
-    MaybeObject* copy_result =
-        reresult_descriptors->CopyFrom(0, *array_descriptors, old, witness);
-    if (copy_result->IsFailure()) return false;
+    reresult_descriptors->CopyFrom(0, *array_descriptors, old, witness);
 
     reresult_descriptors->SetLastAdded(0);
 
@@ -2177,7 +2174,7 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
           LookupResult result(isolate());
           to->LocalLookup(descs->GetKey(i), &result);
           // If the property is already there we skip it
-          if (result.IsProperty()) continue;
+          if (result.IsFound()) continue;
           HandleScope inner;
           ASSERT(!to->HasFastProperties());
           // Add to dictionary.
@@ -2210,7 +2207,7 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
         // If the property is already there we skip it.
         LookupResult result(isolate());
         to->LocalLookup(String::cast(raw_key), &result);
-        if (result.IsProperty()) continue;
+        if (result.IsFound()) continue;
         // Set the property.
         Handle<String> key = Handle<String>(String::cast(raw_key));
         Handle<Object> value = Handle<Object>(properties->ValueAt(i));
@@ -2249,7 +2246,7 @@ void Genesis::TransferObject(Handle<JSObject> from, Handle<JSObject> to) {
 
   // Transfer the prototype (new map is needed).
   Handle<Map> old_to_map = Handle<Map>(to->map());
-  Handle<Map> new_to_map = factory->CopyMapDropTransitions(old_to_map);
+  Handle<Map> new_to_map = factory->CopyMap(old_to_map);
   new_to_map->set_prototype(from->map()->prototype());
   to->set_map(*new_to_map);
 }

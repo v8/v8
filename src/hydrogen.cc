@@ -2992,12 +2992,9 @@ void HGraphBuilder::VisitForControl(Expression* expr,
 }
 
 
-HValue* HGraphBuilder::VisitArgument(Expression* expr) {
-  VisitForValue(expr);
-  if (HasStackOverflow() || current_block() == NULL) return NULL;
-  HValue* value = Pop();
-  Push(AddInstruction(new(zone()) HPushArgument(value)));
-  return value;
+void HGraphBuilder::VisitArgument(Expression* expr) {
+  CHECK_ALIVE(VisitForValue(expr));
+  Push(AddInstruction(new(zone()) HPushArgument(Pop())));
 }
 
 
@@ -7450,8 +7447,8 @@ void HGraphBuilder::VisitCallNew(CallNew* expr) {
   } else {
     // The constructor function is both an operand to the instruction and an
     // argument to the construct call.
-    HValue* constructor = NULL;
-    CHECK_ALIVE(constructor = VisitArgument(expr->expression()));
+    CHECK_ALIVE(VisitArgument(expr->expression()));
+    HValue* constructor = HPushArgument::cast(Top())->argument();
     CHECK_ALIVE(VisitArgumentList(expr->arguments()));
     HInstruction* call =
         new(zone()) HCallNew(context, constructor, argument_count);

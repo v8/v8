@@ -73,7 +73,8 @@ namespace internal {
   V(DebuggerStatement)                   \
   V(StringDictionaryLookup)              \
   V(ElementsTransitionAndStore)          \
-  V(StoreArrayLiteralElement)
+  V(StoreArrayLiteralElement)            \
+  V(ProfileEntryHook)
 
 // List of code stubs only used on ARM platforms.
 #ifdef V8_TARGET_ARCH_ARM
@@ -1140,6 +1141,37 @@ class StoreArrayLiteralElementStub : public CodeStub {
   void Generate(MacroAssembler* masm);
 
   DISALLOW_COPY_AND_ASSIGN(StoreArrayLiteralElementStub);
+};
+
+
+class ProfileEntryHookStub : public CodeStub {
+ public:
+  explicit ProfileEntryHookStub() {}
+
+  // The profile entry hook function is not allowed to cause a GC.
+  virtual bool SometimesSetsUpAFrame() { return false; }
+
+  // Generates a call to the entry hook if it's enabled.
+  static void MaybeCallEntryHook(MacroAssembler* masm);
+
+  // Sets or unsets the entry hook function. Returns true on success,
+  // false on an attempt to replace a non-NULL entry hook with another
+  // non-NULL hook.
+  static bool SetFunctionEntryHook(FunctionEntryHook entry_hook);
+
+ private:
+  static void EntryHookTrampoline(intptr_t function,
+                                  intptr_t stack_pointer);
+
+  Major MajorKey() { return ProfileEntryHook; }
+  int MinorKey() { return 0; }
+
+  void Generate(MacroAssembler* masm);
+
+  // The current function entry hook.
+  static FunctionEntryHook entry_hook_;
+
+  DISALLOW_COPY_AND_ASSIGN(ProfileEntryHookStub);
 };
 
 } }  // namespace v8::internal

@@ -496,10 +496,8 @@ Handle<Map> Factory::CopyMap(Handle<Map> src,
 }
 
 
-Handle<Map> Factory::CopyMapDropTransitions(Handle<Map> src) {
-  CALL_HEAP_FUNCTION(isolate(),
-                     src->CopyDropTransitions(DescriptorArray::MAY_BE_SHARED),
-                     Map);
+Handle<Map> Factory::CopyMap(Handle<Map> src) {
+  CALL_HEAP_FUNCTION(isolate(), src->Copy(DescriptorArray::MAY_BE_SHARED), Map);
 }
 
 
@@ -933,7 +931,7 @@ Handle<DescriptorArray> Factory::CopyAppendCallbackDescriptors(
   if (0 < descriptor_count) {
     result->SetLastAdded(array->LastAdded());
     for (int i = 0; i < descriptor_count; i++) {
-      DescriptorArray::CopyFrom(result, i, array, i, witness);
+      result->CopyFrom(i, *array, i, witness);
     }
   }
 
@@ -967,7 +965,7 @@ Handle<DescriptorArray> Factory::CopyAppendCallbackDescriptors(
     Handle<DescriptorArray> new_result =
         NewDescriptorArray(new_number_of_descriptors);
     for (int i = 0; i < new_number_of_descriptors; i++) {
-      DescriptorArray::CopyFrom(new_result, i, result, i, witness);
+      new_result->CopyFrom(i, *result, i, witness);
     }
     result = new_result;
   }

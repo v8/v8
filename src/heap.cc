@@ -447,26 +447,38 @@ void Heap::GarbageCollectionEpilogue() {
   isolate_->counters()->number_of_symbols()->Set(
       symbol_table()->NumberOfElements());
 
-#define UPDATE_COUNTERS_FOR_SPACE(space)                                     \
-  isolate_->counters()->space##_bytes_available()->Set(                      \
-      static_cast<int>(space()->Available()));                               \
-  isolate_->counters()->space##_bytes_committed()->Set(                      \
-      static_cast<int>(space()->CommittedMemory()));                         \
-  isolate_->counters()->space##_bytes_used()->Set(                           \
-      static_cast<int>(space()->SizeOfObjects()));                           \
-  if (space()->CommittedMemory() > 0) {                                      \
-    isolate_->counters()->external_fragmentation_##space()->AddSample(       \
-        static_cast<int>(                                                    \
-            (space()->SizeOfObjects() * 100) / space()->CommittedMemory())); \
+  if (CommittedMemory() > 0) {
+    isolate_->counters()->external_fragmentation_total()->AddSample(
+        static_cast<int>(100 - (SizeOfObjects() * 100.0) / CommittedMemory()));
   }
+
+#define UPDATE_COUNTERS_FOR_SPACE(space)                                       \
+  isolate_->counters()->space##_bytes_available()->Set(                        \
+      static_cast<int>(space()->Available()));                                 \
+  isolate_->counters()->space##_bytes_committed()->Set(                        \
+      static_cast<int>(space()->CommittedMemory()));                           \
+  isolate_->counters()->space##_bytes_used()->Set(                             \
+      static_cast<int>(space()->SizeOfObjects()));
+#define UPDATE_FRAGMENTATION_FOR_SPACE(space)                                  \
+  if (space()->CommittedMemory() > 0) {                                        \
+    isolate_->counters()->external_fragmentation_##space()->AddSample(         \
+        static_cast<int>(100 -                                                 \
+            (space()->SizeOfObjects() * 100.0) / space()->CommittedMemory())); \
+  }
+#define UPDATE_COUNTERS_AND_FRAGMENTATION_FOR_SPACE(space)                     \
+  UPDATE_COUNTERS_FOR_SPACE(space)                                             \
+  UPDATE_FRAGMENTATION_FOR_SPACE(space)
+
   UPDATE_COUNTERS_FOR_SPACE(new_space)
-  UPDATE_COUNTERS_FOR_SPACE(old_pointer_space)
-  UPDATE_COUNTERS_FOR_SPACE(old_data_space)
-  UPDATE_COUNTERS_FOR_SPACE(code_space)
-  UPDATE_COUNTERS_FOR_SPACE(map_space)
-  UPDATE_COUNTERS_FOR_SPACE(cell_space)
-  UPDATE_COUNTERS_FOR_SPACE(lo_space)
+  UPDATE_COUNTERS_AND_FRAGMENTATION_FOR_SPACE(old_pointer_space)
+  UPDATE_COUNTERS_AND_FRAGMENTATION_FOR_SPACE(old_data_space)
+  UPDATE_COUNTERS_AND_FRAGMENTATION_FOR_SPACE(code_space)
+  UPDATE_COUNTERS_AND_FRAGMENTATION_FOR_SPACE(map_space)
+  UPDATE_COUNTERS_AND_FRAGMENTATION_FOR_SPACE(cell_space)
+  UPDATE_COUNTERS_AND_FRAGMENTATION_FOR_SPACE(lo_space)
 #undef UPDATE_COUNTERS_FOR_SPACE
+#undef UPDATE_FRAGMENTATION_FOR_SPACE
+#undef UPDATE_COUNTERS_AND_FRAGMENTATION_FOR_SPACE
 
 #if defined(DEBUG)
   ReportStatisticsAfterGC();
@@ -3697,23 +3709,21 @@ MaybeObject* Heap::AllocateFunctionPrototype(JSFunction* function) {
   // constructors.
   Map* new_map;
   ASSERT(object_function->has_initial_map());
-  { MaybeObject* maybe_map =
-        object_function->initial_map()->CopyDropTransitions(
-            DescriptorArray::MAY_BE_SHARED);
-    if (!maybe_map->To<Map>(&new_map)) return maybe_map;
-  }
+  MaybeObject* maybe_map =
+      object_function->initial_map()->Copy(DescriptorArray::MAY_BE_SHARED);
+  if (!maybe_map->To(&new_map)) return maybe_map;
+
   Object* prototype;
-  { MaybeObject* maybe_prototype = AllocateJSObjectFromMap(new_map);
-    if (!maybe_prototype->ToObject(&prototype)) return maybe_prototype;
-  }
+  MaybeObject* maybe_prototype = AllocateJSObjectFromMap(new_map);
+  if (!maybe_prototype->ToObject(&prototype)) return maybe_prototype;
+
   // When creating the prototype for the function we must set its
   // constructor to the function.
-  Object* result;
-  { MaybeObject* maybe_result =
-        JSObject::cast(prototype)->SetLocalPropertyIgnoreAttributes(
-            constructor_symbol(), function, DONT_ENUM);
-    if (!maybe_result->ToObject(&result)) return maybe_result;
-  }
+  MaybeObject* maybe_failure =
+      JSObject::cast(prototype)->SetLocalPropertyIgnoreAttributes(
+          constructor_symbol(), function, DONT_ENUM);
+  if (maybe_failure->IsFailure()) return maybe_failure;
+
   return prototype;
 }
 
@@ -5329,37 +5339,9 @@ void Heap::Verify() {
   cell_space_->Verify(&no_dirty_regions_visitor);
 
   lo_space_->Verify();
-
-  VerifyNoAccessorPairSharing();
 }
 
 
-void Heap::VerifyNoAccessorPairSharing() {
-  // Verification is done in 2 phases: First we mark all AccessorPairs, checking
-  // that we mark only unmarked pairs, then we clear all marks, restoring the
-  // initial state. We use the Smi tag of the AccessorPair's getter as the
-  // marking bit, because we can never see a Smi as the getter.
-  for (int phase = 0; phase < 2; phase++) {
-    HeapObjectIterator iter(map_space());
-    for (HeapObject* obj = iter.Next(); obj != NULL; obj = iter.Next()) {
-      if (obj->IsMap()) {
-        DescriptorArray* descs = Map::cast(obj)->instance_descriptors();
-        for (int i = 0; i < descs->number_of_descriptors(); i++) {
-          if (descs->GetType(i) == CALLBACKS &&
-              descs->GetValue(i)->IsAccessorPair()) {
-            AccessorPair* accessors = AccessorPair::cast(descs->GetValue(i));
-            uintptr_t before = reinterpret_cast<intptr_t>(accessors->getter());
-            uintptr_t after = (phase == 0) ?
-                ((before & ~kSmiTagMask) | kSmiTag) :
-                ((before & ~kHeapObjectTag) | kHeapObjectTag);
-            CHECK(before != after);
-            accessors->set_getter(reinterpret_cast<Object*>(after));
-          }
-        }
-      }
-    }
-  }
-}
 #endif  // DEBUG
 
 
@@ -7227,6 +7209,20 @@ void Heap::CheckpointObjectStats() {
       static_cast<int>(object_sizes_last_time_[name]));
   INSTANCE_TYPE_LIST(ADJUST_LAST_TIME_OBJECT_COUNT)
 #undef ADJUST_LAST_TIME_OBJECT_COUNT
+  int index;
+#define ADJUST_LAST_TIME_OBJECT_COUNT(name)               \
+  index = FIRST_CODE_KIND_SUB_TYPE + Code::name;          \
+  counters->count_of_CODE_TYPE_##name()->Increment(       \
+      static_cast<int>(object_counts_[index]));           \
+  counters->count_of_CODE_TYPE_##name()->Decrement(       \
+      static_cast<int>(object_counts_last_time_[index])); \
+  counters->size_of_CODE_TYPE_##name()->Increment(        \
+      static_cast<int>(object_sizes_[index]));            \
+  counters->size_of_CODE_TYPE_##name()->Decrement(        \
+      static_cast<int>(object_sizes_last_time_[index]));
+  CODE_KIND_LIST(ADJUST_LAST_TIME_OBJECT_COUNT)
+#undef ADJUST_LAST_TIME_OBJECT_COUNT
+
   memcpy(object_counts_last_time_, object_counts_, sizeof(object_counts_));
   memcpy(object_sizes_last_time_, object_sizes_, sizeof(object_sizes_));
   ClearObjectStats();

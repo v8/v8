@@ -2300,11 +2300,12 @@ String* V8HeapExplorer::GetConstructorName(JSObject* object) {
     Object* constructor_prop = NULL;
     LookupResult result(heap->isolate());
     object->LocalLookupRealNamedProperty(heap->constructor_symbol(), &result);
-    if (result.IsProperty()) {
-      constructor_prop = result.GetLazyValue();
-    }
+    if (!result.IsFound()) return object->constructor_name();
+
+    constructor_prop = result.GetLazyValue();
     if (constructor_prop->IsJSFunction()) {
-      Object* maybe_name = JSFunction::cast(constructor_prop)->shared()->name();
+      Object* maybe_name =
+          JSFunction::cast(constructor_prop)->shared()->name();
       if (maybe_name->IsString()) {
         String* name = String::cast(maybe_name);
         if (name->length() > 0) return name;

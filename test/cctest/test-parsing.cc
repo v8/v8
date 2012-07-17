@@ -354,7 +354,8 @@ TEST(Regress928) {
   v8::HandleScope handles;
   i::Handle<i::String> source(
       FACTORY->NewStringFromAscii(i::CStrVector(program)));
-  i::ScriptDataImpl* data = i::ParserApi::PartialPreParse(source, NULL, false);
+  i::GenericStringUtf16CharacterStream stream(source, 0, source->length());
+  i::ScriptDataImpl* data = i::ParserApi::PreParse(&stream, NULL, false);
   CHECK(!data->HasError());
 
   data->Initialize();

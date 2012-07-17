@@ -1237,10 +1237,6 @@ class Heap {
   // Verify the heap is in its normal state before or after a GC.
   void Verify();
 
-  // Verify that AccessorPairs are not shared, i.e. make sure that they have
-  // exactly one pointer to them.
-  void VerifyNoAccessorPairSharing();
-
   void OldPointerSpaceCheckStoreBuffer();
   void MapSpaceCheckStoreBuffer();
   void LargeObjectSpaceCheckStoreBuffer();
@@ -1600,10 +1596,26 @@ class Heap {
     global_ic_age_ = (global_ic_age_ + 1) & SharedFunctionInfo::ICAgeBits::kMax;
   }
 
-  void RecordObjectStats(InstanceType type, size_t size) {
+  // ObjectStats are kept in two arrays, counts and sizes. Related stats are
+  // stored in a contiguous linear buffer. Stats groups are stored one after
+  // another.
+  enum {
+    FIRST_CODE_KIND_SUB_TYPE = LAST_TYPE + 1,
+    OBJECT_STATS_COUNT = FIRST_CODE_KIND_SUB_TYPE + Code::LAST_CODE_KIND + 1
+  };
+
+  void RecordObjectStats(InstanceType type, int sub_type, size_t size) {
     ASSERT(type <= LAST_TYPE);
-    object_counts_[type]++;
-    object_sizes_[type] += size;
+    if (sub_type < 0) {
+      object_counts_[type]++;
+      object_sizes_[type] += size;
+    } else {
+      if (type == CODE_TYPE) {
+        ASSERT(sub_type <= Code::LAST_CODE_KIND);
+        object_counts_[FIRST_CODE_KIND_SUB_TYPE + sub_type]++;
+        object_sizes_[FIRST_CODE_KIND_SUB_TYPE + sub_type] += size;
+      }
+    }
   }
 
   void CheckpointObjectStats();
@@ -2008,10 +2020,10 @@ class Heap {
   static const int kInitialNumberStringCacheSize = 256;
 
   // Object counts and used memory by InstanceType
-  size_t object_counts_[LAST_TYPE + 1];
-  size_t object_counts_last_time_[LAST_TYPE + 1];
-  size_t object_sizes_[LAST_TYPE + 1];
-  size_t object_sizes_last_time_[LAST_TYPE + 1];
+  size_t object_counts_[OBJECT_STATS_COUNT];
+  size_t object_counts_last_time_[OBJECT_STATS_COUNT];
+  size_t object_sizes_[OBJECT_STATS_COUNT];
+  size_t object_sizes_last_time_[OBJECT_STATS_COUNT];
 
   // Maximum GC pause.
   int max_gc_pause_;

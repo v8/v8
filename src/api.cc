@@ -33,6 +33,7 @@
 #include "../include/v8-profiler.h"
 #include "../include/v8-testing.h"
 #include "bootstrapper.h"
+#include "code-stubs.h"
 #include "compiler.h"
 #include "conversions-inl.h"
 #include "counters.h"
@@ -3234,7 +3235,7 @@ void v8::Object::TurnOnAccessCheck() {
   i::Deoptimizer::DeoptimizeGlobalObject(*obj);
 
   i::Handle<i::Map> new_map =
-      isolate->factory()->CopyMapDropTransitions(i::Handle<i::Map>(obj->map()));
+      isolate->factory()->CopyMap(i::Handle<i::Map>(obj->map()));
   new_map->set_is_access_check_needed(true);
   obj->set_map(*new_map);
 }
@@ -4229,6 +4230,11 @@ void v8::V8::SetEntropySource(EntropySource source) {
 void v8::V8::SetReturnAddressLocationResolver(
       ReturnAddressLocationResolver return_address_resolver) {
   i::V8::SetReturnAddressLocationResolver(return_address_resolver);
+}
+
+
+bool v8::V8::SetFunctionEntryHook(FunctionEntryHook entry_hook) {
+  return i::ProfileEntryHookStub::SetFunctionEntryHook(entry_hook);
 }
 
 
@@ -6514,7 +6520,7 @@ void DeferredHandles::Iterate(ObjectVisitor* v) {
   ASSERT(!blocks_.is_empty());
 
   ASSERT((first_block_limit_ >= blocks_.first()) &&
-         (first_block_limit_ < &(blocks_.first())[kHandleBlockSize]));
+         (first_block_limit_ <= &(blocks_.first())[kHandleBlockSize]));
 
   v->VisitPointers(blocks_.first(), first_block_limit_);
 

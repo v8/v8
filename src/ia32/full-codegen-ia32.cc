@@ -123,6 +123,8 @@ void FullCodeGenerator::Generate() {
   SetFunctionPosition(function());
   Comment cmnt(masm_, "[ function compiled by full code generator");
 
+  ProfileEntryHookStub::MaybeCallEntryHook(masm_);
+
 #ifdef DEBUG
   if (strlen(FLAG_stop_at) > 0 &&
       info->function()->name()->IsEqualTo(CStrVector(FLAG_stop_at))) {
@@ -4485,6 +4487,7 @@ void FullCodeGenerator::EnterFinallyBlock() {
   ExternalReference has_pending_message =
       ExternalReference::address_of_has_pending_message(isolate());
   __ mov(edx, Operand::StaticVariable(has_pending_message));
+  __ SmiTag(edx);
   __ push(edx);
 
   ExternalReference pending_message_script =
@@ -4503,6 +4506,7 @@ void FullCodeGenerator::ExitFinallyBlock() {
   __ mov(Operand::StaticVariable(pending_message_script), edx);
 
   __ pop(edx);
+  __ SmiUntag(edx);
   ExternalReference has_pending_message =
       ExternalReference::address_of_has_pending_message(isolate());
   __ mov(Operand::StaticVariable(has_pending_message), edx);
@@ -4549,7 +4553,6 @@ FullCodeGenerator::NestedStatement* FullCodeGenerator::TryFinally::Exit(
   *context_length = 0;
   return previous_;
 }
-
 
 #undef __
 

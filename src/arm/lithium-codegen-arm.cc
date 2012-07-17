@@ -127,6 +127,8 @@ void LCodeGen::Comment(const char* format, ...) {
 bool LCodeGen::GeneratePrologue() {
   ASSERT(is_generating());
 
+  ProfileEntryHookStub::MaybeCallEntryHook(masm_);
+
 #ifdef DEBUG
   if (strlen(FLAG_stop_at) > 0 &&
       info_->function()->name()->IsEqualTo(CStrVector(FLAG_stop_at))) {
@@ -2579,7 +2581,7 @@ void LCodeGen::EmitLoadFieldOrConstantFunction(Register result,
                                                Handle<String> name,
                                                LEnvironment* env) {
   LookupResult lookup(isolate());
-  type->LookupTransitionOrDescriptor(NULL, *name, &lookup);
+  type->LookupDescriptor(NULL, *name, &lookup);
   ASSERT(lookup.IsFound() || lookup.IsCacheable());
   if (lookup.IsField()) {
     int index = lookup.GetLocalFieldIndexFromMap(*type);

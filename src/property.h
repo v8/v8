@@ -236,12 +236,6 @@ class LookupResult BASE_EMBEDDED {
     return details_.type() == CALLBACKS;
   }
 
-  // Is callbacks contains both property callbacks and transitions to callbacks.
-  bool IsCallbacks() {
-    return IsPropertyCallbacks() ||
-           (IsTransition() && GetTransitionValue()->IsAccessorPair());
-  }
-
   bool IsReadOnly() {
     ASSERT(IsFound());
     ASSERT(!IsTransition());
@@ -299,11 +293,10 @@ class LookupResult BASE_EMBEDDED {
     }
   }
 
-  Object* GetTransitionValue() {
+  Map* GetTransitionTarget() {
     ASSERT(IsTransition());
     TransitionArray* transitions = holder()->map()->transitions();
-    Object* value = transitions->GetValue(number_);
-    return value;
+    return transitions->GetTarget(number_);
   }
 
   PropertyDetails GetTransitionDetails(Map* map) {
@@ -327,7 +320,7 @@ class LookupResult BASE_EMBEDDED {
 
   Map* GetTransitionMapFromMap(Map* map) {
     ASSERT(IsTransition());
-    return Map::cast(map->transitions()->GetValue(number_));
+    return map->transitions()->GetTarget(number_);
   }
 
   int GetTransitionIndex() {
@@ -363,14 +356,11 @@ class LookupResult BASE_EMBEDDED {
   }
 
   Object* GetCallbackObject() {
-    switch (lookup_type_) {
-      case CONSTANT_TYPE:
-        return HEAP->prototype_accessors();
-      case TRANSITION_TYPE:
-        return GetTransitionValue();
-      default:
-        return GetValue();
+    if (lookup_type_ == CONSTANT_TYPE) {
+      return HEAP->prototype_accessors();
     }
+    ASSERT(!IsTransition());
+    return GetValue();
   }
 
 #ifdef OBJECT_PRINT

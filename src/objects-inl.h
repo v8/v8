@@ -3534,13 +3534,14 @@ Map* Map::elements_transition_map() {
 }
 
 
-MaybeObject* Map::AddTransition(String* key, Object* value) {
-  if (HasTransitionArray()) return transitions()->CopyInsert(key, value);
-  return TransitionArray::NewWith(key, value);
+MaybeObject* Map::AddTransition(String* key, Map* target) {
+  if (HasTransitionArray()) return transitions()->CopyInsert(key, target);
+  return TransitionArray::NewWith(key, target);
 }
 
-void Map::SetTransition(int transition_index, Object* value) {
-  transitions()->SetValue(transition_index, value);
+
+void Map::SetTransition(int transition_index, Map* target) {
+  transitions()->SetTarget(transition_index, target);
 }
 
 
@@ -3652,12 +3653,12 @@ void Map::SetBackPointer(Object* value, WriteBarrierMode mode) {
   ASSERT((value->IsUndefined() && GetBackPointer()->IsMap()) ||
          (value->IsMap() && GetBackPointer()->IsUndefined()));
   Object* object = READ_FIELD(this, kInstanceDescriptorsOrBackPointerOffset);
-  if (object->IsMap()) {
+  if (object->IsDescriptorArray()) {
+    DescriptorArray::cast(object)->set_back_pointer_storage(value);
+  } else {
     WRITE_FIELD(this, kInstanceDescriptorsOrBackPointerOffset, value);
     CONDITIONAL_WRITE_BARRIER(
         GetHeap(), this, kInstanceDescriptorsOrBackPointerOffset, value, mode);
-  } else {
-    DescriptorArray::cast(object)->set_back_pointer_storage(value);
   }
 }
 
@@ -4300,7 +4301,7 @@ MaybeObject* JSFunction::set_initial_map_and_cache_transitions(
       Map* new_map;
       ElementsKind next_kind = GetFastElementsKindFromSequenceIndex(i);
       MaybeObject* maybe_new_map =
-          current_map->CreateNextElementsTransition(next_kind);
+          current_map->CopyAsElementsKind(next_kind, INSERT_TRANSITION);
       if (!maybe_new_map->To(&new_map)) return maybe_new_map;
       maps->set(next_kind, new_map);
       current_map = new_map;

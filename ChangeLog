@@ -1,3 +1,13 @@
+2012-07-17: Version 3.12.13
+
+        Fixed missing tagging of stack value in finally block.
+        (Chromium issue 137496)
+
+        Added more support for heap analysis.
+
+        Performance and stability improvements on all platforms.
+
+
 2012-07-16: Version 3.12.12
 
         Added an option to the tickprocessor to specify the directory for lib

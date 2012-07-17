@@ -178,6 +178,13 @@ enum SearchMode {
 };
 
 
+// Indicates whether transitions can be added to a source map or not.
+enum TransitionFlag {
+  INSERT_TRANSITION,
+  OMIT_TRANSITION
+};
+
+
 // Instance size sentinel for objects of variable size.
 const int kVariableSizeSentinel = 0;
 
@@ -1876,7 +1883,7 @@ class JSObject: public JSReceiver {
   void LookupRealNamedPropertyInPrototypes(String* name, LookupResult* result);
   MUST_USE_RESULT MaybeObject* SetElementWithCallbackSetterInPrototypes(
       uint32_t index, Object* value, bool* found, StrictModeFlag strict_mode);
-  void LookupCallback(String* name, LookupResult* result);
+  void LookupCallbackProperty(String* name, LookupResult* result);
 
   // Returns the number of properties on this object filtering out properties
   // with the specified attributes (ignoring interceptors).
@@ -2548,29 +2555,20 @@ class DescriptorArray: public FixedArray {
   inline void Append(Descriptor* desc,
                      const WhitenessWitness&);
 
-  // Transfer a complete descriptor from the src descriptor array to the dst
-  // one, dropping map transitions in CALLBACKS.
-  static void CopyFrom(Handle<DescriptorArray> dst,
-                       int dst_index,
-                       Handle<DescriptorArray> src,
-                       int src_index,
-                       const WhitenessWitness& witness);
-
   // Transfer a complete descriptor from the src descriptor array to this
-  // descriptor array, dropping map transitions in CALLBACKS.
-  MUST_USE_RESULT MaybeObject* CopyFrom(int dst_index,
-                                        DescriptorArray* src,
-                                        int src_index,
-                                        const WhitenessWitness&);
+  // descriptor array.
+  void CopyFrom(int dst_index,
+                DescriptorArray* src,
+                int src_index,
+                const WhitenessWitness&);
 
-  // Copy the descriptor array, insert a new descriptor and optionally
-  // remove map transitions.  If the descriptor is already present, it is
-  // replaced.  If a replaced descriptor is a real property (not a transition
-  // or null), its enumeration index is kept as is.
-  // If adding a real property, map transitions must be removed.  If adding
-  // a transition, they must not be removed.  All null descriptors are removed.
-  MUST_USE_RESULT MaybeObject* CopyInsert(Descriptor* descriptor);
+  // Copy the descriptor array, inserting new descriptor. Its enumeration index
+  // is automatically set to the size of the descriptor array to which it was
+  // added first.
   MUST_USE_RESULT MaybeObject* CopyAdd(Descriptor* descriptor);
+
+  // Copy the descriptor array, replacing a descriptor. Its enumeration index is
+  // kept.
   MUST_USE_RESULT MaybeObject* CopyReplace(Descriptor* descriptor,
                                            int insertion_index);
 
@@ -4186,29 +4184,37 @@ class Code: public HeapObject {
     FLAGS_MAX_VALUE = kMaxInt
   };
 
+#define CODE_KIND_LIST(V) \
+  V(FUNCTION)             \
+  V(OPTIMIZED_FUNCTION)   \
+  V(STUB)                 \
+  V(BUILTIN)              \
+  V(LOAD_IC)              \
+  V(KEYED_LOAD_IC)        \
+  V(CALL_IC)              \
+  V(KEYED_CALL_IC)        \
+  V(STORE_IC)             \
+  V(KEYED_STORE_IC)       \
+  V(UNARY_OP_IC)          \
+  V(BINARY_OP_IC)         \
+  V(COMPARE_IC)           \
+  V(TO_BOOLEAN_IC)
+
   enum Kind {
-    FUNCTION,
-    OPTIMIZED_FUNCTION,
-    STUB,
-    BUILTIN,
-    LOAD_IC,
-    KEYED_LOAD_IC,
-    CALL_IC,
-    KEYED_CALL_IC,
-    STORE_IC,
-    KEYED_STORE_IC,
-    UNARY_OP_IC,
-    BINARY_OP_IC,
-    COMPARE_IC,
-    TO_BOOLEAN_IC,
-    // No more than 16 kinds. The value currently encoded in four bits in
-    // Flags.
+#define DEFINE_CODE_KIND_ENUM(name) name,
+    CODE_KIND_LIST(DEFINE_CODE_KIND_ENUM)
+#undef DEFINE_CODE_KIND_ENUM
 
     // Pseudo-kinds.
+    LAST_CODE_KIND = TO_BOOLEAN_IC,
     REGEXP = BUILTIN,
     FIRST_IC_KIND = LOAD_IC,
     LAST_IC_KIND = TO_BOOLEAN_IC
   };
+
+  // No more than 16 kinds. The value is currently encoded in four bits in
+  // Flags.
+  STATIC_ASSERT(LAST_CODE_KIND < 16);
 
   // Types of stubs.
   enum StubType {
@@ -4815,8 +4821,8 @@ class Map: public HeapObject {
   MUST_USE_RESULT inline MaybeObject* set_elements_transition_map(
       Map* transitioned_map);
   inline TransitionArray* transitions();
-  inline void SetTransition(int index, Object* value);
-  MUST_USE_RESULT inline MaybeObject* AddTransition(String* key, Object* value);
+  inline void SetTransition(int index, Map* target);
+  MUST_USE_RESULT inline MaybeObject* AddTransition(String* key, Map* target);
   MUST_USE_RESULT inline MaybeObject* set_transitions(
       TransitionArray* transitions);
   inline void ClearTransitions(Heap* heap,
@@ -4913,23 +4919,27 @@ class Map: public HeapObject {
                         String* name,
                         LookupResult* result);
 
-  void LookupTransitionOrDescriptor(JSObject* holder,
-                                    String* name,
-                                    LookupResult* result);
-
   MUST_USE_RESULT MaybeObject* RawCopy(int instance_size);
   MUST_USE_RESULT MaybeObject* CopyWithPreallocatedFieldDescriptors();
   MUST_USE_RESULT MaybeObject* CopyDropDescriptors();
   MUST_USE_RESULT MaybeObject* CopyReplaceDescriptors(
-      DescriptorArray* descriptors);
+      DescriptorArray* descriptors, String* name, TransitionFlag flag);
+  MUST_USE_RESULT MaybeObject* CopyAddDescriptor(Descriptor* descriptor,
+                                                 TransitionFlag flag);
+  MUST_USE_RESULT MaybeObject* CopyInsertDescriptor(Descriptor* descriptor,
+                                                    TransitionFlag flag);
+  MUST_USE_RESULT MaybeObject* CopyReplaceDescriptor(Descriptor* descriptor,
+                                                     int index,
+                                                     TransitionFlag flag);
+  MUST_USE_RESULT MaybeObject* CopyAsElementsKind(ElementsKind kind,
+                                                  TransitionFlag flag);
 
   MUST_USE_RESULT MaybeObject* CopyNormalized(PropertyNormalizationMode mode,
                                               NormalizedMapSharingMode sharing);
 
   // Returns a copy of the map, with all transitions dropped from the
   // instance descriptors.
-  MUST_USE_RESULT MaybeObject* CopyDropTransitions(
-      DescriptorArray::SharedMode shared_mode);
+  MUST_USE_RESULT MaybeObject* Copy(DescriptorArray::SharedMode shared_mode);
 
   // Returns the property index for name (only valid for FAST MODE).
   int PropertyIndexFor(String* name);
@@ -4987,10 +4997,6 @@ class Map: public HeapObject {
   // |safe_to_add_transitions| is set to false if adding transitions is not
   // allowed.
   Map* LookupElementsTransitionMap(ElementsKind elements_kind);
-
-  // Adds a new transitions for changing the elements kind to |elements_kind|.
-  MUST_USE_RESULT MaybeObject* CreateNextElementsTransition(
-      ElementsKind elements_kind);
 
   // Returns the transitioned map for this map with the most generic
   // elements_kind that's found in |candidates|, or null handle if no match is
@@ -8347,7 +8353,7 @@ class AccessorPair: public Struct {
 
   static inline AccessorPair* cast(Object* obj);
 
-  MUST_USE_RESULT MaybeObject* CopyWithoutTransitions();
+  MUST_USE_RESULT MaybeObject* Copy();
 
   Object* get(AccessorComponent component) {
     return component == ACCESSOR_GETTER ? getter() : setter();

@@ -52,8 +52,8 @@ namespace internal {
 
 
 #define HISTOGRAM_PERCENTAGE_LIST(HP)                                 \
-  HP(external_fragmentation_new_space,                                \
-     V8.MemoryExternalFragmentationNewSpace)                          \
+  HP(external_fragmentation_total,                                    \
+     V8.MemoryExternalFragmentationTotal)                             \
   HP(external_fragmentation_old_pointer_space,                        \
      V8.MemoryExternalFragmentationOldPointerSpace)                   \
   HP(external_fragmentation_old_data_space,                           \
@@ -315,6 +315,14 @@ class Counters {
   INSTANCE_TYPE_LIST(SC)
 #undef SC
 
+#define SC(name) \
+  StatsCounter* count_of_CODE_TYPE_##name() \
+    { return &count_of_CODE_TYPE_##name##_; } \
+  StatsCounter* size_of_CODE_TYPE_##name() \
+    { return &size_of_CODE_TYPE_##name##_; }
+  CODE_KIND_LIST(SC)
+#undef SC
+
   enum Id {
 #define RATE_ID(name, caption) k_##name,
     HISTOGRAM_TIMER_LIST(RATE_ID)
@@ -328,6 +336,10 @@ class Counters {
 #undef COUNTER_ID
 #define COUNTER_ID(name) kCountOf##name, kSizeOf##name,
     INSTANCE_TYPE_LIST(COUNTER_ID)
+#undef COUNTER_ID
+#define COUNTER_ID(name) kCountOfCODE_TYPE_##name, \
+    kSizeOfCODE_TYPE_##name,
+    CODE_KIND_LIST(COUNTER_ID)
 #undef COUNTER_ID
 #define COUNTER_ID(name) k_##name,
     STATE_TAG_LIST(COUNTER_ID)
@@ -360,6 +372,12 @@ class Counters {
   StatsCounter size_of_##name##_; \
   StatsCounter count_of_##name##_;
   INSTANCE_TYPE_LIST(SC)
+#undef SC
+
+#define SC(name) \
+  StatsCounter size_of_CODE_TYPE_##name##_; \
+  StatsCounter count_of_CODE_TYPE_##name##_;
+  CODE_KIND_LIST(SC)
 #undef SC
 
   enum {

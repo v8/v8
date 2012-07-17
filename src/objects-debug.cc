@@ -949,15 +949,7 @@ bool TransitionArray::IsConsistentWithBackPointers(Map* current_map) {
     return false;
   }
   for (int i = 0; i < number_of_transitions(); ++i) {
-    Object* value = GetValue(i);
-    if (value->IsAccessorPair()) {
-      AccessorPair* accessors = AccessorPair::cast(value);
-      if (!CheckOneBackPointer(current_map, accessors->getter())) return false;
-      if (!CheckOneBackPointer(current_map, accessors->setter())) return false;
-    } else {
-      ASSERT(value->IsMap());
-      if (!CheckOneBackPointer(current_map, value)) return false;
-    }
+    if (!CheckOneBackPointer(current_map, GetTarget(i))) return false;
   }
   return true;
 }
