@@ -871,6 +871,11 @@ class HGraphBuilder: public AstVisitor {
 
   void VisitDeclarations(ZoneList<Declaration*>* declarations);
 
+  void* operator new(size_t size, Zone* zone) {
+    return zone->New(size);
+  }
+  void operator delete(void* ptr) { }
+
  private:
   // Type of a member function that generates inline code for a native function.
   typedef void (HGraphBuilder::*InlineFunctionGenerator)(CallRuntime* call);
