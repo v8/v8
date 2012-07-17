@@ -45,7 +45,7 @@ class CompilationInfo BASE_EMBEDDED {
   CompilationInfo(Handle<SharedFunctionInfo> shared_info, Zone* zone);
   CompilationInfo(Handle<JSFunction> closure, Zone* zone);
 
-  ~CompilationInfo();
+  virtual ~CompilationInfo();
 
   Isolate* isolate() {
     ASSERT(Isolate::Current() == isolate_);
