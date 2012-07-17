@@ -178,6 +178,13 @@ enum SearchMode {
 };
 
 
+// Indicates whether transitions can be added to a source map or not.
+enum TransitionFlag {
+  INSERT_TRANSITION,
+  OMIT_TRANSITION
+};
+
+
 // Instance size sentinel for objects of variable size.
 const int kVariableSizeSentinel = 0;
 
@@ -2555,14 +2562,13 @@ class DescriptorArray: public FixedArray {
                 int src_index,
                 const WhitenessWitness&);
 
-  // Copy the descriptor array, insert a new descriptor and optionally
-  // remove map transitions.  If the descriptor is already present, it is
-  // replaced.  If a replaced descriptor is a real property (not a transition
-  // or null), its enumeration index is kept as is.
-  // If adding a real property, map transitions must be removed.  If adding
-  // a transition, they must not be removed.  All null descriptors are removed.
-  MUST_USE_RESULT MaybeObject* CopyInsert(Descriptor* descriptor);
+  // Copy the descriptor array, inserting new descriptor. Its enumeration index
+  // is automatically set to the size of the descriptor array to which it was
+  // added first.
   MUST_USE_RESULT MaybeObject* CopyAdd(Descriptor* descriptor);
+
+  // Copy the descriptor array, replacing a descriptor. Its enumeration index is
+  // kept.
   MUST_USE_RESULT MaybeObject* CopyReplace(Descriptor* descriptor,
                                            int insertion_index);
 
@@ -4917,15 +4923,23 @@ class Map: public HeapObject {
   MUST_USE_RESULT MaybeObject* CopyWithPreallocatedFieldDescriptors();
   MUST_USE_RESULT MaybeObject* CopyDropDescriptors();
   MUST_USE_RESULT MaybeObject* CopyReplaceDescriptors(
-      DescriptorArray* descriptors);
+      DescriptorArray* descriptors, String* name, TransitionFlag flag);
+  MUST_USE_RESULT MaybeObject* CopyAddDescriptor(Descriptor* descriptor,
+                                                 TransitionFlag flag);
+  MUST_USE_RESULT MaybeObject* CopyInsertDescriptor(Descriptor* descriptor,
+                                                    TransitionFlag flag);
+  MUST_USE_RESULT MaybeObject* CopyReplaceDescriptor(Descriptor* descriptor,
+                                                     int index,
+                                                     TransitionFlag flag);
+  MUST_USE_RESULT MaybeObject* CopyAsElementsKind(ElementsKind kind,
+                                                  TransitionFlag flag);
 
   MUST_USE_RESULT MaybeObject* CopyNormalized(PropertyNormalizationMode mode,
                                               NormalizedMapSharingMode sharing);
 
   // Returns a copy of the map, with all transitions dropped from the
   // instance descriptors.
-  MUST_USE_RESULT MaybeObject* CopyDropTransitions(
-      DescriptorArray::SharedMode shared_mode);
+  MUST_USE_RESULT MaybeObject* Copy(DescriptorArray::SharedMode shared_mode);
 
   // Returns the property index for name (only valid for FAST MODE).
   int PropertyIndexFor(String* name);
@@ -4983,10 +4997,6 @@ class Map: public HeapObject {
   // |safe_to_add_transitions| is set to false if adding transitions is not
   // allowed.
   Map* LookupElementsTransitionMap(ElementsKind elements_kind);
-
-  // Adds a new transitions for changing the elements kind to |elements_kind|.
-  MUST_USE_RESULT MaybeObject* CreateNextElementsTransition(
-      ElementsKind elements_kind);
 
   // Returns the transitioned map for this map with the most generic
   // elements_kind that's found in |candidates|, or null handle if no match is

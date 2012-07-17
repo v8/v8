@@ -3709,23 +3709,21 @@ MaybeObject* Heap::AllocateFunctionPrototype(JSFunction* function) {
   // constructors.
   Map* new_map;
   ASSERT(object_function->has_initial_map());
-  { MaybeObject* maybe_map =
-        object_function->initial_map()->CopyDropTransitions(
-            DescriptorArray::MAY_BE_SHARED);
-    if (!maybe_map->To<Map>(&new_map)) return maybe_map;
-  }
+  MaybeObject* maybe_map =
+      object_function->initial_map()->Copy(DescriptorArray::MAY_BE_SHARED);
+  if (!maybe_map->To(&new_map)) return maybe_map;
+
   Object* prototype;
-  { MaybeObject* maybe_prototype = AllocateJSObjectFromMap(new_map);
-    if (!maybe_prototype->ToObject(&prototype)) return maybe_prototype;
-  }
+  MaybeObject* maybe_prototype = AllocateJSObjectFromMap(new_map);
+  if (!maybe_prototype->ToObject(&prototype)) return maybe_prototype;
+
   // When creating the prototype for the function we must set its
   // constructor to the function.
-  Object* result;
-  { MaybeObject* maybe_result =
-        JSObject::cast(prototype)->SetLocalPropertyIgnoreAttributes(
-            constructor_symbol(), function, DONT_ENUM);
-    if (!maybe_result->ToObject(&result)) return maybe_result;
-  }
+  MaybeObject* maybe_failure =
+      JSObject::cast(prototype)->SetLocalPropertyIgnoreAttributes(
+          constructor_symbol(), function, DONT_ENUM);
+  if (maybe_failure->IsFailure()) return maybe_failure;
+
   return prototype;
 }
 

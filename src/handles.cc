@@ -165,7 +165,7 @@ void SetExpectedNofProperties(Handle<JSFunction> func, int nof) {
   func->shared()->set_expected_nof_properties(nof);
   if (func->has_initial_map()) {
     Handle<Map> new_initial_map =
-        func->GetIsolate()->factory()->CopyMapDropTransitions(
+        func->GetIsolate()->factory()->CopyMap(
             Handle<Map>(func->initial_map()));
     new_initial_map->set_unused_property_fields(nof);
     func->set_initial_map(*new_initial_map);

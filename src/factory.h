@@ -227,8 +227,7 @@ class Factory {
   // Copy the map adding more inobject properties if possible without
   // overflowing the instance size.
   Handle<Map> CopyMap(Handle<Map> map, int extra_inobject_props);
-
-  Handle<Map> CopyMapDropTransitions(Handle<Map> map);
+  Handle<Map> CopyMap(Handle<Map> map);
 
   Handle<Map> GetElementsTransitionMap(Handle<JSObject> object,
                                        ElementsKind elements_kind);

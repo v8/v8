@@ -496,10 +496,8 @@ Handle<Map> Factory::CopyMap(Handle<Map> src,
 }
 
 
-Handle<Map> Factory::CopyMapDropTransitions(Handle<Map> src) {
-  CALL_HEAP_FUNCTION(isolate(),
-                     src->CopyDropTransitions(DescriptorArray::MAY_BE_SHARED),
-                     Map);
+Handle<Map> Factory::CopyMap(Handle<Map> src) {
+  CALL_HEAP_FUNCTION(isolate(), src->Copy(DescriptorArray::MAY_BE_SHARED), Map);
 }
 
 
