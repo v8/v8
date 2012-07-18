@@ -73,6 +73,9 @@ sync_file tools/codemap.js
 sync_file tools/csvparser.js
 sync_file tools/profile.js
 sync_file tools/splaytree.js
+sync_file tools/profile_view.js
+sync_file tools/logreader.js
+sync_file tools/tickprocessor.js
 echo ""
 sync_dir test/message
 sync_dir test/mjsunit
