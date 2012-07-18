@@ -328,6 +328,11 @@ class LookupResult BASE_EMBEDDED {
     return number_;
   }
 
+  int GetDescriptorIndex() {
+    ASSERT(lookup_type_ == DESCRIPTOR_TYPE);
+    return number_;
+  }
+
   int GetFieldIndex() {
     ASSERT(lookup_type_ == DESCRIPTOR_TYPE);
     ASSERT(IsField());
