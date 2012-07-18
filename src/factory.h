@@ -496,9 +496,8 @@ class Factory {
       Handle<String> name,
       LanguageMode language_mode);
 
-  Handle<DescriptorArray> CopyAppendCallbackDescriptors(
-      Handle<DescriptorArray> array,
-      Handle<Object> descriptors);
+  void CopyAppendCallbackDescriptors(Handle<Map> map,
+                                     Handle<Object> descriptors);
 
   // Create a new map cache.
   Handle<MapCache> NewMapCache(int at_least_space_for);

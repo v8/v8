@@ -3824,21 +3824,18 @@ MaybeObject* Heap::AllocateInitialMap(JSFunction* fun) {
   // suggested by the function.
   int instance_size = fun->shared()->CalculateInstanceSize();
   int in_object_properties = fun->shared()->CalculateInObjectProperties();
-  Object* map_obj;
-  { MaybeObject* maybe_map_obj = AllocateMap(JS_OBJECT_TYPE, instance_size);
-    if (!maybe_map_obj->ToObject(&map_obj)) return maybe_map_obj;
-  }
+  Map* map;
+  MaybeObject* maybe_map = AllocateMap(JS_OBJECT_TYPE, instance_size);
+  if (!maybe_map->To(&map)) return maybe_map;
 
   // Fetch or allocate prototype.
   Object* prototype;
   if (fun->has_instance_prototype()) {
     prototype = fun->instance_prototype();
   } else {
-    { MaybeObject* maybe_prototype = AllocateFunctionPrototype(fun);
-      if (!maybe_prototype->ToObject(&prototype)) return maybe_prototype;
-    }
+    MaybeObject* maybe_prototype = AllocateFunctionPrototype(fun);
+    if (!maybe_prototype->To(&prototype)) return maybe_prototype;
   }
-  Map* map = Map::cast(map_obj);
   map->set_inobject_properties(in_object_properties);
   map->set_unused_property_fields(in_object_properties);
   map->set_prototype(prototype);
@@ -3857,12 +3854,10 @@ MaybeObject* Heap::AllocateInitialMap(JSFunction* fun) {
       fun->shared()->ForbidInlineConstructor();
     } else {
       DescriptorArray* descriptors;
-      { MaybeObject* maybe_descriptors_obj =
-            DescriptorArray::Allocate(count, DescriptorArray::MAY_BE_SHARED);
-        if (!maybe_descriptors_obj->To<DescriptorArray>(&descriptors)) {
-          return maybe_descriptors_obj;
-        }
-      }
+      MaybeObject* maybe_descriptors =
+          DescriptorArray::Allocate(count, DescriptorArray::MAY_BE_SHARED);
+      if (!maybe_descriptors->To(&descriptors)) return maybe_descriptors;
+
       DescriptorArray::WhitenessWitness witness(descriptors);
       for (int i = 0; i < count; i++) {
         String* name = fun->shared()->GetThisPropertyAssignmentName(i);
@@ -3870,7 +3865,7 @@ MaybeObject* Heap::AllocateInitialMap(JSFunction* fun) {
         FieldDescriptor field(name, i, NONE, i + 1);
         descriptors->Set(i, &field, witness);
       }
-      descriptors->SortUnchecked(witness);
+      descriptors->Sort(witness);
 
       // The descriptors may contain duplicates because the compiler does not
       // guarantee the uniqueness of property names (it would have required
@@ -3879,7 +3874,7 @@ MaybeObject* Heap::AllocateInitialMap(JSFunction* fun) {
       if (HasDuplicates(descriptors)) {
         fun->shared()->ForbidInlineConstructor();
       } else {
-        map->set_instance_descriptors(descriptors);
+        map->InitializeDescriptors(descriptors);
         map->set_pre_allocated_property_fields(count);
         map->set_unused_property_fields(in_object_properties - count);
       }

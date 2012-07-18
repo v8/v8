@@ -170,14 +170,6 @@ enum CreationFlag {
 };
 
 
-// Indicates whether the search function should expect a sorted or an unsorted
-// array as input.
-enum SearchMode {
-  EXPECT_SORTED,
-  EXPECT_UNSORTED
-};
-
-
 // Indicates whether transitions can be added to a source map or not.
 enum TransitionFlag {
   INSERT_TRANSITION,
@@ -2584,11 +2576,6 @@ class DescriptorArray: public FixedArray {
   MUST_USE_RESULT MaybeObject* Copy(SharedMode shared_mode);
 
   // Sort the instance descriptors by the hash codes of their keys.
-  // Does not check for duplicates.
-  void SortUnchecked(const WhitenessWitness&);
-
-  // Sort the instance descriptors by the hash codes of their keys.
-  // Checks the result for duplicates.
   void Sort(const WhitenessWitness&);
 
   // Search the instance descriptors for given name.
@@ -2714,7 +2701,7 @@ class DescriptorArray: public FixedArray {
 
 
 template<typename T>
-inline int LinearSearch(T* array, SearchMode mode, String* name, int len);
+inline int LinearSearch(T* array, String* name, int len);
 
 
 template<typename T>
@@ -4855,6 +4842,7 @@ class Map: public HeapObject {
 
   // [instance descriptors]: describes the object.
   DECL_ACCESSORS(instance_descriptors, DescriptorArray)
+  inline void InitializeDescriptors(DescriptorArray* descriptors);
 
   // Should only be called to clear a descriptor array that was only used to
   // store transitions and does not contain any live transitions anymore.

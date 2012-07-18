@@ -1952,12 +1952,12 @@ int BinarySearch(T* array, String* name, int low, int high) {
 // Perform a linear search in this fixed array. len is the number of entry
 // indices that are valid.
 template<typename T>
-int LinearSearch(T* array, SearchMode mode, String* name, int len) {
+int LinearSearch(T* array, String* name, int len) {
   uint32_t hash = name->Hash();
   for (int number = 0; number < len; number++) {
     String* entry = array->GetKey(number);
     uint32_t current_hash = entry->Hash();
-    if (mode == EXPECT_SORTED && current_hash > hash) break;
+    if (current_hash > hash) break;
     if (current_hash == hash && name->Equals(entry)) return number;
   }
   return T::kNotFound;
@@ -1975,7 +1975,7 @@ int Search(T* array, String* name) {
   // Fast case: do linear search for small arrays.
   const int kMaxElementsForLinearSearch = 8;
   if (StringShape(name).IsSymbol() && nof < kMaxElementsForLinearSearch) {
-    return LinearSearch(array, EXPECT_SORTED, name, nof);
+    return LinearSearch(array, name, nof);
   }
 
   // Slow case: perform binary search.
@@ -2115,6 +2115,18 @@ void DescriptorArray::Append(Descriptor* desc,
   int descriptor_number = NumberOfSetDescriptors();
   int enumeration_index = descriptor_number + 1;
   desc->SetEnumerationIndex(enumeration_index);
+
+  uint32_t hash = desc->GetKey()->Hash();
+
+  for (; descriptor_number > 0; --descriptor_number) {
+    String* key = GetKey(descriptor_number - 1);
+    if (key->Hash() <= hash) break;
+    Object* value = GetValue(descriptor_number - 1);
+    PropertyDetails details = GetDetails(descriptor_number - 1);
+    Descriptor moved_descriptor(key, value, details);
+    Set(descriptor_number, &moved_descriptor, witness);
+  }
+
   Set(descriptor_number, desc, witness);
   SetLastAdded(descriptor_number);
 }
@@ -3486,6 +3498,39 @@ void Map::set_instance_descriptors(DescriptorArray* value,
   WRITE_FIELD(this, kInstanceDescriptorsOrBackPointerOffset, value);
   CONDITIONAL_WRITE_BARRIER(
       heap, this, kInstanceDescriptorsOrBackPointerOffset, value, mode);
+}
+
+
+void Map::InitializeDescriptors(DescriptorArray* descriptors) {
+  int len = descriptors->number_of_descriptors();
+  SLOW_ASSERT(descriptors->IsSortedNoDuplicates());
+
+#ifdef DEBUG
+  bool* used_indices =
+      reinterpret_cast<bool*>(alloca(sizeof(*used_indices) * len));
+  for (int i = 0; i < len; ++i) used_indices[i] = false;
+
+  // Ensure that all enumeration indexes between 1 and length occur uniquely in
+  // the descriptor array.
+  for (int i = 0; i < len; ++i) {
+    int enum_index = descriptors->GetDetails(i).index() -
+                     PropertyDetails::kInitialIndex;
+    ASSERT(!used_indices[enum_index]);
+    used_indices[enum_index] = true;
+  }
+#endif
+
+  for (int i = 0; i < len; ++i) {
+    if (descriptors->GetDetails(i).index() == len) {
+      descriptors->SetLastAdded(i);
+      break;
+    }
+  }
+
+  ASSERT(len == 0 ||
+         len == descriptors->GetDetails(descriptors->LastAdded()).index());
+
+  set_instance_descriptors(descriptors);
 }
 
 

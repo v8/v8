@@ -255,16 +255,16 @@ class Genesis BASE_EMBEDDED {
 
   Handle<Map> CreateFunctionMap(PrototypePropertyMode prototype_mode);
 
-  Handle<DescriptorArray> ComputeFunctionInstanceDescriptor(
-      PrototypePropertyMode prototypeMode);
+  void SetFunctionInstanceDescriptor(Handle<Map> map,
+                                     PrototypePropertyMode prototypeMode);
   void MakeFunctionInstancePrototypeWritable();
 
   Handle<Map> CreateStrictModeFunctionMap(
       PrototypePropertyMode prototype_mode,
       Handle<JSFunction> empty_function);
 
-  Handle<DescriptorArray> ComputeStrictFunctionInstanceDescriptor(
-      PrototypePropertyMode propertyMode);
+  void SetStrictFunctionInstanceDescriptor(Handle<Map> map,
+                                           PrototypePropertyMode propertyMode);
 
   static bool CompileBuiltin(Isolate* isolate, int index);
   static bool CompileExperimentalBuiltin(Isolate* isolate, int index);
@@ -383,8 +383,8 @@ static Handle<JSFunction> InstallFunction(Handle<JSObject> target,
 }
 
 
-Handle<DescriptorArray> Genesis::ComputeFunctionInstanceDescriptor(
-    PrototypePropertyMode prototypeMode) {
+void Genesis::SetFunctionInstanceDescriptor(
+    Handle<Map> map, PrototypePropertyMode prototypeMode) {
   int size = (prototypeMode == DONT_ADD_PROTOTYPE) ? 4 : 5;
   Handle<DescriptorArray> descriptors(factory()->NewDescriptorArray(size));
   PropertyAttributes attribs = static_cast<PropertyAttributes>(
@@ -422,16 +422,13 @@ Handle<DescriptorArray> Genesis::ComputeFunctionInstanceDescriptor(
     descriptors->Append(&d, witness);
   }
 
-  descriptors->Sort(witness);
-  return descriptors;
+  map->set_instance_descriptors(*descriptors);
 }
 
 
 Handle<Map> Genesis::CreateFunctionMap(PrototypePropertyMode prototype_mode) {
   Handle<Map> map = factory()->NewMap(JS_FUNCTION_TYPE, JSFunction::kSize);
-  Handle<DescriptorArray> descriptors =
-      ComputeFunctionInstanceDescriptor(prototype_mode);
-  map->set_instance_descriptors(*descriptors);
+  SetFunctionInstanceDescriptor(map, prototype_mode);
   map->set_function_with_prototype(prototype_mode != DONT_ADD_PROTOTYPE);
   return map;
 }
@@ -487,8 +484,6 @@ Handle<JSFunction> Genesis::CreateEmptyFunction(Isolate* isolate) {
 
     global_context()->set_initial_object_prototype(*prototype);
     SetPrototype(object_fun, prototype);
-    object_function_map->set_instance_descriptors(
-        heap->empty_descriptor_array());
   }
 
   // Allocate the empty function as the prototype for function ECMAScript
@@ -527,8 +522,8 @@ Handle<JSFunction> Genesis::CreateEmptyFunction(Isolate* isolate) {
 }
 
 
-Handle<DescriptorArray> Genesis::ComputeStrictFunctionInstanceDescriptor(
-    PrototypePropertyMode prototypeMode) {
+void Genesis::SetStrictFunctionInstanceDescriptor(
+    Handle<Map> map, PrototypePropertyMode prototypeMode) {
   int size = (prototypeMode == DONT_ADD_PROTOTYPE) ? 4 : 5;
   Handle<DescriptorArray> descriptors(factory()->NewDescriptorArray(size));
   PropertyAttributes attribs = static_cast<PropertyAttributes>(
@@ -567,8 +562,7 @@ Handle<DescriptorArray> Genesis::ComputeStrictFunctionInstanceDescriptor(
     descriptors->Append(&d, witness);
   }
 
-  descriptors->Sort(witness);
-  return descriptors;
+  map->set_instance_descriptors(*descriptors);
 }
 
 
@@ -596,9 +590,7 @@ Handle<Map> Genesis::CreateStrictModeFunctionMap(
     PrototypePropertyMode prototype_mode,
     Handle<JSFunction> empty_function) {
   Handle<Map> map = factory()->NewMap(JS_FUNCTION_TYPE, JSFunction::kSize);
-  Handle<DescriptorArray> descriptors =
-      ComputeStrictFunctionInstanceDescriptor(prototype_mode);
-  map->set_instance_descriptors(*descriptors);
+  SetStrictFunctionInstanceDescriptor(map, prototype_mode);
   map->set_function_with_prototype(prototype_mode != DONT_ADD_PROTOTYPE);
   map->set_prototype(*empty_function);
   return map;
@@ -1000,14 +992,13 @@ bool Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
                             writable);
       descriptors->Append(&field, witness);
     }
-    descriptors->Sort(witness);
+    initial_map->set_instance_descriptors(*descriptors);
 
     initial_map->set_inobject_properties(5);
     initial_map->set_pre_allocated_property_fields(5);
     initial_map->set_unused_property_fields(0);
     initial_map->set_instance_size(
         initial_map->instance_size() + 5 * kPointerSize);
-    initial_map->set_instance_descriptors(*descriptors);
     initial_map->set_visitor_id(StaticVisitorBase::GetVisitorId(*initial_map));
 
     // RegExp prototype object is itself a RegExp.
@@ -1141,6 +1132,9 @@ bool Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
     caller->set_getter(*throw_function);
     caller->set_setter(*throw_function);
 
+    // Create the map. Allocate one in-object field for length.
+    Handle<Map> map = factory->NewMap(JS_OBJECT_TYPE,
+                                      Heap::kArgumentsObjectSizeStrict);
     // Create the descriptor array for the arguments object.
     Handle<DescriptorArray> descriptors = factory->NewDescriptorArray(3);
     DescriptorArray::WhitenessWitness witness(*descriptors);
@@ -1160,12 +1154,8 @@ bool Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
                             attributes);
       descriptors->Append(&d, witness);
     }
-    descriptors->Sort(witness);
-
-    // Create the map. Allocate one in-object field for length.
-    Handle<Map> map = factory->NewMap(JS_OBJECT_TYPE,
-                                      Heap::kArgumentsObjectSizeStrict);
     map->set_instance_descriptors(*descriptors);
+
     map->set_function_with_prototype(true);
     map->set_prototype(global_context()->object_function()->prototype());
     map->set_pre_allocated_property_fields(1);
@@ -1487,6 +1477,8 @@ bool Genesis::InstallNatives() {
     PropertyAttributes attribs =
         static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE | READ_ONLY);
 
+    Handle<Map> script_map = Handle<Map>(script_fun->initial_map());
+
     Handle<DescriptorArray> script_descriptors(
         factory()->NewDescriptorArray(13));
 
@@ -1591,9 +1583,6 @@ bool Genesis::InstallNatives() {
       script_descriptors->Append(&d, witness);
     }
 
-    script_descriptors->Sort(witness);
-
-    Handle<Map> script_map = Handle<Map>(script_fun->initial_map());
     script_map->set_instance_descriptors(*script_descriptors);
 
     // Allocate the empty script.
@@ -1663,8 +1652,7 @@ bool Genesis::InstallNatives() {
       array_descriptors->Append(&d, witness);
     }
 
-    array_function->initial_map()->set_instance_descriptors(
-        *array_descriptors);
+    array_function->initial_map()->set_instance_descriptors(*array_descriptors);
 
     global_context()->set_internal_array_function(*array_function);
   }
@@ -1775,12 +1763,11 @@ bool Genesis::InstallNatives() {
                                   NONE);
       reresult_descriptors->Append(&input_field, witness);
     }
-    reresult_descriptors->Sort(witness);
+    initial_map->set_instance_descriptors(*reresult_descriptors);
 
     initial_map->set_inobject_properties(2);
     initial_map->set_pre_allocated_property_fields(2);
     initial_map->set_unused_property_fields(0);
-    initial_map->set_instance_descriptors(*reresult_descriptors);
 
     global_context()->set_regexp_result_map(*initial_map);
   }

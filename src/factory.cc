@@ -892,9 +892,9 @@ Handle<String> Factory::SymbolFromString(Handle<String> value) {
 }
 
 
-Handle<DescriptorArray> Factory::CopyAppendCallbackDescriptors(
-    Handle<DescriptorArray> array,
-    Handle<Object> descriptors) {
+void Factory::CopyAppendCallbackDescriptors(Handle<Map> map,
+                                            Handle<Object> descriptors) {
+  Handle<DescriptorArray> array(map->instance_descriptors());
   v8::NeanderArray callbacks(descriptors);
   int nof_callbacks = callbacks.length();
   int descriptor_count = array->number_of_descriptors();
@@ -922,10 +922,7 @@ Handle<DescriptorArray> Factory::CopyAppendCallbackDescriptors(
     Handle<String> key =
         SymbolFromString(Handle<String>(String::cast(entry->name())));
     // Check if a descriptor with this name already exists before writing.
-    if (LinearSearch(*result,
-                     EXPECT_UNSORTED,
-                     *key,
-                     result->NumberOfSetDescriptors()) ==
+    if (LinearSearch(*result, *key, result->NumberOfSetDescriptors()) ==
         DescriptorArray::kNotFound) {
       CallbacksDescriptor desc(*key, *entry, entry->property_attributes());
       result->Append(&desc, witness);
@@ -933,8 +930,8 @@ Handle<DescriptorArray> Factory::CopyAppendCallbackDescriptors(
   }
 
   int new_number_of_descriptors = result->NumberOfSetDescriptors();
-  // Return the old descriptor array if there were no new elements.
-  if (new_number_of_descriptors == descriptor_count) return array;
+  // Don't replace the descriptor array if there were no new elements.
+  if (new_number_of_descriptors == descriptor_count) return;
 
   // If duplicates were detected, allocate a result of the right size
   // and transfer the elements.
@@ -944,12 +941,11 @@ Handle<DescriptorArray> Factory::CopyAppendCallbackDescriptors(
     for (int i = 0; i < new_number_of_descriptors; i++) {
       new_result->CopyFrom(i, *result, i, witness);
     }
+    new_result->SetLastAdded(result->LastAdded());
     result = new_result;
   }
 
-  // Sort the result before returning.
-  result->Sort(witness);
-  return result;
+  map->set_instance_descriptors(*result);
 }
 
 
@@ -1337,19 +1333,14 @@ Handle<JSFunction> Factory::CreateApiFunction(
   result->shared()->DontAdaptArguments();
 
   // Recursively copy parent templates' accessors, 'data' may be modified.
-  Handle<DescriptorArray> array =
-      Handle<DescriptorArray>(map->instance_descriptors());
   while (true) {
     Handle<Object> props = Handle<Object>(obj->property_accessors());
     if (!props->IsUndefined()) {
-      array = CopyAppendCallbackDescriptors(array, props);
+      CopyAppendCallbackDescriptors(map, props);
     }
     Handle<Object> parent = Handle<Object>(obj->parent_template());
     if (parent->IsUndefined()) break;
     obj = Handle<FunctionTemplateInfo>::cast(parent);
-  }
-  if (!array->IsEmpty()) {
-    map->set_instance_descriptors(*array);
   }
 
   ASSERT(result->shared()->IsApiFunction());
