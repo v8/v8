@@ -7595,7 +7595,8 @@ class ConsString: public String {
 class SlicedString: public String {
  public:
   inline String* parent();
-  inline void set_parent(String* parent);
+  inline void set_parent(String* parent,
+                         WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   inline int offset();
   inline void set_offset(int offset);
 
