@@ -95,11 +95,14 @@ def BuildOptions():
       default=1, type="int")
   result.add_option("--time", help="Print timing information after running",
       default=False, action="store_true")
-  result.add_option("--suppress-dialogs", help="Suppress Windows dialogs for crashing tests",
-        dest="suppress_dialogs", default=True, action="store_true")
-  result.add_option("--no-suppress-dialogs", help="Display Windows dialogs for crashing tests",
-        dest="suppress_dialogs", action="store_false")
-  result.add_option("--isolates", help="Whether to test isolates", default=False, action="store_true")
+  result.add_option("--suppress-dialogs",
+      help="Suppress Windows dialogs for crashing tests",
+      dest="suppress_dialogs", default=True, action="store_true")
+  result.add_option("--no-suppress-dialogs",
+      help="Display Windows dialogs for crashing tests",
+      dest="suppress_dialogs", action="store_false")
+  result.add_option("--isolates", help="Whether to test isolates",
+      default=False, action="store_true")
   result.add_option("--store-unexpected-output",
       help="Store the temporary JS files from tests that fails",
       dest="store_unexpected_output", default=True, action="store_true")
@@ -148,7 +151,8 @@ def ProcessOptions(options):
       print "Unknown mode %s" % mode
       return False
   for arch in options.arch:
-    if not arch in ['ia32', 'x64', 'arm', 'mipsel', 'android']:
+    if not arch in ['ia32', 'x64', 'arm', 'mipsel', 'android_arm',
+                    'android_ia32']:
       print "Unknown architecture %s" % arch
       return False
   if options.buildbot:

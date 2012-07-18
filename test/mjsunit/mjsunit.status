@@ -49,7 +49,7 @@ regress/regress-create-exception: PASS, SKIP if $mode == debug
 ##############################################################################
 # This one uses a built-in that's only present in debug mode. It takes
 # too long to run in debug mode on ARM and MIPS.
-fuzz-natives: PASS, SKIP if ($mode == release || $arch == arm || $arch == android || $arch == mipsel)
+fuzz-natives: PASS, SKIP if ($mode == release || $arch == arm || $arch == android_arm || $arch == mipsel)
 
 big-object-literal: PASS, SKIP if ($arch == arm || $arch == android)
 

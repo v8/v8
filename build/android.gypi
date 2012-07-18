@@ -35,7 +35,6 @@
     'variables': {
       'variables': {
         'android_ndk_root%': '<!(/bin/echo -n $ANDROID_NDK_ROOT)',
-        'android_target_arch%': 'arm',  # target_arch in android terms.
 
         # Switch between different build types, currently only '0' is
         # supported.
@@ -57,11 +56,6 @@
     'android_build_type%': '<(android_build_type)',
 
     'OS': 'android',
-    'target_arch': 'arm',
-    'v8_target_arch': 'arm',
-    'armv7': 1,
-    'arm_neon': 0,
-    'arm_fpu': 'vfpv3',
   },  # variables
   'target_defaults': {
     'defines': [
@@ -101,9 +95,6 @@
           # Note: This include is in cflags to ensure that it comes after
           # all of the includes.
           '-I<(android_ndk_include)',
-          '-march=armv7-a',
-          '-mtune=cortex-a8',
-          '-mfpu=vfp3',
         ],
         'defines': [
           'ANDROID',
@@ -120,7 +111,6 @@
         'ldflags': [
           '-nostdlib',
           '-Wl,--no-undefined',
-          '-Wl,--icf=safe',  # Enable identical code folding to reduce size
           # Don't export symbols from statically linked libraries.
           '-Wl,--exclude-libs=ALL',
         ],
@@ -146,6 +136,19 @@
             'ldflags': [
               '-Wl,-rpath-link=<(android_ndk_lib)',
               '-L<(android_ndk_lib)',
+            ],
+          }],
+          ['target_arch == "arm"', {
+            'ldflags': [
+              # Enable identical code folding to reduce size.
+              '-Wl,--icf=safe',
+            ],
+          }],
+          ['target_arch=="arm" and armv7==1', {
+            'cflags': [
+              '-march=armv7-a',
+              '-mtune=cortex-a8',
+              '-mfpu=vfp3',
             ],
           }],
           # NOTE: The stlport header include paths below are specified in
