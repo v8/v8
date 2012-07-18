@@ -567,14 +567,15 @@ Parser::Parser(CompilationInfo* info,
 
 FunctionLiteral* Parser::ParseProgram() {
   ZoneScope zone_scope(zone(), DONT_DELETE_ON_EXIT);
-
   HistogramTimerScope timer(isolate()->counters()->parse());
   Handle<String> source(String::cast(script_->source()));
   isolate()->counters()->total_parse_size()->Increment(source->length());
+  int64_t start = FLAG_trace_parse ? OS::Ticks() : 0;
   fni_ = new(zone()) FuncNameInferrer(isolate(), zone());
 
   // Initialize parser state.
   source->TryFlatten();
+  FunctionLiteral* result;
   if (source->IsExternalTwoByteString()) {
     // Notice that the stream is destroyed at the end of the branch block.
     // The last line of the blocks can't be moved outside, even though they're
@@ -582,12 +583,27 @@ FunctionLiteral* Parser::ParseProgram() {
     ExternalTwoByteStringUtf16CharacterStream stream(
         Handle<ExternalTwoByteString>::cast(source), 0, source->length());
     scanner_.Initialize(&stream);
-    return DoParseProgram(info(), source, &zone_scope);
+    result = DoParseProgram(info(), source, &zone_scope);
   } else {
     GenericStringUtf16CharacterStream stream(source, 0, source->length());
     scanner_.Initialize(&stream);
-    return DoParseProgram(info(), source, &zone_scope);
+    result = DoParseProgram(info(), source, &zone_scope);
   }
+
+  if (FLAG_trace_parse && result != NULL) {
+    double ms = static_cast<double>(OS::Ticks() - start) / 1000;
+    if (info()->is_eval()) {
+      PrintF("[parsing eval");
+    } else if (info()->script()->name()->IsString()) {
+      String* name = String::cast(info()->script()->name());
+      SmartArrayPointer<char> name_chars = name->ToCString();
+      PrintF("[parsing script: %s", *name_chars);
+    } else {
+      PrintF("[parsing script");
+    }
+    PrintF(" - took %0.3f ms]\n", ms);
+  }
+  return result;
 }
 
 
@@ -668,24 +684,31 @@ FunctionLiteral* Parser::ParseLazy() {
   HistogramTimerScope timer(isolate()->counters()->parse_lazy());
   Handle<String> source(String::cast(script_->source()));
   isolate()->counters()->total_parse_size()->Increment(source->length());
-
+  int64_t start = FLAG_trace_parse ? OS::Ticks() : 0;
   Handle<SharedFunctionInfo> shared_info = info()->shared_info();
+
   // Initialize parser state.
   source->TryFlatten();
+  FunctionLiteral* result;
   if (source->IsExternalTwoByteString()) {
     ExternalTwoByteStringUtf16CharacterStream stream(
         Handle<ExternalTwoByteString>::cast(source),
         shared_info->start_position(),
         shared_info->end_position());
-    FunctionLiteral* result = ParseLazy(&stream, &zone_scope);
-    return result;
+    result = ParseLazy(&stream, &zone_scope);
   } else {
     GenericStringUtf16CharacterStream stream(source,
                                              shared_info->start_position(),
                                              shared_info->end_position());
-    FunctionLiteral* result = ParseLazy(&stream, &zone_scope);
-    return result;
+    result = ParseLazy(&stream, &zone_scope);
   }
+
+  if (FLAG_trace_parse && result != NULL) {
+    double ms = static_cast<double>(OS::Ticks() - start) / 1000;
+    SmartArrayPointer<char> name_chars = result->name()->ToCString();
+    PrintF("[parsing function: %s - took %0.3f ms]\n", *name_chars, ms);
+  }
+  return result;
 }
 
 
