@@ -1479,7 +1479,7 @@ void HConstant::PrintDataTo(StringStream* stream) {
   if (has_int32_value_) {
     stream->Add("%d ", int32_value_);
   } else if (has_double_value_) {
-    stream->Add("%lf ", FmtElm(double_value_));
+    stream->Add("%f ", FmtElm(double_value_));
   } else {
     handle()->ShortPrint(stream);
   }
