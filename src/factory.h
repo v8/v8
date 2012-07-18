@@ -385,12 +385,6 @@ class Factory {
   Handle<JSFunction> NewFunctionWithoutPrototype(Handle<String> name,
                                                  Handle<Code> code);
 
-  Handle<DescriptorArray> CopyAppendForeignDescriptor(
-      Handle<DescriptorArray> array,
-      Handle<String> key,
-      Handle<Object> value,
-      PropertyAttributes attributes);
-
   Handle<String> NumberToString(Handle<Object> number);
   Handle<String> Uint32ToString(uint32_t value);
 

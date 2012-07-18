@@ -886,29 +886,6 @@ Handle<Code> Factory::CopyCode(Handle<Code> code, Vector<byte> reloc_info) {
 }
 
 
-MUST_USE_RESULT static inline MaybeObject* DoCopyAdd(
-    DescriptorArray* array,
-    String* key,
-    Object* value,
-    PropertyAttributes attributes) {
-  CallbacksDescriptor desc(key, value, attributes);
-  MaybeObject* obj = array->CopyAdd(&desc);
-  return obj;
-}
-
-
-// Allocate the new array.
-Handle<DescriptorArray> Factory::CopyAppendForeignDescriptor(
-    Handle<DescriptorArray> array,
-    Handle<String> key,
-    Handle<Object> value,
-    PropertyAttributes attributes) {
-  CALL_HEAP_FUNCTION(isolate(),
-                     DoCopyAdd(*array, *key, *value, attributes),
-                     DescriptorArray);
-}
-
-
 Handle<String> Factory::SymbolFromString(Handle<String> value) {
   CALL_HEAP_FUNCTION(isolate(),
                      isolate()->heap()->LookupSymbol(*value), String);

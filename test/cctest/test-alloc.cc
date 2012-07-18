@@ -151,12 +151,22 @@ TEST(StressJS) {
   Handle<Map> map(function->initial_map());
   Handle<DescriptorArray> instance_descriptors(map->instance_descriptors());
   Handle<Foreign> foreign = FACTORY->NewForeign(&kDescriptor);
-  instance_descriptors = FACTORY->CopyAppendForeignDescriptor(
-      instance_descriptors,
-      FACTORY->NewStringFromAscii(Vector<const char>("get", 3)),
-      foreign,
-      static_cast<PropertyAttributes>(0));
-  map->set_instance_descriptors(*instance_descriptors);
+  Handle<String> name =
+      FACTORY->NewStringFromAscii(Vector<const char>("get", 3));
+  ASSERT(instance_descriptors->IsEmpty());
+
+  Handle<DescriptorArray> new_descriptors = FACTORY->NewDescriptorArray(1);
+
+  v8::internal::DescriptorArray::WhitenessWitness witness(*new_descriptors);
+
+  CallbacksDescriptor d(*name,
+                        *foreign,
+                        static_cast<PropertyAttributes>(0),
+                        v8::internal::PropertyDetails::kInitialIndex);
+  new_descriptors->Set(0, &d, witness);
+  new_descriptors->SetLastAdded(0);
+
+  map->set_instance_descriptors(*new_descriptors);
   // Add the Foo constructor the global object.
   env->Global()->Set(v8::String::New("Foo"), v8::Utils::ToLocal(function));
   // Call the accessor through JavaScript.

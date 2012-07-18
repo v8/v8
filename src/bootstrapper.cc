@@ -868,15 +868,22 @@ bool Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
         isolate->builtins()->builtin(Builtins::kArrayConstructCode));
     array_function->shared()->DontAdaptArguments();
 
+
     // This seems a bit hackish, but we need to make sure Array.length
     // is 1.
     array_function->shared()->set_length(1);
-    Handle<DescriptorArray> array_descriptors =
-        factory->CopyAppendForeignDescriptor(
-            factory->empty_descriptor_array(),
-            factory->length_symbol(),
-            factory->NewForeign(&Accessors::ArrayLength),
-            static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE));
+
+    Handle<DescriptorArray> array_descriptors(factory->NewDescriptorArray(1));
+    PropertyAttributes attribs = static_cast<PropertyAttributes>(
+        DONT_ENUM | DONT_DELETE);
+
+    DescriptorArray::WhitenessWitness witness(*array_descriptors);
+
+    {  // Add length.
+      Handle<Foreign> f(factory->NewForeign(&Accessors::ArrayLength));
+      CallbacksDescriptor d(*factory->length_symbol(), *f, attribs);
+      array_descriptors->Append(&d, witness);
+    }
 
     // array_function is used internally. JS code creating array object should
     // search for the 'Array' property on the global object and use that one
@@ -910,15 +917,18 @@ bool Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
     string_fun->shared()->set_construct_stub(
         isolate->builtins()->builtin(Builtins::kStringConstructCode));
     global_context()->set_string_function(*string_fun);
-    // Add 'length' property to strings.
-    Handle<DescriptorArray> string_descriptors =
-        factory->CopyAppendForeignDescriptor(
-            factory->empty_descriptor_array(),
-            factory->length_symbol(),
-            factory->NewForeign(&Accessors::StringLength),
-            static_cast<PropertyAttributes>(DONT_ENUM |
-                                            DONT_DELETE |
-                                            READ_ONLY));
+
+    Handle<DescriptorArray> string_descriptors(factory->NewDescriptorArray(1));
+    PropertyAttributes attribs = static_cast<PropertyAttributes>(
+        DONT_ENUM | DONT_DELETE | READ_ONLY);
+
+    DescriptorArray::WhitenessWitness witness(*string_descriptors);
+
+    {  // Add length.
+      Handle<Foreign> f(factory->NewForeign(&Accessors::StringLength));
+      CallbacksDescriptor d(*factory->length_symbol(), *f, attribs);
+      string_descriptors->Append(&d, witness);
+    }
 
     Handle<Map> string_map =
         Handle<Map>(global_context()->string_function()->initial_map());
@@ -1474,112 +1484,114 @@ bool Genesis::InstallNatives() {
     SetPrototype(script_fun, prototype);
     global_context()->set_script_function(*script_fun);
 
-    // Add 'source' and 'data' property to scripts.
-    PropertyAttributes common_attributes =
+    PropertyAttributes attribs =
         static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE | READ_ONLY);
-    Handle<Foreign> foreign_source =
-        factory()->NewForeign(&Accessors::ScriptSource);
-    Handle<DescriptorArray> script_descriptors =
-        factory()->CopyAppendForeignDescriptor(
-            factory()->empty_descriptor_array(),
-            factory()->LookupAsciiSymbol("source"),
-            foreign_source,
-            common_attributes);
-    Handle<Foreign> foreign_name =
-        factory()->NewForeign(&Accessors::ScriptName);
-    script_descriptors =
-        factory()->CopyAppendForeignDescriptor(
-            script_descriptors,
-            factory()->LookupAsciiSymbol("name"),
-            foreign_name,
-            common_attributes);
-    Handle<Foreign> foreign_id = factory()->NewForeign(&Accessors::ScriptId);
-    script_descriptors =
-        factory()->CopyAppendForeignDescriptor(
-            script_descriptors,
-            factory()->LookupAsciiSymbol("id"),
-            foreign_id,
-            common_attributes);
-    Handle<Foreign> foreign_line_offset =
-        factory()->NewForeign(&Accessors::ScriptLineOffset);
-    script_descriptors =
-        factory()->CopyAppendForeignDescriptor(
-            script_descriptors,
-            factory()->LookupAsciiSymbol("line_offset"),
-            foreign_line_offset,
-            common_attributes);
-    Handle<Foreign> foreign_column_offset =
-        factory()->NewForeign(&Accessors::ScriptColumnOffset);
-    script_descriptors =
-        factory()->CopyAppendForeignDescriptor(
-            script_descriptors,
-            factory()->LookupAsciiSymbol("column_offset"),
-            foreign_column_offset,
-            common_attributes);
-    Handle<Foreign> foreign_data =
-        factory()->NewForeign(&Accessors::ScriptData);
-    script_descriptors =
-        factory()->CopyAppendForeignDescriptor(
-            script_descriptors,
-            factory()->LookupAsciiSymbol("data"),
-            foreign_data,
-            common_attributes);
-    Handle<Foreign> foreign_type =
-        factory()->NewForeign(&Accessors::ScriptType);
-    script_descriptors =
-        factory()->CopyAppendForeignDescriptor(
-            script_descriptors,
-            factory()->LookupAsciiSymbol("type"),
-            foreign_type,
-            common_attributes);
-    Handle<Foreign> foreign_compilation_type =
-        factory()->NewForeign(&Accessors::ScriptCompilationType);
-    script_descriptors =
-        factory()->CopyAppendForeignDescriptor(
-            script_descriptors,
-            factory()->LookupAsciiSymbol("compilation_type"),
-            foreign_compilation_type,
-            common_attributes);
-    Handle<Foreign> foreign_line_ends =
-        factory()->NewForeign(&Accessors::ScriptLineEnds);
-    script_descriptors =
-        factory()->CopyAppendForeignDescriptor(
-            script_descriptors,
-            factory()->LookupAsciiSymbol("line_ends"),
-            foreign_line_ends,
-            common_attributes);
-    Handle<Foreign> foreign_context_data =
-        factory()->NewForeign(&Accessors::ScriptContextData);
-    script_descriptors =
-        factory()->CopyAppendForeignDescriptor(
-            script_descriptors,
-            factory()->LookupAsciiSymbol("context_data"),
-            foreign_context_data,
-            common_attributes);
-    Handle<Foreign> foreign_eval_from_script =
-        factory()->NewForeign(&Accessors::ScriptEvalFromScript);
-    script_descriptors =
-        factory()->CopyAppendForeignDescriptor(
-            script_descriptors,
-            factory()->LookupAsciiSymbol("eval_from_script"),
-            foreign_eval_from_script,
-            common_attributes);
-    Handle<Foreign> foreign_eval_from_script_position =
-        factory()->NewForeign(&Accessors::ScriptEvalFromScriptPosition);
-    script_descriptors =
-        factory()->CopyAppendForeignDescriptor(
-            script_descriptors,
-            factory()->LookupAsciiSymbol("eval_from_script_position"),
-            foreign_eval_from_script_position,
-            common_attributes);
-    Handle<Foreign> foreign_eval_from_function_name =
-        factory()->NewForeign(&Accessors::ScriptEvalFromFunctionName);
-    script_descriptors =
-        factory()->CopyAppendForeignDescriptor(
-            script_descriptors,
-            factory()->LookupAsciiSymbol("eval_from_function_name"),
-            foreign_eval_from_function_name,
-            common_attributes);
+
+    Handle<DescriptorArray> script_descriptors(
+        factory()->NewDescriptorArray(13));
+
+    DescriptorArray::WhitenessWitness witness(*script_descriptors);
+
+    {
+      Handle<Foreign> f(factory()->NewForeign(&Accessors::ScriptSource));
+      CallbacksDescriptor d(
+          *factory()->LookupAsciiSymbol("source"), *f, attribs);
+      script_descriptors->Append(&d, witness);
+    }
+
+    {
+      Handle<Foreign> f(factory()->NewForeign(&Accessors::ScriptName));
+      CallbacksDescriptor d(
+          *factory()->LookupAsciiSymbol("name"), *f, attribs);
+      script_descriptors->Append(&d, witness);
+    }
+
+    {
+      Handle<Foreign> f(factory()->NewForeign(&Accessors::ScriptId));
+      CallbacksDescriptor d(
+          *factory()->LookupAsciiSymbol("id"), *f, attribs);
+      script_descriptors->Append(&d, witness);
+    }
+
+    {
+      Handle<Foreign> f(factory()->NewForeign(&Accessors::ScriptLineOffset));
+      CallbacksDescriptor d(
+          *factory()->LookupAsciiSymbol("line_offset"), *f, attribs);
+      script_descriptors->Append(&d, witness);
+    }
+
+    {
+      Handle<Foreign> f(factory()->NewForeign(&Accessors::ScriptColumnOffset));
+      CallbacksDescriptor d(
+          *factory()->LookupAsciiSymbol("column_offset"), *f, attribs);
+      script_descriptors->Append(&d, witness);
+    }
+
+    {
+      Handle<Foreign> f(factory()->NewForeign(&Accessors::ScriptData));
+      CallbacksDescriptor d(
+          *factory()->LookupAsciiSymbol("data"), *f, attribs);
+      script_descriptors->Append(&d, witness);
+    }
+
+    {
+      Handle<Foreign> f(factory()->NewForeign(&Accessors::ScriptType));
+      CallbacksDescriptor d(
+          *factory()->LookupAsciiSymbol("type"), *f, attribs);
+      script_descriptors->Append(&d, witness);
+    }
+
+    {
+      Handle<Foreign> f(factory()->NewForeign(
+          &Accessors::ScriptCompilationType));
+      CallbacksDescriptor d(
+          *factory()->LookupAsciiSymbol("compilation_type"), *f, attribs);
+      script_descriptors->Append(&d, witness);
+    }
+
+    {
+      Handle<Foreign> f(factory()->NewForeign(&Accessors::ScriptLineEnds));
+      CallbacksDescriptor d(
+          *factory()->LookupAsciiSymbol("line_ends"), *f, attribs);
+      script_descriptors->Append(&d, witness);
+    }
+
+    {
+      Handle<Foreign> f(factory()->NewForeign(&Accessors::ScriptContextData));
+      CallbacksDescriptor d(
+          *factory()->LookupAsciiSymbol("context_data"), *f, attribs);
+      script_descriptors->Append(&d, witness);
+    }
+
+    {
+      Handle<Foreign> f(factory()->NewForeign(
+          &Accessors::ScriptEvalFromScript));
+      CallbacksDescriptor d(
+          *factory()->LookupAsciiSymbol("eval_from_script"), *f, attribs);
+      script_descriptors->Append(&d, witness);
+    }
+
+    {
+      Handle<Foreign> f(factory()->NewForeign(
+          &Accessors::ScriptEvalFromScriptPosition));
+      CallbacksDescriptor d(
+          *factory()->LookupAsciiSymbol("eval_from_script_position"),
+          *f,
+          attribs);
+      script_descriptors->Append(&d, witness);
+    }
+
+    {
+      Handle<Foreign> f(factory()->NewForeign(
+          &Accessors::ScriptEvalFromFunctionName));
+      CallbacksDescriptor d(
+          *factory()->LookupAsciiSymbol("eval_from_function_name"),
+          *f,
+          attribs);
+      script_descriptors->Append(&d, witness);
+    }
+
+    script_descriptors->Sort(witness);
 
     Handle<Map> script_map = Handle<Map>(script_fun->initial_map());
     script_map->set_instance_descriptors(*script_descriptors);
@@ -1639,12 +1651,17 @@ bool Genesis::InstallNatives() {
     array_function->set_initial_map(new_map);
 
     // Make "length" magic on instances.
-    Handle<DescriptorArray> array_descriptors =
-        factory()->CopyAppendForeignDescriptor(
-            factory()->empty_descriptor_array(),
-            factory()->length_symbol(),
-            factory()->NewForeign(&Accessors::ArrayLength),
-            static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE));
+    Handle<DescriptorArray> array_descriptors(factory()->NewDescriptorArray(1));
+    PropertyAttributes attribs = static_cast<PropertyAttributes>(
+        DONT_ENUM | DONT_DELETE);
+
+    DescriptorArray::WhitenessWitness witness(*array_descriptors);
+
+    {  // Add length.
+      Handle<Foreign> f(factory()->NewForeign(&Accessors::ArrayLength));
+      CallbacksDescriptor d(*factory()->length_symbol(), *f, attribs);
+      array_descriptors->Append(&d, witness);
+    }
 
     array_function->initial_map()->set_instance_descriptors(
         *array_descriptors);
