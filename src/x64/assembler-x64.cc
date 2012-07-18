@@ -75,7 +75,7 @@ void CpuFeatures::Probe() {
   // Save old rsp, since we are going to modify the stack.
   __ push(rbp);
   __ pushfq();
-  __ push(rsi);
+  __ push(rdi);
   __ push(rcx);
   __ push(rbx);
   __ movq(rbp, rsp);
@@ -129,7 +129,7 @@ void CpuFeatures::Probe() {
   __ movq(rsp, rbp);
   __ pop(rbx);
   __ pop(rcx);
-  __ pop(rsi);
+  __ pop(rdi);
   __ popfq();
   __ pop(rbp);
   __ ret(0);
