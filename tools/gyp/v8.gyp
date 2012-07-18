@@ -303,6 +303,8 @@
             '../../src/extensions/externalize-string-extension.h',
             '../../src/extensions/gc-extension.cc',
             '../../src/extensions/gc-extension.h',
+            '../../src/extensions/statistics-extension.cc',
+            '../../src/extensions/statistics-extension.h',
             '../../src/factory.cc',
             '../../src/factory.h',
             '../../src/fast-dtoa.cc',

@@ -42,6 +42,7 @@
 #include "snapshot.h"
 #include "extensions/externalize-string-extension.h"
 #include "extensions/gc-extension.h"
+#include "extensions/statistics-extension.h"
 
 namespace v8 {
 namespace internal {
@@ -95,6 +96,7 @@ void Bootstrapper::Initialize(bool create_heap_objects) {
   extensions_cache_.Initialize(create_heap_objects);
   GCExtension::Register();
   ExternalizeStringExtension::Register();
+  StatisticsExtension::Register();
 }
 
 
@@ -1996,6 +1998,9 @@ bool Genesis::InstallExtensions(Handle<Context> global_context,
   if (FLAG_expose_gc) InstallExtension("v8/gc", &extension_states);
   if (FLAG_expose_externalize_string) {
     InstallExtension("v8/externalize", &extension_states);
+  }
+  if (FLAG_track_gc_object_stats) {
+    InstallExtension("v8/statistics", &extension_states);
   }
 
   if (extensions == NULL) return true;
