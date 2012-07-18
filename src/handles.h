@@ -95,6 +95,7 @@ class Handle {
 };
 
 
+class DeferredHandles;
 class HandleScopeImplementer;
 
 
@@ -159,9 +160,11 @@ class HandleScope {
   // Zaps the handles in the half-open interval [start, end).
   static void ZapRange(internal::Object** start, internal::Object** end);
 
+  friend class v8::internal::DeferredHandles;
   friend class v8::HandleScope;
   friend class v8::internal::HandleScopeImplementer;
   friend class v8::ImplementationUtilities;
+  friend class v8::internal::Isolate;
 };
 
 

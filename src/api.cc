@@ -6422,12 +6422,6 @@ void HandleScopeImplementer::IterateThis(ObjectVisitor* v) {
     Object** start = reinterpret_cast<Object**>(&saved_contexts_.first());
     v->VisitPointers(start, start + saved_contexts_.length());
   }
-
-  for (DeferredHandles* deferred = deferred_handles_head_;
-       deferred != NULL;
-       deferred = deferred->next_) {
-    deferred->Iterate(v);
-  }
 }
 
 
@@ -6448,8 +6442,8 @@ char* HandleScopeImplementer::Iterate(ObjectVisitor* v, char* storage) {
 
 
 DeferredHandles* HandleScopeImplementer::Detach(Object** prev_limit) {
-  DeferredHandles* deferred = new DeferredHandles(
-      deferred_handles_head_, isolate()->handle_scope_data()->next, this);
+  DeferredHandles* deferred =
+      new DeferredHandles(isolate()->handle_scope_data()->next, isolate());
 
   while (!blocks_.is_empty()) {
     Object** block_start = blocks_.last();
@@ -6470,38 +6464,9 @@ DeferredHandles* HandleScopeImplementer::Detach(Object** prev_limit) {
   ASSERT(prev_limit == NULL || !blocks_.is_empty());
 
   ASSERT(!blocks_.is_empty() && prev_limit != NULL);
-  deferred_handles_head_ = deferred;
   ASSERT(last_handle_before_deferred_block_ != NULL);
   last_handle_before_deferred_block_ = NULL;
   return deferred;
-}
-
-
-void HandleScopeImplementer::DestroyDeferredHandles(DeferredHandles* deferred) {
-#ifdef DEBUG
-  DeferredHandles* deferred_iterator = deferred;
-  while (deferred_iterator->previous_ != NULL) {
-    deferred_iterator = deferred_iterator->previous_;
-  }
-  ASSERT(deferred_handles_head_ == deferred_iterator);
-#endif
-  if (deferred_handles_head_ == deferred) {
-    deferred_handles_head_ = deferred_handles_head_->next_;
-  }
-  if (deferred->next_ != NULL) {
-    deferred->next_->previous_ = deferred->previous_;
-  }
-  if (deferred->previous_ != NULL) {
-    deferred->previous_->next_ = deferred->next_;
-  }
-  for (int i = 0; i < deferred->blocks_.length(); i++) {
-#ifdef DEBUG
-    HandleScope::ZapRange(deferred->blocks_[i],
-                          &deferred->blocks_[i][kHandleBlockSize]);
-#endif
-    if (spare_ != NULL) DeleteArray(spare_);
-    spare_ = deferred->blocks_[i];
-  }
 }
 
 
@@ -6512,7 +6477,14 @@ void HandleScopeImplementer::BeginDeferredScope() {
 
 
 DeferredHandles::~DeferredHandles() {
-  impl_->DestroyDeferredHandles(this);
+  isolate_->UnlinkDeferredHandles(this);
+
+  for (int i = 0; i < blocks_.length(); i++) {
+#ifdef DEBUG
+    HandleScope::ZapRange(blocks_[i], &blocks_[i][kHandleBlockSize]);
+#endif
+    isolate_->handle_scope_implementer()->ReturnBlock(blocks_[i]);
+  }
 }
 
 

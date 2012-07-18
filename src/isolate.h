@@ -1055,6 +1055,10 @@ class Isolate {
     date_cache_ = date_cache;
   }
 
+  void IterateDeferredHandles(ObjectVisitor* visitor);
+  void LinkDeferredHandles(DeferredHandles* deferred_handles);
+  void UnlinkDeferredHandles(DeferredHandles* deferred_handles);
+
  private:
   Isolate();
 
@@ -1277,6 +1281,8 @@ class Isolate {
   ISOLATE_INIT_ARRAY_LIST(ISOLATE_FIELD_OFFSET)
 #undef ISOLATE_FIELD_OFFSET
 #endif
+
+  DeferredHandles* deferred_handles_head_;
 
   friend class ExecutionAccess;
   friend class IsolateInitializer;
