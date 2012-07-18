@@ -41,9 +41,10 @@ class MessageTestCase(test.TestCase):
     self.config = config
 
   def IgnoreLine(self, str):
-    """Ignore empty lines and valgrind output."""
+    """Ignore empty lines, valgrind output and Android output."""
     if not str: return True
-    else: return str.startswith('==') or str.startswith('**')
+    return (str.startswith('==') or str.startswith('**') or
+            str.startswith('Error'))
 
   def IsFailureOutput(self, output):
     f = file(self.expected)
@@ -62,7 +63,7 @@ class MessageTestCase(test.TestCase):
       pattern = '^%s$' % pattern
       patterns.append(pattern)
     # Compare actual output with the expected
-    raw_lines = output.stdout.split('\n')
+    raw_lines = output.stdout.splitlines()
     outlines = [ s for s in raw_lines if not self.IgnoreLine(s) ]
     if len(outlines) != len(patterns):
       return True
