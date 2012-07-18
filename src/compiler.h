@@ -45,7 +45,7 @@ class CompilationInfo BASE_EMBEDDED {
   CompilationInfo(Handle<SharedFunctionInfo> shared_info, Zone* zone);
   CompilationInfo(Handle<JSFunction> closure, Zone* zone);
 
-  ~CompilationInfo();
+  virtual ~CompilationInfo();
 
   Isolate* isolate() {
     ASSERT(Isolate::Current() == isolate_);
@@ -309,6 +309,79 @@ class CompilationHandleScope BASE_EMBEDDED {
  private:
   DeferredHandleScope deferred_;
   CompilationInfo* info_;
+};
+
+
+class HGraph;
+class HGraphBuilder;
+class LChunk;
+
+// A helper class that calls the three compilation phases in
+// Crankshaft and keeps track of its state.  The three phases
+// CreateGraph, OptimizeGraph and GenerateAndInstallCode can either
+// fail, bail-out to the full code generator or succeed.  Apart from
+// their return value, the status of the phase last run can be checked
+// using last_status().
+class OptimizingCompiler: public ZoneObject {
+ public:
+  explicit OptimizingCompiler(CompilationInfo* info)
+      : info_(info),
+        oracle_(NULL),
+        graph_builder_(NULL),
+        graph_(NULL),
+        chunk_(NULL),
+        time_taken_to_create_graph_(0),
+        time_taken_to_optimize_(0),
+        time_taken_to_codegen_(0),
+        last_status_(FAILED) { }
+
+  enum Status {
+    FAILED, BAILED_OUT, SUCCEEDED
+  };
+
+  MUST_USE_RESULT Status CreateGraph();
+  MUST_USE_RESULT Status OptimizeGraph();
+  MUST_USE_RESULT Status GenerateAndInstallCode();
+
+  Status last_status() const { return last_status_; }
+  CompilationInfo* info() const { return info_; }
+
+ private:
+  CompilationInfo* info_;
+  TypeFeedbackOracle* oracle_;
+  HGraphBuilder* graph_builder_;
+  HGraph* graph_;
+  LChunk* chunk_;
+  int64_t time_taken_to_create_graph_;
+  int64_t time_taken_to_optimize_;
+  int64_t time_taken_to_codegen_;
+  Status last_status_;
+
+  MUST_USE_RESULT Status SetLastStatus(Status status) {
+    last_status_ = status;
+    return last_status_;
+  }
+  void RecordOptimizationStats();
+  MUST_USE_RESULT Status AbortOptimization() {
+    info_->AbortOptimization();
+    info_->shared_info()->DisableOptimization();
+    return SetLastStatus(BAILED_OUT);
+  }
+
+  struct Timer {
+    Timer(OptimizingCompiler* compiler, int64_t* location)
+        : compiler_(compiler),
+          start_(OS::Ticks()),
+          location_(location) { }
+
+    ~Timer() {
+      *location_ += (OS::Ticks() - start_);
+    }
+
+    OptimizingCompiler* compiler_;
+    int64_t start_;
+    int64_t* location_;
+  };
 };
 
 

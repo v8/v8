@@ -4424,19 +4424,19 @@ MaybeObject* JSObject::DefineAccessor(String* name,
 
 static MaybeObject* TryAccessorTransition(JSObject* self,
                                           Map* transitioned_map,
-                                          String* name,
+                                          int target_descriptor,
                                           AccessorComponent component,
                                           Object* accessor,
                                           PropertyAttributes attributes) {
   DescriptorArray* descs = transitioned_map->instance_descriptors();
-  int number = descs->LastAdded();
-  PropertyDetails details = descs->GetDetails(number);
+  PropertyDetails details = descs->GetDetails(target_descriptor);
 
   // If the transition target was not callbacks, fall back to the slow case.
   if (details.type() != CALLBACKS) return self->GetHeap()->null_value();
+  Object* descriptor = descs->GetCallbacksObject(target_descriptor);
+  if (!descriptor->IsAccessorPair()) return self->GetHeap()->null_value();
 
-  Object* target_accessor =
-      AccessorPair::cast(descs->GetCallbacksObject(number))->get(component);
+  Object* target_accessor = AccessorPair::cast(descriptor)->get(component);
   PropertyAttributes target_attributes = details.attributes();
 
   // Reuse transition if adding same accessor with same attributes.
@@ -4473,17 +4473,34 @@ MaybeObject* JSObject::DefineFastAccessor(String* name,
       if (entry == accessor && result.GetAttributes() == attributes) {
         return this;
       }
+    } else {
+      return GetHeap()->null_value();
     }
-  }
 
-  // If not, lookup a transition.
-  map()->LookupTransition(this, name, &result);
+    int descriptor_number = result.GetDescriptorIndex();
 
-  // If there is a transition, try to follow it.
-  if (result.IsFound()) {
-    Map* target = result.GetTransitionTarget();
-    return TryAccessorTransition(
-        this, target, name, component, accessor, attributes);
+    map()->LookupTransition(this, name, &result);
+
+    if (result.IsFound()) {
+      Map* target = result.GetTransitionTarget();
+      ASSERT(target->instance_descriptors()->number_of_descriptors() ==
+             map()->instance_descriptors()->number_of_descriptors());
+      ASSERT(target->instance_descriptors()->GetKey(descriptor_number) == name);
+      return TryAccessorTransition(
+          this, target, descriptor_number, component, accessor, attributes);
+    }
+  } else {
+    // If not, lookup a transition.
+    map()->LookupTransition(this, name, &result);
+
+    // If there is a transition, try to follow it.
+    if (result.IsFound()) {
+      Map* target = result.GetTransitionTarget();
+      int descriptor_number = target->instance_descriptors()->LastAdded();
+      ASSERT(target->instance_descriptors()->GetKey(descriptor_number) == name);
+      return TryAccessorTransition(
+          this, target, descriptor_number, component, accessor, attributes);
+    }
   }
 
   // If there is no transition yet, add a transition to the a new accessor pair

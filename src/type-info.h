@@ -232,7 +232,7 @@ class UnaryOperation;
 class ForInStatement;
 
 
-class TypeFeedbackOracle BASE_EMBEDDED {
+class TypeFeedbackOracle: public ZoneObject {
  public:
   TypeFeedbackOracle(Handle<Code> code,
                      Handle<Context> global_context,

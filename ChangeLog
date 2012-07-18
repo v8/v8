@@ -1,3 +1,14 @@
+2012-07-18: Version 3.12.14
+
+        Deactivated optimization of packed arrays.
+        (Chromium issue 137768)
+
+        Fixed broken accessor transition.
+        (Chromium issue 137689)
+
+        Performance and stability improvements on all platforms.
+
+
 2012-07-17: Version 3.12.13
 
         Fixed missing tagging of stack value in finally block.
