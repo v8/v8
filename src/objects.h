@@ -2555,16 +2555,6 @@ class DescriptorArray: public FixedArray {
                 int src_index,
                 const WhitenessWitness&);
 
-  // Copy the descriptor array, inserting new descriptor. Its enumeration index
-  // is automatically set to the size of the descriptor array to which it was
-  // added first.
-  MUST_USE_RESULT MaybeObject* CopyAdd(Descriptor* descriptor);
-
-  // Copy the descriptor array, replacing a descriptor. Its enumeration index is
-  // kept.
-  MUST_USE_RESULT MaybeObject* CopyReplace(Descriptor* descriptor,
-                                           int insertion_index);
-
   // Indicates whether the search function should expect a sorted or an unsorted
   // descriptor array as input.
   enum SharedMode {
@@ -4912,7 +4902,10 @@ class Map: public HeapObject {
   MUST_USE_RESULT MaybeObject* CopyWithPreallocatedFieldDescriptors();
   MUST_USE_RESULT MaybeObject* CopyDropDescriptors();
   MUST_USE_RESULT MaybeObject* CopyReplaceDescriptors(
-      DescriptorArray* descriptors, String* name, TransitionFlag flag);
+      DescriptorArray* descriptors,
+      String* name,
+      int last_added,
+      TransitionFlag flag);
   MUST_USE_RESULT MaybeObject* CopyAddDescriptor(Descriptor* descriptor,
                                                  TransitionFlag flag);
   MUST_USE_RESULT MaybeObject* CopyInsertDescriptor(Descriptor* descriptor,
