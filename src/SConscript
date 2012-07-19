@@ -106,6 +106,7 @@ SOURCES = {
     objects-visiting.cc
     objects.cc
     once.cc
+    optimizing-compiler-thread.cc
     parser.cc
     preparse-data.cc
     preparser.cc

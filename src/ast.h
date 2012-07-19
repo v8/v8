@@ -37,7 +37,7 @@
 #include "list-inl.h"
 #include "runtime.h"
 #include "small-pointer-list.h"
-#include "smart-array-pointer.h"
+#include "smart-pointers.h"
 #include "token.h"
 #include "utils.h"
 #include "variables.h"

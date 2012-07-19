@@ -526,7 +526,10 @@ static intptr_t MemoryInUse() {
 
 TEST(BootUpMemoryUse) {
   intptr_t initial_memory = MemoryInUse();
-  FLAG_crankshaft = false;  // Avoid flakiness.
+  // Avoid flakiness.
+  FLAG_crankshaft = false;
+  FLAG_parallel_recompilation = false;
+
   // Only Linux has the proc filesystem and only if it is mapped.  If it's not
   // there we just skip the test.
   if (initial_memory >= 0) {

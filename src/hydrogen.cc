@@ -1711,7 +1711,10 @@ class HGlobalValueNumberer BASE_EMBEDDED {
         block_side_effects_(graph->blocks()->length(), graph->zone()),
         loop_side_effects_(graph->blocks()->length(), graph->zone()),
         visited_on_paths_(graph->zone(), graph->blocks()->length()) {
-    ASSERT(!info->isolate()->heap()->IsAllocationAllowed());
+#ifdef DEBUG
+    ASSERT(info->isolate()->optimizing_compiler_thread()->IsOptimizerThread() ||
+           !info->isolate()->heap()->IsAllocationAllowed());
+#endif
     block_side_effects_.AddBlock(GVNFlagSet(), graph_->blocks()->length(),
                                  graph_->zone());
     loop_side_effects_.AddBlock(GVNFlagSet(), graph_->blocks()->length(),
@@ -3018,7 +3021,6 @@ HGraph* HGraphBuilder::CreateGraph() {
 
   {
     HPhase phase("H_Block building");
-    CompilationHandleScope handle_scope(info());
     current_block_ = graph()->entry_block();
 
     Scope* scope = info()->scope();
@@ -3079,9 +3081,6 @@ HGraph* HGraphBuilder::CreateGraph() {
 }
 
 bool HGraph::Optimize(SmartArrayPointer<char>* bailout_reason) {
-  NoHandleAllocation no_handles;
-  AssertNoAllocation no_gc;
-
   *bailout_reason = SmartArrayPointer<char>();
   OrderBlocks();
   AssignDominators();

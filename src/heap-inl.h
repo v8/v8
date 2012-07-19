@@ -772,22 +772,30 @@ DisallowAllocationFailure::~DisallowAllocationFailure() {
 
 #ifdef DEBUG
 AssertNoAllocation::AssertNoAllocation() {
-  old_state_ = HEAP->allow_allocation(false);
+  Isolate* isolate = ISOLATE;
+  active_ = !isolate->optimizing_compiler_thread()->IsOptimizerThread();
+  if (active_) {
+    old_state_ = isolate->heap()->allow_allocation(false);
+  }
 }
 
 
 AssertNoAllocation::~AssertNoAllocation() {
-  HEAP->allow_allocation(old_state_);
+  if (active_) HEAP->allow_allocation(old_state_);
 }
 
 
 DisableAssertNoAllocation::DisableAssertNoAllocation() {
-  old_state_ = HEAP->allow_allocation(true);
+  Isolate* isolate = ISOLATE;
+  active_ = !isolate->optimizing_compiler_thread()->IsOptimizerThread();
+  if (active_) {
+    old_state_ = isolate->heap()->allow_allocation(true);
+  }
 }
 
 
 DisableAssertNoAllocation::~DisableAssertNoAllocation() {
-  HEAP->allow_allocation(old_state_);
+  if (active_) HEAP->allow_allocation(old_state_);
 }
 
 #else

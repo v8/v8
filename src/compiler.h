@@ -39,7 +39,7 @@ class ScriptDataImpl;
 
 // CompilationInfo encapsulates some information known at compile time.  It
 // is constructed based on the resources available at compile-time.
-class CompilationInfo BASE_EMBEDDED {
+class CompilationInfo {
  public:
   CompilationInfo(Handle<Script> script, Zone* zone);
   CompilationInfo(Handle<SharedFunctionInfo> shared_info, Zone* zone);
@@ -180,6 +180,13 @@ class CompilationInfo BASE_EMBEDDED {
     deferred_handles_ = deferred_handles;
   }
 
+  void SaveHandles() {
+    SaveHandle(&closure_);
+    SaveHandle(&shared_info_);
+    SaveHandle(&calling_context_);
+    SaveHandle(&script_);
+  }
+
  private:
   Isolate* isolate_;
 
@@ -268,6 +275,14 @@ class CompilationInfo BASE_EMBEDDED {
 
   DeferredHandles* deferred_handles_;
 
+  template<typename T>
+  void SaveHandle(Handle<T> *object) {
+    if (!object->is_null()) {
+      Handle<T> handle(*(*object));
+      *object = handle;
+    }
+  }
+
   DISALLOW_COPY_AND_ASSIGN(CompilationInfo);
 };
 
@@ -346,6 +361,12 @@ class OptimizingCompiler: public ZoneObject {
   Status last_status() const { return last_status_; }
   CompilationInfo* info() const { return info_; }
 
+  MUST_USE_RESULT Status AbortOptimization() {
+    info_->AbortOptimization();
+    info_->shared_info()->DisableOptimization();
+    return SetLastStatus(BAILED_OUT);
+  }
+
  private:
   CompilationInfo* info_;
   TypeFeedbackOracle* oracle_;
@@ -362,11 +383,6 @@ class OptimizingCompiler: public ZoneObject {
     return last_status_;
   }
   void RecordOptimizationStats();
-  MUST_USE_RESULT Status AbortOptimization() {
-    info_->AbortOptimization();
-    info_->shared_info()->DisableOptimization();
-    return SetLastStatus(BAILED_OUT);
-  }
 
   struct Timer {
     Timer(OptimizingCompiler* compiler, int64_t* location)
@@ -432,6 +448,8 @@ class Compiler : public AllStatic {
   // success and false if the compilation resulted in a stack overflow.
   static bool CompileLazy(CompilationInfo* info);
 
+  static void RecompileParallel(Handle<JSFunction> function);
+
   // Compile a shared function info object (the function is possibly lazily
   // compiled).
   static Handle<SharedFunctionInfo> BuildFunctionInfo(FunctionLiteral* node,
@@ -442,6 +460,8 @@ class Compiler : public AllStatic {
                               FunctionLiteral* lit,
                               bool is_toplevel,
                               Handle<Script> script);
+
+  static void InstallOptimizedCode(OptimizingCompiler* info);
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
   static bool MakeCodeForLiveEdit(CompilationInfo* info);

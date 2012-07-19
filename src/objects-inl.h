@@ -4250,6 +4250,18 @@ bool JSFunction::IsMarkedForLazyRecompilation() {
 }
 
 
+bool JSFunction::IsMarkedForParallelRecompilation() {
+  return code() ==
+      GetIsolate()->builtins()->builtin(Builtins::kParallelRecompile);
+}
+
+
+bool JSFunction::IsInRecompileQueue() {
+  return code() == GetIsolate()->builtins()->builtin(
+      Builtins::kInRecompileQueue);
+}
+
+
 Code* JSFunction::code() {
   return Code::cast(unchecked_code());
 }

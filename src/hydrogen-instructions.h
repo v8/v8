@@ -224,6 +224,16 @@ class LChunkBuilder;
   virtual Opcode opcode() const { return HValue::k##type; }
 
 
+#ifdef DEBUG
+#define ASSERT_ALLOCATION_DISABLED do {                                  \
+    OptimizingCompilerThread* thread =                                   \
+      ISOLATE->optimizing_compiler_thread();                             \
+    ASSERT(thread->IsOptimizerThread() || !HEAP->IsAllocationAllowed()); \
+  } while (0)
+#else
+#define ASSERT_ALLOCATION_DISABLED do {} while (0)
+#endif
+
 class Range: public ZoneObject {
  public:
   Range()
@@ -2289,7 +2299,7 @@ class HCheckPrototypeMaps: public HTemplateInstruction<0> {
   virtual void PrintDataTo(StringStream* stream);
 
   virtual intptr_t Hashcode() {
-    ASSERT(!HEAP->IsAllocationAllowed());
+    ASSERT_ALLOCATION_DISABLED;
     intptr_t hash = reinterpret_cast<intptr_t>(*prototype());
     hash = 17 * hash + reinterpret_cast<intptr_t>(*holder());
     return hash;
@@ -2535,7 +2545,7 @@ class HConstant: public HTemplateInstruction<0> {
   bool ToBoolean();
 
   virtual intptr_t Hashcode() {
-    ASSERT(!HEAP->allow_allocation(false));
+    ASSERT_ALLOCATION_DISABLED;
     intptr_t hash;
 
     if (has_int32_value_) {
@@ -3640,7 +3650,7 @@ class HLoadGlobalCell: public HTemplateInstruction<0> {
   virtual void PrintDataTo(StringStream* stream);
 
   virtual intptr_t Hashcode() {
-    ASSERT(!HEAP->allow_allocation(false));
+    ASSERT_ALLOCATION_DISABLED;
     return reinterpret_cast<intptr_t>(*cell_);
   }
 

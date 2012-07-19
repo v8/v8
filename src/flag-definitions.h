@@ -218,6 +218,12 @@ DEFINE_int(loop_weight, 1, "loop weight for representation inference")
 DEFINE_bool(optimize_for_in, true,
             "optimize functions containing for-in loops")
 
+DEFINE_bool(parallel_recompilation, false,
+            "optimizing hot functions asynchronously on a separate thread")
+DEFINE_bool(trace_parallel_recompilation, false, "track parallel recompilation")
+DEFINE_int(parallel_recompilation_queue_length, 2,
+           "the length of the parallel compilation queue")
+
 // Experimental profiler changes.
 DEFINE_bool(experimental_profiler, true, "enable all profiler experiments")
 DEFINE_bool(watch_ic_patching, false, "profiler considers IC stability")

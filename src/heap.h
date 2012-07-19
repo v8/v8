@@ -1620,6 +1620,25 @@ class Heap {
 
   void CheckpointObjectStats();
 
+  // We don't use a ScopedLock here since we want to lock the heap
+  // only when FLAG_parallel_recompilation is true.
+  class RelocationLock {
+   public:
+    explicit RelocationLock(Heap* heap) : heap_(heap) {
+      if (FLAG_parallel_recompilation) {
+        heap_->relocation_mutex_->Lock();
+      }
+    }
+    ~RelocationLock() {
+      if (FLAG_parallel_recompilation) {
+        heap_->relocation_mutex_->Unlock();
+      }
+    }
+
+   private:
+    Heap* heap_;
+  };
+
  private:
   Heap();
 
@@ -2072,6 +2091,8 @@ class Heap {
 
   MemoryChunk* chunks_queued_for_free_;
 
+  Mutex* relocation_mutex_;
+
   friend class Factory;
   friend class GCTracer;
   friend class DisallowAllocationFailure;
@@ -2395,6 +2416,7 @@ class AssertNoAllocation {
 #ifdef DEBUG
  private:
   bool old_state_;
+  bool active_;
 #endif
 };
 
@@ -2407,6 +2429,7 @@ class DisableAssertNoAllocation {
 #ifdef DEBUG
  private:
   bool old_state_;
+  bool active_;
 #endif
 };
 

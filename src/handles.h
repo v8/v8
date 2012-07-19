@@ -327,6 +327,7 @@ class NoHandleAllocation BASE_EMBEDDED {
   inline ~NoHandleAllocation();
  private:
   int level_;
+  bool active_;
 #endif
 };
 
