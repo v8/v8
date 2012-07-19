@@ -1032,7 +1032,7 @@ class HGraphBuilder: public AstVisitor {
   int InliningAstSize(Handle<JSFunction> target);
   bool TryInline(CallKind call_kind,
                  Handle<JSFunction> target,
-                 ZoneList<Expression*>* arguments,
+                 int arguments_count,
                  HValue* receiver,
                  int ast_id,
                  int return_id,
