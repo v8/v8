@@ -2472,43 +2472,20 @@ class DescriptorArray: public FixedArray {
   inline int number_of_entries() { return number_of_descriptors(); }
   inline int NextEnumerationIndex() { return number_of_descriptors() + 1; }
 
-  int LastAdded() {
-    ASSERT(!IsEmpty());
-    Object* obj = get(kLastAddedIndex);
-    if (obj->IsSmi()) {
-      return Smi::cast(obj)->value();
-    } else {
-      Object* index = FixedArray::cast(obj)->get(kEnumCacheBridgeLastAdded);
-      return Smi::cast(index)->value();
-    }
-  }
-
-  // Set index of the last added descriptor and flush any enum cache.
-  void SetLastAdded(int index) {
-    ASSERT(!IsEmpty() || index > 0);
-    set(kLastAddedIndex, Smi::FromInt(index));
-  }
-
-  int NumberOfSetDescriptors() {
-    ASSERT(!IsEmpty());
-    if (LastAdded() == kNoneAdded) return 0;
-    return GetDetails(LastAdded()).index();
-  }
-
   bool HasEnumCache() {
-    return !IsEmpty() && !get(kLastAddedIndex)->IsSmi();
+    return !IsEmpty() && !get(kEnumCacheIndex)->IsSmi();
   }
 
   Object* GetEnumCache() {
     ASSERT(HasEnumCache());
-    FixedArray* bridge = FixedArray::cast(get(kLastAddedIndex));
+    FixedArray* bridge = FixedArray::cast(get(kEnumCacheIndex));
     return bridge->get(kEnumCacheBridgeCacheIndex);
   }
 
   Object** GetEnumCacheSlot() {
     ASSERT(HasEnumCache());
     return HeapObject::RawField(reinterpret_cast<HeapObject*>(this),
-                                kLastAddedOffset);
+                                kEnumCacheOffset);
   }
 
   Object** GetTransitionsSlot() {
@@ -2590,11 +2567,8 @@ class DescriptorArray: public FixedArray {
   // Constant for denoting key was not found.
   static const int kNotFound = -1;
 
-  // Constant for denoting that the LastAdded field was not yet set.
-  static const int kNoneAdded = -1;
-
   static const int kBackPointerStorageIndex = 0;
-  static const int kLastAddedIndex = 1;
+  static const int kEnumCacheIndex = 1;
   static const int kTransitionsIndex = 2;
   static const int kFirstIndex = 3;
 
@@ -2606,9 +2580,9 @@ class DescriptorArray: public FixedArray {
 
   // Layout description.
   static const int kBackPointerStorageOffset = FixedArray::kHeaderSize;
-  static const int kLastAddedOffset = kBackPointerStorageOffset +
+  static const int kEnumCacheOffset = kBackPointerStorageOffset +
                                       kPointerSize;
-  static const int kTransitionsOffset = kLastAddedOffset + kPointerSize;
+  static const int kTransitionsOffset = kEnumCacheOffset + kPointerSize;
   static const int kFirstOffset = kTransitionsOffset + kPointerSize;
 
   // Layout description for the bridge array.
@@ -4674,6 +4648,10 @@ class Map: public HeapObject {
   inline int bit_field3();
   inline void set_bit_field3(int value);
 
+  class IsShared:              public BitField<bool, 0, 1> {};
+  class FunctionWithPrototype: public BitField<bool, 1, 1> {};
+  class LastAddedBits:         public BitField<int, 2, 11> {};
+
   // Tells whether the object in the prototype property will be used
   // for instances created from this function.  If the prototype
   // property is set to a value that is not a JSObject, the prototype
@@ -4898,6 +4876,20 @@ class Map: public HeapObject {
                         String* name,
                         LookupResult* result);
 
+  void SetLastAdded(int index) {
+    set_bit_field3(LastAddedBits::update(bit_field3(), index));
+  }
+
+  int LastAdded() {
+    return LastAddedBits::decode(bit_field3());
+  }
+
+  int NumberOfSetDescriptors() {
+    ASSERT(!instance_descriptors()->IsEmpty());
+    if (LastAdded() == kNoneAdded) return 0;
+    return instance_descriptors()->GetDetails(LastAdded()).index();
+  }
+
   MUST_USE_RESULT MaybeObject* RawCopy(int instance_size);
   MUST_USE_RESULT MaybeObject* CopyWithPreallocatedFieldDescriptors();
   MUST_USE_RESULT MaybeObject* CopyDropDescriptors();
@@ -5032,6 +5024,9 @@ class Map: public HeapObject {
                                                       Map* map);
 
   static const int kMaxPreAllocatedPropertyFields = 255;
+
+  // Constant for denoting that the LastAdded field was not yet set.
+  static const int kNoneAdded = LastAddedBits::kMax;
 
   // Layout description.
   static const int kInstanceSizesOffset = HeapObject::kHeaderSize;

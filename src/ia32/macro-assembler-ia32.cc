@@ -2901,7 +2901,7 @@ void MacroAssembler::CheckEnumCache(Label* call_runtime) {
   // Check that there is an enum cache in the non-empty instance
   // descriptors (edx).  This is the case if the next enumeration
   // index field does not contain a smi.
-  mov(edx, FieldOperand(edx, DescriptorArray::kLastAddedOffset));
+  mov(edx, FieldOperand(edx, DescriptorArray::kEnumCacheOffset));
   JumpIfSmi(edx, call_runtime);
 
   // For all objects but the receiver, check that the cache is empty.

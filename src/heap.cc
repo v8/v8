@@ -2044,7 +2044,8 @@ MaybeObject* Heap::AllocatePartialMap(InstanceType instance_type,
   reinterpret_cast<Map*>(result)->set_unused_property_fields(0);
   reinterpret_cast<Map*>(result)->set_bit_field(0);
   reinterpret_cast<Map*>(result)->set_bit_field2(0);
-  reinterpret_cast<Map*>(result)->set_bit_field3(0);
+  reinterpret_cast<Map*>(result)->set_bit_field3(
+      Map::LastAddedBits::encode(Map::kNoneAdded));
   return result;
 }
 
@@ -2053,9 +2054,8 @@ MaybeObject* Heap::AllocateMap(InstanceType instance_type,
                                int instance_size,
                                ElementsKind elements_kind) {
   Object* result;
-  { MaybeObject* maybe_result = AllocateRawMap();
-    if (!maybe_result->ToObject(&result)) return maybe_result;
-  }
+  MaybeObject* maybe_result = AllocateRawMap();
+  if (!maybe_result->To(&result)) return maybe_result;
 
   Map* map = reinterpret_cast<Map*>(result);
   map->set_map_no_write_barrier(meta_map());
@@ -2072,7 +2072,7 @@ MaybeObject* Heap::AllocateMap(InstanceType instance_type,
   map->set_unused_property_fields(0);
   map->set_bit_field(0);
   map->set_bit_field2(1 << Map::kIsExtensible);
-  map->set_bit_field3(0);
+  map->set_bit_field3(Map::LastAddedBits::encode(Map::kNoneAdded));
   map->set_elements_kind(elements_kind);
 
   // If the map object is aligned fill the padding area with Smi 0 objects.

@@ -2954,16 +2954,12 @@ bool Map::has_non_instance_prototype() {
 
 
 void Map::set_function_with_prototype(bool value) {
-  if (value) {
-    set_bit_field3(bit_field3() | (1 << kFunctionWithPrototype));
-  } else {
-    set_bit_field3(bit_field3() & ~(1 << kFunctionWithPrototype));
-  }
+  set_bit_field3(FunctionWithPrototype::update(bit_field3(), value));
 }
 
 
 bool Map::function_with_prototype() {
-  return ((1 << kFunctionWithPrototype) & bit_field3()) != 0;
+  return FunctionWithPrototype::decode(bit_field3());
 }
 
 
@@ -3008,15 +3004,11 @@ bool Map::attached_to_shared_function_info() {
 
 
 void Map::set_is_shared(bool value) {
-  if (value) {
-    set_bit_field3(bit_field3() | (1 << kIsShared));
-  } else {
-    set_bit_field3(bit_field3() & ~(1 << kIsShared));
-  }
+  set_bit_field3(IsShared::update(bit_field3(), value));
 }
 
 bool Map::is_shared() {
-  return ((1 << kIsShared) & bit_field3()) != 0;
+  return IsShared::decode(bit_field3());
 }
 
 
@@ -3522,17 +3514,17 @@ void Map::InitializeDescriptors(DescriptorArray* descriptors) {
   }
 #endif
 
+  set_instance_descriptors(descriptors);
+
   for (int i = 0; i < len; ++i) {
     if (descriptors->GetDetails(i).index() == len) {
-      descriptors->SetLastAdded(i);
+      SetLastAdded(i);
       break;
     }
   }
 
   ASSERT(len == 0 ||
-         len == descriptors->GetDetails(descriptors->LastAdded()).index());
-
-  set_instance_descriptors(descriptors);
+         len == descriptors->GetDetails(LastAdded()).index());
 }
 
 
@@ -3558,9 +3550,9 @@ void Map::ClearDescriptorArray(Heap* heap, WriteBarrierMode mode) {
 void Map::AppendDescriptor(Descriptor* desc,
                            const DescriptorArray::WhitenessWitness& witness) {
   DescriptorArray* descriptors = instance_descriptors();
-  int set_descriptors = descriptors->NumberOfSetDescriptors();
+  int set_descriptors = NumberOfSetDescriptors();
   int new_last_added = descriptors->Append(desc, witness, set_descriptors);
-  descriptors->SetLastAdded(new_last_added);
+  SetLastAdded(new_last_added);
 }
 
 

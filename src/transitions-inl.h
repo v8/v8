@@ -161,8 +161,8 @@ void TransitionArray::SetTarget(int transition_number, Map* value) {
 PropertyDetails TransitionArray::GetTargetDetails(int transition_number) {
   Map* map = GetTarget(transition_number);
   DescriptorArray* descriptors = map->instance_descriptors();
-  int descriptor = descriptors->LastAdded();
-  ASSERT(descriptor != DescriptorArray::kNotFound);
+  int descriptor = map->LastAdded();
+  ASSERT(descriptor != Map::kNoneAdded);
   return descriptors->GetDetails(descriptor);
 }
 

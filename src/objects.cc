@@ -2771,9 +2771,9 @@ MaybeObject* JSObject::SetPropertyForResult(LookupResult* result,
                                               strict_mode);
     case TRANSITION: {
       Map* transition_map = result->GetTransitionTarget();
+      int descriptor = transition_map->LastAdded();
 
       DescriptorArray* descriptors = transition_map->instance_descriptors();
-      int descriptor = descriptors->LastAdded();
       PropertyDetails details = descriptors->GetDetails(descriptor);
 
       if (details.type() == FIELD) {
@@ -2892,9 +2892,9 @@ MaybeObject* JSObject::SetLocalPropertyIgnoreAttributes(
       return ConvertDescriptorToField(name, value, attributes);
     case TRANSITION: {
       Map* transition_map = result.GetTransitionTarget();
+      int descriptor = transition_map->LastAdded();
 
       DescriptorArray* descriptors = transition_map->instance_descriptors();
-      int descriptor = descriptors->LastAdded();
       PropertyDetails details = descriptors->GetDetails(descriptor);
 
       if (details.type() == FIELD) {
@@ -3080,17 +3080,16 @@ MaybeObject* NormalizedMapCache::Get(JSObject* obj,
       // except for the code cache, which can contain some ics which can be
       // applied to the shared map.
       Object* fresh;
-      { MaybeObject* maybe_fresh =
-            fast->CopyNormalized(mode, SHARED_NORMALIZED_MAP);
-        if (maybe_fresh->ToObject(&fresh)) {
-          ASSERT(memcmp(Map::cast(fresh)->address(),
-                        Map::cast(result)->address(),
-                        Map::kCodeCacheOffset) == 0);
-          int offset = Map::kCodeCacheOffset + kPointerSize;
-          ASSERT(memcmp(Map::cast(fresh)->address() + offset,
-                        Map::cast(result)->address() + offset,
-                        Map::kSize - offset) == 0);
-        }
+      MaybeObject* maybe_fresh =
+          fast->CopyNormalized(mode, SHARED_NORMALIZED_MAP);
+      if (maybe_fresh->ToObject(&fresh)) {
+        ASSERT(memcmp(Map::cast(fresh)->address(),
+                      Map::cast(result)->address(),
+                      Map::kCodeCacheOffset) == 0);
+        int offset = Map::kCodeCacheOffset + kPointerSize;
+        ASSERT(memcmp(Map::cast(fresh)->address() + offset,
+                      Map::cast(result)->address() + offset,
+                      Map::kSize - offset) == 0);
       }
     }
 #endif
@@ -4496,7 +4495,7 @@ MaybeObject* JSObject::DefineFastAccessor(String* name,
     // If there is a transition, try to follow it.
     if (result.IsFound()) {
       Map* target = result.GetTransitionTarget();
-      int descriptor_number = target->instance_descriptors()->LastAdded();
+      int descriptor_number = target->LastAdded();
       ASSERT(target->instance_descriptors()->GetKey(descriptor_number) == name);
       return TryAccessorTransition(
           this, target, descriptor_number, component, accessor, attributes);
@@ -4711,14 +4710,14 @@ MaybeObject* Map::CopyNormalized(PropertyNormalizationMode mode,
   }
 
   Map* result;
-  { MaybeObject* maybe_result = RawCopy(new_instance_size);
-    if (!maybe_result->To(&result)) return maybe_result;
-  }
+  MaybeObject* maybe_result = RawCopy(new_instance_size);
+  if (!maybe_result->To(&result)) return maybe_result;
 
   if (mode != CLEAR_INOBJECT_PROPERTIES) {
     result->set_inobject_properties(inobject_properties());
   }
 
+  result->SetLastAdded(kNoneAdded);
   result->set_code_cache(code_cache());
   result->set_is_shared(sharing == SHARED_NORMALIZED_MAP);
 
@@ -4756,14 +4755,14 @@ MaybeObject* Map::CopyReplaceDescriptors(DescriptorArray* descriptors,
   MaybeObject* maybe_result = CopyDropDescriptors();
   if (!maybe_result->To(&result)) return maybe_result;
 
-  if (last_added == DescriptorArray::kNoneAdded) {
+  if (last_added == kNoneAdded) {
     ASSERT(descriptors->IsEmpty());
-    ASSERT(flag == OMIT_TRANSITION);
-    return result;
+  } else {
+    ASSERT(descriptors->GetDetails(last_added).index() ==
+           descriptors->number_of_descriptors());
+    result->set_instance_descriptors(descriptors);
+    result->SetLastAdded(last_added);
   }
-
-  descriptors->SetLastAdded(last_added);
-  result->set_instance_descriptors(descriptors);
 
   if (flag == INSERT_TRANSITION) {
     TransitionArray* transitions;
@@ -4823,8 +4822,8 @@ MaybeObject* Map::CopyWithPreallocatedFieldDescriptors() {
   if (!maybe_descriptors->To(&descriptors)) return maybe_descriptors;
 
   int last_added = initial_descriptors->IsEmpty()
-      ? DescriptorArray::kNoneAdded
-      : initial_descriptors->LastAdded();
+      ? kNoneAdded
+      : initial_map->LastAdded();
 
   return CopyReplaceDescriptors(descriptors, NULL, last_added, OMIT_TRANSITION);
 }
@@ -4836,9 +4835,7 @@ MaybeObject* Map::Copy(DescriptorArray::SharedMode shared_mode) {
   MaybeObject* maybe_descriptors = source_descriptors->Copy(shared_mode);
   if (!maybe_descriptors->To(&descriptors)) return maybe_descriptors;
 
-  int last_added = source_descriptors->IsEmpty()
-      ? DescriptorArray::kNoneAdded
-      : source_descriptors->LastAdded();
+  int last_added = source_descriptors->IsEmpty() ? kNoneAdded : LastAdded();
 
   return CopyReplaceDescriptors(descriptors, NULL, last_added, OMIT_TRANSITION);
 }
@@ -4944,8 +4941,7 @@ MaybeObject* Map::CopyReplaceDescriptor(Descriptor* descriptor,
 
   SLOW_ASSERT(new_descriptors->IsSortedNoDuplicates());
 
-  return CopyReplaceDescriptors(
-      new_descriptors, key, descriptors->LastAdded(), flag);
+  return CopyReplaceDescriptors(new_descriptors, key, LastAdded(), flag);
 }
 
 
@@ -5732,7 +5728,7 @@ MaybeObject* DescriptorArray::Allocate(int number_of_descriptors,
     if (!maybe_array->To(&result)) return maybe_array;
   }
 
-  result->set(kLastAddedIndex, Smi::FromInt(kNoneAdded));
+  result->set(kEnumCacheIndex, Smi::FromInt(Map::kNoneAdded));
   result->set(kTransitionsIndex, Smi::FromInt(0));
   return result;
 }
@@ -5744,9 +5740,9 @@ void DescriptorArray::SetEnumCache(FixedArray* bridge_storage,
   ASSERT(bridge_storage->length() >= kEnumCacheBridgeLength);
   ASSERT(new_index_cache->IsSmi() || new_index_cache->IsFixedArray());
   if (HasEnumCache()) {
-    FixedArray::cast(get(kLastAddedIndex))->
+    FixedArray::cast(get(kEnumCacheIndex))->
       set(kEnumCacheBridgeCacheIndex, new_cache);
-    FixedArray::cast(get(kLastAddedIndex))->
+    FixedArray::cast(get(kEnumCacheIndex))->
       set(kEnumCacheBridgeIndicesCacheIndex, new_index_cache);
   } else {
     if (IsEmpty()) return;  // Do nothing for empty descriptor array.
@@ -5756,8 +5752,8 @@ void DescriptorArray::SetEnumCache(FixedArray* bridge_storage,
       set(kEnumCacheBridgeIndicesCacheIndex, new_index_cache);
     NoWriteBarrierSet(FixedArray::cast(bridge_storage),
                       kEnumCacheBridgeLastAdded,
-                      get(kLastAddedIndex));
-    set(kLastAddedIndex, bridge_storage);
+                      get(kEnumCacheIndex));
+    set(kEnumCacheIndex, bridge_storage);
   }
 }
 
@@ -7226,8 +7222,10 @@ bool Map::EquivalentToForNormalization(Map* other,
     instance_type() == other->instance_type() &&
     bit_field() == other->bit_field() &&
     bit_field2() == other->bit_field2() &&
-    (bit_field3() & ~(1<<Map::kIsShared)) ==
-        (other->bit_field3() & ~(1<<Map::kIsShared));
+    static_cast<uint32_t>(bit_field3()) ==
+        LastAddedBits::update(
+            IsShared::update(other->bit_field3(), true),
+            kNoneAdded);
 }
 
 

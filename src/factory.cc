@@ -906,7 +906,6 @@ void Factory::CopyAppendCallbackDescriptors(Handle<Map> map,
 
   // Copy the descriptors from the array.
   if (0 < descriptor_count) {
-    result->SetLastAdded(array->LastAdded());
     for (int i = 0; i < descriptor_count; i++) {
       result->CopyFrom(i, *array, i, witness);
     }
@@ -924,14 +923,14 @@ void Factory::CopyAppendCallbackDescriptors(Handle<Map> map,
     Handle<String> key =
         SymbolFromString(Handle<String>(String::cast(entry->name())));
     // Check if a descriptor with this name already exists before writing.
-    if (LinearSearch(*result, *key, result->NumberOfSetDescriptors()) ==
+    if (LinearSearch(*result, *key, map->NumberOfSetDescriptors()) ==
         DescriptorArray::kNotFound) {
       CallbacksDescriptor desc(*key, *entry, entry->property_attributes());
       map->AppendDescriptor(&desc, witness);
     }
   }
 
-  int new_number_of_descriptors = result->NumberOfSetDescriptors();
+  int new_number_of_descriptors = map->NumberOfSetDescriptors();
   // Reinstall the original descriptor array if no new elements were added.
   if (new_number_of_descriptors == descriptor_count) {
     map->set_instance_descriptors(*array);
@@ -946,7 +945,6 @@ void Factory::CopyAppendCallbackDescriptors(Handle<Map> map,
     for (int i = 0; i < new_number_of_descriptors; i++) {
       new_result->CopyFrom(i, *result, i, witness);
     }
-    new_result->SetLastAdded(result->LastAdded());
     map->set_instance_descriptors(*new_result);
   }
 }

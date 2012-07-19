@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -158,15 +158,14 @@ TEST(StressJS) {
   Handle<DescriptorArray> new_descriptors = FACTORY->NewDescriptorArray(1);
 
   v8::internal::DescriptorArray::WhitenessWitness witness(*new_descriptors);
+  map->set_instance_descriptors(*new_descriptors);
 
   CallbacksDescriptor d(*name,
                         *foreign,
                         static_cast<PropertyAttributes>(0),
                         v8::internal::PropertyDetails::kInitialIndex);
-  new_descriptors->Set(0, &d, witness);
-  new_descriptors->SetLastAdded(0);
+  map->AppendDescriptor(&d, witness);
 
-  map->set_instance_descriptors(*new_descriptors);
   // Add the Foo constructor the global object.
   env->Global()->Set(v8::String::New("Foo"), v8::Utils::ToLocal(function));
   // Call the accessor through JavaScript.
