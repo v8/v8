@@ -164,7 +164,7 @@
           'V8_TARGET_ARCH_MIPS',
         ],
         'variables': {
-          'mipscompiler': '<!($(echo ${CXX:-$(which g++)}) -v 2>&1 | grep -q "^Target: mips-" && echo "yes" || echo "no")',
+          'mipscompiler': '<!($(echo ${CXX:-$(which g++)}) -v 2>&1 | grep -q "^Target: mips" && echo "yes" || echo "no")',
         },
         'conditions': [
           ['mipscompiler=="yes"', {
