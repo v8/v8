@@ -2544,8 +2544,9 @@ class DescriptorArray: public FixedArray {
   // Append automatically sets the enumeration index. This should only be used
   // to add descriptors in bulk at the end, followed by sorting the descriptor
   // array.
-  inline void Append(Descriptor* desc,
-                     const WhitenessWitness&);
+  inline int Append(Descriptor* desc,
+                    const WhitenessWitness&,
+                    int number_of_set_descriptors);
 
   // Transfer a complete descriptor from the src descriptor array to this
   // descriptor array.
@@ -4924,6 +4925,9 @@ class Map: public HeapObject {
 
   MUST_USE_RESULT MaybeObject* CopyNormalized(PropertyNormalizationMode mode,
                                               NormalizedMapSharingMode sharing);
+
+  inline void AppendDescriptor(Descriptor* desc,
+                               const DescriptorArray::WhitenessWitness&);
 
   // Returns a copy of the map, with all transitions dropped from the
   // instance descriptors.

@@ -2110,9 +2110,10 @@ void DescriptorArray::Set(int descriptor_number,
 }
 
 
-void DescriptorArray::Append(Descriptor* desc,
-                             const WhitenessWitness& witness) {
-  int descriptor_number = NumberOfSetDescriptors();
+int DescriptorArray::Append(Descriptor* desc,
+                            const WhitenessWitness& witness,
+                            int number_of_set_descriptors) {
+  int descriptor_number = number_of_set_descriptors;
   int enumeration_index = descriptor_number + 1;
   desc->SetEnumerationIndex(enumeration_index);
 
@@ -2128,7 +2129,7 @@ void DescriptorArray::Append(Descriptor* desc,
   }
 
   Set(descriptor_number, desc, witness);
-  SetLastAdded(descriptor_number);
+  return descriptor_number;
 }
 
 
@@ -3553,6 +3554,14 @@ void Map::ClearDescriptorArray(Heap* heap, WriteBarrierMode mode) {
       heap, this, kInstanceDescriptorsOrBackPointerOffset, back_pointer, mode);
 }
 
+
+void Map::AppendDescriptor(Descriptor* desc,
+                           const DescriptorArray::WhitenessWitness& witness) {
+  DescriptorArray* descriptors = instance_descriptors();
+  int set_descriptors = descriptors->NumberOfSetDescriptors();
+  int new_last_added = descriptors->Append(desc, witness, set_descriptors);
+  descriptors->SetLastAdded(new_last_added);
+}
 
 
 Object* Map::GetBackPointer() {

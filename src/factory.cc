@@ -912,6 +912,8 @@ void Factory::CopyAppendCallbackDescriptors(Handle<Map> map,
     }
   }
 
+  map->set_instance_descriptors(*result);
+
   // Fill in new callback descriptors.  Process the callbacks from
   // back to front so that the last callback with a given name takes
   // precedence over previously added callbacks with that name.
@@ -925,13 +927,16 @@ void Factory::CopyAppendCallbackDescriptors(Handle<Map> map,
     if (LinearSearch(*result, *key, result->NumberOfSetDescriptors()) ==
         DescriptorArray::kNotFound) {
       CallbacksDescriptor desc(*key, *entry, entry->property_attributes());
-      result->Append(&desc, witness);
+      map->AppendDescriptor(&desc, witness);
     }
   }
 
   int new_number_of_descriptors = result->NumberOfSetDescriptors();
-  // Don't replace the descriptor array if there were no new elements.
-  if (new_number_of_descriptors == descriptor_count) return;
+  // Reinstall the original descriptor array if no new elements were added.
+  if (new_number_of_descriptors == descriptor_count) {
+    map->set_instance_descriptors(*array);
+    return;
+  }
 
   // If duplicates were detected, allocate a result of the right size
   // and transfer the elements.
@@ -942,10 +947,8 @@ void Factory::CopyAppendCallbackDescriptors(Handle<Map> map,
       new_result->CopyFrom(i, *result, i, witness);
     }
     new_result->SetLastAdded(result->LastAdded());
-    result = new_result;
+    map->set_instance_descriptors(*new_result);
   }
-
-  map->set_instance_descriptors(*result);
 }
 
 

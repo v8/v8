@@ -391,26 +391,27 @@ void Genesis::SetFunctionInstanceDescriptor(
       DONT_ENUM | DONT_DELETE | READ_ONLY);
 
   DescriptorArray::WhitenessWitness witness(*descriptors);
+  map->set_instance_descriptors(*descriptors);
 
   {  // Add length.
     Handle<Foreign> f(factory()->NewForeign(&Accessors::FunctionLength));
     CallbacksDescriptor d(*factory()->length_symbol(), *f, attribs);
-    descriptors->Append(&d, witness);
+    map->AppendDescriptor(&d, witness);
   }
   {  // Add name.
     Handle<Foreign> f(factory()->NewForeign(&Accessors::FunctionName));
     CallbacksDescriptor d(*factory()->name_symbol(), *f, attribs);
-    descriptors->Append(&d, witness);
+    map->AppendDescriptor(&d, witness);
   }
   {  // Add arguments.
     Handle<Foreign> f(factory()->NewForeign(&Accessors::FunctionArguments));
     CallbacksDescriptor d(*factory()->arguments_symbol(), *f, attribs);
-    descriptors->Append(&d, witness);
+    map->AppendDescriptor(&d, witness);
   }
   {  // Add caller.
     Handle<Foreign> f(factory()->NewForeign(&Accessors::FunctionCaller));
     CallbacksDescriptor d(*factory()->caller_symbol(), *f, attribs);
-    descriptors->Append(&d, witness);
+    map->AppendDescriptor(&d, witness);
   }
   if (prototypeMode != DONT_ADD_PROTOTYPE) {
     // Add prototype.
@@ -419,10 +420,8 @@ void Genesis::SetFunctionInstanceDescriptor(
     }
     Handle<Foreign> f(factory()->NewForeign(&Accessors::FunctionPrototype));
     CallbacksDescriptor d(*factory()->prototype_symbol(), *f, attribs);
-    descriptors->Append(&d, witness);
+    map->AppendDescriptor(&d, witness);
   }
-
-  map->set_instance_descriptors(*descriptors);
 }
 
 
@@ -530,26 +529,27 @@ void Genesis::SetStrictFunctionInstanceDescriptor(
       DONT_ENUM | DONT_DELETE);
 
   DescriptorArray::WhitenessWitness witness(*descriptors);
+  map->set_instance_descriptors(*descriptors);
 
   {  // Add length.
     Handle<Foreign> f(factory()->NewForeign(&Accessors::FunctionLength));
     CallbacksDescriptor d(*factory()->length_symbol(), *f, attribs);
-    descriptors->Append(&d, witness);
+    map->AppendDescriptor(&d, witness);
   }
   {  // Add name.
     Handle<Foreign> f(factory()->NewForeign(&Accessors::FunctionName));
     CallbacksDescriptor d(*factory()->name_symbol(), *f, attribs);
-    descriptors->Append(&d, witness);
+    map->AppendDescriptor(&d, witness);
   }
   {  // Add arguments.
     Handle<AccessorPair> arguments(factory()->NewAccessorPair());
     CallbacksDescriptor d(*factory()->arguments_symbol(), *arguments, attribs);
-    descriptors->Append(&d, witness);
+    map->AppendDescriptor(&d, witness);
   }
   {  // Add caller.
     Handle<AccessorPair> caller(factory()->NewAccessorPair());
     CallbacksDescriptor d(*factory()->caller_symbol(), *caller, attribs);
-    descriptors->Append(&d, witness);
+    map->AppendDescriptor(&d, witness);
   }
 
   if (prototypeMode != DONT_ADD_PROTOTYPE) {
@@ -559,10 +559,8 @@ void Genesis::SetStrictFunctionInstanceDescriptor(
     }
     Handle<Foreign> f(factory()->NewForeign(&Accessors::FunctionPrototype));
     CallbacksDescriptor d(*factory()->prototype_symbol(), *f, attribs);
-    descriptors->Append(&d, witness);
+    map->AppendDescriptor(&d, witness);
   }
-
-  map->set_instance_descriptors(*descriptors);
 }
 
 
@@ -870,11 +868,12 @@ bool Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
         DONT_ENUM | DONT_DELETE);
 
     DescriptorArray::WhitenessWitness witness(*array_descriptors);
+    array_function->initial_map()->set_instance_descriptors(*array_descriptors);
 
     {  // Add length.
       Handle<Foreign> f(factory->NewForeign(&Accessors::ArrayLength));
       CallbacksDescriptor d(*factory->length_symbol(), *f, attribs);
-      array_descriptors->Append(&d, witness);
+      array_function->initial_map()->AppendDescriptor(&d, witness);
     }
 
     // array_function is used internally. JS code creating array object should
@@ -882,7 +881,6 @@ bool Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
     // as the constructor. 'Array' property on a global object can be
     // overwritten by JS code.
     global_context()->set_array_function(*array_function);
-    array_function->initial_map()->set_instance_descriptors(*array_descriptors);
   }
 
   {  // --- N u m b e r ---
@@ -910,21 +908,20 @@ bool Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
         isolate->builtins()->builtin(Builtins::kStringConstructCode));
     global_context()->set_string_function(*string_fun);
 
+    Handle<Map> string_map =
+        Handle<Map>(global_context()->string_function()->initial_map());
     Handle<DescriptorArray> string_descriptors(factory->NewDescriptorArray(1));
     PropertyAttributes attribs = static_cast<PropertyAttributes>(
         DONT_ENUM | DONT_DELETE | READ_ONLY);
 
     DescriptorArray::WhitenessWitness witness(*string_descriptors);
+    string_map->set_instance_descriptors(*string_descriptors);
 
     {  // Add length.
       Handle<Foreign> f(factory->NewForeign(&Accessors::StringLength));
       CallbacksDescriptor d(*factory->length_symbol(), *f, attribs);
-      string_descriptors->Append(&d, witness);
+      string_map->AppendDescriptor(&d, witness);
     }
-
-    Handle<Map> string_map =
-        Handle<Map>(global_context()->string_function()->initial_map());
-    string_map->set_instance_descriptors(*string_descriptors);
   }
 
   {  // --- D a t e ---
@@ -951,37 +948,39 @@ bool Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
 
     ASSERT_EQ(0, initial_map->inobject_properties());
 
-    Handle<DescriptorArray> descriptors = factory->NewDescriptorArray(5);
-    DescriptorArray::WhitenessWitness witness(*descriptors);
     PropertyAttributes final =
         static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE | READ_ONLY);
+    Handle<DescriptorArray> descriptors = factory->NewDescriptorArray(5);
+    DescriptorArray::WhitenessWitness witness(*descriptors);
+    initial_map->set_instance_descriptors(*descriptors);
+
     {
       // ECMA-262, section 15.10.7.1.
       FieldDescriptor field(heap->source_symbol(),
                             JSRegExp::kSourceFieldIndex,
                             final);
-      descriptors->Append(&field, witness);
+      initial_map->AppendDescriptor(&field, witness);
     }
     {
       // ECMA-262, section 15.10.7.2.
       FieldDescriptor field(heap->global_symbol(),
                             JSRegExp::kGlobalFieldIndex,
                             final);
-      descriptors->Append(&field, witness);
+      initial_map->AppendDescriptor(&field, witness);
     }
     {
       // ECMA-262, section 15.10.7.3.
       FieldDescriptor field(heap->ignore_case_symbol(),
                             JSRegExp::kIgnoreCaseFieldIndex,
                             final);
-      descriptors->Append(&field, witness);
+      initial_map->AppendDescriptor(&field, witness);
     }
     {
       // ECMA-262, section 15.10.7.4.
       FieldDescriptor field(heap->multiline_symbol(),
                             JSRegExp::kMultilineFieldIndex,
                             final);
-      descriptors->Append(&field, witness);
+      initial_map->AppendDescriptor(&field, witness);
     }
     {
       // ECMA-262, section 15.10.7.5.
@@ -990,9 +989,8 @@ bool Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
       FieldDescriptor field(heap->last_index_symbol(),
                             JSRegExp::kLastIndexFieldIndex,
                             writable);
-      descriptors->Append(&field, witness);
+      initial_map->AppendDescriptor(&field, witness);
     }
-    initial_map->set_instance_descriptors(*descriptors);
 
     initial_map->set_inobject_properties(5);
     initial_map->set_pre_allocated_property_fields(5);
@@ -1138,23 +1136,24 @@ bool Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
     // Create the descriptor array for the arguments object.
     Handle<DescriptorArray> descriptors = factory->NewDescriptorArray(3);
     DescriptorArray::WhitenessWitness witness(*descriptors);
+    map->set_instance_descriptors(*descriptors);
+
     {  // length
       FieldDescriptor d(*factory->length_symbol(), 0, DONT_ENUM);
-      descriptors->Append(&d, witness);
+      map->AppendDescriptor(&d, witness);
     }
     {  // callee
       CallbacksDescriptor d(*factory->callee_symbol(),
                             *callee,
                             attributes);
-      descriptors->Append(&d, witness);
+      map->AppendDescriptor(&d, witness);
     }
     {  // caller
       CallbacksDescriptor d(*factory->caller_symbol(),
                             *caller,
                             attributes);
-      descriptors->Append(&d, witness);
+      map->AppendDescriptor(&d, witness);
     }
-    map->set_instance_descriptors(*descriptors);
 
     map->set_function_with_prototype(true);
     map->set_prototype(global_context()->object_function()->prototype());
@@ -1483,54 +1482,55 @@ bool Genesis::InstallNatives() {
         factory()->NewDescriptorArray(13));
 
     DescriptorArray::WhitenessWitness witness(*script_descriptors);
+    script_map->set_instance_descriptors(*script_descriptors);
 
     {
       Handle<Foreign> f(factory()->NewForeign(&Accessors::ScriptSource));
       CallbacksDescriptor d(
           *factory()->LookupAsciiSymbol("source"), *f, attribs);
-      script_descriptors->Append(&d, witness);
+      script_map->AppendDescriptor(&d, witness);
     }
 
     {
       Handle<Foreign> f(factory()->NewForeign(&Accessors::ScriptName));
       CallbacksDescriptor d(
           *factory()->LookupAsciiSymbol("name"), *f, attribs);
-      script_descriptors->Append(&d, witness);
+      script_map->AppendDescriptor(&d, witness);
     }
 
     {
       Handle<Foreign> f(factory()->NewForeign(&Accessors::ScriptId));
       CallbacksDescriptor d(
           *factory()->LookupAsciiSymbol("id"), *f, attribs);
-      script_descriptors->Append(&d, witness);
+      script_map->AppendDescriptor(&d, witness);
     }
 
     {
       Handle<Foreign> f(factory()->NewForeign(&Accessors::ScriptLineOffset));
       CallbacksDescriptor d(
           *factory()->LookupAsciiSymbol("line_offset"), *f, attribs);
-      script_descriptors->Append(&d, witness);
+      script_map->AppendDescriptor(&d, witness);
     }
 
     {
       Handle<Foreign> f(factory()->NewForeign(&Accessors::ScriptColumnOffset));
       CallbacksDescriptor d(
           *factory()->LookupAsciiSymbol("column_offset"), *f, attribs);
-      script_descriptors->Append(&d, witness);
+      script_map->AppendDescriptor(&d, witness);
     }
 
     {
       Handle<Foreign> f(factory()->NewForeign(&Accessors::ScriptData));
       CallbacksDescriptor d(
           *factory()->LookupAsciiSymbol("data"), *f, attribs);
-      script_descriptors->Append(&d, witness);
+      script_map->AppendDescriptor(&d, witness);
     }
 
     {
       Handle<Foreign> f(factory()->NewForeign(&Accessors::ScriptType));
       CallbacksDescriptor d(
           *factory()->LookupAsciiSymbol("type"), *f, attribs);
-      script_descriptors->Append(&d, witness);
+      script_map->AppendDescriptor(&d, witness);
     }
 
     {
@@ -1538,21 +1538,21 @@ bool Genesis::InstallNatives() {
           &Accessors::ScriptCompilationType));
       CallbacksDescriptor d(
           *factory()->LookupAsciiSymbol("compilation_type"), *f, attribs);
-      script_descriptors->Append(&d, witness);
+      script_map->AppendDescriptor(&d, witness);
     }
 
     {
       Handle<Foreign> f(factory()->NewForeign(&Accessors::ScriptLineEnds));
       CallbacksDescriptor d(
           *factory()->LookupAsciiSymbol("line_ends"), *f, attribs);
-      script_descriptors->Append(&d, witness);
+      script_map->AppendDescriptor(&d, witness);
     }
 
     {
       Handle<Foreign> f(factory()->NewForeign(&Accessors::ScriptContextData));
       CallbacksDescriptor d(
           *factory()->LookupAsciiSymbol("context_data"), *f, attribs);
-      script_descriptors->Append(&d, witness);
+      script_map->AppendDescriptor(&d, witness);
     }
 
     {
@@ -1560,7 +1560,7 @@ bool Genesis::InstallNatives() {
           &Accessors::ScriptEvalFromScript));
       CallbacksDescriptor d(
           *factory()->LookupAsciiSymbol("eval_from_script"), *f, attribs);
-      script_descriptors->Append(&d, witness);
+      script_map->AppendDescriptor(&d, witness);
     }
 
     {
@@ -1570,7 +1570,7 @@ bool Genesis::InstallNatives() {
           *factory()->LookupAsciiSymbol("eval_from_script_position"),
           *f,
           attribs);
-      script_descriptors->Append(&d, witness);
+      script_map->AppendDescriptor(&d, witness);
     }
 
     {
@@ -1580,10 +1580,8 @@ bool Genesis::InstallNatives() {
           *factory()->LookupAsciiSymbol("eval_from_function_name"),
           *f,
           attribs);
-      script_descriptors->Append(&d, witness);
+      script_map->AppendDescriptor(&d, witness);
     }
-
-    script_map->set_instance_descriptors(*script_descriptors);
 
     // Allocate the empty script.
     Handle<Script> script = factory()->NewScript(factory()->empty_string());
@@ -1645,14 +1643,13 @@ bool Genesis::InstallNatives() {
         DONT_ENUM | DONT_DELETE);
 
     DescriptorArray::WhitenessWitness witness(*array_descriptors);
+    array_function->initial_map()->set_instance_descriptors(*array_descriptors);
 
     {  // Add length.
       Handle<Foreign> f(factory()->NewForeign(&Accessors::ArrayLength));
       CallbacksDescriptor d(*factory()->length_symbol(), *f, attribs);
-      array_descriptors->Append(&d, witness);
+      array_function->initial_map()->AppendDescriptor(&d, witness);
     }
-
-    array_function->initial_map()->set_instance_descriptors(*array_descriptors);
 
     global_context()->set_internal_array_function(*array_function);
   }
@@ -1741,29 +1738,33 @@ bool Genesis::InstallNatives() {
     Handle<DescriptorArray> reresult_descriptors =
         factory()->NewDescriptorArray(3);
     DescriptorArray::WhitenessWitness witness(*reresult_descriptors);
+    initial_map->set_instance_descriptors(*reresult_descriptors);
 
-    JSFunction* array_function = global_context()->array_function();
-    Handle<DescriptorArray> array_descriptors(
-        array_function->initial_map()->instance_descriptors());
-    int old = array_descriptors->SearchWithCache(heap()->length_symbol());
-    reresult_descriptors->CopyFrom(0, *array_descriptors, old, witness);
-
-    reresult_descriptors->SetLastAdded(0);
-
+    {
+      JSFunction* array_function = global_context()->array_function();
+      Handle<DescriptorArray> array_descriptors(
+          array_function->initial_map()->instance_descriptors());
+      String* length = heap()->length_symbol();
+      int old = array_descriptors->SearchWithCache(length);
+      ASSERT(old != DescriptorArray::kNotFound);
+      CallbacksDescriptor desc(length,
+                               array_descriptors->GetValue(old),
+                               array_descriptors->GetDetails(old).attributes());
+      initial_map->AppendDescriptor(&desc, witness);
+    }
     {
       FieldDescriptor index_field(heap()->index_symbol(),
                                   JSRegExpResult::kIndexIndex,
                                   NONE);
-      reresult_descriptors->Append(&index_field, witness);
+      initial_map->AppendDescriptor(&index_field, witness);
     }
 
     {
       FieldDescriptor input_field(heap()->input_symbol(),
                                   JSRegExpResult::kInputIndex,
                                   NONE);
-      reresult_descriptors->Append(&input_field, witness);
+      initial_map->AppendDescriptor(&input_field, witness);
     }
-    initial_map->set_instance_descriptors(*reresult_descriptors);
 
     initial_map->set_inobject_properties(2);
     initial_map->set_pre_allocated_property_fields(2);
