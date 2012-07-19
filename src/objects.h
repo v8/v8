@@ -2573,10 +2573,9 @@ class DescriptorArray: public FixedArray {
   static const int kFirstIndex = 3;
 
   // The length of the "bridge" to the enum cache.
-  static const int kEnumCacheBridgeLength = 3;
-  static const int kEnumCacheBridgeLastAdded = 0;
-  static const int kEnumCacheBridgeCacheIndex = 1;
-  static const int kEnumCacheBridgeIndicesCacheIndex = 2;
+  static const int kEnumCacheBridgeLength = 2;
+  static const int kEnumCacheBridgeCacheIndex = 0;
+  static const int kEnumCacheBridgeIndicesCacheIndex = 1;
 
   // Layout description.
   static const int kBackPointerStorageOffset = FixedArray::kHeaderSize;
@@ -2586,9 +2585,7 @@ class DescriptorArray: public FixedArray {
   static const int kFirstOffset = kTransitionsOffset + kPointerSize;
 
   // Layout description for the bridge array.
-  static const int kEnumCacheBridgeLastAddedOffset = FixedArray::kHeaderSize;
-  static const int kEnumCacheBridgeCacheOffset =
-    kEnumCacheBridgeLastAddedOffset + kPointerSize;
+  static const int kEnumCacheBridgeCacheOffset = FixedArray::kHeaderSize;
 
   // Layout of descriptor.
   static const int kDescriptorKey = 0;

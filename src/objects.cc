@@ -5728,7 +5728,7 @@ MaybeObject* DescriptorArray::Allocate(int number_of_descriptors,
     if (!maybe_array->To(&result)) return maybe_array;
   }
 
-  result->set(kEnumCacheIndex, Smi::FromInt(Map::kNoneAdded));
+  result->set(kEnumCacheIndex, Smi::FromInt(0));
   result->set(kTransitionsIndex, Smi::FromInt(0));
   return result;
 }
@@ -5750,9 +5750,6 @@ void DescriptorArray::SetEnumCache(FixedArray* bridge_storage,
       set(kEnumCacheBridgeCacheIndex, new_cache);
     FixedArray::cast(bridge_storage)->
       set(kEnumCacheBridgeIndicesCacheIndex, new_index_cache);
-    NoWriteBarrierSet(FixedArray::cast(bridge_storage),
-                      kEnumCacheBridgeLastAdded,
-                      get(kEnumCacheIndex));
     set(kEnumCacheIndex, bridge_storage);
   }
 }
