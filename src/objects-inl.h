@@ -3503,11 +3503,11 @@ void Map::set_instance_descriptors(DescriptorArray* value,
 
 void Map::InitializeDescriptors(DescriptorArray* descriptors) {
   int len = descriptors->number_of_descriptors();
+  ASSERT(len <= DescriptorArray::kMaxNumberOfDescriptors);
   SLOW_ASSERT(descriptors->IsSortedNoDuplicates());
 
 #ifdef DEBUG
-  bool* used_indices =
-      reinterpret_cast<bool*>(alloca(sizeof(*used_indices) * len));
+  bool used_indices[DescriptorArray::kMaxNumberOfDescriptors];
   for (int i = 0; i < len; ++i) used_indices[i] = false;
 
   // Ensure that all enumeration indexes between 1 and length occur uniquely in
@@ -3515,6 +3515,7 @@ void Map::InitializeDescriptors(DescriptorArray* descriptors) {
   for (int i = 0; i < len; ++i) {
     int enum_index = descriptors->GetDetails(i).index() -
                      PropertyDetails::kInitialIndex;
+    ASSERT(0 <= enum_index && enum_index < len);
     ASSERT(!used_indices[enum_index]);
     used_indices[enum_index] = true;
   }
