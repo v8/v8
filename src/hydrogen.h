@@ -874,7 +874,7 @@ class HGraphBuilder: public AstVisitor {
   void* operator new(size_t size, Zone* zone) {
     return zone->New(static_cast<int>(size));
   }
-  void operator delete(void* ptr) { }
+  void operator delete(void* pointer, Zone* zone) { }
 
  private:
   // Type of a member function that generates inline code for a native function.
