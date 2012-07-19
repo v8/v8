@@ -44,7 +44,7 @@ class MessageTestCase(test.TestCase):
     """Ignore empty lines, valgrind output and Android output."""
     if not str: return True
     return (str.startswith('==') or str.startswith('**') or
-            str.startswith('Error'))
+            str.startswith('ANDROID'))
 
   def IsFailureOutput(self, output):
     f = file(self.expected)
