@@ -1888,6 +1888,7 @@ class HJSArrayLength: public HTemplateInstruction<2> {
 class HFixedArrayBaseLength: public HUnaryOperation {
  public:
   explicit HFixedArrayBaseLength(HValue* value) : HUnaryOperation(value) {
+    set_type(HType::Smi());
     set_representation(Representation::Tagged());
     SetFlag(kUseGVN);
     SetGVNFlag(kDependsOnArrayLengths);
@@ -2757,17 +2758,31 @@ class HAccessArgumentsAt: public HTemplateInstruction<3> {
 };
 
 
+enum BoundsCheckKeyMode {
+  DONT_ALLOW_SMI_KEY,
+  ALLOW_SMI_KEY
+};
+
+
 class HBoundsCheck: public HTemplateInstruction<2> {
  public:
-  HBoundsCheck(HValue* index, HValue* length) {
+  HBoundsCheck(HValue* index, HValue* length,
+               BoundsCheckKeyMode key_mode = DONT_ALLOW_SMI_KEY)
+      : key_mode_(key_mode) {
     SetOperandAt(0, index);
     SetOperandAt(1, length);
     set_representation(Representation::Integer32());
     SetFlag(kUseGVN);
   }
 
-  virtual Representation RequiredInputRepresentation(int index) {
-    return Representation::Integer32();
+  virtual Representation RequiredInputRepresentation(int arg_index) {
+    if (index()->representation().IsTagged() &&
+        !index()->IsConstant() &&
+        key_mode_ == ALLOW_SMI_KEY) {
+      return Representation::Tagged();
+    } else {
+      return Representation::Integer32();
+    }
   }
 
   virtual void PrintDataTo(StringStream* stream);
@@ -2779,6 +2794,7 @@ class HBoundsCheck: public HTemplateInstruction<2> {
 
  protected:
   virtual bool DataEquals(HValue* other) { return true; }
+  BoundsCheckKeyMode key_mode_;
 };
 
 

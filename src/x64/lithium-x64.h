@@ -857,6 +857,7 @@ class LBoundsCheck: public LTemplateInstruction<0, 2, 0> {
   LOperand* length() { return inputs_[1]; }
 
   DECLARE_CONCRETE_INSTRUCTION(BoundsCheck, "bounds-check")
+  DECLARE_HYDROGEN_ACCESSOR(BoundsCheck)
 };
 
 

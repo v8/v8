@@ -132,6 +132,15 @@ class LCodeGen BASE_EMBEDDED {
   void DoParallelMove(LParallelMove* move);
   void DoGap(LGap* instr);
 
+  MemOperand PrepareKeyedOperand(Register key,
+                                 Register base,
+                                 bool key_is_constant,
+                                 int constant_key,
+                                 int element_size,
+                                 int shift_size,
+                                 int additional_index,
+                                 int additional_offset);
+
   // Emit frame translation commands for an environment.
   void WriteTranslation(LEnvironment* environment, Translation* translation);
 

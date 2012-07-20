@@ -5842,7 +5842,8 @@ HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
   HInstruction* checked_key = NULL;
   if (map->has_external_array_elements()) {
     length = AddInstruction(new(zone()) HFixedArrayBaseLength(elements));
-    checked_key = AddInstruction(new(zone()) HBoundsCheck(key, length));
+    checked_key = AddInstruction(new(zone()) HBoundsCheck(key, length,
+                                                          ALLOW_SMI_KEY));
     HLoadExternalArrayPointer* external_elements =
         new(zone()) HLoadExternalArrayPointer(elements);
     AddInstruction(external_elements);
@@ -6077,7 +6078,8 @@ HValue* HGraphBuilder::HandlePolymorphicElementAccess(HValue* object,
         HInstruction* length;
         length = AddInstruction(new(zone()) HJSArrayLength(object, typecheck,
                                                            HType::Smi()));
-        checked_key = AddInstruction(new(zone()) HBoundsCheck(key, length));
+        checked_key = AddInstruction(new(zone()) HBoundsCheck(key, length,
+                                                              ALLOW_SMI_KEY));
         access = AddInstruction(BuildFastElementAccess(
             elements, checked_key, val, elements_kind, is_store));
         if (!is_store) {
@@ -6092,7 +6094,8 @@ HValue* HGraphBuilder::HandlePolymorphicElementAccess(HValue* object,
 
         set_current_block(if_fastobject);
         length = AddInstruction(new(zone()) HFixedArrayBaseLength(elements));
-        checked_key = AddInstruction(new(zone()) HBoundsCheck(key, length));
+        checked_key = AddInstruction(new(zone()) HBoundsCheck(key, length,
+                                                              ALLOW_SMI_KEY));
         access = AddInstruction(BuildFastElementAccess(
             elements, checked_key, val, elements_kind, is_store));
       } else if (elements_kind == DICTIONARY_ELEMENTS) {

@@ -1900,7 +1900,8 @@ LInstruction* LChunkBuilder::DoLoadExternalArrayPointer(
 LInstruction* LChunkBuilder::DoLoadKeyedFastElement(
     HLoadKeyedFastElement* instr) {
   ASSERT(instr->representation().IsTagged());
-  ASSERT(instr->key()->representation().IsInteger32());
+  ASSERT(instr->key()->representation().IsInteger32() ||
+         instr->key()->representation().IsTagged());
   LOperand* obj = UseRegisterAtStart(instr->object());
   LOperand* key = UseRegisterOrConstantAtStart(instr->key());
   LLoadKeyedFastElement* result = new(zone()) LLoadKeyedFastElement(obj, key);
@@ -1912,7 +1913,8 @@ LInstruction* LChunkBuilder::DoLoadKeyedFastElement(
 LInstruction* LChunkBuilder::DoLoadKeyedFastDoubleElement(
     HLoadKeyedFastDoubleElement* instr) {
   ASSERT(instr->representation().IsDouble());
-  ASSERT(instr->key()->representation().IsInteger32());
+  ASSERT(instr->key()->representation().IsInteger32() ||
+         instr->key()->representation().IsTagged());
   LOperand* elements = UseRegisterAtStart(instr->elements());
   LOperand* key = UseRegisterOrConstantAtStart(instr->key());
   LLoadKeyedFastDoubleElement* result =
@@ -1931,11 +1933,17 @@ LInstruction* LChunkBuilder::DoLoadKeyedSpecializedArrayElement(
       (instr->representation().IsDouble() &&
        ((elements_kind == EXTERNAL_FLOAT_ELEMENTS) ||
        (elements_kind == EXTERNAL_DOUBLE_ELEMENTS))));
-  ASSERT(instr->key()->representation().IsInteger32());
+  ASSERT(instr->key()->representation().IsInteger32() ||
+         instr->key()->representation().IsTagged());
   LOperand* external_pointer = UseRegister(instr->external_pointer());
-  LOperand* key = UseRegisterOrConstant(instr->key());
+  bool clobbers_key = ExternalArrayOpRequiresTemp(
+      instr->key()->representation(), elements_kind);
+  LOperand* key = clobbers_key
+      ? UseTempRegister(instr->key())
+      : UseRegisterOrConstant(instr->key());
+
   LLoadKeyedSpecializedArrayElement* result =
-      new(zone()) LLoadKeyedSpecializedArrayElement(external_pointer, key);
+    new(zone()) LLoadKeyedSpecializedArrayElement(external_pointer, key);
   LInstruction* load_instr = DefineAsRegister(result);
   // An unsigned int array load might overflow and cause a deopt, make sure it
   // has an environment.
@@ -1961,7 +1969,8 @@ LInstruction* LChunkBuilder::DoStoreKeyedFastElement(
   bool needs_write_barrier = instr->NeedsWriteBarrier();
   ASSERT(instr->value()->representation().IsTagged());
   ASSERT(instr->object()->representation().IsTagged());
-  ASSERT(instr->key()->representation().IsInteger32());
+  ASSERT(instr->key()->representation().IsInteger32() ||
+         instr->key()->representation().IsTagged());
 
   LOperand* obj = UseRegister(instr->object());
   LOperand* val = needs_write_barrier
@@ -1978,7 +1987,8 @@ LInstruction* LChunkBuilder::DoStoreKeyedFastDoubleElement(
     HStoreKeyedFastDoubleElement* instr) {
   ASSERT(instr->value()->representation().IsDouble());
   ASSERT(instr->elements()->representation().IsTagged());
-  ASSERT(instr->key()->representation().IsInteger32());
+  ASSERT(instr->key()->representation().IsInteger32() ||
+         instr->key()->representation().IsTagged());
 
   LOperand* elements = UseRegisterAtStart(instr->elements());
   LOperand* val = UseTempRegister(instr->value());
@@ -1999,10 +2009,10 @@ LInstruction* LChunkBuilder::DoStoreKeyedSpecializedArrayElement(
        ((elements_kind == EXTERNAL_FLOAT_ELEMENTS) ||
        (elements_kind == EXTERNAL_DOUBLE_ELEMENTS))));
   ASSERT(instr->external_pointer()->representation().IsExternal());
-  ASSERT(instr->key()->representation().IsInteger32());
+  ASSERT(instr->key()->representation().IsInteger32() ||
+         instr->key()->representation().IsTagged());
 
   LOperand* external_pointer = UseRegister(instr->external_pointer());
-  LOperand* key = UseRegisterOrConstant(instr->key());
   LOperand* val = NULL;
   if (elements_kind == EXTERNAL_BYTE_ELEMENTS ||
       elements_kind == EXTERNAL_UNSIGNED_BYTE_ELEMENTS ||
@@ -2012,7 +2022,11 @@ LInstruction* LChunkBuilder::DoStoreKeyedSpecializedArrayElement(
   } else {
     val = UseRegister(instr->value());
   }
-
+  bool clobbers_key = ExternalArrayOpRequiresTemp(
+      instr->key()->representation(), elements_kind);
+  LOperand* key = clobbers_key
+      ? UseTempRegister(instr->key())
+      : UseRegisterOrConstant(instr->key());
   return new(zone()) LStoreKeyedSpecializedArrayElement(external_pointer,
                                                         key,
                                                         val);
