@@ -43,12 +43,21 @@ void OptimizingCompilerThread::Run() {
 #endif
   Isolate::SetIsolateThreadLocals(isolate_, NULL);
 
+  int64_t epoch = 0;
+  if (FLAG_trace_parallel_recompilation) epoch = OS::Ticks();
+
   while (true) {
     input_queue_semaphore_->Wait();
     if (Acquire_Load(&stop_thread_)) {
       stop_semaphore_->Signal();
+      if (FLAG_trace_parallel_recompilation) {
+        time_spent_total_ = OS::Ticks() - epoch;
+      }
       return;
     }
+
+    int64_t compiling_start = 0;
+    if (FLAG_trace_parallel_recompilation) compiling_start = OS::Ticks();
 
     Heap::RelocationLock relocation_lock(isolate_->heap());
     OptimizingCompiler* optimizing_compiler = NULL;
@@ -60,10 +69,14 @@ void OptimizingCompilerThread::Run() {
     OptimizingCompiler::Status status = optimizing_compiler->OptimizeGraph();
     ASSERT(status != OptimizingCompiler::FAILED);
     // Prevent an unused-variable error in release mode.
-    (void) status;
+    USE(status);
 
     output_queue_.Enqueue(optimizing_compiler);
     isolate_->stack_guard()->RequestCodeReadyEvent();
+
+    if (FLAG_trace_parallel_recompilation) {
+      time_spent_compiling_ += OS::Ticks() - compiling_start;
+    }
   }
 }
 
@@ -72,6 +85,13 @@ void OptimizingCompilerThread::Stop() {
   Release_Store(&stop_thread_, static_cast<AtomicWord>(true));
   input_queue_semaphore_->Signal();
   stop_semaphore_->Wait();
+
+  if (FLAG_trace_parallel_recompilation) {
+    double compile_time = static_cast<double>(time_spent_compiling_);
+    double total_time = static_cast<double>(time_spent_total_);
+    double percentage = (compile_time * 100) / total_time;
+    PrintF("  ** Compiler thread did %.2f%% useful work\n", percentage);
+  }
 }
 
 

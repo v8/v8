@@ -45,7 +45,9 @@ class OptimizingCompilerThread : public Thread {
       Thread("OptimizingCompilerThread"),
       isolate_(isolate),
       stop_semaphore_(OS::CreateSemaphore(0)),
-      input_queue_semaphore_(OS::CreateSemaphore(0)) {
+      input_queue_semaphore_(OS::CreateSemaphore(0)),
+      time_spent_compiling_(0),
+      time_spent_total_(0) {
     NoBarrier_Store(&stop_thread_, static_cast<AtomicWord>(false));
     NoBarrier_Store(&queue_length_, static_cast<AtomicWord>(0));
   }
@@ -86,6 +88,8 @@ class OptimizingCompilerThread : public Thread {
   UnboundQueue<OptimizingCompiler*> output_queue_;
   volatile AtomicWord stop_thread_;
   volatile Atomic32 queue_length_;
+  int64_t time_spent_compiling_;
+  int64_t time_spent_total_;
 
 #ifdef DEBUG
   int thread_id_;
