@@ -726,7 +726,6 @@ static void InstallCodeCommon(CompilationInfo* info) {
   // reset this bit when lazy compiling the code again.
   if (shared->optimization_disabled()) code->set_optimizable(false);
 
-  Handle<JSFunction> function = info->closure();
   Compiler::RecordFunctionCompilation(Logger::LAZY_COMPILE_TAG, info, shared);
 }
 
