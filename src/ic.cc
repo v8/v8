@@ -938,6 +938,7 @@ void LoadIC::UpdateCaches(LookupResult* lookup,
         Handle<AccessorInfo> callback =
             Handle<AccessorInfo>::cast(callback_object);
         if (v8::ToCData<Address>(callback->getter()) == 0) return;
+        if (!receiver->HasFastProperties()) return;
         code = isolate()->stub_cache()->ComputeLoadCallback(
             name, receiver, holder, callback);
         break;
@@ -1174,6 +1175,7 @@ void KeyedLoadIC::UpdateCaches(LookupResult* lookup,
         Handle<AccessorInfo> callback =
             Handle<AccessorInfo>::cast(callback_object);
         if (v8::ToCData<Address>(callback->getter()) == 0) return;
+        if (!receiver->HasFastProperties()) return;
         code = isolate()->stub_cache()->ComputeKeyedLoadCallback(
             name, receiver, holder, callback);
         break;
@@ -1388,6 +1390,7 @@ void StoreIC::UpdateCaches(LookupResult* lookup,
       Handle<AccessorInfo> callback =
           Handle<AccessorInfo>::cast(callback_object);
       if (v8::ToCData<Address>(callback->setter()) == 0) return;
+      if (!receiver->HasFastProperties()) return;
       code = isolate()->stub_cache()->ComputeStoreCallback(
           name, receiver, callback, strict_mode);
       break;
