@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -86,6 +86,16 @@ v8::Handle<v8::Value> StatisticsExtension::GetCounters(
             *counters->size_of_CODE_TYPE_##name()->GetInternalPointer()));
 
   CODE_KIND_LIST(ADD_COUNTER)
+#undef ADD_COUNTER
+#define ADD_COUNTER(name)                                                      \
+  result->Set(v8::String::New("count_of_FIXED_ARRAY_" #name),                  \
+      v8::Number::New(                                                         \
+          *counters->count_of_FIXED_ARRAY_##name()->GetInternalPointer()));    \
+  result->Set(v8::String::New("size_of_FIXED_ARRAY_" #name),                   \
+        v8::Number::New(                                                       \
+            *counters->size_of_FIXED_ARRAY_##name()->GetInternalPointer()));
+
+  FIXED_ARRAY_SUB_INSTANCE_TYPE_LIST(ADD_COUNTER)
 #undef ADD_COUNTER
 
   return result;

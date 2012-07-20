@@ -944,7 +944,15 @@ class StaticMarkingVisitor : public StaticVisitorBase {
     table_.GetVisitor(map)(map, obj);
   }
 
-  template<int id>
+  static void ObjectStatsVisitBase(StaticVisitorBase::VisitorId id,
+                                   Map* map, HeapObject* obj);
+
+  static void ObjectStatsCountFixedArray(
+      FixedArrayBase* fixed_array,
+      FixedArraySubInstanceType fast_type,
+      FixedArraySubInstanceType dictionary_type);
+
+  template<StaticMarkingVisitor::VisitorId id>
   class ObjectStatsTracker {
    public:
     static inline void Visit(Map* map, HeapObject* obj);
@@ -1499,14 +1507,82 @@ class StaticMarkingVisitor : public StaticVisitorBase {
 };
 
 
-template<int id>
-void StaticMarkingVisitor::ObjectStatsTracker<id>::Visit(
-    Map* map, HeapObject* obj) {
+void StaticMarkingVisitor::ObjectStatsCountFixedArray(
+    FixedArrayBase* fixed_array,
+    FixedArraySubInstanceType fast_type,
+    FixedArraySubInstanceType dictionary_type) {
+  Heap* heap = fixed_array->map()->GetHeap();
+  if (fixed_array->map() != heap->fixed_cow_array_map() &&
+      fixed_array->map() != heap->fixed_double_array_map() &&
+      fixed_array != heap->empty_fixed_array()) {
+    if (fixed_array->IsDictionary()) {
+      heap->RecordObjectStats(FIXED_ARRAY_TYPE,
+                              dictionary_type,
+                              fixed_array->Size());
+    } else {
+      heap->RecordObjectStats(FIXED_ARRAY_TYPE,
+                              fast_type,
+                              fixed_array->Size());
+    }
+  }
+}
+
+
+void StaticMarkingVisitor::ObjectStatsVisitBase(
+    StaticVisitorBase::VisitorId id, Map* map, HeapObject* obj) {
   Heap* heap = map->GetHeap();
   int object_size = obj->Size();
   heap->RecordObjectStats(map->instance_type(), -1, object_size);
-  non_count_table_.GetVisitorById(static_cast<VisitorId>(id))(map, obj);
+  non_count_table_.GetVisitorById(id)(map, obj);
+  if (obj->IsJSObject()) {
+    JSObject* object = JSObject::cast(obj);
+    ObjectStatsCountFixedArray(object->elements(),
+                               DICTIONARY_ELEMENTS_SUB_TYPE,
+                               FAST_ELEMENTS_SUB_TYPE);
+    ObjectStatsCountFixedArray(object->properties(),
+                               DICTIONARY_PROPERTIES_SUB_TYPE,
+                               FAST_PROPERTIES_SUB_TYPE);
+  }
 }
+
+
+template<StaticMarkingVisitor::VisitorId id>
+void StaticMarkingVisitor::ObjectStatsTracker<id>::Visit(
+    Map* map, HeapObject* obj) {
+  ObjectStatsVisitBase(id, map, obj);
+}
+
+
+template<>
+class StaticMarkingVisitor::ObjectStatsTracker<
+  StaticMarkingVisitor::kVisitMap> {
+ public:
+  static inline void Visit(Map* map, HeapObject* obj) {
+    Heap* heap = map->GetHeap();
+    Map* map_obj = Map::cast(obj);
+    ASSERT(map->instance_type() == MAP_TYPE);
+    DescriptorArray* array = map_obj->instance_descriptors();
+    if (array != heap->empty_descriptor_array()) {
+      int fixed_array_size = array->Size();
+      heap->RecordObjectStats(FIXED_ARRAY_TYPE,
+                              DESCRIPTOR_ARRAY_SUB_TYPE,
+                              fixed_array_size);
+    }
+    if (map_obj->HasTransitionArray()) {
+      int fixed_array_size = map_obj->transitions()->Size();
+      heap->RecordObjectStats(FIXED_ARRAY_TYPE,
+                              TRANSITION_ARRAY_SUB_TYPE,
+                              fixed_array_size);
+    }
+    if (map_obj->code_cache() != heap->empty_fixed_array()) {
+      heap->RecordObjectStats(
+          FIXED_ARRAY_TYPE,
+          MAP_CODE_CACHE_SUB_TYPE,
+          FixedArray::cast(map_obj->code_cache())->Size());
+    }
+    ObjectStatsVisitBase(kVisitMap, map, obj);
+  }
+};
 
 
 template<>
@@ -1517,10 +1593,44 @@ class StaticMarkingVisitor::ObjectStatsTracker<
     Heap* heap = map->GetHeap();
     int object_size = obj->Size();
     ASSERT(map->instance_type() == CODE_TYPE);
-    heap->RecordObjectStats(CODE_TYPE, -1, object_size);
     heap->RecordObjectStats(CODE_TYPE, Code::cast(obj)->kind(), object_size);
-    non_count_table_.GetVisitorById(
-        static_cast<VisitorId>(kVisitCode))(map, obj);
+    ObjectStatsVisitBase(kVisitCode, map, obj);
+  }
+};
+
+
+template<>
+class StaticMarkingVisitor::ObjectStatsTracker<
+  StaticMarkingVisitor::kVisitSharedFunctionInfo> {
+ public:
+  static inline void Visit(Map* map, HeapObject* obj) {
+    Heap* heap = map->GetHeap();
+    SharedFunctionInfo* sfi = SharedFunctionInfo::cast(obj);
+    if (sfi->scope_info() != heap->empty_fixed_array()) {
+      heap->RecordObjectStats(
+          FIXED_ARRAY_TYPE,
+          SCOPE_INFO_SUB_TYPE,
+          FixedArray::cast(sfi->scope_info())->Size());
+    }
+    ObjectStatsVisitBase(kVisitSharedFunctionInfo, map, obj);
+  }
+};
+
+
+template<>
+class StaticMarkingVisitor::ObjectStatsTracker<
+  StaticMarkingVisitor::kVisitFixedArray> {
+ public:
+  static inline void Visit(Map* map, HeapObject* obj) {
+    Heap* heap = map->GetHeap();
+    FixedArray* fixed_array = FixedArray::cast(obj);
+    if (fixed_array == heap->symbol_table()) {
+      heap->RecordObjectStats(
+          FIXED_ARRAY_TYPE,
+          SYMBOL_TABLE_SUB_TYPE,
+          fixed_array->Size());
+    }
+    ObjectStatsVisitBase(kVisitFixedArray, map, obj);
   }
 };
 

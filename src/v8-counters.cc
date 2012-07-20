@@ -71,6 +71,16 @@ Counters::Counters() {
     CODE_KIND_LIST(SC)
 #undef SC
 
+#define SC(name) \
+    StatsCounter count_of_FIXED_ARRAY_##name = { \
+      "c:" "V8.CountOf_FIXED_ARRAY-" #name, NULL, false }; \
+    count_of_FIXED_ARRAY_##name##_ = count_of_FIXED_ARRAY_##name; \
+    StatsCounter size_of_FIXED_ARRAY_##name = { \
+      "c:" "V8.SizeOf_FIXED_ARRAY-" #name, NULL, false }; \
+    size_of_FIXED_ARRAY_##name##_ = size_of_FIXED_ARRAY_##name;
+    FIXED_ARRAY_SUB_INSTANCE_TYPE_LIST(SC)
+#undef SC
+
   StatsCounter state_counters[] = {
 #define COUNTER_NAME(name) \
     { "c:V8.State" #name, NULL, false },

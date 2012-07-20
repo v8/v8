@@ -654,6 +654,25 @@ STATIC_CHECK(ODDBALL_TYPE == Internals::kOddballType);
 STATIC_CHECK(FOREIGN_TYPE == Internals::kForeignType);
 
 
+#define FIXED_ARRAY_SUB_INSTANCE_TYPE_LIST(V) \
+  V(FAST_ELEMENTS_SUB_TYPE)                   \
+  V(DICTIONARY_ELEMENTS_SUB_TYPE)             \
+  V(FAST_PROPERTIES_SUB_TYPE)                 \
+  V(DICTIONARY_PROPERTIES_SUB_TYPE)           \
+  V(MAP_CODE_CACHE_SUB_TYPE)                  \
+  V(SCOPE_INFO_SUB_TYPE)                      \
+  V(SYMBOL_TABLE_SUB_TYPE)                    \
+  V(DESCRIPTOR_ARRAY_SUB_TYPE)                \
+  V(TRANSITION_ARRAY_SUB_TYPE)
+
+enum FixedArraySubInstanceType {
+#define DEFINE_FIXED_ARRAY_SUB_INSTANCE_TYPE(name) name,
+  FIXED_ARRAY_SUB_INSTANCE_TYPE_LIST(DEFINE_FIXED_ARRAY_SUB_INSTANCE_TYPE)
+#undef DEFINE_FIXED_ARRAY_SUB_INSTANCE_TYPE
+  LAST_FIXED_ARRAY_SUB_TYPE = TRANSITION_ARRAY_SUB_TYPE
+};
+
+
 enum CompareResult {
   LESS      = -1,
   EQUAL     =  0,

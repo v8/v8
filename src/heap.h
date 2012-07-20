@@ -1601,7 +1601,10 @@ class Heap {
   // another.
   enum {
     FIRST_CODE_KIND_SUB_TYPE = LAST_TYPE + 1,
-    OBJECT_STATS_COUNT = FIRST_CODE_KIND_SUB_TYPE + Code::LAST_CODE_KIND + 1
+    FIRST_FIXED_ARRAY_SUB_TYPE =
+        FIRST_CODE_KIND_SUB_TYPE + Code::LAST_CODE_KIND + 1,
+    OBJECT_STATS_COUNT =
+        FIRST_FIXED_ARRAY_SUB_TYPE + LAST_FIXED_ARRAY_SUB_TYPE + 1
   };
 
   void RecordObjectStats(InstanceType type, int sub_type, size_t size) {
@@ -1614,6 +1617,10 @@ class Heap {
         ASSERT(sub_type <= Code::LAST_CODE_KIND);
         object_counts_[FIRST_CODE_KIND_SUB_TYPE + sub_type]++;
         object_sizes_[FIRST_CODE_KIND_SUB_TYPE + sub_type] += size;
+      } else if (type == FIXED_ARRAY_TYPE) {
+        ASSERT(sub_type <= LAST_FIXED_ARRAY_SUB_TYPE);
+        object_counts_[FIRST_FIXED_ARRAY_SUB_TYPE + sub_type]++;
+        object_sizes_[FIRST_FIXED_ARRAY_SUB_TYPE + sub_type] += size;
       }
     }
   }
