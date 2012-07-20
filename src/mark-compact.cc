@@ -1974,13 +1974,6 @@ void Marker<T>::MarkTransitionArray(TransitionArray* transitions) {
   if (!base_marker()->MarkObjectWithoutPush(transitions)) return;
   Object** transitions_start = transitions->data_start();
 
-  if (transitions->HasElementsTransition()) {
-    mark_compact_collector()->RecordSlot(
-        transitions_start,
-        transitions->GetElementsTransitionSlot(),
-        transitions->elements_transition());
-  }
-
   if (transitions->HasPrototypeTransitions()) {
     // Mark prototype transitions array but don't push it into marking stack.
     // This will make references from it weak. We will clean dead prototype
@@ -2000,16 +1993,6 @@ void Marker<T>::MarkTransitionArray(TransitionArray* transitions) {
       mark_compact_collector()->RecordSlot(transitions_start, key_slot, key);
     }
   }
-}
-
-
-template <class T>
-void Marker<T>::MarkAccessorPairSlot(AccessorPair* accessors, int offset) {
-  Object** slot = HeapObject::RawField(accessors, offset);
-  HeapObject* accessor = HeapObject::cast(*slot);
-  if (accessor->IsMap()) return;
-  mark_compact_collector()->RecordSlot(slot, slot, accessor);
-  base_marker()->MarkObjectAndPush(accessor);
 }
 
 

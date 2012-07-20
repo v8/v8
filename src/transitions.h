@@ -61,7 +61,6 @@ class TransitionArray: public FixedArray {
   inline void set_elements_transition(
       Map* target,
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-  inline Object** GetElementsTransitionSlot();
   inline bool HasElementsTransition();
   inline void ClearElementsTransition();
 

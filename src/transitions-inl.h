@@ -167,12 +167,6 @@ PropertyDetails TransitionArray::GetTargetDetails(int transition_number) {
 }
 
 
-Object** TransitionArray::GetElementsTransitionSlot() {
-  return HeapObject::RawField(reinterpret_cast<HeapObject*>(this),
-                              kElementsTransitionOffset);
-}
-
-
 int TransitionArray::Search(String* name) {
   return internal::Search(this, name);
 }
