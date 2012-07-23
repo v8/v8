@@ -1803,7 +1803,8 @@ void HLoadKeyedFastElement::PrintDataTo(StringStream* stream) {
   object()->PrintNameTo(stream);
   stream->Add("[");
   key()->PrintNameTo(stream);
-  stream->Add("]");
+  stream->Add("] ");
+  dependency()->PrintNameTo(stream);
   if (RequiresHoleCheck()) {
     stream->Add(" check_hole");
   }
@@ -1828,7 +1829,8 @@ void HLoadKeyedFastDoubleElement::PrintDataTo(StringStream* stream) {
   elements()->PrintNameTo(stream);
   stream->Add("[");
   key()->PrintNameTo(stream);
-  stream->Add("]");
+  stream->Add("] ");
+  dependency()->PrintNameTo(stream);
 }
 
 
@@ -1857,6 +1859,7 @@ HValue* HLoadKeyedGeneric::Canonicalize() {
             new(block()->zone()) HCheckMapValue(object(), names_cache->map());
         HInstruction* index = new(block()->zone()) HLoadKeyedFastElement(
             index_cache,
+            key_load->key(),
             key_load->key());
         map_check->InsertBefore(this);
         index->InsertBefore(this);
@@ -1917,7 +1920,8 @@ void HLoadKeyedSpecializedArrayElement::PrintDataTo(
   }
   stream->Add("[");
   key()->PrintNameTo(stream);
-  stream->Add("]");
+  stream->Add("] ");
+  dependency()->PrintNameTo(stream);
 }
 
 

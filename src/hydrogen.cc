@@ -4368,7 +4368,8 @@ void HGraphBuilder::VisitForInStatement(ForInStatement* stmt) {
   HValue* key = AddInstruction(
       new(zone()) HLoadKeyedFastElement(
           environment()->ExpressionStackAt(2),  // Enum cache.
-          environment()->ExpressionStackAt(0)));  // Iteration index.
+          environment()->ExpressionStackAt(0),  // Iteration index.
+          environment()->ExpressionStackAt(0)));
 
   // Check if the expected map still matches that of the enumerable.
   // If not just deoptimize.
@@ -5708,6 +5709,7 @@ HInstruction* HGraphBuilder::BuildExternalArrayElementAccess(
     HValue* external_elements,
     HValue* checked_key,
     HValue* val,
+    HValue* dependency,
     ElementsKind elements_kind,
     bool is_store) {
   if (is_store) {
@@ -5751,7 +5753,7 @@ HInstruction* HGraphBuilder::BuildExternalArrayElementAccess(
   } else {
     ASSERT(val == NULL);
     return new(zone()) HLoadKeyedSpecializedArrayElement(
-        external_elements, checked_key, elements_kind);
+        external_elements, checked_key, dependency, elements_kind);
   }
 }
 
@@ -5759,6 +5761,7 @@ HInstruction* HGraphBuilder::BuildExternalArrayElementAccess(
 HInstruction* HGraphBuilder::BuildFastElementAccess(HValue* elements,
                                                     HValue* checked_key,
                                                     HValue* val,
+                                                    HValue* load_dependency,
                                                     ElementsKind elements_kind,
                                                     bool is_store) {
   if (is_store) {
@@ -5787,10 +5790,11 @@ HInstruction* HGraphBuilder::BuildFastElementAccess(HValue* elements,
       OMIT_HOLE_CHECK :
       PERFORM_HOLE_CHECK;
   if (IsFastDoubleElementsKind(elements_kind)) {
-    return new(zone()) HLoadKeyedFastDoubleElement(elements, checked_key, mode);
+    return new(zone()) HLoadKeyedFastDoubleElement(elements, checked_key,
+                                                   load_dependency, mode);
   } else {  // Smi or Object elements.
     return new(zone()) HLoadKeyedFastElement(elements, checked_key,
-                                             elements_kind);
+                                             load_dependency, elements_kind);
   }
 }
 
@@ -5847,8 +5851,9 @@ HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
     HLoadExternalArrayPointer* external_elements =
         new(zone()) HLoadExternalArrayPointer(elements);
     AddInstruction(external_elements);
-    return BuildExternalArrayElementAccess(external_elements, checked_key,
-                                           val, map->elements_kind(), is_store);
+    return BuildExternalArrayElementAccess(
+        external_elements, checked_key, val, mapcheck,
+        map->elements_kind(), is_store);
   }
   ASSERT(fast_smi_only_elements ||
          fast_elements ||
@@ -5860,7 +5865,7 @@ HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
     length = AddInstruction(new(zone()) HFixedArrayBaseLength(elements));
   }
   checked_key = AddInstruction(new(zone()) HBoundsCheck(key, length));
-  return BuildFastElementAccess(elements, checked_key, val,
+  return BuildFastElementAccess(elements, checked_key, val, mapcheck,
                                 map->elements_kind(), is_store);
 }
 
@@ -6081,7 +6086,8 @@ HValue* HGraphBuilder::HandlePolymorphicElementAccess(HValue* object,
         checked_key = AddInstruction(new(zone()) HBoundsCheck(key, length,
                                                               ALLOW_SMI_KEY));
         access = AddInstruction(BuildFastElementAccess(
-            elements, checked_key, val, elements_kind, is_store));
+            elements, checked_key, val, elements_kind_branch,
+            elements_kind, is_store));
         if (!is_store) {
           Push(access);
         }
@@ -6097,7 +6103,8 @@ HValue* HGraphBuilder::HandlePolymorphicElementAccess(HValue* object,
         checked_key = AddInstruction(new(zone()) HBoundsCheck(key, length,
                                                               ALLOW_SMI_KEY));
         access = AddInstruction(BuildFastElementAccess(
-            elements, checked_key, val, elements_kind, is_store));
+            elements, checked_key, val, elements_kind_branch,
+            elements_kind, is_store));
       } else if (elements_kind == DICTIONARY_ELEMENTS) {
         if (is_store) {
           access = AddInstruction(BuildStoreKeyedGeneric(object, key, val));
@@ -6106,7 +6113,8 @@ HValue* HGraphBuilder::HandlePolymorphicElementAccess(HValue* object,
         }
       } else {  // External array elements.
         access = AddInstruction(BuildExternalArrayElementAccess(
-            external_elements, checked_key, val, elements_kind, is_store));
+            external_elements, checked_key, val, elements_kind_branch,
+            elements_kind, is_store));
       }
       *has_side_effects |= access->HasObservableSideEffects();
       if (position != RelocInfo::kNoPosition) access->set_position(position);

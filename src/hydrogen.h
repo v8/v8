@@ -1100,11 +1100,13 @@ class HGraphBuilder: public AstVisitor {
       HValue* external_elements,
       HValue* checked_key,
       HValue* val,
+      HValue* dependency,
       ElementsKind elements_kind,
       bool is_store);
   HInstruction* BuildFastElementAccess(HValue* elements,
                                        HValue* checked_key,
                                        HValue* val,
+                                       HValue* dependency,
                                        ElementsKind elements_kind,
                                        bool is_store);
 
