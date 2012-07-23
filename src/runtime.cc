@@ -2160,10 +2160,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_FunctionSetReadOnlyPrototype) {
   RUNTIME_ASSERT(args.length() == 1);
   CONVERT_ARG_CHECKED(JSFunction, function, 0);
 
-  MaybeObject* maybe_name =
-      isolate->heap()->AllocateStringFromAscii(CStrVector("prototype"));
-  String* name;
-  if (!maybe_name->To(&name)) return maybe_name;
+  String* name = isolate->heap()->prototype_symbol();
 
   if (function->HasFastProperties()) {
     // Construct a new field descriptor with updated attributes.
