@@ -819,8 +819,8 @@ bool Compiler::CompileLazy(CompilationInfo* info) {
 
 
 void Compiler::RecompileParallel(Handle<JSFunction> closure) {
-  ASSERT(closure->IsMarkedForParallelRecompilation());
   if (closure->IsInRecompileQueue()) return;
+  ASSERT(closure->IsMarkedForParallelRecompilation());
 
   Isolate* isolate = closure->GetIsolate();
   if (!isolate->optimizing_compiler_thread()->IsQueueAvailable()) {

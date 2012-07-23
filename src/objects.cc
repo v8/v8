@@ -12447,6 +12447,24 @@ MaybeObject* StringDictionary::TransformPropertiesToFastFor(
     }
   }
 
+  int inobject_props = obj->map()->inobject_properties();
+
+  // Allocate new map.
+  Map* new_map;
+  MaybeObject* maybe_new_map = obj->map()->CopyDropDescriptors();
+  if (!maybe_new_map->To(&new_map)) return maybe_new_map;
+
+  if (instance_descriptor_length == 0) {
+    ASSERT_LE(unused_property_fields, inobject_props);
+    // Transform the object.
+    new_map->set_unused_property_fields(unused_property_fields);
+    obj->set_map(new_map);
+    obj->set_properties(heap->empty_fixed_array());
+    // Check that it really works.
+    ASSERT(obj->HasFastProperties());
+    return obj;
+  }
+
   // Allocate the instance descriptor.
   DescriptorArray* descriptors;
   MaybeObject* maybe_descriptors =
@@ -12458,7 +12476,6 @@ MaybeObject* StringDictionary::TransformPropertiesToFastFor(
 
   FixedArray::WhitenessWitness witness(descriptors);
 
-  int inobject_props = obj->map()->inobject_properties();
   int number_of_allocated_fields =
       number_of_fields + unused_property_fields - inobject_props;
   if (number_of_allocated_fields < 0) {
@@ -12523,13 +12540,9 @@ MaybeObject* StringDictionary::TransformPropertiesToFastFor(
   ASSERT(current_offset == number_of_fields);
 
   descriptors->Sort(witness);
-  // Allocate new map.
-  Map* new_map;
-  MaybeObject* maybe_new_map = obj->map()->CopyDropDescriptors();
-  if (!maybe_new_map->To(&new_map)) return maybe_new_map;
 
-  new_map->InitializeDescriptors(descriptors);
   new_map->set_unused_property_fields(unused_property_fields);
+  new_map->InitializeDescriptors(descriptors);
 
   // Transform the object.
   obj->set_map(new_map);
