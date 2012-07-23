@@ -55,7 +55,7 @@ function sync_file {
 function sync_dir {
   local DIR=$1
   echo -n "sync to $ANDROID_V8/$DIR"
-  for FILE in $(find "$HOST_V8/$DIR" -type f); do
+  for FILE in $(find "$HOST_V8/$DIR" -not -path "*.svn*" -type f); do
     local RELATIVE_FILE=${FILE:${#HOST_V8}}
     sync_file "$RELATIVE_FILE"
   done
