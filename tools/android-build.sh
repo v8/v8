@@ -27,7 +27,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 if [ ${#@} -lt 4 ] ; then
-  echo "Error: $0 needs 4 arguments."
+  echo "$0: Error: needs 4 arguments."
   exit 1
 fi
 
@@ -42,8 +42,11 @@ case "${host_os}" in
   "linux")
     toolchain_dir="linux-x86"
     ;;
+  "mac")
+    toolchain_dir="darwin-x86"
+    ;;
   *)
-    echo "Host platform ${host_os} is not supported" >& 2
+    echo "$0: Host platform ${host_os} is not supported" >& 2
     exit 1
 esac
 
@@ -58,23 +61,27 @@ case "${ARCH}" in
     toolchain_arch="x86-4.4.3"
     ;;
   *)
-    echo "Architecture: ${ARCH} is not supported." >& 2
-    echo "Current supported architectures: arm|ia32." >& 2
+    echo "$0: Target architecture ${ARCH} is not supported." >& 2
+    echo "$0: Current supported architectures: android_arm|android_ia32." >& 2
     exit 1
 esac
 
 toolchain_path="${ANDROID_NDK_ROOT}/toolchains/${toolchain_arch}/prebuilt/"
 ANDROID_TOOLCHAIN="${toolchain_path}/${toolchain_dir}/bin"
 if [ ! -d "${ANDROID_TOOLCHAIN}" ]; then
-  echo "Cannot find Android toolchain in ${ANDROID_TOOLCHAIN}." >& 2
-  echo "The NDK version might be wrong." >& 2
+  echo "$0: Cannot find Android toolchain in ${ANDROID_TOOLCHAIN}." >& 2
+  echo "$0: The NDK version might be wrong." >& 2
   exit 1
 fi
 
-# The set of GYP_DEFINES to pass to gyp. 
+# For mksnapshot host generation.
+DEFINES+=" host_os=${host_os}"
+
+# The set of GYP_DEFINES to pass to gyp.
 export GYP_DEFINES="${DEFINES}"
 
-export GYP_GENERATORS=make
+# Use the "android" flavor of the Makefile generator for both Linux and OS X.
+export GYP_GENERATORS=make-android
 export CC=${ANDROID_TOOLCHAIN}/*-gcc
 export CXX=${ANDROID_TOOLCHAIN}/*-g++
 build/gyp/gyp --generator-output="${OUTDIR}" build/all.gyp \
@@ -85,6 +92,6 @@ export AR=${ANDROID_TOOLCHAIN}/*-ar
 export RANLIB=${ANDROID_TOOLCHAIN}/*-ranlib
 export LD=${ANDROID_TOOLCHAIN}/*-ld
 export LINK=${ANDROID_TOOLCHAIN}/*-g++
-export BUILDTYPE=${MODE[@]^}
-export builddir=$(readlink -f ${PWD})/${OUTDIR}/${ARCH}.${MODE}
+export BUILDTYPE=$(echo ${MODE} | python -c "print raw_input().capitalize()")
+export builddir=${PWD}/${OUTDIR}/${ARCH}.${MODE}
 make -C "${OUTDIR}" -f Makefile.${ARCH}

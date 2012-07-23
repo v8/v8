@@ -175,7 +175,7 @@ native: $(OUTDIR)/Makefile.native
 	         CXX="$(CXX)" LINK="$(LINK)" BUILDTYPE=Release \
 	         builddir="$(shell pwd)/$(OUTDIR)/$@"
 
-$(ANDROID_ARCHES): $(addprefix $$@.,$(MODE))
+$(ANDROID_ARCHES): $(addprefix $$@.,$(MODES))
 
 $(ANDROID_BUILDS): $(GYPFILES) $(ENVFILE) build/android.gypi \
                    must-set-ANDROID_NDK_ROOT
