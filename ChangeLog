@@ -1,3 +1,25 @@
+2012-07-24: Version 3.12.15
+
+        Added PRESERVE_ASCII_NULL option to String::WriteAscii.
+        (issue 2252)
+
+        Added dependency to HLoadKeyed* instructions to prevent invalid
+        hoisting. (Chromium issue 137768)
+
+        Enabled building d8 for Android on Mac.
+
+        Interpret negative hexadecimal literals as NaN.
+        (issue 2240)
+
+        Expose counters in javascript when using --track-gc-object-stats.
+
+        Enabled building and testing V8 on Android IA.
+
+        Added --trace-parse flag to parser.
+
+        Performance and stability improvements on all platforms.
+
+
 2012-07-18: Version 3.12.14
 
         Deactivated optimization of packed arrays.
