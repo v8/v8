@@ -1211,7 +1211,7 @@ void Shell::Initialize() {
   // Set up counters
   if (i::StrLength(i::FLAG_map_counters) != 0)
     MapCounters(i::FLAG_map_counters);
-  if (i::FLAG_dump_counters) {
+  if (i::FLAG_dump_counters || i::FLAG_track_gc_object_stats) {
     V8::SetCounterFunction(LookupCounter);
     V8::SetCreateHistogramFunction(CreateHistogram);
     V8::SetAddHistogramSampleFunction(AddHistogramSample);

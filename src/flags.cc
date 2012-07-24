@@ -31,7 +31,7 @@
 #include "v8.h"
 
 #include "platform.h"
-#include "smart-array-pointer.h"
+#include "smart-pointers.h"
 #include "string-stream.h"
 
 

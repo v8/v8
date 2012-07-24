@@ -68,7 +68,8 @@
     'conditions': [
       ['(v8_target_arch=="arm" and host_arch!="arm") or \
         (v8_target_arch=="mipsel" and host_arch!="mipsel") or \
-        (v8_target_arch=="x64" and host_arch!="x64")', {
+        (v8_target_arch=="x64" and host_arch!="x64") or \
+        (OS=="android")', {
         'want_separate_host_toolset': 1,
       }, {
         'want_separate_host_toolset': 0,

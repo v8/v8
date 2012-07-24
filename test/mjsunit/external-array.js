@@ -663,3 +663,54 @@ assertArrayPrefix([4, 5, 6], Int8Array(b2))
 var b3 = b0.slice(2, 4)
 assertEquals(2, b3.byteLength)
 assertArrayPrefix([3, 4], Int8Array(b3))
+
+function goo(a, i) {
+  return a[i];
+}
+
+function boo(a, i, v) {
+  return a[i] = v;
+}
+
+function do_tagged_index_external_array_test(constructor) {
+  var t_array = new constructor([1, 2, 3, 4, 5, 6]);
+  assertEquals(1, goo(t_array, 0));
+  assertEquals(1, goo(t_array, 0));
+  boo(t_array, 0, 13);
+  assertEquals(13, goo(t_array, 0));
+  %OptimizeFunctionOnNextCall(goo);
+  %OptimizeFunctionOnNextCall(boo);
+  boo(t_array, 0, 15);
+  assertEquals(15, goo(t_array, 0));
+  %ClearFunctionTypeFeedback(goo);
+  %ClearFunctionTypeFeedback(boo);
+}
+
+do_tagged_index_external_array_test(Int8Array);
+do_tagged_index_external_array_test(Uint8Array);
+do_tagged_index_external_array_test(Int16Array);
+do_tagged_index_external_array_test(Uint16Array);
+do_tagged_index_external_array_test(Int32Array);
+do_tagged_index_external_array_test(Uint32Array);
+do_tagged_index_external_array_test(Float32Array);
+do_tagged_index_external_array_test(Float64Array);
+
+var built_in_array = new Array(1, 2, 3, 4, 5, 6);
+assertEquals(1, goo(built_in_array, 0));
+assertEquals(1, goo(built_in_array, 0));
+%OptimizeFunctionOnNextCall(goo);
+%OptimizeFunctionOnNextCall(boo);
+boo(built_in_array, 0, 11);
+assertEquals(11, goo(built_in_array, 0));
+%ClearFunctionTypeFeedback(goo);
+%ClearFunctionTypeFeedback(boo);
+
+built_in_array = new Array(1.5, 2, 3, 4, 5, 6);
+assertEquals(1.5, goo(built_in_array, 0));
+assertEquals(1.5, goo(built_in_array, 0));
+%OptimizeFunctionOnNextCall(goo);
+%OptimizeFunctionOnNextCall(boo);
+boo(built_in_array, 0, 2.5);
+assertEquals(2.5, goo(built_in_array, 0));
+%ClearFunctionTypeFeedback(goo);
+%ClearFunctionTypeFeedback(boo);

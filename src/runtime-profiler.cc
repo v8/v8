@@ -151,15 +151,20 @@ void RuntimeProfiler::Optimize(JSFunction* function, const char* reason) {
     PrintF("]\n");
   }
 
-  // The next call to the function will trigger optimization.
-  function->MarkForLazyRecompilation();
+  if (FLAG_parallel_recompilation) {
+    function->MarkForParallelRecompilation();
+  } else {
+    // The next call to the function will trigger optimization.
+    function->MarkForLazyRecompilation();
+  }
 }
 
 
 void RuntimeProfiler::AttemptOnStackReplacement(JSFunction* function) {
   // See AlwaysFullCompiler (in compiler.cc) comment on why we need
   // Debug::has_break_points().
-  ASSERT(function->IsMarkedForLazyRecompilation());
+  ASSERT(function->IsMarkedForLazyRecompilation() ||
+         function->IsMarkedForParallelRecompilation());
   if (!FLAG_use_osr ||
       isolate_->DebuggerHasBreakPoints() ||
       function->IsBuiltin()) {
@@ -278,7 +283,8 @@ void RuntimeProfiler::OptimizeNow() {
 
     if (shared_code->kind() != Code::FUNCTION) continue;
 
-    if (function->IsMarkedForLazyRecompilation()) {
+    if (function->IsMarkedForLazyRecompilation() ||
+        function->IsMarkedForParallelRecompilation()) {
       int nesting = shared_code->allow_osr_at_loop_nesting_level();
       if (nesting == 0) AttemptOnStackReplacement(function);
       int new_nesting = Min(nesting + 1, Code::kMaxLoopNestingMarker);

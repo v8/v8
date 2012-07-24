@@ -42,7 +42,7 @@ import sys
 import tempfile
 
 def Check(output, errors):
-  failed = any([s.startswith('/system/bin/sh:') or s.startswith('Error')
+  failed = any([s.startswith('/system/bin/sh:') or s.startswith('ANDROID')
                 for s in output.split('\n')])
   return 1 if failed else 0
 
@@ -92,8 +92,8 @@ def Main():
   args = [Escape(arg) for arg in sys.argv[1:]]
   script = (" ".join(args) + "\n"
             "case $? in\n"
-            "  0) break;;\n"
-            "  *) echo \"Error returned by test\";;\n"
+            "  0) ;;\n"
+            "  *) echo \"ANDROID: Error returned by test\";;\n"
             "esac\n")
   script = script.replace(workspace, android_workspace)
   script_file = WriteToTemporaryFile(script)

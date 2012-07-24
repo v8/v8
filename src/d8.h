@@ -31,7 +31,7 @@
 #ifndef V8_SHARED
 #include "allocation.h"
 #include "hashmap.h"
-#include "smart-array-pointer.h"
+#include "smart-pointers.h"
 #include "v8.h"
 #else
 #include "../include/v8.h"

@@ -1932,3 +1932,37 @@ TEST(ReleaseOverReservedPages) {
   HEAP->CollectAllAvailableGarbage("triggered really hard");
   CHECK_EQ(1, old_pointer_space->CountTotalPages());
 }
+
+
+TEST(Regress2237) {
+  InitializeVM();
+  v8::HandleScope scope;
+  Handle<String> slice(HEAP->empty_string());
+
+  {
+    // Generate a parent that lives in new-space.
+    v8::HandleScope inner_scope;
+    const char* c = "This text is long enough to trigger sliced strings.";
+    Handle<String> s = FACTORY->NewStringFromAscii(CStrVector(c));
+    CHECK(s->IsSeqAsciiString());
+    CHECK(HEAP->InNewSpace(*s));
+
+    // Generate a sliced string that is based on the above parent and
+    // lives in old-space.
+    FillUpNewSpace(HEAP->new_space());
+    AlwaysAllocateScope always_allocate;
+    Handle<String> t;
+    // TODO(mstarzinger): Unfortunately FillUpNewSpace() still leaves
+    // some slack, so we need to allocate a few sliced strings.
+    for (int i = 0; i < 16; i++) {
+      t = FACTORY->NewProperSubString(s, 5, 35);
+    }
+    CHECK(t->IsSlicedString());
+    CHECK(!HEAP->InNewSpace(*t));
+    *slice.location() = *t.location();
+  }
+
+  CHECK(SlicedString::cast(*slice)->parent()->IsSeqAsciiString());
+  HEAP->CollectAllGarbage(Heap::kNoGCFlags);
+  CHECK(SlicedString::cast(*slice)->parent()->IsSeqAsciiString());
+}

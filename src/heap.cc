@@ -155,7 +155,8 @@ Heap::Heap()
       scavenges_since_last_idle_round_(kIdleScavengeThreshold),
       promotion_queue_(this),
       configured_(false),
-      chunks_queued_for_free_(NULL) {
+      chunks_queued_for_free_(NULL),
+      relocation_mutex_(NULL) {
   // Allow build-time customization of the max semispace size. Building
   // V8 with snapshots and a non-default max semispace size is much
   // easier if you can define it as part of the build environment.
@@ -1199,6 +1200,7 @@ class ScavengeWeakObjectRetainer : public WeakObjectRetainer {
 
 
 void Heap::Scavenge() {
+  RelocationLock relocation_lock(this);
 #ifdef DEBUG
   if (FLAG_verify_heap) VerifyNonPointerSpacePointers();
 #endif
@@ -2044,7 +2046,8 @@ MaybeObject* Heap::AllocatePartialMap(InstanceType instance_type,
   reinterpret_cast<Map*>(result)->set_unused_property_fields(0);
   reinterpret_cast<Map*>(result)->set_bit_field(0);
   reinterpret_cast<Map*>(result)->set_bit_field2(0);
-  reinterpret_cast<Map*>(result)->set_bit_field3(0);
+  reinterpret_cast<Map*>(result)->set_bit_field3(
+      Map::LastAddedBits::encode(Map::kNoneAdded));
   return result;
 }
 
@@ -2053,9 +2056,8 @@ MaybeObject* Heap::AllocateMap(InstanceType instance_type,
                                int instance_size,
                                ElementsKind elements_kind) {
   Object* result;
-  { MaybeObject* maybe_result = AllocateRawMap();
-    if (!maybe_result->ToObject(&result)) return maybe_result;
-  }
+  MaybeObject* maybe_result = AllocateRawMap();
+  if (!maybe_result->To(&result)) return maybe_result;
 
   Map* map = reinterpret_cast<Map*>(result);
   map->set_map_no_write_barrier(meta_map());
@@ -2072,7 +2074,7 @@ MaybeObject* Heap::AllocateMap(InstanceType instance_type,
   map->set_unused_property_fields(0);
   map->set_bit_field(0);
   map->set_bit_field2(1 << Map::kIsExtensible);
-  map->set_bit_field3(0);
+  map->set_bit_field3(Map::LastAddedBits::encode(Map::kNoneAdded));
   map->set_elements_kind(elements_kind);
 
   // If the map object is aligned fill the padding area with Smi 0 objects.
@@ -3824,21 +3826,18 @@ MaybeObject* Heap::AllocateInitialMap(JSFunction* fun) {
   // suggested by the function.
   int instance_size = fun->shared()->CalculateInstanceSize();
   int in_object_properties = fun->shared()->CalculateInObjectProperties();
-  Object* map_obj;
-  { MaybeObject* maybe_map_obj = AllocateMap(JS_OBJECT_TYPE, instance_size);
-    if (!maybe_map_obj->ToObject(&map_obj)) return maybe_map_obj;
-  }
+  Map* map;
+  MaybeObject* maybe_map = AllocateMap(JS_OBJECT_TYPE, instance_size);
+  if (!maybe_map->To(&map)) return maybe_map;
 
   // Fetch or allocate prototype.
   Object* prototype;
   if (fun->has_instance_prototype()) {
     prototype = fun->instance_prototype();
   } else {
-    { MaybeObject* maybe_prototype = AllocateFunctionPrototype(fun);
-      if (!maybe_prototype->ToObject(&prototype)) return maybe_prototype;
-    }
+    MaybeObject* maybe_prototype = AllocateFunctionPrototype(fun);
+    if (!maybe_prototype->To(&prototype)) return maybe_prototype;
   }
-  Map* map = Map::cast(map_obj);
   map->set_inobject_properties(in_object_properties);
   map->set_unused_property_fields(in_object_properties);
   map->set_prototype(prototype);
@@ -3857,12 +3856,10 @@ MaybeObject* Heap::AllocateInitialMap(JSFunction* fun) {
       fun->shared()->ForbidInlineConstructor();
     } else {
       DescriptorArray* descriptors;
-      { MaybeObject* maybe_descriptors_obj =
-            DescriptorArray::Allocate(count, DescriptorArray::MAY_BE_SHARED);
-        if (!maybe_descriptors_obj->To<DescriptorArray>(&descriptors)) {
-          return maybe_descriptors_obj;
-        }
-      }
+      MaybeObject* maybe_descriptors =
+          DescriptorArray::Allocate(count, DescriptorArray::MAY_BE_SHARED);
+      if (!maybe_descriptors->To(&descriptors)) return maybe_descriptors;
+
       DescriptorArray::WhitenessWitness witness(descriptors);
       for (int i = 0; i < count; i++) {
         String* name = fun->shared()->GetThisPropertyAssignmentName(i);
@@ -3870,7 +3867,7 @@ MaybeObject* Heap::AllocateInitialMap(JSFunction* fun) {
         FieldDescriptor field(name, i, NONE, i + 1);
         descriptors->Set(i, &field, witness);
       }
-      descriptors->SortUnchecked(witness);
+      descriptors->Sort(witness);
 
       // The descriptors may contain duplicates because the compiler does not
       // guarantee the uniqueness of property names (it would have required
@@ -3879,7 +3876,7 @@ MaybeObject* Heap::AllocateInitialMap(JSFunction* fun) {
       if (HasDuplicates(descriptors)) {
         fun->shared()->ForbidInlineConstructor();
       } else {
-        map->set_instance_descriptors(descriptors);
+        map->InitializeDescriptors(descriptors);
         map->set_pre_allocated_property_fields(count);
         map->set_unused_property_fields(in_object_properties - count);
       }
@@ -5698,6 +5695,7 @@ void Heap::IterateStrongRoots(ObjectVisitor* v, VisitMode mode) {
 
   // Iterate over local handles in handle scopes.
   isolate_->handle_scope_implementer()->Iterate(v);
+  isolate_->IterateDeferredHandles(v);
   v->Synchronize(VisitorSynchronization::kHandleScope);
 
   // Iterate over the builtin code objects and code stubs in the
@@ -6160,6 +6158,8 @@ bool Heap::SetUp(bool create_heap_objects) {
 
   store_buffer()->SetUp();
 
+  if (FLAG_parallel_recompilation) relocation_mutex_ = OS::CreateMutex();
+
   return true;
 }
 
@@ -6244,6 +6244,8 @@ void Heap::TearDown() {
   incremental_marking()->TearDown();
 
   isolate_->memory_allocator()->TearDown();
+
+  delete relocation_mutex_;
 
 #ifdef DEBUG
   delete debug_utils_;
@@ -7221,6 +7223,18 @@ void Heap::CheckpointObjectStats() {
   counters->size_of_CODE_TYPE_##name()->Decrement(        \
       static_cast<int>(object_sizes_last_time_[index]));
   CODE_KIND_LIST(ADJUST_LAST_TIME_OBJECT_COUNT)
+#undef ADJUST_LAST_TIME_OBJECT_COUNT
+#define ADJUST_LAST_TIME_OBJECT_COUNT(name)               \
+  index = FIRST_FIXED_ARRAY_SUB_TYPE + name;              \
+  counters->count_of_FIXED_ARRAY_##name()->Increment(     \
+      static_cast<int>(object_counts_[index]));           \
+  counters->count_of_FIXED_ARRAY_##name()->Decrement(     \
+      static_cast<int>(object_counts_last_time_[index])); \
+  counters->size_of_FIXED_ARRAY_##name()->Increment(      \
+      static_cast<int>(object_sizes_[index]));            \
+  counters->size_of_FIXED_ARRAY_##name()->Decrement(      \
+      static_cast<int>(object_sizes_last_time_[index]));
+  FIXED_ARRAY_SUB_INSTANCE_TYPE_LIST(ADJUST_LAST_TIME_OBJECT_COUNT)
 #undef ADJUST_LAST_TIME_OBJECT_COUNT
 
   memcpy(object_counts_last_time_, object_counts_, sizeof(object_counts_));

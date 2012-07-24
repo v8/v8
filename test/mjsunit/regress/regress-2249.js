@@ -25,16 +25,9 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax --nouse_inlining --noparallel-recompilation
+// Flags: --gc-interval=10 --stress-compaction
 
-// Test for negative zero that doesn't need bail out
-
-function test_div_no_deopt_minus_zero() {
-  var zero_in_array = [0];
-  assertTrue(0 === (Math.floor((zero_in_array[0] | 0) / -1) | 0));
-}
-
-test_div_no_deopt_minus_zero();
-%OptimizeFunctionOnNextCall(test_div_no_deopt_minus_zero);
-test_div_no_deopt_minus_zero();
-assertTrue(2 != %GetOptimizationStatus(test_div_no_deopt_minus_zero));
+var o = {};
+o[Math.pow(2,30)-1] = 0;
+o[Math.pow(2,31)-1] = 0;
+o[1] = 0;

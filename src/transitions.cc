@@ -69,10 +69,8 @@ static bool InsertionPointFound(String* key1, String* key2) {
 MaybeObject* TransitionArray::NewWith(String* name, Map* target) {
   TransitionArray* result;
 
-  { MaybeObject* maybe_array;
-    maybe_array = TransitionArray::Allocate(1);
-    if (!maybe_array->To(&result)) return maybe_array;
-  }
+  MaybeObject* maybe_array = TransitionArray::Allocate(1);
+  if (!maybe_array->To(&result)) return maybe_array;
 
   FixedArray::WhitenessWitness witness(result);
 

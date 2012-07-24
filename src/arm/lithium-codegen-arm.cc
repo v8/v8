@@ -2784,7 +2784,12 @@ void LCodeGen::DoLoadKeyedFastElement(LLoadKeyedFastElement* instr) {
   Register scratch = scratch0();
 
   // Load the result.
-  __ add(scratch, elements, Operand(key, LSL, kPointerSizeLog2));
+  if (instr->hydrogen()->key()->representation().IsTagged()) {
+    __ add(scratch, elements,
+           Operand(key, LSL, kPointerSizeLog2 - kSmiTagSize));
+  } else {
+    __ add(scratch, elements, Operand(key, LSL, kPointerSizeLog2));
+  }
   uint32_t offset = FixedArray::kHeaderSize +
                     (instr->additional_index() << kPointerSizeLog2);
   __ ldr(result, FieldMemOperand(scratch, offset));
@@ -2811,8 +2816,9 @@ void LCodeGen::DoLoadKeyedFastDoubleElement(
   DwVfpRegister result = ToDoubleRegister(instr->result());
   Register scratch = scratch0();
 
-  int shift_size =
-      ElementsKindToShiftSize(FAST_DOUBLE_ELEMENTS);
+  int element_size_shift = ElementsKindToShiftSize(FAST_DOUBLE_ELEMENTS);
+  int shift_size = (instr->hydrogen()->key()->representation().IsTagged())
+      ? (element_size_shift - kSmiTagSize) : element_size_shift;
   int constant_key = 0;
   if (key_is_constant) {
     constant_key = ToInteger32(LConstantOperand::cast(instr->key()));
@@ -2824,14 +2830,15 @@ void LCodeGen::DoLoadKeyedFastDoubleElement(
   }
 
   Operand operand = key_is_constant
-      ? Operand(((constant_key + instr->additional_index()) << shift_size) +
+      ? Operand(((constant_key + instr->additional_index()) <<
+                 element_size_shift) +
                 FixedDoubleArray::kHeaderSize - kHeapObjectTag)
       : Operand(key, LSL, shift_size);
   __ add(elements, elements, operand);
   if (!key_is_constant) {
     __ add(elements, elements,
            Operand((FixedDoubleArray::kHeaderSize - kHeapObjectTag) +
-                   (instr->additional_index() << shift_size)));
+                   (instr->additional_index() << element_size_shift)));
   }
 
   if (instr->hydrogen()->RequiresHoleCheck()) {
@@ -2841,6 +2848,42 @@ void LCodeGen::DoLoadKeyedFastDoubleElement(
   }
 
   __ vldr(result, elements, 0);
+}
+
+
+MemOperand LCodeGen::PrepareKeyedOperand(Register key,
+                                         Register base,
+                                         bool key_is_constant,
+                                         int constant_key,
+                                         int element_size,
+                                         int shift_size,
+                                         int additional_index,
+                                         int additional_offset) {
+  if (additional_index != 0 && !key_is_constant) {
+    additional_index *= 1 << (element_size - shift_size);
+    __ add(scratch0(), key, Operand(additional_index));
+  }
+
+  if (key_is_constant) {
+    return MemOperand(base,
+                      (constant_key << element_size) + additional_offset);
+  }
+
+  if (additional_index == 0) {
+    if (shift_size >= 0) {
+      return MemOperand(base, key, LSL, shift_size);
+    } else {
+      ASSERT_EQ(-1, shift_size);
+      return MemOperand(base, key, LSR, 1);
+    }
+  }
+
+  if (shift_size >= 0) {
+    return MemOperand(base, scratch0(), LSL, shift_size);
+  } else {
+    ASSERT_EQ(-1, shift_size);
+    return MemOperand(base, scratch0(), LSR, 1);
+  }
 }
 
 
@@ -2859,15 +2902,17 @@ void LCodeGen::DoLoadKeyedSpecializedArrayElement(
   } else {
     key = ToRegister(instr->key());
   }
-  int shift_size = ElementsKindToShiftSize(elements_kind);
-  int additional_offset = instr->additional_index() << shift_size;
+  int element_size_shift = ElementsKindToShiftSize(elements_kind);
+  int shift_size = (instr->hydrogen()->key()->representation().IsTagged())
+      ? (element_size_shift - kSmiTagSize) : element_size_shift;
+  int additional_offset = instr->additional_index() << element_size_shift;
 
   if (elements_kind == EXTERNAL_FLOAT_ELEMENTS ||
       elements_kind == EXTERNAL_DOUBLE_ELEMENTS) {
     CpuFeatures::Scope scope(VFP3);
     DwVfpRegister result = ToDoubleRegister(instr->result());
     Operand operand = key_is_constant
-        ? Operand(constant_key << shift_size)
+        ? Operand(constant_key << element_size_shift)
         : Operand(key, LSL, shift_size);
     __ add(scratch0(), external_pointer, operand);
     if (elements_kind == EXTERNAL_FLOAT_ELEMENTS) {
@@ -2878,15 +2923,10 @@ void LCodeGen::DoLoadKeyedSpecializedArrayElement(
     }
   } else {
     Register result = ToRegister(instr->result());
-    if (instr->additional_index() != 0 && !key_is_constant) {
-      __ add(scratch0(), key, Operand(instr->additional_index()));
-    }
-    MemOperand mem_operand(key_is_constant
-        ? MemOperand(external_pointer,
-                     (constant_key << shift_size) + additional_offset)
-        : (instr->additional_index() == 0
-           ? MemOperand(external_pointer, key, LSL, shift_size)
-           : MemOperand(external_pointer, scratch0(), LSL, shift_size)));
+    MemOperand mem_operand = PrepareKeyedOperand(
+        key, external_pointer, key_is_constant, constant_key,
+        element_size_shift, shift_size,
+        instr->additional_index(), additional_offset);
     switch (elements_kind) {
       case EXTERNAL_BYTE_ELEMENTS:
         __ ldrsb(result, mem_operand);
@@ -3803,7 +3843,12 @@ void LCodeGen::DoStoreKeyedFastElement(LStoreKeyedFastElement* instr) {
         + FixedArray::kHeaderSize;
     __ str(value, FieldMemOperand(elements, offset));
   } else {
-    __ add(scratch, elements, Operand(key, LSL, kPointerSizeLog2));
+    if (instr->hydrogen()->key()->representation().IsTagged()) {
+      __ add(scratch, elements,
+             Operand(key, LSL, kPointerSizeLog2 - kSmiTagSize));
+    } else {
+      __ add(scratch, elements, Operand(key, LSL, kPointerSizeLog2));
+    }
     if (instr->additional_index() != 0) {
       __ add(scratch,
              scratch,
@@ -3848,9 +3893,11 @@ void LCodeGen::DoStoreKeyedFastDoubleElement(
   } else {
     key = ToRegister(instr->key());
   }
-  int shift_size = ElementsKindToShiftSize(FAST_DOUBLE_ELEMENTS);
+  int element_size_shift = ElementsKindToShiftSize(FAST_DOUBLE_ELEMENTS);
+  int shift_size = (instr->hydrogen()->key()->representation().IsTagged())
+      ? (element_size_shift - kSmiTagSize) : element_size_shift;
   Operand operand = key_is_constant
-      ? Operand((constant_key << shift_size) +
+      ? Operand((constant_key << element_size_shift) +
                 FixedDoubleArray::kHeaderSize - kHeapObjectTag)
       : Operand(key, LSL, shift_size);
   __ add(scratch, elements, operand);
@@ -3868,7 +3915,7 @@ void LCodeGen::DoStoreKeyedFastDoubleElement(
             vs);
   }
 
-  __ vstr(value, scratch, instr->additional_index() << shift_size);
+  __ vstr(value, scratch, instr->additional_index() << element_size_shift);
 }
 
 
@@ -3888,15 +3935,18 @@ void LCodeGen::DoStoreKeyedSpecializedArrayElement(
   } else {
     key = ToRegister(instr->key());
   }
-  int shift_size = ElementsKindToShiftSize(elements_kind);
-  int additional_offset = instr->additional_index() << shift_size;
+  int element_size_shift = ElementsKindToShiftSize(elements_kind);
+  int shift_size = (instr->hydrogen()->key()->representation().IsTagged())
+      ? (element_size_shift - kSmiTagSize) : element_size_shift;
+  int additional_offset = instr->additional_index() << element_size_shift;
 
   if (elements_kind == EXTERNAL_FLOAT_ELEMENTS ||
       elements_kind == EXTERNAL_DOUBLE_ELEMENTS) {
     CpuFeatures::Scope scope(VFP3);
     DwVfpRegister value(ToDoubleRegister(instr->value()));
-    Operand operand(key_is_constant ? Operand(constant_key << shift_size)
-                                    : Operand(key, LSL, shift_size));
+    Operand operand(key_is_constant
+                    ? Operand(constant_key << element_size_shift)
+                    : Operand(key, LSL, shift_size));
     __ add(scratch0(), external_pointer, operand);
     if (elements_kind == EXTERNAL_FLOAT_ELEMENTS) {
       __ vcvt_f32_f64(double_scratch0().low(), value);
@@ -3906,16 +3956,10 @@ void LCodeGen::DoStoreKeyedSpecializedArrayElement(
     }
   } else {
     Register value(ToRegister(instr->value()));
-    if (instr->additional_index() != 0 && !key_is_constant) {
-      __ add(scratch0(), key, Operand(instr->additional_index()));
-    }
-    MemOperand mem_operand(key_is_constant
-        ? MemOperand(external_pointer,
-                     ((constant_key + instr->additional_index())
-                         << shift_size))
-        : (instr->additional_index() == 0
-            ? MemOperand(external_pointer, key, LSL, shift_size)
-            : MemOperand(external_pointer, scratch0(), LSL, shift_size)));
+    MemOperand mem_operand = PrepareKeyedOperand(
+        key, external_pointer, key_is_constant, constant_key,
+        element_size_shift, shift_size,
+        instr->additional_index(), additional_offset);
     switch (elements_kind) {
       case EXTERNAL_PIXEL_ELEMENTS:
       case EXTERNAL_BYTE_ELEMENTS:
@@ -5364,7 +5408,7 @@ void LCodeGen::DoForInCacheArray(LForInCacheArray* instr) {
   Register scratch = ToRegister(instr->scratch());
   __ LoadInstanceDescriptors(map, result, scratch);
   __ ldr(result,
-         FieldMemOperand(result, DescriptorArray::kLastAddedOffset));
+         FieldMemOperand(result, DescriptorArray::kEnumCacheOffset));
   __ ldr(result,
          FieldMemOperand(result, FixedArray::SizeFor(instr->idx())));
   __ cmp(result, Operand(0));

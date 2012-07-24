@@ -1834,6 +1834,7 @@ void  Assembler::vldm(BlockAddrMode am,
   int sd, d;
   first.split_code(&sd, &d);
   int count = last.code() - first.code() + 1;
+  ASSERT(count <= 16);
   emit(cond | B27 | B26 | am | d*B22 | B20 | base.code()*B16 | sd*B12 |
        0xB*B8 | count*2);
 }
@@ -1855,6 +1856,7 @@ void  Assembler::vstm(BlockAddrMode am,
   int sd, d;
   first.split_code(&sd, &d);
   int count = last.code() - first.code() + 1;
+  ASSERT(count <= 16);
   emit(cond | B27 | B26 | am | d*B22 | base.code()*B16 | sd*B12 |
        0xB*B8 | count*2);
 }

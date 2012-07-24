@@ -33,7 +33,7 @@
 #include "elements-kind.h"
 #include "list.h"
 #include "property-details.h"
-#include "smart-array-pointer.h"
+#include "smart-pointers.h"
 #include "unicode-inl.h"
 #if V8_TARGET_ARCH_ARM
 #include "arm/constants-arm.h"
@@ -167,14 +167,6 @@ enum NormalizedMapSharingMode {
 enum CreationFlag {
   ALLOW_CREATION,
   OMIT_CREATION
-};
-
-
-// Indicates whether the search function should expect a sorted or an unsorted
-// array as input.
-enum SearchMode {
-  EXPECT_SORTED,
-  EXPECT_UNSORTED
 };
 
 
@@ -660,6 +652,25 @@ STATIC_CHECK(JS_OBJECT_TYPE == Internals::kJSObjectType);
 STATIC_CHECK(FIRST_NONSTRING_TYPE == Internals::kFirstNonstringType);
 STATIC_CHECK(ODDBALL_TYPE == Internals::kOddballType);
 STATIC_CHECK(FOREIGN_TYPE == Internals::kForeignType);
+
+
+#define FIXED_ARRAY_SUB_INSTANCE_TYPE_LIST(V) \
+  V(FAST_ELEMENTS_SUB_TYPE)                   \
+  V(DICTIONARY_ELEMENTS_SUB_TYPE)             \
+  V(FAST_PROPERTIES_SUB_TYPE)                 \
+  V(DICTIONARY_PROPERTIES_SUB_TYPE)           \
+  V(MAP_CODE_CACHE_SUB_TYPE)                  \
+  V(SCOPE_INFO_SUB_TYPE)                      \
+  V(SYMBOL_TABLE_SUB_TYPE)                    \
+  V(DESCRIPTOR_ARRAY_SUB_TYPE)                \
+  V(TRANSITION_ARRAY_SUB_TYPE)
+
+enum FixedArraySubInstanceType {
+#define DEFINE_FIXED_ARRAY_SUB_INSTANCE_TYPE(name) name,
+  FIXED_ARRAY_SUB_INSTANCE_TYPE_LIST(DEFINE_FIXED_ARRAY_SUB_INSTANCE_TYPE)
+#undef DEFINE_FIXED_ARRAY_SUB_INSTANCE_TYPE
+  LAST_FIXED_ARRAY_SUB_TYPE = TRANSITION_ARRAY_SUB_TYPE
+};
 
 
 enum CompareResult {
@@ -2480,43 +2491,20 @@ class DescriptorArray: public FixedArray {
   inline int number_of_entries() { return number_of_descriptors(); }
   inline int NextEnumerationIndex() { return number_of_descriptors() + 1; }
 
-  int LastAdded() {
-    ASSERT(!IsEmpty());
-    Object* obj = get(kLastAddedIndex);
-    if (obj->IsSmi()) {
-      return Smi::cast(obj)->value();
-    } else {
-      Object* index = FixedArray::cast(obj)->get(kEnumCacheBridgeLastAdded);
-      return Smi::cast(index)->value();
-    }
-  }
-
-  // Set index of the last added descriptor and flush any enum cache.
-  void SetLastAdded(int index) {
-    ASSERT(!IsEmpty() || index > 0);
-    set(kLastAddedIndex, Smi::FromInt(index));
-  }
-
-  int NumberOfSetDescriptors() {
-    ASSERT(!IsEmpty());
-    if (LastAdded() == kNoneAdded) return 0;
-    return GetDetails(LastAdded()).index();
-  }
-
   bool HasEnumCache() {
-    return !IsEmpty() && !get(kLastAddedIndex)->IsSmi();
+    return !IsEmpty() && !get(kEnumCacheIndex)->IsSmi();
   }
 
   Object* GetEnumCache() {
     ASSERT(HasEnumCache());
-    FixedArray* bridge = FixedArray::cast(get(kLastAddedIndex));
+    FixedArray* bridge = FixedArray::cast(get(kEnumCacheIndex));
     return bridge->get(kEnumCacheBridgeCacheIndex);
   }
 
   Object** GetEnumCacheSlot() {
     ASSERT(HasEnumCache());
     return HeapObject::RawField(reinterpret_cast<HeapObject*>(this),
-                                kLastAddedOffset);
+                                kEnumCacheOffset);
   }
 
   Object** GetTransitionsSlot() {
@@ -2552,8 +2540,9 @@ class DescriptorArray: public FixedArray {
   // Append automatically sets the enumeration index. This should only be used
   // to add descriptors in bulk at the end, followed by sorting the descriptor
   // array.
-  inline void Append(Descriptor* desc,
-                     const WhitenessWitness&);
+  inline int Append(Descriptor* desc,
+                    const WhitenessWitness&,
+                    int number_of_set_descriptors);
 
   // Transfer a complete descriptor from the src descriptor array to this
   // descriptor array.
@@ -2561,16 +2550,6 @@ class DescriptorArray: public FixedArray {
                 DescriptorArray* src,
                 int src_index,
                 const WhitenessWitness&);
-
-  // Copy the descriptor array, inserting new descriptor. Its enumeration index
-  // is automatically set to the size of the descriptor array to which it was
-  // added first.
-  MUST_USE_RESULT MaybeObject* CopyAdd(Descriptor* descriptor);
-
-  // Copy the descriptor array, replacing a descriptor. Its enumeration index is
-  // kept.
-  MUST_USE_RESULT MaybeObject* CopyReplace(Descriptor* descriptor,
-                                           int insertion_index);
 
   // Indicates whether the search function should expect a sorted or an unsorted
   // descriptor array as input.
@@ -2584,11 +2563,6 @@ class DescriptorArray: public FixedArray {
   MUST_USE_RESULT MaybeObject* Copy(SharedMode shared_mode);
 
   // Sort the instance descriptors by the hash codes of their keys.
-  // Does not check for duplicates.
-  void SortUnchecked(const WhitenessWitness&);
-
-  // Sort the instance descriptors by the hash codes of their keys.
-  // Checks the result for duplicates.
   void Sort(const WhitenessWitness&);
 
   // Search the instance descriptors for given name.
@@ -2612,31 +2586,25 @@ class DescriptorArray: public FixedArray {
   // Constant for denoting key was not found.
   static const int kNotFound = -1;
 
-  // Constant for denoting that the LastAdded field was not yet set.
-  static const int kNoneAdded = -1;
-
   static const int kBackPointerStorageIndex = 0;
-  static const int kLastAddedIndex = 1;
+  static const int kEnumCacheIndex = 1;
   static const int kTransitionsIndex = 2;
   static const int kFirstIndex = 3;
 
   // The length of the "bridge" to the enum cache.
-  static const int kEnumCacheBridgeLength = 3;
-  static const int kEnumCacheBridgeLastAdded = 0;
-  static const int kEnumCacheBridgeCacheIndex = 1;
-  static const int kEnumCacheBridgeIndicesCacheIndex = 2;
+  static const int kEnumCacheBridgeLength = 2;
+  static const int kEnumCacheBridgeCacheIndex = 0;
+  static const int kEnumCacheBridgeIndicesCacheIndex = 1;
 
   // Layout description.
   static const int kBackPointerStorageOffset = FixedArray::kHeaderSize;
-  static const int kLastAddedOffset = kBackPointerStorageOffset +
+  static const int kEnumCacheOffset = kBackPointerStorageOffset +
                                       kPointerSize;
-  static const int kTransitionsOffset = kLastAddedOffset + kPointerSize;
+  static const int kTransitionsOffset = kEnumCacheOffset + kPointerSize;
   static const int kFirstOffset = kTransitionsOffset + kPointerSize;
 
   // Layout description for the bridge array.
-  static const int kEnumCacheBridgeLastAddedOffset = FixedArray::kHeaderSize;
-  static const int kEnumCacheBridgeCacheOffset =
-    kEnumCacheBridgeLastAddedOffset + kPointerSize;
+  static const int kEnumCacheBridgeCacheOffset = FixedArray::kHeaderSize;
 
   // Layout of descriptor.
   static const int kDescriptorKey = 0;
@@ -2714,7 +2682,7 @@ class DescriptorArray: public FixedArray {
 
 
 template<typename T>
-inline int LinearSearch(T* array, SearchMode mode, String* name, int len);
+inline int LinearSearch(T* array, String* name, int len);
 
 
 template<typename T>
@@ -4696,6 +4664,10 @@ class Map: public HeapObject {
   inline int bit_field3();
   inline void set_bit_field3(int value);
 
+  class IsShared:              public BitField<bool, 0, 1> {};
+  class FunctionWithPrototype: public BitField<bool, 1, 1> {};
+  class LastAddedBits:         public BitField<int, 2, 11> {};
+
   // Tells whether the object in the prototype property will be used
   // for instances created from this function.  If the prototype
   // property is set to a value that is not a JSObject, the prototype
@@ -4855,6 +4827,7 @@ class Map: public HeapObject {
 
   // [instance descriptors]: describes the object.
   DECL_ACCESSORS(instance_descriptors, DescriptorArray)
+  inline void InitializeDescriptors(DescriptorArray* descriptors);
 
   // Should only be called to clear a descriptor array that was only used to
   // store transitions and does not contain any live transitions anymore.
@@ -4919,11 +4892,28 @@ class Map: public HeapObject {
                         String* name,
                         LookupResult* result);
 
+  void SetLastAdded(int index) {
+    set_bit_field3(LastAddedBits::update(bit_field3(), index));
+  }
+
+  int LastAdded() {
+    return LastAddedBits::decode(bit_field3());
+  }
+
+  int NumberOfSetDescriptors() {
+    ASSERT(!instance_descriptors()->IsEmpty());
+    if (LastAdded() == kNoneAdded) return 0;
+    return instance_descriptors()->GetDetails(LastAdded()).index();
+  }
+
   MUST_USE_RESULT MaybeObject* RawCopy(int instance_size);
   MUST_USE_RESULT MaybeObject* CopyWithPreallocatedFieldDescriptors();
   MUST_USE_RESULT MaybeObject* CopyDropDescriptors();
   MUST_USE_RESULT MaybeObject* CopyReplaceDescriptors(
-      DescriptorArray* descriptors, String* name, TransitionFlag flag);
+      DescriptorArray* descriptors,
+      String* name,
+      int last_added,
+      TransitionFlag flag);
   MUST_USE_RESULT MaybeObject* CopyAddDescriptor(Descriptor* descriptor,
                                                  TransitionFlag flag);
   MUST_USE_RESULT MaybeObject* CopyInsertDescriptor(Descriptor* descriptor,
@@ -4936,6 +4926,9 @@ class Map: public HeapObject {
 
   MUST_USE_RESULT MaybeObject* CopyNormalized(PropertyNormalizationMode mode,
                                               NormalizedMapSharingMode sharing);
+
+  inline void AppendDescriptor(Descriptor* desc,
+                               const DescriptorArray::WhitenessWitness&);
 
   // Returns a copy of the map, with all transitions dropped from the
   // instance descriptors.
@@ -5047,6 +5040,9 @@ class Map: public HeapObject {
                                                       Map* map);
 
   static const int kMaxPreAllocatedPropertyFields = 255;
+
+  // Constant for denoting that the LastAdded field was not yet set.
+  static const int kNoneAdded = LastAddedBits::kMax;
 
   // Layout description.
   static const int kInstanceSizesOffset = HeapObject::kHeaderSize;
@@ -6001,6 +5997,7 @@ class JSFunction: public JSObject {
   // Mark this function for lazy recompilation. The function will be
   // recompiled the next time it is executed.
   void MarkForLazyRecompilation();
+  void MarkForParallelRecompilation();
 
   // Helpers to compile this function.  Returns true on success, false on
   // failure (e.g., stack overflow during compilation).
@@ -6015,6 +6012,11 @@ class JSFunction: public JSObject {
   // Tells whether or not the function is already marked for lazy
   // recompilation.
   inline bool IsMarkedForLazyRecompilation();
+  inline bool IsMarkedForParallelRecompilation();
+
+  // Tells whether or not the function is on the parallel
+  // recompilation queue.
+  inline bool IsInRecompileQueue();
 
   // Check whether or not this function is inlineable.
   bool IsInlineable();
@@ -7595,7 +7597,8 @@ class ConsString: public String {
 class SlicedString: public String {
  public:
   inline String* parent();
-  inline void set_parent(String* parent);
+  inline void set_parent(String* parent,
+                         WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   inline int offset();
   inline void set_offset(int offset);
 

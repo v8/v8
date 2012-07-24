@@ -54,7 +54,7 @@
 #include "runtime-profiler.h"
 #include "runtime.h"
 #include "scopeinfo.h"
-#include "smart-array-pointer.h"
+#include "smart-pointers.h"
 #include "string-search.h"
 #include "stub-cache.h"
 #include "v8threads.h"
@@ -2160,10 +2160,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_FunctionSetReadOnlyPrototype) {
   RUNTIME_ASSERT(args.length() == 1);
   CONVERT_ARG_CHECKED(JSFunction, function, 0);
 
-  MaybeObject* maybe_name =
-      isolate->heap()->AllocateStringFromAscii(CStrVector("prototype"));
-  String* name;
-  if (!maybe_name->To(&name)) return maybe_name;
+  String* name = isolate->heap()->prototype_symbol();
 
   if (function->HasFastProperties()) {
     // Construct a new field descriptor with updated attributes.
@@ -8292,6 +8289,14 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_LazyRecompile) {
 }
 
 
+RUNTIME_FUNCTION(MaybeObject*, Runtime_ParallelRecompile) {
+  HandleScope handle_scope(isolate);
+  ASSERT(FLAG_parallel_recompilation);
+  Compiler::RecompileParallel(args.at<JSFunction>(0));
+  return *isolate->factory()->undefined_value();
+}
+
+
 class ActivationsFinder : public ThreadVisitor {
  public:
   explicit ActivationsFinder(JSFunction* function)
@@ -8486,6 +8491,11 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetOptimizationStatus) {
     return Smi::FromInt(4);  // 4 == "never".
   }
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
+  if (FLAG_parallel_recompilation) {
+    if (function->IsMarkedForLazyRecompilation()) {
+      return Smi::FromInt(5);
+    }
+  }
   if (FLAG_always_opt) {
     // We may have always opt, but that is more best-effort than a real
     // promise, so we still say "no" if it is not optimized.

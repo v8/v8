@@ -886,38 +886,15 @@ Handle<Code> Factory::CopyCode(Handle<Code> code, Vector<byte> reloc_info) {
 }
 
 
-MUST_USE_RESULT static inline MaybeObject* DoCopyAdd(
-    DescriptorArray* array,
-    String* key,
-    Object* value,
-    PropertyAttributes attributes) {
-  CallbacksDescriptor desc(key, value, attributes);
-  MaybeObject* obj = array->CopyAdd(&desc);
-  return obj;
-}
-
-
-// Allocate the new array.
-Handle<DescriptorArray> Factory::CopyAppendForeignDescriptor(
-    Handle<DescriptorArray> array,
-    Handle<String> key,
-    Handle<Object> value,
-    PropertyAttributes attributes) {
-  CALL_HEAP_FUNCTION(isolate(),
-                     DoCopyAdd(*array, *key, *value, attributes),
-                     DescriptorArray);
-}
-
-
 Handle<String> Factory::SymbolFromString(Handle<String> value) {
   CALL_HEAP_FUNCTION(isolate(),
                      isolate()->heap()->LookupSymbol(*value), String);
 }
 
 
-Handle<DescriptorArray> Factory::CopyAppendCallbackDescriptors(
-    Handle<DescriptorArray> array,
-    Handle<Object> descriptors) {
+void Factory::CopyAppendCallbackDescriptors(Handle<Map> map,
+                                            Handle<Object> descriptors) {
+  Handle<DescriptorArray> array(map->instance_descriptors());
   v8::NeanderArray callbacks(descriptors);
   int nof_callbacks = callbacks.length();
   int descriptor_count = array->number_of_descriptors();
@@ -929,11 +906,12 @@ Handle<DescriptorArray> Factory::CopyAppendCallbackDescriptors(
 
   // Copy the descriptors from the array.
   if (0 < descriptor_count) {
-    result->SetLastAdded(array->LastAdded());
     for (int i = 0; i < descriptor_count; i++) {
       result->CopyFrom(i, *array, i, witness);
     }
   }
+
+  map->set_instance_descriptors(*result);
 
   // Fill in new callback descriptors.  Process the callbacks from
   // back to front so that the last callback with a given name takes
@@ -945,19 +923,19 @@ Handle<DescriptorArray> Factory::CopyAppendCallbackDescriptors(
     Handle<String> key =
         SymbolFromString(Handle<String>(String::cast(entry->name())));
     // Check if a descriptor with this name already exists before writing.
-    if (LinearSearch(*result,
-                     EXPECT_UNSORTED,
-                     *key,
-                     result->NumberOfSetDescriptors()) ==
+    if (LinearSearch(*result, *key, map->NumberOfSetDescriptors()) ==
         DescriptorArray::kNotFound) {
       CallbacksDescriptor desc(*key, *entry, entry->property_attributes());
-      result->Append(&desc, witness);
+      map->AppendDescriptor(&desc, witness);
     }
   }
 
-  int new_number_of_descriptors = result->NumberOfSetDescriptors();
-  // Return the old descriptor array if there were no new elements.
-  if (new_number_of_descriptors == descriptor_count) return array;
+  int new_number_of_descriptors = map->NumberOfSetDescriptors();
+  // Reinstall the original descriptor array if no new elements were added.
+  if (new_number_of_descriptors == descriptor_count) {
+    map->set_instance_descriptors(*array);
+    return;
+  }
 
   // If duplicates were detected, allocate a result of the right size
   // and transfer the elements.
@@ -967,12 +945,8 @@ Handle<DescriptorArray> Factory::CopyAppendCallbackDescriptors(
     for (int i = 0; i < new_number_of_descriptors; i++) {
       new_result->CopyFrom(i, *result, i, witness);
     }
-    result = new_result;
+    map->set_instance_descriptors(*new_result);
   }
-
-  // Sort the result before returning.
-  result->Sort(witness);
-  return result;
 }
 
 
@@ -1360,19 +1334,14 @@ Handle<JSFunction> Factory::CreateApiFunction(
   result->shared()->DontAdaptArguments();
 
   // Recursively copy parent templates' accessors, 'data' may be modified.
-  Handle<DescriptorArray> array =
-      Handle<DescriptorArray>(map->instance_descriptors());
   while (true) {
     Handle<Object> props = Handle<Object>(obj->property_accessors());
     if (!props->IsUndefined()) {
-      array = CopyAppendCallbackDescriptors(array, props);
+      CopyAppendCallbackDescriptors(map, props);
     }
     Handle<Object> parent = Handle<Object>(obj->parent_template());
     if (parent->IsUndefined()) break;
     obj = Handle<FunctionTemplateInfo>::cast(parent);
-  }
-  if (!array->IsEmpty()) {
-    map->set_instance_descriptors(*array);
   }
 
   ASSERT(result->shared()->IsApiFunction());

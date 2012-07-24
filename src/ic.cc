@@ -1516,10 +1516,10 @@ void StoreIC::UpdateCaches(LookupResult* lookup,
     case CONSTANT_FUNCTION:
       return;
     case TRANSITION: {
-      Map* value = lookup->GetTransitionTarget();
-      Handle<Map> transition(Map::cast(value));
+      Handle<Map> transition(lookup->GetTransitionTarget());
+      int descriptor = transition->LastAdded();
+
       DescriptorArray* target_descriptors = transition->instance_descriptors();
-      int descriptor = target_descriptors->LastAdded();
       PropertyDetails details = target_descriptors->GetDetails(descriptor);
 
       if (details.type() != FIELD || details.attributes() != NONE) return;
@@ -1980,9 +1980,9 @@ void KeyedStoreIC::UpdateCaches(LookupResult* lookup,
       break;
     case TRANSITION: {
       Handle<Map> transition(lookup->GetTransitionTarget());
+      int descriptor = transition->LastAdded();
 
       DescriptorArray* target_descriptors = transition->instance_descriptors();
-      int descriptor = target_descriptors->LastAdded();
       PropertyDetails details = target_descriptors->GetDetails(descriptor);
 
       if (details.type() == FIELD && details.attributes() == NONE) {

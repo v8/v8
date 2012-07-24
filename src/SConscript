@@ -72,6 +72,7 @@ SOURCES = {
     execution.cc
     extensions/externalize-string-extension.cc
     extensions/gc-extension.cc
+    extensions/statistics-extension.cc
     factory.cc
     fast-dtoa.cc
     fixed-dtoa.cc
@@ -105,6 +106,7 @@ SOURCES = {
     objects-visiting.cc
     objects.cc
     once.cc
+    optimizing-compiler-thread.cc
     parser.cc
     preparse-data.cc
     preparser.cc

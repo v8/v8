@@ -224,6 +224,16 @@ class LChunkBuilder;
   virtual Opcode opcode() const { return HValue::k##type; }
 
 
+#ifdef DEBUG
+#define ASSERT_ALLOCATION_DISABLED do {                                  \
+    OptimizingCompilerThread* thread =                                   \
+      ISOLATE->optimizing_compiler_thread();                             \
+    ASSERT(thread->IsOptimizerThread() || !HEAP->IsAllocationAllowed()); \
+  } while (0)
+#else
+#define ASSERT_ALLOCATION_DISABLED do {} while (0)
+#endif
+
 class Range: public ZoneObject {
  public:
   Range()
@@ -1878,6 +1888,7 @@ class HJSArrayLength: public HTemplateInstruction<2> {
 class HFixedArrayBaseLength: public HUnaryOperation {
  public:
   explicit HFixedArrayBaseLength(HValue* value) : HUnaryOperation(value) {
+    set_type(HType::Smi());
     set_representation(Representation::Tagged());
     SetFlag(kUseGVN);
     SetGVNFlag(kDependsOnArrayLengths);
@@ -2289,7 +2300,7 @@ class HCheckPrototypeMaps: public HTemplateInstruction<0> {
   virtual void PrintDataTo(StringStream* stream);
 
   virtual intptr_t Hashcode() {
-    ASSERT(!HEAP->IsAllocationAllowed());
+    ASSERT_ALLOCATION_DISABLED;
     intptr_t hash = reinterpret_cast<intptr_t>(*prototype());
     hash = 17 * hash + reinterpret_cast<intptr_t>(*holder());
     return hash;
@@ -2535,7 +2546,7 @@ class HConstant: public HTemplateInstruction<0> {
   bool ToBoolean();
 
   virtual intptr_t Hashcode() {
-    ASSERT(!HEAP->allow_allocation(false));
+    ASSERT_ALLOCATION_DISABLED;
     intptr_t hash;
 
     if (has_int32_value_) {
@@ -2747,17 +2758,31 @@ class HAccessArgumentsAt: public HTemplateInstruction<3> {
 };
 
 
+enum BoundsCheckKeyMode {
+  DONT_ALLOW_SMI_KEY,
+  ALLOW_SMI_KEY
+};
+
+
 class HBoundsCheck: public HTemplateInstruction<2> {
  public:
-  HBoundsCheck(HValue* index, HValue* length) {
+  HBoundsCheck(HValue* index, HValue* length,
+               BoundsCheckKeyMode key_mode = DONT_ALLOW_SMI_KEY)
+      : key_mode_(key_mode) {
     SetOperandAt(0, index);
     SetOperandAt(1, length);
     set_representation(Representation::Integer32());
     SetFlag(kUseGVN);
   }
 
-  virtual Representation RequiredInputRepresentation(int index) {
-    return Representation::Integer32();
+  virtual Representation RequiredInputRepresentation(int arg_index) {
+    if (index()->representation().IsTagged() &&
+        !index()->IsConstant() &&
+        key_mode_ == ALLOW_SMI_KEY) {
+      return Representation::Tagged();
+    } else {
+      return Representation::Integer32();
+    }
   }
 
   virtual void PrintDataTo(StringStream* stream);
@@ -2769,6 +2794,7 @@ class HBoundsCheck: public HTemplateInstruction<2> {
 
  protected:
   virtual bool DataEquals(HValue* other) { return true; }
+  BoundsCheckKeyMode key_mode_;
 };
 
 
@@ -3640,7 +3666,7 @@ class HLoadGlobalCell: public HTemplateInstruction<0> {
   virtual void PrintDataTo(StringStream* stream);
 
   virtual intptr_t Hashcode() {
-    ASSERT(!HEAP->allow_allocation(false));
+    ASSERT_ALLOCATION_DISABLED;
     return reinterpret_cast<intptr_t>(*cell_);
   }
 
@@ -4027,10 +4053,11 @@ class ArrayInstructionInterface {
 };
 
 class HLoadKeyedFastElement
-    : public HTemplateInstruction<2>, public ArrayInstructionInterface {
+    : public HTemplateInstruction<3>, public ArrayInstructionInterface {
  public:
   HLoadKeyedFastElement(HValue* obj,
                         HValue* key,
+                        HValue* dependency,
                         ElementsKind elements_kind = FAST_ELEMENTS)
       : bit_field_(0) {
     ASSERT(IsFastSmiOrObjectElementsKind(elements_kind));
@@ -4041,6 +4068,7 @@ class HLoadKeyedFastElement
     }
     SetOperandAt(0, obj);
     SetOperandAt(1, key);
+    SetOperandAt(2, dependency);
     set_representation(Representation::Tagged());
     SetGVNFlag(kDependsOnArrayElements);
     SetFlag(kUseGVN);
@@ -4048,6 +4076,7 @@ class HLoadKeyedFastElement
 
   HValue* object() { return OperandAt(0); }
   HValue* key() { return OperandAt(1); }
+  HValue* dependency() { return OperandAt(2); }
   uint32_t index_offset() { return IndexOffsetField::decode(bit_field_); }
   void SetIndexOffset(uint32_t index_offset) {
     bit_field_ = IndexOffsetField::update(bit_field_, index_offset);
@@ -4064,9 +4093,9 @@ class HLoadKeyedFastElement
 
   virtual Representation RequiredInputRepresentation(int index) {
     // The key is supposed to be Integer32.
-    return index == 0
-      ? Representation::Tagged()
-      : Representation::Integer32();
+    if (index == 0) return Representation::Tagged();
+    if (index == 1) return Representation::Integer32();
+    return Representation::None();
   }
 
   virtual void PrintDataTo(StringStream* stream);
@@ -4096,17 +4125,19 @@ enum HoleCheckMode { PERFORM_HOLE_CHECK, OMIT_HOLE_CHECK };
 
 
 class HLoadKeyedFastDoubleElement
-    : public HTemplateInstruction<2>, public ArrayInstructionInterface {
+    : public HTemplateInstruction<3>, public ArrayInstructionInterface {
  public:
   HLoadKeyedFastDoubleElement(
     HValue* elements,
     HValue* key,
+    HValue* dependency,
     HoleCheckMode hole_check_mode = PERFORM_HOLE_CHECK)
       : index_offset_(0),
         is_dehoisted_(false),
         hole_check_mode_(hole_check_mode) {
     SetOperandAt(0, elements);
     SetOperandAt(1, key);
+    SetOperandAt(2, dependency);
     set_representation(Representation::Double());
     SetGVNFlag(kDependsOnDoubleArrayElements);
     SetFlag(kUseGVN);
@@ -4114,6 +4145,7 @@ class HLoadKeyedFastDoubleElement
 
   HValue* elements() { return OperandAt(0); }
   HValue* key() { return OperandAt(1); }
+  HValue* dependency() { return OperandAt(2); }
   uint32_t index_offset() { return index_offset_; }
   void SetIndexOffset(uint32_t index_offset) { index_offset_ = index_offset; }
   HValue* GetKey() { return key(); }
@@ -4123,9 +4155,9 @@ class HLoadKeyedFastDoubleElement
 
   virtual Representation RequiredInputRepresentation(int index) {
     // The key is supposed to be Integer32.
-    return index == 0
-      ? Representation::Tagged()
-      : Representation::Integer32();
+    if (index == 0) return Representation::Tagged();
+    if (index == 1) return Representation::Integer32();
+    return Representation::None();
   }
 
   bool RequiresHoleCheck() {
@@ -4152,16 +4184,18 @@ class HLoadKeyedFastDoubleElement
 
 
 class HLoadKeyedSpecializedArrayElement
-    : public HTemplateInstruction<2>, public ArrayInstructionInterface {
+    : public HTemplateInstruction<3>, public ArrayInstructionInterface {
  public:
   HLoadKeyedSpecializedArrayElement(HValue* external_elements,
                                     HValue* key,
+                                    HValue* dependency,
                                     ElementsKind elements_kind)
       :  elements_kind_(elements_kind),
          index_offset_(0),
          is_dehoisted_(false) {
     SetOperandAt(0, external_elements);
     SetOperandAt(1, key);
+    SetOperandAt(2, dependency);
     if (elements_kind == EXTERNAL_FLOAT_ELEMENTS ||
         elements_kind == EXTERNAL_DOUBLE_ELEMENTS) {
       set_representation(Representation::Double());
@@ -4177,15 +4211,15 @@ class HLoadKeyedSpecializedArrayElement
   virtual void PrintDataTo(StringStream* stream);
 
   virtual Representation RequiredInputRepresentation(int index) {
-    // The key is supposed to be Integer32, but the base pointer
-    // for the element load is a naked pointer.
-    return index == 0
-      ? Representation::External()
-      : Representation::Integer32();
+    // The key is supposed to be Integer32.
+    if (index == 0) return Representation::External();
+    if (index == 1) return Representation::Integer32();
+    return Representation::None();
   }
 
   HValue* external_pointer() { return OperandAt(0); }
   HValue* key() { return OperandAt(1); }
+  HValue* dependency() { return OperandAt(2); }
   ElementsKind elements_kind() const { return elements_kind_; }
   uint32_t index_offset() { return index_offset_; }
   void SetIndexOffset(uint32_t index_offset) { index_offset_ = index_offset; }

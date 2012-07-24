@@ -37,7 +37,7 @@
 #include "list-inl.h"
 #include "runtime.h"
 #include "small-pointer-list.h"
-#include "smart-array-pointer.h"
+#include "smart-pointers.h"
 #include "token.h"
 #include "utils.h"
 #include "variables.h"
@@ -211,7 +211,7 @@ class AstNode: public ZoneObject {
   virtual ~AstNode() { }
 
   virtual void Accept(AstVisitor* v) = 0;
-  virtual Type node_type() const { return kInvalid; }
+  virtual Type node_type() const = 0;
 
   // Type testing & conversion functions overridden by concrete subclasses.
 #define DECLARE_NODE_FUNCTIONS(type)                  \
@@ -220,9 +220,6 @@ class AstNode: public ZoneObject {
   AST_NODE_LIST(DECLARE_NODE_FUNCTIONS)
 #undef DECLARE_NODE_FUNCTIONS
 
-  virtual Declaration* AsDeclaration() { return NULL; }
-  virtual Statement* AsStatement() { return NULL; }
-  virtual Expression* AsExpression() { return NULL; }
   virtual TargetCollector* AsTargetCollector() { return NULL; }
   virtual BreakableStatement* AsBreakableStatement() { return NULL; }
   virtual IterationStatement* AsIterationStatement() { return NULL; }
@@ -251,8 +248,6 @@ class AstNode: public ZoneObject {
 class Statement: public AstNode {
  public:
   Statement() : statement_pos_(RelocInfo::kNoPosition) {}
-
-  virtual Statement* AsStatement()  { return this; }
 
   bool IsEmpty() { return AsEmptyStatement() != NULL; }
 
@@ -314,8 +309,6 @@ class Expression: public AstNode {
     return 0;
   }
 
-  virtual Expression* AsExpression()  { return this; }
-
   virtual bool IsValidLeftHandSide() { return false; }
 
   // Helpers for ToBoolean conversion.
@@ -365,8 +358,8 @@ class Expression: public AstNode {
         test_id_(GetNextId(isolate)) {}
 
  private:
-  int id_;
-  int test_id_;
+  const int id_;
+  const int test_id_;
 };
 
 
@@ -408,8 +401,8 @@ class BreakableStatement: public Statement {
   ZoneStringList* labels_;
   Type type_;
   Label break_target_;
-  int entry_id_;
-  int exit_id_;
+  const int entry_id_;
+  const int exit_id_;
 };
 
 
@@ -455,8 +448,6 @@ class Declaration: public AstNode {
   Scope* scope() const { return scope_; }
   virtual InitializationFlag initialization() const = 0;
   virtual bool IsInlineable() const;
-
-  virtual Declaration* AsDeclaration() { return this; }
 
  protected:
   Declaration(VariableProxy* proxy,
@@ -707,7 +698,7 @@ class IterationStatement: public BreakableStatement {
  private:
   Statement* body_;
   Label continue_target_;
-  int osr_entry_id_;
+  const int osr_entry_id_;
 };
 
 
@@ -746,8 +737,8 @@ class DoWhileStatement: public IterationStatement {
  private:
   Expression* cond_;
   int condition_position_;
-  int continue_id_;
-  int back_edge_id_;
+  const int continue_id_;
+  const int back_edge_id_;
 };
 
 
@@ -787,7 +778,7 @@ class WhileStatement: public IterationStatement {
   Expression* cond_;
   // True if there is a function literal subexpression in the condition.
   bool may_have_function_literal_;
-  int body_id_;
+  const int body_id_;
 };
 
 
@@ -846,8 +837,8 @@ class ForStatement: public IterationStatement {
   // True if there is a function literal subexpression in the condition.
   bool may_have_function_literal_;
   Variable* loop_variable_;
-  int continue_id_;
-  int body_id_;
+  const int continue_id_;
+  const int body_id_;
 };
 
 
@@ -883,8 +874,8 @@ class ForInStatement: public IterationStatement {
  private:
   Expression* each_;
   Expression* enumerable_;
-  int body_id_;
-  int prepare_id_;
+  const int body_id_;
+  const int prepare_id_;
 };
 
 
@@ -1018,8 +1009,8 @@ class CaseClause: public ZoneObject {
     OBJECT_ONLY
   };
   CompareTypeFeedback compare_type_;
-  int compare_id_;
-  int entry_id_;
+  const int compare_id_;
+  const int entry_id_;
 };
 
 
@@ -1088,9 +1079,9 @@ class IfStatement: public Statement {
   Expression* condition_;
   Statement* then_statement_;
   Statement* else_statement_;
-  int if_id_;
-  int then_id_;
-  int else_id_;
+  const int if_id_;
+  const int then_id_;
+  const int else_id_;
 };
 
 
@@ -1107,6 +1098,7 @@ class TargetCollector: public AstNode {
 
   // Virtual behaviour. TargetCollectors are never part of the AST.
   virtual void Accept(AstVisitor* v) { UNREACHABLE(); }
+  virtual Type node_type() const { return kInvalid; }
   virtual TargetCollector* AsTargetCollector() { return this; }
 
   ZoneList<Label*>* targets() { return &targets_; }
@@ -1453,7 +1445,7 @@ class ArrayLiteral: public MaterializedLiteral {
  private:
   Handle<FixedArray> constant_elements_;
   ZoneList<Expression*>* values_;
-  int first_element_id_;
+  const int first_element_id_;
 };
 
 
@@ -1625,7 +1617,7 @@ class Call: public Expression {
   Handle<JSObject> holder_;
   Handle<JSGlobalPropertyCell> cell_;
 
-  int return_id_;
+  const int return_id_;
 };
 
 
@@ -1666,7 +1658,7 @@ class CallNew: public Expression {
   bool is_monomorphic_;
   Handle<JSFunction> target_;
 
-  int return_id_;
+  const int return_id_;
 };
 
 
@@ -1726,13 +1718,9 @@ class UnaryOperation: public Expression {
         op_(op),
         expression_(expression),
         pos_(pos),
-        materialize_true_id_(AstNode::kNoNumber),
-        materialize_false_id_(AstNode::kNoNumber) {
+        materialize_true_id_(GetNextId(isolate)),
+        materialize_false_id_(GetNextId(isolate)) {
     ASSERT(Token::IsUnaryOp(op));
-    if (op == Token::NOT) {
-      materialize_true_id_ = GetNextId(isolate);
-      materialize_false_id_ = GetNextId(isolate);
-    }
   }
 
  private:
@@ -1742,8 +1730,8 @@ class UnaryOperation: public Expression {
 
   // For unary not (Token::NOT), the AST ids where true and false will
   // actually be materialized, respectively.
-  int materialize_true_id_;
-  int materialize_false_id_;
+  const int materialize_true_id_;
+  const int materialize_false_id_;
 };
 
 
@@ -1769,11 +1757,13 @@ class BinaryOperation: public Expression {
                   Expression* left,
                   Expression* right,
                   int pos)
-      : Expression(isolate), op_(op), left_(left), right_(right), pos_(pos) {
+      : Expression(isolate),
+        op_(op),
+        left_(left),
+        right_(right),
+        pos_(pos),
+        right_id_(GetNextId(isolate)) {
     ASSERT(Token::IsBinaryOp(op));
-    right_id_ = (op == Token::AND || op == Token::OR)
-        ? GetNextId(isolate)
-        : AstNode::kNoNumber;
   }
 
  private:
@@ -1781,9 +1771,9 @@ class BinaryOperation: public Expression {
   Expression* left_;
   Expression* right_;
   int pos_;
-  // The short-circuit logical operations have an AST ID for their
+  // The short-circuit logical operations need an AST ID for their
   // right-hand subexpression.
-  int right_id_;
+  const int right_id_;
 };
 
 
@@ -1834,8 +1824,8 @@ class CountOperation: public Expression {
   bool is_monomorphic_;
   Expression* expression_;
   int pos_;
-  int assignment_id_;
-  int count_id_;
+  const int assignment_id_;
+  const int count_id_;
   SmallMapList receiver_types_;
 };
 
@@ -1925,8 +1915,8 @@ class Conditional: public Expression {
   Expression* else_expression_;
   int then_expression_position_;
   int else_expression_position_;
-  int then_id_;
-  int else_id_;
+  const int then_id_;
+  const int else_id_;
 };
 
 
@@ -1980,7 +1970,6 @@ class Assignment: public Expression {
     if (is_compound()) {
       binary_operation_ =
           factory->NewBinaryOperation(binary_op(), target_, value_, pos_ + 1);
-      compound_load_id_ = GetNextId(isolate);
     }
   }
 
@@ -1990,8 +1979,8 @@ class Assignment: public Expression {
   Expression* value_;
   int pos_;
   BinaryOperation* binary_operation_;
-  int compound_load_id_;
-  int assignment_id_;
+  const int compound_load_id_;
+  const int assignment_id_;
 
   bool block_start_;
   bool block_end_;

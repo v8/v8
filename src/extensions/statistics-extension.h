@@ -1,4 +1,4 @@
-// Copyright 2012 the V8 project authors. All rights reserved.
+// Copyright 2010 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,16 +25,25 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax --nouse_inlining --noparallel-recompilation
+#ifndef V8_EXTENSIONS_STATISTICS_EXTENSION_H_
+#define V8_EXTENSIONS_STATISTICS_EXTENSION_H_
 
-// Test for negative zero that doesn't need bail out
+#include "v8.h"
 
-function test_div_no_deopt_minus_zero() {
-  var zero_in_array = [0];
-  assertTrue(0 === (Math.floor((zero_in_array[0] | 0) / -1) | 0));
-}
+namespace v8 {
+namespace internal {
 
-test_div_no_deopt_minus_zero();
-%OptimizeFunctionOnNextCall(test_div_no_deopt_minus_zero);
-test_div_no_deopt_minus_zero();
-assertTrue(2 != %GetOptimizationStatus(test_div_no_deopt_minus_zero));
+class StatisticsExtension : public v8::Extension {
+ public:
+  StatisticsExtension() : v8::Extension("v8/statistics", kSource) {}
+  virtual v8::Handle<v8::FunctionTemplate> GetNativeFunction(
+      v8::Handle<v8::String> name);
+  static v8::Handle<v8::Value> GetCounters(const v8::Arguments& args);
+  static void Register();
+ private:
+  static const char* const kSource;
+};
+
+} }  // namespace v8::internal
+
+#endif  // V8_EXTENSIONS_STATISTICS_EXTENSION_H_

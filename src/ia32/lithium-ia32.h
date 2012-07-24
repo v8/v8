@@ -872,6 +872,7 @@ class LBoundsCheck: public LTemplateInstruction<0, 2, 0> {
   LOperand* length() { return inputs_[1]; }
 
   DECLARE_CONCRETE_INSTRUCTION(BoundsCheck, "bounds-check")
+  DECLARE_HYDROGEN_ACCESSOR(BoundsCheck)
 };
 
 
@@ -1275,6 +1276,19 @@ class LLoadKeyedFastDoubleElement: public LTemplateInstruction<1, 2, 0> {
   LOperand* key() { return inputs_[1]; }
   uint32_t additional_index() const { return hydrogen()->index_offset(); }
 };
+
+
+inline static bool ExternalArrayOpRequiresTemp(
+    Representation key_representation,
+    ElementsKind elements_kind) {
+  // Operations that require the key to be divided by two to be converted into
+  // an index cannot fold the scale operation into a load and need an extra
+  // temp register to do the work.
+  return key_representation.IsTagged() &&
+      (elements_kind == EXTERNAL_BYTE_ELEMENTS ||
+       elements_kind == EXTERNAL_UNSIGNED_BYTE_ELEMENTS ||
+       elements_kind == EXTERNAL_PIXEL_ELEMENTS);
+}
 
 
 class LLoadKeyedSpecializedArrayElement: public LTemplateInstruction<1, 2, 0> {

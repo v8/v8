@@ -396,7 +396,6 @@ template<class BaseMarker> class Marker {
   void MarkMapContents(Map* map);
   void MarkDescriptorArray(DescriptorArray* descriptors);
   void MarkTransitionArray(TransitionArray* transitions);
-  void MarkAccessorPairSlot(AccessorPair* accessors, int offset);
 
  private:
   BaseMarker* base_marker() {

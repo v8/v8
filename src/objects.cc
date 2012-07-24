@@ -2771,9 +2771,9 @@ MaybeObject* JSObject::SetPropertyForResult(LookupResult* result,
                                               strict_mode);
     case TRANSITION: {
       Map* transition_map = result->GetTransitionTarget();
+      int descriptor = transition_map->LastAdded();
 
       DescriptorArray* descriptors = transition_map->instance_descriptors();
-      int descriptor = descriptors->LastAdded();
       PropertyDetails details = descriptors->GetDetails(descriptor);
 
       if (details.type() == FIELD) {
@@ -2892,9 +2892,9 @@ MaybeObject* JSObject::SetLocalPropertyIgnoreAttributes(
       return ConvertDescriptorToField(name, value, attributes);
     case TRANSITION: {
       Map* transition_map = result.GetTransitionTarget();
+      int descriptor = transition_map->LastAdded();
 
       DescriptorArray* descriptors = transition_map->instance_descriptors();
-      int descriptor = descriptors->LastAdded();
       PropertyDetails details = descriptors->GetDetails(descriptor);
 
       if (details.type() == FIELD) {
@@ -3080,17 +3080,16 @@ MaybeObject* NormalizedMapCache::Get(JSObject* obj,
       // except for the code cache, which can contain some ics which can be
       // applied to the shared map.
       Object* fresh;
-      { MaybeObject* maybe_fresh =
-            fast->CopyNormalized(mode, SHARED_NORMALIZED_MAP);
-        if (maybe_fresh->ToObject(&fresh)) {
-          ASSERT(memcmp(Map::cast(fresh)->address(),
-                        Map::cast(result)->address(),
-                        Map::kCodeCacheOffset) == 0);
-          int offset = Map::kCodeCacheOffset + kPointerSize;
-          ASSERT(memcmp(Map::cast(fresh)->address() + offset,
-                        Map::cast(result)->address() + offset,
-                        Map::kSize - offset) == 0);
-        }
+      MaybeObject* maybe_fresh =
+          fast->CopyNormalized(mode, SHARED_NORMALIZED_MAP);
+      if (maybe_fresh->ToObject(&fresh)) {
+        ASSERT(memcmp(Map::cast(fresh)->address(),
+                      Map::cast(result)->address(),
+                      Map::kCodeCacheOffset) == 0);
+        int offset = Map::kCodeCacheOffset + kPointerSize;
+        ASSERT(memcmp(Map::cast(fresh)->address() + offset,
+                      Map::cast(result)->address() + offset,
+                      Map::kSize - offset) == 0);
       }
     }
 #endif
@@ -4496,7 +4495,7 @@ MaybeObject* JSObject::DefineFastAccessor(String* name,
     // If there is a transition, try to follow it.
     if (result.IsFound()) {
       Map* target = result.GetTransitionTarget();
-      int descriptor_number = target->instance_descriptors()->LastAdded();
+      int descriptor_number = target->LastAdded();
       ASSERT(target->instance_descriptors()->GetKey(descriptor_number) == name);
       return TryAccessorTransition(
           this, target, descriptor_number, component, accessor, attributes);
@@ -4711,14 +4710,14 @@ MaybeObject* Map::CopyNormalized(PropertyNormalizationMode mode,
   }
 
   Map* result;
-  { MaybeObject* maybe_result = RawCopy(new_instance_size);
-    if (!maybe_result->To(&result)) return maybe_result;
-  }
+  MaybeObject* maybe_result = RawCopy(new_instance_size);
+  if (!maybe_result->To(&result)) return maybe_result;
 
   if (mode != CLEAR_INOBJECT_PROPERTIES) {
     result->set_inobject_properties(inobject_properties());
   }
 
+  result->SetLastAdded(kNoneAdded);
   result->set_code_cache(code_cache());
   result->set_is_shared(sharing == SHARED_NORMALIZED_MAP);
 
@@ -4750,12 +4749,20 @@ MaybeObject* Map::CopyDropDescriptors() {
 
 MaybeObject* Map::CopyReplaceDescriptors(DescriptorArray* descriptors,
                                          String* name,
+                                         int last_added,
                                          TransitionFlag flag) {
   Map* result;
   MaybeObject* maybe_result = CopyDropDescriptors();
   if (!maybe_result->To(&result)) return maybe_result;
 
-  result->set_instance_descriptors(descriptors);
+  if (last_added == kNoneAdded) {
+    ASSERT(descriptors->IsEmpty());
+  } else {
+    ASSERT(descriptors->GetDetails(last_added).index() ==
+           descriptors->number_of_descriptors());
+    result->set_instance_descriptors(descriptors);
+    result->SetLastAdded(last_added);
+  }
 
   if (flag == INSERT_TRANSITION) {
     TransitionArray* transitions;
@@ -4807,32 +4814,80 @@ MaybeObject* Map::CopyWithPreallocatedFieldDescriptors() {
   // array describing these properties.
   ASSERT(constructor()->IsJSFunction());
   JSFunction* ctor = JSFunction::cast(constructor());
+  Map* initial_map = ctor->initial_map();
+  DescriptorArray* initial_descriptors = initial_map->instance_descriptors();
   DescriptorArray* descriptors;
   MaybeObject* maybe_descriptors =
-      ctor->initial_map()->instance_descriptors()->Copy(
-          DescriptorArray::MAY_BE_SHARED);
+      initial_descriptors->Copy(DescriptorArray::MAY_BE_SHARED);
   if (!maybe_descriptors->To(&descriptors)) return maybe_descriptors;
 
-  return CopyReplaceDescriptors(descriptors, NULL, OMIT_TRANSITION);
+  int last_added = initial_descriptors->IsEmpty()
+      ? kNoneAdded
+      : initial_map->LastAdded();
+
+  return CopyReplaceDescriptors(descriptors, NULL, last_added, OMIT_TRANSITION);
 }
 
 
 MaybeObject* Map::Copy(DescriptorArray::SharedMode shared_mode) {
+  DescriptorArray* source_descriptors = instance_descriptors();
   DescriptorArray* descriptors;
-  MaybeObject* maybe_descriptors = instance_descriptors()->Copy(shared_mode);
+  MaybeObject* maybe_descriptors = source_descriptors->Copy(shared_mode);
   if (!maybe_descriptors->To(&descriptors)) return maybe_descriptors;
 
-  return CopyReplaceDescriptors(descriptors, NULL, OMIT_TRANSITION);
+  int last_added = source_descriptors->IsEmpty() ? kNoneAdded : LastAdded();
+
+  return CopyReplaceDescriptors(descriptors, NULL, last_added, OMIT_TRANSITION);
+}
+
+
+static bool InsertionPointFound(String* key1, String* key2) {
+  return key1->Hash() > key2->Hash() || key1 == key2;
 }
 
 
 MaybeObject* Map::CopyAddDescriptor(Descriptor* descriptor,
                                     TransitionFlag flag) {
-  DescriptorArray* descriptors;
-  MaybeObject* maybe_descriptors = instance_descriptors()->CopyAdd(descriptor);
-  if (!maybe_descriptors->To(&descriptors)) return maybe_descriptors;
+  DescriptorArray* descriptors = instance_descriptors();
 
-  return CopyReplaceDescriptors(descriptors, descriptor->GetKey(), flag);
+  // Ensure the key is a symbol.
+  MaybeObject* maybe_failure = descriptor->KeyToSymbol();
+  if (maybe_failure->IsFailure()) return maybe_failure;
+
+  String* key = descriptor->GetKey();
+  ASSERT(descriptors->Search(key) == DescriptorArray::kNotFound);
+
+  int old_size = descriptors->number_of_descriptors();
+  int new_size = old_size + 1;
+
+  DescriptorArray* new_descriptors;
+  MaybeObject* maybe_descriptors =
+      DescriptorArray::Allocate(new_size, DescriptorArray::MAY_BE_SHARED);
+  if (!maybe_descriptors->To(&new_descriptors)) return maybe_descriptors;
+
+  FixedArray::WhitenessWitness witness(new_descriptors);
+
+  // Copy the descriptors, inserting a descriptor.
+  int insertion_index = -1;
+  int to = 0;
+  for (int from = 0; from < old_size; ++from) {
+    if (insertion_index < 0 &&
+        InsertionPointFound(descriptors->GetKey(from), key)) {
+      insertion_index = to++;
+    }
+    new_descriptors->CopyFrom(to++, descriptors, from, witness);
+  }
+  if (insertion_index < 0) insertion_index = to++;
+
+  ASSERT(to == new_size);
+  ASSERT(new_size == descriptors->NextEnumerationIndex());
+
+  descriptor->SetEnumerationIndex(new_size);
+  new_descriptors->Set(insertion_index, descriptor, witness);
+
+  SLOW_ASSERT(new_descriptors->IsSortedNoDuplicates());
+
+  return CopyReplaceDescriptors(new_descriptors, key, insertion_index, flag);
 }
 
 
@@ -4844,31 +4899,49 @@ MaybeObject* Map::CopyInsertDescriptor(Descriptor* descriptor,
   MaybeObject* maybe_result = descriptor->KeyToSymbol();
   if (maybe_result->IsFailure()) return maybe_result;
 
-  DescriptorArray* descriptors;
-  MaybeObject* maybe_descriptors;
-
   // We replace the key if it is already present.
   int index = old_descriptors->SearchWithCache(descriptor->GetKey());
-  if (index == DescriptorArray::kNotFound) {
-    maybe_descriptors = old_descriptors->CopyAdd(descriptor);
-  } else {
-    maybe_descriptors = old_descriptors->CopyReplace(descriptor, index);
+  if (index != DescriptorArray::kNotFound) {
+    return CopyReplaceDescriptor(descriptor, index, flag);
   }
-  if (!maybe_descriptors->To(&descriptors)) return maybe_descriptors;
-
-  return CopyReplaceDescriptors(descriptors, descriptor->GetKey(), flag);
+  return CopyAddDescriptor(descriptor, flag);
 }
 
 
 MaybeObject* Map::CopyReplaceDescriptor(Descriptor* descriptor,
-                                        int index,
+                                        int insertion_index,
                                         TransitionFlag flag) {
-  DescriptorArray* descriptors;
-  MaybeObject* maybe_descriptors =
-      instance_descriptors()->CopyReplace(descriptor, index);
-  if (!maybe_descriptors->To(&descriptors)) return maybe_descriptors;
+  DescriptorArray* descriptors = instance_descriptors();
+  int size = descriptors->number_of_descriptors();
+  ASSERT(0 <= insertion_index && insertion_index < size);
 
-  return CopyReplaceDescriptors(descriptors, descriptor->GetKey(), flag);
+  // Ensure the key is a symbol.
+  MaybeObject* maybe_failure = descriptor->KeyToSymbol();
+  if (maybe_failure->IsFailure()) return maybe_failure;
+
+  String* key = descriptor->GetKey();
+  ASSERT(key == descriptors->GetKey(insertion_index));
+
+  DescriptorArray* new_descriptors;
+  MaybeObject* maybe_descriptors =
+      DescriptorArray::Allocate(size, DescriptorArray::MAY_BE_SHARED);
+  if (!maybe_descriptors->To(&new_descriptors)) return maybe_descriptors;
+
+  FixedArray::WhitenessWitness witness(new_descriptors);
+
+  // Copy the descriptors, replacing a descriptor.
+  for (int index = 0; index < size; ++index) {
+    if (index == insertion_index) continue;
+    new_descriptors->CopyFrom(index, descriptors, index, witness);
+  }
+
+  descriptor->SetEnumerationIndex(
+      descriptors->GetDetails(insertion_index).index());
+  new_descriptors->Set(insertion_index, descriptor, witness);
+
+  SLOW_ASSERT(new_descriptors->IsSortedNoDuplicates());
+
+  return CopyReplaceDescriptors(new_descriptors, key, LastAdded(), flag);
 }
 
 
@@ -5655,7 +5728,7 @@ MaybeObject* DescriptorArray::Allocate(int number_of_descriptors,
     if (!maybe_array->To(&result)) return maybe_array;
   }
 
-  result->set(kLastAddedIndex, Smi::FromInt(kNoneAdded));
+  result->set(kEnumCacheIndex, Smi::FromInt(0));
   result->set(kTransitionsIndex, Smi::FromInt(0));
   return result;
 }
@@ -5667,9 +5740,9 @@ void DescriptorArray::SetEnumCache(FixedArray* bridge_storage,
   ASSERT(bridge_storage->length() >= kEnumCacheBridgeLength);
   ASSERT(new_index_cache->IsSmi() || new_index_cache->IsFixedArray());
   if (HasEnumCache()) {
-    FixedArray::cast(get(kLastAddedIndex))->
+    FixedArray::cast(get(kEnumCacheIndex))->
       set(kEnumCacheBridgeCacheIndex, new_cache);
-    FixedArray::cast(get(kLastAddedIndex))->
+    FixedArray::cast(get(kEnumCacheIndex))->
       set(kEnumCacheBridgeIndicesCacheIndex, new_index_cache);
   } else {
     if (IsEmpty()) return;  // Do nothing for empty descriptor array.
@@ -5677,16 +5750,8 @@ void DescriptorArray::SetEnumCache(FixedArray* bridge_storage,
       set(kEnumCacheBridgeCacheIndex, new_cache);
     FixedArray::cast(bridge_storage)->
       set(kEnumCacheBridgeIndicesCacheIndex, new_index_cache);
-    NoWriteBarrierSet(FixedArray::cast(bridge_storage),
-                      kEnumCacheBridgeLastAdded,
-                      get(kLastAddedIndex));
-    set(kLastAddedIndex, bridge_storage);
+    set(kEnumCacheIndex, bridge_storage);
   }
-}
-
-
-static bool InsertionPointFound(String* key1, String* key2) {
-  return key1->Hash() > key2->Hash() || key1 == key2;
 }
 
 
@@ -5698,79 +5763,6 @@ void DescriptorArray::CopyFrom(int dst_index,
   PropertyDetails details = src->GetDetails(src_index);
   Descriptor desc(src->GetKey(src_index), value, details);
   Set(dst_index, &desc, witness);
-}
-
-MaybeObject* DescriptorArray::CopyReplace(Descriptor* descriptor,
-                                          int insertion_index) {
-  ASSERT(0 <= insertion_index && insertion_index < number_of_descriptors());
-
-  // Ensure the key is a symbol.
-  { MaybeObject* maybe_result = descriptor->KeyToSymbol();
-    if (maybe_result->IsFailure()) return maybe_result;
-  }
-
-  int size = number_of_descriptors();
-
-  DescriptorArray* new_descriptors;
-  { MaybeObject* maybe_result = Allocate(size, MAY_BE_SHARED);
-    if (!maybe_result->To(&new_descriptors)) return maybe_result;
-  }
-
-  FixedArray::WhitenessWitness witness(new_descriptors);
-
-  // Copy the descriptors, replacing a descriptor.
-  for (int index = 0; index < size; ++index) {
-    if (index == insertion_index) continue;
-    new_descriptors->CopyFrom(index, this, index, witness);
-  }
-
-  descriptor->SetEnumerationIndex(GetDetails(insertion_index).index());
-  new_descriptors->Set(insertion_index, descriptor, witness);
-  new_descriptors->SetLastAdded(LastAdded());
-
-  SLOW_ASSERT(new_descriptors->IsSortedNoDuplicates());
-
-  return new_descriptors;
-}
-
-
-MaybeObject* DescriptorArray::CopyAdd(Descriptor* descriptor) {
-  // Ensure the key is a symbol.
-  MaybeObject* maybe_result = descriptor->KeyToSymbol();
-  if (maybe_result->IsFailure()) return maybe_result;
-
-  String* key = descriptor->GetKey();
-  ASSERT(Search(key) == kNotFound);
-
-  int new_size = number_of_descriptors() + 1;
-
-  DescriptorArray* new_descriptors;
-  MaybeObject* maybe_descriptors = Allocate(new_size, MAY_BE_SHARED);
-  if (!maybe_descriptors->To(&new_descriptors)) return maybe_descriptors;
-
-  FixedArray::WhitenessWitness witness(new_descriptors);
-
-  // Copy the descriptors, inserting a descriptor.
-  int insertion_index = -1;
-  int to = 0;
-  for (int from = 0; from < number_of_descriptors(); ++from) {
-    if (insertion_index < 0 && InsertionPointFound(GetKey(from), key)) {
-      insertion_index = to++;
-    }
-    new_descriptors->CopyFrom(to++, this, from, witness);
-  }
-  if (insertion_index < 0) insertion_index = to++;
-
-  ASSERT(to == new_descriptors->number_of_descriptors());
-
-  ASSERT(new_size == NextEnumerationIndex());
-  descriptor->SetEnumerationIndex(new_size);
-  new_descriptors->Set(insertion_index, descriptor, witness);
-  new_descriptors->SetLastAdded(insertion_index);
-
-  SLOW_ASSERT(new_descriptors->IsSortedNoDuplicates());
-
-  return new_descriptors;
 }
 
 
@@ -5787,25 +5779,19 @@ MaybeObject* DescriptorArray::Copy(SharedMode shared_mode) {
     for (int i = 0; i < number_of_descriptors; i++) {
       new_descriptors->CopyFrom(i, this, i, witness);
     }
-    new_descriptors->SetLastAdded(LastAdded());
   }
 
   return new_descriptors;
 }
 
+
 // We need the whiteness witness since sort will reshuffle the entries in the
 // descriptor array. If the descriptor array were to be black, the shuffling
 // would move a slot that was already recorded as pointing into an evacuation
 // candidate. This would result in missing updates upon evacuation.
-void DescriptorArray::SortUnchecked(const WhitenessWitness& witness) {
+void DescriptorArray::Sort(const WhitenessWitness& witness) {
   // In-place heap sort.
   int len = number_of_descriptors();
-  // Nothing to sort.
-  if (len == 0) return;
-
-  ASSERT(LastAdded() == kNoneAdded ||
-         GetDetails(LastAdded()).index() == number_of_descriptors());
-
   // Bottom-up max-heap construction.
   // Index of the last node with children
   const int max_parent_index = (len / 2) - 1;
@@ -5852,36 +5838,6 @@ void DescriptorArray::SortUnchecked(const WhitenessWitness& witness) {
       parent_index = child_index;
     }
   }
-
-#ifdef DEBUG
-  // Ensure that all enumeration indexes between 1 and length occur uniquely in
-  // the descriptor array.
-  for (int i = 1; i <= len; ++i) {
-    int j;
-    for (j = 0; j < len; ++j) {
-      if (GetDetails(j).index() == i) break;
-    }
-    ASSERT(j != len);
-    for (j++; j < len; ++j) {
-      ASSERT(GetDetails(j).index() != i);
-    }
-  }
-#endif
-
-  for (int i = 0; i < len; ++i) {
-    if (GetDetails(i).index() == len) {
-      SetLastAdded(i);
-      return;
-    }
-  }
-
-  UNREACHABLE();
-}
-
-
-void DescriptorArray::Sort(const WhitenessWitness& witness) {
-  SortUnchecked(witness);
-  SLOW_ASSERT(IsSortedNoDuplicates());
 }
 
 
@@ -7263,8 +7219,10 @@ bool Map::EquivalentToForNormalization(Map* other,
     instance_type() == other->instance_type() &&
     bit_field() == other->bit_field() &&
     bit_field2() == other->bit_field2() &&
-    (bit_field3() & ~(1<<Map::kIsShared)) ==
-        (other->bit_field3() & ~(1<<Map::kIsShared));
+    static_cast<uint32_t>(bit_field3()) ==
+        LastAddedBits::update(
+            IsShared::update(other->bit_field3(), true),
+            kNoneAdded);
 }
 
 
@@ -7285,6 +7243,18 @@ void JSFunction::MarkForLazyRecompilation() {
   ReplaceCode(builtins->builtin(Builtins::kLazyRecompile));
 }
 
+void JSFunction::MarkForParallelRecompilation() {
+  ASSERT(is_compiled() && !IsOptimized());
+  ASSERT(shared()->allows_lazy_compilation() || code()->optimizable());
+  Builtins* builtins = GetIsolate()->builtins();
+  ReplaceCode(builtins->builtin(Builtins::kParallelRecompile));
+
+  // Unlike MarkForLazyRecompilation, after queuing a function for
+  // recompilation on the compiler thread, we actually tail-call into
+  // the full code.  We reset the profiler ticks here so that the
+  // function doesn't bother the runtime profiler too much.
+  shared()->code()->set_profiler_ticks(0);
+}
 
 static bool CompileLazyHelper(CompilationInfo* info,
                               ClearExceptionFlag flag) {
@@ -12477,6 +12447,24 @@ MaybeObject* StringDictionary::TransformPropertiesToFastFor(
     }
   }
 
+  int inobject_props = obj->map()->inobject_properties();
+
+  // Allocate new map.
+  Map* new_map;
+  MaybeObject* maybe_new_map = obj->map()->CopyDropDescriptors();
+  if (!maybe_new_map->To(&new_map)) return maybe_new_map;
+
+  if (instance_descriptor_length == 0) {
+    ASSERT_LE(unused_property_fields, inobject_props);
+    // Transform the object.
+    new_map->set_unused_property_fields(unused_property_fields);
+    obj->set_map(new_map);
+    obj->set_properties(heap->empty_fixed_array());
+    // Check that it really works.
+    ASSERT(obj->HasFastProperties());
+    return obj;
+  }
+
   // Allocate the instance descriptor.
   DescriptorArray* descriptors;
   MaybeObject* maybe_descriptors =
@@ -12488,7 +12476,6 @@ MaybeObject* StringDictionary::TransformPropertiesToFastFor(
 
   FixedArray::WhitenessWitness witness(descriptors);
 
-  int inobject_props = obj->map()->inobject_properties();
   int number_of_allocated_fields =
       number_of_fields + unused_property_fields - inobject_props;
   if (number_of_allocated_fields < 0) {
@@ -12553,13 +12540,9 @@ MaybeObject* StringDictionary::TransformPropertiesToFastFor(
   ASSERT(current_offset == number_of_fields);
 
   descriptors->Sort(witness);
-  // Allocate new map.
-  Map* new_map;
-  MaybeObject* maybe_new_map =
-      obj->map()->CopyReplaceDescriptors(descriptors, NULL, OMIT_TRANSITION);
-  if (!maybe_new_map->To(&new_map)) return maybe_new_map;
 
   new_map->set_unused_property_fields(unused_property_fields);
+  new_map->InitializeDescriptors(descriptors);
 
   // Transform the object.
   obj->set_map(new_map);

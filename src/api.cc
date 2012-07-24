@@ -3847,6 +3847,9 @@ int String::WriteUtf8(char* buffer,
   LOG_API(isolate, "String::WriteUtf8");
   ENTER_V8(isolate);
   i::Handle<i::String> str = Utils::OpenHandle(this);
+  if (options & HINT_MANY_WRITES_EXPECTED) {
+    FlattenString(str);  // Flatten the string for efficiency.
+  }
   int string_length = str->length();
   if (str->IsAsciiRepresentation()) {
     int len;
@@ -3903,11 +3906,7 @@ int String::WriteUtf8(char* buffer,
   // Slow case.
   i::StringInputBuffer& write_input_buffer = *isolate->write_input_buffer();
   isolate->string_tracker()->RecordWrite(str);
-  if (options & HINT_MANY_WRITES_EXPECTED) {
-    // Flatten the string for efficiency.  This applies whether we are
-    // using StringInputBuffer or Get(i) to access the characters.
-    FlattenString(str);
-  }
+
   write_input_buffer.Reset(0, *str);
   int len = str->length();
   // Encode the first K - 3 bytes directly into the buffer since we
@@ -3949,8 +3948,9 @@ int String::WriteUtf8(char* buffer,
                                   c,
                                   unibrow::Utf16::kNoPreviousCharacter);
         if (pos + written <= capacity) {
-          for (int j = 0; j < written; j++)
+          for (int j = 0; j < written; j++) {
             buffer[pos + j] = intermediate[j];
+          }
           pos += written;
           nchars++;
         } else {
@@ -3963,8 +3963,9 @@ int String::WriteUtf8(char* buffer,
   }
   if (nchars_ref != NULL) *nchars_ref = nchars;
   if (!(options & NO_NULL_TERMINATION) &&
-      (i == len && (capacity == -1 || pos < capacity)))
+      (i == len && (capacity == -1 || pos < capacity))) {
     buffer[pos++] = '\0';
+  }
   return pos;
 }
 
@@ -3977,28 +3978,45 @@ int String::WriteAscii(char* buffer,
   if (IsDeadCheck(isolate, "v8::String::WriteAscii()")) return 0;
   LOG_API(isolate, "String::WriteAscii");
   ENTER_V8(isolate);
-  i::StringInputBuffer& write_input_buffer = *isolate->write_input_buffer();
   ASSERT(start >= 0 && length >= -1);
   i::Handle<i::String> str = Utils::OpenHandle(this);
   isolate->string_tracker()->RecordWrite(str);
   if (options & HINT_MANY_WRITES_EXPECTED) {
-    // Flatten the string for efficiency.  This applies whether we are
-    // using StringInputBuffer or Get(i) to access the characters.
-    str->TryFlatten();
+    FlattenString(str);  // Flatten the string for efficiency.
   }
+
+  if (str->IsAsciiRepresentation()) {
+    // WriteToFlat is faster than using the StringInputBuffer.
+    if (length == -1) length = str->length() + 1;
+    int len = i::Min(length, str->length() - start);
+    i::String::WriteToFlat(*str, buffer, start, start + len);
+    if (!(options & PRESERVE_ASCII_NULL)) {
+      for (int i = 0; i < len; i++) {
+        if (buffer[i] == '\0') buffer[i] = ' ';
+      }
+    }
+    if (!(options & NO_NULL_TERMINATION) && length > len) {
+      buffer[len] = '\0';
+    }
+    return len;
+  }
+
+  i::StringInputBuffer& write_input_buffer = *isolate->write_input_buffer();
   int end = length;
-  if ( (length == -1) || (length > str->length() - start) )
+  if ((length == -1) || (length > str->length() - start)) {
     end = str->length() - start;
+  }
   if (end < 0) return 0;
   write_input_buffer.Reset(start, *str);
   int i;
   for (i = 0; i < end; i++) {
     char c = static_cast<char>(write_input_buffer.GetNext());
-    if (c == '\0') c = ' ';
+    if (c == '\0' && !(options & PRESERVE_ASCII_NULL)) c = ' ';
     buffer[i] = c;
   }
-  if (!(options & NO_NULL_TERMINATION) && (length == -1 || i < length))
+  if (!(options & NO_NULL_TERMINATION) && (length == -1 || i < length)) {
     buffer[i] = '\0';
+  }
   return i;
 }
 
@@ -4017,7 +4035,7 @@ int String::Write(uint16_t* buffer,
   if (options & HINT_MANY_WRITES_EXPECTED) {
     // Flatten the string for efficiency.  This applies whether we are
     // using StringInputBuffer or Get(i) to access the characters.
-    str->TryFlatten();
+    FlattenString(str);
   }
   int end = start + length;
   if ((length == -1) || (length > str->length() - start) )
@@ -4203,8 +4221,9 @@ void v8::Object::SetPointerInInternalField(int index, void* value) {
     i::Handle<i::Foreign> foreign =
         isolate->factory()->NewForeign(
             reinterpret_cast<i::Address>(value), i::TENURED);
-    if (!foreign.is_null())
-        Utils::OpenHandle(this)->SetInternalField(index, *foreign);
+    if (!foreign.is_null()) {
+      Utils::OpenHandle(this)->SetInternalField(index, *foreign);
+    }
   }
   ASSERT_EQ(value, GetPointerFromInternalField(index));
 }
@@ -6422,12 +6441,6 @@ void HandleScopeImplementer::IterateThis(ObjectVisitor* v) {
     Object** start = reinterpret_cast<Object**>(&saved_contexts_.first());
     v->VisitPointers(start, start + saved_contexts_.length());
   }
-
-  for (DeferredHandles* deferred = deferred_handles_head_;
-       deferred != NULL;
-       deferred = deferred->next_) {
-    deferred->Iterate(v);
-  }
 }
 
 
@@ -6448,8 +6461,8 @@ char* HandleScopeImplementer::Iterate(ObjectVisitor* v, char* storage) {
 
 
 DeferredHandles* HandleScopeImplementer::Detach(Object** prev_limit) {
-  DeferredHandles* deferred = new DeferredHandles(
-      deferred_handles_head_, isolate()->handle_scope_data()->next, this);
+  DeferredHandles* deferred =
+      new DeferredHandles(isolate()->handle_scope_data()->next, isolate());
 
   while (!blocks_.is_empty()) {
     Object** block_start = blocks_.last();
@@ -6470,38 +6483,9 @@ DeferredHandles* HandleScopeImplementer::Detach(Object** prev_limit) {
   ASSERT(prev_limit == NULL || !blocks_.is_empty());
 
   ASSERT(!blocks_.is_empty() && prev_limit != NULL);
-  deferred_handles_head_ = deferred;
   ASSERT(last_handle_before_deferred_block_ != NULL);
   last_handle_before_deferred_block_ = NULL;
   return deferred;
-}
-
-
-void HandleScopeImplementer::DestroyDeferredHandles(DeferredHandles* deferred) {
-#ifdef DEBUG
-  DeferredHandles* deferred_iterator = deferred;
-  while (deferred_iterator->previous_ != NULL) {
-    deferred_iterator = deferred_iterator->previous_;
-  }
-  ASSERT(deferred_handles_head_ == deferred_iterator);
-#endif
-  if (deferred_handles_head_ == deferred) {
-    deferred_handles_head_ = deferred_handles_head_->next_;
-  }
-  if (deferred->next_ != NULL) {
-    deferred->next_->previous_ = deferred->previous_;
-  }
-  if (deferred->previous_ != NULL) {
-    deferred->previous_->next_ = deferred->next_;
-  }
-  for (int i = 0; i < deferred->blocks_.length(); i++) {
-#ifdef DEBUG
-    HandleScope::ZapRange(deferred->blocks_[i],
-                          &deferred->blocks_[i][kHandleBlockSize]);
-#endif
-    if (spare_ != NULL) DeleteArray(spare_);
-    spare_ = deferred->blocks_[i];
-  }
 }
 
 
@@ -6512,7 +6496,14 @@ void HandleScopeImplementer::BeginDeferredScope() {
 
 
 DeferredHandles::~DeferredHandles() {
-  impl_->DestroyDeferredHandles(this);
+  isolate_->UnlinkDeferredHandles(this);
+
+  for (int i = 0; i < blocks_.length(); i++) {
+#ifdef DEBUG
+    HandleScope::ZapRange(blocks_[i], &blocks_[i][kHandleBlockSize]);
+#endif
+    isolate_->handle_scope_implementer()->ReturnBlock(blocks_[i]);
+  }
 }
 
 

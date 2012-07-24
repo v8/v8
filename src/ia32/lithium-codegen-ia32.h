@@ -246,6 +246,7 @@ class LCodeGen BASE_EMBEDDED {
   double ToDouble(LConstantOperand* op) const;
   Operand BuildFastArrayOperand(LOperand* elements_pointer,
                                 LOperand* key,
+                                Representation key_representation,
                                 ElementsKind elements_kind,
                                 uint32_t offset,
                                 uint32_t additional_index = 0);

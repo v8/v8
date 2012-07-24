@@ -66,6 +66,8 @@ enum BuiltinExtraArguments {
 #define BUILTIN_LIST_A(V)                                               \
   V(ArgumentsAdaptorTrampoline,     BUILTIN, UNINITIALIZED,             \
                                     Code::kNoExtraICState)              \
+  V(InRecompileQueue,               BUILTIN, UNINITIALIZED,             \
+                                    Code::kNoExtraICState)              \
   V(JSConstructStubCountdown,       BUILTIN, UNINITIALIZED,             \
                                     Code::kNoExtraICState)              \
   V(JSConstructStubGeneric,         BUILTIN, UNINITIALIZED,             \
@@ -79,6 +81,8 @@ enum BuiltinExtraArguments {
   V(LazyCompile,                    BUILTIN, UNINITIALIZED,             \
                                     Code::kNoExtraICState)              \
   V(LazyRecompile,                  BUILTIN, UNINITIALIZED,             \
+                                    Code::kNoExtraICState)              \
+  V(ParallelRecompile,              BUILTIN, UNINITIALIZED,             \
                                     Code::kNoExtraICState)              \
   V(NotifyDeoptimized,              BUILTIN, UNINITIALIZED,             \
                                     Code::kNoExtraICState)              \
@@ -347,6 +351,8 @@ class Builtins {
   static void Generate_Adaptor(MacroAssembler* masm,
                                CFunctionId id,
                                BuiltinExtraArguments extra_args);
+  static void Generate_InRecompileQueue(MacroAssembler* masm);
+  static void Generate_ParallelRecompile(MacroAssembler* masm);
   static void Generate_JSConstructStubCountdown(MacroAssembler* masm);
   static void Generate_JSConstructStubGeneric(MacroAssembler* masm);
   static void Generate_JSConstructStubApi(MacroAssembler* masm);

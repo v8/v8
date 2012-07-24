@@ -41,6 +41,7 @@
 #include "handles.h"
 #include "hashmap.h"
 #include "heap.h"
+#include "optimizing-compiler-thread.h"
 #include "regexp-stack.h"
 #include "runtime-profiler.h"
 #include "runtime.h"
@@ -1055,6 +1056,14 @@ class Isolate {
     date_cache_ = date_cache;
   }
 
+  void IterateDeferredHandles(ObjectVisitor* visitor);
+  void LinkDeferredHandles(DeferredHandles* deferred_handles);
+  void UnlinkDeferredHandles(DeferredHandles* deferred_handles);
+
+  OptimizingCompilerThread* optimizing_compiler_thread() {
+    return &optimizing_compiler_thread_;
+  }
+
  private:
   Isolate();
 
@@ -1278,8 +1287,13 @@ class Isolate {
 #undef ISOLATE_FIELD_OFFSET
 #endif
 
+  DeferredHandles* deferred_handles_head_;
+  OptimizingCompilerThread optimizing_compiler_thread_;
+
   friend class ExecutionAccess;
+  friend class HandleScopeImplementer;
   friend class IsolateInitializer;
+  friend class OptimizingCompilerThread;
   friend class ThreadManager;
   friend class Simulator;
   friend class StackGuard;

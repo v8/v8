@@ -33,7 +33,7 @@
 # The fourth argument is the absolute path to the V8 directory on the device.
 
 if [ ${#@} -lt 4 ] ; then
-  echo "Error: need 4 arguments"
+  echo "$0: Error: need 4 arguments"
   exit 1
 fi
 
@@ -42,11 +42,34 @@ OUTDIR=$2
 HOST_V8=$3
 ANDROID_V8=$4
 
+function LINUX_MD5 {
+  local HASH=$(md5sum $1)
+  echo ${HASH%% *}
+}
+
+function DARWIN_MD5 {
+  local HASH=$(md5 $1)
+  echo ${HASH} | cut -f2 -d "=" | cut -f2 -d " "
+}
+
+host_os=$(uname -s)
+case "${host_os}" in
+  "Linux")
+    MD5=LINUX_MD5
+    ;;
+  "Darwin")
+    MD5=DARWIN_MD5
+    ;;
+  *)
+    echo "$0: Host platform ${host_os} is not supported" >& 2
+    exit 1
+esac
+
 function sync_file {
   local FILE=$1
   local ANDROID_HASH=$(adb shell "md5 \"$ANDROID_V8/$FILE\"")
-  local HOST_HASH=$(md5sum "$HOST_V8/$FILE")
-  if [ "${ANDROID_HASH%% *}" != "${HOST_HASH%% *}" ]; then
+  local HOST_HASH=$($MD5 "$HOST_V8/$FILE")
+  if [ "${ANDROID_HASH%% *}" != "${HOST_HASH}" ]; then
     adb push "$HOST_V8/$FILE" "$ANDROID_V8/$FILE" &> /dev/null
   fi
   echo -n "."
@@ -55,7 +78,7 @@ function sync_file {
 function sync_dir {
   local DIR=$1
   echo -n "sync to $ANDROID_V8/$DIR"
-  for FILE in $(find "$HOST_V8/$DIR" -type f); do
+  for FILE in $(find "$HOST_V8/$DIR" -not -path "*.svn*" -type f); do
     local RELATIVE_FILE=${FILE:${#HOST_V8}}
     sync_file "$RELATIVE_FILE"
   done
@@ -73,6 +96,9 @@ sync_file tools/codemap.js
 sync_file tools/csvparser.js
 sync_file tools/profile.js
 sync_file tools/splaytree.js
+sync_file tools/profile_view.js
+sync_file tools/logreader.js
+sync_file tools/tickprocessor.js
 echo ""
 sync_dir test/message
 sync_dir test/mjsunit

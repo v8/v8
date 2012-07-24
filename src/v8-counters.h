@@ -323,6 +323,14 @@ class Counters {
   CODE_KIND_LIST(SC)
 #undef SC
 
+#define SC(name) \
+  StatsCounter* count_of_FIXED_ARRAY_##name() \
+    { return &count_of_FIXED_ARRAY_##name##_; } \
+  StatsCounter* size_of_FIXED_ARRAY_##name() \
+    { return &size_of_FIXED_ARRAY_##name##_; }
+  FIXED_ARRAY_SUB_INSTANCE_TYPE_LIST(SC)
+#undef SC
+
   enum Id {
 #define RATE_ID(name, caption) k_##name,
     HISTOGRAM_TIMER_LIST(RATE_ID)
@@ -340,6 +348,10 @@ class Counters {
 #define COUNTER_ID(name) kCountOfCODE_TYPE_##name, \
     kSizeOfCODE_TYPE_##name,
     CODE_KIND_LIST(COUNTER_ID)
+#undef COUNTER_ID
+#define COUNTER_ID(name) kCountOfFIXED_ARRAY__##name, \
+    kSizeOfFIXED_ARRAY__##name,
+    FIXED_ARRAY_SUB_INSTANCE_TYPE_LIST(COUNTER_ID)
 #undef COUNTER_ID
 #define COUNTER_ID(name) k_##name,
     STATE_TAG_LIST(COUNTER_ID)
@@ -378,6 +390,12 @@ class Counters {
   StatsCounter size_of_CODE_TYPE_##name##_; \
   StatsCounter count_of_CODE_TYPE_##name##_;
   CODE_KIND_LIST(SC)
+#undef SC
+
+#define SC(name) \
+  StatsCounter size_of_FIXED_ARRAY_##name##_; \
+  StatsCounter count_of_FIXED_ARRAY_##name##_;
+  FIXED_ARRAY_SUB_INSTANCE_TYPE_LIST(SC)
 #undef SC
 
   enum {

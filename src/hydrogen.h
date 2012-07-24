@@ -874,7 +874,8 @@ class HGraphBuilder: public AstVisitor {
   void* operator new(size_t size, Zone* zone) {
     return zone->New(static_cast<int>(size));
   }
-  void operator delete(void* ptr) { }
+  void operator delete(void* pointer, Zone* zone) { }
+  void operator delete(void* pointer) { }
 
  private:
   // Type of a member function that generates inline code for a native function.
@@ -1031,7 +1032,7 @@ class HGraphBuilder: public AstVisitor {
   int InliningAstSize(Handle<JSFunction> target);
   bool TryInline(CallKind call_kind,
                  Handle<JSFunction> target,
-                 ZoneList<Expression*>* arguments,
+                 int arguments_count,
                  HValue* receiver,
                  int ast_id,
                  int return_id,
@@ -1099,11 +1100,13 @@ class HGraphBuilder: public AstVisitor {
       HValue* external_elements,
       HValue* checked_key,
       HValue* val,
+      HValue* dependency,
       ElementsKind elements_kind,
       bool is_store);
   HInstruction* BuildFastElementAccess(HValue* elements,
                                        HValue* checked_key,
                                        HValue* val,
+                                       HValue* dependency,
                                        ElementsKind elements_kind,
                                        bool is_store);
 

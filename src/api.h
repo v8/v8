@@ -397,13 +397,12 @@ class DeferredHandles {
   ~DeferredHandles();
 
  private:
-  DeferredHandles(DeferredHandles* next, Object** first_block_limit,
-                  HandleScopeImplementer* impl)
-      : next_(next),
+  DeferredHandles(Object** first_block_limit, Isolate* isolate)
+      : next_(NULL),
         previous_(NULL),
         first_block_limit_(first_block_limit),
-        impl_(impl) {
-    if (next != NULL) next->previous_ = this;
+        isolate_(isolate) {
+    isolate->LinkDeferredHandles(this);
   }
 
   void Iterate(ObjectVisitor* v);
@@ -412,9 +411,10 @@ class DeferredHandles {
   DeferredHandles* next_;
   DeferredHandles* previous_;
   Object** first_block_limit_;
-  HandleScopeImplementer* impl_;
+  Isolate* isolate_;
 
   friend class HandleScopeImplementer;
+  friend class Isolate;
 };
 
 
@@ -436,8 +436,7 @@ class HandleScopeImplementer {
         saved_contexts_(0),
         spare_(NULL),
         call_depth_(0),
-        last_handle_before_deferred_block_(NULL),
-        deferred_handles_head_(NULL) { }
+        last_handle_before_deferred_block_(NULL) { }
 
   ~HandleScopeImplementer() {
     DeleteArray(spare_);
@@ -475,13 +474,18 @@ class HandleScopeImplementer {
   inline List<internal::Object**>* blocks() { return &blocks_; }
   Isolate* isolate() const { return isolate_; }
 
+  void ReturnBlock(Object** block) {
+    ASSERT(block != NULL);
+    if (spare_ != NULL) DeleteArray(spare_);
+    spare_ = block;
+  }
+
  private:
   void ResetAfterArchive() {
     blocks_.Initialize(0);
     entered_contexts_.Initialize(0);
     saved_contexts_.Initialize(0);
     spare_ = NULL;
-    deferred_handles_head_ = NULL;
     last_handle_before_deferred_block_ = NULL;
     call_depth_ = 0;
   }
@@ -490,7 +494,6 @@ class HandleScopeImplementer {
     ASSERT(blocks_.length() == 0);
     ASSERT(entered_contexts_.length() == 0);
     ASSERT(saved_contexts_.length() == 0);
-    ASSERT(deferred_handles_head_ == NULL);
     blocks_.Free();
     entered_contexts_.Free();
     saved_contexts_.Free();
@@ -503,7 +506,6 @@ class HandleScopeImplementer {
 
   void BeginDeferredScope();
   DeferredHandles* Detach(Object** prev_limit);
-  void DestroyDeferredHandles(DeferredHandles* handles);
 
   Isolate* isolate_;
   List<internal::Object**> blocks_;
@@ -514,7 +516,6 @@ class HandleScopeImplementer {
   Object** spare_;
   int call_depth_;
   Object** last_handle_before_deferred_block_;
-  DeferredHandles* deferred_handles_head_;
   // This is only used for threading support.
   v8::ImplementationUtilities::HandleScopeData handle_scope_data_;
 

@@ -477,6 +477,14 @@ void Isolate::Iterate(ObjectVisitor* v) {
   Iterate(v, current_t);
 }
 
+void Isolate::IterateDeferredHandles(ObjectVisitor* visitor) {
+  for (DeferredHandles* deferred = deferred_handles_head_;
+       deferred != NULL;
+       deferred = deferred->next_) {
+    deferred->Iterate(visitor);
+  }
+}
+
 
 void Isolate::RegisterTryCatchHandler(v8::TryCatch* that) {
   // The ARM simulator has a separate JS stack.  We therefore register
@@ -1484,7 +1492,9 @@ Isolate::Isolate()
       string_tracker_(NULL),
       regexp_stack_(NULL),
       date_cache_(NULL),
-      context_exit_happened_(false) {
+      context_exit_happened_(false),
+      deferred_handles_head_(NULL),
+      optimizing_compiler_thread_(this) {
   TRACE_ISOLATE(constructor);
 
   memset(isolate_addresses_, 0,
@@ -1564,6 +1574,8 @@ void Isolate::TearDown() {
 void Isolate::Deinit() {
   if (state_ == INITIALIZED) {
     TRACE_ISOLATE(deinit);
+
+    if (FLAG_parallel_recompilation) optimizing_compiler_thread_.Stop();
 
     if (FLAG_hydrogen_stats) HStatistics::Instance()->Print();
 
@@ -1906,6 +1918,7 @@ bool Isolate::Init(Deserializer* des) {
 
   state_ = INITIALIZED;
   time_millis_at_init_ = OS::TimeCurrentMillis();
+  if (FLAG_parallel_recompilation) optimizing_compiler_thread_.Start();
   return true;
 }
 
@@ -1986,6 +1999,36 @@ void Isolate::Exit() {
 
   // Reinit the current thread for the isolate it was running before this one.
   SetIsolateThreadLocals(previous_isolate, previous_thread_data);
+}
+
+
+void Isolate::LinkDeferredHandles(DeferredHandles* deferred) {
+  deferred->next_ = deferred_handles_head_;
+  if (deferred_handles_head_ != NULL) {
+    deferred_handles_head_->previous_ = deferred;
+  }
+  deferred_handles_head_ = deferred;
+}
+
+
+void Isolate::UnlinkDeferredHandles(DeferredHandles* deferred) {
+#ifdef DEBUG
+  // In debug mode assert that the linked list is well-formed.
+  DeferredHandles* deferred_iterator = deferred;
+  while (deferred_iterator->previous_ != NULL) {
+    deferred_iterator = deferred_iterator->previous_;
+  }
+  ASSERT(deferred_handles_head_ == deferred_iterator);
+#endif
+  if (deferred_handles_head_ == deferred) {
+    deferred_handles_head_ = deferred_handles_head_->next_;
+  }
+  if (deferred->next_ != NULL) {
+    deferred->next_->previous_ = deferred->previous_;
+  }
+  if (deferred->previous_ != NULL) {
+    deferred->previous_->next_ = deferred->next_;
+  }
 }
 
 

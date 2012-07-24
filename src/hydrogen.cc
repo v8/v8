@@ -1711,7 +1711,10 @@ class HGlobalValueNumberer BASE_EMBEDDED {
         block_side_effects_(graph->blocks()->length(), graph->zone()),
         loop_side_effects_(graph->blocks()->length(), graph->zone()),
         visited_on_paths_(graph->zone(), graph->blocks()->length()) {
-    ASSERT(!info->isolate()->heap()->IsAllocationAllowed());
+#ifdef DEBUG
+    ASSERT(info->isolate()->optimizing_compiler_thread()->IsOptimizerThread() ||
+           !info->isolate()->heap()->IsAllocationAllowed());
+#endif
     block_side_effects_.AddBlock(GVNFlagSet(), graph_->blocks()->length(),
                                  graph_->zone());
     loop_side_effects_.AddBlock(GVNFlagSet(), graph_->blocks()->length(),
@@ -3018,7 +3021,6 @@ HGraph* HGraphBuilder::CreateGraph() {
 
   {
     HPhase phase("H_Block building");
-    CompilationHandleScope handle_scope(info());
     current_block_ = graph()->entry_block();
 
     Scope* scope = info()->scope();
@@ -3079,9 +3081,6 @@ HGraph* HGraphBuilder::CreateGraph() {
 }
 
 bool HGraph::Optimize(SmartArrayPointer<char>* bailout_reason) {
-  NoHandleAllocation no_handles;
-  AssertNoAllocation no_gc;
-
   *bailout_reason = SmartArrayPointer<char>();
   OrderBlocks();
   AssignDominators();
@@ -4369,7 +4368,8 @@ void HGraphBuilder::VisitForInStatement(ForInStatement* stmt) {
   HValue* key = AddInstruction(
       new(zone()) HLoadKeyedFastElement(
           environment()->ExpressionStackAt(2),  // Enum cache.
-          environment()->ExpressionStackAt(0)));  // Iteration index.
+          environment()->ExpressionStackAt(0),  // Iteration index.
+          environment()->ExpressionStackAt(0)));
 
   // Check if the expected map still matches that of the enumerable.
   // If not just deoptimize.
@@ -5709,6 +5709,7 @@ HInstruction* HGraphBuilder::BuildExternalArrayElementAccess(
     HValue* external_elements,
     HValue* checked_key,
     HValue* val,
+    HValue* dependency,
     ElementsKind elements_kind,
     bool is_store) {
   if (is_store) {
@@ -5752,7 +5753,7 @@ HInstruction* HGraphBuilder::BuildExternalArrayElementAccess(
   } else {
     ASSERT(val == NULL);
     return new(zone()) HLoadKeyedSpecializedArrayElement(
-        external_elements, checked_key, elements_kind);
+        external_elements, checked_key, dependency, elements_kind);
   }
 }
 
@@ -5760,6 +5761,7 @@ HInstruction* HGraphBuilder::BuildExternalArrayElementAccess(
 HInstruction* HGraphBuilder::BuildFastElementAccess(HValue* elements,
                                                     HValue* checked_key,
                                                     HValue* val,
+                                                    HValue* load_dependency,
                                                     ElementsKind elements_kind,
                                                     bool is_store) {
   if (is_store) {
@@ -5788,10 +5790,11 @@ HInstruction* HGraphBuilder::BuildFastElementAccess(HValue* elements,
       OMIT_HOLE_CHECK :
       PERFORM_HOLE_CHECK;
   if (IsFastDoubleElementsKind(elements_kind)) {
-    return new(zone()) HLoadKeyedFastDoubleElement(elements, checked_key, mode);
+    return new(zone()) HLoadKeyedFastDoubleElement(elements, checked_key,
+                                                   load_dependency, mode);
   } else {  // Smi or Object elements.
     return new(zone()) HLoadKeyedFastElement(elements, checked_key,
-                                             elements_kind);
+                                             load_dependency, elements_kind);
   }
 }
 
@@ -5843,12 +5846,14 @@ HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
   HInstruction* checked_key = NULL;
   if (map->has_external_array_elements()) {
     length = AddInstruction(new(zone()) HFixedArrayBaseLength(elements));
-    checked_key = AddInstruction(new(zone()) HBoundsCheck(key, length));
+    checked_key = AddInstruction(new(zone()) HBoundsCheck(key, length,
+                                                          ALLOW_SMI_KEY));
     HLoadExternalArrayPointer* external_elements =
         new(zone()) HLoadExternalArrayPointer(elements);
     AddInstruction(external_elements);
-    return BuildExternalArrayElementAccess(external_elements, checked_key,
-                                           val, map->elements_kind(), is_store);
+    return BuildExternalArrayElementAccess(
+        external_elements, checked_key, val, mapcheck,
+        map->elements_kind(), is_store);
   }
   ASSERT(fast_smi_only_elements ||
          fast_elements ||
@@ -5860,7 +5865,7 @@ HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
     length = AddInstruction(new(zone()) HFixedArrayBaseLength(elements));
   }
   checked_key = AddInstruction(new(zone()) HBoundsCheck(key, length));
-  return BuildFastElementAccess(elements, checked_key, val,
+  return BuildFastElementAccess(elements, checked_key, val, mapcheck,
                                 map->elements_kind(), is_store);
 }
 
@@ -6078,9 +6083,11 @@ HValue* HGraphBuilder::HandlePolymorphicElementAccess(HValue* object,
         HInstruction* length;
         length = AddInstruction(new(zone()) HJSArrayLength(object, typecheck,
                                                            HType::Smi()));
-        checked_key = AddInstruction(new(zone()) HBoundsCheck(key, length));
+        checked_key = AddInstruction(new(zone()) HBoundsCheck(key, length,
+                                                              ALLOW_SMI_KEY));
         access = AddInstruction(BuildFastElementAccess(
-            elements, checked_key, val, elements_kind, is_store));
+            elements, checked_key, val, elements_kind_branch,
+            elements_kind, is_store));
         if (!is_store) {
           Push(access);
         }
@@ -6093,9 +6100,11 @@ HValue* HGraphBuilder::HandlePolymorphicElementAccess(HValue* object,
 
         set_current_block(if_fastobject);
         length = AddInstruction(new(zone()) HFixedArrayBaseLength(elements));
-        checked_key = AddInstruction(new(zone()) HBoundsCheck(key, length));
+        checked_key = AddInstruction(new(zone()) HBoundsCheck(key, length,
+                                                              ALLOW_SMI_KEY));
         access = AddInstruction(BuildFastElementAccess(
-            elements, checked_key, val, elements_kind, is_store));
+            elements, checked_key, val, elements_kind_branch,
+            elements_kind, is_store));
       } else if (elements_kind == DICTIONARY_ELEMENTS) {
         if (is_store) {
           access = AddInstruction(BuildStoreKeyedGeneric(object, key, val));
@@ -6104,7 +6113,8 @@ HValue* HGraphBuilder::HandlePolymorphicElementAccess(HValue* object,
         }
       } else {  // External array elements.
         access = AddInstruction(BuildExternalArrayElementAccess(
-            external_elements, checked_key, val, elements_kind, is_store));
+            external_elements, checked_key, val, elements_kind_branch,
+            elements_kind, is_store));
       }
       *has_side_effects |= access->HasObservableSideEffects();
       if (position != RelocInfo::kNoPosition) access->set_position(position);
@@ -6550,7 +6560,7 @@ int HGraphBuilder::InliningAstSize(Handle<JSFunction> target) {
 
 bool HGraphBuilder::TryInline(CallKind call_kind,
                               Handle<JSFunction> target,
-                              ZoneList<Expression*>* arguments,
+                              int arguments_count,
                               HValue* receiver,
                               int ast_id,
                               int return_id,
@@ -6712,7 +6722,7 @@ bool HGraphBuilder::TryInline(CallKind call_kind,
   HConstant* undefined = graph()->GetConstantUndefined();
   HEnvironment* inner_env =
       environment()->CopyForInlining(target,
-                                     arguments->length(),
+                                     arguments_count,
                                      function,
                                      undefined,
                                      call_kind,
@@ -6748,7 +6758,7 @@ bool HGraphBuilder::TryInline(CallKind call_kind,
 
   HEnterInlined* enter_inlined =
       new(zone()) HEnterInlined(target,
-                                arguments->length(),
+                                arguments_count,
                                 function,
                                 call_kind,
                                 function_state()->is_construct(),
@@ -6851,7 +6861,7 @@ bool HGraphBuilder::TryInlineCall(Call* expr, bool drop_extra) {
 
   return TryInline(call_kind,
                    expr->target(),
-                   expr->arguments(),
+                   expr->arguments()->length(),
                    NULL,
                    expr->id(),
                    expr->ReturnId(),
@@ -6862,7 +6872,7 @@ bool HGraphBuilder::TryInlineCall(Call* expr, bool drop_extra) {
 bool HGraphBuilder::TryInlineConstruct(CallNew* expr, HValue* receiver) {
   return TryInline(CALL_AS_FUNCTION,
                    expr->target(),
-                   expr->arguments(),
+                   expr->arguments()->length(),
                    receiver,
                    expr->id(),
                    expr->ReturnId(),
