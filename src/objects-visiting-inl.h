@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -90,6 +90,139 @@ void StaticNewSpaceVisitor<StaticVisitor>::Initialize() {
   table_.template RegisterSpecializations<StructVisitor,
                                           kVisitStruct,
                                           kVisitStructGeneric>();
+}
+
+
+template<typename StaticVisitor>
+void StaticMarkingVisitor<StaticVisitor>::Initialize() {
+  table_.Register(kVisitShortcutCandidate,
+                  &FixedBodyVisitor<StaticVisitor,
+                  ConsString::BodyDescriptor,
+                  void>::Visit);
+
+  table_.Register(kVisitConsString,
+                  &FixedBodyVisitor<StaticVisitor,
+                  ConsString::BodyDescriptor,
+                  void>::Visit);
+
+  table_.Register(kVisitSlicedString,
+                  &FixedBodyVisitor<StaticVisitor,
+                  SlicedString::BodyDescriptor,
+                  void>::Visit);
+
+  table_.Register(kVisitFixedArray,
+                  &FlexibleBodyVisitor<StaticVisitor,
+                  FixedArray::BodyDescriptor,
+                  void>::Visit);
+
+  table_.Register(kVisitFixedDoubleArray, &DataObjectVisitor::Visit);
+
+  table_.Register(kVisitGlobalContext, &VisitGlobalContext);
+
+  table_.Register(kVisitByteArray, &DataObjectVisitor::Visit);
+
+  table_.Register(kVisitFreeSpace, &DataObjectVisitor::Visit);
+
+  table_.Register(kVisitSeqAsciiString, &DataObjectVisitor::Visit);
+
+  table_.Register(kVisitSeqTwoByteString, &DataObjectVisitor::Visit);
+
+  table_.Register(kVisitJSWeakMap, &StaticVisitor::VisitJSWeakMap);
+
+  table_.Register(kVisitOddball,
+                  &FixedBodyVisitor<StaticVisitor,
+                  Oddball::BodyDescriptor,
+                  void>::Visit);
+
+  table_.Register(kVisitMap,
+                  &FixedBodyVisitor<StaticVisitor,
+                  Map::BodyDescriptor,
+                  void>::Visit);
+
+  table_.Register(kVisitCode, &StaticVisitor::VisitCode);
+
+  // Registration for kVisitSharedFunctionInfo is done by StaticVisitor.
+
+  // Registration for kVisitJSFunction is done by StaticVisitor.
+
+  // Registration for kVisitJSRegExp is done by StaticVisitor.
+
+  table_.Register(kVisitPropertyCell,
+                  &FixedBodyVisitor<StaticVisitor,
+                  JSGlobalPropertyCell::BodyDescriptor,
+                  void>::Visit);
+
+  table_.template RegisterSpecializations<DataObjectVisitor,
+                                          kVisitDataObject,
+                                          kVisitDataObjectGeneric>();
+
+  table_.template RegisterSpecializations<JSObjectVisitor,
+                                          kVisitJSObject,
+                                          kVisitJSObjectGeneric>();
+
+  table_.template RegisterSpecializations<StructObjectVisitor,
+                                          kVisitStruct,
+                                          kVisitStructGeneric>();
+}
+
+
+template<typename StaticVisitor>
+void StaticMarkingVisitor<StaticVisitor>::VisitCodeEntry(
+    Heap* heap, Address entry_address) {
+  Code* code = Code::cast(Code::GetObjectFromEntryAddress(entry_address));
+  heap->mark_compact_collector()->RecordCodeEntrySlot(entry_address, code);
+  StaticVisitor::MarkObject(heap, code);
+}
+
+
+template<typename StaticVisitor>
+void StaticMarkingVisitor<StaticVisitor>::VisitGlobalPropertyCell(
+    Heap* heap, RelocInfo* rinfo) {
+  ASSERT(rinfo->rmode() == RelocInfo::GLOBAL_PROPERTY_CELL);
+  JSGlobalPropertyCell* cell = rinfo->target_cell();
+  StaticVisitor::MarkObject(heap, cell);
+}
+
+
+template<typename StaticVisitor>
+void StaticMarkingVisitor<StaticVisitor>::VisitDebugTarget(
+    Heap* heap, RelocInfo* rinfo) {
+  ASSERT((RelocInfo::IsJSReturn(rinfo->rmode()) &&
+          rinfo->IsPatchedReturnSequence()) ||
+         (RelocInfo::IsDebugBreakSlot(rinfo->rmode()) &&
+          rinfo->IsPatchedDebugBreakSlotSequence()));
+  Code* target = Code::GetCodeFromTargetAddress(rinfo->call_address());
+  heap->mark_compact_collector()->RecordRelocSlot(rinfo, target);
+  StaticVisitor::MarkObject(heap, target);
+}
+
+
+template<typename StaticVisitor>
+void StaticMarkingVisitor<StaticVisitor>::VisitGlobalContext(
+    Map* map, HeapObject* object) {
+  FixedBodyVisitor<StaticVisitor,
+                   Context::MarkCompactBodyDescriptor,
+                   void>::Visit(map, object);
+
+  MarkCompactCollector* collector = map->GetHeap()->mark_compact_collector();
+  for (int idx = Context::FIRST_WEAK_SLOT;
+       idx < Context::GLOBAL_CONTEXT_SLOTS;
+       ++idx) {
+    Object** slot =
+        HeapObject::RawField(object, FixedArray::OffsetOfElementAt(idx));
+    collector->RecordSlot(slot, slot, *slot);
+  }
+}
+
+
+template<typename StaticVisitor>
+void StaticMarkingVisitor<StaticVisitor>::VisitJSRegExp(
+    Map* map, HeapObject* object) {
+  int last_property_offset =
+      JSRegExp::kSize + kPointerSize * map->inobject_properties();
+  StaticVisitor::VisitPointers(map->GetHeap(),
+      HeapObject::RawField(object, JSRegExp::kPropertiesOffset),
+      HeapObject::RawField(object, last_property_offset));
 }
 
 

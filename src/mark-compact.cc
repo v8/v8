@@ -938,12 +938,9 @@ static inline HeapObject* ShortCircuitConsString(Object** p) {
 }
 
 
-class StaticMarkingVisitor : public StaticVisitorBase {
+class MarkCompactMarkingVisitor
+    : public StaticMarkingVisitor<MarkCompactMarkingVisitor> {
  public:
-  static inline void IterateBody(Map* map, HeapObject* obj) {
-    table_.GetVisitor(map)(map, obj);
-  }
-
   static void ObjectStatsVisitBase(StaticVisitorBase::VisitorId id,
                                    Map* map, HeapObject* obj);
 
@@ -952,7 +949,7 @@ class StaticMarkingVisitor : public StaticVisitorBase {
       FixedArraySubInstanceType fast_type,
       FixedArraySubInstanceType dictionary_type);
 
-  template<StaticMarkingVisitor::VisitorId id>
+  template<MarkCompactMarkingVisitor::VisitorId id>
   class ObjectStatsTracker {
    public:
     static inline void Visit(Map* map, HeapObject* obj);
@@ -977,12 +974,9 @@ class StaticMarkingVisitor : public StaticVisitorBase {
     }
   }
 
-  static void VisitGlobalPropertyCell(Heap* heap, RelocInfo* rinfo) {
-    ASSERT(rinfo->rmode() == RelocInfo::GLOBAL_PROPERTY_CELL);
-    JSGlobalPropertyCell* cell =
-        JSGlobalPropertyCell::cast(rinfo->target_cell());
-    MarkBit mark = Marking::MarkBitFrom(cell);
-    heap->mark_compact_collector()->MarkObject(cell, mark);
+  INLINE(static void MarkObject(Heap* heap, HeapObject* object)) {
+    MarkBit mark = Marking::MarkBitFrom(object);
+    heap->mark_compact_collector()->MarkObject(object, mark);
   }
 
   static inline void VisitEmbeddedPointer(Heap* heap, RelocInfo* rinfo) {
@@ -991,8 +985,7 @@ class StaticMarkingVisitor : public StaticVisitorBase {
     // that there can be no such embedded pointers and add assertion here.
     HeapObject* object = HeapObject::cast(rinfo->target_object());
     heap->mark_compact_collector()->RecordRelocSlot(rinfo, object);
-    MarkBit mark = Marking::MarkBitFrom(object);
-    heap->mark_compact_collector()->MarkObject(object, mark);
+    MarkObject(heap, object);
   }
 
   static inline void VisitCodeTarget(Heap* heap, RelocInfo* rinfo) {
@@ -1005,20 +998,8 @@ class StaticMarkingVisitor : public StaticVisitorBase {
       IC::Clear(rinfo->pc());
       target = Code::GetCodeFromTargetAddress(rinfo->target_address());
     }
-    MarkBit code_mark = Marking::MarkBitFrom(target);
-    heap->mark_compact_collector()->MarkObject(target, code_mark);
     heap->mark_compact_collector()->RecordRelocSlot(rinfo, target);
-  }
-
-  static inline void VisitDebugTarget(Heap* heap, RelocInfo* rinfo) {
-    ASSERT((RelocInfo::IsJSReturn(rinfo->rmode()) &&
-            rinfo->IsPatchedReturnSequence()) ||
-           (RelocInfo::IsDebugBreakSlot(rinfo->rmode()) &&
-            rinfo->IsPatchedDebugBreakSlotSequence()));
-    Code* target = Code::GetCodeFromTargetAddress(rinfo->call_address());
-    MarkBit code_mark = Marking::MarkBitFrom(target);
-    heap->mark_compact_collector()->MarkObject(target, code_mark);
-    heap->mark_compact_collector()->RecordRelocSlot(rinfo, target);
+    MarkObject(heap, target);
   }
 
   // Mark object pointed to by p.
@@ -1073,28 +1054,14 @@ class StaticMarkingVisitor : public StaticVisitorBase {
     return true;
   }
 
-  static inline void VisitExternalReference(Address* p) { }
-  static inline void VisitExternalReference(RelocInfo* rinfo) { }
-  static inline void VisitRuntimeEntry(RelocInfo* rinfo) { }
-
- private:
-  class DataObjectVisitor {
-   public:
-    template<int size>
-    static void VisitSpecialized(Map* map, HeapObject* object) {
+  static void VisitCode(Map* map, HeapObject* object) {
+    Heap* heap = map->GetHeap();
+    Code* code = reinterpret_cast<Code*>(object);
+    if (FLAG_cleanup_code_caches_at_gc) {
+      code->ClearTypeFeedbackCells(heap);
     }
-
-    static void Visit(Map* map, HeapObject* object) {
-    }
-  };
-
-  typedef FlexibleBodyVisitor<StaticMarkingVisitor,
-                              JSObject::BodyDescriptor,
-                              void> JSObjectVisitor;
-
-  typedef FlexibleBodyVisitor<StaticMarkingVisitor,
-                              StructBodyDescriptor,
-                              void> StructObjectVisitor;
+    code->CodeIterateBody<MarkCompactMarkingVisitor>(heap);
+  }
 
   static void VisitJSWeakMap(Map* map, HeapObject* object) {
     MarkCompactCollector* collector = map->GetHeap()->mark_compact_collector();
@@ -1108,12 +1075,12 @@ class StaticMarkingVisitor : public StaticVisitorBase {
 
     // Skip visiting the backing hash table containing the mappings.
     int object_size = JSWeakMap::BodyDescriptor::SizeOf(map, object);
-    BodyVisitorBase<StaticMarkingVisitor>::IteratePointers(
+    BodyVisitorBase<MarkCompactMarkingVisitor>::IteratePointers(
         map->GetHeap(),
         object,
         JSWeakMap::BodyDescriptor::kStartOffset,
         JSWeakMap::kTableOffset);
-    BodyVisitorBase<StaticMarkingVisitor>::IteratePointers(
+    BodyVisitorBase<MarkCompactMarkingVisitor>::IteratePointers(
         map->GetHeap(),
         object,
         JSWeakMap::kTableOffset + kPointerSize,
@@ -1133,14 +1100,9 @@ class StaticMarkingVisitor : public StaticVisitorBase {
     ASSERT(MarkCompactCollector::IsMarked(table->map()));
   }
 
-  static void VisitCode(Map* map, HeapObject* object) {
-    Heap* heap = map->GetHeap();
-    Code* code = reinterpret_cast<Code*>(object);
-    if (FLAG_cleanup_code_caches_at_gc) {
-      code->ClearTypeFeedbackCells(heap);
-    }
-    code->CodeIterateBody<StaticMarkingVisitor>(heap);
-  }
+ private:
+  template<int id>
+  static inline void TrackObjectStatsAndVisit(Map* map, HeapObject* obj);
 
   // Code flushing support.
 
@@ -1255,7 +1217,7 @@ class StaticMarkingVisitor : public StaticVisitorBase {
   static void VisitSharedFunctionInfoGeneric(Map* map, HeapObject* object) {
     SharedFunctionInfo::cast(object)->BeforeVisitingPointers();
 
-    FixedBodyVisitor<StaticMarkingVisitor,
+    FixedBodyVisitor<MarkCompactMarkingVisitor,
                      SharedFunctionInfo::BodyDescriptor,
                      void>::Visit(map, object);
   }
@@ -1323,7 +1285,7 @@ class StaticMarkingVisitor : public StaticVisitorBase {
     Heap* heap = map->GetHeap();
     MarkCompactCollector* collector = heap->mark_compact_collector();
     if (!collector->is_code_flushing_enabled()) {
-      VisitJSRegExpFields(map, object);
+      VisitJSRegExp(map, object);
       return;
     }
     JSRegExp* re = reinterpret_cast<JSRegExp*>(object);
@@ -1331,7 +1293,7 @@ class StaticMarkingVisitor : public StaticVisitorBase {
     UpdateRegExpCodeAgeAndFlush(heap, re, true);
     UpdateRegExpCodeAgeAndFlush(heap, re, false);
     // Visit the fields of the RegExp, including the updated FixedArray.
-    VisitJSRegExpFields(map, object);
+    VisitJSRegExp(map, object);
   }
 
 
@@ -1369,29 +1331,6 @@ class StaticMarkingVisitor : public StaticVisitorBase {
     VisitSharedFunctionInfoFields(heap, object, known_flush_code_candidate);
   }
 
-
-  static void VisitCodeEntry(Heap* heap, Address entry_address) {
-    Code* code = Code::cast(Code::GetObjectFromEntryAddress(entry_address));
-    MarkBit mark = Marking::MarkBitFrom(code);
-    heap->mark_compact_collector()->MarkObject(code, mark);
-    heap->mark_compact_collector()->
-        RecordCodeEntrySlot(entry_address, code);
-  }
-
-  static void VisitGlobalContext(Map* map, HeapObject* object) {
-    FixedBodyVisitor<StaticMarkingVisitor,
-                     Context::MarkCompactBodyDescriptor,
-                     void>::Visit(map, object);
-
-    MarkCompactCollector* collector = map->GetHeap()->mark_compact_collector();
-    for (int idx = Context::FIRST_WEAK_SLOT;
-         idx < Context::GLOBAL_CONTEXT_SLOTS;
-         ++idx) {
-      Object** slot =
-          HeapObject::RawField(object, FixedArray::OffsetOfElementAt(idx));
-      collector->RecordSlot(slot, slot, *slot);
-    }
-  }
 
   static void VisitJSFunctionAndFlushCode(Map* map, HeapObject* object) {
     Heap* heap = map->GetHeap();
@@ -1474,15 +1413,6 @@ class StaticMarkingVisitor : public StaticVisitorBase {
                              JSFunction::kNonWeakFieldsEndOffset));
   }
 
-  static inline void VisitJSRegExpFields(Map* map,
-                                         HeapObject* object) {
-    int last_property_offset =
-        JSRegExp::kSize + kPointerSize * map->inobject_properties();
-    VisitPointers(map->GetHeap(),
-                  SLOT_ADDR(object, JSRegExp::kPropertiesOffset),
-                  SLOT_ADDR(object, last_property_offset));
-  }
-
 
   static void VisitSharedFunctionInfoFields(Heap* heap,
                                             HeapObject* object,
@@ -1500,14 +1430,11 @@ class StaticMarkingVisitor : public StaticVisitorBase {
 
   #undef SLOT_ADDR
 
-  typedef void (*Callback)(Map* map, HeapObject* object);
-
-  static VisitorDispatchTable<Callback> table_;
   static VisitorDispatchTable<Callback> non_count_table_;
 };
 
 
-void StaticMarkingVisitor::ObjectStatsCountFixedArray(
+void MarkCompactMarkingVisitor::ObjectStatsCountFixedArray(
     FixedArrayBase* fixed_array,
     FixedArraySubInstanceType fast_type,
     FixedArraySubInstanceType dictionary_type) {
@@ -1528,8 +1455,8 @@ void StaticMarkingVisitor::ObjectStatsCountFixedArray(
 }
 
 
-void StaticMarkingVisitor::ObjectStatsVisitBase(
-    StaticVisitorBase::VisitorId id, Map* map, HeapObject* obj) {
+void MarkCompactMarkingVisitor::ObjectStatsVisitBase(
+    MarkCompactMarkingVisitor::VisitorId id, Map* map, HeapObject* obj) {
   Heap* heap = map->GetHeap();
   int object_size = obj->Size();
   heap->RecordObjectStats(map->instance_type(), -1, object_size);
@@ -1546,16 +1473,16 @@ void StaticMarkingVisitor::ObjectStatsVisitBase(
 }
 
 
-template<StaticMarkingVisitor::VisitorId id>
-void StaticMarkingVisitor::ObjectStatsTracker<id>::Visit(
+template<MarkCompactMarkingVisitor::VisitorId id>
+void MarkCompactMarkingVisitor::ObjectStatsTracker<id>::Visit(
     Map* map, HeapObject* obj) {
   ObjectStatsVisitBase(id, map, obj);
 }
 
 
 template<>
-class StaticMarkingVisitor::ObjectStatsTracker<
-  StaticMarkingVisitor::kVisitMap> {
+class MarkCompactMarkingVisitor::ObjectStatsTracker<
+    MarkCompactMarkingVisitor::kVisitMap> {
  public:
   static inline void Visit(Map* map, HeapObject* obj) {
     Heap* heap = map->GetHeap();
@@ -1586,8 +1513,8 @@ class StaticMarkingVisitor::ObjectStatsTracker<
 
 
 template<>
-class StaticMarkingVisitor::ObjectStatsTracker<
-  StaticMarkingVisitor::kVisitCode> {
+class MarkCompactMarkingVisitor::ObjectStatsTracker<
+    MarkCompactMarkingVisitor::kVisitCode> {
  public:
   static inline void Visit(Map* map, HeapObject* obj) {
     Heap* heap = map->GetHeap();
@@ -1600,8 +1527,8 @@ class StaticMarkingVisitor::ObjectStatsTracker<
 
 
 template<>
-class StaticMarkingVisitor::ObjectStatsTracker<
-  StaticMarkingVisitor::kVisitSharedFunctionInfo> {
+class MarkCompactMarkingVisitor::ObjectStatsTracker<
+    MarkCompactMarkingVisitor::kVisitSharedFunctionInfo> {
  public:
   static inline void Visit(Map* map, HeapObject* obj) {
     Heap* heap = map->GetHeap();
@@ -1618,8 +1545,8 @@ class StaticMarkingVisitor::ObjectStatsTracker<
 
 
 template<>
-class StaticMarkingVisitor::ObjectStatsTracker<
-  StaticMarkingVisitor::kVisitFixedArray> {
+class MarkCompactMarkingVisitor::ObjectStatsTracker<
+    MarkCompactMarkingVisitor::kVisitFixedArray> {
  public:
   static inline void Visit(Map* map, HeapObject* obj) {
     Heap* heap = map->GetHeap();
@@ -1635,48 +1562,8 @@ class StaticMarkingVisitor::ObjectStatsTracker<
 };
 
 
-void StaticMarkingVisitor::Initialize() {
-  table_.Register(kVisitShortcutCandidate,
-                  &FixedBodyVisitor<StaticMarkingVisitor,
-                  ConsString::BodyDescriptor,
-                  void>::Visit);
-
-  table_.Register(kVisitConsString,
-                  &FixedBodyVisitor<StaticMarkingVisitor,
-                  ConsString::BodyDescriptor,
-                  void>::Visit);
-
-  table_.Register(kVisitSlicedString,
-                  &FixedBodyVisitor<StaticMarkingVisitor,
-                  SlicedString::BodyDescriptor,
-                  void>::Visit);
-
-  table_.Register(kVisitFixedArray,
-                  &FlexibleBodyVisitor<StaticMarkingVisitor,
-                  FixedArray::BodyDescriptor,
-                  void>::Visit);
-
-  table_.Register(kVisitGlobalContext, &VisitGlobalContext);
-
-  table_.Register(kVisitFixedDoubleArray, DataObjectVisitor::Visit);
-
-  table_.Register(kVisitByteArray, &DataObjectVisitor::Visit);
-  table_.Register(kVisitFreeSpace, &DataObjectVisitor::Visit);
-  table_.Register(kVisitSeqAsciiString, &DataObjectVisitor::Visit);
-  table_.Register(kVisitSeqTwoByteString, &DataObjectVisitor::Visit);
-
-  table_.Register(kVisitJSWeakMap, &VisitJSWeakMap);
-
-  table_.Register(kVisitOddball,
-                  &FixedBodyVisitor<StaticMarkingVisitor,
-                  Oddball::BodyDescriptor,
-                  void>::Visit);
-  table_.Register(kVisitMap,
-                  &FixedBodyVisitor<StaticMarkingVisitor,
-                  Map::BodyDescriptor,
-                  void>::Visit);
-
-  table_.Register(kVisitCode, &VisitCode);
+void MarkCompactMarkingVisitor::Initialize() {
+  StaticMarkingVisitor<MarkCompactMarkingVisitor>::Initialize();
 
   table_.Register(kVisitSharedFunctionInfo,
                   &VisitSharedFunctionInfoAndFlushCode);
@@ -1686,23 +1573,6 @@ void StaticMarkingVisitor::Initialize() {
 
   table_.Register(kVisitJSRegExp,
                   &VisitRegExpAndFlushCode);
-
-  table_.Register(kVisitPropertyCell,
-                  &FixedBodyVisitor<StaticMarkingVisitor,
-                  JSGlobalPropertyCell::BodyDescriptor,
-                  void>::Visit);
-
-  table_.RegisterSpecializations<DataObjectVisitor,
-      kVisitDataObject,
-      kVisitDataObjectGeneric>();
-
-  table_.RegisterSpecializations<JSObjectVisitor,
-      kVisitJSObject,
-      kVisitJSObjectGeneric>();
-
-  table_.RegisterSpecializations<StructObjectVisitor,
-      kVisitStruct,
-      kVisitStructGeneric>();
 
   if (FLAG_track_gc_object_stats) {
     // Copy the visitor table to make call-through possible.
@@ -1715,10 +1585,8 @@ void StaticMarkingVisitor::Initialize() {
 }
 
 
-VisitorDispatchTable<StaticMarkingVisitor::Callback>
-  StaticMarkingVisitor::table_;
-VisitorDispatchTable<StaticMarkingVisitor::Callback>
-  StaticMarkingVisitor::non_count_table_;
+VisitorDispatchTable<MarkCompactMarkingVisitor::Callback>
+    MarkCompactMarkingVisitor::non_count_table_;
 
 
 class MarkingVisitor : public ObjectVisitor {
@@ -1726,11 +1594,11 @@ class MarkingVisitor : public ObjectVisitor {
   explicit MarkingVisitor(Heap* heap) : heap_(heap) { }
 
   void VisitPointer(Object** p) {
-    StaticMarkingVisitor::VisitPointer(heap_, p);
+    MarkCompactMarkingVisitor::VisitPointer(heap_, p);
   }
 
   void VisitPointers(Object** start, Object** end) {
-    StaticMarkingVisitor::VisitPointers(heap_, start, end);
+    MarkCompactMarkingVisitor::VisitPointers(heap_, start, end);
   }
 
  private:
@@ -1889,7 +1757,7 @@ class RootMarkingVisitor : public ObjectVisitor {
     // Mark the map pointer and body, and push them on the marking stack.
     MarkBit map_mark = Marking::MarkBitFrom(map);
     collector_->MarkObject(map, map_mark);
-    StaticMarkingVisitor::IterateBody(map, object);
+    MarkCompactMarkingVisitor::IterateBody(map, object);
 
     // Mark all the objects reachable from the map and body.  May leave
     // overflowed objects in the heap.
@@ -2342,7 +2210,7 @@ void MarkCompactCollector::EmptyMarkingDeque() {
       MarkBit map_mark = Marking::MarkBitFrom(map);
       MarkObject(map, map_mark);
 
-      StaticMarkingVisitor::IterateBody(map, object);
+      MarkCompactMarkingVisitor::IterateBody(map, object);
     }
 
     // Process encountered weak maps, mark objects only reachable by those
@@ -2481,7 +2349,7 @@ void MarkCompactCollector::MarkLiveObjects() {
         ASSERT(cell->IsJSGlobalPropertyCell());
         if (IsMarked(cell)) {
           int offset = JSGlobalPropertyCell::kValueOffset;
-          StaticMarkingVisitor::VisitPointer(
+          MarkCompactMarkingVisitor::VisitPointer(
               heap(),
               reinterpret_cast<Object**>(cell->address() + offset));
         }
@@ -2740,7 +2608,8 @@ void MarkCompactCollector::ProcessWeakMaps() {
         Object** value_slot =
             HeapObject::RawField(table, FixedArray::OffsetOfElementAt(
                 ObjectHashTable::EntryToValueIndex(i)));
-        StaticMarkingVisitor::MarkObjectByPointer(this, anchor, value_slot);
+        MarkCompactMarkingVisitor::MarkObjectByPointer(
+            this, anchor, value_slot);
       }
     }
     weak_map_obj = weak_map->next();
@@ -4141,7 +4010,8 @@ void MarkCompactCollector::ReportDeleteIfNeeded(HeapObject* obj,
 
 
 void MarkCompactCollector::Initialize() {
-  StaticMarkingVisitor::Initialize();
+  MarkCompactMarkingVisitor::Initialize();
+  IncrementalMarking::Initialize();
 }
 
 

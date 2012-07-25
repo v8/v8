@@ -5724,8 +5724,6 @@ class SharedFunctionInfo: public HeapObject {
   static bool CompileLazy(Handle<SharedFunctionInfo> shared,
                           ClearExceptionFlag flag);
 
-  void SharedFunctionInfoIterateBody(ObjectVisitor* v);
-
   // Casting.
   static inline SharedFunctionInfo* cast(Object* obj);
 
@@ -8852,8 +8850,6 @@ class ObjectVisitor BASE_EMBEDDED {
 
   // Visit pointer embedded into a code object.
   virtual void VisitEmbeddedPointer(RelocInfo* rinfo);
-
-  virtual void VisitSharedFunctionInfo(SharedFunctionInfo* shared) {}
 
   // Visits a contiguous arrays of external references (references to the C++
   // heap) in the half-open range [start, end). Any or all of the values

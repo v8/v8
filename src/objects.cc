@@ -1398,8 +1398,7 @@ void HeapObject::IterateBody(InstanceType type, int object_size,
     case EXTERNAL_DOUBLE_ARRAY_TYPE:
       break;
     case SHARED_FUNCTION_INFO_TYPE: {
-      SharedFunctionInfo* shared = reinterpret_cast<SharedFunctionInfo*>(this);
-      shared->SharedFunctionInfoIterateBody(v);
+      SharedFunctionInfo::BodyDescriptor::IterateBody(this, v);
       break;
     }
 
@@ -7993,12 +7992,6 @@ int SharedFunctionInfo::SearchOptimizedCodeMap(Context* global_context) {
     }
   }
   return -1;
-}
-
-
-void SharedFunctionInfo::SharedFunctionInfoIterateBody(ObjectVisitor* v) {
-  v->VisitSharedFunctionInfo(this);
-  SharedFunctionInfo::BodyDescriptor::IterateBody(this, v);
 }
 
 

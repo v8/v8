@@ -31,6 +31,8 @@
 
 #include "code-stubs.h"
 #include "compilation-cache.h"
+#include "objects-visiting.h"
+#include "objects-visiting-inl.h"
 #include "v8conversions.h"
 
 namespace v8 {
@@ -160,93 +162,109 @@ void IncrementalMarking::RecordWriteIntoCodeSlow(HeapObject* obj,
 }
 
 
-class IncrementalMarkingMarkingVisitor : public ObjectVisitor {
+class IncrementalMarkingMarkingVisitor
+    : public StaticMarkingVisitor<IncrementalMarkingMarkingVisitor> {
  public:
-  IncrementalMarkingMarkingVisitor(Heap* heap,
-                                   IncrementalMarking* incremental_marking)
-      : heap_(heap),
-        incremental_marking_(incremental_marking) {
+  static void Initialize() {
+    StaticMarkingVisitor<IncrementalMarkingMarkingVisitor>::Initialize();
+
+    table_.Register(kVisitSharedFunctionInfo, &VisitSharedFunctionInfo);
+
+    table_.Register(kVisitJSFunction, &VisitJSFunction);
+
+    table_.Register(kVisitJSRegExp, &VisitJSRegExp);
   }
 
-  void VisitEmbeddedPointer(RelocInfo* rinfo) {
+  static inline void VisitEmbeddedPointer(Heap* heap, RelocInfo* rinfo) {
     ASSERT(rinfo->rmode() == RelocInfo::EMBEDDED_OBJECT);
     Object* target = rinfo->target_object();
     if (target->NonFailureIsHeapObject()) {
-      heap_->mark_compact_collector()->RecordRelocSlot(rinfo, target);
-      MarkObject(target);
+      heap->mark_compact_collector()->RecordRelocSlot(rinfo, target);
+      MarkObject(heap, target);
     }
   }
 
-  void VisitCodeTarget(RelocInfo* rinfo) {
+  static inline void VisitCodeTarget(Heap* heap, RelocInfo* rinfo) {
     ASSERT(RelocInfo::IsCodeTarget(rinfo->rmode()));
     Code* target = Code::GetCodeFromTargetAddress(rinfo->target_address());
     if (FLAG_cleanup_code_caches_at_gc && target->is_inline_cache_stub()
-        && (target->ic_age() != heap_->global_ic_age())) {
+        && (target->ic_age() != heap->global_ic_age())) {
       IC::Clear(rinfo->pc());
       target = Code::GetCodeFromTargetAddress(rinfo->target_address());
     }
-    heap_->mark_compact_collector()->RecordRelocSlot(rinfo, Code::cast(target));
-    MarkObject(target);
+    heap->mark_compact_collector()->RecordRelocSlot(rinfo, Code::cast(target));
+    MarkObject(heap, target);
   }
 
-  void VisitDebugTarget(RelocInfo* rinfo) {
-    ASSERT((RelocInfo::IsJSReturn(rinfo->rmode()) &&
-            rinfo->IsPatchedReturnSequence()) ||
-           (RelocInfo::IsDebugBreakSlot(rinfo->rmode()) &&
-            rinfo->IsPatchedDebugBreakSlotSequence()));
-    Object* target = Code::GetCodeFromTargetAddress(rinfo->call_address());
-    heap_->mark_compact_collector()->RecordRelocSlot(rinfo, Code::cast(target));
-    MarkObject(target);
+  static void VisitCode(Map* map, HeapObject* object) {
+    Heap* heap = map->GetHeap();
+    Code* code = reinterpret_cast<Code*>(object);
+    code->CodeIterateBody<IncrementalMarkingMarkingVisitor>(heap);
   }
 
-  void VisitCodeEntry(Address entry_address) {
-    Object* target = Code::GetObjectFromEntryAddress(entry_address);
-    heap_->mark_compact_collector()->
-        RecordCodeEntrySlot(entry_address, Code::cast(target));
-    MarkObject(target);
+  static void VisitJSWeakMap(Map* map, HeapObject* object) {
+    Heap* heap = map->GetHeap();
+    VisitPointers(heap,
+                  HeapObject::RawField(object, JSWeakMap::kPropertiesOffset),
+                  HeapObject::RawField(object, JSWeakMap::kSize));
   }
 
-  void VisitSharedFunctionInfo(SharedFunctionInfo* shared) {
-    if (shared->ic_age() != heap_->global_ic_age()) {
-      shared->ResetForNewContext(heap_->global_ic_age());
+  static void VisitSharedFunctionInfo(Map* map, HeapObject* object) {
+    Heap* heap = map->GetHeap();
+    SharedFunctionInfo* shared = SharedFunctionInfo::cast(object);
+    if (shared->ic_age() != heap->global_ic_age()) {
+      shared->ResetForNewContext(heap->global_ic_age());
     }
+    FixedBodyVisitor<IncrementalMarkingMarkingVisitor,
+                     SharedFunctionInfo::BodyDescriptor,
+                     void>::Visit(map, object);
   }
 
-  void VisitPointer(Object** p) {
+  static inline void VisitJSFunction(Map* map, HeapObject* object) {
+    Heap* heap = map->GetHeap();
+    // Iterate over all fields in the body but take care in dealing with
+    // the code entry and skip weak fields.
+    VisitPointers(heap,
+                  HeapObject::RawField(object, JSFunction::kPropertiesOffset),
+                  HeapObject::RawField(object, JSFunction::kCodeEntryOffset));
+    VisitCodeEntry(heap, object->address() + JSFunction::kCodeEntryOffset);
+    VisitPointers(heap,
+                  HeapObject::RawField(object,
+                      JSFunction::kCodeEntryOffset + kPointerSize),
+                  HeapObject::RawField(object,
+                      JSFunction::kNonWeakFieldsEndOffset));
+  }
+
+  INLINE(static void VisitPointer(Heap* heap, Object** p)) {
     Object* obj = *p;
     if (obj->NonFailureIsHeapObject()) {
-      heap_->mark_compact_collector()->RecordSlot(p, p, obj);
-      MarkObject(obj);
+      heap->mark_compact_collector()->RecordSlot(p, p, obj);
+      MarkObject(heap, obj);
     }
   }
 
-  void VisitPointers(Object** start, Object** end) {
+  INLINE(static void VisitPointers(Heap* heap, Object** start, Object** end)) {
     for (Object** p = start; p < end; p++) {
       Object* obj = *p;
       if (obj->NonFailureIsHeapObject()) {
-        heap_->mark_compact_collector()->RecordSlot(start, p, obj);
-        MarkObject(obj);
+        heap->mark_compact_collector()->RecordSlot(start, p, obj);
+        MarkObject(heap, obj);
       }
     }
   }
 
- private:
-  // Mark object pointed to by p.
-  INLINE(void MarkObject(Object* obj)) {
+  INLINE(static void MarkObject(Heap* heap, Object* obj)) {
     HeapObject* heap_object = HeapObject::cast(obj);
     MarkBit mark_bit = Marking::MarkBitFrom(heap_object);
     if (mark_bit.data_only()) {
-      if (incremental_marking_->MarkBlackOrKeepGrey(mark_bit)) {
+      if (heap->incremental_marking()->MarkBlackOrKeepGrey(mark_bit)) {
         MemoryChunk::IncrementLiveBytesFromGC(heap_object->address(),
                                               heap_object->Size());
       }
     } else if (Marking::IsWhite(mark_bit)) {
-      incremental_marking_->WhiteToGreyAndPush(heap_object, mark_bit);
+      heap->incremental_marking()->WhiteToGreyAndPush(heap_object, mark_bit);
     }
   }
-
-  Heap* heap_;
-  IncrementalMarking* incremental_marking_;
 };
 
 
@@ -288,6 +306,11 @@ class IncrementalMarkingRootMarkingVisitor : public ObjectVisitor {
   Heap* heap_;
   IncrementalMarking* incremental_marking_;
 };
+
+
+void IncrementalMarking::Initialize() {
+  IncrementalMarkingMarkingVisitor::Initialize();
+}
 
 
 void IncrementalMarking::SetOldSpacePageFlags(MemoryChunk* chunk,
@@ -623,24 +646,6 @@ void IncrementalMarking::UpdateMarkingDequeAfterScavenge() {
 }
 
 
-void IncrementalMarking::VisitGlobalContext(Context* ctx, ObjectVisitor* v) {
-  v->VisitPointers(
-      HeapObject::RawField(
-          ctx, Context::MarkCompactBodyDescriptor::kStartOffset),
-      HeapObject::RawField(
-          ctx, Context::MarkCompactBodyDescriptor::kEndOffset));
-
-  MarkCompactCollector* collector = heap_->mark_compact_collector();
-  for (int idx = Context::FIRST_WEAK_SLOT;
-       idx < Context::GLOBAL_CONTEXT_SLOTS;
-       ++idx) {
-    Object** slot =
-        HeapObject::RawField(ctx, FixedArray::OffsetOfElementAt(idx));
-    collector->RecordSlot(slot, slot, *slot);
-  }
-}
-
-
 void IncrementalMarking::Hurry() {
   if (state() == MARKING) {
     double start = 0.0;
@@ -652,7 +657,6 @@ void IncrementalMarking::Hurry() {
     // was stopped.
     Map* filler_map = heap_->one_pointer_filler_map();
     Map* global_context_map = heap_->global_context_map();
-    IncrementalMarkingMarkingVisitor marking_visitor(heap_, this);
     while (!marking_deque_.IsEmpty()) {
       HeapObject* obj = marking_deque_.Pop();
 
@@ -663,7 +667,7 @@ void IncrementalMarking::Hurry() {
         continue;
       } else if (map == global_context_map) {
         // Global contexts have weak fields.
-        VisitGlobalContext(Context::cast(obj), &marking_visitor);
+        IncrementalMarkingMarkingVisitor::VisitGlobalContext(map, obj);
       } else if (map->instance_type() == MAP_TYPE) {
         Map* map = Map::cast(obj);
         heap_->ClearCacheOnMap(map);
@@ -676,12 +680,17 @@ void IncrementalMarking::Hurry() {
             map->instance_type() >= FIRST_JS_RECEIVER_TYPE) {
           marker_.MarkMapContents(map);
         } else {
-          marking_visitor.VisitPointers(
+          IncrementalMarkingMarkingVisitor::VisitPointers(
+              heap_,
               HeapObject::RawField(map, Map::kPointerFieldsBeginOffset),
               HeapObject::RawField(map, Map::kPointerFieldsEndOffset));
         }
       } else {
-        obj->Iterate(&marking_visitor);
+        MarkBit map_mark_bit = Marking::MarkBitFrom(map);
+        if (Marking::IsWhite(map_mark_bit)) {
+          WhiteToGreyAndPush(map, map_mark_bit);
+        }
+        IncrementalMarkingMarkingVisitor::IterateBody(map, obj);
       }
 
       MarkBit mark_bit = Marking::MarkBitFrom(obj);
@@ -815,7 +824,6 @@ void IncrementalMarking::Step(intptr_t allocated_bytes,
   } else if (state_ == MARKING) {
     Map* filler_map = heap_->one_pointer_filler_map();
     Map* global_context_map = heap_->global_context_map();
-    IncrementalMarkingMarkingVisitor marking_visitor(heap_, this);
     while (!marking_deque_.IsEmpty() && bytes_to_process > 0) {
       HeapObject* obj = marking_deque_.Pop();
 
@@ -840,7 +848,7 @@ void IncrementalMarking::Step(intptr_t allocated_bytes,
         // when we finish marking.
         MarkObjectGreyDoNotEnqueue(ctx->normalized_map_cache());
 
-        VisitGlobalContext(ctx, &marking_visitor);
+        IncrementalMarkingMarkingVisitor::VisitGlobalContext(map, ctx);
       } else if (map->instance_type() == MAP_TYPE) {
         Map* map = Map::cast(obj);
         heap_->ClearCacheOnMap(map);
@@ -853,25 +861,13 @@ void IncrementalMarking::Step(intptr_t allocated_bytes,
             map->instance_type() >= FIRST_JS_RECEIVER_TYPE) {
           marker_.MarkMapContents(map);
         } else {
-          marking_visitor.VisitPointers(
+          IncrementalMarkingMarkingVisitor::VisitPointers(
+              heap_,
               HeapObject::RawField(map, Map::kPointerFieldsBeginOffset),
               HeapObject::RawField(map, Map::kPointerFieldsEndOffset));
         }
-      } else if (map->instance_type() == JS_FUNCTION_TYPE) {
-        marking_visitor.VisitPointers(
-            HeapObject::RawField(obj, JSFunction::kPropertiesOffset),
-            HeapObject::RawField(obj, JSFunction::kCodeEntryOffset));
-
-        marking_visitor.VisitCodeEntry(
-            obj->address() + JSFunction::kCodeEntryOffset);
-
-        marking_visitor.VisitPointers(
-            HeapObject::RawField(obj,
-                                 JSFunction::kCodeEntryOffset + kPointerSize),
-            HeapObject::RawField(obj,
-                                 JSFunction::kNonWeakFieldsEndOffset));
       } else {
-        obj->IterateBody(map->instance_type(), size, &marking_visitor);
+        IncrementalMarkingMarkingVisitor::IterateBody(map, obj);
       }
 
       MarkBit obj_mark_bit = Marking::MarkBitFrom(obj);
