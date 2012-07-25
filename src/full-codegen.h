@@ -113,6 +113,9 @@ class FullCodeGenerator: public AstVisitor {
 
   Zone* zone() const { return zone_; }
 
+  static const int kMaxBackEdgeWeight;
+  static const int kBackEdgeDistanceUnit;
+
  private:
   class Breakable;
   class Iteration;

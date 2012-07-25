@@ -321,8 +321,8 @@ void FullCodeGenerator::EmitProfilingCounterReset() {
 }
 
 
-static const int kMaxBackEdgeWeight = 127;
-static const int kBackEdgeDistanceDivisor = 162;
+const int FullCodeGenerator::kMaxBackEdgeWeight = 127;
+const int FullCodeGenerator::kBackEdgeDistanceUnit = 162;
 
 
 void FullCodeGenerator::EmitStackCheck(IterationStatement* stmt,
@@ -336,7 +336,7 @@ void FullCodeGenerator::EmitStackCheck(IterationStatement* stmt,
       ASSERT(back_edge_target->is_bound());
       int distance = masm_->SizeOfCodeGeneratedSince(back_edge_target);
       weight = Min(kMaxBackEdgeWeight,
-                   Max(1, distance / kBackEdgeDistanceDivisor));
+                   Max(1, distance / kBackEdgeDistanceUnit));
     }
     EmitProfilingCounterDecrement(weight);
     __ j(positive, &ok, Label::kNear);
@@ -392,7 +392,7 @@ void FullCodeGenerator::EmitReturnSequence() {
       } else if (FLAG_weighted_back_edges) {
         int distance = masm_->pc_offset();
         weight = Min(kMaxBackEdgeWeight,
-                     Max(1, distance = kBackEdgeDistanceDivisor));
+                     Max(1, distance / kBackEdgeDistanceUnit));
       }
       EmitProfilingCounterDecrement(weight);
       Label ok;
