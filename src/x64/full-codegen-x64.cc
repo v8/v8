@@ -321,10 +321,6 @@ void FullCodeGenerator::EmitProfilingCounterReset() {
 }
 
 
-const int FullCodeGenerator::kMaxBackEdgeWeight = 127;
-const int FullCodeGenerator::kBackEdgeDistanceUnit = 162;
-
-
 void FullCodeGenerator::EmitStackCheck(IterationStatement* stmt,
                                        Label* back_edge_target) {
   Comment cmnt(masm_, "[ Stack check");

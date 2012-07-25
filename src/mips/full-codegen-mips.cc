@@ -340,10 +340,6 @@ void FullCodeGenerator::EmitProfilingCounterReset() {
 }
 
 
-const int FullCodeGenerator::kMaxBackEdgeWeight = 127;
-const int FullCodeGenerator::kBackEdgeDistanceUnit = 142;
-
-
 void FullCodeGenerator::EmitStackCheck(IterationStatement* stmt,
                                        Label* back_edge_target) {
   // The generated code is used in Deoptimizer::PatchStackCheckCodeAt so we need
