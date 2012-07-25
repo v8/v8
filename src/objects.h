@@ -2635,6 +2635,10 @@ class DescriptorArray: public FixedArray {
   // fit in a page).
   static const int kMaxNumberOfDescriptors = 1024 + 512;
 
+  static int SizeFor(int number_of_descriptors) {
+    return ToKeyIndex(number_of_descriptors);
+  }
+
  private:
   // An entry in a DescriptorArray, represented as an (array, index) pair.
   class Entry {
@@ -4960,6 +4964,11 @@ class Map: public HeapObject {
                               Handle<String> name,
                               Handle<Code> code);
   MUST_USE_RESULT MaybeObject* UpdateCodeCache(String* name, Code* code);
+
+  // Extend the descriptor array of the map with the list of descriptors.
+  // In case of duplicates, the latest descriptor is used.
+  static void CopyAppendCallbackDescriptors(Handle<Map> map,
+                                            Handle<Object> descriptors);
 
   // Returns the found code or undefined if absent.
   Object* FindInCodeCache(String* name, Code::Flags flags);

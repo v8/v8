@@ -2106,6 +2106,126 @@ void Map::LookupTransition(JSObject* holder,
 }
 
 
+enum RightTrimMode { FROM_GC, FROM_MUTATOR };
+
+
+static void ZapEndOfFixedArray(Address new_end, int to_trim) {
+  // If we are doing a big trim in old space then we zap the space.
+  Object** zap = reinterpret_cast<Object**>(new_end);
+  for (int i = 1; i < to_trim; i++) {
+    *zap++ = Smi::FromInt(0);
+  }
+}
+
+template<RightTrimMode trim_mode>
+static void RightTrimFixedArray(Heap* heap, FixedArray* elms, int to_trim) {
+  ASSERT(elms->map() != HEAP->fixed_cow_array_map());
+  // For now this trick is only applied to fixed arrays in new and paged space.
+  // In large object space the object's start must coincide with chunk
+  // and thus the trick is just not applicable.
+  ASSERT(!HEAP->lo_space()->Contains(elms));
+
+  const int len = elms->length();
+
+  ASSERT(to_trim < len);
+
+  Address new_end = elms->address() + FixedArray::SizeFor(len - to_trim);
+
+  if (trim_mode == FROM_GC) {
+#ifdef DEBUG
+    ZapEndOfFixedArray(new_end, to_trim);
+#endif
+  } else {
+    ZapEndOfFixedArray(new_end, to_trim);
+  }
+
+  int size_delta = to_trim * kPointerSize;
+
+  // Technically in new space this write might be omitted (except for
+  // debug mode which iterates through the heap), but to play safer
+  // we still do it.
+  heap->CreateFillerObjectAt(new_end, size_delta);
+
+  elms->set_length(len - to_trim);
+
+  // Maintain marking consistency for IncrementalMarking.
+  if (Marking::IsBlack(Marking::MarkBitFrom(elms))) {
+    if (trim_mode == FROM_GC) {
+      MemoryChunk::IncrementLiveBytesFromGC(elms->address(), -size_delta);
+    } else {
+      MemoryChunk::IncrementLiveBytesFromMutator(elms->address(), -size_delta);
+    }
+  }
+}
+
+
+void Map::CopyAppendCallbackDescriptors(Handle<Map> map,
+                                        Handle<Object> descriptors) {
+  Isolate* isolate = map->GetIsolate();
+  Handle<DescriptorArray> array(map->instance_descriptors());
+  v8::NeanderArray callbacks(descriptors);
+  int nof_callbacks = callbacks.length();
+  int descriptor_count = array->number_of_descriptors();
+
+  // Ensure the keys are symbols before writing them into the instance
+  // descriptor. Since it may cause a GC, it has to be done before we
+  // temporarily put the heap in an invalid state while appending descriptors.
+  for (int i = 0; i < nof_callbacks; ++i) {
+    Handle<AccessorInfo> entry(AccessorInfo::cast(callbacks.get(i)));
+    Handle<String> key =
+        isolate->factory()->SymbolFromString(
+            Handle<String>(String::cast(entry->name())));
+    entry->set_name(*key);
+  }
+
+  Handle<DescriptorArray> result =
+      isolate->factory()->NewDescriptorArray(descriptor_count + nof_callbacks);
+
+  // Ensure that marking will not progress and change color of objects.
+  DescriptorArray::WhitenessWitness witness(*result);
+
+  // Copy the descriptors from the array.
+  if (0 < descriptor_count) {
+    for (int i = 0; i < descriptor_count; i++) {
+      result->CopyFrom(i, *array, i, witness);
+    }
+  }
+
+  // After this point the GC is not allowed to run anymore until the map is in a
+  // consistent state again, i.e., all the descriptors are appended and the
+  // descriptor array is trimmed to the right size.
+  map->set_instance_descriptors(*result);
+
+  // Fill in new callback descriptors.  Process the callbacks from
+  // back to front so that the last callback with a given name takes
+  // precedence over previously added callbacks with that name.
+  for (int i = nof_callbacks - 1; i >= 0; i--) {
+    AccessorInfo* entry = AccessorInfo::cast(callbacks.get(i));
+    String* key = String::cast(entry->name());
+    // Check if a descriptor with this name already exists before writing.
+    if (LinearSearch(*result, key, map->NumberOfSetDescriptors()) ==
+        DescriptorArray::kNotFound) {
+      CallbacksDescriptor desc(key, entry, entry->property_attributes());
+      map->AppendDescriptor(&desc, witness);
+    }
+  }
+
+  int new_number_of_descriptors = map->NumberOfSetDescriptors();
+  // Reinstall the original descriptor array if no new elements were added.
+  if (new_number_of_descriptors == descriptor_count) {
+    map->set_instance_descriptors(*array);
+    return;
+  }
+
+  // If duplicates were detected, trim the descriptor array to the right size.
+  int new_array_size = DescriptorArray::SizeFor(new_number_of_descriptors);
+  if (new_array_size < result->length()) {
+    RightTrimFixedArray<FROM_MUTATOR>(
+        isolate->heap(), *result, result->length() - new_array_size);
+  }
+}
+
+
 static bool ContainsMap(MapHandleList* maps, Handle<Map> map) {
   ASSERT(!map.is_null());
   for (int i = 0; i < maps->length(); ++i) {
@@ -5723,10 +5843,9 @@ MaybeObject* DescriptorArray::Allocate(int number_of_descriptors,
     return heap->empty_descriptor_array();
   }
   // Allocate the array of keys.
-  { MaybeObject* maybe_array =
-        heap->AllocateFixedArray(ToKeyIndex(number_of_descriptors));
-    if (!maybe_array->To(&result)) return maybe_array;
-  }
+  MaybeObject* maybe_array =
+      heap->AllocateFixedArray(SizeFor(number_of_descriptors));
+  if (!maybe_array->To(&result)) return maybe_array;
 
   result->set(kEnumCacheIndex, Smi::FromInt(0));
   result->set(kTransitionsIndex, Smi::FromInt(0));
@@ -7083,46 +7202,6 @@ void String::PrintOn(FILE* file) {
 }
 
 
-// This function should only be called from within the GC, since it uses
-// IncrementLiveBytesFromGC. If called from anywhere else, this results in an
-// inconsistent live-bytes count.
-static void RightTrimFixedArray(Heap* heap, FixedArray* elms, int to_trim) {
-  ASSERT(elms->map() != HEAP->fixed_cow_array_map());
-  // For now this trick is only applied to fixed arrays in new and paged space.
-  // In large object space the object's start must coincide with chunk
-  // and thus the trick is just not applicable.
-  ASSERT(!HEAP->lo_space()->Contains(elms));
-
-  const int len = elms->length();
-
-  ASSERT(to_trim < len);
-
-  Address new_end = elms->address() + FixedArray::SizeFor(len - to_trim);
-
-#ifdef DEBUG
-  // If we are doing a big trim in old space then we zap the space.
-  Object** zap = reinterpret_cast<Object**>(new_end);
-  for (int i = 1; i < to_trim; i++) {
-    *zap++ = Smi::FromInt(0);
-  }
-#endif
-
-  int size_delta = to_trim * kPointerSize;
-
-  // Technically in new space this write might be omitted (except for
-  // debug mode which iterates through the heap), but to play safer
-  // we still do it.
-  heap->CreateFillerObjectAt(new_end, size_delta);
-
-  elms->set_length(len - to_trim);
-
-  // Maintain marking consistency for IncrementalMarking.
-  if (Marking::IsBlack(Marking::MarkBitFrom(elms))) {
-    MemoryChunk::IncrementLiveBytesFromGC(elms->address(), -size_delta);
-  }
-}
-
-
 // Clear a possible back pointer in case the transition leads to a dead map.
 // Return true in case a back pointer has been cleared and false otherwise.
 static bool ClearBackPointer(Heap* heap, Object* target) {
@@ -7185,7 +7264,8 @@ void Map::ClearNonLiveTransitions(Heap* heap) {
 
   int trim = t->number_of_transitions() - transition_index;
   if (trim > 0) {
-    RightTrimFixedArray(heap, t, trim * TransitionArray::kTransitionSize);
+    RightTrimFixedArray<FROM_GC>(
+        heap, t, trim * TransitionArray::kTransitionSize);
   }
 }
 

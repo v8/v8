@@ -143,6 +143,8 @@ void FullCodeGenerator::Generate() {
   SetFunctionPosition(function());
   Comment cmnt(masm_, "[ function compiled by full code generator");
 
+  ProfileEntryHookStub::MaybeCallEntryHook(masm_);
+
 #ifdef DEBUG
   if (strlen(FLAG_stop_at) > 0 &&
       info->function()->name()->IsEqualTo(CStrVector(FLAG_stop_at))) {
@@ -340,10 +342,6 @@ void FullCodeGenerator::EmitProfilingCounterReset() {
 }
 
 
-static const int kMaxBackEdgeWeight = 127;
-static const int kBackEdgeDistanceDivisor = 142;
-
-
 void FullCodeGenerator::EmitStackCheck(IterationStatement* stmt,
                                        Label* back_edge_target) {
   // The generated code is used in Deoptimizer::PatchStackCheckCodeAt so we need
@@ -360,7 +358,7 @@ void FullCodeGenerator::EmitStackCheck(IterationStatement* stmt,
       ASSERT(back_edge_target->is_bound());
       int distance = masm_->SizeOfCodeGeneratedSince(back_edge_target);
       weight = Min(kMaxBackEdgeWeight,
-                   Max(1, distance / kBackEdgeDistanceDivisor));
+                   Max(1, distance / kBackEdgeDistanceUnit));
     }
     EmitProfilingCounterDecrement(weight);
     __ slt(at, a3, zero_reg);
@@ -413,7 +411,7 @@ void FullCodeGenerator::EmitReturnSequence() {
       } else if (FLAG_weighted_back_edges) {
         int distance = masm_->pc_offset();
         weight = Min(kMaxBackEdgeWeight,
-                     Max(1, distance / kBackEdgeDistanceDivisor));
+                     Max(1, distance / kBackEdgeDistanceUnit));
       }
       EmitProfilingCounterDecrement(weight);
       Label ok;

@@ -892,64 +892,6 @@ Handle<String> Factory::SymbolFromString(Handle<String> value) {
 }
 
 
-void Factory::CopyAppendCallbackDescriptors(Handle<Map> map,
-                                            Handle<Object> descriptors) {
-  Handle<DescriptorArray> array(map->instance_descriptors());
-  v8::NeanderArray callbacks(descriptors);
-  int nof_callbacks = callbacks.length();
-  int descriptor_count = array->number_of_descriptors();
-  Handle<DescriptorArray> result =
-      NewDescriptorArray(descriptor_count + nof_callbacks);
-
-  // Ensure that marking will not progress and change color of objects.
-  DescriptorArray::WhitenessWitness witness(*result);
-
-  // Copy the descriptors from the array.
-  if (0 < descriptor_count) {
-    for (int i = 0; i < descriptor_count; i++) {
-      result->CopyFrom(i, *array, i, witness);
-    }
-  }
-
-  map->set_instance_descriptors(*result);
-
-  // Fill in new callback descriptors.  Process the callbacks from
-  // back to front so that the last callback with a given name takes
-  // precedence over previously added callbacks with that name.
-  for (int i = nof_callbacks - 1; i >= 0; i--) {
-    Handle<AccessorInfo> entry =
-        Handle<AccessorInfo>(AccessorInfo::cast(callbacks.get(i)));
-    // Ensure the key is a symbol before writing into the instance descriptor.
-    Handle<String> key =
-        SymbolFromString(Handle<String>(String::cast(entry->name())));
-    // Check if a descriptor with this name already exists before writing.
-    if (LinearSearch(*result, *key, map->NumberOfSetDescriptors()) ==
-        DescriptorArray::kNotFound) {
-      CallbacksDescriptor desc(*key, *entry, entry->property_attributes());
-      map->AppendDescriptor(&desc, witness);
-    }
-  }
-
-  int new_number_of_descriptors = map->NumberOfSetDescriptors();
-  // Reinstall the original descriptor array if no new elements were added.
-  if (new_number_of_descriptors == descriptor_count) {
-    map->set_instance_descriptors(*array);
-    return;
-  }
-
-  // If duplicates were detected, allocate a result of the right size
-  // and transfer the elements.
-  if (new_number_of_descriptors < result->length()) {
-    Handle<DescriptorArray> new_result =
-        NewDescriptorArray(new_number_of_descriptors);
-    for (int i = 0; i < new_number_of_descriptors; i++) {
-      new_result->CopyFrom(i, *result, i, witness);
-    }
-    map->set_instance_descriptors(*new_result);
-  }
-}
-
-
 Handle<JSObject> Factory::NewJSObject(Handle<JSFunction> constructor,
                                       PretenureFlag pretenure) {
   CALL_HEAP_FUNCTION(
@@ -1337,7 +1279,7 @@ Handle<JSFunction> Factory::CreateApiFunction(
   while (true) {
     Handle<Object> props = Handle<Object>(obj->property_accessors());
     if (!props->IsUndefined()) {
-      CopyAppendCallbackDescriptors(map, props);
+      Map::CopyAppendCallbackDescriptors(map, props);
     }
     Handle<Object> parent = Handle<Object>(obj->parent_template());
     if (parent->IsUndefined()) break;

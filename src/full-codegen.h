@@ -113,6 +113,21 @@ class FullCodeGenerator: public AstVisitor {
 
   Zone* zone() const { return zone_; }
 
+  static const int kMaxBackEdgeWeight = 127;
+
+#if V8_TARGET_ARCH_IA32
+  static const int kBackEdgeDistanceUnit = 100;
+#elif V8_TARGET_ARCH_X64
+  static const int kBackEdgeDistanceUnit = 162;
+#elif V8_TARGET_ARCH_ARM
+  static const int kBackEdgeDistanceUnit = 142;
+#elif V8_TARGET_ARCH_MIPS
+  static const int kBackEdgeDistanceUnit = 142;
+#else
+#error Unsupported target architecture.
+#endif
+
+
  private:
   class Breakable;
   class Iteration;
