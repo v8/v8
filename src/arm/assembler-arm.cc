@@ -32,7 +32,7 @@
 
 // The original source code covered by the above license above has been
 // modified significantly by Google Inc.
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 
 #include "v8.h"
 
@@ -52,17 +52,20 @@ unsigned CpuFeatures::found_by_runtime_probing_ = 0;
 
 
 // Get the CPU features enabled by the build. For cross compilation the
-// preprocessor symbols CAN_USE_ARMV7_INSTRUCTIONS and CAN_USE_VFP_INSTRUCTIONS
+// preprocessor symbols CAN_USE_ARMV7_INSTRUCTIONS and CAN_USE_VFP3_INSTRUCTIONS
 // can be defined to enable ARMv7 and VFPv3 instructions when building the
 // snapshot.
-static uint64_t CpuFeaturesImpliedByCompiler() {
-  uint64_t answer = 0;
+static unsigned CpuFeaturesImpliedByCompiler() {
+  unsigned answer = 0;
 #ifdef CAN_USE_ARMV7_INSTRUCTIONS
   answer |= 1u << ARMv7;
-#endif  // def CAN_USE_ARMV7_INSTRUCTIONS
-#ifdef CAN_USE_VFP_INSTRUCTIONS
-  answer |= 1u << VFP3 | 1u << ARMv7;
-#endif  // def CAN_USE_VFP_INSTRUCTIONS
+#endif  // CAN_USE_ARMV7_INSTRUCTIONS
+#ifdef CAN_USE_VFP3_INSTRUCTIONS
+  answer |= 1u << VFP3 | 1u << VFP2 | 1u << ARMv7;
+#endif  // CAN_USE_VFP3_INSTRUCTIONS
+#ifdef CAN_USE_VFP2_INSTRUCTIONS
+  answer |= 1u << VFP2;
+#endif  // CAN_USE_VFP2_INSTRUCTIONS
 
 #ifdef __arm__
   // If the compiler is allowed to use VFP then we can use VFP too in our code
@@ -70,10 +73,10 @@ static uint64_t CpuFeaturesImpliedByCompiler() {
   // point support implies VFPv3, see ARM DDI 0406B, page A1-6.
 #if defined(CAN_USE_ARMV7_INSTRUCTIONS) && defined(__VFP_FP__) \
     && !defined(__SOFTFP__)
-  answer |= 1u << VFP3 | 1u << ARMv7;
+  answer |= 1u << VFP3 | 1u << ARMv7 | 1u << VFP2;
 #endif  // defined(CAN_USE_ARMV7_INSTRUCTIONS) && defined(__VFP_FP__)
         // && !defined(__SOFTFP__)
-#endif  // def __arm__
+#endif  // _arm__
 
   return answer;
 }
@@ -81,7 +84,7 @@ static uint64_t CpuFeaturesImpliedByCompiler() {
 
 void CpuFeatures::Probe() {
   unsigned standard_features = static_cast<unsigned>(
-      OS::CpuFeaturesImpliedByPlatform() | CpuFeaturesImpliedByCompiler());
+      OS::CpuFeaturesImpliedByPlatform()) | CpuFeaturesImpliedByCompiler();
   ASSERT(supported_ == 0 || supported_ == standard_features);
 #ifdef DEBUG
   initialized_ = true;
@@ -101,27 +104,32 @@ void CpuFeatures::Probe() {
   // For the simulator=arm build, use VFP when FLAG_enable_vfp3 is
   // enabled. VFPv3 implies ARMv7, see ARM DDI 0406B, page A1-6.
   if (FLAG_enable_vfp3) {
-    supported_ |= 1u << VFP3 | 1u << ARMv7;
+    supported_ |= 1u << VFP3 | 1u << ARMv7 | 1u << VFP2;
   }
   // For the simulator=arm build, use ARMv7 when FLAG_enable_armv7 is enabled
   if (FLAG_enable_armv7) {
     supported_ |= 1u << ARMv7;
   }
-#else  // def __arm__
+#else  // __arm__
   // Probe for additional features not already known to be available.
   if (!IsSupported(VFP3) && OS::ArmCpuHasFeature(VFP3)) {
     // This implementation also sets the VFP flags if runtime
-    // detection of VFP returns true. VFPv3 implies ARMv7, see ARM DDI
+    // detection of VFP returns true. VFPv3 implies ARMv7 and VFP2, see ARM DDI
     // 0406B, page A1-6.
-    supported_ |= 1u << VFP3 | 1u << ARMv7;
-    found_by_runtime_probing_ |= 1u << VFP3 | 1u << ARMv7;
+    found_by_runtime_probing_ |= 1u << VFP3 | 1u << ARMv7 | 1u << VFP2;
+  } else if (!IsSupported(VFP2) && OS::ArmCpuHasFeature(VFP2)) {
+    found_by_runtime_probing_ |= 1u << VFP2;
   }
 
   if (!IsSupported(ARMv7) && OS::ArmCpuHasFeature(ARMv7)) {
-    supported_ |= 1u << ARMv7;
     found_by_runtime_probing_ |= 1u << ARMv7;
   }
+
+  supported_ |= found_by_runtime_probing_;
 #endif
+
+  // Assert that VFP3 implies VFP2 and ARMv7.
+  ASSERT(!IsSupported(VFP3) || (IsSupported(VFP2) && IsSupported(ARMv7)));
 }
 
 
@@ -1656,7 +1664,7 @@ void Assembler::vldr(const DwVfpRegister dst,
   // Instruction details available in ARM DDI 0406A, A8-628.
   // cond(31-28) | 1101(27-24)| U001(23-20) | Rbase(19-16) |
   // Vdst(15-12) | 1011(11-8) | offset
-  ASSERT(CpuFeatures::IsEnabled(VFP3));
+  ASSERT(CpuFeatures::IsEnabled(VFP2));
   int u = 1;
   if (offset < 0) {
     offset = -offset;
@@ -1698,7 +1706,7 @@ void Assembler::vldr(const SwVfpRegister dst,
   // Instruction details available in ARM DDI 0406A, A8-628.
   // cond(31-28) | 1101(27-24)| U001(23-20) | Rbase(19-16) |
   // Vdst(15-12) | 1010(11-8) | offset
-  ASSERT(CpuFeatures::IsEnabled(VFP3));
+  ASSERT(CpuFeatures::IsEnabled(VFP2));
   int u = 1;
   if (offset < 0) {
     offset = -offset;
@@ -1742,7 +1750,7 @@ void Assembler::vstr(const DwVfpRegister src,
   // Instruction details available in ARM DDI 0406A, A8-786.
   // cond(31-28) | 1101(27-24)| U000(23-20) | | Rbase(19-16) |
   // Vsrc(15-12) | 1011(11-8) | (offset/4)
-  ASSERT(CpuFeatures::IsEnabled(VFP3));
+  ASSERT(CpuFeatures::IsEnabled(VFP2));
   int u = 1;
   if (offset < 0) {
     offset = -offset;
@@ -1783,7 +1791,7 @@ void Assembler::vstr(const SwVfpRegister src,
   // Instruction details available in ARM DDI 0406A, A8-786.
   // cond(31-28) | 1101(27-24)| U000(23-20) | Rbase(19-16) |
   // Vdst(15-12) | 1010(11-8) | (offset/4)
-  ASSERT(CpuFeatures::IsEnabled(VFP3));
+  ASSERT(CpuFeatures::IsEnabled(VFP2));
   int u = 1;
   if (offset < 0) {
     offset = -offset;
@@ -1826,7 +1834,7 @@ void  Assembler::vldm(BlockAddrMode am,
   // Instruction details available in ARM DDI 0406A, A8-626.
   // cond(31-28) | 110(27-25)| PUDW1(24-20) | Rbase(19-16) |
   // first(15-12) | 1010(11-8) | (count * 2)
-  ASSERT(CpuFeatures::IsEnabled(VFP3));
+  ASSERT(CpuFeatures::IsEnabled(VFP2));
   ASSERT_LE(first.code(), last.code());
   ASSERT(am == ia || am == ia_w || am == db_w);
   ASSERT(!base.is(pc));
@@ -1848,7 +1856,7 @@ void  Assembler::vstm(BlockAddrMode am,
   // Instruction details available in ARM DDI 0406A, A8-784.
   // cond(31-28) | 110(27-25)| PUDW0(24-20) | Rbase(19-16) |
   // first(15-12) | 1011(11-8) | (count * 2)
-  ASSERT(CpuFeatures::IsEnabled(VFP3));
+  ASSERT(CpuFeatures::IsEnabled(VFP2));
   ASSERT_LE(first.code(), last.code());
   ASSERT(am == ia || am == ia_w || am == db_w);
   ASSERT(!base.is(pc));
@@ -1869,7 +1877,7 @@ void  Assembler::vldm(BlockAddrMode am,
   // Instruction details available in ARM DDI 0406A, A8-626.
   // cond(31-28) | 110(27-25)| PUDW1(24-20) | Rbase(19-16) |
   // first(15-12) | 1010(11-8) | (count/2)
-  ASSERT(CpuFeatures::IsEnabled(VFP3));
+  ASSERT(CpuFeatures::IsEnabled(VFP2));
   ASSERT_LE(first.code(), last.code());
   ASSERT(am == ia || am == ia_w || am == db_w);
   ASSERT(!base.is(pc));
@@ -1890,7 +1898,7 @@ void  Assembler::vstm(BlockAddrMode am,
   // Instruction details available in ARM DDI 0406A, A8-784.
   // cond(31-28) | 110(27-25)| PUDW0(24-20) | Rbase(19-16) |
   // first(15-12) | 1011(11-8) | (count/2)
-  ASSERT(CpuFeatures::IsEnabled(VFP3));
+  ASSERT(CpuFeatures::IsEnabled(VFP2));
   ASSERT_LE(first.code(), last.code());
   ASSERT(am == ia || am == ia_w || am == db_w);
   ASSERT(!base.is(pc));
@@ -1913,7 +1921,7 @@ static void DoubleAsTwoUInt32(double d, uint32_t* lo, uint32_t* hi) {
 // Only works for little endian floating point formats.
 // We don't support VFP on the mixed endian floating point platform.
 static bool FitsVMOVDoubleImmediate(double d, uint32_t *encoding) {
-  ASSERT(CpuFeatures::IsEnabled(VFP3));
+  ASSERT(CpuFeatures::IsSupported(VFP3));
 
   // VMOV can accept an immediate of the form:
   //
@@ -1966,10 +1974,10 @@ void Assembler::vmov(const DwVfpRegister dst,
                      const Condition cond) {
   // Dd = immediate
   // Instruction details available in ARM DDI 0406B, A8-640.
-  ASSERT(CpuFeatures::IsEnabled(VFP3));
+  ASSERT(CpuFeatures::IsEnabled(VFP2));
 
   uint32_t enc;
-  if (FitsVMOVDoubleImmediate(imm, &enc)) {
+  if (CpuFeatures::IsSupported(VFP3) && FitsVMOVDoubleImmediate(imm, &enc)) {
     // The double can be encoded in the instruction.
     emit(cond | 0xE*B24 | 0xB*B20 | dst.code()*B12 | 0xB*B8 | enc);
   } else {
@@ -2003,7 +2011,7 @@ void Assembler::vmov(const SwVfpRegister dst,
                      const Condition cond) {
   // Sd = Sm
   // Instruction details available in ARM DDI 0406B, A8-642.
-  ASSERT(CpuFeatures::IsEnabled(VFP3));
+  ASSERT(CpuFeatures::IsEnabled(VFP2));
   int sd, d, sm, m;
   dst.split_code(&sd, &d);
   src.split_code(&sm, &m);
@@ -2016,7 +2024,7 @@ void Assembler::vmov(const DwVfpRegister dst,
                      const Condition cond) {
   // Dd = Dm
   // Instruction details available in ARM DDI 0406B, A8-642.
-  ASSERT(CpuFeatures::IsEnabled(VFP3));
+  ASSERT(CpuFeatures::IsEnabled(VFP2));
   emit(cond | 0xE*B24 | 0xB*B20 |
        dst.code()*B12 | 0x5*B9 | B8 | B6 | src.code());
 }
@@ -2030,7 +2038,7 @@ void Assembler::vmov(const DwVfpRegister dst,
   // Instruction details available in ARM DDI 0406A, A8-646.
   // cond(31-28) | 1100(27-24)| 010(23-21) | op=0(20) | Rt2(19-16) |
   // Rt(15-12) | 1011(11-8) | 00(7-6) | M(5) | 1(4) | Vm
-  ASSERT(CpuFeatures::IsEnabled(VFP3));
+  ASSERT(CpuFeatures::IsEnabled(VFP2));
   ASSERT(!src1.is(pc) && !src2.is(pc));
   emit(cond | 0xC*B24 | B22 | src2.code()*B16 |
        src1.code()*B12 | 0xB*B8 | B4 | dst.code());
@@ -2045,7 +2053,7 @@ void Assembler::vmov(const Register dst1,
   // Instruction details available in ARM DDI 0406A, A8-646.
   // cond(31-28) | 1100(27-24)| 010(23-21) | op=1(20) | Rt2(19-16) |
   // Rt(15-12) | 1011(11-8) | 00(7-6) | M(5) | 1(4) | Vm
-  ASSERT(CpuFeatures::IsEnabled(VFP3));
+  ASSERT(CpuFeatures::IsEnabled(VFP2));
   ASSERT(!dst1.is(pc) && !dst2.is(pc));
   emit(cond | 0xC*B24 | B22 | B20 | dst2.code()*B16 |
        dst1.code()*B12 | 0xB*B8 | B4 | src.code());
@@ -2059,7 +2067,7 @@ void Assembler::vmov(const SwVfpRegister dst,
   // Instruction details available in ARM DDI 0406A, A8-642.
   // cond(31-28) | 1110(27-24)| 000(23-21) | op=0(20) | Vn(19-16) |
   // Rt(15-12) | 1010(11-8) | N(7)=0 | 00(6-5) | 1(4) | 0000(3-0)
-  ASSERT(CpuFeatures::IsEnabled(VFP3));
+  ASSERT(CpuFeatures::IsEnabled(VFP2));
   ASSERT(!src.is(pc));
   int sn, n;
   dst.split_code(&sn, &n);
@@ -2074,7 +2082,7 @@ void Assembler::vmov(const Register dst,
   // Instruction details available in ARM DDI 0406A, A8-642.
   // cond(31-28) | 1110(27-24)| 000(23-21) | op=1(20) | Vn(19-16) |
   // Rt(15-12) | 1010(11-8) | N(7)=0 | 00(6-5) | 1(4) | 0000(3-0)
-  ASSERT(CpuFeatures::IsEnabled(VFP3));
+  ASSERT(CpuFeatures::IsEnabled(VFP2));
   ASSERT(!dst.is(pc));
   int sn, n;
   src.split_code(&sn, &n);
@@ -2199,7 +2207,7 @@ void Assembler::vcvt_f64_s32(const DwVfpRegister dst,
                              const SwVfpRegister src,
                              VFPConversionMode mode,
                              const Condition cond) {
-  ASSERT(CpuFeatures::IsEnabled(VFP3));
+  ASSERT(CpuFeatures::IsEnabled(VFP2));
   emit(EncodeVCVT(F64, dst.code(), S32, src.code(), mode, cond));
 }
 
@@ -2208,7 +2216,7 @@ void Assembler::vcvt_f32_s32(const SwVfpRegister dst,
                              const SwVfpRegister src,
                              VFPConversionMode mode,
                              const Condition cond) {
-  ASSERT(CpuFeatures::IsEnabled(VFP3));
+  ASSERT(CpuFeatures::IsEnabled(VFP2));
   emit(EncodeVCVT(F32, dst.code(), S32, src.code(), mode, cond));
 }
 
@@ -2217,7 +2225,7 @@ void Assembler::vcvt_f64_u32(const DwVfpRegister dst,
                              const SwVfpRegister src,
                              VFPConversionMode mode,
                              const Condition cond) {
-  ASSERT(CpuFeatures::IsEnabled(VFP3));
+  ASSERT(CpuFeatures::IsEnabled(VFP2));
   emit(EncodeVCVT(F64, dst.code(), U32, src.code(), mode, cond));
 }
 
@@ -2226,7 +2234,7 @@ void Assembler::vcvt_s32_f64(const SwVfpRegister dst,
                              const DwVfpRegister src,
                              VFPConversionMode mode,
                              const Condition cond) {
-  ASSERT(CpuFeatures::IsEnabled(VFP3));
+  ASSERT(CpuFeatures::IsEnabled(VFP2));
   emit(EncodeVCVT(S32, dst.code(), F64, src.code(), mode, cond));
 }
 
@@ -2235,7 +2243,7 @@ void Assembler::vcvt_u32_f64(const SwVfpRegister dst,
                              const DwVfpRegister src,
                              VFPConversionMode mode,
                              const Condition cond) {
-  ASSERT(CpuFeatures::IsEnabled(VFP3));
+  ASSERT(CpuFeatures::IsEnabled(VFP2));
   emit(EncodeVCVT(U32, dst.code(), F64, src.code(), mode, cond));
 }
 
@@ -2244,7 +2252,7 @@ void Assembler::vcvt_f64_f32(const DwVfpRegister dst,
                              const SwVfpRegister src,
                              VFPConversionMode mode,
                              const Condition cond) {
-  ASSERT(CpuFeatures::IsEnabled(VFP3));
+  ASSERT(CpuFeatures::IsEnabled(VFP2));
   emit(EncodeVCVT(F64, dst.code(), F32, src.code(), mode, cond));
 }
 
@@ -2253,7 +2261,7 @@ void Assembler::vcvt_f32_f64(const SwVfpRegister dst,
                              const DwVfpRegister src,
                              VFPConversionMode mode,
                              const Condition cond) {
-  ASSERT(CpuFeatures::IsEnabled(VFP3));
+  ASSERT(CpuFeatures::IsEnabled(VFP2));
   emit(EncodeVCVT(F32, dst.code(), F64, src.code(), mode, cond));
 }
 
@@ -2261,6 +2269,7 @@ void Assembler::vcvt_f32_f64(const SwVfpRegister dst,
 void Assembler::vneg(const DwVfpRegister dst,
                      const DwVfpRegister src,
                      const Condition cond) {
+  ASSERT(CpuFeatures::IsEnabled(VFP2));
   emit(cond | 0xE*B24 | 0xB*B20 | B16 | dst.code()*B12 |
        0x5*B9 | B8 | B6 | src.code());
 }
@@ -2269,6 +2278,7 @@ void Assembler::vneg(const DwVfpRegister dst,
 void Assembler::vabs(const DwVfpRegister dst,
                      const DwVfpRegister src,
                      const Condition cond) {
+  ASSERT(CpuFeatures::IsEnabled(VFP2));
   emit(cond | 0xE*B24 | 0xB*B20 | dst.code()*B12 |
        0x5*B9 | B8 | 0x3*B6 | src.code());
 }
@@ -2283,7 +2293,7 @@ void Assembler::vadd(const DwVfpRegister dst,
   // Instruction details available in ARM DDI 0406A, A8-536.
   // cond(31-28) | 11100(27-23)| D=?(22) | 11(21-20) | Vn(19-16) |
   // Vd(15-12) | 101(11-9) | sz(8)=1 | N(7)=0 | 0(6) | M=?(5) | 0(4) | Vm(3-0)
-  ASSERT(CpuFeatures::IsEnabled(VFP3));
+  ASSERT(CpuFeatures::IsEnabled(VFP2));
   emit(cond | 0xE*B24 | 0x3*B20 | src1.code()*B16 |
        dst.code()*B12 | 0x5*B9 | B8 | src2.code());
 }
@@ -2298,7 +2308,7 @@ void Assembler::vsub(const DwVfpRegister dst,
   // Instruction details available in ARM DDI 0406A, A8-784.
   // cond(31-28) | 11100(27-23)| D=?(22) | 11(21-20) | Vn(19-16) |
   // Vd(15-12) | 101(11-9) | sz(8)=1 | N(7)=0 | 1(6) | M=?(5) | 0(4) | Vm(3-0)
-  ASSERT(CpuFeatures::IsEnabled(VFP3));
+  ASSERT(CpuFeatures::IsEnabled(VFP2));
   emit(cond | 0xE*B24 | 0x3*B20 | src1.code()*B16 |
        dst.code()*B12 | 0x5*B9 | B8 | B6 | src2.code());
 }
@@ -2313,7 +2323,7 @@ void Assembler::vmul(const DwVfpRegister dst,
   // Instruction details available in ARM DDI 0406A, A8-784.
   // cond(31-28) | 11100(27-23)| D=?(22) | 10(21-20) | Vn(19-16) |
   // Vd(15-12) | 101(11-9) | sz(8)=1 | N(7)=0 | 0(6) | M=?(5) | 0(4) | Vm(3-0)
-  ASSERT(CpuFeatures::IsEnabled(VFP3));
+  ASSERT(CpuFeatures::IsEnabled(VFP2));
   emit(cond | 0xE*B24 | 0x2*B20 | src1.code()*B16 |
        dst.code()*B12 | 0x5*B9 | B8 | src2.code());
 }
@@ -2328,7 +2338,7 @@ void Assembler::vdiv(const DwVfpRegister dst,
   // Instruction details available in ARM DDI 0406A, A8-584.
   // cond(31-28) | 11101(27-23)| D=?(22) | 00(21-20) | Vn(19-16) |
   // Vd(15-12) | 101(11-9) | sz(8)=1 | N(7)=? | 0(6) | M=?(5) | 0(4) | Vm(3-0)
-  ASSERT(CpuFeatures::IsEnabled(VFP3));
+  ASSERT(CpuFeatures::IsEnabled(VFP2));
   emit(cond | 0xE*B24 | B23 | src1.code()*B16 |
        dst.code()*B12 | 0x5*B9 | B8 | src2.code());
 }
@@ -2341,7 +2351,7 @@ void Assembler::vcmp(const DwVfpRegister src1,
   // Instruction details available in ARM DDI 0406A, A8-570.
   // cond(31-28) | 11101 (27-23)| D=?(22) | 11 (21-20) | 0100 (19-16) |
   // Vd(15-12) | 101(11-9) | sz(8)=1 | E(7)=0 | 1(6) | M(5)=? | 0(4) | Vm(3-0)
-  ASSERT(CpuFeatures::IsEnabled(VFP3));
+  ASSERT(CpuFeatures::IsEnabled(VFP2));
   emit(cond | 0xE*B24 |B23 | 0x3*B20 | B18 |
        src1.code()*B12 | 0x5*B9 | B8 | B6 | src2.code());
 }
@@ -2354,7 +2364,7 @@ void Assembler::vcmp(const DwVfpRegister src1,
   // Instruction details available in ARM DDI 0406A, A8-570.
   // cond(31-28) | 11101 (27-23)| D=?(22) | 11 (21-20) | 0101 (19-16) |
   // Vd(15-12) | 101(11-9) | sz(8)=1 | E(7)=0 | 1(6) | M(5)=? | 0(4) | 0000(3-0)
-  ASSERT(CpuFeatures::IsEnabled(VFP3));
+  ASSERT(CpuFeatures::IsEnabled(VFP2));
   ASSERT(src2 == 0.0);
   emit(cond | 0xE*B24 |B23 | 0x3*B20 | B18 | B16 |
        src1.code()*B12 | 0x5*B9 | B8 | B6);
@@ -2365,7 +2375,7 @@ void Assembler::vmsr(Register dst, Condition cond) {
   // Instruction details available in ARM DDI 0406A, A8-652.
   // cond(31-28) | 1110 (27-24) | 1110(23-20)| 0001 (19-16) |
   // Rt(15-12) | 1010 (11-8) | 0(7) | 00 (6-5) | 1(4) | 0000(3-0)
-  ASSERT(CpuFeatures::IsEnabled(VFP3));
+  ASSERT(CpuFeatures::IsEnabled(VFP2));
   emit(cond | 0xE*B24 | 0xE*B20 |  B16 |
        dst.code()*B12 | 0xA*B8 | B4);
 }
@@ -2375,7 +2385,7 @@ void Assembler::vmrs(Register dst, Condition cond) {
   // Instruction details available in ARM DDI 0406A, A8-652.
   // cond(31-28) | 1110 (27-24) | 1111(23-20)| 0001 (19-16) |
   // Rt(15-12) | 1010 (11-8) | 0(7) | 00 (6-5) | 1(4) | 0000(3-0)
-  ASSERT(CpuFeatures::IsEnabled(VFP3));
+  ASSERT(CpuFeatures::IsEnabled(VFP2));
   emit(cond | 0xE*B24 | 0xF*B20 |  B16 |
        dst.code()*B12 | 0xA*B8 | B4);
 }
@@ -2386,7 +2396,7 @@ void Assembler::vsqrt(const DwVfpRegister dst,
                       const Condition cond) {
   // cond(31-28) | 11101 (27-23)| D=?(22) | 11 (21-20) | 0001 (19-16) |
   // Vd(15-12) | 101(11-9) | sz(8)=1 | 11 (7-6) | M(5)=? | 0(4) | Vm(3-0)
-  ASSERT(CpuFeatures::IsEnabled(VFP3));
+  ASSERT(CpuFeatures::IsEnabled(VFP2));
   emit(cond | 0xE*B24 | B23 | 0x3*B20 | B16 |
        dst.code()*B12 | 0x5*B9 | B8 | 3*B6 | src.code());
 }
