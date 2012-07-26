@@ -4872,7 +4872,7 @@ MaybeObject* Map::CopyReplaceDescriptors(DescriptorArray* descriptors,
   if (!maybe_result->To(&result)) return maybe_result;
 
   if (last_added == kNoneAdded) {
-    ASSERT(descriptors->IsEmpty());
+    ASSERT(descriptors->number_of_descriptors() == 0);
   } else {
     ASSERT(descriptors->GetDetails(last_added).index() ==
            descriptors->number_of_descriptors());

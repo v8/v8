@@ -302,6 +302,12 @@ void Map::MapVerify() {
           instance_size() < HEAP->Capacity()));
   VerifyHeapPointer(prototype());
   VerifyHeapPointer(instance_descriptors());
+  if (instance_descriptors()->number_of_descriptors() == 0) {
+    ASSERT(LastAdded() == kNoneAdded);
+  } else {
+    ASSERT(instance_descriptors()->GetDetails(LastAdded()).index() ==
+           instance_descriptors()->number_of_descriptors());
+  }
   SLOW_ASSERT(instance_descriptors()->IsSortedNoDuplicates());
   if (HasTransitionArray()) {
     SLOW_ASSERT(transitions()->IsSortedNoDuplicates());

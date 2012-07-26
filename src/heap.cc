@@ -4159,8 +4159,6 @@ MaybeObject* Heap::AllocateGlobalObject(JSFunction* constructor) {
   MaybeObject* maybe_map = map->CopyDropDescriptors();
   if (!maybe_map->To(&new_map)) return maybe_map;
 
-  ASSERT(new_map->LastAdded() == Map::kNoneAdded);
-
   // Set up the global object as a normalized object.
   global->set_map(new_map);
   global->set_properties(dictionary);
