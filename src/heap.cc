@@ -4125,13 +4125,11 @@ MaybeObject* Heap::AllocateGlobalObject(JSFunction* constructor) {
   int initial_size = map->instance_type() == JS_GLOBAL_OBJECT_TYPE ? 64 : 512;
 
   // Allocate a dictionary object for backing storage.
-  Object* obj;
-  { MaybeObject* maybe_obj =
-        StringDictionary::Allocate(
-            map->NumberOfDescribedProperties() * 2 + initial_size);
-    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
-  }
-  StringDictionary* dictionary = StringDictionary::cast(obj);
+  StringDictionary* dictionary;
+  MaybeObject* maybe_dictionary =
+      StringDictionary::Allocate(
+          map->NumberOfDescribedProperties() * 2 + initial_size);
+  if (!maybe_dictionary->To(&dictionary)) return maybe_dictionary;
 
   // The global object might be created from an object template with accessors.
   // Fill these accessors into the dictionary.
@@ -4142,29 +4140,26 @@ MaybeObject* Heap::AllocateGlobalObject(JSFunction* constructor) {
     PropertyDetails d =
         PropertyDetails(details.attributes(), CALLBACKS, details.index());
     Object* value = descs->GetCallbacksObject(i);
-    { MaybeObject* maybe_value = AllocateJSGlobalPropertyCell(value);
-      if (!maybe_value->ToObject(&value)) return maybe_value;
-    }
+    MaybeObject* maybe_value = AllocateJSGlobalPropertyCell(value);
+    if (!maybe_value->ToObject(&value)) return maybe_value;
 
-    Object* result;
-    { MaybeObject* maybe_result = dictionary->Add(descs->GetKey(i), value, d);
-      if (!maybe_result->ToObject(&result)) return maybe_result;
-    }
-    dictionary = StringDictionary::cast(result);
+    MaybeObject* maybe_added = dictionary->Add(descs->GetKey(i), value, d);
+    if (!maybe_added->To(&dictionary)) return maybe_added;
   }
 
   // Allocate the global object and initialize it with the backing store.
-  { MaybeObject* maybe_obj = Allocate(map, OLD_POINTER_SPACE);
-    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
-  }
-  JSObject* global = JSObject::cast(obj);
+  JSObject* global;
+  MaybeObject* maybe_global = Allocate(map, OLD_POINTER_SPACE);
+  if (!maybe_global->To(&global)) return maybe_global;
+
   InitializeJSObjectFromMap(global, dictionary, map);
 
   // Create a new map for the global object.
   Map* new_map;
-  { MaybeObject* maybe_map = map->CopyDropDescriptors();
-    if (!maybe_map->To(&new_map)) return maybe_map;
-  }
+  MaybeObject* maybe_map = map->CopyDropDescriptors();
+  if (!maybe_map->To(&new_map)) return maybe_map;
+
+  ASSERT(new_map->LastAdded() == Map::kNoneAdded);
 
   // Set up the global object as a normalized object.
   global->set_map(new_map);

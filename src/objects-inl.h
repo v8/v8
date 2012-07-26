@@ -3523,7 +3523,7 @@ void Map::InitializeDescriptors(DescriptorArray* descriptors) {
     }
   }
 
-  ASSERT(len == 0 ||
+  ASSERT((len == 0 && LastAdded() == kNoneAdded) ||
          len == descriptors->GetDetails(LastAdded()).index());
 }
 

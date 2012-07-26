@@ -4805,16 +4805,16 @@ Object* JSObject::SlowReverseLookup(Object* value) {
 
 MaybeObject* Map::RawCopy(int instance_size) {
   Map* result;
-  { MaybeObject* maybe_result =
-        GetHeap()->AllocateMap(instance_type(), instance_size);
-    if (!maybe_result->To(&result)) return maybe_result;
-  }
+  MaybeObject* maybe_result =
+      GetHeap()->AllocateMap(instance_type(), instance_size);
+  if (!maybe_result->To(&result)) return maybe_result;
 
   result->set_prototype(prototype());
   result->set_constructor(constructor());
   result->set_bit_field(bit_field());
   result->set_bit_field2(bit_field2());
   result->set_bit_field3(bit_field3());
+  result->SetLastAdded(kNoneAdded);
   return result;
 }
 
@@ -4834,12 +4834,11 @@ MaybeObject* Map::CopyNormalized(PropertyNormalizationMode mode,
     result->set_inobject_properties(inobject_properties());
   }
 
-  result->SetLastAdded(kNoneAdded);
   result->set_code_cache(code_cache());
   result->set_is_shared(sharing == SHARED_NORMALIZED_MAP);
 
 #ifdef DEBUG
-  if (FLAG_verify_heap && Map::cast(result)->is_shared()) {
+  if (FLAG_verify_heap && result->is_shared()) {
     result->SharedMapVerify();
   }
 #endif
@@ -4938,9 +4937,7 @@ MaybeObject* Map::CopyWithPreallocatedFieldDescriptors() {
       initial_descriptors->Copy(DescriptorArray::MAY_BE_SHARED);
   if (!maybe_descriptors->To(&descriptors)) return maybe_descriptors;
 
-  int last_added = initial_descriptors->IsEmpty()
-      ? kNoneAdded
-      : initial_map->LastAdded();
+  int last_added = initial_map->LastAdded();
 
   return CopyReplaceDescriptors(descriptors, NULL, last_added, OMIT_TRANSITION);
 }
@@ -4952,7 +4949,7 @@ MaybeObject* Map::Copy(DescriptorArray::SharedMode shared_mode) {
   MaybeObject* maybe_descriptors = source_descriptors->Copy(shared_mode);
   if (!maybe_descriptors->To(&descriptors)) return maybe_descriptors;
 
-  int last_added = source_descriptors->IsEmpty() ? kNoneAdded : LastAdded();
+  int last_added = LastAdded();
 
   return CopyReplaceDescriptors(descriptors, NULL, last_added, OMIT_TRANSITION);
 }
