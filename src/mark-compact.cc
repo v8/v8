@@ -577,7 +577,7 @@ void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
     p->ClearEvacuationCandidate();
 
     if (FLAG_stress_compaction) {
-      int counter = space->heap()->ms_count();
+      unsigned int counter = space->heap()->ms_count();
       uintptr_t page_number = reinterpret_cast<uintptr_t>(p) >> kPageSizeBits;
       if ((counter & 1) == (page_number & 1)) fragmentation = 1;
     } else if (mode == REDUCE_MEMORY_FOOTPRINT) {
