@@ -2120,8 +2120,6 @@ template<RightTrimMode trim_mode>
 static void RightTrimFixedArray(Heap* heap, FixedArray* elms, int to_trim) {
   ASSERT(elms->map() != HEAP->fixed_cow_array_map());
   // For now this trick is only applied to fixed arrays in new and paged space.
-  // In large object space the object's start must coincide with chunk
-  // and thus the trick is just not applicable.
   ASSERT(!HEAP->lo_space()->Contains(elms));
 
   const int len = elms->length();
@@ -2217,7 +2215,7 @@ void Map::CopyAppendCallbackDescriptors(Handle<Map> map,
   }
 
   // If duplicates were detected, trim the descriptor array to the right size.
-  int new_array_size = DescriptorArray::SizeFor(new_number_of_descriptors);
+  int new_array_size = DescriptorArray::LengthFor(new_number_of_descriptors);
   if (new_array_size < result->length()) {
     RightTrimFixedArray<FROM_MUTATOR>(
         isolate->heap(), *result, result->length() - new_array_size);
@@ -4883,7 +4881,7 @@ MaybeObject* Map::CopyReplaceDescriptors(DescriptorArray* descriptors,
     result->SetLastAdded(last_added);
   }
 
-  if (flag == INSERT_TRANSITION) {
+  if (flag == INSERT_TRANSITION && CanHaveMoreTransitions()) {
     TransitionArray* transitions;
     MaybeObject* maybe_transitions = AddTransition(name, result);
     if (!maybe_transitions->To(&transitions)) return maybe_transitions;
@@ -5843,7 +5841,7 @@ MaybeObject* DescriptorArray::Allocate(int number_of_descriptors,
   }
   // Allocate the array of keys.
   MaybeObject* maybe_array =
-      heap->AllocateFixedArray(SizeFor(number_of_descriptors));
+      heap->AllocateFixedArray(LengthFor(number_of_descriptors));
   if (!maybe_array->To(&result)) return maybe_array;
 
   result->set(kEnumCacheIndex, Smi::FromInt(0));

@@ -3582,6 +3582,14 @@ Map* Map::elements_transition_map() {
 }
 
 
+bool Map::CanHaveMoreTransitions() {
+  if (!HasTransitionArray()) return true;
+  return FixedArray::SizeFor(transitions()->length() +
+                             TransitionArray::kTransitionSize)
+      <= Page::kMaxNonCodeHeapObjectSize;
+}
+
+
 MaybeObject* Map::AddTransition(String* key, Map* target) {
   if (HasTransitionArray()) return transitions()->CopyInsert(key, target);
   return TransitionArray::NewWith(key, target);

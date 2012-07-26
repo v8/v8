@@ -2635,7 +2635,9 @@ class DescriptorArray: public FixedArray {
   // fit in a page).
   static const int kMaxNumberOfDescriptors = 1024 + 512;
 
-  static int SizeFor(int number_of_descriptors) {
+  // Returns the fixed array length required to hold number_of_descriptors
+  // descriptors.
+  static int LengthFor(int number_of_descriptors) {
     return ToKeyIndex(number_of_descriptors);
   }
 
@@ -4895,6 +4897,11 @@ class Map: public HeapObject {
   void LookupTransition(JSObject* holder,
                         String* name,
                         LookupResult* result);
+
+  // The size of transition arrays are limited so they do not end up in large
+  // object space. Otherwise ClearNonLiveTransitions would leak memory while
+  // applying in-place right trimming.
+  inline bool CanHaveMoreTransitions();
 
   void SetLastAdded(int index) {
     set_bit_field3(LastAddedBits::update(bit_field3(), index));
