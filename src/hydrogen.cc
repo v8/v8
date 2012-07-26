@@ -4764,11 +4764,12 @@ void HGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
             property->RecordTypeFeedback(oracle());
             CHECK_ALIVE(VisitForValue(value));
             HValue* value = Pop();
+            Handle<String> name = property->key()->AsPropertyName();
             HInstruction* store;
             CHECK_ALIVE(store = BuildStoreNamed(literal,
+                                                name,
                                                 value,
-                                                property->GetReceiverType(),
-                                                property->key()));
+                                                property->GetReceiverType()));
             AddInstruction(store);
             if (store->HasObservableSideEffects()) AddSimulate(key->id());
           } else {
@@ -4939,20 +4940,20 @@ static int ComputeLoadStoreFieldIndex(Handle<Map> type,
 HInstruction* HGraphBuilder::BuildStoreNamedField(HValue* object,
                                                   Handle<String> name,
                                                   HValue* value,
-                                                  Handle<Map> type,
+                                                  Handle<Map> map,
                                                   LookupResult* lookup,
                                                   bool smi_and_map_check) {
   ASSERT(lookup->IsFound());
   if (smi_and_map_check) {
     AddInstruction(new(zone()) HCheckNonSmi(object));
-    AddInstruction(HCheckMaps::NewWithTransitions(object, type, zone()));
+    AddInstruction(HCheckMaps::NewWithTransitions(object, map, zone()));
   }
 
   // If the property does not exist yet, we have to check that it wasn't made
   // readonly or turned into a setter by some meanwhile modifications on the
   // prototype chain.
-  if (!lookup->IsProperty() && type->prototype()->IsJSReceiver()) {
-    Object* proto = type->prototype();
+  if (!lookup->IsProperty() && map->prototype()->IsJSReceiver()) {
+    Object* proto = map->prototype();
     // First check that the prototype chain isn't affected already.
     LookupResult proto_result(isolate());
     proto->Lookup(*name, &proto_result);
@@ -4971,24 +4972,24 @@ HInstruction* HGraphBuilder::BuildStoreNamedField(HValue* object,
     }
     ASSERT(proto->IsJSObject());
     AddInstruction(new(zone()) HCheckPrototypeMaps(
-        Handle<JSObject>(JSObject::cast(type->prototype())),
+        Handle<JSObject>(JSObject::cast(map->prototype())),
         Handle<JSObject>(JSObject::cast(proto))));
   }
 
-  int index = ComputeLoadStoreFieldIndex(type, name, lookup);
+  int index = ComputeLoadStoreFieldIndex(map, name, lookup);
   bool is_in_object = index < 0;
   int offset = index * kPointerSize;
   if (index < 0) {
     // Negative property indices are in-object properties, indexed
     // from the end of the fixed part of the object.
-    offset += type->instance_size();
+    offset += map->instance_size();
   } else {
     offset += FixedArray::kHeaderSize;
   }
   HStoreNamedField* instr =
       new(zone()) HStoreNamedField(object, name, value, is_in_object, offset);
-  if (lookup->IsTransitionToField(*type)) {
-    Handle<Map> transition(lookup->GetTransitionMapFromMap(*type));
+  if (lookup->IsTransitionToField(*map)) {
+    Handle<Map> transition(lookup->GetTransitionMapFromMap(*map));
     instr->set_transition(transition);
     // TODO(fschneider): Record the new map type of the object in the IR to
     // enable elimination of redundant checks after the transition store.
@@ -5025,53 +5026,55 @@ static void LookupInPrototypes(Handle<Map> map,
 }
 
 
-HInstruction* HGraphBuilder::BuildCallSetter(HValue* obj,
-                                             Handle<String> name,
+HInstruction* HGraphBuilder::BuildCallSetter(HValue* object,
                                              HValue* value,
                                              Handle<Map> map,
-                                             Handle<Object> callback,
+                                             Handle<AccessorPair> accessors,
                                              Handle<JSObject> holder) {
-  if (!callback->IsAccessorPair()) {
-    return BuildStoreNamedGeneric(obj, name, value);
-  }
-  Handle<Object> setter(Handle<AccessorPair>::cast(callback)->setter());
-  Handle<JSFunction> function(Handle<JSFunction>::cast(setter));
-  AddCheckConstantFunction(holder, obj, map, true);
-  AddInstruction(new(zone()) HPushArgument(obj));
+  Handle<JSFunction> setter(JSFunction::cast(accessors->setter()));
+  AddCheckConstantFunction(holder, object, map, true);
+  AddInstruction(new(zone()) HPushArgument(object));
   AddInstruction(new(zone()) HPushArgument(value));
-  return new(zone()) HCallConstantFunction(function, 2);
+  return new(zone()) HCallConstantFunction(setter, 2);
 }
 
 
 HInstruction* HGraphBuilder::BuildStoreNamed(HValue* object,
+                                             Handle<String> name,
                                              HValue* value,
-                                             Handle<Map> type,
-                                             Expression* key) {
+                                             Handle<Map> map) {
   // If we don't know the monomorphic type, do a generic store.
-  Handle<String> name = Handle<String>::cast(key->AsLiteral()->handle());
-  if (type.is_null()) return BuildStoreNamedGeneric(object, name, value);
+  if (map.is_null()) return BuildStoreNamedGeneric(object, name, value);
 
   // Handle a store to a known field.
   LookupResult lookup(isolate());
-  if (ComputeLoadStoreField(type, name, &lookup, true)) {
+  if (ComputeLoadStoreField(map, name, &lookup, true)) {
     // true = needs smi and map check.
-    return BuildStoreNamedField(object, name, value, type, &lookup, true);
+    return BuildStoreNamedField(object, name, value, map, &lookup, true);
   }
 
   // Handle a known setter directly in the receiver.
-  type->LookupDescriptor(NULL, *name, &lookup);
+  map->LookupDescriptor(NULL, *name, &lookup);
   if (lookup.IsPropertyCallbacks()) {
-    Handle<Object> callback(lookup.GetValueFromMap(*type));
+    Handle<Object> callback(lookup.GetValueFromMap(*map));
     Handle<JSObject> holder;
-    return BuildCallSetter(object, name, value, type, callback, holder);
+    if (!callback->IsAccessorPair()) {
+      return BuildStoreNamedGeneric(object, name, value);
+    }
+    Handle<AccessorPair> accessors = Handle<AccessorPair>::cast(callback);
+    return BuildCallSetter(object, value, map, accessors, holder);
   }
 
   // Handle a known setter somewhere in the prototype chain.
-  LookupInPrototypes(type, name, &lookup);
+  LookupInPrototypes(map, name, &lookup);
   if (lookup.IsPropertyCallbacks()) {
     Handle<Object> callback(lookup.GetValue());
     Handle<JSObject> holder(lookup.holder());
-    return BuildCallSetter(object, name, value, type, callback, holder);
+    if (!callback->IsAccessorPair()) {
+      return BuildStoreNamedGeneric(object, name, value);
+    }
+    Handle<AccessorPair> accessors = Handle<AccessorPair>::cast(callback);
+    return BuildCallSetter(object, value, map, accessors, holder);
   }
 
   // No luck, do a generic store.
@@ -5118,7 +5121,7 @@ void HGraphBuilder::HandlePolymorphicLoadNamedField(Property* expr,
   HInstruction* instr;
   if (count == types->length() && is_monomorphic_field) {
     AddInstruction(new(zone()) HCheckMaps(object, types, zone()));
-    instr = BuildLoadNamedField(object, expr, map, &lookup, false);
+    instr = BuildLoadNamedField(object, map, &lookup, false);
   } else {
     HValue* context = environment()->LookupContext();
     instr = new(zone()) HLoadNamedFieldPolymorphic(context,
@@ -5231,9 +5234,9 @@ void HGraphBuilder::HandlePropertyAssignment(Assignment* expr) {
     SmallMapList* types = expr->GetReceiverTypes();
     if (expr->IsMonomorphic()) {
       CHECK_ALIVE(instr = BuildStoreNamed(object,
+                                          name,
                                           value,
-                                          types->first(),
-                                          prop->key()));
+                                          types->first()));
 
     } else if (types != NULL && types->length() > 1) {
       HandlePolymorphicStoreNamedField(expr, object, value, types, name);
@@ -5391,16 +5394,16 @@ void HGraphBuilder::HandleCompoundAssignment(Assignment* expr) {
     if (prop->key()->IsPropertyName()) {
       // Named property.
       CHECK_ALIVE(VisitForValue(prop->obj()));
-      HValue* obj = Top();
+      HValue* object = Top();
 
+      Handle<String> name = prop->key()->AsLiteral()->AsPropertyName();
       Handle<Map> map;
       HInstruction* load;
       if (prop->IsMonomorphic()) {
-        Handle<String> name = prop->key()->AsLiteral()->AsPropertyName();
         map = prop->GetReceiverTypes()->first();
-        load = BuildLoadNamed(obj, prop, map, name);
+        load = BuildLoadNamed(object, name, prop, map);
       } else {
-        load = BuildLoadNamedGeneric(obj, prop);
+        load = BuildLoadNamedGeneric(object, name, prop);
       }
       PushAndAdd(load);
       if (load->HasObservableSideEffects()) AddSimulate(expr->CompoundLoadId());
@@ -5414,7 +5417,7 @@ void HGraphBuilder::HandleCompoundAssignment(Assignment* expr) {
       if (instr->HasObservableSideEffects()) AddSimulate(operation->id());
 
       HInstruction* store;
-      CHECK_ALIVE(store = BuildStoreNamed(obj, instr, map, prop->key()));
+      CHECK_ALIVE(store = BuildStoreNamed(object, name, instr, map));
       AddInstruction(store);
       // Drop the simulated receiver and value.  Return the value.
       Drop(2);
@@ -5615,20 +5618,19 @@ void HGraphBuilder::VisitThrow(Throw* expr) {
 
 
 HLoadNamedField* HGraphBuilder::BuildLoadNamedField(HValue* object,
-                                                    Property* expr,
-                                                    Handle<Map> type,
+                                                    Handle<Map> map,
                                                     LookupResult* lookup,
                                                     bool smi_and_map_check) {
   if (smi_and_map_check) {
     AddInstruction(new(zone()) HCheckNonSmi(object));
-    AddInstruction(HCheckMaps::NewWithTransitions(object, type, zone()));
+    AddInstruction(HCheckMaps::NewWithTransitions(object, map, zone()));
   }
 
-  int index = lookup->GetLocalFieldIndexFromMap(*type);
+  int index = lookup->GetLocalFieldIndexFromMap(*map);
   if (index < 0) {
     // Negative property indices are in-object properties, indexed
     // from the end of the fixed part of the object.
-    int offset = (index * kPointerSize) + type->instance_size();
+    int offset = (index * kPointerSize) + map->instance_size();
     return new(zone()) HLoadNamedField(object, true, offset);
   } else {
     // Non-negative property indices are in the properties array.
@@ -5639,61 +5641,61 @@ HLoadNamedField* HGraphBuilder::BuildLoadNamedField(HValue* object,
 
 
 HInstruction* HGraphBuilder::BuildLoadNamedGeneric(HValue* obj,
+                                                   Handle<String> name,
                                                    Property* expr) {
   if (expr->IsUninitialized() && !FLAG_always_opt) {
     AddInstruction(new(zone()) HSoftDeoptimize);
     current_block()->MarkAsDeoptimizing();
   }
-  ASSERT(expr->key()->IsPropertyName());
-  Handle<Object> name = expr->key()->AsLiteral()->handle();
   HValue* context = environment()->LookupContext();
   return new(zone()) HLoadNamedGeneric(context, obj, name);
 }
 
 
-HInstruction* HGraphBuilder::BuildCallGetter(HValue* obj,
-                                             Property* expr,
+HInstruction* HGraphBuilder::BuildCallGetter(HValue* object,
                                              Handle<Map> map,
-                                             Handle<Object> callback,
+                                             Handle<AccessorPair> accessors,
                                              Handle<JSObject> holder) {
-  if (!callback->IsAccessorPair()) return BuildLoadNamedGeneric(obj, expr);
-  Handle<Object> getter(Handle<AccessorPair>::cast(callback)->getter());
-  Handle<JSFunction> function(Handle<JSFunction>::cast(getter));
-  AddCheckConstantFunction(holder, obj, map, true);
-  AddInstruction(new(zone()) HPushArgument(obj));
-  return new(zone()) HCallConstantFunction(function, 1);
+  Handle<JSFunction> getter(JSFunction::cast(accessors->getter()));
+  AddCheckConstantFunction(holder, object, map, true);
+  AddInstruction(new(zone()) HPushArgument(object));
+  return new(zone()) HCallConstantFunction(getter, 1);
 }
 
 
-HInstruction* HGraphBuilder::BuildLoadNamed(HValue* obj,
+HInstruction* HGraphBuilder::BuildLoadNamed(HValue* object,
+                                            Handle<String> name,
                                             Property* expr,
-                                            Handle<Map> map,
-                                            Handle<String> name) {
+                                            Handle<Map> map) {
   LookupResult lookup(isolate());
   map->LookupDescriptor(NULL, *name, &lookup);
   if (lookup.IsField()) {
-    return BuildLoadNamedField(obj,
-                               expr,
-                               map,
-                               &lookup,
-                               true);
+    return BuildLoadNamedField(object, map, &lookup, true);
   } else if (lookup.IsConstantFunction()) {
-    AddInstruction(new(zone()) HCheckNonSmi(obj));
-    AddInstruction(HCheckMaps::NewWithTransitions(obj, map, zone()));
+    AddInstruction(new(zone()) HCheckNonSmi(object));
+    AddInstruction(HCheckMaps::NewWithTransitions(object, map, zone()));
     Handle<JSFunction> function(lookup.GetConstantFunctionFromMap(*map));
     return new(zone()) HConstant(function, Representation::Tagged());
   } else if (lookup.IsPropertyCallbacks()) {
     Handle<Object> callback(lookup.GetValueFromMap(*map));
     Handle<JSObject> holder;
-    return BuildCallGetter(obj, expr, map, callback, holder);
+    if (!callback->IsAccessorPair()) {
+      return BuildLoadNamedGeneric(object, name, expr);
+    }
+    Handle<AccessorPair> accessors = Handle<AccessorPair>::cast(callback);
+    return BuildCallGetter(object, map, accessors, holder);
   } else {
     LookupInPrototypes(map, name, &lookup);
     if (lookup.IsPropertyCallbacks()) {
       Handle<Object> callback(lookup.GetValue());
       Handle<JSObject> holder(lookup.holder());
-      return BuildCallGetter(obj, expr, map, callback, holder);
+      if (!callback->IsAccessorPair()) {
+        return BuildLoadNamedGeneric(object, name, expr);
+      }
+      Handle<AccessorPair> accessors = Handle<AccessorPair>::cast(callback);
+      return BuildCallGetter(object, map, accessors, holder);
     }
-    return BuildLoadNamedGeneric(obj, expr);
+    return BuildLoadNamedGeneric(object, name, expr);
   }
 }
 
@@ -6313,13 +6315,13 @@ void HGraphBuilder::VisitProperty(Property* expr) {
 
     HValue* obj = Pop();
     if (expr->IsMonomorphic()) {
-      instr = BuildLoadNamed(obj, expr, types->first(), name);
+      instr = BuildLoadNamed(obj, name, expr, types->first());
     } else if (types != NULL && types->length() > 1) {
       AddInstruction(new(zone()) HCheckNonSmi(obj));
       HandlePolymorphicLoadNamedField(expr, obj, types, name);
       return;
     } else {
-      instr = BuildLoadNamedGeneric(obj, expr);
+      instr = BuildLoadNamedGeneric(obj, name, expr);
     }
 
   } else {
@@ -7798,14 +7800,14 @@ void HGraphBuilder::VisitCountOperation(CountOperation* expr) {
       CHECK_ALIVE(VisitForValue(prop->obj()));
       HValue* obj = Top();
 
+      Handle<String> name = prop->key()->AsLiteral()->AsPropertyName();
       Handle<Map> map;
       HInstruction* load;
       if (prop->IsMonomorphic()) {
-        Handle<String> name = prop->key()->AsLiteral()->AsPropertyName();
         map = prop->GetReceiverTypes()->first();
-        load = BuildLoadNamed(obj, prop, map, name);
+        load = BuildLoadNamed(obj, name, prop, map);
       } else {
-        load = BuildLoadNamedGeneric(obj, prop);
+        load = BuildLoadNamedGeneric(obj, name, prop);
       }
       PushAndAdd(load);
       if (load->HasObservableSideEffects()) AddSimulate(expr->CountId());
@@ -7814,7 +7816,7 @@ void HGraphBuilder::VisitCountOperation(CountOperation* expr) {
       input = Pop();
 
       HInstruction* store;
-      CHECK_ALIVE(store = BuildStoreNamed(obj, after, map, prop->key()));
+      CHECK_ALIVE(store = BuildStoreNamed(obj, name, after, map));
       AddInstruction(store);
 
       // Overwrite the receiver in the bailout environment with the result
