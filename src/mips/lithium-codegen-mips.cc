@@ -2948,14 +2948,8 @@ void LCodeGen::CallKnownFunction(Handle<JSFunction> function,
       __ LoadHeapObject(a1, function);
     }
 
-    // Change context if needed.
-    bool change_context =
-        (info()->closure()->context() != function->context()) ||
-        scope()->contains_with() ||
-        (scope()->num_heap_slots() > 0);
-    if (change_context) {
-      __ lw(cp, FieldMemOperand(a1, JSFunction::kContextOffset));
-    }
+    // Change context.
+    __ lw(cp, FieldMemOperand(a1, JSFunction::kContextOffset));
 
     // Set r0 to arguments count if adaption is not needed. Assumes that r0
     // is available to write to at this point.

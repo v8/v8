@@ -3013,17 +3013,8 @@ void LCodeGen::CallKnownFunction(Handle<JSFunction> function,
       __ LoadHeapObject(edi, function);
     }
 
-    // Change context if needed.
-    bool change_context =
-        (info()->closure()->context() != function->context()) ||
-        scope()->contains_with() ||
-        (scope()->num_heap_slots() > 0);
-
-    if (change_context) {
-      __ mov(esi, FieldOperand(edi, JSFunction::kContextOffset));
-    } else {
-      __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
-    }
+    // Change context.
+    __ mov(esi, FieldOperand(edi, JSFunction::kContextOffset));
 
     // Set eax to arguments count if adaption is not needed. Assumes that eax
     // is available to write to at this point.
