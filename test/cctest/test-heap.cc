@@ -1966,3 +1966,21 @@ TEST(Regress2237) {
   HEAP->CollectAllGarbage(Heap::kNoGCFlags);
   CHECK(SlicedString::cast(*slice)->parent()->IsSeqAsciiString());
 }
+
+
+#ifdef OBJECT_PRINT
+TEST(PrintSharedFunctionInfo) {
+  InitializeVM();
+  v8::HandleScope scope;
+  const char* source = "f = function() { return 987654321; }\n"
+                       "g = function() { return 123456789; }\n";
+  CompileRun(source);
+  Handle<JSFunction> g =
+      v8::Utils::OpenHandle(
+          *v8::Handle<v8::Function>::Cast(
+              v8::Context::GetCurrent()->Global()->Get(v8_str("g"))));
+
+  AssertNoAllocation no_alloc;
+  g->shared()->PrintLn();
+}
+#endif  // OBJECT_PRINT

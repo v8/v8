@@ -794,7 +794,14 @@ void SharedFunctionInfo::SharedFunctionInfoPrint(FILE* out) {
   code()->ShortPrint(out);
   if (HasSourceCode()) {
     PrintF(out, "\n - source code = ");
-    GetSourceCode()->ShortPrint(out);
+    String* source = String::cast(Script::cast(script())->source());
+    int start = start_position();
+    int length = end_position() - start;
+    SmartArrayPointer<char> source_string =
+        source->ToCString(DISALLOW_NULLS,
+                          FAST_STRING_TRAVERSAL,
+                          start, length, NULL);
+    PrintF(out, "%s", *source_string);
   }
   // Script files are often large, hard to read.
   // PrintF(out, "\n - script =");
