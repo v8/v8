@@ -1,3 +1,18 @@
+2012-07-27: Version 3.12.17
+
+        Always set the callee's context when calling a function from optimized
+        code.
+        (Chromium issue 138887)
+
+        Fixed building with GCC 3.x
+        (issue 2016, 2017)
+
+        Improved API calls that return empty handles.
+        (issue 2245)
+
+        Performance and stability improvements on all platforms.
+
+
 2012-07-25: Version 3.12.16
 
         Performance and stability improvements on all platforms.
