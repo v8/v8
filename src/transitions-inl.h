@@ -144,14 +144,6 @@ Map* TransitionArray::GetTarget(int transition_number) {
 }
 
 
-Object** TransitionArray::GetTargetSlot(int transition_number) {
-  ASSERT(transition_number < number_of_transitions());
-  return HeapObject::RawField(
-      reinterpret_cast<HeapObject*>(this),
-      OffsetOfElementAt(ToTargetIndex(transition_number)));
-}
-
-
 void TransitionArray::SetTarget(int transition_number, Map* value) {
   ASSERT(transition_number < number_of_transitions());
   set(ToTargetIndex(transition_number), value);

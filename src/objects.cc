@@ -7218,6 +7218,7 @@ void Map::ClearNonLiveTransitions(Heap* heap) {
   if (!HasTransitionArray()) return;
 
   TransitionArray* t = transitions();
+  MarkCompactCollector* collector = heap->mark_compact_collector();
 
   int transition_index = 0;
 
@@ -7226,14 +7227,11 @@ void Map::ClearNonLiveTransitions(Heap* heap) {
     if (!ClearBackPointer(heap, t->GetTarget(i))) {
       if (i != transition_index) {
         String* key = t->GetKey(i);
-        Map* target = t->GetTarget(i);
         t->SetKey(transition_index, key);
-        t->SetTarget(transition_index, target);
-        MarkCompactCollector* collector = heap->mark_compact_collector();
         Object** key_slot = t->GetKeySlot(transition_index);
         collector->RecordSlot(key_slot, key_slot, key);
-        Object** target_slot = t->GetTargetSlot(transition_index);
-        collector->RecordSlot(target_slot, target_slot, target);
+        // Target slots do not need to be recorded since maps are not compacted.
+        t->SetTarget(transition_index, t->GetTarget(i));
       }
       transition_index++;
     }
