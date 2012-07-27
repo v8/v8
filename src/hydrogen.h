@@ -1151,19 +1151,19 @@ class HGraphBuilder: public AstVisitor {
                                 Handle<Map> map,
                                 Handle<AccessorPair> accessors,
                                 Handle<JSObject> holder);
-  HInstruction* BuildLoadNamed(HValue* object,
-                               Handle<String> name,
-                               Property* expr,
-                               Handle<Map> map);
+  HInstruction* BuildLoadNamedMonomorphic(HValue* object,
+                                          Handle<String> name,
+                                          Property* expr,
+                                          Handle<Map> map);
   HInstruction* BuildCallSetter(HValue* object,
                                 HValue* value,
                                 Handle<Map> map,
                                 Handle<AccessorPair> accessors,
                                 Handle<JSObject> holder);
-  HInstruction* BuildStoreNamed(HValue* object,
-                                Handle<String> name,
-                                HValue* value,
-                                Handle<Map> map);
+  HInstruction* BuildStoreNamedMonomorphic(HValue* object,
+                                           Handle<String> name,
+                                           HValue* value,
+                                           Handle<Map> map);
   HInstruction* BuildStoreNamedField(HValue* object,
                                      Handle<String> name,
                                      HValue* value,

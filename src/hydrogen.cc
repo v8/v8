@@ -4764,12 +4764,18 @@ void HGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
             property->RecordTypeFeedback(oracle());
             CHECK_ALIVE(VisitForValue(value));
             HValue* value = Pop();
+            Handle<Map> map = property->GetReceiverType();
             Handle<String> name = property->key()->AsPropertyName();
             HInstruction* store;
-            CHECK_ALIVE(store = BuildStoreNamed(literal,
-                                                name,
-                                                value,
-                                                property->GetReceiverType()));
+            if (map.is_null()) {
+              // If we don't know the monomorphic type, do a generic store.
+              CHECK_ALIVE(store = BuildStoreNamedGeneric(literal, name, value));
+            } else {
+              CHECK_ALIVE(store = BuildStoreNamedMonomorphic(literal,
+                                                             name,
+                                                             value,
+                                                             map));
+            }
             AddInstruction(store);
             if (store->HasObservableSideEffects()) AddSimulate(key->id());
           } else {
@@ -5039,13 +5045,10 @@ HInstruction* HGraphBuilder::BuildCallSetter(HValue* object,
 }
 
 
-HInstruction* HGraphBuilder::BuildStoreNamed(HValue* object,
-                                             Handle<String> name,
-                                             HValue* value,
-                                             Handle<Map> map) {
-  // If we don't know the monomorphic type, do a generic store.
-  if (map.is_null()) return BuildStoreNamedGeneric(object, name, value);
-
+HInstruction* HGraphBuilder::BuildStoreNamedMonomorphic(HValue* object,
+                                                        Handle<String> name,
+                                                        HValue* value,
+                                                        Handle<Map> map) {
   // Handle a store to a known field.
   LookupResult lookup(isolate());
   if (ComputeLoadStoreField(map, name, &lookup, true)) {
@@ -5233,11 +5236,8 @@ void HGraphBuilder::HandlePropertyAssignment(Assignment* expr) {
 
     SmallMapList* types = expr->GetReceiverTypes();
     if (expr->IsMonomorphic()) {
-      CHECK_ALIVE(instr = BuildStoreNamed(object,
-                                          name,
-                                          value,
-                                          types->first()));
-
+      Handle<Map> map = types->first();
+      CHECK_ALIVE(instr = BuildStoreNamedMonomorphic(object, name, value, map));
     } else if (types != NULL && types->length() > 1) {
       HandlePolymorphicStoreNamedField(expr, object, value, types, name);
       return;
@@ -5401,7 +5401,7 @@ void HGraphBuilder::HandleCompoundAssignment(Assignment* expr) {
       HInstruction* load;
       if (prop->IsMonomorphic()) {
         map = prop->GetReceiverTypes()->first();
-        load = BuildLoadNamed(object, name, prop, map);
+        load = BuildLoadNamedMonomorphic(object, name, prop, map);
       } else {
         load = BuildLoadNamedGeneric(object, name, prop);
       }
@@ -5417,7 +5417,15 @@ void HGraphBuilder::HandleCompoundAssignment(Assignment* expr) {
       if (instr->HasObservableSideEffects()) AddSimulate(operation->id());
 
       HInstruction* store;
-      CHECK_ALIVE(store = BuildStoreNamed(object, name, instr, map));
+      if (map.is_null()) {
+        // If we don't know the monomorphic type, do a generic store.
+        CHECK_ALIVE(store = BuildStoreNamedGeneric(object, name, instr));
+      } else {
+        CHECK_ALIVE(store = BuildStoreNamedMonomorphic(object,
+                                                       name,
+                                                       instr,
+                                                       map));
+      }
       AddInstruction(store);
       // Drop the simulated receiver and value.  Return the value.
       Drop(2);
@@ -5640,7 +5648,7 @@ HLoadNamedField* HGraphBuilder::BuildLoadNamedField(HValue* object,
 }
 
 
-HInstruction* HGraphBuilder::BuildLoadNamedGeneric(HValue* obj,
+HInstruction* HGraphBuilder::BuildLoadNamedGeneric(HValue* object,
                                                    Handle<String> name,
                                                    Property* expr) {
   if (expr->IsUninitialized() && !FLAG_always_opt) {
@@ -5648,7 +5656,7 @@ HInstruction* HGraphBuilder::BuildLoadNamedGeneric(HValue* obj,
     current_block()->MarkAsDeoptimizing();
   }
   HValue* context = environment()->LookupContext();
-  return new(zone()) HLoadNamedGeneric(context, obj, name);
+  return new(zone()) HLoadNamedGeneric(context, object, name);
 }
 
 
@@ -5663,20 +5671,27 @@ HInstruction* HGraphBuilder::BuildCallGetter(HValue* object,
 }
 
 
-HInstruction* HGraphBuilder::BuildLoadNamed(HValue* object,
-                                            Handle<String> name,
-                                            Property* expr,
-                                            Handle<Map> map) {
+HInstruction* HGraphBuilder::BuildLoadNamedMonomorphic(HValue* object,
+                                                       Handle<String> name,
+                                                       Property* expr,
+                                                       Handle<Map> map) {
+  // Handle a load from a known field.
   LookupResult lookup(isolate());
   map->LookupDescriptor(NULL, *name, &lookup);
   if (lookup.IsField()) {
     return BuildLoadNamedField(object, map, &lookup, true);
-  } else if (lookup.IsConstantFunction()) {
+  }
+
+  // Handle a load of a constant known function.
+  if (lookup.IsConstantFunction()) {
     AddInstruction(new(zone()) HCheckNonSmi(object));
     AddInstruction(HCheckMaps::NewWithTransitions(object, map, zone()));
     Handle<JSFunction> function(lookup.GetConstantFunctionFromMap(*map));
     return new(zone()) HConstant(function, Representation::Tagged());
-  } else if (lookup.IsPropertyCallbacks()) {
+  }
+
+  // Handle a known getter directly in the receiver.
+  if (lookup.IsPropertyCallbacks()) {
     Handle<Object> callback(lookup.GetValueFromMap(*map));
     Handle<JSObject> holder;
     if (!callback->IsAccessorPair()) {
@@ -5684,19 +5699,22 @@ HInstruction* HGraphBuilder::BuildLoadNamed(HValue* object,
     }
     Handle<AccessorPair> accessors = Handle<AccessorPair>::cast(callback);
     return BuildCallGetter(object, map, accessors, holder);
-  } else {
-    LookupInPrototypes(map, name, &lookup);
-    if (lookup.IsPropertyCallbacks()) {
-      Handle<Object> callback(lookup.GetValue());
+  }
+
+  // Handle a known getter somewhere in the prototype chain.
+  LookupInPrototypes(map, name, &lookup);
+  if (lookup.IsPropertyCallbacks()) {
+    Handle<Object> callback(lookup.GetValue());
       Handle<JSObject> holder(lookup.holder());
       if (!callback->IsAccessorPair()) {
         return BuildLoadNamedGeneric(object, name, expr);
       }
       Handle<AccessorPair> accessors = Handle<AccessorPair>::cast(callback);
       return BuildCallGetter(object, map, accessors, holder);
-    }
-    return BuildLoadNamedGeneric(object, name, expr);
   }
+
+  // No luck, do a generic load.
+  return BuildLoadNamedGeneric(object, name, expr);
 }
 
 
@@ -6315,7 +6333,7 @@ void HGraphBuilder::VisitProperty(Property* expr) {
 
     HValue* obj = Pop();
     if (expr->IsMonomorphic()) {
-      instr = BuildLoadNamed(obj, name, expr, types->first());
+      instr = BuildLoadNamedMonomorphic(obj, name, expr, types->first());
     } else if (types != NULL && types->length() > 1) {
       AddInstruction(new(zone()) HCheckNonSmi(obj));
       HandlePolymorphicLoadNamedField(expr, obj, types, name);
@@ -7798,16 +7816,16 @@ void HGraphBuilder::VisitCountOperation(CountOperation* expr) {
       if (returns_original_input) Push(graph_->GetConstantUndefined());
 
       CHECK_ALIVE(VisitForValue(prop->obj()));
-      HValue* obj = Top();
+      HValue* object = Top();
 
       Handle<String> name = prop->key()->AsLiteral()->AsPropertyName();
       Handle<Map> map;
       HInstruction* load;
       if (prop->IsMonomorphic()) {
         map = prop->GetReceiverTypes()->first();
-        load = BuildLoadNamed(obj, name, prop, map);
+        load = BuildLoadNamedMonomorphic(object, name, prop, map);
       } else {
-        load = BuildLoadNamedGeneric(obj, name, prop);
+        load = BuildLoadNamedGeneric(object, name, prop);
       }
       PushAndAdd(load);
       if (load->HasObservableSideEffects()) AddSimulate(expr->CountId());
@@ -7816,7 +7834,15 @@ void HGraphBuilder::VisitCountOperation(CountOperation* expr) {
       input = Pop();
 
       HInstruction* store;
-      CHECK_ALIVE(store = BuildStoreNamed(obj, name, after, map));
+      if (map.is_null()) {
+        // If we don't know the monomorphic type, do a generic store.
+        CHECK_ALIVE(store = BuildStoreNamedGeneric(object, name, after));
+      } else {
+        CHECK_ALIVE(store = BuildStoreNamedMonomorphic(object,
+                                                       name,
+                                                       after,
+                                                       map));
+      }
       AddInstruction(store);
 
       // Overwrite the receiver in the bailout environment with the result
