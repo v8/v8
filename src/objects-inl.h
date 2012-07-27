@@ -3523,7 +3523,7 @@ void Map::InitializeDescriptors(DescriptorArray* descriptors) {
     }
   }
 
-  ASSERT(len == 0 ||
+  ASSERT((len == 0 && LastAdded() == kNoneAdded) ||
          len == descriptors->GetDetails(LastAdded()).index());
 }
 
@@ -3579,6 +3579,14 @@ bool Map::HasTransitionArray() {
 
 Map* Map::elements_transition_map() {
   return transitions()->elements_transition();
+}
+
+
+bool Map::CanHaveMoreTransitions() {
+  if (!HasTransitionArray()) return true;
+  return FixedArray::SizeFor(transitions()->length() +
+                             TransitionArray::kTransitionSize)
+      <= Page::kMaxNonCodeHeapObjectSize;
 }
 
 

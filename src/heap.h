@@ -1154,7 +1154,7 @@ class Heap {
   Object* global_contexts_list() { return global_contexts_list_; }
 
   // Number of mark-sweeps.
-  int ms_count() { return ms_count_; }
+  unsigned int ms_count() { return ms_count_; }
 
   // Iterates over all roots in the heap.
   void IterateRoots(ObjectVisitor* v, VisitMode mode);
@@ -1698,7 +1698,7 @@ class Heap {
   // Returns the amount of external memory registered since last global gc.
   intptr_t PromotedExternalMemorySize();
 
-  int ms_count_;  // how many mark-sweep collections happened
+  unsigned int ms_count_;  // how many mark-sweep collections happened
   unsigned int gc_count_;  // how many gc happened
 
   // For post mortem debugging.
@@ -2108,7 +2108,7 @@ class Heap {
   friend class Page;
   friend class Isolate;
   friend class MarkCompactCollector;
-  friend class StaticMarkingVisitor;
+  friend class MarkCompactMarkingVisitor;
   friend class MapCompact;
 
   DISALLOW_COPY_AND_ASSIGN(Heap);

@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -360,7 +360,71 @@ class StaticNewSpaceVisitor : public StaticVisitorBase {
 
 template<typename StaticVisitor>
 VisitorDispatchTable<typename StaticNewSpaceVisitor<StaticVisitor>::Callback>
-  StaticNewSpaceVisitor<StaticVisitor>::table_;
+    StaticNewSpaceVisitor<StaticVisitor>::table_;
+
+
+// Base class for visitors used to transitively mark the entire heap.
+// IterateBody returns nothing.
+// Certain types of objects might not be handled by this base class and
+// no visitor function is registered by the generic initialization. A
+// specialized visitor function needs to be provided by the inheriting
+// class itself for those cases.
+//
+// This class is intended to be used in the following way:
+//
+//   class SomeVisitor : public StaticMarkingVisitor<SomeVisitor> {
+//     ...
+//   }
+//
+// This is an example of Curiously recurring template pattern.
+template<typename StaticVisitor>
+class StaticMarkingVisitor : public StaticVisitorBase {
+ public:
+  static void Initialize();
+
+  static inline void IterateBody(Map* map, HeapObject* obj) {
+    table_.GetVisitor(map)(map, obj);
+  }
+
+  static inline void VisitCodeEntry(Heap* heap, Address entry_address);
+  static inline void VisitGlobalPropertyCell(Heap* heap, RelocInfo* rinfo);
+  static inline void VisitDebugTarget(Heap* heap, RelocInfo* rinfo);
+  static inline void VisitExternalReference(RelocInfo* rinfo) { }
+  static inline void VisitRuntimeEntry(RelocInfo* rinfo) { }
+
+  // TODO(mstarzinger): This should be made protected once refactoring is done.
+  static inline void VisitGlobalContext(Map* map, HeapObject* object);
+
+ protected:
+  static inline void VisitJSRegExp(Map* map, HeapObject* object);
+
+  class DataObjectVisitor {
+   public:
+    template<int size>
+    static inline void VisitSpecialized(Map* map, HeapObject* object) {
+    }
+
+    static inline void Visit(Map* map, HeapObject* object) {
+    }
+  };
+
+  typedef FlexibleBodyVisitor<StaticVisitor,
+                              JSObject::BodyDescriptor,
+                              void> JSObjectVisitor;
+
+  typedef FlexibleBodyVisitor<StaticVisitor,
+                              StructBodyDescriptor,
+                              void> StructObjectVisitor;
+
+  typedef void (*Callback)(Map* map, HeapObject* object);
+
+  static VisitorDispatchTable<Callback> table_;
+};
+
+
+template<typename StaticVisitor>
+VisitorDispatchTable<typename StaticMarkingVisitor<StaticVisitor>::Callback>
+    StaticMarkingVisitor<StaticVisitor>::table_;
 
 
 } }  // namespace v8::internal

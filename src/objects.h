@@ -2635,7 +2635,9 @@ class DescriptorArray: public FixedArray {
   // fit in a page).
   static const int kMaxNumberOfDescriptors = 1024 + 512;
 
-  static int SizeFor(int number_of_descriptors) {
+  // Returns the fixed array length required to hold number_of_descriptors
+  // descriptors.
+  static int LengthFor(int number_of_descriptors) {
     return ToKeyIndex(number_of_descriptors);
   }
 
@@ -4896,6 +4898,11 @@ class Map: public HeapObject {
                         String* name,
                         LookupResult* result);
 
+  // The size of transition arrays are limited so they do not end up in large
+  // object space. Otherwise ClearNonLiveTransitions would leak memory while
+  // applying in-place right trimming.
+  inline bool CanHaveMoreTransitions();
+
   void SetLastAdded(int index) {
     set_bit_field3(LastAddedBits::update(bit_field3(), index));
   }
@@ -5723,8 +5730,6 @@ class SharedFunctionInfo: public HeapObject {
   // the debugger, it is not possible to compile without a context otherwise.
   static bool CompileLazy(Handle<SharedFunctionInfo> shared,
                           ClearExceptionFlag flag);
-
-  void SharedFunctionInfoIterateBody(ObjectVisitor* v);
 
   // Casting.
   static inline SharedFunctionInfo* cast(Object* obj);
@@ -8852,8 +8857,6 @@ class ObjectVisitor BASE_EMBEDDED {
 
   // Visit pointer embedded into a code object.
   virtual void VisitEmbeddedPointer(RelocInfo* rinfo);
-
-  virtual void VisitSharedFunctionInfo(SharedFunctionInfo* shared) {}
 
   // Visits a contiguous arrays of external references (references to the C++
   // heap) in the half-open range [start, end). Any or all of the values

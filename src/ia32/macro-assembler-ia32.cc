@@ -1924,13 +1924,14 @@ void MacroAssembler::CallApiFunctionAndReturn(Address function_address,
   j(not_equal, &promote_scheduled_exception);
   LeaveApiExitFrame();
   ret(stack_space * kPointerSize);
-  bind(&promote_scheduled_exception);
-  TailCallRuntime(Runtime::kPromoteScheduledException, 0, 1);
 
   bind(&empty_handle);
   // It was zero; the result is undefined.
   mov(eax, isolate()->factory()->undefined_value());
   jmp(&prologue);
+
+  bind(&promote_scheduled_exception);
+  TailCallRuntime(Runtime::kPromoteScheduledException, 0, 1);
 
   // HandleScope limit has changed. Delete allocated extensions.
   ExternalReference delete_extensions =

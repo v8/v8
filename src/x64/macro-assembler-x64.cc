@@ -746,13 +746,13 @@ void MacroAssembler::CallApiFunctionAndReturn(Address function_address,
   LeaveApiExitFrame();
   ret(stack_space * kPointerSize);
 
-  bind(&promote_scheduled_exception);
-  TailCallRuntime(Runtime::kPromoteScheduledException, 0, 1);
-
   bind(&empty_result);
   // It was zero; the result is undefined.
-  Move(rax, factory->undefined_value());
+  LoadRoot(rax, Heap::kUndefinedValueRootIndex);
   jmp(&prologue);
+
+  bind(&promote_scheduled_exception);
+  TailCallRuntime(Runtime::kPromoteScheduledException, 0, 1);
 
   // HandleScope limit has changed. Delete allocated extensions.
   bind(&delete_allocated_handles);

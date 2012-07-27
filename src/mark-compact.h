@@ -636,7 +636,7 @@ class MarkCompactCollector {
 
   friend class RootMarkingVisitor;
   friend class MarkingVisitor;
-  friend class StaticMarkingVisitor;
+  friend class MarkCompactMarkingVisitor;
   friend class CodeMarkingVisitor;
   friend class SharedFunctionInfoMarkingVisitor;
   friend class Marker<IncrementalMarking>;

@@ -53,6 +53,8 @@ class IncrementalMarking {
 
   explicit IncrementalMarking(Heap* heap);
 
+  static void Initialize();
+
   void TearDown();
 
   State state() {
@@ -258,8 +260,6 @@ class IncrementalMarking {
   static void SetNewSpacePageFlags(NewSpacePage* chunk, bool is_marking);
 
   void EnsureMarkingDequeIsCommitted();
-
-  void VisitGlobalContext(Context* ctx, ObjectVisitor* v);
 
   Heap* heap_;
 

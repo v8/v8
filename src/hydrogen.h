@@ -1089,13 +1089,13 @@ class HGraphBuilder: public AstVisitor {
   HInstruction* BuildIncrement(bool returns_original_input,
                                CountOperation* expr);
   HLoadNamedField* BuildLoadNamedField(HValue* object,
-                                       Property* expr,
-                                       Handle<Map> type,
+                                       Handle<Map> map,
                                        LookupResult* result,
                                        bool smi_and_map_check);
-  HInstruction* BuildLoadNamedGeneric(HValue* object, Property* expr);
-  HInstruction* BuildLoadKeyedGeneric(HValue* object,
-                                      HValue* key);
+  HInstruction* BuildLoadNamedGeneric(HValue* object,
+                                      Handle<String> name,
+                                      Property* expr);
+  HInstruction* BuildLoadKeyedGeneric(HValue* object, HValue* key);
   HInstruction* BuildExternalArrayElementAccess(
       HValue* external_elements,
       HValue* checked_key,
@@ -1147,29 +1147,27 @@ class HGraphBuilder: public AstVisitor {
                                    bool is_store,
                                    bool* has_side_effects);
 
-  HInstruction* BuildCallGetter(HValue* obj,
-                                Property* expr,
+  HInstruction* BuildCallGetter(HValue* object,
                                 Handle<Map> map,
-                                Handle<Object> callback,
+                                Handle<AccessorPair> accessors,
                                 Handle<JSObject> holder);
-  HInstruction* BuildLoadNamed(HValue* object,
-                               Property* prop,
-                               Handle<Map> map,
-                               Handle<String> name);
+  HInstruction* BuildLoadNamedMonomorphic(HValue* object,
+                                          Handle<String> name,
+                                          Property* expr,
+                                          Handle<Map> map);
   HInstruction* BuildCallSetter(HValue* object,
-                                Handle<String> name,
                                 HValue* value,
                                 Handle<Map> map,
-                                Handle<Object> callback,
+                                Handle<AccessorPair> accessors,
                                 Handle<JSObject> holder);
-  HInstruction* BuildStoreNamed(HValue* object,
-                                HValue* value,
-                                Handle<Map> type,
-                                Expression* key);
+  HInstruction* BuildStoreNamedMonomorphic(HValue* object,
+                                           Handle<String> name,
+                                           HValue* value,
+                                           Handle<Map> map);
   HInstruction* BuildStoreNamedField(HValue* object,
                                      Handle<String> name,
                                      HValue* value,
-                                     Handle<Map> type,
+                                     Handle<Map> map,
                                      LookupResult* lookup,
                                      bool smi_and_map_check);
   HInstruction* BuildStoreNamedGeneric(HValue* object,
