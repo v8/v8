@@ -8511,6 +8511,8 @@ void Code::Disassemble(const char* name, FILE* out) {
       PrintF(out, "\n");
     }
     PrintF(out, "\n");
+    // Just print if type feedback info is ever used for optimized code.
+    ASSERT(type_feedback_info()->IsUndefined());
   } else if (kind() == FUNCTION) {
     unsigned offset = stack_check_table_offset();
     // If there is no stack check table, the "table start" will at or after
@@ -8525,6 +8527,10 @@ void Code::Disassemble(const char* name, FILE* out) {
         unsigned index = (2 * i) + 1;
         PrintF(out, "%6u  %9u\n", address[index], address[index + 1]);
       }
+      PrintF(out, "\n");
+    }
+    if (!type_feedback_info()->IsUndefined()) {
+      TypeFeedbackInfo::cast(type_feedback_info())->TypeFeedbackInfoPrint(out);
       PrintF(out, "\n");
     }
   }

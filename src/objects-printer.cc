@@ -596,9 +596,9 @@ void PolymorphicCodeCache::PolymorphicCodeCachePrint(FILE* out) {
 
 void TypeFeedbackInfo::TypeFeedbackInfoPrint(FILE* out) {
   HeapObject::PrintHeader(out, "TypeFeedbackInfo");
-  PrintF(out, "\n - ic_total_count: %d, ic_with_type_info_count: %d",
+  PrintF(out, " - ic_total_count: %d, ic_with_type_info_count: %d\n",
          ic_total_count(), ic_with_type_info_count());
-  PrintF(out, "\n - type_feedback_cells: ");
+  PrintF(out, " - type_feedback_cells: ");
   type_feedback_cells()->FixedArrayPrint(out);
 }
 
