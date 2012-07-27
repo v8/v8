@@ -4771,6 +4771,11 @@ void HGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
               // If we don't know the monomorphic type, do a generic store.
               CHECK_ALIVE(store = BuildStoreNamedGeneric(literal, name, value));
             } else {
+#if DEBUG
+              Handle<AccessorPair> accessors;
+              Handle<JSObject> holder;
+              ASSERT(!LookupAccessorPair(map, name, &accessors, &holder));
+#endif
               CHECK_ALIVE(store = BuildStoreNamedMonomorphic(literal,
                                                              name,
                                                              value,
@@ -5056,30 +5061,6 @@ HInstruction* HGraphBuilder::BuildStoreNamedMonomorphic(HValue* object,
     return BuildStoreNamedField(object, name, value, map, &lookup, true);
   }
 
-  // Handle a known setter directly in the receiver.
-  map->LookupDescriptor(NULL, *name, &lookup);
-  if (lookup.IsPropertyCallbacks()) {
-    Handle<Object> callback(lookup.GetValueFromMap(*map));
-    Handle<JSObject> holder;
-    if (!callback->IsAccessorPair()) {
-      return BuildStoreNamedGeneric(object, name, value);
-    }
-    Handle<AccessorPair> accessors = Handle<AccessorPair>::cast(callback);
-    return BuildCallSetter(object, value, map, accessors, holder);
-  }
-
-  // Handle a known setter somewhere in the prototype chain.
-  LookupInPrototypes(map, name, &lookup);
-  if (lookup.IsPropertyCallbacks()) {
-    Handle<Object> callback(lookup.GetValue());
-    Handle<JSObject> holder(lookup.holder());
-    if (!callback->IsAccessorPair()) {
-      return BuildStoreNamedGeneric(object, name, value);
-    }
-    Handle<AccessorPair> accessors = Handle<AccessorPair>::cast(callback);
-    return BuildCallSetter(object, value, map, accessors, holder);
-  }
-
   // No luck, do a generic store.
   return BuildStoreNamedGeneric(object, name, value);
 }
@@ -5237,7 +5218,16 @@ void HGraphBuilder::HandlePropertyAssignment(Assignment* expr) {
     SmallMapList* types = expr->GetReceiverTypes();
     if (expr->IsMonomorphic()) {
       Handle<Map> map = types->first();
-      CHECK_ALIVE(instr = BuildStoreNamedMonomorphic(object, name, value, map));
+      Handle<AccessorPair> accessors;
+      Handle<JSObject> holder;
+      if (LookupAccessorPair(map, name, &accessors, &holder)) {
+        instr = BuildCallSetter(object, value, map, accessors, holder);
+      } else {
+        CHECK_ALIVE(instr = BuildStoreNamedMonomorphic(object,
+                                                       name,
+                                                       value,
+                                                       map));
+      }
     } else if (types != NULL && types->length() > 1) {
       HandlePolymorphicStoreNamedField(expr, object, value, types, name);
       return;
@@ -5401,7 +5391,13 @@ void HGraphBuilder::HandleCompoundAssignment(Assignment* expr) {
       HInstruction* load;
       if (prop->IsMonomorphic()) {
         map = prop->GetReceiverTypes()->first();
-        load = BuildLoadNamedMonomorphic(object, name, prop, map);
+        Handle<AccessorPair> accessors;
+        Handle<JSObject> holder;
+        if (LookupAccessorPair(map, name, &accessors, &holder)) {
+          load = BuildCallGetter(object, map, accessors, holder);
+        } else {
+          load = BuildLoadNamedMonomorphic(object, name, prop, map);
+        }
       } else {
         load = BuildLoadNamedGeneric(object, name, prop);
       }
@@ -5421,10 +5417,16 @@ void HGraphBuilder::HandleCompoundAssignment(Assignment* expr) {
         // If we don't know the monomorphic type, do a generic store.
         CHECK_ALIVE(store = BuildStoreNamedGeneric(object, name, instr));
       } else {
-        CHECK_ALIVE(store = BuildStoreNamedMonomorphic(object,
-                                                       name,
-                                                       instr,
-                                                       map));
+        Handle<AccessorPair> accessors;
+        Handle<JSObject> holder;
+        if (LookupAccessorPair(map, name, &accessors, &holder)) {
+          store = BuildCallSetter(object, instr, map, accessors, holder);
+        } else {
+          CHECK_ALIVE(store = BuildStoreNamedMonomorphic(object,
+                                                         name,
+                                                         instr,
+                                                         map));
+        }
       }
       AddInstruction(store);
       // Drop the simulated receiver and value.  Return the value.
@@ -5671,6 +5673,40 @@ HInstruction* HGraphBuilder::BuildCallGetter(HValue* object,
 }
 
 
+bool HGraphBuilder::LookupAccessorPair(Handle<Map> map,
+                                       Handle<String> name,
+                                       Handle<AccessorPair>* accessors,
+                                       Handle<JSObject>* holder) {
+  LookupResult lookup(isolate());
+
+  // Check for a JavaScript accessor directly in the map.
+  map->LookupDescriptor(NULL, *name, &lookup);
+  if (lookup.IsPropertyCallbacks()) {
+    Handle<Object> callback(lookup.GetValueFromMap(*map));
+    if (!callback->IsAccessorPair()) return false;
+    *accessors = Handle<AccessorPair>::cast(callback);
+    *holder = Handle<JSObject>();
+    return true;
+  }
+
+  // Everything else, e.g. a field, can't be an accessor call.
+  if (lookup.IsFound()) return false;
+
+  // Check for a JavaScript accessor somewhere in the proto chain.
+  LookupInPrototypes(map, name, &lookup);
+  if (lookup.IsPropertyCallbacks()) {
+    Handle<Object> callback(lookup.GetValue());
+    if (!callback->IsAccessorPair()) return false;
+    *accessors = Handle<AccessorPair>::cast(callback);
+    *holder = Handle<JSObject>(lookup.holder());
+    return true;
+  }
+
+  // We haven't found a JavaScript accessor anywhere.
+  return false;
+}
+
+
 HInstruction* HGraphBuilder::BuildLoadNamedMonomorphic(HValue* object,
                                                        Handle<String> name,
                                                        Property* expr,
@@ -5688,29 +5724,6 @@ HInstruction* HGraphBuilder::BuildLoadNamedMonomorphic(HValue* object,
     AddInstruction(HCheckMaps::NewWithTransitions(object, map, zone()));
     Handle<JSFunction> function(lookup.GetConstantFunctionFromMap(*map));
     return new(zone()) HConstant(function, Representation::Tagged());
-  }
-
-  // Handle a known getter directly in the receiver.
-  if (lookup.IsPropertyCallbacks()) {
-    Handle<Object> callback(lookup.GetValueFromMap(*map));
-    Handle<JSObject> holder;
-    if (!callback->IsAccessorPair()) {
-      return BuildLoadNamedGeneric(object, name, expr);
-    }
-    Handle<AccessorPair> accessors = Handle<AccessorPair>::cast(callback);
-    return BuildCallGetter(object, map, accessors, holder);
-  }
-
-  // Handle a known getter somewhere in the prototype chain.
-  LookupInPrototypes(map, name, &lookup);
-  if (lookup.IsPropertyCallbacks()) {
-    Handle<Object> callback(lookup.GetValue());
-      Handle<JSObject> holder(lookup.holder());
-      if (!callback->IsAccessorPair()) {
-        return BuildLoadNamedGeneric(object, name, expr);
-      }
-      Handle<AccessorPair> accessors = Handle<AccessorPair>::cast(callback);
-      return BuildCallGetter(object, map, accessors, holder);
   }
 
   // No luck, do a generic load.
@@ -6333,7 +6346,14 @@ void HGraphBuilder::VisitProperty(Property* expr) {
 
     HValue* obj = Pop();
     if (expr->IsMonomorphic()) {
-      instr = BuildLoadNamedMonomorphic(obj, name, expr, types->first());
+      Handle<Map> map = types->first();
+      Handle<AccessorPair> accessors;
+      Handle<JSObject> holder;
+      if (LookupAccessorPair(map, name, &accessors, &holder)) {
+        instr = BuildCallGetter(obj, map, accessors, holder);
+      } else {
+        instr = BuildLoadNamedMonomorphic(obj, name, expr, map);
+      }
     } else if (types != NULL && types->length() > 1) {
       AddInstruction(new(zone()) HCheckNonSmi(obj));
       HandlePolymorphicLoadNamedField(expr, obj, types, name);
@@ -7823,7 +7843,13 @@ void HGraphBuilder::VisitCountOperation(CountOperation* expr) {
       HInstruction* load;
       if (prop->IsMonomorphic()) {
         map = prop->GetReceiverTypes()->first();
-        load = BuildLoadNamedMonomorphic(object, name, prop, map);
+        Handle<AccessorPair> accessors;
+        Handle<JSObject> holder;
+        if (LookupAccessorPair(map, name, &accessors, &holder)) {
+          load = BuildCallGetter(object, map, accessors, holder);
+        } else {
+          load = BuildLoadNamedMonomorphic(object, name, prop, map);
+        }
       } else {
         load = BuildLoadNamedGeneric(object, name, prop);
       }
@@ -7838,10 +7864,16 @@ void HGraphBuilder::VisitCountOperation(CountOperation* expr) {
         // If we don't know the monomorphic type, do a generic store.
         CHECK_ALIVE(store = BuildStoreNamedGeneric(object, name, after));
       } else {
-        CHECK_ALIVE(store = BuildStoreNamedMonomorphic(object,
-                                                       name,
-                                                       after,
-                                                       map));
+        Handle<AccessorPair> accessors;
+        Handle<JSObject> holder;
+        if (LookupAccessorPair(map, name, &accessors, &holder)) {
+          store = BuildCallSetter(object, after, map, accessors, holder);
+        } else {
+          CHECK_ALIVE(store = BuildStoreNamedMonomorphic(object,
+                                                         name,
+                                                         after,
+                                                         map));
+        }
       }
       AddInstruction(store);
 
