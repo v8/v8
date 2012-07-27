@@ -5102,6 +5102,7 @@ void HGraphBuilder::HandlePolymorphicLoadNamedField(Property* expr,
 
   // Use monomorphic load if property lookup results in the same field index
   // for all maps.  Requires special map check on the set of all handled maps.
+  AddInstruction(new(zone()) HCheckNonSmi(object));
   HInstruction* instr;
   if (count == types->length() && is_monomorphic_field) {
     AddInstruction(new(zone()) HCheckMaps(object, types, zone()));
@@ -5202,45 +5203,52 @@ void HGraphBuilder::HandlePropertyAssignment(Assignment* expr) {
   expr->RecordTypeFeedback(oracle(), zone());
   CHECK_ALIVE(VisitForValue(prop->obj()));
 
-  HValue* value = NULL;
-  HInstruction* instr = NULL;
-
   if (prop->key()->IsPropertyName()) {
     // Named store.
     CHECK_ALIVE(VisitForValue(expr->value()));
-    value = Pop();
-    HValue* object = Pop();
+    HValue* value = environment()->ExpressionStackAt(0);
+    HValue* object = environment()->ExpressionStackAt(1);
 
     Literal* key = prop->key()->AsLiteral();
     Handle<String> name = Handle<String>::cast(key->handle());
     ASSERT(!name.is_null());
 
+    HInstruction* instr = NULL;
     SmallMapList* types = expr->GetReceiverTypes();
     if (expr->IsMonomorphic()) {
       Handle<Map> map = types->first();
       Handle<AccessorPair> accessors;
       Handle<JSObject> holder;
       if (LookupAccessorPair(map, name, &accessors, &holder)) {
+        Drop(2);
         instr = BuildCallSetter(object, value, map, accessors, holder);
       } else {
+        Drop(2);
         CHECK_ALIVE(instr = BuildStoreNamedMonomorphic(object,
                                                        name,
                                                        value,
                                                        map));
       }
-    } else if (types != NULL && types->length() > 1) {
-      HandlePolymorphicStoreNamedField(expr, object, value, types, name);
-      return;
 
+    } else if (types != NULL && types->length() > 1) {
+      Drop(2);
+      return HandlePolymorphicStoreNamedField(expr, object, value, types, name);
     } else {
+      Drop(2);
       instr = BuildStoreNamedGeneric(object, name, value);
     }
+
+    Push(value);
+    instr->set_position(expr->position());
+    AddInstruction(instr);
+    if (instr->HasObservableSideEffects()) AddSimulate(expr->AssignmentId());
+    return ast_context()->ReturnValue(Pop());
 
   } else {
     // Keyed store.
     CHECK_ALIVE(VisitForValue(prop->key()));
     CHECK_ALIVE(VisitForValue(expr->value()));
-    value = Pop();
+    HValue* value = Pop();
     HValue* key = Pop();
     HValue* object = Pop();
     bool has_side_effects = false;
@@ -5253,11 +5261,6 @@ void HGraphBuilder::HandlePropertyAssignment(Assignment* expr) {
     AddSimulate(expr->AssignmentId());
     return ast_context()->ReturnValue(Pop());
   }
-  Push(value);
-  instr->set_position(expr->position());
-  AddInstruction(instr);
-  if (instr->HasObservableSideEffects()) AddSimulate(expr->AssignmentId());
-  return ast_context()->ReturnValue(Pop());
 }
 
 
@@ -6344,22 +6347,19 @@ void HGraphBuilder::VisitProperty(Property* expr) {
     Handle<String> name = expr->key()->AsLiteral()->AsPropertyName();
     SmallMapList* types = expr->GetReceiverTypes();
 
-    HValue* obj = Pop();
     if (expr->IsMonomorphic()) {
       Handle<Map> map = types->first();
       Handle<AccessorPair> accessors;
       Handle<JSObject> holder;
       if (LookupAccessorPair(map, name, &accessors, &holder)) {
-        instr = BuildCallGetter(obj, map, accessors, holder);
+        instr = BuildCallGetter(Pop(), map, accessors, holder);
       } else {
-        instr = BuildLoadNamedMonomorphic(obj, name, expr, map);
+        instr = BuildLoadNamedMonomorphic(Pop(), name, expr, map);
       }
     } else if (types != NULL && types->length() > 1) {
-      AddInstruction(new(zone()) HCheckNonSmi(obj));
-      HandlePolymorphicLoadNamedField(expr, obj, types, name);
-      return;
+      return HandlePolymorphicLoadNamedField(expr, Pop(), types, name);
     } else {
-      instr = BuildLoadNamedGeneric(obj, name, expr);
+      instr = BuildLoadNamedGeneric(Pop(), name, expr);
     }
 
   } else {
