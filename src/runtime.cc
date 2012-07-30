@@ -3755,8 +3755,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SubString) {
   } else {
     CONVERT_DOUBLE_ARG_CHECKED(from_number, 1);
     CONVERT_DOUBLE_ARG_CHECKED(to_number, 2);
-    start = FastD2I(from_number);
-    end = FastD2I(to_number);
+    start = FastD2IChecked(from_number);
+    end = FastD2IChecked(to_number);
   }
   RUNTIME_ASSERT(end >= start);
   RUNTIME_ASSERT(start >= 0);
@@ -4224,7 +4224,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NumberToFixed) {
     return *isolate->factory()->infinity_symbol();
   }
   CONVERT_DOUBLE_ARG_CHECKED(f_number, 1);
-  int f = FastD2I(f_number);
+  int f = FastD2IChecked(f_number);
   RUNTIME_ASSERT(f >= 0);
   char* str = DoubleToFixedCString(value, f);
   MaybeObject* res =
@@ -4249,7 +4249,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NumberToExponential) {
     return *isolate->factory()->infinity_symbol();
   }
   CONVERT_DOUBLE_ARG_CHECKED(f_number, 1);
-  int f = FastD2I(f_number);
+  int f = FastD2IChecked(f_number);
   RUNTIME_ASSERT(f >= -1 && f <= 20);
   char* str = DoubleToExponentialCString(value, f);
   MaybeObject* res =
@@ -4274,7 +4274,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NumberToPrecision) {
     return *isolate->factory()->infinity_symbol();
   }
   CONVERT_DOUBLE_ARG_CHECKED(f_number, 1);
-  int f = FastD2I(f_number);
+  int f = FastD2IChecked(f_number);
   RUNTIME_ASSERT(f >= 1 && f <= 21);
   char* str = DoubleToPrecisionCString(value, f);
   MaybeObject* res =
