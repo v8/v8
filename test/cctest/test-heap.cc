@@ -2018,6 +2018,7 @@ TEST(Regress2211) {
     DescriptorArray* descriptors = internal_obj->map()->instance_descriptors();
     ObjectHashTable* hashtable = ObjectHashTable::cast(
         internal_obj->FastPropertyAt(descriptors->GetFieldIndex(0)));
-    CHECK_LE(hashtable->SizeFor(hashtable->length()), 52);
+    // HashTable header (5) and 4 initial entries (8).
+    CHECK_LE(hashtable->SizeFor(hashtable->length()), 13 * kPointerSize);
   }
 }
