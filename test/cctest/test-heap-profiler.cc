@@ -1468,7 +1468,7 @@ TEST(HiddenPropertiesFastCase) {
 
   v8::Handle<v8::Value> cHandle = env->Global()->Get(v8::String::New("c"));
   CHECK(!cHandle.IsEmpty() && cHandle->IsObject());
-  cHandle->ToObject()->GetIdentityHash();
+  cHandle->ToObject()->SetHiddenValue(v8_str("key"), v8_str("val"));
 
   snapshot = v8::HeapProfiler::TakeSnapshot(
       v8_str("HiddenPropertiesFastCase2"));
