@@ -29,6 +29,7 @@
 #define V8_CONVERSIONS_H_
 
 #include "utils.h"
+#include "double.h"
 
 namespace v8 {
 namespace internal {
