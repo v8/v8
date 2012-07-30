@@ -29,7 +29,6 @@
 #define V8_CONVERSIONS_H_
 
 #include "utils.h"
-#include "double.h"
 
 namespace v8 {
 namespace internal {
@@ -50,11 +49,6 @@ inline bool isDigit(int x, int radix) {
   return (x >= '0' && x <= '9' && x < '0' + radix)
       || (radix > 10 && x >= 'a' && x < 'a' + radix - 10)
       || (radix > 10 && x >= 'A' && x < 'A' + radix - 10);
-}
-
-
-inline double SignedZero(bool negative) {
-  return negative ? BitCast<double, uint64_t>(Double::kSignMask) : 0.0;
 }
 
 

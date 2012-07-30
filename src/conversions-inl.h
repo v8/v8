@@ -51,6 +51,11 @@ inline double JunkStringValue() {
 }
 
 
+inline double SignedZero(bool negative) {
+  return negative ? uint64_to_double(Double::kSignMask) : 0.0;
+}
+
+
 // The fast double-to-unsigned-int conversion routine does not guarantee
 // rounding towards zero, or any reasonable value if the argument is larger
 // than what fits in an unsigned 32-bit integer.
