@@ -70,7 +70,7 @@ TEST(Utils1) {
 
   CHECK_EQ(INT_MAX, FastD2IChecked(1.0e100));
   CHECK_EQ(INT_MIN, FastD2IChecked(-1.0e100));
-  CHECK_EQ(INT_MIN, FastD2IChecked(NAN));
+  CHECK_EQ(INT_MIN, FastD2IChecked(OS::nan_value()));
 }
 
 
