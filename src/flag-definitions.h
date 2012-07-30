@@ -213,6 +213,7 @@ DEFINE_bool(cache_optimized_code, true,
             "cache optimized code for closures")
 DEFINE_bool(inline_construct, true, "inline constructor calls")
 DEFINE_bool(inline_arguments, true, "inline functions with arguments object")
+DEFINE_bool(inline_accessors, false, "inline JavaScript accessors")
 DEFINE_int(loop_weight, 1, "loop weight for representation inference")
 
 DEFINE_bool(optimize_for_in, true,
@@ -552,6 +553,8 @@ DEFINE_bool(gc_verbose, false, "print stuff during garbage collection")
 DEFINE_bool(heap_stats, false, "report heap statistics before and after GC")
 DEFINE_bool(code_stats, false, "report code statistics after GC")
 DEFINE_bool(verify_heap, false, "verify heap pointers before and after GC")
+DEFINE_bool(verify_global_context_separation, false,
+            "verify that code holds on to at most one global context after GC")
 DEFINE_bool(print_handles, false, "report handles after GC")
 DEFINE_bool(print_global_handles, false, "report global handles after GC")
 

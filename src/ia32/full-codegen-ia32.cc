@@ -2214,6 +2214,7 @@ void FullCodeGenerator::VisitProperty(Property* expr) {
     VisitForAccumulatorValue(expr->obj());
     __ mov(edx, result_register());
     EmitNamedPropertyLoad(expr);
+    PrepareForBailoutForId(expr->ReturnId(), TOS_REG);
     context()->Plug(eax);
   } else {
     VisitForStackValue(expr->obj());

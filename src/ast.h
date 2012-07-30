@@ -1513,6 +1513,9 @@ class Property: public Expression {
   Expression* key() const { return key_; }
   virtual int position() const { return pos_; }
 
+  // Bailout support.
+  int ReturnId() const { return return_id_; }
+
   bool IsStringLength() const { return is_string_length_; }
   bool IsStringAccess() const { return is_string_access_; }
   bool IsFunctionPrototype() const { return is_function_prototype_; }
@@ -1535,6 +1538,7 @@ class Property: public Expression {
         obj_(obj),
         key_(key),
         pos_(pos),
+        return_id_(GetNextId(isolate)),
         is_monomorphic_(false),
         is_uninitialized_(false),
         is_array_length_(false),
@@ -1546,6 +1550,7 @@ class Property: public Expression {
   Expression* obj_;
   Expression* key_;
   int pos_;
+  const int return_id_;
 
   SmallMapList receiver_types_;
   bool is_monomorphic_ : 1;

@@ -596,9 +596,9 @@ void PolymorphicCodeCache::PolymorphicCodeCachePrint(FILE* out) {
 
 void TypeFeedbackInfo::TypeFeedbackInfoPrint(FILE* out) {
   HeapObject::PrintHeader(out, "TypeFeedbackInfo");
-  PrintF(out, "\n - ic_total_count: %d, ic_with_type_info_count: %d",
+  PrintF(out, " - ic_total_count: %d, ic_with_type_info_count: %d\n",
          ic_total_count(), ic_with_type_info_count());
-  PrintF(out, "\n - type_feedback_cells: ");
+  PrintF(out, " - type_feedback_cells: ");
   type_feedback_cells()->FixedArrayPrint(out);
 }
 
@@ -794,7 +794,14 @@ void SharedFunctionInfo::SharedFunctionInfoPrint(FILE* out) {
   code()->ShortPrint(out);
   if (HasSourceCode()) {
     PrintF(out, "\n - source code = ");
-    GetSourceCode()->ShortPrint(out);
+    String* source = String::cast(Script::cast(script())->source());
+    int start = start_position();
+    int length = end_position() - start;
+    SmartArrayPointer<char> source_string =
+        source->ToCString(DISALLOW_NULLS,
+                          FAST_STRING_TRAVERSAL,
+                          start, length, NULL);
+    PrintF(out, "%s", *source_string);
   }
   // Script files are often large, hard to read.
   // PrintF(out, "\n - script =");
@@ -815,7 +822,7 @@ void SharedFunctionInfo::SharedFunctionInfoPrint(FILE* out) {
 
 
 void JSGlobalProxy::JSGlobalProxyPrint(FILE* out) {
-  PrintF(out, "global_proxy");
+  PrintF(out, "global_proxy ");
   JSObjectPrint(out);
   PrintF(out, "context : ");
   context()->ShortPrint(out);

@@ -53,7 +53,6 @@ class TransitionArray: public FixedArray {
 
   inline Map* GetTarget(int transition_number);
   inline void SetTarget(int transition_number, Map* target);
-  inline Object** GetTargetSlot(int transition_number);
 
   inline PropertyDetails GetTargetDetails(int transition_number);
 

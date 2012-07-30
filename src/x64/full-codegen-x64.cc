@@ -2188,6 +2188,7 @@ void FullCodeGenerator::VisitProperty(Property* expr) {
   if (key->IsPropertyName()) {
     VisitForAccumulatorValue(expr->obj());
     EmitNamedPropertyLoad(expr);
+    PrepareForBailoutForId(expr->ReturnId(), TOS_REG);
     context()->Plug(rax);
   } else {
     VisitForStackValue(expr->obj());

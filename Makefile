@@ -178,9 +178,12 @@ native: $(OUTDIR)/Makefile.native
 $(ANDROID_ARCHES): $(addprefix $$@.,$(MODES))
 
 $(ANDROID_BUILDS): $(GYPFILES) $(ENVFILE) build/android.gypi \
-                   must-set-ANDROID_NDK_ROOT
-	@tools/android-build.sh $(basename $@) $(subst .,,$(suffix $@)) \
-	                        $(OUTDIR) $(GYPFLAGS)
+                   must-set-ANDROID_NDK_ROOT Makefile.android
+	@$(MAKE) -f Makefile.android $@ \
+	        ARCH="$(basename $@)" \
+	        MODE="$(subst .,,$(suffix $@))" \
+	        OUTDIR="$(OUTDIR)" \
+	        GYPFLAGS="$(GYPFLAGS)"
 
 # Test targets.
 check: all
@@ -231,8 +234,8 @@ native.clean:
 clean: $(addsuffix .clean, $(ARCHES) $(ANDROID_ARCHES)) native.clean
 
 # GYP file generation targets.
-MAKEFILES = $(addprefix $(OUTDIR)/Makefile.,$(ARCHES))
-$(MAKEFILES): $(GYPFILES) $(ENVFILE)
+OUT_MAKEFILES = $(addprefix $(OUTDIR)/Makefile.,$(ARCHES))
+$(OUT_MAKEFILES): $(GYPFILES) $(ENVFILE)
 	GYP_GENERATORS=make \
 	build/gyp/gyp --generator-output="$(OUTDIR)" build/all.gyp \
 	              -Ibuild/standalone.gypi --depth=. \

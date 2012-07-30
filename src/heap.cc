@@ -6770,6 +6770,15 @@ void PathTracer::ProcessResults() {
 
 
 #ifdef DEBUG
+// Triggers a depth-first traversal of reachable objects from one
+// given root object and finds a path to a specific heap object and
+// prints it.
+void Heap::TracePathToObjectFrom(Object* target, Object* root) {
+  PathTracer tracer(target, PathTracer::FIND_ALL, VISIT_ALL);
+  tracer.VisitPointer(&root);
+}
+
+
 // Triggers a depth-first traversal of reachable objects from roots
 // and finds a path to a specific heap object and prints it.
 void Heap::TracePathToObject(Object* target) {

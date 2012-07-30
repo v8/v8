@@ -2646,7 +2646,7 @@ MUST_USE_RESULT MaybeObject* JSProxy::DeletePropertyWithHandler(
     String* name_raw, DeleteMode mode) {
   Isolate* isolate = GetIsolate();
   HandleScope scope(isolate);
-  Handle<Object> receiver(this);
+  Handle<JSProxy> receiver(this);
   Handle<Object> name(name_raw);
 
   Handle<Object> args[] = { name };
@@ -2656,8 +2656,9 @@ MUST_USE_RESULT MaybeObject* JSProxy::DeletePropertyWithHandler(
 
   Object* bool_result = result->ToBoolean();
   if (mode == STRICT_DELETION && bool_result == GetHeap()->false_value()) {
+    Handle<Object> handler(receiver->handler());
     Handle<String> trap_name = isolate->factory()->LookupAsciiSymbol("delete");
-    Handle<Object> args[] = { Handle<Object>(handler()), trap_name };
+    Handle<Object> args[] = { handler, trap_name };
     Handle<Object> error = isolate->factory()->NewTypeError(
         "handler_failed", HandleVector(args, ARRAY_SIZE(args)));
     isolate->Throw(*error);
@@ -7217,6 +7218,7 @@ void Map::ClearNonLiveTransitions(Heap* heap) {
   if (!HasTransitionArray()) return;
 
   TransitionArray* t = transitions();
+  MarkCompactCollector* collector = heap->mark_compact_collector();
 
   int transition_index = 0;
 
@@ -7225,14 +7227,11 @@ void Map::ClearNonLiveTransitions(Heap* heap) {
     if (!ClearBackPointer(heap, t->GetTarget(i))) {
       if (i != transition_index) {
         String* key = t->GetKey(i);
-        Map* target = t->GetTarget(i);
         t->SetKey(transition_index, key);
-        t->SetTarget(transition_index, target);
-        MarkCompactCollector* collector = heap->mark_compact_collector();
         Object** key_slot = t->GetKeySlot(transition_index);
         collector->RecordSlot(key_slot, key_slot, key);
-        Object** target_slot = t->GetTargetSlot(transition_index);
-        collector->RecordSlot(target_slot, target_slot, target);
+        // Target slots do not need to be recorded since maps are not compacted.
+        t->SetTarget(transition_index, t->GetTarget(i));
       }
       transition_index++;
     }
@@ -8511,6 +8510,8 @@ void Code::Disassemble(const char* name, FILE* out) {
       PrintF(out, "\n");
     }
     PrintF(out, "\n");
+    // Just print if type feedback info is ever used for optimized code.
+    ASSERT(type_feedback_info()->IsUndefined());
   } else if (kind() == FUNCTION) {
     unsigned offset = stack_check_table_offset();
     // If there is no stack check table, the "table start" will at or after
@@ -8525,6 +8526,10 @@ void Code::Disassemble(const char* name, FILE* out) {
         unsigned index = (2 * i) + 1;
         PrintF(out, "%6u  %9u\n", address[index], address[index + 1]);
       }
+      PrintF(out, "\n");
+    }
+    if (!type_feedback_info()->IsUndefined()) {
+      TypeFeedbackInfo::cast(type_feedback_info())->TypeFeedbackInfoPrint(out);
       PrintF(out, "\n");
     }
   }
@@ -9666,8 +9671,9 @@ MaybeObject* JSObject::SetElement(uint32_t index,
   // Don't allow element properties to be redefined for external arrays.
   if (HasExternalArrayElements() && set_mode == DEFINE_PROPERTY) {
     Isolate* isolate = GetHeap()->isolate();
+    Handle<Object> receiver(this);
     Handle<Object> number = isolate->factory()->NewNumberFromUint(index);
-    Handle<Object> args[] = { Handle<Object>(this), number };
+    Handle<Object> args[] = { receiver, number };
     Handle<Object> error = isolate->factory()->NewTypeError(
         "redef_external_array_element", HandleVector(args, ARRAY_SIZE(args)));
     return isolate->Throw(*error);

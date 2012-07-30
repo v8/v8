@@ -299,8 +299,6 @@ class MonochromeProgressIndicator(CompactProgressIndicator):
       'status_line': "[%(mins)02i:%(secs)02i|%%%(remaining) 4d|+%(passed) 4d|-%(failed) 4d]: %(test)s",
       'stdout': '%s',
       'stderr': '%s',
-      'clear': lambda last_line_length: ("\r" + (" " * last_line_length) + "\r"),
-      'max_length': 78
     }
     super(MonochromeProgressIndicator, self).__init__(cases, templates)
 
