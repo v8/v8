@@ -6352,7 +6352,11 @@ void HGraphBuilder::VisitProperty(Property* expr) {
       Handle<AccessorPair> accessors;
       Handle<JSObject> holder;
       if (LookupAccessorPair(map, name, &accessors, &holder)) {
-        instr = BuildCallGetter(Pop(), map, accessors, holder);
+        AddCheckConstantFunction(holder, Top(), map, true);
+        Handle<JSFunction> getter(JSFunction::cast(accessors->getter()));
+        if (FLAG_inline_accessors && TryInlineGetter(getter, expr)) return;
+        AddInstruction(new(zone()) HPushArgument(Pop()));
+        instr = new(zone()) HCallConstantFunction(getter, 1);
       } else {
         instr = BuildLoadNamedMonomorphic(Pop(), name, expr, map);
       }
@@ -6917,6 +6921,18 @@ bool HGraphBuilder::TryInlineConstruct(CallNew* expr, HValue* receiver) {
                    expr->id(),
                    expr->ReturnId(),
                    CONSTRUCT_CALL_RETURN);
+}
+
+
+bool HGraphBuilder::TryInlineGetter(Handle<JSFunction> getter,
+                                    Property* prop) {
+  return TryInline(CALL_AS_METHOD,
+                   getter,
+                   0,
+                   NULL,
+                   prop->id(),
+                   prop->ReturnId(),
+                   NORMAL_RETURN);
 }
 
 

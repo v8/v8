@@ -1040,6 +1040,7 @@ class HGraphBuilder: public AstVisitor {
 
   bool TryInlineCall(Call* expr, bool drop_extra = false);
   bool TryInlineConstruct(CallNew* expr, HValue* receiver);
+  bool TryInlineGetter(Handle<JSFunction> getter, Property* prop);
   bool TryInlineBuiltinMethodCall(Call* expr,
                                   HValue* receiver,
                                   Handle<Map> receiver_map,
