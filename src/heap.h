@@ -1285,6 +1285,7 @@ class Heap {
     return disallow_allocation_failure_;
   }
 
+  void TracePathToObjectFrom(Object* target, Object* root);
   void TracePathToObject(Object* target);
   void TracePathToGlobal();
 #endif
