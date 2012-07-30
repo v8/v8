@@ -2149,10 +2149,28 @@ class HeapStats {
 };
 
 
+#ifdef DEBUG
+class DisallowAllocationFailure {
+ public:
+  inline DisallowAllocationFailure();
+  inline ~DisallowAllocationFailure();
+
+ private:
+  bool old_state_;
+};
+#endif
+
+
 class AlwaysAllocateScope {
  public:
   inline AlwaysAllocateScope();
   inline ~AlwaysAllocateScope();
+
+#ifdef DEBUG
+ private:
+  // Implicitly disable artificial allocation failures.
+  DisallowAllocationFailure disallow_allocation_failure_;
+#endif
 };
 
 
@@ -2395,18 +2413,6 @@ class DescriptorLookupCache {
   friend class Isolate;
   DISALLOW_COPY_AND_ASSIGN(DescriptorLookupCache);
 };
-
-
-#ifdef DEBUG
-class DisallowAllocationFailure {
- public:
-  inline DisallowAllocationFailure();
-  inline ~DisallowAllocationFailure();
-
- private:
-  bool old_state_;
-};
-#endif
 
 
 // A helper class to document/test C++ scopes where we do not
