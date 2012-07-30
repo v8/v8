@@ -53,7 +53,7 @@ inline bool isDigit(int x, int radix) {
 
 
 inline double SignedZero(bool negative) {
-  return negative ? -0.0 : 0.0;
+  return negative ? BitCast<double, uint64_t>(Double::kSignMask) : 0.0;
 }
 
 
