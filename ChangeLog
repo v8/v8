@@ -1,3 +1,12 @@
+2012-07-30: Version 3.12.18
+
+        Forced using bit-pattern for signed zero double. (issue 2239)
+
+        Made sure double to int conversion is correct. (issue 2260)
+
+        Performance and stability improvements on all platforms.
+
+
 2012-07-27: Version 3.12.17
 
         Always set the callee's context when calling a function from optimized
