@@ -822,7 +822,7 @@ void SharedFunctionInfo::SharedFunctionInfoPrint(FILE* out) {
 
 
 void JSGlobalProxy::JSGlobalProxyPrint(FILE* out) {
-  PrintF(out, "global_proxy");
+  PrintF(out, "global_proxy ");
   JSObjectPrint(out);
   PrintF(out, "context : ");
   context()->ShortPrint(out);
