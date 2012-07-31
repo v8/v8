@@ -27,11 +27,11 @@
 
 // These tests used to time out before this was fixed.
 
-var LEN = 3e4;
+var LEN = 2e4;
 
 function short() {
   var sum = 0;
-  for (var i = 0; i < 10000; i++) {
+  for (var i = 0; i < 1000; i++) {
     var a = [1, 4, 34, 23, 6, 123, 3, 2, 11, 515, 4, 33, 22, 2, 2, 1, 0, 123,
             23, 42, 43, 1002, 44, 43, 101, 23, 55, 11, 101, 102, 45, 11, 404,
             31415, 34, 53, 453, 45, 34, 5, 2, 35, 5, 345, 36, 45, 345, 3, 45,
