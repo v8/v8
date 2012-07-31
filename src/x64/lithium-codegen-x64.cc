@@ -3623,7 +3623,7 @@ void LCodeGen::DoBoundsCheck(LBoundsCheck* instr) {
   if (instr->length()->IsRegister()) {
     Register reg = ToRegister(instr->length());
     if (FLAG_debug_code &&
-        !instr->hydrogen()->index()->representation().IsTagged()) {
+        !instr->hydrogen()->length()->representation().IsTagged()) {
       __ AbortIfNotZeroExtended(reg);
     }
     if (instr->index()->IsConstantOperand()) {
