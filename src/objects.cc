@@ -8564,10 +8564,12 @@ void Code::Disassemble(const char* name, FILE* out) {
       }
       PrintF(out, "\n");
     }
+#ifdef OBJECT_PRINT
     if (!type_feedback_info()->IsUndefined()) {
       TypeFeedbackInfo::cast(type_feedback_info())->TypeFeedbackInfoPrint(out);
       PrintF(out, "\n");
     }
+#endif
   }
 
   PrintF("RelocInfo (size = %d)\n", relocation_size());
