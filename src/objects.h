@@ -7927,6 +7927,14 @@ class JSGlobalPropertyCell: public HeapObject {
   // Casting.
   static inline JSGlobalPropertyCell* cast(Object* obj);
 
+  static inline JSGlobalPropertyCell* FromValueAddress(Address value) {
+    return cast(FromAddress(value - kValueOffset));
+  }
+
+  inline Address ValueAddress() {
+    return address() + kValueOffset;
+  }
+
 #ifdef DEBUG
   void JSGlobalPropertyCellVerify();
 #endif

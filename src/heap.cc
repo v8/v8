@@ -1267,12 +1267,12 @@ void Heap::Scavenge() {
 
   // Copy objects reachable from cells by scavenging cell values directly.
   HeapObjectIterator cell_iterator(cell_space_);
-  for (HeapObject* cell = cell_iterator.Next();
-       cell != NULL; cell = cell_iterator.Next()) {
-    if (cell->IsJSGlobalPropertyCell()) {
-      Address value_address =
-          reinterpret_cast<Address>(cell) +
-          (JSGlobalPropertyCell::kValueOffset - kHeapObjectTag);
+  for (HeapObject* heap_object = cell_iterator.Next();
+       heap_object != NULL;
+       heap_object = cell_iterator.Next()) {
+    if (heap_object->IsJSGlobalPropertyCell()) {
+      JSGlobalPropertyCell* cell = JSGlobalPropertyCell::cast(heap_object);
+      Address value_address = cell->ValueAddress();
       scavenge_visitor.VisitPointer(reinterpret_cast<Object**>(value_address));
     }
   }

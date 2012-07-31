@@ -2278,16 +2278,14 @@ void FullCodeGenerator::EmitCallWithStub(Call* expr, CallFunctionFlags flags) {
   // Record source position for debugger.
   SetSourcePosition(expr->position());
 
-  // Record call targets in unoptimized code, but not in the snapshot.
-  if (!Serializer::enabled()) {
-    flags = static_cast<CallFunctionFlags>(flags | RECORD_CALL_TARGET);
-    Handle<Object> uninitialized =
-        TypeFeedbackCells::UninitializedSentinel(isolate());
-    Handle<JSGlobalPropertyCell> cell =
-        isolate()->factory()->NewJSGlobalPropertyCell(uninitialized);
-    RecordTypeFeedbackCell(expr->id(), cell);
-    __ Move(rbx, cell);
-  }
+  // Record call targets in unoptimized code.
+  flags = static_cast<CallFunctionFlags>(flags | RECORD_CALL_TARGET);
+  Handle<Object> uninitialized =
+      TypeFeedbackCells::UninitializedSentinel(isolate());
+  Handle<JSGlobalPropertyCell> cell =
+      isolate()->factory()->NewJSGlobalPropertyCell(uninitialized);
+  RecordTypeFeedbackCell(expr->id(), cell);
+  __ Move(rbx, cell);
 
   CallFunctionStub stub(arg_count, flags);
   __ movq(rdi, Operand(rsp, (arg_count + 1) * kPointerSize));
@@ -2466,20 +2464,14 @@ void FullCodeGenerator::VisitCallNew(CallNew* expr) {
   __ movq(rdi, Operand(rsp, arg_count * kPointerSize));
 
   // Record call targets in unoptimized code, but not in the snapshot.
-  CallFunctionFlags flags;
-  if (!Serializer::enabled()) {
-    flags = RECORD_CALL_TARGET;
-    Handle<Object> uninitialized =
-        TypeFeedbackCells::UninitializedSentinel(isolate());
-    Handle<JSGlobalPropertyCell> cell =
-        isolate()->factory()->NewJSGlobalPropertyCell(uninitialized);
-    RecordTypeFeedbackCell(expr->id(), cell);
-    __ Move(rbx, cell);
-  } else {
-    flags = NO_CALL_FUNCTION_FLAGS;
-  }
+  Handle<Object> uninitialized =
+      TypeFeedbackCells::UninitializedSentinel(isolate());
+  Handle<JSGlobalPropertyCell> cell =
+      isolate()->factory()->NewJSGlobalPropertyCell(uninitialized);
+  RecordTypeFeedbackCell(expr->id(), cell);
+  __ Move(rbx, cell);
 
-  CallConstructStub stub(flags);
+  CallConstructStub stub(RECORD_CALL_TARGET);
   __ Call(stub.GetCode(), RelocInfo::CONSTRUCT_CALL);
   PrepareForBailoutForId(expr->ReturnId(), TOS_REG);
   context()->Plug(rax);
