@@ -93,7 +93,11 @@ class FullCodeGenerator: public AstVisitor {
                              ? info->function()->ast_node_count() : 0,
                              info->zone()),
         ic_total_count_(0),
-        zone_(info->zone()) { }
+        zone_(info->zone()) {
+    Initialize();
+  }
+
+  void Initialize();
 
   static bool MakeCode(CompilationInfo* info);
 
@@ -806,6 +810,7 @@ class FullCodeGenerator: public AstVisitor {
   int ic_total_count_;
   Handle<FixedArray> handler_table_;
   Handle<JSGlobalPropertyCell> profiling_counter_;
+  bool generate_debug_code_;
   Zone* zone_;
 
   friend class NestedStatement;

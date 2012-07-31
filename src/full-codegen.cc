@@ -36,6 +36,7 @@
 #include "prettyprinter.h"
 #include "scopes.h"
 #include "scopeinfo.h"
+#include "snapshot.h"
 #include "stub-cache.h"
 
 namespace v8 {
@@ -379,6 +380,20 @@ void FullCodeGenerator::PopulateTypeFeedbackInfo(Handle<Code> code) {
   info->set_ic_total_count(ic_total_count_);
   ASSERT(!isolate()->heap()->InNewSpace(*info));
   code->set_type_feedback_info(*info);
+}
+
+
+void FullCodeGenerator::Initialize() {
+  // The generation of debug code must match between the snapshot code and the
+  // code that is generated later.  This is assumed by the debugger when it is
+  // calculating PC offsets after generating a debug version of code.  Therefore
+  // we disable the production of debug code in the full compiler if we are
+  // either generating a snapshot or we booted from a snapshot.
+  generate_debug_code_ = FLAG_debug_code &&
+                         !Serializer::enabled() &&
+                         !Snapshot::HaveASnapshotToStartFrom();
+  masm_->set_emit_debug_code(generate_debug_code_);
+  masm_->set_predictable_code_size(true);
 }
 
 

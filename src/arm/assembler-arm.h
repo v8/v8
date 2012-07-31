@@ -648,6 +648,9 @@ class Assembler : public AssemblerBase {
   // Overrides the default provided by FLAG_debug_code.
   void set_emit_debug_code(bool value) { emit_debug_code_ = value; }
 
+  // Dummy for cross platform compatibility.
+  void set_predictable_code_size(bool value) { }
+
   // GetCode emits any pending (non-emitted) code and fills the descriptor
   // desc. GetCode() is idempotent; it returns the same result if no other
   // Assembler functions are invoked in between GetCode() calls.

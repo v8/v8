@@ -1902,6 +1902,9 @@ void SimulateFullSpace(PagedSpace* space);
 
 TEST(ReleaseOverReservedPages) {
   i::FLAG_trace_gc = true;
+  // The optimizer can allocate stuff, messing up the test.
+  i::FLAG_crankshaft = false;
+  i::FLAG_always_opt = false;
   InitializeVM();
   v8::HandleScope scope;
   static const int number_of_test_pages = 20;

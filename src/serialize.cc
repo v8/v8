@@ -511,6 +511,18 @@ void ExternalReferenceTable::PopulateTable(Isolate* isolate) {
       UNCLASSIFIED,
       47,
       "date_cache_stamp");
+  Add(ExternalReference::address_of_pending_message_obj(isolate).address(),
+      UNCLASSIFIED,
+      48,
+      "address_of_pending_message_obj");
+  Add(ExternalReference::address_of_has_pending_message(isolate).address(),
+      UNCLASSIFIED,
+      49,
+      "address_of_has_pending_message");
+  Add(ExternalReference::address_of_pending_message_script(isolate).address(),
+      UNCLASSIFIED,
+      50,
+      "pending_message_script");
 }
 
 
