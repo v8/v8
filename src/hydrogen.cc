@@ -5900,7 +5900,8 @@ HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
   } else {
     length = AddInstruction(new(zone()) HFixedArrayBaseLength(elements));
   }
-  checked_key = AddInstruction(new(zone()) HBoundsCheck(key, length));
+  checked_key = AddInstruction(new(zone()) HBoundsCheck(key, length,
+                                                        ALLOW_SMI_KEY));
   return BuildFastElementAccess(elements, checked_key, val, mapcheck,
                                 map->elements_kind(), is_store);
 }

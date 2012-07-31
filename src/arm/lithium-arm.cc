@@ -1546,7 +1546,7 @@ LInstruction* LChunkBuilder::DoDateField(HDateField* instr) {
 
 
 LInstruction* LChunkBuilder::DoBoundsCheck(HBoundsCheck* instr) {
-  LOperand* value = UseRegisterAtStart(instr->index());
+  LOperand* value = UseRegisterOrConstantAtStart(instr->index());
   LOperand* length = UseRegister(instr->length());
   return AssignEnvironment(new(zone()) LBoundsCheck(value, length));
 }
@@ -1838,7 +1838,7 @@ LInstruction* LChunkBuilder::DoLoadKeyedFastElement(
   ASSERT(instr->key()->representation().IsInteger32() ||
          instr->key()->representation().IsTagged());
   LOperand* obj = UseRegisterAtStart(instr->object());
-  LOperand* key = UseRegisterAtStart(instr->key());
+  LOperand* key = UseRegisterOrConstantAtStart(instr->key());
   LLoadKeyedFastElement* result = new(zone()) LLoadKeyedFastElement(obj, key);
   if (instr->RequiresHoleCheck()) AssignEnvironment(result);
   return DefineAsRegister(result);
