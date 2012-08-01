@@ -1,3 +1,8 @@
+2012-08-01: Version 3.12.19
+
+        Performance and stability improvements on all platforms.
+
+
 2012-07-30: Version 3.12.18
 
         Forced using bit-pattern for signed zero double. (issue 2239)
