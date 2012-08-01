@@ -12577,7 +12577,7 @@ MaybeObject* StringDictionary::TransformPropertiesToFastFor(
   if (instance_descriptor_length == 0) {
     ASSERT_LE(unused_property_fields, inobject_props);
     // Transform the object.
-    new_map->set_unused_property_fields(unused_property_fields);
+    new_map->set_unused_property_fields(inobject_props);
     obj->set_map(new_map);
     obj->set_properties(heap->empty_fixed_array());
     // Check that it really works.
