@@ -2149,16 +2149,16 @@ class HeapStats {
 };
 
 
-#ifdef DEBUG
 class DisallowAllocationFailure {
  public:
   inline DisallowAllocationFailure();
   inline ~DisallowAllocationFailure();
 
+#ifdef DEBUG
  private:
   bool old_state_;
-};
 #endif
+};
 
 
 class AlwaysAllocateScope {
@@ -2166,11 +2166,9 @@ class AlwaysAllocateScope {
   inline AlwaysAllocateScope();
   inline ~AlwaysAllocateScope();
 
-#ifdef DEBUG
  private:
   // Implicitly disable artificial allocation failures.
   DisallowAllocationFailure disallow_allocation_failure_;
-#endif
 };
 
 

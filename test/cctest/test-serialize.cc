@@ -584,6 +584,7 @@ TEST(LinearAllocation) {
         HEAP->cell_space()->RoundSizeDownToObjectAlignment(paged_space_size),
         size);             // Large object space.
     LinearAllocationScope linear_allocation_scope;
+    DisallowAllocationFailure disallow_allocation_failure;
     const int kSmallFixedArrayLength = 4;
     const int kSmallFixedArraySize =
         FixedArray::kHeaderSize + kSmallFixedArrayLength * kPointerSize;
