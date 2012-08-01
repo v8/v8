@@ -196,12 +196,6 @@ class IncrementalMarkingMarkingVisitor
     MarkObject(heap, target);
   }
 
-  static void VisitCode(Map* map, HeapObject* object) {
-    Heap* heap = map->GetHeap();
-    Code* code = reinterpret_cast<Code*>(object);
-    code->CodeIterateBody<IncrementalMarkingMarkingVisitor>(heap);
-  }
-
   static void VisitJSWeakMap(Map* map, HeapObject* object) {
     Heap* heap = map->GetHeap();
     VisitPointers(heap,

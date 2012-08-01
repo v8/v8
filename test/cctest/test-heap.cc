@@ -2025,3 +2025,55 @@ TEST(Regress2211) {
     CHECK_LE(hashtable->SizeFor(hashtable->length()), 13 * kPointerSize);
   }
 }
+
+
+TEST(IncrementalMarkingClearsTypeFeedbackCells) {
+  if (i::FLAG_always_opt) return;
+  InitializeVM();
+  v8::HandleScope scope;
+  v8::Local<v8::Value> fun1, fun2;
+
+  {
+    LocalContext env;
+    CompileRun("function fun() {};");
+    fun1 = env->Global()->Get(v8_str("fun"));
+  }
+
+  {
+    LocalContext env;
+    CompileRun("function fun() {};");
+    fun2 = env->Global()->Get(v8_str("fun"));
+  }
+
+  // Prepare function f that contains type feedback for closures
+  // originating from two different global contexts.
+  v8::Context::GetCurrent()->Global()->Set(v8_str("fun1"), fun1);
+  v8::Context::GetCurrent()->Global()->Set(v8_str("fun2"), fun2);
+  CompileRun("function f(a, b) { a(); b(); } f(fun1, fun2);");
+  Handle<JSFunction> f =
+      v8::Utils::OpenHandle(
+          *v8::Handle<v8::Function>::Cast(
+              v8::Context::GetCurrent()->Global()->Get(v8_str("f"))));
+  Handle<TypeFeedbackCells> cells(TypeFeedbackInfo::cast(
+      f->shared()->code()->type_feedback_info())->type_feedback_cells());
+
+  CHECK_EQ(2, cells->CellCount());
+  CHECK(cells->Cell(0)->value()->IsJSFunction());
+  CHECK(cells->Cell(1)->value()->IsJSFunction());
+
+  // Go through all incremental marking steps in one swoop.
+  IncrementalMarking* marking = HEAP->incremental_marking();
+  CHECK(marking->IsStopped());
+  marking->Start();
+  CHECK(marking->IsMarking());
+  while (!marking->IsComplete()) {
+    marking->Step(MB, IncrementalMarking::NO_GC_VIA_STACK_GUARD);
+  }
+  CHECK(marking->IsComplete());
+  HEAP->CollectAllGarbage(Heap::kNoGCFlags);
+  CHECK(marking->IsStopped());
+
+  CHECK_EQ(2, cells->CellCount());
+  CHECK(cells->Cell(0)->value()->IsTheHole());
+  CHECK(cells->Cell(1)->value()->IsTheHole());
+}

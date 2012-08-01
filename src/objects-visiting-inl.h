@@ -216,6 +216,18 @@ void StaticMarkingVisitor<StaticVisitor>::VisitGlobalContext(
 
 
 template<typename StaticVisitor>
+void StaticMarkingVisitor<StaticVisitor>::VisitCode(
+    Map* map, HeapObject* object) {
+  Heap* heap = map->GetHeap();
+  Code* code = Code::cast(object);
+  if (FLAG_cleanup_code_caches_at_gc) {
+    code->ClearTypeFeedbackCells(heap);
+  }
+  code->CodeIterateBody<StaticVisitor>(heap);
+}
+
+
+template<typename StaticVisitor>
 void StaticMarkingVisitor<StaticVisitor>::VisitJSRegExp(
     Map* map, HeapObject* object) {
   int last_property_offset =

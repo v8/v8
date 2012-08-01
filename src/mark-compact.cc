@@ -1153,15 +1153,6 @@ class MarkCompactMarkingVisitor
     return true;
   }
 
-  static void VisitCode(Map* map, HeapObject* object) {
-    Heap* heap = map->GetHeap();
-    Code* code = reinterpret_cast<Code*>(object);
-    if (FLAG_cleanup_code_caches_at_gc) {
-      code->ClearTypeFeedbackCells(heap);
-    }
-    code->CodeIterateBody<MarkCompactMarkingVisitor>(heap);
-  }
-
   static void VisitJSWeakMap(Map* map, HeapObject* object) {
     MarkCompactCollector* collector = map->GetHeap()->mark_compact_collector();
     JSWeakMap* weak_map = reinterpret_cast<JSWeakMap*>(object);

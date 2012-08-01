@@ -396,6 +396,7 @@ class StaticMarkingVisitor : public StaticVisitorBase {
   static inline void VisitGlobalContext(Map* map, HeapObject* object);
 
  protected:
+  static inline void VisitCode(Map* map, HeapObject* object);
   static inline void VisitJSRegExp(Map* map, HeapObject* object);
 
   class DataObjectVisitor {
