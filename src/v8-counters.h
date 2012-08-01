@@ -363,6 +363,8 @@ class Counters {
     return &state_counters_[state];
   }
 
+  void ResetHistograms();
+
  private:
 #define HT(name, caption) \
   HistogramTimer name##_;

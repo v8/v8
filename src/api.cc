@@ -5223,6 +5223,8 @@ void V8::SetCreateHistogramFunction(CreateHistogramCallback callback) {
   i::Isolate* isolate = EnterIsolateIfNeeded();
   if (IsDeadCheck(isolate, "v8::V8::SetCreateHistogramFunction()")) return;
   isolate->stats_table()->SetCreateHistogramFunction(callback);
+  isolate->InitializeLoggingAndCounters();
+  isolate->counters()->ResetHistograms();
 }
 
 void V8::SetAddHistogramSampleFunction(AddHistogramSampleCallback callback) {

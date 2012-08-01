@@ -93,4 +93,14 @@ Counters::Counters() {
   }
 }
 
+void Counters::ResetHistograms() {
+#define HT(name, caption) name##_.Reset();
+    HISTOGRAM_TIMER_LIST(HT)
+#undef HT
+
+#define HP(name, caption) name##_.Reset();
+    HISTOGRAM_PERCENTAGE_LIST(HP)
+#undef HP
+}
+
 } }  // namespace v8::internal

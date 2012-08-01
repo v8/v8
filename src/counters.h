@@ -219,6 +219,11 @@ struct Histogram {
     return GetHistogram() != NULL;
   }
 
+  // Reset the cached internal pointer.
+  void Reset() {
+    lookup_done_ = false;
+  }
+
  protected:
   // Returns the handle to the histogram.
   void* GetHistogram() {
@@ -250,6 +255,10 @@ struct HistogramTimer {
   // Returns true if the timer is running.
   bool Running() {
     return histogram_.Enabled() && (start_time_ != 0) && (stop_time_ == 0);
+  }
+
+  void Reset() {
+    histogram_.Reset();
   }
 };
 
