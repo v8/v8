@@ -2149,10 +2149,26 @@ class HeapStats {
 };
 
 
+class DisallowAllocationFailure {
+ public:
+  inline DisallowAllocationFailure();
+  inline ~DisallowAllocationFailure();
+
+#ifdef DEBUG
+ private:
+  bool old_state_;
+#endif
+};
+
+
 class AlwaysAllocateScope {
  public:
   inline AlwaysAllocateScope();
   inline ~AlwaysAllocateScope();
+
+ private:
+  // Implicitly disable artificial allocation failures.
+  DisallowAllocationFailure disallow_allocation_failure_;
 };
 
 
@@ -2377,9 +2393,11 @@ class DescriptorLookupCache {
   static int Hash(DescriptorArray* array, String* name) {
     // Uses only lower 32 bits if pointers are larger.
     uint32_t array_hash =
-        static_cast<uint32_t>(reinterpret_cast<uintptr_t>(array)) >> 2;
+        static_cast<uint32_t>(reinterpret_cast<uintptr_t>(array))
+            >> kPointerSizeLog2;
     uint32_t name_hash =
-        static_cast<uint32_t>(reinterpret_cast<uintptr_t>(name)) >> 2;
+        static_cast<uint32_t>(reinterpret_cast<uintptr_t>(name))
+            >> kPointerSizeLog2;
     return (array_hash ^ name_hash) % kLength;
   }
 
@@ -2395,18 +2413,6 @@ class DescriptorLookupCache {
   friend class Isolate;
   DISALLOW_COPY_AND_ASSIGN(DescriptorLookupCache);
 };
-
-
-#ifdef DEBUG
-class DisallowAllocationFailure {
- public:
-  inline DisallowAllocationFailure();
-  inline ~DisallowAllocationFailure();
-
- private:
-  bool old_state_;
-};
-#endif
 
 
 // A helper class to document/test C++ scopes where we do not

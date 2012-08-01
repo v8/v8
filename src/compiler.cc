@@ -699,7 +699,7 @@ static bool InstallFullCode(CompilationInfo* info) {
   shared->set_dont_inline(lit->flags()->Contains(kDontInline));
   shared->set_ast_node_count(lit->ast_node_count());
 
-  if (V8::UseCrankshaft()&&
+  if (V8::UseCrankshaft() &&
       !function.is_null() &&
       !shared->optimization_disabled()) {
     // If we're asked to always optimize, we compile the optimized

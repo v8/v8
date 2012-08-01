@@ -1268,6 +1268,7 @@ static void FillUpNewSpace(NewSpace* new_space) {
   // that the scavenger does not undo the filling.
   v8::HandleScope scope;
   AlwaysAllocateScope always_allocate;
+  LinearAllocationScope allocate_linearly;
   intptr_t available = new_space->EffectiveCapacity() - new_space->Size();
   intptr_t number_of_fillers = (available / FixedArray::SizeFor(32)) - 1;
   for (intptr_t i = 0; i < number_of_fillers; i++) {
@@ -1901,6 +1902,9 @@ void SimulateFullSpace(PagedSpace* space);
 
 TEST(ReleaseOverReservedPages) {
   i::FLAG_trace_gc = true;
+  // The optimizer can allocate stuff, messing up the test.
+  i::FLAG_crankshaft = false;
+  i::FLAG_always_opt = false;
   InitializeVM();
   v8::HandleScope scope;
   static const int number_of_test_pages = 20;
@@ -1984,3 +1988,40 @@ TEST(PrintSharedFunctionInfo) {
   g->shared()->PrintLn();
 }
 #endif  // OBJECT_PRINT
+
+
+TEST(Regress2211) {
+  InitializeVM();
+  v8::HandleScope scope;
+
+  v8::Handle<v8::String> value = v8_str("val string");
+  Smi* hash = Smi::FromInt(321);
+  Heap* heap = Isolate::Current()->heap();
+
+  for (int i = 0; i < 2; i++) {
+    // Store identity hash first and common hidden property second.
+    v8::Handle<v8::Object> obj = v8::Object::New();
+    Handle<JSObject> internal_obj = v8::Utils::OpenHandle(*obj);
+    CHECK(internal_obj->HasFastProperties());
+
+    // In the first iteration, set hidden value first and identity hash second.
+    // In the second iteration, reverse the order.
+    if (i == 0) obj->SetHiddenValue(v8_str("key string"), value);
+    MaybeObject* maybe_obj = internal_obj->SetIdentityHash(hash,
+                                                           ALLOW_CREATION);
+    CHECK(!maybe_obj->IsFailure());
+    if (i == 1) obj->SetHiddenValue(v8_str("key string"), value);
+
+    // Check values.
+    CHECK_EQ(hash,
+             internal_obj->GetHiddenProperty(heap->identity_hash_symbol()));
+    CHECK(value->Equals(obj->GetHiddenValue(v8_str("key string"))));
+
+    // Check size.
+    DescriptorArray* descriptors = internal_obj->map()->instance_descriptors();
+    ObjectHashTable* hashtable = ObjectHashTable::cast(
+        internal_obj->FastPropertyAt(descriptors->GetFieldIndex(0)));
+    // HashTable header (5) and 4 initial entries (8).
+    CHECK_LE(hashtable->SizeFor(hashtable->length()), 13 * kPointerSize);
+  }
+}

@@ -105,6 +105,12 @@ TEST(ObjectHashSetCausesGC) {
   LocalContext context;
   Handle<ObjectHashSet> table = FACTORY->NewObjectHashSet(1);
   Handle<JSObject> key = FACTORY->NewJSArray(0);
+  v8::Handle<v8::Object> key_obj = v8::Utils::ToLocal(key);
+
+  // Force allocation of hash table backing store for hidden properties.
+  key_obj->SetHiddenValue(v8_str("key 1"), v8_str("val 1"));
+  key_obj->SetHiddenValue(v8_str("key 2"), v8_str("val 2"));
+  key_obj->SetHiddenValue(v8_str("key 3"), v8_str("val 3"));
 
   // Simulate a full heap so that generating an identity hash code
   // in subsequent calls will request GC.
@@ -128,6 +134,12 @@ TEST(ObjectHashTableCausesGC) {
   LocalContext context;
   Handle<ObjectHashTable> table = FACTORY->NewObjectHashTable(1);
   Handle<JSObject> key = FACTORY->NewJSArray(0);
+  v8::Handle<v8::Object> key_obj = v8::Utils::ToLocal(key);
+
+  // Force allocation of hash table backing store for hidden properties.
+  key_obj->SetHiddenValue(v8_str("key 1"), v8_str("val 1"));
+  key_obj->SetHiddenValue(v8_str("key 2"), v8_str("val 2"));
+  key_obj->SetHiddenValue(v8_str("key 3"), v8_str("val 3"));
 
   // Simulate a full heap so that generating an identity hash code
   // in subsequent calls will request GC.

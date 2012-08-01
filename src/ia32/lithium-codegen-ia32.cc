@@ -2705,6 +2705,10 @@ Operand LCodeGen::BuildFastArrayOperand(
     uint32_t additional_index) {
   Register elements_pointer_reg = ToRegister(elements_pointer);
   int shift_size = ElementsKindToShiftSize(elements_kind);
+  // Even though the HLoad/StoreKeyedFastElement instructions force the input
+  // representation for the key to be an integer, the input gets replaced during
+  // bound check elimination with the index argument to the bounds check, which
+  // can be tagged, so that case must be handled here, too.
   if (key_representation.IsTagged() && (shift_size >= 1)) {
     shift_size -= kSmiTagSize;
   }
@@ -3672,8 +3676,14 @@ void LCodeGen::DoStoreNamedGeneric(LStoreNamedGeneric* instr) {
 
 void LCodeGen::DoBoundsCheck(LBoundsCheck* instr) {
   if (instr->index()->IsConstantOperand()) {
-    __ cmp(ToOperand(instr->length()),
-           Immediate(ToInteger32(LConstantOperand::cast(instr->index()))));
+    int constant_index =
+        ToInteger32(LConstantOperand::cast(instr->index()));
+    if (instr->hydrogen()->length()->representation().IsTagged()) {
+      __ cmp(ToOperand(instr->length()),
+             Immediate(Smi::FromInt(constant_index)));
+    } else {
+      __ cmp(ToOperand(instr->length()), Immediate(constant_index));
+    }
     DeoptimizeIf(below_equal, instr->environment());
   } else {
     __ cmp(ToRegister(instr->index()), ToOperand(instr->length()));

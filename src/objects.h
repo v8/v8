@@ -1731,7 +1731,7 @@ class JSObject: public JSReceiver {
 
   static int GetIdentityHash(Handle<JSObject> obj);
   MUST_USE_RESULT MaybeObject* GetIdentityHash(CreationFlag flag);
-  MUST_USE_RESULT MaybeObject* SetIdentityHash(Object* hash, CreationFlag flag);
+  MUST_USE_RESULT MaybeObject* SetIdentityHash(Smi* hash, CreationFlag flag);
 
   static Handle<Object> DeleteProperty(Handle<JSObject> obj,
                                        Handle<String> name);
@@ -2235,16 +2235,22 @@ class JSObject: public JSReceiver {
       Object* setter,
       PropertyAttributes attributes);
 
-  // Returns the hidden properties backing store object, currently
-  // a StringDictionary, stored on this object.
-  // If no hidden properties object has been put on this object,
-  // return undefined, unless create_if_absent is true, in which case
-  // a new dictionary is created, added to this object, and returned.
-  MUST_USE_RESULT MaybeObject* GetHiddenPropertiesDictionary(
-      bool create_if_absent);
-  // Updates the existing hidden properties dictionary.
-  MUST_USE_RESULT MaybeObject* SetHiddenPropertiesDictionary(
-      StringDictionary* dictionary);
+
+  enum InitializeHiddenProperties {
+    CREATE_NEW_IF_ABSENT,
+    ONLY_RETURN_INLINE_VALUE
+  };
+
+  // If create_if_absent is true, return the hash table backing store
+  // for hidden properties.  If there is no backing store, allocate one.
+  // If create_if_absent is false, return the hash table backing store
+  // or the inline stored identity hash, whatever is found.
+  MUST_USE_RESULT MaybeObject* GetHiddenPropertiesHashTable(
+      InitializeHiddenProperties init_option);
+  // Set the hidden property backing store to either a hash table or
+  // the inline-stored identity hash.
+  MUST_USE_RESULT MaybeObject* SetHiddenPropertiesHashTable(
+      Object* value);
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSObject);
 };
@@ -2747,6 +2753,11 @@ class BaseShape {
 template<typename Shape, typename Key>
 class HashTable: public FixedArray {
  public:
+  enum MinimumCapacity {
+    USE_DEFAULT_MINIMUM_CAPACITY,
+    USE_CUSTOM_MINIMUM_CAPACITY
+  };
+
   // Wrapper methods
   inline uint32_t Hash(Key key) {
     if (Shape::UsesSeed) {
@@ -2799,6 +2810,7 @@ class HashTable: public FixedArray {
   // Returns a new HashTable object. Might return Failure.
   MUST_USE_RESULT static MaybeObject* Allocate(
       int at_least_space_for,
+      MinimumCapacity capacity_option = USE_DEFAULT_MINIMUM_CAPACITY,
       PretenureFlag pretenure = NOT_TENURED);
 
   // Computes the required capacity for a table holding the given
@@ -7914,6 +7926,14 @@ class JSGlobalPropertyCell: public HeapObject {
 
   // Casting.
   static inline JSGlobalPropertyCell* cast(Object* obj);
+
+  static inline JSGlobalPropertyCell* FromValueAddress(Address value) {
+    return cast(FromAddress(value - kValueOffset));
+  }
+
+  inline Address ValueAddress() {
+    return address() + kValueOffset;
+  }
 
 #ifdef DEBUG
   void JSGlobalPropertyCellVerify();

@@ -2776,13 +2776,25 @@ class HBoundsCheck: public HTemplateInstruction<2> {
   }
 
   virtual Representation RequiredInputRepresentation(int arg_index) {
-    if (index()->representation().IsTagged() &&
-        !index()->IsConstant() &&
-        key_mode_ == ALLOW_SMI_KEY) {
-      return Representation::Tagged();
-    } else {
+    if (key_mode_ == DONT_ALLOW_SMI_KEY ||
+        !length()->representation().IsTagged()) {
       return Representation::Integer32();
     }
+    // If the index is tagged and isn't constant, then allow the length
+    // to be tagged, since it is usually already tagged from loading it out of
+    // the length field of a JSArray. This allows for direct comparison without
+    // untagging.
+    if (index()->representation().IsTagged() && !index()->IsConstant()) {
+      return Representation::Tagged();
+    }
+    // Also allow the length to be tagged if the index is constant, because
+    // it can be tagged to allow direct comparison.
+    if (index()->IsConstant() &&
+        index()->representation().IsInteger32() &&
+        arg_index == 1) {
+      return Representation::Tagged();
+    }
+    return Representation::Integer32();
   }
 
   virtual void PrintDataTo(StringStream* stream);

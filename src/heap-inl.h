@@ -757,17 +757,19 @@ double GCTracer::SizeOfHeapObjects() {
 }
 
 
-#ifdef DEBUG
 DisallowAllocationFailure::DisallowAllocationFailure() {
+#ifdef DEBUG
   old_state_ = HEAP->disallow_allocation_failure_;
   HEAP->disallow_allocation_failure_ = true;
+#endif
 }
 
 
 DisallowAllocationFailure::~DisallowAllocationFailure() {
+#ifdef DEBUG
   HEAP->disallow_allocation_failure_ = old_state_;
-}
 #endif
+}
 
 
 #ifdef DEBUG

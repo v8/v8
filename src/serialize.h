@@ -242,7 +242,7 @@ class SerializerDeserializer: public ObjectVisitor {
   // Where to point within the object.
   enum WhereToPoint {
     kStartOfObject = 0,
-    kFirstInstruction = 0x80,
+    kInnerPointer = 0x80,  // First insn in code object or payload of cell.
     kWhereToPointMask = 0x80
   };
 

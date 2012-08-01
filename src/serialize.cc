@@ -511,6 +511,18 @@ void ExternalReferenceTable::PopulateTable(Isolate* isolate) {
       UNCLASSIFIED,
       47,
       "date_cache_stamp");
+  Add(ExternalReference::address_of_pending_message_obj(isolate).address(),
+      UNCLASSIFIED,
+      48,
+      "address_of_pending_message_obj");
+  Add(ExternalReference::address_of_has_pending_message(isolate).address(),
+      UNCLASSIFIED,
+      49,
+      "address_of_has_pending_message");
+  Add(ExternalReference::address_of_pending_message_script(isolate).address(),
+      UNCLASSIFIED,
+      50,
+      "pending_message_script");
 }
 
 
@@ -838,10 +850,18 @@ void Deserializer::ReadChunk(Object** current,
               new_object = HeapObject::FromAddress(object_address);            \
             }                                                                  \
           }                                                                    \
-          if (within == kFirstInstruction) {                                   \
-            Code* new_code_object = reinterpret_cast<Code*>(new_object);       \
-            new_object = reinterpret_cast<Object*>(                            \
-                new_code_object->instruction_start());                         \
+          if (within == kInnerPointer) {                                       \
+            if (space_number != CODE_SPACE || new_object->IsCode()) {          \
+              Code* new_code_object = reinterpret_cast<Code*>(new_object);     \
+              new_object = reinterpret_cast<Object*>(                          \
+                  new_code_object->instruction_start());                       \
+            } else {                                                           \
+              ASSERT(space_number == CODE_SPACE || space_number == kLargeCode);\
+              JSGlobalPropertyCell* cell =                                     \
+                  JSGlobalPropertyCell::cast(new_object);                      \
+              new_object = reinterpret_cast<Object*>(                          \
+                  cell->ValueAddress());                                       \
+            }                                                                  \
           }                                                                    \
           if (how == kFromCode) {                                              \
             Address location_of_branch_data =                                  \
@@ -979,11 +999,13 @@ void Deserializer::ReadChunk(Object** current,
       // Deserialize a new object and write a pointer to it to the current
       // object.
       ONE_PER_SPACE(kNewObject, kPlain, kStartOfObject)
-      // Support for direct instruction pointers in functions
-      ONE_PER_CODE_SPACE(kNewObject, kPlain, kFirstInstruction)
+      // Support for direct instruction pointers in functions.  It's an inner
+      // pointer because it points at the entry point, not at the start of the
+      // code object.
+      ONE_PER_CODE_SPACE(kNewObject, kPlain, kInnerPointer)
       // Deserialize a new code object and write a pointer to its first
       // instruction to the current code object.
-      ONE_PER_SPACE(kNewObject, kFromCode, kFirstInstruction)
+      ONE_PER_SPACE(kNewObject, kFromCode, kInnerPointer)
       // Find a recently deserialized object using its offset from the current
       // allocation point and write a pointer to it to the current object.
       ALL_SPACES(kBackref, kPlain, kStartOfObject)
@@ -1006,16 +1028,16 @@ void Deserializer::ReadChunk(Object** current,
       // current allocation point and write a pointer to its first instruction
       // to the current code object or the instruction pointer in a function
       // object.
-      ALL_SPACES(kBackref, kFromCode, kFirstInstruction)
-      ALL_SPACES(kBackref, kPlain, kFirstInstruction)
+      ALL_SPACES(kBackref, kFromCode, kInnerPointer)
+      ALL_SPACES(kBackref, kPlain, kInnerPointer)
       // Find an already deserialized object using its offset from the start
       // and write a pointer to it to the current object.
       ALL_SPACES(kFromStart, kPlain, kStartOfObject)
-      ALL_SPACES(kFromStart, kPlain, kFirstInstruction)
+      ALL_SPACES(kFromStart, kPlain, kInnerPointer)
       // Find an already deserialized code object using its offset from the
       // start and write a pointer to its first instruction to the current code
       // object.
-      ALL_SPACES(kFromStart, kFromCode, kFirstInstruction)
+      ALL_SPACES(kFromStart, kFromCode, kInnerPointer)
       // Find an object in the roots array and write a pointer to it to the
       // current object.
       CASE_STATEMENT(kRootArray, kPlain, kStartOfObject, 0)
@@ -1030,10 +1052,10 @@ void Deserializer::ReadChunk(Object** current,
                 kUnknownOffsetFromStart)
       // Find an code entry in the partial snapshots cache and
       // write a pointer to it to the current object.
-      CASE_STATEMENT(kPartialSnapshotCache, kPlain, kFirstInstruction, 0)
+      CASE_STATEMENT(kPartialSnapshotCache, kPlain, kInnerPointer, 0)
       CASE_BODY(kPartialSnapshotCache,
                 kPlain,
-                kFirstInstruction,
+                kInnerPointer,
                 0,
                 kUnknownOffsetFromStart)
       // Find an external reference and write a pointer to it to the current
@@ -1540,7 +1562,7 @@ void Serializer::ObjectSerializer::VisitCodeTarget(RelocInfo* rinfo) {
   Address target_start = rinfo->target_address_address();
   OutputRawData(target_start);
   Code* target = Code::GetCodeFromTargetAddress(rinfo->target_address());
-  serializer_->SerializeObject(target, kFromCode, kFirstInstruction);
+  serializer_->SerializeObject(target, kFromCode, kInnerPointer);
   bytes_processed_so_far_ += rinfo->target_address_size();
 }
 
@@ -1548,15 +1570,17 @@ void Serializer::ObjectSerializer::VisitCodeTarget(RelocInfo* rinfo) {
 void Serializer::ObjectSerializer::VisitCodeEntry(Address entry_address) {
   Code* target = Code::cast(Code::GetObjectFromEntryAddress(entry_address));
   OutputRawData(entry_address);
-  serializer_->SerializeObject(target, kPlain, kFirstInstruction);
+  serializer_->SerializeObject(target, kPlain, kInnerPointer);
   bytes_processed_so_far_ += kPointerSize;
 }
 
 
 void Serializer::ObjectSerializer::VisitGlobalPropertyCell(RelocInfo* rinfo) {
-  // We shouldn't have any global property cell references in code
-  // objects in the snapshot.
-  UNREACHABLE();
+  ASSERT(rinfo->rmode() == RelocInfo::GLOBAL_PROPERTY_CELL);
+  JSGlobalPropertyCell* cell =
+      JSGlobalPropertyCell::cast(rinfo->target_cell());
+  OutputRawData(rinfo->pc());
+  serializer_->SerializeObject(cell, kPlain, kInnerPointer);
 }
 
 

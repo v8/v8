@@ -2761,7 +2761,7 @@ void JSProxy::Fix() {
   Object* hash;
   if (maybe_hash->To<Object>(&hash) && hash->IsSmi()) {
     Handle<JSObject> new_self(JSObject::cast(*self));
-    isolate->factory()->SetIdentityHash(new_self, hash);
+    isolate->factory()->SetIdentityHash(new_self, Smi::cast(hash));
   }
 }
 
@@ -3505,7 +3505,7 @@ Smi* JSReceiver::GenerateIdentityHash() {
 }
 
 
-MaybeObject* JSObject::SetIdentityHash(Object* hash, CreationFlag flag) {
+MaybeObject* JSObject::SetIdentityHash(Smi* hash, CreationFlag flag) {
   MaybeObject* maybe = SetHiddenProperty(GetHeap()->identity_hash_symbol(),
                                          hash);
   if (maybe->IsFailure()) return maybe;
@@ -3551,6 +3551,7 @@ MaybeObject* JSProxy::GetIdentityHash(CreationFlag flag) {
 
 
 Object* JSObject::GetHiddenProperty(String* key) {
+  ASSERT(key->IsSymbol());
   if (IsJSGlobalProxy()) {
     // For a proxy, use the prototype as target object.
     Object* proxy_parent = GetPrototype();
@@ -3560,22 +3561,32 @@ Object* JSObject::GetHiddenProperty(String* key) {
     return JSObject::cast(proxy_parent)->GetHiddenProperty(key);
   }
   ASSERT(!IsJSGlobalProxy());
-  MaybeObject* hidden_lookup = GetHiddenPropertiesDictionary(false);
+  MaybeObject* hidden_lookup =
+      GetHiddenPropertiesHashTable(ONLY_RETURN_INLINE_VALUE);
   ASSERT(!hidden_lookup->IsFailure());  // No failure when passing false as arg.
-  if (hidden_lookup->ToObjectUnchecked()->IsUndefined()) {
-    return GetHeap()->undefined_value();
+  Object* inline_value = hidden_lookup->ToObjectUnchecked();
+
+  if (inline_value->IsSmi()) {
+    // Handle inline-stored identity hash.
+    if (key == GetHeap()->identity_hash_symbol()) {
+      return inline_value;
+    } else {
+      return GetHeap()->undefined_value();
+    }
   }
-  StringDictionary* dictionary =
-      StringDictionary::cast(hidden_lookup->ToObjectUnchecked());
-  int entry = dictionary->FindEntry(key);
-  if (entry == StringDictionary::kNotFound) return GetHeap()->undefined_value();
-  return dictionary->ValueAt(entry);
+
+  if (inline_value->IsUndefined()) return GetHeap()->undefined_value();
+
+  ObjectHashTable* hashtable = ObjectHashTable::cast(inline_value);
+  Object* entry = hashtable->Lookup(key);
+  if (entry->IsTheHole()) return GetHeap()->undefined_value();
+  return entry;
 }
 
 
 Handle<Object> JSObject::SetHiddenProperty(Handle<JSObject> obj,
-                                 Handle<String> key,
-                                 Handle<Object> value) {
+                                           Handle<String> key,
+                                           Handle<Object> value) {
   CALL_HEAP_FUNCTION(obj->GetIsolate(),
                      obj->SetHiddenProperty(*key, *value),
                      Object);
@@ -3583,6 +3594,7 @@ Handle<Object> JSObject::SetHiddenProperty(Handle<JSObject> obj,
 
 
 MaybeObject* JSObject::SetHiddenProperty(String* key, Object* value) {
+  ASSERT(key->IsSymbol());
   if (IsJSGlobalProxy()) {
     // For a proxy, use the prototype as target object.
     Object* proxy_parent = GetPrototype();
@@ -3592,27 +3604,31 @@ MaybeObject* JSObject::SetHiddenProperty(String* key, Object* value) {
     return JSObject::cast(proxy_parent)->SetHiddenProperty(key, value);
   }
   ASSERT(!IsJSGlobalProxy());
-  MaybeObject* hidden_lookup = GetHiddenPropertiesDictionary(true);
-  StringDictionary* dictionary;
-  if (!hidden_lookup->To<StringDictionary>(&dictionary)) return hidden_lookup;
+
+  // If there is no backing store yet, store the identity hash inline.
+  MaybeObject* hidden_lookup =
+      GetHiddenPropertiesHashTable(ONLY_RETURN_INLINE_VALUE);
+  ASSERT(!hidden_lookup->IsFailure());
+  Object* inline_value = hidden_lookup->ToObjectUnchecked();
+
+  if (value->IsSmi() &&
+      key == GetHeap()->identity_hash_symbol() &&
+      (inline_value->IsUndefined() || inline_value->IsSmi())) {
+    return SetHiddenPropertiesHashTable(value);
+  }
+
+  hidden_lookup = GetHiddenPropertiesHashTable(CREATE_NEW_IF_ABSENT);
+  ObjectHashTable* hashtable;
+  if (!hidden_lookup->To(&hashtable)) return hidden_lookup;
 
   // If it was found, check if the key is already in the dictionary.
-  int entry = dictionary->FindEntry(key);
-  if (entry != StringDictionary::kNotFound) {
-    // If key was found, just update the value.
-    dictionary->ValueAtPut(entry, value);
-    return this;
-  }
-  // Key was not already in the dictionary, so add the entry.
-  MaybeObject* insert_result = dictionary->Add(key,
-                                               value,
-                                               PropertyDetails(NONE, NORMAL));
-  StringDictionary* new_dict;
-  if (!insert_result->To<StringDictionary>(&new_dict)) return insert_result;
-  if (new_dict != dictionary) {
+  MaybeObject* insert_result = hashtable->Put(key, value);
+  ObjectHashTable* new_table;
+  if (!insert_result->To(&new_table)) return insert_result;
+  if (new_table != hashtable) {
     // If adding the key expanded the dictionary (i.e., Add returned a new
     // dictionary), store it back to the object.
-    MaybeObject* store_result = SetHiddenPropertiesDictionary(new_dict);
+    MaybeObject* store_result = SetHiddenPropertiesHashTable(new_table);
     if (store_result->IsFailure()) return store_result;
   }
   // Return this to mark success.
@@ -3621,6 +3637,7 @@ MaybeObject* JSObject::SetHiddenProperty(String* key, Object* value) {
 
 
 void JSObject::DeleteHiddenProperty(String* key) {
+  ASSERT(key->IsSymbol());
   if (IsJSGlobalProxy()) {
     // For a proxy, use the prototype as target object.
     Object* proxy_parent = GetPrototype();
@@ -3630,18 +3647,18 @@ void JSObject::DeleteHiddenProperty(String* key) {
     JSObject::cast(proxy_parent)->DeleteHiddenProperty(key);
     return;
   }
-  MaybeObject* hidden_lookup = GetHiddenPropertiesDictionary(false);
+  MaybeObject* hidden_lookup =
+      GetHiddenPropertiesHashTable(ONLY_RETURN_INLINE_VALUE);
   ASSERT(!hidden_lookup->IsFailure());  // No failure when passing false as arg.
   if (hidden_lookup->ToObjectUnchecked()->IsUndefined()) return;
-  StringDictionary* dictionary =
-      StringDictionary::cast(hidden_lookup->ToObjectUnchecked());
-  int entry = dictionary->FindEntry(key);
-  if (entry == StringDictionary::kNotFound) {
-    // Key wasn't in dictionary. Deletion is a success.
-    return;
-  }
-  // Key was in the dictionary. Remove it.
-  dictionary->DeleteProperty(entry, JSReceiver::FORCE_DELETION);
+  // We never delete (inline-stored) identity hashes.
+  ASSERT(!hidden_lookup->ToObjectUnchecked()->IsSmi());
+
+  ObjectHashTable* hashtable =
+      ObjectHashTable::cast(hidden_lookup->ToObjectUnchecked());
+  MaybeObject* delete_result = hashtable->Put(key, GetHeap()->the_hole_value());
+  USE(delete_result);
+  ASSERT(!delete_result->IsFailure());  // Delete does not cause GC.
 }
 
 
@@ -3652,8 +3669,10 @@ bool JSObject::HasHiddenProperties() {
 }
 
 
-MaybeObject* JSObject::GetHiddenPropertiesDictionary(bool create_if_absent) {
+MaybeObject* JSObject::GetHiddenPropertiesHashTable(
+    InitializeHiddenProperties init_option) {
   ASSERT(!IsJSGlobalProxy());
+  Object* inline_value;
   if (HasFastProperties()) {
     // If the object has fast properties, check whether the first slot
     // in the descriptor array matches the hidden symbol. Since the
@@ -3663,43 +3682,60 @@ MaybeObject* JSObject::GetHiddenPropertiesDictionary(bool create_if_absent) {
     if ((descriptors->number_of_descriptors() > 0) &&
         (descriptors->GetKey(0) == GetHeap()->hidden_symbol())) {
       ASSERT(descriptors->GetType(0) == FIELD);
-      Object* hidden_store =
-          this->FastPropertyAt(descriptors->GetFieldIndex(0));
-      return StringDictionary::cast(hidden_store);
+      inline_value = this->FastPropertyAt(descriptors->GetFieldIndex(0));
+    } else {
+      inline_value = GetHeap()->undefined_value();
     }
   } else {
     PropertyAttributes attributes;
     // You can't install a getter on a property indexed by the hidden symbol,
     // so we can be sure that GetLocalPropertyPostInterceptor returns a real
     // object.
-    Object* lookup =
+    inline_value =
         GetLocalPropertyPostInterceptor(this,
                                         GetHeap()->hidden_symbol(),
                                         &attributes)->ToObjectUnchecked();
-    if (!lookup->IsUndefined()) {
-      return StringDictionary::cast(lookup);
-    }
   }
-  if (!create_if_absent) return GetHeap()->undefined_value();
-  const int kInitialSize = 5;
-  MaybeObject* dict_alloc = StringDictionary::Allocate(kInitialSize);
-  StringDictionary* dictionary;
-  if (!dict_alloc->To<StringDictionary>(&dictionary)) return dict_alloc;
+
+  if (init_option == ONLY_RETURN_INLINE_VALUE ||
+      inline_value->IsHashTable()) {
+    return inline_value;
+  }
+
+  ObjectHashTable* hashtable;
+  static const int kInitialCapacity = 4;
+  MaybeObject* maybe_obj =
+      ObjectHashTable::Allocate(kInitialCapacity,
+                                ObjectHashTable::USE_CUSTOM_MINIMUM_CAPACITY);
+  if (!maybe_obj->To<ObjectHashTable>(&hashtable)) return maybe_obj;
+
+  if (inline_value->IsSmi()) {
+    // We were storing the identity hash inline and now allocated an actual
+    // dictionary.  Put the identity hash into the new dictionary.
+    MaybeObject* insert_result =
+        hashtable->Put(GetHeap()->identity_hash_symbol(), inline_value);
+    ObjectHashTable* new_table;
+    if (!insert_result->To(&new_table)) return insert_result;
+    // We expect no resizing for the first insert.
+    ASSERT_EQ(hashtable, new_table);
+  }
+
   MaybeObject* store_result =
       SetPropertyPostInterceptor(GetHeap()->hidden_symbol(),
-                                 dictionary,
+                                 hashtable,
                                  DONT_ENUM,
                                  kNonStrictMode,
                                  OMIT_EXTENSIBILITY_CHECK);
   if (store_result->IsFailure()) return store_result;
-  return dictionary;
+  return hashtable;
 }
 
 
-MaybeObject* JSObject::SetHiddenPropertiesDictionary(
-    StringDictionary* dictionary) {
+MaybeObject* JSObject::SetHiddenPropertiesHashTable(Object* value) {
   ASSERT(!IsJSGlobalProxy());
-  ASSERT(HasHiddenProperties());
+  // We can store the identity hash inline iff there is no backing store
+  // for hidden properties yet.
+  ASSERT(HasHiddenProperties() != value->IsSmi());
   if (HasFastProperties()) {
     // If the object has fast properties, check whether the first slot
     // in the descriptor array matches the hidden symbol. Since the
@@ -3709,13 +3745,13 @@ MaybeObject* JSObject::SetHiddenPropertiesDictionary(
     if ((descriptors->number_of_descriptors() > 0) &&
         (descriptors->GetKey(0) == GetHeap()->hidden_symbol())) {
       ASSERT(descriptors->GetType(0) == FIELD);
-      this->FastPropertyAtPut(descriptors->GetFieldIndex(0), dictionary);
+      this->FastPropertyAtPut(descriptors->GetFieldIndex(0), value);
       return this;
     }
   }
   MaybeObject* store_result =
       SetPropertyPostInterceptor(GetHeap()->hidden_symbol(),
-                                 dictionary,
+                                 value,
                                  DONT_ENUM,
                                  kNonStrictMode,
                                  OMIT_EXTENSIBILITY_CHECK);
@@ -8528,10 +8564,12 @@ void Code::Disassemble(const char* name, FILE* out) {
       }
       PrintF(out, "\n");
     }
+#ifdef OBJECT_PRINT
     if (!type_feedback_info()->IsUndefined()) {
       TypeFeedbackInfo::cast(type_feedback_info())->TypeFeedbackInfoPrint(out);
       PrintF(out, "\n");
     }
+#endif
   }
 
   PrintF("RelocInfo (size = %d)\n", relocation_size());
@@ -11046,8 +11084,12 @@ void HashTable<Shape, Key>::IterateElements(ObjectVisitor* v) {
 
 template<typename Shape, typename Key>
 MaybeObject* HashTable<Shape, Key>::Allocate(int at_least_space_for,
+                                             MinimumCapacity capacity_option,
                                              PretenureFlag pretenure) {
-  int capacity = ComputeCapacity(at_least_space_for);
+  ASSERT(!capacity_option || IS_POWER_OF_TWO(at_least_space_for));
+  int capacity = (capacity_option == USE_CUSTOM_MINIMUM_CAPACITY)
+                     ? at_least_space_for
+                     : ComputeCapacity(at_least_space_for);
   if (capacity > HashTable::kMaxCapacity) {
     return Failure::OutOfMemoryException();
   }
@@ -11156,7 +11198,9 @@ MaybeObject* HashTable<Shape, Key>::EnsureCapacity(int n, Key key) {
       (capacity > kMinCapacityForPretenure) && !GetHeap()->InNewSpace(this);
   Object* obj;
   { MaybeObject* maybe_obj =
-        Allocate(nof * 2, pretenure ? TENURED : NOT_TENURED);
+        Allocate(nof * 2,
+                 USE_DEFAULT_MINIMUM_CAPACITY,
+                 pretenure ? TENURED : NOT_TENURED);
     if (!maybe_obj->ToObject(&obj)) return maybe_obj;
   }
 
@@ -11185,7 +11229,9 @@ MaybeObject* HashTable<Shape, Key>::Shrink(Key key) {
       !GetHeap()->InNewSpace(this);
   Object* obj;
   { MaybeObject* maybe_obj =
-        Allocate(at_least_room_for, pretenure ? TENURED : NOT_TENURED);
+        Allocate(at_least_room_for,
+                 USE_DEFAULT_MINIMUM_CAPACITY,
+                 pretenure ? TENURED : NOT_TENURED);
     if (!maybe_obj->ToObject(&obj)) return maybe_obj;
   }
 
@@ -12531,7 +12577,7 @@ MaybeObject* StringDictionary::TransformPropertiesToFastFor(
   if (instance_descriptor_length == 0) {
     ASSERT_LE(unused_property_fields, inobject_props);
     // Transform the object.
-    new_map->set_unused_property_fields(unused_property_fields);
+    new_map->set_unused_property_fields(inobject_props);
     obj->set_map(new_map);
     obj->set_properties(heap->empty_fixed_array());
     // Check that it really works.
