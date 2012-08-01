@@ -387,6 +387,7 @@ class StaticMarkingVisitor : public StaticVisitorBase {
   }
 
   static inline void VisitCodeEntry(Heap* heap, Address entry_address);
+  static inline void VisitEmbeddedPointer(Heap* heap, RelocInfo* rinfo);
   static inline void VisitGlobalPropertyCell(Heap* heap, RelocInfo* rinfo);
   static inline void VisitDebugTarget(Heap* heap, RelocInfo* rinfo);
   static inline void VisitExternalReference(RelocInfo* rinfo) { }

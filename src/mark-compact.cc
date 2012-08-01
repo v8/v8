@@ -1078,15 +1078,6 @@ class MarkCompactMarkingVisitor
     heap->mark_compact_collector()->MarkObject(object, mark);
   }
 
-  static inline void VisitEmbeddedPointer(Heap* heap, RelocInfo* rinfo) {
-    ASSERT(rinfo->rmode() == RelocInfo::EMBEDDED_OBJECT);
-    // TODO(mstarzinger): We do not short-circuit cons strings here, verify
-    // that there can be no such embedded pointers and add assertion here.
-    HeapObject* object = HeapObject::cast(rinfo->target_object());
-    heap->mark_compact_collector()->RecordRelocSlot(rinfo, object);
-    MarkObject(heap, object);
-  }
-
   static inline void VisitCodeTarget(Heap* heap, RelocInfo* rinfo) {
     ASSERT(RelocInfo::IsCodeTarget(rinfo->rmode()));
     Code* target = Code::GetCodeFromTargetAddress(rinfo->target_address());

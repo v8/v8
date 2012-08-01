@@ -175,15 +175,6 @@ class IncrementalMarkingMarkingVisitor
     table_.Register(kVisitJSRegExp, &VisitJSRegExp);
   }
 
-  static inline void VisitEmbeddedPointer(Heap* heap, RelocInfo* rinfo) {
-    ASSERT(rinfo->rmode() == RelocInfo::EMBEDDED_OBJECT);
-    Object* target = rinfo->target_object();
-    if (target->NonFailureIsHeapObject()) {
-      heap->mark_compact_collector()->RecordRelocSlot(rinfo, target);
-      MarkObject(heap, target);
-    }
-  }
-
   static inline void VisitCodeTarget(Heap* heap, RelocInfo* rinfo) {
     ASSERT(RelocInfo::IsCodeTarget(rinfo->rmode()));
     Code* target = Code::GetCodeFromTargetAddress(rinfo->target_address());

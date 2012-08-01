@@ -176,6 +176,17 @@ void StaticMarkingVisitor<StaticVisitor>::VisitCodeEntry(
 
 
 template<typename StaticVisitor>
+void StaticMarkingVisitor<StaticVisitor>::VisitEmbeddedPointer(
+    Heap* heap, RelocInfo* rinfo) {
+  ASSERT(rinfo->rmode() == RelocInfo::EMBEDDED_OBJECT);
+  ASSERT(!rinfo->target_object()->IsConsString());
+  HeapObject* object = HeapObject::cast(rinfo->target_object());
+  heap->mark_compact_collector()->RecordRelocSlot(rinfo, object);
+  StaticVisitor::MarkObject(heap, object);
+}
+
+
+template<typename StaticVisitor>
 void StaticMarkingVisitor<StaticVisitor>::VisitGlobalPropertyCell(
     Heap* heap, RelocInfo* rinfo) {
   ASSERT(rinfo->rmode() == RelocInfo::GLOBAL_PROPERTY_CELL);
