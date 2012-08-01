@@ -17003,12 +17003,48 @@ THREADED_TEST(Regress137002b) {
 
   // Turn monomorphic on slow object with native accessor, then just
   // delete the property and fail.
-  CompileRun("function f(x) { return x.foo; }"
-             "%OptimizeObjectForAddingMultipleProperties(obj, 1);"
+  CompileRun("function load(x) { return x.foo; }"
+             "function store(x) { x.foo = void 0; }"
+             "function keyed_load(x, key) { return x[key]; }"
+             // Second version of function has a different source (add void 0)
+             // so that it does not share code with the first version.  This
+             // ensures that the ICs are monomorphic.
+             "function load2(x) { void 0; return x.foo; }"
+             "function store2(x) { void 0; x.foo = void 0; }"
+             "function keyed_load2(x, key) { void 0; return x[key]; }"
+
              "obj.__proto__ = null;"
-             "f(obj); f(obj); delete obj.foo;"
-             "var result = f(obj);");
-  CHECK(context->Global()->Get(v8_str("result"))->IsUndefined());
+             "var subobj = {};"
+             "subobj.__proto__ = obj;"
+             "%OptimizeObjectForAddingMultipleProperties(obj, 1);"
+
+             // Make the ICs monomorphic.
+             "load(obj); load(obj);"
+             "load2(subobj); load2(subobj);"
+             "store(obj);"
+             "store2(subobj);"
+             "keyed_load(obj, 'foo'); keyed_load(obj, 'foo');"
+             "keyed_load2(subobj, 'foo'); keyed_load2(subobj, 'foo');"
+
+             // Delete the accessor.  It better not be called any more now.
+             "delete obj.foo;"
+             "obj.y = void 0;"
+             "subobj.y = void 0;"
+
+             "var load_result = load(obj);"
+             "var load_result2 = load2(subobj);"
+             "var keyed_load_result = keyed_load(obj, 'foo');"
+             "var keyed_load_result2 = keyed_load2(subobj, 'foo');"
+             "store(obj);"
+             "store2(subobj);"
+             "var y_from_obj = obj.y;"
+             "var y_from_subobj = subobj.y;");
+  CHECK(context->Global()->Get(v8_str("load_result"))->IsUndefined());
+  CHECK(context->Global()->Get(v8_str("load_result2"))->IsUndefined());
+  CHECK(context->Global()->Get(v8_str("keyed_load_result"))->IsUndefined());
+  CHECK(context->Global()->Get(v8_str("keyed_load_result2"))->IsUndefined());
+  CHECK(context->Global()->Get(v8_str("y_from_obj"))->IsUndefined());
+  CHECK(context->Global()->Get(v8_str("y_from_subobj"))->IsUndefined());
 }
 
 
