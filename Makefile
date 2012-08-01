@@ -210,6 +210,7 @@ $(addsuffix .sync, $(ANDROID_BUILDS)): $$(basename $$@)
 $(addsuffix .check, $(ANDROID_BUILDS)): $$(basename $$@).sync
 	@tools/test-wrapper-gypbuild.py $(TESTJOBS) --outdir=$(OUTDIR) \
 	     --arch-and-mode=$(basename $@) \
+	     --timeout=600 \
 	     --special-command="tools/android-run.py @"
 
 $(addsuffix .check, $(ANDROID_ARCHES)): \
