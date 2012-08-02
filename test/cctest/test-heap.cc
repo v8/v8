@@ -415,6 +415,7 @@ TEST(WeakGlobalHandlesMark) {
   global_handles->Destroy(h1.location());
 }
 
+
 TEST(DeleteWeakGlobalHandle) {
   InitializeVM();
   GlobalHandles* global_handles = Isolate::Current()->global_handles();
@@ -444,6 +445,7 @@ TEST(DeleteWeakGlobalHandle) {
 
   CHECK(WeakPointerCleared);
 }
+
 
 static const char* not_so_random_string_table[] = {
   "abstract",
@@ -1281,7 +1283,8 @@ TEST(GrowAndShrinkNewSpace) {
   InitializeVM();
   NewSpace* new_space = HEAP->new_space();
 
-  if (HEAP->ReservedSemiSpaceSize() == HEAP->InitialSemiSpaceSize()) {
+  if (HEAP->ReservedSemiSpaceSize() == HEAP->InitialSemiSpaceSize() ||
+      HEAP->MaxSemiSpaceSize() == HEAP->InitialSemiSpaceSize()) {
     // The max size cannot exceed the reserved size, since semispaces must be
     // always within the reserved space.  We can't test new space growing and
     // shrinking if the reserved size is the same as the minimum (initial) size.
@@ -1329,7 +1332,8 @@ TEST(GrowAndShrinkNewSpace) {
 TEST(CollectingAllAvailableGarbageShrinksNewSpace) {
   InitializeVM();
 
-  if (HEAP->ReservedSemiSpaceSize() == HEAP->InitialSemiSpaceSize()) {
+  if (HEAP->ReservedSemiSpaceSize() == HEAP->InitialSemiSpaceSize() ||
+      HEAP->MaxSemiSpaceSize() == HEAP->InitialSemiSpaceSize()) {
     // The max size cannot exceed the reserved size, since semispaces must be
     // always within the reserved space.  We can't test new space growing and
     // shrinking if the reserved size is the same as the minimum (initial) size.
@@ -1756,14 +1760,18 @@ TEST(Regress1465) {
   i::FLAG_trace_incremental_marking = true;
   InitializeVM();
   v8::HandleScope scope;
+  static const int transitions_count = 256;
 
-  #define TRANSITION_COUNT 256
-  for (int i = 0; i < TRANSITION_COUNT; i++) {
-    EmbeddedVector<char, 64> buffer;
-    OS::SNPrintF(buffer, "var o = new Object; o.prop%d = %d;", i, i);
-    CompileRun(buffer.start());
+  {
+    AlwaysAllocateScope always_allocate;
+    for (int i = 0; i < transitions_count; i++) {
+      EmbeddedVector<char, 64> buffer;
+      OS::SNPrintF(buffer, "var o = new Object; o.prop%d = %d;", i, i);
+      CompileRun(buffer.start());
+    }
+    CompileRun("var root = new Object;");
   }
-  CompileRun("var root = new Object;");
+
   Handle<JSObject> root =
       v8::Utils::OpenHandle(
           *v8::Handle<v8::Object>::Cast(
@@ -1772,7 +1780,7 @@ TEST(Regress1465) {
   // Count number of live transitions before marking.
   int transitions_before = CountMapTransitions(root->map());
   CompileRun("%DebugPrint(root);");
-  CHECK_EQ(TRANSITION_COUNT, transitions_before);
+  CHECK_EQ(transitions_count, transitions_before);
 
   // Go through all incremental marking steps in one swoop.
   IncrementalMarking* marking = HEAP->incremental_marking();
@@ -1784,7 +1792,6 @@ TEST(Regress1465) {
   }
   CHECK(marking->IsComplete());
   HEAP->CollectAllGarbage(Heap::kNoGCFlags);
-  CHECK(marking->IsStopped());
 
   // Count number of live transitions after marking.  Note that one transition
   // is left, because 'o' still holds an instance of one transition target.
@@ -1830,7 +1837,6 @@ TEST(Regress2143a) {
 
   // Explicitly request GC to perform final marking step and sweeping.
   HEAP->CollectAllGarbage(Heap::kNoGCFlags);
-  CHECK(marking->IsStopped());
 
   Handle<JSObject> root =
       v8::Utils::OpenHandle(
@@ -1883,7 +1889,6 @@ TEST(Regress2143b) {
 
   // Explicitly request GC to perform final marking step and sweeping.
   HEAP->CollectAllGarbage(Heap::kNoGCFlags);
-  CHECK(marking->IsStopped());
 
   Handle<JSObject> root =
       v8::Utils::OpenHandle(
@@ -2071,7 +2076,6 @@ TEST(IncrementalMarkingClearsTypeFeedbackCells) {
   }
   CHECK(marking->IsComplete());
   HEAP->CollectAllGarbage(Heap::kNoGCFlags);
-  CHECK(marking->IsStopped());
 
   CHECK_EQ(2, cells->CellCount());
   CHECK(cells->Cell(0)->value()->IsTheHole());
