@@ -5422,7 +5422,9 @@ void HGraphBuilder::HandleCompoundAssignment(Assignment* expr) {
       } else {
         Handle<AccessorPair> accessors;
         Handle<JSObject> holder;
-        if (LookupAccessorPair(map, name, &accessors, &holder)) {
+        // Because we re-use the load type feedback, there might be no setter.
+        if (LookupAccessorPair(map, name, &accessors, &holder) &&
+            accessors->setter()->IsJSFunction()) {
           store = BuildCallSetter(object, instr, map, accessors, holder);
         } else {
           CHECK_ALIVE(store = BuildStoreNamedMonomorphic(object,
@@ -7883,7 +7885,9 @@ void HGraphBuilder::VisitCountOperation(CountOperation* expr) {
       } else {
         Handle<AccessorPair> accessors;
         Handle<JSObject> holder;
-        if (LookupAccessorPair(map, name, &accessors, &holder)) {
+        // Because we re-use the load type feedback, there might be no setter.
+        if (LookupAccessorPair(map, name, &accessors, &holder) &&
+            accessors->setter()->IsJSFunction()) {
           store = BuildCallSetter(object, after, map, accessors, holder);
         } else {
           CHECK_ALIVE(store = BuildStoreNamedMonomorphic(object,
