@@ -41,10 +41,21 @@ v8::Handle<v8::FunctionTemplate> StatisticsExtension::GetNativeFunction(
 }
 
 
+static void AddProperty(v8::Local<v8::Object> object,
+                        StatsCounter* counter,
+                        const char* name) {
+  if (counter->Enabled()) {
+    object->Set(v8::String::New(name),
+                v8::Number::New(*counter->GetInternalPointer()));
+  }
+}
+
+
 v8::Handle<v8::Value> StatisticsExtension::GetCounters(
     const v8::Arguments& args) {
   Isolate* isolate = Isolate::Current();
   Heap* heap = isolate->heap();
+
   if (args.Length() > 0) {  // GC if first argument evaluates to true.
     if (args[0]->IsBoolean() && args[0]->ToBoolean()->Value()) {
       heap->CollectAllGarbage(Heap::kNoGCFlags, "counters extension");
@@ -54,46 +65,31 @@ v8::Handle<v8::Value> StatisticsExtension::GetCounters(
   Counters* counters = isolate->counters();
   v8::Local<v8::Object> result = v8::Object::New();
 
-  StatsCounter* counter = NULL;
-
 #define ADD_COUNTER(name, caption)                                             \
-  counter = counters->name();                                                  \
-  if (counter->Enabled())                                                      \
-    result->Set(v8::String::New(#name),                                        \
-        v8::Number::New(*counter->GetInternalPointer()));
+  AddProperty(result, counters->name(), #name);
 
   STATS_COUNTER_LIST_1(ADD_COUNTER)
   STATS_COUNTER_LIST_2(ADD_COUNTER)
 #undef ADD_COUNTER
 #define ADD_COUNTER(name)                                                      \
-  counter = counters->count_of_##name();                                       \
-  if (counter->Enabled())                                                      \
-    result->Set(v8::String::New("count_of_" #name),                            \
-        v8::Number::New(*counter->GetInternalPointer()));                      \
-  counter = counters->size_of_##name();                                        \
-  if (counter->Enabled())                                                      \
-    result->Set(v8::String::New("size_of_" #name),                             \
-        v8::Number::New(*counter->GetInternalPointer()));
+  AddProperty(result, counters->count_of_##name(), "count_of_" #name);         \
+  AddProperty(result, counters->size_of_##name(),  "size_of_" #name);
 
   INSTANCE_TYPE_LIST(ADD_COUNTER)
 #undef ADD_COUNTER
 #define ADD_COUNTER(name)                                                      \
-  result->Set(v8::String::New("count_of_CODE_TYPE_" #name),                    \
-      v8::Number::New(                                                         \
-          *counters->count_of_CODE_TYPE_##name()->GetInternalPointer()));      \
-  result->Set(v8::String::New("size_of_CODE_TYPE_" #name),                     \
-        v8::Number::New(                                                       \
-            *counters->size_of_CODE_TYPE_##name()->GetInternalPointer()));
+  AddProperty(result, counters->count_of_CODE_TYPE_##name(),                   \
+              "count_of_CODE_TYPE_" #name);                                    \
+  AddProperty(result, counters->size_of_CODE_TYPE_##name(),                    \
+              "size_of_CODE_TYPE_" #name);
 
   CODE_KIND_LIST(ADD_COUNTER)
 #undef ADD_COUNTER
 #define ADD_COUNTER(name)                                                      \
-  result->Set(v8::String::New("count_of_FIXED_ARRAY_" #name),                  \
-      v8::Number::New(                                                         \
-          *counters->count_of_FIXED_ARRAY_##name()->GetInternalPointer()));    \
-  result->Set(v8::String::New("size_of_FIXED_ARRAY_" #name),                   \
-        v8::Number::New(                                                       \
-            *counters->size_of_FIXED_ARRAY_##name()->GetInternalPointer()));
+  AddProperty(result, counters->count_of_FIXED_ARRAY_##name(),                 \
+              "count_of_FIXED_ARRAY_" #name);                                  \
+  AddProperty(result, counters->size_of_FIXED_ARRAY_##name(),                  \
+              "size_of_FIXED_ARRAY_" #name);
 
   FIXED_ARRAY_SUB_INSTANCE_TYPE_LIST(ADD_COUNTER)
 #undef ADD_COUNTER
