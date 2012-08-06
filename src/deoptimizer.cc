@@ -493,19 +493,18 @@ int Deoptimizer::GetDeoptimizationId(Address addr, BailoutType type) {
 
 
 int Deoptimizer::GetOutputInfo(DeoptimizationOutputData* data,
-                               unsigned id,
+                               BailoutId id,
                                SharedFunctionInfo* shared) {
   // TODO(kasperl): For now, we do a simple linear search for the PC
   // offset associated with the given node id. This should probably be
   // changed to a binary search.
   int length = data->DeoptPoints();
-  Smi* smi_id = Smi::FromInt(id);
   for (int i = 0; i < length; i++) {
-    if (data->AstId(i) == smi_id) {
+    if (data->AstId(i) == id) {
       return data->PcAndState(i)->value();
     }
   }
-  PrintF("[couldn't find pc offset for node=%u]\n", id);
+  PrintF("[couldn't find pc offset for node=%d]\n", id.ToInt());
   PrintF("[method: %s]\n", *shared->DebugName()->ToCString());
   // Print the source code if available.
   HeapStringAllocator string_allocator;
@@ -552,7 +551,7 @@ void Deoptimizer::DoComputeOutputFrames() {
   // described by the input data.
   DeoptimizationInputData* input_data =
       DeoptimizationInputData::cast(optimized_code_->deoptimization_data());
-  unsigned node_id = input_data->AstId(bailout_id_)->value();
+  BailoutId node_id = input_data->AstId(bailout_id_);
   ByteArray* translations = input_data->TranslationByteArray();
   unsigned translation_index =
       input_data->TranslationIndex(bailout_id_)->value();
@@ -604,9 +603,9 @@ void Deoptimizer::DoComputeOutputFrames() {
     PrintF("[deoptimizing: end 0x%08" V8PRIxPTR " ",
            reinterpret_cast<intptr_t>(function));
     function->PrintName();
-    PrintF(" => node=%u, pc=0x%08" V8PRIxPTR ", state=%s, alignment=%s,"
+    PrintF(" => node=%d, pc=0x%08" V8PRIxPTR ", state=%s, alignment=%s,"
            " took %0.3f ms]\n",
-           node_id,
+           node_id.ToInt(),
            output_[index]->GetPc(),
            FullCodeGenerator::State2String(
                static_cast<FullCodeGenerator::State>(
@@ -1358,9 +1357,11 @@ void Translation::BeginArgumentsAdaptorFrame(int literal_id, unsigned height) {
 }
 
 
-void Translation::BeginJSFrame(int node_id, int literal_id, unsigned height) {
+void Translation::BeginJSFrame(BailoutId node_id,
+                               int literal_id,
+                               unsigned height) {
   buffer_->Add(JS_FRAME, zone());
-  buffer_->Add(node_id, zone());
+  buffer_->Add(node_id.ToInt(), zone());
   buffer_->Add(literal_id, zone());
   buffer_->Add(height, zone());
 }
@@ -1578,7 +1579,7 @@ Vector<SlotRef> SlotRef::ComputeSlotMappingForArguments(
     int inlined_jsframe_index,
     int formal_parameter_count) {
   AssertNoAllocation no_gc;
-  int deopt_index = AstNode::kNoNumber;
+  int deopt_index = Safepoint::kNoDeoptimizationIndex;
   DeoptimizationInputData* data =
       static_cast<OptimizedFrame*>(frame)->GetDeoptimizationData(&deopt_index);
   TranslationIterator it(data->TranslationByteArray(),

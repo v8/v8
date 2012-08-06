@@ -7906,7 +7906,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_LazyRecompile) {
   }
   function->shared()->code()->set_profiler_ticks(0);
   if (JSFunction::CompileOptimized(function,
-                                   AstNode::kNoNumber,
+                                   BailoutId::None(),
                                    CLEAR_EXCEPTION)) {
     return function->code();
   }
@@ -8173,7 +8173,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CompileForOnStackReplacement) {
     }
   }
 
-  int ast_id = AstNode::kNoNumber;
+  BailoutId ast_id = BailoutId::None();
   if (succeeded) {
     // The top JS function is this one, the PC is somewhere in the
     // unoptimized code.
@@ -8194,14 +8194,14 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CompileForOnStackReplacement) {
       // Table entries are (AST id, pc offset) pairs.
       uint32_t pc_offset = Memory::uint32_at(table_cursor + kIntSize);
       if (pc_offset == target_pc_offset) {
-        ast_id = static_cast<int>(Memory::uint32_at(table_cursor));
+        ast_id = BailoutId(static_cast<int>(Memory::uint32_at(table_cursor)));
         break;
       }
       table_cursor += 2 * kIntSize;
     }
-    ASSERT(ast_id != AstNode::kNoNumber);
+    ASSERT(!ast_id.IsNone());
     if (FLAG_trace_osr) {
-      PrintF("[replacing on-stack at AST id %d in ", ast_id);
+      PrintF("[replacing on-stack at AST id %d in ", ast_id.ToInt());
       function->PrintName();
       PrintF("]\n");
     }
@@ -8218,7 +8218,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CompileForOnStackReplacement) {
           PrintF("[on-stack replacement offset %d in optimized code]\n",
                data->OsrPcOffset()->value());
         }
-        ASSERT(data->OsrAstId()->value() == ast_id);
+        ASSERT(BailoutId(data->OsrAstId()->value()) == ast_id);
       } else {
         // We may never generate the desired OSR entry if we emit an
         // early deoptimize.
@@ -8257,7 +8257,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CompileForOnStackReplacement) {
   // frame to an optimized one.
   if (succeeded) {
     ASSERT(function->code()->kind() == Code::OPTIMIZED_FUNCTION);
-    return Smi::FromInt(ast_id);
+    return Smi::FromInt(ast_id.ToInt());
   } else {
     if (function->IsMarkedForLazyRecompilation()) {
       function->ReplaceCode(function->shared()->code());

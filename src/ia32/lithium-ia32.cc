@@ -642,7 +642,7 @@ LInstruction* LChunkBuilder::MarkAsCall(LInstruction* instr,
     ASSERT(hinstr->next()->IsSimulate());
     HSimulate* sim = HSimulate::cast(hinstr->next());
     ASSERT(instruction_pending_deoptimization_environment_ == NULL);
-    ASSERT(pending_deoptimization_ast_id_ == AstNode::kNoNumber);
+    ASSERT(pending_deoptimization_ast_id_.IsNone());
     instruction_pending_deoptimization_environment_ = instr;
     pending_deoptimization_ast_id_ = sim->ast_id();
   }
@@ -880,8 +880,8 @@ LEnvironment* LChunkBuilder::CreateEnvironment(
 
   LEnvironment* outer =
       CreateEnvironment(hydrogen_env->outer(), argument_index_accumulator);
-  int ast_id = hydrogen_env->ast_id();
-  ASSERT(ast_id != AstNode::kNoNumber ||
+  BailoutId ast_id = hydrogen_env->ast_id();
+  ASSERT(!ast_id.IsNone() ||
          hydrogen_env->frame_type() != JS_FUNCTION);
   int value_count = hydrogen_env->length();
   LEnvironment* result =
@@ -2296,7 +2296,7 @@ LInstruction* LChunkBuilder::DoSimulate(HSimulate* instr) {
 
   // If there is an instruction pending deoptimization environment create a
   // lazy bailout instruction to capture the environment.
-  if (pending_deoptimization_ast_id_ != AstNode::kNoNumber) {
+  if (!pending_deoptimization_ast_id_.IsNone()) {
     ASSERT(pending_deoptimization_ast_id_ == instr->ast_id());
     LLazyBailout* lazy_bailout = new(zone()) LLazyBailout;
     LInstruction* result = AssignEnvironment(lazy_bailout);
@@ -2305,7 +2305,7 @@ LInstruction* LChunkBuilder::DoSimulate(HSimulate* instr) {
     instruction_pending_deoptimization_environment_->
         SetDeferredLazyDeoptimizationEnvironment(result->environment());
     instruction_pending_deoptimization_environment_ = NULL;
-    pending_deoptimization_ast_id_ = AstNode::kNoNumber;
+    pending_deoptimization_ast_id_ = BailoutId::None();
     return result;
   }
 

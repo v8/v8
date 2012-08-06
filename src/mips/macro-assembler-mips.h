@@ -182,11 +182,11 @@ class MacroAssembler: public Assembler {
   void Call(Address target, RelocInfo::Mode rmode, COND_ARGS);
   static int CallSize(Handle<Code> code,
                       RelocInfo::Mode rmode = RelocInfo::CODE_TARGET,
-                      unsigned ast_id = kNoASTId,
+                      TypeFeedbackId ast_id = TypeFeedbackId::None(),
                       COND_ARGS);
   void Call(Handle<Code> code,
             RelocInfo::Mode rmode = RelocInfo::CODE_TARGET,
-            unsigned ast_id = kNoASTId,
+            TypeFeedbackId ast_id = TypeFeedbackId::None(),
             COND_ARGS);
   void Ret(COND_ARGS);
   inline void Ret(BranchDelaySlot bd, Condition cond = al,

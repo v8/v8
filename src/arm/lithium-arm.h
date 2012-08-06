@@ -2250,7 +2250,7 @@ class LChunkBuilder BASE_EMBEDDED {
         allocator_(allocator),
         position_(RelocInfo::kNoPosition),
         instruction_pending_deoptimization_environment_(NULL),
-        pending_deoptimization_ast_id_(AstNode::kNoNumber) { }
+        pending_deoptimization_ast_id_(BailoutId::None()) { }
 
   // Build the sequence for the graph.
   LPlatformChunk* Build();
@@ -2384,7 +2384,7 @@ class LChunkBuilder BASE_EMBEDDED {
   LAllocator* allocator_;
   int position_;
   LInstruction* instruction_pending_deoptimization_environment_;
-  int pending_deoptimization_ast_id_;
+  BailoutId pending_deoptimization_ast_id_;
 
   DISALLOW_COPY_AND_ASSIGN(LChunkBuilder);
 };

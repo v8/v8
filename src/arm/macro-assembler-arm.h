@@ -116,11 +116,11 @@ class MacroAssembler: public Assembler {
   void Call(Address target, RelocInfo::Mode rmode, Condition cond = al);
   static int CallSize(Handle<Code> code,
                       RelocInfo::Mode rmode = RelocInfo::CODE_TARGET,
-                      unsigned ast_id = kNoASTId,
+                      TypeFeedbackId ast_id = TypeFeedbackId::None(),
                       Condition cond = al);
   void Call(Handle<Code> code,
             RelocInfo::Mode rmode = RelocInfo::CODE_TARGET,
-            unsigned ast_id = kNoASTId,
+            TypeFeedbackId ast_id = TypeFeedbackId::None(),
             Condition cond = al);
   void Ret(Condition cond = al);
 

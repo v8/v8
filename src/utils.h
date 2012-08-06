@@ -980,6 +980,52 @@ class EnumSet {
   T bits_;
 };
 
+
+class TypeFeedbackId {
+ public:
+  explicit TypeFeedbackId(int id) : id_(id) { }
+  int ToInt() const { return id_; }
+
+  static TypeFeedbackId None() { return TypeFeedbackId(kNoneId); }
+  bool IsNone() const { return id_ == kNoneId; }
+
+ private:
+  static const int kNoneId = -1;
+
+  int id_;
+};
+
+
+class BailoutId {
+ public:
+  explicit BailoutId(int id) : id_(id) { }
+  int ToInt() const { return id_; }
+
+  static BailoutId None() { return BailoutId(kNoneId); }
+  static BailoutId FunctionEntry() { return BailoutId(kFunctionEntryId); }
+  static BailoutId Declarations() { return BailoutId(kDeclarationsId); }
+  static BailoutId FirstUsable() { return BailoutId(kFirstUsableId); }
+
+  bool IsNone() const { return id_ == kNoneId; }
+  bool operator==(const BailoutId& other) const { return id_ == other.id_; }
+
+ private:
+  static const int kNoneId = -1;
+
+  // Using 0 could disguise errors.
+  static const int kFunctionEntryId = 2;
+
+  // This AST id identifies the point after the declarations have been visited.
+  // We need it to capture the environment effects of declarations that emit
+  // code (function declarations).
+  static const int kDeclarationsId = 3;
+
+  // Ever FunctionState starts with this id.
+  static const int kFirstUsableId = 4;
+
+  int id_;
+};
+
 } }  // namespace v8::internal
 
 #endif  // V8_UTILS_H_

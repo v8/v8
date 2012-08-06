@@ -133,10 +133,10 @@ HDeoptimize* HBasicBlock::CreateDeoptimize(
 }
 
 
-HSimulate* HBasicBlock::CreateSimulate(int ast_id) {
+HSimulate* HBasicBlock::CreateSimulate(BailoutId ast_id) {
   ASSERT(HasEnvironment());
   HEnvironment* environment = last_environment();
-  ASSERT(ast_id == AstNode::kNoNumber ||
+  ASSERT(ast_id.IsNone() ||
          environment->closure()->shared()->VerifyBailoutId(ast_id));
 
   int push_count = environment->push_count();
@@ -174,7 +174,7 @@ void HBasicBlock::Goto(HBasicBlock* block, FunctionState* state) {
     last_environment_ = last_environment()->DiscardInlined(drop_extra);
   }
 
-  AddSimulate(AstNode::kNoNumber);
+  AddSimulate(BailoutId::None());
   HGoto* instr = new(zone()) HGoto(block);
   Finish(instr);
 }
@@ -191,7 +191,7 @@ void HBasicBlock::AddLeaveInlined(HValue* return_value,
   AddInstruction(new(zone()) HLeaveInlined(arguments_pushed));
   last_environment_ = last_environment()->DiscardInlined(drop_extra);
   last_environment()->Push(return_value);
-  AddSimulate(AstNode::kNoNumber);
+  AddSimulate(BailoutId::None());
   HGoto* instr = new(zone()) HGoto(target);
   Finish(instr);
 }
@@ -204,7 +204,7 @@ void HBasicBlock::SetInitialEnvironment(HEnvironment* env) {
 }
 
 
-void HBasicBlock::SetJoinId(int ast_id) {
+void HBasicBlock::SetJoinId(BailoutId ast_id) {
   int length = predecessors_.length();
   ASSERT(length > 0);
   for (int i = 0; i < length; i++) {
@@ -527,7 +527,8 @@ void HGraph::Verify(bool do_full_verify) const {
     // Check that all join blocks have predecessors that end with an
     // unconditional goto and agree on their environment node id.
     if (block->predecessors()->length() >= 2) {
-      int id = block->predecessors()->first()->last_environment()->ast_id();
+      BailoutId id =
+          block->predecessors()->first()->last_environment()->ast_id();
       for (int k = 0; k < block->predecessors()->length(); k++) {
         HBasicBlock* predecessor = block->predecessors()->at(k);
         ASSERT(predecessor->end()->IsGoto());
@@ -636,7 +637,7 @@ HGraphBuilder::HGraphBuilder(CompilationInfo* info,
 
 HBasicBlock* HGraphBuilder::CreateJoin(HBasicBlock* first,
                                        HBasicBlock* second,
-                                       int join_id) {
+                                       BailoutId join_id) {
   if (first == NULL) {
     return second;
   } else if (second == NULL) {
@@ -697,7 +698,7 @@ HGraph::HGraph(CompilationInfo* info)
       is_recursive_(false) {
   start_environment_ =
       new(zone_) HEnvironment(NULL, info->scope(), info->closure(), zone_);
-  start_environment_->set_ast_id(AstNode::kFunctionEntryId);
+  start_environment_->set_ast_id(BailoutId::FunctionEntry());
   entry_block_ = CreateBasicBlock();
   entry_block_->SetInitialEnvironment(start_environment_);
 }
@@ -2842,14 +2843,15 @@ void TestContext::ReturnValue(HValue* value) {
 }
 
 
-void EffectContext::ReturnInstruction(HInstruction* instr, int ast_id) {
+void EffectContext::ReturnInstruction(HInstruction* instr, BailoutId ast_id) {
   ASSERT(!instr->IsControlInstruction());
   owner()->AddInstruction(instr);
   if (instr->HasObservableSideEffects()) owner()->AddSimulate(ast_id);
 }
 
 
-void EffectContext::ReturnControl(HControlInstruction* instr, int ast_id) {
+void EffectContext::ReturnControl(HControlInstruction* instr,
+                                  BailoutId ast_id) {
   ASSERT(!instr->HasObservableSideEffects());
   HBasicBlock* empty_true = owner()->graph()->CreateBasicBlock();
   HBasicBlock* empty_false = owner()->graph()->CreateBasicBlock();
@@ -2861,7 +2863,7 @@ void EffectContext::ReturnControl(HControlInstruction* instr, int ast_id) {
 }
 
 
-void ValueContext::ReturnInstruction(HInstruction* instr, int ast_id) {
+void ValueContext::ReturnInstruction(HInstruction* instr, BailoutId ast_id) {
   ASSERT(!instr->IsControlInstruction());
   if (!arguments_allowed() && instr->CheckFlag(HValue::kIsArguments)) {
     return owner()->Bailout("bad value context for arguments object value");
@@ -2872,7 +2874,7 @@ void ValueContext::ReturnInstruction(HInstruction* instr, int ast_id) {
 }
 
 
-void ValueContext::ReturnControl(HControlInstruction* instr, int ast_id) {
+void ValueContext::ReturnControl(HControlInstruction* instr, BailoutId ast_id) {
   ASSERT(!instr->HasObservableSideEffects());
   if (!arguments_allowed() && instr->CheckFlag(HValue::kIsArguments)) {
     return owner()->Bailout("bad value context for arguments object value");
@@ -2892,7 +2894,7 @@ void ValueContext::ReturnControl(HControlInstruction* instr, int ast_id) {
 }
 
 
-void TestContext::ReturnInstruction(HInstruction* instr, int ast_id) {
+void TestContext::ReturnInstruction(HInstruction* instr, BailoutId ast_id) {
   ASSERT(!instr->IsControlInstruction());
   HGraphBuilder* builder = owner();
   builder->AddInstruction(instr);
@@ -2907,7 +2909,7 @@ void TestContext::ReturnInstruction(HInstruction* instr, int ast_id) {
 }
 
 
-void TestContext::ReturnControl(HControlInstruction* instr, int ast_id) {
+void TestContext::ReturnControl(HControlInstruction* instr, BailoutId ast_id) {
   ASSERT(!instr->HasObservableSideEffects());
   HBasicBlock* empty_true = owner()->graph()->CreateBasicBlock();
   HBasicBlock* empty_false = owner()->graph()->CreateBasicBlock();
@@ -2931,7 +2933,7 @@ void TestContext::BuildBranch(HValue* value) {
   }
   HBasicBlock* empty_true = builder->graph()->CreateBasicBlock();
   HBasicBlock* empty_false = builder->graph()->CreateBasicBlock();
-  unsigned test_id = condition()->test_id();
+  TypeFeedbackId test_id = condition()->test_id();
   ToBooleanStub::Types expected(builder->oracle()->ToBooleanTypes(test_id));
   HBranch* test = new(zone()) HBranch(value, empty_true, empty_false, expected);
   builder->current_block()->Finish(test);
@@ -3052,7 +3054,7 @@ HGraph* HGraphBuilder::CreateGraph() {
     HEnvironment* initial_env = environment()->CopyWithoutHistory();
     HBasicBlock* body_entry = CreateBasicBlock(initial_env);
     current_block()->Goto(body_entry);
-    body_entry->SetJoinId(AstNode::kFunctionEntryId);
+    body_entry->SetJoinId(BailoutId::FunctionEntry());
     set_current_block(body_entry);
 
     // Handle implicit declaration of the function name in named function
@@ -3061,7 +3063,7 @@ HGraph* HGraphBuilder::CreateGraph() {
       VisitVariableDeclaration(scope->function());
     }
     VisitDeclarations(scope->declarations());
-    AddSimulate(AstNode::kDeclarationsId);
+    AddSimulate(BailoutId::Declarations());
 
     HValue* context = environment()->LookupContext();
     AddInstruction(
@@ -3577,7 +3579,7 @@ HInstruction* HGraphBuilder::AddInstruction(HInstruction* instr) {
 }
 
 
-void HGraphBuilder::AddSimulate(int ast_id) {
+void HGraphBuilder::AddSimulate(BailoutId ast_id) {
   ASSERT(current_block() != NULL);
   current_block()->AddSimulate(ast_id);
 }
@@ -3951,7 +3953,7 @@ void HGraphBuilder::VisitSwitchStatement(SwitchStatement* stmt) {
   }
 
   // 2. Build all the tests, with dangling true branches
-  int default_id = AstNode::kNoNumber;
+  BailoutId default_id = BailoutId::None();
   for (int i = 0; i < clause_count; ++i) {
     CaseClause* clause = clauses->at(i);
     if (clause->is_default()) {
@@ -4004,9 +4006,7 @@ void HGraphBuilder::VisitSwitchStatement(SwitchStatement* stmt) {
   HBasicBlock* last_block = current_block();
 
   if (not_string_block != NULL) {
-    int join_id = (default_id != AstNode::kNoNumber)
-        ? default_id
-        : stmt->ExitId();
+    BailoutId join_id = !default_id.IsNone() ? default_id : stmt->ExitId();
     last_block = CreateJoin(last_block, not_string_block, join_id);
   }
 
@@ -4096,7 +4096,7 @@ bool HGraphBuilder::PreProcessOsrEntry(IterationStatement* statement) {
   non_osr_entry->Goto(loop_predecessor);
 
   set_current_block(osr_entry);
-  int osr_entry_id = statement->OsrEntryId();
+  BailoutId osr_entry_id = statement->OsrEntryId();
   int first_expression_index = environment()->first_expression_index();
   int length = environment()->length();
   ZoneList<HUnknownOSRValue*>* osr_values =
@@ -5270,7 +5270,7 @@ void HGraphBuilder::HandlePropertyAssignment(Assignment* expr) {
 void HGraphBuilder::HandleGlobalVariableAssignment(Variable* var,
                                                    HValue* value,
                                                    int position,
-                                                   int ast_id) {
+                                                   BailoutId ast_id) {
   LookupResult lookup(isolate());
   GlobalPropertyAccess type = LookupGlobalProperty(var, &lookup, true);
   if (type == kUseCell) {
@@ -5966,7 +5966,7 @@ HValue* HGraphBuilder::HandlePolymorphicElementAccess(HValue* object,
                                                       HValue* key,
                                                       HValue* val,
                                                       Expression* prop,
-                                                      int ast_id,
+                                                      BailoutId ast_id,
                                                       int position,
                                                       bool is_store,
                                                       bool* has_side_effects) {
@@ -6177,7 +6177,7 @@ HValue* HGraphBuilder::HandleKeyedElementAccess(HValue* obj,
                                                 HValue* key,
                                                 HValue* val,
                                                 Expression* expr,
-                                                int ast_id,
+                                                BailoutId ast_id,
                                                 int position,
                                                 bool is_store,
                                                 bool* has_side_effects) {
@@ -6609,8 +6609,8 @@ bool HGraphBuilder::TryInline(CallKind call_kind,
                               Handle<JSFunction> target,
                               int arguments_count,
                               HValue* receiver,
-                              int ast_id,
-                              int return_id,
+                              BailoutId ast_id,
+                              BailoutId return_id,
                               ReturnHandlingFlag return_handling) {
   int nodes_added = InliningAstSize(target);
   if (nodes_added == kNotInlinable) return false;
@@ -8103,7 +8103,7 @@ void HGraphBuilder::VisitLogicalExpression(BinaryOperation* expr) {
     // We need an extra block to maintain edge-split form.
     HBasicBlock* empty_block = graph()->CreateBasicBlock();
     HBasicBlock* eval_right = graph()->CreateBasicBlock();
-    unsigned test_id = expr->left()->test_id();
+    TypeFeedbackId test_id = expr->left()->test_id();
     ToBooleanStub::Types expected(oracle()->ToBooleanTypes(test_id));
     HBranch* test = is_logical_and
       ? new(zone()) HBranch(Top(), eval_right, empty_block, expected)
@@ -9089,7 +9089,7 @@ HEnvironment::HEnvironment(HEnvironment* outer,
       outer_(outer),
       pop_count_(0),
       push_count_(0),
-      ast_id_(AstNode::kNoNumber),
+      ast_id_(BailoutId::None()),
       zone_(zone) {
   Initialize(scope->num_parameters() + 1, scope->num_stack_slots(), 0);
 }
@@ -9125,7 +9125,7 @@ HEnvironment::HEnvironment(HEnvironment* outer,
       outer_(outer),
       pop_count_(0),
       push_count_(0),
-      ast_id_(AstNode::kNoNumber),
+      ast_id_(BailoutId::None()),
       zone_(zone) {
 }
 
@@ -9317,7 +9317,7 @@ HEnvironment* HEnvironment::CopyForInlining(
     inner->SetValueAt(i, undefined);
   }
 
-  inner->set_ast_id(AstNode::kFunctionEntryId);
+  inner->set_ast_id(BailoutId::FunctionEntry());
   return inner;
 }
 

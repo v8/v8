@@ -496,7 +496,7 @@ Parser::FunctionState::FunctionState(Parser* parser,
       factory_(isolate, parser->zone()) {
   parser->top_scope_ = scope;
   parser->current_function_state_ = this;
-  isolate->set_ast_node_id(AstNode::kDeclarationsId + 1);
+  isolate->set_ast_node_id(BailoutId::FirstUsable().ToInt());
 }
 
 

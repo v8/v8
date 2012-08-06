@@ -455,7 +455,7 @@ class LEnvironment: public ZoneObject {
  public:
   LEnvironment(Handle<JSFunction> closure,
                FrameType frame_type,
-               int ast_id,
+               BailoutId ast_id,
                int parameter_count,
                int argument_count,
                int value_count,
@@ -481,7 +481,7 @@ class LEnvironment: public ZoneObject {
   int arguments_stack_height() const { return arguments_stack_height_; }
   int deoptimization_index() const { return deoptimization_index_; }
   int translation_index() const { return translation_index_; }
-  int ast_id() const { return ast_id_; }
+  BailoutId ast_id() const { return ast_id_; }
   int parameter_count() const { return parameter_count_; }
   int pc_offset() const { return pc_offset_; }
   LOperand** spilled_registers() const { return spilled_registers_; }
@@ -530,7 +530,7 @@ class LEnvironment: public ZoneObject {
   int arguments_stack_height_;
   int deoptimization_index_;
   int translation_index_;
-  int ast_id_;
+  BailoutId ast_id_;
   int parameter_count_;
   int pc_offset_;
   ZoneList<LOperand*> values_;

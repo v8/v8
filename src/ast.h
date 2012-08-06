@@ -195,13 +195,6 @@ class AstNode: public ZoneObject {
   };
 #undef DECLARE_TYPE_ENUM
 
-  static const int kNoNumber = -1;
-  static const int kFunctionEntryId = 2;  // Using 0 could disguise errors.
-  // This AST id identifies the point after the declarations have been
-  // visited. We need it to capture the environment effects of declarations
-  // that emit code (function declarations).
-  static const int kDeclarationsId = 3;
-
   void* operator new(size_t size, Zone* zone) {
     return zone->New(static_cast<int>(size));
   }
@@ -235,6 +228,12 @@ class AstNode: public ZoneObject {
     isolate->set_ast_node_id(tmp + n);
     return tmp;
   }
+
+  // Some nodes re-use bailout IDs for type feedback.
+  static TypeFeedbackId reuse(BailoutId id) {
+    return TypeFeedbackId(id.ToInt());
+  }
+
 
  private:
   // Hidden to prevent accidental usage. It would have to load the
@@ -349,8 +348,8 @@ class Expression: public AstNode {
     return types->at(0);
   }
 
-  unsigned id() const { return id_; }
-  unsigned test_id() const { return test_id_; }
+  BailoutId id() const { return id_; }
+  TypeFeedbackId test_id() const { return test_id_; }
 
  protected:
   explicit Expression(Isolate* isolate)
@@ -358,8 +357,8 @@ class Expression: public AstNode {
         test_id_(GetNextId(isolate)) {}
 
  private:
-  const int id_;
-  const int test_id_;
+  const BailoutId id_;
+  const TypeFeedbackId test_id_;
 };
 
 
@@ -383,9 +382,8 @@ class BreakableStatement: public Statement {
   // Testers.
   bool is_target_for_anonymous() const { return type_ == TARGET_FOR_ANONYMOUS; }
 
-  // Bailout support.
-  int EntryId() const { return entry_id_; }
-  int ExitId() const { return exit_id_; }
+  BailoutId EntryId() const { return entry_id_; }
+  BailoutId ExitId() const { return exit_id_; }
 
  protected:
   BreakableStatement(Isolate* isolate, ZoneStringList* labels, Type type)
@@ -401,8 +399,8 @@ class BreakableStatement: public Statement {
   ZoneStringList* labels_;
   Type type_;
   Label break_target_;
-  const int entry_id_;
-  const int exit_id_;
+  const BailoutId entry_id_;
+  const BailoutId exit_id_;
 };
 
 
@@ -676,10 +674,9 @@ class IterationStatement: public BreakableStatement {
 
   Statement* body() const { return body_; }
 
-  // Bailout support.
-  int OsrEntryId() const { return osr_entry_id_; }
-  virtual int ContinueId() const = 0;
-  virtual int StackCheckId() const = 0;
+  BailoutId OsrEntryId() const { return osr_entry_id_; }
+  virtual BailoutId ContinueId() const = 0;
+  virtual BailoutId StackCheckId() const = 0;
 
   // Code generation
   Label* continue_target()  { return &continue_target_; }
@@ -698,7 +695,7 @@ class IterationStatement: public BreakableStatement {
  private:
   Statement* body_;
   Label continue_target_;
-  const int osr_entry_id_;
+  const BailoutId osr_entry_id_;
 };
 
 
@@ -718,10 +715,9 @@ class DoWhileStatement: public IterationStatement {
   int condition_position() { return condition_position_; }
   void set_condition_position(int pos) { condition_position_ = pos; }
 
-  // Bailout support.
-  virtual int ContinueId() const { return continue_id_; }
-  virtual int StackCheckId() const { return back_edge_id_; }
-  int BackEdgeId() const { return back_edge_id_; }
+  virtual BailoutId ContinueId() const { return continue_id_; }
+  virtual BailoutId StackCheckId() const { return back_edge_id_; }
+  BailoutId BackEdgeId() const { return back_edge_id_; }
 
  protected:
   template<class> friend class AstNodeFactory;
@@ -737,8 +733,8 @@ class DoWhileStatement: public IterationStatement {
  private:
   Expression* cond_;
   int condition_position_;
-  const int continue_id_;
-  const int back_edge_id_;
+  const BailoutId continue_id_;
+  const BailoutId back_edge_id_;
 };
 
 
@@ -759,10 +755,9 @@ class WhileStatement: public IterationStatement {
     may_have_function_literal_ = value;
   }
 
-  // Bailout support.
-  virtual int ContinueId() const { return EntryId(); }
-  virtual int StackCheckId() const { return body_id_; }
-  int BodyId() const { return body_id_; }
+  virtual BailoutId ContinueId() const { return EntryId(); }
+  virtual BailoutId StackCheckId() const { return body_id_; }
+  BailoutId BodyId() const { return body_id_; }
 
  protected:
   template<class> friend class AstNodeFactory;
@@ -778,7 +773,7 @@ class WhileStatement: public IterationStatement {
   Expression* cond_;
   // True if there is a function literal subexpression in the condition.
   bool may_have_function_literal_;
-  const int body_id_;
+  const BailoutId body_id_;
 };
 
 
@@ -807,10 +802,9 @@ class ForStatement: public IterationStatement {
     may_have_function_literal_ = value;
   }
 
-  // Bailout support.
-  virtual int ContinueId() const { return continue_id_; }
-  virtual int StackCheckId() const { return body_id_; }
-  int BodyId() const { return body_id_; }
+  virtual BailoutId ContinueId() const { return continue_id_; }
+  virtual BailoutId StackCheckId() const { return body_id_; }
+  BailoutId BodyId() const { return body_id_; }
 
   bool is_fast_smi_loop() { return loop_variable_ != NULL; }
   Variable* loop_variable() { return loop_variable_; }
@@ -837,8 +831,8 @@ class ForStatement: public IterationStatement {
   // True if there is a function literal subexpression in the condition.
   bool may_have_function_literal_;
   Variable* loop_variable_;
-  const int continue_id_;
-  const int body_id_;
+  const BailoutId continue_id_;
+  const BailoutId body_id_;
 };
 
 
@@ -855,10 +849,12 @@ class ForInStatement: public IterationStatement {
   Expression* each() const { return each_; }
   Expression* enumerable() const { return enumerable_; }
 
-  virtual int ContinueId() const { return EntryId(); }
-  virtual int StackCheckId() const { return body_id_; }
-  int BodyId() const { return body_id_; }
-  int PrepareId() const { return prepare_id_; }
+  virtual BailoutId ContinueId() const { return EntryId(); }
+  virtual BailoutId StackCheckId() const { return body_id_; }
+  BailoutId BodyId() const { return body_id_; }
+  BailoutId PrepareId() const { return prepare_id_; }
+
+  TypeFeedbackId ForInFeedbackId() const { return reuse(PrepareId()); }
 
  protected:
   template<class> friend class AstNodeFactory;
@@ -874,8 +870,8 @@ class ForInStatement: public IterationStatement {
  private:
   Expression* each_;
   Expression* enumerable_;
-  const int body_id_;
-  const int prepare_id_;
+  const BailoutId body_id_;
+  const BailoutId prepare_id_;
 };
 
 
@@ -986,10 +982,10 @@ class CaseClause: public ZoneObject {
   int position() const { return position_; }
   void set_position(int pos) { position_ = pos; }
 
-  int EntryId() { return entry_id_; }
-  int CompareId() { return compare_id_; }
+  BailoutId EntryId() const { return entry_id_; }
 
   // Type feedback information.
+  TypeFeedbackId CompareId() { return compare_id_; }
   void RecordTypeFeedback(TypeFeedbackOracle* oracle);
   bool IsSmiCompare() { return compare_type_ == SMI_ONLY; }
   bool IsSymbolCompare() { return compare_type_ == SYMBOL_ONLY; }
@@ -1009,8 +1005,8 @@ class CaseClause: public ZoneObject {
     OBJECT_ONLY
   };
   CompareTypeFeedback compare_type_;
-  const int compare_id_;
-  const int entry_id_;
+  const TypeFeedbackId compare_id_;
+  const BailoutId entry_id_;
 };
 
 
@@ -1056,9 +1052,9 @@ class IfStatement: public Statement {
   Statement* then_statement() const { return then_statement_; }
   Statement* else_statement() const { return else_statement_; }
 
-  int IfId() const { return if_id_; }
-  int ThenId() const { return then_id_; }
-  int ElseId() const { return else_id_; }
+  BailoutId IfId() const { return if_id_; }
+  BailoutId ThenId() const { return then_id_; }
+  BailoutId ElseId() const { return else_id_; }
 
  protected:
   template<class> friend class AstNodeFactory;
@@ -1079,9 +1075,9 @@ class IfStatement: public Statement {
   Expression* condition_;
   Statement* then_statement_;
   Statement* else_statement_;
-  const int if_id_;
-  const int then_id_;
-  const int else_id_;
+  const BailoutId if_id_;
+  const BailoutId then_id_;
+  const BailoutId else_id_;
 };
 
 
@@ -1247,6 +1243,8 @@ class Literal: public Expression {
     Handle<String> s2 = static_cast<Literal*>(literal2)->ToString();
     return s1->Equals(*s2);
   }
+
+  TypeFeedbackId LiteralFeedbackId() const { return reuse(id()); }
 
  protected:
   template<class> friend class AstNodeFactory;
@@ -1426,7 +1424,9 @@ class ArrayLiteral: public MaterializedLiteral {
   ZoneList<Expression*>* values() const { return values_; }
 
   // Return an AST id for an element that is used in simulate instructions.
-  int GetIdForElement(int i) { return first_element_id_ + i; }
+  BailoutId GetIdForElement(int i) {
+    return BailoutId(first_element_id_.ToInt() + i);
+  }
 
  protected:
   template<class> friend class AstNodeFactory;
@@ -1445,7 +1445,7 @@ class ArrayLiteral: public MaterializedLiteral {
  private:
   Handle<FixedArray> constant_elements_;
   ZoneList<Expression*>* values_;
-  const int first_element_id_;
+  const BailoutId first_element_id_;
 };
 
 
@@ -1513,8 +1513,7 @@ class Property: public Expression {
   Expression* key() const { return key_; }
   virtual int position() const { return pos_; }
 
-  // Bailout support.
-  int ReturnId() const { return return_id_; }
+  BailoutId ReturnId() const { return return_id_; }
 
   bool IsStringLength() const { return is_string_length_; }
   bool IsStringAccess() const { return is_string_access_; }
@@ -1526,6 +1525,7 @@ class Property: public Expression {
   virtual SmallMapList* GetReceiverTypes() { return &receiver_types_; }
   bool IsArrayLength() { return is_array_length_; }
   bool IsUninitialized() { return is_uninitialized_; }
+  TypeFeedbackId PropertyFeedbackId() { return reuse(id()); }
 
  protected:
   template<class> friend class AstNodeFactory;
@@ -1550,7 +1550,7 @@ class Property: public Expression {
   Expression* obj_;
   Expression* key_;
   int pos_;
-  const int return_id_;
+  const BailoutId return_id_;
 
   SmallMapList receiver_types_;
   bool is_monomorphic_ : 1;
@@ -1570,8 +1570,9 @@ class Call: public Expression {
   ZoneList<Expression*>* arguments() const { return arguments_; }
   virtual int position() const { return pos_; }
 
-  void RecordTypeFeedback(TypeFeedbackOracle* oracle,
-                          CallKind call_kind);
+  // Type feedback information.
+  TypeFeedbackId CallFeedbackId() const { return reuse(id()); }
+  void RecordTypeFeedback(TypeFeedbackOracle* oracle, CallKind call_kind);
   virtual SmallMapList* GetReceiverTypes() { return &receiver_types_; }
   virtual bool IsMonomorphic() { return is_monomorphic_; }
   CheckType check_type() const { return check_type_; }
@@ -1587,8 +1588,7 @@ class Call: public Expression {
   bool ComputeTarget(Handle<Map> type, Handle<String> name);
   bool ComputeGlobalTarget(Handle<GlobalObject> global, LookupResult* lookup);
 
-  // Bailout support.
-  int ReturnId() const { return return_id_; }
+  BailoutId ReturnId() const { return return_id_; }
 
 #ifdef DEBUG
   // Used to assert that the FullCodeGenerator records the return site.
@@ -1622,7 +1622,7 @@ class Call: public Expression {
   Handle<JSObject> holder_;
   Handle<JSGlobalPropertyCell> cell_;
 
-  const int return_id_;
+  const BailoutId return_id_;
 };
 
 
@@ -1634,12 +1634,13 @@ class CallNew: public Expression {
   ZoneList<Expression*>* arguments() const { return arguments_; }
   virtual int position() const { return pos_; }
 
+  // Type feedback information.
+  TypeFeedbackId CallNewFeedbackId() const { return reuse(id()); }
   void RecordTypeFeedback(TypeFeedbackOracle* oracle);
   virtual bool IsMonomorphic() { return is_monomorphic_; }
   Handle<JSFunction> target() { return target_; }
 
-  // Bailout support.
-  int ReturnId() const { return return_id_; }
+  BailoutId ReturnId() const { return return_id_; }
 
  protected:
   template<class> friend class AstNodeFactory;
@@ -1663,7 +1664,7 @@ class CallNew: public Expression {
   bool is_monomorphic_;
   Handle<JSFunction> target_;
 
-  const int return_id_;
+  const BailoutId return_id_;
 };
 
 
@@ -1679,6 +1680,8 @@ class CallRuntime: public Expression {
   const Runtime::Function* function() const { return function_; }
   ZoneList<Expression*>* arguments() const { return arguments_; }
   bool is_jsruntime() const { return function_ == NULL; }
+
+  TypeFeedbackId CallRuntimeFeedbackId() const { return reuse(id()); }
 
  protected:
   template<class> friend class AstNodeFactory;
@@ -1709,8 +1712,10 @@ class UnaryOperation: public Expression {
   Expression* expression() const { return expression_; }
   virtual int position() const { return pos_; }
 
-  int MaterializeTrueId() { return materialize_true_id_; }
-  int MaterializeFalseId() { return materialize_false_id_; }
+  BailoutId MaterializeTrueId() { return materialize_true_id_; }
+  BailoutId MaterializeFalseId() { return materialize_false_id_; }
+
+  TypeFeedbackId UnaryOperationFeedbackId() const { return reuse(id()); }
 
  protected:
   template<class> friend class AstNodeFactory;
@@ -1735,8 +1740,8 @@ class UnaryOperation: public Expression {
 
   // For unary not (Token::NOT), the AST ids where true and false will
   // actually be materialized, respectively.
-  const int materialize_true_id_;
-  const int materialize_false_id_;
+  const BailoutId materialize_true_id_;
+  const BailoutId materialize_false_id_;
 };
 
 
@@ -1751,8 +1756,9 @@ class BinaryOperation: public Expression {
   Expression* right() const { return right_; }
   virtual int position() const { return pos_; }
 
-  // Bailout support.
-  int RightId() const { return right_id_; }
+  BailoutId RightId() const { return right_id_; }
+
+  TypeFeedbackId BinaryOperationFeedbackId() const { return reuse(id()); }
 
  protected:
   template<class> friend class AstNodeFactory;
@@ -1778,7 +1784,7 @@ class BinaryOperation: public Expression {
   int pos_;
   // The short-circuit logical operations need an AST ID for their
   // right-hand subexpression.
-  const int right_id_;
+  const BailoutId right_id_;
 };
 
 
@@ -1803,9 +1809,12 @@ class CountOperation: public Expression {
   virtual bool IsMonomorphic() { return is_monomorphic_; }
   virtual SmallMapList* GetReceiverTypes() { return &receiver_types_; }
 
-  // Bailout support.
-  int AssignmentId() const { return assignment_id_; }
-  int CountId() const { return count_id_; }
+  BailoutId AssignmentId() const { return assignment_id_; }
+  BailoutId CountId() const { return count_id_; }
+
+  TypeFeedbackId CountBinOpFeedbackId() const { return reuse(CountId()); }
+  TypeFeedbackId CountStoreFeedbackId() const { return reuse(id()); }
+
 
  protected:
   template<class> friend class AstNodeFactory;
@@ -1829,8 +1838,8 @@ class CountOperation: public Expression {
   bool is_monomorphic_;
   Expression* expression_;
   int pos_;
-  const int assignment_id_;
-  const int count_id_;
+  const BailoutId assignment_id_;
+  const BailoutId count_id_;
   SmallMapList receiver_types_;
 };
 
@@ -1845,6 +1854,7 @@ class CompareOperation: public Expression {
   virtual int position() const { return pos_; }
 
   // Type feedback information.
+  TypeFeedbackId CompareOperationFeedbackId() const { return reuse(id()); }
   void RecordTypeFeedback(TypeFeedbackOracle* oracle);
   bool IsSmiCompare() { return compare_type_ == SMI_ONLY; }
   bool IsObjectCompare() { return compare_type_ == OBJECT_ONLY; }
@@ -1893,8 +1903,8 @@ class Conditional: public Expression {
   int then_expression_position() const { return then_expression_position_; }
   int else_expression_position() const { return else_expression_position_; }
 
-  int ThenId() const { return then_id_; }
-  int ElseId() const { return else_id_; }
+  BailoutId ThenId() const { return then_id_; }
+  BailoutId ElseId() const { return else_id_; }
 
  protected:
   template<class> friend class AstNodeFactory;
@@ -1920,8 +1930,8 @@ class Conditional: public Expression {
   Expression* else_expression_;
   int then_expression_position_;
   int else_expression_position_;
-  const int then_id_;
-  const int else_id_;
+  const BailoutId then_id_;
+  const BailoutId else_id_;
 };
 
 
@@ -1951,14 +1961,14 @@ class Assignment: public Expression {
   void mark_block_start() { block_start_ = true; }
   void mark_block_end() { block_end_ = true; }
 
+  BailoutId CompoundLoadId() const { return compound_load_id_; }
+  BailoutId AssignmentId() const { return assignment_id_; }
+
   // Type feedback information.
+  TypeFeedbackId AssignmentFeedbackId() { return reuse(id()); }
   void RecordTypeFeedback(TypeFeedbackOracle* oracle, Zone* zone);
   virtual bool IsMonomorphic() { return is_monomorphic_; }
   virtual SmallMapList* GetReceiverTypes() { return &receiver_types_; }
-
-  // Bailout support.
-  int CompoundLoadId() const { return compound_load_id_; }
-  int AssignmentId() const { return assignment_id_; }
 
  protected:
   template<class> friend class AstNodeFactory;
@@ -1984,8 +1994,8 @@ class Assignment: public Expression {
   Expression* value_;
   int pos_;
   BinaryOperation* binary_operation_;
-  const int compound_load_id_;
-  const int assignment_id_;
+  const BailoutId compound_load_id_;
+  const BailoutId assignment_id_;
 
   bool block_start_;
   bool block_end_;

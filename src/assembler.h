@@ -51,7 +51,6 @@ class ApiFunction;
 namespace internal {
 
 struct StatsCounter;
-const unsigned kNoASTId = UINT_MAX;
 // -----------------------------------------------------------------------------
 // Platform independent assembler base class.
 

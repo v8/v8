@@ -1209,17 +1209,17 @@ class Assembler : public AssemblerBase {
 
   // Record the AST id of the CallIC being compiled, so that it can be placed
   // in the relocation information.
-  void SetRecordedAstId(unsigned ast_id) {
-    ASSERT(recorded_ast_id_ == kNoASTId);
+  void SetRecordedAstId(TypeFeedbackId ast_id) {
+    ASSERT(recorded_ast_id_.IsNone());
     recorded_ast_id_ = ast_id;
   }
 
-  unsigned RecordedAstId() {
-    ASSERT(recorded_ast_id_ != kNoASTId);
+  TypeFeedbackId RecordedAstId() {
+    ASSERT(!recorded_ast_id_.IsNone());
     return recorded_ast_id_;
   }
 
-  void ClearRecordedAstId() { recorded_ast_id_ = kNoASTId; }
+  void ClearRecordedAstId() { recorded_ast_id_ = TypeFeedbackId::None(); }
 
   // Record a comment relocation entry that can be used by a disassembler.
   // Use --code-comments to enable.
@@ -1308,7 +1308,7 @@ class Assembler : public AssemblerBase {
   // Relocation for a type-recording IC has the AST id added to it.  This
   // member variable is a way to pass the information from the call site to
   // the relocation info.
-  unsigned recorded_ast_id_;
+  TypeFeedbackId recorded_ast_id_;
 
   bool emit_debug_code() const { return emit_debug_code_; }
 

@@ -1440,7 +1440,7 @@ int Assembler::CallSize(Handle<Code> code, RelocInfo::Mode rmode) {
 
 void Assembler::call(Handle<Code> code,
                      RelocInfo::Mode rmode,
-                     unsigned ast_id) {
+                     TypeFeedbackId ast_id) {
   positions_recorder()->WriteRecordedPositions();
   EnsureSpace ensure_space(this);
   ASSERT(RelocInfo::IsCodeTarget(rmode));

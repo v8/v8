@@ -875,7 +875,7 @@ void OptimizedFrame::Summarize(List<FrameSummary>* frames) {
     opcode = static_cast<Translation::Opcode>(it.Next());
     if (opcode == Translation::JS_FRAME) {
       i--;
-      int ast_id = it.Next();
+      BailoutId ast_id = BailoutId(it.Next());
       JSFunction* function = LiteralAt(literal_array, it.Next());
       it.Next();  // Skip height.
 

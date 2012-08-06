@@ -60,7 +60,7 @@ CompilationInfo::CompilationInfo(Handle<Script> script, Zone* zone)
       script_(script),
       extension_(NULL),
       pre_parse_data_(NULL),
-      osr_ast_id_(AstNode::kNoNumber),
+      osr_ast_id_(BailoutId::None()),
       zone_(zone),
       deferred_handles_(NULL) {
   Initialize(BASE);
@@ -79,7 +79,7 @@ CompilationInfo::CompilationInfo(Handle<SharedFunctionInfo> shared_info,
       script_(Handle<Script>(Script::cast(shared_info->script()))),
       extension_(NULL),
       pre_parse_data_(NULL),
-      osr_ast_id_(AstNode::kNoNumber),
+      osr_ast_id_(BailoutId::None()),
       zone_(zone),
       deferred_handles_(NULL) {
   Initialize(BASE);
@@ -98,7 +98,7 @@ CompilationInfo::CompilationInfo(Handle<JSFunction> closure, Zone* zone)
       script_(Handle<Script>(Script::cast(shared_info_->script()))),
       extension_(NULL),
       pre_parse_data_(NULL),
-      osr_ast_id_(AstNode::kNoNumber),
+      osr_ast_id_(BailoutId::None()),
       zone_(zone),
       deferred_handles_(NULL) {
   Initialize(BASE);
@@ -256,7 +256,7 @@ OptimizingCompiler::Status OptimizingCompiler::CreateGraph() {
   const int locals_limit = LUnallocated::kMaxFixedIndex;
   Scope* scope = info()->scope();
   if ((scope->num_parameters() + 1) > parameter_limit ||
-      (info()->osr_ast_id() != AstNode::kNoNumber &&
+      (!info()->osr_ast_id().IsNone() &&
        scope->num_parameters() + 1 + scope->num_stack_slots() > locals_limit)) {
     return AbortOptimization();
   }
@@ -708,7 +708,7 @@ static bool InstallFullCode(CompilationInfo* info) {
     if (FLAG_always_opt &&
         !Isolate::Current()->DebuggerHasBreakPoints()) {
       CompilationInfoWithZone optimized(function);
-      optimized.SetOptimizing(AstNode::kNoNumber);
+      optimized.SetOptimizing(BailoutId::None());
       return Compiler::CompileLazy(&optimized);
     }
   }
@@ -837,7 +837,7 @@ void Compiler::RecompileParallel(Handle<JSFunction> closure) {
   Handle<SharedFunctionInfo> shared = info->shared_info();
   int compiled_size = shared->end_position() - shared->start_position();
   isolate->counters()->total_compile_size()->Increment(compiled_size);
-  info->SetOptimizing(AstNode::kNoNumber);
+  info->SetOptimizing(BailoutId::None());
 
   {
     CompilationHandleScope handle_scope(*info);

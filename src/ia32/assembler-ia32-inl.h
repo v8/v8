@@ -335,9 +335,9 @@ void Assembler::emit(Handle<Object> handle) {
 }
 
 
-void Assembler::emit(uint32_t x, RelocInfo::Mode rmode, unsigned id) {
-  if (rmode == RelocInfo::CODE_TARGET && id != kNoASTId) {
-    RecordRelocInfo(RelocInfo::CODE_TARGET_WITH_ID, static_cast<intptr_t>(id));
+void Assembler::emit(uint32_t x, RelocInfo::Mode rmode, TypeFeedbackId id) {
+  if (rmode == RelocInfo::CODE_TARGET && !id.IsNone()) {
+    RecordRelocInfo(RelocInfo::CODE_TARGET_WITH_ID, id.ToInt());
   } else if (rmode != RelocInfo::NONE) {
     RecordRelocInfo(rmode);
   }

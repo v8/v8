@@ -5240,13 +5240,13 @@ MaybeObject* FixedDoubleArray::Copy() {
 }
 
 
-void TypeFeedbackCells::SetAstId(int index, Smi* id) {
-  set(1 + index * 2, id);
+void TypeFeedbackCells::SetAstId(int index, TypeFeedbackId id) {
+  set(1 + index * 2, Smi::FromInt(id.ToInt()));
 }
 
 
-Smi* TypeFeedbackCells::AstId(int index) {
-  return Smi::cast(get(1 + index * 2));
+TypeFeedbackId TypeFeedbackCells::AstId(int index) {
+  return TypeFeedbackId(Smi::cast(get(1 + index * 2))->value());
 }
 
 

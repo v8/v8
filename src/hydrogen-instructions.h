@@ -1296,7 +1296,7 @@ class HClampToUint8: public HUnaryOperation {
 
 class HSimulate: public HInstruction {
  public:
-  HSimulate(int ast_id, int pop_count, Zone* zone)
+  HSimulate(BailoutId ast_id, int pop_count, Zone* zone)
       : ast_id_(ast_id),
         pop_count_(pop_count),
         values_(2, zone),
@@ -1306,9 +1306,9 @@ class HSimulate: public HInstruction {
 
   virtual void PrintDataTo(StringStream* stream);
 
-  bool HasAstId() const { return ast_id_ != AstNode::kNoNumber; }
-  int ast_id() const { return ast_id_; }
-  void set_ast_id(int id) {
+  bool HasAstId() const { return !ast_id_.IsNone(); }
+  BailoutId ast_id() const { return ast_id_; }
+  void set_ast_id(BailoutId id) {
     ASSERT(!HasAstId());
     ast_id_ = id;
   }
@@ -1356,7 +1356,7 @@ class HSimulate: public HInstruction {
     // use lists are correctly updated.
     SetOperandAt(values_.length() - 1, value);
   }
-  int ast_id_;
+  BailoutId ast_id_;
   int pop_count_;
   ZoneList<HValue*> values_;
   ZoneList<int> assigned_indexes_;
@@ -3566,11 +3566,11 @@ class HSar: public HBitwiseBinaryOperation {
 
 class HOsrEntry: public HTemplateInstruction<0> {
  public:
-  explicit HOsrEntry(int ast_id) : ast_id_(ast_id) {
+  explicit HOsrEntry(BailoutId ast_id) : ast_id_(ast_id) {
     SetGVNFlag(kChangesOsrEntries);
   }
 
-  int ast_id() const { return ast_id_; }
+  BailoutId ast_id() const { return ast_id_; }
 
   virtual Representation RequiredInputRepresentation(int index) {
     return Representation::None();
@@ -3579,7 +3579,7 @@ class HOsrEntry: public HTemplateInstruction<0> {
   DECLARE_CONCRETE_INSTRUCTION(OsrEntry)
 
  private:
-  int ast_id_;
+  BailoutId ast_id_;
 };
 
 
