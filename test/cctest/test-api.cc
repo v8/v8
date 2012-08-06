@@ -16973,9 +16973,9 @@ TEST(TryFinallyMessage) {
 }
 
 
-THREADED_TEST(Regress137002a) {
-  i::FLAG_allow_natives_syntax = true;
-  v8::HandleScope scope;
+static void Helper137002(bool do_store,
+                         bool polymorphic,
+                         bool remove_accessor) {
   LocalContext context;
   Local<ObjectTemplate> templ = ObjectTemplate::New();
   templ->SetAccessor(v8_str("foo"),
@@ -16985,13 +16985,46 @@ THREADED_TEST(Regress137002a) {
 
   // Turn monomorphic on slow object with native accessor, then turn
   // polymorphic, finally optimize to create negative lookup and fail.
-  CompileRun("function f(x) { return x.foo; }"
+  CompileRun(do_store ?
+             "function f(x) { x.foo = void 0; }" :
+             "function f(x) { return x.foo; }");
+  CompileRun("obj.y = void 0;"
              "%OptimizeObjectForAddingMultipleProperties(obj, 1);"
              "obj.__proto__ = null;"
-             "f(obj); f(obj); f({});"
-             "%OptimizeFunctionOnNextCall(f);"
-             "var result = f(obj);");
-  CHECK_EQ(42, context->Global()->Get(v8_str("result"))->Int32Value());
+             "f(obj); f(obj);");
+  if (polymorphic) {
+    CompileRun("f({});");
+  }
+  CompileRun("obj.y = void 0;"
+             "%OptimizeFunctionOnNextCall(f);");
+  if (remove_accessor) {
+    CompileRun("delete obj.foo;");
+  }
+  CompileRun("var result = f(obj);");
+  if (do_store) {
+    CompileRun("result = obj.y;");
+  }
+  if (remove_accessor) {
+    CHECK(context->Global()->Get(v8_str("result"))->IsUndefined());
+  } else {
+    CHECK_EQ(do_store ? 23 : 42,
+             context->Global()->Get(v8_str("result"))->Int32Value());
+  }
+}
+
+
+THREADED_TEST(Regress137002a) {
+  i::FLAG_allow_natives_syntax = true;
+  i::FLAG_compilation_cache = false;
+  v8::HandleScope scope;
+  Helper137002(false, false, false);
+  Helper137002(false, false, true);
+  Helper137002(false, true, false);
+  Helper137002(false, true, true);
+  Helper137002(true, false, false);
+  Helper137002(true, false, true);
+  Helper137002(true, true, false);
+  Helper137002(true, true, true);
 }
 
 

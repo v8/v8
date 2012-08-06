@@ -554,6 +554,15 @@ class StubCompiler BASE_EMBEDDED {
                             Handle<String> name,
                             Label* miss);
 
+  void GenerateDictionaryLoadCallback(Register receiver,
+                                      Register name_reg,
+                                      Register scratch1,
+                                      Register scratch2,
+                                      Register scratch3,
+                                      Handle<AccessorInfo> callback,
+                                      Handle<String> name,
+                                      Label* miss);
+
   void GenerateLoadConstant(Handle<JSObject> object,
                             Handle<JSObject> holder,
                             Register receiver,

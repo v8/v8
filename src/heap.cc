@@ -2424,6 +2424,7 @@ bool Heap::CreateInitialMaps() {
     if (!maybe_obj->ToObject(&obj)) return false;
   }
   Map* global_context_map = Map::cast(obj);
+  global_context_map->set_dictionary_map(true);
   global_context_map->set_visitor_id(StaticVisitorBase::kVisitGlobalContext);
   set_global_context_map(global_context_map);
 
@@ -4108,6 +4109,7 @@ MaybeObject* Heap::AllocateJSFunctionProxy(Object* handler,
 MaybeObject* Heap::AllocateGlobalObject(JSFunction* constructor) {
   ASSERT(constructor->has_initial_map());
   Map* map = constructor->initial_map();
+  ASSERT(map->is_dictionary_map());
 
   // Make sure no field properties are described in the initial map.
   // This guarantees us that normalizing the properties does not
@@ -4158,6 +4160,7 @@ MaybeObject* Heap::AllocateGlobalObject(JSFunction* constructor) {
   Map* new_map;
   MaybeObject* maybe_map = map->CopyDropDescriptors();
   if (!maybe_map->To(&new_map)) return maybe_map;
+  new_map->set_dictionary_map(true);
 
   // Set up the global object as a normalized object.
   global->set_map(new_map);

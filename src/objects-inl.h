@@ -1608,6 +1608,7 @@ void JSObject::InitializeBody(Map* map,
 
 
 bool JSObject::HasFastProperties() {
+  ASSERT(properties()->IsDictionary() == map()->is_dictionary_map());
   return !properties()->IsDictionary();
 }
 
@@ -3007,8 +3008,19 @@ void Map::set_is_shared(bool value) {
   set_bit_field3(IsShared::update(bit_field3(), value));
 }
 
+
 bool Map::is_shared() {
   return IsShared::decode(bit_field3());
+}
+
+
+void Map::set_dictionary_map(bool value) {
+  set_bit_field3(DictionaryMap::update(bit_field3(), value));
+}
+
+
+bool Map::is_dictionary_map() {
+  return DictionaryMap::decode(bit_field3());
 }
 
 

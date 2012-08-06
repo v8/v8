@@ -989,7 +989,6 @@ void LoadIC::UpdateCaches(LookupResult* lookup,
         if (callback->IsAccessorInfo()) {
           Handle<AccessorInfo> info = Handle<AccessorInfo>::cast(callback);
           if (v8::ToCData<Address>(info->getter()) == 0) return;
-          if (!holder->HasFastProperties()) return;
           if (!info->IsCompatibleReceiver(*receiver)) return;
           code = isolate()->stub_cache()->ComputeLoadCallback(
               name, receiver, holder, info);
@@ -997,7 +996,6 @@ void LoadIC::UpdateCaches(LookupResult* lookup,
           Handle<Object> getter(Handle<AccessorPair>::cast(callback)->getter());
           if (!getter->IsJSFunction()) return;
           if (holder->IsGlobalObject()) return;
-          if (!holder->HasFastProperties()) return;
           code = isolate()->stub_cache()->ComputeLoadViaGetter(
               name, receiver, holder, Handle<JSFunction>::cast(getter));
         } else {

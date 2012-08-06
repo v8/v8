@@ -5215,8 +5215,13 @@ void HGraphBuilder::HandlePropertyAssignment(Assignment* expr) {
 
     HInstruction* instr = NULL;
     SmallMapList* types = expr->GetReceiverTypes();
-    if (expr->IsMonomorphic()) {
-      Handle<Map> map = types->first();
+    bool monomorphic = expr->IsMonomorphic();
+    Handle<Map> map;
+    if (monomorphic) {
+      map = types->first();
+      if (map->is_dictionary_map()) monomorphic = false;
+    }
+    if (monomorphic) {
       Handle<AccessorPair> accessors;
       Handle<JSObject> holder;
       if (LookupAccessorPair(map, name, &accessors, &holder)) {
@@ -5392,8 +5397,14 @@ void HGraphBuilder::HandleCompoundAssignment(Assignment* expr) {
       Handle<String> name = prop->key()->AsLiteral()->AsPropertyName();
       Handle<Map> map;
       HInstruction* load;
-      if (prop->IsMonomorphic()) {
+      bool monomorphic = prop->IsMonomorphic();
+      if (monomorphic) {
         map = prop->GetReceiverTypes()->first();
+        // We can't generate code for a monomorphic dict mode load so
+        // just pretend it is not monomorphic.
+        if (map->is_dictionary_map()) monomorphic = false;
+      }
+      if (monomorphic) {
         Handle<AccessorPair> accessors;
         Handle<JSObject> holder;
         if (LookupAccessorPair(map, name, &accessors, &holder)) {
@@ -5416,7 +5427,7 @@ void HGraphBuilder::HandleCompoundAssignment(Assignment* expr) {
       if (instr->HasObservableSideEffects()) AddSimulate(operation->id());
 
       HInstruction* store;
-      if (map.is_null()) {
+      if (!monomorphic) {
         // If we don't know the monomorphic type, do a generic store.
         CHECK_ALIVE(store = BuildStoreNamedGeneric(object, name, instr));
       } else {
@@ -5717,6 +5728,7 @@ HInstruction* HGraphBuilder::BuildLoadNamedMonomorphic(HValue* object,
                                                        Property* expr,
                                                        Handle<Map> map) {
   // Handle a load from a known field.
+  ASSERT(!map->is_dictionary_map());
   LookupResult lookup(isolate());
   map->LookupDescriptor(NULL, *name, &lookup);
   if (lookup.IsField()) {
@@ -6350,8 +6362,13 @@ void HGraphBuilder::VisitProperty(Property* expr) {
     Handle<String> name = expr->key()->AsLiteral()->AsPropertyName();
     SmallMapList* types = expr->GetReceiverTypes();
 
+    bool monomorphic = expr->IsMonomorphic();
+    Handle<Map> map;
     if (expr->IsMonomorphic()) {
-      Handle<Map> map = types->first();
+      map = types->first();
+      if (map->is_dictionary_map()) monomorphic = false;
+    }
+    if (monomorphic) {
       Handle<AccessorPair> accessors;
       Handle<JSObject> holder;
       if (LookupAccessorPair(map, name, &accessors, &holder)) {
@@ -7860,8 +7877,12 @@ void HGraphBuilder::VisitCountOperation(CountOperation* expr) {
       Handle<String> name = prop->key()->AsLiteral()->AsPropertyName();
       Handle<Map> map;
       HInstruction* load;
-      if (prop->IsMonomorphic()) {
+      bool monomorphic = prop->IsMonomorphic();
+      if (monomorphic) {
         map = prop->GetReceiverTypes()->first();
+        if (map->is_dictionary_map()) monomorphic = false;
+      }
+      if (monomorphic) {
         Handle<AccessorPair> accessors;
         Handle<JSObject> holder;
         if (LookupAccessorPair(map, name, &accessors, &holder)) {
@@ -7879,7 +7900,7 @@ void HGraphBuilder::VisitCountOperation(CountOperation* expr) {
       input = Pop();
 
       HInstruction* store;
-      if (map.is_null()) {
+      if (!monomorphic) {
         // If we don't know the monomorphic type, do a generic store.
         CHECK_ALIVE(store = BuildStoreNamedGeneric(object, name, after));
       } else {

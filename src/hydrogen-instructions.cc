@@ -1743,6 +1743,10 @@ HLoadNamedFieldPolymorphic::HLoadNamedFieldPolymorphic(HValue* context,
           break;
       }
     } else if (lookup.IsCacheable() &&
+               // For dicts the lookup on the map will fail, but the object may
+               // contain the property so we cannot generate a negative lookup
+               // (which would just be a map check and return undefined).
+               !map->is_dictionary_map() &&
                PrototypeChainCanNeverResolve(map, name)) {
       negative_lookups.Add(types->at(i), zone);
     }

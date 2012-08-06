@@ -747,6 +747,7 @@ Handle<JSGlobalProxy> Genesis::CreateNewGlobals(
   }
 
   js_global_function->initial_map()->set_is_hidden_prototype();
+  js_global_function->initial_map()->set_dictionary_map(true);
   Handle<GlobalObject> inner_global =
       factory()->NewGlobalObject(js_global_function);
   if (inner_global_out != NULL) {
@@ -1431,6 +1432,7 @@ bool Genesis::InstallNatives() {
 
   Handle<String> name = factory()->LookupAsciiSymbol("builtins");
   builtins_fun->shared()->set_instance_class_name(*name);
+  builtins_fun->initial_map()->set_dictionary_map(true);
 
   // Allocate the builtins object.
   Handle<JSBuiltinsObject> builtins =
