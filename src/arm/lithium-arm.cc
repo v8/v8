@@ -1359,6 +1359,25 @@ LInstruction* LChunkBuilder::DoAdd(HAdd* instr) {
 }
 
 
+LInstruction* LChunkBuilder::DoMathMinMax(HMathMinMax* instr) {
+  LOperand* left = NULL;
+  LOperand* right = NULL;
+  if (instr->representation().IsInteger32()) {
+    ASSERT(instr->left()->representation().IsInteger32());
+    ASSERT(instr->right()->representation().IsInteger32());
+    left = UseRegisterAtStart(instr->LeastConstantOperand());
+    right = UseOrConstantAtStart(instr->MostConstantOperand());
+  } else {
+    ASSERT(instr->representation().IsDouble());
+    ASSERT(instr->left()->representation().IsDouble());
+    ASSERT(instr->right()->representation().IsDouble());
+    left = UseRegisterAtStart(instr->left());
+    right = UseRegisterAtStart(instr->right());
+  }
+  return DefineAsRegister(new(zone()) LMathMinMax(left, right));
+}
+
+
 LInstruction* LChunkBuilder::DoPower(HPower* instr) {
   ASSERT(instr->representation().IsDouble());
   // We call a C function for double power. It can't trigger a GC.

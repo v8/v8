@@ -124,7 +124,6 @@ class LChunkBuilder;
   V(IsStringAndBranch)                         \
   V(IsSmiAndBranch)                            \
   V(IsUndetectableAndBranch)                   \
-  V(StringCompareAndBranch)                    \
   V(JSArrayLength)                             \
   V(LeaveInlined)                              \
   V(LoadContextSlot)                           \
@@ -141,6 +140,7 @@ class LChunkBuilder;
   V(LoadNamedFieldPolymorphic)                 \
   V(LoadNamedGeneric)                          \
   V(MathFloorOfDiv)                            \
+  V(MathMinMax)                                \
   V(Mod)                                       \
   V(Mul)                                       \
   V(ObjectLiteral)                             \
@@ -170,6 +170,7 @@ class LChunkBuilder;
   V(StringAdd)                                 \
   V(StringCharCodeAt)                          \
   V(StringCharFromCode)                        \
+  V(StringCompareAndBranch)                    \
   V(StringLength)                              \
   V(Sub)                                       \
   V(ThisFunction)                              \
@@ -286,6 +287,8 @@ class Range: public ZoneObject {
 
   void Intersect(Range* other);
   void Union(Range* other);
+  void CombinedMax(Range* other);
+  void CombinedMin(Range* other);
 
   void AddConstant(int32_t value);
   void Sar(int32_t value);
@@ -3467,6 +3470,47 @@ class HDiv: public HArithmeticBinaryOperation {
   virtual bool DataEquals(HValue* other) { return true; }
 
   virtual Range* InferRange(Zone* zone);
+};
+
+
+class HMathMinMax: public HArithmeticBinaryOperation {
+ public:
+  enum Operation { kMathMin, kMathMax };
+
+  HMathMinMax(HValue* context, HValue* left, HValue* right, Operation op)
+      : HArithmeticBinaryOperation(context, left, right),
+        operation_(op) { }
+
+  virtual Representation RequiredInputRepresentation(int index) {
+      return index == 0
+          ? Representation::Tagged()
+          : representation();
+    }
+
+  virtual Representation InferredRepresentation() {
+    if (left()->representation().IsInteger32() &&
+        right()->representation().IsInteger32()) {
+      return Representation::Integer32();
+    }
+    return Representation::Double();
+  }
+
+  virtual bool IsCommutative() const { return true; }
+
+  Operation operation() { return operation_; }
+
+  DECLARE_CONCRETE_INSTRUCTION(MathMinMax)
+
+ protected:
+  virtual bool DataEquals(HValue* other) {
+    return other->IsMathMinMax() &&
+        HMathMinMax::cast(other)->operation_ == operation_;
+  }
+
+  virtual Range* InferRange(Zone* zone);
+
+ private:
+  Operation operation_;
 };
 
 

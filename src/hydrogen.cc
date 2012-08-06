@@ -2556,8 +2556,8 @@ void HGraph::PropagateMinusZeroChecks(HValue* value, BitVector* visited) {
       break;
     }
 
-    // For multiplication and division, we must propagate to the left and
-    // the right side.
+    // For multiplication, division, and Math.min/max(), we must propagate
+    // to the left and the right side.
     if (current->IsMul()) {
       HMul* mul = HMul::cast(current);
       mul->EnsureAndPropagateNotMinusZero(visited);
@@ -2568,6 +2568,11 @@ void HGraph::PropagateMinusZeroChecks(HValue* value, BitVector* visited) {
       div->EnsureAndPropagateNotMinusZero(visited);
       PropagateMinusZeroChecks(div->left(), visited);
       PropagateMinusZeroChecks(div->right(), visited);
+    } else if (current->IsMathMinMax()) {
+      HMathMinMax* minmax = HMathMinMax::cast(current);
+      visited->Add(minmax->id());
+      PropagateMinusZeroChecks(minmax->left(), visited);
+      PropagateMinusZeroChecks(minmax->right(), visited);
     }
 
     current = current->EnsureAndPropagateNotMinusZero(visited);
@@ -7100,79 +7105,12 @@ bool HGraphBuilder::TryInlineBuiltinMethodCall(Call* expr,
         AddCheckConstantFunction(expr->holder(), receiver, receiver_map, true);
         HValue* right = Pop();
         HValue* left = Pop();
-        Pop();  // Pop receiver.
-
-        HValue* left_operand = left;
-        HValue* right_operand = right;
-
-        // If we do not have two integers, we convert to double for comparison.
-        if (!left->representation().IsInteger32() ||
-            !right->representation().IsInteger32()) {
-          if (!left->representation().IsDouble()) {
-            HChange* left_convert = new(zone()) HChange(
-                left,
-                Representation::Double(),
-                false,  // Do not truncate when converting to double.
-                true);  // Deoptimize for undefined.
-            left_convert->SetFlag(HValue::kBailoutOnMinusZero);
-            left_operand = AddInstruction(left_convert);
-          }
-          if (!right->representation().IsDouble()) {
-            HChange* right_convert = new(zone()) HChange(
-                right,
-                Representation::Double(),
-                false,  // Do not truncate when converting to double.
-                true);  // Deoptimize for undefined.
-            right_convert->SetFlag(HValue::kBailoutOnMinusZero);
-            right_operand = AddInstruction(right_convert);
-          }
-        }
-
-        ASSERT(left_operand->representation().Equals(
-               right_operand->representation()));
-        ASSERT(!left_operand->representation().IsTagged());
-
-        Token::Value op = (id == kMathMin) ? Token::LT : Token::GT;
-
-        HCompareIDAndBranch* compare =
-            new(zone()) HCompareIDAndBranch(left_operand, right_operand, op);
-        compare->SetInputRepresentation(left_operand->representation());
-
-        HBasicBlock* return_left = graph()->CreateBasicBlock();
-        HBasicBlock* return_right = graph()->CreateBasicBlock();
-
-        compare->SetSuccessorAt(0, return_left);
-        compare->SetSuccessorAt(1, return_right);
-        current_block()->Finish(compare);
-
-        set_current_block(return_left);
-        Push(left);
-        set_current_block(return_right);
-        // The branch above always returns the right operand if either of
-        // them is NaN, but the spec requires that max/min(NaN, X) = NaN.
-        // We add another branch that checks if the left operand is NaN or not.
-        if (left_operand->representation().IsDouble()) {
-          // If left_operand != left_operand then it is NaN.
-          HCompareIDAndBranch* compare_nan = new(zone()) HCompareIDAndBranch(
-              left_operand, left_operand, Token::EQ);
-          compare_nan->SetInputRepresentation(left_operand->representation());
-          HBasicBlock* left_is_number = graph()->CreateBasicBlock();
-          HBasicBlock* left_is_nan = graph()->CreateBasicBlock();
-          compare_nan->SetSuccessorAt(0, left_is_number);
-          compare_nan->SetSuccessorAt(1, left_is_nan);
-          current_block()->Finish(compare_nan);
-          set_current_block(left_is_nan);
-          Push(left);
-          set_current_block(left_is_number);
-          Push(right);
-          return_right = CreateJoin(left_is_number, left_is_nan, expr->id());
-        } else {
-          Push(right);
-        }
-
-        HBasicBlock* join = CreateJoin(return_left, return_right, expr->id());
-        set_current_block(join);
-        ast_context()->ReturnValue(Pop());
+        Drop(1);  // Receiver.
+        HValue* context = environment()->LookupContext();
+        HMathMinMax::Operation op = (id == kMathMin) ? HMathMinMax::kMathMin
+                                                     : HMathMinMax::kMathMax;
+        HMathMinMax* result = new(zone()) HMathMinMax(context, left, right, op);
+        ast_context()->ReturnInstruction(result, expr->id());
         return true;
       }
       break;
