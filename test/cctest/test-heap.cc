@@ -1753,6 +1753,19 @@ static int CountMapTransitions(Map* map) {
 }
 
 
+// Go through all incremental marking steps in one swoop.
+static void SimulateIncrementalMarking() {
+  IncrementalMarking* marking = HEAP->incremental_marking();
+  CHECK(marking->IsStopped());
+  marking->Start();
+  CHECK(marking->IsMarking());
+  while (!marking->IsComplete()) {
+    marking->Step(MB, IncrementalMarking::NO_GC_VIA_STACK_GUARD);
+  }
+  CHECK(marking->IsComplete());
+}
+
+
 // Test that map transitions are cleared and maps are collected with
 // incremental marking as well.
 TEST(Regress1465) {
@@ -1782,15 +1795,7 @@ TEST(Regress1465) {
   CompileRun("%DebugPrint(root);");
   CHECK_EQ(transitions_count, transitions_before);
 
-  // Go through all incremental marking steps in one swoop.
-  IncrementalMarking* marking = HEAP->incremental_marking();
-  CHECK(marking->IsStopped());
-  marking->Start();
-  CHECK(marking->IsMarking());
-  while (!marking->IsComplete()) {
-    marking->Step(MB, IncrementalMarking::NO_GC_VIA_STACK_GUARD);
-  }
-  CHECK(marking->IsComplete());
+  SimulateIncrementalMarking();
   HEAP->CollectAllGarbage(Heap::kNoGCFlags);
 
   // Count number of live transitions after marking.  Note that one transition
@@ -1813,15 +1818,7 @@ TEST(Regress2143a) {
              "root.foo = 0;"
              "root = new Object;");
 
-  // Go through all incremental marking steps in one swoop.
-  IncrementalMarking* marking = HEAP->incremental_marking();
-  CHECK(marking->IsStopped());
-  marking->Start();
-  CHECK(marking->IsMarking());
-  while (!marking->IsComplete()) {
-    marking->Step(MB, IncrementalMarking::NO_GC_VIA_STACK_GUARD);
-  }
-  CHECK(marking->IsComplete());
+  SimulateIncrementalMarking();
 
   // Compile a StoreIC that performs the prepared map transition. This
   // will restart incremental marking and should make sure the root is
@@ -1862,15 +1859,7 @@ TEST(Regress2143b) {
              "root.foo = 0;"
              "root = new Object;");
 
-  // Go through all incremental marking steps in one swoop.
-  IncrementalMarking* marking = HEAP->incremental_marking();
-  CHECK(marking->IsStopped());
-  marking->Start();
-  CHECK(marking->IsMarking());
-  while (!marking->IsComplete()) {
-    marking->Step(MB, IncrementalMarking::NO_GC_VIA_STACK_GUARD);
-  }
-  CHECK(marking->IsComplete());
+  SimulateIncrementalMarking();
 
   // Compile an optimized LStoreNamedField that performs the prepared
   // map transition. This will restart incremental marking and should
@@ -2066,15 +2055,7 @@ TEST(IncrementalMarkingClearsTypeFeedbackCells) {
   CHECK(cells->Cell(0)->value()->IsJSFunction());
   CHECK(cells->Cell(1)->value()->IsJSFunction());
 
-  // Go through all incremental marking steps in one swoop.
-  IncrementalMarking* marking = HEAP->incremental_marking();
-  CHECK(marking->IsStopped());
-  marking->Start();
-  CHECK(marking->IsMarking());
-  while (!marking->IsComplete()) {
-    marking->Step(MB, IncrementalMarking::NO_GC_VIA_STACK_GUARD);
-  }
-  CHECK(marking->IsComplete());
+  SimulateIncrementalMarking();
   HEAP->CollectAllGarbage(Heap::kNoGCFlags);
 
   CHECK_EQ(2, cells->CellCount());
@@ -2118,16 +2099,7 @@ TEST(IncrementalMarkingPreservesMonomorhpicIC) {
 
   // Fire context dispose notification.
   v8::V8::ContextDisposedNotification();
-
-  // Go through all incremental marking steps in one swoop.
-  IncrementalMarking* marking = HEAP->incremental_marking();
-  CHECK(marking->IsStopped());
-  marking->Start();
-  CHECK(marking->IsMarking());
-  while (!marking->IsComplete()) {
-    marking->Step(MB, IncrementalMarking::NO_GC_VIA_STACK_GUARD);
-  }
-  CHECK(marking->IsComplete());
+  SimulateIncrementalMarking();
   HEAP->CollectAllGarbage(Heap::kNoGCFlags);
 
   Code* ic_after = FindFirstIC(f->shared()->code(), Code::LOAD_IC);
@@ -2161,16 +2133,7 @@ TEST(IncrementalMarkingClearsMonomorhpicIC) {
 
   // Fire context dispose notification.
   v8::V8::ContextDisposedNotification();
-
-  // Go through all incremental marking steps in one swoop.
-  IncrementalMarking* marking = HEAP->incremental_marking();
-  CHECK(marking->IsStopped());
-  marking->Start();
-  CHECK(marking->IsMarking());
-  while (!marking->IsComplete()) {
-    marking->Step(MB, IncrementalMarking::NO_GC_VIA_STACK_GUARD);
-  }
-  CHECK(marking->IsComplete());
+  SimulateIncrementalMarking();
   HEAP->CollectAllGarbage(Heap::kNoGCFlags);
 
   Code* ic_after = FindFirstIC(f->shared()->code(), Code::LOAD_IC);
@@ -2211,16 +2174,7 @@ TEST(IncrementalMarkingClearsPolymorhpicIC) {
 
   // Fire context dispose notification.
   v8::V8::ContextDisposedNotification();
-
-  // Go through all incremental marking steps in one swoop.
-  IncrementalMarking* marking = HEAP->incremental_marking();
-  CHECK(marking->IsStopped());
-  marking->Start();
-  CHECK(marking->IsMarking());
-  while (!marking->IsComplete()) {
-    marking->Step(MB, IncrementalMarking::NO_GC_VIA_STACK_GUARD);
-  }
-  CHECK(marking->IsComplete());
+  SimulateIncrementalMarking();
   HEAP->CollectAllGarbage(Heap::kNoGCFlags);
 
   Code* ic_after = FindFirstIC(f->shared()->code(), Code::LOAD_IC);
