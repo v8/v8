@@ -3299,6 +3299,7 @@ bool v8::Object::SetHiddenValue(v8::Handle<v8::String> key,
                                 v8::Handle<v8::Value> value) {
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
   ON_BAILOUT(isolate, "v8::Object::SetHiddenValue()", return false);
+  if (value.IsEmpty()) return DeleteHiddenValue(key);
   ENTER_V8(isolate);
   i::HandleScope scope(isolate);
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
