@@ -789,7 +789,7 @@ void JavaScriptFrame::PrintTop(FILE* file,
                                          ROBUST_STRING_TRAVERSAL);
               PrintF(file, " at %s:%d", *c_script_name, line);
             } else {
-              PrintF(file, "at <unknown>:%d", line);
+              PrintF(file, " at <unknown>:%d", line);
             }
           } else {
             PrintF(file, " at <unknown>:<unknown>");

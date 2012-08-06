@@ -612,8 +612,6 @@ class MarkCompactCollector {
 
   bool was_marked_incrementally_;
 
-  bool flush_monomorphic_ics_;
-
   // A pointer to the current stack-allocated GC tracer object during a full
   // collection (NULL before and after).
   GCTracer* tracer_;

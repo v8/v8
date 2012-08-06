@@ -2081,3 +2081,148 @@ TEST(IncrementalMarkingClearsTypeFeedbackCells) {
   CHECK(cells->Cell(0)->value()->IsTheHole());
   CHECK(cells->Cell(1)->value()->IsTheHole());
 }
+
+
+static Code* FindFirstIC(Code* code, Code::Kind kind) {
+  int mask = RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |
+             RelocInfo::ModeMask(RelocInfo::CONSTRUCT_CALL) |
+             RelocInfo::ModeMask(RelocInfo::CODE_TARGET_WITH_ID) |
+             RelocInfo::ModeMask(RelocInfo::CODE_TARGET_CONTEXT);
+  for (RelocIterator it(code, mask); !it.done(); it.next()) {
+    RelocInfo* info = it.rinfo();
+    Code* target = Code::GetCodeFromTargetAddress(info->target_address());
+    if (target->is_inline_cache_stub() && target->kind() == kind) {
+      return target;
+    }
+  }
+  return NULL;
+}
+
+
+TEST(IncrementalMarkingPreservesMonomorhpicIC) {
+  if (i::FLAG_always_opt) return;
+  InitializeVM();
+  v8::HandleScope scope;
+
+  // Prepare function f that contains a monomorphic IC for object
+  // originating from the same global context.
+  CompileRun("function fun() { this.x = 1; }; var obj = new fun();"
+             "function f(o) { return o.x; } f(obj); f(obj);");
+  Handle<JSFunction> f =
+      v8::Utils::OpenHandle(
+          *v8::Handle<v8::Function>::Cast(
+              v8::Context::GetCurrent()->Global()->Get(v8_str("f"))));
+
+  Code* ic_before = FindFirstIC(f->shared()->code(), Code::LOAD_IC);
+  CHECK(ic_before->ic_state() == MONOMORPHIC);
+
+  // Fire context dispose notification.
+  v8::V8::ContextDisposedNotification();
+
+  // Go through all incremental marking steps in one swoop.
+  IncrementalMarking* marking = HEAP->incremental_marking();
+  CHECK(marking->IsStopped());
+  marking->Start();
+  CHECK(marking->IsMarking());
+  while (!marking->IsComplete()) {
+    marking->Step(MB, IncrementalMarking::NO_GC_VIA_STACK_GUARD);
+  }
+  CHECK(marking->IsComplete());
+  HEAP->CollectAllGarbage(Heap::kNoGCFlags);
+
+  Code* ic_after = FindFirstIC(f->shared()->code(), Code::LOAD_IC);
+  CHECK(ic_after->ic_state() == MONOMORPHIC);
+}
+
+
+TEST(IncrementalMarkingClearsMonomorhpicIC) {
+  if (i::FLAG_always_opt) return;
+  InitializeVM();
+  v8::HandleScope scope;
+  v8::Local<v8::Value> obj1;
+
+  {
+    LocalContext env;
+    CompileRun("function fun() { this.x = 1; }; var obj = new fun();");
+    obj1 = env->Global()->Get(v8_str("obj"));
+  }
+
+  // Prepare function f that contains a monomorphic IC for object
+  // originating from a different global context.
+  v8::Context::GetCurrent()->Global()->Set(v8_str("obj1"), obj1);
+  CompileRun("function f(o) { return o.x; } f(obj1); f(obj1);");
+  Handle<JSFunction> f =
+      v8::Utils::OpenHandle(
+          *v8::Handle<v8::Function>::Cast(
+              v8::Context::GetCurrent()->Global()->Get(v8_str("f"))));
+
+  Code* ic_before = FindFirstIC(f->shared()->code(), Code::LOAD_IC);
+  CHECK(ic_before->ic_state() == MONOMORPHIC);
+
+  // Fire context dispose notification.
+  v8::V8::ContextDisposedNotification();
+
+  // Go through all incremental marking steps in one swoop.
+  IncrementalMarking* marking = HEAP->incremental_marking();
+  CHECK(marking->IsStopped());
+  marking->Start();
+  CHECK(marking->IsMarking());
+  while (!marking->IsComplete()) {
+    marking->Step(MB, IncrementalMarking::NO_GC_VIA_STACK_GUARD);
+  }
+  CHECK(marking->IsComplete());
+  HEAP->CollectAllGarbage(Heap::kNoGCFlags);
+
+  Code* ic_after = FindFirstIC(f->shared()->code(), Code::LOAD_IC);
+  CHECK(ic_after->ic_state() == UNINITIALIZED);
+}
+
+
+TEST(IncrementalMarkingClearsPolymorhpicIC) {
+  if (i::FLAG_always_opt) return;
+  InitializeVM();
+  v8::HandleScope scope;
+  v8::Local<v8::Value> obj1, obj2;
+
+  {
+    LocalContext env;
+    CompileRun("function fun() { this.x = 1; }; var obj = new fun();");
+    obj1 = env->Global()->Get(v8_str("obj"));
+  }
+
+  {
+    LocalContext env;
+    CompileRun("function fun() { this.x = 2; }; var obj = new fun();");
+    obj2 = env->Global()->Get(v8_str("obj"));
+  }
+
+  // Prepare function f that contains a polymorphic IC for objects
+  // originating from two different global contexts.
+  v8::Context::GetCurrent()->Global()->Set(v8_str("obj1"), obj1);
+  v8::Context::GetCurrent()->Global()->Set(v8_str("obj2"), obj2);
+  CompileRun("function f(o) { return o.x; } f(obj1); f(obj1); f(obj2);");
+  Handle<JSFunction> f =
+      v8::Utils::OpenHandle(
+          *v8::Handle<v8::Function>::Cast(
+              v8::Context::GetCurrent()->Global()->Get(v8_str("f"))));
+
+  Code* ic_before = FindFirstIC(f->shared()->code(), Code::LOAD_IC);
+  CHECK(ic_before->ic_state() == MEGAMORPHIC);
+
+  // Fire context dispose notification.
+  v8::V8::ContextDisposedNotification();
+
+  // Go through all incremental marking steps in one swoop.
+  IncrementalMarking* marking = HEAP->incremental_marking();
+  CHECK(marking->IsStopped());
+  marking->Start();
+  CHECK(marking->IsMarking());
+  while (!marking->IsComplete()) {
+    marking->Step(MB, IncrementalMarking::NO_GC_VIA_STACK_GUARD);
+  }
+  CHECK(marking->IsComplete());
+  HEAP->CollectAllGarbage(Heap::kNoGCFlags);
+
+  Code* ic_after = FindFirstIC(f->shared()->code(), Code::LOAD_IC);
+  CHECK(ic_after->ic_state() == UNINITIALIZED);
+}

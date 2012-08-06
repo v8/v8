@@ -175,18 +175,6 @@ class IncrementalMarkingMarkingVisitor
     table_.Register(kVisitJSRegExp, &VisitJSRegExp);
   }
 
-  static inline void VisitCodeTarget(Heap* heap, RelocInfo* rinfo) {
-    ASSERT(RelocInfo::IsCodeTarget(rinfo->rmode()));
-    Code* target = Code::GetCodeFromTargetAddress(rinfo->target_address());
-    if (FLAG_cleanup_code_caches_at_gc && target->is_inline_cache_stub()
-        && (target->ic_age() != heap->global_ic_age())) {
-      IC::Clear(rinfo->pc());
-      target = Code::GetCodeFromTargetAddress(rinfo->target_address());
-    }
-    heap->mark_compact_collector()->RecordRelocSlot(rinfo, Code::cast(target));
-    MarkObject(heap, target);
-  }
-
   static void VisitJSWeakMap(Map* map, HeapObject* object) {
     Heap* heap = map->GetHeap();
     VisitPointers(heap,

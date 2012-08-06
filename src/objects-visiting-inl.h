@@ -209,6 +209,26 @@ void StaticMarkingVisitor<StaticVisitor>::VisitDebugTarget(
 
 
 template<typename StaticVisitor>
+void StaticMarkingVisitor<StaticVisitor>::VisitCodeTarget(
+    Heap* heap, RelocInfo* rinfo) {
+  ASSERT(RelocInfo::IsCodeTarget(rinfo->rmode()));
+  Code* target = Code::GetCodeFromTargetAddress(rinfo->target_address());
+  // Monomorphic ICs are preserved when possible, but need to be flushed
+  // when they might be keeping a Context alive, or when the heap is about
+  // to be serialized.
+  if (FLAG_cleanup_code_caches_at_gc && target->is_inline_cache_stub()
+      && (target->ic_state() == MEGAMORPHIC || Serializer::enabled() ||
+          heap->isolate()->context_exit_happened() ||
+          target->ic_age() != heap->global_ic_age())) {
+    IC::Clear(rinfo->pc());
+    target = Code::GetCodeFromTargetAddress(rinfo->target_address());
+  }
+  heap->mark_compact_collector()->RecordRelocSlot(rinfo, target);
+  StaticVisitor::MarkObject(heap, target);
+}
+
+
+template<typename StaticVisitor>
 void StaticMarkingVisitor<StaticVisitor>::VisitGlobalContext(
     Map* map, HeapObject* object) {
   FixedBodyVisitor<StaticVisitor,
