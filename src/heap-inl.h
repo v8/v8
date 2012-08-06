@@ -468,10 +468,12 @@ intptr_t Heap::AdjustAmountOfExternalAllocatedMemory(
     // Avoid overflow.
     if (amount > amount_of_external_allocated_memory_) {
       amount_of_external_allocated_memory_ = amount;
+    } else {
+      // Give up and reset the counters in case of an overflow.
+      amount_of_external_allocated_memory_ = 0;
+      amount_of_external_allocated_memory_at_last_global_gc_ = 0;
     }
-    intptr_t amount_since_last_global_gc =
-        amount_of_external_allocated_memory_ -
-        amount_of_external_allocated_memory_at_last_global_gc_;
+    intptr_t amount_since_last_global_gc = PromotedExternalMemorySize();
     if (amount_since_last_global_gc > external_allocation_limit_) {
       CollectAllGarbage(kNoGCFlags, "external memory allocation limit reached");
     }
@@ -479,6 +481,10 @@ intptr_t Heap::AdjustAmountOfExternalAllocatedMemory(
     // Avoid underflow.
     if (amount >= 0) {
       amount_of_external_allocated_memory_ = amount;
+    } else {
+      // Give up and reset the counters in case of an overflow.
+      amount_of_external_allocated_memory_ = 0;
+      amount_of_external_allocated_memory_at_last_global_gc_ = 0;
     }
   }
   ASSERT(amount_of_external_allocated_memory_ >= 0);

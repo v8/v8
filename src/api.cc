@@ -5275,8 +5275,9 @@ void V8::AddImplicitReferences(Persistent<Object> parent,
 
 
 intptr_t V8::AdjustAmountOfExternalAllocatedMemory(intptr_t change_in_bytes) {
-  i::Isolate* isolate = i::Isolate::Current();
-  if (IsDeadCheck(isolate, "v8::V8::AdjustAmountOfExternalAllocatedMemory()")) {
+  i::Isolate* isolate = i::Isolate::UncheckedCurrent();
+  if (isolate == NULL || !isolate->IsInitialized() ||
+      IsDeadCheck(isolate, "v8::V8::AdjustAmountOfExternalAllocatedMemory()")) {
     return 0;
   }
   return isolate->heap()->AdjustAmountOfExternalAllocatedMemory(
