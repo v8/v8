@@ -1714,6 +1714,7 @@ static bool PrototypeChainCanNeverResolve(
     if (current->IsJSGlobalProxy() ||
         current->IsGlobalObject() ||
         !current->IsJSObject() ||
+        JSObject::cast(current)->map()->has_named_interceptor() ||
         JSObject::cast(current)->IsAccessCheckNeeded() ||
         !JSObject::cast(current)->HasFastProperties()) {
       return false;
@@ -1779,6 +1780,7 @@ HLoadNamedFieldPolymorphic::HLoadNamedFieldPolymorphic(HValue* context,
                // contain the property so we cannot generate a negative lookup
                // (which would just be a map check and return undefined).
                !map->is_dictionary_map() &&
+               !map->has_named_interceptor() &&
                PrototypeChainCanNeverResolve(map, name)) {
       negative_lookups.Add(types->at(i), zone);
     }

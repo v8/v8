@@ -14737,6 +14737,22 @@ static void SetterWhichSetsYOnThisTo23(Local<String> name,
 }
 
 
+Handle<Value> FooGetInterceptor(Local<String> name,
+                                const AccessorInfo& info) {
+  if (!name->Equals(v8_str("foo"))) return Handle<Value>();
+  return v8_num(42);
+}
+
+
+Handle<Value> FooSetInterceptor(Local<String> name,
+                                Local<Value> value,
+                                const AccessorInfo& info) {
+  if (!name->Equals(v8_str("foo"))) return Handle<Value>();
+  info.This()->Set(v8_str("y"), v8_num(23));
+  return v8_num(23);
+}
+
+
 TEST(SetterOnConstructorPrototype) {
   v8::HandleScope scope;
   Local<ObjectTemplate> templ = ObjectTemplate::New();
@@ -16975,12 +16991,17 @@ TEST(TryFinallyMessage) {
 
 static void Helper137002(bool do_store,
                          bool polymorphic,
-                         bool remove_accessor) {
+                         bool remove_accessor,
+                         bool interceptor) {
   LocalContext context;
   Local<ObjectTemplate> templ = ObjectTemplate::New();
-  templ->SetAccessor(v8_str("foo"),
-                     GetterWhichReturns42,
-                     SetterWhichSetsYOnThisTo23);
+  if (interceptor) {
+    templ->SetNamedPropertyHandler(FooGetInterceptor, FooSetInterceptor);
+  } else {
+    templ->SetAccessor(v8_str("foo"),
+                       GetterWhichReturns42,
+                       SetterWhichSetsYOnThisTo23);
+  }
   context->Global()->Set(v8_str("obj"), templ->NewInstance());
 
   // Turn monomorphic on slow object with native accessor, then turn
@@ -16988,10 +17009,12 @@ static void Helper137002(bool do_store,
   CompileRun(do_store ?
              "function f(x) { x.foo = void 0; }" :
              "function f(x) { return x.foo; }");
-  CompileRun("obj.y = void 0;"
-             "%OptimizeObjectForAddingMultipleProperties(obj, 1);"
-             "obj.__proto__ = null;"
-             "f(obj); f(obj);");
+  CompileRun("obj.y = void 0;");
+  if (!interceptor) {
+    CompileRun("%OptimizeObjectForAddingMultipleProperties(obj, 1);");
+  }
+  CompileRun("obj.__proto__ = null;"
+             "f(obj); f(obj); f(obj);");
   if (polymorphic) {
     CompileRun("f({});");
   }
@@ -17004,7 +17027,7 @@ static void Helper137002(bool do_store,
   if (do_store) {
     CompileRun("result = obj.y;");
   }
-  if (remove_accessor) {
+  if (remove_accessor && !interceptor) {
     CHECK(context->Global()->Get(v8_str("result"))->IsUndefined());
   } else {
     CHECK_EQ(do_store ? 23 : 42,
@@ -17017,14 +17040,9 @@ THREADED_TEST(Regress137002a) {
   i::FLAG_allow_natives_syntax = true;
   i::FLAG_compilation_cache = false;
   v8::HandleScope scope;
-  Helper137002(false, false, false);
-  Helper137002(false, false, true);
-  Helper137002(false, true, false);
-  Helper137002(false, true, true);
-  Helper137002(true, false, false);
-  Helper137002(true, false, true);
-  Helper137002(true, true, false);
-  Helper137002(true, true, true);
+  for (int i = 0; i < 16; i++) {
+    Helper137002(i & 8, i & 4, i & 2, i & 1);
+  }
 }
 
 
