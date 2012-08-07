@@ -2055,6 +2055,9 @@ class Heap {
   // Maximum GC pause.
   int max_gc_pause_;
 
+  // Total time spent in GC.
+  int total_gc_time_ms_;
+
   // Maximum size of objects alive after GC.
   intptr_t max_alive_after_gc_;
 

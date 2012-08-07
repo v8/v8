@@ -362,6 +362,8 @@ DEFINE_bool(trace_gc, false,
 DEFINE_bool(trace_gc_nvp, false,
             "print one detailed trace line in name=value format "
             "after each garbage collection")
+DEFINE_bool(trace_gc_ignore_scavenger, false,
+            "do not print trace line after scavenger collection")
 DEFINE_bool(print_cumulative_gc_stat, false,
             "print cumulative GC statistics in name=value format on exit")
 DEFINE_bool(trace_gc_verbose, false,

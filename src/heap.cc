@@ -139,6 +139,7 @@ Heap::Heap()
       previous_survival_rate_trend_(Heap::STABLE),
       survival_rate_trend_(Heap::STABLE),
       max_gc_pause_(0),
+      total_gc_time_ms_(0),
       max_alive_after_gc_(0),
       min_in_mutator_(kMaxInt),
       alive_after_last_gc_(0),
@@ -369,6 +370,7 @@ void Heap::PrintShortHeapStatistics() {
            lo_space_->SizeOfObjects() / KB,
            lo_space_->Available() / KB,
            lo_space_->CommittedMemory() / KB);
+  PrintPID("Total time spent in GC  : %d ms\n", total_gc_time_ms_);
 }
 
 
@@ -6188,6 +6190,7 @@ void Heap::TearDown() {
     PrintF("gc_count=%d ", gc_count_);
     PrintF("mark_sweep_count=%d ", ms_count_);
     PrintF("max_gc_pause=%d ", get_max_gc_pause());
+    PrintF("total_gc_time=%d ", total_gc_time_ms_);
     PrintF("min_in_mutator=%d ", get_min_in_mutator());
     PrintF("max_alive_after_gc=%" V8_PTR_PREFIX "d ",
            get_max_alive_after_gc());
@@ -6869,6 +6872,7 @@ GCTracer::~GCTracer() {
 
   // Update cumulative GC statistics if required.
   if (FLAG_print_cumulative_gc_stat) {
+    heap_->total_gc_time_ms_ += time;
     heap_->max_gc_pause_ = Max(heap_->max_gc_pause_, time);
     heap_->max_alive_after_gc_ = Max(heap_->max_alive_after_gc_,
                                      heap_->alive_after_last_gc_);
@@ -6876,7 +6880,11 @@ GCTracer::~GCTracer() {
       heap_->min_in_mutator_ = Min(heap_->min_in_mutator_,
                                    static_cast<int>(spent_in_mutator_));
     }
+  } else if (FLAG_trace_gc_verbose) {
+    heap_->total_gc_time_ms_ += time;
   }
+
+  if (collector_ == SCAVENGER && FLAG_trace_gc_ignore_scavenger) return;
 
   PrintPID("%8.0f ms: ", heap_->isolate()->time_millis_since_init());
 
@@ -6920,9 +6928,7 @@ GCTracer::~GCTracer() {
     PrintF(".\n");
   } else {
     PrintF("pause=%d ", time);
-    PrintF("mutator=%d ",
-           static_cast<int>(spent_in_mutator_));
-
+    PrintF("mutator=%d ", static_cast<int>(spent_in_mutator_));
     PrintF("gc=");
     switch (collector_) {
       case SCAVENGER:
