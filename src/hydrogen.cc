@@ -5421,7 +5421,7 @@ void HGraphBuilder::HandleCompoundAssignment(Assignment* expr) {
         load = BuildLoadNamedGeneric(object, name, prop);
       }
       PushAndAdd(load);
-      if (load->HasObservableSideEffects()) AddSimulate(expr->CompoundLoadId());
+      if (load->HasObservableSideEffects()) AddSimulate(prop->LoadId());
 
       CHECK_ALIVE(VisitForValue(expr->value()));
       HValue* right = Pop();
@@ -5465,11 +5465,11 @@ void HGraphBuilder::HandleCompoundAssignment(Assignment* expr) {
 
       bool has_side_effects = false;
       HValue* load = HandleKeyedElementAccess(
-          obj, key, NULL, prop, expr->CompoundLoadId(), RelocInfo::kNoPosition,
+          obj, key, NULL, prop, prop->LoadId(), RelocInfo::kNoPosition,
           false,  // is_store
           &has_side_effects);
       Push(load);
-      if (has_side_effects) AddSimulate(expr->CompoundLoadId());
+      if (has_side_effects) AddSimulate(prop->LoadId());
 
 
       CHECK_ALIVE(VisitForValue(expr->value()));
@@ -6956,7 +6956,7 @@ bool HGraphBuilder::TryInlineGetter(Handle<JSFunction> getter,
                    0,
                    NULL,
                    prop->id(),
-                   prop->ReturnId(),
+                   prop->LoadId(),
                    NORMAL_RETURN);
 }
 
@@ -7832,7 +7832,7 @@ void HGraphBuilder::VisitCountOperation(CountOperation* expr) {
         load = BuildLoadNamedGeneric(object, name, prop);
       }
       PushAndAdd(load);
-      if (load->HasObservableSideEffects()) AddSimulate(expr->CountId());
+      if (load->HasObservableSideEffects()) AddSimulate(prop->LoadId());
 
       after = BuildIncrement(returns_original_input, expr);
       input = Pop();
@@ -7875,11 +7875,11 @@ void HGraphBuilder::VisitCountOperation(CountOperation* expr) {
 
       bool has_side_effects = false;
       HValue* load = HandleKeyedElementAccess(
-          obj, key, NULL, prop, expr->CountId(), RelocInfo::kNoPosition,
+          obj, key, NULL, prop, prop->LoadId(), RelocInfo::kNoPosition,
           false,  // is_store
           &has_side_effects);
       Push(load);
-      if (has_side_effects) AddSimulate(expr->CountId());
+      if (has_side_effects) AddSimulate(prop->LoadId());
 
       after = BuildIncrement(returns_original_input, expr);
       input = Pop();

@@ -1513,7 +1513,7 @@ class Property: public Expression {
   Expression* key() const { return key_; }
   virtual int position() const { return pos_; }
 
-  BailoutId ReturnId() const { return return_id_; }
+  BailoutId LoadId() const { return load_id_; }
 
   bool IsStringLength() const { return is_string_length_; }
   bool IsStringAccess() const { return is_string_access_; }
@@ -1538,7 +1538,7 @@ class Property: public Expression {
         obj_(obj),
         key_(key),
         pos_(pos),
-        return_id_(GetNextId(isolate)),
+        load_id_(GetNextId(isolate)),
         is_monomorphic_(false),
         is_uninitialized_(false),
         is_array_length_(false),
@@ -1550,7 +1550,7 @@ class Property: public Expression {
   Expression* obj_;
   Expression* key_;
   int pos_;
-  const BailoutId return_id_;
+  const BailoutId load_id_;
 
   SmallMapList receiver_types_;
   bool is_monomorphic_ : 1;
@@ -1810,11 +1810,9 @@ class CountOperation: public Expression {
   virtual SmallMapList* GetReceiverTypes() { return &receiver_types_; }
 
   BailoutId AssignmentId() const { return assignment_id_; }
-  BailoutId CountId() const { return count_id_; }
 
-  TypeFeedbackId CountBinOpFeedbackId() const { return reuse(CountId()); }
+  TypeFeedbackId CountBinOpFeedbackId() const { return count_id_; }
   TypeFeedbackId CountStoreFeedbackId() const { return reuse(id()); }
-
 
  protected:
   template<class> friend class AstNodeFactory;
@@ -1839,7 +1837,7 @@ class CountOperation: public Expression {
   Expression* expression_;
   int pos_;
   const BailoutId assignment_id_;
-  const BailoutId count_id_;
+  const TypeFeedbackId count_id_;
   SmallMapList receiver_types_;
 };
 
@@ -1961,7 +1959,6 @@ class Assignment: public Expression {
   void mark_block_start() { block_start_ = true; }
   void mark_block_end() { block_end_ = true; }
 
-  BailoutId CompoundLoadId() const { return compound_load_id_; }
   BailoutId AssignmentId() const { return assignment_id_; }
 
   // Type feedback information.
@@ -1994,7 +1991,6 @@ class Assignment: public Expression {
   Expression* value_;
   int pos_;
   BinaryOperation* binary_operation_;
-  const BailoutId compound_load_id_;
   const BailoutId assignment_id_;
 
   bool block_start_;
