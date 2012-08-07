@@ -398,7 +398,9 @@ TEST(AssignmentAndCall) {
   // The inferred name is empty, because this is an assignment of a result.
   CheckFunctionName(script, "return 1", "");
   // See MultipleAssignments test.
-  CheckFunctionName(script, "return 2", "Enclosing.Bar");
+  // TODO(2276): Lazy compiling the enclosing outer closure would yield
+  // in "Enclosing.Bar" being the inferred name here.
+  CheckFunctionName(script, "return 2", "Bar");
 }
 
 

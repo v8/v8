@@ -929,7 +929,7 @@ Handle<SharedFunctionInfo> Compiler::BuildFunctionInfo(FunctionLiteral* literal,
   Handle<ScopeInfo> scope_info(ScopeInfo::Empty());
 
   // Generate code
-  if (FLAG_lazy && allow_lazy) {
+  if (FLAG_lazy && allow_lazy && !literal->is_parenthesized()) {
     Handle<Code> code = info.isolate()->builtins()->LazyCompile();
     info.SetCode(code);
   } else if (GenerateCode(&info)) {

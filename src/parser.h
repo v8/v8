@@ -536,8 +536,21 @@ class Parser {
     AstNodeFactory<AstConstructionVisitor> factory_;
   };
 
+  class ParsingModeScope BASE_EMBEDDED {
+   public:
+    ParsingModeScope(Parser* parser, Mode mode)
+        : parser_(parser),
+          old_mode_(parser->mode()) {
+      parser_->mode_ = mode;
+    }
+    ~ParsingModeScope() {
+      parser_->mode_ = old_mode_;
+    }
 
-
+   private:
+    Parser* parser_;
+    Mode old_mode_;
+  };
 
   FunctionLiteral* ParseLazy(Utf16CharacterStream* source,
                              ZoneScope* zone_scope);

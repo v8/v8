@@ -2038,6 +2038,11 @@ class FunctionLiteral: public Expression {
     kIsFunction
   };
 
+  enum IsParenthesizedFlag {
+    kIsParenthesized,
+    kNotParenthesized
+  };
+
   DECLARE_NODE_TYPE(FunctionLiteral)
 
   Handle<String> name() const { return name_; }
@@ -2086,6 +2091,10 @@ class FunctionLiteral: public Expression {
 
   bool is_function() { return IsFunction::decode(bitfield_) == kIsFunction; }
 
+  bool is_parenthesized() {
+    return IsParenthesized::decode(bitfield_) == kIsParenthesized;
+  }
+
   int ast_node_count() { return ast_properties_.node_count(); }
   AstProperties::Flags* flags() { return ast_properties_.flags(); }
   void set_ast_properties(AstProperties* ast_properties) {
@@ -2107,7 +2116,8 @@ class FunctionLiteral: public Expression {
                   int parameter_count,
                   Type type,
                   ParameterFlag has_duplicate_parameters,
-                  IsFunctionFlag is_function)
+                  IsFunctionFlag is_function,
+                  IsParenthesizedFlag is_parenthesized)
       : Expression(isolate),
         name_(name),
         scope_(scope),
@@ -2126,7 +2136,8 @@ class FunctionLiteral: public Expression {
         IsAnonymous::encode(type == ANONYMOUS_EXPRESSION) |
         Pretenure::encode(false) |
         HasDuplicateParameters::encode(has_duplicate_parameters) |
-        IsFunction::encode(is_function);
+        IsFunction::encode(is_function) |
+        IsParenthesized::encode(is_parenthesized);
   }
 
  private:
@@ -2150,6 +2161,7 @@ class FunctionLiteral: public Expression {
   class Pretenure: public BitField<bool, 3, 1> {};
   class HasDuplicateParameters: public BitField<ParameterFlag, 4, 1> {};
   class IsFunction: public BitField<IsFunctionFlag, 5, 1> {};
+  class IsParenthesized: public BitField<IsParenthesizedFlag, 6, 1> {};
 };
 
 
@@ -2953,12 +2965,14 @@ class AstNodeFactory BASE_EMBEDDED {
       int parameter_count,
       FunctionLiteral::ParameterFlag has_duplicate_parameters,
       FunctionLiteral::Type type,
-      FunctionLiteral::IsFunctionFlag is_function) {
+      FunctionLiteral::IsFunctionFlag is_function,
+      FunctionLiteral::IsParenthesizedFlag is_parenthesized) {
     FunctionLiteral* lit = new(zone_) FunctionLiteral(
         isolate_, name, scope, body,
         materialized_literal_count, expected_property_count, handler_count,
         has_only_simple_this_property_assignments, this_property_assignments,
-        parameter_count, type, has_duplicate_parameters, is_function);
+        parameter_count, type, has_duplicate_parameters, is_function,
+        is_parenthesized);
     // Top-level literal doesn't count for the AST's properties.
     if (is_function == FunctionLiteral::kIsFunction) {
       visitor_.VisitFunctionLiteral(lit);
