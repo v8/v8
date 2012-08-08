@@ -95,11 +95,12 @@ bool TypeFeedbackOracle::LoadIsMonomorphicNormal(Property* expr) {
   if (map_or_code->IsMap()) return true;
   if (map_or_code->IsCode()) {
     Handle<Code> code = Handle<Code>::cast(map_or_code);
-    return code->is_keyed_load_stub() &&
+    bool preliminary_checks = code->is_keyed_load_stub() &&
         code->ic_state() == MONOMORPHIC &&
-        Code::ExtractTypeFromFlags(code->flags()) == Code::NORMAL &&
-        code->FindFirstMap() != NULL &&
-        !CanRetainOtherContext(code->FindFirstMap(), *global_context_);
+        Code::ExtractTypeFromFlags(code->flags()) == Code::NORMAL;
+    if (!preliminary_checks) return false;
+    Map* map = code->FindFirstMap();
+    return map != NULL && !CanRetainOtherContext(map, *global_context_);
   }
   return false;
 }
@@ -126,12 +127,14 @@ bool TypeFeedbackOracle::StoreIsMonomorphicNormal(Expression* expr) {
     bool allow_growth =
         Code::GetKeyedAccessGrowMode(code->extra_ic_state()) ==
         ALLOW_JSARRAY_GROWTH;
-    return code->is_keyed_store_stub() &&
+    bool preliminary_checks =
+        code->is_keyed_store_stub() &&
         !allow_growth &&
         code->ic_state() == MONOMORPHIC &&
-        Code::ExtractTypeFromFlags(code->flags()) == Code::NORMAL &&
-        code->FindFirstMap() != NULL &&
-        !CanRetainOtherContext(code->FindFirstMap(), *global_context_);
+        Code::ExtractTypeFromFlags(code->flags()) == Code::NORMAL;
+    if (!preliminary_checks) return false;
+    Map* map = code->FindFirstMap();
+    return map != NULL && !CanRetainOtherContext(map, *global_context_);
   }
   return false;
 }
