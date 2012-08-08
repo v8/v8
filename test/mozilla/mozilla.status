@@ -368,6 +368,10 @@ ecma/GlobalObject/15.1.2.6: FAIL_OK
 ecma/GlobalObject/15.1.2.7: FAIL_OK
 
 
+# Leading zero no longer signal octal numbers (ECMA-262 Annex E 15.1.2.2).
+ecma/GlobalObject/15.1.2.2-2: FAIL_OK
+
+
 # Tests that rely on specific details of function decompilation or
 # print strings for errors. Non-ECMA behavior.
 js1_2/function/tostring-2: FAIL_OK
