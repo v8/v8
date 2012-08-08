@@ -76,6 +76,10 @@ S15.1.3.2_A2.5_T1: PASS, SKIP if $mode == debug
 
 [ $arch == arm || $arch == mipsel ]
 
+# TODO(mstarzinger): Causes stack overflow on simulators due to eager
+# compilation of parenthesized function literals. Needs investigation.
+S13.2.1_A1_T1: SKIP
+
 # BUG(3251225): Tests that timeout with --nocrankshaft.
 S15.1.3.1_A2.4_T1: SKIP
 S15.1.3.1_A2.5_T1: SKIP
