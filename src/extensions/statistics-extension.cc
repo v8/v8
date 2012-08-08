@@ -51,9 +51,10 @@ static void AddCounter(v8::Local<v8::Object> object,
 }
 
 static void AddNumber(v8::Local<v8::Object> object,
-                      double value,
+                      intptr_t value,
                       const char* name) {
-  object->Set(v8::String::New(name), v8::Number::New(value));
+  object->Set(v8::String::New(name),
+              v8::Number::New(static_cast<double>(value)));
 }
 
 
