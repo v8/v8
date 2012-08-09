@@ -1360,6 +1360,68 @@ void LCodeGen::DoAddI(LAddI* instr) {
 }
 
 
+void LCodeGen::DoMathMinMax(LMathMinMax* instr) {
+  LOperand* left = instr->InputAt(0);
+  LOperand* right = instr->InputAt(1);
+  HMathMinMax::Operation operation = instr->hydrogen()->operation();
+  Condition condition = (operation == HMathMinMax::kMathMin) ? le : ge;
+  if (instr->hydrogen()->representation().IsInteger32()) {
+    Register left_reg = ToRegister(left);
+    Operand right_op = (right->IsRegister() || right->IsConstantOperand())
+        ? ToOperand(right)
+        : Operand(EmitLoadRegister(right, at));
+    Register result_reg = ToRegister(instr->result());
+    Label return_right, done;
+    if (!result_reg.is(left_reg)) {
+      __ Branch(&return_right, NegateCondition(condition), left_reg, right_op);
+      __ mov(result_reg, left_reg);
+      __ Branch(&done);
+    }
+    __ Branch(&done, condition, left_reg, right_op);
+    __ bind(&return_right);
+    __ Addu(result_reg, zero_reg, right_op);
+    __ bind(&done);
+  } else {
+    ASSERT(instr->hydrogen()->representation().IsDouble());
+    FPURegister left_reg = ToDoubleRegister(left);
+    FPURegister right_reg = ToDoubleRegister(right);
+    FPURegister result_reg = ToDoubleRegister(instr->result());
+    Label check_nan_left, check_zero, return_left, return_right, done;
+    __ BranchF(&check_zero, &check_nan_left, eq, left_reg, right_reg);
+    __ BranchF(&return_left, NULL, condition, left_reg, right_reg);
+    __ Branch(&return_right);
+
+    __ bind(&check_zero);
+    // left == right != 0.
+    __ BranchF(&return_left, NULL, ne, left_reg, kDoubleRegZero);
+    // At this point, both left and right are either 0 or -0.
+    if (operation == HMathMinMax::kMathMin) {
+      __ neg_d(left_reg, left_reg);
+      __ sub_d(result_reg, left_reg, right_reg);
+      __ neg_d(result_reg, result_reg);
+    } else {
+      __ add_d(result_reg, left_reg, right_reg);
+    }
+    __ Branch(&done);
+
+    __ bind(&check_nan_left);
+    // left == NaN.
+    __ BranchF(NULL, &return_left, eq, left_reg, left_reg);
+    __ bind(&return_right);
+    if (!right_reg.is(result_reg)) {
+      __ mov_d(result_reg, right_reg);
+    }
+    __ Branch(&done);
+
+    __ bind(&return_left);
+    if (!left_reg.is(result_reg)) {
+      __ mov_d(result_reg, left_reg);
+    }
+    __ bind(&done);
+  }
+}
+
+
 void LCodeGen::DoArithmeticD(LArithmeticD* instr) {
   DoubleRegister left = ToDoubleRegister(instr->InputAt(0));
   DoubleRegister right = ToDoubleRegister(instr->InputAt(1));

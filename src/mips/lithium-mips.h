@@ -115,7 +115,6 @@ class LCodeGen;
   V(IsStringAndBranch)                          \
   V(IsSmiAndBranch)                             \
   V(IsUndetectableAndBranch)                    \
-  V(StringCompareAndBranch)                     \
   V(JSArrayLength)                              \
   V(Label)                                      \
   V(LazyBailout)                                \
@@ -132,6 +131,7 @@ class LCodeGen;
   V(LoadNamedField)                             \
   V(LoadNamedFieldPolymorphic)                  \
   V(LoadNamedGeneric)                           \
+  V(MathMinMax)                                 \
   V(ModI)                                       \
   V(MulI)                                       \
   V(NumberTagD)                                 \
@@ -162,6 +162,7 @@ class LCodeGen;
   V(StringAdd)                                  \
   V(StringCharCodeAt)                           \
   V(StringCharFromCode)                         \
+  V(StringCompareAndBranch)                     \
   V(StringLength)                               \
   V(SubI)                                       \
   V(TaggedToI)                                  \
@@ -1046,6 +1047,18 @@ class LAddI: public LTemplateInstruction<1, 2, 0> {
 
   DECLARE_CONCRETE_INSTRUCTION(AddI, "add-i")
   DECLARE_HYDROGEN_ACCESSOR(Add)
+};
+
+
+class LMathMinMax: public LTemplateInstruction<1, 2, 0> {
+ public:
+  LMathMinMax(LOperand* left, LOperand* right) {
+    inputs_[0] = left;
+    inputs_[1] = right;
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(MathMinMax, "min-max")
+  DECLARE_HYDROGEN_ACCESSOR(MathMinMax)
 };
 
 
