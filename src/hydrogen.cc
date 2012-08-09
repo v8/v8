@@ -2769,10 +2769,13 @@ FunctionState::FunctionState(HGraphBuilder* owner,
       HBasicBlock* if_false = owner->graph()->CreateBasicBlock();
       if_true->MarkAsInlineReturnTarget();
       if_false->MarkAsInlineReturnTarget();
-      Expression* cond = TestContext::cast(owner->ast_context())->condition();
+      TestContext* outer_test_context = TestContext::cast(owner->ast_context());
+      Expression* cond = outer_test_context->condition();
+      TypeFeedbackOracle* outer_oracle = outer_test_context->oracle();
       // The AstContext constructor pushed on the context stack.  This newed
       // instance is the reason that AstContext can't be BASE_EMBEDDED.
-      test_context_ = new TestContext(owner, cond, if_true, if_false);
+      test_context_ =
+          new TestContext(owner, cond, outer_oracle, if_true, if_false);
     } else {
       function_return_ = owner->graph()->CreateBasicBlock();
       function_return()->MarkAsInlineReturnTarget();
@@ -2939,7 +2942,7 @@ void TestContext::BuildBranch(HValue* value) {
   HBasicBlock* empty_true = builder->graph()->CreateBasicBlock();
   HBasicBlock* empty_false = builder->graph()->CreateBasicBlock();
   TypeFeedbackId test_id = condition()->test_id();
-  ToBooleanStub::Types expected(builder->oracle()->ToBooleanTypes(test_id));
+  ToBooleanStub::Types expected(oracle()->ToBooleanTypes(test_id));
   HBranch* test = new(zone()) HBranch(value, empty_true, empty_false, expected);
   builder->current_block()->Finish(test);
 
@@ -2997,7 +3000,7 @@ void HGraphBuilder::VisitForTypeOf(Expression* expr) {
 void HGraphBuilder::VisitForControl(Expression* expr,
                                     HBasicBlock* true_block,
                                     HBasicBlock* false_block) {
-  TestContext for_test(this, expr, true_block, false_block);
+  TestContext for_test(this, expr, oracle(), true_block, false_block);
   Visit(expr);
 }
 
