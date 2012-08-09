@@ -1430,10 +1430,6 @@ class MarkCompactMarkingVisitor
   }
 
 
-#define SLOT_ADDR(obj, offset) \
-  reinterpret_cast<Object**>((obj)->address() + offset)
-
-
   static inline void VisitJSFunctionFields(Map* map,
                                            JSFunction* object,
                                            bool flush_code_candidate) {
@@ -1469,26 +1465,28 @@ class MarkCompactMarkingVisitor
         heap,
         HeapObject::RawField(object,
                              JSFunction::kCodeEntryOffset + kPointerSize),
-        HeapObject::RawField(object,
-                             JSFunction::kNonWeakFieldsEndOffset));
+        HeapObject::RawField(object, JSFunction::kNonWeakFieldsEndOffset));
   }
 
 
   static void VisitSharedFunctionInfoFields(Heap* heap,
                                             HeapObject* object,
                                             bool flush_code_candidate) {
-    VisitPointer(heap, SLOT_ADDR(object, SharedFunctionInfo::kNameOffset));
+    VisitPointer(heap,
+                 HeapObject::RawField(object, SharedFunctionInfo::kNameOffset));
 
     if (!flush_code_candidate) {
-      VisitPointer(heap, SLOT_ADDR(object, SharedFunctionInfo::kCodeOffset));
+      VisitPointer(heap,
+                   HeapObject::RawField(object,
+                                        SharedFunctionInfo::kCodeOffset));
     }
 
-    VisitPointers(heap,
-        SLOT_ADDR(object, SharedFunctionInfo::kOptimizedCodeMapOffset),
-        SLOT_ADDR(object, SharedFunctionInfo::kSize));
+    VisitPointers(
+        heap,
+        HeapObject::RawField(object,
+                             SharedFunctionInfo::kOptimizedCodeMapOffset),
+        HeapObject::RawField(object, SharedFunctionInfo::kSize));
   }
-
-  #undef SLOT_ADDR
 
   static VisitorDispatchTable<Callback> non_count_table_;
 };

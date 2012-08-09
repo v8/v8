@@ -1254,9 +1254,6 @@ class HeapObject: public Object {
 };
 
 
-#define SLOT_ADDR(obj, offset) \
-  reinterpret_cast<Object**>((obj)->address() + offset)
-
 // This class describes a body of an object of a fixed size
 // in which all pointer fields are located in the [start_offset, end_offset)
 // interval.
@@ -1271,8 +1268,8 @@ class FixedBodyDescriptor {
 
   template<typename StaticVisitor>
   static inline void IterateBody(HeapObject* obj) {
-    StaticVisitor::VisitPointers(SLOT_ADDR(obj, start_offset),
-                                 SLOT_ADDR(obj, end_offset));
+    StaticVisitor::VisitPointers(HeapObject::RawField(obj, start_offset),
+                                 HeapObject::RawField(obj, end_offset));
   }
 };
 
@@ -1291,12 +1288,10 @@ class FlexibleBodyDescriptor {
 
   template<typename StaticVisitor>
   static inline void IterateBody(HeapObject* obj, int object_size) {
-    StaticVisitor::VisitPointers(SLOT_ADDR(obj, start_offset),
-                                 SLOT_ADDR(obj, object_size));
+    StaticVisitor::VisitPointers(HeapObject::RawField(obj, start_offset),
+                                 HeapObject::RawField(obj, object_size));
   }
 };
-
-#undef SLOT_ADDR
 
 
 // The HeapNumber class describes heap allocated numbers that cannot be
