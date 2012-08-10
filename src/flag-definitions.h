@@ -240,7 +240,8 @@ DEFINE_bool(interrupt_at_exit, false,
             "insert an interrupt check at function exit")
 DEFINE_bool(weighted_back_edges, false,
             "weight back edges by jump distance for interrupt triggering")
-DEFINE_int(interrupt_budget, 5900,
+           // 0x1700 fits in the immediate field of an ARM instruction.
+DEFINE_int(interrupt_budget, 0x1700,
            "execution budget before interrupt is triggered")
 DEFINE_int(type_info_threshold, 15,
            "percentage of ICs that must have type info to allow optimization")
@@ -273,12 +274,12 @@ DEFINE_bool(enable_rdtsc, true,
             "enable use of RDTSC instruction if available")
 DEFINE_bool(enable_sahf, true,
             "enable use of SAHF instruction if available (X64 only)")
-DEFINE_bool(enable_vfp3, true,
+DEFINE_bool(enable_vfp3, false,
             "enable use of VFP3 instructions if available - this implies "
             "enabling ARMv7 and VFP2 instructions (ARM only)")
-DEFINE_bool(enable_vfp2, true,
+DEFINE_bool(enable_vfp2, false,
             "enable use of VFP2 instructions if available")
-DEFINE_bool(enable_armv7, true,
+DEFINE_bool(enable_armv7, false,
             "enable use of ARMv7 instructions if available (ARM only)")
 DEFINE_bool(enable_fpu, true,
             "enable use of MIPS FPU instructions if available (MIPS only)")

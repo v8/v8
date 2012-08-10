@@ -73,8 +73,11 @@ void Deoptimizer::DeoptimizeFunction(JSFunction* function) {
     if (deopt_data->Pc(i)->value() == -1) continue;
     Address call_address = code_start_address + deopt_data->Pc(i)->value();
     Address deopt_entry = GetDeoptimizationEntry(i, LAZY);
-    int call_size_in_bytes = MacroAssembler::CallSize(deopt_entry,
-                                                      RelocInfo::NONE);
+    // We need calls to have a predictable size in the unoptimized code, but
+    // this is optimized code, so we don't have to have a predictable size.
+    int call_size_in_bytes =
+        MacroAssembler::CallSizeNotPredictableCodeSize(deopt_entry,
+                                                       RelocInfo::NONE);
     int call_size_in_words = call_size_in_bytes / Assembler::kInstrSize;
     ASSERT(call_size_in_bytes % Assembler::kInstrSize == 0);
     ASSERT(call_size_in_bytes <= patch_size());

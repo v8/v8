@@ -1859,11 +1859,9 @@ void CompareStub::Generate(MacroAssembler* masm) {
 void ToBooleanStub::Generate(MacroAssembler* masm) {
   // This stub overrides SometimesSetsUpAFrame() to return false.  That means
   // we cannot call anything that could cause a GC from this stub.
-  // This stub uses VFP3 instructions.
-  CpuFeatures::Scope scope(VFP2);
-
   Label patch;
   const Register map = r9.is(tos_) ? r7 : r9;
+  const Register temp = map;
 
   // undefined -> false.
   CheckOddball(masm, UNDEFINED, Heap::kUndefinedValueRootIndex, false);
@@ -1916,13 +1914,56 @@ void ToBooleanStub::Generate(MacroAssembler* masm) {
     Label not_heap_number;
     __ CompareRoot(map, Heap::kHeapNumberMapRootIndex);
     __ b(ne, &not_heap_number);
-    __ vldr(d1, FieldMemOperand(tos_, HeapNumber::kValueOffset));
-    __ VFPCompareAndSetFlags(d1, 0.0);
-    // "tos_" is a register, and contains a non zero value by default.
-    // Hence we only need to overwrite "tos_" with zero to return false for
-    // FP_ZERO or FP_NAN cases. Otherwise, by default it returns true.
-    __ mov(tos_, Operand(0, RelocInfo::NONE), LeaveCC, eq);  // for FP_ZERO
-    __ mov(tos_, Operand(0, RelocInfo::NONE), LeaveCC, vs);  // for FP_NAN
+
+    if (CpuFeatures::IsSupported(VFP2)) {
+      CpuFeatures::Scope scope(VFP2);
+
+      __ vldr(d1, FieldMemOperand(tos_, HeapNumber::kValueOffset));
+      __ VFPCompareAndSetFlags(d1, 0.0);
+      // "tos_" is a register, and contains a non zero value by default.
+      // Hence we only need to overwrite "tos_" with zero to return false for
+      // FP_ZERO or FP_NAN cases. Otherwise, by default it returns true.
+      __ mov(tos_, Operand(0, RelocInfo::NONE), LeaveCC, eq);  // for FP_ZERO
+      __ mov(tos_, Operand(0, RelocInfo::NONE), LeaveCC, vs);  // for FP_NAN
+    } else {
+      Label done, not_nan, not_zero;
+      __ ldr(temp, FieldMemOperand(tos_, HeapNumber::kExponentOffset));
+      // -0 maps to false:
+      __ bic(
+          temp, temp, Operand(HeapNumber::kSignMask, RelocInfo::NONE), SetCC);
+      __ b(ne, &not_zero);
+      // If exponent word is zero then the answer depends on the mantissa word.
+      __ ldr(tos_, FieldMemOperand(tos_, HeapNumber::kMantissaOffset));
+      __ jmp(&done);
+
+      // Check for NaN.
+      __ bind(&not_zero);
+      // We already zeroed the sign bit, now shift out the mantissa so we only
+      // have the exponent left.
+      __ mov(temp, Operand(temp, LSR, HeapNumber::kMantissaBitsInTopWord));
+      unsigned int shifted_exponent_mask =
+          HeapNumber::kExponentMask >> HeapNumber::kMantissaBitsInTopWord;
+      __ cmp(temp, Operand(shifted_exponent_mask, RelocInfo::NONE));
+      __ b(ne, &not_nan);  // If exponent is not 0x7ff then it can't be a NaN.
+
+      // Reload exponent word.
+      __ ldr(temp, FieldMemOperand(tos_, HeapNumber::kExponentOffset));
+      __ tst(temp, Operand(HeapNumber::kMantissaMask, RelocInfo::NONE));
+      // If mantissa is not zero then we have a NaN, so return 0.
+      __ mov(tos_, Operand(0, RelocInfo::NONE), LeaveCC, ne);
+      __ b(ne, &done);
+
+      // Load mantissa word.
+      __ ldr(temp, FieldMemOperand(tos_, HeapNumber::kMantissaOffset));
+      __ cmp(temp, Operand(0, RelocInfo::NONE));
+      // If mantissa is not zero then we have a NaN, so return 0.
+      __ mov(tos_, Operand(0, RelocInfo::NONE), LeaveCC, ne);
+      __ b(ne, &done);
+
+      __ bind(&not_nan);
+      __ mov(tos_, Operand(1, RelocInfo::NONE));
+      __ bind(&done);
+    }
     __ Ret();
     __ bind(&not_heap_number);
   }

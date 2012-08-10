@@ -673,18 +673,9 @@ void FullCodeGenerator::DoTest(Expression* condition,
                                Label* if_true,
                                Label* if_false,
                                Label* fall_through) {
-  if (CpuFeatures::IsSupported(VFP2)) {
-    ToBooleanStub stub(result_register());
-    __ CallStub(&stub);
-    __ tst(result_register(), result_register());
-  } else {
-    // Call the runtime to find the boolean value of the source and then
-    // translate it into control flow to the pair of labels.
-    __ push(result_register());
-    __ CallRuntime(Runtime::kToBool, 1);
-    __ LoadRoot(ip, Heap::kFalseValueRootIndex);
-    __ cmp(r0, ip);
-  }
+  ToBooleanStub stub(result_register());
+  __ CallStub(&stub);
+  __ tst(result_register(), result_register());
   Split(ne, if_true, if_false, fall_through);
 }
 
