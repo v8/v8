@@ -25,7 +25,9 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax --smi-only-arrays --expose-gc --noparallel-recompilation
+// Flags: --allow-natives-syntax --smi-only-arrays --expose-gc
+// Flags: --noparallel-recompilation
+
 // Test element kind of objects.
 // Since --smi-only-arrays affects builtins, its default setting at compile
 // time sticks if built with snapshot.  If --smi-only-arrays is deactivated

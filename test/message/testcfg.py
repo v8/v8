@@ -81,9 +81,9 @@ class MessageTestCase(test.TestCase):
   def GetCommand(self):
     result = self.config.context.GetVmCommand(self, self.mode)
     source = open(self.file).read()
-    flags_match = FLAGS_PATTERN.search(source)
-    if flags_match:
-      result += flags_match.group(1).strip().split()
+    flags_match = re.findall(FLAGS_PATTERN, source)
+    for match in flags_match:
+      result += match.strip().split()
     result.append(self.file)
     return result
 
