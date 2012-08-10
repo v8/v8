@@ -631,29 +631,28 @@ void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
   intptr_t over_reserved = reserved - space->SizeOfObjects();
   static const intptr_t kFreenessThreshold = 50;
 
-  if (over_reserved >= 2 * space->AreaSize()) {
+  if (reduce_memory_footprint_ && over_reserved >= space->AreaSize()) {
     // If reduction of memory footprint was requested, we are aggressive
     // about choosing pages to free.  We expect that half-empty pages
     // are easier to compact so slightly bump the limit.
-    if (reduce_memory_footprint_) {
-      mode = REDUCE_MEMORY_FOOTPRINT;
-      max_evacuation_candidates += 2;
-    }
+    mode = REDUCE_MEMORY_FOOTPRINT;
+    max_evacuation_candidates += 2;
+  }
 
+
+  if (over_reserved > reserved / 3 && over_reserved >= 2 * space->AreaSize()) {
     // If over-usage is very high (more than a third of the space), we
     // try to free all mostly empty pages.  We expect that almost empty
     // pages are even easier to compact so bump the limit even more.
-    if (over_reserved > reserved / 3) {
-      mode = REDUCE_MEMORY_FOOTPRINT;
-      max_evacuation_candidates *= 2;
-    }
+    mode = REDUCE_MEMORY_FOOTPRINT;
+    max_evacuation_candidates *= 2;
+  }
 
-    if (FLAG_trace_fragmentation && mode == REDUCE_MEMORY_FOOTPRINT) {
-      PrintF("Estimated over reserved memory: %.1f / %.1f MB (threshold %d)\n",
-             static_cast<double>(over_reserved) / MB,
-             static_cast<double>(reserved) / MB,
-             static_cast<int>(kFreenessThreshold));
-    }
+  if (FLAG_trace_fragmentation && mode == REDUCE_MEMORY_FOOTPRINT) {
+    PrintF("Estimated over reserved memory: %.1f / %.1f MB (threshold %d)\n",
+           static_cast<double>(over_reserved) / MB,
+           static_cast<double>(reserved) / MB,
+           static_cast<int>(kFreenessThreshold));
   }
 
   intptr_t estimated_release = 0;
