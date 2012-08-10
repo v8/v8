@@ -1403,20 +1403,28 @@ class HStackCheck: public HTemplateInstruction<1> {
 };
 
 
+enum InliningKind {
+  NORMAL_RETURN,          // Normal function/method call and return.
+  DROP_EXTRA_ON_RETURN,   // Drop an extra value from the environment on return.
+  CONSTRUCT_CALL_RETURN,  // Either use allocated receiver or return value.
+  SETTER_CALL_RETURN      // Use the RHS of the assignment as the return value.
+};
+
+
 class HEnterInlined: public HTemplateInstruction<0> {
  public:
   HEnterInlined(Handle<JSFunction> closure,
                 int arguments_count,
                 FunctionLiteral* function,
                 CallKind call_kind,
-                bool is_construct,
+                InliningKind inlining_kind,
                 Variable* arguments_var,
                 ZoneList<HValue*>* arguments_values)
       : closure_(closure),
         arguments_count_(arguments_count),
         function_(function),
         call_kind_(call_kind),
-        is_construct_(is_construct),
+        inlining_kind_(inlining_kind),
         arguments_var_(arguments_var),
         arguments_values_(arguments_values) {
   }
@@ -1427,7 +1435,7 @@ class HEnterInlined: public HTemplateInstruction<0> {
   int arguments_count() const { return arguments_count_; }
   FunctionLiteral* function() const { return function_; }
   CallKind call_kind() const { return call_kind_; }
-  bool is_construct() const { return is_construct_; }
+  InliningKind inlining_kind() const { return inlining_kind_; }
 
   virtual Representation RequiredInputRepresentation(int index) {
     return Representation::None();
@@ -1443,7 +1451,7 @@ class HEnterInlined: public HTemplateInstruction<0> {
   int arguments_count_;
   FunctionLiteral* function_;
   CallKind call_kind_;
-  bool is_construct_;
+  InliningKind inlining_kind_;
   Variable* arguments_var_;
   ZoneList<HValue*>* arguments_values_;
 };

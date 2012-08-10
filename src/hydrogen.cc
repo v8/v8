@@ -166,7 +166,8 @@ void HBasicBlock::Finish(HControlInstruction* end) {
 
 
 void HBasicBlock::Goto(HBasicBlock* block, FunctionState* state) {
-  bool drop_extra = state != NULL && state->drop_extra();
+  bool drop_extra = state != NULL &&
+      state->inlining_kind() == DROP_EXTRA_ON_RETURN;
   bool arguments_pushed = state != NULL && state->arguments_pushed();
 
   if (block->IsInlineReturnTarget()) {
@@ -181,10 +182,10 @@ void HBasicBlock::Goto(HBasicBlock* block, FunctionState* state) {
 
 
 void HBasicBlock::AddLeaveInlined(HValue* return_value,
-                                  HBasicBlock* target,
                                   FunctionState* state) {
-  bool drop_extra = state != NULL && state->drop_extra();
-  bool arguments_pushed = state != NULL && state->arguments_pushed();
+  HBasicBlock* target = state->function_return();
+  bool drop_extra = state->inlining_kind() == DROP_EXTRA_ON_RETURN;
+  bool arguments_pushed = state->arguments_pushed();
 
   ASSERT(target->IsInlineReturnTarget());
   ASSERT(return_value != NULL);
@@ -2751,12 +2752,12 @@ void HGraph::ComputeMinusZeroChecks() {
 FunctionState::FunctionState(HGraphBuilder* owner,
                              CompilationInfo* info,
                              TypeFeedbackOracle* oracle,
-                             ReturnHandlingFlag return_handling)
+                             InliningKind inlining_kind)
     : owner_(owner),
       compilation_info_(info),
       oracle_(oracle),
       call_context_(NULL),
-      return_handling_(return_handling),
+      inlining_kind_(inlining_kind),
       function_return_(NULL),
       test_context_(NULL),
       entry_(NULL),
@@ -3831,28 +3832,29 @@ void HGraphBuilder::VisitReturnStatement(ReturnStatement* stmt) {
   ASSERT(!HasStackOverflow());
   ASSERT(current_block() != NULL);
   ASSERT(current_block()->HasPredecessor());
+  FunctionState* state = function_state();
   AstContext* context = call_context();
   if (context == NULL) {
     // Not an inlined return, so an actual one.
     CHECK_ALIVE(VisitForValue(stmt->expression()));
     HValue* result = environment()->Pop();
     current_block()->FinishExit(new(zone()) HReturn(result));
-  } else if (function_state()->is_construct()) {
-    // Return from an inlined construct call.  In a test context the return
-    // value will always evaluate to true, in a value context the return value
-    // needs to be a JSObject.
+  } else if (state->inlining_kind() == CONSTRUCT_CALL_RETURN) {
+    // Return from an inlined construct call. In a test context the return value
+    // will always evaluate to true, in a value context the return value needs
+    // to be a JSObject.
     if (context->IsTest()) {
       TestContext* test = TestContext::cast(context);
       CHECK_ALIVE(VisitForEffect(stmt->expression()));
-      current_block()->Goto(test->if_true(), function_state());
+      current_block()->Goto(test->if_true(), state);
     } else if (context->IsEffect()) {
       CHECK_ALIVE(VisitForEffect(stmt->expression()));
-      current_block()->Goto(function_return(), function_state());
+      current_block()->Goto(function_return(), state);
     } else {
       ASSERT(context->IsValue());
       CHECK_ALIVE(VisitForValue(stmt->expression()));
       HValue* return_value = Pop();
-      HValue* receiver = environment()->Lookup(0);
+      HValue* receiver = environment()->arguments_environment()->Lookup(0);
       HHasInstanceTypeAndBranch* typecheck =
           new(zone()) HHasInstanceTypeAndBranch(return_value,
                                                 FIRST_SPEC_OBJECT_TYPE,
@@ -3862,31 +3864,36 @@ void HGraphBuilder::VisitReturnStatement(ReturnStatement* stmt) {
       typecheck->SetSuccessorAt(0, if_spec_object);
       typecheck->SetSuccessorAt(1, not_spec_object);
       current_block()->Finish(typecheck);
-      if_spec_object->AddLeaveInlined(return_value,
-                                      function_return(),
-                                      function_state());
-      not_spec_object->AddLeaveInlined(receiver,
-                                       function_return(),
-                                       function_state());
+      if_spec_object->AddLeaveInlined(return_value, state);
+      not_spec_object->AddLeaveInlined(receiver, state);
+    }
+  } else if (state->inlining_kind() == SETTER_CALL_RETURN) {
+    // Return from an inlined setter call. The returned value is never used, the
+    // value of an assignment is always the value of the RHS of the assignment.
+    CHECK_ALIVE(VisitForEffect(stmt->expression()));
+    if (context->IsTest()) {
+      HValue* rhs = environment()->arguments_environment()->Lookup(1);
+      context->ReturnValue(rhs);
+    } else if (context->IsEffect()) {
+      current_block()->Goto(function_return(), state);
+    } else {
+      ASSERT(context->IsValue());
+      HValue* rhs = environment()->arguments_environment()->Lookup(1);
+      current_block()->AddLeaveInlined(rhs, state);
     }
   } else {
-    // Return from an inlined function, visit the subexpression in the
+    // Return from a normal inlined function. Visit the subexpression in the
     // expression context of the call.
     if (context->IsTest()) {
       TestContext* test = TestContext::cast(context);
-      VisitForControl(stmt->expression(),
-                      test->if_true(),
-                      test->if_false());
+      VisitForControl(stmt->expression(), test->if_true(), test->if_false());
     } else if (context->IsEffect()) {
       CHECK_ALIVE(VisitForEffect(stmt->expression()));
-      current_block()->Goto(function_return(), function_state());
+      current_block()->Goto(function_return(), state);
     } else {
       ASSERT(context->IsValue());
       CHECK_ALIVE(VisitForValue(stmt->expression()));
-      HValue* return_value = Pop();
-      current_block()->AddLeaveInlined(return_value,
-                                       function_return(),
-                                       function_state());
+      current_block()->AddLeaveInlined(Pop(), state);
     }
   }
   set_current_block(NULL);
@@ -5233,8 +5240,15 @@ void HGraphBuilder::HandlePropertyAssignment(Assignment* expr) {
       Handle<AccessorPair> accessors;
       Handle<JSObject> holder;
       if (LookupAccessorPair(map, name, &accessors, &holder)) {
+        Handle<JSFunction> setter(JSFunction::cast(accessors->setter()));
+        AddCheckConstantFunction(holder, object, map, true);
+        if (FLAG_inline_accessors && TryInlineSetter(setter, expr, value)) {
+          return;
+        }
         Drop(2);
-        instr = BuildCallSetter(object, value, map, accessors, holder);
+        AddInstruction(new(zone()) HPushArgument(object));
+        AddInstruction(new(zone()) HPushArgument(value));
+        instr = new(zone()) HCallConstantFunction(setter, 2);
       } else {
         Drop(2);
         CHECK_ALIVE(instr = BuildStoreNamedMonomorphic(object,
@@ -6633,10 +6647,10 @@ int HGraphBuilder::InliningAstSize(Handle<JSFunction> target) {
 bool HGraphBuilder::TryInline(CallKind call_kind,
                               Handle<JSFunction> target,
                               int arguments_count,
-                              HValue* receiver,
+                              HValue* implicit_return_value,
                               BailoutId ast_id,
                               BailoutId return_id,
-                              ReturnHandlingFlag return_handling) {
+                              InliningKind inlining_kind) {
   int nodes_added = InliningAstSize(target);
   if (nodes_added == kNotInlinable) return false;
 
@@ -6789,7 +6803,7 @@ bool HGraphBuilder::TryInline(CallKind call_kind,
   // The function state is new-allocated because we need to delete it
   // in two different places.
   FunctionState* target_state = new FunctionState(
-      this, &target_info, &target_oracle, return_handling);
+      this, &target_info, &target_oracle, inlining_kind);
 
   HConstant* undefined = graph()->GetConstantUndefined();
   HEnvironment* inner_env =
@@ -6798,7 +6812,7 @@ bool HGraphBuilder::TryInline(CallKind call_kind,
                                      function,
                                      undefined,
                                      call_kind,
-                                     function_state()->is_construct());
+                                     function_state()->inlining_kind());
 #ifdef V8_TARGET_ARCH_IA32
   // IA32 only, overwrite the caller's context in the deoptimization
   // environment with the correct one.
@@ -6833,7 +6847,7 @@ bool HGraphBuilder::TryInline(CallKind call_kind,
                                 arguments_count,
                                 function,
                                 call_kind,
-                                function_state()->is_construct(),
+                                function_state()->inlining_kind(),
                                 function->scope()->arguments(),
                                 arguments_values);
   function_state()->set_entry(enter_inlined);
@@ -6865,27 +6879,42 @@ bool HGraphBuilder::TryInline(CallKind call_kind,
   TraceInline(target, caller, NULL);
 
   if (current_block() != NULL) {
-    // Add default return value (i.e. undefined for normals calls or the newly
-    // allocated receiver for construct calls) if control can fall off the
-    // body.  In a test context, undefined is false and any JSObject is true.
-    if (call_context()->IsValue()) {
-      ASSERT(function_return() != NULL);
-      HValue* return_value = function_state()->is_construct()
-          ? receiver
-          : undefined;
-      current_block()->AddLeaveInlined(return_value,
-                                       function_return(),
-                                       function_state());
-    } else if (call_context()->IsEffect()) {
-      ASSERT(function_return() != NULL);
-      current_block()->Goto(function_return(), function_state());
+    FunctionState* state = function_state();
+    if (state->inlining_kind() == CONSTRUCT_CALL_RETURN) {
+      // Falling off the end of an inlined construct call. In a test context the
+      // return value will always evaluate to true, in a value context the
+      // return value is the newly allocated receiver.
+      if (call_context()->IsTest()) {
+        current_block()->Goto(inlined_test_context()->if_true(), state);
+      } else if (call_context()->IsEffect()) {
+        current_block()->Goto(function_return(), state);
+      } else {
+        ASSERT(call_context()->IsValue());
+        current_block()->AddLeaveInlined(implicit_return_value, state);
+      }
+    } else if (state->inlining_kind() == SETTER_CALL_RETURN) {
+      // Falling off the end of an inlined setter call. The returned value is
+      // never used, the value of an assignment is always the value of the RHS
+      // of the assignment.
+      if (call_context()->IsTest()) {
+        inlined_test_context()->ReturnValue(implicit_return_value);
+      } else if (call_context()->IsEffect()) {
+        current_block()->Goto(function_return(), state);
+      } else {
+        ASSERT(call_context()->IsValue());
+        current_block()->AddLeaveInlined(implicit_return_value, state);
+      }
     } else {
-      ASSERT(call_context()->IsTest());
-      ASSERT(inlined_test_context() != NULL);
-      HBasicBlock* target = function_state()->is_construct()
-          ? inlined_test_context()->if_true()
-          : inlined_test_context()->if_false();
-      current_block()->Goto(target, function_state());
+      // Falling off the end of a normal inlined function. This basically means
+      // returning undefined.
+      if (call_context()->IsTest()) {
+        current_block()->Goto(inlined_test_context()->if_false(), state);
+      } else if (call_context()->IsEffect()) {
+        current_block()->Goto(function_return(), state);
+      } else {
+        ASSERT(call_context()->IsValue());
+        current_block()->AddLeaveInlined(undefined, state);
+      }
     }
   }
 
@@ -6941,11 +6970,12 @@ bool HGraphBuilder::TryInlineCall(Call* expr, bool drop_extra) {
 }
 
 
-bool HGraphBuilder::TryInlineConstruct(CallNew* expr, HValue* receiver) {
+bool HGraphBuilder::TryInlineConstruct(CallNew* expr,
+                                       HValue* implicit_return_value) {
   return TryInline(CALL_AS_FUNCTION,
                    expr->target(),
                    expr->arguments()->length(),
-                   receiver,
+                   implicit_return_value,
                    expr->id(),
                    expr->ReturnId(),
                    CONSTRUCT_CALL_RETURN);
@@ -6961,6 +6991,19 @@ bool HGraphBuilder::TryInlineGetter(Handle<JSFunction> getter,
                    prop->id(),
                    prop->LoadId(),
                    NORMAL_RETURN);
+}
+
+
+bool HGraphBuilder::TryInlineSetter(Handle<JSFunction> setter,
+                                    Assignment* assignment,
+                                    HValue* implicit_return_value) {
+  return TryInline(CALL_AS_METHOD,
+                   setter,
+                   1,
+                   implicit_return_value,
+                   assignment->id(),
+                   assignment->AssignmentId(),
+                   SETTER_CALL_RETURN);
 }
 
 
@@ -8647,7 +8690,7 @@ void HGraphBuilder::GenerateIsConstructCall(CallRuntime* call) {
   ASSERT(call->arguments()->length() == 0);
   if (function_state()->outer() != NULL) {
     // We are generating graph for inlined function.
-    HValue* value = function_state()->is_construct()
+    HValue* value = function_state()->inlining_kind() == CONSTRUCT_CALL_RETURN
         ? graph()->GetConstantTrue()
         : graph()->GetConstantFalse();
     return ast_context()->ReturnValue(value);
@@ -9237,7 +9280,7 @@ HEnvironment* HEnvironment::CopyForInlining(
     FunctionLiteral* function,
     HConstant* undefined,
     CallKind call_kind,
-    bool is_construct) const {
+    InliningKind inlining_kind) const {
   ASSERT(frame_type() == JS_FUNCTION);
 
   // Outer environment is a copy of this one without the arguments.
@@ -9247,11 +9290,15 @@ HEnvironment* HEnvironment::CopyForInlining(
   outer->Drop(arguments + 1);  // Including receiver.
   outer->ClearHistory();
 
-  if (is_construct) {
+  if (inlining_kind == CONSTRUCT_CALL_RETURN) {
     // Create artificial constructor stub environment.  The receiver should
     // actually be the constructor function, but we pass the newly allocated
     // object instead, DoComputeConstructStubFrame() relies on that.
     outer = CreateStubEnvironment(outer, target, JS_CONSTRUCT, arguments);
+  } else if (inlining_kind == SETTER_CALL_RETURN) {
+    // We need an additional StackFrame::INTERNAL frame for temporarily saving
+    // the argument of the setter, see StoreStubCompiler::CompileStoreViaSetter.
+    outer = CreateStubEnvironment(outer, target, JS_SETTER, arguments);
   }
 
   if (arity != arguments) {
@@ -9271,7 +9318,7 @@ HEnvironment* HEnvironment::CopyForInlining(
   // builtin function, pass undefined as the receiver for function
   // calls (instead of the global receiver).
   if ((target->shared()->native() || !function->is_classic_mode()) &&
-      call_kind == CALL_AS_FUNCTION && !is_construct) {
+      call_kind == CALL_AS_FUNCTION && inlining_kind != CONSTRUCT_CALL_RETURN) {
     inner->SetValueAt(0, undefined);
   }
   inner->SetValueAt(arity + 1, LookupContext());

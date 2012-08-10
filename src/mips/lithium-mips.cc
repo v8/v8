@@ -2179,7 +2179,7 @@ LInstruction* LChunkBuilder::DoEnterInlined(HEnterInlined* instr) {
                                                instr->function(),
                                                undefined,
                                                instr->call_kind(),
-                                               instr->is_construct());
+                                               instr->inlining_kind());
   if (instr->arguments_var() != NULL) {
     inner->Bind(instr->arguments_var(), graph()->GetArgumentsObject());
   }
