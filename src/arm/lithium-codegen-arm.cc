@@ -493,11 +493,12 @@ void LCodeGen::WriteTranslation(LEnvironment* environment,
     case JS_CONSTRUCT:
       translation->BeginConstructStubFrame(closure_id, translation_size);
       break;
+    case JS_SETTER:
+      // TODO(svenpanne) Implement me!
+      break;
     case ARGUMENTS_ADAPTOR:
       translation->BeginArgumentsAdaptorFrame(closure_id, translation_size);
       break;
-    default:
-      UNREACHABLE();
   }
   for (int i = 0; i < translation_size; ++i) {
     LOperand* value = environment->values()->at(i);
@@ -705,13 +706,13 @@ void LCodeGen::PopulateDeoptimizationData(Handle<Code> code) {
   }
   data->SetLiteralArray(*literals);
 
-  data->SetOsrAstId(Smi::FromInt(info_->osr_ast_id()));
+  data->SetOsrAstId(Smi::FromInt(info_->osr_ast_id().ToInt()));
   data->SetOsrPcOffset(Smi::FromInt(osr_pc_offset_));
 
   // Populate the deoptimization entries.
   for (int i = 0; i < length; i++) {
     LEnvironment* env = deoptimizations_[i];
-    data->SetAstId(i, Smi::FromInt(env->ast_id()));
+    data->SetAstId(i, env->ast_id());
     data->SetTranslationIndex(i, Smi::FromInt(env->translation_index()));
     data->SetArgumentsStackHeight(i,
                                   Smi::FromInt(env->arguments_stack_height()));
@@ -1645,6 +1646,68 @@ void LCodeGen::DoAddI(LAddI* instr) {
 
   if (can_overflow) {
     DeoptimizeIf(vs, instr->environment());
+  }
+}
+
+
+void LCodeGen::DoMathMinMax(LMathMinMax* instr) {
+  LOperand* left = instr->InputAt(0);
+  LOperand* right = instr->InputAt(1);
+  HMathMinMax::Operation operation = instr->hydrogen()->operation();
+  Condition condition = (operation == HMathMinMax::kMathMin) ? le : ge;
+  if (instr->hydrogen()->representation().IsInteger32()) {
+    Register left_reg = ToRegister(left);
+    Operand right_op = (right->IsRegister() || right->IsConstantOperand())
+        ? ToOperand(right)
+        : Operand(EmitLoadRegister(right, ip));
+    Register result_reg = ToRegister(instr->result());
+    __ cmp(left_reg, right_op);
+    if (!result_reg.is(left_reg)) {
+      __ mov(result_reg, left_reg, LeaveCC, condition);
+    }
+    __ mov(result_reg, right_op, LeaveCC, NegateCondition(condition));
+  } else {
+    ASSERT(instr->hydrogen()->representation().IsDouble());
+    DoubleRegister left_reg = ToDoubleRegister(left);
+    DoubleRegister right_reg = ToDoubleRegister(right);
+    DoubleRegister result_reg = ToDoubleRegister(instr->result());
+    Label check_nan_left, check_zero, return_left, return_right, done;
+    __ VFPCompareAndSetFlags(left_reg, right_reg);
+    __ b(vs, &check_nan_left);
+    __ b(eq, &check_zero);
+    __ b(condition, &return_left);
+    __ b(al, &return_right);
+
+    __ bind(&check_zero);
+    __ VFPCompareAndSetFlags(left_reg, 0.0);
+    __ b(ne, &return_left);  // left == right != 0.
+    // At this point, both left and right are either 0 or -0.
+    if (operation == HMathMinMax::kMathMin) {
+      // We could use a single 'vorr' instruction here if we had NEON support.
+      __ vneg(left_reg, left_reg);
+      __ vsub(result_reg, left_reg, right_reg);
+      __ vneg(result_reg, result_reg);
+    } else {
+      // Since we operate on +0 and/or -0, vadd and vand have the same effect;
+      // the decision for vadd is easy because vand is a NEON instruction.
+      __ vadd(result_reg, left_reg, right_reg);
+    }
+    __ b(al, &done);
+
+    __ bind(&check_nan_left);
+    __ VFPCompareAndSetFlags(left_reg, left_reg);
+    __ b(vs, &return_left);  // left == NaN.
+    __ bind(&return_right);
+    if (!right_reg.is(result_reg)) {
+      __ vmov(result_reg, right_reg);
+    }
+    __ b(al, &done);
+
+    __ bind(&return_left);
+    if (!left_reg.is(result_reg)) {
+      __ vmov(result_reg, left_reg);
+    }
+    __ bind(&done);
   }
 }
 

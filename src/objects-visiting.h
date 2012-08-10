@@ -387,8 +387,10 @@ class StaticMarkingVisitor : public StaticVisitorBase {
   }
 
   static inline void VisitCodeEntry(Heap* heap, Address entry_address);
+  static inline void VisitEmbeddedPointer(Heap* heap, RelocInfo* rinfo);
   static inline void VisitGlobalPropertyCell(Heap* heap, RelocInfo* rinfo);
   static inline void VisitDebugTarget(Heap* heap, RelocInfo* rinfo);
+  static inline void VisitCodeTarget(Heap* heap, RelocInfo* rinfo);
   static inline void VisitExternalReference(RelocInfo* rinfo) { }
   static inline void VisitRuntimeEntry(RelocInfo* rinfo) { }
 
@@ -396,6 +398,7 @@ class StaticMarkingVisitor : public StaticVisitorBase {
   static inline void VisitGlobalContext(Map* map, HeapObject* object);
 
  protected:
+  static inline void VisitCode(Map* map, HeapObject* object);
   static inline void VisitJSRegExp(Map* map, HeapObject* object);
 
   class DataObjectVisitor {

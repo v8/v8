@@ -1597,6 +1597,10 @@ class Heap {
     global_ic_age_ = (global_ic_age_ + 1) & SharedFunctionInfo::ICAgeBits::kMax;
   }
 
+  intptr_t amount_of_external_allocated_memory() {
+    return amount_of_external_allocated_memory_;
+  }
+
   // ObjectStats are kept in two arrays, counts and sizes. Related stats are
   // stored in a contiguous linear buffer. Stats groups are stored one after
   // another.
@@ -2054,6 +2058,9 @@ class Heap {
 
   // Maximum GC pause.
   int max_gc_pause_;
+
+  // Total time spent in GC.
+  int total_gc_time_ms_;
 
   // Maximum size of objects alive after GC.
   intptr_t max_alive_after_gc_;

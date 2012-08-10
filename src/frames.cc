@@ -789,7 +789,7 @@ void JavaScriptFrame::PrintTop(FILE* file,
                                          ROBUST_STRING_TRAVERSAL);
               PrintF(file, " at %s:%d", *c_script_name, line);
             } else {
-              PrintF(file, "at <unknown>:%d", line);
+              PrintF(file, " at <unknown>:%d", line);
             }
           } else {
             PrintF(file, " at <unknown>:<unknown>");
@@ -875,7 +875,7 @@ void OptimizedFrame::Summarize(List<FrameSummary>* frames) {
     opcode = static_cast<Translation::Opcode>(it.Next());
     if (opcode == Translation::JS_FRAME) {
       i--;
-      int ast_id = it.Next();
+      BailoutId ast_id = BailoutId(it.Next());
       JSFunction* function = LiteralAt(literal_array, it.Next());
       it.Next();  // Skip height.
 

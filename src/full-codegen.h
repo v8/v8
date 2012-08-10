@@ -417,11 +417,12 @@ class FullCodeGenerator: public AstVisitor {
 
   // Bailout support.
   void PrepareForBailout(Expression* node, State state);
-  void PrepareForBailoutForId(unsigned id, State state);
+  void PrepareForBailoutForId(BailoutId id, State state);
 
   // Cache cell support.  This associates AST ids with global property cells
   // that will be cleared during GC and collected by the type-feedback oracle.
-  void RecordTypeFeedbackCell(unsigned id, Handle<JSGlobalPropertyCell> cell);
+  void RecordTypeFeedbackCell(TypeFeedbackId id,
+                              Handle<JSGlobalPropertyCell> cell);
 
   // Record a call's return site offset, used to rebuild the frame if the
   // called function was inlined at the site.
@@ -448,7 +449,7 @@ class FullCodeGenerator: public AstVisitor {
   // of code inside the loop.
   void EmitStackCheck(IterationStatement* stmt, Label* back_edge_target);
   // Record the OSR AST id corresponding to a stack check in the code.
-  void RecordStackCheck(unsigned osr_ast_id);
+  void RecordStackCheck(BailoutId osr_ast_id);
   // Emit a table of stack check ids and pcs into the code stream.  Return
   // the offset of the start of the table.
   unsigned EmitStackCheckTable();
@@ -539,7 +540,7 @@ class FullCodeGenerator: public AstVisitor {
 
   void CallIC(Handle<Code> code,
               RelocInfo::Mode rmode = RelocInfo::CODE_TARGET,
-              unsigned ast_id = kNoASTId);
+              TypeFeedbackId id = TypeFeedbackId::None());
 
   void SetFunctionPosition(FunctionLiteral* fun);
   void SetReturnPosition(FunctionLiteral* fun);
@@ -610,12 +611,12 @@ class FullCodeGenerator: public AstVisitor {
   Handle<FixedArray> handler_table() { return handler_table_; }
 
   struct BailoutEntry {
-    unsigned id;
+    BailoutId id;
     unsigned pc_and_state;
   };
 
   struct TypeFeedbackCellEntry {
-    unsigned ast_id;
+    TypeFeedbackId ast_id;
     Handle<JSGlobalPropertyCell> cell;
   };
 

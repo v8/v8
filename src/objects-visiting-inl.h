@@ -176,6 +176,17 @@ void StaticMarkingVisitor<StaticVisitor>::VisitCodeEntry(
 
 
 template<typename StaticVisitor>
+void StaticMarkingVisitor<StaticVisitor>::VisitEmbeddedPointer(
+    Heap* heap, RelocInfo* rinfo) {
+  ASSERT(rinfo->rmode() == RelocInfo::EMBEDDED_OBJECT);
+  ASSERT(!rinfo->target_object()->IsConsString());
+  HeapObject* object = HeapObject::cast(rinfo->target_object());
+  heap->mark_compact_collector()->RecordRelocSlot(rinfo, object);
+  StaticVisitor::MarkObject(heap, object);
+}
+
+
+template<typename StaticVisitor>
 void StaticMarkingVisitor<StaticVisitor>::VisitGlobalPropertyCell(
     Heap* heap, RelocInfo* rinfo) {
   ASSERT(rinfo->rmode() == RelocInfo::GLOBAL_PROPERTY_CELL);
@@ -198,6 +209,26 @@ void StaticMarkingVisitor<StaticVisitor>::VisitDebugTarget(
 
 
 template<typename StaticVisitor>
+void StaticMarkingVisitor<StaticVisitor>::VisitCodeTarget(
+    Heap* heap, RelocInfo* rinfo) {
+  ASSERT(RelocInfo::IsCodeTarget(rinfo->rmode()));
+  Code* target = Code::GetCodeFromTargetAddress(rinfo->target_address());
+  // Monomorphic ICs are preserved when possible, but need to be flushed
+  // when they might be keeping a Context alive, or when the heap is about
+  // to be serialized.
+  if (FLAG_cleanup_code_caches_at_gc && target->is_inline_cache_stub()
+      && (target->ic_state() == MEGAMORPHIC || Serializer::enabled() ||
+          heap->isolate()->context_exit_happened() ||
+          target->ic_age() != heap->global_ic_age())) {
+    IC::Clear(rinfo->pc());
+    target = Code::GetCodeFromTargetAddress(rinfo->target_address());
+  }
+  heap->mark_compact_collector()->RecordRelocSlot(rinfo, target);
+  StaticVisitor::MarkObject(heap, target);
+}
+
+
+template<typename StaticVisitor>
 void StaticMarkingVisitor<StaticVisitor>::VisitGlobalContext(
     Map* map, HeapObject* object) {
   FixedBodyVisitor<StaticVisitor,
@@ -212,6 +243,18 @@ void StaticMarkingVisitor<StaticVisitor>::VisitGlobalContext(
         HeapObject::RawField(object, FixedArray::OffsetOfElementAt(idx));
     collector->RecordSlot(slot, slot, *slot);
   }
+}
+
+
+template<typename StaticVisitor>
+void StaticMarkingVisitor<StaticVisitor>::VisitCode(
+    Map* map, HeapObject* object) {
+  Heap* heap = map->GetHeap();
+  Code* code = Code::cast(object);
+  if (FLAG_cleanup_code_caches_at_gc) {
+    code->ClearTypeFeedbackCells(heap);
+  }
+  code->CodeIterateBody<StaticVisitor>(heap);
 }
 
 

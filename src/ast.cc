@@ -125,7 +125,6 @@ Assignment::Assignment(Isolate* isolate,
       value_(value),
       pos_(pos),
       binary_operation_(NULL),
-      compound_load_id_(GetNextId(isolate)),
       assignment_id_(GetNextId(isolate)),
       block_start_(false),
       block_end_(false),
@@ -434,7 +433,7 @@ void Property::RecordTypeFeedback(TypeFeedbackOracle* oracle,
                         zone);
   } else if (oracle->LoadIsMegamorphicWithTypeInfo(this)) {
     receiver_types_.Reserve(kMaxKeyedPolymorphism, zone);
-    oracle->CollectKeyedReceiverTypes(this->id(), &receiver_types_);
+    oracle->CollectKeyedReceiverTypes(PropertyFeedbackId(), &receiver_types_);
   }
 }
 
@@ -443,7 +442,8 @@ void Assignment::RecordTypeFeedback(TypeFeedbackOracle* oracle,
                                     Zone* zone) {
   Property* prop = target()->AsProperty();
   ASSERT(prop != NULL);
-  is_monomorphic_ = oracle->StoreIsMonomorphicNormal(this);
+  TypeFeedbackId id = AssignmentFeedbackId();
+  is_monomorphic_ = oracle->StoreIsMonomorphicNormal(id);
   receiver_types_.Clear();
   if (prop->key()->IsPropertyName()) {
     Literal* lit_key = prop->key()->AsLiteral();
@@ -452,24 +452,26 @@ void Assignment::RecordTypeFeedback(TypeFeedbackOracle* oracle,
     oracle->StoreReceiverTypes(this, name, &receiver_types_);
   } else if (is_monomorphic_) {
     // Record receiver type for monomorphic keyed stores.
-    receiver_types_.Add(oracle->StoreMonomorphicReceiverType(this), zone);
-  } else if (oracle->StoreIsMegamorphicWithTypeInfo(this)) {
+    receiver_types_.Add(oracle->StoreMonomorphicReceiverType(id), zone);
+  } else if (oracle->StoreIsMegamorphicWithTypeInfo(id)) {
     receiver_types_.Reserve(kMaxKeyedPolymorphism, zone);
-    oracle->CollectKeyedReceiverTypes(this->id(), &receiver_types_);
+    oracle->CollectKeyedReceiverTypes(id, &receiver_types_);
   }
 }
 
 
 void CountOperation::RecordTypeFeedback(TypeFeedbackOracle* oracle,
                                         Zone* zone) {
-  is_monomorphic_ = oracle->StoreIsMonomorphicNormal(this);
+  TypeFeedbackId id = CountStoreFeedbackId();
+  is_monomorphic_ = oracle->StoreIsMonomorphicNormal(id);
   receiver_types_.Clear();
   if (is_monomorphic_) {
     // Record receiver type for monomorphic keyed stores.
-    receiver_types_.Add(oracle->StoreMonomorphicReceiverType(this), zone);
-  } else if (oracle->StoreIsMegamorphicWithTypeInfo(this)) {
+    receiver_types_.Add(
+        oracle->StoreMonomorphicReceiverType(id), zone);
+  } else if (oracle->StoreIsMegamorphicWithTypeInfo(id)) {
     receiver_types_.Reserve(kMaxKeyedPolymorphism, zone);
-    oracle->CollectKeyedReceiverTypes(this->id(), &receiver_types_);
+    oracle->CollectKeyedReceiverTypes(id, &receiver_types_);
   }
 }
 

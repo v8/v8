@@ -688,7 +688,7 @@ class MacroAssembler: public Assembler {
   // Runtime calls
 
   // Call a code stub.  Generate the code if necessary.
-  void CallStub(CodeStub* stub, unsigned ast_id = kNoASTId);
+  void CallStub(CodeStub* stub, TypeFeedbackId ast_id = TypeFeedbackId::None());
 
   // Tail call a code stub (jump).  Generate the code if necessary.
   void TailCallStub(CodeStub* stub);

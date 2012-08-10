@@ -620,7 +620,7 @@ LInstruction* LChunkBuilder::MarkAsCall(LInstruction* instr,
     ASSERT(hinstr->next()->IsSimulate());
     HSimulate* sim = HSimulate::cast(hinstr->next());
     ASSERT(instruction_pending_deoptimization_environment_ == NULL);
-    ASSERT(pending_deoptimization_ast_id_ == AstNode::kNoNumber);
+    ASSERT(pending_deoptimization_ast_id_.IsNone());
     instruction_pending_deoptimization_environment_ = instr;
     pending_deoptimization_ast_id_ = sim->ast_id();
   }
@@ -854,8 +854,8 @@ LEnvironment* LChunkBuilder::CreateEnvironment(
 
   LEnvironment* outer =
       CreateEnvironment(hydrogen_env->outer(), argument_index_accumulator);
-  int ast_id = hydrogen_env->ast_id();
-  ASSERT(ast_id != AstNode::kNoNumber ||
+  BailoutId ast_id = hydrogen_env->ast_id();
+  ASSERT(!ast_id.IsNone() ||
          hydrogen_env->frame_type() != JS_FUNCTION);
   int value_count = hydrogen_env->length();
   LEnvironment* result = new(zone()) LEnvironment(
@@ -1356,6 +1356,25 @@ LInstruction* LChunkBuilder::DoAdd(HAdd* instr) {
     ASSERT(instr->representation().IsTagged());
     return DoArithmeticT(Token::ADD, instr);
   }
+}
+
+
+LInstruction* LChunkBuilder::DoMathMinMax(HMathMinMax* instr) {
+  LOperand* left = NULL;
+  LOperand* right = NULL;
+  if (instr->representation().IsInteger32()) {
+    ASSERT(instr->left()->representation().IsInteger32());
+    ASSERT(instr->right()->representation().IsInteger32());
+    left = UseRegisterAtStart(instr->LeastConstantOperand());
+    right = UseOrConstantAtStart(instr->MostConstantOperand());
+  } else {
+    ASSERT(instr->representation().IsDouble());
+    ASSERT(instr->left()->representation().IsDouble());
+    ASSERT(instr->right()->representation().IsDouble());
+    left = UseRegisterAtStart(instr->left());
+    right = UseRegisterAtStart(instr->right());
+  }
+  return DefineAsRegister(new(zone()) LMathMinMax(left, right));
 }
 
 
@@ -2194,7 +2213,7 @@ LInstruction* LChunkBuilder::DoSimulate(HSimulate* instr) {
     instruction_pending_deoptimization_environment_->
         SetDeferredLazyDeoptimizationEnvironment(result->environment());
     instruction_pending_deoptimization_environment_ = NULL;
-    pending_deoptimization_ast_id_ = AstNode::kNoNumber;
+    pending_deoptimization_ast_id_ = BailoutId::None();
     return result;
   }
 
@@ -2220,7 +2239,7 @@ LInstruction* LChunkBuilder::DoEnterInlined(HEnterInlined* instr) {
                                                instr->function(),
                                                undefined,
                                                instr->call_kind(),
-                                               instr->is_construct());
+                                               instr->inlining_kind());
   if (instr->arguments_var() != NULL) {
     inner->Bind(instr->arguments_var(), graph()->GetArgumentsObject());
   }

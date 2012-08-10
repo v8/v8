@@ -5252,13 +5252,13 @@ MaybeObject* FixedDoubleArray::Copy() {
 }
 
 
-void TypeFeedbackCells::SetAstId(int index, Smi* id) {
-  set(1 + index * 2, id);
+void TypeFeedbackCells::SetAstId(int index, TypeFeedbackId id) {
+  set(1 + index * 2, Smi::FromInt(id.ToInt()));
 }
 
 
-Smi* TypeFeedbackCells::AstId(int index) {
-  return Smi::cast(get(1 + index * 2));
+TypeFeedbackId TypeFeedbackCells::AstId(int index) {
+  return TypeFeedbackId(Smi::cast(get(1 + index * 2))->value());
 }
 
 
@@ -5359,14 +5359,13 @@ void ExternalTwoByteString::ExternalTwoByteStringIterateBody() {
       reinterpret_cast<Resource**>(FIELD_ADDR(this, kResourceOffset)));
 }
 
-#define SLOT_ADDR(obj, offset) \
-  reinterpret_cast<Object**>((obj)->address() + offset)
 
 template<int start_offset, int end_offset, int size>
 void FixedBodyDescriptor<start_offset, end_offset, size>::IterateBody(
     HeapObject* obj,
     ObjectVisitor* v) {
-    v->VisitPointers(SLOT_ADDR(obj, start_offset), SLOT_ADDR(obj, end_offset));
+    v->VisitPointers(HeapObject::RawField(obj, start_offset),
+                     HeapObject::RawField(obj, end_offset));
 }
 
 
@@ -5374,10 +5373,10 @@ template<int start_offset>
 void FlexibleBodyDescriptor<start_offset>::IterateBody(HeapObject* obj,
                                                        int object_size,
                                                        ObjectVisitor* v) {
-  v->VisitPointers(SLOT_ADDR(obj, start_offset), SLOT_ADDR(obj, object_size));
+  v->VisitPointers(HeapObject::RawField(obj, start_offset),
+                   HeapObject::RawField(obj, object_size));
 }
 
-#undef SLOT_ADDR
 
 #undef TYPE_CHECKER
 #undef CAST_ACCESSOR

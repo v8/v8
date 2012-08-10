@@ -268,6 +268,7 @@ double InternalStringToInt(UnicodeCache* unicode_cache,
 
   if (radix == 0) {
     // Radix detection.
+    radix = 10;
     if (*current == '0') {
       ++current;
       if (current == end) return SignedZero(negative);
@@ -276,11 +277,8 @@ double InternalStringToInt(UnicodeCache* unicode_cache,
         ++current;
         if (current == end) return JunkStringValue();
       } else {
-        radix = 8;
         leading_zero = true;
       }
-    } else {
-      radix = 10;
     }
   } else if (radix == 16) {
     if (*current == '0') {

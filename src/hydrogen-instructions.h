@@ -124,7 +124,6 @@ class LChunkBuilder;
   V(IsStringAndBranch)                         \
   V(IsSmiAndBranch)                            \
   V(IsUndetectableAndBranch)                   \
-  V(StringCompareAndBranch)                    \
   V(JSArrayLength)                             \
   V(LeaveInlined)                              \
   V(LoadContextSlot)                           \
@@ -141,6 +140,7 @@ class LChunkBuilder;
   V(LoadNamedFieldPolymorphic)                 \
   V(LoadNamedGeneric)                          \
   V(MathFloorOfDiv)                            \
+  V(MathMinMax)                                \
   V(Mod)                                       \
   V(Mul)                                       \
   V(ObjectLiteral)                             \
@@ -170,6 +170,7 @@ class LChunkBuilder;
   V(StringAdd)                                 \
   V(StringCharCodeAt)                          \
   V(StringCharFromCode)                        \
+  V(StringCompareAndBranch)                    \
   V(StringLength)                              \
   V(Sub)                                       \
   V(ThisFunction)                              \
@@ -286,6 +287,8 @@ class Range: public ZoneObject {
 
   void Intersect(Range* other);
   void Union(Range* other);
+  void CombinedMax(Range* other);
+  void CombinedMin(Range* other);
 
   void AddConstant(int32_t value);
   void Sar(int32_t value);
@@ -1296,7 +1299,7 @@ class HClampToUint8: public HUnaryOperation {
 
 class HSimulate: public HInstruction {
  public:
-  HSimulate(int ast_id, int pop_count, Zone* zone)
+  HSimulate(BailoutId ast_id, int pop_count, Zone* zone)
       : ast_id_(ast_id),
         pop_count_(pop_count),
         values_(2, zone),
@@ -1306,9 +1309,9 @@ class HSimulate: public HInstruction {
 
   virtual void PrintDataTo(StringStream* stream);
 
-  bool HasAstId() const { return ast_id_ != AstNode::kNoNumber; }
-  int ast_id() const { return ast_id_; }
-  void set_ast_id(int id) {
+  bool HasAstId() const { return !ast_id_.IsNone(); }
+  BailoutId ast_id() const { return ast_id_; }
+  void set_ast_id(BailoutId id) {
     ASSERT(!HasAstId());
     ast_id_ = id;
   }
@@ -1356,7 +1359,7 @@ class HSimulate: public HInstruction {
     // use lists are correctly updated.
     SetOperandAt(values_.length() - 1, value);
   }
-  int ast_id_;
+  BailoutId ast_id_;
   int pop_count_;
   ZoneList<HValue*> values_;
   ZoneList<int> assigned_indexes_;
@@ -1400,20 +1403,28 @@ class HStackCheck: public HTemplateInstruction<1> {
 };
 
 
+enum InliningKind {
+  NORMAL_RETURN,          // Normal function/method call and return.
+  DROP_EXTRA_ON_RETURN,   // Drop an extra value from the environment on return.
+  CONSTRUCT_CALL_RETURN,  // Either use allocated receiver or return value.
+  SETTER_CALL_RETURN      // Use the RHS of the assignment as the return value.
+};
+
+
 class HEnterInlined: public HTemplateInstruction<0> {
  public:
   HEnterInlined(Handle<JSFunction> closure,
                 int arguments_count,
                 FunctionLiteral* function,
                 CallKind call_kind,
-                bool is_construct,
+                InliningKind inlining_kind,
                 Variable* arguments_var,
                 ZoneList<HValue*>* arguments_values)
       : closure_(closure),
         arguments_count_(arguments_count),
         function_(function),
         call_kind_(call_kind),
-        is_construct_(is_construct),
+        inlining_kind_(inlining_kind),
         arguments_var_(arguments_var),
         arguments_values_(arguments_values) {
   }
@@ -1424,7 +1435,7 @@ class HEnterInlined: public HTemplateInstruction<0> {
   int arguments_count() const { return arguments_count_; }
   FunctionLiteral* function() const { return function_; }
   CallKind call_kind() const { return call_kind_; }
-  bool is_construct() const { return is_construct_; }
+  InliningKind inlining_kind() const { return inlining_kind_; }
 
   virtual Representation RequiredInputRepresentation(int index) {
     return Representation::None();
@@ -1440,7 +1451,7 @@ class HEnterInlined: public HTemplateInstruction<0> {
   int arguments_count_;
   FunctionLiteral* function_;
   CallKind call_kind_;
-  bool is_construct_;
+  InliningKind inlining_kind_;
   Variable* arguments_var_;
   ZoneList<HValue*>* arguments_values_;
 };
@@ -3470,6 +3481,47 @@ class HDiv: public HArithmeticBinaryOperation {
 };
 
 
+class HMathMinMax: public HArithmeticBinaryOperation {
+ public:
+  enum Operation { kMathMin, kMathMax };
+
+  HMathMinMax(HValue* context, HValue* left, HValue* right, Operation op)
+      : HArithmeticBinaryOperation(context, left, right),
+        operation_(op) { }
+
+  virtual Representation RequiredInputRepresentation(int index) {
+      return index == 0
+          ? Representation::Tagged()
+          : representation();
+    }
+
+  virtual Representation InferredRepresentation() {
+    if (left()->representation().IsInteger32() &&
+        right()->representation().IsInteger32()) {
+      return Representation::Integer32();
+    }
+    return Representation::Double();
+  }
+
+  virtual bool IsCommutative() const { return true; }
+
+  Operation operation() { return operation_; }
+
+  DECLARE_CONCRETE_INSTRUCTION(MathMinMax)
+
+ protected:
+  virtual bool DataEquals(HValue* other) {
+    return other->IsMathMinMax() &&
+        HMathMinMax::cast(other)->operation_ == operation_;
+  }
+
+  virtual Range* InferRange(Zone* zone);
+
+ private:
+  Operation operation_;
+};
+
+
 class HBitwise: public HBitwiseBinaryOperation {
  public:
   HBitwise(Token::Value op, HValue* context, HValue* left, HValue* right)
@@ -3566,11 +3618,11 @@ class HSar: public HBitwiseBinaryOperation {
 
 class HOsrEntry: public HTemplateInstruction<0> {
  public:
-  explicit HOsrEntry(int ast_id) : ast_id_(ast_id) {
+  explicit HOsrEntry(BailoutId ast_id) : ast_id_(ast_id) {
     SetGVNFlag(kChangesOsrEntries);
   }
 
-  int ast_id() const { return ast_id_; }
+  BailoutId ast_id() const { return ast_id_; }
 
   virtual Representation RequiredInputRepresentation(int index) {
     return Representation::None();
@@ -3579,7 +3631,7 @@ class HOsrEntry: public HTemplateInstruction<0> {
   DECLARE_CONCRETE_INSTRUCTION(OsrEntry)
 
  private:
-  int ast_id_;
+  BailoutId ast_id_;
 };
 
 

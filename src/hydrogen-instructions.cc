@@ -156,6 +156,20 @@ void Range::Union(Range* other) {
 }
 
 
+void Range::CombinedMax(Range* other) {
+  upper_ = Max(upper_, other->upper_);
+  lower_ = Max(lower_, other->lower_);
+  set_can_be_minus_zero(CanBeMinusZero() || other->CanBeMinusZero());
+}
+
+
+void Range::CombinedMin(Range* other) {
+  upper_ = Min(upper_, other->upper_);
+  lower_ = Min(lower_, other->lower_);
+  set_can_be_minus_zero(CanBeMinusZero() || other->CanBeMinusZero());
+}
+
+
 void Range::Sar(int32_t value) {
   int32_t bits = value & 0x1F;
   lower_ = lower_ >> bits;
@@ -1238,6 +1252,24 @@ Range* HMod::InferRange(Zone* zone) {
 }
 
 
+Range* HMathMinMax::InferRange(Zone* zone) {
+  if (representation().IsInteger32()) {
+    Range* a = left()->range();
+    Range* b = right()->range();
+    Range* res = a->Copy(zone);
+    if (operation_ == kMathMax) {
+      res->CombinedMax(b);
+    } else {
+      ASSERT(operation_ == kMathMin);
+      res->CombinedMin(b);
+    }
+    return res;
+  } else {
+    return HValue::InferRange(zone);
+  }
+}
+
+
 void HPhi::PrintTo(StringStream* stream) {
   stream->Add("[");
   for (int i = 0; i < OperandCount(); ++i) {
@@ -1352,7 +1384,7 @@ void HPhi::ResetInteger32Uses() {
 
 
 void HSimulate::PrintDataTo(StringStream* stream) {
-  stream->Add("id=%d", ast_id());
+  stream->Add("id=%d", ast_id().ToInt());
   if (pop_count_ > 0) stream->Add(" pop %d", pop_count_);
   if (values_.length() > 0) {
     if (pop_count_ > 0) stream->Add(" /");
@@ -1381,7 +1413,7 @@ void HDeoptimize::PrintDataTo(StringStream* stream) {
 
 void HEnterInlined::PrintDataTo(StringStream* stream) {
   SmartArrayPointer<char> name = function()->debug_name()->ToCString();
-  stream->Add("%s, id=%d", *name, function()->id());
+  stream->Add("%s, id=%d", *name, function()->id().ToInt());
 }
 
 

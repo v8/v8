@@ -60,7 +60,7 @@ array-constructor: PASS || TIMEOUT
 unicode-case-overoptimization: PASS, TIMEOUT if ($arch == arm || $arch == android_arm || $arch == mipsel)
 
 # Test Crankshaft compilation time.  Expected to take too long in debug mode.
-regress/regress-1969: PASS, SKIP if $mode == debug
+regress/regress-1969: PASS, SKIP if ($mode == debug || $arch == android_arm)
 
 ##############################################################################
 # This test sets the umask on a per-process basis and hence cannot be

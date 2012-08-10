@@ -1207,7 +1207,7 @@ class Assembler : public AssemblerBase {
   void call(Label* L);
   void call(Handle<Code> target,
             RelocInfo::Mode rmode = RelocInfo::CODE_TARGET,
-            unsigned ast_id = kNoASTId);
+            TypeFeedbackId ast_id = TypeFeedbackId::None());
 
   // Calls directly to the given address using a relative offset.
   // Should only ever be used in Code objects for calls within the
@@ -1458,7 +1458,7 @@ class Assembler : public AssemblerBase {
   inline void emitw(uint16_t x);
   inline void emit_code_target(Handle<Code> target,
                                RelocInfo::Mode rmode,
-                               unsigned ast_id = kNoASTId);
+                               TypeFeedbackId ast_id = TypeFeedbackId::None());
   void emit(Immediate x) { emitl(x.value_); }
 
   // Emits a REX prefix that encodes a 64-bit operand size and

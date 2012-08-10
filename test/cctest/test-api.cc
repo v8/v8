@@ -2081,6 +2081,10 @@ THREADED_TEST(HiddenProperties) {
 
   HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
 
+  CHECK(obj->SetHiddenValue(key, Handle<Value>()));
+  CHECK(obj->GetHiddenValue(key).IsEmpty());
+
+  CHECK(obj->SetHiddenValue(key, v8::Integer::New(2002)));
   CHECK(obj->DeleteHiddenValue(key));
   CHECK(obj->GetHiddenValue(key).IsEmpty());
 }

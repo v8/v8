@@ -118,14 +118,14 @@ class HBasicBlock: public ZoneObject {
 
   bool HasParentLoopHeader() const { return parent_loop_header_ != NULL; }
 
-  void SetJoinId(int ast_id);
+  void SetJoinId(BailoutId ast_id);
 
   void Finish(HControlInstruction* last);
   void FinishExit(HControlInstruction* instruction);
   void Goto(HBasicBlock* block, FunctionState* state = NULL);
 
   int PredecessorIndexOf(HBasicBlock* predecessor) const;
-  void AddSimulate(int ast_id) { AddInstruction(CreateSimulate(ast_id)); }
+  void AddSimulate(BailoutId ast_id) { AddInstruction(CreateSimulate(ast_id)); }
   void AssignCommonDominator(HBasicBlock* other);
   void AssignLoopSuccessorDominators();
 
@@ -135,9 +135,7 @@ class HBasicBlock: public ZoneObject {
 
   // Add the inlined function exit sequence, adding an HLeaveInlined
   // instruction and updating the bailout environment.
-  void AddLeaveInlined(HValue* return_value,
-                       HBasicBlock* target,
-                       FunctionState* state = NULL);
+  void AddLeaveInlined(HValue* return_value, FunctionState* state);
 
   // If a target block is tagged as an inline function return, all
   // predecessors should contain the inlined exit sequence:
@@ -168,7 +166,7 @@ class HBasicBlock: public ZoneObject {
   void RegisterPredecessor(HBasicBlock* pred);
   void AddDominatedBlock(HBasicBlock* block);
 
-  HSimulate* CreateSimulate(int ast_id);
+  HSimulate* CreateSimulate(BailoutId ast_id);
   HDeoptimize* CreateDeoptimize(HDeoptimize::UseEnvironment has_uses);
 
   int block_id_;
@@ -396,7 +394,12 @@ Zone* HBasicBlock::zone() const { return graph_->zone(); }
 
 
 // Type of stack frame an environment might refer to.
-enum FrameType { JS_FUNCTION, JS_CONSTRUCT, ARGUMENTS_ADAPTOR };
+enum FrameType {
+  JS_FUNCTION,
+  JS_CONSTRUCT,
+  JS_SETTER,
+  ARGUMENTS_ADAPTOR
+};
 
 
 class HEnvironment: public ZoneObject {
@@ -431,8 +434,8 @@ class HEnvironment: public ZoneObject {
   int pop_count() const { return pop_count_; }
   int push_count() const { return push_count_; }
 
-  int ast_id() const { return ast_id_; }
-  void set_ast_id(int id) { ast_id_ = id; }
+  BailoutId ast_id() const { return ast_id_; }
+  void set_ast_id(BailoutId id) { ast_id_ = id; }
 
   int length() const { return values_.length(); }
   bool is_special_index(int i) const {
@@ -510,7 +513,7 @@ class HEnvironment: public ZoneObject {
                                 FunctionLiteral* function,
                                 HConstant* undefined,
                                 CallKind call_kind,
-                                bool is_construct) const;
+                                InliningKind inlining_kind) const;
 
   void AddIncomingEdge(HBasicBlock* block, HEnvironment* other);
 
@@ -574,7 +577,7 @@ class HEnvironment: public ZoneObject {
   HEnvironment* outer_;
   int pop_count_;
   int push_count_;
-  int ast_id_;
+  BailoutId ast_id_;
   Zone* zone_;
 };
 
@@ -603,13 +606,13 @@ class AstContext {
   // Add a hydrogen instruction to the instruction stream (recording an
   // environment simulation if necessary) and then fill this context with
   // the instruction as value.
-  virtual void ReturnInstruction(HInstruction* instr, int ast_id) = 0;
+  virtual void ReturnInstruction(HInstruction* instr, BailoutId ast_id) = 0;
 
   // Finishes the current basic block and materialize a boolean for
   // value context, nothing for effect, generate a branch for test context.
   // Call this function in tail position in the Visit functions for
   // expressions.
-  virtual void ReturnControl(HControlInstruction* instr, int ast_id) = 0;
+  virtual void ReturnControl(HControlInstruction* instr, BailoutId ast_id) = 0;
 
   void set_for_typeof(bool for_typeof) { for_typeof_ = for_typeof; }
   bool is_for_typeof() { return for_typeof_; }
@@ -644,8 +647,8 @@ class EffectContext: public AstContext {
   virtual ~EffectContext();
 
   virtual void ReturnValue(HValue* value);
-  virtual void ReturnInstruction(HInstruction* instr, int ast_id);
-  virtual void ReturnControl(HControlInstruction* instr, int ast_id);
+  virtual void ReturnInstruction(HInstruction* instr, BailoutId ast_id);
+  virtual void ReturnControl(HControlInstruction* instr, BailoutId ast_id);
 };
 
 
@@ -657,8 +660,8 @@ class ValueContext: public AstContext {
   virtual ~ValueContext();
 
   virtual void ReturnValue(HValue* value);
-  virtual void ReturnInstruction(HInstruction* instr, int ast_id);
-  virtual void ReturnControl(HControlInstruction* instr, int ast_id);
+  virtual void ReturnInstruction(HInstruction* instr, BailoutId ast_id);
+  virtual void ReturnControl(HControlInstruction* instr, BailoutId ast_id);
 
   bool arguments_allowed() { return flag_ == ARGUMENTS_ALLOWED; }
 
@@ -671,17 +674,19 @@ class TestContext: public AstContext {
  public:
   TestContext(HGraphBuilder* owner,
               Expression* condition,
+              TypeFeedbackOracle* oracle,
               HBasicBlock* if_true,
               HBasicBlock* if_false)
       : AstContext(owner, Expression::kTest),
         condition_(condition),
+        oracle_(oracle),
         if_true_(if_true),
         if_false_(if_false) {
   }
 
   virtual void ReturnValue(HValue* value);
-  virtual void ReturnInstruction(HInstruction* instr, int ast_id);
-  virtual void ReturnControl(HControlInstruction* instr, int ast_id);
+  virtual void ReturnInstruction(HInstruction* instr, BailoutId ast_id);
+  virtual void ReturnControl(HControlInstruction* instr, BailoutId ast_id);
 
   static TestContext* cast(AstContext* context) {
     ASSERT(context->IsTest());
@@ -689,6 +694,7 @@ class TestContext: public AstContext {
   }
 
   Expression* condition() const { return condition_; }
+  TypeFeedbackOracle* oracle() const { return oracle_; }
   HBasicBlock* if_true() const { return if_true_; }
   HBasicBlock* if_false() const { return if_false_; }
 
@@ -698,15 +704,9 @@ class TestContext: public AstContext {
   void BuildBranch(HValue* value);
 
   Expression* condition_;
+  TypeFeedbackOracle* oracle_;
   HBasicBlock* if_true_;
   HBasicBlock* if_false_;
-};
-
-
-enum ReturnHandlingFlag {
-  NORMAL_RETURN,
-  DROP_EXTRA_ON_RETURN,
-  CONSTRUCT_CALL_RETURN
 };
 
 
@@ -715,14 +715,13 @@ class FunctionState {
   FunctionState(HGraphBuilder* owner,
                 CompilationInfo* info,
                 TypeFeedbackOracle* oracle,
-                ReturnHandlingFlag return_handling);
+                InliningKind inlining_kind);
   ~FunctionState();
 
   CompilationInfo* compilation_info() { return compilation_info_; }
   TypeFeedbackOracle* oracle() { return oracle_; }
   AstContext* call_context() { return call_context_; }
-  bool drop_extra() { return return_handling_ == DROP_EXTRA_ON_RETURN; }
-  bool is_construct() { return return_handling_ == CONSTRUCT_CALL_RETURN; }
+  InliningKind inlining_kind() const { return inlining_kind_; }
   HBasicBlock* function_return() { return function_return_; }
   TestContext* test_context() { return test_context_; }
   void ClearInlinedTestContext() {
@@ -752,11 +751,8 @@ class FunctionState {
   // inlined. NULL when not inlining.
   AstContext* call_context_;
 
-  // Indicate whether we have to perform special handling on return from
-  // inlined functions.
-  // - DROP_EXTRA_ON_RETURN: Drop an extra value from the environment.
-  // - CONSTRUCT_CALL_RETURN: Either use allocated receiver or return value.
-  ReturnHandlingFlag return_handling_;
+  // The kind of call which is currently being inlined.
+  InliningKind inlining_kind_;
 
   // When inlining in an effect or value context, this is the return block.
   // It is NULL otherwise.  When inlining in a test context, there are a
@@ -853,7 +849,7 @@ class HGraphBuilder: public AstVisitor {
 
   // Adding instructions.
   HInstruction* AddInstruction(HInstruction* instr);
-  void AddSimulate(int ast_id);
+  void AddSimulate(BailoutId ast_id);
 
   // Bailout environment manipulation.
   void Push(HValue* value) { environment()->Push(value); }
@@ -863,7 +859,7 @@ class HGraphBuilder: public AstVisitor {
 
   HBasicBlock* CreateJoin(HBasicBlock* first,
                           HBasicBlock* second,
-                          int join_id);
+                          BailoutId join_id);
 
   TypeFeedbackOracle* oracle() const { return function_state()->oracle(); }
 
@@ -1033,14 +1029,17 @@ class HGraphBuilder: public AstVisitor {
   bool TryInline(CallKind call_kind,
                  Handle<JSFunction> target,
                  int arguments_count,
-                 HValue* receiver,
-                 int ast_id,
-                 int return_id,
-                 ReturnHandlingFlag return_handling);
+                 HValue* implicit_return_value,
+                 BailoutId ast_id,
+                 BailoutId return_id,
+                 InliningKind inlining_kind);
 
   bool TryInlineCall(Call* expr, bool drop_extra = false);
-  bool TryInlineConstruct(CallNew* expr, HValue* receiver);
+  bool TryInlineConstruct(CallNew* expr, HValue* implicit_return_value);
   bool TryInlineGetter(Handle<JSFunction> getter, Property* prop);
+  bool TryInlineSetter(Handle<JSFunction> setter,
+                       Assignment* assignment,
+                       HValue* implicit_return_value);
   bool TryInlineBuiltinMethodCall(Call* expr,
                                   HValue* receiver,
                                   Handle<Map> receiver_map,
@@ -1057,7 +1056,7 @@ class HGraphBuilder: public AstVisitor {
   void HandleGlobalVariableAssignment(Variable* var,
                                       HValue* value,
                                       int position,
-                                      int ast_id);
+                                      BailoutId ast_id);
 
   void HandlePropertyAssignment(Assignment* expr);
   void HandleCompoundAssignment(Assignment* expr);
@@ -1119,7 +1118,7 @@ class HGraphBuilder: public AstVisitor {
                                          HValue* key,
                                          HValue* val,
                                          Expression* prop,
-                                         int ast_id,
+                                         BailoutId ast_id,
                                          int position,
                                          bool is_store,
                                          bool* has_side_effects);
@@ -1128,7 +1127,7 @@ class HGraphBuilder: public AstVisitor {
                                    HValue* key,
                                    HValue* val,
                                    Expression* expr,
-                                   int ast_id,
+                                   BailoutId ast_id,
                                    int position,
                                    bool is_store,
                                    bool* has_side_effects);

@@ -496,7 +496,7 @@ Parser::FunctionState::FunctionState(Parser* parser,
       factory_(isolate, parser->zone()) {
   parser->top_scope_ = scope;
   parser->current_function_state_ = this;
-  isolate->set_ast_node_id(AstNode::kDeclarationsId + 1);
+  isolate->set_ast_node_id(BailoutId::FirstUsable().ToInt());
 }
 
 
@@ -615,8 +615,9 @@ FunctionLiteral* Parser::DoParseProgram(CompilationInfo* info,
   if (pre_data_ != NULL) pre_data_->Initialize();
 
   // Compute the parsing mode.
-  mode_ = (FLAG_lazy && allow_lazy_) ? PARSE_LAZILY : PARSE_EAGERLY;
-  if (allow_natives_syntax_ || extension_ != NULL) mode_ = PARSE_EAGERLY;
+  Mode mode = (FLAG_lazy && allow_lazy_) ? PARSE_LAZILY : PARSE_EAGERLY;
+  if (allow_natives_syntax_ || extension_ != NULL) mode = PARSE_EAGERLY;
+  ParsingModeScope parsing_mode(this, mode);
 
   Handle<String> no_name = isolate()->factory()->empty_symbol();
 
@@ -662,7 +663,8 @@ FunctionLiteral* Parser::DoParseProgram(CompilationInfo* info,
           0,
           FunctionLiteral::kNoDuplicateParameters,
           FunctionLiteral::ANONYMOUS_EXPRESSION,
-          FunctionLiteral::kGlobalOrEval);
+          FunctionLiteral::kGlobalOrEval,
+          FunctionLiteral::kNotParenthesized);
       result->set_ast_properties(factory()->visitor()->ast_properties());
     } else if (stack_overflow_) {
       isolate()->StackOverflow();
@@ -723,7 +725,7 @@ FunctionLiteral* Parser::ParseLazy(Utf16CharacterStream* source,
   fni_ = new(zone()) FuncNameInferrer(isolate(), zone());
   fni_->PushEnclosingName(name);
 
-  mode_ = PARSE_EAGERLY;
+  ParsingModeScope parsing_mode(this, PARSE_EAGERLY);
 
   // Place holder for the result.
   FunctionLiteral* result = NULL;
@@ -4487,6 +4489,9 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> function_name,
   Handle<FixedArray> this_property_assignments;
   FunctionLiteral::ParameterFlag duplicate_parameters =
       FunctionLiteral::kNoDuplicateParameters;
+  FunctionLiteral::IsParenthesizedFlag parenthesized = parenthesized_function_
+      ? FunctionLiteral::kIsParenthesized
+      : FunctionLiteral::kNotParenthesized;
   AstProperties ast_properties;
   // Parse function body.
   { FunctionState function_state(this, scope, isolate());
@@ -4635,6 +4640,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> function_name,
     }
 
     if (!is_lazily_compiled) {
+      ParsingModeScope parsing_mode(this, PARSE_EAGERLY);
       body = new(zone()) ZoneList<Statement*>(8, zone());
       if (fvar != NULL) {
         VariableProxy* fproxy = top_scope_->NewUnresolved(
@@ -4645,7 +4651,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> function_name,
                                      fproxy,
                                      factory()->NewThisFunction(),
                                      RelocInfo::kNoPosition)),
-                  zone());
+                                     zone());
       }
       ParseSourceElements(body, Token::RBRACE, false, CHECK_OK);
 
@@ -4725,7 +4731,8 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> function_name,
                                     num_parameters,
                                     duplicate_parameters,
                                     type,
-                                    FunctionLiteral::kIsFunction);
+                                    FunctionLiteral::kIsFunction,
+                                    parenthesized);
   function_literal->set_function_token_position(function_token_position);
   function_literal->set_ast_properties(&ast_properties);
 

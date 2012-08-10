@@ -115,7 +115,6 @@ class LCodeGen;
   V(IsStringAndBranch)                          \
   V(IsSmiAndBranch)                             \
   V(IsUndetectableAndBranch)                    \
-  V(StringCompareAndBranch)                     \
   V(JSArrayLength)                              \
   V(Label)                                      \
   V(LazyBailout)                                \
@@ -133,6 +132,7 @@ class LCodeGen;
   V(LoadNamedFieldPolymorphic)                  \
   V(LoadNamedGeneric)                           \
   V(MathFloorOfDiv)                             \
+  V(MathMinMax)                                 \
   V(ModI)                                       \
   V(MulI)                                       \
   V(NumberTagD)                                 \
@@ -163,6 +163,7 @@ class LCodeGen;
   V(StringAdd)                                  \
   V(StringCharCodeAt)                           \
   V(StringCharFromCode)                         \
+  V(StringCompareAndBranch)                     \
   V(StringLength)                               \
   V(SubI)                                       \
   V(TaggedToI)                                  \
@@ -1061,6 +1062,18 @@ class LAddI: public LTemplateInstruction<1, 2, 0> {
 
   DECLARE_CONCRETE_INSTRUCTION(AddI, "add-i")
   DECLARE_HYDROGEN_ACCESSOR(Add)
+};
+
+
+class LMathMinMax: public LTemplateInstruction<1, 2, 0> {
+ public:
+  LMathMinMax(LOperand* left, LOperand* right) {
+    inputs_[0] = left;
+    inputs_[1] = right;
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(MathMinMax, "min-max")
+  DECLARE_HYDROGEN_ACCESSOR(MathMinMax)
 };
 
 
@@ -2204,7 +2217,7 @@ class LChunkBuilder BASE_EMBEDDED {
         allocator_(allocator),
         position_(RelocInfo::kNoPosition),
         instruction_pending_deoptimization_environment_(NULL),
-        pending_deoptimization_ast_id_(AstNode::kNoNumber) { }
+        pending_deoptimization_ast_id_(BailoutId::None()) { }
 
   // Build the sequence for the graph.
   LPlatformChunk* Build();
@@ -2341,7 +2354,7 @@ class LChunkBuilder BASE_EMBEDDED {
   LAllocator* allocator_;
   int position_;
   LInstruction* instruction_pending_deoptimization_environment_;
-  int pending_deoptimization_ast_id_;
+  BailoutId pending_deoptimization_ast_id_;
 
   DISALLOW_COPY_AND_ASSIGN(LChunkBuilder);
 };

@@ -45,6 +45,12 @@ Counters::Counters() {
     HISTOGRAM_PERCENTAGE_LIST(HP)
 #undef HP
 
+#define HM(name, caption) \
+    Histogram name = { #caption, 1000, 500000, 50, NULL, false }; \
+    name##_ = name;
+    HISTOGRAM_MEMORY_LIST(HM)
+#undef HM
+
 #define SC(name, caption) \
     StatsCounter name = { "c:" #caption, NULL, false };\
     name##_ = name;
@@ -91,6 +97,20 @@ Counters::Counters() {
   for (int i = 0; i < kSlidingStateWindowCounterCount; ++i) {
     state_counters_[i] = state_counters[i];
   }
+}
+
+void Counters::ResetHistograms() {
+#define HT(name, caption) name##_.Reset();
+    HISTOGRAM_TIMER_LIST(HT)
+#undef HT
+
+#define HP(name, caption) name##_.Reset();
+    HISTOGRAM_PERCENTAGE_LIST(HP)
+#undef HP
+
+#define HM(name, caption) name##_.Reset();
+    HISTOGRAM_MEMORY_LIST(HM)
+#undef HM
 }
 
 } }  // namespace v8::internal

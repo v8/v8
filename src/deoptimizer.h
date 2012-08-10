@@ -211,7 +211,7 @@ class Deoptimizer : public Malloced {
   static Address GetDeoptimizationEntry(int id, BailoutType type);
   static int GetDeoptimizationId(Address addr, BailoutType type);
   static int GetOutputInfo(DeoptimizationOutputData* data,
-                           unsigned node_id,
+                           BailoutId node_id,
                            SharedFunctionInfo* shared);
 
   // Code generation support.
@@ -587,7 +587,7 @@ class Translation BASE_EMBEDDED {
   int index() const { return index_; }
 
   // Commands.
-  void BeginJSFrame(int node_id, int literal_id, unsigned height);
+  void BeginJSFrame(BailoutId node_id, int literal_id, unsigned height);
   void BeginArgumentsAdaptorFrame(int literal_id, unsigned height);
   void BeginConstructStubFrame(int literal_id, unsigned height);
   void StoreRegister(Register reg);

@@ -353,7 +353,7 @@ unsigned FullCodeGenerator::EmitStackCheckTable() {
   unsigned length = stack_checks_.length();
   __ dd(length);
   for (unsigned i = 0; i < length; ++i) {
-    __ dd(stack_checks_[i].id);
+    __ dd(stack_checks_[i].id.ToInt());
     __ dd(stack_checks_[i].pc_and_state);
   }
   return offset;
@@ -368,7 +368,7 @@ void FullCodeGenerator::PopulateDeoptimizationData(Handle<Code> code) {
   Handle<DeoptimizationOutputData> data = isolate()->factory()->
       NewDeoptimizationOutputData(length, TENURED);
   for (int i = 0; i < length; i++) {
-    data->SetAstId(i, Smi::FromInt(bailout_entries_[i].id));
+    data->SetAstId(i, bailout_entries_[i].id);
     data->SetPcAndState(i, Smi::FromInt(bailout_entries_[i].pc_and_state));
   }
   code->set_deoptimization_data(*data);
@@ -404,7 +404,7 @@ void FullCodeGenerator::PopulateTypeFeedbackCells(Handle<Code> code) {
   Handle<TypeFeedbackCells> cache = Handle<TypeFeedbackCells>::cast(
       isolate()->factory()->NewFixedArray(array_size, TENURED));
   for (int i = 0; i < length; i++) {
-    cache->SetAstId(i, Smi::FromInt(type_feedback_cells_[i].ast_id));
+    cache->SetAstId(i, type_feedback_cells_[i].ast_id);
     cache->SetCell(i, *type_feedback_cells_[i].cell);
   }
   TypeFeedbackInfo::cast(code->type_feedback_info())->set_type_feedback_cells(
@@ -435,7 +435,7 @@ void FullCodeGenerator::RecordJSReturnSite(Call* call) {
 }
 
 
-void FullCodeGenerator::PrepareForBailoutForId(unsigned id, State state) {
+void FullCodeGenerator::PrepareForBailoutForId(BailoutId id, State state) {
   // There's no need to prepare this code for bailouts from already optimized
   // code or code that can't be optimized.
   if (!info_->HasDeoptimizationSupport()) return;
@@ -460,13 +460,13 @@ void FullCodeGenerator::PrepareForBailoutForId(unsigned id, State state) {
 
 
 void FullCodeGenerator::RecordTypeFeedbackCell(
-    unsigned id, Handle<JSGlobalPropertyCell> cell) {
+    TypeFeedbackId id, Handle<JSGlobalPropertyCell> cell) {
   TypeFeedbackCellEntry entry = { id, cell };
   type_feedback_cells_.Add(entry, zone());
 }
 
 
-void FullCodeGenerator::RecordStackCheck(unsigned ast_id) {
+void FullCodeGenerator::RecordStackCheck(BailoutId ast_id) {
   // The pc offset does not need to be encoded and packed together with a
   // state.
   ASSERT(masm_->pc_offset() > 0);
@@ -809,7 +809,7 @@ void FullCodeGenerator::VisitLogicalExpression(BinaryOperation* expr) {
   Comment cmnt(masm_, is_logical_and ? "[ Logical AND" :  "[ Logical OR");
   Expression* left = expr->left();
   Expression* right = expr->right();
-  int right_id = expr->RightId();
+  BailoutId right_id = expr->RightId();
   Label done;
 
   if (context()->IsTest()) {

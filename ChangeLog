@@ -1,3 +1,19 @@
+2012-08-10: Version 3.13.0
+
+        Added histograms for total allocated/live heap size, as well as
+        allocated size and percentage of total for map and cell space.
+
+        Fixed parseInt's octal parsing behavior (ECMA-262 Annex E 15.1.2.2).
+        (issue 1645)
+
+        Added checks for interceptors to negative lookup code in Crankshaft.
+        (Chromium issue 140473)
+
+        Made incremental marking clear ICs and type feedback cells.
+
+        Performance and stability improvements on all platforms.
+
+
 2012-08-01: Version 3.12.19
 
         Performance and stability improvements on all platforms.

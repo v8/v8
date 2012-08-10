@@ -945,73 +945,31 @@ unsigned int Simulator::get_s_register(int sreg) const {
 }
 
 
-void Simulator::set_s_register_from_float(int sreg, const float flt) {
-  ASSERT((sreg >= 0) && (sreg < num_s_registers));
-  // Read the bits from the single precision floating point value
-  // into the unsigned integer element of vfp_register[] given by index=sreg.
-  char buffer[sizeof(vfp_register[0])];
-  memcpy(buffer, &flt, sizeof(vfp_register[0]));
-  memcpy(&vfp_register[sreg], buffer, sizeof(vfp_register[0]));
+template<class InputType, int register_size>
+void Simulator::SetVFPRegister(int reg_index, const InputType& value) {
+  ASSERT(reg_index >= 0);
+  if (register_size == 1) ASSERT(reg_index < num_s_registers);
+  if (register_size == 2) ASSERT(reg_index < num_d_registers);
+
+  char buffer[register_size * sizeof(vfp_register[0])];
+  memcpy(buffer, &value, register_size * sizeof(vfp_register[0]));
+  memcpy(&vfp_register[reg_index * register_size], buffer,
+         register_size * sizeof(vfp_register[0]));
 }
 
 
-void Simulator::set_s_register_from_sinteger(int sreg, const int sint) {
-  ASSERT((sreg >= 0) && (sreg < num_s_registers));
-  // Read the bits from the integer value into the unsigned integer element of
-  // vfp_register[] given by index=sreg.
-  char buffer[sizeof(vfp_register[0])];
-  memcpy(buffer, &sint, sizeof(vfp_register[0]));
-  memcpy(&vfp_register[sreg], buffer, sizeof(vfp_register[0]));
-}
+template<class ReturnType, int register_size>
+ReturnType Simulator::GetFromVFPRegister(int reg_index) {
+  ASSERT(reg_index >= 0);
+  if (register_size == 1) ASSERT(reg_index < num_s_registers);
+  if (register_size == 2) ASSERT(reg_index < num_d_registers);
 
-
-void Simulator::set_d_register_from_double(int dreg, const double& dbl) {
-  ASSERT((dreg >= 0) && (dreg < num_d_registers));
-  // Read the bits from the double precision floating point value into the two
-  // consecutive unsigned integer elements of vfp_register[] given by index
-  // 2*sreg and 2*sreg+1.
-  char buffer[2 * sizeof(vfp_register[0])];
-  memcpy(buffer, &dbl, 2 * sizeof(vfp_register[0]));
-  memcpy(&vfp_register[dreg * 2], buffer, 2 * sizeof(vfp_register[0]));
-}
-
-
-float Simulator::get_float_from_s_register(int sreg) {
-  ASSERT((sreg >= 0) && (sreg < num_s_registers));
-
-  float sm_val = 0.0;
-  // Read the bits from the unsigned integer vfp_register[] array
-  // into the single precision floating point value and return it.
-  char buffer[sizeof(vfp_register[0])];
-  memcpy(buffer, &vfp_register[sreg], sizeof(vfp_register[0]));
-  memcpy(&sm_val, buffer, sizeof(vfp_register[0]));
-  return(sm_val);
-}
-
-
-int Simulator::get_sinteger_from_s_register(int sreg) {
-  ASSERT((sreg >= 0) && (sreg < num_s_registers));
-
-  int sm_val = 0;
-  // Read the bits from the unsigned integer vfp_register[] array
-  // into the single precision floating point value and return it.
-  char buffer[sizeof(vfp_register[0])];
-  memcpy(buffer, &vfp_register[sreg], sizeof(vfp_register[0]));
-  memcpy(&sm_val, buffer, sizeof(vfp_register[0]));
-  return(sm_val);
-}
-
-
-double Simulator::get_double_from_d_register(int dreg) {
-  ASSERT((dreg >= 0) && (dreg < num_d_registers));
-
-  double dm_val = 0.0;
-  // Read the bits from the unsigned integer vfp_register[] array
-  // into the double precision floating point value and return it.
-  char buffer[2 * sizeof(vfp_register[0])];
-  memcpy(buffer, &vfp_register[2 * dreg], 2 * sizeof(vfp_register[0]));
-  memcpy(&dm_val, buffer, 2 * sizeof(vfp_register[0]));
-  return(dm_val);
+  ReturnType value = 0;
+  char buffer[register_size * sizeof(vfp_register[0])];
+  memcpy(buffer, &vfp_register[register_size * reg_index],
+         register_size * sizeof(vfp_register[0]));
+  memcpy(&value, buffer, register_size * sizeof(vfp_register[0]));
+  return value;
 }
 
 

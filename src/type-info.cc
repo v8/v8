@@ -71,8 +71,13 @@ TypeFeedbackOracle::TypeFeedbackOracle(Handle<Code> code,
 }
 
 
-Handle<Object> TypeFeedbackOracle::GetInfo(unsigned ast_id) {
-  int entry = dictionary_->FindEntry(ast_id);
+static uint32_t IdToKey(TypeFeedbackId ast_id) {
+  return static_cast<uint32_t>(ast_id.ToInt());
+}
+
+
+Handle<Object> TypeFeedbackOracle::GetInfo(TypeFeedbackId ast_id) {
+  int entry = dictionary_->FindEntry(IdToKey(ast_id));
   return entry != UnseededNumberDictionary::kNotFound
       ? Handle<Object>(dictionary_->ValueAt(entry))
       : Handle<Object>::cast(isolate_->factory()->undefined_value());
@@ -80,7 +85,7 @@ Handle<Object> TypeFeedbackOracle::GetInfo(unsigned ast_id) {
 
 
 bool TypeFeedbackOracle::LoadIsUninitialized(Property* expr) {
-  Handle<Object> map_or_code = GetInfo(expr->id());
+  Handle<Object> map_or_code = GetInfo(expr->PropertyFeedbackId());
   if (map_or_code->IsMap()) return false;
   if (map_or_code->IsCode()) {
     Handle<Code> code = Handle<Code>::cast(map_or_code);
@@ -91,7 +96,7 @@ bool TypeFeedbackOracle::LoadIsUninitialized(Property* expr) {
 
 
 bool TypeFeedbackOracle::LoadIsMonomorphicNormal(Property* expr) {
-  Handle<Object> map_or_code = GetInfo(expr->id());
+  Handle<Object> map_or_code = GetInfo(expr->PropertyFeedbackId());
   if (map_or_code->IsMap()) return true;
   if (map_or_code->IsCode()) {
     Handle<Code> code = Handle<Code>::cast(map_or_code);
@@ -107,7 +112,7 @@ bool TypeFeedbackOracle::LoadIsMonomorphicNormal(Property* expr) {
 
 
 bool TypeFeedbackOracle::LoadIsMegamorphicWithTypeInfo(Property* expr) {
-  Handle<Object> map_or_code = GetInfo(expr->id());
+  Handle<Object> map_or_code = GetInfo(expr->PropertyFeedbackId());
   if (map_or_code->IsCode()) {
     Handle<Code> code = Handle<Code>::cast(map_or_code);
     Builtins* builtins = isolate_->builtins();
@@ -119,8 +124,8 @@ bool TypeFeedbackOracle::LoadIsMegamorphicWithTypeInfo(Property* expr) {
 }
 
 
-bool TypeFeedbackOracle::StoreIsMonomorphicNormal(Expression* expr) {
-  Handle<Object> map_or_code = GetInfo(expr->id());
+bool TypeFeedbackOracle::StoreIsMonomorphicNormal(TypeFeedbackId ast_id) {
+  Handle<Object> map_or_code = GetInfo(ast_id);
   if (map_or_code->IsMap()) return true;
   if (map_or_code->IsCode()) {
     Handle<Code> code = Handle<Code>::cast(map_or_code);
@@ -140,8 +145,8 @@ bool TypeFeedbackOracle::StoreIsMonomorphicNormal(Expression* expr) {
 }
 
 
-bool TypeFeedbackOracle::StoreIsMegamorphicWithTypeInfo(Expression* expr) {
-  Handle<Object> map_or_code = GetInfo(expr->id());
+bool TypeFeedbackOracle::StoreIsMegamorphicWithTypeInfo(TypeFeedbackId ast_id) {
+  Handle<Object> map_or_code = GetInfo(ast_id);
   if (map_or_code->IsCode()) {
     Handle<Code> code = Handle<Code>::cast(map_or_code);
     Builtins* builtins = isolate_->builtins();
@@ -159,26 +164,26 @@ bool TypeFeedbackOracle::StoreIsMegamorphicWithTypeInfo(Expression* expr) {
 
 
 bool TypeFeedbackOracle::CallIsMonomorphic(Call* expr) {
-  Handle<Object> value = GetInfo(expr->id());
+  Handle<Object> value = GetInfo(expr->CallFeedbackId());
   return value->IsMap() || value->IsSmi() || value->IsJSFunction();
 }
 
 
 bool TypeFeedbackOracle::CallNewIsMonomorphic(CallNew* expr) {
-  Handle<Object> value = GetInfo(expr->id());
+  Handle<Object> value = GetInfo(expr->CallNewFeedbackId());
   return value->IsJSFunction();
 }
 
 
 bool TypeFeedbackOracle::ObjectLiteralStoreIsMonomorphic(
     ObjectLiteral::Property* prop) {
-  Handle<Object> map_or_code = GetInfo(prop->key()->id());
+  Handle<Object> map_or_code = GetInfo(prop->key()->LiteralFeedbackId());
   return map_or_code->IsMap();
 }
 
 
 bool TypeFeedbackOracle::IsForInFastCase(ForInStatement* stmt) {
-  Handle<Object> value = GetInfo(stmt->PrepareId());
+  Handle<Object> value = GetInfo(stmt->ForInFeedbackId());
   return value->IsSmi() &&
       Smi::cast(*value)->value() == TypeFeedbackCells::kForInFastCaseMarker;
 }
@@ -186,7 +191,7 @@ bool TypeFeedbackOracle::IsForInFastCase(ForInStatement* stmt) {
 
 Handle<Map> TypeFeedbackOracle::LoadMonomorphicReceiverType(Property* expr) {
   ASSERT(LoadIsMonomorphicNormal(expr));
-  Handle<Object> map_or_code = GetInfo(expr->id());
+  Handle<Object> map_or_code = GetInfo(expr->PropertyFeedbackId());
   if (map_or_code->IsCode()) {
     Handle<Code> code = Handle<Code>::cast(map_or_code);
     Map* first_map = code->FindFirstMap();
@@ -199,9 +204,10 @@ Handle<Map> TypeFeedbackOracle::LoadMonomorphicReceiverType(Property* expr) {
 }
 
 
-Handle<Map> TypeFeedbackOracle::StoreMonomorphicReceiverType(Expression* expr) {
-  ASSERT(StoreIsMonomorphicNormal(expr));
-  Handle<Object> map_or_code = GetInfo(expr->id());
+Handle<Map> TypeFeedbackOracle::StoreMonomorphicReceiverType(
+    TypeFeedbackId ast_id) {
+  ASSERT(StoreIsMonomorphicNormal(ast_id));
+  Handle<Object> map_or_code = GetInfo(ast_id);
   if (map_or_code->IsCode()) {
     Handle<Code> code = Handle<Code>::cast(map_or_code);
     Map* first_map = code->FindFirstMap();
@@ -219,7 +225,7 @@ void TypeFeedbackOracle::LoadReceiverTypes(Property* expr,
                                            SmallMapList* types) {
   Code::Flags flags =
       Code::ComputeMonomorphicFlags(Code::LOAD_IC, Code::NORMAL);
-  CollectReceiverTypes(expr->id(), name, flags, types);
+  CollectReceiverTypes(expr->PropertyFeedbackId(), name, flags, types);
 }
 
 
@@ -228,7 +234,7 @@ void TypeFeedbackOracle::StoreReceiverTypes(Assignment* expr,
                                             SmallMapList* types) {
   Code::Flags flags =
       Code::ComputeMonomorphicFlags(Code::STORE_IC, Code::NORMAL);
-  CollectReceiverTypes(expr->id(), name, flags, types);
+  CollectReceiverTypes(expr->AssignmentFeedbackId(), name, flags, types);
 }
 
 
@@ -248,12 +254,12 @@ void TypeFeedbackOracle::CallReceiverTypes(Call* expr,
                                                     extra_ic_state,
                                                     OWN_MAP,
                                                     arity);
-  CollectReceiverTypes(expr->id(), name, flags, types);
+  CollectReceiverTypes(expr->CallFeedbackId(), name, flags, types);
 }
 
 
 CheckType TypeFeedbackOracle::GetCallCheckType(Call* expr) {
-  Handle<Object> value = GetInfo(expr->id());
+  Handle<Object> value = GetInfo(expr->CallFeedbackId());
   if (!value->IsSmi()) return RECEIVER_MAP_CHECK;
   CheckType check = static_cast<CheckType>(Smi::cast(*value)->value());
   ASSERT(check != RECEIVER_MAP_CHECK);
@@ -284,30 +290,30 @@ Handle<JSObject> TypeFeedbackOracle::GetPrototypeForPrimitiveCheck(
 
 
 Handle<JSFunction> TypeFeedbackOracle::GetCallTarget(Call* expr) {
-  return Handle<JSFunction>::cast(GetInfo(expr->id()));
+  return Handle<JSFunction>::cast(GetInfo(expr->CallFeedbackId()));
 }
 
 
 Handle<JSFunction> TypeFeedbackOracle::GetCallNewTarget(CallNew* expr) {
-  return Handle<JSFunction>::cast(GetInfo(expr->id()));
+  return Handle<JSFunction>::cast(GetInfo(expr->CallNewFeedbackId()));
 }
 
 
 Handle<Map> TypeFeedbackOracle::GetObjectLiteralStoreMap(
     ObjectLiteral::Property* prop) {
   ASSERT(ObjectLiteralStoreIsMonomorphic(prop));
-  return Handle<Map>::cast(GetInfo(prop->key()->id()));
+  return Handle<Map>::cast(GetInfo(prop->key()->LiteralFeedbackId()));
 }
 
 
 bool TypeFeedbackOracle::LoadIsBuiltin(Property* expr, Builtins::Name id) {
-  return *GetInfo(expr->id()) ==
+  return *GetInfo(expr->PropertyFeedbackId()) ==
       isolate_->builtins()->builtin(id);
 }
 
 
 TypeInfo TypeFeedbackOracle::CompareType(CompareOperation* expr) {
-  Handle<Object> object = GetInfo(expr->id());
+  Handle<Object> object = GetInfo(expr->CompareOperationFeedbackId());
   TypeInfo unknown = TypeInfo::Unknown();
   if (!object->IsCode()) return unknown;
   Handle<Code> code = Handle<Code>::cast(object);
@@ -337,7 +343,7 @@ TypeInfo TypeFeedbackOracle::CompareType(CompareOperation* expr) {
 
 
 bool TypeFeedbackOracle::IsSymbolCompare(CompareOperation* expr) {
-  Handle<Object> object = GetInfo(expr->id());
+  Handle<Object> object = GetInfo(expr->CompareOperationFeedbackId());
   if (!object->IsCode()) return false;
   Handle<Code> code = Handle<Code>::cast(object);
   if (!code->is_compare_ic_stub()) return false;
@@ -347,7 +353,7 @@ bool TypeFeedbackOracle::IsSymbolCompare(CompareOperation* expr) {
 
 
 Handle<Map> TypeFeedbackOracle::GetCompareMap(CompareOperation* expr) {
-  Handle<Object> object = GetInfo(expr->id());
+  Handle<Object> object = GetInfo(expr->CompareOperationFeedbackId());
   if (!object->IsCode()) return Handle<Map>::null();
   Handle<Code> code = Handle<Code>::cast(object);
   if (!code->is_compare_ic_stub()) return Handle<Map>::null();
@@ -364,7 +370,7 @@ Handle<Map> TypeFeedbackOracle::GetCompareMap(CompareOperation* expr) {
 
 
 TypeInfo TypeFeedbackOracle::UnaryType(UnaryOperation* expr) {
-  Handle<Object> object = GetInfo(expr->id());
+  Handle<Object> object = GetInfo(expr->UnaryOperationFeedbackId());
   TypeInfo unknown = TypeInfo::Unknown();
   if (!object->IsCode()) return unknown;
   Handle<Code> code = Handle<Code>::cast(object);
@@ -383,7 +389,7 @@ TypeInfo TypeFeedbackOracle::UnaryType(UnaryOperation* expr) {
 
 
 TypeInfo TypeFeedbackOracle::BinaryType(BinaryOperation* expr) {
-  Handle<Object> object = GetInfo(expr->id());
+  Handle<Object> object = GetInfo(expr->BinaryOperationFeedbackId());
   TypeInfo unknown = TypeInfo::Unknown();
   if (!object->IsCode()) return unknown;
   Handle<Code> code = Handle<Code>::cast(object);
@@ -467,7 +473,7 @@ TypeInfo TypeFeedbackOracle::SwitchType(CaseClause* clause) {
 
 
 TypeInfo TypeFeedbackOracle::IncrementType(CountOperation* expr) {
-  Handle<Object> object = GetInfo(expr->CountId());
+  Handle<Object> object = GetInfo(expr->CountBinOpFeedbackId());
   TypeInfo unknown = TypeInfo::Unknown();
   if (!object->IsCode()) return unknown;
   Handle<Code> code = Handle<Code>::cast(object);
@@ -495,7 +501,7 @@ TypeInfo TypeFeedbackOracle::IncrementType(CountOperation* expr) {
 }
 
 
-void TypeFeedbackOracle::CollectReceiverTypes(unsigned ast_id,
+void TypeFeedbackOracle::CollectReceiverTypes(TypeFeedbackId ast_id,
                                               Handle<String> name,
                                               Code::Flags flags,
                                               SmallMapList* types) {
@@ -565,7 +571,7 @@ static void AddMapIfMissing(Handle<Map> map, SmallMapList* list,
 }
 
 
-void TypeFeedbackOracle::CollectKeyedReceiverTypes(unsigned ast_id,
+void TypeFeedbackOracle::CollectKeyedReceiverTypes(TypeFeedbackId ast_id,
                                                    SmallMapList* types) {
   Handle<Object> object = GetInfo(ast_id);
   if (!object->IsCode()) return;
@@ -588,7 +594,7 @@ void TypeFeedbackOracle::CollectKeyedReceiverTypes(unsigned ast_id,
 }
 
 
-byte TypeFeedbackOracle::ToBooleanTypes(unsigned ast_id) {
+byte TypeFeedbackOracle::ToBooleanTypes(TypeFeedbackId ast_id) {
   Handle<Object> object = GetInfo(ast_id);
   return object->IsCode() ? Handle<Code>::cast(object)->to_boolean_state() : 0;
 }
@@ -649,7 +655,8 @@ void TypeFeedbackOracle::ProcessRelocInfos(ZoneList<RelocInfo>* infos) {
   for (int i = 0; i < infos->length(); i++) {
     RelocInfo reloc_entry = (*infos)[i];
     Address target_address = reloc_entry.target_address();
-    unsigned ast_id = static_cast<unsigned>((*infos)[i].data());
+    TypeFeedbackId ast_id =
+        TypeFeedbackId(static_cast<unsigned>((*infos)[i].data()));
     Code* target = Code::GetCodeFromTargetAddress(target_address);
     switch (target->kind()) {
       case Code::LOAD_IC:
@@ -702,7 +709,7 @@ void TypeFeedbackOracle::ProcessTypeFeedbackCells(Handle<Code> code) {
   Handle<TypeFeedbackCells> cache(
       TypeFeedbackInfo::cast(raw_info)->type_feedback_cells());
   for (int i = 0; i < cache->CellCount(); i++) {
-    unsigned ast_id = cache->AstId(i)->value();
+    TypeFeedbackId ast_id = cache->AstId(i);
     Object* value = cache->Cell(i)->value();
     if (value->IsSmi() ||
         (value->IsJSFunction() &&
@@ -714,9 +721,10 @@ void TypeFeedbackOracle::ProcessTypeFeedbackCells(Handle<Code> code) {
 }
 
 
-void TypeFeedbackOracle::SetInfo(unsigned ast_id, Object* target) {
-  ASSERT(dictionary_->FindEntry(ast_id) == UnseededNumberDictionary::kNotFound);
-  MaybeObject* maybe_result = dictionary_->AtNumberPut(ast_id, target);
+void TypeFeedbackOracle::SetInfo(TypeFeedbackId ast_id, Object* target) {
+  ASSERT(dictionary_->FindEntry(IdToKey(ast_id)) ==
+         UnseededNumberDictionary::kNotFound);
+  MaybeObject* maybe_result = dictionary_->AtNumberPut(IdToKey(ast_id), target);
   USE(maybe_result);
 #ifdef DEBUG
   Object* result = NULL;

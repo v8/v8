@@ -53,6 +53,13 @@
 #include <errno.h>
 #include <stdarg.h>
 
+// GLibc on ARM defines mcontext_t has a typedef for 'struct sigcontext'.
+// Old versions of the C library <signal.h> didn't define the type.
+#if defined(__ANDROID__) && !defined(__BIONIC_HAVE_UCONTEXT_T) && \
+    defined(__arm__) && !defined(__BIONIC_HAVE_STRUCT_SIGCONTEXT)
+#include <asm/sigcontext.h>
+#endif
+
 #undef MAP_TYPE
 
 #include "v8.h"
@@ -907,32 +914,30 @@ Semaphore* OS::CreateSemaphore(int count) {
 }
 
 
-#if !defined(__GLIBC__) && (defined(__arm__) || defined(__thumb__))
-// Android runs a fairly new Linux kernel, so signal info is there,
-// but the C library doesn't have the structs defined.
+#if defined(__ANDROID__) && !defined(__BIONIC_HAVE_UCONTEXT_T)
 
-struct sigcontext {
-  uint32_t trap_no;
-  uint32_t error_code;
-  uint32_t oldmask;
-  uint32_t gregs[16];
-  uint32_t arm_cpsr;
-  uint32_t fault_address;
-};
-typedef uint32_t __sigset_t;
+// Not all versions of Android's C library provide ucontext_t.
+// Detect this and provide custom but compatible definitions. Note that these
+// follow the GLibc naming convention to access register values from
+// mcontext_t.
+//
+// See http://code.google.com/p/android/issues/detail?id=34784
+
+#if defined(__arm__)
+
 typedef struct sigcontext mcontext_t;
+
 typedef struct ucontext {
   uint32_t uc_flags;
   struct ucontext* uc_link;
   stack_t uc_stack;
   mcontext_t uc_mcontext;
-  __sigset_t uc_sigmask;
+  // Other fields are not used by V8, don't define them here.
 } ucontext_t;
-enum ArmRegisters {R15 = 15, R13 = 13, R11 = 11};
 
-#elif !defined(__GLIBC__) && defined(__mips__)
+#elif defined(__mips__)
 // MIPS version of sigcontext, for Android bionic.
-struct sigcontext {
+typedef struct {
   uint32_t regmask;
   uint32_t status;
   uint64_t pc;
@@ -951,44 +956,44 @@ struct sigcontext {
   uint32_t lo2;
   uint32_t hi3;
   uint32_t lo3;
-};
-typedef uint32_t __sigset_t;
-typedef struct sigcontext mcontext_t;
+} mcontext_t;
+
 typedef struct ucontext {
   uint32_t uc_flags;
   struct ucontext* uc_link;
   stack_t uc_stack;
   mcontext_t uc_mcontext;
-  __sigset_t uc_sigmask;
+  // Other fields are not used by V8, don't define them here.
 } ucontext_t;
 
-#elif !defined(__GLIBC__) && defined(__i386__)
+#elif defined(__i386__)
 // x86 version for Android.
-struct sigcontext {
+typedef struct {
   uint32_t gregs[19];
   void* fpregs;
   uint32_t oldmask;
   uint32_t cr2;
-};
+} mcontext_t;
 
-typedef uint32_t __sigset_t;
-typedef struct sigcontext mcontext_t;
+typedef uint32_t kernel_sigset_t[2];  // x86 kernel uses 64-bit signal masks
 typedef struct ucontext {
   uint32_t uc_flags;
   struct ucontext* uc_link;
   stack_t uc_stack;
   mcontext_t uc_mcontext;
-  __sigset_t uc_sigmask;
+  // Other fields are not used by V8, don't define them here.
 } ucontext_t;
 enum { REG_EBP = 6, REG_ESP = 7, REG_EIP = 14 };
 #endif
 
+#endif  // __ANDROID__ && !defined(__BIONIC_HAVE_UCONTEXT_T)
 
 static int GetThreadID() {
-  // Glibc doesn't provide a wrapper for gettid(2).
-#if defined(ANDROID)
-  return syscall(__NR_gettid);
+#if defined(__ANDROID__)
+  // Android's C library provides gettid(2).
+  return gettid();
 #else
+  // Glibc doesn't provide a wrapper for gettid(2).
   return syscall(SYS_gettid);
 #endif
 }
@@ -1027,9 +1032,10 @@ static void ProfilerSignalHandler(int signal, siginfo_t* info, void* context) {
   sample->sp = reinterpret_cast<Address>(mcontext.gregs[REG_RSP]);
   sample->fp = reinterpret_cast<Address>(mcontext.gregs[REG_RBP]);
 #elif V8_HOST_ARCH_ARM
-// An undefined macro evaluates to 0, so this applies to Android's Bionic also.
-#if (__GLIBC__ < 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ <= 3) && \
-     !defined(__UCLIBC__))
+#if defined(__GLIBC__) && !defined(__UCLIBC__) && \
+    (__GLIBC__ < 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ <= 3))
+  // Old GLibc ARM versions used a gregs[] array to access the register
+  // values from mcontext_t.
   sample->pc = reinterpret_cast<Address>(mcontext.gregs[R15]);
   sample->sp = reinterpret_cast<Address>(mcontext.gregs[R13]);
   sample->fp = reinterpret_cast<Address>(mcontext.gregs[R11]);
@@ -1037,8 +1043,8 @@ static void ProfilerSignalHandler(int signal, siginfo_t* info, void* context) {
   sample->pc = reinterpret_cast<Address>(mcontext.arm_pc);
   sample->sp = reinterpret_cast<Address>(mcontext.arm_sp);
   sample->fp = reinterpret_cast<Address>(mcontext.arm_fp);
-#endif  // (__GLIBC__ < 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ <= 3) &&
-        //  !defined(__UCLIBC__))
+#endif  // defined(__GLIBC__) && !defined(__UCLIBC__) &&
+        // (__GLIBC__ < 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ <= 3))
 #elif V8_HOST_ARCH_MIPS
   sample->pc = reinterpret_cast<Address>(mcontext.pc);
   sample->sp = reinterpret_cast<Address>(mcontext.gregs[29]);

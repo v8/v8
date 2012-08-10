@@ -3299,6 +3299,7 @@ bool v8::Object::SetHiddenValue(v8::Handle<v8::String> key,
                                 v8::Handle<v8::Value> value) {
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
   ON_BAILOUT(isolate, "v8::Object::SetHiddenValue()", return false);
+  if (value.IsEmpty()) return DeleteHiddenValue(key);
   ENTER_V8(isolate);
   i::HandleScope scope(isolate);
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
@@ -5223,6 +5224,8 @@ void V8::SetCreateHistogramFunction(CreateHistogramCallback callback) {
   i::Isolate* isolate = EnterIsolateIfNeeded();
   if (IsDeadCheck(isolate, "v8::V8::SetCreateHistogramFunction()")) return;
   isolate->stats_table()->SetCreateHistogramFunction(callback);
+  isolate->InitializeLoggingAndCounters();
+  isolate->counters()->ResetHistograms();
 }
 
 void V8::SetAddHistogramSampleFunction(AddHistogramSampleCallback callback) {
@@ -5272,8 +5275,9 @@ void V8::AddImplicitReferences(Persistent<Object> parent,
 
 
 intptr_t V8::AdjustAmountOfExternalAllocatedMemory(intptr_t change_in_bytes) {
-  i::Isolate* isolate = i::Isolate::Current();
-  if (IsDeadCheck(isolate, "v8::V8::AdjustAmountOfExternalAllocatedMemory()")) {
+  i::Isolate* isolate = i::Isolate::UncheckedCurrent();
+  if (isolate == NULL || !isolate->IsInitialized() ||
+      IsDeadCheck(isolate, "v8::V8::AdjustAmountOfExternalAllocatedMemory()")) {
     return 0;
   }
   return isolate->heap()->AdjustAmountOfExternalAllocatedMemory(

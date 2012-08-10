@@ -1254,9 +1254,6 @@ class HeapObject: public Object {
 };
 
 
-#define SLOT_ADDR(obj, offset) \
-  reinterpret_cast<Object**>((obj)->address() + offset)
-
 // This class describes a body of an object of a fixed size
 // in which all pointer fields are located in the [start_offset, end_offset)
 // interval.
@@ -1271,8 +1268,8 @@ class FixedBodyDescriptor {
 
   template<typename StaticVisitor>
   static inline void IterateBody(HeapObject* obj) {
-    StaticVisitor::VisitPointers(SLOT_ADDR(obj, start_offset),
-                                 SLOT_ADDR(obj, end_offset));
+    StaticVisitor::VisitPointers(HeapObject::RawField(obj, start_offset),
+                                 HeapObject::RawField(obj, end_offset));
   }
 };
 
@@ -1291,12 +1288,10 @@ class FlexibleBodyDescriptor {
 
   template<typename StaticVisitor>
   static inline void IterateBody(HeapObject* obj, int object_size) {
-    StaticVisitor::VisitPointers(SLOT_ADDR(obj, start_offset),
-                                 SLOT_ADDR(obj, object_size));
+    StaticVisitor::VisitPointers(HeapObject::RawField(obj, start_offset),
+                                 HeapObject::RawField(obj, object_size));
   }
 };
-
-#undef SLOT_ADDR
 
 
 // The HeapNumber class describes heap allocated numbers that cannot be
@@ -4020,7 +4015,7 @@ class DeoptimizationInputData: public FixedArray {
   static const int kFirstDeoptEntryIndex = 5;
 
   // Offsets of deopt entry elements relative to the start of the entry.
-  static const int kAstIdOffset = 0;
+  static const int kAstIdRawOffset = 0;
   static const int kTranslationIndexOffset = 1;
   static const int kArgumentsStackHeightOffset = 2;
   static const int kPcOffset = 3;
@@ -4052,12 +4047,20 @@ class DeoptimizationInputData: public FixedArray {
     set(IndexForEntry(i) + k##name##Offset, value);              \
   }
 
-  DEFINE_ENTRY_ACCESSORS(AstId, Smi)
+  DEFINE_ENTRY_ACCESSORS(AstIdRaw, Smi)
   DEFINE_ENTRY_ACCESSORS(TranslationIndex, Smi)
   DEFINE_ENTRY_ACCESSORS(ArgumentsStackHeight, Smi)
   DEFINE_ENTRY_ACCESSORS(Pc, Smi)
 
 #undef DEFINE_ENTRY_ACCESSORS
+
+  BailoutId AstId(int i) {
+    return BailoutId(AstIdRaw(i)->value());
+  }
+
+  void SetAstId(int i, BailoutId value) {
+    SetAstIdRaw(i, Smi::FromInt(value.ToInt()));
+  }
 
   int DeoptCount() {
     return (length() - kFirstDeoptEntryIndex) / kDeoptEntrySize;
@@ -4093,8 +4096,15 @@ class DeoptimizationInputData: public FixedArray {
 class DeoptimizationOutputData: public FixedArray {
  public:
   int DeoptPoints() { return length() / 2; }
-  Smi* AstId(int index) { return Smi::cast(get(index * 2)); }
-  void SetAstId(int index, Smi* id) { set(index * 2, id); }
+
+  BailoutId AstId(int index) {
+    return BailoutId(Smi::cast(get(index * 2))->value());
+  }
+
+  void SetAstId(int index, BailoutId id) {
+    set(index * 2, Smi::FromInt(id.ToInt()));
+  }
+
   Smi* PcAndState(int index) { return Smi::cast(get(1 + index * 2)); }
   void SetPcAndState(int index, Smi* offset) { set(1 + index * 2, offset); }
 
@@ -4129,8 +4139,8 @@ class TypeFeedbackCells: public FixedArray {
   static int LengthOfFixedArray(int cell_count) { return cell_count * 2; }
 
   // Accessors for AST ids associated with cache values.
-  inline Smi* AstId(int index);
-  inline void SetAstId(int index, Smi* id);
+  inline TypeFeedbackId AstId(int index);
+  inline void SetAstId(int index, TypeFeedbackId id);
 
   // Accessors for global property cells holding the cache values.
   inline JSGlobalPropertyCell* Cell(int index);
@@ -5678,7 +5688,7 @@ class SharedFunctionInfo: public HeapObject {
   // Lookup the bailout ID and ASSERT that it exists in the non-optimized
   // code, returns whether it asserted (i.e., always true if assertions are
   // disabled).
-  bool VerifyBailoutId(int id);
+  bool VerifyBailoutId(BailoutId id);
 
   // Check whether a inlined constructor can be generated with the given
   // prototype.
@@ -6041,7 +6051,7 @@ class JSFunction: public JSObject {
   static bool CompileLazy(Handle<JSFunction> function,
                           ClearExceptionFlag flag);
   static bool CompileOptimized(Handle<JSFunction> function,
-                               int osr_ast_id,
+                               BailoutId osr_ast_id,
                                ClearExceptionFlag flag);
 
   // Tells whether or not the function is already marked for lazy

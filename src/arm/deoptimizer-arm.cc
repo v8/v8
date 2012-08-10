@@ -73,8 +73,11 @@ void Deoptimizer::DeoptimizeFunction(JSFunction* function) {
     if (deopt_data->Pc(i)->value() == -1) continue;
     Address call_address = code_start_address + deopt_data->Pc(i)->value();
     Address deopt_entry = GetDeoptimizationEntry(i, LAZY);
-    int call_size_in_bytes = MacroAssembler::CallSize(deopt_entry,
-                                                      RelocInfo::NONE);
+    // We need calls to have a predictable size in the unoptimized code, but
+    // this is optimized code, so we don't have to have a predictable size.
+    int call_size_in_bytes =
+        MacroAssembler::CallSizeNotPredictableCodeSize(deopt_entry,
+                                                       RelocInfo::NONE);
     int call_size_in_words = call_size_in_bytes / Assembler::kInstrSize;
     ASSERT(call_size_in_bytes % Assembler::kInstrSize == 0);
     ASSERT(call_size_in_bytes <= patch_size());
@@ -211,11 +214,11 @@ void Deoptimizer::RevertStackCheckCodeAt(Code* unoptimized_code,
 }
 
 
-static int LookupBailoutId(DeoptimizationInputData* data, unsigned ast_id) {
+static int LookupBailoutId(DeoptimizationInputData* data, BailoutId ast_id) {
   ByteArray* translations = data->TranslationByteArray();
   int length = data->DeoptCount();
   for (int i = 0; i < length; i++) {
-    if (static_cast<unsigned>(data->AstId(i)->value()) == ast_id) {
+    if (data->AstId(i) == ast_id) {
       TranslationIterator it(translations,  data->TranslationIndex(i)->value());
       int value = it.Next();
       ASSERT(Translation::BEGIN == static_cast<Translation::Opcode>(value));
@@ -234,7 +237,7 @@ void Deoptimizer::DoComputeOsrOutputFrame() {
       optimized_code_->deoptimization_data());
   unsigned ast_id = data->OsrAstId()->value();
 
-  int bailout_id = LookupBailoutId(data, ast_id);
+  int bailout_id = LookupBailoutId(data, BailoutId(ast_id));
   unsigned translation_index = data->TranslationIndex(bailout_id)->value();
   ByteArray* translations = data->TranslationByteArray();
 
@@ -597,7 +600,7 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslationIterator* iterator,
 void Deoptimizer::DoComputeJSFrame(TranslationIterator* iterator,
                                    int frame_index) {
   // Read the ast node id, function, and frame height for this output frame.
-  int node_id = iterator->Next();
+  BailoutId node_id = BailoutId(iterator->Next());
   JSFunction* function;
   if (frame_index != 0) {
     function = JSFunction::cast(ComputeLiteral(iterator->Next()));
@@ -612,7 +615,7 @@ void Deoptimizer::DoComputeJSFrame(TranslationIterator* iterator,
   if (FLAG_trace_deopt) {
     PrintF("  translating ");
     function->PrintName();
-    PrintF(" => node=%d, height=%d\n", node_id, height_in_bytes);
+    PrintF(" => node=%d, height=%d\n", node_id.ToInt(), height_in_bytes);
   }
 
   // The 'fixed' part of the frame consists of the incoming parameters and

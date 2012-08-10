@@ -65,10 +65,10 @@ void Assembler::emitw(uint16_t x) {
 
 void Assembler::emit_code_target(Handle<Code> target,
                                  RelocInfo::Mode rmode,
-                                 unsigned ast_id) {
+                                 TypeFeedbackId ast_id) {
   ASSERT(RelocInfo::IsCodeTarget(rmode));
-  if (rmode == RelocInfo::CODE_TARGET && ast_id != kNoASTId) {
-    RecordRelocInfo(RelocInfo::CODE_TARGET_WITH_ID, ast_id);
+  if (rmode == RelocInfo::CODE_TARGET && !ast_id.IsNone()) {
+    RecordRelocInfo(RelocInfo::CODE_TARGET_WITH_ID, ast_id.ToInt());
   } else {
     RecordRelocInfo(rmode);
   }

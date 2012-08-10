@@ -2559,7 +2559,7 @@ void MacroAssembler::Call(Address target,
 
 int MacroAssembler::CallSize(Handle<Code> code,
                              RelocInfo::Mode rmode,
-                             unsigned ast_id,
+                             TypeFeedbackId ast_id,
                              Condition cond,
                              Register rs,
                              const Operand& rt,
@@ -2571,7 +2571,7 @@ int MacroAssembler::CallSize(Handle<Code> code,
 
 void MacroAssembler::Call(Handle<Code> code,
                           RelocInfo::Mode rmode,
-                          unsigned ast_id,
+                          TypeFeedbackId ast_id,
                           Condition cond,
                           Register rs,
                           const Operand& rt,
@@ -2580,7 +2580,7 @@ void MacroAssembler::Call(Handle<Code> code,
   Label start;
   bind(&start);
   ASSERT(RelocInfo::IsCodeTarget(rmode));
-  if (rmode == RelocInfo::CODE_TARGET && ast_id != kNoASTId) {
+  if (rmode == RelocInfo::CODE_TARGET && !ast_id.IsNone()) {
     SetRecordedAstId(ast_id);
     rmode = RelocInfo::CODE_TARGET_WITH_ID;
   }
@@ -3911,7 +3911,8 @@ void MacroAssembler::CallStub(CodeStub* stub,
                               const Operand& r2,
                               BranchDelaySlot bd) {
   ASSERT(AllowThisStubCall(stub));  // Stub calls are not allowed in some stubs.
-  Call(stub->GetCode(), RelocInfo::CODE_TARGET, kNoASTId, cond, r1, r2, bd);
+  Call(stub->GetCode(), RelocInfo::CODE_TARGET, TypeFeedbackId::None(),
+       cond, r1, r2, bd);
 }
 
 

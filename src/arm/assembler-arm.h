@@ -424,8 +424,8 @@ class Operand BASE_EMBEDDED {
   // the instruction this operand is used for is a MOV or MVN instruction the
   // actual instruction to use is required for this calculation. For other
   // instructions instr is ignored.
-  bool is_single_instruction(Instr instr = 0) const;
-  bool must_use_constant_pool() const;
+  bool is_single_instruction(const Assembler* assembler, Instr instr = 0) const;
+  bool must_use_constant_pool(const Assembler* assembler) const;
 
   inline int32_t immediate() const {
     ASSERT(!rm_.is_valid());
@@ -648,8 +648,10 @@ class Assembler : public AssemblerBase {
   // Overrides the default provided by FLAG_debug_code.
   void set_emit_debug_code(bool value) { emit_debug_code_ = value; }
 
-  // Dummy for cross platform compatibility.
-  void set_predictable_code_size(bool value) { }
+  // Avoids using instructions that vary in size in unpredictable ways between
+  // the snapshot and the running VM.  This is needed by the full compiler so
+  // that it can recompile code with debug support and fix the PC.
+  void set_predictable_code_size(bool value) { predictable_code_size_ = value; }
 
   // GetCode emits any pending (non-emitted) code and fills the descriptor
   // desc. GetCode() is idempotent; it returns the same result if no other
@@ -1170,6 +1172,8 @@ class Assembler : public AssemblerBase {
   // Jump unconditionally to given label.
   void jmp(Label* L) { b(L, al); }
 
+  bool predictable_code_size() const { return predictable_code_size_; }
+
   // Check the code size generated from label to here.
   int SizeOfCodeGeneratedSince(Label* label) {
     return pc_offset() - label->pos();
@@ -1209,17 +1213,17 @@ class Assembler : public AssemblerBase {
 
   // Record the AST id of the CallIC being compiled, so that it can be placed
   // in the relocation information.
-  void SetRecordedAstId(unsigned ast_id) {
-    ASSERT(recorded_ast_id_ == kNoASTId);
+  void SetRecordedAstId(TypeFeedbackId ast_id) {
+    ASSERT(recorded_ast_id_.IsNone());
     recorded_ast_id_ = ast_id;
   }
 
-  unsigned RecordedAstId() {
-    ASSERT(recorded_ast_id_ != kNoASTId);
+  TypeFeedbackId RecordedAstId() {
+    ASSERT(!recorded_ast_id_.IsNone());
     return recorded_ast_id_;
   }
 
-  void ClearRecordedAstId() { recorded_ast_id_ = kNoASTId; }
+  void ClearRecordedAstId() { recorded_ast_id_ = TypeFeedbackId::None(); }
 
   // Record a comment relocation entry that can be used by a disassembler.
   // Use --code-comments to enable.
@@ -1308,7 +1312,7 @@ class Assembler : public AssemblerBase {
   // Relocation for a type-recording IC has the AST id added to it.  This
   // member variable is a way to pass the information from the call site to
   // the relocation info.
-  unsigned recorded_ast_id_;
+  TypeFeedbackId recorded_ast_id_;
 
   bool emit_debug_code() const { return emit_debug_code_; }
 
@@ -1450,7 +1454,10 @@ class Assembler : public AssemblerBase {
   friend class BlockConstPoolScope;
 
   PositionsRecorder positions_recorder_;
+
   bool emit_debug_code_;
+  bool predictable_code_size_;
+
   friend class PositionsRecorder;
   friend class EnsureSpace;
 };

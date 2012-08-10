@@ -240,7 +240,8 @@ DEFINE_bool(interrupt_at_exit, false,
             "insert an interrupt check at function exit")
 DEFINE_bool(weighted_back_edges, false,
             "weight back edges by jump distance for interrupt triggering")
-DEFINE_int(interrupt_budget, 5900,
+           // 0x1700 fits in the immediate field of an ARM instruction.
+DEFINE_int(interrupt_budget, 0x1700,
            "execution budget before interrupt is triggered")
 DEFINE_int(type_info_threshold, 15,
            "percentage of ICs that must have type info to allow optimization")
@@ -362,12 +363,17 @@ DEFINE_bool(trace_gc, false,
 DEFINE_bool(trace_gc_nvp, false,
             "print one detailed trace line in name=value format "
             "after each garbage collection")
+DEFINE_bool(trace_gc_ignore_scavenger, false,
+            "do not print trace line after scavenger collection")
 DEFINE_bool(print_cumulative_gc_stat, false,
             "print cumulative GC statistics in name=value format on exit")
 DEFINE_bool(trace_gc_verbose, false,
             "print more details following each garbage collection")
 DEFINE_bool(trace_fragmentation, false,
             "report fragmentation for old pointer and data pages")
+DEFINE_bool(trace_external_memory, false,
+            "print amount of external allocated memory after each time "
+            "it is adjusted.")
 DEFINE_bool(collect_maps, true,
             "garbage collect maps from which no objects can be reached")
 DEFINE_bool(flush_code, true,

@@ -7475,7 +7475,7 @@ bool JSFunction::CompileLazy(Handle<JSFunction> function,
 
 
 bool JSFunction::CompileOptimized(Handle<JSFunction> function,
-                                  int osr_ast_id,
+                                  BailoutId osr_ast_id,
                                   ClearExceptionFlag flag) {
   CompilationInfoWithZone info(function);
   info.SetOptimizing(osr_ast_id);
@@ -7876,8 +7876,8 @@ void SharedFunctionInfo::DisableOptimization() {
 }
 
 
-bool SharedFunctionInfo::VerifyBailoutId(int id) {
-  ASSERT(id != AstNode::kNoNumber);
+bool SharedFunctionInfo::VerifyBailoutId(BailoutId id) {
+  ASSERT(!id.IsNone());
   Code* unoptimized = code();
   DeoptimizationOutputData* data =
       DeoptimizationOutputData::cast(unoptimized->deoptimization_data());
@@ -8255,7 +8255,6 @@ void Code::ClearTypeFeedbackCells(Heap* heap) {
     TypeFeedbackCells* type_feedback_cells =
         TypeFeedbackInfo::cast(raw_info)->type_feedback_cells();
     for (int i = 0; i < type_feedback_cells->CellCount(); i++) {
-      ASSERT(type_feedback_cells->AstId(i)->IsSmi());
       JSGlobalPropertyCell* cell = type_feedback_cells->Cell(i);
       cell->set_value(TypeFeedbackCells::RawUninitializedSentinel(heap));
     }
@@ -8282,7 +8281,7 @@ void DeoptimizationInputData::DeoptimizationInputDataPrint(FILE* out) {
   for (int i = 0; i < deopt_count; i++) {
     PrintF(out, "%6d  %6d  %6d %6d",
            i,
-           AstId(i)->value(),
+           AstId(i).ToInt(),
            ArgumentsStackHeight(i)->value(),
            Pc(i)->value());
 
@@ -8404,7 +8403,7 @@ void DeoptimizationOutputData::DeoptimizationOutputDataPrint(FILE* out) {
   for (int i = 0; i < this->DeoptPoints(); i++) {
     int pc_and_state = this->PcAndState(i)->value();
     PrintF("%6d  %8d  %s\n",
-           this->AstId(i)->value(),
+           this->AstId(i).ToInt(),
            FullCodeGenerator::PcField::decode(pc_and_state),
            FullCodeGenerator::State2String(
                FullCodeGenerator::StateField::decode(pc_and_state)));
