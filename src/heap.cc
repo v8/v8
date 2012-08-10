@@ -462,13 +462,13 @@ void Heap::GarbageCollectionEpilogue() {
             (cell_space()->CommittedMemory() * 100.0) / CommittedMemory()));
 
     isolate_->counters()->heap_sample_total_committed()->AddSample(
-        CommittedMemory() / KB);
+        static_cast<int>(CommittedMemory() / KB));
     isolate_->counters()->heap_sample_total_used()->AddSample(
-        SizeOfObjects() / KB);
+        static_cast<int>(SizeOfObjects() / KB));
     isolate_->counters()->heap_sample_map_space_committed()->AddSample(
-        map_space()->CommittedMemory() / KB);
+        static_cast<int>(map_space()->CommittedMemory() / KB));
     isolate_->counters()->heap_sample_cell_space_committed()->AddSample(
-        cell_space()->CommittedMemory() / KB);
+        static_cast<int>(cell_space()->CommittedMemory() / KB));
   }
 
 #define UPDATE_COUNTERS_FOR_SPACE(space)                                       \
