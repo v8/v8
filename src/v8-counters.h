@@ -65,7 +65,20 @@ namespace internal {
   HP(external_fragmentation_cell_space,                               \
      V8.MemoryExternalFragmentationCellSpace)                         \
   HP(external_fragmentation_lo_space,                                 \
-     V8.MemoryExternalFragmentationLoSpace)
+     V8.MemoryExternalFragmentationLoSpace)                           \
+  HP(heap_fraction_map_space,                                         \
+     V8.MemoryHeapFractionMapSpace)                                   \
+  HP(heap_fraction_cell_space,                                        \
+     V8.MemoryHeapFractionCellSpace)                                  \
+
+
+#define HISTOGRAM_MEMORY_LIST(HM)                                     \
+  HM(heap_sample_total_committed, V8.MemoryHeapSampleTotalCommitted)  \
+  HM(heap_sample_total_used, V8.MemoryHeapSampleTotalUsed)            \
+  HM(heap_sample_map_space_committed,                                 \
+     V8.MemoryHeapSampleMapSpaceCommitted)                            \
+  HM(heap_sample_cell_space_committed,                                \
+     V8.MemoryHeapSampleCellSpaceCommitted)
 
 
 // WARNING: STATS_COUNTER_LIST_* is a very large macro that is causing MSVC
@@ -303,6 +316,11 @@ class Counters {
   HISTOGRAM_PERCENTAGE_LIST(HP)
 #undef HP
 
+#define HM(name, caption) \
+  Histogram* name() { return &name##_; }
+  HISTOGRAM_MEMORY_LIST(HM)
+#undef HM
+
 #define SC(name, caption) \
   StatsCounter* name() { return &name##_; }
   STATS_COUNTER_LIST_1(SC)
@@ -338,6 +356,9 @@ class Counters {
 #define PERCENTAGE_ID(name, caption) k_##name,
     HISTOGRAM_PERCENTAGE_LIST(PERCENTAGE_ID)
 #undef PERCENTAGE_ID
+#define MEMORY_ID(name, caption) k_##name,
+    HISTOGRAM_MEMORY_LIST(MEMORY_ID)
+#undef MEMORY_ID
 #define COUNTER_ID(name, caption) k_##name,
     STATS_COUNTER_LIST_1(COUNTER_ID)
     STATS_COUNTER_LIST_2(COUNTER_ID)
@@ -375,6 +396,11 @@ class Counters {
   Histogram name##_;
   HISTOGRAM_PERCENTAGE_LIST(HP)
 #undef HP
+
+#define HM(name, caption) \
+  Histogram name##_;
+  HISTOGRAM_MEMORY_LIST(HM)
+#undef HM
 
 #define SC(name, caption) \
   StatsCounter name##_;
