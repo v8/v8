@@ -753,7 +753,7 @@ RegExpImpl::GlobalCache::GlobalCache(Handle<JSRegExp> regexp,
   ASSERT(registers_per_match_ >= 2);  // Each match has at least one capture.
   ASSERT_GE(register_array_size_, registers_per_match_);
   int32_t* last_match =
-      &register_array_[register_array_size_ - registers_per_match_];
+      &register_array_[(current_match_index_ - 1) * registers_per_match_];
   last_match[0] = -1;
   last_match[1] = 0;
 }
@@ -779,7 +779,7 @@ int32_t* RegExpImpl::GlobalCache::FetchNext() {
     }
 
     int32_t* last_match =
-        &register_array_[register_array_size_ - registers_per_match_];
+        &register_array_[(current_match_index_ - 1) * registers_per_match_];
     int last_end_index = last_match[1];
 
     if (regexp_->TypeTag() == JSRegExp::ATOM) {
