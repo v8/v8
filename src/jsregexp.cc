@@ -748,12 +748,12 @@ RegExpImpl::GlobalCache::GlobalCache(Handle<JSRegExp> regexp,
 
   // Set state so that fetching the results the first time triggers a call
   // to the compiled regexp.
-  current_match_index_ = max_matches_;
+  current_match_index_ = max_matches_ - 1;
   num_matches_ = max_matches_;
   ASSERT(registers_per_match_ >= 2);  // Each match has at least one capture.
   ASSERT_GE(register_array_size_, registers_per_match_);
   int32_t* last_match =
-      &register_array_[(current_match_index_ - 1) * registers_per_match_];
+      &register_array_[current_match_index_ * registers_per_match_];
   last_match[0] = -1;
   last_match[1] = 0;
 }

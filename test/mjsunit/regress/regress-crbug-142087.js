@@ -27,7 +27,7 @@
 
 var string = "What are you looking for?";
 
-var expected_match = [];
+var expected_match = [""];
 for (var i = 0; i < string.length; i++) {
   expected_match.push("");
 }
