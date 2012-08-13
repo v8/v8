@@ -3417,10 +3417,11 @@ void FullCodeGenerator::EmitCallFunction(CallRuntime* expr) {
   }
   VisitForAccumulatorValue(args->last());  // Function.
 
-  // Check for proxy.
-  Label proxy, done;
-  __ CompareObjectType(r0, r1, r1, JS_FUNCTION_PROXY_TYPE);
-  __ b(eq, &proxy);
+  Label runtime, done;
+  // Check for non-function argument (including proxy).
+  __ JumpIfSmi(r0, &runtime);
+  __ CompareObjectType(r0, r1, r1, JS_FUNCTION_TYPE);
+  __ b(ne, &runtime);
 
   // InvokeFunction requires the function in r1. Move it in there.
   __ mov(r1, result_register());
@@ -3430,7 +3431,7 @@ void FullCodeGenerator::EmitCallFunction(CallRuntime* expr) {
   __ ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
   __ jmp(&done);
 
-  __ bind(&proxy);
+  __ bind(&runtime);
   __ push(r0);
   __ CallRuntime(Runtime::kCall, args->length());
   __ bind(&done);

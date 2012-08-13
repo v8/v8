@@ -3359,10 +3359,11 @@ void FullCodeGenerator::EmitCallFunction(CallRuntime* expr) {
   }
   VisitForAccumulatorValue(args->last());  // Function.
 
-  // Check for proxy.
-  Label proxy, done;
-  __ CmpObjectType(eax, JS_FUNCTION_PROXY_TYPE, ebx);
-  __ j(equal, &proxy);
+  Label runtime, done;
+  // Check for non-function argument (including proxy).
+  __ JumpIfSmi(eax, &runtime);
+  __ CmpObjectType(eax, JS_FUNCTION_TYPE, ebx);
+  __ j(not_equal, &runtime);
 
   // InvokeFunction requires the function in edi. Move it in there.
   __ mov(edi, result_register());
@@ -3372,7 +3373,7 @@ void FullCodeGenerator::EmitCallFunction(CallRuntime* expr) {
   __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
   __ jmp(&done);
 
-  __ bind(&proxy);
+  __ bind(&runtime);
   __ push(eax);
   __ CallRuntime(Runtime::kCall, args->length());
   __ bind(&done);
