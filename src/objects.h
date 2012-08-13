@@ -84,6 +84,7 @@
 //           - Context
 //           - JSFunctionResultCache
 //           - ScopeInfo
+//           - TransitionArray
 //         - FixedDoubleArray
 //         - ExternalArray
 //           - ExternalPixelArray
@@ -2459,32 +2460,21 @@ class FixedDoubleArray: public FixedArrayBase {
 
 // DescriptorArrays are fixed arrays used to hold instance descriptors.
 // The format of the these objects is:
-// TODO(1399): It should be possible to make room for bit_field3 in the map
-//             without overloading the instance descriptors field in the map
-//             (and storing it in the DescriptorArray when the map has one).
-//   [0]: storage for bit_field3 for Map owning this object (Smi)
-//   [1]: point to a fixed array with (value, detail) pairs.
-//   [2]: next enumeration index (Smi), or pointer to small fixed array:
-//          [0]: next enumeration index (Smi)
-//          [1]: pointer to fixed array with enum cache
-//   [3]: first key
+//   [0]: Either Smi(0) if uninitialized, or a pointer to small fixed array:
+//          [0]: pointer to fixed array with enum cache
+//          [1]: either Smi(0) or pointer to fixed array with indices
+//   [1]: first key
 //   [length() - kDescriptorSize]: last key
-//
 class DescriptorArray: public FixedArray {
  public:
   // Returns true for both shared empty_descriptor_array and for smis, which the
   // map uses to encode additional bit fields when the descriptor array is not
   // yet used.
   inline bool IsEmpty();
-  inline bool MayContainTransitions();
-  inline bool HasTransitionArray();
-
-  DECL_ACCESSORS(transitions, TransitionArray)
-  inline void ClearTransitions();
 
   // Returns the number of descriptors in the array.
   int number_of_descriptors() {
-    ASSERT(MayContainTransitions() || IsEmpty());
+    ASSERT(length() >= kFirstIndex || IsEmpty());
     int len = length();
     return len <= kFirstIndex ? 0 : (len - kFirstIndex) / kDescriptorSize;
   }
@@ -2507,13 +2497,6 @@ class DescriptorArray: public FixedArray {
     return HeapObject::RawField(reinterpret_cast<HeapObject*>(this),
                                 kEnumCacheOffset);
   }
-
-  Object** GetTransitionsSlot() {
-    return HeapObject::RawField(reinterpret_cast<HeapObject*>(this),
-                                kTransitionsOffset);
-  }
-
-  DECL_ACCESSORS(back_pointer_storage, Object)
 
   // Initialize or change the enum cache,
   // using the supplied storage for the small "bridge".
@@ -2552,17 +2535,6 @@ class DescriptorArray: public FixedArray {
                 int src_index,
                 const WhitenessWitness&);
 
-  // Indicates whether the search function should expect a sorted or an unsorted
-  // descriptor array as input.
-  enum SharedMode {
-    MAY_BE_SHARED,
-    CANNOT_BE_SHARED
-  };
-
-  // Return a copy of the array with all transitions and null descriptors
-  // removed. Return a Failure object in case of an allocation failure.
-  MUST_USE_RESULT MaybeObject* Copy(SharedMode shared_mode);
-
   // Sort the instance descriptors by the hash codes of their keys.
   void Sort(const WhitenessWitness&);
 
@@ -2578,8 +2550,7 @@ class DescriptorArray: public FixedArray {
 
   // Allocates a DescriptorArray, but returns the singleton
   // empty descriptor array object if number_of_descriptors is 0.
-  MUST_USE_RESULT static MaybeObject* Allocate(int number_of_descriptors,
-                                               SharedMode shared_mode);
+  MUST_USE_RESULT static MaybeObject* Allocate(int number_of_descriptors);
 
   // Casting.
   static inline DescriptorArray* cast(Object* obj);
@@ -2587,10 +2558,8 @@ class DescriptorArray: public FixedArray {
   // Constant for denoting key was not found.
   static const int kNotFound = -1;
 
-  static const int kBackPointerStorageIndex = 0;
-  static const int kEnumCacheIndex = 1;
-  static const int kTransitionsIndex = 2;
-  static const int kFirstIndex = 3;
+  static const int kEnumCacheIndex = 0;
+  static const int kFirstIndex = 1;
 
   // The length of the "bridge" to the enum cache.
   static const int kEnumCacheBridgeLength = 2;
@@ -2598,11 +2567,8 @@ class DescriptorArray: public FixedArray {
   static const int kEnumCacheBridgeIndicesCacheIndex = 1;
 
   // Layout description.
-  static const int kBackPointerStorageOffset = FixedArray::kHeaderSize;
-  static const int kEnumCacheOffset = kBackPointerStorageOffset +
-                                      kPointerSize;
-  static const int kTransitionsOffset = kEnumCacheOffset + kPointerSize;
-  static const int kFirstOffset = kTransitionsOffset + kPointerSize;
+  static const int kEnumCacheOffset = FixedArray::kHeaderSize;
+  static const int kFirstOffset = kEnumCacheOffset + kPointerSize;
 
   // Layout description for the bridge array.
   static const int kEnumCacheBridgeCacheOffset = FixedArray::kHeaderSize;
@@ -4821,11 +4787,9 @@ class Map: public HeapObject {
   inline Map* elements_transition_map();
   MUST_USE_RESULT inline MaybeObject* set_elements_transition_map(
       Map* transitioned_map);
-  inline TransitionArray* transitions();
   inline void SetTransition(int index, Map* target);
   MUST_USE_RESULT inline MaybeObject* AddTransition(String* key, Map* target);
-  MUST_USE_RESULT inline MaybeObject* set_transitions(
-      TransitionArray* transitions);
+  DECL_ACCESSORS(transitions, TransitionArray)
   inline void ClearTransitions(Heap* heap,
                                WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
@@ -4862,12 +4826,14 @@ class Map: public HeapObject {
   inline JSFunction* unchecked_constructor();
 
   // [instance descriptors]: describes the object.
-  DECL_ACCESSORS(instance_descriptors, DescriptorArray)
-  inline void InitializeDescriptors(DescriptorArray* descriptors);
-
-  // Should only be called to clear a descriptor array that was only used to
-  // store transitions and does not contain any live transitions anymore.
-  inline void ClearDescriptorArray(Heap* heap, WriteBarrierMode mode);
+  inline DescriptorArray* instance_descriptors();
+  MUST_USE_RESULT inline MaybeObject* SetDescriptors(
+      DescriptorArray* descriptors,
+      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  static void SetDescriptors(Handle<Map> map,
+                             Handle<DescriptorArray> descriptors);
+  MUST_USE_RESULT inline MaybeObject* InitializeDescriptors(
+      DescriptorArray* descriptors);
 
   // [stub cache]: contains stubs compiled for this map.
   DECL_ACCESSORS(code_cache, Object)
@@ -4973,7 +4939,7 @@ class Map: public HeapObject {
 
   // Returns a copy of the map, with all transitions dropped from the
   // instance descriptors.
-  MUST_USE_RESULT MaybeObject* Copy(DescriptorArray::SharedMode shared_mode);
+  MUST_USE_RESULT MaybeObject* Copy();
 
   // Returns the property index for name (only valid for FAST MODE).
   int PropertyIndexFor(String* name);
@@ -5095,14 +5061,14 @@ class Map: public HeapObject {
   static const int kInstanceAttributesOffset = kInstanceSizesOffset + kIntSize;
   static const int kPrototypeOffset = kInstanceAttributesOffset + kIntSize;
   static const int kConstructorOffset = kPrototypeOffset + kPointerSize;
-  // Storage for instance descriptors is overloaded to also contain additional
-  // map flags when unused (bit_field3). When the map has instance descriptors,
-  // the flags are transferred to the instance descriptor array and accessed
-  // through an extra indirection.
-  static const int kInstanceDescriptorsOrBackPointerOffset =
+  // Storage for the transition array is overloaded to directly contain a back
+  // pointer if unused. When the map has transitions, the back pointer is
+  // transferred to the transition array and accessed through an extra
+  // indirection.
+  static const int kTransitionsOrBackPointerOffset =
       kConstructorOffset + kPointerSize;
   static const int kCodeCacheOffset =
-      kInstanceDescriptorsOrBackPointerOffset + kPointerSize;
+      kTransitionsOrBackPointerOffset + kPointerSize;
   static const int kBitField3Offset = kCodeCacheOffset + kPointerSize;
   static const int kPadStart = kBitField3Offset + kPointerSize;
   static const int kSize = MAP_POINTER_ALIGN(kPadStart);

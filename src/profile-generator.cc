@@ -2009,9 +2009,10 @@ void V8HeapExplorer::ExtractMapReferences(int entry, Map* map) {
                        Map::kConstructorOffset);
   if (!map->instance_descriptors()->IsEmpty()) {
     TagObject(map->instance_descriptors(), "(map descriptors)");
+    // TODO(verwaest): Check what to do here.
     SetInternalReference(map, entry,
                          "descriptors", map->instance_descriptors(),
-                         Map::kInstanceDescriptorsOrBackPointerOffset);
+                         Map::kTransitionsOrBackPointerOffset);
   }
   SetInternalReference(map, entry,
                        "code_cache", map->code_cache(),

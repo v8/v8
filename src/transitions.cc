@@ -39,10 +39,9 @@ MaybeObject* TransitionArray::Allocate(int number_of_transitions) {
   Heap* heap = Isolate::Current()->heap();
   // Use FixedArray to not use DescriptorArray::cast on incomplete object.
   FixedArray* array;
-  { MaybeObject* maybe_array =
-        heap->AllocateFixedArray(ToKeyIndex(number_of_transitions));
-    if (!maybe_array->To(&array)) return maybe_array;
-  }
+  MaybeObject* maybe_array =
+      heap->AllocateFixedArray(ToKeyIndex(number_of_transitions));
+  if (!maybe_array->To(&array)) return maybe_array;
 
   array->set(kElementsTransitionIndex, Smi::FromInt(0));
   array->set(kPrototypeTransitionsIndex, Smi::FromInt(0));

@@ -3691,15 +3691,16 @@ void MacroAssembler::ClampDoubleToUint8(Register result_reg,
 void MacroAssembler::LoadInstanceDescriptors(Register map,
                                              Register descriptors,
                                              Register scratch) {
-  ldr(descriptors,
-      FieldMemOperand(map, Map::kInstanceDescriptorsOrBackPointerOffset));
+  Register temp = descriptors;
+  ldr(temp, FieldMemOperand(map, Map::kTransitionsOrBackPointerOffset));
 
   Label ok, fail;
-  CheckMap(descriptors,
+  CheckMap(temp,
            scratch,
            isolate()->factory()->fixed_array_map(),
            &fail,
            DONT_DO_SMI_CHECK);
+  ldr(descriptors, FieldMemOperand(temp, TransitionArray::kDescriptorsOffset));
   jmp(&ok);
   bind(&fail);
   mov(descriptors, Operand(FACTORY->empty_descriptor_array()));
@@ -3712,9 +3713,6 @@ void MacroAssembler::CheckEnumCache(Register null_value, Label* call_runtime) {
   // Preload a couple of values used in the loop.
   Register  empty_fixed_array_value = r6;
   LoadRoot(empty_fixed_array_value, Heap::kEmptyFixedArrayRootIndex);
-  Register empty_descriptor_array_value = r7;
-  LoadRoot(empty_descriptor_array_value,
-           Heap::kEmptyDescriptorArrayRootIndex);
   mov(r1, r0);
   bind(&next);
 
@@ -3728,13 +3726,18 @@ void MacroAssembler::CheckEnumCache(Register null_value, Label* call_runtime) {
   // check for an enum cache.  Leave the map in r2 for the subsequent
   // prototype load.
   ldr(r2, FieldMemOperand(r1, HeapObject::kMapOffset));
-  ldr(r3, FieldMemOperand(r2, Map::kInstanceDescriptorsOrBackPointerOffset));
+  ldr(r3, FieldMemOperand(r2, Map::kTransitionsOrBackPointerOffset));
 
   CheckMap(r3,
            r7,
            isolate()->factory()->fixed_array_map(),
            call_runtime,
            DONT_DO_SMI_CHECK);
+
+  LoadRoot(r7, Heap::kEmptyDescriptorArrayRootIndex);
+  ldr(r3, FieldMemOperand(r3, TransitionArray::kDescriptorsOffset));
+  cmp(r3, r7);
+  b(eq, call_runtime);
 
   // Check that there is an enum cache in the non-empty instance
   // descriptors (r3).  This is the case if the next enumeration

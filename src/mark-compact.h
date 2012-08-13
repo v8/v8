@@ -394,7 +394,6 @@ template<class BaseMarker> class Marker {
   // Mark pointers in a Map and its DescriptorArray together, possibly
   // treating transitions or back pointers weak.
   void MarkMapContents(Map* map);
-  void MarkDescriptorArray(DescriptorArray* descriptors);
   void MarkTransitionArray(TransitionArray* transitions);
 
  private:

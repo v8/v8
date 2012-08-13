@@ -41,8 +41,11 @@ namespace internal {
 // TransitionArrays are fixed arrays used to hold map transitions for property,
 // constant, and element changes.
 // The format of the these objects is:
-// [0] Elements transition
-// [1] First transition
+// [0] Descriptor array
+// [1] Undefined or back pointer map
+// [2] Smi(0) or elements transition map
+// [3] Smi(0) or fixed array of prototype transitions
+// [4] First transition
 // [length() - kTransitionSize] Last transition
 class TransitionArray: public FixedArray {
  public:
@@ -62,6 +65,16 @@ class TransitionArray: public FixedArray {
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   inline bool HasElementsTransition();
   inline void ClearElementsTransition();
+
+  inline DescriptorArray* descriptors();
+  inline void set_descriptors(DescriptorArray* descriptors,
+                              WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  inline Object** GetDescriptorsSlot();
+
+  inline Object* back_pointer_storage();
+  inline void set_back_pointer_storage(
+      Object* back_pointer,
+      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   inline FixedArray* GetPrototypeTransitions();
   inline void SetPrototypeTransitions(
@@ -106,15 +119,20 @@ class TransitionArray: public FixedArray {
   // Constant for denoting key was not found.
   static const int kNotFound = -1;
 
-  static const int kElementsTransitionIndex = 0;
-  static const int kPrototypeTransitionsIndex = 1;
-  static const int kFirstIndex = 2;
+  static const int kDescriptorsIndex = 0;
+  static const int kBackPointerStorageIndex = 1;
+  static const int kElementsTransitionIndex = 2;
+  static const int kPrototypeTransitionsIndex = 3;
+  static const int kFirstIndex = 4;
 
   // Layout transition array header.
-  static const int kElementsTransitionOffset = FixedArray::kHeaderSize;
+  static const int kDescriptorsOffset = FixedArray::kHeaderSize;
+  static const int kBackPointerStorageOffset = kDescriptorsOffset +
+                                               kPointerSize;
+  static const int kElementsTransitionOffset = kBackPointerStorageOffset +
+                                               kPointerSize;
   static const int kPrototypeTransitionsOffset = kElementsTransitionOffset +
                                                  kPointerSize;
-  static const int kFirstOffset = kPrototypeTransitionsOffset + kPointerSize;
 
   // Layout of map transition.
   static const int kTransitionKey = 0;

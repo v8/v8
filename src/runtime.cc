@@ -1294,7 +1294,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DisableAccessChecks) {
   if (needs_access_checks) {
     // Copy map so it won't interfere constructor's initial map.
     Map* new_map;
-    MaybeObject* maybe_new_map = old_map->Copy(DescriptorArray::MAY_BE_SHARED);
+    MaybeObject* maybe_new_map = old_map->Copy();
     if (!maybe_new_map->To(&new_map)) return maybe_new_map;
 
     new_map->set_is_access_check_needed(false);
@@ -1311,7 +1311,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_EnableAccessChecks) {
   if (!old_map->is_access_check_needed()) {
     // Copy map so it won't interfere constructor's initial map.
     Map* new_map;
-    MaybeObject* maybe_new_map = old_map->Copy(DescriptorArray::MAY_BE_SHARED);
+    MaybeObject* maybe_new_map = old_map->Copy();
     if (!maybe_new_map->To(&new_map)) return maybe_new_map;
 
     new_map->set_is_access_check_needed(true);
