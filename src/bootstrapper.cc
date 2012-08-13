@@ -1434,6 +1434,7 @@ bool Genesis::InstallNatives() {
   Handle<String> name = factory()->LookupAsciiSymbol("builtins");
   builtins_fun->shared()->set_instance_class_name(*name);
   builtins_fun->initial_map()->set_dictionary_map(true);
+  builtins_fun->initial_map()->set_prototype(heap()->null_value());
 
   // Allocate the builtins object.
   Handle<JSBuiltinsObject> builtins =
