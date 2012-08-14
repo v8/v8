@@ -2525,21 +2525,32 @@ void LCodeGen::DoAccessArgumentsAt(LAccessArgumentsAt* instr) {
 
 void LCodeGen::DoLoadKeyedFastElement(LLoadKeyedFastElement* instr) {
   Register elements = ToRegister(instr->elements());
-  Register key = EmitLoadRegister(instr->key(), scratch0());
   Register result = ToRegister(instr->result());
   Register scratch = scratch0();
 
-  // Load the result.
-  if (instr->hydrogen()->key()->representation().IsTagged()) {
-    __ sll(scratch, key, kPointerSizeLog2 - kSmiTagSize);
-    __ addu(scratch, elements, scratch);
+  if (instr->key()->IsConstantOperand()) {
+    LConstantOperand* const_operand = LConstantOperand::cast(instr->key());
+    int offset =
+        (ToInteger32(const_operand) + instr->additional_index()) * kPointerSize
+        + FixedArray::kHeaderSize;
+    __ lw(result, FieldMemOperand(elements, offset));
   } else {
-    __ sll(scratch, key, kPointerSizeLog2);
-    __ addu(scratch, elements, scratch);
+    Register key = EmitLoadRegister(instr->key(), scratch);
+    // Even though the HLoadKeyedFastElement instruction forces the input
+    // representation for the key to be an integer, the input gets replaced
+    // during bound check elimination with the index argument to the bounds
+    // check, which can be tagged, so that case must be handled here, too.
+    if (instr->hydrogen()->key()->representation().IsTagged()) {
+      __ sll(scratch, key, kPointerSizeLog2 - kSmiTagSize);
+      __ addu(scratch, elements, scratch);
+    } else {
+      __ sll(scratch, key, kPointerSizeLog2);
+      __ addu(scratch, elements, scratch);
+    }
+    uint32_t offset = FixedArray::kHeaderSize +
+        (instr->additional_index() << kPointerSizeLog2);
+    __ lw(result, FieldMemOperand(scratch, offset));
   }
-  uint32_t offset = FixedArray::kHeaderSize +
-                    (instr->additional_index() << kPointerSizeLog2);
-  __ lw(result, FieldMemOperand(scratch, offset));
 
   // Check for the hole value.
   if (instr->hydrogen()->RequiresHoleCheck()) {
@@ -3585,10 +3596,24 @@ void LCodeGen::DoStoreNamedGeneric(LStoreNamedGeneric* instr) {
 
 
 void LCodeGen::DoBoundsCheck(LBoundsCheck* instr) {
-  DeoptimizeIf(hs,
-               instr->environment(),
-               ToRegister(instr->index()),
-               Operand(ToRegister(instr->length())));
+  if (instr->index()->IsConstantOperand()) {
+    int constant_index =
+        ToInteger32(LConstantOperand::cast(instr->index()));
+    if (instr->hydrogen()->length()->representation().IsTagged()) {
+      __ li(at, Operand(Smi::FromInt(constant_index)));
+    } else {
+      __ li(at, Operand(constant_index));
+    }
+    DeoptimizeIf(hs,
+                 instr->environment(),
+                 at,
+                 Operand(ToRegister(instr->length())));
+  } else {
+    DeoptimizeIf(hs,
+                 instr->environment(),
+                 ToRegister(instr->index()),
+                 Operand(ToRegister(instr->length())));
+  }
 }
 
 
@@ -3607,6 +3632,10 @@ void LCodeGen::DoStoreKeyedFastElement(LStoreKeyedFastElement* instr) {
         + FixedArray::kHeaderSize;
     __ sw(value, FieldMemOperand(elements, offset));
   } else {
+    // Even though the HLoadKeyedFastElement instruction forces the input
+    // representation for the key to be an integer, the input gets replaced
+    // during bound check elimination with the index argument to the bounds
+    // check, which can be tagged, so that case must be handled here, too.
     if (instr->hydrogen()->key()->representation().IsTagged()) {
       __ sll(scratch, key, kPointerSizeLog2 - kSmiTagSize);
       __ addu(scratch, elements, scratch);
@@ -3614,12 +3643,9 @@ void LCodeGen::DoStoreKeyedFastElement(LStoreKeyedFastElement* instr) {
       __ sll(scratch, key, kPointerSizeLog2);
       __ addu(scratch, elements, scratch);
     }
-    if (instr->additional_index() != 0) {
-      __ Addu(scratch,
-              scratch,
-              instr->additional_index() << kPointerSizeLog2);
-    }
-    __ sw(value, FieldMemOperand(scratch, FixedArray::kHeaderSize));
+    uint32_t offset = FixedArray::kHeaderSize +
+        (instr->additional_index() << kPointerSizeLog2);
+    __ sw(value, FieldMemOperand(scratch, offset));
   }
 
   if (instr->hydrogen()->NeedsWriteBarrier()) {
