@@ -4804,6 +4804,13 @@ Expression* Parser::ParseV8Intrinsic(bool* ok) {
     return NULL;
   }
 
+  // Check that the function is defined if it's an inline runtime call.
+  if (function == NULL && name->Get(0) == '_') {
+    ReportMessage("not_defined", Vector<Handle<String> >(&name, 1));
+    *ok = false;
+    return NULL;
+  }
+
   // We have a valid intrinsics call or a call to a builtin.
   return factory()->NewCallRuntime(name, function, args);
 }
