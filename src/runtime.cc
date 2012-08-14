@@ -3128,6 +3128,7 @@ MUST_USE_RESULT static MaybeObject* StringReplaceRegExpWithString(
   if (global_cache.HasException()) return Failure::Exception();
 
   if (prev < subject_length) {
+    builder.EnsureCapacity(2);
     builder.AddSubjectSlice(prev, subject_length);
   }
 
