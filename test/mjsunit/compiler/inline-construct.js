@@ -29,48 +29,52 @@
 
 // Test inlining of constructor calls.
 
-function TestInlinedConstructor(closure) {
+function TestInlinedConstructor(constructor, closure) {
   var result;
   var counter = { value:0 };
-  result = closure(11, 12, counter);
+
+  result = closure(constructor, 11, 12, counter);
   assertEquals(23, result);
   assertEquals(1, counter.value);
-  result = closure(23, 19, counter);
+
+  result = closure(constructor, 23, 19, counter);
   assertEquals(42, result);
   assertEquals(2, counter.value);
+
   %OptimizeFunctionOnNextCall(closure);
-  result = closure(1, 42, counter)
+  result = closure(constructor, 1, 42, counter);
   assertEquals(43, result);
   assertEquals(3, counter.value);
-  result = closure("foo", "bar", counter)
+
+  result = closure(constructor, "foo", "bar", counter);
   assertEquals("foobar", result)
   assertEquals(4, counter.value);
+
+  %DeoptimizeFunction(closure);
+  %ClearFunctionTypeFeedback(closure);
+}
+
+function value_context(constructor, a, b, counter) {
+  var obj = new constructor(a, b, counter);
+  return obj.x;
+}
+
+function test_context(constructor, a, b, counter) {
+  if (!new constructor(a, b, counter)) {
+    assertUnreachable("should not happen");
+  }
+  return a + b;
+}
+
+function effect_context(constructor, a, b, counter) {
+  new constructor(a, b, counter);
+  return a + b;
 }
 
 function TestInAllContexts(constructor) {
-  function value_context(a, b, counter) {
-    var obj = new constructor(a, b, counter);
-    return obj.x;
-  }
-  function test_context(a, b, counter) {
-    if (!new constructor(a, b, counter)) {
-      assertUnreachable("should not happen");
-    }
-    return a + b;
-  }
-  function effect_context(a, b, counter) {
-    new constructor(a, b, counter);
-    return a + b;
-  }
-  TestInlinedConstructor(value_context);
-  TestInlinedConstructor(test_context);
-  TestInlinedConstructor(effect_context);
-  %DeoptimizeFunction(value_context);
-  %DeoptimizeFunction(test_context);
-  %DeoptimizeFunction(effect_context);
-  %ClearFunctionTypeFeedback(value_context);
-  %ClearFunctionTypeFeedback(test_context);
-  %ClearFunctionTypeFeedback(effect_context);
+  TestInlinedConstructor(constructor, value_context);
+  TestInlinedConstructor(constructor, test_context);
+  TestInlinedConstructor(constructor, effect_context);
 }
 
 
@@ -84,7 +88,7 @@ TestInAllContexts(c1);
 
 // Test constructor returning an object in all contexts.
 function c2(a, b, counter) {
-  var obj = new Object();
+  var obj = {};
   obj.x = a + b;
   counter.value++;
   return obj;
