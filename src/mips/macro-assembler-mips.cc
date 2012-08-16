@@ -5293,15 +5293,16 @@ void MacroAssembler::EnsureNotWhite(
 void MacroAssembler::LoadInstanceDescriptors(Register map,
                                              Register descriptors,
                                              Register scratch) {
-  lw(descriptors,
-     FieldMemOperand(map, Map::kInstanceDescriptorsOrBackPointerOffset));
+  Register temp = descriptors;
+  lw(temp, FieldMemOperand(map, Map::kTransitionsOrBackPointerOffset));
 
   Label ok, fail;
-  CheckMap(descriptors,
+  CheckMap(temp,
            scratch,
            isolate()->factory()->fixed_array_map(),
            &fail,
            DONT_DO_SMI_CHECK);
+  lw(descriptors, FieldMemOperand(temp, TransitionArray::kDescriptorsOffset));
   jmp(&ok);
   bind(&fail);
   LoadRoot(descriptors, Heap::kEmptyDescriptorArrayRootIndex);
@@ -5314,9 +5315,6 @@ void MacroAssembler::CheckEnumCache(Register null_value, Label* call_runtime) {
   // Preload a couple of values used in the loop.
   Register  empty_fixed_array_value = t2;
   LoadRoot(empty_fixed_array_value, Heap::kEmptyFixedArrayRootIndex);
-  Register empty_descriptor_array_value = t3;
-  LoadRoot(empty_descriptor_array_value,
-           Heap::kEmptyDescriptorArrayRootIndex);
   mov(a1, a0);
   bind(&next);
 
@@ -5329,13 +5327,17 @@ void MacroAssembler::CheckEnumCache(Register null_value, Label* call_runtime) {
   // check for an enum cache.  Leave the map in a2 for the subsequent
   // prototype load.
   lw(a2, FieldMemOperand(a1, HeapObject::kMapOffset));
-  lw(a3, FieldMemOperand(a2, Map::kInstanceDescriptorsOrBackPointerOffset));
+  lw(a3, FieldMemOperand(a2, Map::kTransitionsOrBackPointerOffset));
 
   CheckMap(a3,
            t3,
            isolate()->factory()->fixed_array_map(),
            call_runtime,
            DONT_DO_SMI_CHECK);
+
+  LoadRoot(t3, Heap::kEmptyDescriptorArrayRootIndex);
+  lw(a3, FieldMemOperand(a3, TransitionArray::kDescriptorsOffset));
+  Branch(call_runtime, eq, a3, Operand(t3));
 
   // Check that there is an enum cache in the non-empty instance
   // descriptors (a3).  This is the case if the next enumeration

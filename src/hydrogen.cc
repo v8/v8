@@ -2029,7 +2029,7 @@ void HGlobalValueNumberer::ProcessLoopBlock(
 
 
 bool HGlobalValueNumberer::AllowCodeMotion() {
-  return info()->shared_info()->opt_count() + 1 < Compiler::kDefaultMaxOptCount;
+  return info()->shared_info()->opt_count() + 1 < FLAG_max_opt_count;
 }
 
 
@@ -4662,6 +4662,86 @@ void HGraphBuilder::VisitRegExpLiteral(RegExpLiteral* expr) {
 }
 
 
+static void LookupInPrototypes(Handle<Map> map,
+                               Handle<String> name,
+                               LookupResult* lookup) {
+  while (map->prototype()->IsJSObject()) {
+    Handle<JSObject> holder(JSObject::cast(map->prototype()));
+    if (!holder->HasFastProperties()) break;
+    map = Handle<Map>(holder->map());
+    map->LookupDescriptor(*holder, *name, lookup);
+    if (lookup->IsFound()) return;
+  }
+  lookup->NotFound();
+}
+
+
+// Tries to find a JavaScript accessor of the given name in the prototype chain
+// starting at the given map. Return true iff there is one, including the
+// corresponding AccessorPair plus its holder (which could be null when the
+// accessor is found directly in the given map).
+static bool LookupAccessorPair(Handle<Map> map,
+                               Handle<String> name,
+                               Handle<AccessorPair>* accessors,
+                               Handle<JSObject>* holder) {
+  LookupResult lookup(map->GetIsolate());
+
+  // Check for a JavaScript accessor directly in the map.
+  map->LookupDescriptor(NULL, *name, &lookup);
+  if (lookup.IsPropertyCallbacks()) {
+    Handle<Object> callback(lookup.GetValueFromMap(*map));
+    if (!callback->IsAccessorPair()) return false;
+    *accessors = Handle<AccessorPair>::cast(callback);
+    *holder = Handle<JSObject>();
+    return true;
+  }
+
+  // Everything else, e.g. a field, can't be an accessor call.
+  if (lookup.IsFound()) return false;
+
+  // Check for a JavaScript accessor somewhere in the proto chain.
+  LookupInPrototypes(map, name, &lookup);
+  if (lookup.IsPropertyCallbacks()) {
+    Handle<Object> callback(lookup.GetValue());
+    if (!callback->IsAccessorPair()) return false;
+    *accessors = Handle<AccessorPair>::cast(callback);
+    *holder = Handle<JSObject>(lookup.holder());
+    return true;
+  }
+
+  // We haven't found a JavaScript accessor anywhere.
+  return false;
+}
+
+
+static bool LookupGetter(Handle<Map> map,
+                         Handle<String> name,
+                         Handle<JSFunction>* getter,
+                         Handle<JSObject>* holder) {
+  Handle<AccessorPair> accessors;
+  if (LookupAccessorPair(map, name, &accessors, holder) &&
+      accessors->getter()->IsJSFunction()) {
+    *getter = Handle<JSFunction>(JSFunction::cast(accessors->getter()));
+    return true;
+  }
+  return false;
+}
+
+
+static bool LookupSetter(Handle<Map> map,
+                         Handle<String> name,
+                         Handle<JSFunction>* setter,
+                         Handle<JSObject>* holder) {
+  Handle<AccessorPair> accessors;
+  if (LookupAccessorPair(map, name, &accessors, holder) &&
+      accessors->setter()->IsJSFunction()) {
+    *setter = Handle<JSFunction>(JSFunction::cast(accessors->setter()));
+    return true;
+  }
+  return false;
+}
+
+
 // Determines whether the given array or object literal boilerplate satisfies
 // all limits to be considered for fast deep-copying and computes the total
 // size of all objects that are part of the graph.
@@ -4787,9 +4867,9 @@ void HGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
               CHECK_ALIVE(store = BuildStoreNamedGeneric(literal, name, value));
             } else {
 #if DEBUG
-              Handle<AccessorPair> accessors;
+              Handle<JSFunction> setter;
               Handle<JSObject> holder;
-              ASSERT(!LookupAccessorPair(map, name, &accessors, &holder));
+              ASSERT(!LookupSetter(map, name, &setter, &holder));
 #endif
               CHECK_ALIVE(store = BuildStoreNamedMonomorphic(literal,
                                                              name,
@@ -5038,26 +5118,11 @@ HInstruction* HGraphBuilder::BuildStoreNamedGeneric(HValue* object,
 }
 
 
-static void LookupInPrototypes(Handle<Map> map,
-                               Handle<String> name,
-                               LookupResult* lookup) {
-  while (map->prototype()->IsJSObject()) {
-    Handle<JSObject> holder(JSObject::cast(map->prototype()));
-    if (!holder->HasFastProperties()) break;
-    map = Handle<Map>(holder->map());
-    map->LookupDescriptor(*holder, *name, lookup);
-    if (lookup->IsFound()) return;
-  }
-  lookup->NotFound();
-}
-
-
 HInstruction* HGraphBuilder::BuildCallSetter(HValue* object,
                                              HValue* value,
                                              Handle<Map> map,
-                                             Handle<AccessorPair> accessors,
+                                             Handle<JSFunction> setter,
                                              Handle<JSObject> holder) {
-  Handle<JSFunction> setter(JSFunction::cast(accessors->setter()));
   AddCheckConstantFunction(holder, object, map, true);
   AddInstruction(new(zone()) HPushArgument(object));
   AddInstruction(new(zone()) HPushArgument(value));
@@ -5237,10 +5302,9 @@ void HGraphBuilder::HandlePropertyAssignment(Assignment* expr) {
       if (map->is_dictionary_map()) monomorphic = false;
     }
     if (monomorphic) {
-      Handle<AccessorPair> accessors;
+      Handle<JSFunction> setter;
       Handle<JSObject> holder;
-      if (LookupAccessorPair(map, name, &accessors, &holder)) {
-        Handle<JSFunction> setter(JSFunction::cast(accessors->setter()));
+      if (LookupSetter(map, name, &setter, &holder)) {
         AddCheckConstantFunction(holder, object, map, true);
         if (FLAG_inline_accessors && TryInlineSetter(setter, expr, value)) {
           return;
@@ -5427,10 +5491,10 @@ void HGraphBuilder::HandleCompoundAssignment(Assignment* expr) {
         if (map->is_dictionary_map()) monomorphic = false;
       }
       if (monomorphic) {
-        Handle<AccessorPair> accessors;
+        Handle<JSFunction> getter;
         Handle<JSObject> holder;
-        if (LookupAccessorPair(map, name, &accessors, &holder)) {
-          load = BuildCallGetter(object, map, accessors, holder);
+        if (LookupGetter(map, name, &getter, &holder)) {
+          load = BuildCallGetter(object, map, getter, holder);
         } else {
           load = BuildLoadNamedMonomorphic(object, name, prop, map);
         }
@@ -5453,12 +5517,10 @@ void HGraphBuilder::HandleCompoundAssignment(Assignment* expr) {
         // If we don't know the monomorphic type, do a generic store.
         CHECK_ALIVE(store = BuildStoreNamedGeneric(object, name, instr));
       } else {
-        Handle<AccessorPair> accessors;
+        Handle<JSFunction> setter;
         Handle<JSObject> holder;
-        // Because we re-use the load type feedback, there might be no setter.
-        if (LookupAccessorPair(map, name, &accessors, &holder) &&
-            accessors->setter()->IsJSFunction()) {
-          store = BuildCallSetter(object, instr, map, accessors, holder);
+        if (LookupSetter(map, name, &setter, &holder)) {
+          store = BuildCallSetter(object, instr, map, setter, holder);
         } else {
           CHECK_ALIVE(store = BuildStoreNamedMonomorphic(object,
                                                          name,
@@ -5702,46 +5764,11 @@ HInstruction* HGraphBuilder::BuildLoadNamedGeneric(HValue* object,
 
 HInstruction* HGraphBuilder::BuildCallGetter(HValue* object,
                                              Handle<Map> map,
-                                             Handle<AccessorPair> accessors,
+                                             Handle<JSFunction> getter,
                                              Handle<JSObject> holder) {
-  Handle<JSFunction> getter(JSFunction::cast(accessors->getter()));
   AddCheckConstantFunction(holder, object, map, true);
   AddInstruction(new(zone()) HPushArgument(object));
   return new(zone()) HCallConstantFunction(getter, 1);
-}
-
-
-bool HGraphBuilder::LookupAccessorPair(Handle<Map> map,
-                                       Handle<String> name,
-                                       Handle<AccessorPair>* accessors,
-                                       Handle<JSObject>* holder) {
-  LookupResult lookup(isolate());
-
-  // Check for a JavaScript accessor directly in the map.
-  map->LookupDescriptor(NULL, *name, &lookup);
-  if (lookup.IsPropertyCallbacks()) {
-    Handle<Object> callback(lookup.GetValueFromMap(*map));
-    if (!callback->IsAccessorPair()) return false;
-    *accessors = Handle<AccessorPair>::cast(callback);
-    *holder = Handle<JSObject>();
-    return true;
-  }
-
-  // Everything else, e.g. a field, can't be an accessor call.
-  if (lookup.IsFound()) return false;
-
-  // Check for a JavaScript accessor somewhere in the proto chain.
-  LookupInPrototypes(map, name, &lookup);
-  if (lookup.IsPropertyCallbacks()) {
-    Handle<Object> callback(lookup.GetValue());
-    if (!callback->IsAccessorPair()) return false;
-    *accessors = Handle<AccessorPair>::cast(callback);
-    *holder = Handle<JSObject>(lookup.holder());
-    return true;
-  }
-
-  // We haven't found a JavaScript accessor anywhere.
-  return false;
 }
 
 
@@ -6391,11 +6418,10 @@ void HGraphBuilder::VisitProperty(Property* expr) {
       if (map->is_dictionary_map()) monomorphic = false;
     }
     if (monomorphic) {
-      Handle<AccessorPair> accessors;
+      Handle<JSFunction> getter;
       Handle<JSObject> holder;
-      if (LookupAccessorPair(map, name, &accessors, &holder)) {
+      if (LookupGetter(map, name, &getter, &holder)) {
         AddCheckConstantFunction(holder, Top(), map, true);
-        Handle<JSFunction> getter(JSFunction::cast(accessors->getter()));
         if (FLAG_inline_accessors && TryInlineGetter(getter, expr)) return;
         AddInstruction(new(zone()) HPushArgument(Pop()));
         instr = new(zone()) HCallConstantFunction(getter, 1);
@@ -7867,10 +7893,10 @@ void HGraphBuilder::VisitCountOperation(CountOperation* expr) {
         if (map->is_dictionary_map()) monomorphic = false;
       }
       if (monomorphic) {
-        Handle<AccessorPair> accessors;
+        Handle<JSFunction> getter;
         Handle<JSObject> holder;
-        if (LookupAccessorPair(map, name, &accessors, &holder)) {
-          load = BuildCallGetter(object, map, accessors, holder);
+        if (LookupGetter(map, name, &getter, &holder)) {
+          load = BuildCallGetter(object, map, getter, holder);
         } else {
           load = BuildLoadNamedMonomorphic(object, name, prop, map);
         }
@@ -7888,12 +7914,10 @@ void HGraphBuilder::VisitCountOperation(CountOperation* expr) {
         // If we don't know the monomorphic type, do a generic store.
         CHECK_ALIVE(store = BuildStoreNamedGeneric(object, name, after));
       } else {
-        Handle<AccessorPair> accessors;
+        Handle<JSFunction> setter;
         Handle<JSObject> holder;
-        // Because we re-use the load type feedback, there might be no setter.
-        if (LookupAccessorPair(map, name, &accessors, &holder) &&
-            accessors->setter()->IsJSFunction()) {
-          store = BuildCallSetter(object, after, map, accessors, holder);
+        if (LookupSetter(map, name, &setter, &holder)) {
+          store = BuildCallSetter(object, after, map, setter, holder);
         } else {
           CHECK_ALIVE(store = BuildStoreNamedMonomorphic(object,
                                                          name,

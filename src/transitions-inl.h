@@ -82,6 +82,40 @@ void TransitionArray::set_elements_transition(Map* transition_map,
 }
 
 
+DescriptorArray* TransitionArray::descriptors() {
+  return DescriptorArray::cast(get(kDescriptorsIndex));
+}
+
+
+void TransitionArray::set_descriptors(DescriptorArray* descriptors,
+                                      WriteBarrierMode mode) {
+  Heap* heap = GetHeap();
+  WRITE_FIELD(this, kDescriptorsOffset, descriptors);
+  CONDITIONAL_WRITE_BARRIER(
+      heap, this, kDescriptorsOffset, descriptors, mode);
+}
+
+
+Object** TransitionArray::GetDescriptorsSlot() {
+  return HeapObject::RawField(reinterpret_cast<HeapObject*>(this),
+                              kDescriptorsOffset);
+}
+
+
+Object* TransitionArray::back_pointer_storage() {
+  return get(kBackPointerStorageIndex);
+}
+
+
+void TransitionArray::set_back_pointer_storage(Object* back_pointer,
+                                               WriteBarrierMode mode) {
+  Heap* heap = GetHeap();
+  WRITE_FIELD(this, kBackPointerStorageOffset, back_pointer);
+  CONDITIONAL_WRITE_BARRIER(
+      heap, this, kBackPointerStorageOffset, back_pointer, mode);
+}
+
+
 bool TransitionArray::HasPrototypeTransitions() {
   Object* prototype_transitions = get(kPrototypeTransitionsIndex);
   return prototype_transitions != Smi::FromInt(0);
@@ -95,9 +129,8 @@ FixedArray* TransitionArray::GetPrototypeTransitions() {
 
 
 HeapObject* TransitionArray::UncheckedPrototypeTransitions() {
-  Object* prototype_transitions = get(kPrototypeTransitionsIndex);
-  if (prototype_transitions == Smi::FromInt(0)) return NULL;
-  return reinterpret_cast<HeapObject*>(prototype_transitions);
+  ASSERT(HasPrototypeTransitions());
+  return reinterpret_cast<HeapObject*>(get(kPrototypeTransitionsIndex));
 }
 
 

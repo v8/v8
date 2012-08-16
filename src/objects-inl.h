@@ -1887,30 +1887,6 @@ bool DescriptorArray::IsEmpty() {
 }
 
 
-bool DescriptorArray::MayContainTransitions() {
-  return !IsEmpty();
-}
-
-
-bool DescriptorArray::HasTransitionArray() {
-  return MayContainTransitions() && !get(kTransitionsIndex)->IsSmi();
-}
-
-
-Object* DescriptorArray::back_pointer_storage() {
-  return READ_FIELD(this, kBackPointerStorageOffset);
-}
-
-
-void DescriptorArray::set_back_pointer_storage(Object* value,
-                                               WriteBarrierMode mode) {
-  ASSERT(length() > kBackPointerStorageIndex);
-  Heap* heap = GetHeap();
-  WRITE_FIELD(this, kBackPointerStorageOffset, value);
-  CONDITIONAL_WRITE_BARRIER(heap, this, kBackPointerStorageOffset, value, mode);
-}
-
-
 void DescriptorArray::NoIncrementalWriteBarrierSwap(FixedArray* array,
                                                     int first,
                                                     int second) {
@@ -1997,27 +1973,6 @@ int DescriptorArray::SearchWithCache(String* name) {
     cache->Update(this, name, number);
   }
   return number;
-}
-
-
-TransitionArray* DescriptorArray::transitions() {
-  ASSERT(MayContainTransitions());
-  Object* array = get(kTransitionsIndex);
-  return TransitionArray::cast(array);
-}
-
-
-void DescriptorArray::ClearTransitions() {
-  WRITE_FIELD(this, kTransitionsOffset, Smi::FromInt(0));
-}
-
-
-void DescriptorArray::set_transitions(TransitionArray* transitions_array,
-                                      WriteBarrierMode mode) {
-  Heap* heap = GetHeap();
-  WRITE_FIELD(this, kTransitionsOffset, transitions_array);
-  CONDITIONAL_WRITE_BARRIER(
-      heap, this, kTransitionsOffset, transitions_array, mode);
 }
 
 
@@ -3470,43 +3425,36 @@ void Map::set_prototype(Object* value, WriteBarrierMode mode) {
 
 
 DescriptorArray* Map::instance_descriptors() {
-  Object* object = READ_FIELD(this, kInstanceDescriptorsOrBackPointerOffset);
-  if (!object->IsDescriptorArray()) {
-    ASSERT(object->IsMap() || object->IsUndefined());
-    return GetHeap()->empty_descriptor_array();
-  } else {
-    return DescriptorArray::cast(object);
-  }
+  if (!HasTransitionArray()) return GetHeap()->empty_descriptor_array();
+  return transitions()->descriptors();
 }
 
 
-void Map::set_instance_descriptors(DescriptorArray* value,
-                                   WriteBarrierMode mode) {
-  Heap* heap = GetHeap();
+// If the descriptor is using the empty transition array, install a new empty
+// transition array that will have place for an element transition.
+static MaybeObject* EnsureHasTransitionArray(Map* map) {
+  if (map->HasTransitionArray()) return map;
 
-  if (value == heap->empty_descriptor_array()) {
-    ClearDescriptorArray(heap, mode);
-    return;
-  }
+  TransitionArray* transitions;
+  MaybeObject* maybe_transitions = TransitionArray::Allocate(0);
+  if (!maybe_transitions->To(&transitions)) return maybe_transitions;
+  map->set_transitions(transitions);
+  return transitions;
+}
 
-  Object* object = READ_FIELD(this, kInstanceDescriptorsOrBackPointerOffset);
 
-  if (object->IsDescriptorArray()) {
-    value->set_back_pointer_storage(
-        DescriptorArray::cast(object)->back_pointer_storage());
-  } else {
-    ASSERT(object->IsMap() || object->IsUndefined());
-    value->set_back_pointer_storage(object);
-  }
-
+MaybeObject* Map::SetDescriptors(DescriptorArray* value,
+                                 WriteBarrierMode mode) {
   ASSERT(!is_shared());
-  WRITE_FIELD(this, kInstanceDescriptorsOrBackPointerOffset, value);
-  CONDITIONAL_WRITE_BARRIER(
-      heap, this, kInstanceDescriptorsOrBackPointerOffset, value, mode);
+  MaybeObject* maybe_failure = EnsureHasTransitionArray(this);
+  if (maybe_failure->IsFailure()) return maybe_failure;
+
+  transitions()->set_descriptors(value, mode);
+  return this;
 }
 
 
-void Map::InitializeDescriptors(DescriptorArray* descriptors) {
+MaybeObject* Map::InitializeDescriptors(DescriptorArray* descriptors) {
   int len = descriptors->number_of_descriptors();
   ASSERT(len <= DescriptorArray::kMaxNumberOfDescriptors);
   SLOW_ASSERT(descriptors->IsSortedNoDuplicates());
@@ -3526,36 +3474,37 @@ void Map::InitializeDescriptors(DescriptorArray* descriptors) {
   }
 #endif
 
-  set_instance_descriptors(descriptors);
+  MaybeObject* maybe_failure = SetDescriptors(descriptors);
+  if (maybe_failure->IsFailure()) return maybe_failure;
 
   for (int i = 0; i < len; ++i) {
     if (descriptors->GetDetails(i).index() == len) {
       SetLastAdded(i);
-      break;
+      return this;
     }
   }
 
-  ASSERT((len == 0 && LastAdded() == kNoneAdded) ||
-         len == descriptors->GetDetails(LastAdded()).index());
+  ASSERT(len == 0 && LastAdded() == kNoneAdded);
+  return this;
 }
 
 
 SMI_ACCESSORS(Map, bit_field3, kBitField3Offset)
 
 
-void Map::ClearDescriptorArray(Heap* heap, WriteBarrierMode mode) {
+void Map::ClearTransitions(Heap* heap, WriteBarrierMode mode) {
   Object* back_pointer = GetBackPointer();
 #ifdef DEBUG
-  Object* object = READ_FIELD(this, kInstanceDescriptorsOrBackPointerOffset);
-  if (object->IsDescriptorArray()) {
+  Object* object = READ_FIELD(this, kTransitionsOrBackPointerOffset);
+  if (object->IsTransitionArray()) {
     ZapTransitions();
   } else {
     ASSERT(object->IsMap() || object->IsUndefined());
   }
 #endif
-  WRITE_FIELD(this, kInstanceDescriptorsOrBackPointerOffset, back_pointer);
+  WRITE_FIELD(this, kTransitionsOrBackPointerOffset, back_pointer);
   CONDITIONAL_WRITE_BARRIER(
-      heap, this, kInstanceDescriptorsOrBackPointerOffset, back_pointer, mode);
+      heap, this, kTransitionsOrBackPointerOffset, back_pointer, mode);
 }
 
 
@@ -3569,9 +3518,9 @@ void Map::AppendDescriptor(Descriptor* desc,
 
 
 Object* Map::GetBackPointer() {
-  Object* object = READ_FIELD(this, kInstanceDescriptorsOrBackPointerOffset);
+  Object* object = READ_FIELD(this, kTransitionsOrBackPointerOffset);
   if (object->IsDescriptorArray()) {
-    return DescriptorArray::cast(object)->back_pointer_storage();
+    return TransitionArray::cast(object)->back_pointer_storage();
   } else {
     ASSERT(object->IsMap() || object->IsUndefined());
     return object;
@@ -3585,7 +3534,8 @@ bool Map::HasElementsTransition() {
 
 
 bool Map::HasTransitionArray() {
-  return instance_descriptors()->HasTransitionArray();
+  Object* object = READ_FIELD(this, kTransitionsOrBackPointerOffset);
+  return object->IsTransitionArray();
 }
 
 
@@ -3610,35 +3560,6 @@ MaybeObject* Map::AddTransition(String* key, Map* target) {
 
 void Map::SetTransition(int transition_index, Map* target) {
   transitions()->SetTarget(transition_index, target);
-}
-
-
-// If the map is using the empty descriptor array, install a new empty
-// descriptor array that will contain an elements transition.
-static MaybeObject* AllowTransitions(Map* map) {
-  if (map->instance_descriptors()->MayContainTransitions()) return map;
-  DescriptorArray* descriptors;
-  MaybeObject* maybe_descriptors =
-      DescriptorArray::Allocate(0, DescriptorArray::CANNOT_BE_SHARED);
-  if (!maybe_descriptors->To(&descriptors)) return maybe_descriptors;
-  map->set_instance_descriptors(descriptors);
-  return descriptors;
-}
-
-
-// If the descriptor is using the empty transition array, install a new empty
-// transition array that will have place for an element transition.
-static MaybeObject* EnsureHasTransitionArray(Map* map) {
-  if (map->HasTransitionArray()) return map;
-
-  AllowTransitions(map);
-
-  TransitionArray* transitions;
-  MaybeObject* maybe_transitions = TransitionArray::Allocate(0);
-  if (!maybe_transitions->To(&transitions)) return maybe_transitions;
-  MaybeObject* added_transitions = map->set_transitions(transitions);
-  if (added_transitions->IsFailure()) return added_transitions;
-  return transitions;
 }
 
 
@@ -3679,40 +3600,32 @@ bool Map::HasPrototypeTransitions() {
 
 
 TransitionArray* Map::transitions() {
-  return instance_descriptors()->transitions();
+  ASSERT(HasTransitionArray());
+  Object* object = READ_FIELD(this, kTransitionsOrBackPointerOffset);
+  return TransitionArray::cast(object);
 }
 
 
-void Map::ClearTransitions(Heap* heap, WriteBarrierMode mode) {
-#ifdef DEBUG
-  ZapTransitions();
-#endif
-  DescriptorArray* descriptors = instance_descriptors();
-  if (descriptors->number_of_descriptors() == 0) {
-    ClearDescriptorArray(heap, mode);
-  } else {
-    descriptors->ClearTransitions();
-  }
-}
-
-
-MaybeObject* Map::set_transitions(TransitionArray* transitions_array) {
-  MaybeObject* allow_transitions = AllowTransitions(this);
-  if (allow_transitions->IsFailure()) return allow_transitions;
+void Map::set_transitions(TransitionArray* transition_array,
+                          WriteBarrierMode mode) {
+  transition_array->set_descriptors(instance_descriptors());
+  transition_array->set_back_pointer_storage(GetBackPointer());
 #ifdef DEBUG
   if (HasTransitionArray()) {
-    ASSERT(transitions() != transitions_array);
+    ASSERT(transitions() != transition_array);
     ZapTransitions();
   }
 #endif
-  instance_descriptors()->set_transitions(transitions_array);
-  return this;
+
+  WRITE_FIELD(this, kTransitionsOrBackPointerOffset, transition_array);
+  CONDITIONAL_WRITE_BARRIER(
+      GetHeap(), this, kTransitionsOrBackPointerOffset, transition_array, mode);
 }
 
 
 void Map::init_back_pointer(Object* undefined) {
   ASSERT(undefined->IsUndefined());
-  WRITE_FIELD(this, kInstanceDescriptorsOrBackPointerOffset, undefined);
+  WRITE_FIELD(this, kTransitionsOrBackPointerOffset, undefined);
 }
 
 
@@ -3720,13 +3633,13 @@ void Map::SetBackPointer(Object* value, WriteBarrierMode mode) {
   ASSERT(instance_type() >= FIRST_JS_RECEIVER_TYPE);
   ASSERT((value->IsUndefined() && GetBackPointer()->IsMap()) ||
          (value->IsMap() && GetBackPointer()->IsUndefined()));
-  Object* object = READ_FIELD(this, kInstanceDescriptorsOrBackPointerOffset);
-  if (object->IsDescriptorArray()) {
-    DescriptorArray::cast(object)->set_back_pointer_storage(value);
+  Object* object = READ_FIELD(this, kTransitionsOrBackPointerOffset);
+  if (object->IsTransitionArray()) {
+    TransitionArray::cast(object)->set_back_pointer_storage(value);
   } else {
-    WRITE_FIELD(this, kInstanceDescriptorsOrBackPointerOffset, value);
+    WRITE_FIELD(this, kTransitionsOrBackPointerOffset, value);
     CONDITIONAL_WRITE_BARRIER(
-        GetHeap(), this, kInstanceDescriptorsOrBackPointerOffset, value, mode);
+        GetHeap(), this, kTransitionsOrBackPointerOffset, value, mode);
   }
 }
 
@@ -3734,10 +3647,8 @@ void Map::SetBackPointer(Object* value, WriteBarrierMode mode) {
 // Can either be Smi (no transitions), normal transition array, or a transition
 // array with the header overwritten as a Smi (thus iterating).
 TransitionArray* Map::unchecked_transition_array() {
-  ASSERT(HasTransitionArray());
-  Object* object = *HeapObject::RawField(instance_descriptors(),
-                                         DescriptorArray::kTransitionsOffset);
-  ASSERT(!object->IsSmi());
+  Object* object = *HeapObject::RawField(this,
+                                         Map::kTransitionsOrBackPointerOffset);
   TransitionArray* transition_array = static_cast<TransitionArray*>(object);
   return transition_array;
 }

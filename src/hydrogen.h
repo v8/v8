@@ -1132,15 +1132,6 @@ class HGraphBuilder: public AstVisitor {
                                    bool is_store,
                                    bool* has_side_effects);
 
-  // Tries to find a JavaScript accessor of the given name in the prototype
-  // chain starting at the given map. Return true iff there is one, including
-  // the corresponding AccessorPair plus its holder (which could be null when
-  // the accessor is found directly in the given map).
-  bool LookupAccessorPair(Handle<Map> map,
-                          Handle<String> name,
-                          Handle<AccessorPair>* accessors,
-                          Handle<JSObject>* holder);
-
   HLoadNamedField* BuildLoadNamedField(HValue* object,
                                        Handle<Map> map,
                                        LookupResult* result,
@@ -1150,7 +1141,7 @@ class HGraphBuilder: public AstVisitor {
                                       Property* expr);
   HInstruction* BuildCallGetter(HValue* object,
                                 Handle<Map> map,
-                                Handle<AccessorPair> accessors,
+                                Handle<JSFunction> getter,
                                 Handle<JSObject> holder);
   HInstruction* BuildLoadNamedMonomorphic(HValue* object,
                                           Handle<String> name,
@@ -1177,7 +1168,7 @@ class HGraphBuilder: public AstVisitor {
   HInstruction* BuildCallSetter(HValue* object,
                                 HValue* value,
                                 Handle<Map> map,
-                                Handle<AccessorPair> accessors,
+                                Handle<JSFunction> setter,
                                 Handle<JSObject> holder);
   HInstruction* BuildStoreNamedMonomorphic(HValue* object,
                                            Handle<String> name,

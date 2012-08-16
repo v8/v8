@@ -115,8 +115,7 @@ Handle<ObjectHashTable> Factory::NewObjectHashTable(int at_least_space_for) {
 Handle<DescriptorArray> Factory::NewDescriptorArray(int number_of_descriptors) {
   ASSERT(0 <= number_of_descriptors);
   CALL_HEAP_FUNCTION(isolate(),
-                     DescriptorArray::Allocate(number_of_descriptors,
-                                               DescriptorArray::MAY_BE_SHARED),
+                     DescriptorArray::Allocate(number_of_descriptors),
                      DescriptorArray);
 }
 
@@ -497,7 +496,7 @@ Handle<Map> Factory::CopyMap(Handle<Map> src,
 
 
 Handle<Map> Factory::CopyMap(Handle<Map> src) {
-  CALL_HEAP_FUNCTION(isolate(), src->Copy(DescriptorArray::MAY_BE_SHARED), Map);
+  CALL_HEAP_FUNCTION(isolate(), src->Copy(), Map);
 }
 
 

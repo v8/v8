@@ -1242,8 +1242,12 @@ void StubCompiler::GenerateDictionaryLoadCallback(Register receiver,
                                                   Handle<AccessorInfo> callback,
                                                   Handle<String> name,
                                                   Label* miss) {
+  ASSERT(!receiver.is(scratch1));
+  ASSERT(!receiver.is(scratch2));
+  ASSERT(!receiver.is(scratch3));
+
+  // Load the properties dictionary.
   Register dictionary = scratch1;
-  Register index = scratch2;
   __ lw(dictionary, FieldMemOperand(receiver, JSObject::kPropertiesOffset));
 
   // Probe the dictionary.
@@ -1253,21 +1257,18 @@ void StubCompiler::GenerateDictionaryLoadCallback(Register receiver,
                                                      &probe_done,
                                                      dictionary,
                                                      name_reg,
-                                                     index,  // Set if we hit.
+                                                     scratch2,
                                                      scratch3);
   __ bind(&probe_done);
 
-  // If probing finds an entry in the dictionary, check that the value is the
-  // callback.
-  const int kElementsStartOffset =
-      StringDictionary::kHeaderSize +
+  // If probing finds an entry in the dictionary, scratch3 contains the
+  // pointer into the dictionary. Check that the value is the callback.
+  Register pointer = scratch3;
+  const int kElementsStartOffset = StringDictionary::kHeaderSize +
       StringDictionary::kElementsStartIndex * kPointerSize;
   const int kValueOffset = kElementsStartOffset + kPointerSize;
-  __ Addu(scratch1, dictionary, Operand(kValueOffset - kHeapObjectTag));
-  __ sll(scratch3, index, kPointerSizeLog2);
-  __ addu(scratch1, scratch1, scratch3);
-  __ lw(scratch3, MemOperand(scratch1));
-  __ Branch(miss, ne, scratch3, Operand(callback));
+  __ lw(scratch2, FieldMemOperand(pointer, kValueOffset));
+  __ Branch(miss, ne, scratch2, Operand(callback));
 }
 
 
@@ -1278,6 +1279,7 @@ void StubCompiler::GenerateLoadCallback(Handle<JSObject> object,
                                         Register scratch1,
                                         Register scratch2,
                                         Register scratch3,
+                                        Register scratch4,
                                         Handle<AccessorInfo> callback,
                                         Handle<String> name,
                                         Label* miss) {
@@ -1290,7 +1292,7 @@ void StubCompiler::GenerateLoadCallback(Handle<JSObject> object,
 
   if (!holder->HasFastProperties() && !holder->IsJSGlobalObject()) {
     GenerateDictionaryLoadCallback(
-        receiver, name_reg, scratch1, scratch2, scratch3, callback, name, miss);
+        reg, name_reg, scratch2, scratch3, scratch4, callback, name, miss);
   }
 
   // Build AccessorInfo::args_ list on the stack and push property name below
@@ -2920,7 +2922,7 @@ Handle<Code> LoadStubCompiler::CompileLoadCallback(
   //  -- ra    : return address
   // -----------------------------------
   Label miss;
-  GenerateLoadCallback(object, holder, a0, a2, a3, a1, t0, callback, name,
+  GenerateLoadCallback(object, holder, a0, a2, a3, a1, t0, t1, callback, name,
                        &miss);
   __ bind(&miss);
   GenerateLoadMiss(masm(), Code::LOAD_IC);
@@ -3089,8 +3091,8 @@ Handle<Code> KeyedLoadStubCompiler::CompileLoadCallback(
   // Check the key is the cached one.
   __ Branch(&miss, ne, a0, Operand(name));
 
-  GenerateLoadCallback(receiver, holder, a1, a0, a2, a3, t0, callback, name,
-                       &miss);
+  GenerateLoadCallback(receiver, holder, a1, a0, a2, a3, t0, t1, callback,
+                       name, &miss);
   __ bind(&miss);
   GenerateLoadMiss(masm(), Code::KEYED_LOAD_IC);
 

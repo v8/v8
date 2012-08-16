@@ -14726,6 +14726,8 @@ THREADED_TEST(FunctionGetScriptId) {
 
 static v8::Handle<Value> GetterWhichReturns42(Local<String> name,
                                               const AccessorInfo& info) {
+  CHECK(v8::Utils::OpenHandle(*info.This())->IsJSObject());
+  CHECK(v8::Utils::OpenHandle(*info.Holder())->IsJSObject());
   return v8_num(42);
 }
 
@@ -14733,12 +14735,16 @@ static v8::Handle<Value> GetterWhichReturns42(Local<String> name,
 static void SetterWhichSetsYOnThisTo23(Local<String> name,
                                        Local<Value> value,
                                        const AccessorInfo& info) {
+  CHECK(v8::Utils::OpenHandle(*info.This())->IsJSObject());
+  CHECK(v8::Utils::OpenHandle(*info.Holder())->IsJSObject());
   info.This()->Set(v8_str("y"), v8_num(23));
 }
 
 
 Handle<Value> FooGetInterceptor(Local<String> name,
                                 const AccessorInfo& info) {
+  CHECK(v8::Utils::OpenHandle(*info.This())->IsJSObject());
+  CHECK(v8::Utils::OpenHandle(*info.Holder())->IsJSObject());
   if (!name->Equals(v8_str("foo"))) return Handle<Value>();
   return v8_num(42);
 }
@@ -14747,6 +14753,8 @@ Handle<Value> FooGetInterceptor(Local<String> name,
 Handle<Value> FooSetInterceptor(Local<String> name,
                                 Local<Value> value,
                                 const AccessorInfo& info) {
+  CHECK(v8::Utils::OpenHandle(*info.This())->IsJSObject());
+  CHECK(v8::Utils::OpenHandle(*info.Holder())->IsJSObject());
   if (!name->Equals(v8_str("foo"))) return Handle<Value>();
   info.This()->Set(v8_str("y"), v8_num(23));
   return v8_num(23);
@@ -17068,18 +17076,29 @@ THREADED_TEST(Regress137002b) {
              "function store2(x) { void 0; x.foo = void 0; }"
              "function keyed_load2(x, key) { void 0; return x[key]; }"
 
+             "obj.y = void 0;"
              "obj.__proto__ = null;"
              "var subobj = {};"
+             "subobj.y = void 0;"
              "subobj.__proto__ = obj;"
              "%OptimizeObjectForAddingMultipleProperties(obj, 1);"
 
              // Make the ICs monomorphic.
              "load(obj); load(obj);"
              "load2(subobj); load2(subobj);"
-             "store(obj);"
-             "store2(subobj);"
+             "store(obj); store(obj);"
+             "store2(subobj); store2(subobj);"
              "keyed_load(obj, 'foo'); keyed_load(obj, 'foo');"
              "keyed_load2(subobj, 'foo'); keyed_load2(subobj, 'foo');"
+
+             // Actually test the shiny new ICs and better not crash. This
+             // serves as a regression test for issue 142088 as well.
+             "load(obj);"
+             "load2(subobj);"
+             "store(obj);"
+             "store2(subobj);"
+             "keyed_load(obj, 'foo');"
+             "keyed_load2(subobj, 'foo');"
 
              // Delete the accessor.  It better not be called any more now.
              "delete obj.foo;"
@@ -17100,6 +17119,23 @@ THREADED_TEST(Regress137002b) {
   CHECK(context->Global()->Get(v8_str("keyed_load_result2"))->IsUndefined());
   CHECK(context->Global()->Get(v8_str("y_from_obj"))->IsUndefined());
   CHECK(context->Global()->Get(v8_str("y_from_subobj"))->IsUndefined());
+}
+
+
+THREADED_TEST(Regress142088) {
+  i::FLAG_allow_natives_syntax = true;
+  v8::HandleScope scope;
+  LocalContext context;
+  Local<ObjectTemplate> templ = ObjectTemplate::New();
+  templ->SetAccessor(v8_str("foo"),
+                     GetterWhichReturns42,
+                     SetterWhichSetsYOnThisTo23);
+  context->Global()->Set(v8_str("obj"), templ->NewInstance());
+
+  CompileRun("function load(x) { return x.foo; }"
+             "var o = Object.create(obj);"
+             "%OptimizeObjectForAddingMultipleProperties(obj, 1);"
+             "load(o); load(o); load(o); load(o);");
 }
 
 

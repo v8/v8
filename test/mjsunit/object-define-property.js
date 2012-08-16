@@ -1172,3 +1172,19 @@ try {
   assertTrue(/which has only a getter/.test(e));
 }
 assertTrue(exception);
+
+// Test assignment to a getter-only property on the prototype chain. This makes
+// sure that crankshaft re-checks its assumptions and doesn't rely only on type
+// feedback (which would be monomorphic here).
+
+function Assign(o) {
+  o.blubb = 123;
+}
+
+function C() {}
+
+Assign(new C);
+Assign(new C);
+%OptimizeFunctionOnNextCall(Assign);
+Object.defineProperty(C.prototype, "blubb", {get: function() { return -42; }});
+Assign(new C);

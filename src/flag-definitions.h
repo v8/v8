@@ -200,7 +200,7 @@ DEFINE_bool(polymorphic_inlining, true, "polymorphic inlining")
 DEFINE_bool(use_osr, true, "use on-stack replacement")
 DEFINE_bool(array_bounds_checks_elimination, true,
             "perform array bounds checks elimination")
-DEFINE_bool(array_index_dehoisting, true,
+DEFINE_bool(array_index_dehoisting, false,
             "perform array index dehoisting")
 
 DEFINE_bool(trace_osr, false, "trace on-stack replacement")
@@ -324,6 +324,8 @@ DEFINE_bool(always_full_compiler, false,
             "try to use the dedicated run-once backend for all code")
 DEFINE_bool(trace_bailout, false,
             "print reasons for falling back to using the classic V8 backend")
+DEFINE_int(max_opt_count, 10,
+           "maximum number of optimization attempts before giving up.")
 
 // compilation-cache.cc
 DEFINE_bool(compilation_cache, true, "enable compilation cache")

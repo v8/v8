@@ -2519,14 +2519,15 @@ void MacroAssembler::Abort(const char* msg) {
 
 void MacroAssembler::LoadInstanceDescriptors(Register map,
                                              Register descriptors) {
-  mov(descriptors, FieldOperand(map,
-                                Map::kInstanceDescriptorsOrBackPointerOffset));
+  Register temp = descriptors;
+  mov(temp, FieldOperand(map, Map::kTransitionsOrBackPointerOffset));
 
   Label ok, fail;
-  CheckMap(descriptors,
+  CheckMap(temp,
            isolate()->factory()->fixed_array_map(),
            &fail,
            DONT_DO_SMI_CHECK);
+  mov(descriptors, FieldOperand(temp, TransitionArray::kDescriptorsOffset));
   jmp(&ok);
   bind(&fail);
   mov(descriptors, isolate()->factory()->empty_descriptor_array());
@@ -2893,11 +2894,15 @@ void MacroAssembler::CheckEnumCache(Label* call_runtime) {
   // check for an enum cache.  Leave the map in ebx for the subsequent
   // prototype load.
   mov(ebx, FieldOperand(ecx, HeapObject::kMapOffset));
-  mov(edx, FieldOperand(ebx, Map::kInstanceDescriptorsOrBackPointerOffset));
+  mov(edx, FieldOperand(ebx, Map::kTransitionsOrBackPointerOffset));
   CheckMap(edx,
            isolate()->factory()->fixed_array_map(),
            call_runtime,
            DONT_DO_SMI_CHECK);
+
+  mov(edx, FieldOperand(edx, TransitionArray::kDescriptorsOffset));
+  cmp(edx, isolate()->factory()->empty_descriptor_array());
+  j(equal, call_runtime);
 
   // Check that there is an enum cache in the non-empty instance
   // descriptors (edx).  This is the case if the next enumeration

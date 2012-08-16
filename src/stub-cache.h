@@ -550,6 +550,7 @@ class StubCompiler BASE_EMBEDDED {
                             Register scratch1,
                             Register scratch2,
                             Register scratch3,
+                            Register scratch4,
                             Handle<AccessorInfo> callback,
                             Handle<String> name,
                             Label* miss);

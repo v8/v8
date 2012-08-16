@@ -304,7 +304,7 @@ void RuntimeProfiler::OptimizeNow() {
 
     // Do not record non-optimizable functions.
     if (shared->optimization_disabled()) {
-      if (shared->deopt_count() >= Compiler::kDefaultMaxOptCount) {
+      if (shared->deopt_count() >= FLAG_max_opt_count) {
         // If optimization was disabled due to many deoptimizations,
         // then check if the function is hot and try to reenable optimization.
         int ticks = shared_code->profiler_ticks();

@@ -2860,14 +2860,15 @@ void MacroAssembler::ClampDoubleToUint8(XMMRegister input_reg,
 
 void MacroAssembler::LoadInstanceDescriptors(Register map,
                                              Register descriptors) {
-  movq(descriptors, FieldOperand(map,
-                                 Map::kInstanceDescriptorsOrBackPointerOffset));
+  Register temp = descriptors;
+  movq(temp, FieldOperand(map, Map::kTransitionsOrBackPointerOffset));
 
   Label ok, fail;
-  CheckMap(descriptors,
+  CheckMap(temp,
            isolate()->factory()->fixed_array_map(),
            &fail,
            DONT_DO_SMI_CHECK);
+  movq(descriptors, FieldOperand(temp, TransitionArray::kDescriptorsOffset));
   jmp(&ok);
   bind(&fail);
   Move(descriptors, isolate()->factory()->empty_descriptor_array());
@@ -4471,12 +4472,16 @@ void MacroAssembler::CheckEnumCache(Register null_value, Label* call_runtime) {
   // check for an enum cache.  Leave the map in rbx for the subsequent
   // prototype load.
   movq(rbx, FieldOperand(rcx, HeapObject::kMapOffset));
-  movq(rdx, FieldOperand(rbx, Map::kInstanceDescriptorsOrBackPointerOffset));
+  movq(rdx, FieldOperand(rbx, Map::kTransitionsOrBackPointerOffset));
 
   CheckMap(rdx,
            isolate()->factory()->fixed_array_map(),
            call_runtime,
            DONT_DO_SMI_CHECK);
+
+  movq(rdx, FieldOperand(rdx, TransitionArray::kDescriptorsOffset));
+  cmpq(rdx, empty_descriptor_array_value);
+  j(equal, call_runtime);
 
   // Check that there is an enum cache in the non-empty instance
   // descriptors (rdx).  This is the case if the next enumeration

@@ -1060,18 +1060,31 @@ void StubCompiler::GenerateDictionaryLoadCallback(Register receiver,
                                                   Handle<AccessorInfo> callback,
                                                   Handle<String> name,
                                                   Label* miss) {
+  ASSERT(!receiver.is(scratch2));
+  ASSERT(!receiver.is(scratch3));
   Register dictionary = scratch1;
+  bool must_preserve_dictionary_reg = receiver.is(dictionary);
+
+  // Load the properties dictionary.
+  if (must_preserve_dictionary_reg) {
+    __ push(dictionary);
+  }
   __ mov(dictionary, FieldOperand(receiver, JSObject::kPropertiesOffset));
 
   // Probe the dictionary.
-  Label probe_done;
+  Label probe_done, pop_and_miss;
   StringDictionaryLookupStub::GeneratePositiveLookup(masm(),
-                                                     miss,
+                                                     &pop_and_miss,
                                                      &probe_done,
                                                      dictionary,
                                                      name_reg,
                                                      scratch2,
                                                      scratch3);
+  __ bind(&pop_and_miss);
+  if (must_preserve_dictionary_reg) {
+    __ pop(dictionary);
+  }
+  __ jmp(miss);
   __ bind(&probe_done);
 
   // If probing finds an entry in the dictionary, scratch2 contains the
@@ -1083,6 +1096,9 @@ void StubCompiler::GenerateDictionaryLoadCallback(Register receiver,
   const int kValueOffset = kElementsStartOffset + kPointerSize;
   __ mov(scratch3,
          Operand(dictionary, index, times_4, kValueOffset - kHeapObjectTag));
+  if (must_preserve_dictionary_reg) {
+    __ pop(dictionary);
+  }
   __ cmp(scratch3, callback);
   __ j(not_equal, miss);
 }
@@ -1095,6 +1111,7 @@ void StubCompiler::GenerateLoadCallback(Handle<JSObject> object,
                                         Register scratch1,
                                         Register scratch2,
                                         Register scratch3,
+                                        Register scratch4,
                                         Handle<AccessorInfo> callback,
                                         Handle<String> name,
                                         Label* miss) {
@@ -1107,7 +1124,7 @@ void StubCompiler::GenerateLoadCallback(Handle<JSObject> object,
 
   if (!holder->HasFastProperties() && !holder->IsJSGlobalObject()) {
     GenerateDictionaryLoadCallback(
-        receiver, name_reg, scratch1, scratch2, scratch3, callback, name, miss);
+        reg, name_reg, scratch1, scratch2, scratch3, callback, name, miss);
   }
 
   // Insert additional parameters into the stack frame above return address.
@@ -2945,8 +2962,8 @@ Handle<Code> LoadStubCompiler::CompileLoadCallback(
   // -----------------------------------
   Label miss;
 
-  GenerateLoadCallback(object, holder, edx, ecx, ebx, eax, edi, callback,
-                       name, &miss);
+  GenerateLoadCallback(object, holder, edx, ecx, ebx, eax, edi, no_reg,
+                       callback, name, &miss);
   __ bind(&miss);
   GenerateLoadMiss(masm(), Code::LOAD_IC);
 
@@ -3135,8 +3152,8 @@ Handle<Code> KeyedLoadStubCompiler::CompileLoadCallback(
   __ cmp(ecx, Immediate(name));
   __ j(not_equal, &miss);
 
-  GenerateLoadCallback(receiver, holder, edx, ecx, ebx, eax, edi, callback,
-                       name, &miss);
+  GenerateLoadCallback(receiver, holder, edx, ecx, ebx, eax, edi, no_reg,
+                       callback, name, &miss);
 
   __ bind(&miss);
   __ DecrementCounter(counters->keyed_load_callback(), 1);
