@@ -2007,11 +2007,21 @@ void V8HeapExplorer::ExtractMapReferences(int entry, Map* map) {
   SetInternalReference(map, entry,
                        "constructor", map->constructor(),
                        Map::kConstructorOffset);
-  if (!map->instance_descriptors()->IsEmpty()) {
-    TagObject(map->instance_descriptors(), "(map descriptors)");
-    // TODO(verwaest): Check what to do here.
+  if (map->HasTransitionArray()) {
+    TransitionArray* transitions = map->transitions();
+    if (!transitions->descriptors()->IsEmpty()) {
+      DescriptorArray* descriptors = transitions->descriptors();
+      TagObject(descriptors, "(map descriptors)");
+      SetInternalReference(transitions, entry,
+                           "descriptors", descriptors,
+                           TransitionArray::kDescriptorsOffset);
+      IndexedReferencesExtractor refs_extractor(
+          this, transitions, entry);
+      transitions->Iterate(&refs_extractor);
+    }
+    TagObject(transitions, "(transition array)");
     SetInternalReference(map, entry,
-                         "descriptors", map->instance_descriptors(),
+                         "transitions", transitions,
                          Map::kTransitionsOrBackPointerOffset);
   }
   SetInternalReference(map, entry,
