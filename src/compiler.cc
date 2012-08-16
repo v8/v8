@@ -240,7 +240,7 @@ OptimizingCompiler::Status OptimizingCompiler::CreateGraph() {
   // Limit the number of times we re-compile a functions with
   // the optimizing compiler.
   const int kMaxOptCount =
-      FLAG_deopt_every_n_times == 0 ? Compiler::kDefaultMaxOptCount : 1000;
+      FLAG_deopt_every_n_times == 0 ? FLAG_max_opt_count : 1000;
   if (info()->shared_info()->opt_count() > kMaxOptCount) {
     return AbortOptimization();
   }

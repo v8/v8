@@ -7935,7 +7935,7 @@ void SharedFunctionInfo::ResetForNewContext(int new_ic_age) {
   if (code()->kind() == Code::FUNCTION) {
     code()->set_profiler_ticks(0);
     if (optimization_disabled() &&
-        opt_count() >= Compiler::kDefaultMaxOptCount) {
+        opt_count() >= FLAG_max_opt_count) {
       // Re-enable optimizations if they were disabled due to opt_count limit.
       set_optimization_disabled(false);
       code()->set_optimizable(true);

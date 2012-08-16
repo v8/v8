@@ -2029,7 +2029,7 @@ void HGlobalValueNumberer::ProcessLoopBlock(
 
 
 bool HGlobalValueNumberer::AllowCodeMotion() {
-  return info()->shared_info()->opt_count() + 1 < Compiler::kDefaultMaxOptCount;
+  return info()->shared_info()->opt_count() + 1 < FLAG_max_opt_count;
 }
 
 
