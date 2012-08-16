@@ -707,7 +707,7 @@ FunctionLiteral* Parser::ParseLazy() {
 
   if (FLAG_trace_parse && result != NULL) {
     double ms = static_cast<double>(OS::Ticks() - start) / 1000;
-    SmartArrayPointer<char> name_chars = result->name()->ToCString();
+    SmartArrayPointer<char> name_chars = result->debug_name()->ToCString();
     PrintF("[parsing function: %s - took %0.3f ms]\n", *name_chars, ms);
   }
   return result;
@@ -3450,6 +3450,12 @@ Expression* Parser::ParseLeftHandSideExpression(bool* ok) {
           // should not point to the closing brace otherwise it will intersect
           // with positions recorded for function literal and confuse debugger.
           pos = scanner().peek_location().beg_pos;
+          // Also the trailing parenthesis are a hint that the function will
+          // be called immediately. If we happen to have parsed a preceding
+          // function literal eagerly, we can also compile it eagerly.
+          if (result->IsFunctionLiteral() && mode() == PARSE_EAGERLY) {
+            result->AsFunctionLiteral()->set_parenthesized();
+          }
         }
         ZoneList<Expression*>* args = ParseArguments(CHECK_OK);
 

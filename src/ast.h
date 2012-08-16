@@ -2091,8 +2091,16 @@ class FunctionLiteral: public Expression {
 
   bool is_function() { return IsFunction::decode(bitfield_) == kIsFunction; }
 
+  // This is used as a heuristic on when to eagerly compile a function
+  // literal. We consider the following constructs as hints that the
+  // function will be called immediately:
+  // - (function() { ... })();
+  // - var x = function() { ... }();
   bool is_parenthesized() {
     return IsParenthesized::decode(bitfield_) == kIsParenthesized;
+  }
+  void set_parenthesized() {
+    bitfield_ = IsParenthesized::update(bitfield_, kIsParenthesized);
   }
 
   int ast_node_count() { return ast_properties_.node_count(); }
