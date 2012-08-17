@@ -12227,7 +12227,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugSetScriptSource) {
   ASSERT(args.length() == 2);
 
   CONVERT_ARG_HANDLE_CHECKED(JSValue, script_wrapper, 0);
-  Handle<String> source(String::cast(args[1]));
+  CONVERT_ARG_HANDLE_CHECKED(String, source, 1);
 
   RUNTIME_ASSERT(script_wrapper->value()->IsScript());
   Handle<Script> script(Script::cast(script_wrapper->value()));
