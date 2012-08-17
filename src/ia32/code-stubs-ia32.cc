@@ -82,7 +82,7 @@ void FastNewClosureStub::Generate(MacroAssembler* masm) {
 
   // Compute the function map in the current native context and set that
   // as the map of the allocated object.
-  __ mov(ecx, Operand(esi, Context::SlotOffset(Context::GLOBAL_INDEX)));
+  __ mov(ecx, Operand(esi, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
   __ mov(ecx, FieldOperand(ecx, GlobalObject::kNativeContextOffset));
   __ mov(ebx, Operand(ecx, Context::SlotOffset(map_index)));
   __ mov(FieldOperand(eax, JSObject::kMapOffset), ebx);
@@ -217,8 +217,8 @@ void FastNewContextStub::Generate(MacroAssembler* masm) {
   __ mov(Operand(eax, Context::SlotOffset(Context::EXTENSION_INDEX)), ebx);
 
   // Copy the global object from the previous context.
-  __ mov(ebx, Operand(esi, Context::SlotOffset(Context::GLOBAL_INDEX)));
-  __ mov(Operand(eax, Context::SlotOffset(Context::GLOBAL_INDEX)), ebx);
+  __ mov(ebx, Operand(esi, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
+  __ mov(Operand(eax, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)), ebx);
 
   // Initialize the rest of the slots to undefined.
   __ mov(ebx, factory->undefined_value());
@@ -283,8 +283,8 @@ void FastNewBlockContextStub::Generate(MacroAssembler* masm) {
   __ mov(ContextOperand(eax, Context::EXTENSION_INDEX), ebx);
 
   // Copy the global object from the previous context.
-  __ mov(ebx, ContextOperand(esi, Context::GLOBAL_INDEX));
-  __ mov(ContextOperand(eax, Context::GLOBAL_INDEX), ebx);
+  __ mov(ebx, ContextOperand(esi, Context::GLOBAL_OBJECT_INDEX));
+  __ mov(ContextOperand(eax, Context::GLOBAL_OBJECT_INDEX), ebx);
 
   // Initialize the rest of the slots to the hole value.
   if (slots_ == 1) {
@@ -3434,9 +3434,9 @@ void ArgumentsAccessStub::GenerateNewNonStrictFast(MacroAssembler* masm) {
   // esp[0] = mapped parameter count (tagged)
   // esp[8] = parameter count (tagged)
   // esp[12] = address of receiver argument
-  // Get the arguments boilerplate from the current (global) context into edi.
+  // Get the arguments boilerplate from the current native context into edi.
   Label has_mapped_parameters, copy;
-  __ mov(edi, Operand(esi, Context::SlotOffset(Context::GLOBAL_INDEX)));
+  __ mov(edi, Operand(esi, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
   __ mov(edi, FieldOperand(edi, GlobalObject::kNativeContextOffset));
   __ mov(ebx, Operand(esp, 0 * kPointerSize));
   __ test(ebx, ebx);
@@ -3627,8 +3627,8 @@ void ArgumentsAccessStub::GenerateNewStrict(MacroAssembler* masm) {
   // Do the allocation of both objects in one go.
   __ AllocateInNewSpace(ecx, eax, edx, ebx, &runtime, TAG_OBJECT);
 
-  // Get the arguments boilerplate from the current (global) context.
-  __ mov(edi, Operand(esi, Context::SlotOffset(Context::GLOBAL_INDEX)));
+  // Get the arguments boilerplate from the current native context.
+  __ mov(edi, Operand(esi, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
   __ mov(edi, FieldOperand(edi, GlobalObject::kNativeContextOffset));
   const int offset =
       Context::SlotOffset(Context::STRICT_MODE_ARGUMENTS_BOILERPLATE_INDEX);
@@ -4142,7 +4142,7 @@ void RegExpConstructResultStub::Generate(MacroAssembler* masm) {
   // Set empty properties FixedArray.
   // Set elements to point to FixedArray allocated right after the JSArray.
   // Interleave operations for better latency.
-  __ mov(edx, ContextOperand(esi, Context::GLOBAL_INDEX));
+  __ mov(edx, ContextOperand(esi, Context::GLOBAL_OBJECT_INDEX));
   Factory* factory = masm->isolate()->factory();
   __ mov(ecx, Immediate(factory->empty_fixed_array()));
   __ lea(ebx, Operand(eax, JSRegExpResult::kSize));

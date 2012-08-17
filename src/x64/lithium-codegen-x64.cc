@@ -2850,7 +2850,7 @@ void LCodeGen::DoWrapReceiver(LWrapReceiver* instr) {
   // TODO(kmillikin): We have a hydrogen value for the global object.  See
   // if it's better to use it than to explicitly fetch it from the context
   // here.
-  __ movq(receiver, ContextOperand(rsi, Context::GLOBAL_INDEX));
+  __ movq(receiver, ContextOperand(rsi, Context::GLOBAL_OBJECT_INDEX));
   __ movq(receiver,
           FieldOperand(receiver, JSGlobalObject::kGlobalReceiverOffset));
   __ bind(&receiver_ok);

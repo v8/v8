@@ -2694,7 +2694,7 @@ void FullCodeGenerator::EmitIsStringWrapperSafeForDefaultValueOf(
   __ mov(ecx, FieldOperand(ebx, Map::kPrototypeOffset));
   __ JumpIfSmi(ecx, if_false);
   __ mov(ecx, FieldOperand(ecx, HeapObject::kMapOffset));
-  __ mov(edx, Operand(esi, Context::SlotOffset(Context::GLOBAL_INDEX)));
+  __ mov(edx, Operand(esi, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
   __ mov(edx,
          FieldOperand(edx, GlobalObject::kNativeContextOffset));
   __ cmp(ecx,
@@ -2971,7 +2971,7 @@ void FullCodeGenerator::EmitRandomHeapNumber(CallRuntime* expr) {
   __ bind(&heapnumber_allocated);
 
   __ PrepareCallCFunction(1, ebx);
-  __ mov(eax, ContextOperand(context_register(), Context::GLOBAL_INDEX));
+  __ mov(eax, ContextOperand(context_register(), Context::GLOBAL_OBJECT_INDEX));
   __ mov(eax, FieldOperand(eax, GlobalObject::kNativeContextOffset));
   __ mov(Operand(esp, 0), eax);
   __ CallCFunction(ExternalReference::random_uint32_function(isolate()), 1);
@@ -3416,7 +3416,7 @@ void FullCodeGenerator::EmitGetFromCache(CallRuntime* expr) {
   Register key = eax;
   Register cache = ebx;
   Register tmp = ecx;
-  __ mov(cache, ContextOperand(esi, Context::GLOBAL_INDEX));
+  __ mov(cache, ContextOperand(esi, Context::GLOBAL_OBJECT_INDEX));
   __ mov(cache,
          FieldOperand(cache, GlobalObject::kNativeContextOffset));
   __ mov(cache, ContextOperand(cache, Context::JSFUNCTION_RESULT_CACHES_INDEX));

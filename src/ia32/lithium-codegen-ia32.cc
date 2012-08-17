@@ -2962,7 +2962,7 @@ void LCodeGen::DoWrapReceiver(LWrapReceiver* instr) {
   // if it's better to use it than to explicitly fetch it from the context
   // here.
   __ mov(receiver, Operand(ebp, StandardFrameConstants::kContextOffset));
-  __ mov(receiver, ContextOperand(receiver, Context::GLOBAL_INDEX));
+  __ mov(receiver, ContextOperand(receiver, Context::GLOBAL_OBJECT_INDEX));
   __ mov(receiver,
          FieldOperand(receiver, JSGlobalObject::kGlobalReceiverOffset));
   __ bind(&receiver_ok);
@@ -3054,7 +3054,8 @@ void LCodeGen::DoDeclareGlobals(LDeclareGlobals* instr) {
 void LCodeGen::DoGlobalObject(LGlobalObject* instr) {
   Register context = ToRegister(instr->context());
   Register result = ToRegister(instr->result());
-  __ mov(result, Operand(context, Context::SlotOffset(Context::GLOBAL_INDEX)));
+  __ mov(result,
+         Operand(context, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
 }
 
 

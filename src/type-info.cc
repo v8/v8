@@ -557,8 +557,8 @@ bool TypeFeedbackOracle::CanRetainOtherContext(Map* map,
 
 bool TypeFeedbackOracle::CanRetainOtherContext(JSFunction* function,
                                                Context* native_context) {
-  return function->context()->global() != native_context->global()
-      && function->context()->global() != native_context->builtins();
+  return function->context()->global_object() != native_context->global_object()
+      && function->context()->global_object() != native_context->builtins();
 }
 
 

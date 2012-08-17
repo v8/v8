@@ -110,7 +110,7 @@ void FastNewClosureStub::Generate(MacroAssembler* masm) {
 
   // Compute the function map in the current native context and set that
   // as the map of the allocated object.
-  __ lw(a2, MemOperand(cp, Context::SlotOffset(Context::GLOBAL_INDEX)));
+  __ lw(a2, MemOperand(cp, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
   __ lw(a2, FieldMemOperand(a2, GlobalObject::kNativeContextOffset));
   __ lw(t1, MemOperand(a2, Context::SlotOffset(map_index)));
   __ sw(t1, FieldMemOperand(v0, HeapObject::kMapOffset));
@@ -244,12 +244,12 @@ void FastNewContextStub::Generate(MacroAssembler* masm) {
   __ sw(a1, FieldMemOperand(v0, HeapObject::kMapOffset));
 
   // Set up the fixed slots, copy the global object from the previous context.
-  __ lw(a2, MemOperand(cp, Context::SlotOffset(Context::GLOBAL_INDEX)));
+  __ lw(a2, MemOperand(cp, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
   __ li(a1, Operand(Smi::FromInt(0)));
   __ sw(a3, MemOperand(v0, Context::SlotOffset(Context::CLOSURE_INDEX)));
   __ sw(cp, MemOperand(v0, Context::SlotOffset(Context::PREVIOUS_INDEX)));
   __ sw(a1, MemOperand(v0, Context::SlotOffset(Context::EXTENSION_INDEX)));
-  __ sw(a2, MemOperand(v0, Context::SlotOffset(Context::GLOBAL_INDEX)));
+  __ sw(a2, MemOperand(v0, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
 
   // Initialize the rest of the slots to undefined.
   __ LoadRoot(a1, Heap::kUndefinedValueRootIndex);
@@ -307,11 +307,11 @@ void FastNewBlockContextStub::Generate(MacroAssembler* masm) {
   __ bind(&after_sentinel);
 
   // Set up the fixed slots, copy the global object from the previous context.
-  __ lw(a2, ContextOperand(cp, Context::GLOBAL_INDEX));
+  __ lw(a2, ContextOperand(cp, Context::GLOBAL_OBJECT_INDEX));
   __ sw(a3, ContextOperand(v0, Context::CLOSURE_INDEX));
   __ sw(cp, ContextOperand(v0, Context::PREVIOUS_INDEX));
   __ sw(a1, ContextOperand(v0, Context::EXTENSION_INDEX));
-  __ sw(a2, ContextOperand(v0, Context::GLOBAL_INDEX));
+  __ sw(a2, ContextOperand(v0, Context::GLOBAL_OBJECT_INDEX));
 
   // Initialize the rest of the slots to the hole value.
   __ LoadRoot(a1, Heap::kTheHoleValueRootIndex);
@@ -4646,13 +4646,13 @@ void ArgumentsAccessStub::GenerateNewNonStrictFast(MacroAssembler* masm) {
 
   // v0 = address of new object(s) (tagged)
   // a2 = argument count (tagged)
-  // Get the arguments boilerplate from the current (global) context into t0.
+  // Get the arguments boilerplate from the current native context into t0.
   const int kNormalOffset =
       Context::SlotOffset(Context::ARGUMENTS_BOILERPLATE_INDEX);
   const int kAliasedOffset =
       Context::SlotOffset(Context::ALIASED_ARGUMENTS_BOILERPLATE_INDEX);
 
-  __ lw(t0, MemOperand(cp, Context::SlotOffset(Context::GLOBAL_INDEX)));
+  __ lw(t0, MemOperand(cp, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
   __ lw(t0, FieldMemOperand(t0, GlobalObject::kNativeContextOffset));
   Label skip2_ne, skip2_eq;
   __ Branch(&skip2_ne, ne, a1, Operand(zero_reg));
@@ -4841,8 +4841,8 @@ void ArgumentsAccessStub::GenerateNewStrict(MacroAssembler* masm) {
                         static_cast<AllocationFlags>(TAG_OBJECT |
                                                      SIZE_IN_WORDS));
 
-  // Get the arguments boilerplate from the current (global) context.
-  __ lw(t0, MemOperand(cp, Context::SlotOffset(Context::GLOBAL_INDEX)));
+  // Get the arguments boilerplate from the current native context.
+  __ lw(t0, MemOperand(cp, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
   __ lw(t0, FieldMemOperand(t0, GlobalObject::kNativeContextOffset));
   __ lw(t0, MemOperand(t0, Context::SlotOffset(
       Context::STRICT_MODE_ARGUMENTS_BOILERPLATE_INDEX)));
@@ -5377,7 +5377,7 @@ void RegExpConstructResultStub::Generate(MacroAssembler* masm) {
   // Set empty properties FixedArray.
   // Set elements to point to FixedArray allocated right after the JSArray.
   // Interleave operations for better latency.
-  __ lw(a2, ContextOperand(cp, Context::GLOBAL_INDEX));
+  __ lw(a2, ContextOperand(cp, Context::GLOBAL_OBJECT_INDEX));
   __ Addu(a3, v0, Operand(JSRegExpResult::kSize));
   __ li(t0, Operand(masm->isolate()->factory()->empty_fixed_array()));
   __ lw(a2, FieldMemOperand(a2, GlobalObject::kNativeContextOffset));
@@ -5489,7 +5489,8 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
     __ LoadRoot(at, Heap::kTheHoleValueRootIndex);
     __ Branch(&call, ne, t0, Operand(at));
     // Patch the receiver on the stack with the global receiver object.
-    __ lw(a3, MemOperand(cp, Context::SlotOffset(Context::GLOBAL_INDEX)));
+    __ lw(a3,
+          MemOperand(cp, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
     __ lw(a3, FieldMemOperand(a3, GlobalObject::kGlobalReceiverOffset));
     __ sw(a3, MemOperand(sp, argc_ * kPointerSize));
     __ bind(&call);

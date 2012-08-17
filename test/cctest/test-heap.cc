@@ -157,7 +157,8 @@ TEST(HeapObjects) {
 
   String* object_symbol = String::cast(HEAP->Object_symbol());
   CHECK(
-      Isolate::Current()->context()->global()->HasLocalProperty(object_symbol));
+      Isolate::Current()->context()->global_object()->HasLocalProperty(
+          object_symbol));
 
   // Check ToString for oddballs
   CheckOddball(HEAP->true_value(), "true");
@@ -213,7 +214,7 @@ TEST(GarbageCollection) {
     Handle<Map> initial_map =
         FACTORY->NewMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
     function->set_initial_map(*initial_map);
-    Isolate::Current()->context()->global()->SetProperty(
+    Isolate::Current()->context()->global_object()->SetProperty(
         *name, *function, NONE, kNonStrictMode)->ToObjectChecked();
     // Allocate an object.  Unrooted after leaving the scope.
     Handle<JSObject> obj = FACTORY->NewJSObject(function);
@@ -229,9 +230,10 @@ TEST(GarbageCollection) {
   HEAP->CollectGarbage(NEW_SPACE);
 
   // Function should be alive.
-  CHECK(Isolate::Current()->context()->global()->HasLocalProperty(*name));
+  CHECK(Isolate::Current()->context()->global_object()->
+        HasLocalProperty(*name));
   // Check function is retained.
-  Object* func_value = Isolate::Current()->context()->global()->
+  Object* func_value = Isolate::Current()->context()->global_object()->
       GetProperty(*name)->ToObjectChecked();
   CHECK(func_value->IsJSFunction());
   Handle<JSFunction> function(JSFunction::cast(func_value));
@@ -240,7 +242,7 @@ TEST(GarbageCollection) {
     HandleScope inner_scope;
     // Allocate another object, make it reachable from global.
     Handle<JSObject> obj = FACTORY->NewJSObject(function);
-    Isolate::Current()->context()->global()->SetProperty(
+    Isolate::Current()->context()->global_object()->SetProperty(
         *obj_name, *obj, NONE, kNonStrictMode)->ToObjectChecked();
     obj->SetProperty(
         *prop_name, Smi::FromInt(23), NONE, kNonStrictMode)->ToObjectChecked();
@@ -249,10 +251,11 @@ TEST(GarbageCollection) {
   // After gc, it should survive.
   HEAP->CollectGarbage(NEW_SPACE);
 
-  CHECK(Isolate::Current()->context()->global()->HasLocalProperty(*obj_name));
-  CHECK(Isolate::Current()->context()->global()->
+  CHECK(Isolate::Current()->context()->global_object()->
+        HasLocalProperty(*obj_name));
+  CHECK(Isolate::Current()->context()->global_object()->
         GetProperty(*obj_name)->ToObjectChecked()->IsJSObject());
-  Object* obj = Isolate::Current()->context()->global()->
+  Object* obj = Isolate::Current()->context()->global_object()->
       GetProperty(*obj_name)->ToObjectChecked();
   JSObject* js_obj = JSObject::cast(obj);
   CHECK_EQ(Smi::FromInt(23), js_obj->GetProperty(*prop_name));
@@ -563,7 +566,7 @@ TEST(ObjectProperties) {
 
   v8::HandleScope sc;
   String* object_symbol = String::cast(HEAP->Object_symbol());
-  Object* raw_object = Isolate::Current()->context()->global()->
+  Object* raw_object = Isolate::Current()->context()->global_object()->
       GetProperty(object_symbol)->ToObjectChecked();
   JSFunction* object_function = JSFunction::cast(raw_object);
   Handle<JSFunction> constructor(object_function);
@@ -660,7 +663,7 @@ TEST(JSArray) {
 
   v8::HandleScope sc;
   Handle<String> name = FACTORY->LookupAsciiSymbol("Array");
-  Object* raw_object = Isolate::Current()->context()->global()->
+  Object* raw_object = Isolate::Current()->context()->global_object()->
       GetProperty(*name)->ToObjectChecked();
   Handle<JSFunction> function = Handle<JSFunction>(
       JSFunction::cast(raw_object));
@@ -707,7 +710,7 @@ TEST(JSObjectCopy) {
 
   v8::HandleScope sc;
   String* object_symbol = String::cast(HEAP->Object_symbol());
-  Object* raw_object = Isolate::Current()->context()->global()->
+  Object* raw_object = Isolate::Current()->context()->global_object()->
       GetProperty(object_symbol)->ToObjectChecked();
   JSFunction* object_function = JSFunction::cast(raw_object);
   Handle<JSFunction> constructor(object_function);
@@ -956,7 +959,7 @@ TEST(TestCodeFlushing) {
   }
 
   // Check function is compiled.
-  Object* func_value = Isolate::Current()->context()->global()->
+  Object* func_value = Isolate::Current()->context()->global_object()->
       GetProperty(*foo_name)->ToObjectChecked();
   CHECK(func_value->IsJSFunction());
   Handle<JSFunction> function(JSFunction::cast(func_value));

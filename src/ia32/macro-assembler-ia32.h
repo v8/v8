@@ -961,7 +961,7 @@ inline Operand ContextOperand(Register context, int index) {
 
 
 inline Operand GlobalObjectOperand() {
-  return ContextOperand(esi, Context::GLOBAL_INDEX);
+  return ContextOperand(esi, Context::GLOBAL_OBJECT_INDEX);
 }
 
 

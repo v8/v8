@@ -45,7 +45,7 @@ Context* Context::declaration_context() {
 
 
 JSBuiltinsObject* Context::builtins() {
-  GlobalObject* object = global();
+  GlobalObject* object = global_object();
   if (object->IsJSGlobalObject()) {
     return JSGlobalObject::cast(object)->builtins();
   } else {
@@ -59,8 +59,8 @@ Context* Context::native_context() {
   // Fast case: the global object for this context has been set.  In
   // that case, the global object has a direct pointer to the global
   // context.
-  if (global()->IsGlobalObject()) {
-    return global()->native_context();
+  if (global_object()->IsGlobalObject()) {
+    return global_object()->native_context();
   }
 
   // During bootstrapping, the global object might not be set and we

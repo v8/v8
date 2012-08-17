@@ -1053,7 +1053,7 @@ void Shell::InstallUtilityScript() {
   i::Debug* debug = i::Isolate::Current()->debug();
   debug->Load();
   i::Handle<i::JSObject> js_debug
-      = i::Handle<i::JSObject>(debug->debug_context()->global());
+      = i::Handle<i::JSObject>(debug->debug_context()->global_object());
   utility_context_->Global()->Set(String::New("$debug"),
                                   Utils::ToLocal(js_debug));
   debug->debug_context()->set_security_token(HEAP->undefined_value());

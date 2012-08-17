@@ -4156,7 +4156,7 @@ void SharedFunctionInfo::TryReenableOptimization() {
 
 
 bool JSFunction::IsBuiltin() {
-  return context()->global()->IsJSBuiltinsObject();
+  return context()->global_object()->IsJSBuiltinsObject();
 }
 
 

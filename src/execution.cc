@@ -100,7 +100,7 @@ static Handle<Object> Invoke(bool is_construct,
 
   // Make sure that the global object of the context we're about to
   // make the current one is indeed a global object.
-  ASSERT(function->context()->global()->IsGlobalObject());
+  ASSERT(function->context()->global_object()->IsGlobalObject());
 
   {
     // Save and restore context around invocation and block the
@@ -165,10 +165,10 @@ Handle<Object> Execution::Call(Handle<Object> callable,
   if (convert_receiver && !receiver->IsJSReceiver() &&
       !func->shared()->native() && func->shared()->is_classic_mode()) {
     if (receiver->IsUndefined() || receiver->IsNull()) {
-      Object* global = func->context()->global()->global_receiver();
+      Object* global = func->context()->global_object()->global_receiver();
       // Under some circumstances, 'global' can be the JSBuiltinsObject
-      // In that case, don't rewrite.
-      // (FWIW, the same holds for GetIsolate()->global()->global_receiver().)
+      // In that case, don't rewrite.  (FWIW, the same holds for
+      // GetIsolate()->global_object()->global_receiver().)
       if (!global->IsJSBuiltinsObject()) receiver = Handle<Object>(global);
     } else {
       receiver = ToObject(receiver, pending_exception);
@@ -184,7 +184,7 @@ Handle<Object> Execution::New(Handle<JSFunction> func,
                               int argc,
                               Handle<Object> argv[],
                               bool* pending_exception) {
-  return Invoke(true, func, Isolate::Current()->global(), argc, argv,
+  return Invoke(true, func, Isolate::Current()->global_object(), argc, argv,
                 pending_exception);
 }
 
@@ -870,7 +870,7 @@ Object* Execution::DebugBreakHelper() {
       if (JSFunction::cast(fun)->IsBuiltin()) {
         return isolate->heap()->undefined_value();
       }
-      GlobalObject* global = JSFunction::cast(fun)->context()->global();
+      GlobalObject* global = JSFunction::cast(fun)->context()->global_object();
       // Don't stop in debugger functions.
       if (isolate->debug()->IsDebugGlobal(global)) {
         return isolate->heap()->undefined_value();

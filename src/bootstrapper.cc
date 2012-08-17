@@ -330,8 +330,8 @@ void Bootstrapper::DetachGlobal(Handle<Context> env) {
   JSGlobalProxy::cast(env->global_proxy())->set_context(*factory->null_value());
   SetObjectPrototype(Handle<JSObject>(env->global_proxy()),
                      factory->null_value());
-  env->set_global_proxy(env->global());
-  env->global()->set_global_receiver(env->global());
+  env->set_global_proxy(env->global_object());
+  env->global_object()->set_global_receiver(env->global_object());
 }
 
 
@@ -339,9 +339,9 @@ void Bootstrapper::ReattachGlobal(Handle<Context> env,
                                   Handle<Object> global_object) {
   ASSERT(global_object->IsJSGlobalProxy());
   Handle<JSGlobalProxy> global = Handle<JSGlobalProxy>::cast(global_object);
-  env->global()->set_global_receiver(*global);
+  env->global_object()->set_global_receiver(*global);
   env->set_global_proxy(*global);
-  SetObjectPrototype(global, Handle<JSObject>(env->global()));
+  SetObjectPrototype(global, Handle<JSObject>(env->global_object()));
   global->set_context(*env);
 }
 
@@ -807,7 +807,7 @@ void Genesis::HookUpInnerGlobal(Handle<GlobalObject> inner_global) {
       GlobalObject::cast(native_context_->extension()));
   Handle<JSBuiltinsObject> builtins_global(native_context_->builtins());
   native_context_->set_extension(*inner_global);
-  native_context_->set_global(*inner_global);
+  native_context_->set_global_object(*inner_global);
   native_context_->set_security_token(*inner_global);
   static const PropertyAttributes attributes =
       static_cast<PropertyAttributes>(READ_ONLY | DONT_DELETE);
@@ -832,7 +832,7 @@ bool Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
   native_context()->set_previous(NULL);
   // Set extension and global object.
   native_context()->set_extension(*inner_global);
-  native_context()->set_global(*inner_global);
+  native_context()->set_global_object(*inner_global);
   // Security setup: Set the security token of the global object to
   // its the inner global. This makes the security check between two
   // different contexts fail by default even in case of global
@@ -849,7 +849,7 @@ bool Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
                              inner_global, object_name,
                              isolate->object_function(), DONT_ENUM));
 
-  Handle<JSObject> global = Handle<JSObject>(native_context()->global());
+  Handle<JSObject> global = Handle<JSObject>(native_context()->global_object());
 
   // Install global Function object
   InstallFunction(global, "Function", JS_FUNCTION_TYPE, JSFunction::kSize,
@@ -1254,7 +1254,7 @@ bool Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
 
 
 void Genesis::InitializeExperimentalGlobal() {
-  Handle<JSObject> global = Handle<JSObject>(native_context()->global());
+  Handle<JSObject> global = Handle<JSObject>(native_context()->global_object());
 
   // TODO(mstarzinger): Move this into Genesis::InitializeGlobal once we no
   // longer need to live behind a flag, so functions get added to the snapshot.
@@ -1370,7 +1370,7 @@ bool Genesis::CompileScriptCached(Vector<const char> name,
   Handle<Object> receiver =
       Handle<Object>(use_runtime_context
                      ? top_context->builtins()
-                     : top_context->global());
+                     : top_context->global_object());
   bool has_pending_exception;
   Execution::Call(fun, receiver, 0, NULL, &has_pending_exception);
   if (has_pending_exception) return false;
@@ -1450,13 +1450,14 @@ bool Genesis::InstallNatives() {
   static const PropertyAttributes attributes =
       static_cast<PropertyAttributes>(READ_ONLY | DONT_DELETE);
   Handle<String> global_symbol = factory()->LookupAsciiSymbol("global");
-  Handle<Object> global_obj(native_context()->global());
+  Handle<Object> global_obj(native_context()->global_object());
   CHECK_NOT_EMPTY_HANDLE(isolate(),
                          JSObject::SetLocalPropertyIgnoreAttributes(
                              builtins, global_symbol, global_obj, attributes));
 
   // Set up the reference from the global object to the builtins object.
-  JSGlobalObject::cast(native_context()->global())->set_builtins(*builtins);
+  JSGlobalObject::cast(native_context()->global_object())->
+      set_builtins(*builtins);
 
   // Create a bridge function that has context in the native context.
   Handle<JSFunction> bridge =
@@ -1467,7 +1468,7 @@ bool Genesis::InstallNatives() {
   // Allocate the builtins context.
   Handle<Context> context =
     factory()->NewFunctionContext(Context::MIN_CONTEXT_SLOTS, bridge);
-  context->set_global(*builtins);  // override builtins global object
+  context->set_global_object(*builtins);  // override builtins global object
 
   native_context()->set_runtime_context(*context);
 
@@ -1710,7 +1711,7 @@ bool Genesis::InstallNatives() {
   // Install Function.prototype.call and apply.
   { Handle<String> key = factory()->function_class_symbol();
     Handle<JSFunction> function =
-        Handle<JSFunction>::cast(GetProperty(isolate()->global(), key));
+        Handle<JSFunction>::cast(GetProperty(isolate()->global_object(), key));
     Handle<JSObject> proto =
         Handle<JSObject>(JSObject::cast(function->instance_prototype()));
 
@@ -1834,7 +1835,7 @@ static Handle<JSObject> ResolveBuiltinIdHolder(
     Handle<Context> native_context,
     const char* holder_expr) {
   Factory* factory = native_context->GetIsolate()->factory();
-  Handle<GlobalObject> global(native_context->global());
+  Handle<GlobalObject> global(native_context->global_object());
   const char* period_pos = strchr(holder_expr, '.');
   if (period_pos == NULL) {
     return Handle<JSObject>::cast(
@@ -1940,7 +1941,8 @@ void Genesis::InstallSpecialObjects(Handle<Context> native_context) {
   Isolate* isolate = native_context->GetIsolate();
   Factory* factory = isolate->factory();
   HandleScope scope;
-  Handle<JSGlobalObject> global(JSGlobalObject::cast(native_context->global()));
+  Handle<JSGlobalObject> global(JSGlobalObject::cast(
+      native_context->global_object()));
   // Expose the natives in global if a name for it is specified.
   if (FLAG_expose_natives_as != NULL && strlen(FLAG_expose_natives_as) != 0) {
     Handle<String> natives = factory->LookupAsciiSymbol(FLAG_expose_natives_as);
@@ -2137,7 +2139,8 @@ bool Genesis::ConfigureGlobalObjects(
     v8::Handle<v8::ObjectTemplate> global_proxy_template) {
   Handle<JSObject> global_proxy(
       JSObject::cast(native_context()->global_proxy()));
-  Handle<JSObject> inner_global(JSObject::cast(native_context()->global()));
+  Handle<JSObject> inner_global(
+      JSObject::cast(native_context()->global_object()));
 
   if (!global_proxy_template.IsEmpty()) {
     // Configure the global proxy object.

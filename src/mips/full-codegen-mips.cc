@@ -2788,7 +2788,7 @@ void FullCodeGenerator::EmitIsStringWrapperSafeForDefaultValueOf(
   __ lw(a2, FieldMemOperand(a1, Map::kPrototypeOffset));
   __ JumpIfSmi(a2, if_false);
   __ lw(a2, FieldMemOperand(a2, HeapObject::kMapOffset));
-  __ lw(a3, ContextOperand(cp, Context::GLOBAL_INDEX));
+  __ lw(a3, ContextOperand(cp, Context::GLOBAL_OBJECT_INDEX));
   __ lw(a3, FieldMemOperand(a3, GlobalObject::kNativeContextOffset));
   __ lw(a3, ContextOperand(a3, Context::STRING_FUNCTION_PROTOTYPE_MAP_INDEX));
   __ Branch(if_false, ne, a2, Operand(a3));
@@ -3069,7 +3069,7 @@ void FullCodeGenerator::EmitRandomHeapNumber(CallRuntime* expr) {
   // ( 1.(20 0s)(32 random bits) x 2^20 ) - (1.0 x 2^20)).
   if (CpuFeatures::IsSupported(FPU)) {
     __ PrepareCallCFunction(1, a0);
-    __ lw(a0, ContextOperand(cp, Context::GLOBAL_INDEX));
+    __ lw(a0, ContextOperand(cp, Context::GLOBAL_OBJECT_INDEX));
     __ lw(a0, FieldMemOperand(a0, GlobalObject::kNativeContextOffset));
     __ CallCFunction(ExternalReference::random_uint32_function(isolate()), 1);
 
@@ -3087,7 +3087,7 @@ void FullCodeGenerator::EmitRandomHeapNumber(CallRuntime* expr) {
   } else {
     __ PrepareCallCFunction(2, a0);
     __ mov(a0, s0);
-    __ lw(a1, ContextOperand(cp, Context::GLOBAL_INDEX));
+    __ lw(a1, ContextOperand(cp, Context::GLOBAL_OBJECT_INDEX));
     __ lw(a1, FieldMemOperand(a1, GlobalObject::kNativeContextOffset));
     __ CallCFunction(
         ExternalReference::fill_heap_number_with_random_function(isolate()), 2);
@@ -3515,7 +3515,7 @@ void FullCodeGenerator::EmitGetFromCache(CallRuntime* expr) {
 
   Register key = v0;
   Register cache = a1;
-  __ lw(cache, ContextOperand(cp, Context::GLOBAL_INDEX));
+  __ lw(cache, ContextOperand(cp, Context::GLOBAL_OBJECT_INDEX));
   __ lw(cache, FieldMemOperand(cache, GlobalObject::kNativeContextOffset));
   __ lw(cache,
          ContextOperand(

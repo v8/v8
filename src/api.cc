@@ -4439,7 +4439,7 @@ void v8::Context::UseDefaultSecurityToken() {
   }
   ENTER_V8(isolate);
   i::Handle<i::Context> env = Utils::OpenHandle(this);
-  env->set_security_token(env->global());
+  env->set_security_token(env->global_object());
 }
 
 
@@ -5798,7 +5798,7 @@ Local<Value> Debug::GetMirror(v8::Handle<v8::Value> obj) {
   v8::HandleScope scope;
   i::Debug* isolate_debug = isolate->debug();
   isolate_debug->Load();
-  i::Handle<i::JSObject> debug(isolate_debug->debug_context()->global());
+  i::Handle<i::JSObject> debug(isolate_debug->debug_context()->global_object());
   i::Handle<i::String> name =
       isolate->factory()->LookupAsciiSymbol("MakeMirror");
   i::Handle<i::Object> fun_obj = i::GetProperty(debug, name);

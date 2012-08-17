@@ -3242,7 +3242,7 @@ void LCodeGen::DoDeclareGlobals(LDeclareGlobals* instr) {
 
 void LCodeGen::DoGlobalObject(LGlobalObject* instr) {
   Register result = ToRegister(instr->result());
-  __ ldr(result, ContextOperand(cp, Context::GLOBAL_INDEX));
+  __ ldr(result, ContextOperand(cp, Context::GLOBAL_OBJECT_INDEX));
 }
 
 

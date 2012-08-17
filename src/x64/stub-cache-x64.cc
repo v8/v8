@@ -228,15 +228,15 @@ void StubCompiler::GenerateLoadGlobalFunctionPrototype(MacroAssembler* masm,
                                                        Register prototype) {
   // Load the global or builtins object from the current context.
   __ movq(prototype,
-             Operand(rsi, Context::SlotOffset(Context::GLOBAL_INDEX)));
+          Operand(rsi, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
   // Load the native context from the global or builtins object.
   __ movq(prototype,
-             FieldOperand(prototype, GlobalObject::kNativeContextOffset));
+          FieldOperand(prototype, GlobalObject::kNativeContextOffset));
   // Load the function from the native context.
   __ movq(prototype, Operand(prototype, Context::SlotOffset(index)));
   // Load the initial map.  The global functions all have initial maps.
   __ movq(prototype,
-             FieldOperand(prototype, JSFunction::kPrototypeOrInitialMapOffset));
+          FieldOperand(prototype, JSFunction::kPrototypeOrInitialMapOffset));
   // Load the prototype from the initial map.
   __ movq(prototype, FieldOperand(prototype, Map::kPrototypeOffset));
 }
@@ -249,8 +249,8 @@ void StubCompiler::GenerateDirectLoadGlobalFunctionPrototype(
     Label* miss) {
   Isolate* isolate = masm->isolate();
   // Check we're still in the same context.
-  __ Move(prototype, isolate->global());
-  __ cmpq(Operand(rsi, Context::SlotOffset(Context::GLOBAL_INDEX)),
+  __ Move(prototype, isolate->global_object());
+  __ cmpq(Operand(rsi, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)),
           prototype);
   __ j(not_equal, miss);
   // Get the global function with the given index.

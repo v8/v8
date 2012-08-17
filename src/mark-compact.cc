@@ -1269,7 +1269,7 @@ class MarkCompactMarkingVisitor
 
   static inline bool IsValidNotBuiltinContext(Object* ctx) {
     return ctx->IsContext() &&
-        !Context::cast(ctx)->global()->IsJSBuiltinsObject();
+        !Context::cast(ctx)->global_object()->IsJSBuiltinsObject();
   }
 
 

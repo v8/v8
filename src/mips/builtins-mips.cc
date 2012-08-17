@@ -81,7 +81,8 @@ static void GenerateLoadInternalArrayFunction(MacroAssembler* masm,
                                               Register result) {
   // Load the native context.
 
-  __ lw(result, MemOperand(cp, Context::SlotOffset(Context::GLOBAL_INDEX)));
+  __ lw(result,
+        MemOperand(cp, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
   __ lw(result,
         FieldMemOperand(result, GlobalObject::kNativeContextOffset));
   // Load the InternalArray function from the native context.
@@ -96,7 +97,8 @@ static void GenerateLoadInternalArrayFunction(MacroAssembler* masm,
 static void GenerateLoadArrayFunction(MacroAssembler* masm, Register result) {
   // Load the native context.
 
-  __ lw(result, MemOperand(cp, Context::SlotOffset(Context::GLOBAL_INDEX)));
+  __ lw(result,
+        MemOperand(cp, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
   __ lw(result,
         FieldMemOperand(result, GlobalObject::kNativeContextOffset));
   // Load the Array function from the native context.
@@ -1430,7 +1432,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     // receiver.
     __ bind(&use_global_receiver);
     const int kGlobalIndex =
-        Context::kHeaderSize + Context::GLOBAL_INDEX * kPointerSize;
+        Context::kHeaderSize + Context::GLOBAL_OBJECT_INDEX * kPointerSize;
     __ lw(a2, FieldMemOperand(cp, kGlobalIndex));
     __ lw(a2, FieldMemOperand(a2, GlobalObject::kNativeContextOffset));
     __ lw(a2, FieldMemOperand(a2, kGlobalIndex));
@@ -1623,7 +1625,7 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
     // Use the current global receiver object as the receiver.
     __ bind(&use_global_receiver);
     const int kGlobalOffset =
-        Context::kHeaderSize + Context::GLOBAL_INDEX * kPointerSize;
+        Context::kHeaderSize + Context::GLOBAL_OBJECT_INDEX * kPointerSize;
     __ lw(a0, FieldMemOperand(cp, kGlobalOffset));
     __ lw(a0, FieldMemOperand(a0, GlobalObject::kNativeContextOffset));
     __ lw(a0, FieldMemOperand(a0, kGlobalOffset));

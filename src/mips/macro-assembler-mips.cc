@@ -362,7 +362,8 @@ void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
 #endif
 
   // Load the native context of the current context.
-  int offset = Context::kHeaderSize + Context::GLOBAL_INDEX * kPointerSize;
+  int offset =
+      Context::kHeaderSize + Context::GLOBAL_OBJECT_INDEX * kPointerSize;
   lw(scratch, FieldMemOperand(scratch, offset));
   lw(scratch, FieldMemOperand(scratch, GlobalObject::kNativeContextOffset));
 
@@ -4282,7 +4283,7 @@ void MacroAssembler::InvokeBuiltin(Builtins::JavaScript id,
 void MacroAssembler::GetBuiltinFunction(Register target,
                                         Builtins::JavaScript id) {
   // Load the builtins object into target register.
-  lw(target, MemOperand(cp, Context::SlotOffset(Context::GLOBAL_INDEX)));
+  lw(target, MemOperand(cp, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
   lw(target, FieldMemOperand(target, GlobalObject::kBuiltinsOffset));
   // Load the JavaScript builtin function from the builtins object.
   lw(target, FieldMemOperand(target,
@@ -4451,7 +4452,8 @@ void MacroAssembler::LoadTransitionedArrayMapConditional(
     Register scratch,
     Label* no_map_match) {
   // Load the global or builtins object from the current context.
-  lw(scratch, MemOperand(cp, Context::SlotOffset(Context::GLOBAL_INDEX)));
+  lw(scratch,
+     MemOperand(cp, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
   lw(scratch, FieldMemOperand(scratch, GlobalObject::kNativeContextOffset));
 
   // Check that the function's map is the same as the expected cached map.
@@ -4497,7 +4499,8 @@ void MacroAssembler::LoadInitialArrayMap(
 
 void MacroAssembler::LoadGlobalFunction(int index, Register function) {
   // Load the global or builtins object from the current context.
-  lw(function, MemOperand(cp, Context::SlotOffset(Context::GLOBAL_INDEX)));
+  lw(function,
+     MemOperand(cp, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
   // Load the native context from the global or builtins object.
   lw(function, FieldMemOperand(function,
                                GlobalObject::kNativeContextOffset));

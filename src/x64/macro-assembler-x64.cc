@@ -806,7 +806,7 @@ void MacroAssembler::InvokeBuiltin(Builtins::JavaScript id,
 void MacroAssembler::GetBuiltinFunction(Register target,
                                         Builtins::JavaScript id) {
   // Load the builtins object into target register.
-  movq(target, Operand(rsi, Context::SlotOffset(Context::GLOBAL_INDEX)));
+  movq(target, Operand(rsi, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
   movq(target, FieldOperand(target, GlobalObject::kBuiltinsOffset));
   movq(target, FieldOperand(target,
                             JSBuiltinsObject::OffsetOfFunctionWithId(id)));
@@ -3443,7 +3443,8 @@ void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
     Check(not_equal, "we should not have an empty lexical context");
   }
   // Load the native context of the current context.
-  int offset = Context::kHeaderSize + Context::GLOBAL_INDEX * kPointerSize;
+  int offset =
+      Context::kHeaderSize + Context::GLOBAL_OBJECT_INDEX * kPointerSize;
   movq(scratch, FieldOperand(scratch, offset));
   movq(scratch, FieldOperand(scratch, GlobalObject::kNativeContextOffset));
 
@@ -4099,7 +4100,8 @@ void MacroAssembler::LoadTransitionedArrayMapConditional(
     Register scratch,
     Label* no_map_match) {
   // Load the global or builtins object from the current context.
-  movq(scratch, Operand(rsi, Context::SlotOffset(Context::GLOBAL_INDEX)));
+  movq(scratch,
+       Operand(rsi, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
   movq(scratch, FieldOperand(scratch, GlobalObject::kNativeContextOffset));
 
   // Check that the function's map is the same as the expected cached map.
@@ -4150,7 +4152,8 @@ static const int kRegisterPassedArguments = 6;
 
 void MacroAssembler::LoadGlobalFunction(int index, Register function) {
   // Load the global or builtins object from the current context.
-  movq(function, Operand(rsi, Context::SlotOffset(Context::GLOBAL_INDEX)));
+  movq(function,
+       Operand(rsi, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
   // Load the native context from the global or builtins object.
   movq(function, FieldOperand(function, GlobalObject::kNativeContextOffset));
   // Load the function from the native context.

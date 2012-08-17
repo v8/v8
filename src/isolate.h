@@ -644,8 +644,8 @@ class Isolate {
 
   // Returns the global object of the current context. It could be
   // a builtin object, or a JS global object.
-  Handle<GlobalObject> global() {
-    return Handle<GlobalObject>(context()->global());
+  Handle<GlobalObject> global_object() {
+    return Handle<GlobalObject>(context()->global_object());
   }
 
   // Returns the global proxy object of the current context.

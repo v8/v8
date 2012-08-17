@@ -2667,7 +2667,7 @@ void FullCodeGenerator::EmitIsStringWrapperSafeForDefaultValueOf(
   __ testq(rcx, Immediate(kSmiTagMask));
   __ j(zero, if_false);
   __ movq(rcx, FieldOperand(rcx, HeapObject::kMapOffset));
-  __ movq(rdx, Operand(rsi, Context::SlotOffset(Context::GLOBAL_INDEX)));
+  __ movq(rdx, Operand(rsi, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
   __ movq(rdx, FieldOperand(rdx, GlobalObject::kNativeContextOffset));
   __ cmpq(rcx,
           ContextOperand(rdx, Context::STRING_FUNCTION_PROTOTYPE_MAP_INDEX));
@@ -2945,11 +2945,13 @@ void FullCodeGenerator::EmitRandomHeapNumber(CallRuntime* expr) {
   // The fresh HeapNumber is in rbx, which is callee-save on both x64 ABIs.
   __ PrepareCallCFunction(1);
 #ifdef _WIN64
-  __ movq(rcx, ContextOperand(context_register(), Context::GLOBAL_INDEX));
+  __ movq(rcx,
+          ContextOperand(context_register(), Context::GLOBAL_OBJECT_INDEX));
   __ movq(rcx, FieldOperand(rcx, GlobalObject::kNativeContextOffset));
 
 #else
-  __ movq(rdi, ContextOperand(context_register(), Context::GLOBAL_INDEX));
+  __ movq(rdi,
+          ContextOperand(context_register(), Context::GLOBAL_OBJECT_INDEX));
   __ movq(rdi, FieldOperand(rdi, GlobalObject::kNativeContextOffset));
 #endif
   __ CallCFunction(ExternalReference::random_uint32_function(isolate()), 1);
@@ -3380,7 +3382,7 @@ void FullCodeGenerator::EmitGetFromCache(CallRuntime* expr) {
   Register key = rax;
   Register cache = rbx;
   Register tmp = rcx;
-  __ movq(cache, ContextOperand(rsi, Context::GLOBAL_INDEX));
+  __ movq(cache, ContextOperand(rsi, Context::GLOBAL_OBJECT_INDEX));
   __ movq(cache,
           FieldOperand(cache, GlobalObject::kNativeContextOffset));
   __ movq(cache,

@@ -1338,7 +1338,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DeclareGlobals) {
   ASSERT(args.length() == 3);
   HandleScope scope(isolate);
   Handle<GlobalObject> global = Handle<GlobalObject>(
-      isolate->context()->global());
+      isolate->context()->global_object());
 
   Handle<Context> context = args.at<Context>(0);
   CONVERT_ARG_HANDLE_CHECKED(FixedArray, pairs, 1);
@@ -1556,7 +1556,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_InitializeVarGlobal) {
   bool assign = args.length() == 3;
 
   CONVERT_ARG_HANDLE_CHECKED(String, name, 0);
-  GlobalObject* global = isolate->context()->global();
+  GlobalObject* global = isolate->context()->global_object();
   RUNTIME_ASSERT(args[1]->IsSmi());
   CONVERT_LANGUAGE_MODE_ARG(language_mode, 1);
   StrictModeFlag strict_mode_flag = (language_mode == CLASSIC_MODE)
@@ -1599,7 +1599,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_InitializeVarGlobal) {
   }
 
   // Reload global in case the loop above performed a GC.
-  global = isolate->context()->global();
+  global = isolate->context()->global_object();
   if (assign) {
     return global->SetProperty(*name, args[2], attributes, strict_mode_flag);
   }
@@ -1616,7 +1616,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_InitializeConstGlobal) {
   Handle<Object> value = args.at<Object>(1);
 
   // Get the current global object from top.
-  GlobalObject* global = isolate->context()->global();
+  GlobalObject* global = isolate->context()->global_object();
 
   // According to ECMA-262, section 12.2, page 62, the property must
   // not be deletable. Since it's a const, it must be READ_ONLY too.
@@ -1640,7 +1640,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_InitializeConstGlobal) {
     // Restore global object from context (in case of GC) and continue
     // with setting the value.
     HandleScope handle_scope(isolate);
-    Handle<GlobalObject> global(isolate->context()->global());
+    Handle<GlobalObject> global(isolate->context()->global_object());
 
     // BUG 1213575: Handle the case where we have to set a read-only
     // property through an interceptor and only do it if it's
@@ -1714,7 +1714,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_InitializeConstContextSlot) {
   // global object.
   if (attributes == ABSENT) {
     Handle<JSObject> global = Handle<JSObject>(
-        isolate->context()->global());
+        isolate->context()->global_object());
     // Strict mode not needed (const disallowed in strict mode).
     RETURN_IF_EMPTY_HANDLE(
         isolate,
@@ -1988,8 +1988,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetDefaultReceiver) {
   // the associated global receiver for "normal" functions.
 
   Context* native_context =
-      function->context()->global()->native_context();
-  return native_context->global()->global_receiver();
+      function->context()->global_object()->native_context();
+  return native_context->global_object()->global_receiver();
 }
 
 
@@ -7809,7 +7809,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NewObject) {
       // instead of a new JSFunction object. This way, errors are
       // reported the same way whether or not 'Function' is called
       // using 'new'.
-      return isolate->context()->global();
+      return isolate->context()->global_object();
     }
   }
 
@@ -8497,7 +8497,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_PushModuleContext) {
   // Initialize the context links.
   context->set_previous(previous);
   context->set_closure(previous->closure());
-  context->set_global(previous->global());
+  context->set_global_object(previous->global_object());
   isolate->set_context(context);
 
   return context;
@@ -8762,7 +8762,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StoreContextSlot) {
     }
     // In non-strict mode, the property is added to the global object.
     attributes = NONE;
-    object = Handle<JSObject>(isolate->context()->global());
+    object = Handle<JSObject>(isolate->context()->global_object());
   }
 
   // Set the property if it's not read only or doesn't yet exist.
@@ -10966,7 +10966,7 @@ class ScopeIterator {
       }
     }
     if (context_->IsNativeContext()) {
-      ASSERT(context_->global()->IsGlobalObject());
+      ASSERT(context_->global_object()->IsGlobalObject());
       return ScopeTypeGlobal;
     }
     if (context_->IsFunctionContext()) {
@@ -10989,7 +10989,7 @@ class ScopeIterator {
   Handle<JSObject> ScopeObject() {
     switch (Type()) {
       case ScopeIterator::ScopeTypeGlobal:
-        return Handle<JSObject>(CurrentContext()->global());
+        return Handle<JSObject>(CurrentContext()->global_object());
       case ScopeIterator::ScopeTypeLocal:
         // Materialize the content of the local scope into a JSObject.
         ASSERT(nested_scope_chain_.length() == 1);
@@ -11958,7 +11958,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugEvaluateGlobal) {
 
   // Invoke the result of the compilation to get the evaluation function.
   bool has_pending_exception;
-  Handle<Object> receiver = isolate->global();
+  Handle<Object> receiver = isolate->global_object();
   Handle<Object> result =
     Execution::Call(compiled_function, receiver, 0, NULL,
                     &has_pending_exception);
@@ -12593,11 +12593,11 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ExecuteInDebugContext) {
   bool pending_exception;
   {
     if (without_debugger) {
-      result = Execution::Call(function, isolate->global(), 0, NULL,
+      result = Execution::Call(function, isolate->global_object(), 0, NULL,
                                &pending_exception);
     } else {
       EnterDebugger enter_debugger;
-      result = Execution::Call(function, isolate->global(), 0, NULL,
+      result = Execution::Call(function, isolate->global_object(), 0, NULL,
                                &pending_exception);
     }
   }
@@ -13076,7 +13076,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetFromCache) {
     Handle<JSFunction> factory(JSFunction::cast(
           cache_handle->get(JSFunctionResultCache::kFactoryIndex)));
     // TODO(antonm): consider passing a receiver when constructing a cache.
-    Handle<Object> receiver(isolate->native_context()->global());
+    Handle<Object> receiver(isolate->native_context()->global_object());
     // This handle is nor shared, nor used later, so it's safe.
     Handle<Object> argv[] = { key_handle };
     bool pending_exception;

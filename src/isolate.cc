@@ -794,7 +794,8 @@ static MayAccessDecision MayAccessPreCheck(Isolate* isolate,
 
     // Get the native context of current top context.
     // avoid using Isolate::native_context() because it uses Handle.
-    Context* native_context = isolate->context()->global()->native_context();
+    Context* native_context =
+        isolate->context()->global_object()->native_context();
     if (receiver_context == native_context) return YES;
 
     if (Context::cast(receiver_context)->security_token() ==
@@ -1324,7 +1325,7 @@ bool Isolate::is_out_of_memory() {
 
 
 Handle<Context> Isolate::native_context() {
-  GlobalObject* global = thread_local_top()->context_->global();
+  GlobalObject* global = thread_local_top()->context_->global_object();
   return Handle<Context>(global->native_context());
 }
 

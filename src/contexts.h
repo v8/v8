@@ -193,7 +193,7 @@ enum BindingFlags {
 //                For block contexts, contains the respective ScopeInfo.
 //                For module contexts, points back to the respective JSModule.
 //
-// [ global    ]  A pointer to the global object. Provided for quick
+// [ global_object ]  A pointer to the global object. Provided for quick
 //                access to the global object from inside the code (since
 //                we always have a context pointer).
 //
@@ -221,7 +221,7 @@ class Context: public FixedArray {
     // (with contexts), or the variable name (catch contexts), the serialized
     // scope info (block contexts), or the module instance (module contexts).
     EXTENSION_INDEX,
-    GLOBAL_INDEX,
+    GLOBAL_OBJECT_INDEX,
     MIN_CONTEXT_SLOTS,
 
     // This slot holds the thrown value in catch contexts.
@@ -321,12 +321,14 @@ class Context: public FixedArray {
   // may be the context itself.
   Context* declaration_context();
 
-  GlobalObject* global() {
-    Object* result = get(GLOBAL_INDEX);
+  GlobalObject* global_object() {
+    Object* result = get(GLOBAL_OBJECT_INDEX);
     ASSERT(IsBootstrappingOrGlobalObject(result));
     return reinterpret_cast<GlobalObject*>(result);
   }
-  void set_global(GlobalObject* global) { set(GLOBAL_INDEX, global); }
+  void set_global_object(GlobalObject* object) {
+    set(GLOBAL_OBJECT_INDEX, object);
+  }
 
   // Returns a JSGlobalProxy object or null.
   JSObject* global_proxy();

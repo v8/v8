@@ -320,7 +320,7 @@ void Deoptimizer::VisitAllOptimizedFunctions(
   while (!context->IsUndefined()) {
     // GC can happen when the context is not fully initialized,
     // so the global field of the context can be undefined.
-    Object* global = Context::cast(context)->get(Context::GLOBAL_INDEX);
+    Object* global = Context::cast(context)->get(Context::GLOBAL_OBJECT_INDEX);
     if (!global->IsUndefined()) {
       VisitAllOptimizedFunctionsForGlobalObject(JSObject::cast(global),
                                                 visitor);
