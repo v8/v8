@@ -150,7 +150,8 @@ namespace internal {
   V(Smi, real_stack_limit, RealStackLimit)                                     \
   V(StringDictionary, intrinsic_function_names, IntrinsicFunctionNames)        \
   V(Smi, arguments_adaptor_deopt_pc_offset, ArgumentsAdaptorDeoptPCOffset)     \
-  V(Smi, construct_stub_deopt_pc_offset, ConstructStubDeoptPCOffset)
+  V(Smi, construct_stub_deopt_pc_offset, ConstructStubDeoptPCOffset)           \
+  V(Smi, setter_stub_deopt_pc_offset, SetterStubDeoptPCOffset)
 
 #define ROOT_LIST(V)                                  \
   STRONG_ROOT_LIST(V)                                 \
@@ -1583,6 +1584,11 @@ class Heap {
   void SetConstructStubDeoptPCOffset(int pc_offset) {
     ASSERT(construct_stub_deopt_pc_offset() == Smi::FromInt(0));
     set_construct_stub_deopt_pc_offset(Smi::FromInt(pc_offset));
+  }
+
+  void SetSetterStubDeoptPCOffset(int pc_offset) {
+    ASSERT(setter_stub_deopt_pc_offset() == Smi::FromInt(0));
+    set_setter_stub_deopt_pc_offset(Smi::FromInt(pc_offset));
   }
 
   // For post mortem debugging.

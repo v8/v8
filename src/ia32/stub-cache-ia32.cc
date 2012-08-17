@@ -2647,6 +2647,52 @@ Handle<Code> StoreStubCompiler::CompileStoreCallback(
 }
 
 
+#undef __
+#define __ ACCESS_MASM(masm)
+
+
+void StoreStubCompiler::GenerateStoreViaSetter(
+    MacroAssembler* masm,
+    Handle<JSFunction> setter) {
+  // ----------- S t a t e -------------
+  //  -- eax    : value
+  //  -- ecx    : name
+  //  -- edx    : receiver
+  //  -- esp[0] : return address
+  // -----------------------------------
+  {
+    FrameScope scope(masm, StackFrame::INTERNAL);
+
+    // Save value register, so we can restore it later.
+    __ push(eax);
+
+    if (!setter.is_null()) {
+      // Call the JavaScript setter with receiver and value on the stack.
+      __ push(edx);
+      __ push(eax);
+      ParameterCount actual(1);
+      __ InvokeFunction(setter, actual, CALL_FUNCTION, NullCallWrapper(),
+                        CALL_AS_METHOD);
+    } else {
+      // If we generate a global code snippet for deoptimization only, remember
+      // the place to continue after deoptimization.
+      masm->isolate()->heap()->SetSetterStubDeoptPCOffset(masm->pc_offset());
+    }
+
+    // We have to return the passed value, not the return value of the setter.
+    __ pop(eax);
+
+    // Restore context register.
+    __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
+  }
+  __ ret(0);
+}
+
+
+#undef __
+#define __ ACCESS_MASM(masm())
+
+
 Handle<Code> StoreStubCompiler::CompileStoreViaSetter(
     Handle<String> name,
     Handle<JSObject> receiver,
@@ -2666,26 +2712,7 @@ Handle<Code> StoreStubCompiler::CompileStoreViaSetter(
   CheckPrototypes(receiver, edx, holder, ebx, ecx, edi, name, &miss);
   __ pop(ecx);
 
-  {
-    FrameScope scope(masm(), StackFrame::INTERNAL);
-
-    // Save value register, so we can restore it later.
-    __ push(eax);
-
-    // Call the JavaScript setter with the receiver and the value on the stack.
-    __ push(edx);
-    __ push(eax);
-    ParameterCount actual(1);
-    __ InvokeFunction(setter, actual, CALL_FUNCTION, NullCallWrapper(),
-                      CALL_AS_METHOD);
-
-    // We have to return the passed value, not the return value of the setter.
-    __ pop(eax);
-
-    // Restore context register.
-    __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
-  }
-  __ ret(0);
+  GenerateStoreViaSetter(masm(), setter);
 
   __ bind(&miss);
   __ pop(ecx);

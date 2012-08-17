@@ -708,6 +708,9 @@ class StoreStubCompiler: public StubCompiler {
                                     Handle<AccessorInfo> callback,
                                     Handle<String> name);
 
+  static void GenerateStoreViaSetter(MacroAssembler* masm,
+                                     Handle<JSFunction> setter);
+
   Handle<Code> CompileStoreViaSetter(Handle<String> name,
                                      Handle<JSObject> receiver,
                                      Handle<JSObject> holder,

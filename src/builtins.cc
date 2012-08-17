@@ -35,6 +35,7 @@
 #include "ic-inl.h"
 #include "heap-profiler.h"
 #include "mark-compact.h"
+#include "stub-cache.h"
 #include "vm-state-inl.h"
 
 namespace v8 {
@@ -1385,6 +1386,11 @@ static void Generate_StoreIC_GlobalProxy(MacroAssembler* masm) {
 
 static void Generate_StoreIC_GlobalProxy_Strict(MacroAssembler* masm) {
   StoreIC::GenerateGlobalProxy(masm, kStrictMode);
+}
+
+
+static void Generate_StoreIC_Setter_ForDeopt(MacroAssembler* masm) {
+  StoreStubCompiler::GenerateStoreViaSetter(masm, Handle<JSFunction>());
 }
 
 

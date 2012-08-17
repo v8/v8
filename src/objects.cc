@@ -8314,6 +8314,16 @@ void DeoptimizationInputData::DeoptimizationInputDataPrint(FILE* out) {
           break;
         }
 
+        case Translation::SETTER_STUB_FRAME: {
+          int function_id = iterator.Next();
+          JSFunction* function =
+              JSFunction::cast(LiteralArray()->get(function_id));
+          PrintF(out, "{function=");
+          function->PrintName(out);
+          PrintF(out, "}");
+          break;
+        }
+
         case Translation::DUPLICATE:
           break;
 

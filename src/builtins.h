@@ -157,6 +157,8 @@ enum BuiltinExtraArguments {
                                     kStrictMode)                        \
   V(StoreIC_GlobalProxy_Strict,     STORE_IC, MEGAMORPHIC,              \
                                     kStrictMode)                        \
+  V(StoreIC_Setter_ForDeopt,        STORE_IC, MONOMORPHIC,              \
+                                    kStrictMode)                        \
                                                                         \
   V(KeyedStoreIC_Initialize,        KEYED_STORE_IC, UNINITIALIZED,      \
                                     Code::kNoExtraICState)              \
