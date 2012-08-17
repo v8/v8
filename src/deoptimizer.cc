@@ -272,7 +272,7 @@ void Deoptimizer::VisitAllOptimizedFunctionsForContext(
   ZoneScope zone_scope(isolate->runtime_zone(), DELETE_ON_EXIT);
   AssertNoAllocation no_allocation;
 
-  ASSERT(context->IsGlobalContext());
+  ASSERT(context->IsNativeContext());
 
   visitor->EnterContext(context);
 
@@ -303,10 +303,10 @@ void Deoptimizer::VisitAllOptimizedFunctionsForGlobalObject(
     Object* proto = object->GetPrototype();
     ASSERT(proto->IsJSGlobalObject());
     VisitAllOptimizedFunctionsForContext(
-        GlobalObject::cast(proto)->global_context(), visitor);
+        GlobalObject::cast(proto)->native_context(), visitor);
   } else if (object->IsGlobalObject()) {
     VisitAllOptimizedFunctionsForContext(
-        GlobalObject::cast(object)->global_context(), visitor);
+        GlobalObject::cast(object)->native_context(), visitor);
   }
 }
 
@@ -315,8 +315,8 @@ void Deoptimizer::VisitAllOptimizedFunctions(
     OptimizedFunctionVisitor* visitor) {
   AssertNoAllocation no_allocation;
 
-  // Run through the list of all global contexts and deoptimize.
-  Object* context = Isolate::Current()->heap()->global_contexts_list();
+  // Run through the list of all native contexts and deoptimize.
+  Object* context = Isolate::Current()->heap()->native_contexts_list();
   while (!context->IsUndefined()) {
     // GC can happen when the context is not fully initialized,
     // so the global field of the context can be undefined.

@@ -1711,8 +1711,8 @@ HeapEntry* V8HeapExplorer::AddEntry(HeapObject* object) {
                     name->IsString()
                         ? collection_->names()->GetName(String::cast(name))
                         : "");
-  } else if (object->IsGlobalContext()) {
-    return AddEntry(object, HeapEntry::kHidden, "system / GlobalContext");
+  } else if (object->IsNativeContext()) {
+    return AddEntry(object, HeapEntry::kHidden, "system / NativeContext");
   } else if (object->IsContext()) {
     return AddEntry(object, HeapEntry::kHidden, "system / Context");
   } else if (object->IsFixedArray() ||
@@ -1946,8 +1946,8 @@ void V8HeapExplorer::ExtractJSObjectReferences(
                          "builtins", global_obj->builtins(),
                          GlobalObject::kBuiltinsOffset);
     SetInternalReference(global_obj, entry,
-                         "global_context", global_obj->global_context(),
-                         GlobalObject::kGlobalContextOffset);
+                         "native_context", global_obj->native_context(),
+                         GlobalObject::kNativeContextOffset);
     SetInternalReference(global_obj, entry,
                          "global_receiver", global_obj->global_receiver(),
                          GlobalObject::kGlobalReceiverOffset);
@@ -1983,16 +1983,16 @@ void V8HeapExplorer::ExtractContextReferences(int entry, Context* context) {
   EXTRACT_CONTEXT_FIELD(PREVIOUS_INDEX, Context, previous);
   EXTRACT_CONTEXT_FIELD(EXTENSION_INDEX, Object, extension);
   EXTRACT_CONTEXT_FIELD(GLOBAL_INDEX, GlobalObject, global);
-  if (context->IsGlobalContext()) {
+  if (context->IsNativeContext()) {
     TagObject(context->jsfunction_result_caches(),
               "(context func. result caches)");
     TagObject(context->normalized_map_cache(), "(context norm. map cache)");
     TagObject(context->runtime_context(), "(runtime context)");
     TagObject(context->data(), "(context data)");
-    GLOBAL_CONTEXT_FIELDS(EXTRACT_CONTEXT_FIELD);
+    NATIVE_CONTEXT_FIELDS(EXTRACT_CONTEXT_FIELD);
 #undef EXTRACT_CONTEXT_FIELD
     for (int i = Context::FIRST_WEAK_SLOT;
-         i < Context::GLOBAL_CONTEXT_SLOTS;
+         i < Context::NATIVE_CONTEXT_SLOTS;
          ++i) {
       SetWeakReference(context, entry, i, context->get(i),
           FixedArray::OffsetOfElementAt(i));
@@ -2672,7 +2672,7 @@ class GlobalObjectsEnumerator : public ObjectVisitor {
  public:
   virtual void VisitPointers(Object** start, Object** end) {
     for (Object** p = start; p < end; p++) {
-      if ((*p)->IsGlobalContext()) {
+      if ((*p)->IsNativeContext()) {
         Context* context = Context::cast(*p);
         JSObject* proxy = context->global_proxy();
         if (proxy->IsJSGlobalProxy()) {

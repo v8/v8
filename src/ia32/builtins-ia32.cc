@@ -680,7 +680,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     const int kGlobalIndex =
         Context::kHeaderSize + Context::GLOBAL_INDEX * kPointerSize;
     __ mov(ebx, FieldOperand(esi, kGlobalIndex));
-    __ mov(ebx, FieldOperand(ebx, GlobalObject::kGlobalContextOffset));
+    __ mov(ebx, FieldOperand(ebx, GlobalObject::kNativeContextOffset));
     __ mov(ebx, FieldOperand(ebx, kGlobalIndex));
     __ mov(ebx, FieldOperand(ebx, GlobalObject::kGlobalReceiverOffset));
 
@@ -858,7 +858,7 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
     const int kGlobalOffset =
         Context::kHeaderSize + Context::GLOBAL_INDEX * kPointerSize;
     __ mov(ebx, FieldOperand(esi, kGlobalOffset));
-    __ mov(ebx, FieldOperand(ebx, GlobalObject::kGlobalContextOffset));
+    __ mov(ebx, FieldOperand(ebx, GlobalObject::kNativeContextOffset));
     __ mov(ebx, FieldOperand(ebx, kGlobalOffset));
     __ mov(ebx, FieldOperand(ebx, GlobalObject::kGlobalReceiverOffset));
 

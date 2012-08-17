@@ -92,9 +92,9 @@ MaybeObject* Accessors::ArrayGetLength(Object* object, void*) {
 Object* Accessors::FlattenNumber(Object* value) {
   if (value->IsNumber() || !value->IsJSValue()) return value;
   JSValue* wrapper = JSValue::cast(value);
-  ASSERT(Isolate::Current()->context()->global_context()->number_function()->
+  ASSERT(Isolate::Current()->context()->native_context()->number_function()->
       has_initial_map());
-  Map* number_map = Isolate::Current()->context()->global_context()->
+  Map* number_map = Isolate::Current()->context()->native_context()->
       number_function()->initial_map();
   if (wrapper->map() == number_map) return wrapper->value();
   return value;

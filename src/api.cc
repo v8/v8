@@ -768,8 +768,8 @@ void Context::SetData(v8::Handle<String> data) {
   i::Isolate* isolate = env->GetIsolate();
   if (IsDeadCheck(isolate, "v8::Context::SetData()")) return;
   i::Handle<i::Object> raw_data = Utils::OpenHandle(*data);
-  ASSERT(env->IsGlobalContext());
-  if (env->IsGlobalContext()) {
+  ASSERT(env->IsNativeContext());
+  if (env->IsNativeContext()) {
     env->set_data(*raw_data);
   }
 }
@@ -782,8 +782,8 @@ v8::Local<v8::Value> Context::GetData() {
     return v8::Local<Value>();
   }
   i::Object* raw_result = NULL;
-  ASSERT(env->IsGlobalContext());
-  if (env->IsGlobalContext()) {
+  ASSERT(env->IsNativeContext());
+  if (env->IsNativeContext()) {
     raw_result = env->data();
   } else {
     return Local<Value>();
@@ -1575,7 +1575,7 @@ Local<Script> Script::Compile(v8::Handle<String> source,
   i::Handle<i::JSFunction> result =
       isolate->factory()->NewFunctionFromSharedFunctionInfo(
           function,
-          isolate->global_context());
+          isolate->native_context());
   return Local<Script>(ToApi<Script>(result));
 }
 
@@ -1602,7 +1602,7 @@ Local<Value> Script::Run() {
       i::Handle<i::SharedFunctionInfo>
           function_info(i::SharedFunctionInfo::cast(*obj), isolate);
       fun = isolate->factory()->NewFunctionFromSharedFunctionInfo(
-          function_info, isolate->global_context());
+          function_info, isolate->native_context());
     } else {
       fun = i::Handle<i::JSFunction>(i::JSFunction::cast(*obj), isolate);
     }
@@ -3270,7 +3270,7 @@ static i::Context* GetCreationContext(i::JSObject* object) {
   } else {
     function = i::JSFunction::cast(constructor);
   }
-  return function->context()->global_context();
+  return function->context()->native_context();
 }
 
 
@@ -4484,7 +4484,7 @@ v8::Local<v8::Context> Context::GetCurrent() {
   if (IsDeadCheck(isolate, "v8::Context::GetCurrent()")) {
     return Local<Context>();
   }
-  i::Handle<i::Object> current = isolate->global_context();
+  i::Handle<i::Object> current = isolate->native_context();
   if (current.is_null()) return Local<Context>();
   i::Handle<i::Context> context = i::Handle<i::Context>::cast(current);
   return Utils::ToLocal(context);
@@ -4497,7 +4497,7 @@ v8::Local<v8::Context> Context::GetCalling() {
     return Local<Context>();
   }
   i::Handle<i::Object> calling =
-      isolate->GetCallingGlobalContext();
+      isolate->GetCallingNativeContext();
   if (calling.is_null()) return Local<Context>();
   i::Handle<i::Context> context = i::Handle<i::Context>::cast(calling);
   return Utils::ToLocal(context);

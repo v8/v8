@@ -96,7 +96,7 @@ enum BindingFlags {
 // must always be allocated via Heap::AllocateContext() or
 // Factory::NewContext.
 
-#define GLOBAL_CONTEXT_FIELDS(V) \
+#define NATIVE_CONTEXT_FIELDS(V) \
   V(GLOBAL_PROXY_INDEX, JSObject, global_proxy_object) \
   V(SECURITY_TOKEN_INDEX, Object, security_token) \
   V(BOOLEAN_FUNCTION_INDEX, JSFunction, boolean_function) \
@@ -200,8 +200,8 @@ enum BindingFlags {
 // In addition, function contexts may have statically allocated context slots
 // to store local variables/functions that are accessed from inner functions
 // (via static context addresses) or through 'eval' (dynamic context lookups).
-// Finally, the global context contains additional slots for fast access to
-// global properties.
+// Finally, the native context contains additional slots for fast access to
+// native properties.
 
 class Context: public FixedArray {
  public:
@@ -227,7 +227,7 @@ class Context: public FixedArray {
     // This slot holds the thrown value in catch contexts.
     THROWN_OBJECT_INDEX = MIN_CONTEXT_SLOTS,
 
-    // These slots are only in global contexts.
+    // These slots are only in native contexts.
     GLOBAL_PROXY_INDEX = MIN_CONTEXT_SLOTS,
     SECURITY_TOKEN_INDEX,
     ARGUMENTS_BOILERPLATE_INDEX,
@@ -294,7 +294,7 @@ class Context: public FixedArray {
     NEXT_CONTEXT_LINK,  // Weak.
 
     // Total number of slots.
-    GLOBAL_CONTEXT_SLOTS,
+    NATIVE_CONTEXT_SLOTS,
 
     FIRST_WEAK_SLOT = OPTIMIZED_FUNCTIONS_LIST
   };
@@ -335,11 +335,11 @@ class Context: public FixedArray {
   // The builtins object.
   JSBuiltinsObject* builtins();
 
-  // Compute the global context by traversing the context chain.
-  Context* global_context();
+  // Compute the native context by traversing the context chain.
+  Context* native_context();
 
-  // Predicates for context types.  IsGlobalContext is defined on Object
-  // because we frequently have to know if arbitrary objects are global
+  // Predicates for context types.  IsNativeContext is defined on Object
+  // because we frequently have to know if arbitrary objects are natives
   // contexts.
   bool IsFunctionContext() {
     Map* map = this->map();
@@ -362,29 +362,29 @@ class Context: public FixedArray {
     return map == map->GetHeap()->module_context_map();
   }
 
-  // Tells whether the global context is marked with out of memory.
+  // Tells whether the native context is marked with out of memory.
   inline bool has_out_of_memory();
 
-  // Mark the global context with out of memory.
+  // Mark the native context with out of memory.
   inline void mark_out_of_memory();
 
-  // A global context hold a list of all functions which have been optimized.
+  // A native context hold a list of all functions which have been optimized.
   void AddOptimizedFunction(JSFunction* function);
   void RemoveOptimizedFunction(JSFunction* function);
   Object* OptimizedFunctionsListHead();
   void ClearOptimizedFunctions();
 
-#define GLOBAL_CONTEXT_FIELD_ACCESSORS(index, type, name) \
+#define NATIVE_CONTEXT_FIELD_ACCESSORS(index, type, name) \
   void  set_##name(type* value) {                         \
-    ASSERT(IsGlobalContext());                            \
+    ASSERT(IsNativeContext());                            \
     set(index, value);                                    \
   }                                                       \
   type* name() {                                          \
-    ASSERT(IsGlobalContext());                            \
+    ASSERT(IsNativeContext());                            \
     return type::cast(get(index));                        \
   }
-  GLOBAL_CONTEXT_FIELDS(GLOBAL_CONTEXT_FIELD_ACCESSORS)
-#undef GLOBAL_CONTEXT_FIELD_ACCESSORS
+  NATIVE_CONTEXT_FIELDS(NATIVE_CONTEXT_FIELD_ACCESSORS)
+#undef NATIVE_CONTEXT_FIELD_ACCESSORS
 
   // Lookup the slot called name, starting with the current context.
   // There are three possibilities:
@@ -414,7 +414,7 @@ class Context: public FixedArray {
     return kHeaderSize + index * kPointerSize - kHeapObjectTag;
   }
 
-  static const int kSize = kHeaderSize + GLOBAL_CONTEXT_SLOTS * kPointerSize;
+  static const int kSize = kHeaderSize + NATIVE_CONTEXT_SLOTS * kPointerSize;
 
   // GC support.
   typedef FixedBodyDescriptor<

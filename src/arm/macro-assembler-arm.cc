@@ -1351,22 +1351,22 @@ void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
   Check(ne, "we should not have an empty lexical context");
 #endif
 
-  // Load the global context of the current context.
+  // Load the native context of the current context.
   int offset = Context::kHeaderSize + Context::GLOBAL_INDEX * kPointerSize;
   ldr(scratch, FieldMemOperand(scratch, offset));
-  ldr(scratch, FieldMemOperand(scratch, GlobalObject::kGlobalContextOffset));
+  ldr(scratch, FieldMemOperand(scratch, GlobalObject::kNativeContextOffset));
 
-  // Check the context is a global context.
+  // Check the context is a native context.
   if (emit_debug_code()) {
     // TODO(119): avoid push(holder_reg)/pop(holder_reg)
     // Cannot use ip as a temporary in this verification code. Due to the fact
     // that ip is clobbered as part of cmp with an object Operand.
     push(holder_reg);  // Temporarily save holder on the stack.
-    // Read the first word and compare to the global_context_map.
+    // Read the first word and compare to the native_context_map.
     ldr(holder_reg, FieldMemOperand(scratch, HeapObject::kMapOffset));
-    LoadRoot(ip, Heap::kGlobalContextMapRootIndex);
+    LoadRoot(ip, Heap::kNativeContextMapRootIndex);
     cmp(holder_reg, ip);
-    Check(eq, "JSGlobalObject::global_context should be a global context.");
+    Check(eq, "JSGlobalObject::native_context should be a native context.");
     pop(holder_reg);  // Restore holder.
   }
 
@@ -1375,7 +1375,7 @@ void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
   cmp(scratch, Operand(ip));
   b(eq, &same_contexts);
 
-  // Check the context is a global context.
+  // Check the context is a native context.
   if (emit_debug_code()) {
     // TODO(119): avoid push(holder_reg)/pop(holder_reg)
     // Cannot use ip as a temporary in this verification code. Due to the fact
@@ -1387,9 +1387,9 @@ void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
     Check(ne, "JSGlobalProxy::context() should not be null.");
 
     ldr(holder_reg, FieldMemOperand(holder_reg, HeapObject::kMapOffset));
-    LoadRoot(ip, Heap::kGlobalContextMapRootIndex);
+    LoadRoot(ip, Heap::kNativeContextMapRootIndex);
     cmp(holder_reg, ip);
-    Check(eq, "JSGlobalObject::global_context should be a global context.");
+    Check(eq, "JSGlobalObject::native_context should be a native context.");
     // Restore ip is not needed. ip is reloaded below.
     pop(holder_reg);  // Restore holder.
     // Restore ip to holder's context.
@@ -2883,7 +2883,7 @@ void MacroAssembler::LoadTransitionedArrayMapConditional(
     Label* no_map_match) {
   // Load the global or builtins object from the current context.
   ldr(scratch, MemOperand(cp, Context::SlotOffset(Context::GLOBAL_INDEX)));
-  ldr(scratch, FieldMemOperand(scratch, GlobalObject::kGlobalContextOffset));
+  ldr(scratch, FieldMemOperand(scratch, GlobalObject::kNativeContextOffset));
 
   // Check that the function's map is the same as the expected cached map.
   ldr(scratch,
@@ -2930,10 +2930,10 @@ void MacroAssembler::LoadInitialArrayMap(
 void MacroAssembler::LoadGlobalFunction(int index, Register function) {
   // Load the global or builtins object from the current context.
   ldr(function, MemOperand(cp, Context::SlotOffset(Context::GLOBAL_INDEX)));
-  // Load the global context from the global or builtins object.
+  // Load the native context from the global or builtins object.
   ldr(function, FieldMemOperand(function,
-                                GlobalObject::kGlobalContextOffset));
-  // Load the function from the global context.
+                                GlobalObject::kNativeContextOffset));
+  // Load the function from the native context.
   ldr(function, MemOperand(function, Context::SlotOffset(index)));
 }
 

@@ -108,10 +108,10 @@ void FastNewClosureStub::Generate(MacroAssembler* masm) {
       ? Context::FUNCTION_MAP_INDEX
       : Context::STRICT_MODE_FUNCTION_MAP_INDEX;
 
-  // Compute the function map in the current global context and set that
+  // Compute the function map in the current native context and set that
   // as the map of the allocated object.
   __ lw(a2, MemOperand(cp, Context::SlotOffset(Context::GLOBAL_INDEX)));
-  __ lw(a2, FieldMemOperand(a2, GlobalObject::kGlobalContextOffset));
+  __ lw(a2, FieldMemOperand(a2, GlobalObject::kNativeContextOffset));
   __ lw(t1, MemOperand(a2, Context::SlotOffset(map_index)));
   __ sw(t1, FieldMemOperand(v0, HeapObject::kMapOffset));
 
@@ -151,8 +151,8 @@ void FastNewClosureStub::Generate(MacroAssembler* masm) {
 
   __ IncrementCounter(counters->fast_new_closure_try_optimized(), 1, t2, t3);
 
-  // a2 holds global context, a1 points to fixed array of 3-element entries
-  // (global context, optimized code, literals).
+  // a2 holds native context, a1 points to fixed array of 3-element entries
+  // (native context, optimized code, literals).
   // The optimized code map must never be empty, so check the first elements.
   Label install_optimized;
   // Speculatively move code object into t0.
@@ -291,9 +291,9 @@ void FastNewBlockContextStub::Generate(MacroAssembler* masm) {
   __ li(a2, Operand(Smi::FromInt(length)));
   __ sw(a2, FieldMemOperand(v0, FixedArray::kLengthOffset));
 
-  // If this block context is nested in the global context we get a smi
+  // If this block context is nested in the native context we get a smi
   // sentinel instead of a function. The block context should get the
-  // canonical empty function of the global context as its closure which
+  // canonical empty function of the native context as its closure which
   // we still have to look up.
   Label after_sentinel;
   __ JumpIfNotSmi(a3, &after_sentinel);
@@ -302,7 +302,7 @@ void FastNewBlockContextStub::Generate(MacroAssembler* masm) {
     __ Assert(eq, message, a3, Operand(zero_reg));
   }
   __ lw(a3, GlobalObjectOperand());
-  __ lw(a3, FieldMemOperand(a3, GlobalObject::kGlobalContextOffset));
+  __ lw(a3, FieldMemOperand(a3, GlobalObject::kNativeContextOffset));
   __ lw(a3, ContextOperand(a3, Context::CLOSURE_INDEX));
   __ bind(&after_sentinel);
 
@@ -4653,7 +4653,7 @@ void ArgumentsAccessStub::GenerateNewNonStrictFast(MacroAssembler* masm) {
       Context::SlotOffset(Context::ALIASED_ARGUMENTS_BOILERPLATE_INDEX);
 
   __ lw(t0, MemOperand(cp, Context::SlotOffset(Context::GLOBAL_INDEX)));
-  __ lw(t0, FieldMemOperand(t0, GlobalObject::kGlobalContextOffset));
+  __ lw(t0, FieldMemOperand(t0, GlobalObject::kNativeContextOffset));
   Label skip2_ne, skip2_eq;
   __ Branch(&skip2_ne, ne, a1, Operand(zero_reg));
   __ lw(t0, MemOperand(t0, kNormalOffset));
@@ -4843,7 +4843,7 @@ void ArgumentsAccessStub::GenerateNewStrict(MacroAssembler* masm) {
 
   // Get the arguments boilerplate from the current (global) context.
   __ lw(t0, MemOperand(cp, Context::SlotOffset(Context::GLOBAL_INDEX)));
-  __ lw(t0, FieldMemOperand(t0, GlobalObject::kGlobalContextOffset));
+  __ lw(t0, FieldMemOperand(t0, GlobalObject::kNativeContextOffset));
   __ lw(t0, MemOperand(t0, Context::SlotOffset(
       Context::STRICT_MODE_ARGUMENTS_BOILERPLATE_INDEX)));
 
@@ -5380,7 +5380,7 @@ void RegExpConstructResultStub::Generate(MacroAssembler* masm) {
   __ lw(a2, ContextOperand(cp, Context::GLOBAL_INDEX));
   __ Addu(a3, v0, Operand(JSRegExpResult::kSize));
   __ li(t0, Operand(masm->isolate()->factory()->empty_fixed_array()));
-  __ lw(a2, FieldMemOperand(a2, GlobalObject::kGlobalContextOffset));
+  __ lw(a2, FieldMemOperand(a2, GlobalObject::kNativeContextOffset));
   __ sw(a3, FieldMemOperand(v0, JSObject::kElementsOffset));
   __ lw(a2, ContextOperand(a2, Context::REGEXP_RESULT_MAP_INDEX));
   __ sw(t0, FieldMemOperand(v0, JSObject::kPropertiesOffset));

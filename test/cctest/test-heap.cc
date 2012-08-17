@@ -876,7 +876,7 @@ TEST(Regression39128) {
 
   // Step 1: prepare a map for the object.  We add 1 inobject property to it.
   Handle<JSFunction> object_ctor(
-      Isolate::Current()->global_context()->object_function());
+      Isolate::Current()->native_context()->object_function());
   CHECK(object_ctor->has_initial_map());
   Handle<Map> object_map(object_ctor->initial_map());
   // Create a map with single inobject property.
@@ -985,10 +985,10 @@ TEST(TestCodeFlushing) {
 }
 
 
-// Count the number of global contexts in the weak list of global contexts.
-int CountGlobalContexts() {
+// Count the number of native contexts in the weak list of native contexts.
+int CountNativeContexts() {
   int count = 0;
-  Object* object = HEAP->global_contexts_list();
+  Object* object = HEAP->native_contexts_list();
   while (!object->IsUndefined()) {
     count++;
     object = Context::cast(object)->get(Context::NEXT_CONTEXT_LINK);
@@ -998,7 +998,7 @@ int CountGlobalContexts() {
 
 
 // Count the number of user functions in the weak list of optimized
-// functions attached to a global context.
+// functions attached to a native context.
 static int CountOptimizedUserFunctions(v8::Handle<v8::Context> context) {
   int count = 0;
   Handle<Context> icontext = v8::Utils::OpenHandle(*context);
@@ -1019,7 +1019,7 @@ TEST(TestInternalWeakLists) {
   v8::HandleScope scope;
   v8::Persistent<v8::Context> ctx[kNumTestContexts];
 
-  CHECK_EQ(0, CountGlobalContexts());
+  CHECK_EQ(0, CountNativeContexts());
 
   // Create a number of global contests which gets linked together.
   for (int i = 0; i < kNumTestContexts; i++) {
@@ -1027,7 +1027,7 @@ TEST(TestInternalWeakLists) {
 
     bool opt = (FLAG_always_opt && i::V8::UseCrankshaft());
 
-    CHECK_EQ(i + 1, CountGlobalContexts());
+    CHECK_EQ(i + 1, CountNativeContexts());
 
     ctx[i]->Enter();
 
@@ -1087,7 +1087,7 @@ TEST(TestInternalWeakLists) {
   // Force compilation cache cleanup.
   HEAP->CollectAllGarbage(Heap::kNoGCFlags);
 
-  // Dispose the global contexts one by one.
+  // Dispose the native contexts one by one.
   for (int i = 0; i < kNumTestContexts; i++) {
     ctx[i].Dispose();
     ctx[i].Clear();
@@ -1095,23 +1095,23 @@ TEST(TestInternalWeakLists) {
     // Scavenge treats these references as strong.
     for (int j = 0; j < 10; j++) {
       HEAP->PerformScavenge();
-      CHECK_EQ(kNumTestContexts - i, CountGlobalContexts());
+      CHECK_EQ(kNumTestContexts - i, CountNativeContexts());
     }
 
     // Mark compact handles the weak references.
     HEAP->CollectAllGarbage(Heap::kNoGCFlags);
-    CHECK_EQ(kNumTestContexts - i - 1, CountGlobalContexts());
+    CHECK_EQ(kNumTestContexts - i - 1, CountNativeContexts());
   }
 
-  CHECK_EQ(0, CountGlobalContexts());
+  CHECK_EQ(0, CountNativeContexts());
 }
 
 
-// Count the number of global contexts in the weak list of global contexts
+// Count the number of native contexts in the weak list of native contexts
 // causing a GC after the specified number of elements.
-static int CountGlobalContextsWithGC(int n) {
+static int CountNativeContextsWithGC(int n) {
   int count = 0;
-  Handle<Object> object(HEAP->global_contexts_list());
+  Handle<Object> object(HEAP->native_contexts_list());
   while (!object->IsUndefined()) {
     count++;
     if (count == n) HEAP->CollectAllGarbage(Heap::kNoGCFlags);
@@ -1123,7 +1123,7 @@ static int CountGlobalContextsWithGC(int n) {
 
 
 // Count the number of user functions in the weak list of optimized
-// functions attached to a global context causing a GC after the
+// functions attached to a native context causing a GC after the
 // specified number of elements.
 static int CountOptimizedUserFunctionsWithGC(v8::Handle<v8::Context> context,
                                              int n) {
@@ -1149,14 +1149,14 @@ TEST(TestInternalWeakListsTraverseWithGC) {
   v8::HandleScope scope;
   v8::Persistent<v8::Context> ctx[kNumTestContexts];
 
-  CHECK_EQ(0, CountGlobalContexts());
+  CHECK_EQ(0, CountNativeContexts());
 
   // Create an number of contexts and check the length of the weak list both
   // with and without GCs while iterating the list.
   for (int i = 0; i < kNumTestContexts; i++) {
     ctx[i] = v8::Context::New();
-    CHECK_EQ(i + 1, CountGlobalContexts());
-    CHECK_EQ(i + 1, CountGlobalContextsWithGC(i / 2 + 1));
+    CHECK_EQ(i + 1, CountNativeContexts());
+    CHECK_EQ(i + 1, CountNativeContextsWithGC(i / 2 + 1));
   }
 
   bool opt = (FLAG_always_opt && i::V8::UseCrankshaft());
@@ -1366,7 +1366,7 @@ static int NumberOfGlobalObjects() {
 
 // Test that we don't embed maps from foreign contexts into
 // optimized code.
-TEST(LeakGlobalContextViaMap) {
+TEST(LeakNativeContextViaMap) {
   i::FLAG_allow_natives_syntax = true;
   v8::HandleScope outer_scope;
   v8::Persistent<v8::Context> ctx1 = v8::Context::New();
@@ -1403,7 +1403,7 @@ TEST(LeakGlobalContextViaMap) {
 
 // Test that we don't embed functions from foreign contexts into
 // optimized code.
-TEST(LeakGlobalContextViaFunction) {
+TEST(LeakNativeContextViaFunction) {
   i::FLAG_allow_natives_syntax = true;
   v8::HandleScope outer_scope;
   v8::Persistent<v8::Context> ctx1 = v8::Context::New();
@@ -1438,7 +1438,7 @@ TEST(LeakGlobalContextViaFunction) {
 }
 
 
-TEST(LeakGlobalContextViaMapKeyed) {
+TEST(LeakNativeContextViaMapKeyed) {
   i::FLAG_allow_natives_syntax = true;
   v8::HandleScope outer_scope;
   v8::Persistent<v8::Context> ctx1 = v8::Context::New();
@@ -1473,7 +1473,7 @@ TEST(LeakGlobalContextViaMapKeyed) {
 }
 
 
-TEST(LeakGlobalContextViaMapProto) {
+TEST(LeakNativeContextViaMapProto) {
   i::FLAG_allow_natives_syntax = true;
   v8::HandleScope outer_scope;
   v8::Persistent<v8::Context> ctx1 = v8::Context::New();
@@ -2040,7 +2040,7 @@ TEST(IncrementalMarkingClearsTypeFeedbackCells) {
   }
 
   // Prepare function f that contains type feedback for closures
-  // originating from two different global contexts.
+  // originating from two different native contexts.
   v8::Context::GetCurrent()->Global()->Set(v8_str("fun1"), fun1);
   v8::Context::GetCurrent()->Global()->Set(v8_str("fun2"), fun2);
   CompileRun("function f(a, b) { a(); b(); } f(fun1, fun2);");
@@ -2086,7 +2086,7 @@ TEST(IncrementalMarkingPreservesMonomorhpicIC) {
   v8::HandleScope scope;
 
   // Prepare function f that contains a monomorphic IC for object
-  // originating from the same global context.
+  // originating from the same native context.
   CompileRun("function fun() { this.x = 1; }; var obj = new fun();"
              "function f(o) { return o.x; } f(obj); f(obj);");
   Handle<JSFunction> f =
@@ -2120,7 +2120,7 @@ TEST(IncrementalMarkingClearsMonomorhpicIC) {
   }
 
   // Prepare function f that contains a monomorphic IC for object
-  // originating from a different global context.
+  // originating from a different native context.
   v8::Context::GetCurrent()->Global()->Set(v8_str("obj1"), obj1);
   CompileRun("function f(o) { return o.x; } f(obj1); f(obj1);");
   Handle<JSFunction> f =
@@ -2160,7 +2160,7 @@ TEST(IncrementalMarkingClearsPolymorhpicIC) {
   }
 
   // Prepare function f that contains a polymorphic IC for objects
-  // originating from two different global contexts.
+  // originating from two different native contexts.
   v8::Context::GetCurrent()->Global()->Set(v8_str("obj1"), obj1);
   v8::Context::GetCurrent()->Global()->Set(v8_str("obj2"), obj2);
   CompileRun("function f(o) { return o.x; } f(obj1); f(obj1); f(obj2);");

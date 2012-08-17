@@ -303,7 +303,7 @@ static Handle<Map> ComputeObjectLiteralMap(
     }
   }
   // If we only have symbols and array indices among keys then we can
-  // use the map cache in the global context.
+  // use the map cache in the native context.
   const int kMaxKeys = 10;
   if ((number_of_symbol_keys == number_of_properties) &&
       (number_of_symbol_keys < kMaxKeys)) {
@@ -342,14 +342,14 @@ static Handle<Object> CreateObjectLiteralBoilerplate(
     Handle<FixedArray> constant_properties,
     bool should_have_fast_elements,
     bool has_function_literal) {
-  // Get the global context from the literals array.  This is the
+  // Get the native context from the literals array.  This is the
   // context in which the function was created and we use the object
   // function from this context to create the object literal.  We do
-  // not use the object function from the current global context
+  // not use the object function from the current native context
   // because this might be the object function from another context
   // which we should not have access to.
   Handle<Context> context =
-      Handle<Context>(JSFunction::GlobalContextFromLiterals(*literals));
+      Handle<Context>(JSFunction::NativeContextFromLiterals(*literals));
 
   // In case we have function literals, we want the object to be in
   // slow properties mode for now. We don't go in the map cache because
@@ -464,7 +464,7 @@ Handle<Object> Runtime::CreateArrayLiteralBoilerplate(
     Handle<FixedArray> elements) {
   // Create the JSArray.
   Handle<JSFunction> constructor(
-      JSFunction::GlobalContextFromLiterals(*literals)->array_function());
+      JSFunction::NativeContextFromLiterals(*literals)->array_function());
   Handle<JSArray> object =
       Handle<JSArray>::cast(isolate->factory()->NewJSObject(constructor));
 
@@ -474,8 +474,8 @@ Handle<Object> Runtime::CreateArrayLiteralBoilerplate(
       FixedArrayBase::cast(elements->get(1)));
 
   ASSERT(IsFastElementsKind(constant_elements_kind));
-  Context* global_context = isolate->context()->global_context();
-  Object* maybe_maps_array = global_context->js_array_maps();
+  Context* native_context = isolate->context()->native_context();
+  Object* maybe_maps_array = native_context->js_array_maps();
   ASSERT(!maybe_maps_array->IsUndefined());
   Object* maybe_map = FixedArray::cast(maybe_maps_array)->get(
       constant_elements_kind);
@@ -1446,7 +1446,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DeclareContextSlot) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 4);
 
-  // Declarations are always made in a function or global context.  In the
+  // Declarations are always made in a function or native context.  In the
   // case of eval code, the context passed is the context of the caller,
   // which may be some nested context and not the declaration context.
   RUNTIME_ASSERT(args[0]->IsContext());
@@ -1485,7 +1485,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DeclareContextSlot) {
         }
       } else {
         // Slow case: The property is in the context extension object of a
-        // function context or the global object of a global context.
+        // function context or the global object of a native context.
         Handle<JSObject> object = Handle<JSObject>::cast(holder);
         RETURN_IF_EMPTY_HANDLE(
             isolate,
@@ -1686,7 +1686,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_InitializeConstContextSlot) {
   Handle<Object> value(args[0], isolate);
   ASSERT(!value->IsTheHole());
 
-  // Initializations are always done in a function or global context.
+  // Initializations are always done in a function or native context.
   RUNTIME_ASSERT(args[1]->IsContext());
   Handle<Context> context(Context::cast(args[1])->declaration_context());
 
@@ -1835,7 +1835,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_RegExpConstructResult) {
     AssertNoAllocation no_gc;
     HandleScope scope(isolate);
     reinterpret_cast<HeapObject*>(new_object)->
-        set_map(isolate->global_context()->regexp_result_map());
+        set_map(isolate->native_context()->regexp_result_map());
   }
   JSArray* array = JSArray::cast(new_object);
   array->set_properties(isolate->heap()->empty_fixed_array());
@@ -1987,9 +1987,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetDefaultReceiver) {
   // Returns undefined for strict or native functions, or
   // the associated global receiver for "normal" functions.
 
-  Context* global_context =
-      function->context()->global()->global_context();
-  return global_context->global()->global_receiver();
+  Context* native_context =
+      function->context()->global()->native_context();
+  return native_context->global()->global_receiver();
 }
 
 
@@ -2004,11 +2004,11 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_MaterializeRegExpLiteral) {
   // Get the RegExp function from the context in the literals array.
   // This is the RegExp function from the context in which the
   // function was created.  We do not use the RegExp function from the
-  // current global context because this might be the RegExp function
+  // current native context because this might be the RegExp function
   // from another context which we should not have access to.
   Handle<JSFunction> constructor =
       Handle<JSFunction>(
-          JSFunction::GlobalContextFromLiterals(*literals)->regexp_function());
+          JSFunction::NativeContextFromLiterals(*literals)->regexp_function());
   // Compute the regular expression literal.
   bool has_pending_exception;
   Handle<Object> regexp =
@@ -2262,8 +2262,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetCode) {
   Handle<FixedArray> literals =
       isolate->factory()->NewFixedArray(number_of_literals, TENURED);
   if (number_of_literals > 0) {
-    literals->set(JSFunction::kLiteralGlobalContextIndex,
-                  context->global_context());
+    literals->set(JSFunction::kLiteralNativeContextIndex,
+                  context->native_context());
   }
   target->set_context(*context);
   target->set_literals(*literals);
@@ -8412,8 +8412,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_PushWithContext) {
   if (args[1]->IsSmi()) {
     // A smi sentinel indicates a context nested inside global code rather
     // than some function.  There is a canonical empty function that can be
-    // gotten from the global context.
-    function = isolate->context()->global_context()->closure();
+    // gotten from the native context.
+    function = isolate->context()->native_context()->closure();
   } else {
     function = JSFunction::cast(args[1]);
   }
@@ -8438,8 +8438,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_PushCatchContext) {
   if (args[2]->IsSmi()) {
     // A smi sentinel indicates a context nested inside global code rather
     // than some function.  There is a canonical empty function that can be
-    // gotten from the global context.
-    function = isolate->context()->global_context()->closure();
+    // gotten from the native context.
+    function = isolate->context()->native_context()->closure();
   } else {
     function = JSFunction::cast(args[2]);
   }
@@ -8463,8 +8463,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_PushBlockContext) {
   if (args[1]->IsSmi()) {
     // A smi sentinel indicates a context nested inside global code rather
     // than some function.  There is a canonical empty function that can be
-    // gotten from the global context.
-    function = isolate->context()->global_context()->closure();
+    // gotten from the native context.
+    function = isolate->context()->native_context()->closure();
   } else {
     function = JSFunction::cast(args[1]);
   }
@@ -8583,7 +8583,7 @@ static Object* ComputeReceiverForNonGlobal(Isolate* isolate,
   Context* top = isolate->context();
   // Get the context extension function.
   JSFunction* context_extension_function =
-      top->global_context()->context_extension_function();
+      top->native_context()->context_extension_function();
   // If the holder isn't a context extension object, we just return it
   // as the receiver. This allows arguments objects to be used as
   // receivers, but only if they are put in the context scope chain
@@ -9045,10 +9045,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CompileString) {
   ASSERT_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(String, source, 0);
 
-  // Extract global context.
-  Handle<Context> context(isolate->context()->global_context());
+  // Extract native context.
+  Handle<Context> context(isolate->context()->native_context());
 
-  // Check if global context allows code generation from
+  // Check if native context allows code generation from
   // strings. Throw an exception if it doesn't.
   if (context->allow_code_gen_from_strings()->IsFalse() &&
       !CodeGenerationFromStringsAllowed(isolate, context)) {
@@ -9056,7 +9056,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CompileString) {
         "code_gen_from_strings", HandleVector<Object>(NULL, 0)));
   }
 
-  // Compile source string in the global context.
+  // Compile source string in the native context.
   Handle<SharedFunctionInfo> shared = Compiler::CompileEval(
       source, context, true, CLASSIC_MODE, RelocInfo::kNoPosition);
   if (shared.is_null()) return Failure::Exception();
@@ -9074,12 +9074,12 @@ static ObjectPair CompileGlobalEval(Isolate* isolate,
                                     LanguageMode language_mode,
                                     int scope_position) {
   Handle<Context> context = Handle<Context>(isolate->context());
-  Handle<Context> global_context = Handle<Context>(context->global_context());
+  Handle<Context> native_context = Handle<Context>(context->native_context());
 
-  // Check if global context allows code generation from
+  // Check if native context allows code generation from
   // strings. Throw an exception if it doesn't.
-  if (global_context->allow_code_gen_from_strings()->IsFalse() &&
-      !CodeGenerationFromStringsAllowed(isolate, global_context)) {
+  if (native_context->allow_code_gen_from_strings()->IsFalse() &&
+      !CodeGenerationFromStringsAllowed(isolate, native_context)) {
     isolate->Throw(*isolate->factory()->NewError(
         "code_gen_from_strings", HandleVector<Object>(NULL, 0)));
     return MakePair(Failure::Exception(), NULL);
@@ -9090,7 +9090,7 @@ static ObjectPair CompileGlobalEval(Isolate* isolate,
   Handle<SharedFunctionInfo> shared = Compiler::CompileEval(
       source,
       Handle<Context>(isolate->context()),
-      context->IsGlobalContext(),
+      context->IsNativeContext(),
       language_mode,
       scope_position);
   if (shared.is_null()) return MakePair(Failure::Exception(), NULL);
@@ -9112,7 +9112,7 @@ RUNTIME_FUNCTION(ObjectPair, Runtime_ResolvePossiblyDirectEval) {
   // (And even if it is, but the first argument isn't a string, just let
   // execution default to an indirect call to eval, which will also return
   // the first argument without doing anything).
-  if (*callee != isolate->global_context()->global_eval_fun() ||
+  if (*callee != isolate->native_context()->global_eval_fun() ||
       !args[1]->IsString()) {
     return MakePair(*callee, isolate->heap()->the_hole_value());
   }
@@ -10017,7 +10017,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugGetPropertyDetails) {
   // entered (if the debugger is entered). The reason for switching context here
   // is that for some property lookups (accessors and interceptors) callbacks
   // into the embedding application can occour, and the embedding application
-  // could have the assumption that its own global context is the current
+  // could have the assumption that its own native context is the current
   // context and not some internal debugger context.
   SaveContext save(isolate);
   if (isolate->debug()->InDebugger()) {
@@ -10562,12 +10562,12 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetFrameDetails) {
     // value object is not converted into a wrapped JS objects. To
     // hide this optimization from the debugger, we wrap the receiver
     // by creating correct wrapper object based on the calling frame's
-    // global context.
+    // native context.
     it.Advance();
-    Handle<Context> calling_frames_global_context(
-        Context::cast(Context::cast(it.frame()->context())->global_context()));
+    Handle<Context> calling_frames_native_context(
+        Context::cast(Context::cast(it.frame()->context())->native_context()));
     receiver =
-        isolate->factory()->ToObject(receiver, calling_frames_global_context);
+        isolate->factory()->ToObject(receiver, calling_frames_native_context);
   }
   details->set(kFrameDetailsReceiverIndex, *receiver);
 
@@ -10659,7 +10659,7 @@ static Handle<JSObject> MaterializeLocalScopeWithFrameInspector(
     // These will be variables introduced by eval.
     if (function_context->closure() == *function) {
       if (function_context->has_extension() &&
-          !function_context->IsGlobalContext()) {
+          !function_context->IsNativeContext()) {
         Handle<JSObject> ext(JSObject::cast(function_context->extension()));
         bool threw = false;
         Handle<FixedArray> keys =
@@ -10921,7 +10921,7 @@ class ScopeIterator {
     ScopeType scope_type = Type();
     if (scope_type == ScopeTypeGlobal) {
       // The global scope is always the last in the chain.
-      ASSERT(context_->IsGlobalContext());
+      ASSERT(context_->IsNativeContext());
       context_ = Handle<Context>();
       return;
     }
@@ -10949,7 +10949,7 @@ class ScopeIterator {
           ASSERT(context_->IsModuleContext());
           return ScopeTypeModule;
         case GLOBAL_SCOPE:
-          ASSERT(context_->IsGlobalContext());
+          ASSERT(context_->IsNativeContext());
           return ScopeTypeGlobal;
         case WITH_SCOPE:
           ASSERT(context_->IsWithContext());
@@ -10965,7 +10965,7 @@ class ScopeIterator {
           UNREACHABLE();
       }
     }
-    if (context_->IsGlobalContext()) {
+    if (context_->IsNativeContext()) {
       ASSERT(context_->global()->IsGlobalObject());
       return ScopeTypeGlobal;
     }
@@ -11854,7 +11854,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugEvaluate) {
   Handle<SharedFunctionInfo> shared =
       Compiler::CompileEval(function_source,
                             context,
-                            context->IsGlobalContext(),
+                            context->IsNativeContext(),
                             CLASSIC_MODE,
                             RelocInfo::kNoPosition);
   if (shared.is_null()) return Failure::Exception();
@@ -11925,9 +11925,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugEvaluateGlobal) {
     isolate->set_context(*top->context());
   }
 
-  // Get the global context now set to the top context from before the
+  // Get the native context now set to the top context from before the
   // debugger was invoked.
-  Handle<Context> context = isolate->global_context();
+  Handle<Context> context = isolate->native_context();
 
   bool is_global = true;
 
@@ -12092,7 +12092,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugReferencedBy) {
 
   // Get the constructor function for context extension and arguments array.
   JSObject* arguments_boilerplate =
-      isolate->context()->global_context()->arguments_boilerplate();
+      isolate->context()->native_context()->arguments_boilerplate();
   JSFunction* arguments_function =
       JSFunction::cast(arguments_boilerplate->map()->constructor());
 
@@ -12121,7 +12121,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugReferencedBy) {
   // Return result as JS array.
   Object* result;
   MaybeObject* maybe_result = isolate->heap()->AllocateJSObject(
-      isolate->context()->global_context()->array_function());
+      isolate->context()->native_context()->array_function());
   if (!maybe_result->ToObject(&result)) return maybe_result;
   return JSArray::cast(result)->SetContent(instances);
 }
@@ -12202,7 +12202,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugConstructedBy) {
   // Return result as JS array.
   Object* result;
   { MaybeObject* maybe_result = isolate->heap()->AllocateJSObject(
-          isolate->context()->global_context()->array_function());
+          isolate->context()->native_context()->array_function());
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
   return JSArray::cast(result)->SetContent(instances);
@@ -13076,7 +13076,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetFromCache) {
     Handle<JSFunction> factory(JSFunction::cast(
           cache_handle->get(JSFunctionResultCache::kFactoryIndex)));
     // TODO(antonm): consider passing a receiver when constructing a cache.
-    Handle<Object> receiver(isolate->global_context()->global());
+    Handle<Object> receiver(isolate->native_context()->global());
     // This handle is nor shared, nor used later, so it's safe.
     Handle<Object> argv[] = { key_handle };
     bool pending_exception;

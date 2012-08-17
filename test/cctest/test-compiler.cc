@@ -125,7 +125,7 @@ static Handle<JSFunction> Compile(const char* source) {
                         Handle<String>::null(),
                         NOT_NATIVES_CODE);
   return FACTORY->NewFunctionFromSharedFunctionInfo(shared_function,
-      Isolate::Current()->global_context());
+      Isolate::Current()->native_context());
 }
 
 

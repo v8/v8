@@ -64,7 +64,7 @@ namespace internal {
   V(Map, ascii_symbol_map, AsciiSymbolMap)                                     \
   V(Map, ascii_string_map, AsciiStringMap)                                     \
   V(Map, heap_number_map, HeapNumberMap)                                       \
-  V(Map, global_context_map, GlobalContextMap)                                 \
+  V(Map, native_context_map, NativeContextMap)                                 \
   V(Map, fixed_array_map, FixedArrayMap)                                       \
   V(Map, code_map, CodeMap)                                                    \
   V(Map, scope_info_map, ScopeInfoMap)                                         \
@@ -822,8 +822,8 @@ class Heap {
   MUST_USE_RESULT MaybeObject* AllocateHashTable(
       int length, PretenureFlag pretenure = NOT_TENURED);
 
-  // Allocate a global (but otherwise uninitialized) context.
-  MUST_USE_RESULT MaybeObject* AllocateGlobalContext();
+  // Allocate a native (but otherwise uninitialized) context.
+  MUST_USE_RESULT MaybeObject* AllocateNativeContext();
 
   // Allocate a module context.
   MUST_USE_RESULT MaybeObject* AllocateModuleContext(ScopeInfo* scope_info);
@@ -1149,10 +1149,10 @@ class Heap {
   // not match the empty string.
   String* hidden_symbol() { return hidden_symbol_; }
 
-  void set_global_contexts_list(Object* object) {
-    global_contexts_list_ = object;
+  void set_native_contexts_list(Object* object) {
+    native_contexts_list_ = object;
   }
-  Object* global_contexts_list() { return global_contexts_list_; }
+  Object* native_contexts_list() { return native_contexts_list_; }
 
   // Number of mark-sweeps.
   unsigned int ms_count() { return ms_count_; }
@@ -1226,9 +1226,9 @@ class Heap {
     return reinterpret_cast<Address*>(&roots_[kStoreBufferTopRootIndex]);
   }
 
-  // Get address of global contexts list for serialization support.
-  Object** global_contexts_list_address() {
-    return &global_contexts_list_;
+  // Get address of native contexts list for serialization support.
+  Object** native_contexts_list_address() {
+    return &native_contexts_list_;
   }
 
 #ifdef DEBUG
@@ -1776,7 +1776,7 @@ class Heap {
   // last GC.
   int old_gen_exhausted_;
 
-  Object* global_contexts_list_;
+  Object* native_contexts_list_;
 
   StoreBufferRebuilder store_buffer_rebuilder_;
 

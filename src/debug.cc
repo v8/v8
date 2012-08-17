@@ -97,8 +97,8 @@ static v8::Handle<v8::Context> GetDebugEventContext(Isolate* isolate) {
   // Isolate::context() may have been NULL when "script collected" event
   // occured.
   if (context.is_null()) return v8::Local<v8::Context>();
-  Handle<Context> global_context(context->global_context());
-  return v8::Utils::ToLocal(global_context);
+  Handle<Context> native_context(context->native_context());
+  return v8::Utils::ToLocal(native_context);
 }
 
 
@@ -762,7 +762,7 @@ bool Debug::CompileDebuggerScript(int index) {
   }
 
   // Execute the shared function in the debugger context.
-  Handle<Context> context = isolate->global_context();
+  Handle<Context> context = isolate->native_context();
   bool caught_exception;
   Handle<JSFunction> function =
       factory->NewFunctionFromSharedFunctionInfo(function_info, context);

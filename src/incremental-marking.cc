@@ -629,7 +629,7 @@ void IncrementalMarking::Hurry() {
     // TODO(gc) hurry can mark objects it encounters black as mutator
     // was stopped.
     Map* filler_map = heap_->one_pointer_filler_map();
-    Map* global_context_map = heap_->global_context_map();
+    Map* native_context_map = heap_->native_context_map();
     while (!marking_deque_.IsEmpty()) {
       HeapObject* obj = marking_deque_.Pop();
 
@@ -638,9 +638,9 @@ void IncrementalMarking::Hurry() {
       Map* map = obj->map();
       if (map == filler_map) {
         continue;
-      } else if (map == global_context_map) {
-        // Global contexts have weak fields.
-        IncrementalMarkingMarkingVisitor::VisitGlobalContext(map, obj);
+      } else if (map == native_context_map) {
+        // Native contexts have weak fields.
+        IncrementalMarkingMarkingVisitor::VisitNativeContext(map, obj);
       } else if (map->instance_type() == MAP_TYPE) {
         Map* map = Map::cast(obj);
         heap_->ClearCacheOnMap(map);
@@ -686,7 +686,7 @@ void IncrementalMarking::Hurry() {
                                           PolymorphicCodeCache::kSize);
   }
 
-  Object* context = heap_->global_contexts_list();
+  Object* context = heap_->native_contexts_list();
   while (!context->IsUndefined()) {
     // GC can happen when the context is not fully initialized,
     // so the cache can be undefined.
@@ -796,7 +796,7 @@ void IncrementalMarking::Step(intptr_t allocated_bytes,
     }
   } else if (state_ == MARKING) {
     Map* filler_map = heap_->one_pointer_filler_map();
-    Map* global_context_map = heap_->global_context_map();
+    Map* native_context_map = heap_->native_context_map();
     while (!marking_deque_.IsEmpty() && bytes_to_process > 0) {
       HeapObject* obj = marking_deque_.Pop();
 
@@ -813,15 +813,15 @@ void IncrementalMarking::Step(intptr_t allocated_bytes,
       }
 
       // TODO(gc) switch to static visitor instead of normal visitor.
-      if (map == global_context_map) {
-        // Global contexts have weak fields.
+      if (map == native_context_map) {
+        // Native contexts have weak fields.
         Context* ctx = Context::cast(obj);
 
         // We will mark cache black with a separate pass
         // when we finish marking.
         MarkObjectGreyDoNotEnqueue(ctx->normalized_map_cache());
 
-        IncrementalMarkingMarkingVisitor::VisitGlobalContext(map, ctx);
+        IncrementalMarkingMarkingVisitor::VisitNativeContext(map, ctx);
       } else if (map->instance_type() == MAP_TYPE) {
         Map* map = Map::cast(obj);
         heap_->ClearCacheOnMap(map);

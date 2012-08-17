@@ -261,7 +261,7 @@ class StubCache {
   void CollectMatchingMaps(SmallMapList* types,
                            String* name,
                            Code::Flags flags,
-                           Handle<Context> global_context,
+                           Handle<Context> native_context,
                            Zone* zone);
 
   // Generate code for probing the stub cache table.

@@ -106,7 +106,7 @@ void Deoptimizer::DeoptimizeFunction(JSFunction* function) {
 
   // Iterate over all the functions which share the same code object
   // and make them use unoptimized version.
-  Context* context = function->context()->global_context();
+  Context* context = function->context()->native_context();
   Object* element = context->get(Context::OPTIMIZED_FUNCTIONS_LIST);
   SharedFunctionInfo* shared = function->shared();
   while (!element->IsUndefined()) {

@@ -246,7 +246,7 @@ Handle<Object> Execution::GetFunctionDelegate(Handle<Object> object) {
   if (fun->IsHeapObject() &&
       HeapObject::cast(fun)->map()->has_instance_call_handler()) {
     return Handle<JSFunction>(
-        isolate->global_context()->call_as_function_delegate());
+        isolate->native_context()->call_as_function_delegate());
   }
 
   return factory->undefined_value();
@@ -270,7 +270,7 @@ Handle<Object> Execution::TryGetFunctionDelegate(Handle<Object> object,
   if (fun->IsHeapObject() &&
       HeapObject::cast(fun)->map()->has_instance_call_handler()) {
     return Handle<JSFunction>(
-        isolate->global_context()->call_as_function_delegate());
+        isolate->native_context()->call_as_function_delegate());
   }
 
   // If the Object doesn't have an instance-call handler we should
@@ -303,7 +303,7 @@ Handle<Object> Execution::GetConstructorDelegate(Handle<Object> object) {
   if (fun->IsHeapObject() &&
       HeapObject::cast(fun)->map()->has_instance_call_handler()) {
     return Handle<JSFunction>(
-        isolate->global_context()->call_as_constructor_delegate());
+        isolate->native_context()->call_as_constructor_delegate());
   }
 
   return isolate->factory()->undefined_value();
@@ -331,7 +331,7 @@ Handle<Object> Execution::TryGetConstructorDelegate(
   if (fun->IsHeapObject() &&
       HeapObject::cast(fun)->map()->has_instance_call_handler()) {
     return Handle<JSFunction>(
-        isolate->global_context()->call_as_constructor_delegate());
+        isolate->native_context()->call_as_constructor_delegate());
   }
 
   // If the Object doesn't have an instance-call handler we should
@@ -680,7 +680,7 @@ Handle<JSRegExp> Execution::NewJSRegExp(Handle<String> pattern,
                                         Handle<String> flags,
                                         bool* exc) {
   Handle<JSFunction> function = Handle<JSFunction>(
-      pattern->GetIsolate()->global_context()->regexp_function());
+      pattern->GetIsolate()->native_context()->regexp_function());
   Handle<Object> re_obj = RegExpImpl::CreateRegExpLiteral(
       function, pattern, flags, exc);
   if (*exc) return Handle<JSRegExp>();
@@ -726,7 +726,7 @@ Handle<JSFunction> Execution::InstantiateFunction(
   // Fast case: see if the function has already been instantiated
   int serial_number = Smi::cast(data->serial_number())->value();
   Object* elm =
-      isolate->global_context()->function_cache()->
+      isolate->native_context()->function_cache()->
           GetElementNoExceptionThrown(serial_number);
   if (elm->IsJSFunction()) return Handle<JSFunction>(JSFunction::cast(elm));
   // The function has not yet been instantiated in this context; do it.

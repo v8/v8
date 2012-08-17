@@ -3365,11 +3365,11 @@ void LCodeGen::DoRandom(LRandom* instr) {
   static const int kSeedSize = sizeof(uint32_t);
   STATIC_ASSERT(kPointerSize == kSeedSize);
 
-  __ lw(a0, FieldMemOperand(a0, GlobalObject::kGlobalContextOffset));
+  __ lw(a0, FieldMemOperand(a0, GlobalObject::kNativeContextOffset));
   static const int kRandomSeedOffset =
       FixedArray::kHeaderSize + Context::RANDOM_SEED_INDEX * kPointerSize;
   __ lw(a2, FieldMemOperand(a0, kRandomSeedOffset));
-  // a2: FixedArray of the global context's random seeds
+  // a2: FixedArray of the native context's random seeds
 
   // Load state[0].
   __ lw(a1, FieldMemOperand(a2, ByteArray::kHeaderSize));

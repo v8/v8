@@ -56,7 +56,7 @@ void StaticNewSpaceVisitor<StaticVisitor>::Initialize() {
 
   table_.Register(kVisitFixedDoubleArray, &VisitFixedDoubleArray);
 
-  table_.Register(kVisitGlobalContext,
+  table_.Register(kVisitNativeContext,
                   &FixedBodyVisitor<StaticVisitor,
                   Context::ScavengeBodyDescriptor,
                   int>::Visit);
@@ -117,7 +117,7 @@ void StaticMarkingVisitor<StaticVisitor>::Initialize() {
 
   table_.Register(kVisitFixedDoubleArray, &DataObjectVisitor::Visit);
 
-  table_.Register(kVisitGlobalContext, &VisitGlobalContext);
+  table_.Register(kVisitNativeContext, &VisitNativeContext);
 
   table_.Register(kVisitByteArray, &DataObjectVisitor::Visit);
 
@@ -229,7 +229,7 @@ void StaticMarkingVisitor<StaticVisitor>::VisitCodeTarget(
 
 
 template<typename StaticVisitor>
-void StaticMarkingVisitor<StaticVisitor>::VisitGlobalContext(
+void StaticMarkingVisitor<StaticVisitor>::VisitNativeContext(
     Map* map, HeapObject* object) {
   FixedBodyVisitor<StaticVisitor,
                    Context::MarkCompactBodyDescriptor,
@@ -237,7 +237,7 @@ void StaticMarkingVisitor<StaticVisitor>::VisitGlobalContext(
 
   MarkCompactCollector* collector = map->GetHeap()->mark_compact_collector();
   for (int idx = Context::FIRST_WEAK_SLOT;
-       idx < Context::GLOBAL_CONTEXT_SLOTS;
+       idx < Context::NATIVE_CONTEXT_SLOTS;
        ++idx) {
     Object** slot =
         HeapObject::RawField(object, FixedArray::OffsetOfElementAt(idx));

@@ -62,13 +62,13 @@ class OptimizedFunctionVisitor BASE_EMBEDDED {
   virtual ~OptimizedFunctionVisitor() {}
 
   // Function which is called before iteration of any optimized functions
-  // from given global context.
+  // from given native context.
   virtual void EnterContext(Context* context) = 0;
 
   virtual void VisitFunction(JSFunction* function) = 0;
 
   // Function which is called after iteration of all optimized functions
-  // from given global context.
+  // from given native context.
   virtual void LeaveContext(Context* context) = 0;
 };
 

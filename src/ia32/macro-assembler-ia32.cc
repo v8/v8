@@ -982,18 +982,18 @@ void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
     cmp(scratch, Immediate(0));
     Check(not_equal, "we should not have an empty lexical context");
   }
-  // Load the global context of the current context.
+  // Load the native context of the current context.
   int offset = Context::kHeaderSize + Context::GLOBAL_INDEX * kPointerSize;
   mov(scratch, FieldOperand(scratch, offset));
-  mov(scratch, FieldOperand(scratch, GlobalObject::kGlobalContextOffset));
+  mov(scratch, FieldOperand(scratch, GlobalObject::kNativeContextOffset));
 
-  // Check the context is a global context.
+  // Check the context is a native context.
   if (emit_debug_code()) {
     push(scratch);
-    // Read the first word and compare to global_context_map.
+    // Read the first word and compare to native_context_map.
     mov(scratch, FieldOperand(scratch, HeapObject::kMapOffset));
-    cmp(scratch, isolate()->factory()->global_context_map());
-    Check(equal, "JSGlobalObject::global_context should be a global context.");
+    cmp(scratch, isolate()->factory()->native_context_map());
+    Check(equal, "JSGlobalObject::native_context should be a native context.");
     pop(scratch);
   }
 
@@ -1011,16 +1011,16 @@ void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
   // object.
   mov(holder_reg, FieldOperand(holder_reg, JSGlobalProxy::kContextOffset));
 
-  // Check the context is a global context.
+  // Check the context is a native context.
   if (emit_debug_code()) {
     cmp(holder_reg, isolate()->factory()->null_value());
     Check(not_equal, "JSGlobalProxy::context() should not be null.");
 
     push(holder_reg);
-    // Read the first word and compare to global_context_map(),
+    // Read the first word and compare to native_context_map(),
     mov(holder_reg, FieldOperand(holder_reg, HeapObject::kMapOffset));
-    cmp(holder_reg, isolate()->factory()->global_context_map());
-    Check(equal, "JSGlobalObject::global_context should be a global context.");
+    cmp(holder_reg, isolate()->factory()->native_context_map());
+    Check(equal, "JSGlobalObject::native_context should be a native context.");
     pop(holder_reg);
   }
 
@@ -2220,7 +2220,7 @@ void MacroAssembler::LoadTransitionedArrayMapConditional(
     Label* no_map_match) {
   // Load the global or builtins object from the current context.
   mov(scratch, Operand(esi, Context::SlotOffset(Context::GLOBAL_INDEX)));
-  mov(scratch, FieldOperand(scratch, GlobalObject::kGlobalContextOffset));
+  mov(scratch, FieldOperand(scratch, GlobalObject::kNativeContextOffset));
 
   // Check that the function's map is the same as the expected cached map.
   mov(scratch, Operand(scratch,
@@ -2266,9 +2266,9 @@ void MacroAssembler::LoadInitialArrayMap(
 void MacroAssembler::LoadGlobalFunction(int index, Register function) {
   // Load the global or builtins object from the current context.
   mov(function, Operand(esi, Context::SlotOffset(Context::GLOBAL_INDEX)));
-  // Load the global context from the global or builtins object.
-  mov(function, FieldOperand(function, GlobalObject::kGlobalContextOffset));
-  // Load the function from the global context.
+  // Load the native context from the global or builtins object.
+  mov(function, FieldOperand(function, GlobalObject::kNativeContextOffset));
+  // Load the function from the native context.
   mov(function, Operand(function, Context::SlotOffset(index)));
 }
 

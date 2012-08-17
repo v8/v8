@@ -290,7 +290,7 @@ Handle<Object> JsonParser<seq_ascii>::ParseJsonValue() {
 template <bool seq_ascii>
 Handle<Object> JsonParser<seq_ascii>::ParseJsonObject() {
   Handle<JSFunction> object_constructor(
-      isolate()->global_context()->object_function());
+      isolate()->native_context()->object_function());
   Handle<JSObject> json_object =
       isolate()->factory()->NewJSObject(object_constructor);
   ASSERT_EQ(c0_, '{');
