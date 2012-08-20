@@ -190,6 +190,7 @@ MaybeObject* JSObject::GetPropertyWithCallback(Object* receiver,
     }
     Object* fun_obj = data->getter();
     v8::AccessorGetter call_fun = v8::ToCData<v8::AccessorGetter>(fun_obj);
+    if (call_fun == NULL) return isolate->heap()->undefined_value();
     HandleScope scope(isolate);
     JSObject* self = JSObject::cast(receiver);
     Handle<String> key(name);
@@ -9129,6 +9130,7 @@ MaybeObject* JSObject::GetElementWithCallback(Object* receiver,
     Handle<AccessorInfo> data(AccessorInfo::cast(structure));
     Object* fun_obj = data->getter();
     v8::AccessorGetter call_fun = v8::ToCData<v8::AccessorGetter>(fun_obj);
+    if (call_fun == NULL) return isolate->heap()->undefined_value();
     HandleScope scope(isolate);
     Handle<JSObject> self(JSObject::cast(receiver));
     Handle<JSObject> holder_handle(JSObject::cast(holder));
