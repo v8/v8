@@ -4,6 +4,7 @@
 
 #include "v8.h"
 
+#include "compilation-cache.h"
 #include "execution.h"
 #include "factory.h"
 #include "macro-assembler.h"
@@ -1065,6 +1066,7 @@ TEST(TestInternalWeakLists) {
     }
 
     // Mark compact handles the weak references.
+    ISOLATE->compilation_cache()->Clear();
     HEAP->CollectAllGarbage(Heap::kNoGCFlags);
     CHECK_EQ(opt ? 4 : 0, CountOptimizedUserFunctions(ctx[i]));
 
@@ -1395,6 +1397,7 @@ TEST(LeakNativeContextViaMap) {
     ctx2->Exit();
     ctx1->Exit();
     ctx1.Dispose();
+    v8::V8::ContextDisposedNotification();
   }
   HEAP->CollectAllAvailableGarbage();
   CHECK_EQ(2, NumberOfGlobalObjects());
@@ -1432,6 +1435,7 @@ TEST(LeakNativeContextViaFunction) {
     ctx2->Exit();
     ctx1->Exit();
     ctx1.Dispose();
+    v8::V8::ContextDisposedNotification();
   }
   HEAP->CollectAllAvailableGarbage();
   CHECK_EQ(2, NumberOfGlobalObjects());
@@ -1467,6 +1471,7 @@ TEST(LeakNativeContextViaMapKeyed) {
     ctx2->Exit();
     ctx1->Exit();
     ctx1.Dispose();
+    v8::V8::ContextDisposedNotification();
   }
   HEAP->CollectAllAvailableGarbage();
   CHECK_EQ(2, NumberOfGlobalObjects());
@@ -1506,6 +1511,7 @@ TEST(LeakNativeContextViaMapProto) {
     ctx2->Exit();
     ctx1->Exit();
     ctx1.Dispose();
+    v8::V8::ContextDisposedNotification();
   }
   HEAP->CollectAllAvailableGarbage();
   CHECK_EQ(2, NumberOfGlobalObjects());
@@ -2100,8 +2106,6 @@ TEST(IncrementalMarkingPreservesMonomorhpicIC) {
   Code* ic_before = FindFirstIC(f->shared()->code(), Code::LOAD_IC);
   CHECK(ic_before->ic_state() == MONOMORPHIC);
 
-  // Fire context dispose notification.
-  v8::V8::ContextDisposedNotification();
   SimulateIncrementalMarking();
   HEAP->CollectAllGarbage(Heap::kNoGCFlags);
 

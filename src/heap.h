@@ -1074,7 +1074,10 @@ class Heap {
   void EnsureHeapIsIterable();
 
   // Notify the heap that a context has been disposed.
-  int NotifyContextDisposed() { return ++contexts_disposed_; }
+  int NotifyContextDisposed() {
+    flush_monomorphic_ics_ = true;
+    return ++contexts_disposed_;
+  }
 
   // Utility to invoke the scavenger. This is needed in test code to
   // ensure correct callback for weak global handles.
@@ -1604,6 +1607,8 @@ class Heap {
     global_ic_age_ = (global_ic_age_ + 1) & SharedFunctionInfo::ICAgeBits::kMax;
   }
 
+  bool flush_monomorphic_ics() { return flush_monomorphic_ics_; }
+
   intptr_t amount_of_external_allocated_memory() {
     return amount_of_external_allocated_memory_;
   }
@@ -1688,6 +1693,8 @@ class Heap {
   int contexts_disposed_;
 
   int global_ic_age_;
+
+  bool flush_monomorphic_ics_;
 
   int scan_on_scavenge_pages_;
 
