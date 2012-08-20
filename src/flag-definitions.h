@@ -390,9 +390,6 @@ DEFINE_bool(track_gc_object_stats, false,
 // v8.cc
 DEFINE_bool(use_idle_notification, true,
             "Use idle notification to reduce memory footprint.")
-
-DEFINE_bool(send_idle_notification, false,
-            "Send idle notifcation between stress runs.")
 // ic.cc
 DEFINE_bool(use_ic, true, "use inline caching")
 

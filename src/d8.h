@@ -227,6 +227,7 @@ class ShellOptions {
 #endif  // V8_SHARED
      script_executed(false),
      last_run(true),
+     send_idle_notification(false),
      stress_opt(false),
      stress_deopt(false),
      interactive_shell(false),
@@ -249,6 +250,7 @@ class ShellOptions {
 #endif  // V8_SHARED
   bool script_executed;
   bool last_run;
+  bool send_idle_notification;
   bool stress_opt;
   bool stress_deopt;
   bool interactive_shell;

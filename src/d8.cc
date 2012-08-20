@@ -1634,6 +1634,9 @@ bool Shell::SetOptions(int argc, char* argv[]) {
     } else if (strcmp(argv[i], "--test") == 0) {
       options.test_shell = true;
       argv[i] = NULL;
+    } else if (strcmp(argv[i], "--send-idle-notification") == 0) {
+      options.send_idle_notification = true;
+      argv[i] = NULL;
     } else if (strcmp(argv[i], "--preemption") == 0) {
 #ifdef V8_SHARED
       printf("D8 with shared library does not support multi-threading\n");
@@ -1790,13 +1793,11 @@ int Shell::RunMain(int argc, char* argv[]) {
     }
     if (!options.last_run) {
       context.Dispose();
-#if !defined(V8_SHARED)
-      if (i::FLAG_send_idle_notification) {
+      if (options.send_idle_notification) {
         const int kLongIdlePauseInMs = 1000;
         V8::ContextDisposedNotification();
         V8::IdleNotification(kLongIdlePauseInMs);
       }
-#endif  // !V8_SHARED
     }
 
 #ifndef V8_SHARED
