@@ -1102,8 +1102,8 @@ class Heap {
 #endif
 
   void AddGCPrologueCallback(
-      GCEpilogueCallback callback, GCType gc_type_filter);
-  void RemoveGCPrologueCallback(GCEpilogueCallback callback);
+      GCPrologueCallback callback, GCType gc_type_filter);
+  void RemoveGCPrologueCallback(GCPrologueCallback callback);
 
   void AddGCEpilogueCallback(
       GCEpilogueCallback callback, GCType gc_type_filter);
