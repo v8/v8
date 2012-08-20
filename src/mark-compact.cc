@@ -238,7 +238,7 @@ class VerifyNativeContextSeparationVisitor: public ObjectVisitor {
             CheckContext(JSFunction::cast(object)->context());
             break;
           case JS_GLOBAL_PROXY_TYPE:
-            CheckContext(JSGlobalProxy::cast(object)->context());
+            CheckContext(JSGlobalProxy::cast(object)->native_context());
             break;
           case JS_GLOBAL_OBJECT_TYPE:
           case JS_BUILTINS_OBJECT_TYPE:

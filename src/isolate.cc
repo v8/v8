@@ -789,7 +789,7 @@ static MayAccessDecision MayAccessPreCheck(Isolate* isolate,
   if (isolate->bootstrapper()->IsActive()) return YES;
 
   if (receiver->IsJSGlobalProxy()) {
-    Object* receiver_context = JSGlobalProxy::cast(receiver)->context();
+    Object* receiver_context = JSGlobalProxy::cast(receiver)->native_context();
     if (!receiver_context->IsContext()) return NO;
 
     // Get the native context of current top context.

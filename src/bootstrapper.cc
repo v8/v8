@@ -327,7 +327,8 @@ static void SetObjectPrototype(Handle<JSObject> object, Handle<Object> proto) {
 
 void Bootstrapper::DetachGlobal(Handle<Context> env) {
   Factory* factory = env->GetIsolate()->factory();
-  JSGlobalProxy::cast(env->global_proxy())->set_context(*factory->null_value());
+  JSGlobalProxy::cast(env->global_proxy())->
+      set_native_context(*factory->null_value());
   SetObjectPrototype(Handle<JSObject>(env->global_proxy()),
                      factory->null_value());
   env->set_global_proxy(env->global_object());
@@ -342,7 +343,7 @@ void Bootstrapper::ReattachGlobal(Handle<Context> env,
   env->global_object()->set_global_receiver(*global);
   env->set_global_proxy(*global);
   SetObjectPrototype(global, Handle<JSObject>(env->global_object()));
-  global->set_context(*env);
+  global->set_native_context(*env);
 }
 
 
@@ -797,7 +798,7 @@ void Genesis::HookUpGlobalProxy(Handle<GlobalObject> inner_global,
   // Set the native context for the global object.
   inner_global->set_native_context(*native_context());
   inner_global->set_global_receiver(*global_proxy);
-  global_proxy->set_context(*native_context());
+  global_proxy->set_native_context(*native_context());
   native_context()->set_global_proxy(*global_proxy);
 }
 

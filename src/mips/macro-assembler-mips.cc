@@ -380,7 +380,7 @@ void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
   }
 
   // Check if both contexts are the same.
-  lw(at, FieldMemOperand(holder_reg, JSGlobalProxy::kContextOffset));
+  lw(at, FieldMemOperand(holder_reg, JSGlobalProxy::kNativeContextOffset));
   Branch(&same_contexts, eq, scratch, Operand(at));
 
   // Check the context is a native context.
@@ -399,7 +399,7 @@ void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
     // Restore at is not needed. at is reloaded below.
     pop(holder_reg);  // Restore holder.
     // Restore at to holder's context.
-    lw(at, FieldMemOperand(holder_reg, JSGlobalProxy::kContextOffset));
+    lw(at, FieldMemOperand(holder_reg, JSGlobalProxy::kNativeContextOffset));
   }
 
   // Check that the security token in the calling global object is

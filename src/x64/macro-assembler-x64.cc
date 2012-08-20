@@ -3456,7 +3456,7 @@ void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
   }
 
   // Check if both contexts are the same.
-  cmpq(scratch, FieldOperand(holder_reg, JSGlobalProxy::kContextOffset));
+  cmpq(scratch, FieldOperand(holder_reg, JSGlobalProxy::kNativeContextOffset));
   j(equal, &same_contexts);
 
   // Compare security tokens.
@@ -3468,7 +3468,8 @@ void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
   if (emit_debug_code()) {
     // Preserve original value of holder_reg.
     push(holder_reg);
-    movq(holder_reg, FieldOperand(holder_reg, JSGlobalProxy::kContextOffset));
+    movq(holder_reg,
+         FieldOperand(holder_reg, JSGlobalProxy::kNativeContextOffset));
     CompareRoot(holder_reg, Heap::kNullValueRootIndex);
     Check(not_equal, "JSGlobalProxy::context() should not be null.");
 
@@ -3480,7 +3481,7 @@ void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
   }
 
   movq(kScratchRegister,
-       FieldOperand(holder_reg, JSGlobalProxy::kContextOffset));
+       FieldOperand(holder_reg, JSGlobalProxy::kNativeContextOffset));
   int token_offset =
       Context::kHeaderSize + Context::SECURITY_TOKEN_INDEX * kPointerSize;
   movq(scratch, FieldOperand(scratch, token_offset));

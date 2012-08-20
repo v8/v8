@@ -999,7 +999,7 @@ void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
   }
 
   // Check if both contexts are the same.
-  cmp(scratch, FieldOperand(holder_reg, JSGlobalProxy::kContextOffset));
+  cmp(scratch, FieldOperand(holder_reg, JSGlobalProxy::kNativeContextOffset));
   j(equal, &same_contexts);
 
   // Compare security tokens, save holder_reg on the stack so we can use it
@@ -1010,7 +1010,8 @@ void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
   // Check that the security token in the calling global object is
   // compatible with the security token in the receiving global
   // object.
-  mov(holder_reg, FieldOperand(holder_reg, JSGlobalProxy::kContextOffset));
+  mov(holder_reg,
+      FieldOperand(holder_reg, JSGlobalProxy::kNativeContextOffset));
 
   // Check the context is a native context.
   if (emit_debug_code()) {

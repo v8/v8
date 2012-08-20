@@ -1372,7 +1372,7 @@ void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
   }
 
   // Check if both contexts are the same.
-  ldr(ip, FieldMemOperand(holder_reg, JSGlobalProxy::kContextOffset));
+  ldr(ip, FieldMemOperand(holder_reg, JSGlobalProxy::kNativeContextOffset));
   cmp(scratch, Operand(ip));
   b(eq, &same_contexts);
 
@@ -1394,7 +1394,7 @@ void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
     // Restore ip is not needed. ip is reloaded below.
     pop(holder_reg);  // Restore holder.
     // Restore ip to holder's context.
-    ldr(ip, FieldMemOperand(holder_reg, JSGlobalProxy::kContextOffset));
+    ldr(ip, FieldMemOperand(holder_reg, JSGlobalProxy::kNativeContextOffset));
   }
 
   // Check that the security token in the calling global object is

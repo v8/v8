@@ -6162,9 +6162,9 @@ class JSFunction: public JSObject {
 
 class JSGlobalProxy : public JSObject {
  public:
-  // [context]: the owner native context of this global proxy object.
+  // [native_context]: the owner native context of this global proxy object.
   // It is null value if this object is not used by any context.
-  DECL_ACCESSORS(context, Object)
+  DECL_ACCESSORS(native_context, Object)
 
   // Casting.
   static inline JSGlobalProxy* cast(Object* obj);
@@ -6181,8 +6181,8 @@ class JSGlobalProxy : public JSObject {
 #endif
 
   // Layout description.
-  static const int kContextOffset = JSObject::kHeaderSize;
-  static const int kSize = kContextOffset + kPointerSize;
+  static const int kNativeContextOffset = JSObject::kHeaderSize;
+  static const int kSize = kNativeContextOffset + kPointerSize;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSGlobalProxy);
