@@ -1589,6 +1589,11 @@ void SourceGroup::ExecuteInThread() {
         Execute();
       }
       context.Dispose();
+      if (Shell::options.send_idle_notification) {
+        const int kLongIdlePauseInMs = 1000;
+        V8::ContextDisposedNotification();
+        V8::IdleNotification(kLongIdlePauseInMs);
+      }
     }
     if (done_semaphore_ != NULL) done_semaphore_->Signal();
   } while (!Shell::options.last_run);
