@@ -516,6 +516,7 @@ MaybeObject* JSObject::DeleteNormalizedProperty(String* name, DeleteMode mode) {
         MaybeObject* maybe_new_map = map()->CopyDropDescriptors();
         if (!maybe_new_map->To(&new_map)) return maybe_new_map;
 
+        ASSERT(new_map->is_dictionary_map());
         set_map(new_map);
       }
       JSGlobalPropertyCell* cell =
@@ -3218,6 +3219,7 @@ MaybeObject* NormalizedMapCache::Get(JSObject* obj,
         fast->CopyNormalized(mode, SHARED_NORMALIZED_MAP);
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
+  ASSERT(Map::cast(result)->is_dictionary_map());
   set(index, result);
   isolate->counters()->normalized_maps()->Increment();
 
@@ -3343,6 +3345,7 @@ MaybeObject* JSObject::NormalizeProperties(PropertyNormalizationMode mode,
       current_heap->isolate()->context()->global_context()->
       normalized_map_cache()->Get(this, mode);
   if (!maybe_map->To(&new_map)) return maybe_map;
+  ASSERT(new_map->is_dictionary_map());
 
   // We have now successfully allocated all the necessary objects.
   // Changes can now be made with the guarantee that all of them take effect.
@@ -4512,6 +4515,7 @@ MaybeObject* JSObject::SetPropertyCallback(String* name,
     Map* new_map;
     MaybeObject* maybe_new_map = map()->CopyDropDescriptors();
     if (!maybe_new_map->To(&new_map)) return maybe_new_map;
+    ASSERT(new_map->is_dictionary_map());
 
     set_map(new_map);
     // When running crankshaft, changing the map is not enough. We
@@ -4873,6 +4877,7 @@ MaybeObject* Map::CopyNormalized(PropertyNormalizationMode mode,
 
   result->set_code_cache(code_cache());
   result->set_is_shared(sharing == SHARED_NORMALIZED_MAP);
+  result->set_dictionary_map(true);
 
 #ifdef DEBUG
   if (FLAG_verify_heap && result->is_shared()) {
@@ -7330,7 +7335,8 @@ bool Map::EquivalentToForNormalization(Map* other,
     bit_field2() == other->bit_field2() &&
     static_cast<uint32_t>(bit_field3()) ==
         LastAddedBits::update(
-            IsShared::update(other->bit_field3(), true),
+            IsShared::update(DictionaryMap::update(other->bit_field3(), true),
+                             true),
             kNoneAdded);
 }
 
@@ -12573,6 +12579,7 @@ MaybeObject* StringDictionary::TransformPropertiesToFastFor(
   Map* new_map;
   MaybeObject* maybe_new_map = obj->map()->CopyDropDescriptors();
   if (!maybe_new_map->To(&new_map)) return maybe_new_map;
+  new_map->set_dictionary_map(false);
 
   if (instance_descriptor_length == 0) {
     ASSERT_LE(unused_property_fields, inobject_props);
