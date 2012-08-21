@@ -261,7 +261,7 @@ class StubCache {
   void CollectMatchingMaps(SmallMapList* types,
                            String* name,
                            Code::Flags flags,
-                           Handle<Context> native_context,
+                           Handle<Context> global_context,
                            Zone* zone);
 
   // Generate code for probing the stub cache table.
@@ -707,9 +707,6 @@ class StoreStubCompiler: public StubCompiler {
   Handle<Code> CompileStoreCallback(Handle<JSObject> object,
                                     Handle<AccessorInfo> callback,
                                     Handle<String> name);
-
-  static void GenerateStoreViaSetter(MacroAssembler* masm,
-                                     Handle<JSFunction> setter);
 
   Handle<Code> CompileStoreViaSetter(Handle<String> name,
                                      Handle<JSObject> receiver,

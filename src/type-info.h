@@ -235,7 +235,7 @@ class ForInStatement;
 class TypeFeedbackOracle: public ZoneObject {
  public:
   TypeFeedbackOracle(Handle<Code> code,
-                     Handle<Context> native_context,
+                     Handle<Context> global_context,
                      Isolate* isolate,
                      Zone* zone);
 
@@ -266,9 +266,9 @@ class TypeFeedbackOracle: public ZoneObject {
   void CollectKeyedReceiverTypes(TypeFeedbackId ast_id,
                                  SmallMapList* types);
 
-  static bool CanRetainOtherContext(Map* map, Context* native_context);
+  static bool CanRetainOtherContext(Map* map, Context* global_context);
   static bool CanRetainOtherContext(JSFunction* function,
-                                    Context* native_context);
+                                    Context* global_context);
 
   CheckType GetCallCheckType(Call* expr);
   Handle<JSObject> GetPrototypeForPrimitiveCheck(CheckType check);
@@ -317,7 +317,7 @@ class TypeFeedbackOracle: public ZoneObject {
   // there is no information.
   Handle<Object> GetInfo(TypeFeedbackId ast_id);
 
-  Handle<Context> native_context_;
+  Handle<Context> global_context_;
   Isolate* isolate_;
   Handle<UnseededNumberDictionary> dictionary_;
   Zone* zone_;

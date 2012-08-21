@@ -462,9 +462,7 @@ void LCodeGen::WriteTranslation(LEnvironment* environment,
       translation->BeginConstructStubFrame(closure_id, translation_size);
       break;
     case JS_SETTER:
-      ASSERT(translation_size == 2);
-      ASSERT(height == 0);
-      translation->BeginSetterStubFrame(closure_id);
+      // TODO(svenpanne) Implement me!
       break;
     case ARGUMENTS_ADAPTOR:
       translation->BeginArgumentsAdaptorFrame(closure_id, translation_size);
@@ -2997,7 +2995,7 @@ void LCodeGen::DoDeclareGlobals(LDeclareGlobals* instr) {
 
 void LCodeGen::DoGlobalObject(LGlobalObject* instr) {
   Register result = ToRegister(instr->result());
-  __ lw(result, ContextOperand(cp, Context::GLOBAL_OBJECT_INDEX));
+  __ lw(result, ContextOperand(cp, Context::GLOBAL_INDEX));
 }
 
 
@@ -3367,11 +3365,11 @@ void LCodeGen::DoRandom(LRandom* instr) {
   static const int kSeedSize = sizeof(uint32_t);
   STATIC_ASSERT(kPointerSize == kSeedSize);
 
-  __ lw(a0, FieldMemOperand(a0, GlobalObject::kNativeContextOffset));
+  __ lw(a0, FieldMemOperand(a0, GlobalObject::kGlobalContextOffset));
   static const int kRandomSeedOffset =
       FixedArray::kHeaderSize + Context::RANDOM_SEED_INDEX * kPointerSize;
   __ lw(a2, FieldMemOperand(a0, kRandomSeedOffset));
-  // a2: FixedArray of the native context's random seeds
+  // a2: FixedArray of the global context's random seeds
 
   // Load state[0].
   __ lw(a1, FieldMemOperand(a2, ByteArray::kHeaderSize));

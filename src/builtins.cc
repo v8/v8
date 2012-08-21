@@ -35,7 +35,6 @@
 #include "ic-inl.h"
 #include "heap-profiler.h"
 #include "mark-compact.h"
-#include "stub-cache.h"
 #include "vm-state-inl.h"
 
 namespace v8 {
@@ -200,11 +199,11 @@ static MaybeObject* ArrayCodeGenericCommon(Arguments* args,
     array->set_length(Smi::FromInt(0));
     array->set_elements(heap->empty_fixed_array());
     if (!FLAG_smi_only_arrays) {
-      Context* native_context = isolate->context()->native_context();
+      Context* global_context = isolate->context()->global_context();
       if (array->GetElementsKind() == GetInitialFastElementsKind() &&
-          !native_context->js_array_maps()->IsUndefined()) {
+          !global_context->js_array_maps()->IsUndefined()) {
         FixedArray* map_array =
-            FixedArray::cast(native_context->js_array_maps());
+            FixedArray::cast(global_context->js_array_maps());
         array->set_map(Map::cast(map_array->
                                  get(TERMINAL_FAST_ELEMENTS_KIND)));
       }
@@ -313,7 +312,7 @@ BUILTIN(InternalArrayCodeGeneric) {
   return ArrayCodeGenericCommon(
       &args,
       isolate,
-      isolate->context()->native_context()->internal_array_function());
+      isolate->context()->global_context()->internal_array_function());
 }
 
 
@@ -321,7 +320,7 @@ BUILTIN(ArrayCodeGeneric) {
   return ArrayCodeGenericCommon(
       &args,
       isolate,
-      isolate->context()->native_context()->array_function());
+      isolate->context()->global_context()->array_function());
 }
 
 
@@ -403,7 +402,7 @@ static FixedArray* LeftTrimFixedArray(Heap* heap,
 
 
 static bool ArrayPrototypeHasNoElements(Heap* heap,
-                                        Context* native_context,
+                                        Context* global_context,
                                         JSObject* array_proto) {
   // This method depends on non writability of Object and Array prototype
   // fields.
@@ -412,7 +411,7 @@ static bool ArrayPrototypeHasNoElements(Heap* heap,
   Object* proto = array_proto->GetPrototype();
   if (proto == heap->null_value()) return false;
   array_proto = JSObject::cast(proto);
-  if (array_proto != native_context->initial_object_prototype()) return false;
+  if (array_proto != global_context->initial_object_prototype()) return false;
   if (array_proto->elements() != heap->empty_fixed_array()) return false;
   return array_proto->GetPrototype()->IsNull();
 }
@@ -462,11 +461,11 @@ static inline MaybeObject* EnsureJSArrayWithWritableFastElements(
 static inline bool IsJSArrayFastElementMovingAllowed(Heap* heap,
                                                      JSArray* receiver) {
   if (!FLAG_clever_optimizations) return false;
-  Context* native_context = heap->isolate()->context()->native_context();
+  Context* global_context = heap->isolate()->context()->global_context();
   JSObject* array_proto =
-      JSObject::cast(native_context->array_function()->prototype());
+      JSObject::cast(global_context->array_function()->prototype());
   return receiver->GetPrototype() == array_proto &&
-         ArrayPrototypeHasNoElements(heap, native_context, array_proto);
+         ArrayPrototypeHasNoElements(heap, global_context, array_proto);
 }
 
 
@@ -477,7 +476,7 @@ MUST_USE_RESULT static MaybeObject* CallJsBuiltin(
   HandleScope handleScope(isolate);
 
   Handle<Object> js_builtin =
-      GetProperty(Handle<JSObject>(isolate->native_context()->builtins()),
+      GetProperty(Handle<JSObject>(isolate->global_context()->builtins()),
                   name);
   Handle<JSFunction> function = Handle<JSFunction>::cast(js_builtin);
   int argc = args.length() - 1;
@@ -707,7 +706,7 @@ BUILTIN(ArraySlice) {
     // Array.slice(arguments, ...) is quite a common idiom (notably more
     // than 50% of invocations in Web apps).  Treat it in C++ as well.
     Map* arguments_map =
-        isolate->context()->native_context()->arguments_boilerplate()->map();
+        isolate->context()->global_context()->arguments_boilerplate()->map();
 
     bool is_arguments_object_with_fast_elements =
         receiver->IsJSObject()
@@ -944,10 +943,10 @@ BUILTIN(ArraySplice) {
 
 BUILTIN(ArrayConcat) {
   Heap* heap = isolate->heap();
-  Context* native_context = isolate->context()->native_context();
+  Context* global_context = isolate->context()->global_context();
   JSObject* array_proto =
-      JSObject::cast(native_context->array_function()->prototype());
-  if (!ArrayPrototypeHasNoElements(heap, native_context, array_proto)) {
+      JSObject::cast(global_context->array_function()->prototype());
+  if (!ArrayPrototypeHasNoElements(heap, global_context, array_proto)) {
     return CallJsBuiltin(isolate, "ArrayConcat", args);
   }
 
@@ -1386,11 +1385,6 @@ static void Generate_StoreIC_GlobalProxy(MacroAssembler* masm) {
 
 static void Generate_StoreIC_GlobalProxy_Strict(MacroAssembler* masm) {
   StoreIC::GenerateGlobalProxy(masm, kStrictMode);
-}
-
-
-static void Generate_StoreIC_Setter_ForDeopt(MacroAssembler* masm) {
-  StoreStubCompiler::GenerateStoreViaSetter(masm, Handle<JSFunction>());
 }
 
 

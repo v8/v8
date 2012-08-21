@@ -106,10 +106,10 @@ void FastNewClosureStub::Generate(MacroAssembler* masm) {
       ? Context::FUNCTION_MAP_INDEX
       : Context::STRICT_MODE_FUNCTION_MAP_INDEX;
 
-  // Compute the function map in the current native context and set that
+  // Compute the function map in the current global context and set that
   // as the map of the allocated object.
-  __ ldr(r2, MemOperand(cp, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
-  __ ldr(r2, FieldMemOperand(r2, GlobalObject::kNativeContextOffset));
+  __ ldr(r2, MemOperand(cp, Context::SlotOffset(Context::GLOBAL_INDEX)));
+  __ ldr(r2, FieldMemOperand(r2, GlobalObject::kGlobalContextOffset));
   __ ldr(r5, MemOperand(r2, Context::SlotOffset(map_index)));
   __ str(r5, FieldMemOperand(r0, HeapObject::kMapOffset));
 
@@ -149,8 +149,8 @@ void FastNewClosureStub::Generate(MacroAssembler* masm) {
 
   __ IncrementCounter(counters->fast_new_closure_try_optimized(), 1, r6, r7);
 
-  // r2 holds native context, r1 points to fixed array of 3-element entries
-  // (native context, optimized code, literals).
+  // r2 holds global context, r1 points to fixed array of 3-element entries
+  // (global context, optimized code, literals).
   // The optimized code map must never be empty, so check the first elements.
   Label install_optimized;
   // Speculatively move code object into r4.
@@ -242,12 +242,12 @@ void FastNewContextStub::Generate(MacroAssembler* masm) {
   __ str(r1, FieldMemOperand(r0, HeapObject::kMapOffset));
 
   // Set up the fixed slots, copy the global object from the previous context.
-  __ ldr(r2, MemOperand(cp, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
+  __ ldr(r2, MemOperand(cp, Context::SlotOffset(Context::GLOBAL_INDEX)));
   __ mov(r1, Operand(Smi::FromInt(0)));
   __ str(r3, MemOperand(r0, Context::SlotOffset(Context::CLOSURE_INDEX)));
   __ str(cp, MemOperand(r0, Context::SlotOffset(Context::PREVIOUS_INDEX)));
   __ str(r1, MemOperand(r0, Context::SlotOffset(Context::EXTENSION_INDEX)));
-  __ str(r2, MemOperand(r0, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
+  __ str(r2, MemOperand(r0, Context::SlotOffset(Context::GLOBAL_INDEX)));
 
   // Initialize the rest of the slots to undefined.
   __ LoadRoot(r1, Heap::kUndefinedValueRootIndex);
@@ -290,9 +290,9 @@ void FastNewBlockContextStub::Generate(MacroAssembler* masm) {
   __ mov(r2, Operand(Smi::FromInt(length)));
   __ str(r2, FieldMemOperand(r0, FixedArray::kLengthOffset));
 
-  // If this block context is nested in the native context we get a smi
+  // If this block context is nested in the global context we get a smi
   // sentinel instead of a function. The block context should get the
-  // canonical empty function of the native context as its closure which
+  // canonical empty function of the global context as its closure which
   // we still have to look up.
   Label after_sentinel;
   __ JumpIfNotSmi(r3, &after_sentinel);
@@ -302,16 +302,16 @@ void FastNewBlockContextStub::Generate(MacroAssembler* masm) {
     __ Assert(eq, message);
   }
   __ ldr(r3, GlobalObjectOperand());
-  __ ldr(r3, FieldMemOperand(r3, GlobalObject::kNativeContextOffset));
+  __ ldr(r3, FieldMemOperand(r3, GlobalObject::kGlobalContextOffset));
   __ ldr(r3, ContextOperand(r3, Context::CLOSURE_INDEX));
   __ bind(&after_sentinel);
 
   // Set up the fixed slots, copy the global object from the previous context.
-  __ ldr(r2, ContextOperand(cp, Context::GLOBAL_OBJECT_INDEX));
+  __ ldr(r2, ContextOperand(cp, Context::GLOBAL_INDEX));
   __ str(r3, ContextOperand(r0, Context::CLOSURE_INDEX));
   __ str(cp, ContextOperand(r0, Context::PREVIOUS_INDEX));
   __ str(r1, ContextOperand(r0, Context::EXTENSION_INDEX));
-  __ str(r2, ContextOperand(r0, Context::GLOBAL_OBJECT_INDEX));
+  __ str(r2, ContextOperand(r0, Context::GLOBAL_INDEX));
 
   // Initialize the rest of the slots to the hole value.
   __ LoadRoot(r1, Heap::kTheHoleValueRootIndex);
@@ -4507,14 +4507,14 @@ void ArgumentsAccessStub::GenerateNewNonStrictFast(MacroAssembler* masm) {
 
   // r0 = address of new object(s) (tagged)
   // r2 = argument count (tagged)
-  // Get the arguments boilerplate from the current native context into r4.
+  // Get the arguments boilerplate from the current (global) context into r4.
   const int kNormalOffset =
       Context::SlotOffset(Context::ARGUMENTS_BOILERPLATE_INDEX);
   const int kAliasedOffset =
       Context::SlotOffset(Context::ALIASED_ARGUMENTS_BOILERPLATE_INDEX);
 
-  __ ldr(r4, MemOperand(r8, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
-  __ ldr(r4, FieldMemOperand(r4, GlobalObject::kNativeContextOffset));
+  __ ldr(r4, MemOperand(r8, Context::SlotOffset(Context::GLOBAL_INDEX)));
+  __ ldr(r4, FieldMemOperand(r4, GlobalObject::kGlobalContextOffset));
   __ cmp(r1, Operand::Zero());
   __ ldr(r4, MemOperand(r4, kNormalOffset), eq);
   __ ldr(r4, MemOperand(r4, kAliasedOffset), ne);
@@ -4687,9 +4687,9 @@ void ArgumentsAccessStub::GenerateNewStrict(MacroAssembler* masm) {
                         static_cast<AllocationFlags>(TAG_OBJECT |
                                                      SIZE_IN_WORDS));
 
-  // Get the arguments boilerplate from the current native context.
-  __ ldr(r4, MemOperand(cp, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
-  __ ldr(r4, FieldMemOperand(r4, GlobalObject::kNativeContextOffset));
+  // Get the arguments boilerplate from the current (global) context.
+  __ ldr(r4, MemOperand(cp, Context::SlotOffset(Context::GLOBAL_INDEX)));
+  __ ldr(r4, FieldMemOperand(r4, GlobalObject::kGlobalContextOffset));
   __ ldr(r4, MemOperand(r4, Context::SlotOffset(
       Context::STRICT_MODE_ARGUMENTS_BOILERPLATE_INDEX)));
 
@@ -4818,7 +4818,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   STATIC_ASSERT(kSmiTagSize + kSmiShiftSize == 1);
   __ add(r2, r2, Operand(2));  // r2 was a smi.
   // Check that the static offsets vector buffer is large enough.
-  __ cmp(r2, Operand(OffsetsVector::kStaticOffsetsVectorSize));
+  __ cmp(r2, Operand(Isolate::kJSRegexpStaticOffsetsVectorSize));
   __ b(hi, &runtime);
 
   // r2: Number of capture registers
@@ -5204,10 +5204,10 @@ void RegExpConstructResultStub::Generate(MacroAssembler* masm) {
   // Set empty properties FixedArray.
   // Set elements to point to FixedArray allocated right after the JSArray.
   // Interleave operations for better latency.
-  __ ldr(r2, ContextOperand(cp, Context::GLOBAL_OBJECT_INDEX));
+  __ ldr(r2, ContextOperand(cp, Context::GLOBAL_INDEX));
   __ add(r3, r0, Operand(JSRegExpResult::kSize));
   __ mov(r4, Operand(factory->empty_fixed_array()));
-  __ ldr(r2, FieldMemOperand(r2, GlobalObject::kNativeContextOffset));
+  __ ldr(r2, FieldMemOperand(r2, GlobalObject::kGlobalContextOffset));
   __ str(r3, FieldMemOperand(r0, JSObject::kElementsOffset));
   __ ldr(r2, ContextOperand(r2, Context::REGEXP_RESULT_MAP_INDEX));
   __ str(r4, FieldMemOperand(r0, JSObject::kPropertiesOffset));
@@ -5313,8 +5313,7 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
     __ CompareRoot(r4, Heap::kTheHoleValueRootIndex);
     __ b(ne, &call);
     // Patch the receiver on the stack with the global receiver object.
-    __ ldr(r3,
-           MemOperand(cp, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
+    __ ldr(r3, MemOperand(cp, Context::SlotOffset(Context::GLOBAL_INDEX)));
     __ ldr(r3, FieldMemOperand(r3, GlobalObject::kGlobalReceiverOffset));
     __ str(r3, MemOperand(sp, argc_ * kPointerSize));
     __ bind(&call);

@@ -69,13 +69,13 @@ MUST_USE_RESULT static MaybeObject* CreateJSValue(JSFunction* constructor,
 }
 
 
-MaybeObject* Object::ToObject(Context* native_context) {
+MaybeObject* Object::ToObject(Context* global_context) {
   if (IsNumber()) {
-    return CreateJSValue(native_context->number_function(), this);
+    return CreateJSValue(global_context->number_function(), this);
   } else if (IsBoolean()) {
-    return CreateJSValue(native_context->boolean_function(), this);
+    return CreateJSValue(global_context->boolean_function(), this);
   } else if (IsString()) {
-    return CreateJSValue(native_context->string_function(), this);
+    return CreateJSValue(global_context->string_function(), this);
   }
   ASSERT(IsJSObject());
   return this;
@@ -87,16 +87,16 @@ MaybeObject* Object::ToObject() {
     return this;
   } else if (IsNumber()) {
     Isolate* isolate = Isolate::Current();
-    Context* native_context = isolate->context()->native_context();
-    return CreateJSValue(native_context->number_function(), this);
+    Context* global_context = isolate->context()->global_context();
+    return CreateJSValue(global_context->number_function(), this);
   } else if (IsBoolean()) {
     Isolate* isolate = HeapObject::cast(this)->GetIsolate();
-    Context* native_context = isolate->context()->native_context();
-    return CreateJSValue(native_context->boolean_function(), this);
+    Context* global_context = isolate->context()->global_context();
+    return CreateJSValue(global_context->boolean_function(), this);
   } else if (IsString()) {
     Isolate* isolate = HeapObject::cast(this)->GetIsolate();
-    Context* native_context = isolate->context()->native_context();
-    return CreateJSValue(native_context->string_function(), this);
+    Context* global_context = isolate->context()->global_context();
+    return CreateJSValue(global_context->string_function(), this);
   }
 
   // Throw a type error.
@@ -134,13 +134,13 @@ void Object::Lookup(String* name, LookupResult* result) {
   if (IsJSReceiver()) {
     holder = this;
   } else {
-    Context* native_context = Isolate::Current()->context()->native_context();
+    Context* global_context = Isolate::Current()->context()->global_context();
     if (IsNumber()) {
-      holder = native_context->number_function()->instance_prototype();
+      holder = global_context->number_function()->instance_prototype();
     } else if (IsString()) {
-      holder = native_context->string_function()->instance_prototype();
+      holder = global_context->string_function()->instance_prototype();
     } else if (IsBoolean()) {
-      holder = native_context->boolean_function()->instance_prototype();
+      holder = global_context->boolean_function()->instance_prototype();
     }
   }
   ASSERT(holder != NULL);  // Cannot handle null or undefined.
@@ -190,7 +190,6 @@ MaybeObject* JSObject::GetPropertyWithCallback(Object* receiver,
     }
     Object* fun_obj = data->getter();
     v8::AccessorGetter call_fun = v8::ToCData<v8::AccessorGetter>(fun_obj);
-    if (call_fun == NULL) return isolate->heap()->undefined_value();
     HandleScope scope(isolate);
     JSObject* self = JSObject::cast(receiver);
     Handle<String> key(name);
@@ -663,13 +662,13 @@ MaybeObject* Object::GetElementWithReceiver(Object* receiver, uint32_t index) {
        holder = holder->GetPrototype()) {
     if (!holder->IsJSObject()) {
       Isolate* isolate = heap->isolate();
-      Context* native_context = isolate->context()->native_context();
+      Context* global_context = isolate->context()->global_context();
       if (holder->IsNumber()) {
-        holder = native_context->number_function()->instance_prototype();
+        holder = global_context->number_function()->instance_prototype();
       } else if (holder->IsString()) {
-        holder = native_context->string_function()->instance_prototype();
+        holder = global_context->string_function()->instance_prototype();
       } else if (holder->IsBoolean()) {
-        holder = native_context->boolean_function()->instance_prototype();
+        holder = global_context->boolean_function()->instance_prototype();
       } else if (holder->IsJSProxy()) {
         return JSProxy::cast(holder)->GetElementWithHandler(receiver, index);
       } else {
@@ -711,7 +710,7 @@ MaybeObject* Object::GetElementWithReceiver(Object* receiver, uint32_t index) {
 Object* Object::GetPrototype() {
   if (IsSmi()) {
     Heap* heap = Isolate::Current()->heap();
-    Context* context = heap->isolate()->context()->native_context();
+    Context* context = heap->isolate()->context()->global_context();
     return context->number_function()->instance_prototype();
   }
 
@@ -723,7 +722,7 @@ Object* Object::GetPrototype() {
     return heap_object->map()->prototype();
   }
   Heap* heap = heap_object->GetHeap();
-  Context* context = heap->isolate()->context()->native_context();
+  Context* context = heap->isolate()->context()->global_context();
 
   if (heap_object->IsHeapNumber()) {
     return context->number_function()->instance_prototype();
@@ -3343,7 +3342,7 @@ MaybeObject* JSObject::NormalizeProperties(PropertyNormalizationMode mode,
 
   Map* new_map;
   MaybeObject* maybe_map =
-      current_heap->isolate()->context()->native_context()->
+      current_heap->isolate()->context()->global_context()->
       normalized_map_cache()->Get(this, mode);
   if (!maybe_map->To(&new_map)) return maybe_map;
   ASSERT(new_map->is_dictionary_map());
@@ -4058,15 +4057,15 @@ bool JSObject::ReferencesObject(Object* obj) {
   if (IsJSFunction()) {
     // Get the constructor function for arguments array.
     JSObject* arguments_boilerplate =
-        heap->isolate()->context()->native_context()->
+        heap->isolate()->context()->global_context()->
             arguments_boilerplate();
     JSFunction* arguments_function =
         JSFunction::cast(arguments_boilerplate->map()->constructor());
 
-    // Get the context and don't check if it is the native context.
+    // Get the context and don't check if it is the global context.
     JSFunction* f = JSFunction::cast(this);
     Context* context = f->context();
-    if (context->IsNativeContext()) {
+    if (context->IsGlobalContext()) {
       return false;
     }
 
@@ -7377,11 +7376,11 @@ void SharedFunctionInfo::ClearOptimizedCodeMap() {
 
 void SharedFunctionInfo::AddToOptimizedCodeMap(
     Handle<SharedFunctionInfo> shared,
-    Handle<Context> native_context,
+    Handle<Context> global_context,
     Handle<Code> code,
     Handle<FixedArray> literals) {
   ASSERT(code->kind() == Code::OPTIMIZED_FUNCTION);
-  ASSERT(native_context->IsNativeContext());
+  ASSERT(global_context->IsGlobalContext());
   STATIC_ASSERT(kEntryLength == 3);
   Object* value = shared->optimized_code_map();
   Handle<FixedArray> new_code_map;
@@ -7390,24 +7389,24 @@ void SharedFunctionInfo::AddToOptimizedCodeMap(
     ASSERT_EQ(0, Smi::cast(value)->value());
     // Crate 3 entries per context {context, code, literals}.
     new_code_map = FACTORY->NewFixedArray(kEntryLength);
-    new_code_map->set(0, *native_context);
+    new_code_map->set(0, *global_context);
     new_code_map->set(1, *code);
     new_code_map->set(2, *literals);
   } else {
     // Copy old map and append one new entry.
     Handle<FixedArray> old_code_map(FixedArray::cast(value));
-    ASSERT_EQ(-1, shared->SearchOptimizedCodeMap(*native_context));
+    ASSERT_EQ(-1, shared->SearchOptimizedCodeMap(*global_context));
     int old_length = old_code_map->length();
     int new_length = old_length + kEntryLength;
     new_code_map = FACTORY->NewFixedArray(new_length);
     old_code_map->CopyTo(0, *new_code_map, 0, old_length);
-    new_code_map->set(old_length, *native_context);
+    new_code_map->set(old_length, *global_context);
     new_code_map->set(old_length + 1, *code);
     new_code_map->set(old_length + 2, *literals);
   }
 #ifdef DEBUG
   for (int i = 0; i < new_code_map->length(); i += kEntryLength) {
-    ASSERT(new_code_map->get(i)->IsNativeContext());
+    ASSERT(new_code_map->get(i)->IsGlobalContext());
     ASSERT(new_code_map->get(i + 1)->IsCode());
     ASSERT(Code::cast(new_code_map->get(i + 1))->kind() ==
            Code::OPTIMIZED_FUNCTION);
@@ -7430,7 +7429,7 @@ void SharedFunctionInfo::InstallFromOptimizedCodeMap(JSFunction* function,
   }
   Code* code = Code::cast(code_map->get(index));
   ASSERT(code != NULL);
-  ASSERT(function->context()->native_context() == code_map->get(index - 1));
+  ASSERT(function->context()->global_context() == code_map->get(index - 1));
   function->ReplaceCode(code);
 }
 
@@ -7548,7 +7547,7 @@ MaybeObject* JSFunction::SetPrototype(Object* value) {
     new_map->set_constructor(value);
     new_map->set_non_instance_prototype(true);
     construct_prototype =
-        heap->isolate()->context()->native_context()->
+        heap->isolate()->context()->global_context()->
             initial_object_prototype();
   } else {
     map()->set_non_instance_prototype(false);
@@ -7559,10 +7558,10 @@ MaybeObject* JSFunction::SetPrototype(Object* value) {
 
 
 Object* JSFunction::RemovePrototype() {
-  Context* native_context = context()->native_context();
+  Context* global_context = context()->global_context();
   Map* no_prototype_map = shared()->is_classic_mode()
-      ? native_context->function_without_prototype_map()
-      : native_context->strict_mode_function_without_prototype_map();
+      ? global_context->function_without_prototype_map()
+      : global_context->strict_mode_function_without_prototype_map();
 
   if (map() == no_prototype_map) {
     // Be idempotent.
@@ -7570,8 +7569,8 @@ Object* JSFunction::RemovePrototype() {
   }
 
   ASSERT(map() == (shared()->is_classic_mode()
-                   ? native_context->function_map()
-                   : native_context->strict_mode_function_map()));
+                   ? global_context->function_map()
+                   : global_context->strict_mode_function_map()));
 
   set_map(no_prototype_map);
   set_prototype_or_initial_map(no_prototype_map->GetHeap()->the_hole_value());
@@ -7591,8 +7590,8 @@ void JSFunction::PrintName(FILE* out) {
 }
 
 
-Context* JSFunction::NativeContextFromLiterals(FixedArray* literals) {
-  return Context::cast(literals->get(JSFunction::kLiteralNativeContextIndex));
+Context* JSFunction::GlobalContextFromLiterals(FixedArray* literals) {
+  return Context::cast(literals->get(JSFunction::kLiteralGlobalContextIndex));
 }
 
 
@@ -7990,15 +7989,15 @@ void SharedFunctionInfo::CompleteInobjectSlackTracking() {
 }
 
 
-int SharedFunctionInfo::SearchOptimizedCodeMap(Context* native_context) {
-  ASSERT(native_context->IsNativeContext());
+int SharedFunctionInfo::SearchOptimizedCodeMap(Context* global_context) {
+  ASSERT(global_context->IsGlobalContext());
   if (!FLAG_cache_optimized_code) return -1;
   Object* value = optimized_code_map();
   if (!value->IsSmi()) {
     FixedArray* optimized_code_map = FixedArray::cast(value);
     int length = optimized_code_map->length();
     for (int i = 0; i < length; i += 3) {
-      if (optimized_code_map->get(i) == native_context) {
+      if (optimized_code_map->get(i) == global_context) {
         return i + 1;
       }
     }
@@ -8312,16 +8311,6 @@ void DeoptimizationInputData::DeoptimizationInputDataPrint(FILE* out) {
           PrintF(out, "{function=");
           function->PrintName(out);
           PrintF(out, ", height=%u}", height);
-          break;
-        }
-
-        case Translation::SETTER_STUB_FRAME: {
-          int function_id = iterator.Next();
-          JSFunction* function =
-              JSFunction::cast(LiteralArray()->get(function_id));
-          PrintF(out, "{function=");
-          function->PrintName(out);
-          PrintF(out, "}");
           break;
         }
 
@@ -9130,7 +9119,6 @@ MaybeObject* JSObject::GetElementWithCallback(Object* receiver,
     Handle<AccessorInfo> data(AccessorInfo::cast(structure));
     Object* fun_obj = data->getter();
     v8::AccessorGetter call_fun = v8::ToCData<v8::AccessorGetter>(fun_obj);
-    if (call_fun == NULL) return isolate->heap()->undefined_value();
     HandleScope scope(isolate);
     Handle<JSObject> self(JSObject::cast(receiver));
     Handle<JSObject> holder_handle(JSObject::cast(holder));

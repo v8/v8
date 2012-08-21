@@ -267,6 +267,7 @@ TEST(Parser) {
   CHECK_PARSE_EQ("\\u003z", "'u003z'");
   CHECK_PARSE_EQ("foo[z]*", "(: 'foo' (# 0 - g [z]))");
 
+  CHECK_SIMPLE("", false);
   CHECK_SIMPLE("a", true);
   CHECK_SIMPLE("a|b", false);
   CHECK_SIMPLE("a\\n", false);
@@ -1349,7 +1350,7 @@ TEST(MacroAssembler) {
   V8::Initialize(NULL);
   byte codes[1024];
   RegExpMacroAssemblerIrregexp m(Vector<byte>(codes, 1024),
-                                 Isolate::Current()->zone());
+                                 Isolate::Current()->runtime_zone());
   // ^f(o)o.
   Label fail, fail2, start;
   uc16 foo_chars[3];

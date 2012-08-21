@@ -808,7 +808,7 @@ class MaybeObject BASE_EMBEDDED {
   V(FixedArray)                                \
   V(FixedDoubleArray)                          \
   V(Context)                                   \
-  V(NativeContext)                             \
+  V(GlobalContext)                             \
   V(ModuleContext)                             \
   V(ScopeInfo)                                 \
   V(JSFunction)                                \
@@ -905,8 +905,8 @@ class Object : public MaybeObject {
   Object* ToBoolean();                                 // ECMA-262 9.2.
 
   // Convert to a JSObject if needed.
-  // native_context is used when creating wrapper object.
-  MUST_USE_RESULT MaybeObject* ToObject(Context* native_context);
+  // global_context is used when creating wrapper object.
+  MUST_USE_RESULT MaybeObject* ToObject(Context* global_context);
 
   // Converts this to a Smi if possible.
   // Failure is returned otherwise.
@@ -5321,14 +5321,14 @@ class SharedFunctionInfo: public HeapObject {
   // [code]: Function code.
   DECL_ACCESSORS(code, Code)
 
-  // [optimized_code_map]: Map from native context to optimized code
+  // [optimized_code_map]: Map from global context to optimized code
   // and a shared literals array or Smi 0 if none.
   DECL_ACCESSORS(optimized_code_map, Object)
 
   // Returns index i of the entry with the specified context. At position
   // i - 1 is the context, position i the code, and i + 1 the literals array.
   // Returns -1 when no matching entry is found.
-  int SearchOptimizedCodeMap(Context* native_context);
+  int SearchOptimizedCodeMap(Context* global_context);
 
   // Installs optimized code from the code map on the given closure. The
   // index has to be consistent with a search result as defined above.
@@ -5339,7 +5339,7 @@ class SharedFunctionInfo: public HeapObject {
 
   // Add a new entry to the optimized code map.
   static void AddToOptimizedCodeMap(Handle<SharedFunctionInfo> shared,
-                                    Handle<Context> native_context,
+                                    Handle<Context> global_context,
                                     Handle<Code> code,
                                     Handle<FixedArray> literals);
   static const int kEntryLength = 3;
@@ -6122,8 +6122,8 @@ class JSFunction: public JSObject {
   // Returns the number of allocated literals.
   inline int NumberOfLiterals();
 
-  // Retrieve the native context from a function's literal array.
-  static Context* NativeContextFromLiterals(FixedArray* literals);
+  // Retrieve the global context from a function's literal array.
+  static Context* GlobalContextFromLiterals(FixedArray* literals);
 
   // Layout descriptors. The last property (from kNonWeakFieldsEndOffset to
   // kSize) is weak and has special handling during garbage collection.
@@ -6140,7 +6140,7 @@ class JSFunction: public JSObject {
 
   // Layout of the literals array.
   static const int kLiteralsPrefixSize = 1;
-  static const int kLiteralNativeContextIndex = 0;
+  static const int kLiteralGlobalContextIndex = 0;
 
   // Layout of the bound-function binding array.
   static const int kBoundFunctionIndex = 0;
@@ -6162,9 +6162,9 @@ class JSFunction: public JSObject {
 
 class JSGlobalProxy : public JSObject {
  public:
-  // [native_context]: the owner native context of this global proxy object.
+  // [context]: the owner global context of this global proxy object.
   // It is null value if this object is not used by any context.
-  DECL_ACCESSORS(native_context, Object)
+  DECL_ACCESSORS(context, Object)
 
   // Casting.
   static inline JSGlobalProxy* cast(Object* obj);
@@ -6181,8 +6181,8 @@ class JSGlobalProxy : public JSObject {
 #endif
 
   // Layout description.
-  static const int kNativeContextOffset = JSObject::kHeaderSize;
-  static const int kSize = kNativeContextOffset + kPointerSize;
+  static const int kContextOffset = JSObject::kHeaderSize;
+  static const int kSize = kContextOffset + kPointerSize;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSGlobalProxy);
@@ -6199,8 +6199,8 @@ class GlobalObject: public JSObject {
   // [builtins]: the object holding the runtime routines written in JS.
   DECL_ACCESSORS(builtins, JSBuiltinsObject)
 
-  // [native context]: the natives corresponding to this global object.
-  DECL_ACCESSORS(native_context, Context)
+  // [global context]: the global context corresponding to this global object.
+  DECL_ACCESSORS(global_context, Context)
 
   // [global receiver]: the global receiver object of the context
   DECL_ACCESSORS(global_receiver, JSObject)
@@ -6230,8 +6230,8 @@ class GlobalObject: public JSObject {
 
   // Layout description.
   static const int kBuiltinsOffset = JSObject::kHeaderSize;
-  static const int kNativeContextOffset = kBuiltinsOffset + kPointerSize;
-  static const int kGlobalReceiverOffset = kNativeContextOffset + kPointerSize;
+  static const int kGlobalContextOffset = kBuiltinsOffset + kPointerSize;
+  static const int kGlobalReceiverOffset = kGlobalContextOffset + kPointerSize;
   static const int kHeaderSize = kGlobalReceiverOffset + kPointerSize;
 
  private:

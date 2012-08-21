@@ -381,9 +381,7 @@ void LCodeGen::WriteTranslation(LEnvironment* environment,
       translation->BeginConstructStubFrame(closure_id, translation_size);
       break;
     case JS_SETTER:
-      ASSERT(translation_size == 2);
-      ASSERT(height == 0);
-      translation->BeginSetterStubFrame(closure_id);
+      // TODO(svenpanne) Implement me!
       break;
     case ARGUMENTS_ADAPTOR:
       translation->BeginArgumentsAdaptorFrame(closure_id, translation_size);
@@ -2850,7 +2848,7 @@ void LCodeGen::DoWrapReceiver(LWrapReceiver* instr) {
   // TODO(kmillikin): We have a hydrogen value for the global object.  See
   // if it's better to use it than to explicitly fetch it from the context
   // here.
-  __ movq(receiver, ContextOperand(rsi, Context::GLOBAL_OBJECT_INDEX));
+  __ movq(receiver, ContextOperand(rsi, Context::GLOBAL_INDEX));
   __ movq(receiver,
           FieldOperand(receiver, JSGlobalObject::kGlobalReceiverOffset));
   __ bind(&receiver_ok);
@@ -3326,11 +3324,11 @@ void LCodeGen::DoRandom(LRandom* instr) {
   STATIC_ASSERT(kPointerSize == 2 * kSeedSize);
 
   __ movq(global_object,
-          FieldOperand(global_object, GlobalObject::kNativeContextOffset));
+          FieldOperand(global_object, GlobalObject::kGlobalContextOffset));
   static const int kRandomSeedOffset =
       FixedArray::kHeaderSize + Context::RANDOM_SEED_INDEX * kPointerSize;
   __ movq(rbx, FieldOperand(global_object, kRandomSeedOffset));
-  // rbx: FixedArray of the native context's random seeds
+  // rbx: FixedArray of the global context's random seeds
 
   // Load state[0].
   __ movl(rax, FieldOperand(rbx, ByteArray::kHeaderSize));

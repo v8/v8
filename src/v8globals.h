@@ -94,7 +94,6 @@ const uint32_t kDebugZapValue = 0xbadbaddb;
 const uint32_t kFreeListZapValue = 0xfeed1eaf;
 #endif
 
-const int kCodeZapValue = 0xbadc0de;
 
 // Number of bits to represent the page size for paged spaces. The value of 20
 // gives 1Mb bytes per page.

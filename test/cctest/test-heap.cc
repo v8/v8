@@ -4,7 +4,6 @@
 
 #include "v8.h"
 
-#include "compilation-cache.h"
 #include "execution.h"
 #include "factory.h"
 #include "macro-assembler.h"
@@ -158,8 +157,7 @@ TEST(HeapObjects) {
 
   String* object_symbol = String::cast(HEAP->Object_symbol());
   CHECK(
-      Isolate::Current()->context()->global_object()->HasLocalProperty(
-          object_symbol));
+      Isolate::Current()->context()->global()->HasLocalProperty(object_symbol));
 
   // Check ToString for oddballs
   CheckOddball(HEAP->true_value(), "true");
@@ -215,7 +213,7 @@ TEST(GarbageCollection) {
     Handle<Map> initial_map =
         FACTORY->NewMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
     function->set_initial_map(*initial_map);
-    Isolate::Current()->context()->global_object()->SetProperty(
+    Isolate::Current()->context()->global()->SetProperty(
         *name, *function, NONE, kNonStrictMode)->ToObjectChecked();
     // Allocate an object.  Unrooted after leaving the scope.
     Handle<JSObject> obj = FACTORY->NewJSObject(function);
@@ -231,10 +229,9 @@ TEST(GarbageCollection) {
   HEAP->CollectGarbage(NEW_SPACE);
 
   // Function should be alive.
-  CHECK(Isolate::Current()->context()->global_object()->
-        HasLocalProperty(*name));
+  CHECK(Isolate::Current()->context()->global()->HasLocalProperty(*name));
   // Check function is retained.
-  Object* func_value = Isolate::Current()->context()->global_object()->
+  Object* func_value = Isolate::Current()->context()->global()->
       GetProperty(*name)->ToObjectChecked();
   CHECK(func_value->IsJSFunction());
   Handle<JSFunction> function(JSFunction::cast(func_value));
@@ -243,7 +240,7 @@ TEST(GarbageCollection) {
     HandleScope inner_scope;
     // Allocate another object, make it reachable from global.
     Handle<JSObject> obj = FACTORY->NewJSObject(function);
-    Isolate::Current()->context()->global_object()->SetProperty(
+    Isolate::Current()->context()->global()->SetProperty(
         *obj_name, *obj, NONE, kNonStrictMode)->ToObjectChecked();
     obj->SetProperty(
         *prop_name, Smi::FromInt(23), NONE, kNonStrictMode)->ToObjectChecked();
@@ -252,11 +249,10 @@ TEST(GarbageCollection) {
   // After gc, it should survive.
   HEAP->CollectGarbage(NEW_SPACE);
 
-  CHECK(Isolate::Current()->context()->global_object()->
-        HasLocalProperty(*obj_name));
-  CHECK(Isolate::Current()->context()->global_object()->
+  CHECK(Isolate::Current()->context()->global()->HasLocalProperty(*obj_name));
+  CHECK(Isolate::Current()->context()->global()->
         GetProperty(*obj_name)->ToObjectChecked()->IsJSObject());
-  Object* obj = Isolate::Current()->context()->global_object()->
+  Object* obj = Isolate::Current()->context()->global()->
       GetProperty(*obj_name)->ToObjectChecked();
   JSObject* js_obj = JSObject::cast(obj);
   CHECK_EQ(Smi::FromInt(23), js_obj->GetProperty(*prop_name));
@@ -567,7 +563,7 @@ TEST(ObjectProperties) {
 
   v8::HandleScope sc;
   String* object_symbol = String::cast(HEAP->Object_symbol());
-  Object* raw_object = Isolate::Current()->context()->global_object()->
+  Object* raw_object = Isolate::Current()->context()->global()->
       GetProperty(object_symbol)->ToObjectChecked();
   JSFunction* object_function = JSFunction::cast(raw_object);
   Handle<JSFunction> constructor(object_function);
@@ -664,7 +660,7 @@ TEST(JSArray) {
 
   v8::HandleScope sc;
   Handle<String> name = FACTORY->LookupAsciiSymbol("Array");
-  Object* raw_object = Isolate::Current()->context()->global_object()->
+  Object* raw_object = Isolate::Current()->context()->global()->
       GetProperty(*name)->ToObjectChecked();
   Handle<JSFunction> function = Handle<JSFunction>(
       JSFunction::cast(raw_object));
@@ -711,7 +707,7 @@ TEST(JSObjectCopy) {
 
   v8::HandleScope sc;
   String* object_symbol = String::cast(HEAP->Object_symbol());
-  Object* raw_object = Isolate::Current()->context()->global_object()->
+  Object* raw_object = Isolate::Current()->context()->global()->
       GetProperty(object_symbol)->ToObjectChecked();
   JSFunction* object_function = JSFunction::cast(raw_object);
   Handle<JSFunction> constructor(object_function);
@@ -880,7 +876,7 @@ TEST(Regression39128) {
 
   // Step 1: prepare a map for the object.  We add 1 inobject property to it.
   Handle<JSFunction> object_ctor(
-      Isolate::Current()->native_context()->object_function());
+      Isolate::Current()->global_context()->object_function());
   CHECK(object_ctor->has_initial_map());
   Handle<Map> object_map(object_ctor->initial_map());
   // Create a map with single inobject property.
@@ -960,7 +956,7 @@ TEST(TestCodeFlushing) {
   }
 
   // Check function is compiled.
-  Object* func_value = Isolate::Current()->context()->global_object()->
+  Object* func_value = Isolate::Current()->context()->global()->
       GetProperty(*foo_name)->ToObjectChecked();
   CHECK(func_value->IsJSFunction());
   Handle<JSFunction> function(JSFunction::cast(func_value));
@@ -989,10 +985,10 @@ TEST(TestCodeFlushing) {
 }
 
 
-// Count the number of native contexts in the weak list of native contexts.
-int CountNativeContexts() {
+// Count the number of global contexts in the weak list of global contexts.
+int CountGlobalContexts() {
   int count = 0;
-  Object* object = HEAP->native_contexts_list();
+  Object* object = HEAP->global_contexts_list();
   while (!object->IsUndefined()) {
     count++;
     object = Context::cast(object)->get(Context::NEXT_CONTEXT_LINK);
@@ -1002,7 +998,7 @@ int CountNativeContexts() {
 
 
 // Count the number of user functions in the weak list of optimized
-// functions attached to a native context.
+// functions attached to a global context.
 static int CountOptimizedUserFunctions(v8::Handle<v8::Context> context) {
   int count = 0;
   Handle<Context> icontext = v8::Utils::OpenHandle(*context);
@@ -1023,7 +1019,7 @@ TEST(TestInternalWeakLists) {
   v8::HandleScope scope;
   v8::Persistent<v8::Context> ctx[kNumTestContexts];
 
-  CHECK_EQ(0, CountNativeContexts());
+  CHECK_EQ(0, CountGlobalContexts());
 
   // Create a number of global contests which gets linked together.
   for (int i = 0; i < kNumTestContexts; i++) {
@@ -1031,7 +1027,7 @@ TEST(TestInternalWeakLists) {
 
     bool opt = (FLAG_always_opt && i::V8::UseCrankshaft());
 
-    CHECK_EQ(i + 1, CountNativeContexts());
+    CHECK_EQ(i + 1, CountGlobalContexts());
 
     ctx[i]->Enter();
 
@@ -1066,7 +1062,6 @@ TEST(TestInternalWeakLists) {
     }
 
     // Mark compact handles the weak references.
-    ISOLATE->compilation_cache()->Clear();
     HEAP->CollectAllGarbage(Heap::kNoGCFlags);
     CHECK_EQ(opt ? 4 : 0, CountOptimizedUserFunctions(ctx[i]));
 
@@ -1092,7 +1087,7 @@ TEST(TestInternalWeakLists) {
   // Force compilation cache cleanup.
   HEAP->CollectAllGarbage(Heap::kNoGCFlags);
 
-  // Dispose the native contexts one by one.
+  // Dispose the global contexts one by one.
   for (int i = 0; i < kNumTestContexts; i++) {
     ctx[i].Dispose();
     ctx[i].Clear();
@@ -1100,23 +1095,23 @@ TEST(TestInternalWeakLists) {
     // Scavenge treats these references as strong.
     for (int j = 0; j < 10; j++) {
       HEAP->PerformScavenge();
-      CHECK_EQ(kNumTestContexts - i, CountNativeContexts());
+      CHECK_EQ(kNumTestContexts - i, CountGlobalContexts());
     }
 
     // Mark compact handles the weak references.
     HEAP->CollectAllGarbage(Heap::kNoGCFlags);
-    CHECK_EQ(kNumTestContexts - i - 1, CountNativeContexts());
+    CHECK_EQ(kNumTestContexts - i - 1, CountGlobalContexts());
   }
 
-  CHECK_EQ(0, CountNativeContexts());
+  CHECK_EQ(0, CountGlobalContexts());
 }
 
 
-// Count the number of native contexts in the weak list of native contexts
+// Count the number of global contexts in the weak list of global contexts
 // causing a GC after the specified number of elements.
-static int CountNativeContextsWithGC(int n) {
+static int CountGlobalContextsWithGC(int n) {
   int count = 0;
-  Handle<Object> object(HEAP->native_contexts_list());
+  Handle<Object> object(HEAP->global_contexts_list());
   while (!object->IsUndefined()) {
     count++;
     if (count == n) HEAP->CollectAllGarbage(Heap::kNoGCFlags);
@@ -1128,7 +1123,7 @@ static int CountNativeContextsWithGC(int n) {
 
 
 // Count the number of user functions in the weak list of optimized
-// functions attached to a native context causing a GC after the
+// functions attached to a global context causing a GC after the
 // specified number of elements.
 static int CountOptimizedUserFunctionsWithGC(v8::Handle<v8::Context> context,
                                              int n) {
@@ -1154,14 +1149,14 @@ TEST(TestInternalWeakListsTraverseWithGC) {
   v8::HandleScope scope;
   v8::Persistent<v8::Context> ctx[kNumTestContexts];
 
-  CHECK_EQ(0, CountNativeContexts());
+  CHECK_EQ(0, CountGlobalContexts());
 
   // Create an number of contexts and check the length of the weak list both
   // with and without GCs while iterating the list.
   for (int i = 0; i < kNumTestContexts; i++) {
     ctx[i] = v8::Context::New();
-    CHECK_EQ(i + 1, CountNativeContexts());
-    CHECK_EQ(i + 1, CountNativeContextsWithGC(i / 2 + 1));
+    CHECK_EQ(i + 1, CountGlobalContexts());
+    CHECK_EQ(i + 1, CountGlobalContextsWithGC(i / 2 + 1));
   }
 
   bool opt = (FLAG_always_opt && i::V8::UseCrankshaft());
@@ -1371,7 +1366,7 @@ static int NumberOfGlobalObjects() {
 
 // Test that we don't embed maps from foreign contexts into
 // optimized code.
-TEST(LeakNativeContextViaMap) {
+TEST(LeakGlobalContextViaMap) {
   i::FLAG_allow_natives_syntax = true;
   v8::HandleScope outer_scope;
   v8::Persistent<v8::Context> ctx1 = v8::Context::New();
@@ -1397,7 +1392,6 @@ TEST(LeakNativeContextViaMap) {
     ctx2->Exit();
     ctx1->Exit();
     ctx1.Dispose();
-    v8::V8::ContextDisposedNotification();
   }
   HEAP->CollectAllAvailableGarbage();
   CHECK_EQ(2, NumberOfGlobalObjects());
@@ -1409,7 +1403,7 @@ TEST(LeakNativeContextViaMap) {
 
 // Test that we don't embed functions from foreign contexts into
 // optimized code.
-TEST(LeakNativeContextViaFunction) {
+TEST(LeakGlobalContextViaFunction) {
   i::FLAG_allow_natives_syntax = true;
   v8::HandleScope outer_scope;
   v8::Persistent<v8::Context> ctx1 = v8::Context::New();
@@ -1435,7 +1429,6 @@ TEST(LeakNativeContextViaFunction) {
     ctx2->Exit();
     ctx1->Exit();
     ctx1.Dispose();
-    v8::V8::ContextDisposedNotification();
   }
   HEAP->CollectAllAvailableGarbage();
   CHECK_EQ(2, NumberOfGlobalObjects());
@@ -1445,7 +1438,7 @@ TEST(LeakNativeContextViaFunction) {
 }
 
 
-TEST(LeakNativeContextViaMapKeyed) {
+TEST(LeakGlobalContextViaMapKeyed) {
   i::FLAG_allow_natives_syntax = true;
   v8::HandleScope outer_scope;
   v8::Persistent<v8::Context> ctx1 = v8::Context::New();
@@ -1471,7 +1464,6 @@ TEST(LeakNativeContextViaMapKeyed) {
     ctx2->Exit();
     ctx1->Exit();
     ctx1.Dispose();
-    v8::V8::ContextDisposedNotification();
   }
   HEAP->CollectAllAvailableGarbage();
   CHECK_EQ(2, NumberOfGlobalObjects());
@@ -1481,7 +1473,7 @@ TEST(LeakNativeContextViaMapKeyed) {
 }
 
 
-TEST(LeakNativeContextViaMapProto) {
+TEST(LeakGlobalContextViaMapProto) {
   i::FLAG_allow_natives_syntax = true;
   v8::HandleScope outer_scope;
   v8::Persistent<v8::Context> ctx1 = v8::Context::New();
@@ -1511,7 +1503,6 @@ TEST(LeakNativeContextViaMapProto) {
     ctx2->Exit();
     ctx1->Exit();
     ctx1.Dispose();
-    v8::V8::ContextDisposedNotification();
   }
   HEAP->CollectAllAvailableGarbage();
   CHECK_EQ(2, NumberOfGlobalObjects());
@@ -2049,7 +2040,7 @@ TEST(IncrementalMarkingClearsTypeFeedbackCells) {
   }
 
   // Prepare function f that contains type feedback for closures
-  // originating from two different native contexts.
+  // originating from two different global contexts.
   v8::Context::GetCurrent()->Global()->Set(v8_str("fun1"), fun1);
   v8::Context::GetCurrent()->Global()->Set(v8_str("fun2"), fun2);
   CompileRun("function f(a, b) { a(); b(); } f(fun1, fun2);");
@@ -2095,7 +2086,7 @@ TEST(IncrementalMarkingPreservesMonomorhpicIC) {
   v8::HandleScope scope;
 
   // Prepare function f that contains a monomorphic IC for object
-  // originating from the same native context.
+  // originating from the same global context.
   CompileRun("function fun() { this.x = 1; }; var obj = new fun();"
              "function f(o) { return o.x; } f(obj); f(obj);");
   Handle<JSFunction> f =
@@ -2106,6 +2097,8 @@ TEST(IncrementalMarkingPreservesMonomorhpicIC) {
   Code* ic_before = FindFirstIC(f->shared()->code(), Code::LOAD_IC);
   CHECK(ic_before->ic_state() == MONOMORPHIC);
 
+  // Fire context dispose notification.
+  v8::V8::ContextDisposedNotification();
   SimulateIncrementalMarking();
   HEAP->CollectAllGarbage(Heap::kNoGCFlags);
 
@@ -2127,7 +2120,7 @@ TEST(IncrementalMarkingClearsMonomorhpicIC) {
   }
 
   // Prepare function f that contains a monomorphic IC for object
-  // originating from a different native context.
+  // originating from a different global context.
   v8::Context::GetCurrent()->Global()->Set(v8_str("obj1"), obj1);
   CompileRun("function f(o) { return o.x; } f(obj1); f(obj1);");
   Handle<JSFunction> f =
@@ -2167,7 +2160,7 @@ TEST(IncrementalMarkingClearsPolymorhpicIC) {
   }
 
   // Prepare function f that contains a polymorphic IC for objects
-  // originating from two different native contexts.
+  // originating from two different global contexts.
   v8::Context::GetCurrent()->Global()->Set(v8_str("obj1"), obj1);
   v8::Context::GetCurrent()->Global()->Set(v8_str("obj2"), obj2);
   CompileRun("function f(o) { return o.x; } f(obj1); f(obj1); f(obj2);");

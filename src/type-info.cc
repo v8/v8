@@ -60,10 +60,10 @@ TypeInfo TypeInfo::TypeFromValue(Handle<Object> value) {
 
 
 TypeFeedbackOracle::TypeFeedbackOracle(Handle<Code> code,
-                                       Handle<Context> native_context,
+                                       Handle<Context> global_context,
                                        Isolate* isolate,
                                        Zone* zone) {
-  native_context_ = native_context;
+  global_context_ = global_context;
   isolate_ = isolate;
   zone_ = zone;
   BuildDictionary(code);
@@ -105,7 +105,7 @@ bool TypeFeedbackOracle::LoadIsMonomorphicNormal(Property* expr) {
         Code::ExtractTypeFromFlags(code->flags()) == Code::NORMAL;
     if (!preliminary_checks) return false;
     Map* map = code->FindFirstMap();
-    return map != NULL && !CanRetainOtherContext(map, *native_context_);
+    return map != NULL && !CanRetainOtherContext(map, *global_context_);
   }
   return false;
 }
@@ -139,7 +139,7 @@ bool TypeFeedbackOracle::StoreIsMonomorphicNormal(TypeFeedbackId ast_id) {
         Code::ExtractTypeFromFlags(code->flags()) == Code::NORMAL;
     if (!preliminary_checks) return false;
     Map* map = code->FindFirstMap();
-    return map != NULL && !CanRetainOtherContext(map, *native_context_);
+    return map != NULL && !CanRetainOtherContext(map, *global_context_);
   }
   return false;
 }
@@ -196,7 +196,7 @@ Handle<Map> TypeFeedbackOracle::LoadMonomorphicReceiverType(Property* expr) {
     Handle<Code> code = Handle<Code>::cast(map_or_code);
     Map* first_map = code->FindFirstMap();
     ASSERT(first_map != NULL);
-    return CanRetainOtherContext(first_map, *native_context_)
+    return CanRetainOtherContext(first_map, *global_context_)
         ? Handle<Map>::null()
         : Handle<Map>(first_map);
   }
@@ -212,7 +212,7 @@ Handle<Map> TypeFeedbackOracle::StoreMonomorphicReceiverType(
     Handle<Code> code = Handle<Code>::cast(map_or_code);
     Map* first_map = code->FindFirstMap();
     ASSERT(first_map != NULL);
-    return CanRetainOtherContext(first_map, *native_context_)
+    return CanRetainOtherContext(first_map, *global_context_)
         ? Handle<Map>::null()
         : Handle<Map>(first_map);
   }
@@ -275,13 +275,13 @@ Handle<JSObject> TypeFeedbackOracle::GetPrototypeForPrimitiveCheck(
       UNREACHABLE();
       break;
     case STRING_CHECK:
-      function = native_context_->string_function();
+      function = global_context_->string_function();
       break;
     case NUMBER_CHECK:
-      function = native_context_->number_function();
+      function = global_context_->number_function();
       break;
     case BOOLEAN_CHECK:
-      function = native_context_->boolean_function();
+      function = global_context_->boolean_function();
       break;
   }
   ASSERT(function != NULL);
@@ -363,7 +363,7 @@ Handle<Map> TypeFeedbackOracle::GetCompareMap(CompareOperation* expr) {
   }
   Map* first_map = code->FindFirstMap();
   ASSERT(first_map != NULL);
-  return CanRetainOtherContext(first_map, *native_context_)
+  return CanRetainOtherContext(first_map, *global_context_)
       ? Handle<Map>::null()
       : Handle<Map>(first_map);
 }
@@ -522,27 +522,27 @@ void TypeFeedbackOracle::CollectReceiverTypes(TypeFeedbackId ast_id,
     isolate_->stub_cache()->CollectMatchingMaps(types,
                                                 *name,
                                                 flags,
-                                                native_context_,
+                                                global_context_,
                                                 zone());
   }
 }
 
 
-// Check if a map originates from a given native context. We use this
+// Check if a map originates from a given global context. We use this
 // information to filter out maps from different context to avoid
 // retaining objects from different tabs in Chrome via optimized code.
 bool TypeFeedbackOracle::CanRetainOtherContext(Map* map,
-                                               Context* native_context) {
+                                               Context* global_context) {
   Object* constructor = NULL;
   while (!map->prototype()->IsNull()) {
     constructor = map->constructor();
     if (!constructor->IsNull()) {
       // If the constructor is not null or a JSFunction, we have to
-      // conservatively assume that it may retain a native context.
+      // conservatively assume that it may retain a global context.
       if (!constructor->IsJSFunction()) return true;
       // Check if the constructor directly references a foreign context.
       if (CanRetainOtherContext(JSFunction::cast(constructor),
-                                native_context)) {
+                                global_context)) {
         return true;
       }
     }
@@ -551,14 +551,14 @@ bool TypeFeedbackOracle::CanRetainOtherContext(Map* map,
   constructor = map->constructor();
   if (constructor->IsNull()) return false;
   JSFunction* function = JSFunction::cast(constructor);
-  return CanRetainOtherContext(function, native_context);
+  return CanRetainOtherContext(function, global_context);
 }
 
 
 bool TypeFeedbackOracle::CanRetainOtherContext(JSFunction* function,
-                                               Context* native_context) {
-  return function->context()->global_object() != native_context->global_object()
-      && function->context()->global_object() != native_context->builtins();
+                                               Context* global_context) {
+  return function->context()->global() != global_context->global()
+      && function->context()->global() != global_context->builtins();
 }
 
 
@@ -585,7 +585,7 @@ void TypeFeedbackOracle::CollectKeyedReceiverTypes(TypeFeedbackId ast_id,
       Object* object = info->target_object();
       if (object->IsMap()) {
         Map* map = Map::cast(object);
-        if (!CanRetainOtherContext(map, *native_context_)) {
+        if (!CanRetainOtherContext(map, *global_context_)) {
           AddMapIfMissing(Handle<Map>(map), types, zone());
         }
       }
@@ -672,7 +672,7 @@ void TypeFeedbackOracle::ProcessRelocInfos(ZoneList<RelocInfo>* infos) {
             if (map == NULL) {
               SetInfo(ast_id, static_cast<Object*>(target));
             } else if (!CanRetainOtherContext(Map::cast(map),
-                                              *native_context_)) {
+                                              *global_context_)) {
               SetInfo(ast_id, map);
             }
           }
@@ -714,7 +714,7 @@ void TypeFeedbackOracle::ProcessTypeFeedbackCells(Handle<Code> code) {
     if (value->IsSmi() ||
         (value->IsJSFunction() &&
          !CanRetainOtherContext(JSFunction::cast(value),
-                                *native_context_))) {
+                                *global_context_))) {
       SetInfo(ast_id, value);
     }
   }

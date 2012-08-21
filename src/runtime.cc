@@ -303,7 +303,7 @@ static Handle<Map> ComputeObjectLiteralMap(
     }
   }
   // If we only have symbols and array indices among keys then we can
-  // use the map cache in the native context.
+  // use the map cache in the global context.
   const int kMaxKeys = 10;
   if ((number_of_symbol_keys == number_of_properties) &&
       (number_of_symbol_keys < kMaxKeys)) {
@@ -342,14 +342,14 @@ static Handle<Object> CreateObjectLiteralBoilerplate(
     Handle<FixedArray> constant_properties,
     bool should_have_fast_elements,
     bool has_function_literal) {
-  // Get the native context from the literals array.  This is the
+  // Get the global context from the literals array.  This is the
   // context in which the function was created and we use the object
   // function from this context to create the object literal.  We do
-  // not use the object function from the current native context
+  // not use the object function from the current global context
   // because this might be the object function from another context
   // which we should not have access to.
   Handle<Context> context =
-      Handle<Context>(JSFunction::NativeContextFromLiterals(*literals));
+      Handle<Context>(JSFunction::GlobalContextFromLiterals(*literals));
 
   // In case we have function literals, we want the object to be in
   // slow properties mode for now. We don't go in the map cache because
@@ -464,7 +464,7 @@ Handle<Object> Runtime::CreateArrayLiteralBoilerplate(
     Handle<FixedArray> elements) {
   // Create the JSArray.
   Handle<JSFunction> constructor(
-      JSFunction::NativeContextFromLiterals(*literals)->array_function());
+      JSFunction::GlobalContextFromLiterals(*literals)->array_function());
   Handle<JSArray> object =
       Handle<JSArray>::cast(isolate->factory()->NewJSObject(constructor));
 
@@ -474,8 +474,8 @@ Handle<Object> Runtime::CreateArrayLiteralBoilerplate(
       FixedArrayBase::cast(elements->get(1)));
 
   ASSERT(IsFastElementsKind(constant_elements_kind));
-  Context* native_context = isolate->context()->native_context();
-  Object* maybe_maps_array = native_context->js_array_maps();
+  Context* global_context = isolate->context()->global_context();
+  Object* maybe_maps_array = global_context->js_array_maps();
   ASSERT(!maybe_maps_array->IsUndefined());
   Object* maybe_map = FixedArray::cast(maybe_maps_array)->get(
       constant_elements_kind);
@@ -1338,7 +1338,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DeclareGlobals) {
   ASSERT(args.length() == 3);
   HandleScope scope(isolate);
   Handle<GlobalObject> global = Handle<GlobalObject>(
-      isolate->context()->global_object());
+      isolate->context()->global());
 
   Handle<Context> context = args.at<Context>(0);
   CONVERT_ARG_HANDLE_CHECKED(FixedArray, pairs, 1);
@@ -1446,7 +1446,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DeclareContextSlot) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 4);
 
-  // Declarations are always made in a function or native context.  In the
+  // Declarations are always made in a function or global context.  In the
   // case of eval code, the context passed is the context of the caller,
   // which may be some nested context and not the declaration context.
   RUNTIME_ASSERT(args[0]->IsContext());
@@ -1485,7 +1485,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DeclareContextSlot) {
         }
       } else {
         // Slow case: The property is in the context extension object of a
-        // function context or the global object of a native context.
+        // function context or the global object of a global context.
         Handle<JSObject> object = Handle<JSObject>::cast(holder);
         RETURN_IF_EMPTY_HANDLE(
             isolate,
@@ -1556,7 +1556,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_InitializeVarGlobal) {
   bool assign = args.length() == 3;
 
   CONVERT_ARG_HANDLE_CHECKED(String, name, 0);
-  GlobalObject* global = isolate->context()->global_object();
+  GlobalObject* global = isolate->context()->global();
   RUNTIME_ASSERT(args[1]->IsSmi());
   CONVERT_LANGUAGE_MODE_ARG(language_mode, 1);
   StrictModeFlag strict_mode_flag = (language_mode == CLASSIC_MODE)
@@ -1599,7 +1599,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_InitializeVarGlobal) {
   }
 
   // Reload global in case the loop above performed a GC.
-  global = isolate->context()->global_object();
+  global = isolate->context()->global();
   if (assign) {
     return global->SetProperty(*name, args[2], attributes, strict_mode_flag);
   }
@@ -1616,7 +1616,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_InitializeConstGlobal) {
   Handle<Object> value = args.at<Object>(1);
 
   // Get the current global object from top.
-  GlobalObject* global = isolate->context()->global_object();
+  GlobalObject* global = isolate->context()->global();
 
   // According to ECMA-262, section 12.2, page 62, the property must
   // not be deletable. Since it's a const, it must be READ_ONLY too.
@@ -1640,7 +1640,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_InitializeConstGlobal) {
     // Restore global object from context (in case of GC) and continue
     // with setting the value.
     HandleScope handle_scope(isolate);
-    Handle<GlobalObject> global(isolate->context()->global_object());
+    Handle<GlobalObject> global(isolate->context()->global());
 
     // BUG 1213575: Handle the case where we have to set a read-only
     // property through an interceptor and only do it if it's
@@ -1686,7 +1686,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_InitializeConstContextSlot) {
   Handle<Object> value(args[0], isolate);
   ASSERT(!value->IsTheHole());
 
-  // Initializations are always done in a function or native context.
+  // Initializations are always done in a function or global context.
   RUNTIME_ASSERT(args[1]->IsContext());
   Handle<Context> context(Context::cast(args[1])->declaration_context());
 
@@ -1714,7 +1714,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_InitializeConstContextSlot) {
   // global object.
   if (attributes == ABSENT) {
     Handle<JSObject> global = Handle<JSObject>(
-        isolate->context()->global_object());
+        isolate->context()->global());
     // Strict mode not needed (const disallowed in strict mode).
     RETURN_IF_EMPTY_HANDLE(
         isolate,
@@ -1835,7 +1835,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_RegExpConstructResult) {
     AssertNoAllocation no_gc;
     HandleScope scope(isolate);
     reinterpret_cast<HeapObject*>(new_object)->
-        set_map(isolate->native_context()->regexp_result_map());
+        set_map(isolate->global_context()->regexp_result_map());
   }
   JSArray* array = JSArray::cast(new_object);
   array->set_properties(isolate->heap()->empty_fixed_array());
@@ -1987,9 +1987,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetDefaultReceiver) {
   // Returns undefined for strict or native functions, or
   // the associated global receiver for "normal" functions.
 
-  Context* native_context =
-      function->context()->global_object()->native_context();
-  return native_context->global_object()->global_receiver();
+  Context* global_context =
+      function->context()->global()->global_context();
+  return global_context->global()->global_receiver();
 }
 
 
@@ -2004,11 +2004,11 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_MaterializeRegExpLiteral) {
   // Get the RegExp function from the context in the literals array.
   // This is the RegExp function from the context in which the
   // function was created.  We do not use the RegExp function from the
-  // current native context because this might be the RegExp function
+  // current global context because this might be the RegExp function
   // from another context which we should not have access to.
   Handle<JSFunction> constructor =
       Handle<JSFunction>(
-          JSFunction::NativeContextFromLiterals(*literals)->regexp_function());
+          JSFunction::GlobalContextFromLiterals(*literals)->regexp_function());
   // Compute the regular expression literal.
   bool has_pending_exception;
   Handle<Object> regexp =
@@ -2262,8 +2262,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetCode) {
   Handle<FixedArray> literals =
       isolate->factory()->NewFixedArray(number_of_literals, TENURED);
   if (number_of_literals > 0) {
-    literals->set(JSFunction::kLiteralNativeContextIndex,
-                  context->native_context());
+    literals->set(JSFunction::kLiteralGlobalContextIndex,
+                  context->global_context());
   }
   target->set_context(*context);
   target->set_literals(*literals);
@@ -2574,26 +2574,22 @@ class ReplacementStringBuilder {
 class CompiledReplacement {
  public:
   explicit CompiledReplacement(Zone* zone)
-      : parts_(1, zone), replacement_substrings_(0, zone),
-        simple_hint_(false),
-        zone_(zone) {}
+      : parts_(1, zone), replacement_substrings_(0, zone), zone_(zone) {}
 
-  void Compile(Handle<String> replacement,
+  // Return whether the replacement is simple.
+  bool Compile(Handle<String> replacement,
                int capture_count,
                int subject_length);
 
+  // Use Apply only if Compile returned false.
   void Apply(ReplacementStringBuilder* builder,
              int match_from,
              int match_to,
-             Handle<JSArray> last_match_info);
+             int32_t* match);
 
   // Number of distinct parts of the replacement pattern.
   int parts() {
     return parts_.length();
-  }
-
-  bool simple_hint() {
-    return simple_hint_;
   }
 
   Zone* zone() const { return zone_; }
@@ -2656,11 +2652,11 @@ class CompiledReplacement {
   };
 
   template<typename Char>
-  static bool ParseReplacementPattern(ZoneList<ReplacementPart>* parts,
-                                      Vector<Char> characters,
-                                      int capture_count,
-                                      int subject_length,
-                                      Zone* zone) {
+  bool ParseReplacementPattern(ZoneList<ReplacementPart>* parts,
+                               Vector<Char> characters,
+                               int capture_count,
+                               int subject_length,
+                               Zone* zone) {
     int length = characters.length();
     int last = 0;
     for (int i = 0; i < length; i++) {
@@ -2754,7 +2750,7 @@ class CompiledReplacement {
     }
     if (length > last) {
       if (last == 0) {
-        parts->Add(ReplacementPart::ReplacementString(), zone);
+        // Replacement is simple.  Do not use Apply to do the replacement.
         return true;
       } else {
         parts->Add(ReplacementPart::ReplacementSubString(last, length), zone);
@@ -2765,33 +2761,35 @@ class CompiledReplacement {
 
   ZoneList<ReplacementPart> parts_;
   ZoneList<Handle<String> > replacement_substrings_;
-  bool simple_hint_;
   Zone* zone_;
 };
 
 
-void CompiledReplacement::Compile(Handle<String> replacement,
+bool CompiledReplacement::Compile(Handle<String> replacement,
                                   int capture_count,
                                   int subject_length) {
   {
     AssertNoAllocation no_alloc;
     String::FlatContent content = replacement->GetFlatContent();
     ASSERT(content.IsFlat());
+    bool simple = false;
     if (content.IsAscii()) {
-      simple_hint_ = ParseReplacementPattern(&parts_,
-                                             content.ToAsciiVector(),
-                                             capture_count,
-                                             subject_length,
-                                             zone());
+      simple = ParseReplacementPattern(&parts_,
+                                       content.ToAsciiVector(),
+                                       capture_count,
+                                       subject_length,
+                                       zone());
     } else {
       ASSERT(content.IsTwoByte());
-      simple_hint_ = ParseReplacementPattern(&parts_,
-                                             content.ToUC16Vector(),
-                                             capture_count,
-                                             subject_length,
-                                             zone());
+      simple = ParseReplacementPattern(&parts_,
+                                       content.ToUC16Vector(),
+                                       capture_count,
+                                       subject_length,
+                                       zone());
     }
+    if (simple) return true;
   }
+
   Isolate* isolate = replacement->GetIsolate();
   // Find substrings of replacement string and create them as String objects.
   int substring_index = 0;
@@ -2811,13 +2809,15 @@ void CompiledReplacement::Compile(Handle<String> replacement,
       substring_index++;
     }
   }
+  return false;
 }
 
 
 void CompiledReplacement::Apply(ReplacementStringBuilder* builder,
                                 int match_from,
                                 int match_to,
-                                Handle<JSArray> last_match_info) {
+                                int32_t* match) {
+  ASSERT_LT(0, parts_.length());
   for (int i = 0, n = parts_.length(); i < n; i++) {
     ReplacementPart part = parts_[i];
     switch (part.tag) {
@@ -2833,9 +2833,8 @@ void CompiledReplacement::Apply(ReplacementStringBuilder* builder,
       }
       case SUBJECT_CAPTURE: {
         int capture = part.data;
-        FixedArray* match_info = FixedArray::cast(last_match_info->elements());
-        int from = RegExpImpl::GetCapture(match_info, capture * 2);
-        int to = RegExpImpl::GetCapture(match_info, capture * 2 + 1);
+        int from = match[capture * 2];
+        int to = match[capture * 2 + 1];
         if (from >= 0 && to > from) {
           builder->AddSubjectSlice(from, to);
         }
@@ -2957,85 +2956,19 @@ void FindStringIndicesDispatch(Isolate* isolate,
 }
 
 
-// Two smis before and after the match, for very long strings.
-const int kMaxBuilderEntriesPerRegExpMatch = 5;
-
-
-static void SetLastMatchInfoNoCaptures(Handle<String> subject,
-                                       Handle<JSArray> last_match_info,
-                                       int match_start,
-                                       int match_end) {
-  // Fill last_match_info with a single capture.
-  last_match_info->EnsureSize(2 + RegExpImpl::kLastMatchOverhead);
-  AssertNoAllocation no_gc;
-  FixedArray* elements = FixedArray::cast(last_match_info->elements());
-  RegExpImpl::SetLastCaptureCount(elements, 2);
-  RegExpImpl::SetLastInput(elements, *subject);
-  RegExpImpl::SetLastSubject(elements, *subject);
-  RegExpImpl::SetCapture(elements, 0, match_start);
-  RegExpImpl::SetCapture(elements, 1, match_end);
-}
-
-
-template <typename SubjectChar, typename PatternChar>
-static bool SearchStringMultiple(Isolate* isolate,
-                                 Vector<const SubjectChar> subject,
-                                 Vector<const PatternChar> pattern,
-                                 String* pattern_string,
-                                 FixedArrayBuilder* builder,
-                                 int* match_pos) {
-  int pos = *match_pos;
-  int subject_length = subject.length();
-  int pattern_length = pattern.length();
-  int max_search_start = subject_length - pattern_length;
-  StringSearch<PatternChar, SubjectChar> search(isolate, pattern);
-  while (pos <= max_search_start) {
-    if (!builder->HasCapacity(kMaxBuilderEntriesPerRegExpMatch)) {
-      *match_pos = pos;
-      return false;
-    }
-    // Position of end of previous match.
-    int match_end = pos + pattern_length;
-    int new_pos = search.Search(subject, match_end);
-    if (new_pos >= 0) {
-      // A match.
-      if (new_pos > match_end) {
-        ReplacementStringBuilder::AddSubjectSlice(builder,
-            match_end,
-            new_pos);
-      }
-      pos = new_pos;
-      builder->Add(pattern_string);
-    } else {
-      break;
-    }
-  }
-
-  if (pos < max_search_start) {
-    ReplacementStringBuilder::AddSubjectSlice(builder,
-                                              pos + pattern_length,
-                                              subject_length);
-  }
-  *match_pos = pos;
-  return true;
-}
-
-
-
-
 template<typename ResultSeqString>
 MUST_USE_RESULT static MaybeObject* StringReplaceAtomRegExpWithString(
     Isolate* isolate,
     Handle<String> subject,
     Handle<JSRegExp> pattern_regexp,
     Handle<String> replacement,
-    Handle<JSArray> last_match_info,
-    Zone* zone) {
+    Handle<JSArray> last_match_info) {
   ASSERT(subject->IsFlat());
   ASSERT(replacement->IsFlat());
 
-  ZoneScope zone_space(isolate->runtime_zone(), DELETE_ON_EXIT);
-  ZoneList<int> indices(8, isolate->runtime_zone());
+  Zone* zone = isolate->runtime_zone();
+  ZoneScope zone_space(zone, DELETE_ON_EXIT);
+  ZoneList<int> indices(8, zone);
   ASSERT_EQ(JSRegExp::ATOM, pattern_regexp->TypeTag());
   String* pattern =
       String::cast(pattern_regexp->DataAt(JSRegExp::kAtomPatternIndex));
@@ -3043,8 +2976,8 @@ MUST_USE_RESULT static MaybeObject* StringReplaceAtomRegExpWithString(
   int pattern_len = pattern->length();
   int replacement_len = replacement->length();
 
-  FindStringIndicesDispatch(isolate, *subject, pattern, &indices, 0xffffffff,
-                            zone);
+  FindStringIndicesDispatch(
+      isolate, *subject, pattern, &indices, 0xffffffff, zone);
 
   int matches = indices.length();
   if (matches == 0) return *subject;
@@ -3099,10 +3032,9 @@ MUST_USE_RESULT static MaybeObject* StringReplaceAtomRegExpWithString(
                         subject_len);
   }
 
-  SetLastMatchInfoNoCaptures(subject,
-                             last_match_info,
-                             indices.at(matches - 1),
-                             indices.at(matches - 1) + pattern_len);
+  int32_t match_indices[] = { indices.at(matches - 1),
+                            indices.at(matches - 1) + pattern_len };
+  RegExpImpl::SetLastMatchInfo(last_match_info, subject, 0, match_indices);
 
   return *result;
 }
@@ -3110,66 +3042,45 @@ MUST_USE_RESULT static MaybeObject* StringReplaceAtomRegExpWithString(
 
 MUST_USE_RESULT static MaybeObject* StringReplaceRegExpWithString(
     Isolate* isolate,
-    String* subject,
-    JSRegExp* regexp,
-    String* replacement,
-    JSArray* last_match_info,
-    Zone* zone) {
+    Handle<String> subject,
+    Handle<JSRegExp> regexp,
+    Handle<String> replacement,
+    Handle<JSArray> last_match_info) {
   ASSERT(subject->IsFlat());
   ASSERT(replacement->IsFlat());
 
-  HandleScope handles(isolate);
-
-  int length = subject->length();
-  Handle<String> subject_handle(subject);
-  Handle<JSRegExp> regexp_handle(regexp);
-  Handle<String> replacement_handle(replacement);
-  Handle<JSArray> last_match_info_handle(last_match_info);
-  Handle<Object> match = RegExpImpl::Exec(regexp_handle,
-                                          subject_handle,
-                                          0,
-                                          last_match_info_handle);
-  if (match.is_null()) {
-    return Failure::Exception();
-  }
-  if (match->IsNull()) {
-    return *subject_handle;
-  }
-
-  int capture_count = regexp_handle->CaptureCount();
+  bool is_global = regexp->GetFlags().is_global();
+  int capture_count = regexp->CaptureCount();
+  int subject_length = subject->length();
 
   // CompiledReplacement uses zone allocation.
+  Zone* zone = isolate->runtime_zone();
   ZoneScope zonescope(zone, DELETE_ON_EXIT);
   CompiledReplacement compiled_replacement(zone);
-
-  compiled_replacement.Compile(replacement_handle,
-                               capture_count,
-                               length);
-
-  bool is_global = regexp_handle->GetFlags().is_global();
+  bool simple_replace = compiled_replacement.Compile(replacement,
+                                                     capture_count,
+                                                     subject_length);
 
   // Shortcut for simple non-regexp global replacements
   if (is_global &&
-          regexp_handle->TypeTag() == JSRegExp::ATOM &&
-           compiled_replacement.simple_hint()) {
-         if (subject_handle->HasOnlyAsciiChars() &&
-             replacement_handle->HasOnlyAsciiChars()) {
+      regexp->TypeTag() == JSRegExp::ATOM &&
+      simple_replace) {
+    if (subject->HasOnlyAsciiChars()) {
       return StringReplaceAtomRegExpWithString<SeqAsciiString>(
-                 isolate,
-                 subject_handle,
-                 regexp_handle,
-                 replacement_handle,
-                 last_match_info_handle,
-                 zone);
-         } else {
+          isolate, subject, regexp, replacement, last_match_info);
+    } else {
       return StringReplaceAtomRegExpWithString<SeqTwoByteString>(
-                 isolate,
-                 subject_handle,
-                 regexp_handle,
-                 replacement_handle,
-                 last_match_info_handle,
-                 zone);
+          isolate, subject, regexp, replacement, last_match_info);
     }
+  }
+
+  RegExpImpl::GlobalCache global_cache(regexp, subject, is_global, isolate);
+  if (global_cache.HasException()) return Failure::Exception();
+
+  int32_t* current_match = global_cache.FetchNext();
+  if (current_match == NULL) {
+    if (global_cache.HasException()) return Failure::Exception();
+    return *subject;
   }
 
   // Guessing the number of parts that the final result string is built
@@ -3178,70 +3089,53 @@ MUST_USE_RESULT static MaybeObject* StringReplaceRegExpWithString(
   int expected_parts =
       (compiled_replacement.parts() + 1) * (is_global ? 4 : 1) + 1;
   ReplacementStringBuilder builder(isolate->heap(),
-                                   subject_handle,
+                                   subject,
                                    expected_parts);
-
-  // Index of end of last match.
-  int prev = 0;
-
 
   // Number of parts added by compiled replacement plus preceeding
   // string and possibly suffix after last match.  It is possible for
   // all components to use two elements when encoded as two smis.
   const int parts_added_per_loop = 2 * (compiled_replacement.parts() + 2);
-  bool matched = true;
+
+  int prev = 0;
+
   do {
-    ASSERT(last_match_info_handle->HasFastObjectElements());
-    // Increase the capacity of the builder before entering local handle-scope,
-    // so its internal buffer can safely allocate a new handle if it grows.
     builder.EnsureCapacity(parts_added_per_loop);
 
-    HandleScope loop_scope(isolate);
-    int start, end;
-    {
-      AssertNoAllocation match_info_array_is_not_in_a_handle;
-      FixedArray* match_info_array =
-          FixedArray::cast(last_match_info_handle->elements());
-
-      ASSERT_EQ(capture_count * 2 + 2,
-                RegExpImpl::GetLastCaptureCount(match_info_array));
-      start = RegExpImpl::GetCapture(match_info_array, 0);
-      end = RegExpImpl::GetCapture(match_info_array, 1);
-    }
+    int start = current_match[0];
+    int end = current_match[1];
 
     if (prev < start) {
       builder.AddSubjectSlice(prev, start);
     }
-    compiled_replacement.Apply(&builder,
-                               start,
-                               end,
-                               last_match_info_handle);
 
+    if (simple_replace) {
+      builder.AddString(replacement);
+    } else {
+      compiled_replacement.Apply(&builder,
+                                 start,
+                                 end,
+                                 current_match);
+    }
     prev = end;
 
     // Only continue checking for global regexps.
     if (!is_global) break;
 
-    // Continue from where the match ended, unless it was an empty match.
-    int next = end;
-    if (start == end) {
-      next = end + 1;
-      if (next > length) break;
-    }
+    current_match = global_cache.FetchNext();
+  } while (current_match != NULL);
 
-    match = RegExpImpl::Exec(regexp_handle,
-                             subject_handle,
-                             next,
-                             last_match_info_handle);
-    if (match.is_null()) {
-      return Failure::Exception();
-    }
-    matched = !match->IsNull();
-  } while (matched);
+  if (global_cache.HasException()) return Failure::Exception();
 
-  if (prev < length) {
-    builder.AddSubjectSlice(prev, length);
+  if (prev < subject_length) {
+    builder.EnsureCapacity(2);
+    builder.AddSubjectSlice(prev, subject_length);
   }
+
+  RegExpImpl::SetLastMatchInfo(last_match_info,
+                               subject,
+                               capture_count,
+                               global_cache.LastSuccessfulMatch());
 
   return *(builder.ToString());
 }
@@ -3250,69 +3144,51 @@ MUST_USE_RESULT static MaybeObject* StringReplaceRegExpWithString(
 template <typename ResultSeqString>
 MUST_USE_RESULT static MaybeObject* StringReplaceRegExpWithEmptyString(
     Isolate* isolate,
-    String* subject,
-    JSRegExp* regexp,
-    JSArray* last_match_info,
-    Zone* zone) {
+    Handle<String> subject,
+    Handle<JSRegExp> regexp,
+    Handle<JSArray> last_match_info) {
   ASSERT(subject->IsFlat());
 
-  HandleScope handles(isolate);
-
-  Handle<String> subject_handle(subject);
-  Handle<JSRegExp> regexp_handle(regexp);
-  Handle<JSArray> last_match_info_handle(last_match_info);
+  bool is_global = regexp->GetFlags().is_global();
 
   // Shortcut for simple non-regexp global replacements
-  if (regexp_handle->GetFlags().is_global() &&
-      regexp_handle->TypeTag() == JSRegExp::ATOM) {
-    Handle<String> empty_string_handle(HEAP->empty_string());
-    if (subject_handle->HasOnlyAsciiChars()) {
+  if (is_global &&
+      regexp->TypeTag() == JSRegExp::ATOM) {
+    Handle<String> empty_string(HEAP->empty_string());
+    if (subject->HasOnlyAsciiChars()) {
       return StringReplaceAtomRegExpWithString<SeqAsciiString>(
           isolate,
-          subject_handle,
-          regexp_handle,
-          empty_string_handle,
-          last_match_info_handle,
-          zone);
+          subject,
+          regexp,
+          empty_string,
+          last_match_info);
     } else {
       return StringReplaceAtomRegExpWithString<SeqTwoByteString>(
           isolate,
-          subject_handle,
-          regexp_handle,
-          empty_string_handle,
-          last_match_info_handle,
-          zone);
+          subject,
+          regexp,
+          empty_string,
+          last_match_info);
     }
   }
 
-  Handle<Object> match = RegExpImpl::Exec(regexp_handle,
-                                          subject_handle,
-                                          0,
-                                          last_match_info_handle);
-  if (match.is_null()) return Failure::Exception();
-  if (match->IsNull()) return *subject_handle;
+  RegExpImpl::GlobalCache global_cache(regexp, subject, is_global, isolate);
+  if (global_cache.HasException()) return Failure::Exception();
 
-  ASSERT(last_match_info_handle->HasFastObjectElements());
-
-  int start, end;
-  {
-    AssertNoAllocation match_info_array_is_not_in_a_handle;
-    FixedArray* match_info_array =
-        FixedArray::cast(last_match_info_handle->elements());
-
-    start = RegExpImpl::GetCapture(match_info_array, 0);
-    end = RegExpImpl::GetCapture(match_info_array, 1);
+  int32_t* current_match = global_cache.FetchNext();
+  if (current_match == NULL) {
+    if (global_cache.HasException()) return Failure::Exception();
+    return *subject;
   }
 
-  bool global = regexp_handle->GetFlags().is_global();
+  int start = current_match[0];
+  int end = current_match[1];
+  int capture_count = regexp->CaptureCount();
+  int subject_length = subject->length();
 
-  if (start == end && !global) return *subject_handle;
+  int new_length = subject_length - (end - start);
+  if (new_length == 0) return isolate->heap()->empty_string();
 
-  int length = subject_handle->length();
-  int new_length = length - (end - start);
-  if (new_length == 0) {
-    return isolate->heap()->empty_string();
-  }
   Handle<ResultSeqString> answer;
   if (ResultSeqString::kHasAsciiEncoding) {
     answer = Handle<ResultSeqString>::cast(
@@ -3322,73 +3198,55 @@ MUST_USE_RESULT static MaybeObject* StringReplaceRegExpWithEmptyString(
         isolate->factory()->NewRawTwoByteString(new_length));
   }
 
-  // If the regexp isn't global, only match once.
-  if (!global) {
-    if (start > 0) {
-      String::WriteToFlat(*subject_handle,
-                          answer->GetChars(),
-                          0,
-                          start);
+  if (!is_global) {
+    RegExpImpl::SetLastMatchInfo(
+        last_match_info, subject, capture_count, current_match);
+    if (start == end) {
+      return *subject;
+    } else {
+      if (start > 0) {
+        String::WriteToFlat(*subject, answer->GetChars(), 0, start);
+      }
+      if (end < subject_length) {
+        String::WriteToFlat(
+            *subject, answer->GetChars() + start, end, subject_length);
+      }
+      return *answer;
     }
-    if (end < length) {
-      String::WriteToFlat(*subject_handle,
-                          answer->GetChars() + start,
-                          end,
-                          length);
-    }
-    return *answer;
   }
 
-  int prev = 0;  // Index of end of last match.
-  int next = 0;  // Start of next search (prev unless last match was empty).
+  int prev = 0;
   int position = 0;
 
   do {
+    start = current_match[0];
+    end = current_match[1];
     if (prev < start) {
       // Add substring subject[prev;start] to answer string.
-      String::WriteToFlat(*subject_handle,
-                          answer->GetChars() + position,
-                          prev,
-                          start);
+      String::WriteToFlat(
+          *subject, answer->GetChars() + position, prev, start);
       position += start - prev;
     }
     prev = end;
-    next = end;
-    // Continue from where the match ended, unless it was an empty match.
-    if (start == end) {
-      next++;
-      if (next > length) break;
-    }
-    match = RegExpImpl::Exec(regexp_handle,
-                             subject_handle,
-                             next,
-                             last_match_info_handle);
-    if (match.is_null()) return Failure::Exception();
-    if (match->IsNull()) break;
 
-    ASSERT(last_match_info_handle->HasFastObjectElements());
-    HandleScope loop_scope(isolate);
-    {
-      AssertNoAllocation match_info_array_is_not_in_a_handle;
-      FixedArray* match_info_array =
-          FixedArray::cast(last_match_info_handle->elements());
-      start = RegExpImpl::GetCapture(match_info_array, 0);
-      end = RegExpImpl::GetCapture(match_info_array, 1);
-    }
-  } while (true);
+    current_match = global_cache.FetchNext();
+  } while (current_match != NULL);
 
-  if (prev < length) {
+  if (global_cache.HasException()) return Failure::Exception();
+
+  RegExpImpl::SetLastMatchInfo(last_match_info,
+                               subject,
+                               capture_count,
+                               global_cache.LastSuccessfulMatch());
+
+  if (prev < subject_length) {
     // Add substring subject[prev;length] to answer string.
-    String::WriteToFlat(*subject_handle,
-                        answer->GetChars() + position,
-                        prev,
-                        length);
-    position += length - prev;
+    String::WriteToFlat(
+        *subject, answer->GetChars() + position, prev, subject_length);
+    position += subject_length - prev;
   }
 
-  if (position == 0) {
-    return isolate->heap()->empty_string();
-  }
+  if (position == 0) return isolate->heap()->empty_string();
 
   // Shorten string and fill
   int string_size = ResultSeqString::SizeFor(position);
@@ -3411,50 +3269,31 @@ MUST_USE_RESULT static MaybeObject* StringReplaceRegExpWithEmptyString(
 RUNTIME_FUNCTION(MaybeObject*, Runtime_StringReplaceRegExpWithString) {
   ASSERT(args.length() == 4);
 
-  CONVERT_ARG_CHECKED(String, subject, 0);
-  if (!subject->IsFlat()) {
-    Object* flat_subject;
-    { MaybeObject* maybe_flat_subject = subject->TryFlatten();
-      if (!maybe_flat_subject->ToObject(&flat_subject)) {
-        return maybe_flat_subject;
-      }
-    }
-    subject = String::cast(flat_subject);
-  }
+  HandleScope scope(isolate);
 
-  CONVERT_ARG_CHECKED(String, replacement, 2);
-  if (!replacement->IsFlat()) {
-    Object* flat_replacement;
-    { MaybeObject* maybe_flat_replacement = replacement->TryFlatten();
-      if (!maybe_flat_replacement->ToObject(&flat_replacement)) {
-        return maybe_flat_replacement;
-      }
-    }
-    replacement = String::cast(flat_replacement);
-  }
+  CONVERT_ARG_HANDLE_CHECKED(String, subject, 0);
+  CONVERT_ARG_HANDLE_CHECKED(String, replacement, 2);
+  CONVERT_ARG_HANDLE_CHECKED(JSRegExp, regexp, 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSArray, last_match_info, 3);
 
-  CONVERT_ARG_CHECKED(JSRegExp, regexp, 1);
-  CONVERT_ARG_CHECKED(JSArray, last_match_info, 3);
+  if (!subject->IsFlat()) subject = FlattenGetString(subject);
+
+  if (!replacement->IsFlat()) replacement = FlattenGetString(replacement);
 
   ASSERT(last_match_info->HasFastObjectElements());
 
-  Zone* zone = isolate->runtime_zone();
   if (replacement->length() == 0) {
     if (subject->HasOnlyAsciiChars()) {
       return StringReplaceRegExpWithEmptyString<SeqAsciiString>(
-          isolate, subject, regexp, last_match_info, zone);
+          isolate, subject, regexp, last_match_info);
     } else {
       return StringReplaceRegExpWithEmptyString<SeqTwoByteString>(
-          isolate, subject, regexp, last_match_info, zone);
+          isolate, subject, regexp, last_match_info);
     }
   }
 
-  return StringReplaceRegExpWithString(isolate,
-                                       subject,
-                                       regexp,
-                                       replacement,
-                                       last_match_info,
-                                       zone);
+  return StringReplaceRegExpWithString(
+      isolate, subject, regexp, replacement, last_match_info);
 }
 
 
@@ -3777,46 +3616,45 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringMatch) {
   CONVERT_ARG_HANDLE_CHECKED(JSArray, regexp_info, 2);
   HandleScope handles;
 
-  Handle<Object> match = RegExpImpl::Exec(regexp, subject, 0, regexp_info);
+  RegExpImpl::GlobalCache global_cache(regexp, subject, true, isolate);
+  if (global_cache.HasException()) return Failure::Exception();
 
-  if (match.is_null()) {
-    return Failure::Exception();
-  }
-  if (match->IsNull()) {
-    return isolate->heap()->null_value();
-  }
-  int length = subject->length();
+  int capture_count = regexp->CaptureCount();
 
   Zone* zone = isolate->runtime_zone();
   ZoneScope zone_space(zone, DELETE_ON_EXIT);
   ZoneList<int> offsets(8, zone);
-  int start;
-  int end;
-  do {
-    {
-      AssertNoAllocation no_alloc;
-      FixedArray* elements = FixedArray::cast(regexp_info->elements());
-      start = Smi::cast(elements->get(RegExpImpl::kFirstCapture))->value();
-      end = Smi::cast(elements->get(RegExpImpl::kFirstCapture + 1))->value();
-    }
-    offsets.Add(start, zone);
-    offsets.Add(end, zone);
-    if (start == end) if (++end > length) break;
-    match = RegExpImpl::Exec(regexp, subject, end, regexp_info);
-    if (match.is_null()) {
-      return Failure::Exception();
-    }
-  } while (!match->IsNull());
+
+  while (true) {
+    int32_t* match = global_cache.FetchNext();
+    if (match == NULL) break;
+    offsets.Add(match[0], zone);  // start
+    offsets.Add(match[1], zone);  // end
+  }
+
+  if (global_cache.HasException()) return Failure::Exception();
+
+  if (offsets.length() == 0) {
+    // Not a single match.
+    return isolate->heap()->null_value();
+  }
+
+  RegExpImpl::SetLastMatchInfo(regexp_info,
+                               subject,
+                               capture_count,
+                               global_cache.LastSuccessfulMatch());
+
   int matches = offsets.length() / 2;
   Handle<FixedArray> elements = isolate->factory()->NewFixedArray(matches);
-  Handle<String> substring = isolate->factory()->
-    NewSubString(subject, offsets.at(0), offsets.at(1));
+  Handle<String> substring =
+      isolate->factory()->NewSubString(subject, offsets.at(0), offsets.at(1));
   elements->set(0, *substring);
-  for (int i = 1; i < matches ; i++) {
+  for (int i = 1; i < matches; i++) {
+    HandleScope temp_scope(isolate);
     int from = offsets.at(i * 2);
     int to = offsets.at(i * 2 + 1);
-    Handle<String> substring = isolate->factory()->
-        NewProperSubString(subject, from, to);
+    Handle<String> substring =
+        isolate->factory()->NewProperSubString(subject, from, to);
     elements->set(i, *substring);
   }
   Handle<JSArray> result = isolate->factory()->NewJSArrayWithElements(elements);
@@ -3825,294 +3663,104 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringMatch) {
 }
 
 
-static bool SearchStringMultiple(Isolate* isolate,
-                                 Handle<String> subject,
-                                 Handle<String> pattern,
-                                 Handle<JSArray> last_match_info,
-                                 FixedArrayBuilder* builder) {
-  ASSERT(subject->IsFlat());
-  ASSERT(pattern->IsFlat());
-
-  // Treating as if a previous match was before first character.
-  int match_pos = -pattern->length();
-
-  for (;;) {  // Break when search complete.
-    builder->EnsureCapacity(kMaxBuilderEntriesPerRegExpMatch);
-    AssertNoAllocation no_gc;
-    String::FlatContent subject_content = subject->GetFlatContent();
-    String::FlatContent pattern_content = pattern->GetFlatContent();
-    if (subject_content.IsAscii()) {
-      Vector<const char> subject_vector = subject_content.ToAsciiVector();
-      if (pattern_content.IsAscii()) {
-        if (SearchStringMultiple(isolate,
-                                 subject_vector,
-                                 pattern_content.ToAsciiVector(),
-                                 *pattern,
-                                 builder,
-                                 &match_pos)) break;
-      } else {
-        if (SearchStringMultiple(isolate,
-                                 subject_vector,
-                                 pattern_content.ToUC16Vector(),
-                                 *pattern,
-                                 builder,
-                                 &match_pos)) break;
-      }
-    } else {
-      Vector<const uc16> subject_vector = subject_content.ToUC16Vector();
-      if (pattern_content.IsAscii()) {
-        if (SearchStringMultiple(isolate,
-                                 subject_vector,
-                                 pattern_content.ToAsciiVector(),
-                                 *pattern,
-                                 builder,
-                                 &match_pos)) break;
-      } else {
-        if (SearchStringMultiple(isolate,
-                                 subject_vector,
-                                 pattern_content.ToUC16Vector(),
-                                 *pattern,
-                                 builder,
-                                 &match_pos)) break;
-      }
-    }
-  }
-
-  if (match_pos >= 0) {
-    SetLastMatchInfoNoCaptures(subject,
-                               last_match_info,
-                               match_pos,
-                               match_pos + pattern->length());
-    return true;
-  }
-  return false;  // No matches at all.
-}
-
-
-static int SearchRegExpNoCaptureMultiple(
+// Only called from Runtime_RegExpExecMultiple so it doesn't need to maintain
+// separate last match info.  See comment on that function.
+template<bool has_capture>
+static int SearchRegExpMultiple(
     Isolate* isolate,
     Handle<String> subject,
     Handle<JSRegExp> regexp,
     Handle<JSArray> last_match_array,
     FixedArrayBuilder* builder) {
   ASSERT(subject->IsFlat());
-  ASSERT(regexp->CaptureCount() == 0);
-  int match_start = -1;
-  int match_end = 0;
-  int pos = 0;
-  int registers_per_match = RegExpImpl::IrregexpPrepare(regexp, subject);
-  if (registers_per_match < 0) return RegExpImpl::RE_EXCEPTION;
+  ASSERT_NE(has_capture, regexp->CaptureCount() == 0);
 
-  int max_matches;
-  int num_registers = RegExpImpl::GlobalOffsetsVectorSize(regexp,
-                                                          registers_per_match,
-                                                          &max_matches);
-  OffsetsVector registers(num_registers, isolate);
-  Vector<int32_t> register_vector(registers.vector(), registers.length());
-  int subject_length = subject->length();
-  bool first = true;
-  for (;;) {  // Break on failure, return on exception.
-    int num_matches = RegExpImpl::IrregexpExecRaw(regexp,
-                                                  subject,
-                                                  pos,
-                                                  register_vector);
-    if (num_matches > 0) {
-      for (int match_index = 0; match_index < num_matches; match_index++) {
-        int32_t* current_match = &register_vector[match_index * 2];
-        match_start = current_match[0];
-        builder->EnsureCapacity(kMaxBuilderEntriesPerRegExpMatch);
-        if (match_end < match_start) {
-          ReplacementStringBuilder::AddSubjectSlice(builder,
-                                                    match_end,
-                                                    match_start);
-        }
-        match_end = current_match[1];
-        HandleScope loop_scope(isolate);
-        if (!first) {
-          builder->Add(*isolate->factory()->NewProperSubString(subject,
-                                                               match_start,
-                                                               match_end));
-        } else {
-          builder->Add(*isolate->factory()->NewSubString(subject,
-                                                         match_start,
-                                                         match_end));
-          first = false;
-        }
-      }
-
-      // If we did not get the maximum number of matches, we can stop here
-      // since there are no matches left.
-      if (num_matches < max_matches) break;
-
-      if (match_start != match_end) {
-        pos = match_end;
-      } else {
-        pos = match_end + 1;
-        if (pos > subject_length) break;
-      }
-    } else if (num_matches == 0) {
-      break;
-    } else {
-      ASSERT_EQ(num_matches, RegExpImpl::RE_EXCEPTION);
-      return RegExpImpl::RE_EXCEPTION;
-    }
-  }
-
-  if (match_start >= 0) {
-    if (match_end < subject_length) {
-      ReplacementStringBuilder::AddSubjectSlice(builder,
-                                                match_end,
-                                                subject_length);
-    }
-    SetLastMatchInfoNoCaptures(subject,
-                               last_match_array,
-                               match_start,
-                               match_end);
-    return RegExpImpl::RE_SUCCESS;
-  } else {
-    return RegExpImpl::RE_FAILURE;  // No matches at all.
-  }
-}
-
-
-// Only called from Runtime_RegExpExecMultiple so it doesn't need to maintain
-// separate last match info.  See comment on that function.
-static int SearchRegExpMultiple(
-    Isolate* isolate,
-    Handle<String> subject,
-    Handle<JSRegExp> regexp,
-    Handle<JSArray> last_match_array,
-    FixedArrayBuilder* builder,
-    Zone* zone) {
-
-  ASSERT(subject->IsFlat());
-  int registers_per_match = RegExpImpl::IrregexpPrepare(regexp, subject);
-  if (registers_per_match < 0) return RegExpImpl::RE_EXCEPTION;
-
-  int max_matches;
-  int num_registers = RegExpImpl::GlobalOffsetsVectorSize(regexp,
-                                                          registers_per_match,
-                                                          &max_matches);
-  OffsetsVector registers(num_registers, isolate);
-  Vector<int32_t> register_vector(registers.vector(), registers.length());
-
-  int num_matches = RegExpImpl::IrregexpExecRaw(regexp,
-                                                subject,
-                                                0,
-                                                register_vector);
+  RegExpImpl::GlobalCache global_cache(regexp, subject, true, isolate);
+  if (global_cache.HasException()) return RegExpImpl::RE_EXCEPTION;
 
   int capture_count = regexp->CaptureCount();
   int subject_length = subject->length();
 
   // Position to search from.
-  int pos = 0;
-  // End of previous match. Differs from pos if match was empty.
+  int match_start = -1;
   int match_end = 0;
   bool first = true;
 
-  if (num_matches > 0) {
-    do {
-      int match_start = 0;
-      for (int match_index = 0; match_index < num_matches; match_index++) {
-        int32_t* current_match =
-            &register_vector[match_index * registers_per_match];
-        match_start = current_match[0];
-        builder->EnsureCapacity(kMaxBuilderEntriesPerRegExpMatch);
-        if (match_end < match_start) {
-          ReplacementStringBuilder::AddSubjectSlice(builder,
-                                                    match_end,
-                                                    match_start);
-        }
-        match_end = current_match[1];
+  // Two smis before and after the match, for very long strings.
+  static const int kMaxBuilderEntriesPerRegExpMatch = 5;
 
-        {
-          // Avoid accumulating new handles inside loop.
-          HandleScope temp_scope(isolate);
-          // Arguments array to replace function is match, captures, index and
-          // subject, i.e., 3 + capture count in total.
-          Handle<FixedArray> elements =
-              isolate->factory()->NewFixedArray(3 + capture_count);
-          Handle<String> match;
-          if (!first) {
-            match = isolate->factory()->NewProperSubString(subject,
-                                                           match_start,
-                                                           match_end);
-          } else {
-            match = isolate->factory()->NewSubString(subject,
-                                                     match_start,
-                                                     match_end);
-          }
-          elements->set(0, *match);
-          for (int i = 1; i <= capture_count; i++) {
-            int start = current_match[i * 2];
-            if (start >= 0) {
-              int end = current_match[i * 2 + 1];
-              ASSERT(start <= end);
-              Handle<String> substring;
-              if (!first) {
-                substring =
-                    isolate->factory()->NewProperSubString(subject, start, end);
-              } else {
-                substring =
-                    isolate->factory()->NewSubString(subject, start, end);
-              }
-              elements->set(i, *substring);
-            } else {
-              ASSERT(current_match[i * 2 + 1] < 0);
-              elements->set(i, isolate->heap()->undefined_value());
-            }
-          }
-          elements->set(capture_count + 1, Smi::FromInt(match_start));
-          elements->set(capture_count + 2, *subject);
-          builder->Add(*isolate->factory()->NewJSArrayWithElements(elements));
-        }
+  while (true) {
+    int32_t* current_match = global_cache.FetchNext();
+    if (current_match == NULL) break;
+    match_start = current_match[0];
+    builder->EnsureCapacity(kMaxBuilderEntriesPerRegExpMatch);
+    if (match_end < match_start) {
+      ReplacementStringBuilder::AddSubjectSlice(builder,
+                                                match_end,
+                                                match_start);
+    }
+    match_end = current_match[1];
+    {
+      // Avoid accumulating new handles inside loop.
+      HandleScope temp_scope(isolate);
+      Handle<String> match;
+      if (!first) {
+        match = isolate->factory()->NewProperSubString(subject,
+                                                       match_start,
+                                                       match_end);
+      } else {
+        match = isolate->factory()->NewSubString(subject,
+                                                 match_start,
+                                                 match_end);
         first = false;
       }
 
-      // If we did not get the maximum number of matches, we can stop here
-      // since there are no matches left.
-      if (num_matches < max_matches) break;
+      if (has_capture) {
+        // Arguments array to replace function is match, captures, index and
+        // subject, i.e., 3 + capture count in total.
+        Handle<FixedArray> elements =
+            isolate->factory()->NewFixedArray(3 + capture_count);
 
-      if (match_end > match_start) {
-        pos = match_end;
-      } else {
-        pos = match_end + 1;
-        if (pos > subject_length) {
-          break;
+        elements->set(0, *match);
+        for (int i = 1; i <= capture_count; i++) {
+          int start = current_match[i * 2];
+          if (start >= 0) {
+            int end = current_match[i * 2 + 1];
+            ASSERT(start <= end);
+            Handle<String> substring =
+                isolate->factory()->NewSubString(subject, start, end);
+            elements->set(i, *substring);
+          } else {
+            ASSERT(current_match[i * 2 + 1] < 0);
+            elements->set(i, isolate->heap()->undefined_value());
+          }
         }
+        elements->set(capture_count + 1, Smi::FromInt(match_start));
+        elements->set(capture_count + 2, *subject);
+        builder->Add(*isolate->factory()->NewJSArrayWithElements(elements));
+      } else {
+        builder->Add(*match);
       }
-
-      num_matches = RegExpImpl::IrregexpExecRaw(regexp,
-                                                subject,
-                                                pos,
-                                                register_vector);
-    } while (num_matches > 0);
-
-    if (num_matches != RegExpImpl::RE_EXCEPTION) {
-      // Finished matching, with at least one match.
-      if (match_end < subject_length) {
-        ReplacementStringBuilder::AddSubjectSlice(builder,
-                                                  match_end,
-                                                  subject_length);
-      }
-
-      int last_match_capture_count = (capture_count + 1) * 2;
-      int last_match_array_size =
-          last_match_capture_count + RegExpImpl::kLastMatchOverhead;
-      last_match_array->EnsureSize(last_match_array_size);
-      AssertNoAllocation no_gc;
-      FixedArray* elements = FixedArray::cast(last_match_array->elements());
-      // We have to set this even though the rest of the last match array is
-      // ignored.
-      RegExpImpl::SetLastCaptureCount(elements, last_match_capture_count);
-      // These are also read without consulting the override.
-      RegExpImpl::SetLastSubject(elements, *subject);
-      RegExpImpl::SetLastInput(elements, *subject);
-      return RegExpImpl::RE_SUCCESS;
     }
   }
-  // No matches at all, return failure or exception result directly.
-  return num_matches;
+
+  if (global_cache.HasException()) return RegExpImpl::RE_EXCEPTION;
+
+  if (match_start >= 0) {
+    // Finished matching, with at least one match.
+    if (match_end < subject_length) {
+      ReplacementStringBuilder::AddSubjectSlice(builder,
+                                                match_end,
+                                                subject_length);
+    }
+
+    RegExpImpl::SetLastMatchInfo(
+        last_match_array, subject, capture_count, NULL);
+
+    return RegExpImpl::RE_SUCCESS;
+  } else {
+    return RegExpImpl::RE_FAILURE;  // No matches at all.
+  }
 }
 
 
@@ -4141,34 +3789,15 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_RegExpExecMultiple) {
   }
   FixedArrayBuilder builder(result_elements);
 
-  if (regexp->TypeTag() == JSRegExp::ATOM) {
-    Handle<String> pattern(
-        String::cast(regexp->DataAt(JSRegExp::kAtomPatternIndex)));
-    ASSERT(pattern->IsFlat());
-    if (SearchStringMultiple(isolate, subject, pattern,
-                             last_match_info, &builder)) {
-      return *builder.ToJSArray(result_array);
-    }
-    return isolate->heap()->null_value();
-  }
-
-  ASSERT_EQ(regexp->TypeTag(), JSRegExp::IRREGEXP);
-
   int result;
   if (regexp->CaptureCount() == 0) {
-    result = SearchRegExpNoCaptureMultiple(isolate,
-                                           subject,
-                                           regexp,
-                                           last_match_info,
-                                           &builder);
+    result = SearchRegExpMultiple<false>(
+        isolate, subject, regexp, last_match_info, &builder);
   } else {
-    result = SearchRegExpMultiple(isolate,
-                                  subject,
-                                  regexp,
-                                  last_match_info,
-                                  &builder,
-                                  isolate->runtime_zone());
+    result = SearchRegExpMultiple<true>(
+        isolate, subject, regexp, last_match_info, &builder);
   }
+
   if (result == RegExpImpl::RE_SUCCESS) return *builder.ToJSArray(result_array);
   if (result == RegExpImpl::RE_FAILURE) return isolate->heap()->null_value();
   ASSERT_EQ(result, RegExpImpl::RE_EXCEPTION);
@@ -8180,7 +7809,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NewObject) {
       // instead of a new JSFunction object. This way, errors are
       // reported the same way whether or not 'Function' is called
       // using 'new'.
-      return isolate->context()->global_object();
+      return isolate->context()->global();
     }
   }
 
@@ -8783,8 +8412,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_PushWithContext) {
   if (args[1]->IsSmi()) {
     // A smi sentinel indicates a context nested inside global code rather
     // than some function.  There is a canonical empty function that can be
-    // gotten from the native context.
-    function = isolate->context()->native_context()->closure();
+    // gotten from the global context.
+    function = isolate->context()->global_context()->closure();
   } else {
     function = JSFunction::cast(args[1]);
   }
@@ -8809,8 +8438,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_PushCatchContext) {
   if (args[2]->IsSmi()) {
     // A smi sentinel indicates a context nested inside global code rather
     // than some function.  There is a canonical empty function that can be
-    // gotten from the native context.
-    function = isolate->context()->native_context()->closure();
+    // gotten from the global context.
+    function = isolate->context()->global_context()->closure();
   } else {
     function = JSFunction::cast(args[2]);
   }
@@ -8834,8 +8463,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_PushBlockContext) {
   if (args[1]->IsSmi()) {
     // A smi sentinel indicates a context nested inside global code rather
     // than some function.  There is a canonical empty function that can be
-    // gotten from the native context.
-    function = isolate->context()->native_context()->closure();
+    // gotten from the global context.
+    function = isolate->context()->global_context()->closure();
   } else {
     function = JSFunction::cast(args[1]);
   }
@@ -8868,7 +8497,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_PushModuleContext) {
   // Initialize the context links.
   context->set_previous(previous);
   context->set_closure(previous->closure());
-  context->set_global_object(previous->global_object());
+  context->set_global(previous->global());
   isolate->set_context(context);
 
   return context;
@@ -8954,7 +8583,7 @@ static Object* ComputeReceiverForNonGlobal(Isolate* isolate,
   Context* top = isolate->context();
   // Get the context extension function.
   JSFunction* context_extension_function =
-      top->native_context()->context_extension_function();
+      top->global_context()->context_extension_function();
   // If the holder isn't a context extension object, we just return it
   // as the receiver. This allows arguments objects to be used as
   // receivers, but only if they are put in the context scope chain
@@ -9133,7 +8762,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StoreContextSlot) {
     }
     // In non-strict mode, the property is added to the global object.
     attributes = NONE;
-    object = Handle<JSObject>(isolate->context()->global_object());
+    object = Handle<JSObject>(isolate->context()->global());
   }
 
   // Set the property if it's not read only or doesn't yet exist.
@@ -9416,10 +9045,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CompileString) {
   ASSERT_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(String, source, 0);
 
-  // Extract native context.
-  Handle<Context> context(isolate->context()->native_context());
+  // Extract global context.
+  Handle<Context> context(isolate->context()->global_context());
 
-  // Check if native context allows code generation from
+  // Check if global context allows code generation from
   // strings. Throw an exception if it doesn't.
   if (context->allow_code_gen_from_strings()->IsFalse() &&
       !CodeGenerationFromStringsAllowed(isolate, context)) {
@@ -9427,7 +9056,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CompileString) {
         "code_gen_from_strings", HandleVector<Object>(NULL, 0)));
   }
 
-  // Compile source string in the native context.
+  // Compile source string in the global context.
   Handle<SharedFunctionInfo> shared = Compiler::CompileEval(
       source, context, true, CLASSIC_MODE, RelocInfo::kNoPosition);
   if (shared.is_null()) return Failure::Exception();
@@ -9445,12 +9074,12 @@ static ObjectPair CompileGlobalEval(Isolate* isolate,
                                     LanguageMode language_mode,
                                     int scope_position) {
   Handle<Context> context = Handle<Context>(isolate->context());
-  Handle<Context> native_context = Handle<Context>(context->native_context());
+  Handle<Context> global_context = Handle<Context>(context->global_context());
 
-  // Check if native context allows code generation from
+  // Check if global context allows code generation from
   // strings. Throw an exception if it doesn't.
-  if (native_context->allow_code_gen_from_strings()->IsFalse() &&
-      !CodeGenerationFromStringsAllowed(isolate, native_context)) {
+  if (global_context->allow_code_gen_from_strings()->IsFalse() &&
+      !CodeGenerationFromStringsAllowed(isolate, global_context)) {
     isolate->Throw(*isolate->factory()->NewError(
         "code_gen_from_strings", HandleVector<Object>(NULL, 0)));
     return MakePair(Failure::Exception(), NULL);
@@ -9461,7 +9090,7 @@ static ObjectPair CompileGlobalEval(Isolate* isolate,
   Handle<SharedFunctionInfo> shared = Compiler::CompileEval(
       source,
       Handle<Context>(isolate->context()),
-      context->IsNativeContext(),
+      context->IsGlobalContext(),
       language_mode,
       scope_position);
   if (shared.is_null()) return MakePair(Failure::Exception(), NULL);
@@ -9483,7 +9112,7 @@ RUNTIME_FUNCTION(ObjectPair, Runtime_ResolvePossiblyDirectEval) {
   // (And even if it is, but the first argument isn't a string, just let
   // execution default to an indirect call to eval, which will also return
   // the first argument without doing anything).
-  if (*callee != isolate->native_context()->global_eval_fun() ||
+  if (*callee != isolate->global_context()->global_eval_fun() ||
       !args[1]->IsString()) {
     return MakePair(*callee, isolate->heap()->the_hole_value());
   }
@@ -10388,7 +10017,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugGetPropertyDetails) {
   // entered (if the debugger is entered). The reason for switching context here
   // is that for some property lookups (accessors and interceptors) callbacks
   // into the embedding application can occour, and the embedding application
-  // could have the assumption that its own native context is the current
+  // could have the assumption that its own global context is the current
   // context and not some internal debugger context.
   SaveContext save(isolate);
   if (isolate->debug()->InDebugger()) {
@@ -10933,12 +10562,12 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetFrameDetails) {
     // value object is not converted into a wrapped JS objects. To
     // hide this optimization from the debugger, we wrap the receiver
     // by creating correct wrapper object based on the calling frame's
-    // native context.
+    // global context.
     it.Advance();
-    Handle<Context> calling_frames_native_context(
-        Context::cast(Context::cast(it.frame()->context())->native_context()));
+    Handle<Context> calling_frames_global_context(
+        Context::cast(Context::cast(it.frame()->context())->global_context()));
     receiver =
-        isolate->factory()->ToObject(receiver, calling_frames_native_context);
+        isolate->factory()->ToObject(receiver, calling_frames_global_context);
   }
   details->set(kFrameDetailsReceiverIndex, *receiver);
 
@@ -11030,7 +10659,7 @@ static Handle<JSObject> MaterializeLocalScopeWithFrameInspector(
     // These will be variables introduced by eval.
     if (function_context->closure() == *function) {
       if (function_context->has_extension() &&
-          !function_context->IsNativeContext()) {
+          !function_context->IsGlobalContext()) {
         Handle<JSObject> ext(JSObject::cast(function_context->extension()));
         bool threw = false;
         Handle<FixedArray> keys =
@@ -11292,7 +10921,7 @@ class ScopeIterator {
     ScopeType scope_type = Type();
     if (scope_type == ScopeTypeGlobal) {
       // The global scope is always the last in the chain.
-      ASSERT(context_->IsNativeContext());
+      ASSERT(context_->IsGlobalContext());
       context_ = Handle<Context>();
       return;
     }
@@ -11320,7 +10949,7 @@ class ScopeIterator {
           ASSERT(context_->IsModuleContext());
           return ScopeTypeModule;
         case GLOBAL_SCOPE:
-          ASSERT(context_->IsNativeContext());
+          ASSERT(context_->IsGlobalContext());
           return ScopeTypeGlobal;
         case WITH_SCOPE:
           ASSERT(context_->IsWithContext());
@@ -11336,8 +10965,8 @@ class ScopeIterator {
           UNREACHABLE();
       }
     }
-    if (context_->IsNativeContext()) {
-      ASSERT(context_->global_object()->IsGlobalObject());
+    if (context_->IsGlobalContext()) {
+      ASSERT(context_->global()->IsGlobalObject());
       return ScopeTypeGlobal;
     }
     if (context_->IsFunctionContext()) {
@@ -11360,7 +10989,7 @@ class ScopeIterator {
   Handle<JSObject> ScopeObject() {
     switch (Type()) {
       case ScopeIterator::ScopeTypeGlobal:
-        return Handle<JSObject>(CurrentContext()->global_object());
+        return Handle<JSObject>(CurrentContext()->global());
       case ScopeIterator::ScopeTypeLocal:
         // Materialize the content of the local scope into a JSObject.
         ASSERT(nested_scope_chain_.length() == 1);
@@ -12225,7 +11854,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugEvaluate) {
   Handle<SharedFunctionInfo> shared =
       Compiler::CompileEval(function_source,
                             context,
-                            context->IsNativeContext(),
+                            context->IsGlobalContext(),
                             CLASSIC_MODE,
                             RelocInfo::kNoPosition);
   if (shared.is_null()) return Failure::Exception();
@@ -12296,9 +11925,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugEvaluateGlobal) {
     isolate->set_context(*top->context());
   }
 
-  // Get the native context now set to the top context from before the
+  // Get the global context now set to the top context from before the
   // debugger was invoked.
-  Handle<Context> context = isolate->native_context();
+  Handle<Context> context = isolate->global_context();
 
   bool is_global = true;
 
@@ -12329,7 +11958,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugEvaluateGlobal) {
 
   // Invoke the result of the compilation to get the evaluation function.
   bool has_pending_exception;
-  Handle<Object> receiver = isolate->global_object();
+  Handle<Object> receiver = isolate->global();
   Handle<Object> result =
     Execution::Call(compiled_function, receiver, 0, NULL,
                     &has_pending_exception);
@@ -12463,7 +12092,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugReferencedBy) {
 
   // Get the constructor function for context extension and arguments array.
   JSObject* arguments_boilerplate =
-      isolate->context()->native_context()->arguments_boilerplate();
+      isolate->context()->global_context()->arguments_boilerplate();
   JSFunction* arguments_function =
       JSFunction::cast(arguments_boilerplate->map()->constructor());
 
@@ -12492,7 +12121,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugReferencedBy) {
   // Return result as JS array.
   Object* result;
   MaybeObject* maybe_result = isolate->heap()->AllocateJSObject(
-      isolate->context()->native_context()->array_function());
+      isolate->context()->global_context()->array_function());
   if (!maybe_result->ToObject(&result)) return maybe_result;
   return JSArray::cast(result)->SetContent(instances);
 }
@@ -12573,7 +12202,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugConstructedBy) {
   // Return result as JS array.
   Object* result;
   { MaybeObject* maybe_result = isolate->heap()->AllocateJSObject(
-          isolate->context()->native_context()->array_function());
+          isolate->context()->global_context()->array_function());
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
   return JSArray::cast(result)->SetContent(instances);
@@ -12598,7 +12227,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugSetScriptSource) {
   ASSERT(args.length() == 2);
 
   CONVERT_ARG_HANDLE_CHECKED(JSValue, script_wrapper, 0);
-  CONVERT_ARG_HANDLE_CHECKED(String, source, 1);
+  Handle<String> source(String::cast(args[1]));
 
   RUNTIME_ASSERT(script_wrapper->value()->IsScript());
   Handle<Script> script(Script::cast(script_wrapper->value()));
@@ -12964,11 +12593,11 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ExecuteInDebugContext) {
   bool pending_exception;
   {
     if (without_debugger) {
-      result = Execution::Call(function, isolate->global_object(), 0, NULL,
+      result = Execution::Call(function, isolate->global(), 0, NULL,
                                &pending_exception);
     } else {
       EnterDebugger enter_debugger;
-      result = Execution::Call(function, isolate->global_object(), 0, NULL,
+      result = Execution::Call(function, isolate->global(), 0, NULL,
                                &pending_exception);
     }
   }
@@ -13447,7 +13076,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetFromCache) {
     Handle<JSFunction> factory(JSFunction::cast(
           cache_handle->get(JSFunctionResultCache::kFactoryIndex)));
     // TODO(antonm): consider passing a receiver when constructing a cache.
-    Handle<Object> receiver(isolate->native_context()->global_object());
+    Handle<Object> receiver(isolate->global_context()->global());
     // This handle is nor shared, nor used later, so it's safe.
     Handle<Object> argv[] = { key_handle };
     bool pending_exception;

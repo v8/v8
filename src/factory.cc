@@ -284,10 +284,10 @@ Handle<String> Factory::NewExternalStringFromTwoByte(
 }
 
 
-Handle<Context> Factory::NewNativeContext() {
+Handle<Context> Factory::NewGlobalContext() {
   CALL_HEAP_FUNCTION(
       isolate(),
-      isolate()->heap()->AllocateNativeContext(),
+      isolate()->heap()->AllocateGlobalContext(),
       Context);
 }
 
@@ -552,16 +552,16 @@ Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
 
   result->set_context(*context);
 
-  int index = function_info->SearchOptimizedCodeMap(context->native_context());
+  int index = function_info->SearchOptimizedCodeMap(context->global_context());
   if (!function_info->bound() && index < 0) {
     int number_of_literals = function_info->num_literals();
     Handle<FixedArray> literals = NewFixedArray(number_of_literals, pretenure);
     if (number_of_literals > 0) {
-      // Store the native context in the literals array prefix. This
+      // Store the global context in the literals array prefix. This
       // context will be used when creating object, regexp and array
       // literals in this function.
-      literals->set(JSFunction::kLiteralNativeContextIndex,
-                    context->native_context());
+      literals->set(JSFunction::kLiteralGlobalContextIndex,
+                    context->global_context());
     }
     result->set_literals(*literals);
   }
@@ -1110,7 +1110,7 @@ Handle<JSFunction> Factory::NewFunctionHelper(Handle<String> name,
 Handle<JSFunction> Factory::NewFunction(Handle<String> name,
                                         Handle<Object> prototype) {
   Handle<JSFunction> fun = NewFunctionHelper(name, prototype);
-  fun->set_context(isolate()->context()->native_context());
+  fun->set_context(isolate()->context()->global_context());
   return fun;
 }
 
@@ -1136,7 +1136,7 @@ Handle<JSFunction> Factory::NewFunctionWithoutPrototype(
     LanguageMode language_mode) {
   Handle<JSFunction> fun =
       NewFunctionWithoutPrototypeHelper(name, language_mode);
-  fun->set_context(isolate()->context()->native_context());
+  fun->set_context(isolate()->context()->global_context());
   return fun;
 }
 
@@ -1147,8 +1147,8 @@ Handle<Object> Factory::ToObject(Handle<Object> object) {
 
 
 Handle<Object> Factory::ToObject(Handle<Object> object,
-                                 Handle<Context> native_context) {
-  CALL_HEAP_FUNCTION(isolate(), object->ToObject(*native_context), Object);
+                                 Handle<Context> global_context) {
+  CALL_HEAP_FUNCTION(isolate(), object->ToObject(*global_context), Object);
 }
 
 
@@ -1320,7 +1320,7 @@ Handle<MapCache> Factory::AddToMapCache(Handle<Context> context,
 Handle<Map> Factory::ObjectLiteralMapFromCache(Handle<Context> context,
                                                Handle<FixedArray> keys) {
   if (context->map_cache()->IsUndefined()) {
-    // Allocate the new map cache for the native context.
+    // Allocate the new map cache for the global context.
     Handle<MapCache> new_cache = NewMapCache(24);
     context->set_map_cache(*new_cache);
   }

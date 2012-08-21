@@ -194,7 +194,7 @@ TEST(MarkCompactCollector) {
       Map::cast(HEAP->AllocateMap(JS_OBJECT_TYPE,
                                   JSObject::kHeaderSize)->ToObjectChecked());
   function->set_initial_map(initial_map);
-  Isolate::Current()->context()->global_object()->SetProperty(
+  Isolate::Current()->context()->global()->SetProperty(
       func_name, function, NONE, kNonStrictMode)->ToObjectChecked();
 
   JSObject* obj = JSObject::cast(
@@ -203,9 +203,8 @@ TEST(MarkCompactCollector) {
 
   func_name =
       String::cast(HEAP->LookupAsciiSymbol("theFunction")->ToObjectChecked());
-  CHECK(Isolate::Current()->context()->global_object()->
-        HasLocalProperty(func_name));
-  Object* func_value = Isolate::Current()->context()->global_object()->
+  CHECK(Isolate::Current()->context()->global()->HasLocalProperty(func_name));
+  Object* func_value = Isolate::Current()->context()->global()->
       GetProperty(func_name)->ToObjectChecked();
   CHECK(func_value->IsJSFunction());
   function = JSFunction::cast(func_value);
@@ -213,7 +212,7 @@ TEST(MarkCompactCollector) {
   obj = JSObject::cast(HEAP->AllocateJSObject(function)->ToObjectChecked());
   String* obj_name =
       String::cast(HEAP->LookupAsciiSymbol("theObject")->ToObjectChecked());
-  Isolate::Current()->context()->global_object()->SetProperty(
+  Isolate::Current()->context()->global()->SetProperty(
       obj_name, obj, NONE, kNonStrictMode)->ToObjectChecked();
   String* prop_name =
       String::cast(HEAP->LookupAsciiSymbol("theSlot")->ToObjectChecked());
@@ -226,11 +225,10 @@ TEST(MarkCompactCollector) {
 
   obj_name =
       String::cast(HEAP->LookupAsciiSymbol("theObject")->ToObjectChecked());
-  CHECK(Isolate::Current()->context()->global_object()->
-        HasLocalProperty(obj_name));
-  CHECK(Isolate::Current()->context()->global_object()->
+  CHECK(Isolate::Current()->context()->global()->HasLocalProperty(obj_name));
+  CHECK(Isolate::Current()->context()->global()->
         GetProperty(obj_name)->ToObjectChecked()->IsJSObject());
-  obj = JSObject::cast(Isolate::Current()->context()->global_object()->
+  obj = JSObject::cast(Isolate::Current()->context()->global()->
                        GetProperty(obj_name)->ToObjectChecked());
   prop_name =
       String::cast(HEAP->LookupAsciiSymbol("theSlot")->ToObjectChecked());

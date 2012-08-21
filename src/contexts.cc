@@ -36,7 +36,7 @@ namespace internal {
 
 Context* Context::declaration_context() {
   Context* current = this;
-  while (!current->IsFunctionContext() && !current->IsNativeContext()) {
+  while (!current->IsFunctionContext() && !current->IsGlobalContext()) {
     current = current->previous();
     ASSERT(current->closure() == closure());
   }
@@ -45,7 +45,7 @@ Context* Context::declaration_context() {
 
 
 JSBuiltinsObject* Context::builtins() {
-  GlobalObject* object = global_object();
+  GlobalObject* object = global();
   if (object->IsJSGlobalObject()) {
     return JSGlobalObject::cast(object)->builtins();
   } else {
@@ -55,19 +55,19 @@ JSBuiltinsObject* Context::builtins() {
 }
 
 
-Context* Context::native_context() {
+Context* Context::global_context() {
   // Fast case: the global object for this context has been set.  In
   // that case, the global object has a direct pointer to the global
   // context.
-  if (global_object()->IsGlobalObject()) {
-    return global_object()->native_context();
+  if (global()->IsGlobalObject()) {
+    return global()->global_context();
   }
 
   // During bootstrapping, the global object might not be set and we
-  // have to search the context chain to find the native context.
+  // have to search the context chain to find the global context.
   ASSERT(Isolate::Current()->bootstrapper()->IsActive());
   Context* current = this;
-  while (!current->IsNativeContext()) {
+  while (!current->IsGlobalContext()) {
     JSFunction* closure = JSFunction::cast(current->closure());
     current = Context::cast(closure->context());
   }
@@ -76,11 +76,11 @@ Context* Context::native_context() {
 
 
 JSObject* Context::global_proxy() {
-  return native_context()->global_proxy_object();
+  return global_context()->global_proxy_object();
 }
 
 void Context::set_global_proxy(JSObject* object) {
-  native_context()->set_global_proxy_object(object);
+  global_context()->set_global_proxy_object(object);
 }
 
 
@@ -106,12 +106,12 @@ Handle<Object> Context::Lookup(Handle<String> name,
   do {
     if (FLAG_trace_contexts) {
       PrintF(" - looking in context %p", reinterpret_cast<void*>(*context));
-      if (context->IsNativeContext()) PrintF(" (native context)");
+      if (context->IsGlobalContext()) PrintF(" (global context)");
       PrintF("\n");
     }
 
     // 1. Check global objects, subjects of with, and extension objects.
-    if (context->IsNativeContext() ||
+    if (context->IsGlobalContext() ||
         context->IsWithContext() ||
         (context->IsFunctionContext() && context->has_extension())) {
       Handle<JSObject> object(JSObject::cast(context->extension()), isolate);
@@ -226,7 +226,7 @@ Handle<Object> Context::Lookup(Handle<String> name,
     }
 
     // 3. Prepare to continue with the previous (next outermost) context.
-    if (context->IsNativeContext()) {
+    if (context->IsGlobalContext()) {
       follow_context_chain = false;
     } else {
       context = Handle<Context>(context->previous(), isolate);
@@ -241,7 +241,7 @@ Handle<Object> Context::Lookup(Handle<String> name,
 
 
 void Context::AddOptimizedFunction(JSFunction* function) {
-  ASSERT(IsNativeContext());
+  ASSERT(IsGlobalContext());
 #ifdef DEBUG
   if (FLAG_enable_slow_asserts) {
     Object* element = get(OPTIMIZED_FUNCTIONS_LIST);
@@ -253,9 +253,9 @@ void Context::AddOptimizedFunction(JSFunction* function) {
 
   CHECK(function->next_function_link()->IsUndefined());
 
-  // Check that the context belongs to the weak native contexts list.
+  // Check that the context belongs to the weak global contexts list.
   bool found = false;
-  Object* context = GetHeap()->native_contexts_list();
+  Object* context = GetHeap()->global_contexts_list();
   while (!context->IsUndefined()) {
     if (context == this) {
       found = true;
@@ -271,7 +271,7 @@ void Context::AddOptimizedFunction(JSFunction* function) {
 
 
 void Context::RemoveOptimizedFunction(JSFunction* function) {
-  ASSERT(IsNativeContext());
+  ASSERT(IsGlobalContext());
   Object* element = get(OPTIMIZED_FUNCTIONS_LIST);
   JSFunction* prev = NULL;
   while (!element->IsUndefined()) {
@@ -295,7 +295,7 @@ void Context::RemoveOptimizedFunction(JSFunction* function) {
 
 
 Object* Context::OptimizedFunctionsListHead() {
-  ASSERT(IsNativeContext());
+  ASSERT(IsGlobalContext());
   return get(OPTIMIZED_FUNCTIONS_LIST);
 }
 
@@ -313,7 +313,7 @@ bool Context::IsBootstrappingOrValidParentContext(
   if (Isolate::Current()->bootstrapper()->IsActive()) return true;
   if (!object->IsContext()) return false;
   Context* context = Context::cast(object);
-  return context->IsNativeContext() || context->IsModuleContext() ||
+  return context->IsGlobalContext() || context->IsModuleContext() ||
          !child->IsModuleContext();
 }
 

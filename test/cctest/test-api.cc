@@ -1,5 +1,4 @@
 // Copyright 2012 the V8 project authors. All rights reserved.
-
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -3738,36 +3737,6 @@ THREADED_TEST(SimplePropertyWrite) {
     CHECK_EQ(v8_num(4), xValue);
     xValue.Dispose();
     xValue = v8::Persistent<Value>();
-  }
-}
-
-
-THREADED_TEST(SetterOnly) {
-  v8::HandleScope scope;
-  Local<ObjectTemplate> templ = ObjectTemplate::New();
-  templ->SetAccessor(v8_str("x"), NULL, SetXValue, v8_str("donut"));
-  LocalContext context;
-  context->Global()->Set(v8_str("obj"), templ->NewInstance());
-  Local<Script> script = Script::Compile(v8_str("obj.x = 4; obj.x"));
-  for (int i = 0; i < 10; i++) {
-    CHECK(xValue.IsEmpty());
-    script->Run();
-    CHECK_EQ(v8_num(4), xValue);
-    xValue.Dispose();
-    xValue = v8::Persistent<Value>();
-  }
-}
-
-
-THREADED_TEST(NoAccessors) {
-  v8::HandleScope scope;
-  Local<ObjectTemplate> templ = ObjectTemplate::New();
-  templ->SetAccessor(v8_str("x"), NULL, NULL, v8_str("donut"));
-  LocalContext context;
-  context->Global()->Set(v8_str("obj"), templ->NewInstance());
-  Local<Script> script = Script::Compile(v8_str("obj.x = 4; obj.x"));
-  for (int i = 0; i < 10; i++) {
-    script->Run();
   }
 }
 
@@ -10808,24 +10777,18 @@ TEST(DontLeakGlobalObjects) {
     { v8::HandleScope scope;
       LocalContext context;
     }
-    // Fire context disposed notification to force clearing monomorphic ICs.
-    v8::V8::ContextDisposedNotification();
     CheckSurvivingGlobalObjectsCount(0);
 
     { v8::HandleScope scope;
       LocalContext context;
       v8_compile("Date")->Run();
     }
-    // Fire context disposed notification to force clearing monomorphic ICs.
-    v8::V8::ContextDisposedNotification();
     CheckSurvivingGlobalObjectsCount(0);
 
     { v8::HandleScope scope;
       LocalContext context;
       v8_compile("/aaa/")->Run();
     }
-    // Fire context disposed notification to force clearing monomorphic ICs.
-    v8::V8::ContextDisposedNotification();
     CheckSurvivingGlobalObjectsCount(0);
 
     { v8::HandleScope scope;
@@ -10834,8 +10797,6 @@ TEST(DontLeakGlobalObjects) {
       LocalContext context(&extensions);
       v8_compile("gc();")->Run();
     }
-    // Fire context disposed notification to force clearing monomorphic ICs.
-    v8::V8::ContextDisposedNotification();
     CheckSurvivingGlobalObjectsCount(0);
   }
 }
@@ -12239,7 +12200,7 @@ class RegExpStringModificationTest {
     // Inject the input as a global variable.
     i::Handle<i::String> input_name =
         FACTORY->NewStringFromAscii(i::Vector<const char>("input", 5));
-    i::Isolate::Current()->native_context()->global_object()->SetProperty(
+    i::Isolate::Current()->global_context()->global()->SetProperty(
         *input_name,
         *input_,
         NONE,
@@ -14616,7 +14577,6 @@ TEST(Regress528) {
     context->Exit();
   }
   context.Dispose();
-  v8::V8::ContextDisposedNotification();
   for (gc_count = 1; gc_count < 10; gc_count++) {
     other_context->Enter();
     CompileRun(source_simple);
@@ -14639,7 +14599,6 @@ TEST(Regress528) {
     context->Exit();
   }
   context.Dispose();
-  v8::V8::ContextDisposedNotification();
   for (gc_count = 1; gc_count < 10; gc_count++) {
     other_context->Enter();
     CompileRun(source_eval);
@@ -14667,7 +14626,6 @@ TEST(Regress528) {
     context->Exit();
   }
   context.Dispose();
-  v8::V8::ContextDisposedNotification();
   for (gc_count = 1; gc_count < 10; gc_count++) {
     other_context->Enter();
     CompileRun(source_exception);
@@ -14679,7 +14637,6 @@ TEST(Regress528) {
   CHECK_EQ(1, GetGlobalObjectsCount());
 
   other_context.Dispose();
-  v8::V8::ContextDisposedNotification();
 }
 
 

@@ -54,7 +54,7 @@ class StaticVisitorBase : public AllStatic {
   V(FreeSpace)                \
   V(FixedArray)               \
   V(FixedDoubleArray)         \
-  V(NativeContext)            \
+  V(GlobalContext)            \
   V(DataObject2)              \
   V(DataObject3)              \
   V(DataObject4)              \
@@ -395,7 +395,7 @@ class StaticMarkingVisitor : public StaticVisitorBase {
   static inline void VisitRuntimeEntry(RelocInfo* rinfo) { }
 
   // TODO(mstarzinger): This should be made protected once refactoring is done.
-  static inline void VisitNativeContext(Map* map, HeapObject* object);
+  static inline void VisitGlobalContext(Map* map, HeapObject* object);
 
  protected:
   static inline void VisitCode(Map* map, HeapObject* object);

@@ -308,7 +308,7 @@ class ThreadLocalTop BASE_EMBEDDED {
 
 #define ISOLATE_INIT_ARRAY_LIST(V)                                             \
   /* SerializerDeserializer state. */                                          \
-  V(int, jsregexp_static_offsets_vector, kJSRegexpStaticOffsetsVectorSize)     \
+  V(int32_t, jsregexp_static_offsets_vector, kJSRegexpStaticOffsetsVectorSize) \
   V(int, bad_char_shift_table, kUC16AlphabetSize)                              \
   V(int, good_suffix_shift_table, (kBMMaxShift + 1))                           \
   V(int, suffix_table, (kBMMaxShift + 1))                                      \
@@ -329,7 +329,7 @@ typedef List<HeapObject*, PreallocatedStorageAllocationPolicy> DebugObjectCache;
   V(AllowCodeGenerationFromStringsCallback, allow_code_gen_callback, NULL)     \
   V(v8::Debug::MessageHandler, message_handler, NULL)                          \
   /* To distinguish the function templates, so that we can find them in the */ \
-  /* function cache of the native context. */                                  \
+  /* function cache of the global context. */                                  \
   V(int, next_serial_number, 0)                                                \
   V(ExternalReferenceRedirectorPointer*, external_reference_redirector, NULL)  \
   V(bool, always_allow_natives_syntax, false)                                  \
@@ -531,7 +531,7 @@ class Isolate {
 
   // Access to the map of "new Object()".
   Map* empty_object_map() {
-    return context()->native_context()->object_function()->map();
+    return context()->global_context()->object_function()->map();
   }
 
   // Access to current thread id.
@@ -644,8 +644,8 @@ class Isolate {
 
   // Returns the global object of the current context. It could be
   // a builtin object, or a JS global object.
-  Handle<GlobalObject> global_object() {
-    return Handle<GlobalObject>(context()->global_object());
+  Handle<GlobalObject> global() {
+    return Handle<GlobalObject>(context()->global());
   }
 
   // Returns the global proxy object of the current context.
@@ -764,12 +764,12 @@ class Isolate {
   void IterateThread(ThreadVisitor* v, char* t);
 
 
-  // Returns the current native context.
-  Handle<Context> native_context();
+  // Returns the current global context.
+  Handle<Context> global_context();
 
-  // Returns the native context of the calling JavaScript code.  That
-  // is, the native context of the top-most JavaScript frame.
-  Handle<Context> GetCallingNativeContext();
+  // Returns the global context of the calling JavaScript code.  That
+  // is, the global context of the top-most JavaScript frame.
+  Handle<Context> GetCallingGlobalContext();
 
   void RegisterTryCatchHandler(v8::TryCatch* that);
   void UnregisterTryCatchHandler(v8::TryCatch* that);
@@ -803,12 +803,12 @@ class Isolate {
   ISOLATE_INIT_ARRAY_LIST(GLOBAL_ARRAY_ACCESSOR)
 #undef GLOBAL_ARRAY_ACCESSOR
 
-#define NATIVE_CONTEXT_FIELD_ACCESSOR(index, type, name)      \
+#define GLOBAL_CONTEXT_FIELD_ACCESSOR(index, type, name)      \
   Handle<type> name() {                                       \
-    return Handle<type>(context()->native_context()->name()); \
+    return Handle<type>(context()->global_context()->name()); \
   }
-  NATIVE_CONTEXT_FIELDS(NATIVE_CONTEXT_FIELD_ACCESSOR)
-#undef NATIVE_CONTEXT_FIELD_ACCESSOR
+  GLOBAL_CONTEXT_FIELDS(GLOBAL_CONTEXT_FIELD_ACCESSOR)
+#undef GLOBAL_CONTEXT_FIELD_ACCESSOR
 
   Bootstrapper* bootstrapper() { return bootstrapper_; }
   Counters* counters() {
@@ -1434,15 +1434,15 @@ class PostponeInterruptsScope BASE_EMBEDDED {
 #define LOGGER (v8::internal::Isolate::Current()->logger())
 
 
-// Tells whether the native context is marked with out of memory.
+// Tells whether the global context is marked with out of memory.
 inline bool Context::has_out_of_memory() {
-  return native_context()->out_of_memory()->IsTrue();
+  return global_context()->out_of_memory()->IsTrue();
 }
 
 
-// Mark the native context with out of memory.
+// Mark the global context with out of memory.
 inline void Context::mark_out_of_memory() {
-  native_context()->set_out_of_memory(HEAP->true_value());
+  global_context()->set_out_of_memory(HEAP->true_value());
 }
 
 

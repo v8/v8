@@ -1092,7 +1092,7 @@ ExternalReference ExternalReference::re_word_character_map() {
 ExternalReference ExternalReference::address_of_static_offsets_vector(
     Isolate* isolate) {
   return ExternalReference(
-      OffsetsVector::static_offsets_vector_address(isolate));
+      reinterpret_cast<Address>(isolate->jsregexp_static_offsets_vector()));
 }
 
 ExternalReference ExternalReference::address_of_regexp_stack_memory_address(
