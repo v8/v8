@@ -169,7 +169,7 @@ void V8::SetReturnAddressLocationResolver(
 
 // Used by JavaScript APIs
 uint32_t V8::Random(Context* context) {
-  ASSERT(context->IsGlobalContext());
+  ASSERT(context->IsNativeContext());
   ByteArray* seed = context->random_seed();
   return random_base(reinterpret_cast<uint32_t*>(seed->GetDataStartAddress()));
 }

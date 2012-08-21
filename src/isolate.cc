@@ -789,16 +789,17 @@ static MayAccessDecision MayAccessPreCheck(Isolate* isolate,
   if (isolate->bootstrapper()->IsActive()) return YES;
 
   if (receiver->IsJSGlobalProxy()) {
-    Object* receiver_context = JSGlobalProxy::cast(receiver)->context();
+    Object* receiver_context = JSGlobalProxy::cast(receiver)->native_context();
     if (!receiver_context->IsContext()) return NO;
 
-    // Get the global context of current top context.
-    // avoid using Isolate::global_context() because it uses Handle.
-    Context* global_context = isolate->context()->global()->global_context();
-    if (receiver_context == global_context) return YES;
+    // Get the native context of current top context.
+    // avoid using Isolate::native_context() because it uses Handle.
+    Context* native_context =
+        isolate->context()->global_object()->native_context();
+    if (receiver_context == native_context) return YES;
 
     if (Context::cast(receiver_context)->security_token() ==
-        global_context->security_token())
+        native_context->security_token())
       return YES;
   }
 
@@ -1213,7 +1214,7 @@ void Isolate::ReportPendingMessages() {
   PropagatePendingExceptionToExternalTryCatch();
 
   // If the pending exception is OutOfMemoryException set out_of_memory in
-  // the global context.  Note: We have to mark the global context here
+  // the native context.  Note: We have to mark the native context here
   // since the GenerateThrowOutOfMemory stub cannot make a RuntimeCall to
   // set it.
   HandleScope scope;
@@ -1323,20 +1324,20 @@ bool Isolate::is_out_of_memory() {
 }
 
 
-Handle<Context> Isolate::global_context() {
-  GlobalObject* global = thread_local_top()->context_->global();
-  return Handle<Context>(global->global_context());
+Handle<Context> Isolate::native_context() {
+  GlobalObject* global = thread_local_top()->context_->global_object();
+  return Handle<Context>(global->native_context());
 }
 
 
-Handle<Context> Isolate::GetCallingGlobalContext() {
+Handle<Context> Isolate::GetCallingNativeContext() {
   JavaScriptFrameIterator it;
 #ifdef ENABLE_DEBUGGER_SUPPORT
   if (debug_->InDebugger()) {
     while (!it.done()) {
       JavaScriptFrame* frame = it.frame();
       Context* context = Context::cast(frame->context());
-      if (context->global_context() == *debug_->debug_context()) {
+      if (context->native_context() == *debug_->debug_context()) {
         it.Advance();
       } else {
         break;
@@ -1347,7 +1348,7 @@ Handle<Context> Isolate::GetCallingGlobalContext() {
   if (it.done()) return Handle<Context>::null();
   JavaScriptFrame* frame = it.frame();
   Context* context = Context::cast(frame->context());
-  return Handle<Context>(context->global_context());
+  return Handle<Context>(context->native_context());
 }
 
 

@@ -1521,7 +1521,7 @@ TEST(WeakGlobalHandle) {
 }
 
 
-TEST(WeakGlobalContextRefs) {
+TEST(WeakNativeContextRefs) {
   v8::HandleScope scope;
   LocalContext env;
 
@@ -1533,10 +1533,10 @@ TEST(WeakGlobalContextRefs) {
   const v8::HeapGraphNode* global_handles = GetNode(
       gc_roots, v8::HeapGraphNode::kObject, "(Global handles)");
   CHECK_NE(NULL, global_handles);
-  const v8::HeapGraphNode* global_context = GetNode(
-      global_handles, v8::HeapGraphNode::kHidden, "system / GlobalContext");
-  CHECK_NE(NULL, global_context);
-  CHECK(HasWeakEdge(global_context));
+  const v8::HeapGraphNode* native_context = GetNode(
+      global_handles, v8::HeapGraphNode::kHidden, "system / NativeContext");
+  CHECK_NE(NULL, native_context);
+  CHECK(HasWeakEdge(native_context));
 }
 
 

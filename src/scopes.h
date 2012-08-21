@@ -378,7 +378,7 @@ class Scope: public ZoneObject {
   // Determine if we can use lazy compilation for this scope without a context.
   bool AllowsLazyCompilationWithoutContext() const;
 
-  // True if the outer context of this scope is always the global context.
+  // True if the outer context of this scope is always the native context.
   bool HasTrivialOuterContext() const;
 
   // True if the outer context allows lazy compilation of this scope.

@@ -97,8 +97,8 @@ static v8::Handle<v8::Context> GetDebugEventContext(Isolate* isolate) {
   // Isolate::context() may have been NULL when "script collected" event
   // occured.
   if (context.is_null()) return v8::Local<v8::Context>();
-  Handle<Context> global_context(context->global_context());
-  return v8::Utils::ToLocal(global_context);
+  Handle<Context> native_context(context->native_context());
+  return v8::Utils::ToLocal(native_context);
 }
 
 
@@ -762,13 +762,13 @@ bool Debug::CompileDebuggerScript(int index) {
   }
 
   // Execute the shared function in the debugger context.
-  Handle<Context> context = isolate->global_context();
+  Handle<Context> context = isolate->native_context();
   bool caught_exception;
   Handle<JSFunction> function =
       factory->NewFunctionFromSharedFunctionInfo(function_info, context);
 
   Handle<Object> exception =
-      Execution::TryCall(function, Handle<Object>(context->global()),
+      Execution::TryCall(function, Handle<Object>(context->global_object()),
                          0, NULL, &caught_exception);
 
   // Check for caught exceptions.
@@ -829,7 +829,7 @@ bool Debug::Load() {
 
   // Expose the builtins object in the debugger context.
   Handle<String> key = isolate_->factory()->LookupAsciiSymbol("builtins");
-  Handle<GlobalObject> global = Handle<GlobalObject>(context->global());
+  Handle<GlobalObject> global = Handle<GlobalObject>(context->global_object());
   RETURN_IF_EMPTY_HANDLE_VALUE(
       isolate_,
       JSReceiver::SetProperty(global, key, Handle<Object>(global->builtins()),
@@ -1095,7 +1095,7 @@ bool Debug::CheckBreakPoint(Handle<Object> break_point_object) {
       factory->LookupAsciiSymbol("IsBreakPointTriggered");
   Handle<JSFunction> check_break_point =
     Handle<JSFunction>(JSFunction::cast(
-        debug_context()->global()->GetPropertyNoExceptionThrown(
+        debug_context()->global_object()->GetPropertyNoExceptionThrown(
             *is_break_point_triggered_symbol)));
 
   // Get the break id as an object.
@@ -2299,7 +2299,7 @@ const int Debug::FramePaddingLayout::kPaddingValue = kInitialSize + 1;
 
 
 bool Debug::IsDebugGlobal(GlobalObject* global) {
-  return IsLoaded() && global == debug_context()->global();
+  return IsLoaded() && global == debug_context()->global_object();
 }
 
 
@@ -2311,12 +2311,13 @@ void Debug::ClearMirrorCache() {
   // Clear the mirror cache.
   Handle<String> function_name =
       isolate_->factory()->LookupSymbol(CStrVector("ClearMirrorCache"));
-  Handle<Object> fun(Isolate::Current()->global()->GetPropertyNoExceptionThrown(
+  Handle<Object> fun(
+      Isolate::Current()->global_object()->GetPropertyNoExceptionThrown(
       *function_name));
   ASSERT(fun->IsJSFunction());
   bool caught_exception;
   Execution::TryCall(Handle<JSFunction>::cast(fun),
-      Handle<JSObject>(Debug::debug_context()->global()),
+      Handle<JSObject>(Debug::debug_context()->global_object()),
       0, NULL, &caught_exception);
 }
 
@@ -2438,7 +2439,8 @@ Handle<Object> Debugger::MakeJSObject(Vector<const char> constructor_name,
   Handle<String> constructor_str =
       isolate_->factory()->LookupSymbol(constructor_name);
   Handle<Object> constructor(
-      isolate_->global()->GetPropertyNoExceptionThrown(*constructor_str));
+      isolate_->global_object()->GetPropertyNoExceptionThrown(
+          *constructor_str));
   ASSERT(constructor->IsJSFunction());
   if (!constructor->IsJSFunction()) {
     *caught_exception = true;
@@ -2446,7 +2448,7 @@ Handle<Object> Debugger::MakeJSObject(Vector<const char> constructor_name,
   }
   Handle<Object> js_object = Execution::TryCall(
       Handle<JSFunction>::cast(constructor),
-      Handle<JSObject>(isolate_->debug()->debug_context()->global()),
+      Handle<JSObject>(isolate_->debug()->debug_context()->global_object()),
       argc,
       argv,
       caught_exception);
@@ -2668,7 +2670,7 @@ void Debugger::OnAfterCompile(Handle<Script> script,
   Handle<String> update_script_break_points_symbol =
       isolate_->factory()->LookupAsciiSymbol("UpdateScriptBreakPoints");
   Handle<Object> update_script_break_points =
-      Handle<Object>(debug->debug_context()->global()->
+      Handle<Object>(debug->debug_context()->global_object()->
           GetPropertyNoExceptionThrown(*update_script_break_points_symbol));
   if (!update_script_break_points->IsJSFunction()) {
     return;
@@ -2824,7 +2826,7 @@ void Debugger::CallJSEventCallback(v8::DebugEvent event,
                             event_listener_data_ };
   bool caught_exception;
   Execution::TryCall(fun,
-                     isolate_->global(),
+                     isolate_->global_object(),
                      ARRAY_SIZE(argv),
                      argv,
                      &caught_exception);
