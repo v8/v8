@@ -75,12 +75,13 @@ void Builtins::Generate_Adaptor(MacroAssembler* masm,
 // Load the built-in InternalArray function from the current context.
 static void GenerateLoadInternalArrayFunction(MacroAssembler* masm,
                                               Register result) {
-  // Load the global context.
+  // Load the native context.
 
-  __ ldr(result, MemOperand(cp, Context::SlotOffset(Context::GLOBAL_INDEX)));
   __ ldr(result,
-         FieldMemOperand(result, GlobalObject::kGlobalContextOffset));
-  // Load the InternalArray function from the global context.
+         MemOperand(cp, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
+  __ ldr(result,
+         FieldMemOperand(result, GlobalObject::kNativeContextOffset));
+  // Load the InternalArray function from the native context.
   __ ldr(result,
          MemOperand(result,
                     Context::SlotOffset(
@@ -90,12 +91,13 @@ static void GenerateLoadInternalArrayFunction(MacroAssembler* masm,
 
 // Load the built-in Array function from the current context.
 static void GenerateLoadArrayFunction(MacroAssembler* masm, Register result) {
-  // Load the global context.
+  // Load the native context.
 
-  __ ldr(result, MemOperand(cp, Context::SlotOffset(Context::GLOBAL_INDEX)));
   __ ldr(result,
-         FieldMemOperand(result, GlobalObject::kGlobalContextOffset));
-  // Load the Array function from the global context.
+         MemOperand(cp, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
+  __ ldr(result,
+         FieldMemOperand(result, GlobalObject::kNativeContextOffset));
+  // Load the Array function from the native context.
   __ ldr(result,
          MemOperand(result,
                     Context::SlotOffset(Context::ARRAY_FUNCTION_INDEX)));
@@ -1403,9 +1405,9 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     // receiver.
     __ bind(&use_global_receiver);
     const int kGlobalIndex =
-        Context::kHeaderSize + Context::GLOBAL_INDEX * kPointerSize;
+        Context::kHeaderSize + Context::GLOBAL_OBJECT_INDEX * kPointerSize;
     __ ldr(r2, FieldMemOperand(cp, kGlobalIndex));
-    __ ldr(r2, FieldMemOperand(r2, GlobalObject::kGlobalContextOffset));
+    __ ldr(r2, FieldMemOperand(r2, GlobalObject::kNativeContextOffset));
     __ ldr(r2, FieldMemOperand(r2, kGlobalIndex));
     __ ldr(r2, FieldMemOperand(r2, GlobalObject::kGlobalReceiverOffset));
 
@@ -1598,9 +1600,9 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
     // Use the current global receiver object as the receiver.
     __ bind(&use_global_receiver);
     const int kGlobalOffset =
-        Context::kHeaderSize + Context::GLOBAL_INDEX * kPointerSize;
+        Context::kHeaderSize + Context::GLOBAL_OBJECT_INDEX * kPointerSize;
     __ ldr(r0, FieldMemOperand(cp, kGlobalOffset));
-    __ ldr(r0, FieldMemOperand(r0, GlobalObject::kGlobalContextOffset));
+    __ ldr(r0, FieldMemOperand(r0, GlobalObject::kNativeContextOffset));
     __ ldr(r0, FieldMemOperand(r0, kGlobalOffset));
     __ ldr(r0, FieldMemOperand(r0, GlobalObject::kGlobalReceiverOffset));
 

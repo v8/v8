@@ -6823,7 +6823,7 @@ bool HGraphBuilder::TryInline(CallKind call_kind,
   ASSERT(target_shared->has_deoptimization_support());
   TypeFeedbackOracle target_oracle(
       Handle<Code>(target_shared->code()),
-      Handle<Context>(target->context()->global_context()),
+      Handle<Context>(target->context()->native_context()),
       isolate(),
       zone());
   // The function state is new-allocated because we need to delete it

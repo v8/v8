@@ -3968,7 +3968,7 @@ class Internals {
   static const int kNullValueRootIndex = 7;
   static const int kTrueValueRootIndex = 8;
   static const int kFalseValueRootIndex = 9;
-  static const int kEmptySymbolRootIndex = 112;
+  static const int kEmptySymbolRootIndex = 113;
 
   static const int kJSObjectType = 0xaa;
   static const int kFirstNonstringType = 0x80;

@@ -678,9 +678,9 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     // receiver.
     __ bind(&use_global_receiver);
     const int kGlobalIndex =
-        Context::kHeaderSize + Context::GLOBAL_INDEX * kPointerSize;
+        Context::kHeaderSize + Context::GLOBAL_OBJECT_INDEX * kPointerSize;
     __ mov(ebx, FieldOperand(esi, kGlobalIndex));
-    __ mov(ebx, FieldOperand(ebx, GlobalObject::kGlobalContextOffset));
+    __ mov(ebx, FieldOperand(ebx, GlobalObject::kNativeContextOffset));
     __ mov(ebx, FieldOperand(ebx, kGlobalIndex));
     __ mov(ebx, FieldOperand(ebx, GlobalObject::kGlobalReceiverOffset));
 
@@ -856,9 +856,9 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
     // Use the current global receiver object as the receiver.
     __ bind(&use_global_receiver);
     const int kGlobalOffset =
-        Context::kHeaderSize + Context::GLOBAL_INDEX * kPointerSize;
+        Context::kHeaderSize + Context::GLOBAL_OBJECT_INDEX * kPointerSize;
     __ mov(ebx, FieldOperand(esi, kGlobalOffset));
-    __ mov(ebx, FieldOperand(ebx, GlobalObject::kGlobalContextOffset));
+    __ mov(ebx, FieldOperand(ebx, GlobalObject::kNativeContextOffset));
     __ mov(ebx, FieldOperand(ebx, kGlobalOffset));
     __ mov(ebx, FieldOperand(ebx, GlobalObject::kGlobalReceiverOffset));
 

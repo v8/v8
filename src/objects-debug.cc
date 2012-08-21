@@ -521,7 +521,7 @@ void SharedFunctionInfo::SharedFunctionInfoVerify() {
 void JSGlobalProxy::JSGlobalProxyVerify() {
   CHECK(IsJSGlobalProxy());
   JSObjectVerify();
-  VerifyObjectField(JSGlobalProxy::kContextOffset);
+  VerifyObjectField(JSGlobalProxy::kNativeContextOffset);
   // Make sure that this object has no properties, elements.
   CHECK_EQ(0, properties()->length());
   CHECK(HasFastObjectElements());

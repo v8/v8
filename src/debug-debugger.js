@@ -2078,7 +2078,7 @@ DebugCommandProcessor.prototype.evaluateRequest_ = function(request, response) {
 
   // Global evaluate.
   if (global) {
-    // Evaluate in the global context.
+    // Evaluate in the native context.
     response.body = this.exec_state_.evaluateGlobal(
         expression, Boolean(disable_break), additional_context_object);
     return;

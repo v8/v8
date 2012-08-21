@@ -139,11 +139,12 @@ class CompilationInfo {
   }
 
   bool has_global_object() const {
-    return !closure().is_null() && (closure()->context()->global() != NULL);
+    return !closure().is_null() &&
+        (closure()->context()->global_object() != NULL);
   }
 
   GlobalObject* global_object() const {
-    return has_global_object() ? closure()->context()->global() : NULL;
+    return has_global_object() ? closure()->context()->global_object() : NULL;
   }
 
   // Accessors for the different compilation modes.
