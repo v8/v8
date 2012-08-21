@@ -145,7 +145,7 @@ class Profiler: public Thread {
 //
 // StackTracer implementation
 //
-void StackTracer::Trace(Isolate* isolate, TickSample* sample) {
+DISABLE_ASAN void StackTracer::Trace(Isolate* isolate, TickSample* sample) {
   ASSERT(isolate->IsInitialized());
 
   // Avoid collecting traces while doing GC.

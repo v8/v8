@@ -360,6 +360,20 @@ F FUNCTION_CAST(Address addr) {
 #define MUST_USE_RESULT
 #endif
 
+
+// Define DISABLE_ASAN macros.
+#if defined(__has_feature)
+#if __has_feature(address_sanitizer)
+#define DISABLE_ASAN __attribute__((no_address_safety_analysis))
+#endif
+#endif
+
+
+#ifndef DISABLE_ASAN
+#define DISABLE_ASAN
+#endif
+
+
 // -----------------------------------------------------------------------------
 // Forward declarations for frequently used classes
 // (sorted alphabetically)
