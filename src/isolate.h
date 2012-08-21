@@ -308,7 +308,7 @@ class ThreadLocalTop BASE_EMBEDDED {
 
 #define ISOLATE_INIT_ARRAY_LIST(V)                                             \
   /* SerializerDeserializer state. */                                          \
-  V(int32_t, jsregexp_static_offsets_vector, kJSRegexpStaticOffsetsVectorSize) \
+  V(int, jsregexp_static_offsets_vector, kJSRegexpStaticOffsetsVectorSize)     \
   V(int, bad_char_shift_table, kUC16AlphabetSize)                              \
   V(int, good_suffix_shift_table, (kBMMaxShift + 1))                           \
   V(int, suffix_table, (kBMMaxShift + 1))                                      \
