@@ -954,7 +954,7 @@ static bool ObjectToInt32(Object* obj, int32_t* value) {
 
   if (obj->IsHeapNumber()) {
     double num = HeapNumber::cast(obj)->value();
-    if (FastD2I(FastI2D(num)) != num) {
+    if (FastI2D(FastD2I(num)) != num) {
       if (FLAG_trace_osr) {
         PrintF("**** %g could not be converted to int32 ****\n",
                HeapNumber::cast(obj)->value());
@@ -980,7 +980,7 @@ static bool ObjectToUint32(Object* obj, uint32_t* value) {
 
   if (obj->IsHeapNumber()) {
     double num = HeapNumber::cast(obj)->value();
-    if ((num < 0) || (FastD2UI(FastUI2D(num)) != num)) {
+    if ((num < 0) || (FastUI2D(FastD2UI(num)) != num)) {
       if (FLAG_trace_osr) {
         PrintF("**** %g could not be converted to uint32 ****\n",
                HeapNumber::cast(obj)->value());
