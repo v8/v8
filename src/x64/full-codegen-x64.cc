@@ -2642,9 +2642,7 @@ void FullCodeGenerator::EmitIsStringWrapperSafeForDefaultValueOf(
          Operand(
              rbx, index.reg, index.scale, FixedArray::kHeaderSize));
   // Calculate location of the first key name.
-  __ addq(rbx,
-          Immediate(FixedArray::kHeaderSize +
-                    DescriptorArray::kFirstIndex * kPointerSize));
+  __ addq(rbx, Immediate(DescriptorArray::kFirstOffset));
   // Loop through all the keys in the descriptor array. If one of these is the
   // symbol valueOf the result is false.
   Label entry, loop;
@@ -2653,7 +2651,7 @@ void FullCodeGenerator::EmitIsStringWrapperSafeForDefaultValueOf(
   __ movq(rdx, FieldOperand(rbx, 0));
   __ Cmp(rdx, FACTORY->value_of_symbol());
   __ j(equal, if_false);
-  __ addq(rbx, Immediate(kPointerSize));
+  __ addq(rbx, Immediate(DescriptorArray::kDescriptorSize * kPointerSize));
   __ bind(&entry);
   __ cmpq(rbx, rcx);
   __ j(not_equal, &loop);

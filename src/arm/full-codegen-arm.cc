@@ -2735,8 +2735,7 @@ void FullCodeGenerator::EmitIsStringWrapperSafeForDefaultValueOf(
   // Calculate location of the first key name.
   __ add(r4,
          r4,
-         Operand(FixedArray::kHeaderSize - kHeapObjectTag +
-                 DescriptorArray::kFirstIndex * kPointerSize));
+         Operand(DescriptorArray::kFirstOffset - kHeapObjectTag));
   // Loop through all the keys in the descriptor array. If one of these is the
   // symbol valueOf the result is false.
   Label entry, loop;
@@ -2748,7 +2747,7 @@ void FullCodeGenerator::EmitIsStringWrapperSafeForDefaultValueOf(
   __ ldr(r3, MemOperand(r4, 0));
   __ cmp(r3, ip);
   __ b(eq, if_false);
-  __ add(r4, r4, Operand(kPointerSize));
+  __ add(r4, r4, Operand(DescriptorArray::kDescriptorSize * kPointerSize));
   __ bind(&entry);
   __ cmp(r4, Operand(r2));
   __ b(ne, &loop);
