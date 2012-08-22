@@ -565,9 +565,11 @@ class Translation BASE_EMBEDDED {
     ARGUMENTS_ADAPTOR_FRAME,
     REGISTER,
     INT32_REGISTER,
+    UINT32_REGISTER,
     DOUBLE_REGISTER,
     STACK_SLOT,
     INT32_STACK_SLOT,
+    UINT32_STACK_SLOT,
     DOUBLE_STACK_SLOT,
     LITERAL,
     ARGUMENTS_OBJECT,
@@ -596,9 +598,11 @@ class Translation BASE_EMBEDDED {
   void BeginSetterStubFrame(int literal_id);
   void StoreRegister(Register reg);
   void StoreInt32Register(Register reg);
+  void StoreUint32Register(Register reg);
   void StoreDoubleRegister(DoubleRegister reg);
   void StoreStackSlot(int index);
   void StoreInt32StackSlot(int index);
+  void StoreUint32StackSlot(int index);
   void StoreDoubleStackSlot(int index);
   void StoreLiteral(int literal_id);
   void StoreArgumentsObject();
@@ -648,6 +652,7 @@ class SlotRef BASE_EMBEDDED {
     UNKNOWN,
     TAGGED,
     INT32,
+    UINT32,
     DOUBLE,
     LITERAL
   };
@@ -672,6 +677,16 @@ class SlotRef BASE_EMBEDDED {
           return Handle<Object>(Smi::FromInt(value));
         } else {
           return Isolate::Current()->factory()->NewNumberFromInt(value);
+        }
+      }
+
+      case UINT32: {
+        uint32_t value = Memory::uint32_at(addr_);
+        if (value <= static_cast<uint32_t>(Smi::kMaxValue)) {
+          return Handle<Object>(Smi::FromInt(static_cast<int>(value)));
+        } else {
+          return Isolate::Current()->factory()->NewNumber(
+            static_cast<double>(value));
         }
       }
 

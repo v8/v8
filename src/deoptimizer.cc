@@ -595,9 +595,11 @@ void Deoptimizer::DoComputeOutputFrames() {
       case Translation::BEGIN:
       case Translation::REGISTER:
       case Translation::INT32_REGISTER:
+      case Translation::UINT32_REGISTER:
       case Translation::DOUBLE_REGISTER:
       case Translation::STACK_SLOT:
       case Translation::INT32_STACK_SLOT:
+      case Translation::UINT32_STACK_SLOT:
       case Translation::DOUBLE_STACK_SLOT:
       case Translation::LITERAL:
       case Translation::ARGUMENTS_OBJECT:
@@ -769,6 +771,34 @@ void Deoptimizer::DoTranslateCommand(TranslationIterator* iterator,
       return;
     }
 
+    case Translation::UINT32_REGISTER: {
+      int input_reg = iterator->Next();
+      uintptr_t value = static_cast<uintptr_t>(input_->GetRegister(input_reg));
+      bool is_smi = (value <= static_cast<uintptr_t>(Smi::kMaxValue));
+      if (FLAG_trace_deopt) {
+        PrintF(
+            "    0x%08" V8PRIxPTR ": [top + %d] <- %" V8PRIuPTR
+            " ; uint %s (%s)\n",
+            output_[frame_index]->GetTop() + output_offset,
+            output_offset,
+            value,
+            converter.NameOfCPURegister(input_reg),
+            is_smi ? "smi" : "heap number");
+      }
+      if (is_smi) {
+        intptr_t tagged_value =
+            reinterpret_cast<intptr_t>(Smi::FromInt(static_cast<int>(value)));
+        output_[frame_index]->SetFrameSlot(output_offset, tagged_value);
+      } else {
+        // We save the untagged value on the side and store a GC-safe
+        // temporary placeholder in the frame.
+        AddDoubleValue(output_[frame_index]->GetTop() + output_offset,
+                       static_cast<double>(static_cast<uint32_t>(value)));
+        output_[frame_index]->SetFrameSlot(output_offset, kPlaceholder);
+      }
+      return;
+    }
+
     case Translation::DOUBLE_REGISTER: {
       int input_reg = iterator->Next();
       double value = input_->GetDoubleRegister(input_reg);
@@ -834,6 +864,36 @@ void Deoptimizer::DoTranslateCommand(TranslationIterator* iterator,
       return;
     }
 
+    case Translation::UINT32_STACK_SLOT: {
+      int input_slot_index = iterator->Next();
+      unsigned input_offset =
+          input_->GetOffsetFromSlotIndex(input_slot_index);
+      uintptr_t value =
+          static_cast<uintptr_t>(input_->GetFrameSlot(input_offset));
+      bool is_smi = (value <= static_cast<uintptr_t>(Smi::kMaxValue));
+      if (FLAG_trace_deopt) {
+        PrintF("    0x%08" V8PRIxPTR ": ",
+               output_[frame_index]->GetTop() + output_offset);
+        PrintF("[top + %d] <- %" V8PRIuPTR " ; [sp + %d] (uint32 %s)\n",
+               output_offset,
+               value,
+               input_offset,
+               is_smi ? "smi" : "heap number");
+      }
+      if (is_smi) {
+        intptr_t tagged_value =
+            reinterpret_cast<intptr_t>(Smi::FromInt(static_cast<int>(value)));
+        output_[frame_index]->SetFrameSlot(output_offset, tagged_value);
+      } else {
+        // We save the untagged value on the side and store a GC-safe
+        // temporary placeholder in the frame.
+        AddDoubleValue(output_[frame_index]->GetTop() + output_offset,
+                       static_cast<double>(static_cast<uint32_t>(value)));
+        output_[frame_index]->SetFrameSlot(output_offset, kPlaceholder);
+      }
+      return;
+    }
+
     case Translation::DOUBLE_STACK_SLOT: {
       int input_slot_index = iterator->Next();
       unsigned input_offset =
@@ -886,6 +946,56 @@ void Deoptimizer::DoTranslateCommand(TranslationIterator* iterator,
 }
 
 
+static bool ObjectToInt32(Object* obj, int32_t* value) {
+  if (obj->IsSmi()) {
+    *value = Smi::cast(obj)->value();
+    return true;
+  }
+
+  if (obj->IsHeapNumber()) {
+    double num = HeapNumber::cast(obj)->value();
+    if (FastD2I(FastI2D(num)) != num) {
+      if (FLAG_trace_osr) {
+        PrintF("**** %g could not be converted to int32 ****\n",
+               HeapNumber::cast(obj)->value());
+      }
+      return false;
+    }
+
+    *value = FastD2I(num);
+    return true;
+  }
+
+  return false;
+}
+
+
+static bool ObjectToUint32(Object* obj, uint32_t* value) {
+  if (obj->IsSmi()) {
+    if (Smi::cast(obj)->value() < 0) return false;
+
+    *value = static_cast<uint32_t>(Smi::cast(obj)->value());
+    return true;
+  }
+
+  if (obj->IsHeapNumber()) {
+    double num = HeapNumber::cast(obj)->value();
+    if ((num < 0) || (FastD2UI(FastUI2D(num)) != num)) {
+      if (FLAG_trace_osr) {
+        PrintF("**** %g could not be converted to uint32 ****\n",
+               HeapNumber::cast(obj)->value());
+      }
+      return false;
+    }
+
+    *value = FastD2UI(num);
+    return true;
+  }
+
+  return false;
+}
+
+
 bool Deoptimizer::DoOsrTranslateCommand(TranslationIterator* iterator,
                                         int* input_offset) {
   disasm::NameConverter converter;
@@ -926,22 +1036,10 @@ bool Deoptimizer::DoOsrTranslateCommand(TranslationIterator* iterator,
      }
 
     case Translation::INT32_REGISTER: {
-      // Abort OSR if we don't have a number.
-      if (!input_object->IsNumber()) return false;
+      int32_t int32_value = 0;
+      if (!ObjectToInt32(input_object, &int32_value)) return false;
 
       int output_reg = iterator->Next();
-      int int32_value = input_object->IsSmi()
-          ? Smi::cast(input_object)->value()
-          : FastD2I(input_object->Number());
-      // Abort the translation if the conversion lost information.
-      if (!input_object->IsSmi() &&
-          FastI2D(int32_value) != input_object->Number()) {
-        if (FLAG_trace_osr) {
-          PrintF("**** %g could not be converted to int32 ****\n",
-                 input_object->Number());
-        }
-        return false;
-      }
       if (FLAG_trace_osr) {
         PrintF("    %s <- %d (int32) ; [sp + %d]\n",
                converter.NameOfCPURegister(output_reg),
@@ -951,6 +1049,21 @@ bool Deoptimizer::DoOsrTranslateCommand(TranslationIterator* iterator,
       output->SetRegister(output_reg, int32_value);
       break;
     }
+
+    case Translation::UINT32_REGISTER: {
+      uint32_t uint32_value = 0;
+      if (!ObjectToUint32(input_object, &uint32_value)) return false;
+
+      int output_reg = iterator->Next();
+      if (FLAG_trace_osr) {
+        PrintF("    %s <- %u (uint32) ; [sp + %d]\n",
+               converter.NameOfCPURegister(output_reg),
+               uint32_value,
+               *input_offset);
+      }
+      output->SetRegister(output_reg, static_cast<int32_t>(uint32_value));
+    }
+
 
     case Translation::DOUBLE_REGISTER: {
       // Abort OSR if we don't have a number.
@@ -985,24 +1098,12 @@ bool Deoptimizer::DoOsrTranslateCommand(TranslationIterator* iterator,
     }
 
     case Translation::INT32_STACK_SLOT: {
-      // Abort OSR if we don't have a number.
-      if (!input_object->IsNumber()) return false;
+      int32_t int32_value = 0;
+      if (!ObjectToInt32(input_object, &int32_value)) return false;
 
       int output_index = iterator->Next();
       unsigned output_offset =
           output->GetOffsetFromSlotIndex(output_index);
-      int int32_value = input_object->IsSmi()
-          ? Smi::cast(input_object)->value()
-          : DoubleToInt32(input_object->Number());
-      // Abort the translation if the conversion lost information.
-      if (!input_object->IsSmi() &&
-          FastI2D(int32_value) != input_object->Number()) {
-        if (FLAG_trace_osr) {
-          PrintF("**** %g could not be converted to int32 ****\n",
-                 input_object->Number());
-        }
-        return false;
-      }
       if (FLAG_trace_osr) {
         PrintF("    [sp + %d] <- %d (int32) ; [sp + %d]\n",
                output_offset,
@@ -1010,6 +1111,23 @@ bool Deoptimizer::DoOsrTranslateCommand(TranslationIterator* iterator,
                *input_offset);
       }
       output->SetFrameSlot(output_offset, int32_value);
+      break;
+    }
+
+    case Translation::UINT32_STACK_SLOT: {
+      uint32_t uint32_value = 0;
+      if (!ObjectToUint32(input_object, &uint32_value)) return false;
+
+      int output_index = iterator->Next();
+      unsigned output_offset =
+          output->GetOffsetFromSlotIndex(output_index);
+      if (FLAG_trace_osr) {
+        PrintF("    [sp + %d] <- %u (uint32) ; [sp + %d]\n",
+               output_offset,
+               uint32_value,
+               *input_offset);
+      }
+      output->SetFrameSlot(output_offset, static_cast<int32_t>(uint32_value));
       break;
     }
 
@@ -1399,6 +1517,12 @@ void Translation::StoreInt32Register(Register reg) {
 }
 
 
+void Translation::StoreUint32Register(Register reg) {
+  buffer_->Add(UINT32_REGISTER, zone());
+  buffer_->Add(reg.code(), zone());
+}
+
+
 void Translation::StoreDoubleRegister(DoubleRegister reg) {
   buffer_->Add(DOUBLE_REGISTER, zone());
   buffer_->Add(DoubleRegister::ToAllocationIndex(reg), zone());
@@ -1413,6 +1537,12 @@ void Translation::StoreStackSlot(int index) {
 
 void Translation::StoreInt32StackSlot(int index) {
   buffer_->Add(INT32_STACK_SLOT, zone());
+  buffer_->Add(index, zone());
+}
+
+
+void Translation::StoreUint32StackSlot(int index) {
+  buffer_->Add(UINT32_STACK_SLOT, zone());
   buffer_->Add(index, zone());
 }
 
@@ -1447,9 +1577,11 @@ int Translation::NumberOfOperandsFor(Opcode opcode) {
     case SETTER_STUB_FRAME:
     case REGISTER:
     case INT32_REGISTER:
+    case UINT32_REGISTER:
     case DOUBLE_REGISTER:
     case STACK_SLOT:
     case INT32_STACK_SLOT:
+    case UINT32_STACK_SLOT:
     case DOUBLE_STACK_SLOT:
     case LITERAL:
       return 1;
@@ -1483,12 +1615,16 @@ const char* Translation::StringFor(Opcode opcode) {
       return "REGISTER";
     case INT32_REGISTER:
       return "INT32_REGISTER";
+    case UINT32_REGISTER:
+      return "UINT32_REGISTER";
     case DOUBLE_REGISTER:
       return "DOUBLE_REGISTER";
     case STACK_SLOT:
       return "STACK_SLOT";
     case INT32_STACK_SLOT:
       return "INT32_STACK_SLOT";
+    case UINT32_STACK_SLOT:
+      return "UINT32_STACK_SLOT";
     case DOUBLE_STACK_SLOT:
       return "DOUBLE_STACK_SLOT";
     case LITERAL:
@@ -1545,6 +1681,7 @@ SlotRef SlotRef::ComputeSlotForNextArgument(TranslationIterator* iterator,
 
     case Translation::REGISTER:
     case Translation::INT32_REGISTER:
+    case Translation::UINT32_REGISTER:
     case Translation::DOUBLE_REGISTER:
     case Translation::DUPLICATE:
       // We are at safepoint which corresponds to call.  All registers are
@@ -1562,6 +1699,12 @@ SlotRef SlotRef::ComputeSlotForNextArgument(TranslationIterator* iterator,
       int slot_index = iterator->Next();
       Address slot_addr = SlotAddress(frame, slot_index);
       return SlotRef(slot_addr, SlotRef::INT32);
+    }
+
+    case Translation::UINT32_STACK_SLOT: {
+      int slot_index = iterator->Next();
+      Address slot_addr = SlotAddress(frame, slot_index);
+      return SlotRef(slot_addr, SlotRef::UINT32);
     }
 
     case Translation::DOUBLE_STACK_SLOT: {

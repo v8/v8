@@ -218,6 +218,9 @@ DEFINE_int(loop_weight, 1, "loop weight for representation inference")
 
 DEFINE_bool(optimize_for_in, true,
             "optimize functions containing for-in loops")
+DEFINE_bool(opt_safe_uint32_operations, true,
+            "allow uint32 values on optimize frames if they are used only in"
+            "safe operations")
 
 DEFINE_bool(parallel_recompilation, false,
             "optimizing hot functions asynchronously on a separate thread")

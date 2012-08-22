@@ -2500,6 +2500,12 @@ MacroAssembler::kSafepointPushRegisterIndices[Register::kNumRegisters] = {
 };
 
 
+void MacroAssembler::StoreToSafepointRegisterSlot(Register dst,
+                                                  const Immediate& imm) {
+  movq(SafepointRegisterSlot(dst), imm);
+}
+
+
 void MacroAssembler::StoreToSafepointRegisterSlot(Register dst, Register src) {
   movq(SafepointRegisterSlot(dst), src);
 }
@@ -2850,6 +2856,26 @@ void MacroAssembler::ClampDoubleToUint8(XMMRegister input_reg,
   testl(result_reg, Immediate(0xFFFFFF00));
   j(zero, &done, Label::kNear);
   Set(result_reg, 255);
+  bind(&done);
+}
+
+
+static double kUint32Bias =
+    static_cast<double>(static_cast<uint32_t>(0xFFFFFFFF)) + 1;
+
+
+void MacroAssembler::LoadUint32(XMMRegister dst,
+                                Register src,
+                                XMMRegister scratch) {
+  Label done;
+  cmpl(src, Immediate(0));
+  movq(kScratchRegister,
+       reinterpret_cast<int64_t>(&kUint32Bias),
+       RelocInfo::NONE);
+  movsd(scratch, Operand(kScratchRegister, 0));
+  cvtlsi2sd(dst, src);
+  j(not_sign, &done, Label::kNear);
+  addsd(dst, scratch);
   bind(&done);
 }
 

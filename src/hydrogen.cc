@@ -694,6 +694,7 @@ HGraph::HGraph(CompilationInfo* info)
       blocks_(8, info->zone()),
       values_(16, info->zone()),
       phi_list_(NULL),
+      uint32_instructions_(NULL),
       info_(info),
       zone_(info->zone()),
       is_recursive_(false) {
@@ -2723,6 +2724,226 @@ void HGraph::MarkDeoptimizeOnUndefined() {
 }
 
 
+// Discover instructions that can be marked with kUint32 flag allowing
+// them to produce full range uint32 values.
+class Uint32Analysis BASE_EMBEDDED {
+ public:
+  explicit Uint32Analysis(Zone* zone) : zone_(zone), phis_(4, zone) { }
+
+  void Analyze(HInstruction* current);
+
+  void UnmarkUnsafePhis();
+
+ private:
+  bool IsSafeUint32Use(HValue* val, HValue* use);
+  bool Uint32UsesAreSafe(HValue* uint32val);
+  bool CheckPhiOperands(HPhi* phi);
+  void UnmarkPhi(HPhi* phi, ZoneList<HPhi*>* worklist);
+
+  Zone* zone_;
+  ZoneList<HPhi*> phis_;
+};
+
+
+bool Uint32Analysis::IsSafeUint32Use(HValue* val, HValue* use) {
+  // Operations that operatate on bits are safe.
+  if (use->IsBitwise() ||
+      use->IsShl() ||
+      use->IsSar() ||
+      use->IsShr() ||
+      use->IsBitNot()) {
+    return true;
+  } else if (use->IsChange() || use->IsSimulate()) {
+    // Conversions and deoptimization have special support for unt32.
+    return true;
+  } else if (use->IsStoreKeyedSpecializedArrayElement()) {
+    // Storing a value into an external integer array is a bit level operation.
+    HStoreKeyedSpecializedArrayElement* store =
+        HStoreKeyedSpecializedArrayElement::cast(use);
+
+    if (store->value() == val) {
+      // Clamping or a conversion to double should have beed inserted.
+      ASSERT(store->elements_kind() != EXTERNAL_PIXEL_ELEMENTS);
+      ASSERT(store->elements_kind() != EXTERNAL_FLOAT_ELEMENTS);
+      ASSERT(store->elements_kind() != EXTERNAL_DOUBLE_ELEMENTS);
+      return true;
+    }
+  }
+
+  return false;
+}
+
+
+// Iterate over all uses and verify that they are uint32 safe: either don't
+// distinguish between int32 and uint32 due to their bitwise nature or
+// have special support for uint32 values.
+// Encountered phis are optimisitically treated as safe uint32 uses,
+// marked with kUint32 flag and collected in the phis_ list. A separate
+// path will be performed later by UnmarkUnsafePhis to clear kUint32 from
+// phis that are not actually uint32-safe (it requries fix point iteration).
+bool Uint32Analysis::Uint32UsesAreSafe(HValue* uint32val) {
+  bool collect_phi_uses = false;
+  for (HUseIterator it(uint32val->uses()); !it.Done(); it.Advance()) {
+    HValue* use = it.value();
+
+    if (use->IsPhi()) {
+      if (!use->CheckFlag(HInstruction::kUint32)) {
+        // There is a phi use of this value from a phis that is not yet
+        // collected in phis_ array. Separate pass is required.
+        collect_phi_uses = true;
+      }
+
+      // Optimistically treat phis as uint32 safe.
+      continue;
+    }
+
+    if (!IsSafeUint32Use(uint32val, use)) {
+      return false;
+    }
+  }
+
+  if (collect_phi_uses) {
+    for (HUseIterator it(uint32val->uses()); !it.Done(); it.Advance()) {
+      HValue* use = it.value();
+
+      // There is a phi use of this value from a phis that is not yet
+      // collected in phis_ array. Separate pass is required.
+      if (use->IsPhi() && !use->CheckFlag(HInstruction::kUint32)) {
+        use->SetFlag(HInstruction::kUint32);
+        phis_.Add(HPhi::cast(use), zone_);
+      }
+    }
+  }
+
+  return true;
+}
+
+
+// Analyze instruction and mark it with kUint32 if all its uses are uint32
+// safe.
+void Uint32Analysis::Analyze(HInstruction* current) {
+  if (Uint32UsesAreSafe(current)) current->SetFlag(HInstruction::kUint32);
+}
+
+
+// Check if all operands to the given phi are marked with kUint32 flag.
+bool Uint32Analysis::CheckPhiOperands(HPhi* phi) {
+  if (!phi->CheckFlag(HInstruction::kUint32)) {
+    // This phi is not uint32 safe. No need to check operands.
+    return false;
+  }
+
+  for (int j = 0; j < phi->OperandCount(); j++) {
+    HValue* operand = phi->OperandAt(j);
+    if (!operand->CheckFlag(HInstruction::kUint32)) {
+      // Lazyly mark constants that fit into uint32 range with kUint32 flag.
+      if (operand->IsConstant() &&
+          HConstant::cast(operand)->IsUint32()) {
+        operand->SetFlag(HInstruction::kUint32);
+        continue;
+      }
+
+      // This phi is not safe, some operands are not uint32 values.
+      return false;
+    }
+  }
+
+  return true;
+}
+
+
+// Remove kUint32 flag from the phi itself and its operands. If any operand
+// was a phi marked with kUint32 place it into a worklist for
+// transitive clearing of kUint32 flag.
+void Uint32Analysis::UnmarkPhi(HPhi* phi, ZoneList<HPhi*>* worklist) {
+  phi->ClearFlag(HInstruction::kUint32);
+  for (int j = 0; j < phi->OperandCount(); j++) {
+    HValue* operand = phi->OperandAt(j);
+    if (operand->CheckFlag(HInstruction::kUint32)) {
+      operand->ClearFlag(HInstruction::kUint32);
+      if (operand->IsPhi()) {
+        worklist->Add(HPhi::cast(operand), zone_);
+      }
+    }
+  }
+}
+
+
+void Uint32Analysis::UnmarkUnsafePhis() {
+  // No phis were collected. Nothing to do.
+  if (phis_.length() == 0) return;
+
+  // Worklist used to transitively clear kUint32 from phis that
+  // are used as arguments to other phis.
+  ZoneList<HPhi*> worklist(phis_.length(), zone_);
+
+  // Phi can be used as a uint32 value if and only if
+  // all its operands are uint32 values and all its
+  // uses are uint32 safe.
+
+  // Iterate over collected phis and unmark those that
+  // are unsafe. When unmarking phi unmark its operands
+  // and add it to the worklist if it is a phi as well.
+  // Phis that are still marked as safe are shifted down
+  // so that all safe phis form a prefix of the phis_ array.
+  int phi_count = 0;
+  for (int i = 0; i < phis_.length(); i++) {
+    HPhi* phi = phis_[i];
+
+    if (CheckPhiOperands(phi) && Uint32UsesAreSafe(phi)) {
+      phis_[phi_count++] = phi;
+    } else {
+      UnmarkPhi(phi, &worklist);
+    }
+  }
+
+  // Now phis array contains only those phis that have safe
+  // non-phi uses. Start transitively clearing kUint32 flag
+  // from phi operands of discovered non-safe phies until
+  // only safe phies are left.
+  while (!worklist.is_empty())  {
+    while (!worklist.is_empty()) {
+      HPhi* phi = worklist.RemoveLast();
+      UnmarkPhi(phi, &worklist);
+    }
+
+    // Check if any operands to safe phies were unmarked
+    // turning a safe phi into unsafe. The same value
+    // can flow into several phis.
+    int new_phi_count = 0;
+    for (int i = 0; i < phi_count; i++) {
+      HPhi* phi = phis_[i];
+
+      if (CheckPhiOperands(phi)) {
+        phis_[new_phi_count++] = phi;
+      } else {
+        UnmarkPhi(phi, &worklist);
+      }
+    }
+    phi_count = new_phi_count;
+  }
+}
+
+
+void HGraph::ComputeSafeUint32Operations() {
+  if (!FLAG_opt_safe_uint32_operations || uint32_instructions_ == NULL) {
+    return;
+  }
+
+  Uint32Analysis analysis(zone());
+  for (int i = 0; i < uint32_instructions_->length(); ++i) {
+    HInstruction* current = uint32_instructions_->at(i);
+    if (current->IsLinked()) analysis.Analyze(current);
+  }
+
+  // Some phis might have been optimistically marked with kUint32 flag.
+  // Remove this flag from those phis that are unsafe and propagate
+  // this information transitively potentially clearing kUint32 flag
+  // from some non-phi operations that are used as operands to unsafe phis.
+  analysis.UnmarkUnsafePhis();
+}
+
+
 void HGraph::ComputeMinusZeroChecks() {
   BitVector visited(GetMaximumValueID(), zone());
   for (int i = 0; i < blocks_.length(); ++i) {
@@ -3131,6 +3352,12 @@ bool HGraph::Optimize(SmartArrayPointer<char>* bailout_reason) {
   InsertRepresentationChanges();
 
   InitializeInferredTypes();
+
+  // Must be performed before canonicalization to ensure that Canonicalize
+  // will not remove semantically meaningful ToInt32 operations e.g. BIT_OR with
+  // zero.
+  ComputeSafeUint32Operations();
+
   Canonicalize();
 
   // Perform common subexpression elimination and loop-invariant code motion.
@@ -5851,8 +6078,14 @@ HInstruction* HGraphBuilder::BuildExternalArrayElementAccess(
         external_elements, checked_key, val, elements_kind);
   } else {
     ASSERT(val == NULL);
-    return new(zone()) HLoadKeyedSpecializedArrayElement(
-        external_elements, checked_key, dependency, elements_kind);
+    HLoadKeyedSpecializedArrayElement* load =
+       new(zone()) HLoadKeyedSpecializedArrayElement(
+          external_elements, checked_key, dependency, elements_kind);
+    if (FLAG_opt_safe_uint32_operations &&
+        elements_kind == EXTERNAL_UNSIGNED_INT_ELEMENTS) {
+      graph()->RecordUint32Instruction(load);
+    }
+    return load;
   }
 }
 
@@ -8034,6 +8267,9 @@ HInstruction* HGraphBuilder::BuildBinaryOperation(BinaryOperation* expr,
       break;
     case Token::SHR:
       instr = HShr::NewHShr(zone(), context, left, right);
+      if (FLAG_opt_safe_uint32_operations && instr->IsShr()) {
+        graph()->RecordUint32Instruction(instr);
+      }
       break;
     case Token::SHL:
       instr = HShl::NewHShl(zone(), context, left, right);

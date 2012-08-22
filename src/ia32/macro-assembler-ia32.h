@@ -467,6 +467,8 @@ class MacroAssembler: public Assembler {
     j(not_carry, is_smi);
   }
 
+  void LoadUint32(XMMRegister dst, Register src, XMMRegister scratch);
+
   // Jump the register contains a smi.
   inline void JumpIfSmi(Register value,
                         Label* smi_label,
