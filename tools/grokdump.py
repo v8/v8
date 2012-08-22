@@ -1621,7 +1621,8 @@ EIP_PROXIMITY = 64
 
 CONTEXT_FOR_ARCH = {
     MD_CPU_ARCHITECTURE_AMD64:
-      ['rax', 'rbx', 'rcx', 'rdx', 'rdi', 'rsi', 'rbp', 'rsp', 'rip'],
+      ['rax', 'rbx', 'rcx', 'rdx', 'rdi', 'rsi', 'rbp', 'rsp', 'rip',
+       'r8', 'r9', 'r10', 'r11', 'r12', 'r13', 'r14', 'r15'],
     MD_CPU_ARCHITECTURE_X86:
       ['eax', 'ebx', 'ecx', 'edx', 'edi', 'esi', 'ebp', 'esp', 'eip']
 }
