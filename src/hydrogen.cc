@@ -2933,7 +2933,9 @@ void HGraph::ComputeSafeUint32Operations() {
   Uint32Analysis analysis(zone());
   for (int i = 0; i < uint32_instructions_->length(); ++i) {
     HInstruction* current = uint32_instructions_->at(i);
-    if (current->IsLinked()) analysis.Analyze(current);
+    if (current->IsLinked() && current->representation().IsInteger32()) {
+      analysis.Analyze(current);
+    }
   }
 
   // Some phis might have been optimistically marked with kUint32 flag.
