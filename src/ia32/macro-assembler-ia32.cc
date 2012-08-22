@@ -134,10 +134,7 @@ void MacroAssembler::ClampDoubleToUint8(XMMRegister input_reg,
   Set(result_reg, Immediate(0));
   ucomisd(input_reg, scratch_reg);
   j(below, &done, Label::kNear);
-  ExternalReference half_ref = ExternalReference::address_of_one_half();
-  movdbl(scratch_reg, Operand::StaticVariable(half_ref));
-  addsd(scratch_reg, input_reg);
-  cvttsd2si(result_reg, Operand(scratch_reg));
+  cvtsd2si(result_reg, input_reg);
   test(result_reg, Immediate(0xFFFFFF00));
   j(zero, &done, Label::kNear);
   Set(result_reg, Immediate(255));

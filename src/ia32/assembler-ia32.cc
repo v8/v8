@@ -1938,6 +1938,16 @@ void Assembler::cvttsd2si(Register dst, const Operand& src) {
 }
 
 
+void Assembler::cvtsd2si(Register dst, XMMRegister src) {
+  ASSERT(CpuFeatures::IsEnabled(SSE2));
+  EnsureSpace ensure_space(this);
+  EMIT(0xF2);
+  EMIT(0x0F);
+  EMIT(0x2D);
+  emit_sse_operand(dst, src);
+}
+
+
 void Assembler::cvtsi2sd(XMMRegister dst, const Operand& src) {
   ASSERT(CpuFeatures::IsEnabled(SSE2));
   EnsureSpace ensure_space(this);

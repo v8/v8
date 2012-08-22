@@ -2846,11 +2846,7 @@ void MacroAssembler::ClampDoubleToUint8(XMMRegister input_reg,
   xorps(temp_xmm_reg, temp_xmm_reg);
   ucomisd(input_reg, temp_xmm_reg);
   j(below, &done, Label::kNear);
-  uint64_t one_half = BitCast<uint64_t, double>(0.5);
-  Set(temp_reg, one_half);
-  movq(temp_xmm_reg, temp_reg);
-  addsd(temp_xmm_reg, input_reg);
-  cvttsd2si(result_reg, temp_xmm_reg);
+  cvtsd2si(result_reg, input_reg);
   testl(result_reg, Immediate(0xFFFFFF00));
   j(zero, &done, Label::kNear);
   Set(result_reg, 255);

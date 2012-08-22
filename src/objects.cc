@@ -11628,7 +11628,7 @@ Object* ExternalPixelArray::SetValue(uint32_t index, Object* value) {
         clamped_value = 255;
       } else {
         // Other doubles are rounded to the nearest integer.
-        clamped_value = static_cast<uint8_t>(double_value + 0.5);
+        clamped_value = static_cast<uint8_t>(lrint(double_value));
       }
     } else {
       // Clamp undefined to zero (default). All other types have been

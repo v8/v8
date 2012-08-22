@@ -3684,10 +3684,15 @@ void MacroAssembler::ClampDoubleToUint8(Register result_reg,
 
   // In 0-255 range, round and truncate.
   bind(&in_bounds);
-  Vmov(temp_double_reg, 0.5);
-  vadd(temp_double_reg, input_reg, temp_double_reg);
-  vcvt_u32_f64(temp_double_reg.low(), temp_double_reg);
-  vmov(result_reg, temp_double_reg.low());
+  // Save FPSCR.
+  vmrs(ip);
+  // Set rounding mode to round to the nearest integer by clearing bits[23:22].
+  bic(result_reg, ip, Operand(kVFPRoundingModeMask));
+  vmsr(result_reg);
+  vcvt_s32_f64(input_reg.low(), input_reg, kFPSCRRounding);
+  vmov(result_reg, input_reg.low());
+  // Restore FPSCR.
+  vmsr(ip);
   bind(&done);
 }
 
