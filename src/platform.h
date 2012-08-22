@@ -84,8 +84,8 @@ inline int lrint(double flt) {
     // If the number is halfway between two integers, round to the even one.
     intgr--;
   }
-  return intgr;
 #endif
+  return intgr;
 }
 
 
