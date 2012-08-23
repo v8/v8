@@ -55,7 +55,7 @@ class Variable: public ZoneObject {
     UNALLOCATED,
 
     // A slot in the parameter section on the stack.  index() is the
-    // parameter index, counting left-to-right.  The reciever is index -1;
+    // parameter index, counting left-to-right.  The receiver is index -1;
     // the first parameter is index 0.
     PARAMETER,
 
