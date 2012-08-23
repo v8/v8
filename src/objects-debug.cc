@@ -343,8 +343,8 @@ void PolymorphicCodeCache::PolymorphicCodeCacheVerify() {
 
 
 void TypeFeedbackInfo::TypeFeedbackInfoVerify() {
-  VerifyObjectField(kIcTotalCountOffset);
-  VerifyObjectField(kIcWithTypeinfoCountOffset);
+  VerifyObjectField(kStorage1Offset);
+  VerifyObjectField(kStorage2Offset);
   VerifyHeapPointer(type_feedback_cells());
 }
 

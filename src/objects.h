@@ -6856,7 +6856,15 @@ class TypeFeedbackInfo: public Struct {
   inline void set_ic_total_count(int count);
 
   inline int ic_with_type_info_count();
-  inline void set_ic_with_type_info_count(int count);
+  inline void change_ic_with_type_info_count(int count);
+
+  inline void initialize_storage();
+
+  inline void change_own_type_change_checksum();
+  inline int own_type_change_checksum();
+
+  inline void set_inlined_type_change_checksum(int checksum);
+  inline bool matches_inlined_type_change_checksum(int checksum);
 
   DECL_ACCESSORS(type_feedback_cells, TypeFeedbackCells)
 
@@ -6872,14 +6880,25 @@ class TypeFeedbackInfo: public Struct {
   void TypeFeedbackInfoVerify();
 #endif
 
-  static const int kIcTotalCountOffset = HeapObject::kHeaderSize;
-  static const int kIcWithTypeinfoCountOffset =
-      kIcTotalCountOffset + kPointerSize;
-  static const int kTypeFeedbackCellsOffset =
-      kIcWithTypeinfoCountOffset + kPointerSize;
+  static const int kStorage1Offset = HeapObject::kHeaderSize;
+  static const int kStorage2Offset = kStorage1Offset + kPointerSize;
+  static const int kTypeFeedbackCellsOffset = kStorage2Offset + kPointerSize;
   static const int kSize = kTypeFeedbackCellsOffset + kPointerSize;
 
  private:
+  static const int kTypeChangeChecksumBits = 7;
+
+  class ICTotalCountField: public BitField<int, 0,
+      kSmiValueSize - kTypeChangeChecksumBits> {};  // NOLINT
+  class OwnTypeChangeChecksum: public BitField<int,
+      kSmiValueSize - kTypeChangeChecksumBits,
+      kTypeChangeChecksumBits> {};  // NOLINT
+  class ICsWithTypeInfoCountField: public BitField<int, 0,
+      kSmiValueSize - kTypeChangeChecksumBits> {};  // NOLINT
+  class InlinedTypeChangeChecksum: public BitField<int,
+      kSmiValueSize - kTypeChangeChecksumBits,
+      kTypeChangeChecksumBits> {};  // NOLINT
+
   DISALLOW_IMPLICIT_CONSTRUCTORS(TypeFeedbackInfo);
 };
 

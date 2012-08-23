@@ -320,12 +320,16 @@ void IC::PostPatching(Address address, Code* target, Code* old_target) {
     int delta = ComputeTypeInfoCountDelta(old_target->ic_state(),
                                           target->ic_state());
     // Not all Code objects have TypeFeedbackInfo.
-    if (delta != 0 && host->type_feedback_info()->IsTypeFeedbackInfo()) {
+    if (host->type_feedback_info()->IsTypeFeedbackInfo() && delta != 0) {
       TypeFeedbackInfo* info =
           TypeFeedbackInfo::cast(host->type_feedback_info());
-      info->set_ic_with_type_info_count(
-          info->ic_with_type_info_count() + delta);
+      info->change_ic_with_type_info_count(delta);
     }
+  }
+  if (host->type_feedback_info()->IsTypeFeedbackInfo()) {
+    TypeFeedbackInfo* info =
+        TypeFeedbackInfo::cast(host->type_feedback_info());
+    info->change_own_type_change_checksum();
   }
   if (FLAG_watch_ic_patching) {
     host->set_profiler_ticks(0);

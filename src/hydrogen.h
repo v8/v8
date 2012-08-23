@@ -336,6 +336,19 @@ class HGraph: public ZoneObject {
     osr_values_.set(values);
   }
 
+  int update_type_change_checksum(int delta) {
+    type_change_checksum_ += delta;
+    return type_change_checksum_;
+  }
+
+  bool use_optimistic_licm() {
+    return use_optimistic_licm_;
+  }
+
+  void set_use_optimistic_licm(bool value) {
+    use_optimistic_licm_ = value;
+  }
+
   void MarkRecursive() {
     is_recursive_ = true;
   }
@@ -394,6 +407,8 @@ class HGraph: public ZoneObject {
   Zone* zone_;
 
   bool is_recursive_;
+  bool use_optimistic_licm_;
+  int type_change_checksum_;
 
   DISALLOW_COPY_AND_ASSIGN(HGraph);
 };

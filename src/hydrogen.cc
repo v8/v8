@@ -697,7 +697,9 @@ HGraph::HGraph(CompilationInfo* info)
       uint32_instructions_(NULL),
       info_(info),
       zone_(info->zone()),
-      is_recursive_(false) {
+      is_recursive_(false),
+      use_optimistic_licm_(false),
+      type_change_checksum_(0) {
   start_environment_ =
       new(zone_) HEnvironment(NULL, info->scope(), info->closure(), zone_);
   start_environment_->set_ast_id(BailoutId::FunctionEntry());
@@ -1900,6 +1902,8 @@ GVN_UNTRACKED_FLAG_LIST(DECLARE_FLAG)
 
 
 void HGlobalValueNumberer::LoopInvariantCodeMotion() {
+  TRACE_GVN_1("Using optimistic loop invariant code motion: %s\n",
+              graph_->use_optimistic_licm() ? "yes" : "no");
   for (int i = graph_->blocks()->length() - 1; i >= 0; --i) {
     HBasicBlock* block = graph_->blocks()->at(i);
     if (block->IsLoopHeader()) {
@@ -1943,6 +1947,9 @@ void HGlobalValueNumberer::ProcessLoopBlock(
                   *GetGVNFlagsString(instr->gvn_flags()),
                   *GetGVNFlagsString(loop_kills));
       bool can_hoist = !instr->gvn_flags().ContainsAnyOf(depends_flags);
+      if (can_hoist && !graph()->use_optimistic_licm()) {
+        can_hoist = block->IsLoopSuccessorDominator();
+      }
       if (instr->IsTransitionElementsKind()) {
         // It's possible to hoist transitions out of a loop as long as the
         // hoisting wouldn't move the transition past an instruction that has a
@@ -3309,6 +3316,21 @@ HGraph* HGraphBuilder::CreateGraph() {
       current_block()->FinishExit(instr);
       set_current_block(NULL);
     }
+
+    // If the checksum of the number of type info changes is the same as the
+    // last time this function was compiled, then this recompile is likely not
+    // due to missing/inadequate type feedback, but rather too aggressive
+    // optimization. Disable optimistic LICM in that case.
+    Handle<Code> unoptimized_code(info()->shared_info()->code());
+    ASSERT(unoptimized_code->kind() == Code::FUNCTION);
+    Handle<Object> maybe_type_info(unoptimized_code->type_feedback_info());
+    Handle<TypeFeedbackInfo> type_info(
+        Handle<TypeFeedbackInfo>::cast(maybe_type_info));
+    int checksum = type_info->own_type_change_checksum();
+    int composite_checksum = graph()->update_type_change_checksum(checksum);
+    graph()->set_use_optimistic_licm(
+        !type_info->matches_inlined_type_change_checksum(composite_checksum));
+    type_info->set_inlined_type_change_checksum(composite_checksum);
   }
 
   return graph();
@@ -7056,8 +7078,9 @@ bool HGraphBuilder::TryInline(CallKind call_kind,
   // Save the pending call context and type feedback oracle. Set up new ones
   // for the inlined function.
   ASSERT(target_shared->has_deoptimization_support());
+  Handle<Code> unoptimized_code(target_shared->code());
   TypeFeedbackOracle target_oracle(
-      Handle<Code>(target_shared->code()),
+      unoptimized_code,
       Handle<Context>(target->context()->native_context()),
       isolate(),
       zone());
@@ -7136,6 +7159,12 @@ bool HGraphBuilder::TryInline(CallKind call_kind,
 
   // Update inlined nodes count.
   inlined_count_ += nodes_added;
+
+  ASSERT(unoptimized_code->kind() == Code::FUNCTION);
+  Handle<Object> maybe_type_info(unoptimized_code->type_feedback_info());
+  Handle<TypeFeedbackInfo> type_info(
+      Handle<TypeFeedbackInfo>::cast(maybe_type_info));
+  graph()->update_type_change_checksum(type_info->own_type_change_checksum());
 
   TraceInline(target, caller, NULL);
 

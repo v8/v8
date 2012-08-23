@@ -5198,9 +5198,77 @@ Object* TypeFeedbackCells::RawUninitializedSentinel(Heap* heap) {
 }
 
 
-SMI_ACCESSORS(TypeFeedbackInfo, ic_total_count, kIcTotalCountOffset)
-SMI_ACCESSORS(TypeFeedbackInfo, ic_with_type_info_count,
-              kIcWithTypeinfoCountOffset)
+int TypeFeedbackInfo::ic_total_count() {
+  int current = Smi::cast(READ_FIELD(this, kStorage1Offset))->value();
+  return ICTotalCountField::decode(current);
+}
+
+
+void TypeFeedbackInfo::set_ic_total_count(int count) {
+  int value = Smi::cast(READ_FIELD(this, kStorage1Offset))->value();
+  value = ICTotalCountField::update(value,
+                                    ICTotalCountField::decode(count));
+  WRITE_FIELD(this, kStorage1Offset, Smi::FromInt(value));
+}
+
+
+int TypeFeedbackInfo::ic_with_type_info_count() {
+  int current = Smi::cast(READ_FIELD(this, kStorage2Offset))->value();
+  return ICsWithTypeInfoCountField::decode(current);
+}
+
+
+void TypeFeedbackInfo::change_ic_with_type_info_count(int delta) {
+  int value = Smi::cast(READ_FIELD(this, kStorage2Offset))->value();
+  int current_count = ICsWithTypeInfoCountField::decode(value);
+  value =
+      ICsWithTypeInfoCountField::update(value, current_count + delta);
+  WRITE_FIELD(this, kStorage2Offset, Smi::FromInt(value));
+}
+
+
+void TypeFeedbackInfo::initialize_storage() {
+  WRITE_FIELD(this, kStorage1Offset, Smi::FromInt(0));
+  WRITE_FIELD(this, kStorage2Offset, Smi::FromInt(0));
+}
+
+
+void TypeFeedbackInfo::change_own_type_change_checksum() {
+  int value = Smi::cast(READ_FIELD(this, kStorage1Offset))->value();
+  int checksum = OwnTypeChangeChecksum::decode(value);
+  checksum = (checksum + 1) % (1 << kTypeChangeChecksumBits);
+  value = OwnTypeChangeChecksum::update(value, checksum);
+  // Ensure packed bit field is in Smi range.
+  if (value > Smi::kMaxValue) value |= Smi::kMinValue;
+  if (value < Smi::kMinValue) value &= ~Smi::kMinValue;
+  WRITE_FIELD(this, kStorage1Offset, Smi::FromInt(value));
+}
+
+
+void TypeFeedbackInfo::set_inlined_type_change_checksum(int checksum) {
+  int value = Smi::cast(READ_FIELD(this, kStorage2Offset))->value();
+  int mask = (1 << kTypeChangeChecksumBits) - 1;
+  value = InlinedTypeChangeChecksum::update(value, checksum & mask);
+  // Ensure packed bit field is in Smi range.
+  if (value > Smi::kMaxValue) value |= Smi::kMinValue;
+  if (value < Smi::kMinValue) value &= ~Smi::kMinValue;
+  WRITE_FIELD(this, kStorage2Offset, Smi::FromInt(value));
+}
+
+
+int TypeFeedbackInfo::own_type_change_checksum() {
+  int value = Smi::cast(READ_FIELD(this, kStorage1Offset))->value();
+  return OwnTypeChangeChecksum::decode(value);
+}
+
+
+bool TypeFeedbackInfo::matches_inlined_type_change_checksum(int checksum) {
+  int value = Smi::cast(READ_FIELD(this, kStorage2Offset))->value();
+  int mask = (1 << kTypeChangeChecksumBits) - 1;
+  return InlinedTypeChangeChecksum::decode(value) == (checksum & mask);
+}
+
+
 ACCESSORS(TypeFeedbackInfo, type_feedback_cells, TypeFeedbackCells,
           kTypeFeedbackCellsOffset)
 
