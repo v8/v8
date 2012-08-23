@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax
+// Flags: --allow-natives-syntax --expose-gc
 
 // Test uint32 handing in optimized frames.
 
@@ -44,7 +44,10 @@ assertEquals(K1, ChangeI2T(uint32_array, 0));
 assertEquals(K2, ChangeI2T(uint32_array, 1));
 %OptimizeFunctionOnNextCall(ChangeI2T);
 assertEquals(K1, ChangeI2T(uint32_array, 0));
-assertEquals(K2, ChangeI2T(uint32_array, 1));
+// Loop to force inline allocation failure and a call into runtime.
+for (var i = 0; i < 80000; i++) {
+  assertEquals(K2, ChangeI2T(uint32_array, 1));
+}
 
 function SideEffect() {
   with ({}) { }  // not inlinable
@@ -148,3 +151,23 @@ assertEquals(2, PhiOfPhiUnsafe(1));
 assertEquals(2, PhiOfPhiUnsafe(1));
 %OptimizeFunctionOnNextCall(PhiOfPhiUnsafe);
 assertEquals(2 * K3, PhiOfPhiUnsafe(K3));
+
+var old_array = new Array(1000);
+
+for (var i = 0; i < old_array.length; i++) old_array[i] = null;
+
+// Force promotion.
+gc();
+gc();
+
+function FillOldArrayWithHeapNumbers(N) {
+  for (var i = 0; i < N; i++) {
+    old_array[i] = uint32_array[1];
+  }
+}
+
+FillOldArrayWithHeapNumbers(1);
+FillOldArrayWithHeapNumbers(1);
+%OptimizeFunctionOnNextCall(FillOldArrayWithHeapNumbers);
+FillOldArrayWithHeapNumbers(old_array.length);
+gc();

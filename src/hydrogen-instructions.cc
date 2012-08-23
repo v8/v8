@@ -1124,6 +1124,7 @@ Range* HChange::InferRange(Zone* zone) {
   Range* input_range = value()->range();
   if (from().IsInteger32() &&
       to().IsTagged() &&
+      !value()->CheckFlag(HInstruction::kUint32) &&
       input_range != NULL && input_range->IsInSmiRange()) {
     set_type(HType::Smi());
   }

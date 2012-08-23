@@ -4075,7 +4075,10 @@ void LCodeGen::DoDeferredNumberTagU(LNumberTagU* instr) {
   PushSafepointRegistersScope scope(this);
 
   Label done;
-  __ LoadUint32(xmm0, reg, xmm1);
+  // Load value into xmm1 which will be preserved across potential call to
+  // runtime (MacroAssembler::EnterExitFrameEpilogue preserves only allocatable
+  // XMM registers on x64).
+  __ LoadUint32(xmm1, reg, xmm0);
 
   if (FLAG_inline_new) {
     __ AllocateHeapNumber(reg, tmp, &slow);
@@ -4093,10 +4096,10 @@ void LCodeGen::DoDeferredNumberTagU(LNumberTagU* instr) {
   CallRuntimeFromDeferred(Runtime::kAllocateHeapNumber, 0, instr);
   if (!reg.is(rax)) __ movq(reg, rax);
 
-  // Done. Put the value in xmm0 into the value of the allocated heap
+  // Done. Put the value in xmm1 into the value of the allocated heap
   // number.
   __ bind(&done);
-  __ movsd(FieldOperand(reg, HeapNumber::kValueOffset), xmm0);
+  __ movsd(FieldOperand(reg, HeapNumber::kValueOffset), xmm1);
   __ StoreToSafepointRegisterSlot(reg, reg);
 }
 
