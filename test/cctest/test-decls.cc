@@ -37,7 +37,8 @@ using namespace v8;
 
 enum Expectations {
   EXPECT_RESULT,
-  EXPECT_EXCEPTION
+  EXPECT_EXCEPTION,
+  EXPECT_ERROR
 };
 
 
@@ -95,7 +96,6 @@ class DeclarationContext {
  private:
   bool is_initialized_;
   Persistent<Context> context_;
-  Local<String> property_;
 
   int get_count_;
   int set_count_;
@@ -139,7 +139,13 @@ void DeclarationContext::Check(const char* source,
   HandleScope scope;
   TryCatch catcher;
   catcher.SetVerbose(true);
-  Local<Value> result = Script::Compile(String::New(source))->Run();
+  Local<Script> script = Script::Compile(String::New(source));
+  if (expectations == EXPECT_ERROR) {
+    CHECK(script.IsEmpty());
+    return;
+  }
+  CHECK(!script.IsEmpty());
+  Local<Value> result = script->Run();
   CHECK_EQ(get, get_count());
   CHECK_EQ(set, set_count());
   CHECK_EQ(query, query_count());
@@ -679,5 +685,216 @@ TEST(ExistsInHiddenPrototype) {
                   0,
                   1,  // (re-)declaration
                   EXPECT_RESULT, Number::New(0));
+  }
+}
+
+
+
+class SimpleContext {
+ public:
+  SimpleContext() {
+    context_ = Context::New(0);
+    context_->Enter();
+  }
+
+  virtual ~SimpleContext() {
+    context_->Exit();
+    context_.Dispose();
+  }
+
+  void Check(const char* source,
+             Expectations expectations,
+             v8::Handle<Value> value = Local<Value>()) {
+    HandleScope scope;
+    TryCatch catcher;
+    catcher.SetVerbose(true);
+    Local<Script> script = Script::Compile(String::New(source));
+    if (expectations == EXPECT_ERROR) {
+      CHECK(script.IsEmpty());
+      return;
+    }
+    CHECK(!script.IsEmpty());
+    Local<Value> result = script->Run();
+    if (expectations == EXPECT_RESULT) {
+      CHECK(!catcher.HasCaught());
+      if (!value.IsEmpty()) {
+        CHECK_EQ(value, result);
+      }
+    } else {
+      CHECK(expectations == EXPECT_EXCEPTION);
+      CHECK(catcher.HasCaught());
+      if (!value.IsEmpty()) {
+        CHECK_EQ(value, catcher.Exception());
+      }
+    }
+  }
+
+ private:
+  Persistent<Context> context_;
+};
+
+
+TEST(MultiScriptConflicts) {
+  HandleScope scope;
+
+  { SimpleContext context;
+    context.Check("var x = 1; x",
+                  EXPECT_RESULT, Number::New(1));
+    context.Check("var x = 2; x",
+                  EXPECT_RESULT, Number::New(2));
+    context.Check("const x = 3; x",
+                  EXPECT_RESULT, Number::New(3));
+    context.Check("const x = 4; x",
+                  EXPECT_RESULT, Number::New(4));
+    context.Check("x = 5; x",
+                  EXPECT_RESULT, Number::New(5));
+    context.Check("var x = 6; x",
+                  EXPECT_RESULT, Number::New(6));
+    context.Check("this.x",
+                  EXPECT_RESULT, Number::New(6));
+    context.Check("function x() { return 7 }; x()",
+                  EXPECT_RESULT, Number::New(7));
+  }
+
+  { SimpleContext context;
+    context.Check("const x = 1; x",
+                  EXPECT_RESULT, Number::New(1));
+    context.Check("var x = 2; x",  // assignment ignored
+                  EXPECT_RESULT, Number::New(1));
+    context.Check("const x = 3; x",
+                  EXPECT_RESULT, Number::New(1));
+    context.Check("x = 4; x",  // assignment ignored
+                  EXPECT_RESULT, Number::New(1));
+    context.Check("var x = 5; x",  // assignment ignored
+                  EXPECT_RESULT, Number::New(1));
+    context.Check("this.x",
+                  EXPECT_RESULT, Number::New(1));
+    context.Check("function x() { return 7 }; x",
+                  EXPECT_EXCEPTION);
+  }
+
+  i::FLAG_use_strict = true;
+  i::FLAG_harmony_scoping = true;
+
+  { SimpleContext context;
+    context.Check("var x = 1; x",
+                  EXPECT_RESULT, Number::New(1));
+    context.Check("x",
+                  EXPECT_RESULT, Number::New(1));
+    context.Check("this.x",
+                  EXPECT_RESULT, Number::New(1));
+  }
+
+  { SimpleContext context;
+    context.Check("let x = 2; x",
+                  EXPECT_RESULT, Number::New(2));
+    context.Check("x",
+                  EXPECT_RESULT, Number::New(2));
+    context.Check("this.x",
+                  EXPECT_RESULT, Number::New(2));
+  }
+
+  { SimpleContext context;
+    context.Check("const x = 3; x",
+                  EXPECT_RESULT, Number::New(3));
+    context.Check("x",
+                  EXPECT_RESULT, Number::New(3));
+    context.Check("this.x",
+                  EXPECT_RESULT, Number::New(3));
+  }
+
+  { SimpleContext context;
+    context.Check("function x() { return 4 }; x()",
+                  EXPECT_RESULT, Number::New(4));
+    context.Check("x()",
+                  EXPECT_RESULT, Number::New(4));
+    context.Check("this.x()",
+                  EXPECT_RESULT, Number::New(4));
+  }
+
+  // TODO(rossberg): All of the below should actually be errors in Harmony.
+
+  { SimpleContext context;
+    context.Check("var x = 1; x",
+                  EXPECT_RESULT, Number::New(1));
+    context.Check("let x = 2; x",
+                  EXPECT_RESULT, Number::New(2));
+  }
+
+  { SimpleContext context;
+    context.Check("var x = 1; x",
+                  EXPECT_RESULT, Number::New(1));
+    context.Check("const x = 2; x",
+                  EXPECT_RESULT, Number::New(2));
+  }
+
+  { SimpleContext context;
+    context.Check("function x() { return 1 }; x()",
+                  EXPECT_RESULT, Number::New(1));
+    context.Check("let x = 2; x",
+                  EXPECT_RESULT, Number::New(2));
+  }
+
+  { SimpleContext context;
+    context.Check("function x() { return 1 }; x()",
+                  EXPECT_RESULT, Number::New(1));
+    context.Check("const x = 2; x",
+                  EXPECT_RESULT, Number::New(2));
+  }
+
+  { SimpleContext context;
+    context.Check("let x = 1; x",
+                  EXPECT_RESULT, Number::New(1));
+    context.Check("var x = 2; x",
+                  EXPECT_RESULT, Number::New(2));
+  }
+
+  { SimpleContext context;
+    context.Check("let x = 1; x",
+                  EXPECT_RESULT, Number::New(1));
+    context.Check("let x = 2; x",
+                  EXPECT_RESULT, Number::New(2));
+  }
+
+  { SimpleContext context;
+    context.Check("let x = 1; x",
+                  EXPECT_RESULT, Number::New(1));
+    context.Check("const x = 2; x",
+                  EXPECT_RESULT, Number::New(2));
+  }
+
+  { SimpleContext context;
+    context.Check("let x = 1; x",
+                  EXPECT_RESULT, Number::New(1));
+    context.Check("function x() { return 2 }; x()",
+                  EXPECT_RESULT, Number::New(2));
+  }
+
+  { SimpleContext context;
+    context.Check("const x = 1; x",
+                  EXPECT_RESULT, Number::New(1));
+    context.Check("var x = 2; x",
+                  EXPECT_RESULT, Number::New(1));
+  }
+
+  { SimpleContext context;
+    context.Check("const x = 1; x",
+                  EXPECT_RESULT, Number::New(1));
+    context.Check("let x = 2; x",
+                  EXPECT_EXCEPTION);
+  }
+
+  { SimpleContext context;
+    context.Check("const x = 1; x",
+                  EXPECT_RESULT, Number::New(1));
+    context.Check("const x = 2; x",
+                  EXPECT_RESULT, Number::New(1));
+  }
+
+  { SimpleContext context;
+    context.Check("const x = 1; x",
+                  EXPECT_RESULT, Number::New(1));
+    context.Check("function x() { return 2 }; x()",
+                  EXPECT_EXCEPTION);
   }
 }
