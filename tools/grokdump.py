@@ -1421,7 +1421,7 @@ class InspectionPadawan(object):
       if known_map:
         return known_map
     found_obj = self.heap.FindObject(tagged_address)
-    if found_obj: return found_ob
+    if found_obj: return found_obj
     address = tagged_address - 1
     if self.reader.IsValidAddress(address):
       map_tagged_address = self.reader.ReadUIntPtr(address)
