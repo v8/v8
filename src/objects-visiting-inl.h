@@ -56,7 +56,7 @@ void StaticNewSpaceVisitor<StaticVisitor>::Initialize() {
 
   table_.Register(kVisitFixedDoubleArray, &VisitFixedDoubleArray);
 
-  table_.Register(kVisitNativeContext,
+  table_.Register(kVisitGlobalContext,
                   &FixedBodyVisitor<StaticVisitor,
                   Context::ScavengeBodyDescriptor,
                   int>::Visit);
@@ -117,7 +117,7 @@ void StaticMarkingVisitor<StaticVisitor>::Initialize() {
 
   table_.Register(kVisitFixedDoubleArray, &DataObjectVisitor::Visit);
 
-  table_.Register(kVisitNativeContext, &VisitNativeContext);
+  table_.Register(kVisitGlobalContext, &VisitGlobalContext);
 
   table_.Register(kVisitByteArray, &DataObjectVisitor::Visit);
 
@@ -217,8 +217,9 @@ void StaticMarkingVisitor<StaticVisitor>::VisitCodeTarget(
   // when they might be keeping a Context alive, or when the heap is about
   // to be serialized.
   if (FLAG_cleanup_code_caches_at_gc && target->is_inline_cache_stub()
-      && (target->ic_state() == MEGAMORPHIC || heap->flush_monomorphic_ics() ||
-          Serializer::enabled() || target->ic_age() != heap->global_ic_age())) {
+      && (target->ic_state() == MEGAMORPHIC || Serializer::enabled() ||
+          heap->isolate()->context_exit_happened() ||
+          target->ic_age() != heap->global_ic_age())) {
     IC::Clear(rinfo->pc());
     target = Code::GetCodeFromTargetAddress(rinfo->target_address());
   }
@@ -228,7 +229,7 @@ void StaticMarkingVisitor<StaticVisitor>::VisitCodeTarget(
 
 
 template<typename StaticVisitor>
-void StaticMarkingVisitor<StaticVisitor>::VisitNativeContext(
+void StaticMarkingVisitor<StaticVisitor>::VisitGlobalContext(
     Map* map, HeapObject* object) {
   FixedBodyVisitor<StaticVisitor,
                    Context::MarkCompactBodyDescriptor,
@@ -236,7 +237,7 @@ void StaticMarkingVisitor<StaticVisitor>::VisitNativeContext(
 
   MarkCompactCollector* collector = map->GetHeap()->mark_compact_collector();
   for (int idx = Context::FIRST_WEAK_SLOT;
-       idx < Context::NATIVE_CONTEXT_SLOTS;
+       idx < Context::GLOBAL_CONTEXT_SLOTS;
        ++idx) {
     Object** slot =
         HeapObject::RawField(object, FixedArray::OffsetOfElementAt(idx));

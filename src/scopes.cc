@@ -215,7 +215,7 @@ Scope* Scope::DeserializeScopeChain(Context* context, Scope* global_scope,
   Scope* current_scope = NULL;
   Scope* innermost_scope = NULL;
   bool contains_with = false;
-  while (!context->IsNativeContext()) {
+  while (!context->IsGlobalContext()) {
     if (context->IsWithContext()) {
       Scope* with_scope = new(zone) Scope(current_scope,
                                           WITH_SCOPE,

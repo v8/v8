@@ -311,10 +311,10 @@ OptimizingCompiler::Status OptimizingCompiler::CreateGraph() {
     PrintF("Compiling method %s using hydrogen\n", *name->ToCString());
     HTracer::Instance()->TraceCompilation(info()->function());
   }
-  Handle<Context> native_context(
-      info()->closure()->context()->native_context());
+  Handle<Context> global_context(
+      info()->closure()->context()->global_context());
   oracle_ = new(info()->zone()) TypeFeedbackOracle(
-      code, native_context, info()->isolate(), info()->zone());
+      code, global_context, info()->isolate(), info()->zone());
   graph_builder_ = new(info()->zone()) HGraphBuilder(info(), oracle_);
   HPhase phase(HPhase::kTotal);
   graph_ = graph_builder_->CreateGraph();
@@ -419,9 +419,9 @@ static Handle<SharedFunctionInfo> MakeFunctionInfo(CompilationInfo* info) {
   ZoneScope zone_scope(info->zone(), DELETE_ON_EXIT);
   PostponeInterruptsScope postpone(isolate);
 
-  ASSERT(!isolate->native_context().is_null());
+  ASSERT(!isolate->global_context().is_null());
   Handle<Script> script = info->script();
-  script->set_context_data((*isolate->native_context())->data());
+  script->set_context_data((*isolate->global_context())->data());
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
   if (info->is_eval()) {
@@ -736,9 +736,9 @@ static void InsertCodeIntoOptimizedCodeMap(CompilationInfo* info) {
   if (FLAG_cache_optimized_code && code->kind() == Code::OPTIMIZED_FUNCTION) {
     Handle<SharedFunctionInfo> shared(function->shared());
     Handle<FixedArray> literals(function->literals());
-    Handle<Context> native_context(function->context()->native_context());
+    Handle<Context> global_context(function->context()->global_context());
     SharedFunctionInfo::AddToOptimizedCodeMap(
-        shared, native_context, code, literals);
+        shared, global_context, code, literals);
   }
 }
 
@@ -748,8 +748,8 @@ static bool InstallCodeFromOptimizedCodeMap(CompilationInfo* info) {
     Handle<SharedFunctionInfo> shared = info->shared_info();
     Handle<JSFunction> function = info->closure();
     ASSERT(!function.is_null());
-    Handle<Context> native_context(function->context()->native_context());
-    int index = shared->SearchOptimizedCodeMap(*native_context);
+    Handle<Context> global_context(function->context()->global_context());
+    int index = shared->SearchOptimizedCodeMap(*global_context);
     if (index > 0) {
       if (FLAG_trace_opt) {
         PrintF("[found optimized code for: ");
@@ -893,7 +893,7 @@ void Compiler::InstallOptimizedCode(OptimizingCompiler* optimizing_compiler) {
     ASSERT(info->shared_info()->scope_info() != ScopeInfo::Empty());
     info->closure()->ReplaceCode(*code);
     if (info->shared_info()->SearchOptimizedCodeMap(
-            info->closure()->context()->native_context()) == -1) {
+            info->closure()->context()->global_context()) == -1) {
       InsertCodeIntoOptimizedCodeMap(*info);
     }
   } else {

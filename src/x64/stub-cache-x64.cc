@@ -228,15 +228,15 @@ void StubCompiler::GenerateLoadGlobalFunctionPrototype(MacroAssembler* masm,
                                                        Register prototype) {
   // Load the global or builtins object from the current context.
   __ movq(prototype,
-          Operand(rsi, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
-  // Load the native context from the global or builtins object.
+             Operand(rsi, Context::SlotOffset(Context::GLOBAL_INDEX)));
+  // Load the global context from the global or builtins object.
   __ movq(prototype,
-          FieldOperand(prototype, GlobalObject::kNativeContextOffset));
-  // Load the function from the native context.
+             FieldOperand(prototype, GlobalObject::kGlobalContextOffset));
+  // Load the function from the global context.
   __ movq(prototype, Operand(prototype, Context::SlotOffset(index)));
   // Load the initial map.  The global functions all have initial maps.
   __ movq(prototype,
-          FieldOperand(prototype, JSFunction::kPrototypeOrInitialMapOffset));
+             FieldOperand(prototype, JSFunction::kPrototypeOrInitialMapOffset));
   // Load the prototype from the initial map.
   __ movq(prototype, FieldOperand(prototype, Map::kPrototypeOffset));
 }
@@ -249,13 +249,13 @@ void StubCompiler::GenerateDirectLoadGlobalFunctionPrototype(
     Label* miss) {
   Isolate* isolate = masm->isolate();
   // Check we're still in the same context.
-  __ Move(prototype, isolate->global_object());
-  __ cmpq(Operand(rsi, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)),
+  __ Move(prototype, isolate->global());
+  __ cmpq(Operand(rsi, Context::SlotOffset(Context::GLOBAL_INDEX)),
           prototype);
   __ j(not_equal, miss);
   // Get the global function with the given index.
   Handle<JSFunction> function(
-      JSFunction::cast(isolate->native_context()->get(index)));
+      JSFunction::cast(isolate->global_context()->get(index)));
   // Load its initial map. The global functions all have initial maps.
   __ Move(prototype, Handle<Map>(function->initial_map()));
   // Load the prototype from the initial map.
@@ -2475,52 +2475,6 @@ Handle<Code> StoreStubCompiler::CompileStoreCallback(
 }
 
 
-#undef __
-#define __ ACCESS_MASM(masm)
-
-
-void StoreStubCompiler::GenerateStoreViaSetter(
-    MacroAssembler* masm,
-    Handle<JSFunction> setter) {
-  // ----------- S t a t e -------------
-  //  -- rax    : value
-  //  -- rcx    : name
-  //  -- rdx    : receiver
-  //  -- rsp[0] : return address
-  // -----------------------------------
-  {
-    FrameScope scope(masm, StackFrame::INTERNAL);
-
-    // Save value register, so we can restore it later.
-    __ push(rax);
-
-    if (!setter.is_null()) {
-      // Call the JavaScript setter with receiver and value on the stack.
-      __ push(rdx);
-      __ push(rax);
-      ParameterCount actual(1);
-      __ InvokeFunction(setter, actual, CALL_FUNCTION, NullCallWrapper(),
-                        CALL_AS_METHOD);
-    } else {
-      // If we generate a global code snippet for deoptimization only, remember
-      // the place to continue after deoptimization.
-      masm->isolate()->heap()->SetSetterStubDeoptPCOffset(masm->pc_offset());
-    }
-
-    // We have to return the passed value, not the return value of the setter.
-    __ pop(rax);
-
-    // Restore context register.
-    __ movq(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
-  }
-  __ ret(0);
-}
-
-
-#undef __
-#define __ ACCESS_MASM(masm())
-
-
 Handle<Code> StoreStubCompiler::CompileStoreViaSetter(
     Handle<String> name,
     Handle<JSObject> receiver,
@@ -2538,7 +2492,26 @@ Handle<Code> StoreStubCompiler::CompileStoreViaSetter(
   __ JumpIfSmi(rdx, &miss);
   CheckPrototypes(receiver, rdx, holder, rbx, r8, rdi, name, &miss);
 
-  GenerateStoreViaSetter(masm(), setter);
+  {
+    FrameScope scope(masm(), StackFrame::INTERNAL);
+
+    // Save value register, so we can restore it later.
+    __ push(rax);
+
+    // Call the JavaScript setter with the receiver and the value on the stack.
+    __ push(rdx);
+    __ push(rax);
+    ParameterCount actual(1);
+    __ InvokeFunction(setter, actual, CALL_FUNCTION, NullCallWrapper(),
+                      CALL_AS_METHOD);
+
+    // We have to return the passed value, not the return value of the setter.
+    __ pop(rax);
+
+    // Restore context register.
+    __ movq(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
+  }
+  __ ret(0);
 
   __ bind(&miss);
   Handle<Code> ic = isolate()->builtins()->StoreIC_Miss();

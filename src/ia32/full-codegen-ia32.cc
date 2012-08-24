@@ -1265,9 +1265,9 @@ void FullCodeGenerator::EmitLoadGlobalCheckExtensions(Variable* var,
       __ mov(temp, context);
     }
     __ bind(&next);
-    // Terminate at native context.
+    // Terminate at global context.
     __ cmp(FieldOperand(temp, HeapObject::kMapOffset),
-           Immediate(isolate()->factory()->native_context_map()));
+           Immediate(isolate()->factory()->global_context_map()));
     __ j(equal, &fast, Label::kNear);
     // Check that extension is NULL.
     __ cmp(ContextOperand(temp, Context::EXTENSION_INDEX), Immediate(0));
@@ -2694,9 +2694,9 @@ void FullCodeGenerator::EmitIsStringWrapperSafeForDefaultValueOf(
   __ mov(ecx, FieldOperand(ebx, Map::kPrototypeOffset));
   __ JumpIfSmi(ecx, if_false);
   __ mov(ecx, FieldOperand(ecx, HeapObject::kMapOffset));
-  __ mov(edx, Operand(esi, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
+  __ mov(edx, Operand(esi, Context::SlotOffset(Context::GLOBAL_INDEX)));
   __ mov(edx,
-         FieldOperand(edx, GlobalObject::kNativeContextOffset));
+         FieldOperand(edx, GlobalObject::kGlobalContextOffset));
   __ cmp(ecx,
          ContextOperand(edx,
                         Context::STRING_FUNCTION_PROTOTYPE_MAP_INDEX));
@@ -2971,8 +2971,8 @@ void FullCodeGenerator::EmitRandomHeapNumber(CallRuntime* expr) {
   __ bind(&heapnumber_allocated);
 
   __ PrepareCallCFunction(1, ebx);
-  __ mov(eax, ContextOperand(context_register(), Context::GLOBAL_OBJECT_INDEX));
-  __ mov(eax, FieldOperand(eax, GlobalObject::kNativeContextOffset));
+  __ mov(eax, ContextOperand(context_register(), Context::GLOBAL_INDEX));
+  __ mov(eax, FieldOperand(eax, GlobalObject::kGlobalContextOffset));
   __ mov(Operand(esp, 0), eax);
   __ CallCFunction(ExternalReference::random_uint32_function(isolate()), 1);
 
@@ -3403,7 +3403,7 @@ void FullCodeGenerator::EmitGetFromCache(CallRuntime* expr) {
   int cache_id = Smi::cast(*(args->at(0)->AsLiteral()->handle()))->value();
 
   Handle<FixedArray> jsfunction_result_caches(
-      isolate()->native_context()->jsfunction_result_caches());
+      isolate()->global_context()->jsfunction_result_caches());
   if (jsfunction_result_caches->length() <= cache_id) {
     __ Abort("Attempt to use undefined cache.");
     __ mov(eax, isolate()->factory()->undefined_value());
@@ -3416,9 +3416,9 @@ void FullCodeGenerator::EmitGetFromCache(CallRuntime* expr) {
   Register key = eax;
   Register cache = ebx;
   Register tmp = ecx;
-  __ mov(cache, ContextOperand(esi, Context::GLOBAL_OBJECT_INDEX));
+  __ mov(cache, ContextOperand(esi, Context::GLOBAL_INDEX));
   __ mov(cache,
-         FieldOperand(cache, GlobalObject::kNativeContextOffset));
+         FieldOperand(cache, GlobalObject::kGlobalContextOffset));
   __ mov(cache, ContextOperand(cache, Context::JSFUNCTION_RESULT_CACHES_INDEX));
   __ mov(cache,
          FieldOperand(cache, FixedArray::OffsetOfElementAt(cache_id)));
@@ -4438,7 +4438,7 @@ void FullCodeGenerator::PushFunctionArgumentForContextAllocation() {
   Scope* declaration_scope = scope()->DeclarationScope();
   if (declaration_scope->is_global_scope() ||
       declaration_scope->is_module_scope()) {
-    // Contexts nested in the native context have a canonical empty function
+    // Contexts nested in the global context have a canonical empty function
     // as their closure, not the anonymous closure containing the global
     // code.  Pass a smi sentinel and let the runtime look up the empty
     // function.

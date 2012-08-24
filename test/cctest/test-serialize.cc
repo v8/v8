@@ -282,8 +282,8 @@ static void SanityCheck() {
 #ifdef DEBUG
   HEAP->Verify();
 #endif
-  CHECK(Isolate::Current()->global_object()->IsJSObject());
-  CHECK(Isolate::Current()->native_context()->IsContext());
+  CHECK(Isolate::Current()->global()->IsJSObject());
+  CHECK(Isolate::Current()->global_context()->IsContext());
   CHECK(HEAP->symbol_table()->IsSymbolTable());
   CHECK(!FACTORY->LookupAsciiSymbol("Empty")->IsFailure());
 }

@@ -272,7 +272,7 @@ void Deoptimizer::VisitAllOptimizedFunctionsForContext(
   ZoneScope zone_scope(isolate->runtime_zone(), DELETE_ON_EXIT);
   AssertNoAllocation no_allocation;
 
-  ASSERT(context->IsNativeContext());
+  ASSERT(context->IsGlobalContext());
 
   visitor->EnterContext(context);
 
@@ -303,10 +303,10 @@ void Deoptimizer::VisitAllOptimizedFunctionsForGlobalObject(
     Object* proto = object->GetPrototype();
     ASSERT(proto->IsJSGlobalObject());
     VisitAllOptimizedFunctionsForContext(
-        GlobalObject::cast(proto)->native_context(), visitor);
+        GlobalObject::cast(proto)->global_context(), visitor);
   } else if (object->IsGlobalObject()) {
     VisitAllOptimizedFunctionsForContext(
-        GlobalObject::cast(object)->native_context(), visitor);
+        GlobalObject::cast(object)->global_context(), visitor);
   }
 }
 
@@ -315,12 +315,12 @@ void Deoptimizer::VisitAllOptimizedFunctions(
     OptimizedFunctionVisitor* visitor) {
   AssertNoAllocation no_allocation;
 
-  // Run through the list of all native contexts and deoptimize.
-  Object* context = Isolate::Current()->heap()->native_contexts_list();
+  // Run through the list of all global contexts and deoptimize.
+  Object* context = Isolate::Current()->heap()->global_contexts_list();
   while (!context->IsUndefined()) {
     // GC can happen when the context is not fully initialized,
     // so the global field of the context can be undefined.
-    Object* global = Context::cast(context)->get(Context::GLOBAL_OBJECT_INDEX);
+    Object* global = Context::cast(context)->get(Context::GLOBAL_INDEX);
     if (!global->IsUndefined()) {
       VisitAllOptimizedFunctionsForGlobalObject(JSObject::cast(global),
                                                 visitor);
@@ -589,19 +589,7 @@ void Deoptimizer::DoComputeOutputFrames() {
       case Translation::CONSTRUCT_STUB_FRAME:
         DoComputeConstructStubFrame(&iterator, i);
         break;
-      case Translation::SETTER_STUB_FRAME:
-        DoComputeSetterStubFrame(&iterator, i);
-        break;
-      case Translation::BEGIN:
-      case Translation::REGISTER:
-      case Translation::INT32_REGISTER:
-      case Translation::DOUBLE_REGISTER:
-      case Translation::STACK_SLOT:
-      case Translation::INT32_STACK_SLOT:
-      case Translation::DOUBLE_STACK_SLOT:
-      case Translation::LITERAL:
-      case Translation::ARGUMENTS_OBJECT:
-      case Translation::DUPLICATE:
+      default:
         UNREACHABLE();
         break;
     }
@@ -720,7 +708,6 @@ void Deoptimizer::DoTranslateCommand(TranslationIterator* iterator,
     case Translation::JS_FRAME:
     case Translation::ARGUMENTS_ADAPTOR_FRAME:
     case Translation::CONSTRUCT_STUB_FRAME:
-    case Translation::SETTER_STUB_FRAME:
     case Translation::DUPLICATE:
       UNREACHABLE();
       return;
@@ -908,7 +895,6 @@ bool Deoptimizer::DoOsrTranslateCommand(TranslationIterator* iterator,
     case Translation::JS_FRAME:
     case Translation::ARGUMENTS_ADAPTOR_FRAME:
     case Translation::CONSTRUCT_STUB_FRAME:
-    case Translation::SETTER_STUB_FRAME:
     case Translation::DUPLICATE:
       UNREACHABLE();  // Malformed input.
        return false;
@@ -1364,12 +1350,6 @@ void Translation::BeginConstructStubFrame(int literal_id, unsigned height) {
 }
 
 
-void Translation::BeginSetterStubFrame(int literal_id) {
-  buffer_->Add(SETTER_STUB_FRAME, zone());
-  buffer_->Add(literal_id, zone());
-}
-
-
 void Translation::BeginArgumentsAdaptorFrame(int literal_id, unsigned height) {
   buffer_->Add(ARGUMENTS_ADAPTOR_FRAME, zone());
   buffer_->Add(literal_id, zone());
@@ -1444,7 +1424,6 @@ int Translation::NumberOfOperandsFor(Opcode opcode) {
     case ARGUMENTS_OBJECT:
     case DUPLICATE:
       return 0;
-    case SETTER_STUB_FRAME:
     case REGISTER:
     case INT32_REGISTER:
     case DOUBLE_REGISTER:
@@ -1477,8 +1456,6 @@ const char* Translation::StringFor(Opcode opcode) {
       return "ARGUMENTS_ADAPTOR_FRAME";
     case CONSTRUCT_STUB_FRAME:
       return "CONSTRUCT_STUB_FRAME";
-    case SETTER_STUB_FRAME:
-      return "SETTER_STUB_FRAME";
     case REGISTER:
       return "REGISTER";
     case INT32_REGISTER:
@@ -1535,7 +1512,6 @@ SlotRef SlotRef::ComputeSlotForNextArgument(TranslationIterator* iterator,
     case Translation::JS_FRAME:
     case Translation::ARGUMENTS_ADAPTOR_FRAME:
     case Translation::CONSTRUCT_STUB_FRAME:
-    case Translation::SETTER_STUB_FRAME:
       // Peeled off before getting here.
       break;
 

@@ -574,7 +574,7 @@ bool Object::IsContext() {
     return (map == heap->function_context_map() ||
             map == heap->catch_context_map() ||
             map == heap->with_context_map() ||
-            map == heap->native_context_map() ||
+            map == heap->global_context_map() ||
             map == heap->block_context_map() ||
             map == heap->module_context_map());
   }
@@ -582,10 +582,10 @@ bool Object::IsContext() {
 }
 
 
-bool Object::IsNativeContext() {
+bool Object::IsGlobalContext() {
   return Object::IsHeapObject() &&
       HeapObject::cast(this)->map() ==
-      HeapObject::cast(this)->GetHeap()->native_context_map();
+      HeapObject::cast(this)->GetHeap()->global_context_map();
 }
 
 
@@ -1339,8 +1339,8 @@ MaybeObject* JSObject::GetElementsTransitionMap(Isolate* isolate,
   ElementsKind from_kind = current_map->elements_kind();
   if (from_kind == to_kind) return current_map;
 
-  Context* native_context = isolate->context()->native_context();
-  Object* maybe_array_maps = native_context->js_array_maps();
+  Context* global_context = isolate->context()->global_context();
+  Object* maybe_array_maps = global_context->js_array_maps();
   if (maybe_array_maps->IsFixedArray()) {
     FixedArray* array_maps = FixedArray::cast(maybe_array_maps);
     if (array_maps->get(from_kind) == current_map) {
@@ -3669,10 +3669,10 @@ ACCESSORS(JSFunction, literals_or_bindings, FixedArray, kLiteralsOffset)
 ACCESSORS(JSFunction, next_function_link, Object, kNextFunctionLinkOffset)
 
 ACCESSORS(GlobalObject, builtins, JSBuiltinsObject, kBuiltinsOffset)
-ACCESSORS(GlobalObject, native_context, Context, kNativeContextOffset)
+ACCESSORS(GlobalObject, global_context, Context, kGlobalContextOffset)
 ACCESSORS(GlobalObject, global_receiver, JSObject, kGlobalReceiverOffset)
 
-ACCESSORS(JSGlobalProxy, native_context, Object, kNativeContextOffset)
+ACCESSORS(JSGlobalProxy, context, Object, kContextOffset)
 
 ACCESSORS(AccessorInfo, getter, Object, kGetterOffset)
 ACCESSORS(AccessorInfo, setter, Object, kSetterOffset)
@@ -4156,7 +4156,7 @@ void SharedFunctionInfo::TryReenableOptimization() {
 
 
 bool JSFunction::IsBuiltin() {
-  return context()->global_object()->IsJSBuiltinsObject();
+  return context()->global()->IsJSBuiltinsObject();
 }
 
 
@@ -4224,10 +4224,10 @@ void JSFunction::ReplaceCode(Code* code) {
   // Add/remove the function from the list of optimized functions for this
   // context based on the state change.
   if (!was_optimized && is_optimized) {
-    context()->native_context()->AddOptimizedFunction(this);
+    context()->global_context()->AddOptimizedFunction(this);
   }
   if (was_optimized && !is_optimized) {
-    context()->native_context()->RemoveOptimizedFunction(this);
+    context()->global_context()->RemoveOptimizedFunction(this);
   }
 }
 
@@ -4270,12 +4270,12 @@ void JSFunction::set_initial_map(Map* value) {
 
 MaybeObject* JSFunction::set_initial_map_and_cache_transitions(
     Map* initial_map) {
-  Context* native_context = context()->native_context();
+  Context* global_context = context()->global_context();
   Object* array_function =
-      native_context->get(Context::ARRAY_FUNCTION_INDEX);
+      global_context->get(Context::ARRAY_FUNCTION_INDEX);
   if (array_function->IsJSFunction() &&
       this == JSFunction::cast(array_function)) {
-    // Replace all of the cached initial array maps in the native context with
+    // Replace all of the cached initial array maps in the global context with
     // the appropriate transitioned elements kind maps.
     Heap* heap = GetHeap();
     MaybeObject* maybe_maps =
@@ -4297,7 +4297,7 @@ MaybeObject* JSFunction::set_initial_map_and_cache_transitions(
       maps->set(next_kind, new_map);
       current_map = new_map;
     }
-    native_context->set_js_array_maps(maps);
+    global_context->set_js_array_maps(maps);
   }
   set_initial_map(initial_map);
   return this;

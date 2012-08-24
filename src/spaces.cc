@@ -2027,15 +2027,14 @@ HeapObject* FreeList::Allocate(int size_in_bytes) {
   // if it is big enough.
   owner_->Free(owner_->top(), old_linear_size);
 
-  owner_->heap()->incremental_marking()->OldSpaceStep(
-      size_in_bytes - old_linear_size);
-
 #ifdef DEBUG
   for (int i = 0; i < size_in_bytes / kPointerSize; i++) {
-    reinterpret_cast<Object**>(new_node->address())[i] =
-        Smi::FromInt(kCodeZapValue);
+    reinterpret_cast<Object**>(new_node->address())[i] = Smi::FromInt(0);
   }
 #endif
+
+  owner_->heap()->incremental_marking()->OldSpaceStep(
+      size_in_bytes - old_linear_size);
 
   // The old-space-step might have finished sweeping and restarted marking.
   // Verify that it did not turn the page of the new node into an evacuation
