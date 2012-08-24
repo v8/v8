@@ -2539,7 +2539,7 @@ class V8EXPORT Extension {  // NOLINT
   // Note that the strings passed into this constructor must live as long
   // as the Extension itself.
   Extension(const char* name,
-            const char* source = 0,
+            const char* source,
             int dep_count = 0,
             const char** deps = 0,
             int source_length = -1);
