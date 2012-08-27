@@ -97,7 +97,6 @@ Heap::Heap()
       linear_allocation_scope_depth_(0),
       contexts_disposed_(0),
       global_ic_age_(0),
-      flush_monomorphic_ics_(false),
       scan_on_scavenge_pages_(0),
       new_space_(this),
       old_pointer_space_(NULL),
@@ -993,7 +992,7 @@ void Heap::MarkCompact(GCTracer* tracer) {
 
   contexts_disposed_ = 0;
 
-  flush_monomorphic_ics_ = false;
+  isolate_->set_context_exit_happened(false);
 }
 
 
