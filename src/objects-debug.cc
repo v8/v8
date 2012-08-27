@@ -302,11 +302,9 @@ void Map::MapVerify() {
           instance_size() < HEAP->Capacity()));
   VerifyHeapPointer(prototype());
   VerifyHeapPointer(instance_descriptors());
-  if (instance_descriptors()->number_of_descriptors() == 0) {
-    ASSERT(LastAdded() == kNoneAdded);
-  } else {
-    ASSERT(instance_descriptors()->GetDetails(LastAdded()).index() ==
-           instance_descriptors()->number_of_descriptors());
+  DescriptorArray* descriptors = instance_descriptors();
+  for (int i = 0; i < NumberOfOwnDescriptors(); ++i) {
+    ASSERT_EQ(i, descriptors->GetDetails(i).descriptor_index() - 1);
   }
   SLOW_ASSERT(instance_descriptors()->IsSortedNoDuplicates());
   if (HasTransitionArray()) {
@@ -907,13 +905,13 @@ bool DescriptorArray::IsSortedNoDuplicates() {
   String* current_key = NULL;
   uint32_t current = 0;
   for (int i = 0; i < number_of_descriptors(); i++) {
-    String* key = GetKey(i);
+    String* key = GetSortedKey(i);
     if (key == current_key) {
       PrintDescriptors();
       return false;
     }
     current_key = key;
-    uint32_t hash = GetKey(i)->Hash();
+    uint32_t hash = GetSortedKey(i)->Hash();
     if (hash < current) {
       PrintDescriptors();
       return false;
@@ -928,13 +926,13 @@ bool TransitionArray::IsSortedNoDuplicates() {
   String* current_key = NULL;
   uint32_t current = 0;
   for (int i = 0; i < number_of_transitions(); i++) {
-    String* key = GetKey(i);
+    String* key = GetSortedKey(i);
     if (key == current_key) {
       PrintTransitions();
       return false;
     }
     current_key = key;
-    uint32_t hash = GetKey(i)->Hash();
+    uint32_t hash = GetSortedKey(i)->Hash();
     if (hash < current) {
       PrintTransitions();
       return false;

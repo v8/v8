@@ -2166,14 +2166,14 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_FunctionSetReadOnlyPrototype) {
     // Construct a new field descriptor with updated attributes.
     DescriptorArray* instance_desc = function->map()->instance_descriptors();
 
-    int index = instance_desc->Search(name);
+    int index = instance_desc->SearchWithCache(name);
     ASSERT(index != DescriptorArray::kNotFound);
     PropertyDetails details = instance_desc->GetDetails(index);
 
     CallbacksDescriptor new_desc(name,
         instance_desc->GetValue(index),
         static_cast<PropertyAttributes>(details.attributes() | READ_ONLY),
-        details.index());
+        details.descriptor_index());
 
     // Create a new map featuring the new field descriptors array.
     Map* new_map;
@@ -2191,7 +2191,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_FunctionSetReadOnlyPrototype) {
     PropertyDetails new_details(
         static_cast<PropertyAttributes>(details.attributes() | READ_ONLY),
         details.type(),
-        details.index());
+        details.dictionary_index());
     function->property_dictionary()->DetailsAtPut(entry, new_details);
   }
   return function;
@@ -10530,7 +10530,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugPropertyAttributesFromDetails) {
 RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugPropertyIndexFromDetails) {
   ASSERT(args.length() == 1);
   CONVERT_PROPERTY_DETAILS_CHECKED(details, 0);
-  return Smi::FromInt(details.index());
+  // TODO(verwaest): Depends on the type of details.
+  return Smi::FromInt(details.dictionary_index());
 }
 
 

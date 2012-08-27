@@ -65,9 +65,10 @@ class Descriptor BASE_EMBEDDED {
 #endif
 
   void SetEnumerationIndex(int index) {
-    ASSERT(PropertyDetails::IsValidIndex(index));
     details_ = PropertyDetails(details_.attributes(), details_.type(), index);
   }
+
+  void SetSortedKey(int index) { details_ = details_.set_pointer(index); }
 
  private:
   String* key_;

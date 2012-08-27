@@ -2050,9 +2050,8 @@ void Heap::ScavengeObjectSlow(HeapObject** p, HeapObject* object) {
 MaybeObject* Heap::AllocatePartialMap(InstanceType instance_type,
                                       int instance_size) {
   Object* result;
-  { MaybeObject* maybe_result = AllocateRawMap();
-    if (!maybe_result->ToObject(&result)) return maybe_result;
-  }
+  MaybeObject* maybe_result = AllocateRawMap();
+  if (!maybe_result->ToObject(&result)) return maybe_result;
 
   // Map::cast cannot be used due to uninitialized map field.
   reinterpret_cast<Map*>(result)->set_map(raw_unchecked_meta_map());
@@ -2065,8 +2064,7 @@ MaybeObject* Heap::AllocatePartialMap(InstanceType instance_type,
   reinterpret_cast<Map*>(result)->set_unused_property_fields(0);
   reinterpret_cast<Map*>(result)->set_bit_field(0);
   reinterpret_cast<Map*>(result)->set_bit_field2(0);
-  reinterpret_cast<Map*>(result)->set_bit_field3(
-      Map::LastAddedBits::encode(Map::kNoneAdded));
+  reinterpret_cast<Map*>(result)->set_bit_field3(0);
   return result;
 }
 
@@ -2093,7 +2091,7 @@ MaybeObject* Heap::AllocateMap(InstanceType instance_type,
   map->set_unused_property_fields(0);
   map->set_bit_field(0);
   map->set_bit_field2(1 << Map::kIsExtensible);
-  map->set_bit_field3(Map::LastAddedBits::encode(Map::kNoneAdded));
+  map->set_bit_field3(0);
   map->set_elements_kind(elements_kind);
 
   // If the map object is aligned fill the padding area with Smi 0 objects.
@@ -3890,7 +3888,7 @@ MaybeObject* Heap::AllocateInitialMap(JSFunction* fun) {
         FieldDescriptor field(name, i, NONE, i + 1);
         descriptors->Set(i, &field, witness);
       }
-      descriptors->Sort(witness);
+      descriptors->Sort();
 
       // The descriptors may contain duplicates because the compiler does not
       // guarantee the uniqueness of property names (it would have required
@@ -4162,8 +4160,9 @@ MaybeObject* Heap::AllocateGlobalObject(JSFunction* constructor) {
   for (int i = 0; i < descs->number_of_descriptors(); i++) {
     PropertyDetails details = descs->GetDetails(i);
     ASSERT(details.type() == CALLBACKS);  // Only accessors are expected.
-    PropertyDetails d =
-        PropertyDetails(details.attributes(), CALLBACKS, details.index());
+    PropertyDetails d = PropertyDetails(details.attributes(),
+                                        CALLBACKS,
+                                        details.descriptor_index());
     Object* value = descs->GetCallbacksObject(i);
     MaybeObject* maybe_value = AllocateJSGlobalPropertyCell(value);
     if (!maybe_value->ToObject(&value)) return maybe_value;
