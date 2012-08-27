@@ -5241,10 +5241,17 @@ int TypeFeedbackInfo::ic_with_type_info_count() {
 
 void TypeFeedbackInfo::change_ic_with_type_info_count(int delta) {
   int value = Smi::cast(READ_FIELD(this, kStorage2Offset))->value();
-  int current_count = ICsWithTypeInfoCountField::decode(value);
-  value =
-      ICsWithTypeInfoCountField::update(value, current_count + delta);
-  WRITE_FIELD(this, kStorage2Offset, Smi::FromInt(value));
+  int new_count = ICsWithTypeInfoCountField::decode(value) + delta;
+  // We can get negative count here when the type-feedback info is
+  // shared between two code objects. The can only happen when
+  // the debugger made a shallow copy of code object (see Heap::CopyCode).
+  // Since we do not optimize when the debugger is active, we can skip
+  // this counter update.
+  if (new_count >= 0) {
+    new_count &= ICsWithTypeInfoCountField::kMask;
+    value = ICsWithTypeInfoCountField::update(value, new_count);
+    WRITE_FIELD(this, kStorage2Offset, Smi::FromInt(value));
+  }
 }
 
 
