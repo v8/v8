@@ -10981,6 +10981,8 @@ static void entry_hook(uintptr_t function,
     ++foo_count;
 
   // TODO(siggi): Verify return_addr_location.
+  //     This can be done by capturing JitCodeEvents, but requires an ordered
+  //     collection.
 }
 
 
@@ -11063,6 +11065,188 @@ TEST(SetFunctionEntryHook) {
   RunLoopInNewEnv();
   CHECK_EQ(0u, bar_count);
   CHECK_EQ(0u, foo_count);
+}
+
+
+static i::HashMap* code_map = NULL;
+static int saw_bar = 0;
+static int move_events = 0;
+
+
+static bool FunctionNameIs(const char* expected,
+                           const v8::JitCodeEvent* event) {
+  // Log lines for functions are of the general form:
+  // "LazyCompile:<type><function_name>", where the type is one of
+  // "*", "~" or "".
+  static const char kPreamble[] = "LazyCompile:";
+  static size_t kPreambleLen = sizeof(kPreamble) - 1;
+
+  if (event->name.len < sizeof(kPreamble) - 1 ||
+      strncmp(kPreamble, event->name.str, kPreambleLen) != 0) {
+    return false;
+  }
+
+  const char* tail = event->name.str + kPreambleLen;
+  size_t tail_len = event->name.len - kPreambleLen;
+  size_t expected_len = strlen(expected);
+  if (tail_len == expected_len + 1) {
+    if (*tail == '*' || *tail == '~') {
+      --tail_len;
+      ++tail;
+    } else {
+      return false;
+    }
+  }
+
+  if (tail_len != expected_len)
+    return false;
+
+  return strncmp(tail, expected, expected_len) == 0;
+}
+
+
+static void event_handler(const v8::JitCodeEvent* event) {
+  CHECK(event != NULL);
+  CHECK(code_map != NULL);
+
+  uint32_t hash = static_cast<uint32_t>(
+      reinterpret_cast<uintptr_t>(event->code_start));
+  switch (event->type) {
+    case v8::JitCodeEvent::CODE_ADDED: {
+        CHECK(event->code_start != NULL);
+        CHECK_NE(0, event->code_len);
+        CHECK(event->name.str != NULL);
+        i::HashMap::Entry* entry =
+            code_map->Lookup(event->code_start, hash, true);
+        entry->value = reinterpret_cast<void*>(event->code_len);
+
+        if (FunctionNameIs("bar", event)) {
+          ++saw_bar;
+        }
+      }
+      break;
+
+    case v8::JitCodeEvent::CODE_MOVED: {
+        ++move_events;
+
+        // We should never see code move that we haven't seen before.
+        i::HashMap::Entry* entry =
+            code_map->Lookup(event->code_start, hash, false);
+        CHECK(entry != NULL);
+        CHECK_EQ(reinterpret_cast<void*>(event->code_len),
+                 code_map->Remove(event->code_start, hash));
+        entry = code_map->Lookup(event->code_start, hash, true);
+        entry->value = reinterpret_cast<void*>(event->code_len);
+      }
+      break;
+
+    case v8::JitCodeEvent::CODE_REMOVED:
+      // Object/code removal events are currently not dispatched from the GC.
+      CHECK(false);
+      break;
+    default:
+      // Impossible event.
+      CHECK(false);
+      break;
+  }
+}
+
+
+// Implemented in the test-alloc.cc test suite.
+void SimulateFullSpace(i::PagedSpace* space);
+
+
+static bool MatchPointers(void* key1, void* key2) {
+  return key1 == key2;
+}
+
+
+TEST(SetJitCodeEventHandler) {
+  const char* script =
+    "function bar() {"
+    "  var sum = 0;"
+    "  for (i = 0; i < 100; ++i)"
+    "    sum = foo(i);"
+    "  return sum;"
+    "}"
+    "function foo(i) { return i * i; };"
+    "bar();";
+
+  // Run this test in a new isolate to make sure we don't
+  // have remnants of state from other code.
+  v8::Isolate* isolate = v8::Isolate::New();
+  isolate->Enter();
+
+  {
+    i::HashMap code(MatchPointers);
+    code_map = &code;
+    saw_bar = 0;
+    move_events = 0;
+
+    i::FLAG_stress_compaction = true;
+    V8::SetJitCodeEventHandler(v8::kJitCodeEventDefault, event_handler);
+
+    v8::HandleScope scope;
+    // Generate new code objects sparsely distributed across several
+    // different fragmented code-space pages.
+    const int kIterations = 10;
+    for (int i = 0; i < kIterations; ++i) {
+      LocalContext env;
+
+      v8::Handle<v8::Script> compiled_script;
+      {
+        i::AlwaysAllocateScope always_allocate;
+        SimulateFullSpace(HEAP->code_space());
+        compiled_script = v8_compile(script);
+      }
+      compiled_script->Run();
+
+      // Clear the compilation cache to get more wastage.
+      ISOLATE->compilation_cache()->Clear();
+    }
+
+    // Force code movement.
+    HEAP->CollectAllAvailableGarbage("TestSetJitCodeEventHandler");
+
+    CHECK_LE(kIterations, saw_bar);
+    CHECK_NE(0, move_events);
+
+    code_map = NULL;
+    V8::SetJitCodeEventHandler(v8::kJitCodeEventDefault, NULL);
+  }
+
+  isolate->Exit();
+  isolate->Dispose();
+
+  // Do this in a new isolate.
+  isolate = v8::Isolate::New();
+  isolate->Enter();
+
+  // Verify that we get callbacks for existing code objects when we
+  // request enumeration of existing code.
+  {
+    v8::HandleScope scope;
+    LocalContext env;
+    CompileRun(script);
+
+    // Now get code through initial iteration.
+    i::HashMap code(MatchPointers);
+    code_map = &code;
+
+    V8::SetJitCodeEventHandler(v8::kJitCodeEventEnumExisting, event_handler);
+    V8::SetJitCodeEventHandler(v8::kJitCodeEventDefault, NULL);
+
+    code_map = NULL;
+
+    // We expect that we got some events. Note that if we could get code removal
+    // notifications, we could compare two collections, one created by listening
+    // from the time of creation of an isolate, and the other by subscribing
+    // with EnumExisting.
+    CHECK_NE(0, code.occupancy());
+  }
+
+  isolate->Exit();
+  isolate->Dispose();
 }
 
 

@@ -2945,6 +2945,57 @@ typedef void (*FunctionEntryHook)(uintptr_t function,
 
 
 /**
+ * A JIT code event is issued each time code is added, moved or removed.
+ *
+ * \note removal events are not currently issued.
+ */
+struct JitCodeEvent {
+  enum EventType {
+    CODE_ADDED,
+    CODE_MOVED,
+    CODE_REMOVED
+  };
+
+  // Type of event.
+  EventType type;
+  // Start of the instructions.
+  void* code_start;
+  // Size of the instructions.
+  size_t code_len;
+
+  union {
+    // Only valid for CODE_ADDED.
+    struct {
+      // Name of the object associated with the code, note that the string is
+      // not zero-terminated.
+      const char* str;
+      // Number of chars in str.
+      size_t len;
+    } name;
+    // New location of instructions. Only valid for CODE_MOVED.
+    void* new_code_start;
+  };
+};
+
+/**
+ * Option flags passed to the SetJitCodeEventHandler function.
+ */
+enum JitCodeEventOptions {
+  kJitCodeEventDefault = 0,
+  // Generate callbacks for already existent code.
+  kJitCodeEventEnumExisting = 1
+};
+
+
+/**
+ * Callback function passed to SetJitCodeEventHandler.
+ *
+ * \param event code add, move or removal event.
+ */
+typedef void (*JitCodeEventHandler)(const JitCodeEvent* event);
+
+
+/**
  * Interface for iterating though all external resources in the heap.
  */
 class V8EXPORT ExternalResourceVisitor {  // NOLINT
@@ -3217,6 +3268,29 @@ class V8EXPORT V8 {
    *   fail.
    */
   static bool SetFunctionEntryHook(FunctionEntryHook entry_hook);
+
+  /**
+   * Allows the host application to provide the address of a function that is
+   * notified each time code is added, moved or removed.
+   *
+   * \param options options for the JIT code event handler.
+   * \param event_handler the JIT code event handler, which will be invoked
+   *     each time code is added, moved or removed.
+   * \note \p event_handler won't get notified of existent code.
+   * \note since code removal notifications are not currently issued, the
+   *     \p event_handler may get notifications of code that overlaps earlier
+   *     code notifications. This happens when code areas are reused, and the
+   *     earlier overlapping code areas should therefore be discarded.
+   * \note the events passed to \p event_handler and the strings they point to
+   *     are not guaranteed to live past each call. The \p event_handler must
+   *     copy strings and other parameters it needs to keep around.
+   * \note the set of events declared in JitCodeEvent::EventType is expected to
+   *     grow over time, and the JitCodeEvent structure is expected to accrue
+   *     new members. The \p event_handler function must ignore event codes
+   *     it does not recognize to maintain future compatibility.
+   */
+  static void SetJitCodeEventHandler(JitCodeEventOptions options,
+                                     JitCodeEventHandler event_handler);
 
   /**
    * Adjusts the amount of registered external memory.  Used to give

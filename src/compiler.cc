@@ -1003,7 +1003,7 @@ void Compiler::RecordFunctionCompilation(Logger::LogEventsAndTags tag,
   // Log the code generation. If source information is available include
   // script name and line number. Check explicitly whether logging is
   // enabled as finding the line number is not free.
-  if (info->isolate()->logger()->is_logging() ||
+  if (info->isolate()->logger()->is_logging_code_events() ||
       CpuProfiler::is_profiling(info->isolate())) {
     Handle<Script> script = info->script();
     Handle<Code> code = info->code();
