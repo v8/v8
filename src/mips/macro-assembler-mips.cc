@@ -5398,7 +5398,7 @@ void MacroAssembler::ClampDoubleToUint8(Register result_reg,
 
   // In 0-255 range, round and truncate.
   bind(&in_bounds);
-  round_w_d(temp_double_reg, input_reg);
+  cvt_w_d(temp_double_reg, input_reg);
   mfc1(result_reg, temp_double_reg);
   bind(&done);
 }
