@@ -2578,20 +2578,6 @@ void V8HeapExplorer::SetPropertyReference(HeapObject* parent_obj,
 }
 
 
-void V8HeapExplorer::SetPropertyShortcutReference(HeapObject* parent_obj,
-                                                  int parent_entry,
-                                                  String* reference_name,
-                                                  Object* child_obj) {
-  HeapEntry* child_entry = GetEntry(child_obj);
-  if (child_entry != NULL) {
-    filler_->SetNamedReference(HeapGraphEdge::kShortcut,
-                               parent_entry,
-                               collection_->names()->GetName(reference_name),
-                               child_entry);
-  }
-}
-
-
 void V8HeapExplorer::SetRootGcRootsReference() {
   filler_->SetIndexedAutoIndexReference(
       HeapGraphEdge::kElement,
@@ -3363,9 +3349,9 @@ static int utoa(unsigned value, const Vector<char>& buffer, int buffer_pos) {
 
 void HeapSnapshotJSONSerializer::SerializeEdge(HeapGraphEdge* edge,
                                                bool first_edge) {
-  // The buffer needs space for 3 unsigned ints, 3 commas and \0
+  // The buffer needs space for 3 unsigned ints, 3 commas, \n and \0
   static const int kBufferSize =
-      MaxDecimalDigitsIn<sizeof(unsigned)>::kUnsigned * 3 + 3 + 1;  // NOLINT
+      MaxDecimalDigitsIn<sizeof(unsigned)>::kUnsigned * 3 + 3 + 2;  // NOLINT
   EmbeddedVector<char, kBufferSize> buffer;
   int edge_name_or_index = edge->type() == HeapGraphEdge::kElement
       || edge->type() == HeapGraphEdge::kHidden
@@ -3380,6 +3366,7 @@ void HeapSnapshotJSONSerializer::SerializeEdge(HeapGraphEdge* edge,
   buffer_pos = utoa(edge_name_or_index, buffer, buffer_pos);
   buffer[buffer_pos++] = ',';
   buffer_pos = utoa(entry_index(edge->to()), buffer, buffer_pos);
+  buffer[buffer_pos++] = '\n';
   buffer[buffer_pos++] = '\0';
   writer_->AddString(buffer.start());
 }
