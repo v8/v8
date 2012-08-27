@@ -4262,15 +4262,6 @@ bool v8::V8::SetFunctionEntryHook(FunctionEntryHook entry_hook) {
 }
 
 
-void v8::V8::SetJitCodeEventHandler(
-    JitCodeEventOptions options, JitCodeEventHandler event_handler) {
-  i::Isolate* isolate = i::Isolate::Current();
-  // Ensure that logging is initialized for our isolate.
-  isolate->InitializeLoggingAndCounters();
-  isolate->logger()->SetCodeEventHandler(options, event_handler);
-}
-
-
 bool v8::V8::Dispose() {
   i::Isolate* isolate = i::Isolate::Current();
   if (!ApiCheck(isolate != NULL && isolate->IsDefaultIsolate(),
