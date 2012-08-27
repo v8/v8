@@ -178,10 +178,13 @@ void FullCodeGenerator::Generate() {
   // Possibly allocate a local context.
   int heap_slots = info->scope()->num_heap_slots() - Context::MIN_CONTEXT_SLOTS;
   if (heap_slots > 0) {
-    Comment cmnt(masm_, "[ Allocate local context");
+    Comment cmnt(masm_, "[ Allocate context");
     // Argument to NewContext is the function, which is still in edi.
     __ push(edi);
-    if (heap_slots <= FastNewContextStub::kMaximumSlots) {
+    if (FLAG_harmony_scoping && info->scope()->is_global_scope()) {
+      __ Push(info->scope()->GetScopeInfo());
+      __ CallRuntime(Runtime::kNewGlobalContext, 2);
+    } else if (heap_slots <= FastNewContextStub::kMaximumSlots) {
       FastNewContextStub stub(heap_slots);
       __ CallStub(&stub);
     } else {

@@ -292,6 +292,15 @@ Handle<Context> Factory::NewNativeContext() {
 }
 
 
+Handle<Context> Factory::NewGlobalContext(Handle<JSFunction> function,
+                                          Handle<ScopeInfo> scope_info) {
+  CALL_HEAP_FUNCTION(
+      isolate(),
+      isolate()->heap()->AllocateGlobalContext(*function, *scope_info),
+      Context);
+}
+
+
 Handle<Context> Factory::NewModuleContext(Handle<ScopeInfo> scope_info) {
   CALL_HEAP_FUNCTION(
       isolate(),

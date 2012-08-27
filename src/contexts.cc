@@ -313,8 +313,8 @@ bool Context::IsBootstrappingOrValidParentContext(
   if (Isolate::Current()->bootstrapper()->IsActive()) return true;
   if (!object->IsContext()) return false;
   Context* context = Context::cast(object);
-  return context->IsNativeContext() || context->IsModuleContext() ||
-         !child->IsModuleContext();
+  return context->IsNativeContext() || context->IsGlobalContext() ||
+         context->IsModuleContext() || !child->IsModuleContext();
 }
 
 

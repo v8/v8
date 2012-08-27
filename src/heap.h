@@ -130,6 +130,7 @@ namespace internal {
   V(Map, with_context_map, WithContextMap)                                     \
   V(Map, block_context_map, BlockContextMap)                                   \
   V(Map, module_context_map, ModuleContextMap)                                 \
+  V(Map, global_context_map, GlobalContextMap)                                 \
   V(Map, oddball_map, OddballMap)                                              \
   V(Map, message_object_map, JSMessageObjectMap)                               \
   V(Map, foreign_map, ForeignMap)                                              \
@@ -825,6 +826,10 @@ class Heap {
 
   // Allocate a native (but otherwise uninitialized) context.
   MUST_USE_RESULT MaybeObject* AllocateNativeContext();
+
+  // Allocate a global context.
+  MUST_USE_RESULT MaybeObject* AllocateGlobalContext(JSFunction* function,
+                                                     ScopeInfo* scope_info);
 
   // Allocate a module context.
   MUST_USE_RESULT MaybeObject* AllocateModuleContext(ScopeInfo* scope_info);

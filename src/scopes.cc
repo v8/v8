@@ -227,6 +227,12 @@ Scope* Scope::DeserializeScopeChain(Context* context, Scope* global_scope,
       for (Scope* s = innermost_scope; s != NULL; s = s->outer_scope()) {
         s->scope_inside_with_ = true;
       }
+    } else if (context->IsGlobalContext()) {
+      ScopeInfo* scope_info = ScopeInfo::cast(context->extension());
+      current_scope = new(zone) Scope(current_scope,
+                                      GLOBAL_SCOPE,
+                                      Handle<ScopeInfo>(scope_info),
+                                      zone);
     } else if (context->IsModuleContext()) {
       ScopeInfo* scope_info = ScopeInfo::cast(context->module()->scope_info());
       current_scope = new(zone) Scope(current_scope,
@@ -491,7 +497,7 @@ Variable* Scope::DeclareLocal(Handle<String> name,
 }
 
 
-Variable* Scope::DeclareGlobal(Handle<String> name) {
+Variable* Scope::DeclareDynamicGlobal(Handle<String> name) {
   ASSERT(is_global_scope());
   return variables_.Declare(this,
                             name,
@@ -1047,8 +1053,8 @@ bool Scope::ResolveVariable(CompilationInfo* info,
       break;
 
     case UNBOUND:
-      // No binding has been found. Declare a variable in global scope.
-      var = info->global_scope()->DeclareGlobal(proxy->name());
+      // No binding has been found. Declare a variable on the global object.
+      var = info->global_scope()->DeclareDynamicGlobal(proxy->name());
       break;
 
     case UNBOUND_EVAL_SHADOWED:

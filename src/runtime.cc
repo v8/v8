@@ -8738,19 +8738,35 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetConstructorDelegate) {
 }
 
 
+RUNTIME_FUNCTION(MaybeObject*, Runtime_NewGlobalContext) {
+  NoHandleAllocation ha;
+  ASSERT(args.length() == 2);
+
+  CONVERT_ARG_CHECKED(JSFunction, function, 0);
+  CONVERT_ARG_CHECKED(ScopeInfo, scope_info, 1);
+  Context* result;
+  MaybeObject* maybe_result =
+      isolate->heap()->AllocateGlobalContext(function, scope_info);
+  if (!maybe_result->To(&result)) return maybe_result;
+
+  isolate->set_context(result);
+
+  return result;  // non-failure
+}
+
+
 RUNTIME_FUNCTION(MaybeObject*, Runtime_NewFunctionContext) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 1);
 
   CONVERT_ARG_CHECKED(JSFunction, function, 0);
   int length = function->shared()->scope_info()->ContextLength();
-  Object* result;
-  { MaybeObject* maybe_result =
-        isolate->heap()->AllocateFunctionContext(length, function);
-    if (!maybe_result->ToObject(&result)) return maybe_result;
-  }
+  Context* result;
+  MaybeObject* maybe_result =
+      isolate->heap()->AllocateFunctionContext(length, function);
+  if (!maybe_result->To(&result)) return maybe_result;
 
-  isolate->set_context(Context::cast(result));
+  isolate->set_context(result);
 
   return result;  // non-failure
 }

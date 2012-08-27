@@ -160,7 +160,7 @@ class Scope: public ZoneObject {
   // global scope.  The variable was introduced (possibly from an inner
   // scope) by a reference to an unresolved variable with no intervening
   // with statements or eval calls.
-  Variable* DeclareGlobal(Handle<String> name);
+  Variable* DeclareDynamicGlobal(Handle<String> name);
 
   // Create a new unresolved variable.
   template<class Visitor>

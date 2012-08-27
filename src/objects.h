@@ -809,7 +809,6 @@ class MaybeObject BASE_EMBEDDED {
   V(FixedDoubleArray)                          \
   V(Context)                                   \
   V(NativeContext)                             \
-  V(ModuleContext)                             \
   V(ScopeInfo)                                 \
   V(JSFunction)                                \
   V(Code)                                      \

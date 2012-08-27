@@ -382,7 +382,8 @@ void FixedDoubleArray::FixedDoubleArrayVerify() {
 void JSModule::JSModuleVerify() {
   VerifyObjectField(kContextOffset);
   VerifyObjectField(kScopeInfoOffset);
-  CHECK(context()->IsUndefined() || context()->IsModuleContext());
+  CHECK(context()->IsUndefined() ||
+        Context::cast(context())->IsModuleContext());
 }
 
 

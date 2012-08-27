@@ -2441,6 +2441,12 @@ bool Heap::CreateInitialMaps() {
         AllocateMap(FIXED_ARRAY_TYPE, kVariableSizeSentinel);
     if (!maybe_obj->ToObject(&obj)) return false;
   }
+  set_global_context_map(Map::cast(obj));
+
+  { MaybeObject* maybe_obj =
+        AllocateMap(FIXED_ARRAY_TYPE, kVariableSizeSentinel);
+    if (!maybe_obj->ToObject(&obj)) return false;
+  }
   Map* native_context_map = Map::cast(obj);
   native_context_map->set_dictionary_map(true);
   native_context_map->set_visitor_id(StaticVisitorBase::kVisitNativeContext);
@@ -4902,6 +4908,23 @@ MaybeObject* Heap::AllocateNativeContext() {
   ASSERT(context->IsNativeContext());
   ASSERT(result->IsContext());
   return result;
+}
+
+
+MaybeObject* Heap::AllocateGlobalContext(JSFunction* function,
+                                         ScopeInfo* scope_info) {
+  Object* result;
+  { MaybeObject* maybe_result =
+        AllocateFixedArray(scope_info->ContextLength(), TENURED);
+    if (!maybe_result->ToObject(&result)) return maybe_result;
+  }
+  Context* context = reinterpret_cast<Context*>(result);
+  context->set_map_no_write_barrier(global_context_map());
+  context->set_closure(function);
+  context->set_extension(scope_info);
+  ASSERT(context->IsGlobalContext());
+  ASSERT(result->IsContext());
+  return context;
 }
 
 

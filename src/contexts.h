@@ -190,7 +190,8 @@ enum BindingFlags {
 //                Dynamically declared variables/functions are also added
 //                to lazily allocated extension object. Context::Lookup
 //                searches the extension object for properties.
-//                For block contexts, contains the respective ScopeInfo.
+//                For global and block contexts, contains the respective
+//                ScopeInfo.
 //                For module contexts, points back to the respective JSModule.
 //
 // [ global_object ]  A pointer to the global object. Provided for quick
@@ -362,6 +363,10 @@ class Context: public FixedArray {
   bool IsModuleContext() {
     Map* map = this->map();
     return map == map->GetHeap()->module_context_map();
+  }
+  bool IsGlobalContext() {
+    Map* map = this->map();
+    return map == map->GetHeap()->global_context_map();
   }
 
   // Tells whether the native context is marked with out of memory.

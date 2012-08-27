@@ -568,17 +568,16 @@ bool Object::IsTypeFeedbackCells() {
 
 
 bool Object::IsContext() {
-  if (Object::IsHeapObject()) {
-    Map* map = HeapObject::cast(this)->map();
-    Heap* heap = map->GetHeap();
-    return (map == heap->function_context_map() ||
-            map == heap->catch_context_map() ||
-            map == heap->with_context_map() ||
-            map == heap->native_context_map() ||
-            map == heap->block_context_map() ||
-            map == heap->module_context_map());
-  }
-  return false;
+  if (!Object::IsHeapObject()) return false;
+  Map* map = HeapObject::cast(this)->map();
+  Heap* heap = map->GetHeap();
+  return (map == heap->function_context_map() ||
+      map == heap->catch_context_map() ||
+      map == heap->with_context_map() ||
+      map == heap->native_context_map() ||
+      map == heap->block_context_map() ||
+      map == heap->module_context_map() ||
+      map == heap->global_context_map());
 }
 
 
@@ -586,13 +585,6 @@ bool Object::IsNativeContext() {
   return Object::IsHeapObject() &&
       HeapObject::cast(this)->map() ==
       HeapObject::cast(this)->GetHeap()->native_context_map();
-}
-
-
-bool Object::IsModuleContext() {
-  return Object::IsHeapObject() &&
-      HeapObject::cast(this)->map() ==
-      HeapObject::cast(this)->GetHeap()->module_context_map();
 }
 
 

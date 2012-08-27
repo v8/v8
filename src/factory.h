@@ -162,6 +162,10 @@ class Factory {
   // Create a global (but otherwise uninitialized) context.
   Handle<Context> NewNativeContext();
 
+  // Create a global context.
+  Handle<Context> NewGlobalContext(Handle<JSFunction> function,
+                                   Handle<ScopeInfo> scope_info);
+
   // Create a module context.
   Handle<Context> NewModuleContext(Handle<ScopeInfo> scope_info);
 
