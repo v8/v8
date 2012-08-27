@@ -4107,7 +4107,9 @@ void LCodeGen::DoNumberTagI(LNumberTagI* instr) {
     DeferredNumberTagI(LCodeGen* codegen, LNumberTagI* instr)
         : LDeferredCode(codegen), instr_(instr) { }
     virtual void Generate() {
-      codegen()->DoDeferredNumberTagI(instr_, SIGNED_INT32);
+      codegen()->DoDeferredNumberTagI(instr_,
+                                      instr_->InputAt(0),
+                                      SIGNED_INT32);
     }
     virtual LInstruction* instr() { return instr_; }
    private:
@@ -4131,7 +4133,9 @@ void LCodeGen::DoNumberTagU(LNumberTagU* instr) {
     DeferredNumberTagU(LCodeGen* codegen, LNumberTagU* instr)
         : LDeferredCode(codegen), instr_(instr) { }
     virtual void Generate() {
-      codegen()->DoDeferredNumberTagI(instr_, UNSIGNED_INT32);
+      codegen()->DoDeferredNumberTagI(instr_,
+                                      instr_->InputAt(0),
+                                      UNSIGNED_INT32);
     }
     virtual LInstruction* instr() { return instr_; }
    private:
@@ -4151,9 +4155,10 @@ void LCodeGen::DoNumberTagU(LNumberTagU* instr) {
 
 
 void LCodeGen::DoDeferredNumberTagI(LInstruction* instr,
+                                    LOperand* value,
                                     IntegerSignedness signedness) {
   Label slow;
-  Register reg = ToRegister(instr->InputAt(0));
+  Register reg = ToRegister(value);
   Register tmp = reg.is(eax) ? ecx : eax;
 
   // Preserve the value of all registers.
