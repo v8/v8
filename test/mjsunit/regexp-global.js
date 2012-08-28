@@ -240,3 +240,15 @@ for (var m = 0; m < 200; m++) {
   // Test 3a: String.match.
   test_match(test_3_expectation, subject, /a1/g);
 }
+
+
+// Test String hashing (compiling regular expression includes hashing).
+var crosscheck = "\x80";
+for (var i = 0; i < 12; i++) crosscheck += crosscheck;
+new RegExp(crosscheck);
+
+var subject = "ascii~only~string~here~";
+var replacement = "\x80";
+var result = subject.replace(/~/g, replacement);
+for (var i = 0; i < 5; i++) result += result;
+new RegExp(result);

@@ -4977,7 +4977,8 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   STATIC_ASSERT(kSmiTagSize + kSmiShiftSize == 1);
   __ Addu(a2, a2, Operand(2));  // a2 was a smi.
   // Check that the static offsets vector buffer is large enough.
-  __ Branch(&runtime, hi, a2, Operand(OffsetsVector::kStaticOffsetsVectorSize));
+  __ Branch(
+      &runtime, hi, a2, Operand(Isolate::kJSRegexpStaticOffsetsVectorSize));
 
   // a2: Number of capture registers
   // regexp_data: RegExp data (FixedArray)
