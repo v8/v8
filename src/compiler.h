@@ -184,6 +184,9 @@ class CompilationInfo {
     SaveHandle(&script_);
   }
 
+  const char* bailout_reason() const { return bailout_reason_; }
+  void set_bailout_reason(const char* reason) { bailout_reason_ = reason; }
+
  private:
   Isolate* isolate_;
 
@@ -208,6 +211,7 @@ class CompilationInfo {
       ASSERT(language_mode() == CLASSIC_MODE);
       SetLanguageMode(shared_info_->language_mode());
     }
+    set_bailout_reason("unknown");
   }
 
   void SetMode(Mode mode) {
@@ -279,6 +283,8 @@ class CompilationInfo {
       *object = handle;
     }
   }
+
+  const char* bailout_reason_;
 
   DISALLOW_COPY_AND_ASSIGN(CompilationInfo);
 };
@@ -360,7 +366,7 @@ class OptimizingCompiler: public ZoneObject {
 
   MUST_USE_RESULT Status AbortOptimization() {
     info_->AbortOptimization();
-    info_->shared_info()->DisableOptimization();
+    info_->shared_info()->DisableOptimization(info_->bailout_reason());
     return SetLastStatus(BAILED_OUT);
   }
 

@@ -157,7 +157,7 @@ class LCodeGen BASE_EMBEDDED {
   int GetStackSlotCount() const { return chunk()->spill_slot_count(); }
   int GetParameterCount() const { return scope()->num_parameters(); }
 
-  void Abort(const char* format, ...);
+  void Abort(const char* reason);
   void Comment(const char* format, ...);
 
   void AddDeferredCode(LDeferredCode* code) { deferred_.Add(code, zone()); }

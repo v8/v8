@@ -5645,7 +5645,7 @@ class SharedFunctionInfo: public HeapObject {
 
   // Disable (further) attempted optimization of all functions sharing this
   // shared function info.
-  void DisableOptimization();
+  void DisableOptimization(const char* reason);
 
   // Lookup the bailout ID and ASSERT that it exists in the non-optimized
   // code, returns whether it asserted (i.e., always true if assertions are

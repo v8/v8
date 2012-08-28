@@ -242,6 +242,7 @@ OptimizingCompiler::Status OptimizingCompiler::CreateGraph() {
   const int kMaxOptCount =
       FLAG_deopt_every_n_times == 0 ? FLAG_max_opt_count : 1000;
   if (info()->shared_info()->opt_count() > kMaxOptCount) {
+    info()->set_bailout_reason("optimized too many times");
     return AbortOptimization();
   }
 
@@ -253,11 +254,16 @@ OptimizingCompiler::Status OptimizingCompiler::CreateGraph() {
   // The encoding is as a signed value, with parameters and receiver using
   // the negative indices and locals the non-negative ones.
   const int parameter_limit = -LUnallocated::kMinFixedIndex;
-  const int locals_limit = LUnallocated::kMaxFixedIndex;
   Scope* scope = info()->scope();
-  if ((scope->num_parameters() + 1) > parameter_limit ||
-      (!info()->osr_ast_id().IsNone() &&
-       scope->num_parameters() + 1 + scope->num_stack_slots() > locals_limit)) {
+  if ((scope->num_parameters() + 1) > parameter_limit) {
+    info()->set_bailout_reason("too many parameters");
+    return AbortOptimization();
+  }
+
+  const int locals_limit = LUnallocated::kMaxFixedIndex;
+  if (!info()->osr_ast_id().IsNone() &&
+      scope->num_parameters() + 1 + scope->num_stack_slots() > locals_limit) {
+    info()->set_bailout_reason("too many parameters/locals");
     return AbortOptimization();
   }
 
@@ -367,7 +373,10 @@ OptimizingCompiler::Status OptimizingCompiler::GenerateAndInstallCode() {
   ASSERT(chunk_ != NULL);
   ASSERT(graph_ != NULL);
   Handle<Code> optimized_code = chunk_->Codegen();
-  if (optimized_code.is_null()) return AbortOptimization();
+  if (optimized_code.is_null()) {
+    info()->set_bailout_reason("code generation failed");
+    return AbortOptimization();
+  }
   info()->SetCode(optimized_code);
   RecordOptimizationStats();
   return SetLastStatus(SUCCEEDED);
@@ -637,7 +646,7 @@ Handle<SharedFunctionInfo> Compiler::CompileEval(Handle<String> source,
     if (!result.is_null()) {
       // Explicitly disable optimization for eval code. We're not yet prepared
       // to handle eval-code in the optimizing compiler.
-      result->DisableOptimization();
+      result->DisableOptimization("eval");
 
       // If caller is strict mode, the result must be in strict mode or
       // extended mode as well, but not the other way around. Consider:
@@ -880,6 +889,8 @@ void Compiler::InstallOptimizedCode(OptimizingCompiler* optimizing_compiler) {
   // the unoptimized code.
   OptimizingCompiler::Status status = optimizing_compiler->last_status();
   if (status != OptimizingCompiler::SUCCEEDED) {
+    optimizing_compiler->info()->set_bailout_reason(
+        "failed/bailed out last time");
     status = optimizing_compiler->AbortOptimization();
   } else {
     status = optimizing_compiler->GenerateAndInstallCode();

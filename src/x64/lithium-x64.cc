@@ -444,17 +444,8 @@ LPlatformChunk* LChunkBuilder::Build() {
 }
 
 
-void LChunkBuilder::Abort(const char* format, ...) {
-  if (FLAG_trace_bailout) {
-    SmartArrayPointer<char> name(
-        info()->shared_info()->DebugName()->ToCString());
-    PrintF("Aborting LPlatformChunk building in @\"%s\": ", *name);
-    va_list arguments;
-    va_start(arguments, format);
-    OS::VPrint(format, arguments);
-    va_end(arguments);
-    PrintF("\n");
-  }
+void LCodeGen::Abort(const char* reason) {
+  info()->set_bailout_reason(reason);
   status_ = ABORTED;
 }
 

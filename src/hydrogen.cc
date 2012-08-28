@@ -3199,11 +3199,7 @@ void TestContext::BuildBranch(HValue* value) {
 
 
 void HGraphBuilder::Bailout(const char* reason) {
-  if (FLAG_trace_bailout) {
-    SmartArrayPointer<char> name(
-        info()->shared_info()->DebugName()->ToCString());
-    PrintF("Bailout in HGraphBuilder: @\"%s\": %s\n", *name, reason);
-  }
+  info()->set_bailout_reason(reason);
   SetStackOverflow();
 }
 
@@ -6996,7 +6992,7 @@ bool HGraphBuilder::TryInline(CallKind call_kind,
     if (target_info.isolate()->has_pending_exception()) {
       // Parse or scope error, never optimize this function.
       SetStackOverflow();
-      target_shared->DisableOptimization();
+      target_shared->DisableOptimization("parse/scope error");
     }
     TraceInline(target, caller, "parse failure");
     return false;
@@ -7151,7 +7147,7 @@ bool HGraphBuilder::TryInline(CallKind call_kind,
     // Bail out if the inline function did, as we cannot residualize a call
     // instead.
     TraceInline(target, caller, "inline graph construction failed");
-    target_shared->DisableOptimization();
+    target_shared->DisableOptimization("inlining bailed out");
     inline_bailout_ = true;
     delete target_state;
     return true;

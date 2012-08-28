@@ -7791,7 +7791,7 @@ void SharedFunctionInfo::EnableDeoptimizationSupport(Code* recompiled) {
 }
 
 
-void SharedFunctionInfo::DisableOptimization() {
+void SharedFunctionInfo::DisableOptimization(const char* reason) {
   // Disable optimization for the shared function info and mark the
   // code as non-optimizable. The marker on the shared function info
   // is there because we flush non-optimized code thereby loosing the
@@ -7807,7 +7807,8 @@ void SharedFunctionInfo::DisableOptimization() {
     code()->set_optimizable(false);
   }
   if (FLAG_trace_opt) {
-    PrintF("[disabled optimization for %s]\n", *DebugName()->ToCString());
+    PrintF("[disabled optimization for %s, reason: %s]\n",
+           *DebugName()->ToCString(), reason);
   }
 }
 
