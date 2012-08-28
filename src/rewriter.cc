@@ -230,8 +230,8 @@ EXPRESSION_NODE_LIST(DEF_VISIT)
 #undef DEF_VISIT
 
 
-// Assumes code has been parsed and scopes have been analyzed.  Mutates the
-// AST, so the AST should not continue to be used in the case of failure.
+// Assumes code has been parsed.  Mutates the AST, so the AST should not
+// continue to be used in the case of failure.
 bool Rewriter::Rewrite(CompilationInfo* info) {
   FunctionLiteral* function = info->function();
   ASSERT(function != NULL);

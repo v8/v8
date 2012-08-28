@@ -104,7 +104,7 @@ class Bootstrapper {
   void DetachGlobal(Handle<Context> env);
 
   // Reattach an outer global object to an environment.
-  void ReattachGlobal(Handle<Context> env, Handle<Object> global_object);
+  void ReattachGlobal(Handle<Context> env, Handle<JSGlobalProxy> global_proxy);
 
   // Traverses the pointers for memory management.
   void Iterate(ObjectVisitor* v);

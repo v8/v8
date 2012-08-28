@@ -1330,6 +1330,12 @@ Handle<Context> Isolate::native_context() {
 }
 
 
+Handle<Context> Isolate::global_context() {
+  GlobalObject* global = thread_local_top()->context_->global_object();
+  return Handle<Context>(global->global_context());
+}
+
+
 Handle<Context> Isolate::GetCallingNativeContext() {
   JavaScriptFrameIterator it;
 #ifdef ENABLE_DEBUGGER_SUPPORT

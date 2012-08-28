@@ -81,10 +81,11 @@ Variable::Variable(Scope* scope,
 }
 
 
-bool Variable::is_global() const {
+bool Variable::IsGlobalObjectProperty() const {
   // Temporaries are never global, they must always be allocated in the
   // activation frame.
-  return mode_ != TEMPORARY && scope_ != NULL && scope_->is_global_scope();
+  return mode_ != TEMPORARY && mode_ != LET && mode_ != CONST_HARMONY
+      && scope_ != NULL && scope_->is_global_scope();
 }
 
 

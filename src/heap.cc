@@ -4919,7 +4919,9 @@ MaybeObject* Heap::AllocateGlobalContext(JSFunction* function,
   Context* context = reinterpret_cast<Context*>(result);
   context->set_map_no_write_barrier(global_context_map());
   context->set_closure(function);
+  context->set_previous(function->context());
   context->set_extension(scope_info);
+  context->set_global_object(function->context()->global_object());
   ASSERT(context->IsGlobalContext());
   ASSERT(result->IsContext());
   return context;

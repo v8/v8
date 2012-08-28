@@ -327,23 +327,20 @@ static void SetObjectPrototype(Handle<JSObject> object, Handle<Object> proto) {
 
 void Bootstrapper::DetachGlobal(Handle<Context> env) {
   Factory* factory = env->GetIsolate()->factory();
-  JSGlobalProxy::cast(env->global_proxy())->
-      set_native_context(*factory->null_value());
-  SetObjectPrototype(Handle<JSObject>(env->global_proxy()),
-                     factory->null_value());
+  Handle<JSGlobalProxy> global_proxy(JSGlobalProxy::cast(env->global_proxy()));
+  global_proxy->set_native_context(*factory->null_value());
+  SetObjectPrototype(global_proxy, factory->null_value());
   env->set_global_proxy(env->global_object());
   env->global_object()->set_global_receiver(env->global_object());
 }
 
 
 void Bootstrapper::ReattachGlobal(Handle<Context> env,
-                                  Handle<Object> global_object) {
-  ASSERT(global_object->IsJSGlobalProxy());
-  Handle<JSGlobalProxy> global = Handle<JSGlobalProxy>::cast(global_object);
-  env->global_object()->set_global_receiver(*global);
-  env->set_global_proxy(*global);
-  SetObjectPrototype(global, Handle<JSObject>(env->global_object()));
-  global->set_native_context(*env);
+                                  Handle<JSGlobalProxy> global_proxy) {
+  env->global_object()->set_global_receiver(*global_proxy);
+  env->set_global_proxy(*global_proxy);
+  SetObjectPrototype(global_proxy, Handle<JSObject>(env->global_object()));
+  global_proxy->set_native_context(*env);
 }
 
 
@@ -797,6 +794,7 @@ void Genesis::HookUpGlobalProxy(Handle<GlobalObject> inner_global,
                                 Handle<JSGlobalProxy> global_proxy) {
   // Set the native context for the global object.
   inner_global->set_native_context(*native_context());
+  inner_global->set_global_context(*native_context());
   inner_global->set_global_receiver(*global_proxy);
   global_proxy->set_native_context(*native_context());
   native_context()->set_global_proxy(*global_proxy);
@@ -1443,6 +1441,7 @@ bool Genesis::InstallNatives() {
       Handle<JSBuiltinsObject>::cast(factory()->NewGlobalObject(builtins_fun));
   builtins->set_builtins(*builtins);
   builtins->set_native_context(*native_context());
+  builtins->set_global_context(*native_context());
   builtins->set_global_receiver(*builtins);
 
   // Set up the 'global' properties of the builtins object. The

@@ -98,6 +98,7 @@ CompilationInfo::CompilationInfo(Handle<JSFunction> closure, Zone* zone)
       script_(Handle<Script>(Script::cast(shared_info_->script()))),
       extension_(NULL),
       pre_parse_data_(NULL),
+      context_(closure->context()),
       osr_ast_id_(BailoutId::None()),
       zone_(zone),
       deferred_handles_(NULL) {
@@ -292,6 +293,7 @@ OptimizingCompiler::Status OptimizingCompiler::CreateGraph() {
     // optimized code.
     unoptimized.SetFunction(info()->function());
     unoptimized.SetScope(info()->scope());
+    unoptimized.SetContext(info()->context());
     if (should_recompile) unoptimized.EnableDeoptimizationSupport();
     bool succeeded = FullCodeGenerator::MakeCode(&unoptimized);
     if (should_recompile) {
@@ -595,6 +597,7 @@ Handle<SharedFunctionInfo> Compiler::Compile(Handle<String> source,
     info.MarkAsGlobal();
     info.SetExtension(extension);
     info.SetPreParseData(pre_data);
+    info.SetContext(context);
     if (FLAG_use_strict) {
       info.SetLanguageMode(FLAG_harmony_scoping ? EXTENDED_MODE : STRICT_MODE);
     }
@@ -643,7 +646,7 @@ Handle<SharedFunctionInfo> Compiler::CompileEval(Handle<String> source,
     info.MarkAsEval();
     if (is_global) info.MarkAsGlobal();
     info.SetLanguageMode(language_mode);
-    info.SetCallingContext(context);
+    info.SetContext(context);
     result = MakeFunctionInfo(&info);
     if (!result.is_null()) {
       // Explicitly disable optimization for eval code. We're not yet prepared

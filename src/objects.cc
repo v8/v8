@@ -11998,20 +11998,15 @@ MaybeObject* CompilationCacheTable::Put(String* src,
                       shared,
                       CurrentGlobalLanguageMode(),
                       RelocInfo::kNoPosition);
-  Object* obj;
-  { MaybeObject* maybe_obj = EnsureCapacity(1, &key);
-    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
-  }
-
-  CompilationCacheTable* cache =
-      reinterpret_cast<CompilationCacheTable*>(obj);
-  int entry = cache->FindInsertionEntry(key.Hash());
+  CompilationCacheTable* cache;
+  MaybeObject* maybe_cache = EnsureCapacity(1, &key);
+  if (!maybe_cache->To(&cache)) return maybe_cache;
 
   Object* k;
-  { MaybeObject* maybe_k = key.AsObject();
-    if (!maybe_k->ToObject(&k)) return maybe_k;
-  }
+  MaybeObject* maybe_k = key.AsObject();
+  if (!maybe_k->To(&k)) return maybe_k;
 
+  int entry = cache->FindInsertionEntry(key.Hash());
   cache->set(EntryToIndex(entry), k);
   cache->set(EntryToIndex(entry) + 1, value);
   cache->ElementAdded();

@@ -8378,7 +8378,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NewGlobalContext) {
       isolate->heap()->AllocateGlobalContext(function, scope_info);
   if (!maybe_result->To(&result)) return maybe_result;
 
+  ASSERT(function->context() == isolate->context());
+  ASSERT(function->context()->global_object() == result->global_object());
   isolate->set_context(result);
+  result->global_object()->set_global_context(result);
 
   return result;  // non-failure
 }
@@ -10901,7 +10904,7 @@ class ScopeIterator {
         } else {
           ASSERT(scope_info->Type() == EVAL_SCOPE);
           info.MarkAsEval();
-          info.SetCallingContext(Handle<Context>(function_->context()));
+          info.SetContext(Handle<Context>(function_->context()));
         }
         if (ParserApi::Parse(&info, kNoParsingFlags) && Scope::Analyze(&info)) {
           scope = info.function()->scope();

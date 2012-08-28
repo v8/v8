@@ -6198,6 +6198,9 @@ class GlobalObject: public JSObject {
   // [native context]: the natives corresponding to this global object.
   DECL_ACCESSORS(native_context, Context)
 
+  // [global context]: the most recent (i.e. innermost) global context.
+  DECL_ACCESSORS(global_context, Context)
+
   // [global receiver]: the global receiver object of the context
   DECL_ACCESSORS(global_receiver, JSObject)
 
@@ -6227,7 +6230,8 @@ class GlobalObject: public JSObject {
   // Layout description.
   static const int kBuiltinsOffset = JSObject::kHeaderSize;
   static const int kNativeContextOffset = kBuiltinsOffset + kPointerSize;
-  static const int kGlobalReceiverOffset = kNativeContextOffset + kPointerSize;
+  static const int kGlobalContextOffset = kNativeContextOffset + kPointerSize;
+  static const int kGlobalReceiverOffset = kGlobalContextOffset + kPointerSize;
   static const int kHeaderSize = kGlobalReceiverOffset + kPointerSize;
 
  private:

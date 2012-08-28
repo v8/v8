@@ -764,8 +764,9 @@ class Isolate {
   void IterateThread(ThreadVisitor* v, char* t);
 
 
-  // Returns the current native context.
+  // Returns the current native and global context.
   Handle<Context> native_context();
+  Handle<Context> global_context();
 
   // Returns the native context of the calling JavaScript code.  That
   // is, the native context of the top-most JavaScript frame.

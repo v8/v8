@@ -1539,7 +1539,7 @@ Local<Script> Script::New(v8::Handle<String> source,
                            name_obj,
                            line_offset,
                            column_offset,
-                           isolate->native_context(),
+                           isolate->global_context(),
                            NULL,
                            pre_data_impl,
                            Utils::OpenHandle(*script_data),
@@ -1577,7 +1577,7 @@ Local<Script> Script::Compile(v8::Handle<String> source,
   i::Handle<i::JSFunction> result =
       isolate->factory()->NewFunctionFromSharedFunctionInfo(
           function,
-          isolate->native_context());
+          isolate->global_context());
   return Local<Script>(ToApi<Script>(result));
 }
 
@@ -1604,7 +1604,7 @@ Local<Value> Script::Run() {
       i::Handle<i::SharedFunctionInfo>
           function_info(i::SharedFunctionInfo::cast(*obj), isolate);
       fun = isolate->factory()->NewFunctionFromSharedFunctionInfo(
-          function_info, isolate->native_context());
+          function_info, isolate->global_context());
     } else {
       fun = i::Handle<i::JSFunction>(i::JSFunction::cast(*obj), isolate);
     }
@@ -4536,9 +4536,9 @@ void Context::ReattachGlobal(Handle<Object> global_object) {
   i::Object** ctx = reinterpret_cast<i::Object**>(this);
   i::Handle<i::Context> context =
       i::Handle<i::Context>::cast(i::Handle<i::Object>(ctx));
-  isolate->bootstrapper()->ReattachGlobal(
-      context,
-      Utils::OpenHandle(*global_object));
+  i::Handle<i::JSGlobalProxy> global_proxy =
+      i::Handle<i::JSGlobalProxy>::cast(Utils::OpenHandle(*global_object));
+  isolate->bootstrapper()->ReattachGlobal(context, global_proxy);
 }
 
 

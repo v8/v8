@@ -118,6 +118,7 @@ class Variable: public ZoneObject {
   bool IsStackAllocated() const { return IsParameter() || IsStackLocal(); }
   bool IsContextSlot() const { return location_ == CONTEXT; }
   bool IsLookupSlot() const { return location_ == LOOKUP; }
+  bool IsGlobalObjectProperty() const;
 
   bool is_dynamic() const {
     return (mode_ == DYNAMIC ||
@@ -132,7 +133,6 @@ class Variable: public ZoneObject {
     return initialization_flag_ == kNeedsInitialization;
   }
 
-  bool is_global() const;
   bool is_this() const { return kind_ == THIS; }
   bool is_arguments() const { return kind_ == ARGUMENTS; }
 
