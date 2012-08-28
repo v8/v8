@@ -2090,7 +2090,8 @@ MaybeObject* Heap::AllocateMap(InstanceType instance_type,
   map->set_unused_property_fields(0);
   map->set_bit_field(0);
   map->set_bit_field2(1 << Map::kIsExtensible);
-  map->set_bit_field3(0);
+  int bit_field3 = Map::EnumLengthBits::encode(Map::kInvalidEnumCache);
+  map->set_bit_field3(bit_field3);
   map->set_elements_kind(elements_kind);
 
   // If the map object is aligned fill the padding area with Smi 0 objects.

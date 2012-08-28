@@ -4582,15 +4582,14 @@ void HGraphBuilder::VisitForInStatement(ForInStatement* stmt) {
           map,
           DescriptorArray::kEnumCacheBridgeCacheIndex));
 
-  HInstruction* array_length = AddInstruction(
-      new(zone()) HFixedArrayBaseLength(array));
+  HInstruction* enum_length = AddInstruction(new(zone()) HMapEnumLength(map));
 
   HInstruction* start_index = AddInstruction(new(zone()) HConstant(
       Handle<Object>(Smi::FromInt(0)), Representation::Integer32()));
 
   Push(map);
   Push(array);
-  Push(array_length);
+  Push(enum_length);
   Push(start_index);
 
   HInstruction* index_cache = AddInstruction(

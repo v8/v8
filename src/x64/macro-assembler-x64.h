@@ -948,6 +948,15 @@ class MacroAssembler: public Assembler {
   void LoadUint32(XMMRegister dst, Register src, XMMRegister scratch);
 
   void LoadInstanceDescriptors(Register map, Register descriptors);
+  void EnumLength(Register dst, Register map);
+
+  template<typename Field>
+  void DecodeField(Register reg) {
+    static const int full_shift = Field::kShift + kSmiShift;
+    static const int low_mask = Field::kMask >> Field::kShift;
+    shr(reg, Immediate(full_shift));
+    and_(reg, Immediate(low_mask));
+  }
 
   // Abort execution if argument is not a number. Used in debug code.
   void AbortIfNotNumber(Register object);

@@ -4149,16 +4149,13 @@ bool JSReceiver::IsSimpleEnum() {
        o = JSObject::cast(o)->GetPrototype()) {
     if (!o->IsJSObject()) return false;
     JSObject* curr = JSObject::cast(o);
-    if (!curr->map()->instance_descriptors()->HasEnumCache()) return false;
+    int enum_length = curr->map()->EnumLength();
+    if (enum_length == Map::kInvalidEnumCache) return false;
     ASSERT(!curr->HasNamedInterceptor());
     ASSERT(!curr->HasIndexedInterceptor());
     ASSERT(!curr->IsAccessCheckNeeded());
     if (curr->NumberOfEnumElements() > 0) return false;
-    if (curr != this) {
-      FixedArray* curr_fixed_array =
-          FixedArray::cast(curr->map()->instance_descriptors()->GetEnumCache());
-      if (curr_fixed_array->length() > 0) return false;
-    }
+    if (curr != this && enum_length != 0) return false;
   }
   return true;
 }
@@ -4849,6 +4846,7 @@ MaybeObject* Map::RawCopy(int instance_size) {
   result->set_bit_field2(bit_field2());
   result->set_bit_field3(bit_field3());
   result->SetNumberOfOwnDescriptors(0);
+  result->SetEnumLength(kInvalidEnumCache);
   return result;
 }
 
@@ -5775,7 +5773,7 @@ MaybeObject* FixedArray::UnionOfKeys(FixedArray* other) {
   MaybeObject* maybe_result =
       accessor->AddElementsToFixedArray(NULL, NULL, this, other);
   FixedArray* result;
-  if (!maybe_result->To<FixedArray>(&result)) return maybe_result;
+  if (!maybe_result->To(&result)) return maybe_result;
 #ifdef DEBUG
   if (FLAG_enable_slow_asserts) {
     for (int i = 0; i < result->length(); i++) {

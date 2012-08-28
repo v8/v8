@@ -4663,10 +4663,11 @@ class Map: public HeapObject {
   inline int bit_field3();
   inline void set_bit_field3(int value);
 
-  class NumberOfOwnDescriptorsBits: public BitField<int,   0, 11> {};
-  class IsShared:                   public BitField<bool, 11,  1> {};
-  class FunctionWithPrototype:      public BitField<bool, 12,  1> {};
-  class DictionaryMap:              public BitField<bool, 13,  1> {};
+  class EnumLengthBits:             public BitField<int,   0, 11> {};
+  class NumberOfOwnDescriptorsBits: public BitField<int,  11, 11> {};
+  class IsShared:                   public BitField<bool, 22,  1> {};
+  class FunctionWithPrototype:      public BitField<bool, 23,  1> {};
+  class DictionaryMap:              public BitField<bool, 24,  1> {};
 
   // Tells whether the object in the prototype property will be used
   // for instances created from this function.  If the prototype
@@ -4918,6 +4919,14 @@ class Map: public HeapObject {
     set_bit_field3(NumberOfOwnDescriptorsBits::update(bit_field3(), number));
   }
 
+  int EnumLength() {
+    return EnumLengthBits::decode(bit_field3());
+  }
+
+  void SetEnumLength(int index) {
+    set_bit_field3(EnumLengthBits::update(bit_field3(), index));
+  }
+
   MUST_USE_RESULT MaybeObject* RawCopy(int instance_size);
   MUST_USE_RESULT MaybeObject* CopyWithPreallocatedFieldDescriptors();
   MUST_USE_RESULT MaybeObject* CopyDropDescriptors();
@@ -5056,6 +5065,9 @@ class Map: public HeapObject {
                                                       Map* map);
 
   static const int kMaxPreAllocatedPropertyFields = 255;
+
+  // Constant for denoting that the Enum Cache field was not yet used.
+  static const int kInvalidEnumCache = EnumLengthBits::kMax;
 
   // Layout description.
   static const int kInstanceSizesOffset = HeapObject::kHeaderSize;

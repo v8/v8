@@ -1105,21 +1105,31 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   Label fixed_array;
   __ CompareRoot(FieldOperand(rax, HeapObject::kMapOffset),
                  Heap::kMetaMapRootIndex);
-  __ j(not_equal, &fixed_array, Label::kNear);
+  __ j(not_equal, &fixed_array);
 
   // We got a map in register rax. Get the enumeration cache from it.
   __ bind(&use_cache);
+
+  Label no_descriptors;
+
+  __ EnumLength(rdx, rax);
+  __ Cmp(rdx, Smi::FromInt(0));
+  __ j(equal, &no_descriptors);
+
   __ LoadInstanceDescriptors(rax, rcx);
   __ movq(rcx, FieldOperand(rcx, DescriptorArray::kEnumCacheOffset));
-  __ movq(rdx, FieldOperand(rcx, DescriptorArray::kEnumCacheBridgeCacheOffset));
+  __ movq(rcx, FieldOperand(rcx, DescriptorArray::kEnumCacheBridgeCacheOffset));
 
   // Set up the four remaining stack slots.
   __ push(rax);  // Map.
-  __ push(rdx);  // Enumeration cache.
-  __ movq(rax, FieldOperand(rdx, FixedArray::kLengthOffset));
-  __ push(rax);  // Enumeration cache length (as smi).
+  __ push(rcx);  // Enumeration cache.
+  __ push(rdx);  // Number of valid entries for the map in the enum cache.
   __ Push(Smi::FromInt(0));  // Initial index.
   __ jmp(&loop);
+
+  __ bind(&no_descriptors);
+  __ addq(rsp, Immediate(kPointerSize));
+  __ jmp(&exit);
 
   // We got a fixed array in register rax. Iterate through that.
   Label non_proxy;

@@ -2897,47 +2897,43 @@ void MacroAssembler::EnsureNotWhite(
 }
 
 
+void MacroAssembler::EnumLength(Register dst, Register map) {
+  STATIC_ASSERT(Map::EnumLengthBits::kShift == 0);
+  mov(dst, FieldOperand(map, Map::kBitField3Offset));
+  and_(dst, Immediate(Smi::FromInt(Map::EnumLengthBits::kMask)));
+}
+
+
 void MacroAssembler::CheckEnumCache(Label* call_runtime) {
-  Label next;
+  Label next, start;
   mov(ecx, eax);
-  bind(&next);
 
-  // Check that there are no elements.  Register ecx contains the
-  // current JS object we've reached through the prototype chain.
-  cmp(FieldOperand(ecx, JSObject::kElementsOffset),
-      isolate()->factory()->empty_fixed_array());
-  j(not_equal, call_runtime);
-
-  // Check that instance descriptors are not empty so that we can
-  // check for an enum cache.  Leave the map in ebx for the subsequent
-  // prototype load.
+  // Check if the enum length field is properly initialized, indicating that
+  // there is an enum cache.
   mov(ebx, FieldOperand(ecx, HeapObject::kMapOffset));
-  mov(edx, FieldOperand(ebx, Map::kTransitionsOrBackPointerOffset));
-  CheckMap(edx,
-           isolate()->factory()->fixed_array_map(),
-           call_runtime,
-           DONT_DO_SMI_CHECK);
 
-  mov(edx, FieldOperand(edx, TransitionArray::kDescriptorsOffset));
-  cmp(edx, isolate()->factory()->empty_descriptor_array());
+  EnumLength(edx, ebx);
+  cmp(edx, Immediate(Smi::FromInt(Map::kInvalidEnumCache)));
   j(equal, call_runtime);
 
-  // Check that there is an enum cache in the non-empty instance
-  // descriptors (edx).  This is the case if the next enumeration
-  // index field does not contain a smi.
-  mov(edx, FieldOperand(edx, DescriptorArray::kEnumCacheOffset));
-  JumpIfSmi(edx, call_runtime);
+  jmp(&start);
+
+  bind(&next);
+  mov(ebx, FieldOperand(ecx, HeapObject::kMapOffset));
 
   // For all objects but the receiver, check that the cache is empty.
-  Label check_prototype;
-  cmp(ecx, eax);
-  j(equal, &check_prototype, Label::kNear);
-  mov(edx, FieldOperand(edx, DescriptorArray::kEnumCacheBridgeCacheOffset));
-  cmp(edx, isolate()->factory()->empty_fixed_array());
+  EnumLength(edx, ebx);
+  cmp(edx, Immediate(Smi::FromInt(0)));
   j(not_equal, call_runtime);
 
-  // Load the prototype from the map and loop if non-null.
-  bind(&check_prototype);
+  bind(&start);
+
+  // Check that there are no elements. Register rcx contains the current JS
+  // object we've reached through the prototype chain.
+  mov(ecx, FieldOperand(ecx, JSObject::kElementsOffset));
+  cmp(ecx, isolate()->factory()->empty_fixed_array());
+  j(not_equal, call_runtime);
+
   mov(ecx, FieldOperand(ebx, Map::kPrototypeOffset));
   cmp(ecx, isolate()->factory()->null_value());
   j(not_equal, &next);

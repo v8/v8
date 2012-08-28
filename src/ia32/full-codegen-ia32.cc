@@ -1091,18 +1091,27 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
 
 
   // We got a map in register eax. Get the enumeration cache from it.
+  Label no_descriptors;
   __ bind(&use_cache);
+
+  __ EnumLength(edx, eax);
+  __ cmp(edx, Immediate(Smi::FromInt(0)));
+  __ j(equal, &no_descriptors);
+
   __ LoadInstanceDescriptors(eax, ecx);
   __ mov(ecx, FieldOperand(ecx, DescriptorArray::kEnumCacheOffset));
-  __ mov(edx, FieldOperand(ecx, DescriptorArray::kEnumCacheBridgeCacheOffset));
+  __ mov(ecx, FieldOperand(ecx, DescriptorArray::kEnumCacheBridgeCacheOffset));
 
   // Set up the four remaining stack slots.
   __ push(eax);  // Map.
-  __ push(edx);  // Enumeration cache.
-  __ mov(eax, FieldOperand(edx, FixedArray::kLengthOffset));
-  __ push(eax);  // Enumeration cache length (as smi).
+  __ push(ecx);  // Enumeration cache.
+  __ push(edx);  // Number of valid entries for the map in the enum cache.
   __ push(Immediate(Smi::FromInt(0)));  // Initial index.
   __ jmp(&loop);
+
+  __ bind(&no_descriptors);
+  __ add(esp, Immediate(kPointerSize));
+  __ jmp(&exit);
 
   // We got a fixed array in register eax. Iterate through that.
   Label non_proxy;

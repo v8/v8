@@ -1539,6 +1539,12 @@ LInstruction* LChunkBuilder::DoFixedArrayBaseLength(
 }
 
 
+LInstruction* LChunkBuilder::DoMapEnumLength(HMapEnumLength* instr) {
+  LOperand* map = UseRegisterAtStart(instr->value());
+  return DefineAsRegister(new(zone()) LMapEnumLength(map));
+}
+
+
 LInstruction* LChunkBuilder::DoElementsKind(HElementsKind* instr) {
   LOperand* object = UseRegisterAtStart(instr->value());
   return DefineAsRegister(new(zone()) LElementsKind(object));

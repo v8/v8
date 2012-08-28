@@ -139,6 +139,7 @@ class LChunkBuilder;
   V(LoadNamedField)                            \
   V(LoadNamedFieldPolymorphic)                 \
   V(LoadNamedGeneric)                          \
+  V(MapEnumLength)                             \
   V(MathFloorOfDiv)                            \
   V(MathMinMax)                                \
   V(Mod)                                       \
@@ -1917,6 +1918,26 @@ class HFixedArrayBaseLength: public HUnaryOperation {
   }
 
   DECLARE_CONCRETE_INSTRUCTION(FixedArrayBaseLength)
+
+ protected:
+  virtual bool DataEquals(HValue* other) { return true; }
+};
+
+
+class HMapEnumLength: public HUnaryOperation {
+ public:
+  explicit HMapEnumLength(HValue* value) : HUnaryOperation(value) {
+    set_type(HType::Smi());
+    set_representation(Representation::Tagged());
+    SetFlag(kUseGVN);
+    SetGVNFlag(kDependsOnMaps);
+  }
+
+  virtual Representation RequiredInputRepresentation(int index) {
+    return Representation::Tagged();
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(MapEnumLength)
 
  protected:
   virtual bool DataEquals(HValue* other) { return true; }

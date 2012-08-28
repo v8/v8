@@ -248,6 +248,7 @@ class BitField {
   // bitfield without compiler warnings we have to compute 2^32 without
   // using a shift count of 32.
   static const uint32_t kMask = ((1U << shift) << size) - (1U << shift);
+  static const uint32_t kShift = shift;
 
   // Value for the field with all bits set.
   static const T kMax = static_cast<T>((1U << size) - 1);
