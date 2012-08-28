@@ -2269,7 +2269,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetCode) {
   target->set_literals(*literals);
   target->set_next_function_link(isolate->heap()->undefined_value());
 
-  if (isolate->logger()->is_logging() || CpuProfiler::is_profiling(isolate)) {
+  if (isolate->logger()->is_logging_code_events() ||
+      CpuProfiler::is_profiling(isolate)) {
     isolate->logger()->LogExistingFunction(
         source_shared, Handle<Code>(source_shared->code()));
   }

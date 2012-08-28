@@ -679,29 +679,35 @@ HeapObject* Deserializer::GetAddressFromStart(int space) {
 void Deserializer::Deserialize() {
   isolate_ = Isolate::Current();
   ASSERT(isolate_ != NULL);
-  // Don't GC while deserializing - just expand the heap.
-  AlwaysAllocateScope always_allocate;
-  // Don't use the free lists while deserializing.
-  LinearAllocationScope allocate_linearly;
-  // No active threads.
-  ASSERT_EQ(NULL, isolate_->thread_manager()->FirstThreadStateInUse());
-  // No active handles.
-  ASSERT(isolate_->handle_scope_implementer()->blocks()->is_empty());
-  ASSERT_EQ(NULL, external_reference_decoder_);
-  external_reference_decoder_ = new ExternalReferenceDecoder();
-  isolate_->heap()->IterateStrongRoots(this, VISIT_ONLY_STRONG);
-  isolate_->heap()->IterateWeakRoots(this, VISIT_ALL);
+  {
+    // Don't GC while deserializing - just expand the heap.
+    AlwaysAllocateScope always_allocate;
+    // Don't use the free lists while deserializing.
+    LinearAllocationScope allocate_linearly;
+    // No active threads.
+    ASSERT_EQ(NULL, isolate_->thread_manager()->FirstThreadStateInUse());
+    // No active handles.
+    ASSERT(isolate_->handle_scope_implementer()->blocks()->is_empty());
+    ASSERT_EQ(NULL, external_reference_decoder_);
+    external_reference_decoder_ = new ExternalReferenceDecoder();
+    isolate_->heap()->IterateStrongRoots(this, VISIT_ONLY_STRONG);
+    isolate_->heap()->IterateWeakRoots(this, VISIT_ALL);
 
-  isolate_->heap()->set_native_contexts_list(
-      isolate_->heap()->undefined_value());
+    isolate_->heap()->set_native_contexts_list(
+        isolate_->heap()->undefined_value());
 
-  // Update data pointers to the external strings containing natives sources.
-  for (int i = 0; i < Natives::GetBuiltinsCount(); i++) {
-    Object* source = isolate_->heap()->natives_source_cache()->get(i);
-    if (!source->IsUndefined()) {
-      ExternalAsciiString::cast(source)->update_data_cache();
+    // Update data pointers to the external strings containing natives sources.
+    for (int i = 0; i < Natives::GetBuiltinsCount(); i++) {
+      Object* source = isolate_->heap()->natives_source_cache()->get(i);
+      if (!source->IsUndefined()) {
+        ExternalAsciiString::cast(source)->update_data_cache();
+      }
     }
   }
+
+  // Issue code events for newly deserialized code objects.
+  LOG_CODE_EVENT(isolate_, LogCodeObjects());
+  LOG_CODE_EVENT(isolate_, LogCompiledFunctions());
 }
 
 
@@ -714,7 +720,17 @@ void Deserializer::DeserializePartial(Object** root) {
   if (external_reference_decoder_ == NULL) {
     external_reference_decoder_ = new ExternalReferenceDecoder();
   }
+
+  // Keep track of the code space start and end pointers in case new
+  // code objects were unserialized
+  OldSpace* code_space = isolate_->heap()->code_space();
+  Address start_address = code_space->top();
   VisitPointer(root);
+
+  // There's no code deserialized here. If this assert fires
+  // then that's changed and logging should be added to notify
+  // the profiler et al of the new code.
+  CHECK_EQ(start_address, code_space->top());
 }
 
 

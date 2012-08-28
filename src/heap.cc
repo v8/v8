@@ -1741,7 +1741,7 @@ class ScavengingVisitor : public StaticVisitorBase {
       RecordCopiedObject(heap, target);
       HEAP_PROFILE(heap, ObjectMoveEvent(source->address(), target->address()));
       Isolate* isolate = heap->isolate();
-      if (isolate->logger()->is_logging() ||
+      if (isolate->logger()->is_logging_code_events() ||
           CpuProfiler::is_profiling(isolate)) {
         if (target->IsSharedFunctionInfo()) {
           PROFILE(isolate, SharedFunctionInfoMoveEvent(
