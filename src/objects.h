@@ -808,8 +808,7 @@ class MaybeObject BASE_EMBEDDED {
   V(FixedArray)                                \
   V(FixedDoubleArray)                          \
   V(Context)                                   \
-  V(GlobalContext)                             \
-  V(ModuleContext)                             \
+  V(NativeContext)                             \
   V(ScopeInfo)                                 \
   V(JSFunction)                                \
   V(Code)                                      \
@@ -905,8 +904,8 @@ class Object : public MaybeObject {
   Object* ToBoolean();                                 // ECMA-262 9.2.
 
   // Convert to a JSObject if needed.
-  // global_context is used when creating wrapper object.
-  MUST_USE_RESULT MaybeObject* ToObject(Context* global_context);
+  // native_context is used when creating wrapper object.
+  MUST_USE_RESULT MaybeObject* ToObject(Context* native_context);
 
   // Converts this to a Smi if possible.
   // Failure is returned otherwise.
@@ -2516,17 +2515,22 @@ class DescriptorArray: public FixedArray {
   inline Object* GetCallbacksObject(int descriptor_number);
   inline AccessorDescriptor* GetCallbacks(int descriptor_number);
 
+  inline String* GetSortedKey(int descriptor_number);
+  inline int GetSortedKeyIndex(int descriptor_number);
+  inline void SetSortedKey(int pointer, int descriptor_number);
+
   // Accessor for complete descriptor.
   inline void Get(int descriptor_number, Descriptor* desc);
   inline void Set(int descriptor_number,
                   Descriptor* desc,
                   const WhitenessWitness&);
+
   // Append automatically sets the enumeration index. This should only be used
   // to add descriptors in bulk at the end, followed by sorting the descriptor
   // array.
-  inline int Append(Descriptor* desc,
-                    const WhitenessWitness&,
-                    int number_of_set_descriptors);
+  inline void Append(Descriptor* desc,
+                     const WhitenessWitness&,
+                     int number_of_set_descriptors);
 
   // Transfer a complete descriptor from the src descriptor array to this
   // descriptor array.
@@ -2536,7 +2540,8 @@ class DescriptorArray: public FixedArray {
                 const WhitenessWitness&);
 
   // Sort the instance descriptors by the hash codes of their keys.
-  void Sort(const WhitenessWitness&);
+  void Sort();
+  inline void SwapSortedKeys(int first, int second);
 
   // Search the instance descriptors for given name.
   INLINE(int Search(String* name));
@@ -4658,10 +4663,10 @@ class Map: public HeapObject {
   inline int bit_field3();
   inline void set_bit_field3(int value);
 
-  class IsShared:              public BitField<bool, 0, 1> {};
-  class FunctionWithPrototype: public BitField<bool, 1, 1> {};
-  class DictionaryMap:         public BitField<bool, 2, 1> {};
-  class LastAddedBits:         public BitField<int, 3, 11> {};
+  class NumberOfOwnDescriptorsBits: public BitField<int,   0, 11> {};
+  class IsShared:                   public BitField<bool, 11,  1> {};
+  class FunctionWithPrototype:      public BitField<bool, 12,  1> {};
+  class DictionaryMap:              public BitField<bool, 13,  1> {};
 
   // Tells whether the object in the prototype property will be used
   // for instances created from this function.  If the prototype
@@ -4886,31 +4891,31 @@ class Map: public HeapObject {
   // Lookup in the map's instance descriptors and fill out the result
   // with the given holder if the name is found. The holder may be
   // NULL when this function is used from the compiler.
-  void LookupDescriptor(JSObject* holder,
-                        String* name,
-                        LookupResult* result);
+  inline void LookupDescriptor(JSObject* holder,
+                               String* name,
+                               LookupResult* result);
 
-  void LookupTransition(JSObject* holder,
-                        String* name,
-                        LookupResult* result);
+  inline void LookupTransition(JSObject* holder,
+                               String* name,
+                               LookupResult* result);
 
   // The size of transition arrays are limited so they do not end up in large
   // object space. Otherwise ClearNonLiveTransitions would leak memory while
   // applying in-place right trimming.
   inline bool CanHaveMoreTransitions();
 
-  void SetLastAdded(int index) {
-    set_bit_field3(LastAddedBits::update(bit_field3(), index));
-  }
-
   int LastAdded() {
-    return LastAddedBits::decode(bit_field3());
+    int number_of_own_descriptors = NumberOfOwnDescriptors();
+    ASSERT(number_of_own_descriptors > 0);
+    return number_of_own_descriptors - 1;
   }
 
-  int NumberOfSetDescriptors() {
-    ASSERT(!instance_descriptors()->IsEmpty());
-    if (LastAdded() == kNoneAdded) return 0;
-    return instance_descriptors()->GetDetails(LastAdded()).index();
+  int NumberOfOwnDescriptors() {
+    return NumberOfOwnDescriptorsBits::decode(bit_field3());
+  }
+
+  void SetNumberOfOwnDescriptors(int number) {
+    set_bit_field3(NumberOfOwnDescriptorsBits::update(bit_field3(), number));
   }
 
   MUST_USE_RESULT MaybeObject* RawCopy(int instance_size);
@@ -4919,7 +4924,6 @@ class Map: public HeapObject {
   MUST_USE_RESULT MaybeObject* CopyReplaceDescriptors(
       DescriptorArray* descriptors,
       String* name,
-      int last_added,
       TransitionFlag flag);
   MUST_USE_RESULT MaybeObject* CopyAddDescriptor(Descriptor* descriptor,
                                                  TransitionFlag flag);
@@ -5053,9 +5057,6 @@ class Map: public HeapObject {
 
   static const int kMaxPreAllocatedPropertyFields = 255;
 
-  // Constant for denoting that the LastAdded field was not yet set.
-  static const int kNoneAdded = LastAddedBits::kMax;
-
   // Layout description.
   static const int kInstanceSizesOffset = HeapObject::kHeaderSize;
   static const int kInstanceAttributesOffset = kInstanceSizesOffset + kIntSize;
@@ -5130,11 +5131,6 @@ class Map: public HeapObject {
   static const int8_t kMaximumBitField2FastHoleySmiElementValue =
       static_cast<int8_t>((FAST_HOLEY_SMI_ELEMENTS + 1) <<
                           Map::kElementsKindShift) - 1;
-
-  // Bit positions for bit field 3
-  static const int kIsShared = 0;
-  static const int kFunctionWithPrototype = 1;
-  static const int kDictionaryMap = 2;
 
   typedef FixedBodyDescriptor<kPointerFieldsBeginOffset,
                               kPointerFieldsEndOffset,
@@ -5321,14 +5317,14 @@ class SharedFunctionInfo: public HeapObject {
   // [code]: Function code.
   DECL_ACCESSORS(code, Code)
 
-  // [optimized_code_map]: Map from global context to optimized code
+  // [optimized_code_map]: Map from native context to optimized code
   // and a shared literals array or Smi 0 if none.
   DECL_ACCESSORS(optimized_code_map, Object)
 
   // Returns index i of the entry with the specified context. At position
   // i - 1 is the context, position i the code, and i + 1 the literals array.
   // Returns -1 when no matching entry is found.
-  int SearchOptimizedCodeMap(Context* global_context);
+  int SearchOptimizedCodeMap(Context* native_context);
 
   // Installs optimized code from the code map on the given closure. The
   // index has to be consistent with a search result as defined above.
@@ -5339,7 +5335,7 @@ class SharedFunctionInfo: public HeapObject {
 
   // Add a new entry to the optimized code map.
   static void AddToOptimizedCodeMap(Handle<SharedFunctionInfo> shared,
-                                    Handle<Context> global_context,
+                                    Handle<Context> native_context,
                                     Handle<Code> code,
                                     Handle<FixedArray> literals);
   static const int kEntryLength = 3;
@@ -5649,7 +5645,7 @@ class SharedFunctionInfo: public HeapObject {
 
   // Disable (further) attempted optimization of all functions sharing this
   // shared function info.
-  void DisableOptimization();
+  void DisableOptimization(const char* reason);
 
   // Lookup the bailout ID and ASSERT that it exists in the non-optimized
   // code, returns whether it asserted (i.e., always true if assertions are
@@ -6122,8 +6118,8 @@ class JSFunction: public JSObject {
   // Returns the number of allocated literals.
   inline int NumberOfLiterals();
 
-  // Retrieve the global context from a function's literal array.
-  static Context* GlobalContextFromLiterals(FixedArray* literals);
+  // Retrieve the native context from a function's literal array.
+  static Context* NativeContextFromLiterals(FixedArray* literals);
 
   // Layout descriptors. The last property (from kNonWeakFieldsEndOffset to
   // kSize) is weak and has special handling during garbage collection.
@@ -6140,7 +6136,7 @@ class JSFunction: public JSObject {
 
   // Layout of the literals array.
   static const int kLiteralsPrefixSize = 1;
-  static const int kLiteralGlobalContextIndex = 0;
+  static const int kLiteralNativeContextIndex = 0;
 
   // Layout of the bound-function binding array.
   static const int kBoundFunctionIndex = 0;
@@ -6162,9 +6158,9 @@ class JSFunction: public JSObject {
 
 class JSGlobalProxy : public JSObject {
  public:
-  // [context]: the owner global context of this global proxy object.
+  // [native_context]: the owner native context of this global proxy object.
   // It is null value if this object is not used by any context.
-  DECL_ACCESSORS(context, Object)
+  DECL_ACCESSORS(native_context, Object)
 
   // Casting.
   static inline JSGlobalProxy* cast(Object* obj);
@@ -6181,8 +6177,8 @@ class JSGlobalProxy : public JSObject {
 #endif
 
   // Layout description.
-  static const int kContextOffset = JSObject::kHeaderSize;
-  static const int kSize = kContextOffset + kPointerSize;
+  static const int kNativeContextOffset = JSObject::kHeaderSize;
+  static const int kSize = kNativeContextOffset + kPointerSize;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSGlobalProxy);
@@ -6199,8 +6195,8 @@ class GlobalObject: public JSObject {
   // [builtins]: the object holding the runtime routines written in JS.
   DECL_ACCESSORS(builtins, JSBuiltinsObject)
 
-  // [global context]: the global context corresponding to this global object.
-  DECL_ACCESSORS(global_context, Context)
+  // [native context]: the natives corresponding to this global object.
+  DECL_ACCESSORS(native_context, Context)
 
   // [global receiver]: the global receiver object of the context
   DECL_ACCESSORS(global_receiver, JSObject)
@@ -6230,8 +6226,8 @@ class GlobalObject: public JSObject {
 
   // Layout description.
   static const int kBuiltinsOffset = JSObject::kHeaderSize;
-  static const int kGlobalContextOffset = kBuiltinsOffset + kPointerSize;
-  static const int kGlobalReceiverOffset = kGlobalContextOffset + kPointerSize;
+  static const int kNativeContextOffset = kBuiltinsOffset + kPointerSize;
+  static const int kGlobalReceiverOffset = kNativeContextOffset + kPointerSize;
   static const int kHeaderSize = kGlobalReceiverOffset + kPointerSize;
 
  private:
@@ -6856,7 +6852,15 @@ class TypeFeedbackInfo: public Struct {
   inline void set_ic_total_count(int count);
 
   inline int ic_with_type_info_count();
-  inline void set_ic_with_type_info_count(int count);
+  inline void change_ic_with_type_info_count(int count);
+
+  inline void initialize_storage();
+
+  inline void change_own_type_change_checksum();
+  inline int own_type_change_checksum();
+
+  inline void set_inlined_type_change_checksum(int checksum);
+  inline bool matches_inlined_type_change_checksum(int checksum);
 
   DECL_ACCESSORS(type_feedback_cells, TypeFeedbackCells)
 
@@ -6872,14 +6876,25 @@ class TypeFeedbackInfo: public Struct {
   void TypeFeedbackInfoVerify();
 #endif
 
-  static const int kIcTotalCountOffset = HeapObject::kHeaderSize;
-  static const int kIcWithTypeinfoCountOffset =
-      kIcTotalCountOffset + kPointerSize;
-  static const int kTypeFeedbackCellsOffset =
-      kIcWithTypeinfoCountOffset + kPointerSize;
+  static const int kStorage1Offset = HeapObject::kHeaderSize;
+  static const int kStorage2Offset = kStorage1Offset + kPointerSize;
+  static const int kTypeFeedbackCellsOffset = kStorage2Offset + kPointerSize;
   static const int kSize = kTypeFeedbackCellsOffset + kPointerSize;
 
  private:
+  static const int kTypeChangeChecksumBits = 7;
+
+  class ICTotalCountField: public BitField<int, 0,
+      kSmiValueSize - kTypeChangeChecksumBits> {};  // NOLINT
+  class OwnTypeChangeChecksum: public BitField<int,
+      kSmiValueSize - kTypeChangeChecksumBits,
+      kTypeChangeChecksumBits> {};  // NOLINT
+  class ICsWithTypeInfoCountField: public BitField<int, 0,
+      kSmiValueSize - kTypeChangeChecksumBits> {};  // NOLINT
+  class InlinedTypeChangeChecksum: public BitField<int,
+      kSmiValueSize - kTypeChangeChecksumBits,
+      kTypeChangeChecksumBits> {};  // NOLINT
+
   DISALLOW_IMPLICIT_CONSTRUCTORS(TypeFeedbackInfo);
 };
 

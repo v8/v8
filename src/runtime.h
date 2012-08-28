@@ -330,6 +330,7 @@ namespace internal {
   F(PromoteScheduledException, 0, 1) \
   \
   /* Contexts */ \
+  F(NewGlobalContext, 2, 1) \
   F(NewFunctionContext, 1, 1) \
   F(PushWithContext, 2, 1) \
   F(PushCatchContext, 3, 1) \

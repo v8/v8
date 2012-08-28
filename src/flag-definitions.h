@@ -198,7 +198,7 @@ DEFINE_bool(trap_on_deopt, false, "put a break point before deoptimizing")
 DEFINE_bool(deoptimize_uncommon_cases, true, "deoptimize uncommon cases")
 DEFINE_bool(polymorphic_inlining, true, "polymorphic inlining")
 DEFINE_bool(use_osr, true, "use on-stack replacement")
-DEFINE_bool(array_bounds_checks_elimination, true,
+DEFINE_bool(array_bounds_checks_elimination, false,
             "perform array bounds checks elimination")
 DEFINE_bool(array_index_dehoisting, false,
             "perform array index dehoisting")
@@ -213,11 +213,14 @@ DEFINE_bool(cache_optimized_code, true,
             "cache optimized code for closures")
 DEFINE_bool(inline_construct, true, "inline constructor calls")
 DEFINE_bool(inline_arguments, true, "inline functions with arguments object")
-DEFINE_bool(inline_accessors, false, "inline JavaScript accessors")
+DEFINE_bool(inline_accessors, true, "inline JavaScript accessors")
 DEFINE_int(loop_weight, 1, "loop weight for representation inference")
 
 DEFINE_bool(optimize_for_in, true,
             "optimize functions containing for-in loops")
+DEFINE_bool(opt_safe_uint32_operations, true,
+            "allow uint32 values on optimize frames if they are used only in"
+            "safe operations")
 
 DEFINE_bool(parallel_recompilation, false,
             "optimizing hot functions asynchronously on a separate thread")
@@ -322,8 +325,6 @@ DEFINE_int(min_preparse_length, 1024,
            "minimum length for automatic enable preparsing")
 DEFINE_bool(always_full_compiler, false,
             "try to use the dedicated run-once backend for all code")
-DEFINE_bool(trace_bailout, false,
-            "print reasons for falling back to using the classic V8 backend")
 DEFINE_int(max_opt_count, 10,
            "maximum number of optimization attempts before giving up.")
 
@@ -390,9 +391,6 @@ DEFINE_bool(track_gc_object_stats, false,
 // v8.cc
 DEFINE_bool(use_idle_notification, true,
             "Use idle notification to reduce memory footprint.")
-
-DEFINE_bool(send_idle_notification, false,
-            "Send idle notifcation between stress runs.")
 // ic.cc
 DEFINE_bool(use_ic, true, "use inline caching")
 
@@ -561,8 +559,8 @@ DEFINE_bool(gc_verbose, false, "print stuff during garbage collection")
 DEFINE_bool(heap_stats, false, "report heap statistics before and after GC")
 DEFINE_bool(code_stats, false, "report code statistics after GC")
 DEFINE_bool(verify_heap, false, "verify heap pointers before and after GC")
-DEFINE_bool(verify_global_context_separation, false,
-            "verify that code holds on to at most one global context after GC")
+DEFINE_bool(verify_native_context_separation, false,
+            "verify that code holds on to at most one native context after GC")
 DEFINE_bool(print_handles, false, "report handles after GC")
 DEFINE_bool(print_global_handles, false, "report global handles after GC")
 

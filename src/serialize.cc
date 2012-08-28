@@ -692,7 +692,7 @@ void Deserializer::Deserialize() {
   isolate_->heap()->IterateStrongRoots(this, VISIT_ONLY_STRONG);
   isolate_->heap()->IterateWeakRoots(this, VISIT_ALL);
 
-  isolate_->heap()->set_global_contexts_list(
+  isolate_->heap()->set_native_contexts_list(
       isolate_->heap()->undefined_value());
 
   // Update data pointers to the external strings containing natives sources.

@@ -215,7 +215,7 @@ Scope* Scope::DeserializeScopeChain(Context* context, Scope* global_scope,
   Scope* current_scope = NULL;
   Scope* innermost_scope = NULL;
   bool contains_with = false;
-  while (!context->IsGlobalContext()) {
+  while (!context->IsNativeContext()) {
     if (context->IsWithContext()) {
       Scope* with_scope = new(zone) Scope(current_scope,
                                           WITH_SCOPE,
@@ -227,6 +227,12 @@ Scope* Scope::DeserializeScopeChain(Context* context, Scope* global_scope,
       for (Scope* s = innermost_scope; s != NULL; s = s->outer_scope()) {
         s->scope_inside_with_ = true;
       }
+    } else if (context->IsGlobalContext()) {
+      ScopeInfo* scope_info = ScopeInfo::cast(context->extension());
+      current_scope = new(zone) Scope(current_scope,
+                                      GLOBAL_SCOPE,
+                                      Handle<ScopeInfo>(scope_info),
+                                      zone);
     } else if (context->IsModuleContext()) {
       ScopeInfo* scope_info = ScopeInfo::cast(context->module()->scope_info());
       current_scope = new(zone) Scope(current_scope,
@@ -491,7 +497,7 @@ Variable* Scope::DeclareLocal(Handle<String> name,
 }
 
 
-Variable* Scope::DeclareGlobal(Handle<String> name) {
+Variable* Scope::DeclareDynamicGlobal(Handle<String> name) {
   ASSERT(is_global_scope());
   return variables_.Declare(this,
                             name,
@@ -594,6 +600,21 @@ VariableProxy* Scope::CheckAssignmentToConst() {
 }
 
 
+class VarAndOrder {
+ public:
+  VarAndOrder(Variable* var, int order) : var_(var), order_(order) { }
+  Variable* var() const { return var_; }
+  int order() const { return order_; }
+  static int Compare(const VarAndOrder* a, const VarAndOrder* b) {
+    return a->order_ - b->order_;
+  }
+
+ private:
+  Variable* var_;
+  int order_;
+};
+
+
 void Scope::CollectStackAndContextLocals(ZoneList<Variable*>* stack_locals,
                                          ZoneList<Variable*>* context_locals) {
   ASSERT(stack_locals != NULL);
@@ -608,17 +629,25 @@ void Scope::CollectStackAndContextLocals(ZoneList<Variable*>* stack_locals,
     }
   }
 
+  ZoneList<VarAndOrder> vars(variables_.occupancy(), zone());
+
   // Collect declared local variables.
   for (VariableMap::Entry* p = variables_.Start();
        p != NULL;
        p = variables_.Next(p)) {
     Variable* var = reinterpret_cast<Variable*>(p->value);
     if (var->is_used()) {
-      if (var->IsStackLocal()) {
-        stack_locals->Add(var, zone());
-      } else if (var->IsContextSlot()) {
-        context_locals->Add(var, zone());
-      }
+      vars.Add(VarAndOrder(var, p->order), zone());
+    }
+  }
+  vars.Sort(VarAndOrder::Compare);
+  int var_count = vars.length();
+  for (int i = 0; i < var_count; i++) {
+    Variable* var = vars[i].var();
+    if (var->IsStackLocal()) {
+      stack_locals->Add(var, zone());
+    } else if (var->IsContextSlot()) {
+      context_locals->Add(var, zone());
     }
   }
 }
@@ -1024,8 +1053,8 @@ bool Scope::ResolveVariable(CompilationInfo* info,
       break;
 
     case UNBOUND:
-      // No binding has been found. Declare a variable in global scope.
-      var = info->global_scope()->DeclareGlobal(proxy->name());
+      // No binding has been found. Declare a variable on the global object.
+      var = info->global_scope()->DeclareDynamicGlobal(proxy->name());
       break;
 
     case UNBOUND_EVAL_SHADOWED:
@@ -1256,11 +1285,19 @@ void Scope::AllocateNonParameterLocals() {
     AllocateNonParameterLocal(temps_[i]);
   }
 
+  ZoneList<VarAndOrder> vars(variables_.occupancy(), zone());
+
   for (VariableMap::Entry* p = variables_.Start();
        p != NULL;
        p = variables_.Next(p)) {
     Variable* var = reinterpret_cast<Variable*>(p->value);
-    AllocateNonParameterLocal(var);
+    vars.Add(VarAndOrder(var, p->order), zone());
+  }
+
+  vars.Sort(VarAndOrder::Compare);
+  int var_count = vars.length();
+  for (int i = 0; i < var_count; i++) {
+    AllocateNonParameterLocal(vars[i].var());
   }
 
   // For now, function_ must be allocated at the very end.  If it gets

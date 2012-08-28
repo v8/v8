@@ -108,6 +108,7 @@ class LCodeGen;
   V(InstanceOfKnownGlobal)                      \
   V(InstructionGap)                             \
   V(Integer32ToDouble)                          \
+  V(Uint32ToDouble)                             \
   V(InvokeFunction)                             \
   V(IsConstructCallAndBranch)                   \
   V(IsNilAndBranch)                             \
@@ -137,6 +138,7 @@ class LCodeGen;
   V(MulI)                                       \
   V(NumberTagD)                                 \
   V(NumberTagI)                                 \
+  V(NumberTagU)                                 \
   V(NumberUntagD)                               \
   V(ObjectLiteral)                              \
   V(OsrEntry)                                   \
@@ -259,8 +261,6 @@ class LInstruction: public ZoneObject {
   virtual bool HasResult() const = 0;
   virtual LOperand* result() = 0;
 
-  virtual int InputCount() = 0;
-  virtual LOperand* InputAt(int i) = 0;
   virtual int TempCount() = 0;
   virtual LOperand* TempAt(int i) = 0;
 
@@ -272,6 +272,11 @@ class LInstruction: public ZoneObject {
 #endif
 
  private:
+  // Iterator support.
+  friend class InputIterator;
+  virtual int InputCount() = 0;
+  virtual LOperand* InputAt(int i) = 0;
+
   LEnvironment* environment_;
   SetOncePointer<LPointerMap> pointer_map_;
   HValue* hydrogen_value_;
@@ -291,7 +296,6 @@ class LTemplateInstruction: public LInstruction {
   void set_result(LOperand* operand) { results_[0] = operand; }
   LOperand* result() { return results_[0]; }
 
-  int InputCount() { return I; }
   LOperand* InputAt(int i) { return inputs_[i]; }
 
   int TempCount() { return T; }
@@ -301,6 +305,9 @@ class LTemplateInstruction: public LInstruction {
   EmbeddedContainer<LOperand*, R> results_;
   EmbeddedContainer<LOperand*, I> inputs_;
   EmbeddedContainer<LOperand*, T> temps_;
+
+ private:
+  virtual int InputCount() { return I; }
 };
 
 
@@ -1581,6 +1588,17 @@ class LInteger32ToDouble: public LTemplateInstruction<1, 1, 0> {
 };
 
 
+class LUint32ToDouble: public LTemplateInstruction<1, 1, 1> {
+ public:
+  explicit LUint32ToDouble(LOperand* value, LOperand* temp) {
+    inputs_[0] = value;
+    temps_[0] = temp;
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(Uint32ToDouble, "uint32-to-double")
+};
+
+
 class LNumberTagI: public LTemplateInstruction<1, 1, 0> {
  public:
   explicit LNumberTagI(LOperand* value) {
@@ -1588,6 +1606,17 @@ class LNumberTagI: public LTemplateInstruction<1, 1, 0> {
   }
 
   DECLARE_CONCRETE_INSTRUCTION(NumberTagI, "number-tag-i")
+};
+
+
+class LNumberTagU: public LTemplateInstruction<1, 1, 1> {
+ public:
+  explicit LNumberTagU(LOperand* value, LOperand* temp) {
+    inputs_[0] = value;
+    temps_[0] = temp;
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(NumberTagU, "number-tag-u")
 };
 
 
@@ -2248,7 +2277,7 @@ class LChunkBuilder BASE_EMBEDDED {
   bool is_done() const { return status_ == DONE; }
   bool is_aborted() const { return status_ == ABORTED; }
 
-  void Abort(const char* format, ...);
+  void Abort(const char* reason);
 
   // Methods for getting operands for Use / Define / Temp.
   LUnallocated* ToUnallocated(Register reg);

@@ -239,8 +239,8 @@ class MacroAssembler: public Assembler {
   void LoadContext(Register dst, int context_chain_length);
 
   // Conditionally load the cached Array transitioned map of type
-  // transitioned_kind from the global context if the map in register
-  // map_in_out is the cached Array map in the global context of
+  // transitioned_kind from the native context if the map in register
+  // map_in_out is the cached Array map in the native context of
   // expected_kind.
   void LoadTransitionedArrayMapConditional(
       ElementsKind expected_kind,
@@ -466,6 +466,8 @@ class MacroAssembler: public Assembler {
     STATIC_ASSERT(kSmiTag == 0);
     j(not_carry, is_smi);
   }
+
+  void LoadUint32(XMMRegister dst, Register src, XMMRegister scratch);
 
   // Jump the register contains a smi.
   inline void JumpIfSmi(Register value,
@@ -961,7 +963,7 @@ inline Operand ContextOperand(Register context, int index) {
 
 
 inline Operand GlobalObjectOperand() {
-  return ContextOperand(esi, Context::GLOBAL_INDEX);
+  return ContextOperand(esi, Context::GLOBAL_OBJECT_INDEX);
 }
 
 

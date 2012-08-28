@@ -317,6 +317,7 @@ class MacroAssembler: public Assembler {
   void PopSafepointRegisters() { Popad(); }
   // Store the value in register src in the safepoint register stack
   // slot for register dst.
+  void StoreToSafepointRegisterSlot(Register dst, const Immediate& imm);
   void StoreToSafepointRegisterSlot(Register dst, Register src);
   void LoadFromSafepointRegisterSlot(Register dst, Register src);
 
@@ -944,6 +945,8 @@ class MacroAssembler: public Assembler {
                           Register result_reg,
                           Register temp_reg);
 
+  void LoadUint32(XMMRegister dst, Register src, XMMRegister scratch);
+
   void LoadInstanceDescriptors(Register map, Register descriptors);
 
   // Abort execution if argument is not a number. Used in debug code.
@@ -1133,8 +1136,8 @@ class MacroAssembler: public Assembler {
   void LoadContext(Register dst, int context_chain_length);
 
   // Conditionally load the cached Array transitioned map of type
-  // transitioned_kind from the global context if the map in register
-  // map_in_out is the cached Array map in the global context of
+  // transitioned_kind from the native context if the map in register
+  // map_in_out is the cached Array map in the native context of
   // expected_kind.
   void LoadTransitionedArrayMapConditional(
       ElementsKind expected_kind,
@@ -1449,7 +1452,7 @@ inline Operand ContextOperand(Register context, int index) {
 
 
 inline Operand GlobalObjectOperand() {
-  return ContextOperand(rsi, Context::GLOBAL_INDEX);
+  return ContextOperand(rsi, Context::GLOBAL_OBJECT_INDEX);
 }
 
 

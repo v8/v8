@@ -341,6 +341,20 @@
             'cflags': [ '-Wall', '<(werror)', '-W', '-Wno-unused-parameter',
                         '-Wnon-virtual-dtor', '-Woverloaded-virtual' ],
           }],
+          ['OS=="android"', {
+            'variables': {
+              'android_full_debug%': 1,
+            },
+            'conditions': [
+              ['android_full_debug==0', {
+                # Disable full debug if we want a faster v8 in a debug build.
+                # TODO(2304): pass DISABLE_DEBUG_ASSERT instead of hiding DEBUG.
+                'defines!': [
+                  'DEBUG',
+                ],
+              }],
+            ],
+          }],
         ],
       },  # Debug
       'Release': {

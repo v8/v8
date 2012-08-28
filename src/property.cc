@@ -112,7 +112,7 @@ void Descriptor::Print(FILE* out) {
   GetKey()->ShortPrint(out);
   PrintF(out, " @ ");
   GetValue()->ShortPrint(out);
-  PrintF(out, " %d\n", GetDetails().index());
+  PrintF(out, " %d\n", GetDetails().descriptor_index());
 }
 
 

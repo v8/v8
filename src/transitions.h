@@ -53,6 +53,11 @@ class TransitionArray: public FixedArray {
   inline String* GetKey(int transition_number);
   inline void SetKey(int transition_number, String* value);
   inline Object** GetKeySlot(int transition_number);
+  int GetSortedKeyIndex(int transition_number) { return transition_number; }
+
+  String* GetSortedKey(int transition_number) {
+    return GetKey(transition_number);
+  }
 
   inline Map* GetTarget(int transition_number);
   inline void SetTarget(int transition_number, Map* target);

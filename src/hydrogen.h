@@ -258,6 +258,7 @@ class HGraph: public ZoneObject {
   void InsertRepresentationChanges();
   void MarkDeoptimizeOnUndefined();
   void ComputeMinusZeroChecks();
+  void ComputeSafeUint32Operations();
   bool ProcessArgumentsObject();
   void EliminateRedundantPhis();
   void EliminateUnreachablePhis();
@@ -335,12 +336,32 @@ class HGraph: public ZoneObject {
     osr_values_.set(values);
   }
 
+  int update_type_change_checksum(int delta) {
+    type_change_checksum_ += delta;
+    return type_change_checksum_;
+  }
+
+  bool use_optimistic_licm() {
+    return use_optimistic_licm_;
+  }
+
+  void set_use_optimistic_licm(bool value) {
+    use_optimistic_licm_ = value;
+  }
+
   void MarkRecursive() {
     is_recursive_ = true;
   }
 
   bool is_recursive() const {
     return is_recursive_;
+  }
+
+  void RecordUint32Instruction(HInstruction* instr) {
+    if (uint32_instructions_ == NULL) {
+      uint32_instructions_ = new(zone()) ZoneList<HInstruction*>(4, zone());
+    }
+    uint32_instructions_->Add(instr, zone());
   }
 
  private:
@@ -370,6 +391,7 @@ class HGraph: public ZoneObject {
   ZoneList<HBasicBlock*> blocks_;
   ZoneList<HValue*> values_;
   ZoneList<HPhi*>* phi_list_;
+  ZoneList<HInstruction*>* uint32_instructions_;
   SetOncePointer<HConstant> undefined_constant_;
   SetOncePointer<HConstant> constant_1_;
   SetOncePointer<HConstant> constant_minus1_;
@@ -385,6 +407,8 @@ class HGraph: public ZoneObject {
   Zone* zone_;
 
   bool is_recursive_;
+  bool use_optimistic_licm_;
+  int type_change_checksum_;
 
   DISALLOW_COPY_AND_ASSIGN(HGraph);
 };

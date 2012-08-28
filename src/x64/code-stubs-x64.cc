@@ -76,10 +76,10 @@ void FastNewClosureStub::Generate(MacroAssembler* masm) {
       ? Context::FUNCTION_MAP_INDEX
       : Context::STRICT_MODE_FUNCTION_MAP_INDEX;
 
-  // Compute the function map in the current global context and set that
+  // Compute the function map in the current native context and set that
   // as the map of the allocated object.
-  __ movq(rcx, Operand(rsi, Context::SlotOffset(Context::GLOBAL_INDEX)));
-  __ movq(rcx, FieldOperand(rcx, GlobalObject::kGlobalContextOffset));
+  __ movq(rcx, Operand(rsi, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
+  __ movq(rcx, FieldOperand(rcx, GlobalObject::kNativeContextOffset));
   __ movq(rbx, Operand(rcx, Context::SlotOffset(map_index)));
   __ movq(FieldOperand(rax, JSObject::kMapOffset), rbx);
 
@@ -120,8 +120,8 @@ void FastNewClosureStub::Generate(MacroAssembler* masm) {
 
   __ IncrementCounter(counters->fast_new_closure_try_optimized(), 1);
 
-  // rcx holds global context, ebx points to fixed array of 3-element entries
-  // (global context, optimized code, literals).
+  // rcx holds native context, ebx points to fixed array of 3-element entries
+  // (native context, optimized code, literals).
   // The optimized code map must never be empty, so check the first elements.
   Label install_optimized;
   // Speculatively move code object into edx.
@@ -217,8 +217,8 @@ void FastNewContextStub::Generate(MacroAssembler* masm) {
   __ movq(Operand(rax, Context::SlotOffset(Context::EXTENSION_INDEX)), rbx);
 
   // Copy the global object from the previous context.
-  __ movq(rbx, Operand(rsi, Context::SlotOffset(Context::GLOBAL_INDEX)));
-  __ movq(Operand(rax, Context::SlotOffset(Context::GLOBAL_INDEX)), rbx);
+  __ movq(rbx, Operand(rsi, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
+  __ movq(Operand(rax, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)), rbx);
 
   // Initialize the rest of the slots to undefined.
   __ LoadRoot(rbx, Heap::kUndefinedValueRootIndex);
@@ -259,9 +259,9 @@ void FastNewBlockContextStub::Generate(MacroAssembler* masm) {
   __ movq(FieldOperand(rax, HeapObject::kMapOffset), kScratchRegister);
   __ Move(FieldOperand(rax, FixedArray::kLengthOffset), Smi::FromInt(length));
 
-  // If this block context is nested in the global context we get a smi
+  // If this block context is nested in the native context we get a smi
   // sentinel instead of a function. The block context should get the
-  // canonical empty function of the global context as its closure which
+  // canonical empty function of the native context as its closure which
   // we still have to look up.
   Label after_sentinel;
   __ JumpIfNotSmi(rcx, &after_sentinel, Label::kNear);
@@ -271,7 +271,7 @@ void FastNewBlockContextStub::Generate(MacroAssembler* masm) {
     __ Assert(equal, message);
   }
   __ movq(rcx, GlobalObjectOperand());
-  __ movq(rcx, FieldOperand(rcx, GlobalObject::kGlobalContextOffset));
+  __ movq(rcx, FieldOperand(rcx, GlobalObject::kNativeContextOffset));
   __ movq(rcx, ContextOperand(rcx, Context::CLOSURE_INDEX));
   __ bind(&after_sentinel);
 
@@ -281,8 +281,8 @@ void FastNewBlockContextStub::Generate(MacroAssembler* masm) {
   __ movq(ContextOperand(rax, Context::EXTENSION_INDEX), rbx);
 
   // Copy the global object from the previous context.
-  __ movq(rbx, ContextOperand(rsi, Context::GLOBAL_INDEX));
-  __ movq(ContextOperand(rax, Context::GLOBAL_INDEX), rbx);
+  __ movq(rbx, ContextOperand(rsi, Context::GLOBAL_OBJECT_INDEX));
+  __ movq(ContextOperand(rax, Context::GLOBAL_OBJECT_INDEX), rbx);
 
   // Initialize the rest of the slots to the hole value.
   __ LoadRoot(rbx, Heap::kTheHoleValueRootIndex);
@@ -2456,10 +2456,10 @@ void ArgumentsAccessStub::GenerateNewNonStrictFast(MacroAssembler* masm) {
 
   // rax = address of new object(s) (tagged)
   // rcx = argument count (untagged)
-  // Get the arguments boilerplate from the current (global) context into rdi.
+  // Get the arguments boilerplate from the current native context into rdi.
   Label has_mapped_parameters, copy;
-  __ movq(rdi, Operand(rsi, Context::SlotOffset(Context::GLOBAL_INDEX)));
-  __ movq(rdi, FieldOperand(rdi, GlobalObject::kGlobalContextOffset));
+  __ movq(rdi, Operand(rsi, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
+  __ movq(rdi, FieldOperand(rdi, GlobalObject::kNativeContextOffset));
   __ testq(rbx, rbx);
   __ j(not_zero, &has_mapped_parameters, Label::kNear);
 
@@ -2672,9 +2672,9 @@ void ArgumentsAccessStub::GenerateNewStrict(MacroAssembler* masm) {
   // Do the allocation of both objects in one go.
   __ AllocateInNewSpace(rcx, rax, rdx, rbx, &runtime, TAG_OBJECT);
 
-  // Get the arguments boilerplate from the current (global) context.
-  __ movq(rdi, Operand(rsi, Context::SlotOffset(Context::GLOBAL_INDEX)));
-  __ movq(rdi, FieldOperand(rdi, GlobalObject::kGlobalContextOffset));
+  // Get the arguments boilerplate from the current native context.
+  __ movq(rdi, Operand(rsi, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
+  __ movq(rdi, FieldOperand(rdi, GlobalObject::kNativeContextOffset));
   const int offset =
       Context::SlotOffset(Context::STRICT_MODE_ARGUMENTS_BOILERPLATE_INDEX);
   __ movq(rdi, Operand(rdi, offset));
@@ -3203,8 +3203,8 @@ void RegExpConstructResultStub::Generate(MacroAssembler* masm) {
   // r8: Number of array elements as smi.
 
   // Set JSArray map to global.regexp_result_map().
-  __ movq(rdx, ContextOperand(rsi, Context::GLOBAL_INDEX));
-  __ movq(rdx, FieldOperand(rdx, GlobalObject::kGlobalContextOffset));
+  __ movq(rdx, ContextOperand(rsi, Context::GLOBAL_OBJECT_INDEX));
+  __ movq(rdx, FieldOperand(rdx, GlobalObject::kNativeContextOffset));
   __ movq(rdx, ContextOperand(rdx, Context::REGEXP_RESULT_MAP_INDEX));
   __ movq(FieldOperand(rax, HeapObject::kMapOffset), rdx);
 

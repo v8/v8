@@ -806,7 +806,7 @@ void MacroAssembler::InvokeBuiltin(Builtins::JavaScript id,
 void MacroAssembler::GetBuiltinFunction(Register target,
                                         Builtins::JavaScript id) {
   // Load the builtins object into target register.
-  movq(target, Operand(rsi, Context::SlotOffset(Context::GLOBAL_INDEX)));
+  movq(target, Operand(rsi, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
   movq(target, FieldOperand(target, GlobalObject::kBuiltinsOffset));
   movq(target, FieldOperand(target,
                             JSBuiltinsObject::OffsetOfFunctionWithId(id)));
@@ -2500,6 +2500,12 @@ MacroAssembler::kSafepointPushRegisterIndices[Register::kNumRegisters] = {
 };
 
 
+void MacroAssembler::StoreToSafepointRegisterSlot(Register dst,
+                                                  const Immediate& imm) {
+  movq(SafepointRegisterSlot(dst), imm);
+}
+
+
 void MacroAssembler::StoreToSafepointRegisterSlot(Register dst, Register src) {
   movq(SafepointRegisterSlot(dst), src);
 }
@@ -2846,14 +2852,30 @@ void MacroAssembler::ClampDoubleToUint8(XMMRegister input_reg,
   xorps(temp_xmm_reg, temp_xmm_reg);
   ucomisd(input_reg, temp_xmm_reg);
   j(below, &done, Label::kNear);
-  uint64_t one_half = BitCast<uint64_t, double>(0.5);
-  Set(temp_reg, one_half);
-  movq(temp_xmm_reg, temp_reg);
-  addsd(temp_xmm_reg, input_reg);
-  cvttsd2si(result_reg, temp_xmm_reg);
+  cvtsd2si(result_reg, input_reg);
   testl(result_reg, Immediate(0xFFFFFF00));
   j(zero, &done, Label::kNear);
   Set(result_reg, 255);
+  bind(&done);
+}
+
+
+static double kUint32Bias =
+    static_cast<double>(static_cast<uint32_t>(0xFFFFFFFF)) + 1;
+
+
+void MacroAssembler::LoadUint32(XMMRegister dst,
+                                Register src,
+                                XMMRegister scratch) {
+  Label done;
+  cmpl(src, Immediate(0));
+  movq(kScratchRegister,
+       reinterpret_cast<int64_t>(&kUint32Bias),
+       RelocInfo::NONE);
+  movsd(scratch, Operand(kScratchRegister, 0));
+  cvtlsi2sd(dst, src);
+  j(not_sign, &done, Label::kNear);
+  addsd(dst, scratch);
   bind(&done);
 }
 
@@ -3442,20 +3464,21 @@ void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
     cmpq(scratch, Immediate(0));
     Check(not_equal, "we should not have an empty lexical context");
   }
-  // Load the global context of the current context.
-  int offset = Context::kHeaderSize + Context::GLOBAL_INDEX * kPointerSize;
+  // Load the native context of the current context.
+  int offset =
+      Context::kHeaderSize + Context::GLOBAL_OBJECT_INDEX * kPointerSize;
   movq(scratch, FieldOperand(scratch, offset));
-  movq(scratch, FieldOperand(scratch, GlobalObject::kGlobalContextOffset));
+  movq(scratch, FieldOperand(scratch, GlobalObject::kNativeContextOffset));
 
-  // Check the context is a global context.
+  // Check the context is a native context.
   if (emit_debug_code()) {
     Cmp(FieldOperand(scratch, HeapObject::kMapOffset),
-        isolate()->factory()->global_context_map());
-    Check(equal, "JSGlobalObject::global_context should be a global context.");
+        isolate()->factory()->native_context_map());
+    Check(equal, "JSGlobalObject::native_context should be a native context.");
   }
 
   // Check if both contexts are the same.
-  cmpq(scratch, FieldOperand(holder_reg, JSGlobalProxy::kContextOffset));
+  cmpq(scratch, FieldOperand(holder_reg, JSGlobalProxy::kNativeContextOffset));
   j(equal, &same_contexts);
 
   // Compare security tokens.
@@ -3463,23 +3486,24 @@ void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
   // compatible with the security token in the receiving global
   // object.
 
-  // Check the context is a global context.
+  // Check the context is a native context.
   if (emit_debug_code()) {
     // Preserve original value of holder_reg.
     push(holder_reg);
-    movq(holder_reg, FieldOperand(holder_reg, JSGlobalProxy::kContextOffset));
+    movq(holder_reg,
+         FieldOperand(holder_reg, JSGlobalProxy::kNativeContextOffset));
     CompareRoot(holder_reg, Heap::kNullValueRootIndex);
     Check(not_equal, "JSGlobalProxy::context() should not be null.");
 
-    // Read the first word and compare to global_context_map(),
+    // Read the first word and compare to native_context_map(),
     movq(holder_reg, FieldOperand(holder_reg, HeapObject::kMapOffset));
-    CompareRoot(holder_reg, Heap::kGlobalContextMapRootIndex);
-    Check(equal, "JSGlobalObject::global_context should be a global context.");
+    CompareRoot(holder_reg, Heap::kNativeContextMapRootIndex);
+    Check(equal, "JSGlobalObject::native_context should be a native context.");
     pop(holder_reg);
   }
 
   movq(kScratchRegister,
-       FieldOperand(holder_reg, JSGlobalProxy::kContextOffset));
+       FieldOperand(holder_reg, JSGlobalProxy::kNativeContextOffset));
   int token_offset =
       Context::kHeaderSize + Context::SECURITY_TOKEN_INDEX * kPointerSize;
   movq(scratch, FieldOperand(scratch, token_offset));
@@ -4099,8 +4123,9 @@ void MacroAssembler::LoadTransitionedArrayMapConditional(
     Register scratch,
     Label* no_map_match) {
   // Load the global or builtins object from the current context.
-  movq(scratch, Operand(rsi, Context::SlotOffset(Context::GLOBAL_INDEX)));
-  movq(scratch, FieldOperand(scratch, GlobalObject::kGlobalContextOffset));
+  movq(scratch,
+       Operand(rsi, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
+  movq(scratch, FieldOperand(scratch, GlobalObject::kNativeContextOffset));
 
   // Check that the function's map is the same as the expected cached map.
   movq(scratch, Operand(scratch,
@@ -4150,10 +4175,11 @@ static const int kRegisterPassedArguments = 6;
 
 void MacroAssembler::LoadGlobalFunction(int index, Register function) {
   // Load the global or builtins object from the current context.
-  movq(function, Operand(rsi, Context::SlotOffset(Context::GLOBAL_INDEX)));
-  // Load the global context from the global or builtins object.
-  movq(function, FieldOperand(function, GlobalObject::kGlobalContextOffset));
-  // Load the function from the global context.
+  movq(function,
+       Operand(rsi, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
+  // Load the native context from the global or builtins object.
+  movq(function, FieldOperand(function, GlobalObject::kNativeContextOffset));
+  // Load the function from the native context.
   movq(function, Operand(function, Context::SlotOffset(index)));
 }
 

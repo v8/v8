@@ -2366,7 +2366,7 @@ void Simulator::DecodeType01(Instruction* instr) {
           // Format(instr, "cmn'cond 'rn, 'imm");
           alu_out = rn_val + shifter_operand;
           SetNZFlags(alu_out);
-          SetCFlag(!CarryFrom(rn_val, shifter_operand));
+          SetCFlag(CarryFrom(rn_val, shifter_operand));
           SetVFlag(OverflowFrom(alu_out, rn_val, shifter_operand, true));
         } else {
           // Other instructions matching this pattern are handled in the

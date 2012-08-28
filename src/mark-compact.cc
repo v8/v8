@@ -224,9 +224,9 @@ static void VerifyEvacuation(Heap* heap) {
 }
 
 
-class VerifyGlobalContextSeparationVisitor: public ObjectVisitor {
+class VerifyNativeContextSeparationVisitor: public ObjectVisitor {
  public:
-  VerifyGlobalContextSeparationVisitor() : current_global_context_(NULL) {}
+  VerifyNativeContextSeparationVisitor() : current_native_context_(NULL) {}
 
   void VisitPointers(Object** start, Object** end) {
     for (Object** current = start; current < end; current++) {
@@ -238,11 +238,11 @@ class VerifyGlobalContextSeparationVisitor: public ObjectVisitor {
             CheckContext(JSFunction::cast(object)->context());
             break;
           case JS_GLOBAL_PROXY_TYPE:
-            CheckContext(JSGlobalProxy::cast(object)->context());
+            CheckContext(JSGlobalProxy::cast(object)->native_context());
             break;
           case JS_GLOBAL_OBJECT_TYPE:
           case JS_BUILTINS_OBJECT_TYPE:
-            CheckContext(GlobalObject::cast(object)->global_context());
+            CheckContext(GlobalObject::cast(object)->native_context());
             break;
           case JS_ARRAY_TYPE:
           case JS_DATE_TYPE:
@@ -295,23 +295,23 @@ class VerifyGlobalContextSeparationVisitor: public ObjectVisitor {
  private:
   void CheckContext(Object* context) {
     if (!context->IsContext()) return;
-    Context* global_context = Context::cast(context)->global_context();
-    if (current_global_context_ == NULL) {
-      current_global_context_ = global_context;
+    Context* native_context = Context::cast(context)->native_context();
+    if (current_native_context_ == NULL) {
+      current_native_context_ = native_context;
     } else {
-      CHECK_EQ(current_global_context_, global_context);
+      CHECK_EQ(current_native_context_, native_context);
     }
   }
 
-  Context* current_global_context_;
+  Context* current_native_context_;
 };
 
 
-static void VerifyGlobalContextSeparation(Heap* heap) {
+static void VerifyNativeContextSeparation(Heap* heap) {
   HeapObjectIterator it(heap->code_space());
 
   for (Object* object = it.Next(); object != NULL; object = it.Next()) {
-    VerifyGlobalContextSeparationVisitor visitor;
+    VerifyNativeContextSeparationVisitor visitor;
     Code::cast(object)->CodeIterateBody(&visitor);
   }
 }
@@ -389,8 +389,8 @@ void MarkCompactCollector::CollectGarbage() {
   if (!FLAG_collect_maps) ReattachInitialMaps();
 
 #ifdef DEBUG
-  if (FLAG_verify_global_context_separation) {
-    VerifyGlobalContextSeparation(heap_);
+  if (FLAG_verify_native_context_separation) {
+    VerifyNativeContextSeparation(heap_);
   }
 #endif
 
@@ -1269,7 +1269,7 @@ class MarkCompactMarkingVisitor
 
   static inline bool IsValidNotBuiltinContext(Object* ctx) {
     return ctx->IsContext() &&
-        !Context::cast(ctx)->global()->IsJSBuiltinsObject();
+        !Context::cast(ctx)->global_object()->IsJSBuiltinsObject();
   }
 
 
@@ -2423,7 +2423,7 @@ void MarkCompactCollector::AfterMarking() {
 
 
 void MarkCompactCollector::ProcessMapCaches() {
-  Object* raw_context = heap()->global_contexts_list_;
+  Object* raw_context = heap()->native_contexts_list_;
   while (raw_context != heap()->undefined_value()) {
     Context* context = reinterpret_cast<Context*>(raw_context);
     if (IsMarked(context)) {
@@ -3404,8 +3404,8 @@ void MarkCompactCollector::EvacuateNewSpaceAndCandidates() {
     }
   }
 
-  // Update pointer from the global contexts list.
-  updating_visitor.VisitPointer(heap_->global_contexts_list_address());
+  // Update pointer from the native contexts list.
+  updating_visitor.VisitPointer(heap_->native_contexts_list_address());
 
   heap_->symbol_table()->Iterate(&updating_visitor);
 

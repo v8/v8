@@ -160,7 +160,11 @@ class Factory {
       const ExternalTwoByteString::Resource* resource);
 
   // Create a global (but otherwise uninitialized) context.
-  Handle<Context> NewGlobalContext();
+  Handle<Context> NewNativeContext();
+
+  // Create a global context.
+  Handle<Context> NewGlobalContext(Handle<JSFunction> function,
+                                   Handle<ScopeInfo> scope_info);
 
   // Create a module context.
   Handle<Context> NewModuleContext(Handle<ScopeInfo> scope_info);
@@ -331,7 +335,7 @@ class Factory {
 
   Handle<Object> ToObject(Handle<Object> object);
   Handle<Object> ToObject(Handle<Object> object,
-                          Handle<Context> global_context);
+                          Handle<Context> native_context);
 
   // Interface for creating error objects.
 
@@ -457,7 +461,7 @@ class Factory {
   Handle<DebugInfo> NewDebugInfo(Handle<SharedFunctionInfo> shared);
 #endif
 
-  // Return a map using the map cache in the global context.
+  // Return a map using the map cache in the native context.
   // The key the an ordered set of property names.
   Handle<Map> ObjectLiteralMapFromCache(Handle<Context> context,
                                         Handle<FixedArray> keys);
@@ -499,7 +503,7 @@ class Factory {
   // Create a new map cache.
   Handle<MapCache> NewMapCache(int at_least_space_for);
 
-  // Update the map cache in the global context with (keys, map)
+  // Update the map cache in the native context with (keys, map)
   Handle<MapCache> AddToMapCache(Handle<Context> context,
                                  Handle<FixedArray> keys,
                                  Handle<Map> map);

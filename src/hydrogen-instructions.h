@@ -562,7 +562,14 @@ class HValue: public ZoneObject {
     kIsArguments,
     kTruncatingToInt32,
     kIsDead,
-    kLastFlag = kIsDead
+    // Instructions that are allowed to produce full range unsigned integer
+    // values are marked with kUint32 flag. If arithmetic shift or a load from
+    // EXTERNAL_UNSIGNED_INT_ELEMENTS array is not marked with this flag
+    // it will deoptimize if result does not fit into signed integer range.
+    // HGraph::ComputeSafeUint32Operations is responsible for setting this
+    // flag.
+    kUint32,
+    kLastFlag = kUint32
   };
 
   STATIC_ASSERT(kLastFlag < kBitsPerInt);
@@ -2555,6 +2562,10 @@ class HConstant: public HTemplateInstruction<0> {
   }
 
   bool ToBoolean();
+
+  bool IsUint32() {
+    return HasInteger32Value() && (Integer32Value() >= 0);
+  }
 
   virtual intptr_t Hashcode() {
     ASSERT_ALLOCATION_DISABLED;

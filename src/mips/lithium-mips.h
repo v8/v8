@@ -256,8 +256,6 @@ class LInstruction: public ZoneObject {
   virtual bool HasResult() const = 0;
   virtual LOperand* result() = 0;
 
-  virtual int InputCount() = 0;
-  virtual LOperand* InputAt(int i) = 0;
   virtual int TempCount() = 0;
   virtual LOperand* TempAt(int i) = 0;
 
@@ -269,6 +267,11 @@ class LInstruction: public ZoneObject {
 #endif
 
  private:
+  // Iterator interface.
+  friend class InputIterator;
+  virtual int InputCount() = 0;
+  virtual LOperand* InputAt(int i) = 0;
+
   LEnvironment* environment_;
   SetOncePointer<LPointerMap> pointer_map_;
   HValue* hydrogen_value_;
@@ -289,7 +292,6 @@ class LTemplateInstruction: public LInstruction {
   void set_result(LOperand* operand) { results_[0] = operand; }
   LOperand* result() { return results_[0]; }
 
-  int InputCount() { return I; }
   LOperand* InputAt(int i) { return inputs_[i]; }
 
   int TempCount() { return T; }
@@ -299,6 +301,9 @@ class LTemplateInstruction: public LInstruction {
   EmbeddedContainer<LOperand*, R> results_;
   EmbeddedContainer<LOperand*, I> inputs_;
   EmbeddedContainer<LOperand*, T> temps_;
+
+ private:
+  virtual int InputCount() { return I; }
 };
 
 
@@ -2257,7 +2262,7 @@ class LChunkBuilder BASE_EMBEDDED {
   bool is_done() const { return status_ == DONE; }
   bool is_aborted() const { return status_ == ABORTED; }
 
-  void Abort(const char* format, ...);
+  void Abort(const char* reason);
 
   // Methods for getting operands for Use / Define / Temp.
   LUnallocated* ToUnallocated(Register reg);

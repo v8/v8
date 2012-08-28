@@ -89,17 +89,8 @@ void LCodeGen::FinishCode(Handle<Code> code) {
 }
 
 
-void LCodeGen::Abort(const char* format, ...) {
-  if (FLAG_trace_bailout) {
-    SmartArrayPointer<char> name(
-        info()->shared_info()->DebugName()->ToCString());
-    PrintF("Aborting LCodeGen in @\"%s\": ", *name);
-    va_list arguments;
-    va_start(arguments, format);
-    OS::VPrint(format, arguments);
-    va_end(arguments);
-    PrintF("\n");
-  }
+void LChunkBuilder::Abort(const char* reason) {
+  info()->set_bailout_reason(reason);
   status_ = ABORTED;
 }
 
@@ -261,7 +252,7 @@ bool LCodeGen::GenerateDeferredCode() {
 bool LCodeGen::GenerateDeoptJumpTable() {
   // TODO(plind): not clear that this will have advantage for MIPS.
   // Skipping it for now. Raised issue #100 for this.
-  Abort("Unimplemented: %s", "GenerateDeoptJumpTable");
+  Abort("Unimplemented: GenerateDeoptJumpTable");
   return false;
 }
 
@@ -462,7 +453,9 @@ void LCodeGen::WriteTranslation(LEnvironment* environment,
       translation->BeginConstructStubFrame(closure_id, translation_size);
       break;
     case JS_SETTER:
-      // TODO(svenpanne) Implement me!
+      ASSERT(translation_size == 2);
+      ASSERT(height == 0);
+      translation->BeginSetterStubFrame(closure_id);
       break;
     case ARGUMENTS_ADAPTOR:
       translation->BeginArgumentsAdaptorFrame(closure_id, translation_size);
@@ -2590,13 +2583,14 @@ void LCodeGen::DoLoadKeyedFastElement(LLoadKeyedFastElement* instr) {
   Register elements = ToRegister(instr->elements());
   Register result = ToRegister(instr->result());
   Register scratch = scratch0();
+  Register store_base = scratch;
+  int offset = 0;
 
   if (instr->key()->IsConstantOperand()) {
     LConstantOperand* const_operand = LConstantOperand::cast(instr->key());
-    int offset =
-        (ToInteger32(const_operand) + instr->additional_index()) * kPointerSize
-        + FixedArray::kHeaderSize;
-    __ lw(result, FieldMemOperand(elements, offset));
+    offset = FixedArray::OffsetOfElementAt(ToInteger32(const_operand) +
+                                           instr->additional_index());
+    store_base = elements;
   } else {
     Register key = EmitLoadRegister(instr->key(), scratch);
     // Even though the HLoadKeyedFastElement instruction forces the input
@@ -2610,10 +2604,9 @@ void LCodeGen::DoLoadKeyedFastElement(LLoadKeyedFastElement* instr) {
       __ sll(scratch, key, kPointerSizeLog2);
       __ addu(scratch, elements, scratch);
     }
-    uint32_t offset = FixedArray::kHeaderSize +
-        (instr->additional_index() << kPointerSizeLog2);
-    __ lw(result, FieldMemOperand(scratch, offset));
+    offset = FixedArray::OffsetOfElementAt(instr->additional_index());
   }
+  __ lw(result, FieldMemOperand(store_base, offset));
 
   // Check for the hole value.
   if (instr->hydrogen()->RequiresHoleCheck()) {
@@ -2995,7 +2988,7 @@ void LCodeGen::DoDeclareGlobals(LDeclareGlobals* instr) {
 
 void LCodeGen::DoGlobalObject(LGlobalObject* instr) {
   Register result = ToRegister(instr->result());
-  __ lw(result, ContextOperand(cp, Context::GLOBAL_INDEX));
+  __ lw(result, ContextOperand(cp, Context::GLOBAL_OBJECT_INDEX));
 }
 
 
@@ -3365,11 +3358,11 @@ void LCodeGen::DoRandom(LRandom* instr) {
   static const int kSeedSize = sizeof(uint32_t);
   STATIC_ASSERT(kPointerSize == kSeedSize);
 
-  __ lw(a0, FieldMemOperand(a0, GlobalObject::kGlobalContextOffset));
+  __ lw(a0, FieldMemOperand(a0, GlobalObject::kNativeContextOffset));
   static const int kRandomSeedOffset =
       FixedArray::kHeaderSize + Context::RANDOM_SEED_INDEX * kPointerSize;
   __ lw(a2, FieldMemOperand(a0, kRandomSeedOffset));
-  // a2: FixedArray of the global context's random seeds
+  // a2: FixedArray of the native context's random seeds
 
   // Load state[0].
   __ lw(a1, FieldMemOperand(a2, ByteArray::kHeaderSize));
@@ -3658,7 +3651,29 @@ void LCodeGen::DoStoreNamedGeneric(LStoreNamedGeneric* instr) {
 }
 
 
+void LCodeGen::DeoptIfTaggedButNotSmi(LEnvironment* environment,
+                                      HValue* value,
+                                      LOperand* operand) {
+  if (value->representation().IsTagged() && !value->type().IsSmi()) {
+    if (operand->IsRegister()) {
+      __ And(at, ToRegister(operand), Operand(kSmiTagMask));
+      DeoptimizeIf(ne, environment, at, Operand(zero_reg));
+    } else {
+      __ li(at, ToOperand(operand));
+      __ And(at, at, Operand(kSmiTagMask));
+      DeoptimizeIf(ne, environment, at, Operand(zero_reg));
+    }
+  }
+}
+
+
 void LCodeGen::DoBoundsCheck(LBoundsCheck* instr) {
+  DeoptIfTaggedButNotSmi(instr->environment(),
+                         instr->hydrogen()->length(),
+                         instr->length());
+  DeoptIfTaggedButNotSmi(instr->environment(),
+                         instr->hydrogen()->index(),
+                         instr->index());
   if (instr->index()->IsConstantOperand()) {
     int constant_index =
         ToInteger32(LConstantOperand::cast(instr->index()));
@@ -3685,15 +3700,16 @@ void LCodeGen::DoStoreKeyedFastElement(LStoreKeyedFastElement* instr) {
   Register elements = ToRegister(instr->object());
   Register key = instr->key()->IsRegister() ? ToRegister(instr->key()) : no_reg;
   Register scratch = scratch0();
+  Register store_base = scratch;
+  int offset = 0;
 
   // Do the store.
   if (instr->key()->IsConstantOperand()) {
     ASSERT(!instr->hydrogen()->NeedsWriteBarrier());
     LConstantOperand* const_operand = LConstantOperand::cast(instr->key());
-    int offset =
-        (ToInteger32(const_operand) + instr->additional_index()) * kPointerSize
-        + FixedArray::kHeaderSize;
-    __ sw(value, FieldMemOperand(elements, offset));
+    offset = FixedArray::OffsetOfElementAt(ToInteger32(const_operand) +
+                                           instr->additional_index());
+    store_base = elements;
   } else {
     // Even though the HLoadKeyedFastElement instruction forces the input
     // representation for the key to be an integer, the input gets replaced
@@ -3706,17 +3722,16 @@ void LCodeGen::DoStoreKeyedFastElement(LStoreKeyedFastElement* instr) {
       __ sll(scratch, key, kPointerSizeLog2);
       __ addu(scratch, elements, scratch);
     }
-    uint32_t offset = FixedArray::kHeaderSize +
-        (instr->additional_index() << kPointerSizeLog2);
-    __ sw(value, FieldMemOperand(scratch, offset));
+    offset = FixedArray::OffsetOfElementAt(instr->additional_index());
   }
+  __ sw(value, FieldMemOperand(store_base, offset));
 
   if (instr->hydrogen()->NeedsWriteBarrier()) {
     HType type = instr->hydrogen()->value()->type();
     SmiCheck check_needed =
         type.IsHeapObject() ? OMIT_SMI_CHECK : INLINE_SMI_CHECK;
     // Compute address of modified element and store it into key register.
-    __ Addu(key, scratch, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
+    __ Addu(key, store_base, Operand(offset - kHeapObjectTag));
     __ RecordWrite(elements,
                    key,
                    value,

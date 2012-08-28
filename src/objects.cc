@@ -69,13 +69,13 @@ MUST_USE_RESULT static MaybeObject* CreateJSValue(JSFunction* constructor,
 }
 
 
-MaybeObject* Object::ToObject(Context* global_context) {
+MaybeObject* Object::ToObject(Context* native_context) {
   if (IsNumber()) {
-    return CreateJSValue(global_context->number_function(), this);
+    return CreateJSValue(native_context->number_function(), this);
   } else if (IsBoolean()) {
-    return CreateJSValue(global_context->boolean_function(), this);
+    return CreateJSValue(native_context->boolean_function(), this);
   } else if (IsString()) {
-    return CreateJSValue(global_context->string_function(), this);
+    return CreateJSValue(native_context->string_function(), this);
   }
   ASSERT(IsJSObject());
   return this;
@@ -87,16 +87,16 @@ MaybeObject* Object::ToObject() {
     return this;
   } else if (IsNumber()) {
     Isolate* isolate = Isolate::Current();
-    Context* global_context = isolate->context()->global_context();
-    return CreateJSValue(global_context->number_function(), this);
+    Context* native_context = isolate->context()->native_context();
+    return CreateJSValue(native_context->number_function(), this);
   } else if (IsBoolean()) {
     Isolate* isolate = HeapObject::cast(this)->GetIsolate();
-    Context* global_context = isolate->context()->global_context();
-    return CreateJSValue(global_context->boolean_function(), this);
+    Context* native_context = isolate->context()->native_context();
+    return CreateJSValue(native_context->boolean_function(), this);
   } else if (IsString()) {
     Isolate* isolate = HeapObject::cast(this)->GetIsolate();
-    Context* global_context = isolate->context()->global_context();
-    return CreateJSValue(global_context->string_function(), this);
+    Context* native_context = isolate->context()->native_context();
+    return CreateJSValue(native_context->string_function(), this);
   }
 
   // Throw a type error.
@@ -134,13 +134,13 @@ void Object::Lookup(String* name, LookupResult* result) {
   if (IsJSReceiver()) {
     holder = this;
   } else {
-    Context* global_context = Isolate::Current()->context()->global_context();
+    Context* native_context = Isolate::Current()->context()->native_context();
     if (IsNumber()) {
-      holder = global_context->number_function()->instance_prototype();
+      holder = native_context->number_function()->instance_prototype();
     } else if (IsString()) {
-      holder = global_context->string_function()->instance_prototype();
+      holder = native_context->string_function()->instance_prototype();
     } else if (IsBoolean()) {
-      holder = global_context->boolean_function()->instance_prototype();
+      holder = native_context->boolean_function()->instance_prototype();
     }
   }
   ASSERT(holder != NULL);  // Cannot handle null or undefined.
@@ -190,6 +190,7 @@ MaybeObject* JSObject::GetPropertyWithCallback(Object* receiver,
     }
     Object* fun_obj = data->getter();
     v8::AccessorGetter call_fun = v8::ToCData<v8::AccessorGetter>(fun_obj);
+    if (call_fun == NULL) return isolate->heap()->undefined_value();
     HandleScope scope(isolate);
     JSObject* self = JSObject::cast(receiver);
     Handle<String> key(name);
@@ -482,9 +483,11 @@ MaybeObject* JSObject::SetNormalizedProperty(String* name,
     return value;
   }
   // Preserve enumeration index.
-  details = PropertyDetails(details.attributes(),
-                            details.type(),
-                            property_dictionary()->DetailsAt(entry).index());
+  details = PropertyDetails(
+      details.attributes(),
+      details.type(),
+      property_dictionary()->DetailsAt(entry).dictionary_index());
+
   if (IsGlobalObject()) {
     JSGlobalPropertyCell* cell =
         JSGlobalPropertyCell::cast(property_dictionary()->ValueAt(entry));
@@ -662,13 +665,13 @@ MaybeObject* Object::GetElementWithReceiver(Object* receiver, uint32_t index) {
        holder = holder->GetPrototype()) {
     if (!holder->IsJSObject()) {
       Isolate* isolate = heap->isolate();
-      Context* global_context = isolate->context()->global_context();
+      Context* native_context = isolate->context()->native_context();
       if (holder->IsNumber()) {
-        holder = global_context->number_function()->instance_prototype();
+        holder = native_context->number_function()->instance_prototype();
       } else if (holder->IsString()) {
-        holder = global_context->string_function()->instance_prototype();
+        holder = native_context->string_function()->instance_prototype();
       } else if (holder->IsBoolean()) {
-        holder = global_context->boolean_function()->instance_prototype();
+        holder = native_context->boolean_function()->instance_prototype();
       } else if (holder->IsJSProxy()) {
         return JSProxy::cast(holder)->GetElementWithHandler(receiver, index);
       } else {
@@ -710,7 +713,7 @@ MaybeObject* Object::GetElementWithReceiver(Object* receiver, uint32_t index) {
 Object* Object::GetPrototype() {
   if (IsSmi()) {
     Heap* heap = Isolate::Current()->heap();
-    Context* context = heap->isolate()->context()->global_context();
+    Context* context = heap->isolate()->context()->native_context();
     return context->number_function()->instance_prototype();
   }
 
@@ -722,7 +725,7 @@ Object* Object::GetPrototype() {
     return heap_object->map()->prototype();
   }
   Heap* heap = heap_object->GetHeap();
-  Context* context = heap->isolate()->context()->global_context();
+  Context* context = heap->isolate()->context()->native_context();
 
   if (heap_object->IsHeapNumber()) {
     return context->number_function()->instance_prototype();
@@ -1731,7 +1734,7 @@ MaybeObject* JSObject::ReplaceSlowProperty(String* name,
   int new_enumeration_index = 0;  // 0 means "Use the next available index."
   if (old_index != -1) {
     // All calls to ReplaceSlowProperty have had all transitions removed.
-    new_enumeration_index = dictionary->DetailsAt(old_index).index();
+    new_enumeration_index = dictionary->DetailsAt(old_index).dictionary_index();
   }
 
   PropertyDetails new_details(attributes, NORMAL, new_enumeration_index);
@@ -2079,33 +2082,6 @@ MaybeObject* JSObject::SetPropertyViaPrototypes(
 }
 
 
-void Map::LookupDescriptor(JSObject* holder,
-                           String* name,
-                           LookupResult* result) {
-  DescriptorArray* descriptors = this->instance_descriptors();
-  int number = descriptors->SearchWithCache(name);
-  if (number != DescriptorArray::kNotFound) {
-    result->DescriptorResult(holder, descriptors->GetDetails(number), number);
-  } else {
-    result->NotFound();
-  }
-}
-
-
-void Map::LookupTransition(JSObject* holder,
-                           String* name,
-                           LookupResult* result) {
-  if (HasTransitionArray()) {
-    TransitionArray* transition_array = transitions();
-    int number = transition_array->Search(name);
-    if (number != TransitionArray::kNotFound) {
-      return result->TransitionResult(holder, number);
-    }
-  }
-  result->NotFound();
-}
-
-
 enum RightTrimMode { FROM_GC, FROM_MUTATOR };
 
 
@@ -2201,14 +2177,14 @@ void Map::CopyAppendCallbackDescriptors(Handle<Map> map,
     AccessorInfo* entry = AccessorInfo::cast(callbacks.get(i));
     String* key = String::cast(entry->name());
     // Check if a descriptor with this name already exists before writing.
-    if (LinearSearch(*result, key, map->NumberOfSetDescriptors()) ==
+    if (LinearSearch(*result, key, map->NumberOfOwnDescriptors()) ==
         DescriptorArray::kNotFound) {
       CallbacksDescriptor desc(key, entry, entry->property_attributes());
       map->AppendDescriptor(&desc, witness);
     }
   }
 
-  int new_number_of_descriptors = map->NumberOfSetDescriptors();
+  int new_number_of_descriptors = map->NumberOfOwnDescriptors();
   // Reinstall the original descriptor array if no new elements were added.
   if (new_number_of_descriptors == descriptor_count) {
     Map::SetDescriptors(map, array);
@@ -3299,8 +3275,9 @@ MaybeObject* JSObject::NormalizeProperties(PropertyNormalizationMode mode,
     PropertyDetails details = descs->GetDetails(i);
     switch (details.type()) {
       case CONSTANT_FUNCTION: {
-        PropertyDetails d =
-            PropertyDetails(details.attributes(), NORMAL, details.index());
+        PropertyDetails d = PropertyDetails(details.attributes(),
+                                            NORMAL,
+                                            details.descriptor_index());
         Object* value = descs->GetConstantFunction(i);
         MaybeObject* maybe_dictionary =
             dictionary->Add(descs->GetKey(i), value, d);
@@ -3308,8 +3285,9 @@ MaybeObject* JSObject::NormalizeProperties(PropertyNormalizationMode mode,
         break;
       }
       case FIELD: {
-        PropertyDetails d =
-            PropertyDetails(details.attributes(), NORMAL, details.index());
+        PropertyDetails d = PropertyDetails(details.attributes(),
+                                            NORMAL,
+                                            details.descriptor_index());
         Object* value = FastPropertyAt(descs->GetFieldIndex(i));
         MaybeObject* maybe_dictionary =
             dictionary->Add(descs->GetKey(i), value, d);
@@ -3342,7 +3320,7 @@ MaybeObject* JSObject::NormalizeProperties(PropertyNormalizationMode mode,
 
   Map* new_map;
   MaybeObject* maybe_map =
-      current_heap->isolate()->context()->global_context()->
+      current_heap->isolate()->context()->native_context()->
       normalized_map_cache()->Get(this, mode);
   if (!maybe_map->To(&new_map)) return maybe_map;
   ASSERT(new_map->is_dictionary_map());
@@ -3682,10 +3660,15 @@ MaybeObject* JSObject::GetHiddenPropertiesHashTable(
     // hidden symbols hash code is zero (and no other string has hash
     // code zero) it will always occupy the first entry if present.
     DescriptorArray* descriptors = this->map()->instance_descriptors();
-    if ((descriptors->number_of_descriptors() > 0) &&
-        (descriptors->GetKey(0) == GetHeap()->hidden_symbol())) {
-      ASSERT(descriptors->GetType(0) == FIELD);
-      inline_value = this->FastPropertyAt(descriptors->GetFieldIndex(0));
+    if (descriptors->number_of_descriptors() > 0) {
+      int sorted_index = descriptors->GetSortedKeyIndex(0);
+      if (descriptors->GetKey(sorted_index) == GetHeap()->hidden_symbol()) {
+        ASSERT(descriptors->GetType(sorted_index) == FIELD);
+        inline_value = this->FastPropertyAt(
+            descriptors->GetFieldIndex(sorted_index));
+      } else {
+        inline_value = GetHeap()->undefined_value();
+      }
     } else {
       inline_value = GetHeap()->undefined_value();
     }
@@ -3745,11 +3728,14 @@ MaybeObject* JSObject::SetHiddenPropertiesHashTable(Object* value) {
     // hidden symbols hash code is zero (and no other string has hash
     // code zero) it will always occupy the first entry if present.
     DescriptorArray* descriptors = this->map()->instance_descriptors();
-    if ((descriptors->number_of_descriptors() > 0) &&
-        (descriptors->GetKey(0) == GetHeap()->hidden_symbol())) {
-      ASSERT(descriptors->GetType(0) == FIELD);
-      this->FastPropertyAtPut(descriptors->GetFieldIndex(0), value);
-      return this;
+    if (descriptors->number_of_descriptors() > 0) {
+      int sorted_index = descriptors->GetSortedKeyIndex(0);
+      if (descriptors->GetKey(sorted_index) == GetHeap()->hidden_symbol()) {
+        ASSERT(descriptors->GetType(sorted_index) == FIELD);
+        this->FastPropertyAtPut(descriptors->GetFieldIndex(sorted_index),
+                                value);
+        return this;
+      }
     }
   }
   MaybeObject* store_result =
@@ -4057,15 +4043,15 @@ bool JSObject::ReferencesObject(Object* obj) {
   if (IsJSFunction()) {
     // Get the constructor function for arguments array.
     JSObject* arguments_boilerplate =
-        heap->isolate()->context()->global_context()->
+        heap->isolate()->context()->native_context()->
             arguments_boilerplate();
     JSFunction* arguments_function =
         JSFunction::cast(arguments_boilerplate->map()->constructor());
 
-    // Get the context and don't check if it is the global context.
+    // Get the context and don't check if it is the native context.
     JSFunction* f = JSFunction::cast(this);
     Context* context = f->context();
-    if (context->IsGlobalContext()) {
+    if (context->IsNativeContext()) {
       return false;
     }
 
@@ -4862,7 +4848,7 @@ MaybeObject* Map::RawCopy(int instance_size) {
   result->set_bit_field(bit_field());
   result->set_bit_field2(bit_field2());
   result->set_bit_field3(bit_field3());
-  result->SetLastAdded(kNoneAdded);
+  result->SetNumberOfOwnDescriptors(0);
   return result;
 }
 
@@ -4914,20 +4900,15 @@ MaybeObject* Map::CopyDropDescriptors() {
 
 MaybeObject* Map::CopyReplaceDescriptors(DescriptorArray* descriptors,
                                          String* name,
-                                         int last_added,
                                          TransitionFlag flag) {
   Map* result;
   MaybeObject* maybe_result = CopyDropDescriptors();
   if (!maybe_result->To(&result)) return maybe_result;
 
-  if (last_added == kNoneAdded) {
-    ASSERT(descriptors->number_of_descriptors() == 0);
-  } else {
-    ASSERT(descriptors->GetDetails(last_added).index() ==
-           descriptors->number_of_descriptors());
+  if (descriptors->number_of_descriptors() != 0) {
     MaybeObject* maybe_failure = result->SetDescriptors(descriptors);
     if (maybe_failure->IsFailure()) return maybe_failure;
-    result->SetLastAdded(last_added);
+    result->SetNumberOfOwnDescriptors(descriptors->number_of_descriptors());
   }
 
   if (flag == INSERT_TRANSITION && CanHaveMoreTransitions()) {
@@ -4981,22 +4962,13 @@ MaybeObject* Map::CopyWithPreallocatedFieldDescriptors() {
   Map* map = ctor->initial_map();
   DescriptorArray* descriptors = map->instance_descriptors();
 
-  int last_added = map->LastAdded();
-
-  return CopyReplaceDescriptors(descriptors, NULL, last_added, OMIT_TRANSITION);
+  return CopyReplaceDescriptors(descriptors, NULL, OMIT_TRANSITION);
 }
 
 
 MaybeObject* Map::Copy() {
   DescriptorArray* descriptors = instance_descriptors();
-  int last_added = LastAdded();
-
-  return CopyReplaceDescriptors(descriptors, NULL, last_added, OMIT_TRANSITION);
-}
-
-
-static bool InsertionPointFound(String* key1, String* key2) {
-  return key1->Hash() > key2->Hash() || key1 == key2;
+  return CopyReplaceDescriptors(descriptors, NULL, OMIT_TRANSITION);
 }
 
 
@@ -5021,26 +4993,15 @@ MaybeObject* Map::CopyAddDescriptor(Descriptor* descriptor,
   FixedArray::WhitenessWitness witness(new_descriptors);
 
   // Copy the descriptors, inserting a descriptor.
-  int insertion_index = -1;
-  int to = 0;
-  for (int from = 0; from < old_size; ++from) {
-    if (insertion_index < 0 &&
-        InsertionPointFound(descriptors->GetKey(from), key)) {
-      insertion_index = to++;
-    }
-    new_descriptors->CopyFrom(to++, descriptors, from, witness);
+  for (int i = 0; i < old_size; ++i) {
+    new_descriptors->CopyFrom(i, descriptors, i, witness);
   }
-  if (insertion_index < 0) insertion_index = to++;
 
-  ASSERT(to == new_size);
-  ASSERT(new_size == descriptors->NextEnumerationIndex());
-
-  descriptor->SetEnumerationIndex(new_size);
-  new_descriptors->Set(insertion_index, descriptor, witness);
+  new_descriptors->Append(descriptor, witness, old_size);
 
   SLOW_ASSERT(new_descriptors->IsSortedNoDuplicates());
 
-  return CopyReplaceDescriptors(new_descriptors, key, insertion_index, flag);
+  return CopyReplaceDescriptors(new_descriptors, key, flag);
 }
 
 
@@ -5087,13 +5048,15 @@ MaybeObject* Map::CopyReplaceDescriptor(Descriptor* descriptor,
     new_descriptors->CopyFrom(index, descriptors, index, witness);
   }
 
-  descriptor->SetEnumerationIndex(
-      descriptors->GetDetails(insertion_index).index());
+  PropertyDetails original_details = descriptors->GetDetails(insertion_index);
+  descriptor->SetEnumerationIndex(original_details.descriptor_index());
+  descriptor->SetSortedKey(original_details.pointer());
+
   new_descriptors->Set(insertion_index, descriptor, witness);
 
   SLOW_ASSERT(new_descriptors->IsSortedNoDuplicates());
 
-  return CopyReplaceDescriptors(new_descriptors, key, LastAdded(), flag);
+  return CopyReplaceDescriptors(new_descriptors, key, flag);
 }
 
 
@@ -5919,27 +5882,29 @@ void DescriptorArray::CopyFrom(int dst_index,
 // descriptor array. If the descriptor array were to be black, the shuffling
 // would move a slot that was already recorded as pointing into an evacuation
 // candidate. This would result in missing updates upon evacuation.
-void DescriptorArray::Sort(const WhitenessWitness& witness) {
+void DescriptorArray::Sort() {
   // In-place heap sort.
   int len = number_of_descriptors();
+  // Reset sorting since the descriptor array might contain invalid pointers.
+  for (int i = 0; i < len; ++i) SetSortedKey(i, i);
   // Bottom-up max-heap construction.
   // Index of the last node with children
   const int max_parent_index = (len / 2) - 1;
   for (int i = max_parent_index; i >= 0; --i) {
     int parent_index = i;
-    const uint32_t parent_hash = GetKey(i)->Hash();
+    const uint32_t parent_hash = GetSortedKey(i)->Hash();
     while (parent_index <= max_parent_index) {
       int child_index = 2 * parent_index + 1;
-      uint32_t child_hash = GetKey(child_index)->Hash();
+      uint32_t child_hash = GetSortedKey(child_index)->Hash();
       if (child_index + 1 < len) {
-        uint32_t right_child_hash = GetKey(child_index + 1)->Hash();
+        uint32_t right_child_hash = GetSortedKey(child_index + 1)->Hash();
         if (right_child_hash > child_hash) {
           child_index++;
           child_hash = right_child_hash;
         }
       }
       if (child_hash <= parent_hash) break;
-      NoIncrementalWriteBarrierSwapDescriptors(parent_index, child_index);
+      SwapSortedKeys(parent_index, child_index);
       // Now element at child_index could be < its children.
       parent_index = child_index;  // parent_hash remains correct.
     }
@@ -5948,23 +5913,23 @@ void DescriptorArray::Sort(const WhitenessWitness& witness) {
   // Extract elements and create sorted array.
   for (int i = len - 1; i > 0; --i) {
     // Put max element at the back of the array.
-    NoIncrementalWriteBarrierSwapDescriptors(0, i);
+    SwapSortedKeys(0, i);
     // Shift down the new top element.
     int parent_index = 0;
-    const uint32_t parent_hash = GetKey(parent_index)->Hash();
+    const uint32_t parent_hash = GetSortedKey(parent_index)->Hash();
     const int max_parent_index = (i / 2) - 1;
     while (parent_index <= max_parent_index) {
       int child_index = parent_index * 2 + 1;
-      uint32_t child_hash = GetKey(child_index)->Hash();
+      uint32_t child_hash = GetSortedKey(child_index)->Hash();
       if (child_index + 1 < i) {
-        uint32_t right_child_hash = GetKey(child_index + 1)->Hash();
+        uint32_t right_child_hash = GetSortedKey(child_index + 1)->Hash();
         if (right_child_hash > child_hash) {
           child_index++;
           child_hash = right_child_hash;
         }
       }
       if (child_hash <= parent_hash) break;
-      NoIncrementalWriteBarrierSwapDescriptors(parent_index, child_index);
+      SwapSortedKeys(parent_index, child_index);
       parent_index = child_index;
     }
   }
@@ -7309,11 +7274,7 @@ bool Map::EquivalentToForNormalization(Map* other,
     instance_type() == other->instance_type() &&
     bit_field() == other->bit_field() &&
     bit_field2() == other->bit_field2() &&
-    static_cast<uint32_t>(bit_field3()) ==
-        LastAddedBits::update(
-            IsShared::update(DictionaryMap::update(other->bit_field3(), true),
-                             true),
-            kNoneAdded);
+    function_with_prototype() == other->function_with_prototype();
 }
 
 
@@ -7376,11 +7337,11 @@ void SharedFunctionInfo::ClearOptimizedCodeMap() {
 
 void SharedFunctionInfo::AddToOptimizedCodeMap(
     Handle<SharedFunctionInfo> shared,
-    Handle<Context> global_context,
+    Handle<Context> native_context,
     Handle<Code> code,
     Handle<FixedArray> literals) {
   ASSERT(code->kind() == Code::OPTIMIZED_FUNCTION);
-  ASSERT(global_context->IsGlobalContext());
+  ASSERT(native_context->IsNativeContext());
   STATIC_ASSERT(kEntryLength == 3);
   Object* value = shared->optimized_code_map();
   Handle<FixedArray> new_code_map;
@@ -7389,24 +7350,24 @@ void SharedFunctionInfo::AddToOptimizedCodeMap(
     ASSERT_EQ(0, Smi::cast(value)->value());
     // Crate 3 entries per context {context, code, literals}.
     new_code_map = FACTORY->NewFixedArray(kEntryLength);
-    new_code_map->set(0, *global_context);
+    new_code_map->set(0, *native_context);
     new_code_map->set(1, *code);
     new_code_map->set(2, *literals);
   } else {
     // Copy old map and append one new entry.
     Handle<FixedArray> old_code_map(FixedArray::cast(value));
-    ASSERT_EQ(-1, shared->SearchOptimizedCodeMap(*global_context));
+    ASSERT_EQ(-1, shared->SearchOptimizedCodeMap(*native_context));
     int old_length = old_code_map->length();
     int new_length = old_length + kEntryLength;
     new_code_map = FACTORY->NewFixedArray(new_length);
     old_code_map->CopyTo(0, *new_code_map, 0, old_length);
-    new_code_map->set(old_length, *global_context);
+    new_code_map->set(old_length, *native_context);
     new_code_map->set(old_length + 1, *code);
     new_code_map->set(old_length + 2, *literals);
   }
 #ifdef DEBUG
   for (int i = 0; i < new_code_map->length(); i += kEntryLength) {
-    ASSERT(new_code_map->get(i)->IsGlobalContext());
+    ASSERT(new_code_map->get(i)->IsNativeContext());
     ASSERT(new_code_map->get(i + 1)->IsCode());
     ASSERT(Code::cast(new_code_map->get(i + 1))->kind() ==
            Code::OPTIMIZED_FUNCTION);
@@ -7429,7 +7390,7 @@ void SharedFunctionInfo::InstallFromOptimizedCodeMap(JSFunction* function,
   }
   Code* code = Code::cast(code_map->get(index));
   ASSERT(code != NULL);
-  ASSERT(function->context()->global_context() == code_map->get(index - 1));
+  ASSERT(function->context()->native_context() == code_map->get(index - 1));
   function->ReplaceCode(code);
 }
 
@@ -7547,7 +7508,7 @@ MaybeObject* JSFunction::SetPrototype(Object* value) {
     new_map->set_constructor(value);
     new_map->set_non_instance_prototype(true);
     construct_prototype =
-        heap->isolate()->context()->global_context()->
+        heap->isolate()->context()->native_context()->
             initial_object_prototype();
   } else {
     map()->set_non_instance_prototype(false);
@@ -7558,10 +7519,10 @@ MaybeObject* JSFunction::SetPrototype(Object* value) {
 
 
 Object* JSFunction::RemovePrototype() {
-  Context* global_context = context()->global_context();
+  Context* native_context = context()->native_context();
   Map* no_prototype_map = shared()->is_classic_mode()
-      ? global_context->function_without_prototype_map()
-      : global_context->strict_mode_function_without_prototype_map();
+      ? native_context->function_without_prototype_map()
+      : native_context->strict_mode_function_without_prototype_map();
 
   if (map() == no_prototype_map) {
     // Be idempotent.
@@ -7569,8 +7530,8 @@ Object* JSFunction::RemovePrototype() {
   }
 
   ASSERT(map() == (shared()->is_classic_mode()
-                   ? global_context->function_map()
-                   : global_context->strict_mode_function_map()));
+                   ? native_context->function_map()
+                   : native_context->strict_mode_function_map()));
 
   set_map(no_prototype_map);
   set_prototype_or_initial_map(no_prototype_map->GetHeap()->the_hole_value());
@@ -7590,8 +7551,8 @@ void JSFunction::PrintName(FILE* out) {
 }
 
 
-Context* JSFunction::GlobalContextFromLiterals(FixedArray* literals) {
-  return Context::cast(literals->get(JSFunction::kLiteralGlobalContextIndex));
+Context* JSFunction::NativeContextFromLiterals(FixedArray* literals) {
+  return Context::cast(literals->get(JSFunction::kLiteralNativeContextIndex));
 }
 
 
@@ -7830,7 +7791,7 @@ void SharedFunctionInfo::EnableDeoptimizationSupport(Code* recompiled) {
 }
 
 
-void SharedFunctionInfo::DisableOptimization() {
+void SharedFunctionInfo::DisableOptimization(const char* reason) {
   // Disable optimization for the shared function info and mark the
   // code as non-optimizable. The marker on the shared function info
   // is there because we flush non-optimized code thereby loosing the
@@ -7846,7 +7807,8 @@ void SharedFunctionInfo::DisableOptimization() {
     code()->set_optimizable(false);
   }
   if (FLAG_trace_opt) {
-    PrintF("[disabled optimization for %s]\n", *DebugName()->ToCString());
+    PrintF("[disabled optimization for %s, reason: %s]\n",
+           *DebugName()->ToCString(), reason);
   }
 }
 
@@ -7989,15 +7951,15 @@ void SharedFunctionInfo::CompleteInobjectSlackTracking() {
 }
 
 
-int SharedFunctionInfo::SearchOptimizedCodeMap(Context* global_context) {
-  ASSERT(global_context->IsGlobalContext());
+int SharedFunctionInfo::SearchOptimizedCodeMap(Context* native_context) {
+  ASSERT(native_context->IsNativeContext());
   if (!FLAG_cache_optimized_code) return -1;
   Object* value = optimized_code_map();
   if (!value->IsSmi()) {
     FixedArray* optimized_code_map = FixedArray::cast(value);
     int length = optimized_code_map->length();
     for (int i = 0; i < length; i += 3) {
-      if (optimized_code_map->get(i) == global_context) {
+      if (optimized_code_map->get(i) == native_context) {
         return i + 1;
       }
     }
@@ -8314,6 +8276,16 @@ void DeoptimizationInputData::DeoptimizationInputDataPrint(FILE* out) {
           break;
         }
 
+        case Translation::SETTER_STUB_FRAME: {
+          int function_id = iterator.Next();
+          JSFunction* function =
+              JSFunction::cast(LiteralArray()->get(function_id));
+          PrintF(out, "{function=");
+          function->PrintName(out);
+          PrintF(out, "}");
+          break;
+        }
+
         case Translation::DUPLICATE:
           break;
 
@@ -8326,6 +8298,14 @@ void DeoptimizationInputData::DeoptimizationInputDataPrint(FILE* out) {
         case Translation::INT32_REGISTER: {
           int reg_code = iterator.Next();
           PrintF(out, "{input=%s}", converter.NameOfCPURegister(reg_code));
+          break;
+        }
+
+        case Translation::UINT32_REGISTER: {
+          int reg_code = iterator.Next();
+          PrintF(out,
+                 "{input=%s (unsigned)}",
+                 converter.NameOfCPURegister(reg_code));
           break;
         }
 
@@ -8345,6 +8325,12 @@ void DeoptimizationInputData::DeoptimizationInputDataPrint(FILE* out) {
         case Translation::INT32_STACK_SLOT: {
           int input_slot_index = iterator.Next();
           PrintF(out, "{input=%d}", input_slot_index);
+          break;
+        }
+
+        case Translation::UINT32_STACK_SLOT: {
+          int input_slot_index = iterator.Next();
+          PrintF(out, "{input=%d (unsigned)}", input_slot_index);
           break;
         }
 
@@ -9119,6 +9105,7 @@ MaybeObject* JSObject::GetElementWithCallback(Object* receiver,
     Handle<AccessorInfo> data(AccessorInfo::cast(structure));
     Object* fun_obj = data->getter();
     v8::AccessorGetter call_fun = v8::ToCData<v8::AccessorGetter>(fun_obj);
+    if (call_fun == NULL) return isolate->heap()->undefined_value();
     HandleScope scope(isolate);
     Handle<JSObject> self(JSObject::cast(receiver));
     Handle<JSObject> holder_handle(JSObject::cast(holder));
@@ -9399,7 +9386,8 @@ MaybeObject* JSObject::SetDictionaryElement(uint32_t index,
       // is read-only (a declared const that has not been initialized).  If a
       // value is being defined we skip attribute checks completely.
       if (set_mode == DEFINE_PROPERTY) {
-        details = PropertyDetails(attributes, NORMAL, details.index());
+        details = PropertyDetails(
+            attributes, NORMAL, details.dictionary_index());
         dictionary->DetailsAtPut(entry, details);
       } else if (details.IsReadOnly() && !element->IsTheHole()) {
         if (strict_mode == kNonStrictMode) {
@@ -11616,7 +11604,7 @@ Object* ExternalPixelArray::SetValue(uint32_t index, Object* value) {
         clamped_value = 255;
       } else {
         // Other doubles are rounded to the nearest integer.
-        clamped_value = static_cast<uint8_t>(double_value + 0.5);
+        clamped_value = static_cast<uint8_t>(lrint(double_value));
       }
     } else {
       // Clamp undefined to zero (default). All other types have been
@@ -12167,7 +12155,8 @@ MaybeObject* Dictionary<Shape, Key>::GenerateNewEnumerationIndices() {
   int pos = 0;
   for (int i = 0; i < capacity; i++) {
     if (Dictionary<Shape, Key>::IsKey(Dictionary<Shape, Key>::KeyAt(i))) {
-      enumeration_order->set(pos++, Smi::FromInt(DetailsAt(i).index()));
+      enumeration_order->set(
+          pos++, Smi::FromInt(DetailsAt(i).dictionary_index()));
     }
   }
 
@@ -12293,7 +12282,8 @@ MaybeObject* Dictionary<Shape, Key>::AddEntry(Key key,
 
   uint32_t entry = Dictionary<Shape, Key>::FindInsertionEntry(hash);
   // Insert element at empty or deleted entry
-  if (!details.IsDeleted() && details.index() == 0 && Shape::kIsEnumerable) {
+  if (!details.IsDeleted() &&
+      details.dictionary_index() == 0 && Shape::kIsEnumerable) {
     // Assign an enumeration index to the property and update
     // SetNextEnumerationIndex.
     int index = NextEnumerationIndex();
@@ -12384,7 +12374,7 @@ MaybeObject* SeededNumberDictionary::Set(uint32_t key,
   // Preserve enumeration index.
   details = PropertyDetails(details.attributes(),
                             details.type(),
-                            DetailsAt(entry).index());
+                            DetailsAt(entry).dictionary_index());
   MaybeObject* maybe_object_key = SeededNumberDictionaryShape::AsObject(key);
   Object* object_key;
   if (!maybe_object_key->ToObject(&object_key)) return maybe_object_key;
@@ -12466,7 +12456,7 @@ void StringDictionary::CopyEnumKeysTo(FixedArray* storage,
        PropertyDetails details = DetailsAt(i);
        if (details.IsDeleted() || details.IsDontEnum()) continue;
        storage->set(index, k);
-       sort_array->set(index, Smi::FromInt(details.index()));
+       sort_array->set(index, Smi::FromInt(details.dictionary_index()));
        index++;
      }
   }
@@ -12591,7 +12581,6 @@ MaybeObject* StringDictionary::TransformPropertiesToFastFor(
   if (!maybe_fields->To(&fields)) return maybe_fields;
 
   // Fill in the instance descriptor and the fields.
-  int next_descriptor = 0;
   int current_offset = 0;
   for (int i = 0; i < capacity; i++) {
     Object* k = KeyAt(i);
@@ -12603,14 +12592,15 @@ MaybeObject* StringDictionary::TransformPropertiesToFastFor(
       if (!maybe_key->To(&key)) return maybe_key;
 
       PropertyDetails details = DetailsAt(i);
+      int enumeration_index = details.dictionary_index();
       PropertyType type = details.type();
 
       if (value->IsJSFunction() && !heap->InNewSpace(value)) {
         ConstantFunctionDescriptor d(key,
                                      JSFunction::cast(value),
                                      details.attributes(),
-                                     details.index());
-        descriptors->Set(next_descriptor, &d, witness);
+                                     enumeration_index);
+        descriptors->Set(enumeration_index - 1, &d, witness);
       } else if (type == NORMAL) {
         if (current_offset < inobject_props) {
           obj->InObjectPropertyAtPut(current_offset,
@@ -12623,23 +12613,22 @@ MaybeObject* StringDictionary::TransformPropertiesToFastFor(
         FieldDescriptor d(key,
                           current_offset++,
                           details.attributes(),
-                          details.index());
-        descriptors->Set(next_descriptor, &d, witness);
+                          enumeration_index);
+        descriptors->Set(enumeration_index - 1, &d, witness);
       } else if (type == CALLBACKS) {
         CallbacksDescriptor d(key,
                               value,
                               details.attributes(),
-                              details.index());
-        descriptors->Set(next_descriptor, &d, witness);
+                              enumeration_index);
+        descriptors->Set(enumeration_index - 1, &d, witness);
       } else {
         UNREACHABLE();
       }
-      ++next_descriptor;
     }
   }
   ASSERT(current_offset == number_of_fields);
 
-  descriptors->Sort(witness);
+  descriptors->Sort();
 
   MaybeObject* maybe_failure = new_map->InitializeDescriptors(descriptors);
   if (maybe_failure->IsFailure()) return maybe_failure;

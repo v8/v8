@@ -122,7 +122,7 @@ class CompilationCacheScript : public CompilationSubCache {
 
 
 // Sub-cache for eval scripts. Two caches for eval are used. One for eval calls
-// in global contexts and one for eval calls in other contexts. The cache
+// in native contexts and one for eval calls in other contexts. The cache
 // considers the following pieces of information when checking for matching
 // entries:
 // 1. The source string.
