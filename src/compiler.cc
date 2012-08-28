@@ -541,6 +541,7 @@ Handle<SharedFunctionInfo> Compiler::Compile(Handle<String> source,
                                              Handle<Object> script_name,
                                              int line_offset,
                                              int column_offset,
+                                             Handle<Context> context,
                                              v8::Extension* extension,
                                              ScriptDataImpl* pre_data,
                                              Handle<Object> script_data,
@@ -561,7 +562,8 @@ Handle<SharedFunctionInfo> Compiler::Compile(Handle<String> source,
     result = compilation_cache->LookupScript(source,
                                              script_name,
                                              line_offset,
-                                             column_offset);
+                                             column_offset,
+                                             context);
   }
 
   if (result.is_null()) {
@@ -598,7 +600,7 @@ Handle<SharedFunctionInfo> Compiler::Compile(Handle<String> source,
     }
     result = MakeFunctionInfo(&info);
     if (extension == NULL && !result.is_null() && !result->dont_cache()) {
-      compilation_cache->PutScript(source, result);
+      compilation_cache->PutScript(source, context, result);
     }
   } else {
     if (result->ic_age() != HEAP->global_ic_age()) {

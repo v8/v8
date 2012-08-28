@@ -874,7 +874,7 @@ TEST(MultiScriptConflicts) {
     context.Check("const x = 1; x",
                   EXPECT_RESULT, Number::New(1));
     context.Check("var x = 2; x",
-                  EXPECT_RESULT, Number::New(1));
+                  EXPECT_EXCEPTION);
   }
 
   { SimpleContext context;
