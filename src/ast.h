@@ -158,7 +158,8 @@ typedef ZoneList<Handle<Object> > ZoneObjectList;
 
 #define DECLARE_NODE_TYPE(type)                                         \
   virtual void Accept(AstVisitor* v);                                   \
-  virtual AstNode::Type node_type() const { return AstNode::k##type; }
+  virtual AstNode::Type node_type() const { return AstNode::k##type; }  \
+  template<class> friend class AstNodeFactory;
 
 
 enum AstPropertiesFlag {
@@ -419,8 +420,6 @@ class Block: public BreakableStatement {
   void set_scope(Scope* scope) { scope_ = scope; }
 
  protected:
-  template<class> friend class AstNodeFactory;
-
   Block(Isolate* isolate,
         ZoneStringList* labels,
         int capacity,
@@ -475,8 +474,6 @@ class VariableDeclaration: public Declaration {
   }
 
  protected:
-  template<class> friend class AstNodeFactory;
-
   VariableDeclaration(VariableProxy* proxy,
                       VariableMode mode,
                       Scope* scope)
@@ -496,8 +493,6 @@ class FunctionDeclaration: public Declaration {
   virtual bool IsInlineable() const;
 
  protected:
-  template<class> friend class AstNodeFactory;
-
   FunctionDeclaration(VariableProxy* proxy,
                       VariableMode mode,
                       FunctionLiteral* fun,
@@ -524,8 +519,6 @@ class ModuleDeclaration: public Declaration {
   }
 
  protected:
-  template<class> friend class AstNodeFactory;
-
   ModuleDeclaration(VariableProxy* proxy,
                     Module* module,
                     Scope* scope)
@@ -548,8 +541,6 @@ class ImportDeclaration: public Declaration {
   }
 
  protected:
-  template<class> friend class AstNodeFactory;
-
   ImportDeclaration(VariableProxy* proxy,
                     Module* module,
                     Scope* scope)
@@ -571,8 +562,6 @@ class ExportDeclaration: public Declaration {
   }
 
  protected:
-  template<class> friend class AstNodeFactory;
-
   ExportDeclaration(VariableProxy* proxy, Scope* scope)
       : Declaration(proxy, LET, scope) {}
 };
@@ -602,8 +591,6 @@ class ModuleLiteral: public Module {
   DECLARE_NODE_TYPE(ModuleLiteral)
 
  protected:
-  template<class> friend class AstNodeFactory;
-
   ModuleLiteral(Block* body, Interface* interface) : Module(interface, body) {}
 };
 
@@ -615,8 +602,6 @@ class ModuleVariable: public Module {
   VariableProxy* proxy() const { return proxy_; }
 
  protected:
-  template<class> friend class AstNodeFactory;
-
   inline explicit ModuleVariable(VariableProxy* proxy);
 
  private:
@@ -632,8 +617,6 @@ class ModulePath: public Module {
   Handle<String> name() const { return name_; }
 
  protected:
-  template<class> friend class AstNodeFactory;
-
   ModulePath(Module* module, Handle<String> name, Zone* zone)
       : Module(zone),
         module_(module),
@@ -653,8 +636,6 @@ class ModuleUrl: public Module {
   Handle<String> url() const { return url_; }
 
  protected:
-  template<class> friend class AstNodeFactory;
-
   ModuleUrl(Handle<String> url, Zone* zone)
       : Module(zone), url_(url) {
   }
@@ -717,8 +698,6 @@ class DoWhileStatement: public IterationStatement {
   BailoutId BackEdgeId() const { return back_edge_id_; }
 
  protected:
-  template<class> friend class AstNodeFactory;
-
   DoWhileStatement(Isolate* isolate, ZoneStringList* labels)
       : IterationStatement(isolate, labels),
         cond_(NULL),
@@ -757,8 +736,6 @@ class WhileStatement: public IterationStatement {
   BailoutId BodyId() const { return body_id_; }
 
  protected:
-  template<class> friend class AstNodeFactory;
-
   WhileStatement(Isolate* isolate, ZoneStringList* labels)
       : IterationStatement(isolate, labels),
         cond_(NULL),
@@ -808,8 +785,6 @@ class ForStatement: public IterationStatement {
   void set_loop_variable(Variable* var) { loop_variable_ = var; }
 
  protected:
-  template<class> friend class AstNodeFactory;
-
   ForStatement(Isolate* isolate, ZoneStringList* labels)
       : IterationStatement(isolate, labels),
         init_(NULL),
@@ -854,8 +829,6 @@ class ForInStatement: public IterationStatement {
   TypeFeedbackId ForInFeedbackId() const { return reuse(PrepareId()); }
 
  protected:
-  template<class> friend class AstNodeFactory;
-
   ForInStatement(Isolate* isolate, ZoneStringList* labels)
       : IterationStatement(isolate, labels),
         each_(NULL),
@@ -880,8 +853,6 @@ class ExpressionStatement: public Statement {
   Expression* expression() const { return expression_; }
 
  protected:
-  template<class> friend class AstNodeFactory;
-
   explicit ExpressionStatement(Expression* expression)
       : expression_(expression) { }
 
@@ -897,8 +868,6 @@ class ContinueStatement: public Statement {
   IterationStatement* target() const { return target_; }
 
  protected:
-  template<class> friend class AstNodeFactory;
-
   explicit ContinueStatement(IterationStatement* target)
       : target_(target) { }
 
@@ -914,8 +883,6 @@ class BreakStatement: public Statement {
   BreakableStatement* target() const { return target_; }
 
  protected:
-  template<class> friend class AstNodeFactory;
-
   explicit BreakStatement(BreakableStatement* target)
       : target_(target) { }
 
@@ -931,8 +898,6 @@ class ReturnStatement: public Statement {
   Expression* expression() const { return expression_; }
 
  protected:
-  template<class> friend class AstNodeFactory;
-
   explicit ReturnStatement(Expression* expression)
       : expression_(expression) { }
 
@@ -949,8 +914,6 @@ class WithStatement: public Statement {
   Statement* statement() const { return statement_; }
 
  protected:
-  template<class> friend class AstNodeFactory;
-
   WithStatement(Expression* expression, Statement* statement)
       : expression_(expression),
         statement_(statement) { }
@@ -1020,8 +983,6 @@ class SwitchStatement: public BreakableStatement {
   ZoneList<CaseClause*>* cases() const { return cases_; }
 
  protected:
-  template<class> friend class AstNodeFactory;
-
   SwitchStatement(Isolate* isolate, ZoneStringList* labels)
       : BreakableStatement(isolate, labels, TARGET_FOR_ANONYMOUS),
         tag_(NULL),
@@ -1054,8 +1015,6 @@ class IfStatement: public Statement {
   BailoutId ElseId() const { return else_id_; }
 
  protected:
-  template<class> friend class AstNodeFactory;
-
   IfStatement(Isolate* isolate,
               Expression* condition,
               Statement* then_statement,
@@ -1135,8 +1094,6 @@ class TryCatchStatement: public TryStatement {
   Block* catch_block() const { return catch_block_; }
 
  protected:
-  template<class> friend class AstNodeFactory;
-
   TryCatchStatement(int index,
                     Block* try_block,
                     Scope* scope,
@@ -1162,8 +1119,6 @@ class TryFinallyStatement: public TryStatement {
   Block* finally_block() const { return finally_block_; }
 
  protected:
-  template<class> friend class AstNodeFactory;
-
   TryFinallyStatement(int index, Block* try_block, Block* finally_block)
       : TryStatement(index, try_block),
         finally_block_(finally_block) { }
@@ -1178,8 +1133,6 @@ class DebuggerStatement: public Statement {
   DECLARE_NODE_TYPE(DebuggerStatement)
 
  protected:
-  template<class> friend class AstNodeFactory;
-
   DebuggerStatement() {}
 };
 
@@ -1189,8 +1142,6 @@ class EmptyStatement: public Statement {
   DECLARE_NODE_TYPE(EmptyStatement)
 
  protected:
-  template<class> friend class AstNodeFactory;
-
   EmptyStatement() {}
 };
 
@@ -1244,8 +1195,6 @@ class Literal: public Expression {
   TypeFeedbackId LiteralFeedbackId() const { return reuse(id()); }
 
  protected:
-  template<class> friend class AstNodeFactory;
-
   Literal(Isolate* isolate, Handle<Object> handle)
       : Expression(isolate),
         handle_(handle) { }
@@ -1363,8 +1312,6 @@ class ObjectLiteral: public MaterializedLiteral {
   };
 
  protected:
-  template<class> friend class AstNodeFactory;
-
   ObjectLiteral(Isolate* isolate,
                 Handle<FixedArray> constant_properties,
                 ZoneList<Property*>* properties,
@@ -1396,8 +1343,6 @@ class RegExpLiteral: public MaterializedLiteral {
   Handle<String> flags() const { return flags_; }
 
  protected:
-  template<class> friend class AstNodeFactory;
-
   RegExpLiteral(Isolate* isolate,
                 Handle<String> pattern,
                 Handle<String> flags,
@@ -1426,8 +1371,6 @@ class ArrayLiteral: public MaterializedLiteral {
   }
 
  protected:
-  template<class> friend class AstNodeFactory;
-
   ArrayLiteral(Isolate* isolate,
                Handle<FixedArray> constant_elements,
                ZoneList<Expression*>* values,
@@ -1478,8 +1421,6 @@ class VariableProxy: public Expression {
   void BindTo(Variable* var);
 
  protected:
-  template<class> friend class AstNodeFactory;
-
   VariableProxy(Isolate* isolate, Variable* var);
 
   VariableProxy(Isolate* isolate,
@@ -1525,8 +1466,6 @@ class Property: public Expression {
   TypeFeedbackId PropertyFeedbackId() { return reuse(id()); }
 
  protected:
-  template<class> friend class AstNodeFactory;
-
   Property(Isolate* isolate,
            Expression* obj,
            Expression* key,
@@ -1593,8 +1532,6 @@ class Call: public Expression {
 #endif
 
  protected:
-  template<class> friend class AstNodeFactory;
-
   Call(Isolate* isolate,
        Expression* expression,
        ZoneList<Expression*>* arguments,
@@ -1640,8 +1577,6 @@ class CallNew: public Expression {
   BailoutId ReturnId() const { return return_id_; }
 
  protected:
-  template<class> friend class AstNodeFactory;
-
   CallNew(Isolate* isolate,
           Expression* expression,
           ZoneList<Expression*>* arguments,
@@ -1681,8 +1616,6 @@ class CallRuntime: public Expression {
   TypeFeedbackId CallRuntimeFeedbackId() const { return reuse(id()); }
 
  protected:
-  template<class> friend class AstNodeFactory;
-
   CallRuntime(Isolate* isolate,
               Handle<String> name,
               const Runtime::Function* function,
@@ -1715,8 +1648,6 @@ class UnaryOperation: public Expression {
   TypeFeedbackId UnaryOperationFeedbackId() const { return reuse(id()); }
 
  protected:
-  template<class> friend class AstNodeFactory;
-
   UnaryOperation(Isolate* isolate,
                  Token::Value op,
                  Expression* expression,
@@ -1758,8 +1689,6 @@ class BinaryOperation: public Expression {
   TypeFeedbackId BinaryOperationFeedbackId() const { return reuse(id()); }
 
  protected:
-  template<class> friend class AstNodeFactory;
-
   BinaryOperation(Isolate* isolate,
                   Token::Value op,
                   Expression* left,
@@ -1812,8 +1741,6 @@ class CountOperation: public Expression {
   TypeFeedbackId CountStoreFeedbackId() const { return reuse(id()); }
 
  protected:
-  template<class> friend class AstNodeFactory;
-
   CountOperation(Isolate* isolate,
                  Token::Value op,
                  bool is_prefix,
@@ -1860,8 +1787,6 @@ class CompareOperation: public Expression {
   bool IsLiteralCompareNull(Expression** expr);
 
  protected:
-  template<class> friend class AstNodeFactory;
-
   CompareOperation(Isolate* isolate,
                    Token::Value op,
                    Expression* left,
@@ -1902,8 +1827,6 @@ class Conditional: public Expression {
   BailoutId ElseId() const { return else_id_; }
 
  protected:
-  template<class> friend class AstNodeFactory;
-
   Conditional(Isolate* isolate,
               Expression* condition,
               Expression* then_expression,
@@ -1965,8 +1888,6 @@ class Assignment: public Expression {
   virtual SmallMapList* GetReceiverTypes() { return &receiver_types_; }
 
  protected:
-  template<class> friend class AstNodeFactory;
-
   Assignment(Isolate* isolate,
              Token::Value op,
              Expression* target,
@@ -2006,8 +1927,6 @@ class Throw: public Expression {
   virtual int position() const { return pos_; }
 
  protected:
-  template<class> friend class AstNodeFactory;
-
   Throw(Isolate* isolate, Expression* exception, int pos)
       : Expression(isolate), exception_(exception), pos_(pos) {}
 
@@ -2107,8 +2026,6 @@ class FunctionLiteral: public Expression {
   }
 
  protected:
-  template<class> friend class AstNodeFactory;
-
   FunctionLiteral(Isolate* isolate,
                   Handle<String> name,
                   Scope* scope,
@@ -2179,8 +2096,6 @@ class SharedFunctionInfoLiteral: public Expression {
   }
 
  protected:
-  template<class> friend class AstNodeFactory;
-
   SharedFunctionInfoLiteral(
       Isolate* isolate,
       Handle<SharedFunctionInfo> shared_function_info)
@@ -2197,8 +2112,6 @@ class ThisFunction: public Expression {
   DECLARE_NODE_TYPE(ThisFunction)
 
  protected:
-  template<class> friend class AstNodeFactory;
-
   explicit ThisFunction(Isolate* isolate): Expression(isolate) {}
 };
 
