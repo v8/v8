@@ -2183,3 +2183,58 @@ TEST(IncrementalMarkingClearsPolymorhpicIC) {
   Code* ic_after = FindFirstIC(f->shared()->code(), Code::LOAD_IC);
   CHECK(ic_after->ic_state() == UNINITIALIZED);
 }
+
+
+class SourceResource: public v8::String::ExternalAsciiStringResource {
+ public:
+  explicit SourceResource(const char* data)
+    : data_(data), length_(strlen(data)) { }
+
+  virtual void Dispose() {
+    i::DeleteArray(data_);
+    data_ = NULL;
+  }
+
+  const char* data() const { return data_; }
+
+  size_t length() const { return length_; }
+
+  bool IsDisposed() { return data_ == NULL; }
+
+ private:
+  const char* data_;
+  size_t length_;
+};
+
+
+TEST(ReleaseStackTraceData) {
+  // Test that the data retained by the Error.stack accessor is released
+  // after the first time the accessor is fired.  We use external string
+  // to check whether the data is being released since the external string
+  // resource's callback is fired when the external string is GC'ed.
+  InitializeVM();
+  v8::HandleScope scope;
+  static const char* source = "var error = 1;       "
+                              "try {                "
+                              "  throw new Error(); "
+                              "} catch (e) {        "
+                              "  error = e;         "
+                              "}                    ";
+  SourceResource* resource = new SourceResource(i::StrDup(source));
+  {
+    v8::HandleScope scope;
+    v8::Handle<v8::String> source_string = v8::String::NewExternal(resource);
+    v8::Script::Compile(source_string)->Run();
+    CHECK(!resource->IsDisposed());
+  }
+  HEAP->CollectAllAvailableGarbage();
+  // External source is being retained by the stack trace.
+  CHECK(!resource->IsDisposed());
+
+  CompileRun("error.stack; error.stack;");
+  HEAP->CollectAllAvailableGarbage();
+  // External source has been released.
+  CHECK(resource->IsDisposed());
+
+  delete resource;
+}
