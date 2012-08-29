@@ -1,3 +1,16 @@
+2012-08-29: Version 3.13.5
+
+        Release stack trace data after firing Error.stack accessor.
+        (issue 2308)
+
+        Added a new API V8::SetJitCodeEventHandler to push code name and
+        location to users such as profilers.
+
+        Allocate block-scoped global bindings to global context.
+
+        Performance and stability improvements on all platforms.
+
+
 2012-08-28: Version 3.13.4
 
         Print reason for disabling optimization. Kill --trace-bailout flag.
