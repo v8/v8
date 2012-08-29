@@ -281,31 +281,11 @@ class V8EXPORT HeapGraphNode {
   /** Returns node's own size, in bytes. */
   int GetSelfSize() const;
 
-  /**
-   * Returns node's retained size, in bytes. That is, self + sizes of
-   * the objects that are reachable only from this object. In other
-   * words, the size of memory that will be reclaimed having this node
-   * collected.
-   */
-  int GetRetainedSize() const;
-
   /** Returns child nodes count of the node. */
   int GetChildrenCount() const;
 
   /** Retrieves a child by index. */
   const HeapGraphEdge* GetChild(int index) const;
-
-  /** Returns retainer nodes count of the node. */
-  int GetRetainersCount() const;
-
-  /** Returns a retainer by index. */
-  const HeapGraphEdge* GetRetainer(int index) const;
-
-  /**
-   * Returns a dominator node. This is the node that participates in every
-   * path from the snapshot root to the current node.
-   */
-  const HeapGraphNode* GetDominatorNode() const;
 
   /**
    * Finds and returns a value from the heap corresponding to this node,
