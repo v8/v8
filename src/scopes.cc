@@ -485,10 +485,7 @@ Variable* Scope::DeclareLocal(Handle<String> name,
   // This function handles VAR and CONST modes.  DYNAMIC variables are
   // introduces during variable allocation, INTERNAL variables are allocated
   // explicitly, and TEMPORARY variables are allocated via NewTemporary().
-  ASSERT(mode == VAR ||
-         mode == CONST ||
-         mode == CONST_HARMONY ||
-         mode == LET);
+  ASSERT(IsDeclaredVariableMode(mode));
   ++num_var_or_const_;
   return variables_.Declare(
       this, name, mode, true, Variable::NORMAL, init_flag, interface);
@@ -1179,8 +1176,7 @@ bool Scope::MustAllocateInContext(Variable* var) {
   // catch-bound variables are always allocated in a context.
   if (var->mode() == TEMPORARY) return false;
   if (is_catch_scope() || is_block_scope() || is_module_scope()) return true;
-  if (is_global_scope() && (var->mode() == LET || var->mode() == CONST_HARMONY))
-    return true;
+  if (is_global_scope() && IsLexicalVariableMode(var->mode())) return true;
   return var->has_forced_context_allocation() ||
       scope_calls_eval_ ||
       inner_scope_calls_eval_ ||

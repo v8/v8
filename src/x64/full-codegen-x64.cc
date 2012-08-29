@@ -816,10 +816,9 @@ void FullCodeGenerator::VisitVariableDeclaration(
       __ push(rsi);
       __ Push(variable->name());
       // Declaration nodes are always introduced in one of four modes.
-      ASSERT(mode == VAR || mode == LET ||
-             mode == CONST || mode == CONST_HARMONY);
+      ASSERT(IsDeclaredVariableMode(mode));
       PropertyAttributes attr =
-          (mode == CONST || mode == CONST_HARMONY) ? READ_ONLY : NONE;
+          IsImmutableVariableMode(mode) ? READ_ONLY : NONE;
       __ Push(Smi::FromInt(attr));
       // Push initial value, if any.
       // Note: For variables we must not push an initial value (such as

@@ -1802,8 +1802,8 @@ void Parser::Declare(Declaration* declaration, bool resolve, bool* ok) {
           name, mode, declaration->initialization(), proxy->interface());
     } else if ((mode != VAR || var->mode() != VAR) &&
                (!declaration_scope->is_global_scope() ||
-                (mode != VAR && mode != CONST) ||
-                (var->mode() != VAR && var->mode() != CONST))) {
+                IsLexicalVariableMode(mode) ||
+                IsLexicalVariableMode(var->mode()))) {
       // The name was declared in this scope before; check for conflicting
       // re-declarations. We have a conflict if either of the declarations is
       // not a var (in the global scope, we also have to ignore legacy const for
@@ -1817,11 +1817,7 @@ void Parser::Declare(Declaration* declaration, bool resolve, bool* ok) {
       //
       // because the var declaration is hoisted to the function scope where 'x'
       // is already bound.
-      // We only have vars, consts and lets in declarations.
-      ASSERT(var->mode() == VAR ||
-             var->mode() == CONST ||
-             var->mode() == CONST_HARMONY ||
-             var->mode() == LET);
+      ASSERT(IsDeclaredVariableMode(var->mode()));
       if (is_extended_mode()) {
         // In harmony mode we treat re-declarations as early errors. See
         // ES5 16 for a definition of early errors.
@@ -2341,7 +2337,7 @@ Block* Parser::ParseVariableDeclarations(
     // browsers where the global object (window) has lots of
     // properties defined in prototype objects.
     if (initialization_scope->is_global_scope() &&
-        mode != LET && mode != CONST_HARMONY) {
+        !IsLexicalVariableMode(mode)) {
       // Compute the arguments for the runtime call.
       ZoneList<Expression*>* arguments =
           new(zone()) ZoneList<Expression*>(3, zone());

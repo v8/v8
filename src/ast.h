@@ -454,10 +454,7 @@ class Declaration: public AstNode {
       : proxy_(proxy),
         mode_(mode),
         scope_(scope) {
-    ASSERT(mode == VAR ||
-           mode == CONST ||
-           mode == CONST_HARMONY ||
-           mode == LET);
+    ASSERT(IsDeclaredVariableMode(mode));
   }
 
  private:

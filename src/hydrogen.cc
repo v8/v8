@@ -4815,8 +4815,9 @@ void HGraphBuilder::VisitVariableProxy(VariableProxy* expr) {
   Variable* variable = expr->var();
   switch (variable->location()) {
     case Variable::UNALLOCATED: {
-      if (variable->mode() == LET || variable->mode() == CONST_HARMONY) {
-        return Bailout("reference to global harmony declared variable");
+      if (IsLexicalVariableMode(variable->mode())) {
+        // TODO(rossberg): should this be an ASSERT?
+        return Bailout("reference to global lexical variable");
       }
       // Handle known global constants like 'undefined' specially to avoid a
       // load from a global cell for them.
@@ -4861,9 +4862,8 @@ void HGraphBuilder::VisitVariableProxy(VariableProxy* expr) {
     case Variable::LOCAL: {
       HValue* value = environment()->Lookup(variable);
       if (value == graph()->GetConstantHole()) {
-        ASSERT(variable->mode() == CONST ||
-               variable->mode() == CONST_HARMONY ||
-               variable->mode() == LET);
+        ASSERT(IsDeclaredVariableMode(variable->mode()) &&
+               variable->mode() != VAR);
         return Bailout("reference to uninitialized variable");
       }
       return ast_context()->ReturnValue(value);
@@ -8115,8 +8115,7 @@ void HGraphBuilder::VisitCountOperation(CountOperation* expr) {
         }
 
         HValue* context = BuildContextChainWalk(var);
-        HStoreContextSlot::Mode mode =
-            (var->mode() == LET || var->mode() == CONST_HARMONY)
+        HStoreContextSlot::Mode mode = IsLexicalVariableMode(var->mode())
             ? HStoreContextSlot::kCheckDeoptimize : HStoreContextSlot::kNoCheck;
         HStoreContextSlot* instr =
             new(zone()) HStoreContextSlot(context, var->index(), mode, after);
