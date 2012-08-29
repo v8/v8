@@ -537,13 +537,11 @@ Extension::Extension(const char* name,
     : name_(name),
       source_length_(source_length >= 0 ?
                      source_length :
-                     static_cast<int>(strlen(source))),
+                     (source ? static_cast<int>(strlen(source)) : 0)),
       source_(source, source_length_),
       dep_count_(dep_count),
       deps_(deps),
-      auto_enable_(false) {
-  CHECK(source);
-}
+      auto_enable_(false) { }
 
 
 v8::Handle<Primitive> Undefined() {
