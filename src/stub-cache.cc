@@ -504,6 +504,7 @@ Handle<Code> StubCache::ComputeStoreGlobal(Handle<String> name,
 
 Handle<Code> StubCache::ComputeStoreCallback(Handle<String> name,
                                              Handle<JSObject> receiver,
+                                             Handle<JSObject> holder,
                                              Handle<AccessorInfo> callback,
                                              StrictModeFlag strict_mode) {
   ASSERT(v8::ToCData<Address>(callback->setter()) != 0);
@@ -513,7 +514,8 @@ Handle<Code> StubCache::ComputeStoreCallback(Handle<String> name,
   if (probe->IsCode()) return Handle<Code>::cast(probe);
 
   StoreStubCompiler compiler(isolate_, strict_mode);
-  Handle<Code> code = compiler.CompileStoreCallback(receiver, callback, name);
+  Handle<Code> code =
+      compiler.CompileStoreCallback(name, receiver, holder, callback);
   PROFILE(isolate_, CodeCreateEvent(Logger::STORE_IC_TAG, *code, *name));
   GDBJIT(AddCode(GDBJITInterface::STORE_IC, *name, *code));
   JSObject::UpdateMapCodeCache(receiver, name, code);
