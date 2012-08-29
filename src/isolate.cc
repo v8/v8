@@ -1330,6 +1330,12 @@ Handle<Context> Isolate::native_context() {
 }
 
 
+Handle<Context> Isolate::global_context() {
+  GlobalObject* global = thread_local_top()->context_->global_object();
+  return Handle<Context>(global->global_context());
+}
+
+
 Handle<Context> Isolate::GetCallingNativeContext() {
   JavaScriptFrameIterator it;
 #ifdef ENABLE_DEBUGGER_SUPPORT
@@ -1902,7 +1908,8 @@ bool Isolate::Init(Deserializer* des) {
 
   // If we are deserializing, log non-function code objects and compiled
   // functions found in the snapshot.
-  if (create_heap_objects && (FLAG_log_code || FLAG_ll_prof)) {
+  if (create_heap_objects &&
+      (FLAG_log_code || FLAG_ll_prof || logger_->is_logging_code_events())) {
     HandleScope scope;
     LOG(this, LogCodeObjects());
     LOG(this, LogCompiledFunctions());

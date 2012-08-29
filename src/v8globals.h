@@ -479,15 +479,16 @@ const uint64_t kLastNonNaNInt64 =
     (static_cast<uint64_t>(kNaNOrInfinityLowerBoundUpper32) << 32);
 
 
+// The order of this enum has to be kept in sync with the predicates below.
 enum VariableMode {
   // User declared variables:
   VAR,             // declared via 'var', and 'function' declarations
 
   CONST,           // declared via 'const' declarations
 
-  CONST_HARMONY,   // declared via 'const' declarations in harmony mode
-
   LET,             // declared via 'let' declarations
+
+  CONST_HARMONY,   // declared via 'const' declarations in harmony mode
 
   // Variables introduced by the compiler:
   DYNAMIC,         // always require dynamic lookup (we don't know
@@ -508,6 +509,26 @@ enum VariableMode {
   TEMPORARY        // temporary variables (not user-visible), never
                    // in a context
 };
+
+
+inline bool IsDynamicVariableMode(VariableMode mode) {
+  return mode >= DYNAMIC && mode <= DYNAMIC_LOCAL;
+}
+
+
+inline bool IsDeclaredVariableMode(VariableMode mode) {
+  return mode >= VAR && mode <= CONST_HARMONY;
+}
+
+
+inline bool IsLexicalVariableMode(VariableMode mode) {
+  return mode >= LET && mode <= CONST_HARMONY;
+}
+
+
+inline bool IsImmutableVariableMode(VariableMode mode) {
+  return mode == CONST || mode == CONST_HARMONY;
+}
 
 
 // ES6 Draft Rev3 10.2 specifies declarative environment records with mutable

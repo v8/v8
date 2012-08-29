@@ -3717,55 +3717,47 @@ void MacroAssembler::LoadInstanceDescriptors(Register map,
 }
 
 
+void MacroAssembler::EnumLength(Register dst, Register map) {
+  STATIC_ASSERT(Map::EnumLengthBits::kShift == 0);
+  ldr(dst, FieldMemOperand(map, Map::kBitField3Offset));
+  and_(dst, dst, Operand(Smi::FromInt(Map::EnumLengthBits::kMask)));
+}
+
+
 void MacroAssembler::CheckEnumCache(Register null_value, Label* call_runtime) {
-  Label next;
-  // Preload a couple of values used in the loop.
   Register  empty_fixed_array_value = r6;
   LoadRoot(empty_fixed_array_value, Heap::kEmptyFixedArrayRootIndex);
-  mov(r1, r0);
-  bind(&next);
+  Label next, start;
+  mov(r2, r0);
 
-  // Check that there are no elements.  Register r1 contains the
-  // current JS object we've reached through the prototype chain.
-  ldr(r2, FieldMemOperand(r1, JSObject::kElementsOffset));
+  // Check if the enum length field is properly initialized, indicating that
+  // there is an enum cache.
+  ldr(r1, FieldMemOperand(r2, HeapObject::kMapOffset));
+
+  EnumLength(r3, r1);
+  cmp(r3, Operand(Smi::FromInt(Map::kInvalidEnumCache)));
+  b(eq, call_runtime);
+
+  jmp(&start);
+
+  bind(&next);
+  ldr(r1, FieldMemOperand(r2, HeapObject::kMapOffset));
+
+  // For all objects but the receiver, check that the cache is empty.
+  EnumLength(r3, r1);
+  cmp(r3, Operand(Smi::FromInt(0)));
+  b(ne, call_runtime);
+
+  bind(&start);
+
+  // Check that there are no elements. Register r2 contains the current JS
+  // object we've reached through the prototype chain.
+  ldr(r2, FieldMemOperand(r2, JSObject::kElementsOffset));
   cmp(r2, empty_fixed_array_value);
   b(ne, call_runtime);
 
-  // Check that instance descriptors are not empty so that we can
-  // check for an enum cache.  Leave the map in r2 for the subsequent
-  // prototype load.
-  ldr(r2, FieldMemOperand(r1, HeapObject::kMapOffset));
-  ldr(r3, FieldMemOperand(r2, Map::kTransitionsOrBackPointerOffset));
-
-  CheckMap(r3,
-           r7,
-           isolate()->factory()->fixed_array_map(),
-           call_runtime,
-           DONT_DO_SMI_CHECK);
-
-  LoadRoot(r7, Heap::kEmptyDescriptorArrayRootIndex);
-  ldr(r3, FieldMemOperand(r3, TransitionArray::kDescriptorsOffset));
-  cmp(r3, r7);
-  b(eq, call_runtime);
-
-  // Check that there is an enum cache in the non-empty instance
-  // descriptors (r3).  This is the case if the next enumeration
-  // index field does not contain a smi.
-  ldr(r3, FieldMemOperand(r3, DescriptorArray::kEnumCacheOffset));
-  JumpIfSmi(r3, call_runtime);
-
-  // For all objects but the receiver, check that the cache is empty.
-  Label check_prototype;
-  cmp(r1, r0);
-  b(eq, &check_prototype);
-  ldr(r3, FieldMemOperand(r3, DescriptorArray::kEnumCacheBridgeCacheOffset));
-  cmp(r3, empty_fixed_array_value);
-  b(ne, call_runtime);
-
-  // Load the prototype from the map and loop if non-null.
-  bind(&check_prototype);
-  ldr(r1, FieldMemOperand(r2, Map::kPrototypeOffset));
-  cmp(r1, null_value);
+  ldr(r2, FieldMemOperand(r1, Map::kPrototypeOffset));
+  cmp(r2, null_value);
   b(ne, &next);
 }
 

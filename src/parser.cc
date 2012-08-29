@@ -624,19 +624,20 @@ FunctionLiteral* Parser::DoParseProgram(CompilationInfo* info,
   FunctionLiteral* result = NULL;
   { Scope* scope = NewScope(top_scope_, GLOBAL_SCOPE);
     info->SetGlobalScope(scope);
+    if (!info->context().is_null()) {
+      scope = Scope::DeserializeScopeChain(*info->context(), scope, zone());
+    }
     if (info->is_eval()) {
-      Handle<SharedFunctionInfo> shared = info->shared_info();
-      if (!info->is_global() && (shared.is_null() || shared->is_function())) {
-        scope = Scope::DeserializeScopeChain(*info->calling_context(), scope,
-                                             zone());
-      }
       if (!scope->is_global_scope() || info->language_mode() != CLASSIC_MODE) {
         scope = NewScope(scope, EVAL_SCOPE);
       }
+    } else if (info->is_global()) {
+      scope = NewScope(scope, GLOBAL_SCOPE);
     }
     scope->set_start_position(0);
     scope->set_end_position(source->length());
-    FunctionState function_state(this, scope, isolate());
+
+    FunctionState function_state(this, scope, isolate());  // Enters 'scope'.
     top_scope_->SetLanguageMode(info->language_mode());
     ZoneList<Statement*>* body = new(zone()) ZoneList<Statement*>(16, zone());
     bool ok = true;
@@ -1787,50 +1788,54 @@ void Parser::Declare(Declaration* declaration, bool resolve, bool* ok) {
       declaration_scope->is_strict_or_extended_eval_scope() ||
       declaration_scope->is_block_scope() ||
       declaration_scope->is_module_scope() ||
-      declaration->AsModuleDeclaration() != NULL) {
+      declaration_scope->is_global_scope()) {
     // Declare the variable in the declaration scope.
-    var = declaration_scope->LocalLookup(name);
+    // For the global scope, we have to check for collisions with earlier
+    // (i.e., enclosing) global scopes, to maintain the illusion of a single
+    // global scope.
+    var = declaration_scope->is_global_scope()
+        ? declaration_scope->Lookup(name)
+        : declaration_scope->LocalLookup(name);
     if (var == NULL) {
       // Declare the name.
       var = declaration_scope->DeclareLocal(
           name, mode, declaration->initialization(), proxy->interface());
-    } else {
+    } else if ((mode != VAR || var->mode() != VAR) &&
+               (!declaration_scope->is_global_scope() ||
+                IsLexicalVariableMode(mode) ||
+                IsLexicalVariableMode(var->mode()))) {
       // The name was declared in this scope before; check for conflicting
       // re-declarations. We have a conflict if either of the declarations is
-      // not a var. There is similar code in runtime.cc in the Declare
+      // not a var (in the global scope, we also have to ignore legacy const for
+      // compatibility). There is similar code in runtime.cc in the Declare
       // functions. The function CheckNonConflictingScope checks for conflicting
       // var and let bindings from different scopes whereas this is a check for
       // conflicting declarations within the same scope. This check also covers
+      // the special case
       //
       // function () { let x; { var x; } }
       //
       // because the var declaration is hoisted to the function scope where 'x'
       // is already bound.
-      if ((mode != VAR) || (var->mode() != VAR)) {
-        // We only have vars, consts and lets in declarations.
-        ASSERT(var->mode() == VAR ||
-               var->mode() == CONST ||
-               var->mode() == CONST_HARMONY ||
-               var->mode() == LET);
-        if (is_extended_mode()) {
-          // In harmony mode we treat re-declarations as early errors. See
-          // ES5 16 for a definition of early errors.
-          SmartArrayPointer<char> c_string = name->ToCString(DISALLOW_NULLS);
-          const char* elms[2] = { "Variable", *c_string };
-          Vector<const char*> args(elms, 2);
-          ReportMessage("redeclaration", args);
-          *ok = false;
-          return;
-        }
-        const char* type = (var->mode() == VAR)
-            ? "var" : var->is_const_mode() ? "const" : "let";
-        Handle<String> type_string =
-            isolate()->factory()->NewStringFromUtf8(CStrVector(type), TENURED);
-        Expression* expression =
-            NewThrowTypeError(isolate()->factory()->redeclaration_symbol(),
-                              type_string, name);
-        declaration_scope->SetIllegalRedeclaration(expression);
+      ASSERT(IsDeclaredVariableMode(var->mode()));
+      if (is_extended_mode()) {
+        // In harmony mode we treat re-declarations as early errors. See
+        // ES5 16 for a definition of early errors.
+        SmartArrayPointer<char> c_string = name->ToCString(DISALLOW_NULLS);
+        const char* elms[2] = { "Variable", *c_string };
+        Vector<const char*> args(elms, 2);
+        ReportMessage("redeclaration", args);
+        *ok = false;
+        return;
       }
+      const char* type =
+          (var->mode() == VAR) ? "var" : var->is_const_mode() ? "const" : "let";
+      Handle<String> type_string =
+          isolate()->factory()->NewStringFromUtf8(CStrVector(type), TENURED);
+      Expression* expression =
+          NewThrowTypeError(isolate()->factory()->redeclaration_symbol(),
+                            type_string, name);
+      declaration_scope->SetIllegalRedeclaration(expression);
     }
   }
 
@@ -1852,8 +1857,7 @@ void Parser::Declare(Declaration* declaration, bool resolve, bool* ok) {
   // Runtime::DeclareContextSlot() calls.
   declaration_scope->AddDeclaration(declaration);
 
-  if ((mode == CONST || mode == CONST_HARMONY) &&
-      declaration_scope->is_global_scope()) {
+  if (mode == CONST && declaration_scope->is_global_scope()) {
     // For global const variables we bind the proxy to a variable.
     ASSERT(resolve);  // should be set by all callers
     Variable::Kind kind = Variable::NORMAL;
@@ -2004,9 +2008,12 @@ Statement* Parser::ParseFunctionDeclaration(ZoneStringList* names, bool* ok) {
                                               FunctionLiteral::DECLARATION,
                                               CHECK_OK);
   // Even if we're not at the top-level of the global or a function
-  // scope, we treat is as such and introduce the function with it's
+  // scope, we treat it as such and introduce the function with its
   // initial value upon entering the corresponding scope.
-  VariableMode mode = is_extended_mode() ? LET : VAR;
+  // In extended mode, a function behaves as a lexical binding, except in the
+  // global scope.
+  VariableMode mode =
+      is_extended_mode() && !top_scope_->is_global_scope() ? LET : VAR;
   VariableProxy* proxy = NewUnresolved(name, mode, Interface::NewValue());
   Declaration* declaration =
       factory()->NewFunctionDeclaration(proxy, mode, fun, top_scope_);
@@ -2329,7 +2336,8 @@ Block* Parser::ParseVariableDeclarations(
     // declaration statement has been executed. This is important in
     // browsers where the global object (window) has lots of
     // properties defined in prototype objects.
-    if (initialization_scope->is_global_scope()) {
+    if (initialization_scope->is_global_scope() &&
+        !IsLexicalVariableMode(mode)) {
       // Compute the arguments for the runtime call.
       ZoneList<Expression*>* arguments =
           new(zone()) ZoneList<Expression*>(3, zone());

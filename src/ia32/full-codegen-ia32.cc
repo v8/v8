@@ -810,10 +810,9 @@ void FullCodeGenerator::VisitVariableDeclaration(
       __ push(esi);
       __ push(Immediate(variable->name()));
       // VariableDeclaration nodes are always introduced in one of four modes.
-      ASSERT(mode == VAR || mode == LET ||
-             mode == CONST || mode == CONST_HARMONY);
-      PropertyAttributes attr = (mode == CONST || mode == CONST_HARMONY)
-          ? READ_ONLY : NONE;
+      ASSERT(IsDeclaredVariableMode(mode));
+      PropertyAttributes attr =
+          IsImmutableVariableMode(mode) ? READ_ONLY : NONE;
       __ push(Immediate(Smi::FromInt(attr)));
       // Push initial value, if any.
       // Note: For variables we must not push an initial value (such as
@@ -1091,18 +1090,27 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
 
 
   // We got a map in register eax. Get the enumeration cache from it.
+  Label no_descriptors;
   __ bind(&use_cache);
+
+  __ EnumLength(edx, eax);
+  __ cmp(edx, Immediate(Smi::FromInt(0)));
+  __ j(equal, &no_descriptors);
+
   __ LoadInstanceDescriptors(eax, ecx);
   __ mov(ecx, FieldOperand(ecx, DescriptorArray::kEnumCacheOffset));
-  __ mov(edx, FieldOperand(ecx, DescriptorArray::kEnumCacheBridgeCacheOffset));
+  __ mov(ecx, FieldOperand(ecx, DescriptorArray::kEnumCacheBridgeCacheOffset));
 
   // Set up the four remaining stack slots.
   __ push(eax);  // Map.
-  __ push(edx);  // Enumeration cache.
-  __ mov(eax, FieldOperand(edx, FixedArray::kLengthOffset));
-  __ push(eax);  // Enumeration cache length (as smi).
+  __ push(ecx);  // Enumeration cache.
+  __ push(edx);  // Number of valid entries for the map in the enum cache.
   __ push(Immediate(Smi::FromInt(0)));  // Initial index.
   __ jmp(&loop);
+
+  __ bind(&no_descriptors);
+  __ add(esp, Immediate(kPointerSize));
+  __ jmp(&exit);
 
   // We got a fixed array in register eax. Iterate through that.
   Label non_proxy;

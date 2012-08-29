@@ -762,22 +762,21 @@ function GetStackTraceLine(recv, fun, pos, isGlobal) {
 
 // Defines accessors for a property that is calculated the first time
 // the property is read.
-function DefineOneShotAccessor(obj, name, fun) {
+function DefineOneShotAccessor(obj, name, value_factory) {
   // Note that the accessors consistently operate on 'obj', not 'this'.
   // Since the object may occur in someone else's prototype chain we
   // can't rely on 'this' being the same as 'obj'.
-  var hasBeenSet = false;
   var value;
   var getter = function() {
-    if (hasBeenSet) {
+    if (value_factory == null) {
       return value;
     }
-    hasBeenSet = true;
-    value = fun(obj);
+    value = value_factory(obj);
+    value_factory = null;
     return value;
   };
   var setter = function(v) {
-    hasBeenSet = true;
+    value_factory = null;
     value = v;
   };
   %DefineOrRedefineAccessorProperty(obj, name, getter, setter, DONT_ENUM);

@@ -120,6 +120,7 @@ static Handle<JSFunction> Compile(const char* source) {
                         Handle<String>(),
                         0,
                         0,
+                        Handle<Context>(Isolate::Current()->native_context()),
                         NULL,
                         NULL,
                         Handle<String>::null(),

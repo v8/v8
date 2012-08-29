@@ -745,12 +745,15 @@ bool Debug::CompileDebuggerScript(int index) {
       isolate->bootstrapper()->NativesSourceLookup(index);
   Vector<const char> name = Natives::GetScriptName(index);
   Handle<String> script_name = factory->NewStringFromAscii(name);
+  Handle<Context> context = isolate->native_context();
 
   // Compile the script.
   Handle<SharedFunctionInfo> function_info;
   function_info = Compiler::Compile(source_code,
                                     script_name,
-                                    0, 0, NULL, NULL,
+                                    0, 0,
+                                    context,
+                                    NULL, NULL,
                                     Handle<String>::null(),
                                     NATIVES_CODE);
 
@@ -762,7 +765,6 @@ bool Debug::CompileDebuggerScript(int index) {
   }
 
   // Execute the shared function in the debugger context.
-  Handle<Context> context = isolate->native_context();
   bool caught_exception;
   Handle<JSFunction> function =
       factory->NewFunctionFromSharedFunctionInfo(function_info, context);

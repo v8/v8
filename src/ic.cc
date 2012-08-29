@@ -1331,7 +1331,7 @@ static bool LookupForWrite(Handle<JSObject> receiver,
       return false;
     }
     Handle<Object> callback(lookup->GetCallbackObject());
-    return callback->IsAccessorPair() && StoreICableLookup(lookup);
+    return StoreICableLookup(lookup);
   }
 
   if (lookup->IsInterceptor() &&
@@ -1491,13 +1491,12 @@ void StoreIC::UpdateCaches(LookupResult* lookup,
     case CALLBACKS: {
       Handle<Object> callback(lookup->GetCallbackObject());
       if (callback->IsAccessorInfo()) {
-        ASSERT(*holder == *receiver);  // LookupForWrite checks this.
         Handle<AccessorInfo> info = Handle<AccessorInfo>::cast(callback);
         if (v8::ToCData<Address>(info->setter()) == 0) return;
         if (!holder->HasFastProperties()) return;
-        ASSERT(info->IsCompatibleReceiver(*receiver));
+        if (!info->IsCompatibleReceiver(*receiver)) return;
         code = isolate()->stub_cache()->ComputeStoreCallback(
-            name, receiver, info, strict_mode);
+            name, receiver, holder, info, strict_mode);
       } else if (callback->IsAccessorPair()) {
         Handle<Object> setter(Handle<AccessorPair>::cast(callback)->setter());
         if (!setter->IsJSFunction()) return;

@@ -4149,16 +4149,13 @@ bool JSReceiver::IsSimpleEnum() {
        o = JSObject::cast(o)->GetPrototype()) {
     if (!o->IsJSObject()) return false;
     JSObject* curr = JSObject::cast(o);
-    if (!curr->map()->instance_descriptors()->HasEnumCache()) return false;
+    int enum_length = curr->map()->EnumLength();
+    if (enum_length == Map::kInvalidEnumCache) return false;
     ASSERT(!curr->HasNamedInterceptor());
     ASSERT(!curr->HasIndexedInterceptor());
     ASSERT(!curr->IsAccessCheckNeeded());
     if (curr->NumberOfEnumElements() > 0) return false;
-    if (curr != this) {
-      FixedArray* curr_fixed_array =
-          FixedArray::cast(curr->map()->instance_descriptors()->GetEnumCache());
-      if (curr_fixed_array->length() > 0) return false;
-    }
+    if (curr != this && enum_length != 0) return false;
   }
   return true;
 }
@@ -4849,6 +4846,7 @@ MaybeObject* Map::RawCopy(int instance_size) {
   result->set_bit_field2(bit_field2());
   result->set_bit_field3(bit_field3());
   result->SetNumberOfOwnDescriptors(0);
+  result->SetEnumLength(kInvalidEnumCache);
   return result;
 }
 
@@ -5775,7 +5773,7 @@ MaybeObject* FixedArray::UnionOfKeys(FixedArray* other) {
   MaybeObject* maybe_result =
       accessor->AddElementsToFixedArray(NULL, NULL, this, other);
   FixedArray* result;
-  if (!maybe_result->To<FixedArray>(&result)) return maybe_result;
+  if (!maybe_result->To(&result)) return maybe_result;
 #ifdef DEBUG
   if (FLAG_enable_slow_asserts) {
     for (int i = 0; i < result->length(); i++) {
@@ -11944,8 +11942,23 @@ MaybeObject* SymbolTable::LookupKey(HashTableKey* key, Object** s) {
 }
 
 
-Object* CompilationCacheTable::Lookup(String* src) {
-  StringKey key(src);
+// The key for the script compilation cache is dependent on the mode flags,
+// because they change the global language mode and thus binding behaviour.
+// If flags change at some point, we must ensure that we do not hit the cache
+// for code compiled with different settings.
+static LanguageMode CurrentGlobalLanguageMode() {
+  return FLAG_use_strict
+      ? (FLAG_harmony_scoping ? EXTENDED_MODE : STRICT_MODE)
+      : CLASSIC_MODE;
+}
+
+
+Object* CompilationCacheTable::Lookup(String* src, Context* context) {
+  SharedFunctionInfo* shared = context->closure()->shared();
+  StringSharedKey key(src,
+                      shared,
+                      CurrentGlobalLanguageMode(),
+                      RelocInfo::kNoPosition);
   int entry = FindEntry(&key);
   if (entry == kNotFound) return GetHeap()->undefined_value();
   return get(EntryToIndex(entry) + 1);
@@ -11975,17 +11988,24 @@ Object* CompilationCacheTable::LookupRegExp(String* src,
 }
 
 
-MaybeObject* CompilationCacheTable::Put(String* src, Object* value) {
-  StringKey key(src);
-  Object* obj;
-  { MaybeObject* maybe_obj = EnsureCapacity(1, &key);
-    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
-  }
+MaybeObject* CompilationCacheTable::Put(String* src,
+                                        Context* context,
+                                        Object* value) {
+  SharedFunctionInfo* shared = context->closure()->shared();
+  StringSharedKey key(src,
+                      shared,
+                      CurrentGlobalLanguageMode(),
+                      RelocInfo::kNoPosition);
+  CompilationCacheTable* cache;
+  MaybeObject* maybe_cache = EnsureCapacity(1, &key);
+  if (!maybe_cache->To(&cache)) return maybe_cache;
 
-  CompilationCacheTable* cache =
-      reinterpret_cast<CompilationCacheTable*>(obj);
+  Object* k;
+  MaybeObject* maybe_k = key.AsObject();
+  if (!maybe_k->To(&k)) return maybe_k;
+
   int entry = cache->FindInsertionEntry(key.Hash());
-  cache->set(EntryToIndex(entry), src);
+  cache->set(EntryToIndex(entry), k);
   cache->set(EntryToIndex(entry) + 1, value);
   cache->ElementAdded();
   return cache;

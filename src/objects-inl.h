@@ -3689,6 +3689,7 @@ ACCESSORS(JSFunction, next_function_link, Object, kNextFunctionLinkOffset)
 
 ACCESSORS(GlobalObject, builtins, JSBuiltinsObject, kBuiltinsOffset)
 ACCESSORS(GlobalObject, native_context, Context, kNativeContextOffset)
+ACCESSORS(GlobalObject, global_context, Context, kGlobalContextOffset)
 ACCESSORS(GlobalObject, global_receiver, JSObject, kGlobalReceiverOffset)
 
 ACCESSORS(JSGlobalProxy, native_context, Object, kNativeContextOffset)

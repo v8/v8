@@ -98,6 +98,7 @@ CompilationInfo::CompilationInfo(Handle<JSFunction> closure, Zone* zone)
       script_(Handle<Script>(Script::cast(shared_info_->script()))),
       extension_(NULL),
       pre_parse_data_(NULL),
+      context_(closure->context()),
       osr_ast_id_(BailoutId::None()),
       zone_(zone),
       deferred_handles_(NULL) {
@@ -292,6 +293,7 @@ OptimizingCompiler::Status OptimizingCompiler::CreateGraph() {
     // optimized code.
     unoptimized.SetFunction(info()->function());
     unoptimized.SetScope(info()->scope());
+    unoptimized.SetContext(info()->context());
     if (should_recompile) unoptimized.EnableDeoptimizationSupport();
     bool succeeded = FullCodeGenerator::MakeCode(&unoptimized);
     if (should_recompile) {
@@ -541,6 +543,7 @@ Handle<SharedFunctionInfo> Compiler::Compile(Handle<String> source,
                                              Handle<Object> script_name,
                                              int line_offset,
                                              int column_offset,
+                                             Handle<Context> context,
                                              v8::Extension* extension,
                                              ScriptDataImpl* pre_data,
                                              Handle<Object> script_data,
@@ -561,7 +564,8 @@ Handle<SharedFunctionInfo> Compiler::Compile(Handle<String> source,
     result = compilation_cache->LookupScript(source,
                                              script_name,
                                              line_offset,
-                                             column_offset);
+                                             column_offset,
+                                             context);
   }
 
   if (result.is_null()) {
@@ -593,12 +597,13 @@ Handle<SharedFunctionInfo> Compiler::Compile(Handle<String> source,
     info.MarkAsGlobal();
     info.SetExtension(extension);
     info.SetPreParseData(pre_data);
+    info.SetContext(context);
     if (FLAG_use_strict) {
       info.SetLanguageMode(FLAG_harmony_scoping ? EXTENDED_MODE : STRICT_MODE);
     }
     result = MakeFunctionInfo(&info);
     if (extension == NULL && !result.is_null() && !result->dont_cache()) {
-      compilation_cache->PutScript(source, result);
+      compilation_cache->PutScript(source, context, result);
     }
   } else {
     if (result->ic_age() != HEAP->global_ic_age()) {
@@ -641,7 +646,7 @@ Handle<SharedFunctionInfo> Compiler::CompileEval(Handle<String> source,
     info.MarkAsEval();
     if (is_global) info.MarkAsGlobal();
     info.SetLanguageMode(language_mode);
-    info.SetCallingContext(context);
+    info.SetContext(context);
     result = MakeFunctionInfo(&info);
     if (!result.is_null()) {
       // Explicitly disable optimization for eval code. We're not yet prepared
@@ -1014,7 +1019,7 @@ void Compiler::RecordFunctionCompilation(Logger::LogEventsAndTags tag,
   // Log the code generation. If source information is available include
   // script name and line number. Check explicitly whether logging is
   // enabled as finding the line number is not free.
-  if (info->isolate()->logger()->is_logging() ||
+  if (info->isolate()->logger()->is_logging_code_events() ||
       CpuProfiler::is_profiling(info->isolate())) {
     Handle<Script> script = info->script();
     Handle<Code> code = info->code();

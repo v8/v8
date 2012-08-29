@@ -308,7 +308,7 @@ class ThreadLocalTop BASE_EMBEDDED {
 
 #define ISOLATE_INIT_ARRAY_LIST(V)                                             \
   /* SerializerDeserializer state. */                                          \
-  V(int, jsregexp_static_offsets_vector, kJSRegexpStaticOffsetsVectorSize)     \
+  V(int32_t, jsregexp_static_offsets_vector, kJSRegexpStaticOffsetsVectorSize) \
   V(int, bad_char_shift_table, kUC16AlphabetSize)                              \
   V(int, good_suffix_shift_table, (kBMMaxShift + 1))                           \
   V(int, suffix_table, (kBMMaxShift + 1))                                      \
@@ -764,8 +764,9 @@ class Isolate {
   void IterateThread(ThreadVisitor* v, char* t);
 
 
-  // Returns the current native context.
+  // Returns the current native and global context.
   Handle<Context> native_context();
+  Handle<Context> global_context();
 
   // Returns the native context of the calling JavaScript code.  That
   // is, the native context of the top-most JavaScript frame.

@@ -72,7 +72,7 @@ class CompilationInfo {
   Handle<Script> script() const { return script_; }
   v8::Extension* extension() const { return extension_; }
   ScriptDataImpl* pre_parse_data() const { return pre_parse_data_; }
-  Handle<Context> calling_context() const { return calling_context_; }
+  Handle<Context> context() const { return context_; }
   BailoutId osr_ast_id() const { return osr_ast_id_; }
 
   void MarkAsEval() {
@@ -120,9 +120,8 @@ class CompilationInfo {
     ASSERT(!is_lazy());
     pre_parse_data_ = pre_parse_data;
   }
-  void SetCallingContext(Handle<Context> context) {
-    ASSERT(is_eval());
-    calling_context_ = context;
+  void SetContext(Handle<Context> context) {
+    context_ = context;
   }
   void MarkCompilingForDebugging(Handle<Code> current_code) {
     ASSERT(mode_ != OPTIMIZE);
@@ -180,7 +179,7 @@ class CompilationInfo {
   void SaveHandles() {
     SaveHandle(&closure_);
     SaveHandle(&shared_info_);
-    SaveHandle(&calling_context_);
+    SaveHandle(&context_);
     SaveHandle(&script_);
   }
 
@@ -262,9 +261,9 @@ class CompilationInfo {
   v8::Extension* extension_;
   ScriptDataImpl* pre_parse_data_;
 
-  // The context of the caller is needed for eval code, and will be a null
-  // handle otherwise.
-  Handle<Context> calling_context_;
+  // The context of the caller for eval code, and the global context for a
+  // global script. Will be a null handle otherwise.
+  Handle<Context> context_;
 
   // Compilation mode flag and whether deoptimization is allowed.
   Mode mode_;
@@ -431,6 +430,7 @@ class Compiler : public AllStatic {
                                             Handle<Object> script_name,
                                             int line_offset,
                                             int column_offset,
+                                            Handle<Context> context,
                                             v8::Extension* extension,
                                             ScriptDataImpl* pre_data,
                                             Handle<Object> script_data,

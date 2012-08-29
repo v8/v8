@@ -2791,7 +2791,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // Calculate number of capture registers (number_of_captures + 1) * 2.
   __ leal(rdx, Operand(rdx, rdx, times_1, 2));
   // Check that the static offsets vector buffer is large enough.
-  __ cmpl(rdx, Immediate(OffsetsVector::kStaticOffsetsVectorSize));
+  __ cmpl(rdx, Immediate(Isolate::kJSRegexpStaticOffsetsVectorSize));
   __ j(above, &runtime);
 
   // rax: RegExp data (FixedArray)

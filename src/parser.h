@@ -579,7 +579,7 @@ class Parser {
     return top_scope_->is_extended_mode();
   }
   Scope* DeclarationScope(VariableMode mode) {
-    return (mode == LET || mode == CONST_HARMONY)
+    return IsLexicalVariableMode(mode)
         ? top_scope_ : top_scope_->DeclarationScope();
   }
 

@@ -537,13 +537,11 @@ Extension::Extension(const char* name,
     : name_(name),
       source_length_(source_length >= 0 ?
                      source_length :
-                     static_cast<int>(strlen(source))),
+                     (source ? static_cast<int>(strlen(source)) : 0)),
       source_(source, source_length_),
       dep_count_(dep_count),
       deps_(deps),
-      auto_enable_(false) {
-  CHECK(source);
-}
+      auto_enable_(false) { }
 
 
 v8::Handle<Primitive> Undefined() {
@@ -1539,6 +1537,7 @@ Local<Script> Script::New(v8::Handle<String> source,
                            name_obj,
                            line_offset,
                            column_offset,
+                           isolate->global_context(),
                            NULL,
                            pre_data_impl,
                            Utils::OpenHandle(*script_data),
@@ -1576,7 +1575,7 @@ Local<Script> Script::Compile(v8::Handle<String> source,
   i::Handle<i::JSFunction> result =
       isolate->factory()->NewFunctionFromSharedFunctionInfo(
           function,
-          isolate->native_context());
+          isolate->global_context());
   return Local<Script>(ToApi<Script>(result));
 }
 
@@ -1603,7 +1602,7 @@ Local<Value> Script::Run() {
       i::Handle<i::SharedFunctionInfo>
           function_info(i::SharedFunctionInfo::cast(*obj), isolate);
       fun = isolate->factory()->NewFunctionFromSharedFunctionInfo(
-          function_info, isolate->native_context());
+          function_info, isolate->global_context());
     } else {
       fun = i::Handle<i::JSFunction>(i::JSFunction::cast(*obj), isolate);
     }
@@ -4262,6 +4261,15 @@ bool v8::V8::SetFunctionEntryHook(FunctionEntryHook entry_hook) {
 }
 
 
+void v8::V8::SetJitCodeEventHandler(
+    JitCodeEventOptions options, JitCodeEventHandler event_handler) {
+  i::Isolate* isolate = i::Isolate::Current();
+  // Ensure that logging is initialized for our isolate.
+  isolate->InitializeLoggingAndCounters();
+  isolate->logger()->SetCodeEventHandler(options, event_handler);
+}
+
+
 bool v8::V8::Dispose() {
   i::Isolate* isolate = i::Isolate::Current();
   if (!ApiCheck(isolate != NULL && isolate->IsDefaultIsolate(),
@@ -4535,9 +4543,9 @@ void Context::ReattachGlobal(Handle<Object> global_object) {
   i::Object** ctx = reinterpret_cast<i::Object**>(this);
   i::Handle<i::Context> context =
       i::Handle<i::Context>::cast(i::Handle<i::Object>(ctx));
-  isolate->bootstrapper()->ReattachGlobal(
-      context,
-      Utils::OpenHandle(*global_object));
+  i::Handle<i::JSGlobalProxy> global_proxy =
+      i::Handle<i::JSGlobalProxy>::cast(Utils::OpenHandle(*global_object));
+  isolate->bootstrapper()->ReattachGlobal(context, global_proxy);
 }
 
 

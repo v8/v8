@@ -1539,6 +1539,13 @@ void LCodeGen::DoFixedArrayBaseLength(LFixedArrayBaseLength* instr) {
 }
 
 
+void LCodeGen::DoMapEnumLength(LMapEnumLength* instr) {
+  Register result = ToRegister(instr->result());
+  Register map = ToRegister(instr->InputAt(0));
+  __ EnumLength(result, map);
+}
+
+
 void LCodeGen::DoElementsKind(LElementsKind* instr) {
   Register result = ToRegister(instr->result());
   Register input = ToRegister(instr->InputAt(0));
@@ -5558,6 +5565,14 @@ void LCodeGen::DoForInCacheArray(LForInCacheArray* instr) {
   Register map = ToRegister(instr->map());
   Register result = ToRegister(instr->result());
   Register scratch = ToRegister(instr->scratch());
+  Label load_cache, done;
+  __ EnumLength(result, map);
+  __ cmp(result, Operand(Smi::FromInt(0)));
+  __ b(ne, &load_cache);
+  __ mov(result, Operand(isolate()->factory()->empty_fixed_array()));
+  __ jmp(&done);
+
+  __ bind(&load_cache);
   __ LoadInstanceDescriptors(map, result, scratch);
   __ ldr(result,
          FieldMemOperand(result, DescriptorArray::kEnumCacheOffset));
@@ -5565,6 +5580,8 @@ void LCodeGen::DoForInCacheArray(LForInCacheArray* instr) {
          FieldMemOperand(result, FixedArray::SizeFor(instr->idx())));
   __ cmp(result, Operand(0));
   DeoptimizeIf(eq, instr->environment());
+
+  __ bind(&done);
 }
 
 

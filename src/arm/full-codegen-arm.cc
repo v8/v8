@@ -832,10 +832,9 @@ void FullCodeGenerator::VisitVariableDeclaration(
       Comment cmnt(masm_, "[ VariableDeclaration");
       __ mov(r2, Operand(variable->name()));
       // Declaration nodes are always introduced in one of four modes.
-      ASSERT(mode == VAR || mode == LET ||
-             mode == CONST || mode == CONST_HARMONY);
-      PropertyAttributes attr = (mode == CONST || mode == CONST_HARMONY)
-          ? READ_ONLY : NONE;
+      ASSERT(IsDeclaredVariableMode(mode));
+      PropertyAttributes attr =
+          IsImmutableVariableMode(mode) ? READ_ONLY : NONE;
       __ mov(r1, Operand(Smi::FromInt(attr)));
       // Push initial value, if any.
       // Note: For variables we must not push an initial value (such as
@@ -1125,25 +1124,33 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   // modification check. Otherwise, we got a fixed array, and we have
   // to do a slow check.
   Label fixed_array;
-  __ mov(r2, r0);
-  __ ldr(r1, FieldMemOperand(r2, HeapObject::kMapOffset));
+  __ ldr(r2, FieldMemOperand(r0, HeapObject::kMapOffset));
   __ LoadRoot(ip, Heap::kMetaMapRootIndex);
-  __ cmp(r1, ip);
+  __ cmp(r2, ip);
   __ b(ne, &fixed_array);
 
   // We got a map in register r0. Get the enumeration cache from it.
+  Label no_descriptors;
   __ bind(&use_cache);
-  __ LoadInstanceDescriptors(r0, r1, r2);
-  __ ldr(r1, FieldMemOperand(r1, DescriptorArray::kEnumCacheOffset));
-  __ ldr(r2, FieldMemOperand(r1, DescriptorArray::kEnumCacheBridgeCacheOffset));
+
+  __ EnumLength(r1, r0);
+  __ cmp(r1, Operand(Smi::FromInt(0)));
+  __ b(eq, &no_descriptors);
+
+  __ LoadInstanceDescriptors(r0, r2, r4);
+  __ ldr(r2, FieldMemOperand(r2, DescriptorArray::kEnumCacheOffset));
+  __ ldr(r2, FieldMemOperand(r2, DescriptorArray::kEnumCacheBridgeCacheOffset));
 
   // Set up the four remaining stack slots.
   __ push(r0);  // Map.
-  __ ldr(r1, FieldMemOperand(r2, FixedArray::kLengthOffset));
   __ mov(r0, Operand(Smi::FromInt(0)));
   // Push enumeration cache, enumeration cache length (as smi) and zero.
   __ Push(r2, r1, r0);
   __ jmp(&loop);
+
+  __ bind(&no_descriptors);
+  __ Drop(1);
+  __ jmp(&exit);
 
   // We got a fixed array in register r0. Iterate through that.
   Label non_proxy;

@@ -492,7 +492,15 @@ class MacroAssembler: public Assembler {
   }
 
   void LoadInstanceDescriptors(Register map, Register descriptors);
+  void EnumLength(Register dst, Register map);
 
+  template<typename Field>
+  void DecodeField(Register reg) {
+    static const int full_shift = Field::kShift + kSmiTagSize;
+    static const int low_mask = Field::kMask >> Field::kShift;
+    sar(reg, full_shift);
+    and_(reg, Immediate(low_mask));
+  }
   void LoadPowerOf2(XMMRegister dst, Register scratch, int power);
 
   // Abort execution if argument is not a number. Used in debug code.

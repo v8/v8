@@ -1272,6 +1272,7 @@ class MacroAssembler: public Assembler {
   void LoadInstanceDescriptors(Register map,
                                Register descriptors,
                                Register scratch);
+  void EnumLength(Register dst, Register map);
 
   // Activation support.
   void EnterFrame(StackFrame::Type type);

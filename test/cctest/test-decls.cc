@@ -786,12 +786,24 @@ TEST(MultiScriptConflicts) {
   }
 
   { SimpleContext context;
+    context.Check("function x() { return 4 }; x()",
+                  EXPECT_RESULT, Number::New(4));
+    context.Check("x()",
+                  EXPECT_RESULT, Number::New(4));
+    context.Check("this.x()",
+                  EXPECT_RESULT, Number::New(4));
+  }
+
+  { SimpleContext context;
     context.Check("let x = 2; x",
                   EXPECT_RESULT, Number::New(2));
     context.Check("x",
                   EXPECT_RESULT, Number::New(2));
-    context.Check("this.x",
-                  EXPECT_RESULT, Number::New(2));
+    // TODO(rossberg): The current ES6 draft spec does not reflect lexical
+    // bindings on the global object. However, this will probably change, in
+    // which case we reactivate the following test.
+    // context.Check("this.x",
+    //               EXPECT_RESULT, Number::New(2));
   }
 
   { SimpleContext context;
@@ -799,17 +811,11 @@ TEST(MultiScriptConflicts) {
                   EXPECT_RESULT, Number::New(3));
     context.Check("x",
                   EXPECT_RESULT, Number::New(3));
-    context.Check("this.x",
-                  EXPECT_RESULT, Number::New(3));
-  }
-
-  { SimpleContext context;
-    context.Check("function x() { return 4 }; x()",
-                  EXPECT_RESULT, Number::New(4));
-    context.Check("x()",
-                  EXPECT_RESULT, Number::New(4));
-    context.Check("this.x()",
-                  EXPECT_RESULT, Number::New(4));
+    // TODO(rossberg): The current ES6 draft spec does not reflect lexical
+    // bindings on the global object. However, this will probably change, in
+    // which case we reactivate the following test.
+    // context.Check("this.x",
+    //              EXPECT_RESULT, Number::New(3));
   }
 
   // TODO(rossberg): All of the below should actually be errors in Harmony.
@@ -846,55 +852,55 @@ TEST(MultiScriptConflicts) {
     context.Check("let x = 1; x",
                   EXPECT_RESULT, Number::New(1));
     context.Check("var x = 2; x",
-                  EXPECT_RESULT, Number::New(2));
+                  EXPECT_ERROR);
   }
 
   { SimpleContext context;
     context.Check("let x = 1; x",
                   EXPECT_RESULT, Number::New(1));
     context.Check("let x = 2; x",
-                  EXPECT_RESULT, Number::New(2));
+                  EXPECT_ERROR);
   }
 
   { SimpleContext context;
     context.Check("let x = 1; x",
                   EXPECT_RESULT, Number::New(1));
     context.Check("const x = 2; x",
-                  EXPECT_RESULT, Number::New(2));
+                  EXPECT_ERROR);
   }
 
   { SimpleContext context;
     context.Check("let x = 1; x",
                   EXPECT_RESULT, Number::New(1));
     context.Check("function x() { return 2 }; x()",
-                  EXPECT_RESULT, Number::New(2));
+                  EXPECT_ERROR);
   }
 
   { SimpleContext context;
     context.Check("const x = 1; x",
                   EXPECT_RESULT, Number::New(1));
     context.Check("var x = 2; x",
-                  EXPECT_RESULT, Number::New(1));
+                  EXPECT_ERROR);
   }
 
   { SimpleContext context;
     context.Check("const x = 1; x",
                   EXPECT_RESULT, Number::New(1));
     context.Check("let x = 2; x",
-                  EXPECT_EXCEPTION);
+                  EXPECT_ERROR);
   }
 
   { SimpleContext context;
     context.Check("const x = 1; x",
                   EXPECT_RESULT, Number::New(1));
     context.Check("const x = 2; x",
-                  EXPECT_RESULT, Number::New(1));
+                  EXPECT_ERROR);
   }
 
   { SimpleContext context;
     context.Check("const x = 1; x",
                   EXPECT_RESULT, Number::New(1));
     context.Check("function x() { return 2 }; x()",
-                  EXPECT_EXCEPTION);
+                  EXPECT_ERROR);
   }
 }
