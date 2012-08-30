@@ -99,6 +99,10 @@ endif
 ifeq ($(regexp), interpreted)
   GYPFLAGS += -Dv8_interpreted_regexp=1
 endif
+# hardfp=on
+ifeq ($(hardfp), on)
+  GYPFLAGS += -Dv8_use_arm_eabi_hardfloat=true
+endif
 
 # ----------------- available targets: --------------------
 # - "dependencies": pulls in external dependencies (currently: GYP)
