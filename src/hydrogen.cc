@@ -6188,7 +6188,7 @@ HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
   }
   bool fast_smi_only_elements = map->has_fast_smi_elements();
   bool fast_elements = map->has_fast_object_elements();
-  HInstruction* elements = 
+  HInstruction* elements =
       AddInstruction(new(zone()) HLoadElements(object, mapcheck));
   if (is_store && (fast_elements || fast_smi_only_elements)) {
     HCheckMaps* check_cow_map = new(zone()) HCheckMaps(
