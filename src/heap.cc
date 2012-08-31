@@ -1002,7 +1002,8 @@ void Heap::MarkCompactPrologue() {
   isolate_->keyed_lookup_cache()->Clear();
   isolate_->context_slot_cache()->Clear();
   isolate_->descriptor_lookup_cache()->Clear();
-  StringSplitCache::Clear(string_split_cache());
+  RegExpResultsCache::Clear(string_split_cache());
+  RegExpResultsCache::Clear(regexp_multiple_cache());
 
   isolate_->compilation_cache()->MarkCompactPrologue();
 
@@ -2761,11 +2762,17 @@ bool Heap::CreateInitialObjects() {
   set_single_character_string_cache(FixedArray::cast(obj));
 
   // Allocate cache for string split.
-  { MaybeObject* maybe_obj =
-        AllocateFixedArray(StringSplitCache::kStringSplitCacheSize, TENURED);
+  { MaybeObject* maybe_obj = AllocateFixedArray(
+      RegExpResultsCache::kRegExpResultsCacheSize, TENURED);
     if (!maybe_obj->ToObject(&obj)) return false;
   }
   set_string_split_cache(FixedArray::cast(obj));
+
+  { MaybeObject* maybe_obj = AllocateFixedArray(
+      RegExpResultsCache::kRegExpResultsCacheSize, TENURED);
+    if (!maybe_obj->ToObject(&obj)) return false;
+  }
+  set_regexp_multiple_cache(FixedArray::cast(obj));
 
   // Allocate cache for external strings pointing to native source code.
   { MaybeObject* maybe_obj = AllocateFixedArray(Natives::GetBuiltinsCount());
@@ -2792,70 +2799,98 @@ bool Heap::CreateInitialObjects() {
 }
 
 
-Object* StringSplitCache::Lookup(
-    FixedArray* cache, String* string, String* pattern) {
-  if (!string->IsSymbol() || !pattern->IsSymbol()) return Smi::FromInt(0);
-  uint32_t hash = string->Hash();
-  uint32_t index = ((hash & (kStringSplitCacheSize - 1)) &
+Object* RegExpResultsCache::Lookup(Heap* heap,
+                                   String* key_string,
+                                   Object* key_pattern,
+                                   ResultsCacheType type) {
+  FixedArray* cache;
+  if (!key_string->IsSymbol()) return Smi::FromInt(0);
+  if (type == STRING_SPLIT_SUBSTRINGS) {
+    ASSERT(key_pattern->IsString());
+    if (!key_pattern->IsSymbol()) return Smi::FromInt(0);
+    cache = heap->string_split_cache();
+  } else {
+    ASSERT(type == REGEXP_MULTIPLE_INDICES);
+    ASSERT(key_pattern->IsFixedArray());
+    cache = heap->regexp_multiple_cache();
+  }
+
+  uint32_t hash = key_string->Hash();
+  uint32_t index = ((hash & (kRegExpResultsCacheSize - 1)) &
       ~(kArrayEntriesPerCacheEntry - 1));
-  if (cache->get(index + kStringOffset) == string &&
-      cache->get(index + kPatternOffset) == pattern) {
+  if (cache->get(index + kStringOffset) == key_string &&
+      cache->get(index + kPatternOffset) == key_pattern) {
     return cache->get(index + kArrayOffset);
   }
-  index = ((index + kArrayEntriesPerCacheEntry) & (kStringSplitCacheSize - 1));
-  if (cache->get(index + kStringOffset) == string &&
-      cache->get(index + kPatternOffset) == pattern) {
+  index =
+      ((index + kArrayEntriesPerCacheEntry) & (kRegExpResultsCacheSize - 1));
+  if (cache->get(index + kStringOffset) == key_string &&
+      cache->get(index + kPatternOffset) == key_pattern) {
     return cache->get(index + kArrayOffset);
   }
   return Smi::FromInt(0);
 }
 
 
-void StringSplitCache::Enter(Heap* heap,
-                             FixedArray* cache,
-                             String* string,
-                             String* pattern,
-                             FixedArray* array) {
-  if (!string->IsSymbol() || !pattern->IsSymbol()) return;
-  uint32_t hash = string->Hash();
-  uint32_t index = ((hash & (kStringSplitCacheSize - 1)) &
+void RegExpResultsCache::Enter(Heap* heap,
+                               String* key_string,
+                               Object* key_pattern,
+                               FixedArray* value_array,
+                               ResultsCacheType type) {
+  FixedArray* cache;
+  if (!key_string->IsSymbol()) return;
+  if (type == STRING_SPLIT_SUBSTRINGS) {
+    ASSERT(key_pattern->IsString());
+    if (!key_pattern->IsSymbol()) return;
+    cache = heap->string_split_cache();
+  } else {
+    ASSERT(type == REGEXP_MULTIPLE_INDICES);
+    ASSERT(key_pattern->IsFixedArray());
+    cache = heap->regexp_multiple_cache();
+  }
+
+  uint32_t hash = key_string->Hash();
+  uint32_t index = ((hash & (kRegExpResultsCacheSize - 1)) &
       ~(kArrayEntriesPerCacheEntry - 1));
   if (cache->get(index + kStringOffset) == Smi::FromInt(0)) {
-    cache->set(index + kStringOffset, string);
-    cache->set(index + kPatternOffset, pattern);
-    cache->set(index + kArrayOffset, array);
+    cache->set(index + kStringOffset, key_string);
+    cache->set(index + kPatternOffset, key_pattern);
+    cache->set(index + kArrayOffset, value_array);
   } else {
     uint32_t index2 =
-        ((index + kArrayEntriesPerCacheEntry) & (kStringSplitCacheSize - 1));
+        ((index + kArrayEntriesPerCacheEntry) & (kRegExpResultsCacheSize - 1));
     if (cache->get(index2 + kStringOffset) == Smi::FromInt(0)) {
-      cache->set(index2 + kStringOffset, string);
-      cache->set(index2 + kPatternOffset, pattern);
-      cache->set(index2 + kArrayOffset, array);
+      cache->set(index2 + kStringOffset, key_string);
+      cache->set(index2 + kPatternOffset, key_pattern);
+      cache->set(index2 + kArrayOffset, value_array);
     } else {
       cache->set(index2 + kStringOffset, Smi::FromInt(0));
       cache->set(index2 + kPatternOffset, Smi::FromInt(0));
       cache->set(index2 + kArrayOffset, Smi::FromInt(0));
-      cache->set(index + kStringOffset, string);
-      cache->set(index + kPatternOffset, pattern);
-      cache->set(index + kArrayOffset, array);
+      cache->set(index + kStringOffset, key_string);
+      cache->set(index + kPatternOffset, key_pattern);
+      cache->set(index + kArrayOffset, value_array);
     }
   }
-  if (array->length() < 100) {  // Limit how many new symbols we want to make.
-    for (int i = 0; i < array->length(); i++) {
-      String* str = String::cast(array->get(i));
+  // If the array is a reasonably short list of substrings, convert it into a
+  // list of symbols.
+  if (type == STRING_SPLIT_SUBSTRINGS && value_array->length() < 100) {
+    for (int i = 0; i < value_array->length(); i++) {
+      String* str = String::cast(value_array->get(i));
       Object* symbol;
       MaybeObject* maybe_symbol = heap->LookupSymbol(str);
       if (maybe_symbol->ToObject(&symbol)) {
-        array->set(i, symbol);
+        value_array->set(i, symbol);
       }
     }
   }
-  array->set_map_no_write_barrier(heap->fixed_cow_array_map());
+  // Convert backing store to a copy-on-write array.
+  value_array->set_map_no_write_barrier(heap->fixed_cow_array_map());
 }
 
 
-void StringSplitCache::Clear(FixedArray* cache) {
-  for (int i = 0; i < kStringSplitCacheSize; i++) {
+void RegExpResultsCache::Clear(FixedArray* cache) {
+  for (int i = 0; i < kRegExpResultsCacheSize; i++) {
     cache->set(i, Smi::FromInt(0));
   }
 }
