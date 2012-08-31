@@ -12534,10 +12534,13 @@ MaybeObject* StringDictionary::TransformPropertiesToFastFor(
     JSObject* obj, int unused_property_fields) {
   // Make sure we preserve dictionary representation if there are too many
   // descriptors.
-  if (NumberOfElements() > DescriptorArray::kMaxNumberOfDescriptors) return obj;
+  int number_of_elements = NumberOfElements();
+  if (number_of_elements > DescriptorArray::kMaxNumberOfDescriptors) return obj;
 
-  MaybeObject* maybe_result = GenerateNewEnumerationIndices();
-  if (maybe_result->IsFailure()) return maybe_result;
+  if (number_of_elements != NextEnumerationIndex()) {
+    MaybeObject* maybe_result = GenerateNewEnumerationIndices();
+    if (maybe_result->IsFailure()) return maybe_result;
+  }
 
   int instance_descriptor_length = 0;
   int number_of_fields = 0;
