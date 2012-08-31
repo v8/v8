@@ -59,7 +59,7 @@ else
 endif
 
 TOOLCHAIN_PATH = ${ANDROID_NDK_ROOT}/toolchains/${TOOLCHAIN_ARCH}/prebuilt
-ANDROID_TOOLCHAIN = ${TOOLCHAIN_PATH}/${TOOLCHAIN_DIR}/bin
+ANDROID_TOOLCHAIN ?= ${TOOLCHAIN_PATH}/${TOOLCHAIN_DIR}/bin
 ifeq ($(wildcard $(ANDROID_TOOLCHAIN)),)
   $(error Cannot find Android toolchain in "${ANDROID_TOOLCHAIN}")
 endif

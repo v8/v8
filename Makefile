@@ -34,6 +34,7 @@ TESTJOBS ?= -j16
 GYPFLAGS ?=
 TESTFLAGS ?=
 ANDROID_NDK_ROOT ?=
+ANDROID_TOOLCHAIN ?=
 ANDROID_V8 ?= /data/local/v8
 
 # Special build flags. Use them like this: "make library=shared"
@@ -145,7 +146,7 @@ ENVFILE = $(OUTDIR)/environment
         $(ARCHES) $(MODES) $(BUILDS) $(CHECKS) $(addsuffix .clean,$(ARCHES)) \
         $(addsuffix .check,$(MODES)) $(addsuffix .check,$(ARCHES)) \
         $(ANDROID_ARCHES) $(ANDROID_BUILDS) $(ANDROID_CHECKS) \
-        must-set-ANDROID_NDK_ROOT
+        must-set-ANDROID_NDK_ROOT_OR_TOOLCHAIN
 
 # Target definitions. "all" is the default.
 all: $(MODES)
@@ -182,7 +183,7 @@ native: $(OUTDIR)/Makefile.native
 $(ANDROID_ARCHES): $(addprefix $$@.,$(MODES))
 
 $(ANDROID_BUILDS): $(GYPFILES) $(ENVFILE) build/android.gypi \
-                   must-set-ANDROID_NDK_ROOT Makefile.android
+                   must-set-ANDROID_NDK_ROOT_OR_TOOLCHAIN Makefile.android
 	@$(MAKE) -f Makefile.android $@ \
 	        ARCH="$(basename $@)" \
 	        MODE="$(subst .,,$(suffix $@))" \
@@ -252,9 +253,11 @@ $(OUTDIR)/Makefile.native: $(GYPFILES) $(ENVFILE)
 	build/gyp/gyp --generator-output="$(OUTDIR)" build/all.gyp \
 	              -Ibuild/standalone.gypi --depth=. -S.native $(GYPFLAGS)
 
-must-set-ANDROID_NDK_ROOT:
+must-set-ANDROID_NDK_ROOT_OR_TOOLCHAIN:
 ifndef ANDROID_NDK_ROOT
-	  $(error ANDROID_NDK_ROOT is not set)
+ifndef ANDROID_TOOLCHAIN
+	  $(error ANDROID_NDK_ROOT or ANDROID_TOOLCHAIN must be set))
+endif
 endif
 
 # Replaces the old with the new environment file if they're different, which
