@@ -3296,6 +3296,7 @@ MaybeObject* JSObject::NormalizeProperties(PropertyNormalizationMode mode,
       }
       case CALLBACKS: {
         Object* value = descs->GetCallbacksObject(i);
+        details = details.set_pointer(0);
         MaybeObject* maybe_dictionary =
             dictionary->Add(descs->GetKey(i), value, details);
         if (!maybe_dictionary->To(&dictionary)) return maybe_dictionary;
@@ -12275,6 +12276,8 @@ template<typename Shape, typename Key>
 MaybeObject* Dictionary<Shape, Key>::Add(Key key,
                                          Object* value,
                                          PropertyDetails details) {
+  ASSERT(details.dictionary_index() == details.descriptor_index());
+
   // Valdate key is absent.
   SLOW_ASSERT((this->FindEntry(key) == Dictionary<Shape, Key>::kNotFound));
   // Check whether the dictionary should be extended.
@@ -12612,7 +12615,8 @@ MaybeObject* StringDictionary::TransformPropertiesToFastFor(
       if (!maybe_key->To(&key)) return maybe_key;
 
       PropertyDetails details = DetailsAt(i);
-      int enumeration_index = details.dictionary_index();
+      ASSERT(details.descriptor_index() == details.dictionary_index());
+      int enumeration_index = details.descriptor_index();
       PropertyType type = details.type();
 
       if (value->IsJSFunction() && !heap->InNewSpace(value)) {
