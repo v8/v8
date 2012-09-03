@@ -936,7 +936,7 @@ Handle<SharedFunctionInfo> Compiler::BuildFunctionInfo(FunctionLiteral* literal,
   // If the debugger requests compilation for break points, we cannot be
   // aggressive about lazy compilation, because it might trigger compilation
   // of functions without an outer context when setting a breakpoint through
-  // Runtime::FindSharedFunctionInfoInScript.
+  // Debug::FindSharedFunctionInfoInScript.
   bool allow_lazy_without_ctx = literal->AllowsLazyCompilationWithoutContext();
   bool allow_lazy = literal->AllowsLazyCompilation() &&
       !LiveEditFunctionTracker::IsActive(info.isolate()) &&

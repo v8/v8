@@ -698,7 +698,7 @@ void Debug::HandleWeakDebugInfo(v8::Persistent<v8::Value> obj, void* data) {
   // We need to clear all breakpoints associated with the function to restore
   // original code and avoid patching the code twice later because
   // the function will live in the heap until next gc, and can be found by
-  // Runtime::FindSharedFunctionInfoInScript.
+  // Debug::FindSharedFunctionInfoInScript.
   BreakLocationIterator it(node->debug_info(), ALL_BREAK_LOCATIONS);
   it.ClearAllDebugBreak();
   debug->RemoveDebugInfo(node->debug_info());
@@ -1172,11 +1172,10 @@ bool Debug::SetBreakPointForScript(Handle<Script> script,
                                    int* source_position) {
   HandleScope scope(isolate_);
 
-  // No need to call PrepareForBreakPoints because it will be called
-  // implicitly by Runtime::FindSharedFunctionInfoInScript.
-  Object* result = Runtime::FindSharedFunctionInfoInScript(isolate_,
-                                                           script,
-                                                           *source_position);
+  PrepareForBreakPoints();
+
+  // Obtain shared function info for the function.
+  Object* result = FindSharedFunctionInfoInScript(script, *source_position);
   if (result->IsUndefined()) return false;
 
   // Make sure the function has set up the debug info.
@@ -2089,6 +2088,115 @@ void Debug::PrepareForBreakPoints() {
     isolate_->thread_manager()->IterateArchivedThreads(
           &active_functions_redirector);
   }
+}
+
+
+Object* Debug::FindSharedFunctionInfoInScript(Handle<Script> script,
+                                              int position) {
+  // Iterate the heap looking for SharedFunctionInfo generated from the
+  // script. The inner most SharedFunctionInfo containing the source position
+  // for the requested break point is found.
+  // NOTE: This might require several heap iterations. If the SharedFunctionInfo
+  // which is found is not compiled it is compiled and the heap is iterated
+  // again as the compilation might create inner functions from the newly
+  // compiled function and the actual requested break point might be in one of
+  // these functions.
+  // NOTE: The below fix-point iteration depends on all functions that cannot be
+  // compiled lazily without a context to not be compiled at all. Compilation
+  // will be triggered at points where we do not need a context.
+  bool done = false;
+  // The current candidate for the source position:
+  int target_start_position = RelocInfo::kNoPosition;
+  Handle<JSFunction> target_function;
+  Handle<SharedFunctionInfo> target;
+  while (!done) {
+    { // Extra scope for iterator and no-allocation.
+      isolate_->heap()->EnsureHeapIsIterable();
+      AssertNoAllocation no_alloc_during_heap_iteration;
+      HeapIterator iterator;
+      for (HeapObject* obj = iterator.next();
+           obj != NULL; obj = iterator.next()) {
+        bool found_next_candidate = false;
+        Handle<JSFunction> function;
+        Handle<SharedFunctionInfo> shared;
+        if (obj->IsJSFunction()) {
+          function = Handle<JSFunction>(JSFunction::cast(obj));
+          shared = Handle<SharedFunctionInfo>(function->shared());
+          ASSERT(shared->allows_lazy_compilation() || shared->is_compiled());
+          found_next_candidate = true;
+        } else if (obj->IsSharedFunctionInfo()) {
+          shared = Handle<SharedFunctionInfo>(SharedFunctionInfo::cast(obj));
+          // Skip functions that we cannot compile lazily without a context,
+          // which is not available here, because there is no closure.
+          found_next_candidate = shared->is_compiled() ||
+              shared->allows_lazy_compilation_without_context();
+        }
+        if (!found_next_candidate) continue;
+        if (shared->script() == *script) {
+          // If the SharedFunctionInfo found has the requested script data and
+          // contains the source position it is a candidate.
+          int start_position = shared->function_token_position();
+          if (start_position == RelocInfo::kNoPosition) {
+            start_position = shared->start_position();
+          }
+          if (start_position <= position &&
+              position <= shared->end_position()) {
+            // If there is no candidate or this function is within the current
+            // candidate this is the new candidate.
+            if (target.is_null()) {
+              target_start_position = start_position;
+              target_function = function;
+              target = shared;
+            } else {
+              if (target_start_position == start_position &&
+                  shared->end_position() == target->end_position()) {
+                // If a top-level function contains only one function
+                // declaration the source for the top-level and the function
+                // is the same. In that case prefer the non top-level function.
+                if (!shared->is_toplevel()) {
+                  target_start_position = start_position;
+                  target_function = function;
+                  target = shared;
+                }
+              } else if (target_start_position <= start_position &&
+                         shared->end_position() <= target->end_position()) {
+                // This containment check includes equality as a function
+                // inside a top-level function can share either start or end
+                // position with the top-level function.
+                target_start_position = start_position;
+                target_function = function;
+                target = shared;
+              }
+            }
+          }
+        }
+      }  // End for loop.
+    }  // End no-allocation scope.
+
+    if (target.is_null()) {
+      return isolate_->heap()->undefined_value();
+    }
+
+    // There will be at least one break point when we are done.
+    has_break_points_ = true;
+
+    // If the candidate found is compiled we are done.
+    done = target->is_compiled();
+    if (!done) {
+      // If the candidate is not compiled, compile it to reveal any inner
+      // functions which might contain the requested source position. This
+      // will compile all inner functions that cannot be compiled without a
+      // context, because Compiler::BuildFunctionInfo checks whether the
+      // debugger is active.
+      if (target_function.is_null()) {
+        SharedFunctionInfo::CompileLazy(target, KEEP_EXCEPTION);
+      } else {
+        JSFunction::CompileLazy(target_function, KEEP_EXCEPTION);
+      }
+    }
+  }  // End while loop.
+
+  return *target;
 }
 
 

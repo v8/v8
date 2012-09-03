@@ -28,6 +28,7 @@
 #include "v8.h"
 
 #include "api.h"
+#include "debug.h"
 #include "runtime.h"
 #include "cctest.h"
 
@@ -87,10 +88,10 @@ static void CheckFunctionName(v8::Handle<v8::Script> script,
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
   // Obtain SharedFunctionInfo for the function.
+  Isolate::Current()->debug()->PrepareForBreakPoints();
   Object* shared_func_info_ptr =
-      Runtime::FindSharedFunctionInfoInScript(Isolate::Current(),
-                                              i_script,
-                                              func_pos);
+      Isolate::Current()->debug()->FindSharedFunctionInfoInScript(i_script,
+                                                                  func_pos);
   CHECK(shared_func_info_ptr != HEAP->undefined_value());
   Handle<SharedFunctionInfo> shared_func_info(
       SharedFunctionInfo::cast(shared_func_info_ptr));
