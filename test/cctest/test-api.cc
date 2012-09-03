@@ -717,10 +717,10 @@ TEST(ExternalStringWithDisposeHandling) {
 static void TestNewLatin1String(int encoding1, int encoding2) {
   const char* chars1 = "ASCII 123";
   const char* chars1js = "'ASCII 123'";
-  int str1_len = strlen(chars1);
+  int str1_len = static_cast<int>(strlen(chars1));
   const char* chars2 = "Non-ASCII \xAB\xCD\xEF";
   const char* chars2js = "'Non-ASCII \\u00ab\\u00cd\\u00ef'";
-  int str2_len = strlen(chars2);
+  int str2_len = static_cast<int>(strlen(chars2));
 
   Local<String> str1 = String::New(chars1, str1_len, encoding1);
   Local<String> str2 = String::New(chars2, str2_len, encoding2);
@@ -826,17 +826,21 @@ TEST(WriteLatin1String) {
   CHECK(v8::Utils::OpenHandle(*sub_string)->IsSlicedString());
 
   char buffer[64];
-  CHECK_EQ(strlen(latin1_ascii), latin1_ascii_string->WriteLatin1(buffer));
+  CHECK_EQ(static_cast<int>(strlen(latin1_ascii)),
+           latin1_ascii_string->WriteLatin1(buffer));
   CHECK_EQ(0, strcmp(latin1_ascii, buffer));
-  CHECK_EQ(strlen(latin1), latin1_string->WriteLatin1(buffer));
+  CHECK_EQ(static_cast<int>(strlen(latin1)),
+           latin1_string->WriteLatin1(buffer));
   CHECK_EQ(0, strcmp(latin1, buffer));
-  CHECK_EQ(strlen(concat), concat_string->WriteLatin1(buffer));
+  CHECK_EQ(static_cast<int>(strlen(concat)),
+           concat_string->WriteLatin1(buffer));
   CHECK_EQ(0, strcmp(concat, buffer));
-  CHECK_EQ(strlen(sub), sub_string->WriteLatin1(buffer));
+  CHECK_EQ(static_cast<int>(strlen(sub)),
+           sub_string->WriteLatin1(buffer));
   CHECK_EQ(0, strcmp(sub, buffer));
 
   memset(buffer, 0x1, sizeof(buffer));
-  CHECK_EQ(strlen(latin1),
+  CHECK_EQ(static_cast<int>(strlen(latin1)),
            latin1_string->WriteLatin1(buffer,
                                       0,
                                       String::kUndefinedLength,
@@ -846,7 +850,7 @@ TEST(WriteLatin1String) {
   buffer[strlen(latin1)] = '\0';
   CHECK_EQ(0, strcmp(latin1, buffer));
 
-  CHECK_EQ(strlen(latin1) - 2,
+  CHECK_EQ(static_cast<int>(strlen(latin1)) - 2,
            latin1_string->WriteLatin1(buffer, 2));
   CHECK_EQ(0, strncmp(latin1 + 2, buffer, strlen(latin1)));
 }

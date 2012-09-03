@@ -4961,7 +4961,8 @@ Local<String> v8::String::NewExternal(ExternalLatin1StringResource* resource,
     // since it's not.  Instead, we convert it to an internal string and dispose
     // the external resource.
     result = isolate->factory()->NewStringFromLatin1(
-        i::Vector<const char>(resource->data(), resource->length()),
+        i::Vector<const char>(resource->data(),
+                              static_cast<int>(resource->length())),
         i::NOT_TENURED,
         i::String::NOT_ASCII);
     resource->Dispose();
