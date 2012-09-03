@@ -110,7 +110,12 @@ class LCodeGen BASE_EMBEDDED {
   void FinishCode(Handle<Code> code);
 
   void DoDeferredNumberTagD(LNumberTagD* instr);
-  void DoDeferredNumberTagI(LNumberTagI* instr);
+
+  enum IntegerSignedness { SIGNED_INT32, UNSIGNED_INT32 };
+  void DoDeferredNumberTagI(LInstruction* instr,
+                            LOperand* value,
+                            IntegerSignedness signedness);
+
   void DoDeferredTaggedToI(LTaggedToI* instr);
   void DoDeferredMathAbsTaggedHeapNumber(LUnaryMathOperation* instr);
   void DoDeferredStackCheck(LStackCheck* instr);
@@ -252,7 +257,8 @@ class LCodeGen BASE_EMBEDDED {
 
   void AddToTranslation(Translation* translation,
                         LOperand* op,
-                        bool is_tagged);
+                        bool is_tagged,
+                        bool is_uint32);
   void PopulateDeoptimizationData(Handle<Code> code);
   int DefineDeoptimizationLiteral(Handle<Object> literal);
 
