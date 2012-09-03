@@ -12474,7 +12474,7 @@ void Dictionary<Shape, Key>::CopyKeysTo(
 }
 
 
-void StringDictionary::CopyEnumKeysTo(FixedArray* storage) {
+FixedArray* StringDictionary::CopyEnumKeysTo(FixedArray* storage) {
   int length = storage->length();
   ASSERT(length >= NumberOfEnumElements());
   Heap* heap = GetHeap();
@@ -12501,6 +12501,7 @@ void StringDictionary::CopyEnumKeysTo(FixedArray* storage) {
   // together by shifting them to the left (maintaining the enumeration order),
   // and trimming of the right side of the array.
   if (properties < length) {
+    if (properties == 0) return heap->empty_fixed_array();
     properties = 0;
     for (int i = 0; i < length; ++i) {
       Object* value = storage->get(i);
@@ -12511,6 +12512,7 @@ void StringDictionary::CopyEnumKeysTo(FixedArray* storage) {
     }
     RightTrimFixedArray<FROM_MUTATOR>(heap, storage, length - properties);
   }
+  return storage;
 }
 
 

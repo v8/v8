@@ -3128,7 +3128,7 @@ class StringDictionary: public Dictionary<StringDictionaryShape, String*> {
   }
 
   // Copies enumerable keys to preallocated fixed array.
-  void CopyEnumKeysTo(FixedArray* storage);
+  FixedArray* CopyEnumKeysTo(FixedArray* storage);
   static void DoGenerateNewEnumerationIndices(
       Handle<StringDictionary> dictionary);
 

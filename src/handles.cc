@@ -799,7 +799,7 @@ Handle<FixedArray> GetEnumPropertyKeys(Handle<JSObject> object,
     Handle<FixedArray> storage =
         isolate->factory()->NewFixedArray(next_enumeration);
 
-    dictionary->CopyEnumKeysTo(*storage);
+    storage = Handle<FixedArray>(dictionary->CopyEnumKeysTo(*storage));
     ASSERT(storage->length() == object->NumberOfLocalProperties(DONT_ENUM));
     return storage;
   }
