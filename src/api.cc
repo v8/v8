@@ -4943,15 +4943,17 @@ Local<String> v8::String::NewExternal(ExternalLatin1StringResource* resource,
   ENTER_V8(isolate);
   ASSERT((encoding & kStringEncodingMask) == LATIN1_ENCODING);
   CHECK(resource && resource->data());
-  bool ascii_hint = (encoding & kAsciiHintMask);
+  int ascii_hint = (encoding & kAsciiHintMask);
   i::Handle<i::String> result;
 
   if (ascii_hint == ASCII_HINT ||
       (ascii_hint != NOT_ASCII_HINT &&
-      i::String::IsAscii(resource->data(), resource->length()))) {
+       i::String::IsAscii(resource->data(),
+                          static_cast<int>(resource->length())))) {
     // Assert that the ascii hint is correct.
     ASSERT(ascii_hint != ASCII_HINT ||
-           i::String::IsAscii(resource->data(), resource->length()));
+           i::String::IsAscii(resource->data(),
+                              static_cast<int>(resource->length())));
     result = NewExternalAsciiStringHandle(isolate, resource);
     isolate->heap()->external_string_table()->AddString(*result);
   } else {
