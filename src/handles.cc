@@ -791,7 +791,7 @@ Handle<FixedArray> GetEnumPropertyKeys(Handle<JSObject> object,
     // number of holes to a minimum. This avoids allocating a large array if
     // many properties were added but subsequently deleted.
     int next_enumeration = dictionary->NextEnumerationIndex();
-    if (next_enumeration > (length * 3) / 2) {
+    if (!object->IsGlobalObject() && next_enumeration > (length * 3) / 2) {
       StringDictionary::DoGenerateNewEnumerationIndices(dictionary);
       next_enumeration = dictionary->NextEnumerationIndex();
     }
