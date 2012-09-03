@@ -714,9 +714,294 @@ TEST(ExternalStringWithDisposeHandling) {
 }
 
 
+static void TestNewLatin1String(int encoding1, int encoding2) {
+  const char* chars1 = "ASCII 123";
+  const char* chars1js = "'ASCII 123'";
+  int str1_len = strlen(chars1);
+  const char* chars2 = "Non-ASCII \xAB\xCD\xEF";
+  const char* chars2js = "'Non-ASCII \\u00ab\\u00cd\\u00ef'";
+  int str2_len = strlen(chars2);
+
+  Local<String> str1 = String::New(chars1, str1_len, encoding1);
+  Local<String> str2 = String::New(chars2, str2_len, encoding2);
+  Local<String> str1_compare = CompileRun(chars1js)->ToString();
+  Local<String> str2_compare = CompileRun(chars2js)->ToString();
+
+  if (encoding1 & String::NOT_ASCII_HINT) {
+    CHECK(v8::Utils::OpenHandle(*str1)->IsSeqTwoByteString());
+  } else {
+    CHECK(v8::Utils::OpenHandle(*str1)->IsSeqAsciiString());
+  }
+  CHECK(v8::Utils::OpenHandle(*str1_compare)->IsSeqAsciiString());
+  CHECK(v8::Utils::OpenHandle(*str2)->IsSeqTwoByteString());
+  CHECK(v8::Utils::OpenHandle(*str2_compare)->IsSeqTwoByteString());
+
+  CHECK(str1_compare->Equals(str1));
+  CHECK(str2_compare->Equals(str2));
+}
+
+
+TEST(CreateLatin1String) {
+  v8::HandleScope scope;
+  LocalContext env;
+
+  int latin1 = String::LATIN1_ENCODING;
+  int l_noascii = String::LATIN1_ENCODING | String::NOT_ASCII_HINT;
+  int l_ascii = String::LATIN1_ENCODING | String::ASCII_HINT;
+
+  TestNewLatin1String(latin1, latin1);
+  TestNewLatin1String(l_ascii, latin1);
+  TestNewLatin1String(l_noascii, l_noascii);
+}
+
+
+TEST(ExternalStringEncoding) {
+  v8::HandleScope scope;
+  LocalContext env;
+  int counter = 0;
+
+  { HandleScope scope;
+    uint16_t* two_byte_ascii = AsciiToTwoByteString("two byte ascii");
+    uint16_t* two_byte = AsciiToTwoByteString("two byte non-ascii \x99");
+    char* ascii = i::StrDup("ascii");
+
+    TestResource* two_byte_resource = new TestResource(two_byte, &counter);
+    TestResource* two_byte_ascii_resource =
+        new TestResource(two_byte_ascii, &counter);
+    TestAsciiResource* ascii_resource =
+        new TestAsciiResource(ascii, &counter);
+
+    Local<String> two_byte_external = String::NewExternal(two_byte_resource);
+    Local<String> two_byte_ascii_external =
+        String::NewExternal(two_byte_ascii_resource);
+    Local<String> ascii_external = String::NewExternal(ascii_resource);
+    Local<String> not_external = v8_str("not external");
+
+    CHECK_EQ(String::UTF_16_ENCODING | String::NOT_ASCII_HINT,
+             two_byte_external->GetExternalStringEncoding());
+    CHECK_EQ(String::UTF_16_ENCODING | String::ASCII_HINT,
+             two_byte_ascii_external->GetExternalStringEncoding());
+    CHECK_EQ(String::LATIN1_ENCODING | String::ASCII_HINT,
+             ascii_external->GetExternalStringEncoding());
+    CHECK_EQ(String::INVALID_ENCODING,
+             not_external->GetExternalStringEncoding());
+
+    CHECK_EQ(two_byte_resource, two_byte_external->GetExternalStringResource());
+    CHECK_EQ(two_byte_ascii_resource,
+             two_byte_ascii_external->GetExternalStringResourceBase());
+    CHECK_EQ(ascii_resource, ascii_external->GetExternalStringResourceBase());
+
+    CHECK_EQ(0, counter);
+  }
+
+  HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
+
+  CHECK_EQ(3, counter);
+}
+
+
+TEST(WriteLatin1String) {
+  HandleScope scope;
+  LocalContext env;
+  const char* latin1_ascii = "latin1 ascii";
+  const char* latin1 = "\x99 latin1 non-ascii \xF8";
+  const char* concat = "latin1 ascii\x99 latin1 non-ascii \xF8";
+  const char* sub = "latin1 non-ascii \xF8";
+
+  Local<String> latin1_ascii_string = String::New(latin1_ascii,
+                                                  String::kUndefinedLength,
+                                                  String::LATIN1_ENCODING);
+  Local<String> latin1_string = String::New(latin1,
+                                            String::kUndefinedLength,
+                                            String::LATIN1_ENCODING);
+  Local<String> concat_string = String::Concat(latin1_ascii_string,
+                                               latin1_string);
+  Local<String> sub_string = v8::Utils::ToLocal(
+      FACTORY->NewSubString(
+          v8::Utils::OpenHandle(*latin1_string), 2, latin1_string->Length()));
+
+  CHECK(v8::Utils::OpenHandle(*latin1_ascii_string)->IsSeqAsciiString());
+  CHECK(v8::Utils::OpenHandle(*latin1_string)->IsSeqTwoByteString());
+  CHECK(v8::Utils::OpenHandle(*concat_string)->IsConsString());
+  CHECK(v8::Utils::OpenHandle(*sub_string)->IsSlicedString());
+
+  char buffer[64];
+  CHECK_EQ(strlen(latin1_ascii), latin1_ascii_string->WriteLatin1(buffer));
+  CHECK_EQ(0, strcmp(latin1_ascii, buffer));
+  CHECK_EQ(strlen(latin1), latin1_string->WriteLatin1(buffer));
+  CHECK_EQ(0, strcmp(latin1, buffer));
+  CHECK_EQ(strlen(concat), concat_string->WriteLatin1(buffer));
+  CHECK_EQ(0, strcmp(concat, buffer));
+  CHECK_EQ(strlen(sub), sub_string->WriteLatin1(buffer));
+  CHECK_EQ(0, strcmp(sub, buffer));
+
+  memset(buffer, 0x1, sizeof(buffer));
+  CHECK_EQ(strlen(latin1),
+           latin1_string->WriteLatin1(buffer,
+                                      0,
+                                      String::kUndefinedLength,
+                                      String::NO_NULL_TERMINATION));
+  CHECK_EQ(0, strncmp(latin1, buffer, strlen(latin1)));
+  CHECK_NE(0, strcmp(latin1, buffer));
+  buffer[strlen(latin1)] = '\0';
+  CHECK_EQ(0, strcmp(latin1, buffer));
+
+  CHECK_EQ(strlen(latin1) - 2,
+           latin1_string->WriteLatin1(buffer, 2));
+  CHECK_EQ(0, strncmp(latin1 + 2, buffer, strlen(latin1)));
+}
+
+
+class TestLatin1Resource: public String::ExternalLatin1StringResource {
+ public:
+  explicit TestLatin1Resource(const char* data, int* counter = NULL)
+    : data_(data), length_(strlen(data)), counter_(counter) { }
+
+  ~TestLatin1Resource() {
+    i::DeleteArray(data_);
+    if (counter_ != NULL) ++*counter_;
+  }
+
+  const char* data() const {
+    return data_;
+  }
+
+  size_t length() const {
+    return length_;
+  }
+ private:
+  const char* data_;
+  size_t length_;
+  int* counter_;
+};
+
+
+TEST(ExternalLatin1String) {
+  HandleScope scope;
+  LocalContext env;
+  int counter = 0;
+
+  { HandleScope scope;
+    char* latin1_ascii_a = i::StrDup("latin1 ascii a");
+    char* latin1_ascii_b = i::StrDup("latin1 ascii b");
+    char* latin1_a = i::StrDup("latin non-ascii \xAA");
+    char* latin1_b = i::StrDup("latin non-ascii \xBB");
+
+    TestLatin1Resource* latin1_ascii_a_resource =
+        new TestLatin1Resource(latin1_ascii_a, &counter);
+    TestLatin1Resource* latin1_ascii_b_resource =
+        new TestLatin1Resource(latin1_ascii_b, &counter);
+    TestLatin1Resource* latin1_a_resource =
+        new TestLatin1Resource(latin1_a, &counter);
+    TestLatin1Resource* latin1_b_resource =
+        new TestLatin1Resource(latin1_b, &counter);
+
+    Local<String> latin1_ascii_a_external =
+        String::NewExternal(latin1_ascii_a_resource);
+    Local<String> latin1_ascii_b_external = String::NewExternal(
+        latin1_ascii_b_resource,
+        String::LATIN1_ENCODING | String::ASCII_HINT);
+    CHECK_EQ(0, counter);
+
+    // Non-ascii latin1 strings are internalized immediately as two-byte
+    // string and the external resource is disposed.
+    Local<String> latin1_a_external = String::NewExternal(latin1_a_resource);
+    Local<String> latin1_b_external = String::NewExternal(
+        latin1_b_resource, String::LATIN1_ENCODING | String::NOT_ASCII_HINT);
+    CHECK(v8::Utils::OpenHandle(*latin1_a_external)->IsSeqTwoByteString());
+    CHECK(v8::Utils::OpenHandle(*latin1_b_external)->IsSeqTwoByteString());
+    CHECK_EQ(2, counter);
+
+    CHECK_EQ(latin1_ascii_a_external->GetExternalStringEncoding(),
+             (v8::String::LATIN1_ENCODING | v8::String::ASCII_HINT));
+    CHECK_EQ(latin1_ascii_b_external->GetExternalStringEncoding(),
+             (v8::String::LATIN1_ENCODING | v8::String::ASCII_HINT));
+    CHECK_EQ(latin1_a_external->GetExternalStringEncoding(),
+             v8::String::INVALID_ENCODING);
+    CHECK_EQ(latin1_b_external->GetExternalStringEncoding(),
+             v8::String::INVALID_ENCODING);
+
+    CHECK_EQ(latin1_ascii_a_resource,
+             latin1_ascii_a_external->GetExternalStringResourceBase());
+    CHECK_EQ(latin1_ascii_b_resource,
+             latin1_ascii_b_external->GetExternalStringResourceBase());
+  }
+
+  HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
+  CHECK_EQ(4, counter);
+}
+
+
+TEST(ExternalizeLatin1String) {
+  HandleScope scope;
+  LocalContext env;
+  int counter = 0;
+
+  { HandleScope scope;
+    Local<String> latin1_a_ascii = String::New("latin1 a ascii");
+    Local<String> latin1_b_ascii = String::New("latin1 b ascii");
+    Local<String> latin1 = String::New("latin1 non-ascii \xAA",
+                                        String::kUndefinedLength,
+                                        String::LATIN1_ENCODING);
+
+    CHECK(v8::Utils::OpenHandle(*latin1_a_ascii)->IsSeqAsciiString());
+    CHECK(v8::Utils::OpenHandle(*latin1_b_ascii)->IsSeqAsciiString());
+    CHECK(v8::Utils::OpenHandle(*latin1)->IsSeqTwoByteString());
+
+    // Run GC twice to put those strings into old space for externalizing.
+    HEAP->CollectGarbage(i::NEW_SPACE);
+    HEAP->CollectGarbage(i::NEW_SPACE);
+
+    char* latin1_a_ascii_chars = i::NewArray<char>(64);
+    uint16_t* latin1_b_ascii_chars = i::NewArray<uint16_t>(64);
+    uint16_t* latin1_chars = i::NewArray<uint16_t>(64);
+
+    latin1_a_ascii->WriteLatin1(latin1_a_ascii_chars);
+    latin1_b_ascii->Write(latin1_b_ascii_chars);
+    latin1->Write(latin1_chars);
+
+    TestLatin1Resource* latin1_a_ascii_resource =
+        new TestLatin1Resource(latin1_a_ascii_chars, &counter);
+    TestResource* latin1_b_ascii_resource =
+        new TestResource(latin1_b_ascii_chars, &counter);
+    TestResource* latin1_resource =
+        new TestResource(latin1_chars, &counter);
+
+    CHECK(latin1_a_ascii->MakeExternal(latin1_a_ascii_resource));
+    CHECK(latin1_a_ascii->IsExternalAscii());
+    CHECK_EQ(latin1_a_ascii->GetExternalStringEncoding(),
+             (v8::String::LATIN1_ENCODING | v8::String::ASCII_HINT));
+    CHECK_EQ(latin1_a_ascii_resource,
+             latin1_a_ascii->GetExternalStringResourceBase());
+    CHECK(latin1_a_ascii->Equals(String::New("latin1 a ascii")));
+
+    CHECK(latin1_b_ascii->MakeExternal(latin1_b_ascii_resource));
+    CHECK(latin1_b_ascii->IsExternal());
+    CHECK_EQ(latin1_b_ascii->GetExternalStringEncoding(),
+             (v8::String::UTF_16_ENCODING | v8::String::ASCII_HINT));
+    CHECK_EQ(latin1_b_ascii_resource,
+             latin1_b_ascii->GetExternalStringResourceBase());
+    CHECK(latin1_b_ascii->Equals(String::New("latin1 b ascii")));
+
+    CHECK(latin1->MakeExternal(latin1_resource));
+    CHECK(latin1->IsExternal());
+    CHECK_EQ(latin1->GetExternalStringEncoding(),
+             (v8::String::UTF_16_ENCODING | v8::String::NOT_ASCII_HINT));
+    CHECK_EQ(latin1_resource,
+             latin1->GetExternalStringResourceBase());
+    CHECK(latin1->Equals(String::New("latin1 non-ascii \xAA",
+                                     String::kUndefinedLength,
+                                     String::LATIN1_ENCODING)));
+  }
+
+  HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
+  CHECK_EQ(3, counter);
+}
+
+
 THREADED_TEST(StringConcat) {
   {
-    v8::HandleScope scope;
+    HandleScope scope;
     LocalContext env;
     const char* one_byte_string_1 = "function a_times_t";
     const char* two_byte_string_1 = "wo_plus_b(a, b) {return ";

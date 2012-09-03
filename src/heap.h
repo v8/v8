@@ -679,8 +679,16 @@ class Heap {
       PretenureFlag pretenure = NOT_TENURED);
   MUST_USE_RESULT inline MaybeObject* AllocateStringFromUtf8(
       Vector<const char> str,
-      PretenureFlag pretenure = NOT_TENURED);
+      PretenureFlag pretenure = NOT_TENURED,
+      String::AsciiHint ascii_hint = String::MAYBE_ASCII);
   MUST_USE_RESULT MaybeObject* AllocateStringFromUtf8Slow(
+      Vector<const char> str,
+      PretenureFlag pretenure = NOT_TENURED);
+  MUST_USE_RESULT inline MaybeObject* AllocateStringFromLatin1(
+      Vector<const char> str,
+      PretenureFlag pretenure = NOT_TENURED,
+      String::AsciiHint ascii_hint = String::MAYBE_ASCII);
+  MUST_USE_RESULT MaybeObject* AllocateStringFromLatin1Slow(
       Vector<const char> str,
       PretenureFlag pretenure = NOT_TENURED);
   MUST_USE_RESULT MaybeObject* AllocateStringFromTwoByte(

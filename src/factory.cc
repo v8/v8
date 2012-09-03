@@ -204,10 +204,23 @@ Handle<String> Factory::NewStringFromAscii(Vector<const char> string,
 }
 
 Handle<String> Factory::NewStringFromUtf8(Vector<const char> string,
-                                          PretenureFlag pretenure) {
+                                          PretenureFlag pretenure,
+                                          String::AsciiHint ascii_hint) {
   CALL_HEAP_FUNCTION(
       isolate(),
-      isolate()->heap()->AllocateStringFromUtf8(string, pretenure),
+      isolate()->heap()->AllocateStringFromUtf8(
+          string, pretenure, ascii_hint),
+      String);
+}
+
+
+Handle<String> Factory::NewStringFromLatin1(Vector<const char> string,
+                                            PretenureFlag pretenure,
+                                            String::AsciiHint ascii_hint) {
+  CALL_HEAP_FUNCTION(
+      isolate(),
+      isolate()->heap()->AllocateStringFromLatin1(
+          string, pretenure, ascii_hint),
       String);
 }
 

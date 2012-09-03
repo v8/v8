@@ -7128,6 +7128,10 @@ class String: public HeapObject {
     friend class String;
   };
 
+  enum AsciiHint { MAYBE_ASCII = 0,
+                   ASCII       = 1,
+                   NOT_ASCII   = 2 };
+
   // Get and set the length of the string.
   inline int length();
   inline void set_length(int value);

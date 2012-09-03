@@ -120,7 +120,13 @@ class Factory {
   // flags in the parser.
   Handle<String> NewStringFromUtf8(
       Vector<const char> str,
-      PretenureFlag pretenure = NOT_TENURED);
+      PretenureFlag pretenure = NOT_TENURED,
+      String::AsciiHint ascii_hint = String::MAYBE_ASCII);
+
+  Handle<String> NewStringFromLatin1(
+      Vector<const char> str,
+      PretenureFlag pretenure = NOT_TENURED,
+      String::AsciiHint ascii_hint = String::MAYBE_ASCII);
 
   Handle<String> NewStringFromTwoByte(
       Vector<const uc16> str,

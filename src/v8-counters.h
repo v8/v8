@@ -252,6 +252,10 @@ namespace internal {
   SC(string_add_make_two_char, V8.StringAddMakeTwoChar)               \
   SC(string_compare_native, V8.StringCompareNative)                   \
   SC(string_compare_runtime, V8.StringCompareRuntime)                 \
+  SC(string_length_utf8, V8.StringLengthUtf8)                         \
+  SC(string_length_ascii, V8.StringLengthAScii)                       \
+  SC(string_length_latin1, V8.StringLengthLatin1)                     \
+  SC(string_length_utf16, V8.StringLengthUtf16)                       \
   SC(regexp_entry_runtime, V8.RegExpEntryRuntime)                     \
   SC(regexp_entry_native, V8.RegExpEntryNative)                       \
   SC(number_to_string_native, V8.NumberToStringNative)                \
