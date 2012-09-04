@@ -2068,13 +2068,17 @@ class HUnaryMathOperation: public HTemplateInstruction<2> {
 };
 
 
-class HLoadElements: public HUnaryOperation {
+class HLoadElements: public HTemplateInstruction<2> {
  public:
-  explicit HLoadElements(HValue* value) : HUnaryOperation(value) {
+  HLoadElements(HValue* value, HValue* typecheck) {
+    SetOperandAt(0, value);
+    SetOperandAt(1, typecheck);
     set_representation(Representation::Tagged());
     SetFlag(kUseGVN);
     SetGVNFlag(kDependsOnElementsPointer);
   }
+
+  HValue* value() { return OperandAt(0); }
 
   virtual Representation RequiredInputRepresentation(int index) {
     return Representation::Tagged();

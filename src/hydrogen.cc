@@ -5218,7 +5218,9 @@ void HGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
     HValue* value = Pop();
     if (!Smi::IsValid(i)) return Bailout("Non-smi key in array literal");
 
-    elements = new(zone()) HLoadElements(literal);
+    // Pass in literal as dummy depedency, since  the receiver always has
+    // elements.
+    elements = new(zone()) HLoadElements(literal, literal);
     AddInstruction(elements);
 
     HValue* key = AddInstruction(
@@ -6186,7 +6188,8 @@ HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
   }
   bool fast_smi_only_elements = map->has_fast_smi_elements();
   bool fast_elements = map->has_fast_object_elements();
-  HInstruction* elements = AddInstruction(new(zone()) HLoadElements(object));
+  HInstruction* elements =
+      AddInstruction(new(zone()) HLoadElements(object, mapcheck));
   if (is_store && (fast_elements || fast_smi_only_elements)) {
     HCheckMaps* check_cow_map = new(zone()) HCheckMaps(
         elements, isolate()->factory()->fixed_array_map(), zone());
@@ -6366,13 +6369,15 @@ HValue* HGraphBuilder::HandlePolymorphicElementAccess(HValue* object,
     return is_store ? NULL : instr;
   }
 
-  AddInstruction(HCheckInstanceType::NewIsSpecObject(object, zone()));
+  HInstruction* checkspec =
+      AddInstruction(HCheckInstanceType::NewIsSpecObject(object, zone()));
   HBasicBlock* join = graph()->CreateBasicBlock();
 
   HInstruction* elements_kind_instr =
       AddInstruction(new(zone()) HElementsKind(object));
   HCompareConstantEqAndBranch* elements_kind_branch = NULL;
-  HInstruction* elements = AddInstruction(new(zone()) HLoadElements(object));
+  HInstruction* elements =
+      AddInstruction(new(zone()) HLoadElements(object, checkspec));
   HLoadExternalArrayPointer* external_elements = NULL;
   HInstruction* checked_key = NULL;
 
