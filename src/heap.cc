@@ -48,7 +48,6 @@
 #include "snapshot.h"
 #include "store-buffer.h"
 #include "v8threads.h"
-#include "v8utils.h"
 #include "vm-state-inl.h"
 #if V8_TARGET_ARCH_ARM && !V8_INTERPRETED_REGEXP
 #include "regexp-macro-assembler.h"
@@ -4391,8 +4390,7 @@ MaybeObject* Heap::ReinitializeJSGlobalProxy(JSFunction* constructor,
 
 MaybeObject* Heap::AllocateStringFromAscii(Vector<const char> string,
                                            PretenureFlag pretenure) {
-  int length = string.length();
-  if (length == 1) {
+  if (string.length() == 1) {
     return Heap::LookupSingleCharacterStringFromCode(string[0]);
   }
   Object* result;
@@ -4401,10 +4399,11 @@ MaybeObject* Heap::AllocateStringFromAscii(Vector<const char> string,
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
 
-  isolate_->counters()->string_length_ascii()->Increment(length);
-
   // Copy the characters into the new object.
-  CopyChars(SeqAsciiString::cast(result)->GetChars(), string.start(), length);
+  SeqAsciiString* string_result = SeqAsciiString::cast(result);
+  for (int i = 0; i < string.length(); i++) {
+    string_result->SeqAsciiStringSet(i, string[i]);
+  }
   return result;
 }
 
@@ -4431,40 +4430,19 @@ MaybeObject* Heap::AllocateStringFromUtf8Slow(Vector<const char> string,
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
 
-  isolate_->counters()->string_length_utf8()->Increment(chars);
-
   // Convert and copy the characters into the new object.
-  SeqTwoByteString* twobyte = SeqTwoByteString::cast(result);
+  String* string_result = String::cast(result);
   decoder->Reset(string.start(), string.length());
   int i = 0;
   while (i < chars) {
     uint32_t r = decoder->GetNext();
     if (r > unibrow::Utf16::kMaxNonSurrogateCharCode) {
-      twobyte->SeqTwoByteStringSet(i++, unibrow::Utf16::LeadSurrogate(r));
-      twobyte->SeqTwoByteStringSet(i++, unibrow::Utf16::TrailSurrogate(r));
+      string_result->Set(i++, unibrow::Utf16::LeadSurrogate(r));
+      string_result->Set(i++, unibrow::Utf16::TrailSurrogate(r));
     } else {
-      twobyte->SeqTwoByteStringSet(i++, r);
+      string_result->Set(i++, r);
     }
   }
-  return result;
-}
-
-
-MaybeObject* Heap::AllocateStringFromLatin1Slow(Vector<const char> string,
-                                                PretenureFlag pretenure) {
-  int chars = string.length();
-  Object* result;
-  { MaybeObject* maybe_result = AllocateRawTwoByteString(chars, pretenure);
-    if (!maybe_result->ToObject(&result)) return maybe_result;
-  }
-
-  isolate_->counters()->string_length_latin1()->Increment(chars);
-
-  // Convert and copy the characters into the new object.
-  SeqTwoByteString* string_result = SeqTwoByteString::cast(result);
-  CopyChars(string_result->GetChars(),
-            reinterpret_cast<const unsigned char*>(string.start()),
-            chars);
   return result;
 }
 
@@ -4472,22 +4450,21 @@ MaybeObject* Heap::AllocateStringFromLatin1Slow(Vector<const char> string,
 MaybeObject* Heap::AllocateStringFromTwoByte(Vector<const uc16> string,
                                              PretenureFlag pretenure) {
   // Check if the string is an ASCII string.
-  Object* result;
-  int length = string.length();
-  const uc16* start = string.start();
-
-  if (String::IsAscii(start, length)) {
-    MaybeObject* maybe_result = AllocateRawAsciiString(length, pretenure);
-    if (!maybe_result->ToObject(&result)) return maybe_result;
-    isolate_->counters()->string_length_ascii()->Increment(length);
-    CopyChars(SeqAsciiString::cast(result)->GetChars(), start, length);
+  MaybeObject* maybe_result;
+  if (String::IsAscii(string.start(), string.length())) {
+    maybe_result = AllocateRawAsciiString(string.length(), pretenure);
   } else {  // It's not an ASCII string.
-    MaybeObject* maybe_result = AllocateRawTwoByteString(length, pretenure);
-    if (!maybe_result->ToObject(&result)) return maybe_result;
-    isolate_->counters()->string_length_utf16()->Increment(length);
-    CopyChars(SeqTwoByteString::cast(result)->GetChars(), start, length);
+    maybe_result = AllocateRawTwoByteString(string.length(), pretenure);
   }
+  Object* result;
+  if (!maybe_result->ToObject(&result)) return maybe_result;
 
+  // Copy the characters into the new object, which may be either ASCII or
+  // UTF-16.
+  String* string_result = String::cast(result);
+  for (int i = 0; i < string.length(); i++) {
+    string_result->Set(i, string[i]);
+  }
   return result;
 }
 

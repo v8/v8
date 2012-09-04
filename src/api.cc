@@ -3857,7 +3857,7 @@ int String::WriteUtf8(char* buffer,
   int string_length = str->length();
   if (str->IsAsciiRepresentation()) {
     int len;
-    if (capacity == kUndefinedLength) {
+    if (capacity == -1) {
       capacity = str->length() + 1;
       len = string_length;
     } else {
@@ -3872,7 +3872,7 @@ int String::WriteUtf8(char* buffer,
     return len;
   }
 
-  if (capacity == kUndefinedLength || capacity / 3 >= string_length) {
+  if (capacity == -1 || capacity / 3 >= string_length) {
     int32_t previous = unibrow::Utf16::kNoPreviousCharacter;
     const int kMaxRecursion = 100;
     int utf8_bytes =
@@ -3903,7 +3903,7 @@ int String::WriteUtf8(char* buffer,
     int utf8_bytes = i::Utf8Length(str);
     if ((options & NO_NULL_TERMINATION) == 0) utf8_bytes++;
     if (utf8_bytes <= capacity) {
-      return WriteUtf8(buffer, kUndefinedLength, nchars_ref, options);
+      return WriteUtf8(buffer, -1, nchars_ref, options);
     }
   }
 
@@ -3921,9 +3921,7 @@ int String::WriteUtf8(char* buffer,
   int pos = 0;
   int nchars = 0;
   int previous = unibrow::Utf16::kNoPreviousCharacter;
-  for (i = 0;
-       i < len && (capacity == kUndefinedLength || pos < fast_end);
-       i++) {
+  for (i = 0; i < len && (capacity == -1 || pos < fast_end); i++) {
     i::uc32 c = write_input_buffer.GetNext();
     int written = unibrow::Utf8::Encode(buffer + pos, c, previous);
     pos += written;
@@ -3969,7 +3967,7 @@ int String::WriteUtf8(char* buffer,
   }
   if (nchars_ref != NULL) *nchars_ref = nchars;
   if (!(options & NO_NULL_TERMINATION) &&
-      (i == len && (capacity == kUndefinedLength || pos < capacity))) {
+      (i == len && (capacity == -1 || pos < capacity))) {
     buffer[pos++] = '\0';
   }
   return pos;
@@ -3984,7 +3982,7 @@ int String::WriteAscii(char* buffer,
   if (IsDeadCheck(isolate, "v8::String::WriteAscii()")) return 0;
   LOG_API(isolate, "String::WriteAscii");
   ENTER_V8(isolate);
-  ASSERT(start >= 0 && length >= kUndefinedLength);
+  ASSERT(start >= 0 && length >= -1);
   i::Handle<i::String> str = Utils::OpenHandle(this);
   isolate->string_tracker()->RecordWrite(str);
   if (options & HINT_MANY_WRITES_EXPECTED) {
@@ -3993,7 +3991,7 @@ int String::WriteAscii(char* buffer,
 
   if (str->IsAsciiRepresentation()) {
     // WriteToFlat is faster than using the StringInputBuffer.
-    if (length == kUndefinedLength) length = str->length() + 1;
+    if (length == -1) length = str->length() + 1;
     int len = i::Min(length, str->length() - start);
     i::String::WriteToFlat(*str, buffer, start, start + len);
     if (!(options & PRESERVE_ASCII_NULL)) {
@@ -4009,7 +4007,7 @@ int String::WriteAscii(char* buffer,
 
   i::StringInputBuffer& write_input_buffer = *isolate->write_input_buffer();
   int end = length;
-  if ((length == kUndefinedLength) || (length > str->length() - start)) {
+  if ((length == -1) || (length > str->length() - start)) {
     end = str->length() - start;
   }
   if (end < 0) return 0;
@@ -4027,31 +4025,6 @@ int String::WriteAscii(char* buffer,
 }
 
 
-int String::WriteLatin1(char* buffer,
-                        int start,
-                        int length,
-                        int options) const {
-  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
-  if (IsDeadCheck(isolate, "v8::String::WriteLatin1()")) return 0;
-  LOG_API(isolate, "String::WriteLatin1");
-  ENTER_V8(isolate);
-  ASSERT(start >= 0 && length >= kUndefinedLength);
-  i::Handle<i::String> str = Utils::OpenHandle(this);
-  isolate->string_tracker()->RecordWrite(str);
-  if (options & HINT_MANY_WRITES_EXPECTED) {
-    FlattenString(str);  // Flatten the string for efficiency.
-  }
-
-  if (length == kUndefinedLength) length = str->length() + 1;
-  int len = i::Min(length, str->length() - start);
-  i::String::WriteToFlat(*str, buffer, start, start + len);
-  if (!(options & NO_NULL_TERMINATION) && length > len) {
-    buffer[len] = '\0';
-  }
-  return len;
-}
-
-
 int String::Write(uint16_t* buffer,
                   int start,
                   int length,
@@ -4060,7 +4033,7 @@ int String::Write(uint16_t* buffer,
   if (IsDeadCheck(isolate, "v8::String::Write()")) return 0;
   LOG_API(isolate, "String::Write");
   ENTER_V8(isolate);
-  ASSERT(start >= 0 && length >= kUndefinedLength);
+  ASSERT(start >= 0 && length >= -1);
   i::Handle<i::String> str = Utils::OpenHandle(this);
   isolate->string_tracker()->RecordWrite(str);
   if (options & HINT_MANY_WRITES_EXPECTED) {
@@ -4069,7 +4042,7 @@ int String::Write(uint16_t* buffer,
     FlattenString(str);
   }
   int end = start + length;
-  if ((length == kUndefinedLength) || (length > str->length() - start) )
+  if ((length == -1) || (length > str->length() - start) )
     end = str->length();
   if (end < 0) return 0;
   i::String::WriteToFlat(*str, buffer, start, end);
@@ -4100,43 +4073,18 @@ bool v8::String::IsExternalAscii() const {
 }
 
 
-void v8::String::VerifyExternalStringEncoding(int encoding) const {
-  typedef internal::Internals I;
+void v8::String::VerifyExternalStringResource(
+    v8::String::ExternalStringResource* value) const {
   i::Handle<i::String> str = Utils::OpenHandle(this);
-  switch (encoding) {
-    case UTF_16_ENCODING | ASCII_HINT:
-      CHECK(str->HasOnlyAsciiChars());
-      // Fall through
-    case UTF_16_ENCODING | NOT_ASCII_HINT :
-      CHECK(str->IsExternalTwoByteString());
-      break;
-    case LATIN1_ENCODING | ASCII_HINT:
-    CHECK(str->IsExternalAsciiString());
-      break;
-    default:
-      CHECK_EQ(INVALID_ENCODING, encoding);
-      CHECK(!str->IsExternalString());
-      break;
-  }
-}
-
-
-void v8::String::VerifyExternalStringResourceBase(
-    v8::String::ExternalStringResourceBase* value) const {
-  i::Handle<i::String> str = Utils::OpenHandle(this);
-  i::StringShape shape(*str);
-  const void* expected;
-  // We expect an external string at this point since GetExternalStringEncoding
-  // should have already been called to rule out non-external strings.
+  const v8::String::ExternalStringResource* expected;
   if (i::StringShape(*str).IsExternalTwoByte()) {
-    expected = i::ExternalTwoByteString::cast(*str)->resource();
+    const void* resource =
+        i::Handle<i::ExternalTwoByteString>::cast(str)->resource();
+    expected = reinterpret_cast<const ExternalStringResource*>(resource);
   } else {
-    ASSERT(i::StringShape(*str).IsExternalAscii());
-    expected = i::ExternalAsciiString::cast(*str)->resource();
+    expected = NULL;
   }
-
-  CHECK_EQ(expected,
-           reinterpret_cast<const ExternalStringResourceBase*>(value));
+  CHECK_EQ(expected, value);
 }
 
 
@@ -4753,44 +4701,17 @@ Local<String> v8::String::Empty() {
 }
 
 
-static i::Handle<i::String> NewOneByteEncodedString(
-    i::Factory* factory, const char* data, int length, int encoding) {
-  if (length == String::kUndefinedLength) length = i::StrLength(data);
-  typedef v8::String S;
-
-  static const int kAsciiHintShift = 16;
-  ASSERT(IS_POWER_OF_TWO(encoding & S::kAsciiHintMask));
-  i::String::AsciiHint ascii_hint =
-      static_cast<i::String::AsciiHint>(encoding >> kAsciiHintShift);
-  STATIC_ASSERT(i::String::MAYBE_ASCII == 0);
-  STATIC_ASSERT(i::String::NOT_ASCII ==
-                (v8::String::NOT_ASCII_HINT >> kAsciiHintShift));
-  STATIC_ASSERT(i::String::ASCII ==
-                (v8::String::ASCII_HINT >> kAsciiHintShift));
-
-  int masked_encoding = encoding & S::kStringEncodingMask;
-
-  if (masked_encoding == S::UTF_8_ENCODING) {
-    return factory->NewStringFromUtf8(
-               i::Vector<const char>(data, length), i::NOT_TENURED, ascii_hint);
-  } else if (masked_encoding == S::LATIN1_ENCODING) {
-    return factory->NewStringFromLatin1(
-               i::Vector<const char>(data, length), i::NOT_TENURED, ascii_hint);
-  } else {  // Wrong encoding.
-    return i::Handle<i::String>();
-  }
-}
-
-
-Local<String> v8::String::New(
-    const char* data, int length, int encoding) {
+Local<String> v8::String::New(const char* data, int length) {
   i::Isolate* isolate = i::Isolate::Current();
   EnsureInitializedForIsolate(isolate, "v8::String::New()");
   LOG_API(isolate, "String::New(char)");
   if (length == 0) return Empty();
   ENTER_V8(isolate);
-  return Utils::ToLocal(
-      NewOneByteEncodedString(isolate->factory(), data, length, encoding));
+  if (length == -1) length = i::StrLength(data);
+  i::Handle<i::String> result =
+      isolate->factory()->NewStringFromUtf8(
+          i::Vector<const char>(data, length));
+  return Utils::ToLocal(result);
 }
 
 
@@ -4807,14 +4728,15 @@ Local<String> v8::String::Concat(Handle<String> left, Handle<String> right) {
 }
 
 
-Local<String> v8::String::NewUndetectable(
-    const char* data, int length, int encoding) {
+Local<String> v8::String::NewUndetectable(const char* data, int length) {
   i::Isolate* isolate = i::Isolate::Current();
   EnsureInitializedForIsolate(isolate, "v8::String::NewUndetectable()");
   LOG_API(isolate, "String::NewUndetectable(char)");
   ENTER_V8(isolate);
+  if (length == -1) length = i::StrLength(data);
   i::Handle<i::String> result =
-      NewOneByteEncodedString(isolate->factory(), data, length, encoding);
+      isolate->factory()->NewStringFromUtf8(
+          i::Vector<const char>(data, length));
   result->MarkAsUndetectable();
   return Utils::ToLocal(result);
 }
@@ -4833,7 +4755,7 @@ Local<String> v8::String::New(const uint16_t* data, int length) {
   LOG_API(isolate, "String::New(uint16_)");
   if (length == 0) return Empty();
   ENTER_V8(isolate);
-  if (length == kUndefinedLength) length = TwoByteStringLength(data);
+  if (length == -1) length = TwoByteStringLength(data);
   i::Handle<i::String> result =
       isolate->factory()->NewStringFromTwoByte(
           i::Vector<const uint16_t>(data, length));
@@ -4846,7 +4768,7 @@ Local<String> v8::String::NewUndetectable(const uint16_t* data, int length) {
   EnsureInitializedForIsolate(isolate, "v8::String::NewUndetectable()");
   LOG_API(isolate, "String::NewUndetectable(uint16_)");
   ENTER_V8(isolate);
-  if (length == kUndefinedLength) length = TwoByteStringLength(data);
+  if (length == -1) length = TwoByteStringLength(data);
   i::Handle<i::String> result =
       isolate->factory()->NewStringFromTwoByte(
           i::Vector<const uint16_t>(data, length));
@@ -4884,40 +4806,26 @@ Local<String> v8::String::NewExternal(
 }
 
 
-template<class StringResourceType>
-static bool MakeStringExternal(
-    i::Handle<i::String> string, StringResourceType* resource) {
-  i::Isolate* isolate = string->GetIsolate();
+bool v8::String::MakeExternal(v8::String::ExternalStringResource* resource) {
+  i::Handle<i::String> obj = Utils::OpenHandle(this);
+  i::Isolate* isolate = obj->GetIsolate();
   if (IsDeadCheck(isolate, "v8::String::MakeExternal()")) return false;
-  if (i::StringShape(*string).IsExternal()) {
+  if (i::StringShape(*obj).IsExternalTwoByte()) {
     return false;  // Already an external string.
   }
   ENTER_V8(isolate);
-  if (isolate->string_tracker()->IsFreshUnusedString(string)) {
+  if (isolate->string_tracker()->IsFreshUnusedString(obj)) {
     return false;
   }
   if (isolate->heap()->IsInGCPostProcessing()) {
     return false;
   }
   CHECK(resource && resource->data());
-  bool result = string->MakeExternal(resource);
-  if (result && !string->IsSymbol()) {
-    isolate->heap()->external_string_table()->AddString(*string);
+  bool result = obj->MakeExternal(resource);
+  if (result && !obj->IsSymbol()) {
+    isolate->heap()->external_string_table()->AddString(*obj);
   }
   return result;
-}
-
-
-bool v8::String::MakeExternal(ExternalStringResource* resource) {
-  i::Handle<i::String> obj = Utils::OpenHandle(this);
-  return MakeStringExternal(obj, resource);
-}
-
-
-bool v8::String::MakeExternal(ExternalAsciiStringResource* resource) {
-  i::Handle<i::String> obj = Utils::OpenHandle(this);
-  ASSERT(obj->HasOnlyAsciiChars());
-  return MakeStringExternal(obj, resource);
 }
 
 
@@ -4934,40 +4842,27 @@ Local<String> v8::String::NewExternal(
 }
 
 
-Local<String> v8::String::NewExternal(ExternalLatin1StringResource* resource,
-                                      int encoding) {
-  typedef v8::internal::Internals I;
-  i::Isolate* isolate = i::Isolate::Current();
-  EnsureInitializedForIsolate(isolate, "v8::String::NewExternal()");
-  LOG_API(isolate, "String::NewExternal");
-  ENTER_V8(isolate);
-  ASSERT((encoding & kStringEncodingMask) == LATIN1_ENCODING);
-  CHECK(resource && resource->data());
-  int ascii_hint = (encoding & kAsciiHintMask);
-  i::Handle<i::String> result;
-
-  if (ascii_hint == ASCII_HINT ||
-      (ascii_hint != NOT_ASCII_HINT &&
-       i::String::IsAscii(resource->data(),
-                          static_cast<int>(resource->length())))) {
-    // Assert that the ascii hint is correct.
-    ASSERT(ascii_hint != ASCII_HINT ||
-           i::String::IsAscii(resource->data(),
-                              static_cast<int>(resource->length())));
-    result = NewExternalAsciiStringHandle(isolate, resource);
-    isolate->heap()->external_string_table()->AddString(*result);
-  } else {
-    // We cannot simply take the backing store and use it as an ASCII string,
-    // since it's not.  Instead, we convert it to an internal string and dispose
-    // the external resource.
-    result = isolate->factory()->NewStringFromLatin1(
-        i::Vector<const char>(resource->data(),
-                              static_cast<int>(resource->length())),
-        i::NOT_TENURED,
-        i::String::NOT_ASCII);
-    resource->Dispose();
+bool v8::String::MakeExternal(
+    v8::String::ExternalAsciiStringResource* resource) {
+  i::Handle<i::String> obj = Utils::OpenHandle(this);
+  i::Isolate* isolate = obj->GetIsolate();
+  if (IsDeadCheck(isolate, "v8::String::MakeExternal()")) return false;
+  if (i::StringShape(*obj).IsExternalTwoByte()) {
+    return false;  // Already an external string.
   }
-  return Utils::ToLocal(result);
+  ENTER_V8(isolate);
+  if (isolate->string_tracker()->IsFreshUnusedString(obj)) {
+    return false;
+  }
+  if (isolate->heap()->IsInGCPostProcessing()) {
+    return false;
+  }
+  CHECK(resource && resource->data());
+  bool result = obj->MakeExternal(resource);
+  if (result && !obj->IsSymbol()) {
+    isolate->heap()->external_string_table()->AddString(*obj);
+  }
+  return result;
 }
 
 
@@ -5230,28 +5125,14 @@ Local<Object> Array::CloneElementAt(uint32_t index) {
 }
 
 
-Local<String> v8::String::NewSymbol(
-    const char* data, int length, int encoding) {
+Local<String> v8::String::NewSymbol(const char* data, int length) {
   i::Isolate* isolate = i::Isolate::Current();
   EnsureInitializedForIsolate(isolate, "v8::String::NewSymbol()");
   LOG_API(isolate, "String::NewSymbol(char)");
   ENTER_V8(isolate);
-  if (length == kUndefinedLength) length = i::StrLength(data);
-  i::Handle<i::String> result;
-
-  ASSERT(IS_POWER_OF_TWO(encoding & kAsciiHintMask));
-  if (((encoding & kStringEncodingMask) == LATIN1_ENCODING) &&
-      ((encoding & kAsciiHintMask) == NOT_ASCII_HINT ||
-       !i::String::IsAscii(data, length))) {
-    result = isolate->factory()->NewStringFromLatin1(
-                 i::Vector<const char>(data, length),
-                 i::NOT_TENURED,
-                 i::String::NOT_ASCII);
-    result = isolate->factory()->LookupSymbol(result);
-  } else {  // We can handle UTF8 and ASCII strings here.
-    result =
-        isolate->factory()->LookupSymbol(i::Vector<const char>(data, length));
-  }
+  if (length == -1) length = i::StrLength(data);
+  i::Handle<i::String> result =
+      isolate->factory()->LookupSymbol(i::Vector<const char>(data, length));
   return Utils::ToLocal(result);
 }
 

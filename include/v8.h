@@ -1069,48 +1069,19 @@ class String : public Primitive {
     PRESERVE_ASCII_NULL = 4
   };
 
-
-  enum StringEncoding {
-    INVALID_ENCODING  = 0,
-    UTF_8_ENCODING    = 1,
-    LATIN1_ENCODING   = 2,
-    UTF_16_ENCODING   = 3,
-
-    ASCII_HINT        = 1 << 16,
-    NOT_ASCII_HINT    = 1 << 17
-  };
-
-  static const int kStringEncodingMask = 3;
-  static const int kAsciiHintMask = String::ASCII_HINT | String::NOT_ASCII_HINT;
-
-  static const int kUndefinedLength = -1;
-
-
-  // 16-bit UTF16 code units.  PRESERVE_ASCII_NULL is not supported as option,
-  // null-characters are never converted to spaces.
+  // 16-bit character codes.
   V8EXPORT int Write(uint16_t* buffer,
                      int start = 0,
-                     int length = kUndefinedLength,
+                     int length = -1,
                      int options = NO_OPTIONS) const;
-
-  // ASCII characters.  Null-characters are converted to spaces unless
-  // PRESERVE_ASCII_NULL is set as option.
+  // ASCII characters.
   V8EXPORT int WriteAscii(char* buffer,
                           int start = 0,
-                          int length = kUndefinedLength,
+                          int length = -1,
                           int options = NO_OPTIONS) const;
-
-  // Latin1 characters.  PRESERVE_ASCII_NULL is not supported as option,
-  // null-characters are never converted to spaces.
-  V8EXPORT int WriteLatin1(char* buffer,
-                           int start = 0,
-                           int length = kUndefinedLength,
-                           int options = NO_OPTIONS) const;
-
-  // UTF-8 encoded characters.  PRESERVE_ASCII_NULL is not supported as option,
-  // null-characters are never converted to spaces.
+  // UTF-8 encoded characters.
   V8EXPORT int WriteUtf8(char* buffer,
-                         int length = kUndefinedLength,
+                         int length = -1,
                          int* nchars_ref = NULL,
                          int options = NO_OPTIONS) const;
 
@@ -1151,7 +1122,6 @@ class String : public Primitive {
     void operator=(const ExternalStringResourceBase&);
 
     friend class v8::internal::Heap;
-    friend class v8::String;
   };
 
   /**
@@ -1211,16 +1181,6 @@ class String : public Primitive {
   };
 
   /**
-   * An ExternalLatin1StringResource is a wrapper around an Latin1-encoded
-   * string buffer that resides outside V8's heap.  For usage in V8, a Latin1
-   * string is converted to ASCII or two-byte string depending on whether
-   * it contains non-ASCII characters.
-   */
-  class V8EXPORT ExternalLatin1StringResource
-      : public ExternalAsciiStringResource {
-  };
-
-  /**
    * Get the ExternalStringResource for an external string.  Returns
    * NULL if IsExternal() doesn't return true.
    */
@@ -1233,44 +1193,24 @@ class String : public Primitive {
   V8EXPORT const ExternalAsciiStringResource* GetExternalAsciiStringResource()
       const;
 
-  /**
-   * If the string is external, return its encoding (Latin1 or UTF16)
-   * and possibly a hint on whether the content is ASCII.
-   * Return String::INVALID_ENCODING otherwise.
-   */
-  inline int GetExternalStringEncoding() const;
-
-
-  /**
-   * Return the resource of the external string regardless of encoding.
-   * Call this only after having made sure that the string is indeed external!
-   */
-  inline ExternalStringResourceBase* GetExternalStringResourceBase() const;
-
   static inline String* Cast(v8::Value* obj);
 
   /**
-   * Allocates a new string from either UTF-8 or Latin1-encoded data.
-   * The second parameter 'length' gives the buffer length.  If the data may
-   * contain zero bytes, the caller must be careful to supply the length
-   * parameter.  If it is not given, the function calls 'strlen' to determine
-   * the buffer length, it might be wrong if 'data' contains a null character.
-   * The third parameter specifies the encoding, which may include an hint
-   * whether the string contains ASCII characters.  In the case of Latin1, the
-   * appropriate internal representation (UTF16 or ASCII) is chosen.
+   * Allocates a new string from either UTF-8 encoded or ASCII data.
+   * The second parameter 'length' gives the buffer length.
+   * If the data is UTF-8 encoded, the caller must
+   * be careful to supply the length parameter.
+   * If it is not given, the function calls
+   * 'strlen' to determine the buffer length, it might be
+   * wrong if 'data' contains a null character.
    */
-  V8EXPORT static Local<String> New(const char* data,
-                                    int length = kUndefinedLength,
-                                    int encoding = UTF_8_ENCODING);
+  V8EXPORT static Local<String> New(const char* data, int length = -1);
 
-  /** Allocates a new string from 16-bit UTF-16 code units.*/
-  V8EXPORT static Local<String> New(const uint16_t* data,
-                                    int length = kUndefinedLength);
+  /** Allocates a new string from 16-bit character codes.*/
+  V8EXPORT static Local<String> New(const uint16_t* data, int length = -1);
 
   /** Creates a symbol. Returns one if it exists already.*/
-  V8EXPORT static Local<String> NewSymbol(const char* data,
-                                          int length = kUndefinedLength,
-                                          int encoding = UTF_8_ENCODING);
+  V8EXPORT static Local<String> NewSymbol(const char* data, int length = -1);
 
   /**
    * Creates a new string by concatenating the left and the right strings
@@ -1307,8 +1247,7 @@ class String : public Primitive {
    * this function should not otherwise delete or modify the resource. Neither
    * should the underlying buffer be deallocated or modified except through the
    * destructor of the external string resource.
-   */
-  V8EXPORT static Local<String> NewExternal(
+   */ V8EXPORT static Local<String> NewExternal(
       ExternalAsciiStringResource* resource);
 
   /**
@@ -1322,24 +1261,6 @@ class String : public Primitive {
    */
   V8EXPORT bool MakeExternal(ExternalAsciiStringResource* resource);
 
-
-  /**
-   * Creates a new external string using the Latin1-encoded data defined in the
-   * given resource.  When the external string is no longer live on V8's heap
-   * the resource will be disposed by calling its Dispose method. The caller of
-   * this function should not otherwise delete or modify the resource. Neither
-   * should the underlying buffer be deallocated or modified except through the
-   * destructor of the external string resource.
-   * If the data contains a non-ASCII character, the string is created as a new
-   * string object on the V8 heap and the Dispose method is called on the
-   * resource immediately.  This is because V8 is unable to handle non-ASCII
-   * Latin1-encoded strings internally.
-   */
-  V8EXPORT static Local<String> NewExternal(
-      ExternalLatin1StringResource* resource,
-      int encoding = String::LATIN1_ENCODING);
-
-
   /**
    * Returns true if this string can be made external.
    */
@@ -1347,13 +1268,11 @@ class String : public Primitive {
 
   /** Creates an undetectable string from the supplied ASCII or UTF-8 data.*/
   V8EXPORT static Local<String> NewUndetectable(const char* data,
-                                                int length = kUndefinedLength,
-                                                int encoding = UTF_8_ENCODING);
+                                                int length = -1);
 
-  /** Creates an undetectable string from the supplied 16-bit UTF16 code units.
-   */
+  /** Creates an undetectable string from the supplied 16-bit character codes.*/
   V8EXPORT static Local<String> NewUndetectable(const uint16_t* data,
-                                                int length = kUndefinedLength);
+                                                int length = -1);
 
   /**
    * Converts an object to a UTF-8-encoded character array.  Useful if
@@ -1424,9 +1343,7 @@ class String : public Primitive {
   };
 
  private:
-  V8EXPORT void VerifyExternalStringEncoding(int encoding) const;
-  V8EXPORT void VerifyExternalStringResourceBase(
-      ExternalStringResourceBase* val) const;
+  V8EXPORT void VerifyExternalStringResource(ExternalStringResource* val) const;
   V8EXPORT static void CheckCast(v8::Value* obj);
 };
 
@@ -4117,9 +4034,6 @@ class Internals {
   static const int kJSObjectHeaderSize = 3 * kApiPointerSize;
   static const int kFullStringRepresentationMask = 0x07;
   static const int kExternalTwoByteRepresentationTag = 0x02;
-  static const int kExternalAsciiRepresentationTag = 0x06;
-  static const int kExternalAsciiDataHintMask = 0x08;
-  static const int kExternalAsciiDataHintTag = 0x08;
 
   static const int kIsolateStateOffset = 0;
   static const int kIsolateEmbedderDataOffset = 1 * kApiPointerSize;
@@ -4175,6 +4089,11 @@ class Internals {
     } else {
       return NULL;
     }
+  }
+
+  static inline bool IsExternalTwoByteString(int instance_type) {
+    int representation = (instance_type & kFullStringRepresentationMask);
+    return representation == kExternalTwoByteRepresentationTag;
   }
 
   static inline bool IsInitialized(v8::Isolate* isolate) {
@@ -4454,56 +4373,16 @@ Local<String> String::Empty(Isolate* isolate) {
 String::ExternalStringResource* String::GetExternalStringResource() const {
   typedef internal::Object O;
   typedef internal::Internals I;
-  String::ExternalStringResource* result = NULL;
   O* obj = *reinterpret_cast<O**>(const_cast<String*>(this));
-  if ((I::GetInstanceType(obj) & I::kFullStringRepresentationMask) ==
-      I::kExternalTwoByteRepresentationTag) {
-    result = reinterpret_cast<String::ExternalStringResource*>(
-                 GetExternalStringResourceBase());
-  }
-  return result;
-}
-
-
-int String::GetExternalStringEncoding() const {
-  typedef internal::Object O;
-  typedef internal::Internals I;
-  O* obj = *reinterpret_cast<O**>(const_cast<String*>(this));
-  static const int kRepresentationAndHintMask =
-      I::kFullStringRepresentationMask | I::kExternalAsciiDataHintMask;
-
-  int encoding;
-  switch (I::GetInstanceType(obj) & kRepresentationAndHintMask) {
-    case I::kExternalTwoByteRepresentationTag | I::kExternalAsciiDataHintTag:
-      encoding = UTF_16_ENCODING | ASCII_HINT;
-      break;
-    case I::kExternalTwoByteRepresentationTag:
-      encoding = UTF_16_ENCODING | NOT_ASCII_HINT;
-      break;
-    case I::kExternalAsciiRepresentationTag:
-      encoding = LATIN1_ENCODING | ASCII_HINT;
-      break;
-    default:
-      encoding = INVALID_ENCODING;
-      break;
+  String::ExternalStringResource* result;
+  if (I::IsExternalTwoByteString(I::GetInstanceType(obj))) {
+    void* value = I::ReadField<void*>(obj, I::kStringResourceOffset);
+    result = reinterpret_cast<String::ExternalStringResource*>(value);
+  } else {
+    result = NULL;
   }
 #ifdef V8_ENABLE_CHECKS
-  VerifyExternalStringEncoding(encoding);
-#endif
-  return encoding;
-}
-
-
-String::ExternalStringResourceBase* String::GetExternalStringResourceBase()
-    const {
-  typedef internal::Object O;
-  typedef internal::Internals I;
-  O* obj = *reinterpret_cast<O**>(const_cast<String*>(this));
-  void* value = I::ReadField<void*>(obj, I::kStringResourceOffset);
-  ExternalStringResourceBase* result =
-      reinterpret_cast<String::ExternalStringResourceBase*>(value);
-#ifdef V8_ENABLE_CHECKS
-  VerifyExternalStringResourceBase(result);
+  VerifyExternalStringResource(result);
 #endif
   return result;
 }

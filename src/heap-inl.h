@@ -83,38 +83,15 @@ void PromotionQueue::ActivateGuardIfOnTheSamePage() {
 
 
 MaybeObject* Heap::AllocateStringFromUtf8(Vector<const char> str,
-                                          PretenureFlag pretenure,
-                                          String::AsciiHint ascii_hint) {
-  if ((ascii_hint == String::MAYBE_ASCII &&
-       String::IsAscii(str.start(), str.length())) ||
-      ascii_hint == String::ASCII) {
-    // Assert that the ASCII-hint is correct.
-    ASSERT(ascii_hint != String::ASCII ||
-           String::IsAscii(str.start(), str.length()));
+                                          PretenureFlag pretenure) {
+  // Check for ASCII first since this is the common case.
+  if (String::IsAscii(str.start(), str.length())) {
     // If the string is ASCII, we do not need to convert the characters
     // since UTF8 is backwards compatible with ASCII.
     return AllocateStringFromAscii(str, pretenure);
   }
   // Non-ASCII and we need to decode.
   return AllocateStringFromUtf8Slow(str, pretenure);
-}
-
-
-MaybeObject* Heap::AllocateStringFromLatin1(Vector<const char> str,
-                                            PretenureFlag pretenure,
-                                            String::AsciiHint ascii_hint) {
-  if ((ascii_hint == String::MAYBE_ASCII &&
-        String::IsAscii(str.start(), str.length())) ||
-       ascii_hint == String::ASCII) {
-     // Assert that the strict ASCII-hint is correct.
-     ASSERT(ascii_hint != String::ASCII ||
-            String::IsAscii(str.start(), str.length()));
-     // If the string is ASCII, we do not need to convert the characters
-     // since Latin1 is backwards compatible with ASCII.
-     return AllocateStringFromAscii(str, pretenure);
-  }
-  // Non-ASCII and we need to decode.
-  return AllocateStringFromLatin1Slow(str, pretenure);
 }
 
 
