@@ -33,7 +33,7 @@ function test() {
   return Math.min(x, x);
 }
 
-assertEquals(-1, test());
-assertEquals(-1, test());
+assertEquals(0, test());
+assertEquals(0, test());
 %OptimizeFunctionOnNextCall(test);
-assertEquals(-1, test());
+assertEquals(0, test());
