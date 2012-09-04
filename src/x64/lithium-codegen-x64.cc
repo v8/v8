@@ -1421,6 +1421,11 @@ void LCodeGen::DoMathMinMax(LMathMinMax* instr) {
       __ cmpq(left_reg, right_imm);
       __ j(condition, &return_left, Label::kNear);
       __ movq(left_reg, right_imm);
+    } else if (right->IsRegister()) {
+      Register right_reg = ToRegister(right);
+      __ cmpq(left_reg, right_reg);
+      __ j(condition, &return_left, Label::kNear);
+      __ movq(left_reg, right_reg);
     } else {
       Operand right_op = ToOperand(right);
       __ cmpq(left_reg, right_op);
