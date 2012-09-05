@@ -71,7 +71,7 @@
     'v8_enable_disassembler%': 0,
 
     # Enable extra checks in API functions and other strategic places.
-    'v8_enable_extra_checks%' 1,
+    'v8_enable_extra_checks%': 1,
 
     'v8_object_print%': 0,
 
