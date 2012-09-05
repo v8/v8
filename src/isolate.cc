@@ -535,6 +535,24 @@ Handle<String> Isolate::StackTraceString() {
 }
 
 
+void Isolate::PushStackTraceAndDie(unsigned int magic,
+                                   Object* object,
+                                   Map* map,
+                                   unsigned int magic2) {
+  const int kMaxStackTraceSize = 8192;
+  Handle<String> trace = StackTraceString();
+  char buffer[kMaxStackTraceSize];
+  int length = Min(kMaxStackTraceSize - 1, trace->length());
+  String::WriteToFlat(*trace, buffer, 0, length);
+  buffer[length] = '\0';
+  OS::PrintError("Stacktrace (%x-%x) %p %p: %s\n",
+                 magic, magic2,
+                 static_cast<void*>(object), static_cast<void*>(map),
+                 buffer);
+  OS::Abort();
+}
+
+
 void Isolate::CaptureAndSetCurrentStackTraceFor(Handle<JSObject> error_object) {
   if (capture_stack_trace_for_uncaught_exceptions_) {
     // Capture stack trace for a detailed exception message.

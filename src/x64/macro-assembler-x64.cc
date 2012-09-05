@@ -751,6 +751,41 @@ void MacroAssembler::CallApiFunctionAndReturn(Address function_address,
   Cmp(Operand(rsi, 0), factory->the_hole_value());
   j(not_equal, &promote_scheduled_exception);
 
+#if ENABLE_EXTRA_CHECKS
+  // Check if the function returned a valid JavaScript value.
+  Label ok;
+  Register return_value = rax;
+  Register map = rcx;
+
+  JumpIfSmi(return_value, &ok, Label::kNear);
+  movq(map, FieldOperand(return_value, HeapObject::kMapOffset));
+
+  CmpInstanceType(map, FIRST_NONSTRING_TYPE);
+  j(below, &ok, Label::kNear);
+
+  CmpInstanceType(map, FIRST_SPEC_OBJECT_TYPE);
+  j(above_equal, &ok, Label::kNear);
+
+  CompareRoot(map, Heap::kHeapNumberMapRootIndex);
+  j(equal, &ok, Label::kNear);
+
+  CompareRoot(return_value, Heap::kUndefinedValueRootIndex);
+  j(equal, &ok, Label::kNear);
+
+  CompareRoot(return_value, Heap::kTrueValueRootIndex);
+  j(equal, &ok, Label::kNear);
+
+  CompareRoot(return_value, Heap::kFalseValueRootIndex);
+  j(equal, &ok, Label::kNear);
+
+  CompareRoot(return_value, Heap::kNullValueRootIndex);
+  j(equal, &ok, Label::kNear);
+
+  Abort("API call returned invalid object");
+
+  bind(&ok);
+#endif
+
   LeaveApiExitFrame();
   ret(stack_space * kPointerSize);
 

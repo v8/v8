@@ -1939,6 +1939,42 @@ void MacroAssembler::CallApiFunctionAndReturn(Address function_address,
   cmp(Operand::StaticVariable(scheduled_exception_address),
       Immediate(isolate()->factory()->the_hole_value()));
   j(not_equal, &promote_scheduled_exception);
+
+#if ENABLE_EXTRA_CHECKS
+  // Check if the function returned a valid JavaScript value.
+  Label ok;
+  Register return_value = eax;
+  Register map = ecx;
+
+  JumpIfSmi(return_value, &ok, Label::kNear);
+  mov(map, FieldOperand(return_value, HeapObject::kMapOffset));
+
+  CmpInstanceType(map, FIRST_NONSTRING_TYPE);
+  j(below, &ok, Label::kNear);
+
+  CmpInstanceType(map, FIRST_SPEC_OBJECT_TYPE);
+  j(above_equal, &ok, Label::kNear);
+
+  cmp(map, isolate()->factory()->heap_number_map());
+  j(equal, &ok, Label::kNear);
+
+  cmp(return_value, isolate()->factory()->undefined_value());
+  j(equal, &ok, Label::kNear);
+
+  cmp(return_value, isolate()->factory()->true_value());
+  j(equal, &ok, Label::kNear);
+
+  cmp(return_value, isolate()->factory()->false_value());
+  j(equal, &ok, Label::kNear);
+
+  cmp(return_value, isolate()->factory()->null_value());
+  j(equal, &ok, Label::kNear);
+
+  Abort("API call returned invalid object");
+
+  bind(&ok);
+#endif
+
   LeaveApiExitFrame();
   ret(stack_space * kPointerSize);
 

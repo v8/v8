@@ -707,6 +707,10 @@ class Isolate {
   void PrintStack(StringStream* accumulator);
   void PrintStack();
   Handle<String> StackTraceString();
+  NO_INLINE(void PushStackTraceAndDie(unsigned int magic,
+                                      Object* object,
+                                      Map* map,
+                                      unsigned int magic2));
   Handle<JSArray> CaptureCurrentStackTrace(
       int frame_limit,
       StackTrace::StackTraceOptions options);
