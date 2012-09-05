@@ -1478,6 +1478,24 @@ class InspectionShell(cmd.Cmd):
     self.padawan = InspectionPadawan(reader, heap)
     self.prompt = "(grok) "
 
+  def do_da(self, address):
+    """
+     Print ASCII string starting at specified address.
+    """
+    address = int(address, 16)
+    string = ""
+    while self.reader.IsValidAddress(address):
+      code = self.reader.ReadU8(address)
+      if code < 128:
+        string += chr(code)
+      else:
+        break
+      address += 1
+    if string == "":
+      print "Not an ASCII string at %s" % self.reader.FormatIntPtr(address)
+    else:
+      print "%s\n" % string
+
   def do_dd(self, address):
     """
      Interpret memory at the given address (if available) as a sequence
@@ -1528,24 +1546,6 @@ class InspectionShell(cmd.Cmd):
     else:
       print "Page header is not available!"
 
-  def do_da(self, address):
-    """
-     Print ASCII string starting at specified address.
-    """
-    address = int(address, 16)
-    string = ""
-    while self.reader.IsValidAddress(address):
-      code = self.reader.ReadU8(address)
-      if code < 128:
-        string += chr(code)
-      else:
-        break
-      address += 1
-    if string == "":
-      print "Not an ASCII string at %s" % self.reader.FormatIntPtr(address)
-    else:
-      print "%s\n" % string
-
   def do_k(self, arguments):
     """
      Teach V8 heap layout information to the inspector. This increases
@@ -1554,15 +1554,6 @@ class InspectionShell(cmd.Cmd):
      because it contains known objects that do not move.
     """
     self.padawan.PrintKnowledge()
-
-  def do_km(self, address):
-    """
-     Teach V8 heap layout information to the inspector. Set the first
-     map-space page by passing any pointer into that page.
-    """
-    address = int(address, 16)
-    page_address = address & ~self.heap.PageAlignmentMask()
-    self.padawan.known_first_map_page = page_address
 
   def do_kd(self, address):
     """
@@ -1573,6 +1564,15 @@ class InspectionShell(cmd.Cmd):
     page_address = address & ~self.heap.PageAlignmentMask()
     self.padawan.known_first_data_page = page_address
 
+  def do_km(self, address):
+    """
+     Teach V8 heap layout information to the inspector. Set the first
+     map-space page by passing any pointer into that page.
+    """
+    address = int(address, 16)
+    page_address = address & ~self.heap.PageAlignmentMask()
+    self.padawan.known_first_map_page = page_address
+
   def do_kp(self, address):
     """
      Teach V8 heap layout information to the inspector. Set the first
@@ -1581,6 +1581,17 @@ class InspectionShell(cmd.Cmd):
     address = int(address, 16)
     page_address = address & ~self.heap.PageAlignmentMask()
     self.padawan.known_first_pointer_page = page_address
+
+  def do_list(self, smth):
+    """
+     List all available memory regions.
+    """
+    def print_region(reader, start, size, location):
+      print "  %s - %s (%d bytes)" % (reader.FormatIntPtr(start),
+                                      reader.FormatIntPtr(start + size),
+                                      size)
+    print "Available memory regions:"
+    self.reader.ForEachMemoryRegion(print_region)
 
   def do_s(self, word):
     """
@@ -1605,17 +1616,18 @@ class InspectionShell(cmd.Cmd):
     """
     raise NotImplementedError
 
-  def do_list(self, smth):
+  def do_u(self, args):
     """
-     List all available memory regions.
+     u 0x<address> 0x<size>
+     Unassemble memory in the region [address, address + size)
     """
-    def print_region(reader, start, size, location):
-      print "  %s - %s (%d bytes)" % (reader.FormatIntPtr(start),
-                                      reader.FormatIntPtr(start + size),
-                                      size)
-    print "Available memory regions:"
-    self.reader.ForEachMemoryRegion(print_region)
-
+    args = args.split(' ')
+    start = int(args[0], 16)
+    size = int(args[1], 16)
+    lines = self.reader.GetDisasmLines(start, size)
+    for line in lines:
+      print FormatDisasmLine(start, self.heap, line)
+    print
 
 EIP_PROXIMITY = 64
 
