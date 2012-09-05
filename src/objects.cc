@@ -210,7 +210,20 @@ MaybeObject* JSObject::GetPropertyWithCallback(Object* receiver,
     if (result.IsEmpty()) {
       return isolate->heap()->undefined_value();
     }
-    return *v8::Utils::OpenHandle(*result);
+    Object* return_value = *v8::Utils::OpenHandle(*result);
+#if ENABLE_EXTRA_CHECKS
+    if (!(return_value->IsSmi() ||
+          return_value->IsString() ||
+          return_value->IsSpecObject() ||
+          return_value->IsHeapNumber() ||
+          return_value->IsUndefined() ||
+          return_value->IsTrue() ||
+          return_value->IsFalse() ||
+          return_value->IsNull())) {
+      FATAL("API call returned invalid object");
+    }
+#endif
+    return return_value;
   }
 
   // __defineGetter__ callback
