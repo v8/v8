@@ -159,6 +159,27 @@ class RegisteredExtension {
 };
 
 
+#define OPEN_HANDLE_LIST(V)                    \
+  V(Template, TemplateInfo)                    \
+  V(FunctionTemplate, FunctionTemplateInfo)    \
+  V(ObjectTemplate, ObjectTemplateInfo)        \
+  V(Signature, SignatureInfo)                  \
+  V(AccessorSignature, FunctionTemplateInfo)   \
+  V(TypeSwitch, TypeSwitchInfo)                \
+  V(Data, Object)                              \
+  V(RegExp, JSRegExp)                          \
+  V(Object, JSObject)                          \
+  V(Array, JSArray)                            \
+  V(String, String)                            \
+  V(Script, Object)                            \
+  V(Function, JSFunction)                      \
+  V(Message, JSObject)                         \
+  V(Context, Context)                          \
+  V(External, Foreign)                         \
+  V(StackTrace, JSArray)                       \
+  V(StackFrame, JSObject)
+
+
 class Utils {
  public:
   static bool ReportApiFailure(const char* location, const char* message);
@@ -205,42 +226,13 @@ class Utils {
   static inline Local<TypeSwitch> ToLocal(
       v8::internal::Handle<v8::internal::TypeSwitchInfo> obj);
 
-  static inline v8::internal::Handle<v8::internal::TemplateInfo>
-      OpenHandle(const Template* that);
-  static inline v8::internal::Handle<v8::internal::FunctionTemplateInfo>
-      OpenHandle(const FunctionTemplate* that);
-  static inline v8::internal::Handle<v8::internal::ObjectTemplateInfo>
-      OpenHandle(const ObjectTemplate* that);
-  static inline v8::internal::Handle<v8::internal::Object>
-      OpenHandle(const Data* data);
-  static inline v8::internal::Handle<v8::internal::JSRegExp>
-      OpenHandle(const RegExp* data);
-  static inline v8::internal::Handle<v8::internal::JSObject>
-      OpenHandle(const v8::Object* data);
-  static inline v8::internal::Handle<v8::internal::JSArray>
-      OpenHandle(const v8::Array* data);
-  static inline v8::internal::Handle<v8::internal::String>
-      OpenHandle(const String* data);
-  static inline v8::internal::Handle<v8::internal::Object>
-      OpenHandle(const Script* data);
-  static inline v8::internal::Handle<v8::internal::JSFunction>
-      OpenHandle(const Function* data);
-  static inline v8::internal::Handle<v8::internal::JSObject>
-      OpenHandle(const Message* message);
-  static inline v8::internal::Handle<v8::internal::JSArray>
-      OpenHandle(const StackTrace* stack_trace);
-  static inline v8::internal::Handle<v8::internal::JSObject>
-      OpenHandle(const StackFrame* stack_frame);
-  static inline v8::internal::Handle<v8::internal::Context>
-      OpenHandle(const v8::Context* context);
-  static inline v8::internal::Handle<v8::internal::SignatureInfo>
-      OpenHandle(const v8::Signature* sig);
-  static inline v8::internal::Handle<v8::internal::FunctionTemplateInfo>
-      OpenHandle(const v8::AccessorSignature* sig);
-  static inline v8::internal::Handle<v8::internal::TypeSwitchInfo>
-      OpenHandle(const v8::TypeSwitch* that);
-  static inline v8::internal::Handle<v8::internal::Foreign>
-      OpenHandle(const v8::External* that);
+#define DECLARE_OPEN_HANDLE(From, To) \
+  static inline v8::internal::Handle<v8::internal::To> \
+      OpenHandle(const From* that, bool allow_empty_handle = false);
+
+OPEN_HANDLE_LIST(DECLARE_OPEN_HANDLE)
+
+#undef DECLARE_OPEN_HANDLE
 };
 
 
@@ -257,7 +249,7 @@ v8::internal::Handle<T> v8::internal::Handle<T>::EscapeFrom(
   if (!is_null()) {
     handle = *this;
   }
-  return Utils::OpenHandle(*scope->Close(Utils::ToLocal(handle)));
+  return Utils::OpenHandle(*scope->Close(Utils::ToLocal(handle)), true);
 }
 
 
@@ -294,33 +286,18 @@ MAKE_TO_LOCAL(Uint32ToLocal, Object, Uint32)
 
 // Implementations of OpenHandle
 
-#define MAKE_OPEN_HANDLE(From, To) \
-  v8::internal::Handle<v8::internal::To> Utils::OpenHandle(\
-    const v8::From* that) { \
-    return v8::internal::Handle<v8::internal::To>( \
+#define MAKE_OPEN_HANDLE(From, To)                                          \
+  v8::internal::Handle<v8::internal::To> Utils::OpenHandle(                 \
+    const v8::From* that, bool allow_empty_handle) {                        \
+    EXTRA_CHECK(allow_empty_handle || that != NULL);                        \
+    return v8::internal::Handle<v8::internal::To>(                          \
         reinterpret_cast<v8::internal::To**>(const_cast<v8::From*>(that))); \
   }
 
-MAKE_OPEN_HANDLE(Template, TemplateInfo)
-MAKE_OPEN_HANDLE(FunctionTemplate, FunctionTemplateInfo)
-MAKE_OPEN_HANDLE(ObjectTemplate, ObjectTemplateInfo)
-MAKE_OPEN_HANDLE(Signature, SignatureInfo)
-MAKE_OPEN_HANDLE(AccessorSignature, FunctionTemplateInfo)
-MAKE_OPEN_HANDLE(TypeSwitch, TypeSwitchInfo)
-MAKE_OPEN_HANDLE(Data, Object)
-MAKE_OPEN_HANDLE(RegExp, JSRegExp)
-MAKE_OPEN_HANDLE(Object, JSObject)
-MAKE_OPEN_HANDLE(Array, JSArray)
-MAKE_OPEN_HANDLE(String, String)
-MAKE_OPEN_HANDLE(Script, Object)
-MAKE_OPEN_HANDLE(Function, JSFunction)
-MAKE_OPEN_HANDLE(Message, JSObject)
-MAKE_OPEN_HANDLE(Context, Context)
-MAKE_OPEN_HANDLE(External, Foreign)
-MAKE_OPEN_HANDLE(StackTrace, JSArray)
-MAKE_OPEN_HANDLE(StackFrame, JSObject)
+OPEN_HANDLE_LIST(MAKE_OPEN_HANDLE)
 
 #undef MAKE_OPEN_HANDLE
+#undef OPEN_HANDLE_LIST
 
 
 namespace internal {
