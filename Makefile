@@ -61,6 +61,13 @@ endif
 ifeq ($(snapshot), off)
   GYPFLAGS += -Dv8_use_snapshot='false'
 endif
+# extrachecks=on/off
+ifeq ($(extrachecks), on)
+  GYPFLAGS += -Dv8_enable_extra_checks=1
+endif
+ifeq ($(extrachecks), off)
+  GYPFLAGS += -Dv8_enable_extra_checks=0
+endif
 # gdbjit=on
 ifeq ($(gdbjit), on)
   GYPFLAGS += -Dv8_enable_gdbjit=1

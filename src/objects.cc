@@ -141,6 +141,9 @@ void Object::Lookup(String* name, LookupResult* result) {
       holder = global_context->string_function()->instance_prototype();
     } else if (IsBoolean()) {
       holder = global_context->boolean_function()->instance_prototype();
+    } else {
+      Isolate::Current()->PushStackTraceAndDie(
+          0xDEAD0000, this, JSReceiver::cast(this)->map(), 0xDEAD0001);
     }
   }
   ASSERT(holder != NULL);  // Cannot handle null or undefined.
@@ -206,7 +209,20 @@ MaybeObject* JSObject::GetPropertyWithCallback(Object* receiver,
     if (result.IsEmpty()) {
       return isolate->heap()->undefined_value();
     }
-    return *v8::Utils::OpenHandle(*result);
+    Object* return_value = *v8::Utils::OpenHandle(*result);
+#if ENABLE_EXTRA_CHECKS
+    if (!(return_value->IsSmi() ||
+          return_value->IsString() ||
+          return_value->IsSpecObject() ||
+          return_value->IsHeapNumber() ||
+          return_value->IsUndefined() ||
+          return_value->IsTrue() ||
+          return_value->IsFalse() ||
+          return_value->IsNull())) {
+      FATAL("API call returned invalid object");
+    }
+#endif
+    return return_value;
   }
 
   // __defineGetter__ callback
