@@ -1,3 +1,22 @@
+2012-09-06: Version 3.13.6
+
+        Added validity checking to API functions and calls.
+
+        Disabled accessor inlining (Chromium issue 134609).
+
+        Fixed bug in Math.min/max in optimized code (Chromium issue 145961).
+
+        Directly use %ObjectKeys in json stringify (Chromium issue 2312).
+
+        Fixed VS2005 build (issue 2313).
+
+        Activated fixed ES5 readonly semantics by default.
+
+        Added hardfp flag to the Makefile.
+
+        Performance and stability improvements on all platforms.
+
+
 2012-08-29: Version 3.13.5
 
         Release stack trace data after firing Error.stack accessor.
