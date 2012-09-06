@@ -1323,15 +1323,9 @@ static bool LookupForWrite(Handle<JSObject> receiver,
     receiver->map()->LookupTransition(*receiver, *name, lookup);
   }
   if (!StoreICableLookup(lookup)) {
-    // 2nd chance: There can be accessors somewhere in the prototype chain. Note
-    // that we explicitly exclude native accessors for now, because the stubs
-    // are not yet prepared for this scenario.
+    // 2nd chance: There can be accessors somewhere in the prototype chain.
     receiver->Lookup(*name, lookup);
-    if (!lookup->IsPropertyCallbacks()) {
-      return false;
-    }
-    Handle<Object> callback(lookup->GetCallbackObject());
-    return StoreICableLookup(lookup);
+    return lookup->IsPropertyCallbacks() && StoreICableLookup(lookup);
   }
 
   if (lookup->IsInterceptor() &&

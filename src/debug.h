@@ -257,6 +257,9 @@ class Debug {
 
   void PrepareForBreakPoints();
 
+  // This function is used in FunctionNameUsing* tests.
+  Object* FindSharedFunctionInfoInScript(Handle<Script> script, int position);
+
   // Returns whether the operation succeeded. Compilation can only be triggered
   // if a valid closure is passed as the second argument, otherwise the shared
   // function needs to be compiled already.

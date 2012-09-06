@@ -5313,51 +5313,44 @@ void MacroAssembler::LoadInstanceDescriptors(Register map,
 }
 
 
+void MacroAssembler::EnumLength(Register dst, Register map) {
+  STATIC_ASSERT(Map::EnumLengthBits::kShift == 0);
+  lw(dst, FieldMemOperand(map, Map::kBitField3Offset));
+  And(dst, dst, Operand(Smi::FromInt(Map::EnumLengthBits::kMask)));
+}
+
+
 void MacroAssembler::CheckEnumCache(Register null_value, Label* call_runtime) {
-  Label next;
-  // Preload a couple of values used in the loop.
   Register  empty_fixed_array_value = t2;
   LoadRoot(empty_fixed_array_value, Heap::kEmptyFixedArrayRootIndex);
-  mov(a1, a0);
+  Label next, start;
+  mov(a2, a0);
+
+  // Check if the enum length field is properly initialized, indicating that
+  // there is an enum cache.
+  lw(a1, FieldMemOperand(a2, HeapObject::kMapOffset));
+
+  EnumLength(a3, a1);
+  Branch(call_runtime, eq, a3, Operand(Smi::FromInt(Map::kInvalidEnumCache)));
+
+  jmp(&start);
+
   bind(&next);
-
-  // Check that there are no elements.  Register a1 contains the
-  // current JS object we've reached through the prototype chain.
-  lw(a2, FieldMemOperand(a1, JSObject::kElementsOffset));
-  Branch(call_runtime, ne, a2, Operand(empty_fixed_array_value));
-
-  // Check that instance descriptors are not empty so that we can
-  // check for an enum cache.  Leave the map in a2 for the subsequent
-  // prototype load.
-  lw(a2, FieldMemOperand(a1, HeapObject::kMapOffset));
-  lw(a3, FieldMemOperand(a2, Map::kTransitionsOrBackPointerOffset));
-
-  CheckMap(a3,
-           t3,
-           isolate()->factory()->fixed_array_map(),
-           call_runtime,
-           DONT_DO_SMI_CHECK);
-
-  LoadRoot(t3, Heap::kEmptyDescriptorArrayRootIndex);
-  lw(a3, FieldMemOperand(a3, TransitionArray::kDescriptorsOffset));
-  Branch(call_runtime, eq, a3, Operand(t3));
-
-  // Check that there is an enum cache in the non-empty instance
-  // descriptors (a3).  This is the case if the next enumeration
-  // index field does not contain a smi.
-  lw(a3, FieldMemOperand(a3, DescriptorArray::kEnumCacheOffset));
-  JumpIfSmi(a3, call_runtime);
+  lw(a1, FieldMemOperand(a2, HeapObject::kMapOffset));
 
   // For all objects but the receiver, check that the cache is empty.
-  Label check_prototype;
-  Branch(&check_prototype, eq, a1, Operand(a0));
-  lw(a3, FieldMemOperand(a3, DescriptorArray::kEnumCacheBridgeCacheOffset));
-  Branch(call_runtime, ne, a3, Operand(empty_fixed_array_value));
+  EnumLength(a3, a1);
+  Branch(call_runtime, ne, a3, Operand(Smi::FromInt(0)));
 
-  // Load the prototype from the map and loop if non-null.
-  bind(&check_prototype);
-  lw(a1, FieldMemOperand(a2, Map::kPrototypeOffset));
-  Branch(&next, ne, a1, Operand(null_value));
+  bind(&start);
+
+  // Check that there are no elements. Register r2 contains the current JS
+  // object we've reached through the prototype chain.
+  lw(a2, FieldMemOperand(a2, JSObject::kElementsOffset));
+  Branch(call_runtime, ne, a2, Operand(empty_fixed_array_value));
+
+  lw(a2, FieldMemOperand(a1, Map::kPrototypeOffset));
+  Branch(&next, ne, a2, Operand(null_value));
 }
 
 

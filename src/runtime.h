@@ -696,11 +696,6 @@ class Runtime : public AllStatic {
       Handle<Object> object,
       Handle<Object> key);
 
-  // This function is used in FunctionNameUsing* tests.
-  static Object* FindSharedFunctionInfoInScript(Isolate* isolate,
-                                                Handle<Script> script,
-                                                int position);
-
   // Helper functions used stubs.
   static void PerformGC(Object* result);
 

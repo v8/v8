@@ -11127,21 +11127,28 @@ static void event_handler(const v8::JitCodeEvent* event) {
       break;
 
     case v8::JitCodeEvent::CODE_MOVED: {
-        ++move_events;
-
         uint32_t hash = i::ComputePointerHash(event->code_start);
-        // We should never see code move that we haven't seen before.
+        // We would like to never see code move that we haven't seen before,
+        // but the code creation event does not happen until the line endings
+        // have been calculated (this is so that we can report the line in the
+        // script at which the function source is found, see
+        // Compiler::RecordFunctionCompilation) and the line endings
+        // calculations can cause a GC, which can move the newly created code
+        // before its existence can be logged.
         i::HashMap::Entry* entry =
             code_map->Lookup(event->code_start, hash, false);
-        CHECK(entry != NULL);
-        CHECK_EQ(reinterpret_cast<void*>(event->code_len), entry->value);
-        code_map->Remove(event->code_start, hash);
+        if (entry != NULL) {
+          ++move_events;
 
-        entry = code_map->Lookup(event->new_code_start,
-                                 i::ComputePointerHash(event->new_code_start),
-                                 true);
-        CHECK(entry != NULL);
-        entry->value = reinterpret_cast<void*>(event->code_len);
+          CHECK_EQ(reinterpret_cast<void*>(event->code_len), entry->value);
+          code_map->Remove(event->code_start, hash);
+
+          entry = code_map->Lookup(event->new_code_start,
+                                   i::ComputePointerHash(event->new_code_start),
+                                   true);
+          CHECK(entry != NULL);
+          entry->value = reinterpret_cast<void*>(event->code_len);
+        }
       }
       break;
 

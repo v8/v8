@@ -59,7 +59,7 @@ else
 endif
 
 TOOLCHAIN_PATH = ${ANDROID_NDK_ROOT}/toolchains/${TOOLCHAIN_ARCH}/prebuilt
-ANDROID_TOOLCHAIN = ${TOOLCHAIN_PATH}/${TOOLCHAIN_DIR}/bin
+ANDROID_TOOLCHAIN ?= ${TOOLCHAIN_PATH}/${TOOLCHAIN_DIR}
 ifeq ($(wildcard $(ANDROID_TOOLCHAIN)),)
   $(error Cannot find Android toolchain in "${ANDROID_TOOLCHAIN}")
 endif
@@ -70,12 +70,12 @@ DEFINES += host_os=${HOST_OS}
 .SECONDEXPANSION:
 $(ANDROID_BUILDS): $(OUTDIR)/Makefile.$$(basename $$@)
 	@$(MAKE) -C "$(OUTDIR)" -f Makefile.$(basename $@) \
-	            CXX="$(ANDROID_TOOLCHAIN)/*-g++" \
-	            AR="$(ANDROID_TOOLCHAIN)/*-ar" \
-	            RANLIB="$(ANDROID_TOOLCHAIN)/*-ranlib" \
-	            CC="$(ANDROID_TOOLCHAIN)/*-gcc" \
-	            LD="$(ANDROID_TOOLCHAIN)/*-ld" \
-	            LINK="$(ANDROID_TOOLCHAIN)/*-g++" \
+	            CXX="$(ANDROID_TOOLCHAIN)/bin/*-g++" \
+	            AR="$(ANDROID_TOOLCHAIN)/bin/*-ar" \
+	            RANLIB="$(ANDROID_TOOLCHAIN)/bin/*-ranlib" \
+	            CC="$(ANDROID_TOOLCHAIN)/bin/*-gcc" \
+	            LD="$(ANDROID_TOOLCHAIN)/bin/*-ld" \
+	            LINK="$(ANDROID_TOOLCHAIN)/bin/*-g++" \
 	            BUILDTYPE=$(shell echo $(subst .,,$(suffix $@)) | \
 	                        python -c "print raw_input().capitalize()") \
 	            builddir="$(shell pwd)/$(OUTDIR)/$@"
@@ -85,8 +85,8 @@ ANDROID_MAKEFILES = $(addprefix $(OUTDIR)/Makefile.,$(ANDROID_ARCHES))
 $(ANDROID_MAKEFILES):
 	@GYP_GENERATORS=make-android \
 	GYP_DEFINES="${DEFINES}" \
-	CC="${ANDROID_TOOLCHAIN}/*-gcc" \
-	CXX="${ANDROID_TOOLCHAIN}/*-g++" \
+	CC="${ANDROID_TOOLCHAIN}/bin/*-gcc" \
+	CXX="${ANDROID_TOOLCHAIN}/bin/*-g++" \
 	build/gyp/gyp --generator-output="${OUTDIR}" build/all.gyp \
 	              -Ibuild/standalone.gypi --depth=. -Ibuild/android.gypi \
 	              -S.${ARCH} ${GYPFLAGS}

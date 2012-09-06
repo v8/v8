@@ -3128,7 +3128,9 @@ class StringDictionary: public Dictionary<StringDictionaryShape, String*> {
   }
 
   // Copies enumerable keys to preallocated fixed array.
-  void CopyEnumKeysTo(FixedArray* storage, FixedArray* sort_array);
+  FixedArray* CopyEnumKeysTo(FixedArray* storage);
+  static void DoGenerateNewEnumerationIndices(
+      Handle<StringDictionary> dictionary);
 
   // For transforming properties of a JSObject.
   MUST_USE_RESULT MaybeObject* TransformPropertiesToFastFor(

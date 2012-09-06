@@ -2413,17 +2413,12 @@ class FixedArrayBuilder {
     return array_->length();
   }
 
-  Handle<JSArray> ToJSArray() {
-    Handle<JSArray> result_array = FACTORY->NewJSArrayWithElements(array_);
-    result_array->set_length(Smi::FromInt(length_));
-    return result_array;
-  }
-
   Handle<JSArray> ToJSArray(Handle<JSArray> target_array) {
     FACTORY->SetContent(target_array, array_);
     target_array->set_length(Smi::FromInt(length_));
     return target_array;
   }
+
 
  private:
   Handle<FixedArray> array_;
@@ -2541,10 +2536,6 @@ class ReplacementStringBuilder {
       V8::FatalProcessOutOfMemory("String.replace result too large.");
     }
     character_count_ += by;
-  }
-
-  Handle<JSArray> GetParts() {
-    return array_builder_.ToJSArray();
   }
 
  private:
@@ -3667,20 +3658,56 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringMatch) {
 // Only called from Runtime_RegExpExecMultiple so it doesn't need to maintain
 // separate last match info.  See comment on that function.
 template<bool has_capture>
-static int SearchRegExpMultiple(
+static MaybeObject* SearchRegExpMultiple(
     Isolate* isolate,
     Handle<String> subject,
     Handle<JSRegExp> regexp,
     Handle<JSArray> last_match_array,
-    FixedArrayBuilder* builder) {
+    Handle<JSArray> result_array) {
   ASSERT(subject->IsFlat());
   ASSERT_NE(has_capture, regexp->CaptureCount() == 0);
 
-  RegExpImpl::GlobalCache global_cache(regexp, subject, true, isolate);
-  if (global_cache.HasException()) return RegExpImpl::RE_EXCEPTION;
-
   int capture_count = regexp->CaptureCount();
   int subject_length = subject->length();
+
+  static const int kMinLengthToCache = 0x1000;
+
+  if (subject_length > kMinLengthToCache) {
+    Handle<Object> cached_answer(RegExpResultsCache::Lookup(
+        isolate->heap(),
+        *subject,
+        regexp->data(),
+        RegExpResultsCache::REGEXP_MULTIPLE_INDICES));
+    if (*cached_answer != Smi::FromInt(0)) {
+      Handle<FixedArray> cached_fixed_array =
+          Handle<FixedArray>(FixedArray::cast(*cached_answer));
+      // The cache FixedArray is a COW-array and can therefore be reused.
+      isolate->factory()->SetContent(result_array, cached_fixed_array);
+      // The actual length of the result array is stored in the last element of
+      // the backing store (the backing FixedArray may have a larger capacity).
+      Object* cached_fixed_array_last_element =
+          cached_fixed_array->get(cached_fixed_array->length() - 1);
+      Smi* js_array_length = Smi::cast(cached_fixed_array_last_element);
+      result_array->set_length(js_array_length);
+      RegExpImpl::SetLastMatchInfo(
+          last_match_array, subject, capture_count, NULL);
+      return *result_array;
+    }
+  }
+
+  RegExpImpl::GlobalCache global_cache(regexp, subject, true, isolate);
+  if (global_cache.HasException()) return Failure::Exception();
+
+  Handle<FixedArray> result_elements;
+  if (result_array->HasFastObjectElements()) {
+    result_elements =
+        Handle<FixedArray>(FixedArray::cast(result_array->elements()));
+  }
+  if (result_elements.is_null() || result_elements->length() < 16) {
+    result_elements = isolate->factory()->NewFixedArrayWithHoles(16);
+  }
+
+  FixedArrayBuilder builder(result_elements);
 
   // Position to search from.
   int match_start = -1;
@@ -3694,9 +3721,9 @@ static int SearchRegExpMultiple(
     int32_t* current_match = global_cache.FetchNext();
     if (current_match == NULL) break;
     match_start = current_match[0];
-    builder->EnsureCapacity(kMaxBuilderEntriesPerRegExpMatch);
+    builder.EnsureCapacity(kMaxBuilderEntriesPerRegExpMatch);
     if (match_end < match_start) {
-      ReplacementStringBuilder::AddSubjectSlice(builder,
+      ReplacementStringBuilder::AddSubjectSlice(&builder,
                                                 match_end,
                                                 match_start);
     }
@@ -3738,19 +3765,19 @@ static int SearchRegExpMultiple(
         }
         elements->set(capture_count + 1, Smi::FromInt(match_start));
         elements->set(capture_count + 2, *subject);
-        builder->Add(*isolate->factory()->NewJSArrayWithElements(elements));
+        builder.Add(*isolate->factory()->NewJSArrayWithElements(elements));
       } else {
-        builder->Add(*match);
+        builder.Add(*match);
       }
     }
   }
 
-  if (global_cache.HasException()) return RegExpImpl::RE_EXCEPTION;
+  if (global_cache.HasException()) return Failure::Exception();
 
   if (match_start >= 0) {
     // Finished matching, with at least one match.
     if (match_end < subject_length) {
-      ReplacementStringBuilder::AddSubjectSlice(builder,
+      ReplacementStringBuilder::AddSubjectSlice(&builder,
                                                 match_end,
                                                 subject_length);
     }
@@ -3758,9 +3785,23 @@ static int SearchRegExpMultiple(
     RegExpImpl::SetLastMatchInfo(
         last_match_array, subject, capture_count, NULL);
 
-    return RegExpImpl::RE_SUCCESS;
+    if (subject_length > kMinLengthToCache) {
+      // Store the length of the result array into the last element of the
+      // backing FixedArray.
+      builder.EnsureCapacity(1);
+      Handle<FixedArray> fixed_array = builder.array();
+      fixed_array->set(fixed_array->length() - 1,
+                       Smi::FromInt(builder.length()));
+      // Cache the result and turn the FixedArray into a COW array.
+      RegExpResultsCache::Enter(isolate->heap(),
+                                *subject,
+                                regexp->data(),
+                                *fixed_array,
+                                RegExpResultsCache::REGEXP_MULTIPLE_INDICES);
+    }
+    return *builder.ToJSArray(result_array);
   } else {
-    return RegExpImpl::RE_FAILURE;  // No matches at all.
+    return isolate->heap()->null_value();  // No matches at all.
   }
 }
 
@@ -3780,29 +3821,14 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_RegExpExecMultiple) {
 
   ASSERT(last_match_info->HasFastObjectElements());
   ASSERT(regexp->GetFlags().is_global());
-  Handle<FixedArray> result_elements;
-  if (result_array->HasFastObjectElements()) {
-    result_elements =
-        Handle<FixedArray>(FixedArray::cast(result_array->elements()));
-  }
-  if (result_elements.is_null() || result_elements->length() < 16) {
-    result_elements = isolate->factory()->NewFixedArrayWithHoles(16);
-  }
-  FixedArrayBuilder builder(result_elements);
 
-  int result;
   if (regexp->CaptureCount() == 0) {
-    result = SearchRegExpMultiple<false>(
-        isolate, subject, regexp, last_match_info, &builder);
+    return SearchRegExpMultiple<false>(
+        isolate, subject, regexp, last_match_info, result_array);
   } else {
-    result = SearchRegExpMultiple<true>(
-        isolate, subject, regexp, last_match_info, &builder);
+    return SearchRegExpMultiple<true>(
+        isolate, subject, regexp, last_match_info, result_array);
   }
-
-  if (result == RegExpImpl::RE_SUCCESS) return *builder.ToJSArray(result_array);
-  if (result == RegExpImpl::RE_FAILURE) return isolate->heap()->null_value();
-  ASSERT_EQ(result, RegExpImpl::RE_EXCEPTION);
-  return Failure::Exception();
 }
 
 
@@ -6119,11 +6145,13 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringSplit) {
   RUNTIME_ASSERT(pattern_length > 0);
 
   if (limit == 0xffffffffu) {
-    Handle<Object> cached_answer(StringSplitCache::Lookup(
-        isolate->heap()->string_split_cache(),
+    Handle<Object> cached_answer(RegExpResultsCache::Lookup(
+        isolate->heap(),
         *subject,
-        *pattern));
+        *pattern,
+        RegExpResultsCache::STRING_SPLIT_SUBSTRINGS));
     if (*cached_answer != Smi::FromInt(0)) {
+      // The cache FixedArray is a COW-array and can therefore be reused.
       Handle<JSArray> result =
           isolate->factory()->NewJSArrayWithElements(
               Handle<FixedArray>::cast(cached_answer));
@@ -6183,11 +6211,11 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringSplit) {
 
   if (limit == 0xffffffffu) {
     if (result->HasFastObjectElements()) {
-      StringSplitCache::Enter(isolate->heap(),
-                              isolate->heap()->string_split_cache(),
-                              *subject,
-                              *pattern,
-                              *elements);
+      RegExpResultsCache::Enter(isolate->heap(),
+                                *subject,
+                                *pattern,
+                                *elements,
+                                RegExpResultsCache::STRING_SPLIT_SUBSTRINGS);
     }
   }
 
@@ -11390,115 +11418,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetBreakLocations) {
   // Return array as JS array
   return *isolate->factory()->NewJSArrayWithElements(
       Handle<FixedArray>::cast(break_locations));
-}
-
-
-Object* Runtime::FindSharedFunctionInfoInScript(Isolate* isolate,
-                                                Handle<Script> script,
-                                                int position) {
-  // The below fix-point iteration depends on all functions that cannot be
-  // compiled lazily without a context to not be compiled at all. Compilation
-  // will be triggered at points where we do not need a context.
-  isolate->debug()->PrepareForBreakPoints();
-
-  // Iterate the heap looking for SharedFunctionInfo generated from the
-  // script. The inner most SharedFunctionInfo containing the source position
-  // for the requested break point is found.
-  // NOTE: This might require several heap iterations. If the SharedFunctionInfo
-  // which is found is not compiled it is compiled and the heap is iterated
-  // again as the compilation might create inner functions from the newly
-  // compiled function and the actual requested break point might be in one of
-  // these functions.
-  bool done = false;
-  // The current candidate for the source position:
-  int target_start_position = RelocInfo::kNoPosition;
-  Handle<JSFunction> target_function;
-  Handle<SharedFunctionInfo> target;
-  while (!done) {
-    { // Extra scope for iterator and no-allocation.
-      isolate->heap()->EnsureHeapIsIterable();
-      AssertNoAllocation no_alloc_during_heap_iteration;
-      HeapIterator iterator;
-      for (HeapObject* obj = iterator.next();
-           obj != NULL; obj = iterator.next()) {
-        bool found_next_candidate = false;
-        Handle<JSFunction> function;
-        Handle<SharedFunctionInfo> shared;
-        if (obj->IsJSFunction()) {
-          function = Handle<JSFunction>(JSFunction::cast(obj));
-          shared = Handle<SharedFunctionInfo>(function->shared());
-          ASSERT(shared->allows_lazy_compilation() || shared->is_compiled());
-          found_next_candidate = true;
-        } else if (obj->IsSharedFunctionInfo()) {
-          shared = Handle<SharedFunctionInfo>(SharedFunctionInfo::cast(obj));
-          // Skip functions that we cannot compile lazily without a context,
-          // which is not available here, because there is no closure.
-          found_next_candidate = shared->is_compiled() ||
-              shared->allows_lazy_compilation_without_context();
-        }
-        if (!found_next_candidate) continue;
-        if (shared->script() == *script) {
-          // If the SharedFunctionInfo found has the requested script data and
-          // contains the source position it is a candidate.
-          int start_position = shared->function_token_position();
-          if (start_position == RelocInfo::kNoPosition) {
-            start_position = shared->start_position();
-          }
-          if (start_position <= position &&
-              position <= shared->end_position()) {
-            // If there is no candidate or this function is within the current
-            // candidate this is the new candidate.
-            if (target.is_null()) {
-              target_start_position = start_position;
-              target_function = function;
-              target = shared;
-            } else {
-              if (target_start_position == start_position &&
-                  shared->end_position() == target->end_position()) {
-                // If a top-level function contains only one function
-                // declaration the source for the top-level and the function
-                // is the same. In that case prefer the non top-level function.
-                if (!shared->is_toplevel()) {
-                  target_start_position = start_position;
-                  target_function = function;
-                  target = shared;
-                }
-              } else if (target_start_position <= start_position &&
-                         shared->end_position() <= target->end_position()) {
-                // This containment check includes equality as a function
-                // inside a top-level function can share either start or end
-                // position with the top-level function.
-                target_start_position = start_position;
-                target_function = function;
-                target = shared;
-              }
-            }
-          }
-        }
-      }  // End for loop.
-    }  // End no-allocation scope.
-
-    if (target.is_null()) {
-      return isolate->heap()->undefined_value();
-    }
-
-    // If the candidate found is compiled we are done.
-    done = target->is_compiled();
-    if (!done) {
-      // If the candidate is not compiled, compile it to reveal any inner
-      // functions which might contain the requested source position. This
-      // will compile all inner functions that cannot be compiled without a
-      // context, because Compiler::BuildFunctionInfo checks whether the
-      // debugger is active.
-      if (target_function.is_null()) {
-        SharedFunctionInfo::CompileLazy(target, KEEP_EXCEPTION);
-      } else {
-        JSFunction::CompileLazy(target_function, KEEP_EXCEPTION);
-      }
-    }
-  }  // End while loop.
-
-  return *target;
 }
 
 
