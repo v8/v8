@@ -1292,6 +1292,11 @@ static void Generate_LoadIC_Normal(MacroAssembler* masm) {
 }
 
 
+static void Generate_LoadIC_Getter_ForDeopt(MacroAssembler* masm) {
+  LoadStubCompiler::GenerateLoadViaGetter(masm, Handle<JSFunction>());
+}
+
+
 static void Generate_KeyedLoadIC_Initialize(MacroAssembler* masm) {
   KeyedLoadIC::GenerateInitialize(masm);
 }

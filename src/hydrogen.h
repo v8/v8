@@ -421,6 +421,7 @@ Zone* HBasicBlock::zone() const { return graph_->zone(); }
 enum FrameType {
   JS_FUNCTION,
   JS_CONSTRUCT,
+  JS_GETTER,
   JS_SETTER,
   ARGUMENTS_ADAPTOR
 };

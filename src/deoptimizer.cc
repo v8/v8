@@ -589,8 +589,11 @@ void Deoptimizer::DoComputeOutputFrames() {
       case Translation::CONSTRUCT_STUB_FRAME:
         DoComputeConstructStubFrame(&iterator, i);
         break;
+      case Translation::GETTER_STUB_FRAME:
+        DoComputeAccessorStubFrame(&iterator, i, false);
+        break;
       case Translation::SETTER_STUB_FRAME:
-        DoComputeSetterStubFrame(&iterator, i);
+        DoComputeAccessorStubFrame(&iterator, i, true);
         break;
       case Translation::BEGIN:
       case Translation::REGISTER:
@@ -722,6 +725,7 @@ void Deoptimizer::DoTranslateCommand(TranslationIterator* iterator,
     case Translation::JS_FRAME:
     case Translation::ARGUMENTS_ADAPTOR_FRAME:
     case Translation::CONSTRUCT_STUB_FRAME:
+    case Translation::GETTER_STUB_FRAME:
     case Translation::SETTER_STUB_FRAME:
     case Translation::DUPLICATE:
       UNREACHABLE();
@@ -1018,6 +1022,7 @@ bool Deoptimizer::DoOsrTranslateCommand(TranslationIterator* iterator,
     case Translation::JS_FRAME:
     case Translation::ARGUMENTS_ADAPTOR_FRAME:
     case Translation::CONSTRUCT_STUB_FRAME:
+    case Translation::GETTER_STUB_FRAME:
     case Translation::SETTER_STUB_FRAME:
     case Translation::DUPLICATE:
       UNREACHABLE();  // Malformed input.
@@ -1482,6 +1487,12 @@ void Translation::BeginConstructStubFrame(int literal_id, unsigned height) {
 }
 
 
+void Translation::BeginGetterStubFrame(int literal_id) {
+  buffer_->Add(GETTER_STUB_FRAME, zone());
+  buffer_->Add(literal_id, zone());
+}
+
+
 void Translation::BeginSetterStubFrame(int literal_id) {
   buffer_->Add(SETTER_STUB_FRAME, zone());
   buffer_->Add(literal_id, zone());
@@ -1574,6 +1585,7 @@ int Translation::NumberOfOperandsFor(Opcode opcode) {
     case ARGUMENTS_OBJECT:
     case DUPLICATE:
       return 0;
+    case GETTER_STUB_FRAME:
     case SETTER_STUB_FRAME:
     case REGISTER:
     case INT32_REGISTER:
@@ -1609,6 +1621,8 @@ const char* Translation::StringFor(Opcode opcode) {
       return "ARGUMENTS_ADAPTOR_FRAME";
     case CONSTRUCT_STUB_FRAME:
       return "CONSTRUCT_STUB_FRAME";
+    case GETTER_STUB_FRAME:
+      return "GETTER_STUB_FRAME";
     case SETTER_STUB_FRAME:
       return "SETTER_STUB_FRAME";
     case REGISTER:
@@ -1671,6 +1685,7 @@ SlotRef SlotRef::ComputeSlotForNextArgument(TranslationIterator* iterator,
     case Translation::JS_FRAME:
     case Translation::ARGUMENTS_ADAPTOR_FRAME:
     case Translation::CONSTRUCT_STUB_FRAME:
+    case Translation::GETTER_STUB_FRAME:
     case Translation::SETTER_STUB_FRAME:
       // Peeled off before getting here.
       break;

@@ -123,6 +123,8 @@ enum BuiltinExtraArguments {
                                     Code::kNoExtraICState)              \
   V(LoadIC_Megamorphic,             LOAD_IC, MEGAMORPHIC,               \
                                     Code::kNoExtraICState)              \
+  V(LoadIC_Getter_ForDeopt,         LOAD_IC, MONOMORPHIC,               \
+                                    Code::kNoExtraICState)              \
                                                                         \
   V(KeyedLoadIC_Initialize,         KEYED_LOAD_IC, UNINITIALIZED,       \
                                     Code::kNoExtraICState)              \

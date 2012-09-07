@@ -8291,6 +8291,7 @@ void DeoptimizationInputData::DeoptimizationInputDataPrint(FILE* out) {
           break;
         }
 
+        case Translation::GETTER_STUB_FRAME:
         case Translation::SETTER_STUB_FRAME: {
           int function_id = iterator.Next();
           JSFunction* function =
