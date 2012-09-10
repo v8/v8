@@ -1005,7 +1005,9 @@ RUNTIME_FUNCTION(MaybeObject*, LoadCallbackProperty) {
   }
   RETURN_IF_SCHEDULED_EXCEPTION(isolate);
   if (result.IsEmpty()) return HEAP->undefined_value();
-  return *v8::Utils::OpenHandle(*result);
+  Handle<Object> result_internal = v8::Utils::OpenHandle(*result);
+  result_internal->VerifyApiCallResultType();
+  return *result_internal;
 }
 
 
@@ -1070,6 +1072,8 @@ RUNTIME_FUNCTION(MaybeObject*, LoadPropertyWithInterceptorOnly) {
     }
     RETURN_IF_SCHEDULED_EXCEPTION(isolate);
     if (!r.IsEmpty()) {
+      Handle<Object> result = v8::Utils::OpenHandle(*r);
+      result->VerifyApiCallResultType();
       return *v8::Utils::OpenHandle(*r);
     }
   }
@@ -1126,7 +1130,9 @@ static MaybeObject* LoadWithInterceptor(Arguments* args,
     RETURN_IF_SCHEDULED_EXCEPTION(isolate);
     if (!r.IsEmpty()) {
       *attrs = NONE;
-      return *v8::Utils::OpenHandle(*r);
+      Handle<Object> result = v8::Utils::OpenHandle(*r);
+      result->VerifyApiCallResultType();
+      return *result;
     }
   }
 

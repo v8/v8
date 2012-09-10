@@ -970,6 +970,8 @@ class Object : public MaybeObject {
   static void VerifyPointer(Object* p);
 #endif
 
+  inline void VerifyApiCallResultType();
+
   // Prints this object without details.
   inline void ShortPrint() {
     ShortPrint(stdout);

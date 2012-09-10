@@ -211,18 +211,7 @@ MaybeObject* JSObject::GetPropertyWithCallback(Object* receiver,
       return isolate->heap()->undefined_value();
     }
     Object* return_value = *v8::Utils::OpenHandle(*result);
-#if ENABLE_EXTRA_CHECKS
-    if (!(return_value->IsSmi() ||
-          return_value->IsString() ||
-          return_value->IsSpecObject() ||
-          return_value->IsHeapNumber() ||
-          return_value->IsUndefined() ||
-          return_value->IsTrue() ||
-          return_value->IsFalse() ||
-          return_value->IsNull())) {
-      FATAL("API call returned invalid object");
-    }
-#endif
+    return_value->VerifyApiCallResultType();
     return return_value;
   }
 
@@ -3805,7 +3794,9 @@ MaybeObject* JSObject::DeletePropertyWithInterceptor(String* name) {
     RETURN_IF_SCHEDULED_EXCEPTION(isolate);
     if (!result.IsEmpty()) {
       ASSERT(result->IsBoolean());
-      return *v8::Utils::OpenHandle(*result);
+      Handle<Object> result_internal = v8::Utils::OpenHandle(*result);
+      result_internal->VerifyApiCallResultType();
+      return *result_internal;
     }
   }
   MaybeObject* raw_result =
@@ -3840,7 +3831,9 @@ MaybeObject* JSObject::DeleteElementWithInterceptor(uint32_t index) {
   RETURN_IF_SCHEDULED_EXCEPTION(isolate);
   if (!result.IsEmpty()) {
     ASSERT(result->IsBoolean());
-    return *v8::Utils::OpenHandle(*result);
+    Handle<Object> result_internal = v8::Utils::OpenHandle(*result);
+    result_internal->VerifyApiCallResultType();
+    return *result_internal;
   }
   MaybeObject* raw_result = this_handle->GetElementsAccessor()->Delete(
       *this_handle,
@@ -9133,7 +9126,9 @@ MaybeObject* JSObject::GetElementWithCallback(Object* receiver,
     }
     RETURN_IF_SCHEDULED_EXCEPTION(isolate);
     if (result.IsEmpty()) return isolate->heap()->undefined_value();
-    return *v8::Utils::OpenHandle(*result);
+    Handle<Object> result_internal = v8::Utils::OpenHandle(*result);
+    result_internal->VerifyApiCallResultType();
+    return *result_internal;
   }
 
   // __defineGetter__ callback
@@ -9952,7 +9947,11 @@ MaybeObject* JSObject::GetElementWithInterceptor(Object* receiver,
       result = getter(index, info);
     }
     RETURN_IF_SCHEDULED_EXCEPTION(isolate);
-    if (!result.IsEmpty()) return *v8::Utils::OpenHandle(*result);
+    if (!result.IsEmpty()) {
+      Handle<Object> result_internal = v8::Utils::OpenHandle(*result);
+      result_internal->VerifyApiCallResultType();
+      return *result_internal;
+    }
   }
 
   Heap* heap = holder_handle->GetHeap();
@@ -10254,7 +10253,9 @@ MaybeObject* JSObject::GetPropertyWithInterceptor(
     RETURN_IF_SCHEDULED_EXCEPTION(isolate);
     if (!result.IsEmpty()) {
       *attributes = NONE;
-      return *v8::Utils::OpenHandle(*result);
+      Handle<Object> result_internal = v8::Utils::OpenHandle(*result);
+      result_internal->VerifyApiCallResultType();
+      return *result_internal;
     }
   }
 

@@ -1149,6 +1149,7 @@ MUST_USE_RESULT static MaybeObject* HandleApiCallHelper(
       result = heap->undefined_value();
     } else {
       result = *reinterpret_cast<Object**>(*value);
+      result->VerifyApiCallResultType();
     }
 
     RETURN_IF_SCHEDULED_EXCEPTION(isolate);
@@ -1225,6 +1226,7 @@ MUST_USE_RESULT static MaybeObject* HandleApiCallAsFunctionOrConstructor(
       result = heap->undefined_value();
     } else {
       result = *reinterpret_cast<Object**>(*value);
+      result->VerifyApiCallResultType();
     }
   }
   // Check for exceptions and return result.

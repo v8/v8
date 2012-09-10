@@ -561,6 +561,9 @@ v8::Handle<v8::Array> GetKeysForNamedInterceptor(Handle<JSReceiver> receiver,
       result = enum_fun(info);
     }
   }
+#if ENABLE_EXTRA_CHECKS
+  CHECK(result.IsEmpty() || v8::Utils::OpenHandle(*result)->IsJSObject());
+#endif
   return result;
 }
 
@@ -581,6 +584,9 @@ v8::Handle<v8::Array> GetKeysForIndexedInterceptor(Handle<JSReceiver> receiver,
       // Leaving JavaScript.
       VMState state(isolate, EXTERNAL);
       result = enum_fun(info);
+#if ENABLE_EXTRA_CHECKS
+      CHECK(result.IsEmpty() || v8::Utils::OpenHandle(*result)->IsJSObject());
+#endif
     }
   }
   return result;

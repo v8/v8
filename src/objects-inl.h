@@ -1664,6 +1664,23 @@ bool Object::IsStringObjectWithCharacterAt(uint32_t index) {
 }
 
 
+
+void Object::VerifyApiCallResultType() {
+#if ENABLE_EXTRA_CHECKS
+  if (!(IsSmi() ||
+        IsString() ||
+        IsSpecObject() ||
+        IsHeapNumber() ||
+        IsUndefined() ||
+        IsTrue() ||
+        IsFalse() ||
+        IsNull())) {
+    FATAL("API call returned invalid object");
+  }
+#endif  // ENABLE_EXTRA_CHECKS
+}
+
+
 FixedArrayBase* FixedArrayBase::cast(Object* object) {
   ASSERT(object->IsFixedArray() || object->IsFixedDoubleArray());
   return reinterpret_cast<FixedArrayBase*>(object);
