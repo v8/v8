@@ -85,8 +85,10 @@ compiler/regress-stacktrace-methods: PASS, PASS || TIMEOUT if $mode == release
 array-splice: PASS || TIMEOUT
 
 # Long running test.
-mirror-object: PASS || TIMEOUT
 string-indexof-2: PASS || TIMEOUT
+# BUG(2314): Crankshaft generates incorrect (crashing) code on ARM
+# mirror-object: PASS || TIMEOUT
+mirror-object: SKIP
 
 # BUG(3251035): Timeouts in long looping crankshaft optimization
 # tests. Skipping because having them timeout takes too long on the
