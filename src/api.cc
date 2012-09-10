@@ -4789,6 +4789,7 @@ Local<String> v8::String::NewExternal(
   EnsureInitializedForIsolate(isolate, "v8::String::NewExternal()");
   LOG_API(isolate, "String::NewExternal");
   ENTER_V8(isolate);
+  CHECK(resource && resource->data());
   i::Handle<i::String> result = NewExternalStringHandle(isolate, resource);
   isolate->heap()->external_string_table()->AddString(*result);
   return Utils::ToLocal(result);
@@ -4809,6 +4810,7 @@ bool v8::String::MakeExternal(v8::String::ExternalStringResource* resource) {
   if (isolate->heap()->IsInGCPostProcessing()) {
     return false;
   }
+  CHECK(resource && resource->data());
   bool result = obj->MakeExternal(resource);
   if (result && !obj->IsSymbol()) {
     isolate->heap()->external_string_table()->AddString(*obj);
@@ -4823,6 +4825,7 @@ Local<String> v8::String::NewExternal(
   EnsureInitializedForIsolate(isolate, "v8::String::NewExternal()");
   LOG_API(isolate, "String::NewExternal");
   ENTER_V8(isolate);
+  CHECK(resource && resource->data());
   i::Handle<i::String> result = NewExternalAsciiStringHandle(isolate, resource);
   isolate->heap()->external_string_table()->AddString(*result);
   return Utils::ToLocal(result);
@@ -4844,6 +4847,7 @@ bool v8::String::MakeExternal(
   if (isolate->heap()->IsInGCPostProcessing()) {
     return false;
   }
+  CHECK(resource && resource->data());
   bool result = obj->MakeExternal(resource);
   if (result && !obj->IsSymbol()) {
     isolate->heap()->external_string_table()->AddString(*obj);
