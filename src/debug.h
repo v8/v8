@@ -875,6 +875,8 @@ class Debugger {
   bool compiling_natives() const { return compiling_natives_; }
   void set_loading_debugger(bool v) { is_loading_debugger_ = v; }
   bool is_loading_debugger() const { return is_loading_debugger_; }
+  void set_live_edit_enabled(bool v) { live_edit_enabled_ = v; }
+  bool live_edit_enabled() const { return live_edit_enabled_; }
   void set_force_debugger_active(bool force_debugger_active) {
     force_debugger_active_ = force_debugger_active;
   }
@@ -903,6 +905,7 @@ class Debugger {
   Handle<Object> event_listener_data_;
   bool compiling_natives_;  // Are we compiling natives?
   bool is_loading_debugger_;  // Are we loading the debugger?
+  bool live_edit_enabled_;  // Enable LiveEdit.
   bool never_unload_debugger_;  // Can we unload the debugger?
   bool force_debugger_active_;  // Activate debugger without event listeners.
   v8::Debug::MessageHandler2 message_handler_;

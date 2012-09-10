@@ -2514,6 +2514,7 @@ Debugger::Debugger(Isolate* isolate)
       event_listener_data_(Handle<Object>()),
       compiling_natives_(false),
       is_loading_debugger_(false),
+      live_edit_enabled_(true),
       never_unload_debugger_(false),
       force_debugger_active_(false),
       message_handler_(NULL),

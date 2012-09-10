@@ -44,6 +44,9 @@ test-heap-profiler/HeapSnapshotsDiff: PASS || FAIL
 test-serialize/TestThatAlwaysFails: FAIL
 test-serialize/DependentTestThatAlwaysFails: FAIL
 
+# This test always fails.  It tests that LiveEdit causes abort when turned off.
+test-debug/LiveEditDisabled: FAIL
+
 # TODO(gc): Temporarily disabled in the GC branch.
 test-log/EquivalenceOfLoggingAndTraversal: PASS || FAIL
 

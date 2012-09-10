@@ -7420,4 +7420,23 @@ TEST(DebuggerCreatesContextIffActive) {
   v8::Debug::SetDebugEventListener(NULL);
 }
 
+
+TEST(LiveEditEnabled) {
+  v8::internal::FLAG_allow_natives_syntax = true;
+  v8::HandleScope scope;
+  LocalContext context;
+  v8::Debug::SetLiveEditEnabled(true);
+  CompileRun("%LiveEditCompareStrings('', '')");
+}
+
+
+TEST(LiveEditDisabled) {
+  v8::internal::FLAG_allow_natives_syntax = true;
+  v8::HandleScope scope;
+  LocalContext context;
+  v8::Debug::SetLiveEditEnabled(false);
+  CompileRun("%LiveEditCompareStrings('', '')");
+}
+
+
 #endif  // ENABLE_DEBUGGER_SUPPORT
