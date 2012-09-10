@@ -1449,11 +1449,10 @@ void LCodeGen::DoDateField(LDateField* instr) {
   ASSERT(object.is(result));
   ASSERT(object.is(eax));
 
-#ifdef DEBUG
-  __ AbortIfSmi(object);
+  __ test(object, Immediate(kSmiTagMask));
+  DeoptimizeIf(zero, instr->environment());
   __ CmpObjectType(object, JS_DATE_TYPE, scratch);
-  __ Assert(equal, "Trying to get date field from non-date.");
-#endif
+  DeoptimizeIf(not_equal, instr->environment());
 
   if (index->value() == 0) {
     __ mov(result, FieldOperand(object, JSDate::kValueOffset));
@@ -2075,9 +2074,7 @@ void LCodeGen::DoGetCachedArrayIndex(LGetCachedArrayIndex* instr) {
   Register input = ToRegister(instr->InputAt(0));
   Register result = ToRegister(instr->result());
 
-  if (FLAG_debug_code) {
-    __ AbortIfNotString(input);
-  }
+  __ AbortIfNotString(input);
 
   __ mov(result, FieldOperand(input, String::kHashFieldOffset));
   __ IndexFromHash(result, result);
