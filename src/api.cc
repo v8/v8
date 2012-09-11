@@ -541,7 +541,9 @@ Extension::Extension(const char* name,
       source_(source, source_length_),
       dep_count_(dep_count),
       deps_(deps),
-      auto_enable_(false) { }
+      auto_enable_(false) {
+  CHECK(source != NULL || source_length_ == 0);
+}
 
 
 v8::Handle<Primitive> Undefined() {

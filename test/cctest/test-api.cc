@@ -4671,6 +4671,18 @@ THREADED_TEST(SimpleExtensions) {
 }
 
 
+THREADED_TEST(NullExtensions) {
+  v8::HandleScope handle_scope;
+  v8::RegisterExtension(new Extension("nulltest", NULL));
+  const char* extension_names[] = { "nulltest" };
+  v8::ExtensionConfiguration extensions(1, extension_names);
+  v8::Handle<Context> context = Context::New(&extensions);
+  Context::Scope lock(context);
+  v8::Handle<Value> result = Script::Compile(v8_str("1+3"))->Run();
+  CHECK_EQ(result, v8::Integer::New(4));
+}
+
+
 static const char* kEmbeddedExtensionSource =
     "function Ret54321(){return 54321;}~~@@$"
     "$%% THIS IS A SERIES OF NON-NULL-TERMINATED STRINGS.";
