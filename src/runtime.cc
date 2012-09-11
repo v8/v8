@@ -673,7 +673,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateArrayLiteralShallow) {
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateJSProxy) {
   ASSERT(args.length() == 2);
-  Object* handler = args[0];
+  CONVERT_ARG_CHECKED(JSReceiver, handler, 0);
   Object* prototype = args[1];
   Object* used_prototype =
       prototype->IsJSReceiver() ? prototype : isolate->heap()->null_value();
@@ -683,9 +683,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateJSProxy) {
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateJSFunctionProxy) {
   ASSERT(args.length() == 4);
-  Object* handler = args[0];
+  CONVERT_ARG_CHECKED(JSReceiver, handler, 0);
   Object* call_trap = args[1];
-  Object* construct_trap = args[2];
+  RUNTIME_ASSERT(call_trap->IsJSFunction() || call_trap->IsJSFunctionProxy());
+  CONVERT_ARG_CHECKED(JSFunction, construct_trap, 2);
   Object* prototype = args[3];
   Object* used_prototype =
       prototype->IsJSReceiver() ? prototype : isolate->heap()->null_value();
@@ -2066,8 +2067,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_FunctionRemovePrototype) {
   ASSERT(args.length() == 1);
 
   CONVERT_ARG_CHECKED(JSFunction, f, 0);
-  Object* obj = f->RemovePrototype();
-  if (obj->IsFailure()) return obj;
+  f->RemovePrototype();
 
   return isolate->heap()->undefined_value();
 }
@@ -2307,19 +2307,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringCharCodeAt) {
   ASSERT(args.length() == 2);
 
   CONVERT_ARG_CHECKED(String, subject, 0);
-  Object* index = args[1];
-  RUNTIME_ASSERT(index->IsNumber());
-
-  uint32_t i = 0;
-  if (index->IsSmi()) {
-    int value = Smi::cast(index)->value();
-    if (value < 0) return isolate->heap()->nan_value();
-    i = value;
-  } else {
-    ASSERT(index->IsHeapNumber());
-    double value = HeapNumber::cast(index)->value();
-    i = static_cast<uint32_t>(DoubleToInteger(value));
-  }
+  CONVERT_NUMBER_CHECKED(uint32_t, i, Uint32, args[1]);
 
   // Flatten the string.  If someone wants to get a char at an index
   // in a cons string, it is likely that more indices will be
@@ -3289,12 +3277,12 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringReplaceRegExpWithString) {
 }
 
 
-Handle<String> Runtime::StringReplaceOneCharWithString(Isolate* isolate,
-                                                       Handle<String> subject,
-                                                       Handle<String> search,
-                                                       Handle<String> replace,
-                                                       bool* found,
-                                                       int recursion_limit) {
+Handle<String> StringReplaceOneCharWithString(Isolate* isolate,
+                                              Handle<String> subject,
+                                              Handle<String> search,
+                                              Handle<String> replace,
+                                              bool* found,
+                                              int recursion_limit) {
   if (recursion_limit == 0) return Handle<String>::null();
   if (subject->IsConsString()) {
     ConsString* cons = ConsString::cast(*subject);
@@ -3322,7 +3310,7 @@ Handle<String> Runtime::StringReplaceOneCharWithString(Isolate* isolate,
 
     return subject;
   } else {
-    int index = StringMatch(isolate, subject, search, 0);
+    int index = Runtime::StringMatch(isolate, subject, search, 0);
     if (index == -1) return subject;
     *found = true;
     Handle<String> first = isolate->factory()->NewSubString(subject, 0, index);
@@ -3345,20 +3333,19 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringReplaceOneCharWithString) {
   // retry with a flattened subject string.
   const int kRecursionLimit = 0x1000;
   bool found = false;
-  Handle<String> result =
-      Runtime::StringReplaceOneCharWithString(isolate,
-                                              subject,
-                                              search,
-                                              replace,
-                                              &found,
-                                              kRecursionLimit);
+  Handle<String> result = StringReplaceOneCharWithString(isolate,
+                                                         subject,
+                                                         search,
+                                                         replace,
+                                                         &found,
+                                                         kRecursionLimit);
   if (!result.is_null()) return *result;
-  return *Runtime::StringReplaceOneCharWithString(isolate,
-                                                  FlattenGetString(subject),
-                                                  search,
-                                                  replace,
-                                                  &found,
-                                                  kRecursionLimit);
+  return *StringReplaceOneCharWithString(isolate,
+                                         FlattenGetString(subject),
+                                         search,
+                                         replace,
+                                         &found,
+                                         kRecursionLimit);
 }
 
 
@@ -8046,11 +8033,13 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NotifyDeoptimized) {
     return isolate->heap()->undefined_value();
   }
 
-  // Find other optimized activations of the function.
+  // Find other optimized activations of the function or functions that
+  // share the same optimized code.
   bool has_other_activations = false;
   while (!it.done()) {
     JavaScriptFrame* frame = it.frame();
-    if (frame->is_optimized() && frame->function() == *function) {
+    JSFunction* other_function = JSFunction::cast(frame->function());
+    if (frame->is_optimized() && other_function->code() == function->code()) {
       has_other_activations = true;
       break;
     }
@@ -8862,6 +8851,15 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ThrowReferenceError) {
                                           HandleVector(&name, 1));
   return isolate->Throw(*reference_error);
 }
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_ThrowNotDateError) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 0);
+  return isolate->Throw(*isolate->factory()->NewTypeError(
+      "not_date_object", HandleVector<Object>(NULL, 0)));
+}
+
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_StackGuard) {
@@ -12256,11 +12254,12 @@ static int FindSharedFunctionInfosForScript(HeapIterator* iterator,
 // in OpaqueReferences.
 RUNTIME_FUNCTION(MaybeObject*,
                  Runtime_LiveEditFindSharedFunctionInfosForScript) {
+  CHECK(isolate->debugger()->live_edit_enabled());
   ASSERT(args.length() == 1);
   HandleScope scope(isolate);
   CONVERT_ARG_CHECKED(JSValue, script_value, 0);
 
-
+  RUNTIME_ASSERT(script_value->value()->IsScript());
   Handle<Script> script = Handle<Script>(Script::cast(script_value->value()));
 
   const int kBufferSize = 32;
@@ -12302,10 +12301,13 @@ RUNTIME_FUNCTION(MaybeObject*,
 // each function with all its descendant is always stored in a continues range
 // with the function itself going first. The root function is a script function.
 RUNTIME_FUNCTION(MaybeObject*, Runtime_LiveEditGatherCompileInfo) {
+  CHECK(isolate->debugger()->live_edit_enabled());
   ASSERT(args.length() == 2);
   HandleScope scope(isolate);
   CONVERT_ARG_CHECKED(JSValue, script, 0);
   CONVERT_ARG_HANDLE_CHECKED(String, source, 1);
+
+  RUNTIME_ASSERT(script->value()->IsScript());
   Handle<Script> script_handle = Handle<Script>(Script::cast(script->value()));
 
   JSArray* result =  LiveEdit::GatherCompileInfo(script_handle, source);
@@ -12321,6 +12323,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_LiveEditGatherCompileInfo) {
 // If old_script_name is provided (i.e. is a String), also creates a copy of
 // the script with its original source and sends notification to debugger.
 RUNTIME_FUNCTION(MaybeObject*, Runtime_LiveEditReplaceScript) {
+  CHECK(isolate->debugger()->live_edit_enabled());
   ASSERT(args.length() == 3);
   HandleScope scope(isolate);
   CONVERT_ARG_CHECKED(JSValue, original_script_value, 0);
@@ -12344,6 +12347,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_LiveEditReplaceScript) {
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_LiveEditFunctionSourceUpdated) {
+  CHECK(isolate->debugger()->live_edit_enabled());
   ASSERT(args.length() == 1);
   HandleScope scope(isolate);
   CONVERT_ARG_HANDLE_CHECKED(JSArray, shared_info, 0);
@@ -12353,6 +12357,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_LiveEditFunctionSourceUpdated) {
 
 // Replaces code of SharedFunctionInfo with a new one.
 RUNTIME_FUNCTION(MaybeObject*, Runtime_LiveEditReplaceFunctionCode) {
+  CHECK(isolate->debugger()->live_edit_enabled());
   ASSERT(args.length() == 2);
   HandleScope scope(isolate);
   CONVERT_ARG_HANDLE_CHECKED(JSArray, new_compile_info, 0);
@@ -12363,6 +12368,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_LiveEditReplaceFunctionCode) {
 
 // Connects SharedFunctionInfo to another script.
 RUNTIME_FUNCTION(MaybeObject*, Runtime_LiveEditFunctionSetScript) {
+  CHECK(isolate->debugger()->live_edit_enabled());
   ASSERT(args.length() == 2);
   HandleScope scope(isolate);
   Handle<Object> function_object(args[0], isolate);
@@ -12389,6 +12395,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_LiveEditFunctionSetScript) {
 // In a code of a parent function replaces original function as embedded object
 // with a substitution one.
 RUNTIME_FUNCTION(MaybeObject*, Runtime_LiveEditReplaceRefToNestedFunction) {
+  CHECK(isolate->debugger()->live_edit_enabled());
   ASSERT(args.length() == 3);
   HandleScope scope(isolate);
 
@@ -12409,6 +12416,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_LiveEditReplaceRefToNestedFunction) {
 // (change_begin, change_end, change_end_new_position).
 // Each group describes a change in text; groups are sorted by change_begin.
 RUNTIME_FUNCTION(MaybeObject*, Runtime_LiveEditPatchFunctionPositions) {
+  CHECK(isolate->debugger()->live_edit_enabled());
   ASSERT(args.length() == 2);
   HandleScope scope(isolate);
   CONVERT_ARG_HANDLE_CHECKED(JSArray, shared_array, 0);
@@ -12423,6 +12431,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_LiveEditPatchFunctionPositions) {
 // Returns array of the same length with corresponding results of
 // LiveEdit::FunctionPatchabilityStatus type.
 RUNTIME_FUNCTION(MaybeObject*, Runtime_LiveEditCheckAndDropActivations) {
+  CHECK(isolate->debugger()->live_edit_enabled());
   ASSERT(args.length() == 2);
   HandleScope scope(isolate);
   CONVERT_ARG_HANDLE_CHECKED(JSArray, shared_array, 0);
@@ -12436,6 +12445,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_LiveEditCheckAndDropActivations) {
 // of JSArray of triplets (pos1, pos1_end, pos2_end) describing list
 // of diff chunks.
 RUNTIME_FUNCTION(MaybeObject*, Runtime_LiveEditCompareStrings) {
+  CHECK(isolate->debugger()->live_edit_enabled());
   ASSERT(args.length() == 2);
   HandleScope scope(isolate);
   CONVERT_ARG_HANDLE_CHECKED(String, s1, 0);
@@ -12448,6 +12458,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_LiveEditCompareStrings) {
 // Restarts a call frame and completely drops all frames above.
 // Returns true if successful. Otherwise returns undefined or an error message.
 RUNTIME_FUNCTION(MaybeObject*, Runtime_LiveEditRestartFrame) {
+  CHECK(isolate->debugger()->live_edit_enabled());
   HandleScope scope(isolate);
   ASSERT(args.length() == 2);
 
@@ -12487,6 +12498,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_LiveEditRestartFrame) {
 // A testing entry. Returns statement position which is the closest to
 // source_position.
 RUNTIME_FUNCTION(MaybeObject*, Runtime_GetFunctionCodePositionFromSource) {
+  CHECK(isolate->debugger()->live_edit_enabled());
   ASSERT(args.length() == 2);
   HandleScope scope(isolate);
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);

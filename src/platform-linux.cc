@@ -512,9 +512,6 @@ void OS::LogSharedLibraryAddresses() {
 }
 
 
-static const char kGCFakeMmap[] = "/tmp/__v8_gc__";
-
-
 void OS::SignalCodeMovingGC() {
   // Support for ll_prof.py.
   //
@@ -525,7 +522,7 @@ void OS::SignalCodeMovingGC() {
   // by the kernel and allows us to synchronize V8 code log and the
   // kernel log.
   int size = sysconf(_SC_PAGESIZE);
-  FILE* f = fopen(kGCFakeMmap, "w+");
+  FILE* f = fopen(FLAG_gc_fake_mmap, "w+");
   void* addr = mmap(OS::GetRandomMmapAddr(),
                     size,
                     PROT_READ | PROT_EXEC,

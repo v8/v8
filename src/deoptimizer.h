@@ -284,8 +284,9 @@ class Deoptimizer : public Malloced {
                                       int frame_index);
   void DoComputeConstructStubFrame(TranslationIterator* iterator,
                                    int frame_index);
-  void DoComputeSetterStubFrame(TranslationIterator* iterator,
-                                int frame_index);
+  void DoComputeAccessorStubFrame(TranslationIterator* iterator,
+                                  int frame_index,
+                                  bool is_setter_stub_frame);
   void DoTranslateCommand(TranslationIterator* iterator,
                           int frame_index,
                           unsigned output_offset);
@@ -561,6 +562,7 @@ class Translation BASE_EMBEDDED {
     BEGIN,
     JS_FRAME,
     CONSTRUCT_STUB_FRAME,
+    GETTER_STUB_FRAME,
     SETTER_STUB_FRAME,
     ARGUMENTS_ADAPTOR_FRAME,
     REGISTER,
@@ -595,6 +597,7 @@ class Translation BASE_EMBEDDED {
   void BeginJSFrame(BailoutId node_id, int literal_id, unsigned height);
   void BeginArgumentsAdaptorFrame(int literal_id, unsigned height);
   void BeginConstructStubFrame(int literal_id, unsigned height);
+  void BeginGetterStubFrame(int literal_id);
   void BeginSetterStubFrame(int literal_id);
   void StoreRegister(Register reg);
   void StoreInt32Register(Register reg);

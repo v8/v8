@@ -5841,12 +5841,27 @@ void Debug::ProcessDebugMessages() {
   i::Execution::ProcessDebugMessages(true);
 }
 
+
 Local<Context> Debug::GetDebugContext() {
   i::Isolate* isolate = i::Isolate::Current();
   EnsureInitializedForIsolate(isolate, "v8::Debug::GetDebugContext()");
   ENTER_V8(isolate);
   return Utils::ToLocal(i::Isolate::Current()->debugger()->GetDebugContext());
 }
+
+
+void Debug::SetLiveEditEnabled(bool enable, Isolate* isolate) {
+  // If no isolate is supplied, use the default isolate.
+  i::Debugger* debugger;
+  if (isolate != NULL) {
+    i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(isolate);
+    debugger = internal_isolate->debugger();
+  } else {
+    debugger = i::Isolate::GetDefaultIsolateDebugger();
+  }
+  debugger->set_live_edit_enabled(enable);
+}
+
 
 #endif  // ENABLE_DEBUGGER_SUPPORT
 

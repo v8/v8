@@ -619,6 +619,9 @@ class LoadStubCompiler: public StubCompiler {
                                    Handle<JSObject> holder,
                                    Handle<AccessorInfo> callback);
 
+  static void GenerateLoadViaGetter(MacroAssembler* masm,
+                                    Handle<JSFunction> getter);
+
   Handle<Code> CompileLoadViaGetter(Handle<String> name,
                                     Handle<JSObject> receiver,
                                     Handle<JSObject> holder,

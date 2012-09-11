@@ -7280,7 +7280,7 @@ bool HGraphBuilder::TryInlineGetter(Handle<JSFunction> getter,
                    NULL,
                    prop->id(),
                    prop->LoadId(),
-                   NORMAL_RETURN);
+                   GETTER_CALL_RETURN);
 }
 
 
@@ -9594,6 +9594,10 @@ HEnvironment* HEnvironment::CopyForInlining(
     // actually be the constructor function, but we pass the newly allocated
     // object instead, DoComputeConstructStubFrame() relies on that.
     outer = CreateStubEnvironment(outer, target, JS_CONSTRUCT, arguments);
+  } else if (inlining_kind == GETTER_CALL_RETURN) {
+    // We need an additional StackFrame::INTERNAL frame for restoring the
+    // correct context.
+    outer = CreateStubEnvironment(outer, target, JS_GETTER, arguments);
   } else if (inlining_kind == SETTER_CALL_RETURN) {
     // We need an additional StackFrame::INTERNAL frame for temporarily saving
     // the argument of the setter, see StoreStubCompiler::CompileStoreViaSetter.

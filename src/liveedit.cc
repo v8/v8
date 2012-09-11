@@ -670,6 +670,7 @@ class JSArrayBasedStruct {
   }
   int GetSmiValueField(int field_position) {
     Object* res = GetField(field_position);
+    CHECK(res->IsSmi());
     return Smi::cast(res)->value();
   }
 
@@ -714,14 +715,17 @@ class FunctionInfoWrapper : public JSArrayBasedStruct<FunctionInfoWrapper> {
     return this->GetSmiValueField(kParentIndexOffset_);
   }
   Handle<Code> GetFunctionCode() {
-    Handle<Object> raw_result = UnwrapJSValue(Handle<JSValue>(
-        JSValue::cast(this->GetField(kCodeOffset_))));
+    Object* element = this->GetField(kCodeOffset_);
+    CHECK(element->IsJSValue());
+    Handle<JSValue> value_wrapper(JSValue::cast(element));
+    Handle<Object> raw_result = UnwrapJSValue(value_wrapper);
+    CHECK(raw_result->IsCode());
     return Handle<Code>::cast(raw_result);
   }
   Handle<Object> GetCodeScopeInfo() {
-    Handle<Object> raw_result = UnwrapJSValue(Handle<JSValue>(
-        JSValue::cast(this->GetField(kCodeScopeInfoOffset_))));
-    return raw_result;
+    Object* element = this->GetField(kCodeScopeInfoOffset_);
+    CHECK(element->IsJSValue());
+    return UnwrapJSValue(Handle<JSValue>(JSValue::cast(element)));
   }
   int GetStartPosition() {
     return this->GetSmiValueField(kStartPositionOffset_);
@@ -771,8 +775,10 @@ class SharedInfoWrapper : public JSArrayBasedStruct<SharedInfoWrapper> {
   }
   Handle<SharedFunctionInfo> GetInfo() {
     Object* element = this->GetField(kSharedInfoOffset_);
+    CHECK(element->IsJSValue());
     Handle<JSValue> value_wrapper(JSValue::cast(element));
     Handle<Object> raw_result = UnwrapJSValue(value_wrapper);
+    CHECK(raw_result->IsSharedFunctionInfo());
     return Handle<SharedFunctionInfo>::cast(raw_result);
   }
 
@@ -1127,6 +1133,7 @@ void LiveEdit::SetFunctionScript(Handle<JSValue> function_wrapper,
                                  Handle<Object> script_handle) {
   Handle<SharedFunctionInfo> shared_info =
       Handle<SharedFunctionInfo>::cast(UnwrapJSValue(function_wrapper));
+  CHECK(script_handle->IsScript() || script_handle->IsUndefined());
   shared_info->set_script(*script_handle);
 
   Isolate::Current()->compilation_cache()->Remove(shared_info);

@@ -211,18 +211,7 @@ MaybeObject* JSObject::GetPropertyWithCallback(Object* receiver,
       return isolate->heap()->undefined_value();
     }
     Object* return_value = *v8::Utils::OpenHandle(*result);
-#if ENABLE_EXTRA_CHECKS
-    if (!(return_value->IsSmi() ||
-          return_value->IsString() ||
-          return_value->IsSpecObject() ||
-          return_value->IsHeapNumber() ||
-          return_value->IsUndefined() ||
-          return_value->IsTrue() ||
-          return_value->IsFalse() ||
-          return_value->IsNull())) {
-      FATAL("API call returned invalid object");
-    }
-#endif
+    return_value->VerifyApiCallResultType();
     return return_value;
   }
 
@@ -3805,7 +3794,9 @@ MaybeObject* JSObject::DeletePropertyWithInterceptor(String* name) {
     RETURN_IF_SCHEDULED_EXCEPTION(isolate);
     if (!result.IsEmpty()) {
       ASSERT(result->IsBoolean());
-      return *v8::Utils::OpenHandle(*result);
+      Handle<Object> result_internal = v8::Utils::OpenHandle(*result);
+      result_internal->VerifyApiCallResultType();
+      return *result_internal;
     }
   }
   MaybeObject* raw_result =
@@ -3840,7 +3831,9 @@ MaybeObject* JSObject::DeleteElementWithInterceptor(uint32_t index) {
   RETURN_IF_SCHEDULED_EXCEPTION(isolate);
   if (!result.IsEmpty()) {
     ASSERT(result->IsBoolean());
-    return *v8::Utils::OpenHandle(*result);
+    Handle<Object> result_internal = v8::Utils::OpenHandle(*result);
+    result_internal->VerifyApiCallResultType();
+    return *result_internal;
   }
   MaybeObject* raw_result = this_handle->GetElementsAccessor()->Delete(
       *this_handle,
@@ -7533,16 +7526,13 @@ MaybeObject* JSFunction::SetPrototype(Object* value) {
 }
 
 
-Object* JSFunction::RemovePrototype() {
+void JSFunction::RemovePrototype() {
   Context* native_context = context()->native_context();
   Map* no_prototype_map = shared()->is_classic_mode()
       ? native_context->function_without_prototype_map()
       : native_context->strict_mode_function_without_prototype_map();
 
-  if (map() == no_prototype_map) {
-    // Be idempotent.
-    return this;
-  }
+  if (map() == no_prototype_map) return;
 
   ASSERT(map() == (shared()->is_classic_mode()
                    ? native_context->function_map()
@@ -7550,13 +7540,11 @@ Object* JSFunction::RemovePrototype() {
 
   set_map(no_prototype_map);
   set_prototype_or_initial_map(no_prototype_map->GetHeap()->the_hole_value());
-  return this;
 }
 
 
-Object* JSFunction::SetInstanceClassName(String* name) {
+void JSFunction::SetInstanceClassName(String* name) {
   shared()->set_instance_class_name(name);
-  return this;
 }
 
 
@@ -8291,6 +8279,7 @@ void DeoptimizationInputData::DeoptimizationInputDataPrint(FILE* out) {
           break;
         }
 
+        case Translation::GETTER_STUB_FRAME:
         case Translation::SETTER_STUB_FRAME: {
           int function_id = iterator.Next();
           JSFunction* function =
@@ -9137,7 +9126,9 @@ MaybeObject* JSObject::GetElementWithCallback(Object* receiver,
     }
     RETURN_IF_SCHEDULED_EXCEPTION(isolate);
     if (result.IsEmpty()) return isolate->heap()->undefined_value();
-    return *v8::Utils::OpenHandle(*result);
+    Handle<Object> result_internal = v8::Utils::OpenHandle(*result);
+    result_internal->VerifyApiCallResultType();
+    return *result_internal;
   }
 
   // __defineGetter__ callback
@@ -9956,7 +9947,11 @@ MaybeObject* JSObject::GetElementWithInterceptor(Object* receiver,
       result = getter(index, info);
     }
     RETURN_IF_SCHEDULED_EXCEPTION(isolate);
-    if (!result.IsEmpty()) return *v8::Utils::OpenHandle(*result);
+    if (!result.IsEmpty()) {
+      Handle<Object> result_internal = v8::Utils::OpenHandle(*result);
+      result_internal->VerifyApiCallResultType();
+      return *result_internal;
+    }
   }
 
   Heap* heap = holder_handle->GetHeap();
@@ -10258,7 +10253,9 @@ MaybeObject* JSObject::GetPropertyWithInterceptor(
     RETURN_IF_SCHEDULED_EXCEPTION(isolate);
     if (!result.IsEmpty()) {
       *attributes = NONE;
-      return *v8::Utils::OpenHandle(*result);
+      Handle<Object> result_internal = v8::Utils::OpenHandle(*result);
+      result_internal->VerifyApiCallResultType();
+      return *result_internal;
     }
   }
 

@@ -694,31 +694,35 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslationIterator* iterator,
 }
 
 
-void Deoptimizer::DoComputeSetterStubFrame(TranslationIterator* iterator,
-                                           int frame_index) {
-  JSFunction* setter = JSFunction::cast(ComputeLiteral(iterator->Next()));
-  // The receiver and the implicit return value are expected in registers by the
-  // StoreIC, so they don't belong to the output stack frame. This means that we
-  // have to use a height of 0.
+void Deoptimizer::DoComputeAccessorStubFrame(TranslationIterator* iterator,
+                                             int frame_index,
+                                             bool is_setter_stub_frame) {
+  JSFunction* accessor = JSFunction::cast(ComputeLiteral(iterator->Next()));
+  // The receiver (and the implicit return value, if any) are expected in
+  // registers by the LoadIC/StoreIC, so they don't belong to the output stack
+  // frame. This means that we have to use a height of 0.
   unsigned height = 0;
   unsigned height_in_bytes = height * kPointerSize;
+  const char* kind = is_setter_stub_frame ? "setter" : "getter";
   if (FLAG_trace_deopt) {
-    PrintF("  translating setter stub => height=%u\n", height_in_bytes);
+    PrintF("  translating %s stub => height=%u\n", kind, height_in_bytes);
   }
 
   // We need 1 stack entry for the return address + 4 stack entries from
   // StackFrame::INTERNAL (FP, context, frame type, code object, see
-  // MacroAssembler::EnterFrame) + 1 stack entry from setter stub (implicit
-  // return value, see StoreStubCompiler::CompileStoreViaSetter).
-  unsigned fixed_frame_size = (1 + 4 + 1) * kPointerSize;
+  // MacroAssembler::EnterFrame). For a setter stub frame we need one additional
+  // entry for the implicit return value, see
+  // StoreStubCompiler::CompileStoreViaSetter.
+  unsigned fixed_frame_entries = 1 + 4 + (is_setter_stub_frame ? 1 : 0);
+  unsigned fixed_frame_size = fixed_frame_entries * kPointerSize;
   unsigned output_frame_size = height_in_bytes + fixed_frame_size;
 
   // Allocate and store the output frame description.
   FrameDescription* output_frame =
-      new(output_frame_size) FrameDescription(output_frame_size, setter);
+      new(output_frame_size) FrameDescription(output_frame_size, accessor);
   output_frame->SetFrameType(StackFrame::INTERNAL);
 
-  // A frame for a setter stub can not be the topmost or bottommost one.
+  // A frame for an accessor stub can not be the topmost or bottommost one.
   ASSERT(frame_index > 0 && frame_index < output_count_ - 1);
   ASSERT(output_[frame_index] == NULL);
   output_[frame_index] = output_frame;
@@ -768,15 +772,17 @@ void Deoptimizer::DoComputeSetterStubFrame(TranslationIterator* iterator,
   output_frame->SetFrameSlot(output_offset, value);
   if (FLAG_trace_deopt) {
     PrintF("    0x%08" V8PRIxPTR ": [top + %u] <- 0x%08" V8PRIxPTR
-           " ; function (setter sentinel)\n",
-           top_address + output_offset, output_offset, value);
+           " ; function (%s sentinel)\n",
+           top_address + output_offset, output_offset, value, kind);
   }
 
-  // Get Code object from setter stub.
+  // Get Code object from accessor stub.
   output_offset -= kPointerSize;
-  Code* setter_stub =
-      isolate_->builtins()->builtin(Builtins::kStoreIC_Setter_ForDeopt);
-  value = reinterpret_cast<intptr_t>(setter_stub);
+  Builtins::Name name = is_setter_stub_frame ?
+      Builtins::kStoreIC_Setter_ForDeopt :
+      Builtins::kLoadIC_Getter_ForDeopt;
+  Code* accessor_stub = isolate_->builtins()->builtin(name);
+  value = reinterpret_cast<intptr_t>(accessor_stub);
   output_frame->SetFrameSlot(output_offset, value);
   if (FLAG_trace_deopt) {
     PrintF("    0x%08" V8PRIxPTR ": [top + %u] <- 0x%08" V8PRIxPTR
@@ -789,16 +795,20 @@ void Deoptimizer::DoComputeSetterStubFrame(TranslationIterator* iterator,
       static_cast<Translation::Opcode>(iterator->Next());
   iterator->Skip(Translation::NumberOfOperandsFor(opcode));
 
-  // The implicit return value was part of the artificial setter stub
-  // environment.
-  output_offset -= kPointerSize;
-  DoTranslateCommand(iterator, frame_index, output_offset);
+  if (is_setter_stub_frame) {
+    // The implicit return value was part of the artificial setter stub
+    // environment.
+    output_offset -= kPointerSize;
+    DoTranslateCommand(iterator, frame_index, output_offset);
+  }
 
   ASSERT(0 == output_offset);
 
+  Smi* offset = is_setter_stub_frame ?
+      isolate_->heap()->setter_stub_deopt_pc_offset() :
+      isolate_->heap()->getter_stub_deopt_pc_offset();
   intptr_t pc = reinterpret_cast<intptr_t>(
-      setter_stub->instruction_start() +
-      isolate_->heap()->setter_stub_deopt_pc_offset()->value());
+      accessor_stub->instruction_start() + offset->value());
   output_frame->SetPc(pc);
 }
 

@@ -153,6 +153,7 @@ namespace internal {
   V(StringDictionary, intrinsic_function_names, IntrinsicFunctionNames)        \
   V(Smi, arguments_adaptor_deopt_pc_offset, ArgumentsAdaptorDeoptPCOffset)     \
   V(Smi, construct_stub_deopt_pc_offset, ConstructStubDeoptPCOffset)           \
+  V(Smi, getter_stub_deopt_pc_offset, GetterStubDeoptPCOffset)                 \
   V(Smi, setter_stub_deopt_pc_offset, SetterStubDeoptPCOffset)
 
 #define ROOT_LIST(V)                                  \
@@ -1590,6 +1591,11 @@ class Heap {
   void SetConstructStubDeoptPCOffset(int pc_offset) {
     ASSERT(construct_stub_deopt_pc_offset() == Smi::FromInt(0));
     set_construct_stub_deopt_pc_offset(Smi::FromInt(pc_offset));
+  }
+
+  void SetGetterStubDeoptPCOffset(int pc_offset) {
+    ASSERT(getter_stub_deopt_pc_offset() == Smi::FromInt(0));
+    set_getter_stub_deopt_pc_offset(Smi::FromInt(pc_offset));
   }
 
   void SetSetterStubDeoptPCOffset(int pc_offset) {

@@ -484,6 +484,11 @@ void LCodeGen::WriteTranslation(LEnvironment* environment,
     case JS_CONSTRUCT:
       translation->BeginConstructStubFrame(closure_id, translation_size);
       break;
+    case JS_GETTER:
+      ASSERT(translation_size == 1);
+      ASSERT(height == 0);
+      translation->BeginGetterStubFrame(closure_id);
+      break;
     case JS_SETTER:
       ASSERT(translation_size == 2);
       ASSERT(height == 0);
@@ -1592,11 +1597,10 @@ void LCodeGen::DoDateField(LDateField* instr) {
   ASSERT(!scratch.is(scratch0()));
   ASSERT(!scratch.is(object));
 
-#ifdef DEBUG
-  __ AbortIfSmi(object);
+  __ tst(object, Operand(kSmiTagMask));
+  DeoptimizeIf(eq, instr->environment());
   __ CompareObjectType(object, scratch, scratch, JS_DATE_TYPE);
-  __ Assert(eq, "Trying to get date field from non-date.");
-#endif
+  DeoptimizeIf(ne, instr->environment());
 
   if (index->value() == 0) {
     __ ldr(result, FieldMemOperand(object, JSDate::kValueOffset));
@@ -2232,9 +2236,7 @@ void LCodeGen::DoGetCachedArrayIndex(LGetCachedArrayIndex* instr) {
   Register input = ToRegister(instr->InputAt(0));
   Register result = ToRegister(instr->result());
 
-  if (FLAG_debug_code) {
-    __ AbortIfNotString(input);
-  }
+  __ AbortIfNotString(input);
 
   __ ldr(result, FieldMemOperand(input, String::kHashFieldOffset));
   __ IndexFromHash(result, result);
@@ -2470,12 +2472,18 @@ void LCodeGen::DoDeferredInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr,
   Register temp = ToRegister(instr->TempAt(0));
   ASSERT(temp.is(r4));
   __ LoadHeapObject(InstanceofStub::right(), instr->function());
-  static const int kAdditionalDelta = 4;
+  static const int kAdditionalDelta = 5;
   int delta = masm_->InstructionsGeneratedSince(map_check) + kAdditionalDelta;
   Label before_push_delta;
   __ bind(&before_push_delta);
   __ BlockConstPoolFor(kAdditionalDelta);
   __ mov(temp, Operand(delta * kPointerSize));
+  // The mov above can generate one or two instructions. The delta was computed
+  // for two instructions, so we need to pad here in case of one instruction.
+  if (masm_->InstructionsGeneratedSince(&before_push_delta) != 2) {
+    ASSERT_EQ(1, masm_->InstructionsGeneratedSince(&before_push_delta));
+    __ nop();
+  }
   __ StoreToSafepointRegisterSlot(temp, temp);
   CallCodeGeneric(stub.GetCode(),
                   RelocInfo::CODE_TARGET,

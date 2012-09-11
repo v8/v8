@@ -970,6 +970,8 @@ class Object : public MaybeObject {
   static void VerifyPointer(Object* p);
 #endif
 
+  inline void VerifyApiCallResultType();
+
   // Prints this object without details.
   inline void ShortPrint() {
     ShortPrint(stdout);
@@ -6084,7 +6086,7 @@ class JSFunction: public JSObject {
 
   // After prototype is removed, it will not be created when accessed, and
   // [[Construct]] from this function will not be allowed.
-  Object* RemovePrototype();
+  void RemovePrototype();
   inline bool should_have_prototype();
 
   // Accessor for this function's initial map's [[class]]
@@ -6096,7 +6098,7 @@ class JSFunction: public JSObject {
   // Instances created afterwards will have a map whose [[class]] is
   // set to 'value', but there is no guarantees on instances created
   // before.
-  Object* SetInstanceClassName(String* name);
+  void SetInstanceClassName(String* name);
 
   // Returns if this function has been compiled to native code yet.
   inline bool is_compiled();
