@@ -343,7 +343,9 @@ bool MarkCompactCollector::StartCompaction(CompactionMode mode) {
     CollectEvacuationCandidates(heap()->old_pointer_space());
     CollectEvacuationCandidates(heap()->old_data_space());
 
-    if (FLAG_compact_code_space && mode == NON_INCREMENTAL_COMPACTION) {
+    if (FLAG_compact_code_space &&
+        (mode == NON_INCREMENTAL_COMPACTION ||
+         FLAG_incremental_code_compaction)) {
       CollectEvacuationCandidates(heap()->code_space());
     } else if (FLAG_trace_fragmentation) {
       TraceFragmentation(heap()->code_space());
@@ -1443,7 +1445,7 @@ class MarkCompactMarkingVisitor
     } else {
       // Don't visit code object.
 
-      // Visit shared function info to avoid double checking of it's
+      // Visit shared function info to avoid double checking of its
       // flushability.
       SharedFunctionInfo* shared_info = object->unchecked_shared();
       MarkBit shared_info_mark = Marking::MarkBitFrom(shared_info);
@@ -1704,7 +1706,7 @@ class SharedFunctionInfoMarkingVisitor : public ObjectVisitor {
 
 void MarkCompactCollector::MarkInlinedFunctionsCode(Code* code) {
   // For optimized functions we should retain both non-optimized version
-  // of it's code and non-optimized version of all inlined functions.
+  // of its code and non-optimized version of all inlined functions.
   // This is required to support bailing out from inlined code.
   DeoptimizationInputData* data =
       DeoptimizationInputData::cast(code->deoptimization_data());
@@ -2300,7 +2302,7 @@ void MarkCompactCollector::MarkLiveObjects() {
     // non-incremental marker can deal with them as if overflow
     // occured during normal marking.
     // But incremental marker uses a separate marking deque
-    // so we have to explicitly copy it's overflow state.
+    // so we have to explicitly copy its overflow state.
     incremental_marking->Finalize();
     incremental_marking_overflowed =
         incremental_marking->marking_deque()->overflowed();

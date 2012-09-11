@@ -67,7 +67,7 @@ void IncrementalMarking::TearDown() {
 void IncrementalMarking::RecordWriteSlow(HeapObject* obj,
                                          Object** slot,
                                          Object* value) {
-  if (BaseRecordWrite(obj, slot, value) && is_compacting_ && slot != NULL) {
+  if (BaseRecordWrite(obj, slot, value) && slot != NULL) {
     MarkBit obj_bit = Marking::MarkBitFrom(obj);
     if (Marking::IsBlack(obj_bit)) {
       // Object is not going to be rescanned we need to record the slot.
@@ -127,9 +127,9 @@ void IncrementalMarking::RecordCodeTargetPatch(Address pc, HeapObject* value) {
 
 
 void IncrementalMarking::RecordWriteOfCodeEntrySlow(JSFunction* host,
-                                                Object** slot,
-                                                Code* value) {
-  if (BaseRecordWrite(host, slot, value) && is_compacting_) {
+                                                    Object** slot,
+                                                    Code* value) {
+  if (BaseRecordWrite(host, slot, value)) {
     ASSERT(slot != NULL);
     heap_->mark_compact_collector()->
         RecordCodeEntrySlot(reinterpret_cast<Address>(slot), value);

@@ -48,7 +48,9 @@ bool IncrementalMarking::BaseRecordWrite(HeapObject* obj,
     // Object is either grey or white.  It will be scanned if survives.
     return false;
   }
-  return true;
+  if (!is_compacting_) return false;
+  MarkBit obj_bit = Marking::MarkBitFrom(obj);
+  return Marking::IsBlack(obj_bit);
 }
 
 

@@ -132,6 +132,12 @@ class IncrementalMarking {
                                                Object** slot,
                                                Isolate* isolate);
 
+  // Record a slot for compaction.  Returns false for objects that are
+  // guaranteed to be rescanned or not guaranteed to survive.
+  //
+  // No slots in white objects should be recorded, as some slots are typed and
+  // cannot be interpreted corrrectly if the underlying object does not survive
+  // the incremental cycle (stays white).
   INLINE(bool BaseRecordWrite(HeapObject* obj, Object** slot, Object* value));
   INLINE(void RecordWrite(HeapObject* obj, Object** slot, Object* value));
   INLINE(void RecordWriteIntoCode(HeapObject* obj,

@@ -304,6 +304,26 @@ class SlotsBuffer {
     NUMBER_OF_SLOT_TYPES
   };
 
+  static const char* SlotTypeToString(SlotType type) {
+    switch (type) {
+      case EMBEDDED_OBJECT_SLOT:
+        return "EMBEDDED_OBJECT_SLOT";
+      case RELOCATED_CODE_OBJECT:
+        return "RELOCATED_CODE_OBJECT";
+      case CODE_TARGET_SLOT:
+        return "CODE_TARGET_SLOT";
+      case CODE_ENTRY_SLOT:
+        return "CODE_ENTRY_SLOT";
+      case DEBUG_TARGET_SLOT:
+        return "DEBUG_TARGET_SLOT";
+      case JS_RETURN_SLOT:
+        return "JS_RETURN_SLOT";
+      case NUMBER_OF_SLOT_TYPES:
+        return "NUMBER_OF_SLOT_TYPES";
+    }
+    return "UNKNOWN SlotType";
+  }
+
   void UpdateSlots(Heap* heap);
 
   void UpdateSlotsWithFilter(Heap* heap);
