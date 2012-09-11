@@ -3743,6 +3743,7 @@ void HGraph::EliminateRedundantBoundsChecks() {
 
 static void DehoistArrayIndex(ArrayInstructionInterface* array_operation) {
   HValue* index = array_operation->GetKey();
+  if (!index->representation().IsInteger32()) return;
 
   HConstant* constant;
   HValue* subexpression;
