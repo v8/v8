@@ -86,9 +86,7 @@ array-splice: PASS || TIMEOUT
 
 # Long running test.
 string-indexof-2: PASS || TIMEOUT
-# BUG(2314): Crankshaft generates incorrect (crashing) code on ARM
-# mirror-object: PASS || TIMEOUT
-mirror-object: SKIP
+mirror-object: PASS || TIMEOUT
 
 # BUG(3251035): Timeouts in long looping crankshaft optimization
 # tests. Skipping because having them timeout takes too long on the
