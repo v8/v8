@@ -202,7 +202,7 @@ function FormatMessage(message) {
       "proxy_non_object_prop_names",  ["Trap '", "%1", "' returned non-object ", "%0"],
       "proxy_repeated_prop_name",     ["Trap '", "%1", "' returned repeated property name '", "%2", "'"],
       "invalid_weakmap_key",          ["Invalid value used as weak map key"],
-      "not_date_object",              ["Receiver is not a Date object."],
+      "not_date_object",              ["this is not a Date object."],
       // RangeError
       "invalid_array_length",         ["Invalid array length"],
       "stack_overflow",               ["Maximum call stack size exceeded"],
