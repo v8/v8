@@ -3432,6 +3432,8 @@ class BoundsCheckKey : public ZoneObject {
   static BoundsCheckKey* Create(Zone* zone,
                                 HBoundsCheck* check,
                                 int32_t* offset) {
+    if (!check->index()->representation().IsInteger32()) return NULL;
+
     HValue* index_base = NULL;
     HConstant* constant = NULL;
     bool is_sub = false;
@@ -3682,6 +3684,7 @@ void HGraph::EliminateRedundantBoundsChecks(HBasicBlock* bb,
     int32_t offset;
     BoundsCheckKey* key =
         BoundsCheckKey::Create(zone(), check, &offset);
+    if (key == NULL) continue;
     BoundsCheckBbData** data_p = table->LookupOrInsert(key, zone());
     BoundsCheckBbData* data = *data_p;
     if (data == NULL) {
