@@ -449,7 +449,10 @@ void LCodeGen::WriteTranslation(LEnvironment* environment,
   *arguments_index = -environment->parameter_count();
   *arguments_count = environment->parameter_count();
 
-  WriteTranslation(environment->outer(), translation, args_index, args_count);
+  WriteTranslation(environment->outer(),
+                   translation,
+                   arguments_index,
+                   arguments_count);
   int closure_id = *info()->closure() != *environment->closure()
       ? DefineDeoptimizationLiteral(environment->closure())
       : Translation::kSelfLiteralId;
