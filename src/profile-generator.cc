@@ -2009,19 +2009,32 @@ void V8HeapExplorer::ExtractMapReferences(int entry, Map* map) {
                        Map::kConstructorOffset);
   if (map->HasTransitionArray()) {
     TransitionArray* transitions = map->transitions();
-    if (!transitions->descriptors()->IsEmpty()) {
-      DescriptorArray* descriptors = transitions->descriptors();
-      TagObject(descriptors, "(map descriptors)");
-      SetInternalReference(transitions, entry,
-                           "descriptors", descriptors,
-                           TransitionArray::kDescriptorsOffset);
-      IndexedReferencesExtractor refs_extractor(
-          this, transitions, entry);
-      transitions->Iterate(&refs_extractor);
-    }
+    JSGlobalPropertyCell* pointer = transitions->descriptors_pointer();
+    DescriptorArray* descriptors = transitions->descriptors();
+    TagObject(descriptors, "(map descriptors)");
+    SetInternalReference(pointer, entry,
+                         "descriptors", descriptors,
+                         JSGlobalPropertyCell::kValueOffset);
+    IndexedReferencesExtractor pointer_refs(this, pointer, entry);
+    pointer->Iterate(&pointer_refs);
+
+    Object* back_pointer = transitions->back_pointer_storage();
+    TagObject(transitions->back_pointer_storage(), "(back pointer)");
+    SetInternalReference(transitions, entry,
+                         "backpointer", back_pointer,
+                         TransitionArray::kBackPointerStorageOffset);
+    IndexedReferencesExtractor transitions_refs(this, transitions, entry);
+    transitions->Iterate(&transitions_refs);
+
     TagObject(transitions, "(transition array)");
     SetInternalReference(map, entry,
                          "transitions", transitions,
+                         Map::kTransitionsOrBackPointerOffset);
+  } else {
+    Object* back_pointer = map->GetBackPointer();
+    TagObject(back_pointer, "(back pointer)");
+    SetInternalReference(map, entry,
+                         "backpointer", back_pointer,
                          Map::kTransitionsOrBackPointerOffset);
   }
   SetInternalReference(map, entry,
@@ -2179,7 +2192,9 @@ void V8HeapExplorer::ExtractClosureReferences(JSObject* js_obj, int entry) {
 void V8HeapExplorer::ExtractPropertyReferences(JSObject* js_obj, int entry) {
   if (js_obj->HasFastProperties()) {
     DescriptorArray* descs = js_obj->map()->instance_descriptors();
+    int real_size = js_obj->map()->NumberOfOwnDescriptors();
     for (int i = 0; i < descs->number_of_descriptors(); i++) {
+      if (descs->GetDetails(i).descriptor_index() > real_size) continue;
       switch (descs->GetType(i)) {
         case FIELD: {
           int index = descs->GetFieldIndex(i);

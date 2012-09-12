@@ -637,7 +637,7 @@ static void SetAccessors(Handle<Map> map,
                          Handle<String> name,
                          Handle<JSFunction> func) {
   DescriptorArray* descs = map->instance_descriptors();
-  int number = descs->Search(*name);
+  int number = descs->SearchWithCache(*name, *map);
   AccessorPair* accessors = AccessorPair::cast(descs->GetValue(number));
   accessors->set_getter(*func);
   accessors->set_setter(*func);
@@ -1774,7 +1774,8 @@ bool Genesis::InstallNatives() {
       Handle<DescriptorArray> array_descriptors(
           array_function->initial_map()->instance_descriptors());
       String* length = heap()->length_symbol();
-      int old = array_descriptors->SearchWithCache(length);
+      int old = array_descriptors->SearchWithCache(
+          length, array_function->initial_map());
       ASSERT(old != DescriptorArray::kNotFound);
       CallbacksDescriptor desc(length,
                                array_descriptors->GetValue(old),
