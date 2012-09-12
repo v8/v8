@@ -4089,6 +4089,29 @@ void v8::String::VerifyExternalStringResource(
   CHECK_EQ(expected, value);
 }
 
+void v8::String::VerifyExternalStringResourceBase(
+    v8::String::ExternalStringResourceBase* value, Encoding encoding) const {
+  i::Handle<i::String> str = Utils::OpenHandle(this);
+  const v8::String::ExternalStringResourceBase* expected;
+  Encoding expectedEncoding;
+  if (i::StringShape(*str).IsExternalAscii()) {
+    const void* resource =
+        i::Handle<i::ExternalAsciiString>::cast(str)->resource();
+    expected = reinterpret_cast<const ExternalStringResourceBase*>(resource);
+    expectedEncoding = ASCII_ENCODING;
+  } else if (i::StringShape(*str).IsExternalTwoByte()) {
+    const void* resource =
+        i::Handle<i::ExternalTwoByteString>::cast(str)->resource();
+    expected = reinterpret_cast<const ExternalStringResourceBase*>(resource);
+    expectedEncoding = TWO_BYTE_ENCODING;
+  } else {
+    expected = NULL;
+    expectedEncoding = str->IsAsciiRepresentation() ? ASCII_ENCODING
+                                                    : TWO_BYTE_ENCODING;
+  }
+  CHECK_EQ(expected, value);
+  CHECK_EQ(expectedEncoding, encoding);
+}
 
 const v8::String::ExternalAsciiStringResource*
       v8::String::GetExternalAsciiStringResource() const {
