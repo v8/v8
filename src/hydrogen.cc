@@ -6550,6 +6550,7 @@ void HGraphBuilder::EnsureArgumentsArePushedForAccess() {
 
   // Push arguments when entering inlined function.
   HEnterInlined* entry = function_state()->entry();
+  entry->set_arguments_pushed();
 
   ZoneList<HValue*>* arguments_values = entry->arguments_values();
 
@@ -9392,6 +9393,7 @@ HEnvironment::HEnvironment(HEnvironment* outer,
       specials_count_(1),
       local_count_(0),
       outer_(outer),
+      entry_(NULL),
       pop_count_(0),
       push_count_(0),
       ast_id_(BailoutId::None()),
@@ -9408,6 +9410,7 @@ HEnvironment::HEnvironment(const HEnvironment* other, Zone* zone)
       specials_count_(1),
       local_count_(0),
       outer_(NULL),
+      entry_(NULL),
       pop_count_(0),
       push_count_(0),
       ast_id_(other->ast_id()),
@@ -9428,6 +9431,7 @@ HEnvironment::HEnvironment(HEnvironment* outer,
       parameter_count_(arguments),
       local_count_(0),
       outer_(outer),
+      entry_(NULL),
       pop_count_(0),
       push_count_(0),
       ast_id_(BailoutId::None()),
@@ -9456,6 +9460,7 @@ void HEnvironment::Initialize(const HEnvironment* other) {
   parameter_count_ = other->parameter_count_;
   local_count_ = other->local_count_;
   if (other->outer_ != NULL) outer_ = other->outer_->Copy();  // Deep copy.
+  entry_ = other->entry_;
   pop_count_ = other->pop_count_;
   push_count_ = other->push_count_;
   ast_id_ = other->ast_id_;

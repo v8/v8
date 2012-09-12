@@ -862,6 +862,7 @@ LEnvironment* LChunkBuilder::CreateEnvironment(
       argument_count_,
       value_count,
       outer,
+      hydrogen_env->entry(),
       zone());
   int argument_index = *argument_index_accumulator;
   for (int i = 0; i < value_count; ++i) {
@@ -2195,6 +2196,7 @@ LInstruction* LChunkBuilder::DoEnterInlined(HEnterInlined* instr) {
   if (instr->arguments_var() != NULL) {
     inner->Bind(instr->arguments_var(), graph()->GetArgumentsObject());
   }
+  inner->set_entry(instr);
   current_block_->UpdateEnvironment(inner);
   chunk_->AddInlinedClosure(instr->closure());
   return NULL;

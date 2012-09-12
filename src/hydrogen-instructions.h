@@ -1431,6 +1431,7 @@ class HEnterInlined: public HTemplateInstruction<0> {
                 ZoneList<HValue*>* arguments_values)
       : closure_(closure),
         arguments_count_(arguments_count),
+        arguments_pushed_(false),
         function_(function),
         call_kind_(call_kind),
         inlining_kind_(inlining_kind),
@@ -1442,6 +1443,8 @@ class HEnterInlined: public HTemplateInstruction<0> {
 
   Handle<JSFunction> closure() const { return closure_; }
   int arguments_count() const { return arguments_count_; }
+  bool arguments_pushed() const { return arguments_pushed_; }
+  void set_arguments_pushed() { arguments_pushed_ = true; }
   FunctionLiteral* function() const { return function_; }
   CallKind call_kind() const { return call_kind_; }
   InliningKind inlining_kind() const { return inlining_kind_; }
@@ -1458,6 +1461,7 @@ class HEnterInlined: public HTemplateInstruction<0> {
  private:
   Handle<JSFunction> closure_;
   int arguments_count_;
+  bool arguments_pushed_;
   FunctionLiteral* function_;
   CallKind call_kind_;
   InliningKind inlining_kind_;

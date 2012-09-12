@@ -434,13 +434,6 @@ class HEnvironment: public ZoneObject {
                Handle<JSFunction> closure,
                Zone* zone);
 
-  HEnvironment* DiscardInlined(bool drop_extra) {
-    HEnvironment* outer = outer_;
-    while (outer->frame_type() != JS_FUNCTION) outer = outer->outer_;
-    if (drop_extra) outer->Drop(1);
-    return outer;
-  }
-
   HEnvironment* arguments_environment() {
     return outer()->frame_type() == ARGUMENTS_ADAPTOR ? outer() : this;
   }
@@ -461,6 +454,9 @@ class HEnvironment: public ZoneObject {
 
   BailoutId ast_id() const { return ast_id_; }
   void set_ast_id(BailoutId id) { ast_id_ = id; }
+
+  HEnterInlined* entry() const { return entry_; }
+  void set_entry(HEnterInlined* entry) { entry_ = entry; }
 
   int length() const { return values_.length(); }
   bool is_special_index(int i) const {
@@ -540,6 +536,13 @@ class HEnvironment: public ZoneObject {
                                 CallKind call_kind,
                                 InliningKind inlining_kind) const;
 
+  HEnvironment* DiscardInlined(bool drop_extra) {
+    HEnvironment* outer = outer_;
+    while (outer->frame_type() != JS_FUNCTION) outer = outer->outer_;
+    if (drop_extra) outer->Drop(1);
+    return outer;
+  }
+
   void AddIncomingEdge(HBasicBlock* block, HEnvironment* other);
 
   void ClearHistory() {
@@ -600,6 +603,7 @@ class HEnvironment: public ZoneObject {
   int specials_count_;
   int local_count_;
   HEnvironment* outer_;
+  HEnterInlined* entry_;
   int pop_count_;
   int push_count_;
   BailoutId ast_id_;

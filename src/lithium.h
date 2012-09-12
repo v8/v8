@@ -460,6 +460,7 @@ class LEnvironment: public ZoneObject {
                int argument_count,
                int value_count,
                LEnvironment* outer,
+               HEnterInlined* entry,
                Zone* zone)
       : closure_(closure),
         frame_type_(frame_type),
@@ -475,6 +476,7 @@ class LEnvironment: public ZoneObject {
         spilled_registers_(NULL),
         spilled_double_registers_(NULL),
         outer_(outer),
+        entry_(entry),
         zone_(zone) { }
 
   Handle<JSFunction> closure() const { return closure_; }
@@ -491,6 +493,7 @@ class LEnvironment: public ZoneObject {
   }
   const ZoneList<LOperand*>* values() const { return &values_; }
   LEnvironment* outer() const { return outer_; }
+  HEnterInlined* entry() { return entry_; }
 
   void AddValue(LOperand* operand,
                 Representation representation,
@@ -556,6 +559,7 @@ class LEnvironment: public ZoneObject {
   LOperand** spilled_double_registers_;
 
   LEnvironment* outer_;
+  HEnterInlined* entry_;
 
   Zone* zone_;
 };

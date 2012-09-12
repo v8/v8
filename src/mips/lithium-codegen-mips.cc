@@ -432,7 +432,9 @@ MemOperand LCodeGen::ToHighMemOperand(LOperand* op) const {
 
 
 void LCodeGen::WriteTranslation(LEnvironment* environment,
-                                Translation* translation) {
+                                Translation* translation,
+                                int* arguments_index,
+                                int* arguments_count) {
   if (environment == NULL) return;
 
   // The translation includes one command per value in the environment.
@@ -440,7 +442,14 @@ void LCodeGen::WriteTranslation(LEnvironment* environment,
   // The output frame height does not include the parameters.
   int height = translation_size - environment->parameter_count();
 
-  WriteTranslation(environment->outer(), translation);
+  // Function parameters are arguments to the outermost environment. The
+  // arguments index points to the first element of a sequence of tagged
+  // values on the stack that represent the arguments. This needs to be
+  // kept in sync with the LArgumentsElements implementation.
+  *arguments_index = -environment->parameter_count();
+  *arguments_count = environment->parameter_count();
+
+  WriteTranslation(environment->outer(), translation, args_index, args_count);
   int closure_id = *info()->closure() != *environment->closure()
       ? DefineDeoptimizationLiteral(environment->closure())
       : Translation::kSelfLiteralId;
@@ -466,6 +475,17 @@ void LCodeGen::WriteTranslation(LEnvironment* environment,
       translation->BeginArgumentsAdaptorFrame(closure_id, translation_size);
       break;
   }
+
+  // Inlined frames which push their arguments cause the index to be
+  // bumped and a new stack area to be used for materialization.
+  if (environment->entry() != NULL &&
+      environment->entry()->arguments_pushed()) {
+    *arguments_index = *arguments_index < 0
+        ? GetStackSlotCount()
+        : *arguments_index + *arguments_count;
+    *arguments_count = environment->entry()->arguments_count() + 1;
+  }
+
   for (int i = 0; i < translation_size; ++i) {
     LOperand* value = environment->values()->at(i);
     // spilled_registers_ and spilled_double_registers_ are either
@@ -477,7 +497,9 @@ void LCodeGen::WriteTranslation(LEnvironment* environment,
         AddToTranslation(translation,
                          environment->spilled_registers()[value->index()],
                          environment->HasTaggedValueAt(i),
-                         environment->HasUint32ValueAt(i));
+                         environment->HasUint32ValueAt(i),
+                         *arguments_index,
+                         *arguments_count);
       } else if (
           value->IsDoubleRegister() &&
           environment->spilled_double_registers()[value->index()] != NULL) {
@@ -486,14 +508,18 @@ void LCodeGen::WriteTranslation(LEnvironment* environment,
             translation,
             environment->spilled_double_registers()[value->index()],
             false,
-            false);
+            false,
+            *arguments_index,
+            *arguments_count);
       }
     }
 
     AddToTranslation(translation,
                      value,
                      environment->HasTaggedValueAt(i),
-                     environment->HasUint32ValueAt(i));
+                     environment->HasUint32ValueAt(i),
+                     *arguments_index,
+                     *arguments_count);
   }
 }
 
@@ -501,12 +527,14 @@ void LCodeGen::WriteTranslation(LEnvironment* environment,
 void LCodeGen::AddToTranslation(Translation* translation,
                                 LOperand* op,
                                 bool is_tagged,
-                                bool is_uint32) {
+                                bool is_uint32,
+                                int arguments_index,
+                                int arguments_count) {
   if (op == NULL) {
     // TODO(twuerthinger): Introduce marker operands to indicate that this value
     // is not present and must be reconstructed from the deoptimizer. Currently
     // this is only used for the arguments object.
-    translation->StoreArgumentsObject();
+    translation->StoreArgumentsObject(arguments_index, arguments_count);
   } else if (op->IsStackSlot()) {
     if (is_tagged) {
       translation->StoreStackSlot(op->index());
@@ -602,6 +630,8 @@ void LCodeGen::RegisterEnvironmentForDeoptimization(LEnvironment* environment,
 
     int frame_count = 0;
     int jsframe_count = 0;
+    int args_index = 0;
+    int args_count = 0;
     for (LEnvironment* e = environment; e != NULL; e = e->outer()) {
       ++frame_count;
       if (e->frame_type() == JS_FUNCTION) {
@@ -609,7 +639,7 @@ void LCodeGen::RegisterEnvironmentForDeoptimization(LEnvironment* environment,
       }
     }
     Translation translation(&translations_, frame_count, jsframe_count, zone());
-    WriteTranslation(environment, &translation);
+    WriteTranslation(environment, &translation, &args_index, &args_count);
     int deoptimization_index = deoptimizations_.length();
     int pc_offset = masm()->pc_offset();
     environment->Register(deoptimization_index,

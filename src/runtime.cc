@@ -7970,35 +7970,6 @@ class ActivationsFinder : public ThreadVisitor {
 };
 
 
-static void MaterializeArgumentsObjectInFrame(Isolate* isolate,
-                                              JavaScriptFrame* frame) {
-  Handle<JSFunction> function(JSFunction::cast(frame->function()), isolate);
-  Handle<Object> arguments;
-  for (int i = frame->ComputeExpressionsCount() - 1; i >= 0; --i) {
-    if (frame->GetExpression(i) == isolate->heap()->arguments_marker()) {
-      if (arguments.is_null()) {
-        // FunctionGetArguments can't throw an exception, so cast away the
-        // doubt with an assert.
-        arguments = Handle<Object>(
-            Accessors::FunctionGetArguments(*function,
-                                            NULL)->ToObjectUnchecked());
-        ASSERT(*arguments != isolate->heap()->null_value());
-        ASSERT(*arguments != isolate->heap()->undefined_value());
-      }
-      frame->SetExpression(i, *arguments);
-      if (FLAG_trace_deopt) {
-        PrintF("Materializing arguments object for frame %p - %p: %p ",
-               reinterpret_cast<void*>(frame->sp()),
-               reinterpret_cast<void*>(frame->fp()),
-               reinterpret_cast<void*>(*arguments));
-        arguments->ShortPrint();
-        PrintF("\n");
-      }
-    }
-  }
-}
-
-
 RUNTIME_FUNCTION(MaybeObject*, Runtime_NotifyDeoptimized) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 1);
@@ -8007,25 +7978,16 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NotifyDeoptimized) {
       static_cast<Deoptimizer::BailoutType>(args.smi_at(0));
   Deoptimizer* deoptimizer = Deoptimizer::Grab(isolate);
   ASSERT(isolate->heap()->IsAllocationAllowed());
-  int jsframes = deoptimizer->jsframe_count();
-
-  deoptimizer->MaterializeHeapNumbers();
-  delete deoptimizer;
-
   JavaScriptFrameIterator it(isolate);
-  for (int i = 0; i < jsframes - 1; i++) {
-    MaterializeArgumentsObjectInFrame(isolate, it.frame());
-    it.Advance();
-  }
+
+  // Make sure to materialize objects before causing any allocation.
+  deoptimizer->MaterializeHeapObjects(&it);
+  delete deoptimizer;
 
   JavaScriptFrame* frame = it.frame();
   RUNTIME_ASSERT(frame->function()->IsJSFunction());
   Handle<JSFunction> function(JSFunction::cast(frame->function()), isolate);
-  MaterializeArgumentsObjectInFrame(isolate, frame);
-
-  if (type == Deoptimizer::EAGER) {
-    RUNTIME_ASSERT(function->IsOptimized());
-  }
+  RUNTIME_ASSERT(type != Deoptimizer::EAGER || function->IsOptimized());
 
   // Avoid doing too much work when running with --always-opt and keep
   // the optimized code around.
