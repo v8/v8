@@ -48,6 +48,7 @@
 #include "snapshot.h"
 #include "store-buffer.h"
 #include "v8threads.h"
+#include "v8utils.h"
 #include "vm-state-inl.h"
 #if V8_TARGET_ARCH_ARM && !V8_INTERPRETED_REGEXP
 #include "regexp-macro-assembler.h"
@@ -4390,7 +4391,8 @@ MaybeObject* Heap::ReinitializeJSGlobalProxy(JSFunction* constructor,
 
 MaybeObject* Heap::AllocateStringFromAscii(Vector<const char> string,
                                            PretenureFlag pretenure) {
-  if (string.length() == 1) {
+  int length = string.length();
+  if (length == 1) {
     return Heap::LookupSingleCharacterStringFromCode(string[0]);
   }
   Object* result;
@@ -4400,10 +4402,7 @@ MaybeObject* Heap::AllocateStringFromAscii(Vector<const char> string,
   }
 
   // Copy the characters into the new object.
-  SeqAsciiString* string_result = SeqAsciiString::cast(result);
-  for (int i = 0; i < string.length(); i++) {
-    string_result->SeqAsciiStringSet(i, string[i]);
-  }
+  CopyChars(SeqAsciiString::cast(result)->GetChars(), string.start(), length);
   return result;
 }
 
@@ -4431,16 +4430,16 @@ MaybeObject* Heap::AllocateStringFromUtf8Slow(Vector<const char> string,
   }
 
   // Convert and copy the characters into the new object.
-  String* string_result = String::cast(result);
+  SeqTwoByteString* twobyte = SeqTwoByteString::cast(result);
   decoder->Reset(string.start(), string.length());
   int i = 0;
   while (i < chars) {
     uint32_t r = decoder->GetNext();
     if (r > unibrow::Utf16::kMaxNonSurrogateCharCode) {
-      string_result->Set(i++, unibrow::Utf16::LeadSurrogate(r));
-      string_result->Set(i++, unibrow::Utf16::TrailSurrogate(r));
+      twobyte->SeqTwoByteStringSet(i++, unibrow::Utf16::LeadSurrogate(r));
+      twobyte->SeqTwoByteStringSet(i++, unibrow::Utf16::TrailSurrogate(r));
     } else {
-      string_result->Set(i++, r);
+      twobyte->SeqTwoByteStringSet(i++, r);
     }
   }
   return result;
@@ -4450,20 +4449,18 @@ MaybeObject* Heap::AllocateStringFromUtf8Slow(Vector<const char> string,
 MaybeObject* Heap::AllocateStringFromTwoByte(Vector<const uc16> string,
                                              PretenureFlag pretenure) {
   // Check if the string is an ASCII string.
-  MaybeObject* maybe_result;
-  if (String::IsAscii(string.start(), string.length())) {
-    maybe_result = AllocateRawAsciiString(string.length(), pretenure);
-  } else {  // It's not an ASCII string.
-    maybe_result = AllocateRawTwoByteString(string.length(), pretenure);
-  }
   Object* result;
-  if (!maybe_result->ToObject(&result)) return maybe_result;
+  int length = string.length();
+  const uc16* start = string.start();
 
-  // Copy the characters into the new object, which may be either ASCII or
-  // UTF-16.
-  String* string_result = String::cast(result);
-  for (int i = 0; i < string.length(); i++) {
-    string_result->Set(i, string[i]);
+  if (String::IsAscii(start, length)) {
+    MaybeObject* maybe_result = AllocateRawAsciiString(length, pretenure);
+    if (!maybe_result->ToObject(&result)) return maybe_result;
+    CopyChars(SeqAsciiString::cast(result)->GetChars(), start, length);
+  } else {  // It's not an ASCII string.
+    MaybeObject* maybe_result = AllocateRawTwoByteString(length, pretenure);
+    if (!maybe_result->ToObject(&result)) return maybe_result;
+    CopyChars(SeqTwoByteString::cast(result)->GetChars(), start, length);
   }
   return result;
 }
