@@ -1813,6 +1813,18 @@ MaybeObject* JSObject::ConvertTransitionToMapTransition(
     old_map->transitions()->set_descriptors(new_map->instance_descriptors());
     new_map->ClearTransitions(GetHeap());
     old_map->set_owns_descriptors(false);
+    Map* map;
+    JSGlobalPropertyCell* pointer =
+        old_map->transitions()->descriptors_pointer();
+    for (Object* current = old_map;
+         !current->IsUndefined();
+         current = map->GetBackPointer()) {
+      map = Map::cast(current);
+      if (!map->HasTransitionArray()) break;
+      TransitionArray* transitions = map->transitions();
+      if (transitions->descriptors_pointer() != pointer) break;
+      map->SetEnumLength(Map::kInvalidEnumCache);
+    }
   } else if (old_target->instance_descriptors() ==
              old_map->instance_descriptors()) {
     // Since the conversion above generated a new fast map with an additional
@@ -1831,6 +1843,7 @@ MaybeObject* JSObject::ConvertTransitionToMapTransition(
       if (!map->HasTransitionArray()) break;
       TransitionArray* transitions = map->transitions();
       if (transitions->descriptors_pointer() != old_pointer) break;
+      map->SetEnumLength(Map::kInvalidEnumCache);
       transitions->set_descriptors_pointer(new_pointer);
     }
     new_map->ClearTransitions(GetHeap());
