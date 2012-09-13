@@ -1810,7 +1810,8 @@ MaybeObject* JSObject::ConvertTransitionToMapTransition(
     // new_map and install its descriptors in the old_map. Since the old_map
     // stores the descriptors for the new_map, remove the transition array of
     // the new_map that is only in place to store the descriptors.
-    old_map->transitions()->set_descriptors(new_map->instance_descriptors());
+    old_map->transitions()->descriptors_pointer()->set_value(
+        new_map->instance_descriptors());
     new_map->ClearTransitions(GetHeap());
     old_map->set_owns_descriptors(false);
     Map* map;
