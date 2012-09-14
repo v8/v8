@@ -1548,7 +1548,8 @@ class MarkCompactMarkingVisitor::ObjectStatsTracker<
     Map* map_obj = Map::cast(obj);
     ASSERT(map->instance_type() == MAP_TYPE);
     DescriptorArray* array = map_obj->instance_descriptors();
-    if (array != heap->empty_descriptor_array()) {
+    if (map_obj->owns_descriptors() &&
+        array != heap->empty_descriptor_array()) {
       int fixed_array_size = array->Size();
       heap->RecordObjectStats(FIXED_ARRAY_TYPE,
                               DESCRIPTOR_ARRAY_SUB_TYPE,
