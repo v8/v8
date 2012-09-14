@@ -328,7 +328,7 @@ class Deserializer: public SerializerDeserializer {
   // Deserialize a single object and the objects reachable from it.
   void DeserializePartial(Object** root);
 
-  void set_reservation(int space_number, uintptr_t reservation) {
+  void set_reservation(int space_number, int reservation) {
     ASSERT(space_number >= 0);
     ASSERT(space_number <= LAST_SPACE);
     reservations_[space_number] = reservation;
@@ -380,7 +380,7 @@ class Deserializer: public SerializerDeserializer {
   // space.  It is used to calculate the addresses of back-references.
   Address high_water_[LAST_SPACE + 1];
 
-  intptr_t reservations_[LAST_SPACE + 1];
+  int reservations_[LAST_SPACE + 1];
   static const intptr_t kUninitializedReservation = -1;
 
   ExternalReferenceDecoder* external_reference_decoder_;

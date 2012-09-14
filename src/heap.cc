@@ -680,7 +680,7 @@ static bool AbortIncrementalMarkingAndCollectGarbage(
 
 
 void Heap::ReserveSpace(
-    intptr_t *sizes,
+    int *sizes,
     Address *locations_out) {
   bool gc_performed = true;
   int counter = 0;

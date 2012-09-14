@@ -1332,7 +1332,7 @@ class Heap {
 
   // Support for partial snapshots.  After calling this we have a linear
   // space to write objects in each space.
-  void ReserveSpace(intptr_t *sizes, Address* addresses);
+  void ReserveSpace(int *sizes, Address* addresses);
 
   //
   // Support for the API.
