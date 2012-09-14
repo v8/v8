@@ -17513,37 +17513,4 @@ class ThreadInterruptTest {
 THREADED_TEST(SemaphoreInterruption) {
   ThreadInterruptTest().RunTest();
 }
-
-
-TEST(Utf8ValueException) {
-  v8::HandleScope scope;
-  LocalContext context;
-
-  Handle<Value> object = CompileRun(
-      "var obj = { toString : function() { throw 'deadbeef';  } }; obj");
-
-  { v8::TryCatch try_catch;
-    v8::String::Utf8Value utf8_value(object);
-    CHECK(try_catch.HasCaught());
-    CHECK_EQ("deadbeef", *v8::String::Utf8Value(try_catch.Exception()));
-  }
-
-  { v8::TryCatch try_catch;
-    v8::String::AsciiValue ascii_value(object);
-    CHECK(try_catch.HasCaught());
-    CHECK_EQ("deadbeef", *v8::String::Utf8Value(try_catch.Exception()));
-  }
-
-  { v8::TryCatch try_catch;
-    v8::String::Value value(object);
-    CHECK(try_catch.HasCaught());
-    CHECK_EQ("deadbeef", *v8::String::Utf8Value(try_catch.Exception()));
-  }
-
-  // It should work fine without any TryCatch.
-  v8::String::Utf8Value utf8_value(object);
-  v8::String::AsciiValue ascii_value(object);
-  v8::String::Value value(object);
-}
-
 #endif  // WIN32

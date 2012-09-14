@@ -5500,6 +5500,7 @@ String::Utf8Value::Utf8Value(v8::Handle<v8::Value> obj)
   if (obj.IsEmpty()) return;
   ENTER_V8(isolate);
   i::HandleScope scope(isolate);
+  TryCatch try_catch;
   Handle<String> str = obj->ToString();
   if (str.IsEmpty()) return;
   i::Handle<i::String> i_str = Utils::OpenHandle(*str);
@@ -5521,6 +5522,7 @@ String::AsciiValue::AsciiValue(v8::Handle<v8::Value> obj)
   if (obj.IsEmpty()) return;
   ENTER_V8(isolate);
   i::HandleScope scope(isolate);
+  TryCatch try_catch;
   Handle<String> str = obj->ToString();
   if (str.IsEmpty()) return;
   length_ = str->Length();
@@ -5541,6 +5543,7 @@ String::Value::Value(v8::Handle<v8::Value> obj)
   if (obj.IsEmpty()) return;
   ENTER_V8(isolate);
   i::HandleScope scope(isolate);
+  TryCatch try_catch;
   Handle<String> str = obj->ToString();
   if (str.IsEmpty()) return;
   length_ = str->Length();
