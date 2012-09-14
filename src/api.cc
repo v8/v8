@@ -765,7 +765,7 @@ void Context::Exit() {
 }
 
 
-void Context::SetData(v8::Handle<String> data) {
+void Context::SetData(v8::Handle<Value> data) {
   i::Handle<i::Context> env = Utils::OpenHandle(this);
   i::Isolate* isolate = env->GetIsolate();
   if (IsDeadCheck(isolate, "v8::Context::SetData()")) return;
@@ -781,16 +781,13 @@ v8::Local<v8::Value> Context::GetData() {
   i::Handle<i::Context> env = Utils::OpenHandle(this);
   i::Isolate* isolate = env->GetIsolate();
   if (IsDeadCheck(isolate, "v8::Context::GetData()")) {
-    return v8::Local<Value>();
-  }
-  i::Object* raw_result = NULL;
-  ASSERT(env->IsNativeContext());
-  if (env->IsNativeContext()) {
-    raw_result = env->data();
-  } else {
     return Local<Value>();
   }
-  i::Handle<i::Object> result(raw_result, isolate);
+  ASSERT(env->IsNativeContext());
+  if (!env->IsNativeContext()) {
+    return Local<Value>();
+  }
+  i::Handle<i::Object> result(env->data(), isolate);
   return Utils::ToLocal(result);
 }
 

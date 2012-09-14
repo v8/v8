@@ -3718,7 +3718,7 @@ class V8EXPORT Context {
    * with the debugger to provide additional information on the context through
    * the debugger API.
    */
-  void SetData(Handle<String> data);
+  void SetData(Handle<Value> data);
   Local<Value> GetData();
 
   /**
