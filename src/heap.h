@@ -508,6 +508,24 @@ class Heap {
   MapSpace* map_space() { return map_space_; }
   CellSpace* cell_space() { return cell_space_; }
   LargeObjectSpace* lo_space() { return lo_space_; }
+  PagedSpace* paged_space(int idx) {
+    switch (idx) {
+      case OLD_POINTER_SPACE:
+        return old_pointer_space();
+      case OLD_DATA_SPACE:
+        return old_data_space();
+      case MAP_SPACE:
+        return map_space();
+      case CELL_SPACE:
+        return cell_space();
+      case CODE_SPACE:
+        return code_space();
+      case NEW_SPACE:
+      case LO_SPACE:
+        UNREACHABLE();
+    }
+    return NULL;
+  }
 
   bool always_allocate() { return always_allocate_scope_depth_ != 0; }
   Address always_allocate_scope_depth_address() {
@@ -656,6 +674,9 @@ class Heap {
 
   // Clear the Instanceof cache (used when a prototype changes).
   inline void ClearInstanceofCache();
+
+  // For use during bootup.
+  void RepairFreeListsAfterBoot();
 
   // Allocates and fully initializes a String.  There are two String
   // encodings: ASCII and two byte. One should choose between the three string
@@ -1309,20 +1330,9 @@ class Heap {
   // Commits from space if it is uncommitted.
   void EnsureFromSpaceIsCommitted();
 
-  // Support for partial snapshots.  After calling this we can allocate a
-  // certain number of bytes using only linear allocation (with a
-  // LinearAllocationScope and an AlwaysAllocateScope) without using freelists
-  // or causing a GC.  It returns true of space was reserved or false if a GC is
-  // needed.  For paged spaces the space requested must include the space wasted
-  // at the end of each page when allocating linearly.
-  void ReserveSpace(
-    int new_space_size,
-    int pointer_space_size,
-    int data_space_size,
-    int code_space_size,
-    int map_space_size,
-    int cell_space_size,
-    int large_object_size);
+  // Support for partial snapshots.  After calling this we have a linear
+  // space to write objects in each space.
+  void ReserveSpace(intptr_t *sizes, Address* addresses);
 
   //
   // Support for the API.
@@ -2131,7 +2141,6 @@ class Heap {
   friend class GCTracer;
   friend class DisallowAllocationFailure;
   friend class AlwaysAllocateScope;
-  friend class LinearAllocationScope;
   friend class Page;
   friend class Isolate;
   friend class MarkCompactCollector;
@@ -2195,13 +2204,6 @@ class AlwaysAllocateScope {
  private:
   // Implicitly disable artificial allocation failures.
   DisallowAllocationFailure disallow_allocation_failure_;
-};
-
-
-class LinearAllocationScope {
- public:
-  inline LinearAllocationScope();
-  inline ~LinearAllocationScope();
 };
 
 

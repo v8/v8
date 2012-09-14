@@ -417,6 +417,7 @@ void Heap::GarbageCollectionPrologue() {
   store_buffer()->GCPrologue();
 }
 
+
 intptr_t Heap::SizeOfObjects() {
   intptr_t total = 0;
   AllSpaces spaces;
@@ -425,6 +426,17 @@ intptr_t Heap::SizeOfObjects() {
   }
   return total;
 }
+
+
+void Heap::RepairFreeListsAfterBoot() {
+  PagedSpaces spaces;
+  for (PagedSpace* space = spaces.next();
+       space != NULL;
+       space = spaces.next()) {
+    space->RepairFreeListsAfterBoot();
+  }
+}
+
 
 void Heap::GarbageCollectionEpilogue() {
   store_buffer()->GCEpilogue();
@@ -668,67 +680,42 @@ static bool AbortIncrementalMarkingAndCollectGarbage(
 
 
 void Heap::ReserveSpace(
-    int new_space_size,
-    int pointer_space_size,
-    int data_space_size,
-    int code_space_size,
-    int map_space_size,
-    int cell_space_size,
-    int large_object_size) {
-  NewSpace* new_space = Heap::new_space();
-  PagedSpace* old_pointer_space = Heap::old_pointer_space();
-  PagedSpace* old_data_space = Heap::old_data_space();
-  PagedSpace* code_space = Heap::code_space();
-  PagedSpace* map_space = Heap::map_space();
-  PagedSpace* cell_space = Heap::cell_space();
-  LargeObjectSpace* lo_space = Heap::lo_space();
+    intptr_t *sizes,
+    Address *locations_out) {
   bool gc_performed = true;
   int counter = 0;
   static const int kThreshold = 20;
   while (gc_performed && counter++ < kThreshold) {
     gc_performed = false;
-    if (!new_space->ReserveSpace(new_space_size)) {
-      Heap::CollectGarbage(NEW_SPACE,
-                           "failed to reserve space in the new space");
-      gc_performed = true;
-    }
-    if (!old_pointer_space->ReserveSpace(pointer_space_size)) {
-      AbortIncrementalMarkingAndCollectGarbage(this, OLD_POINTER_SPACE,
-          "failed to reserve space in the old pointer space");
-      gc_performed = true;
-    }
-    if (!(old_data_space->ReserveSpace(data_space_size))) {
-      AbortIncrementalMarkingAndCollectGarbage(this, OLD_DATA_SPACE,
-          "failed to reserve space in the old data space");
-      gc_performed = true;
-    }
-    if (!(code_space->ReserveSpace(code_space_size))) {
-      AbortIncrementalMarkingAndCollectGarbage(this, CODE_SPACE,
-          "failed to reserve space in the code space");
-      gc_performed = true;
-    }
-    if (!(map_space->ReserveSpace(map_space_size))) {
-      AbortIncrementalMarkingAndCollectGarbage(this, MAP_SPACE,
-          "failed to reserve space in the map space");
-      gc_performed = true;
-    }
-    if (!(cell_space->ReserveSpace(cell_space_size))) {
-      AbortIncrementalMarkingAndCollectGarbage(this, CELL_SPACE,
-          "failed to reserve space in the cell space");
-      gc_performed = true;
-    }
-    // We add a slack-factor of 2 in order to have space for a series of
-    // large-object allocations that are only just larger than the page size.
-    large_object_size *= 2;
-    // The ReserveSpace method on the large object space checks how much
-    // we can expand the old generation.  This includes expansion caused by
-    // allocation in the other spaces.
-    large_object_size += cell_space_size + map_space_size + code_space_size +
-        data_space_size + pointer_space_size;
-    if (!(lo_space->ReserveSpace(large_object_size))) {
-      AbortIncrementalMarkingAndCollectGarbage(this, LO_SPACE,
-          "failed to reserve space in the large object space");
-      gc_performed = true;
+    ASSERT(NEW_SPACE == FIRST_PAGED_SPACE - 1);
+    for (int space = NEW_SPACE; space <= LAST_PAGED_SPACE; space++) {
+      if (sizes[space] != 0) {
+        MaybeObject* allocation;
+        if (space == NEW_SPACE) {
+          allocation = new_space()->AllocateRaw(sizes[space]);
+        } else {
+          allocation = paged_space(space)->AllocateRaw(sizes[space]);
+        }
+        FreeListNode* node;
+        if (!allocation->To<FreeListNode>(&node)) {
+          if (space == NEW_SPACE) {
+            Heap::CollectGarbage(NEW_SPACE,
+                                 "failed to reserve space in the new space");
+          } else {
+            AbortIncrementalMarkingAndCollectGarbage(
+                this,
+                static_cast<AllocationSpace>(space),
+                "failed to reserve space in paged space");
+          }
+          gc_performed = true;
+          break;
+        } else {
+          // Mark with a free list node, in case we have a GC before
+          // deserializing.
+          node->set_size(this, sizes[space]);
+          locations_out[space] = node->address();
+        }
+      }
     }
   }
 
@@ -3600,17 +3587,27 @@ MaybeObject* Heap::CreateCode(const CodeDesc& desc,
   MaybeObject* maybe_result;
   // Large code objects and code objects which should stay at a fixed address
   // are allocated in large object space.
-  if (obj_size > code_space()->AreaSize() || immovable) {
+  HeapObject* result;
+  bool force_lo_space = obj_size > code_space()->AreaSize();
+  if (force_lo_space) {
     maybe_result = lo_space_->AllocateRaw(obj_size, EXECUTABLE);
   } else {
     maybe_result = code_space_->AllocateRaw(obj_size);
   }
+  if (!maybe_result->To<HeapObject>(&result)) return maybe_result;
 
-  Object* result;
-  if (!maybe_result->ToObject(&result)) return maybe_result;
+  if (immovable && !force_lo_space &&
+      // Objects on the first page of each space are never moved.
+      !code_space_->FirstPage()->Contains(result->address())) {
+    // Discard the first code allocation, which was on a page where it could be
+    // moved.
+    CreateFillerObjectAt(result->address(), obj_size);
+    maybe_result = lo_space_->AllocateRaw(obj_size, EXECUTABLE);
+    if (!maybe_result->To<HeapObject>(&result)) return maybe_result;
+  }
 
   // Initialize the object
-  HeapObject::cast(result)->set_map_no_write_barrier(code_map());
+  result->set_map_no_write_barrier(code_map());
   Code* code = Code::cast(result);
   ASSERT(!isolate_->code_range()->exists() ||
       isolate_->code_range()->contains(code->address()));

@@ -790,14 +790,6 @@ class Space : public Malloced {
   virtual void Print() = 0;
 #endif
 
-  // After calling this we can allocate a certain number of bytes using only
-  // linear allocation (with a LinearAllocationScope and an AlwaysAllocateScope)
-  // without using freelists or causing a GC.  This is used by partial
-  // snapshots.  It returns true of space was reserved or false if a GC is
-  // needed.  For paged spaces the space requested must include the space wasted
-  // at the end of each when allocating linearly.
-  virtual bool ReserveSpace(int bytes) = 0;
-
  private:
   Heap* heap_;
   AllocationSpace id_;
@@ -1318,6 +1310,11 @@ class FreeListNode: public HeapObject {
 
   inline void Zap();
 
+  static inline FreeListNode* cast(MaybeObject* maybe) {
+    ASSERT(!maybe->IsFailure());
+    return reinterpret_cast<FreeListNode*>(maybe);
+  }
+
  private:
   static const int kNextOffset = POINTER_SIZE_ALIGN(FreeSpace::kHeaderSize);
 
@@ -1379,6 +1376,9 @@ class FreeList BASE_EMBEDDED {
   intptr_t SumFreeLists();
   bool IsVeryLong();
 #endif
+
+  // Used after booting the VM.
+  void RepairLists(Heap* heap);
 
   struct SizeStats {
     intptr_t Total() {
@@ -1459,6 +1459,10 @@ class PagedSpace : public Space {
   // iterates over objects in the page containing the address, the cost is
   // linear in the number of objects in the page. It may be slow.
   MUST_USE_RESULT MaybeObject* FindObject(Address addr);
+
+  // During boot the free_space_map is created, and afterwards we may need
+  // to write it into the free list nodes that were already created.
+  virtual void RepairFreeListsAfterBoot();
 
   // Prepares for a mark-compact GC.
   virtual void PrepareForMarkCompact();
