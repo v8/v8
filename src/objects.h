@@ -2509,6 +2509,8 @@ class DescriptorArray: public FixedArray {
                                 kEnumCacheOffset);
   }
 
+  void ClearEnumCache();
+
   // Initialize or change the enum cache,
   // using the supplied storage for the small "bridge".
   void SetEnumCache(FixedArray* bridge_storage,

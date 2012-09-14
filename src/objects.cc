@@ -6088,6 +6088,11 @@ MaybeObject* DescriptorArray::Allocate(int number_of_descriptors) {
 }
 
 
+void DescriptorArray::ClearEnumCache() {
+  set(kEnumCacheIndex, Smi::FromInt(0));
+}
+
+
 void DescriptorArray::SetEnumCache(FixedArray* bridge_storage,
                                    FixedArray* new_cache,
                                    Object* new_index_cache) {
@@ -7489,19 +7494,24 @@ void Map::ClearNonLiveTransitions(Heap* heap) {
 
   if (descriptors_owner_died) {
     if (number_of_own_descriptors > 0) {
-      int live_enum = NumberOfDescribedProperties(OWN_DESCRIPTORS, DONT_ENUM);
       int number_of_descriptors = descriptors->number_of_descriptors();
       int to_trim = number_of_descriptors - number_of_own_descriptors;
       if (to_trim > 0) {
         RightTrimFixedArray<FROM_GC>(
             heap, descriptors, to_trim * DescriptorArray::kDescriptorSize);
         if (descriptors->HasEnumCache()) {
-          FixedArray* enum_cache =
-              FixedArray::cast(descriptors->GetEnumCache());
-          to_trim = enum_cache->length() - live_enum;
-          if (to_trim > 0) {
-            RightTrimFixedArray<FROM_GC>(
-                heap, FixedArray::cast(descriptors->GetEnumCache()), to_trim);
+          int live_enum =
+              NumberOfDescribedProperties(OWN_DESCRIPTORS, DONT_ENUM);
+          if (live_enum == 0) {
+            descriptors->ClearEnumCache();
+          } else {
+            FixedArray* enum_cache =
+                FixedArray::cast(descriptors->GetEnumCache());
+            to_trim = enum_cache->length() - live_enum;
+            if (to_trim > 0) {
+              RightTrimFixedArray<FROM_GC>(
+                  heap, FixedArray::cast(descriptors->GetEnumCache()), to_trim);
+            }
           }
         }
         descriptors->Sort();
