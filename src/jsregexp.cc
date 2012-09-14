@@ -706,15 +706,16 @@ Handle<JSArray> RegExpImpl::SetLastMatchInfo(Handle<JSArray> last_match_info,
 RegExpImpl::GlobalCache::GlobalCache(Handle<JSRegExp> regexp,
                                      Handle<String> subject,
                                      bool is_global,
-                                     Isolate* isolate) {
+                                     Isolate* isolate)
+  : register_array_(NULL),
+    register_array_size_(0),
+    regexp_(regexp),
+    subject_(subject) {
 #ifdef V8_INTERPRETED_REGEXP
   bool interpreted = true;
 #else
   bool interpreted = false;
 #endif  // V8_INTERPRETED_REGEXP
-
-  regexp_ = regexp;
-  subject_ = subject;
 
   if (regexp_->TypeTag() == JSRegExp::ATOM) {
     static const int kAtomRegistersPerMatch = 2;

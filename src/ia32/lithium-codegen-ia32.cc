@@ -2946,12 +2946,12 @@ void LCodeGen::DoWrapReceiver(LWrapReceiver* instr) {
          FieldOperand(function, JSFunction::kSharedFunctionInfoOffset));
   __ test_b(FieldOperand(scratch, SharedFunctionInfo::kStrictModeByteOffset),
             1 << SharedFunctionInfo::kStrictModeBitWithinByte);
-  __ j(not_equal, &receiver_ok, Label::kNear);
+  __ j(not_equal, &receiver_ok);  // A near jump is not sufficient here!
 
   // Do not transform the receiver to object for builtins.
   __ test_b(FieldOperand(scratch, SharedFunctionInfo::kNativeByteOffset),
             1 << SharedFunctionInfo::kNativeBitWithinByte);
-  __ j(not_equal, &receiver_ok, Label::kNear);
+  __ j(not_equal, &receiver_ok);
 
   // Normal function. Replace undefined or null with global receiver.
   __ cmp(receiver, factory()->null_value());

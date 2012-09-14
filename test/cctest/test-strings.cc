@@ -11,6 +11,7 @@
 
 #include "api.h"
 #include "factory.h"
+#include "objects.h"
 #include "cctest.h"
 #include "zone-inl.h"
 
@@ -707,4 +708,10 @@ TEST(StringReplaceAtomTwoByteResult) {
 
   v8::Local<v8::String> expected = v8_str("ascii\x80only\x80string\x80");
   CHECK(expected->Equals(result));
+}
+
+
+TEST(IsAscii) {
+  CHECK(String::IsAscii(static_cast<char*>(NULL), 0));
+  CHECK(String::IsAscii(static_cast<uc16*>(NULL), 0));
 }
