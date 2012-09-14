@@ -2375,23 +2375,6 @@ class FixedArray: public FixedArrayBase {
     }
   };
 
-  // WhitenessWitness is used to prove that a descriptor array is white
-  // (unmarked), so incremental write barriers can be skipped because the
-  // marking invariant cannot be broken and slots pointing into evacuation
-  // candidates will be discovered when the object is scanned. A witness is
-  // always stack-allocated right after creating an array. By allocating a
-  // witness, incremental marking is globally disabled. The witness is then
-  // passed along wherever needed to statically prove that the array is known to
-  // be white.
-  class WhitenessWitness {
-   public:
-    inline explicit WhitenessWitness(FixedArray* array);
-    inline ~WhitenessWitness();
-
-   private:
-    IncrementalMarking* marking_;
-  };
-
  protected:
   // Set operation on FixedArray without using write barriers. Can
   // only be used for storing old space objects or smis.
@@ -2475,6 +2458,23 @@ class FixedDoubleArray: public FixedArrayBase {
 //   [length() - kDescriptorSize]: last key
 class DescriptorArray: public FixedArray {
  public:
+  // WhitenessWitness is used to prove that a descriptor array is white
+  // (unmarked), so incremental write barriers can be skipped because the
+  // marking invariant cannot be broken and slots pointing into evacuation
+  // candidates will be discovered when the object is scanned. A witness is
+  // always stack-allocated right after creating an array. By allocating a
+  // witness, incremental marking is globally disabled. The witness is then
+  // passed along wherever needed to statically prove that the array is known to
+  // be white.
+  class WhitenessWitness {
+   public:
+    inline explicit WhitenessWitness(FixedArray* array);
+    inline ~WhitenessWitness();
+
+   private:
+    IncrementalMarking* marking_;
+  };
+
   // Returns true for both shared empty_descriptor_array and for smis, which the
   // map uses to encode additional bit fields when the descriptor array is not
   // yet used.

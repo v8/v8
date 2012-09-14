@@ -111,10 +111,9 @@ class TransitionArray: public FixedArray {
   MUST_USE_RESULT MaybeObject* CopyInsert(String* name, Map* target);
 
   // Copy a single transition from the origin array.
-  inline void CopyFrom(TransitionArray* origin,
-                       int origin_transition,
-                       int target_transition,
-                       const WhitenessWitness& witness);
+  inline void NoIncrementalWriteBarrierCopyFrom(TransitionArray* origin,
+                                                int origin_transition,
+                                                int target_transition);
 
   // Search a transition for a given property name.
   inline int Search(String* name);
@@ -182,10 +181,9 @@ class TransitionArray: public FixedArray {
            kTransitionTarget;
   }
 
-  inline void Set(int transition_number,
-                  String* key,
-                  Map* target,
-                  const WhitenessWitness&);
+  inline void NoIncrementalWriteBarrierSet(int transition_number,
+                                           String* key,
+                                           Map* target);
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(TransitionArray);
 };

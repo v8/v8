@@ -5022,7 +5022,7 @@ MaybeObject* Map::ShareDescriptor(Descriptor* descriptor) {
   DescriptorArray* new_descriptors;
   MaybeObject* maybe_descriptors = DescriptorArray::Allocate(old_size + 1);
   if (!maybe_descriptors->To(&new_descriptors)) return maybe_descriptors;
-  FixedArray::WhitenessWitness witness(new_descriptors);
+  DescriptorArray::WhitenessWitness witness(new_descriptors);
 
   for (int i = 0; i < old_size; ++i) {
     new_descriptors->CopyFrom(i, descriptors, i, witness);
@@ -5212,7 +5212,7 @@ MaybeObject* Map::CopyAddDescriptor(Descriptor* descriptor,
   MaybeObject* maybe_descriptors = DescriptorArray::Allocate(old_size + 1);
   if (!maybe_descriptors->To(&new_descriptors)) return maybe_descriptors;
 
-  FixedArray::WhitenessWitness witness(new_descriptors);
+  DescriptorArray::WhitenessWitness witness(new_descriptors);
 
   // Copy the descriptors, inserting a descriptor.
   for (int i = 0; i < old_size; ++i) {
@@ -12921,7 +12921,7 @@ MaybeObject* StringDictionary::TransformPropertiesToFastFor(
     return maybe_descriptors;
   }
 
-  FixedArray::WhitenessWitness witness(descriptors);
+  DescriptorArray::WhitenessWitness witness(descriptors);
 
   int number_of_allocated_fields =
       number_of_fields + unused_property_fields - inobject_props;

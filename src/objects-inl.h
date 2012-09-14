@@ -2167,14 +2167,14 @@ void DescriptorArray::SwapSortedKeys(int first, int second) {
 }
 
 
-FixedArray::WhitenessWitness::WhitenessWitness(FixedArray* array)
+DescriptorArray::WhitenessWitness::WhitenessWitness(FixedArray* array)
     : marking_(array->GetHeap()->incremental_marking()) {
   marking_->EnterNoMarkingScope();
   ASSERT(Marking::Color(array) == Marking::WHITE_OBJECT);
 }
 
 
-FixedArray::WhitenessWitness::~WhitenessWitness() {
+DescriptorArray::WhitenessWitness::~WhitenessWitness() {
   marking_->LeaveNoMarkingScope();
 }
 

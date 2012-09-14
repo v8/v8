@@ -200,16 +200,13 @@ int TransitionArray::Search(String* name) {
 }
 
 
-void TransitionArray::Set(int transition_number,
-                          String* key,
-                          Map* target,
-                          const WhitenessWitness&) {
-  NoIncrementalWriteBarrierSet(this,
-                               ToKeyIndex(transition_number),
-                               key);
-  NoIncrementalWriteBarrierSet(this,
-                               ToTargetIndex(transition_number),
-                               target);
+void TransitionArray::NoIncrementalWriteBarrierSet(int transition_number,
+                                                   String* key,
+                                                   Map* target) {
+  FixedArray::NoIncrementalWriteBarrierSet(
+      this, ToKeyIndex(transition_number), key);
+  FixedArray::NoIncrementalWriteBarrierSet(
+      this, ToTargetIndex(transition_number), target);
 }
 
 
