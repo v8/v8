@@ -86,10 +86,13 @@ bool Snapshot::Initialize(const char* snapshot_file) {
     int len;
     byte* str = ReadBytes(snapshot_file, &len);
     if (!str) return false;
-    SnapshotByteSource source(str, len);
-    Deserializer deserializer(&source);
-    ReserveSpaceForSnapshot(&deserializer, snapshot_file);
-    bool success = V8::Initialize(&deserializer);
+    bool success;
+    {
+      SnapshotByteSource source(str, len);
+      Deserializer deserializer(&source);
+      ReserveSpaceForSnapshot(&deserializer, snapshot_file);
+      success = V8::Initialize(&deserializer);
+    }
     DeleteArray(str);
     return success;
   } else if (size_ > 0) {

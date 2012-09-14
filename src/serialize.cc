@@ -1618,7 +1618,7 @@ void Serializer::Pad() {
 
 
 bool SnapshotByteSource::AtEOF() {
-  if (0u + length_ - position_ > sizeof(uint32_t)) return false;
+  if (0u + length_ - position_ > 2 * sizeof(uint32_t)) return false;
   for (int x = position_; x < length_; x++) {
     if (data_[x] != SerializerDeserializer::nop()) return false;
   }
