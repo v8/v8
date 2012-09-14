@@ -10843,7 +10843,8 @@ class ScopeIterator {
       inlined_jsframe_index_(inlined_jsframe_index),
       function_(JSFunction::cast(frame->function())),
       context_(Context::cast(frame->context())),
-      nested_scope_chain_(4) {
+      nested_scope_chain_(4),
+      failed_(false) {
 
     // Catch the case when the debugger stops in an internal function.
     Handle<SharedFunctionInfo> shared_info(function_->shared());
@@ -10917,17 +10918,24 @@ class ScopeIterator {
       frame_(NULL),
       inlined_jsframe_index_(0),
       function_(function),
-      context_(function->context()) {
+      context_(function->context()),
+      failed_(false) {
     if (function->IsBuiltin()) {
       context_ = Handle<Context>();
     }
   }
 
   // More scopes?
-  bool Done() { return context_.is_null(); }
+  bool Done() {
+    ASSERT(!failed_);
+    return context_.is_null();
+  }
+
+  bool Failed() { return failed_; }
 
   // Move to the next scope.
   void Next() {
+    ASSERT(!failed_);
     ScopeType scope_type = Type();
     if (scope_type == ScopeTypeGlobal) {
       // The global scope is always the last in the chain.
@@ -10948,6 +10956,7 @@ class ScopeIterator {
 
   // Return the type of the current scope.
   ScopeType Type() {
+    ASSERT(!failed_);
     if (!nested_scope_chain_.is_empty()) {
       Handle<ScopeInfo> scope_info = nested_scope_chain_.last();
       switch (scope_info->Type()) {
@@ -10997,6 +11006,7 @@ class ScopeIterator {
 
   // Return the JavaScript object with the content of the current scope.
   Handle<JSObject> ScopeObject() {
+    ASSERT(!failed_);
     switch (Type()) {
       case ScopeIterator::ScopeTypeGlobal:
         return Handle<JSObject>(CurrentContext()->global_object());
@@ -11022,6 +11032,7 @@ class ScopeIterator {
   }
 
   Handle<ScopeInfo> CurrentScopeInfo() {
+    ASSERT(!failed_);
     if (!nested_scope_chain_.is_empty()) {
       return nested_scope_chain_.last();
     } else if (context_->IsBlockContext()) {
@@ -11035,6 +11046,7 @@ class ScopeIterator {
   // Return the context for this scope. For the local context there might not
   // be an actual context.
   Handle<Context> CurrentContext() {
+    ASSERT(!failed_);
     if (Type() == ScopeTypeGlobal ||
         nested_scope_chain_.is_empty()) {
       return context_;
@@ -11048,6 +11060,7 @@ class ScopeIterator {
 #ifdef DEBUG
   // Debug print of the content of the current scope.
   void DebugPrint() {
+    ASSERT(!failed_);
     switch (Type()) {
       case ScopeIterator::ScopeTypeGlobal:
         PrintF("Global:\n");
@@ -11105,6 +11118,7 @@ class ScopeIterator {
   Handle<JSFunction> function_;
   Handle<Context> context_;
   List<Handle<ScopeInfo> > nested_scope_chain_;
+  bool failed_;
 
   void RetrieveScopeChain(Scope* scope,
                           Handle<SharedFunctionInfo> shared_info) {
@@ -11117,7 +11131,9 @@ class ScopeIterator {
       // faulty. We fail in debug mode but in release mode we only provide the
       // information we get from the context chain but nothing about
       // completely stack allocated scopes or stack allocated locals.
-      UNREACHABLE();
+      // Or it could be due to stack overflow.
+      ASSERT(isolate_->has_pending_exception());
+      failed_ = true;
     }
   }
 
@@ -11542,6 +11558,8 @@ static Handle<Context> CopyNestedScopeContextChain(Isolate* isolate,
   List<Handle<Context> > context_chain;
 
   ScopeIterator it(isolate, frame, inlined_jsframe_index);
+  if (it.Failed()) return Handle<Context>::null();
+
   for (; it.Type() != ScopeIterator::ScopeTypeGlobal &&
          it.Type() != ScopeIterator::ScopeTypeLocal ; it.Next()) {
     ASSERT(!it.Done());
@@ -11570,9 +11588,7 @@ static Handle<Context> CopyNestedScopeContextChain(Isolate* isolate,
       // Materialize the contents of the block scope into a JSObject.
       Handle<JSObject> block_scope_object =
           MaterializeBlockScope(isolate, current);
-      if (block_scope_object.is_null()) {
-        return Handle<Context>::null();
-      }
+      CHECK(!block_scope_object.is_null());
       // Allocate a new function context for the debug evaluation and set the
       // extension object.
       Handle<Context> new_context =
@@ -11733,6 +11749,12 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugEvaluate) {
                                         context,
                                         frame,
                                         inlined_jsframe_index);
+  if (context.is_null()) {
+    ASSERT(isolate->has_pending_exception());
+    MaybeObject* exception = isolate->pending_exception();
+    isolate->clear_pending_exception();
+    return exception;
+  }
 
   if (additional_context->IsJSObject()) {
     Handle<JSObject> extension = Handle<JSObject>::cast(additional_context);
