@@ -3235,14 +3235,14 @@ void RegExpConstructResultStub::Generate(MacroAssembler* masm) {
   // Set length.
   __ Integer32ToSmi(rdx, rbx);
   __ movq(FieldOperand(rcx, FixedArray::kLengthOffset), rdx);
-  // Fill contents of fixed-array with the-hole.
-  __ LoadRoot(rdx, Heap::kTheHoleValueRootIndex);
+  // Fill contents of fixed-array with undefined.
+  __ LoadRoot(rdx, Heap::kUndefinedValueRootIndex);
   __ lea(rcx, FieldOperand(rcx, FixedArray::kHeaderSize));
-  // Fill fixed array elements with hole.
+  // Fill fixed array elements with undefined.
   // rax: JSArray.
   // rbx: Number of elements in array that remains to be filled, as int32.
   // rcx: Start of elements in FixedArray.
-  // rdx: the hole.
+  // rdx: undefined.
   Label loop;
   __ testl(rbx, rbx);
   __ bind(&loop);

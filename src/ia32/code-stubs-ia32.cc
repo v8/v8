@@ -4170,15 +4170,15 @@ void RegExpConstructResultStub::Generate(MacroAssembler* masm) {
          Immediate(factory->fixed_array_map()));
   // Set length.
   __ mov(FieldOperand(ebx, FixedArray::kLengthOffset), ecx);
-  // Fill contents of fixed-array with the-hole.
+  // Fill contents of fixed-array with undefined.
   __ SmiUntag(ecx);
-  __ mov(edx, Immediate(factory->the_hole_value()));
+  __ mov(edx, Immediate(factory->undefined_value()));
   __ lea(ebx, FieldOperand(ebx, FixedArray::kHeaderSize));
-  // Fill fixed array elements with hole.
+  // Fill fixed array elements with undefined.
   // eax: JSArray.
   // ecx: Number of elements to fill.
   // ebx: Start of elements in FixedArray.
-  // edx: the hole.
+  // edx: undefined.
   Label loop;
   __ test(ecx, ecx);
   __ bind(&loop);
