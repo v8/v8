@@ -619,10 +619,12 @@ bool Heap::CollectGarbage(AllocationSpace space,
         PerformGarbageCollection(collector, &tracer);
     rate->Stop();
 
+    ASSERT(collector == SCAVENGER || incremental_marking()->IsStopped());
+
+    // This can do debug callbacks and restart incremental marking.
     GarbageCollectionEpilogue();
   }
 
-  ASSERT(collector == SCAVENGER || incremental_marking()->IsStopped());
   if (incremental_marking()->IsStopped()) {
     if (incremental_marking()->WorthActivating() && NextGCIsLikelyToBeFull()) {
       incremental_marking()->Start();
