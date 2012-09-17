@@ -4599,6 +4599,22 @@ bool Context::IsCodeGenerationFromStringsAllowed() {
 }
 
 
+void Context::SetErrorMessageForCodeGenerationFromStrings(
+    Handle<String> error) {
+  i::Isolate* isolate = i::Isolate::Current();
+  if (IsDeadCheck(isolate,
+      "v8::Context::SetErrorMessageForCodeGenerationFromStrings()")) {
+    return;
+  }
+  ENTER_V8(isolate);
+  i::Object** ctx = reinterpret_cast<i::Object**>(this);
+  i::Handle<i::Context> context =
+      i::Handle<i::Context>::cast(i::Handle<i::Object>(ctx));
+  i::Handle<i::Object> error_handle = Utils::OpenHandle(*error);
+  context->set_error_message_for_code_gen_from_strings(*error_handle);
+}
+
+
 void V8::SetWrapperClassId(i::Object** global_handle, uint16_t class_id) {
   i::GlobalHandles::SetWrapperClassId(global_handle, class_id);
 }

@@ -140,7 +140,7 @@ function FormatMessage(message) {
     var messagesDictionary = [
       // Error
       "cyclic_proto",                 ["Cyclic __proto__ value"],
-      "code_gen_from_strings",        ["Code generation from strings disallowed for this context"],
+      "code_gen_from_strings",        ["%0"],
       // TypeError
       "unexpected_token",             ["Unexpected token ", "%0"],
       "unexpected_token_number",      ["Unexpected number"],
