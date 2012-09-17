@@ -126,8 +126,6 @@ Assignment::Assignment(Isolate* isolate,
       pos_(pos),
       binary_operation_(NULL),
       assignment_id_(GetNextId(isolate)),
-      block_start_(false),
-      block_end_(false),
       is_monomorphic_(false) { }
 
 
