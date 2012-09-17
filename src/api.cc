@@ -3401,7 +3401,7 @@ void v8::Object::SetIndexedPropertiesToPixelData(uint8_t* data, int length) {
   ON_BAILOUT(isolate, "v8::SetElementsToPixelData()", return);
   ENTER_V8(isolate);
   i::HandleScope scope(isolate);
-  if (!ApiCheck(length <= i::ExternalPixelArray::kMaxLength,
+  if (!ApiCheck(length >= 0 && length <= i::ExternalPixelArray::kMaxLength,
                 "v8::Object::SetIndexedPropertiesToPixelData()",
                 "length exceeds max acceptable value")) {
     return;
@@ -3457,7 +3457,7 @@ void v8::Object::SetIndexedPropertiesToExternalArrayData(
   ON_BAILOUT(isolate, "v8::SetIndexedPropertiesToExternalArrayData()", return);
   ENTER_V8(isolate);
   i::HandleScope scope(isolate);
-  if (!ApiCheck(length <= i::ExternalArray::kMaxLength,
+  if (!ApiCheck(length >= 0 && length <= i::ExternalArray::kMaxLength,
                 "v8::Object::SetIndexedPropertiesToExternalArrayData()",
                 "length exceeds max acceptable value")) {
     return;
