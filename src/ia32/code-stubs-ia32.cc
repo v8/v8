@@ -3213,21 +3213,28 @@ void MathPowStub::Generate(MacroAssembler* masm) {
   __ movsd(double_scratch2, double_result);  // Load double_exponent with 1.
 
   // Get absolute value of exponent.
-  Label no_neg, while_true, no_multiply;
+  Label no_neg, while_true, no_multiply, while_false;
   __ test(scratch, scratch);
   __ j(positive, &no_neg, Label::kNear);
   __ neg(scratch);
   __ bind(&no_neg);
 
+  __ j(zero, &while_false, Label::kNear);
+  __ shr(scratch, 1);
+  // Above condition means CF==0 && ZF==0.  This means that the
+  // bit that has been shifted out is 0 and the result is not 0.
+  __ j(above, &while_true, Label::kNear);
+  __ movsd(double_result, double_scratch);
+  __ j(zero, &while_false, Label::kNear);
+
   __ bind(&while_true);
   __ shr(scratch, 1);
-  __ j(not_carry, &no_multiply, Label::kNear);
-  __ mulsd(double_result, double_scratch);
-  __ bind(&no_multiply);
-
   __ mulsd(double_scratch, double_scratch);
+  __ j(above, &while_true, Label::kNear);
+  __ mulsd(double_result, double_scratch);
   __ j(not_zero, &while_true);
 
+  __ bind(&while_false);
   // scratch has the original value of the exponent - if the exponent is
   // negative, return 1/result.
   __ test(exponent, exponent);
