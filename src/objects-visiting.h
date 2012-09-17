@@ -398,8 +398,14 @@ class StaticMarkingVisitor : public StaticVisitorBase {
   static inline void VisitNativeContext(Map* map, HeapObject* object);
 
  protected:
+  static inline void VisitMap(Map* map, HeapObject* object);
   static inline void VisitCode(Map* map, HeapObject* object);
   static inline void VisitJSRegExp(Map* map, HeapObject* object);
+
+  // Mark pointers in a Map and its TransitionArray together, possibly
+  // treating transitions or back pointers weak.
+  static void MarkMapContents(Heap* heap, Map* map);
+  static void MarkTransitionArray(Heap* heap, TransitionArray* transitions);
 
   class DataObjectVisitor {
    public:

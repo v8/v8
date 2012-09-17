@@ -175,16 +175,6 @@ class IncrementalMarking {
     return true;
   }
 
-  // Marks the object grey and pushes it on the marking stack.
-  // Returns true if object needed marking and false otherwise.
-  // This is for incremental marking only.
-  INLINE(bool MarkObjectAndPush(HeapObject* obj));
-
-  // Marks the object black without pushing it on the marking stack.
-  // Returns true if object needed marking and false otherwise.
-  // This is for incremental marking only.
-  INLINE(bool MarkObjectWithoutPush(HeapObject* obj));
-
   inline int steps_count() {
     return steps_count_;
   }
@@ -275,7 +265,6 @@ class IncrementalMarking {
   VirtualMemory* marking_deque_memory_;
   bool marking_deque_memory_committed_;
   MarkingDeque marking_deque_;
-  Marker<IncrementalMarking> marker_;
 
   int steps_count_;
   double steps_took_;

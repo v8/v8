@@ -125,27 +125,6 @@ void IncrementalMarking::WhiteToGreyAndPush(HeapObject* obj, MarkBit mark_bit) {
 }
 
 
-bool IncrementalMarking::MarkObjectAndPush(HeapObject* obj) {
-  MarkBit mark_bit = Marking::MarkBitFrom(obj);
-  if (!mark_bit.Get()) {
-    WhiteToGreyAndPush(obj, mark_bit);
-    return true;
-  }
-  return false;
-}
-
-
-bool IncrementalMarking::MarkObjectWithoutPush(HeapObject* obj) {
-  MarkBit mark_bit = Marking::MarkBitFrom(obj);
-  if (!mark_bit.Get()) {
-    mark_bit.Set();
-    MemoryChunk::IncrementLiveBytesFromGC(obj->address(), obj->Size());
-    return true;
-  }
-  return false;
-}
-
-
 } }  // namespace v8::internal
 
 #endif  // V8_INCREMENTAL_MARKING_INL_H_

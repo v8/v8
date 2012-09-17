@@ -134,12 +134,9 @@ void StaticMarkingVisitor<StaticVisitor>::Initialize() {
                   Oddball::BodyDescriptor,
                   void>::Visit);
 
-  table_.Register(kVisitMap,
-                  &FixedBodyVisitor<StaticVisitor,
-                  Map::BodyDescriptor,
-                  void>::Visit);
+  table_.Register(kVisitMap, &VisitMap);
 
-  table_.Register(kVisitCode, &StaticVisitor::VisitCode);
+  table_.Register(kVisitCode, &VisitCode);
 
   // Registration for kVisitSharedFunctionInfo is done by StaticVisitor.
 
@@ -247,6 +244,32 @@ void StaticMarkingVisitor<StaticVisitor>::VisitNativeContext(
 
 
 template<typename StaticVisitor>
+void StaticMarkingVisitor<StaticVisitor>::VisitMap(
+    Map* map, HeapObject* object) {
+  Heap* heap = map->GetHeap();
+  Map* map_object = Map::cast(object);
+
+  // Clears the cache of ICs related to this map.
+  if (FLAG_cleanup_code_caches_at_gc) {
+    map_object->ClearCodeCache(heap);
+  }
+
+  // When map collection is enabled we have to mark through map's
+  // transitions and back pointers in a special way to make these links
+  // weak.  Only maps for subclasses of JSReceiver can have transitions.
+  STATIC_ASSERT(LAST_TYPE == LAST_JS_RECEIVER_TYPE);
+  if (FLAG_collect_maps &&
+      map_object->instance_type() >= FIRST_JS_RECEIVER_TYPE) {
+    MarkMapContents(heap, map_object);
+  } else {
+    StaticVisitor::VisitPointers(heap,
+        HeapObject::RawField(object, Map::kPointerFieldsBeginOffset),
+        HeapObject::RawField(object, Map::kPointerFieldsEndOffset));
+  }
+}
+
+
+template<typename StaticVisitor>
 void StaticMarkingVisitor<StaticVisitor>::VisitCode(
     Map* map, HeapObject* object) {
   Heap* heap = map->GetHeap();
@@ -266,6 +289,60 @@ void StaticMarkingVisitor<StaticVisitor>::VisitJSRegExp(
   StaticVisitor::VisitPointers(map->GetHeap(),
       HeapObject::RawField(object, JSRegExp::kPropertiesOffset),
       HeapObject::RawField(object, last_property_offset));
+}
+
+
+template<typename StaticVisitor>
+void StaticMarkingVisitor<StaticVisitor>::MarkMapContents(
+    Heap* heap, Map* map) {
+  // Make sure that the back pointer stored either in the map itself or
+  // inside its transitions array is marked. Skip recording the back
+  // pointer slot since map space is not compacted.
+  StaticVisitor::MarkObject(heap, HeapObject::cast(map->GetBackPointer()));
+
+  // Treat pointers in the transitions array as weak and also mark that
+  // array to prevent visiting it later. Skip recording the transition
+  // array slot, since it will be implicitly recorded when the pointer
+  // fields of this map are visited.
+  TransitionArray* transitions = map->unchecked_transition_array();
+  if (transitions->IsTransitionArray()) {
+    MarkTransitionArray(heap, transitions);
+  } else {
+    // Already marked by marking map->GetBackPointer() above.
+    ASSERT(transitions->IsMap() || transitions->IsUndefined());
+  }
+
+  // Mark the pointer fields of the Map. Since the transitions array has
+  // been marked already, it is fine that one of these fields contains a
+  // pointer to it.
+  StaticVisitor::VisitPointers(heap,
+      HeapObject::RawField(map, Map::kPointerFieldsBeginOffset),
+      HeapObject::RawField(map, Map::kPointerFieldsEndOffset));
+}
+
+
+template<typename StaticVisitor>
+void StaticMarkingVisitor<StaticVisitor>::MarkTransitionArray(
+    Heap* heap, TransitionArray* transitions) {
+  if (!StaticVisitor::MarkObjectWithoutPush(heap, transitions)) return;
+
+  // Skip recording the descriptors_pointer slot since the cell space
+  // is not compacted and descriptors are referenced through a cell.
+  StaticVisitor::MarkObject(heap, transitions->descriptors_pointer());
+
+  if (transitions->HasPrototypeTransitions()) {
+    // Mark prototype transitions array but do not push it onto marking
+    // stack, this will make references from it weak. We will clean dead
+    // prototype transitions in ClearNonLiveTransitions.
+    Object** slot = transitions->GetPrototypeTransitionsSlot();
+    HeapObject* obj = HeapObject::cast(*slot);
+    heap->mark_compact_collector()->RecordSlot(slot, slot, obj);
+    StaticVisitor::MarkObjectWithoutPush(heap, obj);
+  }
+
+  for (int i = 0; i < transitions->number_of_transitions(); ++i) {
+    StaticVisitor::VisitPointer(heap, transitions->GetKeySlot(i));
+  }
 }
 
 

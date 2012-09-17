@@ -1499,13 +1499,6 @@ class Heap {
 
   void ClearNormalizedMapCaches();
 
-  // Clears the cache of ICs related to this map.
-  void ClearCacheOnMap(Map* map) {
-    if (FLAG_cleanup_code_caches_at_gc) {
-      map->ClearCodeCache(this);
-    }
-  }
-
   GCTracer* tracer() { return tracer_; }
 
   // Returns the size of objects residing in non new spaces.
