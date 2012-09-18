@@ -3213,7 +3213,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
   __ movsd(double_scratch2, double_result);  // Load double_exponent with 1.
 
   // Get absolute value of exponent.
-  Label no_neg, while_true, no_multiply, while_false;
+  Label no_neg, while_true, while_false;
   __ test(scratch, scratch);
   __ j(positive, &no_neg, Label::kNear);
   __ neg(scratch);
