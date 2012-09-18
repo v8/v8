@@ -905,7 +905,7 @@ bool DescriptorArray::IsSortedNoDuplicates(int valid_entries) {
   if (valid_entries == -1) valid_entries = number_of_descriptors();
   String* current_key = NULL;
   uint32_t current = 0;
-  for (int i = 0; i < valid_entries; i++) {
+  for (int i = 0; i < number_of_descriptors(); i++) {
     String* key = GetSortedKey(i);
     if (key == current_key) {
       PrintDescriptors();

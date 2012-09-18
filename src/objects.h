@@ -2484,9 +2484,19 @@ class DescriptorArray: public FixedArray {
   int number_of_descriptors() {
     ASSERT(length() >= kFirstIndex || IsEmpty());
     int len = length();
-    return len <= kFirstIndex ? 0 : (len - kFirstIndex) / kDescriptorSize;
+    return len == 0 ? 0 : Smi::cast(get(kDescriptorLengthIndex))->value();
   }
 
+  int number_of_descriptors_storage() {
+    int len = length();
+    return len == 0 ? 0 : (len - kFirstIndex) / kDescriptorSize;
+  }
+
+  int NumberOfSlackDescriptors() {
+    return number_of_descriptors_storage() - number_of_descriptors();
+  }
+
+  inline void SetNumberOfDescriptors(int number_of_descriptors);
   inline int number_of_entries() { return number_of_descriptors(); }
 
   bool HasEnumCache() {
@@ -2538,13 +2548,14 @@ class DescriptorArray: public FixedArray {
   inline void Set(int descriptor_number,
                   Descriptor* desc,
                   const WhitenessWitness&);
+  inline void Set(int descriptor_number, Descriptor* desc);
+  inline void EraseDescriptor(Heap* heap, int descriptor_number);
 
   // Append automatically sets the enumeration index. This should only be used
   // to add descriptors in bulk at the end, followed by sorting the descriptor
   // array.
-  inline void Append(Descriptor* desc,
-                     const WhitenessWitness&,
-                     int number_of_set_descriptors);
+  inline void Append(Descriptor* desc, const WhitenessWitness&);
+  inline void Append(Descriptor* desc);
 
   // Transfer a complete descriptor from the src descriptor array to this
   // descriptor array.
@@ -2567,7 +2578,8 @@ class DescriptorArray: public FixedArray {
 
   // Allocates a DescriptorArray, but returns the singleton
   // empty descriptor array object if number_of_descriptors is 0.
-  MUST_USE_RESULT static MaybeObject* Allocate(int number_of_descriptors);
+  MUST_USE_RESULT static MaybeObject* Allocate(int number_of_descriptors,
+                                               int slack = 0);
 
   // Casting.
   static inline DescriptorArray* cast(Object* obj);
@@ -2575,8 +2587,9 @@ class DescriptorArray: public FixedArray {
   // Constant for denoting key was not found.
   static const int kNotFound = -1;
 
-  static const int kEnumCacheIndex = 0;
-  static const int kFirstIndex = 1;
+  static const int kDescriptorLengthIndex = 0;
+  static const int kEnumCacheIndex = 1;
+  static const int kFirstIndex = 2;
 
   // The length of the "bridge" to the enum cache.
   static const int kEnumCacheBridgeLength = 2;
@@ -2584,7 +2597,8 @@ class DescriptorArray: public FixedArray {
   static const int kEnumCacheBridgeIndicesCacheIndex = 1;
 
   // Layout description.
-  static const int kEnumCacheOffset = FixedArray::kHeaderSize;
+  static const int kDescriptorLengthOffset = FixedArray::kHeaderSize;
+  static const int kEnumCacheOffset = kDescriptorLengthOffset + kPointerSize;
   static const int kFirstOffset = kEnumCacheOffset + kPointerSize;
 
   // Layout description for the bridge array.
@@ -5011,8 +5025,10 @@ class Map: public HeapObject {
 
   // Extend the descriptor array of the map with the list of descriptors.
   // In case of duplicates, the latest descriptor is used.
-  static void CopyAppendCallbackDescriptors(Handle<Map> map,
-                                            Handle<Object> descriptors);
+  static void AppendCallbackDescriptors(Handle<Map> map,
+                                        Handle<Object> descriptors);
+
+  static void EnsureDescriptorSlack(Handle<Map> map, int slack);
 
   // Returns the found code or undefined if absent.
   Object* FindInCodeCache(String* name, Code::Flags flags);

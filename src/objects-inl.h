@@ -1906,6 +1906,12 @@ bool DescriptorArray::IsEmpty() {
 }
 
 
+void DescriptorArray::SetNumberOfDescriptors(int number_of_descriptors) {
+  WRITE_FIELD(
+      this, kDescriptorLengthOffset, Smi::FromInt(number_of_descriptors));
+}
+
+
 // Perform a binary search in a fixed array. Low and high are entry indices. If
 // there are three entries in this array it should be called with low=0 and
 // high=2.
@@ -2138,13 +2144,53 @@ void DescriptorArray::Set(int descriptor_number,
 }
 
 
+void DescriptorArray::Set(int descriptor_number, Descriptor* desc) {
+  // Range check.
+  ASSERT(descriptor_number < number_of_descriptors());
+  ASSERT(desc->GetDetails().descriptor_index() <=
+         number_of_descriptors());
+  ASSERT(desc->GetDetails().descriptor_index() > 0);
+
+  set(ToKeyIndex(descriptor_number), desc->GetKey());
+  set(ToValueIndex(descriptor_number), desc->GetValue());
+  set(ToDetailsIndex(descriptor_number), desc->GetDetails().AsSmi());
+}
+
+
+void DescriptorArray::EraseDescriptor(Heap* heap, int descriptor_number) {
+  set_null_unchecked(heap, ToKeyIndex(descriptor_number));
+  set_null_unchecked(heap, ToValueIndex(descriptor_number));
+}
+
+
 void DescriptorArray::Append(Descriptor* desc,
-                             const WhitenessWitness& witness,
-                             int number_of_set_descriptors) {
-  int descriptor_number = number_of_set_descriptors;
+                             const WhitenessWitness& witness) {
+  int descriptor_number = number_of_descriptors();
   int enumeration_index = descriptor_number + 1;
+  SetNumberOfDescriptors(descriptor_number + 1);
   desc->SetEnumerationIndex(enumeration_index);
   Set(descriptor_number, desc, witness);
+
+  uint32_t hash = desc->GetKey()->Hash();
+
+  int insertion;
+
+  for (insertion = descriptor_number; insertion > 0; --insertion) {
+    String* key = GetSortedKey(insertion - 1);
+    if (key->Hash() <= hash) break;
+    SetSortedKey(insertion, GetSortedKeyIndex(insertion - 1));
+  }
+
+  SetSortedKey(insertion, descriptor_number);
+}
+
+
+void DescriptorArray::Append(Descriptor* desc) {
+  int descriptor_number = number_of_descriptors();
+  int enumeration_index = descriptor_number + 1;
+  SetNumberOfDescriptors(descriptor_number + 1);
+  desc->SetEnumerationIndex(enumeration_index);
+  Set(descriptor_number, desc);
 
   uint32_t hash = desc->GetKey()->Hash();
 
@@ -3591,8 +3637,8 @@ void Map::AppendDescriptor(Descriptor* desc,
                            const DescriptorArray::WhitenessWitness& witness) {
   DescriptorArray* descriptors = instance_descriptors();
   int number_of_own_descriptors = NumberOfOwnDescriptors();
-  ASSERT(number_of_own_descriptors < descriptors->number_of_descriptors());
-  descriptors->Append(desc, witness, number_of_own_descriptors);
+  ASSERT(descriptors->number_of_descriptors() == number_of_own_descriptors);
+  descriptors->Append(desc, witness);
   SetNumberOfOwnDescriptors(number_of_own_descriptors + 1);
 }
 
