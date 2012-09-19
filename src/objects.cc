@@ -6106,7 +6106,7 @@ void DescriptorArray::SetEnumCache(FixedArray* bridge_storage,
   ASSERT(bridge_storage->length() >= kEnumCacheBridgeLength);
   ASSERT(new_index_cache->IsSmi() || new_index_cache->IsFixedArray());
   if (HasEnumCache()) {
-    ASSERT(new_cache->length() > FixedArray::cast(GetEnumCache())->length());
+    ASSERT(new_cache->length() > GetEnumCache()->length());
     FixedArray::cast(get(kEnumCacheIndex))->
       set(kEnumCacheBridgeCacheIndex, new_cache);
     FixedArray::cast(get(kEnumCacheIndex))->
@@ -7521,12 +7521,15 @@ void Map::ClearNonLiveTransitions(Heap* heap) {
           if (live_enum == 0) {
             descriptors->ClearEnumCache();
           } else {
-            FixedArray* enum_cache =
-                FixedArray::cast(descriptors->GetEnumCache());
+            FixedArray* enum_cache = descriptors->GetEnumCache();
             to_trim = enum_cache->length() - live_enum;
             if (to_trim > 0) {
               RightTrimFixedArray<FROM_GC>(
-                  heap, FixedArray::cast(descriptors->GetEnumCache()), to_trim);
+                  heap, descriptors->GetEnumCache(), to_trim);
+              if (descriptors->HasEnumIndicesCache()) {
+                RightTrimFixedArray<FROM_GC>(
+                    heap, descriptors->GetEnumIndicesCache(), to_trim);
+              }
             }
           }
         }

@@ -2507,10 +2507,24 @@ class DescriptorArray: public FixedArray {
     set(kEnumCacheIndex, array->get(kEnumCacheIndex));
   }
 
-  Object* GetEnumCache() {
+  FixedArray* GetEnumCache() {
     ASSERT(HasEnumCache());
     FixedArray* bridge = FixedArray::cast(get(kEnumCacheIndex));
-    return bridge->get(kEnumCacheBridgeCacheIndex);
+    return FixedArray::cast(bridge->get(kEnumCacheBridgeCacheIndex));
+  }
+
+  bool HasEnumIndicesCache() {
+    if (IsEmpty()) return false;
+    Object* object = get(kEnumCacheIndex);
+    if (object->IsSmi()) return false;
+    FixedArray* bridge = FixedArray::cast(object);
+    return bridge->get(kEnumCacheBridgeIndicesCacheIndex)->IsSmi();
+  }
+
+  FixedArray* GetEnumIndicesCache() {
+    ASSERT(HasEnumIndicesCache());
+    FixedArray* bridge = FixedArray::cast(get(kEnumCacheIndex));
+    return FixedArray::cast(bridge->get(kEnumCacheBridgeIndicesCacheIndex));
   }
 
   Object** GetEnumCacheSlot() {
