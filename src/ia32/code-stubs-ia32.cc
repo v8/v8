@@ -1793,9 +1793,10 @@ void BinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
           if (result_type_ <= BinaryOpIC::INT32) {
             __ cvttsd2si(ecx, Operand(xmm0));
             __ cvtsi2sd(xmm2, ecx);
-            __ ucomisd(xmm0, xmm2);
-            __ j(not_zero, &not_int32);
-            __ j(carry, &not_int32);
+            __ pcmpeqd(xmm2, xmm0);
+            __ movmskpd(ecx, xmm2);
+            __ test(ecx, Immediate(1));
+            __ j(zero, &not_int32);
           }
           GenerateHeapResultAllocation(masm, &call_runtime);
           __ movdbl(FieldOperand(eax, HeapNumber::kValueOffset), xmm0);
