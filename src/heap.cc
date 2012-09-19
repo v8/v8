@@ -4189,7 +4189,7 @@ MaybeObject* Heap::AllocateGlobalObject(JSFunction* constructor) {
   StringDictionary* dictionary;
   MaybeObject* maybe_dictionary =
       StringDictionary::Allocate(
-          map->NumberOfDescribedProperties() * 2 + initial_size);
+          map->NumberOfOwnDescriptors() * 2 + initial_size);
   if (!maybe_dictionary->To(&dictionary)) return maybe_dictionary;
 
   // The global object might be created from an object template with accessors.

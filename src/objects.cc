@@ -3335,8 +3335,7 @@ MaybeObject* JSObject::NormalizeProperties(PropertyNormalizationMode mode,
 
   // Allocate new content.
   int real_size = map_of_this->NumberOfOwnDescriptors();
-  int property_count =
-      map_of_this->NumberOfDescribedProperties(OWN_DESCRIPTORS);
+  int property_count = real_size;
   if (expected_additional_properties > 0) {
     property_count += expected_additional_properties;
   } else {
@@ -7450,6 +7449,51 @@ static bool ClearBackPointer(Heap* heap, Map* target) {
 }
 
 
+static void TrimEnumCache(Heap* heap, Map* map, DescriptorArray* descriptors) {
+  int live_enum = map->EnumLength();
+  if (live_enum == Map::kInvalidEnumCache) {
+    live_enum = map->NumberOfDescribedProperties(OWN_DESCRIPTORS, DONT_ENUM);
+  }
+  if (live_enum == 0) return descriptors->ClearEnumCache();
+  
+  FixedArray* enum_cache = descriptors->GetEnumCache();
+
+  int to_trim = enum_cache->length() - live_enum;
+  if (to_trim <= 0) return;
+  RightTrimFixedArray<FROM_GC>(heap, descriptors->GetEnumCache(), to_trim);
+
+  if (!descriptors->HasEnumIndicesCache()) return;
+  FixedArray* enum_indices_cache = descriptors->GetEnumIndicesCache();
+  RightTrimFixedArray<FROM_GC>(heap, enum_indices_cache, to_trim);
+}
+
+
+static void TrimDescriptorArray(Heap* heap,
+                                Map* map,
+                                DescriptorArray* descriptors,
+                                int number_of_own_descriptors) {
+  int number_of_descriptors = descriptors->number_of_descriptors();
+  int to_trim = number_of_descriptors - number_of_own_descriptors;
+  if (to_trim <= 0) return;
+
+  // Maximally keep 50% of unused descriptors.
+  int keep = Min(to_trim, number_of_own_descriptors / 2);
+  for (int i = number_of_own_descriptors;
+       i < number_of_own_descriptors + keep;
+       ++i) {
+    descriptors->EraseDescriptor(heap, i);
+  }
+
+  if (to_trim > keep) {
+    RightTrimFixedArray<FROM_GC>(heap, descriptors, to_trim - keep);
+  }
+  descriptors->SetNumberOfDescriptors(number_of_own_descriptors);
+
+  if (descriptors->HasEnumCache()) TrimEnumCache(heap, map, descriptors);
+  descriptors->Sort();
+}
+
+
 // TODO(mstarzinger): This method should be moved into MarkCompactCollector,
 // because it cannot be called from outside the GC and we already have methods
 // depending on the transitions layout in the GC anyways.
@@ -7508,40 +7552,7 @@ void Map::ClearNonLiveTransitions(Heap* heap) {
 
   if (descriptors_owner_died) {
     if (number_of_own_descriptors > 0) {
-      int number_of_descriptors = descriptors->number_of_descriptors();
-      int to_trim = number_of_descriptors - number_of_own_descriptors;
-      if (to_trim > 0) {
-        // Maximally keep 50% of unused descriptors.
-        int keep = Min(to_trim, number_of_own_descriptors / 2);
-        for (int i = number_of_own_descriptors;
-             i < number_of_own_descriptors + keep;
-             ++i) {
-          descriptors->EraseDescriptor(heap, i);
-        }
-        if (to_trim > keep) {
-          RightTrimFixedArray<FROM_GC>(heap, descriptors, to_trim - keep);
-        }
-        descriptors->SetNumberOfDescriptors(number_of_own_descriptors);
-        if (descriptors->HasEnumCache()) {
-          int live_enum =
-              NumberOfDescribedProperties(OWN_DESCRIPTORS, DONT_ENUM);
-          if (live_enum == 0) {
-            descriptors->ClearEnumCache();
-          } else {
-            FixedArray* enum_cache = descriptors->GetEnumCache();
-            to_trim = enum_cache->length() - live_enum;
-            if (to_trim > 0) {
-              RightTrimFixedArray<FROM_GC>(
-                  heap, descriptors->GetEnumCache(), to_trim);
-              if (descriptors->HasEnumIndicesCache()) {
-                RightTrimFixedArray<FROM_GC>(
-                    heap, descriptors->GetEnumIndicesCache(), to_trim);
-              }
-            }
-          }
-        }
-        descriptors->Sort();
-      }
+      TrimDescriptorArray(heap, this, descriptors, number_of_own_descriptors);
       ASSERT(descriptors->number_of_descriptors() == number_of_own_descriptors);
     } else {
       t->set_descriptors(heap->empty_descriptor_array());
@@ -10679,9 +10690,16 @@ bool JSObject::HasRealNamedCallbackProperty(String* key) {
 
 
 int JSObject::NumberOfLocalProperties(PropertyAttributes filter) {
-  return HasFastProperties() ?
-      map()->NumberOfDescribedProperties(OWN_DESCRIPTORS, filter) :
-      property_dictionary()->NumberOfElementsFilterAttributes(filter);
+  if (HasFastProperties()) {
+    Map* map = this->map();
+    if (filter == NONE) return map->NumberOfOwnDescriptors();
+    if (filter == DONT_ENUM) {
+      int result = map->EnumLength();
+      if (result != Map::kInvalidEnumCache) return result;
+    }
+    return map->NumberOfDescribedProperties(OWN_DESCRIPTORS, filter);
+  }
+  return property_dictionary()->NumberOfElementsFilterAttributes(filter);
 }
 
 
