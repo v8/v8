@@ -5000,7 +5000,8 @@ MaybeObject* Map::ShareDescriptor(Descriptor* descriptor) {
   String* name = descriptor->GetKey();
 
   TransitionArray* transitions;
-  MaybeObject* maybe_transitions = AddTransition(name, result);
+  MaybeObject* maybe_transitions =
+      AddTransition(name, result, SIMPLE_TRANSITION);
   if (!maybe_transitions->To(&transitions)) return maybe_transitions;
 
   DescriptorArray* descriptors = instance_descriptors();
@@ -5051,7 +5052,8 @@ MaybeObject* Map::ShareDescriptor(Descriptor* descriptor) {
 
 MaybeObject* Map::CopyReplaceDescriptors(DescriptorArray* descriptors,
                                          String* name,
-                                         TransitionFlag flag) {
+                                         TransitionFlag flag,
+                                         int descriptor_index) {
   ASSERT(descriptors->IsSortedNoDuplicates());
 
   Map* result;
@@ -5068,7 +5070,11 @@ MaybeObject* Map::CopyReplaceDescriptors(DescriptorArray* descriptors,
 
   if (flag == INSERT_TRANSITION && CanHaveMoreTransitions()) {
     TransitionArray* transitions;
-    MaybeObject* maybe_transitions = AddTransition(name, result);
+    SimpleTransitionFlag simple_flag =
+        (descriptor_index == descriptors->number_of_descriptors() - 1)
+         ? SIMPLE_TRANSITION
+         : FULL_TRANSITION;
+    MaybeObject* maybe_transitions = AddTransition(name, result, simple_flag);
     if (!maybe_transitions->To(&transitions)) return maybe_transitions;
 
     if (descriptors->IsEmpty()) {
@@ -5173,7 +5179,7 @@ MaybeObject* Map::CopyWithPreallocatedFieldDescriptors() {
       descriptors->CopyUpTo(number_of_own_descriptors);
   if (!maybe_descriptors->To(&new_descriptors)) return maybe_descriptors;
 
-  return CopyReplaceDescriptors(new_descriptors, NULL, OMIT_TRANSITION);
+  return CopyReplaceDescriptors(new_descriptors, NULL, OMIT_TRANSITION, 0);
 }
 
 
@@ -5185,7 +5191,7 @@ MaybeObject* Map::Copy() {
       descriptors->CopyUpTo(number_of_own_descriptors);
   if (!maybe_descriptors->To(&new_descriptors)) return maybe_descriptors;
 
-  return CopyReplaceDescriptors(new_descriptors, NULL, OMIT_TRANSITION);
+  return CopyReplaceDescriptors(new_descriptors, NULL, OMIT_TRANSITION, 0);
 }
 
 
@@ -5227,8 +5233,9 @@ MaybeObject* Map::CopyAddDescriptor(Descriptor* descriptor,
   }
 
   String* key = descriptor->GetKey();
+  int insertion_index = new_descriptors->number_of_descriptors() - 1;
 
-  return CopyReplaceDescriptors(new_descriptors, key, flag);
+  return CopyReplaceDescriptors(new_descriptors, key, flag, insertion_index);
 }
 
 
@@ -5304,7 +5311,7 @@ MaybeObject* Map::CopyReplaceDescriptor(Descriptor* descriptor,
   // Re-sort if descriptors were removed.
   if (new_size != descriptors->length()) new_descriptors->Sort();
 
-  return CopyReplaceDescriptors(new_descriptors, key, flag);
+  return CopyReplaceDescriptors(new_descriptors, key, flag, insertion_index);
 }
 
 
@@ -7554,8 +7561,8 @@ void Map::ClearNonLiveTransitions(Heap* heap) {
 
   int trim = t->number_of_transitions() - transition_index;
   if (trim > 0) {
-    RightTrimFixedArray<FROM_GC>(
-        heap, t, trim * TransitionArray::kTransitionSize);
+    RightTrimFixedArray<FROM_GC>(heap, t, t->IsSimpleTransition()
+        ? trim : trim * TransitionArray::kTransitionSize);
   }
 }
 

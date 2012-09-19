@@ -177,6 +177,16 @@ enum TransitionFlag {
   OMIT_TRANSITION
 };
 
+
+// Indicates whether the transition is simple: the target map of the transition
+// either extends the current map with a new property, or it modifies the
+// property that was added last to the current map.
+enum SimpleTransitionFlag {
+  SIMPLE_TRANSITION,
+  FULL_TRANSITION
+};
+
+
 // Indicates whether we are only interested in the descriptors of a particular
 // map, or in all descriptors in the descriptor array.
 enum DescriptorFlag {
@@ -4836,7 +4846,9 @@ class Map: public HeapObject {
       Map* transitioned_map);
   inline void SetTransition(int transition_index, Map* target);
   inline Map* GetTransition(int transition_index);
-  MUST_USE_RESULT inline MaybeObject* AddTransition(String* key, Map* target);
+  MUST_USE_RESULT inline MaybeObject* AddTransition(String* key,
+                                                    Map* target,
+                                                    SimpleTransitionFlag flag);
   DECL_ACCESSORS(transitions, TransitionArray)
   inline void ClearTransitions(Heap* heap,
                                WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
@@ -4987,7 +4999,8 @@ class Map: public HeapObject {
   MUST_USE_RESULT MaybeObject* CopyReplaceDescriptors(
       DescriptorArray* descriptors,
       String* name,
-      TransitionFlag flag);
+      TransitionFlag flag,
+      int descriptor_index);
   MUST_USE_RESULT MaybeObject* ShareDescriptor(Descriptor* descriptor);
   MUST_USE_RESULT MaybeObject* CopyAddDescriptor(Descriptor* descriptor,
                                                  TransitionFlag flag);

@@ -91,7 +91,7 @@ class TransitionArray: public FixedArray {
 
   // Returns the number of transitions in the array.
   int number_of_transitions() {
-    ASSERT(length() >= kFirstIndex);
+    if (IsSimpleTransition()) return 1;
     int len = length();
     return len <= kFirstIndex ? 0 : (len - kFirstIndex) / kTransitionSize;
   }
@@ -100,10 +100,16 @@ class TransitionArray: public FixedArray {
 
   // Allocate a new transition array with a single entry.
   static MUST_USE_RESULT MaybeObject* NewWith(
-      String* name,
+      SimpleTransitionFlag flag,
+      String* key,
       Map* target,
       JSGlobalPropertyCell* descriptor_pointer,
       Object* back_pointer);
+
+  static MUST_USE_RESULT MaybeObject* AllocateDescriptorsHolder(
+      JSGlobalPropertyCell* descriptor_pointer);
+
+  MUST_USE_RESULT MaybeObject* ExtendToFullTransitionArray();
 
   // Copy the transition array, inserting a new transition.
   // TODO(verwaest): This should not cause an existing transition to be
@@ -123,6 +129,10 @@ class TransitionArray: public FixedArray {
       int number_of_transitions,
       JSGlobalPropertyCell* descriptors_cell);
 
+  bool IsDescriptorsHolder() { return length() == kDescriptorsHolderSize; }
+  bool IsSimpleTransition() { return length() == kSimpleTransitionSize; }
+  bool IsFullTransitionArray() { return length() >= kFirstIndex; }
+
   // Casting.
   static inline TransitionArray* cast(Object* obj);
 
@@ -131,20 +141,30 @@ class TransitionArray: public FixedArray {
 
   static const int kDescriptorsPointerIndex = 0;
   static const int kBackPointerStorageIndex = 1;
+  static const int kDescriptorsHolderSize = 2;
+
+  // Layout for full transition arrays.
   static const int kElementsTransitionIndex = 2;
   static const int kPrototypeTransitionsIndex = 3;
   static const int kFirstIndex = 4;
 
-  // Layout transition array header.
+  // Layout for simple transition arrays.
+  static const int kSimpleTransitionTarget = 2;
+  static const int kSimpleTransitionSize = 3;
+  static const int kSimpleTransitionIndex = 0;
+  STATIC_ASSERT(kSimpleTransitionIndex != kNotFound);
+
   static const int kDescriptorsPointerOffset = FixedArray::kHeaderSize;
   static const int kBackPointerStorageOffset = kDescriptorsPointerOffset +
                                                kPointerSize;
+
+  // Layout for the full transition array header.
   static const int kElementsTransitionOffset = kBackPointerStorageOffset +
                                                kPointerSize;
   static const int kPrototypeTransitionsOffset = kElementsTransitionOffset +
                                                  kPointerSize;
 
-  // Layout of map transition.
+  // Layout of map transition entries in full transition arrays.
   static const int kTransitionKey = 0;
   static const int kTransitionTarget = 1;
   static const int kTransitionSize = 2;

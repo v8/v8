@@ -330,6 +330,9 @@ void StaticMarkingVisitor<StaticVisitor>::MarkTransitionArray(
   // is not compacted and descriptors are referenced through a cell.
   StaticVisitor::MarkObject(heap, transitions->descriptors_pointer());
 
+  // Simple transitions do not have keys nor prototype transitions.
+  if (transitions->IsSimpleTransition()) return;
+
   if (transitions->HasPrototypeTransitions()) {
     // Mark prototype transitions array but do not push it onto marking
     // stack, this will make references from it weak. We will clean dead
