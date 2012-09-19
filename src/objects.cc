@@ -7455,7 +7455,7 @@ static void TrimEnumCache(Heap* heap, Map* map, DescriptorArray* descriptors) {
     live_enum = map->NumberOfDescribedProperties(OWN_DESCRIPTORS, DONT_ENUM);
   }
   if (live_enum == 0) return descriptors->ClearEnumCache();
-  
+
   FixedArray* enum_cache = descriptors->GetEnumCache();
 
   int to_trim = enum_cache->length() - live_enum;
