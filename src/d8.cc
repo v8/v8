@@ -200,7 +200,13 @@ Handle<Value> Shell::Write(const Arguments& args) {
     if (i != 0) {
       printf(" ");
     }
-    v8::String::Utf8Value str(args[i]);
+
+    // Explicitly catch potential exceptions in toString().
+    v8::TryCatch try_catch;
+    Handle<String> str_obj = args[i]->ToString();
+    if (try_catch.HasCaught()) return try_catch.ReThrow();
+
+    v8::String::Utf8Value str(str_obj);
     int n = static_cast<int>(fwrite(*str, sizeof(**str), str.length(), stdout));
     if (n != str.length()) {
       printf("Error in fwrite\n");

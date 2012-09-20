@@ -508,6 +508,24 @@ class Heap {
   MapSpace* map_space() { return map_space_; }
   CellSpace* cell_space() { return cell_space_; }
   LargeObjectSpace* lo_space() { return lo_space_; }
+  PagedSpace* paged_space(int idx) {
+    switch (idx) {
+      case OLD_POINTER_SPACE:
+        return old_pointer_space();
+      case OLD_DATA_SPACE:
+        return old_data_space();
+      case MAP_SPACE:
+        return map_space();
+      case CELL_SPACE:
+        return cell_space();
+      case CODE_SPACE:
+        return code_space();
+      case NEW_SPACE:
+      case LO_SPACE:
+        UNREACHABLE();
+    }
+    return NULL;
+  }
 
   bool always_allocate() { return always_allocate_scope_depth_ != 0; }
   Address always_allocate_scope_depth_address() {
@@ -656,6 +674,9 @@ class Heap {
 
   // Clear the Instanceof cache (used when a prototype changes).
   inline void ClearInstanceofCache();
+
+  // For use during bootup.
+  void RepairFreeListsAfterBoot();
 
   // Allocates and fully initializes a String.  There are two String
   // encodings: ASCII and two byte. One should choose between the three string
@@ -1309,20 +1330,9 @@ class Heap {
   // Commits from space if it is uncommitted.
   void EnsureFromSpaceIsCommitted();
 
-  // Support for partial snapshots.  After calling this we can allocate a
-  // certain number of bytes using only linear allocation (with a
-  // LinearAllocationScope and an AlwaysAllocateScope) without using freelists
-  // or causing a GC.  It returns true of space was reserved or false if a GC is
-  // needed.  For paged spaces the space requested must include the space wasted
-  // at the end of each page when allocating linearly.
-  void ReserveSpace(
-    int new_space_size,
-    int pointer_space_size,
-    int data_space_size,
-    int code_space_size,
-    int map_space_size,
-    int cell_space_size,
-    int large_object_size);
+  // Support for partial snapshots.  After calling this we have a linear
+  // space to write objects in each space.
+  void ReserveSpace(int *sizes, Address* addresses);
 
   //
   // Support for the API.
@@ -1488,13 +1498,6 @@ class Heap {
   void ClearJSFunctionResultCaches();
 
   void ClearNormalizedMapCaches();
-
-  // Clears the cache of ICs related to this map.
-  void ClearCacheOnMap(Map* map) {
-    if (FLAG_cleanup_code_caches_at_gc) {
-      map->ClearCodeCache(this);
-    }
-  }
 
   GCTracer* tracer() { return tracer_; }
 
@@ -2131,7 +2134,6 @@ class Heap {
   friend class GCTracer;
   friend class DisallowAllocationFailure;
   friend class AlwaysAllocateScope;
-  friend class LinearAllocationScope;
   friend class Page;
   friend class Isolate;
   friend class MarkCompactCollector;
@@ -2195,13 +2197,6 @@ class AlwaysAllocateScope {
  private:
   // Implicitly disable artificial allocation failures.
   DisallowAllocationFailure disallow_allocation_failure_;
-};
-
-
-class LinearAllocationScope {
- public:
-  inline LinearAllocationScope();
-  inline ~LinearAllocationScope();
 };
 
 
@@ -2374,7 +2369,7 @@ class KeyedLookupCache {
 };
 
 
-// Cache for mapping (array, property name) into descriptor index.
+// Cache for mapping (map, property name) into descriptor index.
 // The cache contains both positive and negative results.
 // Descriptor index equals kNotFound means the property is absent.
 // Cleared at startup and prior to any gc.
@@ -2382,21 +2377,21 @@ class DescriptorLookupCache {
  public:
   // Lookup descriptor index for (map, name).
   // If absent, kAbsent is returned.
-  int Lookup(DescriptorArray* array, String* name) {
+  int Lookup(Map* source, String* name) {
     if (!StringShape(name).IsSymbol()) return kAbsent;
-    int index = Hash(array, name);
+    int index = Hash(source, name);
     Key& key = keys_[index];
-    if ((key.array == array) && (key.name == name)) return results_[index];
+    if ((key.source == source) && (key.name == name)) return results_[index];
     return kAbsent;
   }
 
   // Update an element in the cache.
-  void Update(DescriptorArray* array, String* name, int result) {
+  void Update(Map* source, String* name, int result) {
     ASSERT(result != kAbsent);
     if (StringShape(name).IsSymbol()) {
-      int index = Hash(array, name);
+      int index = Hash(source, name);
       Key& key = keys_[index];
-      key.array = array;
+      key.source = source;
       key.name = name;
       results_[index] = result;
     }
@@ -2410,26 +2405,26 @@ class DescriptorLookupCache {
  private:
   DescriptorLookupCache() {
     for (int i = 0; i < kLength; ++i) {
-      keys_[i].array = NULL;
+      keys_[i].source = NULL;
       keys_[i].name = NULL;
       results_[i] = kAbsent;
     }
   }
 
-  static int Hash(DescriptorArray* array, String* name) {
+  static int Hash(Object* source, String* name) {
     // Uses only lower 32 bits if pointers are larger.
-    uint32_t array_hash =
-        static_cast<uint32_t>(reinterpret_cast<uintptr_t>(array))
+    uint32_t source_hash =
+        static_cast<uint32_t>(reinterpret_cast<uintptr_t>(source))
             >> kPointerSizeLog2;
     uint32_t name_hash =
         static_cast<uint32_t>(reinterpret_cast<uintptr_t>(name))
             >> kPointerSizeLog2;
-    return (array_hash ^ name_hash) % kLength;
+    return (source_hash ^ name_hash) % kLength;
   }
 
   static const int kLength = 64;
   struct Key {
-    DescriptorArray* array;
+    Map* source;
     String* name;
   };
 

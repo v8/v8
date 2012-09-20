@@ -168,10 +168,9 @@ void HBasicBlock::Finish(HControlInstruction* end) {
 void HBasicBlock::Goto(HBasicBlock* block, FunctionState* state) {
   bool drop_extra = state != NULL &&
       state->inlining_kind() == DROP_EXTRA_ON_RETURN;
-  bool arguments_pushed = state != NULL && state->arguments_pushed();
 
   if (block->IsInlineReturnTarget()) {
-    AddInstruction(new(zone()) HLeaveInlined(arguments_pushed));
+    AddInstruction(new(zone()) HLeaveInlined());
     last_environment_ = last_environment()->DiscardInlined(drop_extra);
   }
 
@@ -185,11 +184,10 @@ void HBasicBlock::AddLeaveInlined(HValue* return_value,
                                   FunctionState* state) {
   HBasicBlock* target = state->function_return();
   bool drop_extra = state->inlining_kind() == DROP_EXTRA_ON_RETURN;
-  bool arguments_pushed = state->arguments_pushed();
 
   ASSERT(target->IsInlineReturnTarget());
   ASSERT(return_value != NULL);
-  AddInstruction(new(zone()) HLeaveInlined(arguments_pushed));
+  AddInstruction(new(zone()) HLeaveInlined());
   last_environment_ = last_environment()->DiscardInlined(drop_extra);
   last_environment()->Push(return_value);
   AddSimulate(BailoutId::None());
@@ -3432,6 +3430,8 @@ class BoundsCheckKey : public ZoneObject {
   static BoundsCheckKey* Create(Zone* zone,
                                 HBoundsCheck* check,
                                 int32_t* offset) {
+    if (!check->index()->representation().IsInteger32()) return NULL;
+
     HValue* index_base = NULL;
     HConstant* constant = NULL;
     bool is_sub = false;
@@ -3682,6 +3682,7 @@ void HGraph::EliminateRedundantBoundsChecks(HBasicBlock* bb,
     int32_t offset;
     BoundsCheckKey* key =
         BoundsCheckKey::Create(zone(), check, &offset);
+    if (key == NULL) continue;
     BoundsCheckBbData** data_p = table->LookupOrInsert(key, zone());
     BoundsCheckBbData* data = *data_p;
     if (data == NULL) {
@@ -3743,6 +3744,7 @@ void HGraph::EliminateRedundantBoundsChecks() {
 
 static void DehoistArrayIndex(ArrayInstructionInterface* array_operation) {
   HValue* index = array_operation->GetKey();
+  if (!index->representation().IsInteger32()) return;
 
   HConstant* constant;
   HValue* subexpression;
@@ -6549,6 +6551,7 @@ void HGraphBuilder::EnsureArgumentsArePushedForAccess() {
 
   // Push arguments when entering inlined function.
   HEnterInlined* entry = function_state()->entry();
+  entry->set_arguments_pushed();
 
   ZoneList<HValue*>* arguments_values = entry->arguments_values();
 
@@ -9391,6 +9394,7 @@ HEnvironment::HEnvironment(HEnvironment* outer,
       specials_count_(1),
       local_count_(0),
       outer_(outer),
+      entry_(NULL),
       pop_count_(0),
       push_count_(0),
       ast_id_(BailoutId::None()),
@@ -9407,6 +9411,7 @@ HEnvironment::HEnvironment(const HEnvironment* other, Zone* zone)
       specials_count_(1),
       local_count_(0),
       outer_(NULL),
+      entry_(NULL),
       pop_count_(0),
       push_count_(0),
       ast_id_(other->ast_id()),
@@ -9427,6 +9432,7 @@ HEnvironment::HEnvironment(HEnvironment* outer,
       parameter_count_(arguments),
       local_count_(0),
       outer_(outer),
+      entry_(NULL),
       pop_count_(0),
       push_count_(0),
       ast_id_(BailoutId::None()),
@@ -9455,6 +9461,7 @@ void HEnvironment::Initialize(const HEnvironment* other) {
   parameter_count_ = other->parameter_count_;
   local_count_ = other->local_count_;
   if (other->outer_ != NULL) outer_ = other->outer_->Copy();  // Deep copy.
+  entry_ = other->entry_;
   pop_count_ = other->pop_count_;
   push_count_ = other->push_count_;
   ast_id_ = other->ast_id_;

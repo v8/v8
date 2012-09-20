@@ -178,6 +178,23 @@ enum TransitionFlag {
 };
 
 
+// Indicates whether the transition is simple: the target map of the transition
+// either extends the current map with a new property, or it modifies the
+// property that was added last to the current map.
+enum SimpleTransitionFlag {
+  SIMPLE_TRANSITION,
+  FULL_TRANSITION
+};
+
+
+// Indicates whether we are only interested in the descriptors of a particular
+// map, or in all descriptors in the descriptor array.
+enum DescriptorFlag {
+  ALL_DESCRIPTORS,
+  OWN_DESCRIPTORS
+};
+
+
 // Instance size sentinel for objects of variable size.
 const int kVariableSizeSentinel = 0;
 
@@ -1680,15 +1697,15 @@ class JSObject: public JSReceiver {
       String* name,
       PropertyAttributes* attributes);
   MUST_USE_RESULT MaybeObject* GetPropertyWithInterceptor(
-      JSReceiver* receiver,
+      Object* receiver,
       String* name,
       PropertyAttributes* attributes);
   MUST_USE_RESULT MaybeObject* GetPropertyPostInterceptor(
-      JSReceiver* receiver,
+      Object* receiver,
       String* name,
       PropertyAttributes* attributes);
   MUST_USE_RESULT MaybeObject* GetLocalPropertyPostInterceptor(
-      JSReceiver* receiver,
+      Object* receiver,
       String* name,
       PropertyAttributes* attributes);
 
@@ -2368,23 +2385,6 @@ class FixedArray: public FixedArrayBase {
     }
   };
 
-  // WhitenessWitness is used to prove that a descriptor array is white
-  // (unmarked), so incremental write barriers can be skipped because the
-  // marking invariant cannot be broken and slots pointing into evacuation
-  // candidates will be discovered when the object is scanned. A witness is
-  // always stack-allocated right after creating an array. By allocating a
-  // witness, incremental marking is globally disabled. The witness is then
-  // passed along wherever needed to statically prove that the array is known to
-  // be white.
-  class WhitenessWitness {
-   public:
-    inline explicit WhitenessWitness(FixedArray* array);
-    inline ~WhitenessWitness();
-
-   private:
-    IncrementalMarking* marking_;
-  };
-
  protected:
   // Set operation on FixedArray without using write barriers. Can
   // only be used for storing old space objects or smis.
@@ -2468,6 +2468,23 @@ class FixedDoubleArray: public FixedArrayBase {
 //   [length() - kDescriptorSize]: last key
 class DescriptorArray: public FixedArray {
  public:
+  // WhitenessWitness is used to prove that a descriptor array is white
+  // (unmarked), so incremental write barriers can be skipped because the
+  // marking invariant cannot be broken and slots pointing into evacuation
+  // candidates will be discovered when the object is scanned. A witness is
+  // always stack-allocated right after creating an array. By allocating a
+  // witness, incremental marking is globally disabled. The witness is then
+  // passed along wherever needed to statically prove that the array is known to
+  // be white.
+  class WhitenessWitness {
+   public:
+    inline explicit WhitenessWitness(FixedArray* array);
+    inline ~WhitenessWitness();
+
+   private:
+    IncrementalMarking* marking_;
+  };
+
   // Returns true for both shared empty_descriptor_array and for smis, which the
   // map uses to encode additional bit fields when the descriptor array is not
   // yet used.
@@ -2477,20 +2494,47 @@ class DescriptorArray: public FixedArray {
   int number_of_descriptors() {
     ASSERT(length() >= kFirstIndex || IsEmpty());
     int len = length();
-    return len <= kFirstIndex ? 0 : (len - kFirstIndex) / kDescriptorSize;
+    return len == 0 ? 0 : Smi::cast(get(kDescriptorLengthIndex))->value();
   }
 
+  int number_of_descriptors_storage() {
+    int len = length();
+    return len == 0 ? 0 : (len - kFirstIndex) / kDescriptorSize;
+  }
+
+  int NumberOfSlackDescriptors() {
+    return number_of_descriptors_storage() - number_of_descriptors();
+  }
+
+  inline void SetNumberOfDescriptors(int number_of_descriptors);
   inline int number_of_entries() { return number_of_descriptors(); }
-  inline int NextEnumerationIndex() { return number_of_descriptors() + 1; }
 
   bool HasEnumCache() {
     return !IsEmpty() && !get(kEnumCacheIndex)->IsSmi();
   }
 
-  Object* GetEnumCache() {
+  void CopyEnumCacheFrom(DescriptorArray* array) {
+    set(kEnumCacheIndex, array->get(kEnumCacheIndex));
+  }
+
+  FixedArray* GetEnumCache() {
     ASSERT(HasEnumCache());
     FixedArray* bridge = FixedArray::cast(get(kEnumCacheIndex));
-    return bridge->get(kEnumCacheBridgeCacheIndex);
+    return FixedArray::cast(bridge->get(kEnumCacheBridgeCacheIndex));
+  }
+
+  bool HasEnumIndicesCache() {
+    if (IsEmpty()) return false;
+    Object* object = get(kEnumCacheIndex);
+    if (object->IsSmi()) return false;
+    FixedArray* bridge = FixedArray::cast(object);
+    return bridge->get(kEnumCacheBridgeIndicesCacheIndex)->IsSmi();
+  }
+
+  FixedArray* GetEnumIndicesCache() {
+    ASSERT(HasEnumIndicesCache());
+    FixedArray* bridge = FixedArray::cast(get(kEnumCacheIndex));
+    return FixedArray::cast(bridge->get(kEnumCacheBridgeIndicesCacheIndex));
   }
 
   Object** GetEnumCacheSlot() {
@@ -2498,6 +2542,8 @@ class DescriptorArray: public FixedArray {
     return HeapObject::RawField(reinterpret_cast<HeapObject*>(this),
                                 kEnumCacheOffset);
   }
+
+  void ClearEnumCache();
 
   // Initialize or change the enum cache,
   // using the supplied storage for the small "bridge".
@@ -2526,13 +2572,14 @@ class DescriptorArray: public FixedArray {
   inline void Set(int descriptor_number,
                   Descriptor* desc,
                   const WhitenessWitness&);
+  inline void Set(int descriptor_number, Descriptor* desc);
+  inline void EraseDescriptor(Heap* heap, int descriptor_number);
 
   // Append automatically sets the enumeration index. This should only be used
   // to add descriptors in bulk at the end, followed by sorting the descriptor
   // array.
-  inline void Append(Descriptor* desc,
-                     const WhitenessWitness&,
-                     int number_of_set_descriptors);
+  inline void Append(Descriptor* desc, const WhitenessWitness&);
+  inline void Append(Descriptor* desc);
 
   // Transfer a complete descriptor from the src descriptor array to this
   // descriptor array.
@@ -2541,23 +2588,22 @@ class DescriptorArray: public FixedArray {
                 int src_index,
                 const WhitenessWitness&);
 
+  MUST_USE_RESULT MaybeObject* CopyUpTo(int enumeration_index);
+
   // Sort the instance descriptors by the hash codes of their keys.
   void Sort();
-  inline void SwapSortedKeys(int first, int second);
 
   // Search the instance descriptors for given name.
-  INLINE(int Search(String* name));
+  INLINE(int Search(String* name, int number_of_own_descriptors));
 
   // As the above, but uses DescriptorLookupCache and updates it when
   // necessary.
-  INLINE(int SearchWithCache(String* name));
-
-  // Tells whether the name is present int the array.
-  bool Contains(String* name) { return kNotFound != Search(name); }
+  INLINE(int SearchWithCache(String* name, Map* map));
 
   // Allocates a DescriptorArray, but returns the singleton
   // empty descriptor array object if number_of_descriptors is 0.
-  MUST_USE_RESULT static MaybeObject* Allocate(int number_of_descriptors);
+  MUST_USE_RESULT static MaybeObject* Allocate(int number_of_descriptors,
+                                               int slack = 0);
 
   // Casting.
   static inline DescriptorArray* cast(Object* obj);
@@ -2565,8 +2611,9 @@ class DescriptorArray: public FixedArray {
   // Constant for denoting key was not found.
   static const int kNotFound = -1;
 
-  static const int kEnumCacheIndex = 0;
-  static const int kFirstIndex = 1;
+  static const int kDescriptorLengthIndex = 0;
+  static const int kEnumCacheIndex = 1;
+  static const int kFirstIndex = 2;
 
   // The length of the "bridge" to the enum cache.
   static const int kEnumCacheBridgeLength = 2;
@@ -2574,7 +2621,8 @@ class DescriptorArray: public FixedArray {
   static const int kEnumCacheBridgeIndicesCacheIndex = 1;
 
   // Layout description.
-  static const int kEnumCacheOffset = FixedArray::kHeaderSize;
+  static const int kDescriptorLengthOffset = FixedArray::kHeaderSize;
+  static const int kEnumCacheOffset = kDescriptorLengthOffset + kPointerSize;
   static const int kFirstOffset = kEnumCacheOffset + kPointerSize;
 
   // Layout description for the bridge array.
@@ -2596,7 +2644,7 @@ class DescriptorArray: public FixedArray {
 
 #ifdef DEBUG
   // Is the descriptor array sorted and without duplicates?
-  bool IsSortedNoDuplicates();
+  bool IsSortedNoDuplicates(int valid_descriptors = -1);
 
   // Is the descriptor array consistent with the back pointers in targets?
   bool IsConsistentWithBackPointers(Map* current_map);
@@ -2649,24 +2697,21 @@ class DescriptorArray: public FixedArray {
            kDescriptorValue;
   }
 
-  // Swap operation on FixedArray without using write barriers.
-  static inline void NoIncrementalWriteBarrierSwap(
-      FixedArray* array, int first, int second);
-
   // Swap first and second descriptor.
-  inline void NoIncrementalWriteBarrierSwapDescriptors(
-      int first, int second);
+  inline void SwapSortedKeys(int first, int second);
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(DescriptorArray);
 };
 
 
-template<typename T>
-inline int LinearSearch(T* array, String* name, int len);
+enum SearchMode { ALL_ENTRIES, VALID_ENTRIES };
+
+template<SearchMode search_mode, typename T>
+inline int LinearSearch(T* array, String* name, int len, int valid_entries);
 
 
-template<typename T>
-inline int Search(T* array, String* name);
+template<SearchMode search_mode, typename T>
+inline int Search(T* array, String* name, int valid_entries = 0);
 
 
 // HashTable is a subclass of FixedArray that implements a hash table
@@ -4672,6 +4717,7 @@ class Map: public HeapObject {
   class IsShared:                   public BitField<bool, 22,  1> {};
   class FunctionWithPrototype:      public BitField<bool, 23,  1> {};
   class DictionaryMap:              public BitField<bool, 24,  1> {};
+  class OwnsDescriptors:            public BitField<bool, 25,  1> {};
 
   // Tells whether the object in the prototype property will be used
   // for instances created from this function.  If the prototype
@@ -4792,13 +4838,17 @@ class Map: public HeapObject {
   static bool IsValidElementsTransition(ElementsKind from_kind,
                                         ElementsKind to_kind);
 
+  bool StoresOwnDescriptors() { return HasTransitionArray(); }
   inline bool HasTransitionArray();
   inline bool HasElementsTransition();
   inline Map* elements_transition_map();
   MUST_USE_RESULT inline MaybeObject* set_elements_transition_map(
       Map* transitioned_map);
-  inline void SetTransition(int index, Map* target);
-  MUST_USE_RESULT inline MaybeObject* AddTransition(String* key, Map* target);
+  inline void SetTransition(int transition_index, Map* target);
+  inline Map* GetTransition(int transition_index);
+  MUST_USE_RESULT inline MaybeObject* AddTransition(String* key,
+                                                    Map* target,
+                                                    SimpleTransitionFlag flag);
   DECL_ACCESSORS(transitions, TransitionArray)
   inline void ClearTransitions(Heap* heap,
                                WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
@@ -4837,9 +4887,9 @@ class Map: public HeapObject {
 
   // [instance descriptors]: describes the object.
   inline DescriptorArray* instance_descriptors();
+  inline JSGlobalPropertyCell* descriptors_pointer();
   MUST_USE_RESULT inline MaybeObject* SetDescriptors(
-      DescriptorArray* descriptors,
-      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+      DescriptorArray* descriptors);
   static void SetDescriptors(Handle<Map> map,
                              Handle<DescriptorArray> descriptors);
   MUST_USE_RESULT inline MaybeObject* InitializeDescriptors(
@@ -4920,16 +4970,28 @@ class Map: public HeapObject {
   }
 
   void SetNumberOfOwnDescriptors(int number) {
+    ASSERT(number <= instance_descriptors()->number_of_descriptors());
     set_bit_field3(NumberOfOwnDescriptorsBits::update(bit_field3(), number));
   }
+
+  inline JSGlobalPropertyCell* RetrieveDescriptorsPointer();
 
   int EnumLength() {
     return EnumLengthBits::decode(bit_field3());
   }
 
-  void SetEnumLength(int index) {
-    set_bit_field3(EnumLengthBits::update(bit_field3(), index));
+  void SetEnumLength(int length) {
+    if (length != kInvalidEnumCache) {
+      ASSERT(length >= 0);
+      ASSERT(length == 0 || instance_descriptors()->HasEnumCache());
+      ASSERT(length <= NumberOfOwnDescriptors());
+    }
+    set_bit_field3(EnumLengthBits::update(bit_field3(), length));
   }
+
+
+  inline bool owns_descriptors();
+  inline void set_owns_descriptors(bool is_shared);
 
   MUST_USE_RESULT MaybeObject* RawCopy(int instance_size);
   MUST_USE_RESULT MaybeObject* CopyWithPreallocatedFieldDescriptors();
@@ -4937,7 +4999,9 @@ class Map: public HeapObject {
   MUST_USE_RESULT MaybeObject* CopyReplaceDescriptors(
       DescriptorArray* descriptors,
       String* name,
-      TransitionFlag flag);
+      TransitionFlag flag,
+      int descriptor_index);
+  MUST_USE_RESULT MaybeObject* ShareDescriptor(Descriptor* descriptor);
   MUST_USE_RESULT MaybeObject* CopyAddDescriptor(Descriptor* descriptor,
                                                  TransitionFlag flag);
   MUST_USE_RESULT MaybeObject* CopyInsertDescriptor(Descriptor* descriptor,
@@ -4966,7 +5030,8 @@ class Map: public HeapObject {
 
   // Returns the number of properties described in instance_descriptors
   // filtering out properties with the specified attributes.
-  int NumberOfDescribedProperties(PropertyAttributes filter = NONE);
+  int NumberOfDescribedProperties(DescriptorFlag which = OWN_DESCRIPTORS,
+                                  PropertyAttributes filter = NONE);
 
   // Casting.
   static inline Map* cast(Object* obj);
@@ -4987,8 +5052,10 @@ class Map: public HeapObject {
 
   // Extend the descriptor array of the map with the list of descriptors.
   // In case of duplicates, the latest descriptor is used.
-  static void CopyAppendCallbackDescriptors(Handle<Map> map,
-                                            Handle<Object> descriptors);
+  static void AppendCallbackDescriptors(Handle<Map> map,
+                                        Handle<Object> descriptors);
+
+  static void EnsureDescriptorSlack(Handle<Map> map, int slack);
 
   // Returns the found code or undefined if absent.
   Object* FindInCodeCache(String* name, Code::Flags flags);
@@ -5070,7 +5137,7 @@ class Map: public HeapObject {
 
   static const int kMaxPreAllocatedPropertyFields = 255;
 
-  // Constant for denoting that the Enum Cache field was not yet used.
+  // Constant for denoting that the enum cache is not yet initialized.
   static const int kInvalidEnumCache = EnumLengthBits::kMax;
 
   // Layout description.

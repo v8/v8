@@ -142,7 +142,9 @@ Handle<Code> CodeStub::GetCode() {
   }
 
   Activate(code);
-  ASSERT(!NeedsImmovableCode() || heap->lo_space()->Contains(code));
+  ASSERT(!NeedsImmovableCode() ||
+         heap->lo_space()->Contains(code) ||
+         heap->code_space()->FirstPage()->Contains(code->address()));
   return Handle<Code>(code, isolate);
 }
 

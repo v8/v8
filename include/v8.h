@@ -1018,6 +1018,11 @@ class Boolean : public Primitive {
  */
 class String : public Primitive {
  public:
+  enum Encoding {
+    UNKNOWN_ENCODING = 0x1,
+    TWO_BYTE_ENCODING = 0x0,
+    ASCII_ENCODING = 0x4
+  };
   /**
    * Returns the number of characters in this string.
    */
@@ -1179,6 +1184,14 @@ class String : public Primitive {
    protected:
     ExternalAsciiStringResource() {}
   };
+
+  /**
+   * If the string is an external string, return the ExternalStringResourceBase
+   * regardless of the encoding, otherwise return NULL.  The encoding of the
+   * string is returned in encoding_out.
+   */
+  inline ExternalStringResourceBase* GetExternalStringResourceBase(
+      Encoding* encoding_out) const;
 
   /**
    * Get the ExternalStringResource for an external string.  Returns
@@ -1343,6 +1356,8 @@ class String : public Primitive {
   };
 
  private:
+  V8EXPORT void VerifyExternalStringResourceBase(ExternalStringResourceBase* v,
+                                                 Encoding encoding) const;
   V8EXPORT void VerifyExternalStringResource(ExternalStringResource* val) const;
   V8EXPORT static void CheckCast(v8::Value* obj);
 };
@@ -3703,7 +3718,7 @@ class V8EXPORT Context {
    * with the debugger to provide additional information on the context through
    * the debugger API.
    */
-  void SetData(Handle<String> data);
+  void SetData(Handle<Value> data);
   Local<Value> GetData();
 
   /**
@@ -3726,6 +3741,13 @@ class V8EXPORT Context {
    * For more details see AllowCodeGenerationFromStrings(bool) documentation.
    */
   bool IsCodeGenerationFromStringsAllowed();
+
+  /**
+   * Sets the error description for the exception that is thrown when
+   * code generation from strings is not allowed and 'eval' or the 'Function'
+   * constructor are called.
+   */
+  void SetErrorMessageForCodeGenerationFromStrings(Handle<String> message);
 
   /**
    * Stack-allocated class which sets the execution context for all
@@ -4033,7 +4055,9 @@ class Internals {
   static const int kForeignAddressOffset = kApiPointerSize;
   static const int kJSObjectHeaderSize = 3 * kApiPointerSize;
   static const int kFullStringRepresentationMask = 0x07;
+  static const int kStringEncodingMask = 0x4;
   static const int kExternalTwoByteRepresentationTag = 0x02;
+  static const int kExternalAsciiRepresentationTag = 0x06;
 
   static const int kIsolateStateOffset = 0;
   static const int kIsolateEmbedderDataOffset = 1 * kApiPointerSize;
@@ -4385,6 +4409,26 @@ String::ExternalStringResource* String::GetExternalStringResource() const {
   VerifyExternalStringResource(result);
 #endif
   return result;
+}
+
+
+String::ExternalStringResourceBase* String::GetExternalStringResourceBase(
+    String::Encoding* encoding_out) const {
+  typedef internal::Object O;
+  typedef internal::Internals I;
+  O* obj = *reinterpret_cast<O**>(const_cast<String*>(this));
+  int type = I::GetInstanceType(obj) & I::kFullStringRepresentationMask;
+  *encoding_out = static_cast<Encoding>(type & I::kStringEncodingMask);
+  ExternalStringResourceBase* resource = NULL;
+  if (type == I::kExternalAsciiRepresentationTag ||
+      type == I::kExternalTwoByteRepresentationTag) {
+    void* value = I::ReadField<void*>(obj, I::kStringResourceOffset);
+    resource = static_cast<ExternalStringResourceBase*>(value);
+  }
+#ifdef V8_ENABLE_CHECKS
+    VerifyExternalStringResourceBase(resource, *encoding_out);
+#endif
+  return resource;
 }
 
 

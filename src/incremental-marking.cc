@@ -44,7 +44,6 @@ IncrementalMarking::IncrementalMarking(Heap* heap)
       state_(STOPPED),
       marking_deque_memory_(NULL),
       marking_deque_memory_committed_(false),
-      marker_(this, heap->mark_compact_collector()),
       steps_count_(0),
       steps_took_(0),
       longest_step_(0.0),
@@ -67,7 +66,7 @@ void IncrementalMarking::TearDown() {
 void IncrementalMarking::RecordWriteSlow(HeapObject* obj,
                                          Object** slot,
                                          Object* value) {
-  if (BaseRecordWrite(obj, slot, value) && is_compacting_ && slot != NULL) {
+  if (BaseRecordWrite(obj, slot, value) && slot != NULL) {
     MarkBit obj_bit = Marking::MarkBitFrom(obj);
     if (Marking::IsBlack(obj_bit)) {
       // Object is not going to be rescanned we need to record the slot.
@@ -127,9 +126,9 @@ void IncrementalMarking::RecordCodeTargetPatch(Address pc, HeapObject* value) {
 
 
 void IncrementalMarking::RecordWriteOfCodeEntrySlow(JSFunction* host,
-                                                Object** slot,
-                                                Code* value) {
-  if (BaseRecordWrite(host, slot, value) && is_compacting_) {
+                                                    Object** slot,
+                                                    Code* value) {
+  if (BaseRecordWrite(host, slot, value)) {
     ASSERT(slot != NULL);
     heap_->mark_compact_collector()->
         RecordCodeEntrySlot(reinterpret_cast<Address>(slot), value);
@@ -226,6 +225,7 @@ class IncrementalMarkingMarkingVisitor
     }
   }
 
+  // Marks the object grey and pushes it on the marking stack.
   INLINE(static void MarkObject(Heap* heap, Object* obj)) {
     HeapObject* heap_object = HeapObject::cast(obj);
     MarkBit mark_bit = Marking::MarkBitFrom(heap_object);
@@ -237,6 +237,20 @@ class IncrementalMarkingMarkingVisitor
     } else if (Marking::IsWhite(mark_bit)) {
       heap->incremental_marking()->WhiteToGreyAndPush(heap_object, mark_bit);
     }
+  }
+
+  // Marks the object black without pushing it on the marking stack.
+  // Returns true if object needed marking and false otherwise.
+  INLINE(static bool MarkObjectWithoutPush(Heap* heap, Object* obj)) {
+    HeapObject* heap_object = HeapObject::cast(obj);
+    MarkBit mark_bit = Marking::MarkBitFrom(heap_object);
+    if (Marking::IsWhite(mark_bit)) {
+      mark_bit.Set();
+      MemoryChunk::IncrementLiveBytesFromGC(heap_object->address(),
+                                            heap_object->Size());
+      return true;
+    }
+    return false;
   }
 };
 
@@ -641,23 +655,6 @@ void IncrementalMarking::Hurry() {
       } else if (map == native_context_map) {
         // Native contexts have weak fields.
         IncrementalMarkingMarkingVisitor::VisitNativeContext(map, obj);
-      } else if (map->instance_type() == MAP_TYPE) {
-        Map* map = Map::cast(obj);
-        heap_->ClearCacheOnMap(map);
-
-        // When map collection is enabled we have to mark through map's
-        // transitions and back pointers in a special way to make these links
-        // weak.  Only maps for subclasses of JSReceiver can have transitions.
-        STATIC_ASSERT(LAST_TYPE == LAST_JS_RECEIVER_TYPE);
-        if (FLAG_collect_maps &&
-            map->instance_type() >= FIRST_JS_RECEIVER_TYPE) {
-          marker_.MarkMapContents(map);
-        } else {
-          IncrementalMarkingMarkingVisitor::VisitPointers(
-              heap_,
-              HeapObject::RawField(map, Map::kPointerFieldsBeginOffset),
-              HeapObject::RawField(map, Map::kPointerFieldsEndOffset));
-        }
       } else {
         MarkBit map_mark_bit = Marking::MarkBitFrom(map);
         if (Marking::IsWhite(map_mark_bit)) {
@@ -822,23 +819,6 @@ void IncrementalMarking::Step(intptr_t allocated_bytes,
         MarkObjectGreyDoNotEnqueue(ctx->normalized_map_cache());
 
         IncrementalMarkingMarkingVisitor::VisitNativeContext(map, ctx);
-      } else if (map->instance_type() == MAP_TYPE) {
-        Map* map = Map::cast(obj);
-        heap_->ClearCacheOnMap(map);
-
-        // When map collection is enabled we have to mark through map's
-        // transitions and back pointers in a special way to make these links
-        // weak.  Only maps for subclasses of JSReceiver can have transitions.
-        STATIC_ASSERT(LAST_TYPE == LAST_JS_RECEIVER_TYPE);
-        if (FLAG_collect_maps &&
-            map->instance_type() >= FIRST_JS_RECEIVER_TYPE) {
-          marker_.MarkMapContents(map);
-        } else {
-          IncrementalMarkingMarkingVisitor::VisitPointers(
-              heap_,
-              HeapObject::RawField(map, Map::kPointerFieldsBeginOffset),
-              HeapObject::RawField(map, Map::kPointerFieldsEndOffset));
-        }
       } else {
         IncrementalMarkingMarkingVisitor::IterateBody(map, obj);
       }

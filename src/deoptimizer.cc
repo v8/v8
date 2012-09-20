@@ -27,6 +27,7 @@
 
 #include "v8.h"
 
+#include "accessors.h"
 #include "codegen.h"
 #include "deoptimizer.h"
 #include "disasm.h"
@@ -368,6 +369,8 @@ Deoptimizer::Deoptimizer(Isolate* isolate,
       output_count_(0),
       jsframe_count_(0),
       output_(NULL),
+      deferred_arguments_objects_values_(0),
+      deferred_arguments_objects_(0),
       deferred_heap_numbers_(0) {
   if (FLAG_trace_deopt && type != OSR) {
     if (type == DEBUGGER) {
@@ -633,8 +636,21 @@ void Deoptimizer::DoComputeOutputFrames() {
 }
 
 
-void Deoptimizer::MaterializeHeapNumbers() {
+void Deoptimizer::MaterializeHeapObjects(JavaScriptFrameIterator* it) {
   ASSERT_NE(DEBUGGER, bailout_type_);
+
+  // Handlify all argument object values before triggering any allocation.
+  List<Handle<Object> > values(deferred_arguments_objects_values_.length());
+  for (int i = 0; i < deferred_arguments_objects_values_.length(); ++i) {
+    values.Add(Handle<Object>(deferred_arguments_objects_values_[i]));
+  }
+
+  // Play it safe and clear all unhandlified values before we continue.
+  deferred_arguments_objects_values_.Clear();
+
+  // Materialize all heap numbers before looking at arguments because when the
+  // output frames are used to materialize arguments objects later on they need
+  // to already contain valid heap numbers.
   for (int i = 0; i < deferred_heap_numbers_.length(); i++) {
     HeapNumberMaterializationDescriptor d = deferred_heap_numbers_[i];
     Handle<Object> num = isolate_->factory()->NewNumber(d.value());
@@ -644,8 +660,54 @@ void Deoptimizer::MaterializeHeapNumbers() {
              d.value(),
              d.slot_address());
     }
-
     Memory::Object_at(d.slot_address()) = *num;
+  }
+
+  // Materialize arguments objects one frame at a time.
+  for (int frame_index = 0; frame_index < jsframe_count(); ++frame_index) {
+    if (frame_index != 0) it->Advance();
+    JavaScriptFrame* frame = it->frame();
+    Handle<JSFunction> function(JSFunction::cast(frame->function()), isolate_);
+    Handle<JSObject> arguments;
+    for (int i = frame->ComputeExpressionsCount() - 1; i >= 0; --i) {
+      if (frame->GetExpression(i) == isolate_->heap()->arguments_marker()) {
+        ArgumentsObjectMaterializationDescriptor descriptor =
+            deferred_arguments_objects_.RemoveLast();
+        const int length = descriptor.arguments_length();
+        if (arguments.is_null()) {
+          if (frame->has_adapted_arguments()) {
+            // Use the arguments adapter frame we just built to materialize the
+            // arguments object. FunctionGetArguments can't throw an exception,
+            // so cast away the doubt with an assert.
+            arguments = Handle<JSObject>(JSObject::cast(
+                Accessors::FunctionGetArguments(*function,
+                                                NULL)->ToObjectUnchecked()));
+            values.RewindBy(length);
+          } else {
+            // Construct an arguments object and copy the parameters to a newly
+            // allocated arguments object backing store.
+            arguments =
+                isolate_->factory()->NewArgumentsObject(function, length);
+            Handle<FixedArray> array =
+                isolate_->factory()->NewFixedArray(length);
+            ASSERT(array->length() == length);
+            for (int i = length - 1; i >= 0 ; --i) {
+              array->set(i, *values.RemoveLast());
+            }
+            arguments->set_elements(*array);
+          }
+        }
+        frame->SetExpression(i, *arguments);
+        ASSERT_EQ(Memory::Object_at(descriptor.slot_address()), *arguments);
+        if (FLAG_trace_deopt) {
+          PrintF("Materializing %sarguments object for %p: ",
+                 frame->has_adapted_arguments() ? "(adapted) " : "",
+                 reinterpret_cast<void*>(descriptor.slot_address()));
+          arguments->ShortPrint();
+          PrintF("\n");
+        }
+      }
+    }
   }
 }
 
@@ -932,8 +994,8 @@ void Deoptimizer::DoTranslateCommand(TranslationIterator* iterator,
     }
 
     case Translation::ARGUMENTS_OBJECT: {
-      // Use the arguments marker value as a sentinel and fill in the arguments
-      // object after the deoptimized frame is built.
+      int args_index = iterator->Next() + 1;  // Skip receiver.
+      int args_length = iterator->Next() - 1;  // Skip receiver.
       if (FLAG_trace_deopt) {
         PrintF("    0x%08" V8PRIxPTR ": [top + %d] <- ",
                output_[frame_index]->GetTop() + output_offset,
@@ -941,9 +1003,20 @@ void Deoptimizer::DoTranslateCommand(TranslationIterator* iterator,
         isolate_->heap()->arguments_marker()->ShortPrint();
         PrintF(" ; arguments object\n");
       }
+      // Use the arguments marker value as a sentinel and fill in the arguments
+      // object after the deoptimized frame is built.
       intptr_t value = reinterpret_cast<intptr_t>(
           isolate_->heap()->arguments_marker());
+      AddArgumentsObject(
+          output_[frame_index]->GetTop() + output_offset, args_length);
       output_[frame_index]->SetFrameSlot(output_offset, value);
+      // We save the tagged argument values on the side and materialize the
+      // actual arguments object after the deoptimized frame is built.
+      for (int i = 0; i < args_length; i++) {
+        unsigned input_offset = input_->GetOffsetFromSlotIndex(args_index + i);
+        intptr_t input_value = input_->GetFrameSlot(input_offset);
+        AddArgumentsObjectValue(input_value);
+      }
       return;
     }
   }
@@ -1285,8 +1358,19 @@ Object* Deoptimizer::ComputeLiteral(int index) const {
 }
 
 
-void Deoptimizer::AddDoubleValue(intptr_t slot_address,
-                                 double value) {
+void Deoptimizer::AddArgumentsObject(intptr_t slot_address, int argc) {
+  ArgumentsObjectMaterializationDescriptor object_desc(
+      reinterpret_cast<Address>(slot_address), argc);
+  deferred_arguments_objects_.Add(object_desc);
+}
+
+
+void Deoptimizer::AddArgumentsObjectValue(intptr_t value) {
+  deferred_arguments_objects_values_.Add(reinterpret_cast<Object*>(value));
+}
+
+
+void Deoptimizer::AddDoubleValue(intptr_t slot_address, double value) {
   HeapNumberMaterializationDescriptor value_desc(
       reinterpret_cast<Address>(slot_address), value);
   deferred_heap_numbers_.Add(value_desc);
@@ -1570,8 +1654,10 @@ void Translation::StoreLiteral(int literal_id) {
 }
 
 
-void Translation::StoreArgumentsObject() {
+void Translation::StoreArgumentsObject(int args_index, int args_length) {
   buffer_->Add(ARGUMENTS_OBJECT, zone());
+  buffer_->Add(args_index, zone());
+  buffer_->Add(args_length, zone());
 }
 
 
@@ -1582,7 +1668,6 @@ void Translation::MarkDuplicate() {
 
 int Translation::NumberOfOperandsFor(Opcode opcode) {
   switch (opcode) {
-    case ARGUMENTS_OBJECT:
     case DUPLICATE:
       return 0;
     case GETTER_STUB_FRAME:
@@ -1600,6 +1685,7 @@ int Translation::NumberOfOperandsFor(Opcode opcode) {
     case BEGIN:
     case ARGUMENTS_ADAPTOR_FRAME:
     case CONSTRUCT_STUB_FRAME:
+    case ARGUMENTS_OBJECT:
       return 2;
     case JS_FRAME:
       return 3;

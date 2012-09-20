@@ -304,6 +304,26 @@ class SlotsBuffer {
     NUMBER_OF_SLOT_TYPES
   };
 
+  static const char* SlotTypeToString(SlotType type) {
+    switch (type) {
+      case EMBEDDED_OBJECT_SLOT:
+        return "EMBEDDED_OBJECT_SLOT";
+      case RELOCATED_CODE_OBJECT:
+        return "RELOCATED_CODE_OBJECT";
+      case CODE_TARGET_SLOT:
+        return "CODE_TARGET_SLOT";
+      case CODE_ENTRY_SLOT:
+        return "CODE_ENTRY_SLOT";
+      case DEBUG_TARGET_SLOT:
+        return "DEBUG_TARGET_SLOT";
+      case JS_RETURN_SLOT:
+        return "JS_RETURN_SLOT";
+      case NUMBER_OF_SLOT_TYPES:
+        return "NUMBER_OF_SLOT_TYPES";
+    }
+    return "UNKNOWN SlotType";
+  }
+
   void UpdateSlots(Heap* heap);
 
   void UpdateSlotsWithFilter(Heap* heap);
@@ -380,33 +400,6 @@ class SlotsBuffer {
   intptr_t chain_length_;
   SlotsBuffer* next_;
   ObjectSlot slots_[kNumberOfElements];
-};
-
-
-// -------------------------------------------------------------------------
-// Marker shared between incremental and non-incremental marking
-template<class BaseMarker> class Marker {
- public:
-  Marker(BaseMarker* base_marker, MarkCompactCollector* mark_compact_collector)
-      : base_marker_(base_marker),
-        mark_compact_collector_(mark_compact_collector) {}
-
-  // Mark pointers in a Map and its DescriptorArray together, possibly
-  // treating transitions or back pointers weak.
-  void MarkMapContents(Map* map);
-  void MarkTransitionArray(TransitionArray* transitions);
-
- private:
-  BaseMarker* base_marker() {
-    return base_marker_;
-  }
-
-  MarkCompactCollector* mark_compact_collector() {
-    return mark_compact_collector_;
-  }
-
-  BaseMarker* base_marker_;
-  MarkCompactCollector* mark_compact_collector_;
 };
 
 
@@ -636,8 +629,6 @@ class MarkCompactCollector {
   friend class MarkCompactMarkingVisitor;
   friend class CodeMarkingVisitor;
   friend class SharedFunctionInfoMarkingVisitor;
-  friend class Marker<IncrementalMarking>;
-  friend class Marker<MarkCompactCollector>;
 
   // Mark non-optimize code for functions inlined into the given optimized
   // code. This will prevent it from being flushed.
@@ -655,24 +646,12 @@ class MarkCompactCollector {
   void AfterMarking();
 
   // Marks the object black and pushes it on the marking stack.
-  // Returns true if object needed marking and false otherwise.
-  // This is for non-incremental marking only.
-  INLINE(bool MarkObjectAndPush(HeapObject* obj));
-
-  // Marks the object black and pushes it on the marking stack.
   // This is for non-incremental marking only.
   INLINE(void MarkObject(HeapObject* obj, MarkBit mark_bit));
-
-  // Marks the object black without pushing it on the marking stack.
-  // Returns true if object needed marking and false otherwise.
-  // This is for non-incremental marking only.
-  INLINE(bool MarkObjectWithoutPush(HeapObject* obj));
 
   // Marks the object black assuming that it is not yet marked.
   // This is for non-incremental marking only.
   INLINE(void SetMark(HeapObject* obj, MarkBit mark_bit));
-
-  void ProcessNewlyMarkedObject(HeapObject* obj);
 
   // Mark the heap roots and all objects reachable from them.
   void MarkRoots(RootMarkingVisitor* visitor);
@@ -776,7 +755,6 @@ class MarkCompactCollector {
   MarkingDeque marking_deque_;
   CodeFlusher* code_flusher_;
   Object* encountered_weak_maps_;
-  Marker<MarkCompactCollector> marker_;
 
   List<Page*> evacuation_candidates_;
   List<Code*> invalidated_code_;

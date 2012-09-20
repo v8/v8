@@ -382,6 +382,9 @@ uint32_t StringShape::full_representation_tag() {
 STATIC_CHECK((kStringRepresentationMask | kStringEncodingMask) ==
              Internals::kFullStringRepresentationMask);
 
+STATIC_CHECK(static_cast<uint32_t>(kStringEncodingMask) ==
+             Internals::kStringEncodingMask);
+
 
 bool StringShape::IsSequentialAscii() {
   return full_representation_tag() == (kSeqStringTag | kAsciiStringTag);
@@ -398,6 +401,12 @@ bool StringShape::IsExternalAscii() {
 }
 
 
+STATIC_CHECK((kExternalStringTag | kAsciiStringTag) ==
+             Internals::kExternalAsciiRepresentationTag);
+
+STATIC_CHECK(v8::String::ASCII_ENCODING == kAsciiStringTag);
+
+
 bool StringShape::IsExternalTwoByte() {
   return full_representation_tag() == (kExternalStringTag | kTwoByteStringTag);
 }
@@ -406,6 +415,7 @@ bool StringShape::IsExternalTwoByte() {
 STATIC_CHECK((kExternalStringTag | kTwoByteStringTag) ==
              Internals::kExternalTwoByteRepresentationTag);
 
+STATIC_CHECK(v8::String::TWO_BYTE_ENCODING == kTwoByteStringTag);
 
 uc32 FlatStringReader::Get(int index) {
   ASSERT(0 <= index && index <= length_);
@@ -1896,6 +1906,12 @@ bool DescriptorArray::IsEmpty() {
 }
 
 
+void DescriptorArray::SetNumberOfDescriptors(int number_of_descriptors) {
+  WRITE_FIELD(
+      this, kDescriptorLengthOffset, Smi::FromInt(number_of_descriptors));
+}
+
+
 // Perform a binary search in a fixed array. Low and high are entry indices. If
 // there are three entries in this array it should be called with low=0 and
 // high=2.
@@ -1930,31 +1946,45 @@ int BinarySearch(T* array, String* name, int low, int high) {
 
 // Perform a linear search in this fixed array. len is the number of entry
 // indices that are valid.
-template<typename T>
-int LinearSearch(T* array, String* name, int len) {
+template<SearchMode search_mode, typename T>
+int LinearSearch(T* array, String* name, int len, int valid_entries) {
   uint32_t hash = name->Hash();
-  for (int number = 0; number < len; number++) {
-    int sorted_index = array->GetSortedKeyIndex(number);
-    String* entry = array->GetKey(sorted_index);
-    uint32_t current_hash = entry->Hash();
-    if (current_hash > hash) break;
-    if (current_hash == hash && entry->Equals(name)) return sorted_index;
+  if (search_mode == ALL_ENTRIES) {
+    for (int number = 0; number < len; number++) {
+      int sorted_index = array->GetSortedKeyIndex(number);
+      String* entry = array->GetKey(sorted_index);
+      uint32_t current_hash = entry->Hash();
+      if (current_hash > hash) break;
+      if (current_hash == hash && entry->Equals(name)) return sorted_index;
+    }
+  } else {
+    ASSERT(len >= valid_entries);
+    for (int number = 0; number < valid_entries; number++) {
+      String* entry = array->GetKey(number);
+      uint32_t current_hash = entry->Hash();
+      if (current_hash == hash && entry->Equals(name)) return number;
+    }
   }
   return T::kNotFound;
 }
 
 
-template<typename T>
-int Search(T* array, String* name) {
-  SLOW_ASSERT(array->IsSortedNoDuplicates());
+template<SearchMode search_mode, typename T>
+int Search(T* array, String* name, int valid_entries) {
+  if (search_mode == VALID_ENTRIES) {
+    SLOW_ASSERT(array->IsSortedNoDuplicates(valid_entries));
+  } else {
+    SLOW_ASSERT(array->IsSortedNoDuplicates());
+  }
 
   int nof = array->number_of_entries();
   if (nof == 0) return T::kNotFound;
 
   // Fast case: do linear search for small arrays.
   const int kMaxElementsForLinearSearch = 8;
-  if (nof < kMaxElementsForLinearSearch) {
-    return LinearSearch(array, name, nof);
+  if (search_mode == VALID_ENTRIES ||
+      (search_mode == ALL_ENTRIES && nof < kMaxElementsForLinearSearch)) {
+    return LinearSearch<search_mode>(array, name, nof, valid_entries);
   }
 
   // Slow case: perform binary search.
@@ -1962,20 +1992,21 @@ int Search(T* array, String* name) {
 }
 
 
-int DescriptorArray::Search(String* name) {
-  return internal::Search(this, name);
+int DescriptorArray::Search(String* name, int valid_descriptors) {
+  return internal::Search<VALID_ENTRIES>(this, name, valid_descriptors);
 }
 
 
-int DescriptorArray::SearchWithCache(String* name) {
-  if (number_of_descriptors() == 0) return kNotFound;
+int DescriptorArray::SearchWithCache(String* name, Map* map) {
+  int number_of_own_descriptors = map->NumberOfOwnDescriptors();
+  if (number_of_own_descriptors == 0) return kNotFound;
 
   DescriptorLookupCache* cache = GetIsolate()->descriptor_lookup_cache();
-  int number = cache->Lookup(this, name);
+  int number = cache->Lookup(map, name);
 
   if (number == DescriptorLookupCache::kAbsent) {
-    number = Search(name);
-    cache->Update(this, name, number);
+    number = Search(name, number_of_own_descriptors);
+    cache->Update(map, name, number);
   }
 
   return number;
@@ -1986,7 +2017,7 @@ void Map::LookupDescriptor(JSObject* holder,
                            String* name,
                            LookupResult* result) {
   DescriptorArray* descriptors = this->instance_descriptors();
-  int number = descriptors->SearchWithCache(name);
+  int number = descriptors->SearchWithCache(name, this);
   if (number == DescriptorArray::kNotFound) return result->NotFound();
   result->DescriptorResult(holder, descriptors->GetDetails(number), number);
 }
@@ -2030,10 +2061,9 @@ String* DescriptorArray::GetSortedKey(int descriptor_number) {
 }
 
 
-void DescriptorArray::SetSortedKey(int pointer, int descriptor_number) {
-  int details_index = ToDetailsIndex(pointer);
-  PropertyDetails details = PropertyDetails(Smi::cast(get(details_index)));
-  set_unchecked(details_index, details.set_pointer(descriptor_number).AsSmi());
+void DescriptorArray::SetSortedKey(int descriptor_index, int pointer) {
+  PropertyDetails details = GetDetails(descriptor_index);
+  set(ToDetailsIndex(descriptor_index), details.set_pointer(pointer).AsSmi());
 }
 
 
@@ -2114,24 +2144,65 @@ void DescriptorArray::Set(int descriptor_number,
 }
 
 
+void DescriptorArray::Set(int descriptor_number, Descriptor* desc) {
+  // Range check.
+  ASSERT(descriptor_number < number_of_descriptors());
+  ASSERT(desc->GetDetails().descriptor_index() <=
+         number_of_descriptors());
+  ASSERT(desc->GetDetails().descriptor_index() > 0);
+
+  set(ToKeyIndex(descriptor_number), desc->GetKey());
+  set(ToValueIndex(descriptor_number), desc->GetValue());
+  set(ToDetailsIndex(descriptor_number), desc->GetDetails().AsSmi());
+}
+
+
+void DescriptorArray::EraseDescriptor(Heap* heap, int descriptor_number) {
+  set_null_unchecked(heap, ToKeyIndex(descriptor_number));
+  set_null_unchecked(heap, ToValueIndex(descriptor_number));
+}
+
+
 void DescriptorArray::Append(Descriptor* desc,
-                             const WhitenessWitness& witness,
-                             int number_of_set_descriptors) {
-  int enumeration_index = number_of_set_descriptors + 1;
+                             const WhitenessWitness& witness) {
+  int descriptor_number = number_of_descriptors();
+  int enumeration_index = descriptor_number + 1;
+  SetNumberOfDescriptors(descriptor_number + 1);
   desc->SetEnumerationIndex(enumeration_index);
-  Set(number_of_set_descriptors, desc, witness);
+  Set(descriptor_number, desc, witness);
 
   uint32_t hash = desc->GetKey()->Hash();
 
   int insertion;
 
-  for (insertion = number_of_set_descriptors; insertion > 0; --insertion) {
+  for (insertion = descriptor_number; insertion > 0; --insertion) {
     String* key = GetSortedKey(insertion - 1);
     if (key->Hash() <= hash) break;
     SetSortedKey(insertion, GetSortedKeyIndex(insertion - 1));
   }
 
-  SetSortedKey(insertion, number_of_set_descriptors);
+  SetSortedKey(insertion, descriptor_number);
+}
+
+
+void DescriptorArray::Append(Descriptor* desc) {
+  int descriptor_number = number_of_descriptors();
+  int enumeration_index = descriptor_number + 1;
+  SetNumberOfDescriptors(descriptor_number + 1);
+  desc->SetEnumerationIndex(enumeration_index);
+  Set(descriptor_number, desc);
+
+  uint32_t hash = desc->GetKey()->Hash();
+
+  int insertion;
+
+  for (insertion = descriptor_number; insertion > 0; --insertion) {
+    String* key = GetSortedKey(insertion - 1);
+    if (key->Hash() <= hash) break;
+    SetSortedKey(insertion, GetSortedKeyIndex(insertion - 1));
+  }
+
+  SetSortedKey(insertion, descriptor_number);
 }
 
 
@@ -2142,14 +2213,14 @@ void DescriptorArray::SwapSortedKeys(int first, int second) {
 }
 
 
-FixedArray::WhitenessWitness::WhitenessWitness(FixedArray* array)
+DescriptorArray::WhitenessWitness::WhitenessWitness(FixedArray* array)
     : marking_(array->GetHeap()->incremental_marking()) {
   marking_->EnterNoMarkingScope();
   ASSERT(Marking::Color(array) == Marking::WHITE_OBJECT);
 }
 
 
-FixedArray::WhitenessWitness::~WhitenessWitness() {
+DescriptorArray::WhitenessWitness::~WhitenessWitness() {
   marking_->LeaveNoMarkingScope();
 }
 
@@ -3030,6 +3101,16 @@ Code::Flags Code::flags() {
 }
 
 
+void Map::set_owns_descriptors(bool is_shared) {
+  set_bit_field3(OwnsDescriptors::update(bit_field3(), is_shared));
+}
+
+
+bool Map::owns_descriptors() {
+  return OwnsDescriptors::decode(bit_field3());
+}
+
+
 void Code::set_flags(Code::Flags flags) {
   STATIC_ASSERT(Code::NUMBER_OF_KINDS <= KindField::kMax + 1);
   // Make sure that all call stubs have an arguments count.
@@ -3465,41 +3546,66 @@ void Map::set_prototype(Object* value, WriteBarrierMode mode) {
 }
 
 
-DescriptorArray* Map::instance_descriptors() {
-  if (!HasTransitionArray()) return GetHeap()->empty_descriptor_array();
-  return transitions()->descriptors();
+JSGlobalPropertyCell* Map::descriptors_pointer() {
+  ASSERT(HasTransitionArray());
+  return transitions()->descriptors_pointer();
 }
+
+
+DescriptorArray* Map::instance_descriptors() {
+  if (HasTransitionArray()) return transitions()->descriptors();
+  Object* back_pointer = GetBackPointer();
+  if (!back_pointer->IsMap()) return GetHeap()->empty_descriptor_array();
+  return Map::cast(back_pointer)->instance_descriptors();
+}
+
+
+enum TransitionsKind { DESCRIPTORS_HOLDER, FULL_TRANSITION_ARRAY };
 
 
 // If the descriptor is using the empty transition array, install a new empty
 // transition array that will have place for an element transition.
-static MaybeObject* EnsureHasTransitionArray(Map* map) {
-  if (map->HasTransitionArray()) return map;
-
+static MaybeObject* EnsureHasTransitionArray(Map* map, TransitionsKind kind) {
   TransitionArray* transitions;
-  MaybeObject* maybe_transitions = TransitionArray::Allocate(0);
-  if (!maybe_transitions->To(&transitions)) return maybe_transitions;
+  MaybeObject* maybe_transitions;
+  if (map->HasTransitionArray()) {
+    if (kind != FULL_TRANSITION_ARRAY ||
+        map->transitions()->IsFullTransitionArray()) {
+      return map;
+    }
+    maybe_transitions = map->transitions()->ExtendToFullTransitionArray();
+    if (!maybe_transitions->To(&transitions)) return maybe_transitions;
+  } else {
+    JSGlobalPropertyCell* pointer = map->RetrieveDescriptorsPointer();
+    if (kind == FULL_TRANSITION_ARRAY) {
+      maybe_transitions = TransitionArray::Allocate(0, pointer);
+    } else {
+      maybe_transitions = TransitionArray::AllocateDescriptorsHolder(pointer);
+    }
+    if (!maybe_transitions->To(&transitions)) return maybe_transitions;
+    transitions->set_back_pointer_storage(map->GetBackPointer());
+  }
   map->set_transitions(transitions);
   return transitions;
 }
 
 
-MaybeObject* Map::SetDescriptors(DescriptorArray* value,
-                                 WriteBarrierMode mode) {
+MaybeObject* Map::SetDescriptors(DescriptorArray* value) {
   ASSERT(!is_shared());
-  MaybeObject* maybe_failure = EnsureHasTransitionArray(this);
+  MaybeObject* maybe_failure =
+      EnsureHasTransitionArray(this, DESCRIPTORS_HOLDER);
   if (maybe_failure->IsFailure()) return maybe_failure;
 
-  transitions()->set_descriptors(value, mode);
+  ASSERT(NumberOfOwnDescriptors() <= value->number_of_descriptors());
+  transitions()->set_descriptors(value);
   return this;
 }
 
 
 MaybeObject* Map::InitializeDescriptors(DescriptorArray* descriptors) {
-#ifdef DEBUG
   int len = descriptors->number_of_descriptors();
+#ifdef DEBUG
   ASSERT(len <= DescriptorArray::kMaxNumberOfDescriptors);
-  SLOW_ASSERT(descriptors->IsSortedNoDuplicates());
 
   bool used_indices[DescriptorArray::kMaxNumberOfDescriptors];
   for (int i = 0; i < len; ++i) used_indices[i] = false;
@@ -3518,8 +3624,7 @@ MaybeObject* Map::InitializeDescriptors(DescriptorArray* descriptors) {
   MaybeObject* maybe_failure = SetDescriptors(descriptors);
   if (maybe_failure->IsFailure()) return maybe_failure;
 
-  SetNumberOfOwnDescriptors(descriptors->number_of_descriptors());
-
+  SetNumberOfOwnDescriptors(len);
   return this;
 }
 
@@ -3547,8 +3652,8 @@ void Map::AppendDescriptor(Descriptor* desc,
                            const DescriptorArray::WhitenessWitness& witness) {
   DescriptorArray* descriptors = instance_descriptors();
   int number_of_own_descriptors = NumberOfOwnDescriptors();
-  ASSERT(number_of_own_descriptors < descriptors->number_of_descriptors());
-  descriptors->Append(desc, witness, number_of_own_descriptors);
+  ASSERT(descriptors->number_of_descriptors() == number_of_own_descriptors);
+  descriptors->Append(desc, witness);
   SetNumberOfOwnDescriptors(number_of_own_descriptors + 1);
 }
 
@@ -3588,9 +3693,23 @@ bool Map::CanHaveMoreTransitions() {
 }
 
 
-MaybeObject* Map::AddTransition(String* key, Map* target) {
+JSGlobalPropertyCell* Map::RetrieveDescriptorsPointer() {
+  if (!owns_descriptors()) return NULL;
+  Object* back_pointer = GetBackPointer();
+  if (back_pointer->IsUndefined()) return NULL;
+  Map* map = Map::cast(back_pointer);
+  ASSERT(map->HasTransitionArray());
+  return map->transitions()->descriptors_pointer();
+}
+
+
+MaybeObject* Map::AddTransition(String* key,
+                                Map* target,
+                                SimpleTransitionFlag flag) {
   if (HasTransitionArray()) return transitions()->CopyInsert(key, target);
-  return TransitionArray::NewWith(key, target);
+  JSGlobalPropertyCell* descriptors_pointer = RetrieveDescriptorsPointer();
+  return TransitionArray::NewWith(
+      flag, key, target, descriptors_pointer, GetBackPointer());
 }
 
 
@@ -3599,8 +3718,14 @@ void Map::SetTransition(int transition_index, Map* target) {
 }
 
 
+Map* Map::GetTransition(int transition_index) {
+  return transitions()->GetTarget(transition_index);
+}
+
+
 MaybeObject* Map::set_elements_transition_map(Map* transitioned_map) {
-  MaybeObject* allow_elements = EnsureHasTransitionArray(this);
+  MaybeObject* allow_elements =
+      EnsureHasTransitionArray(this, FULL_TRANSITION_ARRAY);
   if (allow_elements->IsFailure()) return allow_elements;
   transitions()->set_elements_transition(transitioned_map);
   return this;
@@ -3617,7 +3742,8 @@ FixedArray* Map::GetPrototypeTransitions() {
 
 
 MaybeObject* Map::SetPrototypeTransitions(FixedArray* proto_transitions) {
-  MaybeObject* allow_prototype = EnsureHasTransitionArray(this);
+  MaybeObject* allow_prototype =
+      EnsureHasTransitionArray(this, FULL_TRANSITION_ARRAY);
   if (allow_prototype->IsFailure()) return allow_prototype;
 #ifdef DEBUG
   if (HasPrototypeTransitions()) {
@@ -3644,8 +3770,6 @@ TransitionArray* Map::transitions() {
 
 void Map::set_transitions(TransitionArray* transition_array,
                           WriteBarrierMode mode) {
-  transition_array->set_descriptors(instance_descriptors());
-  transition_array->set_back_pointer_storage(GetBackPointer());
 #ifdef DEBUG
   if (HasTransitionArray()) {
     ASSERT(transitions() != transition_array);

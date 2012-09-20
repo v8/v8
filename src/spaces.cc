@@ -881,10 +881,10 @@ intptr_t PagedSpace::SizeOfFirstPage() {
       size = 192 * KB;
       break;
     case MAP_SPACE:
-      size = 128 * KB;
+      size = 16 * kPointerSize * KB;
       break;
     case CELL_SPACE:
-      size = 96 * KB;
+      size = 16 * kPointerSize * KB;
       break;
     case CODE_SPACE:
       if (kPointerSize == 8) {
@@ -2258,8 +2258,37 @@ bool PagedSpace::ReserveSpace(int size_in_bytes) {
   Free(top(), old_linear_size);
 
   SetTop(new_area->address(), new_area->address() + size_in_bytes);
-  Allocate(size_in_bytes);
   return true;
+}
+
+
+static void RepairFreeList(Heap* heap, FreeListNode* n) {
+  while (n != NULL) {
+    Map** map_location = reinterpret_cast<Map**>(n->address());
+    if (*map_location == NULL) {
+      *map_location = heap->free_space_map();
+    } else {
+      ASSERT(*map_location == heap->free_space_map());
+    }
+    n = n->next();
+  }
+}
+
+
+void FreeList::RepairLists(Heap* heap) {
+  RepairFreeList(heap, small_list_);
+  RepairFreeList(heap, medium_list_);
+  RepairFreeList(heap, large_list_);
+  RepairFreeList(heap, huge_list_);
+}
+
+
+// After we have booted, we have created a map which represents free space
+// on the heap.  If there was already a free list then the elements on it
+// were created with the wrong FreeSpaceMap (normally NULL), so we need to
+// fix them.
+void PagedSpace::RepairFreeListsAfterBoot() {
+  free_list_.RepairLists(heap());
 }
 
 

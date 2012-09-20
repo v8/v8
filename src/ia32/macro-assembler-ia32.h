@@ -493,13 +493,14 @@ class MacroAssembler: public Assembler {
 
   void LoadInstanceDescriptors(Register map, Register descriptors);
   void EnumLength(Register dst, Register map);
+  void NumberOfOwnDescriptors(Register dst, Register map);
 
   template<typename Field>
   void DecodeField(Register reg) {
-    static const int full_shift = Field::kShift + kSmiTagSize;
-    static const int low_mask = Field::kMask >> Field::kShift;
-    sar(reg, full_shift);
-    and_(reg, Immediate(low_mask));
+    static const int shift = Field::kShift;
+    static const int mask = (Field::kMask >> Field::kShift) << kSmiTagSize;
+    sar(reg, shift);
+    and_(reg, Immediate(mask));
   }
   void LoadPowerOf2(XMMRegister dst, Register scratch, int power);
 

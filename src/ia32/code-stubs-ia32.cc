@@ -1793,9 +1793,10 @@ void BinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
           if (result_type_ <= BinaryOpIC::INT32) {
             __ cvttsd2si(ecx, Operand(xmm0));
             __ cvtsi2sd(xmm2, ecx);
-            __ ucomisd(xmm0, xmm2);
-            __ j(not_zero, &not_int32);
-            __ j(carry, &not_int32);
+            __ pcmpeqd(xmm2, xmm0);
+            __ movmskpd(ecx, xmm2);
+            __ test(ecx, Immediate(1));
+            __ j(zero, &not_int32);
           }
           GenerateHeapResultAllocation(masm, &call_runtime);
           __ movdbl(FieldOperand(eax, HeapNumber::kValueOffset), xmm0);
@@ -3213,21 +3214,28 @@ void MathPowStub::Generate(MacroAssembler* masm) {
   __ movsd(double_scratch2, double_result);  // Load double_exponent with 1.
 
   // Get absolute value of exponent.
-  Label no_neg, while_true, no_multiply;
+  Label no_neg, while_true, while_false;
   __ test(scratch, scratch);
   __ j(positive, &no_neg, Label::kNear);
   __ neg(scratch);
   __ bind(&no_neg);
 
+  __ j(zero, &while_false, Label::kNear);
+  __ shr(scratch, 1);
+  // Above condition means CF==0 && ZF==0.  This means that the
+  // bit that has been shifted out is 0 and the result is not 0.
+  __ j(above, &while_true, Label::kNear);
+  __ movsd(double_result, double_scratch);
+  __ j(zero, &while_false, Label::kNear);
+
   __ bind(&while_true);
   __ shr(scratch, 1);
-  __ j(not_carry, &no_multiply, Label::kNear);
-  __ mulsd(double_result, double_scratch);
-  __ bind(&no_multiply);
-
   __ mulsd(double_scratch, double_scratch);
+  __ j(above, &while_true, Label::kNear);
+  __ mulsd(double_result, double_scratch);
   __ j(not_zero, &while_true);
 
+  __ bind(&while_false);
   // scratch has the original value of the exponent - if the exponent is
   // negative, return 1/result.
   __ test(exponent, exponent);
@@ -4170,15 +4178,15 @@ void RegExpConstructResultStub::Generate(MacroAssembler* masm) {
          Immediate(factory->fixed_array_map()));
   // Set length.
   __ mov(FieldOperand(ebx, FixedArray::kLengthOffset), ecx);
-  // Fill contents of fixed-array with the-hole.
+  // Fill contents of fixed-array with undefined.
   __ SmiUntag(ecx);
-  __ mov(edx, Immediate(factory->the_hole_value()));
+  __ mov(edx, Immediate(factory->undefined_value()));
   __ lea(ebx, FieldOperand(ebx, FixedArray::kHeaderSize));
-  // Fill fixed array elements with hole.
+  // Fill fixed array elements with undefined.
   // eax: JSArray.
   // ecx: Number of elements to fill.
   // ebx: Start of elements in FixedArray.
-  // edx: the hole.
+  // edx: undefined.
   Label loop;
   __ test(ecx, ecx);
   __ bind(&loop);

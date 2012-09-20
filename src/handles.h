@@ -276,6 +276,7 @@ Handle<FixedArray> GetKeysInFixedArrayFor(Handle<JSReceiver> object,
                                           KeyCollectionType type,
                                           bool* threw);
 Handle<JSArray> GetKeysFor(Handle<JSReceiver> object, bool* threw);
+Handle<FixedArray> ReduceFixedArrayTo(Handle<FixedArray> array, int length);
 Handle<FixedArray> GetEnumPropertyKeys(Handle<JSObject> object,
                                        bool cache_result);
 

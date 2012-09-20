@@ -1273,6 +1273,15 @@ class MacroAssembler: public Assembler {
                                Register descriptors,
                                Register scratch);
   void EnumLength(Register dst, Register map);
+  void NumberOfOwnDescriptors(Register dst, Register map);
+
+  template<typename Field>
+  void DecodeField(Register reg) {
+    static const int shift = Field::kShift;
+    static const int mask = (Field::kMask >> shift) << kSmiTagSize;
+    mov(reg, Operand(reg, LSR, shift));
+    and_(reg, reg, Operand(mask));
+  }
 
   // Activation support.
   void EnterFrame(StackFrame::Type type);

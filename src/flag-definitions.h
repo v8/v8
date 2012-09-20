@@ -198,9 +198,9 @@ DEFINE_bool(trap_on_deopt, false, "put a break point before deoptimizing")
 DEFINE_bool(deoptimize_uncommon_cases, true, "deoptimize uncommon cases")
 DEFINE_bool(polymorphic_inlining, true, "polymorphic inlining")
 DEFINE_bool(use_osr, true, "use on-stack replacement")
-DEFINE_bool(array_bounds_checks_elimination, false,
+DEFINE_bool(array_bounds_checks_elimination, true,
             "perform array bounds checks elimination")
-DEFINE_bool(array_index_dehoisting, false,
+DEFINE_bool(array_index_dehoisting, true,
             "perform array index dehoisting")
 
 DEFINE_bool(trace_osr, false, "trace on-stack replacement")
@@ -412,6 +412,8 @@ DEFINE_bool(never_compact, false,
             "Never perform compaction on full GC - testing only")
 DEFINE_bool(compact_code_space, true,
             "Compact code space on full non-incremental collections")
+DEFINE_bool(incremental_code_compaction, true,
+            "Compact code space on full incremental collections")
 DEFINE_bool(cleanup_code_caches_at_gc, true,
             "Flush inline caches prior to mark compact collection and "
             "flush code caches in maps during mark compact cycle.")

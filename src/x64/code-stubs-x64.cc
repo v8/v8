@@ -2262,21 +2262,28 @@ void MathPowStub::Generate(MacroAssembler* masm) {
   __ movsd(double_scratch2, double_result);  // Load double_exponent with 1.
 
   // Get absolute value of exponent.
-  Label no_neg, while_true, no_multiply;
+  Label no_neg, while_true, while_false;
   __ testl(scratch, scratch);
   __ j(positive, &no_neg, Label::kNear);
   __ negl(scratch);
   __ bind(&no_neg);
 
+  __ j(zero, &while_false, Label::kNear);
+  __ shrl(scratch, Immediate(1));
+  // Above condition means CF==0 && ZF==0.  This means that the
+  // bit that has been shifted out is 0 and the result is not 0.
+  __ j(above, &while_true, Label::kNear);
+  __ movsd(double_result, double_scratch);
+  __ j(zero, &while_false, Label::kNear);
+
   __ bind(&while_true);
   __ shrl(scratch, Immediate(1));
-  __ j(not_carry, &no_multiply, Label::kNear);
-  __ mulsd(double_result, double_scratch);
-  __ bind(&no_multiply);
-
   __ mulsd(double_scratch, double_scratch);
+  __ j(above, &while_true, Label::kNear);
+  __ mulsd(double_result, double_scratch);
   __ j(not_zero, &while_true);
 
+  __ bind(&while_false);
   // If the exponent is negative, return 1/result.
   __ testl(exponent, exponent);
   __ j(greater, &done);
@@ -3235,14 +3242,14 @@ void RegExpConstructResultStub::Generate(MacroAssembler* masm) {
   // Set length.
   __ Integer32ToSmi(rdx, rbx);
   __ movq(FieldOperand(rcx, FixedArray::kLengthOffset), rdx);
-  // Fill contents of fixed-array with the-hole.
-  __ LoadRoot(rdx, Heap::kTheHoleValueRootIndex);
+  // Fill contents of fixed-array with undefined.
+  __ LoadRoot(rdx, Heap::kUndefinedValueRootIndex);
   __ lea(rcx, FieldOperand(rcx, FixedArray::kHeaderSize));
-  // Fill fixed array elements with hole.
+  // Fill fixed array elements with undefined.
   // rax: JSArray.
   // rbx: Number of elements in array that remains to be filled, as int32.
   // rcx: Start of elements in FixedArray.
-  // rdx: the hole.
+  // rdx: undefined.
   Label loop;
   __ testl(rbx, rbx);
   __ bind(&loop);

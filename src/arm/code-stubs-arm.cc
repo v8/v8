@@ -5232,12 +5232,12 @@ void RegExpConstructResultStub::Generate(MacroAssembler* masm) {
   // Set FixedArray length.
   __ mov(r6, Operand(r5, LSL, kSmiTagSize));
   __ str(r6, FieldMemOperand(r3, FixedArray::kLengthOffset));
-  // Fill contents of fixed-array with the-hole.
-  __ mov(r2, Operand(factory->the_hole_value()));
+  // Fill contents of fixed-array with undefined.
+  __ LoadRoot(r2, Heap::kUndefinedValueRootIndex);
   __ add(r3, r3, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
-  // Fill fixed array elements with hole.
+  // Fill fixed array elements with undefined.
   // r0: JSArray, tagged.
-  // r2: the hole.
+  // r2: undefined.
   // r3: Start of elements in FixedArray.
   // r5: Number of elements to fill.
   Label loop;

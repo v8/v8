@@ -991,9 +991,6 @@ class Isolate {
 
   Factory* factory() { return reinterpret_cast<Factory*>(this); }
 
-  // SerializerDeserializer state.
-  static const int kPartialSnapshotCacheCapacity = 1400;
-
   static const int kJSRegexpStaticOffsetsVectorSize = 128;
 
   Address external_callback() {

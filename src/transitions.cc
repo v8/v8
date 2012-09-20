@@ -35,28 +35,44 @@ namespace v8 {
 namespace internal {
 
 
-MaybeObject* TransitionArray::Allocate(int number_of_transitions) {
+static MaybeObject* AllocateRaw(int length,
+                                JSGlobalPropertyCell* descriptors_cell) {
   Heap* heap = Isolate::Current()->heap();
-  // Use FixedArray to not use DescriptorArray::cast on incomplete object.
+
+  if (descriptors_cell == NULL) {
+    MaybeObject* maybe_cell =
+        heap->AllocateJSGlobalPropertyCell(heap->empty_descriptor_array());
+    if (!maybe_cell->To(&descriptors_cell)) return maybe_cell;
+  }
+
+  // Use FixedArray to not use TransitionArray::cast on incomplete object.
   FixedArray* array;
-  MaybeObject* maybe_array =
-      heap->AllocateFixedArray(ToKeyIndex(number_of_transitions));
+  MaybeObject* maybe_array = heap->AllocateFixedArray(length);
   if (!maybe_array->To(&array)) return maybe_array;
 
+  array->set(TransitionArray::kDescriptorsPointerIndex, descriptors_cell);
+  return array;
+}
+
+
+MaybeObject* TransitionArray::Allocate(int number_of_transitions,
+                                       JSGlobalPropertyCell* descriptors_cell) {
+  FixedArray* array;
+  MaybeObject* maybe_array =
+      AllocateRaw(ToKeyIndex(number_of_transitions), descriptors_cell);
+  if (!maybe_array->To(&array)) return maybe_array;
   array->set(kElementsTransitionIndex, Smi::FromInt(0));
   array->set(kPrototypeTransitionsIndex, Smi::FromInt(0));
   return array;
 }
 
 
-void TransitionArray::CopyFrom(TransitionArray* origin,
-                               int origin_transition,
-                               int target_transition,
-                               const WhitenessWitness& witness) {
-  Set(target_transition,
-      origin->GetKey(origin_transition),
-      origin->GetTarget(origin_transition),
-      witness);
+void TransitionArray::NoIncrementalWriteBarrierCopyFrom(TransitionArray* origin,
+                                                        int origin_transition,
+                                                        int target_transition) {
+  NoIncrementalWriteBarrierSet(target_transition,
+                               origin->GetKey(origin_transition),
+                               origin->GetTarget(origin_transition));
 }
 
 
@@ -65,15 +81,46 @@ static bool InsertionPointFound(String* key1, String* key2) {
 }
 
 
-MaybeObject* TransitionArray::NewWith(String* name, Map* target) {
+MaybeObject* TransitionArray::NewWith(SimpleTransitionFlag flag,
+                                      String* key,
+                                      Map* target,
+                                      JSGlobalPropertyCell* descriptors_pointer,
+                                      Object* back_pointer) {
   TransitionArray* result;
+  MaybeObject* maybe_result;
 
-  MaybeObject* maybe_array = TransitionArray::Allocate(1);
-  if (!maybe_array->To(&result)) return maybe_array;
+  if (flag == SIMPLE_TRANSITION) {
+    maybe_result = AllocateRaw(kSimpleTransitionSize, descriptors_pointer);
+    if (!maybe_result->To(&result)) return maybe_result;
+    result->set(kSimpleTransitionTarget, target);
+  } else {
+    maybe_result = Allocate(1, descriptors_pointer);
+    if (!maybe_result->To(&result)) return maybe_result;
+    result->NoIncrementalWriteBarrierSet(0, key, target);
+  }
+  result->set_back_pointer_storage(back_pointer);
+  return result;
+}
 
-  FixedArray::WhitenessWitness witness(result);
 
-  result->Set(0, name, target, witness);
+MaybeObject* TransitionArray::AllocateDescriptorsHolder(
+    JSGlobalPropertyCell* descriptors_pointer) {
+  return AllocateRaw(kDescriptorsHolderSize, descriptors_pointer);
+}
+
+
+MaybeObject* TransitionArray::ExtendToFullTransitionArray() {
+  ASSERT(!IsFullTransitionArray());
+  int nof = number_of_transitions();
+  TransitionArray* result;
+  MaybeObject* maybe_result = Allocate(nof, descriptors_pointer());
+  if (!maybe_result->To(&result)) return maybe_result;
+
+  if (nof == 1) {
+    result->NoIncrementalWriteBarrierCopyFrom(this, kSimpleTransitionIndex, 0);
+  }
+
+  result->set_back_pointer_storage(back_pointer_storage());
   return result;
 }
 
@@ -88,7 +135,7 @@ MaybeObject* TransitionArray::CopyInsert(String* name, Map* target) {
   if (insertion_index == kNotFound) ++new_size;
 
   MaybeObject* maybe_array;
-  maybe_array = TransitionArray::Allocate(new_size);
+  maybe_array = TransitionArray::Allocate(new_size, descriptors_pointer());
   if (!maybe_array->To(&result)) return maybe_array;
 
   if (HasElementsTransition()) {
@@ -99,28 +146,31 @@ MaybeObject* TransitionArray::CopyInsert(String* name, Map* target) {
     result->SetPrototypeTransitions(GetPrototypeTransitions());
   }
 
-  FixedArray::WhitenessWitness witness(result);
-
   if (insertion_index != kNotFound) {
     for (int i = 0; i < number_of_transitions; ++i) {
-      if (i != insertion_index) result->CopyFrom(this, i, i, witness);
+      if (i != insertion_index) {
+        result->NoIncrementalWriteBarrierCopyFrom(this, i, i);
+      }
     }
-    result->Set(insertion_index, name, target, witness);
+    result->NoIncrementalWriteBarrierSet(insertion_index, name, target);
     return result;
   }
 
   insertion_index = 0;
   for (; insertion_index < number_of_transitions; ++insertion_index) {
     if (InsertionPointFound(GetKey(insertion_index), name)) break;
-    result->CopyFrom(this, insertion_index, insertion_index, witness);
+    result->NoIncrementalWriteBarrierCopyFrom(
+        this, insertion_index, insertion_index);
   }
 
-  result->Set(insertion_index, name, target, witness);
+  result->NoIncrementalWriteBarrierSet(insertion_index, name, target);
 
   for (; insertion_index < number_of_transitions; ++insertion_index) {
-    result->CopyFrom(this, insertion_index, insertion_index + 1, witness);
+    result->NoIncrementalWriteBarrierCopyFrom(
+        this, insertion_index, insertion_index + 1);
   }
 
+  result->set_back_pointer_storage(back_pointer_storage());
   return result;
 }
 

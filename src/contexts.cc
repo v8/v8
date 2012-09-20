@@ -305,6 +305,18 @@ void Context::ClearOptimizedFunctions() {
 }
 
 
+Handle<Object> Context::ErrorMessageForCodeGenerationFromStrings() {
+  Handle<Object> result(error_message_for_code_gen_from_strings());
+  if (result->IsUndefined()) {
+    const char* error =
+        "Code generation from strings disallowed for this context";
+    Isolate* isolate = Isolate::Current();
+    result = isolate->factory()->NewStringFromAscii(i::CStrVector(error));
+  }
+  return result;
+}
+
+
 #ifdef DEBUG
 bool Context::IsBootstrappingOrValidParentContext(
     Object* object, Context* child) {

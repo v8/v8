@@ -4,10 +4,12 @@
 
 #include "v8.h"
 
+#include "compilation-cache.h"
 #include "execution.h"
 #include "factory.h"
 #include "macro-assembler.h"
 #include "global-handles.h"
+#include "stub-cache.h"
 #include "cctest.h"
 
 using namespace v8::internal;
@@ -1244,7 +1246,9 @@ TEST(TestSizeOfObjectsVsHeapIteratorPrecision) {
   for (HeapObject* obj = iterator.next();
        obj != NULL;
        obj = iterator.next()) {
-    size_of_objects_2 += obj->Size();
+    if (!obj->IsFreeSpace()) {
+      size_of_objects_2 += obj->Size();
+    }
   }
   // Delta must be within 5% of the larger result.
   // TODO(gc): Tighten this up by distinguishing between byte
@@ -1273,7 +1277,6 @@ static void FillUpNewSpace(NewSpace* new_space) {
   // that the scavenger does not undo the filling.
   v8::HandleScope scope;
   AlwaysAllocateScope always_allocate;
-  LinearAllocationScope allocate_linearly;
   intptr_t available = new_space->EffectiveCapacity() - new_space->Size();
   intptr_t number_of_fillers = (available / FixedArray::SizeFor(32)) - 1;
   for (intptr_t i = 0; i < number_of_fillers; i++) {
@@ -1928,8 +1931,13 @@ TEST(ReleaseOverReservedPages) {
   HEAP->CollectAllGarbage(Heap::kNoGCFlags, "triggered by test 2");
   CHECK_GE(number_of_test_pages + 1, old_pointer_space->CountTotalPages() * 2);
 
-  // Triggering a last-resort GC should cause all pages to be released
-  // to the OS so that other processes can seize the memory.
+  // Triggering a last-resort GC should cause all pages to be released to the
+  // OS so that other processes can seize the memory.  If we get a failure here
+  // where there are 2 pages left instead of 1, then we should increase the
+  // size of the first page a little in SizeOfFirstPage in spaces.cc.  The
+  // first page should be small in order to reduce memory used when the VM
+  // boots, but if the 20 small arrays don't fit on the first page then that's
+  // an indication that it is too small.
   HEAP->CollectAllAvailableGarbage("triggered really hard");
   CHECK_EQ(1, old_pointer_space->CountTotalPages());
 }
@@ -2237,4 +2245,63 @@ TEST(ReleaseStackTraceData) {
   CHECK(resource->IsDisposed());
 
   delete resource;
+}
+
+
+TEST(Regression144230) {
+  InitializeVM();
+  v8::HandleScope scope;
+
+  // First make sure that the uninitialized CallIC stub is on a single page
+  // that will later be selected as an evacuation candidate.
+  {
+    v8::HandleScope inner_scope;
+    AlwaysAllocateScope always_allocate;
+    SimulateFullSpace(HEAP->code_space());
+    ISOLATE->stub_cache()->ComputeCallInitialize(9, RelocInfo::CODE_TARGET);
+  }
+
+  // Second compile a CallIC and execute it once so that it gets patched to
+  // the pre-monomorphic stub. These code objects are on yet another page.
+  {
+    v8::HandleScope inner_scope;
+    AlwaysAllocateScope always_allocate;
+    SimulateFullSpace(HEAP->code_space());
+    CompileRun("var o = { f:function(a,b,c,d,e,f,g,h,i) {}};"
+               "function call() { o.f(1,2,3,4,5,6,7,8,9); };"
+               "call();");
+  }
+
+  // Third we fill up the last page of the code space so that it does not get
+  // chosen as an evacuation candidate.
+  {
+    v8::HandleScope inner_scope;
+    AlwaysAllocateScope always_allocate;
+    CompileRun("for (var i = 0; i < 2000; i++) {"
+               "  eval('function f' + i + '() { return ' + i +'; };' +"
+               "       'f' + i + '();');"
+               "}");
+  }
+  HEAP->CollectAllGarbage(Heap::kNoGCFlags);
+
+  // Fourth is the tricky part. Make sure the code containing the CallIC is
+  // visited first without clearing the IC. The shared function info is then
+  // visited later, causing the CallIC to be cleared.
+  Handle<String> name = FACTORY->LookupAsciiSymbol("call");
+  Handle<GlobalObject> global(ISOLATE->context()->global_object());
+  MaybeObject* maybe_call = global->GetProperty(*name);
+  JSFunction* call = JSFunction::cast(maybe_call->ToObjectChecked());
+  USE(global->SetProperty(*name, Smi::FromInt(0), NONE, kNonStrictMode));
+  ISOLATE->compilation_cache()->Clear();
+  call->shared()->set_ic_age(HEAP->global_ic_age() + 1);
+  Handle<Object> call_code(call->code());
+  Handle<Object> call_function(call);
+
+  // Now we are ready to mess up the heap.
+  HEAP->CollectAllGarbage(Heap::kReduceMemoryFootprintMask);
+
+  // Either heap verification caught the problem already or we go kaboom once
+  // the CallIC is executed the next time.
+  USE(global->SetProperty(*name, *call_function, NONE, kNonStrictMode));
+  CompileRun("call();");
 }
