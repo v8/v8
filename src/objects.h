@@ -2528,7 +2528,7 @@ class DescriptorArray: public FixedArray {
     Object* object = get(kEnumCacheIndex);
     if (object->IsSmi()) return false;
     FixedArray* bridge = FixedArray::cast(object);
-    return bridge->get(kEnumCacheBridgeIndicesCacheIndex)->IsSmi();
+    return !bridge->get(kEnumCacheBridgeIndicesCacheIndex)->IsSmi();
   }
 
   FixedArray* GetEnumIndicesCache() {
