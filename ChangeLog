@@ -1,3 +1,59 @@
+2012-09-20: Version 3.14.0
+
+        Fixed missing slot recording during clearing of CallICs.
+        (Chromium issue 144230)
+
+        Fixed LBoundsCheck on x64 to handle (stack slot + constant) correctly.
+        (Chromium issue 150729)
+
+        Fixed minus zero test. (Issue 2133)
+
+        Fixed setting array length to zero for slow elements.
+        (Chromium issue 146910)
+
+        Fixed lost arguments dropping in HLeaveInlined.
+        (Chromium issue 150545)
+
+        Fixed casting error for receiver of interceptors.
+        (Chromium issue 149912)
+
+        Throw a more descriptive exception when blocking 'eval' via CSP.
+        (Chromium issue 140191)
+
+        Fixed debugger's eval when close to stack overflow. (issue 2318)
+
+        Added checks to live edit. (issue 2297)
+
+        Switched on code compaction on incremental GCs.
+
+        Fixed caching of optimized code for OSR. (issue 2326)
+
+        Not mask exception thrown by toString in String::UtfValue etc.
+        (issue 2317)
+
+        Fixed API check for length of external arrays. (Chromium issue 148896)
+
+        Ensure correct enumeration indices in the dict (Chromium issue 148376)
+
+        Correctly initialize regexp global cache. (Chromium issue 148378)
+
+        Fixed arguments object materialization during deopt. (issue 2261)
+
+        Introduced new API to expose external string resource regardless of
+        encoding.
+
+        Fixed CHECK failure in LCodeGen::DoWrapReceiver when
+        --deopt-every-n-times flag is present
+        (Chromium issue 148389)
+
+        Fixed edge case of extension with NULL as source string.
+        (Chromium issue 144649)
+
+        Fixed array index dehoisting. (Chromium issue 141395)
+
+        Performance and stability improvements on all platforms.
+
+
 2012-09-11: Version 3.13.7
 
         Enable/disable LiveEdit using the (C++) debug API.
