@@ -532,8 +532,8 @@ function ScriptLineCount() {
 
 
 /**
- * Returns the name of script if available, contents of sourceURL comment
- * otherwise. See
+ * If sourceURL comment is available and script starts at zero returns sourceURL
+ * comment contents. Otherwise, script name is returned. See
  * http://fbug.googlecode.com/svn/branches/firebug1.1/docs/ReleaseNotes_1.1.txt
  * for details on using //@ sourceURL comment to identify scritps that don't
  * have name.
@@ -542,14 +542,15 @@ function ScriptLineCount() {
  * otherwise.
  */
 function ScriptNameOrSourceURL() {
-  if (this.name) {
+  if (this.line_offset > 0 || this.column_offset > 0) {
     return this.name;
   }
 
   // The result is cached as on long scripts it takes noticable time to search
   // for the sourceURL.
-  if (this.hasCachedNameOrSourceURL)
-      return this.cachedNameOrSourceURL;
+  if (this.hasCachedNameOrSourceURL) {
+    return this.cachedNameOrSourceURL;
+  }
   this.hasCachedNameOrSourceURL = true;
 
   // TODO(608): the spaces in a regexp below had to be escaped as \040
