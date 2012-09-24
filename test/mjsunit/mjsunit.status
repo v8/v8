@@ -47,9 +47,9 @@ compiler/regress-funcaller: PASS, SKIP if $mode == debug
 regress/regress-create-exception: PASS, SKIP if $mode == debug
 
 ##############################################################################
-# This one uses a built-in that's only present in debug mode. It takes
+# These use a built-in that's only present in debug mode. They take
 # too long to run in debug mode on ARM and MIPS.
-fuzz-natives: PASS, SKIP if ($mode == release || $arch == arm || $arch == android_arm || $arch == mipsel)
+fuzz-natives-part*: PASS, SKIP if ($mode == release || $arch == arm || $arch == android_arm || $arch == mipsel)
 
 big-object-literal: PASS, SKIP if ($arch == arm || $arch == android_arm)
 
