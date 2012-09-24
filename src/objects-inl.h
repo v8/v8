@@ -4949,14 +4949,32 @@ StringHasher::StringHasher(int length, uint32_t seed)
     raw_running_hash_(seed),
     array_index_(0),
     is_array_index_(0 < length_ && length_ <= String::kMaxArrayIndexSize),
-    is_first_char_(true),
-    is_valid_(true) {
+    is_first_char_(true) {
   ASSERT(FLAG_randomize_hashes || raw_running_hash_ == 0);
 }
 
 
 bool StringHasher::has_trivial_hash() {
   return length_ > String::kMaxHashCalcLength;
+}
+
+
+uint32_t StringHasher::AddCharacterCore(uint32_t running_hash, uint32_t c) {
+  running_hash += c;
+  running_hash += (running_hash << 10);
+  running_hash ^= (running_hash >> 6);
+  return running_hash;
+}
+
+
+uint32_t StringHasher::GetHashCore(uint32_t running_hash) {
+  running_hash += (running_hash << 3);
+  running_hash ^= (running_hash >> 11);
+  running_hash += (running_hash << 15);
+  if ((running_hash & String::kHashBitMask) == 0) {
+    return 27;
+  }
+  return running_hash;
 }
 
 
@@ -4967,9 +4985,7 @@ void StringHasher::AddCharacter(uint32_t c) {
   }
   // Use the Jenkins one-at-a-time hash function to update the hash
   // for the given character.
-  raw_running_hash_ += c;
-  raw_running_hash_ += (raw_running_hash_ << 10);
-  raw_running_hash_ ^= (raw_running_hash_ >> 6);
+  raw_running_hash_ = AddCharacterCore(raw_running_hash_, c);
   // Incremental array index computation.
   if (is_array_index_) {
     if (c < '0' || c > '9') {
@@ -4999,23 +5015,14 @@ void StringHasher::AddCharacterNoIndex(uint32_t c) {
     AddSurrogatePairNoIndex(c);  // Not inlined.
     return;
   }
-  raw_running_hash_ += c;
-  raw_running_hash_ += (raw_running_hash_ << 10);
-  raw_running_hash_ ^= (raw_running_hash_ >> 6);
+  raw_running_hash_ = AddCharacterCore(raw_running_hash_, c);
 }
 
 
 uint32_t StringHasher::GetHash() {
   // Get the calculated raw hash value and do some more bit ops to distribute
   // the hash further. Ensure that we never return zero as the hash value.
-  uint32_t result = raw_running_hash_;
-  result += (result << 3);
-  result ^= (result >> 11);
-  result += (result << 15);
-  if ((result & String::kHashBitMask) == 0) {
-    result = 27;
-  }
-  return result;
+  return GetHashCore(raw_running_hash_);
 }
 
 

@@ -7385,7 +7385,6 @@ void StringHasher::AddSurrogatePairNoIndex(uc32 c) {
 
 
 uint32_t StringHasher::GetHashField() {
-  ASSERT(is_valid());
   if (length_ <= String::kMaxHashCalcLength) {
     if (is_array_index()) {
       return MakeArrayIndexHash(array_index(), length_);
