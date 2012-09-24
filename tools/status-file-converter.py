@@ -1,4 +1,6 @@
-# Copyright 2008 the V8 project authors. All rights reserved.
+#!/usr/bin/env python
+#
+# Copyright 2012 the V8 project authors. All rights reserved.
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are
 # met:
@@ -24,3 +26,14 @@
 # THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+import sys
+from testrunner.local import old_statusfile
+
+if len(sys.argv) != 2:
+  print "Usage: %s foo.status" % sys.argv[0]
+  print "Will read foo.status and print the converted version to stdout."
+  sys.exit(1)
+
+print old_statusfile.ConvertNotation(sys.argv[1]).GetOutput()

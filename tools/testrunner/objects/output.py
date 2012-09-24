@@ -1,4 +1,4 @@
-# Copyright 2008 the V8 project authors. All rights reserved.
+# Copyright 2012 the V8 project authors. All rights reserved.
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are
 # met:
@@ -24,3 +24,37 @@
 # THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+import signal
+
+from ..local import utils
+
+class Output(object):
+
+  def __init__(self, exit_code, timed_out, stdout, stderr):
+    self.exit_code = exit_code
+    self.timed_out = timed_out
+    self.stdout = stdout
+    self.stderr = stderr
+
+  def HasCrashed(self):
+    if utils.IsWindows():
+      return 0x80000000 & self.exit_code and not (0x3FFFFF00 & self.exit_code)
+    else:
+      # Timed out tests will have exit_code -signal.SIGTERM.
+      if self.timed_out:
+        return False
+      return (self.exit_code < 0 and
+              self.exit_code != -signal.SIGABRT)
+
+  def HasTimedOut(self):
+    return self.timed_out
+
+  def Pack(self):
+    return [self.exit_code, self.timed_out, self.stdout, self.stderr]
+
+  @staticmethod
+  def Unpack(packed):
+    # For the order of the fields, refer to Pack() above.
+    return Output(packed[0], packed[1], packed[2], packed[3])
