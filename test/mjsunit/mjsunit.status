@@ -103,7 +103,6 @@ compiler/property-calls: SKIP
 compiler/recursive-deopt: SKIP
 compiler/regress-4: SKIP
 compiler/regress-funcaller: SKIP
-compiler/regress-gvn: SKIP
 compiler/regress-rep-change: SKIP
 compiler/regress-arguments: SKIP
 compiler/regress-funarguments: SKIP
@@ -161,7 +160,6 @@ compiler/property-calls: SKIP
 compiler/recursive-deopt: SKIP
 compiler/regress-4: SKIP
 compiler/regress-funcaller: SKIP
-compiler/regress-gvn: SKIP
 compiler/regress-rep-change: SKIP
 compiler/regress-arguments: SKIP
 compiler/regress-funarguments: SKIP
