@@ -106,7 +106,6 @@ compiler/regress-funcaller: SKIP
 compiler/regress-rep-change: SKIP
 compiler/regress-arguments: SKIP
 compiler/regress-funarguments: SKIP
-compiler/regress-or: SKIP
 compiler/regress-3249650: SKIP
 compiler/simple-deopt: SKIP
 regress/regress-490: SKIP
@@ -163,7 +162,6 @@ compiler/regress-funcaller: SKIP
 compiler/regress-rep-change: SKIP
 compiler/regress-arguments: SKIP
 compiler/regress-funarguments: SKIP
-compiler/regress-or: SKIP
 compiler/regress-3249650: SKIP
 compiler/simple-deopt: SKIP
 regress/regress-490: SKIP
