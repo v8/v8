@@ -3636,13 +3636,13 @@ void MathPowStub::Generate(MacroAssembler* masm) {
       Label not_plus_half;
 
       // Test for 0.5.
-      __ vmov(double_scratch, 0.5);
+      __ vmov(double_scratch, 0.5, scratch);
       __ VFPCompareAndSetFlags(double_exponent, double_scratch);
       __ b(ne, &not_plus_half);
 
       // Calculates square root of base.  Check for the special case of
       // Math.pow(-Infinity, 0.5) == Infinity (ECMA spec, 15.8.2.13).
-      __ vmov(double_scratch, -V8_INFINITY);
+      __ vmov(double_scratch, -V8_INFINITY, scratch);
       __ VFPCompareAndSetFlags(double_base, double_scratch);
       __ vneg(double_result, double_scratch, eq);
       __ b(eq, &done);
@@ -3653,20 +3653,20 @@ void MathPowStub::Generate(MacroAssembler* masm) {
       __ jmp(&done);
 
       __ bind(&not_plus_half);
-      __ vmov(double_scratch, -0.5);
+      __ vmov(double_scratch, -0.5, scratch);
       __ VFPCompareAndSetFlags(double_exponent, double_scratch);
       __ b(ne, &call_runtime);
 
       // Calculates square root of base.  Check for the special case of
       // Math.pow(-Infinity, -0.5) == 0 (ECMA spec, 15.8.2.13).
-      __ vmov(double_scratch, -V8_INFINITY);
+      __ vmov(double_scratch, -V8_INFINITY, scratch);
       __ VFPCompareAndSetFlags(double_base, double_scratch);
       __ vmov(double_result, kDoubleRegZero, eq);
       __ b(eq, &done);
 
       // Add +0 to convert -0 to +0.
       __ vadd(double_scratch, double_base, kDoubleRegZero);
-      __ vmov(double_result, 1.0);
+      __ vmov(double_result, 1.0, scratch);
       __ vsqrt(double_scratch, double_scratch);
       __ vdiv(double_result, double_result, double_scratch);
       __ jmp(&done);
@@ -3701,7 +3701,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
     __ mov(exponent, scratch);
   }
   __ vmov(double_scratch, double_base);  // Back up base.
-  __ vmov(double_result, 1.0);
+  __ vmov(double_result, 1.0, scratch2);
 
   // Get absolute value of exponent.
   __ cmp(scratch, Operand(0));
@@ -3717,7 +3717,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
 
   __ cmp(exponent, Operand(0));
   __ b(ge, &done);
-  __ vmov(double_scratch, 1.0);
+  __ vmov(double_scratch, 1.0, scratch);
   __ vdiv(double_result, double_scratch, double_result);
   // Test whether result is zero.  Bail out to check for subnormal result.
   // Due to subnormals, x^-y == (1/x)^y does not hold in all cases.

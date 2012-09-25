@@ -1551,7 +1551,7 @@ void LCodeGen::DoConstantD(LConstantD* instr) {
   ASSERT(instr->result()->IsDoubleRegister());
   DwVfpRegister result = ToDoubleRegister(instr->result());
   double v = instr->value();
-  __ Vmov(result, v);
+  __ Vmov(result, v, scratch0());
 }
 
 
@@ -3530,11 +3530,11 @@ void LCodeGen::DoMathRound(LUnaryMathOperation* instr) {
   __ cmp(scratch, Operand(HeapNumber::kExponentBias + 32));
   DeoptimizeIf(ge, instr->environment());
 
+  __ Vmov(double_scratch0(), 0.5, scratch);
+  __ vadd(double_scratch0(), input, double_scratch0());
+
   // Save the original sign for later comparison.
   __ and_(scratch, result, Operand(HeapNumber::kSignMask));
-
-  __ Vmov(double_scratch0(), 0.5);
-  __ vadd(double_scratch0(), input, double_scratch0());
 
   // Check sign of the result: if the sign changed, the input
   // value was in ]0.5, 0[ and the result should be -0.
@@ -3584,7 +3584,7 @@ void LCodeGen::DoMathPowHalf(LUnaryMathOperation* instr) {
   // Math.pow(-Infinity, 0.5) == Infinity
   // Math.sqrt(-Infinity) == NaN
   Label done;
-  __ vmov(temp, -V8_INFINITY);
+  __ vmov(temp, -V8_INFINITY, scratch0());
   __ VFPCompareAndSetFlags(input, temp);
   __ vneg(result, temp, eq);
   __ b(&done, eq);
@@ -4066,7 +4066,7 @@ void LCodeGen::DoStoreKeyedFastDoubleElement(
     // Only load canonical NaN if the comparison above set the overflow.
     __ Vmov(value,
             FixedDoubleArray::canonical_not_the_hole_nan_as_double(),
-            vs);
+            no_reg, vs);
   }
 
   __ vstr(value, scratch, instr->additional_index() << element_size_shift);

@@ -483,6 +483,7 @@ class MacroAssembler: public Assembler {
 
   void Vmov(const DwVfpRegister dst,
             const double imm,
+            const Register scratch = no_reg,
             const Condition cond = al);
 
   // Enter exit frame.

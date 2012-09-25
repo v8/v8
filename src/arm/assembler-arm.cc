@@ -1975,6 +1975,7 @@ static bool FitsVMOVDoubleImmediate(double d, uint32_t *encoding) {
 
 void Assembler::vmov(const DwVfpRegister dst,
                      double imm,
+                     const Register scratch,
                      const Condition cond) {
   // Dd = immediate
   // Instruction details available in ARM DDI 0406B, A8-640.
@@ -1989,22 +1990,22 @@ void Assembler::vmov(const DwVfpRegister dst,
     // using vldr from a constant pool.
     uint32_t lo, hi;
     DoubleAsTwoUInt32(imm, &lo, &hi);
+    mov(ip, Operand(lo));
 
-    if (lo == hi) {
-      // If the lo and hi parts of the double are equal, the literal is easier
-      // to create. This is the case with 0.0.
-      mov(ip, Operand(lo));
-      vmov(dst, ip, ip);
-    } else {
+    if (scratch.is(no_reg)) {
       // Move the low part of the double into the lower of the corresponsing S
       // registers of D register dst.
-      mov(ip, Operand(lo));
       vmov(dst.low(), ip, cond);
 
       // Move the high part of the double into the higher of the corresponsing S
       // registers of D register dst.
       mov(ip, Operand(hi));
       vmov(dst.high(), ip, cond);
+    } else {
+      // Move the low and high parts of the double to a D register in one
+      // instruction.
+      mov(scratch, Operand(hi));
+      vmov(dst, ip, scratch, cond);
     }
   }
 }
