@@ -631,6 +631,18 @@ class StoreIC: public IC {
 };
 
 
+enum KeyedStoreCheckMap {
+  kDontCheckMap,
+  kCheckMap
+};
+
+
+enum KeyedStoreIncrementLength {
+  kDontIncrementLength,
+  kIncrementLength
+};
+
+
 class KeyedStoreIC: public KeyedIC {
  public:
   explicit KeyedStoreIC(Isolate* isolate) : KeyedIC(isolate) {

@@ -747,12 +747,13 @@ void KeyedStoreIC::GenerateNonStrictArguments(MacroAssembler* masm) {
 }
 
 
-static void KeyedStoreGenerateGenericHelper(MacroAssembler* masm,
-                                            Label* fast_object,
-                                            Label* fast_double,
-                                            Label* slow,
-                                            bool check_map,
-                                            bool increment_length) {
+static void KeyedStoreGenerateGenericHelper(
+    MacroAssembler* masm,
+    Label* fast_object,
+    Label* fast_double,
+    Label* slow,
+    KeyedStoreCheckMap check_map,
+    KeyedStoreIncrementLength increment_length) {
   Label transition_smi_elements;
   Label finish_object_store, non_double_value, transition_double_elements;
   Label fast_double_without_map_check;
@@ -763,7 +764,7 @@ static void KeyedStoreGenerateGenericHelper(MacroAssembler* masm,
   // edi: receiver map
   // Fast case: Do the store, could either Object or double.
   __ bind(fast_object);
-  if (check_map) {
+  if (check_map == kCheckMap) {
     __ mov(edi, FieldOperand(ebx, HeapObject::kMapOffset));
     __ cmp(edi, masm->isolate()->factory()->fixed_array_map());
     __ j(not_equal, fast_double);
@@ -771,7 +772,7 @@ static void KeyedStoreGenerateGenericHelper(MacroAssembler* masm,
   // Smi stores don't require further checks.
   Label non_smi_value;
   __ JumpIfNotSmi(eax, &non_smi_value);
-  if (increment_length) {
+  if (increment_length == kIncrementLength) {
     // Add 1 to receiver->length.
     __ add(FieldOperand(edx, JSArray::kLengthOffset),
            Immediate(Smi::FromInt(1)));
@@ -787,7 +788,7 @@ static void KeyedStoreGenerateGenericHelper(MacroAssembler* masm,
 
   // Fast elements array, store the value to the elements backing store.
   __ bind(&finish_object_store);
-  if (increment_length) {
+  if (increment_length == kIncrementLength) {
     // Add 1 to receiver->length.
     __ add(FieldOperand(edx, JSArray::kLengthOffset),
            Immediate(Smi::FromInt(1)));
@@ -800,7 +801,7 @@ static void KeyedStoreGenerateGenericHelper(MacroAssembler* masm,
   __ ret(0);
 
   __ bind(fast_double);
-  if (check_map) {
+  if (check_map == kCheckMap) {
     // Check for fast double array case. If this fails, call through to the
     // runtime.
     __ cmp(edi, masm->isolate()->factory()->fixed_double_array_map());
@@ -811,7 +812,7 @@ static void KeyedStoreGenerateGenericHelper(MacroAssembler* masm,
   __ bind(&fast_double_without_map_check);
   __ StoreNumberToDoubleElements(eax, ebx, ecx, edi, xmm0,
                                  &transition_double_elements, false);
-  if (increment_length) {
+  if (increment_length == kIncrementLength) {
     // Add 1 to receiver->length.
     __ add(FieldOperand(edx, JSArray::kLengthOffset),
            Immediate(Smi::FromInt(1)));
@@ -947,10 +948,10 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
   __ cmp(ecx, FieldOperand(edx, JSArray::kLengthOffset));  // Compare smis.
   __ j(above_equal, &extra);
 
-  KeyedStoreGenerateGenericHelper(masm, &fast_object, &fast_double, &slow,
-                                  true, false);
+  KeyedStoreGenerateGenericHelper(masm, &fast_object, &fast_double,
+                                  &slow, kCheckMap, kDontIncrementLength);
   KeyedStoreGenerateGenericHelper(masm, &fast_object_grow, &fast_double_grow,
-                                  &slow, false, true);
+                                  &slow, kDontCheckMap, kIncrementLength);
 }
 
 
