@@ -590,10 +590,10 @@ Handle<String> JsonParser<seq_ascii>::ScanJsonString() {
         seq_source_->GetChars() + position_, length);
     SymbolTable* symbol_table = isolate()->heap()->symbol_table();
     uint32_t capacity = symbol_table->Capacity();
-    uint32_t index = SymbolTable::FirstProbe(hash, capacity);
+    uint32_t entry = SymbolTable::FirstProbe(hash, capacity);
     uint32_t count = 1;
     while (true) {
-      Object* element = symbol_table->KeyAt(index);
+      Object* element = symbol_table->KeyAt(entry);
       if (element == isolate()->heap()->raw_unchecked_undefined_value()) {
         // Lookup failure.
         break;
@@ -606,7 +606,7 @@ Handle<String> JsonParser<seq_ascii>::ScanJsonString() {
         AdvanceSkipWhitespace();
         return Handle<String>(String::cast(element));
       }
-      index = SymbolTable::NextProbe(hash, count++, capacity);
+      entry = SymbolTable::NextProbe(entry, count++, capacity);
     }
   }
 
