@@ -393,15 +393,6 @@ class MemoryChunk {
     WAS_SWEPT_PRECISELY,
     WAS_SWEPT_CONSERVATIVELY,
 
-    // Used for large objects only.  Indicates that the object has been
-    // partially scanned by the incremental mark-sweep GC.  Objects that have
-    // been partially scanned are marked black so that the write barrier
-    // triggers for them, and they are counted as live bytes.  If the mutator
-    // writes to them they may be turned grey and subtracted from the live byte
-    // list.  They move back to the marking deque either by an iteration over
-    // the large object space or in the write barrier.
-    IS_PARTIALLY_SCANNED,
-
     // Last flag, keep at bottom.
     NUM_MEMORY_CHUNK_FLAGS
   };
@@ -422,25 +413,6 @@ class MemoryChunk {
       (1 << IN_FROM_SPACE) |
       (1 << IN_TO_SPACE);
 
-  static const int kIsPartiallyScannedMask = 1 << IS_PARTIALLY_SCANNED;
-
-  void SetPartiallyScannedProgress(int progress) {
-    SetFlag(IS_PARTIALLY_SCANNED);
-    partially_scanned_progress_ = progress;
-  }
-
-  bool IsPartiallyScanned() {
-    return IsFlagSet(IS_PARTIALLY_SCANNED);
-  }
-
-  void SetCompletelyScanned() {
-    ClearFlag(IS_PARTIALLY_SCANNED);
-  }
-
-  int PartiallyScannedProgress() {
-    ASSERT(IsPartiallyScanned());
-    return partially_scanned_progress_;
-  }
 
   void SetFlag(int flag) {
     flags_ |= static_cast<uintptr_t>(1) << flag;
@@ -516,10 +488,8 @@ class MemoryChunk {
 
   static const size_t kSlotsBufferOffset = kLiveBytesOffset + kIntSize;
 
-  static const size_t kPartiallyScannedProgress =
-        kSlotsBufferOffset + kPointerSize + kPointerSize;
-
-  static const size_t kHeaderSize = kPartiallyScannedProgress + kIntSize;
+  static const size_t kHeaderSize =
+      kSlotsBufferOffset + kPointerSize + kPointerSize;
 
   static const int kBodyOffset =
     CODE_POINTER_ALIGN(MAP_POINTER_ALIGN(kHeaderSize + Bitmap::kSize));
@@ -655,7 +625,6 @@ class MemoryChunk {
   int live_byte_count_;
   SlotsBuffer* slots_buffer_;
   SkipList* skip_list_;
-  int partially_scanned_progress_;
 
   static MemoryChunk* Initialize(Heap* heap,
                                  Address base,

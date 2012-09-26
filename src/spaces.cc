@@ -2678,10 +2678,12 @@ MaybeObject* LargeObjectSpace::AllocateRaw(int object_size,
 
   HeapObject* object = page->GetObject();
 
-  // Make the object consistent so the large object space can be traversed.
+#ifdef DEBUG
+  // Make the object consistent so the heap can be vefified in OldSpaceStep.
   reinterpret_cast<Object**>(object->address())[0] =
       heap()->fixed_array_map();
   reinterpret_cast<Object**>(object->address())[1] = Smi::FromInt(0);
+#endif
 
   heap()->incremental_marking()->OldSpaceStep(object_size);
   return object;
