@@ -1125,8 +1125,11 @@ void LCodeGen::DoMulI(LMulI* instr) {
     __ testl(left, left);
     __ j(not_zero, &done, Label::kNear);
     if (right->IsConstantOperand()) {
-      if (ToInteger32(LConstantOperand::cast(right)) <= 0) {
+      if (ToInteger32(LConstantOperand::cast(right)) < 0) {
         DeoptimizeIf(no_condition, instr->environment());
+      } else if (ToInteger32(LConstantOperand::cast(right)) == 0) {
+        __ cmpl(kScratchRegister, Immediate(0));
+        DeoptimizeIf(less, instr->environment());
       }
     } else if (right->IsStackSlot()) {
       __ orl(kScratchRegister, ToOperand(right));

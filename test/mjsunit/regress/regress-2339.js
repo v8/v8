@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,20 +25,35 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax
+// Flags: --allow-natives-syntax --expose-gc
 
-// Test that we actually return the right value (-0) when we multiply
-// constant 0 with a negative integer.
+/**
+ * The possible optimization states of a function. Must be in sync with the
+ * return values of Runtime_GetOptimizationStatus() in runtime.cc!
+ */
 
-function foo(y) {return 0 * y; }
-assertEquals(1/foo(-42), -Infinity);
-assertEquals(1/foo(-42), -Infinity);
-%OptimizeFunctionOnNextCall(foo);
-assertEquals(1/foo(-42), -Infinity);
+var OptimizationState = {
+    YES: 1,
+    NO: 2,
+    ALWAYS: 3,
+    NEVER: 4
+};
 
-function bar(x) { return x * 0; }
-assertEquals(Infinity, 1/bar(5));
-assertEquals(Infinity, 1/bar(5));
-%OptimizeFunctionOnNextCall(bar);
-assertEquals(-Infinity, 1/bar(-5));
+function simple() {
+  return simple_two_args(0, undefined);
+}
+
+function simple_two_args(always_zero, always_undefined) {
+  var always_five = always_undefined || 5;
+  return always_zero * always_five * .5;
+}
+
+
+simple();
+simple();
+%OptimizeFunctionOnNextCall(simple);
+simple();
+var raw_optimized = %GetOptimizationStatus(simple);
+assertFalse(raw_optimized == OptimizationState.NO);
+gc();
 
