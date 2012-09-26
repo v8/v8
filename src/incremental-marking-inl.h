@@ -111,7 +111,7 @@ void IncrementalMarking::BlackToGreyAndUnshift(HeapObject* obj,
       if (FLAG_trace_gc) {
         PrintPID("Hurrying incremental marking because of lack of progress\n");
       }
-      allocation_marking_factor_ = kMaxAllocationMarkingFactor;
+      marking_speed_ = kMaxMarkingSpeed;
     }
   }
 

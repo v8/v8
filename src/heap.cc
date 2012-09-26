@@ -5133,7 +5133,8 @@ bool Heap::IdleNotification(int hint) {
   // The size factor is in range [5..250]. The numbers here are chosen from
   // experiments. If you changes them, make sure to test with
   // chrome/performance_ui_tests --gtest_filter="GeneralMixMemoryTest.*
-  intptr_t step_size = size_factor * IncrementalMarking::kAllocatedThreshold;
+  intptr_t step_size =
+      size_factor * IncrementalMarking::kAllocatedThreshold;
 
   if (contexts_disposed_ > 0) {
     if (hint >= kMaxHint) {

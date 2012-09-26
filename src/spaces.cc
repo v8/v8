@@ -447,6 +447,7 @@ MemoryChunk* MemoryChunk::Initialize(Heap* heap,
   chunk->InitializeReservedMemory();
   chunk->slots_buffer_ = NULL;
   chunk->skip_list_ = NULL;
+  chunk->write_barrier_counter_ = kWriteBarrierCounterGranularity;
   chunk->ResetLiveBytes();
   Bitmap::Clear(chunk);
   chunk->initialize_scan_on_scavenge(false);
