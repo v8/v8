@@ -1066,6 +1066,30 @@ class MarkCompactMarkingVisitor
     }
   }
 
+  static void VisitHugeFixedArray(Heap* heap, FixedArray* array, int length);
+
+  // The deque is contiguous and we use new space, it is therefore contained in
+  // one page minus the header.  It also has a size that is a power of two so
+  // it is half the size of a page.  We want to scan a number of array entries
+  // that is less than the number of entries in the deque, so we divide by 2
+  // once more.
+  static const int kScanningChunk = Page::kPageSize / 4 / kPointerSize;
+
+  INLINE(static void VisitFixedArray(Map* map, HeapObject* object)) {
+    FixedArray* array = FixedArray::cast(object);
+    int length = array->length();
+    Heap* heap = map->GetHeap();
+
+    if (length < kScanningChunk ||
+        MemoryChunk::FromAddress(array->address())->owner()->identity() !=
+            LO_SPACE) {
+      Object** start = array->data_start();
+      VisitPointers(heap, start, start + length);
+    } else {
+      VisitHugeFixedArray(heap, array, length);
+    }
+  }
+
   // Marks the object black and pushes it on the marking stack.
   INLINE(static void MarkObject(Heap* heap, HeapObject* object)) {
     MarkBit mark = Marking::MarkBitFrom(object);
@@ -1504,6 +1528,27 @@ class MarkCompactMarkingVisitor
 };
 
 
+void MarkCompactMarkingVisitor::VisitHugeFixedArray(Heap* heap,
+                                                    FixedArray* array,
+                                                    int length) {
+  MemoryChunk* chunk = MemoryChunk::FromAddress(array->address());
+
+  ASSERT(chunk->owner()->identity() == LO_SPACE);
+
+  Object** start = array->data_start();
+  int from =
+      chunk->IsPartiallyScanned() ? chunk->PartiallyScannedProgress() : 0;
+  int to = Min(from + kScanningChunk, length);
+  VisitPointers(heap, start + from, start + to);
+
+  if (to == length) {
+    chunk->SetCompletelyScanned();
+  } else {
+    chunk->SetPartiallyScannedProgress(to);
+  }
+}
+
+
 void MarkCompactMarkingVisitor::ObjectStatsCountFixedArray(
     FixedArrayBase* fixed_array,
     FixedArraySubInstanceType fast_type,
@@ -1644,6 +1689,9 @@ void MarkCompactMarkingVisitor::Initialize() {
 
   table_.Register(kVisitJSRegExp,
                   &VisitRegExpAndFlushCode);
+
+  table_.Register(kVisitFixedArray,
+                  &VisitFixedArray);
 
   if (FLAG_track_gc_object_stats) {
     // Copy the visitor table to make call-through possible.
@@ -2128,10 +2176,25 @@ void MarkCompactCollector::EmptyMarkingDeque() {
 
       MarkCompactMarkingVisitor::IterateBody(map, object);
     }
+    ProcessLargePostponedArrays(heap(), &marking_deque_);
 
     // Process encountered weak maps, mark objects only reachable by those
     // weak maps and repeat until fix-point is reached.
     ProcessWeakMaps();
+  }
+}
+
+
+void MarkCompactCollector::ProcessLargePostponedArrays(Heap* heap,
+                                                       MarkingDeque* deque) {
+  ASSERT(deque->IsEmpty());
+  LargeObjectIterator it(heap->lo_space());
+  for (HeapObject* obj = it.Next(); obj != NULL; obj = it.Next()) {
+    if (!obj->IsFixedArray()) continue;
+    MemoryChunk* p = MemoryChunk::FromAddress(obj->address());
+    if (p->IsPartiallyScanned()) {
+      deque->PushBlack(obj);
+    }
   }
 }
 
@@ -2142,6 +2205,9 @@ void MarkCompactCollector::EmptyMarkingDeque() {
 // overflowed objects in the heap so the overflow flag on the markings stack
 // is cleared.
 void MarkCompactCollector::RefillMarkingDeque() {
+  if (FLAG_trace_gc) {
+    PrintPID("Marking queue overflowed\n");
+  }
   ASSERT(marking_deque_.overflowed());
 
   SemiSpaceIterator new_it(heap()->new_space());
