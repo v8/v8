@@ -1690,7 +1690,7 @@ MaybeObject* JSObject::AddProperty(String* name,
   }
   if (HasFastProperties()) {
     // Ensure the descriptor array does not get too big.
-    if (map_of_this->instance_descriptors()->number_of_descriptors() <
+    if (map_of_this->NumberOfOwnDescriptors() <
         DescriptorArray::kMaxNumberOfDescriptors) {
       if (value->IsJSFunction()) {
         return AddConstantFunctionProperty(name,
