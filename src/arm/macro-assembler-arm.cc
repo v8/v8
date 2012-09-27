@@ -1988,7 +1988,7 @@ void MacroAssembler::StoreNumberToDoubleElements(Register value_reg,
     destination = FloatingPointHelper::kCoreRegisters;
   }
 
-  Register untagged_value = receiver_reg;
+  Register untagged_value = elements_reg;
   SmiUntag(untagged_value, value_reg);
   FloatingPointHelper::ConvertIntToDouble(this,
                                           untagged_value,
