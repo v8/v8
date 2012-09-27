@@ -4306,6 +4306,7 @@ bool v8::V8::Dispose() {
 
 HeapStatistics::HeapStatistics(): total_heap_size_(0),
                                   total_heap_size_executable_(0),
+                                  total_physical_size_(0),
                                   used_heap_size_(0),
                                   heap_size_limit_(0) { }
 
@@ -4315,6 +4316,7 @@ void v8::V8::GetHeapStatistics(HeapStatistics* heap_statistics) {
     // Isolate is unitialized thus heap is not configured yet.
     heap_statistics->set_total_heap_size(0);
     heap_statistics->set_total_heap_size_executable(0);
+    heap_statistics->set_total_physical_size(0);
     heap_statistics->set_used_heap_size(0);
     heap_statistics->set_heap_size_limit(0);
     return;
@@ -4324,6 +4326,7 @@ void v8::V8::GetHeapStatistics(HeapStatistics* heap_statistics) {
   heap_statistics->set_total_heap_size(heap->CommittedMemory());
   heap_statistics->set_total_heap_size_executable(
       heap->CommittedMemoryExecutable());
+  heap_statistics->set_total_physical_size(heap->CommittedPhysicalMemory());
   heap_statistics->set_used_heap_size(heap->SizeOfObjects());
   heap_statistics->set_heap_size_limit(heap->MaxReserved());
 }

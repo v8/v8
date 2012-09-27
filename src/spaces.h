@@ -653,6 +653,8 @@ class MemoryChunk {
     return static_cast<int>(area_end() - area_start());
   }
 
+  size_t CommittedPhysicalMemory();
+
  protected:
   MemoryChunk* next_chunk_;
   MemoryChunk* prev_chunk_;
@@ -1528,6 +1530,9 @@ class PagedSpace : public Space {
   // spaces this equals the capacity.
   intptr_t CommittedMemory() { return Capacity(); }
 
+  // Total amount of physical memory committed for this space.
+  size_t CommittedPhysicalMemory();
+
   // Sets the capacity, the available space and the wasted space to zero.
   // The stats are rebuilt during sweeping by adding each page to the
   // capacity and the size when it is encountered.  As free spaces are
@@ -1994,6 +1999,8 @@ class SemiSpace : public Space {
 
   static void Swap(SemiSpace* from, SemiSpace* to);
 
+  size_t CommittedPhysicalMemory();
+
  private:
   // Flips the semispace between being from-space and to-space.
   // Copies the flags into the masked positions on all pages in the space.
@@ -2189,6 +2196,12 @@ class NewSpace : public Space {
   intptr_t CommittedMemory() {
     if (from_space_.is_committed()) return 2 * Capacity();
     return Capacity();
+  }
+
+  size_t CommittedPhysicalMemory() {
+    return to_space_.CommittedPhysicalMemory()
+        + (from_space_.is_committed() ? from_space_.CommittedPhysicalMemory()
+                                      : 0);
   }
 
   // Return the available bytes without growing.
@@ -2557,6 +2570,8 @@ class LargeObjectSpace : public Space {
   intptr_t CommittedMemory() {
     return Size();
   }
+
+  size_t CommittedPhysicalMemory();
 
   int PageCount() {
     return page_count_;

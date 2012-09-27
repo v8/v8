@@ -335,6 +335,13 @@ bool VirtualMemory::Guard(void* address) {
 }
 
 
+bool VirtualMemory::CommittedPhysicalSizeInRegion(
+    void* base, size_t size, size_t* physical) {
+  // TODO(alph): implement for the platform.
+  return false;
+}
+
+
 class Thread::PlatformData : public Malloced {
  public:
   PlatformData() {

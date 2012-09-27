@@ -701,6 +701,24 @@ bool VirtualMemory::ReleaseRegion(void* base, size_t size) {
 }
 
 
+bool VirtualMemory::CommittedPhysicalSizeInRegion(
+    void* base, size_t size, size_t* physical) {
+  const size_t page_size = sysconf(_SC_PAGESIZE);
+  base = reinterpret_cast<void*>(
+      reinterpret_cast<intptr_t>(base) & ~(page_size - 1));
+  const size_t pages = (size + page_size - 1) / page_size;
+  ScopedVector<unsigned char> buffer(pages);
+  int result = mincore(base, size, buffer.start());
+  if (result) return false;
+  int resident_pages = 0;
+  for (unsigned i = 0; i < pages; ++i) {
+    resident_pages += buffer[i] & 1;
+  }
+  *physical = resident_pages * page_size;
+  return true;
+}
+
+
 class Thread::PlatformData : public Malloced {
  public:
   PlatformData() : thread_(kNoThread) {}
