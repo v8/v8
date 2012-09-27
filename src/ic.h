@@ -650,7 +650,7 @@ class KeyedStoreIC: public KeyedIC {
   }
 
   MUST_USE_RESULT MaybeObject* Store(State state,
-                                   StrictModeFlag strict_mode,
+                                     StrictModeFlag strict_mode,
                                      Handle<Object> object,
                                      Handle<Object> name,
                                      Handle<Object> value,

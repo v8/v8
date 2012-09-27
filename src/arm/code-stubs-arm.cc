@@ -7262,6 +7262,7 @@ static const AheadOfTimeWriteBarrierStubList kAheadOfTime[] = {
 
 #undef REG
 
+
 bool RecordWriteStub::IsPregenerated() {
   for (const AheadOfTimeWriteBarrierStubList* entry = kAheadOfTime;
        !entry->object.is(no_reg);
@@ -7300,6 +7301,11 @@ void RecordWriteStub::GenerateFixedRegStubsAheadOfTime() {
                          kDontSaveFPRegs);
     stub.GetCode()->set_is_pregenerated(true);
   }
+}
+
+
+bool CodeStub::CanUseFPRegisters() {
+  return CpuFeatures::IsSupported(VFP2);
 }
 
 

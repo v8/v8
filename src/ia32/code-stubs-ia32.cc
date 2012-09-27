@@ -7206,6 +7206,11 @@ void RecordWriteStub::GenerateFixedRegStubsAheadOfTime() {
 }
 
 
+bool CodeStub::CanUseFPRegisters() {
+  return CpuFeatures::IsSupported(SSE2);
+}
+
+
 // Takes the input in 3 registers: address_ value_ and object_.  A pointer to
 // the value has just been written into the object, now this stub makes sure
 // we keep the GC informed.  The word in the object where the value has been
