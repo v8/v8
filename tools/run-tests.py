@@ -220,7 +220,6 @@ def Main():
     exit_code = code
 
   suite_paths = utils.GetSuitePaths(join(workspace, "test"))
-  print "all suite_paths:", suite_paths
 
   if len(args) == 0:
     suite_paths = [ s for s in suite_paths if s in DEFAULT_TESTS ]

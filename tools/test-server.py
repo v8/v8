@@ -78,9 +78,9 @@ def Update():
     import ujson  #@UnusedImport
   except ImportError:
     # Install pip if it doesn't exist.
-    code = subprocess.call("which pip", shell=True)
+    code = subprocess.call("which pip > /dev/null", shell=True)
     if code != 0:
-      apt_get_code = subprocess.call("which apt-get", shell=True)
+      apt_get_code = subprocess.call("which apt-get > /dev/null", shell=True)
       if apt_get_code == 0:
         print("Installing pip...")
         _Cmd("sudo apt-get install python-pip")
