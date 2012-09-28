@@ -34,7 +34,6 @@ import threading
 
 from . import compression
 from . import constants
-from . import discovery
 from . import signatures
 from ..network import endpoint
 from ..objects import workpacket

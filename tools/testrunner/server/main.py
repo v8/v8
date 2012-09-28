@@ -34,8 +34,8 @@ import threading
 import time
 
 from . import daemon
-from . import discovery
 from . import local_handler
+from . import presence_handler
 from . import signatures
 from . import status_handler
 from . import work_handler
@@ -77,7 +77,7 @@ class Server(daemon.Daemon):
 
   def run(self):
     os.nice(20)
-    self.ip = discovery.GetOwnIP()
+    self.ip = presence_handler.GetOwnIP()
     self.perf_data_manager = perfdata.PerfDataManager(self.datadir)
     self.perf_data_lock = threading.Lock()
 
@@ -96,7 +96,7 @@ class Server(daemon.Daemon):
         target=self.status_handler.serve_forever)
     self.status_handler_thread.start()
 
-    self.presence_daemon = discovery.PresenceDaemon(self)
+    self.presence_daemon = presence_handler.PresenceDaemon(self)
     self.presence_daemon_thread = threading.Thread(
         target=self.presence_daemon.serve_forever)
     self.presence_daemon_thread.start()

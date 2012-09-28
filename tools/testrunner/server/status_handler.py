@@ -31,7 +31,6 @@ import SocketServer
 
 from . import compression
 from . import constants
-from . import discovery
 
 
 def _StatusQuery(peer, query):
