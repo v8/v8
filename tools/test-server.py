@@ -84,8 +84,6 @@ def Update():
       if apt_get_code == 0:
         print("Installing pip...")
         _Cmd("sudo apt-get install python-pip")
-        print("Updating pip using itself...")
-        _Cmd("sudo pip install --upgrade pip")
       else:
         print("Please install pip on your machine. You can get it at: "
               "http://www.pip-installer.org/en/latest/installing.html "
@@ -122,7 +120,7 @@ def Update():
 
   # Update this very script.
   path = ("http://v8.googlecode.com/svn/branches/bleeding_edge/"
-          "tools/server.py")
+          "tools/test-server.py")
   scriptname = os.path.abspath(sys.argv[0])
   _Cmd("svn cat %s > %s" % (path, scriptname))
 
