@@ -1782,8 +1782,11 @@ MaybeObject* JSObject::ConvertTransitionToMapTransition(
 
     old_target->SetBackPointer(GetHeap()->undefined_value());
     MaybeObject* maybe_failure = old_target->SetDescriptors(old_descriptors);
-    if (maybe_failure->IsFailure()) return maybe_failure;
+    // Reset the backpointer before returning failure, otherwise the map ends up
+    // with an undefined backpointer and no descriptors, losing its own
+    // descriptors. Setting the backpointer always succeeds.
     old_target->SetBackPointer(old_map);
+    if (maybe_failure->IsFailure()) return maybe_failure;
 
     old_map->set_owns_descriptors(true);
   }
