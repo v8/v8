@@ -2176,10 +2176,12 @@ enum RightTrimMode { FROM_GC, FROM_MUTATOR };
 static void ZapEndOfFixedArray(Address new_end, int to_trim) {
   // If we are doing a big trim in old space then we zap the space.
   Object** zap = reinterpret_cast<Object**>(new_end);
+  zap++;  // Header of filler must be at least one word so skip that.
   for (int i = 1; i < to_trim; i++) {
     *zap++ = Smi::FromInt(0);
   }
 }
+
 
 template<RightTrimMode trim_mode>
 static void RightTrimFixedArray(Heap* heap, FixedArray* elms, int to_trim) {
