@@ -213,6 +213,7 @@ static inline v8::Local<v8::Value> CompileRun(const char* source) {
   return v8::Script::Compile(v8::String::New(source))->Run();
 }
 
+
 // Helper function that compiles and runs the source with given origin.
 static inline v8::Local<v8::Value> CompileRunWithOrigin(const char* source,
                                                         const char* origin_url,
@@ -222,6 +223,13 @@ static inline v8::Local<v8::Value> CompileRunWithOrigin(const char* source,
                           v8::Integer::New(line_number),
                           v8::Integer::New(column_number));
   return v8::Script::Compile(v8::String::New(source), &origin)->Run();
+}
+
+
+// Pick a slightly different port to allow tests to be run in parallel.
+static inline int FlagDependentPortOffset() {
+  return ::v8::internal::FLAG_crankshaft == false ? 100 :
+         ::v8::internal::FLAG_always_opt ? 200 : 0;
 }
 
 
