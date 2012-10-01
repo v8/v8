@@ -1948,52 +1948,6 @@ void HGlobalValueNumberer::ProcessLoopBlock(
       if (can_hoist && !graph()->use_optimistic_licm()) {
         can_hoist = block->IsLoopSuccessorDominator();
       }
-      if (instr->IsTransitionElementsKind()) {
-        // It's possible to hoist transitions out of a loop as long as the
-        // hoisting wouldn't move the transition past an instruction that has a
-        // DependsOn flag for anything it changes.
-        GVNFlagSet hoist_depends_blockers =
-            HValue::ConvertChangesToDependsFlags(instr->ChangesFlags());
-
-        // In addition, the transition must not be hoisted above elements kind
-        // changes, or if the transition is destructive to the elements buffer,
-        // changes to array pointer or array contents.
-        GVNFlagSet hoist_change_blockers;
-        hoist_change_blockers.Add(kChangesElementsKind);
-        HTransitionElementsKind* trans = HTransitionElementsKind::cast(instr);
-        if (trans->original_map()->has_fast_double_elements()) {
-          hoist_change_blockers.Add(kChangesElementsPointer);
-          hoist_change_blockers.Add(kChangesDoubleArrayElements);
-        }
-        if (trans->transitioned_map()->has_fast_double_elements()) {
-          hoist_change_blockers.Add(kChangesElementsPointer);
-          hoist_change_blockers.Add(kChangesArrayElements);
-        }
-        if (FLAG_trace_gvn) {
-          GVNFlagSet hoist_blockers = hoist_depends_blockers;
-          hoist_blockers.Add(hoist_change_blockers);
-          GVNFlagSet first_time = *first_time_changes;
-          first_time.Add(*first_time_depends);
-          TRACE_GVN_4("Checking dependencies on HTransitionElementsKind "
-                      "%d (%s) hoist blockers: %s; "
-                      "first-time accumulated: %s\n",
-                      instr->id(),
-                      instr->Mnemonic(),
-                      *GetGVNFlagsString(hoist_blockers),
-                      *GetGVNFlagsString(first_time));
-        }
-        // It's possible to hoist transition from the current loop loop only if
-        // they dominate all of the successor blocks in the same loop and there
-        // are not any instructions that have Changes/DependsOn that intervene
-        // between it and the beginning of the loop header.
-        bool in_nested_loop = block != loop_header &&
-            ((block->parent_loop_header() != loop_header) ||
-             block->IsLoopHeader());
-        can_hoist = !in_nested_loop &&
-            block->IsLoopSuccessorDominator() &&
-            !first_time_depends->ContainsAnyOf(hoist_depends_blockers) &&
-            !first_time_changes->ContainsAnyOf(hoist_change_blockers);
-      }
 
       if (can_hoist) {
         bool inputs_loop_invariant = true;
