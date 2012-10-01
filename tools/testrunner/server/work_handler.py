@@ -102,11 +102,22 @@ class WorkHandler(SocketServer.BaseRequestHandler):
     os.chmod(target, stat.S_IRWXU)
     return True
 
-  def _CheckoutRevision(self, base_revision):
-    code = self._Call("git checkout -f %s" % base_revision)
-    if code != 0:
+  def _CheckoutRevision(self, base_svn_revision):
+    get_hash_cmd = (
+        "git log -1 --format=%%H --remotes --grep='^git-svn-id:.*@%s'" %
+        base_svn_revision)
+    try:
+      base_revision = subprocess.check_output(get_hash_cmd, shell=True)
+      if not base_revision: raise ValueError
+    except:
       self._Call("git fetch")
-      code = self._Call("git checkout -f %s" % base_revision)
+      try:
+        base_revision = subprocess.check_output(get_hash_cmd, shell=True)
+        if not base_revision: raise ValueError
+      except:
+        self._SendResponse("Base revision not found.")
+        return False
+    code = self._Call("git checkout -f %s" % base_revision)
     if code != 0:
       self._SendResponse("Error trying to check out base revision.")
       return False

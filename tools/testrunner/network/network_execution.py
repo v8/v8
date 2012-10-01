@@ -67,7 +67,13 @@ class NetworkedRunner(execution.Runner):
     self.pubkey_fingerprint = None  # Fetched later.
     self.base_rev = subprocess.check_output(
         "cd %s; git log -1 --format=%%H --grep=git-svn-id" % workspace,
-        shell=True)
+        shell=True).strip()
+    self.base_svn_rev = subprocess.check_output(
+        "cd %s; git log -1 %s"          # Get commit description.
+        " | grep -e '^\s*git-svn-id:'"  # Extract "git-svn-id" line.
+        " | awk '{print $2}'"           # Extract "repository@revision" part.
+        " | sed -e 's/.*@//'" %         # Strip away "repository@".
+        (workspace, self.base_rev), shell=True).strip()
     self.patch = subprocess.check_output(
         "cd %s; git diff %s" % (workspace, self.base_rev), shell=True)
     self.binaries = {}
@@ -168,7 +174,7 @@ class NetworkedRunner(execution.Runner):
         peer.runtime = None
         start_time = time.time()
         packet = workpacket.WorkPacket(peer=peer, context=self.context,
-                                       base_revision=self.base_rev,
+                                       base_revision=self.base_svn_rev,
                                        patch=self.patch,
                                        pubkey=self.pubkey_fingerprint)
         data, test_map = packet.Pack(self.binaries)
