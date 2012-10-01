@@ -3636,13 +3636,13 @@ void MathPowStub::Generate(MacroAssembler* masm) {
       Label not_plus_half;
 
       // Test for 0.5.
-      __ vmov(double_scratch, 0.5);
+      __ vmov(double_scratch, 0.5, scratch);
       __ VFPCompareAndSetFlags(double_exponent, double_scratch);
       __ b(ne, &not_plus_half);
 
       // Calculates square root of base.  Check for the special case of
       // Math.pow(-Infinity, 0.5) == Infinity (ECMA spec, 15.8.2.13).
-      __ vmov(double_scratch, -V8_INFINITY);
+      __ vmov(double_scratch, -V8_INFINITY, scratch);
       __ VFPCompareAndSetFlags(double_base, double_scratch);
       __ vneg(double_result, double_scratch, eq);
       __ b(eq, &done);
@@ -3653,20 +3653,20 @@ void MathPowStub::Generate(MacroAssembler* masm) {
       __ jmp(&done);
 
       __ bind(&not_plus_half);
-      __ vmov(double_scratch, -0.5);
+      __ vmov(double_scratch, -0.5, scratch);
       __ VFPCompareAndSetFlags(double_exponent, double_scratch);
       __ b(ne, &call_runtime);
 
       // Calculates square root of base.  Check for the special case of
       // Math.pow(-Infinity, -0.5) == 0 (ECMA spec, 15.8.2.13).
-      __ vmov(double_scratch, -V8_INFINITY);
+      __ vmov(double_scratch, -V8_INFINITY, scratch);
       __ VFPCompareAndSetFlags(double_base, double_scratch);
       __ vmov(double_result, kDoubleRegZero, eq);
       __ b(eq, &done);
 
       // Add +0 to convert -0 to +0.
       __ vadd(double_scratch, double_base, kDoubleRegZero);
-      __ vmov(double_result, 1.0);
+      __ vmov(double_result, 1.0, scratch);
       __ vsqrt(double_scratch, double_scratch);
       __ vdiv(double_result, double_result, double_scratch);
       __ jmp(&done);
@@ -3701,7 +3701,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
     __ mov(exponent, scratch);
   }
   __ vmov(double_scratch, double_base);  // Back up base.
-  __ vmov(double_result, 1.0);
+  __ vmov(double_result, 1.0, scratch2);
 
   // Get absolute value of exponent.
   __ cmp(scratch, Operand(0));
@@ -3717,7 +3717,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
 
   __ cmp(exponent, Operand(0));
   __ b(ge, &done);
-  __ vmov(double_scratch, 1.0);
+  __ vmov(double_scratch, 1.0, scratch);
   __ vdiv(double_result, double_scratch, double_result);
   // Test whether result is zero.  Bail out to check for subnormal result.
   // Due to subnormals, x^-y == (1/x)^y does not hold in all cases.
@@ -7262,6 +7262,7 @@ static const AheadOfTimeWriteBarrierStubList kAheadOfTime[] = {
 
 #undef REG
 
+
 bool RecordWriteStub::IsPregenerated() {
   for (const AheadOfTimeWriteBarrierStubList* entry = kAheadOfTime;
        !entry->object.is(no_reg);
@@ -7300,6 +7301,11 @@ void RecordWriteStub::GenerateFixedRegStubsAheadOfTime() {
                          kDontSaveFPRegs);
     stub.GetCode()->set_is_pregenerated(true);
   }
+}
+
+
+bool CodeStub::CanUseFPRegisters() {
+  return CpuFeatures::IsSupported(VFP2);
 }
 
 
@@ -7431,6 +7437,16 @@ void RecordWriteStub::CheckNeedsToInformIncrementalMarker(
   Label need_incremental;
   Label need_incremental_pop_scratch;
 
+  __ and_(regs_.scratch0(), regs_.object(), Operand(~Page::kPageAlignmentMask));
+  __ ldr(regs_.scratch1(),
+         MemOperand(regs_.scratch0(),
+                    MemoryChunk::kWriteBarrierCounterOffset));
+  __ sub(regs_.scratch1(), regs_.scratch1(), Operand(1), SetCC);
+  __ str(regs_.scratch1(),
+         MemOperand(regs_.scratch0(),
+                    MemoryChunk::kWriteBarrierCounterOffset));
+  __ b(mi, &need_incremental);
+
   // Let's look at the color of the object:  If it is not black we don't have
   // to inform the incremental marker.
   __ JumpIfBlack(regs_.object(), regs_.scratch0(), regs_.scratch1(), &on_black);
@@ -7551,7 +7567,9 @@ void StoreArrayLiteralElementStub::Generate(MacroAssembler* masm) {
   // Array literal has ElementsKind of FAST_DOUBLE_ELEMENTS.
   __ bind(&double_elements);
   __ ldr(r5, FieldMemOperand(r1, JSObject::kElementsOffset));
-  __ StoreNumberToDoubleElements(r0, r3, r1, r5, r6, r7, r9, r2,
+  __ StoreNumberToDoubleElements(r0, r3, r1,
+                                 // Overwrites all regs after this.
+                                 r5, r6, r7, r9, r2,
                                  &slow_elements);
   __ Ret();
 }

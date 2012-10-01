@@ -2913,11 +2913,12 @@ class HashTable: public FixedArray {
     return (hash + GetProbeOffset(number)) & (size - 1);
   }
 
-  static uint32_t FirstProbe(uint32_t hash, uint32_t size) {
+  inline static uint32_t FirstProbe(uint32_t hash, uint32_t size) {
     return hash & (size - 1);
   }
 
-  static uint32_t NextProbe(uint32_t last, uint32_t number, uint32_t size) {
+  inline static uint32_t NextProbe(
+      uint32_t last, uint32_t number, uint32_t size) {
     return (last + number) & (size - 1);
   }
 
@@ -3003,6 +3004,8 @@ class SymbolTable: public HashTable<SymbolTableShape, HashTableKey*> {
 
  private:
   MUST_USE_RESULT MaybeObject* LookupKey(HashTableKey* key, Object** s);
+
+  template <bool seq_ascii> friend class JsonParser;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(SymbolTable);
 };
@@ -7054,10 +7057,6 @@ class StringHasher {
   // index.
   bool is_array_index() { return is_array_index_; }
 
-  bool is_valid() { return is_valid_; }
-
-  void invalidate() { is_valid_ = false; }
-
   // Calculated hash value for a string consisting of 1 to
   // String::kMaxArrayIndexSize digits with no leading zeros (except "0").
   // value is represented decimal value.
@@ -7076,13 +7075,33 @@ class StringHasher {
 
   inline uint32_t GetHash();
 
+  // Reusable parts of the hashing algorithm.
+  INLINE(static uint32_t AddCharacterCore(uint32_t running_hash, uint32_t c));
+  INLINE(static uint32_t GetHashCore(uint32_t running_hash));
+
   int length_;
   uint32_t raw_running_hash_;
   uint32_t array_index_;
   bool is_array_index_;
   bool is_first_char_;
-  bool is_valid_;
   friend class TwoCharHashTableKey;
+
+  template <bool seq_ascii> friend class JsonParser;
+};
+
+
+class IncrementalAsciiStringHasher {
+ public:
+  explicit inline IncrementalAsciiStringHasher(uint32_t seed, char first_char);
+  inline void AddCharacter(uc32 c);
+  inline uint32_t GetHash();
+
+ private:
+  int length_;
+  uint32_t raw_running_hash_;
+  uint32_t array_index_;
+  bool is_array_index_;
+  char first_char_;
 };
 
 

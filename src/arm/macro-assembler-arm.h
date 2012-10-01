@@ -483,6 +483,7 @@ class MacroAssembler: public Assembler {
 
   void Vmov(const DwVfpRegister dst,
             const double imm,
+            const Register scratch = no_reg,
             const Condition cond = al);
 
   // Enter exit frame.
@@ -815,6 +816,7 @@ class MacroAssembler: public Assembler {
   void StoreNumberToDoubleElements(Register value_reg,
                                    Register key_reg,
                                    Register receiver_reg,
+                                   // All regs below here overwritten.
                                    Register elements_reg,
                                    Register scratch1,
                                    Register scratch2,

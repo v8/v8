@@ -789,6 +789,7 @@ void MacroAssembler::VFPCompareAndLoadFlags(const DwVfpRegister src1,
 
 void MacroAssembler::Vmov(const DwVfpRegister dst,
                           const double imm,
+                          const Register scratch,
                           const Condition cond) {
   ASSERT(CpuFeatures::IsEnabled(VFP2));
   static const DoubleRepresentation minus_zero(-0.0);
@@ -800,7 +801,7 @@ void MacroAssembler::Vmov(const DwVfpRegister dst,
   } else if (value.bits == minus_zero.bits) {
     vneg(dst, kDoubleRegZero, cond);
   } else {
-    vmov(dst, imm, cond);
+    vmov(dst, imm, scratch, cond);
   }
 }
 
@@ -1987,7 +1988,7 @@ void MacroAssembler::StoreNumberToDoubleElements(Register value_reg,
     destination = FloatingPointHelper::kCoreRegisters;
   }
 
-  Register untagged_value = receiver_reg;
+  Register untagged_value = elements_reg;
   SmiUntag(untagged_value, value_reg);
   FloatingPointHelper::ConvertIntToDouble(this,
                                           untagged_value,
@@ -3676,7 +3677,7 @@ void MacroAssembler::ClampDoubleToUint8(Register result_reg,
 
   // Double value is >= 255, return 255.
   bind(&above_zero);
-  Vmov(temp_double_reg, 255.0);
+  Vmov(temp_double_reg, 255.0, result_reg);
   VFPCompareAndSetFlags(input_reg, temp_double_reg);
   b(le, &in_bounds);
   mov(result_reg, Operand(255));

@@ -447,6 +447,7 @@ MemoryChunk* MemoryChunk::Initialize(Heap* heap,
   chunk->InitializeReservedMemory();
   chunk->slots_buffer_ = NULL;
   chunk->skip_list_ = NULL;
+  chunk->write_barrier_counter_ = kWriteBarrierCounterGranularity;
   chunk->ResetLiveBytes();
   Bitmap::Clear(chunk);
   chunk->initialize_scan_on_scavenge(false);
@@ -2678,12 +2679,10 @@ MaybeObject* LargeObjectSpace::AllocateRaw(int object_size,
 
   HeapObject* object = page->GetObject();
 
-#ifdef DEBUG
-  // Make the object consistent so the heap can be vefified in OldSpaceStep.
+  // Make the object consistent so the large object space can be traversed.
   reinterpret_cast<Object**>(object->address())[0] =
       heap()->fixed_array_map();
   reinterpret_cast<Object**>(object->address())[1] = Smi::FromInt(0);
-#endif
 
   heap()->incremental_marking()->OldSpaceStep(object_size);
   return object;

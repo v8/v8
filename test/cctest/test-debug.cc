@@ -5833,9 +5833,9 @@ TEST(DebuggerAgent) {
   i::Debugger* debugger = i::Isolate::Current()->debugger();
   // Make sure these ports is not used by other tests to allow tests to run in
   // parallel.
-  const int kPort1 = 5858;
-  const int kPort2 = 5857;
-  const int kPort3 = 5856;
+  const int kPort1 = 5858 + FlagDependentPortOffset();
+  const int kPort2 = 5857 + FlagDependentPortOffset();
+  const int kPort3 = 5856 + FlagDependentPortOffset();
 
   // Make a string with the port2 number.
   const int kPortBufferLen = 6;
@@ -5934,7 +5934,7 @@ void DebuggerAgentProtocolServerThread::Run() {
 TEST(DebuggerAgentProtocolOverflowHeader) {
   // Make sure this port is not used by other tests to allow tests to run in
   // parallel.
-  const int kPort = 5860;
+  const int kPort = 5860 + FlagDependentPortOffset();
   static const char* kLocalhost = "localhost";
 
   // Make a string with the port number.

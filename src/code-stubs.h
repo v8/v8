@@ -162,6 +162,9 @@ class CodeStub BASE_EMBEDDED {
   // Lookup the code in the (possibly custom) cache.
   bool FindCodeInCache(Code** code_out);
 
+ protected:
+  static bool CanUseFPRegisters();
+
  private:
   // Nonvirtual wrapper around the stub-specific Generate function.  Call
   // this function to set up the macro assembler and generate the code.
@@ -998,13 +1001,15 @@ class KeyedStoreElementStub : public CodeStub {
                         KeyedAccessGrowMode grow_mode)
       : is_js_array_(is_js_array),
         elements_kind_(elements_kind),
-        grow_mode_(grow_mode) { }
+        grow_mode_(grow_mode),
+        fp_registers_(CanUseFPRegisters()) { }
 
   Major MajorKey() { return KeyedStoreElement; }
   int MinorKey() {
     return ElementsKindBits::encode(elements_kind_) |
         IsJSArrayBits::encode(is_js_array_) |
-        GrowModeBits::encode(grow_mode_);
+        GrowModeBits::encode(grow_mode_) |
+        FPRegisters::encode(fp_registers_);
   }
 
   void Generate(MacroAssembler* masm);
@@ -1013,10 +1018,12 @@ class KeyedStoreElementStub : public CodeStub {
   class ElementsKindBits: public BitField<ElementsKind,    0, 8> {};
   class GrowModeBits: public BitField<KeyedAccessGrowMode, 8, 1> {};
   class IsJSArrayBits: public BitField<bool,               9, 1> {};
+  class FPRegisters: public BitField<bool,                10, 1> {};
 
   bool is_js_array_;
   ElementsKind elements_kind_;
   KeyedAccessGrowMode grow_mode_;
+  bool fp_registers_;
 
   DISALLOW_COPY_AND_ASSIGN(KeyedStoreElementStub);
 };
@@ -1132,13 +1139,18 @@ class ElementsTransitionAndStoreStub : public CodeStub {
 
 class StoreArrayLiteralElementStub : public CodeStub {
  public:
-  explicit StoreArrayLiteralElementStub() {}
+  StoreArrayLiteralElementStub()
+        : fp_registers_(CanUseFPRegisters()) { }
 
  private:
+  class FPRegisters: public BitField<bool,                0, 1> {};
+
   Major MajorKey() { return StoreArrayLiteralElement; }
-  int MinorKey() { return 0; }
+  int MinorKey() { return FPRegisters::encode(fp_registers_); }
 
   void Generate(MacroAssembler* masm);
+
+  bool fp_registers_;
 
   DISALLOW_COPY_AND_ASSIGN(StoreArrayLiteralElementStub);
 };

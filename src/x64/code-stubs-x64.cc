@@ -6144,6 +6144,11 @@ void RecordWriteStub::GenerateFixedRegStubsAheadOfTime() {
 }
 
 
+bool CodeStub::CanUseFPRegisters() {
+  return true;  // Always have SSE2 on x64.
+}
+
+
 // Takes the input in 3 registers: address_ value_ and object_.  A pointer to
 // the value has just been written into the object, now this stub makes sure
 // we keep the GC informed.  The word in the object where the value has been
@@ -6275,6 +6280,17 @@ void RecordWriteStub::CheckNeedsToInformIncrementalMarker(
   Label on_black;
   Label need_incremental;
   Label need_incremental_pop_object;
+
+  __ movq(regs_.scratch0(), Immediate(~Page::kPageAlignmentMask));
+  __ and_(regs_.scratch0(), regs_.object());
+  __ movq(regs_.scratch1(),
+         Operand(regs_.scratch0(),
+                 MemoryChunk::kWriteBarrierCounterOffset));
+  __ subq(regs_.scratch1(), Immediate(1));
+  __ movq(Operand(regs_.scratch0(),
+                 MemoryChunk::kWriteBarrierCounterOffset),
+         regs_.scratch1());
+  __ j(negative, &need_incremental);
 
   // Let's look at the color of the object:  If it is not black we don't have
   // to inform the incremental marker.

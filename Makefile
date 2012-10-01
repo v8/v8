@@ -280,6 +280,7 @@ $(ENVFILE).new:
 	    echo "CXX=$(CXX)" >> $(ENVFILE).new
 
 # Dependencies.
+# Remember to keep these in sync with the DEPS file.
 dependencies:
 	svn checkout --force http://gyp.googlecode.com/svn/trunk build/gyp \
-	    --revision 1282
+	    --revision 1501

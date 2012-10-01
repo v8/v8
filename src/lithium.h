@@ -133,13 +133,15 @@ class LUnallocated: public LOperand {
   // index in the upper bits.
   static const int kPolicyWidth = 3;
   static const int kLifetimeWidth = 1;
-  static const int kVirtualRegisterWidth = 18;
+  static const int kVirtualRegisterWidth = 15;
 
   static const int kPolicyShift = kKindFieldWidth;
   static const int kLifetimeShift = kPolicyShift + kPolicyWidth;
   static const int kVirtualRegisterShift = kLifetimeShift + kLifetimeWidth;
   static const int kFixedIndexShift =
       kVirtualRegisterShift + kVirtualRegisterWidth;
+  static const int kFixedIndexWidth = 32 - kFixedIndexShift;
+  STATIC_ASSERT(kFixedIndexWidth > 5);
 
   class PolicyField : public BitField<Policy, kPolicyShift, kPolicyWidth> { };
 
@@ -154,8 +156,8 @@ class LUnallocated: public LOperand {
   };
 
   static const int kMaxVirtualRegisters = 1 << kVirtualRegisterWidth;
-  static const int kMaxFixedIndex = 63;
-  static const int kMinFixedIndex = -64;
+  static const int kMaxFixedIndex = (1 << kFixedIndexWidth) - 1;
+  static const int kMinFixedIndex = -(1 << kFixedIndexWidth);
 
   bool HasAnyPolicy() const {
     return policy() == ANY;

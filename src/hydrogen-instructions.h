@@ -4527,6 +4527,7 @@ class HStoreKeyedFastDoubleElement
     SetOperandAt(0, elements);
     SetOperandAt(1, key);
     SetOperandAt(2, val);
+    SetFlag(kDeoptimizeOnUndefined);
     SetGVNFlag(kChangesDoubleArrayElements);
   }
 
