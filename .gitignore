@@ -29,7 +29,7 @@ shell_g
 /out/
 /test/cctest/cctest.status2
 /test/es5conform/data
-/test/messages/messages.status2
+/test/message/message.status2
 /test/mjsunit/mjsunit.status2
 /test/mozilla/CHECKED_OUT_VERSION
 /test/mozilla/data

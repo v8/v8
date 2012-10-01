@@ -108,7 +108,15 @@ def Execute(workspace, ctx, tests, sock, server):
 
   progress_indicator = EndpointProgress(sock, server, ctx)
   runner = execution.Runner(suites, progress_indicator, ctx)
-  runner.Run(server.jobs)
+  try:
+    runner.Run(server.jobs)
+  except IOError, e:
+    if e.errno == 2:
+      message = ("File not found: %s, maybe you forgot to 'git add' it?" %
+                 e.filename)
+    else:
+      message = "%s" % e
+    compression.Send([-1, message], sock)
   progress_indicator.HasRun(None)  # Sentinel to signal the end.
   progress_indicator.sender_lock.acquire()  # Released when sending is done.
   progress_indicator.sender_lock.release()

@@ -128,6 +128,7 @@ class WorkHandler(SocketServer.BaseRequestHandler):
     return True
 
   def _ApplyPatch(self, patch):
+    if not patch: return True  # Just skip if the patch is empty.
     patchfilename = "_dtest_incoming_patch.patch"
     with open(patchfilename, "w") as f:
       f.write(patch)
