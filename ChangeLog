@@ -1,3 +1,27 @@
+2012-10-01: Version 3.14.1
+
+        Don't set -m32 flag when compiling with Android ARM compiler.
+        (Chromium issue 143889)
+
+        Restore the descriptor array before returning allocation failure.
+        (Chromium issue 151750)
+
+        Lowered kMaxVirtualRegisters (v8 issue 2139, Chromium issues 123822 and
+        128252).
+
+        Pull more recent gyp in 'make dependencies'.
+
+        Made sure that the generic KeyedStoreIC changes length and element_kind
+        atomically (issue 2346).
+
+        Bumped number of allowed variables per scope to 65535, to address GWT.
+        (Chromium issue 151625)
+
+        Support sourceURL for dynamically inserted scripts (issue 2342).
+
+        Performance and stability improvements on all platforms.
+
+
 2012-09-20: Version 3.14.0
 
         Fixed missing slot recording during clearing of CallICs.
