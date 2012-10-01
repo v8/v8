@@ -488,18 +488,6 @@ void MemoryChunk::Unlink() {
 }
 
 
-size_t MemoryChunk::CommittedPhysicalMemory() {
-  size_t physical;
-  size_t size = area_size();
-  if (VirtualMemory::CommittedPhysicalSizeInRegion(
-          area_start_, size, &physical)) {
-    return physical;
-  } else {
-    return size;
-  }
-}
-
-
 MemoryChunk* MemoryAllocator::AllocateChunk(intptr_t body_size,
                                             Executability executable,
                                             Space* owner) {
@@ -829,16 +817,6 @@ void PagedSpace::TearDown() {
   anchor_.set_next_page(&anchor_);
   anchor_.set_prev_page(&anchor_);
   accounting_stats_.Clear();
-}
-
-
-size_t PagedSpace::CommittedPhysicalMemory() {
-  size_t size = 0;
-  PageIterator it(this);
-  while (it.has_next()) {
-    size += it.next()->CommittedPhysicalMemory();
-  }
-  return size;
 }
 
 
@@ -1404,17 +1382,6 @@ bool SemiSpace::Uncommit() {
 
   committed_ = false;
   return true;
-}
-
-
-size_t SemiSpace::CommittedPhysicalMemory() {
-  if (!is_committed()) return 0;
-  size_t size = 0;
-  NewSpacePageIterator it(this);
-  while (it.has_next()) {
-    size += it.next()->CommittedPhysicalMemory();
-  }
-  return size;
 }
 
 
@@ -2719,17 +2686,6 @@ MaybeObject* LargeObjectSpace::AllocateRaw(int object_size,
 
   heap()->incremental_marking()->OldSpaceStep(object_size);
   return object;
-}
-
-
-size_t LargeObjectSpace::CommittedPhysicalMemory() {
-  size_t size = 0;
-  LargePage* current = first_page_;
-  while (current != NULL) {
-    size += current->CommittedPhysicalMemory();
-    current = current->next_page();
-  }
-  return size;
 }
 
 

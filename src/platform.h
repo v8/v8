@@ -429,14 +429,6 @@ class VirtualMemory {
   // and the same size it was reserved with.
   static bool ReleaseRegion(void* base, size_t size);
 
-  // Returns the size of committed memory which is currently resident
-  // in the physical memory for the region specified with base and size
-  // arguments.
-  // On success stores the committed physical memory size at the location
-  // pointed by the last argument and returns true. Returns false on failure.
-  static bool CommittedPhysicalSizeInRegion(
-      void* base, size_t size, size_t* physical);
-
  private:
   void* address_;  // Start address of the virtual memory.
   size_t size_;  // Size of the virtual memory.

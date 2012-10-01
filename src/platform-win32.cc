@@ -1551,13 +1551,6 @@ bool VirtualMemory::ReleaseRegion(void* base, size_t size) {
 }
 
 
-bool VirtualMemory::CommittedPhysicalSizeInRegion(
-    void* base, size_t size, size_t* physical) {
-  // TODO(alph): implement for the platform.
-  return false;
-}
-
-
 // ----------------------------------------------------------------------------
 // Win32 thread support.
 
