@@ -148,6 +148,9 @@ bool OS::ArmCpuHasFeature(CpuFeature feature) {
     case ARMv7:
       search_string = "ARMv7";
       break;
+    case SUDIV:
+      search_string = "idiva";
+      break;
     default:
       UNREACHABLE();
   }

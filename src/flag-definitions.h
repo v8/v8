@@ -284,6 +284,8 @@ DEFINE_bool(enable_vfp2, true,
             "enable use of VFP2 instructions if available")
 DEFINE_bool(enable_armv7, true,
             "enable use of ARMv7 instructions if available (ARM only)")
+DEFINE_bool(enable_sudiv, true,
+            "enable use of SDIV and UDIV instructions if available (ARM only)")
 DEFINE_bool(enable_fpu, true,
             "enable use of MIPS FPU instructions if available (MIPS only)")
 

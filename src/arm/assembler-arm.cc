@@ -110,6 +110,10 @@ void CpuFeatures::Probe() {
   if (FLAG_enable_armv7) {
     supported_ |= 1u << ARMv7;
   }
+
+  if (FLAG_enable_sudiv) {
+    supported_ |= 1u << SUDIV;
+  }
 #else  // __arm__
   // Probe for additional features not already known to be available.
   if (!IsSupported(VFP3) && OS::ArmCpuHasFeature(VFP3)) {
@@ -123,6 +127,10 @@ void CpuFeatures::Probe() {
 
   if (!IsSupported(ARMv7) && OS::ArmCpuHasFeature(ARMv7)) {
     found_by_runtime_probing_ |= 1u << ARMv7;
+  }
+
+  if (!IsSupported(SUDIV) && OS::ArmCpuHasFeature(SUDIV)) {
+    found_by_runtime_probing_ |= 1u << SUDIV;
   }
 
   supported_ |= found_by_runtime_probing_;
@@ -1204,6 +1212,22 @@ void Assembler::mla(Register dst, Register src1, Register src2, Register srcA,
   ASSERT(!dst.is(pc) && !src1.is(pc) && !src2.is(pc) && !srcA.is(pc));
   emit(cond | A | s | dst.code()*B16 | srcA.code()*B12 |
        src2.code()*B8 | B7 | B4 | src1.code());
+}
+
+
+void Assembler::mls(Register dst, Register src1, Register src2, Register srcA,
+                    Condition cond) {
+  ASSERT(!dst.is(pc) && !src1.is(pc) && !src2.is(pc) && !srcA.is(pc));
+  emit(cond | B22 | B21 | dst.code()*B16 | srcA.code()*B12 |
+       src2.code()*B8 | B7 | B4 | src1.code());
+}
+
+
+void Assembler::sdiv(Register dst, Register src1, Register src2,
+                     Condition cond) {
+  ASSERT(!dst.is(pc) && !src1.is(pc) && !src2.is(pc));
+  emit(cond | B26 | B25| B24 | B20 | dst.code()*B16 | 0xf * B12 |
+       src2.code()*B8 | B4 | src1.code());
 }
 
 

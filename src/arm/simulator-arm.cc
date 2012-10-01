@@ -1986,11 +1986,23 @@ void Simulator::DecodeType01(Instruction* instr) {
               SetNZFlags(alu_out);
             }
           } else {
-            // The MLA instruction description (A 4.1.28) refers to the order
-            // of registers as "Rd, Rm, Rs, Rn". But confusingly it uses the
-            // Rn field to encode the Rd register and the Rd field to encode
-            // the Rn register.
-            Format(instr, "mla'cond's 'rn, 'rm, 'rs, 'rd");
+            int rd = instr->RdValue();
+            int32_t acc_value = get_register(rd);
+            if (instr->Bit(22) == 0) {
+              // The MLA instruction description (A 4.1.28) refers to the order
+              // of registers as "Rd, Rm, Rs, Rn". But confusingly it uses the
+              // Rn field to encode the Rd register and the Rd field to encode
+              // the Rn register.
+              // Format(instr, "mla'cond's 'rn, 'rm, 'rs, 'rd");
+              int32_t mul_out = rm_val * rs_val;
+              int32_t result = acc_value + mul_out;
+              set_register(rn, result);
+            } else {
+              // Format(instr, "mls'cond's 'rn, 'rm, 'rs, 'rd");
+              int32_t mul_out = rm_val * rs_val;
+              int32_t result = acc_value - mul_out;
+              set_register(rn, result);
+            }
           }
         } else {
           // The signed/long multiply instructions use the terms RdHi and RdLo
@@ -2546,6 +2558,25 @@ void Simulator::DecodeType3(Instruction* instr) {
       break;
     }
     case db_x: {
+      if (FLAG_enable_sudiv) {
+        if (!instr->HasW()) {
+          if (instr->Bits(5, 4) == 0x1) {
+             if ((instr->Bit(22) == 0x0) && (instr->Bit(20) == 0x1)) {
+               // sdiv (in V8 notation matching ARM ISA format) rn = rm/rs
+               // Format(instr, "'sdiv'cond'b 'rn, 'rm, 'rs);
+               int rm = instr->RmValue();
+               int32_t rm_val = get_register(rm);
+               int rs = instr->RsValue();
+               int32_t rs_val = get_register(rs);
+               int32_t ret_val = 0;
+               ASSERT(rs_val != 0);
+               ret_val = rm_val/rs_val;
+               set_register(rn, ret_val);
+               return;
+             }
+           }
+         }
+       }
       // Format(instr, "'memop'cond'b 'rd, ['rn, -'shift_rm]'w");
       addr = rn_val - shifter_operand;
       if (instr->HasW()) {
