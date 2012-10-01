@@ -3643,17 +3643,11 @@ void LCodeGen::DoBoundsCheck(LBoundsCheck* instr) {
       __ cmpq(reg, reg2);
     }
   } else {
-    Operand length = ToOperand(instr->length());
     if (instr->index()->IsConstantOperand()) {
-      int constant_index =
-          ToInteger32(LConstantOperand::cast(instr->index()));
-      if (instr->hydrogen()->length()->representation().IsTagged()) {
-        __ Cmp(length, Smi::FromInt(constant_index));
-      } else {
-        __ cmpq(length, Immediate(constant_index));
-      }
+      __ cmpq(ToOperand(instr->length()),
+              Immediate(ToInteger32(LConstantOperand::cast(instr->index()))));
     } else {
-      __ cmpq(length, ToRegister(instr->index()));
+      __ cmpq(ToOperand(instr->length()), ToRegister(instr->index()));
     }
   }
   DeoptimizeIf(below_equal, instr->environment());

@@ -17182,13 +17182,3 @@ THREADED_TEST(Regress137496) {
   CompileRun("try { throw new Error(); } finally { gc(); }");
   CHECK(try_catch.HasCaught());
 }
-
-
-THREADED_TEST(Regress149912) {
-  v8::HandleScope scope;
-  LocalContext context;
-  Handle<FunctionTemplate> templ = FunctionTemplate::New();
-  AddInterceptor(templ, EmptyInterceptorGetter, EmptyInterceptorSetter);
-  context->Global()->Set(v8_str("Bug"), templ->GetFunction());
-  CompileRun("Number.prototype.__proto__ = new Bug; var x = 0; x.foo();");
-}

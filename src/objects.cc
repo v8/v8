@@ -650,9 +650,11 @@ MaybeObject* Object::GetProperty(Object* receiver,
           receiver, result->GetCallbackObject(), name);
     case HANDLER:
       return result->proxy()->GetPropertyWithHandler(receiver, name);
-    case INTERCEPTOR:
+    case INTERCEPTOR: {
+      JSObject* recvr = JSObject::cast(receiver);
       return result->holder()->GetPropertyWithInterceptor(
-          receiver, name, attributes);
+          recvr, name, attributes);
+    }
     case TRANSITION:
     case NONEXISTENT:
       UNREACHABLE();
@@ -10237,7 +10239,7 @@ InterceptorInfo* JSObject::GetIndexedInterceptor() {
 
 
 MaybeObject* JSObject::GetPropertyPostInterceptor(
-    Object* receiver,
+    JSReceiver* receiver,
     String* name,
     PropertyAttributes* attributes) {
   // Check local property in holder, ignore interceptor.
@@ -10255,7 +10257,7 @@ MaybeObject* JSObject::GetPropertyPostInterceptor(
 
 
 MaybeObject* JSObject::GetLocalPropertyPostInterceptor(
-    Object* receiver,
+    JSReceiver* receiver,
     String* name,
     PropertyAttributes* attributes) {
   // Check local property in holder, ignore interceptor.
@@ -10269,13 +10271,13 @@ MaybeObject* JSObject::GetLocalPropertyPostInterceptor(
 
 
 MaybeObject* JSObject::GetPropertyWithInterceptor(
-    Object* receiver,
+    JSReceiver* receiver,
     String* name,
     PropertyAttributes* attributes) {
   Isolate* isolate = GetIsolate();
   InterceptorInfo* interceptor = GetNamedInterceptor();
   HandleScope scope(isolate);
-  Handle<Object> receiver_handle(receiver);
+  Handle<JSReceiver> receiver_handle(receiver);
   Handle<JSObject> holder_handle(this);
   Handle<String> name_handle(name);
 
