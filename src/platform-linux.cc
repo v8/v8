@@ -1015,9 +1015,8 @@ static void ProfilerSignalHandler(int signal, siginfo_t* info, void* context) {
   Sampler* sampler = isolate->logger()->sampler();
   if (sampler == NULL || !sampler->IsActive()) return;
 
-  TickSample sample_obj;
-  TickSample* sample = CpuProfiler::TickSampleEvent(isolate);
-  if (sample == NULL) sample = &sample_obj;
+  TickSample* sample = CpuProfiler::StartTickSampleEvent(isolate);
+  if (sample == NULL) return;
 
   // Extracting the sample from the context is extremely machine dependent.
   ucontext_t* ucontext = reinterpret_cast<ucontext_t*>(context);
@@ -1052,6 +1051,7 @@ static void ProfilerSignalHandler(int signal, siginfo_t* info, void* context) {
 #endif  // V8_HOST_ARCH_*
   sampler->SampleStack(sample);
   sampler->Tick(sample);
+  CpuProfiler::FinishTickSampleEvent(isolate);
 }
 
 

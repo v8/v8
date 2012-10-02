@@ -39,9 +39,6 @@
 namespace v8 {
 namespace internal {
 
-static const int kEventsBufferSize = 256 * KB;
-static const int kTickSamplesBufferChunkSize = 64 * KB;
-static const int kTickSamplesBufferChunksCount = 16;
 static const int kProfilerStackSize = 64 * KB;
 
 
@@ -53,9 +50,8 @@ ProfilerEventsProcessor::ProfilerEventsProcessor(ProfileGenerator* generator,
       sampler_(sampler),
       running_(true),
       period_in_useconds_(period_in_useconds),
-      ticks_buffer_(sizeof(TickSampleEventRecord),
-                    kTickSamplesBufferChunkSize,
-                    kTickSamplesBufferChunksCount),
+      ticks_buffer_is_empty_(true),
+      ticks_buffer_is_initialized_(false),
       enqueue_order_(0) {
 }
 
@@ -210,9 +206,8 @@ bool ProfilerEventsProcessor::ProcessCodeEvent(unsigned* dequeue_order) {
 }
 
 
-bool ProfilerEventsProcessor::ProcessTicks(int64_t stop_time,
-                                           unsigned dequeue_order) {
-  while (stop_time == -1 || OS::Ticks() < stop_time) {
+bool ProfilerEventsProcessor::ProcessTicks(unsigned dequeue_order) {
+  while (true) {
     if (!ticks_from_vm_buffer_.IsEmpty()
         && ticks_from_vm_buffer_.Peek()->order == dequeue_order) {
       TickSampleEventRecord record;
@@ -220,35 +215,28 @@ bool ProfilerEventsProcessor::ProcessTicks(int64_t stop_time,
       generator_->RecordTickSample(record.sample);
     }
 
-    const TickSampleEventRecord* rec =
-        TickSampleEventRecord::cast(ticks_buffer_.StartDequeue());
-    if (rec == NULL) return !ticks_from_vm_buffer_.IsEmpty();
-    // Make a local copy of tick sample record to ensure that it won't
-    // be modified as we are processing it. This is possible as the
-    // sampler writes w/o any sync to the queue, so if the processor
-    // will get far behind, a record may be modified right under its
-    // feet.
-    TickSampleEventRecord record = *rec;
-    if (record.order == dequeue_order) {
+    if (ticks_buffer_is_empty_) return !ticks_from_vm_buffer_.IsEmpty();
+    if (ticks_buffer_.order == dequeue_order) {
       // A paranoid check to make sure that we don't get a memory overrun
       // in case of frames_count having a wild value.
-      if (record.sample.frames_count < 0
-          || record.sample.frames_count > TickSample::kMaxFramesCount)
-        record.sample.frames_count = 0;
-      generator_->RecordTickSample(record.sample);
-      ticks_buffer_.FinishDequeue();
+      if (ticks_buffer_.sample.frames_count < 0
+          || ticks_buffer_.sample.frames_count > TickSample::kMaxFramesCount) {
+        ticks_buffer_.sample.frames_count = 0;
+      }
+      generator_->RecordTickSample(ticks_buffer_.sample);
+      ticks_buffer_is_empty_ = true;
+      ticks_buffer_is_initialized_ = false;
     } else {
       return true;
     }
   }
-  return false;
 }
 
 
 void ProfilerEventsProcessor::ProcessEventsQueue(int64_t stop_time,
                                                  unsigned* dequeue_order) {
   while (OS::Ticks() < stop_time) {
-    if (ProcessTicks(stop_time, *dequeue_order)) {
+    if (ProcessTicks(*dequeue_order)) {
       // All ticks of the current dequeue_order are processed,
       // proceed to the next code event.
       ProcessCodeEvent(dequeue_order);
@@ -268,11 +256,7 @@ void ProfilerEventsProcessor::Run() {
     ProcessEventsQueue(stop_time, &dequeue_order);
   }
 
-  // Process remaining tick events.
-  ticks_buffer_.FlushResidualRecords();
-  // Perform processing until we have tick events, skip remaining code events.
-  while (ProcessTicks(-1, dequeue_order) && ProcessCodeEvent(&dequeue_order)) {
-  }
+  while (ProcessTicks(dequeue_order) && ProcessCodeEvent(&dequeue_order)) { }
 }
 
 
@@ -327,11 +311,18 @@ CpuProfile* CpuProfiler::FindProfile(Object* security_token, unsigned uid) {
 }
 
 
-TickSample* CpuProfiler::TickSampleEvent(Isolate* isolate) {
+TickSample* CpuProfiler::StartTickSampleEvent(Isolate* isolate) {
   if (CpuProfiler::is_profiling(isolate)) {
-    return isolate->cpu_profiler()->processor_->TickSampleEvent();
+    return isolate->cpu_profiler()->processor_->StartTickSampleEvent();
   } else {
     return NULL;
+  }
+}
+
+
+void CpuProfiler::FinishTickSampleEvent(Isolate* isolate) {
+  if (CpuProfiler::is_profiling(isolate)) {
+    isolate->cpu_profiler()->processor_->FinishTickSampleEvent();
   }
 }
 
