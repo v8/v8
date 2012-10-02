@@ -2719,7 +2719,7 @@ void FullCodeGenerator::EmitIsStringWrapperSafeForDefaultValueOf(
   STATIC_ASSERT(kSmiTagSize == 1);
   STATIC_ASSERT(kPointerSize == 4);
   __ li(at, Operand(DescriptorArray::kDescriptorSize));
-  __ Mult(a3, at);
+  __ Mul(a3, a3, at);
   // Calculate location of the first key name.
   __ Addu(t0, t0, Operand(DescriptorArray::kFirstOffset - kHeapObjectTag));
   // Calculate the end of the descriptor array.
