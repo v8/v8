@@ -768,6 +768,11 @@ Sampler::~Sampler() {
 }
 
 
+void Sampler::DoSample() {
+  // TODO(rogulenko): implement
+}
+
+
 void Sampler::Start() {
   ASSERT(!IsActive());
   SetActive(true);
