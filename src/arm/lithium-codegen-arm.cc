@@ -1016,7 +1016,7 @@ void LCodeGen::DoModI(LModI* instr) {
     ASSERT(!scratch.is(right));
     ASSERT(!scratch.is(result));
 
-    Label done, vfp_modulo, both_positive, right_negative;
+    Label vfp_modulo, both_positive, right_negative;
 
     // Check for x % 0.
     if (instr->hydrogen()->CheckFlag(HValue::kCanBeDivByZero)) {
