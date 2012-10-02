@@ -591,8 +591,16 @@ double OS::TimeCurrentMillis() {
   return t.ToJSTime();
 }
 
-// Returns the tickcounter based on timeGetTime.
+
+static LARGE_INTEGER frequency = 0;
+
+
+// Returns the tickcounter based on QueryPerformanceCounter or timeGetTime.
 int64_t OS::Ticks() {
+  static LARGE_INTEGER tick;
+  if (frequency != 0 && QueryPerformanceCounter(&tick)) {
+    return static_cast<int64_t>(tick.QuadPart * 1e6 / frequency->QuadPart);
+  }
   return timeGetTime() * 1000;  // Convert to microseconds.
 }
 
@@ -2087,12 +2095,15 @@ void OS::SetUp() {
   // call this setup code within the same millisecond.
   uint64_t seed = static_cast<uint64_t>(TimeCurrentMillis());
   srand(static_cast<unsigned int>(seed));
+  // Get the number of ticks per second that is used in OS::Ticks()
+  QueryPerformanceFrequency(&frequency);
   limit_mutex = CreateMutex();
   SamplerThread::SetUp();
 }
 
 
 void OS::TearDown() {
+  frequency = 0;
   SamplerThread::TearDown();
   delete limit_mutex;
 }
