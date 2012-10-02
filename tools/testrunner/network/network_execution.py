@@ -187,8 +187,8 @@ class NetworkedRunner(execution.Runner):
             test_id = data[0]
             if test_id < 0:
               # The peer is reporting an error.
-              print("Peer %s reports error: %s" % (peer.address, data[1]))
-              rec.Advance()
+              with self.lock:
+                print("\nPeer %s reports error: %s" % (peer.address, data[1]))
               continue
             test = test_map.pop(test_id)
             test.MergeResult(data)
@@ -214,7 +214,11 @@ class NetworkedRunner(execution.Runner):
               self.indicator.HasRun(test)
           rec.Advance()
         peer.runtime = time.time() - start_time
-      except Exception:
+      except KeyboardInterrupt:
+        sock.close()
+        raise
+      except Exception, e:
+        print("Got exception: %s" % e)
         pass  # Fall back to local execution.
     else:
       compression.Send([constants.UNRESPONSIVE_PEER, peer.address],
@@ -222,7 +226,7 @@ class NetworkedRunner(execution.Runner):
     sock.close()
     if len(test_map) > 0:
       # Some tests have not received any results. Run them locally.
-      print("No results for %d tests, running them locally." % len(test_map))
+      print("\nNo results for %d tests, running them locally." % len(test_map))
       self._EnqueueLocally(test_map)
 
   def _EnqueueLocally(self, test_map):

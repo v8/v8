@@ -76,7 +76,7 @@ class WorkHandler(SocketServer.BaseRequestHandler):
   def _SendResponse(self, error_message=None):
     try:
       if error_message:
-        compression.Send([-1, error_message], self.request)
+        compression.Send([[-1, error_message]], self.request)
       compression.Send(constants.END_OF_STREAM, self.request)
       return
     except Exception, e:

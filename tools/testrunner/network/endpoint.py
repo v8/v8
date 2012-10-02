@@ -60,7 +60,6 @@ class EndpointProgress(progress.ProgressIndicator):
     self.sender_lock.acquire()
     while keep_running:
       time.sleep(0.1)
-      t1 = time.time()
       # This should be "atomic enough" without locking :-)
       # (We don't care which list any new elements get appended to, as long
       # as we don't lose any and the last one comes last.)
@@ -77,7 +76,10 @@ class EndpointProgress(progress.ProgressIndicator):
       result = []
       for t in tests:
         result.append(t.PackResult())
-      compression.Send(result, self.sock)
+      try:
+        compression.Send(result, self.sock)
+      except:
+        self.runner.terminate = True
       for t in tests:
         self.server.CompareOwnPerf(t, self.context.arch, self.context.mode)
       tests = []
@@ -116,7 +118,7 @@ def Execute(workspace, ctx, tests, sock, server):
                  e.filename)
     else:
       message = "%s" % e
-    compression.Send([-1, message], sock)
+    compression.Send([[-1, message]], sock)
   progress_indicator.HasRun(None)  # Sentinel to signal the end.
   progress_indicator.sender_lock.acquire()  # Released when sending is done.
   progress_indicator.sender_lock.release()

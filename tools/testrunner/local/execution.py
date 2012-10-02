@@ -35,6 +35,10 @@ from . import commands
 from . import utils
 
 
+BREAK_NOW = -1
+EXCEPTION = -2
+
+
 class Job(object):
   def __init__(self, command, dep_command, test_id, timeout, verbose):
     self.command = command
@@ -57,9 +61,11 @@ def RunTest(job):
         return (job.id, dep_output, time.time() - start_time)
     output = commands.Execute(job.command, job.verbose, job.timeout)
     return (job.id, output, time.time() - start_time)
+  except KeyboardInterrupt:
+    return (-1, BREAK_NOW, 0)
   except Exception, e:
     print(">>> EXCEPTION: %s" % e)
-    return (-1, -1, 0)
+    return (-1, EXCEPTION, 0)
 
 
 class Runner(object):
@@ -90,10 +96,17 @@ class Runner(object):
     pool = multiprocessing.Pool(processes=jobs)
     test_map = {}
     queue = []
+    queued_exception = None
     for test in self.tests:
       assert test.id >= 0
       test_map[test.id] = test
-      command = self.GetCommand(test)
+      try:
+        command = self.GetCommand(test)
+      except Exception, e:
+        # If this failed, save the exception and re-raise it later (after
+        # all other tests have had a chance to run).
+        queued_exception = e
+        continue
       timeout = self.context.timeout
       if ("--stress-opt" in test.flags or
           "--stress-opt" in self.context.mode_flags or
@@ -111,6 +124,13 @@ class Runner(object):
       for result in it:
         test_id = result[0]
         if test_id < 0:
+          if result[1] == BREAK_NOW:
+            self.terminate = True
+          else:
+            continue
+        if self.terminate:
+          pool.terminate()
+          pool.join()
           raise BreakNowException("User pressed Ctrl+C or IO went wrong")
         test = test_map[test_id]
         self.indicator.AboutToRun(test)
@@ -124,10 +144,16 @@ class Runner(object):
           self.succeeded += 1
         self.remaining -= 1
         self.indicator.HasRun(test)
-    except:
+    except KeyboardInterrupt:
+      pool.terminate()
+      pool.join()
+    except Exception, e:
+      print("Exception: %s" % e)
       pool.terminate()
       pool.join()
       raise
+    if queued_exception:
+      raise queued_exception
     return
 
 
