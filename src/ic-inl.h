@@ -91,12 +91,8 @@ void IC::SetTargetAtAddress(Address address, Code* target) {
   }
 #endif
   Assembler::set_target_address_at(address, target->instruction_start());
-  if (heap->gc_state() == Heap::MARK_COMPACT &&
-      heap->mark_compact_collector()->is_compacting()) {
-    Code* host = heap->isolate()->inner_pointer_to_code_cache()->
-        GcSafeFindCodeForInnerPointer(address);
-    RelocInfo rinfo(address, RelocInfo::CODE_TARGET, 0, host);
-    heap->mark_compact_collector()->RecordRelocSlot(&rinfo, target);
+  if (heap->gc_state() == Heap::MARK_COMPACT) {
+    heap->mark_compact_collector()->RecordCodeTargetPatch(address, target);
   } else {
     heap->incremental_marking()->RecordCodeTargetPatch(address, target);
   }
