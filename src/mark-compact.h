@@ -240,35 +240,6 @@ class MarkingDeque {
   int mask() { return mask_; }
   void set_top(int top) { top_ = top; }
 
-  int space_left() {
-    // If we already overflowed we may as well just say there is lots of
-    // space left.
-    if (overflowed_) return mask_ + 1;
-    if (IsEmpty()) return mask_ + 1;
-    if (IsFull()) return 0;
-    return (bottom_ - top_) & mask_;
-  }
-
-#ifdef DEBUG
-  const char* Status() {
-    if (overflowed_) return "Overflowed";
-    if (IsEmpty()) return "Empty";
-    if (IsFull()) return "Full";
-    int oct = (((top_ - bottom_) & mask_) * 8) / (mask_ + 1);
-    switch (oct) {
-      case 0: return "Almost empty";
-      case 1: return "1/8 full";
-      case 2: return "2/8 full";
-      case 3: return "3/8 full";
-      case 4: return "4/8 full";
-      case 5: return "5/8 full";
-      case 6: return "6/8 full";
-      case 7: return "7/8 full";
-    }
-    return "??";
-  }
-#endif
-
  private:
   HeapObject** array_;
   // array_[(top - 1) & mask_] is the top element in the deque.  The Deque is
@@ -595,10 +566,6 @@ class MarkCompactCollector {
   void ClearMarkbits();
 
   bool is_compacting() const { return compacting_; }
-
-  // Find the large objects that are not completely scanned, but have been
-  // postponed to later.
-  static void ProcessLargePostponedArrays(Heap* heap, MarkingDeque* deque);
 
  private:
   MarkCompactCollector();

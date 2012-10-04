@@ -262,11 +262,9 @@ void StaticMarkingVisitor<StaticVisitor>::VisitMap(
       map_object->instance_type() >= FIRST_JS_RECEIVER_TYPE) {
     MarkMapContents(heap, map_object);
   } else {
-    Object** start_slot =
-        HeapObject::RawField(object, Map::kPointerFieldsBeginOffset);
-    Object** end_slot =
-        HeapObject::RawField(object, Map::kPointerFieldsEndOffset);
-    StaticVisitor::VisitPointers(heap, start_slot, start_slot, end_slot);
+    StaticVisitor::VisitPointers(heap,
+        HeapObject::RawField(object, Map::kPointerFieldsBeginOffset),
+        HeapObject::RawField(object, Map::kPointerFieldsEndOffset));
   }
 }
 
@@ -288,12 +286,9 @@ void StaticMarkingVisitor<StaticVisitor>::VisitJSRegExp(
     Map* map, HeapObject* object) {
   int last_property_offset =
       JSRegExp::kSize + kPointerSize * map->inobject_properties();
-  Object** start_slot =
-      HeapObject::RawField(object, JSRegExp::kPropertiesOffset);
-  Object** end_slot =
-      HeapObject::RawField(object, last_property_offset);
-  StaticVisitor::VisitPointers(
-      map->GetHeap(), start_slot, start_slot, end_slot);
+  StaticVisitor::VisitPointers(map->GetHeap(),
+      HeapObject::RawField(object, JSRegExp::kPropertiesOffset),
+      HeapObject::RawField(object, last_property_offset));
 }
 
 
@@ -320,11 +315,9 @@ void StaticMarkingVisitor<StaticVisitor>::MarkMapContents(
   // Mark the pointer fields of the Map. Since the transitions array has
   // been marked already, it is fine that one of these fields contains a
   // pointer to it.
-  Object** start_slot =
-      HeapObject::RawField(map, Map::kPointerFieldsBeginOffset);
-  Object** end_slot =
-      HeapObject::RawField(map, Map::kPointerFieldsEndOffset);
-  StaticVisitor::VisitPointers(heap, start_slot, start_slot, end_slot);
+  StaticVisitor::VisitPointers(heap,
+      HeapObject::RawField(map, Map::kPointerFieldsBeginOffset),
+      HeapObject::RawField(map, Map::kPointerFieldsEndOffset));
 }
 
 

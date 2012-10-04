@@ -83,9 +83,6 @@ void MarkCompactCollector::RecordSlot(Object** anchor_slot,
                                       Object** slot,
                                       Object* object) {
   Page* object_page = Page::FromAddress(reinterpret_cast<Address>(object));
-  // Ensure the anchor slot is on the first 'page' of a large object.
-  ASSERT(Page::FromAddress(reinterpret_cast<Address>(anchor_slot))->owner() !=
-         NULL);
   if (object_page->IsEvacuationCandidate() &&
       !ShouldSkipEvacuationSlotRecording(anchor_slot)) {
     if (!SlotsBuffer::AddTo(&slots_buffer_allocator_,

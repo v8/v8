@@ -1359,12 +1359,11 @@ void Heap::UpdateNewSpaceReferencesInExternalStringTable(
 
   if (external_string_table_.new_space_strings_.is_empty()) return;
 
-  Object** start_slot = &external_string_table_.new_space_strings_[0];
-  Object** end_slot =
-        start_slot + external_string_table_.new_space_strings_.length();
-  Object** last = start_slot;
+  Object** start = &external_string_table_.new_space_strings_[0];
+  Object** end = start + external_string_table_.new_space_strings_.length();
+  Object** last = start;
 
-  for (Object** p = start_slot; p < end_slot; ++p) {
+  for (Object** p = start; p < end; ++p) {
     ASSERT(InFromSpace(*p));
     String* target = updater_func(this, p);
 
@@ -1382,8 +1381,8 @@ void Heap::UpdateNewSpaceReferencesInExternalStringTable(
     }
   }
 
-  ASSERT(last <= end_slot);
-  external_string_table_.ShrinkNewStrings(static_cast<int>(last - start_slot));
+  ASSERT(last <= end);
+  external_string_table_.ShrinkNewStrings(static_cast<int>(last - start));
 }
 
 
@@ -1392,10 +1391,9 @@ void Heap::UpdateReferencesInExternalStringTable(
 
   // Update old space string references.
   if (external_string_table_.old_space_strings_.length() > 0) {
-    Object** start_slot = &external_string_table_.old_space_strings_[0];
-    Object** end_slot =
-        start_slot + external_string_table_.old_space_strings_.length();
-    for (Object** p = start_slot; p < end_slot; ++p) *p = updater_func(this, p);
+    Object** start = &external_string_table_.old_space_strings_[0];
+    Object** end = start + external_string_table_.old_space_strings_.length();
+    for (Object** p = start; p < end; ++p) *p = updater_func(this, p);
   }
 
   UpdateNewSpaceReferencesInExternalStringTable(updater_func);
@@ -6792,11 +6790,11 @@ void PathTracer::MarkRecursively(Object** p, MarkVisitor* mark_visitor) {
   // Scan the object body.
   if (is_native_context && (visit_mode_ == VISIT_ONLY_STRONG)) {
     // This is specialized to scan Context's properly.
-    Object** start_slot = reinterpret_cast<Object**>(obj->address() +
-                                                     Context::kHeaderSize);
-    Object** end_slot = reinterpret_cast<Object**>(obj->address() +
+    Object** start = reinterpret_cast<Object**>(obj->address() +
+                                                Context::kHeaderSize);
+    Object** end = reinterpret_cast<Object**>(obj->address() +
         Context::kHeaderSize + Context::FIRST_WEAK_SLOT * kPointerSize);
-    mark_visitor->VisitPointers(start_slot, end_slot);
+    mark_visitor->VisitPointers(start, end);
   } else {
     obj->IterateBody(map_p->instance_type(),
                      obj->SizeFromMap(map_p),
