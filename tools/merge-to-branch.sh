@@ -186,7 +186,6 @@ if [ $START_STEP -le $CURRENT_STEP ] ; then
   if [ -n "$EXTRA_PATCH" ] ; then
     apply_patch "$EXTRA_PATCH"
   fi
-  stage_files
 fi
 
 let CURRENT_STEP+=1
