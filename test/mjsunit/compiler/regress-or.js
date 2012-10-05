@@ -25,8 +25,6 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax
-
 // Test deoptimization inside short-circuited expressions.
 function f1(x) {
   var c = "fail";
@@ -38,8 +36,7 @@ function f1(x) {
 
 function g1() { try { return 1; } finally {} }
 
-for (var i = 0; i < 5; i++) f1(42);
-%OptimizeFunctionOnNextCall(f1);
+for (var i=0; i<10000000; i++) f1(42);
 
 assertEquals(-1, f1(0));
 assertEquals(-43, f1(42));
@@ -55,7 +52,6 @@ function f2(x) {
 
 function g2() { try { return 0; } finally {} }
 
-for (var i = 0; i < 5; i++) f2(42);
-%OptimizeFunctionOnNextCall(f2);
+for (var i=0; i<10000000; i++) f2(42);
 
 assertEquals(-1, f2(""));

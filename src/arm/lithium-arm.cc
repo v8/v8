@@ -194,22 +194,22 @@ void LGoto::PrintDataTo(StringStream* stream) {
 
 void LBranch::PrintDataTo(StringStream* stream) {
   stream->Add("B%d | B%d on ", true_block_id(), false_block_id());
-  value()->PrintTo(stream);
+  InputAt(0)->PrintTo(stream);
 }
 
 
 void LCmpIDAndBranch::PrintDataTo(StringStream* stream) {
   stream->Add("if ");
-  left()->PrintTo(stream);
+  InputAt(0)->PrintTo(stream);
   stream->Add(" %s ", Token::String(op()));
-  right()->PrintTo(stream);
+  InputAt(1)->PrintTo(stream);
   stream->Add(" then B%d else B%d", true_block_id(), false_block_id());
 }
 
 
 void LIsNilAndBranch::PrintDataTo(StringStream* stream) {
   stream->Add("if ");
-  value()->PrintTo(stream);
+  InputAt(0)->PrintTo(stream);
   stream->Add(kind() == kStrictEquality ? " === " : " == ");
   stream->Add(nil() == kNullValue ? "null" : "undefined");
   stream->Add(" then B%d else B%d", true_block_id(), false_block_id());
@@ -218,57 +218,57 @@ void LIsNilAndBranch::PrintDataTo(StringStream* stream) {
 
 void LIsObjectAndBranch::PrintDataTo(StringStream* stream) {
   stream->Add("if is_object(");
-  value()->PrintTo(stream);
+  InputAt(0)->PrintTo(stream);
   stream->Add(") then B%d else B%d", true_block_id(), false_block_id());
 }
 
 
 void LIsStringAndBranch::PrintDataTo(StringStream* stream) {
   stream->Add("if is_string(");
-  value()->PrintTo(stream);
+  InputAt(0)->PrintTo(stream);
   stream->Add(") then B%d else B%d", true_block_id(), false_block_id());
 }
 
 
 void LIsSmiAndBranch::PrintDataTo(StringStream* stream) {
   stream->Add("if is_smi(");
-  value()->PrintTo(stream);
+  InputAt(0)->PrintTo(stream);
   stream->Add(") then B%d else B%d", true_block_id(), false_block_id());
 }
 
 
 void LIsUndetectableAndBranch::PrintDataTo(StringStream* stream) {
   stream->Add("if is_undetectable(");
-  value()->PrintTo(stream);
+  InputAt(0)->PrintTo(stream);
   stream->Add(") then B%d else B%d", true_block_id(), false_block_id());
 }
 
 
 void LStringCompareAndBranch::PrintDataTo(StringStream* stream) {
   stream->Add("if string_compare(");
-  left()->PrintTo(stream);
-  right()->PrintTo(stream);
+  InputAt(0)->PrintTo(stream);
+  InputAt(1)->PrintTo(stream);
   stream->Add(") then B%d else B%d", true_block_id(), false_block_id());
 }
 
 
 void LHasInstanceTypeAndBranch::PrintDataTo(StringStream* stream) {
   stream->Add("if has_instance_type(");
-  value()->PrintTo(stream);
+  InputAt(0)->PrintTo(stream);
   stream->Add(") then B%d else B%d", true_block_id(), false_block_id());
 }
 
 
 void LHasCachedArrayIndexAndBranch::PrintDataTo(StringStream* stream) {
   stream->Add("if has_cached_array_index(");
-  value()->PrintTo(stream);
+  InputAt(0)->PrintTo(stream);
   stream->Add(") then B%d else B%d", true_block_id(), false_block_id());
 }
 
 
 void LClassOfTestAndBranch::PrintDataTo(StringStream* stream) {
   stream->Add("if class_of_test(");
-  value()->PrintTo(stream);
+  InputAt(0)->PrintTo(stream);
   stream->Add(", \"%o\") then B%d else B%d",
               *hydrogen()->class_name(),
               true_block_id(),
@@ -278,7 +278,7 @@ void LClassOfTestAndBranch::PrintDataTo(StringStream* stream) {
 
 void LTypeofIsAndBranch::PrintDataTo(StringStream* stream) {
   stream->Add("if typeof ");
-  value()->PrintTo(stream);
+  InputAt(0)->PrintTo(stream);
   stream->Add(" == \"%s\" then B%d else B%d",
               *hydrogen()->type_literal()->ToCString(),
               true_block_id(), false_block_id());
@@ -292,26 +292,26 @@ void LCallConstantFunction::PrintDataTo(StringStream* stream) {
 
 void LUnaryMathOperation::PrintDataTo(StringStream* stream) {
   stream->Add("/%s ", hydrogen()->OpName());
-  value()->PrintTo(stream);
+  InputAt(0)->PrintTo(stream);
 }
 
 
 void LLoadContextSlot::PrintDataTo(StringStream* stream) {
-  context()->PrintTo(stream);
+  InputAt(0)->PrintTo(stream);
   stream->Add("[%d]", slot_index());
 }
 
 
 void LStoreContextSlot::PrintDataTo(StringStream* stream) {
-  context()->PrintTo(stream);
+  InputAt(0)->PrintTo(stream);
   stream->Add("[%d] <- ", slot_index());
-  value()->PrintTo(stream);
+  InputAt(1)->PrintTo(stream);
 }
 
 
 void LInvokeFunction::PrintDataTo(StringStream* stream) {
   stream->Add("= ");
-  function()->PrintTo(stream);
+  InputAt(0)->PrintTo(stream);
   stream->Add(" #%d / ", arity());
 }
 
@@ -340,15 +340,17 @@ void LCallKnownGlobal::PrintDataTo(StringStream* stream) {
 
 void LCallNew::PrintDataTo(StringStream* stream) {
   stream->Add("= ");
-  constructor()->PrintTo(stream);
+  InputAt(0)->PrintTo(stream);
   stream->Add(" #%d / ", arity());
 }
 
 
 void LAccessArgumentsAt::PrintDataTo(StringStream* stream) {
   arguments()->PrintTo(stream);
+
   stream->Add(" length ");
   length()->PrintTo(stream);
+
   stream->Add(" index ");
   index()->PrintTo(stream);
 }
@@ -2125,7 +2127,6 @@ LInstruction* LChunkBuilder::DoDeleteProperty(HDeleteProperty* instr) {
 
 
 LInstruction* LChunkBuilder::DoOsrEntry(HOsrEntry* instr) {
-  ASSERT(argument_count_ == 0);
   allocator_->MarkAsOsrEntry();
   current_block_->last_environment()->set_ast_id(instr->ast_id());
   return AssignEnvironment(new(zone()) LOsrEntry);
@@ -2265,7 +2266,7 @@ LInstruction* LChunkBuilder::DoLeaveInlined(HLeaveInlined* instr) {
 
   HEnvironment* env = current_block_->last_environment();
 
-  if (env->entry()->arguments_pushed()) {
+  if (instr->arguments_pushed()) {
     int argument_count = env->arguments_environment()->parameter_count();
     pop = new(zone()) LDrop(argument_count);
     argument_count_ -= argument_count;

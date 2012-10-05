@@ -31,11 +31,6 @@ import os
 from os.path import join, exists
 
 
-def GetSuite(name, root):
-  # Not implemented.
-  return None
-
-
 HARNESS_FILES = ['sth.js']
 
 

@@ -213,7 +213,7 @@ class BodyVisitorBase : public AllStatic {
                                                      start_offset);
     Object** end_slot = reinterpret_cast<Object**>(object->address() +
                                                    end_offset);
-    StaticVisitor::VisitPointers(heap, start_slot, start_slot, end_slot);
+    StaticVisitor::VisitPointers(heap, start_slot, end_slot);
   }
 };
 
@@ -283,26 +283,21 @@ class StaticNewSpaceVisitor : public StaticVisitorBase {
     return table_.GetVisitor(map)(map, obj);
   }
 
-  static inline void VisitPointers(
-      Heap* heap, Object** anchor, Object** start, Object** end) {
+  static inline void VisitPointers(Heap* heap, Object** start, Object** end) {
     for (Object** p = start; p < end; p++) StaticVisitor::VisitPointer(heap, p);
   }
 
  private:
   static inline int VisitJSFunction(Map* map, HeapObject* object) {
     Heap* heap = map->GetHeap();
-    Object** start_slot =
-        HeapObject::RawField(object, JSFunction::kPropertiesOffset);
     VisitPointers(heap,
-                  start_slot,
-                  start_slot,
+                  HeapObject::RawField(object, JSFunction::kPropertiesOffset),
                   HeapObject::RawField(object, JSFunction::kCodeEntryOffset));
 
     // Don't visit code entry. We are using this visitor only during scavenges.
 
     VisitPointers(
         heap,
-        start_slot,
         HeapObject::RawField(object,
                              JSFunction::kCodeEntryOffset + kPointerSize),
         HeapObject::RawField(object,
@@ -403,14 +398,8 @@ class StaticMarkingVisitor : public StaticVisitorBase {
   static inline void VisitNativeContext(Map* map, HeapObject* object);
 
  protected:
-  static inline void VisitMap(Map* map, HeapObject* object);
   static inline void VisitCode(Map* map, HeapObject* object);
   static inline void VisitJSRegExp(Map* map, HeapObject* object);
-
-  // Mark pointers in a Map and its TransitionArray together, possibly
-  // treating transitions or back pointers weak.
-  static void MarkMapContents(Heap* heap, Map* map);
-  static void MarkTransitionArray(Heap* heap, TransitionArray* transitions);
 
   class DataObjectVisitor {
    public:

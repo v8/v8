@@ -66,8 +66,7 @@ class Factory {
 
   Handle<ObjectHashTable> NewObjectHashTable(int at_least_space_for);
 
-  Handle<DescriptorArray> NewDescriptorArray(int number_of_descriptors,
-                                             int slack = 0);
+  Handle<DescriptorArray> NewDescriptorArray(int number_of_descriptors);
   Handle<DeoptimizationInputData> NewDeoptimizationInputData(
       int deopt_entry_count,
       PretenureFlag pretenure);

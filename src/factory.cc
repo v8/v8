@@ -112,11 +112,10 @@ Handle<ObjectHashTable> Factory::NewObjectHashTable(int at_least_space_for) {
 }
 
 
-Handle<DescriptorArray> Factory::NewDescriptorArray(int number_of_descriptors,
-                                                    int slack) {
+Handle<DescriptorArray> Factory::NewDescriptorArray(int number_of_descriptors) {
   ASSERT(0 <= number_of_descriptors);
   CALL_HEAP_FUNCTION(isolate(),
-                     DescriptorArray::Allocate(number_of_descriptors, slack),
+                     DescriptorArray::Allocate(number_of_descriptors),
                      DescriptorArray);
 }
 
@@ -1285,26 +1284,10 @@ Handle<JSFunction> Factory::CreateApiFunction(
   result->shared()->DontAdaptArguments();
 
   // Recursively copy parent templates' accessors, 'data' may be modified.
-  int max_number_of_additional_properties = 0;
-  FunctionTemplateInfo* info = *obj;
-  while (true) {
-    Object* props = info->property_accessors();
-    if (!props->IsUndefined()) {
-      Handle<Object> props_handle(props);
-      NeanderArray props_array(props_handle);
-      max_number_of_additional_properties += props_array.length();
-    }
-    Object* parent = info->parent_template();
-    if (parent->IsUndefined()) break;
-    info = FunctionTemplateInfo::cast(parent);
-  }
-
-  Map::EnsureDescriptorSlack(map, max_number_of_additional_properties);
-
   while (true) {
     Handle<Object> props = Handle<Object>(obj->property_accessors());
     if (!props->IsUndefined()) {
-      Map::AppendCallbackDescriptors(map, props);
+      Map::CopyAppendCallbackDescriptors(map, props);
     }
     Handle<Object> parent = Handle<Object>(obj->parent_template());
     if (parent->IsUndefined()) break;

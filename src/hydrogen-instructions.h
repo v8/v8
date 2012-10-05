@@ -1472,13 +1472,21 @@ class HEnterInlined: public HTemplateInstruction<0> {
 
 class HLeaveInlined: public HTemplateInstruction<0> {
  public:
-  HLeaveInlined() { }
+  explicit HLeaveInlined(bool arguments_pushed)
+      : arguments_pushed_(arguments_pushed) { }
 
   virtual Representation RequiredInputRepresentation(int index) {
     return Representation::None();
   }
 
+  bool arguments_pushed() {
+    return arguments_pushed_;
+  }
+
   DECLARE_CONCRETE_INSTRUCTION(LeaveInlined)
+
+ private:
+  bool arguments_pushed_;
 };
 
 
@@ -4527,7 +4535,6 @@ class HStoreKeyedFastDoubleElement
     SetOperandAt(0, elements);
     SetOperandAt(1, key);
     SetOperandAt(2, val);
-    SetFlag(kDeoptimizeOnUndefined);
     SetGVNFlag(kChangesDoubleArrayElements);
   }
 

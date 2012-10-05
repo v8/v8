@@ -33,11 +33,6 @@ import test
 import time
 
 
-def GetSuite(name, root):
-  # Not implemented.
-  return None
-
-
 class SputnikTestCase(test.TestCase):
 
   def __init__(self, case, path, context, mode):

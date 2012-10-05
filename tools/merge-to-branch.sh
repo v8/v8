@@ -205,9 +205,8 @@ if [ $START_STEP -le $CURRENT_STEP ] ; then
 your EDITOR on $VERSION_FILE so you can make arbitrary changes. When \
 you're done, save the file and exit your EDITOR.)"
   if [ $? -eq 0 ] ; then
-    echo $NEWPATCH $VERSION_FILE
     sed -e "/#define PATCH_LEVEL/s/[0-9]*$/$NEWPATCH/" \
-        -i.bak "$VERSION_FILE" || die "Could not increment patch level"
+        -i "$VERSION_FILE"
   else
     $EDITOR "$VERSION_FILE"
   fi

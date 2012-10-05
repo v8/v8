@@ -2069,7 +2069,6 @@ LInstruction* LChunkBuilder::DoDeleteProperty(HDeleteProperty* instr) {
 
 
 LInstruction* LChunkBuilder::DoOsrEntry(HOsrEntry* instr) {
-  ASSERT(argument_count_ == 0);
   allocator_->MarkAsOsrEntry();
   current_block_->last_environment()->set_ast_id(instr->ast_id());
   return AssignEnvironment(new(zone()) LOsrEntry);
@@ -2209,7 +2208,7 @@ LInstruction* LChunkBuilder::DoLeaveInlined(HLeaveInlined* instr) {
 
   HEnvironment* env = current_block_->last_environment();
 
-  if (env->entry()->arguments_pushed()) {
+  if (instr->arguments_pushed()) {
     int argument_count = env->arguments_environment()->parameter_count();
     pop = new(zone()) LDrop(argument_count);
     argument_count_ -= argument_count;

@@ -240,35 +240,6 @@ class MarkingDeque {
   int mask() { return mask_; }
   void set_top(int top) { top_ = top; }
 
-  int space_left() {
-    // If we already overflowed we may as well just say there is lots of
-    // space left.
-    if (overflowed_) return mask_ + 1;
-    if (IsEmpty()) return mask_ + 1;
-    if (IsFull()) return 0;
-    return (bottom_ - top_) & mask_;
-  }
-
-#ifdef DEBUG
-  const char* Status() {
-    if (overflowed_) return "Overflowed";
-    if (IsEmpty()) return "Empty";
-    if (IsFull()) return "Full";
-    int oct = (((top_ - bottom_) & mask_) * 8) / (mask_ + 1);
-    switch (oct) {
-      case 0: return "Almost empty";
-      case 1: return "1/8 full";
-      case 2: return "2/8 full";
-      case 3: return "3/8 full";
-      case 4: return "4/8 full";
-      case 5: return "5/8 full";
-      case 6: return "6/8 full";
-      case 7: return "7/8 full";
-    }
-    return "??";
-  }
-#endif
-
  private:
   HeapObject** array_;
   // array_[(top - 1) & mask_] is the top element in the deque.  The Deque is
@@ -429,6 +400,33 @@ class SlotsBuffer {
   intptr_t chain_length_;
   SlotsBuffer* next_;
   ObjectSlot slots_[kNumberOfElements];
+};
+
+
+// -------------------------------------------------------------------------
+// Marker shared between incremental and non-incremental marking
+template<class BaseMarker> class Marker {
+ public:
+  Marker(BaseMarker* base_marker, MarkCompactCollector* mark_compact_collector)
+      : base_marker_(base_marker),
+        mark_compact_collector_(mark_compact_collector) {}
+
+  // Mark pointers in a Map and its DescriptorArray together, possibly
+  // treating transitions or back pointers weak.
+  void MarkMapContents(Map* map);
+  void MarkTransitionArray(TransitionArray* transitions);
+
+ private:
+  BaseMarker* base_marker() {
+    return base_marker_;
+  }
+
+  MarkCompactCollector* mark_compact_collector() {
+    return mark_compact_collector_;
+  }
+
+  BaseMarker* base_marker_;
+  MarkCompactCollector* mark_compact_collector_;
 };
 
 
@@ -595,10 +593,6 @@ class MarkCompactCollector {
 
   bool is_compacting() const { return compacting_; }
 
-  // Find the large objects that are not completely scanned, but have been
-  // postponed to later.
-  static void ProcessLargePostponedArrays(Heap* heap, MarkingDeque* deque);
-
  private:
   MarkCompactCollector();
   ~MarkCompactCollector();
@@ -662,6 +656,8 @@ class MarkCompactCollector {
   friend class MarkCompactMarkingVisitor;
   friend class CodeMarkingVisitor;
   friend class SharedFunctionInfoMarkingVisitor;
+  friend class Marker<IncrementalMarking>;
+  friend class Marker<MarkCompactCollector>;
 
   // Mark non-optimize code for functions inlined into the given optimized
   // code. This will prevent it from being flushed.
@@ -679,12 +675,24 @@ class MarkCompactCollector {
   void AfterMarking();
 
   // Marks the object black and pushes it on the marking stack.
+  // Returns true if object needed marking and false otherwise.
+  // This is for non-incremental marking only.
+  INLINE(bool MarkObjectAndPush(HeapObject* obj));
+
+  // Marks the object black and pushes it on the marking stack.
   // This is for non-incremental marking only.
   INLINE(void MarkObject(HeapObject* obj, MarkBit mark_bit));
+
+  // Marks the object black without pushing it on the marking stack.
+  // Returns true if object needed marking and false otherwise.
+  // This is for non-incremental marking only.
+  INLINE(bool MarkObjectWithoutPush(HeapObject* obj));
 
   // Marks the object black assuming that it is not yet marked.
   // This is for non-incremental marking only.
   INLINE(void SetMark(HeapObject* obj, MarkBit mark_bit));
+
+  void ProcessNewlyMarkedObject(HeapObject* obj);
 
   // Mark the heap roots and all objects reachable from them.
   void MarkRoots(RootMarkingVisitor* visitor);
@@ -788,6 +796,7 @@ class MarkCompactCollector {
   MarkingDeque marking_deque_;
   CodeFlusher* code_flusher_;
   Object* encountered_weak_maps_;
+  Marker<MarkCompactCollector> marker_;
 
   List<Page*> evacuation_candidates_;
   List<Code*> invalidated_code_;

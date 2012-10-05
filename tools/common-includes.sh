@@ -180,23 +180,10 @@ the uploaded CL."
   done
 }
 
-wait_for_resolving_conflicts() {
-  echo "Applying the patch failed. Either type \"ABORT<Return>\", or \
-resolve the conflicts, stage the touched files with 'git add' and \
-type \"RESOLVED<Return>\""
-  unset ANSWER
-  while [ "$ANSWER" != "RESOLVED" ] ; do
-    [[ "$ANSWER" == "ABORT" ]] && die "Applying the patch failed."
-    [[ -n "$ANSWER" ]] && echo "That was not 'RESOLVED' or 'ABORT'."
-    echo -n "> "
-    read ANSWER
-  done
-}
-
 # Takes a file containing the patch to apply as first argument.
 apply_patch() {
   patch $REVERSE_PATCH -p1 < "$1" > "$PATCH_OUTPUT_FILE" || \
-    { cat "$PATCH_OUTPUT_FILE" && wait_for_resolving_conflicts; }
+    { cat "$PATCH_OUTPUT_FILE" && die "Applying the patch failed."; }
   tee < "$PATCH_OUTPUT_FILE" >(grep "patching file" \
                                | awk '{print $NF}' >> "$TOUCHED_FILES_FILE")
   rm "$PATCH_OUTPUT_FILE"

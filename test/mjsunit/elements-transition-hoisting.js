@@ -226,7 +226,7 @@ if (support_smi_only_arrays) {
   testStraightLineDupeElinination(new Array(5),0,0,0,.5,0);
   testStraightLineDupeElinination(new Array(5),0,0,0,0,.5);
   %OptimizeFunctionOnNextCall(testStraightLineDupeElinination);
-  testStraightLineDupeElinination(new Array(5),0,0,0,0,0);
-  testStraightLineDupeElinination(new Array(5),0,0,0,0,0);
+  testStraightLineDupeElinination(new Array(5));
+  testStraightLineDupeElinination(new Array(5));
   assertTrue(2 != %GetOptimizationStatus(testStraightLineDupeElinination));
 }

@@ -1053,7 +1053,6 @@ class Assembler : public AssemblerBase {
 
   void vmov(const DwVfpRegister dst,
             double imm,
-            const Register scratch = no_reg,
             const Condition cond = al);
   void vmov(const SwVfpRegister dst,
             const SwVfpRegister src,

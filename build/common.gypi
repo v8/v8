@@ -302,14 +302,9 @@
           ['_toolset=="target"', {
             'variables': {
               'm32flag': '<!((echo | $(echo ${CXX_target:-${CXX:-$(which g++)}}) -m32 -E - > /dev/null 2>&1) && echo "-m32" || true)',
-              'clang%': 0,
             },
-            'conditions': [
-              ['OS!="android" or clang==1', {
-                'cflags': [ '<(m32flag)' ],
-                'ldflags': [ '<(m32flag)' ],
-              }],
-            ],
+            'cflags': [ '<(m32flag)' ],
+            'ldflags': [ '<(m32flag)' ],
             'xcode_settings': {
               'ARCHS': [ 'i386' ],
             },

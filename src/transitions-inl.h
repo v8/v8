@@ -69,14 +69,12 @@ void TransitionArray::ClearElementsTransition() {
 
 
 bool TransitionArray::HasElementsTransition() {
-  return IsFullTransitionArray() &&
-      get(kElementsTransitionIndex) != Smi::FromInt(0);
+  return get(kElementsTransitionIndex) != Smi::FromInt(0);
 }
 
 
 void TransitionArray::set_elements_transition(Map* transition_map,
                                               WriteBarrierMode mode) {
-  ASSERT(IsFullTransitionArray());
   Heap* heap = GetHeap();
   WRITE_FIELD(this, kElementsTransitionOffset, transition_map);
   CONDITIONAL_WRITE_BARRIER(
@@ -123,13 +121,12 @@ void TransitionArray::set_back_pointer_storage(Object* back_pointer,
 
 
 bool TransitionArray::HasPrototypeTransitions() {
-  return IsFullTransitionArray() &&
-      get(kPrototypeTransitionsIndex) != Smi::FromInt(0);
+  Object* prototype_transitions = get(kPrototypeTransitionsIndex);
+  return prototype_transitions != Smi::FromInt(0);
 }
 
 
 FixedArray* TransitionArray::GetPrototypeTransitions() {
-  ASSERT(IsFullTransitionArray());
   Object* prototype_transitions = get(kPrototypeTransitionsIndex);
   return FixedArray::cast(prototype_transitions);
 }
@@ -143,7 +140,7 @@ HeapObject* TransitionArray::UncheckedPrototypeTransitions() {
 
 void TransitionArray::SetPrototypeTransitions(FixedArray* transitions,
                                               WriteBarrierMode mode) {
-  ASSERT(IsFullTransitionArray());
+  ASSERT(this != NULL);
   ASSERT(transitions->IsFixedArray());
   Heap* heap = GetHeap();
   WRITE_FIELD(this, kPrototypeTransitionsOffset, transitions);
@@ -159,7 +156,6 @@ Object** TransitionArray::GetPrototypeTransitionsSlot() {
 
 
 Object** TransitionArray::GetKeySlot(int transition_number) {
-  ASSERT(!IsSimpleTransition());
   ASSERT(transition_number < number_of_transitions());
   return HeapObject::RawField(
       reinterpret_cast<HeapObject*>(this),
@@ -168,39 +164,24 @@ Object** TransitionArray::GetKeySlot(int transition_number) {
 
 
 String* TransitionArray::GetKey(int transition_number) {
-  if (IsSimpleTransition()) {
-    Map* target = GetTarget(kSimpleTransitionIndex);
-    int descriptor = target->LastAdded();
-    String* key = target->instance_descriptors()->GetKey(descriptor);
-    return key;
-  }
   ASSERT(transition_number < number_of_transitions());
   return String::cast(get(ToKeyIndex(transition_number)));
 }
 
 
 void TransitionArray::SetKey(int transition_number, String* key) {
-  ASSERT(!IsSimpleTransition());
   ASSERT(transition_number < number_of_transitions());
   set(ToKeyIndex(transition_number), key);
 }
 
 
 Map* TransitionArray::GetTarget(int transition_number) {
-  if (IsSimpleTransition()) {
-    ASSERT(transition_number == kSimpleTransitionIndex);
-    return Map::cast(get(kSimpleTransitionTarget));
-  }
   ASSERT(transition_number < number_of_transitions());
   return Map::cast(get(ToTargetIndex(transition_number)));
 }
 
 
 void TransitionArray::SetTarget(int transition_number, Map* value) {
-  if (IsSimpleTransition()) {
-    ASSERT(transition_number == kSimpleTransitionIndex);
-    return set(kSimpleTransitionTarget, value);
-  }
   ASSERT(transition_number < number_of_transitions());
   set(ToTargetIndex(transition_number), value);
 }

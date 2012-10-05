@@ -284,9 +284,7 @@ class Bitmap {
 
   bool IsClean() {
     for (int i = 0; i < CellsCount(); i++) {
-      if (cells()[i] != 0) {
-        return false;
-      }
+      if (cells()[i] != 0) return false;
     }
     return true;
   }
@@ -375,11 +373,6 @@ class MemoryChunk {
     return addr >= area_start() && addr <= area_end();
   }
 
-  // Every n write barrier invocations we go to runtime even though
-  // we could have handled it in generated code.  This lets us check
-  // whether we have hit the limit and should do some more marking.
-  static const int kWriteBarrierCounterGranularity = 500;
-
   enum MemoryChunkFlags {
     IS_EXECUTABLE,
     ABOUT_TO_BE_FREED,
@@ -399,15 +392,6 @@ class MemoryChunk {
     // marking bits are still intact.
     WAS_SWEPT_PRECISELY,
     WAS_SWEPT_CONSERVATIVELY,
-
-    // Used for large objects only.  Indicates that the object has been
-    // partially scanned by the incremental mark-sweep GC.  Objects that have
-    // been partially scanned are marked black so that the write barrier
-    // triggers for them, and they are counted as live bytes.  If the mutator
-    // writes to them they may be turned grey and subtracted from the live byte
-    // list.  They move back to the marking deque either by an iteration over
-    // the large object space or in the write barrier.
-    IS_PARTIALLY_SCANNED,
 
     // Last flag, keep at bottom.
     NUM_MEMORY_CHUNK_FLAGS
@@ -429,25 +413,6 @@ class MemoryChunk {
       (1 << IN_FROM_SPACE) |
       (1 << IN_TO_SPACE);
 
-  static const int kIsPartiallyScannedMask = 1 << IS_PARTIALLY_SCANNED;
-
-  void SetPartiallyScannedProgress(int progress) {
-    SetFlag(IS_PARTIALLY_SCANNED);
-    partially_scanned_progress_ = progress;
-  }
-
-  bool IsPartiallyScanned() {
-    return IsFlagSet(IS_PARTIALLY_SCANNED);
-  }
-
-  void SetCompletelyScanned() {
-    ClearFlag(IS_PARTIALLY_SCANNED);
-  }
-
-  int PartiallyScannedProgress() {
-    ASSERT(IsPartiallyScanned());
-    return partially_scanned_progress_;
-  }
 
   void SetFlag(int flag) {
     flags_ |= static_cast<uintptr_t>(1) << flag;
@@ -503,15 +468,6 @@ class MemoryChunk {
     return live_byte_count_;
   }
 
-  int write_barrier_counter() {
-    return static_cast<int>(write_barrier_counter_);
-  }
-
-  void set_write_barrier_counter(int counter) {
-    write_barrier_counter_ = counter;
-  }
-
-
   static void IncrementLiveBytesFromGC(Address address, int by) {
     MemoryChunk::FromAddress(address)->IncrementLiveBytes(by);
   }
@@ -532,16 +488,8 @@ class MemoryChunk {
 
   static const size_t kSlotsBufferOffset = kLiveBytesOffset + kIntSize;
 
-  static const size_t kWriteBarrierCounterOffset =
+  static const size_t kHeaderSize =
       kSlotsBufferOffset + kPointerSize + kPointerSize;
-  static const size_t kPartiallyScannedProgress =
-      kWriteBarrierCounterOffset + kPointerSize;
-
-  // Actually the partially_scanned_progress_ member is only an int, but on
-  // 64 bit the size of MemoryChunk gets rounded up to a 64 bit size so we
-  // have to have the header start kPointerSize after the
-  // partially_scanned_progress_ member.
-  static const size_t kHeaderSize = kPartiallyScannedProgress + kPointerSize;
 
   static const int kBodyOffset =
     CODE_POINTER_ALIGN(MAP_POINTER_ALIGN(kHeaderSize + Bitmap::kSize));
@@ -677,8 +625,6 @@ class MemoryChunk {
   int live_byte_count_;
   SlotsBuffer* slots_buffer_;
   SkipList* skip_list_;
-  intptr_t write_barrier_counter_;
-  int partially_scanned_progress_;
 
   static MemoryChunk* Initialize(Heap* heap,
                                  Address base,

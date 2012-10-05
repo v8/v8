@@ -307,7 +307,6 @@ class SourceProcessor(SourceFileProcessor):
               or (name == 'DerivedSources'))
 
   IGNORE_COPYRIGHTS = ['cpplint.py',
-                       'daemon.py',
                        'earley-boyer.js',
                        'raytrace.js',
                        'crypto.js',

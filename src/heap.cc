@@ -371,12 +371,6 @@ void Heap::PrintShortHeapStatistics() {
            lo_space_->SizeOfObjects() / KB,
            lo_space_->Available() / KB,
            lo_space_->CommittedMemory() / KB);
-  PrintPID("All spaces,         used: %6" V8_PTR_PREFIX "d KB"
-               ", available: %6" V8_PTR_PREFIX "d KB"
-               ", committed: %6" V8_PTR_PREFIX "d KB\n",
-           this->SizeOfObjects() / KB,
-           this->Available() / KB,
-           this->CommittedMemory() / KB);
   PrintPID("Total time spent in GC  : %d ms\n", total_gc_time_ms_);
 }
 
@@ -625,12 +619,10 @@ bool Heap::CollectGarbage(AllocationSpace space,
         PerformGarbageCollection(collector, &tracer);
     rate->Stop();
 
-    ASSERT(collector == SCAVENGER || incremental_marking()->IsStopped());
-
-    // This can do debug callbacks and restart incremental marking.
     GarbageCollectionEpilogue();
   }
 
+  ASSERT(collector == SCAVENGER || incremental_marking()->IsStopped());
   if (incremental_marking()->IsStopped()) {
     if (incremental_marking()->WorthActivating() && NextGCIsLikelyToBeFull()) {
       incremental_marking()->Start();
@@ -1359,12 +1351,11 @@ void Heap::UpdateNewSpaceReferencesInExternalStringTable(
 
   if (external_string_table_.new_space_strings_.is_empty()) return;
 
-  Object** start_slot = &external_string_table_.new_space_strings_[0];
-  Object** end_slot =
-        start_slot + external_string_table_.new_space_strings_.length();
-  Object** last = start_slot;
+  Object** start = &external_string_table_.new_space_strings_[0];
+  Object** end = start + external_string_table_.new_space_strings_.length();
+  Object** last = start;
 
-  for (Object** p = start_slot; p < end_slot; ++p) {
+  for (Object** p = start; p < end; ++p) {
     ASSERT(InFromSpace(*p));
     String* target = updater_func(this, p);
 
@@ -1382,8 +1373,8 @@ void Heap::UpdateNewSpaceReferencesInExternalStringTable(
     }
   }
 
-  ASSERT(last <= end_slot);
-  external_string_table_.ShrinkNewStrings(static_cast<int>(last - start_slot));
+  ASSERT(last <= end);
+  external_string_table_.ShrinkNewStrings(static_cast<int>(last - start));
 }
 
 
@@ -1392,10 +1383,9 @@ void Heap::UpdateReferencesInExternalStringTable(
 
   // Update old space string references.
   if (external_string_table_.old_space_strings_.length() > 0) {
-    Object** start_slot = &external_string_table_.old_space_strings_[0];
-    Object** end_slot =
-        start_slot + external_string_table_.old_space_strings_.length();
-    for (Object** p = start_slot; p < end_slot; ++p) *p = updater_func(this, p);
+    Object** start = &external_string_table_.old_space_strings_[0];
+    Object** end = start + external_string_table_.old_space_strings_.length();
+    for (Object** p = start; p < end; ++p) *p = updater_func(this, p);
   }
 
   UpdateNewSpaceReferencesInExternalStringTable(updater_func);
@@ -4197,7 +4187,7 @@ MaybeObject* Heap::AllocateGlobalObject(JSFunction* constructor) {
   StringDictionary* dictionary;
   MaybeObject* maybe_dictionary =
       StringDictionary::Allocate(
-          map->NumberOfOwnDescriptors() * 2 + initial_size);
+          map->NumberOfDescribedProperties() * 2 + initial_size);
   if (!maybe_dictionary->To(&dictionary)) return maybe_dictionary;
 
   // The global object might be created from an object template with accessors.
@@ -5135,8 +5125,7 @@ bool Heap::IdleNotification(int hint) {
   // The size factor is in range [5..250]. The numbers here are chosen from
   // experiments. If you changes them, make sure to test with
   // chrome/performance_ui_tests --gtest_filter="GeneralMixMemoryTest.*
-  intptr_t step_size =
-      size_factor * IncrementalMarking::kAllocatedThreshold;
+  intptr_t step_size = size_factor * IncrementalMarking::kAllocatedThreshold;
 
   if (contexts_disposed_ > 0) {
     if (hint >= kMaxHint) {
@@ -6792,11 +6781,11 @@ void PathTracer::MarkRecursively(Object** p, MarkVisitor* mark_visitor) {
   // Scan the object body.
   if (is_native_context && (visit_mode_ == VISIT_ONLY_STRONG)) {
     // This is specialized to scan Context's properly.
-    Object** start_slot = reinterpret_cast<Object**>(obj->address() +
-                                                     Context::kHeaderSize);
-    Object** end_slot = reinterpret_cast<Object**>(obj->address() +
+    Object** start = reinterpret_cast<Object**>(obj->address() +
+                                                Context::kHeaderSize);
+    Object** end = reinterpret_cast<Object**>(obj->address() +
         Context::kHeaderSize + Context::FIRST_WEAK_SLOT * kPointerSize);
-    mark_visitor->VisitPointers(start_slot, end_slot);
+    mark_visitor->VisitPointers(start, end);
   } else {
     obj->IterateBody(map_p->instance_type(),
                      obj->SizeFromMap(map_p),
