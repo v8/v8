@@ -590,8 +590,8 @@ class Parser {
   // which is set to false if parsing failed; it is unchanged otherwise.
   // By making the 'exception handling' explicit, we are forced to check
   // for failure at the call sites.
-  void* ParseSourceElements(ZoneList<Statement*>* processor,
-                            int end_token, bool is_eval, bool* ok);
+  void* ParseSourceElements(ZoneList<Statement*>* processor, int end_token,
+                            bool is_eval, bool is_global, bool* ok);
   Statement* ParseModuleElement(ZoneStringList* labels, bool* ok);
   Statement* ParseModuleDeclaration(ZoneStringList* names, bool* ok);
   Module* ParseModule(bool* ok);
