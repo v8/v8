@@ -2790,8 +2790,6 @@ Statement* Parser::ParseForStatement(ZoneStringList* labels, bool* ok) {
       if (peek() == Token::IN && !name.is_null()) {
         Interface* interface =
             is_const ? Interface::NewConst() : Interface::NewValue();
-        VariableProxy* each =
-            top_scope_->NewUnresolved(factory(), name, interface);
         ForInStatement* loop = factory()->NewForInStatement(labels);
         Target target(&this->target_stack_, loop);
 
@@ -2799,6 +2797,8 @@ Statement* Parser::ParseForStatement(ZoneStringList* labels, bool* ok) {
         Expression* enumerable = ParseExpression(true, CHECK_OK);
         Expect(Token::RPAREN, CHECK_OK);
 
+        VariableProxy* each =
+            top_scope_->NewUnresolved(factory(), name, interface);
         Statement* body = ParseStatement(NULL, CHECK_OK);
         loop->Initialize(each, enumerable, body);
         Block* result = factory()->NewBlock(NULL, 2, false);
@@ -2838,16 +2838,18 @@ Statement* Parser::ParseForStatement(ZoneStringList* labels, bool* ok) {
         // implementing stack allocated block scoped variables.
         Variable* temp = top_scope_->DeclarationScope()->NewTemporary(name);
         VariableProxy* temp_proxy = factory()->NewVariableProxy(temp);
-        Interface* interface = Interface::NewValue();
-        VariableProxy* each =
-            top_scope_->NewUnresolved(factory(), name, interface);
         ForInStatement* loop = factory()->NewForInStatement(labels);
         Target target(&this->target_stack_, loop);
 
+        // The expression does not see the loop variable.
         Expect(Token::IN, CHECK_OK);
+        top_scope_ = saved_scope;
         Expression* enumerable = ParseExpression(true, CHECK_OK);
+        top_scope_ = for_scope;
         Expect(Token::RPAREN, CHECK_OK);
 
+        VariableProxy* each =
+            top_scope_->NewUnresolved(factory(), name, Interface::NewValue());
         Statement* body = ParseStatement(NULL, CHECK_OK);
         Block* body_block = factory()->NewBlock(NULL, 3, false);
         Assignment* assignment = factory()->NewAssignment(
