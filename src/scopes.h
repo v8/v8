@@ -189,7 +189,7 @@ class Scope: public ZoneObject {
   // Creates a new temporary variable in this scope.  The name is only used
   // for printing and cannot be used to find the variable.  In particular,
   // the only way to get hold of the temporary is by keeping the Variable*
-  // around.
+  // around.  The name should not clash with a legitimate variable names.
   Variable* NewTemporary(Handle<String> name);
 
   // Adds the specific declaration node to the list of declarations in

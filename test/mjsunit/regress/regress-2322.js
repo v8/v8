@@ -27,5 +27,10 @@
 
 // Flags: --harmony-scoping
 
+"use strict";
+
 assertThrows("'use strict'; for (let x in x);", ReferenceError);
 
+let s;
+for (let pppp in {}) {};
+assertThrows(function() { pppp = true }, ReferenceError);
