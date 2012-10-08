@@ -271,6 +271,11 @@ class LCodeGen BASE_EMBEDDED {
                         bool deoptimize_on_minus_zero,
                         LEnvironment* env);
 
+
+  void DeoptIfTaggedButNotSmi(LEnvironment* environment,
+                              HValue* value,
+                              LOperand* operand);
+
   // Emits optimized code for typeof x == "y".  Modifies input register.
   // Returns the condition on which a final split to
   // true and false label should be made, to optimize fallthrough.
