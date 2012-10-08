@@ -901,11 +901,10 @@ void JSObject::SpillInformation::Print() {
 }
 
 
-bool DescriptorArray::IsSortedNoDuplicates(int valid_entries) {
-  if (valid_entries == -1) valid_entries = number_of_descriptors();
+bool DescriptorArray::IsSortedNoDuplicates() {
   String* current_key = NULL;
   uint32_t current = 0;
-  for (int i = 0; i < valid_entries; i++) {
+  for (int i = 0; i < number_of_descriptors(); i++) {
     String* key = GetSortedKey(i);
     if (key == current_key) {
       PrintDescriptors();
@@ -923,8 +922,7 @@ bool DescriptorArray::IsSortedNoDuplicates(int valid_entries) {
 }
 
 
-bool TransitionArray::IsSortedNoDuplicates(int valid_entries) {
-  ASSERT(valid_entries == -1);
+bool TransitionArray::IsSortedNoDuplicates() {
   String* current_key = NULL;
   uint32_t current = 0;
   for (int i = 0; i < number_of_transitions(); i++) {

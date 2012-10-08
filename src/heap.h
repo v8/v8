@@ -2376,7 +2376,7 @@ class KeyedLookupCache {
 };
 
 
-// Cache for mapping (map, property name) into descriptor index.
+// Cache for mapping (array, property name) into descriptor index.
 // The cache contains both positive and negative results.
 // Descriptor index equals kNotFound means the property is absent.
 // Cleared at startup and prior to any gc.
@@ -2384,21 +2384,21 @@ class DescriptorLookupCache {
  public:
   // Lookup descriptor index for (map, name).
   // If absent, kAbsent is returned.
-  int Lookup(Map* source, String* name) {
+  int Lookup(DescriptorArray* array, String* name) {
     if (!StringShape(name).IsSymbol()) return kAbsent;
-    int index = Hash(source, name);
+    int index = Hash(array, name);
     Key& key = keys_[index];
-    if ((key.source == source) && (key.name == name)) return results_[index];
+    if ((key.array == array) && (key.name == name)) return results_[index];
     return kAbsent;
   }
 
   // Update an element in the cache.
-  void Update(Map* source, String* name, int result) {
+  void Update(DescriptorArray* array, String* name, int result) {
     ASSERT(result != kAbsent);
     if (StringShape(name).IsSymbol()) {
-      int index = Hash(source, name);
+      int index = Hash(array, name);
       Key& key = keys_[index];
-      key.source = source;
+      key.array = array;
       key.name = name;
       results_[index] = result;
     }
@@ -2412,26 +2412,26 @@ class DescriptorLookupCache {
  private:
   DescriptorLookupCache() {
     for (int i = 0; i < kLength; ++i) {
-      keys_[i].source = NULL;
+      keys_[i].array = NULL;
       keys_[i].name = NULL;
       results_[i] = kAbsent;
     }
   }
 
-  static int Hash(Object* source, String* name) {
+  static int Hash(DescriptorArray* array, String* name) {
     // Uses only lower 32 bits if pointers are larger.
-    uint32_t source_hash =
-        static_cast<uint32_t>(reinterpret_cast<uintptr_t>(source))
+    uint32_t array_hash =
+        static_cast<uint32_t>(reinterpret_cast<uintptr_t>(array))
             >> kPointerSizeLog2;
     uint32_t name_hash =
         static_cast<uint32_t>(reinterpret_cast<uintptr_t>(name))
             >> kPointerSizeLog2;
-    return (source_hash ^ name_hash) % kLength;
+    return (array_hash ^ name_hash) % kLength;
   }
 
   static const int kLength = 64;
   struct Key {
-    Map* source;
+    DescriptorArray* array;
     String* name;
   };
 

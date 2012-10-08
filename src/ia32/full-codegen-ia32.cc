@@ -2669,28 +2669,22 @@ void FullCodeGenerator::EmitIsStringWrapperSafeForDefaultValueOf(
   __ j(equal, if_false);
 
   // Look for valueOf symbol in the descriptor array, and indicate false if
-  // found. Since we omit an enumeration index check, if it is added via a
-  // transition that shares its descriptor array, this is a false positive.
-  Label entry, loop, done;
-
-  // Skip loop if no descriptors are valid.
-  __ NumberOfOwnDescriptors(ecx, ebx);
-  __ cmp(ecx, 0);
-  __ j(equal, &done);
-
+  // found. The type is not checked, so if it is a transition it is a false
+  // negative.
   __ LoadInstanceDescriptors(ebx, ebx);
-  // ebx: descriptor array.
-  // ecx: valid entries in the descriptor array.
+  __ mov(ecx, FieldOperand(ebx, FixedArray::kLengthOffset));
+  // ebx: descriptor array
+  // ecx: length of descriptor array
   // Calculate the end of the descriptor array.
   STATIC_ASSERT(kSmiTag == 0);
   STATIC_ASSERT(kSmiTagSize == 1);
   STATIC_ASSERT(kPointerSize == 4);
-  __ imul(ecx, ecx, DescriptorArray::kDescriptorSize);
-  __ lea(ecx, Operand(ebx, ecx, times_2, DescriptorArray::kFirstOffset));
+  __ lea(ecx, Operand(ebx, ecx, times_2, FixedArray::kHeaderSize));
   // Calculate location of the first key name.
   __ add(ebx, Immediate(DescriptorArray::kFirstOffset));
   // Loop through all the keys in the descriptor array. If one of these is the
   // symbol valueOf the result is false.
+  Label entry, loop;
   __ jmp(&entry);
   __ bind(&loop);
   __ mov(edx, FieldOperand(ebx, 0));
@@ -2701,12 +2695,10 @@ void FullCodeGenerator::EmitIsStringWrapperSafeForDefaultValueOf(
   __ cmp(ebx, ecx);
   __ j(not_equal, &loop);
 
-  __ bind(&done);
-
   // Reload map as register ebx was used as temporary above.
   __ mov(ebx, FieldOperand(eax, HeapObject::kMapOffset));
 
-  // If a valueOf property is not found on the object check that its
+  // If a valueOf property is not found on the object check that it's
   // prototype is the un-modified String prototype. If not result is false.
   __ mov(ecx, FieldOperand(ebx, Map::kPrototypeOffset));
   __ JumpIfSmi(ecx, if_false);

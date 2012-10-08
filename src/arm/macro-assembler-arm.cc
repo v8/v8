@@ -3703,34 +3703,17 @@ void MacroAssembler::LoadInstanceDescriptors(Register map,
   Register temp = descriptors;
   ldr(temp, FieldMemOperand(map, Map::kTransitionsOrBackPointerOffset));
 
-  Label ok, fail, load_from_back_pointer;
+  Label ok, fail;
   CheckMap(temp,
            scratch,
            isolate()->factory()->fixed_array_map(),
            &fail,
            DONT_DO_SMI_CHECK);
-  ldr(temp, FieldMemOperand(temp, TransitionArray::kDescriptorsPointerOffset));
-  ldr(descriptors, FieldMemOperand(temp, JSGlobalPropertyCell::kValueOffset));
+  ldr(descriptors, FieldMemOperand(temp, TransitionArray::kDescriptorsOffset));
   jmp(&ok);
-
   bind(&fail);
-  CompareRoot(temp, Heap::kUndefinedValueRootIndex);
-  b(ne, &load_from_back_pointer);
   mov(descriptors, Operand(FACTORY->empty_descriptor_array()));
-  jmp(&ok);
-
-  bind(&load_from_back_pointer);
-  ldr(temp, FieldMemOperand(temp, Map::kTransitionsOrBackPointerOffset));
-  ldr(temp, FieldMemOperand(temp, TransitionArray::kDescriptorsPointerOffset));
-  ldr(descriptors, FieldMemOperand(temp, JSGlobalPropertyCell::kValueOffset));
-
   bind(&ok);
-}
-
-
-void MacroAssembler::NumberOfOwnDescriptors(Register dst, Register map) {
-  ldr(dst, FieldMemOperand(map, Map::kBitFieldOffset));
-  DecodeField<Map::NumberOfOwnDescriptorsBits>(dst);
 }
 
 
