@@ -2437,16 +2437,27 @@ void MacroAssembler::ConvertToInt32(Register source,
 
 
 void MacroAssembler::EmitVFPTruncate(VFPRoundingMode rounding_mode,
-                                     SwVfpRegister result,
+                                     Register result,
                                      DwVfpRegister double_input,
-                                     Register scratch1,
-                                     Register scratch2,
+                                     Register scratch,
+                                     DwVfpRegister double_scratch,
                                      CheckForInexactConversion check_inexact) {
+  ASSERT(!result.is(scratch));
+  ASSERT(!double_input.is(double_scratch));
+
   ASSERT(CpuFeatures::IsSupported(VFP2));
   CpuFeatures::Scope scope(VFP2);
-  Register prev_fpscr = scratch1;
-  Register scratch = scratch2;
+  Register prev_fpscr = result;
+  Label done;
 
+  // Test for values that can be exactly represented as a signed 32-bit integer.
+  vcvt_s32_f64(double_scratch.low(), double_input);
+  vmov(result, double_scratch.low());
+  vcvt_f64_s32(double_scratch, double_scratch.low());
+  VFPCompareAndSetFlags(double_input, double_scratch);
+  b(eq, &done);
+
+  // Convert to integer, respecting rounding mode.
   int32_t check_inexact_conversion =
     (check_inexact == kCheckForInexactConversion) ? kVFPInexactExceptionBit : 0;
 
@@ -2468,7 +2479,7 @@ void MacroAssembler::EmitVFPTruncate(VFPRoundingMode rounding_mode,
   vmsr(scratch);
 
   // Convert the argument to an integer.
-  vcvt_s32_f64(result,
+  vcvt_s32_f64(double_scratch.low(),
                double_input,
                (rounding_mode == kRoundToZero) ? kDefaultRoundToZero
                                                : kFPSCRRounding);
@@ -2477,8 +2488,12 @@ void MacroAssembler::EmitVFPTruncate(VFPRoundingMode rounding_mode,
   vmrs(scratch);
   // Restore FPSCR.
   vmsr(prev_fpscr);
+  // Move the converted value into the result register.
+  vmov(result, double_scratch.low());
   // Check for vfp exceptions.
   tst(scratch, Operand(kVFPExceptionMask | check_inexact_conversion));
+
+  bind(&done);
 }
 
 

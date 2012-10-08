@@ -3499,27 +3499,22 @@ void LCodeGen::DoMathAbs(LUnaryMathOperation* instr) {
 void LCodeGen::DoMathFloor(LUnaryMathOperation* instr) {
   DoubleRegister input = ToDoubleRegister(instr->value());
   Register result = ToRegister(instr->result());
-  SwVfpRegister single_scratch = double_scratch0().low();
-  Register scratch1 = scratch0();
-  Register scratch2 = ToRegister(instr->temp());
+  Register scratch = scratch0();
 
   __ EmitVFPTruncate(kRoundToMinusInf,
-                     single_scratch,
+                     result,
                      input,
-                     scratch1,
-                     scratch2);
+                     scratch,
+                     double_scratch0());
   DeoptimizeIf(ne, instr->environment());
-
-  // Move the result back to general purpose register r0.
-  __ vmov(result, single_scratch);
 
   if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
     // Test for -0.
     Label done;
     __ cmp(result, Operand(0));
     __ b(ne, &done);
-    __ vmov(scratch1, input.high());
-    __ tst(scratch1, Operand(HeapNumber::kSignMask));
+    __ vmov(scratch, input.high());
+    __ tst(scratch, Operand(HeapNumber::kSignMask));
     DeoptimizeIf(ne, instr->environment());
     __ bind(&done);
   }
@@ -3529,6 +3524,7 @@ void LCodeGen::DoMathFloor(LUnaryMathOperation* instr) {
 void LCodeGen::DoMathRound(LUnaryMathOperation* instr) {
   DoubleRegister input = ToDoubleRegister(instr->value());
   Register result = ToRegister(instr->result());
+  DwVfpRegister double_scratch1 = ToDoubleRegister(instr->temp());
   Register scratch = scratch0();
   Label done, check_sign_on_zero;
 
@@ -3571,12 +3567,11 @@ void LCodeGen::DoMathRound(LUnaryMathOperation* instr) {
   }
 
   __ EmitVFPTruncate(kRoundToMinusInf,
-                     double_scratch0().low(),
-                     double_scratch0(),
                      result,
-                     scratch);
+                     double_scratch0(),
+                     scratch,
+                     double_scratch1);
   DeoptimizeIf(ne, instr->environment());
-  __ vmov(result, double_scratch0().low());
 
   if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
     // Test for -0.
@@ -4602,7 +4597,7 @@ void LCodeGen::DoDeferredTaggedToI(LTaggedToI* instr) {
   Register scratch1 = scratch0();
   Register scratch2 = ToRegister(instr->temp());
   DwVfpRegister double_scratch = double_scratch0();
-  SwVfpRegister single_scratch = double_scratch.low();
+  DwVfpRegister double_scratch2 = ToDoubleRegister(instr->temp3());
 
   ASSERT(!scratch1.is(input_reg) && !scratch1.is(scratch2));
   ASSERT(!scratch2.is(input_reg) && !scratch2.is(scratch1));
@@ -4622,7 +4617,7 @@ void LCodeGen::DoDeferredTaggedToI(LTaggedToI* instr) {
 
   if (instr->truncating()) {
     Register scratch3 = ToRegister(instr->temp2());
-    DwVfpRegister double_scratch2 = ToDoubleRegister(instr->temp3());
+    SwVfpRegister single_scratch = double_scratch.low();
     ASSERT(!scratch3.is(input_reg) &&
            !scratch3.is(scratch1) &&
            !scratch3.is(scratch2));
@@ -4657,14 +4652,12 @@ void LCodeGen::DoDeferredTaggedToI(LTaggedToI* instr) {
     __ sub(ip, input_reg, Operand(kHeapObjectTag));
     __ vldr(double_scratch, ip, HeapNumber::kValueOffset);
     __ EmitVFPTruncate(kRoundToZero,
-                       single_scratch,
+                       input_reg,
                        double_scratch,
                        scratch1,
-                       scratch2,
+                       double_scratch2,
                        kCheckForInexactConversion);
     DeoptimizeIf(ne, instr->environment());
-    // Load the result.
-    __ vmov(input_reg, single_scratch);
 
     if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
       __ cmp(input_reg, Operand(0));
@@ -4728,12 +4721,12 @@ void LCodeGen::DoDoubleToI(LDoubleToI* instr) {
   Register scratch1 = scratch0();
   Register scratch2 = ToRegister(instr->temp());
   DwVfpRegister double_input = ToDoubleRegister(instr->value());
-  SwVfpRegister single_scratch = double_scratch0().low();
 
   Label done;
 
   if (instr->truncating()) {
     Register scratch3 = ToRegister(instr->temp2());
+    SwVfpRegister single_scratch = double_scratch0().low();
     __ EmitECMATruncate(result_reg,
                         double_input,
                         single_scratch,
@@ -4741,18 +4734,17 @@ void LCodeGen::DoDoubleToI(LDoubleToI* instr) {
                         scratch2,
                         scratch3);
   } else {
-    VFPRoundingMode rounding_mode = kRoundToMinusInf;
-    __ EmitVFPTruncate(rounding_mode,
-                       single_scratch,
+    DwVfpRegister double_scratch = double_scratch0();
+    __ EmitVFPTruncate(kRoundToMinusInf,
+                       result_reg,
                        double_input,
                        scratch1,
-                       scratch2,
+                       double_scratch,
                        kCheckForInexactConversion);
+
     // Deoptimize if we had a vfp invalid exception,
     // including inexact operation.
     DeoptimizeIf(ne, instr->environment());
-    // Retrieve the result.
-    __ vmov(result_reg, single_scratch);
   }
     __ bind(&done);
 }

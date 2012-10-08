@@ -826,6 +826,7 @@ void FloatingPointHelper::LoadNumberAsInt32Double(MacroAssembler* masm,
                                                   Register object,
                                                   Destination destination,
                                                   DwVfpRegister double_dst,
+                                                  DwVfpRegister double_scratch,
                                                   Register dst1,
                                                   Register dst2,
                                                   Register heap_number_map,
@@ -863,10 +864,10 @@ void FloatingPointHelper::LoadNumberAsInt32Double(MacroAssembler* masm,
     __ vldr(double_dst, scratch1, HeapNumber::kValueOffset);
 
     __ EmitVFPTruncate(kRoundToZero,
-                       single_scratch,
-                       double_dst,
                        scratch1,
+                       double_dst,
                        scratch2,
+                       double_scratch,
                        kCheckForInexactConversion);
 
     // Jump to not_int32 if the operation did not succeed.
@@ -906,7 +907,8 @@ void FloatingPointHelper::LoadNumberAsInt32(MacroAssembler* masm,
                                             Register scratch1,
                                             Register scratch2,
                                             Register scratch3,
-                                            DwVfpRegister double_scratch,
+                                            DwVfpRegister double_scratch0,
+                                            DwVfpRegister double_scratch1,
                                             Label* not_int32) {
   ASSERT(!dst.is(object));
   ASSERT(!scratch1.is(object) && !scratch2.is(object) && !scratch3.is(object));
@@ -929,23 +931,20 @@ void FloatingPointHelper::LoadNumberAsInt32(MacroAssembler* masm,
   // Convert the floating point value to a 32-bit integer.
   if (CpuFeatures::IsSupported(VFP2)) {
     CpuFeatures::Scope scope(VFP2);
-    SwVfpRegister single_scratch = double_scratch.low();
+
     // Load the double value.
     __ sub(scratch1, object, Operand(kHeapObjectTag));
-    __ vldr(double_scratch, scratch1, HeapNumber::kValueOffset);
+    __ vldr(double_scratch0, scratch1, HeapNumber::kValueOffset);
 
     __ EmitVFPTruncate(kRoundToZero,
-                       single_scratch,
-                       double_scratch,
+                       dst,
+                       double_scratch0,
                        scratch1,
-                       scratch2,
+                       double_scratch1,
                        kCheckForInexactConversion);
 
     // Jump to not_int32 if the operation did not succeed.
     __ b(ne, not_int32);
-    // Get the result in the destination register.
-    __ vmov(dst, single_scratch);
-
   } else {
     // Load the double value in the destination registers.
     __ ldr(scratch1, FieldMemOperand(object, HeapNumber::kExponentOffset));
@@ -2850,7 +2849,6 @@ void BinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
   Register scratch1 = r7;
   Register scratch2 = r9;
   DwVfpRegister double_scratch = d0;
-  SwVfpRegister single_scratch = s3;
 
   Register heap_number_result = no_reg;
   Register heap_number_map = r6;
@@ -2888,6 +2886,7 @@ void BinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
                                                    right,
                                                    destination,
                                                    d7,
+                                                   d8,
                                                    r2,
                                                    r3,
                                                    heap_number_map,
@@ -2899,6 +2898,7 @@ void BinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
                                                    left,
                                                    destination,
                                                    d6,
+                                                   d8,
                                                    r4,
                                                    r5,
                                                    heap_number_map,
@@ -2934,10 +2934,10 @@ void BinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
           // transition.
 
           __ EmitVFPTruncate(kRoundToZero,
-                             single_scratch,
-                             d5,
                              scratch1,
-                             scratch2);
+                             d5,
+                             scratch2,
+                             d8);
 
           if (result_type_ <= BinaryOpIC::INT32) {
             // If the ne condition is set, result does
@@ -2946,7 +2946,6 @@ void BinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
           }
 
           // Check if the result fits in a smi.
-          __ vmov(scratch1, single_scratch);
           __ add(scratch2, scratch1, Operand(0x40000000), SetCC);
           // If not try to return a heap number.
           __ b(mi, &return_heap_number);
@@ -3041,6 +3040,7 @@ void BinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
                                              scratch2,
                                              scratch3,
                                              d0,
+                                             d1,
                                              &transition);
       FloatingPointHelper::LoadNumberAsInt32(masm,
                                              right,
@@ -3050,6 +3050,7 @@ void BinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
                                              scratch2,
                                              scratch3,
                                              d0,
+                                             d1,
                                              &transition);
 
       // The ECMA-262 standard specifies that, for shift operations, only the
