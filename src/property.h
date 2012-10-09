@@ -68,7 +68,7 @@ class Descriptor BASE_EMBEDDED {
     details_ = PropertyDetails(details_.attributes(), details_.type(), index);
   }
 
-  void SetSortedKey(int index) { details_ = details_.set_pointer(index); }
+  void SetSortedKeyIndex(int index) { details_ = details_.set_pointer(index); }
 
  private:
   String* key_;
@@ -384,6 +384,7 @@ class LookupResult BASE_EMBEDDED {
 
   Object* GetValueFromMap(Map* map) const {
     ASSERT(lookup_type_ == DESCRIPTOR_TYPE);
+    ASSERT(number_ < map->NumberOfOwnDescriptors());
     return map->instance_descriptors()->GetValue(number_);
   }
 

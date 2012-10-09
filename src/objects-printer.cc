@@ -254,7 +254,7 @@ void ExternalDoubleArray::ExternalDoubleArrayPrint(FILE* out) {
 void JSObject::PrintProperties(FILE* out) {
   if (HasFastProperties()) {
     DescriptorArray* descs = map()->instance_descriptors();
-    for (int i = 0; i < descs->number_of_descriptors(); i++) {
+    for (int i = 0; i < map()->NumberOfOwnDescriptors(); i++) {
       PrintF(out, "   ");
       descs->GetKey(i)->StringPrint(out);
       PrintF(out, ": ");

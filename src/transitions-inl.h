@@ -83,22 +83,26 @@ void TransitionArray::set_elements_transition(Map* transition_map,
 
 
 DescriptorArray* TransitionArray::descriptors() {
-  return DescriptorArray::cast(get(kDescriptorsIndex));
+  return DescriptorArray::cast(descriptors_pointer()->value());
 }
 
 
-void TransitionArray::set_descriptors(DescriptorArray* descriptors,
-                                      WriteBarrierMode mode) {
-  Heap* heap = GetHeap();
-  WRITE_FIELD(this, kDescriptorsOffset, descriptors);
-  CONDITIONAL_WRITE_BARRIER(
-      heap, this, kDescriptorsOffset, descriptors, mode);
+void TransitionArray::set_descriptors(DescriptorArray* descriptors) {
+  ASSERT(!this->descriptors()->IsDescriptorArray() ||
+         descriptors->number_of_descriptors() == 0 ||
+         descriptors->HasEnumCache() ||
+         !this->descriptors()->HasEnumCache());
+  descriptors_pointer()->set_value(descriptors);
 }
 
 
-Object** TransitionArray::GetDescriptorsSlot() {
-  return HeapObject::RawField(reinterpret_cast<HeapObject*>(this),
-                              kDescriptorsOffset);
+JSGlobalPropertyCell* TransitionArray::descriptors_pointer() {
+  return JSGlobalPropertyCell::cast(get(kDescriptorsPointerIndex));
+}
+
+
+void TransitionArray::set_descriptors_pointer(JSGlobalPropertyCell* pointer) {
+  set(kDescriptorsPointerIndex, pointer);
 }
 
 
@@ -192,7 +196,7 @@ PropertyDetails TransitionArray::GetTargetDetails(int transition_number) {
 
 
 int TransitionArray::Search(String* name) {
-  return internal::Search(this, name);
+  return internal::Search<ALL_ENTRIES>(this, name);
 }
 
 

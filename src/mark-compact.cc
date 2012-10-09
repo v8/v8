@@ -1548,7 +1548,8 @@ class MarkCompactMarkingVisitor::ObjectStatsTracker<
     Map* map_obj = Map::cast(obj);
     ASSERT(map->instance_type() == MAP_TYPE);
     DescriptorArray* array = map_obj->instance_descriptors();
-    if (array != heap->empty_descriptor_array()) {
+    if (map_obj->owns_descriptors() &&
+        array != heap->empty_descriptor_array()) {
       int fixed_array_size = array->Size();
       heap->RecordObjectStats(FIXED_ARRAY_TYPE,
                               DESCRIPTOR_ARRAY_SUB_TYPE,
@@ -1942,10 +1943,10 @@ void Marker<T>::MarkTransitionArray(TransitionArray* transitions) {
   if (!base_marker()->MarkObjectWithoutPush(transitions)) return;
   Object** transitions_start = transitions->data_start();
 
-  DescriptorArray* descriptors = transitions->descriptors();
-  base_marker()->MarkObjectAndPush(descriptors);
-  mark_compact_collector()->RecordSlot(
-      transitions_start, transitions->GetDescriptorsSlot(), descriptors);
+  // We don't have to record the descriptors_pointer slot since the cell space
+  // is not compacted.
+  JSGlobalPropertyCell* descriptors_cell = transitions->descriptors_pointer();
+  base_marker()->MarkObjectAndPush(descriptors_cell);
 
   if (transitions->HasPrototypeTransitions()) {
     // Mark prototype transitions array but don't push it into marking stack.

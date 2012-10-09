@@ -1940,31 +1940,45 @@ int BinarySearch(T* array, String* name, int low, int high) {
 
 // Perform a linear search in this fixed array. len is the number of entry
 // indices that are valid.
-template<typename T>
-int LinearSearch(T* array, String* name, int len) {
+template<SearchMode search_mode, typename T>
+int LinearSearch(T* array, String* name, int len, int valid_entries) {
   uint32_t hash = name->Hash();
-  for (int number = 0; number < len; number++) {
-    int sorted_index = array->GetSortedKeyIndex(number);
-    String* entry = array->GetKey(sorted_index);
-    uint32_t current_hash = entry->Hash();
-    if (current_hash > hash) break;
-    if (current_hash == hash && entry->Equals(name)) return sorted_index;
+  if (search_mode == ALL_ENTRIES) {
+    for (int number = 0; number < len; number++) {
+      int sorted_index = array->GetSortedKeyIndex(number);
+      String* entry = array->GetKey(sorted_index);
+      uint32_t current_hash = entry->Hash();
+      if (current_hash > hash) break;
+      if (current_hash == hash && entry->Equals(name)) return sorted_index;
+    }
+  } else {
+    ASSERT(len >= valid_entries);
+    for (int number = 0; number < valid_entries; number++) {
+      String* entry = array->GetKey(number);
+      uint32_t current_hash = entry->Hash();
+      if (current_hash == hash && entry->Equals(name)) return number;
+    }
   }
   return T::kNotFound;
 }
 
 
-template<typename T>
-int Search(T* array, String* name) {
-  SLOW_ASSERT(array->IsSortedNoDuplicates());
+template<SearchMode search_mode, typename T>
+int Search(T* array, String* name, int valid_entries) {
+  if (search_mode == VALID_ENTRIES) {
+    SLOW_ASSERT(array->IsSortedNoDuplicates(valid_entries));
+  } else {
+    SLOW_ASSERT(array->IsSortedNoDuplicates());
+  }
 
   int nof = array->number_of_entries();
   if (nof == 0) return T::kNotFound;
 
   // Fast case: do linear search for small arrays.
   const int kMaxElementsForLinearSearch = 8;
-  if (nof < kMaxElementsForLinearSearch) {
-    return LinearSearch(array, name, nof);
+  if (search_mode == VALID_ENTRIES ||
+      (search_mode == ALL_ENTRIES && nof < kMaxElementsForLinearSearch)) {
+    return LinearSearch<search_mode>(array, name, nof, valid_entries);
   }
 
   // Slow case: perform binary search.
@@ -1972,20 +1986,21 @@ int Search(T* array, String* name) {
 }
 
 
-int DescriptorArray::Search(String* name) {
-  return internal::Search(this, name);
+int DescriptorArray::Search(String* name, int valid_descriptors) {
+  return internal::Search<VALID_ENTRIES>(this, name, valid_descriptors);
 }
 
 
-int DescriptorArray::SearchWithCache(String* name) {
-  if (number_of_descriptors() == 0) return kNotFound;
+int DescriptorArray::SearchWithCache(String* name, Map* map) {
+  int number_of_own_descriptors = map->NumberOfOwnDescriptors();
+  if (number_of_own_descriptors == 0) return kNotFound;
 
   DescriptorLookupCache* cache = GetIsolate()->descriptor_lookup_cache();
-  int number = cache->Lookup(this, name);
+  int number = cache->Lookup(map, name);
 
   if (number == DescriptorLookupCache::kAbsent) {
-    number = Search(name);
-    cache->Update(this, name, number);
+    number = Search(name, number_of_own_descriptors);
+    cache->Update(map, name, number);
   }
 
   return number;
@@ -1996,7 +2011,7 @@ void Map::LookupDescriptor(JSObject* holder,
                            String* name,
                            LookupResult* result) {
   DescriptorArray* descriptors = this->instance_descriptors();
-  int number = descriptors->SearchWithCache(name);
+  int number = descriptors->SearchWithCache(name, this);
   if (number == DescriptorArray::kNotFound) return result->NotFound();
   result->DescriptorResult(holder, descriptors->GetDetails(number), number);
 }
@@ -2040,10 +2055,9 @@ String* DescriptorArray::GetSortedKey(int descriptor_number) {
 }
 
 
-void DescriptorArray::SetSortedKey(int pointer, int descriptor_number) {
-  int details_index = ToDetailsIndex(pointer);
-  PropertyDetails details = PropertyDetails(Smi::cast(get(details_index)));
-  set_unchecked(details_index, details.set_pointer(descriptor_number).AsSmi());
+void DescriptorArray::SetSortedKey(int descriptor_index, int pointer) {
+  PropertyDetails details = GetDetails(descriptor_index);
+  set(ToDetailsIndex(descriptor_index), details.set_pointer(pointer).AsSmi());
 }
 
 
@@ -2127,21 +2141,22 @@ void DescriptorArray::Set(int descriptor_number,
 void DescriptorArray::Append(Descriptor* desc,
                              const WhitenessWitness& witness,
                              int number_of_set_descriptors) {
-  int enumeration_index = number_of_set_descriptors + 1;
+  int descriptor_number = number_of_set_descriptors;
+  int enumeration_index = descriptor_number + 1;
   desc->SetEnumerationIndex(enumeration_index);
-  Set(number_of_set_descriptors, desc, witness);
+  Set(descriptor_number, desc, witness);
 
   uint32_t hash = desc->GetKey()->Hash();
 
   int insertion;
 
-  for (insertion = number_of_set_descriptors; insertion > 0; --insertion) {
+  for (insertion = descriptor_number; insertion > 0; --insertion) {
     String* key = GetSortedKey(insertion - 1);
     if (key->Hash() <= hash) break;
     SetSortedKey(insertion, GetSortedKeyIndex(insertion - 1));
   }
 
-  SetSortedKey(insertion, number_of_set_descriptors);
+  SetSortedKey(insertion, descriptor_number);
 }
 
 
@@ -3040,6 +3055,16 @@ Code::Flags Code::flags() {
 }
 
 
+void Map::set_owns_descriptors(bool is_shared) {
+  set_bit_field3(OwnsDescriptors::update(bit_field3(), is_shared));
+}
+
+
+bool Map::owns_descriptors() {
+  return OwnsDescriptors::decode(bit_field3());
+}
+
+
 void Code::set_flags(Code::Flags flags) {
   STATIC_ASSERT(Code::NUMBER_OF_KINDS <= KindField::kMax + 1);
   // Make sure that all call stubs have an arguments count.
@@ -3475,9 +3500,17 @@ void Map::set_prototype(Object* value, WriteBarrierMode mode) {
 }
 
 
+JSGlobalPropertyCell* Map::descriptors_pointer() {
+  ASSERT(HasTransitionArray());
+  return transitions()->descriptors_pointer();
+}
+
+
 DescriptorArray* Map::instance_descriptors() {
-  if (!HasTransitionArray()) return GetHeap()->empty_descriptor_array();
-  return transitions()->descriptors();
+  if (HasTransitionArray()) return transitions()->descriptors();
+  Object* back_pointer = GetBackPointer();
+  if (!back_pointer->IsMap()) return GetHeap()->empty_descriptor_array();
+  return Map::cast(back_pointer)->instance_descriptors();
 }
 
 
@@ -3487,29 +3520,31 @@ static MaybeObject* EnsureHasTransitionArray(Map* map) {
   if (map->HasTransitionArray()) return map;
 
   TransitionArray* transitions;
-  MaybeObject* maybe_transitions = TransitionArray::Allocate(0);
+  JSGlobalPropertyCell* pointer = map->RetrieveDescriptorsPointer();
+  MaybeObject* maybe_transitions = TransitionArray::Allocate(0, pointer);
   if (!maybe_transitions->To(&transitions)) return maybe_transitions;
+
+  transitions->set_back_pointer_storage(map->GetBackPointer());
   map->set_transitions(transitions);
   return transitions;
 }
 
 
-MaybeObject* Map::SetDescriptors(DescriptorArray* value,
-                                 WriteBarrierMode mode) {
+MaybeObject* Map::SetDescriptors(DescriptorArray* value) {
   ASSERT(!is_shared());
   MaybeObject* maybe_failure = EnsureHasTransitionArray(this);
   if (maybe_failure->IsFailure()) return maybe_failure;
 
-  transitions()->set_descriptors(value, mode);
+  ASSERT(NumberOfOwnDescriptors() <= value->number_of_descriptors());
+  transitions()->set_descriptors(value);
   return this;
 }
 
 
 MaybeObject* Map::InitializeDescriptors(DescriptorArray* descriptors) {
-#ifdef DEBUG
   int len = descriptors->number_of_descriptors();
+#ifdef DEBUG
   ASSERT(len <= DescriptorArray::kMaxNumberOfDescriptors);
-  SLOW_ASSERT(descriptors->IsSortedNoDuplicates());
 
   bool used_indices[DescriptorArray::kMaxNumberOfDescriptors];
   for (int i = 0; i < len; ++i) used_indices[i] = false;
@@ -3528,8 +3563,7 @@ MaybeObject* Map::InitializeDescriptors(DescriptorArray* descriptors) {
   MaybeObject* maybe_failure = SetDescriptors(descriptors);
   if (maybe_failure->IsFailure()) return maybe_failure;
 
-  SetNumberOfOwnDescriptors(descriptors->number_of_descriptors());
-
+  SetNumberOfOwnDescriptors(len);
   return this;
 }
 
@@ -3598,14 +3632,31 @@ bool Map::CanHaveMoreTransitions() {
 }
 
 
+JSGlobalPropertyCell* Map::RetrieveDescriptorsPointer() {
+  if (!owns_descriptors()) return NULL;
+  Object* back_pointer = GetBackPointer();
+  if (back_pointer->IsUndefined()) return NULL;
+  Map* map = Map::cast(back_pointer);
+  ASSERT(map->HasTransitionArray());
+  return map->transitions()->descriptors_pointer();
+}
+
+
 MaybeObject* Map::AddTransition(String* key, Map* target) {
   if (HasTransitionArray()) return transitions()->CopyInsert(key, target);
-  return TransitionArray::NewWith(key, target);
+  JSGlobalPropertyCell* descriptors_pointer = RetrieveDescriptorsPointer();
+  return TransitionArray::NewWith(
+      key, target, descriptors_pointer, GetBackPointer());
 }
 
 
 void Map::SetTransition(int transition_index, Map* target) {
   transitions()->SetTarget(transition_index, target);
+}
+
+
+Map* Map::GetTransition(int transition_index) {
+  return transitions()->GetTarget(transition_index);
 }
 
 
@@ -3654,8 +3705,6 @@ TransitionArray* Map::transitions() {
 
 void Map::set_transitions(TransitionArray* transition_array,
                           WriteBarrierMode mode) {
-  transition_array->set_descriptors(instance_descriptors());
-  transition_array->set_back_pointer_storage(GetBackPointer());
 #ifdef DEBUG
   if (HasTransitionArray()) {
     ASSERT(transitions() != transition_array);

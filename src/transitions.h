@@ -72,9 +72,9 @@ class TransitionArray: public FixedArray {
   inline void ClearElementsTransition();
 
   inline DescriptorArray* descriptors();
-  inline void set_descriptors(DescriptorArray* descriptors,
-                              WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-  inline Object** GetDescriptorsSlot();
+  inline void set_descriptors(DescriptorArray* descriptors);
+  inline JSGlobalPropertyCell* descriptors_pointer();
+  inline void set_descriptors_pointer(JSGlobalPropertyCell* pointer);
 
   inline Object* back_pointer_storage();
   inline void set_back_pointer_storage(
@@ -99,7 +99,11 @@ class TransitionArray: public FixedArray {
   inline int number_of_entries() { return number_of_transitions(); }
 
   // Allocate a new transition array with a single entry.
-  static MUST_USE_RESULT MaybeObject* NewWith(String* name, Map* target);
+  static MUST_USE_RESULT MaybeObject* NewWith(
+      String* name,
+      Map* target,
+      JSGlobalPropertyCell* descriptor_pointer,
+      Object* back_pointer);
 
   // Copy the transition array, inserting a new transition.
   // TODO(verwaest): This should not cause an existing transition to be
@@ -115,7 +119,9 @@ class TransitionArray: public FixedArray {
   inline int Search(String* name);
 
   // Allocates a TransitionArray.
-  MUST_USE_RESULT static MaybeObject* Allocate(int number_of_transitions);
+  MUST_USE_RESULT static MaybeObject* Allocate(
+      int number_of_transitions,
+      JSGlobalPropertyCell* descriptors_cell);
 
   // Casting.
   static inline TransitionArray* cast(Object* obj);
@@ -123,15 +129,15 @@ class TransitionArray: public FixedArray {
   // Constant for denoting key was not found.
   static const int kNotFound = -1;
 
-  static const int kDescriptorsIndex = 0;
+  static const int kDescriptorsPointerIndex = 0;
   static const int kBackPointerStorageIndex = 1;
   static const int kElementsTransitionIndex = 2;
   static const int kPrototypeTransitionsIndex = 3;
   static const int kFirstIndex = 4;
 
   // Layout transition array header.
-  static const int kDescriptorsOffset = FixedArray::kHeaderSize;
-  static const int kBackPointerStorageOffset = kDescriptorsOffset +
+  static const int kDescriptorsPointerOffset = FixedArray::kHeaderSize;
+  static const int kBackPointerStorageOffset = kDescriptorsPointerOffset +
                                                kPointerSize;
   static const int kElementsTransitionOffset = kBackPointerStorageOffset +
                                                kPointerSize;
@@ -152,7 +158,7 @@ class TransitionArray: public FixedArray {
 #endif
 
 #ifdef DEBUG
-  bool IsSortedNoDuplicates();
+  bool IsSortedNoDuplicates(int valid_entries = -1);
   bool IsConsistentWithBackPointers(Map* current_map);
   bool IsEqualTo(TransitionArray* other);
 #endif

@@ -2729,26 +2729,31 @@ void FullCodeGenerator::EmitIsStringWrapperSafeForDefaultValueOf(
   __ b(eq, if_false);
 
   // Look for valueOf symbol in the descriptor array, and indicate false if
-  // found. The type is not checked, so if it is a transition it is a false
-  // negative.
-  __ LoadInstanceDescriptors(r1, r4, r3);
-  __ ldr(r3, FieldMemOperand(r4, FixedArray::kLengthOffset));
-  // r4: descriptor array
-  // r3: length of descriptor array
-  // Calculate the end of the descriptor array.
+  // found. Since we omit an enumeration index check, if it is added via a
+  // transition that shares its descriptor array, this is a false positive.
+  Label entry, loop, done;
+
+  // Skip loop if no descriptors are valid.
+  __ NumberOfOwnDescriptors(r3, r1);
+  __ cmp(r3, Operand(0));
+  __ b(eq, &done);
+
+  __ LoadInstanceDescriptors(r1, r4, r2);
+  // r4: descriptor array.
+  // r3: valid entries in the descriptor array.
   STATIC_ASSERT(kSmiTag == 0);
   STATIC_ASSERT(kSmiTagSize == 1);
   STATIC_ASSERT(kPointerSize == 4);
-  __ add(r2, r4, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
+  __ mov(ip, Operand(DescriptorArray::kDescriptorSize));
+  __ mul(r3, r3, ip);
+  // Calculate location of the first key name.
+  __ add(r4, r4, Operand(DescriptorArray::kFirstOffset - kHeapObjectTag));
+  // Calculate the end of the descriptor array.
+  __ mov(r2, r4);
   __ add(r2, r2, Operand(r3, LSL, kPointerSizeLog2 - kSmiTagSize));
 
-  // Calculate location of the first key name.
-  __ add(r4,
-         r4,
-         Operand(DescriptorArray::kFirstOffset - kHeapObjectTag));
   // Loop through all the keys in the descriptor array. If one of these is the
   // symbol valueOf the result is false.
-  Label entry, loop;
   // The use of ip to store the valueOf symbol asumes that it is not otherwise
   // used in the loop below.
   __ mov(ip, Operand(FACTORY->value_of_symbol()));
@@ -2762,7 +2767,8 @@ void FullCodeGenerator::EmitIsStringWrapperSafeForDefaultValueOf(
   __ cmp(r4, Operand(r2));
   __ b(ne, &loop);
 
-  // If a valueOf property is not found on the object check that it's
+  __ bind(&done);
+  // If a valueOf property is not found on the object check that its
   // prototype is the un-modified String prototype. If not result is false.
   __ ldr(r2, FieldMemOperand(r1, Map::kPrototypeOffset));
   __ JumpIfSmi(r2, if_false);

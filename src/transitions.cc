@@ -35,14 +35,23 @@ namespace v8 {
 namespace internal {
 
 
-MaybeObject* TransitionArray::Allocate(int number_of_transitions) {
+MaybeObject* TransitionArray::Allocate(int number_of_transitions,
+                                       JSGlobalPropertyCell* descriptors_cell) {
   Heap* heap = Isolate::Current()->heap();
+
+  if (descriptors_cell == NULL) {
+    MaybeObject* maybe_cell =
+        heap->AllocateJSGlobalPropertyCell(heap->empty_descriptor_array());
+    if (!maybe_cell->To(&descriptors_cell)) return maybe_cell;
+  }
+
   // Use FixedArray to not use DescriptorArray::cast on incomplete object.
   FixedArray* array;
   MaybeObject* maybe_array =
       heap->AllocateFixedArray(ToKeyIndex(number_of_transitions));
   if (!maybe_array->To(&array)) return maybe_array;
 
+  array->set(kDescriptorsPointerIndex, descriptors_cell);
   array->set(kElementsTransitionIndex, Smi::FromInt(0));
   array->set(kPrototypeTransitionsIndex, Smi::FromInt(0));
   return array;
@@ -63,13 +72,18 @@ static bool InsertionPointFound(String* key1, String* key2) {
 }
 
 
-MaybeObject* TransitionArray::NewWith(String* name, Map* target) {
+MaybeObject* TransitionArray::NewWith(
+    String* name,
+    Map* target,
+    JSGlobalPropertyCell* descriptors_pointer,
+    Object* back_pointer) {
   TransitionArray* result;
 
-  MaybeObject* maybe_array = TransitionArray::Allocate(1);
+  MaybeObject* maybe_array = TransitionArray::Allocate(1, descriptors_pointer);
   if (!maybe_array->To(&result)) return maybe_array;
 
   result->NoIncrementalWriteBarrierSet(0, name, target);
+  result->set_back_pointer_storage(back_pointer);
   return result;
 }
 
@@ -84,7 +98,7 @@ MaybeObject* TransitionArray::CopyInsert(String* name, Map* target) {
   if (insertion_index == kNotFound) ++new_size;
 
   MaybeObject* maybe_array;
-  maybe_array = TransitionArray::Allocate(new_size);
+  maybe_array = TransitionArray::Allocate(new_size, descriptors_pointer());
   if (!maybe_array->To(&result)) return maybe_array;
 
   if (HasElementsTransition()) {
@@ -119,6 +133,7 @@ MaybeObject* TransitionArray::CopyInsert(String* name, Map* target) {
         this, insertion_index, insertion_index + 1);
   }
 
+  result->set_back_pointer_storage(back_pointer_storage());
   return result;
 }
 
