@@ -363,12 +363,14 @@ void MacroAssembler::Bfi(Register dst,
 }
 
 
-void MacroAssembler::Bfc(Register dst, int lsb, int width, Condition cond) {
+void MacroAssembler::Bfc(Register dst, Register src, int lsb, int width,
+                         Condition cond) {
   ASSERT(lsb < 32);
   if (!CpuFeatures::IsSupported(ARMv7) || predictable_code_size()) {
     int mask = (1 << (width + lsb)) - 1 - ((1 << lsb) - 1);
-    bic(dst, dst, Operand(mask));
+    bic(dst, src, Operand(mask));
   } else {
+    Move(dst, src, cond);
     bfc(dst, lsb, width, cond);
   }
 }
@@ -3497,7 +3499,7 @@ void MacroAssembler::CheckPageFlag(
     int mask,
     Condition cc,
     Label* condition_met) {
-  and_(scratch, object, Operand(~Page::kPageAlignmentMask));
+  Bfc(scratch, object, 0, kPageSizeBits);
   ldr(scratch, MemOperand(scratch, MemoryChunk::kFlagsOffset));
   tst(scratch, Operand(mask));
   b(cc, condition_met);
