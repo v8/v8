@@ -677,7 +677,7 @@ class ELF BASE_EMBEDDED {
         { 0x7f, 'E', 'L', 'F', 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 #elif defined(V8_TARGET_ARCH_X64)
     const uint8_t ident[16] =
-        { 0x7f, 'E', 'L', 'F', 2, 1, 1, 0, 0, 0 , 0, 0, 0, 0, 0, 0};
+        { 0x7f, 'E', 'L', 'F', 2, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 #else
 #error Unsupported target architecture.
 #endif
@@ -1110,6 +1110,8 @@ class DebugInfoSection : public DebugSection {
       w->Write<uint8_t>(DW_OP_reg5);  // The frame pointer's here on ia32
 #elif defined(V8_TARGET_ARCH_X64)
       w->Write<uint8_t>(DW_OP_reg6);  // and here on x64.
+#elif defined(V8_TARGET_ARCH_ARM)
+      UNIMPLEMENTED();
 #else
 #error Unsupported target architecture.
 #endif
