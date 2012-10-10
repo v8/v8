@@ -1,3 +1,31 @@
+2012-10-10: Version 3.14.2
+
+        ARM: allowed VFP3 instructions when hardfloat is enabled.
+        (Chromium issue 152506)
+
+        Fixed instance_descriptors() and PushStackTraceAndDie regressions.
+        (Chromium issue 151749)
+
+        Made GDBJIT interface compile again. (issue 1804)
+
+        Fixed Accessors::FunctionGetPrototype's proto chain traversal.
+        (Chromium issue 143967)
+
+        Made sure that names of temporaries do not clash with real variables.
+        (issue 2322)
+
+        Rejected local module declarations. (Chromium issue 150628)
+
+        Rejected uses of lexical for-loop variable on the RHS. (issue 2322)
+
+        Fixed slot recording of code target patches.
+        (Chromium issue 152615,chromium:144230)
+
+        Changed the Android makefile to use GCC 4.6 instead of GCC 4.4.3.
+
+        Performance and stability improvements on all platforms.
+
+
 2012-10-01: Version 3.14.1
 
         Don't set -m32 flag when compiling with Android ARM compiler.
