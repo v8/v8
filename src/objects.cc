@@ -7431,15 +7431,6 @@ void String::PrintOn(FILE* file) {
 }
 
 
-// Clear a possible back pointer in case the transition leads to a dead map.
-// Return true in case a back pointer has been cleared and false otherwise.
-static bool ClearBackPointer(Heap* heap, Map* target) {
-  if (Marking::MarkBitFrom(target).Get()) return false;
-  target->SetBackPointer(heap->undefined_value(), SKIP_WRITE_BARRIER);
-  return true;
-}
-
-
 static void TrimEnumCache(Heap* heap, Map* map, DescriptorArray* descriptors) {
   int live_enum = map->EnumLength();
   if (live_enum == Map::kInvalidEnumCache) {
@@ -7485,6 +7476,21 @@ static void TrimDescriptorArray(Heap* heap,
 }
 
 
+// Clear a possible back pointer in case the transition leads to a dead map.
+// Return true in case a back pointer has been cleared and false otherwise.
+static bool ClearBackPointer(Heap* heap,
+                             Map* target,
+                             DescriptorArray* descriptors,
+                             bool* descriptors_owner_died) {
+  if (Marking::MarkBitFrom(target).Get()) return false;
+  if (target->instance_descriptors() == descriptors) {
+    *descriptors_owner_died = true;
+  }
+  target->SetBackPointer(heap->undefined_value(), SKIP_WRITE_BARRIER);
+  return true;
+}
+
+
 // TODO(mstarzinger): This method should be moved into MarkCompactCollector,
 // because it cannot be called from outside the GC and we already have methods
 // depending on the transitions layout in the GC anyways.
@@ -7505,15 +7511,7 @@ void Map::ClearNonLiveTransitions(Heap* heap) {
   // Compact all live descriptors to the left.
   for (int i = 0; i < t->number_of_transitions(); ++i) {
     Map* target = t->GetTarget(i);
-    if (ClearBackPointer(heap, target)) {
-      ASSERT(!Marking::IsGrey(Marking::MarkBitFrom(target)));
-      DescriptorArray* target_descriptors = target->instance_descriptors();
-      if ((target_descriptors->number_of_descriptors() == 0 &&
-           target->NumberOfOwnDescriptors() > 0) ||
-          target_descriptors == descriptors) {
-        descriptors_owner_died = true;
-      }
-    } else {
+    if (!ClearBackPointer(heap, target, descriptors, &descriptors_owner_died)) {
       if (i != transition_index) {
         String* key = t->GetKey(i);
         t->SetKey(transition_index, key);
@@ -7527,10 +7525,10 @@ void Map::ClearNonLiveTransitions(Heap* heap) {
   }
 
   if (t->HasElementsTransition() &&
-      ClearBackPointer(heap, t->elements_transition())) {
-    if (t->elements_transition()->instance_descriptors() == descriptors) {
-      descriptors_owner_died = true;
-    }
+      ClearBackPointer(heap,
+                       t->elements_transition(),
+                       descriptors,
+                       &descriptors_owner_died)) {
     t->ClearElementsTransition();
   } else {
     // If there are no transitions to be cleared, return.
