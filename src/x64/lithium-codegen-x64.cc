@@ -1125,8 +1125,11 @@ void LCodeGen::DoMulI(LMulI* instr) {
     __ testl(left, left);
     __ j(not_zero, &done, Label::kNear);
     if (right->IsConstantOperand()) {
-      if (ToInteger32(LConstantOperand::cast(right)) <= 0) {
+      if (ToInteger32(LConstantOperand::cast(right)) < 0) {
         DeoptimizeIf(no_condition, instr->environment());
+      } else if (ToInteger32(LConstantOperand::cast(right)) == 0) {
+        __ cmpl(kScratchRegister, Immediate(0));
+        DeoptimizeIf(less, instr->environment());
       }
     } else if (right->IsStackSlot()) {
       __ orl(kScratchRegister, ToOperand(right));
@@ -3774,11 +3777,17 @@ void LCodeGen::DoBoundsCheck(LBoundsCheck* instr) {
       __ cmpq(reg, reg2);
     }
   } else {
+    Operand length = ToOperand(instr->length());
     if (instr->index()->IsConstantOperand()) {
-      __ cmpq(ToOperand(instr->length()),
-              Immediate(ToInteger32(LConstantOperand::cast(instr->index()))));
+      int constant_index =
+          ToInteger32(LConstantOperand::cast(instr->index()));
+      if (instr->hydrogen()->length()->representation().IsTagged()) {
+        __ Cmp(length, Smi::FromInt(constant_index));
+      } else {
+        __ cmpq(length, Immediate(constant_index));
+      }
     } else {
-      __ cmpq(ToOperand(instr->length()), ToRegister(instr->index()));
+      __ cmpq(length, ToRegister(instr->index()));
     }
   }
   DeoptimizeIf(below_equal, instr->environment());

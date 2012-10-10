@@ -31,7 +31,6 @@
 #include "cpu-profiler.h"
 
 #include <new>
-#include "circular-queue-inl.h"
 #include "profile-generator-inl.h"
 #include "unbound-queue-inl.h"
 
@@ -56,11 +55,18 @@ void SharedFunctionInfoMoveEventRecord::UpdateCodeMap(CodeMap* code_map) {
 }
 
 
-TickSample* ProfilerEventsProcessor::TickSampleEvent() {
+TickSample* ProfilerEventsProcessor::StartTickSampleEvent() {
+  if (!ticks_buffer_is_empty_ || ticks_buffer_is_initialized_) return NULL;
+  ticks_buffer_is_initialized_ = true;
   generator_->Tick();
-  TickSampleEventRecord* evt =
-      new(ticks_buffer_.Enqueue()) TickSampleEventRecord(enqueue_order_);
-  return &evt->sample;
+  ticks_buffer_ = TickSampleEventRecord(enqueue_order_);
+  return &ticks_buffer_.sample;
+}
+
+
+void ProfilerEventsProcessor::FinishTickSampleEvent() {
+  ASSERT(ticks_buffer_is_initialized_ && ticks_buffer_is_empty_);
+  ticks_buffer_is_empty_ = false;
 }
 
 

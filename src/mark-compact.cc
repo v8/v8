@@ -68,8 +68,7 @@ MarkCompactCollector::MarkCompactCollector() :  // NOLINT
       migration_slots_buffer_(NULL),
       heap_(NULL),
       code_flusher_(NULL),
-      encountered_weak_maps_(NULL),
-      marker_(this, this) { }
+      encountered_weak_maps_(NULL) { }
 
 
 #ifdef DEBUG
@@ -339,6 +338,11 @@ static void TraceFragmentation(PagedSpace* space) {
 bool MarkCompactCollector::StartCompaction(CompactionMode mode) {
   if (!compacting_) {
     ASSERT(evacuation_candidates_.length() == 0);
+
+#ifdef ENABLE_GDB_JIT_INTERFACE
+    // If GDBJIT interface is active disable compaction.
+    if (FLAG_gdbjit) return false;
+#endif
 
     CollectEvacuationCandidates(heap()->old_pointer_space());
     CollectEvacuationCandidates(heap()->old_data_space());
@@ -779,13 +783,6 @@ void MarkCompactCollector::Prepare(GCTracer* tracer) {
 
   ASSERT(!FLAG_never_compact || !FLAG_always_compact);
 
-#ifdef ENABLE_GDB_JIT_INTERFACE
-  if (FLAG_gdbjit) {
-    // If GDBJIT interface is active disable compaction.
-    compacting_collection_ = false;
-  }
-#endif
-
   // Clear marking bits if incremental marking is aborted.
   if (was_marked_incrementally_ && abort_incremental_marking_) {
     heap()->incremental_marking()->Abort();
@@ -1067,9 +1064,21 @@ class MarkCompactMarkingVisitor
     }
   }
 
+  // Marks the object black and pushes it on the marking stack.
   INLINE(static void MarkObject(Heap* heap, HeapObject* object)) {
     MarkBit mark = Marking::MarkBitFrom(object);
     heap->mark_compact_collector()->MarkObject(object, mark);
+  }
+
+  // Marks the object black without pushing it on the marking stack.
+  // Returns true if object needed marking and false otherwise.
+  INLINE(static bool MarkObjectWithoutPush(Heap* heap, HeapObject* object)) {
+    MarkBit mark_bit = Marking::MarkBitFrom(object);
+    if (!mark_bit.Get()) {
+      heap->mark_compact_collector()->SetMark(object, mark_bit);
+      return true;
+    }
+    return false;
   }
 
   // Mark object pointed to by p.
@@ -1877,97 +1886,6 @@ class MarkCompactWeakObjectRetainer : public WeakObjectRetainer {
     }
   }
 };
-
-
-void MarkCompactCollector::ProcessNewlyMarkedObject(HeapObject* object) {
-  ASSERT(IsMarked(object));
-  ASSERT(HEAP->Contains(object));
-  if (object->IsMap()) {
-    Map* map = Map::cast(object);
-    heap_->ClearCacheOnMap(map);
-
-    // When map collection is enabled we have to mark through map's transitions
-    // in a special way to make transition links weak. Only maps for subclasses
-    // of JSReceiver can have transitions.
-    STATIC_ASSERT(LAST_TYPE == LAST_JS_RECEIVER_TYPE);
-    if (FLAG_collect_maps && map->instance_type() >= FIRST_JS_RECEIVER_TYPE) {
-      marker_.MarkMapContents(map);
-    } else {
-      marking_deque_.PushBlack(map);
-    }
-  } else {
-    marking_deque_.PushBlack(object);
-  }
-}
-
-
-// Force instantiation of template instances.
-template void Marker<IncrementalMarking>::MarkMapContents(Map* map);
-template void Marker<MarkCompactCollector>::MarkMapContents(Map* map);
-
-
-template <class T>
-void Marker<T>::MarkMapContents(Map* map) {
-  // Make sure that the back pointer stored either in the map itself or inside
-  // its transitions array is marked. Treat pointers in the transitions array as
-  // weak and also mark that array to prevent visiting it later.
-  base_marker()->MarkObjectAndPush(HeapObject::cast(map->GetBackPointer()));
-
-  Object** transitions_slot =
-      HeapObject::RawField(map, Map::kTransitionsOrBackPointerOffset);
-  Object* transitions = *transitions_slot;
-  if (transitions->IsTransitionArray()) {
-    MarkTransitionArray(reinterpret_cast<TransitionArray*>(transitions));
-  } else {
-    // Already marked by marking map->GetBackPointer().
-    ASSERT(transitions->IsMap() || transitions->IsUndefined());
-  }
-
-  // Mark the Object* fields of the Map. Since the transitions array has been
-  // marked already, it is fine that one of these fields contains a pointer to
-  // it.
-  Object** start_slot =
-      HeapObject::RawField(map, Map::kPointerFieldsBeginOffset);
-  Object** end_slot = HeapObject::RawField(map, Map::kPointerFieldsEndOffset);
-  for (Object** slot = start_slot; slot < end_slot; slot++) {
-    Object* obj = *slot;
-    if (!obj->NonFailureIsHeapObject()) continue;
-    mark_compact_collector()->RecordSlot(start_slot, slot, obj);
-    base_marker()->MarkObjectAndPush(reinterpret_cast<HeapObject*>(obj));
-  }
-}
-
-
-template <class T>
-void Marker<T>::MarkTransitionArray(TransitionArray* transitions) {
-  if (!base_marker()->MarkObjectWithoutPush(transitions)) return;
-  Object** transitions_start = transitions->data_start();
-
-  // We don't have to record the descriptors_pointer slot since the cell space
-  // is not compacted.
-  JSGlobalPropertyCell* descriptors_cell = transitions->descriptors_pointer();
-  base_marker()->MarkObjectAndPush(descriptors_cell);
-
-  if (transitions->HasPrototypeTransitions()) {
-    // Mark prototype transitions array but don't push it into marking stack.
-    // This will make references from it weak. We will clean dead prototype
-    // transitions in ClearNonLiveTransitions.
-    Object** proto_trans_slot = transitions->GetPrototypeTransitionsSlot();
-    HeapObject* prototype_transitions = HeapObject::cast(*proto_trans_slot);
-    base_marker()->MarkObjectWithoutPush(prototype_transitions);
-    mark_compact_collector()->RecordSlot(
-        transitions_start, proto_trans_slot, prototype_transitions);
-  }
-
-  for (int i = 0; i < transitions->number_of_transitions(); ++i) {
-    Object** key_slot = transitions->GetKeySlot(i);
-    Object* key = *key_slot;
-    if (key->IsHeapObject()) {
-      base_marker()->MarkObjectAndPush(HeapObject::cast(key));
-      mark_compact_collector()->RecordSlot(transitions_start, key_slot, key);
-    }
-  }
-}
 
 
 // Fill the marking stack with overflowed objects returned by the given
@@ -4078,6 +3996,20 @@ void MarkCompactCollector::RecordCodeEntrySlot(Address slot, Code* target) {
                             slot,
                             SlotsBuffer::FAIL_ON_OVERFLOW)) {
       EvictEvacuationCandidate(target_page);
+    }
+  }
+}
+
+
+void MarkCompactCollector::RecordCodeTargetPatch(Address pc, Code* target) {
+  ASSERT(heap()->gc_state() == Heap::MARK_COMPACT);
+  if (is_compacting()) {
+    Code* host = heap()->isolate()->inner_pointer_to_code_cache()->
+        GcSafeFindCodeForInnerPointer(pc);
+    MarkBit mark_bit = Marking::MarkBitFrom(host);
+    if (Marking::IsBlack(mark_bit)) {
+      RelocInfo rinfo(pc, RelocInfo::CODE_TARGET, 0, host);
+      RecordRelocSlot(&rinfo, target);
     }
   }
 }

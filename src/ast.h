@@ -1870,15 +1870,6 @@ class Assignment: public Expression {
   // This check relies on the definition order of token in token.h.
   bool is_compound() const { return op() > Token::ASSIGN; }
 
-  // An initialization block is a series of statments of the form
-  // x.y.z.a = ...; x.y.z.b = ...; etc. The parser marks the beginning and
-  // ending of these blocks to allow for optimizations of initialization
-  // blocks.
-  bool starts_initialization_block() { return block_start_; }
-  bool ends_initialization_block() { return block_end_; }
-  void mark_block_start() { block_start_ = true; }
-  void mark_block_end() { block_end_ = true; }
-
   BailoutId AssignmentId() const { return assignment_id_; }
 
   // Type feedback information.
@@ -1910,9 +1901,6 @@ class Assignment: public Expression {
   int pos_;
   BinaryOperation* binary_operation_;
   const BailoutId assignment_id_;
-
-  bool block_start_;
-  bool block_end_;
 
   bool is_monomorphic_;
   SmallMapList receiver_types_;

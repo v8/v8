@@ -384,7 +384,7 @@ static Handle<JSFunction> InstallFunction(Handle<JSObject> target,
 void Genesis::SetFunctionInstanceDescriptor(
     Handle<Map> map, PrototypePropertyMode prototypeMode) {
   int size = (prototypeMode == DONT_ADD_PROTOTYPE) ? 4 : 5;
-  Handle<DescriptorArray> descriptors(factory()->NewDescriptorArray(size));
+  Handle<DescriptorArray> descriptors(factory()->NewDescriptorArray(0, size));
   DescriptorArray::WhitenessWitness witness(*descriptors);
 
   Handle<Foreign> length(factory()->NewForeign(&Accessors::FunctionLength));
@@ -525,7 +525,7 @@ Handle<JSFunction> Genesis::CreateEmptyFunction(Isolate* isolate) {
 void Genesis::SetStrictFunctionInstanceDescriptor(
     Handle<Map> map, PrototypePropertyMode prototypeMode) {
   int size = (prototypeMode == DONT_ADD_PROTOTYPE) ? 4 : 5;
-  Handle<DescriptorArray> descriptors(factory()->NewDescriptorArray(size));
+  Handle<DescriptorArray> descriptors(factory()->NewDescriptorArray(0, size));
   DescriptorArray::WhitenessWitness witness(*descriptors);
 
   Handle<Foreign> length(factory()->NewForeign(&Accessors::FunctionLength));
@@ -868,7 +868,8 @@ bool Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
     array_function->shared()->set_length(1);
 
     Handle<Map> initial_map(array_function->initial_map());
-    Handle<DescriptorArray> array_descriptors(factory->NewDescriptorArray(1));
+    Handle<DescriptorArray> array_descriptors(
+        factory->NewDescriptorArray(0, 1));
     DescriptorArray::WhitenessWitness witness(*array_descriptors);
 
     Handle<Foreign> array_length(factory->NewForeign(&Accessors::ArrayLength));
@@ -915,7 +916,8 @@ bool Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
 
     Handle<Map> string_map =
         Handle<Map>(native_context()->string_function()->initial_map());
-    Handle<DescriptorArray> string_descriptors(factory->NewDescriptorArray(1));
+    Handle<DescriptorArray> string_descriptors(
+        factory->NewDescriptorArray(0, 1));
     DescriptorArray::WhitenessWitness witness(*string_descriptors);
 
     Handle<Foreign> string_length(
@@ -956,7 +958,7 @@ bool Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
 
     PropertyAttributes final =
         static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE | READ_ONLY);
-    Handle<DescriptorArray> descriptors = factory->NewDescriptorArray(5);
+    Handle<DescriptorArray> descriptors = factory->NewDescriptorArray(0, 5);
     DescriptorArray::WhitenessWitness witness(*descriptors);
     Map::SetDescriptors(initial_map, descriptors);
 
@@ -1140,7 +1142,7 @@ bool Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
     Handle<Map> map = factory->NewMap(JS_OBJECT_TYPE,
                                       Heap::kArgumentsObjectSizeStrict);
     // Create the descriptor array for the arguments object.
-    Handle<DescriptorArray> descriptors = factory->NewDescriptorArray(3);
+    Handle<DescriptorArray> descriptors = factory->NewDescriptorArray(0, 3);
     DescriptorArray::WhitenessWitness witness(*descriptors);
     Map::SetDescriptors(map, descriptors);
 
@@ -1487,7 +1489,7 @@ bool Genesis::InstallNatives() {
     Handle<Map> script_map = Handle<Map>(script_fun->initial_map());
 
     Handle<DescriptorArray> script_descriptors(
-        factory()->NewDescriptorArray(13));
+        factory()->NewDescriptorArray(0, 13));
     DescriptorArray::WhitenessWitness witness(*script_descriptors);
 
     Handle<Foreign> script_source(
@@ -1665,7 +1667,8 @@ bool Genesis::InstallNatives() {
 
     // Make "length" magic on instances.
     Handle<Map> initial_map(array_function->initial_map());
-    Handle<DescriptorArray> array_descriptors(factory()->NewDescriptorArray(1));
+    Handle<DescriptorArray> array_descriptors(
+        factory()->NewDescriptorArray(0, 1));
     DescriptorArray::WhitenessWitness witness(*array_descriptors);
 
     Handle<Foreign> array_length(factory()->NewForeign(
@@ -1765,7 +1768,7 @@ bool Genesis::InstallNatives() {
 
     // Update map with length accessor from Array and add "index" and "input".
     Handle<DescriptorArray> reresult_descriptors =
-        factory()->NewDescriptorArray(3);
+        factory()->NewDescriptorArray(0, 3);
     DescriptorArray::WhitenessWitness witness(*reresult_descriptors);
     Map::SetDescriptors(initial_map, reresult_descriptors);
 

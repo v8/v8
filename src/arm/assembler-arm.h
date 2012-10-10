@@ -511,6 +511,7 @@ class CpuFeatures : public AllStatic {
     ASSERT(initialized_);
     if (f == VFP3 && !FLAG_enable_vfp3) return false;
     if (f == VFP2 && !FLAG_enable_vfp2) return false;
+    if (f == SUDIV && !FLAG_enable_sudiv) return false;
     return (supported_ & (1u << f)) != 0;
   }
 
@@ -869,6 +870,12 @@ class Assembler : public AssemblerBase {
   void mla(Register dst, Register src1, Register src2, Register srcA,
            SBit s = LeaveCC, Condition cond = al);
 
+  void mls(Register dst, Register src1, Register src2, Register srcA,
+           Condition cond = al);
+
+  void sdiv(Register dst, Register src1, Register src2,
+            Condition cond = al);
+
   void mul(Register dst, Register src1, Register src2,
            SBit s = LeaveCC, Condition cond = al);
 
@@ -1053,6 +1060,7 @@ class Assembler : public AssemblerBase {
 
   void vmov(const DwVfpRegister dst,
             double imm,
+            const Register scratch = no_reg,
             const Condition cond = al);
   void vmov(const SwVfpRegister dst,
             const SwVfpRegister src,

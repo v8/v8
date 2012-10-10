@@ -363,12 +363,14 @@ void MacroAssembler::Bfi(Register dst,
 }
 
 
-void MacroAssembler::Bfc(Register dst, int lsb, int width, Condition cond) {
+void MacroAssembler::Bfc(Register dst, Register src, int lsb, int width,
+                         Condition cond) {
   ASSERT(lsb < 32);
   if (!CpuFeatures::IsSupported(ARMv7) || predictable_code_size()) {
     int mask = (1 << (width + lsb)) - 1 - ((1 << lsb) - 1);
-    bic(dst, dst, Operand(mask));
+    bic(dst, src, Operand(mask));
   } else {
+    Move(dst, src, cond);
     bfc(dst, lsb, width, cond);
   }
 }
@@ -789,6 +791,7 @@ void MacroAssembler::VFPCompareAndLoadFlags(const DwVfpRegister src1,
 
 void MacroAssembler::Vmov(const DwVfpRegister dst,
                           const double imm,
+                          const Register scratch,
                           const Condition cond) {
   ASSERT(CpuFeatures::IsEnabled(VFP2));
   static const DoubleRepresentation minus_zero(-0.0);
@@ -800,7 +803,7 @@ void MacroAssembler::Vmov(const DwVfpRegister dst,
   } else if (value.bits == minus_zero.bits) {
     vneg(dst, kDoubleRegZero, cond);
   } else {
-    vmov(dst, imm, cond);
+    vmov(dst, imm, scratch, cond);
   }
 }
 
@@ -1987,7 +1990,7 @@ void MacroAssembler::StoreNumberToDoubleElements(Register value_reg,
     destination = FloatingPointHelper::kCoreRegisters;
   }
 
-  Register untagged_value = receiver_reg;
+  Register untagged_value = elements_reg;
   SmiUntag(untagged_value, value_reg);
   FloatingPointHelper::ConvertIntToDouble(this,
                                           untagged_value,
@@ -2436,16 +2439,27 @@ void MacroAssembler::ConvertToInt32(Register source,
 
 
 void MacroAssembler::EmitVFPTruncate(VFPRoundingMode rounding_mode,
-                                     SwVfpRegister result,
+                                     Register result,
                                      DwVfpRegister double_input,
-                                     Register scratch1,
-                                     Register scratch2,
+                                     Register scratch,
+                                     DwVfpRegister double_scratch,
                                      CheckForInexactConversion check_inexact) {
+  ASSERT(!result.is(scratch));
+  ASSERT(!double_input.is(double_scratch));
+
   ASSERT(CpuFeatures::IsSupported(VFP2));
   CpuFeatures::Scope scope(VFP2);
-  Register prev_fpscr = scratch1;
-  Register scratch = scratch2;
+  Register prev_fpscr = result;
+  Label done;
 
+  // Test for values that can be exactly represented as a signed 32-bit integer.
+  vcvt_s32_f64(double_scratch.low(), double_input);
+  vmov(result, double_scratch.low());
+  vcvt_f64_s32(double_scratch, double_scratch.low());
+  VFPCompareAndSetFlags(double_input, double_scratch);
+  b(eq, &done);
+
+  // Convert to integer, respecting rounding mode.
   int32_t check_inexact_conversion =
     (check_inexact == kCheckForInexactConversion) ? kVFPInexactExceptionBit : 0;
 
@@ -2467,7 +2481,7 @@ void MacroAssembler::EmitVFPTruncate(VFPRoundingMode rounding_mode,
   vmsr(scratch);
 
   // Convert the argument to an integer.
-  vcvt_s32_f64(result,
+  vcvt_s32_f64(double_scratch.low(),
                double_input,
                (rounding_mode == kRoundToZero) ? kDefaultRoundToZero
                                                : kFPSCRRounding);
@@ -2476,8 +2490,12 @@ void MacroAssembler::EmitVFPTruncate(VFPRoundingMode rounding_mode,
   vmrs(scratch);
   // Restore FPSCR.
   vmsr(prev_fpscr);
+  // Move the converted value into the result register.
+  vmov(result, double_scratch.low());
   // Check for vfp exceptions.
   tst(scratch, Operand(kVFPExceptionMask | check_inexact_conversion));
+
+  bind(&done);
 }
 
 
@@ -3481,7 +3499,7 @@ void MacroAssembler::CheckPageFlag(
     int mask,
     Condition cc,
     Label* condition_met) {
-  and_(scratch, object, Operand(~Page::kPageAlignmentMask));
+  Bfc(scratch, object, 0, kPageSizeBits);
   ldr(scratch, MemOperand(scratch, MemoryChunk::kFlagsOffset));
   tst(scratch, Operand(mask));
   b(cc, condition_met);
@@ -3676,7 +3694,7 @@ void MacroAssembler::ClampDoubleToUint8(Register result_reg,
 
   // Double value is >= 255, return 255.
   bind(&above_zero);
-  Vmov(temp_double_reg, 255.0);
+  Vmov(temp_double_reg, 255.0, result_reg);
   VFPCompareAndSetFlags(input_reg, temp_double_reg);
   b(le, &in_bounds);
   mov(result_reg, Operand(255));
@@ -3729,7 +3747,7 @@ void MacroAssembler::LoadInstanceDescriptors(Register map,
 
 
 void MacroAssembler::NumberOfOwnDescriptors(Register dst, Register map) {
-  ldr(dst, FieldMemOperand(map, Map::kBitFieldOffset));
+  ldr(dst, FieldMemOperand(map, Map::kBitField3Offset));
   DecodeField<Map::NumberOfOwnDescriptorsBits>(dst);
 }
 

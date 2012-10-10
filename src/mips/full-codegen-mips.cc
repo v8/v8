@@ -2208,44 +2208,17 @@ void FullCodeGenerator::EmitNamedPropertyAssignment(Assignment* expr) {
   ASSERT(prop != NULL);
   ASSERT(prop->key()->AsLiteral() != NULL);
 
-  // If the assignment starts a block of assignments to the same object,
-  // change to slow case to avoid the quadratic behavior of repeatedly
-  // adding fast properties.
-  if (expr->starts_initialization_block()) {
-    __ push(result_register());
-    __ lw(t0, MemOperand(sp, kPointerSize));  // Receiver is now under value.
-    __ push(t0);
-    __ CallRuntime(Runtime::kToSlowProperties, 1);
-    __ pop(result_register());
-  }
-
   // Record source code position before IC call.
   SetSourcePosition(expr->position());
   __ mov(a0, result_register());  // Load the value.
   __ li(a2, Operand(prop->key()->AsLiteral()->handle()));
-  // Load receiver to a1. Leave a copy in the stack if needed for turning the
-  // receiver into fast case.
-  if (expr->ends_initialization_block()) {
-    __ lw(a1, MemOperand(sp));
-  } else {
-    __ pop(a1);
-  }
+  __ pop(a1);
 
   Handle<Code> ic = is_classic_mode()
         ? isolate()->builtins()->StoreIC_Initialize()
         : isolate()->builtins()->StoreIC_Initialize_Strict();
   CallIC(ic, RelocInfo::CODE_TARGET, expr->AssignmentFeedbackId());
 
-  // If the assignment ends an initialization block, revert to fast case.
-  if (expr->ends_initialization_block()) {
-    __ push(v0);  // Result of assignment, saved even if not needed.
-    // Receiver is under the result value.
-    __ lw(t0, MemOperand(sp, kPointerSize));
-    __ push(t0);
-    __ CallRuntime(Runtime::kToFastProperties, 1);
-    __ pop(v0);
-    __ Drop(1);
-  }
   PrepareForBailoutForId(expr->AssignmentId(), TOS_REG);
   context()->Plug(v0);
 }
@@ -2253,18 +2226,6 @@ void FullCodeGenerator::EmitNamedPropertyAssignment(Assignment* expr) {
 
 void FullCodeGenerator::EmitKeyedPropertyAssignment(Assignment* expr) {
   // Assignment to a property, using a keyed store IC.
-
-  // If the assignment starts a block of assignments to the same object,
-  // change to slow case to avoid the quadratic behavior of repeatedly
-  // adding fast properties.
-  if (expr->starts_initialization_block()) {
-    __ push(result_register());
-    // Receiver is now under the key and value.
-    __ lw(t0, MemOperand(sp, 2 * kPointerSize));
-    __ push(t0);
-    __ CallRuntime(Runtime::kToSlowProperties, 1);
-    __ pop(result_register());
-  }
 
   // Record source code position before IC call.
   SetSourcePosition(expr->position());
@@ -2275,29 +2236,13 @@ void FullCodeGenerator::EmitKeyedPropertyAssignment(Assignment* expr) {
   // - a2 is the receiver.
   __ mov(a0, result_register());
   __ pop(a1);  // Key.
-  // Load receiver to a2. Leave a copy in the stack if needed for turning the
-  // receiver into fast case.
-  if (expr->ends_initialization_block()) {
-    __ lw(a2, MemOperand(sp));
-  } else {
-    __ pop(a2);
-  }
+  __ pop(a2);
 
   Handle<Code> ic = is_classic_mode()
       ? isolate()->builtins()->KeyedStoreIC_Initialize()
       : isolate()->builtins()->KeyedStoreIC_Initialize_Strict();
   CallIC(ic, RelocInfo::CODE_TARGET, expr->AssignmentFeedbackId());
 
-  // If the assignment ends an initialization block, revert to fast case.
-  if (expr->ends_initialization_block()) {
-    __ push(v0);  // Result of assignment, saved even if not needed.
-    // Receiver is under the result value.
-    __ lw(t0, MemOperand(sp, kPointerSize));
-    __ push(t0);
-    __ CallRuntime(Runtime::kToFastProperties, 1);
-    __ pop(v0);
-    __ Drop(1);
-  }
   PrepareForBailoutForId(expr->AssignmentId(), TOS_REG);
   context()->Plug(v0);
 }
@@ -2759,27 +2704,31 @@ void FullCodeGenerator::EmitIsStringWrapperSafeForDefaultValueOf(
   __ Branch(if_false, eq, a2, Operand(t0));
 
   // Look for valueOf symbol in the descriptor array, and indicate false if
-  // found. The type is not checked, so if it is a transition it is a false
-  // negative.
-  __ LoadInstanceDescriptors(a1, t0, a3);
-  __ lw(a3, FieldMemOperand(t0, FixedArray::kLengthOffset));
-  // t0: descriptor array
-  // a3: length of descriptor array
-  // Calculate the end of the descriptor array.
+  // found. Since we omit an enumeration index check, if it is added via a
+  // transition that shares its descriptor array, this is a false positive.
+  Label entry, loop, done;
+
+  // Skip loop if no descriptors are valid.
+  __ NumberOfOwnDescriptors(a3, a1);
+  __ Branch(&done, eq, a3, Operand(zero_reg));
+
+  __ LoadInstanceDescriptors(a1, t0, a2);
+  // t0: descriptor array.
+  // a3: valid entries in the descriptor array.
   STATIC_ASSERT(kSmiTag == 0);
   STATIC_ASSERT(kSmiTagSize == 1);
   STATIC_ASSERT(kPointerSize == 4);
-  __ Addu(a2, t0, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
+  __ li(at, Operand(DescriptorArray::kDescriptorSize));
+  __ Mul(a3, a3, at);
+  // Calculate location of the first key name.
+  __ Addu(t0, t0, Operand(DescriptorArray::kFirstOffset - kHeapObjectTag));
+  // Calculate the end of the descriptor array.
+  __ mov(a2, t0);
   __ sll(t1, a3, kPointerSizeLog2 - kSmiTagSize);
   __ Addu(a2, a2, t1);
 
-  // Calculate location of the first key name.
-  __ Addu(t0,
-          t0,
-          Operand(DescriptorArray::kFirstOffset - kHeapObjectTag));
   // Loop through all the keys in the descriptor array. If one of these is the
   // symbol valueOf the result is false.
-  Label entry, loop;
   // The use of t2 to store the valueOf symbol asumes that it is not otherwise
   // used in the loop below.
   __ LoadRoot(t2, Heap::kvalue_of_symbolRootIndex);
@@ -2791,7 +2740,8 @@ void FullCodeGenerator::EmitIsStringWrapperSafeForDefaultValueOf(
   __ bind(&entry);
   __ Branch(&loop, ne, t0, Operand(a2));
 
-  // If a valueOf property is not found on the object check that it's
+  __ bind(&done);
+  // If a valueOf property is not found on the object check that its
   // prototype is the un-modified String prototype. If not result is false.
   __ lw(a2, FieldMemOperand(a1, Map::kPrototypeOffset));
   __ JumpIfSmi(a2, if_false);

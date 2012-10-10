@@ -111,7 +111,7 @@ void IncrementalMarking::BlackToGreyAndUnshift(HeapObject* obj,
       if (FLAG_trace_gc) {
         PrintPID("Hurrying incremental marking because of lack of progress\n");
       }
-      allocation_marking_factor_ = kMaxAllocationMarkingFactor;
+      marking_speed_ = kMaxMarkingSpeed;
     }
   }
 
@@ -122,27 +122,6 @@ void IncrementalMarking::BlackToGreyAndUnshift(HeapObject* obj,
 void IncrementalMarking::WhiteToGreyAndPush(HeapObject* obj, MarkBit mark_bit) {
   Marking::WhiteToGrey(mark_bit);
   marking_deque_.PushGrey(obj);
-}
-
-
-bool IncrementalMarking::MarkObjectAndPush(HeapObject* obj) {
-  MarkBit mark_bit = Marking::MarkBitFrom(obj);
-  if (!mark_bit.Get()) {
-    WhiteToGreyAndPush(obj, mark_bit);
-    return true;
-  }
-  return false;
-}
-
-
-bool IncrementalMarking::MarkObjectWithoutPush(HeapObject* obj) {
-  MarkBit mark_bit = Marking::MarkBitFrom(obj);
-  if (!mark_bit.Get()) {
-    mark_bit.Set();
-    MemoryChunk::IncrementLiveBytesFromGC(obj->address(), obj->Size());
-    return true;
-  }
-  return false;
 }
 
 

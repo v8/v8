@@ -177,6 +177,16 @@ enum TransitionFlag {
   OMIT_TRANSITION
 };
 
+
+// Indicates whether the transition is simple: the target map of the transition
+// either extends the current map with a new property, or it modifies the
+// property that was added last to the current map.
+enum SimpleTransitionFlag {
+  SIMPLE_TRANSITION,
+  FULL_TRANSITION
+};
+
+
 // Indicates whether we are only interested in the descriptors of a particular
 // map, or in all descriptors in the descriptor array.
 enum DescriptorFlag {
@@ -1687,15 +1697,15 @@ class JSObject: public JSReceiver {
       String* name,
       PropertyAttributes* attributes);
   MUST_USE_RESULT MaybeObject* GetPropertyWithInterceptor(
-      JSReceiver* receiver,
+      Object* receiver,
       String* name,
       PropertyAttributes* attributes);
   MUST_USE_RESULT MaybeObject* GetPropertyPostInterceptor(
-      JSReceiver* receiver,
+      Object* receiver,
       String* name,
       PropertyAttributes* attributes);
   MUST_USE_RESULT MaybeObject* GetLocalPropertyPostInterceptor(
-      JSReceiver* receiver,
+      Object* receiver,
       String* name,
       PropertyAttributes* attributes);
 
@@ -2484,9 +2494,19 @@ class DescriptorArray: public FixedArray {
   int number_of_descriptors() {
     ASSERT(length() >= kFirstIndex || IsEmpty());
     int len = length();
-    return len <= kFirstIndex ? 0 : (len - kFirstIndex) / kDescriptorSize;
+    return len == 0 ? 0 : Smi::cast(get(kDescriptorLengthIndex))->value();
   }
 
+  int number_of_descriptors_storage() {
+    int len = length();
+    return len == 0 ? 0 : (len - kFirstIndex) / kDescriptorSize;
+  }
+
+  int NumberOfSlackDescriptors() {
+    return number_of_descriptors_storage() - number_of_descriptors();
+  }
+
+  inline void SetNumberOfDescriptors(int number_of_descriptors);
   inline int number_of_entries() { return number_of_descriptors(); }
 
   bool HasEnumCache() {
@@ -2497,10 +2517,24 @@ class DescriptorArray: public FixedArray {
     set(kEnumCacheIndex, array->get(kEnumCacheIndex));
   }
 
-  Object* GetEnumCache() {
+  FixedArray* GetEnumCache() {
     ASSERT(HasEnumCache());
     FixedArray* bridge = FixedArray::cast(get(kEnumCacheIndex));
-    return bridge->get(kEnumCacheBridgeCacheIndex);
+    return FixedArray::cast(bridge->get(kEnumCacheBridgeCacheIndex));
+  }
+
+  bool HasEnumIndicesCache() {
+    if (IsEmpty()) return false;
+    Object* object = get(kEnumCacheIndex);
+    if (object->IsSmi()) return false;
+    FixedArray* bridge = FixedArray::cast(object);
+    return !bridge->get(kEnumCacheBridgeIndicesCacheIndex)->IsSmi();
+  }
+
+  FixedArray* GetEnumIndicesCache() {
+    ASSERT(HasEnumIndicesCache());
+    FixedArray* bridge = FixedArray::cast(get(kEnumCacheIndex));
+    return FixedArray::cast(bridge->get(kEnumCacheBridgeIndicesCacheIndex));
   }
 
   Object** GetEnumCacheSlot() {
@@ -2538,13 +2572,14 @@ class DescriptorArray: public FixedArray {
   inline void Set(int descriptor_number,
                   Descriptor* desc,
                   const WhitenessWitness&);
+  inline void Set(int descriptor_number, Descriptor* desc);
+  inline void EraseDescriptor(Heap* heap, int descriptor_number);
 
   // Append automatically sets the enumeration index. This should only be used
   // to add descriptors in bulk at the end, followed by sorting the descriptor
   // array.
-  inline void Append(Descriptor* desc,
-                     const WhitenessWitness&,
-                     int number_of_set_descriptors);
+  inline void Append(Descriptor* desc, const WhitenessWitness&);
+  inline void Append(Descriptor* desc);
 
   // Transfer a complete descriptor from the src descriptor array to this
   // descriptor array.
@@ -2567,7 +2602,8 @@ class DescriptorArray: public FixedArray {
 
   // Allocates a DescriptorArray, but returns the singleton
   // empty descriptor array object if number_of_descriptors is 0.
-  MUST_USE_RESULT static MaybeObject* Allocate(int number_of_descriptors);
+  MUST_USE_RESULT static MaybeObject* Allocate(int number_of_descriptors,
+                                               int slack = 0);
 
   // Casting.
   static inline DescriptorArray* cast(Object* obj);
@@ -2575,8 +2611,9 @@ class DescriptorArray: public FixedArray {
   // Constant for denoting key was not found.
   static const int kNotFound = -1;
 
-  static const int kEnumCacheIndex = 0;
-  static const int kFirstIndex = 1;
+  static const int kDescriptorLengthIndex = 0;
+  static const int kEnumCacheIndex = 1;
+  static const int kFirstIndex = 2;
 
   // The length of the "bridge" to the enum cache.
   static const int kEnumCacheBridgeLength = 2;
@@ -2584,7 +2621,8 @@ class DescriptorArray: public FixedArray {
   static const int kEnumCacheBridgeIndicesCacheIndex = 1;
 
   // Layout description.
-  static const int kEnumCacheOffset = FixedArray::kHeaderSize;
+  static const int kDescriptorLengthOffset = FixedArray::kHeaderSize;
+  static const int kEnumCacheOffset = kDescriptorLengthOffset + kPointerSize;
   static const int kFirstOffset = kEnumCacheOffset + kPointerSize;
 
   // Layout description for the bridge array.
@@ -2875,11 +2913,12 @@ class HashTable: public FixedArray {
     return (hash + GetProbeOffset(number)) & (size - 1);
   }
 
-  static uint32_t FirstProbe(uint32_t hash, uint32_t size) {
+  inline static uint32_t FirstProbe(uint32_t hash, uint32_t size) {
     return hash & (size - 1);
   }
 
-  static uint32_t NextProbe(uint32_t last, uint32_t number, uint32_t size) {
+  inline static uint32_t NextProbe(
+      uint32_t last, uint32_t number, uint32_t size) {
     return (last + number) & (size - 1);
   }
 
@@ -2965,6 +3004,8 @@ class SymbolTable: public HashTable<SymbolTableShape, HashTableKey*> {
 
  private:
   MUST_USE_RESULT MaybeObject* LookupKey(HashTableKey* key, Object** s);
+
+  template <bool seq_ascii> friend class JsonParser;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(SymbolTable);
 };
@@ -4808,7 +4849,9 @@ class Map: public HeapObject {
       Map* transitioned_map);
   inline void SetTransition(int transition_index, Map* target);
   inline Map* GetTransition(int transition_index);
-  MUST_USE_RESULT inline MaybeObject* AddTransition(String* key, Map* target);
+  MUST_USE_RESULT inline MaybeObject* AddTransition(String* key,
+                                                    Map* target,
+                                                    SimpleTransitionFlag flag);
   DECL_ACCESSORS(transitions, TransitionArray)
   inline void ClearTransitions(Heap* heap,
                                WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
@@ -4959,7 +5002,8 @@ class Map: public HeapObject {
   MUST_USE_RESULT MaybeObject* CopyReplaceDescriptors(
       DescriptorArray* descriptors,
       String* name,
-      TransitionFlag flag);
+      TransitionFlag flag,
+      int descriptor_index);
   MUST_USE_RESULT MaybeObject* ShareDescriptor(Descriptor* descriptor);
   MUST_USE_RESULT MaybeObject* CopyAddDescriptor(Descriptor* descriptor,
                                                  TransitionFlag flag);
@@ -5011,8 +5055,10 @@ class Map: public HeapObject {
 
   // Extend the descriptor array of the map with the list of descriptors.
   // In case of duplicates, the latest descriptor is used.
-  static void CopyAppendCallbackDescriptors(Handle<Map> map,
-                                            Handle<Object> descriptors);
+  static void AppendCallbackDescriptors(Handle<Map> map,
+                                        Handle<Object> descriptors);
+
+  static void EnsureDescriptorSlack(Handle<Map> map, int slack);
 
   // Returns the found code or undefined if absent.
   Object* FindInCodeCache(String* name, Code::Flags flags);
@@ -7011,10 +7057,6 @@ class StringHasher {
   // index.
   bool is_array_index() { return is_array_index_; }
 
-  bool is_valid() { return is_valid_; }
-
-  void invalidate() { is_valid_ = false; }
-
   // Calculated hash value for a string consisting of 1 to
   // String::kMaxArrayIndexSize digits with no leading zeros (except "0").
   // value is represented decimal value.
@@ -7033,13 +7075,33 @@ class StringHasher {
 
   inline uint32_t GetHash();
 
+  // Reusable parts of the hashing algorithm.
+  INLINE(static uint32_t AddCharacterCore(uint32_t running_hash, uint32_t c));
+  INLINE(static uint32_t GetHashCore(uint32_t running_hash));
+
   int length_;
   uint32_t raw_running_hash_;
   uint32_t array_index_;
   bool is_array_index_;
   bool is_first_char_;
-  bool is_valid_;
   friend class TwoCharHashTableKey;
+
+  template <bool seq_ascii> friend class JsonParser;
+};
+
+
+class IncrementalAsciiStringHasher {
+ public:
+  explicit inline IncrementalAsciiStringHasher(uint32_t seed, char first_char);
+  inline void AddCharacter(uc32 c);
+  inline uint32_t GetHash();
+
+ private:
+  int length_;
+  uint32_t raw_running_hash_;
+  uint32_t array_index_;
+  bool is_array_index_;
+  char first_char_;
 };
 
 

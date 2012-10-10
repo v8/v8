@@ -284,6 +284,8 @@ DEFINE_bool(enable_vfp2, true,
             "enable use of VFP2 instructions if available")
 DEFINE_bool(enable_armv7, true,
             "enable use of ARMv7 instructions if available (ARM only)")
+DEFINE_bool(enable_sudiv, true,
+            "enable use of SDIV and UDIV instructions if available (ARM only)")
 DEFINE_bool(enable_fpu, true,
             "enable use of MIPS FPU instructions if available (MIPS only)")
 
@@ -332,6 +334,10 @@ DEFINE_int(max_opt_count, 10,
 DEFINE_bool(compilation_cache, true, "enable compilation cache")
 
 DEFINE_bool(cache_prototype_transitions, true, "cache prototype transitions")
+
+// cpu-profiler.cc
+DEFINE_int(cpu_profiler_sampling_period, 1000,
+           "CPU profiler sampling period in microseconds")
 
 // debug.cc
 DEFINE_bool(trace_debug_json, false, "trace debugging JSON request/response")

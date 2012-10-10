@@ -371,6 +371,12 @@ void Heap::PrintShortHeapStatistics() {
            lo_space_->SizeOfObjects() / KB,
            lo_space_->Available() / KB,
            lo_space_->CommittedMemory() / KB);
+  PrintPID("All spaces,         used: %6" V8_PTR_PREFIX "d KB"
+               ", available: %6" V8_PTR_PREFIX "d KB"
+               ", committed: %6" V8_PTR_PREFIX "d KB\n",
+           this->SizeOfObjects() / KB,
+           this->Available() / KB,
+           this->CommittedMemory() / KB);
   PrintPID("Total time spent in GC  : %d ms\n", total_gc_time_ms_);
 }
 
@@ -619,10 +625,12 @@ bool Heap::CollectGarbage(AllocationSpace space,
         PerformGarbageCollection(collector, &tracer);
     rate->Stop();
 
+    ASSERT(collector == SCAVENGER || incremental_marking()->IsStopped());
+
+    // This can do debug callbacks and restart incremental marking.
     GarbageCollectionEpilogue();
   }
 
-  ASSERT(collector == SCAVENGER || incremental_marking()->IsStopped());
   if (incremental_marking()->IsStopped()) {
     if (incremental_marking()->WorthActivating() && NextGCIsLikelyToBeFull()) {
       incremental_marking()->Start();
@@ -4187,7 +4195,7 @@ MaybeObject* Heap::AllocateGlobalObject(JSFunction* constructor) {
   StringDictionary* dictionary;
   MaybeObject* maybe_dictionary =
       StringDictionary::Allocate(
-          map->NumberOfDescribedProperties() * 2 + initial_size);
+          map->NumberOfOwnDescriptors() * 2 + initial_size);
   if (!maybe_dictionary->To(&dictionary)) return maybe_dictionary;
 
   // The global object might be created from an object template with accessors.
@@ -5125,7 +5133,8 @@ bool Heap::IdleNotification(int hint) {
   // The size factor is in range [5..250]. The numbers here are chosen from
   // experiments. If you changes them, make sure to test with
   // chrome/performance_ui_tests --gtest_filter="GeneralMixMemoryTest.*
-  intptr_t step_size = size_factor * IncrementalMarking::kAllocatedThreshold;
+  intptr_t step_size =
+      size_factor * IncrementalMarking::kAllocatedThreshold;
 
   if (contexts_disposed_ > 0) {
     if (hint >= kMaxHint) {

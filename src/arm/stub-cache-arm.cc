@@ -3646,6 +3646,7 @@ static void GenerateSmiKeyCheck(MacroAssembler* masm,
                                 Register scratch0,
                                 Register scratch1,
                                 DwVfpRegister double_scratch0,
+                                DwVfpRegister double_scratch1,
                                 Label* fail) {
   if (CpuFeatures::IsSupported(VFP2)) {
     CpuFeatures::Scope scope(VFP2);
@@ -3662,13 +3663,12 @@ static void GenerateSmiKeyCheck(MacroAssembler* masm,
     __ sub(ip, key, Operand(kHeapObjectTag));
     __ vldr(double_scratch0, ip, HeapNumber::kValueOffset);
     __ EmitVFPTruncate(kRoundToZero,
-                       double_scratch0.low(),
-                       double_scratch0,
                        scratch0,
+                       double_scratch0,
                        scratch1,
+                       double_scratch1,
                        kCheckForInexactConversion);
     __ b(ne, fail);
-    __ vmov(scratch0, double_scratch0.low());
     __ TrySmiTag(scratch0, fail, scratch1);
     __ mov(key, scratch0);
     __ bind(&key_ok);
@@ -3696,7 +3696,7 @@ void KeyedLoadStubCompiler::GenerateLoadExternalArray(
   // have been verified by the caller to not be a smi.
 
   // Check that the key is a smi or a heap number convertible to a smi.
-  GenerateSmiKeyCheck(masm, key, r4, r5, d1, &miss_force_generic);
+  GenerateSmiKeyCheck(masm, key, r4, r5, d1, d2, &miss_force_generic);
 
   __ ldr(r3, FieldMemOperand(receiver, JSObject::kElementsOffset));
   // r3: elements array
@@ -4030,7 +4030,7 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
   // have been verified by the caller to not be a smi.
 
   // Check that the key is a smi or a heap number convertible to a smi.
-  GenerateSmiKeyCheck(masm, key, r4, r5, d1, &miss_force_generic);
+  GenerateSmiKeyCheck(masm, key, r4, r5, d1, d2, &miss_force_generic);
 
   __ ldr(r3, FieldMemOperand(receiver, JSObject::kElementsOffset));
 
@@ -4365,7 +4365,7 @@ void KeyedLoadStubCompiler::GenerateLoadFastElement(MacroAssembler* masm) {
   // have been verified by the caller to not be a smi.
 
   // Check that the key is a smi or a heap number convertible to a smi.
-  GenerateSmiKeyCheck(masm, r0, r4, r5, d1, &miss_force_generic);
+  GenerateSmiKeyCheck(masm, r0, r4, r5, d1, d2, &miss_force_generic);
 
   // Get the elements array.
   __ ldr(r2, FieldMemOperand(r1, JSObject::kElementsOffset));
@@ -4417,7 +4417,7 @@ void KeyedLoadStubCompiler::GenerateLoadFastDoubleElement(
   // have been verified by the caller to not be a smi.
 
   // Check that the key is a smi or a heap number convertible to a smi.
-  GenerateSmiKeyCheck(masm, key_reg, r4, r5, d1, &miss_force_generic);
+  GenerateSmiKeyCheck(masm, key_reg, r4, r5, d1, d2, &miss_force_generic);
 
   // Get the elements array.
   __ ldr(elements_reg,
@@ -4493,7 +4493,7 @@ void KeyedStoreStubCompiler::GenerateStoreFastElement(
   // have been verified by the caller to not be a smi.
 
   // Check that the key is a smi or a heap number convertible to a smi.
-  GenerateSmiKeyCheck(masm, key_reg, r4, r5, d1, &miss_force_generic);
+  GenerateSmiKeyCheck(masm, key_reg, r4, r5, d1, d2, &miss_force_generic);
 
   if (IsFastSmiElementsKind(elements_kind)) {
     __ JumpIfNotSmi(value_reg, &transition_elements_kind);
@@ -4661,7 +4661,7 @@ void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
   // have been verified by the caller to not be a smi.
 
   // Check that the key is a smi or a heap number convertible to a smi.
-  GenerateSmiKeyCheck(masm, key_reg, r4, r5, d1, &miss_force_generic);
+  GenerateSmiKeyCheck(masm, key_reg, r4, r5, d1, d2, &miss_force_generic);
 
   __ ldr(elements_reg,
          FieldMemOperand(receiver_reg, JSObject::kElementsOffset));
@@ -4686,6 +4686,7 @@ void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
   __ StoreNumberToDoubleElements(value_reg,
                                  key_reg,
                                  receiver_reg,
+                                 // All registers after this are overwritten.
                                  elements_reg,
                                  scratch1,
                                  scratch2,

@@ -176,6 +176,7 @@ namespace internal {
   V(constructor_symbol, "constructor")                                   \
   V(code_symbol, ".code")                                                \
   V(result_symbol, ".result")                                            \
+  V(dot_for_symbol, ".for.")                                             \
   V(catch_var_symbol, ".catch-var")                                      \
   V(empty_symbol, "")                                                    \
   V(eval_symbol, "eval")                                                 \
@@ -1498,13 +1499,6 @@ class Heap {
   void ClearJSFunctionResultCaches();
 
   void ClearNormalizedMapCaches();
-
-  // Clears the cache of ICs related to this map.
-  void ClearCacheOnMap(Map* map) {
-    if (FLAG_cleanup_code_caches_at_gc) {
-      map->ClearCodeCache(this);
-    }
-  }
 
   GCTracer* tracer() { return tracer_; }
 

@@ -47,9 +47,9 @@ compiler/regress-funcaller: PASS, SKIP if $mode == debug
 regress/regress-create-exception: PASS, SKIP if $mode == debug
 
 ##############################################################################
-# This one uses a built-in that's only present in debug mode. It takes
+# These use a built-in that's only present in debug mode. They take
 # too long to run in debug mode on ARM and MIPS.
-fuzz-natives: PASS, SKIP if ($mode == release || $arch == arm || $arch == android_arm || $arch == mipsel)
+fuzz-natives-part*: PASS, SKIP if ($mode == release || $arch == arm || $arch == android_arm || $arch == mipsel)
 
 big-object-literal: PASS, SKIP if ($arch == arm || $arch == android_arm)
 
@@ -58,9 +58,6 @@ array-constructor: PASS || TIMEOUT
 
 # Very slow on ARM and MIPS, contains no architecture dependent code.
 unicode-case-overoptimization: PASS, TIMEOUT if ($arch == arm || $arch == android_arm || $arch == mipsel)
-
-# Test Crankshaft compilation time.  Expected to take too long in debug mode.
-regress/regress-1969: PASS, SKIP if ($mode == debug || $arch == android_arm)
 
 ##############################################################################
 # This test sets the umask on a per-process basis and hence cannot be
@@ -103,11 +100,9 @@ compiler/property-calls: SKIP
 compiler/recursive-deopt: SKIP
 compiler/regress-4: SKIP
 compiler/regress-funcaller: SKIP
-compiler/regress-gvn: SKIP
 compiler/regress-rep-change: SKIP
 compiler/regress-arguments: SKIP
 compiler/regress-funarguments: SKIP
-compiler/regress-or: SKIP
 compiler/regress-3249650: SKIP
 compiler/simple-deopt: SKIP
 regress/regress-490: SKIP
@@ -161,11 +156,9 @@ compiler/property-calls: SKIP
 compiler/recursive-deopt: SKIP
 compiler/regress-4: SKIP
 compiler/regress-funcaller: SKIP
-compiler/regress-gvn: SKIP
 compiler/regress-rep-change: SKIP
 compiler/regress-arguments: SKIP
 compiler/regress-funarguments: SKIP
-compiler/regress-or: SKIP
 compiler/regress-3249650: SKIP
 compiler/simple-deopt: SKIP
 regress/regress-490: SKIP

@@ -651,11 +651,9 @@ MaybeObject* Object::GetProperty(Object* receiver,
           receiver, result->GetCallbackObject(), name);
     case HANDLER:
       return result->proxy()->GetPropertyWithHandler(receiver, name);
-    case INTERCEPTOR: {
-      JSObject* recvr = JSObject::cast(receiver);
+    case INTERCEPTOR:
       return result->holder()->GetPropertyWithInterceptor(
-          recvr, name, attributes);
-    }
+          receiver, name, attributes);
     case TRANSITION:
     case NONEXISTENT:
       UNREACHABLE();
@@ -1692,7 +1690,7 @@ MaybeObject* JSObject::AddProperty(String* name,
   }
   if (HasFastProperties()) {
     // Ensure the descriptor array does not get too big.
-    if (map_of_this->instance_descriptors()->number_of_descriptors() <
+    if (map_of_this->NumberOfOwnDescriptors() <
         DescriptorArray::kMaxNumberOfDescriptors) {
       if (value->IsJSFunction()) {
         return AddConstantFunctionProperty(name,
@@ -2162,10 +2160,12 @@ enum RightTrimMode { FROM_GC, FROM_MUTATOR };
 static void ZapEndOfFixedArray(Address new_end, int to_trim) {
   // If we are doing a big trim in old space then we zap the space.
   Object** zap = reinterpret_cast<Object**>(new_end);
+  zap++;  // Header of filler must be at least one word so skip that.
   for (int i = 1; i < to_trim; i++) {
     *zap++ = Smi::FromInt(0);
   }
 }
+
 
 template<RightTrimMode trim_mode>
 static void RightTrimFixedArray(Heap* heap, FixedArray* elms, int to_trim) {
@@ -2207,14 +2207,31 @@ static void RightTrimFixedArray(Heap* heap, FixedArray* elms, int to_trim) {
 }
 
 
-void Map::CopyAppendCallbackDescriptors(Handle<Map> map,
-                                        Handle<Object> descriptors) {
+void Map::EnsureDescriptorSlack(Handle<Map> map, int slack) {
+  Handle<DescriptorArray> descriptors(map->instance_descriptors());
+  if (slack <= descriptors->NumberOfSlackDescriptors()) return;
+  int number_of_descriptors = descriptors->number_of_descriptors();
+  Isolate* isolate = map->GetIsolate();
+  Handle<DescriptorArray> new_descriptors =
+      isolate->factory()->NewDescriptorArray(number_of_descriptors, slack);
+  DescriptorArray::WhitenessWitness witness(*new_descriptors);
+
+  for (int i = 0; i < number_of_descriptors; ++i) {
+    new_descriptors->CopyFrom(i, *descriptors, i, witness);
+  }
+
+  Map::SetDescriptors(map, new_descriptors);
+}
+
+
+void Map::AppendCallbackDescriptors(Handle<Map> map,
+                                    Handle<Object> descriptors) {
   Isolate* isolate = map->GetIsolate();
   Handle<DescriptorArray> array(map->instance_descriptors());
-  v8::NeanderArray callbacks(descriptors);
+  NeanderArray callbacks(descriptors);
   int nof_callbacks = callbacks.length();
-  int descriptor_count = array->number_of_descriptors();
-  ASSERT(descriptor_count == map->NumberOfOwnDescriptors());
+
+  ASSERT(array->NumberOfSlackDescriptors() >= nof_callbacks);
 
   // Ensure the keys are symbols before writing them into the instance
   // descriptor. Since it may cause a GC, it has to be done before we
@@ -2227,51 +2244,23 @@ void Map::CopyAppendCallbackDescriptors(Handle<Map> map,
     entry->set_name(*key);
   }
 
-  Handle<DescriptorArray> result =
-      isolate->factory()->NewDescriptorArray(descriptor_count + nof_callbacks);
-
-  // Ensure that marking will not progress and change color of objects.
-  DescriptorArray::WhitenessWitness witness(*result);
-
-  // Copy the descriptors from the array.
-  for (int i = 0; i < descriptor_count; i++) {
-    result->CopyFrom(i, *array, i, witness);
-  }
-
-  // After this point the GC is not allowed to run anymore until the map is in a
-  // consistent state again, i.e., all the descriptors are appended and the
-  // descriptor array is trimmed to the right size.
-  Map::SetDescriptors(map, result);
+  int nof = map->NumberOfOwnDescriptors();
 
   // Fill in new callback descriptors.  Process the callbacks from
   // back to front so that the last callback with a given name takes
   // precedence over previously added callbacks with that name.
-  int nof = descriptor_count;
   for (int i = nof_callbacks - 1; i >= 0; i--) {
     AccessorInfo* entry = AccessorInfo::cast(callbacks.get(i));
     String* key = String::cast(entry->name());
     // Check if a descriptor with this name already exists before writing.
-    if (result->Search(key, nof) == DescriptorArray::kNotFound) {
+    if (array->Search(key, nof) == DescriptorArray::kNotFound) {
       CallbacksDescriptor desc(key, entry, entry->property_attributes());
-      map->AppendDescriptor(&desc, witness);
+      array->Append(&desc);
       nof += 1;
     }
   }
 
-  ASSERT(nof == map->NumberOfOwnDescriptors());
-
-  // Reinstall the original descriptor array if no new elements were added.
-  if (nof == descriptor_count) {
-    Map::SetDescriptors(map, array);
-    return;
-  }
-
-  // If duplicates were detected, trim the descriptor array to the right size.
-  int new_array_size = DescriptorArray::LengthFor(nof);
-  if (new_array_size < result->length()) {
-    RightTrimFixedArray<FROM_MUTATOR>(
-        isolate->heap(), *result, result->length() - new_array_size);
-  }
+  map->SetNumberOfOwnDescriptors(nof);
 }
 
 
@@ -3335,8 +3324,7 @@ MaybeObject* JSObject::NormalizeProperties(PropertyNormalizationMode mode,
 
   // Allocate new content.
   int real_size = map_of_this->NumberOfOwnDescriptors();
-  int property_count =
-      map_of_this->NumberOfDescribedProperties(OWN_DESCRIPTORS);
+  int property_count = real_size;
   if (expected_additional_properties > 0) {
     property_count += expected_additional_properties;
   } else {
@@ -5003,32 +4991,45 @@ MaybeObject* Map::ShareDescriptor(Descriptor* descriptor) {
   String* name = descriptor->GetKey();
 
   TransitionArray* transitions;
-  MaybeObject* maybe_transitions = AddTransition(name, result);
+  MaybeObject* maybe_transitions =
+      AddTransition(name, result, SIMPLE_TRANSITION);
   if (!maybe_transitions->To(&transitions)) return maybe_transitions;
 
   DescriptorArray* descriptors = instance_descriptors();
   int old_size = descriptors->number_of_descriptors();
 
   DescriptorArray* new_descriptors;
-  MaybeObject* maybe_descriptors = DescriptorArray::Allocate(old_size + 1);
-  if (!maybe_descriptors->To(&new_descriptors)) return maybe_descriptors;
-  DescriptorArray::WhitenessWitness witness(new_descriptors);
 
-  for (int i = 0; i < old_size; ++i) {
-    new_descriptors->CopyFrom(i, descriptors, i, witness);
-  }
-  new_descriptors->Append(descriptor, witness, old_size);
+  if (descriptors->NumberOfSlackDescriptors() > 0) {
+    new_descriptors = descriptors;
+    new_descriptors->Append(descriptor);
+  } else {
+    // Descriptor arrays grow by 50%.
+    MaybeObject* maybe_descriptors = DescriptorArray::Allocate(
+        old_size, old_size < 4 ? 1 : old_size / 2);
+    if (!maybe_descriptors->To(&new_descriptors)) return maybe_descriptors;
 
-  // If the source descriptors had an enum cache we copy it. This ensures that
-  // the maps to which we push the new descriptor array back can rely on a
-  // cache always being available once it is set. If the map has more
-  // enumerated descriptors than available in the original cache, the cache
-  // will be lazily replaced by the extended cache when needed.
-  if (descriptors->HasEnumCache()) {
-    new_descriptors->CopyEnumCacheFrom(descriptors);
+    DescriptorArray::WhitenessWitness witness(new_descriptors);
+
+    // Copy the descriptors, inserting a descriptor.
+    for (int i = 0; i < old_size; ++i) {
+      new_descriptors->CopyFrom(i, descriptors, i, witness);
+    }
+
+    new_descriptors->Append(descriptor, witness);
+
+    // If the source descriptors had an enum cache we copy it. This ensures that
+    // the maps to which we push the new descriptor array back can rely on a
+    // cache always being available once it is set. If the map has more
+    // enumerated descriptors than available in the original cache, the cache
+    // will be lazily replaced by the extended cache when needed.
+    if (descriptors->HasEnumCache()) {
+      new_descriptors->CopyEnumCacheFrom(descriptors);
+    }
   }
 
   transitions->set_descriptors(new_descriptors);
+
   set_transitions(transitions);
   result->SetBackPointer(this);
   set_owns_descriptors(false);
@@ -5042,7 +5043,8 @@ MaybeObject* Map::ShareDescriptor(Descriptor* descriptor) {
 
 MaybeObject* Map::CopyReplaceDescriptors(DescriptorArray* descriptors,
                                          String* name,
-                                         TransitionFlag flag) {
+                                         TransitionFlag flag,
+                                         int descriptor_index) {
   ASSERT(descriptors->IsSortedNoDuplicates());
 
   Map* result;
@@ -5059,7 +5061,11 @@ MaybeObject* Map::CopyReplaceDescriptors(DescriptorArray* descriptors,
 
   if (flag == INSERT_TRANSITION && CanHaveMoreTransitions()) {
     TransitionArray* transitions;
-    MaybeObject* maybe_transitions = AddTransition(name, result);
+    SimpleTransitionFlag simple_flag =
+        (descriptor_index == descriptors->number_of_descriptors() - 1)
+         ? SIMPLE_TRANSITION
+         : FULL_TRANSITION;
+    MaybeObject* maybe_transitions = AddTransition(name, result, simple_flag);
     if (!maybe_transitions->To(&transitions)) return maybe_transitions;
 
     if (descriptors->IsEmpty()) {
@@ -5126,7 +5132,7 @@ MaybeObject* Map::CopyAsElementsKind(ElementsKind kind, TransitionFlag flag) {
   ASSERT(new_map->NumberOfOwnDescriptors() == NumberOfOwnDescriptors());
   new_map->set_elements_kind(kind);
 
-  if (flag == INSERT_TRANSITION) {
+  if (flag == INSERT_TRANSITION && !HasElementsTransition()) {
     // Map::Copy does not store the descriptor array in case it is empty, since
     // it does not insert a back pointer; implicitly indicating that its
     // descriptor array is empty. Since in this case we do want to insert a back
@@ -5164,7 +5170,7 @@ MaybeObject* Map::CopyWithPreallocatedFieldDescriptors() {
       descriptors->CopyUpTo(number_of_own_descriptors);
   if (!maybe_descriptors->To(&new_descriptors)) return maybe_descriptors;
 
-  return CopyReplaceDescriptors(new_descriptors, NULL, OMIT_TRANSITION);
+  return CopyReplaceDescriptors(new_descriptors, NULL, OMIT_TRANSITION, 0);
 }
 
 
@@ -5176,7 +5182,7 @@ MaybeObject* Map::Copy() {
       descriptors->CopyUpTo(number_of_own_descriptors);
   if (!maybe_descriptors->To(&new_descriptors)) return maybe_descriptors;
 
-  return CopyReplaceDescriptors(new_descriptors, NULL, OMIT_TRANSITION);
+  return CopyReplaceDescriptors(new_descriptors, NULL, OMIT_TRANSITION, 0);
 }
 
 
@@ -5199,7 +5205,7 @@ MaybeObject* Map::CopyAddDescriptor(Descriptor* descriptor,
   }
 
   DescriptorArray* new_descriptors;
-  MaybeObject* maybe_descriptors = DescriptorArray::Allocate(old_size + 1);
+  MaybeObject* maybe_descriptors = DescriptorArray::Allocate(old_size, 1);
   if (!maybe_descriptors->To(&new_descriptors)) return maybe_descriptors;
 
   DescriptorArray::WhitenessWitness witness(new_descriptors);
@@ -5209,10 +5215,18 @@ MaybeObject* Map::CopyAddDescriptor(Descriptor* descriptor,
     new_descriptors->CopyFrom(i, descriptors, i, witness);
   }
 
-  new_descriptors->Set(old_size, descriptor, witness);
-  new_descriptors->Sort();
+  if (old_size != descriptors->number_of_descriptors()) {
+    new_descriptors->SetNumberOfDescriptors(new_size);
+    new_descriptors->Set(old_size, descriptor, witness);
+    new_descriptors->Sort();
+  } else {
+    new_descriptors->Append(descriptor, witness);
+  }
 
-  return CopyReplaceDescriptors(new_descriptors, descriptor->GetKey(), flag);
+  String* key = descriptor->GetKey();
+  int insertion_index = new_descriptors->number_of_descriptors() - 1;
+
+  return CopyReplaceDescriptors(new_descriptors, key, flag, insertion_index);
 }
 
 
@@ -5288,7 +5302,7 @@ MaybeObject* Map::CopyReplaceDescriptor(Descriptor* descriptor,
   // Re-sort if descriptors were removed.
   if (new_size != descriptors->length()) new_descriptors->Sort();
 
-  return CopyReplaceDescriptors(new_descriptors, key, flag);
+  return CopyReplaceDescriptors(new_descriptors, key, flag, insertion_index);
 }
 
 
@@ -6063,16 +6077,17 @@ bool FixedArray::IsEqualTo(FixedArray* other) {
 #endif
 
 
-MaybeObject* DescriptorArray::Allocate(int number_of_descriptors) {
+MaybeObject* DescriptorArray::Allocate(int number_of_descriptors, int slack) {
   Heap* heap = Isolate::Current()->heap();
   // Do not use DescriptorArray::cast on incomplete object.
+  int size = number_of_descriptors + slack;
+  if (size == 0) return heap->empty_descriptor_array();
   FixedArray* result;
-  if (number_of_descriptors == 0) return heap->empty_descriptor_array();
   // Allocate the array of keys.
-  MaybeObject* maybe_array =
-      heap->AllocateFixedArray(LengthFor(number_of_descriptors));
+  MaybeObject* maybe_array = heap->AllocateFixedArray(LengthFor(size));
   if (!maybe_array->To(&result)) return maybe_array;
 
+  result->set(kDescriptorLengthIndex, Smi::FromInt(number_of_descriptors));
   result->set(kEnumCacheIndex, Smi::FromInt(0));
   return result;
 }
@@ -6089,7 +6104,7 @@ void DescriptorArray::SetEnumCache(FixedArray* bridge_storage,
   ASSERT(bridge_storage->length() >= kEnumCacheBridgeLength);
   ASSERT(new_index_cache->IsSmi() || new_index_cache->IsFixedArray());
   if (HasEnumCache()) {
-    ASSERT(new_cache->length() > FixedArray::cast(GetEnumCache())->length());
+    ASSERT(new_cache->length() > GetEnumCache()->length());
     FixedArray::cast(get(kEnumCacheIndex))->
       set(kEnumCacheBridgeCacheIndex, new_cache);
     FixedArray::cast(get(kEnumCacheIndex))->
@@ -7362,7 +7377,6 @@ void StringHasher::AddSurrogatePairNoIndex(uc32 c) {
 
 
 uint32_t StringHasher::GetHashField() {
-  ASSERT(is_valid());
   if (length_ <= String::kMaxHashCalcLength) {
     if (is_array_index()) {
       return MakeArrayIndexHash(array_index(), length_);
@@ -7417,10 +7431,61 @@ void String::PrintOn(FILE* file) {
 }
 
 
+static void TrimEnumCache(Heap* heap, Map* map, DescriptorArray* descriptors) {
+  int live_enum = map->EnumLength();
+  if (live_enum == Map::kInvalidEnumCache) {
+    live_enum = map->NumberOfDescribedProperties(OWN_DESCRIPTORS, DONT_ENUM);
+  }
+  if (live_enum == 0) return descriptors->ClearEnumCache();
+
+  FixedArray* enum_cache = descriptors->GetEnumCache();
+
+  int to_trim = enum_cache->length() - live_enum;
+  if (to_trim <= 0) return;
+  RightTrimFixedArray<FROM_GC>(heap, descriptors->GetEnumCache(), to_trim);
+
+  if (!descriptors->HasEnumIndicesCache()) return;
+  FixedArray* enum_indices_cache = descriptors->GetEnumIndicesCache();
+  RightTrimFixedArray<FROM_GC>(heap, enum_indices_cache, to_trim);
+}
+
+
+static void TrimDescriptorArray(Heap* heap,
+                                Map* map,
+                                DescriptorArray* descriptors,
+                                int number_of_own_descriptors) {
+  int number_of_descriptors = descriptors->number_of_descriptors();
+  int to_trim = number_of_descriptors - number_of_own_descriptors;
+  if (to_trim <= 0) return;
+
+  // Maximally keep 50% of unused descriptors.
+  int keep = Min(to_trim, number_of_own_descriptors / 2);
+  for (int i = number_of_own_descriptors;
+       i < number_of_own_descriptors + keep;
+       ++i) {
+    descriptors->EraseDescriptor(heap, i);
+  }
+
+  if (to_trim > keep) {
+    RightTrimFixedArray<FROM_GC>(heap, descriptors, to_trim - keep);
+  }
+  descriptors->SetNumberOfDescriptors(number_of_own_descriptors);
+
+  if (descriptors->HasEnumCache()) TrimEnumCache(heap, map, descriptors);
+  descriptors->Sort();
+}
+
+
 // Clear a possible back pointer in case the transition leads to a dead map.
 // Return true in case a back pointer has been cleared and false otherwise.
-static bool ClearBackPointer(Heap* heap, Map* target) {
+static bool ClearBackPointer(Heap* heap,
+                             Map* target,
+                             DescriptorArray* descriptors,
+                             bool* descriptors_owner_died) {
   if (Marking::MarkBitFrom(target).Get()) return false;
+  if (target->instance_descriptors() == descriptors) {
+    *descriptors_owner_died = true;
+  }
   target->SetBackPointer(heap->undefined_value(), SKIP_WRITE_BARRIER);
   return true;
 }
@@ -7446,15 +7511,7 @@ void Map::ClearNonLiveTransitions(Heap* heap) {
   // Compact all live descriptors to the left.
   for (int i = 0; i < t->number_of_transitions(); ++i) {
     Map* target = t->GetTarget(i);
-    if (ClearBackPointer(heap, target)) {
-      ASSERT(!Marking::IsGrey(Marking::MarkBitFrom(target)));
-      DescriptorArray* target_descriptors = target->instance_descriptors();
-      if ((target_descriptors->number_of_descriptors() == 0 &&
-           target->NumberOfOwnDescriptors() > 0) ||
-          target_descriptors == descriptors) {
-        descriptors_owner_died = true;
-      }
-    } else {
+    if (!ClearBackPointer(heap, target, descriptors, &descriptors_owner_died)) {
       if (i != transition_index) {
         String* key = t->GetKey(i);
         t->SetKey(transition_index, key);
@@ -7468,10 +7525,10 @@ void Map::ClearNonLiveTransitions(Heap* heap) {
   }
 
   if (t->HasElementsTransition() &&
-      ClearBackPointer(heap, t->elements_transition())) {
-    if (t->elements_transition()->instance_descriptors() == descriptors) {
-      descriptors_owner_died = true;
-    }
+      ClearBackPointer(heap,
+                       t->elements_transition(),
+                       descriptors,
+                       &descriptors_owner_died)) {
     t->ClearElementsTransition();
   } else {
     // If there are no transitions to be cleared, return.
@@ -7484,28 +7541,7 @@ void Map::ClearNonLiveTransitions(Heap* heap) {
 
   if (descriptors_owner_died) {
     if (number_of_own_descriptors > 0) {
-      int number_of_descriptors = descriptors->number_of_descriptors();
-      int to_trim = number_of_descriptors - number_of_own_descriptors;
-      if (to_trim > 0) {
-        RightTrimFixedArray<FROM_GC>(
-            heap, descriptors, to_trim * DescriptorArray::kDescriptorSize);
-        if (descriptors->HasEnumCache()) {
-          int live_enum =
-              NumberOfDescribedProperties(OWN_DESCRIPTORS, DONT_ENUM);
-          if (live_enum == 0) {
-            descriptors->ClearEnumCache();
-          } else {
-            FixedArray* enum_cache =
-                FixedArray::cast(descriptors->GetEnumCache());
-            to_trim = enum_cache->length() - live_enum;
-            if (to_trim > 0) {
-              RightTrimFixedArray<FROM_GC>(
-                  heap, FixedArray::cast(descriptors->GetEnumCache()), to_trim);
-            }
-          }
-        }
-        descriptors->Sort();
-      }
+      TrimDescriptorArray(heap, this, descriptors, number_of_own_descriptors);
       ASSERT(descriptors->number_of_descriptors() == number_of_own_descriptors);
     } else {
       t->set_descriptors(heap->empty_descriptor_array());
@@ -7513,20 +7549,10 @@ void Map::ClearNonLiveTransitions(Heap* heap) {
     set_owns_descriptors(true);
   }
 
-  // If the final transition array does not contain any live transitions, remove
-  // the transition array from the map.
-  if (transition_index == 0 &&
-      !t->HasElementsTransition() &&
-      !t->HasPrototypeTransitions() &&
-      number_of_own_descriptors == 0) {
-    ASSERT(owns_descriptors());
-    return ClearTransitions(heap);
-  }
-
   int trim = t->number_of_transitions() - transition_index;
   if (trim > 0) {
-    RightTrimFixedArray<FROM_GC>(
-        heap, t, trim * TransitionArray::kTransitionSize);
+    RightTrimFixedArray<FROM_GC>(heap, t, t->IsSimpleTransition()
+        ? trim : trim * TransitionArray::kTransitionSize);
   }
 }
 
@@ -10473,7 +10499,7 @@ InterceptorInfo* JSObject::GetIndexedInterceptor() {
 
 
 MaybeObject* JSObject::GetPropertyPostInterceptor(
-    JSReceiver* receiver,
+    Object* receiver,
     String* name,
     PropertyAttributes* attributes) {
   // Check local property in holder, ignore interceptor.
@@ -10491,7 +10517,7 @@ MaybeObject* JSObject::GetPropertyPostInterceptor(
 
 
 MaybeObject* JSObject::GetLocalPropertyPostInterceptor(
-    JSReceiver* receiver,
+    Object* receiver,
     String* name,
     PropertyAttributes* attributes) {
   // Check local property in holder, ignore interceptor.
@@ -10505,13 +10531,13 @@ MaybeObject* JSObject::GetLocalPropertyPostInterceptor(
 
 
 MaybeObject* JSObject::GetPropertyWithInterceptor(
-    JSReceiver* receiver,
+    Object* receiver,
     String* name,
     PropertyAttributes* attributes) {
   Isolate* isolate = GetIsolate();
   InterceptorInfo* interceptor = GetNamedInterceptor();
   HandleScope scope(isolate);
-  Handle<JSReceiver> receiver_handle(receiver);
+  Handle<Object> receiver_handle(receiver);
   Handle<JSObject> holder_handle(this);
   Handle<String> name_handle(name);
 
@@ -10643,9 +10669,16 @@ bool JSObject::HasRealNamedCallbackProperty(String* key) {
 
 
 int JSObject::NumberOfLocalProperties(PropertyAttributes filter) {
-  return HasFastProperties() ?
-      map()->NumberOfDescribedProperties(OWN_DESCRIPTORS, filter) :
-      property_dictionary()->NumberOfElementsFilterAttributes(filter);
+  if (HasFastProperties()) {
+    Map* map = this->map();
+    if (filter == NONE) return map->NumberOfOwnDescriptors();
+    if (filter == DONT_ENUM) {
+      int result = map->EnumLength();
+      if (result != Map::kInvalidEnumCache) return result;
+    }
+    return map->NumberOfDescribedProperties(OWN_DESCRIPTORS, filter);
+  }
+  return property_dictionary()->NumberOfElementsFilterAttributes(filter);
 }
 
 

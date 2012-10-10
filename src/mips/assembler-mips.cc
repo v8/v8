@@ -580,17 +580,20 @@ bool Assembler::IsNop(Instr instr, unsigned int type) {
   // See Assembler::nop(type).
   ASSERT(type < 32);
   uint32_t opcode = GetOpcodeField(instr);
+  uint32_t function = GetFunctionField(instr);
   uint32_t rt = GetRt(instr);
-  uint32_t rs = GetRs(instr);
+  uint32_t rd = GetRd(instr);
   uint32_t sa = GetSa(instr);
 
-  // nop(type) == sll(zero_reg, zero_reg, type);
-  // Technically all these values will be 0 but
-  // this makes more sense to the reader.
+  // Traditional mips nop == sll(zero_reg, zero_reg, 0)
+  // When marking non-zero type, use sll(zero_reg, at, type)
+  // to avoid use of mips ssnop and ehb special encodings
+  // of the sll instruction.
 
-  bool ret = (opcode == SLL &&
-              rt == static_cast<uint32_t>(ToNumber(zero_reg)) &&
-              rs == static_cast<uint32_t>(ToNumber(zero_reg)) &&
+  Register nop_rt_reg = (type == 0) ? zero_reg : at;
+  bool ret = (opcode == SPECIAL && function == SLL &&
+              rd == static_cast<uint32_t>(ToNumber(zero_reg)) &&
+              rt == static_cast<uint32_t>(ToNumber(nop_rt_reg)) &&
               sa == type);
 
   return ret;

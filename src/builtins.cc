@@ -1620,7 +1620,7 @@ void Builtins::SetUp(bool create_heap_objects) {
   // For now we generate builtin adaptor code into a stack-allocated
   // buffer, before copying it into individual code objects. Be careful
   // with alignment, some platforms don't like unaligned code.
-  union { int force_alignment; byte buffer[4*KB]; } u;
+  union { int force_alignment; byte buffer[8*KB]; } u;
 
   // Traverse the list of builtins and generate an adaptor in a
   // separate code object for each one.

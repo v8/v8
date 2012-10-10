@@ -826,6 +826,7 @@ void FloatingPointHelper::LoadNumberAsInt32Double(MacroAssembler* masm,
                                                   Register object,
                                                   Destination destination,
                                                   DwVfpRegister double_dst,
+                                                  DwVfpRegister double_scratch,
                                                   Register dst1,
                                                   Register dst2,
                                                   Register heap_number_map,
@@ -863,10 +864,10 @@ void FloatingPointHelper::LoadNumberAsInt32Double(MacroAssembler* masm,
     __ vldr(double_dst, scratch1, HeapNumber::kValueOffset);
 
     __ EmitVFPTruncate(kRoundToZero,
-                       single_scratch,
-                       double_dst,
                        scratch1,
+                       double_dst,
                        scratch2,
+                       double_scratch,
                        kCheckForInexactConversion);
 
     // Jump to not_int32 if the operation did not succeed.
@@ -906,7 +907,8 @@ void FloatingPointHelper::LoadNumberAsInt32(MacroAssembler* masm,
                                             Register scratch1,
                                             Register scratch2,
                                             Register scratch3,
-                                            DwVfpRegister double_scratch,
+                                            DwVfpRegister double_scratch0,
+                                            DwVfpRegister double_scratch1,
                                             Label* not_int32) {
   ASSERT(!dst.is(object));
   ASSERT(!scratch1.is(object) && !scratch2.is(object) && !scratch3.is(object));
@@ -929,23 +931,20 @@ void FloatingPointHelper::LoadNumberAsInt32(MacroAssembler* masm,
   // Convert the floating point value to a 32-bit integer.
   if (CpuFeatures::IsSupported(VFP2)) {
     CpuFeatures::Scope scope(VFP2);
-    SwVfpRegister single_scratch = double_scratch.low();
+
     // Load the double value.
     __ sub(scratch1, object, Operand(kHeapObjectTag));
-    __ vldr(double_scratch, scratch1, HeapNumber::kValueOffset);
+    __ vldr(double_scratch0, scratch1, HeapNumber::kValueOffset);
 
     __ EmitVFPTruncate(kRoundToZero,
-                       single_scratch,
-                       double_scratch,
+                       dst,
+                       double_scratch0,
                        scratch1,
-                       scratch2,
+                       double_scratch1,
                        kCheckForInexactConversion);
 
     // Jump to not_int32 if the operation did not succeed.
     __ b(ne, not_int32);
-    // Get the result in the destination register.
-    __ vmov(dst, single_scratch);
-
   } else {
     // Load the double value in the destination registers.
     __ ldr(scratch1, FieldMemOperand(object, HeapNumber::kExponentOffset));
@@ -2850,7 +2849,6 @@ void BinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
   Register scratch1 = r7;
   Register scratch2 = r9;
   DwVfpRegister double_scratch = d0;
-  SwVfpRegister single_scratch = s3;
 
   Register heap_number_result = no_reg;
   Register heap_number_map = r6;
@@ -2888,6 +2886,7 @@ void BinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
                                                    right,
                                                    destination,
                                                    d7,
+                                                   d8,
                                                    r2,
                                                    r3,
                                                    heap_number_map,
@@ -2899,6 +2898,7 @@ void BinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
                                                    left,
                                                    destination,
                                                    d6,
+                                                   d8,
                                                    r4,
                                                    r5,
                                                    heap_number_map,
@@ -2934,10 +2934,10 @@ void BinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
           // transition.
 
           __ EmitVFPTruncate(kRoundToZero,
-                             single_scratch,
-                             d5,
                              scratch1,
-                             scratch2);
+                             d5,
+                             scratch2,
+                             d8);
 
           if (result_type_ <= BinaryOpIC::INT32) {
             // If the ne condition is set, result does
@@ -2946,7 +2946,6 @@ void BinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
           }
 
           // Check if the result fits in a smi.
-          __ vmov(scratch1, single_scratch);
           __ add(scratch2, scratch1, Operand(0x40000000), SetCC);
           // If not try to return a heap number.
           __ b(mi, &return_heap_number);
@@ -3041,6 +3040,7 @@ void BinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
                                              scratch2,
                                              scratch3,
                                              d0,
+                                             d1,
                                              &transition);
       FloatingPointHelper::LoadNumberAsInt32(masm,
                                              right,
@@ -3050,6 +3050,7 @@ void BinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
                                              scratch2,
                                              scratch3,
                                              d0,
+                                             d1,
                                              &transition);
 
       // The ECMA-262 standard specifies that, for shift operations, only the
@@ -3636,13 +3637,13 @@ void MathPowStub::Generate(MacroAssembler* masm) {
       Label not_plus_half;
 
       // Test for 0.5.
-      __ vmov(double_scratch, 0.5);
+      __ vmov(double_scratch, 0.5, scratch);
       __ VFPCompareAndSetFlags(double_exponent, double_scratch);
       __ b(ne, &not_plus_half);
 
       // Calculates square root of base.  Check for the special case of
       // Math.pow(-Infinity, 0.5) == Infinity (ECMA spec, 15.8.2.13).
-      __ vmov(double_scratch, -V8_INFINITY);
+      __ vmov(double_scratch, -V8_INFINITY, scratch);
       __ VFPCompareAndSetFlags(double_base, double_scratch);
       __ vneg(double_result, double_scratch, eq);
       __ b(eq, &done);
@@ -3653,20 +3654,20 @@ void MathPowStub::Generate(MacroAssembler* masm) {
       __ jmp(&done);
 
       __ bind(&not_plus_half);
-      __ vmov(double_scratch, -0.5);
+      __ vmov(double_scratch, -0.5, scratch);
       __ VFPCompareAndSetFlags(double_exponent, double_scratch);
       __ b(ne, &call_runtime);
 
       // Calculates square root of base.  Check for the special case of
       // Math.pow(-Infinity, -0.5) == 0 (ECMA spec, 15.8.2.13).
-      __ vmov(double_scratch, -V8_INFINITY);
+      __ vmov(double_scratch, -V8_INFINITY, scratch);
       __ VFPCompareAndSetFlags(double_base, double_scratch);
       __ vmov(double_result, kDoubleRegZero, eq);
       __ b(eq, &done);
 
       // Add +0 to convert -0 to +0.
       __ vadd(double_scratch, double_base, kDoubleRegZero);
-      __ vmov(double_result, 1.0);
+      __ vmov(double_result, 1.0, scratch);
       __ vsqrt(double_scratch, double_scratch);
       __ vdiv(double_result, double_result, double_scratch);
       __ jmp(&done);
@@ -3701,7 +3702,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
     __ mov(exponent, scratch);
   }
   __ vmov(double_scratch, double_base);  // Back up base.
-  __ vmov(double_result, 1.0);
+  __ vmov(double_result, 1.0, scratch2);
 
   // Get absolute value of exponent.
   __ cmp(scratch, Operand(0));
@@ -3717,7 +3718,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
 
   __ cmp(exponent, Operand(0));
   __ b(ge, &done);
-  __ vmov(double_scratch, 1.0);
+  __ vmov(double_scratch, 1.0, scratch);
   __ vdiv(double_result, double_scratch, double_result);
   // Test whether result is zero.  Bail out to check for subnormal result.
   // Due to subnormals, x^-y == (1/x)^y does not hold in all cases.
@@ -7262,6 +7263,7 @@ static const AheadOfTimeWriteBarrierStubList kAheadOfTime[] = {
 
 #undef REG
 
+
 bool RecordWriteStub::IsPregenerated() {
   for (const AheadOfTimeWriteBarrierStubList* entry = kAheadOfTime;
        !entry->object.is(no_reg);
@@ -7300,6 +7302,11 @@ void RecordWriteStub::GenerateFixedRegStubsAheadOfTime() {
                          kDontSaveFPRegs);
     stub.GetCode()->set_is_pregenerated(true);
   }
+}
+
+
+bool CodeStub::CanUseFPRegisters() {
+  return CpuFeatures::IsSupported(VFP2);
 }
 
 
@@ -7431,6 +7438,16 @@ void RecordWriteStub::CheckNeedsToInformIncrementalMarker(
   Label need_incremental;
   Label need_incremental_pop_scratch;
 
+  __ and_(regs_.scratch0(), regs_.object(), Operand(~Page::kPageAlignmentMask));
+  __ ldr(regs_.scratch1(),
+         MemOperand(regs_.scratch0(),
+                    MemoryChunk::kWriteBarrierCounterOffset));
+  __ sub(regs_.scratch1(), regs_.scratch1(), Operand(1), SetCC);
+  __ str(regs_.scratch1(),
+         MemOperand(regs_.scratch0(),
+                    MemoryChunk::kWriteBarrierCounterOffset));
+  __ b(mi, &need_incremental);
+
   // Let's look at the color of the object:  If it is not black we don't have
   // to inform the incremental marker.
   __ JumpIfBlack(regs_.object(), regs_.scratch0(), regs_.scratch1(), &on_black);
@@ -7551,7 +7568,9 @@ void StoreArrayLiteralElementStub::Generate(MacroAssembler* masm) {
   // Array literal has ElementsKind of FAST_DOUBLE_ELEMENTS.
   __ bind(&double_elements);
   __ ldr(r5, FieldMemOperand(r1, JSObject::kElementsOffset));
-  __ StoreNumberToDoubleElements(r0, r3, r1, r5, r6, r7, r9, r2,
+  __ StoreNumberToDoubleElements(r0, r3, r1,
+                                 // Overwrites all regs after this.
+                                 r5, r6, r7, r9, r2,
                                  &slow_elements);
   __ Ret();
 }

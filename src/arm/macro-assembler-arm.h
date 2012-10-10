@@ -154,7 +154,7 @@ class MacroAssembler: public Assembler {
            int lsb,
            int width,
            Condition cond = al);
-  void Bfc(Register dst, int lsb, int width, Condition cond = al);
+  void Bfc(Register dst, Register src, int lsb, int width, Condition cond = al);
   void Usat(Register dst, int satpos, const Operand& src,
             Condition cond = al);
 
@@ -483,6 +483,7 @@ class MacroAssembler: public Assembler {
 
   void Vmov(const DwVfpRegister dst,
             const double imm,
+            const Register scratch = no_reg,
             const Condition cond = al);
 
   // Enter exit frame.
@@ -815,6 +816,7 @@ class MacroAssembler: public Assembler {
   void StoreNumberToDoubleElements(Register value_reg,
                                    Register key_reg,
                                    Register receiver_reg,
+                                   // All regs below here overwritten.
                                    Register elements_reg,
                                    Register scratch1,
                                    Register scratch2,
@@ -937,21 +939,22 @@ class MacroAssembler: public Assembler {
                       DwVfpRegister double_scratch,
                       Label *not_int32);
 
-  // Truncates a double using a specific rounding mode.
+  // Truncates a double using a specific rounding mode, and writes the value
+  // to the result register.
   // Clears the z flag (ne condition) if an overflow occurs.
-  // If exact_conversion is true, the z flag is also cleared if the conversion
-  // was inexact, i.e. if the double value could not be converted exactly
-  // to a 32bit integer.
+  // If kCheckForInexactConversion is passed, the z flag is also cleared if the
+  // conversion was inexact, i.e. if the double value could not be converted
+  // exactly to a 32-bit integer.
   void EmitVFPTruncate(VFPRoundingMode rounding_mode,
-                       SwVfpRegister result,
+                       Register result,
                        DwVfpRegister double_input,
-                       Register scratch1,
-                       Register scratch2,
+                       Register scratch,
+                       DwVfpRegister double_scratch,
                        CheckForInexactConversion check
                            = kDontCheckForInexactConversion);
 
   // Helper for EmitECMATruncate.
-  // This will truncate a floating-point value outside of the singed 32bit
+  // This will truncate a floating-point value outside of the signed 32bit
   // integer range to a 32bit signed integer.
   // Expects the double value loaded in input_high and input_low.
   // Exits with the answer in 'result'.

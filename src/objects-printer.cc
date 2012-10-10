@@ -562,7 +562,12 @@ void Map::MapPrint(FILE* out) {
   if (is_access_check_needed()) {
     PrintF(out, " - access_check_needed\n");
   }
-  PrintF(out, " - instance descriptors: ");
+  PrintF(out, " - back pointer: ");
+  GetBackPointer()->ShortPrint(out);
+  PrintF(out, "\n - instance descriptors %i #%i %i: ",
+         owns_descriptors(),
+         NumberOfOwnDescriptors(),
+         StoresOwnDescriptors());
   instance_descriptors()->ShortPrint(out);
   if (HasTransitionArray()) {
     PrintF(out, "\n - transitions: ");

@@ -205,7 +205,9 @@ var currentlyUncallable = {
 
 function testNatives() {
   var allNatives = %ListNatives();
-  for (var i = 0; i < allNatives.length; i++) {
+  var start = 0;
+  var stop = (allNatives.length >> 2);
+  for (var i = start; i < stop; i++) {
     var nativeInfo = allNatives[i];
     var name = nativeInfo[0];
     if (name in knownProblems || name in currentlyUncallable)

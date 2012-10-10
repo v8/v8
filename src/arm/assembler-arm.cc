@@ -110,6 +110,10 @@ void CpuFeatures::Probe() {
   if (FLAG_enable_armv7) {
     supported_ |= 1u << ARMv7;
   }
+
+  if (FLAG_enable_sudiv) {
+    supported_ |= 1u << SUDIV;
+  }
 #else  // __arm__
   // Probe for additional features not already known to be available.
   if (!IsSupported(VFP3) && OS::ArmCpuHasFeature(VFP3)) {
@@ -123,6 +127,10 @@ void CpuFeatures::Probe() {
 
   if (!IsSupported(ARMv7) && OS::ArmCpuHasFeature(ARMv7)) {
     found_by_runtime_probing_ |= 1u << ARMv7;
+  }
+
+  if (!IsSupported(SUDIV) && OS::ArmCpuHasFeature(SUDIV)) {
+    found_by_runtime_probing_ |= 1u << SUDIV;
   }
 
   supported_ |= found_by_runtime_probing_;
@@ -1207,6 +1215,22 @@ void Assembler::mla(Register dst, Register src1, Register src2, Register srcA,
 }
 
 
+void Assembler::mls(Register dst, Register src1, Register src2, Register srcA,
+                    Condition cond) {
+  ASSERT(!dst.is(pc) && !src1.is(pc) && !src2.is(pc) && !srcA.is(pc));
+  emit(cond | B22 | B21 | dst.code()*B16 | srcA.code()*B12 |
+       src2.code()*B8 | B7 | B4 | src1.code());
+}
+
+
+void Assembler::sdiv(Register dst, Register src1, Register src2,
+                     Condition cond) {
+  ASSERT(!dst.is(pc) && !src1.is(pc) && !src2.is(pc));
+  emit(cond | B26 | B25| B24 | B20 | dst.code()*B16 | 0xf * B12 |
+       src2.code()*B8 | B4 | src1.code());
+}
+
+
 void Assembler::mul(Register dst, Register src1, Register src2,
                     SBit s, Condition cond) {
   ASSERT(!dst.is(pc) && !src1.is(pc) && !src2.is(pc));
@@ -1975,6 +1999,7 @@ static bool FitsVMOVDoubleImmediate(double d, uint32_t *encoding) {
 
 void Assembler::vmov(const DwVfpRegister dst,
                      double imm,
+                     const Register scratch,
                      const Condition cond) {
   // Dd = immediate
   // Instruction details available in ARM DDI 0406B, A8-640.
@@ -1989,22 +2014,22 @@ void Assembler::vmov(const DwVfpRegister dst,
     // using vldr from a constant pool.
     uint32_t lo, hi;
     DoubleAsTwoUInt32(imm, &lo, &hi);
+    mov(ip, Operand(lo));
 
-    if (lo == hi) {
-      // If the lo and hi parts of the double are equal, the literal is easier
-      // to create. This is the case with 0.0.
-      mov(ip, Operand(lo));
-      vmov(dst, ip, ip);
-    } else {
+    if (scratch.is(no_reg)) {
       // Move the low part of the double into the lower of the corresponsing S
       // registers of D register dst.
-      mov(ip, Operand(lo));
       vmov(dst.low(), ip, cond);
 
       // Move the high part of the double into the higher of the corresponsing S
       // registers of D register dst.
       mov(ip, Operand(hi));
       vmov(dst.high(), ip, cond);
+    } else {
+      // Move the low and high parts of the double to a D register in one
+      // instruction.
+      mov(scratch, Operand(hi));
+      vmov(dst, ip, scratch, cond);
     }
   }
 }

@@ -168,10 +168,9 @@ void HBasicBlock::Finish(HControlInstruction* end) {
 void HBasicBlock::Goto(HBasicBlock* block, FunctionState* state) {
   bool drop_extra = state != NULL &&
       state->inlining_kind() == DROP_EXTRA_ON_RETURN;
-  bool arguments_pushed = state != NULL && state->arguments_pushed();
 
   if (block->IsInlineReturnTarget()) {
-    AddInstruction(new(zone()) HLeaveInlined(arguments_pushed));
+    AddInstruction(new(zone()) HLeaveInlined());
     last_environment_ = last_environment()->DiscardInlined(drop_extra);
   }
 
@@ -185,11 +184,10 @@ void HBasicBlock::AddLeaveInlined(HValue* return_value,
                                   FunctionState* state) {
   HBasicBlock* target = state->function_return();
   bool drop_extra = state->inlining_kind() == DROP_EXTRA_ON_RETURN;
-  bool arguments_pushed = state->arguments_pushed();
 
   ASSERT(target->IsInlineReturnTarget());
   ASSERT(return_value != NULL);
-  AddInstruction(new(zone()) HLeaveInlined(arguments_pushed));
+  AddInstruction(new(zone()) HLeaveInlined());
   last_environment_ = last_environment()->DiscardInlined(drop_extra);
   last_environment()->Push(return_value);
   AddSimulate(BailoutId::None());
@@ -1950,52 +1948,6 @@ void HGlobalValueNumberer::ProcessLoopBlock(
       if (can_hoist && !graph()->use_optimistic_licm()) {
         can_hoist = block->IsLoopSuccessorDominator();
       }
-      if (instr->IsTransitionElementsKind()) {
-        // It's possible to hoist transitions out of a loop as long as the
-        // hoisting wouldn't move the transition past an instruction that has a
-        // DependsOn flag for anything it changes.
-        GVNFlagSet hoist_depends_blockers =
-            HValue::ConvertChangesToDependsFlags(instr->ChangesFlags());
-
-        // In addition, the transition must not be hoisted above elements kind
-        // changes, or if the transition is destructive to the elements buffer,
-        // changes to array pointer or array contents.
-        GVNFlagSet hoist_change_blockers;
-        hoist_change_blockers.Add(kChangesElementsKind);
-        HTransitionElementsKind* trans = HTransitionElementsKind::cast(instr);
-        if (trans->original_map()->has_fast_double_elements()) {
-          hoist_change_blockers.Add(kChangesElementsPointer);
-          hoist_change_blockers.Add(kChangesDoubleArrayElements);
-        }
-        if (trans->transitioned_map()->has_fast_double_elements()) {
-          hoist_change_blockers.Add(kChangesElementsPointer);
-          hoist_change_blockers.Add(kChangesArrayElements);
-        }
-        if (FLAG_trace_gvn) {
-          GVNFlagSet hoist_blockers = hoist_depends_blockers;
-          hoist_blockers.Add(hoist_change_blockers);
-          GVNFlagSet first_time = *first_time_changes;
-          first_time.Add(*first_time_depends);
-          TRACE_GVN_4("Checking dependencies on HTransitionElementsKind "
-                      "%d (%s) hoist blockers: %s; "
-                      "first-time accumulated: %s\n",
-                      instr->id(),
-                      instr->Mnemonic(),
-                      *GetGVNFlagsString(hoist_blockers),
-                      *GetGVNFlagsString(first_time));
-        }
-        // It's possible to hoist transition from the current loop loop only if
-        // they dominate all of the successor blocks in the same loop and there
-        // are not any instructions that have Changes/DependsOn that intervene
-        // between it and the beginning of the loop header.
-        bool in_nested_loop = block != loop_header &&
-            ((block->parent_loop_header() != loop_header) ||
-             block->IsLoopHeader());
-        can_hoist = !in_nested_loop &&
-            block->IsLoopSuccessorDominator() &&
-            !first_time_depends->ContainsAnyOf(hoist_depends_blockers) &&
-            !first_time_changes->ContainsAnyOf(hoist_change_blockers);
-      }
 
       if (can_hoist) {
         bool inputs_loop_invariant = true;
@@ -3615,7 +3567,10 @@ class BoundsCheckBbData: public ZoneObject {
        HConstant(new_offset, Representation::Integer32());
     if (*add == NULL) {
       new_constant->InsertBefore(check);
-      *add = new(BasicBlock()->zone()) HAdd(NULL,
+      // Because of the bounds checks elimination algorithm, the index is always
+      // an HAdd or an HSub here, so we can safely cast to an HBinaryOperation.
+      HValue* context = HBinaryOperation::cast(check->index())->context();
+      *add = new(BasicBlock()->zone()) HAdd(context,
                                             original_value,
                                             new_constant);
       (*add)->AssumeRepresentation(representation);

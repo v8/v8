@@ -1906,11 +1906,17 @@ bool DescriptorArray::IsEmpty() {
 }
 
 
+void DescriptorArray::SetNumberOfDescriptors(int number_of_descriptors) {
+  WRITE_FIELD(
+      this, kDescriptorLengthOffset, Smi::FromInt(number_of_descriptors));
+}
+
+
 // Perform a binary search in a fixed array. Low and high are entry indices. If
 // there are three entries in this array it should be called with low=0 and
 // high=2.
-template<typename T>
-int BinarySearch(T* array, String* name, int low, int high) {
+template<SearchMode search_mode, typename T>
+int BinarySearch(T* array, String* name, int low, int high, int valid_entries) {
   uint32_t hash = name->Hash();
   int limit = high;
 
@@ -1932,11 +1938,17 @@ int BinarySearch(T* array, String* name, int low, int high) {
     int sort_index = array->GetSortedKeyIndex(low);
     String* entry = array->GetKey(sort_index);
     if (entry->Hash() != hash) break;
-    if (entry->Equals(name)) return sort_index;
+    if (entry->Equals(name)) {
+      if (search_mode == ALL_ENTRIES || sort_index < valid_entries) {
+        return sort_index;
+      }
+      return T::kNotFound;
+    }
   }
 
   return T::kNotFound;
 }
+
 
 // Perform a linear search in this fixed array. len is the number of entry
 // indices that are valid.
@@ -1976,13 +1988,15 @@ int Search(T* array, String* name, int valid_entries) {
 
   // Fast case: do linear search for small arrays.
   const int kMaxElementsForLinearSearch = 8;
-  if (search_mode == VALID_ENTRIES ||
-      (search_mode == ALL_ENTRIES && nof < kMaxElementsForLinearSearch)) {
+  if ((search_mode == ALL_ENTRIES &&
+       nof <= kMaxElementsForLinearSearch) ||
+      (search_mode == VALID_ENTRIES &&
+       valid_entries <= (kMaxElementsForLinearSearch * 3))) {
     return LinearSearch<search_mode>(array, name, nof, valid_entries);
   }
 
   // Slow case: perform binary search.
-  return BinarySearch(array, name, 0, nof - 1);
+  return BinarySearch<search_mode>(array, name, 0, nof - 1, valid_entries);
 }
 
 
@@ -2138,13 +2152,53 @@ void DescriptorArray::Set(int descriptor_number,
 }
 
 
+void DescriptorArray::Set(int descriptor_number, Descriptor* desc) {
+  // Range check.
+  ASSERT(descriptor_number < number_of_descriptors());
+  ASSERT(desc->GetDetails().descriptor_index() <=
+         number_of_descriptors());
+  ASSERT(desc->GetDetails().descriptor_index() > 0);
+
+  set(ToKeyIndex(descriptor_number), desc->GetKey());
+  set(ToValueIndex(descriptor_number), desc->GetValue());
+  set(ToDetailsIndex(descriptor_number), desc->GetDetails().AsSmi());
+}
+
+
+void DescriptorArray::EraseDescriptor(Heap* heap, int descriptor_number) {
+  set_null_unchecked(heap, ToKeyIndex(descriptor_number));
+  set_null_unchecked(heap, ToValueIndex(descriptor_number));
+}
+
+
 void DescriptorArray::Append(Descriptor* desc,
-                             const WhitenessWitness& witness,
-                             int number_of_set_descriptors) {
-  int descriptor_number = number_of_set_descriptors;
+                             const WhitenessWitness& witness) {
+  int descriptor_number = number_of_descriptors();
   int enumeration_index = descriptor_number + 1;
+  SetNumberOfDescriptors(descriptor_number + 1);
   desc->SetEnumerationIndex(enumeration_index);
   Set(descriptor_number, desc, witness);
+
+  uint32_t hash = desc->GetKey()->Hash();
+
+  int insertion;
+
+  for (insertion = descriptor_number; insertion > 0; --insertion) {
+    String* key = GetSortedKey(insertion - 1);
+    if (key->Hash() <= hash) break;
+    SetSortedKey(insertion, GetSortedKeyIndex(insertion - 1));
+  }
+
+  SetSortedKey(insertion, descriptor_number);
+}
+
+
+void DescriptorArray::Append(Descriptor* desc) {
+  int descriptor_number = number_of_descriptors();
+  int enumeration_index = descriptor_number + 1;
+  SetNumberOfDescriptors(descriptor_number + 1);
+  desc->SetEnumerationIndex(enumeration_index);
+  Set(descriptor_number, desc);
 
   uint32_t hash = desc->GetKey()->Hash();
 
@@ -3514,17 +3568,31 @@ DescriptorArray* Map::instance_descriptors() {
 }
 
 
+enum TransitionsKind { DESCRIPTORS_HOLDER, FULL_TRANSITION_ARRAY };
+
+
 // If the descriptor is using the empty transition array, install a new empty
 // transition array that will have place for an element transition.
-static MaybeObject* EnsureHasTransitionArray(Map* map) {
-  if (map->HasTransitionArray()) return map;
-
+static MaybeObject* EnsureHasTransitionArray(Map* map, TransitionsKind kind) {
   TransitionArray* transitions;
-  JSGlobalPropertyCell* pointer = map->RetrieveDescriptorsPointer();
-  MaybeObject* maybe_transitions = TransitionArray::Allocate(0, pointer);
-  if (!maybe_transitions->To(&transitions)) return maybe_transitions;
-
-  transitions->set_back_pointer_storage(map->GetBackPointer());
+  MaybeObject* maybe_transitions;
+  if (map->HasTransitionArray()) {
+    if (kind != FULL_TRANSITION_ARRAY ||
+        map->transitions()->IsFullTransitionArray()) {
+      return map;
+    }
+    maybe_transitions = map->transitions()->ExtendToFullTransitionArray();
+    if (!maybe_transitions->To(&transitions)) return maybe_transitions;
+  } else {
+    JSGlobalPropertyCell* pointer = map->RetrieveDescriptorsPointer();
+    if (kind == FULL_TRANSITION_ARRAY) {
+      maybe_transitions = TransitionArray::Allocate(0, pointer);
+    } else {
+      maybe_transitions = TransitionArray::AllocateDescriptorsHolder(pointer);
+    }
+    if (!maybe_transitions->To(&transitions)) return maybe_transitions;
+    transitions->set_back_pointer_storage(map->GetBackPointer());
+  }
   map->set_transitions(transitions);
   return transitions;
 }
@@ -3532,7 +3600,8 @@ static MaybeObject* EnsureHasTransitionArray(Map* map) {
 
 MaybeObject* Map::SetDescriptors(DescriptorArray* value) {
   ASSERT(!is_shared());
-  MaybeObject* maybe_failure = EnsureHasTransitionArray(this);
+  MaybeObject* maybe_failure =
+      EnsureHasTransitionArray(this, DESCRIPTORS_HOLDER);
   if (maybe_failure->IsFailure()) return maybe_failure;
 
   ASSERT(NumberOfOwnDescriptors() <= value->number_of_descriptors());
@@ -3591,8 +3660,8 @@ void Map::AppendDescriptor(Descriptor* desc,
                            const DescriptorArray::WhitenessWitness& witness) {
   DescriptorArray* descriptors = instance_descriptors();
   int number_of_own_descriptors = NumberOfOwnDescriptors();
-  ASSERT(number_of_own_descriptors < descriptors->number_of_descriptors());
-  descriptors->Append(desc, witness, number_of_own_descriptors);
+  ASSERT(descriptors->number_of_descriptors() == number_of_own_descriptors);
+  descriptors->Append(desc, witness);
   SetNumberOfOwnDescriptors(number_of_own_descriptors + 1);
 }
 
@@ -3642,11 +3711,13 @@ JSGlobalPropertyCell* Map::RetrieveDescriptorsPointer() {
 }
 
 
-MaybeObject* Map::AddTransition(String* key, Map* target) {
+MaybeObject* Map::AddTransition(String* key,
+                                Map* target,
+                                SimpleTransitionFlag flag) {
   if (HasTransitionArray()) return transitions()->CopyInsert(key, target);
   JSGlobalPropertyCell* descriptors_pointer = RetrieveDescriptorsPointer();
   return TransitionArray::NewWith(
-      key, target, descriptors_pointer, GetBackPointer());
+      flag, key, target, descriptors_pointer, GetBackPointer());
 }
 
 
@@ -3661,7 +3732,8 @@ Map* Map::GetTransition(int transition_index) {
 
 
 MaybeObject* Map::set_elements_transition_map(Map* transitioned_map) {
-  MaybeObject* allow_elements = EnsureHasTransitionArray(this);
+  MaybeObject* allow_elements =
+      EnsureHasTransitionArray(this, FULL_TRANSITION_ARRAY);
   if (allow_elements->IsFailure()) return allow_elements;
   transitions()->set_elements_transition(transitioned_map);
   return this;
@@ -3678,7 +3750,8 @@ FixedArray* Map::GetPrototypeTransitions() {
 
 
 MaybeObject* Map::SetPrototypeTransitions(FixedArray* proto_transitions) {
-  MaybeObject* allow_prototype = EnsureHasTransitionArray(this);
+  MaybeObject* allow_prototype =
+      EnsureHasTransitionArray(this, FULL_TRANSITION_ARRAY);
   if (allow_prototype->IsFailure()) return allow_prototype;
 #ifdef DEBUG
   if (HasPrototypeTransitions()) {
@@ -4884,14 +4957,32 @@ StringHasher::StringHasher(int length, uint32_t seed)
     raw_running_hash_(seed),
     array_index_(0),
     is_array_index_(0 < length_ && length_ <= String::kMaxArrayIndexSize),
-    is_first_char_(true),
-    is_valid_(true) {
+    is_first_char_(true) {
   ASSERT(FLAG_randomize_hashes || raw_running_hash_ == 0);
 }
 
 
 bool StringHasher::has_trivial_hash() {
   return length_ > String::kMaxHashCalcLength;
+}
+
+
+uint32_t StringHasher::AddCharacterCore(uint32_t running_hash, uint32_t c) {
+  running_hash += c;
+  running_hash += (running_hash << 10);
+  running_hash ^= (running_hash >> 6);
+  return running_hash;
+}
+
+
+uint32_t StringHasher::GetHashCore(uint32_t running_hash) {
+  running_hash += (running_hash << 3);
+  running_hash ^= (running_hash >> 11);
+  running_hash += (running_hash << 15);
+  if ((running_hash & String::kHashBitMask) == 0) {
+    return 27;
+  }
+  return running_hash;
 }
 
 
@@ -4902,9 +4993,7 @@ void StringHasher::AddCharacter(uint32_t c) {
   }
   // Use the Jenkins one-at-a-time hash function to update the hash
   // for the given character.
-  raw_running_hash_ += c;
-  raw_running_hash_ += (raw_running_hash_ << 10);
-  raw_running_hash_ ^= (raw_running_hash_ >> 6);
+  raw_running_hash_ = AddCharacterCore(raw_running_hash_, c);
   // Incremental array index computation.
   if (is_array_index_) {
     if (c < '0' || c > '9') {
@@ -4934,23 +5023,14 @@ void StringHasher::AddCharacterNoIndex(uint32_t c) {
     AddSurrogatePairNoIndex(c);  // Not inlined.
     return;
   }
-  raw_running_hash_ += c;
-  raw_running_hash_ += (raw_running_hash_ << 10);
-  raw_running_hash_ ^= (raw_running_hash_ >> 6);
+  raw_running_hash_ = AddCharacterCore(raw_running_hash_, c);
 }
 
 
 uint32_t StringHasher::GetHash() {
   // Get the calculated raw hash value and do some more bit ops to distribute
   // the hash further. Ensure that we never return zero as the hash value.
-  uint32_t result = raw_running_hash_;
-  result += (result << 3);
-  result ^= (result >> 11);
-  result += (result << 15);
-  if ((result & String::kHashBitMask) == 0) {
-    result = 27;
-  }
-  return result;
+  return GetHashCore(raw_running_hash_);
 }
 
 

@@ -148,6 +148,9 @@ bool OS::ArmCpuHasFeature(CpuFeature feature) {
     case ARMv7:
       search_string = "ARMv7";
       break;
+    case SUDIV:
+      search_string = "idiva";
+      break;
     default:
       UNREACHABLE();
   }
@@ -1012,9 +1015,8 @@ static void ProfilerSignalHandler(int signal, siginfo_t* info, void* context) {
   Sampler* sampler = isolate->logger()->sampler();
   if (sampler == NULL || !sampler->IsActive()) return;
 
-  TickSample sample_obj;
-  TickSample* sample = CpuProfiler::TickSampleEvent(isolate);
-  if (sample == NULL) sample = &sample_obj;
+  TickSample* sample = CpuProfiler::StartTickSampleEvent(isolate);
+  if (sample == NULL) return;
 
   // Extracting the sample from the context is extremely machine dependent.
   ucontext_t* ucontext = reinterpret_cast<ucontext_t*>(context);
@@ -1049,16 +1051,74 @@ static void ProfilerSignalHandler(int signal, siginfo_t* info, void* context) {
 #endif  // V8_HOST_ARCH_*
   sampler->SampleStack(sample);
   sampler->Tick(sample);
+  CpuProfiler::FinishTickSampleEvent(isolate);
 }
+
+
+class CpuProfilerSignalHandler {
+ public:
+  static void SetUp() { if (!mutex_) mutex_ = OS::CreateMutex(); }
+  static void TearDown() { delete mutex_; }
+
+  static void InstallSignalHandler() {
+    struct sigaction sa;
+    ScopedLock lock(mutex_);
+    if (signal_handler_installed_counter_ > 0) {
+      signal_handler_installed_counter_++;
+      return;
+    }
+    sa.sa_sigaction = ProfilerSignalHandler;
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = SA_RESTART | SA_SIGINFO;
+    if (sigaction(SIGPROF, &sa, &old_signal_handler_) == 0) {
+      signal_handler_installed_counter_++;
+    }
+  }
+
+  static void RestoreSignalHandler() {
+    ScopedLock lock(mutex_);
+    if (signal_handler_installed_counter_ == 0)
+      return;
+    if (signal_handler_installed_counter_ == 1) {
+      sigaction(SIGPROF, &old_signal_handler_, 0);
+    }
+    signal_handler_installed_counter_--;
+  }
+
+  static bool signal_handler_installed() {
+    return signal_handler_installed_counter_ > 0;
+  }
+
+ private:
+  static int signal_handler_installed_counter_;
+  static struct sigaction old_signal_handler_;
+  static Mutex* mutex_;
+};
+
+
+int CpuProfilerSignalHandler::signal_handler_installed_counter_ = 0;
+struct sigaction CpuProfilerSignalHandler::old_signal_handler_;
+Mutex* CpuProfilerSignalHandler::mutex_ = NULL;
 
 
 class Sampler::PlatformData : public Malloced {
  public:
-  PlatformData() : vm_tid_(GetThreadID()) {}
+  PlatformData()
+      : vm_tgid_(getpid()),
+        vm_tid_(GetThreadID()) {}
 
-  int vm_tid() const { return vm_tid_; }
+  void SendProfilingSignal() {
+    if (!CpuProfilerSignalHandler::signal_handler_installed()) return;
+    // Glibc doesn't provide a wrapper for tgkill(2).
+#if defined(ANDROID)
+    syscall(__NR_tgkill, vm_tgid_, vm_tid_, SIGPROF);
+#else
+    syscall(SYS_tgkill, vm_tgid_, vm_tid_, SIGPROF);
+#endif
+  }
 
  private:
+  const int vm_tgid_;
   const int vm_tid_;
 };
 
@@ -1074,27 +1134,10 @@ class SignalSender : public Thread {
 
   explicit SignalSender(int interval)
       : Thread(Thread::Options("SignalSender", kSignalSenderStackSize)),
-        vm_tgid_(getpid()),
         interval_(interval) {}
 
   static void SetUp() { if (!mutex_) mutex_ = OS::CreateMutex(); }
   static void TearDown() { delete mutex_; }
-
-  static void InstallSignalHandler() {
-    struct sigaction sa;
-    sa.sa_sigaction = ProfilerSignalHandler;
-    sigemptyset(&sa.sa_mask);
-    sa.sa_flags = SA_RESTART | SA_SIGINFO;
-    signal_handler_installed_ =
-        (sigaction(SIGPROF, &sa, &old_signal_handler_) == 0);
-  }
-
-  static void RestoreSignalHandler() {
-    if (signal_handler_installed_) {
-      sigaction(SIGPROF, &old_signal_handler_, 0);
-      signal_handler_installed_ = false;
-    }
-  }
 
   static void AddActiveSampler(Sampler* sampler) {
     ScopedLock lock(mutex_);
@@ -1116,7 +1159,6 @@ class SignalSender : public Thread {
       RuntimeProfiler::StopRuntimeProfilerThreadBeforeShutdown(instance_);
       delete instance_;
       instance_ = NULL;
-      RestoreSignalHandler();
     }
   }
 
@@ -1125,65 +1167,19 @@ class SignalSender : public Thread {
     SamplerRegistry::State state;
     while ((state = SamplerRegistry::GetState()) !=
            SamplerRegistry::HAS_NO_SAMPLERS) {
-      bool cpu_profiling_enabled =
-          (state == SamplerRegistry::HAS_CPU_PROFILING_SAMPLERS);
-      bool runtime_profiler_enabled = RuntimeProfiler::IsEnabled();
-      if (cpu_profiling_enabled && !signal_handler_installed_) {
-        InstallSignalHandler();
-      } else if (!cpu_profiling_enabled && signal_handler_installed_) {
-        RestoreSignalHandler();
-      }
-      // When CPU profiling is enabled both JavaScript and C++ code is
-      // profiled. We must not suspend.
-      if (!cpu_profiling_enabled) {
-        if (rate_limiter_.SuspendIfNecessary()) continue;
-      }
-      if (cpu_profiling_enabled && runtime_profiler_enabled) {
-        if (!SamplerRegistry::IterateActiveSamplers(&DoCpuProfile, this)) {
-          return;
-        }
-        Sleep(HALF_INTERVAL);
+      if (rate_limiter_.SuspendIfNecessary()) continue;
+      if (RuntimeProfiler::IsEnabled()) {
         if (!SamplerRegistry::IterateActiveSamplers(&DoRuntimeProfile, NULL)) {
           return;
         }
-        Sleep(HALF_INTERVAL);
-      } else {
-        if (cpu_profiling_enabled) {
-          if (!SamplerRegistry::IterateActiveSamplers(&DoCpuProfile,
-                                                      this)) {
-            return;
-          }
-        }
-        if (runtime_profiler_enabled) {
-          if (!SamplerRegistry::IterateActiveSamplers(&DoRuntimeProfile,
-                                                      NULL)) {
-            return;
-          }
-        }
-        Sleep(FULL_INTERVAL);
       }
+      Sleep(FULL_INTERVAL);
     }
-  }
-
-  static void DoCpuProfile(Sampler* sampler, void* raw_sender) {
-    if (!sampler->IsProfiling()) return;
-    SignalSender* sender = reinterpret_cast<SignalSender*>(raw_sender);
-    sender->SendProfilingSignal(sampler->platform_data()->vm_tid());
   }
 
   static void DoRuntimeProfile(Sampler* sampler, void* ignored) {
     if (!sampler->isolate()->IsInitialized()) return;
     sampler->isolate()->runtime_profiler()->NotifyTick();
-  }
-
-  void SendProfilingSignal(int tid) {
-    if (!signal_handler_installed_) return;
-    // Glibc doesn't provide a wrapper for tgkill(2).
-#if defined(ANDROID)
-    syscall(__NR_tgkill, vm_tgid_, tid, SIGPROF);
-#else
-    syscall(SYS_tgkill, vm_tgid_, tid, SIGPROF);
-#endif
   }
 
   void Sleep(SleepInterval full_or_half) {
@@ -1208,15 +1204,12 @@ class SignalSender : public Thread {
 #endif  // ANDROID
   }
 
-  const int vm_tgid_;
   const int interval_;
   RuntimeProfilerRateLimiter rate_limiter_;
 
   // Protects the process wide state below.
   static Mutex* mutex_;
   static SignalSender* instance_;
-  static bool signal_handler_installed_;
-  static struct sigaction old_signal_handler_;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(SignalSender);
@@ -1225,8 +1218,6 @@ class SignalSender : public Thread {
 
 Mutex* SignalSender::mutex_ = NULL;
 SignalSender* SignalSender::instance_ = NULL;
-struct sigaction SignalSender::old_signal_handler_;
-bool SignalSender::signal_handler_installed_ = false;
 
 
 void OS::SetUp() {
@@ -1254,11 +1245,13 @@ void OS::SetUp() {
   }
 #endif
   SignalSender::SetUp();
+  CpuProfilerSignalHandler::SetUp();
 }
 
 
 void OS::TearDown() {
   SignalSender::TearDown();
+  CpuProfilerSignalHandler::TearDown();
   delete limit_mutex;
 }
 
@@ -1279,8 +1272,14 @@ Sampler::~Sampler() {
 }
 
 
+void Sampler::DoSample() {
+  platform_data()->SendProfilingSignal();
+}
+
+
 void Sampler::Start() {
   ASSERT(!IsActive());
+  CpuProfilerSignalHandler::InstallSignalHandler();
   SetActive(true);
   SignalSender::AddActiveSampler(this);
 }
@@ -1288,6 +1287,7 @@ void Sampler::Start() {
 
 void Sampler::Stop() {
   ASSERT(IsActive());
+  CpuProfilerSignalHandler::RestoreSignalHandler();
   SignalSender::RemoveActiveSampler(this);
   SetActive(false);
 }

@@ -735,7 +735,7 @@ Handle<FixedArray> GetEnumPropertyKeys(Handle<JSObject> object,
       }
 
       DescriptorArray* desc = object->map()->instance_descriptors();
-      Handle<FixedArray> keys(FixedArray::cast(desc->GetEnumCache()), isolate);
+      Handle<FixedArray> keys(desc->GetEnumCache(), isolate);
 
       // In case the number of properties required in the enum are actually
       // present, we can reuse the enum cache. Otherwise, this means that the

@@ -642,7 +642,7 @@ FunctionLiteral* Parser::DoParseProgram(CompilationInfo* info,
     ZoneList<Statement*>* body = new(zone()) ZoneList<Statement*>(16, zone());
     bool ok = true;
     int beg_loc = scanner().location().beg_pos;
-    ParseSourceElements(body, Token::EOS, info->is_eval(), &ok);
+    ParseSourceElements(body, Token::EOS, info->is_eval(), true, &ok);
     if (ok && !top_scope_->is_classic_mode()) {
       CheckOctalLiteral(beg_loc, scanner().location().end_pos, &ok);
     }
@@ -832,145 +832,10 @@ void Parser::ReportMessageAt(Scanner::Location source_location,
 }
 
 
-// Base class containing common code for the different finder classes used by
-// the parser.
-class ParserFinder {
- protected:
-  ParserFinder() {}
-  static Assignment* AsAssignment(Statement* stat) {
-    if (stat == NULL) return NULL;
-    ExpressionStatement* exp_stat = stat->AsExpressionStatement();
-    if (exp_stat == NULL) return NULL;
-    return exp_stat->expression()->AsAssignment();
-  }
-};
-
-
-// An InitializationBlockFinder finds and marks sequences of statements of the
-// form expr.a = ...; expr.b = ...; etc.
-class InitializationBlockFinder : public ParserFinder {
- public:
-  // We find and mark the initialization blocks in top level
-  // non-looping code only. This is because the optimization prevents
-  // reuse of the map transitions, so it should be used only for code
-  // that will only be run once.
-  InitializationBlockFinder(Scope* top_scope, Target* target)
-      : enabled_(top_scope->DeclarationScope()->is_global_scope() &&
-                 !IsLoopTarget(target)),
-        first_in_block_(NULL),
-        last_in_block_(NULL),
-        block_size_(0) {}
-
-  ~InitializationBlockFinder() {
-    if (!enabled_) return;
-    if (InBlock()) EndBlock();
-  }
-
-  void Update(Statement* stat) {
-    if (!enabled_) return;
-    Assignment* assignment = AsAssignment(stat);
-    if (InBlock()) {
-      if (BlockContinues(assignment)) {
-        UpdateBlock(assignment);
-      } else {
-        EndBlock();
-      }
-    }
-    if (!InBlock() && (assignment != NULL) &&
-        (assignment->op() == Token::ASSIGN)) {
-      StartBlock(assignment);
-    }
-  }
-
- private:
-  // The minimum number of contiguous assignment that will
-  // be treated as an initialization block. Benchmarks show that
-  // the overhead exceeds the savings below this limit.
-  static const int kMinInitializationBlock = 3;
-
-  static bool IsLoopTarget(Target* target) {
-    while (target != NULL) {
-      if (target->node()->AsIterationStatement() != NULL) return true;
-      target = target->previous();
-    }
-    return false;
-  }
-
-  // Returns true if the expressions appear to denote the same object.
-  // In the context of initialization blocks, we only consider expressions
-  // of the form 'expr.x' or expr["x"].
-  static bool SameObject(Expression* e1, Expression* e2) {
-    VariableProxy* v1 = e1->AsVariableProxy();
-    VariableProxy* v2 = e2->AsVariableProxy();
-    if (v1 != NULL && v2 != NULL) {
-      return v1->name()->Equals(*v2->name());
-    }
-    Property* p1 = e1->AsProperty();
-    Property* p2 = e2->AsProperty();
-    if ((p1 == NULL) || (p2 == NULL)) return false;
-    Literal* key1 = p1->key()->AsLiteral();
-    Literal* key2 = p2->key()->AsLiteral();
-    if ((key1 == NULL) || (key2 == NULL)) return false;
-    if (!key1->handle()->IsString() || !key2->handle()->IsString()) {
-      return false;
-    }
-    String* name1 = String::cast(*key1->handle());
-    String* name2 = String::cast(*key2->handle());
-    if (!name1->Equals(name2)) return false;
-    return SameObject(p1->obj(), p2->obj());
-  }
-
-  // Returns true if the expressions appear to denote different properties
-  // of the same object.
-  static bool PropertyOfSameObject(Expression* e1, Expression* e2) {
-    Property* p1 = e1->AsProperty();
-    Property* p2 = e2->AsProperty();
-    if ((p1 == NULL) || (p2 == NULL)) return false;
-    return SameObject(p1->obj(), p2->obj());
-  }
-
-  bool BlockContinues(Assignment* assignment) {
-    if ((assignment == NULL) || (first_in_block_ == NULL)) return false;
-    if (assignment->op() != Token::ASSIGN) return false;
-    return PropertyOfSameObject(first_in_block_->target(),
-                                assignment->target());
-  }
-
-  void StartBlock(Assignment* assignment) {
-    first_in_block_ = assignment;
-    last_in_block_ = assignment;
-    block_size_ = 1;
-  }
-
-  void UpdateBlock(Assignment* assignment) {
-    last_in_block_ = assignment;
-    ++block_size_;
-  }
-
-  void EndBlock() {
-    if (block_size_ >= kMinInitializationBlock) {
-      first_in_block_->mark_block_start();
-      last_in_block_->mark_block_end();
-    }
-    last_in_block_ = first_in_block_ = NULL;
-    block_size_ = 0;
-  }
-
-  bool InBlock() { return first_in_block_ != NULL; }
-
-  const bool enabled_;
-  Assignment* first_in_block_;
-  Assignment* last_in_block_;
-  int block_size_;
-
-  DISALLOW_COPY_AND_ASSIGN(InitializationBlockFinder);
-};
-
-
 // A ThisNamedPropertyAssignmentFinder finds and marks statements of the form
 // this.x = ...;, where x is a named property. It also determines whether a
 // function contains only assignments of this type.
-class ThisNamedPropertyAssignmentFinder : public ParserFinder {
+class ThisNamedPropertyAssignmentFinder {
  public:
   ThisNamedPropertyAssignmentFinder(Isolate* isolate, Zone* zone)
       : isolate_(isolate),
@@ -979,6 +844,13 @@ class ThisNamedPropertyAssignmentFinder : public ParserFinder {
         assigned_arguments_(0, zone),
         assigned_constants_(0, zone),
         zone_(zone) {
+  }
+
+  static Assignment* AsAssignment(Statement* stat) {
+    if (stat == NULL) return NULL;
+    ExpressionStatement* exp_stat = stat->AsExpressionStatement();
+    if (exp_stat == NULL) return NULL;
+    return exp_stat->expression()->AsAssignment();
   }
 
   void Update(Scope* scope, Statement* stat) {
@@ -1135,6 +1007,7 @@ class ThisNamedPropertyAssignmentFinder : public ParserFinder {
 void* Parser::ParseSourceElements(ZoneList<Statement*>* processor,
                                   int end_token,
                                   bool is_eval,
+                                  bool is_global,
                                   bool* ok) {
   // SourceElements ::
   //   (ModuleElement)* <end_token>
@@ -1146,7 +1019,6 @@ void* Parser::ParseSourceElements(ZoneList<Statement*>* processor,
   TargetScope scope(&this->target_stack_);
 
   ASSERT(processor != NULL);
-  InitializationBlockFinder block_finder(top_scope_, target_stack_);
   ThisNamedPropertyAssignmentFinder this_property_assignment_finder(isolate(),
                                                                     zone());
   bool directive_prologue = true;     // Parsing directive prologue.
@@ -1157,7 +1029,12 @@ void* Parser::ParseSourceElements(ZoneList<Statement*>* processor,
     }
 
     Scanner::Location token_loc = scanner().peek_location();
-    Statement* stat = ParseModuleElement(NULL, CHECK_OK);
+    Statement* stat;
+    if (is_global && !is_eval) {
+      stat = ParseModuleElement(NULL, CHECK_OK);
+    } else {
+      stat = ParseBlockElement(NULL, CHECK_OK);
+    }
     if (stat == NULL || stat->IsEmpty()) {
       directive_prologue = false;   // End of directive prologue.
       continue;
@@ -1201,7 +1078,6 @@ void* Parser::ParseSourceElements(ZoneList<Statement*>* processor,
       }
     }
 
-    block_finder.Update(stat);
     // Find and mark all assignments to named properties in this (this.x =)
     if (top_scope_->is_function_scope()) {
       this_property_assignment_finder.Update(top_scope_, stat);
@@ -1354,13 +1230,11 @@ Module* Parser::ParseModuleLiteral(bool* ok) {
     TargetCollector collector(zone());
     Target target(&this->target_stack_, &collector);
     Target target_body(&this->target_stack_, body);
-    InitializationBlockFinder block_finder(top_scope_, target_stack_);
 
     while (peek() != Token::RBRACE) {
       Statement* stat = ParseModuleElement(NULL, CHECK_OK);
       if (stat && !stat->IsEmpty()) {
         body->AddStatement(stat, zone());
-        block_finder.Update(stat);
       }
     }
   }
@@ -2036,12 +1910,10 @@ Block* Parser::ParseBlock(ZoneStringList* labels, bool* ok) {
   Block* result = factory()->NewBlock(labels, 16, false);
   Target target(&this->target_stack_, result);
   Expect(Token::LBRACE, CHECK_OK);
-  InitializationBlockFinder block_finder(top_scope_, target_stack_);
   while (peek() != Token::RBRACE) {
     Statement* stat = ParseStatement(NULL, CHECK_OK);
     if (stat && !stat->IsEmpty()) {
       result->AddStatement(stat, zone());
-      block_finder.Update(stat);
     }
   }
   Expect(Token::RBRACE, CHECK_OK);
@@ -2066,13 +1938,11 @@ Block* Parser::ParseScopedBlock(ZoneStringList* labels, bool* ok) {
     TargetCollector collector(zone());
     Target target(&this->target_stack_, &collector);
     Target target_body(&this->target_stack_, body);
-    InitializationBlockFinder block_finder(top_scope_, target_stack_);
 
     while (peek() != Token::RBRACE) {
       Statement* stat = ParseBlockElement(NULL, CHECK_OK);
       if (stat && !stat->IsEmpty()) {
         body->AddStatement(stat, zone());
-        block_finder.Update(stat);
       }
     }
   }
@@ -2926,8 +2796,6 @@ Statement* Parser::ParseForStatement(ZoneStringList* labels, bool* ok) {
       if (peek() == Token::IN && !name.is_null()) {
         Interface* interface =
             is_const ? Interface::NewConst() : Interface::NewValue();
-        VariableProxy* each =
-            top_scope_->NewUnresolved(factory(), name, interface);
         ForInStatement* loop = factory()->NewForInStatement(labels);
         Target target(&this->target_stack_, loop);
 
@@ -2935,6 +2803,8 @@ Statement* Parser::ParseForStatement(ZoneStringList* labels, bool* ok) {
         Expression* enumerable = ParseExpression(true, CHECK_OK);
         Expect(Token::RPAREN, CHECK_OK);
 
+        VariableProxy* each =
+            top_scope_->NewUnresolved(factory(), name, interface);
         Statement* body = ParseStatement(NULL, CHECK_OK);
         loop->Initialize(each, enumerable, body);
         Block* result = factory()->NewBlock(NULL, 2, false);
@@ -2972,18 +2842,24 @@ Statement* Parser::ParseForStatement(ZoneStringList* labels, bool* ok) {
 
         // TODO(keuchel): Move the temporary variable to the block scope, after
         // implementing stack allocated block scoped variables.
-        Variable* temp = top_scope_->DeclarationScope()->NewTemporary(name);
+        Factory* heap_factory = isolate()->factory();
+        Handle<String> tempstr =
+            heap_factory->NewConsString(heap_factory->dot_for_symbol(), name);
+        Handle<String> tempname = heap_factory->LookupSymbol(tempstr);
+        Variable* temp = top_scope_->DeclarationScope()->NewTemporary(tempname);
         VariableProxy* temp_proxy = factory()->NewVariableProxy(temp);
-        Interface* interface = Interface::NewValue();
-        VariableProxy* each =
-            top_scope_->NewUnresolved(factory(), name, interface);
         ForInStatement* loop = factory()->NewForInStatement(labels);
         Target target(&this->target_stack_, loop);
 
+        // The expression does not see the loop variable.
         Expect(Token::IN, CHECK_OK);
+        top_scope_ = saved_scope;
         Expression* enumerable = ParseExpression(true, CHECK_OK);
+        top_scope_ = for_scope;
         Expect(Token::RPAREN, CHECK_OK);
 
+        VariableProxy* each =
+            top_scope_->NewUnresolved(factory(), name, Interface::NewValue());
         Statement* body = ParseStatement(NULL, CHECK_OK);
         Block* body_block = factory()->NewBlock(NULL, 3, false);
         Assignment* assignment = factory()->NewAssignment(
@@ -4667,7 +4543,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> function_name,
                                      RelocInfo::kNoPosition)),
                                      zone());
       }
-      ParseSourceElements(body, Token::RBRACE, false, CHECK_OK);
+      ParseSourceElements(body, Token::RBRACE, false, false, CHECK_OK);
 
       materialized_literal_count = function_state.materialized_literal_count();
       expected_property_count = function_state.expected_property_count();

@@ -71,11 +71,11 @@ class JsonParser BASE_EMBEDDED {
   inline void AdvanceSkipWhitespace() {
     do {
       Advance();
-    } while (c0_ == '\t' || c0_ == '\r' || c0_ == '\n' || c0_ == ' ');
+    } while (c0_ == ' ' || c0_ == '\t' || c0_ == '\n' || c0_ == '\r');
   }
 
   inline void SkipWhitespace() {
-    while (c0_ == '\t' || c0_ == '\r' || c0_ == '\n' || c0_ == ' ') {
+    while (c0_ == ' ' || c0_ == '\t' || c0_ == '\n' || c0_ == '\r') {
       Advance();
     }
   }
@@ -563,6 +563,53 @@ Handle<String> JsonParser<seq_ascii>::ScanJsonString() {
     AdvanceSkipWhitespace();
     return Handle<String>(isolate()->heap()->empty_string());
   }
+
+  if (seq_ascii && is_symbol) {
+    // Fast path for existing symbols.  If the the string being parsed is not
+    // a known symbol, contains backslashes or unexpectedly reaches the end of
+    // string, return with an empty handle.
+    uint32_t running_hash = isolate()->heap()->HashSeed();
+    int position = position_;
+    uc32 c0 = c0_;
+    do {
+      if (c0 == '\\') {
+        return SlowScanJsonString<SeqAsciiString, char>(source_,
+                                                        position_,
+                                                        position);
+      }
+      if (c0_ < 0x20) return Handle<String>::null();
+      running_hash = StringHasher::AddCharacterCore(running_hash, c0);
+      position++;
+      if (position >= source_length_) return Handle<String>::null();
+      c0 = seq_source_->SeqAsciiStringGet(position);
+    } while (c0 != '"');
+    int length = position - position_;
+    uint32_t hash = (length <= String::kMaxHashCalcLength)
+        ? StringHasher::GetHashCore(running_hash) : length;
+    Vector<const char> string_vector(
+        seq_source_->GetChars() + position_, length);
+    SymbolTable* symbol_table = isolate()->heap()->symbol_table();
+    uint32_t capacity = symbol_table->Capacity();
+    uint32_t entry = SymbolTable::FirstProbe(hash, capacity);
+    uint32_t count = 1;
+    while (true) {
+      Object* element = symbol_table->KeyAt(entry);
+      if (element == isolate()->heap()->raw_unchecked_undefined_value()) {
+        // Lookup failure.
+        break;
+      }
+      if (element != isolate()->heap()->raw_unchecked_the_hole_value() &&
+          String::cast(element)->IsAsciiEqualTo(string_vector)) {
+        // Lookup success, update the current position.
+        position_ = position;
+        // Advance past the last '"'.
+        AdvanceSkipWhitespace();
+        return Handle<String>(String::cast(element));
+      }
+      entry = SymbolTable::NextProbe(entry, count++, capacity);
+    }
+  }
+
   int beg_pos = position_;
   // Fast case for ASCII only without escape characters.
   do {

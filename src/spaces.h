@@ -284,7 +284,9 @@ class Bitmap {
 
   bool IsClean() {
     for (int i = 0; i < CellsCount(); i++) {
-      if (cells()[i] != 0) return false;
+      if (cells()[i] != 0) {
+        return false;
+      }
     }
     return true;
   }
@@ -372,6 +374,11 @@ class MemoryChunk {
   bool ContainsLimit(Address addr) {
     return addr >= area_start() && addr <= area_end();
   }
+
+  // Every n write barrier invocations we go to runtime even though
+  // we could have handled it in generated code.  This lets us check
+  // whether we have hit the limit and should do some more marking.
+  static const int kWriteBarrierCounterGranularity = 500;
 
   enum MemoryChunkFlags {
     IS_EXECUTABLE,
@@ -468,6 +475,15 @@ class MemoryChunk {
     return live_byte_count_;
   }
 
+  int write_barrier_counter() {
+    return static_cast<int>(write_barrier_counter_);
+  }
+
+  void set_write_barrier_counter(int counter) {
+    write_barrier_counter_ = counter;
+  }
+
+
   static void IncrementLiveBytesFromGC(Address address, int by) {
     MemoryChunk::FromAddress(address)->IncrementLiveBytes(by);
   }
@@ -488,8 +504,10 @@ class MemoryChunk {
 
   static const size_t kSlotsBufferOffset = kLiveBytesOffset + kIntSize;
 
-  static const size_t kHeaderSize =
+  static const size_t kWriteBarrierCounterOffset =
       kSlotsBufferOffset + kPointerSize + kPointerSize;
+
+  static const size_t kHeaderSize = kWriteBarrierCounterOffset + kPointerSize;
 
   static const int kBodyOffset =
     CODE_POINTER_ALIGN(MAP_POINTER_ALIGN(kHeaderSize + Bitmap::kSize));
@@ -625,6 +643,7 @@ class MemoryChunk {
   int live_byte_count_;
   SlotsBuffer* slots_buffer_;
   SkipList* skip_list_;
+  intptr_t write_barrier_counter_;
 
   static MemoryChunk* Initialize(Heap* heap,
                                  Address base,
