@@ -1915,8 +1915,8 @@ void DescriptorArray::SetNumberOfDescriptors(int number_of_descriptors) {
 // Perform a binary search in a fixed array. Low and high are entry indices. If
 // there are three entries in this array it should be called with low=0 and
 // high=2.
-template<typename T>
-int BinarySearch(T* array, String* name, int low, int high) {
+template<SearchMode search_mode, typename T>
+int BinarySearch(T* array, String* name, int low, int high, int valid_entries) {
   uint32_t hash = name->Hash();
   int limit = high;
 
@@ -1938,11 +1938,17 @@ int BinarySearch(T* array, String* name, int low, int high) {
     int sort_index = array->GetSortedKeyIndex(low);
     String* entry = array->GetKey(sort_index);
     if (entry->Hash() != hash) break;
-    if (entry->Equals(name)) return sort_index;
+    if (entry->Equals(name)) {
+      if (search_mode == ALL_ENTRIES || sort_index < valid_entries) {
+        return sort_index;
+      }
+      return T::kNotFound;
+    }
   }
 
   return T::kNotFound;
 }
+
 
 // Perform a linear search in this fixed array. len is the number of entry
 // indices that are valid.
@@ -1982,13 +1988,15 @@ int Search(T* array, String* name, int valid_entries) {
 
   // Fast case: do linear search for small arrays.
   const int kMaxElementsForLinearSearch = 8;
-  if (search_mode == VALID_ENTRIES ||
-      (search_mode == ALL_ENTRIES && nof < kMaxElementsForLinearSearch)) {
+  if ((search_mode == ALL_ENTRIES &&
+       nof <= kMaxElementsForLinearSearch) ||
+      (search_mode == VALID_ENTRIES &&
+       valid_entries <= (kMaxElementsForLinearSearch * 3))) {
     return LinearSearch<search_mode>(array, name, nof, valid_entries);
   }
 
   // Slow case: perform binary search.
-  return BinarySearch(array, name, 0, nof - 1);
+  return BinarySearch<search_mode>(array, name, 0, nof - 1, valid_entries);
 }
 
 
