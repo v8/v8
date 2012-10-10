@@ -1771,9 +1771,7 @@ MaybeObject* JSObject::ConvertTransitionToMapTransition(
 
   // If the old_target did not yet store its own descriptors, the new
   // descriptors pointer is created for the old_target by temporarily clearing
-  // the back pointer and setting its descriptor array. The ownership of the
-  // descriptor array is returned to the smaller maps by installing a reduced
-  // copy of the descriptor array in the old_map.
+  // the back pointer and setting its descriptor array.
 
   // This phase is executed before creating the new map since it requires
   // allocation that may fail.
@@ -1787,8 +1785,6 @@ MaybeObject* JSObject::ConvertTransitionToMapTransition(
     // descriptors. Setting the backpointer always succeeds.
     old_target->SetBackPointer(old_map);
     if (maybe_failure->IsFailure()) return maybe_failure;
-
-    old_map->set_owns_descriptors(true);
   }
 
   MaybeObject* maybe_result =
@@ -1815,18 +1811,6 @@ MaybeObject* JSObject::ConvertTransitionToMapTransition(
         new_map->instance_descriptors());
     new_map->ClearTransitions(GetHeap());
     old_map->set_owns_descriptors(false);
-    Map* map;
-    JSGlobalPropertyCell* pointer =
-        old_map->transitions()->descriptors_pointer();
-    for (Object* current = old_map;
-         !current->IsUndefined();
-         current = map->GetBackPointer()) {
-      map = Map::cast(current);
-      if (!map->HasTransitionArray()) break;
-      TransitionArray* transitions = map->transitions();
-      if (transitions->descriptors_pointer() != pointer) break;
-      map->SetEnumLength(Map::kInvalidEnumCache);
-    }
   } else if (old_target->instance_descriptors() ==
              old_map->instance_descriptors()) {
     // Since the conversion above generated a new fast map with an additional
@@ -4995,8 +4979,11 @@ MaybeObject* Map::ShareDescriptor(Descriptor* descriptor) {
   // Sanity check. This path is only to be taken if the map owns its descriptor
   // array, implying that its NumberOfOwnDescriptors equals the number of
   // descriptors in the descriptor array.
-  ASSERT(NumberOfOwnDescriptors() ==
-         instance_descriptors()->number_of_descriptors());
+  if (NumberOfOwnDescriptors() !=
+      instance_descriptors()->number_of_descriptors()) {
+    Isolate::Current()->PushStackTraceAndDie(
+          0xDEAD0002, GetBackPointer(), this, 0xDEAD0003);
+  }
   Map* result;
   MaybeObject* maybe_result = CopyDropDescriptors();
   if (!maybe_result->To(&result)) return maybe_result;
@@ -5086,7 +5073,7 @@ MaybeObject* Map::CopyReplaceDescriptors(DescriptorArray* descriptors,
         // If the copied map has no added fields, and the parent map owns its
         // descriptors, those descriptors have to be empty. In that case,
         // transfer ownership of the descriptors to the new child.
-        ASSERT(instance_descriptors()->IsEmpty());
+        CHECK(instance_descriptors()->IsEmpty());
         set_owns_descriptors(false);
       } else {
         // If the parent did not own its own descriptors, it may share a larger
