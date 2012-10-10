@@ -5145,7 +5145,7 @@ MaybeObject* Map::CopyAsElementsKind(ElementsKind kind, TransitionFlag flag) {
   ASSERT(new_map->NumberOfOwnDescriptors() == NumberOfOwnDescriptors());
   new_map->set_elements_kind(kind);
 
-  if (flag == INSERT_TRANSITION) {
+  if (flag == INSERT_TRANSITION && !HasElementsTransition()) {
     // Map::Copy does not store the descriptor array in case it is empty, since
     // it does not insert a back pointer; implicitly indicating that its
     // descriptor array is empty. Since in this case we do want to insert a back
@@ -7562,16 +7562,6 @@ void Map::ClearNonLiveTransitions(Heap* heap) {
       t->set_descriptors(heap->empty_descriptor_array());
     }
     set_owns_descriptors(true);
-  }
-
-  // If the final transition array does not contain any live transitions, remove
-  // the transition array from the map.
-  if (transition_index == 0 &&
-      !t->HasElementsTransition() &&
-      !t->HasPrototypeTransitions() &&
-      number_of_own_descriptors == 0) {
-    ASSERT(owns_descriptors());
-    return ClearTransitions(heap);
   }
 
   int trim = t->number_of_transitions() - transition_index;
