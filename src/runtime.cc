@@ -9083,7 +9083,7 @@ static ObjectPair CompileGlobalEval(Isolate* isolate,
   if (native_context->allow_code_gen_from_strings()->IsFalse() &&
       !CodeGenerationFromStringsAllowed(isolate, native_context)) {
     Handle<Object> error_message =
-        context->ErrorMessageForCodeGenerationFromStrings();
+        native_context->ErrorMessageForCodeGenerationFromStrings();
     isolate->Throw(*isolate->factory()->NewEvalError(
         "code_gen_from_strings", HandleVector<Object>(&error_message, 1)));
     return MakePair(Failure::Exception(), NULL);
