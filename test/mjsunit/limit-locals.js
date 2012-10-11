@@ -27,7 +27,7 @@
 
 // Test that there is a limit of 131071 locals.
 
-// Flags: --stack-size=721
+// Flags: --stack-size=2011
 
 function function_with_n_locals(n) {
   test_prefix = "prefix ";
