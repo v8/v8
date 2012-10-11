@@ -56,9 +56,9 @@ VARIANT_FLAGS = [[],
                  ["--stress-opt", "--always-opt"],
                  ["--nocrankshaft"]]
 MODE_FLAGS = {
-    "debug"   : ["--nobreak-on-abort", "--enable-slow-asserts",
-                 "--debug-code", "--verify-heap"],
-    "release" : ["--nobreak-on-abort"]}
+    "debug"   : ["--nobreak-on-abort", "--nodead-code-elimination",
+                 "--enable-slow-asserts", "--debug-code", "--verify-heap"],
+    "release" : ["--nobreak-on-abort", "--nodead-code-elimination"]}
 
 
 def BuildOptions():
