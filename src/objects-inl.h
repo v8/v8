@@ -2165,12 +2165,6 @@ void DescriptorArray::Set(int descriptor_number, Descriptor* desc) {
 }
 
 
-void DescriptorArray::EraseDescriptor(Heap* heap, int descriptor_number) {
-  set_null_unchecked(heap, ToKeyIndex(descriptor_number));
-  set_null_unchecked(heap, ToValueIndex(descriptor_number));
-}
-
-
 void DescriptorArray::Append(Descriptor* desc,
                              const WhitenessWitness& witness) {
   int descriptor_number = number_of_descriptors();
@@ -3554,12 +3548,6 @@ void Map::set_prototype(Object* value, WriteBarrierMode mode) {
 }
 
 
-JSGlobalPropertyCell* Map::descriptors_pointer() {
-  ASSERT(HasTransitionArray());
-  return transitions()->descriptors_pointer();
-}
-
-
 DescriptorArray* Map::instance_descriptors() {
   if (HasTransitionArray()) return transitions()->descriptors();
   Object* back_pointer = GetBackPointer();
@@ -3576,22 +3564,20 @@ enum TransitionsKind { DESCRIPTORS_HOLDER, FULL_TRANSITION_ARRAY };
 static MaybeObject* EnsureHasTransitionArray(Map* map, TransitionsKind kind) {
   TransitionArray* transitions;
   MaybeObject* maybe_transitions;
-  if (map->HasTransitionArray()) {
-    if (kind != FULL_TRANSITION_ARRAY ||
-        map->transitions()->IsFullTransitionArray()) {
-      return map;
-    }
-    maybe_transitions = map->transitions()->ExtendToFullTransitionArray();
-    if (!maybe_transitions->To(&transitions)) return maybe_transitions;
-  } else {
-    JSGlobalPropertyCell* pointer = map->RetrieveDescriptorsPointer();
+  if (!map->HasTransitionArray()) {
     if (kind == FULL_TRANSITION_ARRAY) {
-      maybe_transitions = TransitionArray::Allocate(0, pointer);
+      maybe_transitions = TransitionArray::Allocate(0);
     } else {
-      maybe_transitions = TransitionArray::AllocateDescriptorsHolder(pointer);
+      maybe_transitions = TransitionArray::AllocateDescriptorsHolder();
     }
     if (!maybe_transitions->To(&transitions)) return maybe_transitions;
     transitions->set_back_pointer_storage(map->GetBackPointer());
+  } else if (kind == FULL_TRANSITION_ARRAY &&
+             !map->transitions()->IsFullTransitionArray()) {
+    maybe_transitions = map->transitions()->ExtendToFullTransitionArray();
+    if (!maybe_transitions->To(&transitions)) return maybe_transitions;
+  } else {
+    return map;
   }
   map->set_transitions(transitions);
   return transitions;
@@ -3701,23 +3687,12 @@ bool Map::CanHaveMoreTransitions() {
 }
 
 
-JSGlobalPropertyCell* Map::RetrieveDescriptorsPointer() {
-  if (!owns_descriptors()) return NULL;
-  Object* back_pointer = GetBackPointer();
-  if (back_pointer->IsUndefined()) return NULL;
-  Map* map = Map::cast(back_pointer);
-  ASSERT(map->HasTransitionArray());
-  return map->transitions()->descriptors_pointer();
-}
-
-
 MaybeObject* Map::AddTransition(String* key,
                                 Map* target,
                                 SimpleTransitionFlag flag) {
   if (HasTransitionArray()) return transitions()->CopyInsert(key, target);
-  JSGlobalPropertyCell* descriptors_pointer = RetrieveDescriptorsPointer();
   return TransitionArray::NewWith(
-      flag, key, target, descriptors_pointer, GetBackPointer());
+      flag, key, target, instance_descriptors(), GetBackPointer());
 }
 
 
@@ -3732,9 +3707,11 @@ Map* Map::GetTransition(int transition_index) {
 
 
 MaybeObject* Map::set_elements_transition_map(Map* transitioned_map) {
+  DescriptorArray* descriptors = instance_descriptors();
   MaybeObject* allow_elements =
       EnsureHasTransitionArray(this, FULL_TRANSITION_ARRAY);
   if (allow_elements->IsFailure()) return allow_elements;
+  transitions()->set_descriptors(descriptors);
   transitions()->set_elements_transition(transitioned_map);
   return this;
 }
@@ -3750,6 +3727,7 @@ FixedArray* Map::GetPrototypeTransitions() {
 
 
 MaybeObject* Map::SetPrototypeTransitions(FixedArray* proto_transitions) {
+  DescriptorArray* descriptors = instance_descriptors();
   MaybeObject* allow_prototype =
       EnsureHasTransitionArray(this, FULL_TRANSITION_ARRAY);
   if (allow_prototype->IsFailure()) return allow_prototype;
@@ -3759,6 +3737,7 @@ MaybeObject* Map::SetPrototypeTransitions(FixedArray* proto_transitions) {
     ZapPrototypeTransitions();
   }
 #endif
+  transitions()->set_descriptors(descriptors);
   transitions()->SetPrototypeTransitions(proto_transitions);
   return this;
 }

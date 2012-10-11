@@ -35,31 +35,20 @@ namespace v8 {
 namespace internal {
 
 
-static MaybeObject* AllocateRaw(int length,
-                                JSGlobalPropertyCell* descriptors_cell) {
+static MaybeObject* AllocateRaw(int length) {
   Heap* heap = Isolate::Current()->heap();
-
-  if (descriptors_cell == NULL) {
-    MaybeObject* maybe_cell =
-        heap->AllocateJSGlobalPropertyCell(heap->empty_descriptor_array());
-    if (!maybe_cell->To(&descriptors_cell)) return maybe_cell;
-  }
 
   // Use FixedArray to not use TransitionArray::cast on incomplete object.
   FixedArray* array;
   MaybeObject* maybe_array = heap->AllocateFixedArray(length);
   if (!maybe_array->To(&array)) return maybe_array;
-
-  array->set(TransitionArray::kDescriptorsPointerIndex, descriptors_cell);
   return array;
 }
 
 
-MaybeObject* TransitionArray::Allocate(int number_of_transitions,
-                                       JSGlobalPropertyCell* descriptors_cell) {
+MaybeObject* TransitionArray::Allocate(int number_of_transitions) {
   FixedArray* array;
-  MaybeObject* maybe_array =
-      AllocateRaw(ToKeyIndex(number_of_transitions), descriptors_cell);
+  MaybeObject* maybe_array = AllocateRaw(ToKeyIndex(number_of_transitions));
   if (!maybe_array->To(&array)) return maybe_array;
   array->set(kElementsTransitionIndex, Smi::FromInt(0));
   array->set(kPrototypeTransitionsIndex, Smi::FromInt(0));
@@ -84,28 +73,28 @@ static bool InsertionPointFound(String* key1, String* key2) {
 MaybeObject* TransitionArray::NewWith(SimpleTransitionFlag flag,
                                       String* key,
                                       Map* target,
-                                      JSGlobalPropertyCell* descriptors_pointer,
+                                      DescriptorArray* descriptors,
                                       Object* back_pointer) {
   TransitionArray* result;
   MaybeObject* maybe_result;
 
   if (flag == SIMPLE_TRANSITION) {
-    maybe_result = AllocateRaw(kSimpleTransitionSize, descriptors_pointer);
+    maybe_result = AllocateRaw(kSimpleTransitionSize);
     if (!maybe_result->To(&result)) return maybe_result;
     result->set(kSimpleTransitionTarget, target);
   } else {
-    maybe_result = Allocate(1, descriptors_pointer);
+    maybe_result = Allocate(1);
     if (!maybe_result->To(&result)) return maybe_result;
     result->NoIncrementalWriteBarrierSet(0, key, target);
   }
   result->set_back_pointer_storage(back_pointer);
+  result->set_descriptors(descriptors);
   return result;
 }
 
 
-MaybeObject* TransitionArray::AllocateDescriptorsHolder(
-    JSGlobalPropertyCell* descriptors_pointer) {
-  return AllocateRaw(kDescriptorsHolderSize, descriptors_pointer);
+MaybeObject* TransitionArray::AllocateDescriptorsHolder() {
+  return AllocateRaw(kDescriptorsHolderSize);
 }
 
 
@@ -113,13 +102,14 @@ MaybeObject* TransitionArray::ExtendToFullTransitionArray() {
   ASSERT(!IsFullTransitionArray());
   int nof = number_of_transitions();
   TransitionArray* result;
-  MaybeObject* maybe_result = Allocate(nof, descriptors_pointer());
+  MaybeObject* maybe_result = Allocate(nof);
   if (!maybe_result->To(&result)) return maybe_result;
 
   if (nof == 1) {
     result->NoIncrementalWriteBarrierCopyFrom(this, kSimpleTransitionIndex, 0);
   }
 
+  result->set_descriptors(descriptors());
   result->set_back_pointer_storage(back_pointer_storage());
   return result;
 }
@@ -135,8 +125,10 @@ MaybeObject* TransitionArray::CopyInsert(String* name, Map* target) {
   if (insertion_index == kNotFound) ++new_size;
 
   MaybeObject* maybe_array;
-  maybe_array = TransitionArray::Allocate(new_size, descriptors_pointer());
+  maybe_array = TransitionArray::Allocate(new_size);
   if (!maybe_array->To(&result)) return maybe_array;
+
+  result->set_descriptors(descriptors());
 
   if (HasElementsTransition()) {
     result->set_elements_transition(elements_transition());

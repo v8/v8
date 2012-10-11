@@ -2573,7 +2573,6 @@ class DescriptorArray: public FixedArray {
                   Descriptor* desc,
                   const WhitenessWitness&);
   inline void Set(int descriptor_number, Descriptor* desc);
-  inline void EraseDescriptor(Heap* heap, int descriptor_number);
 
   // Append automatically sets the enumeration index. This should only be used
   // to add descriptors in bulk at the end, followed by sorting the descriptor
@@ -4890,7 +4889,6 @@ class Map: public HeapObject {
 
   // [instance descriptors]: describes the object.
   inline DescriptorArray* instance_descriptors();
-  inline JSGlobalPropertyCell* descriptors_pointer();
   MUST_USE_RESULT inline MaybeObject* SetDescriptors(
       DescriptorArray* descriptors);
   static void SetDescriptors(Handle<Map> map,
@@ -5004,14 +5002,17 @@ class Map: public HeapObject {
       String* name,
       TransitionFlag flag,
       int descriptor_index);
-  MUST_USE_RESULT MaybeObject* ShareDescriptor(Descriptor* descriptor);
+  MUST_USE_RESULT MaybeObject* ShareDescriptor(DescriptorArray* descriptors,
+                                               Descriptor* descriptor);
   MUST_USE_RESULT MaybeObject* CopyAddDescriptor(Descriptor* descriptor,
                                                  TransitionFlag flag);
   MUST_USE_RESULT MaybeObject* CopyInsertDescriptor(Descriptor* descriptor,
                                                     TransitionFlag flag);
-  MUST_USE_RESULT MaybeObject* CopyReplaceDescriptor(Descriptor* descriptor,
-                                                     int index,
-                                                     TransitionFlag flag);
+  MUST_USE_RESULT MaybeObject* CopyReplaceDescriptor(
+      DescriptorArray* descriptors,
+      Descriptor* descriptor,
+      int index,
+      TransitionFlag flag);
   MUST_USE_RESULT MaybeObject* CopyAsElementsKind(ElementsKind kind,
                                                   TransitionFlag flag);
 
