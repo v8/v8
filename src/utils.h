@@ -862,7 +862,11 @@ class EmbeddedContainer {
  public:
   EmbeddedContainer() : elems_() { }
 
-  int length() { return NumElements; }
+  int length() const { return NumElements; }
+  const ElementType& operator[](int i) const {
+    ASSERT(i < length());
+    return elems_[i];
+  }
   ElementType& operator[](int i) {
     ASSERT(i < length());
     return elems_[i];
@@ -876,7 +880,12 @@ class EmbeddedContainer {
 template<typename ElementType>
 class EmbeddedContainer<ElementType, 0> {
  public:
-  int length() { return 0; }
+  int length() const { return 0; }
+  const ElementType& operator[](int i) const {
+    UNREACHABLE();
+    static ElementType t = 0;
+    return t;
+  }
   ElementType& operator[](int i) {
     UNREACHABLE();
     static ElementType t = 0;

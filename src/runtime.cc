@@ -2179,7 +2179,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_FunctionSetReadOnlyPrototype) {
     Map* new_map;
     MaybeObject* maybe_map =
         function->map()->CopyReplaceDescriptor(
-            &new_desc, index, OMIT_TRANSITION);
+            instance_desc, &new_desc, index, OMIT_TRANSITION);
     if (!maybe_map->To(&new_map)) return maybe_map;
 
     function->set_map(new_map);
@@ -9083,7 +9083,7 @@ static ObjectPair CompileGlobalEval(Isolate* isolate,
   if (native_context->allow_code_gen_from_strings()->IsFalse() &&
       !CodeGenerationFromStringsAllowed(isolate, native_context)) {
     Handle<Object> error_message =
-        context->ErrorMessageForCodeGenerationFromStrings();
+        native_context->ErrorMessageForCodeGenerationFromStrings();
     isolate->Throw(*isolate->factory()->NewEvalError(
         "code_gen_from_strings", HandleVector<Object>(&error_message, 1)));
     return MakePair(Failure::Exception(), NULL);

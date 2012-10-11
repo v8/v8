@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,23 +25,36 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Test that there is a limit of 131071 locals.
+// Flags: --expose-gc
 
-// Flags: --stack-size=1200
+// Create a transition tree A (no descriptors) -> B (descriptor for a) -> C
+// (descriptor for a and c), that all share the descriptor array [a,c]. C is the
+// owner of the descriptor array.
+var o = {};
+o.a = 1;
+o.c = 2;
 
-function function_with_n_locals(n) {
-  test_prefix = "prefix ";
-  test_suffix = " suffix";
-  var src = "test_prefix + (function () {"
-  for (var i = 1; i <= n; i++) {
-    src += "var x" + i + ";";
-  }
-  src += "return " + n + ";})() + test_suffix";
-  return eval(src);
-}
+// Add a transition B -> D where D has its own descriptor array [a,b] where b is
+// a constant function.
+var o1 = {};
+o1.a = 1;
 
-assertEquals("prefix 0 suffix", function_with_n_locals(0));
-assertEquals("prefix 16000 suffix", function_with_n_locals(16000));
-assertEquals("prefix 131071 suffix", function_with_n_locals(131071));
+// Install an enumeration cache in the descriptor array [a,c] at map B.
+for (var x in o1) { }
+o1.b = function() { return 1; };
 
-assertThrows("function_with_n_locals(131072)");
+// Return ownership of the descriptor array [a,c] to B and trim it to [a].
+o = null;
+gc();
+
+// Convert the transition B -> D into a transition to B -> E so that E uses the
+// instance descriptors [a,b] with b being a field.
+var o2 = {};
+o2.a = 1;
+o2.b = 10;
+
+// Create an object with map B and iterate over it.
+var o3 = {};
+o3.a = 1;
+
+for (var y in o3) { }

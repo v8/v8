@@ -2581,8 +2581,7 @@ void MacroAssembler::LoadInstanceDescriptors(Register map,
            isolate()->factory()->fixed_array_map(),
            &fail,
            DONT_DO_SMI_CHECK);
-  mov(temp, FieldOperand(temp, TransitionArray::kDescriptorsPointerOffset));
-  mov(descriptors, FieldOperand(temp, JSGlobalPropertyCell::kValueOffset));
+  mov(descriptors, FieldOperand(temp, TransitionArray::kDescriptorsOffset));
   jmp(&ok);
 
   bind(&fail);
@@ -2593,8 +2592,7 @@ void MacroAssembler::LoadInstanceDescriptors(Register map,
 
   bind(&load_from_back_pointer);
   mov(temp, FieldOperand(temp, Map::kTransitionsOrBackPointerOffset));
-  mov(temp, FieldOperand(temp, TransitionArray::kDescriptorsPointerOffset));
-  mov(descriptors, FieldOperand(temp, JSGlobalPropertyCell::kValueOffset));
+  mov(descriptors, FieldOperand(temp, TransitionArray::kDescriptorsOffset));
 
   bind(&ok);
 }

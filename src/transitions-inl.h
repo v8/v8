@@ -84,27 +84,20 @@ void TransitionArray::set_elements_transition(Map* transition_map,
 }
 
 
+Object** TransitionArray::GetDescriptorsSlot() {
+  return HeapObject::RawField(reinterpret_cast<HeapObject*>(this),
+                              kDescriptorsOffset);
+}
+
+
 DescriptorArray* TransitionArray::descriptors() {
-  return DescriptorArray::cast(descriptors_pointer()->value());
+  return DescriptorArray::cast(get(kDescriptorsIndex));
 }
 
 
 void TransitionArray::set_descriptors(DescriptorArray* descriptors) {
-  ASSERT(!this->descriptors()->IsDescriptorArray() ||
-         descriptors->number_of_descriptors() == 0 ||
-         descriptors->HasEnumCache() ||
-         !this->descriptors()->HasEnumCache());
-  descriptors_pointer()->set_value(descriptors);
-}
-
-
-JSGlobalPropertyCell* TransitionArray::descriptors_pointer() {
-  return JSGlobalPropertyCell::cast(get(kDescriptorsPointerIndex));
-}
-
-
-void TransitionArray::set_descriptors_pointer(JSGlobalPropertyCell* pointer) {
-  set(kDescriptorsPointerIndex, pointer);
+  ASSERT(descriptors->IsDescriptorArray());
+  set(kDescriptorsIndex, descriptors);
 }
 
 

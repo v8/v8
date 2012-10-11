@@ -71,10 +71,9 @@ class TransitionArray: public FixedArray {
   inline bool HasElementsTransition();
   inline void ClearElementsTransition();
 
+  inline Object** GetDescriptorsSlot();
   inline DescriptorArray* descriptors();
   inline void set_descriptors(DescriptorArray* descriptors);
-  inline JSGlobalPropertyCell* descriptors_pointer();
-  inline void set_descriptors_pointer(JSGlobalPropertyCell* pointer);
 
   inline Object* back_pointer_storage();
   inline void set_back_pointer_storage(
@@ -103,11 +102,10 @@ class TransitionArray: public FixedArray {
       SimpleTransitionFlag flag,
       String* key,
       Map* target,
-      JSGlobalPropertyCell* descriptor_pointer,
+      DescriptorArray* descriptors,
       Object* back_pointer);
 
-  static MUST_USE_RESULT MaybeObject* AllocateDescriptorsHolder(
-      JSGlobalPropertyCell* descriptor_pointer);
+  static MUST_USE_RESULT MaybeObject* AllocateDescriptorsHolder();
 
   MUST_USE_RESULT MaybeObject* ExtendToFullTransitionArray();
 
@@ -125,9 +123,7 @@ class TransitionArray: public FixedArray {
   inline int Search(String* name);
 
   // Allocates a TransitionArray.
-  MUST_USE_RESULT static MaybeObject* Allocate(
-      int number_of_transitions,
-      JSGlobalPropertyCell* descriptors_cell);
+  MUST_USE_RESULT static MaybeObject* Allocate(int number_of_transitions);
 
   bool IsDescriptorsHolder() { return length() == kDescriptorsHolderSize; }
   bool IsSimpleTransition() { return length() == kSimpleTransitionSize; }
@@ -139,7 +135,7 @@ class TransitionArray: public FixedArray {
   // Constant for denoting key was not found.
   static const int kNotFound = -1;
 
-  static const int kDescriptorsPointerIndex = 0;
+  static const int kDescriptorsIndex = 0;
   static const int kBackPointerStorageIndex = 1;
   static const int kDescriptorsHolderSize = 2;
 
@@ -154,8 +150,8 @@ class TransitionArray: public FixedArray {
   static const int kSimpleTransitionIndex = 0;
   STATIC_ASSERT(kSimpleTransitionIndex != kNotFound);
 
-  static const int kDescriptorsPointerOffset = FixedArray::kHeaderSize;
-  static const int kBackPointerStorageOffset = kDescriptorsPointerOffset +
+  static const int kDescriptorsOffset = FixedArray::kHeaderSize;
+  static const int kBackPointerStorageOffset = kDescriptorsOffset +
                                                kPointerSize;
 
   // Layout for the full transition array header.

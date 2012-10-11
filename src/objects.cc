@@ -1777,13 +1777,7 @@ MaybeObject* JSObject::ConvertTransitionToMapTransition(
   // allocation that may fail.
   if (!old_target->StoresOwnDescriptors()) {
     DescriptorArray* old_descriptors = old_map->instance_descriptors();
-
-    old_target->SetBackPointer(GetHeap()->undefined_value());
     MaybeObject* maybe_failure = old_target->SetDescriptors(old_descriptors);
-    // Reset the backpointer before returning failure, otherwise the map ends up
-    // with an undefined backpointer and no descriptors, losing its own
-    // descriptors. Setting the backpointer always succeeds.
-    old_target->SetBackPointer(old_map);
     if (maybe_failure->IsFailure()) return maybe_failure;
   }
 
@@ -1802,36 +1796,29 @@ MaybeObject* JSObject::ConvertTransitionToMapTransition(
   // invalid back pointers. This will change once we can store multiple
   // transitions with the same key.
 
-  if (old_map->owns_descriptors()) {
-    // If the old map owns its own descriptors, transfer ownership to the
-    // new_map and install its descriptors in the old_map. Since the old_map
-    // stores the descriptors for the new_map, remove the transition array of
-    // the new_map that is only in place to store the descriptors.
-    old_map->transitions()->descriptors_pointer()->set_value(
-        new_map->instance_descriptors());
-    new_map->ClearTransitions(GetHeap());
-    old_map->set_owns_descriptors(false);
-  } else if (old_target->instance_descriptors() ==
-             old_map->instance_descriptors()) {
+  bool owned_descriptors = old_map->owns_descriptors();
+  if (owned_descriptors ||
+      old_target->instance_descriptors() == old_map->instance_descriptors()) {
     // Since the conversion above generated a new fast map with an additional
     // property which can be shared as well, install this descriptor pointer
     // along the entire chain of smaller maps; and remove the transition array
     // that is only in place to hold the descriptor array in the new map.
     Map* map;
-    JSGlobalPropertyCell* new_pointer =
-        new_map->transitions()->descriptors_pointer();
-    JSGlobalPropertyCell* old_pointer =
-        old_map->transitions()->descriptors_pointer();
+    DescriptorArray* new_descriptors = new_map->instance_descriptors();
+    DescriptorArray* old_descriptors = old_map->instance_descriptors();
+    if (old_descriptors->HasEnumCache()) {
+      new_descriptors->CopyEnumCacheFrom(old_descriptors);
+    }
     for (Object* current = old_map;
          !current->IsUndefined();
          current = map->GetBackPointer()) {
       map = Map::cast(current);
       if (!map->HasTransitionArray()) break;
       TransitionArray* transitions = map->transitions();
-      if (transitions->descriptors_pointer() != old_pointer) break;
-      map->SetEnumLength(Map::kInvalidEnumCache);
-      transitions->set_descriptors_pointer(new_pointer);
+      if (transitions->descriptors() != old_descriptors) break;
+      transitions->set_descriptors(new_descriptors);
     }
+    old_map->set_owns_descriptors(false);
     new_map->ClearTransitions(GetHeap());
   }
 
@@ -4975,15 +4962,13 @@ MaybeObject* Map::CopyDropDescriptors() {
 }
 
 
-MaybeObject* Map::ShareDescriptor(Descriptor* descriptor) {
+MaybeObject* Map::ShareDescriptor(DescriptorArray* descriptors,
+                                  Descriptor* descriptor) {
   // Sanity check. This path is only to be taken if the map owns its descriptor
   // array, implying that its NumberOfOwnDescriptors equals the number of
   // descriptors in the descriptor array.
-  if (NumberOfOwnDescriptors() !=
-      instance_descriptors()->number_of_descriptors()) {
-    Isolate::Current()->PushStackTraceAndDie(
-          0xDEAD0002, GetBackPointer(), this, 0xDEAD0003);
-  }
+  ASSERT(NumberOfOwnDescriptors() ==
+         instance_descriptors()->number_of_descriptors());
   Map* result;
   MaybeObject* maybe_result = CopyDropDescriptors();
   if (!maybe_result->To(&result)) return maybe_result;
@@ -4995,7 +4980,6 @@ MaybeObject* Map::ShareDescriptor(Descriptor* descriptor) {
       AddTransition(name, result, SIMPLE_TRANSITION);
   if (!maybe_transitions->To(&transitions)) return maybe_transitions;
 
-  DescriptorArray* descriptors = instance_descriptors();
   int old_size = descriptors->number_of_descriptors();
 
   DescriptorArray* new_descriptors;
@@ -5026,9 +5010,21 @@ MaybeObject* Map::ShareDescriptor(Descriptor* descriptor) {
     if (descriptors->HasEnumCache()) {
       new_descriptors->CopyEnumCacheFrom(descriptors);
     }
-  }
 
-  transitions->set_descriptors(new_descriptors);
+    Map* map;
+    // Replace descriptors by new_descriptors in all maps that share it.
+    for (Object* current = GetBackPointer();
+         !current->IsUndefined();
+         current = map->GetBackPointer()) {
+      map = Map::cast(current);
+      if (!map->HasTransitionArray()) break;
+      TransitionArray* transitions = map->transitions();
+      if (transitions->descriptors() != descriptors) break;
+      transitions->set_descriptors(new_descriptors);
+    }
+
+    transitions->set_descriptors(new_descriptors);
+  }
 
   set_transitions(transitions);
   result->SetBackPointer(this);
@@ -5073,7 +5069,7 @@ MaybeObject* Map::CopyReplaceDescriptors(DescriptorArray* descriptors,
         // If the copied map has no added fields, and the parent map owns its
         // descriptors, those descriptors have to be empty. In that case,
         // transfer ownership of the descriptors to the new child.
-        CHECK(instance_descriptors()->IsEmpty());
+        ASSERT(instance_descriptors()->IsEmpty());
         set_owns_descriptors(false);
       } else {
         // If the parent did not own its own descriptors, it may share a larger
@@ -5201,7 +5197,7 @@ MaybeObject* Map::CopyAddDescriptor(Descriptor* descriptor,
   if (flag == INSERT_TRANSITION &&
       owns_descriptors() &&
       CanHaveMoreTransitions()) {
-    return ShareDescriptor(descriptor);
+    return ShareDescriptor(descriptors, descriptor);
   }
 
   DescriptorArray* new_descriptors;
@@ -5241,7 +5237,7 @@ MaybeObject* Map::CopyInsertDescriptor(Descriptor* descriptor,
   // We replace the key if it is already present.
   int index = old_descriptors->SearchWithCache(descriptor->GetKey(), this);
   if (index != DescriptorArray::kNotFound) {
-    return CopyReplaceDescriptor(descriptor, index, flag);
+    return CopyReplaceDescriptor(old_descriptors, descriptor, index, flag);
   }
   return CopyAddDescriptor(descriptor, flag);
 }
@@ -5267,14 +5263,13 @@ MaybeObject* DescriptorArray::CopyUpTo(int enumeration_index) {
 }
 
 
-MaybeObject* Map::CopyReplaceDescriptor(Descriptor* descriptor,
+MaybeObject* Map::CopyReplaceDescriptor(DescriptorArray* descriptors,
+                                        Descriptor* descriptor,
                                         int insertion_index,
                                         TransitionFlag flag) {
   // Ensure the key is a symbol.
   MaybeObject* maybe_failure = descriptor->KeyToSymbol();
   if (maybe_failure->IsFailure()) return maybe_failure;
-
-  DescriptorArray* descriptors = instance_descriptors();
 
   String* key = descriptor->GetKey();
   ASSERT(key == descriptors->GetKey(insertion_index));
@@ -7458,17 +7453,7 @@ static void TrimDescriptorArray(Heap* heap,
   int to_trim = number_of_descriptors - number_of_own_descriptors;
   if (to_trim <= 0) return;
 
-  // Maximally keep 50% of unused descriptors.
-  int keep = Min(to_trim, number_of_own_descriptors / 2);
-  for (int i = number_of_own_descriptors;
-       i < number_of_own_descriptors + keep;
-       ++i) {
-    descriptors->EraseDescriptor(heap, i);
-  }
-
-  if (to_trim > keep) {
-    RightTrimFixedArray<FROM_GC>(heap, descriptors, to_trim - keep);
-  }
+  RightTrimFixedArray<FROM_GC>(heap, descriptors, to_trim);
   descriptors->SetNumberOfDescriptors(number_of_own_descriptors);
 
   if (descriptors->HasEnumCache()) TrimEnumCache(heap, map, descriptors);
@@ -7546,7 +7531,6 @@ void Map::ClearNonLiveTransitions(Heap* heap) {
     } else {
       t->set_descriptors(heap->empty_descriptor_array());
     }
-    set_owns_descriptors(true);
   }
 
   int trim = t->number_of_transitions() - transition_index;

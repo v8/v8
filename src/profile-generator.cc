@@ -2009,14 +2009,11 @@ void V8HeapExplorer::ExtractMapReferences(int entry, Map* map) {
                        Map::kConstructorOffset);
   if (map->HasTransitionArray()) {
     TransitionArray* transitions = map->transitions();
-    JSGlobalPropertyCell* pointer = transitions->descriptors_pointer();
     DescriptorArray* descriptors = transitions->descriptors();
     TagObject(descriptors, "(map descriptors)");
-    SetInternalReference(pointer, entry,
+    SetInternalReference(transitions, entry,
                          "descriptors", descriptors,
-                         JSGlobalPropertyCell::kValueOffset);
-    IndexedReferencesExtractor pointer_refs(this, pointer, entry);
-    pointer->Iterate(&pointer_refs);
+                         TransitionArray::kDescriptorsOffset);
 
     Object* back_pointer = transitions->back_pointer_storage();
     TagObject(transitions->back_pointer_storage(), "(back pointer)");
