@@ -1194,7 +1194,7 @@ class HUnaryOperation: public HTemplateInstruction<1> {
     return reinterpret_cast<HUnaryOperation*>(value);
   }
 
-  HValue* value() { return OperandAt(0); }
+  HValue* value() const { return OperandAt(0); }
   virtual void PrintDataTo(StringStream* stream);
 };
 
@@ -1270,8 +1270,8 @@ class HChange: public HUnaryOperation {
   virtual HType CalculateInferredType();
   virtual HValue* Canonicalize();
 
-  Representation from() { return value()->representation(); }
-  Representation to() { return representation(); }
+  Representation from() const { return value()->representation(); }
+  Representation to() const { return representation(); }
   bool deoptimize_on_undefined() const {
     return CheckFlag(kDeoptimizeOnUndefined);
   }
@@ -1292,7 +1292,9 @@ class HChange: public HUnaryOperation {
   virtual bool DataEquals(HValue* other) { return true; }
 
  private:
-  virtual bool IsDeletable() const { return true; }
+  virtual bool IsDeletable() const {
+    return !from().IsTagged() || value()->type().IsSmi();
+  }
 };
 
 
