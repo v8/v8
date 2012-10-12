@@ -4080,6 +4080,20 @@ void MarkCompactCollector::RecordCodeEntrySlot(Address slot, Code* target) {
 }
 
 
+void MarkCompactCollector::RecordCodeTargetPatch(Address pc, Code* target) {
+  ASSERT(heap()->gc_state() == Heap::MARK_COMPACT);
+  if (is_compacting()) {
+    Code* host = heap()->isolate()->inner_pointer_to_code_cache()->
+        GcSafeFindCodeForInnerPointer(pc);
+    MarkBit mark_bit = Marking::MarkBitFrom(host);
+    if (Marking::IsBlack(mark_bit)) {
+      RelocInfo rinfo(pc, RelocInfo::CODE_TARGET, 0, host);
+      RecordRelocSlot(&rinfo, target);
+    }
+  }
+}
+
+
 static inline SlotsBuffer::SlotType DecodeSlotType(
     SlotsBuffer::ObjectSlot slot) {
   return static_cast<SlotsBuffer::SlotType>(reinterpret_cast<intptr_t>(slot));
