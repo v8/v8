@@ -6098,20 +6098,13 @@ void DescriptorArray::SetEnumCache(FixedArray* bridge_storage,
                                    Object* new_index_cache) {
   ASSERT(bridge_storage->length() >= kEnumCacheBridgeLength);
   ASSERT(new_index_cache->IsSmi() || new_index_cache->IsFixedArray());
-  if (HasEnumCache()) {
-    ASSERT(new_cache->length() > GetEnumCache()->length());
-    FixedArray::cast(get(kEnumCacheIndex))->
-      set(kEnumCacheBridgeCacheIndex, new_cache);
-    FixedArray::cast(get(kEnumCacheIndex))->
-      set(kEnumCacheBridgeIndicesCacheIndex, new_index_cache);
-  } else {
-    ASSERT(!IsEmpty());
-    FixedArray::cast(bridge_storage)->
-      set(kEnumCacheBridgeCacheIndex, new_cache);
-    FixedArray::cast(bridge_storage)->
-      set(kEnumCacheBridgeIndicesCacheIndex, new_index_cache);
-    set(kEnumCacheIndex, bridge_storage);
-  }
+  ASSERT(!IsEmpty());
+  ASSERT(!HasEnumCache() || new_cache->length() > GetEnumCache()->length());
+  FixedArray::cast(bridge_storage)->
+    set(kEnumCacheBridgeCacheIndex, new_cache);
+  FixedArray::cast(bridge_storage)->
+    set(kEnumCacheBridgeIndicesCacheIndex, new_index_cache);
+  set(kEnumCacheIndex, bridge_storage);
 }
 
 
