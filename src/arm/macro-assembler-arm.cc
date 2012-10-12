@@ -1570,7 +1570,11 @@ void MacroAssembler::AllocateInNewSpace(int object_size,
   Register topaddr = scratch1;
   Register obj_size_reg = scratch2;
   mov(topaddr, Operand(new_space_allocation_top));
-  mov(obj_size_reg, Operand(object_size));
+  Operand obj_size_operand = Operand(object_size);
+  if (!obj_size_operand.is_single_instruction(this)) {
+    // We are about to steal IP, so we need to load this value first
+    mov(obj_size_reg, obj_size_operand);
+  }
 
   // This code stores a temporary value in ip. This is OK, as the code below
   // does not need ip for implicit literal generation.
@@ -1592,7 +1596,13 @@ void MacroAssembler::AllocateInNewSpace(int object_size,
 
   // Calculate new top and bail out if new space is exhausted. Use result
   // to calculate the new top.
-  add(scratch2, result, Operand(obj_size_reg), SetCC);
+  if (obj_size_operand.is_single_instruction(this)) {
+    // We can add the size as an immediate
+    add(scratch2, result, obj_size_operand, SetCC);
+  } else {
+    // Doesn't fit in an immediate, we have to use the register
+    add(scratch2, result, obj_size_reg, SetCC);
+  }
   b(cs, gc_required);
   cmp(scratch2, Operand(ip));
   b(hi, gc_required);
