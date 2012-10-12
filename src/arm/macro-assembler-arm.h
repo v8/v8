@@ -68,6 +68,13 @@ enum AllocationFlags {
   SIZE_IN_WORDS = 1 << 2
 };
 
+// Flags used for AllocateHeapNumber
+enum TaggingMode {
+  // Tag the result.
+  TAG_RESULT,
+  // Don't tag
+  DONT_TAG_RESULT
+};
 
 // Flags used for the ObjectToDoubleVFPRegister function.
 enum ObjectToDoubleFlags {
@@ -731,7 +738,8 @@ class MacroAssembler: public Assembler {
                           Register scratch1,
                           Register scratch2,
                           Register heap_number_map,
-                          Label* gc_required);
+                          Label* gc_required,
+                          TaggingMode tagging_mode = TAG_RESULT);
   void AllocateHeapNumberWithValue(Register result,
                                    DwVfpRegister value,
                                    Register scratch1,

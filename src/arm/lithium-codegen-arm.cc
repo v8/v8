@@ -4446,7 +4446,7 @@ void LCodeGen::DoDeferredNumberTagI(LInstruction* instr,
 
   if (FLAG_inline_new) {
     __ LoadRoot(r6, Heap::kHeapNumberMapRootIndex);
-    __ AllocateHeapNumber(r5, r3, r4, r6, &slow);
+    __ AllocateHeapNumber(r5, r3, r4, r6, &slow, DONT_TAG_RESULT);
     __ Move(dst, r5);
     __ b(&done);
   }
@@ -4461,12 +4461,13 @@ void LCodeGen::DoDeferredNumberTagI(LInstruction* instr,
   __ StoreToSafepointRegisterSlot(ip, dst);
   CallRuntimeFromDeferred(Runtime::kAllocateHeapNumber, 0, instr);
   __ Move(dst, r0);
+  __ sub(dst, dst, Operand(kHeapObjectTag));
 
   // Done. Put the value in dbl_scratch into the value of the allocated heap
   // number.
   __ bind(&done);
-  __ sub(ip, dst, Operand(kHeapObjectTag));
-  __ vstr(dbl_scratch, ip, HeapNumber::kValueOffset);
+  __ vstr(dbl_scratch, dst, HeapNumber::kValueOffset);
+  __ add(dst, dst, Operand(kHeapObjectTag));
   __ StoreToSafepointRegisterSlot(dst, dst);
 }
 
@@ -4491,13 +4492,16 @@ void LCodeGen::DoNumberTagD(LNumberTagD* instr) {
   DeferredNumberTagD* deferred = new(zone()) DeferredNumberTagD(this, instr);
   if (FLAG_inline_new) {
     __ LoadRoot(scratch, Heap::kHeapNumberMapRootIndex);
-    __ AllocateHeapNumber(reg, temp1, temp2, scratch, deferred->entry());
+    // We want the untagged address first for performance
+    __ AllocateHeapNumber(reg, temp1, temp2, scratch, deferred->entry(),
+                          DONT_TAG_RESULT);
   } else {
     __ jmp(deferred->entry());
   }
   __ bind(deferred->exit());
-  __ sub(ip, reg, Operand(kHeapObjectTag));
-  __ vstr(input_reg, ip, HeapNumber::kValueOffset);
+  __ vstr(input_reg, reg, HeapNumber::kValueOffset);
+  // Now that we have finished with the object's real address tag it
+  __ add(reg, reg, Operand(kHeapObjectTag));
 }
 
 
@@ -4510,6 +4514,7 @@ void LCodeGen::DoDeferredNumberTagD(LNumberTagD* instr) {
 
   PushSafepointRegistersScope scope(this, Safepoint::kWithRegisters);
   CallRuntimeFromDeferred(Runtime::kAllocateHeapNumber, 0, instr);
+  __ sub(r0, r0, Operand(kHeapObjectTag));
   __ StoreToSafepointRegisterSlot(r0, reg);
 }
 
