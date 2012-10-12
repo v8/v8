@@ -2690,7 +2690,7 @@ void FullCodeGenerator::EmitIsStringWrapperSafeForDefaultValueOf(
   context()->PrepareTest(&materialize_true, &materialize_false,
                          &if_true, &if_false, &fall_through);
 
-  if (generate_debug_code_) __ AbortIfSmi(v0);
+  __ AssertNotSmi(v0);
 
   __ lw(a1, FieldMemOperand(v0, HeapObject::kMapOffset));
   __ lbu(t0, FieldMemOperand(a1, Map::kBitField2Offset));
@@ -3571,7 +3571,7 @@ void FullCodeGenerator::EmitGetCachedArrayIndex(CallRuntime* expr) {
   ASSERT(args->length() == 1);
   VisitForAccumulatorValue(args->at(0));
 
-  __ AbortIfNotString(v0);
+  __ AssertString(v0);
 
   __ lw(v0, FieldMemOperand(v0, String::kHashFieldOffset));
   __ IndexFromHash(v0, v0);

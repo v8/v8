@@ -3035,38 +3035,46 @@ void MacroAssembler::JumpIfEitherSmi(Register reg1,
 }
 
 
-void MacroAssembler::AbortIfSmi(Register object) {
-  STATIC_ASSERT(kSmiTag == 0);
-  tst(object, Operand(kSmiTagMask));
-  Assert(ne, "Operand is a smi");
+void MacroAssembler::AssertNotSmi(Register object) {
+  if (emit_debug_code()) {
+    STATIC_ASSERT(kSmiTag == 0);
+    tst(object, Operand(kSmiTagMask));
+    Check(ne, "Operand is a smi");
+  }
 }
 
 
-void MacroAssembler::AbortIfNotSmi(Register object) {
-  STATIC_ASSERT(kSmiTag == 0);
-  tst(object, Operand(kSmiTagMask));
-  Assert(eq, "Operand is not smi");
+void MacroAssembler::AssertSmi(Register object) {
+  if (emit_debug_code()) {
+    STATIC_ASSERT(kSmiTag == 0);
+    tst(object, Operand(kSmiTagMask));
+    Check(eq, "Operand is not smi");
+  }
 }
 
 
-void MacroAssembler::AbortIfNotString(Register object) {
-  STATIC_ASSERT(kSmiTag == 0);
-  tst(object, Operand(kSmiTagMask));
-  Assert(ne, "Operand is not a string");
-  push(object);
-  ldr(object, FieldMemOperand(object, HeapObject::kMapOffset));
-  CompareInstanceType(object, object, FIRST_NONSTRING_TYPE);
-  pop(object);
-  Assert(lo, "Operand is not a string");
+void MacroAssembler::AssertString(Register object) {
+  if (emit_debug_code()) {
+    STATIC_ASSERT(kSmiTag == 0);
+    tst(object, Operand(kSmiTagMask));
+    Check(ne, "Operand is a smi and not a string");
+    push(object);
+    ldr(object, FieldMemOperand(object, HeapObject::kMapOffset));
+    CompareInstanceType(object, object, FIRST_NONSTRING_TYPE);
+    pop(object);
+    Check(lo, "Operand is not a string");
+  }
 }
 
 
 
-void MacroAssembler::AbortIfNotRootValue(Register src,
-                                         Heap::RootListIndex root_value_index,
-                                         const char* message) {
-  CompareRoot(src, root_value_index);
-  Assert(eq, message);
+void MacroAssembler::AssertRootValue(Register src,
+                                     Heap::RootListIndex root_value_index,
+                                     const char* message) {
+  if (emit_debug_code()) {
+    CompareRoot(src, root_value_index);
+    Check(eq, message);
+  }
 }
 
 

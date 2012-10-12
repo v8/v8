@@ -5732,7 +5732,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   __ AllocateAsciiConsString(ecx, edi, no_reg, &call_runtime);
   __ bind(&allocated);
   // Fill the fields of the cons string.
-  if (FLAG_debug_code) __ AbortIfNotSmi(ebx);
+  __ AssertSmi(ebx);
   __ mov(FieldOperand(ecx, ConsString::kLengthOffset), ebx);
   __ mov(FieldOperand(ecx, ConsString::kHashFieldOffset),
          Immediate(String::kEmptyHashField));
@@ -6981,8 +6981,7 @@ void StringDictionaryLookupStub::GeneratePositiveLookup(MacroAssembler* masm,
   ASSERT(!name.is(r0));
   ASSERT(!name.is(r1));
 
-  // Assert that name contains a string.
-  if (FLAG_debug_code) __ AbortIfNotString(name);
+  __ AssertString(name);
 
   __ mov(r1, FieldOperand(elements, kCapacityOffset));
   __ shr(r1, kSmiTagSize);  // convert smi to int

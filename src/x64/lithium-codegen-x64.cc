@@ -1993,7 +1993,7 @@ void LCodeGen::DoGetCachedArrayIndex(LGetCachedArrayIndex* instr) {
   Register input = ToRegister(instr->value());
   Register result = ToRegister(instr->result());
 
-  __ AbortIfNotString(input);
+  __ AssertString(input);
 
   __ movl(result, FieldOperand(input, String::kHashFieldOffset));
   ASSERT(String::kHashShift >= kSmiTagSize);
@@ -3756,9 +3756,8 @@ void LCodeGen::DoBoundsCheck(LBoundsCheck* instr) {
                          instr->index());
   if (instr->length()->IsRegister()) {
     Register reg = ToRegister(instr->length());
-    if (FLAG_debug_code &&
-        !instr->hydrogen()->length()->representation().IsTagged()) {
-      __ AbortIfNotZeroExtended(reg);
+    if (!instr->hydrogen()->length()->representation().IsTagged()) {
+      __ AssertZeroExtended(reg);
     }
     if (instr->index()->IsConstantOperand()) {
       int constant_index =
@@ -3770,9 +3769,8 @@ void LCodeGen::DoBoundsCheck(LBoundsCheck* instr) {
       }
     } else {
       Register reg2 = ToRegister(instr->index());
-      if (FLAG_debug_code &&
-          !instr->hydrogen()->index()->representation().IsTagged()) {
-        __ AbortIfNotZeroExtended(reg2);
+      if (!instr->hydrogen()->index()->representation().IsTagged()) {
+        __ AssertZeroExtended(reg2);
       }
       __ cmpq(reg, reg2);
     }
@@ -3991,9 +3989,7 @@ void LCodeGen::DoDeferredStringCharCodeAt(LStringCharCodeAt* instr) {
     __ push(index);
   }
   CallRuntimeFromDeferred(Runtime::kStringCharCodeAt, 2, instr);
-  if (FLAG_debug_code) {
-    __ AbortIfNotSmi(rax);
-  }
+  __ AssertSmi(rax);
   __ SmiToInteger32(rax, rax);
   __ StoreToSafepointRegisterSlot(result, rax);
 }
@@ -4208,9 +4204,7 @@ void LCodeGen::DoSmiUntag(LSmiUntag* instr) {
     Condition is_smi = __ CheckSmi(input);
     DeoptimizeIf(NegateCondition(is_smi), instr->environment());
   } else {
-    if (FLAG_debug_code) {
-      __ AbortIfNotSmi(input);
-    }
+    __ AssertSmi(input);
   }
   __ SmiToInteger32(input, input);
 }
@@ -4620,7 +4614,7 @@ void LCodeGen::DoAllocateObject(LAllocateObject* instr) {
   __ movq(map, FieldOperand(scratch, JSFunction::kPrototypeOrInitialMapOffset));
 
   if (FLAG_debug_code) {
-    __ AbortIfSmi(map);
+    __ AssertNotSmi(map);
     __ cmpb(FieldOperand(map, Map::kInstanceSizeOffset),
             Immediate(instance_size >> kPointerSizeLog2));
     __ Assert(equal, "Unexpected instance size");

@@ -2580,7 +2580,7 @@ void FullCodeGenerator::EmitIsStringWrapperSafeForDefaultValueOf(
   context()->PrepareTest(&materialize_true, &materialize_false,
                          &if_true, &if_false, &fall_through);
 
-  if (generate_debug_code_) __ AbortIfSmi(rax);
+  __ AssertNotSmi(rax);
 
   // Check whether this map has already been checked to be safe for default
   // valueOf.
@@ -2809,7 +2809,7 @@ void FullCodeGenerator::EmitArgumentsLength(CallRuntime* expr) {
   __ movq(rax, Operand(rbx, ArgumentsAdaptorFrameConstants::kLengthOffset));
 
   __ bind(&exit);
-  if (generate_debug_code_) __ AbortIfNotSmi(rax);
+  __ AssertSmi(rax);
   context()->Plug(rax);
 }
 
@@ -3459,7 +3459,7 @@ void FullCodeGenerator::EmitGetCachedArrayIndex(CallRuntime* expr) {
   ASSERT(args->length() == 1);
   VisitForAccumulatorValue(args->at(0));
 
-  __ AbortIfNotString(rax);
+  __ AssertString(rax);
 
   __ movl(rax, FieldOperand(rax, String::kHashFieldOffset));
   ASSERT(String::kHashShift >= kSmiTagSize);

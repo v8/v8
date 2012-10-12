@@ -1297,11 +1297,9 @@ void BinaryOpStub::GenerateFloatingPointCode(MacroAssembler* masm,
                               &allocation_failed,
                               TAG_OBJECT);
         // Set the map.
-        if (FLAG_debug_code) {
-          __ AbortIfNotRootValue(heap_number_map,
-                                 Heap::kHeapNumberMapRootIndex,
-                                 "HeapNumberMap register clobbered.");
-        }
+        __ AssertRootValue(heap_number_map,
+                           Heap::kHeapNumberMapRootIndex,
+                           "HeapNumberMap register clobbered.");
         __ movq(FieldOperand(rax, HeapObject::kMapOffset),
                 heap_number_map);
         __ cvtqsi2sd(xmm0, rbx);
@@ -2049,10 +2047,7 @@ void FloatingPointHelper::NumbersToSmis(MacroAssembler* masm,
 
   __ JumpIfSmi(second, (on_success != NULL) ? on_success : &done);
   __ bind(&first_smi);
-  if (FLAG_debug_code) {
-    // Second should be non-smi if we get here.
-    __ AbortIfSmi(second);
-  }
+  __ AssertNotSmi(second);
   __ cmpq(FieldOperand(second, HeapObject::kMapOffset), heap_number_map);
   __ j(not_equal, on_not_smis);
   // Convert second to smi, if possible.
@@ -5929,8 +5924,7 @@ void StringDictionaryLookupStub::GeneratePositiveLookup(MacroAssembler* masm,
   ASSERT(!name.is(r0));
   ASSERT(!name.is(r1));
 
-  // Assert that name contains a string.
-  if (FLAG_debug_code) __ AbortIfNotString(name);
+  __ AssertString(name);
 
   __ SmiToInteger32(r0, FieldOperand(elements, kCapacityOffset));
   __ decl(r0);

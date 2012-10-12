@@ -2004,7 +2004,7 @@ void LCodeGen::DoGetCachedArrayIndex(LGetCachedArrayIndex* instr) {
   Register input = ToRegister(instr->value());
   Register result = ToRegister(instr->result());
 
-  __ AbortIfNotString(input);
+  __ AssertString(input);
 
   __ lw(result, FieldMemOperand(input, String::kHashFieldOffset));
   __ IndexFromHash(result, result);
@@ -4028,9 +4028,7 @@ void LCodeGen::DoDeferredStringCharCodeAt(LStringCharCodeAt* instr) {
     __ push(index);
   }
   CallRuntimeFromDeferred(Runtime::kStringCharCodeAt, 2, instr);
-  if (FLAG_debug_code) {
-    __ AbortIfNotSmi(v0);
-  }
+  __ AssertSmi(v0);
   __ SmiUntag(v0);
   __ StoreToSafepointRegisterSlot(v0, result);
 }
