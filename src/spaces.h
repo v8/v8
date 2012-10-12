@@ -1574,19 +1574,21 @@ class PagedSpace : public Space {
   // The dummy page that anchors the linked list of pages.
   Page* anchor() { return &anchor_; }
 
-#ifdef DEBUG
-  // Print meta info and objects in this space.
-  virtual void Print();
-
+#ifdef VERIFY_HEAP
   // Verify integrity of this space.
   virtual void Verify(ObjectVisitor* visitor);
-
-  // Reports statistics for the space
-  void ReportStatistics();
 
   // Overridden by subclasses to verify space-specific object
   // properties (e.g., only maps or free-list nodes are in map space).
   virtual void VerifyObject(HeapObject* obj) {}
+#endif
+
+#ifdef DEBUG
+  // Print meta info and objects in this space.
+  virtual void Print();
+
+  // Reports statistics for the space
+  void ReportStatistics();
 
   // Report code object related statistics
   void CollectCodeStatistics();
@@ -1934,9 +1936,12 @@ class SemiSpace : public Space {
   NewSpacePage* first_page() { return anchor_.next_page(); }
   NewSpacePage* current_page() { return current_page_; }
 
+#ifdef VERIFY_HEAP
+  virtual void Verify();
+#endif
+
 #ifdef DEBUG
   virtual void Print();
-  virtual void Verify();
   // Validate a range of of addresses in a SemiSpace.
   // The "from" address must be on a page prior to the "to" address,
   // in the linked page order, or it must be earlier on the same page.
@@ -2261,9 +2266,12 @@ class NewSpace : public Space {
   template <typename StringType>
   inline void ShrinkStringAtAllocationBoundary(String* string, int len);
 
-#ifdef DEBUG
+#ifdef VERIFY_HEAP
   // Verify the active semispace.
   virtual void Verify();
+#endif
+
+#ifdef DEBUG
   // Print the active semispace.
   virtual void Print() { to_space_.Print(); }
 #endif
@@ -2433,9 +2441,7 @@ class MapSpace : public FixedSpace {
   }
 
  protected:
-#ifdef DEBUG
   virtual void VerifyObject(HeapObject* obj);
-#endif
 
  private:
   static const int kMapsPerPage = Page::kNonCodeObjectAreaSize / Map::kSize;
@@ -2471,9 +2477,7 @@ class CellSpace : public FixedSpace {
   }
 
  protected:
-#ifdef DEBUG
   virtual void VerifyObject(HeapObject* obj);
-#endif
 
  public:
   TRACK_MEMORY("CellSpace")
@@ -2552,8 +2556,11 @@ class LargeObjectSpace : public Space {
 
   LargePage* first_page() { return first_page_; }
 
-#ifdef DEBUG
+#ifdef VERIFY_HEAP
   virtual void Verify();
+#endif
+
+#ifdef DEBUG
   virtual void Print();
   void ReportStatistics();
   void CollectCodeStatistics();

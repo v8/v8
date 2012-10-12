@@ -497,6 +497,7 @@ MemoryChunk* MemoryAllocator::AllocateChunk(intptr_t body_size,
   VirtualMemory reservation;
   Address area_start = NULL;
   Address area_end = NULL;
+
   if (executable == EXECUTABLE) {
     chunk_size = RoundUp(CodePageAreaStartOffset() + body_size,
                          OS::CommitPageSize()) + CodePageGuardSize();
@@ -529,10 +530,11 @@ MemoryChunk* MemoryAllocator::AllocateChunk(intptr_t body_size,
       size_executable_ += reservation.size();
     }
 
-#ifdef DEBUG
-    ZapBlock(base, CodePageGuardStartOffset());
-    ZapBlock(base + CodePageAreaStartOffset(), body_size);
-#endif
+    if (Heap::ShouldZapGarbage()) {
+      ZapBlock(base, CodePageGuardStartOffset());
+      ZapBlock(base + CodePageAreaStartOffset(), body_size);
+    }
+
     area_start = base + CodePageAreaStartOffset();
     area_end = area_start + body_size;
   } else {
@@ -544,9 +546,9 @@ MemoryChunk* MemoryAllocator::AllocateChunk(intptr_t body_size,
 
     if (base == NULL) return NULL;
 
-#ifdef DEBUG
-    ZapBlock(base, chunk_size);
-#endif
+    if (Heap::ShouldZapGarbage()) {
+      ZapBlock(base, chunk_size);
+    }
 
     area_start = base + Page::kObjectStartOffset;
     area_end = base + chunk_size;
@@ -622,9 +624,11 @@ bool MemoryAllocator::CommitBlock(Address start,
                                   size_t size,
                                   Executability executable) {
   if (!VirtualMemory::CommitRegion(start, size, executable)) return false;
-#ifdef DEBUG
-  ZapBlock(start, size);
-#endif
+
+  if (Heap::ShouldZapGarbage()) {
+    ZapBlock(start, size);
+  }
+
   isolate_->counters()->memory_allocated()->Increment(static_cast<int>(size));
   return true;
 }
@@ -985,8 +989,7 @@ void PagedSpace::ReleaseAllUnusedPages() {
 void PagedSpace::Print() { }
 #endif
 
-
-#ifdef DEBUG
+#ifdef VERIFY_HEAP
 void PagedSpace::Verify(ObjectVisitor* visitor) {
   // We can only iterate over the pages if they were swept precisely.
   if (was_swept_conservatively_) return;
@@ -996,23 +999,23 @@ void PagedSpace::Verify(ObjectVisitor* visitor) {
   PageIterator page_iterator(this);
   while (page_iterator.has_next()) {
     Page* page = page_iterator.next();
-    ASSERT(page->owner() == this);
+    CHECK(page->owner() == this);
     if (page == Page::FromAllocationTop(allocation_info_.top)) {
       allocation_pointer_found_in_space = true;
     }
-    ASSERT(page->WasSweptPrecisely());
+    CHECK(page->WasSweptPrecisely());
     HeapObjectIterator it(page, NULL);
     Address end_of_previous_object = page->area_start();
     Address top = page->area_end();
     int black_size = 0;
     for (HeapObject* object = it.Next(); object != NULL; object = it.Next()) {
-      ASSERT(end_of_previous_object <= object->address());
+      CHECK(end_of_previous_object <= object->address());
 
       // The first word should be a map, and we expect all map pointers to
       // be in map space.
       Map* map = object->map();
-      ASSERT(map->IsMap());
-      ASSERT(heap()->map_space()->Contains(map));
+      CHECK(map->IsMap());
+      CHECK(heap()->map_space()->Contains(map));
 
       // Perform space-specific object verification.
       VerifyObject(object);
@@ -1027,15 +1030,14 @@ void PagedSpace::Verify(ObjectVisitor* visitor) {
         black_size += size;
       }
 
-      ASSERT(object->address() + size <= top);
+      CHECK(object->address() + size <= top);
       end_of_previous_object = object->address() + size;
     }
-    ASSERT_LE(black_size, page->LiveBytes());
+    CHECK_LE(black_size, page->LiveBytes());
   }
-  ASSERT(allocation_pointer_found_in_space);
+  CHECK(allocation_pointer_found_in_space);
 }
-#endif
-
+#endif  // VERIFY_HEAP
 
 // -----------------------------------------------------------------------------
 // NewSpace implementation
@@ -1259,7 +1261,7 @@ MaybeObject* NewSpace::SlowAllocateRaw(int size_in_bytes) {
 }
 
 
-#ifdef DEBUG
+#ifdef VERIFY_HEAP
 // We do not use the SemiSpaceIterator because verification doesn't assume
 // that it works (it depends on the invariants we are checking).
 void NewSpace::Verify() {
@@ -1308,8 +1310,8 @@ void NewSpace::Verify() {
   }
 
   // Check semi-spaces.
-  ASSERT_EQ(from_space_.id(), kFromSpace);
-  ASSERT_EQ(to_space_.id(), kToSpace);
+  CHECK_EQ(from_space_.id(), kFromSpace);
+  CHECK_EQ(to_space_.id(), kToSpace);
   from_space_.Verify();
   to_space_.Verify();
 }
@@ -1525,8 +1527,9 @@ void SemiSpace::set_age_mark(Address mark) {
 
 #ifdef DEBUG
 void SemiSpace::Print() { }
+#endif
 
-
+#ifdef VERIFY_HEAP
 void SemiSpace::Verify() {
   bool is_from_space = (id_ == kFromSpace);
   NewSpacePage* page = anchor_.next_page();
@@ -1556,8 +1559,9 @@ void SemiSpace::Verify() {
     page = page->next_page();
   }
 }
+#endif
 
-
+#ifdef DEBUG
 void SemiSpace::AssertValidRange(Address start, Address end) {
   // Addresses belong to same semi-space
   NewSpacePage* page = NewSpacePage::FromLimit(start);
@@ -2551,25 +2555,27 @@ void FixedSpace::PrepareForMarkCompact() {
 
 // -----------------------------------------------------------------------------
 // MapSpace implementation
+// TODO(mvstanton): this is weird...the compiler can't make a vtable unless
+// there is at least one non-inlined virtual function. I would prefer to hide
+// the VerifyObject definition behind VERIFY_HEAP.
 
-#ifdef DEBUG
 void MapSpace::VerifyObject(HeapObject* object) {
   // The object should be a map or a free-list node.
-  ASSERT(object->IsMap() || object->IsFreeSpace());
+  CHECK(object->IsMap() || object->IsFreeSpace());
 }
-#endif
 
 
 // -----------------------------------------------------------------------------
 // GlobalPropertyCellSpace implementation
+// TODO(mvstanton): this is weird...the compiler can't make a vtable unless
+// there is at least one non-inlined virtual function. I would prefer to hide
+// the VerifyObject definition behind VERIFY_HEAP.
 
-#ifdef DEBUG
 void CellSpace::VerifyObject(HeapObject* object) {
   // The object should be a global object property cell or a free-list node.
-  ASSERT(object->IsJSGlobalPropertyCell() ||
+  CHECK(object->IsJSGlobalPropertyCell() ||
          object->map() == heap()->two_pointer_filler_map());
 }
-#endif
 
 
 // -----------------------------------------------------------------------------
@@ -2679,12 +2685,13 @@ MaybeObject* LargeObjectSpace::AllocateRaw(int object_size,
 
   HeapObject* object = page->GetObject();
 
-#ifdef DEBUG
-  // Make the object consistent so the heap can be vefified in OldSpaceStep.
-  reinterpret_cast<Object**>(object->address())[0] =
-      heap()->fixed_array_map();
-  reinterpret_cast<Object**>(object->address())[1] = Smi::FromInt(0);
-#endif
+  if (Heap::ShouldZapGarbage()) {
+    // Make the object consistent so the heap can be verified in OldSpaceStep.
+    // We only need to do this in debug builds or if verify_heap is on.
+    reinterpret_cast<Object**>(object->address())[0] =
+        heap()->fixed_array_map();
+    reinterpret_cast<Object**>(object->address())[1] = Smi::FromInt(0);
+  }
 
   heap()->incremental_marking()->OldSpaceStep(object_size);
   return object;
@@ -2783,7 +2790,7 @@ bool LargeObjectSpace::Contains(HeapObject* object) {
 }
 
 
-#ifdef DEBUG
+#ifdef VERIFY_HEAP
 // We do not assume that the large object iterator works, because it depends
 // on the invariants we are checking during verification.
 void LargeObjectSpace::Verify() {
@@ -2794,18 +2801,18 @@ void LargeObjectSpace::Verify() {
     // object area start.
     HeapObject* object = chunk->GetObject();
     Page* page = Page::FromAddress(object->address());
-    ASSERT(object->address() == page->area_start());
+    CHECK(object->address() == page->area_start());
 
     // The first word should be a map, and we expect all map pointers to be
     // in map space.
     Map* map = object->map();
-    ASSERT(map->IsMap());
-    ASSERT(heap()->map_space()->Contains(map));
+    CHECK(map->IsMap());
+    CHECK(heap()->map_space()->Contains(map));
 
     // We have only code, sequential strings, external strings
     // (sequential strings that have been morphed into external
     // strings), fixed arrays, and byte arrays in large object space.
-    ASSERT(object->IsCode() || object->IsSeqString() ||
+    CHECK(object->IsCode() || object->IsSeqString() ||
            object->IsExternalString() || object->IsFixedArray() ||
            object->IsFixedDoubleArray() || object->IsByteArray());
 
@@ -2824,15 +2831,17 @@ void LargeObjectSpace::Verify() {
         Object* element = array->get(j);
         if (element->IsHeapObject()) {
           HeapObject* element_object = HeapObject::cast(element);
-          ASSERT(heap()->Contains(element_object));
-          ASSERT(element_object->map()->IsMap());
+          CHECK(heap()->Contains(element_object));
+          CHECK(element_object->map()->IsMap());
         }
       }
     }
   }
 }
+#endif
 
 
+#ifdef DEBUG
 void LargeObjectSpace::Print() {
   LargeObjectIterator it(this);
   for (HeapObject* obj = it.Next(); obj != NULL; obj = it.Next()) {

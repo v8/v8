@@ -1261,12 +1261,14 @@ class Heap {
     return &native_contexts_list_;
   }
 
+#ifdef VERIFY_HEAP
+  // Verify the heap is in its normal state before or after a GC.
+  void Verify();
+#endif
+
 #ifdef DEBUG
   void Print();
   void PrintHandles();
-
-  // Verify the heap is in its normal state before or after a GC.
-  void Verify();
 
   void OldPointerSpaceCheckStoreBuffer();
   void MapSpaceCheckStoreBuffer();
@@ -1275,10 +1277,23 @@ class Heap {
   // Report heap statistics.
   void ReportHeapStatistics(const char* title);
   void ReportCodeStatistics(const char* title);
+#endif
+
+  // Zapping is needed for verify heap, and always done in debug builds.
+  static inline bool ShouldZapGarbage() {
+#ifdef DEBUG
+    return true;
+#else
+#ifdef VERIFY_HEAP
+    return FLAG_verify_heap;
+#else
+    return false;
+#endif
+#endif
+  }
 
   // Fill in bogus values in from space
   void ZapFromSpace();
-#endif
 
   // Print short heap statistics.
   void PrintShortHeapStatistics();
@@ -2201,7 +2216,6 @@ class AlwaysAllocateScope {
 };
 
 
-#ifdef DEBUG
 // Visitor class to verify interior pointers in spaces that do not contain
 // or care about intergenerational references. All heap object pointers have to
 // point into the heap to a location that has a map pointer at its first word.
@@ -2211,7 +2225,6 @@ class VerifyPointersVisitor: public ObjectVisitor {
  public:
   inline void VisitPointers(Object** start, Object** end);
 };
-#endif
 
 
 // Space iterator for iterating over all spaces of the heap.

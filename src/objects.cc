@@ -2166,12 +2166,8 @@ static void RightTrimFixedArray(Heap* heap, FixedArray* elms, int to_trim) {
 
   Address new_end = elms->address() + FixedArray::SizeFor(len - to_trim);
 
-  if (trim_mode == FROM_GC) {
-#ifdef DEBUG
-    ZapEndOfFixedArray(new_end, to_trim);
-#endif
-  } else {
-    ZapEndOfFixedArray(new_end, to_trim);
+  if (trim_mode != FROM_GC || Heap::ShouldZapGarbage()) {
+      ZapEndOfFixedArray(new_end, to_trim);
   }
 
   int size_delta = to_trim * kPointerSize;
@@ -3217,10 +3213,12 @@ MaybeObject* NormalizedMapCache::Get(JSObject* obj,
   Object* result = get(index);
   if (result->IsMap() &&
       Map::cast(result)->EquivalentToForNormalization(fast, mode)) {
-#ifdef DEBUG
+#ifdef VERIFY_HEAP
     if (FLAG_verify_heap) {
       Map::cast(result)->SharedMapVerify();
     }
+#endif
+#ifdef DEBUG
     if (FLAG_enable_slow_asserts) {
       // The cached map should match newly created normalized map bit-by-bit,
       // except for the code cache, which can contain some ics which can be
@@ -4936,7 +4934,7 @@ MaybeObject* Map::CopyNormalized(PropertyNormalizationMode mode,
   result->set_is_shared(sharing == SHARED_NORMALIZED_MAP);
   result->set_dictionary_map(true);
 
-#ifdef DEBUG
+#ifdef VERIFY_HEAP
   if (FLAG_verify_heap && result->is_shared()) {
     result->SharedMapVerify();
   }
@@ -9036,6 +9034,22 @@ MaybeObject* Map::PutPrototypeTransition(Object* prototype, Map* map) {
   SetNumberOfProtoTransitions(transitions);
 
   return cache;
+}
+
+
+void Map::ZapTransitions() {
+  TransitionArray* transition_array = transitions();
+  MemsetPointer(transition_array->data_start(),
+                GetHeap()->the_hole_value(),
+                transition_array->length());
+}
+
+
+void Map::ZapPrototypeTransitions() {
+  FixedArray* proto_transitions = GetPrototypeTransitions();
+  MemsetPointer(proto_transitions->data_start(),
+                GetHeap()->the_hole_value(),
+                proto_transitions->length());
 }
 
 

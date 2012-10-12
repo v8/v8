@@ -13020,7 +13020,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetFromCache) {
     if (pending_exception) return Failure::Exception();
   }
 
-#ifdef DEBUG
+#ifdef VERIFY_HEAP
   if (FLAG_verify_heap) {
     cache_handle->JSFunctionResultCacheVerify();
   }
@@ -13051,7 +13051,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetFromCache) {
   cache_handle->set(index + 1, *value);
   cache_handle->set_finger_index(index);
 
-#ifdef DEBUG
+#ifdef VERIFY_HEAP
   if (FLAG_verify_heap) {
     cache_handle->JSFunctionResultCacheVerify();
   }

@@ -4026,14 +4026,11 @@ TEST(StepWithException) {
 
 
 TEST(DebugBreak) {
+#ifdef VERIFY_HEAP
+  i::FLAG_verify_heap = true;
+#endif
   v8::HandleScope scope;
   DebugLocalContext env;
-
-  // This test should be run with option --verify-heap. As --verify-heap is
-  // only available in debug mode only check for it in that case.
-#ifdef DEBUG
-  CHECK(v8::internal::FLAG_verify_heap);
-#endif
 
   // Register a debug event listener which sets the break flag and counts.
   v8::Debug::SetDebugEventListener(DebugEventBreak);

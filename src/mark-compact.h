@@ -497,7 +497,7 @@ class MarkCompactCollector {
     PRECISE
   };
 
-#ifdef DEBUG
+#ifdef VERIFY_HEAP
   void VerifyMarkbitsAreClean();
   static void VerifyMarkbitsAreClean(PagedSpace* space);
   static void VerifyMarkbitsAreClean(NewSpace* space);

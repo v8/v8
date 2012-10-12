@@ -1520,9 +1520,10 @@ TEST(LeakNativeContextViaMapProto) {
 
 TEST(InstanceOfStubWriteBarrier) {
   i::FLAG_allow_natives_syntax = true;
-#ifdef DEBUG
+#ifdef VERIFY_HEAP
   i::FLAG_verify_heap = true;
 #endif
+
   InitializeVM();
   if (!i::V8::UseCrankshaft()) return;
   v8::HandleScope outer_scope;
@@ -1631,9 +1632,10 @@ TEST(PrototypeTransitionClearing) {
 
 TEST(ResetSharedFunctionInfoCountersDuringIncrementalMarking) {
   i::FLAG_allow_natives_syntax = true;
-#ifdef DEBUG
+#ifdef VERIFY_HEAP
   i::FLAG_verify_heap = true;
 #endif
+
   InitializeVM();
   if (!i::V8::UseCrankshaft()) return;
   v8::HandleScope outer_scope;
@@ -1686,9 +1688,10 @@ TEST(ResetSharedFunctionInfoCountersDuringIncrementalMarking) {
 
 TEST(ResetSharedFunctionInfoCountersDuringMarkSweep) {
   i::FLAG_allow_natives_syntax = true;
-#ifdef DEBUG
+#ifdef VERIFY_HEAP
   i::FLAG_verify_heap = true;
 #endif
+
   InitializeVM();
   if (!i::V8::UseCrankshaft()) return;
   v8::HandleScope outer_scope;

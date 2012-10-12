@@ -71,14 +71,14 @@ MarkCompactCollector::MarkCompactCollector() :  // NOLINT
       encountered_weak_maps_(NULL) { }
 
 
-#ifdef DEBUG
+#ifdef VERIFY_HEAP
 class VerifyMarkingVisitor: public ObjectVisitor {
  public:
   void VisitPointers(Object** start, Object** end) {
     for (Object** current = start; current < end; current++) {
       if ((*current)->IsHeapObject()) {
         HeapObject* object = HeapObject::cast(*current);
-        ASSERT(HEAP->mark_compact_collector()->IsMarked(object));
+        CHECK(HEAP->mark_compact_collector()->IsMarked(object));
       }
     }
   }
@@ -95,7 +95,7 @@ static void VerifyMarking(Address bottom, Address top) {
        current += kPointerSize) {
     object = HeapObject::FromAddress(current);
     if (MarkCompactCollector::IsMarked(object)) {
-      ASSERT(current >= next_object_must_be_here_or_later);
+      CHECK(current >= next_object_must_be_here_or_later);
       object->Iterate(&visitor);
       next_object_must_be_here_or_later = current + object->Size();
     }
@@ -108,12 +108,12 @@ static void VerifyMarking(NewSpace* space) {
   NewSpacePageIterator it(space->bottom(), end);
   // The bottom position is at the start of its page. Allows us to use
   // page->area_start() as start of range on all pages.
-  ASSERT_EQ(space->bottom(),
+  CHECK_EQ(space->bottom(),
             NewSpacePage::FromAddress(space->bottom())->area_start());
   while (it.has_next()) {
     NewSpacePage* page = it.next();
     Address limit = it.has_next() ? page->area_end() : end;
-    ASSERT(limit == end || !page->Contains(end));
+    CHECK(limit == end || !page->Contains(end));
     VerifyMarking(page->area_start(), limit);
   }
 }
@@ -173,7 +173,7 @@ static void VerifyEvacuation(Address bottom, Address top) {
        current += kPointerSize) {
     object = HeapObject::FromAddress(current);
     if (MarkCompactCollector::IsMarked(object)) {
-      ASSERT(current >= next_object_must_be_here_or_later);
+      CHECK(current >= next_object_must_be_here_or_later);
       object->Iterate(&visitor);
       next_object_must_be_here_or_later = current + object->Size();
     }
@@ -189,7 +189,7 @@ static void VerifyEvacuation(NewSpace* space) {
     NewSpacePage* page = it.next();
     Address current = page->area_start();
     Address limit = it.has_next() ? page->area_end() : space->top();
-    ASSERT(limit == space->top() || !page->Contains(space->top()));
+    CHECK(limit == space->top() || !page->Contains(space->top()));
     while (current < limit) {
       HeapObject* object = HeapObject::FromAddress(current);
       object->Iterate(&visitor);
@@ -221,8 +221,10 @@ static void VerifyEvacuation(Heap* heap) {
   VerifyEvacuationVisitor visitor;
   heap->IterateStrongRoots(&visitor, VISIT_ALL);
 }
+#endif  // VERIFY_HEAP
 
 
+#ifdef DEBUG
 class VerifyNativeContextSeparationVisitor: public ObjectVisitor {
  public:
   VerifyNativeContextSeparationVisitor() : current_native_context_(NULL) {}
@@ -384,7 +386,7 @@ void MarkCompactCollector::CollectGarbage() {
 
   ClearWeakMaps();
 
-#ifdef DEBUG
+#ifdef VERIFY_HEAP
   if (FLAG_verify_heap) {
     VerifyMarking(heap_);
   }
@@ -406,7 +408,7 @@ void MarkCompactCollector::CollectGarbage() {
 }
 
 
-#ifdef DEBUG
+#ifdef VERIFY_HEAP
 void MarkCompactCollector::VerifyMarkbitsAreClean(PagedSpace* space) {
   PageIterator it(space);
 
@@ -417,6 +419,7 @@ void MarkCompactCollector::VerifyMarkbitsAreClean(PagedSpace* space) {
   }
 }
 
+
 void MarkCompactCollector::VerifyMarkbitsAreClean(NewSpace* space) {
   NewSpacePageIterator it(space->bottom(), space->top());
 
@@ -426,6 +429,7 @@ void MarkCompactCollector::VerifyMarkbitsAreClean(NewSpace* space) {
     CHECK_EQ(0, p->LiveBytes());
   }
 }
+
 
 void MarkCompactCollector::VerifyMarkbitsAreClean() {
   VerifyMarkbitsAreClean(heap_->old_pointer_space());
@@ -438,11 +442,11 @@ void MarkCompactCollector::VerifyMarkbitsAreClean() {
   LargeObjectIterator it(heap_->lo_space());
   for (HeapObject* obj = it.Next(); obj != NULL; obj = it.Next()) {
     MarkBit mark_bit = Marking::MarkBitFrom(obj);
-    ASSERT(Marking::IsWhite(mark_bit));
-    ASSERT_EQ(0, Page::FromAddress(obj->address())->LiveBytes());
+    CHECK(Marking::IsWhite(mark_bit));
+    CHECK_EQ(0, Page::FromAddress(obj->address())->LiveBytes());
   }
 }
-#endif
+#endif  // VERIFY_HEAP
 
 
 static void ClearMarkbitsInPagedSpace(PagedSpace* space) {
@@ -804,7 +808,7 @@ void MarkCompactCollector::Prepare(GCTracer* tracer) {
     space->PrepareForMarkCompact();
   }
 
-#ifdef DEBUG
+#ifdef VERIFY_HEAP
   if (!was_marked_incrementally_ && FLAG_verify_heap) {
     VerifyMarkbitsAreClean();
   }
@@ -3349,7 +3353,7 @@ void MarkCompactCollector::EvacuateNewSpaceAndCandidates() {
 
   heap_->isolate()->inner_pointer_to_code_cache()->Flush();
 
-#ifdef DEBUG
+#ifdef VERIFY_HEAP
   if (FLAG_verify_heap) {
     VerifyEvacuation(heap_);
   }

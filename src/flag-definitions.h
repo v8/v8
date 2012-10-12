@@ -395,6 +395,9 @@ DEFINE_bool(trace_incremental_marking, false,
             "trace progress of the incremental marking")
 DEFINE_bool(track_gc_object_stats, false,
             "track object counts and memory usage")
+#ifdef VERIFY_HEAP
+DEFINE_bool(verify_heap, false, "verify heap pointers before and after GC")
+#endif
 
 // v8.cc
 DEFINE_bool(use_idle_notification, true,
@@ -568,7 +571,6 @@ DEFINE_bool(gc_greedy, false, "perform GC prior to some allocations")
 DEFINE_bool(gc_verbose, false, "print stuff during garbage collection")
 DEFINE_bool(heap_stats, false, "report heap statistics before and after GC")
 DEFINE_bool(code_stats, false, "report code statistics after GC")
-DEFINE_bool(verify_heap, false, "verify heap pointers before and after GC")
 DEFINE_bool(verify_native_context_separation, false,
             "verify that code holds on to at most one native context after GC")
 DEFINE_bool(print_handles, false, "report handles after GC")

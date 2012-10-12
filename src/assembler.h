@@ -349,8 +349,7 @@ class RelocInfo BASE_EMBEDDED {
   static const char* RelocModeName(Mode rmode);
   void Print(FILE* out);
 #endif  // ENABLE_DISASSEMBLER
-#ifdef DEBUG
-  // Debugging
+#ifdef VERIFY_HEAP
   void Verify();
 #endif
 

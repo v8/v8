@@ -731,6 +731,11 @@ struct ValueInfo : public Malloced {
 // A template-ized version of the IsXXX functions.
 template <class C> static inline bool Is(Object* obj);
 
+#ifdef VERIFY_HEAP
+#define DECLARE_VERIFIER(Name) void Name##Verify();
+#else
+#define DECLARE_VERIFIER(Name)
+#endif
 
 class MaybeObject BASE_EMBEDDED {
  public:
@@ -775,7 +780,7 @@ class MaybeObject BASE_EMBEDDED {
   void Print(FILE* out);
   void PrintLn(FILE* out);
 #endif
-#ifdef DEBUG
+#ifdef VERIFY_HEAP
   // Verifies the object.
   void Verify();
 #endif
@@ -982,7 +987,7 @@ class Object : public MaybeObject {
   // < the length of the string.  Used to implement [] on strings.
   inline bool IsStringObjectWithCharacterAt(uint32_t index);
 
-#ifdef DEBUG
+#ifdef VERIFY_HEAP
   // Verify a pointer is a valid object pointer.
   static void VerifyPointer(Object* p);
 #endif
@@ -1037,9 +1042,8 @@ class Smi: public Object {
   }
   void SmiPrint(FILE* out);
   void SmiPrint(StringStream* accumulator);
-#ifdef DEBUG
-  void SmiVerify();
-#endif
+
+  DECLARE_VERIFIER(Smi)
 
   static const int kMinValue =
       (static_cast<unsigned int>(-1)) << (kSmiValueSize - 1);
@@ -1110,9 +1114,8 @@ class Failure: public MaybeObject {
   }
   void FailurePrint(FILE* out);
   void FailurePrint(StringStream* accumulator);
-#ifdef DEBUG
-  void FailureVerify();
-#endif
+
+  DECLARE_VERIFIER(Failure)
 
  private:
   inline intptr_t value() const;
@@ -1243,9 +1246,8 @@ class HeapObject: public Object {
   void HeapObjectPrint(FILE* out);
   void PrintHeader(FILE* out, const char* id);
 #endif
-
-#ifdef DEBUG
-  void HeapObjectVerify();
+  DECLARE_VERIFIER(HeapObject)
+#ifdef VERIFY_HEAP
   inline void VerifyObjectField(int offset);
   inline void VerifySmiField(int offset);
 
@@ -1331,9 +1333,7 @@ class HeapNumber: public HeapObject {
   }
   void HeapNumberPrint(FILE* out);
   void HeapNumberPrint(StringStream* accumulator);
-#ifdef DEBUG
-  void HeapNumberVerify();
-#endif
+  DECLARE_VERIFIER(HeapNumber)
 
   inline int get_exponent();
   inline int get_sign();
@@ -2078,9 +2078,7 @@ class JSObject: public JSReceiver {
   }
   void JSObjectPrint(FILE* out);
 #endif
-#ifdef DEBUG
-  void JSObjectVerify();
-#endif
+  DECLARE_VERIFIER(JSObject)
 #ifdef OBJECT_PRINT
   inline void PrintProperties() {
     PrintProperties(stdout);
@@ -2362,8 +2360,8 @@ class FixedArray: public FixedArrayBase {
   }
   void FixedArrayPrint(FILE* out);
 #endif
+  DECLARE_VERIFIER(FixedArray)
 #ifdef DEBUG
-  void FixedArrayVerify();
   // Checks if two FixedArrays have identical contents.
   bool IsEqualTo(FixedArray* other);
 #endif
@@ -2449,10 +2447,7 @@ class FixedDoubleArray: public FixedArrayBase {
   }
   void FixedDoubleArrayPrint(FILE* out);
 #endif
-
-#ifdef DEBUG
-  void FixedDoubleArrayVerify();
-#endif
+  DECLARE_VERIFIER(FixedDoubleArray)
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(FixedDoubleArray);
@@ -3387,9 +3382,7 @@ class JSFunctionResultCache: public FixedArray {
   // Casting
   static inline JSFunctionResultCache* cast(Object* obj);
 
-#ifdef DEBUG
-  void JSFunctionResultCacheVerify();
-#endif
+  DECLARE_VERIFIER(JSFunctionResultCache)
 };
 
 
@@ -3609,9 +3602,7 @@ class NormalizedMapCache: public FixedArray {
   // Casting
   static inline NormalizedMapCache* cast(Object* obj);
 
-#ifdef DEBUG
-  void NormalizedMapCacheVerify();
-#endif
+  DECLARE_VERIFIER(NormalizedMapCache)
 };
 
 
@@ -3660,9 +3651,7 @@ class ByteArray: public FixedArrayBase {
   }
   void ByteArrayPrint(FILE* out);
 #endif
-#ifdef DEBUG
-  void ByteArrayVerify();
-#endif
+  DECLARE_VERIFIER(ByteArray)
 
   // Layout description.
   static const int kAlignedSize = OBJECT_POINTER_ALIGN(kHeaderSize);
@@ -3696,9 +3685,7 @@ class FreeSpace: public HeapObject {
   }
   void FreeSpacePrint(FILE* out);
 #endif
-#ifdef DEBUG
-  void FreeSpaceVerify();
-#endif
+  DECLARE_VERIFIER(FreeSpace)
 
   // Layout description.
   // Size is smi tagged when it is stored.
@@ -3778,9 +3765,7 @@ class ExternalPixelArray: public ExternalArray {
   }
   void ExternalPixelArrayPrint(FILE* out);
 #endif
-#ifdef DEBUG
-  void ExternalPixelArrayVerify();
-#endif  // DEBUG
+  DECLARE_VERIFIER(ExternalPixelArray)
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(ExternalPixelArray);
@@ -3807,9 +3792,7 @@ class ExternalByteArray: public ExternalArray {
   }
   void ExternalByteArrayPrint(FILE* out);
 #endif
-#ifdef DEBUG
-  void ExternalByteArrayVerify();
-#endif  // DEBUG
+  DECLARE_VERIFIER(ExternalByteArray)
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(ExternalByteArray);
@@ -3836,9 +3819,7 @@ class ExternalUnsignedByteArray: public ExternalArray {
   }
   void ExternalUnsignedByteArrayPrint(FILE* out);
 #endif
-#ifdef DEBUG
-  void ExternalUnsignedByteArrayVerify();
-#endif  // DEBUG
+  DECLARE_VERIFIER(ExternalUnsignedByteArray)
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(ExternalUnsignedByteArray);
@@ -3865,9 +3846,7 @@ class ExternalShortArray: public ExternalArray {
   }
   void ExternalShortArrayPrint(FILE* out);
 #endif
-#ifdef DEBUG
-  void ExternalShortArrayVerify();
-#endif  // DEBUG
+  DECLARE_VERIFIER(ExternalShortArray)
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(ExternalShortArray);
@@ -3894,9 +3873,7 @@ class ExternalUnsignedShortArray: public ExternalArray {
   }
   void ExternalUnsignedShortArrayPrint(FILE* out);
 #endif
-#ifdef DEBUG
-  void ExternalUnsignedShortArrayVerify();
-#endif  // DEBUG
+  DECLARE_VERIFIER(ExternalUnsignedShortArray)
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(ExternalUnsignedShortArray);
@@ -3923,9 +3900,7 @@ class ExternalIntArray: public ExternalArray {
   }
   void ExternalIntArrayPrint(FILE* out);
 #endif
-#ifdef DEBUG
-  void ExternalIntArrayVerify();
-#endif  // DEBUG
+  DECLARE_VERIFIER(ExternalIntArray)
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(ExternalIntArray);
@@ -3952,9 +3927,7 @@ class ExternalUnsignedIntArray: public ExternalArray {
   }
   void ExternalUnsignedIntArrayPrint(FILE* out);
 #endif
-#ifdef DEBUG
-  void ExternalUnsignedIntArrayVerify();
-#endif  // DEBUG
+  DECLARE_VERIFIER(ExternalUnsignedIntArray)
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(ExternalUnsignedIntArray);
@@ -3981,9 +3954,7 @@ class ExternalFloatArray: public ExternalArray {
   }
   void ExternalFloatArrayPrint(FILE* out);
 #endif
-#ifdef DEBUG
-  void ExternalFloatArrayVerify();
-#endif  // DEBUG
+  DECLARE_VERIFIER(ExternalFloatArray)
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(ExternalFloatArray);
@@ -4010,9 +3981,7 @@ class ExternalDoubleArray: public ExternalArray {
   }
   void ExternalDoubleArrayPrint(FILE* out);
 #endif  // OBJECT_PRINT
-#ifdef DEBUG
-  void ExternalDoubleArrayVerify();
-#endif  // DEBUG
+  DECLARE_VERIFIER(ExternalDoubleArray)
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(ExternalDoubleArray);
@@ -4535,9 +4504,8 @@ class Code: public HeapObject {
   }
   void CodePrint(FILE* out);
 #endif
-#ifdef DEBUG
-  void CodeVerify();
-#endif
+  DECLARE_VERIFIER(Code)
+
   void ClearInlineCaches();
   void ClearTypeFeedbackCells(Heap* heap);
 
@@ -5097,14 +5065,14 @@ class Map: public HeapObject {
   Handle<Map> FindTransitionedMap(MapHandleList* candidates);
   Map* FindTransitionedMap(MapList* candidates);
 
-  // Zaps the contents of backing data structures in debug mode. Note that the
+  // Zaps the contents of backing data structures. Note that the
   // heap verifier (i.e. VerifyMarkingVisitor) relies on zapping of objects
   // holding weak references when incremental marking is used, because it also
   // iterates over objects that are otherwise unreachable.
-#ifdef DEBUG
+  // In general we only want to call these functions in release mode when
+  // heap verification is turned on.
   void ZapPrototypeTransitions();
   void ZapTransitions();
-#endif
 
   // Dispatched behavior.
 #ifdef OBJECT_PRINT
@@ -5113,8 +5081,9 @@ class Map: public HeapObject {
   }
   void MapPrint(FILE* out);
 #endif
-#ifdef DEBUG
-  void MapVerify();
+  DECLARE_VERIFIER(Map)
+
+#ifdef VERIFY_HEAP
   void SharedMapVerify();
 #endif
 
@@ -5317,9 +5286,7 @@ class Script: public Struct {
   }
   void ScriptPrint(FILE* out);
 #endif
-#ifdef DEBUG
-  void ScriptVerify();
-#endif
+  DECLARE_VERIFIER(Script)
 
   static const int kSourceOffset = HeapObject::kHeaderSize;
   static const int kNameOffset = kSourceOffset + kPointerSize;
@@ -5799,9 +5766,7 @@ class SharedFunctionInfo: public HeapObject {
   }
   void SharedFunctionInfoPrint(FILE* out);
 #endif
-#ifdef DEBUG
-  void SharedFunctionInfoVerify();
-#endif
+  DECLARE_VERIFIER(SharedFunctionInfo)
 
   void ResetForNewContext(int new_ic_age);
 
@@ -6035,9 +6000,7 @@ class JSModule: public JSObject {
   }
   void JSModulePrint(FILE* out);
 #endif
-#ifdef DEBUG
-  void JSModuleVerify();
-#endif
+  DECLARE_VERIFIER(JSModule)
 
   // Layout description.
   static const int kContextOffset = JSObject::kHeaderSize;
@@ -6198,9 +6161,7 @@ class JSFunction: public JSObject {
   }
   void JSFunctionPrint(FILE* out);
 #endif
-#ifdef DEBUG
-  void JSFunctionVerify();
-#endif
+  DECLARE_VERIFIER(JSFunction)
 
   // Returns the number of allocated literals.
   inline int NumberOfLiterals();
@@ -6259,9 +6220,7 @@ class JSGlobalProxy : public JSObject {
   }
   void JSGlobalProxyPrint(FILE* out);
 #endif
-#ifdef DEBUG
-  void JSGlobalProxyVerify();
-#endif
+  DECLARE_VERIFIER(JSGlobalProxy)
 
   // Layout description.
   static const int kNativeContextOffset = JSObject::kHeaderSize;
@@ -6339,9 +6298,7 @@ class JSGlobalObject: public GlobalObject {
   }
   void JSGlobalObjectPrint(FILE* out);
 #endif
-#ifdef DEBUG
-  void JSGlobalObjectVerify();
-#endif
+  DECLARE_VERIFIER(JSGlobalObject)
 
   // Layout description.
   static const int kSize = GlobalObject::kHeaderSize;
@@ -6373,9 +6330,7 @@ class JSBuiltinsObject: public GlobalObject {
   }
   void JSBuiltinsObjectPrint(FILE* out);
 #endif
-#ifdef DEBUG
-  void JSBuiltinsObjectVerify();
-#endif
+  DECLARE_VERIFIER(JSBuiltinsObject)
 
   // Layout description.  The size of the builtins object includes
   // room for two pointers per runtime routine written in javascript
@@ -6416,9 +6371,7 @@ class JSValue: public JSObject {
   }
   void JSValuePrint(FILE* out);
 #endif
-#ifdef DEBUG
-  void JSValueVerify();
-#endif
+  DECLARE_VERIFIER(JSValue)
 
   // Layout description.
   static const int kValueOffset = JSObject::kHeaderSize;
@@ -6472,9 +6425,8 @@ class JSDate: public JSObject {
   }
   void JSDatePrint(FILE* out);
 #endif
-#ifdef DEBUG
-  void JSDateVerify();
-#endif
+  DECLARE_VERIFIER(JSDate)
+
   // The order is important. It must be kept in sync with date macros
   // in macros.py.
   enum FieldIndex {
@@ -6570,9 +6522,7 @@ class JSMessageObject: public JSObject {
   }
   void JSMessageObjectPrint(FILE* out);
 #endif
-#ifdef DEBUG
-  void JSMessageObjectVerify();
-#endif
+  DECLARE_VERIFIER(JSMessageObject)
 
   // Layout description.
   static const int kTypeOffset = JSObject::kHeaderSize;
@@ -6661,9 +6611,7 @@ class JSRegExp: public JSObject {
   static inline JSRegExp* cast(Object* obj);
 
   // Dispatched behavior.
-#ifdef DEBUG
-  void JSRegExpVerify();
-#endif
+  DECLARE_VERIFIER(JSRegExp)
 
   static const int kDataOffset = JSObject::kHeaderSize;
   static const int kSize = kDataOffset + kPointerSize;
@@ -6819,9 +6767,7 @@ class CodeCache: public Struct {
   }
   void CodeCachePrint(FILE* out);
 #endif
-#ifdef DEBUG
-  void CodeCacheVerify();
-#endif
+  DECLARE_VERIFIER(CodeCache)
 
   static const int kDefaultCacheOffset = HeapObject::kHeaderSize;
   static const int kNormalTypeCacheOffset =
@@ -6910,9 +6856,7 @@ class PolymorphicCodeCache: public Struct {
   }
   void PolymorphicCodeCachePrint(FILE* out);
 #endif
-#ifdef DEBUG
-  void PolymorphicCodeCacheVerify();
-#endif
+  DECLARE_VERIFIER(PolymorphicCodeCache)
 
   static const int kCacheOffset = HeapObject::kHeaderSize;
   static const int kSize = kCacheOffset + kPointerSize;
@@ -6965,9 +6909,7 @@ class TypeFeedbackInfo: public Struct {
   }
   void TypeFeedbackInfoPrint(FILE* out);
 #endif
-#ifdef DEBUG
-  void TypeFeedbackInfoVerify();
-#endif
+  DECLARE_VERIFIER(TypeFeedbackInfo)
 
   static const int kStorage1Offset = HeapObject::kHeaderSize;
   static const int kStorage2Offset = kStorage1Offset + kPointerSize;
@@ -7013,9 +6955,7 @@ class AliasedArgumentsEntry: public Struct {
   }
   void AliasedArgumentsEntryPrint(FILE* out);
 #endif
-#ifdef DEBUG
-  void AliasedArgumentsEntryVerify();
-#endif
+  DECLARE_VERIFIER(AliasedArgumentsEntry)
 
   static const int kAliasedContextSlot = HeapObject::kHeaderSize;
   static const int kSize = kAliasedContextSlot + kPointerSize;
@@ -7362,9 +7302,8 @@ class String: public HeapObject {
 
   char* ToAsciiArray();
 #endif
-#ifdef DEBUG
-  void StringVerify();
-#endif
+  DECLARE_VERIFIER(String)
+
   inline bool IsFlat();
 
   // Layout description.
@@ -7601,9 +7540,7 @@ class SeqAsciiString: public SeqString {
                                                       unsigned* offset,
                                                       unsigned chars);
 
-#ifdef DEBUG
-  void SeqAsciiStringVerify();
-#endif
+  DECLARE_VERIFIER(SeqAsciiString)
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(SeqAsciiString);
@@ -7708,9 +7645,7 @@ class ConsString: public String {
   typedef FixedBodyDescriptor<kFirstOffset, kSecondOffset + kPointerSize, kSize>
           BodyDescriptor;
 
-#ifdef DEBUG
-  void ConsStringVerify();
-#endif
+  DECLARE_VERIFIER(ConsString)
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(ConsString);
@@ -7762,9 +7697,7 @@ class SlicedString: public String {
                               kOffsetOffset + kPointerSize, kSize>
           BodyDescriptor;
 
-#ifdef DEBUG
-  void SlicedStringVerify();
-#endif
+  DECLARE_VERIFIER(SlicedString)
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(SlicedString);
@@ -7991,9 +7924,7 @@ class Oddball: public HeapObject {
   static inline Oddball* cast(Object* obj);
 
   // Dispatched behavior.
-#ifdef DEBUG
-  void OddballVerify();
-#endif
+  DECLARE_VERIFIER(Oddball)
 
   // Initialize the fields.
   MUST_USE_RESULT MaybeObject* Initialize(const char* to_string,
@@ -8044,9 +7975,8 @@ class JSGlobalPropertyCell: public HeapObject {
     return address() + kValueOffset;
   }
 
-#ifdef DEBUG
-  void JSGlobalPropertyCellVerify();
-#endif
+  DECLARE_VERIFIER(JSGlobalPropertyCell)
+
 #ifdef OBJECT_PRINT
   inline void JSGlobalPropertyCellPrint() {
     JSGlobalPropertyCellPrint(stdout);
@@ -8149,9 +8079,7 @@ class JSProxy: public JSReceiver {
   }
   void JSProxyPrint(FILE* out);
 #endif
-#ifdef DEBUG
-  void JSProxyVerify();
-#endif
+  DECLARE_VERIFIER(JSProxy)
 
   // Layout description. We add padding so that a proxy has the same
   // size as a virgin JSObject. This is essential for becoming a JSObject
@@ -8192,9 +8120,7 @@ class JSFunctionProxy: public JSProxy {
   }
   void JSFunctionProxyPrint(FILE* out);
 #endif
-#ifdef DEBUG
-  void JSFunctionProxyVerify();
-#endif
+  DECLARE_VERIFIER(JSFunctionProxy)
 
   // Layout description.
   static const int kCallTrapOffset = JSProxy::kPaddingOffset;
@@ -8229,9 +8155,7 @@ class JSSet: public JSObject {
   }
   void JSSetPrint(FILE* out);
 #endif
-#ifdef DEBUG
-  void JSSetVerify();
-#endif
+  DECLARE_VERIFIER(JSSet)
 
   static const int kTableOffset = JSObject::kHeaderSize;
   static const int kSize = kTableOffset + kPointerSize;
@@ -8256,9 +8180,7 @@ class JSMap: public JSObject {
   }
   void JSMapPrint(FILE* out);
 #endif
-#ifdef DEBUG
-  void JSMapVerify();
-#endif
+  DECLARE_VERIFIER(JSMap)
 
   static const int kTableOffset = JSObject::kHeaderSize;
   static const int kSize = kTableOffset + kPointerSize;
@@ -8286,9 +8208,7 @@ class JSWeakMap: public JSObject {
   }
   void JSWeakMapPrint(FILE* out);
 #endif
-#ifdef DEBUG
-  void JSWeakMapVerify();
-#endif
+  DECLARE_VERIFIER(JSWeakMap)
 
   static const int kTableOffset = JSObject::kHeaderSize;
   static const int kNextOffset = kTableOffset + kPointerSize;
@@ -8323,9 +8243,7 @@ class Foreign: public HeapObject {
   }
   void ForeignPrint(FILE* out);
 #endif
-#ifdef DEBUG
-  void ForeignVerify();
-#endif
+  DECLARE_VERIFIER(Foreign)
 
   // Layout description.
 
@@ -8382,9 +8300,7 @@ class JSArray: public JSObject {
   }
   void JSArrayPrint(FILE* out);
 #endif
-#ifdef DEBUG
-  void JSArrayVerify();
-#endif
+  DECLARE_VERIFIER(JSArray)
 
   // Number of element slots to pre-allocate for an empty array.
   static const int kPreallocatedArrayElements = 4;
@@ -8463,9 +8379,7 @@ class AccessorInfo: public Struct {
   }
   void AccessorInfoPrint(FILE* out);
 #endif
-#ifdef DEBUG
-  void AccessorInfoVerify();
-#endif
+  DECLARE_VERIFIER(AccessorInfo)
 
   static const int kGetterOffset = HeapObject::kHeaderSize;
   static const int kSetterOffset = kGetterOffset + kPointerSize;
@@ -8529,9 +8443,7 @@ class AccessorPair: public Struct {
 #ifdef OBJECT_PRINT
   void AccessorPairPrint(FILE* out = stdout);
 #endif
-#ifdef DEBUG
-  void AccessorPairVerify();
-#endif
+  DECLARE_VERIFIER(AccessorPair)
 
   static const int kGetterOffset = HeapObject::kHeaderSize;
   static const int kSetterOffset = kGetterOffset + kPointerSize;
@@ -8565,9 +8477,7 @@ class AccessCheckInfo: public Struct {
   }
   void AccessCheckInfoPrint(FILE* out);
 #endif
-#ifdef DEBUG
-  void AccessCheckInfoVerify();
-#endif
+  DECLARE_VERIFIER(AccessCheckInfo)
 
   static const int kNamedCallbackOffset   = HeapObject::kHeaderSize;
   static const int kIndexedCallbackOffset = kNamedCallbackOffset + kPointerSize;
@@ -8596,9 +8506,7 @@ class InterceptorInfo: public Struct {
   }
   void InterceptorInfoPrint(FILE* out);
 #endif
-#ifdef DEBUG
-  void InterceptorInfoVerify();
-#endif
+  DECLARE_VERIFIER(InterceptorInfo)
 
   static const int kGetterOffset = HeapObject::kHeaderSize;
   static const int kSetterOffset = kGetterOffset + kPointerSize;
@@ -8626,9 +8534,7 @@ class CallHandlerInfo: public Struct {
   }
   void CallHandlerInfoPrint(FILE* out);
 #endif
-#ifdef DEBUG
-  void CallHandlerInfoVerify();
-#endif
+  DECLARE_VERIFIER(CallHandlerInfo)
 
   static const int kCallbackOffset = HeapObject::kHeaderSize;
   static const int kDataOffset = kCallbackOffset + kPointerSize;
@@ -8644,9 +8550,7 @@ class TemplateInfo: public Struct {
   DECL_ACCESSORS(tag, Object)
   DECL_ACCESSORS(property_list, Object)
 
-#ifdef DEBUG
-  void TemplateInfoVerify();
-#endif
+  DECLARE_VERIFIER(TemplateInfo)
 
   static const int kTagOffset          = HeapObject::kHeaderSize;
   static const int kPropertyListOffset = kTagOffset + kPointerSize;
@@ -8689,9 +8593,7 @@ class FunctionTemplateInfo: public TemplateInfo {
   }
   void FunctionTemplateInfoPrint(FILE* out);
 #endif
-#ifdef DEBUG
-  void FunctionTemplateInfoVerify();
-#endif
+  DECLARE_VERIFIER(FunctionTemplateInfo)
 
   static const int kSerialNumberOffset = TemplateInfo::kHeaderSize;
   static const int kCallCodeOffset = kSerialNumberOffset + kPointerSize;
@@ -8738,9 +8640,7 @@ class ObjectTemplateInfo: public TemplateInfo {
   }
   void ObjectTemplateInfoPrint(FILE* out);
 #endif
-#ifdef DEBUG
-  void ObjectTemplateInfoVerify();
-#endif
+  DECLARE_VERIFIER(ObjectTemplateInfo)
 
   static const int kConstructorOffset = TemplateInfo::kHeaderSize;
   static const int kInternalFieldCountOffset =
@@ -8762,9 +8662,7 @@ class SignatureInfo: public Struct {
   }
   void SignatureInfoPrint(FILE* out);
 #endif
-#ifdef DEBUG
-  void SignatureInfoVerify();
-#endif
+  DECLARE_VERIFIER(SignatureInfo)
 
   static const int kReceiverOffset = Struct::kHeaderSize;
   static const int kArgsOffset     = kReceiverOffset + kPointerSize;
@@ -8787,9 +8685,7 @@ class TypeSwitchInfo: public Struct {
   }
   void TypeSwitchInfoPrint(FILE* out);
 #endif
-#ifdef DEBUG
-  void TypeSwitchInfoVerify();
-#endif
+  DECLARE_VERIFIER(TypeSwitchInfo)
 
   static const int kTypesOffset = Struct::kHeaderSize;
   static const int kSize        = kTypesOffset + kPointerSize;
@@ -8839,9 +8735,7 @@ class DebugInfo: public Struct {
   }
   void DebugInfoPrint(FILE* out);
 #endif
-#ifdef DEBUG
-  void DebugInfoVerify();
-#endif
+  DECLARE_VERIFIER(DebugInfo)
 
   static const int kSharedFunctionInfoIndex = Struct::kHeaderSize;
   static const int kOriginalCodeIndex = kSharedFunctionInfoIndex + kPointerSize;
@@ -8897,9 +8791,7 @@ class BreakPointInfo: public Struct {
   }
   void BreakPointInfoPrint(FILE* out);
 #endif
-#ifdef DEBUG
-  void BreakPointInfoVerify();
-#endif
+  DECLARE_VERIFIER(BreakPointInfo)
 
   static const int kCodePositionIndex = Struct::kHeaderSize;
   static const int kSourcePositionIndex = kCodePositionIndex + kPointerSize;
@@ -8917,6 +8809,7 @@ class BreakPointInfo: public Struct {
 
 #undef DECL_BOOLEAN_ACCESSORS
 #undef DECL_ACCESSORS
+#undef DECLARE_VERIFIER
 
 #define VISITOR_SYNCHRONIZATION_TAGS_LIST(V)                            \
   V(kSymbolTable, "symbol_table", "(Symbols)")                          \
