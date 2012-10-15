@@ -3904,6 +3904,21 @@ MaybeObject* JSObject::DeleteElement(uint32_t index, DeleteMode mode) {
     return isolate->heap()->false_value();
   }
 
+  if (IsStringObjectWithCharacterAt(index)) {
+    if (mode == STRICT_DELETION) {
+      // Deleting a non-configurable property in strict mode.
+      HandleScope scope(isolate);
+      Handle<Object> holder(this);
+      Handle<Object> name = isolate->factory()->NewNumberFromUint(index);
+      Handle<Object> args[2] = { name, holder };
+      Handle<Object> error =
+          isolate->factory()->NewTypeError("strict_delete_property",
+                                           HandleVector(args, 2));
+      return isolate->Throw(*error);
+    }
+    return isolate->heap()->false_value();
+  }
+
   if (IsJSGlobalProxy()) {
     Object* proto = GetPrototype();
     if (proto->IsNull()) return isolate->heap()->false_value();

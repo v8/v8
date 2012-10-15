@@ -1336,30 +1336,29 @@ class DictionaryElementsAccessor
     int entry = dictionary->FindEntry(key);
     if (entry != SeededNumberDictionary::kNotFound) {
       Object* result = dictionary->DeleteProperty(entry, mode);
-      if (result == heap->true_value()) {
-        MaybeObject* maybe_elements = dictionary->Shrink(key);
-        FixedArray* new_elements = NULL;
-        if (!maybe_elements->To(&new_elements)) {
-          return maybe_elements;
+      if (result == heap->false_value()) {
+        if (mode == JSObject::STRICT_DELETION) {
+          // Deleting a non-configurable property in strict mode.
+          HandleScope scope(isolate);
+          Handle<Object> holder(obj);
+          Handle<Object> name = isolate->factory()->NewNumberFromUint(key);
+          Handle<Object> args[2] = { name, holder };
+          Handle<Object> error =
+              isolate->factory()->NewTypeError("strict_delete_property",
+                                               HandleVector(args, 2));
+          return isolate->Throw(*error);
         }
-        if (is_arguments) {
-          FixedArray::cast(obj->elements())->set(1, new_elements);
-        } else {
-          obj->set_elements(new_elements);
-        }
+        return heap->false_value();
       }
-      if (mode == JSObject::STRICT_DELETION &&
-          result == heap->false_value()) {
-        // In strict mode, attempting to delete a non-configurable property
-        // throws an exception.
-        HandleScope scope(isolate);
-        Handle<Object> holder(obj);
-        Handle<Object> name = isolate->factory()->NewNumberFromUint(key);
-        Handle<Object> args[2] = { name, holder };
-        Handle<Object> error =
-            isolate->factory()->NewTypeError("strict_delete_property",
-                                             HandleVector(args, 2));
-        return isolate->Throw(*error);
+      MaybeObject* maybe_elements = dictionary->Shrink(key);
+      FixedArray* new_elements = NULL;
+      if (!maybe_elements->To(&new_elements)) {
+        return maybe_elements;
+      }
+      if (is_arguments) {
+        FixedArray::cast(obj->elements())->set(1, new_elements);
+      } else {
+        obj->set_elements(new_elements);
       }
     }
     return heap->true_value();
