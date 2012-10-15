@@ -98,6 +98,7 @@ Heap::Heap()
       linear_allocation_scope_depth_(0),
       contexts_disposed_(0),
       global_ic_age_(0),
+      flush_monomorphic_ics_(false),
       scan_on_scavenge_pages_(0),
       new_space_(this),
       old_pointer_space_(NULL),
@@ -404,18 +405,19 @@ void Heap::GarbageCollectionPrologue() {
   ClearJSFunctionResultCaches();
   gc_count_++;
   unflattened_strings_length_ = 0;
+
+#ifdef VERIFY_HEAP
+  if (FLAG_verify_heap) {
+    Verify();
+  }
+#endif
+
 #ifdef DEBUG
   ASSERT(allocation_allowed_ && gc_state_ == NOT_IN_GC);
   allow_allocation(false);
 
-  if (FLAG_verify_heap) {
-    Verify();
-  }
-
   if (FLAG_gc_verbose) Print();
-#endif  // DEBUG
 
-#if defined(DEBUG)
   ReportStatisticsBeforeGC();
 #endif  // DEBUG
 
@@ -447,14 +449,20 @@ void Heap::RepairFreeListsAfterBoot() {
 void Heap::GarbageCollectionEpilogue() {
   store_buffer()->GCEpilogue();
   LiveObjectList::GCEpilogue();
-#ifdef DEBUG
-  allow_allocation(true);
-  ZapFromSpace();
 
+  // In release mode, we only zap the from space under heap verification.
+  if (Heap::ShouldZapGarbage()) {
+    ZapFromSpace();
+  }
+
+#ifdef VERIFY_HEAP
   if (FLAG_verify_heap) {
     Verify();
   }
+#endif
 
+#ifdef DEBUG
+  allow_allocation(true);
   if (FLAG_print_global_handles) isolate_->global_handles()->Print();
   if (FLAG_print_handles) PrintHandles();
   if (FLAG_gc_verbose) Print();
@@ -651,7 +659,7 @@ void Heap::PerformScavenge() {
 }
 
 
-#ifdef DEBUG
+#ifdef VERIFY_HEAP
 // Helper class for verifying the symbol table.
 class SymbolTableVerifier : public ObjectVisitor {
  public:
@@ -660,20 +668,18 @@ class SymbolTableVerifier : public ObjectVisitor {
     for (Object** p = start; p < end; p++) {
       if ((*p)->IsHeapObject()) {
         // Check that the symbol is actually a symbol.
-        ASSERT((*p)->IsTheHole() || (*p)->IsUndefined() || (*p)->IsSymbol());
+        CHECK((*p)->IsTheHole() || (*p)->IsUndefined() || (*p)->IsSymbol());
       }
     }
   }
 };
-#endif  // DEBUG
 
 
 static void VerifySymbolTable() {
-#ifdef DEBUG
   SymbolTableVerifier verifier;
   HEAP->symbol_table()->IterateElements(&verifier);
-#endif  // DEBUG
 }
+#endif  // VERIFY_HEAP
 
 
 static bool AbortIncrementalMarkingAndCollectGarbage(
@@ -830,9 +836,12 @@ bool Heap::PerformGarbageCollection(GarbageCollector collector,
     PROFILE(isolate_, CodeMovingGCEvent());
   }
 
+#ifdef VERIFY_HEAP
   if (FLAG_verify_heap) {
     VerifySymbolTable();
   }
+#endif
+
   if (collector == MARK_COMPACTOR && global_gc_prologue_callback_) {
     ASSERT(!allocation_allowed_);
     GCTracer::Scope scope(tracer, GCTracer::Scope::EXTERNAL);
@@ -959,9 +968,12 @@ bool Heap::PerformGarbageCollection(GarbageCollector collector,
     GCTracer::Scope scope(tracer, GCTracer::Scope::EXTERNAL);
     global_gc_epilogue_callback_();
   }
+
+#ifdef VERIFY_HEAP
   if (FLAG_verify_heap) {
     VerifySymbolTable();
   }
+#endif
 
   return next_gc_likely_to_collect_more;
 }
@@ -988,7 +1000,7 @@ void Heap::MarkCompact(GCTracer* tracer) {
 
   contexts_disposed_ = 0;
 
-  isolate_->set_context_exit_happened(false);
+  flush_monomorphic_ics_ = false;
 }
 
 
@@ -1044,7 +1056,7 @@ class ScavengeVisitor: public ObjectVisitor {
 };
 
 
-#ifdef DEBUG
+#ifdef VERIFY_HEAP
 // Visitor class to verify pointers in code or data space do not point into
 // new space.
 class VerifyNonPointerSpacePointersVisitor: public ObjectVisitor {
@@ -1052,7 +1064,7 @@ class VerifyNonPointerSpacePointersVisitor: public ObjectVisitor {
   void VisitPointers(Object** start, Object**end) {
     for (Object** current = start; current < end; current++) {
       if ((*current)->IsHeapObject()) {
-        ASSERT(!HEAP->InNewSpace(HeapObject::cast(*current)));
+        CHECK(!HEAP->InNewSpace(HeapObject::cast(*current)));
       }
     }
   }
@@ -1077,7 +1089,7 @@ static void VerifyNonPointerSpacePointers() {
       object->Iterate(&v);
   }
 }
-#endif
+#endif  // VERIFY_HEAP
 
 
 void Heap::CheckNewSpaceExpansionCriteria() {
@@ -1216,7 +1228,8 @@ class ScavengeWeakObjectRetainer : public WeakObjectRetainer {
 
 void Heap::Scavenge() {
   RelocationLock relocation_lock(this);
-#ifdef DEBUG
+
+#ifdef VERIFY_HEAP
   if (FLAG_verify_heap) VerifyNonPointerSpacePointers();
 #endif
 
@@ -1353,9 +1366,11 @@ String* Heap::UpdateNewSpaceReferenceInExternalStringTableEntry(Heap* heap,
 
 void Heap::UpdateNewSpaceReferencesInExternalStringTable(
     ExternalStringTableUpdaterCallback updater_func) {
+#ifdef VERIFY_HEAP
   if (FLAG_verify_heap) {
     external_string_table_.Verify();
   }
+#endif
 
   if (external_string_table_.new_space_strings_.is_empty()) return;
 
@@ -3378,7 +3393,7 @@ MaybeObject* Heap::AllocateSubString(String* buffer,
   }
 
   ASSERT(buffer->IsFlat());
-#if DEBUG
+#if VERIFY_HEAP
   if (FLAG_verify_heap) {
     buffer->StringVerify();
   }
@@ -3642,7 +3657,7 @@ MaybeObject* Heap::CreateCode(const CodeDesc& desc,
   // through the self_reference parameter.
   code->CopyFrom(desc);
 
-#ifdef DEBUG
+#ifdef VERIFY_HEAP
   if (FLAG_verify_heap) {
     code->Verify();
   }
@@ -3724,7 +3739,7 @@ MaybeObject* Heap::CopyCode(Code* code, Vector<byte> reloc_info) {
       isolate_->code_range()->contains(code->address()));
   new_code->Relocate(new_addr - old_addr);
 
-#ifdef DEBUG
+#ifdef VERIFY_HEAP
   if (FLAG_verify_heap) {
     code->Verify();
   }
@@ -4597,14 +4612,14 @@ MaybeObject* Heap::AllocateRawAsciiString(int length, PretenureFlag pretenure) {
   String::cast(result)->set_hash_field(String::kEmptyHashField);
   ASSERT_EQ(size, HeapObject::cast(result)->Size());
 
-#ifdef DEBUG
+#ifdef VERIFY_HEAP
   if (FLAG_verify_heap) {
     // Initialize string's content to ensure ASCII-ness (character range 0-127)
     // as required when verifying the heap.
     char* dest = SeqAsciiString::cast(result)->GetChars();
     memset(dest, 0x0F, length * kCharSize);
   }
-#endif  // DEBUG
+#endif
 
   return result;
 }
@@ -5394,9 +5409,9 @@ bool Heap::InSpace(Address addr, AllocationSpace space) {
 }
 
 
-#ifdef DEBUG
+#ifdef VERIFY_HEAP
 void Heap::Verify() {
-  ASSERT(HasBeenSetUp());
+  CHECK(HasBeenSetUp());
 
   store_buffer()->Verify();
 
@@ -5415,9 +5430,7 @@ void Heap::Verify() {
 
   lo_space_->Verify();
 }
-
-
-#endif  // DEBUG
+#endif
 
 
 MaybeObject* Heap::LookupSymbol(Vector<const char> string) {
@@ -5509,8 +5522,6 @@ bool Heap::LookupSymbolIfExists(String* string, String** symbol) {
   return symbol_table()->LookupSymbolIfExists(string, symbol);
 }
 
-
-#ifdef DEBUG
 void Heap::ZapFromSpace() {
   NewSpacePageIterator it(new_space_.FromSpaceStart(),
                           new_space_.FromSpaceEnd());
@@ -5523,7 +5534,6 @@ void Heap::ZapFromSpace() {
     }
   }
 }
-#endif  // DEBUG
 
 
 void Heap::IterateAndMarkPointersToFromSpace(Address start,
@@ -6260,11 +6270,12 @@ void Heap::SetStackLimits() {
 
 
 void Heap::TearDown() {
-#ifdef DEBUG
+#ifdef VERIFY_HEAP
   if (FLAG_verify_heap) {
     Verify();
   }
 #endif
+
   if (FLAG_print_cumulative_gc_stat) {
     PrintF("\n\n");
     PrintF("gc_count=%d ", gc_count_);
@@ -7194,9 +7205,11 @@ void ExternalStringTable::CleanUp() {
     old_space_strings_[last++] = old_space_strings_[i];
   }
   old_space_strings_.Rewind(last);
+#ifdef VERIFY_HEAP
   if (FLAG_verify_heap) {
     Verify();
   }
+#endif
 }
 
 

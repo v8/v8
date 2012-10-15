@@ -1067,6 +1067,7 @@ TEST(TestInternalWeakLists) {
     }
 
     // Mark compact handles the weak references.
+    ISOLATE->compilation_cache()->Clear();
     HEAP->CollectAllGarbage(Heap::kNoGCFlags);
     CHECK_EQ(opt ? 4 : 0, CountOptimizedUserFunctions(ctx[i]));
 
@@ -1398,6 +1399,7 @@ TEST(LeakNativeContextViaMap) {
     ctx2->Exit();
     ctx1->Exit();
     ctx1.Dispose();
+    v8::V8::ContextDisposedNotification();
   }
   HEAP->CollectAllAvailableGarbage();
   CHECK_EQ(2, NumberOfGlobalObjects());
@@ -1435,6 +1437,7 @@ TEST(LeakNativeContextViaFunction) {
     ctx2->Exit();
     ctx1->Exit();
     ctx1.Dispose();
+    v8::V8::ContextDisposedNotification();
   }
   HEAP->CollectAllAvailableGarbage();
   CHECK_EQ(2, NumberOfGlobalObjects());
@@ -1470,6 +1473,7 @@ TEST(LeakNativeContextViaMapKeyed) {
     ctx2->Exit();
     ctx1->Exit();
     ctx1.Dispose();
+    v8::V8::ContextDisposedNotification();
   }
   HEAP->CollectAllAvailableGarbage();
   CHECK_EQ(2, NumberOfGlobalObjects());
@@ -1509,6 +1513,7 @@ TEST(LeakNativeContextViaMapProto) {
     ctx2->Exit();
     ctx1->Exit();
     ctx1.Dispose();
+    v8::V8::ContextDisposedNotification();
   }
   HEAP->CollectAllAvailableGarbage();
   CHECK_EQ(2, NumberOfGlobalObjects());
@@ -1520,9 +1525,10 @@ TEST(LeakNativeContextViaMapProto) {
 
 TEST(InstanceOfStubWriteBarrier) {
   i::FLAG_allow_natives_syntax = true;
-#ifdef DEBUG
+#ifdef VERIFY_HEAP
   i::FLAG_verify_heap = true;
 #endif
+
   InitializeVM();
   if (!i::V8::UseCrankshaft()) return;
   v8::HandleScope outer_scope;
@@ -1631,9 +1637,10 @@ TEST(PrototypeTransitionClearing) {
 
 TEST(ResetSharedFunctionInfoCountersDuringIncrementalMarking) {
   i::FLAG_allow_natives_syntax = true;
-#ifdef DEBUG
+#ifdef VERIFY_HEAP
   i::FLAG_verify_heap = true;
 #endif
+
   InitializeVM();
   if (!i::V8::UseCrankshaft()) return;
   v8::HandleScope outer_scope;
@@ -1686,9 +1693,10 @@ TEST(ResetSharedFunctionInfoCountersDuringIncrementalMarking) {
 
 TEST(ResetSharedFunctionInfoCountersDuringMarkSweep) {
   i::FLAG_allow_natives_syntax = true;
-#ifdef DEBUG
+#ifdef VERIFY_HEAP
   i::FLAG_verify_heap = true;
 #endif
+
   InitializeVM();
   if (!i::V8::UseCrankshaft()) return;
   v8::HandleScope outer_scope;
@@ -2108,8 +2116,6 @@ TEST(IncrementalMarkingPreservesMonomorhpicIC) {
   Code* ic_before = FindFirstIC(f->shared()->code(), Code::LOAD_IC);
   CHECK(ic_before->ic_state() == MONOMORPHIC);
 
-  // Fire context dispose notification.
-  v8::V8::ContextDisposedNotification();
   SimulateIncrementalMarking();
   HEAP->CollectAllGarbage(Heap::kNoGCFlags);
 

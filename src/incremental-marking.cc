@@ -181,10 +181,6 @@ class IncrementalMarkingMarkingVisitor
   static void Initialize() {
     StaticMarkingVisitor<IncrementalMarkingMarkingVisitor>::Initialize();
 
-    table_.Register(kVisitSharedFunctionInfo, &VisitSharedFunctionInfo);
-
-    table_.Register(kVisitJSFunction, &VisitJSFunction);
-
     table_.Register(kVisitJSRegExp, &VisitJSRegExp);
   }
 
@@ -195,31 +191,7 @@ class IncrementalMarkingMarkingVisitor
                   HeapObject::RawField(object, JSWeakMap::kSize));
   }
 
-  static void VisitSharedFunctionInfo(Map* map, HeapObject* object) {
-    Heap* heap = map->GetHeap();
-    SharedFunctionInfo* shared = SharedFunctionInfo::cast(object);
-    if (shared->ic_age() != heap->global_ic_age()) {
-      shared->ResetForNewContext(heap->global_ic_age());
-    }
-    FixedBodyVisitor<IncrementalMarkingMarkingVisitor,
-                     SharedFunctionInfo::BodyDescriptor,
-                     void>::Visit(map, object);
-  }
-
-  static inline void VisitJSFunction(Map* map, HeapObject* object) {
-    Heap* heap = map->GetHeap();
-    // Iterate over all fields in the body but take care in dealing with
-    // the code entry and skip weak fields.
-    VisitPointers(heap,
-                  HeapObject::RawField(object, JSFunction::kPropertiesOffset),
-                  HeapObject::RawField(object, JSFunction::kCodeEntryOffset));
-    VisitCodeEntry(heap, object->address() + JSFunction::kCodeEntryOffset);
-    VisitPointers(heap,
-                  HeapObject::RawField(object,
-                      JSFunction::kCodeEntryOffset + kPointerSize),
-                  HeapObject::RawField(object,
-                      JSFunction::kNonWeakFieldsEndOffset));
-  }
+  static void BeforeVisitingSharedFunctionInfo(HeapObject* object) {}
 
   INLINE(static void VisitPointer(Heap* heap, Object** p)) {
     Object* obj = *p;
@@ -561,8 +533,8 @@ void IncrementalMarking::StartMarking(CompactionFlag flag) {
 
   ActivateIncrementalWriteBarrier();
 
-#ifdef DEBUG
   // Marking bits are cleared by the sweeper.
+#ifdef VERIFY_HEAP
   if (FLAG_verify_heap) {
     heap_->mark_compact_collector()->VerifyMarkbitsAreClean();
   }

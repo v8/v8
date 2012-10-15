@@ -3107,13 +3107,13 @@ bool HeapSnapshotGenerator::GenerateSnapshot() {
   // stable. It should follow TagGlobalObjects as that can allocate.
   AssertNoAllocation no_alloc;
 
-#ifdef DEBUG
+#ifdef VERIFY_HEAP
   debug_heap->Verify();
 #endif
 
   SetProgressTotal(1);  // 1 pass.
 
-#ifdef DEBUG
+#ifdef VERIFY_HEAP
   debug_heap->Verify();
 #endif
 

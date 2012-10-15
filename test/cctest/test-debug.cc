@@ -2381,7 +2381,7 @@ TEST(DebuggerStatementBreakpoint) {
 }
 
 
-// Thest that the evaluation of expressions when a break point is hit generates
+// Test that the evaluation of expressions when a break point is hit generates
 // the correct results.
 TEST(DebugEvaluate) {
   v8::HandleScope scope;
@@ -2496,6 +2496,98 @@ TEST(DebugEvaluate) {
   v8::Debug::SetDebugEventListener(NULL);
   CheckDebuggerUnloaded();
 }
+
+
+int debugEventCount = 0;
+static void CheckDebugEvent(const v8::Debug::EventDetails& eventDetails) {
+  if (eventDetails.GetEvent() == v8::Break) ++debugEventCount;
+}
+
+// Test that the conditional breakpoints work event if code generation from
+// strings is prohibited in the debugee context.
+TEST(ConditionalBreakpointWithCodeGenerationDisallowed) {
+  v8::HandleScope scope;
+  DebugLocalContext env;
+  env.ExposeDebug();
+
+  v8::Debug::SetDebugEventListener2(CheckDebugEvent);
+
+  v8::Local<v8::Function> foo = CompileFunction(&env,
+    "function foo(x) {\n"
+    "  var s = 'String value2';\n"
+    "  return s + x;\n"
+    "}",
+    "foo");
+
+  // Set conditional breakpoint with condition 'true'.
+  CompileRun("debug.Debug.setBreakPoint(foo, 2, 0, 'true')");
+
+  debugEventCount = 0;
+  env->AllowCodeGenerationFromStrings(false);
+  foo->Call(env->Global(), 0, NULL);
+  CHECK_EQ(1, debugEventCount);
+
+  v8::Debug::SetDebugEventListener2(NULL);
+  CheckDebuggerUnloaded();
+}
+
+
+bool checkedDebugEvals = true;
+v8::Handle<v8::Function> checkGlobalEvalFunction;
+v8::Handle<v8::Function> checkFrameEvalFunction;
+static void CheckDebugEval(const v8::Debug::EventDetails& eventDetails) {
+  if (eventDetails.GetEvent() == v8::Break) {
+    ++debugEventCount;
+    v8::HandleScope handleScope;
+
+    v8::Handle<v8::Value> args[] = { eventDetails.GetExecutionState() };
+    CHECK(checkGlobalEvalFunction->Call(
+        eventDetails.GetEventContext()->Global(), 1, args)->IsTrue());
+    CHECK(checkFrameEvalFunction->Call(
+        eventDetails.GetEventContext()->Global(), 1, args)->IsTrue());
+  }
+}
+
+// Test that the evaluation of expressions when a break point is hit generates
+// the correct results in case code generation from strings is disallowed in the
+// debugee context.
+TEST(DebugEvaluateWithCodeGenerationDisallowed) {
+  v8::HandleScope scope;
+  DebugLocalContext env;
+  env.ExposeDebug();
+
+  v8::Debug::SetDebugEventListener2(CheckDebugEval);
+
+  v8::Local<v8::Function> foo = CompileFunction(&env,
+    "var global = 'Global';\n"
+    "function foo(x) {\n"
+    "  var local = 'Local';\n"
+    "  debugger;\n"
+    "  return local + x;\n"
+    "}",
+    "foo");
+  checkGlobalEvalFunction = CompileFunction(&env,
+    "function checkGlobalEval(exec_state) {\n"
+    "  return exec_state.evaluateGlobal('global').value() === 'Global';\n"
+    "}",
+    "checkGlobalEval");
+
+  checkFrameEvalFunction = CompileFunction(&env,
+    "function checkFrameEval(exec_state) {\n"
+    "  return exec_state.frame(0).evaluate('local').value() === 'Local';\n"
+    "}",
+    "checkFrameEval");
+  debugEventCount = 0;
+  env->AllowCodeGenerationFromStrings(false);
+  foo->Call(env->Global(), 0, NULL);
+  CHECK_EQ(1, debugEventCount);
+
+  checkGlobalEvalFunction.Clear();
+  checkFrameEvalFunction.Clear();
+  v8::Debug::SetDebugEventListener2(NULL);
+  CheckDebuggerUnloaded();
+}
+
 
 // Copies a C string to a 16-bit string.  Does not check for buffer overflow.
 // Does not use the V8 engine to convert strings, so it can be used
@@ -4026,14 +4118,11 @@ TEST(StepWithException) {
 
 
 TEST(DebugBreak) {
+#ifdef VERIFY_HEAP
+  i::FLAG_verify_heap = true;
+#endif
   v8::HandleScope scope;
   DebugLocalContext env;
-
-  // This test should be run with option --verify-heap. As --verify-heap is
-  // only available in debug mode only check for it in that case.
-#ifdef DEBUG
-  CHECK(v8::internal::FLAG_verify_heap);
-#endif
 
   // Register a debug event listener which sets the break flag and counts.
   v8::Debug::SetDebugEventListener(DebugEventBreak);

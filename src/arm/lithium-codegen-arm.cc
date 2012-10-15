@@ -2295,7 +2295,7 @@ void LCodeGen::DoGetCachedArrayIndex(LGetCachedArrayIndex* instr) {
   Register input = ToRegister(instr->value());
   Register result = ToRegister(instr->result());
 
-  __ AbortIfNotString(input);
+  __ AssertString(input);
 
   __ ldr(result, FieldMemOperand(input, String::kHashFieldOffset));
   __ IndexFromHash(result, result);
@@ -2904,14 +2904,9 @@ void LCodeGen::DoAccessArgumentsAt(LAccessArgumentsAt* instr) {
   Register length = ToRegister(instr->length());
   Register index = ToRegister(instr->index());
   Register result = ToRegister(instr->result());
-
-  // Bailout index is not a valid argument index. Use unsigned check to get
-  // negative check for free.
-  __ sub(length, length, index, SetCC);
-  DeoptimizeIf(ls, instr->environment());
-
   // There are two words between the frame pointer and the last argument.
   // Subtracting from length accounts for one of them add one more.
+  __ sub(length, length, index);
   __ add(length, length, Operand(1));
   __ ldr(result, MemOperand(arguments, length, LSL, kPointerSizeLog2));
 }
@@ -4274,9 +4269,7 @@ void LCodeGen::DoDeferredStringCharCodeAt(LStringCharCodeAt* instr) {
     __ push(index);
   }
   CallRuntimeFromDeferred(Runtime::kStringCharCodeAt, 2, instr);
-  if (FLAG_debug_code) {
-    __ AbortIfNotSmi(r0);
-  }
+  __ AssertSmi(r0);
   __ SmiUntag(r0);
   __ StoreToSafepointRegisterSlot(r0, result);
 }
@@ -4446,7 +4439,7 @@ void LCodeGen::DoDeferredNumberTagI(LInstruction* instr,
 
   if (FLAG_inline_new) {
     __ LoadRoot(r6, Heap::kHeapNumberMapRootIndex);
-    __ AllocateHeapNumber(r5, r3, r4, r6, &slow);
+    __ AllocateHeapNumber(r5, r3, r4, r6, &slow, DONT_TAG_RESULT);
     __ Move(dst, r5);
     __ b(&done);
   }
@@ -4461,12 +4454,13 @@ void LCodeGen::DoDeferredNumberTagI(LInstruction* instr,
   __ StoreToSafepointRegisterSlot(ip, dst);
   CallRuntimeFromDeferred(Runtime::kAllocateHeapNumber, 0, instr);
   __ Move(dst, r0);
+  __ sub(dst, dst, Operand(kHeapObjectTag));
 
   // Done. Put the value in dbl_scratch into the value of the allocated heap
   // number.
   __ bind(&done);
-  __ sub(ip, dst, Operand(kHeapObjectTag));
-  __ vstr(dbl_scratch, ip, HeapNumber::kValueOffset);
+  __ vstr(dbl_scratch, dst, HeapNumber::kValueOffset);
+  __ add(dst, dst, Operand(kHeapObjectTag));
   __ StoreToSafepointRegisterSlot(dst, dst);
 }
 
@@ -4491,13 +4485,16 @@ void LCodeGen::DoNumberTagD(LNumberTagD* instr) {
   DeferredNumberTagD* deferred = new(zone()) DeferredNumberTagD(this, instr);
   if (FLAG_inline_new) {
     __ LoadRoot(scratch, Heap::kHeapNumberMapRootIndex);
-    __ AllocateHeapNumber(reg, temp1, temp2, scratch, deferred->entry());
+    // We want the untagged address first for performance
+    __ AllocateHeapNumber(reg, temp1, temp2, scratch, deferred->entry(),
+                          DONT_TAG_RESULT);
   } else {
     __ jmp(deferred->entry());
   }
   __ bind(deferred->exit());
-  __ sub(ip, reg, Operand(kHeapObjectTag));
-  __ vstr(input_reg, ip, HeapNumber::kValueOffset);
+  __ vstr(input_reg, reg, HeapNumber::kValueOffset);
+  // Now that we have finished with the object's real address tag it
+  __ add(reg, reg, Operand(kHeapObjectTag));
 }
 
 
@@ -4510,6 +4507,7 @@ void LCodeGen::DoDeferredNumberTagD(LNumberTagD* instr) {
 
   PushSafepointRegistersScope scope(this, Safepoint::kWithRegisters);
   CallRuntimeFromDeferred(Runtime::kAllocateHeapNumber, 0, instr);
+  __ sub(r0, r0, Operand(kHeapObjectTag));
   __ StoreToSafepointRegisterSlot(r0, reg);
 }
 

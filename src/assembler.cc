@@ -697,7 +697,7 @@ void RelocInfo::Print(FILE* out) {
 #endif  // ENABLE_DISASSEMBLER
 
 
-#ifdef DEBUG
+#ifdef VERIFY_HEAP
 void RelocInfo::Verify() {
   switch (rmode_) {
     case EMBEDDED_OBJECT:
@@ -717,12 +717,12 @@ void RelocInfo::Verify() {
     case CODE_TARGET: {
       // convert inline target address to code object
       Address addr = target_address();
-      ASSERT(addr != NULL);
+      CHECK(addr != NULL);
       // Check that we can find the right code object.
       Code* code = Code::GetCodeFromTargetAddress(addr);
       Object* found = HEAP->FindCodeObject(addr);
-      ASSERT(found->IsCode());
-      ASSERT(code->address() == HeapObject::cast(found)->address());
+      CHECK(found->IsCode());
+      CHECK(code->address() == HeapObject::cast(found)->address());
       break;
     }
     case RUNTIME_ENTRY:
@@ -741,7 +741,7 @@ void RelocInfo::Verify() {
       break;
   }
 }
-#endif  // DEBUG
+#endif  // VERIFY_HEAP
 
 
 // -----------------------------------------------------------------------------

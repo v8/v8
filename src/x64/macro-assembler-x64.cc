@@ -396,9 +396,7 @@ void MacroAssembler::RecordWrite(Register object,
   ASSERT(!object.is(value));
   ASSERT(!object.is(address));
   ASSERT(!value.is(address));
-  if (emit_debug_code()) {
-    AbortIfSmi(object);
-  }
+  AssertNotSmi(object);
 
   if (remembered_set_action == OMIT_REMEMBERED_SET &&
       !FLAG_incremental_marking) {
@@ -1115,18 +1113,14 @@ void MacroAssembler::SmiTest(Register src) {
 
 
 void MacroAssembler::SmiCompare(Register smi1, Register smi2) {
-  if (emit_debug_code()) {
-    AbortIfNotSmi(smi1);
-    AbortIfNotSmi(smi2);
-  }
+  AssertSmi(smi1);
+  AssertSmi(smi2);
   cmpq(smi1, smi2);
 }
 
 
 void MacroAssembler::SmiCompare(Register dst, Smi* src) {
-  if (emit_debug_code()) {
-    AbortIfNotSmi(dst);
-  }
+  AssertSmi(dst);
   Cmp(dst, src);
 }
 
@@ -1143,27 +1137,21 @@ void MacroAssembler::Cmp(Register dst, Smi* src) {
 
 
 void MacroAssembler::SmiCompare(Register dst, const Operand& src) {
-  if (emit_debug_code()) {
-    AbortIfNotSmi(dst);
-    AbortIfNotSmi(src);
-  }
+  AssertSmi(dst);
+  AssertSmi(src);
   cmpq(dst, src);
 }
 
 
 void MacroAssembler::SmiCompare(const Operand& dst, Register src) {
-  if (emit_debug_code()) {
-    AbortIfNotSmi(dst);
-    AbortIfNotSmi(src);
-  }
+  AssertSmi(dst);
+  AssertSmi(src);
   cmpq(dst, src);
 }
 
 
 void MacroAssembler::SmiCompare(const Operand& dst, Smi* src) {
-  if (emit_debug_code()) {
-    AbortIfNotSmi(dst);
-  }
+  AssertSmi(dst);
   cmpl(Operand(dst, kSmiShift / kBitsPerByte), Immediate(src->value()));
 }
 
@@ -2971,61 +2959,75 @@ void MacroAssembler::DispatchMap(Register obj,
 }
 
 
-void MacroAssembler::AbortIfNotNumber(Register object) {
-  Label ok;
-  Condition is_smi = CheckSmi(object);
-  j(is_smi, &ok, Label::kNear);
-  Cmp(FieldOperand(object, HeapObject::kMapOffset),
-      isolate()->factory()->heap_number_map());
-  Assert(equal, "Operand not a number");
-  bind(&ok);
+void MacroAssembler::AssertNumber(Register object) {
+  if (emit_debug_code()) {
+    Label ok;
+    Condition is_smi = CheckSmi(object);
+    j(is_smi, &ok, Label::kNear);
+    Cmp(FieldOperand(object, HeapObject::kMapOffset),
+        isolate()->factory()->heap_number_map());
+    Check(equal, "Operand is not a number");
+    bind(&ok);
+  }
 }
 
 
-void MacroAssembler::AbortIfSmi(Register object) {
-  Condition is_smi = CheckSmi(object);
-  Assert(NegateCondition(is_smi), "Operand is a smi");
+void MacroAssembler::AssertNotSmi(Register object) {
+  if (emit_debug_code()) {
+    Condition is_smi = CheckSmi(object);
+    Check(NegateCondition(is_smi), "Operand is a smi");
+  }
 }
 
 
-void MacroAssembler::AbortIfNotSmi(Register object) {
-  Condition is_smi = CheckSmi(object);
-  Assert(is_smi, "Operand is not a smi");
+void MacroAssembler::AssertSmi(Register object) {
+  if (emit_debug_code()) {
+    Condition is_smi = CheckSmi(object);
+    Check(is_smi, "Operand is not a smi");
+  }
 }
 
 
-void MacroAssembler::AbortIfNotSmi(const Operand& object) {
-  Condition is_smi = CheckSmi(object);
-  Assert(is_smi, "Operand is not a smi");
+void MacroAssembler::AssertSmi(const Operand& object) {
+  if (emit_debug_code()) {
+    Condition is_smi = CheckSmi(object);
+    Check(is_smi, "Operand is not a smi");
+  }
 }
 
 
-void MacroAssembler::AbortIfNotZeroExtended(Register int32_register) {
-  ASSERT(!int32_register.is(kScratchRegister));
-  movq(kScratchRegister, 0x100000000l, RelocInfo::NONE);
-  cmpq(kScratchRegister, int32_register);
-  Assert(above_equal, "32 bit value in register is not zero-extended");
+void MacroAssembler::AssertZeroExtended(Register int32_register) {
+  if (emit_debug_code()) {
+    ASSERT(!int32_register.is(kScratchRegister));
+    movq(kScratchRegister, 0x100000000l, RelocInfo::NONE);
+    cmpq(kScratchRegister, int32_register);
+    Check(above_equal, "32 bit value in register is not zero-extended");
+  }
 }
 
 
-void MacroAssembler::AbortIfNotString(Register object) {
-  testb(object, Immediate(kSmiTagMask));
-  Assert(not_equal, "Operand is not a string");
-  push(object);
-  movq(object, FieldOperand(object, HeapObject::kMapOffset));
-  CmpInstanceType(object, FIRST_NONSTRING_TYPE);
-  pop(object);
-  Assert(below, "Operand is not a string");
+void MacroAssembler::AssertString(Register object) {
+  if (emit_debug_code()) {
+    testb(object, Immediate(kSmiTagMask));
+    Check(not_equal, "Operand is a smi and not a string");
+    push(object);
+    movq(object, FieldOperand(object, HeapObject::kMapOffset));
+    CmpInstanceType(object, FIRST_NONSTRING_TYPE);
+    pop(object);
+    Check(below, "Operand is not a string");
+  }
 }
 
 
-void MacroAssembler::AbortIfNotRootValue(Register src,
-                                         Heap::RootListIndex root_value_index,
-                                         const char* message) {
-  ASSERT(!src.is(kScratchRegister));
-  LoadRoot(kScratchRegister, root_value_index);
-  cmpq(src, kScratchRegister);
-  Check(equal, message);
+void MacroAssembler::AssertRootValue(Register src,
+                                     Heap::RootListIndex root_value_index,
+                                     const char* message) {
+  if (emit_debug_code()) {
+    ASSERT(!src.is(kScratchRegister));
+    LoadRoot(kScratchRegister, root_value_index);
+    cmpq(src, kScratchRegister);
+    Check(equal, message);
+  }
 }
 
 

@@ -2109,7 +2109,7 @@ void LCodeGen::DoGetCachedArrayIndex(LGetCachedArrayIndex* instr) {
   Register input = ToRegister(instr->value());
   Register result = ToRegister(instr->result());
 
-  __ AbortIfNotString(input);
+  __ AssertString(input);
 
   __ mov(result, FieldOperand(input, String::kHashFieldOffset));
   __ IndexFromHash(result, result);
@@ -2742,12 +2742,9 @@ void LCodeGen::DoAccessArgumentsAt(LAccessArgumentsAt* instr) {
   Register length = ToRegister(instr->length());
   Operand index = ToOperand(instr->index());
   Register result = ToRegister(instr->result());
-
-  __ sub(length, index);
-  DeoptimizeIf(below_equal, instr->environment());
-
   // There are two words between the frame pointer and the last argument.
   // Subtracting from length accounts for one of them add one more.
+  __ sub(length, index);
   __ mov(result, Operand(arguments, length, times_4, kPointerSize));
 }
 
@@ -4045,9 +4042,7 @@ void LCodeGen::DoDeferredStringCharCodeAt(LStringCharCodeAt* instr) {
   }
   CallRuntimeFromDeferred(Runtime::kStringCharCodeAt, 2,
                           instr, instr->context());
-  if (FLAG_debug_code) {
-    __ AbortIfNotSmi(eax);
-  }
+  __ AssertSmi(eax);
   __ SmiUntag(eax);
   __ StoreToSafepointRegisterSlot(result, eax);
 }
@@ -4301,9 +4296,7 @@ void LCodeGen::DoSmiUntag(LSmiUntag* instr) {
     __ test(ToRegister(input), Immediate(kSmiTagMask));
     DeoptimizeIf(not_zero, instr->environment());
   } else {
-    if (FLAG_debug_code) {
-      __ AbortIfNotSmi(ToRegister(input));
-    }
+    __ AssertSmi(ToRegister(input));
   }
   __ SmiUntag(ToRegister(input));
 }
@@ -4836,7 +4829,7 @@ void LCodeGen::DoAllocateObject(LAllocateObject* instr) {
   __ mov(map, FieldOperand(scratch, JSFunction::kPrototypeOrInitialMapOffset));
 
   if (FLAG_debug_code) {
-    __ AbortIfSmi(map);
+    __ AssertNotSmi(map);
     __ cmpb(FieldOperand(map, Map::kInstanceSizeOffset),
             instance_size >> kPointerSizeLog2);
     __ Assert(equal, "Unexpected instance size");

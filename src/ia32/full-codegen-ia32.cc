@@ -2607,7 +2607,7 @@ void FullCodeGenerator::EmitIsStringWrapperSafeForDefaultValueOf(
   context()->PrepareTest(&materialize_true, &materialize_false,
                          &if_true, &if_false, &fall_through);
 
-  if (generate_debug_code_) __ AbortIfSmi(eax);
+  __ AssertNotSmi(eax);
 
   // Check whether this map has already been checked to be safe for default
   // valueOf.
@@ -2838,7 +2838,7 @@ void FullCodeGenerator::EmitArgumentsLength(CallRuntime* expr) {
   __ mov(eax, Operand(ebx, ArgumentsAdaptorFrameConstants::kLengthOffset));
 
   __ bind(&exit);
-  if (generate_debug_code_) __ AbortIfNotSmi(eax);
+  __ AssertSmi(eax);
   context()->Plug(eax);
 }
 
@@ -3462,9 +3462,7 @@ void FullCodeGenerator::EmitHasCachedArrayIndex(CallRuntime* expr) {
 
   VisitForAccumulatorValue(args->at(0));
 
-  if (generate_debug_code_) {
-    __ AbortIfNotString(eax);
-  }
+  __ AssertString(eax);
 
   Label materialize_true, materialize_false;
   Label* if_true = NULL;
@@ -3487,7 +3485,7 @@ void FullCodeGenerator::EmitGetCachedArrayIndex(CallRuntime* expr) {
   ASSERT(args->length() == 1);
   VisitForAccumulatorValue(args->at(0));
 
-  __ AbortIfNotString(eax);
+  __ AssertString(eax);
 
   __ mov(eax, FieldOperand(eax, String::kHashFieldOffset));
   __ IndexFromHash(eax, eax);

@@ -640,9 +640,11 @@ void ExternalStringTable::AddOldString(String* string) {
 
 void ExternalStringTable::ShrinkNewStrings(int position) {
   new_space_strings_.Rewind(position);
+#ifdef VERIFY_HEAP
   if (FLAG_verify_heap) {
     Verify();
   }
+#endif
 }
 
 
@@ -741,17 +743,15 @@ AlwaysAllocateScope::~AlwaysAllocateScope() {
 }
 
 
-#ifdef DEBUG
 void VerifyPointersVisitor::VisitPointers(Object** start, Object** end) {
   for (Object** current = start; current < end; current++) {
     if ((*current)->IsHeapObject()) {
       HeapObject* object = HeapObject::cast(*current);
-      ASSERT(HEAP->Contains(object));
-      ASSERT(object->map()->IsMap());
+      CHECK(HEAP->Contains(object));
+      CHECK(object->map()->IsMap());
     }
   }
 }
-#endif
 
 
 double GCTracer::SizeOfHeapObjects() {

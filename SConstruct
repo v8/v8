@@ -59,7 +59,7 @@ LIBRARY_FLAGS = {
       'CPPDEFINES': ['V8_INTERPRETED_REGEXP']
     },
     'mode:debug': {
-      'CPPDEFINES': ['V8_ENABLE_CHECKS', 'OBJECT_PRINT']
+      'CPPDEFINES': ['V8_ENABLE_CHECKS', 'OBJECT_PRINT', 'VERIFY_HEAP']
     },
     'objectprint:on': {
       'CPPDEFINES':   ['OBJECT_PRINT'],

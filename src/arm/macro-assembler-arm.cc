@@ -1570,7 +1570,11 @@ void MacroAssembler::AllocateInNewSpace(int object_size,
   Register topaddr = scratch1;
   Register obj_size_reg = scratch2;
   mov(topaddr, Operand(new_space_allocation_top));
-  mov(obj_size_reg, Operand(object_size));
+  Operand obj_size_operand = Operand(object_size);
+  if (!obj_size_operand.is_single_instruction(this)) {
+    // We are about to steal IP, so we need to load this value first
+    mov(obj_size_reg, obj_size_operand);
+  }
 
   // This code stores a temporary value in ip. This is OK, as the code below
   // does not need ip for implicit literal generation.
@@ -1592,7 +1596,13 @@ void MacroAssembler::AllocateInNewSpace(int object_size,
 
   // Calculate new top and bail out if new space is exhausted. Use result
   // to calculate the new top.
-  add(scratch2, result, Operand(obj_size_reg), SetCC);
+  if (obj_size_operand.is_single_instruction(this)) {
+    // We can add the size as an immediate
+    add(scratch2, result, obj_size_operand, SetCC);
+  } else {
+    // Doesn't fit in an immediate, we have to use the register
+    add(scratch2, result, obj_size_reg, SetCC);
+  }
   b(cs, gc_required);
   cmp(scratch2, Operand(ip));
   b(hi, gc_required);
@@ -3035,38 +3045,46 @@ void MacroAssembler::JumpIfEitherSmi(Register reg1,
 }
 
 
-void MacroAssembler::AbortIfSmi(Register object) {
-  STATIC_ASSERT(kSmiTag == 0);
-  tst(object, Operand(kSmiTagMask));
-  Assert(ne, "Operand is a smi");
+void MacroAssembler::AssertNotSmi(Register object) {
+  if (emit_debug_code()) {
+    STATIC_ASSERT(kSmiTag == 0);
+    tst(object, Operand(kSmiTagMask));
+    Check(ne, "Operand is a smi");
+  }
 }
 
 
-void MacroAssembler::AbortIfNotSmi(Register object) {
-  STATIC_ASSERT(kSmiTag == 0);
-  tst(object, Operand(kSmiTagMask));
-  Assert(eq, "Operand is not smi");
+void MacroAssembler::AssertSmi(Register object) {
+  if (emit_debug_code()) {
+    STATIC_ASSERT(kSmiTag == 0);
+    tst(object, Operand(kSmiTagMask));
+    Check(eq, "Operand is not smi");
+  }
 }
 
 
-void MacroAssembler::AbortIfNotString(Register object) {
-  STATIC_ASSERT(kSmiTag == 0);
-  tst(object, Operand(kSmiTagMask));
-  Assert(ne, "Operand is not a string");
-  push(object);
-  ldr(object, FieldMemOperand(object, HeapObject::kMapOffset));
-  CompareInstanceType(object, object, FIRST_NONSTRING_TYPE);
-  pop(object);
-  Assert(lo, "Operand is not a string");
+void MacroAssembler::AssertString(Register object) {
+  if (emit_debug_code()) {
+    STATIC_ASSERT(kSmiTag == 0);
+    tst(object, Operand(kSmiTagMask));
+    Check(ne, "Operand is a smi and not a string");
+    push(object);
+    ldr(object, FieldMemOperand(object, HeapObject::kMapOffset));
+    CompareInstanceType(object, object, FIRST_NONSTRING_TYPE);
+    pop(object);
+    Check(lo, "Operand is not a string");
+  }
 }
 
 
 
-void MacroAssembler::AbortIfNotRootValue(Register src,
-                                         Heap::RootListIndex root_value_index,
-                                         const char* message) {
-  CompareRoot(src, root_value_index);
-  Assert(eq, message);
+void MacroAssembler::AssertRootValue(Register src,
+                                     Heap::RootListIndex root_value_index,
+                                     const char* message) {
+  if (emit_debug_code()) {
+    CompareRoot(src, root_value_index);
+    Check(eq, message);
+  }
 }
 
 
@@ -3124,7 +3142,8 @@ void MacroAssembler::AllocateHeapNumber(Register result,
                                         Register scratch1,
                                         Register scratch2,
                                         Register heap_number_map,
-                                        Label* gc_required) {
+                                        Label* gc_required,
+                                        TaggingMode tagging_mode) {
   // Allocate an object in the heap for the heap number and tag it as a heap
   // object.
   AllocateInNewSpace(HeapNumber::kSize,
@@ -3132,11 +3151,16 @@ void MacroAssembler::AllocateHeapNumber(Register result,
                      scratch1,
                      scratch2,
                      gc_required,
-                     TAG_OBJECT);
+                     tagging_mode == TAG_RESULT ? TAG_OBJECT :
+                                                  NO_ALLOCATION_FLAGS);
 
   // Store heap number map in the allocated object.
   AssertRegisterIsRoot(heap_number_map, Heap::kHeapNumberMapRootIndex);
-  str(heap_number_map, FieldMemOperand(result, HeapObject::kMapOffset));
+  if (tagging_mode == TAG_RESULT) {
+    str(heap_number_map, FieldMemOperand(result, HeapObject::kMapOffset));
+  } else {
+    str(heap_number_map, MemOperand(result, HeapObject::kMapOffset));
+  }
 }
 
 

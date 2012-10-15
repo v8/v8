@@ -960,27 +960,28 @@ class MacroAssembler: public Assembler {
     shl(reg, Immediate(kSmiShift));
   }
 
-  // Abort execution if argument is not a number. Used in debug code.
-  void AbortIfNotNumber(Register object);
+  // Abort execution if argument is not a number, enabled via --debug-code.
+  void AssertNumber(Register object);
 
-  // Abort execution if argument is a smi. Used in debug code.
-  void AbortIfSmi(Register object);
+  // Abort execution if argument is a smi, enabled via --debug-code.
+  void AssertNotSmi(Register object);
 
-  // Abort execution if argument is not a smi. Used in debug code.
-  void AbortIfNotSmi(Register object);
-  void AbortIfNotSmi(const Operand& object);
+  // Abort execution if argument is not a smi, enabled via --debug-code.
+  void AssertSmi(Register object);
+  void AssertSmi(const Operand& object);
 
   // Abort execution if a 64 bit register containing a 32 bit payload does not
-  // have zeros in the top 32 bits.
-  void AbortIfNotZeroExtended(Register reg);
+  // have zeros in the top 32 bits, enabled via --debug-code.
+  void AssertZeroExtended(Register reg);
 
-  // Abort execution if argument is a string. Used in debug code.
-  void AbortIfNotString(Register object);
+  // Abort execution if argument is not a string, enabled via --debug-code.
+  void AssertString(Register object);
 
-  // Abort execution if argument is not the root value with the given index.
-  void AbortIfNotRootValue(Register src,
-                           Heap::RootListIndex root_value_index,
-                           const char* message);
+  // Abort execution if argument is not the root value with the given index,
+  // enabled via --debug-code.
+  void AssertRootValue(Register src,
+                       Heap::RootListIndex root_value_index,
+                       const char* message);
 
   // ---------------------------------------------------------------------------
   // Exception handling

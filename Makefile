@@ -58,6 +58,10 @@ endif
 ifeq ($(objectprint), on)
   GYPFLAGS += -Dv8_object_print=1
 endif
+# verifyheap=on
+ifeq ($(verifyheap), on)
+  GYPFLAGS += -Dv8_enable_verify_heap=1
+endif
 # snapshot=off
 ifeq ($(snapshot), off)
   GYPFLAGS += -Dv8_use_snapshot='false'

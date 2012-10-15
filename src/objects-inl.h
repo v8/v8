@@ -674,7 +674,7 @@ bool Object::IsJSFunctionResultCache() {
       % JSFunctionResultCache::kEntrySize != 0) {
     return false;
   }
-#ifdef DEBUG
+#ifdef VERIFY_HEAP
   if (FLAG_verify_heap) {
     reinterpret_cast<JSFunctionResultCache*>(this)->
         JSFunctionResultCacheVerify();
@@ -689,7 +689,7 @@ bool Object::IsNormalizedMapCache() {
   if (FixedArray::cast(this)->length() != NormalizedMapCache::kEntries) {
     return false;
   }
-#ifdef DEBUG
+#ifdef VERIFY_HEAP
   if (FLAG_verify_heap) {
     reinterpret_cast<NormalizedMapCache*>(this)->NormalizedMapCacheVerify();
   }
@@ -1110,13 +1110,13 @@ HeapObject* MapWord::ToForwardingAddress() {
 }
 
 
-#ifdef DEBUG
+#ifdef VERIFY_HEAP
 void HeapObject::VerifyObjectField(int offset) {
   VerifyPointer(READ_FIELD(this, offset));
 }
 
 void HeapObject::VerifySmiField(int offset) {
-  ASSERT(READ_FIELD(this, offset)->IsSmi());
+  CHECK(READ_FIELD(this, offset)->IsSmi());
 }
 #endif
 
@@ -3628,14 +3628,11 @@ SMI_ACCESSORS(Map, bit_field3, kBitField3Offset)
 
 void Map::ClearTransitions(Heap* heap, WriteBarrierMode mode) {
   Object* back_pointer = GetBackPointer();
-#ifdef DEBUG
-  Object* object = READ_FIELD(this, kTransitionsOrBackPointerOffset);
-  if (object->IsTransitionArray()) {
+
+  if (Heap::ShouldZapGarbage() && HasTransitionArray()) {
     ZapTransitions();
-  } else {
-    ASSERT(object->IsMap() || object->IsUndefined());
   }
-#endif
+
   WRITE_FIELD(this, kTransitionsOrBackPointerOffset, back_pointer);
   CONDITIONAL_WRITE_BARRIER(
       heap, this, kTransitionsOrBackPointerOffset, back_pointer, mode);
@@ -3757,12 +3754,11 @@ TransitionArray* Map::transitions() {
 
 void Map::set_transitions(TransitionArray* transition_array,
                           WriteBarrierMode mode) {
-#ifdef DEBUG
-  if (HasTransitionArray()) {
-    ASSERT(transitions() != transition_array);
+  // In release mode, only run this code if verify_heap is on.
+  if (Heap::ShouldZapGarbage() && HasTransitionArray()) {
+    CHECK(transitions() != transition_array);
     ZapTransitions();
   }
-#endif
 
   WRITE_FIELD(this, kTransitionsOrBackPointerOffset, transition_array);
   CONDITIONAL_WRITE_BARRIER(

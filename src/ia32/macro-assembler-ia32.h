@@ -504,17 +504,17 @@ class MacroAssembler: public Assembler {
   }
   void LoadPowerOf2(XMMRegister dst, Register scratch, int power);
 
-  // Abort execution if argument is not a number. Used in debug code.
-  void AbortIfNotNumber(Register object);
+  // Abort execution if argument is not a number, enabled via --debug-code.
+  void AssertNumber(Register object);
 
-  // Abort execution if argument is not a smi. Used in debug code.
-  void AbortIfNotSmi(Register object);
+  // Abort execution if argument is not a smi, enabled via --debug-code.
+  void AssertSmi(Register object);
 
-  // Abort execution if argument is a smi. Used in debug code.
-  void AbortIfSmi(Register object);
+  // Abort execution if argument is a smi, enabled via --debug-code.
+  void AssertNotSmi(Register object);
 
-  // Abort execution if argument is a string. Used in debug code.
-  void AbortIfNotString(Register object);
+  // Abort execution if argument is not a string, enabled via --debug-code.
+  void AssertString(Register object);
 
   // ---------------------------------------------------------------------------
   // Exception handling

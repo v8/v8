@@ -2164,12 +2164,10 @@ LInstruction* LChunkBuilder::DoArgumentsObject(HArgumentsObject* instr) {
 
 
 LInstruction* LChunkBuilder::DoAccessArgumentsAt(HAccessArgumentsAt* instr) {
-  LOperand* arguments = UseRegister(instr->arguments());
+  LOperand* args = UseRegister(instr->arguments());
   LOperand* length = UseTempRegister(instr->length());
   LOperand* index = UseRegister(instr->index());
-  LAccessArgumentsAt* result =
-      new(zone()) LAccessArgumentsAt(arguments, length, index);
-  return AssignEnvironment(DefineAsRegister(result));
+  return DefineAsRegister(new(zone()) LAccessArgumentsAt(args, length, index));
 }
 
 

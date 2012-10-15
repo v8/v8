@@ -1806,7 +1806,7 @@ bool Genesis::InstallNatives() {
     native_context()->set_regexp_result_map(*initial_map);
   }
 
-#ifdef DEBUG
+#ifdef VERIFY_HEAP
   builtins->Verify();
 #endif
 

@@ -73,12 +73,14 @@
     # Enable extra checks in API functions and other strategic places.
     'v8_enable_extra_checks%': 1,
 
-    'v8_object_print%': 0,
-
     'v8_enable_gdbjit%': 0,
+
+    'v8_object_print%': 0,
 
     # Enable profiling support. Only required on Windows.
     'v8_enable_prof%': 0,
+
+    'v8_enable_verify_heap%': 0,
 
     # Some versions of GCC 4.5 seem to need -fno-strict-aliasing.
     'v8_no_strict_aliasing%': 0,
@@ -115,11 +117,14 @@
       ['v8_enable_extra_checks==1', {
         'defines': ['ENABLE_EXTRA_CHECKS',],
       }],
+      ['v8_enable_gdbjit==1', {
+        'defines': ['ENABLE_GDB_JIT_INTERFACE',],
+      }],
       ['v8_object_print==1', {
         'defines': ['OBJECT_PRINT',],
       }],
-      ['v8_enable_gdbjit==1', {
-        'defines': ['ENABLE_GDB_JIT_INTERFACE',],
+      ['v8_enable_verify_heap==1', {
+        'defines': ['VERIFY_HEAP',],
       }],
       ['v8_interpreted_regexp==1', {
         'defines': ['V8_INTERPRETED_REGEXP',],
@@ -330,6 +335,7 @@
           'ENABLE_DISASSEMBLER',
           'V8_ENABLE_CHECKS',
           'OBJECT_PRINT',
+          'VERIFY_HEAP',
         ],
         'msvs_settings': {
           'VCCLCompilerTool': {
