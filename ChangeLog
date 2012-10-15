@@ -1,3 +1,13 @@
+2012-10-15: Version 3.14.4
+
+        Allow evals for debugger even if they are prohibited in the debugee
+        context. (Chromium issue 154733)
+
+        Enabled --verify-heap in release mode (issue 2120)
+
+        Performance and stability improvements on all platforms.
+
+
 2012-10-11: Version 3.14.3
 
         Use native context to retrieve ErrorMessageForCodeGenerationFromStrings
