@@ -1806,9 +1806,6 @@ MaybeObject* JSObject::ConvertTransitionToMapTransition(
     Map* map;
     DescriptorArray* new_descriptors = new_map->instance_descriptors();
     DescriptorArray* old_descriptors = old_map->instance_descriptors();
-    if (old_descriptors->HasEnumCache()) {
-      new_descriptors->CopyEnumCacheFrom(old_descriptors);
-    }
     for (Object* current = old_map;
          !current->IsUndefined();
          current = map->GetBackPointer()) {
@@ -1816,6 +1813,7 @@ MaybeObject* JSObject::ConvertTransitionToMapTransition(
       if (!map->HasTransitionArray()) break;
       TransitionArray* transitions = map->transitions();
       if (transitions->descriptors() != old_descriptors) break;
+      map->SetEnumLength(Map::kInvalidEnumCache);
       transitions->set_descriptors(new_descriptors);
     }
     old_map->set_owns_descriptors(false);
