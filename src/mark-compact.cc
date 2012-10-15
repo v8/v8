@@ -861,11 +861,13 @@ void MarkCompactCollector::Finish() {
 
 void CodeFlusher::ProcessJSFunctionCandidates() {
   Code* lazy_compile = isolate_->builtins()->builtin(Builtins::kLazyCompile);
+  Object* undefined = isolate_->heap()->undefined_value();
 
   JSFunction* candidate = jsfunction_candidates_head_;
   JSFunction* next_candidate;
   while (candidate != NULL) {
     next_candidate = GetNextCandidate(candidate);
+    ClearNextCandidate(candidate, undefined);
 
     SharedFunctionInfo* shared = candidate->shared();
 
@@ -874,8 +876,8 @@ void CodeFlusher::ProcessJSFunctionCandidates() {
     if (!code_mark.Get()) {
       shared->set_code(lazy_compile);
       candidate->set_code(lazy_compile);
-    } else {
-      candidate->set_code(shared->code());
+    } else if (code == lazy_compile) {
+      candidate->set_code(lazy_compile);
     }
 
     // We are in the middle of a GC cycle so the write barrier in the code
@@ -904,7 +906,7 @@ void CodeFlusher::ProcessSharedFunctionInfoCandidates() {
   SharedFunctionInfo* next_candidate;
   while (candidate != NULL) {
     next_candidate = GetNextCandidate(candidate);
-    SetNextCandidate(candidate, NULL);
+    ClearNextCandidate(candidate);
 
     Code* code = candidate->code();
     MarkBit code_mark = Marking::MarkBitFrom(code);

@@ -2254,6 +2254,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetCode) {
 
   // Set the code of the target function.
   target->ReplaceCode(source_shared->code());
+  ASSERT(target->next_function_link()->IsUndefined());
 
   // Make sure we get a fresh copy of the literal vector to avoid cross
   // context contamination.
@@ -2267,7 +2268,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetCode) {
   }
   target->set_context(*context);
   target->set_literals(*literals);
-  target->set_next_function_link(isolate->heap()->undefined_value());
 
   if (isolate->logger()->is_logging_code_events() ||
       CpuProfiler::is_profiling(isolate)) {
