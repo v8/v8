@@ -2440,15 +2440,19 @@ void Assembler::vsqrt(const DwVfpRegister dst,
 
 // Pseudo instructions.
 void Assembler::nop(int type) {
-  // This is mov rx, rx.
-  ASSERT(0 <= type && type <= 14);  // mov pc, pc is not a nop.
+  // ARMv6{K/T2} and v7 have an actual NOP instruction but it serializes
+  // some of the CPU's pipeline and has to issue. Older ARM chips simply used
+  // MOV Rx, Rx as NOP and it performs better even in newer CPUs.
+  // We therefore use MOV Rx, Rx, even on newer CPUs, and use Rx to encode
+  // a type.
+  ASSERT(0 <= type && type <= 14);  // mov pc, pc isn't a nop.
   emit(al | 13*B21 | type*B12 | type);
 }
 
 
 bool Assembler::IsNop(Instr instr, int type) {
+  ASSERT(0 <= type && type <= 14);  // mov pc, pc isn't a nop.
   // Check for mov rx, rx where x = type.
-  ASSERT(0 <= type && type <= 14);  // mov pc, pc is not a nop.
   return instr == (al | 13*B21 | type*B12 | type);
 }
 

@@ -687,6 +687,9 @@ class Instruction {
                                            && (Bit(20) == 0)
                                            && ((Bit(7) == 0)); }
 
+  // Test for a nop instruction, which falls under type 1.
+  inline bool IsNopType1() const { return Bits(24, 0) == 0x0120F000; }
+
   // Test for a stop instruction.
   inline bool IsStop() const {
     return (TypeValue() == 7) && (Bit(24) == 1) && (SvcValue() >= kStopCode);

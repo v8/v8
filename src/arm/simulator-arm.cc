@@ -2183,6 +2183,8 @@ void Simulator::DecodeType01(Instruction* instr) {
       PrintF("%08x\n", instr->InstructionBits());
       UNIMPLEMENTED();
     }
+  } else if ((type == 1) && instr->IsNopType1()) {
+    // NOP.
   } else {
     int rd = instr->RdValue();
     int rn = instr->RnValue();
