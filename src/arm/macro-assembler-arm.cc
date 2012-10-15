@@ -3231,17 +3231,17 @@ void MacroAssembler::CopyBytes(Register src,
   cmp(length, Operand(kPointerSize));
   b(lt, &byte_loop);
   ldr(scratch, MemOperand(src, kPointerSize, PostIndex));
-#if CAN_USE_UNALIGNED_ACCESSES
-  str(scratch, MemOperand(dst, kPointerSize, PostIndex));
-#else
-  strb(scratch, MemOperand(dst, 1, PostIndex));
-  mov(scratch, Operand(scratch, LSR, 8));
-  strb(scratch, MemOperand(dst, 1, PostIndex));
-  mov(scratch, Operand(scratch, LSR, 8));
-  strb(scratch, MemOperand(dst, 1, PostIndex));
-  mov(scratch, Operand(scratch, LSR, 8));
-  strb(scratch, MemOperand(dst, 1, PostIndex));
-#endif
+  if (CpuFeatures::IsSupported(UNALIGNED_ACCESSES)) {
+    str(scratch, MemOperand(dst, kPointerSize, PostIndex));
+  } else {
+    strb(scratch, MemOperand(dst, 1, PostIndex));
+    mov(scratch, Operand(scratch, LSR, 8));
+    strb(scratch, MemOperand(dst, 1, PostIndex));
+    mov(scratch, Operand(scratch, LSR, 8));
+    strb(scratch, MemOperand(dst, 1, PostIndex));
+    mov(scratch, Operand(scratch, LSR, 8));
+    strb(scratch, MemOperand(dst, 1, PostIndex));
+  }
   sub(length, length, Operand(kPointerSize));
   b(&word_loop);
 

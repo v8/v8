@@ -77,6 +77,9 @@ static unsigned CpuFeaturesImpliedByCompiler() {
 #endif  // defined(CAN_USE_ARMV7_INSTRUCTIONS) && defined(__VFP_FP__)
         // && !defined(__SOFTFP__)
 #endif  // _arm__
+  if (answer & (1u << ARMv7)) {
+    answer |= 1u << UNALIGNED_ACCESSES;
+  }
 
   return answer;
 }
@@ -131,6 +134,10 @@ void CpuFeatures::Probe() {
 
   if (!IsSupported(SUDIV) && OS::ArmCpuHasFeature(SUDIV)) {
     found_by_runtime_probing_ |= 1u << SUDIV;
+  }
+
+  if (!IsSupported(UNALIGNED_ACCESSES) && OS::ArmCpuHasFeature(ARMv7)) {
+    found_by_runtime_probing_ |= 1u << UNALIGNED_ACCESSES;
   }
 
   supported_ |= found_by_runtime_probing_;

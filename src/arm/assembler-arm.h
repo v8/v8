@@ -512,6 +512,9 @@ class CpuFeatures : public AllStatic {
     if (f == VFP3 && !FLAG_enable_vfp3) return false;
     if (f == VFP2 && !FLAG_enable_vfp2) return false;
     if (f == SUDIV && !FLAG_enable_sudiv) return false;
+    if (f == UNALIGNED_ACCESSES && !FLAG_enable_unaligned_accesses) {
+      return false;
+    }
     return (supported_ & (1u << f)) != 0;
   }
 
