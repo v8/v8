@@ -11793,6 +11793,15 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugEvaluate) {
                                                 scope_info,
                                                 function_context);
 
+  // Check if eval is blocked in the context and temporarily allow it
+  // for debugger.
+  Handle<Context> native_context = Handle<Context>(context->native_context());
+  bool eval_disabled =
+      native_context->allow_code_gen_from_strings()->IsFalse();
+  if (eval_disabled) {
+    native_context->set_allow_code_gen_from_strings(
+        isolate->heap()->true_value());
+  }
   // Invoke the evaluation function and return the result.
   Handle<Object> argv[] = { arguments, source };
   Handle<Object> result =
@@ -11801,6 +11810,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugEvaluate) {
                       ARRAY_SIZE(argv),
                       argv,
                       &has_pending_exception);
+  if (eval_disabled) {
+    native_context->set_allow_code_gen_from_strings(
+        isolate->heap()->false_value());
+  }
   if (has_pending_exception) return Failure::Exception();
 
   // Skip the global proxy as it has no properties and always delegates to the
