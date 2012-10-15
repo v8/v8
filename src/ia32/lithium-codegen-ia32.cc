@@ -2742,12 +2742,9 @@ void LCodeGen::DoAccessArgumentsAt(LAccessArgumentsAt* instr) {
   Register length = ToRegister(instr->length());
   Operand index = ToOperand(instr->index());
   Register result = ToRegister(instr->result());
-
-  __ sub(length, index);
-  DeoptimizeIf(below_equal, instr->environment());
-
   // There are two words between the frame pointer and the last argument.
   // Subtracting from length accounts for one of them add one more.
+  __ sub(length, index);
   __ mov(result, Operand(arguments, length, times_4, kPointerSize));
 }
 

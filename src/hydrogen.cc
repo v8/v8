@@ -9016,8 +9016,10 @@ void HGraphBuilder::GenerateArguments(CallRuntime* call) {
   HInstruction* elements = AddInstruction(
       new(zone()) HArgumentsElements(false));
   HInstruction* length = AddInstruction(new(zone()) HArgumentsLength(elements));
+  HInstruction* checked_index =
+      AddInstruction(new(zone()) HBoundsCheck(index, length));
   HAccessArgumentsAt* result =
-      new(zone()) HAccessArgumentsAt(elements, length, index);
+      new(zone()) HAccessArgumentsAt(elements, length, checked_index);
   return ast_context()->ReturnInstruction(result, call->id());
 }
 
