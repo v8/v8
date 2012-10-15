@@ -285,7 +285,7 @@ static void Deserialize() {
 
 static void SanityCheck() {
   v8::HandleScope scope;
-#ifdef DEBUG
+#ifdef VERIFY_HEAP
   HEAP->Verify();
 #endif
   CHECK(Isolate::Current()->global_object()->IsJSObject());

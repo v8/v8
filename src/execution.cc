@@ -118,7 +118,7 @@ static Handle<Object> Invoke(bool is_construct,
         CALL_GENERATED_CODE(stub_entry, function_entry, func, recv, argc, argv);
   }
 
-#ifdef DEBUG
+#ifdef VERIFY_HEAP
   value->Verify();
 #endif
 
