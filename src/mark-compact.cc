@@ -2003,6 +2003,9 @@ void MarkCompactCollector::AfterMarking() {
   // Flush code from collected candidates.
   if (is_code_flushing_enabled()) {
     code_flusher_->ProcessCandidates();
+    // TODO(1609) Currently incremental marker does not support code flushing,
+    // we need to disable it before incremental marking steps for next cycle.
+    EnableCodeFlushing(false);
   }
 
   if (!FLAG_watch_ic_patching) {
