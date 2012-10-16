@@ -4748,6 +4748,7 @@ void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
   __ StoreNumberToDoubleElements(value_reg,
                                  key_reg,
                                  receiver_reg,
+                                 // All registers after this are overwritten.
                                  elements_reg,
                                  scratch1,
                                  scratch2,

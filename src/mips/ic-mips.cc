@@ -1269,8 +1269,8 @@ static void KeyedStoreGenerateGenericHelper(
   __ StoreNumberToDoubleElements(value,
                                  key,
                                  receiver,
-                                 elements,
-                                 a3,
+                                 elements,  // Overwritten.
+                                 a3,        // Scratch regs...
                                  t0,
                                  t1,
                                  t2,
