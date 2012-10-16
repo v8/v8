@@ -1371,8 +1371,9 @@ def GetSpecialCommandProcessor(value):
   else:
     pos = value.find('@')
     import urllib
-    prefix = urllib.unquote(value[:pos]).split()
-    suffix = urllib.unquote(value[pos+1:]).split()
+    import shlex
+    prefix = shlex.split(urllib.unquote(value[:pos]))
+    suffix = shlex.split(urllib.unquote(value[pos+1:]))
     def ExpandCommand(args):
       return prefix + args + suffix
     return ExpandCommand
