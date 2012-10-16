@@ -2123,6 +2123,9 @@ class HLoadElements: public HTemplateInstruction<2> {
   }
 
   HValue* value() { return OperandAt(0); }
+  HValue* typecheck() { return OperandAt(1); }
+
+  virtual void PrintDataTo(StringStream* stream);
 
   virtual Representation RequiredInputRepresentation(int index) {
     return Representation::Tagged();
