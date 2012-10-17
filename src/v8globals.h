@@ -52,15 +52,6 @@ const intptr_t kPointerAlignmentMask = kPointerAlignment - 1;
 const intptr_t kDoubleAlignment = 8;
 const intptr_t kDoubleAlignmentMask = kDoubleAlignment - 1;
 
-// Desired alignment for maps.
-#if V8_HOST_ARCH_64_BIT
-const intptr_t kMapAlignmentBits = kObjectAlignmentBits;
-#else
-const intptr_t kMapAlignmentBits = kObjectAlignmentBits + 3;
-#endif
-const intptr_t kMapAlignment = (1 << kMapAlignmentBits);
-const intptr_t kMapAlignmentMask = kMapAlignment - 1;
-
 // Desired alignment for generated code is 32 bytes (to improve cache line
 // utilization).
 const int kCodeAlignmentBits = 5;
@@ -395,10 +386,6 @@ enum StateTag {
 // POINTER_SIZE_ALIGN returns the value aligned as a pointer.
 #define POINTER_SIZE_ALIGN(value)                               \
   (((value) + kPointerAlignmentMask) & ~kPointerAlignmentMask)
-
-// MAP_POINTER_ALIGN returns the value aligned as a map pointer.
-#define MAP_POINTER_ALIGN(value)                                \
-  (((value) + kMapAlignmentMask) & ~kMapAlignmentMask)
 
 // CODE_POINTER_ALIGN returns the value aligned as a generated code segment.
 #define CODE_POINTER_ALIGN(value)                               \

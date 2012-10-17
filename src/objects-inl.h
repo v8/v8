@@ -3548,32 +3548,16 @@ void Map::set_prototype(Object* value, WriteBarrierMode mode) {
 }
 
 
-DescriptorArray* Map::instance_descriptors() {
-  if (HasTransitionArray()) return transitions()->descriptors();
-  Object* back_pointer = GetBackPointer();
-  if (!back_pointer->IsMap()) return GetHeap()->empty_descriptor_array();
-  return Map::cast(back_pointer)->instance_descriptors();
-}
-
-
-enum TransitionsKind { DESCRIPTORS_HOLDER, FULL_TRANSITION_ARRAY };
-
-
 // If the descriptor is using the empty transition array, install a new empty
 // transition array that will have place for an element transition.
-static MaybeObject* EnsureHasTransitionArray(Map* map, TransitionsKind kind) {
+static MaybeObject* EnsureHasTransitionArray(Map* map) {
   TransitionArray* transitions;
   MaybeObject* maybe_transitions;
   if (!map->HasTransitionArray()) {
-    if (kind == FULL_TRANSITION_ARRAY) {
-      maybe_transitions = TransitionArray::Allocate(0);
-    } else {
-      maybe_transitions = TransitionArray::AllocateDescriptorsHolder();
-    }
+    maybe_transitions = TransitionArray::Allocate(0);
     if (!maybe_transitions->To(&transitions)) return maybe_transitions;
     transitions->set_back_pointer_storage(map->GetBackPointer());
-  } else if (kind == FULL_TRANSITION_ARRAY &&
-             !map->transitions()->IsFullTransitionArray()) {
+  } else if (!map->transitions()->IsFullTransitionArray()) {
     maybe_transitions = map->transitions()->ExtendToFullTransitionArray();
     if (!maybe_transitions->To(&transitions)) return maybe_transitions;
   } else {
@@ -3584,19 +3568,7 @@ static MaybeObject* EnsureHasTransitionArray(Map* map, TransitionsKind kind) {
 }
 
 
-MaybeObject* Map::SetDescriptors(DescriptorArray* value) {
-  ASSERT(!is_shared());
-  MaybeObject* maybe_failure =
-      EnsureHasTransitionArray(this, DESCRIPTORS_HOLDER);
-  if (maybe_failure->IsFailure()) return maybe_failure;
-
-  ASSERT(NumberOfOwnDescriptors() <= value->number_of_descriptors());
-  transitions()->set_descriptors(value);
-  return this;
-}
-
-
-MaybeObject* Map::InitializeDescriptors(DescriptorArray* descriptors) {
+void Map::InitializeDescriptors(DescriptorArray* descriptors) {
   int len = descriptors->number_of_descriptors();
 #ifdef DEBUG
   ASSERT(len <= DescriptorArray::kMaxNumberOfDescriptors);
@@ -3615,14 +3587,12 @@ MaybeObject* Map::InitializeDescriptors(DescriptorArray* descriptors) {
   }
 #endif
 
-  MaybeObject* maybe_failure = SetDescriptors(descriptors);
-  if (maybe_failure->IsFailure()) return maybe_failure;
-
+  set_instance_descriptors(descriptors);
   SetNumberOfOwnDescriptors(len);
-  return this;
 }
 
 
+ACCESSORS(Map, instance_descriptors, DescriptorArray, kDescriptorsOffset)
 SMI_ACCESSORS(Map, bit_field3, kBitField3Offset)
 
 
@@ -3688,8 +3658,7 @@ MaybeObject* Map::AddTransition(String* key,
                                 Map* target,
                                 SimpleTransitionFlag flag) {
   if (HasTransitionArray()) return transitions()->CopyInsert(key, target);
-  return TransitionArray::NewWith(
-      flag, key, target, instance_descriptors(), GetBackPointer());
+  return TransitionArray::NewWith(flag, key, target, GetBackPointer());
 }
 
 
@@ -3704,11 +3673,8 @@ Map* Map::GetTransition(int transition_index) {
 
 
 MaybeObject* Map::set_elements_transition_map(Map* transitioned_map) {
-  DescriptorArray* descriptors = instance_descriptors();
-  MaybeObject* allow_elements =
-      EnsureHasTransitionArray(this, FULL_TRANSITION_ARRAY);
+  MaybeObject* allow_elements = EnsureHasTransitionArray(this);
   if (allow_elements->IsFailure()) return allow_elements;
-  transitions()->set_descriptors(descriptors);
   transitions()->set_elements_transition(transitioned_map);
   return this;
 }
@@ -3724,9 +3690,7 @@ FixedArray* Map::GetPrototypeTransitions() {
 
 
 MaybeObject* Map::SetPrototypeTransitions(FixedArray* proto_transitions) {
-  DescriptorArray* descriptors = instance_descriptors();
-  MaybeObject* allow_prototype =
-      EnsureHasTransitionArray(this, FULL_TRANSITION_ARRAY);
+  MaybeObject* allow_prototype = EnsureHasTransitionArray(this);
   if (allow_prototype->IsFailure()) return allow_prototype;
 #ifdef DEBUG
   if (HasPrototypeTransitions()) {
@@ -3734,7 +3698,6 @@ MaybeObject* Map::SetPrototypeTransitions(FixedArray* proto_transitions) {
     ZapPrototypeTransitions();
   }
 #endif
-  transitions()->set_descriptors(descriptors);
   transitions()->SetPrototypeTransitions(proto_transitions);
   return this;
 }

@@ -267,13 +267,6 @@ MaybeObject* Heap::AllocateRawMap() {
 #endif
   MaybeObject* result = map_space_->AllocateRaw(Map::kSize);
   if (result->IsFailure()) old_gen_exhausted_ = true;
-#ifdef DEBUG
-  if (!result->IsFailure()) {
-    // Maps have their own alignment.
-    CHECK((reinterpret_cast<intptr_t>(result) & kMapAlignmentMask) ==
-          static_cast<intptr_t>(kHeapObjectTag));
-  }
-#endif
   return result;
 }
 

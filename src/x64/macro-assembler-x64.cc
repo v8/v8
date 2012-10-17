@@ -2905,28 +2905,7 @@ void MacroAssembler::LoadUint32(XMMRegister dst,
 
 void MacroAssembler::LoadInstanceDescriptors(Register map,
                                              Register descriptors) {
-  Register temp = descriptors;
-  movq(temp, FieldOperand(map, Map::kTransitionsOrBackPointerOffset));
-
-  Label ok, fail, load_from_back_pointer;
-  CheckMap(temp,
-           isolate()->factory()->fixed_array_map(),
-           &fail,
-           DONT_DO_SMI_CHECK);
-  movq(descriptors, FieldOperand(temp, TransitionArray::kDescriptorsOffset));
-  jmp(&ok);
-
-  bind(&fail);
-  CompareRoot(temp, Heap::kUndefinedValueRootIndex);
-  j(not_equal, &load_from_back_pointer, Label::kNear);
-  Move(descriptors, isolate()->factory()->empty_descriptor_array());
-  jmp(&ok);
-
-  bind(&load_from_back_pointer);
-  movq(temp, FieldOperand(temp, Map::kTransitionsOrBackPointerOffset));
-  movq(descriptors, FieldOperand(temp, TransitionArray::kDescriptorsOffset));
-
-  bind(&ok);
+  movq(descriptors, FieldOperand(map, Map::kDescriptorsOffset));
 }
 
 

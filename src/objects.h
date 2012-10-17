@@ -2456,11 +2456,12 @@ class FixedDoubleArray: public FixedArrayBase {
 
 // DescriptorArrays are fixed arrays used to hold instance descriptors.
 // The format of the these objects is:
-//   [0]: Either Smi(0) if uninitialized, or a pointer to small fixed array:
+//   [0]: Number of descriptors
+//   [1]: Either Smi(0) if uninitialized, or a pointer to small fixed array:
 //          [0]: pointer to fixed array with enum cache
 //          [1]: either Smi(0) or pointer to fixed array with indices
-//   [1]: first key
-//   [length() - kDescriptorSize]: last key
+//   [2]: first key
+//   [2 + number of descriptors * kDescriptorSize]: start of slack
 class DescriptorArray: public FixedArray {
  public:
   // WhitenessWitness is used to prove that a descriptor array is white
@@ -4808,7 +4809,6 @@ class Map: public HeapObject {
   static bool IsValidElementsTransition(ElementsKind from_kind,
                                         ElementsKind to_kind);
 
-  bool StoresOwnDescriptors() { return HasTransitionArray(); }
   inline bool HasTransitionArray();
   inline bool HasElementsTransition();
   inline Map* elements_transition_map();
@@ -4856,13 +4856,8 @@ class Map: public HeapObject {
   inline JSFunction* unchecked_constructor();
 
   // [instance descriptors]: describes the object.
-  inline DescriptorArray* instance_descriptors();
-  MUST_USE_RESULT inline MaybeObject* SetDescriptors(
-      DescriptorArray* descriptors);
-  static void SetDescriptors(Handle<Map> map,
-                             Handle<DescriptorArray> descriptors);
-  MUST_USE_RESULT inline MaybeObject* InitializeDescriptors(
-      DescriptorArray* descriptors);
+  DECL_ACCESSORS(instance_descriptors, DescriptorArray)
+  inline void InitializeDescriptors(DescriptorArray* descriptors);
 
   // [stub cache]: contains stubs compiled for this map.
   DECL_ACCESSORS(code_cache, Object)
@@ -5124,11 +5119,12 @@ class Map: public HeapObject {
   // indirection.
   static const int kTransitionsOrBackPointerOffset =
       kConstructorOffset + kPointerSize;
-  static const int kCodeCacheOffset =
+  static const int kDescriptorsOffset =
       kTransitionsOrBackPointerOffset + kPointerSize;
+  static const int kCodeCacheOffset =
+      kDescriptorsOffset + kPointerSize;
   static const int kBitField3Offset = kCodeCacheOffset + kPointerSize;
-  static const int kPadStart = kBitField3Offset + kPointerSize;
-  static const int kSize = MAP_POINTER_ALIGN(kPadStart);
+  static const int kSize = kBitField3Offset + kPointerSize;
 
   // Layout of pointer fields. Heap iteration code relies on them
   // being continuously allocated.

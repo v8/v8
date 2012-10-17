@@ -390,14 +390,6 @@ void StaticMarkingVisitor<StaticVisitor>::MarkTransitionArray(
     Heap* heap, TransitionArray* transitions) {
   if (!StaticVisitor::MarkObjectWithoutPush(heap, transitions)) return;
 
-  // Skip recording the descriptors_pointer slot since the cell space
-  // is not compacted and descriptors are referenced through a cell.
-  Object** descriptors_slot = transitions->GetDescriptorsSlot();
-  HeapObject* descriptors = HeapObject::cast(*descriptors_slot);
-  StaticVisitor::MarkObject(heap, descriptors);
-  heap->mark_compact_collector()->RecordSlot(
-      descriptors_slot, descriptors_slot, descriptors);
-
   // Simple transitions do not have keys nor prototype transitions.
   if (transitions->IsSimpleTransition()) return;
 

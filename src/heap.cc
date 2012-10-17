@@ -2102,6 +2102,7 @@ MaybeObject* Heap::AllocateMap(InstanceType instance_type,
   map->set_code_cache(empty_fixed_array(), SKIP_WRITE_BARRIER);
   map->init_back_pointer(undefined_value());
   map->set_unused_property_fields(0);
+  map->set_instance_descriptors(empty_descriptor_array());
   map->set_bit_field(0);
   map->set_bit_field2(1 << Map::kIsExtensible);
   int bit_field3 = Map::EnumLengthBits::encode(Map::kInvalidEnumCache) |
@@ -2109,12 +2110,6 @@ MaybeObject* Heap::AllocateMap(InstanceType instance_type,
   map->set_bit_field3(bit_field3);
   map->set_elements_kind(elements_kind);
 
-  // If the map object is aligned fill the padding area with Smi 0 objects.
-  if (Map::kPadStart < Map::kSize) {
-    memset(reinterpret_cast<byte*>(map) + Map::kPadStart - kHeapObjectTag,
-           0,
-           Map::kSize - Map::kPadStart);
-  }
   return map;
 }
 
@@ -2241,12 +2236,15 @@ bool Heap::CreateInitialMaps() {
   // Fix the instance_descriptors for the existing maps.
   meta_map()->set_code_cache(empty_fixed_array());
   meta_map()->init_back_pointer(undefined_value());
+  meta_map()->set_instance_descriptors(empty_descriptor_array());
 
   fixed_array_map()->set_code_cache(empty_fixed_array());
   fixed_array_map()->init_back_pointer(undefined_value());
+  fixed_array_map()->set_instance_descriptors(empty_descriptor_array());
 
   oddball_map()->set_code_cache(empty_fixed_array());
   oddball_map()->init_back_pointer(undefined_value());
+  oddball_map()->set_instance_descriptors(empty_descriptor_array());
 
   // Fix prototype object for existing maps.
   meta_map()->set_prototype(null_value());
@@ -3956,8 +3954,7 @@ MaybeObject* Heap::AllocateInitialMap(JSFunction* fun) {
       if (HasDuplicates(descriptors)) {
         fun->shared()->ForbidInlineConstructor();
       } else {
-        MaybeObject* maybe_failure = map->InitializeDescriptors(descriptors);
-        if (maybe_failure->IsFailure()) return maybe_failure;
+        map->InitializeDescriptors(descriptors);
         map->set_pre_allocated_property_fields(count);
         map->set_unused_property_fields(in_object_properties - count);
       }

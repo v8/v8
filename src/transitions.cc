@@ -73,7 +73,6 @@ static bool InsertionPointFound(String* key1, String* key2) {
 MaybeObject* TransitionArray::NewWith(SimpleTransitionFlag flag,
                                       String* key,
                                       Map* target,
-                                      DescriptorArray* descriptors,
                                       Object* back_pointer) {
   TransitionArray* result;
   MaybeObject* maybe_result;
@@ -88,13 +87,7 @@ MaybeObject* TransitionArray::NewWith(SimpleTransitionFlag flag,
     result->NoIncrementalWriteBarrierSet(0, key, target);
   }
   result->set_back_pointer_storage(back_pointer);
-  result->set_descriptors(descriptors);
   return result;
-}
-
-
-MaybeObject* TransitionArray::AllocateDescriptorsHolder() {
-  return AllocateRaw(kDescriptorsHolderSize);
 }
 
 
@@ -109,7 +102,6 @@ MaybeObject* TransitionArray::ExtendToFullTransitionArray() {
     result->NoIncrementalWriteBarrierCopyFrom(this, kSimpleTransitionIndex, 0);
   }
 
-  result->set_descriptors(descriptors());
   result->set_back_pointer_storage(back_pointer_storage());
   return result;
 }
@@ -127,8 +119,6 @@ MaybeObject* TransitionArray::CopyInsert(String* name, Map* target) {
   MaybeObject* maybe_array;
   maybe_array = TransitionArray::Allocate(new_size);
   if (!maybe_array->To(&result)) return maybe_array;
-
-  result->set_descriptors(descriptors());
 
   if (HasElementsTransition()) {
     result->set_elements_transition(elements_transition());

@@ -397,7 +397,7 @@ void Genesis::SetFunctionInstanceDescriptor(
   }
   PropertyAttributes attribs = static_cast<PropertyAttributes>(
       DONT_ENUM | DONT_DELETE | READ_ONLY);
-  Map::SetDescriptors(map, descriptors);
+  map->set_instance_descriptors(*descriptors);
 
   {  // Add length.
     CallbacksDescriptor d(*factory()->length_symbol(), *length, attribs);
@@ -538,7 +538,7 @@ void Genesis::SetStrictFunctionInstanceDescriptor(
   }
   PropertyAttributes attribs = static_cast<PropertyAttributes>(
       DONT_ENUM | DONT_DELETE);
-  Map::SetDescriptors(map, descriptors);
+  map->set_instance_descriptors(*descriptors);
 
   {  // Add length.
     CallbacksDescriptor d(*factory()->length_symbol(), *length, attribs);
@@ -875,7 +875,7 @@ bool Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
     Handle<Foreign> array_length(factory->NewForeign(&Accessors::ArrayLength));
     PropertyAttributes attribs = static_cast<PropertyAttributes>(
         DONT_ENUM | DONT_DELETE);
-    Map::SetDescriptors(initial_map, array_descriptors);
+    initial_map->set_instance_descriptors(*array_descriptors);
 
     {  // Add length.
       CallbacksDescriptor d(*factory->length_symbol(), *array_length, attribs);
@@ -924,7 +924,7 @@ bool Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
         factory->NewForeign(&Accessors::StringLength));
     PropertyAttributes attribs = static_cast<PropertyAttributes>(
         DONT_ENUM | DONT_DELETE | READ_ONLY);
-    Map::SetDescriptors(string_map, string_descriptors);
+    string_map->set_instance_descriptors(*string_descriptors);
 
     {  // Add length.
       CallbacksDescriptor d(*factory->length_symbol(), *string_length, attribs);
@@ -960,7 +960,7 @@ bool Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
         static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE | READ_ONLY);
     Handle<DescriptorArray> descriptors = factory->NewDescriptorArray(0, 5);
     DescriptorArray::WhitenessWitness witness(*descriptors);
-    Map::SetDescriptors(initial_map, descriptors);
+    initial_map->set_instance_descriptors(*descriptors);
 
     {
       // ECMA-262, section 15.10.7.1.
@@ -1144,7 +1144,7 @@ bool Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
     // Create the descriptor array for the arguments object.
     Handle<DescriptorArray> descriptors = factory->NewDescriptorArray(0, 3);
     DescriptorArray::WhitenessWitness witness(*descriptors);
-    Map::SetDescriptors(map, descriptors);
+    map->set_instance_descriptors(*descriptors);
 
     {  // length
       FieldDescriptor d(*factory->length_symbol(), 0, DONT_ENUM);
@@ -1534,7 +1534,7 @@ bool Genesis::InstallNatives() {
         factory()->NewForeign(&Accessors::ScriptEvalFromFunctionName));
     PropertyAttributes attribs =
         static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE | READ_ONLY);
-    Map::SetDescriptors(script_map, script_descriptors);
+    script_map->set_instance_descriptors(*script_descriptors);
 
     {
       CallbacksDescriptor d(
@@ -1675,7 +1675,7 @@ bool Genesis::InstallNatives() {
         &Accessors::ArrayLength));
     PropertyAttributes attribs = static_cast<PropertyAttributes>(
         DONT_ENUM | DONT_DELETE);
-    Map::SetDescriptors(initial_map, array_descriptors);
+    initial_map->set_instance_descriptors(*array_descriptors);
 
     {  // Add length.
       CallbacksDescriptor d(
@@ -1770,7 +1770,7 @@ bool Genesis::InstallNatives() {
     Handle<DescriptorArray> reresult_descriptors =
         factory()->NewDescriptorArray(0, 3);
     DescriptorArray::WhitenessWitness witness(*reresult_descriptors);
-    Map::SetDescriptors(initial_map, reresult_descriptors);
+    initial_map->set_instance_descriptors(*reresult_descriptors);
 
     {
       JSFunction* array_function = native_context()->array_function();

@@ -100,9 +100,6 @@ class Isolate;
 #define ASSERT_OBJECT_ALIGNED(address)                                         \
   ASSERT((OffsetFrom(address) & kObjectAlignmentMask) == 0)
 
-#define ASSERT_MAP_ALIGNED(address)                                            \
-  ASSERT((OffsetFrom(address) & kMapAlignmentMask) == 0)
-
 #define ASSERT_OBJECT_SIZE(size)                                               \
   ASSERT((0 < size) && (size <= Page::kMaxNonCodeHeapObjectSize))
 
@@ -510,7 +507,7 @@ class MemoryChunk {
   static const size_t kHeaderSize = kWriteBarrierCounterOffset + kPointerSize;
 
   static const int kBodyOffset =
-    CODE_POINTER_ALIGN(MAP_POINTER_ALIGN(kHeaderSize + Bitmap::kSize));
+      CODE_POINTER_ALIGN(kHeaderSize + Bitmap::kSize);
 
   // The start offset of the object area in a page. Aligned to both maps and
   // code alignment to be suitable for both.  Also aligned to 32 words because
