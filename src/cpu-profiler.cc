@@ -39,19 +39,19 @@
 namespace v8 {
 namespace internal {
 
+static const int kEventsBufferSize = 256 * KB;
+static const int kTickSamplesBufferChunkSize = 64 * KB;
+static const int kTickSamplesBufferChunksCount = 16;
 static const int kProfilerStackSize = 64 * KB;
 
 
-ProfilerEventsProcessor::ProfilerEventsProcessor(ProfileGenerator* generator,
-                                                 Sampler* sampler,
-                                                 int period_in_useconds)
+ProfilerEventsProcessor::ProfilerEventsProcessor(ProfileGenerator* generator)
     : Thread(Thread::Options("v8:ProfEvntProc", kProfilerStackSize)),
       generator_(generator),
-      sampler_(sampler),
       running_(true),
-      period_in_useconds_(period_in_useconds),
-      ticks_buffer_is_empty_(true),
-      ticks_buffer_is_initialized_(false),
+      ticks_buffer_(sizeof(TickSampleEventRecord),
+                    kTickSamplesBufferChunkSize,
+                    kTickSamplesBufferChunksCount),
       enqueue_order_(0) {
 }
 
@@ -215,31 +215,25 @@ bool ProfilerEventsProcessor::ProcessTicks(unsigned dequeue_order) {
       generator_->RecordTickSample(record.sample);
     }
 
-    if (ticks_buffer_is_empty_) return !ticks_from_vm_buffer_.IsEmpty();
-    if (ticks_buffer_.order == dequeue_order) {
+    const TickSampleEventRecord* rec =
+        TickSampleEventRecord::cast(ticks_buffer_.StartDequeue());
+    if (rec == NULL) return !ticks_from_vm_buffer_.IsEmpty();
+    // Make a local copy of tick sample record to ensure that it won't
+    // be modified as we are processing it. This is possible as the
+    // sampler writes w/o any sync to the queue, so if the processor
+    // will get far behind, a record may be modified right under its
+    // feet.
+    TickSampleEventRecord record = *rec;
+    if (record.order == dequeue_order) {
       // A paranoid check to make sure that we don't get a memory overrun
       // in case of frames_count having a wild value.
-      if (ticks_buffer_.sample.frames_count < 0
-          || ticks_buffer_.sample.frames_count > TickSample::kMaxFramesCount) {
-        ticks_buffer_.sample.frames_count = 0;
-      }
-      generator_->RecordTickSample(ticks_buffer_.sample);
-      ticks_buffer_is_empty_ = true;
-      ticks_buffer_is_initialized_ = false;
+      if (record.sample.frames_count < 0
+          || record.sample.frames_count > TickSample::kMaxFramesCount)
+        record.sample.frames_count = 0;
+      generator_->RecordTickSample(record.sample);
+      ticks_buffer_.FinishDequeue();
     } else {
       return true;
-    }
-  }
-}
-
-
-void ProfilerEventsProcessor::ProcessEventsQueue(int64_t stop_time,
-                                                 unsigned* dequeue_order) {
-  while (OS::Ticks() < stop_time) {
-    if (ProcessTicks(*dequeue_order)) {
-      // All ticks of the current dequeue_order are processed,
-      // proceed to the next code event.
-      ProcessCodeEvent(dequeue_order);
     }
   }
 }
@@ -249,13 +243,18 @@ void ProfilerEventsProcessor::Run() {
   unsigned dequeue_order = 0;
 
   while (running_) {
-    int64_t stop_time = OS::Ticks() + period_in_useconds_;
-    if (sampler_ != NULL) {
-      sampler_->DoSample();
+    // Process ticks until we have any.
+    if (ProcessTicks(dequeue_order)) {
+      // All ticks of the current dequeue_order are processed,
+      // proceed to the next code event.
+      ProcessCodeEvent(&dequeue_order);
     }
-    ProcessEventsQueue(stop_time, &dequeue_order);
+    YieldCPU();
   }
 
+  // Process remaining tick events.
+  ticks_buffer_.FlushResidualRecords();
+  // Perform processing until we have tick events, skip remaining code events.
   while (ProcessTicks(dequeue_order) && ProcessCodeEvent(&dequeue_order)) { }
 }
 
@@ -311,18 +310,11 @@ CpuProfile* CpuProfiler::FindProfile(Object* security_token, unsigned uid) {
 }
 
 
-TickSample* CpuProfiler::StartTickSampleEvent(Isolate* isolate) {
+TickSample* CpuProfiler::TickSampleEvent(Isolate* isolate) {
   if (CpuProfiler::is_profiling(isolate)) {
-    return isolate->cpu_profiler()->processor_->StartTickSampleEvent();
+    return isolate->cpu_profiler()->processor_->TickSampleEvent();
   } else {
     return NULL;
-  }
-}
-
-
-void CpuProfiler::FinishTickSampleEvent(Isolate* isolate) {
-  if (CpuProfiler::is_profiling(isolate)) {
-    isolate->cpu_profiler()->processor_->FinishTickSampleEvent();
   }
 }
 
@@ -494,15 +486,13 @@ void CpuProfiler::StartProcessorIfNotStarted() {
   if (processor_ == NULL) {
     Isolate* isolate = Isolate::Current();
 
-    Sampler* sampler = isolate->logger()->sampler();
     // Disable logging when using the new implementation.
     saved_logging_nesting_ = isolate->logger()->logging_nesting_;
     isolate->logger()->logging_nesting_ = 0;
     generator_ = new ProfileGenerator(profiles_);
-    processor_ = new ProfilerEventsProcessor(generator_,
-                                             sampler,
-                                             FLAG_cpu_profiler_sampling_period);
+    processor_ = new ProfilerEventsProcessor(generator_);
     NoBarrier_Store(&is_profiling_, true);
+    processor_->Start();
     // Enumerate stuff we already have in the heap.
     if (isolate->heap()->HasBeenSetUp()) {
       if (!FLAG_prof_browser_mode) {
@@ -515,12 +505,12 @@ void CpuProfiler::StartProcessorIfNotStarted() {
       isolate->logger()->LogAccessorCallbacks();
     }
     // Enable stack sampling.
+    Sampler* sampler = reinterpret_cast<Sampler*>(isolate->logger()->ticker_);
     if (!sampler->IsActive()) {
       sampler->Start();
       need_to_stop_sampler_ = true;
     }
     sampler->IncreaseProfilingDepth();
-    processor_->Start();
   }
 }
 
@@ -555,16 +545,16 @@ void CpuProfiler::StopProcessorIfLastProfile(const char* title) {
 
 
 void CpuProfiler::StopProcessor() {
-  NoBarrier_Store(&is_profiling_, false);
-  processor_->Stop();
-  processor_->Join();
   Logger* logger = Isolate::Current()->logger();
-  Sampler* sampler = logger->sampler();
+  Sampler* sampler = reinterpret_cast<Sampler*>(logger->ticker_);
   sampler->DecreaseProfilingDepth();
   if (need_to_stop_sampler_) {
     sampler->Stop();
     need_to_stop_sampler_ = false;
   }
+  NoBarrier_Store(&is_profiling_, false);
+  processor_->Stop();
+  processor_->Join();
   delete processor_;
   delete generator_;
   processor_ = NULL;

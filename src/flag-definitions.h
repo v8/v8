@@ -339,10 +339,6 @@ DEFINE_bool(compilation_cache, true, "enable compilation cache")
 
 DEFINE_bool(cache_prototype_transitions, true, "cache prototype transitions")
 
-// cpu-profiler.cc
-DEFINE_int(cpu_profiler_sampling_period, 1000,
-           "CPU profiler sampling period in microseconds")
-
 // debug.cc
 DEFINE_bool(trace_debug_json, false, "trace debugging JSON request/response")
 DEFINE_bool(debugger_auto_break, true,

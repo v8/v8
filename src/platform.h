@@ -741,9 +741,6 @@ class Sampler {
     IncSamplesTaken();
   }
 
-  // Performs platform-specific stack sampling.
-  void DoSample();
-
   // This method is called for each sampling period with the current
   // program counter.
   virtual void Tick(TickSample* sample) = 0;
