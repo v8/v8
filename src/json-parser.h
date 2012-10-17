@@ -289,6 +289,8 @@ Handle<Object> JsonParser<seq_ascii>::ParseJsonValue() {
 // Parse a JSON object. Position must be right at '{'.
 template <bool seq_ascii>
 Handle<Object> JsonParser<seq_ascii>::ParseJsonObject() {
+  int current_index = 0;
+  Handle<Object> prototype;
   Handle<JSFunction> object_constructor(
       isolate()->native_context()->object_function());
   Handle<JSObject> json_object =
@@ -309,15 +311,20 @@ Handle<Object> JsonParser<seq_ascii>::ParseJsonObject() {
       if (key->AsArrayIndex(&index)) {
         JSObject::SetOwnElement(json_object, index, value, kNonStrictMode);
       } else if (key->Equals(isolate()->heap()->Proto_symbol())) {
-        SetPrototype(json_object, value);
+        prototype = value;
       } else {
-        JSObject::SetLocalPropertyIgnoreAttributes(
-            json_object, key, value, NONE);
+        if (JSObject::TryTransitionToField(json_object, key)) {
+          json_object->FastPropertyAtPut(current_index++, *value);
+        } else {
+          JSObject::SetLocalPropertyIgnoreAttributes(
+              json_object, key, value, NONE);
+        }
       }
     } while (MatchSkipWhiteSpace(','));
     if (c0_ != '}') {
       return ReportUnexpectedCharacter();
     }
+    if (!prototype.is_null()) SetPrototype(json_object, prototype);
   }
   AdvanceSkipWhitespace();
   return json_object;

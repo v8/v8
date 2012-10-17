@@ -2794,6 +2794,14 @@ MUST_USE_RESULT Handle<Object> JSProxy::CallTrap(const char* name,
 }
 
 
+void JSObject::AddFastPropertyUsingMap(Handle<JSObject> object,
+                                       Handle<Map> map) {
+  CALL_HEAP_FUNCTION_VOID(
+      object->GetIsolate(),
+      object->AddFastPropertyUsingMap(*map));
+}
+
+
 MaybeObject* JSObject::SetPropertyForResult(LookupResult* result,
                                             String* name_raw,
                                             Object* value_raw,

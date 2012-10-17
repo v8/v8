@@ -1621,6 +1621,16 @@ class JSObject: public JSReceiver {
       Handle<Object> value,
       PropertyAttributes attributes);
 
+  // Try to follow an existing transition to a field with attributes NONE. The
+  // return value indicates whether the transition was successful.
+  static inline bool TryTransitionToField(Handle<JSObject> object,
+                                          Handle<String> key);
+
+  // Extend the receiver with a single fast property appeared first in the
+  // passed map. This also extends the property backing store if necessary.
+  static void AddFastPropertyUsingMap(Handle<JSObject> object, Handle<Map> map);
+  inline MUST_USE_RESULT MaybeObject* AddFastPropertyUsingMap(Map* map);
+
   // Can cause GC.
   MUST_USE_RESULT MaybeObject* SetLocalPropertyIgnoreAttributes(
       String* key,

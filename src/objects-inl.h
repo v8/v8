@@ -1414,6 +1414,36 @@ MaybeObject* JSObject::ResetElements() {
 }
 
 
+MaybeObject* JSObject::AddFastPropertyUsingMap(Map* map) {
+  ASSERT(this->map()->NumberOfOwnDescriptors() + 1 ==
+         map->NumberOfOwnDescriptors());
+  if (this->map()->unused_property_fields() == 0) {
+    int new_size = properties()->length() + map->unused_property_fields() + 1;
+    FixedArray* new_properties;
+    MaybeObject* maybe_properties = properties()->CopySize(new_size);
+    if (!maybe_properties->To(&new_properties)) return maybe_properties;
+    set_properties(new_properties);
+  }
+  set_map(map);
+  return this;
+}
+
+
+bool JSObject::TryTransitionToField(Handle<JSObject> object,
+                                    Handle<String> key) {
+  if (!object->map()->HasTransitionArray()) return false;
+  Handle<TransitionArray> transitions(object->map()->transitions());
+  int transition = transitions->Search(*key);
+  if (transition == TransitionArray::kNotFound) return false;
+  PropertyDetails target_details = transitions->GetTargetDetails(transition);
+  if (target_details.type() != FIELD) return false;
+  if (target_details.attributes() != NONE) return false;
+  Handle<Map> target(transitions->GetTarget(transition));
+  JSObject::AddFastPropertyUsingMap(object, target);
+  return true;
+}
+
+
 ACCESSORS(Oddball, to_string, String, kToStringOffset)
 ACCESSORS(Oddball, to_number, Object, kToNumberOffset)
 
