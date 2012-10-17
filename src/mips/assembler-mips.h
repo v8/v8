@@ -318,12 +318,15 @@ const FPURegister f31 = { 31 };
 
 // Register aliases.
 // cp is assumed to be a callee saved register.
-static const Register& kLithiumScratchReg = s3;  // Scratch register.
-static const Register& kLithiumScratchReg2 = s4;  // Scratch register.
-static const Register& kRootRegister = s6;  // Roots array pointer.
-static const Register& cp = s7;     // JavaScript context pointer.
-static const DoubleRegister& kLithiumScratchDouble = f30;
-static const FPURegister& kDoubleRegZero = f28;
+// Defined using #define instead of "static const Register&" because Clang
+// complains otherwise when a compilation unit that includes this header
+// doesn't use the variables.
+#define kRootRegister s6
+#define cp s7
+#define kLithiumScratchReg s3
+#define kLithiumScratchReg2 s4
+#define kLithiumScratchDouble f30
+#define kDoubleRegZero f28
 
 // FPU (coprocessor 1) control registers.
 // Currently only FCSR (#31) is implemented.
