@@ -90,7 +90,9 @@ class Runner(object):
     self.indicator.Starting()
     self._RunInternal(jobs)
     self.indicator.Done()
-    return not self.failed
+    if self.failed:
+      return 1
+    return 0
 
   def _RunInternal(self, jobs):
     pool = multiprocessing.Pool(processes=jobs)
@@ -147,6 +149,7 @@ class Runner(object):
     except KeyboardInterrupt:
       pool.terminate()
       pool.join()
+      raise
     except Exception, e:
       print("Exception: %s" % e)
       pool.terminate()

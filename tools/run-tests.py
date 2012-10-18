@@ -174,12 +174,6 @@ def ProcessOptions(options):
       options.shell_dir = os.path.dirname(options.shell)
   if options.stress_only:
     VARIANT_FLAGS = [["--stress-opt", "--always-opt"]]
-  # Simulators are slow, therefore allow a longer default timeout.
-  if options.timeout == -1:
-    if options.arch == "arm" or options.arch == "mipsel":
-      options.timeout = 2 * TIMEOUT_DEFAULT;
-    else:
-      options.timeout = TIMEOUT_DEFAULT;
   if options.valgrind:
     run_valgrind = os.path.join("tools", "run-valgrind.py")
     # This is OK for distributed running, so we don't need to set no_network.
@@ -264,10 +258,18 @@ def Execute(arch, mode, args, options, suites, workspace):
 
   # Populate context object.
   mode_flags = MODE_FLAGS[mode]
+  timeout = options.timeout
+  if timeout == -1:
+    # Simulators are slow, therefore allow a longer default timeout.
+    if arch in ["android", "arm", "mipsel"]:
+      timeout = 2 * TIMEOUT_DEFAULT;
+    else:
+      timeout = TIMEOUT_DEFAULT;
+
   options.timeout *= TIMEOUT_SCALEFACTOR[mode]
   ctx = context.Context(arch, mode, shell_dir,
                         mode_flags, options.verbose,
-                        options.timeout, options.isolates,
+                        timeout, options.isolates,
                         options.command_prefix,
                         options.extra_flags)
 

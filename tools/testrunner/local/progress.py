@@ -152,6 +152,7 @@ class CompactProgressIndicator(ProgressIndicator):
 
   def Done(self):
     self.PrintProgress('Done')
+    print ""  # Line break.
 
   def AboutToRun(self, test):
     self.PrintProgress(test.GetLabel())
