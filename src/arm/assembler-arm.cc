@@ -819,6 +819,17 @@ bool Operand::must_output_reloc_info(const Assembler* assembler) const {
 }
 
 
+static bool use_movw_movt(const Operand& x, const Assembler* assembler) {
+  if (Assembler::use_immediate_embedded_pointer_loads(assembler)) {
+    return true;
+  }
+  if (x.must_output_reloc_info(assembler)) {
+    return false;
+  }
+  return CpuFeatures::IsSupported(ARMv7);
+}
+
+
 bool Operand::is_single_instruction(const Assembler* assembler,
                                     Instr instr) const {
   if (rm_.is_valid()) return true;
@@ -829,23 +840,7 @@ bool Operand::is_single_instruction(const Assembler* assembler,
     // constant pool is required. For a mov instruction not setting the
     // condition code additional instruction conventions can be used.
     if ((instr & ~kCondMask) == 13*B21) {  // mov, S not set
-#ifdef USE_BLX
-      // When using BLX, there are two things that must be true for the address
-      // load to be longer than a single instruction. First, immediate loads
-      // using movw/movt must be supported (and fast) on the target ARM
-      // architecture. Second, the reloc mode must be something other than NONE,
-      // since NONE is a used whenever the constant pool cannot be used for
-      // technical reasons, e.g. back-patching calls site in optimized code with
-      // a call to a lazy deopt routine.
-      return !Assembler::allow_immediate_constant_pool_loads(assembler) &&
-          rmode_ != RelocInfo::NONE;
-#else
-      // It's not possible to use immediate loads to the pc to do a call, (the
-      // pc would be inconsistent half-way through the load), so loading the
-      // destination address without USE_BLX is always a single instruction of
-      // the form ldr pc, [pc + #xxx].
-      return true;
-#endif
+      return !use_movw_movt(*this, assembler);
     } else {
       // If this is not a mov or mvn instruction there will always an additional
       // instructions - either mov or ldr. The mov might actually be two
@@ -866,26 +861,21 @@ void Assembler::move_32_bit_immediate(Condition cond,
                                       SBit s,
                                       const Operand& x) {
   if (rd.code() != pc.code() && s == LeaveCC) {
-    // Candidate for immediate load.
-    if (x.must_output_reloc_info(this)) {
-      if (!Assembler::allow_immediate_constant_pool_loads(this)) {
-        RecordRelocInfo(x.rmode_, x.imm32_, USE_CONSTANT_POOL);
-        ldr(rd, MemOperand(pc, 0), cond);
-        return;
+    if (use_movw_movt(x, this)) {
+      if (x.must_output_reloc_info(this)) {
+        RecordRelocInfo(x.rmode_, x.imm32_, DONT_USE_CONSTANT_POOL);
+        // Make sure the movw/movt doesn't get separated.
+        BlockConstPoolFor(2);
       }
-      RecordRelocInfo(x.rmode_, x.imm32_, DONT_USE_CONSTANT_POOL);
-      // Make sure the movw/movt doesn't get separated.
-      BlockConstPoolFor(2);
+      emit(cond | 0x30*B20 | rd.code()*B12 |
+           EncodeMovwImmediate(x.imm32_ & 0xffff));
+      movt(rd, static_cast<uint32_t>(x.imm32_) >> 16, cond);
+      return;
     }
-
-    // Emit a real movw/movt pair.
-    emit(cond | 0x30*B20 | rd.code()*B12 |
-         EncodeMovwImmediate(x.imm32_ & 0xffff));
-    movt(rd, static_cast<uint32_t>(x.imm32_) >> 16, cond);
-  } else {
-    RecordRelocInfo(x.rmode_, x.imm32_, USE_CONSTANT_POOL);
-    ldr(rd, MemOperand(pc, 0), cond);
   }
+
+  RecordRelocInfo(x.rmode_, x.imm32_, USE_CONSTANT_POOL);
+  ldr(rd, MemOperand(pc, 0), cond);
 }
 
 
@@ -916,8 +906,7 @@ void Assembler::addrmod1(Instr instr,
             (instr & kMovMvnMask) != kMovMvnPattern) {
           mov(ip, x, LeaveCC, cond);
         } else {
-          move_32_bit_immediate(cond, ip,
-                                static_cast<SBit>(instr & (1 << 20)), x);
+          move_32_bit_immediate(cond, ip, LeaveCC, x);
         }
         addrmod1(instr, rn, rd, Operand(ip));
       }

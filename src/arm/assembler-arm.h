@@ -1187,10 +1187,18 @@ class Assembler : public AssemblerBase {
 
   bool predictable_code_size() const { return predictable_code_size_; }
 
-  static bool allow_immediate_constant_pool_loads(
+  static bool use_immediate_embedded_pointer_loads(
       const Assembler* assembler) {
+#ifdef USE_BLX
     return CpuFeatures::IsSupported(MOVW_MOVT_IMMEDIATE_LOADS) &&
         (assembler == NULL || !assembler->predictable_code_size());
+#else
+    // If not using BLX, all loads from the constant pool cannot be immediate,
+    // because the ldr pc, [pc + #xxxx] used for calls must be a single
+    // instruction and cannot be easily distinguished out of context from
+    // other loads that could use movw/movt.
+    return false;
+#endif
   }
 
   // Check the code size generated from label to here.
