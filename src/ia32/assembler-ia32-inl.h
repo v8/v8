@@ -387,6 +387,11 @@ void Assembler::set_target_address_at(Address pc, Address target) {
 }
 
 
+Address Assembler::target_address_from_return_address(Address pc) {
+  return pc - kCallTargetAddressOffset;
+}
+
+
 Displacement Assembler::disp_at(Label* L) {
   return Displacement(long_at(L->pos()));
 }

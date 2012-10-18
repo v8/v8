@@ -412,6 +412,13 @@ enum StateTag {
 #endif
 
 
+enum CpuImplementer {
+  UNKNOWN_IMPLEMENTER,
+  ARM_IMPLEMENTER,
+  QUALCOMM_IMPLEMENTER
+};
+
+
 // Feature flags bit positions. They are mostly based on the CPUID spec.
 // (We assign CPUID itself to one of the currently reserved bits --
 // feel free to change this if needed.)
@@ -427,6 +434,7 @@ enum CpuFeature { SSE4_1 = 32 + 19,  // x86
                   VFP2 = 3,    // ARM
                   SUDIV = 4,   // ARM
                   UNALIGNED_ACCESSES = 5,  // ARM
+                  MOVW_MOVT_IMMEDIATE_LOADS = 6,  // ARM
                   SAHF = 0,    // x86
                   FPU = 1};    // MIPS
 

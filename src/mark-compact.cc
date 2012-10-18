@@ -2327,8 +2327,11 @@ class PointersUpdatingVisitor: public ObjectVisitor {
   void VisitCodeTarget(RelocInfo* rinfo) {
     ASSERT(RelocInfo::IsCodeTarget(rinfo->rmode()));
     Object* target = Code::GetCodeFromTargetAddress(rinfo->target_address());
+    Object* old_target = target;
     VisitPointer(&target);
-    rinfo->set_target_address(Code::cast(target)->instruction_start());
+    if (target != old_target) {
+      rinfo->set_target_address(Code::cast(target)->instruction_start());
+    }
   }
 
   void VisitDebugTarget(RelocInfo* rinfo) {

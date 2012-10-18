@@ -213,14 +213,18 @@ class LCodeGen BASE_EMBEDDED {
     RECORD_SAFEPOINT_WITH_REGISTERS_AND_NO_ARGUMENTS
   };
 
-  void CallCode(Handle<Code> code,
-                RelocInfo::Mode mode,
-                LInstruction* instr);
+  void CallCode(
+      Handle<Code> code,
+      RelocInfo::Mode mode,
+      LInstruction* instr,
+      TargetAddressStorageMode storage_mode = CAN_INLINE_TARGET_ADDRESS);
 
-  void CallCodeGeneric(Handle<Code> code,
-                       RelocInfo::Mode mode,
-                       LInstruction* instr,
-                       SafepointMode safepoint_mode);
+  void CallCodeGeneric(
+      Handle<Code> code,
+      RelocInfo::Mode mode,
+      LInstruction* instr,
+      SafepointMode safepoint_mode,
+      TargetAddressStorageMode storage_mode = CAN_INLINE_TARGET_ADDRESS);
 
   void CallRuntime(const Runtime::Function* function,
                    int num_arguments,

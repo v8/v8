@@ -308,6 +308,9 @@ class OS {
   // Returns the double constant NAN
   static double nan_value();
 
+  // Support runtime detection of Cpu implementer
+  static CpuImplementer GetCpuImplementer();
+
   // Support runtime detection of VFP3 on ARM CPUs.
   static bool ArmCpuHasFeature(CpuFeature feature);
 
