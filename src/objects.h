@@ -7424,18 +7424,18 @@ class String: public HeapObject {
     const uintptr_t non_ascii_mask = kUintptrAllBitsSet / 0xFF * 0x80;
     while (chars + sizeof(uintptr_t) <= limit) {
       if (*reinterpret_cast<const uintptr_t*>(chars) & non_ascii_mask) {
-        return chars - start;
+        return static_cast<int>(chars - start);
       }
       chars += sizeof(uintptr_t);
     }
 #endif
     while (chars < limit) {
       if (static_cast<uint8_t>(*chars) > kMaxAsciiCharCodeU) {
-        return chars - start;
+        return static_cast<int>(chars - start);
       }
       ++chars;
     }
-    return chars - start;
+    return static_cast<int>(chars - start);
   }
 
   static inline bool IsAscii(const char* chars, int length) {
@@ -7446,10 +7446,10 @@ class String: public HeapObject {
     const uc16* limit = chars + length;
     const uc16* start = chars;
     while (chars < limit) {
-      if (*chars > kMaxAsciiCharCodeU) return chars - start;
+      if (*chars > kMaxAsciiCharCodeU) return static_cast<int>(chars - start);
       ++chars;
     }
-    return chars - start;
+    return static_cast<int>(chars - start);
   }
 
   static inline bool IsAscii(const uc16* chars, int length) {
