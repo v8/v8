@@ -390,7 +390,7 @@ template <class T> class Persistent : public Handle<T> {
    */
   inline void MakeWeak(void* parameters, WeakReferenceCallback callback);
 
-  /** Clears the weak reference to this object.*/
+  /** Clears the weak reference to this object. */
   inline void ClearWeak();
 
   /**
@@ -402,14 +402,13 @@ template <class T> class Persistent : public Handle<T> {
    */
   inline void MarkIndependent();
 
-  /**
-   *Checks if the handle holds the only reference to an object.
-   */
+  /** Returns true if this handle was previously marked as independent. */
+  inline bool IsIndependent() const;
+
+  /** Checks if the handle holds the only reference to an object. */
   inline bool IsNearDeath() const;
 
-  /**
-   * Returns true if the handle's reference is weak.
-   */
+  /** Returns true if the handle's reference is weak.  */
   inline bool IsWeak() const;
 
   /**
@@ -417,6 +416,12 @@ template <class T> class Persistent : public Handle<T> {
    * interface description in v8-profiler.h for details.
    */
   inline void SetWrapperClassId(uint16_t class_id);
+
+  /**
+   * Returns the class ID previously assigned to this handle or 0 if no class
+   * ID was previously assigned.
+   */
+  inline uint16_t WrapperClassId() const;
 
  private:
   friend class ImplementationUtilities;
@@ -3011,12 +3016,23 @@ typedef void (*JitCodeEventHandler)(const JitCodeEvent* event);
 
 
 /**
- * Interface for iterating though all external resources in the heap.
+ * Interface for iterating through all external resources in the heap.
  */
 class V8EXPORT ExternalResourceVisitor {  // NOLINT
  public:
   virtual ~ExternalResourceVisitor() {}
   virtual void VisitExternalString(Handle<String> string) {}
+};
+
+
+/**
+ * Interface for iterating through all the persistent handles in the heap.
+ */
+class V8EXPORT PersistentHandleVisitor {  // NOLINT
+ public:
+  virtual ~PersistentHandleVisitor() {}
+  virtual void VisitPersistentHandle(Persistent<Value> value,
+                                     uint16_t class_id) {}
 };
 
 
@@ -3428,6 +3444,12 @@ class V8EXPORT V8 {
   static void VisitExternalResources(ExternalResourceVisitor* visitor);
 
   /**
+   * Iterates through all the persistent handles in the current isolate's heap
+   * that have class_ids.
+   */
+  static void VisitHandlesWithClassIds(PersistentHandleVisitor* visitor);
+
+  /**
    * Optional notification that the embedder is idle.
    * V8 uses the notification to reduce memory footprint.
    * This call can be used repeatedly if the embedder remains idle.
@@ -3465,10 +3487,12 @@ class V8EXPORT V8 {
                        WeakReferenceCallback);
   static void ClearWeak(internal::Object** global_handle);
   static void MarkIndependent(internal::Object** global_handle);
+  static bool IsGlobalIndependent(internal::Object** global_handle);
   static bool IsGlobalNearDeath(internal::Object** global_handle);
   static bool IsGlobalWeak(internal::Object** global_handle);
   static void SetWrapperClassId(internal::Object** global_handle,
                                 uint16_t class_id);
+  static uint16_t GetWrapperClassId(internal::Object** global_handle);
 
   template <class T> friend class Handle;
   template <class T> friend class Local;
@@ -4186,6 +4210,13 @@ Persistent<T> Persistent<T>::New(Handle<T> that) {
 
 
 template <class T>
+bool Persistent<T>::IsIndependent() const {
+  if (this->IsEmpty()) return false;
+  return V8::IsGlobalIndependent(reinterpret_cast<internal::Object**>(**this));
+}
+
+
+template <class T>
 bool Persistent<T>::IsNearDeath() const {
   if (this->IsEmpty()) return false;
   return V8::IsGlobalNearDeath(reinterpret_cast<internal::Object**>(**this));
@@ -4229,6 +4260,11 @@ void Persistent<T>::MarkIndependent() {
 template <class T>
 void Persistent<T>::SetWrapperClassId(uint16_t class_id) {
   V8::SetWrapperClassId(reinterpret_cast<internal::Object**>(**this), class_id);
+}
+
+template <class T>
+uint16_t Persistent<T>::WrapperClassId() const {
+  return V8::GetWrapperClassId(reinterpret_cast<internal::Object**>(**this));
 }
 
 Arguments::Arguments(internal::Object** implicit_args,

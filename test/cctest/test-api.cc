@@ -5229,7 +5229,9 @@ THREADED_TEST(IndependentWeakHandle) {
 
   bool object_a_disposed = false;
   object_a.MakeWeak(&object_a_disposed, &DisposeAndSetFlag);
+  CHECK(!object_a.IsIndependent());
   object_a.MarkIndependent();
+  CHECK(object_a.IsIndependent());
   HEAP->PerformScavenge();
   CHECK(object_a_disposed);
 }
@@ -16174,6 +16176,43 @@ TEST(DontDeleteCellLoadICAPI) {
                "  }"
                "})()",
                "ReferenceError: cell is not defined");
+}
+
+
+TEST(PersistentHandleVisitor) {
+  v8::HandleScope scope;
+  LocalContext context;
+  v8::Persistent<v8::Object> object =
+      v8::Persistent<v8::Object>::New(v8::Object::New());
+  CHECK_EQ(0, object.WrapperClassId());
+  object.SetWrapperClassId(42);
+  CHECK_EQ(42, object.WrapperClassId());
+
+  class Visitor : public v8::PersistentHandleVisitor {
+   public:
+    explicit Visitor(v8::Persistent<v8::Object> object)
+      : counter_(0), object_(object) { }
+
+    virtual void VisitPersistentHandle(Persistent<Value> value,
+                                       uint16_t class_id) {
+      if (class_id == 42) {
+        CHECK(value->IsObject());
+        v8::Persistent<v8::Object> visited =
+            v8::Persistent<v8::Object>::Cast(value);
+        CHECK_EQ(42, visited.WrapperClassId());
+        CHECK_EQ(object_, visited);
+        ++counter_;
+      }
+    }
+
+    int counter_;
+    v8::Persistent<v8::Object> object_;
+  } visitor(object);
+
+  v8::V8::VisitHandlesWithClassIds(&visitor);
+  CHECK_EQ(1, visitor.counter_);
+
+  object.Dispose();
 }
 
 

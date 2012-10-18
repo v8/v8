@@ -648,6 +648,14 @@ void V8::MarkIndependent(i::Object** object) {
 }
 
 
+bool V8::IsGlobalIndependent(i::Object** obj) {
+  i::Isolate* isolate = i::Isolate::Current();
+  LOG_API(isolate, "IsGlobalIndependent");
+  if (!isolate->IsInitialized()) return false;
+  return i::GlobalHandles::IsIndependent(obj);
+}
+
+
 bool V8::IsGlobalNearDeath(i::Object** obj) {
   i::Isolate* isolate = i::Isolate::Current();
   LOG_API(isolate, "IsGlobalNearDeath");
@@ -4336,6 +4344,30 @@ void v8::V8::VisitExternalResources(ExternalResourceVisitor* visitor) {
 }
 
 
+void v8::V8::VisitHandlesWithClassIds(PersistentHandleVisitor* visitor) {
+  i::Isolate* isolate = i::Isolate::Current();
+  IsDeadCheck(isolate, "v8::V8::VisitHandlesWithClassId");
+
+  i::AssertNoAllocation no_allocation;
+
+  class VisitorAdapter : public i::ObjectVisitor {
+   public:
+    explicit VisitorAdapter(PersistentHandleVisitor* visitor)
+        : visitor_(visitor) {}
+    virtual void VisitPointers(i::Object** start, i::Object** end) {
+      UNREACHABLE();
+    }
+    virtual void VisitEmbedderReference(i::Object** p, uint16_t class_id) {
+      visitor_->VisitPersistentHandle(ToApi<Value>(i::Handle<i::Object>(p)),
+                                      class_id);
+    }
+   private:
+    PersistentHandleVisitor* visitor_;
+  } visitor_adapter(visitor);
+  isolate->global_handles()->IterateAllRootsWithClassIds(&visitor_adapter);
+}
+
+
 bool v8::V8::IdleNotification(int hint) {
   // Returning true tells the caller that it need not
   // continue to call IdleNotification.
@@ -4617,6 +4649,11 @@ void Context::SetErrorMessageForCodeGenerationFromStrings(
 
 void V8::SetWrapperClassId(i::Object** global_handle, uint16_t class_id) {
   i::GlobalHandles::SetWrapperClassId(global_handle, class_id);
+}
+
+
+uint16_t V8::GetWrapperClassId(internal::Object** global_handle) {
+  return i::GlobalHandles::GetWrapperClassId(global_handle);
 }
 
 
