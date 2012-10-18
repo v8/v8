@@ -584,7 +584,7 @@ Handle<String> JsonParser<seq_ascii>::ScanJsonString() {
                                                         position_,
                                                         position);
       }
-      if (c0_ < 0x20) return Handle<String>::null();
+      if (c0 < 0x20) return Handle<String>::null();
       running_hash = StringHasher::AddCharacterCore(running_hash, c0);
       position++;
       if (position >= source_length_) return Handle<String>::null();
