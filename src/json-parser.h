@@ -301,23 +301,49 @@ Handle<Object> JsonParser<seq_ascii>::ParseJsonObject() {
   if (c0_ != '}') {
     do {
       if (c0_ != '"') return ReportUnexpectedCharacter();
-      Handle<String> key = ParseJsonSymbol();
-      if (key.is_null() || c0_ != ':') return ReportUnexpectedCharacter();
-      AdvanceSkipWhitespace();
-      Handle<Object> value = ParseJsonValue();
-      if (value.is_null()) return ReportUnexpectedCharacter();
 
-      uint32_t index;
-      if (key->AsArrayIndex(&index)) {
+      int start_position = position_;
+      Advance();
+
+      uint32_t index = 0;
+      while (c0_ >= '0' && c0_ <= '9') {
+        int d = c0_ - '0';
+        if (index > 429496729U - ((d > 5) ? 1 : 0)) break;
+        index = (index * 10) + d;
+        Advance();
+      }
+
+      if (position_ != start_position + 1 && c0_ == '"') {
+        AdvanceSkipWhitespace();
+
+        if (c0_ != ':') return ReportUnexpectedCharacter();
+        AdvanceSkipWhitespace();
+        Handle<Object> value = ParseJsonValue();
+        if (value.is_null()) return ReportUnexpectedCharacter();
+
         JSObject::SetOwnElement(json_object, index, value, kNonStrictMode);
-      } else if (key->Equals(isolate()->heap()->Proto_symbol())) {
-        prototype = value;
       } else {
-        if (JSObject::TryTransitionToField(json_object, key)) {
-          json_object->FastPropertyAtPut(current_index++, *value);
+        position_ = start_position;
+#ifdef DEBUG
+        c0_ = '"';
+#endif
+
+        Handle<String> key = ParseJsonSymbol();
+        if (key.is_null() || c0_ != ':') return ReportUnexpectedCharacter();
+
+        AdvanceSkipWhitespace();
+        Handle<Object> value = ParseJsonValue();
+        if (value.is_null()) return ReportUnexpectedCharacter();
+
+        if (key->Equals(isolate()->heap()->Proto_symbol())) {
+          prototype = value;
         } else {
-          JSObject::SetLocalPropertyIgnoreAttributes(
-              json_object, key, value, NONE);
+          if (JSObject::TryTransitionToField(json_object, key)) {
+            json_object->FastPropertyAtPut(current_index++, *value);
+          } else {
+            JSObject::SetLocalPropertyIgnoreAttributes(
+                json_object, key, value, NONE);
+          }
         }
       }
     } while (MatchSkipWhiteSpace(','));
@@ -374,14 +400,12 @@ Handle<Object> JsonParser<seq_ascii>::ParseJsonNumber() {
     if ('0' <= c0_ && c0_ <= '9') return ReportUnexpectedCharacter();
   } else {
     int i = 0;
-    int digits = 0;
     if (c0_ < '1' || c0_ > '9') return ReportUnexpectedCharacter();
     do {
       i = i * 10 + c0_ - '0';
-      digits++;
       Advance();
-    } while (c0_ >= '0' && c0_ <= '9');
-    if (c0_ != '.' && c0_ != 'e' && c0_ != 'E' && digits < 10) {
+    } while (c0_ >= '0' && c0_ <= '9' && i <= (kMaxInt - 9) / 10);
+    if (c0_ != '.' && c0_ != 'e' && c0_ != 'E') {
       SkipWhitespace();
       return Handle<Smi>(Smi::FromInt((negative ? -i : i)), isolate());
     }
