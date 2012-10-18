@@ -307,10 +307,12 @@ function BasicJSONSerialize(key, value, stack, builder) {
 
 function JSONStringify(value, replacer, space) {
   if (%_ArgumentsLength() == 1) {
+    var result = %BasicJSONStringify(value);
+    if (result != 0) return result;
     var builder = new InternalArray();
     BasicJSONSerialize('', value, new InternalArray(), builder);
     if (builder.length == 0) return;
-    var result = %_FastAsciiArrayJoin(builder, "");
+    result = %_FastAsciiArrayJoin(builder, "");
     if (!IS_UNDEFINED(result)) return result;
     return %StringBuilderConcat(builder, builder.length, "");
   }
