@@ -16179,6 +16179,28 @@ TEST(DontDeleteCellLoadICAPI) {
 }
 
 
+class Visitor42 : public v8::PersistentHandleVisitor {
+ public:
+  explicit Visitor42(v8::Persistent<v8::Object> object)
+      : counter_(0), object_(object) { }
+
+  virtual void VisitPersistentHandle(Persistent<Value> value,
+                                     uint16_t class_id) {
+    if (class_id == 42) {
+      CHECK(value->IsObject());
+      v8::Persistent<v8::Object> visited =
+          v8::Persistent<v8::Object>::Cast(value);
+      CHECK_EQ(42, visited.WrapperClassId());
+      CHECK_EQ(object_, visited);
+      ++counter_;
+    }
+  }
+
+  int counter_;
+  v8::Persistent<v8::Object> object_;
+};
+
+
 TEST(PersistentHandleVisitor) {
   v8::HandleScope scope;
   LocalContext context;
@@ -16188,27 +16210,7 @@ TEST(PersistentHandleVisitor) {
   object.SetWrapperClassId(42);
   CHECK_EQ(42, object.WrapperClassId());
 
-  class Visitor : public v8::PersistentHandleVisitor {
-   public:
-    explicit Visitor(v8::Persistent<v8::Object> object)
-      : counter_(0), object_(object) { }
-
-    virtual void VisitPersistentHandle(Persistent<Value> value,
-                                       uint16_t class_id) {
-      if (class_id == 42) {
-        CHECK(value->IsObject());
-        v8::Persistent<v8::Object> visited =
-            v8::Persistent<v8::Object>::Cast(value);
-        CHECK_EQ(42, visited.WrapperClassId());
-        CHECK_EQ(object_, visited);
-        ++counter_;
-      }
-    }
-
-    int counter_;
-    v8::Persistent<v8::Object> object_;
-  } visitor(object);
-
+  Visitor42 visitor(object);
   v8::V8::VisitHandlesWithClassIds(&visitor);
   CHECK_EQ(1, visitor.counter_);
 
