@@ -2315,8 +2315,13 @@ class PointersUpdatingVisitor: public ObjectVisitor {
   void VisitEmbeddedPointer(RelocInfo* rinfo) {
     ASSERT(rinfo->rmode() == RelocInfo::EMBEDDED_OBJECT);
     Object* target = rinfo->target_object();
+    Object* old_target = target;
     VisitPointer(&target);
-    rinfo->set_target_object(target);
+    // Avoid unnecessary changes that might unnecessary flush the instruction
+    // cache.
+    if (target != old_target) {
+      rinfo->set_target_object(target);
+    }
   }
 
   void VisitCodeTarget(RelocInfo* rinfo) {
