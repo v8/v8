@@ -580,9 +580,12 @@ Handle<String> JsonParser<seq_ascii>::ScanJsonString() {
     uc32 c0 = c0_;
     do {
       if (c0 == '\\') {
+        c0_ = c0;
+        int beg_pos = position_;
+        position_ = position;
         return SlowScanJsonString<SeqAsciiString, char>(source_,
-                                                        position_,
-                                                        position);
+                                                        beg_pos,
+                                                        position_);
       }
       if (c0 < 0x20) return Handle<String>::null();
       running_hash = StringHasher::AddCharacterCore(running_hash, c0);
