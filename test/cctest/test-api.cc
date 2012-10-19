@@ -2414,20 +2414,19 @@ THREADED_TEST(ScriptException) {
 bool message_received;
 
 
-static void check_message(v8::Handle<v8::Message> message,
-                          v8::Handle<Value> data) {
-  CHECK_EQ(5.76, data->NumberValue());
+static void check_message_0(v8::Handle<v8::Message> message,
+                            v8::Handle<Value> data) {
   CHECK_EQ(6.75, message->GetScriptResourceName()->NumberValue());
   CHECK_EQ(7.56, message->GetScriptData()->NumberValue());
   message_received = true;
 }
 
 
-THREADED_TEST(MessageHandlerData) {
+THREADED_TEST(MessageHandler0) {
   message_received = false;
   v8::HandleScope scope;
   CHECK(!message_received);
-  v8::V8::AddMessageListener(check_message, v8_num(5.76));
+  v8::V8::AddMessageListener(check_message_0);
   LocalContext context;
   v8::ScriptOrigin origin =
       v8::ScriptOrigin(v8_str("6.75"));
@@ -2437,7 +2436,56 @@ THREADED_TEST(MessageHandlerData) {
   script->Run();
   CHECK(message_received);
   // clear out the message listener
-  v8::V8::RemoveMessageListeners(check_message);
+  v8::V8::RemoveMessageListeners(check_message_0);
+}
+
+
+static void check_message_1(v8::Handle<v8::Message> message,
+                            v8::Handle<Value> data) {
+  CHECK(data->IsNumber());
+  CHECK_EQ(1337, data->Int32Value());
+  message_received = true;
+}
+
+
+TEST(MessageHandler1) {
+  message_received = false;
+  v8::HandleScope scope;
+  CHECK(!message_received);
+  v8::V8::AddMessageListener(check_message_1);
+  LocalContext context;
+  CompileRun("throw 1337;");
+  CHECK(message_received);
+  // clear out the message listener
+  v8::V8::RemoveMessageListeners(check_message_1);
+}
+
+
+static void check_message_2(v8::Handle<v8::Message> message,
+                            v8::Handle<Value> data) {
+  LocalContext context;
+  CHECK(data->IsObject());
+  v8::Local<v8::Value> hidden_property =
+      v8::Object::Cast(*data)->GetHiddenValue(v8_str("hidden key"));
+  CHECK(v8_str("hidden value")->Equals(hidden_property));
+  message_received = true;
+}
+
+
+TEST(MessageHandler2) {
+  message_received = false;
+  v8::HandleScope scope;
+  CHECK(!message_received);
+  v8::V8::AddMessageListener(check_message_2);
+  LocalContext context;
+  v8::Local<v8::Value> error = v8::Exception::Error(v8_str("custom error"));
+  v8::Object::Cast(*error)->SetHiddenValue(v8_str("hidden key"),
+                                           v8_str("hidden value"));
+  context->Global()->Set(v8_str("error"), error);
+  CompileRun("throw error;");
+  CHECK(message_received);
+  // clear out the message listener
+  v8::V8::RemoveMessageListeners(check_message_2);
 }
 
 
@@ -3078,7 +3126,7 @@ TEST(APIThrowMessageOverwrittenToString) {
              "Number.prototype.toString = function() { return 'Whoops'; };"
              "ReferenceError.prototype.toString = Object.prototype.toString;");
   CompileRun("asdf;");
-  v8::V8::RemoveMessageListeners(check_message);
+  v8::V8::RemoveMessageListeners(check_reference_error_message);
 }
 
 
@@ -3125,7 +3173,7 @@ TEST(APIThrowMessage) {
   LocalContext context(0, templ);
   CompileRun("ThrowFromC();");
   CHECK(message_received);
-  v8::V8::RemoveMessageListeners(check_message);
+  v8::V8::RemoveMessageListeners(receive_message);
 }
 
 
@@ -3143,7 +3191,7 @@ TEST(APIThrowMessageAndVerboseTryCatch) {
   CHECK(try_catch.HasCaught());
   CHECK(result.IsEmpty());
   CHECK(message_received);
-  v8::V8::RemoveMessageListeners(check_message);
+  v8::V8::RemoveMessageListeners(receive_message);
 }
 
 
@@ -5108,7 +5156,6 @@ TEST(RegexpOutOfMemory) {
 
 static void MissingScriptInfoMessageListener(v8::Handle<v8::Message> message,
                                              v8::Handle<Value> data) {
-  CHECK_EQ(v8::Undefined(), data);
   CHECK(message->GetScriptResourceName()->IsUndefined());
   CHECK_EQ(v8::Undefined(), message->GetScriptResourceName());
   message->GetLineNumber();

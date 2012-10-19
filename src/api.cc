@@ -5255,19 +5255,14 @@ void V8::IgnoreOutOfMemoryException() {
 }
 
 
-bool V8::AddMessageListener(MessageCallback that, Handle<Value> data) {
+bool V8::AddMessageListener(MessageCallback that) {
   i::Isolate* isolate = i::Isolate::Current();
   EnsureInitializedForIsolate(isolate, "v8::V8::AddMessageListener()");
   ON_BAILOUT(isolate, "v8::V8::AddMessageListener()", return false);
   ENTER_V8(isolate);
   i::HandleScope scope(isolate);
   NeanderArray listeners(isolate->factory()->message_listeners());
-  NeanderObject obj(2);
-  obj.set(0, *isolate->factory()->NewForeign(FUNCTION_ADDR(that)));
-  obj.set(1, data.IsEmpty() ?
-             isolate->heap()->undefined_value() :
-             *Utils::OpenHandle(*data));
-  listeners.add(obj.value());
+  listeners.add(isolate->factory()->NewForeign(FUNCTION_ADDR(that)));
   return true;
 }
 
@@ -5282,8 +5277,7 @@ void V8::RemoveMessageListeners(MessageCallback that) {
   for (int i = 0; i < listeners.length(); i++) {
     if (listeners.get(i)->IsUndefined()) continue;  // skip deleted ones
 
-    NeanderObject listener(i::JSObject::cast(listeners.get(i)));
-    i::Handle<i::Foreign> callback_obj(i::Foreign::cast(listener.get(0)));
+    i::Handle<i::Foreign> callback_obj(i::Foreign::cast(listeners.get(i)));
     if (callback_obj->foreign_address() == FUNCTION_ADDR(that)) {
       listeners.set(i, isolate->heap()->undefined_value());
     }
