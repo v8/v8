@@ -131,6 +131,7 @@ def CheckedUnlink(name):
 
 
 def Execute(args, verbose=False, timeout=None):
+  args = [ c for c in args if c != "" ]
   (fd_out, outname) = tempfile.mkstemp()
   (fd_err, errname) = tempfile.mkstemp()
   try:

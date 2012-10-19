@@ -60,6 +60,13 @@ MODE_FLAGS = {
                  "--enable-slow-asserts", "--debug-code", "--verify-heap"],
     "release" : ["--nobreak-on-abort", "--nodead-code-elimination"]}
 
+SUPPORTED_ARCHS = ["android_arm",
+                   "android_ia32",
+                   "arm",
+                   "ia32",
+                   "mipsel",
+                   "x64"]
+
 
 def BuildOptions():
   result = optparse.OptionParser()
@@ -150,7 +157,7 @@ def ProcessOptions(options):
     options.arch = ARCH_GUESS
   options.arch = options.arch.split(",")
   for arch in options.arch:
-    if not arch in ['ia32', 'x64', 'arm', 'mipsel']:
+    if not arch in SUPPORTED_ARCHS:
       print "Unknown architecture %s" % arch
       return False
 

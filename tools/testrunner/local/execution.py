@@ -168,11 +168,10 @@ class Runner(object):
     if utils.IsWindows():
       shell += ".exe"
     cmd = ([self.context.command_prefix] +
-           [os.path.join(self.context.shell_dir, shell)] +
+           [os.path.abspath(os.path.join(self.context.shell_dir, shell))] +
            d8testflag +
            test.suite.GetFlagsForTestCase(test, self.context) +
            [self.context.extra_flags])
-    cmd = [ c for c in cmd if c != "" ]
     return cmd
 
 
