@@ -343,6 +343,7 @@ Handle<Object> JsonParser<seq_ascii>::ParseJsonObject() {
           } else {
             JSObject::SetLocalPropertyIgnoreAttributes(
                 json_object, key, value, NONE);
+            current_index = json_object->NumberOfLocalProperties();
           }
         }
       }
