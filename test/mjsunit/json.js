@@ -268,10 +268,13 @@ assertEquals('"toJSON 123"',
              JSON.stringify({ toJSON : function() { return 'toJSON 123'; } }));
 assertEquals('{"a":321}',
              JSON.stringify({ a : { toJSON : function() { return 321; } } }));
+var counter = 0;
 assertEquals('{"getter":123}',
-             JSON.stringify({ get getter() { return 123; } }));
+             JSON.stringify({ get getter() { counter++; return 123; } }));
+assertEquals(1, counter);
 assertEquals('{"a":"abc","b":"\u1234bc"}',
              JSON.stringify({ a : "abc", b : "\u1234bc" }));
+
 
 var a = { a : 1, b : 2 };
 delete a.a;

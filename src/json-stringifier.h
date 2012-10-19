@@ -42,7 +42,9 @@ class BasicJsonStringifier BASE_EMBEDDED {
   MaybeObject* Stringify(Handle<Object> object);
 
  private:
-  static const int kPartLength = 8 * 1024;
+  static const int kInitialPartLength = 32;
+  static const int kMaxPartLength = 16 * 1024;
+  static const int kPartLengthGrowthFactor = 2;
   static const int kStackLimit = 8 * 1024;
 
   enum Result { UNCHANGED, SUCCESS, BAILOUT, CIRCULAR, STACK_OVERFLOW };
@@ -130,12 +132,23 @@ class BasicJsonStringifier BASE_EMBEDDED {
   INLINE(Result StackPush(Handle<Object> object));
   INLINE(void StackPop());
 
+  INLINE(Handle<String> accumulator()) {
+    return Handle<String>(String::cast(accumulator_store_->value()));
+  }
+
+  INLINE(void set_accumulator(Handle<String> string)) {
+    return accumulator_store_->set_value(*string);
+  }
+
   Isolate* isolate_;
-  Handle<String> accumulator_;
+  // We use a value wrapper for the string accumulator to keep the
+  // (indirect) handle to it in the outermost handle scope.
+  Handle<JSValue> accumulator_store_;
   Handle<String> current_part_;
   Handle<String> tojson_symbol_;
   Handle<JSArray> stack_;
   int current_index_;
+  int part_length_;
   bool is_ascii_;
 
   static const int kJsonQuotesCharactersPerEntry = 8;
@@ -180,9 +193,11 @@ const char* const BasicJsonStringifier::JsonQuotes =
 
 BasicJsonStringifier::BasicJsonStringifier(Isolate* isolate)
     : isolate_(isolate), current_index_(0), is_ascii_(true) {
-  accumulator_ = isolate_->factory()->empty_string();
+  accumulator_store_ = Handle<JSValue>::cast(
+      isolate_->factory()->ToObject(isolate_->factory()->empty_string()));
+  part_length_ = kInitialPartLength;
   current_part_ =
-      isolate_->factory()->NewRawAsciiString(kPartLength);
+      isolate_->factory()->NewRawAsciiString(kInitialPartLength);
   tojson_symbol_ = isolate_->factory()->LookupAsciiSymbol("toJSON");
   stack_ = isolate_->factory()->NewJSArray(8);
 }
@@ -192,7 +207,7 @@ MaybeObject* BasicJsonStringifier::Stringify(Handle<Object> object) {
   switch (Serialize(object)) {
     case SUCCESS:
       ShrinkCurrentPart();
-      return *isolate_->factory()->NewConsString(accumulator_, current_part_);
+      return *isolate_->factory()->NewConsString(accumulator(), current_part_);
     case UNCHANGED:
       return isolate_->heap()->undefined_value();
     case CIRCULAR:
@@ -215,7 +230,7 @@ void BasicJsonStringifier::Append_(Char c) {
     SeqTwoByteString::cast(*current_part_)->SeqTwoByteStringSet(
         current_index_++, c);
   }
-  if (current_index_ == kPartLength) Extend<is_ascii>();
+  if (current_index_ == part_length_) Extend<is_ascii>();
 }
 
 
@@ -228,7 +243,7 @@ void BasicJsonStringifier::AppendUnchecked_(Char c) {
     SeqTwoByteString::cast(*current_part_)->SeqTwoByteStringSet(
         current_index_++, c);
   }
-  ASSERT(current_index_ < kPartLength);
+  ASSERT(current_index_ < part_length_);
 }
 
 
@@ -403,6 +418,7 @@ BasicJsonStringifier::Result BasicJsonStringifier::SerializeDouble(
 
 BasicJsonStringifier::Result BasicJsonStringifier::SerializeArray(
     Handle<JSArray> object) {
+  HandleScope handle_scope(isolate_);
   if (StackPush(object) == CIRCULAR) return CIRCULAR;
   int length = Smi::cast(object->length())->value();
   Append('[');
@@ -460,12 +476,14 @@ BasicJsonStringifier::Result BasicJsonStringifier::SerializeArray(
   }
   Append(']');
   StackPop();
+  current_part_ = handle_scope.CloseAndEscape(current_part_);
   return SUCCESS;
 }
 
 
 BasicJsonStringifier::Result BasicJsonStringifier::SerializeObject(
     Handle<JSObject> object) {
+  HandleScope handle_scope(isolate_);
   Result stack_push = StackPush(object);
   if (stack_push != SUCCESS) return stack_push;
   if (object->IsJSGlobalProxy()) return BAILOUT;
@@ -502,12 +520,13 @@ BasicJsonStringifier::Result BasicJsonStringifier::SerializeObject(
   }
   Append('}');
   StackPop();
+  current_part_ = handle_scope.CloseAndEscape(current_part_);
   return SUCCESS;
 }
 
 
 void BasicJsonStringifier::ShrinkCurrentPart() {
-  ASSERT(current_index_ < kPartLength);
+  ASSERT(current_index_ < part_length_);
   if (current_index_ == 0) {
     current_part_ = isolate_->factory()->empty_string();
     return;
@@ -515,10 +534,10 @@ void BasicJsonStringifier::ShrinkCurrentPart() {
 
   int string_size, allocated_string_size;
   if (is_ascii_) {
-    allocated_string_size = SeqAsciiString::SizeFor(kPartLength);
+    allocated_string_size = SeqAsciiString::SizeFor(part_length_);
     string_size = SeqAsciiString::SizeFor(current_index_);
   } else {
-    allocated_string_size = SeqTwoByteString::SizeFor(kPartLength);
+    allocated_string_size = SeqTwoByteString::SizeFor(part_length_);
     string_size = SeqTwoByteString::SizeFor(current_index_);
   }
 
@@ -538,14 +557,17 @@ void BasicJsonStringifier::ShrinkCurrentPart() {
 
 template <bool is_ascii>
 void BasicJsonStringifier::Extend() {
-  accumulator_ =
-      isolate_->factory()->NewConsString(accumulator_, current_part_);
+  set_accumulator(
+      isolate_->factory()->NewConsString(accumulator(), current_part_));
+  if (part_length_ <= kMaxPartLength / kPartLengthGrowthFactor) {
+    part_length_ *= kPartLengthGrowthFactor;
+  }
   if (is_ascii) {
     current_part_ =
-        isolate_->factory()->NewRawAsciiString(kPartLength);
+        isolate_->factory()->NewRawAsciiString(part_length_);
   } else {
     current_part_ =
-        isolate_->factory()->NewRawTwoByteString(kPartLength);
+        isolate_->factory()->NewRawTwoByteString(part_length_);
   }
   current_index_ = 0;
 }
@@ -553,10 +575,10 @@ void BasicJsonStringifier::Extend() {
 
 void BasicJsonStringifier::ChangeEncoding() {
   ShrinkCurrentPart();
-  accumulator_ = isolate_->factory()->NewConsString(accumulator_,
-                                                    current_part_);
+  set_accumulator(
+      isolate_->factory()->NewConsString(accumulator(), current_part_));
   current_part_ =
-      isolate_->factory()->NewRawTwoByteString(kPartLength);
+      isolate_->factory()->NewRawTwoByteString(part_length_);
   current_index_ = 0;
   is_ascii_ = false;
 }
@@ -565,7 +587,7 @@ void BasicJsonStringifier::ChangeEncoding() {
 template <bool is_ascii, typename Char>
 void BasicJsonStringifier::SerializeString_(Vector<const Char> vector) {
   int length = vector.length();
-  if (current_index_ + (length << 3) < (kPartLength - 2)) {
+  if (current_index_ + (length << 3) < (part_length_ - 2)) {
     AppendUnchecked_<is_ascii, char>('"');
     for (int i = 0; i < length; i++) {
       Char c = vector[i];
