@@ -1626,6 +1626,8 @@ class JSObject: public JSReceiver {
   static inline bool TryTransitionToField(Handle<JSObject> object,
                                           Handle<String> key);
 
+  inline int LastAddedFieldIndex();
+
   // Extend the receiver with a single fast property appeared first in the
   // passed map. This also extends the property backing store if necessary.
   static void AddFastPropertyUsingMap(Handle<JSObject> object, Handle<Map> map);
