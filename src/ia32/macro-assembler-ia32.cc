@@ -129,14 +129,22 @@ void MacroAssembler::ClampDoubleToUint8(XMMRegister input_reg,
                                         XMMRegister scratch_reg,
                                         Register result_reg) {
   Label done;
-  ExternalReference zero_ref = ExternalReference::address_of_zero();
-  movdbl(scratch_reg, Operand::StaticVariable(zero_ref));
-  Set(result_reg, Immediate(0));
-  ucomisd(input_reg, scratch_reg);
-  j(below, &done, Label::kNear);
+  Label conv_failure;
+  pxor(scratch_reg, scratch_reg);
   cvtsd2si(result_reg, input_reg);
   test(result_reg, Immediate(0xFFFFFF00));
   j(zero, &done, Label::kNear);
+  cmp(result_reg, Immediate(0x80000000));
+  j(equal, &conv_failure, Label::kNear);
+  mov(result_reg, Immediate(0));
+  setcc(above, result_reg);
+  sub(result_reg, Immediate(1));
+  and_(result_reg, Immediate(255));
+  jmp(&done, Label::kNear);
+  bind(&conv_failure);
+  Set(result_reg, Immediate(0));
+  ucomisd(input_reg, scratch_reg);
+  j(below, &done, Label::kNear);
   Set(result_reg, Immediate(255));
   bind(&done);
 }

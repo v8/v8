@@ -2138,15 +2138,13 @@ class LCheckSmi: public LTemplateInstruction<0, 1, 0> {
 };
 
 
-class LClampDToUint8: public LTemplateInstruction<1, 1, 1> {
+class LClampDToUint8: public LTemplateInstruction<1, 1, 0> {
  public:
-  LClampDToUint8(LOperand* unclamped, LOperand* temp) {
+  explicit LClampDToUint8(LOperand* unclamped) {
     inputs_[0] = unclamped;
-    temps_[0] = temp;
   }
 
   LOperand* unclamped() { return inputs_[0]; }
-  LOperand* temp() { return temps_[0]; }
 
   DECLARE_CONCRETE_INSTRUCTION(ClampDToUint8, "clamp-d-to-uint8")
 };
@@ -2164,19 +2162,16 @@ class LClampIToUint8: public LTemplateInstruction<1, 1, 0> {
 };
 
 
-class LClampTToUint8: public LTemplateInstruction<1, 1, 2> {
+class LClampTToUint8: public LTemplateInstruction<1, 1, 1> {
  public:
   LClampTToUint8(LOperand* unclamped,
-                 LOperand* temp,
-                 LOperand* temp2) {
+                 LOperand* temp_xmm) {
     inputs_[0] = unclamped;
-    temps_[0] = temp;
-    temps_[1] = temp2;
+    temps_[0] = temp_xmm;
   }
 
   LOperand* unclamped() { return inputs_[0]; }
-  LOperand* temp() { return temps_[0]; }
-  LOperand* temp2() { return temps_[1]; }
+  LOperand* temp_xmm() { return temps_[0]; }
 
   DECLARE_CONCRETE_INSTRUCTION(ClampTToUint8, "clamp-t-to-uint8")
 };

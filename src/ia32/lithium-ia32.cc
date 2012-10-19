@@ -1779,7 +1779,7 @@ LInstruction* LChunkBuilder::DoClampToUint8(HClampToUint8* instr) {
   Representation input_rep = value->representation();
   if (input_rep.IsDouble()) {
     LOperand* reg = UseRegister(value);
-    return DefineAsRegister(new(zone()) LClampDToUint8(reg));
+    return DefineFixed(new(zone()) LClampDToUint8(reg), eax);
   } else if (input_rep.IsInteger32()) {
     LOperand* reg = UseFixed(value, eax);
     return DefineFixed(new(zone()) LClampIToUint8(reg), eax);

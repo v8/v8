@@ -2868,16 +2868,24 @@ void MacroAssembler::ClampUint8(Register reg) {
 
 void MacroAssembler::ClampDoubleToUint8(XMMRegister input_reg,
                                         XMMRegister temp_xmm_reg,
-                                        Register result_reg,
-                                        Register temp_reg) {
+                                        Register result_reg) {
   Label done;
-  Set(result_reg, 0);
+  Label conv_failure;
   xorps(temp_xmm_reg, temp_xmm_reg);
-  ucomisd(input_reg, temp_xmm_reg);
-  j(below, &done, Label::kNear);
   cvtsd2si(result_reg, input_reg);
   testl(result_reg, Immediate(0xFFFFFF00));
   j(zero, &done, Label::kNear);
+  cmpl(result_reg, Immediate(0x80000000));
+  j(equal, &conv_failure, Label::kNear);
+  movl(result_reg, Immediate(0));
+  setcc(above, result_reg);
+  subl(result_reg, Immediate(1));
+  andl(result_reg, Immediate(255));
+  jmp(&done, Label::kNear);
+  bind(&conv_failure);
+  Set(result_reg, 0);
+  ucomisd(input_reg, temp_xmm_reg);
+  j(below, &done, Label::kNear);
   Set(result_reg, 255);
   bind(&done);
 }
