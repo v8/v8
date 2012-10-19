@@ -5302,8 +5302,7 @@ void MacroAssembler::EnsureNotWhite(
 
 
 void MacroAssembler::LoadInstanceDescriptors(Register map,
-                                             Register descriptors,
-                                             Register scratch) {
+                                             Register descriptors) {
   lw(descriptors, FieldMemOperand(map, Map::kDescriptorsOffset));
 }
 

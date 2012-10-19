@@ -3752,8 +3752,7 @@ void MacroAssembler::ClampDoubleToUint8(Register result_reg,
 
 
 void MacroAssembler::LoadInstanceDescriptors(Register map,
-                                             Register descriptors,
-                                             Register scratch) {
+                                             Register descriptors) {
   ldr(descriptors, FieldMemOperand(map, Map::kDescriptorsOffset));
 }
 

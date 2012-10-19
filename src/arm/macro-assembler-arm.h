@@ -1289,9 +1289,7 @@ class MacroAssembler: public Assembler {
                           DoubleRegister temp_double_reg);
 
 
-  void LoadInstanceDescriptors(Register map,
-                               Register descriptors,
-                               Register scratch);
+  void LoadInstanceDescriptors(Register map, Register descriptors);
   void EnumLength(Register dst, Register map);
   void NumberOfOwnDescriptors(Register dst, Register map);
 

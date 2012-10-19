@@ -2234,9 +2234,7 @@ LInstruction* LChunkBuilder::DoForInPrepareMap(HForInPrepareMap* instr) {
 
 LInstruction* LChunkBuilder::DoForInCacheArray(HForInCacheArray* instr) {
   LOperand* map = UseRegister(instr->map());
-  LOperand* scratch = TempRegister();
-  return AssignEnvironment(DefineAsRegister(
-      new(zone()) LForInCacheArray(map, scratch)));
+  return AssignEnvironment(DefineAsRegister(new(zone()) LForInCacheArray(map)));
 }
 
 

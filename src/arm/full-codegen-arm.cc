@@ -1140,7 +1140,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ cmp(r1, Operand(Smi::FromInt(0)));
   __ b(eq, &no_descriptors);
 
-  __ LoadInstanceDescriptors(r0, r2, r4);
+  __ LoadInstanceDescriptors(r0, r2);
   __ ldr(r2, FieldMemOperand(r2, DescriptorArray::kEnumCacheOffset));
   __ ldr(r2, FieldMemOperand(r2, DescriptorArray::kEnumCacheBridgeCacheOffset));
 
@@ -2688,7 +2688,7 @@ void FullCodeGenerator::EmitIsStringWrapperSafeForDefaultValueOf(
   __ cmp(r3, Operand(0));
   __ b(eq, &done);
 
-  __ LoadInstanceDescriptors(r1, r4, r2);
+  __ LoadInstanceDescriptors(r1, r4);
   // r4: descriptor array.
   // r3: valid entries in the descriptor array.
   STATIC_ASSERT(kSmiTag == 0);
