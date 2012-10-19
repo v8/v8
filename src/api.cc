@@ -5228,24 +5228,39 @@ Local<Number> v8::Number::New(double value) {
 Local<Integer> v8::Integer::New(int32_t value) {
   i::Isolate* isolate = i::Isolate::UncheckedCurrent();
   EnsureInitializedForIsolate(isolate, "v8::Integer::New()");
-  if (i::Smi::IsValid(value)) {
-    return Utils::IntegerToLocal(i::Handle<i::Object>(i::Smi::FromInt(value),
-                                                      isolate));
-  }
-  ENTER_V8(isolate);
-  i::Handle<i::Object> result = isolate->factory()->NewNumber(value);
-  return Utils::IntegerToLocal(result);
+  return v8::Integer::New(value, reinterpret_cast<Isolate*>(isolate));
 }
 
 
 Local<Integer> Integer::NewFromUnsigned(uint32_t value) {
+  i::Isolate* isolate = i::Isolate::Current();
+  EnsureInitializedForIsolate(isolate, "v8::Integer::NewFromUnsigned()");
+  return Integer::NewFromUnsigned(value, reinterpret_cast<Isolate*>(isolate));
+}
+
+
+Local<Integer> v8::Integer::New(int32_t value, Isolate* isolate) {
+  i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  ASSERT(internal_isolate->IsInitialized());
+  if (i::Smi::IsValid(value)) {
+    return Utils::IntegerToLocal(i::Handle<i::Object>(i::Smi::FromInt(value),
+                                                      internal_isolate));
+  }
+  ENTER_V8(internal_isolate);
+  i::Handle<i::Object> result = internal_isolate->factory()->NewNumber(value);
+  return Utils::IntegerToLocal(result);
+}
+
+
+Local<Integer> v8::Integer::NewFromUnsigned(uint32_t value, Isolate* isolate) {
+  i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  ASSERT(internal_isolate->IsInitialized());
   bool fits_into_int32_t = (value & (1 << 31)) == 0;
   if (fits_into_int32_t) {
-    return Integer::New(static_cast<int32_t>(value));
+    return Integer::New(static_cast<int32_t>(value), isolate);
   }
-  i::Isolate* isolate = i::Isolate::Current();
-  ENTER_V8(isolate);
-  i::Handle<i::Object> result = isolate->factory()->NewNumber(value);
+  ENTER_V8(internal_isolate);
+  i::Handle<i::Object> result = internal_isolate->factory()->NewNumber(value);
   return Utils::IntegerToLocal(result);
 }
 

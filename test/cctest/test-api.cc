@@ -969,8 +969,13 @@ THREADED_TEST(FindInstanceInPrototypeChain) {
 THREADED_TEST(TinyInteger) {
   v8::HandleScope scope;
   LocalContext env;
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+
   int32_t value = 239;
   Local<v8::Integer> value_obj = v8::Integer::New(value);
+  CHECK_EQ(static_cast<int64_t>(value), value_obj->Value());
+
+  value_obj = v8::Integer::New(value, isolate);
   CHECK_EQ(static_cast<int64_t>(value), value_obj->Value());
 }
 
@@ -978,12 +983,18 @@ THREADED_TEST(TinyInteger) {
 THREADED_TEST(BigSmiInteger) {
   v8::HandleScope scope;
   LocalContext env;
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+
   int32_t value = i::Smi::kMaxValue;
   // We cannot add one to a Smi::kMaxValue without wrapping.
   if (i::kSmiValueSize < 32) {
     CHECK(i::Smi::IsValid(value));
     CHECK(!i::Smi::IsValid(value + 1));
+
     Local<v8::Integer> value_obj = v8::Integer::New(value);
+    CHECK_EQ(static_cast<int64_t>(value), value_obj->Value());
+
+    value_obj = v8::Integer::New(value, isolate);
     CHECK_EQ(static_cast<int64_t>(value), value_obj->Value());
   }
 }
@@ -992,6 +1003,8 @@ THREADED_TEST(BigSmiInteger) {
 THREADED_TEST(BigInteger) {
   v8::HandleScope scope;
   LocalContext env;
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+
   // We cannot add one to a Smi::kMaxValue without wrapping.
   if (i::kSmiValueSize < 32) {
     // The casts allow this to compile, even if Smi::kMaxValue is 2^31-1.
@@ -1000,7 +1013,11 @@ THREADED_TEST(BigInteger) {
         static_cast<int32_t>(static_cast<uint32_t>(i::Smi::kMaxValue) + 1);
     CHECK(value > i::Smi::kMaxValue);
     CHECK(!i::Smi::IsValid(value));
+
     Local<v8::Integer> value_obj = v8::Integer::New(value);
+    CHECK_EQ(static_cast<int64_t>(value), value_obj->Value());
+
+    value_obj = v8::Integer::New(value, isolate);
     CHECK_EQ(static_cast<int64_t>(value), value_obj->Value());
   }
 }
@@ -1009,8 +1026,14 @@ THREADED_TEST(BigInteger) {
 THREADED_TEST(TinyUnsignedInteger) {
   v8::HandleScope scope;
   LocalContext env;
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+
   uint32_t value = 239;
+
   Local<v8::Integer> value_obj = v8::Integer::NewFromUnsigned(value);
+  CHECK_EQ(static_cast<int64_t>(value), value_obj->Value());
+
+  value_obj = v8::Integer::NewFromUnsigned(value, isolate);
   CHECK_EQ(static_cast<int64_t>(value), value_obj->Value());
 }
 
@@ -1018,10 +1041,16 @@ THREADED_TEST(TinyUnsignedInteger) {
 THREADED_TEST(BigUnsignedSmiInteger) {
   v8::HandleScope scope;
   LocalContext env;
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+
   uint32_t value = static_cast<uint32_t>(i::Smi::kMaxValue);
   CHECK(i::Smi::IsValid(value));
   CHECK(!i::Smi::IsValid(value + 1));
+
   Local<v8::Integer> value_obj = v8::Integer::NewFromUnsigned(value);
+  CHECK_EQ(static_cast<int64_t>(value), value_obj->Value());
+
+  value_obj = v8::Integer::NewFromUnsigned(value, isolate);
   CHECK_EQ(static_cast<int64_t>(value), value_obj->Value());
 }
 
@@ -1029,10 +1058,16 @@ THREADED_TEST(BigUnsignedSmiInteger) {
 THREADED_TEST(BigUnsignedInteger) {
   v8::HandleScope scope;
   LocalContext env;
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+
   uint32_t value = static_cast<uint32_t>(i::Smi::kMaxValue) + 1;
   CHECK(value > static_cast<uint32_t>(i::Smi::kMaxValue));
   CHECK(!i::Smi::IsValid(value));
+
   Local<v8::Integer> value_obj = v8::Integer::NewFromUnsigned(value);
+  CHECK_EQ(static_cast<int64_t>(value), value_obj->Value());
+
+  value_obj = v8::Integer::NewFromUnsigned(value, isolate);
   CHECK_EQ(static_cast<int64_t>(value), value_obj->Value());
 }
 
@@ -1040,10 +1075,16 @@ THREADED_TEST(BigUnsignedInteger) {
 THREADED_TEST(OutOfSignedRangeUnsignedInteger) {
   v8::HandleScope scope;
   LocalContext env;
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+
   uint32_t INT32_MAX_AS_UINT = (1U << 31) - 1;
   uint32_t value = INT32_MAX_AS_UINT + 1;
   CHECK(value > INT32_MAX_AS_UINT);  // No overflow.
+
   Local<v8::Integer> value_obj = v8::Integer::NewFromUnsigned(value);
+  CHECK_EQ(static_cast<int64_t>(value), value_obj->Value());
+
+  value_obj = v8::Integer::NewFromUnsigned(value, isolate);
   CHECK_EQ(static_cast<int64_t>(value), value_obj->Value());
 }
 

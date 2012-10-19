@@ -1389,6 +1389,8 @@ class Integer : public Number {
  public:
   V8EXPORT static Local<Integer> New(int32_t value);
   V8EXPORT static Local<Integer> NewFromUnsigned(uint32_t value);
+  V8EXPORT static Local<Integer> New(int32_t value, Isolate*);
+  V8EXPORT static Local<Integer> NewFromUnsigned(uint32_t value, Isolate*);
   V8EXPORT int64_t Value() const;
   static inline Integer* Cast(v8::Value* obj);
  private:
