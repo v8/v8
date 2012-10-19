@@ -900,13 +900,17 @@ void Assembler::addrmod1(Instr instr,
       if ((instr & ~kCondMask) == 13*B21) {  // mov, S not set
         move_32_bit_immediate(cond, rd, LeaveCC, x);
       } else {
-        // If this is not a mov or mvn instruction we may still be able to avoid
-        // a constant pool entry by using mvn or movw.
-        if (!x.must_output_reloc_info(this) &&
-            (instr & kMovMvnMask) != kMovMvnPattern) {
-          mov(ip, x, LeaveCC, cond);
-        } else {
+        if ((instr & kMovMvnMask) == kMovMvnPattern) {
+          // Moves need to use a constant pool entry.
+          RecordRelocInfo(x.rmode_, x.imm32_, USE_CONSTANT_POOL);
+          ldr(ip, MemOperand(pc, 0), cond);
+        } else if (x.must_output_reloc_info(this)) {
+          // Otherwise, use most efficient form of fetching from constant pool.
           move_32_bit_immediate(cond, ip, LeaveCC, x);
+        } else {
+          // If this is not a mov or mvn instruction we may still be able to
+          // avoid a constant pool entry by using mvn or movw.
+          mov(ip, x, LeaveCC, cond);
         }
         addrmod1(instr, rn, rd, Operand(ip));
       }
