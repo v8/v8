@@ -46,6 +46,7 @@
 #include "isolate-inl.h"
 #include "jsregexp.h"
 #include "json-parser.h"
+#include "json-stringifier.h"
 #include "liveedit.h"
 #include "liveobjectlist-inl.h"
 #include "misc-intrinsics.h"
@@ -5757,6 +5758,14 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_QuoteJSONStringArray) {
                                                         elements,
                                                         worst_case_length);
   }
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_BasicJSONStringify) {
+  ASSERT(args.length() == 1);
+  HandleScope scope(isolate);
+  BasicJsonStringifier stringifier(isolate);
+  return stringifier.Stringify(Handle<Object>(args[0]));
 }
 
 
