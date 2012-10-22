@@ -104,19 +104,7 @@ void Deoptimizer::DeoptimizeFunction(JSFunction* function) {
   // ignore all slots that might have been recorded on it.
   isolate->heap()->mark_compact_collector()->InvalidateCode(code);
 
-  // Iterate over all the functions which share the same code object
-  // and make them use unoptimized version.
-  Context* context = function->context()->native_context();
-  Object* element = context->get(Context::OPTIMIZED_FUNCTIONS_LIST);
-  SharedFunctionInfo* shared = function->shared();
-  while (!element->IsUndefined()) {
-    JSFunction* func = JSFunction::cast(element);
-    // Grab element before code replacement as ReplaceCode alters the list.
-    element = func->next_function_link();
-    if (func->code() == code) {
-      func->ReplaceCode(shared->code());
-    }
-  }
+  ReplaceCodeForRelatedFunctions(function, code);
 
   if (FLAG_trace_deopt) {
     PrintF("[forced deoptimization: ");

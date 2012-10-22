@@ -1443,6 +1443,54 @@ void Deoptimizer::RemoveDeoptimizingCode(Code* code) {
 }
 
 
+static Object* CutOutRelatedFunctionsList(Context* context,
+                                          Code* code,
+                                          Object* undefined) {
+  Object* result_list_head = undefined;
+  Object* head;
+  Object* current;
+  current = head = context->get(Context::OPTIMIZED_FUNCTIONS_LIST);
+  JSFunction* prev = NULL;
+  while (current != undefined) {
+    JSFunction* func = JSFunction::cast(current);
+    current = func->next_function_link();
+    if (func->code() == code) {
+      func->set_next_function_link(result_list_head);
+      result_list_head = func;
+      if (prev) {
+        prev->set_next_function_link(current);
+      } else {
+        head = current;
+      }
+    } else {
+      prev = func;
+    }
+  }
+  if (head != context->get(Context::OPTIMIZED_FUNCTIONS_LIST)) {
+    context->set(Context::OPTIMIZED_FUNCTIONS_LIST, head);
+  }
+  return result_list_head;
+}
+
+
+void Deoptimizer::ReplaceCodeForRelatedFunctions(JSFunction* function,
+                                                 Code* code) {
+  Context* context = function->context()->native_context();
+
+  SharedFunctionInfo* shared = function->shared();
+
+  Object* undefined = Isolate::Current()->heap()->undefined_value();
+  Object* current = CutOutRelatedFunctionsList(context, code, undefined);
+
+  while (current != undefined) {
+    JSFunction* func = JSFunction::cast(current);
+    current = func->next_function_link();
+    func->set_code(shared->code());
+    func->set_next_function_link(undefined);
+  }
+}
+
+
 FrameDescription::FrameDescription(uint32_t frame_size,
                                    JSFunction* function)
     : frame_size_(frame_size),
