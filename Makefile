@@ -83,9 +83,9 @@ ifeq ($(liveobjectlist), on)
 endif
 # vfp3=off
 ifeq ($(vfp3), off)
-  GYPFLAGS += -Dv8_can_use_vfp_instructions=false
+  GYPFLAGS += -Dv8_can_use_vfp3_instructions=false
 else
-  GYPFLAGS += -Dv8_can_use_vfp_instructions=true
+  GYPFLAGS += -Dv8_can_use_vfp3_instructions=true
 endif
 # debuggersupport=off
 ifeq ($(debuggersupport), off)
