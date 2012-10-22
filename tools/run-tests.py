@@ -66,6 +66,11 @@ SUPPORTED_ARCHS = ["android_arm",
                    "ia32",
                    "mipsel",
                    "x64"]
+# Double the timeout for these:
+SLOW_ARCHS = ["android_arm",
+              "android_ia32",
+              "arm",
+              "mipsel"]
 
 
 def BuildOptions():
@@ -268,12 +273,12 @@ def Execute(arch, mode, args, options, suites, workspace):
   timeout = options.timeout
   if timeout == -1:
     # Simulators are slow, therefore allow a longer default timeout.
-    if arch in ["android", "arm", "mipsel"]:
+    if arch in SLOW_ARCHS:
       timeout = 2 * TIMEOUT_DEFAULT;
     else:
       timeout = TIMEOUT_DEFAULT;
 
-  options.timeout *= TIMEOUT_SCALEFACTOR[mode]
+  timeout *= TIMEOUT_SCALEFACTOR[mode]
   ctx = context.Context(arch, mode, shell_dir,
                         mode_flags, options.verbose,
                         timeout, options.isolates,
