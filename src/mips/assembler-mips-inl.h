@@ -156,6 +156,11 @@ void RelocInfo::set_target_address(Address target, WriteBarrierMode mode) {
 }
 
 
+Address Assembler::target_address_from_return_address(Address pc) {
+  return pc - kCallTargetAddressOffset;
+}
+
+
 Object* RelocInfo::target_object() {
   ASSERT(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
   return reinterpret_cast<Object*>(Assembler::target_address_at(pc_));

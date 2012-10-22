@@ -574,6 +574,10 @@ class Assembler : public AssemblerBase {
   static Address target_address_at(Address pc);
   static void set_target_address_at(Address pc, Address target);
 
+  // Return the code target address at a call site from the return address
+  // of that call in the instruction stream.
+  inline static Address target_address_from_return_address(Address pc);
+
   static void JumpLabelToJumpRegister(Address pc);
 
   static void QuietNaN(HeapObject* nan);
@@ -633,6 +637,8 @@ class Assembler : public AssemblerBase {
   // Difference between address of current opcode and value read from pc
   // register.
   static const int kPcLoadDelta = 4;
+
+  static const int kPatchDebugBreakSlotReturnOffset = 4 * kInstrSize;
 
   // Number of instructions used for the JS return sequence. The constant is
   // used by the debugger to patch the JS return sequence.
