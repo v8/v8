@@ -7380,7 +7380,7 @@ class String: public HeapObject {
       kIsNotArrayIndexMask | kHashNotComputedMask;
 
   // Value of hash field containing computed hash equal to zero.
-  static const int kZeroHash = kIsNotArrayIndexMask;
+  static const int kEmptyStringHash = kIsNotArrayIndexMask;
 
   // Maximal string length.
   static const int kMaxLength = (1 << (32 - 2)) - 1;

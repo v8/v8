@@ -4955,7 +4955,7 @@ uint32_t StringHasher::GetHashCore(uint32_t running_hash) {
   running_hash ^= (running_hash >> 11);
   running_hash += (running_hash << 15);
   if ((running_hash & String::kHashBitMask) == 0) {
-    return 27;
+    return kZeroHash;
   }
   return running_hash;
 }
