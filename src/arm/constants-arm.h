@@ -75,10 +75,6 @@
 
 #endif
 
-#if CAN_USE_UNALIGNED_ACCESSES
-#define V8_TARGET_CAN_READ_UNALIGNED 1
-#endif
-
 // Using blx may yield better code, so use it when required or when available
 #if defined(USE_THUMB_INTERWORK) || defined(CAN_USE_ARMV5_INSTRUCTIONS)
 #define USE_BLX 1
@@ -690,6 +686,9 @@ class Instruction {
                                            && (Bit(23) == 0)
                                            && (Bit(20) == 0)
                                            && ((Bit(7) == 0)); }
+
+  // Test for a nop instruction, which falls under type 1.
+  inline bool IsNopType1() const { return Bits(24, 0) == 0x0120F000; }
 
   // Test for a stop instruction.
   inline bool IsStop() const {

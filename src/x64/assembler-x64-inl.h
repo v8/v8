@@ -195,6 +195,12 @@ void Assembler::set_target_address_at(Address pc, Address target) {
   CPU::FlushICache(pc, sizeof(int32_t));
 }
 
+
+Address Assembler::target_address_from_return_address(Address pc) {
+  return pc - kCallTargetAddressOffset;
+}
+
+
 Handle<Object> Assembler::code_target_object_handle_at(Address pc) {
   return code_targets_[Memory::int32_at(pc)];
 }

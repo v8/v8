@@ -166,6 +166,10 @@ class Deoptimizer : public Malloced {
   // execution returns.
   static void DeoptimizeFunction(JSFunction* function);
 
+  // Iterate over all the functions which share the same code object
+  // and make them use unoptimized version.
+  static void ReplaceCodeForRelatedFunctions(JSFunction* function, Code* code);
+
   // Deoptimize all functions in the heap.
   static void DeoptimizeAll();
 

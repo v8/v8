@@ -861,11 +861,13 @@ void MarkCompactCollector::Finish() {
 
 void CodeFlusher::ProcessJSFunctionCandidates() {
   Code* lazy_compile = isolate_->builtins()->builtin(Builtins::kLazyCompile);
+  Object* undefined = isolate_->heap()->undefined_value();
 
   JSFunction* candidate = jsfunction_candidates_head_;
   JSFunction* next_candidate;
   while (candidate != NULL) {
     next_candidate = GetNextCandidate(candidate);
+    ClearNextCandidate(candidate, undefined);
 
     SharedFunctionInfo* shared = candidate->shared();
 
@@ -874,8 +876,8 @@ void CodeFlusher::ProcessJSFunctionCandidates() {
     if (!code_mark.Get()) {
       shared->set_code(lazy_compile);
       candidate->set_code(lazy_compile);
-    } else {
-      candidate->set_code(shared->code());
+    } else if (code == lazy_compile) {
+      candidate->set_code(lazy_compile);
     }
 
     // We are in the middle of a GC cycle so the write barrier in the code
@@ -904,7 +906,7 @@ void CodeFlusher::ProcessSharedFunctionInfoCandidates() {
   SharedFunctionInfo* next_candidate;
   while (candidate != NULL) {
     next_candidate = GetNextCandidate(candidate);
-    SetNextCandidate(candidate, NULL);
+    ClearNextCandidate(candidate);
 
     Code* code = candidate->code();
     MarkBit code_mark = Marking::MarkBitFrom(code);
@@ -2313,15 +2315,23 @@ class PointersUpdatingVisitor: public ObjectVisitor {
   void VisitEmbeddedPointer(RelocInfo* rinfo) {
     ASSERT(rinfo->rmode() == RelocInfo::EMBEDDED_OBJECT);
     Object* target = rinfo->target_object();
+    Object* old_target = target;
     VisitPointer(&target);
-    rinfo->set_target_object(target);
+    // Avoid unnecessary changes that might unnecessary flush the instruction
+    // cache.
+    if (target != old_target) {
+      rinfo->set_target_object(target);
+    }
   }
 
   void VisitCodeTarget(RelocInfo* rinfo) {
     ASSERT(RelocInfo::IsCodeTarget(rinfo->rmode()));
     Object* target = Code::GetCodeFromTargetAddress(rinfo->target_address());
+    Object* old_target = target;
     VisitPointer(&target);
-    rinfo->set_target_address(Code::cast(target)->instruction_start());
+    if (target != old_target) {
+      rinfo->set_target_address(Code::cast(target)->instruction_start());
+    }
   }
 
   void VisitDebugTarget(RelocInfo* rinfo) {

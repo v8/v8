@@ -1734,7 +1734,7 @@ void CompareIC::UpdateCaches(Handle<Object> x, Handle<Object> y) {
 
 void PatchInlinedSmiCode(Address address, InlinedSmiCheck check) {
   Address cmp_instruction_address =
-      address + Assembler::kCallTargetAddressOffset;
+      Assembler::return_address_from_call_start(address);
 
   // If the instruction following the call is not a cmp rx, #yyy, nothing
   // was inlined.

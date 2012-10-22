@@ -357,7 +357,6 @@
           ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="netbsd"', {
             'cflags': [ '-Wall', '<(werror)', '-W', '-Wno-unused-parameter',
                         '-Wnon-virtual-dtor', '-Woverloaded-virtual' ],
-            'defines': ['ENABLE_GDB_JIT_INTERFACE',],
           }],
           ['OS=="android"', {
             'variables': {

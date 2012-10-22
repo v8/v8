@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,55 +25,50 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_CPU_PROFILER_INL_H_
-#define V8_CPU_PROFILER_INL_H_
+// Delete elements of a String object.
+var TIPLI = "tipli"
+var so = new String(TIPLI);
+var length = so.length;
 
-#include "cpu-profiler.h"
-
-#include <new>
-#include "circular-queue-inl.h"
-#include "profile-generator-inl.h"
-#include "unbound-queue-inl.h"
-
-namespace v8 {
-namespace internal {
-
-void CodeCreateEventRecord::UpdateCodeMap(CodeMap* code_map) {
-  code_map->AddCode(start, entry, size);
-  if (shared != NULL) {
-    entry->set_shared_id(code_map->GetSharedId(shared));
-  }
+for (var i = 0; i < length; i++) {
+  assertFalse(delete so[i]);
+  assertThrows("'use strict'; delete so[i];", TypeError);
+  assertFalse(delete so[i.toString()]);
+  assertThrows("'use strict'; delete so[i.toString()];", TypeError);
 }
 
+assertEquals(length, so.length);
+assertEquals(new String(TIPLI), so);
 
-void CodeMoveEventRecord::UpdateCodeMap(CodeMap* code_map) {
-  code_map->MoveCode(from, to);
+// Delete elements of an Array.
+var arr = new Array(length);
+
+for (var i = 0; i < length; i++) {
+  arr[i] = i;
+  Object.defineProperty(arr, i, { configurable: false });
 }
 
-
-void SharedFunctionInfoMoveEventRecord::UpdateCodeMap(CodeMap* code_map) {
-  code_map->MoveCode(from, to);
+for (var i = 0; i < length; i++) {
+  assertFalse(delete arr[i]);
+  assertThrows("'use strict'; delete arr[i];", TypeError);
+  assertFalse(delete arr[i.toString()]);
+  assertThrows("'use strict'; delete arr[i.toString()];", TypeError);
+  assertEquals(i, arr[i]);
 }
 
+assertEquals(length, arr.length);
+assertTrue(delete arr[length]);
 
-TickSample* ProfilerEventsProcessor::TickSampleEvent() {
-  generator_->Tick();
-  TickSampleEventRecord* evt =
-      new(ticks_buffer_.Enqueue()) TickSampleEventRecord(enqueue_order_);
-  return &evt->sample;
-}
+// Delete an element of an Object.
+var INDEX = 28;
+var obj = new Object();
 
+obj[INDEX] = TIPLI;
+Object.defineProperty(obj, INDEX, { configurable: false });
 
-bool ProfilerEventsProcessor::FilterOutCodeCreateEvent(
-    Logger::LogEventsAndTags tag) {
-  return FLAG_prof_browser_mode
-      && (tag != Logger::CALLBACK_TAG
-          && tag != Logger::FUNCTION_TAG
-          && tag != Logger::LAZY_COMPILE_TAG
-          && tag != Logger::REG_EXP_TAG
-          && tag != Logger::SCRIPT_TAG);
-}
-
-} }  // namespace v8::internal
-
-#endif  // V8_CPU_PROFILER_INL_H_
+assertFalse(delete obj[INDEX]);
+assertThrows("'use strict'; delete obj[INDEX];", TypeError);
+assertFalse(delete obj[INDEX.toString()]);
+assertThrows("'use strict'; delete obj[INDEX.toString()];", TypeError);
+assertEquals(TIPLI, obj[INDEX]);
+assertTrue(delete arr[INDEX+1]);

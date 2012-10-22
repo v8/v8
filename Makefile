@@ -30,7 +30,7 @@
 CXX ?= g++
 LINK ?= g++
 OUTDIR ?= out
-TESTJOBS ?= -j16
+TESTJOBS ?=
 GYPFLAGS ?=
 TESTFLAGS ?=
 ANDROID_NDK_ROOT ?=
@@ -83,9 +83,9 @@ ifeq ($(liveobjectlist), on)
 endif
 # vfp3=off
 ifeq ($(vfp3), off)
-  GYPFLAGS += -Dv8_can_use_vfp_instructions=false
+  GYPFLAGS += -Dv8_can_use_vfp3_instructions=false
 else
-  GYPFLAGS += -Dv8_can_use_vfp_instructions=true
+  GYPFLAGS += -Dv8_can_use_vfp3_instructions=true
 endif
 # debuggersupport=off
 ifeq ($(debuggersupport), off)
@@ -203,20 +203,20 @@ $(ANDROID_BUILDS): $(GYPFILES) $(ENVFILE) build/android.gypi \
 
 # Test targets.
 check: all
-	@tools/test-wrapper-gypbuild.py $(TESTJOBS) --outdir=$(OUTDIR) \
+	@tools/run-tests.py $(TESTJOBS) --outdir=$(OUTDIR) \
 	    --arch=$(shell echo $(DEFAULT_ARCHES) | sed -e 's/ /,/g') \
 	    $(TESTFLAGS)
 
 $(addsuffix .check,$(MODES)): $$(basename $$@)
-	@tools/test-wrapper-gypbuild.py $(TESTJOBS) --outdir=$(OUTDIR) \
+	@tools/run-tests.py $(TESTJOBS) --outdir=$(OUTDIR) \
 	    --mode=$(basename $@) $(TESTFLAGS)
 
 $(addsuffix .check,$(ARCHES)): $$(basename $$@)
-	@tools/test-wrapper-gypbuild.py $(TESTJOBS) --outdir=$(OUTDIR) \
+	@tools/run-tests.py $(TESTJOBS) --outdir=$(OUTDIR) \
 	    --arch=$(basename $@) $(TESTFLAGS)
 
 $(CHECKS): $$(basename $$@)
-	@tools/test-wrapper-gypbuild.py $(TESTJOBS) --outdir=$(OUTDIR) \
+	@tools/run-tests.py $(TESTJOBS) --outdir=$(OUTDIR) \
 	    --arch-and-mode=$(basename $@) $(TESTFLAGS)
 
 $(addsuffix .sync, $(ANDROID_BUILDS)): $$(basename $$@)
@@ -224,16 +224,16 @@ $(addsuffix .sync, $(ANDROID_BUILDS)): $$(basename $$@)
 	                       $(shell pwd) $(ANDROID_V8)
 
 $(addsuffix .check, $(ANDROID_BUILDS)): $$(basename $$@).sync
-	@tools/test-wrapper-gypbuild.py $(TESTJOBS) --outdir=$(OUTDIR) \
+	@tools/run-tests.py $(TESTJOBS) --outdir=$(OUTDIR) \
 	     --arch-and-mode=$(basename $@) \
 	     --timeout=600 \
-	     --special-command="tools/android-run.py @"
+	     --command-prefix="tools/android-run.py"
 
 $(addsuffix .check, $(ANDROID_ARCHES)): \
                 $(addprefix $$(basename $$@).,$(MODES)).check
 
 native.check: native
-	@tools/test-wrapper-gypbuild.py $(TESTJOBS) --outdir=$(OUTDIR)/native \
+	@tools/run-tests.py $(TESTJOBS) --outdir=$(OUTDIR)/native \
 	    --arch-and-mode=. $(TESTFLAGS)
 
 # Clean targets. You can clean each architecture individually, or everything.

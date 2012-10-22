@@ -84,3 +84,6 @@ test-log/ProfLazyMode: SKIP
 
 # platform-tls.h does not contain an ANDROID-related header.
 test-platform-tls/FastTLS: SKIP
+
+# This test times out.
+test-threads/ThreadJoinSelf: SKIP

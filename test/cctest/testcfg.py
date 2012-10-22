@@ -38,16 +38,20 @@ class CcTestSuite(testsuite.TestSuite):
 
   def __init__(self, name, root):
     super(CcTestSuite, self).__init__(name, root)
-    self.serdes_dir = normpath(join(root, "..", "..", "out", ".serdes"))
-    if exists(self.serdes_dir):
+    self.serdes_dir = os.path.normpath(
+        os.path.join(root, "..", "..", "out", ".serdes"))
+    if os.path.exists(self.serdes_dir):
       shutil.rmtree(self.serdes_dir, True)
     os.makedirs(self.serdes_dir)
 
   def ListTests(self, context):
-    shell = join(context.shell_dir, self.shell())
     if utils.IsWindows():
       shell += '.exe'
-    output = commands.Execute([shell, '--list'])
+    shell = os.path.abspath(os.path.join(context.shell_dir, self.shell()))
+    output = commands.Execute([context.command_prefix,
+                               shell,
+                               '--list',
+                               context.extra_flags])
     if output.exit_code != 0:
       print output.stdout
       print output.stderr
@@ -66,7 +70,7 @@ class CcTestSuite(testsuite.TestSuite):
 
   def GetFlagsForTestCase(self, testcase, context):
     testname = testcase.path.split(os.path.sep)[-1]
-    serialization_file = join(self.serdes_dir, "serdes_" + testname)
+    serialization_file = os.path.join(self.serdes_dir, "serdes_" + testname)
     serialization_file += ''.join(testcase.flags).replace('-', '_')
     return (testcase.flags + [testcase.path] + context.mode_flags +
             ["--testing_serialization_file=" + serialization_file])

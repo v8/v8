@@ -1414,6 +1414,43 @@ MaybeObject* JSObject::ResetElements() {
 }
 
 
+MaybeObject* JSObject::AddFastPropertyUsingMap(Map* map) {
+  ASSERT(this->map()->NumberOfOwnDescriptors() + 1 ==
+         map->NumberOfOwnDescriptors());
+  if (this->map()->unused_property_fields() == 0) {
+    int new_size = properties()->length() + map->unused_property_fields() + 1;
+    FixedArray* new_properties;
+    MaybeObject* maybe_properties = properties()->CopySize(new_size);
+    if (!maybe_properties->To(&new_properties)) return maybe_properties;
+    set_properties(new_properties);
+  }
+  set_map(map);
+  return this;
+}
+
+
+bool JSObject::TryTransitionToField(Handle<JSObject> object,
+                                    Handle<String> key) {
+  if (!object->map()->HasTransitionArray()) return false;
+  Handle<TransitionArray> transitions(object->map()->transitions());
+  int transition = transitions->Search(*key);
+  if (transition == TransitionArray::kNotFound) return false;
+  PropertyDetails target_details = transitions->GetTargetDetails(transition);
+  if (target_details.type() != FIELD) return false;
+  if (target_details.attributes() != NONE) return false;
+  Handle<Map> target(transitions->GetTarget(transition));
+  JSObject::AddFastPropertyUsingMap(object, target);
+  return true;
+}
+
+
+int JSObject::LastAddedFieldIndex() {
+  Map* map = this->map();
+  int last_added = map->LastAdded();
+  return map->instance_descriptors()->GetFieldIndex(last_added);
+}
+
+
 ACCESSORS(Oddball, to_string, String, kToStringOffset)
 ACCESSORS(Oddball, to_number, Object, kToNumberOffset)
 
@@ -3548,32 +3585,16 @@ void Map::set_prototype(Object* value, WriteBarrierMode mode) {
 }
 
 
-DescriptorArray* Map::instance_descriptors() {
-  if (HasTransitionArray()) return transitions()->descriptors();
-  Object* back_pointer = GetBackPointer();
-  if (!back_pointer->IsMap()) return GetHeap()->empty_descriptor_array();
-  return Map::cast(back_pointer)->instance_descriptors();
-}
-
-
-enum TransitionsKind { DESCRIPTORS_HOLDER, FULL_TRANSITION_ARRAY };
-
-
 // If the descriptor is using the empty transition array, install a new empty
 // transition array that will have place for an element transition.
-static MaybeObject* EnsureHasTransitionArray(Map* map, TransitionsKind kind) {
+static MaybeObject* EnsureHasTransitionArray(Map* map) {
   TransitionArray* transitions;
   MaybeObject* maybe_transitions;
   if (!map->HasTransitionArray()) {
-    if (kind == FULL_TRANSITION_ARRAY) {
-      maybe_transitions = TransitionArray::Allocate(0);
-    } else {
-      maybe_transitions = TransitionArray::AllocateDescriptorsHolder();
-    }
+    maybe_transitions = TransitionArray::Allocate(0);
     if (!maybe_transitions->To(&transitions)) return maybe_transitions;
     transitions->set_back_pointer_storage(map->GetBackPointer());
-  } else if (kind == FULL_TRANSITION_ARRAY &&
-             !map->transitions()->IsFullTransitionArray()) {
+  } else if (!map->transitions()->IsFullTransitionArray()) {
     maybe_transitions = map->transitions()->ExtendToFullTransitionArray();
     if (!maybe_transitions->To(&transitions)) return maybe_transitions;
   } else {
@@ -3584,19 +3605,7 @@ static MaybeObject* EnsureHasTransitionArray(Map* map, TransitionsKind kind) {
 }
 
 
-MaybeObject* Map::SetDescriptors(DescriptorArray* value) {
-  ASSERT(!is_shared());
-  MaybeObject* maybe_failure =
-      EnsureHasTransitionArray(this, DESCRIPTORS_HOLDER);
-  if (maybe_failure->IsFailure()) return maybe_failure;
-
-  ASSERT(NumberOfOwnDescriptors() <= value->number_of_descriptors());
-  transitions()->set_descriptors(value);
-  return this;
-}
-
-
-MaybeObject* Map::InitializeDescriptors(DescriptorArray* descriptors) {
+void Map::InitializeDescriptors(DescriptorArray* descriptors) {
   int len = descriptors->number_of_descriptors();
 #ifdef DEBUG
   ASSERT(len <= DescriptorArray::kMaxNumberOfDescriptors);
@@ -3615,14 +3624,12 @@ MaybeObject* Map::InitializeDescriptors(DescriptorArray* descriptors) {
   }
 #endif
 
-  MaybeObject* maybe_failure = SetDescriptors(descriptors);
-  if (maybe_failure->IsFailure()) return maybe_failure;
-
+  set_instance_descriptors(descriptors);
   SetNumberOfOwnDescriptors(len);
-  return this;
 }
 
 
+ACCESSORS(Map, instance_descriptors, DescriptorArray, kDescriptorsOffset)
 SMI_ACCESSORS(Map, bit_field3, kBitField3Offset)
 
 
@@ -3688,8 +3695,7 @@ MaybeObject* Map::AddTransition(String* key,
                                 Map* target,
                                 SimpleTransitionFlag flag) {
   if (HasTransitionArray()) return transitions()->CopyInsert(key, target);
-  return TransitionArray::NewWith(
-      flag, key, target, instance_descriptors(), GetBackPointer());
+  return TransitionArray::NewWith(flag, key, target, GetBackPointer());
 }
 
 
@@ -3704,11 +3710,8 @@ Map* Map::GetTransition(int transition_index) {
 
 
 MaybeObject* Map::set_elements_transition_map(Map* transitioned_map) {
-  DescriptorArray* descriptors = instance_descriptors();
-  MaybeObject* allow_elements =
-      EnsureHasTransitionArray(this, FULL_TRANSITION_ARRAY);
+  MaybeObject* allow_elements = EnsureHasTransitionArray(this);
   if (allow_elements->IsFailure()) return allow_elements;
-  transitions()->set_descriptors(descriptors);
   transitions()->set_elements_transition(transitioned_map);
   return this;
 }
@@ -3724,9 +3727,7 @@ FixedArray* Map::GetPrototypeTransitions() {
 
 
 MaybeObject* Map::SetPrototypeTransitions(FixedArray* proto_transitions) {
-  DescriptorArray* descriptors = instance_descriptors();
-  MaybeObject* allow_prototype =
-      EnsureHasTransitionArray(this, FULL_TRANSITION_ARRAY);
+  MaybeObject* allow_prototype = EnsureHasTransitionArray(this);
   if (allow_prototype->IsFailure()) return allow_prototype;
 #ifdef DEBUG
   if (HasPrototypeTransitions()) {
@@ -3734,7 +3735,6 @@ MaybeObject* Map::SetPrototypeTransitions(FixedArray* proto_transitions) {
     ZapPrototypeTransitions();
   }
 #endif
-  transitions()->set_descriptors(descriptors);
   transitions()->SetPrototypeTransitions(proto_transitions);
   return this;
 }
@@ -4955,7 +4955,7 @@ uint32_t StringHasher::GetHashCore(uint32_t running_hash) {
   running_hash ^= (running_hash >> 11);
   running_hash += (running_hash << 15);
   if ((running_hash & String::kHashBitMask) == 0) {
-    return 27;
+    return kZeroHash;
   }
   return running_hash;
 }

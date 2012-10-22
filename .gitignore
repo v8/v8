@@ -25,8 +25,8 @@ shell_g
 /build/Debug
 /build/gyp
 /build/Release
-/obj/
-/out/
+/obj
+/out
 /test/cctest/cctest.status2
 /test/es5conform/data
 /test/message/message.status2
@@ -47,6 +47,6 @@ shell_g
 /tools/oom_dump/oom_dump.o
 /tools/visual_studio/Debug
 /tools/visual_studio/Release
-/xcodebuild/
+/xcodebuild
 TAGS
 *.Makefile

@@ -158,7 +158,7 @@ TEST(StressJS) {
   Handle<DescriptorArray> new_descriptors = FACTORY->NewDescriptorArray(0, 1);
 
   v8::internal::DescriptorArray::WhitenessWitness witness(*new_descriptors);
-  v8::internal::Map::SetDescriptors(map, new_descriptors);
+  map->set_instance_descriptors(*new_descriptors);
 
   CallbacksDescriptor d(*name,
                         *foreign,

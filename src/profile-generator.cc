@@ -2009,11 +2009,6 @@ void V8HeapExplorer::ExtractMapReferences(int entry, Map* map) {
                        Map::kConstructorOffset);
   if (map->HasTransitionArray()) {
     TransitionArray* transitions = map->transitions();
-    DescriptorArray* descriptors = transitions->descriptors();
-    TagObject(descriptors, "(map descriptors)");
-    SetInternalReference(transitions, entry,
-                         "descriptors", descriptors,
-                         TransitionArray::kDescriptorsOffset);
 
     Object* back_pointer = transitions->back_pointer_storage();
     TagObject(transitions->back_pointer_storage(), "(back pointer)");
@@ -2034,6 +2029,12 @@ void V8HeapExplorer::ExtractMapReferences(int entry, Map* map) {
                          "backpointer", back_pointer,
                          Map::kTransitionsOrBackPointerOffset);
   }
+  DescriptorArray* descriptors = map->instance_descriptors();
+  TagObject(descriptors, "(map descriptors)");
+  SetInternalReference(map, entry,
+                       "descriptors", descriptors,
+                       Map::kDescriptorsOffset);
+
   SetInternalReference(map, entry,
                        "code_cache", map->code_cache(),
                        Map::kCodeCacheOffset);

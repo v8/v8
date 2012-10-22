@@ -7569,6 +7569,7 @@ void StoreArrayLiteralElementStub::Generate(MacroAssembler* masm) {
 
 void ProfileEntryHookStub::MaybeCallEntryHook(MacroAssembler* masm) {
   if (entry_hook_ != NULL) {
+    PredictableCodeSizeScope predictable(masm);
     ProfileEntryHookStub stub;
     __ push(lr);
     __ CallStub(&stub);
@@ -7580,7 +7581,7 @@ void ProfileEntryHookStub::MaybeCallEntryHook(MacroAssembler* masm) {
 void ProfileEntryHookStub::Generate(MacroAssembler* masm) {
   // The entry hook is a "push lr" instruction, followed by a call.
   const int32_t kReturnAddressDistanceFromFunctionStart =
-      Assembler::kCallTargetAddressOffset + Assembler::kInstrSize;
+      3 * Assembler::kInstrSize;
 
   // Save live volatile registers.
   __ Push(lr, r5, r1);

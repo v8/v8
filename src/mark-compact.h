@@ -426,6 +426,7 @@ class CodeFlusher {
 
   void AddCandidate(JSFunction* function) {
     ASSERT(function->code() == function->shared()->code());
+    ASSERT(function->next_function_link()->IsUndefined());
     SetNextCandidate(function, jsfunction_candidates_head_);
     jsfunction_candidates_head_ = function;
   }
@@ -439,35 +440,33 @@ class CodeFlusher {
   void ProcessJSFunctionCandidates();
   void ProcessSharedFunctionInfoCandidates();
 
-  static JSFunction** GetNextCandidateField(JSFunction* candidate) {
-    return reinterpret_cast<JSFunction**>(
-        candidate->address() + JSFunction::kCodeEntryOffset);
-  }
-
   static JSFunction* GetNextCandidate(JSFunction* candidate) {
-    return *GetNextCandidateField(candidate);
+    Object* next_candidate = candidate->next_function_link();
+    return reinterpret_cast<JSFunction*>(next_candidate);
   }
 
   static void SetNextCandidate(JSFunction* candidate,
                                JSFunction* next_candidate) {
-    *GetNextCandidateField(candidate) = next_candidate;
+    candidate->set_next_function_link(next_candidate);
   }
 
-  static SharedFunctionInfo** GetNextCandidateField(
-      SharedFunctionInfo* candidate) {
-    Code* code = candidate->code();
-    return reinterpret_cast<SharedFunctionInfo**>(
-        code->address() + Code::kGCMetadataOffset);
+  static void ClearNextCandidate(JSFunction* candidate, Object* undefined) {
+    ASSERT(undefined->IsUndefined());
+    candidate->set_next_function_link(undefined, SKIP_WRITE_BARRIER);
   }
 
   static SharedFunctionInfo* GetNextCandidate(SharedFunctionInfo* candidate) {
-    return reinterpret_cast<SharedFunctionInfo*>(
-        candidate->code()->gc_metadata());
+    Object* next_candidate = candidate->code()->gc_metadata();
+    return reinterpret_cast<SharedFunctionInfo*>(next_candidate);
   }
 
   static void SetNextCandidate(SharedFunctionInfo* candidate,
                                SharedFunctionInfo* next_candidate) {
     candidate->code()->set_gc_metadata(next_candidate);
+  }
+
+  static void ClearNextCandidate(SharedFunctionInfo* candidate) {
+    candidate->code()->set_gc_metadata(NULL, SKIP_WRITE_BARRIER);
   }
 
   Isolate* isolate_;

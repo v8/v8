@@ -648,6 +648,14 @@ void V8::MarkIndependent(i::Object** object) {
 }
 
 
+bool V8::IsGlobalIndependent(i::Object** obj) {
+  i::Isolate* isolate = i::Isolate::Current();
+  LOG_API(isolate, "IsGlobalIndependent");
+  if (!isolate->IsInitialized()) return false;
+  return i::GlobalHandles::IsIndependent(obj);
+}
+
+
 bool V8::IsGlobalNearDeath(i::Object** obj) {
   i::Isolate* isolate = i::Isolate::Current();
   LOG_API(isolate, "IsGlobalNearDeath");
@@ -4336,6 +4344,30 @@ void v8::V8::VisitExternalResources(ExternalResourceVisitor* visitor) {
 }
 
 
+void v8::V8::VisitHandlesWithClassIds(PersistentHandleVisitor* visitor) {
+  i::Isolate* isolate = i::Isolate::Current();
+  IsDeadCheck(isolate, "v8::V8::VisitHandlesWithClassId");
+
+  i::AssertNoAllocation no_allocation;
+
+  class VisitorAdapter : public i::ObjectVisitor {
+   public:
+    explicit VisitorAdapter(PersistentHandleVisitor* visitor)
+        : visitor_(visitor) {}
+    virtual void VisitPointers(i::Object** start, i::Object** end) {
+      UNREACHABLE();
+    }
+    virtual void VisitEmbedderReference(i::Object** p, uint16_t class_id) {
+      visitor_->VisitPersistentHandle(ToApi<Value>(i::Handle<i::Object>(p)),
+                                      class_id);
+    }
+   private:
+    PersistentHandleVisitor* visitor_;
+  } visitor_adapter(visitor);
+  isolate->global_handles()->IterateAllRootsWithClassIds(&visitor_adapter);
+}
+
+
 bool v8::V8::IdleNotification(int hint) {
   // Returning true tells the caller that it need not
   // continue to call IdleNotification.
@@ -4617,6 +4649,11 @@ void Context::SetErrorMessageForCodeGenerationFromStrings(
 
 void V8::SetWrapperClassId(i::Object** global_handle, uint16_t class_id) {
   i::GlobalHandles::SetWrapperClassId(global_handle, class_id);
+}
+
+
+uint16_t V8::GetWrapperClassId(internal::Object** global_handle) {
+  return i::GlobalHandles::GetWrapperClassId(global_handle);
 }
 
 
@@ -5191,24 +5228,39 @@ Local<Number> v8::Number::New(double value) {
 Local<Integer> v8::Integer::New(int32_t value) {
   i::Isolate* isolate = i::Isolate::UncheckedCurrent();
   EnsureInitializedForIsolate(isolate, "v8::Integer::New()");
-  if (i::Smi::IsValid(value)) {
-    return Utils::IntegerToLocal(i::Handle<i::Object>(i::Smi::FromInt(value),
-                                                      isolate));
-  }
-  ENTER_V8(isolate);
-  i::Handle<i::Object> result = isolate->factory()->NewNumber(value);
-  return Utils::IntegerToLocal(result);
+  return v8::Integer::New(value, reinterpret_cast<Isolate*>(isolate));
 }
 
 
 Local<Integer> Integer::NewFromUnsigned(uint32_t value) {
+  i::Isolate* isolate = i::Isolate::Current();
+  EnsureInitializedForIsolate(isolate, "v8::Integer::NewFromUnsigned()");
+  return Integer::NewFromUnsigned(value, reinterpret_cast<Isolate*>(isolate));
+}
+
+
+Local<Integer> v8::Integer::New(int32_t value, Isolate* isolate) {
+  i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  ASSERT(internal_isolate->IsInitialized());
+  if (i::Smi::IsValid(value)) {
+    return Utils::IntegerToLocal(i::Handle<i::Object>(i::Smi::FromInt(value),
+                                                      internal_isolate));
+  }
+  ENTER_V8(internal_isolate);
+  i::Handle<i::Object> result = internal_isolate->factory()->NewNumber(value);
+  return Utils::IntegerToLocal(result);
+}
+
+
+Local<Integer> v8::Integer::NewFromUnsigned(uint32_t value, Isolate* isolate) {
+  i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  ASSERT(internal_isolate->IsInitialized());
   bool fits_into_int32_t = (value & (1 << 31)) == 0;
   if (fits_into_int32_t) {
-    return Integer::New(static_cast<int32_t>(value));
+    return Integer::New(static_cast<int32_t>(value), isolate);
   }
-  i::Isolate* isolate = i::Isolate::Current();
-  ENTER_V8(isolate);
-  i::Handle<i::Object> result = isolate->factory()->NewNumber(value);
+  ENTER_V8(internal_isolate);
+  i::Handle<i::Object> result = internal_isolate->factory()->NewNumber(value);
   return Utils::IntegerToLocal(result);
 }
 
@@ -5218,19 +5270,14 @@ void V8::IgnoreOutOfMemoryException() {
 }
 
 
-bool V8::AddMessageListener(MessageCallback that, Handle<Value> data) {
+bool V8::AddMessageListener(MessageCallback that) {
   i::Isolate* isolate = i::Isolate::Current();
   EnsureInitializedForIsolate(isolate, "v8::V8::AddMessageListener()");
   ON_BAILOUT(isolate, "v8::V8::AddMessageListener()", return false);
   ENTER_V8(isolate);
   i::HandleScope scope(isolate);
   NeanderArray listeners(isolate->factory()->message_listeners());
-  NeanderObject obj(2);
-  obj.set(0, *isolate->factory()->NewForeign(FUNCTION_ADDR(that)));
-  obj.set(1, data.IsEmpty() ?
-             isolate->heap()->undefined_value() :
-             *Utils::OpenHandle(*data));
-  listeners.add(obj.value());
+  listeners.add(isolate->factory()->NewForeign(FUNCTION_ADDR(that)));
   return true;
 }
 
@@ -5245,8 +5292,7 @@ void V8::RemoveMessageListeners(MessageCallback that) {
   for (int i = 0; i < listeners.length(); i++) {
     if (listeners.get(i)->IsUndefined()) continue;  // skip deleted ones
 
-    NeanderObject listener(i::JSObject::cast(listeners.get(i)));
-    i::Handle<i::Foreign> callback_obj(i::Foreign::cast(listener.get(0)));
+    i::Handle<i::Foreign> callback_obj(i::Foreign::cast(listeners.get(i)));
     if (callback_obj->foreign_address() == FUNCTION_ADDR(that)) {
       listeners.set(i, isolate->heap()->undefined_value());
     }

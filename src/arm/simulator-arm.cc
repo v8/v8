@@ -1066,111 +1066,83 @@ void Simulator::TrashCallerSaveRegisters() {
 
 
 int Simulator::ReadW(int32_t addr, Instruction* instr) {
-#if V8_TARGET_CAN_READ_UNALIGNED
-  intptr_t* ptr = reinterpret_cast<intptr_t*>(addr);
-  return *ptr;
-#else
-  if ((addr & 3) == 0) {
+  if (FLAG_enable_unaligned_accesses || (addr & 3) == 0) {
     intptr_t* ptr = reinterpret_cast<intptr_t*>(addr);
     return *ptr;
+  } else {
+    PrintF("Unaligned read at 0x%08x, pc=0x%08" V8PRIxPTR "\n",
+           addr,
+           reinterpret_cast<intptr_t>(instr));
+    UNIMPLEMENTED();
+    return 0;
   }
-  PrintF("Unaligned read at 0x%08x, pc=0x%08" V8PRIxPTR "\n",
-         addr,
-         reinterpret_cast<intptr_t>(instr));
-  UNIMPLEMENTED();
-  return 0;
-#endif
 }
 
 
 void Simulator::WriteW(int32_t addr, int value, Instruction* instr) {
-#if V8_TARGET_CAN_READ_UNALIGNED
-  intptr_t* ptr = reinterpret_cast<intptr_t*>(addr);
-  *ptr = value;
-  return;
-#else
-  if ((addr & 3) == 0) {
+  if (FLAG_enable_unaligned_accesses || (addr & 3) == 0) {
     intptr_t* ptr = reinterpret_cast<intptr_t*>(addr);
     *ptr = value;
-    return;
+  } else {
+    PrintF("Unaligned write at 0x%08x, pc=0x%08" V8PRIxPTR "\n",
+           addr,
+           reinterpret_cast<intptr_t>(instr));
+    UNIMPLEMENTED();
   }
-  PrintF("Unaligned write at 0x%08x, pc=0x%08" V8PRIxPTR "\n",
-         addr,
-         reinterpret_cast<intptr_t>(instr));
-  UNIMPLEMENTED();
-#endif
 }
 
 
 uint16_t Simulator::ReadHU(int32_t addr, Instruction* instr) {
-#if V8_TARGET_CAN_READ_UNALIGNED
-  uint16_t* ptr = reinterpret_cast<uint16_t*>(addr);
-  return *ptr;
-#else
-  if ((addr & 1) == 0) {
+  if (FLAG_enable_unaligned_accesses || (addr & 1) == 0) {
     uint16_t* ptr = reinterpret_cast<uint16_t*>(addr);
     return *ptr;
+  } else {
+    PrintF("Unaligned unsigned halfword read at 0x%08x, pc=0x%08"
+           V8PRIxPTR "\n",
+           addr,
+           reinterpret_cast<intptr_t>(instr));
+    UNIMPLEMENTED();
+    return 0;
   }
-  PrintF("Unaligned unsigned halfword read at 0x%08x, pc=0x%08" V8PRIxPTR "\n",
-         addr,
-         reinterpret_cast<intptr_t>(instr));
-  UNIMPLEMENTED();
-  return 0;
-#endif
 }
 
 
 int16_t Simulator::ReadH(int32_t addr, Instruction* instr) {
-#if V8_TARGET_CAN_READ_UNALIGNED
-  int16_t* ptr = reinterpret_cast<int16_t*>(addr);
-  return *ptr;
-#else
-  if ((addr & 1) == 0) {
+  if (FLAG_enable_unaligned_accesses || (addr & 1) == 0) {
     int16_t* ptr = reinterpret_cast<int16_t*>(addr);
     return *ptr;
+  } else {
+    PrintF("Unaligned signed halfword read at 0x%08x\n", addr);
+    UNIMPLEMENTED();
+    return 0;
   }
-  PrintF("Unaligned signed halfword read at 0x%08x\n", addr);
-  UNIMPLEMENTED();
-  return 0;
-#endif
 }
 
 
 void Simulator::WriteH(int32_t addr, uint16_t value, Instruction* instr) {
-#if V8_TARGET_CAN_READ_UNALIGNED
-  uint16_t* ptr = reinterpret_cast<uint16_t*>(addr);
-  *ptr = value;
-  return;
-#else
-  if ((addr & 1) == 0) {
+  if (FLAG_enable_unaligned_accesses || (addr & 1) == 0) {
     uint16_t* ptr = reinterpret_cast<uint16_t*>(addr);
     *ptr = value;
-    return;
+  } else {
+    PrintF("Unaligned unsigned halfword write at 0x%08x, pc=0x%08"
+           V8PRIxPTR "\n",
+           addr,
+           reinterpret_cast<intptr_t>(instr));
+    UNIMPLEMENTED();
   }
-  PrintF("Unaligned unsigned halfword write at 0x%08x, pc=0x%08" V8PRIxPTR "\n",
-         addr,
-         reinterpret_cast<intptr_t>(instr));
-  UNIMPLEMENTED();
-#endif
 }
 
 
 void Simulator::WriteH(int32_t addr, int16_t value, Instruction* instr) {
-#if V8_TARGET_CAN_READ_UNALIGNED
-  int16_t* ptr = reinterpret_cast<int16_t*>(addr);
-  *ptr = value;
-  return;
-#else
-  if ((addr & 1) == 0) {
+  if (FLAG_enable_unaligned_accesses || (addr & 1) == 0) {
     int16_t* ptr = reinterpret_cast<int16_t*>(addr);
     *ptr = value;
-    return;
+  } else {
+    PrintF("Unaligned halfword write at 0x%08x, pc=0x%08" V8PRIxPTR "\n",
+           addr,
+           reinterpret_cast<intptr_t>(instr));
+    UNIMPLEMENTED();
   }
-  PrintF("Unaligned halfword write at 0x%08x, pc=0x%08" V8PRIxPTR "\n",
-         addr,
-         reinterpret_cast<intptr_t>(instr));
-  UNIMPLEMENTED();
-#endif
 }
 
 
@@ -1199,37 +1171,26 @@ void Simulator::WriteB(int32_t addr, int8_t value) {
 
 
 int32_t* Simulator::ReadDW(int32_t addr) {
-#if V8_TARGET_CAN_READ_UNALIGNED
-  int32_t* ptr = reinterpret_cast<int32_t*>(addr);
-  return ptr;
-#else
-  if ((addr & 3) == 0) {
+  if (FLAG_enable_unaligned_accesses || (addr & 3) == 0) {
     int32_t* ptr = reinterpret_cast<int32_t*>(addr);
     return ptr;
+  } else {
+    PrintF("Unaligned read at 0x%08x\n", addr);
+    UNIMPLEMENTED();
+    return 0;
   }
-  PrintF("Unaligned read at 0x%08x\n", addr);
-  UNIMPLEMENTED();
-  return 0;
-#endif
 }
 
 
 void Simulator::WriteDW(int32_t addr, int32_t value1, int32_t value2) {
-#if V8_TARGET_CAN_READ_UNALIGNED
-  int32_t* ptr = reinterpret_cast<int32_t*>(addr);
-  *ptr++ = value1;
-  *ptr = value2;
-  return;
-#else
-  if ((addr & 3) == 0) {
+  if (FLAG_enable_unaligned_accesses || (addr & 3) == 0) {
     int32_t* ptr = reinterpret_cast<int32_t*>(addr);
     *ptr++ = value1;
     *ptr = value2;
-    return;
+  } else {
+    PrintF("Unaligned write at 0x%08x\n", addr);
+    UNIMPLEMENTED();
   }
-  PrintF("Unaligned write at 0x%08x\n", addr);
-  UNIMPLEMENTED();
-#endif
 }
 
 
@@ -2222,6 +2183,8 @@ void Simulator::DecodeType01(Instruction* instr) {
       PrintF("%08x\n", instr->InstructionBits());
       UNIMPLEMENTED();
     }
+  } else if ((type == 1) && instr->IsNopType1()) {
+    // NOP.
   } else {
     int rd = instr->RdValue();
     int rn = instr->RnValue();

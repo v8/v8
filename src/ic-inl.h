@@ -40,7 +40,7 @@ namespace internal {
 
 Address IC::address() const {
   // Get the address of the call.
-  Address result = pc() - Assembler::kCallTargetAddressOffset;
+  Address result = Assembler::target_address_from_return_address(pc());
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
   Debug* debug = Isolate::Current()->debug();

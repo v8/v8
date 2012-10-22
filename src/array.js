@@ -62,7 +62,7 @@ function GetSortedArrayKeys(array, intervals) {
       }
     }
   }
-  keys.sort(function(a, b) { return a - b; });
+  %_CallFunction(keys, function(a, b) { return a - b; }, ArraySort);
   return keys;
 }
 

@@ -368,19 +368,17 @@ class RelocInfo BASE_EMBEDDED {
   Mode rmode_;
   intptr_t data_;
   Code* host_;
-#ifdef V8_TARGET_ARCH_MIPS
-  // Code and Embedded Object pointers in mips are stored split
+  // Code and Embedded Object pointers on some platforms are stored split
   // across two consecutive 32-bit instructions. Heap management
   // routines expect to access these pointers indirectly. The following
-  // location provides a place for these pointers to exist natually
+  // location provides a place for these pointers to exist naturally
   // when accessed via the Iterator.
   Object* reconstructed_obj_ptr_;
   // External-reference pointers are also split across instruction-pairs
-  // in mips, but are accessed via indirect pointers. This location
+  // on some platforms, but are accessed via indirect pointers. This location
   // provides a place for that pointer to exist naturally. Its address
   // is returned by RelocInfo::target_reference_address().
   Address reconstructed_adr_ptr_;
-#endif  // V8_TARGET_ARCH_MIPS
   friend class RelocIterator;
 };
 

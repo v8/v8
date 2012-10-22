@@ -2868,16 +2868,24 @@ void MacroAssembler::ClampUint8(Register reg) {
 
 void MacroAssembler::ClampDoubleToUint8(XMMRegister input_reg,
                                         XMMRegister temp_xmm_reg,
-                                        Register result_reg,
-                                        Register temp_reg) {
+                                        Register result_reg) {
   Label done;
-  Set(result_reg, 0);
+  Label conv_failure;
   xorps(temp_xmm_reg, temp_xmm_reg);
-  ucomisd(input_reg, temp_xmm_reg);
-  j(below, &done, Label::kNear);
   cvtsd2si(result_reg, input_reg);
   testl(result_reg, Immediate(0xFFFFFF00));
   j(zero, &done, Label::kNear);
+  cmpl(result_reg, Immediate(0x80000000));
+  j(equal, &conv_failure, Label::kNear);
+  movl(result_reg, Immediate(0));
+  setcc(above, result_reg);
+  subl(result_reg, Immediate(1));
+  andl(result_reg, Immediate(255));
+  jmp(&done, Label::kNear);
+  bind(&conv_failure);
+  Set(result_reg, 0);
+  ucomisd(input_reg, temp_xmm_reg);
+  j(below, &done, Label::kNear);
   Set(result_reg, 255);
   bind(&done);
 }
@@ -2905,28 +2913,7 @@ void MacroAssembler::LoadUint32(XMMRegister dst,
 
 void MacroAssembler::LoadInstanceDescriptors(Register map,
                                              Register descriptors) {
-  Register temp = descriptors;
-  movq(temp, FieldOperand(map, Map::kTransitionsOrBackPointerOffset));
-
-  Label ok, fail, load_from_back_pointer;
-  CheckMap(temp,
-           isolate()->factory()->fixed_array_map(),
-           &fail,
-           DONT_DO_SMI_CHECK);
-  movq(descriptors, FieldOperand(temp, TransitionArray::kDescriptorsOffset));
-  jmp(&ok);
-
-  bind(&fail);
-  CompareRoot(temp, Heap::kUndefinedValueRootIndex);
-  j(not_equal, &load_from_back_pointer, Label::kNear);
-  Move(descriptors, isolate()->factory()->empty_descriptor_array());
-  jmp(&ok);
-
-  bind(&load_from_back_pointer);
-  movq(temp, FieldOperand(temp, Map::kTransitionsOrBackPointerOffset));
-  movq(descriptors, FieldOperand(temp, TransitionArray::kDescriptorsOffset));
-
-  bind(&ok);
+  movq(descriptors, FieldOperand(map, Map::kDescriptorsOffset));
 }
 
 

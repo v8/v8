@@ -149,6 +149,8 @@ class JsonParser BASE_EMBEDDED {
   }
 
   inline Isolate* isolate() { return isolate_; }
+  inline Factory* factory() { return factory_; }
+  inline Handle<JSFunction> object_constructor() { return object_constructor_; }
   inline Zone* zone() const { return zone_; }
 
   static const int kInitialSpecialStringLength = 1024;
@@ -160,6 +162,8 @@ class JsonParser BASE_EMBEDDED {
   Handle<SeqAsciiString> seq_source_;
 
   Isolate* isolate_;
+  Factory* factory_;
+  Handle<JSFunction> object_constructor_;
   uc32 c0_;
   int position_;
   Zone* zone_;
@@ -169,6 +173,9 @@ template <bool seq_ascii>
 Handle<Object> JsonParser<seq_ascii>::ParseJson(Handle<String> source,
                                                 Zone* zone) {
   isolate_ = source->map()->GetHeap()->isolate();
+  factory_ = isolate_->factory();
+  object_constructor_ =
+      Handle<JSFunction>(isolate()->native_context()->object_function());
   zone_ = zone;
   FlattenString(source);
   source_ = source;
@@ -188,7 +195,7 @@ Handle<Object> JsonParser<seq_ascii>::ParseJson(Handle<String> source,
     // Parse failed. Current character is the unexpected token.
 
     const char* message;
-    Factory* factory = isolate()->factory();
+    Factory* factory = this->factory();
     Handle<JSArray> array;
 
     switch (c0_) {
@@ -237,87 +244,101 @@ Handle<Object> JsonParser<seq_ascii>::ParseJson(Handle<String> source,
 // Parse any JSON value.
 template <bool seq_ascii>
 Handle<Object> JsonParser<seq_ascii>::ParseJsonValue() {
-  switch (c0_) {
-    case '"':
-      return ParseJsonString();
-    case '-':
-    case '0':
-    case '1':
-    case '2':
-    case '3':
-    case '4':
-    case '5':
-    case '6':
-    case '7':
-    case '8':
-    case '9':
-      return ParseJsonNumber();
-    case 'f':
-      if (AdvanceGetChar() == 'a' && AdvanceGetChar() == 'l' &&
-          AdvanceGetChar() == 's' && AdvanceGetChar() == 'e') {
-        AdvanceSkipWhitespace();
-        return isolate()->factory()->false_value();
-      } else {
-        return ReportUnexpectedCharacter();
-      }
-    case 't':
-      if (AdvanceGetChar() == 'r' && AdvanceGetChar() == 'u' &&
-          AdvanceGetChar() == 'e') {
-        AdvanceSkipWhitespace();
-        return isolate()->factory()->true_value();
-      } else {
-        return ReportUnexpectedCharacter();
-      }
-    case 'n':
-      if (AdvanceGetChar() == 'u' && AdvanceGetChar() == 'l' &&
-          AdvanceGetChar() == 'l') {
-        AdvanceSkipWhitespace();
-        return isolate()->factory()->null_value();
-      } else {
-        return ReportUnexpectedCharacter();
-      }
-    case '{':
-      return ParseJsonObject();
-    case '[':
-      return ParseJsonArray();
-    default:
-      return ReportUnexpectedCharacter();
+  if (c0_ == '"') return ParseJsonString();
+  if ((c0_ >= '0' && c0_ <= '9') || c0_ == '-') return ParseJsonNumber();
+  if (c0_ == '{') return ParseJsonObject();
+  if (c0_ == '[') return ParseJsonArray();
+  if (c0_ == 'f') {
+    if (AdvanceGetChar() == 'a' && AdvanceGetChar() == 'l' &&
+        AdvanceGetChar() == 's' && AdvanceGetChar() == 'e') {
+      AdvanceSkipWhitespace();
+      return factory()->false_value();
+    }
+    return ReportUnexpectedCharacter();
   }
+  if (c0_ == 't') {
+    if (AdvanceGetChar() == 'r' && AdvanceGetChar() == 'u' &&
+        AdvanceGetChar() == 'e') {
+      AdvanceSkipWhitespace();
+      return factory()->true_value();
+    }
+    return ReportUnexpectedCharacter();
+  }
+  if (c0_ == 'n') {
+    if (AdvanceGetChar() == 'u' && AdvanceGetChar() == 'l' &&
+        AdvanceGetChar() == 'l') {
+      AdvanceSkipWhitespace();
+      return factory()->null_value();
+    }
+    return ReportUnexpectedCharacter();
+  }
+  return ReportUnexpectedCharacter();
 }
 
 
 // Parse a JSON object. Position must be right at '{'.
 template <bool seq_ascii>
 Handle<Object> JsonParser<seq_ascii>::ParseJsonObject() {
-  Handle<JSFunction> object_constructor(
-      isolate()->native_context()->object_function());
+  Handle<Object> prototype;
   Handle<JSObject> json_object =
-      isolate()->factory()->NewJSObject(object_constructor);
+      factory()->NewJSObject(object_constructor());
   ASSERT_EQ(c0_, '{');
 
   AdvanceSkipWhitespace();
   if (c0_ != '}') {
     do {
       if (c0_ != '"') return ReportUnexpectedCharacter();
-      Handle<String> key = ParseJsonSymbol();
-      if (key.is_null() || c0_ != ':') return ReportUnexpectedCharacter();
-      AdvanceSkipWhitespace();
-      Handle<Object> value = ParseJsonValue();
-      if (value.is_null()) return ReportUnexpectedCharacter();
 
-      uint32_t index;
-      if (key->AsArrayIndex(&index)) {
+      int start_position = position_;
+      Advance();
+
+      uint32_t index = 0;
+      while (c0_ >= '0' && c0_ <= '9') {
+        int d = c0_ - '0';
+        if (index > 429496729U - ((d > 5) ? 1 : 0)) break;
+        index = (index * 10) + d;
+        Advance();
+      }
+
+      if (position_ != start_position + 1 && c0_ == '"') {
+        AdvanceSkipWhitespace();
+
+        if (c0_ != ':') return ReportUnexpectedCharacter();
+        AdvanceSkipWhitespace();
+        Handle<Object> value = ParseJsonValue();
+        if (value.is_null()) return ReportUnexpectedCharacter();
+
         JSObject::SetOwnElement(json_object, index, value, kNonStrictMode);
-      } else if (key->Equals(isolate()->heap()->Proto_symbol())) {
-        SetPrototype(json_object, value);
       } else {
-        JSObject::SetLocalPropertyIgnoreAttributes(
-            json_object, key, value, NONE);
+        position_ = start_position;
+#ifdef DEBUG
+        c0_ = '"';
+#endif
+
+        Handle<String> key = ParseJsonSymbol();
+        if (key.is_null() || c0_ != ':') return ReportUnexpectedCharacter();
+
+        AdvanceSkipWhitespace();
+        Handle<Object> value = ParseJsonValue();
+        if (value.is_null()) return ReportUnexpectedCharacter();
+
+        if (key->Equals(isolate()->heap()->Proto_symbol())) {
+          prototype = value;
+        } else {
+          if (JSObject::TryTransitionToField(json_object, key)) {
+            int index = json_object->LastAddedFieldIndex();
+            json_object->FastPropertyAtPut(index, *value);
+          } else {
+            JSObject::SetLocalPropertyIgnoreAttributes(
+                json_object, key, value, NONE);
+          }
+        }
       }
     } while (MatchSkipWhiteSpace(','));
     if (c0_ != '}') {
       return ReportUnexpectedCharacter();
     }
+    if (!prototype.is_null()) SetPrototype(json_object, prototype);
   }
   AdvanceSkipWhitespace();
   return json_object;
@@ -344,11 +365,11 @@ Handle<Object> JsonParser<seq_ascii>::ParseJsonArray() {
   AdvanceSkipWhitespace();
   // Allocate a fixed array with all the elements.
   Handle<FixedArray> fast_elements =
-      isolate()->factory()->NewFixedArray(elements.length());
+      factory()->NewFixedArray(elements.length());
   for (int i = 0, n = elements.length(); i < n; i++) {
     fast_elements->set(i, *elements[i]);
   }
-  return isolate()->factory()->NewJSArrayWithElements(fast_elements);
+  return factory()->NewJSArrayWithElements(fast_elements);
 }
 
 
@@ -415,7 +436,7 @@ Handle<Object> JsonParser<seq_ascii>::ParseJsonNumber() {
     buffer.Dispose();
   }
   SkipWhitespace();
-  return isolate()->factory()->NewNumber(number);
+  return factory()->NewNumber(number);
 }
 
 
@@ -456,8 +477,7 @@ Handle<String> JsonParser<seq_ascii>::SlowScanJsonString(
   int count = end - start;
   int max_length = count + source_length_ - position_;
   int length = Min(max_length, Max(kInitialSpecialStringLength, 2 * count));
-  Handle<StringType> seq_str = NewRawString<StringType>(isolate()->factory(),
-                                                        length);
+  Handle<StringType> seq_str = NewRawString<StringType>(factory(), length);
   // Copy prefix into seq_str.
   SinkChar* dest = seq_str->GetChars();
   String::WriteToFlat(*prefix, dest, start, end);
@@ -573,11 +593,14 @@ Handle<String> JsonParser<seq_ascii>::ScanJsonString() {
     uc32 c0 = c0_;
     do {
       if (c0 == '\\') {
+        c0_ = c0;
+        int beg_pos = position_;
+        position_ = position;
         return SlowScanJsonString<SeqAsciiString, char>(source_,
-                                                        position_,
-                                                        position);
+                                                        beg_pos,
+                                                        position_);
       }
-      if (c0_ < 0x20) return Handle<String>::null();
+      if (c0 < 0x20) return Handle<String>::null();
       running_hash = StringHasher::AddCharacterCore(running_hash, c0);
       position++;
       if (position >= source_length_) return Handle<String>::null();
@@ -632,11 +655,11 @@ Handle<String> JsonParser<seq_ascii>::ScanJsonString() {
   int length = position_ - beg_pos;
   Handle<String> result;
   if (seq_ascii && is_symbol) {
-    result = isolate()->factory()->LookupAsciiSymbol(seq_source_,
+    result = factory()->LookupAsciiSymbol(seq_source_,
                                                      beg_pos,
                                                      length);
   } else {
-    result = isolate()->factory()->NewRawAsciiString(length);
+    result = factory()->NewRawAsciiString(length);
     char* dest = SeqAsciiString::cast(*result)->GetChars();
     String::WriteToFlat(*source_, dest, beg_pos, position_);
   }

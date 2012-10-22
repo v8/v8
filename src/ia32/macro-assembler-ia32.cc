@@ -129,14 +129,22 @@ void MacroAssembler::ClampDoubleToUint8(XMMRegister input_reg,
                                         XMMRegister scratch_reg,
                                         Register result_reg) {
   Label done;
-  ExternalReference zero_ref = ExternalReference::address_of_zero();
-  movdbl(scratch_reg, Operand::StaticVariable(zero_ref));
-  Set(result_reg, Immediate(0));
-  ucomisd(input_reg, scratch_reg);
-  j(below, &done, Label::kNear);
+  Label conv_failure;
+  pxor(scratch_reg, scratch_reg);
   cvtsd2si(result_reg, input_reg);
   test(result_reg, Immediate(0xFFFFFF00));
   j(zero, &done, Label::kNear);
+  cmp(result_reg, Immediate(0x80000000));
+  j(equal, &conv_failure, Label::kNear);
+  mov(result_reg, Immediate(0));
+  setcc(above, result_reg);
+  sub(result_reg, Immediate(1));
+  and_(result_reg, Immediate(255));
+  jmp(&done, Label::kNear);
+  bind(&conv_failure);
+  Set(result_reg, Immediate(0));
+  ucomisd(input_reg, scratch_reg);
+  j(below, &done, Label::kNear);
   Set(result_reg, Immediate(255));
   bind(&done);
 }
@@ -2577,28 +2585,7 @@ void MacroAssembler::Abort(const char* msg) {
 
 void MacroAssembler::LoadInstanceDescriptors(Register map,
                                              Register descriptors) {
-  Register temp = descriptors;
-  mov(temp, FieldOperand(map, Map::kTransitionsOrBackPointerOffset));
-
-  Label ok, fail, load_from_back_pointer;
-  CheckMap(temp,
-           isolate()->factory()->fixed_array_map(),
-           &fail,
-           DONT_DO_SMI_CHECK);
-  mov(descriptors, FieldOperand(temp, TransitionArray::kDescriptorsOffset));
-  jmp(&ok);
-
-  bind(&fail);
-  cmp(temp, isolate()->factory()->undefined_value());
-  j(not_equal, &load_from_back_pointer, Label::kNear);
-  mov(descriptors, isolate()->factory()->empty_descriptor_array());
-  jmp(&ok);
-
-  bind(&load_from_back_pointer);
-  mov(temp, FieldOperand(temp, Map::kTransitionsOrBackPointerOffset));
-  mov(descriptors, FieldOperand(temp, TransitionArray::kDescriptorsOffset));
-
-  bind(&ok);
+  mov(descriptors, FieldOperand(map, Map::kDescriptorsOffset));
 }
 
 

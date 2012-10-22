@@ -601,6 +601,10 @@ class Assembler : public AssemblerBase {
   inline static Address target_address_at(Address pc);
   inline static void set_target_address_at(Address pc, Address target);
 
+  // Return the code target address at a call site from the return address
+  // of that call in the instruction stream.
+  inline static Address target_address_from_return_address(Address pc);
+
   // This sets the branch destination (which is in the instruction on x86).
   // This is for calls and branches within generated code.
   inline static void deserialization_set_special_target_at(
@@ -629,6 +633,7 @@ class Assembler : public AssemblerBase {
   static const int kPatchDebugBreakSlotAddressOffset = 1;  // JMP imm32.
 
   static const int kCallInstructionLength = 5;
+  static const int kPatchDebugBreakSlotReturnOffset = kPointerSize;
   static const int kJSReturnSequenceLength = 6;
 
   // The debug break slot must be able to contain a call instruction.

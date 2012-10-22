@@ -830,6 +830,8 @@ void Decoder::DecodeType01(Instruction* instr) {
     } else {
       Unknown(instr);  // not used by V8
     }
+  } else if ((type == 1) && instr->IsNopType1()) {
+    Format(instr, "nop'cond");
   } else {
     switch (instr->OpcodeField()) {
       case AND: {

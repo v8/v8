@@ -564,10 +564,9 @@ void Map::MapPrint(FILE* out) {
   }
   PrintF(out, " - back pointer: ");
   GetBackPointer()->ShortPrint(out);
-  PrintF(out, "\n - instance descriptors %i #%i %i: ",
+  PrintF(out, "\n - instance descriptors %i #%i: ",
          owns_descriptors(),
-         NumberOfOwnDescriptors(),
-         StoresOwnDescriptors());
+         NumberOfOwnDescriptors());
   instance_descriptors()->ShortPrint(out);
   if (HasTransitionArray()) {
     PrintF(out, "\n - transitions: ");

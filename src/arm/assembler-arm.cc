@@ -77,6 +77,9 @@ static unsigned CpuFeaturesImpliedByCompiler() {
 #endif  // defined(CAN_USE_ARMV7_INSTRUCTIONS) && defined(__VFP_FP__)
         // && !defined(__SOFTFP__)
 #endif  // _arm__
+  if (answer & (1u << ARMv7)) {
+    answer |= 1u << UNALIGNED_ACCESSES;
+  }
 
   return answer;
 }
@@ -114,6 +117,10 @@ void CpuFeatures::Probe() {
   if (FLAG_enable_sudiv) {
     supported_ |= 1u << SUDIV;
   }
+
+  if (FLAG_enable_movw_movt) {
+    supported_ |= 1u << MOVW_MOVT_IMMEDIATE_LOADS;
+  }
 #else  // __arm__
   // Probe for additional features not already known to be available.
   if (!IsSupported(VFP3) && OS::ArmCpuHasFeature(VFP3)) {
@@ -131,6 +138,15 @@ void CpuFeatures::Probe() {
 
   if (!IsSupported(SUDIV) && OS::ArmCpuHasFeature(SUDIV)) {
     found_by_runtime_probing_ |= 1u << SUDIV;
+  }
+
+  if (!IsSupported(UNALIGNED_ACCESSES) && OS::ArmCpuHasFeature(ARMv7)) {
+    found_by_runtime_probing_ |= 1u << UNALIGNED_ACCESSES;
+  }
+
+  if (OS::GetCpuImplementer() == QUALCOMM_IMPLEMENTER &&
+      OS::ArmCpuHasFeature(ARMv7)) {
+    found_by_runtime_probing_ |= 1u << MOVW_MOVT_IMMEDIATE_LOADS;
   }
 
   supported_ |= found_by_runtime_probing_;
@@ -723,12 +739,6 @@ void Assembler::next(Label* L) {
 }
 
 
-static Instr EncodeMovwImmediate(uint32_t immediate) {
-  ASSERT(immediate < 0x10000);
-  return ((immediate & 0xf000) << 4) | (immediate & 0xfff);
-}
-
-
 // Low-level code emission routines depending on the addressing mode.
 // If this returns true then you have to use the rotate_imm and immed_8
 // that it returns, because it may have already changed the instruction
@@ -793,7 +803,7 @@ static bool fits_shifter(uint32_t imm32,
 // if they can be encoded in the ARM's 12 bits of immediate-offset instruction
 // space.  There is no guarantee that the relocated location can be similarly
 // encoded.
-bool Operand::must_use_constant_pool(const Assembler* assembler) const {
+bool Operand::must_output_reloc_info(const Assembler* assembler) const {
   if (rmode_ == RelocInfo::EXTERNAL_REFERENCE) {
 #ifdef DEBUG
     if (!Serializer::enabled()) {
@@ -809,25 +819,28 @@ bool Operand::must_use_constant_pool(const Assembler* assembler) const {
 }
 
 
+static bool use_movw_movt(const Operand& x, const Assembler* assembler) {
+  if (Assembler::use_immediate_embedded_pointer_loads(assembler)) {
+    return true;
+  }
+  if (x.must_output_reloc_info(assembler)) {
+    return false;
+  }
+  return CpuFeatures::IsSupported(ARMv7);
+}
+
+
 bool Operand::is_single_instruction(const Assembler* assembler,
                                     Instr instr) const {
   if (rm_.is_valid()) return true;
   uint32_t dummy1, dummy2;
-  if (must_use_constant_pool(assembler) ||
+  if (must_output_reloc_info(assembler) ||
       !fits_shifter(imm32_, &dummy1, &dummy2, &instr)) {
     // The immediate operand cannot be encoded as a shifter operand, or use of
     // constant pool is required. For a mov instruction not setting the
     // condition code additional instruction conventions can be used.
     if ((instr & ~kCondMask) == 13*B21) {  // mov, S not set
-      if (must_use_constant_pool(assembler) ||
-          !CpuFeatures::IsSupported(ARMv7)) {
-        // mov instruction will be an ldr from constant pool (one instruction).
-        return true;
-      } else {
-        // mov instruction will be a mov or movw followed by movt (two
-        // instructions).
-        return false;
-      }
+      return !use_movw_movt(*this, assembler);
     } else {
       // If this is not a mov or mvn instruction there will always an additional
       // instructions - either mov or ldr. The mov might actually be two
@@ -843,6 +856,29 @@ bool Operand::is_single_instruction(const Assembler* assembler,
 }
 
 
+void Assembler::move_32_bit_immediate(Condition cond,
+                                      Register rd,
+                                      SBit s,
+                                      const Operand& x) {
+  if (rd.code() != pc.code() && s == LeaveCC) {
+    if (use_movw_movt(x, this)) {
+      if (x.must_output_reloc_info(this)) {
+        RecordRelocInfo(x.rmode_, x.imm32_, DONT_USE_CONSTANT_POOL);
+        // Make sure the movw/movt doesn't get separated.
+        BlockConstPoolFor(2);
+      }
+      emit(cond | 0x30*B20 | rd.code()*B12 |
+           EncodeMovwImmediate(x.imm32_ & 0xffff));
+      movt(rd, static_cast<uint32_t>(x.imm32_) >> 16, cond);
+      return;
+    }
+  }
+
+  RecordRelocInfo(x.rmode_, x.imm32_, USE_CONSTANT_POOL);
+  ldr(rd, MemOperand(pc, 0), cond);
+}
+
+
 void Assembler::addrmod1(Instr instr,
                          Register rn,
                          Register rd,
@@ -853,7 +889,7 @@ void Assembler::addrmod1(Instr instr,
     // Immediate.
     uint32_t rotate_imm;
     uint32_t immed_8;
-    if (x.must_use_constant_pool(this) ||
+    if (x.must_output_reloc_info(this) ||
         !fits_shifter(x.imm32_, &rotate_imm, &immed_8, &instr)) {
       // The immediate operand cannot be encoded as a shifter operand, so load
       // it first to register ip and change the original instruction to use ip.
@@ -862,24 +898,19 @@ void Assembler::addrmod1(Instr instr,
       CHECK(!rn.is(ip));  // rn should never be ip, or will be trashed
       Condition cond = Instruction::ConditionField(instr);
       if ((instr & ~kCondMask) == 13*B21) {  // mov, S not set
-        if (x.must_use_constant_pool(this) ||
-            !CpuFeatures::IsSupported(ARMv7)) {
-          RecordRelocInfo(x.rmode_, x.imm32_);
-          ldr(rd, MemOperand(pc, 0), cond);
-        } else {
-          // Will probably use movw, will certainly not use constant pool.
-          mov(rd, Operand(x.imm32_ & 0xffff), LeaveCC, cond);
-          movt(rd, static_cast<uint32_t>(x.imm32_) >> 16, cond);
-        }
+        move_32_bit_immediate(cond, rd, LeaveCC, x);
       } else {
-        // If this is not a mov or mvn instruction we may still be able to avoid
-        // a constant pool entry by using mvn or movw.
-        if (!x.must_use_constant_pool(this) &&
-            (instr & kMovMvnMask) != kMovMvnPattern) {
-          mov(ip, x, LeaveCC, cond);
-        } else {
-          RecordRelocInfo(x.rmode_, x.imm32_);
+        if ((instr & kMovMvnMask) == kMovMvnPattern) {
+          // Moves need to use a constant pool entry.
+          RecordRelocInfo(x.rmode_, x.imm32_, USE_CONSTANT_POOL);
           ldr(ip, MemOperand(pc, 0), cond);
+        } else if (x.must_output_reloc_info(this)) {
+          // Otherwise, use most efficient form of fetching from constant pool.
+          move_32_bit_immediate(cond, ip, LeaveCC, x);
+        } else {
+          // If this is not a mov or mvn instruction we may still be able to
+          // avoid a constant pool entry by using mvn or movw.
+          mov(ip, x, LeaveCC, cond);
         }
         addrmod1(instr, rn, rd, Operand(ip));
       }
@@ -1186,6 +1217,9 @@ void Assembler::mov(Register dst, const Operand& src, SBit s, Condition cond) {
 
 void Assembler::movw(Register reg, uint32_t immediate, Condition cond) {
   ASSERT(immediate < 0x10000);
+  // May use movw if supported, but on unsupported platforms will try to use
+  // equivalent rotated immed_8 value and other tricks before falling back to a
+  // constant pool load.
   mov(reg, Operand(immediate), LeaveCC, cond);
 }
 
@@ -1415,7 +1449,7 @@ void Assembler::msr(SRegisterFieldMask fields, const Operand& src,
     // Immediate.
     uint32_t rotate_imm;
     uint32_t immed_8;
-    if (src.must_use_constant_pool(this) ||
+    if (src.must_output_reloc_info(this) ||
         !fits_shifter(src.imm32_, &rotate_imm, &immed_8, NULL)) {
       // Immediate operand cannot be encoded, load it first to register ip.
       RecordRelocInfo(src.rmode_, src.imm32_);
@@ -2433,15 +2467,35 @@ void Assembler::vsqrt(const DwVfpRegister dst,
 
 // Pseudo instructions.
 void Assembler::nop(int type) {
-  // This is mov rx, rx.
-  ASSERT(0 <= type && type <= 14);  // mov pc, pc is not a nop.
+  // ARMv6{K/T2} and v7 have an actual NOP instruction but it serializes
+  // some of the CPU's pipeline and has to issue. Older ARM chips simply used
+  // MOV Rx, Rx as NOP and it performs better even in newer CPUs.
+  // We therefore use MOV Rx, Rx, even on newer CPUs, and use Rx to encode
+  // a type.
+  ASSERT(0 <= type && type <= 14);  // mov pc, pc isn't a nop.
   emit(al | 13*B21 | type*B12 | type);
 }
 
 
+bool Assembler::IsMovT(Instr instr) {
+  instr &= ~(((kNumberOfConditions - 1) << 28) |  // Mask off conditions
+             ((kNumRegisters-1)*B12) |            // mask out register
+             EncodeMovwImmediate(0xFFFF));        // mask out immediate value
+  return instr == 0x34*B20;
+}
+
+
+bool Assembler::IsMovW(Instr instr) {
+  instr &= ~(((kNumberOfConditions - 1) << 28) |  // Mask off conditions
+             ((kNumRegisters-1)*B12) |            // mask out destination
+             EncodeMovwImmediate(0xFFFF));        // mask out immediate value
+  return instr == 0x30*B20;
+}
+
+
 bool Assembler::IsNop(Instr instr, int type) {
+  ASSERT(0 <= type && type <= 14);  // mov pc, pc isn't a nop.
   // Check for mov rx, rx where x = type.
-  ASSERT(0 <= type && type <= 14);  // mov pc, pc is not a nop.
   return instr == (al | 13*B21 | type*B12 | type);
 }
 
@@ -2557,18 +2611,21 @@ void Assembler::dd(uint32_t data) {
 }
 
 
-void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
+void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data,
+                                UseConstantPoolMode mode) {
   // We do not try to reuse pool constants.
   RelocInfo rinfo(pc_, rmode, data, NULL);
   if (((rmode >= RelocInfo::JS_RETURN) &&
        (rmode <= RelocInfo::DEBUG_BREAK_SLOT)) ||
-      (rmode == RelocInfo::CONST_POOL)) {
+      (rmode == RelocInfo::CONST_POOL) ||
+      mode == DONT_USE_CONSTANT_POOL) {
     // Adjust code for new modes.
     ASSERT(RelocInfo::IsDebugBreakSlot(rmode)
            || RelocInfo::IsJSReturn(rmode)
            || RelocInfo::IsComment(rmode)
            || RelocInfo::IsPosition(rmode)
-           || RelocInfo::IsConstPool(rmode));
+           || RelocInfo::IsConstPool(rmode)
+           || mode == DONT_USE_CONSTANT_POOL);
     // These modes do not need an entry in the constant pool.
   } else {
     ASSERT(num_pending_reloc_info_ < kMaxNumPendingRelocInfo);
@@ -2687,17 +2744,19 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
 
       Instr instr = instr_at(rinfo.pc());
       // Instruction to patch must be 'ldr rd, [pc, #offset]' with offset == 0.
-      ASSERT(IsLdrPcImmediateOffset(instr) &&
-             GetLdrRegisterImmediateOffset(instr) == 0);
+      if (IsLdrPcImmediateOffset(instr) &&
+          GetLdrRegisterImmediateOffset(instr) == 0) {
+        int delta = pc_ - rinfo.pc() - kPcLoadDelta;
+        // 0 is the smallest delta:
+        //   ldr rd, [pc, #0]
+        //   constant pool marker
+        //   data
+        ASSERT(is_uint12(delta));
 
-      int delta = pc_ - rinfo.pc() - kPcLoadDelta;
-      // 0 is the smallest delta:
-      //   ldr rd, [pc, #0]
-      //   constant pool marker
-      //   data
-      ASSERT(is_uint12(delta));
-
-      instr_at_put(rinfo.pc(), SetLdrRegisterImmediateOffset(instr, delta));
+        instr_at_put(rinfo.pc(), SetLdrRegisterImmediateOffset(instr, delta));
+      } else {
+        ASSERT(IsMovW(instr));
+      }
       emit(rinfo.data());
     }
 

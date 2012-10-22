@@ -5391,7 +5391,6 @@ void LCodeGen::DoForInPrepareMap(LForInPrepareMap* instr) {
 void LCodeGen::DoForInCacheArray(LForInCacheArray* instr) {
   Register map = ToRegister(instr->map());
   Register result = ToRegister(instr->result());
-  Register scratch = ToRegister(instr->scratch());
   Label load_cache, done;
   __ EnumLength(result, map);
   __ Branch(&load_cache, ne, result, Operand(Smi::FromInt(0)));
@@ -5399,7 +5398,7 @@ void LCodeGen::DoForInCacheArray(LForInCacheArray* instr) {
   __ jmp(&done);
 
   __ bind(&load_cache);
-  __ LoadInstanceDescriptors(map, result, scratch);
+  __ LoadInstanceDescriptors(map, result);
   __ lw(result,
         FieldMemOperand(result, DescriptorArray::kEnumCacheOffset));
   __ lw(result,

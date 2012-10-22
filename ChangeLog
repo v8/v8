@@ -1,3 +1,24 @@
+2012-10-22: Version 3.14.5
+
+        Killed off the SCons based build.
+
+        Added a faster API for creating v8::Integer objects.
+
+        Speeded up function deoptimization by avoiding quadratic pass over
+        optimized function list. (Chromium issue 155270)
+
+        Always invoke the default Array.sort functions from builtin functions.
+        (issue 2372)
+
+        Reverted recent CPU profiler changes because they broke --prof.
+        (issue 2364)
+
+        Switched code flushing to use different JSFunction field.
+        (issue 1609)
+
+        Performance and stability improvements on all platforms.
+
+
 2012-10-15: Version 3.14.4
 
         Allow evals for debugger even if they are prohibited in the debugee

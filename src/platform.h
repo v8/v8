@@ -308,6 +308,9 @@ class OS {
   // Returns the double constant NAN
   static double nan_value();
 
+  // Support runtime detection of Cpu implementer
+  static CpuImplementer GetCpuImplementer();
+
   // Support runtime detection of VFP3 on ARM CPUs.
   static bool ArmCpuHasFeature(CpuFeature feature);
 
@@ -740,9 +743,6 @@ class Sampler {
     DoSampleStack(sample);
     IncSamplesTaken();
   }
-
-  // Performs platform-specific stack sampling.
-  void DoSample();
 
   // This method is called for each sampling period with the current
   // program counter.

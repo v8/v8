@@ -942,8 +942,7 @@ class MacroAssembler: public Assembler {
 
   void ClampDoubleToUint8(XMMRegister input_reg,
                           XMMRegister temp_xmm_reg,
-                          Register result_reg,
-                          Register temp_reg);
+                          Register result_reg);
 
   void LoadUint32(XMMRegister dst, Register src, XMMRegister scratch);
 

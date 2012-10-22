@@ -1112,6 +1112,8 @@ class DebugInfoSection : public DebugSection {
       w->Write<uint8_t>(DW_OP_reg6);  // and here on x64.
 #elif defined(V8_TARGET_ARCH_ARM)
       UNIMPLEMENTED();
+#elif defined(V8_TARGET_ARCH_MIPS)
+      UNIMPLEMENTED();
 #else
 #error Unsupported target architecture.
 #endif
