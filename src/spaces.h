@@ -504,7 +504,8 @@ class MemoryChunk {
   static const size_t kWriteBarrierCounterOffset =
       kSlotsBufferOffset + kPointerSize + kPointerSize;
 
-  static const size_t kHeaderSize = kWriteBarrierCounterOffset + kPointerSize;
+  static const size_t kHeaderSize =
+      kWriteBarrierCounterOffset + kPointerSize + kPointerSize;
 
   static const int kBodyOffset =
       CODE_POINTER_ALIGN(kHeaderSize + Bitmap::kSize);
@@ -616,6 +617,13 @@ class MemoryChunk {
     return static_cast<int>(area_end() - area_start());
   }
 
+  // Approximate amount of physical memory committed for this chunk.
+  size_t CommittedPhysicalMemory() {
+    return high_water_mark_;
+  }
+
+  static inline void UpdateHighWaterMark(Address mark);
+
  protected:
   MemoryChunk* next_chunk_;
   MemoryChunk* prev_chunk_;
@@ -641,6 +649,9 @@ class MemoryChunk {
   SlotsBuffer* slots_buffer_;
   SkipList* skip_list_;
   intptr_t write_barrier_counter_;
+  // Assuming the initial allocation on a page is sequential,
+  // count highest number of bytes ever allocated on the page.
+  int high_water_mark_;
 
   static MemoryChunk* Initialize(Heap* heap,
                                  Address base,
@@ -1490,6 +1501,9 @@ class PagedSpace : public Space {
   // spaces this equals the capacity.
   intptr_t CommittedMemory() { return Capacity(); }
 
+  // Approximate amount of physical memory committed for this space.
+  size_t CommittedPhysicalMemory();
+
   // Sets the capacity, the available space and the wasted space to zero.
   // The stats are rebuilt during sweeping by adding each page to the
   // capacity and the size when it is encountered.  As free spaces are
@@ -1550,6 +1564,7 @@ class PagedSpace : public Space {
   void SetTop(Address top, Address limit) {
     ASSERT(top == limit ||
            Page::FromAddress(top) == Page::FromAddress(limit - 1));
+    MemoryChunk::UpdateHighWaterMark(allocation_info_.top);
     allocation_info_.top = top;
     allocation_info_.limit = limit;
   }
@@ -1961,6 +1976,9 @@ class SemiSpace : public Space {
 
   static void Swap(SemiSpace* from, SemiSpace* to);
 
+  // Approximate amount of physical memory committed for this space.
+  size_t CommittedPhysicalMemory();
+
  private:
   // Flips the semispace between being from-space and to-space.
   // Copies the flags into the masked positions on all pages in the space.
@@ -2157,6 +2175,9 @@ class NewSpace : public Space {
     if (from_space_.is_committed()) return 2 * Capacity();
     return Capacity();
   }
+
+  // Approximate amount of physical memory committed for this space.
+  size_t CommittedPhysicalMemory();
 
   // Return the available bytes without growing.
   intptr_t Available() {
@@ -2523,6 +2544,9 @@ class LargeObjectSpace : public Space {
   intptr_t CommittedMemory() {
     return Size();
   }
+
+  // Approximate amount of physical memory committed for this space.
+  size_t CommittedPhysicalMemory();
 
   int PageCount() {
     return page_count_;

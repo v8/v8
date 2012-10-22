@@ -212,6 +212,20 @@ intptr_t Heap::CommittedMemory() {
       lo_space_->Size();
 }
 
+
+size_t Heap::CommittedPhysicalMemory() {
+  if (!HasBeenSetUp()) return 0;
+
+  return new_space_.CommittedPhysicalMemory() +
+      old_pointer_space_->CommittedPhysicalMemory() +
+      old_data_space_->CommittedPhysicalMemory() +
+      code_space_->CommittedPhysicalMemory() +
+      map_space_->CommittedPhysicalMemory() +
+      cell_space_->CommittedPhysicalMemory() +
+      lo_space_->CommittedPhysicalMemory();
+}
+
+
 intptr_t Heap::CommittedMemoryExecutable() {
   if (!HasBeenSetUp()) return 0;
 
