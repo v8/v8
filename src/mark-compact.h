@@ -420,16 +420,21 @@ class CodeFlusher {
         shared_function_info_candidates_head_(NULL) {}
 
   void AddCandidate(SharedFunctionInfo* shared_info) {
-    SetNextCandidate(shared_info, shared_function_info_candidates_head_);
-    shared_function_info_candidates_head_ = shared_info;
+    if (GetNextCandidate(shared_info) == NULL) {
+      SetNextCandidate(shared_info, shared_function_info_candidates_head_);
+      shared_function_info_candidates_head_ = shared_info;
+    }
   }
 
   void AddCandidate(JSFunction* function) {
     ASSERT(function->code() == function->shared()->code());
-    ASSERT(function->next_function_link()->IsUndefined());
-    SetNextCandidate(function, jsfunction_candidates_head_);
-    jsfunction_candidates_head_ = function;
+    if (GetNextCandidate(function)->IsUndefined()) {
+      SetNextCandidate(function, jsfunction_candidates_head_);
+      jsfunction_candidates_head_ = function;
+    }
   }
+
+  void EvictCandidate(JSFunction* function);
 
   void ProcessCandidates() {
     ProcessSharedFunctionInfoCandidates();

@@ -926,6 +926,32 @@ void CodeFlusher::ProcessSharedFunctionInfoCandidates() {
 }
 
 
+void CodeFlusher::EvictCandidate(JSFunction* function) {
+  ASSERT(!function->next_function_link()->IsUndefined());
+  Object* undefined = isolate_->heap()->undefined_value();
+
+  JSFunction* candidate = jsfunction_candidates_head_;
+  JSFunction* next_candidate;
+  if (candidate == function) {
+    next_candidate = GetNextCandidate(function);
+    jsfunction_candidates_head_ = next_candidate;
+    ClearNextCandidate(function, undefined);
+  } else {
+    while (candidate != NULL) {
+      next_candidate = GetNextCandidate(candidate);
+
+      if (next_candidate == function) {
+        next_candidate = GetNextCandidate(function);
+        SetNextCandidate(candidate, next_candidate);
+        ClearNextCandidate(function, undefined);
+      }
+
+      candidate = next_candidate;
+    }
+  }
+}
+
+
 MarkCompactCollector::~MarkCompactCollector() {
   if (code_flusher_ != NULL) {
     delete code_flusher_;
@@ -1430,21 +1456,8 @@ void MarkCompactCollector::PrepareThreadForCodeFlushing(Isolate* isolate,
 void MarkCompactCollector::PrepareForCodeFlushing() {
   ASSERT(heap() == Isolate::Current()->heap());
 
-  // TODO(1609) Currently incremental marker does not support code flushing.
-  if (!FLAG_flush_code || was_marked_incrementally_) {
-    EnableCodeFlushing(false);
-    return;
-  }
-
-#ifdef ENABLE_DEBUGGER_SUPPORT
-  if (heap()->isolate()->debug()->IsLoaded() ||
-      heap()->isolate()->debug()->has_break_points()) {
-    EnableCodeFlushing(false);
-    return;
-  }
-#endif
-
-  EnableCodeFlushing(true);
+  // If code flushing is disabled, there is no need to prepare for it.
+  if (!is_code_flushing_enabled()) return;
 
   // Ensure that empty descriptor array is marked. Method MarkDescriptorArray
   // relies on it being marked before any other descriptor array.
@@ -2005,9 +2018,6 @@ void MarkCompactCollector::AfterMarking() {
   // Flush code from collected candidates.
   if (is_code_flushing_enabled()) {
     code_flusher_->ProcessCandidates();
-    // TODO(1609) Currently incremental marker does not support code flushing,
-    // we need to disable it before incremental marking steps for next cycle.
-    EnableCodeFlushing(false);
   }
 
   if (!FLAG_watch_ic_patching) {
