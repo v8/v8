@@ -59,13 +59,7 @@ class BasicJsonStringifier BASE_EMBEDDED {
   INLINE(void Append_(Char c));
 
   template <bool is_ascii, typename Char>
-  INLINE(void AppendUnchecked_(Char c));
-
-  template <bool is_ascii, typename Char>
   INLINE(void Append_(const Char* chars));
-
-  template <bool is_ascii, typename Char>
-  INLINE(void AppendUnchecked_(const Char* chars));
 
   INLINE(void Append(char c)) {
     if (is_ascii_) {
@@ -123,9 +117,17 @@ class BasicJsonStringifier BASE_EMBEDDED {
 
   void SerializeString(Handle<String> object);
 
+  template <typename SrcChar, typename DestChar>
+  INLINE(void SerializeStringUnchecked_(const SrcChar* src,
+                                        DestChar* dest,
+                                        int length));
+
   template <bool is_ascii, typename Char>
   INLINE(void SerializeString_(Vector<const Char> vector,
                                Handle<String> string));
+
+  template <typename Char>
+  INLINE(bool DoNotEscape(Char c));
 
   template <typename Char>
   INLINE(Vector<const Char> GetCharVector(Handle<String> string));
@@ -152,12 +154,14 @@ class BasicJsonStringifier BASE_EMBEDDED {
   int part_length_;
   bool is_ascii_;
 
-  static const int kJsonQuotesCharactersPerEntry = 8;
-  static const char* const JsonQuotes;
+  static const int kJsonEscapeTableEntrySize = 8;
+  static const char* const JsonEscapeTable;
 };
 
 
-const char* const BasicJsonStringifier::JsonQuotes =
+// Translation table to escape ASCII characters.
+// Table entries start at a multiple of 8 and are null-terminated.
+const char* const BasicJsonStringifier::JsonEscapeTable =
     "\\u0000\0 \\u0001\0 \\u0002\0 \\u0003\0 "
     "\\u0004\0 \\u0005\0 \\u0006\0 \\u0007\0 "
     "\\b\0     \\t\0     \\n\0     \\u000b\0 "
@@ -236,27 +240,8 @@ void BasicJsonStringifier::Append_(Char c) {
 
 
 template <bool is_ascii, typename Char>
-void BasicJsonStringifier::AppendUnchecked_(Char c) {
-  if (is_ascii) {
-    SeqAsciiString::cast(*current_part_)->SeqAsciiStringSet(
-        current_index_++, c);
-  } else {
-    SeqTwoByteString::cast(*current_part_)->SeqTwoByteStringSet(
-        current_index_++, c);
-  }
-  ASSERT(current_index_ < part_length_);
-}
-
-
-template <bool is_ascii, typename Char>
 void BasicJsonStringifier::Append_(const Char* chars) {
   for ( ; *chars != '\0'; chars++) Append_<is_ascii, Char>(*chars);
-}
-
-
-template <bool is_ascii, typename Char>
-void BasicJsonStringifier::AppendUnchecked_(const Char* chars) {
-  for ( ; *chars != '\0'; chars++) AppendUnchecked_<is_ascii, Char>(*chars);
 }
 
 
@@ -579,34 +564,60 @@ void BasicJsonStringifier::ChangeEncoding() {
 }
 
 
+template <typename SrcChar, typename DestChar>
+void BasicJsonStringifier::SerializeStringUnchecked_(const SrcChar* src,
+                                                     DestChar* dest,
+                                                     int length) {
+  dest += current_index_;
+  DestChar* dest_start = dest;
+
+  *(dest++) = '"';
+  for (int i = 0; i < length; i++) {
+    SrcChar c = src[i];
+    if (DoNotEscape(c)) {
+      *(dest++) = c;
+    } else {
+      const char* chars = &JsonEscapeTable[c * kJsonEscapeTableEntrySize];
+      while (*chars != '\0') *(dest++) = *(chars++);
+    }
+  }
+
+  *(dest++) = '"';
+  current_index_ += dest - dest_start;
+}
+
+
 template <bool is_ascii, typename Char>
 void BasicJsonStringifier::SerializeString_(Vector<const Char> vector,
                                             Handle<String> string) {
   int length = vector.length();
-  if (current_index_ + (length << 3) < (part_length_ - 2)) {
-    AssertNoAllocation no_allocation_scope;
-    AppendUnchecked_<is_ascii, char>('"');
-    for (int i = 0; i < length; i++) {
-      Char c = vector[i];
-      if ((c >= '#' && c <= '~' && c != '\\') ||
-          (!is_ascii && ((c & 0xFF80) != 0))) {
-        AppendUnchecked_<is_ascii, Char>(c);
-      } else {
-        AppendUnchecked_<is_ascii, char>(
-            &JsonQuotes[c * kJsonQuotesCharactersPerEntry]);
-      }
+  // We make a rough estimate to find out if the current string can be
+  // serialized without allocating a new string part. The worst case length of
+  // an escaped character is 6.  Shifting left by 3 is a more pessimistic
+  // estimate than multiplying by 6, but faster to calculate.
+  static const int kEnclosingQuotesLength = 2;
+  if (current_index_ + (length << 3) + kEnclosingQuotesLength < part_length_) {
+    if (is_ascii) {
+      SerializeStringUnchecked_(
+          vector.start(),
+          SeqAsciiString::cast(*current_part_)->GetChars(),
+          length);
+    } else {
+      SerializeStringUnchecked_(
+          vector.start(),
+          SeqTwoByteString::cast(*current_part_)->GetChars(),
+          length);
     }
-    AppendUnchecked_<is_ascii, char>('"');
   } else {
     Append_<is_ascii, char>('"');
     String* string_location = *string;
     for (int i = 0; i < length; i++) {
       Char c = vector[i];
-      if ((c >= '#' && c <= '~' && c != '\\') ||
-          (!is_ascii && ((c & 0xFF80) != 0))) {
+      if (DoNotEscape(c)) {
         Append_<is_ascii, Char>(c);
       } else {
-        Append_<is_ascii, char>(&JsonQuotes[c * kJsonQuotesCharactersPerEntry]);
+        Append_<is_ascii, char>(
+            &JsonEscapeTable[c * kJsonEscapeTableEntrySize]);
       }
       // If GC moved the string, we need to refresh the vector.
       if (*string != string_location) {
@@ -616,6 +627,18 @@ void BasicJsonStringifier::SerializeString_(Vector<const Char> vector,
     }
     Append_<is_ascii, char>('"');
   }
+}
+
+
+template <>
+bool BasicJsonStringifier::DoNotEscape(char c) {
+  return c >= '#' && c <= '~' && c != '\\';
+}
+
+
+template <>
+bool BasicJsonStringifier::DoNotEscape(uc16 c) {
+  return (c >= 0x80) || (c >= '#' && c <= '~' && c != '\\');
 }
 
 
