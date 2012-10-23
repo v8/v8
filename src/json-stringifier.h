@@ -587,7 +587,7 @@ void BasicJsonStringifier::SerializeStringUnchecked_(const SrcChar* src,
   }
 
   *(dest++) = '"';
-  current_index_ += dest - dest_start;
+  current_index_ += static_cast<int>(dest - dest_start);
 }
 
 
