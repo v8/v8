@@ -298,9 +298,9 @@ def Execute(arch, mode, args, options, suites, workspace):
   for s in suites:
     s.ReadStatusFile(variables)
     s.ReadTestCases(ctx)
-    all_tests += s.tests
     if len(args) > 0:
       s.FilterTestCasesByArgs(args)
+    all_tests += s.tests
     s.FilterTestCasesByStatus(options.warn_unused)
     if options.cat:
       verbose.PrintTestSource(s.tests)
