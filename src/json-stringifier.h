@@ -571,11 +571,15 @@ void BasicJsonStringifier::SerializeStringUnchecked_(const SrcChar* src,
   dest += current_index_;
   DestChar* dest_start = dest;
 
+  // Assert that uc16 character is not truncated down to 8 bit.
+  // The <uc16, char> version of this method must not be called.
+  ASSERT(sizeof(*dest) >= sizeof(*src));
+
   *(dest++) = '"';
   for (int i = 0; i < length; i++) {
     SrcChar c = src[i];
     if (DoNotEscape(c)) {
-      *(dest++) = c;
+      *(dest++) = static_cast<DestChar>(c);
     } else {
       const char* chars = &JsonEscapeTable[c * kJsonEscapeTableEntrySize];
       while (*chars != '\0') *(dest++) = *(chars++);
