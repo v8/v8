@@ -154,6 +154,7 @@ class JsonParser BASE_EMBEDDED {
   inline Zone* zone() const { return zone_; }
 
   static const int kInitialSpecialStringLength = 1024;
+  static const int kPretenureTreshold = 100 * 1024;
 
 
  private:
@@ -161,6 +162,7 @@ class JsonParser BASE_EMBEDDED {
   int source_length_;
   Handle<SeqAsciiString> seq_source_;
 
+  PretenureFlag pretenure_;
   Isolate* isolate_;
   Factory* factory_;
   Handle<JSFunction> object_constructor_;
@@ -180,6 +182,7 @@ Handle<Object> JsonParser<seq_ascii>::ParseJson(Handle<String> source,
   FlattenString(source);
   source_ = source;
   source_length_ = source_->length();
+  pretenure_ = (source_length_ >= kPretenureTreshold) ? TENURED : NOT_TENURED;
 
   // Optimized fast case where we only have ASCII characters.
   if (seq_ascii) {
@@ -281,7 +284,7 @@ template <bool seq_ascii>
 Handle<Object> JsonParser<seq_ascii>::ParseJsonObject() {
   Handle<Object> prototype;
   Handle<JSObject> json_object =
-      factory()->NewJSObject(object_constructor());
+      factory()->NewJSObject(object_constructor(), pretenure_);
   ASSERT_EQ(c0_, '{');
 
   AdvanceSkipWhitespace();
@@ -365,11 +368,12 @@ Handle<Object> JsonParser<seq_ascii>::ParseJsonArray() {
   AdvanceSkipWhitespace();
   // Allocate a fixed array with all the elements.
   Handle<FixedArray> fast_elements =
-      factory()->NewFixedArray(elements.length());
+      factory()->NewFixedArray(elements.length(), pretenure_);
   for (int i = 0, n = elements.length(); i < n; i++) {
     fast_elements->set(i, *elements[i]);
   }
-  return factory()->NewJSArrayWithElements(fast_elements);
+  return factory()->NewJSArrayWithElements(
+      fast_elements, FAST_ELEMENTS, pretenure_);
 }
 
 
@@ -436,7 +440,7 @@ Handle<Object> JsonParser<seq_ascii>::ParseJsonNumber() {
     buffer.Dispose();
   }
   SkipWhitespace();
-  return factory()->NewNumber(number);
+  return factory()->NewNumber(number, pretenure_);
 }
 
 
@@ -454,16 +458,22 @@ inline void SeqStringSet(Handle<SeqAsciiString> seq_str, int i, uc32 c) {
 }
 
 template <typename StringType>
-inline Handle<StringType> NewRawString(Factory* factory, int length);
+inline Handle<StringType> NewRawString(Factory* factory,
+                                       int length,
+                                       PretenureFlag pretenure);
 
 template <>
-inline Handle<SeqTwoByteString> NewRawString(Factory* factory, int length) {
-  return factory->NewRawTwoByteString(length, NOT_TENURED);
+inline Handle<SeqTwoByteString> NewRawString(Factory* factory,
+                                             int length,
+                                             PretenureFlag pretenure) {
+  return factory->NewRawTwoByteString(length, pretenure);
 }
 
 template <>
-inline Handle<SeqAsciiString> NewRawString(Factory* factory, int length) {
-  return factory->NewRawAsciiString(length, NOT_TENURED);
+inline Handle<SeqAsciiString> NewRawString(Factory* factory,
+                                           int length,
+                                           PretenureFlag pretenure) {
+  return factory->NewRawAsciiString(length, pretenure);
 }
 
 
@@ -477,7 +487,8 @@ Handle<String> JsonParser<seq_ascii>::SlowScanJsonString(
   int count = end - start;
   int max_length = count + source_length_ - position_;
   int length = Min(max_length, Max(kInitialSpecialStringLength, 2 * count));
-  Handle<StringType> seq_str = NewRawString<StringType>(factory(), length);
+  Handle<StringType> seq_str =
+      NewRawString<StringType>(factory(), length, pretenure_);
   // Copy prefix into seq_str.
   SinkChar* dest = seq_str->GetChars();
   String::WriteToFlat(*prefix, dest, start, end);
@@ -656,10 +667,10 @@ Handle<String> JsonParser<seq_ascii>::ScanJsonString() {
   Handle<String> result;
   if (seq_ascii && is_symbol) {
     result = factory()->LookupAsciiSymbol(seq_source_,
-                                                     beg_pos,
-                                                     length);
+                                          beg_pos,
+                                          length);
   } else {
-    result = factory()->NewRawAsciiString(length);
+    result = factory()->NewRawAsciiString(length, pretenure_);
     char* dest = SeqAsciiString::cast(*result)->GetChars();
     String::WriteToFlat(*source_, dest, beg_pos, position_);
   }
