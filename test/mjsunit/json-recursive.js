@@ -38,7 +38,19 @@ function rec(a,b,c,d,e,f,g,h,i,j,k,l,m,n) {
   rec(a,b,c,d,e,f,g,h,i,j,k,l,m,n);
 }
 
-assertThrows(
-    function() { rec(1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4) },
-    RangeError);
+assertThrows(function() { rec(1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4) },
+             RangeError);
 
+
+var deepArray = [];
+for (var i = 0; i < 2048; i++) deepArray = [deepArray];
+JSON.stringify(deepArray);
+for (var i = 2048; i < 4097; i++) deepArray = [deepArray];
+assertThrows(function() { JSON.stringify(deepArray); }, RangeError);
+
+
+var deepObject = {};
+for (var i = 0; i < 2048; i++) deepObject = { next: deepObject };
+JSON.stringify(deepObject);
+for (var i = 2048; i < 4097; i++) deepObject = { next: deepObject };
+assertThrows(function() { JSON.stringify(deepObject); }, RangeError);

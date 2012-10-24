@@ -180,6 +180,11 @@
         'defines': [
           'V8_TARGET_ARCH_IA32',
         ],
+        'msvs_settings': {
+          'VCLinkerTool': {
+            'StackReserveSize': '4194304',
+          },
+        },
       }],  # v8_target_arch=="ia32"
       ['v8_target_arch=="mipsel"', {
         'defines': [
@@ -246,7 +251,7 @@
         },
         'msvs_settings': {
           'VCLinkerTool': {
-            'StackReserveSize': '2097152',
+            'StackReserveSize': '8388608',
           },
         },
         'msvs_configuration_platform': 'x64',

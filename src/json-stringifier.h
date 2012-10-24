@@ -45,7 +45,7 @@ class BasicJsonStringifier BASE_EMBEDDED {
   static const int kInitialPartLength = 32;
   static const int kMaxPartLength = 16 * 1024;
   static const int kPartLengthGrowthFactor = 2;
-  static const int kStackLimit = 8 * 1024;
+  static const int kStackLimit = 4 * 1024;
 
   enum Result { UNCHANGED, SUCCESS, BAILOUT, CIRCULAR, STACK_OVERFLOW };
 
@@ -399,7 +399,8 @@ BasicJsonStringifier::Result BasicJsonStringifier::SerializeDouble(
 BasicJsonStringifier::Result BasicJsonStringifier::SerializeArray(
     Handle<JSArray> object) {
   HandleScope handle_scope(isolate_);
-  if (StackPush(object) == CIRCULAR) return CIRCULAR;
+  Result stack_push = StackPush(object);
+  if (stack_push != SUCCESS) return stack_push;
   int length = Smi::cast(object->length())->value();
   Append('[');
   switch (object->GetElementsKind()) {
