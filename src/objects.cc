@@ -3557,7 +3557,6 @@ Object* JSObject::GetHiddenProperty(String* key) {
   ASSERT(!IsJSGlobalProxy());
   MaybeObject* hidden_lookup =
       GetHiddenPropertiesHashTable(ONLY_RETURN_INLINE_VALUE);
-  ASSERT(!hidden_lookup->IsFailure());  // No failure when passing false as arg.
   Object* inline_value = hidden_lookup->ToObjectUnchecked();
 
   if (inline_value->IsSmi()) {
@@ -3598,13 +3597,11 @@ MaybeObject* JSObject::SetHiddenProperty(String* key, Object* value) {
     return JSObject::cast(proxy_parent)->SetHiddenProperty(key, value);
   }
   ASSERT(!IsJSGlobalProxy());
-
-  // If there is no backing store yet, store the identity hash inline.
   MaybeObject* hidden_lookup =
       GetHiddenPropertiesHashTable(ONLY_RETURN_INLINE_VALUE);
-  ASSERT(!hidden_lookup->IsFailure());
   Object* inline_value = hidden_lookup->ToObjectUnchecked();
 
+  // If there is no backing store yet, store the identity hash inline.
   if (value->IsSmi() &&
       key == GetHeap()->identity_hash_symbol() &&
       (inline_value->IsUndefined() || inline_value->IsSmi())) {
@@ -3641,15 +3638,16 @@ void JSObject::DeleteHiddenProperty(String* key) {
     JSObject::cast(proxy_parent)->DeleteHiddenProperty(key);
     return;
   }
+  ASSERT(!IsJSGlobalProxy());
   MaybeObject* hidden_lookup =
       GetHiddenPropertiesHashTable(ONLY_RETURN_INLINE_VALUE);
-  ASSERT(!hidden_lookup->IsFailure());  // No failure when passing false as arg.
-  if (hidden_lookup->ToObjectUnchecked()->IsUndefined()) return;
-  // We never delete (inline-stored) identity hashes.
-  ASSERT(!hidden_lookup->ToObjectUnchecked()->IsSmi());
+  Object* inline_value = hidden_lookup->ToObjectUnchecked();
 
-  ObjectHashTable* hashtable =
-      ObjectHashTable::cast(hidden_lookup->ToObjectUnchecked());
+  // We never delete (inline-stored) identity hashes.
+  ASSERT(key != GetHeap()->identity_hash_symbol());
+  if (inline_value->IsUndefined() || inline_value->IsSmi()) return;
+
+  ObjectHashTable* hashtable = ObjectHashTable::cast(inline_value);
   MaybeObject* delete_result = hashtable->Put(key, GetHeap()->the_hole_value());
   USE(delete_result);
   ASSERT(!delete_result->IsFailure());  // Delete does not cause GC.
