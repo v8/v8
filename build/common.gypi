@@ -134,6 +134,11 @@
           'V8_TARGET_ARCH_ARM',
         ],
         'conditions': [
+          ['armv7==1', {
+            'defines': [
+              'CAN_USE_ARMV7_INSTRUCTIONS=1',
+            ],
+          }],
           [ 'v8_can_use_unaligned_accesses=="true"', {
             'defines': [
               'CAN_USE_UNALIGNED_ACCESSES=1',
