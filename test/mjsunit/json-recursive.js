@@ -42,7 +42,7 @@ assertThrows(function() { rec(1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4) },
              RangeError);
 
 
-var depth1 = 2048;
+var depth1 = 1500;
 var depth2 = 10000;
 var deepArray = [];
 for (var i = 0; i < depth1; i++) deepArray = [deepArray];
