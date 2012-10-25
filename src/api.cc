@@ -643,7 +643,7 @@ void V8::ClearWeak(i::Object** obj) {
 
 void V8::MarkIndependent(i::Object** object) {
   i::Isolate* isolate = i::Isolate::Current();
-  LOG_API(isolate, "MakeIndependent");
+  LOG_API(isolate, "MarkIndependent");
   isolate->global_handles()->MarkIndependent(object);
 }
 
