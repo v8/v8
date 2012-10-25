@@ -56,3 +56,11 @@ for (var i = 0; i < depth1; i++) deepObject = { next: deepObject };
 JSON.stringify(deepObject);
 for (var i = depth1; i < depth2; i++) deepObject = { next: deepObject };
 assertThrows(function() { JSON.stringify(deepObject); }, RangeError);
+
+
+var str = "[1]";
+for (var i = 0; i < 100000; i++) {
+  str = "[1," + str + "]";
+}
+
+assertThrows(function() { JSON.parse(str); }, RangeError);
