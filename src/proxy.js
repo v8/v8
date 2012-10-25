@@ -62,7 +62,8 @@ function ProxyCreateFunction(handler, callTrap, constructTrap) {
     handler, callTrap, constructTrap, $Function.prototype)
 }
 
-%InstallFunctions($Proxy, DONT_ENUM, [
+%CheckIsBootstrapping()
+InstallFunctions($Proxy, DONT_ENUM, [
   "create", ProxyCreate,
   "createFunction", ProxyCreateFunction
 ])
