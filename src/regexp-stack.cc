@@ -72,7 +72,7 @@ char* RegExpStack::RestoreStack(char* from) {
 
 
 void RegExpStack::Reset() {
-  if (thread_local_.memory_size_ > kMinimumStackSize) {
+  if (thread_local_.memory_size_ >= kMinimumStackSize) {
     DeleteArray(thread_local_.memory_);
     thread_local_ = ThreadLocal();
   }
