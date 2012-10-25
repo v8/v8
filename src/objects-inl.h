@@ -2290,9 +2290,10 @@ int HashTable<Shape, Key>::FindEntry(Isolate* isolate, Key key) {
   // EnsureCapacity will guarantee the hash table is never full.
   while (true) {
     Object* element = KeyAt(entry);
-    // Empty entry.
-    if (element == isolate->heap()->undefined_value()) break;
-    if (element != isolate->heap()->the_hole_value() &&
+    // Empty entry. Uses raw unchecked accessors because it is called by the
+    // symbol table during bootstrapping.
+    if (element == isolate->heap()->raw_unchecked_undefined_value()) break;
+    if (element != isolate->heap()->raw_unchecked_the_hole_value() &&
         Shape::IsMatch(key, element)) return entry;
     entry = NextProbe(entry, count++, capacity);
   }
