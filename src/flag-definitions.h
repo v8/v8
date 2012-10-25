@@ -144,12 +144,16 @@ DEFINE_bool(harmony_modules, false,
 DEFINE_bool(harmony_proxies, false, "enable harmony proxies")
 DEFINE_bool(harmony_collections, false,
             "enable harmony collections (sets, maps, and weak maps)")
+DEFINE_bool(harmony_object_observe, false,
+            "enable harmony object observation (implies harmony collections")
 DEFINE_bool(harmony, false, "enable all harmony features (except typeof)")
 DEFINE_implication(harmony, harmony_scoping)
 DEFINE_implication(harmony, harmony_modules)
 DEFINE_implication(harmony, harmony_proxies)
 DEFINE_implication(harmony, harmony_collections)
+DEFINE_implication(harmony, harmony_object_observe)
 DEFINE_implication(harmony_modules, harmony_scoping)
+DEFINE_implication(harmony_object_observe, harmony_collections)
 
 // Flags for experimental implementation features.
 DEFINE_bool(packed_arrays, true, "optimizes arrays that have no holes")

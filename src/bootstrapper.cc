@@ -1828,6 +1828,11 @@ bool Genesis::InstallExperimentalNatives() {
                "native collection.js") == 0) {
       if (!CompileExperimentalBuiltin(isolate(), i)) return false;
     }
+    if (FLAG_harmony_object_observe &&
+        strcmp(ExperimentalNatives::GetScriptName(i).start(),
+               "native object-observe.js") == 0) {
+      if (!CompileExperimentalBuiltin(isolate(), i)) return false;
+    }
   }
 
   InstallExperimentalNativeFunctions();

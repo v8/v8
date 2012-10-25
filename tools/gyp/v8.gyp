@@ -780,6 +780,7 @@
               '../../src/macros.py',
               '../../src/proxy.js',
               '../../src/collection.js',
+              '../../src/object-observe.js'
             ],
           },
           'actions': [

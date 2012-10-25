@@ -203,6 +203,10 @@ function FormatMessage(message) {
       "proxy_repeated_prop_name",     ["Trap '", "%1", "' returned repeated property name '", "%2", "'"],
       "invalid_weakmap_key",          ["Invalid value used as weak map key"],
       "not_date_object",              ["this is not a Date object."],
+      "observe_non_object",           ["Object.", "%0", " cannot ", "%0", " non-object"],
+      "observe_non_function",         ["Object.", "%0", " cannot deliver to non-function"],
+      "observe_callback_frozen",      ["Object.observe cannot deliver to a frozen function object"],
+      "observe_type_non_string",      ["Object.notify provided changeRecord with non-string 'type' property"],
       // RangeError
       "invalid_array_length",         ["Invalid array length"],
       "stack_overflow",               ["Maximum call stack size exceeded"],
