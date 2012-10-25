@@ -62,6 +62,13 @@ DeoptimizerData::~DeoptimizerData() {
         lazy_deoptimization_entry_code_);
     lazy_deoptimization_entry_code_ = NULL;
   }
+  DeoptimizingCodeListNode* current = deoptimizing_code_list_;
+  while (current != NULL) {
+    DeoptimizingCodeListNode* prev = current;
+    current = current->next();
+    delete prev;
+  }
+  deoptimizing_code_list_ = NULL;
 }
 
 
