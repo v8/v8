@@ -45,7 +45,6 @@ class BasicJsonStringifier BASE_EMBEDDED {
   static const int kInitialPartLength = 32;
   static const int kMaxPartLength = 16 * 1024;
   static const int kPartLengthGrowthFactor = 2;
-  static const int kStackLimit = 4 * 1024;
 
   enum Result { UNCHANGED, SUCCESS, BAILOUT, CIRCULAR, STACK_OVERFLOW };
 
@@ -77,10 +76,10 @@ class BasicJsonStringifier BASE_EMBEDDED {
     }
   }
 
-  INLINE(Handle<Object> GetProperty(Handle<JSObject> object,
-                                    Handle<String> key));
+  Handle<Object> GetProperty(Handle<JSObject> object,
+                             Handle<String> key);
 
-  INLINE(bool MayHaveToJsonFunction(Handle<JSObject> object));
+  bool MayHaveToJsonFunction(Handle<JSObject> object);
 
   INLINE(Result Serialize(Handle<Object> object)) {
     return Serialize_<false>(object);
@@ -98,22 +97,21 @@ class BasicJsonStringifier BASE_EMBEDDED {
                     bool comma = false,
                     Handle<String> key = Handle<String>::null());
 
-  INLINE(void SerializeDeferredKey(bool deferred_comma,
-                                   Handle<String> deferred_key)) {
+  void SerializeDeferredKey(bool deferred_comma, Handle<String> deferred_key) {
     if (deferred_comma) Append(',');
     SerializeString(deferred_key);
     Append(':');
   }
 
-  INLINE(Result SerializeSmi(Smi* object));
+  Result SerializeSmi(Smi* object);
 
-  INLINE(Result SerializeDouble(double number));
+  Result SerializeDouble(double number);
   INLINE(Result SerializeHeapNumber(Handle<HeapNumber> object)) {
     return SerializeDouble(object->value());
   }
 
-  Result SerializeArray(Handle<JSArray> object);
-  Result SerializeObject(Handle<JSObject> object);
+  INLINE(Result SerializeArray(Handle<JSArray> object));
+  INLINE(Result SerializeObject(Handle<JSObject> object));
 
   void SerializeString(Handle<String> object);
 
@@ -132,8 +130,8 @@ class BasicJsonStringifier BASE_EMBEDDED {
   template <typename Char>
   INLINE(Vector<const Char> GetCharVector(Handle<String> string));
 
-  INLINE(Result StackPush(Handle<Object> object));
-  INLINE(void StackPop());
+  Result StackPush(Handle<Object> object);
+  void StackPop();
 
   INLINE(Handle<String> accumulator()) {
     return Handle<String>(String::cast(accumulator_store_->value()));
@@ -298,8 +296,10 @@ bool BasicJsonStringifier::MayHaveToJsonFunction(Handle<JSObject> object) {
 
 BasicJsonStringifier::Result BasicJsonStringifier::StackPush(
     Handle<Object> object) {
+  StackLimitCheck check(isolate_);
+  if (check.HasOverflowed()) return STACK_OVERFLOW;
+
   int length = Smi::cast(stack_->length())->value();
-  if (length > kStackLimit) return STACK_OVERFLOW;
   FixedArray* elements = FixedArray::cast(stack_->elements());
   for (int i = 0; i < length; i++) {
     if (elements->get(i) == *object) {
@@ -473,9 +473,8 @@ BasicJsonStringifier::Result BasicJsonStringifier::SerializeObject(
       GetKeysInFixedArrayFor(object, LOCAL_ONLY, &threw);
   if (threw) return BAILOUT;
   Append('{');
-  int length = contents->length();
   bool comma = false;
-  for (int i = 0; i < length; i++) {
+  for (int i = 0; i < contents->length(); i++) {
     Object* key = contents->get(i);
     Handle<String> key_handle;
     Handle<Object> property;
