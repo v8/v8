@@ -628,11 +628,11 @@ Handle<String> JsonParser<seq_ascii>::ScanJsonString() {
     uint32_t count = 1;
     while (true) {
       Object* element = symbol_table->KeyAt(entry);
-      if (element == isolate()->heap()->raw_unchecked_undefined_value()) {
+      if (element == isolate()->heap()->undefined_value()) {
         // Lookup failure.
         break;
       }
-      if (element != isolate()->heap()->raw_unchecked_the_hole_value() &&
+      if (element != isolate()->heap()->the_hole_value() &&
           String::cast(element)->IsAsciiEqualTo(string_vector)) {
         // Lookup success, update the current position.
         position_ = position;

@@ -8105,7 +8105,7 @@ void SharedFunctionInfo::DetachInitialMap() {
   // constructor is called. The countdown will continue and (possibly after
   // several more GCs) CompleteInobjectSlackTracking will eventually be called.
   Heap* heap = map->GetHeap();
-  set_initial_map(heap->raw_unchecked_undefined_value());
+  set_initial_map(heap->undefined_value());
   Builtins* builtins = heap->isolate()->builtins();
   ASSERT_EQ(builtins->builtin(Builtins::kJSConstructStubCountdown),
             *RawField(this, kConstructStubOffset));

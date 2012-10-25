@@ -2443,19 +2443,17 @@ bool V8HeapExplorer::IterateAndExtractReferences(
 
 
 bool V8HeapExplorer::IsEssentialObject(Object* object) {
-  // We have to use raw_unchecked_* versions because checked versions
-  // would fail during iteration over object properties.
   return object->IsHeapObject()
       && !object->IsOddball()
-      && object != heap_->raw_unchecked_empty_byte_array()
-      && object != heap_->raw_unchecked_empty_fixed_array()
-      && object != heap_->raw_unchecked_empty_descriptor_array()
-      && object != heap_->raw_unchecked_fixed_array_map()
-      && object != heap_->raw_unchecked_global_property_cell_map()
-      && object != heap_->raw_unchecked_shared_function_info_map()
-      && object != heap_->raw_unchecked_free_space_map()
-      && object != heap_->raw_unchecked_one_pointer_filler_map()
-      && object != heap_->raw_unchecked_two_pointer_filler_map();
+      && object != heap_->empty_byte_array()
+      && object != heap_->empty_fixed_array()
+      && object != heap_->empty_descriptor_array()
+      && object != heap_->fixed_array_map()
+      && object != heap_->global_property_cell_map()
+      && object != heap_->shared_function_info_map()
+      && object != heap_->free_space_map()
+      && object != heap_->one_pointer_filler_map()
+      && object != heap_->two_pointer_filler_map();
 }
 
 
