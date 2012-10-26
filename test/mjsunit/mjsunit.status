@@ -61,6 +61,11 @@ array-constructor: PASS || TIMEOUT
 unicode-case-overoptimization: PASS, TIMEOUT if ($arch == arm || $arch == android_arm || $arch == mipsel)
 
 ##############################################################################
+# This test expects to reach a certain recursion depth, which may not work
+# for debug mode.
+json-recursive: PASS, (PASS || FAIL) if $mode == debug
+
+##############################################################################
 # This test sets the umask on a per-process basis and hence cannot be
 # used in multi-threaded runs.
 # On android there is no /tmp directory.
