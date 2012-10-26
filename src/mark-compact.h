@@ -441,9 +441,16 @@ class CodeFlusher {
     ProcessJSFunctionCandidates();
   }
 
+  void IteratePointersToFromSpace(ObjectVisitor* v);
+
  private:
   void ProcessJSFunctionCandidates();
   void ProcessSharedFunctionInfoCandidates();
+
+  static JSFunction** GetNextCandidateSlot(JSFunction* candidate) {
+    return reinterpret_cast<JSFunction**>(
+        HeapObject::RawField(candidate, JSFunction::kNextFunctionLinkOffset));
+  }
 
   static JSFunction* GetNextCandidate(JSFunction* candidate) {
     Object* next_candidate = candidate->next_function_link();

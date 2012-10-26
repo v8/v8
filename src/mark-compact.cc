@@ -952,6 +952,21 @@ void CodeFlusher::EvictCandidate(JSFunction* function) {
 }
 
 
+void CodeFlusher::IteratePointersToFromSpace(ObjectVisitor* v) {
+  Heap* heap = isolate_->heap();
+
+  JSFunction** slot = &jsfunction_candidates_head_;
+  JSFunction* candidate = jsfunction_candidates_head_;
+  while (candidate != NULL) {
+    if (heap->InFromSpace(candidate)) {
+      v->VisitPointer(reinterpret_cast<Object**>(slot));
+    }
+    candidate = GetNextCandidate(*slot);
+    slot = GetNextCandidateSlot(*slot);
+  }
+}
+
+
 MarkCompactCollector::~MarkCompactCollector() {
   if (code_flusher_ != NULL) {
     delete code_flusher_;

@@ -1327,6 +1327,12 @@ void Heap::Scavenge() {
     }
   }
 
+  // Copy objects reachable from the code flushing candidates list.
+  MarkCompactCollector* collector = mark_compact_collector();
+  if (collector->is_code_flushing_enabled()) {
+    collector->code_flusher()->IteratePointersToFromSpace(&scavenge_visitor);
+  }
+
   // Scavenge object reachable from the native contexts list directly.
   scavenge_visitor.VisitPointer(BitCast<Object**>(&native_contexts_list_));
 
@@ -5541,6 +5547,7 @@ bool Heap::LookupSymbolIfExists(String* string, String** symbol) {
   }
   return symbol_table()->LookupSymbolIfExists(string, symbol);
 }
+
 
 void Heap::ZapFromSpace() {
   NewSpacePageIterator it(new_space_.FromSpaceStart(),
