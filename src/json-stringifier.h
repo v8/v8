@@ -413,20 +413,6 @@ BasicJsonStringifier::Result BasicJsonStringifier::SerializeArray(
       }
       break;
     }
-    case FAST_HOLEY_SMI_ELEMENTS: {
-      Handle<FixedArray> elements = Handle<FixedArray>(
-          FixedArray::cast(object->elements()));
-      for (int i = 0; i < length; i++) {
-        if (i > 0) Append(',');
-        if (elements->is_the_hole(i)) {
-          Append("null");
-        } else {
-          SerializeSmi(Smi::cast(elements->get(i)));
-        }
-      }
-      break;
-    }
-    case FAST_HOLEY_DOUBLE_ELEMENTS:
     case FAST_DOUBLE_ELEMENTS: {
       Handle<FixedDoubleArray> elements = Handle<FixedDoubleArray>(
           FixedDoubleArray::cast(object->elements()));
@@ -436,7 +422,6 @@ BasicJsonStringifier::Result BasicJsonStringifier::SerializeArray(
       }
       break;
     }
-    case FAST_HOLEY_ELEMENTS:
     case FAST_ELEMENTS: {
       Handle<FixedArray> elements = Handle<FixedArray>(
           FixedArray::cast(object->elements()));
