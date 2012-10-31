@@ -471,6 +471,11 @@ bool VirtualMemory::ReleaseRegion(void* address, size_t size) {
 }
 
 
+bool VirtualMemory::HasLazyCommits() {
+  return false;
+}
+
+
 class Thread::PlatformData : public Malloced {
  public:
   PlatformData() : thread_(kNoThread) {}

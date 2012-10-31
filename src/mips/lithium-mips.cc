@@ -702,15 +702,13 @@ LInstruction* LChunkBuilder::DoShift(Token::Value op,
     right = UseRegisterAtStart(right_value);
   }
 
+  // Shift operations can only deoptimize if we do a logical shift
+  // by 0 and the result cannot be truncated to int32.
   bool does_deopt = false;
-
-  if (FLAG_opt_safe_uint32_operations) {
-    does_deopt = !instr->CheckFlag(HInstruction::kUint32);
-  } else {
-    // Shift operations can only deoptimize if we do a logical shift
-    // by 0 and the result cannot be truncated to int32.
-    bool may_deopt = (op == Token::SHR && constant_value == 0);
-    if (may_deopt) {
+  if (op == Token::SHR && constant_value == 0) {
+    if (FLAG_opt_safe_uint32_operations) {
+      does_deopt = !instr->CheckFlag(HInstruction::kUint32);
+    } else {
       for (HUseIterator it(instr->uses()); !it.Done(); it.Advance()) {
         if (!it.value()->CheckFlag(HValue::kTruncatingToInt32)) {
           does_deopt = true;

@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,33 +25,24 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "gc-extension.h"
+// Flags: --allow-natives-syntax
 
-namespace v8 {
-namespace internal {
+var fast_smi = [1, 2, 3, 4];
+fast_smi.__proto__ = [7, 7, 7, 7];
+delete fast_smi[2];
+assertTrue(%HasFastSmiElements(fast_smi));
+assertEquals("[1,2,7,4]", JSON.stringify(fast_smi));
 
-const char* const GCExtension::kSource = "native function gc();";
+var fast_double = [1.1, 2, 3, 4];
+fast_double.__proto__ = [7, 7, 7, 7];
 
+delete fast_double[2];
+assertTrue(%HasFastDoubleElements(fast_double));
+assertEquals("[1.1,2,7,4]", JSON.stringify(fast_double));
 
-v8::Handle<v8::FunctionTemplate> GCExtension::GetNativeFunction(
-    v8::Handle<v8::String> str) {
-  return v8::FunctionTemplate::New(GCExtension::GC);
-}
+var fast_obj = [1, 2, {}, {}];
+fast_obj.__proto__ = [7, 7, 7, 7];
 
-
-v8::Handle<v8::Value> GCExtension::GC(const v8::Arguments& args) {
-  if (args[0]->BooleanValue()) {
-    HEAP->CollectGarbage(NEW_SPACE, "gc extension");
-  } else {
-    HEAP->CollectAllGarbage(Heap::kNoGCFlags, "gc extension");
-  }
-  return v8::Undefined();
-}
-
-
-void GCExtension::Register() {
-  static GCExtension gc_extension;
-  static v8::DeclareExtension declaration(&gc_extension);
-}
-
-} }  // namespace v8::internal
+delete fast_obj[2];
+assertTrue(%HasFastObjectElements(fast_obj));
+assertEquals("[1,2,7,{}]", JSON.stringify(fast_obj));

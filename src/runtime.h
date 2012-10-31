@@ -120,6 +120,7 @@ namespace internal {
   F(CharFromCode, 1, 1) \
   F(URIEscape, 1, 1) \
   F(URIUnescape, 1, 1) \
+  F(BasicJSONStringify, 1, 1) \
   F(QuoteJSONString, 1, 1) \
   F(QuoteJSONStringComma, 1, 1) \
   F(QuoteJSONStringArray, 1, 1) \

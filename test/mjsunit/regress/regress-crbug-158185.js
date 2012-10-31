@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,33 +25,15 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "gc-extension.h"
+assertEquals("0023456",
+             Object.keys(JSON.parse('{"0023456": 1}'))[0]);
+assertEquals("1234567890123",
+             Object.keys(JSON.parse('{"1234567890123": 1}'))[0]);
+assertEquals("123456789ABCD",
+             Object.keys(JSON.parse('{"123456789ABCD": 1}'))[0]);
+assertEquals("12A",
+             Object.keys(JSON.parse('{"12A": 1}'))[0]);
 
-namespace v8 {
-namespace internal {
+assertEquals(1, JSON.parse('{"0":1}')[0]);
+assertEquals(undefined, JSON.parse('{"00":1}')[0]);
 
-const char* const GCExtension::kSource = "native function gc();";
-
-
-v8::Handle<v8::FunctionTemplate> GCExtension::GetNativeFunction(
-    v8::Handle<v8::String> str) {
-  return v8::FunctionTemplate::New(GCExtension::GC);
-}
-
-
-v8::Handle<v8::Value> GCExtension::GC(const v8::Arguments& args) {
-  if (args[0]->BooleanValue()) {
-    HEAP->CollectGarbage(NEW_SPACE, "gc extension");
-  } else {
-    HEAP->CollectAllGarbage(Heap::kNoGCFlags, "gc extension");
-  }
-  return v8::Undefined();
-}
-
-
-void GCExtension::Register() {
-  static GCExtension gc_extension;
-  static v8::DeclareExtension declaration(&gc_extension);
-}
-
-} }  // namespace v8::internal

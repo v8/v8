@@ -3917,7 +3917,8 @@ inline bool StoringValueNeedsWriteBarrier(HValue* value) {
 
 inline bool ReceiverObjectNeedsWriteBarrier(HValue* object,
                                             HValue* new_space_dominator) {
-  return !object->IsAllocateObject() || (object != new_space_dominator);
+  return (!object->IsAllocateObject() && !object->IsFastLiteral()) ||
+         (object != new_space_dominator);
 }
 
 
@@ -4805,6 +4806,7 @@ class HStringAdd: public HBinaryOperation {
     set_representation(Representation::Tagged());
     SetFlag(kUseGVN);
     SetGVNFlag(kDependsOnMaps);
+    SetGVNFlag(kChangesNewSpacePromotion);
   }
 
   virtual Representation RequiredInputRepresentation(int index) {

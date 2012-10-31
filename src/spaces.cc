@@ -448,6 +448,7 @@ MemoryChunk* MemoryChunk::Initialize(Heap* heap,
   chunk->slots_buffer_ = NULL;
   chunk->skip_list_ = NULL;
   chunk->write_barrier_counter_ = kWriteBarrierCounterGranularity;
+  chunk->high_water_mark_ = static_cast<int>(area_start - base);
   chunk->ResetLiveBytes();
   Bitmap::Clear(chunk);
   chunk->initialize_scan_on_scavenge(false);
@@ -824,6 +825,18 @@ void PagedSpace::TearDown() {
 }
 
 
+size_t PagedSpace::CommittedPhysicalMemory() {
+  if (!VirtualMemory::HasLazyCommits()) return CommittedMemory();
+  MemoryChunk::UpdateHighWaterMark(allocation_info_.top);
+  size_t size = 0;
+  PageIterator it(this);
+  while (it.has_next()) {
+    size += it.next()->CommittedPhysicalMemory();
+  }
+  return size;
+}
+
+
 MaybeObject* PagedSpace::FindObject(Address addr) {
   // Note: this function can only be called on precisely swept spaces.
   ASSERT(!heap()->mark_compact_collector()->in_use());
@@ -1175,6 +1188,7 @@ void NewSpace::Shrink() {
 
 
 void NewSpace::UpdateAllocationInfo() {
+  MemoryChunk::UpdateHighWaterMark(allocation_info_.top);
   allocation_info_.top = to_space_.page_low();
   allocation_info_.limit = to_space_.page_high();
 
@@ -1384,6 +1398,17 @@ bool SemiSpace::Uncommit() {
 
   committed_ = false;
   return true;
+}
+
+
+size_t SemiSpace::CommittedPhysicalMemory() {
+  if (!is_committed()) return 0;
+  size_t size = 0;
+  NewSpacePageIterator it(this);
+  while (it.has_next()) {
+    size += it.next()->CommittedPhysicalMemory();
+  }
+  return size;
 }
 
 
@@ -1819,6 +1844,17 @@ void NewSpace::RecordPromotion(HeapObject* obj) {
   ASSERT(0 <= type && type <= LAST_TYPE);
   promoted_histogram_[type].increment_number(1);
   promoted_histogram_[type].increment_bytes(obj->Size());
+}
+
+
+size_t NewSpace::CommittedPhysicalMemory() {
+  if (!VirtualMemory::HasLazyCommits()) return CommittedMemory();
+  MemoryChunk::UpdateHighWaterMark(allocation_info_.top);
+  size_t size = to_space_.CommittedPhysicalMemory();
+  if (from_space_.is_committed()) {
+    size += from_space_.CommittedPhysicalMemory();
+  }
+  return size;
 }
 
 // -----------------------------------------------------------------------------
@@ -2695,6 +2731,18 @@ MaybeObject* LargeObjectSpace::AllocateRaw(int object_size,
 
   heap()->incremental_marking()->OldSpaceStep(object_size);
   return object;
+}
+
+
+size_t LargeObjectSpace::CommittedPhysicalMemory() {
+  if (!VirtualMemory::HasLazyCommits()) return CommittedMemory();
+  size_t size = 0;
+  LargePage* current = first_page_;
+  while (current != NULL) {
+    size += current->CommittedPhysicalMemory();
+    current = current->next_page();
+  }
+  return size;
 }
 
 

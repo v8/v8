@@ -84,9 +84,18 @@ namespace v8 {
 namespace internal {
 
 // Constant pool marker.
-const int kConstantPoolMarkerMask = 0xffe00000;
-const int kConstantPoolMarker = 0x0c000000;
-const int kConstantPoolLengthMask = 0x001ffff;
+// Use UDF, the permanently undefined instruction.
+const int kConstantPoolMarkerMask = 0xfff000f0;
+const int kConstantPoolMarker = 0xe7f000f0;
+const int kConstantPoolLengthMaxMask = 0xffff;
+inline int EncodeConstantPoolLength(int length) {
+  ASSERT((length & kConstantPoolLengthMaxMask) == length);
+  return ((length & 0xfff0) << 4) | (length & 0xf);
+}
+inline int DecodeConstantPoolLength(int instr) {
+  ASSERT((instr & kConstantPoolMarkerMask) == kConstantPoolMarker);
+  return ((instr >> 4) & 0xfff0) | (instr & 0xf);
+}
 
 // Number of registers in normal ARM mode.
 const int kNumRegisters = 16;

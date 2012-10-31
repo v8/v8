@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,33 +25,42 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "gc-extension.h"
 
-namespace v8 {
-namespace internal {
-
-const char* const GCExtension::kSource = "native function gc();";
-
-
-v8::Handle<v8::FunctionTemplate> GCExtension::GetNativeFunction(
-    v8::Handle<v8::String> str) {
-  return v8::FunctionTemplate::New(GCExtension::GC);
+var a = {};
+for (i = 0; i < 10000; i++) {
+  var current = {};
+  current.a = a;
+  a = current;
 }
 
-
-v8::Handle<v8::Value> GCExtension::GC(const v8::Arguments& args) {
-  if (args[0]->BooleanValue()) {
-    HEAP->CollectGarbage(NEW_SPACE, "gc extension");
-  } else {
-    HEAP->CollectAllGarbage(Heap::kNoGCFlags, "gc extension");
-  }
-  return v8::Undefined();
+function rec(a,b,c,d,e,f,g,h,i,j,k,l,m,n) {
+  JSON.stringify(a);
+  rec(a,b,c,d,e,f,g,h,i,j,k,l,m,n);
 }
 
+assertThrows(function() { rec(1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4) },
+             RangeError);
 
-void GCExtension::Register() {
-  static GCExtension gc_extension;
-  static v8::DeclareExtension declaration(&gc_extension);
+
+var depth1 = 1500;
+var depth2 = 10000;
+var deepArray = [];
+for (var i = 0; i < depth1; i++) deepArray = [deepArray];
+JSON.stringify(deepArray);
+for (var i = depth1; i < depth2; i++) deepArray = [deepArray];
+assertThrows(function() { JSON.stringify(deepArray); }, RangeError);
+
+
+var deepObject = {};
+for (var i = 0; i < depth1; i++) deepObject = { next: deepObject };
+JSON.stringify(deepObject);
+for (var i = depth1; i < depth2; i++) deepObject = { next: deepObject };
+assertThrows(function() { JSON.stringify(deepObject); }, RangeError);
+
+
+var str = "[1]";
+for (var i = 0; i < 100000; i++) {
+  str = "[1," + str + "]";
 }
 
-} }  // namespace v8::internal
+assertThrows(function() { JSON.parse(str); }, RangeError);

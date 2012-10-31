@@ -86,8 +86,7 @@ int RelocInfo::target_address_size() {
 
 void RelocInfo::set_target_address(Address target, WriteBarrierMode mode) {
   ASSERT(IsCodeTarget(rmode_) || rmode_ == RUNTIME_ENTRY);
-  Assembler::set_target_address_at(pc_, reinterpret_cast<Address>(
-      reinterpret_cast<intptr_t>(target) & ~3));
+  Assembler::set_target_address_at(pc_, target);
   if (mode == UPDATE_WRITE_BARRIER && host() != NULL && IsCodeTarget(rmode_)) {
     Object* target_code = Code::GetCodeFromTargetAddress(target);
     host()->GetHeap()->incremental_marking()->RecordWriteIntoCode(
@@ -473,14 +472,12 @@ void Assembler::set_target_pointer_at(Address pc, Address target) {
 
 
 Address Assembler::target_address_at(Address pc) {
-  return reinterpret_cast<Address>(
-      reinterpret_cast<intptr_t>(target_pointer_at(pc)) & ~3);
+  return target_pointer_at(pc);
 }
 
 
 void Assembler::set_target_address_at(Address pc, Address target) {
-  set_target_pointer_at(pc, reinterpret_cast<Address>(
-      reinterpret_cast<intptr_t>(target) & ~3));
+  set_target_pointer_at(pc, target);
 }
 
 

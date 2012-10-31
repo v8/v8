@@ -747,10 +747,8 @@ Code* StubCache::FindCallInitialize(int argc,
       CallICBase::Contextual::encode(mode == RelocInfo::CODE_TARGET_CONTEXT);
   Code::Flags flags =
       Code::ComputeFlags(kind, UNINITIALIZED, extra_state, Code::NORMAL, argc);
-
-  // Use raw_unchecked... so we don't get assert failures during GC.
   UnseededNumberDictionary* dictionary =
-      isolate()->heap()->raw_unchecked_non_monomorphic_cache();
+      isolate()->heap()->non_monomorphic_cache();
   int entry = dictionary->FindEntry(isolate(), flags);
   ASSERT(entry != -1);
   Object* code = dictionary->ValueAt(entry);

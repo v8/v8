@@ -660,8 +660,8 @@ bool Object::IsDictionary() {
 
 
 bool Object::IsSymbolTable() {
-  return IsHashTable() && this ==
-         HeapObject::cast(this)->GetHeap()->raw_unchecked_symbol_table();
+  return IsHashTable() &&
+      this == HeapObject::cast(this)->GetHeap()->raw_unchecked_symbol_table();
 }
 
 
@@ -1850,7 +1850,7 @@ void FixedArray::set(int index,
 void FixedArray::NoIncrementalWriteBarrierSet(FixedArray* array,
                                               int index,
                                               Object* value) {
-  ASSERT(array->map() != HEAP->raw_unchecked_fixed_cow_array_map());
+  ASSERT(array->map() != HEAP->fixed_cow_array_map());
   ASSERT(index >= 0 && index < array->length());
   int offset = kHeaderSize + index * kPointerSize;
   WRITE_FIELD(array, offset, value);
@@ -1864,7 +1864,7 @@ void FixedArray::NoIncrementalWriteBarrierSet(FixedArray* array,
 void FixedArray::NoWriteBarrierSet(FixedArray* array,
                                    int index,
                                    Object* value) {
-  ASSERT(array->map() != HEAP->raw_unchecked_fixed_cow_array_map());
+  ASSERT(array->map() != HEAP->fixed_cow_array_map());
   ASSERT(index >= 0 && index < array->length());
   ASSERT(!HEAP->InNewSpace(value));
   WRITE_FIELD(array, kHeaderSize + index * kPointerSize, value);
@@ -2290,7 +2290,8 @@ int HashTable<Shape, Key>::FindEntry(Isolate* isolate, Key key) {
   // EnsureCapacity will guarantee the hash table is never full.
   while (true) {
     Object* element = KeyAt(entry);
-    // Empty entry.
+    // Empty entry. Uses raw unchecked accessors because it is called by the
+    // symbol table during bootstrapping.
     if (element == isolate->heap()->raw_unchecked_undefined_value()) break;
     if (element != isolate->heap()->raw_unchecked_the_hole_value() &&
         Shape::IsMatch(key, element)) return entry;
@@ -5252,8 +5253,8 @@ void Map::ClearCodeCache(Heap* heap) {
   // Please note this function is used during marking:
   //  - MarkCompactCollector::MarkUnmarkedObject
   //  - IncrementalMarking::Step
-  ASSERT(!heap->InNewSpace(heap->raw_unchecked_empty_fixed_array()));
-  WRITE_FIELD(this, kCodeCacheOffset, heap->raw_unchecked_empty_fixed_array());
+  ASSERT(!heap->InNewSpace(heap->empty_fixed_array()));
+  WRITE_FIELD(this, kCodeCacheOffset, heap->empty_fixed_array());
 }
 
 
@@ -5347,7 +5348,7 @@ Handle<Object> TypeFeedbackCells::MegamorphicSentinel(Isolate* isolate) {
 
 
 Object* TypeFeedbackCells::RawUninitializedSentinel(Heap* heap) {
-  return heap->raw_unchecked_the_hole_value();
+  return heap->the_hole_value();
 }
 
 

@@ -1329,6 +1329,8 @@ class Assembler : public AssemblerBase {
   // and the accessed constant.
   static const int kMaxDistToPool = 4*KB;
   static const int kMaxNumPendingRelocInfo = kMaxDistToPool/kInstrSize;
+  STATIC_ASSERT((kConstantPoolLengthMaxMask & kMaxNumPendingRelocInfo) ==
+                kMaxNumPendingRelocInfo);
 
   // Postpone the generation of the constant pool for the specified number of
   // instructions.

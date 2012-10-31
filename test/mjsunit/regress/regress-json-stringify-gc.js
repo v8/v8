@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,33 +25,17 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "gc-extension.h"
-
-namespace v8 {
-namespace internal {
-
-const char* const GCExtension::kSource = "native function gc();";
-
-
-v8::Handle<v8::FunctionTemplate> GCExtension::GetNativeFunction(
-    v8::Handle<v8::String> str) {
-  return v8::FunctionTemplate::New(GCExtension::GC);
+var a = [];
+var new_space_string = "";
+for (var i = 0; i < 128; i++) {
+  new_space_string += String.fromCharCode((Math.random() * 26 + 65) | 0);
 }
+for (var i = 0; i < 10000; i++) a.push(new_space_string);
 
+// At some point during the first stringify, allocation causes a GC and
+// new_space_string is moved to old space. Make sure that this does not
+// screw up reading from the correct location.
+json1 = JSON.stringify(a);
+json2 = JSON.stringify(a);
+assertEquals(json1, json2);
 
-v8::Handle<v8::Value> GCExtension::GC(const v8::Arguments& args) {
-  if (args[0]->BooleanValue()) {
-    HEAP->CollectGarbage(NEW_SPACE, "gc extension");
-  } else {
-    HEAP->CollectAllGarbage(Heap::kNoGCFlags, "gc extension");
-  }
-  return v8::Undefined();
-}
-
-
-void GCExtension::Register() {
-  static GCExtension gc_extension;
-  static v8::DeclareExtension declaration(&gc_extension);
-}
-
-} }  // namespace v8::internal

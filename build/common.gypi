@@ -134,6 +134,11 @@
           'V8_TARGET_ARCH_ARM',
         ],
         'conditions': [
+          ['armv7==1', {
+            'defines': [
+              'CAN_USE_ARMV7_INSTRUCTIONS=1',
+            ],
+          }],
           [ 'v8_can_use_unaligned_accesses=="true"', {
             'defines': [
               'CAN_USE_UNALIGNED_ACCESSES=1',
@@ -200,10 +205,11 @@
                   ['mips_arch_variant=="mips32r2"', {
                     'cflags': ['-mips32r2', '-Wa,-mips32r2'],
                   }],
+                  ['mips_arch_variant=="mips32r1"', {
+                    'cflags': ['-mips32', '-Wa,-mips32'],
+                 }],
                   ['mips_arch_variant=="loongson"', {
                     'cflags': ['-mips3', '-Wa,-mips3'],
-                  }, {
-                    'cflags': ['-mips32', '-Wa,-mips32'],
                   }],
                 ],
               }],

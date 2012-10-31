@@ -503,8 +503,8 @@ class ElementsAccessorBase : public ElementsAccessor {
     Map* map = fixed_array_base->map();
     // Arrays that have been shifted in place can't be verified.
     Heap* heap = holder->GetHeap();
-    if (map == heap->raw_unchecked_one_pointer_filler_map() ||
-        map == heap->raw_unchecked_two_pointer_filler_map() ||
+    if (map == heap->one_pointer_filler_map() ||
+        map == heap->two_pointer_filler_map() ||
         map == heap->free_space_map()) {
       return;
     }

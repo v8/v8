@@ -1297,7 +1297,7 @@ void PartialSerializer::SerializeObject(
     // The code-caches link to context-specific code objects, which
     // the startup and context serializes cannot currently handle.
     ASSERT(Map::cast(heap_object)->code_cache() ==
-           heap_object->GetHeap()->raw_unchecked_empty_fixed_array());
+           heap_object->GetHeap()->empty_fixed_array());
   }
 
   int root_index;

@@ -1388,7 +1388,7 @@ bool Decoder::IsConstantPoolAt(byte* instr_ptr) {
 int Decoder::ConstantPoolSizeAt(byte* instr_ptr) {
   if (IsConstantPoolAt(instr_ptr)) {
     int instruction_bits = *(reinterpret_cast<int*>(instr_ptr));
-    return instruction_bits & kConstantPoolLengthMask;
+    return DecodeConstantPoolLength(instruction_bits);
   } else {
     return -1;
   }
@@ -1410,8 +1410,7 @@ int Decoder::InstructionDecode(byte* instr_ptr) {
   if ((instruction_bits & kConstantPoolMarkerMask) == kConstantPoolMarker) {
     out_buffer_pos_ += OS::SNPrintF(out_buffer_ + out_buffer_pos_,
                                     "constant pool begin (length %d)",
-                                    instruction_bits &
-                                    kConstantPoolLengthMask);
+                                    DecodeConstantPoolLength(instruction_bits));
     return Instruction::kInstrSize;
   }
   switch (instr->TypeValue()) {

@@ -251,8 +251,6 @@ void Context::AddOptimizedFunction(JSFunction* function) {
     }
   }
 
-  CHECK(function->next_function_link()->IsUndefined());
-
   // Check that the context belongs to the weak native contexts list.
   bool found = false;
   Object* context = GetHeap()->native_contexts_list();
@@ -265,6 +263,16 @@ void Context::AddOptimizedFunction(JSFunction* function) {
   }
   CHECK(found);
 #endif
+
+  // If the function link field is already used then the function was
+  // enqueued as a code flushing candidate and we remove it now.
+  if (!function->next_function_link()->IsUndefined()) {
+    CodeFlusher* flusher = GetHeap()->mark_compact_collector()->code_flusher();
+    flusher->EvictCandidate(function);
+  }
+
+  ASSERT(function->next_function_link()->IsUndefined());
+
   function->set_next_function_link(get(OPTIMIZED_FUNCTIONS_LIST));
   set(OPTIMIZED_FUNCTIONS_LIST, function);
 }

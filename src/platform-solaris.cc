@@ -125,12 +125,8 @@ const char* OS::LocalTimezone(double time) {
 
 
 double OS::LocalTimeOffset() {
-  // On Solaris, struct tm does not contain a tm_gmtoff field.
-  time_t utc = time(NULL);
-  ASSERT(utc != -1);
-  struct tm* loc = localtime(&utc);
-  ASSERT(loc != NULL);
-  return static_cast<double>((mktime(loc) - utc) * msPerSecond);
+  tzset();
+  return -static_cast<double>(timezone * msPerSecond);
 }
 
 
@@ -445,6 +441,12 @@ bool VirtualMemory::UncommitRegion(void* base, size_t size) {
 
 bool VirtualMemory::ReleaseRegion(void* base, size_t size) {
   return munmap(base, size) == 0;
+}
+
+
+bool VirtualMemory::HasLazyCommits() {
+  // TODO(alph): implement for the platform.
+  return false;
 }
 
 

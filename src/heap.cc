@@ -212,6 +212,20 @@ intptr_t Heap::CommittedMemory() {
       lo_space_->Size();
 }
 
+
+size_t Heap::CommittedPhysicalMemory() {
+  if (!HasBeenSetUp()) return 0;
+
+  return new_space_.CommittedPhysicalMemory() +
+      old_pointer_space_->CommittedPhysicalMemory() +
+      old_data_space_->CommittedPhysicalMemory() +
+      code_space_->CommittedPhysicalMemory() +
+      map_space_->CommittedPhysicalMemory() +
+      cell_space_->CommittedPhysicalMemory() +
+      lo_space_->CommittedPhysicalMemory();
+}
+
+
 intptr_t Heap::CommittedMemoryExecutable() {
   if (!HasBeenSetUp()) return 0;
 
@@ -405,6 +419,14 @@ void Heap::GarbageCollectionPrologue() {
   ClearJSFunctionResultCaches();
   gc_count_++;
   unflattened_strings_length_ = 0;
+
+  bool should_enable_code_flushing = FLAG_flush_code;
+#ifdef ENABLE_DEBUGGER_SUPPORT
+  if (isolate_->debug()->IsLoaded() || isolate_->debug()->has_break_points()) {
+    should_enable_code_flushing = false;
+  }
+#endif
+  mark_compact_collector()->EnableCodeFlushing(should_enable_code_flushing);
 
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap) {
@@ -1303,6 +1325,12 @@ void Heap::Scavenge() {
       Address value_address = cell->ValueAddress();
       scavenge_visitor.VisitPointer(reinterpret_cast<Object**>(value_address));
     }
+  }
+
+  // Copy objects reachable from the code flushing candidates list.
+  MarkCompactCollector* collector = mark_compact_collector();
+  if (collector->is_code_flushing_enabled()) {
+    collector->code_flusher()->IteratePointersToFromSpace(&scavenge_visitor);
   }
 
   // Scavenge object reachable from the native contexts list directly.
@@ -5520,6 +5548,7 @@ bool Heap::LookupSymbolIfExists(String* string, String** symbol) {
   return symbol_table()->LookupSymbolIfExists(string, symbol);
 }
 
+
 void Heap::ZapFromSpace() {
   NewSpacePageIterator it(new_space_.FromSpaceStart(),
                           new_space_.FromSpaceEnd());
@@ -7184,7 +7213,7 @@ void TranscendentalCache::Clear() {
 void ExternalStringTable::CleanUp() {
   int last = 0;
   for (int i = 0; i < new_space_strings_.length(); ++i) {
-    if (new_space_strings_[i] == heap_->raw_unchecked_the_hole_value()) {
+    if (new_space_strings_[i] == heap_->the_hole_value()) {
       continue;
     }
     if (heap_->InNewSpace(new_space_strings_[i])) {
@@ -7196,7 +7225,7 @@ void ExternalStringTable::CleanUp() {
   new_space_strings_.Rewind(last);
   last = 0;
   for (int i = 0; i < old_space_strings_.length(); ++i) {
-    if (old_space_strings_[i] == heap_->raw_unchecked_the_hole_value()) {
+    if (old_space_strings_[i] == heap_->the_hole_value()) {
       continue;
     }
     ASSERT(!heap_->InNewSpace(old_space_strings_[i]));
