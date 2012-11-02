@@ -37,5 +37,5 @@ for (var i = 0; i < 10000; i++) a.push(new_space_string);
 // screw up reading from the correct location.
 json1 = JSON.stringify(a);
 json2 = JSON.stringify(a);
-assertEquals(json1, json2);
+assertEquals(json1, json2, "GC caused JSON.stringify to fail.");
 
