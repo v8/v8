@@ -2715,17 +2715,18 @@ bool Uint32Analysis::IsSafeUint32Use(HValue* val, HValue* use) {
   } else if (use->IsChange() || use->IsSimulate()) {
     // Conversions and deoptimization have special support for unt32.
     return true;
-  } else if (use->IsStoreKeyedSpecializedArrayElement()) {
-    // Storing a value into an external integer array is a bit level operation.
-    HStoreKeyedSpecializedArrayElement* store =
-        HStoreKeyedSpecializedArrayElement::cast(use);
-
-    if (store->value() == val) {
-      // Clamping or a conversion to double should have beed inserted.
-      ASSERT(store->elements_kind() != EXTERNAL_PIXEL_ELEMENTS);
-      ASSERT(store->elements_kind() != EXTERNAL_FLOAT_ELEMENTS);
-      ASSERT(store->elements_kind() != EXTERNAL_DOUBLE_ELEMENTS);
-      return true;
+  } else if (use->IsStoreKeyed()) {
+    HStoreKeyed* store = HStoreKeyed::cast(use);
+    if (store->is_external()) {
+      // Storing a value into an external integer array is a bit level
+      // operation.
+      if (store->value() == val) {
+        // Clamping or a conversion to double should have beed inserted.
+        ASSERT(store->elements_kind() != EXTERNAL_PIXEL_ELEMENTS);
+        ASSERT(store->elements_kind() != EXTERNAL_FLOAT_ELEMENTS);
+        ASSERT(store->elements_kind() != EXTERNAL_DOUBLE_ELEMENTS);
+        return true;
+      }
     }
   }
 
@@ -3757,27 +3758,11 @@ void HGraph::DehoistSimpleArrayIndexComputations() {
         instr != NULL;
         instr = instr->next()) {
       ArrayInstructionInterface* array_instruction = NULL;
-      if (instr->IsLoadKeyedFastElement()) {
-        HLoadKeyedFastElement* op = HLoadKeyedFastElement::cast(instr);
+      if (instr->IsLoadKeyed()) {
+        HLoadKeyed* op = HLoadKeyed::cast(instr);
         array_instruction = static_cast<ArrayInstructionInterface*>(op);
-      } else if (instr->IsLoadKeyedFastDoubleElement()) {
-        HLoadKeyedFastDoubleElement* op =
-            HLoadKeyedFastDoubleElement::cast(instr);
-        array_instruction = static_cast<ArrayInstructionInterface*>(op);
-      } else if (instr->IsLoadKeyedSpecializedArrayElement()) {
-        HLoadKeyedSpecializedArrayElement* op =
-            HLoadKeyedSpecializedArrayElement::cast(instr);
-        array_instruction = static_cast<ArrayInstructionInterface*>(op);
-      } else if (instr->IsStoreKeyedFastElement()) {
-        HStoreKeyedFastElement* op = HStoreKeyedFastElement::cast(instr);
-        array_instruction = static_cast<ArrayInstructionInterface*>(op);
-      } else if (instr->IsStoreKeyedFastDoubleElement()) {
-        HStoreKeyedFastDoubleElement* op =
-            HStoreKeyedFastDoubleElement::cast(instr);
-        array_instruction = static_cast<ArrayInstructionInterface*>(op);
-      } else if (instr->IsStoreKeyedSpecializedArrayElement()) {
-        HStoreKeyedSpecializedArrayElement* op =
-            HStoreKeyedSpecializedArrayElement::cast(instr);
+      } else if (instr->IsStoreKeyed()) {
+        HStoreKeyed* op = HStoreKeyed::cast(instr);
         array_instruction = static_cast<ArrayInstructionInterface*>(op);
       } else {
         continue;
@@ -4617,10 +4602,11 @@ void HGraphBuilder::VisitForInStatement(ForInStatement* stmt) {
   set_current_block(loop_body);
 
   HValue* key = AddInstruction(
-      new(zone()) HLoadKeyedFastElement(
+      new(zone()) HLoadKeyed(
           environment()->ExpressionStackAt(2),  // Enum cache.
           environment()->ExpressionStackAt(0),  // Iteration index.
-          environment()->ExpressionStackAt(0)));
+          environment()->ExpressionStackAt(0),
+          FAST_ELEMENTS));
 
   // Check if the expected map still matches that of the enumerable.
   // If not just deoptimize.
@@ -5225,17 +5211,13 @@ void HGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
         // Fall through.
       case FAST_ELEMENTS:
       case FAST_HOLEY_ELEMENTS:
-        AddInstruction(new(zone()) HStoreKeyedFastElement(
+      case FAST_DOUBLE_ELEMENTS:
+      case FAST_HOLEY_DOUBLE_ELEMENTS:
+        AddInstruction(new(zone()) HStoreKeyed(
             elements,
             key,
             value,
             boilerplate_elements_kind));
-        break;
-      case FAST_DOUBLE_ELEMENTS:
-      case FAST_HOLEY_DOUBLE_ELEMENTS:
-        AddInstruction(new(zone()) HStoreKeyedFastDoubleElement(elements,
-                                                                key,
-                                                                value));
         break;
       default:
         UNREACHABLE();
@@ -6085,13 +6067,15 @@ HInstruction* HGraphBuilder::BuildExternalArrayElementAccess(
         UNREACHABLE();
         break;
     }
-    return new(zone()) HStoreKeyedSpecializedArrayElement(
-        external_elements, checked_key, val, elements_kind);
+    return new(zone()) HStoreKeyed(external_elements,
+                                   checked_key,
+                                   val,
+                                   elements_kind);
   } else {
     ASSERT(val == NULL);
-    HLoadKeyedSpecializedArrayElement* load =
-       new(zone()) HLoadKeyedSpecializedArrayElement(
-          external_elements, checked_key, dependency, elements_kind);
+    HLoadKeyed* load =
+       new(zone()) HLoadKeyed(
+           external_elements, checked_key, dependency, elements_kind);
     if (FLAG_opt_safe_uint32_operations &&
         elements_kind == EXTERNAL_UNSIGNED_INT_ELEMENTS) {
       graph()->RecordUint32Instruction(load);
@@ -6110,10 +6094,6 @@ HInstruction* HGraphBuilder::BuildFastElementAccess(HValue* elements,
   if (is_store) {
     ASSERT(val != NULL);
     switch (elements_kind) {
-      case FAST_DOUBLE_ELEMENTS:
-      case FAST_HOLEY_DOUBLE_ELEMENTS:
-        return new(zone()) HStoreKeyedFastDoubleElement(
-            elements, checked_key, val);
       case FAST_SMI_ELEMENTS:
       case FAST_HOLEY_SMI_ELEMENTS:
         // Smi-only arrays need a smi check.
@@ -6121,7 +6101,9 @@ HInstruction* HGraphBuilder::BuildFastElementAccess(HValue* elements,
         // Fall through.
       case FAST_ELEMENTS:
       case FAST_HOLEY_ELEMENTS:
-        return new(zone()) HStoreKeyedFastElement(
+      case FAST_DOUBLE_ELEMENTS:
+      case FAST_HOLEY_DOUBLE_ELEMENTS:
+        return new(zone()) HStoreKeyed(
             elements, checked_key, val, elements_kind);
       default:
         UNREACHABLE();
@@ -6129,16 +6111,10 @@ HInstruction* HGraphBuilder::BuildFastElementAccess(HValue* elements,
     }
   }
   // It's an element load (!is_store).
-  HoleCheckMode mode = IsFastPackedElementsKind(elements_kind) ?
-      OMIT_HOLE_CHECK :
-      PERFORM_HOLE_CHECK;
-  if (IsFastDoubleElementsKind(elements_kind)) {
-    return new(zone()) HLoadKeyedFastDoubleElement(elements, checked_key,
-                                                   load_dependency, mode);
-  } else {  // Smi or Object elements.
-    return new(zone()) HLoadKeyedFastElement(elements, checked_key,
-                                             load_dependency, elements_kind);
-  }
+  return new(zone()) HLoadKeyed(elements,
+                                checked_key,
+                                load_dependency,
+                                elements_kind);
 }
 
 
