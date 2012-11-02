@@ -770,11 +770,11 @@ class FastElementsAccessor
                                                 uint32_t length) {
     uint32_t old_capacity = backing_store->length();
     Object* old_length = array->length();
-    bool same_size = old_length->IsSmi() &&
-        static_cast<uint32_t>(Smi::cast(old_length)->value()) == length;
+    bool same_or_smaller_size = old_length->IsSmi() &&
+        static_cast<uint32_t>(Smi::cast(old_length)->value()) >= length;
     ElementsKind kind = array->GetElementsKind();
 
-    if (!same_size && IsFastElementsKind(kind) &&
+    if (!same_or_smaller_size && IsFastElementsKind(kind) &&
         !IsFastHoleyElementsKind(kind)) {
       kind = GetHoleyElementsKind(kind);
       MaybeObject* maybe_obj = array->TransitionElementsKind(kind);
@@ -829,32 +829,39 @@ class FastElementsAccessor
     ASSERT(obj->HasFastSmiOrObjectElements() ||
            obj->HasFastDoubleElements() ||
            obj->HasFastArgumentsElements());
-    typename KindTraits::BackingStore* backing_store =
-        KindTraits::BackingStore::cast(obj->elements());
     Heap* heap = obj->GetHeap();
-    if (backing_store->map() == heap->non_strict_arguments_elements_map()) {
+    Object* elements = obj->elements();
+    if (elements == heap->empty_fixed_array()) {
+      return heap->true_value();
+    }
+    typename KindTraits::BackingStore* backing_store =
+        KindTraits::BackingStore::cast(elements);
+    bool is_non_strict_arguments_elements_map =
+        backing_store->map() == heap->non_strict_arguments_elements_map();
+    if (is_non_strict_arguments_elements_map) {
       backing_store =
           KindTraits::BackingStore::cast(
               FixedArray::cast(backing_store)->get(1));
-    } else {
-      ElementsKind kind = KindTraits::Kind;
-      if (IsFastPackedElementsKind(kind)) {
-        MaybeObject* transitioned =
-            obj->TransitionElementsKind(GetHoleyElementsKind(kind));
-        if (transitioned->IsFailure()) return transitioned;
-      }
-      if (IsFastSmiOrObjectElementsKind(KindTraits::Kind)) {
-        Object* writable;
-        MaybeObject* maybe = obj->EnsureWritableFastElements();
-        if (!maybe->ToObject(&writable)) return maybe;
-        backing_store = KindTraits::BackingStore::cast(writable);
-      }
     }
     uint32_t length = static_cast<uint32_t>(
         obj->IsJSArray()
         ? Smi::cast(JSArray::cast(obj)->length())->value()
         : backing_store->length());
     if (key < length) {
+      if (!is_non_strict_arguments_elements_map) {
+        ElementsKind kind = KindTraits::Kind;
+        if (IsFastPackedElementsKind(kind)) {
+          MaybeObject* transitioned =
+              obj->TransitionElementsKind(GetHoleyElementsKind(kind));
+          if (transitioned->IsFailure()) return transitioned;
+        }
+        if (IsFastSmiOrObjectElementsKind(KindTraits::Kind)) {
+          Object* writable;
+          MaybeObject* maybe = obj->EnsureWritableFastElements();
+          if (!maybe->ToObject(&writable)) return maybe;
+          backing_store = KindTraits::BackingStore::cast(writable);
+        }
+      }
       backing_store->set_the_hole(key);
       // If an old space backing store is larger than a certain size and
       // has too few used values, normalize it.
