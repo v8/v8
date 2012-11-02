@@ -420,14 +420,6 @@ void Heap::GarbageCollectionPrologue() {
   gc_count_++;
   unflattened_strings_length_ = 0;
 
-  bool should_enable_code_flushing = FLAG_flush_code;
-#ifdef ENABLE_DEBUGGER_SUPPORT
-  if (isolate_->debug()->IsLoaded() || isolate_->debug()->has_break_points()) {
-    should_enable_code_flushing = false;
-  }
-#endif
-  mark_compact_collector()->EnableCodeFlushing(should_enable_code_flushing);
-
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap) {
     Verify();
@@ -1325,12 +1317,6 @@ void Heap::Scavenge() {
       Address value_address = cell->ValueAddress();
       scavenge_visitor.VisitPointer(reinterpret_cast<Object**>(value_address));
     }
-  }
-
-  // Copy objects reachable from the code flushing candidates list.
-  MarkCompactCollector* collector = mark_compact_collector();
-  if (collector->is_code_flushing_enabled()) {
-    collector->code_flusher()->IteratePointersToFromSpace(&scavenge_visitor);
   }
 
   // Scavenge object reachable from the native contexts list directly.
@@ -5547,7 +5533,6 @@ bool Heap::LookupSymbolIfExists(String* string, String** symbol) {
   }
   return symbol_table()->LookupSymbolIfExists(string, symbol);
 }
-
 
 void Heap::ZapFromSpace() {
   NewSpacePageIterator it(new_space_.FromSpaceStart(),
