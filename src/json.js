@@ -215,4 +215,12 @@ function SetUpJSON() {
   ));
 }
 
+
+function JSONSerializeAdapter(key, object) {
+  var holder = {};
+  holder[key] = object;
+  // No need to pass the actual holder since there is no replacer function.
+  return JSONSerialize(key, holder, void 0, new InternalArray(), "", "");
+}
+
 SetUpJSON();

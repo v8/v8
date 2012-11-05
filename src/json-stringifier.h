@@ -48,7 +48,7 @@ class BasicJsonStringifier BASE_EMBEDDED {
 
   enum Result { UNCHANGED, SUCCESS, EXCEPTION, CIRCULAR, STACK_OVERFLOW };
 
-  template <bool is_ascii> void Extend();
+  void Extend();
 
   void ChangeEncoding();
 
@@ -82,9 +82,14 @@ class BasicJsonStringifier BASE_EMBEDDED {
   Handle<Object> ApplyToJsonFunction(Handle<Object> object,
                                      Handle<Object> key);
 
+  Result SerializeGeneric(Handle<Object> object,
+                          Handle<Object> key,
+                          bool deferred_comma,
+                          bool deferred_key);
+
   // Entry point to serialize the object.
   INLINE(Result SerializeObject(Handle<Object> obj)) {
-    return Serialize_<false>(obj, false, isolate_->factory()->empty_string());
+    return Serialize_<false>(obj, false, factory_->empty_string());
   }
 
   // Serialize an array element.
@@ -147,7 +152,7 @@ class BasicJsonStringifier BASE_EMBEDDED {
   void StackPop();
 
   INLINE(Handle<String> accumulator()) {
-    return Handle<String>(String::cast(accumulator_store_->value()));
+    return Handle<String>(String::cast(accumulator_store_->value()), isolate_);
   }
 
   INLINE(void set_accumulator(Handle<String> string)) {
@@ -155,6 +160,7 @@ class BasicJsonStringifier BASE_EMBEDDED {
   }
 
   Isolate* isolate_;
+  Factory* factory_;
   // We use a value wrapper for the string accumulator to keep the
   // (indirect) handle to it in the outermost handle scope.
   Handle<JSValue> accumulator_store_;
@@ -209,13 +215,13 @@ const char* const BasicJsonStringifier::JsonEscapeTable =
 
 BasicJsonStringifier::BasicJsonStringifier(Isolate* isolate)
     : isolate_(isolate), current_index_(0), is_ascii_(true) {
+  factory_ = isolate_->factory();
   accumulator_store_ = Handle<JSValue>::cast(
-      isolate_->factory()->ToObject(isolate_->factory()->empty_string()));
+                           factory_->ToObject(factory_->empty_string()));
   part_length_ = kInitialPartLength;
-  current_part_ =
-      isolate_->factory()->NewRawAsciiString(kInitialPartLength);
-  tojson_symbol_ = isolate_->factory()->LookupAsciiSymbol("toJSON");
-  stack_ = isolate_->factory()->NewJSArray(8);
+  current_part_ = factory_->NewRawAsciiString(kInitialPartLength);
+  tojson_symbol_ = factory_->LookupAsciiSymbol("toJSON");
+  stack_ = factory_->NewJSArray(8);
 }
 
 
@@ -225,9 +231,9 @@ MaybeObject* BasicJsonStringifier::Stringify(Handle<Object> object) {
       return isolate_->heap()->undefined_value();
     case SUCCESS:
       ShrinkCurrentPart();
-      return *isolate_->factory()->NewConsString(accumulator(), current_part_);
+      return *factory_->NewConsString(accumulator(), current_part_);
     case CIRCULAR:
-      return isolate_->Throw(*isolate_->factory()->NewTypeError(
+      return isolate_->Throw(*factory_->NewTypeError(
                  "circular_structure", HandleVector<Object>(NULL, 0)));
     case STACK_OVERFLOW:
       return isolate_->StackOverflow();
@@ -246,7 +252,7 @@ void BasicJsonStringifier::Append_(Char c) {
     SeqTwoByteString::cast(*current_part_)->SeqTwoByteStringSet(
         current_index_++, c);
   }
-  if (current_index_ == part_length_) Extend<is_ascii>();
+  if (current_index_ == part_length_) Extend();
 }
 
 
@@ -260,20 +266,20 @@ Handle<Object> BasicJsonStringifier::GetProperty(Handle<JSObject> object,
                                                  Handle<String> key) {
   LookupResult lookup(isolate_);
   object->LocalLookupRealNamedProperty(*key, &lookup);
-  if (!lookup.IsProperty()) return isolate_->factory()->undefined_value();
+  if (!lookup.IsProperty()) return factory_->undefined_value();
   switch (lookup.type()) {
     case NORMAL: {
       Object* value = lookup.holder()->GetNormalizedProperty(&lookup);
       ASSERT(!value->IsTheHole());
-      return Handle<Object>(value);
+      return Handle<Object>(value, isolate_);
     }
     case FIELD: {
       Object* value = lookup.holder()->FastPropertyAt(lookup.GetFieldIndex());
       ASSERT(!value->IsTheHole());
-      return Handle<Object>(value);
+      return Handle<Object>(value, isolate_);
     }
     case CONSTANT_FUNCTION:
-      return Handle<Object>(lookup.GetConstantFunction());
+      return Handle<Object>(lookup.GetConstantFunction(), isolate_);
     default: {
       PropertyAttributes attr;
       return Object::GetProperty(object, object, &lookup, key, &attr);
@@ -294,7 +300,7 @@ Handle<Object> BasicJsonStringifier::ApplyToJsonFunction(
   if (!fun->IsJSFunction()) return object;
 
   // Call toJSON function.
-  if (key->IsSmi()) key = isolate_->factory()->NumberToString(key);
+  if (key->IsSmi()) key = factory_->NumberToString(key);
   Handle<Object> argv[] = { key };
   bool has_exception = false;
   HandleScope scope(isolate_);
@@ -338,47 +344,84 @@ BasicJsonStringifier::Result BasicJsonStringifier::Serialize_(
     if (object.is_null()) return EXCEPTION;
   }
 
-  if (object->IsJSObject()) {
-    if (object->IsJSFunction()) return UNCHANGED;
-    if (deferred_string_key) SerializeDeferredKey(comma, key);
-    if (object->IsJSArray()) {
-      return SerializeJSArray(Handle<JSArray>::cast(object));
-    } else if (object->IsJSValue()) {
-      return SerializeJSValue(Handle<JSValue>::cast(object));
-    } else {
-      return SerializeJSObject(Handle<JSObject>::cast(object));
-    }
-  }
-
-  // Handle non-JSObject.
-  if (object->IsString()) {
-    if (deferred_string_key) SerializeDeferredKey(comma, key);
-    SerializeString(Handle<String>::cast(object));
-    return SUCCESS;
-  } else if (object->IsSmi()) {
+  if (object->IsSmi()) {
     if (deferred_string_key) SerializeDeferredKey(comma, key);
     return SerializeSmi(Smi::cast(*object));
-  } else if (object->IsHeapNumber()) {
-    if (deferred_string_key) SerializeDeferredKey(comma, key);
-    return SerializeHeapNumber(Handle<HeapNumber>::cast(object));
-  } else if (object->IsOddball()) {
-    switch (Oddball::cast(*object)->kind()) {
-      case Oddball::kFalse:
-        if (deferred_string_key) SerializeDeferredKey(comma, key);
-        Append("false");
-        return SUCCESS;
-      case Oddball::kTrue:
-        if (deferred_string_key) SerializeDeferredKey(comma, key);
-        Append("true");
-        return SUCCESS;
-      case Oddball::kNull:
-        if (deferred_string_key) SerializeDeferredKey(comma, key);
-        Append("null");
-        return SUCCESS;
-    }
   }
 
-  return UNCHANGED;
+  switch (HeapObject::cast(*object)->map()->instance_type()) {
+    case HEAP_NUMBER_TYPE:
+      if (deferred_string_key) SerializeDeferredKey(comma, key);
+      return SerializeHeapNumber(Handle<HeapNumber>::cast(object));
+    case ODDBALL_TYPE:
+      switch (Oddball::cast(*object)->kind()) {
+        case Oddball::kFalse:
+          if (deferred_string_key) SerializeDeferredKey(comma, key);
+          Append("false");
+          return SUCCESS;
+        case Oddball::kTrue:
+          if (deferred_string_key) SerializeDeferredKey(comma, key);
+          Append("true");
+          return SUCCESS;
+        case Oddball::kNull:
+          if (deferred_string_key) SerializeDeferredKey(comma, key);
+          Append("null");
+          return SUCCESS;
+        default:
+          return UNCHANGED;
+      }
+    case JS_ARRAY_TYPE:
+      if (deferred_string_key) SerializeDeferredKey(comma, key);
+      return SerializeJSArray(Handle<JSArray>::cast(object));
+    case JS_VALUE_TYPE:
+      if (deferred_string_key) SerializeDeferredKey(comma, key);
+      return SerializeJSValue(Handle<JSValue>::cast(object));
+    case JS_FUNCTION_TYPE:
+      return UNCHANGED;
+    default:
+      if (object->IsString()) {
+        if (deferred_string_key) SerializeDeferredKey(comma, key);
+        SerializeString(Handle<String>::cast(object));
+        return SUCCESS;
+      } else if (object->IsJSObject()) {
+        if (deferred_string_key) SerializeDeferredKey(comma, key);
+        return SerializeJSObject(Handle<JSObject>::cast(object));
+      } else {
+        return SerializeGeneric(object, key, comma, deferred_string_key);
+      }
+  }
+}
+
+
+BasicJsonStringifier::Result BasicJsonStringifier::SerializeGeneric(
+    Handle<Object> object,
+    Handle<Object> key,
+    bool deferred_comma,
+    bool deferred_key) {
+  Handle<JSObject> builtins(isolate_->native_context()->builtins());
+  Handle<JSFunction> builtin = Handle<JSFunction>::cast(
+      v8::internal::GetProperty(builtins, "JSONSerializeAdapter"));
+
+  Handle<Object> argv[] = { key, object };
+  bool has_exception = false;
+  Handle<Object> result =
+      Execution::Call(builtin, object, 2, argv, &has_exception);
+  if (has_exception) return EXCEPTION;
+  if (result->IsUndefined()) return UNCHANGED;
+  if (deferred_key) {
+    if (key->IsSmi()) key = factory_->NumberToString(key);
+    SerializeDeferredKey(deferred_comma, key);
+  }
+
+  Handle<String> result_string = Handle<String>::cast(result);
+  // Shrink current part, attach it to the accumulator, also attach the result
+  // string to the accumulator, and allocate a new part.
+  ShrinkCurrentPart();  // Shrink.
+  part_length_ = kInitialPartLength;  // Allocate conservatively.
+  Extend();             // Attach current part and allocate new part.
+  // Attach result string to the accumulator.
+  set_accumulator(factory_->NewConsString(accumulator(), result_string));
+  return SUCCESS;
 }
 
 
@@ -437,7 +480,8 @@ BasicJsonStringifier::Result BasicJsonStringifier::SerializeJSArray(
   Append('[');
   switch (object->GetElementsKind()) {
     case FAST_SMI_ELEMENTS: {
-      Handle<FixedArray> elements(FixedArray::cast(object->elements()));
+      Handle<FixedArray> elements(
+          FixedArray::cast(object->elements()), isolate_);
       for (int i = 0; i < length; i++) {
         if (i > 0) Append(',');
         SerializeSmi(Smi::cast(elements->get(i)));
@@ -446,7 +490,7 @@ BasicJsonStringifier::Result BasicJsonStringifier::SerializeJSArray(
     }
     case FAST_DOUBLE_ELEMENTS: {
       Handle<FixedDoubleArray> elements(
-          FixedDoubleArray::cast(object->elements()));
+          FixedDoubleArray::cast(object->elements()), isolate_);
       for (int i = 0; i < length; i++) {
         if (i > 0) Append(',');
         SerializeDouble(elements->get_scalar(i));
@@ -454,10 +498,12 @@ BasicJsonStringifier::Result BasicJsonStringifier::SerializeJSArray(
       break;
     }
     case FAST_ELEMENTS: {
-      Handle<FixedArray> elements(FixedArray::cast(object->elements()));
+      Handle<FixedArray> elements(
+          FixedArray::cast(object->elements()), isolate_);
       for (int i = 0; i < length; i++) {
         if (i > 0) Append(',');
-        Result result = SerializeElement(Handle<Object>(elements->get(i)), i);
+        Result result =
+            SerializeElement(Handle<Object>(elements->get(i), isolate_), i);
         if (result == SUCCESS) continue;
         if (result == UNCHANGED) {
           Append("null");
@@ -510,7 +556,8 @@ BasicJsonStringifier::Result BasicJsonStringifier::SerializeJSObject(
   Result stack_push = StackPush(object);
   if (stack_push != SUCCESS) return stack_push;
   if (object->IsJSGlobalProxy()) {
-    object = Handle<JSObject>(JSObject::cast(object->GetPrototype()));
+    object = Handle<JSObject>(
+                 JSObject::cast(object->GetPrototype()), isolate_);
     ASSERT(object->IsGlobalObject());
   }
   bool has_exception = false;
@@ -524,11 +571,11 @@ BasicJsonStringifier::Result BasicJsonStringifier::SerializeJSObject(
     Handle<String> key_handle;
     Handle<Object> property;
     if (key->IsString()) {
-      key_handle = Handle<String>(String::cast(key));
+      key_handle = Handle<String>(String::cast(key), isolate_);
       property = GetProperty(object, key_handle);
     } else {
       ASSERT(key->IsNumber());
-      key_handle = isolate_->factory()->NumberToString(Handle<Object>(key));
+      key_handle = factory_->NumberToString(Handle<Object>(key, isolate_));
       uint32_t index;
       if (key->IsSmi()) {
         property = Object::GetElement(object, Smi::cast(key)->value());
@@ -553,7 +600,7 @@ BasicJsonStringifier::Result BasicJsonStringifier::SerializeJSObject(
 void BasicJsonStringifier::ShrinkCurrentPart() {
   ASSERT(current_index_ < part_length_);
   if (current_index_ == 0) {
-    current_part_ = isolate_->factory()->empty_string();
+    current_part_ = factory_->empty_string();
     return;
   }
 
@@ -580,19 +627,15 @@ void BasicJsonStringifier::ShrinkCurrentPart() {
 }
 
 
-template <bool is_ascii>
 void BasicJsonStringifier::Extend() {
-  set_accumulator(
-      isolate_->factory()->NewConsString(accumulator(), current_part_));
+  set_accumulator(factory_->NewConsString(accumulator(), current_part_));
   if (part_length_ <= kMaxPartLength / kPartLengthGrowthFactor) {
     part_length_ *= kPartLengthGrowthFactor;
   }
-  if (is_ascii) {
-    current_part_ =
-        isolate_->factory()->NewRawAsciiString(part_length_);
+  if (is_ascii_) {
+    current_part_ = factory_->NewRawAsciiString(part_length_);
   } else {
-    current_part_ =
-        isolate_->factory()->NewRawTwoByteString(part_length_);
+    current_part_ = factory_->NewRawTwoByteString(part_length_);
   }
   current_index_ = 0;
 }
@@ -600,10 +643,8 @@ void BasicJsonStringifier::Extend() {
 
 void BasicJsonStringifier::ChangeEncoding() {
   ShrinkCurrentPart();
-  set_accumulator(
-      isolate_->factory()->NewConsString(accumulator(), current_part_));
-  current_part_ =
-      isolate_->factory()->NewRawTwoByteString(part_length_);
+  set_accumulator(factory_->NewConsString(accumulator(), current_part_));
+  current_part_ = factory_->NewRawTwoByteString(part_length_);
   current_index_ = 0;
   is_ascii_ = false;
 }

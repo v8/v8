@@ -109,6 +109,10 @@ assertEquals('["00","11"]', JSON.stringify(tojson_with_key_2));
 var tojson_ex = { toJSON: function(key) { throw "123" } };
 assertThrows(function() { JSON.stringify(tojson_ex); });
 
+// Test toJSON with access to this.
+var obj = { toJSON: function(key) { return this.a + key; }, a: "x" };
+assertEquals('{"y":"xy"}', JSON.stringify({y: obj}));
+
 // Test holes in arrays.
 var fast_smi = [1, 2, 3, 4];
 fast_smi.__proto__ = [7, 7, 7, 7];
