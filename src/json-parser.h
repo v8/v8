@@ -176,8 +176,8 @@ Handle<Object> JsonParser<seq_ascii>::ParseJson(Handle<String> source,
                                                 Zone* zone) {
   isolate_ = source->map()->GetHeap()->isolate();
   factory_ = isolate_->factory();
-  object_constructor_ =
-      Handle<JSFunction>(isolate()->native_context()->object_function());
+  object_constructor_ = Handle<JSFunction>(
+      isolate()->native_context()->object_function(), isolate());
   zone_ = zone;
   FlattenString(source);
   source_ = source;
@@ -611,7 +611,7 @@ Handle<String> JsonParser<seq_ascii>::ScanJsonString() {
   Advance();
   if (c0_ == '"') {
     AdvanceSkipWhitespace();
-    return Handle<String>(isolate()->heap()->empty_string());
+    return factory()->empty_string();
   }
 
   if (seq_ascii && is_symbol) {
@@ -657,7 +657,7 @@ Handle<String> JsonParser<seq_ascii>::ScanJsonString() {
         position_ = position;
         // Advance past the last '"'.
         AdvanceSkipWhitespace();
-        return Handle<String>(String::cast(element));
+        return Handle<String>(String::cast(element), isolate());
       }
       entry = SymbolTable::NextProbe(entry, count++, capacity);
     }
