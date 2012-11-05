@@ -2539,12 +2539,6 @@ void HCheckFunction::Verify() {
   ASSERT(HasNoUses());
 }
 
-
-void HCheckPrototypeMaps::Verify() {
-  HInstruction::Verify();
-  ASSERT(HasNoUses());
-}
-
 #endif
 
 } }  // namespace v8::internal

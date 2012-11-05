@@ -6012,6 +6012,19 @@ HInstruction* HGraphBuilder::BuildLoadNamedMonomorphic(HValue* object,
     return new(zone()) HConstant(function, Representation::Tagged());
   }
 
+  // Handle a load from a known field somewhere in the protoype chain.
+  LookupInPrototypes(map, name, &lookup);
+  if (lookup.IsField()) {
+    Handle<JSObject> prototype(JSObject::cast(map->prototype()));
+    Handle<JSObject> holder(lookup.holder());
+    Handle<Map> holder_map(holder->map());
+    AddInstruction(new(zone()) HCheckNonSmi(object));
+    AddInstruction(HCheckMaps::NewWithTransitions(object, map, zone()));
+    HInstruction* holder_value =
+        AddInstruction(new(zone()) HCheckPrototypeMaps(prototype, holder));
+    return BuildLoadNamedField(holder_value, holder_map, &lookup, false);
+  }
+
   // No luck, do a generic load.
   return BuildLoadNamedGeneric(object, name, expr);
 }

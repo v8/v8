@@ -2376,10 +2376,6 @@ class HCheckPrototypeMaps: public HTemplateInstruction<0> {
     SetGVNFlag(kDependsOnMaps);
   }
 
-#ifdef DEBUG
-  virtual void Verify();
-#endif
-
   Handle<JSObject> prototype() const { return prototype_; }
   Handle<JSObject> holder() const { return holder_; }
 
