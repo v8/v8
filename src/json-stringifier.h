@@ -560,36 +560,68 @@ BasicJsonStringifier::Result BasicJsonStringifier::SerializeJSObject(
                  JSObject::cast(object->GetPrototype()), isolate_);
     ASSERT(object->IsGlobalObject());
   }
-  bool has_exception = false;
-  Handle<FixedArray> contents =
-      GetKeysInFixedArrayFor(object, LOCAL_ONLY, &has_exception);
-  if (has_exception) return EXCEPTION;
+
   Append('{');
   bool comma = false;
-  for (int i = 0; i < contents->length(); i++) {
-    Object* key = contents->get(i);
-    Handle<String> key_handle;
-    Handle<Object> property;
-    if (key->IsString()) {
-      key_handle = Handle<String>(String::cast(key), isolate_);
-      property = GetProperty(object, key_handle);
-    } else {
-      ASSERT(key->IsNumber());
-      key_handle = factory_->NumberToString(Handle<Object>(key, isolate_));
-      uint32_t index;
-      if (key->IsSmi()) {
-        property = Object::GetElement(object, Smi::cast(key)->value());
-      } else if (key_handle->AsArrayIndex(&index)) {
-        property = Object::GetElement(object, index);
+
+  if (object->HasFastProperties() &&
+      !object->HasIndexedInterceptor() &&
+      !object->HasNamedInterceptor() &&
+      object->elements() == isolate_->heap()->empty_fixed_array()) {
+    Handle<DescriptorArray> descs(
+        object->map()->instance_descriptors(), isolate_);
+    int num_desc = object->map()->NumberOfOwnDescriptors();
+    Handle<Map> map(object->map());
+    bool map_changed = false;
+    for (int i = 0; i < num_desc; i++) {
+      Handle<String> key(descs->GetKey(i), isolate_);
+      PropertyDetails details = descs->GetDetails(i);
+      if (details.IsDontEnum() || details.IsDeleted()) continue;
+      Handle<Object> property;
+      if (details.type() == FIELD && !map_changed) {
+        property = Handle<Object>(
+            object->FastPropertyAt(descs->GetFieldIndex(i)), isolate_);
       } else {
-        property = GetProperty(object, key_handle);
+        property = GetProperty(object, key);
       }
+      if (property.is_null()) return EXCEPTION;
+      Result result = SerializeProperty(property, comma, key);
+      if (!comma && result == SUCCESS) comma = true;
+      if (result >= EXCEPTION) return result;
+      if (*map != object->map()) map_changed = true;
     }
-    if (property.is_null()) return EXCEPTION;
-    Result result = SerializeProperty(property, comma, key_handle);
-    if (!comma && result == SUCCESS) comma = true;
-    if (result >= EXCEPTION) return result;
+  } else {
+    bool has_exception = false;
+    Handle<FixedArray> contents =
+        GetKeysInFixedArrayFor(object, LOCAL_ONLY, &has_exception);
+    if (has_exception) return EXCEPTION;
+
+    for (int i = 0; i < contents->length(); i++) {
+      Object* key = contents->get(i);
+      Handle<String> key_handle;
+      Handle<Object> property;
+      if (key->IsString()) {
+        key_handle = Handle<String>(String::cast(key), isolate_);
+        property = GetProperty(object, key_handle);
+      } else {
+        ASSERT(key->IsNumber());
+        key_handle = factory_->NumberToString(Handle<Object>(key, isolate_));
+        uint32_t index;
+        if (key->IsSmi()) {
+          property = Object::GetElement(object, Smi::cast(key)->value());
+        } else if (key_handle->AsArrayIndex(&index)) {
+          property = Object::GetElement(object, index);
+        } else {
+          property = GetProperty(object, key_handle);
+        }
+      }
+      if (property.is_null()) return EXCEPTION;
+      Result result = SerializeProperty(property, comma, key_handle);
+      if (!comma && result == SUCCESS) comma = true;
+      if (result >= EXCEPTION) return result;
+    }
   }
+
   Append('}');
   StackPop();
   current_part_ = handle_scope.CloseAndEscape(current_part_);

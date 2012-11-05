@@ -154,3 +154,25 @@ var proxy6 = Proxy.create(handler6);
 testStringify('[1,null,true]', [1, proxy6, true]);
 testStringify('{"a":1,"c":true}', {a: 1, b: proxy6, c: true});
 
+// Object containing a proxy that changes the parent's properties.
+var handler7 = {
+  get: function(target, name) {
+    delete parent7.a;
+    delete parent7.c;
+    parent7.e = "5";
+    return name.toUpperCase();
+  },
+  enumerate: function(target) {
+    return ['a', 'b', 'c'];
+  },
+  getOwnPropertyDescriptor: function(target, name) {
+    return { enumerable: true };
+  }
+}
+
+var proxy7 = Proxy.create(handler7);
+var parent7 = { a: "1", b: proxy7, c: "3", d: "4" };
+assertEquals('{"a":"1","b":{"a":"A","b":"B","c":"C"},"d":"4"}',
+             JSON.stringify(parent7));
+assertEquals('{"b":{"a":"A","b":"B","c":"C"},"d":"4","e":"5"}',
+             JSON.stringify(parent7));

@@ -133,3 +133,21 @@ fast_obj.__proto__ = [7, 7, 7, 7];
 delete fast_obj[2];
 assertTrue(%HasFastObjectElements(fast_obj));
 assertEquals("[1,2,7,{}]", JSON.stringify(fast_obj));
+
+var getter_side_effect = { a: 1,
+                           get b() {
+                             delete this.a;
+                             delete this.c;
+                             this.e = 5;
+                             return 2;
+                           },
+                           c: 3,
+                           d: 4 };
+assertEquals('{"a":1,"b":2,"d":4}', JSON.stringify(getter_side_effect));
+assertEquals('{"b":2,"d":4,"e":5}', JSON.stringify(getter_side_effect));
+
+var non_enum = {};
+non_enum.a = 1;
+Object.defineProperty(non_enum, "b", { value: 2, enumerable: false });
+non_enum.c = 3;
+assertEquals('{"a":1,"c":3}', JSON.stringify(non_enum));
