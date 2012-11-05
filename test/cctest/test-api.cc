@@ -5419,11 +5419,14 @@ THREADED_TEST(IndependentWeakHandle) {
     object_a = v8::Persistent<v8::Object>::New(v8::Object::New());
   }
 
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
   bool object_a_disposed = false;
   object_a.MakeWeak(&object_a_disposed, &DisposeAndSetFlag);
   CHECK(!object_a.IsIndependent());
+  CHECK(!object_a.IsIndependent(isolate));
   object_a.MarkIndependent();
   CHECK(object_a.IsIndependent());
+  CHECK(object_a.IsIndependent(isolate));
   HEAP->PerformScavenge();
   CHECK(object_a_disposed);
 }

@@ -416,6 +416,7 @@ template <class T> class Persistent : public Handle<T> {
 
   /** Returns true if this handle was previously marked as independent. */
   inline bool IsIndependent() const;
+  inline bool IsIndependent(Isolate* isolate) const;
 
   /** Checks if the handle holds the only reference to an object. */
   inline bool IsNearDeath() const;
@@ -3520,6 +3521,8 @@ class V8EXPORT V8 {
   static void ClearWeak(internal::Object** global_handle);
   static void MarkIndependent(internal::Object** global_handle);
   static bool IsGlobalIndependent(internal::Object** global_handle);
+  static bool IsGlobalIndependent(internal::Isolate* isolate,
+                                  internal::Object** global_handle);
   static bool IsGlobalNearDeath(internal::Object** global_handle);
   static bool IsGlobalWeak(internal::Object** global_handle);
   static void SetWrapperClassId(internal::Object** global_handle,
@@ -4258,6 +4261,14 @@ template <class T>
 bool Persistent<T>::IsIndependent() const {
   if (this->IsEmpty()) return false;
   return V8::IsGlobalIndependent(reinterpret_cast<internal::Object**>(**this));
+}
+
+
+template <class T>
+bool Persistent<T>::IsIndependent(Isolate* isolate) const {
+  if (this->IsEmpty()) return false;
+  return V8::IsGlobalIndependent(reinterpret_cast<internal::Isolate*>(isolate),
+                                 reinterpret_cast<internal::Object**>(**this));
 }
 
 
