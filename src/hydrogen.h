@@ -1164,8 +1164,7 @@ class HGraphBuilder: public AstVisitor {
 
   HLoadNamedField* BuildLoadNamedField(HValue* object,
                                        Handle<Map> map,
-                                       LookupResult* result,
-                                       bool smi_and_map_check);
+                                       LookupResult* result);
   HInstruction* BuildLoadNamedGeneric(HValue* object,
                                       Handle<String> name,
                                       Property* expr);
@@ -1186,12 +1185,14 @@ class HGraphBuilder: public AstVisitor {
       ElementsKind elements_kind,
       bool is_store);
 
+  void AddCheckMapsWithTransitions(HValue* object,
+                                   Handle<Map> map);
+
   HInstruction* BuildStoreNamedField(HValue* object,
                                      Handle<String> name,
                                      HValue* value,
                                      Handle<Map> map,
-                                     LookupResult* lookup,
-                                     bool smi_and_map_check);
+                                     LookupResult* lookup);
   HInstruction* BuildStoreNamedGeneric(HValue* object,
                                        Handle<String> name,
                                        HValue* value);
@@ -1212,10 +1213,12 @@ class HGraphBuilder: public AstVisitor {
 
   HInstruction* BuildThisFunction();
 
+  void AddCheckPrototypeMaps(Handle<JSObject> holder,
+                             Handle<Map> receiver_map);
+
   void AddCheckConstantFunction(Handle<JSObject> holder,
                                 HValue* receiver,
-                                Handle<Map> receiver_map,
-                                bool smi_and_map_check);
+                                Handle<Map> receiver_map);
 
   Zone* zone() const { return zone_; }
 

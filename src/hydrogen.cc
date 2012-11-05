@@ -5263,18 +5263,19 @@ static int ComputeLoadStoreFieldIndex(Handle<Map> type,
 }
 
 
+void HGraphBuilder::AddCheckMapsWithTransitions(HValue* object,
+                                                Handle<Map> map) {
+  AddInstruction(new(zone()) HCheckNonSmi(object));
+  AddInstruction(HCheckMaps::NewWithTransitions(object, map, zone()));
+}
+
+
 HInstruction* HGraphBuilder::BuildStoreNamedField(HValue* object,
                                                   Handle<String> name,
                                                   HValue* value,
                                                   Handle<Map> map,
-                                                  LookupResult* lookup,
-                                                  bool smi_and_map_check) {
+                                                  LookupResult* lookup) {
   ASSERT(lookup->IsFound());
-  if (smi_and_map_check) {
-    AddInstruction(new(zone()) HCheckNonSmi(object));
-    AddInstruction(HCheckMaps::NewWithTransitions(object, map, zone()));
-  }
-
   // If the property does not exist yet, we have to check that it wasn't made
   // readonly or turned into a setter by some meanwhile modifications on the
   // prototype chain.
@@ -5343,7 +5344,7 @@ HInstruction* HGraphBuilder::BuildCallSetter(HValue* object,
                                              Handle<Map> map,
                                              Handle<JSFunction> setter,
                                              Handle<JSObject> holder) {
-  AddCheckConstantFunction(holder, object, map, true);
+  AddCheckConstantFunction(holder, object, map);
   AddInstruction(new(zone()) HPushArgument(object));
   AddInstruction(new(zone()) HPushArgument(value));
   return new(zone()) HCallConstantFunction(setter, 2);
@@ -5357,8 +5358,8 @@ HInstruction* HGraphBuilder::BuildStoreNamedMonomorphic(HValue* object,
   // Handle a store to a known field.
   LookupResult lookup(isolate());
   if (ComputeLoadStoreField(map, name, &lookup, true)) {
-    // true = needs smi and map check.
-    return BuildStoreNamedField(object, name, value, map, &lookup, true);
+    AddCheckMapsWithTransitions(object, map);
+    return BuildStoreNamedField(object, name, value, map, &lookup);
   }
 
   // No luck, do a generic store.
@@ -5406,7 +5407,7 @@ void HGraphBuilder::HandlePolymorphicLoadNamedField(Property* expr,
   HInstruction* instr;
   if (count == types->length() && is_monomorphic_field) {
     AddInstruction(new(zone()) HCheckMaps(object, types, zone()));
-    instr = BuildLoadNamedField(object, map, &lookup, false);
+    instr = BuildLoadNamedField(object, map, &lookup);
   } else {
     HValue* context = environment()->LookupContext();
     instr = new(zone()) HLoadNamedFieldPolymorphic(context,
@@ -5449,7 +5450,7 @@ void HGraphBuilder::HandlePolymorphicStoreNamedField(Assignment* expr,
       set_current_block(if_true);
       HInstruction* instr;
       CHECK_ALIVE(instr =
-          BuildStoreNamedField(object, name, value, map, &lookup, false));
+          BuildStoreNamedField(object, name, value, map, &lookup));
       instr->set_position(expr->position());
       // Goto will add the HSimulate for the store.
       AddInstruction(instr);
@@ -5525,7 +5526,7 @@ void HGraphBuilder::HandlePropertyAssignment(Assignment* expr) {
       Handle<JSFunction> setter;
       Handle<JSObject> holder;
       if (LookupSetter(map, name, &setter, &holder)) {
-        AddCheckConstantFunction(holder, object, map, true);
+        AddCheckConstantFunction(holder, object, map);
         if (FLAG_inline_accessors && TryInlineSetter(setter, expr, value)) {
           return;
         }
@@ -5949,13 +5950,7 @@ void HGraphBuilder::VisitThrow(Throw* expr) {
 
 HLoadNamedField* HGraphBuilder::BuildLoadNamedField(HValue* object,
                                                     Handle<Map> map,
-                                                    LookupResult* lookup,
-                                                    bool smi_and_map_check) {
-  if (smi_and_map_check) {
-    AddInstruction(new(zone()) HCheckNonSmi(object));
-    AddInstruction(HCheckMaps::NewWithTransitions(object, map, zone()));
-  }
-
+                                                    LookupResult* lookup) {
   int index = lookup->GetLocalFieldIndexFromMap(*map);
   if (index < 0) {
     // Negative property indices are in-object properties, indexed
@@ -5986,7 +5981,7 @@ HInstruction* HGraphBuilder::BuildCallGetter(HValue* object,
                                              Handle<Map> map,
                                              Handle<JSFunction> getter,
                                              Handle<JSObject> holder) {
-  AddCheckConstantFunction(holder, object, map, true);
+  AddCheckConstantFunction(holder, object, map);
   AddInstruction(new(zone()) HPushArgument(object));
   return new(zone()) HCallConstantFunction(getter, 1);
 }
@@ -6001,13 +5996,13 @@ HInstruction* HGraphBuilder::BuildLoadNamedMonomorphic(HValue* object,
   LookupResult lookup(isolate());
   map->LookupDescriptor(NULL, *name, &lookup);
   if (lookup.IsField()) {
-    return BuildLoadNamedField(object, map, &lookup, true);
+    AddCheckMapsWithTransitions(object, map);
+    return BuildLoadNamedField(object, map, &lookup);
   }
 
   // Handle a load of a constant known function.
   if (lookup.IsConstantFunction()) {
-    AddInstruction(new(zone()) HCheckNonSmi(object));
-    AddInstruction(HCheckMaps::NewWithTransitions(object, map, zone()));
+    AddCheckMapsWithTransitions(object, map);
     Handle<JSFunction> function(lookup.GetConstantFunctionFromMap(*map));
     return new(zone()) HConstant(function, Representation::Tagged());
   }
@@ -6018,11 +6013,10 @@ HInstruction* HGraphBuilder::BuildLoadNamedMonomorphic(HValue* object,
     Handle<JSObject> prototype(JSObject::cast(map->prototype()));
     Handle<JSObject> holder(lookup.holder());
     Handle<Map> holder_map(holder->map());
-    AddInstruction(new(zone()) HCheckNonSmi(object));
-    AddInstruction(HCheckMaps::NewWithTransitions(object, map, zone()));
+    AddCheckMapsWithTransitions(object, map);
     HInstruction* holder_value =
         AddInstruction(new(zone()) HCheckPrototypeMaps(prototype, holder));
-    return BuildLoadNamedField(holder_value, holder_map, &lookup, false);
+    return BuildLoadNamedField(holder_value, holder_map, &lookup);
   }
 
   // No luck, do a generic load.
@@ -6658,7 +6652,7 @@ void HGraphBuilder::VisitProperty(Property* expr) {
       Handle<JSFunction> getter;
       Handle<JSObject> holder;
       if (LookupGetter(map, name, &getter, &holder)) {
-        AddCheckConstantFunction(holder, Top(), map, true);
+        AddCheckConstantFunction(holder, Top(), map);
         if (FLAG_inline_accessors && TryInlineGetter(getter, expr)) return;
         AddInstruction(new(zone()) HPushArgument(Pop()));
         instr = new(zone()) HCallConstantFunction(getter, 1);
@@ -6698,22 +6692,23 @@ void HGraphBuilder::VisitProperty(Property* expr) {
 }
 
 
-void HGraphBuilder::AddCheckConstantFunction(Handle<JSObject> holder,
-                                             HValue* receiver,
-                                             Handle<Map> receiver_map,
-                                             bool smi_and_map_check) {
-  // Constant functions have the nice property that the map will change if they
-  // are overwritten.  Therefore it is enough to check the map of the holder and
-  // its prototypes.
-  if (smi_and_map_check) {
-    AddInstruction(new(zone()) HCheckNonSmi(receiver));
-    AddInstruction(HCheckMaps::NewWithTransitions(receiver, receiver_map,
-                                                  zone()));
-  }
+void HGraphBuilder::AddCheckPrototypeMaps(Handle<JSObject> holder,
+                                          Handle<Map> receiver_map) {
   if (!holder.is_null()) {
     AddInstruction(new(zone()) HCheckPrototypeMaps(
         Handle<JSObject>(JSObject::cast(receiver_map->prototype())), holder));
   }
+}
+
+
+void HGraphBuilder::AddCheckConstantFunction(Handle<JSObject> holder,
+                                             HValue* receiver,
+                                             Handle<Map> receiver_map) {
+  // Constant functions have the nice property that the map will change if they
+  // are overwritten.  Therefore it is enough to check the map of the holder and
+  // its prototypes.
+  AddCheckMapsWithTransitions(receiver, receiver_map);
+  AddCheckPrototypeMaps(holder, receiver_map);
 }
 
 
@@ -6795,7 +6790,7 @@ void HGraphBuilder::HandlePolymorphicCallNamed(Call* expr,
 
     set_current_block(if_true);
     expr->ComputeTarget(map, name);
-    AddCheckConstantFunction(expr->holder(), receiver, map, false);
+    AddCheckPrototypeMaps(expr->holder(), map);
     if (FLAG_trace_inlining && FLAG_polymorphic_inlining) {
       Handle<JSFunction> caller = info()->closure();
       SmartArrayPointer<char> caller_name =
@@ -7350,7 +7345,7 @@ bool HGraphBuilder::TryInlineBuiltinMethodCall(Call* expr,
     case kMathCos:
     case kMathTan:
       if (argument_count == 2 && check_type == RECEIVER_MAP_CHECK) {
-        AddCheckConstantFunction(expr->holder(), receiver, receiver_map, true);
+        AddCheckConstantFunction(expr->holder(), receiver, receiver_map);
         HValue* argument = Pop();
         HValue* context = environment()->LookupContext();
         Drop(1);  // Receiver.
@@ -7363,7 +7358,7 @@ bool HGraphBuilder::TryInlineBuiltinMethodCall(Call* expr,
       break;
     case kMathPow:
       if (argument_count == 3 && check_type == RECEIVER_MAP_CHECK) {
-        AddCheckConstantFunction(expr->holder(), receiver, receiver_map, true);
+        AddCheckConstantFunction(expr->holder(), receiver, receiver_map);
         HValue* right = Pop();
         HValue* left = Pop();
         Pop();  // Pop receiver.
@@ -7405,7 +7400,7 @@ bool HGraphBuilder::TryInlineBuiltinMethodCall(Call* expr,
       break;
     case kMathRandom:
       if (argument_count == 1 && check_type == RECEIVER_MAP_CHECK) {
-        AddCheckConstantFunction(expr->holder(), receiver, receiver_map, true);
+        AddCheckConstantFunction(expr->holder(), receiver, receiver_map);
         Drop(1);  // Receiver.
         HValue* context = environment()->LookupContext();
         HGlobalObject* global_object = new(zone()) HGlobalObject(context);
@@ -7418,7 +7413,7 @@ bool HGraphBuilder::TryInlineBuiltinMethodCall(Call* expr,
     case kMathMax:
     case kMathMin:
       if (argument_count == 3 && check_type == RECEIVER_MAP_CHECK) {
-        AddCheckConstantFunction(expr->holder(), receiver, receiver_map, true);
+        AddCheckConstantFunction(expr->holder(), receiver, receiver_map);
         HValue* right = Pop();
         HValue* left = Pop();
         Drop(1);  // Receiver.
@@ -7467,7 +7462,7 @@ bool HGraphBuilder::TryCallApply(Call* expr) {
   VisitForValue(prop->obj());
   if (HasStackOverflow() || current_block() == NULL) return true;
   HValue* function = Top();
-  AddCheckConstantFunction(expr->holder(), function, function_map, true);
+  AddCheckConstantFunction(expr->holder(), function, function_map);
   Drop(1);
 
   VisitForValue(args->at(0));
@@ -7586,7 +7581,7 @@ void HGraphBuilder::VisitCall(Call* expr) {
         call = PreProcessCall(
             new(zone()) HCallNamed(context, name, argument_count));
       } else {
-        AddCheckConstantFunction(expr->holder(), receiver, receiver_map, true);
+        AddCheckConstantFunction(expr->holder(), receiver, receiver_map);
 
         if (TryInlineCall(expr)) return;
         call = PreProcessCall(
@@ -8660,10 +8655,8 @@ void HGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
         // Can we get away with map check and not instance type check?
         Handle<Map> map = oracle()->GetCompareMap(expr);
         if (!map.is_null()) {
-          AddInstruction(new(zone()) HCheckNonSmi(left));
-          AddInstruction(HCheckMaps::NewWithTransitions(left, map, zone()));
-          AddInstruction(new(zone()) HCheckNonSmi(right));
-          AddInstruction(HCheckMaps::NewWithTransitions(right, map, zone()));
+          AddCheckMapsWithTransitions(left, map);
+          AddCheckMapsWithTransitions(right, map);
           HCompareObjectEqAndBranch* result =
               new(zone()) HCompareObjectEqAndBranch(left, right);
           result->set_position(expr->position());
