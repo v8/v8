@@ -7442,7 +7442,6 @@ void Map::ClearNonLiveTransitions(Heap* heap) {
     if (ClearBackPointer(heap, target)) {
       if (target->instance_descriptors() == descriptors) {
         descriptors_owner_died = true;
-        descriptors_owner_died = true;
       }
     } else {
       if (i != transition_index) {
