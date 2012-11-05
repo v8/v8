@@ -859,16 +859,6 @@ void HLoadFieldByIndex::PrintDataTo(StringStream* stream) {
 }
 
 
-HValue* HConstant::Canonicalize() {
-  return HasNoUses() ? NULL : this;
-}
-
-
-HValue* HTypeof::Canonicalize() {
-  return HasNoUses() ? NULL : this;
-}
-
-
 HValue* HBitwise::Canonicalize() {
   if (!representation().IsInteger32()) return this;
   // If x is an int32, then x & -1 == x, x | 0 == x and x ^ 0 == x.

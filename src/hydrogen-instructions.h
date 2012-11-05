@@ -2610,7 +2610,6 @@ class HConstant: public HTemplateInstruction<0> {
   }
 
   virtual bool EmitAtUses() { return !representation().IsDouble(); }
-  virtual HValue* Canonicalize();
   virtual void PrintDataTo(StringStream* stream);
   virtual HType CalculateInferredType();
   bool IsInteger() { return handle()->IsSmi(); }
@@ -5034,7 +5033,6 @@ class HTypeof: public HTemplateInstruction<2> {
   HValue* context() { return OperandAt(0); }
   HValue* value() { return OperandAt(1); }
 
-  virtual HValue* Canonicalize();
   virtual void PrintDataTo(StringStream* stream);
 
   virtual Representation RequiredInputRepresentation(int index) {
