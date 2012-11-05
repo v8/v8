@@ -6348,7 +6348,6 @@ HValue* HGraphBuilder::HandlePolymorphicElementAccess(HValue* object,
 
   HInstruction* elements_kind_instr =
       AddInstruction(new(zone()) HElementsKind(object));
-  HCompareConstantEqAndBranch* elements_kind_branch = NULL;
   HInstruction* elements =
       AddInstruction(new(zone()) HLoadElements(object, checkspec));
   HLoadExternalArrayPointer* external_elements = NULL;
@@ -6379,8 +6378,9 @@ HValue* HGraphBuilder::HandlePolymorphicElementAccess(HValue* object,
     if (type_todo[elements_kind]) {
       HBasicBlock* if_true = graph()->CreateBasicBlock();
       HBasicBlock* if_false = graph()->CreateBasicBlock();
-      elements_kind_branch = new(zone()) HCompareConstantEqAndBranch(
-          elements_kind_instr, elements_kind, Token::EQ_STRICT);
+      HCompareConstantEqAndBranch* elements_kind_branch =
+          new(zone()) HCompareConstantEqAndBranch(
+              elements_kind_instr, elements_kind, Token::EQ_STRICT);
       elements_kind_branch->SetSuccessorAt(0, if_true);
       elements_kind_branch->SetSuccessorAt(1, if_false);
       current_block()->Finish(elements_kind_branch);
