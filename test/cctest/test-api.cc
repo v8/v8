@@ -2345,6 +2345,14 @@ THREADED_TEST(GlobalHandle) {
   }
   CHECK_EQ(global->Length(), 3);
   global.Dispose();
+
+  {
+    v8::HandleScope scope;
+    Local<String> str = v8_str("str");
+    global = v8::Persistent<String>::New(str);
+  }
+  CHECK_EQ(global->Length(), 3);
+  global.Dispose(v8::Isolate::GetCurrent());
 }
 
 

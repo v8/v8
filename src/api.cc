@@ -682,6 +682,14 @@ void V8::DisposeGlobal(i::Object** obj) {
   isolate->global_handles()->Destroy(obj);
 }
 
+
+void V8::DisposeGlobal(i::Isolate* isolate, i::Object** obj) {
+  ASSERT(isolate == i::Isolate::Current());
+  LOG_API(isolate, "DisposeGlobal");
+  if (!isolate->IsInitialized()) return;
+  isolate->global_handles()->Destroy(obj);
+}
+
 // --- H a n d l e s ---
 
 

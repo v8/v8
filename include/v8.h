@@ -392,6 +392,7 @@ template <class T> class Persistent : public Handle<T> {
    * cell remain and IsEmpty will still return false.
    */
   inline void Dispose();
+  inline void Dispose(Isolate* isolate);
 
   /**
    * Make the reference to this object weak.  When only weak handles
@@ -3511,6 +3512,8 @@ class V8EXPORT V8 {
 
   static internal::Object** GlobalizeReference(internal::Object** handle);
   static void DisposeGlobal(internal::Object** global_handle);
+  static void DisposeGlobal(internal::Isolate* isolate,
+                            internal::Object** global_handle);
   static void MakeWeak(internal::Object** global_handle,
                        void* data,
                        WeakReferenceCallback);
@@ -4276,6 +4279,14 @@ template <class T>
 void Persistent<T>::Dispose() {
   if (this->IsEmpty()) return;
   V8::DisposeGlobal(reinterpret_cast<internal::Object**>(**this));
+}
+
+
+template <class T>
+void Persistent<T>::Dispose(Isolate* isolate) {
+  if (this->IsEmpty()) return;
+  V8::DisposeGlobal(reinterpret_cast<internal::Isolate*>(isolate),
+                    reinterpret_cast<internal::Object**>(**this));
 }
 
 
