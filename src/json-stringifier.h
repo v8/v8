@@ -567,28 +567,26 @@ BasicJsonStringifier::Result BasicJsonStringifier::SerializeJSObject(
   if (object->HasFastProperties() &&
       !object->HasIndexedInterceptor() &&
       !object->HasNamedInterceptor() &&
-      object->elements() == isolate_->heap()->empty_fixed_array()) {
-    Handle<DescriptorArray> descs(
-        object->map()->instance_descriptors(), isolate_);
-    int num_desc = object->map()->NumberOfOwnDescriptors();
+      object->elements()->length() == 0) {
     Handle<Map> map(object->map());
-    bool map_changed = false;
+    int num_desc = map->NumberOfOwnDescriptors();
     for (int i = 0; i < num_desc; i++) {
-      Handle<String> key(descs->GetKey(i), isolate_);
-      PropertyDetails details = descs->GetDetails(i);
+      Handle<String> key(map->instance_descriptors()->GetKey(i), isolate_);
+      PropertyDetails details = map->instance_descriptors()->GetDetails(i);
       if (details.IsDontEnum() || details.IsDeleted()) continue;
       Handle<Object> property;
-      if (details.type() == FIELD && !map_changed) {
+      if (details.type() == FIELD && *map == object->map()) {
         property = Handle<Object>(
-            object->FastPropertyAt(descs->GetFieldIndex(i)), isolate_);
+                       object->FastPropertyAt(
+                           map->instance_descriptors()->GetFieldIndex(i)),
+                       isolate_);
       } else {
         property = GetProperty(object, key);
+        if (property.is_null()) return EXCEPTION;
       }
-      if (property.is_null()) return EXCEPTION;
       Result result = SerializeProperty(property, comma, key);
       if (!comma && result == SUCCESS) comma = true;
       if (result >= EXCEPTION) return result;
-      if (*map != object->map()) map_changed = true;
     }
   } else {
     bool has_exception = false;
