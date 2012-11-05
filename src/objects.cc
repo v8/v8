@@ -4896,7 +4896,6 @@ MaybeObject* Map::RawCopy(int instance_size) {
   result->set_constructor(constructor());
   result->set_bit_field(bit_field());
   result->set_bit_field2(bit_field2());
-  result->set_bit_field3(bit_field3());
   int new_bit_field3 = bit_field3();
   new_bit_field3 = OwnsDescriptors::update(new_bit_field3, true);
   new_bit_field3 = NumberOfOwnDescriptorsBits::update(new_bit_field3, 0);
