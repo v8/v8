@@ -27,6 +27,9 @@
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
 
+// TODO(svenpanne): Do not use Context::GetData and Context::SetData.
+#define V8_DISABLE_DEPRECATIONS 1
+
 #include <stdlib.h>
 
 #include "v8.h"

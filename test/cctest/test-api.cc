@@ -25,6 +25,9 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// We want to test our deprecated API entries, too.
+#define V8_DISABLE_DEPRECATIONS 1
+
 #include <limits.h>
 
 #ifndef WIN32
@@ -2053,6 +2056,99 @@ THREADED_TEST(InternalFieldsNativePointersAndExternal) {
   CHECK_EQ(unaligned, obj->GetPointerFromInternalField(0));
 
   delete[] data;
+}
+
+
+static void CheckAlignedPointerInInternalField(Handle<v8::Object> obj,
+                                               void* value) {
+  CHECK_EQ(0, static_cast<int>(reinterpret_cast<uintptr_t>(value) & 0x1));
+  obj->SetPointerInInternalField(0, value);
+  HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
+  CHECK_EQ(value, obj->GetPointerFromInternalField(0));
+}
+
+
+THREADED_TEST(InternalFieldsAlignedPointers) {
+  v8::HandleScope scope;
+  LocalContext env;
+
+  Local<v8::FunctionTemplate> templ = v8::FunctionTemplate::New();
+  Local<v8::ObjectTemplate> instance_templ = templ->InstanceTemplate();
+  instance_templ->SetInternalFieldCount(1);
+  Local<v8::Object> obj = templ->GetFunction()->NewInstance();
+  CHECK_EQ(1, obj->InternalFieldCount());
+
+  CheckAlignedPointerInInternalField(obj, NULL);
+
+  int* heap_allocated = new int[100];
+  CheckAlignedPointerInInternalField(obj, heap_allocated);
+  delete[] heap_allocated;
+
+  int stack_allocated[100];
+  CheckAlignedPointerInInternalField(obj, stack_allocated);
+
+  void* huge = reinterpret_cast<void*>(~static_cast<uintptr_t>(1));
+  CheckAlignedPointerInInternalField(obj, huge);
+}
+
+
+static void CheckAlignedPointerInEmbedderData(LocalContext* env,
+                                              int index,
+                                              void* value) {
+  CHECK_EQ(0, static_cast<int>(reinterpret_cast<uintptr_t>(value) & 0x1));
+  (*env)->SetAlignedPointerInEmbedderData(index, value);
+  HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
+  CHECK_EQ(value, (*env)->GetAlignedPointerFromEmbedderData(index));
+}
+
+
+static void* AlignedTestPointer(int i) {
+  return reinterpret_cast<void*>(i * 1234);
+}
+
+
+THREADED_TEST(EmbedderDataAlignedPointers) {
+  v8::HandleScope scope;
+  LocalContext env;
+
+  CheckAlignedPointerInEmbedderData(&env, 0, NULL);
+
+  int* heap_allocated = new int[100];
+  CheckAlignedPointerInEmbedderData(&env, 1, heap_allocated);
+  delete[] heap_allocated;
+
+  int stack_allocated[100];
+  CheckAlignedPointerInEmbedderData(&env, 2, stack_allocated);
+
+  void* huge = reinterpret_cast<void*>(~static_cast<uintptr_t>(1));
+  CheckAlignedPointerInEmbedderData(&env, 3, huge);
+
+  // Test growing of the embedder data's backing store.
+  for (int i = 0; i < 100; i++) {
+    env->SetAlignedPointerInEmbedderData(i, AlignedTestPointer(i));
+  }
+  HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
+  for (int i = 0; i < 100; i++) {
+    CHECK_EQ(AlignedTestPointer(i), env->GetAlignedPointerFromEmbedderData(i));
+  }
+}
+
+
+static void CheckEmbedderData(LocalContext* env,
+                              int index,
+                              v8::Handle<Value> data) {
+  (*env)->SetEmbedderData(index, data);
+  CHECK((*env)->GetEmbedderData(index)->StrictEquals(data));
+}
+
+THREADED_TEST(EmbedderData) {
+  v8::HandleScope scope;
+  LocalContext env;
+
+  CheckEmbedderData(&env, 3, v8::String::New("The quick brown fox jumps"));
+  CheckEmbedderData(&env, 2, v8::String::New("over the lazy dog."));
+  CheckEmbedderData(&env, 1, v8::Number::New(1.2345));
+  CheckEmbedderData(&env, 0, v8::Boolean::New(true));
 }
 
 

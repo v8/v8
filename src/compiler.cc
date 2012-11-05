@@ -432,7 +432,9 @@ static Handle<SharedFunctionInfo> MakeFunctionInfo(CompilationInfo* info) {
 
   ASSERT(!isolate->native_context().is_null());
   Handle<Script> script = info->script();
-  script->set_context_data((*isolate->native_context())->data());
+  // TODO(svenpanne) Obscure place for this, perhaps move to OnBeforeCompile?
+  FixedArray* array = isolate->native_context()->embedder_data();
+  script->set_context_data(array->get(0));
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
   if (info->is_eval()) {
