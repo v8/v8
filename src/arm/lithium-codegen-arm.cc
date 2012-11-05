@@ -1489,6 +1489,9 @@ void LCodeGen::DoShiftI(LShiftI* instr) {
     // Mask the right_op operand.
     __ and_(scratch, ToRegister(right_op), Operand(0x1F));
     switch (instr->op()) {
+      case Token::ROR:
+        __ mov(result, Operand(left, ROR, scratch));
+        break;
       case Token::SAR:
         __ mov(result, Operand(left, ASR, scratch));
         break;
@@ -1512,6 +1515,13 @@ void LCodeGen::DoShiftI(LShiftI* instr) {
     int value = ToInteger32(LConstantOperand::cast(right_op));
     uint8_t shift_count = static_cast<uint8_t>(value & 0x1F);
     switch (instr->op()) {
+      case Token::ROR:
+          if (shift_count != 0) {
+          __ mov(result, Operand(left, ROR, shift_count));
+        } else {
+          __ Move(result, left);
+        }
+        break;
       case Token::SAR:
         if (shift_count != 0) {
           __ mov(result, Operand(left, ASR, shift_count));

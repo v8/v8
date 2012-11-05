@@ -1021,6 +1021,14 @@ class Assembler : public AssemblerBase {
     shift(dst, imm8, 0x1);
   }
 
+  void rorl(Register dst, Immediate imm8) {
+    shift_32(dst, imm8, 0x1);
+  }
+
+  void rorl_cl(Register dst) {
+    shift_32(dst, 0x1);
+  }
+
   // Shifts dst:src left by cl bits, affecting only dst.
   void shld(Register dst, Register src);
 

@@ -270,6 +270,7 @@ class HGraph: public ZoneObject {
   void DehoistSimpleArrayIndexComputations();
   void DeadCodeElimination();
   void PropagateDeoptimizingMark();
+  void EliminateUnusedInstructions();
 
   // Returns false if there are phi-uses of the arguments-object
   // which are not supported by the optimizing compiler.
@@ -1219,6 +1220,11 @@ class HGraphBuilder: public AstVisitor {
   void AddCheckConstantFunction(Handle<JSObject> holder,
                                 HValue* receiver,
                                 Handle<Map> receiver_map);
+
+  bool MatchRotateRight(HValue* left,
+                        HValue* right,
+                        HValue** operand,
+                        HValue** shift_amount);
 
   Zone* zone() const { return zone_; }
 

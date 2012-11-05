@@ -1300,6 +1300,13 @@ void LCodeGen::DoShiftI(LShiftI* instr) {
     ASSERT(ToRegister(right).is(ecx));
 
     switch (instr->op()) {
+      case Token::ROR:
+        __ ror_cl(ToRegister(left));
+        if (instr->can_deopt()) {
+          __ test(ToRegister(left), Immediate(0x80000000));
+          DeoptimizeIf(not_zero, instr->environment());
+        }
+        break;
       case Token::SAR:
         __ sar_cl(ToRegister(left));
         break;
@@ -1321,6 +1328,14 @@ void LCodeGen::DoShiftI(LShiftI* instr) {
     int value = ToInteger32(LConstantOperand::cast(right));
     uint8_t shift_count = static_cast<uint8_t>(value & 0x1F);
     switch (instr->op()) {
+      case Token::ROR:
+        if (shift_count == 0 && instr->can_deopt()) {
+          __ test(ToRegister(left), Immediate(0x80000000));
+          DeoptimizeIf(not_zero, instr->environment());
+        } else {
+          __ ror(ToRegister(left), shift_count);
+        }
+        break;
       case Token::SAR:
         if (shift_count != 0) {
           __ sar(ToRegister(left), shift_count);

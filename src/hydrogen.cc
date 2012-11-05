@@ -8226,6 +8226,61 @@ HStringCharCodeAt* HGraphBuilder::BuildStringCharCodeAt(HValue* context,
   return new(zone()) HStringCharCodeAt(context, string, checked_index);
 }
 
+// Checks if the given shift amounts have form: (sa) and (32 - sa).
+static bool ShiftAmountsAllowReplaceByRotate(HValue* sa,
+                                             HValue* const32_minus_sa) {
+  if (!const32_minus_sa->IsSub()) return false;
+  HSub* sub = HSub::cast(const32_minus_sa);
+  HValue* const32 = sub->left();
+  if (!const32->IsConstant() ||
+      HConstant::cast(const32)->Integer32Value() != 32) {
+    return false;
+  }
+  return (sub->right() == sa);
+}
+
+
+// Checks if the left and the right are shift instructions with the oposite
+// directions that can be replaced by one rotate right instruction or not.
+// Returns the operand and the shift amount for the rotate instruction in the
+// former case.
+bool HGraphBuilder::MatchRotateRight(HValue* left,
+                                     HValue* right,
+                                     HValue** operand,
+                                     HValue** shift_amount) {
+  HShl* shl;
+  HShr* shr;
+  if (left->IsShl() && right->IsShr()) {
+    shl = HShl::cast(left);
+    shr = HShr::cast(right);
+  } else if (left->IsShr() && right->IsShl()) {
+    shl = HShl::cast(right);
+    shr = HShr::cast(left);
+  } else {
+    return false;
+  }
+
+  if (!ShiftAmountsAllowReplaceByRotate(shl->right(), shr->right()) &&
+      !ShiftAmountsAllowReplaceByRotate(shr->right(), shl->right())) {
+    return false;
+  }
+  *operand= shr->left();
+  *shift_amount = shr->right();
+  return true;
+}
+
+
+bool CanBeZero(HValue *right) {
+  if (right->IsConstant()) {
+    HConstant* right_const = HConstant::cast(right);
+    if (right_const->HasInteger32Value() &&
+       (right_const->Integer32Value() & 0x1f) != 0) {
+      return false;
+    }
+  }
+  return true;
+}
+
 
 HInstruction* HGraphBuilder::BuildBinaryOperation(BinaryOperation* expr,
                                                   HValue* left,
@@ -8264,25 +8319,26 @@ HInstruction* HGraphBuilder::BuildBinaryOperation(BinaryOperation* expr,
       break;
     case Token::BIT_XOR:
     case Token::BIT_AND:
-    case Token::BIT_OR:
       instr = HBitwise::NewHBitwise(zone(), expr->op(), context, left, right);
       break;
+    case Token::BIT_OR: {
+      HValue* operand, *shift_amount;
+      if (info.IsInteger32() &&
+          MatchRotateRight(left, right, &operand, &shift_amount)) {
+        instr = new(zone()) HRor(context, operand, shift_amount);
+      } else {
+        instr = HBitwise::NewHBitwise(zone(), expr->op(), context, left, right);
+      }
+      break;
+    }
     case Token::SAR:
       instr = HSar::NewHSar(zone(), context, left, right);
       break;
     case Token::SHR:
       instr = HShr::NewHShr(zone(), context, left, right);
-      if (FLAG_opt_safe_uint32_operations && instr->IsShr()) {
-        bool can_be_shift_by_zero = true;
-        if (right->IsConstant()) {
-          HConstant* right_const = HConstant::cast(right);
-          if (right_const->HasInteger32Value() &&
-              (right_const->Integer32Value() & 0x1f) != 0) {
-            can_be_shift_by_zero = false;
-          }
-        }
-
-        if (can_be_shift_by_zero) graph()->RecordUint32Instruction(instr);
+      if (FLAG_opt_safe_uint32_operations && instr->IsShr() &&
+          CanBeZero(right)) {
+        graph()->RecordUint32Instruction(instr);
       }
       break;
     case Token::SHL:

@@ -152,6 +152,7 @@ class LChunkBuilder;
   V(Random)                                    \
   V(RegExpLiteral)                             \
   V(Return)                                    \
+  V(Ror)                                       \
   V(Sar)                                       \
   V(Shl)                                       \
   V(Shr)                                       \
@@ -3723,6 +3724,25 @@ class HSar: public HBitwiseBinaryOperation {
                                HValue* right);
 
   DECLARE_CONCRETE_INSTRUCTION(Sar)
+
+ protected:
+  virtual bool DataEquals(HValue* other) { return true; }
+};
+
+
+class HRor: public HBitwiseBinaryOperation {
+ public:
+  HRor(HValue* context, HValue* left, HValue* right)
+      : HBitwiseBinaryOperation(context, left, right) {
+    ChangeRepresentation(Representation::Integer32());
+  }
+
+  static HInstruction* NewHRor(Zone* zone,
+                               HValue* context,
+                               HValue* left,
+                               HValue* right);
+
+  DECLARE_CONCRETE_INSTRUCTION(Ror)
 
  protected:
   virtual bool DataEquals(HValue* other) { return true; }

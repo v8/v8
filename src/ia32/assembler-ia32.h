@@ -817,6 +817,8 @@ class Assembler : public AssemblerBase {
 
   void rcl(Register dst, uint8_t imm8);
   void rcr(Register dst, uint8_t imm8);
+  void ror(Register dst, uint8_t imm8);
+  void ror_cl(Register dst);
 
   void sar(Register dst, uint8_t imm8);
   void sar_cl(Register dst);

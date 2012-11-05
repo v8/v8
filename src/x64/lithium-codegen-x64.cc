@@ -1210,6 +1210,9 @@ void LCodeGen::DoShiftI(LShiftI* instr) {
     ASSERT(ToRegister(right).is(rcx));
 
     switch (instr->op()) {
+      case Token::ROR:
+        __ rorl_cl(ToRegister(left));
+        break;
       case Token::SAR:
         __ sarl_cl(ToRegister(left));
         break;
@@ -1231,6 +1234,11 @@ void LCodeGen::DoShiftI(LShiftI* instr) {
     int value = ToInteger32(LConstantOperand::cast(right));
     uint8_t shift_count = static_cast<uint8_t>(value & 0x1F);
     switch (instr->op()) {
+      case Token::ROR:
+        if (shift_count != 0) {
+          __ rorl(ToRegister(left), Immediate(shift_count));
+        }
+        break;
       case Token::SAR:
         if (shift_count != 0) {
           __ sarl(ToRegister(left), Immediate(shift_count));
