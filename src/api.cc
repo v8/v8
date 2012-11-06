@@ -651,6 +651,13 @@ void V8::MarkIndependent(i::Object** object) {
 }
 
 
+void V8::MarkPartiallyDependent(i::Object** object) {
+  i::Isolate* isolate = i::Isolate::Current();
+  LOG_API(isolate, "MarkPartiallyDependent");
+  isolate->global_handles()->MarkPartiallyDependent(object);
+}
+
+
 bool V8::IsGlobalIndependent(i::Object** obj) {
   i::Isolate* isolate = i::Isolate::Current();
   LOG_API(isolate, "IsGlobalIndependent");

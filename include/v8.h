@@ -414,6 +414,16 @@ template <class T> class Persistent : public Handle<T> {
    */
   inline void MarkIndependent();
 
+  /**
+   * Marks the reference to this object partially dependent. Partially
+   * dependent handles only depend on other partially dependent handles and
+   * these dependencies are provided through object groups. It provides a way
+   * to build smaller object groups for young objects that represent only a
+   * subset of all external dependencies. This mark is automatically cleared
+   * after each garbage collection.
+   */
+  inline void MarkPartiallyDependent();
+
   /** Returns true if this handle was previously marked as independent. */
   inline bool IsIndependent() const;
   inline bool IsIndependent(Isolate* isolate) const;
@@ -3279,7 +3289,10 @@ class V8EXPORT V8 {
    * After each garbage collection, object groups are removed. It is
    * intended to be used in the before-garbage-collection callback
    * function, for instance to simulate DOM tree connections among JS
-   * wrapper objects.
+   * wrapper objects. Object groups for all dependent handles need to
+   * be provided for kGCTypeMarkSweepCompact collections, for all other
+   * garbage collection types it is sufficient to provide object groups
+   * for partially dependent handles only.
    * See v8-profiler.h for RetainedObjectInfo interface description.
    */
   static void AddObjectGroup(Persistent<Value>* objects,
@@ -3520,6 +3533,7 @@ class V8EXPORT V8 {
                        WeakReferenceCallback);
   static void ClearWeak(internal::Object** global_handle);
   static void MarkIndependent(internal::Object** global_handle);
+  static void MarkPartiallyDependent(internal::Object** global_handle);
   static bool IsGlobalIndependent(internal::Object** global_handle);
   static bool IsGlobalIndependent(internal::Isolate* isolate,
                                   internal::Object** global_handle);
@@ -4319,6 +4333,11 @@ void Persistent<T>::ClearWeak() {
 template <class T>
 void Persistent<T>::MarkIndependent() {
   V8::MarkIndependent(reinterpret_cast<internal::Object**>(**this));
+}
+
+template <class T>
+void Persistent<T>::MarkPartiallyDependent() {
+  V8::MarkPartiallyDependent(reinterpret_cast<internal::Object**>(**this));
 }
 
 template <class T>
