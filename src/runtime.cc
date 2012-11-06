@@ -13222,6 +13222,29 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_HaveSameMap) {
   return isolate->heap()->ToBoolean(obj1->map() == obj2->map());
 }
 
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_IsObserved) {
+  ASSERT(args.length() == 1);
+  CONVERT_ARG_CHECKED(JSReceiver, obj, 0);
+  return isolate->heap()->ToBoolean(obj->map()->is_observed());
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_SetIsObserved) {
+  ASSERT(args.length() == 2);
+  CONVERT_ARG_CHECKED(JSReceiver, obj, 0);
+  CONVERT_BOOLEAN_ARG_CHECKED(is_observed, 1);
+  if (obj->map()->is_observed() != is_observed) {
+    MaybeObject* maybe = obj->map()->Copy();
+    Map* map;
+    if (!maybe->To<Map>(&map)) return maybe;
+    map->set_is_observed(is_observed);
+    obj->set_map(map);
+  }
+  return isolate->heap()->undefined_value();
+}
+
+
 // ----------------------------------------------------------------------------
 // Implementation of Runtime
 

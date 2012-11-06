@@ -317,6 +317,10 @@ namespace internal {
   F(WeakMapDelete, 2, 1) \
   F(WeakMapSet, 3, 1) \
   \
+  /* Harmony observe */ \
+  F(IsObserved, 1, 1) \
+  F(SetIsObserved, 2, 1) \
+  \
   /* Statements */ \
   F(NewClosure, 3, 1) \
   F(NewObject, 1, 1) \

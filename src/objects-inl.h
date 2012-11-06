@@ -3159,6 +3159,16 @@ bool Map::owns_descriptors() {
 }
 
 
+void Map::set_is_observed(bool is_observed) {
+  set_bit_field3(IsObserved::update(bit_field3(), is_observed));
+}
+
+
+bool Map::is_observed() {
+  return IsObserved::decode(bit_field3());
+}
+
+
 void Code::set_flags(Code::Flags flags) {
   STATIC_ASSERT(Code::NUMBER_OF_KINDS <= KindField::kMax + 1);
   // Make sure that all call stubs have an arguments count.

@@ -4704,6 +4704,7 @@ class Map: public HeapObject {
   class FunctionWithPrototype:      public BitField<bool, 23,  1> {};
   class DictionaryMap:              public BitField<bool, 24,  1> {};
   class OwnsDescriptors:            public BitField<bool, 25,  1> {};
+  class IsObserved:                 public BitField<bool, 26,  1> {};
 
   // Tells whether the object in the prototype property will be used
   // for instances created from this function.  If the prototype
@@ -4971,6 +4972,8 @@ class Map: public HeapObject {
 
   inline bool owns_descriptors();
   inline void set_owns_descriptors(bool is_shared);
+  inline bool is_observed();
+  inline void set_is_observed(bool is_observed);
 
   MUST_USE_RESULT MaybeObject* RawCopy(int instance_size);
   MUST_USE_RESULT MaybeObject* CopyWithPreallocatedFieldDescriptors();
