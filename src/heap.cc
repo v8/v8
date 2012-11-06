@@ -2852,6 +2852,15 @@ bool Heap::CreateInitialObjects() {
   }
   set_natives_source_cache(FixedArray::cast(obj));
 
+  // Allocate object to hold object observation state.
+  { MaybeObject* maybe_obj = AllocateMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
+    if (!maybe_obj->ToObject(&obj)) return false;
+  }
+  { MaybeObject* maybe_obj = AllocateJSObjectFromMap(Map::cast(obj));
+    if (!maybe_obj->ToObject(&obj)) return false;
+  }
+  set_observation_state(JSObject::cast(obj));
+
   // Handling of script id generation is in FACTORY->NewScript.
   set_last_script_id(undefined_value());
 

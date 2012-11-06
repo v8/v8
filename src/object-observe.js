@@ -30,21 +30,31 @@
 var InternalObjectIsFrozen = $Object.isFrozen;
 var InternalObjectFreeze = $Object.freeze;
 
-var InternalWeakMapProto = {
-  __proto__: null,
-  set: $WeakMap.prototype.set,
-  get: $WeakMap.prototype.get,
-  has: $WeakMap.prototype.has
+var observationState = %GetObservationState();
+if (IS_UNDEFINED(observationState.observerInfoMap)) {
+  observationState.observerInfoMap = %CreateObjectHashTable();
+  observationState.objectInfoMap = %CreateObjectHashTable();
 }
 
-function createInternalWeakMap() {
-  var map = new $WeakMap;
-  map.__proto__ = InternalWeakMapProto;
-  return map;
+function InternalObjectHashTable(table) {
+  this.table = table;
 }
 
-var observerInfoMap = createInternalWeakMap();
-var objectInfoMap = createInternalWeakMap();
+InternalObjectHashTable.prototype = {
+  get: function(key) {
+    return %ObjectHashTableGet(this.table, key);
+  },
+  set: function(key, value) {
+    return %ObjectHashTableSet(this.table, key, value);
+  },
+  has: function(key) {
+    return %ObjectHashTableHas(this.table, key);
+  }
+};
+
+var observerInfoMap = new InternalObjectHashTable(
+    observationState.observerInfoMap);
+var objectInfoMap = new InternalObjectHashTable(observationState.objectInfoMap);
 
 function ObjectObserve(object, callback) {
   if (!IS_SPEC_OBJECT(object))

@@ -320,6 +320,11 @@ namespace internal {
   /* Harmony observe */ \
   F(IsObserved, 1, 1) \
   F(SetIsObserved, 2, 1) \
+  F(GetObservationState, 0, 1) \
+  F(CreateObjectHashTable, 0, 1) \
+  F(ObjectHashTableGet, 2, 1) \
+  F(ObjectHashTableSet, 3, 1) \
+  F(ObjectHashTableHas, 2, 1) \
   \
   /* Statements */ \
   F(NewClosure, 3, 1) \

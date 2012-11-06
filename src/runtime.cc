@@ -13245,6 +13245,49 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetIsObserved) {
 }
 
 
+RUNTIME_FUNCTION(MaybeObject*, Runtime_GetObservationState) {
+  ASSERT(args.length() == 0);
+  return isolate->heap()->observation_state();
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateObjectHashTable) {
+  ASSERT(args.length() == 0);
+  return ObjectHashTable::Allocate(0);
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_ObjectHashTableGet) {
+  NoHandleAllocation ha;
+  ASSERT(args.length() == 2);
+  CONVERT_ARG_CHECKED(ObjectHashTable, table, 0);
+  Object* key = args[1];
+  Object* lookup = table->Lookup(key);
+  return lookup->IsTheHole() ? isolate->heap()->undefined_value() : lookup;
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_ObjectHashTableSet) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 3);
+  CONVERT_ARG_HANDLE_CHECKED(ObjectHashTable, table, 0);
+  Handle<Object> key = args.at<Object>(1);
+  Handle<Object> value = args.at<Object>(2);
+  PutIntoObjectHashTable(table, key, value);
+  return isolate->heap()->undefined_value();
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_ObjectHashTableHas) {
+  NoHandleAllocation ha;
+  ASSERT(args.length() == 2);
+  CONVERT_ARG_CHECKED(ObjectHashTable, table, 0);
+  Object* key = args[1];
+  Object* lookup = table->Lookup(key);
+  return isolate->heap()->ToBoolean(!lookup->IsTheHole());
+}
+
+
 // ----------------------------------------------------------------------------
 // Implementation of Runtime
 

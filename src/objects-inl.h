@@ -726,6 +726,11 @@ bool Object::IsMapCache() {
 }
 
 
+bool Object::IsObjectHashTable() {
+  return IsHashTable();
+}
+
+
 bool Object::IsPrimitive() {
   return IsOddball() || IsNumber() || IsString();
 }

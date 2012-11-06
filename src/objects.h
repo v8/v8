@@ -873,6 +873,7 @@ class MaybeObject BASE_EMBEDDED {
   V(UndetectableObject)                        \
   V(AccessCheckNeeded)                         \
   V(JSGlobalPropertyCell)                      \
+  V(ObjectHashTable)                           \
 
 
 class JSReceiver;
