@@ -76,6 +76,17 @@
 
 #endif  // _WIN32
 
+// TODO(svenpanne) Remove this when the Chrome's v8 bindings have been adapted.
+#define V8_DISABLE_DEPRECATIONS 1
+
+#if defined(__GNUC__) && !defined(V8_DISABLE_DEPRECATIONS)
+#define V8_DEPRECATED(func) func __attribute__ ((deprecated))
+#elif defined(_MSC_VER) && !defined(V8_DISABLE_DEPRECATIONS)
+#define V8_DEPRECATED(func) __declspec(deprecated) func
+#else
+#define V8_DEPRECATED(func) func
+#endif
+
 /**
  * The v8 JavaScript engine.
  */
@@ -381,6 +392,7 @@ template <class T> class Persistent : public Handle<T> {
    * cell remain and IsEmpty will still return false.
    */
   inline void Dispose();
+  inline void Dispose(Isolate* isolate);
 
   /**
    * Make the reference to this object weak.  When only weak handles
@@ -404,6 +416,7 @@ template <class T> class Persistent : public Handle<T> {
 
   /** Returns true if this handle was previously marked as independent. */
   inline bool IsIndependent() const;
+  inline bool IsIndependent(Isolate* isolate) const;
 
   /** Checks if the handle holds the only reference to an object. */
   inline bool IsNearDeath() const;
@@ -1587,16 +1600,41 @@ class Object : public Value {
 
   /** Gets the number of internal fields for this Object. */
   V8EXPORT int InternalFieldCount();
-  /** Gets the value in an internal field. */
+
+  /** Gets the value from an internal field. */
   inline Local<Value> GetInternalField(int index);
+
   /** Sets the value in an internal field. */
   V8EXPORT void SetInternalField(int index, Handle<Value> value);
 
-  /** Gets a native pointer from an internal field. */
-  inline void* GetPointerFromInternalField(int index);
+  /**
+   * Gets a native pointer from an internal field. Deprecated. If the pointer is
+   * always 2-byte-aligned, use GetAlignedPointerFromInternalField instead,
+   * otherwise use a combination of GetInternalField, External::Cast and
+   * External::Value.
+   */
+  V8_DEPRECATED(void* GetPointerFromInternalField(int index));
 
-  /** Sets a native pointer in an internal field. */
-  V8EXPORT void SetPointerInInternalField(int index, void* value);
+  /**
+   * Sets a native pointer in an internal field. Deprecated. If the pointer is
+   * always 2-byte aligned, use SetAlignedPointerInInternalField instead,
+   * otherwise use a combination of External::New and SetInternalField.
+   */
+  inline V8_DEPRECATED(void SetPointerInInternalField(int index, void* value));
+
+  /**
+   * Gets a 2-byte-aligned native pointer from an internal field. This field
+   * must have been set by SetAlignedPointerInInternalField, everything else
+   * leads to undefined behavior.
+   */
+  inline void* GetAlignedPointerFromInternalField(int index);
+
+  /**
+   * Sets a 2-byte-aligned native pointer in an internal field. To retrieve such
+   * a field, GetAlignedPointerFromInternalField must be used, everything else
+   * leads to undefined behavior.
+   */
+  V8EXPORT void SetAlignedPointerInInternalField(int index, void* value);
 
   // Testers for local properties.
   V8EXPORT bool HasOwnProperty(Handle<String> key);
@@ -1727,14 +1765,8 @@ class Object : public Value {
  private:
   V8EXPORT Object();
   V8EXPORT static void CheckCast(Value* obj);
-  V8EXPORT Local<Value> CheckedGetInternalField(int index);
-  V8EXPORT void* SlowGetPointerFromInternalField(int index);
-
-  /**
-   * If quick access to the internal field is possible this method
-   * returns the value.  Otherwise an empty handle is returned.
-   */
-  inline Local<Value> UncheckedGetInternalField(int index);
+  V8EXPORT Local<Value> SlowGetInternalField(int index);
+  V8EXPORT void* SlowGetAlignedPointerFromInternalField(int index);
 };
 
 
@@ -1945,29 +1977,22 @@ class RegExp : public Object {
 
 
 /**
- * A JavaScript value that wraps a C++ void*.  This type of value is
- * mainly used to associate C++ data structures with JavaScript
- * objects.
- *
- * The Wrap function V8 will return the most optimal Value object wrapping the
- * C++ void*. The type of the value is not guaranteed to be an External object
- * and no assumptions about its type should be made. To access the wrapped
- * value Unwrap should be used, all other operations on that object will lead
- * to unpredictable results.
+ * A JavaScript value that wraps a C++ void*. This type of value is mainly used
+ * to associate C++ data structures with JavaScript objects.
  */
 class External : public Value {
  public:
-  V8EXPORT static Local<Value> Wrap(void* data);
-  static inline void* Unwrap(Handle<Value> obj);
+  /** Deprecated, use New instead. */
+  V8_DEPRECATED(static inline Local<Value> Wrap(void* value));
+
+  /** Deprecated, use a combination of Cast and Value instead. */
+  V8_DEPRECATED(static inline void* Unwrap(Handle<Value> obj));
 
   V8EXPORT static Local<External> New(void* value);
   static inline External* Cast(Value* obj);
   V8EXPORT void* Value() const;
  private:
-  V8EXPORT External();
   V8EXPORT static void CheckCast(v8::Value* obj);
-  static inline void* QuickUnwrap(Handle<v8::Value> obj);
-  V8EXPORT static void* FullUnwrap(Handle<v8::Value> obj);
 };
 
 
@@ -3444,8 +3469,8 @@ class V8EXPORT V8 {
 
   /**
    * Iterates through all external resources referenced from current isolate
-   * heap. This method is not expected to be used except for debugging purposes
-   * and may be quite slow.
+   * heap.  GC is not invoked prior to iterating, therefore there is no
+   * guarantee that visited objects are still alive.
    */
   static void VisitExternalResources(ExternalResourceVisitor* visitor);
 
@@ -3488,12 +3513,16 @@ class V8EXPORT V8 {
 
   static internal::Object** GlobalizeReference(internal::Object** handle);
   static void DisposeGlobal(internal::Object** global_handle);
+  static void DisposeGlobal(internal::Isolate* isolate,
+                            internal::Object** global_handle);
   static void MakeWeak(internal::Object** global_handle,
                        void* data,
                        WeakReferenceCallback);
   static void ClearWeak(internal::Object** global_handle);
   static void MarkIndependent(internal::Object** global_handle);
   static bool IsGlobalIndependent(internal::Object** global_handle);
+  static bool IsGlobalIndependent(internal::Isolate* isolate,
+                                  internal::Object** global_handle);
   static bool IsGlobalNearDeath(internal::Object** global_handle);
   static bool IsGlobalWeak(internal::Object** global_handle);
   static void SetWrapperClassId(internal::Object** global_handle,
@@ -3744,12 +3773,45 @@ class V8EXPORT Context {
   static bool InContext();
 
   /**
-   * Associate an additional data object with the context. This is mainly used
-   * with the debugger to provide additional information on the context through
-   * the debugger API.
+   * Gets embedder data with index 0. Deprecated, use GetEmbedderData with index
+   * 0 instead.
    */
-  void SetData(Handle<Value> data);
-  Local<Value> GetData();
+  V8_DEPRECATED(inline Local<Value> GetData());
+
+  /**
+   * Sets embedder data with index 0. Deprecated, use SetEmbedderData with index
+   * 0 instead.
+   */
+  V8_DEPRECATED(inline void SetData(Handle<Value> value));
+
+  /**
+   * Gets the embedder data with the given index, which must have been set by a
+   * previous call to SetEmbedderData with the same index. Note that index 0
+   * currently has a special meaning for Chrome's debugger.
+   */
+  inline Local<Value> GetEmbedderData(int index);
+
+  /**
+   * Sets the embedder data with the given index, growing the data as
+   * needed. Note that index 0 currently has a special meaning for Chrome's
+   * debugger.
+   */
+  void SetEmbedderData(int index, Handle<Value> value);
+
+  /**
+   * Gets a 2-byte-aligned native pointer from the embedder data with the given
+   * index, which must have bees set by a previous call to
+   * SetAlignedPointerInEmbedderData with the same index. Note that index 0
+   * currently has a special meaning for Chrome's debugger.
+   */
+  inline void* GetAlignedPointerFromEmbedderData(int index);
+
+  /**
+   * Sets a 2-byte-aligned native pointer in the embedder data with the given
+   * index, growing the data as needed. Note that index 0 currently has a
+   * special meaning for Chrome's debugger.
+   */
+  void SetAlignedPointerInEmbedderData(int index, void* value);
 
   /**
    * Control whether code generation from strings is allowed. Calling
@@ -3798,6 +3860,9 @@ class V8EXPORT Context {
   friend class Script;
   friend class Object;
   friend class Function;
+
+  Local<Value> SlowGetEmbedderData(int index);
+  void* SlowGetAlignedPointerFromEmbedderData(int index);
 };
 
 
@@ -4031,11 +4096,6 @@ template <> struct SmiTagging<4> {
     // Throw away top 32 bits and shift down (requires >> to be sign extending).
     return static_cast<int>(reinterpret_cast<intptr_t>(value)) >> shift_bits;
   }
-
-  // For 32-bit systems any 2 bytes aligned pointer can be encoded as smi
-  // with a plain reinterpret_cast.
-  static const uintptr_t kEncodablePointerMask = 0x1;
-  static const int kPointerToSmiShift = 0;
 };
 
 // Smi constants for 64-bit systems.
@@ -4047,26 +4107,11 @@ template <> struct SmiTagging<8> {
     // Shift down and throw away top 32 bits.
     return static_cast<int>(reinterpret_cast<intptr_t>(value) >> shift_bits);
   }
-
-  // To maximize the range of pointers that can be encoded
-  // in the available 32 bits, we require them to be 8 bytes aligned.
-  // This gives 2 ^ (32 + 3) = 32G address space covered.
-  // It might be not enough to cover stack allocated objects on some platforms.
-  static const int kPointerAlignment = 3;
-
-  static const uintptr_t kEncodablePointerMask =
-      ~(uintptr_t(0xffffffff) << kPointerAlignment);
-
-  static const int kPointerToSmiShift =
-      kSmiTagSize + kSmiShiftSize - kPointerAlignment;
 };
 
 typedef SmiTagging<kApiPointerSize> PlatformSmiTagging;
 const int kSmiShiftSize = PlatformSmiTagging::kSmiShiftSize;
 const int kSmiValueSize = PlatformSmiTagging::kSmiValueSize;
-const uintptr_t kEncodablePointerMask =
-    PlatformSmiTagging::kEncodablePointerMask;
-const int kPointerToSmiShift = PlatformSmiTagging::kPointerToSmiShift;
 
 /**
  * This class exports constants and functionality from within v8 that
@@ -4084,6 +4129,9 @@ class Internals {
   static const int kOddballKindOffset = 3 * kApiPointerSize;
   static const int kForeignAddressOffset = kApiPointerSize;
   static const int kJSObjectHeaderSize = 3 * kApiPointerSize;
+  static const int kFixedArrayHeaderSize = 2 * kApiPointerSize;
+  static const int kContextHeaderSize = 2 * kApiPointerSize;
+  static const int kContextEmbedderDataIndex = 54;
   static const int kFullStringRepresentationMask = 0x07;
   static const int kStringEncodingMask = 0x4;
   static const int kExternalTwoByteRepresentationTag = 0x02;
@@ -4096,7 +4144,7 @@ class Internals {
   static const int kNullValueRootIndex = 7;
   static const int kTrueValueRootIndex = 8;
   static const int kFalseValueRootIndex = 9;
-  static const int kEmptySymbolRootIndex = 117;
+  static const int kEmptySymbolRootIndex = 118;
 
   static const int kJSObjectType = 0xaa;
   static const int kFirstNonstringType = 0x80;
@@ -4109,10 +4157,6 @@ class Internals {
   static inline bool HasHeapObjectTag(internal::Object* value) {
     return ((reinterpret_cast<intptr_t>(value) & kHeapObjectTagMask) ==
             kHeapObjectTag);
-  }
-
-  static inline bool HasSmiTag(internal::Object* value) {
-    return ((reinterpret_cast<intptr_t>(value) & kSmiTagMask) == kSmiTag);
   }
 
   static inline int SmiValue(internal::Object* value) {
@@ -4128,21 +4172,6 @@ class Internals {
   static inline int GetOddballKind(internal::Object* obj) {
     typedef internal::Object O;
     return SmiValue(ReadField<O*>(obj, kOddballKindOffset));
-  }
-
-  static inline void* GetExternalPointerFromSmi(internal::Object* value) {
-    const uintptr_t address = reinterpret_cast<uintptr_t>(value);
-    return reinterpret_cast<void*>(address >> kPointerToSmiShift);
-  }
-
-  static inline void* GetExternalPointer(internal::Object* obj) {
-    if (HasSmiTag(obj)) {
-      return GetExternalPointerFromSmi(obj);
-    } else if (GetInstanceType(obj) == kForeignType) {
-      return ReadField<void*>(obj, kForeignAddressOffset);
-    } else {
-      return NULL;
-    }
   }
 
   static inline bool IsExternalTwoByteString(int instance_type) {
@@ -4176,6 +4205,19 @@ class Internals {
   static inline T ReadField(Object* ptr, int offset) {
     uint8_t* addr = reinterpret_cast<uint8_t*>(ptr) + offset - kHeapObjectTag;
     return *reinterpret_cast<T*>(addr);
+  }
+
+  template <typename T>
+  static inline T ReadEmbedderData(Context* context, int index) {
+    typedef internal::Object O;
+    typedef internal::Internals I;
+    O* ctx = *reinterpret_cast<O**>(context);
+    int embedder_data_offset = I::kContextHeaderSize +
+        (internal::kApiPointerSize * I::kContextEmbedderDataIndex);
+    O* embedder_data = I::ReadField<O*>(ctx, embedder_data_offset);
+    int value_offset =
+        I::kFixedArrayHeaderSize + (internal::kApiPointerSize * index);
+    return I::ReadField<T>(embedder_data, value_offset);
   }
 
   static inline bool CanCastToHeapObject(void* o) { return false; }
@@ -4223,6 +4265,14 @@ bool Persistent<T>::IsIndependent() const {
 
 
 template <class T>
+bool Persistent<T>::IsIndependent(Isolate* isolate) const {
+  if (this->IsEmpty()) return false;
+  return V8::IsGlobalIndependent(reinterpret_cast<internal::Isolate*>(isolate),
+                                 reinterpret_cast<internal::Object**>(**this));
+}
+
+
+template <class T>
 bool Persistent<T>::IsNearDeath() const {
   if (this->IsEmpty()) return false;
   return V8::IsGlobalNearDeath(reinterpret_cast<internal::Object**>(**this));
@@ -4240,6 +4290,14 @@ template <class T>
 void Persistent<T>::Dispose() {
   if (this->IsEmpty()) return;
   V8::DisposeGlobal(reinterpret_cast<internal::Object**>(**this));
+}
+
+
+template <class T>
+void Persistent<T>::Dispose(Isolate* isolate) {
+  if (this->IsEmpty()) return;
+  V8::DisposeGlobal(reinterpret_cast<internal::Isolate*>(isolate),
+                    reinterpret_cast<internal::Object**>(**this));
 }
 
 
@@ -4359,63 +4417,40 @@ void Template::Set(const char* name, v8::Handle<Data> value) {
 
 Local<Value> Object::GetInternalField(int index) {
 #ifndef V8_ENABLE_CHECKS
-  Local<Value> quick_result = UncheckedGetInternalField(index);
-  if (!quick_result.IsEmpty()) return quick_result;
-#endif
-  return CheckedGetInternalField(index);
-}
-
-
-Local<Value> Object::UncheckedGetInternalField(int index) {
   typedef internal::Object O;
   typedef internal::Internals I;
   O* obj = *reinterpret_cast<O**>(this);
+  // Fast path: If the object is a plain JSObject, which is the common case, we
+  // know where to find the internal fields and can return the value directly.
   if (I::GetInstanceType(obj) == I::kJSObjectType) {
-    // If the object is a plain JSObject, which is the common case,
-    // we know where to find the internal fields and can return the
-    // value directly.
     int offset = I::kJSObjectHeaderSize + (internal::kApiPointerSize * index);
     O* value = I::ReadField<O*>(obj, offset);
     O** result = HandleScope::CreateHandle(value);
     return Local<Value>(reinterpret_cast<Value*>(result));
-  } else {
-    return Local<Value>();
   }
-}
-
-
-void* External::Unwrap(Handle<v8::Value> obj) {
-#ifdef V8_ENABLE_CHECKS
-  return FullUnwrap(obj);
-#else
-  return QuickUnwrap(obj);
 #endif
+  return SlowGetInternalField(index);
 }
 
 
-void* External::QuickUnwrap(Handle<v8::Value> wrapper) {
-  typedef internal::Object O;
-  O* obj = *reinterpret_cast<O**>(const_cast<v8::Value*>(*wrapper));
-  return internal::Internals::GetExternalPointer(obj);
+void Object::SetPointerInInternalField(int index, void* value) {
+  SetInternalField(index, External::New(value));
 }
 
 
-void* Object::GetPointerFromInternalField(int index) {
+void* Object::GetAlignedPointerFromInternalField(int index) {
+#ifndef V8_ENABLE_CHECKS
   typedef internal::Object O;
   typedef internal::Internals I;
-
   O* obj = *reinterpret_cast<O**>(this);
-
+  // Fast path: If the object is a plain JSObject, which is the common case, we
+  // know where to find the internal fields and can return the value directly.
   if (I::GetInstanceType(obj) == I::kJSObjectType) {
-    // If the object is a plain JSObject, which is the common case,
-    // we know where to find the internal fields and can return the
-    // value directly.
     int offset = I::kJSObjectHeaderSize + (internal::kApiPointerSize * index);
-    O* value = I::ReadField<O*>(obj, offset);
-    return I::GetExternalPointer(value);
+    return I::ReadField<void*>(obj, offset);
   }
-
-  return SlowGetPointerFromInternalField(index);
+#endif
+  return SlowGetAlignedPointerFromInternalField(index);
 }
 
 
@@ -4607,6 +4642,16 @@ Function* Function::Cast(v8::Value* value) {
 }
 
 
+Local<Value> External::Wrap(void* value) {
+  return External::New(value);
+}
+
+
+void* External::Unwrap(Handle<v8::Value> obj) {
+  return External::Cast(*obj)->Value();
+}
+
+
 External* External::Cast(v8::Value* value) {
 #ifdef V8_ENABLE_CHECKS
   CheckCast(value);
@@ -4680,6 +4725,37 @@ void Isolate::SetData(void* data) {
 void* Isolate::GetData() {
   typedef internal::Internals I;
   return I::GetEmbedderData(this);
+}
+
+
+Local<Value> Context::GetData() {
+  return GetEmbedderData(0);
+}
+
+void Context::SetData(Handle<Value> data) {
+  SetEmbedderData(0, data);
+}
+
+
+Local<Value> Context::GetEmbedderData(int index) {
+#ifndef V8_ENABLE_CHECKS
+  typedef internal::Object O;
+  typedef internal::Internals I;
+  O** result = HandleScope::CreateHandle(I::ReadEmbedderData<O*>(this, index));
+  return Local<Value>(reinterpret_cast<Value*>(result));
+#else
+  return SlowGetEmbedderData(index);
+#endif
+}
+
+
+void* Context::GetAlignedPointerFromEmbedderData(int index) {
+#ifndef V8_ENABLE_CHECKS
+  typedef internal::Internals I;
+  return I::ReadEmbedderData<void*>(this, index);
+#else
+  return SlowGetAlignedPointerFromEmbedderData(index);
+#endif
 }
 
 

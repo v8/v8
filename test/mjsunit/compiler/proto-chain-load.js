@@ -25,17 +25,20 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-var a = [];
-var new_space_string = "";
-for (var i = 0; i < 128; i++) {
-  new_space_string += String.fromCharCode((Math.random() * 26 + 65) | 0);
-}
-for (var i = 0; i < 10000; i++) a.push(new_space_string);
+// Flags: --allow-natives-syntax
 
-// At some point during the first stringify, allocation causes a GC and
-// new_space_string is moved to old space. Make sure that this does not
-// screw up reading from the correct location.
-json1 = JSON.stringify(a);
-json2 = JSON.stringify(a);
-assertEquals(json1, json2, "GC caused JSON.stringify to fail.");
+// Test HLoadNamedField on the proto chain.
 
+var obj4 = Object.create(null, { f4: {value: 4} });
+var obj3 = Object.create(obj4, { f3: {value: 3} });
+var obj2 = Object.create(obj3, { f2: {value: 2} });
+var obj1 = Object.create(obj2, { f1: {value: 1} });
+var obj0 = Object.create(obj1, { f0: {value: 0} });
+
+function get4(obj) { return obj.f4; }
+
+assertEquals(4, get4(obj0));
+assertEquals(4, get4(obj0));
+%OptimizeFunctionOnNextCall(get4);
+assertEquals(4, get4(obj0));
+assertEquals(4, get4(obj0));

@@ -119,10 +119,8 @@ class LCodeGen;
   V(LoadFunctionPrototype)                      \
   V(LoadGlobalCell)                             \
   V(LoadGlobalGeneric)                          \
-  V(LoadKeyedFastElement)                       \
-  V(LoadKeyedFastDoubleElement)                 \
+  V(LoadKeyed)                                  \
   V(LoadKeyedGeneric)                           \
-  V(LoadKeyedSpecializedArrayElement)           \
   V(LoadNamedField)                             \
   V(LoadNamedFieldPolymorphic)                  \
   V(LoadNamedGeneric)                           \
@@ -152,10 +150,8 @@ class LCodeGen;
   V(StoreContextSlot)                           \
   V(StoreGlobalCell)                            \
   V(StoreGlobalGeneric)                         \
-  V(StoreKeyedFastDoubleElement)                \
-  V(StoreKeyedFastElement)                      \
+  V(StoreKeyed)                                 \
   V(StoreKeyedGeneric)                          \
-  V(StoreKeyedSpecializedArrayElement)          \
   V(StoreNamedField)                            \
   V(StoreNamedGeneric)                          \
   V(StringAdd)                                  \
@@ -1389,36 +1385,24 @@ class LLoadExternalArrayPointer: public LTemplateInstruction<1, 1, 0> {
 };
 
 
-class LLoadKeyedFastElement: public LTemplateInstruction<1, 2, 0> {
+class LLoadKeyed: public LTemplateInstruction<1, 2, 0> {
  public:
-  LLoadKeyedFastElement(LOperand* elements, LOperand* key) {
+  LLoadKeyed(LOperand* elements, LOperand* key) {
     inputs_[0] = elements;
     inputs_[1] = key;
   }
 
   LOperand* elements() { return inputs_[0]; }
   LOperand* key() { return inputs_[1]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(LoadKeyedFastElement, "load-keyed-fast-element")
-  DECLARE_HYDROGEN_ACCESSOR(LoadKeyedFastElement)
-
-  uint32_t additional_index() const { return hydrogen()->index_offset(); }
-};
-
-
-class LLoadKeyedFastDoubleElement: public LTemplateInstruction<1, 2, 0> {
- public:
-  LLoadKeyedFastDoubleElement(LOperand* elements, LOperand* key) {
-    inputs_[0] = elements;
-    inputs_[1] = key;
+  ElementsKind elements_kind() const {
+    return hydrogen()->elements_kind();
+  }
+  bool is_external() const {
+    return hydrogen()->is_external();
   }
 
-  LOperand* elements() { return inputs_[0]; }
-  LOperand* key() { return inputs_[1]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(LoadKeyedFastDoubleElement,
-                               "load-keyed-fast-double-element")
-  DECLARE_HYDROGEN_ACCESSOR(LoadKeyedFastDoubleElement)
+  DECLARE_CONCRETE_INSTRUCTION(LoadKeyed, "load-keyed")
+  DECLARE_HYDROGEN_ACCESSOR(LoadKeyed)
 
   uint32_t additional_index() const { return hydrogen()->index_offset(); }
 };
@@ -1435,27 +1419,6 @@ inline static bool ExternalArrayOpRequiresTemp(
        elements_kind == EXTERNAL_UNSIGNED_BYTE_ELEMENTS ||
        elements_kind == EXTERNAL_PIXEL_ELEMENTS);
 }
-
-
-class LLoadKeyedSpecializedArrayElement: public LTemplateInstruction<1, 2, 0> {
- public:
-  LLoadKeyedSpecializedArrayElement(LOperand* external_pointer, LOperand* key) {
-    inputs_[0] = external_pointer;
-    inputs_[1] = key;
-  }
-
-  LOperand* external_pointer() { return inputs_[0]; }
-  LOperand* key() { return inputs_[1]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(LoadKeyedSpecializedArrayElement,
-                               "load-keyed-specialized-array-element")
-  DECLARE_HYDROGEN_ACCESSOR(LoadKeyedSpecializedArrayElement)
-
-  ElementsKind elements_kind() const {
-    return hydrogen()->elements_kind();
-  }
-  uint32_t additional_index() const { return hydrogen()->index_offset(); }
-};
 
 
 class LLoadKeyedGeneric: public LTemplateInstruction<1, 3, 0> {
@@ -2006,75 +1969,28 @@ class LStoreNamedGeneric: public LTemplateInstruction<0, 3, 0> {
 };
 
 
-class LStoreKeyedFastElement: public LTemplateInstruction<0, 3, 0> {
+class LStoreKeyed: public LTemplateInstruction<0, 3, 0> {
  public:
-  LStoreKeyedFastElement(LOperand* obj, LOperand* key, LOperand* val) {
+  LStoreKeyed(LOperand* obj, LOperand* key, LOperand* val) {
     inputs_[0] = obj;
     inputs_[1] = key;
     inputs_[2] = val;
   }
 
-  LOperand* object() { return inputs_[0]; }
-  LOperand* key() { return inputs_[1]; }
-  LOperand* value() { return inputs_[2]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(StoreKeyedFastElement,
-                               "store-keyed-fast-element")
-  DECLARE_HYDROGEN_ACCESSOR(StoreKeyedFastElement)
-
-  virtual void PrintDataTo(StringStream* stream);
-  uint32_t additional_index() const { return hydrogen()->index_offset(); }
-};
-
-
-class LStoreKeyedFastDoubleElement: public LTemplateInstruction<0, 3, 0> {
- public:
-  LStoreKeyedFastDoubleElement(LOperand* elements,
-                               LOperand* key,
-                               LOperand* val) {
-    inputs_[0] = elements;
-    inputs_[1] = key;
-    inputs_[2] = val;
-  }
-
+  bool is_external() const { return hydrogen()->is_external(); }
   LOperand* elements() { return inputs_[0]; }
   LOperand* key() { return inputs_[1]; }
   LOperand* value() { return inputs_[2]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(StoreKeyedFastDoubleElement,
-                               "store-keyed-fast-double-element")
-  DECLARE_HYDROGEN_ACCESSOR(StoreKeyedFastDoubleElement)
-
-  virtual void PrintDataTo(StringStream* stream);
-
-  uint32_t additional_index() const { return hydrogen()->index_offset(); }
-
-  bool NeedsCanonicalization() { return hydrogen()->NeedsCanonicalization(); }
-};
-
-
-class LStoreKeyedSpecializedArrayElement: public LTemplateInstruction<0, 3, 0> {
- public:
-  LStoreKeyedSpecializedArrayElement(LOperand* external_pointer,
-                                     LOperand* key,
-                                     LOperand* val) {
-    inputs_[0] = external_pointer;
-    inputs_[1] = key;
-    inputs_[2] = val;
-  }
-
-  LOperand* external_pointer() { return inputs_[0]; }
-  LOperand* key() { return inputs_[1]; }
-  LOperand* value() { return inputs_[2]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(StoreKeyedSpecializedArrayElement,
-                               "store-keyed-specialized-array-element")
-  DECLARE_HYDROGEN_ACCESSOR(StoreKeyedSpecializedArrayElement)
-
   ElementsKind elements_kind() const {
     return hydrogen()->elements_kind();
   }
+
+  DECLARE_CONCRETE_INSTRUCTION(StoreKeyed, "store-keyed")
+  DECLARE_HYDROGEN_ACCESSOR(StoreKeyed)
+
+  virtual void PrintDataTo(StringStream* stream);
   uint32_t additional_index() const { return hydrogen()->index_offset(); }
+  bool NeedsCanonicalization() { return hydrogen()->NeedsCanonicalization(); }
 };
 
 
@@ -2232,7 +2148,7 @@ class LCheckMaps: public LTemplateInstruction<0, 1, 0> {
 };
 
 
-class LCheckPrototypeMaps: public LTemplateInstruction<0, 0, 1> {
+class LCheckPrototypeMaps: public LTemplateInstruction<1, 0, 1> {
  public:
   explicit LCheckPrototypeMaps(LOperand* temp)  {
     temps_[0] = temp;

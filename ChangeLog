@@ -1,3 +1,10 @@
+2012-11-06: Version 3.15.1
+
+        Put incremental code flushing behind a flag. (Chromium issue 159140)
+
+        Performance and stability improvements on all platforms.
+
+
 2012-10-31: Version 3.15.0
 
         Loosened aligned code target requirement on ARM (issue 2380)

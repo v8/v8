@@ -1489,6 +1489,9 @@ void LCodeGen::DoShiftI(LShiftI* instr) {
     // Mask the right_op operand.
     __ and_(scratch, ToRegister(right_op), Operand(0x1F));
     switch (instr->op()) {
+      case Token::ROR:
+        __ mov(result, Operand(left, ROR, scratch));
+        break;
       case Token::SAR:
         __ mov(result, Operand(left, ASR, scratch));
         break;
@@ -1512,6 +1515,13 @@ void LCodeGen::DoShiftI(LShiftI* instr) {
     int value = ToInteger32(LConstantOperand::cast(right_op));
     uint8_t shift_count = static_cast<uint8_t>(value & 0x1F);
     switch (instr->op()) {
+      case Token::ROR:
+          if (shift_count != 0) {
+          __ mov(result, Operand(left, ROR, shift_count));
+        } else {
+          __ Move(result, left);
+        }
+        break;
       case Token::SAR:
         if (shift_count != 0) {
           __ mov(result, Operand(left, ASR, shift_count));
@@ -2918,130 +2928,8 @@ void LCodeGen::DoAccessArgumentsAt(LAccessArgumentsAt* instr) {
 }
 
 
-void LCodeGen::DoLoadKeyedFastElement(LLoadKeyedFastElement* instr) {
-  Register elements = ToRegister(instr->elements());
-  Register result = ToRegister(instr->result());
-  Register scratch = scratch0();
-  Register store_base = scratch;
-  int offset = 0;
-
-  if (instr->key()->IsConstantOperand()) {
-    LConstantOperand* const_operand = LConstantOperand::cast(instr->key());
-    offset = FixedArray::OffsetOfElementAt(ToInteger32(const_operand) +
-                                           instr->additional_index());
-    store_base = elements;
-  } else {
-    Register key = EmitLoadRegister(instr->key(), scratch0());
-    // Even though the HLoadKeyedFastElement instruction forces the input
-    // representation for the key to be an integer, the input gets replaced
-    // during bound check elimination with the index argument to the bounds
-    // check, which can be tagged, so that case must be handled here, too.
-    if (instr->hydrogen()->key()->representation().IsTagged()) {
-      __ add(scratch, elements,
-             Operand(key, LSL, kPointerSizeLog2 - kSmiTagSize));
-    } else {
-      __ add(scratch, elements, Operand(key, LSL, kPointerSizeLog2));
-    }
-    offset = FixedArray::OffsetOfElementAt(instr->additional_index());
-  }
-  __ ldr(result, FieldMemOperand(store_base, offset));
-
-  // Check for the hole value.
-  if (instr->hydrogen()->RequiresHoleCheck()) {
-    if (IsFastSmiElementsKind(instr->hydrogen()->elements_kind())) {
-      __ tst(result, Operand(kSmiTagMask));
-      DeoptimizeIf(ne, instr->environment());
-    } else {
-      __ LoadRoot(scratch, Heap::kTheHoleValueRootIndex);
-      __ cmp(result, scratch);
-      DeoptimizeIf(eq, instr->environment());
-    }
-  }
-}
-
-
-void LCodeGen::DoLoadKeyedFastDoubleElement(
-    LLoadKeyedFastDoubleElement* instr) {
-  Register elements = ToRegister(instr->elements());
-  bool key_is_constant = instr->key()->IsConstantOperand();
-  Register key = no_reg;
-  DwVfpRegister result = ToDoubleRegister(instr->result());
-  Register scratch = scratch0();
-
-  int element_size_shift = ElementsKindToShiftSize(FAST_DOUBLE_ELEMENTS);
-  int shift_size = (instr->hydrogen()->key()->representation().IsTagged())
-      ? (element_size_shift - kSmiTagSize) : element_size_shift;
-  int constant_key = 0;
-  if (key_is_constant) {
-    constant_key = ToInteger32(LConstantOperand::cast(instr->key()));
-    if (constant_key & 0xF0000000) {
-      Abort("array index constant value too big.");
-    }
-  } else {
-    key = ToRegister(instr->key());
-  }
-
-  Operand operand = key_is_constant
-      ? Operand(((constant_key + instr->additional_index()) <<
-                 element_size_shift) +
-                FixedDoubleArray::kHeaderSize - kHeapObjectTag)
-      : Operand(key, LSL, shift_size);
-  __ add(elements, elements, operand);
-  if (!key_is_constant) {
-    __ add(elements, elements,
-           Operand((FixedDoubleArray::kHeaderSize - kHeapObjectTag) +
-                   (instr->additional_index() << element_size_shift)));
-  }
-
-  if (instr->hydrogen()->RequiresHoleCheck()) {
-    __ ldr(scratch, MemOperand(elements, sizeof(kHoleNanLower32)));
-    __ cmp(scratch, Operand(kHoleNanUpper32));
-    DeoptimizeIf(eq, instr->environment());
-  }
-
-  __ vldr(result, elements, 0);
-}
-
-
-MemOperand LCodeGen::PrepareKeyedOperand(Register key,
-                                         Register base,
-                                         bool key_is_constant,
-                                         int constant_key,
-                                         int element_size,
-                                         int shift_size,
-                                         int additional_index,
-                                         int additional_offset) {
-  if (additional_index != 0 && !key_is_constant) {
-    additional_index *= 1 << (element_size - shift_size);
-    __ add(scratch0(), key, Operand(additional_index));
-  }
-
-  if (key_is_constant) {
-    return MemOperand(base,
-                      (constant_key << element_size) + additional_offset);
-  }
-
-  if (additional_index == 0) {
-    if (shift_size >= 0) {
-      return MemOperand(base, key, LSL, shift_size);
-    } else {
-      ASSERT_EQ(-1, shift_size);
-      return MemOperand(base, key, LSR, 1);
-    }
-  }
-
-  if (shift_size >= 0) {
-    return MemOperand(base, scratch0(), LSL, shift_size);
-  } else {
-    ASSERT_EQ(-1, shift_size);
-    return MemOperand(base, scratch0(), LSR, 1);
-  }
-}
-
-
-void LCodeGen::DoLoadKeyedSpecializedArrayElement(
-    LLoadKeyedSpecializedArrayElement* instr) {
-  Register external_pointer = ToRegister(instr->external_pointer());
+void LCodeGen::DoLoadKeyedExternalArray(LLoadKeyed* instr) {
+  Register external_pointer = ToRegister(instr->elements());
   Register key = no_reg;
   ElementsKind elements_kind = instr->elements_kind();
   bool key_is_constant = instr->key()->IsConstantOperand();
@@ -3116,6 +3004,137 @@ void LCodeGen::DoLoadKeyedSpecializedArrayElement(
         UNREACHABLE();
         break;
     }
+  }
+}
+
+
+void LCodeGen::DoLoadKeyedFixedDoubleArray(LLoadKeyed* instr) {
+  Register elements = ToRegister(instr->elements());
+  bool key_is_constant = instr->key()->IsConstantOperand();
+  Register key = no_reg;
+  DwVfpRegister result = ToDoubleRegister(instr->result());
+  Register scratch = scratch0();
+
+  int element_size_shift = ElementsKindToShiftSize(FAST_DOUBLE_ELEMENTS);
+  int shift_size = (instr->hydrogen()->key()->representation().IsTagged())
+      ? (element_size_shift - kSmiTagSize) : element_size_shift;
+  int constant_key = 0;
+  if (key_is_constant) {
+    constant_key = ToInteger32(LConstantOperand::cast(instr->key()));
+    if (constant_key & 0xF0000000) {
+      Abort("array index constant value too big.");
+    }
+  } else {
+    key = ToRegister(instr->key());
+  }
+
+  Operand operand = key_is_constant
+      ? Operand(((constant_key + instr->additional_index()) <<
+                 element_size_shift) +
+                FixedDoubleArray::kHeaderSize - kHeapObjectTag)
+      : Operand(key, LSL, shift_size);
+  __ add(elements, elements, operand);
+  if (!key_is_constant) {
+    __ add(elements, elements,
+           Operand((FixedDoubleArray::kHeaderSize - kHeapObjectTag) +
+                   (instr->additional_index() << element_size_shift)));
+  }
+
+  if (instr->hydrogen()->RequiresHoleCheck()) {
+    __ ldr(scratch, MemOperand(elements, sizeof(kHoleNanLower32)));
+    __ cmp(scratch, Operand(kHoleNanUpper32));
+    DeoptimizeIf(eq, instr->environment());
+  }
+
+  __ vldr(result, elements, 0);
+}
+
+
+void LCodeGen::DoLoadKeyedFixedArray(LLoadKeyed* instr) {
+  Register elements = ToRegister(instr->elements());
+  Register result = ToRegister(instr->result());
+  Register scratch = scratch0();
+  Register store_base = scratch;
+  int offset = 0;
+
+  if (instr->key()->IsConstantOperand()) {
+    LConstantOperand* const_operand = LConstantOperand::cast(instr->key());
+    offset = FixedArray::OffsetOfElementAt(ToInteger32(const_operand) +
+                                           instr->additional_index());
+    store_base = elements;
+  } else {
+    Register key = EmitLoadRegister(instr->key(), scratch0());
+    // Even though the HLoadKeyed instruction forces the input
+    // representation for the key to be an integer, the input gets replaced
+    // during bound check elimination with the index argument to the bounds
+    // check, which can be tagged, so that case must be handled here, too.
+    if (instr->hydrogen()->key()->representation().IsTagged()) {
+      __ add(scratch, elements,
+             Operand(key, LSL, kPointerSizeLog2 - kSmiTagSize));
+    } else {
+      __ add(scratch, elements, Operand(key, LSL, kPointerSizeLog2));
+    }
+    offset = FixedArray::OffsetOfElementAt(instr->additional_index());
+  }
+  __ ldr(result, FieldMemOperand(store_base, offset));
+
+  // Check for the hole value.
+  if (instr->hydrogen()->RequiresHoleCheck()) {
+    if (IsFastSmiElementsKind(instr->hydrogen()->elements_kind())) {
+      __ tst(result, Operand(kSmiTagMask));
+      DeoptimizeIf(ne, instr->environment());
+    } else {
+      __ LoadRoot(scratch, Heap::kTheHoleValueRootIndex);
+      __ cmp(result, scratch);
+      DeoptimizeIf(eq, instr->environment());
+    }
+  }
+}
+
+
+void LCodeGen::DoLoadKeyed(LLoadKeyed* instr) {
+  if (instr->is_external()) {
+    DoLoadKeyedExternalArray(instr);
+  } else if (instr->hydrogen()->representation().IsDouble()) {
+    DoLoadKeyedFixedDoubleArray(instr);
+  } else {
+    DoLoadKeyedFixedArray(instr);
+  }
+}
+
+
+MemOperand LCodeGen::PrepareKeyedOperand(Register key,
+                                         Register base,
+                                         bool key_is_constant,
+                                         int constant_key,
+                                         int element_size,
+                                         int shift_size,
+                                         int additional_index,
+                                         int additional_offset) {
+  if (additional_index != 0 && !key_is_constant) {
+    additional_index *= 1 << (element_size - shift_size);
+    __ add(scratch0(), key, Operand(additional_index));
+  }
+
+  if (key_is_constant) {
+    return MemOperand(base,
+                      (constant_key << element_size) + additional_offset);
+  }
+
+  if (additional_index == 0) {
+    if (shift_size >= 0) {
+      return MemOperand(base, key, LSL, shift_size);
+    } else {
+      ASSERT_EQ(-1, shift_size);
+      return MemOperand(base, key, LSR, 1);
+    }
+  }
+
+  if (shift_size >= 0) {
+    return MemOperand(base, scratch0(), LSL, shift_size);
+  } else {
+    ASSERT_EQ(-1, shift_size);
+    return MemOperand(base, scratch0(), LSR, 1);
   }
 }
 
@@ -4000,102 +4019,8 @@ void LCodeGen::DoBoundsCheck(LBoundsCheck* instr) {
 }
 
 
-void LCodeGen::DoStoreKeyedFastElement(LStoreKeyedFastElement* instr) {
-  Register value = ToRegister(instr->value());
-  Register elements = ToRegister(instr->object());
-  Register key = instr->key()->IsRegister() ? ToRegister(instr->key()) : no_reg;
-  Register scratch = scratch0();
-  Register store_base = scratch;
-  int offset = 0;
-
-  // Do the store.
-  if (instr->key()->IsConstantOperand()) {
-    ASSERT(!instr->hydrogen()->NeedsWriteBarrier());
-    LConstantOperand* const_operand = LConstantOperand::cast(instr->key());
-    offset = FixedArray::OffsetOfElementAt(ToInteger32(const_operand) +
-                                           instr->additional_index());
-    store_base = elements;
-  } else {
-    // Even though the HLoadKeyedFastElement instruction forces the input
-    // representation for the key to be an integer, the input gets replaced
-    // during bound check elimination with the index argument to the bounds
-    // check, which can be tagged, so that case must be handled here, too.
-    if (instr->hydrogen()->key()->representation().IsTagged()) {
-      __ add(scratch, elements,
-             Operand(key, LSL, kPointerSizeLog2 - kSmiTagSize));
-    } else {
-      __ add(scratch, elements, Operand(key, LSL, kPointerSizeLog2));
-    }
-    offset = FixedArray::OffsetOfElementAt(instr->additional_index());
-  }
-  __ str(value, FieldMemOperand(store_base, offset));
-
-  if (instr->hydrogen()->NeedsWriteBarrier()) {
-    HType type = instr->hydrogen()->value()->type();
-    SmiCheck check_needed =
-        type.IsHeapObject() ? OMIT_SMI_CHECK : INLINE_SMI_CHECK;
-    // Compute address of modified element and store it into key register.
-    __ add(key, store_base, Operand(offset - kHeapObjectTag));
-    __ RecordWrite(elements,
-                   key,
-                   value,
-                   kLRHasBeenSaved,
-                   kSaveFPRegs,
-                   EMIT_REMEMBERED_SET,
-                   check_needed);
-  }
-}
-
-
-void LCodeGen::DoStoreKeyedFastDoubleElement(
-    LStoreKeyedFastDoubleElement* instr) {
-  DwVfpRegister value = ToDoubleRegister(instr->value());
-  Register elements = ToRegister(instr->elements());
-  Register key = no_reg;
-  Register scratch = scratch0();
-  bool key_is_constant = instr->key()->IsConstantOperand();
-  int constant_key = 0;
-
-  // Calculate the effective address of the slot in the array to store the
-  // double value.
-  if (key_is_constant) {
-    constant_key = ToInteger32(LConstantOperand::cast(instr->key()));
-    if (constant_key & 0xF0000000) {
-      Abort("array index constant value too big.");
-    }
-  } else {
-    key = ToRegister(instr->key());
-  }
-  int element_size_shift = ElementsKindToShiftSize(FAST_DOUBLE_ELEMENTS);
-  int shift_size = (instr->hydrogen()->key()->representation().IsTagged())
-      ? (element_size_shift - kSmiTagSize) : element_size_shift;
-  Operand operand = key_is_constant
-      ? Operand((constant_key << element_size_shift) +
-                FixedDoubleArray::kHeaderSize - kHeapObjectTag)
-      : Operand(key, LSL, shift_size);
-  __ add(scratch, elements, operand);
-  if (!key_is_constant) {
-    __ add(scratch, scratch,
-           Operand(FixedDoubleArray::kHeaderSize - kHeapObjectTag));
-  }
-
-  if (instr->NeedsCanonicalization()) {
-    // Check for NaN. All NaNs must be canonicalized.
-    __ VFPCompareAndSetFlags(value, value);
-    // Only load canonical NaN if the comparison above set the overflow.
-    __ Vmov(value,
-            FixedDoubleArray::canonical_not_the_hole_nan_as_double(),
-            no_reg, vs);
-  }
-
-  __ vstr(value, scratch, instr->additional_index() << element_size_shift);
-}
-
-
-void LCodeGen::DoStoreKeyedSpecializedArrayElement(
-    LStoreKeyedSpecializedArrayElement* instr) {
-
-  Register external_pointer = ToRegister(instr->external_pointer());
+void LCodeGen::DoStoreKeyedExternalArray(LStoreKeyed* instr) {
+  Register external_pointer = ToRegister(instr->elements());
   Register key = no_reg;
   ElementsKind elements_kind = instr->elements_kind();
   bool key_is_constant = instr->key()->IsConstantOperand();
@@ -4160,6 +4085,110 @@ void LCodeGen::DoStoreKeyedSpecializedArrayElement(
         UNREACHABLE();
         break;
     }
+  }
+}
+
+
+void LCodeGen::DoStoreKeyedFixedDoubleArray(LStoreKeyed* instr) {
+  DwVfpRegister value = ToDoubleRegister(instr->value());
+  Register elements = ToRegister(instr->elements());
+  Register key = no_reg;
+  Register scratch = scratch0();
+  bool key_is_constant = instr->key()->IsConstantOperand();
+  int constant_key = 0;
+
+  // Calculate the effective address of the slot in the array to store the
+  // double value.
+  if (key_is_constant) {
+    constant_key = ToInteger32(LConstantOperand::cast(instr->key()));
+    if (constant_key & 0xF0000000) {
+      Abort("array index constant value too big.");
+    }
+  } else {
+    key = ToRegister(instr->key());
+  }
+  int element_size_shift = ElementsKindToShiftSize(FAST_DOUBLE_ELEMENTS);
+  int shift_size = (instr->hydrogen()->key()->representation().IsTagged())
+      ? (element_size_shift - kSmiTagSize) : element_size_shift;
+  Operand operand = key_is_constant
+      ? Operand((constant_key << element_size_shift) +
+                FixedDoubleArray::kHeaderSize - kHeapObjectTag)
+      : Operand(key, LSL, shift_size);
+  __ add(scratch, elements, operand);
+  if (!key_is_constant) {
+    __ add(scratch, scratch,
+           Operand(FixedDoubleArray::kHeaderSize - kHeapObjectTag));
+  }
+
+  if (instr->NeedsCanonicalization()) {
+    // Check for NaN. All NaNs must be canonicalized.
+    __ VFPCompareAndSetFlags(value, value);
+    // Only load canonical NaN if the comparison above set the overflow.
+    __ Vmov(value,
+            FixedDoubleArray::canonical_not_the_hole_nan_as_double(),
+            no_reg, vs);
+  }
+
+  __ vstr(value, scratch, instr->additional_index() << element_size_shift);
+}
+
+
+void LCodeGen::DoStoreKeyedFixedArray(LStoreKeyed* instr) {
+  Register value = ToRegister(instr->value());
+  Register elements = ToRegister(instr->elements());
+  Register key = instr->key()->IsRegister() ? ToRegister(instr->key())
+      : no_reg;
+  Register scratch = scratch0();
+  Register store_base = scratch;
+  int offset = 0;
+
+  // Do the store.
+  if (instr->key()->IsConstantOperand()) {
+    ASSERT(!instr->hydrogen()->NeedsWriteBarrier());
+    LConstantOperand* const_operand = LConstantOperand::cast(instr->key());
+    offset = FixedArray::OffsetOfElementAt(ToInteger32(const_operand) +
+                                           instr->additional_index());
+    store_base = elements;
+  } else {
+    // Even though the HLoadKeyed instruction forces the input
+    // representation for the key to be an integer, the input gets replaced
+    // during bound check elimination with the index argument to the bounds
+    // check, which can be tagged, so that case must be handled here, too.
+    if (instr->hydrogen()->key()->representation().IsTagged()) {
+      __ add(scratch, elements,
+             Operand(key, LSL, kPointerSizeLog2 - kSmiTagSize));
+    } else {
+      __ add(scratch, elements, Operand(key, LSL, kPointerSizeLog2));
+    }
+    offset = FixedArray::OffsetOfElementAt(instr->additional_index());
+  }
+  __ str(value, FieldMemOperand(store_base, offset));
+
+  if (instr->hydrogen()->NeedsWriteBarrier()) {
+    HType type = instr->hydrogen()->value()->type();
+    SmiCheck check_needed =
+        type.IsHeapObject() ? OMIT_SMI_CHECK : INLINE_SMI_CHECK;
+    // Compute address of modified element and store it into key register.
+    __ add(key, store_base, Operand(offset - kHeapObjectTag));
+    __ RecordWrite(elements,
+                   key,
+                   value,
+                   kLRHasBeenSaved,
+                   kSaveFPRegs,
+                   EMIT_REMEMBERED_SET,
+                   check_needed);
+  }
+}
+
+
+void LCodeGen::DoStoreKeyed(LStoreKeyed* instr) {
+  // By cases: external, fast double
+  if (instr->is_external()) {
+    DoStoreKeyedExternalArray(instr);
+  } else if (instr->hydrogen()->value()->representation().IsDouble()) {
+    DoStoreKeyedFixedDoubleArray(instr);
+  } else {
+    DoStoreKeyedFixedArray(instr);
   }
 }
 
@@ -4912,6 +4941,7 @@ void LCodeGen::DoClampTToUint8(LClampTToUint8* instr) {
 
 
 void LCodeGen::DoCheckPrototypeMaps(LCheckPrototypeMaps* instr) {
+  ASSERT(instr->temp()->Equals(instr->result()));
   Register temp1 = ToRegister(instr->temp());
   Register temp2 = ToRegister(instr->temp2());
 

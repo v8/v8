@@ -4896,7 +4896,6 @@ MaybeObject* Map::RawCopy(int instance_size) {
   result->set_constructor(constructor());
   result->set_bit_field(bit_field());
   result->set_bit_field2(bit_field2());
-  result->set_bit_field3(bit_field3());
   int new_bit_field3 = bit_field3();
   new_bit_field3 = OwnsDescriptors::update(new_bit_field3, true);
   new_bit_field3 = NumberOfOwnDescriptorsBits::update(new_bit_field3, 0);
@@ -7442,7 +7441,6 @@ void Map::ClearNonLiveTransitions(Heap* heap) {
     Map* target = t->GetTarget(i);
     if (ClearBackPointer(heap, target)) {
       if (target->instance_descriptors() == descriptors) {
-        descriptors_owner_died = true;
         descriptors_owner_died = true;
       }
     } else {

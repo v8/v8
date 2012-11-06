@@ -9188,7 +9188,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_AllocateInNewSpace) {
 RUNTIME_FUNCTION(MaybeObject*, Runtime_PushIfAbsent) {
   ASSERT(args.length() == 2);
   CONVERT_ARG_CHECKED(JSArray, array, 0);
-  CONVERT_ARG_CHECKED(JSObject, element, 1);
+  CONVERT_ARG_CHECKED(JSReceiver, element, 1);
   RUNTIME_ASSERT(array->HasFastSmiOrObjectElements());
   int length = Smi::cast(array->length())->value();
   FixedArray* elements = FixedArray::cast(array->elements());

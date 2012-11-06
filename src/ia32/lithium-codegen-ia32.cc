@@ -1300,6 +1300,13 @@ void LCodeGen::DoShiftI(LShiftI* instr) {
     ASSERT(ToRegister(right).is(ecx));
 
     switch (instr->op()) {
+      case Token::ROR:
+        __ ror_cl(ToRegister(left));
+        if (instr->can_deopt()) {
+          __ test(ToRegister(left), Immediate(0x80000000));
+          DeoptimizeIf(not_zero, instr->environment());
+        }
+        break;
       case Token::SAR:
         __ sar_cl(ToRegister(left));
         break;
@@ -1321,6 +1328,14 @@ void LCodeGen::DoShiftI(LShiftI* instr) {
     int value = ToInteger32(LConstantOperand::cast(right));
     uint8_t shift_count = static_cast<uint8_t>(value & 0x1F);
     switch (instr->op()) {
+      case Token::ROR:
+        if (shift_count == 0 && instr->can_deopt()) {
+          __ test(ToRegister(left), Immediate(0x80000000));
+          DeoptimizeIf(not_zero, instr->environment());
+        } else {
+          __ ror(ToRegister(left), shift_count);
+        }
+        break;
       case Token::SAR:
         if (shift_count != 0) {
           __ sar(ToRegister(left), shift_count);
@@ -2749,95 +2764,7 @@ void LCodeGen::DoAccessArgumentsAt(LAccessArgumentsAt* instr) {
 }
 
 
-void LCodeGen::DoLoadKeyedFastElement(LLoadKeyedFastElement* instr) {
-  Register result = ToRegister(instr->result());
-
-  // Load the result.
-  __ mov(result,
-         BuildFastArrayOperand(instr->elements(),
-                               instr->key(),
-                               instr->hydrogen()->key()->representation(),
-                               FAST_ELEMENTS,
-                               FixedArray::kHeaderSize - kHeapObjectTag,
-                               instr->additional_index()));
-
-  // Check for the hole value.
-  if (instr->hydrogen()->RequiresHoleCheck()) {
-    if (IsFastSmiElementsKind(instr->hydrogen()->elements_kind())) {
-      __ test(result, Immediate(kSmiTagMask));
-      DeoptimizeIf(not_equal, instr->environment());
-    } else {
-      __ cmp(result, factory()->the_hole_value());
-      DeoptimizeIf(equal, instr->environment());
-    }
-  }
-}
-
-
-void LCodeGen::DoLoadKeyedFastDoubleElement(
-    LLoadKeyedFastDoubleElement* instr) {
-  XMMRegister result = ToDoubleRegister(instr->result());
-
-  if (instr->hydrogen()->RequiresHoleCheck()) {
-    int offset = FixedDoubleArray::kHeaderSize - kHeapObjectTag +
-        sizeof(kHoleNanLower32);
-    Operand hole_check_operand = BuildFastArrayOperand(
-        instr->elements(), instr->key(),
-        instr->hydrogen()->key()->representation(),
-        FAST_DOUBLE_ELEMENTS,
-        offset,
-        instr->additional_index());
-    __ cmp(hole_check_operand, Immediate(kHoleNanUpper32));
-    DeoptimizeIf(equal, instr->environment());
-  }
-
-  Operand double_load_operand = BuildFastArrayOperand(
-      instr->elements(),
-      instr->key(),
-      instr->hydrogen()->key()->representation(),
-      FAST_DOUBLE_ELEMENTS,
-      FixedDoubleArray::kHeaderSize - kHeapObjectTag,
-      instr->additional_index());
-  __ movdbl(result, double_load_operand);
-}
-
-
-Operand LCodeGen::BuildFastArrayOperand(
-    LOperand* elements_pointer,
-    LOperand* key,
-    Representation key_representation,
-    ElementsKind elements_kind,
-    uint32_t offset,
-    uint32_t additional_index) {
-  Register elements_pointer_reg = ToRegister(elements_pointer);
-  int shift_size = ElementsKindToShiftSize(elements_kind);
-  // Even though the HLoad/StoreKeyedFastElement instructions force the input
-  // representation for the key to be an integer, the input gets replaced during
-  // bound check elimination with the index argument to the bounds check, which
-  // can be tagged, so that case must be handled here, too.
-  if (key_representation.IsTagged() && (shift_size >= 1)) {
-    shift_size -= kSmiTagSize;
-  }
-  if (key->IsConstantOperand()) {
-    int constant_value = ToInteger32(LConstantOperand::cast(key));
-    if (constant_value & 0xF0000000) {
-      Abort("array index constant value too big");
-    }
-    return Operand(elements_pointer_reg,
-                   ((constant_value + additional_index) << shift_size)
-                       + offset);
-  } else {
-    ScaleFactor scale_factor = static_cast<ScaleFactor>(shift_size);
-    return Operand(elements_pointer_reg,
-                   ToRegister(key),
-                   scale_factor,
-                   offset + (additional_index << shift_size));
-  }
-}
-
-
-void LCodeGen::DoLoadKeyedSpecializedArrayElement(
-    LLoadKeyedSpecializedArrayElement* instr) {
+void LCodeGen::DoLoadKeyedExternalArray(LLoadKeyed* instr) {
   ElementsKind elements_kind = instr->elements_kind();
   LOperand* key = instr->key();
   if (!key->IsConstantOperand() &&
@@ -2846,7 +2773,7 @@ void LCodeGen::DoLoadKeyedSpecializedArrayElement(
     __ SmiUntag(ToRegister(key));
   }
   Operand operand(BuildFastArrayOperand(
-      instr->external_pointer(),
+      instr->elements(),
       key,
       instr->hydrogen()->key()->representation(),
       elements_kind,
@@ -2897,6 +2824,103 @@ void LCodeGen::DoLoadKeyedSpecializedArrayElement(
         UNREACHABLE();
         break;
     }
+  }
+}
+
+
+void LCodeGen::DoLoadKeyedFixedDoubleArray(LLoadKeyed* instr) {
+  XMMRegister result = ToDoubleRegister(instr->result());
+
+  if (instr->hydrogen()->RequiresHoleCheck()) {
+    int offset = FixedDoubleArray::kHeaderSize - kHeapObjectTag +
+        sizeof(kHoleNanLower32);
+    Operand hole_check_operand = BuildFastArrayOperand(
+        instr->elements(), instr->key(),
+        instr->hydrogen()->key()->representation(),
+        FAST_DOUBLE_ELEMENTS,
+        offset,
+        instr->additional_index());
+    __ cmp(hole_check_operand, Immediate(kHoleNanUpper32));
+    DeoptimizeIf(equal, instr->environment());
+  }
+
+  Operand double_load_operand = BuildFastArrayOperand(
+      instr->elements(),
+      instr->key(),
+      instr->hydrogen()->key()->representation(),
+      FAST_DOUBLE_ELEMENTS,
+      FixedDoubleArray::kHeaderSize - kHeapObjectTag,
+      instr->additional_index());
+  __ movdbl(result, double_load_operand);
+}
+
+
+void LCodeGen::DoLoadKeyedFixedArray(LLoadKeyed* instr) {
+  Register result = ToRegister(instr->result());
+
+  // Load the result.
+  __ mov(result,
+         BuildFastArrayOperand(instr->elements(),
+                               instr->key(),
+                               instr->hydrogen()->key()->representation(),
+                               FAST_ELEMENTS,
+                               FixedArray::kHeaderSize - kHeapObjectTag,
+                               instr->additional_index()));
+
+  // Check for the hole value.
+  if (instr->hydrogen()->RequiresHoleCheck()) {
+    if (IsFastSmiElementsKind(instr->hydrogen()->elements_kind())) {
+      __ test(result, Immediate(kSmiTagMask));
+      DeoptimizeIf(not_equal, instr->environment());
+    } else {
+      __ cmp(result, factory()->the_hole_value());
+      DeoptimizeIf(equal, instr->environment());
+    }
+  }
+}
+
+
+void LCodeGen::DoLoadKeyed(LLoadKeyed* instr) {
+  if (instr->is_external()) {
+    DoLoadKeyedExternalArray(instr);
+  } else if (instr->hydrogen()->representation().IsDouble()) {
+    DoLoadKeyedFixedDoubleArray(instr);
+  } else {
+    DoLoadKeyedFixedArray(instr);
+  }
+}
+
+
+Operand LCodeGen::BuildFastArrayOperand(
+    LOperand* elements_pointer,
+    LOperand* key,
+    Representation key_representation,
+    ElementsKind elements_kind,
+    uint32_t offset,
+    uint32_t additional_index) {
+  Register elements_pointer_reg = ToRegister(elements_pointer);
+  int shift_size = ElementsKindToShiftSize(elements_kind);
+  // Even though the HLoad/StoreKeyed instructions force the input
+  // representation for the key to be an integer, the input gets replaced during
+  // bound check elimination with the index argument to the bounds check, which
+  // can be tagged, so that case must be handled here, too.
+  if (key_representation.IsTagged() && (shift_size >= 1)) {
+    shift_size -= kSmiTagSize;
+  }
+  if (key->IsConstantOperand()) {
+    int constant_value = ToInteger32(LConstantOperand::cast(key));
+    if (constant_value & 0xF0000000) {
+      Abort("array index constant value too big");
+    }
+    return Operand(elements_pointer_reg,
+                   ((constant_value + additional_index) << shift_size)
+                       + offset);
+  } else {
+    ScaleFactor scale_factor = static_cast<ScaleFactor>(shift_size);
+    return Operand(elements_pointer_reg,
+                   ToRegister(key),
+                   scale_factor,
+                   offset + (additional_index << shift_size));
   }
 }
 
@@ -3818,8 +3842,7 @@ void LCodeGen::DoBoundsCheck(LBoundsCheck* instr) {
 }
 
 
-void LCodeGen::DoStoreKeyedSpecializedArrayElement(
-    LStoreKeyedSpecializedArrayElement* instr) {
+void LCodeGen::DoStoreKeyedExternalArray(LStoreKeyed* instr) {
   ElementsKind elements_kind = instr->elements_kind();
   LOperand* key = instr->key();
   if (!key->IsConstantOperand() &&
@@ -3828,7 +3851,7 @@ void LCodeGen::DoStoreKeyedSpecializedArrayElement(
     __ SmiUntag(ToRegister(key));
   }
   Operand operand(BuildFastArrayOperand(
-      instr->external_pointer(),
+      instr->elements(),
       key,
       instr->hydrogen()->key()->representation(),
       elements_kind,
@@ -3872,13 +3895,39 @@ void LCodeGen::DoStoreKeyedSpecializedArrayElement(
 }
 
 
-void LCodeGen::DoStoreKeyedFastElement(LStoreKeyedFastElement* instr) {
+void LCodeGen::DoStoreKeyedFixedDoubleArray(LStoreKeyed* instr) {
+  XMMRegister value = ToDoubleRegister(instr->value());
+
+  if (instr->NeedsCanonicalization()) {
+    Label have_value;
+
+    __ ucomisd(value, value);
+    __ j(parity_odd, &have_value);  // NaN.
+
+    ExternalReference canonical_nan_reference =
+        ExternalReference::address_of_canonical_non_hole_nan();
+    __ movdbl(value, Operand::StaticVariable(canonical_nan_reference));
+    __ bind(&have_value);
+  }
+
+  Operand double_store_operand = BuildFastArrayOperand(
+      instr->elements(),
+      instr->key(),
+      instr->hydrogen()->key()->representation(),
+      FAST_DOUBLE_ELEMENTS,
+      FixedDoubleArray::kHeaderSize - kHeapObjectTag,
+      instr->additional_index());
+  __ movdbl(double_store_operand, value);
+}
+
+
+void LCodeGen::DoStoreKeyedFixedArray(LStoreKeyed* instr) {
   Register value = ToRegister(instr->value());
-  Register elements = ToRegister(instr->object());
+  Register elements = ToRegister(instr->elements());
   Register key = instr->key()->IsRegister() ? ToRegister(instr->key()) : no_reg;
 
   Operand operand = BuildFastArrayOperand(
-      instr->object(),
+      instr->elements(),
       instr->key(),
       instr->hydrogen()->key()->representation(),
       FAST_ELEMENTS,
@@ -3903,30 +3952,15 @@ void LCodeGen::DoStoreKeyedFastElement(LStoreKeyedFastElement* instr) {
 }
 
 
-void LCodeGen::DoStoreKeyedFastDoubleElement(
-    LStoreKeyedFastDoubleElement* instr) {
-  XMMRegister value = ToDoubleRegister(instr->value());
-
-  if (instr->NeedsCanonicalization()) {
-    Label have_value;
-
-    __ ucomisd(value, value);
-    __ j(parity_odd, &have_value);  // NaN.
-
-    ExternalReference canonical_nan_reference =
-        ExternalReference::address_of_canonical_non_hole_nan();
-    __ movdbl(value, Operand::StaticVariable(canonical_nan_reference));
-    __ bind(&have_value);
+void LCodeGen::DoStoreKeyed(LStoreKeyed* instr) {
+  // By cases...external, fast-double, fast
+  if (instr->is_external()) {
+    DoStoreKeyedExternalArray(instr);
+  } else if (instr->hydrogen()->value()->representation().IsDouble()) {
+    DoStoreKeyedFixedDoubleArray(instr);
+  } else {
+    DoStoreKeyedFixedArray(instr);
   }
-
-  Operand double_store_operand = BuildFastArrayOperand(
-      instr->elements(),
-      instr->key(),
-      instr->hydrogen()->key()->representation(),
-      FAST_DOUBLE_ELEMENTS,
-      FixedDoubleArray::kHeaderSize - kHeapObjectTag,
-      instr->additional_index());
-  __ movdbl(double_store_operand, value);
 }
 
 
@@ -4756,6 +4790,7 @@ void LCodeGen::DoClampTToUint8(LClampTToUint8* instr) {
 
 
 void LCodeGen::DoCheckPrototypeMaps(LCheckPrototypeMaps* instr) {
+  ASSERT(instr->temp()->Equals(instr->result()));
   Register reg = ToRegister(instr->temp());
 
   Handle<JSObject> holder = instr->holder();

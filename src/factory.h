@@ -239,6 +239,9 @@ class Factory {
 
   Handle<FixedArray> CopyFixedArray(Handle<FixedArray> array);
 
+  Handle<FixedArray> CopySizeFixedArray(Handle<FixedArray> array,
+                                        int new_length);
+
   Handle<FixedDoubleArray> CopyFixedDoubleArray(
       Handle<FixedDoubleArray> array);
 
@@ -324,6 +327,8 @@ class Factory {
       PretenureFlag pretenure = TENURED);
 
   Handle<ScopeInfo> NewScopeInfo(int length);
+
+  Handle<JSObject> NewExternal(void* value);
 
   Handle<Code> NewCode(const CodeDesc& desc,
                        Code::Flags flags,

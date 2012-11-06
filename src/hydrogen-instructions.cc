@@ -859,16 +859,6 @@ void HLoadFieldByIndex::PrintDataTo(StringStream* stream) {
 }
 
 
-HValue* HConstant::Canonicalize() {
-  return HasNoUses() ? NULL : this;
-}
-
-
-HValue* HTypeof::Canonicalize() {
-  return HasNoUses() ? NULL : this;
-}
-
-
 HValue* HBitwise::Canonicalize() {
   if (!representation().IsInteger32()) return this;
   // If x is an int32, then x & -1 == x, x | 0 == x and x ^ 0 == x.
@@ -1622,7 +1612,7 @@ Range* HShl::InferRange(Zone* zone) {
 }
 
 
-Range* HLoadKeyedSpecializedArrayElement::InferRange(Zone* zone) {
+Range* HLoadKeyed::InferRange(Zone* zone) {
   switch (elements_kind()) {
     case EXTERNAL_PIXEL_ELEMENTS:
       return new(zone) Range(0, 255);
@@ -1849,8 +1839,17 @@ void HLoadNamedGeneric::PrintDataTo(StringStream* stream) {
 }
 
 
-void HLoadKeyedFastElement::PrintDataTo(StringStream* stream) {
-  object()->PrintNameTo(stream);
+void HLoadKeyed::PrintDataTo(StringStream* stream) {
+  if (!is_external()) {
+    elements()->PrintNameTo(stream);
+  } else {
+    ASSERT(elements_kind() >= FIRST_EXTERNAL_ARRAY_ELEMENTS_KIND &&
+           elements_kind() <= LAST_EXTERNAL_ARRAY_ELEMENTS_KIND);
+    elements()->PrintNameTo(stream);
+    stream->Add(".");
+    stream->Add(ElementsKindToString(elements_kind()));
+  }
+
   stream->Add("[");
   key()->PrintNameTo(stream);
   stream->Add("] ");
@@ -1861,26 +1860,23 @@ void HLoadKeyedFastElement::PrintDataTo(StringStream* stream) {
 }
 
 
-bool HLoadKeyedFastElement::RequiresHoleCheck() const {
+bool HLoadKeyed::RequiresHoleCheck() const {
   if (IsFastPackedElementsKind(elements_kind())) {
     return false;
   }
 
+  if (IsFastDoubleElementsKind(elements_kind())) {
+    return true;
+  }
+
   for (HUseIterator it(uses()); !it.Done(); it.Advance()) {
     HValue* use = it.value();
-    if (!use->IsChange()) return true;
+    if (!use->IsChange()) {
+      return true;
+    }
   }
 
   return false;
-}
-
-
-void HLoadKeyedFastDoubleElement::PrintDataTo(StringStream* stream) {
-  elements()->PrintNameTo(stream);
-  stream->Add("[");
-  key()->PrintNameTo(stream);
-  stream->Add("] ");
-  dependency()->PrintNameTo(stream);
 }
 
 
@@ -1896,21 +1892,22 @@ HValue* HLoadKeyedGeneric::Canonicalize() {
   // Recognize generic keyed loads that use property name generated
   // by for-in statement as a key and rewrite them into fast property load
   // by index.
-  if (key()->IsLoadKeyedFastElement()) {
-    HLoadKeyedFastElement* key_load = HLoadKeyedFastElement::cast(key());
-    if (key_load->object()->IsForInCacheArray()) {
+  if (key()->IsLoadKeyed()) {
+    HLoadKeyed* key_load = HLoadKeyed::cast(key());
+    if (key_load->elements()->IsForInCacheArray()) {
       HForInCacheArray* names_cache =
-          HForInCacheArray::cast(key_load->object());
+          HForInCacheArray::cast(key_load->elements());
 
       if (names_cache->enumerable() == object()) {
         HForInCacheArray* index_cache =
             names_cache->index_cache();
         HCheckMapValue* map_check =
             new(block()->zone()) HCheckMapValue(object(), names_cache->map());
-        HInstruction* index = new(block()->zone()) HLoadKeyedFastElement(
+        HInstruction* index = new(block()->zone()) HLoadKeyed(
             index_cache,
             key_load->key(),
-            key_load->key());
+            key_load->key(),
+            key_load->elements_kind());
         map_check->InsertBefore(this);
         index->InsertBefore(this);
         HLoadFieldByIndex* load = new(block()->zone()) HLoadFieldByIndex(
@@ -1922,56 +1919,6 @@ HValue* HLoadKeyedGeneric::Canonicalize() {
   }
 
   return this;
-}
-
-
-void HLoadKeyedSpecializedArrayElement::PrintDataTo(
-    StringStream* stream) {
-  external_pointer()->PrintNameTo(stream);
-  stream->Add(".");
-  switch (elements_kind()) {
-    case EXTERNAL_BYTE_ELEMENTS:
-      stream->Add("byte");
-      break;
-    case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
-      stream->Add("u_byte");
-      break;
-    case EXTERNAL_SHORT_ELEMENTS:
-      stream->Add("short");
-      break;
-    case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
-      stream->Add("u_short");
-      break;
-    case EXTERNAL_INT_ELEMENTS:
-      stream->Add("int");
-      break;
-    case EXTERNAL_UNSIGNED_INT_ELEMENTS:
-      stream->Add("u_int");
-      break;
-    case EXTERNAL_FLOAT_ELEMENTS:
-      stream->Add("float");
-      break;
-    case EXTERNAL_DOUBLE_ELEMENTS:
-      stream->Add("double");
-      break;
-    case EXTERNAL_PIXEL_ELEMENTS:
-      stream->Add("pixel");
-      break;
-    case FAST_ELEMENTS:
-    case FAST_SMI_ELEMENTS:
-    case FAST_DOUBLE_ELEMENTS:
-    case FAST_HOLEY_ELEMENTS:
-    case FAST_HOLEY_SMI_ELEMENTS:
-    case FAST_HOLEY_DOUBLE_ELEMENTS:
-    case DICTIONARY_ELEMENTS:
-    case NON_STRICT_ARGUMENTS_ELEMENTS:
-      UNREACHABLE();
-      break;
-  }
-  stream->Add("[");
-  key()->PrintNameTo(stream);
-  stream->Add("] ");
-  dependency()->PrintNameTo(stream);
 }
 
 
@@ -2001,17 +1948,17 @@ void HStoreNamedField::PrintDataTo(StringStream* stream) {
 }
 
 
-void HStoreKeyedFastElement::PrintDataTo(StringStream* stream) {
-  object()->PrintNameTo(stream);
-  stream->Add("[");
-  key()->PrintNameTo(stream);
-  stream->Add("] = ");
-  value()->PrintNameTo(stream);
-}
+void HStoreKeyed::PrintDataTo(StringStream* stream) {
+  if (!is_external()) {
+    elements()->PrintNameTo(stream);
+  } else {
+    elements()->PrintNameTo(stream);
+    stream->Add(".");
+    stream->Add(ElementsKindToString(elements_kind()));
+    ASSERT(elements_kind() >= FIRST_EXTERNAL_ARRAY_ELEMENTS_KIND &&
+           elements_kind() <= LAST_EXTERNAL_ARRAY_ELEMENTS_KIND);
+  }
 
-
-void HStoreKeyedFastDoubleElement::PrintDataTo(StringStream* stream) {
-  elements()->PrintNameTo(stream);
   stream->Add("[");
   key()->PrintNameTo(stream);
   stream->Add("] = ");
@@ -2021,56 +1968,6 @@ void HStoreKeyedFastDoubleElement::PrintDataTo(StringStream* stream) {
 
 void HStoreKeyedGeneric::PrintDataTo(StringStream* stream) {
   object()->PrintNameTo(stream);
-  stream->Add("[");
-  key()->PrintNameTo(stream);
-  stream->Add("] = ");
-  value()->PrintNameTo(stream);
-}
-
-
-void HStoreKeyedSpecializedArrayElement::PrintDataTo(
-    StringStream* stream) {
-  external_pointer()->PrintNameTo(stream);
-  stream->Add(".");
-  switch (elements_kind()) {
-    case EXTERNAL_BYTE_ELEMENTS:
-      stream->Add("byte");
-      break;
-    case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
-      stream->Add("u_byte");
-      break;
-    case EXTERNAL_SHORT_ELEMENTS:
-      stream->Add("short");
-      break;
-    case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
-      stream->Add("u_short");
-      break;
-    case EXTERNAL_INT_ELEMENTS:
-      stream->Add("int");
-      break;
-    case EXTERNAL_UNSIGNED_INT_ELEMENTS:
-      stream->Add("u_int");
-      break;
-    case EXTERNAL_FLOAT_ELEMENTS:
-      stream->Add("float");
-      break;
-    case EXTERNAL_DOUBLE_ELEMENTS:
-      stream->Add("double");
-      break;
-    case EXTERNAL_PIXEL_ELEMENTS:
-      stream->Add("pixel");
-      break;
-    case FAST_SMI_ELEMENTS:
-    case FAST_ELEMENTS:
-    case FAST_DOUBLE_ELEMENTS:
-    case FAST_HOLEY_SMI_ELEMENTS:
-    case FAST_HOLEY_ELEMENTS:
-    case FAST_HOLEY_DOUBLE_ELEMENTS:
-    case DICTIONARY_ELEMENTS:
-    case NON_STRICT_ARGUMENTS_ELEMENTS:
-      UNREACHABLE();
-      break;
-  }
   stream->Add("[");
   key()->PrintNameTo(stream);
   stream->Add("] = ");
@@ -2368,10 +2265,10 @@ HValue* HAdd::EnsureAndPropagateNotMinusZero(BitVector* visited) {
 }
 
 
-bool HStoreKeyedFastDoubleElement::NeedsCanonicalization() {
-  // If value was loaded from unboxed double backing store or
-  // converted from an integer then we don't have to canonicalize it.
-  if (value()->IsLoadKeyedFastDoubleElement() ||
+bool HStoreKeyed::NeedsCanonicalization() {
+  // If value is an integer or comes from the result of a keyed load
+  // then it will be a non-hole value: no need for canonicalization.
+  if (value()->IsLoadKeyed() ||
       (value()->IsChange() && HChange::cast(value())->from().IsInteger32())) {
     return false;
   }
@@ -2628,12 +2525,6 @@ void HCheckNonSmi::Verify() {
 
 
 void HCheckFunction::Verify() {
-  HInstruction::Verify();
-  ASSERT(HasNoUses());
-}
-
-
-void HCheckPrototypeMaps::Verify() {
   HInstruction::Verify();
   ASSERT(HasNoUses());
 }

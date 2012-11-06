@@ -393,7 +393,9 @@ DEFINE_bool(trace_external_memory, false,
 DEFINE_bool(collect_maps, true,
             "garbage collect maps from which no objects can be reached")
 DEFINE_bool(flush_code, true,
-            "flush code that we expect not to use again before full gc")
+            "flush code that we expect not to use again (during full gc)")
+DEFINE_bool(flush_code_incrementally, false,
+            "flush code that we expect not to use again (incrementally)")
 DEFINE_bool(incremental_marking, true, "use incremental marking")
 DEFINE_bool(incremental_marking_steps, true, "do incremental marking steps")
 DEFINE_bool(trace_incremental_marking, false,

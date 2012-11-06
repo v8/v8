@@ -23,6 +23,19 @@ static void InitializeVM() {
 }
 
 
+// Go through all incremental marking steps in one swoop.
+static void SimulateIncrementalMarking() {
+  IncrementalMarking* marking = HEAP->incremental_marking();
+  CHECK(marking->IsStopped());
+  marking->Start();
+  CHECK(marking->IsMarking());
+  while (!marking->IsComplete()) {
+    marking->Step(MB, IncrementalMarking::NO_GC_VIA_STACK_GUARD);
+  }
+  CHECK(marking->IsComplete());
+}
+
+
 static void CheckMap(Map* map, int type, int instance_size) {
   CHECK(map->IsHeapObject());
 #ifdef DEBUG
@@ -942,9 +955,9 @@ TEST(Regression39128) {
 
 
 TEST(TestCodeFlushing) {
-  i::FLAG_allow_natives_syntax = true;
   // If we do not flush code this test is invalid.
   if (!FLAG_flush_code) return;
+  i::FLAG_allow_natives_syntax = true;
   InitializeVM();
   v8::HandleScope scope;
   const char* source = "function foo() {"
@@ -967,18 +980,16 @@ TEST(TestCodeFlushing) {
   Handle<JSFunction> function(JSFunction::cast(func_value));
   CHECK(function->shared()->is_compiled());
 
-  // TODO(1609) Currently incremental marker does not support code flushing.
-  HEAP->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
-  HEAP->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
-
+  // The code will survive at least two GCs.
+  HEAP->CollectAllGarbage(Heap::kNoGCFlags);
+  HEAP->CollectAllGarbage(Heap::kNoGCFlags);
   CHECK(function->shared()->is_compiled());
 
-  HEAP->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
-  HEAP->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
-  HEAP->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
-  HEAP->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
-  HEAP->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
-  HEAP->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
+  // Simulate several GCs that use full marking.
+  const int kAgingThreshold = 6;
+  for (int i = 0; i < kAgingThreshold; i++) {
+    HEAP->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
+  }
 
   // foo should no longer be in the compilation cache
   CHECK(!function->shared()->is_compiled() || function->IsOptimized());
@@ -987,6 +998,138 @@ TEST(TestCodeFlushing) {
   CompileRun("foo()");
   CHECK(function->shared()->is_compiled());
   CHECK(function->is_compiled());
+}
+
+
+TEST(TestCodeFlushingIncremental) {
+  // If we do not flush code this test is invalid.
+  if (!FLAG_flush_code || !FLAG_flush_code_incrementally) return;
+  i::FLAG_allow_natives_syntax = true;
+  InitializeVM();
+  v8::HandleScope scope;
+  const char* source = "function foo() {"
+                       "  var x = 42;"
+                       "  var y = 42;"
+                       "  var z = x + y;"
+                       "};"
+                       "foo()";
+  Handle<String> foo_name = FACTORY->LookupAsciiSymbol("foo");
+
+  // This compile will add the code to the compilation cache.
+  { v8::HandleScope scope;
+    CompileRun(source);
+  }
+
+  // Check function is compiled.
+  Object* func_value = Isolate::Current()->context()->global_object()->
+      GetProperty(*foo_name)->ToObjectChecked();
+  CHECK(func_value->IsJSFunction());
+  Handle<JSFunction> function(JSFunction::cast(func_value));
+  CHECK(function->shared()->is_compiled());
+
+  // The code will survive at least two GCs.
+  HEAP->CollectAllGarbage(Heap::kNoGCFlags);
+  HEAP->CollectAllGarbage(Heap::kNoGCFlags);
+  CHECK(function->shared()->is_compiled());
+
+  // Simulate several GCs that use incremental marking.
+  const int kAgingThreshold = 6;
+  for (int i = 0; i < kAgingThreshold; i++) {
+    HEAP->incremental_marking()->Abort();
+    SimulateIncrementalMarking();
+    HEAP->CollectAllGarbage(Heap::kNoGCFlags);
+  }
+  CHECK(!function->shared()->is_compiled() || function->IsOptimized());
+  CHECK(!function->is_compiled() || function->IsOptimized());
+
+  // This compile will compile the function again.
+  { v8::HandleScope scope;
+    CompileRun("foo();");
+  }
+
+  // Simulate several GCs that use incremental marking but make sure
+  // the loop breaks once the function is enqueued as a candidate.
+  for (int i = 0; i < kAgingThreshold; i++) {
+    HEAP->incremental_marking()->Abort();
+    SimulateIncrementalMarking();
+    if (!function->next_function_link()->IsUndefined()) break;
+    HEAP->CollectAllGarbage(Heap::kNoGCFlags);
+  }
+
+  // Force optimization while incremental marking is active and while
+  // the function is enqueued as a candidate.
+  { v8::HandleScope scope;
+    CompileRun("%OptimizeFunctionOnNextCall(foo); foo();");
+  }
+
+  // Simulate one final GC to make sure the candidate queue is sane.
+  HEAP->CollectAllGarbage(Heap::kNoGCFlags);
+  CHECK(function->shared()->is_compiled() || !function->IsOptimized());
+  CHECK(function->is_compiled() || !function->IsOptimized());
+}
+
+
+TEST(TestCodeFlushingIncrementalScavenge) {
+  // If we do not flush code this test is invalid.
+  if (!FLAG_flush_code || !FLAG_flush_code_incrementally) return;
+  i::FLAG_allow_natives_syntax = true;
+  InitializeVM();
+  v8::HandleScope scope;
+  const char* source = "var foo = function() {"
+                       "  var x = 42;"
+                       "  var y = 42;"
+                       "  var z = x + y;"
+                       "};"
+                       "foo();"
+                       "var bar = function() {"
+                       "  var x = 23;"
+                       "};"
+                       "bar();";
+  Handle<String> foo_name = FACTORY->LookupAsciiSymbol("foo");
+  Handle<String> bar_name = FACTORY->LookupAsciiSymbol("bar");
+
+  // Perfrom one initial GC to enable code flushing.
+  HEAP->CollectAllGarbage(Heap::kNoGCFlags);
+
+  // This compile will add the code to the compilation cache.
+  { v8::HandleScope scope;
+    CompileRun(source);
+  }
+
+  // Check functions are compiled.
+  Object* func_value = Isolate::Current()->context()->global_object()->
+      GetProperty(*foo_name)->ToObjectChecked();
+  CHECK(func_value->IsJSFunction());
+  Handle<JSFunction> function(JSFunction::cast(func_value));
+  CHECK(function->shared()->is_compiled());
+  Object* func_value2 = Isolate::Current()->context()->global_object()->
+      GetProperty(*bar_name)->ToObjectChecked();
+  CHECK(func_value2->IsJSFunction());
+  Handle<JSFunction> function2(JSFunction::cast(func_value2));
+  CHECK(function2->shared()->is_compiled());
+
+  // Clear references to functions so that one of them can die.
+  { v8::HandleScope scope;
+    CompileRun("foo = 0; bar = 0;");
+  }
+
+  // Bump the code age so that flushing is triggered while the function
+  // object is still located in new-space.
+  const int kAgingThreshold = 6;
+  function->shared()->set_code_age(kAgingThreshold);
+  function2->shared()->set_code_age(kAgingThreshold);
+
+  // Simulate incremental marking so that the functions are enqueued as
+  // code flushing candidates. Then kill one of the functions. Finally
+  // perform a scavenge while incremental marking is still running.
+  SimulateIncrementalMarking();
+  *function2.location() = NULL;
+  HEAP->CollectGarbage(NEW_SPACE, "test scavenge while marking");
+
+  // Simulate one final GC to make sure the candidate queue is sane.
+  HEAP->CollectAllGarbage(Heap::kNoGCFlags);
+  CHECK(!function->shared()->is_compiled() || function->IsOptimized());
+  CHECK(!function->is_compiled() || function->IsOptimized());
 }
 
 
@@ -1764,19 +1907,6 @@ TEST(OptimizedAllocationAlwaysInNewSpace) {
 
 static int CountMapTransitions(Map* map) {
   return map->transitions()->number_of_transitions();
-}
-
-
-// Go through all incremental marking steps in one swoop.
-static void SimulateIncrementalMarking() {
-  IncrementalMarking* marking = HEAP->incremental_marking();
-  CHECK(marking->IsStopped());
-  marking->Start();
-  CHECK(marking->IsMarking());
-  while (!marking->IsComplete()) {
-    marking->Step(MB, IncrementalMarking::NO_GC_VIA_STACK_GUARD);
-  }
-  CHECK(marking->IsComplete());
 }
 
 

@@ -25,6 +25,9 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// We want to test our deprecated API entries, too.
+#define V8_DISABLE_DEPRECATIONS 1
+
 #include <limits.h>
 
 #ifndef WIN32
@@ -2056,6 +2059,99 @@ THREADED_TEST(InternalFieldsNativePointersAndExternal) {
 }
 
 
+static void CheckAlignedPointerInInternalField(Handle<v8::Object> obj,
+                                               void* value) {
+  CHECK_EQ(0, static_cast<int>(reinterpret_cast<uintptr_t>(value) & 0x1));
+  obj->SetPointerInInternalField(0, value);
+  HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
+  CHECK_EQ(value, obj->GetPointerFromInternalField(0));
+}
+
+
+THREADED_TEST(InternalFieldsAlignedPointers) {
+  v8::HandleScope scope;
+  LocalContext env;
+
+  Local<v8::FunctionTemplate> templ = v8::FunctionTemplate::New();
+  Local<v8::ObjectTemplate> instance_templ = templ->InstanceTemplate();
+  instance_templ->SetInternalFieldCount(1);
+  Local<v8::Object> obj = templ->GetFunction()->NewInstance();
+  CHECK_EQ(1, obj->InternalFieldCount());
+
+  CheckAlignedPointerInInternalField(obj, NULL);
+
+  int* heap_allocated = new int[100];
+  CheckAlignedPointerInInternalField(obj, heap_allocated);
+  delete[] heap_allocated;
+
+  int stack_allocated[100];
+  CheckAlignedPointerInInternalField(obj, stack_allocated);
+
+  void* huge = reinterpret_cast<void*>(~static_cast<uintptr_t>(1));
+  CheckAlignedPointerInInternalField(obj, huge);
+}
+
+
+static void CheckAlignedPointerInEmbedderData(LocalContext* env,
+                                              int index,
+                                              void* value) {
+  CHECK_EQ(0, static_cast<int>(reinterpret_cast<uintptr_t>(value) & 0x1));
+  (*env)->SetAlignedPointerInEmbedderData(index, value);
+  HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
+  CHECK_EQ(value, (*env)->GetAlignedPointerFromEmbedderData(index));
+}
+
+
+static void* AlignedTestPointer(int i) {
+  return reinterpret_cast<void*>(i * 1234);
+}
+
+
+THREADED_TEST(EmbedderDataAlignedPointers) {
+  v8::HandleScope scope;
+  LocalContext env;
+
+  CheckAlignedPointerInEmbedderData(&env, 0, NULL);
+
+  int* heap_allocated = new int[100];
+  CheckAlignedPointerInEmbedderData(&env, 1, heap_allocated);
+  delete[] heap_allocated;
+
+  int stack_allocated[100];
+  CheckAlignedPointerInEmbedderData(&env, 2, stack_allocated);
+
+  void* huge = reinterpret_cast<void*>(~static_cast<uintptr_t>(1));
+  CheckAlignedPointerInEmbedderData(&env, 3, huge);
+
+  // Test growing of the embedder data's backing store.
+  for (int i = 0; i < 100; i++) {
+    env->SetAlignedPointerInEmbedderData(i, AlignedTestPointer(i));
+  }
+  HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
+  for (int i = 0; i < 100; i++) {
+    CHECK_EQ(AlignedTestPointer(i), env->GetAlignedPointerFromEmbedderData(i));
+  }
+}
+
+
+static void CheckEmbedderData(LocalContext* env,
+                              int index,
+                              v8::Handle<Value> data) {
+  (*env)->SetEmbedderData(index, data);
+  CHECK((*env)->GetEmbedderData(index)->StrictEquals(data));
+}
+
+THREADED_TEST(EmbedderData) {
+  v8::HandleScope scope;
+  LocalContext env;
+
+  CheckEmbedderData(&env, 3, v8::String::New("The quick brown fox jumps"));
+  CheckEmbedderData(&env, 2, v8::String::New("over the lazy dog."));
+  CheckEmbedderData(&env, 1, v8::Number::New(1.2345));
+  CheckEmbedderData(&env, 0, v8::Boolean::New(true));
+}
+
+
 THREADED_TEST(IdentityHash) {
   v8::HandleScope scope;
   LocalContext env;
@@ -2249,6 +2345,14 @@ THREADED_TEST(GlobalHandle) {
   }
   CHECK_EQ(global->Length(), 3);
   global.Dispose();
+
+  {
+    v8::HandleScope scope;
+    Local<String> str = v8_str("str");
+    global = v8::Persistent<String>::New(str);
+  }
+  CHECK_EQ(global->Length(), 3);
+  global.Dispose(v8::Isolate::GetCurrent());
 }
 
 
@@ -5315,11 +5419,14 @@ THREADED_TEST(IndependentWeakHandle) {
     object_a = v8::Persistent<v8::Object>::New(v8::Object::New());
   }
 
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
   bool object_a_disposed = false;
   object_a.MakeWeak(&object_a_disposed, &DisposeAndSetFlag);
   CHECK(!object_a.IsIndependent());
+  CHECK(!object_a.IsIndependent(isolate));
   object_a.MarkIndependent();
   CHECK(object_a.IsIndependent());
+  CHECK(object_a.IsIndependent(isolate));
   HEAP->PerformScavenge();
   CHECK(object_a_disposed);
 }
@@ -14816,11 +14923,12 @@ THREADED_TEST(GetHeapStatistics) {
 
 class VisitorImpl : public v8::ExternalResourceVisitor {
  public:
-  VisitorImpl(TestResource* r1, TestResource* r2)
-      : resource1_(r1),
-        resource2_(r2),
-        found_resource1_(false),
-        found_resource2_(false) {}
+  explicit VisitorImpl(TestResource** resource) {
+    for (int i = 0; i < 4; i++) {
+      resource_[i] = resource[i];
+      found_resource_[i] = false;
+    }
+  }
   virtual ~VisitorImpl() {}
   virtual void VisitExternalString(v8::Handle<v8::String> string) {
     if (!string->IsExternal()) {
@@ -14830,25 +14938,22 @@ class VisitorImpl : public v8::ExternalResourceVisitor {
     v8::String::ExternalStringResource* resource =
         string->GetExternalStringResource();
     CHECK(resource);
-    if (resource1_ == resource) {
-      CHECK(!found_resource1_);
-      found_resource1_ = true;
-    }
-    if (resource2_ == resource) {
-      CHECK(!found_resource2_);
-      found_resource2_ = true;
+    for (int i = 0; i < 4; i++) {
+      if (resource_[i] == resource) {
+        CHECK(!found_resource_[i]);
+        found_resource_[i] = true;
+      }
     }
   }
   void CheckVisitedResources() {
-    CHECK(found_resource1_);
-    CHECK(found_resource2_);
+    for (int i = 0; i < 4; i++) {
+      CHECK(found_resource_[i]);
+    }
   }
 
  private:
-  v8::String::ExternalStringResource* resource1_;
-  v8::String::ExternalStringResource* resource2_;
-  bool found_resource1_;
-  bool found_resource2_;
+  v8::String::ExternalStringResource* resource_[4];
+  bool found_resource_[4];
 };
 
 TEST(VisitExternalStrings) {
@@ -14856,16 +14961,33 @@ TEST(VisitExternalStrings) {
   LocalContext env;
   const char* string = "Some string";
   uint16_t* two_byte_string = AsciiToTwoByteString(string);
-  TestResource* resource1 = new TestResource(two_byte_string);
-  v8::Local<v8::String> string1 = v8::String::NewExternal(resource1);
-  TestResource* resource2 = new TestResource(two_byte_string);
-  v8::Local<v8::String> string2 = v8::String::NewExternal(resource2);
+  TestResource* resource[4];
+  resource[0] = new TestResource(two_byte_string);
+  v8::Local<v8::String> string0 = v8::String::NewExternal(resource[0]);
+  resource[1] = new TestResource(two_byte_string);
+  v8::Local<v8::String> string1 = v8::String::NewExternal(resource[1]);
 
-  // We need to add usages for string1 and string2 to avoid warnings in GCC 4.7
+  // Externalized symbol.
+  resource[2] = new TestResource(two_byte_string);
+  v8::Local<v8::String> string2 = v8::String::NewSymbol(string);
+  CHECK(string2->MakeExternal(resource[2]));
+
+  // Symbolized External.
+  resource[3] = new TestResource(AsciiToTwoByteString("Some other string"));
+  v8::Local<v8::String> string3 = v8::String::NewExternal(resource[3]);
+  HEAP->CollectAllAvailableGarbage();  // Tenure string.
+  // Turn into a symbol.
+  i::Handle<i::String> string3_i = v8::Utils::OpenHandle(*string3);
+  CHECK(!HEAP->LookupSymbol(*string3_i)->IsFailure());
+  CHECK(string3_i->IsSymbol());
+
+  // We need to add usages for string* to avoid warnings in GCC 4.7
+  CHECK(string0->IsExternal());
   CHECK(string1->IsExternal());
   CHECK(string2->IsExternal());
+  CHECK(string3->IsExternal());
 
-  VisitorImpl visitor(resource1, resource2);
+  VisitorImpl visitor(resource);
   v8::V8::VisitExternalResources(&visitor);
   visitor.CheckVisitedResources();
 }
