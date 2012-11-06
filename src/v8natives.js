@@ -60,6 +60,16 @@ function InstallFunctions(object, attributes, functions) {
   %ToFastProperties(object);
 }
 
+
+// Helper function to install a getter only property.
+function InstallGetter(object, name, getter) {
+  %FunctionSetName(getter, name);
+  %FunctionRemovePrototype(getter);
+  %DefineOrRedefineAccessorProperty(object, name, getter, null, DONT_ENUM);
+  %SetNativeFlag(getter);
+}
+
+
 // Prevents changes to the prototype of a built-in function.
 // The "prototype" property of the function object is made non-configurable,
 // and the prototype object is made non-extensible. The latter prevents
