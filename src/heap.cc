@@ -420,13 +420,9 @@ void Heap::GarbageCollectionPrologue() {
   gc_count_++;
   unflattened_strings_length_ = 0;
 
-  bool should_enable_code_flushing = FLAG_flush_code;
-#ifdef ENABLE_DEBUGGER_SUPPORT
-  if (isolate_->debug()->IsLoaded() || isolate_->debug()->has_break_points()) {
-    should_enable_code_flushing = false;
+  if (FLAG_flush_code && FLAG_flush_code_incrementally) {
+    mark_compact_collector()->EnableCodeFlushing(true);
   }
-#endif
-  mark_compact_collector()->EnableCodeFlushing(should_enable_code_flushing);
 
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap) {

@@ -1003,7 +1003,7 @@ TEST(TestCodeFlushing) {
 
 TEST(TestCodeFlushingIncremental) {
   // If we do not flush code this test is invalid.
-  if (!FLAG_flush_code) return;
+  if (!FLAG_flush_code || !FLAG_flush_code_incrementally) return;
   i::FLAG_allow_natives_syntax = true;
   InitializeVM();
   v8::HandleScope scope;
@@ -1071,7 +1071,7 @@ TEST(TestCodeFlushingIncremental) {
 
 TEST(TestCodeFlushingIncrementalScavenge) {
   // If we do not flush code this test is invalid.
-  if (!FLAG_flush_code) return;
+  if (!FLAG_flush_code || !FLAG_flush_code_incrementally) return;
   i::FLAG_allow_natives_syntax = true;
   InitializeVM();
   v8::HandleScope scope;
