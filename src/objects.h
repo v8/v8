@@ -769,6 +769,13 @@ class MaybeObject BASE_EMBEDDED {
     return true;
   }
 
+  template<typename T>
+  inline bool ToHandle(Handle<T>* obj) {
+    if (IsFailure()) return false;
+    *obj = handle(T::cast(reinterpret_cast<Object*>(this)));
+    return true;
+  }
+
 #ifdef OBJECT_PRINT
   // Prints this object with details.
   inline void Print() {
@@ -1687,6 +1694,7 @@ class JSObject: public JSReceiver {
                              Handle<Object> getter,
                              Handle<Object> setter,
                              PropertyAttributes attributes);
+  // Can cause GC.
   MUST_USE_RESULT MaybeObject* DefineAccessor(String* name,
                                               Object* getter,
                                               Object* setter,
@@ -1762,6 +1770,7 @@ class JSObject: public JSReceiver {
 
   static Handle<Object> DeleteProperty(Handle<JSObject> obj,
                                        Handle<String> name);
+  // Can cause GC.
   MUST_USE_RESULT MaybeObject* DeleteProperty(String* name, DeleteMode mode);
 
   static Handle<Object> DeleteElement(Handle<JSObject> obj, uint32_t index);
@@ -2009,7 +2018,7 @@ class JSObject: public JSReceiver {
                                                Object* value,
                                                PropertyAttributes attributes);
 
-  // Add a property to an object.
+  // Add a property to an object. May cause GC.
   MUST_USE_RESULT MaybeObject* AddProperty(
       String* name,
       Object* value,
@@ -2276,6 +2285,11 @@ class JSObject: public JSReceiver {
   // the inline-stored identity hash.
   MUST_USE_RESULT MaybeObject* SetHiddenPropertiesHashTable(
       Object* value);
+
+  // Enqueue change record for Object.observe. May cause GC.
+  void EnqueueChangeRecord(const char* type,
+                           Handle<String> name,
+                           Handle<Object> old_value);
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSObject);
 };

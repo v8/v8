@@ -1377,6 +1377,11 @@ MaybeObject* StoreIC::Store(State state,
     return *value;
   }
 
+  // Observed objects are always modified through the runtime.
+  if (FLAG_harmony_observation && receiver->map()->is_observed()) {
+    return receiver->SetProperty(*name, *value, NONE, strict_mode);
+  }
+
   // Use specialized code for setting the length of arrays with fast
   // properties.  Slow properties might indicate redefinition of the
   // length property.
@@ -1902,7 +1907,8 @@ MaybeObject* KeyedStoreIC::Store(State state,
     }
 
     // Update inline cache and stub cache.
-    if (FLAG_use_ic && !receiver->IsJSGlobalProxy()) {
+    if (FLAG_use_ic && !receiver->IsJSGlobalProxy() &&
+        !(FLAG_harmony_observation && receiver->map()->is_observed())) {
       LookupResult lookup(isolate());
       if (LookupForWrite(receiver, name, &lookup)) {
         UpdateCaches(&lookup, state, strict_mode, receiver, name, value);

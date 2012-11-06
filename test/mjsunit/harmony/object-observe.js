@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --harmony-object-observe
+// Flags: --harmony-observation
 
 var allObservers = [];
 function reset() {
@@ -88,6 +88,7 @@ var recordCreated = false;
 Object.defineProperty(changeRecordWithAccessor, 'name', {
   get: function() {
     recordCreated = true;
+    return "bar";
   },
   enumerable: true
 })
@@ -103,6 +104,7 @@ assertThrows(function() { Object.unobserve(4, observer.callback); }, TypeError);
 // Object.notify
 assertThrows(function() { Object.notify(obj, {}); }, TypeError);
 assertThrows(function() { Object.notify(obj, { type: 4 }); }, TypeError);
+assertFalse(recordCreated);
 Object.notify(obj, changeRecordWithAccessor);
 assertFalse(recordCreated);
 
@@ -217,7 +219,7 @@ observer.assertCallbackRecords([
   { object: obj, type: 'foo', val: 5 }
 ]);
 
-// Observing multiple objects; records appear in order;.
+// Observing multiple objects; records appear in order.
 reset();
 var obj2 = {};
 var obj3 = {}
@@ -238,4 +240,36 @@ observer.assertCallbackRecords([
   { object: obj, type: 'foo' },
   { object: obj2, type: 'foo' },
   { object: obj3, type: 'foo' }
+]);
+
+// Observing named properties.
+reset();
+var obj = {a: 1}
+Object.observe(obj, observer.callback);
+obj.a = 2;
+obj["a"] = 3;
+delete obj.a;
+obj.a = 4;
+obj.a = 5;
+Object.defineProperty(obj, "a", {value: 6});
+Object.defineProperty(obj, "a", {writable: false});
+obj.a = 7;  // ignored
+Object.defineProperty(obj, "a", {value: 8});
+Object.defineProperty(obj, "a", {get: function() {}});
+delete obj.a;
+Object.defineProperty(obj, "a", {get: function() {}});
+Object.deliverChangeRecords(observer.callback);
+// TODO(observe): oldValue not included yet.
+observer.assertCallbackRecords([
+  { object: obj, name: "a", type: "updated" },
+  { object: obj, name: "a", type: "updated" },
+  { object: obj, name: "a", type: "deleted" },
+  { object: obj, name: "a", type: "new" },
+  { object: obj, name: "a", type: "updated" },
+  { object: obj, name: "a", type: "updated" },
+  { object: obj, name: "a", type: "reconfigured" },
+  { object: obj, name: "a", type: "updated" },
+  { object: obj, name: "a", type: "reconfigured" },
+  { object: obj, name: "a", type: "deleted" },
+  { object: obj, name: "a", type: "new" },
 ]);

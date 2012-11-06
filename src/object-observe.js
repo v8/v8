@@ -68,6 +68,7 @@ function ObjectObserve(object, callback) {
       changeObservers: new InternalArray(callback)
     };
     objectInfoMap.set(object, objectInfo);
+    %SetIsObserved(object, true);
     return;
   }
 
@@ -109,6 +110,15 @@ function EnqueueChangeRecord(changeRecord, observers) {
   }
 }
 
+function NotifyChange(type, object, name, oldValue) {
+  var objectInfo = objectInfoMap.get(object);
+  var changeRecord = (arguments.length < 4) ?
+      { type: type, object: object, name: name } :
+      { type: type, object: object, name: name, oldValue: oldValue };
+  InternalObjectFreeze(changeRecord);
+  EnqueueChangeRecord(changeRecord, objectInfo.changeObservers);
+}
+
 function ObjectNotify(object, changeRecord) {
   // TODO: notifier needs to be [[THIS]]
   if (!IS_STRING(changeRecord.type))
@@ -119,7 +129,7 @@ function ObjectNotify(object, changeRecord) {
     return;
 
   var newRecord = {
-    object: object  // TODO: Needs to be 'object' retreived from notifier
+    object: object  // TODO: Needs to be 'object' retrieved from notifier
   };
   for (var prop in changeRecord) {
     if (prop === 'object')

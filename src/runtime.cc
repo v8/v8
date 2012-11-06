@@ -13237,7 +13237,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetIsObserved) {
   if (obj->map()->is_observed() != is_observed) {
     MaybeObject* maybe = obj->map()->Copy();
     Map* map;
-    if (!maybe->To<Map>(&map)) return maybe;
+    if (!maybe->To(&map)) return maybe;
     map->set_is_observed(is_observed);
     obj->set_map(map);
   }

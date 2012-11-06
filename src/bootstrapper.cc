@@ -1416,6 +1416,9 @@ void Genesis::InstallExperimentalNativeFunctions() {
     INSTALL_NATIVE(JSFunction, "DerivedSetTrap", derived_set_trap);
     INSTALL_NATIVE(JSFunction, "ProxyEnumerate", proxy_enumerate);
   }
+  if (FLAG_harmony_observation) {
+    INSTALL_NATIVE(JSFunction, "NotifyChange", observers_notify_change);
+  }
 }
 
 #undef INSTALL_NATIVE
@@ -1829,7 +1832,7 @@ bool Genesis::InstallExperimentalNatives() {
                "native collection.js") == 0) {
       if (!CompileExperimentalBuiltin(isolate(), i)) return false;
     }
-    if (FLAG_harmony_object_observe &&
+    if (FLAG_harmony_observation &&
         strcmp(ExperimentalNatives::GetScriptName(i).start(),
                "native object-observe.js") == 0) {
       if (!CompileExperimentalBuiltin(isolate(), i)) return false;

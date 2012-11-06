@@ -95,6 +95,13 @@ class Handle {
 };
 
 
+// Convenience wrapper.
+template<class T>
+inline Handle<T> handle(T* t) {
+  return Handle<T>(t);
+}
+
+
 class DeferredHandles;
 class HandleScopeImplementer;
 
