@@ -1613,7 +1613,7 @@ class Object : public Value {
    * otherwise use a combination of GetInternalField, External::Cast and
    * External::Value.
    */
-  V8_DEPRECATED(void* GetPointerFromInternalField(int index));
+  V8EXPORT V8_DEPRECATED(void* GetPointerFromInternalField(int index));
 
   /**
    * Sets a native pointer in an internal field. Deprecated. If the pointer is
