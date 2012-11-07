@@ -6501,6 +6501,7 @@ void Testing::PrepareStressRun(int run) {
 
 
 void Testing::DeoptimizeAll() {
+  i::HandleScope scope;
   internal::Deoptimizer::DeoptimizeAll();
 }
 
