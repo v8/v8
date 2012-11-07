@@ -106,7 +106,7 @@ static const int kDeoptTableMaxEpilogueCodeSize = 2 * KB;
 
 
 size_t Deoptimizer::GetMaxDeoptTableSize() {
-  size_t entries_size =
+  int entries_size =
       Deoptimizer::kMaxNumberOfEntries * Deoptimizer::table_entry_size_;
   int page_count = ((kDeoptTableMaxEpilogueCodeSize + entries_size - 1) /
                     OS::CommitPageSize()) + 1;
