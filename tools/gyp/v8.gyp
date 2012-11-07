@@ -69,6 +69,14 @@
                 ],
               },
               'conditions': [
+                ['OS=="android"', {
+                  'libraries': [
+                    '-llog',
+                  ],
+                  'include_dirs': [
+                    'src/common/android/include',
+                  ],
+                }],
                 ['OS=="mac"', {
                   'xcode_settings': {
                     'OTHER_LDFLAGS': ['-dynamiclib', '-all_load']
