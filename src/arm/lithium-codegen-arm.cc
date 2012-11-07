@@ -3040,13 +3040,12 @@ void LCodeGen::DoLoadKeyedFixedDoubleArray(LLoadKeyed* instr) {
                    (instr->additional_index() << element_size_shift)));
   }
 
+  __ vldr(result, elements, 0);
   if (instr->hydrogen()->RequiresHoleCheck()) {
     __ ldr(scratch, MemOperand(elements, sizeof(kHoleNanLower32)));
     __ cmp(scratch, Operand(kHoleNanUpper32));
     DeoptimizeIf(eq, instr->environment());
   }
-
-  __ vldr(result, elements, 0);
 }
 
 
