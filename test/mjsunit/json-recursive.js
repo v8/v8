@@ -42,19 +42,14 @@ assertThrows(function() { rec(1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4) },
              RangeError);
 
 
-var depth1 = 1500;
-var depth2 = 10000;
+var depth = 10000;
 var deepArray = [];
-for (var i = 0; i < depth1; i++) deepArray = [deepArray];
-JSON.stringify(deepArray);
-for (var i = depth1; i < depth2; i++) deepArray = [deepArray];
+for (var i = 0; i < depth; i++) deepArray = [deepArray];
 assertThrows(function() { JSON.stringify(deepArray); }, RangeError);
 
 
 var deepObject = {};
-for (var i = 0; i < depth1; i++) deepObject = { next: deepObject };
-JSON.stringify(deepObject);
-for (var i = depth1; i < depth2; i++) deepObject = { next: deepObject };
+for (var i = 0; i < depth; i++) deepObject = { next: deepObject };
 assertThrows(function() { JSON.stringify(deepObject); }, RangeError);
 
 
