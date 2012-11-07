@@ -250,26 +250,39 @@ obj.a = 2;
 obj["a"] = 3;
 delete obj.a;
 obj.a = 4;
+obj.a = 4;  // ignored
 obj.a = 5;
 Object.defineProperty(obj, "a", {value: 6});
 Object.defineProperty(obj, "a", {writable: false});
 obj.a = 7;  // ignored
 Object.defineProperty(obj, "a", {value: 8});
+Object.defineProperty(obj, "a", {value: 7, writable: true});
+Object.defineProperty(obj, "a", {get: function() {}});
 Object.defineProperty(obj, "a", {get: function() {}});
 delete obj.a;
-Object.defineProperty(obj, "a", {get: function() {}});
+delete obj.a;
+Object.defineProperty(obj, "a", {get: function() {}, configurable: true});
+Object.defineProperty(obj, "a", {value: 9, writable: true});
+obj.a = 10;
+delete obj.a;
+Object.defineProperty(obj, "a", {value: 11, configurable: true});
 Object.deliverChangeRecords(observer.callback);
-// TODO(observe): oldValue not included yet.
 observer.assertCallbackRecords([
-  { object: obj, name: "a", type: "updated" },
-  { object: obj, name: "a", type: "updated" },
+  { object: obj, name: "a", type: "updated", oldValue: 1 },
+  { object: obj, name: "a", type: "updated", oldValue: 2 },
+  { object: obj, name: "a", type: "deleted", oldValue: 3 },
+  { object: obj, name: "a", type: "new" },
+  { object: obj, name: "a", type: "updated", oldValue: 4 },
+  { object: obj, name: "a", type: "updated", oldValue: 5 },
+  { object: obj, name: "a", type: "reconfigured", oldValue: 6 },
+  { object: obj, name: "a", type: "updated", oldValue: 6 },
+  { object: obj, name: "a", type: "reconfigured", oldValue: 8 },
+  { object: obj, name: "a", type: "reconfigured", oldValue: 7 },
+  { object: obj, name: "a", type: "reconfigured" },
   { object: obj, name: "a", type: "deleted" },
   { object: obj, name: "a", type: "new" },
-  { object: obj, name: "a", type: "updated" },
-  { object: obj, name: "a", type: "updated" },
   { object: obj, name: "a", type: "reconfigured" },
-  { object: obj, name: "a", type: "updated" },
-  { object: obj, name: "a", type: "reconfigured" },
-  { object: obj, name: "a", type: "deleted" },
+  { object: obj, name: "a", type: "updated", oldValue: 9 },
+  { object: obj, name: "a", type: "deleted", oldValue: 10 },
   { object: obj, name: "a", type: "new" },
 ]);

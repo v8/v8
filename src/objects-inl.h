@@ -5088,6 +5088,7 @@ PropertyAttributes JSReceiver::GetPropertyAttribute(String* key) {
   return GetPropertyAttributeWithReceiver(this, key);
 }
 
+
 // TODO(504): this may be useful in other places too where JSGlobalProxy
 // is used.
 Object* JSObject::BypassGlobalProxy() {

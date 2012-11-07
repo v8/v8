@@ -1499,10 +1499,10 @@ class JSReceiver: public HeapObject {
   Smi* GenerateIdentityHash();
 
  private:
-  PropertyAttributes GetPropertyAttribute(JSReceiver* receiver,
-                                          LookupResult* result,
-                                          String* name,
-                                          bool continue_search);
+  PropertyAttributes GetPropertyAttributeForResult(JSReceiver* receiver,
+                                                   LookupResult* result,
+                                                   String* name,
+                                                   bool continue_search);
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSReceiver);
 };
