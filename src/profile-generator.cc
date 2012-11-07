@@ -1988,7 +1988,7 @@ void V8HeapExplorer::ExtractContextReferences(int entry, Context* context) {
               "(context func. result caches)");
     TagObject(context->normalized_map_cache(), "(context norm. map cache)");
     TagObject(context->runtime_context(), "(runtime context)");
-    TagObject(context->embedder_data(), "(context data)");
+    TagObject(context->data(), "(context data)");
     NATIVE_CONTEXT_FIELDS(EXTRACT_CONTEXT_FIELD);
 #undef EXTRACT_CONTEXT_FIELD
     for (int i = Context::FIRST_WEAK_SLOT;
