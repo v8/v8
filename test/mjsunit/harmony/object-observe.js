@@ -333,6 +333,41 @@ observer.assertCallbackRecords([
   { object: obj, name: "1", type: "new" },
 ]);
 
+// Observing array length (including truncation)
+reset();
+var arr = ['a', 'b', 'c', 'd'];
+var arr2 = ['alpha', 'beta'];
+var arr3 = ['hello'];
+// TODO(adamk): Enable this test case when it can run in a reasonable
+// amount of time.
+//var slow_arr = new Array(1000000000);
+//slow_arr[500000000] = 'hello';
+Object.defineProperty(arr, '0', {configurable: false});
+Object.defineProperty(arr, '2', {get: function(){}});
+Object.defineProperty(arr2, '0', {get: function(){}, configurable: false});
+Object.observe(arr, observer.callback);
+Object.observe(arr2, observer.callback);
+Object.observe(arr3, observer.callback);
+arr.length = 2;
+arr.length = 0;
+arr.length = 10;
+arr2.length = 0;
+arr2.length = 1; // no change expected
+arr3.length = 0;
+Object.deliverChangeRecords(observer.callback);
+observer.assertCallbackRecords([
+  { object: arr, name: '3', type: 'deleted', oldValue: 'd' },
+  // TODO(adamk): oldValue should not be present below
+  { object: arr, name: '2', type: 'deleted', oldValue: undefined },
+  { object: arr, name: 'length', type: 'updated', oldValue: 4 },
+  { object: arr, name: '1', type: 'deleted', oldValue: 'b' },
+  { object: arr, name: 'length', type: 'updated', oldValue: 2 },
+  { object: arr, name: 'length', type: 'updated', oldValue: 1 },
+  { object: arr2, name: '1', type: 'deleted', oldValue: 'beta' },
+  { object: arr2, name: 'length', type: 'updated', oldValue: 2 },
+  { object: arr3, name: '0', type: 'deleted', oldValue: 'hello' },
+  { object: arr3, name: 'length', type: 'updated', oldValue: 1 },
+]);
 
 // Assignments in loops (checking different IC states).
 reset();

@@ -95,6 +95,47 @@ Object* Accessors::FlattenNumber(Object* value) {
 }
 
 
+static MaybeObject* ArraySetLengthObserved(Isolate* isolate,
+                                           Handle<JSArray> array,
+                                           Handle<Object> new_length_handle) {
+  List<Handle<String> > indices;
+  List<Handle<Object> > old_values;
+  Handle<Object> old_length_handle(array->length(), isolate);
+  uint32_t old_length = 0;
+  CHECK(old_length_handle->ToArrayIndex(&old_length));
+  uint32_t new_length = 0;
+  CHECK(new_length_handle->ToArrayIndex(&new_length));
+  // TODO(adamk): This loop can be very slow for arrays in dictionary mode.
+  // Find another way to iterate over arrays with dictionary elements.
+  for (uint32_t i = old_length - 1; i + 1 > new_length; --i) {
+    PropertyAttributes attributes = array->GetLocalElementAttribute(i);
+    if (attributes == ABSENT) continue;
+    // A non-configurable property will cause the truncation operation to
+    // stop at this index.
+    if (attributes == DONT_DELETE) break;
+    // TODO(adamk): Don't fetch the old value if it's an accessor.
+    old_values.Add(Object::GetElement(array, i));
+    indices.Add(isolate->factory()->Uint32ToString(i));
+  }
+
+  MaybeObject* result = array->SetElementsLength(*new_length_handle);
+  Handle<Object> hresult;
+  if (!result->ToHandle(&hresult)) return result;
+
+  CHECK(array->length()->ToArrayIndex(&new_length));
+  if (old_length != new_length) {
+    for (int i = 0; i < indices.length(); ++i) {
+      JSObject::EnqueueChangeRecord(
+          array, "deleted", indices[i], old_values[i]);
+    }
+    JSObject::EnqueueChangeRecord(
+        array, "updated", isolate->factory()->length_symbol(),
+        old_length_handle);
+  }
+  return *hresult;
+}
+
+
 MaybeObject* Accessors::ArraySetLength(JSObject* object, Object* value, void*) {
   Isolate* isolate = object->GetIsolate();
 
@@ -112,7 +153,7 @@ MaybeObject* Accessors::ArraySetLength(JSObject* object, Object* value, void*) {
   HandleScope scope(isolate);
 
   // Protect raw pointers.
-  Handle<JSObject> object_handle(object, isolate);
+  Handle<JSArray> array_handle(JSArray::cast(object), isolate);
   Handle<Object> value_handle(value, isolate);
 
   bool has_exception;
@@ -122,7 +163,11 @@ MaybeObject* Accessors::ArraySetLength(JSObject* object, Object* value, void*) {
   if (has_exception) return Failure::Exception();
 
   if (uint32_v->Number() == number_v->Number()) {
-    return Handle<JSArray>::cast(object_handle)->SetElementsLength(*uint32_v);
+    if (FLAG_harmony_observation && array_handle->map()->is_observed()) {
+      return ArraySetLengthObserved(isolate, array_handle, uint32_v);
+    } else {
+      return array_handle->SetElementsLength(*uint32_v);
+    }
   }
   return isolate->Throw(
       *isolate->factory()->NewRangeError("invalid_array_length",

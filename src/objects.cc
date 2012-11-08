@@ -1717,20 +1717,21 @@ MaybeObject* JSObject::AddProperty(String* name,
   if (!result->ToHandle(&hresult)) return result;
 
   if (FLAG_harmony_observation && map()->is_observed()) {
-    this->EnqueueChangeRecord(
-        "new", handle(name), handle(heap->the_hole_value()));
+    EnqueueChangeRecord(handle(this), "new", handle(name),
+                        handle(heap->the_hole_value()));
   }
 
   return *hresult;
 }
 
 
-void JSObject::EnqueueChangeRecord(
-    const char* type_str, Handle<String> name, Handle<Object> old_value) {
-  Isolate* isolate = GetIsolate();
+void JSObject::EnqueueChangeRecord(Handle<JSObject> object,
+                                   const char* type_str,
+                                   Handle<String> name,
+                                   Handle<Object> old_value) {
+  Isolate* isolate = object->GetIsolate();
   HandleScope scope;
   Handle<String> type = isolate->factory()->LookupAsciiSymbol(type_str);
-  Handle<JSObject> object(this);
   Handle<Object> args[] = { type, object, name, old_value };
   bool threw;
   Execution::Call(Handle<JSFunction>(isolate->observers_notify_change()),
@@ -2998,13 +2999,13 @@ MaybeObject* JSObject::SetPropertyForResult(LookupResult* lookup,
 
   if (FLAG_harmony_observation && map()->is_observed()) {
     if (lookup->IsTransition()) {
-      self->EnqueueChangeRecord("new", name, old_value);
+      EnqueueChangeRecord(self, "new", name, old_value);
     } else {
       LookupResult new_lookup(self->GetIsolate());
       self->LocalLookup(*name, &new_lookup);
       ASSERT(!new_lookup.GetLazyValue()->IsTheHole());
       if (!new_lookup.GetLazyValue()->SameValue(*old_value)) {
-        self->EnqueueChangeRecord("updated", name, old_value);
+        EnqueueChangeRecord(self, "updated", name, old_value);
       }
     }
   }
@@ -3146,16 +3147,16 @@ MaybeObject* JSObject::SetLocalPropertyIgnoreAttributes(
 
   if (FLAG_harmony_observation && map()->is_observed()) {
     if (lookup.IsTransition()) {
-      self->EnqueueChangeRecord("new", name, old_value);
+      EnqueueChangeRecord(self, "new", name, old_value);
     } else {
       LookupResult new_lookup(isolate);
       self->LocalLookup(*name, &new_lookup);
       ASSERT(!new_lookup.GetLazyValue()->IsTheHole());
       if (old_value->IsTheHole() ||
           new_lookup.GetAttributes() != old_attributes) {
-        self->EnqueueChangeRecord("reconfigured", name, old_value);
+        EnqueueChangeRecord(self, "reconfigured", name, old_value);
       } else if (!new_lookup.GetLazyValue()->SameValue(*old_value)) {
-        self->EnqueueChangeRecord("updated", name, old_value);
+        EnqueueChangeRecord(self, "updated", name, old_value);
       }
     }
   }
@@ -4152,7 +4153,7 @@ MaybeObject* JSObject::DeleteElement(uint32_t index, DeleteMode mode) {
 
   if (FLAG_harmony_observation && map()->is_observed()) {
     if (preexists && !self->HasLocalElement(index))
-      self->EnqueueChangeRecord("deleted", name, old_value);
+      EnqueueChangeRecord(self, "deleted", name, old_value);
   }
 
   return *hresult;
@@ -4239,7 +4240,7 @@ MaybeObject* JSObject::DeleteProperty(String* name, DeleteMode mode) {
 
   if (FLAG_harmony_observation && map()->is_observed()) {
     if (!self->HasLocalProperty(*hname))
-      self->EnqueueChangeRecord("deleted", hname, old_value);
+      EnqueueChangeRecord(self, "deleted", hname, old_value);
   }
 
   return *hresult;
@@ -4906,7 +4907,7 @@ MaybeObject* JSObject::DefineAccessor(String* name_raw,
 
   if (FLAG_harmony_observation && map()->is_observed()) {
     const char* type = preexists ? "reconfigured" : "new";
-    self->EnqueueChangeRecord(type, name, old_value);
+    EnqueueChangeRecord(self, type, name, old_value);
   }
 
   return *hresult;
@@ -10331,13 +10332,13 @@ MaybeObject* JSObject::SetElement(uint32_t index,
   if (FLAG_harmony_observation && map()->is_observed()) {
     PropertyAttributes new_attributes = self->GetLocalPropertyAttribute(*name);
     if (!preexists) {
-      self->EnqueueChangeRecord("new", name, old_value);
+      EnqueueChangeRecord(self, "new", name, old_value);
     } else if (new_attributes != old_attributes || old_value->IsTheHole()) {
-      self->EnqueueChangeRecord("reconfigured", name, old_value);
+      EnqueueChangeRecord(self, "reconfigured", name, old_value);
     } else {
       Handle<Object> newValue = Object::GetElement(self, index);
       if (!newValue->SameValue(*old_value))
-        self->EnqueueChangeRecord("updated", name, old_value);
+        EnqueueChangeRecord(self, "updated", name, old_value);
     }
   }
 

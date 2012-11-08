@@ -2208,6 +2208,12 @@ class JSObject: public JSReceiver {
     static inline int SizeOf(Map* map, HeapObject* object);
   };
 
+  // Enqueue change record for Object.observe. May cause GC.
+  static void EnqueueChangeRecord(Handle<JSObject> object,
+                                  const char* type,
+                                  Handle<String> name,
+                                  Handle<Object> old_value);
+
   // Deliver change records to observers. May cause GC.
   static void DeliverChangeRecords(Isolate* isolate);
 
@@ -2315,11 +2321,6 @@ class JSObject: public JSReceiver {
   // the inline-stored identity hash.
   MUST_USE_RESULT MaybeObject* SetHiddenPropertiesHashTable(
       Object* value);
-
-  // Enqueue change record for Object.observe. May cause GC.
-  void EnqueueChangeRecord(const char* type,
-                           Handle<String> name,
-                           Handle<Object> old_value);
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSObject);
 };
