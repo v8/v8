@@ -413,6 +413,7 @@ template <class T> class Persistent : public Handle<T> {
    * or followed by a global GC epilogue callback.
    */
   inline void MarkIndependent();
+  inline void MarkIndependent(Isolate* isolate);
 
   /**
    * Marks the reference to this object partially dependent. Partially
@@ -423,6 +424,7 @@ template <class T> class Persistent : public Handle<T> {
    * after each garbage collection.
    */
   inline void MarkPartiallyDependent();
+  inline void MarkPartiallyDependent(Isolate* isolate);
 
   /** Returns true if this handle was previously marked as independent. */
   inline bool IsIndependent() const;
@@ -3533,7 +3535,11 @@ class V8EXPORT V8 {
                        WeakReferenceCallback);
   static void ClearWeak(internal::Object** global_handle);
   static void MarkIndependent(internal::Object** global_handle);
+  static void MarkIndependent(internal::Isolate* isolate,
+                              internal::Object** global_handle);
   static void MarkPartiallyDependent(internal::Object** global_handle);
+  static void MarkPartiallyDependent(internal::Isolate* isolate,
+                                     internal::Object** global_handle);
   static bool IsGlobalIndependent(internal::Object** global_handle);
   static bool IsGlobalIndependent(internal::Isolate* isolate,
                                   internal::Object** global_handle);
@@ -4336,8 +4342,20 @@ void Persistent<T>::MarkIndependent() {
 }
 
 template <class T>
+void Persistent<T>::MarkIndependent(Isolate* isolate) {
+  V8::MarkIndependent(reinterpret_cast<internal::Isolate*>(isolate),
+                      reinterpret_cast<internal::Object**>(**this));
+}
+
+template <class T>
 void Persistent<T>::MarkPartiallyDependent() {
   V8::MarkPartiallyDependent(reinterpret_cast<internal::Object**>(**this));
+}
+
+template <class T>
+void Persistent<T>::MarkPartiallyDependent(Isolate* isolate) {
+  V8::MarkPartiallyDependent(reinterpret_cast<internal::Isolate*>(isolate),
+                             reinterpret_cast<internal::Object**>(**this));
 }
 
 template <class T>

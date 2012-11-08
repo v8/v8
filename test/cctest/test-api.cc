@@ -2610,14 +2610,15 @@ TEST(ApiObjectGroupsCycleForScavenger) {
   root.MakeWeak(reinterpret_cast<void*>(&counter), &WeakPointerCallback);
   root.MarkPartiallyDependent();
 
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
   // Groups are deleted, rebuild groups.
   {
-    g1s1.MarkPartiallyDependent();
-    g1s2.MarkPartiallyDependent();
-    g2s1.MarkPartiallyDependent();
-    g2s2.MarkPartiallyDependent();
-    g3s1.MarkPartiallyDependent();
-    g3s2.MarkPartiallyDependent();
+    g1s1.MarkPartiallyDependent(isolate);
+    g1s2.MarkPartiallyDependent(isolate);
+    g2s1.MarkPartiallyDependent(isolate);
+    g2s2.MarkPartiallyDependent(isolate);
+    g3s1.MarkPartiallyDependent(isolate);
+    g3s2.MarkPartiallyDependent(isolate);
     Persistent<Value> g1_objects[] = { g1s1, g1s2 };
     Persistent<Value> g2_objects[] = { g2s1, g2s2 };
     Persistent<Value> g3_objects[] = { g3s1, g3s2 };
@@ -5505,23 +5506,28 @@ THREADED_TEST(IndependentWeakHandle) {
   v8::Persistent<Context> context = Context::New();
   Context::Scope context_scope(context);
 
-  v8::Persistent<v8::Object> object_a;
+  v8::Persistent<v8::Object> object_a, object_b;
 
   {
     v8::HandleScope handle_scope;
     object_a = v8::Persistent<v8::Object>::New(v8::Object::New());
+    object_b = v8::Persistent<v8::Object>::New(v8::Object::New());
   }
 
   v8::Isolate* isolate = v8::Isolate::GetCurrent();
   bool object_a_disposed = false;
+  bool object_b_disposed = false;
   object_a.MakeWeak(&object_a_disposed, &DisposeAndSetFlag);
+  object_b.MakeWeak(&object_b_disposed, &DisposeAndSetFlag);
   CHECK(!object_a.IsIndependent());
-  CHECK(!object_a.IsIndependent(isolate));
+  CHECK(!object_b.IsIndependent(isolate));
   object_a.MarkIndependent();
+  object_b.MarkIndependent(isolate);
   CHECK(object_a.IsIndependent());
-  CHECK(object_a.IsIndependent(isolate));
+  CHECK(object_b.IsIndependent(isolate));
   HEAP->PerformScavenge();
   CHECK(object_a_disposed);
+  CHECK(object_b_disposed);
 }
 
 

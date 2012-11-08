@@ -651,8 +651,22 @@ void V8::MarkIndependent(i::Object** object) {
 }
 
 
+void V8::MarkIndependent(i::Isolate* isolate, i::Object** object) {
+  ASSERT(isolate == i::Isolate::Current());
+  LOG_API(isolate, "MarkIndependent");
+  isolate->global_handles()->MarkIndependent(object);
+}
+
+
 void V8::MarkPartiallyDependent(i::Object** object) {
   i::Isolate* isolate = i::Isolate::Current();
+  LOG_API(isolate, "MarkPartiallyDependent");
+  isolate->global_handles()->MarkPartiallyDependent(object);
+}
+
+
+void V8::MarkPartiallyDependent(i::Isolate* isolate, i::Object** object) {
+  ASSERT(isolate == i::Isolate::Current());
   LOG_API(isolate, "MarkPartiallyDependent");
   isolate->global_handles()->MarkPartiallyDependent(object);
 }
