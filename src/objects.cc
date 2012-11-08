@@ -1741,6 +1741,20 @@ void JSObject::EnqueueChangeRecord(
 }
 
 
+void JSObject::DeliverChangeRecords(Isolate* isolate) {
+  ASSERT(isolate->observer_delivery_pending());
+  bool threw = false;
+  Execution::Call(
+      isolate->observers_deliver_changes(),
+      isolate->factory()->undefined_value(),
+      0,
+      NULL,
+      &threw);
+  ASSERT(!threw);
+  isolate->set_observer_delivery_pending(false);
+}
+
+
 MaybeObject* JSObject::SetPropertyPostInterceptor(
     String* name,
     Object* value,

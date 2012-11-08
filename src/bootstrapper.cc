@@ -1418,6 +1418,8 @@ void Genesis::InstallExperimentalNativeFunctions() {
   }
   if (FLAG_harmony_observation) {
     INSTALL_NATIVE(JSFunction, "NotifyChange", observers_notify_change);
+    INSTALL_NATIVE(JSFunction, "DeliverChangeRecords",
+                   observers_deliver_changes);
   }
 }
 

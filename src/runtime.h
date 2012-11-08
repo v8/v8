@@ -322,6 +322,7 @@ namespace internal {
   /* Harmony observe */ \
   F(IsObserved, 1, 1) \
   F(SetIsObserved, 2, 1) \
+  F(SetObserverDeliveryPending, 0, 1) \
   F(GetObservationState, 0, 1) \
   F(CreateObjectHashTable, 0, 1) \
   F(ObjectHashTableGet, 2, 1) \

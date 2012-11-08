@@ -354,6 +354,7 @@ typedef List<HeapObject*, PreallocatedStorageAllocationPolicy> DebugObjectCache;
   V(uint64_t, enabled_cpu_features, 0)                                         \
   V(CpuProfiler*, cpu_profiler, NULL)                                          \
   V(HeapProfiler*, heap_profiler, NULL)                                        \
+  V(bool, observer_delivery_pending, false)                                    \
   ISOLATE_DEBUGGER_INIT_LIST(V)
 
 class Isolate {

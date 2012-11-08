@@ -13263,6 +13263,13 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetIsObserved) {
 }
 
 
+RUNTIME_FUNCTION(MaybeObject*, Runtime_SetObserverDeliveryPending) {
+  ASSERT(args.length() == 0);
+  isolate->set_observer_delivery_pending(true);
+  return isolate->heap()->undefined_value();
+}
+
+
 RUNTIME_FUNCTION(MaybeObject*, Runtime_GetObservationState) {
   ASSERT(args.length() == 0);
   return isolate->heap()->observation_state();

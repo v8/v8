@@ -2208,6 +2208,9 @@ class JSObject: public JSReceiver {
     static inline int SizeOf(Map* map, HeapObject* object);
   };
 
+  // Deliver change records to observers. May cause GC.
+  static void DeliverChangeRecords(Isolate* isolate);
+
  private:
   friend class DictionaryElementsAccessor;
 
