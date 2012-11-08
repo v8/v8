@@ -223,7 +223,7 @@ void RelocInfo::apply(intptr_t delta) {
   } else if (rmode_ == CODE_AGE_SEQUENCE) {
     if (*pc_ == kCallOpcode) {
       int32_t* p = reinterpret_cast<int32_t*>(pc_ + 1);
-      *p -= delta;  // Relocate entry.
+      *p -= static_cast<int32_t>(delta);  // Relocate entry.
       CPU::FlushICache(p, sizeof(uint32_t));
     }
   }
