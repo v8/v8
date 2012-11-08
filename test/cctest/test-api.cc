@@ -2543,6 +2543,97 @@ THREADED_TEST(ApiObjectGroupsCycle) {
 }
 
 
+THREADED_TEST(ApiObjectGroupsCycleForScavenger) {
+  HandleScope scope;
+  LocalContext env;
+
+  WeakCallCounter counter(1234);
+
+  Persistent<Object> g1s1;
+  Persistent<Object> g1s2;
+  Persistent<Object> g2s1;
+  Persistent<Object> g2s2;
+  Persistent<Object> g3s1;
+  Persistent<Object> g3s2;
+
+  {
+    HandleScope scope;
+    g1s1 = Persistent<Object>::New(Object::New());
+    g1s2 = Persistent<Object>::New(Object::New());
+    g1s1.MakeWeak(reinterpret_cast<void*>(&counter), &WeakPointerCallback);
+    g1s2.MakeWeak(reinterpret_cast<void*>(&counter), &WeakPointerCallback);
+
+    g2s1 = Persistent<Object>::New(Object::New());
+    g2s2 = Persistent<Object>::New(Object::New());
+    g2s1.MakeWeak(reinterpret_cast<void*>(&counter), &WeakPointerCallback);
+    g2s2.MakeWeak(reinterpret_cast<void*>(&counter), &WeakPointerCallback);
+
+    g3s1 = Persistent<Object>::New(Object::New());
+    g3s2 = Persistent<Object>::New(Object::New());
+    g3s1.MakeWeak(reinterpret_cast<void*>(&counter), &WeakPointerCallback);
+    g3s2.MakeWeak(reinterpret_cast<void*>(&counter), &WeakPointerCallback);
+  }
+
+  // Make a root.
+  Persistent<Object> root = Persistent<Object>::New(g1s1);
+  root.MarkPartiallyDependent();
+
+  // Connect groups.  We're building the following cycle:
+  // G1: { g1s1, g2s1 }, g1s1 implicitly references g2s1, ditto for other
+  // groups.
+  {
+    g1s1.MarkPartiallyDependent();
+    g1s2.MarkPartiallyDependent();
+    g2s1.MarkPartiallyDependent();
+    g2s2.MarkPartiallyDependent();
+    g3s1.MarkPartiallyDependent();
+    g3s2.MarkPartiallyDependent();
+    Persistent<Value> g1_objects[] = { g1s1, g1s2 };
+    Persistent<Value> g2_objects[] = { g2s1, g2s2 };
+    Persistent<Value> g3_objects[] = { g3s1, g3s2 };
+    V8::AddObjectGroup(g1_objects, 2);
+    g1s1->Set(v8_str("x"), g2s1);
+    V8::AddObjectGroup(g2_objects, 2);
+    g2s1->Set(v8_str("x"), g3s1);
+    V8::AddObjectGroup(g3_objects, 2);
+    g3s1->Set(v8_str("x"), g1s1);
+  }
+
+  HEAP->CollectGarbage(i::NEW_SPACE);
+
+  // All objects should be alive.
+  CHECK_EQ(0, counter.NumberOfWeakCalls());
+
+  // Weaken the root.
+  root.MakeWeak(reinterpret_cast<void*>(&counter), &WeakPointerCallback);
+  root.MarkPartiallyDependent();
+
+  // Groups are deleted, rebuild groups.
+  {
+    g1s1.MarkPartiallyDependent();
+    g1s2.MarkPartiallyDependent();
+    g2s1.MarkPartiallyDependent();
+    g2s2.MarkPartiallyDependent();
+    g3s1.MarkPartiallyDependent();
+    g3s2.MarkPartiallyDependent();
+    Persistent<Value> g1_objects[] = { g1s1, g1s2 };
+    Persistent<Value> g2_objects[] = { g2s1, g2s2 };
+    Persistent<Value> g3_objects[] = { g3s1, g3s2 };
+    V8::AddObjectGroup(g1_objects, 2);
+    g1s1->Set(v8_str("x"), g2s1);
+    V8::AddObjectGroup(g2_objects, 2);
+    g2s1->Set(v8_str("x"), g3s1);
+    V8::AddObjectGroup(g3_objects, 2);
+    g3s1->Set(v8_str("x"), g1s1);
+  }
+
+  HEAP->CollectGarbage(i::NEW_SPACE);
+
+  // All objects should be gone. 7 global handles in total.
+  CHECK_EQ(7, counter.NumberOfWeakCalls());
+}
+
+
 THREADED_TEST(ScriptException) {
   v8::HandleScope scope;
   LocalContext env;
