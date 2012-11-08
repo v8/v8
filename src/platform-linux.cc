@@ -1022,6 +1022,62 @@ static int GetThreadID() {
 }
 
 
+static void ProfilerSignalHandler(int signal, siginfo_t* info, void* context) {
+  USE(info);
+  if (signal != SIGPROF) return;
+  Isolate* isolate = Isolate::UncheckedCurrent();
+  if (isolate == NULL || !isolate->IsInitialized() || !isolate->IsInUse()) {
+    // We require a fully initialized and entered isolate.
+    return;
+  }
+  if (v8::Locker::IsActive() &&
+      !isolate->thread_manager()->IsLockedByCurrentThread()) {
+    return;
+  }
+
+  Sampler* sampler = isolate->logger()->sampler();
+  if (sampler == NULL || !sampler->IsActive()) return;
+
+  TickSample sample_obj;
+  TickSample* sample = CpuProfiler::TickSampleEvent(isolate);
+  if (sample == NULL) sample = &sample_obj;
+
+  // Extracting the sample from the context is extremely machine dependent.
+  ucontext_t* ucontext = reinterpret_cast<ucontext_t*>(context);
+  mcontext_t& mcontext = ucontext->uc_mcontext;
+  sample->state = isolate->current_vm_state();
+#if V8_HOST_ARCH_IA32
+  sample->pc = reinterpret_cast<Address>(mcontext.gregs[REG_EIP]);
+  sample->sp = reinterpret_cast<Address>(mcontext.gregs[REG_ESP]);
+  sample->fp = reinterpret_cast<Address>(mcontext.gregs[REG_EBP]);
+#elif V8_HOST_ARCH_X64
+  sample->pc = reinterpret_cast<Address>(mcontext.gregs[REG_RIP]);
+  sample->sp = reinterpret_cast<Address>(mcontext.gregs[REG_RSP]);
+  sample->fp = reinterpret_cast<Address>(mcontext.gregs[REG_RBP]);
+#elif V8_HOST_ARCH_ARM
+#if defined(__GLIBC__) && !defined(__UCLIBC__) && \
+    (__GLIBC__ < 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ <= 3))
+  // Old GLibc ARM versions used a gregs[] array to access the register
+  // values from mcontext_t.
+  sample->pc = reinterpret_cast<Address>(mcontext.gregs[R15]);
+  sample->sp = reinterpret_cast<Address>(mcontext.gregs[R13]);
+  sample->fp = reinterpret_cast<Address>(mcontext.gregs[R11]);
+#else
+  sample->pc = reinterpret_cast<Address>(mcontext.arm_pc);
+  sample->sp = reinterpret_cast<Address>(mcontext.arm_sp);
+  sample->fp = reinterpret_cast<Address>(mcontext.arm_fp);
+#endif  // defined(__GLIBC__) && !defined(__UCLIBC__) &&
+        // (__GLIBC__ < 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ <= 3))
+#elif V8_HOST_ARCH_MIPS
+  sample->pc = reinterpret_cast<Address>(mcontext.pc);
+  sample->sp = reinterpret_cast<Address>(mcontext.gregs[29]);
+  sample->fp = reinterpret_cast<Address>(mcontext.gregs[30]);
+#endif  // V8_HOST_ARCH_*
+  sampler->SampleStack(sample);
+  sampler->Tick(sample);
+}
+
+
 class Sampler::PlatformData : public Malloced {
  public:
   PlatformData() : vm_tid_(GetThreadID()) {}
@@ -1031,9 +1087,6 @@ class Sampler::PlatformData : public Malloced {
  private:
   const int vm_tid_;
 };
-
-
-static void ProfilerSignalHandler(int signal, siginfo_t* info, void* context);
 
 
 class SignalSender : public Thread {
@@ -1067,11 +1120,6 @@ class SignalSender : public Thread {
       sigaction(SIGPROF, &old_signal_handler_, 0);
       signal_handler_installed_ = false;
     }
-  }
-
-  static void CallOldSignalHandler(int signal, siginfo_t* info, void* context) {
-    if (signal_handler_installed_ && old_signal_handler_.sa_sigaction)
-      old_signal_handler_.sa_sigaction(signal, info, context);
   }
 
   static void AddActiveSampler(Sampler* sampler) {
@@ -1205,63 +1253,6 @@ Mutex* SignalSender::mutex_ = NULL;
 SignalSender* SignalSender::instance_ = NULL;
 struct sigaction SignalSender::old_signal_handler_;
 bool SignalSender::signal_handler_installed_ = false;
-
-
-static void ProfilerSignalHandler(int signal, siginfo_t* info, void* context) {
-  USE(info);
-  if (signal != SIGPROF) return;
-  SignalSender::CallOldSignalHandler(signal, info, context);
-  Isolate* isolate = Isolate::UncheckedCurrent();
-  if (isolate == NULL || !isolate->IsInitialized() || !isolate->IsInUse()) {
-    // We require a fully initialized and entered isolate.
-    return;
-  }
-  if (v8::Locker::IsActive() &&
-      !isolate->thread_manager()->IsLockedByCurrentThread()) {
-    return;
-  }
-
-  Sampler* sampler = isolate->logger()->sampler();
-  if (sampler == NULL || !sampler->IsActive()) return;
-
-  TickSample sample_obj;
-  TickSample* sample = CpuProfiler::TickSampleEvent(isolate);
-  if (sample == NULL) sample = &sample_obj;
-
-  // Extracting the sample from the context is extremely machine dependent.
-  ucontext_t* ucontext = reinterpret_cast<ucontext_t*>(context);
-  mcontext_t& mcontext = ucontext->uc_mcontext;
-  sample->state = isolate->current_vm_state();
-#if V8_HOST_ARCH_IA32
-  sample->pc = reinterpret_cast<Address>(mcontext.gregs[REG_EIP]);
-  sample->sp = reinterpret_cast<Address>(mcontext.gregs[REG_ESP]);
-  sample->fp = reinterpret_cast<Address>(mcontext.gregs[REG_EBP]);
-#elif V8_HOST_ARCH_X64
-  sample->pc = reinterpret_cast<Address>(mcontext.gregs[REG_RIP]);
-  sample->sp = reinterpret_cast<Address>(mcontext.gregs[REG_RSP]);
-  sample->fp = reinterpret_cast<Address>(mcontext.gregs[REG_RBP]);
-#elif V8_HOST_ARCH_ARM
-#if defined(__GLIBC__) && !defined(__UCLIBC__) && \
-    (__GLIBC__ < 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ <= 3))
-  // Old GLibc ARM versions used a gregs[] array to access the register
-  // values from mcontext_t.
-  sample->pc = reinterpret_cast<Address>(mcontext.gregs[R15]);
-  sample->sp = reinterpret_cast<Address>(mcontext.gregs[R13]);
-  sample->fp = reinterpret_cast<Address>(mcontext.gregs[R11]);
-#else
-  sample->pc = reinterpret_cast<Address>(mcontext.arm_pc);
-  sample->sp = reinterpret_cast<Address>(mcontext.arm_sp);
-  sample->fp = reinterpret_cast<Address>(mcontext.arm_fp);
-#endif  // defined(__GLIBC__) && !defined(__UCLIBC__) &&
-        // (__GLIBC__ < 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ <= 3))
-#elif V8_HOST_ARCH_MIPS
-  sample->pc = reinterpret_cast<Address>(mcontext.pc);
-  sample->sp = reinterpret_cast<Address>(mcontext.gregs[29]);
-  sample->fp = reinterpret_cast<Address>(mcontext.gregs[30]);
-#endif  // V8_HOST_ARCH_*
-  sampler->SampleStack(sample);
-  sampler->Tick(sample);
-}
 
 
 void OS::SetUp() {
