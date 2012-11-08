@@ -297,7 +297,7 @@ bool StringShape::IsSymbol() {
 
 bool String::IsAsciiRepresentation() {
   uint32_t type = map()->instance_type();
-  return (type & kStringEncodingMask) == kAsciiStringTag;
+  return (type & kStringEncodingMask) == kOneByteStringTag;
 }
 
 
@@ -313,7 +313,7 @@ bool String::IsAsciiRepresentationUnderneath() {
   STATIC_ASSERT((kIsIndirectStringMask & kStringEncodingMask) == 0);
   ASSERT(IsFlat());
   switch (type & (kIsIndirectStringMask | kStringEncodingMask)) {
-    case kAsciiStringTag:
+    case kOneByteStringTag:
       return true;
     case kTwoByteStringTag:
       return false;
@@ -329,7 +329,7 @@ bool String::IsTwoByteRepresentationUnderneath() {
   STATIC_ASSERT((kIsIndirectStringMask & kStringEncodingMask) == 0);
   ASSERT(IsFlat());
   switch (type & (kIsIndirectStringMask | kStringEncodingMask)) {
-    case kAsciiStringTag:
+    case kOneByteStringTag:
       return false;
     case kTwoByteStringTag:
       return true;
@@ -341,7 +341,7 @@ bool String::IsTwoByteRepresentationUnderneath() {
 
 bool String::HasOnlyAsciiChars() {
   uint32_t type = map()->instance_type();
-  return (type & kStringEncodingMask) == kAsciiStringTag ||
+  return (type & kStringEncodingMask) == kOneByteStringTag ||
          (type & kAsciiDataHintMask) == kAsciiDataHintTag;
 }
 
@@ -395,7 +395,7 @@ STATIC_CHECK(static_cast<uint32_t>(kStringEncodingMask) ==
 
 
 bool StringShape::IsSequentialAscii() {
-  return full_representation_tag() == (kSeqStringTag | kAsciiStringTag);
+  return full_representation_tag() == (kSeqStringTag | kOneByteStringTag);
 }
 
 
@@ -405,14 +405,14 @@ bool StringShape::IsSequentialTwoByte() {
 
 
 bool StringShape::IsExternalAscii() {
-  return full_representation_tag() == (kExternalStringTag | kAsciiStringTag);
+  return full_representation_tag() == (kExternalStringTag | kOneByteStringTag);
 }
 
 
-STATIC_CHECK((kExternalStringTag | kAsciiStringTag) ==
+STATIC_CHECK((kExternalStringTag | kOneByteStringTag) ==
              Internals::kExternalAsciiRepresentationTag);
 
-STATIC_CHECK(v8::String::ASCII_ENCODING == kAsciiStringTag);
+STATIC_CHECK(v8::String::ASCII_ENCODING == kOneByteStringTag);
 
 
 bool StringShape::IsExternalTwoByte() {
@@ -2458,18 +2458,18 @@ String* String::TryFlattenGetString(PretenureFlag pretenure) {
 uint16_t String::Get(int index) {
   ASSERT(index >= 0 && index < length());
   switch (StringShape(this).full_representation_tag()) {
-    case kSeqStringTag | kAsciiStringTag:
+    case kSeqStringTag | kOneByteStringTag:
       return SeqAsciiString::cast(this)->SeqAsciiStringGet(index);
     case kSeqStringTag | kTwoByteStringTag:
       return SeqTwoByteString::cast(this)->SeqTwoByteStringGet(index);
-    case kConsStringTag | kAsciiStringTag:
+    case kConsStringTag | kOneByteStringTag:
     case kConsStringTag | kTwoByteStringTag:
       return ConsString::cast(this)->ConsStringGet(index);
-    case kExternalStringTag | kAsciiStringTag:
+    case kExternalStringTag | kOneByteStringTag:
       return ExternalAsciiString::cast(this)->ExternalAsciiStringGet(index);
     case kExternalStringTag | kTwoByteStringTag:
       return ExternalTwoByteString::cast(this)->ExternalTwoByteStringGet(index);
-    case kSlicedStringTag | kAsciiStringTag:
+    case kSlicedStringTag | kOneByteStringTag:
     case kSlicedStringTag | kTwoByteStringTag:
       return SlicedString::cast(this)->SlicedStringGet(index);
     default:

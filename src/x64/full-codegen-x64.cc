@@ -3551,7 +3551,7 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(CallRuntime* expr) {
   __ movzxbl(scratch, FieldOperand(scratch, Map::kInstanceTypeOffset));
   __ andb(scratch, Immediate(
       kIsNotStringMask | kStringEncodingMask | kStringRepresentationMask));
-  __ cmpb(scratch, Immediate(kStringTag | kAsciiStringTag | kSeqStringTag));
+  __ cmpb(scratch, Immediate(kStringTag | kOneByteStringTag | kSeqStringTag));
   __ j(not_equal, &bailout);
   __ AddSmiField(string_length,
                  FieldOperand(string, SeqAsciiString::kLengthOffset));
@@ -3590,7 +3590,7 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(CallRuntime* expr) {
   __ movzxbl(scratch, FieldOperand(scratch, Map::kInstanceTypeOffset));
   __ andb(scratch, Immediate(
       kIsNotStringMask | kStringEncodingMask | kStringRepresentationMask));
-  __ cmpb(scratch, Immediate(kStringTag | kAsciiStringTag | kSeqStringTag));
+  __ cmpb(scratch, Immediate(kStringTag | kOneByteStringTag | kSeqStringTag));
   __ j(not_equal, &bailout);
 
   // Live registers:

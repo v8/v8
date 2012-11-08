@@ -1340,7 +1340,7 @@ void HeapObject::IterateBody(InstanceType type, int object_size,
         SlicedString::BodyDescriptor::IterateBody(this, v);
         break;
       case kExternalStringTag:
-        if ((type & kStringEncodingMask) == kAsciiStringTag) {
+        if ((type & kStringEncodingMask) == kOneByteStringTag) {
           reinterpret_cast<ExternalAsciiString*>(this)->
               ExternalAsciiStringIterateBody(v);
         } else {
@@ -6364,7 +6364,7 @@ String::FlatContent String::GetFlatContent() {
     ASSERT(shape.representation_tag() != kConsStringTag &&
            shape.representation_tag() != kSlicedStringTag);
   }
-  if (shape.encoding_tag() == kAsciiStringTag) {
+  if (shape.encoding_tag() == kOneByteStringTag) {
     const char* start;
     if (shape.representation_tag() == kSeqStringTag) {
       start = SeqAsciiString::cast(string)->GetChars();
@@ -7053,7 +7053,7 @@ void String::WriteToFlat(String* src,
   while (true) {
     ASSERT(0 <= from && from <= to && to <= source->length());
     switch (StringShape(source).full_representation_tag()) {
-      case kAsciiStringTag | kExternalStringTag: {
+      case kOneByteStringTag | kExternalStringTag: {
         CopyChars(sink,
                   ExternalAsciiString::cast(source)->GetChars() + from,
                   to - from);
@@ -7067,7 +7067,7 @@ void String::WriteToFlat(String* src,
                   to - from);
         return;
       }
-      case kAsciiStringTag | kSeqStringTag: {
+      case kOneByteStringTag | kSeqStringTag: {
         CopyChars(sink,
                   SeqAsciiString::cast(source)->GetChars() + from,
                   to - from);
@@ -7079,7 +7079,7 @@ void String::WriteToFlat(String* src,
                   to - from);
         return;
       }
-      case kAsciiStringTag | kConsStringTag:
+      case kOneByteStringTag | kConsStringTag:
       case kTwoByteStringTag | kConsStringTag: {
         ConsString* cons_string = ConsString::cast(source);
         String* first = cons_string->first();
@@ -7120,7 +7120,7 @@ void String::WriteToFlat(String* src,
         }
         break;
       }
-      case kAsciiStringTag | kSlicedStringTag:
+      case kOneByteStringTag | kSlicedStringTag:
       case kTwoByteStringTag | kSlicedStringTag: {
         SlicedString* slice = SlicedString::cast(source);
         unsigned offset = slice->offset();

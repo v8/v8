@@ -732,7 +732,7 @@ void StringCharLoadGenerator::Generate(MacroAssembler* masm,
   // Dispatch on the encoding: ASCII or two-byte.
   Label ascii;
   __ bind(&seq_string);
-  STATIC_ASSERT((kStringEncodingMask & kAsciiStringTag) != 0);
+  STATIC_ASSERT((kStringEncodingMask & kOneByteStringTag) != 0);
   STATIC_ASSERT((kStringEncodingMask & kTwoByteStringTag) == 0);
   __ test(result, Immediate(kStringEncodingMask));
   __ j(not_zero, &ascii, Label::kNear);

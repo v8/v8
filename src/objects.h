@@ -467,7 +467,7 @@ const uint32_t kSymbolTag = 0x40;
 // two-byte characters or one-byte characters.
 const uint32_t kStringEncodingMask = 0x4;
 const uint32_t kTwoByteStringTag = 0x0;
-const uint32_t kAsciiStringTag = 0x4;
+const uint32_t kOneByteStringTag = 0x4;
 
 // If bit 7 is clear, the low-order 2 bits indicate the representation
 // of the string.
@@ -518,39 +518,39 @@ const uint32_t kShortcutTypeTag = kConsStringTag;
 enum InstanceType {
   // String types.
   SYMBOL_TYPE = kTwoByteStringTag | kSymbolTag | kSeqStringTag,
-  ASCII_SYMBOL_TYPE = kAsciiStringTag | kSymbolTag | kSeqStringTag,
+  ASCII_SYMBOL_TYPE = kOneByteStringTag | kSymbolTag | kSeqStringTag,
   CONS_SYMBOL_TYPE = kTwoByteStringTag | kSymbolTag | kConsStringTag,
-  CONS_ASCII_SYMBOL_TYPE = kAsciiStringTag | kSymbolTag | kConsStringTag,
+  CONS_ASCII_SYMBOL_TYPE = kOneByteStringTag | kSymbolTag | kConsStringTag,
   SHORT_EXTERNAL_SYMBOL_TYPE = kTwoByteStringTag | kSymbolTag |
                                kExternalStringTag | kShortExternalStringTag,
   SHORT_EXTERNAL_SYMBOL_WITH_ASCII_DATA_TYPE =
       kTwoByteStringTag | kSymbolTag | kExternalStringTag |
       kAsciiDataHintTag | kShortExternalStringTag,
-  SHORT_EXTERNAL_ASCII_SYMBOL_TYPE = kAsciiStringTag | kExternalStringTag |
+  SHORT_EXTERNAL_ASCII_SYMBOL_TYPE = kOneByteStringTag | kExternalStringTag |
                                      kSymbolTag | kShortExternalStringTag,
   EXTERNAL_SYMBOL_TYPE = kTwoByteStringTag | kSymbolTag | kExternalStringTag,
   EXTERNAL_SYMBOL_WITH_ASCII_DATA_TYPE =
       kTwoByteStringTag | kSymbolTag | kExternalStringTag | kAsciiDataHintTag,
   EXTERNAL_ASCII_SYMBOL_TYPE =
-      kAsciiStringTag | kSymbolTag | kExternalStringTag,
+      kOneByteStringTag | kSymbolTag | kExternalStringTag,
   STRING_TYPE = kTwoByteStringTag | kSeqStringTag,
-  ASCII_STRING_TYPE = kAsciiStringTag | kSeqStringTag,
+  ASCII_STRING_TYPE = kOneByteStringTag | kSeqStringTag,
   CONS_STRING_TYPE = kTwoByteStringTag | kConsStringTag,
-  CONS_ASCII_STRING_TYPE = kAsciiStringTag | kConsStringTag,
+  CONS_ASCII_STRING_TYPE = kOneByteStringTag | kConsStringTag,
   SLICED_STRING_TYPE = kTwoByteStringTag | kSlicedStringTag,
-  SLICED_ASCII_STRING_TYPE = kAsciiStringTag | kSlicedStringTag,
+  SLICED_ASCII_STRING_TYPE = kOneByteStringTag | kSlicedStringTag,
   SHORT_EXTERNAL_STRING_TYPE =
       kTwoByteStringTag | kExternalStringTag | kShortExternalStringTag,
   SHORT_EXTERNAL_STRING_WITH_ASCII_DATA_TYPE =
       kTwoByteStringTag | kExternalStringTag |
       kAsciiDataHintTag | kShortExternalStringTag,
   SHORT_EXTERNAL_ASCII_STRING_TYPE =
-      kAsciiStringTag | kExternalStringTag | kShortExternalStringTag,
+      kOneByteStringTag | kExternalStringTag | kShortExternalStringTag,
   EXTERNAL_STRING_TYPE = kTwoByteStringTag | kExternalStringTag,
   EXTERNAL_STRING_WITH_ASCII_DATA_TYPE =
       kTwoByteStringTag | kExternalStringTag | kAsciiDataHintTag,
   // LAST_STRING_TYPE
-  EXTERNAL_ASCII_STRING_TYPE = kAsciiStringTag | kExternalStringTag,
+  EXTERNAL_ASCII_STRING_TYPE = kOneByteStringTag | kExternalStringTag,
   PRIVATE_EXTERNAL_ASCII_STRING_TYPE = EXTERNAL_ASCII_STRING_TYPE,
 
   // Objects allocated in their own spaces (never in new space).

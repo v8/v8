@@ -3694,7 +3694,7 @@ void MacroAssembler::EnsureNotWhite(
   // For ASCII (char-size of 1) we shift the smi tag away to get the length.
   // For UC16 (char-size of 2) we just leave the smi tag in place, thereby
   // getting the length multiplied by 2.
-  ASSERT(kAsciiStringTag == 4 && kStringEncodingMask == 4);
+  ASSERT(kOneByteStringTag == 4 && kStringEncodingMask == 4);
   ASSERT(kSmiTag == 0 && kSmiTagSize == 1);
   ldr(ip, FieldMemOperand(value, String::kLengthOffset));
   tst(instance_type, Operand(kStringEncodingMask));
