@@ -211,6 +211,12 @@ class RelocInfo BASE_EMBEDDED {
     // Pseudo-types
     NUMBER_OF_MODES,  // There are at most 15 modes with noncompact encoding.
     NONE,  // never recorded
+    CODE_AGE_SEQUENCE,  // Not stored in RelocInfo array, used explictly by
+                        // code aging.
+    FIRST_REAL_RELOC_MODE = CODE_TARGET,
+    LAST_REAL_RELOC_MODE = CONST_POOL,
+    FIRST_PSEUDO_RELOC_MODE = CODE_AGE_SEQUENCE,
+    LAST_PSEUDO_RELOC_MODE = CODE_AGE_SEQUENCE,
     LAST_CODE_ENUM = DEBUG_BREAK,
     LAST_GCED_ENUM = GLOBAL_PROPERTY_CELL,
     // Modes <= LAST_COMPACT_ENUM are guaranteed to have compact encoding.
@@ -225,6 +231,15 @@ class RelocInfo BASE_EMBEDDED {
       : pc_(pc), rmode_(rmode), data_(data), host_(host) {
   }
 
+  static inline bool IsRealRelocMode(Mode mode) {
+    return mode >= FIRST_REAL_RELOC_MODE &&
+        mode <= LAST_REAL_RELOC_MODE;
+  }
+  static inline bool IsPseudoRelocMode(Mode mode) {
+    ASSERT(!IsRealRelocMode(mode));
+    return mode >= FIRST_PSEUDO_RELOC_MODE &&
+        mode <= LAST_PSEUDO_RELOC_MODE;
+  }
   static inline bool IsConstructCall(Mode mode) {
     return mode == CONSTRUCT_CALL;
   }
@@ -262,6 +277,9 @@ class RelocInfo BASE_EMBEDDED {
   static inline bool IsDebugBreakSlot(Mode mode) {
     return mode == DEBUG_BREAK_SLOT;
   }
+  static inline bool IsCodeAgeSequence(Mode mode) {
+    return mode == CODE_AGE_SEQUENCE;
+  }
   static inline int ModeMask(Mode mode) { return 1 << mode; }
 
   // Accessors
@@ -294,7 +312,8 @@ class RelocInfo BASE_EMBEDDED {
   INLINE(Handle<JSGlobalPropertyCell> target_cell_handle());
   INLINE(void set_target_cell(JSGlobalPropertyCell* cell,
                               WriteBarrierMode mode = UPDATE_WRITE_BARRIER));
-
+  INLINE(Code* code_age_stub());
+  INLINE(void set_code_age_stub(Code* stub));
 
   // Read the address of the word containing the target_address in an
   // instruction stream.  What this means exactly is architecture-independent.
@@ -487,6 +506,7 @@ class RelocIterator: public Malloced {
 
   byte* pos_;
   byte* end_;
+  byte* code_age_sequence_;
   RelocInfo rinfo_;
   bool done_;
   int mode_mask_;
@@ -594,6 +614,8 @@ class ExternalReference BASE_EMBEDDED {
 
   static ExternalReference get_date_field_function(Isolate* isolate);
   static ExternalReference date_cache_stamp(Isolate* isolate);
+
+  static ExternalReference get_make_code_young_function(Isolate* isolate);
 
   // Deoptimization support.
   static ExternalReference new_deoptimizer_function(Isolate* isolate);

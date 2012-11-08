@@ -138,6 +138,8 @@ void FullCodeGenerator::Generate() {
   // function calls.
   if (!info->is_classic_mode() || info->is_native()) {
     Label ok;
+    Label start;
+    __ bind(&start);
     __ test(ecx, ecx);
     __ j(zero, &ok, Label::kNear);
     // +1 for return address.
@@ -149,6 +151,7 @@ void FullCodeGenerator::Generate() {
     __ mov(Operand(esp, receiver_offset),
            Immediate(isolate()->factory()->undefined_value()));
     __ bind(&ok);
+    ASSERT_EQ(kSizeOfFullCodegenStrictModePrologue, ok.pos() - start.pos());
   }
 
   // Open a frame scope to indicate that there is a frame on the stack.  The

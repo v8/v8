@@ -194,6 +194,18 @@ enum DescriptorFlag {
   OWN_DESCRIPTORS
 };
 
+// The GC maintains a bit of information, the MarkingParity, which toggles
+// from odd to even and back every time marking is completed. Incremental
+// marking can visit an object twice during a marking phase, so algorithms that
+// that piggy-back on marking can use the parity to ensure that they only
+// perform an operation on an object once per marking phase: they record the
+// MarkingParity when they visit an object, and only re-visit the object when it
+// is marked again and the MarkingParity changes.
+enum MarkingParity {
+  NO_MARKING_PARITY,
+  ODD_MARKING_PARITY,
+  EVEN_MARKING_PARITY
+};
 
 // Instance size sentinel for objects of variable size.
 const int kVariableSizeSentinel = 0;
@@ -4540,6 +4552,23 @@ class Code: public HeapObject {
   void ClearInlineCaches();
   void ClearTypeFeedbackCells(Heap* heap);
 
+#define DECLARE_CODE_AGE_ENUM(X) k##X##CodeAge,
+  enum Age {
+    kNoAge = 0,
+    CODE_AGE_LIST(DECLARE_CODE_AGE_ENUM)
+    kAfterLastCodeAge,
+    kLastCodeAge = kAfterLastCodeAge - 1,
+    kCodeAgeCount = kAfterLastCodeAge - 1
+  };
+#undef DECLARE_CODE_AGE_ENUM
+
+  // Code aging
+  static void MakeCodeAgeSequenceYoung(byte* sequence);
+  void MakeYoung();
+  void MakeOlder(MarkingParity);
+  static bool IsYoungSequence(byte* sequence);
+  bool IsOld();
+
   // Max loop nesting marker used to postpose OSR. We don't take loop
   // nesting that is deeper than 5 levels into account.
   static const int kMaxLoopNestingMarker = 6;
@@ -4668,6 +4697,21 @@ class Code: public HeapObject {
       TypeField::kMask | CacheHolderField::kMask;
 
  private:
+  friend class RelocIterator;
+
+  // Code aging
+  byte* FindCodeAgeSequence();
+  static void  GetCodeAgeAndParity(Code* code, Age* age,
+                                   MarkingParity* parity);
+  static void GetCodeAgeAndParity(byte* sequence, Age* age,
+                                  MarkingParity* parity);
+  static Code* GetCodeAgeStub(Age age, MarkingParity parity);
+
+  // Code aging -- platform-specific
+  byte* FindPlatformCodeAgeSequence();
+  static void PatchPlatformCodeAge(byte* sequence, Age age,
+                                   MarkingParity parity);
+
   DISALLOW_IMPLICIT_CONSTRUCTORS(Code);
 };
 
@@ -8915,6 +8959,10 @@ class ObjectVisitor BASE_EMBEDDED {
 
   // Visits a debug call target in the instruction stream.
   virtual void VisitDebugTarget(RelocInfo* rinfo);
+
+  // Visits the byte sequence in a function's prologue that contains information
+  // about the code's age.
+  virtual void VisitCodeAgeSequence(RelocInfo* rinfo);
 
   // Handy shorthand for visiting a single pointer.
   virtual void VisitPointer(Object** p) { VisitPointers(p, p + 1); }

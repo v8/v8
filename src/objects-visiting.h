@@ -391,6 +391,7 @@ class StaticMarkingVisitor : public StaticVisitorBase {
   static inline void VisitGlobalPropertyCell(Heap* heap, RelocInfo* rinfo);
   static inline void VisitDebugTarget(Heap* heap, RelocInfo* rinfo);
   static inline void VisitCodeTarget(Heap* heap, RelocInfo* rinfo);
+  static inline void VisitCodeAgeSequence(Heap* heap, RelocInfo* rinfo);
   static inline void VisitExternalReference(RelocInfo* rinfo) { }
   static inline void VisitRuntimeEntry(RelocInfo* rinfo) { }
 

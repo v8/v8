@@ -3047,7 +3047,8 @@ void Assembler::RecordComment(const char* msg, bool force) {
 
 
 const int RelocInfo::kApplyMask = RelocInfo::kCodeTargetMask |
-                                  1 << RelocInfo::INTERNAL_REFERENCE;
+    1 << RelocInfo::INTERNAL_REFERENCE |
+    1 << RelocInfo::CODE_AGE_SEQUENCE;
 
 
 bool RelocInfo::IsCodedSpecially() {

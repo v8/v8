@@ -452,6 +452,92 @@ void StringCharLoadGenerator::Generate(MacroAssembler* masm,
 
 #undef __
 
+// add(r0, pc, Operand(-8))
+static const uint32_t kCodeAgePatchFirstInstruction = 0xe24f0008;
+
+static byte* GetNoCodeAgeSequence(uint32_t* length) {
+  // The sequence of instructions that is patched out for aging code is the
+  // following boilerplate stack-building prologue that is found in FUNCTIONS
+  static bool initialized = false;
+  static uint32_t sequence[kNoCodeAgeSequenceLength];
+  byte* byte_sequence = reinterpret_cast<byte*>(sequence);
+  *length = kNoCodeAgeSequenceLength * Assembler::kInstrSize;
+  if (!initialized) {
+    CodePatcher patcher(byte_sequence, kNoCodeAgeSequenceLength);
+    patcher.masm()->stm(db_w, sp, r1.bit() | cp.bit() | fp.bit() | lr.bit());
+    patcher.masm()->LoadRoot(ip, Heap::kUndefinedValueRootIndex);
+    patcher.masm()->add(fp, sp, Operand(2 * kPointerSize));
+    initialized = true;
+  }
+  return byte_sequence;
+}
+
+
+byte* Code::FindPlatformCodeAgeSequence() {
+  byte* start = instruction_start();
+  uint32_t young_length;
+  byte* young_sequence = GetNoCodeAgeSequence(&young_length);
+  if (!memcmp(start, young_sequence, young_length) ||
+      Memory::uint32_at(start) == kCodeAgePatchFirstInstruction) {
+    return start;
+  } else {
+    byte* start_after_strict = NULL;
+    if (kind() == FUNCTION) {
+      start_after_strict = start + kSizeOfFullCodegenStrictModePrologue;
+    } else {
+      ASSERT(kind() == OPTIMIZED_FUNCTION);
+      start_after_strict = start + kSizeOfOptimizedStrictModePrologue;
+    }
+    ASSERT(!memcmp(start_after_strict, young_sequence, young_length) ||
+           Memory::uint32_at(start_after_strict) ==
+           kCodeAgePatchFirstInstruction);
+    return start_after_strict;
+  }
+}
+
+
+bool Code::IsYoungSequence(byte* sequence) {
+  uint32_t young_length;
+  byte* young_sequence = GetNoCodeAgeSequence(&young_length);
+  bool result = !memcmp(sequence, young_sequence, young_length);
+  ASSERT(result ||
+         Memory::uint32_at(sequence) == kCodeAgePatchFirstInstruction);
+  return result;
+}
+
+
+void Code::GetCodeAgeAndParity(byte* sequence, Age* age,
+                               MarkingParity* parity) {
+  if (IsYoungSequence(sequence)) {
+    *age = kNoAge;
+    *parity = NO_MARKING_PARITY;
+  } else {
+    Address target_address = Memory::Address_at(
+        sequence + Assembler::kInstrSize * (kNoCodeAgeSequenceLength - 1));
+    Code* stub = GetCodeFromTargetAddress(target_address);
+    GetCodeAgeAndParity(stub, age, parity);
+  }
+}
+
+
+void Code::PatchPlatformCodeAge(byte* sequence,
+                                Code::Age age,
+                                MarkingParity parity) {
+  uint32_t young_length;
+  byte* young_sequence = GetNoCodeAgeSequence(&young_length);
+  if (age == kNoAge) {
+    memcpy(sequence, young_sequence, young_length);
+    CPU::FlushICache(sequence, young_length);
+  } else {
+    Code* stub = GetCodeAgeStub(age, parity);
+    CodePatcher patcher(sequence, young_length / Assembler::kInstrSize);
+    patcher.masm()->add(r0, pc, Operand(-8));
+    patcher.masm()->ldr(pc, MemOperand(pc, -4));
+    patcher.masm()->dd(reinterpret_cast<uint32_t>(stub->instruction_start()));
+  }
+}
+
+
 } }  // namespace v8::internal
 
 #endif  // V8_TARGET_ARCH_ARM

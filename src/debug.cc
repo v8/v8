@@ -261,8 +261,12 @@ void BreakLocationIterator::Reset() {
   // Create relocation iterators for the two code objects.
   if (reloc_iterator_ != NULL) delete reloc_iterator_;
   if (reloc_iterator_original_ != NULL) delete reloc_iterator_original_;
-  reloc_iterator_ = new RelocIterator(debug_info_->code());
-  reloc_iterator_original_ = new RelocIterator(debug_info_->original_code());
+  reloc_iterator_ = new RelocIterator(
+      debug_info_->code(),
+      ~RelocInfo::ModeMask(RelocInfo::CODE_AGE_SEQUENCE));
+  reloc_iterator_original_ = new RelocIterator(
+      debug_info_->original_code(),
+      ~RelocInfo::ModeMask(RelocInfo::CODE_AGE_SEQUENCE));
 
   // Position at the first break point.
   break_point_ = -1;

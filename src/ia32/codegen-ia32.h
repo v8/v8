@@ -37,6 +37,10 @@ namespace internal {
 // Forward declarations
 class CompilationInfo;
 
+static const int kSizeOfFullCodegenStrictModePrologue = 34;
+static const int kSizeOfOptimizedStrictModePrologue = 12;
+static const int kSizeOfOptimizedAlignStackPrologue = 44;
+
 // -------------------------------------------------------------------------
 // CodeGenerator
 

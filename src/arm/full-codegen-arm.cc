@@ -149,12 +149,15 @@ void FullCodeGenerator::Generate() {
   // function calls.
   if (!info->is_classic_mode() || info->is_native()) {
     Label ok;
+    Label begin;
+    __ bind(&begin);
     __ cmp(r5, Operand(0));
     __ b(eq, &ok);
     int receiver_offset = info->scope()->num_parameters() * kPointerSize;
     __ LoadRoot(r2, Heap::kUndefinedValueRootIndex);
     __ str(r2, MemOperand(sp, receiver_offset));
     __ bind(&ok);
+    ASSERT_EQ(kSizeOfFullCodegenStrictModePrologue, ok.pos() - begin.pos());
   }
 
   // Open a frame scope to indicate that there is a frame on the stack.  The
@@ -164,12 +167,12 @@ void FullCodeGenerator::Generate() {
 
   int locals_count = info->scope()->num_stack_slots();
 
-  __ Push(lr, fp, cp, r1);
-  if (locals_count > 0) {
-    // Load undefined value here, so the value is ready for the loop
-    // below.
-    __ LoadRoot(ip, Heap::kUndefinedValueRootIndex);
-  }
+  // The following four instructions must remain together and unmodified for
+  // code aging to work properly.
+  __ stm(db_w, sp, r1.bit() | cp.bit() | fp.bit() | lr.bit());
+  // Load undefined value here, so the value is ready for the loop
+  // below.
+  __ LoadRoot(ip, Heap::kUndefinedValueRootIndex);
   // Adjust fp to point to caller's fp.
   __ add(fp, sp, Operand(2 * kPointerSize));
 

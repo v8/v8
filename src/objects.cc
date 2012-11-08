@@ -7792,6 +7792,7 @@ void SharedFunctionInfo::InstallFromOptimizedCodeMap(JSFunction* function,
   ASSERT(code != NULL);
   ASSERT(function->context()->native_context() == code_map->get(index - 1));
   function->ReplaceCode(code);
+  code->MakeYoung();
 }
 
 
@@ -8432,6 +8433,15 @@ void ObjectVisitor::VisitCodeTarget(RelocInfo* rinfo) {
 }
 
 
+void ObjectVisitor::VisitCodeAgeSequence(RelocInfo* rinfo) {
+  ASSERT(RelocInfo::IsCodeAgeSequence(rinfo->rmode()));
+  Object* stub = rinfo->code_age_stub();
+  if (stub) {
+    VisitPointer(&stub);
+  }
+}
+
+
 void ObjectVisitor::VisitCodeEntry(Address entry_address) {
   Object* code = Code::GetObjectFromEntryAddress(entry_address);
   Object* old_code = code;
@@ -8641,6 +8651,99 @@ void Code::ClearTypeFeedbackCells(Heap* heap) {
 bool Code::allowed_in_shared_map_code_cache() {
   return is_keyed_load_stub() || is_keyed_store_stub() ||
       (is_compare_ic_stub() && compare_state() == CompareIC::KNOWN_OBJECTS);
+}
+
+
+void Code::MakeCodeAgeSequenceYoung(byte* sequence) {
+  PatchPlatformCodeAge(sequence, kNoAge, NO_MARKING_PARITY);
+}
+
+
+void Code::MakeYoung() {
+  byte* sequence = FindCodeAgeSequence();
+  if (sequence != NULL) {
+    PatchPlatformCodeAge(sequence, kNoAge, NO_MARKING_PARITY);
+  }
+}
+
+
+void Code::MakeOlder(MarkingParity current_parity) {
+  byte* sequence = FindCodeAgeSequence();
+  if (sequence != NULL) {
+    Age age;
+    MarkingParity code_parity;
+    GetCodeAgeAndParity(sequence, &age, &code_parity);
+    if (age != kLastCodeAge && code_parity != current_parity) {
+      PatchPlatformCodeAge(sequence, static_cast<Age>(age + 1),
+                           current_parity);
+    }
+  }
+}
+
+
+bool Code::IsOld() {
+  byte* sequence = FindCodeAgeSequence();
+  if (sequence == NULL) return false;
+  Age age;
+  MarkingParity parity;
+  GetCodeAgeAndParity(sequence, &age, &parity);
+  return age >= kSexagenarianCodeAge;
+}
+
+
+byte* Code::FindCodeAgeSequence() {
+  if (kind() != FUNCTION && kind() != OPTIMIZED_FUNCTION) return NULL;
+  if (strlen(FLAG_stop_at) == 0 &&
+      !ProfileEntryHookStub::HasEntryHook() &&
+      (kind() == FUNCTION && !has_debug_break_slots())) {
+    return FindPlatformCodeAgeSequence();
+  }
+  return NULL;
+}
+
+
+void Code::GetCodeAgeAndParity(Code* code, Age* age,
+                               MarkingParity* parity) {
+  Isolate* isolate = Isolate::Current();
+  Builtins* builtins = isolate->builtins();
+  Code* stub = NULL;
+#define HANDLE_CODE_AGE(AGE)                                            \
+  stub = *builtins->Make##AGE##CodeYoungAgainEvenMarking();             \
+  if (code == stub) {                                                   \
+    *age = k##AGE##CodeAge;                                             \
+    *parity = EVEN_MARKING_PARITY;                                      \
+    return;                                                             \
+  }                                                                     \
+  stub = *builtins->Make##AGE##CodeYoungAgainOddMarking();              \
+  if (code == stub) {                                                   \
+    *age = k##AGE##CodeAge;                                             \
+    *parity = ODD_MARKING_PARITY;                                       \
+    return;                                                             \
+  }
+  CODE_AGE_LIST(HANDLE_CODE_AGE)
+#undef HANDLE_CODE_AGE
+  UNREACHABLE();
+}
+
+
+Code* Code::GetCodeAgeStub(Age age, MarkingParity parity) {
+  Isolate* isolate = Isolate::Current();
+  Builtins* builtins = isolate->builtins();
+  switch (age) {
+#define HANDLE_CODE_AGE(AGE)                                            \
+    case k##AGE##CodeAge: {                                             \
+      Code* stub = parity == EVEN_MARKING_PARITY                        \
+          ? *builtins->Make##AGE##CodeYoungAgainEvenMarking()           \
+          : *builtins->Make##AGE##CodeYoungAgainOddMarking();           \
+      return stub;                                                      \
+    }
+    CODE_AGE_LIST(HANDLE_CODE_AGE)
+#undef HANDLE_CODE_AGE
+    default:
+      UNREACHABLE();
+      break;
+  }
+  return NULL;
 }
 
 

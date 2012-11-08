@@ -138,6 +138,8 @@ void FullCodeGenerator::Generate() {
   // function calls.
   if (!info->is_classic_mode() || info->is_native()) {
     Label ok;
+    Label begin;
+    __ bind(&begin);
     __ testq(rcx, rcx);
     __ j(zero, &ok, Label::kNear);
     // +1 for return address.
@@ -145,6 +147,7 @@ void FullCodeGenerator::Generate() {
     __ LoadRoot(kScratchRegister, Heap::kUndefinedValueRootIndex);
     __ movq(Operand(rsp, receiver_offset), kScratchRegister);
     __ bind(&ok);
+    ASSERT_EQ(kSizeOfFullCodegenStrictModePrologue, ok.pos() - begin.pos());
   }
 
   // Open a frame scope to indicate that there is a frame on the stack.  The

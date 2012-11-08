@@ -133,6 +133,8 @@ bool LCodeGen::GeneratePrologue() {
   // object). rcx is zero for method calls and non-zero for function
   // calls.
   if (!info_->is_classic_mode() || info_->is_native()) {
+    Label begin;
+    __ bind(&begin);
     Label ok;
     __ testq(rcx, rcx);
     __ j(zero, &ok, Label::kNear);
@@ -141,6 +143,7 @@ bool LCodeGen::GeneratePrologue() {
     __ LoadRoot(kScratchRegister, Heap::kUndefinedValueRootIndex);
     __ movq(Operand(rsp, receiver_offset), kScratchRegister);
     __ bind(&ok);
+    ASSERT_EQ(kSizeOfOptimizedStrictModePrologue, ok.pos() - begin.pos());
   }
 
   __ push(rbp);  // Caller's frame pointer.

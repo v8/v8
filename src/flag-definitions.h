@@ -396,6 +396,9 @@ DEFINE_bool(flush_code, true,
             "flush code that we expect not to use again (during full gc)")
 DEFINE_bool(flush_code_incrementally, false,
             "flush code that we expect not to use again (incrementally)")
+DEFINE_bool(age_code, false,
+            "track un-executed functions to age code and flush only "
+            "old code")
 DEFINE_bool(incremental_marking, true, "use incremental marking")
 DEFINE_bool(incremental_marking_steps, true, "do incremental marking steps")
 DEFINE_bool(trace_incremental_marking, false,
