@@ -441,11 +441,18 @@ class CodeFlusher {
     ProcessJSFunctionCandidates();
   }
 
+  void EvictAllCandidates() {
+    EvictJSFunctionCandidates();
+    EvictSharedFunctionInfoCandidates();
+  }
+
   void IteratePointersToFromSpace(ObjectVisitor* v);
 
  private:
   void ProcessJSFunctionCandidates();
   void ProcessSharedFunctionInfoCandidates();
+  void EvictJSFunctionCandidates();
+  void EvictSharedFunctionInfoCandidates();
 
   static JSFunction** GetNextCandidateSlot(JSFunction* candidate) {
     return reinterpret_cast<JSFunction**>(

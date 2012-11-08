@@ -952,6 +952,34 @@ void CodeFlusher::EvictCandidate(JSFunction* function) {
 }
 
 
+void CodeFlusher::EvictJSFunctionCandidates() {
+  Object* undefined = isolate_->heap()->undefined_value();
+
+  JSFunction* candidate = jsfunction_candidates_head_;
+  JSFunction* next_candidate;
+  while (candidate != NULL) {
+    next_candidate = GetNextCandidate(candidate);
+    ClearNextCandidate(candidate, undefined);
+    candidate = next_candidate;
+  }
+
+  jsfunction_candidates_head_ = NULL;
+}
+
+
+void CodeFlusher::EvictSharedFunctionInfoCandidates() {
+  SharedFunctionInfo* candidate = shared_function_info_candidates_head_;
+  SharedFunctionInfo* next_candidate;
+  while (candidate != NULL) {
+    next_candidate = GetNextCandidate(candidate);
+    ClearNextCandidate(candidate);
+    candidate = next_candidate;
+  }
+
+  shared_function_info_candidates_head_ = NULL;
+}
+
+
 void CodeFlusher::IteratePointersToFromSpace(ObjectVisitor* v) {
   Heap* heap = isolate_->heap();
 
@@ -3629,6 +3657,7 @@ void MarkCompactCollector::EnableCodeFlushing(bool enable) {
     code_flusher_ = new CodeFlusher(heap()->isolate());
   } else {
     if (code_flusher_ == NULL) return;
+    code_flusher_->EvictAllCandidates();
     delete code_flusher_;
     code_flusher_ = NULL;
   }
