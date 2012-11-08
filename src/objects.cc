@@ -10292,7 +10292,7 @@ MaybeObject* JSObject::SetElement(uint32_t index,
   // From here on, everything has to be handlified.
   Handle<String> name;
   Handle<Object> old_value(isolate->heap()->the_hole_value());
-  PropertyAttributes old_attributes;
+  PropertyAttributes old_attributes = ABSENT;
   bool preexists = false;
   if (FLAG_harmony_observation && map()->is_observed()) {
     name = isolate->factory()->Uint32ToString(index);

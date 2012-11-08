@@ -1920,8 +1920,10 @@ MaybeObject* KeyedStoreIC::Store(State state,
   }
 
   // Do not use ICs for objects that require access checks (including
-  // the global object).
-  bool use_ic = FLAG_use_ic && !object->IsAccessCheckNeeded();
+  // the global object), or are observed.
+  bool use_ic = FLAG_use_ic && !object->IsAccessCheckNeeded() &&
+      !(FLAG_harmony_observation && object->IsJSObject() &&
+          JSObject::cast(*object)->map()->is_observed());
   ASSERT(!(use_ic && object->IsJSGlobalProxy()));
 
   if (use_ic) {

@@ -332,3 +332,35 @@ observer.assertCallbackRecords([
   { object: obj, name: "1", type: "deleted", oldValue: 10 },
   { object: obj, name: "1", type: "new" },
 ]);
+
+
+// Assignments in loops (checking different IC states).
+reset();
+var obj = {};
+Object.observe(obj, observer.callback);
+for (var i = 0; i < 5; i++) {
+  obj["a" + i] = i;
+}
+Object.deliverChangeRecords(observer.callback);
+observer.assertCallbackRecords([
+  { object: obj, name: "a0", type: "new" },
+  { object: obj, name: "a1", type: "new" },
+  { object: obj, name: "a2", type: "new" },
+  { object: obj, name: "a3", type: "new" },
+  { object: obj, name: "a4", type: "new" },
+]);
+
+reset();
+var obj = {};
+Object.observe(obj, observer.callback);
+for (var i = 0; i < 5; i++) {
+  obj[i] = i;
+}
+Object.deliverChangeRecords(observer.callback);
+observer.assertCallbackRecords([
+  { object: obj, name: "0", type: "new" },
+  { object: obj, name: "1", type: "new" },
+  { object: obj, name: "2", type: "new" },
+  { object: obj, name: "3", type: "new" },
+  { object: obj, name: "4", type: "new" },
+]);
