@@ -2931,6 +2931,34 @@ bool Heap::CreateInitialObjects() {
 }
 
 
+bool Heap::RootCanBeWrittenAfterInitialization(Heap::RootListIndex root_index) {
+  RootListIndex writable_roots[] = {
+    kStoreBufferTopRootIndex,
+    kStackLimitRootIndex,
+    kInstanceofCacheFunctionRootIndex,
+    kInstanceofCacheMapRootIndex,
+    kInstanceofCacheAnswerRootIndex,
+    kCodeStubsRootIndex,
+    kNonMonomorphicCacheRootIndex,
+    kPolymorphicCodeCacheRootIndex,
+    kLastScriptIdRootIndex,
+    kEmptyScriptRootIndex,
+    kRealStackLimitRootIndex,
+    kArgumentsAdaptorDeoptPCOffsetRootIndex,
+    kConstructStubDeoptPCOffsetRootIndex,
+    kGetterStubDeoptPCOffsetRootIndex,
+    kSetterStubDeoptPCOffsetRootIndex,
+    kSymbolTableRootIndex,
+  };
+
+  for (unsigned int i = 0; i < ARRAY_SIZE(writable_roots); i++) {
+    if (root_index == writable_roots[i])
+      return true;
+  }
+  return false;
+}
+
+
 Object* RegExpResultsCache::Lookup(Heap* heap,
                                    String* key_string,
                                    Object* key_pattern,

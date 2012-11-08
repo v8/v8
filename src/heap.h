@@ -1456,6 +1456,10 @@ class Heap {
   STATIC_CHECK(kFalseValueRootIndex == Internals::kFalseValueRootIndex);
   STATIC_CHECK(kempty_symbolRootIndex == Internals::kEmptySymbolRootIndex);
 
+  // Generated code can embed direct references to non-writable roots if
+  // they are in new space.
+  static bool RootCanBeWrittenAfterInitialization(RootListIndex root_index);
+
   MUST_USE_RESULT MaybeObject* NumberToString(
       Object* number, bool check_number_string_cache = true);
   MUST_USE_RESULT MaybeObject* Uint32ToString(
