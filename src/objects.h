@@ -1483,10 +1483,18 @@ class JSReceiver: public HeapObject {
                                                       String* name);
   PropertyAttributes GetLocalPropertyAttribute(String* name);
 
+  inline PropertyAttributes GetElementAttribute(uint32_t index);
+  inline PropertyAttributes GetElementAttributeWithReceiver(
+      JSReceiver* receiver,
+      uint32_t index,
+      bool continue_search);
+  inline PropertyAttributes GetLocalElementAttribute(uint32_t index);
+
   // Can cause a GC.
   inline bool HasProperty(String* name);
   inline bool HasLocalProperty(String* name);
   inline bool HasElement(uint32_t index);
+  inline bool HasLocalElement(uint32_t index);
 
   // Return the object's prototype (might be Heap::null_value()).
   inline Object* GetPrototype();
@@ -1701,6 +1709,9 @@ class JSObject: public JSReceiver {
       LookupResult* result,
       String* name,
       bool continue_search);
+  PropertyAttributes GetElementAttributeWithReceiver(JSReceiver* receiver,
+                                                     uint32_t index,
+                                                     bool continue_search);
 
   static void DefineAccessor(Handle<JSObject> object,
                              Handle<String> name,
@@ -1822,9 +1833,6 @@ class JSObject: public JSReceiver {
   // be represented as a double and not a Smi.
   bool ShouldConvertToFastDoubleElements(bool* has_smi_only_elements);
 
-  // Tells whether the index'th element is present.
-  bool HasElementWithReceiver(JSReceiver* receiver, uint32_t index);
-
   // Computes the new capacity when expanding the elements of a JSObject.
   static int NewElementsCapacity(int old_capacity) {
     // (old_capacity + 50%) + 16
@@ -1849,9 +1857,7 @@ class JSObject: public JSReceiver {
     DICTIONARY_ELEMENT
   };
 
-  LocalElementType HasLocalElement(uint32_t index);
-
-  bool HasElementWithInterceptor(JSReceiver* receiver, uint32_t index);
+  LocalElementType GetLocalElementType(uint32_t index);
 
   MUST_USE_RESULT MaybeObject* SetFastElement(uint32_t index,
                                               Object* value,
@@ -2209,6 +2215,14 @@ class JSObject: public JSReceiver {
                                                       Object* structure,
                                                       uint32_t index,
                                                       Object* holder);
+  MUST_USE_RESULT PropertyAttributes GetElementAttributeWithInterceptor(
+      JSReceiver* receiver,
+      uint32_t index,
+      bool continue_search);
+  MUST_USE_RESULT PropertyAttributes GetElementAttributeWithoutInterceptor(
+      JSReceiver* receiver,
+      uint32_t index,
+      bool continue_search);
   MUST_USE_RESULT MaybeObject* SetElementWithCallback(
       Object* structure,
       uint32_t index,

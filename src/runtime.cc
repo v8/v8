@@ -1091,7 +1091,7 @@ static MaybeObject* GetOwnProperty(Isolate* isolate,
   // This could be an element.
   uint32_t index;
   if (name->AsArrayIndex(&index)) {
-    switch (obj->HasLocalElement(index)) {
+    switch (obj->GetLocalElementType(index)) {
       case JSObject::UNDEFINED_ELEMENT:
         return heap->undefined_value();
 
@@ -4699,7 +4699,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_IsPropertyEnumerable) {
 
   uint32_t index;
   if (key->AsArrayIndex(&index)) {
-    JSObject::LocalElementType type = object->HasLocalElement(index);
+    JSObject::LocalElementType type = object->GetLocalElementType(index);
     switch (type) {
       case JSObject::UNDEFINED_ELEMENT:
       case JSObject::STRING_CHARACTER_ELEMENT:
@@ -13291,8 +13291,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ObjectHashTableSet) {
   CONVERT_ARG_HANDLE_CHECKED(ObjectHashTable, table, 0);
   Handle<Object> key = args.at<Object>(1);
   Handle<Object> value = args.at<Object>(2);
-  PutIntoObjectHashTable(table, key, value);
-  return isolate->heap()->undefined_value();
+  return *PutIntoObjectHashTable(table, key, value);
 }
 
 

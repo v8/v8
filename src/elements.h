@@ -71,6 +71,17 @@ class ElementsAccessor {
       uint32_t key,
       FixedArrayBase* backing_store = NULL) = 0;
 
+  // Returns an element's attributes, or ABSENT if there is no such
+  // element. This method doesn't iterate up the prototype chain.  The caller
+  // can optionally pass in the backing store to use for the check, which must
+  // be compatible with the ElementsKind of the ElementsAccessor. If
+  // backing_store is NULL, the holder->elements() is used as the backing store.
+  MUST_USE_RESULT virtual PropertyAttributes GetAttributes(
+      Object* receiver,
+      JSObject* holder,
+      uint32_t key,
+      FixedArrayBase* backing_store = NULL) = 0;
+
   // Modifies the length data property as specified for JSArrays and resizes the
   // underlying backing store accordingly. The method honors the semantics of
   // changing array sizes as defined in EcmaScript 5.1 15.4.5.2, i.e. array that

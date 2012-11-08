@@ -3227,8 +3227,8 @@ PropertyAttributes JSReceiver::GetPropertyAttributeWithReceiver(
       String* key) {
   uint32_t index = 0;
   if (IsJSObject() && key->AsArrayIndex(&index)) {
-    return JSObject::cast(this)->HasElementWithReceiver(receiver, index)
-        ? NONE : ABSENT;
+    return JSObject::cast(this)->GetElementAttributeWithReceiver(
+        receiver, index, true);
   }
   // Named property.
   LookupResult lookup(GetIsolate());
@@ -3278,13 +3278,113 @@ PropertyAttributes JSReceiver::GetLocalPropertyAttribute(String* name) {
   // Check whether the name is an array index.
   uint32_t index = 0;
   if (IsJSObject() && name->AsArrayIndex(&index)) {
-    if (JSObject::cast(this)->HasLocalElement(index)) return NONE;
-    return ABSENT;
+    return GetLocalElementAttribute(index);
   }
   // Named property.
   LookupResult lookup(GetIsolate());
   LocalLookup(name, &lookup);
   return GetPropertyAttributeForResult(this, &lookup, name, false);
+}
+
+
+PropertyAttributes JSObject::GetElementAttributeWithReceiver(
+    JSReceiver* receiver, uint32_t index, bool continue_search) {
+  Isolate* isolate = GetIsolate();
+
+  // Check access rights if needed.
+  if (IsAccessCheckNeeded()) {
+    if (!isolate->MayIndexedAccess(this, index, v8::ACCESS_HAS)) {
+      isolate->ReportFailedAccessCheck(this, v8::ACCESS_HAS);
+      return ABSENT;
+    }
+  }
+
+  if (IsJSGlobalProxy()) {
+    Object* proto = GetPrototype();
+    if (proto->IsNull()) return ABSENT;
+    ASSERT(proto->IsJSGlobalObject());
+    return JSReceiver::cast(proto)->GetElementAttributeWithReceiver(
+        receiver, index, continue_search);
+  }
+
+  // Check for lookup interceptor except when bootstrapping.
+  if (HasIndexedInterceptor() && !isolate->bootstrapper()->IsActive()) {
+    return GetElementAttributeWithInterceptor(receiver, index, continue_search);
+  }
+
+  return GetElementAttributeWithoutInterceptor(
+      receiver, index, continue_search);
+}
+
+
+PropertyAttributes JSObject::GetElementAttributeWithInterceptor(
+    JSReceiver* receiver, uint32_t index, bool continue_search) {
+  Isolate* isolate = GetIsolate();
+  // Make sure that the top context does not change when doing
+  // callbacks or interceptor calls.
+  AssertNoContextChange ncc;
+  HandleScope scope(isolate);
+  Handle<InterceptorInfo> interceptor(GetIndexedInterceptor());
+  Handle<JSReceiver> hreceiver(receiver);
+  Handle<JSObject> holder(this);
+  CustomArguments args(isolate, interceptor->data(), receiver, this);
+  v8::AccessorInfo info(args.end());
+  if (!interceptor->query()->IsUndefined()) {
+    v8::IndexedPropertyQuery query =
+        v8::ToCData<v8::IndexedPropertyQuery>(interceptor->query());
+    LOG(isolate,
+        ApiIndexedPropertyAccess("interceptor-indexed-has", this, index));
+    v8::Handle<v8::Integer> result;
+    {
+      // Leaving JavaScript.
+      VMState state(isolate, EXTERNAL);
+      result = query(index, info);
+    }
+    if (!result.IsEmpty())
+      return static_cast<PropertyAttributes>(result->Int32Value());
+  } else if (!interceptor->getter()->IsUndefined()) {
+    v8::IndexedPropertyGetter getter =
+        v8::ToCData<v8::IndexedPropertyGetter>(interceptor->getter());
+    LOG(isolate,
+        ApiIndexedPropertyAccess("interceptor-indexed-get-has", this, index));
+    v8::Handle<v8::Value> result;
+    {
+      // Leaving JavaScript.
+      VMState state(isolate, EXTERNAL);
+      result = getter(index, info);
+    }
+    if (!result.IsEmpty()) return DONT_ENUM;
+  }
+
+  return holder->GetElementAttributeWithoutInterceptor(
+      *hreceiver, index, continue_search);
+}
+
+
+PropertyAttributes JSObject::GetElementAttributeWithoutInterceptor(
+      JSReceiver* receiver, uint32_t index, bool continue_search) {
+  Isolate* isolate = GetIsolate();
+  HandleScope scope(isolate);
+  Handle<JSReceiver> hreceiver(receiver);
+  Handle<JSObject> holder(this);
+  PropertyAttributes attr = holder->GetElementsAccessor()->GetAttributes(
+      *hreceiver, *holder, index);
+  if (attr != ABSENT) return attr;
+
+  if (holder->IsStringObjectWithCharacterAt(index)) {
+    return static_cast<PropertyAttributes>(READ_ONLY | DONT_DELETE);
+  }
+
+  if (!continue_search) return ABSENT;
+
+  Object* pt = holder->GetPrototype();
+  if (pt->IsJSProxy()) {
+    // We need to follow the spec and simulate a call to [[GetOwnProperty]].
+    return JSProxy::cast(pt)->GetElementAttributeWithHandler(*hreceiver, index);
+  }
+  if (pt->IsNull()) return ABSENT;
+  return JSObject::cast(pt)->GetElementAttributeWithReceiver(
+      *hreceiver, index, true);
 }
 
 
@@ -4009,15 +4109,39 @@ MaybeObject* JSObject::DeleteElement(uint32_t index, DeleteMode mode) {
     return JSGlobalObject::cast(proto)->DeleteElement(index, mode);
   }
 
-  if (HasIndexedInterceptor()) {
-    // Skip interceptor if forcing deletion.
-    if (mode != FORCE_DELETION) {
-      return DeleteElementWithInterceptor(index);
+  // From this point on everything needs to be handlified.
+  HandleScope scope(isolate);
+  Handle<JSObject> self(this);
+
+  Handle<String> name;
+  Handle<Object> old_value(isolate->heap()->the_hole_value());
+  bool preexists = false;
+  if (FLAG_harmony_observation && map()->is_observed()) {
+    name = isolate->factory()->Uint32ToString(index);
+    preexists = self->HasLocalElement(index);
+    if (preexists) {
+      // TODO(observe): only read & set old_value if it's not an accessor
+      old_value = Object::GetElement(self, index);
     }
-    mode = JSReceiver::FORCE_DELETION;
   }
 
-  return GetElementsAccessor()->Delete(this, index, mode);
+  MaybeObject* result;
+  // Skip interceptor if forcing deletion.
+  if (self->HasIndexedInterceptor() && mode != FORCE_DELETION) {
+    result = self->DeleteElementWithInterceptor(index);
+  } else {
+    result = self->GetElementsAccessor()->Delete(*self, index, mode);
+  }
+
+  Handle<Object> hresult;
+  if (!result->ToHandle(&hresult)) return result;
+
+  if (FLAG_harmony_observation && map()->is_observed()) {
+    if (preexists && !self->HasLocalElement(index))
+      self->EnqueueChangeRecord("deleted", name, old_value);
+  }
+
+  return *hresult;
 }
 
 
@@ -9410,64 +9534,7 @@ MaybeObject* JSObject::EnsureCanContainElements(Arguments* args,
 }
 
 
-bool JSObject::HasElementWithInterceptor(JSReceiver* receiver, uint32_t index) {
-  Isolate* isolate = GetIsolate();
-  // Make sure that the top context does not change when doing
-  // callbacks or interceptor calls.
-  AssertNoContextChange ncc;
-  HandleScope scope(isolate);
-  Handle<InterceptorInfo> interceptor(GetIndexedInterceptor());
-  Handle<JSReceiver> receiver_handle(receiver);
-  Handle<JSObject> holder_handle(this);
-  CustomArguments args(isolate, interceptor->data(), receiver, this);
-  v8::AccessorInfo info(args.end());
-  if (!interceptor->query()->IsUndefined()) {
-    v8::IndexedPropertyQuery query =
-        v8::ToCData<v8::IndexedPropertyQuery>(interceptor->query());
-    LOG(isolate,
-        ApiIndexedPropertyAccess("interceptor-indexed-has", this, index));
-    v8::Handle<v8::Integer> result;
-    {
-      // Leaving JavaScript.
-      VMState state(isolate, EXTERNAL);
-      result = query(index, info);
-    }
-    if (!result.IsEmpty()) {
-      ASSERT(result->IsInt32());
-      return true;  // absence of property is signaled by empty handle.
-    }
-  } else if (!interceptor->getter()->IsUndefined()) {
-    v8::IndexedPropertyGetter getter =
-        v8::ToCData<v8::IndexedPropertyGetter>(interceptor->getter());
-    LOG(isolate,
-        ApiIndexedPropertyAccess("interceptor-indexed-has-get", this, index));
-    v8::Handle<v8::Value> result;
-    {
-      // Leaving JavaScript.
-      VMState state(isolate, EXTERNAL);
-      result = getter(index, info);
-    }
-    if (!result.IsEmpty()) return true;
-  }
-
-  if (holder_handle->GetElementsAccessor()->HasElement(
-          *receiver_handle, *holder_handle, index)) {
-    return true;
-  }
-
-  if (holder_handle->IsStringObjectWithCharacterAt(index)) return true;
-  Object* pt = holder_handle->GetPrototype();
-  if (pt->IsJSProxy()) {
-    // We need to follow the spec and simulate a call to [[GetOwnProperty]].
-    return JSProxy::cast(pt)->GetElementAttributeWithHandler(
-        receiver, index) != ABSENT;
-  }
-  if (pt->IsNull()) return false;
-  return JSObject::cast(pt)->HasElementWithReceiver(*receiver_handle, index);
-}
-
-
-JSObject::LocalElementType JSObject::HasLocalElement(uint32_t index) {
+JSObject::LocalElementType JSObject::GetLocalElementType(uint32_t index) {
   // Check access rights if needed.
   if (IsAccessCheckNeeded()) {
     Heap* heap = GetHeap();
@@ -9481,13 +9548,13 @@ JSObject::LocalElementType JSObject::HasLocalElement(uint32_t index) {
     Object* proto = GetPrototype();
     if (proto->IsNull()) return UNDEFINED_ELEMENT;
     ASSERT(proto->IsJSGlobalObject());
-    return JSObject::cast(proto)->HasLocalElement(index);
+    return JSObject::cast(proto)->GetLocalElementType(index);
   }
 
   // Check for lookup interceptor
   if (HasIndexedInterceptor()) {
-    return HasElementWithInterceptor(this, index) ? INTERCEPTED_ELEMENT
-                                                  : UNDEFINED_ELEMENT;
+    return GetElementAttributeWithInterceptor(this, index, false) != ABSENT
+        ? INTERCEPTED_ELEMENT : UNDEFINED_ELEMENT;
   }
 
   // Handle [] on String objects.
@@ -9573,40 +9640,6 @@ JSObject::LocalElementType JSObject::HasLocalElement(uint32_t index) {
   }
 
   return UNDEFINED_ELEMENT;
-}
-
-
-bool JSObject::HasElementWithReceiver(JSReceiver* receiver, uint32_t index) {
-  // Check access rights if needed.
-  if (IsAccessCheckNeeded()) {
-    Heap* heap = GetHeap();
-    if (!heap->isolate()->MayIndexedAccess(this, index, v8::ACCESS_HAS)) {
-      heap->isolate()->ReportFailedAccessCheck(this, v8::ACCESS_HAS);
-      return false;
-    }
-  }
-
-  // Check for lookup interceptor
-  if (HasIndexedInterceptor()) {
-    return HasElementWithInterceptor(receiver, index);
-  }
-
-  ElementsAccessor* accessor = GetElementsAccessor();
-  if (accessor->HasElement(receiver, this, index)) {
-    return true;
-  }
-
-  // Handle [] on String objects.
-  if (this->IsStringObjectWithCharacterAt(index)) return true;
-
-  Object* pt = GetPrototype();
-  if (pt->IsNull()) return false;
-  if (pt->IsJSProxy()) {
-    // We need to follow the spec and simulate a call to [[GetOwnProperty]].
-    return JSProxy::cast(pt)->GetElementAttributeWithHandler(
-        receiver, index) != ABSENT;
-  }
-  return JSObject::cast(pt)->HasElementWithReceiver(receiver, index);
 }
 
 
@@ -10207,28 +10240,31 @@ Handle<Object> JSObject::SetElement(Handle<JSObject> object,
 
 
 MaybeObject* JSObject::SetElement(uint32_t index,
-                                  Object* value,
+                                  Object* value_raw,
                                   PropertyAttributes attributes,
                                   StrictModeFlag strict_mode,
                                   bool check_prototype,
                                   SetPropertyMode set_mode) {
+  Isolate* isolate = GetIsolate();
+  HandleScope scope(isolate);
+  Handle<JSObject> self(this);
+  Handle<Object> value(value_raw);
+
   // Check access rights if needed.
   if (IsAccessCheckNeeded()) {
     Heap* heap = GetHeap();
-    if (!heap->isolate()->MayIndexedAccess(this, index, v8::ACCESS_SET)) {
-      HandleScope scope(heap->isolate());
-      Handle<Object> value_handle(value);
-      heap->isolate()->ReportFailedAccessCheck(this, v8::ACCESS_SET);
-      return *value_handle;
+    if (!heap->isolate()->MayIndexedAccess(*self, index, v8::ACCESS_SET)) {
+      heap->isolate()->ReportFailedAccessCheck(*self, v8::ACCESS_SET);
+      return *value;
     }
   }
 
   if (IsJSGlobalProxy()) {
     Object* proto = GetPrototype();
-    if (proto->IsNull()) return value;
+    if (proto->IsNull()) return *value;
     ASSERT(proto->IsJSGlobalObject());
     return JSObject::cast(proto)->SetElement(index,
-                                             value,
+                                             *value,
                                              attributes,
                                              strict_mode,
                                              check_prototype,
@@ -10237,10 +10273,8 @@ MaybeObject* JSObject::SetElement(uint32_t index,
 
   // Don't allow element properties to be redefined for external arrays.
   if (HasExternalArrayElements() && set_mode == DEFINE_PROPERTY) {
-    Isolate* isolate = GetHeap()->isolate();
-    Handle<Object> receiver(this);
     Handle<Object> number = isolate->factory()->NewNumberFromUint(index);
-    Handle<Object> args[] = { receiver, number };
+    Handle<Object> args[] = { self, number };
     Handle<Object> error = isolate->factory()->NewTypeError(
         "redef_external_array_element", HandleVector(args, ARRAY_SIZE(args)));
     return isolate->Throw(*error);
@@ -10255,22 +10289,45 @@ MaybeObject* JSObject::SetElement(uint32_t index,
     dictionary->set_requires_slow_elements();
   }
 
-  // Check for lookup interceptor
-  if (HasIndexedInterceptor()) {
-    return SetElementWithInterceptor(index,
-                                     value,
-                                     attributes,
-                                     strict_mode,
-                                     check_prototype,
-                                     set_mode);
+  // From here on, everything has to be handlified.
+  Handle<String> name;
+  Handle<Object> old_value(isolate->heap()->the_hole_value());
+  PropertyAttributes old_attributes;
+  bool preexists = false;
+  if (FLAG_harmony_observation && map()->is_observed()) {
+    name = isolate->factory()->Uint32ToString(index);
+    preexists = self->HasLocalElement(index);
+    if (preexists) {
+      old_attributes = self->GetLocalPropertyAttribute(*name);
+      // TODO(observe): only read & set old_value if we have a data property
+      old_value = Object::GetElement(self, index);
+    }
   }
 
-  return SetElementWithoutInterceptor(index,
-                                      value,
-                                      attributes,
-                                      strict_mode,
-                                      check_prototype,
-                                      set_mode);
+  // Check for lookup interceptor
+  MaybeObject* result = self->HasIndexedInterceptor()
+    ? self->SetElementWithInterceptor(
+        index, *value, attributes, strict_mode, check_prototype, set_mode)
+    : self->SetElementWithoutInterceptor(
+        index, *value, attributes, strict_mode, check_prototype, set_mode);
+
+  Handle<Object> hresult;
+  if (!result->ToHandle(&hresult)) return result;
+
+  if (FLAG_harmony_observation && map()->is_observed()) {
+    PropertyAttributes new_attributes = self->GetLocalPropertyAttribute(*name);
+    if (!preexists) {
+      self->EnqueueChangeRecord("new", name, old_value);
+    } else if (new_attributes != old_attributes || old_value->IsTheHole()) {
+      self->EnqueueChangeRecord("reconfigured", name, old_value);
+    } else {
+      Handle<Object> newValue = Object::GetElement(self, index);
+      if (!newValue->SameValue(*old_value))
+        self->EnqueueChangeRecord("updated", name, old_value);
+    }
+  }
+
+  return *hresult;
 }
 
 

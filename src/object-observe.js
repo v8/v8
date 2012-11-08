@@ -45,7 +45,7 @@ InternalObjectHashTable.prototype = {
     return %ObjectHashTableGet(this.table, key);
   },
   set: function(key, value) {
-    return %ObjectHashTableSet(this.table, key, value);
+    this.table = %ObjectHashTableSet(this.table, key, value);
   },
   has: function(key) {
     return %ObjectHashTableHas(this.table, key);

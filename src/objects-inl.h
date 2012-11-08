@@ -5053,6 +5053,11 @@ PropertyAttributes JSReceiver::GetPropertyAttribute(String* key) {
 }
 
 
+PropertyAttributes JSReceiver::GetElementAttribute(uint32_t index) {
+  return GetElementAttributeWithReceiver(this, index, true);
+}
+
+
 // TODO(504): this may be useful in other places too where JSGlobalProxy
 // is used.
 Object* JSObject::BypassGlobalProxy() {
@@ -5077,7 +5082,34 @@ bool JSReceiver::HasElement(uint32_t index) {
   if (IsJSProxy()) {
     return JSProxy::cast(this)->HasElementWithHandler(index);
   }
-  return JSObject::cast(this)->HasElementWithReceiver(this, index);
+  return JSObject::cast(this)->GetElementAttribute(index) != ABSENT;
+}
+
+
+bool JSReceiver::HasLocalElement(uint32_t index) {
+  if (IsJSProxy()) {
+    return JSProxy::cast(this)->HasElementWithHandler(index);
+  }
+  return JSObject::cast(this)->GetLocalElementAttribute(index) != ABSENT;
+}
+
+
+PropertyAttributes JSReceiver::GetElementAttributeWithReceiver(
+    JSReceiver* receiver, uint32_t index, bool continue_search) {
+  if (IsJSProxy()) {
+    return JSProxy::cast(this)->GetElementAttributeWithHandler(receiver, index);
+  }
+  return JSObject::cast(this)->GetElementAttributeWithReceiver(
+      receiver, index, continue_search);
+}
+
+
+PropertyAttributes JSReceiver::GetLocalElementAttribute(uint32_t index) {
+  if (IsJSProxy()) {
+    return JSProxy::cast(this)->GetElementAttributeWithHandler(this, index);
+  }
+  return JSObject::cast(this)->GetElementAttributeWithReceiver(
+      this, index, false);
 }
 
 

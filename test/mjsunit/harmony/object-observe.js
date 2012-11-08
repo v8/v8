@@ -227,19 +227,20 @@ Object.observe(obj, observer.callback);
 Object.observe(obj3, observer.callback);
 Object.observe(obj2, observer.callback);
 Object.notify(obj, {
-  type: 'foo',
+  type: 'foo1',
 });
 Object.notify(obj2, {
-  type: 'foo',
+  type: 'foo2',
 });
 Object.notify(obj3, {
-  type: 'foo',
+  type: 'foo3',
 });
+Object.observe(obj3, observer.callback);
 Object.deliverChangeRecords(observer.callback);
 observer.assertCallbackRecords([
-  { object: obj, type: 'foo' },
-  { object: obj2, type: 'foo' },
-  { object: obj3, type: 'foo' }
+  { object: obj, type: 'foo1' },
+  { object: obj2, type: 'foo2' },
+  { object: obj3, type: 'foo3' }
 ]);
 
 // Observing named properties.
@@ -285,4 +286,49 @@ observer.assertCallbackRecords([
   { object: obj, name: "a", type: "updated", oldValue: 9 },
   { object: obj, name: "a", type: "deleted", oldValue: 10 },
   { object: obj, name: "a", type: "new" },
+]);
+
+// Observing indexed properties.
+reset();
+var obj = {'1': 1}
+Object.observe(obj, observer.callback);
+obj[1] = 2;
+obj[1] = 3;
+delete obj[1];
+obj[1] = 4;
+obj[1] = 4;  // ignored
+obj[1] = 5;
+Object.defineProperty(obj, "1", {value: 6});
+Object.defineProperty(obj, "1", {writable: false});
+obj[1] = 7;  // ignored
+Object.defineProperty(obj, "1", {value: 8});
+Object.defineProperty(obj, "1", {value: 7, writable: true});
+Object.defineProperty(obj, "1", {get: function() {}});
+delete obj[1];
+delete obj[1];
+Object.defineProperty(obj, "1", {get: function() {}, configurable: true});
+Object.defineProperty(obj, "1", {value: 9, writable: true});
+obj[1] = 10;
+delete obj[1];
+Object.defineProperty(obj, "1", {value: 11, configurable: true});
+Object.deliverChangeRecords(observer.callback);
+observer.assertCallbackRecords([
+  { object: obj, name: "1", type: "updated", oldValue: 1 },
+  { object: obj, name: "1", type: "updated", oldValue: 2 },
+  { object: obj, name: "1", type: "deleted", oldValue: 3 },
+  { object: obj, name: "1", type: "new" },
+  { object: obj, name: "1", type: "updated", oldValue: 4 },
+  { object: obj, name: "1", type: "updated", oldValue: 5 },
+  { object: obj, name: "1", type: "reconfigured", oldValue: 6 },
+  { object: obj, name: "1", type: "updated", oldValue: 6 },
+  { object: obj, name: "1", type: "reconfigured", oldValue: 8 },
+  { object: obj, name: "1", type: "reconfigured", oldValue: 7 },
+  // TODO(observe): oldValue should not be present below.
+  { object: obj, name: "1", type: "deleted", oldValue: undefined },
+  { object: obj, name: "1", type: "new" },
+  // TODO(observe): oldValue should be absent below, and type = "reconfigured".
+  { object: obj, name: "1", type: "updated", oldValue: undefined },
+  { object: obj, name: "1", type: "updated", oldValue: 9 },
+  { object: obj, name: "1", type: "deleted", oldValue: 10 },
+  { object: obj, name: "1", type: "new" },
 ]);
