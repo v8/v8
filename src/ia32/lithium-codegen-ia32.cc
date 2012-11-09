@@ -2773,15 +2773,12 @@ void LCodeGen::DoAccessArgumentsAt(LAccessArgumentsAt* instr) {
 
 void LCodeGen::DoLoadKeyedExternalArray(LLoadKeyed* instr) {
   ElementsKind elements_kind = instr->elements_kind();
-  LOperand* key = instr->key();
-  if (!key->IsConstantOperand() &&
-      ExternalArrayOpRequiresTemp(instr->hydrogen()->key()->representation(),
-                                  elements_kind)) {
-    __ SmiUntag(ToRegister(key));
+  if (ExternalArrayOpRequiresTemp<HLoadKeyed>(instr->hydrogen())) {
+    __ SmiUntag(ToRegister(instr->key()));
   }
   Operand operand(BuildFastArrayOperand(
       instr->elements(),
-      key,
+      instr->key(),
       instr->hydrogen()->key()->representation(),
       elements_kind,
       0,
@@ -3851,15 +3848,12 @@ void LCodeGen::DoBoundsCheck(LBoundsCheck* instr) {
 
 void LCodeGen::DoStoreKeyedExternalArray(LStoreKeyed* instr) {
   ElementsKind elements_kind = instr->elements_kind();
-  LOperand* key = instr->key();
-  if (!key->IsConstantOperand() &&
-      ExternalArrayOpRequiresTemp(instr->hydrogen()->key()->representation(),
-                                  elements_kind)) {
-    __ SmiUntag(ToRegister(key));
+  if (ExternalArrayOpRequiresTemp<HStoreKeyed>(instr->hydrogen())) {
+    __ SmiUntag(ToRegister(instr->key()));
   }
   Operand operand(BuildFastArrayOperand(
       instr->elements(),
-      key,
+      instr->key(),
       instr->hydrogen()->key()->representation(),
       elements_kind,
       0,
