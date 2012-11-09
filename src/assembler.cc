@@ -108,7 +108,8 @@ const char* const RelocInfo::kFillerCommentString = "DEOPTIMIZATION PADDING";
 
 AssemblerBase::AssemblerBase(Isolate* isolate)
     : isolate_(isolate),
-      jit_cookie_(0) {
+      jit_cookie_(0),
+      predictable_code_size_(false) {
   if (FLAG_mask_constants_with_cookie && isolate != NULL)  {
     jit_cookie_ = V8::RandomPrivate(isolate);
   }

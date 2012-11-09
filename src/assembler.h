@@ -59,7 +59,10 @@ class AssemblerBase: public Malloced {
   explicit AssemblerBase(Isolate* isolate);
 
   Isolate* isolate() const { return isolate_; }
-  int jit_cookie() { return jit_cookie_; }
+  int jit_cookie() const { return jit_cookie_; }
+
+  bool predictable_code_size() const { return predictable_code_size_; }
+  void set_predictable_code_size(bool value) { predictable_code_size_ = value; }
 
   // Overwrite a host NaN with a quiet target NaN.  Used by mksnapshot for
   // cross-snapshotting.
@@ -68,6 +71,27 @@ class AssemblerBase: public Malloced {
  private:
   Isolate* isolate_;
   int jit_cookie_;
+  bool predictable_code_size_;
+};
+
+
+// Avoids using instructions that vary in size in unpredictable ways between the
+// snapshot and the running VM.
+class PredictableCodeSizeScope {
+ public:
+  explicit PredictableCodeSizeScope(AssemblerBase* assembler)
+      : assembler_(assembler) {
+    old_value_ = assembler_->predictable_code_size();
+    assembler_->set_predictable_code_size(true);
+  }
+
+  ~PredictableCodeSizeScope() {
+    assembler_->set_predictable_code_size(old_value_);
+  }
+
+ private:
+  AssemblerBase* assembler_;
+  bool old_value_;
 };
 
 
