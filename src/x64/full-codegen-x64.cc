@@ -147,7 +147,8 @@ void FullCodeGenerator::Generate() {
     __ LoadRoot(kScratchRegister, Heap::kUndefinedValueRootIndex);
     __ movq(Operand(rsp, receiver_offset), kScratchRegister);
     __ bind(&ok);
-    ASSERT_EQ(kSizeOfFullCodegenStrictModePrologue, ok.pos() - begin.pos());
+    ASSERT(!FLAG_age_code ||
+           (kSizeOfFullCodegenStrictModePrologue == ok.pos() - begin.pos()));
   }
 
   // Open a frame scope to indicate that there is a frame on the stack.  The

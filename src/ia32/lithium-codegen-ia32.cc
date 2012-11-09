@@ -150,7 +150,8 @@ bool LCodeGen::GeneratePrologue() {
     __ mov(Operand(esp, receiver_offset),
            Immediate(isolate()->factory()->undefined_value()));
     __ bind(&ok);
-    ASSERT_EQ(kSizeOfOptimizedStrictModePrologue, ok.pos() - begin.pos());
+    ASSERT(!FLAG_age_code ||
+           (kSizeOfOptimizedStrictModePrologue == ok.pos() - begin.pos()));
   }
 
 
@@ -179,8 +180,9 @@ bool LCodeGen::GeneratePrologue() {
     __ j(not_zero, &align_loop, Label::kNear);
     __ mov(Operand(ebx, 0), Immediate(kAlignmentZapValue));
     __ bind(&do_not_pad);
-    ASSERT_EQ(kSizeOfOptimizedAlignStackPrologue,
-              do_not_pad.pos() - begin.pos());
+    ASSERT(!FLAG_age_code ||
+           (kSizeOfOptimizedAlignStackPrologue ==
+            do_not_pad.pos() - begin.pos()));
   }
 
   __ push(ebp);  // Caller's frame pointer.

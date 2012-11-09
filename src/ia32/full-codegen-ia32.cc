@@ -151,7 +151,8 @@ void FullCodeGenerator::Generate() {
     __ mov(Operand(esp, receiver_offset),
            Immediate(isolate()->factory()->undefined_value()));
     __ bind(&ok);
-    ASSERT_EQ(kSizeOfFullCodegenStrictModePrologue, ok.pos() - start.pos());
+    ASSERT(!FLAG_age_code ||
+           (kSizeOfFullCodegenStrictModePrologue == ok.pos() - start.pos()));
   }
 
   // Open a frame scope to indicate that there is a frame on the stack.  The

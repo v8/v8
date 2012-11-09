@@ -143,7 +143,8 @@ bool LCodeGen::GeneratePrologue() {
     __ LoadRoot(kScratchRegister, Heap::kUndefinedValueRootIndex);
     __ movq(Operand(rsp, receiver_offset), kScratchRegister);
     __ bind(&ok);
-    ASSERT_EQ(kSizeOfOptimizedStrictModePrologue, ok.pos() - begin.pos());
+    ASSERT(!FLAG_age_code ||
+           (kSizeOfOptimizedStrictModePrologue == ok.pos() - begin.pos()));
   }
 
   __ push(rbp);  // Caller's frame pointer.
