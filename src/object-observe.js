@@ -38,25 +38,25 @@ if (IS_UNDEFINED(observationState.observerInfoMap)) {
   observationState.observerPriority = 0;
 }
 
-function InternalObjectHashTable(table) {
-  this.table = table;
+function InternalObjectHashTable(tableName) {
+  this.tableName = tableName;
 }
 
 InternalObjectHashTable.prototype = {
   get: function(key) {
-    return %ObjectHashTableGet(this.table, key);
+    return %ObjectHashTableGet(observationState[this.tableName], key);
   },
   set: function(key, value) {
-    this.table = %ObjectHashTableSet(this.table, key, value);
+    observationState[this.tableName] =
+        %ObjectHashTableSet(observationState[this.tableName], key, value);
   },
   has: function(key) {
-    return %ObjectHashTableHas(this.table, key);
+    return %ObjectHashTableHas(observationState[this.tableName], key);
   }
 };
 
-var observerInfoMap = new InternalObjectHashTable(
-    observationState.observerInfoMap);
-var objectInfoMap = new InternalObjectHashTable(observationState.objectInfoMap);
+var observerInfoMap = new InternalObjectHashTable('observerInfoMap');
+var objectInfoMap = new InternalObjectHashTable('objectInfoMap');
 
 function ObjectObserve(object, callback) {
   if (!IS_SPEC_OBJECT(object))

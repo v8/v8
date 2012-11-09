@@ -165,3 +165,32 @@ TEST(DeliveryOrderingReentrant) {
   CHECK_EQ(1, CompileRun("ordering[3]")->Int32Value());
   CHECK_EQ(2, CompileRun("ordering[1]")->Int32Value());
 }
+
+TEST(ObjectHashTableGrowth) {
+  HarmonyIsolate isolate;
+  HandleScope scope;
+  // Initializing this context sets up initial hash tables.
+  LocalContext context;
+  Handle<Value> obj = CompileRun("obj = {};");
+  Handle<Value> observer = CompileRun(
+      "var ran = false;"
+      "(function() { ran = true })");
+  {
+    // As does initializing this context.
+    LocalContext context2;
+    context2->Global()->Set(String::New("obj"), obj);
+    context2->Global()->Set(String::New("observer"), observer);
+    CompileRun(
+        "var objArr = [];"
+        // 100 objects should be enough to make the hash table grow
+        // (and thus relocate).
+        "for (var i = 0; i < 100; ++i) {"
+        "  objArr.push({});"
+        "  Object.observe(objArr[objArr.length-1], function(){});"
+        "}"
+        "Object.observe(obj, observer);");
+  }
+  // obj is now marked "is_observed", but our map has moved.
+  CompileRun("obj.foo = 'bar'");
+  CHECK(CompileRun("ran")->BooleanValue());
+}
