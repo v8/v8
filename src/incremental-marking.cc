@@ -175,13 +175,36 @@ void IncrementalMarking::RecordWriteIntoCodeSlow(HeapObject* obj,
 }
 
 
+static void MarkObjectGreyDoNotEnqueue(Object* obj) {
+  if (obj->IsHeapObject()) {
+    HeapObject* heap_obj = HeapObject::cast(obj);
+    MarkBit mark_bit = Marking::MarkBitFrom(HeapObject::cast(obj));
+    if (Marking::IsBlack(mark_bit)) {
+      MemoryChunk::IncrementLiveBytesFromGC(heap_obj->address(),
+                                            -heap_obj->Size());
+    }
+    Marking::AnyToGrey(mark_bit);
+  }
+}
+
+
 class IncrementalMarkingMarkingVisitor
     : public StaticMarkingVisitor<IncrementalMarkingMarkingVisitor> {
  public:
   static void Initialize() {
     StaticMarkingVisitor<IncrementalMarkingMarkingVisitor>::Initialize();
 
+    table_.Register(kVisitNativeContext, &VisitNativeContextIncremental);
     table_.Register(kVisitJSRegExp, &VisitJSRegExp);
+  }
+
+  static void VisitNativeContextIncremental(Map* map, HeapObject* object) {
+    Context* context = Context::cast(object);
+
+    // We will mark cache black with a separate pass
+    // when we finish marking.
+    MarkObjectGreyDoNotEnqueue(context->normalized_map_cache());
+    VisitNativeContext(map, context);
   }
 
   static void VisitJSWeakMap(Map* map, HeapObject* object) {
@@ -494,19 +517,6 @@ void IncrementalMarking::Start() {
 }
 
 
-static void MarkObjectGreyDoNotEnqueue(Object* obj) {
-  if (obj->IsHeapObject()) {
-    HeapObject* heap_obj = HeapObject::cast(obj);
-    MarkBit mark_bit = Marking::MarkBitFrom(HeapObject::cast(obj));
-    if (Marking::IsBlack(mark_bit)) {
-      MemoryChunk::IncrementLiveBytesFromGC(heap_obj->address(),
-                                            -heap_obj->Size());
-    }
-    Marking::AnyToGrey(mark_bit);
-  }
-}
-
-
 void IncrementalMarking::StartMarking(CompactionFlag flag) {
   if (FLAG_trace_incremental_marking) {
     PrintF("[IncrementalMarking] Start marking\n");
@@ -619,6 +629,54 @@ void IncrementalMarking::UpdateMarkingDequeAfterScavenge() {
 }
 
 
+void IncrementalMarking::VisitObject(Map* map, HeapObject* obj, int size) {
+  MarkBit map_mark_bit = Marking::MarkBitFrom(map);
+  if (Marking::IsWhite(map_mark_bit)) {
+    WhiteToGreyAndPush(map, map_mark_bit);
+  }
+
+  IncrementalMarkingMarkingVisitor::IterateBody(map, obj);
+
+  MarkBit obj_mark_bit = Marking::MarkBitFrom(obj);
+  SLOW_ASSERT(Marking::IsGrey(obj_mark_bit) ||
+             (obj->IsFiller() && Marking::IsWhite(obj_mark_bit)));
+  Marking::MarkBlack(obj_mark_bit);
+  MemoryChunk::IncrementLiveBytesFromGC(obj->address(), size);
+}
+
+
+void IncrementalMarking::ProcessMarkingDeque(intptr_t bytes_to_process) {
+  Map* filler_map = heap_->one_pointer_filler_map();
+  while (!marking_deque_.IsEmpty() && bytes_to_process > 0) {
+    HeapObject* obj = marking_deque_.Pop();
+
+    // Explicitly skip one word fillers. Incremental markbit patterns are
+    // correct only for objects that occupy at least two words.
+    Map* map = obj->map();
+    if (map == filler_map) continue;
+
+    int size = obj->SizeFromMap(map);
+    bytes_to_process -= size;
+    VisitObject(map, obj, size);
+  }
+}
+
+
+void IncrementalMarking::ProcessMarkingDeque() {
+  Map* filler_map = heap_->one_pointer_filler_map();
+  while (!marking_deque_.IsEmpty()) {
+    HeapObject* obj = marking_deque_.Pop();
+
+    // Explicitly skip one word fillers. Incremental markbit patterns are
+    // correct only for objects that occupy at least two words.
+    Map* map = obj->map();
+    if (map == filler_map) continue;
+
+    VisitObject(map, obj, obj->SizeFromMap(map));
+  }
+}
+
+
 void IncrementalMarking::Hurry() {
   if (state() == MARKING) {
     double start = 0.0;
@@ -628,32 +686,7 @@ void IncrementalMarking::Hurry() {
     }
     // TODO(gc) hurry can mark objects it encounters black as mutator
     // was stopped.
-    Map* filler_map = heap_->one_pointer_filler_map();
-    Map* native_context_map = heap_->native_context_map();
-    while (!marking_deque_.IsEmpty()) {
-      HeapObject* obj = marking_deque_.Pop();
-
-      // Explicitly skip one word fillers. Incremental markbit patterns are
-      // correct only for objects that occupy at least two words.
-      Map* map = obj->map();
-      if (map == filler_map) {
-        continue;
-      } else if (map == native_context_map) {
-        // Native contexts have weak fields.
-        IncrementalMarkingMarkingVisitor::VisitNativeContext(map, obj);
-      } else {
-        MarkBit map_mark_bit = Marking::MarkBitFrom(map);
-        if (Marking::IsWhite(map_mark_bit)) {
-          WhiteToGreyAndPush(map, map_mark_bit);
-        }
-        IncrementalMarkingMarkingVisitor::IterateBody(map, obj);
-      }
-
-      MarkBit mark_bit = Marking::MarkBitFrom(obj);
-      ASSERT(!Marking::IsBlack(mark_bit));
-      Marking::MarkBlack(mark_bit);
-      MemoryChunk::IncrementLiveBytesFromGC(obj->address(), obj->Size());
-    }
+    ProcessMarkingDeque();
     state_ = COMPLETE;
     if (FLAG_trace_incremental_marking) {
       double end = OS::TimeCurrentMillis();
@@ -792,43 +825,7 @@ void IncrementalMarking::Step(intptr_t allocated_bytes,
       StartMarking(PREVENT_COMPACTION);
     }
   } else if (state_ == MARKING) {
-    Map* filler_map = heap_->one_pointer_filler_map();
-    Map* native_context_map = heap_->native_context_map();
-    while (!marking_deque_.IsEmpty() && bytes_to_process > 0) {
-      HeapObject* obj = marking_deque_.Pop();
-
-      // Explicitly skip one word fillers. Incremental markbit patterns are
-      // correct only for objects that occupy at least two words.
-      Map* map = obj->map();
-      if (map == filler_map) continue;
-
-      int size = obj->SizeFromMap(map);
-      bytes_to_process -= size;
-      MarkBit map_mark_bit = Marking::MarkBitFrom(map);
-      if (Marking::IsWhite(map_mark_bit)) {
-        WhiteToGreyAndPush(map, map_mark_bit);
-      }
-
-      // TODO(gc) switch to static visitor instead of normal visitor.
-      if (map == native_context_map) {
-        // Native contexts have weak fields.
-        Context* ctx = Context::cast(obj);
-
-        // We will mark cache black with a separate pass
-        // when we finish marking.
-        MarkObjectGreyDoNotEnqueue(ctx->normalized_map_cache());
-
-        IncrementalMarkingMarkingVisitor::VisitNativeContext(map, ctx);
-      } else {
-        IncrementalMarkingMarkingVisitor::IterateBody(map, obj);
-      }
-
-      MarkBit obj_mark_bit = Marking::MarkBitFrom(obj);
-      SLOW_ASSERT(Marking::IsGrey(obj_mark_bit) ||
-                  (obj->IsFiller() && Marking::IsWhite(obj_mark_bit)));
-      Marking::MarkBlack(obj_mark_bit);
-      MemoryChunk::IncrementLiveBytesFromGC(obj->address(), size);
-    }
+    ProcessMarkingDeque(bytes_to_process);
     if (marking_deque_.IsEmpty()) MarkingComplete(action);
   }
 
