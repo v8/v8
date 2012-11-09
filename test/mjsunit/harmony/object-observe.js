@@ -399,3 +399,25 @@ observer.assertCallbackRecords([
   { object: obj, name: "3", type: "new" },
   { object: obj, name: "4", type: "new" },
 ]);
+
+// Adding elements past the end of an array should notify on length
+reset();
+var arr = [1, 2, 3];
+Object.observe(arr, observer.callback);
+arr[3] = 10;
+arr[100] = 20;
+Object.defineProperty(arr, '200', {value: 7});
+Object.defineProperty(arr, '400', {get: function(){}});
+arr[50] = 30; // no length change expected
+Object.deliverChangeRecords(observer.callback);
+observer.assertCallbackRecords([
+  { object: arr, name: '3', type: 'new' },
+  { object: arr, name: 'length', type: 'updated', oldValue: 3 },
+  { object: arr, name: '100', type: 'new' },
+  { object: arr, name: 'length', type: 'updated', oldValue: 4 },
+  { object: arr, name: '200', type: 'new' },
+  { object: arr, name: 'length', type: 'updated', oldValue: 101 },
+  { object: arr, name: '400', type: 'new' },
+  { object: arr, name: 'length', type: 'updated', oldValue: 201 },
+  { object: arr, name: '50', type: 'new' },
+]);

@@ -10308,6 +10308,7 @@ MaybeObject* JSObject::SetElement(uint32_t index,
   // From here on, everything has to be handlified.
   Handle<String> name;
   Handle<Object> old_value(isolate->heap()->the_hole_value());
+  Handle<Object> old_array_length;
   PropertyAttributes old_attributes = ABSENT;
   bool preexists = false;
   if (FLAG_harmony_observation && map()->is_observed()) {
@@ -10317,6 +10318,9 @@ MaybeObject* JSObject::SetElement(uint32_t index,
       old_attributes = self->GetLocalPropertyAttribute(*name);
       // TODO(observe): only read & set old_value if we have a data property
       old_value = Object::GetElement(self, index);
+    } else if (self->IsJSArray()) {
+      // Store old array length in case adding an element grows the array.
+      old_array_length = handle(Handle<JSArray>::cast(self)->length());
     }
   }
 
@@ -10334,11 +10338,17 @@ MaybeObject* JSObject::SetElement(uint32_t index,
     PropertyAttributes new_attributes = self->GetLocalPropertyAttribute(*name);
     if (!preexists) {
       EnqueueChangeRecord(self, "new", name, old_value);
+      if (self->IsJSArray() &&
+          !old_array_length->SameValue(Handle<JSArray>::cast(self)->length())) {
+        EnqueueChangeRecord(self, "updated",
+                            isolate->factory()->length_symbol(),
+                            old_array_length);
+      }
     } else if (new_attributes != old_attributes || old_value->IsTheHole()) {
       EnqueueChangeRecord(self, "reconfigured", name, old_value);
     } else {
-      Handle<Object> newValue = Object::GetElement(self, index);
-      if (!newValue->SameValue(*old_value))
+      Handle<Object> new_value = Object::GetElement(self, index);
+      if (!new_value->SameValue(*old_value))
         EnqueueChangeRecord(self, "updated", name, old_value);
     }
   }
