@@ -101,27 +101,42 @@ assertThrows(function() { Object.observe(obj, frozenFunction); }, TypeError);
 // Object.unobserve
 assertThrows(function() { Object.unobserve(4, observer.callback); }, TypeError);
 
-// Object.notify
-assertThrows(function() { Object.notify(obj, {}); }, TypeError);
-assertThrows(function() { Object.notify(obj, { type: 4 }); }, TypeError);
+// Object.getNotifier
+var notifier = Object.getNotifier(obj);
+assertSame(notifier, Object.getNotifier(obj));
+assertEquals(null, Object.getNotifier(Object.freeze({})));
+assertFalse(notifier.hasOwnProperty('notify'));
+assertEquals([], Object.keys(notifier));
+var notifyDesc = Object.getOwnPropertyDescriptor(notifier.__proto__, 'notify');
+assertTrue(notifyDesc.configurable);
+assertTrue(notifyDesc.writable);
+assertFalse(notifyDesc.enumerable);
+assertThrows(function() { notifier.notify({}); }, TypeError);
+assertThrows(function() { notifier.notify({ type: 4 }); }, TypeError);
+var notify = notifier.notify;
+assertThrows(function() { notify.call(undefined, { type: 'a' }); }, TypeError);
+assertThrows(function() { notify.call(null, { type: 'a' }); }, TypeError);
+assertThrows(function() { notify.call(5, { type: 'a' }); }, TypeError);
+assertThrows(function() { notify.call('hello', { type: 'a' }); }, TypeError);
+assertThrows(function() { notify.call(false, { type: 'a' }); }, TypeError);
+assertThrows(function() { notify.call({}, { type: 'a' }); }, TypeError);
 assertFalse(recordCreated);
-Object.notify(obj, changeRecordWithAccessor);
-assertFalse(recordCreated);
+notifier.notify(changeRecordWithAccessor);
+assertFalse(recordCreated);  // not observed yet
 
 // Object.deliverChangeRecords
 assertThrows(function() { Object.deliverChangeRecords(nonFunction); }, TypeError);
 
 // Multiple records are delivered.
 Object.observe(obj, observer.callback);
-Object.notify(obj, {
-  object: obj,
+notifier.notify({
   type: 'updated',
   name: 'foo',
   expando: 1
 });
 
-Object.notify(obj, {
-  object: obj,
+notifier.notify({
+  object: notifier,  // object property is ignored
   type: 'deleted',
   name: 'bar',
   expando2: 'str'
@@ -141,7 +156,7 @@ observer.assertNotCalled();
 reset();
 Object.observe(obj, observer.callback);
 Object.observe(obj, observer.callback);
-Object.notify(obj, {
+Object.getNotifier(obj).notify({
   type: 'foo',
 });
 Object.deliverChangeRecords(observer.callback);
@@ -150,7 +165,7 @@ observer.assertCalled();
 // Observation can be stopped.
 reset();
 Object.unobserve(obj, observer.callback);
-Object.notify(obj, {
+Object.getNotifier(obj).notify({
   type: 'foo',
 });
 Object.deliverChangeRecords(observer.callback);
@@ -160,7 +175,7 @@ observer.assertNotCalled();
 reset();
 Object.unobserve(obj, observer.callback);
 Object.unobserve(obj, observer.callback);
-Object.notify(obj, {
+Object.getNotifier(obj).notify({
   type: 'foo',
 });
 Object.deliverChangeRecords(observer.callback);
@@ -168,11 +183,11 @@ observer.assertNotCalled();
 
 // Re-observation works and only includes changeRecords after of call.
 reset();
-Object.notify(obj, {
+Object.getNotifier(obj).notify({
   type: 'foo',
 });
 Object.observe(obj, observer.callback);
-Object.notify(obj, {
+Object.getNotifier(obj).notify({
   type: 'foo',
 });
 records = undefined;
@@ -182,31 +197,31 @@ observer.assertRecordCount(1);
 // Observing a continuous stream of changes, while itermittantly unobserving.
 reset();
 Object.observe(obj, observer.callback);
-Object.notify(obj, {
+Object.getNotifier(obj).notify({
   type: 'foo',
   val: 1
 });
 
 Object.unobserve(obj, observer.callback);
-Object.notify(obj, {
+Object.getNotifier(obj).notify({
   type: 'foo',
   val: 2
 });
 
 Object.observe(obj, observer.callback);
-Object.notify(obj, {
+Object.getNotifier(obj).notify({
   type: 'foo',
   val: 3
 });
 
 Object.unobserve(obj, observer.callback);
-Object.notify(obj, {
+Object.getNotifier(obj).notify({
   type: 'foo',
   val: 4
 });
 
 Object.observe(obj, observer.callback);
-Object.notify(obj, {
+Object.getNotifier(obj).notify({
   type: 'foo',
   val: 5
 });
@@ -226,13 +241,13 @@ var obj3 = {}
 Object.observe(obj, observer.callback);
 Object.observe(obj3, observer.callback);
 Object.observe(obj2, observer.callback);
-Object.notify(obj, {
+Object.getNotifier(obj).notify({
   type: 'foo1',
 });
-Object.notify(obj2, {
+Object.getNotifier(obj2).notify({
   type: 'foo2',
 });
-Object.notify(obj3, {
+Object.getNotifier(obj3).notify({
   type: 'foo3',
 });
 Object.observe(obj3, observer.callback);

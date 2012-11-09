@@ -64,20 +64,20 @@ TEST(PerIsolateState) {
   Handle<Value> observer = CompileRun("observer");
   Handle<Value> obj = CompileRun("obj");
   Handle<Value> notify_fun1 = CompileRun(
-      "(function() { Object.notify(obj, {type: 'a'}); })");
+      "(function() { obj.foo = 'bar'; })");
   Handle<Value> notify_fun2;
   {
     LocalContext context2;
     context2->Global()->Set(String::New("obj"), obj);
     notify_fun2 = CompileRun(
-        "(function() { Object.notify(obj, {type: 'b'}); })");
+        "(function() { obj.foo = 'baz'; })");
   }
   Handle<Value> notify_fun3;
   {
     LocalContext context3;
     context3->Global()->Set(String::New("obj"), obj);
     notify_fun3 = CompileRun(
-        "(function() { Object.notify(obj, {type: 'c'}); })");
+        "(function() { obj.foo = 'bat'; })");
   }
   {
     LocalContext context4;
@@ -100,7 +100,7 @@ TEST(EndOfMicrotaskDelivery) {
       "var count = 0;"
       "var observer = function(records) { count = records.length };"
       "Object.observe(obj, observer);"
-      "Object.notify(obj, {type: 'a'});");
+      "obj.foo = 'bar';");
   CHECK_EQ(1, CompileRun("count")->Int32Value());
 }
 
@@ -118,7 +118,7 @@ TEST(DeliveryOrdering) {
       "Object.observe(obj1, observer1);"
       "Object.observe(obj1, observer2);"
       "Object.observe(obj1, observer3);"
-      "Object.notify(obj1, {type: 'a'});");
+      "obj1.foo = 'bar';");
   CHECK_EQ(3, CompileRun("ordering.length")->Int32Value());
   CHECK_EQ(1, CompileRun("ordering[0]")->Int32Value());
   CHECK_EQ(2, CompileRun("ordering[1]")->Int32Value());
@@ -128,7 +128,7 @@ TEST(DeliveryOrdering) {
       "Object.observe(obj2, observer3);"
       "Object.observe(obj2, observer2);"
       "Object.observe(obj2, observer1);"
-      "Object.notify(obj2, {type: 'b'});");
+      "obj2.foo = 'baz'");
   CHECK_EQ(3, CompileRun("ordering.length")->Int32Value());
   CHECK_EQ(1, CompileRun("ordering[0]")->Int32Value());
   CHECK_EQ(2, CompileRun("ordering[1]")->Int32Value());
@@ -146,7 +146,7 @@ TEST(DeliveryOrderingReentrant) {
       "function observer1() { ordering.push(1); };"
       "function observer2() {"
       "  if (!reentered) {"
-      "    Object.notify(obj, {type: 'b'});"
+      "    obj.foo = 'baz';"
       "    reentered = true;"
       "  }"
       "  ordering.push(2);"
@@ -155,7 +155,7 @@ TEST(DeliveryOrderingReentrant) {
       "Object.observe(obj, observer1);"
       "Object.observe(obj, observer2);"
       "Object.observe(obj, observer3);"
-      "Object.notify(obj, {type: 'a'});");
+      "obj.foo = 'bar';");
   CHECK_EQ(5, CompileRun("ordering.length")->Int32Value());
   CHECK_EQ(1, CompileRun("ordering[0]")->Int32Value());
   CHECK_EQ(2, CompileRun("ordering[1]")->Int32Value());

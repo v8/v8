@@ -96,7 +96,8 @@ var kMessages = {
   observe_non_object:            ["Object.", "%0", " cannot ", "%0", " non-object"],
   observe_non_function:          ["Object.", "%0", " cannot deliver to non-function"],
   observe_callback_frozen:       ["Object.observe cannot deliver to a frozen function object"],
-  observe_type_non_string:       ["Object.notify provided changeRecord with non-string 'type' property"],
+  observe_type_non_string:       ["Invalid changeRecord with non-string 'type' property"],
+  observe_notify_non_notifier:   ["notify called on non-notifier object"],
   // RangeError
   invalid_array_length:          ["Invalid array length"],
   stack_overflow:                ["Maximum call stack size exceeded"],
