@@ -355,3 +355,18 @@ for (var i = 9; i >= 0; i--) {
   m.delete(i);
   assertEquals(i, m.size);
 }
+
+// Test clear
+var a = new Set();
+s.add(42);
+assertTrue(s.has(42));
+s.clear();
+assertFalse(s.has(42));
+assertEquals(0, s.size);
+
+var m = new Map();
+m.set(42, true);
+assertTrue(m.has(42));
+m.clear();
+assertFalse(m.has(42));
+assertEquals(0, m.size);
