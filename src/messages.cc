@@ -155,7 +155,9 @@ Handle<String> MessageHandler::GetMessage(Handle<Object> data) {
           JSFunction::cast(
               Isolate::Current()->js_builtins_object()->
               GetPropertyNoExceptionThrown(*fmt_str)));
-  Handle<Object> argv[] = { data };
+  Handle<JSMessageObject> message = Handle<JSMessageObject>::cast(data);
+  Handle<Object> argv[] = { Handle<Object>(message->type()),
+                            Handle<Object>(message->arguments()) };
 
   bool caught_exception;
   Handle<Object> result =
