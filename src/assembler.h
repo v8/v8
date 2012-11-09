@@ -61,6 +61,9 @@ class AssemblerBase: public Malloced {
   Isolate* isolate() const { return isolate_; }
   int jit_cookie() const { return jit_cookie_; }
 
+  bool emit_debug_code() const { return emit_debug_code_; }
+  void set_emit_debug_code(bool value) { emit_debug_code_ = value; }
+
   bool predictable_code_size() const { return predictable_code_size_; }
   void set_predictable_code_size(bool value) { predictable_code_size_ = value; }
 
@@ -71,6 +74,7 @@ class AssemblerBase: public Malloced {
  private:
   Isolate* isolate_;
   int jit_cookie_;
+  bool emit_debug_code_;
   bool predictable_code_size_;
 };
 

@@ -525,9 +525,6 @@ class Assembler : public AssemblerBase {
   Assembler(Isolate* isolate, void* buffer, int buffer_size);
   ~Assembler();
 
-  // Overrides the default provided by FLAG_debug_code.
-  void set_emit_debug_code(bool value) { emit_debug_code_ = value; }
-
   // Dummy for cross platform compatibility.
   void set_predictable_code_size(bool value) { }
 
@@ -1033,8 +1030,6 @@ class Assembler : public AssemblerBase {
   // the relocation info.
   TypeFeedbackId recorded_ast_id_;
 
-  bool emit_debug_code() const { return emit_debug_code_; }
-
   int32_t buffer_space() const { return reloc_info_writer.pos() - pc_; }
 
   // Decode branch instruction at pos and return branch target pos.
@@ -1285,7 +1280,6 @@ class Assembler : public AssemblerBase {
   friend class BlockTrampolinePoolScope;
 
   PositionsRecorder positions_recorder_;
-  bool emit_debug_code_;
   friend class PositionsRecorder;
   friend class EnsureSpace;
 };

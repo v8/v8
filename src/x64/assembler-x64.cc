@@ -349,8 +349,7 @@ static void InitCoverageLog();
 Assembler::Assembler(Isolate* arg_isolate, void* buffer, int buffer_size)
     : AssemblerBase(arg_isolate),
       code_targets_(100),
-      positions_recorder_(this),
-      emit_debug_code_(FLAG_debug_code) {
+      positions_recorder_(this) {
   if (buffer == NULL) {
     // Do our own buffer management.
     if (buffer_size <= kMinimalBufferSize) {
