@@ -338,6 +338,8 @@ reset();
 var arr = ['a', 'b', 'c', 'd'];
 var arr2 = ['alpha', 'beta'];
 var arr3 = ['hello'];
+arr3[2] = 'goodbye';
+arr3.length = 6;
 // TODO(adamk): Enable this test case when it can run in a reasonable
 // amount of time.
 //var slow_arr = new Array(1000000000);
@@ -354,7 +356,10 @@ arr.length = 10;
 arr2.length = 0;
 arr2.length = 1; // no change expected
 arr3.length = 0;
+Object.defineProperty(arr3, 'length', {value: 5});
+Object.defineProperty(arr3, 'length', {value: 10, writable: false});
 Object.deliverChangeRecords(observer.callback);
+observer.records.forEach(function(r){print(JSON.stringify(r))});
 observer.assertCallbackRecords([
   { object: arr, name: '3', type: 'deleted', oldValue: 'd' },
   // TODO(adamk): oldValue should not be present below
@@ -365,8 +370,13 @@ observer.assertCallbackRecords([
   { object: arr, name: 'length', type: 'updated', oldValue: 1 },
   { object: arr2, name: '1', type: 'deleted', oldValue: 'beta' },
   { object: arr2, name: 'length', type: 'updated', oldValue: 2 },
+  { object: arr3, name: '2', type: 'deleted', oldValue: 'goodbye' },
   { object: arr3, name: '0', type: 'deleted', oldValue: 'hello' },
-  { object: arr3, name: 'length', type: 'updated', oldValue: 1 },
+  { object: arr3, name: 'length', type: 'updated', oldValue: 6 },
+  { object: arr3, name: 'length', type: 'updated', oldValue: 0 },
+  { object: arr3, name: 'length', type: 'updated', oldValue: 5 },
+  // TODO(adamk): This record should be merged with the above
+  { object: arr3, name: 'length', type: 'reconfigured' },
 ]);
 
 // Assignments in loops (checking different IC states).
