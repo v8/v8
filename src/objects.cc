@@ -4990,7 +4990,8 @@ MaybeObject* JSObject::DefineFastAccessor(String* name,
     if (result.IsFound()) {
       Map* target = result.GetTransitionTarget();
       int descriptor_number = target->LastAdded();
-      ASSERT(target->instance_descriptors()->GetKey(descriptor_number) == name);
+      ASSERT(target->instance_descriptors()->GetKey(descriptor_number)
+             ->Equals(name));
       return TryAccessorTransition(
           this, target, descriptor_number, component, accessor, attributes);
     }
