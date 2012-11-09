@@ -907,7 +907,6 @@ class Object : public MaybeObject {
 #undef IS_TYPE_FUNCTION_DECL
 
   inline bool IsFixedArrayBase();
-  inline bool IsExternal();
 
   // Returns true if this object is an instance of the specified
   // function template.
@@ -2456,8 +2455,6 @@ class FixedArray: public FixedArrayBase {
                                                   Object* value);
 
  private:
-  STATIC_CHECK(kHeaderSize == Internals::kFixedArrayHeaderSize);
-
   DISALLOW_IMPLICIT_CONSTRUCTORS(FixedArray);
 };
 

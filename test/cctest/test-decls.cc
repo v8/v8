@@ -190,8 +190,7 @@ v8::Handle<Integer> DeclarationContext::HandleQuery(Local<String> key,
 
 
 DeclarationContext* DeclarationContext::GetInstance(const AccessorInfo& info) {
-  void* value = External::Cast(*info.Data())->Value();
-  return static_cast<DeclarationContext*>(value);
+  return static_cast<DeclarationContext*>(External::Unwrap(info.Data()));
 }
 
 
