@@ -139,6 +139,7 @@ math-floor-of-div-minus-zero: SKIP
 try: PASS, SKIP if $mode == debug
 debug-scripts-request: PASS, SKIP if $mode == debug
 array-constructor: PASS, SKIP if $mode == debug
+regress-crbug-160010: PASS, SKIP if $mode == debug
 
 # Times out often in release mode on MIPS.
 compiler/regress-stacktrace-methods: PASS, PASS || TIMEOUT if $mode == release
