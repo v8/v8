@@ -755,29 +755,6 @@ function GetStackTraceLine(recv, fun, pos, isGlobal) {
 // ----------------------------------------------------------------------------
 // Error implementation
 
-// Defines accessors for a property that is calculated the first time
-// the property is read.
-function DefineOneShotAccessor(obj, name, fun) {
-  // Note that the accessors consistently operate on 'obj', not 'this'.
-  // Since the object may occur in someone else's prototype chain we
-  // can't rely on 'this' being the same as 'obj'.
-  var value;
-  var value_factory = fun;
-  var getter = function() {
-    if (value_factory == null) {
-      return value;
-    }
-    value = value_factory(obj);
-    value_factory = null;
-    return value;
-  };
-  var setter = function(v) {
-    value_factory = null;
-    value = v;
-  };
-  %DefineOrRedefineAccessorProperty(obj, name, getter, setter, DONT_ENUM);
-}
-
 function CallSite(receiver, fun, pos) {
   this.receiver = receiver;
   this.fun = fun;
@@ -1112,9 +1089,21 @@ function captureStackTrace(obj, cons_opt) {
   var raw_stack = %CollectStackTrace(obj,
                                      cons_opt ? cons_opt : captureStackTrace,
                                      stackTraceLimit);
-  DefineOneShotAccessor(obj, 'stack', function (obj) {
-    return FormatRawStackTrace(obj, raw_stack);
-  });
+  // Note that 'obj' and 'this' maybe different when called on objects that
+  // have the error object on its prototype chain.  The getter replaces itself
+  // with a data property as soon as the stack trace has been formatted.
+  var getter = function() {
+    var value = FormatRawStackTrace(obj, raw_stack);
+    %DefineOrRedefineDataProperty(obj, 'stack', value, NONE);
+    return value;
+  };
+  // The 'stack' property of the receiver is set as data property.  If
+  // the receiver is the same as holder, this accessor pair is replaced.
+  var setter = function(v) {
+    %DefineOrRedefineDataProperty(this, 'stack', v, NONE);
+  };
+
+  %DefineOrRedefineAccessorProperty(obj, 'stack', getter, setter, DONT_ENUM);
 }
 
 
@@ -1249,4 +1238,37 @@ InstallFunctions($Error.prototype, DONT_ENUM, ['toString', ErrorToString]);
 
 // Boilerplate for exceptions for stack overflows. Used from
 // Isolate::StackOverflow().
-var kStackOverflowBoilerplate = MakeRangeError('stack_overflow', []);
+function SetUpStackOverflowBoilerplate() {
+  var boilerplate = MakeRangeError('stack_overflow', []);
+
+  // The raw stack trace is stored as hidden property of the copy of this
+  // boilerplate error object.  Note that the receiver 'this' may not be that
+  // error object copy, but can be found on the prototype chain of 'this'.
+  // When the stack trace is formatted, this accessor property is replaced by
+  // a data property.
+  function getter() {
+    var holder = this;
+    while (!IS_ERROR(holder)) {
+      holder = %GetPrototype(holder);
+      if (holder == null) return MakeSyntaxError('illegal_access', []);
+    }
+    var raw_stack = %GetOverflowedRawStackTrace(holder);
+    var result = IS_ARRAY(raw_stack) ? FormatRawStackTrace(holder, raw_stack)
+                                     : void 0;
+    %DefineOrRedefineDataProperty(holder, 'stack', result, NONE);
+    return result;
+  }
+
+  // The 'stack' property of the receiver is set as data property.  If
+  // the receiver is the same as holder, this accessor pair is replaced.
+  function setter(v) {
+    %DefineOrRedefineDataProperty(this, 'stack', v, NONE);
+  }
+
+  %DefineOrRedefineAccessorProperty(
+      boilerplate, 'stack', getter, setter, DONT_ENUM);
+
+  return boilerplate;
+}
+
+var kStackOverflowBoilerplate = SetUpStackOverflowBoilerplate();
