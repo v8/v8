@@ -5083,7 +5083,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // regexp_data: RegExp data (FixedArray)
   // a0: Instance type of subject string
   STATIC_ASSERT(kStringEncodingMask == 4);
-  STATIC_ASSERT(kAsciiStringTag == 4);
+  STATIC_ASSERT(kOneByteStringTag == 4);
   STATIC_ASSERT(kTwoByteStringTag == 0);
   // Find the code object based on the assumptions above.
   __ And(a0, a0, Operand(kStringEncodingMask));  // Non-zero for ASCII.
@@ -6250,7 +6250,7 @@ void SubStringStub::Generate(MacroAssembler* masm) {
     // string's encoding is wrong because we always have to recheck encoding of
     // the newly created string's parent anyways due to externalized strings.
     Label two_byte_slice, set_slice_header;
-    STATIC_ASSERT((kStringEncodingMask & kAsciiStringTag) != 0);
+    STATIC_ASSERT((kStringEncodingMask & kOneByteStringTag) != 0);
     STATIC_ASSERT((kStringEncodingMask & kTwoByteStringTag) == 0);
     __ And(t0, a1, Operand(kStringEncodingMask));
     __ Branch(&two_byte_slice, eq, t0, Operand(zero_reg));
@@ -6293,7 +6293,7 @@ void SubStringStub::Generate(MacroAssembler* masm) {
 
   __ bind(&allocate_result);
   // Sequential acii string.  Allocate the result.
-  STATIC_ASSERT((kAsciiStringTag & kStringEncodingMask) != 0);
+  STATIC_ASSERT((kOneByteStringTag & kStringEncodingMask) != 0);
   __ And(t0, a1, Operand(kStringEncodingMask));
   __ Branch(&two_byte_sequential, eq, t0, Operand(zero_reg));
 
@@ -6665,9 +6665,10 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   __ Branch(&ascii_data, ne, at, Operand(zero_reg));
 
   __ xor_(t0, t0, t1);
-  STATIC_ASSERT(kAsciiStringTag != 0 && kAsciiDataHintTag != 0);
-  __ And(t0, t0, Operand(kAsciiStringTag | kAsciiDataHintTag));
-  __ Branch(&ascii_data, eq, t0, Operand(kAsciiStringTag | kAsciiDataHintTag));
+  STATIC_ASSERT(kOneByteStringTag != 0 && kAsciiDataHintTag != 0);
+  __ And(t0, t0, Operand(kOneByteStringTag | kAsciiDataHintTag));
+  __ Branch(
+         &ascii_data, eq, t0, Operand(kOneByteStringTag | kAsciiDataHintTag));
 
   // Allocate a two byte cons string.
   __ AllocateTwoByteConsString(v0, t2, t0, t1, &call_runtime);

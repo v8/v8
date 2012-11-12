@@ -1171,6 +1171,8 @@ class ProfileEntryHookStub : public CodeStub {
   // non-NULL hook.
   static bool SetFunctionEntryHook(FunctionEntryHook entry_hook);
 
+  static bool HasEntryHook() { return entry_hook_ != NULL; }
+
  private:
   static void EntryHookTrampoline(intptr_t function,
                                   intptr_t stack_pointer);

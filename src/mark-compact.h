@@ -441,11 +441,18 @@ class CodeFlusher {
     ProcessJSFunctionCandidates();
   }
 
+  void EvictAllCandidates() {
+    EvictJSFunctionCandidates();
+    EvictSharedFunctionInfoCandidates();
+  }
+
   void IteratePointersToFromSpace(ObjectVisitor* v);
 
  private:
   void ProcessJSFunctionCandidates();
   void ProcessSharedFunctionInfoCandidates();
+  void EvictJSFunctionCandidates();
+  void EvictSharedFunctionInfoCandidates();
 
   static JSFunction** GetNextCandidateSlot(JSFunction* candidate) {
     return reinterpret_cast<JSFunction**>(
@@ -653,6 +660,8 @@ class MarkCompactCollector {
 
   bool is_compacting() const { return compacting_; }
 
+  MarkingParity marking_parity() { return marking_parity_; }
+
  private:
   MarkCompactCollector();
   ~MarkCompactCollector();
@@ -684,6 +693,8 @@ class MarkCompactCollector {
   bool reduce_memory_footprint_;
 
   bool abort_incremental_marking_;
+
+  MarkingParity marking_parity_;
 
   // True if we are collecting slots to perform evacuation from evacuation
   // candidates.

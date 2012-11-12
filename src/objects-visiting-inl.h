@@ -225,6 +225,17 @@ void StaticMarkingVisitor<StaticVisitor>::VisitCodeTarget(
 
 
 template<typename StaticVisitor>
+void StaticMarkingVisitor<StaticVisitor>::VisitCodeAgeSequence(
+    Heap* heap, RelocInfo* rinfo) {
+  ASSERT(RelocInfo::IsCodeAgeSequence(rinfo->rmode()));
+  Code* target = rinfo->code_age_stub();
+  ASSERT(target != NULL);
+  heap->mark_compact_collector()->RecordRelocSlot(rinfo, target);
+  StaticVisitor::MarkObject(heap, target);
+}
+
+
+template<typename StaticVisitor>
 void StaticMarkingVisitor<StaticVisitor>::VisitNativeContext(
     Map* map, HeapObject* object) {
   FixedBodyVisitor<StaticVisitor,
@@ -275,6 +286,9 @@ void StaticMarkingVisitor<StaticVisitor>::VisitCode(
   Code* code = Code::cast(object);
   if (FLAG_cleanup_code_caches_at_gc) {
     code->ClearTypeFeedbackCells(heap);
+  }
+  if (FLAG_age_code && !Serializer::enabled()) {
+    code->MakeOlder(heap->mark_compact_collector()->marking_parity());
   }
   code->CodeIterateBody<StaticVisitor>(heap);
 }
@@ -449,8 +463,10 @@ bool StaticMarkingVisitor<StaticVisitor>::IsFlushable(
   // by optimized version of function.
   MarkBit code_mark = Marking::MarkBitFrom(function->code());
   if (code_mark.Get()) {
-    if (!Marking::MarkBitFrom(shared_info).Get()) {
-      shared_info->set_code_age(0);
+    if (!FLAG_age_code) {
+      if (!Marking::MarkBitFrom(shared_info).Get()) {
+        shared_info->set_code_age(0);
+      }
     }
     return false;
   }
@@ -460,8 +476,13 @@ bool StaticMarkingVisitor<StaticVisitor>::IsFlushable(
     return false;
   }
 
-  // We do not flush code for optimized functions.
+  // We do not (yet) flush code for optimized functions.
   if (function->code() != shared_info->code()) {
+    return false;
+  }
+
+  // Check age of optimized code.
+  if (FLAG_age_code && !function->code()->IsOld()) {
     return false;
   }
 
@@ -506,20 +527,20 @@ bool StaticMarkingVisitor<StaticVisitor>::IsFlushable(
     return false;
   }
 
-  // TODO(mstarzinger): The following will soon be replaced by a new way of
-  // aging code, that is based on an aging stub in the function prologue.
+  if (FLAG_age_code) {
+    return shared_info->code()->IsOld();
+  } else {
+    // How many collections newly compiled code object will survive before being
+    // flushed.
+    static const int kCodeAgeThreshold = 5;
 
-  // How many collections newly compiled code object will survive before being
-  // flushed.
-  static const int kCodeAgeThreshold = 5;
-
-  // Age this shared function info.
-  if (shared_info->code_age() < kCodeAgeThreshold) {
-    shared_info->set_code_age(shared_info->code_age() + 1);
-    return false;
+    // Age this shared function info.
+    if (shared_info->code_age() < kCodeAgeThreshold) {
+      shared_info->set_code_age(shared_info->code_age() + 1);
+      return false;
+    }
+    return true;
   }
-
-  return true;
 }
 
 

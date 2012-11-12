@@ -893,12 +893,15 @@ class MacroAssembler: public Assembler {
 
   // Load and check the instance type of an object for being a string.
   // Loads the type into the second argument register.
-  // Returns a condition that will be enabled if the object was a string.
+  // Returns a condition that will be enabled if the object was a string
+  // and the passed-in condition passed. If the passed-in condition failed
+  // then flags remain unchanged.
   Condition IsObjectStringType(Register obj,
-                               Register type) {
-    ldr(type, FieldMemOperand(obj, HeapObject::kMapOffset));
-    ldrb(type, FieldMemOperand(type, Map::kInstanceTypeOffset));
-    tst(type, Operand(kIsNotStringMask));
+                               Register type,
+                               Condition cond = al) {
+    ldr(type, FieldMemOperand(obj, HeapObject::kMapOffset), cond);
+    ldrb(type, FieldMemOperand(type, Map::kInstanceTypeOffset), cond);
+    tst(type, Operand(kIsNotStringMask), cond);
     ASSERT_EQ(0, kStringTag);
     return eq;
   }
@@ -1202,7 +1205,7 @@ class MacroAssembler: public Assembler {
   // Souce and destination can be the same register.
   void UntagAndJumpIfNotSmi(Register dst, Register src, Label* non_smi_case);
 
-  // Jump the register contains a smi.
+  // Jump if the register contains a smi.
   inline void JumpIfSmi(Register value, Label* smi_label) {
     tst(value, Operand(kSmiTagMask));
     b(eq, smi_label);

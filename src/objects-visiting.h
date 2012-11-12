@@ -391,11 +391,9 @@ class StaticMarkingVisitor : public StaticVisitorBase {
   static inline void VisitGlobalPropertyCell(Heap* heap, RelocInfo* rinfo);
   static inline void VisitDebugTarget(Heap* heap, RelocInfo* rinfo);
   static inline void VisitCodeTarget(Heap* heap, RelocInfo* rinfo);
+  static inline void VisitCodeAgeSequence(Heap* heap, RelocInfo* rinfo);
   static inline void VisitExternalReference(RelocInfo* rinfo) { }
   static inline void VisitRuntimeEntry(RelocInfo* rinfo) { }
-
-  // TODO(mstarzinger): This should be made protected once refactoring is done.
-  static inline void VisitNativeContext(Map* map, HeapObject* object);
 
   // TODO(mstarzinger): This should be made protected once refactoring is done.
   // Mark non-optimize code for functions inlined into the given optimized
@@ -408,6 +406,7 @@ class StaticMarkingVisitor : public StaticVisitorBase {
   static inline void VisitSharedFunctionInfo(Map* map, HeapObject* object);
   static inline void VisitJSFunction(Map* map, HeapObject* object);
   static inline void VisitJSRegExp(Map* map, HeapObject* object);
+  static inline void VisitNativeContext(Map* map, HeapObject* object);
 
   // Mark pointers in a Map and its TransitionArray together, possibly
   // treating transitions or back pointers weak.

@@ -2228,7 +2228,7 @@ void MacroAssembler::JumpIfInstanceTypeIsNotSequentialAscii(
       kIsNotStringMask | kStringRepresentationMask | kStringEncodingMask;
 
   andl(scratch, Immediate(kFlatAsciiStringMask));
-  cmpl(scratch, Immediate(kStringTag | kSeqStringTag | kAsciiStringTag));
+  cmpl(scratch, Immediate(kStringTag | kSeqStringTag | kOneByteStringTag));
   j(not_equal, failure, near_jump);
 }
 
@@ -4503,7 +4503,7 @@ void MacroAssembler::EnsureNotWhite(
 
   bind(&not_external);
   // Sequential string, either ASCII or UC16.
-  ASSERT(kAsciiStringTag == 0x04);
+  ASSERT(kOneByteStringTag == 0x04);
   and_(length, Immediate(kStringEncodingMask));
   xor_(length, Immediate(kStringEncodingMask));
   addq(length, Immediate(0x04));

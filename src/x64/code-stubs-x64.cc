@@ -4740,7 +4740,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   Label non_ascii, allocated, ascii_data;
   __ movl(rcx, r8);
   __ and_(rcx, r9);
-  STATIC_ASSERT((kStringEncodingMask & kAsciiStringTag) != 0);
+  STATIC_ASSERT((kStringEncodingMask & kOneByteStringTag) != 0);
   STATIC_ASSERT((kStringEncodingMask & kTwoByteStringTag) == 0);
   __ testl(rcx, Immediate(kStringEncodingMask));
   __ j(zero, &non_ascii);
@@ -4766,9 +4766,9 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   __ testb(rcx, Immediate(kAsciiDataHintMask));
   __ j(not_zero, &ascii_data);
   __ xor_(r8, r9);
-  STATIC_ASSERT(kAsciiStringTag != 0 && kAsciiDataHintTag != 0);
-  __ andb(r8, Immediate(kAsciiStringTag | kAsciiDataHintTag));
-  __ cmpb(r8, Immediate(kAsciiStringTag | kAsciiDataHintTag));
+  STATIC_ASSERT(kOneByteStringTag != 0 && kAsciiDataHintTag != 0);
+  __ andb(r8, Immediate(kOneByteStringTag | kAsciiDataHintTag));
+  __ cmpb(r8, Immediate(kOneByteStringTag | kAsciiDataHintTag));
   __ j(equal, &ascii_data);
   // Allocate a two byte cons string.
   __ AllocateTwoByteConsString(rcx, rdi, no_reg, &call_runtime);
@@ -5288,7 +5288,7 @@ void SubStringStub::Generate(MacroAssembler* masm) {
     // string's encoding is wrong because we always have to recheck encoding of
     // the newly created string's parent anyways due to externalized strings.
     Label two_byte_slice, set_slice_header;
-    STATIC_ASSERT((kStringEncodingMask & kAsciiStringTag) != 0);
+    STATIC_ASSERT((kStringEncodingMask & kOneByteStringTag) != 0);
     STATIC_ASSERT((kStringEncodingMask & kTwoByteStringTag) == 0);
     __ testb(rbx, Immediate(kStringEncodingMask));
     __ j(zero, &two_byte_slice, Label::kNear);
@@ -5332,7 +5332,7 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   __ subq(rdi, Immediate(SeqTwoByteString::kHeaderSize - kHeapObjectTag));
 
   __ bind(&sequential_string);
-  STATIC_ASSERT((kAsciiStringTag & kStringEncodingMask) != 0);
+  STATIC_ASSERT((kOneByteStringTag & kStringEncodingMask) != 0);
   __ testb(rbx, Immediate(kStringEncodingMask));
   __ j(zero, &two_byte_sequential);
 

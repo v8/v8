@@ -169,7 +169,7 @@ void Displacement::init(Label* L, Type type) {
 const int RelocInfo::kApplyMask =
   RelocInfo::kCodeTargetMask | 1 << RelocInfo::RUNTIME_ENTRY |
     1 << RelocInfo::JS_RETURN | 1 << RelocInfo::INTERNAL_REFERENCE |
-    1 << RelocInfo::DEBUG_BREAK_SLOT;
+    1 << RelocInfo::DEBUG_BREAK_SLOT | 1 << RelocInfo::CODE_AGE_SEQUENCE;
 
 
 bool RelocInfo::IsCodedSpecially() {
@@ -314,8 +314,7 @@ static void InitCoverageLog();
 
 Assembler::Assembler(Isolate* arg_isolate, void* buffer, int buffer_size)
     : AssemblerBase(arg_isolate),
-      positions_recorder_(this),
-      emit_debug_code_(FLAG_debug_code) {
+      positions_recorder_(this) {
   if (buffer == NULL) {
     // Do our own buffer management.
     if (buffer_size <= kMinimalBufferSize) {

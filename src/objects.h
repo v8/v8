@@ -194,6 +194,18 @@ enum DescriptorFlag {
   OWN_DESCRIPTORS
 };
 
+// The GC maintains a bit of information, the MarkingParity, which toggles
+// from odd to even and back every time marking is completed. Incremental
+// marking can visit an object twice during a marking phase, so algorithms that
+// that piggy-back on marking can use the parity to ensure that they only
+// perform an operation on an object once per marking phase: they record the
+// MarkingParity when they visit an object, and only re-visit the object when it
+// is marked again and the MarkingParity changes.
+enum MarkingParity {
+  NO_MARKING_PARITY,
+  ODD_MARKING_PARITY,
+  EVEN_MARKING_PARITY
+};
 
 // Instance size sentinel for objects of variable size.
 const int kVariableSizeSentinel = 0;
@@ -467,7 +479,7 @@ const uint32_t kSymbolTag = 0x40;
 // two-byte characters or one-byte characters.
 const uint32_t kStringEncodingMask = 0x4;
 const uint32_t kTwoByteStringTag = 0x0;
-const uint32_t kAsciiStringTag = 0x4;
+const uint32_t kOneByteStringTag = 0x4;
 
 // If bit 7 is clear, the low-order 2 bits indicate the representation
 // of the string.
@@ -518,39 +530,39 @@ const uint32_t kShortcutTypeTag = kConsStringTag;
 enum InstanceType {
   // String types.
   SYMBOL_TYPE = kTwoByteStringTag | kSymbolTag | kSeqStringTag,
-  ASCII_SYMBOL_TYPE = kAsciiStringTag | kSymbolTag | kSeqStringTag,
+  ASCII_SYMBOL_TYPE = kOneByteStringTag | kSymbolTag | kSeqStringTag,
   CONS_SYMBOL_TYPE = kTwoByteStringTag | kSymbolTag | kConsStringTag,
-  CONS_ASCII_SYMBOL_TYPE = kAsciiStringTag | kSymbolTag | kConsStringTag,
+  CONS_ASCII_SYMBOL_TYPE = kOneByteStringTag | kSymbolTag | kConsStringTag,
   SHORT_EXTERNAL_SYMBOL_TYPE = kTwoByteStringTag | kSymbolTag |
                                kExternalStringTag | kShortExternalStringTag,
   SHORT_EXTERNAL_SYMBOL_WITH_ASCII_DATA_TYPE =
       kTwoByteStringTag | kSymbolTag | kExternalStringTag |
       kAsciiDataHintTag | kShortExternalStringTag,
-  SHORT_EXTERNAL_ASCII_SYMBOL_TYPE = kAsciiStringTag | kExternalStringTag |
+  SHORT_EXTERNAL_ASCII_SYMBOL_TYPE = kOneByteStringTag | kExternalStringTag |
                                      kSymbolTag | kShortExternalStringTag,
   EXTERNAL_SYMBOL_TYPE = kTwoByteStringTag | kSymbolTag | kExternalStringTag,
   EXTERNAL_SYMBOL_WITH_ASCII_DATA_TYPE =
       kTwoByteStringTag | kSymbolTag | kExternalStringTag | kAsciiDataHintTag,
   EXTERNAL_ASCII_SYMBOL_TYPE =
-      kAsciiStringTag | kSymbolTag | kExternalStringTag,
+      kOneByteStringTag | kSymbolTag | kExternalStringTag,
   STRING_TYPE = kTwoByteStringTag | kSeqStringTag,
-  ASCII_STRING_TYPE = kAsciiStringTag | kSeqStringTag,
+  ASCII_STRING_TYPE = kOneByteStringTag | kSeqStringTag,
   CONS_STRING_TYPE = kTwoByteStringTag | kConsStringTag,
-  CONS_ASCII_STRING_TYPE = kAsciiStringTag | kConsStringTag,
+  CONS_ASCII_STRING_TYPE = kOneByteStringTag | kConsStringTag,
   SLICED_STRING_TYPE = kTwoByteStringTag | kSlicedStringTag,
-  SLICED_ASCII_STRING_TYPE = kAsciiStringTag | kSlicedStringTag,
+  SLICED_ASCII_STRING_TYPE = kOneByteStringTag | kSlicedStringTag,
   SHORT_EXTERNAL_STRING_TYPE =
       kTwoByteStringTag | kExternalStringTag | kShortExternalStringTag,
   SHORT_EXTERNAL_STRING_WITH_ASCII_DATA_TYPE =
       kTwoByteStringTag | kExternalStringTag |
       kAsciiDataHintTag | kShortExternalStringTag,
   SHORT_EXTERNAL_ASCII_STRING_TYPE =
-      kAsciiStringTag | kExternalStringTag | kShortExternalStringTag,
+      kOneByteStringTag | kExternalStringTag | kShortExternalStringTag,
   EXTERNAL_STRING_TYPE = kTwoByteStringTag | kExternalStringTag,
   EXTERNAL_STRING_WITH_ASCII_DATA_TYPE =
       kTwoByteStringTag | kExternalStringTag | kAsciiDataHintTag,
   // LAST_STRING_TYPE
-  EXTERNAL_ASCII_STRING_TYPE = kAsciiStringTag | kExternalStringTag,
+  EXTERNAL_ASCII_STRING_TYPE = kOneByteStringTag | kExternalStringTag,
   PRIVATE_EXTERNAL_ASCII_STRING_TYPE = EXTERNAL_ASCII_STRING_TYPE,
 
   // Objects allocated in their own spaces (never in new space).
@@ -769,6 +781,13 @@ class MaybeObject BASE_EMBEDDED {
     return true;
   }
 
+  template<typename T>
+  inline bool ToHandle(Handle<T>* obj) {
+    if (IsFailure()) return false;
+    *obj = handle(T::cast(reinterpret_cast<Object*>(this)));
+    return true;
+  }
+
 #ifdef OBJECT_PRINT
   // Prints this object with details.
   inline void Print() {
@@ -866,6 +885,7 @@ class MaybeObject BASE_EMBEDDED {
   V(UndetectableObject)                        \
   V(AccessCheckNeeded)                         \
   V(JSGlobalPropertyCell)                      \
+  V(ObjectHashTable)                           \
 
 
 class JSReceiver;
@@ -1462,10 +1482,14 @@ class JSReceiver: public HeapObject {
                                                       String* name);
   PropertyAttributes GetLocalPropertyAttribute(String* name);
 
+  inline PropertyAttributes GetElementAttribute(uint32_t index);
+  inline PropertyAttributes GetLocalElementAttribute(uint32_t index);
+
   // Can cause a GC.
   inline bool HasProperty(String* name);
   inline bool HasLocalProperty(String* name);
   inline bool HasElement(uint32_t index);
+  inline bool HasLocalElement(uint32_t index);
 
   // Return the object's prototype (might be Heap::null_value()).
   inline Object* GetPrototype();
@@ -1490,10 +1514,10 @@ class JSReceiver: public HeapObject {
   Smi* GenerateIdentityHash();
 
  private:
-  PropertyAttributes GetPropertyAttribute(JSReceiver* receiver,
-                                          LookupResult* result,
-                                          String* name,
-                                          bool continue_search);
+  PropertyAttributes GetPropertyAttributeForResult(JSReceiver* receiver,
+                                                   LookupResult* result,
+                                                   String* name,
+                                                   bool continue_search);
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSReceiver);
 };
@@ -1680,12 +1704,16 @@ class JSObject: public JSReceiver {
       LookupResult* result,
       String* name,
       bool continue_search);
+  PropertyAttributes GetElementAttributeWithReceiver(JSReceiver* receiver,
+                                                     uint32_t index,
+                                                     bool continue_search);
 
   static void DefineAccessor(Handle<JSObject> object,
                              Handle<String> name,
                              Handle<Object> getter,
                              Handle<Object> setter,
                              PropertyAttributes attributes);
+  // Can cause GC.
   MUST_USE_RESULT MaybeObject* DefineAccessor(String* name,
                                               Object* getter,
                                               Object* setter,
@@ -1761,6 +1789,7 @@ class JSObject: public JSReceiver {
 
   static Handle<Object> DeleteProperty(Handle<JSObject> obj,
                                        Handle<String> name);
+  // Can cause GC.
   MUST_USE_RESULT MaybeObject* DeleteProperty(String* name, DeleteMode mode);
 
   static Handle<Object> DeleteElement(Handle<JSObject> obj, uint32_t index);
@@ -1799,9 +1828,6 @@ class JSObject: public JSReceiver {
   // be represented as a double and not a Smi.
   bool ShouldConvertToFastDoubleElements(bool* has_smi_only_elements);
 
-  // Tells whether the index'th element is present.
-  bool HasElementWithReceiver(JSReceiver* receiver, uint32_t index);
-
   // Computes the new capacity when expanding the elements of a JSObject.
   static int NewElementsCapacity(int old_capacity) {
     // (old_capacity + 50%) + 16
@@ -1826,9 +1852,7 @@ class JSObject: public JSReceiver {
     DICTIONARY_ELEMENT
   };
 
-  LocalElementType HasLocalElement(uint32_t index);
-
-  bool HasElementWithInterceptor(JSReceiver* receiver, uint32_t index);
+  LocalElementType GetLocalElementType(uint32_t index);
 
   MUST_USE_RESULT MaybeObject* SetFastElement(uint32_t index,
                                               Object* value,
@@ -2008,7 +2032,7 @@ class JSObject: public JSReceiver {
                                                Object* value,
                                                PropertyAttributes attributes);
 
-  // Add a property to an object.
+  // Add a property to an object. May cause GC.
   MUST_USE_RESULT MaybeObject* AddProperty(
       String* name,
       Object* value,
@@ -2179,6 +2203,15 @@ class JSObject: public JSReceiver {
     static inline int SizeOf(Map* map, HeapObject* object);
   };
 
+  // Enqueue change record for Object.observe. May cause GC.
+  static void EnqueueChangeRecord(Handle<JSObject> object,
+                                  const char* type,
+                                  Handle<String> name,
+                                  Handle<Object> old_value);
+
+  // Deliver change records to observers. May cause GC.
+  static void DeliverChangeRecords(Isolate* isolate);
+
  private:
   friend class DictionaryElementsAccessor;
 
@@ -2186,6 +2219,14 @@ class JSObject: public JSReceiver {
                                                       Object* structure,
                                                       uint32_t index,
                                                       Object* holder);
+  MUST_USE_RESULT PropertyAttributes GetElementAttributeWithInterceptor(
+      JSReceiver* receiver,
+      uint32_t index,
+      bool continue_search);
+  MUST_USE_RESULT PropertyAttributes GetElementAttributeWithoutInterceptor(
+      JSReceiver* receiver,
+      uint32_t index,
+      bool continue_search);
   MUST_USE_RESULT MaybeObject* SetElementWithCallback(
       Object* structure,
       uint32_t index,
@@ -4522,6 +4563,23 @@ class Code: public HeapObject {
   void ClearInlineCaches();
   void ClearTypeFeedbackCells(Heap* heap);
 
+#define DECLARE_CODE_AGE_ENUM(X) k##X##CodeAge,
+  enum Age {
+    kNoAge = 0,
+    CODE_AGE_LIST(DECLARE_CODE_AGE_ENUM)
+    kAfterLastCodeAge,
+    kLastCodeAge = kAfterLastCodeAge - 1,
+    kCodeAgeCount = kAfterLastCodeAge - 1
+  };
+#undef DECLARE_CODE_AGE_ENUM
+
+  // Code aging
+  static void MakeCodeAgeSequenceYoung(byte* sequence);
+  void MakeYoung();
+  void MakeOlder(MarkingParity);
+  static bool IsYoungSequence(byte* sequence);
+  bool IsOld();
+
   // Max loop nesting marker used to postpose OSR. We don't take loop
   // nesting that is deeper than 5 levels into account.
   static const int kMaxLoopNestingMarker = 6;
@@ -4650,6 +4708,21 @@ class Code: public HeapObject {
       TypeField::kMask | CacheHolderField::kMask;
 
  private:
+  friend class RelocIterator;
+
+  // Code aging
+  byte* FindCodeAgeSequence();
+  static void  GetCodeAgeAndParity(Code* code, Age* age,
+                                   MarkingParity* parity);
+  static void GetCodeAgeAndParity(byte* sequence, Age* age,
+                                  MarkingParity* parity);
+  static Code* GetCodeAgeStub(Age age, MarkingParity parity);
+
+  // Code aging -- platform-specific
+  byte* FindPlatformCodeAgeSequence();
+  static void PatchPlatformCodeAge(byte* sequence, Age age,
+                                   MarkingParity parity);
+
   DISALLOW_IMPLICIT_CONSTRUCTORS(Code);
 };
 
@@ -4701,6 +4774,7 @@ class Map: public HeapObject {
   class FunctionWithPrototype:      public BitField<bool, 23,  1> {};
   class DictionaryMap:              public BitField<bool, 24,  1> {};
   class OwnsDescriptors:            public BitField<bool, 25,  1> {};
+  class IsObserved:                 public BitField<bool, 26,  1> {};
 
   // Tells whether the object in the prototype property will be used
   // for instances created from this function.  If the prototype
@@ -4968,6 +5042,8 @@ class Map: public HeapObject {
 
   inline bool owns_descriptors();
   inline void set_owns_descriptors(bool is_shared);
+  inline bool is_observed();
+  inline void set_is_observed(bool is_observed);
 
   MUST_USE_RESULT MaybeObject* RawCopy(int instance_size);
   MUST_USE_RESULT MaybeObject* CopyWithPreallocatedFieldDescriptors();
@@ -6111,8 +6187,6 @@ class JSFunction: public JSObject {
   // The initial map for an object created by this constructor.
   inline Map* initial_map();
   inline void set_initial_map(Map* value);
-  MUST_USE_RESULT inline MaybeObject* set_initial_map_and_cache_transitions(
-      Map* value);
   inline bool has_initial_map();
 
   // Get and set the prototype property on a JSFunction. If the
@@ -8896,6 +8970,10 @@ class ObjectVisitor BASE_EMBEDDED {
 
   // Visits a debug call target in the instruction stream.
   virtual void VisitDebugTarget(RelocInfo* rinfo);
+
+  // Visits the byte sequence in a function's prologue that contains information
+  // about the code's age.
+  virtual void VisitCodeAgeSequence(RelocInfo* rinfo);
 
   // Handy shorthand for visiting a single pointer.
   virtual void VisitPointer(Object** p) { VisitPointers(p, p + 1); }

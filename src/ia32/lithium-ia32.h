@@ -1408,13 +1408,16 @@ class LLoadKeyed: public LTemplateInstruction<1, 2, 0> {
 };
 
 
-inline static bool ExternalArrayOpRequiresTemp(
-    Representation key_representation,
-    ElementsKind elements_kind) {
+template <class T>
+inline static bool ExternalArrayOpRequiresTemp(T* value) {
+  CHECK(value->IsLoadKeyed() || value->IsStoreKeyed());
+  Representation key_representation = value->key()->representation();
+  ElementsKind elements_kind = value->elements_kind();
+
   // Operations that require the key to be divided by two to be converted into
   // an index cannot fold the scale operation into a load and need an extra
   // temp register to do the work.
-  return key_representation.IsTagged() &&
+  return !value->IsConstant() && key_representation.IsTagged() &&
       (elements_kind == EXTERNAL_BYTE_ELEMENTS ||
        elements_kind == EXTERNAL_UNSIGNED_BYTE_ELEMENTS ||
        elements_kind == EXTERNAL_PIXEL_ELEMENTS);

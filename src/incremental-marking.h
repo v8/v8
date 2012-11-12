@@ -259,6 +259,12 @@ class IncrementalMarking {
 
   void EnsureMarkingDequeIsCommitted();
 
+  INLINE(void ProcessMarkingDeque());
+
+  INLINE(void ProcessMarkingDeque(intptr_t bytes_to_process));
+
+  INLINE(void VisitObject(Map* map, HeapObject* obj, int size));
+
   Heap* heap_;
 
   State state_;

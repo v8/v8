@@ -422,6 +422,16 @@ void MacroAssembler::Usat(Register dst, int satpos, const Operand& src,
 void MacroAssembler::LoadRoot(Register destination,
                               Heap::RootListIndex index,
                               Condition cond) {
+  if (CpuFeatures::IsSupported(MOVW_MOVT_IMMEDIATE_LOADS) &&
+      !Heap::RootCanBeWrittenAfterInitialization(index)) {
+    Handle<Object> root(isolate()->heap()->roots_array_start()[index]);
+    if (!isolate()->heap()->InNewSpace(*root)) {
+      // The CPU supports fast immediate values, and this root will never
+      // change. We will load it as a relocatable immediate value.
+      mov(destination, Operand(root), LeaveCC, cond);
+      return;
+    }
+  }
   ldr(destination, MemOperand(kRootRegister, index << kPointerSizeLog2), cond);
 }
 
@@ -3684,7 +3694,7 @@ void MacroAssembler::EnsureNotWhite(
   // For ASCII (char-size of 1) we shift the smi tag away to get the length.
   // For UC16 (char-size of 2) we just leave the smi tag in place, thereby
   // getting the length multiplied by 2.
-  ASSERT(kAsciiStringTag == 4 && kStringEncodingMask == 4);
+  ASSERT(kOneByteStringTag == 4 && kStringEncodingMask == 4);
   ASSERT(kSmiTag == 0 && kSmiTagSize == 1);
   ldr(ip, FieldMemOperand(value, String::kLengthOffset));
   tst(instance_type, Operand(kStringEncodingMask));

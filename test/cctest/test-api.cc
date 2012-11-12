@@ -2447,6 +2447,100 @@ THREADED_TEST(ApiObjectGroupsCycle) {
 }
 
 
+// TODO(mstarzinger): This should be a THREADED_TEST but causes failures
+// on the buildbots, so was made non-threaded for the time being.
+TEST(ApiObjectGroupsCycleForScavenger) {
+  HandleScope scope;
+  LocalContext env;
+
+  WeakCallCounter counter(1234);
+
+  Persistent<Object> g1s1;
+  Persistent<Object> g1s2;
+  Persistent<Object> g2s1;
+  Persistent<Object> g2s2;
+  Persistent<Object> g3s1;
+  Persistent<Object> g3s2;
+
+  {
+    HandleScope scope;
+    g1s1 = Persistent<Object>::New(Object::New());
+    g1s2 = Persistent<Object>::New(Object::New());
+    g1s1.MakeWeak(reinterpret_cast<void*>(&counter), &WeakPointerCallback);
+    g1s2.MakeWeak(reinterpret_cast<void*>(&counter), &WeakPointerCallback);
+
+    g2s1 = Persistent<Object>::New(Object::New());
+    g2s2 = Persistent<Object>::New(Object::New());
+    g2s1.MakeWeak(reinterpret_cast<void*>(&counter), &WeakPointerCallback);
+    g2s2.MakeWeak(reinterpret_cast<void*>(&counter), &WeakPointerCallback);
+
+    g3s1 = Persistent<Object>::New(Object::New());
+    g3s2 = Persistent<Object>::New(Object::New());
+    g3s1.MakeWeak(reinterpret_cast<void*>(&counter), &WeakPointerCallback);
+    g3s2.MakeWeak(reinterpret_cast<void*>(&counter), &WeakPointerCallback);
+  }
+
+  // Make a root.
+  Persistent<Object> root = Persistent<Object>::New(g1s1);
+  root.MarkPartiallyDependent();
+
+  // Connect groups.  We're building the following cycle:
+  // G1: { g1s1, g2s1 }, g1s1 implicitly references g2s1, ditto for other
+  // groups.
+  {
+    g1s1.MarkPartiallyDependent();
+    g1s2.MarkPartiallyDependent();
+    g2s1.MarkPartiallyDependent();
+    g2s2.MarkPartiallyDependent();
+    g3s1.MarkPartiallyDependent();
+    g3s2.MarkPartiallyDependent();
+    Persistent<Value> g1_objects[] = { g1s1, g1s2 };
+    Persistent<Value> g2_objects[] = { g2s1, g2s2 };
+    Persistent<Value> g3_objects[] = { g3s1, g3s2 };
+    V8::AddObjectGroup(g1_objects, 2);
+    g1s1->Set(v8_str("x"), g2s1);
+    V8::AddObjectGroup(g2_objects, 2);
+    g2s1->Set(v8_str("x"), g3s1);
+    V8::AddObjectGroup(g3_objects, 2);
+    g3s1->Set(v8_str("x"), g1s1);
+  }
+
+  HEAP->CollectGarbage(i::NEW_SPACE);
+
+  // All objects should be alive.
+  CHECK_EQ(0, counter.NumberOfWeakCalls());
+
+  // Weaken the root.
+  root.MakeWeak(reinterpret_cast<void*>(&counter), &WeakPointerCallback);
+  root.MarkPartiallyDependent();
+
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  // Groups are deleted, rebuild groups.
+  {
+    g1s1.MarkPartiallyDependent(isolate);
+    g1s2.MarkPartiallyDependent(isolate);
+    g2s1.MarkPartiallyDependent(isolate);
+    g2s2.MarkPartiallyDependent(isolate);
+    g3s1.MarkPartiallyDependent(isolate);
+    g3s2.MarkPartiallyDependent(isolate);
+    Persistent<Value> g1_objects[] = { g1s1, g1s2 };
+    Persistent<Value> g2_objects[] = { g2s1, g2s2 };
+    Persistent<Value> g3_objects[] = { g3s1, g3s2 };
+    V8::AddObjectGroup(g1_objects, 2);
+    g1s1->Set(v8_str("x"), g2s1);
+    V8::AddObjectGroup(g2_objects, 2);
+    g2s1->Set(v8_str("x"), g3s1);
+    V8::AddObjectGroup(g3_objects, 2);
+    g3s1->Set(v8_str("x"), g1s1);
+  }
+
+  HEAP->CollectGarbage(i::NEW_SPACE);
+
+  // All objects should be gone. 7 global handles in total.
+  CHECK_EQ(7, counter.NumberOfWeakCalls());
+}
+
+
 THREADED_TEST(ScriptException) {
   v8::HandleScope scope;
   LocalContext env;
@@ -5316,23 +5410,28 @@ THREADED_TEST(IndependentWeakHandle) {
   v8::Persistent<Context> context = Context::New();
   Context::Scope context_scope(context);
 
-  v8::Persistent<v8::Object> object_a;
+  v8::Persistent<v8::Object> object_a, object_b;
 
   {
     v8::HandleScope handle_scope;
     object_a = v8::Persistent<v8::Object>::New(v8::Object::New());
+    object_b = v8::Persistent<v8::Object>::New(v8::Object::New());
   }
 
   v8::Isolate* isolate = v8::Isolate::GetCurrent();
   bool object_a_disposed = false;
+  bool object_b_disposed = false;
   object_a.MakeWeak(&object_a_disposed, &DisposeAndSetFlag);
+  object_b.MakeWeak(&object_b_disposed, &DisposeAndSetFlag);
   CHECK(!object_a.IsIndependent());
-  CHECK(!object_a.IsIndependent(isolate));
+  CHECK(!object_b.IsIndependent(isolate));
   object_a.MarkIndependent();
+  object_b.MarkIndependent(isolate);
   CHECK(object_a.IsIndependent());
-  CHECK(object_a.IsIndependent(isolate));
+  CHECK(object_b.IsIndependent(isolate));
   HEAP->PerformScavenge();
   CHECK(object_a_disposed);
+  CHECK(object_b_disposed);
 }
 
 

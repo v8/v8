@@ -1371,6 +1371,14 @@ class LLoadKeyed: public LTemplateInstruction<1, 2, 0> {
 };
 
 
+template <class T>
+inline static bool ArrayOpClobbersKey(T *value) {
+  CHECK(value->IsLoadKeyed() || value->IsStoreKeyed());
+  return !value->IsConstant() && (value->key()->representation().IsTagged()
+                                  || value->IsDehoisted());
+}
+
+
 class LLoadKeyedGeneric: public LTemplateInstruction<1, 2, 0> {
  public:
   LLoadKeyedGeneric(LOperand* obj, LOperand* key) {

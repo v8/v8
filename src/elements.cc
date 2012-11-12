@@ -528,9 +528,8 @@ class ElementsAccessorBase : public ElementsAccessor {
                              JSObject* holder,
                              uint32_t key,
                              BackingStore* backing_store) {
-    MaybeObject* element =
-        ElementsAccessorSubclass::GetImpl(receiver, holder, key, backing_store);
-    return !element->IsTheHole();
+    return ElementsAccessorSubclass::GetAttributesImpl(
+        receiver, holder, key, backing_store) != ABSENT;
   }
 
   virtual bool HasElement(Object* receiver,
@@ -562,6 +561,29 @@ class ElementsAccessorBase : public ElementsAccessor {
     return (key < ElementsAccessorSubclass::GetCapacityImpl(backing_store))
            ? backing_store->get(key)
            : backing_store->GetHeap()->the_hole_value();
+  }
+
+  MUST_USE_RESULT virtual PropertyAttributes GetAttributes(
+      Object* receiver,
+      JSObject* holder,
+      uint32_t key,
+      FixedArrayBase* backing_store) {
+    if (backing_store == NULL) {
+      backing_store = holder->elements();
+    }
+    return ElementsAccessorSubclass::GetAttributesImpl(
+        receiver, holder, key, BackingStore::cast(backing_store));
+  }
+
+  MUST_USE_RESULT static PropertyAttributes GetAttributesImpl(
+        Object* receiver,
+        JSObject* obj,
+        uint32_t key,
+        BackingStore* backing_store) {
+    if (key >= ElementsAccessorSubclass::GetCapacityImpl(backing_store)) {
+      return ABSENT;
+    }
+    return backing_store->is_the_hole(key) ? ABSENT : NONE;
   }
 
   MUST_USE_RESULT virtual MaybeObject* SetLength(JSArray* array,
@@ -1143,6 +1165,16 @@ class ExternalElementsAccessor
         : backing_store->GetHeap()->undefined_value();
   }
 
+  MUST_USE_RESULT static PropertyAttributes GetAttributesImpl(
+      Object* receiver,
+      JSObject* obj,
+      uint32_t key,
+      BackingStore* backing_store) {
+    return
+        key < ExternalElementsAccessorSubclass::GetCapacityImpl(backing_store)
+        ? NONE : ABSENT;
+  }
+
   MUST_USE_RESULT static MaybeObject* SetLengthImpl(
       JSObject* obj,
       Object* length,
@@ -1431,6 +1463,18 @@ class DictionaryElementsAccessor
     return obj->GetHeap()->the_hole_value();
   }
 
+  MUST_USE_RESULT static PropertyAttributes GetAttributesImpl(
+      Object* receiver,
+      JSObject* obj,
+      uint32_t key,
+      SeededNumberDictionary* backing_store) {
+    int entry = backing_store->FindEntry(key);
+    if (entry != SeededNumberDictionary::kNotFound) {
+      return backing_store->DetailsAt(entry).attributes();
+    }
+    return ABSENT;
+  }
+
   static bool HasElementImpl(Object* receiver,
                              JSObject* holder,
                              uint32_t key,
@@ -1487,6 +1531,22 @@ class NonStrictArgumentsElementsAccessor : public ElementsAccessorBase<
       } else {
         return result;
       }
+    }
+  }
+
+  MUST_USE_RESULT static PropertyAttributes GetAttributesImpl(
+      Object* receiver,
+      JSObject* obj,
+      uint32_t key,
+      FixedArray* parameter_map) {
+    Object* probe = GetParameterMapArg(obj, parameter_map, key);
+    if (!probe->IsTheHole()) {
+      return NONE;
+    } else {
+      // If not aliased, check the arguments.
+      FixedArray* arguments = FixedArray::cast(parameter_map->get(1));
+      return ElementsAccessor::ForArray(arguments)->GetAttributes(
+          receiver, obj, key, arguments);
     }
   }
 

@@ -61,7 +61,7 @@ consts_misc = [
 
     { 'name': 'StringEncodingMask',     'value': 'kStringEncodingMask' },
     { 'name': 'TwoByteStringTag',       'value': 'kTwoByteStringTag' },
-    { 'name': 'AsciiStringTag',         'value': 'kAsciiStringTag' },
+    { 'name': 'AsciiStringTag',         'value': 'kOneByteStringTag' },
 
     { 'name': 'StringRepresentationMask',
         'value': 'kStringRepresentationMask' },

@@ -4923,7 +4923,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // subject: Subject string
   // regexp_data: RegExp data (FixedArray)
   // r0: Instance type of subject string
-  STATIC_ASSERT(4 == kAsciiStringTag);
+  STATIC_ASSERT(4 == kOneByteStringTag);
   STATIC_ASSERT(kTwoByteStringTag == 0);
   // Find the code object based on the assumptions above.
   __ and_(r0, r0, Operand(kStringEncodingMask));
@@ -5999,23 +5999,28 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   STATIC_ASSERT(kSmiTag == 0);
   STATIC_ASSERT(kSmiTagSize + kSmiShiftSize == 1);
 
-  // I.e., arithmetic shift right by one un-smi-tags.
-  __ mov(r2, Operand(r2, ASR, 1), SetCC);
-  __ mov(r3, Operand(r3, ASR, 1), SetCC, cc);
-  // If either to or from had the smi tag bit set, then carry is set now.
-  __ b(cs, &runtime);  // Either "from" or "to" is not a smi.
+  // Arithmetic shift right by one un-smi-tags. In this case we rotate right
+  // instead because we bail out on non-smi values: ROR and ASR are equivalent
+  // for smis but they set the flags in a way that's easier to optimize.
+  __ mov(r2, Operand(r2, ROR, 1), SetCC);
+  __ mov(r3, Operand(r3, ROR, 1), SetCC, cc);
+  // If either to or from had the smi tag bit set, then C is set now, and N
+  // has the same value: we rotated by 1, so the bottom bit is now the top bit.
   // We want to bailout to runtime here if From is negative.  In that case, the
   // next instruction is not executed and we fall through to bailing out to
-  // runtime.  pl is the opposite of mi.
-  // Both r2 and r3 are untagged integers.
-  __ sub(r2, r2, Operand(r3), SetCC, pl);
-  __ b(mi, &runtime);  // Fail if from > to.
+  // runtime.
+  // Executed if both r2 and r3 are untagged integers.
+  __ sub(r2, r2, Operand(r3), SetCC, cc);
+  // One of the above un-smis or the above SUB could have set N==1.
+  __ b(mi, &runtime);  // Either "from" or "to" is not an smi, or from > to.
 
   // Make sure first argument is a string.
   __ ldr(r0, MemOperand(sp, kStringOffset));
   STATIC_ASSERT(kSmiTag == 0);
-  __ JumpIfSmi(r0, &runtime);
-  Condition is_string = masm->IsObjectStringType(r0, r1);
+  // Do a JumpIfSmi, but fold its jump into the subsequent string test.
+  __ tst(r0, Operand(kSmiTagMask));
+  Condition is_string = masm->IsObjectStringType(r0, r1, ne);
+  ASSERT(is_string == eq);
   __ b(NegateCondition(is_string), &runtime);
 
   // Short-cut for the case of trivial substring.
@@ -6086,7 +6091,7 @@ void SubStringStub::Generate(MacroAssembler* masm) {
     // string's encoding is wrong because we always have to recheck encoding of
     // the newly created string's parent anyways due to externalized strings.
     Label two_byte_slice, set_slice_header;
-    STATIC_ASSERT((kStringEncodingMask & kAsciiStringTag) != 0);
+    STATIC_ASSERT((kStringEncodingMask & kOneByteStringTag) != 0);
     STATIC_ASSERT((kStringEncodingMask & kTwoByteStringTag) == 0);
     __ tst(r1, Operand(kStringEncodingMask));
     __ b(eq, &two_byte_slice);
@@ -6129,7 +6134,7 @@ void SubStringStub::Generate(MacroAssembler* masm) {
 
   __ bind(&allocate_result);
   // Sequential acii string.  Allocate the result.
-  STATIC_ASSERT((kAsciiStringTag & kStringEncodingMask) != 0);
+  STATIC_ASSERT((kOneByteStringTag & kStringEncodingMask) != 0);
   __ tst(r1, Operand(kStringEncodingMask));
   __ b(eq, &two_byte_sequential);
 
@@ -6494,9 +6499,9 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   __ tst(r5, Operand(kAsciiDataHintMask), ne);
   __ b(ne, &ascii_data);
   __ eor(r4, r4, Operand(r5));
-  STATIC_ASSERT(kAsciiStringTag != 0 && kAsciiDataHintTag != 0);
-  __ and_(r4, r4, Operand(kAsciiStringTag | kAsciiDataHintTag));
-  __ cmp(r4, Operand(kAsciiStringTag | kAsciiDataHintTag));
+  STATIC_ASSERT(kOneByteStringTag != 0 && kAsciiDataHintTag != 0);
+  __ and_(r4, r4, Operand(kOneByteStringTag | kAsciiDataHintTag));
+  __ cmp(r4, Operand(kOneByteStringTag | kAsciiDataHintTag));
   __ b(eq, &ascii_data);
 
   // Allocate a two byte cons string.

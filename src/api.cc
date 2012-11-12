@@ -648,6 +648,27 @@ void V8::MarkIndependent(i::Object** object) {
 }
 
 
+void V8::MarkIndependent(i::Isolate* isolate, i::Object** object) {
+  ASSERT(isolate == i::Isolate::Current());
+  LOG_API(isolate, "MarkIndependent");
+  isolate->global_handles()->MarkIndependent(object);
+}
+
+
+void V8::MarkPartiallyDependent(i::Object** object) {
+  i::Isolate* isolate = i::Isolate::Current();
+  LOG_API(isolate, "MarkPartiallyDependent");
+  isolate->global_handles()->MarkPartiallyDependent(object);
+}
+
+
+void V8::MarkPartiallyDependent(i::Isolate* isolate, i::Object** object) {
+  ASSERT(isolate == i::Isolate::Current());
+  LOG_API(isolate, "MarkPartiallyDependent");
+  isolate->global_handles()->MarkPartiallyDependent(object);
+}
+
+
 bool V8::IsGlobalIndependent(i::Object** obj) {
   i::Isolate* isolate = i::Isolate::Current();
   LOG_API(isolate, "IsGlobalIndependent");
@@ -3714,8 +3735,9 @@ ScriptOrigin Function::GetScriptOrigin() const {
   i::Handle<i::JSFunction> func = Utils::OpenHandle(this);
   if (func->shared()->script()->IsScript()) {
     i::Handle<i::Script> script(i::Script::cast(func->shared()->script()));
+    i::Handle<i::Object> scriptName = GetScriptNameOrSourceURL(script);
     v8::ScriptOrigin origin(
-      Utils::ToLocal(i::Handle<i::Object>(script->name())),
+      Utils::ToLocal(scriptName),
       v8::Integer::New(script->line_offset()->value()),
       v8::Integer::New(script->column_offset()->value()));
     return origin;
@@ -6512,6 +6534,7 @@ void Testing::PrepareStressRun(int run) {
 
 
 void Testing::DeoptimizeAll() {
+  i::HandleScope scope;
   internal::Deoptimizer::DeoptimizeAll();
 }
 

@@ -290,7 +290,7 @@ class LookupResult BASE_EMBEDDED {
       case CONSTANT_FUNCTION:
         return GetConstantFunction();
       default:
-        return Smi::FromInt(0);
+        return Isolate::Current()->heap()->the_hole_value();
     }
   }
 

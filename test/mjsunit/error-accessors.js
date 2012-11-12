@@ -25,37 +25,30 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// Test that the message property of error objects is a data property.
 
-var a = {};
-for (i = 0; i < 10000; i++) {
-  var current = {};
-  current.a = a;
-  a = current;
-}
+var o;
 
-function rec(a,b,c,d,e,f,g,h,i,j,k,l,m,n) {
-  JSON.stringify(a);
-  rec(a,b,c,d,e,f,g,h,i,j,k,l,m,n);
-}
+// message is constructed using the constructor.
+var error1 = new Error("custom message");
+o = {};
+o.__proto__ = error1;
 
-assertThrows(function() { rec(1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4) },
-             RangeError);
+assertEquals("custom message",
+             Object.getOwnPropertyDescriptor(error1, "message").value);
+o.message = "another message";
+assertEquals("another message", o.message);
+assertEquals("custom message", error1.message);
 
+// message is constructed by the runtime.
+var error2;
+try { x.x } catch (e) { error2 = e; }
+o = {};
+o.__proto__ = error2;
 
-var depth = 10000;
-var deepArray = [];
-for (var i = 0; i < depth; i++) deepArray = [deepArray];
-assertThrows(function() { JSON.stringify(deepArray); }, RangeError);
+assertEquals("x is not defined",
+             Object.getOwnPropertyDescriptor(error2, "message").value);
+o.message = "another message";
+assertEquals("another message", o.message);
+assertEquals("x is not defined", error2.message);
 
-
-var deepObject = {};
-for (var i = 0; i < depth; i++) deepObject = { next: deepObject };
-assertThrows(function() { JSON.stringify(deepObject); }, RangeError);
-
-
-var str = "[1]";
-for (var i = 0; i < 100000; i++) {
-  str = "[1," + str + "]";
-}
-
-assertThrows(function() { JSON.parse(str); }, RangeError);

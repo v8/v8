@@ -138,15 +138,23 @@ bool LCodeGen::GeneratePrologue() {
   // function calls.
   if (!info_->is_classic_mode() || info_->is_native()) {
     Label ok;
+    Label begin;
+    __ bind(&begin);
     __ cmp(r5, Operand(0));
     __ b(eq, &ok);
     int receiver_offset = scope()->num_parameters() * kPointerSize;
     __ LoadRoot(r2, Heap::kUndefinedValueRootIndex);
     __ str(r2, MemOperand(sp, receiver_offset));
     __ bind(&ok);
+    ASSERT_EQ(kSizeOfOptimizedStrictModePrologue, ok.pos() - begin.pos());
   }
 
+  // The following three instructions must remain together and unmodified for
+  // code aging to work properly.
   __ stm(db_w, sp, r1.bit() | cp.bit() | fp.bit() | lr.bit());
+  // Add unused load of ip to ensure prologue sequence is identical for
+  // full-codegen and lithium-codegen.
+  __ LoadRoot(ip, Heap::kUndefinedValueRootIndex);
   __ add(fp, sp, Operand(2 * kPointerSize));  // Adjust FP to point to saved FP.
 
   // Reserve space for the stack slots needed by the code.
@@ -3040,13 +3048,12 @@ void LCodeGen::DoLoadKeyedFixedDoubleArray(LLoadKeyed* instr) {
                    (instr->additional_index() << element_size_shift)));
   }
 
+  __ vldr(result, elements, 0);
   if (instr->hydrogen()->RequiresHoleCheck()) {
     __ ldr(scratch, MemOperand(elements, sizeof(kHoleNanLower32)));
     __ cmp(scratch, Operand(kHoleNanUpper32));
     DeoptimizeIf(eq, instr->environment());
   }
-
-  __ vldr(result, elements, 0);
 }
 
 

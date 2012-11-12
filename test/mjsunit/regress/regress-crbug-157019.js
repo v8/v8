@@ -25,37 +25,30 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// Flags: --allow-natives-syntax --nocrankshaft
 
-var a = {};
-for (i = 0; i < 10000; i++) {
-  var current = {};
-  current.a = a;
-  a = current;
+function makeConstructor() {
+  return function() {
+    this.a = 1;
+    this.b = 2;
+  };
 }
 
-function rec(a,b,c,d,e,f,g,h,i,j,k,l,m,n) {
-  JSON.stringify(a);
-  rec(a,b,c,d,e,f,g,h,i,j,k,l,m,n);
+var c1 = makeConstructor();
+var o1 = new c1();
+
+c1.prototype = {};
+
+for (var i = 0; i < 10; i++) {
+  var o = new c1();
+  for (var j = 0; j < 8; j++) {
+    o["x" + j] = 0;
+  }
 }
 
-assertThrows(function() { rec(1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4) },
-             RangeError);
+var c2 = makeConstructor();
+var o2 = new c2();
 
-
-var depth = 10000;
-var deepArray = [];
-for (var i = 0; i < depth; i++) deepArray = [deepArray];
-assertThrows(function() { JSON.stringify(deepArray); }, RangeError);
-
-
-var deepObject = {};
-for (var i = 0; i < depth; i++) deepObject = { next: deepObject };
-assertThrows(function() { JSON.stringify(deepObject); }, RangeError);
-
-
-var str = "[1]";
-for (var i = 0; i < 100000; i++) {
-  str = "[1," + str + "]";
+for (var i = 0; i < 50000; i++) {
+  new c2();
 }
-
-assertThrows(function() { JSON.parse(str); }, RangeError);

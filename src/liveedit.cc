@@ -1287,7 +1287,9 @@ static Handle<Code> PatchPositionsInCode(
           continue;
         }
       }
-      buffer_writer.Write(it.rinfo());
+      if (RelocInfo::IsRealRelocMode(rinfo->rmode())) {
+        buffer_writer.Write(it.rinfo());
+      }
     }
   }
 

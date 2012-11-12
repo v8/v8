@@ -783,6 +783,15 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetDelete) {
 }
 
 
+RUNTIME_FUNCTION(MaybeObject*, Runtime_SetGetSize) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSSet, holder, 0);
+  Handle<ObjectHashSet> table(ObjectHashSet::cast(holder->table()));
+  return Smi::FromInt(table->NumberOfElements());
+}
+
+
 RUNTIME_FUNCTION(MaybeObject*, Runtime_MapInitialize) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 1);
@@ -839,6 +848,15 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_MapSet) {
   Handle<ObjectHashTable> new_table = PutIntoObjectHashTable(table, key, value);
   holder->set_table(*new_table);
   return isolate->heap()->undefined_value();
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_MapGetSize) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSMap, holder, 0);
+  Handle<ObjectHashTable> table(ObjectHashTable::cast(holder->table()));
+  return Smi::FromInt(table->NumberOfElements());
 }
 
 
@@ -1073,7 +1091,7 @@ static MaybeObject* GetOwnProperty(Isolate* isolate,
   // This could be an element.
   uint32_t index;
   if (name->AsArrayIndex(&index)) {
-    switch (obj->HasLocalElement(index)) {
+    switch (obj->GetLocalElementType(index)) {
       case JSObject::UNDEFINED_ELEMENT:
         return heap->undefined_value();
 
@@ -4220,6 +4238,33 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DefineOrRedefineDataProperty) {
 }
 
 
+// Return property without being observable by accessors or interceptors.
+RUNTIME_FUNCTION(MaybeObject*, Runtime_GetDataProperty) {
+  ASSERT(args.length() == 2);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 0);
+  CONVERT_ARG_HANDLE_CHECKED(String, key, 1);
+  LookupResult lookup(isolate);
+  object->LookupRealNamedProperty(*key, &lookup);
+  if (!lookup.IsFound()) return isolate->heap()->undefined_value();
+  switch (lookup.type()) {
+    case NORMAL:
+      return lookup.holder()->GetNormalizedProperty(&lookup);
+    case FIELD:
+      return lookup.holder()->FastPropertyAt(lookup.GetFieldIndex());
+    case CONSTANT_FUNCTION:
+      return lookup.GetConstantFunction();
+    case CALLBACKS:
+    case HANDLER:
+    case INTERCEPTOR:
+    case TRANSITION:
+      return isolate->heap()->undefined_value();
+    case NONEXISTENT:
+      UNREACHABLE();
+  }
+  return isolate->heap()->undefined_value();
+}
+
+
 MaybeObject* Runtime::SetObjectProperty(Isolate* isolate,
                                         Handle<Object> object,
                                         Handle<Object> key,
@@ -4681,7 +4726,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_IsPropertyEnumerable) {
 
   uint32_t index;
   if (key->AsArrayIndex(&index)) {
-    JSObject::LocalElementType type = object->HasLocalElement(index);
+    JSObject::LocalElementType type = object->GetLocalElementType(index);
     switch (type) {
       case JSObject::UNDEFINED_ELEMENT:
       case JSObject::STRING_CHARACTER_ELEMENT:
@@ -13083,33 +13128,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetFromCache) {
 }
 
 
-RUNTIME_FUNCTION(MaybeObject*, Runtime_NewMessageObject) {
-  HandleScope scope(isolate);
-  CONVERT_ARG_HANDLE_CHECKED(String, type, 0);
-  CONVERT_ARG_HANDLE_CHECKED(JSArray, arguments, 1);
-  return *isolate->factory()->NewJSMessageObject(
-      type,
-      arguments,
-      0,
-      0,
-      isolate->factory()->undefined_value(),
-      isolate->factory()->undefined_value(),
-      isolate->factory()->undefined_value());
-}
-
-
-RUNTIME_FUNCTION(MaybeObject*, Runtime_MessageGetType) {
-  CONVERT_ARG_CHECKED(JSMessageObject, message, 0);
-  return message->type();
-}
-
-
-RUNTIME_FUNCTION(MaybeObject*, Runtime_MessageGetArguments) {
-  CONVERT_ARG_CHECKED(JSMessageObject, message, 0);
-  return message->arguments();
-}
-
-
 RUNTIME_FUNCTION(MaybeObject*, Runtime_MessageGetStartPosition) {
   CONVERT_ARG_CHECKED(JSMessageObject, message, 0);
   return Smi::FromInt(message->start_position());
@@ -13221,6 +13239,78 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_HaveSameMap) {
   CONVERT_ARG_CHECKED(JSObject, obj2, 1);
   return isolate->heap()->ToBoolean(obj1->map() == obj2->map());
 }
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_IsObserved) {
+  ASSERT(args.length() == 1);
+  CONVERT_ARG_CHECKED(JSReceiver, obj, 0);
+  return isolate->heap()->ToBoolean(obj->map()->is_observed());
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_SetIsObserved) {
+  ASSERT(args.length() == 2);
+  CONVERT_ARG_CHECKED(JSReceiver, obj, 0);
+  CONVERT_BOOLEAN_ARG_CHECKED(is_observed, 1);
+  if (obj->map()->is_observed() != is_observed) {
+    MaybeObject* maybe = obj->map()->Copy();
+    Map* map;
+    if (!maybe->To(&map)) return maybe;
+    map->set_is_observed(is_observed);
+    obj->set_map(map);
+  }
+  return isolate->heap()->undefined_value();
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_SetObserverDeliveryPending) {
+  ASSERT(args.length() == 0);
+  isolate->set_observer_delivery_pending(true);
+  return isolate->heap()->undefined_value();
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_GetObservationState) {
+  ASSERT(args.length() == 0);
+  return isolate->heap()->observation_state();
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateObjectHashTable) {
+  ASSERT(args.length() == 0);
+  return ObjectHashTable::Allocate(0);
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_ObjectHashTableGet) {
+  NoHandleAllocation ha;
+  ASSERT(args.length() == 2);
+  CONVERT_ARG_CHECKED(ObjectHashTable, table, 0);
+  Object* key = args[1];
+  Object* lookup = table->Lookup(key);
+  return lookup->IsTheHole() ? isolate->heap()->undefined_value() : lookup;
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_ObjectHashTableSet) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 3);
+  CONVERT_ARG_HANDLE_CHECKED(ObjectHashTable, table, 0);
+  Handle<Object> key = args.at<Object>(1);
+  Handle<Object> value = args.at<Object>(2);
+  return *PutIntoObjectHashTable(table, key, value);
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_ObjectHashTableHas) {
+  NoHandleAllocation ha;
+  ASSERT(args.length() == 2);
+  CONVERT_ARG_CHECKED(ObjectHashTable, table, 0);
+  Object* key = args[1];
+  Object* lookup = table->Lookup(key);
+  return isolate->heap()->ToBoolean(!lookup->IsTheHole());
+}
+
 
 // ----------------------------------------------------------------------------
 // Implementation of Runtime

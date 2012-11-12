@@ -574,8 +574,6 @@ Handle<JSArray> Isolate::CaptureCurrentStackTrace(
   Handle<String> column_key = factory()->LookupAsciiSymbol("column");
   Handle<String> line_key = factory()->LookupAsciiSymbol("lineNumber");
   Handle<String> script_key = factory()->LookupAsciiSymbol("scriptName");
-  Handle<String> name_or_source_url_key =
-      factory()->LookupAsciiSymbol("nameOrSourceURL");
   Handle<String> script_name_or_source_url_key =
       factory()->LookupAsciiSymbol("scriptNameOrSourceURL");
   Handle<String> function_key = factory()->LookupAsciiSymbol("functionName");
@@ -635,18 +633,7 @@ Handle<JSArray> Isolate::CaptureCurrentStackTrace(
       }
 
       if (options & StackTrace::kScriptNameOrSourceURL) {
-        Handle<Object> script_name(script->name(), this);
-        Handle<JSValue> script_wrapper = GetScriptWrapper(script);
-        Handle<Object> property = GetProperty(script_wrapper,
-                                              name_or_source_url_key);
-        ASSERT(property->IsJSFunction());
-        Handle<JSFunction> method = Handle<JSFunction>::cast(property);
-        bool caught_exception;
-        Handle<Object> result = Execution::TryCall(method, script_wrapper, 0,
-                                                   NULL, &caught_exception);
-        if (caught_exception) {
-          result = factory()->undefined_value();
-        }
+        Handle<Object> result = GetScriptNameOrSourceURL(script);
         CHECK_NOT_EMPTY_HANDLE(this,
                                JSObject::SetLocalPropertyIgnoreAttributes(
                                    stack_frame, script_name_or_source_url_key,
@@ -1136,6 +1123,14 @@ void Isolate::DoThrow(Object* exception, MessageLocation* location) {
           stack_trace_object = CaptureCurrentStackTrace(
               stack_trace_for_uncaught_exceptions_frame_limit_,
               stack_trace_for_uncaught_exceptions_options_);
+        }
+      }
+      // Stringify custom error objects for the message object.
+      if (exception_handle->IsJSObject() && !IsErrorObject(exception_handle)) {
+        bool failed = false;
+        exception_handle = Execution::ToString(exception_handle, &failed);
+        if (failed) {
+          exception_handle = factory()->LookupAsciiSymbol("exception");
         }
       }
       Handle<Object> message_obj = MessageHandler::MakeMessageObject(

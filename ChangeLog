@@ -1,3 +1,29 @@
+2012-11-12: Version 3.15.2
+
+        Function::GetScriptOrigin supplies sourceURL when script name is
+        not available.  (Chromium issue 159413)
+
+        Made formatting error message side-effect-free.  (issue 2398)
+
+        Fixed length check in JSON.stringify.  (Chromium issue 160010)
+
+        ES6: Added support for Set and Map clear method (issue 2400)
+
+        Fixed slack tracking when instance prototype changes.
+        (Chromium issue 157019)
+
+        Fixed disabling of code flusher while marking.  (Chromium issue 159140)
+
+        Added a test case for object grouping in a scavenger GC (issue 2077)
+
+        Support shared library build of Android for v8.
+        (Chromium issue 158821)
+
+        ES6: Added support for size to Set and Map (issue 2395)
+
+        Performance and stability improvements on all platforms.
+
+
 2012-11-06: Version 3.15.1
 
         Put incremental code flushing behind a flag. (Chromium issue 159140)

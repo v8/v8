@@ -50,3 +50,7 @@ shell_g
 /xcodebuild
 TAGS
 *.Makefile
+GTAGS
+GRTAGS
+GSYMS
+GPATH

@@ -5723,7 +5723,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   __ mov(edi, FieldOperand(edx, HeapObject::kMapOffset));
   __ movzx_b(edi, FieldOperand(edi, Map::kInstanceTypeOffset));
   __ and_(ecx, edi);
-  STATIC_ASSERT((kStringEncodingMask & kAsciiStringTag) != 0);
+  STATIC_ASSERT((kStringEncodingMask & kOneByteStringTag) != 0);
   STATIC_ASSERT((kStringEncodingMask & kTwoByteStringTag) == 0);
   __ test(ecx, Immediate(kStringEncodingMask));
   __ j(zero, &non_ascii);
@@ -5751,9 +5751,9 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   __ mov(ecx, FieldOperand(eax, HeapObject::kMapOffset));
   __ movzx_b(ecx, FieldOperand(ecx, Map::kInstanceTypeOffset));
   __ xor_(edi, ecx);
-  STATIC_ASSERT(kAsciiStringTag != 0 && kAsciiDataHintTag != 0);
-  __ and_(edi, kAsciiStringTag | kAsciiDataHintTag);
-  __ cmp(edi, kAsciiStringTag | kAsciiDataHintTag);
+  STATIC_ASSERT(kOneByteStringTag != 0 && kAsciiDataHintTag != 0);
+  __ and_(edi, kOneByteStringTag | kAsciiDataHintTag);
+  __ cmp(edi, kOneByteStringTag | kAsciiDataHintTag);
   __ j(equal, &ascii_data);
   // Allocate a two byte cons string.
   __ AllocateTwoByteConsString(ecx, edi, no_reg, &call_runtime);
@@ -6324,7 +6324,7 @@ void SubStringStub::Generate(MacroAssembler* masm) {
     // string's encoding is wrong because we always have to recheck encoding of
     // the newly created string's parent anyways due to externalized strings.
     Label two_byte_slice, set_slice_header;
-    STATIC_ASSERT((kStringEncodingMask & kAsciiStringTag) != 0);
+    STATIC_ASSERT((kStringEncodingMask & kOneByteStringTag) != 0);
     STATIC_ASSERT((kStringEncodingMask & kTwoByteStringTag) == 0);
     __ test(ebx, Immediate(kStringEncodingMask));
     __ j(zero, &two_byte_slice, Label::kNear);
@@ -6371,7 +6371,7 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   __ push(edx);
   __ push(edi);
   __ SmiUntag(ecx);
-  STATIC_ASSERT((kAsciiStringTag & kStringEncodingMask) != 0);
+  STATIC_ASSERT((kOneByteStringTag & kStringEncodingMask) != 0);
   __ test_b(ebx, kStringEncodingMask);
   __ j(zero, &two_byte_sequential);
 

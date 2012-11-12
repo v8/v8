@@ -108,7 +108,9 @@ const char* const RelocInfo::kFillerCommentString = "DEOPTIMIZATION PADDING";
 
 AssemblerBase::AssemblerBase(Isolate* isolate)
     : isolate_(isolate),
-      jit_cookie_(0) {
+      jit_cookie_(0),
+      emit_debug_code_(FLAG_debug_code),
+      predictable_code_size_(false) {
   if (FLAG_mask_constants_with_cookie && isolate != NULL)  {
     jit_cookie_ = V8::RandomPrivate(isolate);
   }
@@ -313,6 +315,7 @@ void RelocInfoWriter::Write(const RelocInfo* rinfo) {
 #ifdef DEBUG
   byte* begin_pos = pos_;
 #endif
+  ASSERT(rinfo->rmode() < RelocInfo::NUMBER_OF_MODES);
   ASSERT(rinfo->pc() - last_pc_ >= 0);
   ASSERT(RelocInfo::LAST_STANDARD_NONCOMPACT_ENUM - RelocInfo::LAST_COMPACT_ENUM
          <= kMaxStandardNonCompactModes);
@@ -570,6 +573,15 @@ void RelocIterator::next() {
       }
     }
   }
+  if (code_age_sequence_ != NULL) {
+    byte* old_code_age_sequence = code_age_sequence_;
+    code_age_sequence_ = NULL;
+    if (SetMode(RelocInfo::CODE_AGE_SEQUENCE)) {
+      rinfo_.data_ = 0;
+      rinfo_.pc_ = old_code_age_sequence;
+      return;
+    }
+  }
   done_ = true;
 }
 
@@ -585,6 +597,12 @@ RelocIterator::RelocIterator(Code* code, int mode_mask) {
   mode_mask_ = mode_mask;
   last_id_ = 0;
   last_position_ = 0;
+  byte* sequence = code->FindCodeAgeSequence();
+  if (sequence != NULL && !Code::IsYoungSequence(sequence)) {
+    code_age_sequence_ = sequence;
+  } else {
+    code_age_sequence_ = NULL;
+  }
   if (mode_mask_ == 0) pos_ = end_;
   next();
 }
@@ -600,6 +618,7 @@ RelocIterator::RelocIterator(const CodeDesc& desc, int mode_mask) {
   mode_mask_ = mode_mask;
   last_id_ = 0;
   last_position_ = 0;
+  code_age_sequence_ = NULL;
   if (mode_mask_ == 0) pos_ = end_;
   next();
 }
@@ -652,6 +671,8 @@ const char* RelocInfo::RelocModeName(RelocInfo::Mode rmode) {
       UNREACHABLE();
 #endif
       return "debug break slot";
+    case RelocInfo::CODE_AGE_SEQUENCE:
+      return "code_age_sequence";
     case RelocInfo::NUMBER_OF_MODES:
       UNREACHABLE();
       return "number_of_modes";
@@ -738,6 +759,9 @@ void RelocInfo::Verify() {
       break;
     case NUMBER_OF_MODES:
       UNREACHABLE();
+      break;
+    case CODE_AGE_SEQUENCE:
+      ASSERT(Code::IsYoungSequence(pc_) || code_age_stub()->IsCode());
       break;
   }
 }
@@ -871,6 +895,13 @@ ExternalReference ExternalReference::random_uint32_function(
 ExternalReference ExternalReference::get_date_field_function(
     Isolate* isolate) {
   return ExternalReference(Redirect(isolate, FUNCTION_ADDR(JSDate::GetField)));
+}
+
+
+ExternalReference ExternalReference::get_make_code_young_function(
+    Isolate* isolate) {
+  return ExternalReference(Redirect(
+      isolate, FUNCTION_ADDR(Code::MakeCodeAgeSequenceYoung)));
 }
 
 

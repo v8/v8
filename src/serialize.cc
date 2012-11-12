@@ -523,6 +523,10 @@ void ExternalReferenceTable::PopulateTable(Isolate* isolate) {
       UNCLASSIFIED,
       50,
       "pending_message_script");
+  Add(ExternalReference::get_make_code_young_function(isolate).address(),
+      UNCLASSIFIED,
+      51,
+      "Code::MakeCodeYoung");
 }
 
 

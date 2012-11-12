@@ -551,7 +551,7 @@ void StringCharLoadGenerator::Generate(MacroAssembler* masm,
   // Dispatch on the encoding: ASCII or two-byte.
   Label ascii;
   __ bind(&seq_string);
-  STATIC_ASSERT((kStringEncodingMask & kAsciiStringTag) != 0);
+  STATIC_ASSERT((kStringEncodingMask & kOneByteStringTag) != 0);
   STATIC_ASSERT((kStringEncodingMask & kTwoByteStringTag) == 0);
   __ testb(result, Immediate(kStringEncodingMask));
   __ j(not_zero, &ascii, Label::kNear);
@@ -576,6 +576,91 @@ void StringCharLoadGenerator::Generate(MacroAssembler* masm,
 }
 
 #undef __
+
+
+static const int kNoCodeAgeSequenceLength = 6;
+
+static byte* GetNoCodeAgeSequence(uint32_t* length) {
+  static bool initialized = false;
+  static byte sequence[kNoCodeAgeSequenceLength];
+  *length = kNoCodeAgeSequenceLength;
+  if (!initialized) {
+    // The sequence of instructions that is patched out for aging code is the
+    // following boilerplate stack-building prologue that is found both in
+    // FUNCTION and OPTIMIZED_FUNCTION code:
+    CodePatcher patcher(sequence, kNoCodeAgeSequenceLength);
+    patcher.masm()->push(rbp);
+    patcher.masm()->movq(rbp, rsp);
+    patcher.masm()->push(rsi);
+    patcher.masm()->push(rdi);
+    initialized = true;
+  }
+  return sequence;
+}
+
+
+byte* Code::FindPlatformCodeAgeSequence() {
+  byte* start = instruction_start();
+  uint32_t young_length;
+  byte* young_sequence = GetNoCodeAgeSequence(&young_length);
+  if (!memcmp(start, young_sequence, young_length) ||
+      *start == kCallOpcode) {
+    return start;
+  } else {
+    byte* start_after_strict = NULL;
+    if (kind() == FUNCTION) {
+      start_after_strict = start + kSizeOfFullCodegenStrictModePrologue;
+    } else {
+      ASSERT(kind() == OPTIMIZED_FUNCTION);
+      start_after_strict = start + kSizeOfOptimizedStrictModePrologue;
+    }
+    ASSERT(!memcmp(start_after_strict, young_sequence, young_length) ||
+           *start_after_strict == kCallOpcode);
+    return start_after_strict;
+  }
+}
+
+
+bool Code::IsYoungSequence(byte* sequence) {
+  uint32_t young_length;
+  byte* young_sequence = GetNoCodeAgeSequence(&young_length);
+  bool result = (!memcmp(sequence, young_sequence, young_length));
+  ASSERT(result || *sequence == kCallOpcode);
+  return result;
+}
+
+
+void Code::GetCodeAgeAndParity(byte* sequence, Age* age,
+                               MarkingParity* parity) {
+  if (IsYoungSequence(sequence)) {
+    *age = kNoAge;
+    *parity = NO_MARKING_PARITY;
+  } else {
+    sequence++;  // Skip the kCallOpcode byte
+    Address target_address = sequence + *reinterpret_cast<int*>(sequence) +
+        Assembler::kCallTargetAddressOffset;
+    Code* stub = GetCodeFromTargetAddress(target_address);
+    GetCodeAgeAndParity(stub, age, parity);
+  }
+}
+
+
+void Code::PatchPlatformCodeAge(byte* sequence,
+                                Code::Age age,
+                                MarkingParity parity) {
+  uint32_t young_length;
+  byte* young_sequence = GetNoCodeAgeSequence(&young_length);
+  if (age == kNoAge) {
+    memcpy(sequence, young_sequence, young_length);
+    CPU::FlushICache(sequence, young_length);
+  } else {
+    Code* stub = GetCodeAgeStub(age, parity);
+    CodePatcher patcher(sequence, young_length);
+    patcher.masm()->call(stub->instruction_start());
+    patcher.masm()->nop();
+  }
+}
+
 
 } }  // namespace v8::internal
 

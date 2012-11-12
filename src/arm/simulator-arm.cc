@@ -1387,7 +1387,14 @@ int32_t Simulator::GetShiftRm(Instruction* instr, bool* carry_out) {
       }
 
       case ROR: {
-        UNIMPLEMENTED();
+        if (shift_amount == 0) {
+          *carry_out = c_flag_;
+        } else {
+          uint32_t left = static_cast<uint32_t>(result) >> shift_amount;
+          uint32_t right = static_cast<uint32_t>(result) << (32 - shift_amount);
+          result = right | left;
+          *carry_out = (static_cast<uint32_t>(result) >> 31) != 0;
+        }
         break;
       }
 

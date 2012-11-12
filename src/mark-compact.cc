@@ -62,6 +62,7 @@ MarkCompactCollector::MarkCompactCollector() :  // NOLINT
       sweep_precisely_(false),
       reduce_memory_footprint_(false),
       abort_incremental_marking_(false),
+      marking_parity_(ODD_MARKING_PARITY),
       compacting_(false),
       was_marked_incrementally_(false),
       tracer_(NULL),
@@ -403,6 +404,13 @@ void MarkCompactCollector::CollectGarbage() {
 #endif
 
   Finish();
+
+  if (marking_parity_ == EVEN_MARKING_PARITY) {
+    marking_parity_ = ODD_MARKING_PARITY;
+  } else {
+    ASSERT(marking_parity_ == ODD_MARKING_PARITY);
+    marking_parity_ = EVEN_MARKING_PARITY;
+  }
 
   tracer_ = NULL;
 }
@@ -949,6 +957,34 @@ void CodeFlusher::EvictCandidate(JSFunction* function) {
       candidate = next_candidate;
     }
   }
+}
+
+
+void CodeFlusher::EvictJSFunctionCandidates() {
+  Object* undefined = isolate_->heap()->undefined_value();
+
+  JSFunction* candidate = jsfunction_candidates_head_;
+  JSFunction* next_candidate;
+  while (candidate != NULL) {
+    next_candidate = GetNextCandidate(candidate);
+    ClearNextCandidate(candidate, undefined);
+    candidate = next_candidate;
+  }
+
+  jsfunction_candidates_head_ = NULL;
+}
+
+
+void CodeFlusher::EvictSharedFunctionInfoCandidates() {
+  SharedFunctionInfo* candidate = shared_function_info_candidates_head_;
+  SharedFunctionInfo* next_candidate;
+  while (candidate != NULL) {
+    next_candidate = GetNextCandidate(candidate);
+    ClearNextCandidate(candidate);
+    candidate = next_candidate;
+  }
+
+  shared_function_info_candidates_head_ = NULL;
 }
 
 
@@ -2369,6 +2405,16 @@ class PointersUpdatingVisitor: public ObjectVisitor {
     }
   }
 
+  void VisitCodeAgeSequence(RelocInfo* rinfo) {
+    ASSERT(RelocInfo::IsCodeAgeSequence(rinfo->rmode()));
+    Object* stub = rinfo->code_age_stub();
+    ASSERT(stub != NULL);
+    VisitPointer(&stub);
+    if (stub != rinfo->code_age_stub()) {
+      rinfo->set_code_age_stub(Code::cast(stub));
+    }
+  }
+
   void VisitDebugTarget(RelocInfo* rinfo) {
     ASSERT((RelocInfo::IsJSReturn(rinfo->rmode()) &&
             rinfo->IsPatchedReturnSequence()) ||
@@ -3629,6 +3675,7 @@ void MarkCompactCollector::EnableCodeFlushing(bool enable) {
     code_flusher_ = new CodeFlusher(heap()->isolate());
   } else {
     if (code_flusher_ == NULL) return;
+    code_flusher_->EvictAllCandidates();
     delete code_flusher_;
     code_flusher_ = NULL;
   }

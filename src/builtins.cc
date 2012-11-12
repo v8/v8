@@ -510,6 +510,10 @@ BUILTIN(ArrayPush) {
   FixedArray* elms = FixedArray::cast(elms_obj);
   JSArray* array = JSArray::cast(receiver);
 
+  if (FLAG_harmony_observation && array->map()->is_observed()) {
+    return CallJsBuiltin(isolate, "ArrayPush", args);
+  }
+
   int len = Smi::cast(array->length())->value();
   int to_add = args.length() - 1;
   if (to_add == 0) {
@@ -566,11 +570,15 @@ BUILTIN(ArrayPop) {
   FixedArray* elms = FixedArray::cast(elms_obj);
   JSArray* array = JSArray::cast(receiver);
 
+  if (FLAG_harmony_observation && array->map()->is_observed()) {
+    return CallJsBuiltin(isolate, "ArrayPop", args);
+  }
+
   int len = Smi::cast(array->length())->value();
   if (len == 0) return heap->undefined_value();
 
   // Get top element
-  MaybeObject* top = elms->get(len - 1);
+  Object* top = elms->get(len - 1);
 
   // Set the length.
   array->set_length(Smi::FromInt(len - 1));
@@ -581,9 +589,7 @@ BUILTIN(ArrayPop) {
     return top;
   }
 
-  top = array->GetPrototype()->GetElement(len - 1);
-
-  return top;
+  return array->GetPrototype()->GetElement(len - 1);
 }
 
 
@@ -603,6 +609,10 @@ BUILTIN(ArrayShift) {
   FixedArray* elms = FixedArray::cast(elms_obj);
   JSArray* array = JSArray::cast(receiver);
   ASSERT(array->HasFastSmiOrObjectElements());
+
+  if (FLAG_harmony_observation && array->map()->is_observed()) {
+    return CallJsBuiltin(isolate, "ArrayShift", args);
+  }
 
   int len = Smi::cast(array->length())->value();
   if (len == 0) return heap->undefined_value();
@@ -645,6 +655,10 @@ BUILTIN(ArrayUnshift) {
   FixedArray* elms = FixedArray::cast(elms_obj);
   JSArray* array = JSArray::cast(receiver);
   ASSERT(array->HasFastSmiOrObjectElements());
+
+  if (FLAG_harmony_observation && array->map()->is_observed()) {
+    return CallJsBuiltin(isolate, "ArrayUnshift", args);
+  }
 
   int len = Smi::cast(array->length())->value();
   int to_add = args.length() - 1;
@@ -801,6 +815,10 @@ BUILTIN(ArraySplice) {
   FixedArray* elms = FixedArray::cast(elms_obj);
   JSArray* array = JSArray::cast(receiver);
   ASSERT(array->HasFastSmiOrObjectElements());
+
+  if (FLAG_harmony_observation && array->map()->is_observed()) {
+    return CallJsBuiltin(isolate, "ArraySplice", args);
+  }
 
   int len = Smi::cast(array->length())->value();
 
