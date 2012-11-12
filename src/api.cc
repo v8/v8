@@ -3735,8 +3735,9 @@ ScriptOrigin Function::GetScriptOrigin() const {
   i::Handle<i::JSFunction> func = Utils::OpenHandle(this);
   if (func->shared()->script()->IsScript()) {
     i::Handle<i::Script> script(i::Script::cast(func->shared()->script()));
+    i::Handle<i::Object> scriptName = GetScriptNameOrSourceURL(script);
     v8::ScriptOrigin origin(
-      Utils::ToLocal(i::Handle<i::Object>(script->name())),
+      Utils::ToLocal(scriptName),
       v8::Integer::New(script->line_offset()->value()),
       v8::Integer::New(script->column_offset()->value()));
     return origin;

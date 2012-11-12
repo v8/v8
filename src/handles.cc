@@ -593,6 +593,25 @@ v8::Handle<v8::Array> GetKeysForIndexedInterceptor(Handle<JSReceiver> receiver,
 }
 
 
+Handle<Object> GetScriptNameOrSourceURL(Handle<Script> script) {
+  Isolate* isolate = script->GetIsolate();
+  Handle<String> name_or_source_url_key =
+      isolate->factory()->LookupAsciiSymbol("nameOrSourceURL");
+  Handle<JSValue> script_wrapper = GetScriptWrapper(script);
+  Handle<Object> property = GetProperty(script_wrapper,
+                                        name_or_source_url_key);
+  ASSERT(property->IsJSFunction());
+  Handle<JSFunction> method = Handle<JSFunction>::cast(property);
+  bool caught_exception;
+  Handle<Object> result = Execution::TryCall(method, script_wrapper, 0,
+                                             NULL, &caught_exception);
+  if (caught_exception) {
+    result = isolate->factory()->undefined_value();
+  }
+  return result;
+}
+
+
 static bool ContainsOnlyValidKeys(Handle<FixedArray> array) {
   int len = array->length();
   for (int i = 0; i < len; i++) {
