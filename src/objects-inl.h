@@ -333,8 +333,7 @@ bool String::IsTwoByteRepresentationUnderneath() {
 
 bool String::HasOnlyAsciiChars() {
   uint32_t type = map()->instance_type();
-  return (type & kStringEncodingMask) == kOneByteStringTag ||
-         (type & kAsciiDataHintMask) == kAsciiDataHintTag;
+  return (type & kAsciiDataHintMask) == kAsciiDataHintTag;
 }
 
 
