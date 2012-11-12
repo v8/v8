@@ -690,7 +690,6 @@ void BasicJsonStringifier::SerializeStringUnchecked_(const SrcChar* src,
   // The <uc16, char> version of this method must not be called.
   ASSERT(sizeof(*dest) >= sizeof(*src));
 
-  *(dest++) = '"';
   for (int i = 0; i < length; i++) {
     SrcChar c = src[i];
     if (DoNotEscape(c)) {
@@ -701,7 +700,6 @@ void BasicJsonStringifier::SerializeStringUnchecked_(const SrcChar* src,
     }
   }
 
-  *(dest++) = '"';
   current_index_ += static_cast<int>(dest - dest_start);
 }
 
@@ -710,12 +708,13 @@ template <bool is_ascii, typename Char>
 void BasicJsonStringifier::SerializeString_(Vector<const Char> vector,
                                             Handle<String> string) {
   int length = vector.length();
+  Append_<is_ascii, char>('"');
   // We make a rough estimate to find out if the current string can be
   // serialized without allocating a new string part. The worst case length of
-  // an escaped character is 6.  Shifting left by 3 is a more pessimistic
-  // estimate than multiplying by 6, but faster to calculate.
-  static const int kEnclosingQuotesLength = 2;
-  if (current_index_ + (length << 3) + kEnclosingQuotesLength < part_length_) {
+  // an escaped character is 6.  Shifting the remainin string length right by 3
+  // is a more pessimistic estimate, but faster to calculate.
+
+  if (((part_length_ - current_index_) >> 3) > length) {
     if (is_ascii) {
       SerializeStringUnchecked_(
           vector.start(),
@@ -728,7 +727,6 @@ void BasicJsonStringifier::SerializeString_(Vector<const Char> vector,
           length);
     }
   } else {
-    Append_<is_ascii, char>('"');
     String* string_location = *string;
     for (int i = 0; i < length; i++) {
       Char c = vector[i];
@@ -744,8 +742,9 @@ void BasicJsonStringifier::SerializeString_(Vector<const Char> vector,
         string_location = *string;
       }
     }
-    Append_<is_ascii, char>('"');
   }
+
+  Append_<is_ascii, char>('"');
 }
 
 
