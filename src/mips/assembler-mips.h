@@ -525,9 +525,6 @@ class Assembler : public AssemblerBase {
   Assembler(Isolate* isolate, void* buffer, int buffer_size);
   ~Assembler();
 
-  // Dummy for cross platform compatibility.
-  void set_predictable_code_size(bool value) { }
-
   // GetCode emits any pending (non-emitted) code and fills the descriptor
   // desc. GetCode() is idempotent; it returns the same result if no other
   // Assembler functions are invoked in between GetCode() calls.

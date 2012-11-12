@@ -8834,13 +8834,13 @@ bool Code::IsOld() {
 
 
 byte* Code::FindCodeAgeSequence() {
-  if (kind() != FUNCTION && kind() != OPTIMIZED_FUNCTION) return NULL;
-  if (strlen(FLAG_stop_at) == 0 &&
+  return FLAG_age_code &&
+      strlen(FLAG_stop_at) == 0 &&
       !ProfileEntryHookStub::HasEntryHook() &&
-      (kind() == FUNCTION && !has_debug_break_slots())) {
-    return FindPlatformCodeAgeSequence();
-  }
-  return NULL;
+      (kind() == OPTIMIZED_FUNCTION ||
+       (kind() == FUNCTION && !has_debug_break_slots()))
+      ? FindPlatformCodeAgeSequence()
+      : NULL;
 }
 
 
