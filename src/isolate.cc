@@ -1228,18 +1228,22 @@ void Isolate::DoThrow(Object* exception, MessageLocation* location) {
               stack_trace_for_uncaught_exceptions_options_);
         }
       }
-      // Stringify custom error objects for the message object.
-      if (exception_handle->IsJSObject() && !IsErrorObject(exception_handle)) {
+
+      Handle<Object> exception_arg = exception_handle;
+      // If the exception argument is a custom object, turn it into a string
+      // before throwing as uncaught exception.  Note that the pending
+      // exception object to be set later must not be turned into a string.
+      if (exception_arg->IsJSObject() && !IsErrorObject(exception_arg)) {
         bool failed = false;
-        exception_handle = Execution::ToString(exception_handle, &failed);
+        exception_arg = Execution::ToString(exception_arg, &failed);
         if (failed) {
-          exception_handle = factory()->LookupAsciiSymbol("exception");
+          exception_arg = factory()->LookupAsciiSymbol("exception");
         }
       }
       Handle<Object> message_obj = MessageHandler::MakeMessageObject(
           "uncaught_exception",
           location,
-          HandleVector<Object>(&exception_handle, 1),
+          HandleVector<Object>(&exception_arg, 1),
           stack_trace,
           stack_trace_object);
       thread_local_top()->pending_message_obj_ = *message_obj;

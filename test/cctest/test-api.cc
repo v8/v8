@@ -2554,6 +2554,18 @@ THREADED_TEST(ScriptException) {
 }
 
 
+TEST(TryCatchCustomException) {
+  v8::HandleScope scope;
+  LocalContext env;
+  v8::TryCatch try_catch;
+  CompileRun("function CustomError() { this.a = 'b'; }"
+             "(function f() { throw new CustomError(); })();");
+  CHECK(try_catch.HasCaught());
+  CHECK(try_catch.Exception()->ToObject()->
+            Get(v8_str("a"))->Equals(v8_str("b")));
+}
+
+
 bool message_received;
 
 
