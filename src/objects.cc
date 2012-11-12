@@ -3318,7 +3318,7 @@ PropertyAttributes JSObject::GetElementAttributeWithReceiver(
     Object* proto = GetPrototype();
     if (proto->IsNull()) return ABSENT;
     ASSERT(proto->IsJSGlobalObject());
-    return JSReceiver::cast(proto)->GetElementAttributeWithReceiver(
+    return JSObject::cast(proto)->GetElementAttributeWithReceiver(
         receiver, index, continue_search);
   }
 

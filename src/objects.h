@@ -1483,10 +1483,6 @@ class JSReceiver: public HeapObject {
   PropertyAttributes GetLocalPropertyAttribute(String* name);
 
   inline PropertyAttributes GetElementAttribute(uint32_t index);
-  inline PropertyAttributes GetElementAttributeWithReceiver(
-      JSReceiver* receiver,
-      uint32_t index,
-      bool continue_search);
   inline PropertyAttributes GetLocalElementAttribute(uint32_t index);
 
   // Can cause a GC.

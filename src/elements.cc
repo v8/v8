@@ -528,9 +528,8 @@ class ElementsAccessorBase : public ElementsAccessor {
                              JSObject* holder,
                              uint32_t key,
                              BackingStore* backing_store) {
-    MaybeObject* element =
-        ElementsAccessorSubclass::GetImpl(receiver, holder, key, backing_store);
-    return !element->IsTheHole();
+    return ElementsAccessorSubclass::GetAttributesImpl(
+        receiver, holder, key, backing_store) != ABSENT;
   }
 
   virtual bool HasElement(Object* receiver,

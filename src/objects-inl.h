@@ -5046,7 +5046,11 @@ PropertyAttributes JSReceiver::GetPropertyAttribute(String* key) {
 
 
 PropertyAttributes JSReceiver::GetElementAttribute(uint32_t index) {
-  return GetElementAttributeWithReceiver(this, index, true);
+  if (IsJSProxy()) {
+    return JSProxy::cast(this)->GetElementAttributeWithHandler(this, index);
+  }
+  return JSObject::cast(this)->GetElementAttributeWithReceiver(
+      this, index, true);
 }
 
 
@@ -5074,7 +5078,8 @@ bool JSReceiver::HasElement(uint32_t index) {
   if (IsJSProxy()) {
     return JSProxy::cast(this)->HasElementWithHandler(index);
   }
-  return JSObject::cast(this)->GetElementAttribute(index) != ABSENT;
+  return JSObject::cast(this)->GetElementAttributeWithReceiver(
+      this, index, true) != ABSENT;
 }
 
 
@@ -5082,17 +5087,8 @@ bool JSReceiver::HasLocalElement(uint32_t index) {
   if (IsJSProxy()) {
     return JSProxy::cast(this)->HasElementWithHandler(index);
   }
-  return JSObject::cast(this)->GetLocalElementAttribute(index) != ABSENT;
-}
-
-
-PropertyAttributes JSReceiver::GetElementAttributeWithReceiver(
-    JSReceiver* receiver, uint32_t index, bool continue_search) {
-  if (IsJSProxy()) {
-    return JSProxy::cast(this)->GetElementAttributeWithHandler(receiver, index);
-  }
   return JSObject::cast(this)->GetElementAttributeWithReceiver(
-      receiver, index, continue_search);
+      this, index, false) != ABSENT;
 }
 
 
