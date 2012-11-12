@@ -2309,7 +2309,11 @@ static i::Object* LookupBuiltin(i::Isolate* isolate,
 static bool CheckConstructor(i::Isolate* isolate,
                              i::Handle<i::JSObject> obj,
                              const char* class_name) {
-  return obj->map()->constructor() == LookupBuiltin(isolate, class_name);
+  i::Object* constr = obj->map()->constructor();
+  if (!constr->IsJSFunction()) return false;
+  i::JSFunction* func = i::JSFunction::cast(constr);
+  return func->shared()->native() &&
+         constr == LookupBuiltin(isolate, class_name);
 }
 
 
