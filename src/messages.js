@@ -167,7 +167,7 @@ function FormatString(format, args) {
       if (arg_num < 4) {
         // str is one of %0, %1, %2 or %3.
         try {
-          str = ToDetailString(args[arg_num]);
+          str = NoSideEffectToString(args[arg_num]);
         } catch (e) {
           if (%IsJSModule(args[arg_num]))
             str = "module";
@@ -181,6 +181,26 @@ function FormatString(format, args) {
     result += str;
   }
   return result;
+}
+
+
+function NoSideEffectToString(obj) {
+  if (IS_STRING(obj)) return obj;
+  if (IS_NUMBER(obj)) return %_NumberToString(obj);
+  if (IS_BOOLEAN(obj)) return x ? 'true' : 'false';
+  if (IS_UNDEFINED(obj)) return 'undefined';
+  if (IS_NULL(obj)) return 'null';
+  if (IS_OBJECT(obj) && %GetDataProperty(obj, "toString") === ObjectToString) {
+    var constructor = obj.constructor;
+    if (typeof constructor == "function") {
+      var constructorName = constructor.name;
+      if (IS_STRING(constructorName) && constructorName !== "") {
+        return "#<" + constructorName + ">";
+      }
+    }
+  }
+  if (IsNativeErrorObject(obj)) return %_CallFunction(obj, ErrorToString);
+  return %_CallFunction(obj, ObjectToString);
 }
 
 

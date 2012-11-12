@@ -1138,6 +1138,14 @@ void Isolate::DoThrow(Object* exception, MessageLocation* location) {
               stack_trace_for_uncaught_exceptions_options_);
         }
       }
+      // Stringify custom error objects for the message object.
+      if (exception_handle->IsJSObject() && !IsErrorObject(exception_handle)) {
+        bool failed = false;
+        exception_handle = Execution::ToString(exception_handle, &failed);
+        if (failed) {
+          exception_handle = factory()->LookupAsciiSymbol("exception");
+        }
+      }
       Handle<Object> message_obj = MessageHandler::MakeMessageObject(
           "uncaught_exception",
           location,

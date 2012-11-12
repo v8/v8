@@ -4238,6 +4238,33 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DefineOrRedefineDataProperty) {
 }
 
 
+// Return property without being observable by accessors or interceptors.
+RUNTIME_FUNCTION(MaybeObject*, Runtime_GetDataProperty) {
+  ASSERT(args.length() == 2);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 0);
+  CONVERT_ARG_HANDLE_CHECKED(String, key, 1);
+  LookupResult lookup(isolate);
+  object->LookupRealNamedProperty(*key, &lookup);
+  if (!lookup.IsFound()) return isolate->heap()->undefined_value();
+  switch (lookup.type()) {
+    case NORMAL:
+      return lookup.holder()->GetNormalizedProperty(&lookup);
+    case FIELD:
+      return lookup.holder()->FastPropertyAt(lookup.GetFieldIndex());
+    case CONSTANT_FUNCTION:
+      return lookup.GetConstantFunction();
+    case CALLBACKS:
+    case HANDLER:
+    case INTERCEPTOR:
+    case TRANSITION:
+      return isolate->heap()->undefined_value();
+    case NONEXISTENT:
+      UNREACHABLE();
+  }
+  return isolate->heap()->undefined_value();
+}
+
+
 MaybeObject* Runtime::SetObjectProperty(Isolate* isolate,
                                         Handle<Object> object,
                                         Handle<Object> key,
