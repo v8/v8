@@ -341,8 +341,6 @@ class LCodeGen BASE_EMBEDDED {
   void DoStoreKeyedExternalArray(LStoreKeyed* instr);
   void DoStoreKeyedFixedDoubleArray(LStoreKeyed* instr);
   void DoStoreKeyedFixedArray(LStoreKeyed* instr);
-  template <class T>
-      void PrepareKeyForKeyedOp(T* hydrogen_instr, LOperand* key);
 
   Zone* zone_;
   LPlatformChunk* const chunk_;

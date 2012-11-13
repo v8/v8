@@ -646,7 +646,7 @@ Handle<Code> CallICBase::ComputeMonomorphicStub(LookupResult* lookup,
   Handle<JSObject> holder(lookup->holder());
   switch (lookup->type()) {
     case FIELD: {
-      int index = lookup->GetFieldIndex();
+      PropertyIndex index = lookup->GetFieldIndex();
       return isolate()->stub_cache()->ComputeCallField(
           argc, kind_, extra_state, name, object, holder, index);
     }
@@ -1467,11 +1467,9 @@ void StoreIC::UpdateCaches(LookupResult* lookup,
   Handle<Code> code;
   switch (type) {
     case FIELD:
-      code = isolate()->stub_cache()->ComputeStoreField(name,
-                                                        receiver,
-                                                        lookup->GetFieldIndex(),
-                                                        Handle<Map>::null(),
-                                                        strict_mode);
+      code = isolate()->stub_cache()->ComputeStoreField(
+          name, receiver, lookup->GetFieldIndex().field_index(),
+          Handle<Map>::null(), strict_mode);
       break;
     case NORMAL:
       if (receiver->IsGlobalObject()) {
@@ -1981,7 +1979,7 @@ void KeyedStoreIC::UpdateCaches(LookupResult* lookup,
   switch (type) {
     case FIELD:
       code = isolate()->stub_cache()->ComputeKeyedStoreField(
-          name, receiver, lookup->GetFieldIndex(),
+          name, receiver, lookup->GetFieldIndex().field_index(),
           Handle<Map>::null(), strict_mode);
       break;
     case TRANSITION: {

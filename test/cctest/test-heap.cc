@@ -2410,19 +2410,13 @@ class SourceResource: public v8::String::ExternalAsciiStringResource {
 };
 
 
-TEST(ReleaseStackTraceData) {
+void ReleaseStackTraceDataTest(const char* source) {
   // Test that the data retained by the Error.stack accessor is released
   // after the first time the accessor is fired.  We use external string
   // to check whether the data is being released since the external string
   // resource's callback is fired when the external string is GC'ed.
   InitializeVM();
   v8::HandleScope scope;
-  static const char* source = "var error = 1;       "
-                              "try {                "
-                              "  throw new Error(); "
-                              "} catch (e) {        "
-                              "  error = e;         "
-                              "}                    ";
   SourceResource* resource = new SourceResource(i::StrDup(source));
   {
     v8::HandleScope scope;
@@ -2434,12 +2428,29 @@ TEST(ReleaseStackTraceData) {
   // External source is being retained by the stack trace.
   CHECK(!resource->IsDisposed());
 
-  CompileRun("error.stack; error.stack;");
+  CompileRun("error.stack;");
   HEAP->CollectAllAvailableGarbage();
   // External source has been released.
   CHECK(resource->IsDisposed());
-
   delete resource;
+}
+
+
+TEST(ReleaseStackTraceData) {
+  static const char* source1 = "var error = null;            "
+  /* Normal Error */           "try {                        "
+                               "  throw new Error();         "
+                               "} catch (e) {                "
+                               "  error = e;                 "
+                               "}                            ";
+  static const char* source2 = "var error = null;            "
+  /* Stack overflow */         "try {                        "
+                               "  (function f() { f(); })(); "
+                               "} catch (e) {                "
+                               "  error = e;                 "
+                               "}                            ";
+  ReleaseStackTraceDataTest(source1);
+  ReleaseStackTraceDataTest(source2);
 }
 
 

@@ -525,6 +525,12 @@ Handle<FixedArray> Factory::CopyFixedArray(Handle<FixedArray> array) {
 }
 
 
+Handle<FixedArray> Factory::CopySizeFixedArray(Handle<FixedArray> array,
+                                               int new_length) {
+  CALL_HEAP_FUNCTION(isolate(), array->CopySize(new_length), FixedArray);
+}
+
+
 Handle<FixedDoubleArray> Factory::CopyFixedDoubleArray(
     Handle<FixedDoubleArray> array) {
   CALL_HEAP_FUNCTION(isolate(), array->Copy(), FixedDoubleArray);
@@ -867,6 +873,13 @@ Handle<ScopeInfo> Factory::NewScopeInfo(int length) {
       isolate(),
       isolate()->heap()->AllocateScopeInfo(length),
       ScopeInfo);
+}
+
+
+Handle<JSObject> Factory::NewExternal(void* value) {
+  CALL_HEAP_FUNCTION(isolate(),
+                     isolate()->heap()->AllocateExternal(value),
+                     JSObject);
 }
 
 

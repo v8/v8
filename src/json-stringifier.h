@@ -274,7 +274,8 @@ Handle<Object> BasicJsonStringifier::GetProperty(Handle<JSObject> object,
       return Handle<Object>(value, isolate_);
     }
     case FIELD: {
-      Object* value = lookup.holder()->FastPropertyAt(lookup.GetFieldIndex());
+      Object* value = lookup.holder()->FastPropertyAt(
+          lookup.GetFieldIndex().field_index());
       ASSERT(!value->IsTheHole());
       return Handle<Object>(value, isolate_);
     }
