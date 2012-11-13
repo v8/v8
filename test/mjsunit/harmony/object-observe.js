@@ -100,6 +100,7 @@ assertThrows(function() { Object.observe(obj, frozenFunction); }, TypeError);
 
 // Object.unobserve
 assertThrows(function() { Object.unobserve(4, observer.callback); }, TypeError);
+assertThrows(function() { Object.unobserve(obj, nonFunction); }, TypeError);
 
 // Object.getNotifier
 var notifier = Object.getNotifier(obj);

@@ -100,6 +100,8 @@ function ObjectObserve(object, callback) {
 function ObjectUnobserve(object, callback) {
   if (!IS_SPEC_OBJECT(object))
     throw MakeTypeError("observe_non_object", ["unobserve"]);
+  if (!IS_SPEC_FUNCTION(callback))
+    throw MakeTypeError("observe_non_function", ["unobserve"]);
 
   var objectInfo = objectInfoMap.get(object);
   if (IS_UNDEFINED(objectInfo))
