@@ -1,3 +1,16 @@
+2012-11-13: Version 3.15.3
+
+        Changed sample shell to send non-JS output (e.g. errors) to stderr
+        instead of stdout.
+
+        Correctly check for stack overflow even when interrupt is pending.
+        (issue 214)
+
+        Collect stack trace on stack overflow. (issue 2394)
+
+        Performance and stability improvements on all platforms.
+
+
 2012-11-12: Version 3.15.2
 
         Function::GetScriptOrigin supplies sourceURL when script name is
