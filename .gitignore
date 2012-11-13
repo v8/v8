@@ -18,6 +18,7 @@
 #*#
 *~
 .cpplint-cache
+.d8_history
 d8
 d8_g
 shell
