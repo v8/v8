@@ -641,7 +641,8 @@ MaybeObject* Object::GetProperty(Object* receiver,
       ASSERT(!value->IsTheHole() || result->IsReadOnly());
       return value->IsTheHole() ? heap->undefined_value() : value;
     case FIELD:
-      value = result->holder()->FastPropertyAt(result->GetFieldIndex());
+      value = result->holder()->FastPropertyAt(
+          result->GetFieldIndex().field_index());
       ASSERT(!value->IsTheHole() || result->IsReadOnly());
       return value->IsTheHole() ? heap->undefined_value() : value;
     case CONSTANT_FUNCTION:
@@ -2436,7 +2437,7 @@ void JSObject::LocalLookupRealNamedProperty(String* name,
     // occur as fields.
     if (result->IsField() &&
         result->IsReadOnly() &&
-        FastPropertyAt(result->GetFieldIndex())->IsTheHole()) {
+        FastPropertyAt(result->GetFieldIndex().field_index())->IsTheHole()) {
       result->DisallowCaching();
     }
     return;
@@ -2929,7 +2930,8 @@ MaybeObject* JSObject::SetPropertyForResult(LookupResult* lookup,
       result = self->SetNormalizedProperty(lookup, *value);
       break;
     case FIELD:
-      result = self->FastPropertyAtPut(lookup->GetFieldIndex(), *value);
+      result = self->FastPropertyAtPut(
+          lookup->GetFieldIndex().field_index(), *value);
       break;
     case CONSTANT_FUNCTION:
       // Only replace the function if necessary.
@@ -3095,7 +3097,8 @@ MaybeObject* JSObject::SetLocalPropertyIgnoreAttributes(
       break;
     }
     case FIELD:
-      result = self->FastPropertyAtPut(lookup.GetFieldIndex(), *value);
+      result = self->FastPropertyAtPut(
+          lookup.GetFieldIndex().field_index(), *value);
       break;
     case CONSTANT_FUNCTION:
       // Only replace the function if necessary.

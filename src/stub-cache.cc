@@ -136,7 +136,7 @@ Handle<Code> StubCache::ComputeLoadNonexistent(Handle<String> name,
 Handle<Code> StubCache::ComputeLoadField(Handle<String> name,
                                          Handle<JSObject> receiver,
                                          Handle<JSObject> holder,
-                                         int field_index) {
+                                         PropertyIndex field_index) {
   ASSERT(IC::GetCodeCacheForObject(*receiver, *holder) == OWN_MAP);
   Code::Flags flags = Code::ComputeMonomorphicFlags(Code::LOAD_IC, Code::FIELD);
   Handle<Object> probe(receiver->map()->FindInCodeCache(*name, flags));
@@ -261,7 +261,7 @@ Handle<Code> StubCache::ComputeLoadGlobal(Handle<String> name,
 Handle<Code> StubCache::ComputeKeyedLoadField(Handle<String> name,
                                               Handle<JSObject> receiver,
                                               Handle<JSObject> holder,
-                                              int field_index) {
+                                              PropertyIndex field_index) {
   ASSERT(IC::GetCodeCacheForObject(*receiver, *holder) == OWN_MAP);
   Code::Flags flags =
       Code::ComputeMonomorphicFlags(Code::KEYED_LOAD_IC, Code::FIELD);
@@ -632,7 +632,7 @@ Handle<Code> StubCache::ComputeCallField(int argc,
                                          Handle<String> name,
                                          Handle<Object> object,
                                          Handle<JSObject> holder,
-                                         int index) {
+                                         PropertyIndex index) {
   // Compute the check type and the map.
   InlineCacheHolderFlag cache_holder =
       IC::GetCodeCacheForObject(*object, *holder);

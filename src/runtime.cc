@@ -1679,7 +1679,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_InitializeConstGlobal) {
   // Strict mode handling not needed (const is disallowed in strict mode).
   if (lookup.IsField()) {
     FixedArray* properties = global->properties();
-    int index = lookup.GetFieldIndex();
+    int index = lookup.GetFieldIndex().field_index();
     if (properties->get(index)->IsTheHole() || !lookup.IsReadOnly()) {
       properties->set(index, *value);
     }
@@ -1769,7 +1769,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_InitializeConstContextSlot) {
 
     if (lookup.IsField()) {
       FixedArray* properties = object->properties();
-      int index = lookup.GetFieldIndex();
+      int index = lookup.GetFieldIndex().field_index();
       if (properties->get(index)->IsTheHole()) {
         properties->set(index, *value);
       }
@@ -4076,7 +4076,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_KeyedGetProperty) {
         LookupResult result(isolate);
         receiver->LocalLookup(key, &result);
         if (result.IsField()) {
-          int offset = result.GetFieldIndex();
+          int offset = result.GetFieldIndex().field_index();
           keyed_lookup_cache->Update(receiver_map, key, offset);
           return receiver->FastPropertyAt(offset);
         }
@@ -4250,7 +4250,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetDataProperty) {
     case NORMAL:
       return lookup.holder()->GetNormalizedProperty(&lookup);
     case FIELD:
-      return lookup.holder()->FastPropertyAt(lookup.GetFieldIndex());
+      return lookup.holder()->FastPropertyAt(
+          lookup.GetFieldIndex().field_index());
     case CONSTANT_FUNCTION:
       return lookup.GetConstantFunction();
     case CALLBACKS:
@@ -10010,8 +10011,8 @@ static MaybeObject* DebugLookupResultValue(Heap* heap,
       return value;
     case FIELD:
       value =
-          JSObject::cast(
-              result->holder())->FastPropertyAt(result->GetFieldIndex());
+          JSObject::cast(result->holder())->FastPropertyAt(
+              result->GetFieldIndex().field_index());
       if (value->IsTheHole()) {
         return heap->undefined_value();
       }
