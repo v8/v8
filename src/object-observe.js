@@ -35,7 +35,7 @@ if (IS_UNDEFINED(observationState.observerInfoMap)) {
   observationState.observerInfoMap = %CreateObjectHashTable();
   observationState.objectInfoMap = %CreateObjectHashTable();
   observationState.notifierTargetMap = %CreateObjectHashTable();
-  observationState.activeObservers = new InternalArray;
+  observationState.pendingObservers = new InternalArray;
   observationState.observerPriority = 0;
 }
 
@@ -119,7 +119,7 @@ function EnqueueChangeRecord(changeRecord, observers) {
   for (var i = 0; i < observers.length; i++) {
     var observer = observers[i];
     var observerInfo = observerInfoMap.get(observer);
-    observationState.activeObservers[observerInfo.priority] = observer;
+    observationState.pendingObservers[observerInfo.priority] = observer;
     %SetObserverDeliveryPending();
     if (IS_NULL(observerInfo.pendingChangeRecords)) {
       observerInfo.pendingChangeRecords = new InternalArray(changeRecord);
@@ -202,6 +202,7 @@ function DeliverChangeRecordsForObserver(observer) {
     return;
 
   observerInfo.pendingChangeRecords = null;
+  delete observationState.pendingObservers[observerInfo.priority];
   var delivered = [];
   %MoveArrayContents(pendingChangeRecords, delivered);
   try {
@@ -217,11 +218,11 @@ function ObjectDeliverChangeRecords(callback) {
 }
 
 function DeliverChangeRecords() {
-  while (observationState.activeObservers.length) {
-    var activeObservers = observationState.activeObservers;
-    observationState.activeObservers = new InternalArray;
-    for (var i in activeObservers) {
-      DeliverChangeRecordsForObserver(activeObservers[i]);
+  while (observationState.pendingObservers.length) {
+    var pendingObservers = observationState.pendingObservers;
+    observationState.pendingObservers = new InternalArray;
+    for (var i in pendingObservers) {
+      DeliverChangeRecordsForObserver(pendingObservers[i]);
     }
   }
 }
