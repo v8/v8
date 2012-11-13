@@ -1933,14 +1933,17 @@ LInstruction* LChunkBuilder::DoLoadKeyed(HLoadKeyed* instr) {
   ASSERT(instr->key()->representation().IsInteger32() ||
          instr->key()->representation().IsTagged());
   ElementsKind elements_kind = instr->elements_kind();
-  LOperand* elements = UseRegisterAtStart(instr->elements());
-  LOperand* key = instr->is_external() &&
-    ExternalArrayOpRequiresTemp<HLoadKeyed>(instr)
+  bool clobbers_key = ExternalArrayOpRequiresTemp(
+      instr->key()->representation(), elements_kind);
+  LOperand* key = clobbers_key
       ? UseTempRegister(instr->key())
       : UseRegisterOrConstantAtStart(instr->key());
+  LLoadKeyed* result = NULL;
 
-#ifdef DEBUG
-  if (instr->is_external()) {
+  if (!instr->is_external()) {
+    LOperand* obj = UseRegisterAtStart(instr->elements());
+    result = new(zone()) LLoadKeyed(obj, key);
+  } else {
     ASSERT(
         (instr->representation().IsInteger32() &&
          (elements_kind != EXTERNAL_FLOAT_ELEMENTS) &&
@@ -1948,10 +1951,10 @@ LInstruction* LChunkBuilder::DoLoadKeyed(HLoadKeyed* instr) {
         (instr->representation().IsDouble() &&
          ((elements_kind == EXTERNAL_FLOAT_ELEMENTS) ||
           (elements_kind == EXTERNAL_DOUBLE_ELEMENTS))));
+    LOperand* external_pointer = UseRegister(instr->elements());
+    result = new(zone()) LLoadKeyed(external_pointer, key);
   }
-#endif
 
-  LLoadKeyed* result = new(zone()) LLoadKeyed(elements, key);
   DefineAsRegister(result);
   bool can_deoptimize = instr->RequiresHoleCheck() ||
       (elements_kind == EXTERNAL_UNSIGNED_INT_ELEMENTS);
@@ -1973,27 +1976,34 @@ LInstruction* LChunkBuilder::DoLoadKeyedGeneric(HLoadKeyedGeneric* instr) {
 
 
 LInstruction* LChunkBuilder::DoStoreKeyed(HStoreKeyed* instr) {
-  ElementsKind elements_kind = instr->elements_kind();
-  LOperand* elements;
-  LOperand* val;
-  LOperand* key;
+  LStoreKeyed* result = NULL;
 
   if (!instr->is_external()) {
     ASSERT(instr->elements()->representation().IsTagged());
     ASSERT(instr->key()->representation().IsInteger32() ||
            instr->key()->representation().IsTagged());
 
-    if (instr->NeedsWriteBarrier() &&
-        !IsFastDoubleElementsKind(elements_kind)) {
-      val = UseTempRegister(instr->value());
-      key = UseTempRegister(instr->key());
-      elements = UseRegister(instr->elements());
+    if (instr->value()->representation().IsDouble()) {
+      LOperand* object = UseRegisterAtStart(instr->elements());
+      LOperand* val = UseTempRegister(instr->value());
+      LOperand* key = UseRegisterOrConstantAtStart(instr->key());
+
+      result = new(zone()) LStoreKeyed(object, key, val);
     } else {
-      val = UseRegisterAtStart(instr->value());
-      key = UseRegisterOrConstantAtStart(instr->key());
-      elements = UseRegisterAtStart(instr->elements());
+      ASSERT(instr->value()->representation().IsTagged());
+      bool needs_write_barrier = instr->NeedsWriteBarrier();
+
+      LOperand* obj = UseRegister(instr->elements());
+      LOperand* val = needs_write_barrier
+          ? UseTempRegister(instr->value())
+          : UseRegisterAtStart(instr->value());
+      LOperand* key = needs_write_barrier
+          ? UseTempRegister(instr->key())
+          : UseRegisterOrConstantAtStart(instr->key());
+      result = new(zone()) LStoreKeyed(obj, key, val);
     }
   } else {
+    ElementsKind elements_kind = instr->elements_kind();
     ASSERT(
         (instr->value()->representation().IsInteger32() &&
          (elements_kind != EXTERNAL_FLOAT_ELEMENTS) &&
@@ -2003,25 +2013,26 @@ LInstruction* LChunkBuilder::DoStoreKeyed(HStoreKeyed* instr) {
           (elements_kind == EXTERNAL_DOUBLE_ELEMENTS))));
     ASSERT(instr->elements()->representation().IsExternal());
 
-    if (ExternalArrayOpRequiresTemp<HStoreKeyed>(instr)) {
-      key = UseTempRegister(instr->key());
-      elements = UseRegister(instr->elements());
-    } else {
-      key = UseRegisterOrConstantAtStart(instr->key());
-      elements = UseRegisterAtStart(instr->elements());
-    }
-
+    LOperand* external_pointer = UseRegister(instr->elements());
     // Determine if we need a byte register in this case for the value.
     bool val_is_fixed_register =
         elements_kind == EXTERNAL_BYTE_ELEMENTS ||
         elements_kind == EXTERNAL_UNSIGNED_BYTE_ELEMENTS ||
         elements_kind == EXTERNAL_PIXEL_ELEMENTS;
-    val = val_is_fixed_register
+
+    LOperand* val = val_is_fixed_register
         ? UseFixed(instr->value(), eax)
         : UseRegister(instr->value());
+    bool clobbers_key = ExternalArrayOpRequiresTemp(
+        instr->key()->representation(), elements_kind);
+    LOperand* key = clobbers_key
+        ? UseTempRegister(instr->key())
+        : UseRegisterOrConstantAtStart(instr->key());
+    result = new(zone()) LStoreKeyed(external_pointer,
+                                     key,
+                                     val);
   }
 
-  LStoreKeyed* result = new(zone()) LStoreKeyed(elements, key, val);
   ASSERT(result != NULL);
   return result;
 }
