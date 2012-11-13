@@ -134,6 +134,14 @@ bool Object::IsFixedArrayBase() {
 }
 
 
+// External objects are not extensible, so the map check is enough.
+bool Object::IsExternal() {
+  return Object::IsHeapObject() &&
+      HeapObject::cast(this)->map() ==
+      HeapObject::cast(this)->GetHeap()->external_map();
+}
+
+
 bool Object::IsInstanceOf(FunctionTemplateInfo* expected) {
   // There is a constraint on the object; check.
   if (!this->IsJSObject()) return false;
