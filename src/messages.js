@@ -190,6 +190,7 @@ function NoSideEffectToString(obj) {
   if (IS_BOOLEAN(obj)) return x ? 'true' : 'false';
   if (IS_UNDEFINED(obj)) return 'undefined';
   if (IS_NULL(obj)) return 'null';
+  if (IS_FUNCTION(obj)) return  %_CallFunction(obj, FunctionToString);
   if (IS_OBJECT(obj) && %GetDataProperty(obj, "toString") === ObjectToString) {
     var constructor = obj.constructor;
     if (typeof constructor == "function") {
