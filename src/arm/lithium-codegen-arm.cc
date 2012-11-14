@@ -1297,6 +1297,18 @@ void LCodeGen::DoDivI(LDivI* instr) {
 }
 
 
+void LCodeGen::DoMultiplyAddD(LMultiplyAddD* instr) {
+  DwVfpRegister addend = ToDoubleRegister(instr->addend());
+  DwVfpRegister multiplier = ToDoubleRegister(instr->multiplier());
+  DwVfpRegister multiplicand = ToDoubleRegister(instr->multiplicand());
+
+  // This is computed in-place.
+  ASSERT(addend.is(ToDoubleRegister(instr->result())));
+
+  __ vmla(addend, multiplier, multiplicand);
+}
+
+
 void LCodeGen::DoMathFloorOfDiv(LMathFloorOfDiv* instr) {
   const Register result = ToRegister(instr->result());
   const Register left = ToRegister(instr->left());

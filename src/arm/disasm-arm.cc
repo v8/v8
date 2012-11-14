@@ -1098,6 +1098,7 @@ int Decoder::DecodeType7(Instruction* instr) {
 // Dd = vadd(Dn, Dm)
 // Dd = vsub(Dn, Dm)
 // Dd = vmul(Dn, Dm)
+// Dd = vmla(Dn, Dm)
 // Dd = vdiv(Dn, Dm)
 // vcmp(Dd, Dm)
 // vmrs
@@ -1157,6 +1158,12 @@ void Decoder::DecodeTypeVFP(Instruction* instr) {
     } else if ((instr->Opc1Value() == 0x2) && !(instr->Opc3Value() & 0x1)) {
       if (instr->SzValue() == 0x1) {
         Format(instr, "vmul.f64'cond 'Dd, 'Dn, 'Dm");
+      } else {
+        Unknown(instr);  // Not used by V8.
+      }
+    } else if ((instr->Opc1Value() == 0x0) && !(instr->Opc3Value() & 0x1)) {
+      if (instr->SzValue() == 0x1) {
+        Format(instr, "vmla.f64'cond 'Dd, 'Dn, 'Dm");
       } else {
         Unknown(instr);  // Not used by V8.
       }
