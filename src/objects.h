@@ -1880,7 +1880,7 @@ class JSObject: public JSReceiver {
                                       StrictModeFlag strict_mode);
 
   // Empty handle is returned if the element cannot be set to the given value.
-  static MUST_USE_RESULT Handle<Object> SetElement(
+  static Handle<Object> SetElement(
       Handle<JSObject> object,
       uint32_t index,
       Handle<Object> value,
