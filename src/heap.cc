@@ -7227,6 +7227,7 @@ GCTracer::~GCTracer() {
     } else {
       PrintF("stepscount=%d ", steps_count_);
       PrintF("stepstook=%d ", static_cast<int>(steps_took_));
+      PrintF("longeststep=%.f ", longest_step_);
     }
 
     PrintF("\n");
