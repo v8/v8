@@ -8781,6 +8781,7 @@ void Code::ClearInlineCaches() {
 
 
 void Code::ClearTypeFeedbackCells(Heap* heap) {
+  if (kind() != FUNCTION) return;
   Object* raw_info = type_feedback_info();
   if (raw_info->IsTypeFeedbackInfo()) {
     TypeFeedbackCells* type_feedback_cells =
@@ -8795,7 +8796,8 @@ void Code::ClearTypeFeedbackCells(Heap* heap) {
 
 bool Code::allowed_in_shared_map_code_cache() {
   return is_keyed_load_stub() || is_keyed_store_stub() ||
-      (is_compare_ic_stub() && compare_state() == CompareIC::KNOWN_OBJECTS);
+      (is_compare_ic_stub() &&
+       ICCompareStub::CompareState(stub_info()) == CompareIC::KNOWN_OBJECTS);
 }
 
 
@@ -9150,11 +9152,15 @@ void Code::Disassemble(const char* name, FILE* out) {
       PrintF(out, "argc = %d\n", arguments_count());
     }
     if (is_compare_ic_stub()) {
-      CompareIC::State state = CompareIC::ComputeState(this);
-      PrintF(out, "compare_state = %s\n", CompareIC::GetStateName(state));
-    }
-    if (is_compare_ic_stub() && major_key() == CodeStub::CompareIC) {
-      Token::Value op = CompareIC::ComputeOperation(this);
+      ASSERT(major_key() == CodeStub::CompareIC);
+      CompareIC::State left_state, right_state, handler_state;
+      Token::Value op;
+      ICCompareStub::DecodeMinorKey(stub_info(), &left_state, &right_state,
+                                    &handler_state, &op);
+      PrintF(out, "compare_state = %s*%s -> %s\n",
+             CompareIC::GetStateName(left_state),
+             CompareIC::GetStateName(right_state),
+             CompareIC::GetStateName(handler_state));
       PrintF(out, "compare_operation = %s\n", Token::Name(op));
     }
   }
@@ -9200,8 +9206,6 @@ void Code::Disassemble(const char* name, FILE* out) {
       PrintF(out, "\n");
     }
     PrintF(out, "\n");
-    // Just print if type feedback info is ever used for optimized code.
-    ASSERT(type_feedback_info()->IsUndefined());
   } else if (kind() == FUNCTION) {
     unsigned offset = stack_check_table_offset();
     // If there is no stack check table, the "table start" will at or after

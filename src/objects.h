@@ -4306,8 +4306,12 @@ class Code: public HeapObject {
   DECL_ACCESSORS(deoptimization_data, FixedArray)
 
   // [type_feedback_info]: Struct containing type feedback information.
-  // Will contain either a TypeFeedbackInfo object, or undefined.
+  // STUBs can use this slot to store arbitrary information as a Smi.
+  // Will contain either a TypeFeedbackInfo object, or undefined, or a Smi.
   DECL_ACCESSORS(type_feedback_info, Object)
+  inline void InitializeTypeFeedbackInfoNoWriteBarrier(Object* value);
+  inline int stub_info();
+  inline void set_stub_info(int info);
 
   // [gc_metadata]: Field used to hold GC related metadata. The contents of this
   // field does not have to be traced during garbage collection since
@@ -4412,21 +4416,6 @@ class Code: public HeapObject {
   // [type-recording unary op type]: For kind UNARY_OP_IC.
   inline byte unary_op_type();
   inline void set_unary_op_type(byte value);
-
-  // [type-recording binary op type]: For kind BINARY_OP_IC.
-  inline byte binary_op_type();
-  inline void set_binary_op_type(byte value);
-  inline byte binary_op_result_type();
-  inline void set_binary_op_result_type(byte value);
-
-  // [compare state]: For kind COMPARE_IC, tells what state the stub is in.
-  inline byte compare_state();
-  inline void set_compare_state(byte value);
-
-  // [compare_operation]: For kind COMPARE_IC tells what compare operation the
-  // stub was generated for.
-  inline byte compare_operation();
-  inline void set_compare_operation(byte value);
 
   // [to_boolean_foo]: For kind TO_BOOLEAN_IC tells what state the stub is in.
   inline byte to_boolean_state();
@@ -4637,18 +4626,6 @@ class Code: public HeapObject {
   static const int kUnaryOpTypeFirstBit =
       kStackSlotsFirstBit + kStackSlotsBitCount;
   static const int kUnaryOpTypeBitCount = 3;
-  static const int kBinaryOpTypeFirstBit =
-      kStackSlotsFirstBit + kStackSlotsBitCount;
-  static const int kBinaryOpTypeBitCount = 3;
-  static const int kBinaryOpResultTypeFirstBit =
-      kBinaryOpTypeFirstBit + kBinaryOpTypeBitCount;
-  static const int kBinaryOpResultTypeBitCount = 3;
-  static const int kCompareStateFirstBit =
-      kStackSlotsFirstBit + kStackSlotsBitCount;
-  static const int kCompareStateBitCount = 3;
-  static const int kCompareOperationFirstBit =
-      kCompareStateFirstBit + kCompareStateBitCount;
-  static const int kCompareOperationBitCount = 4;
   static const int kToBooleanStateFirstBit =
       kStackSlotsFirstBit + kStackSlotsBitCount;
   static const int kToBooleanStateBitCount = 8;
@@ -4658,11 +4635,6 @@ class Code: public HeapObject {
 
   STATIC_ASSERT(kStackSlotsFirstBit + kStackSlotsBitCount <= 32);
   STATIC_ASSERT(kUnaryOpTypeFirstBit + kUnaryOpTypeBitCount <= 32);
-  STATIC_ASSERT(kBinaryOpTypeFirstBit + kBinaryOpTypeBitCount <= 32);
-  STATIC_ASSERT(kBinaryOpResultTypeFirstBit +
-                kBinaryOpResultTypeBitCount <= 32);
-  STATIC_ASSERT(kCompareStateFirstBit + kCompareStateBitCount <= 32);
-  STATIC_ASSERT(kCompareOperationFirstBit + kCompareOperationBitCount <= 32);
   STATIC_ASSERT(kToBooleanStateFirstBit + kToBooleanStateBitCount <= 32);
   STATIC_ASSERT(kHasFunctionCacheFirstBit + kHasFunctionCacheBitCount <= 32);
 
@@ -4670,14 +4642,6 @@ class Code: public HeapObject {
       kStackSlotsFirstBit, kStackSlotsBitCount> {};  // NOLINT
   class UnaryOpTypeField: public BitField<int,
       kUnaryOpTypeFirstBit, kUnaryOpTypeBitCount> {};  // NOLINT
-  class BinaryOpTypeField: public BitField<int,
-      kBinaryOpTypeFirstBit, kBinaryOpTypeBitCount> {};  // NOLINT
-  class BinaryOpResultTypeField: public BitField<int,
-      kBinaryOpResultTypeFirstBit, kBinaryOpResultTypeBitCount> {};  // NOLINT
-  class CompareStateField: public BitField<int,
-      kCompareStateFirstBit, kCompareStateBitCount> {};  // NOLINT
-  class CompareOperationField: public BitField<int,
-      kCompareOperationFirstBit, kCompareOperationBitCount> {};  // NOLINT
   class ToBooleanStateField: public BitField<int,
       kToBooleanStateFirstBit, kToBooleanStateBitCount> {};  // NOLINT
   class HasFunctionCacheField: public BitField<bool,

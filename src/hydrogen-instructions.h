@@ -45,6 +45,7 @@ namespace internal {
 // Forward declarations.
 class HBasicBlock;
 class HEnvironment;
+class HInferRepresentation;
 class HInstruction;
 class HLoopInformation;
 class HValue;
@@ -308,9 +309,9 @@ class Representation {
  public:
   enum Kind {
     kNone,
-    kTagged,
-    kDouble,
     kInteger32,
+    kDouble,
+    kTagged,
     kExternal,
     kNumRepresentations
   };
@@ -323,8 +324,16 @@ class Representation {
   static Representation Double() { return Representation(kDouble); }
   static Representation External() { return Representation(kExternal); }
 
+  static Representation FromKind(Kind kind) { return Representation(kind); }
+
   bool Equals(const Representation& other) {
     return kind_ == other.kind_;
+  }
+
+  bool is_more_general_than(const Representation& other) {
+    ASSERT(kind_ != kExternal);
+    ASSERT(other.kind_ != kExternal);
+    return kind_ > other.kind_;
   }
 
   Kind kind() const { return static_cast<Kind>(kind_); }
@@ -629,13 +638,15 @@ class HValue: public ZoneObject {
   virtual bool EmitAtUses() { return false; }
   Representation representation() const { return representation_; }
   void ChangeRepresentation(Representation r) {
-    // Representation was already set and is allowed to be changed.
-    ASSERT(!r.IsNone());
     ASSERT(CheckFlag(kFlexibleRepresentation));
     RepresentationChanged(r);
     representation_ = r;
+    if (r.IsTagged()) {
+      // Tagged is the bottom of the lattice, don't go any further.
+      ClearFlag(kFlexibleRepresentation);
+    }
   }
-  void AssumeRepresentation(Representation r);
+  virtual void AssumeRepresentation(Representation r);
 
   virtual bool IsConvertibleToInteger() const { return true; }
 
@@ -733,16 +744,11 @@ class HValue: public ZoneObject {
   void ComputeInitialRange(Zone* zone);
 
   // Representation helpers.
+  virtual Representation observed_input_representation(int index) {
+    return Representation::None();
+  }
   virtual Representation RequiredInputRepresentation(int index) = 0;
-
-  virtual Representation InferredRepresentation() {
-    return representation();
-  }
-
-  // Type feedback access.
-  virtual Representation ObservedInputRepresentation(int index) {
-    return RequiredInputRepresentation(index);
-  }
+  virtual void InferRepresentation(HInferRepresentation* h_infer);
 
   // This gives the instruction an opportunity to replace itself with an
   // instruction that does the same in some better way.  To replace an
@@ -790,7 +796,18 @@ class HValue: public ZoneObject {
     UNREACHABLE();
     return false;
   }
+
+  virtual Representation RepresentationFromInputs() {
+    return representation();
+  }
+  Representation RepresentationFromUses();
+  virtual void UpdateRepresentation(Representation new_rep,
+                                    HInferRepresentation* h_infer,
+                                    const char* reason);
+  void AddDependantsToWorklist(HInferRepresentation* h_infer);
+
   virtual void RepresentationChanged(Representation to) { }
+
   virtual Range* InferRange(Zone* zone);
   virtual void DeleteFromGraph() = 0;
   virtual void InternalSetOperandAt(int index, HValue* value) = 0;
@@ -800,7 +817,6 @@ class HValue: public ZoneObject {
   }
 
   void set_representation(Representation r) {
-    // Representation is set-once.
     ASSERT(representation_.IsNone() && !r.IsNone());
     representation_ = r;
   }
@@ -1113,6 +1129,7 @@ class HBranch: public HUnaryControlInstruction {
   virtual Representation RequiredInputRepresentation(int index) {
     return Representation::None();
   }
+  virtual Representation observed_input_representation(int index);
 
   ToBooleanStub::Types expected_input_types() const {
     return expected_input_types_;
@@ -1317,14 +1334,24 @@ class HClampToUint8: public HUnaryOperation {
 };
 
 
+enum RemovableSimulate {
+  REMOVABLE_SIMULATE,
+  FIXED_SIMULATE
+};
+
+
 class HSimulate: public HInstruction {
  public:
-  HSimulate(BailoutId ast_id, int pop_count, Zone* zone)
+  HSimulate(BailoutId ast_id,
+            int pop_count,
+            Zone* zone,
+            RemovableSimulate removable)
       : ast_id_(ast_id),
         pop_count_(pop_count),
         values_(2, zone),
         assigned_indexes_(2, zone),
-        zone_(zone) {}
+        zone_(zone),
+        removable_(removable) {}
   virtual ~HSimulate() {}
 
   virtual void PrintDataTo(StringStream* stream);
@@ -1358,6 +1385,9 @@ class HSimulate: public HInstruction {
     return Representation::None();
   }
 
+  void MergeInto(HSimulate* other);
+  bool is_candidate_for_removal() { return removable_ == REMOVABLE_SIMULATE; }
+
   DECLARE_CONCRETE_INSTRUCTION(Simulate)
 
 #ifdef DEBUG
@@ -1384,6 +1414,7 @@ class HSimulate: public HInstruction {
   ZoneList<HValue*> values_;
   ZoneList<int> assigned_indexes_;
   Zone* zone_;
+  RemovableSimulate removable_;
 };
 
 
@@ -2010,6 +2041,9 @@ class HBitNot: public HUnaryOperation {
   virtual Representation RequiredInputRepresentation(int index) {
     return Representation::Integer32();
   }
+  virtual Representation observed_input_representation(int index) {
+    return Representation::Integer32();
+  }
   virtual HType CalculateInferredType();
 
   virtual HValue* Canonicalize();
@@ -2037,7 +2071,7 @@ class HUnaryMathOperation: public HTemplateInstruction<2> {
         set_representation(Representation::Integer32());
         break;
       case kMathAbs:
-        set_representation(Representation::Tagged());
+        // Not setting representation here: it is None intentionally.
         SetFlag(kFlexibleRepresentation);
         SetGVNFlag(kChangesNewSpacePromotion);
         break;
@@ -2217,6 +2251,7 @@ class HCheckMaps: public HTemplateInstruction<2> {
   virtual Representation RequiredInputRepresentation(int index) {
     return Representation::Tagged();
   }
+
   virtual void PrintDataTo(StringStream* stream);
   virtual HType CalculateInferredType();
 
@@ -2444,13 +2479,15 @@ class HPhi: public HValue {
       indirect_uses_[i] = 0;
     }
     ASSERT(merged_index >= 0);
-    set_representation(Representation::Tagged());
     SetFlag(kFlexibleRepresentation);
   }
 
-  virtual Representation InferredRepresentation();
+  virtual Representation RepresentationFromInputs();
 
   virtual Range* InferRange(Zone* zone);
+  virtual void InferRepresentation(HInferRepresentation* h_infer);
+  Representation RepresentationObservedByAllNonPhiUses();
+  Representation RepresentationFromUseRequirements();
   virtual Representation RequiredInputRepresentation(int index) {
     return representation();
   }
@@ -2514,13 +2551,16 @@ class HPhi: public HValue {
   bool AllOperandsConvertibleToInteger() {
     for (int i = 0; i < OperandCount(); ++i) {
       if (!OperandAt(i)->IsConvertibleToInteger()) {
+        if (FLAG_trace_representation) {
+          HValue* input = OperandAt(i);
+          PrintF("#%d %s: Input #%d %s at %d is NCTI\n",
+                 id(), Mnemonic(), input->id(), input->Mnemonic(), i);
+        }
         return false;
       }
     }
     return true;
   }
-
-  void ResetInteger32Uses();
 
  protected:
   virtual void DeleteFromGraph();
@@ -2704,11 +2744,14 @@ class HConstant: public HTemplateInstruction<0> {
 
 class HBinaryOperation: public HTemplateInstruction<3> {
  public:
-  HBinaryOperation(HValue* context, HValue* left, HValue* right) {
+  HBinaryOperation(HValue* context, HValue* left, HValue* right)
+      : observed_output_representation_(Representation::None()) {
     ASSERT(left != NULL && right != NULL);
     SetOperandAt(0, context);
     SetOperandAt(1, left);
     SetOperandAt(2, right);
+    observed_input_representation_[0] = Representation::None();
+    observed_input_representation_[1] = Representation::None();
   }
 
   HValue* context() { return OperandAt(0); }
@@ -2727,11 +2770,34 @@ class HBinaryOperation: public HTemplateInstruction<3> {
     return right();
   }
 
+  void set_observed_input_representation(Representation left,
+                                         Representation right) {
+    observed_input_representation_[0] = left;
+    observed_input_representation_[1] = right;
+  }
+
+  virtual void initialize_output_representation(Representation observed) {
+    observed_output_representation_ = observed;
+  }
+
+  virtual Representation observed_input_representation(int index) {
+    if (index == 0) return Representation::Tagged();
+    return observed_input_representation_[index - 1];
+  }
+
+  virtual void InferRepresentation(HInferRepresentation* h_infer);
+  virtual Representation RepresentationFromInputs();
+  virtual void AssumeRepresentation(Representation r);
+
   virtual bool IsCommutative() const { return false; }
 
   virtual void PrintDataTo(StringStream* stream);
 
   DECLARE_ABSTRACT_INSTRUCTION(BinaryOperation)
+
+ private:
+  Representation observed_input_representation_[2];
+  Representation observed_output_representation_;
 };
 
 
@@ -2901,6 +2967,9 @@ class HBoundsCheck: public HTemplateInstruction<2> {
     }
     return Representation::Integer32();
   }
+  virtual Representation observed_input_representation(int index) {
+    return Representation::Integer32();
+  }
 
   virtual void PrintDataTo(StringStream* stream);
 
@@ -2919,12 +2988,9 @@ class HBitwiseBinaryOperation: public HBinaryOperation {
  public:
   HBitwiseBinaryOperation(HValue* context, HValue* left, HValue* right)
       : HBinaryOperation(context, left, right) {
-    set_representation(Representation::Tagged());
     SetFlag(kFlexibleRepresentation);
+    SetFlag(kTruncatingToInt32);
     SetAllSideEffects();
-    observed_input_representation_[0] = Representation::Tagged();
-    observed_input_representation_[1] = Representation::None();
-    observed_input_representation_[2] = Representation::None();
   }
 
   virtual Representation RequiredInputRepresentation(int index) {
@@ -2937,28 +3003,32 @@ class HBitwiseBinaryOperation: public HBinaryOperation {
     if (!to.IsTagged()) {
       ASSERT(to.IsInteger32());
       ClearAllSideEffects();
-      SetFlag(kTruncatingToInt32);
       SetFlag(kUseGVN);
+    } else {
+      SetAllSideEffects();
+      ClearFlag(kUseGVN);
     }
   }
 
+  virtual void UpdateRepresentation(Representation new_rep,
+                                    HInferRepresentation* h_infer,
+                                    const char* reason) {
+    // We only generate either int32 or generic tagged bitwise operations.
+    if (new_rep.IsDouble()) new_rep = Representation::Integer32();
+    HValue::UpdateRepresentation(new_rep, h_infer, reason);
+  }
+
+  virtual void initialize_output_representation(Representation observed) {
+    if (observed.IsDouble()) observed = Representation::Integer32();
+    HBinaryOperation::initialize_output_representation(observed);
+  }
+
   virtual HType CalculateInferredType();
-
-  virtual Representation ObservedInputRepresentation(int index) {
-    return observed_input_representation_[index];
-  }
-
-  void InitializeObservedInputRepresentation(Representation r) {
-    observed_input_representation_[1] = r;
-    observed_input_representation_[2] = r;
-  }
 
   DECLARE_ABSTRACT_INSTRUCTION(BitwiseBinaryOperation)
 
  private:
   virtual bool IsDeletable() const { return true; }
-
-  Representation observed_input_representation_[3];
 };
 
 
@@ -2991,13 +3061,15 @@ class HArithmeticBinaryOperation: public HBinaryOperation {
  public:
   HArithmeticBinaryOperation(HValue* context, HValue* left, HValue* right)
       : HBinaryOperation(context, left, right) {
-    set_representation(Representation::Tagged());
-    SetFlag(kFlexibleRepresentation);
     SetAllSideEffects();
+    SetFlag(kFlexibleRepresentation);
   }
 
   virtual void RepresentationChanged(Representation to) {
-    if (!to.IsTagged()) {
+    if (to.IsTagged()) {
+      SetAllSideEffects();
+      ClearFlag(kUseGVN);
+    } else {
       ClearAllSideEffects();
       SetFlag(kUseGVN);
     }
@@ -3008,13 +3080,6 @@ class HArithmeticBinaryOperation: public HBinaryOperation {
     return index == 0
         ? Representation::Tagged()
         : representation();
-  }
-
-  virtual Representation InferredRepresentation() {
-    if (left()->representation().Equals(right()->representation())) {
-      return left()->representation();
-    }
-    return HValue::InferredRepresentation();
   }
 
  private:
@@ -3035,11 +3100,9 @@ class HCompareGeneric: public HBinaryOperation {
   }
 
   virtual Representation RequiredInputRepresentation(int index) {
-    return Representation::Tagged();
-  }
-
-  Representation GetInputRepresentation() const {
-    return Representation::Tagged();
+    return index == 0
+        ? Representation::Tagged()
+        : representation();
   }
 
   Token::Value token() const { return token_; }
@@ -3058,6 +3121,7 @@ class HCompareIDAndBranch: public HTemplateControlInstruction<2, 2> {
  public:
   HCompareIDAndBranch(HValue* left, HValue* right, Token::Value token)
       : token_(token) {
+    SetFlag(kFlexibleRepresentation);
     ASSERT(Token::IsCompareOp(token));
     SetOperandAt(0, left);
     SetOperandAt(1, right);
@@ -3067,20 +3131,26 @@ class HCompareIDAndBranch: public HTemplateControlInstruction<2, 2> {
   HValue* right() { return OperandAt(1); }
   Token::Value token() const { return token_; }
 
-  void SetInputRepresentation(Representation r);
-  Representation GetInputRepresentation() const {
-    return input_representation_;
+  void set_observed_input_representation(Representation left,
+                                         Representation right) {
+      observed_input_representation_[0] = left;
+      observed_input_representation_[1] = right;
   }
 
+  virtual void InferRepresentation(HInferRepresentation* h_infer);
+
   virtual Representation RequiredInputRepresentation(int index) {
-    return input_representation_;
+    return representation();
+  }
+  virtual Representation observed_input_representation(int index) {
+    return observed_input_representation_[index];
   }
   virtual void PrintDataTo(StringStream* stream);
 
   DECLARE_CONCRETE_INSTRUCTION(CompareIDAndBranch)
 
  private:
-  Representation input_representation_;
+  Representation observed_input_representation_[2];
   Token::Value token_;
 };
 
@@ -3139,6 +3209,9 @@ class HIsNilAndBranch: public HUnaryControlInstruction {
   virtual void PrintDataTo(StringStream* stream);
 
   virtual Representation RequiredInputRepresentation(int index) {
+    return Representation::Tagged();
+  }
+  virtual Representation observed_input_representation(int index) {
     return Representation::Tagged();
   }
 
@@ -3418,6 +3491,9 @@ class HPower: public HTemplateInstruction<2> {
       ? Representation::Double()
       : Representation::None();
   }
+  virtual Representation observed_input_representation(int index) {
+    return RequiredInputRepresentation(index);
+  }
 
   DECLARE_CONCRETE_INSTRUCTION(Power)
 
@@ -3603,14 +3679,19 @@ class HMathMinMax: public HArithmeticBinaryOperation {
         operation_(op) { }
 
   virtual Representation RequiredInputRepresentation(int index) {
-      return index == 0
-          ? Representation::Tagged()
-          : representation();
-    }
+    return index == 0 ? Representation::Tagged()
+                      : representation();
+  }
 
-  virtual Representation InferredRepresentation() {
-    if (left()->representation().IsInteger32() &&
-        right()->representation().IsInteger32()) {
+  virtual Representation observed_input_representation(int index) {
+    return RequiredInputRepresentation(index);
+  }
+
+  virtual Representation RepresentationFromInputs() {
+    Representation left_rep = left()->representation();
+    Representation right_rep = right()->representation();
+    if ((left_rep.IsNone() || left_rep.IsInteger32()) &&
+        (right_rep.IsNone() || right_rep.IsInteger32())) {
       return Representation::Integer32();
     }
     return Representation::Double();
@@ -4336,6 +4417,10 @@ class HLoadKeyed
     return Representation::None();
   }
 
+  virtual Representation observed_input_representation(int index) {
+    return RequiredInputRepresentation(index);
+  }
+
   virtual void PrintDataTo(StringStream* stream);
 
   bool RequiresHoleCheck() const;
@@ -4527,6 +4612,12 @@ class HStoreKeyed
     } else {
       SetGVNFlag(kChangesArrayElements);
     }
+
+    // EXTERNAL_{UNSIGNED_,}{BYTE,SHORT,INT}_ELEMENTS are truncating.
+    if (elements_kind >= EXTERNAL_BYTE_ELEMENTS &&
+        elements_kind <= EXTERNAL_UNSIGNED_INT_ELEMENTS) {
+      SetFlag(kTruncatingToInt32);
+    }
   }
 
   virtual Representation RequiredInputRepresentation(int index) {
@@ -4552,6 +4643,19 @@ class HStoreKeyed
   bool is_external() const {
     return IsExternalArrayElementsKind(elements_kind());
   }
+
+  virtual Representation observed_input_representation(int index) {
+    if (index < 2) return RequiredInputRepresentation(index);
+    if (IsDoubleOrFloatElementsKind(elements_kind())) {
+      return Representation::Double();
+    }
+    if (is_external()) {
+      return Representation::Integer32();
+    }
+    // For fast object elements kinds, don't assume anything.
+    return Representation::None();
+  }
+
   HValue* elements() { return OperandAt(0); }
   HValue* key() { return OperandAt(1); }
   HValue* value() { return OperandAt(2); }

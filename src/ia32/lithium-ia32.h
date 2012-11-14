@@ -614,7 +614,7 @@ class LCmpIDAndBranch: public LControlInstruction<2, 0> {
 
   Token::Value op() const { return hydrogen()->token(); }
   bool is_double() const {
-    return hydrogen()->GetInputRepresentation().IsDouble();
+    return hydrogen()->representation().IsDouble();
   }
 
   virtual void PrintDataTo(StringStream* stream);

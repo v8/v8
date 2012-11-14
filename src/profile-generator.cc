@@ -2130,9 +2130,11 @@ void V8HeapExplorer::ExtractCodeReferences(int entry, Code* code) {
   SetInternalReference(code, entry,
                        "deoptimization_data", code->deoptimization_data(),
                        Code::kDeoptimizationDataOffset);
-  SetInternalReference(code, entry,
-                       "type_feedback_info", code->type_feedback_info(),
-                       Code::kTypeFeedbackInfoOffset);
+  if (code->kind() == Code::FUNCTION) {
+    SetInternalReference(code, entry,
+                         "type_feedback_info", code->type_feedback_info(),
+                         Code::kTypeFeedbackInfoOffset);
+  }
   SetInternalReference(code, entry,
                        "gc_metadata", code->gc_metadata(),
                        Code::kGCMetadataOffset);

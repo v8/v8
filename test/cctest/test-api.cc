@@ -11372,6 +11372,7 @@ static void RunLoopInNewEnv() {
 
 TEST(SetFunctionEntryHook) {
   i::FLAG_allow_natives_syntax = true;
+  i::FLAG_use_inlining = false;
 
   // Test setting and resetting the entry hook.
   // Nulling it should always succeed.

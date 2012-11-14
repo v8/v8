@@ -3416,66 +3416,6 @@ void Code::set_unary_op_type(byte value) {
 }
 
 
-byte Code::binary_op_type() {
-  ASSERT(is_binary_op_stub());
-  return BinaryOpTypeField::decode(
-      READ_UINT32_FIELD(this, kKindSpecificFlags1Offset));
-}
-
-
-void Code::set_binary_op_type(byte value) {
-  ASSERT(is_binary_op_stub());
-  int previous = READ_UINT32_FIELD(this, kKindSpecificFlags1Offset);
-  int updated = BinaryOpTypeField::update(previous, value);
-  WRITE_UINT32_FIELD(this, kKindSpecificFlags1Offset, updated);
-}
-
-
-byte Code::binary_op_result_type() {
-  ASSERT(is_binary_op_stub());
-  return BinaryOpResultTypeField::decode(
-      READ_UINT32_FIELD(this, kKindSpecificFlags1Offset));
-}
-
-
-void Code::set_binary_op_result_type(byte value) {
-  ASSERT(is_binary_op_stub());
-  int previous = READ_UINT32_FIELD(this, kKindSpecificFlags1Offset);
-  int updated = BinaryOpResultTypeField::update(previous, value);
-  WRITE_UINT32_FIELD(this, kKindSpecificFlags1Offset, updated);
-}
-
-
-byte Code::compare_state() {
-  ASSERT(is_compare_ic_stub());
-  return CompareStateField::decode(
-      READ_UINT32_FIELD(this, kKindSpecificFlags1Offset));
-}
-
-
-void Code::set_compare_state(byte value) {
-  ASSERT(is_compare_ic_stub());
-  int previous = READ_UINT32_FIELD(this, kKindSpecificFlags1Offset);
-  int updated = CompareStateField::update(previous, value);
-  WRITE_UINT32_FIELD(this, kKindSpecificFlags1Offset, updated);
-}
-
-
-byte Code::compare_operation() {
-  ASSERT(is_compare_ic_stub());
-  return CompareOperationField::decode(
-      READ_UINT32_FIELD(this, kKindSpecificFlags1Offset));
-}
-
-
-void Code::set_compare_operation(byte value) {
-  ASSERT(is_compare_ic_stub());
-  int previous = READ_UINT32_FIELD(this, kKindSpecificFlags1Offset);
-  int updated = CompareOperationField::update(previous, value);
-  WRITE_UINT32_FIELD(this, kKindSpecificFlags1Offset, updated);
-}
-
-
 byte Code::to_boolean_state() {
   ASSERT(is_to_boolean_ic_stub());
   return ToBooleanStateField::decode(
@@ -4630,9 +4570,44 @@ INT_ACCESSORS(Code, instruction_size, kInstructionSizeOffset)
 ACCESSORS(Code, relocation_info, ByteArray, kRelocationInfoOffset)
 ACCESSORS(Code, handler_table, FixedArray, kHandlerTableOffset)
 ACCESSORS(Code, deoptimization_data, FixedArray, kDeoptimizationDataOffset)
-ACCESSORS(Code, type_feedback_info, Object, kTypeFeedbackInfoOffset)
+
+
+// Type feedback slot: type_feedback_info for FUNCTIONs, stub_info for STUBs.
+void Code::InitializeTypeFeedbackInfoNoWriteBarrier(Object* value) {
+  WRITE_FIELD(this, kTypeFeedbackInfoOffset, value);
+}
+
+
+Object* Code::type_feedback_info() {
+  ASSERT(kind() == FUNCTION);
+  return Object::cast(READ_FIELD(this, kTypeFeedbackInfoOffset));
+}
+
+
+void Code::set_type_feedback_info(Object* value, WriteBarrierMode mode) {
+  ASSERT(kind() == FUNCTION);
+  WRITE_FIELD(this, kTypeFeedbackInfoOffset, value);
+  CONDITIONAL_WRITE_BARRIER(GetHeap(), this, kTypeFeedbackInfoOffset,
+                            value, mode);
+}
+
+
+int Code::stub_info() {
+  ASSERT(kind() == COMPARE_IC || kind() == BINARY_OP_IC);
+  Object* value = READ_FIELD(this, kTypeFeedbackInfoOffset);
+  return Smi::cast(value)->value();
+}
+
+
+void Code::set_stub_info(int value) {
+  ASSERT(kind() == COMPARE_IC || kind() == BINARY_OP_IC);
+  WRITE_FIELD(this, kTypeFeedbackInfoOffset, Smi::FromInt(value));
+}
+
+
 ACCESSORS(Code, gc_metadata, Object, kGCMetadataOffset)
 INT_ACCESSORS(Code, ic_age, kICAgeOffset)
+
 
 byte* Code::instruction_start()  {
   return FIELD_ADDR(this, kHeaderSize);

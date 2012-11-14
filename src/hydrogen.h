@@ -125,7 +125,10 @@ class HBasicBlock: public ZoneObject {
   void Goto(HBasicBlock* block, FunctionState* state = NULL);
 
   int PredecessorIndexOf(HBasicBlock* predecessor) const;
-  void AddSimulate(BailoutId ast_id) { AddInstruction(CreateSimulate(ast_id)); }
+  void AddSimulate(BailoutId ast_id,
+                   RemovableSimulate removable = FIXED_SIMULATE) {
+    AddInstruction(CreateSimulate(ast_id, removable));
+  }
   void AssignCommonDominator(HBasicBlock* other);
   void AssignLoopSuccessorDominators();
 
@@ -166,7 +169,7 @@ class HBasicBlock: public ZoneObject {
   void RegisterPredecessor(HBasicBlock* pred);
   void AddDominatedBlock(HBasicBlock* block);
 
-  HSimulate* CreateSimulate(BailoutId ast_id);
+  HSimulate* CreateSimulate(BailoutId ast_id, RemovableSimulate removable);
   HDeoptimize* CreateDeoptimize(HDeoptimize::UseEnvironment has_uses);
 
   int block_id_;
@@ -255,6 +258,7 @@ class HGraph: public ZoneObject {
 
   void InitializeInferredTypes();
   void InsertTypeConversions();
+  void MergeRemovableSimulates();
   void InsertRepresentationChanges();
   void MarkDeoptimizeOnUndefined();
   void ComputeMinusZeroChecks();
@@ -613,6 +617,25 @@ class HEnvironment: public ZoneObject {
 };
 
 
+class HInferRepresentation BASE_EMBEDDED {
+ public:
+  explicit HInferRepresentation(HGraph* graph)
+      : graph_(graph),
+        worklist_(8, graph->zone()),
+        in_worklist_(graph->GetMaximumValueID(), graph->zone()) { }
+
+  void Analyze();
+  void AddToWorklist(HValue* current);
+
+ private:
+  Zone* zone() const { return graph_->zone(); }
+
+  HGraph* graph_;
+  ZoneList<HValue*> worklist_;
+  BitVector in_worklist_;
+};
+
+
 class HGraphBuilder;
 
 enum ArgumentsAllowedFlag {
@@ -880,7 +903,8 @@ class HGraphBuilder: public AstVisitor {
 
   // Adding instructions.
   HInstruction* AddInstruction(HInstruction* instr);
-  void AddSimulate(BailoutId ast_id);
+  void AddSimulate(BailoutId ast_id,
+                   RemovableSimulate removable = FIXED_SIMULATE);
 
   // Bailout environment manipulation.
   void Push(HValue* value) { environment()->Push(value); }
@@ -1025,10 +1049,6 @@ class HGraphBuilder: public AstVisitor {
   // to push them as outgoing parameters.
   template <class Instruction> HInstruction* PreProcessCall(Instruction* call);
 
-  void TraceRepresentation(Token::Value op,
-                           TypeInfo info,
-                           HValue* value,
-                           Representation rep);
   static Representation ToRepresentation(TypeInfo info);
 
   void SetUpScope(Scope* scope);
