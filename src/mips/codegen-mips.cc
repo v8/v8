@@ -448,6 +448,30 @@ void StringCharLoadGenerator::Generate(MacroAssembler* masm,
 
 #undef __
 
+
+byte* Code::FindPlatformCodeAgeSequence() {
+  UNIMPLEMENTED();
+  return NULL;
+}
+
+
+bool Code::IsYoungSequence(byte* sequence) {
+  UNIMPLEMENTED();
+  return false;
+}
+
+
+void Code::GetCodeAgeAndParity(byte* sequence, Age* age,
+                               MarkingParity* parity) {
+}
+
+
+void Code::PatchPlatformCodeAge(byte* sequence,
+                                Code::Age age,
+                                MarkingParity parity) {
+  UNIMPLEMENTED();
+}
+
 } }  // namespace v8::internal
 
 #endif  // V8_TARGET_ARCH_MIPS

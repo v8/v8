@@ -292,6 +292,17 @@ bool RelocInfo::IsPatchedDebugBreakSlotSequence() {
 }
 
 
+Code* RelocInfo::code_age_stub() {
+  UNIMPLEMENTED();
+  return NULL;
+}
+
+
+void RelocInfo::set_code_age_stub(Code* stub) {
+  UNIMPLEMENTED();
+}
+
+
 void RelocInfo::Visit(ObjectVisitor* visitor) {
   RelocInfo::Mode mode = rmode();
   if (mode == RelocInfo::EMBEDDED_OBJECT) {
