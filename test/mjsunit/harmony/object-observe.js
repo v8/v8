@@ -590,3 +590,17 @@ observer.assertCallbackRecords([
   { object: array, name: '2', type: 'updated', oldValue: 3 },
   { object: array, name: 'length', type: 'updated', oldValue: 3 },
 ]);
+
+// Exercise StoreIC_ArrayLength
+reset();
+var dummy = {};
+Object.observe(dummy, observer.callback);
+Object.unobserve(dummy, observer.callback);
+var array = [0];
+Object.observe(array, observer.callback);
+array.splice(0, 1);
+Object.deliverChangeRecords(observer.callback);
+observer.assertCallbackRecords([
+  { object: array, name: '0', type: 'deleted', oldValue: 0 },
+  { object: array, name: 'length', type: 'updated', oldValue: 1},
+]);

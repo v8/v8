@@ -8345,6 +8345,7 @@ class JSArray: public JSObject {
 
   // Initializes the array to a certain length.
   inline bool AllowsSetElementsLength();
+  // Can cause GC.
   MUST_USE_RESULT MaybeObject* SetElementsLength(Object* length);
 
   // Set the content of the array to the content of storage.

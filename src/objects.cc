@@ -9382,7 +9382,51 @@ void JSArray::Expand(int required_size) {
 MaybeObject* JSArray::SetElementsLength(Object* len) {
   // We should never end in here with a pixel or external array.
   ASSERT(AllowsSetElementsLength());
-  return GetElementsAccessor()->SetLength(this, len);
+  if (!(FLAG_harmony_observation && map()->is_observed()))
+    return GetElementsAccessor()->SetLength(this, len);
+
+  Isolate* isolate = GetIsolate();
+  HandleScope scope(isolate);
+  Handle<JSArray> self(this);
+  List<Handle<String> > indices;
+  List<Handle<Object> > old_values;
+  Handle<Object> old_length_handle(self->length());
+  Handle<Object> new_length_handle(len);
+  uint32_t old_length = 0;
+  CHECK(old_length_handle->ToArrayIndex(&old_length));
+  uint32_t new_length = 0;
+  if (!new_length_handle->ToArrayIndex(&new_length))
+    return Failure::InternalError();
+
+  // TODO(adamk): This loop can be very slow for arrays in dictionary mode.
+  // Find another way to iterate over arrays with dictionary elements.
+  for (uint32_t i = old_length - 1; i + 1 > new_length; --i) {
+    PropertyAttributes attributes = self->GetLocalElementAttribute(i);
+    if (attributes == ABSENT) continue;
+    // A non-configurable property will cause the truncation operation to
+    // stop at this index.
+    if (attributes == DONT_DELETE) break;
+    // TODO(adamk): Don't fetch the old value if it's an accessor.
+    old_values.Add(Object::GetElement(self, i));
+    indices.Add(isolate->factory()->Uint32ToString(i));
+  }
+
+  MaybeObject* result =
+      self->GetElementsAccessor()->SetLength(*self, *new_length_handle);
+  Handle<Object> hresult;
+  if (!result->ToHandle(&hresult)) return result;
+
+  CHECK(self->length()->ToArrayIndex(&new_length));
+  if (old_length != new_length) {
+    for (int i = 0; i < indices.length(); ++i) {
+      JSObject::EnqueueChangeRecord(
+          self, "deleted", indices[i], old_values[i]);
+    }
+    JSObject::EnqueueChangeRecord(
+        self, "updated", isolate->factory()->length_symbol(),
+        old_length_handle);
+  }
+  return *hresult;
 }
 
 
