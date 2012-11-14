@@ -1101,7 +1101,7 @@ void TestParserSync(i::Handle<i::String> source, int flags) {
     CHECK(maybe_object->To(&exception));
     i::Handle<i::JSObject> exception_handle(exception);
     i::Handle<i::String> message_string =
-        i::GetProperty(exception_handle, "message");
+        i::Handle<i::String>::cast(i::GetProperty(exception_handle, "message"));
 
     if (!data.has_error()) {
       i::OS::Print(
