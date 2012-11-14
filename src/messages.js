@@ -252,13 +252,8 @@ function ToDetailString(obj) {
 
 
 function MakeGenericError(constructor, type, args) {
-  if (IS_UNDEFINED(args)) {
-    args = [];
-  }
-  var e = new constructor(FormatMessage(type, args));
-  e.type = type;
-  e.arguments = args;
-  return e;
+  if (IS_UNDEFINED(args)) args = [];
+  return new constructor(FormatMessage(type, args));
 }
 
 
@@ -1143,8 +1138,6 @@ function SetUpError() {
         // object. This avoids going through getters and setters defined
         // on prototype objects.
         %IgnoreAttributesAndSetProperty(this, 'stack', void 0, DONT_ENUM);
-        %IgnoreAttributesAndSetProperty(this, 'arguments', void 0, DONT_ENUM);
-        %IgnoreAttributesAndSetProperty(this, 'type', void 0, DONT_ENUM);
         if (!IS_UNDEFINED(m)) {
           %IgnoreAttributesAndSetProperty(
             this, 'message', ToString(m), DONT_ENUM);
@@ -1204,7 +1197,6 @@ function GetPropertyWithoutInvokingMonkeyGetters(error, name) {
 function ErrorToStringDetectCycle(error) {
   if (!%PushIfAbsent(visited_errors, error)) throw cyclic_error_marker;
   try {
-    var type = GetPropertyWithoutInvokingMonkeyGetters(error, "type");
     var name = GetPropertyWithoutInvokingMonkeyGetters(error, "name");
     name = IS_UNDEFINED(name) ? "Error" : TO_STRING_INLINE(name);
     var message = GetPropertyWithoutInvokingMonkeyGetters(error, "message");
