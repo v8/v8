@@ -4132,14 +4132,15 @@ MaybeObject* JSObject::DeleteElement(uint32_t index, DeleteMode mode) {
   Handle<JSObject> self(this);
 
   Handle<String> name;
-  Handle<Object> old_value(isolate->heap()->the_hole_value());
+  Handle<Object> old_value;
   bool preexists = false;
   if (FLAG_harmony_observation && map()->is_observed()) {
     name = isolate->factory()->Uint32ToString(index);
     preexists = self->HasLocalElement(index);
     if (preexists) {
-      // TODO(observe): only read & set old_value if it's not an accessor
-      old_value = Object::GetElement(self, index);
+      old_value = GetLocalElementAccessorPair(index) != NULL
+          ? Handle<Object>::cast(isolate->factory()->the_hole_value())
+          : Object::GetElement(self, index);
     }
   }
 
@@ -4886,13 +4887,12 @@ MaybeObject* JSObject::DefineAccessor(String* name_raw,
   uint32_t index = 0;
   bool is_element = name->AsArrayIndex(&index);
 
-  Handle<Object> old_value(isolate->heap()->the_hole_value());
+  Handle<Object> old_value = isolate->factory()->the_hole_value();
   bool preexists = false;
   if (FLAG_harmony_observation && map()->is_observed()) {
     if (is_element) {
       preexists = HasLocalElement(index);
-      if (preexists) {
-        // TODO(observe): distinguish the case where it's an accessor
+      if (preexists && GetLocalElementAccessorPair(index) == NULL) {
         old_value = Object::GetElement(self, index);
       }
     } else {
@@ -9603,7 +9603,43 @@ MaybeObject* JSObject::EnsureCanContainElements(Arguments* args,
 }
 
 
-JSObject::LocalElementType JSObject::GetLocalElementType(uint32_t index) {
+PropertyType JSObject::GetLocalPropertyType(String* name) {
+  uint32_t index = 0;
+  if (name->AsArrayIndex(&index)) {
+    return GetLocalElementType(index);
+  }
+  LookupResult lookup(GetIsolate());
+  LocalLookup(name, &lookup);
+  return lookup.type();
+}
+
+
+PropertyType JSObject::GetLocalElementType(uint32_t index) {
+  return GetElementsAccessor()->GetType(this, this, index);
+}
+
+
+AccessorPair* JSObject::GetLocalPropertyAccessorPair(String* name) {
+  uint32_t index = 0;
+  if (name->AsArrayIndex(&index)) {
+    return GetLocalElementAccessorPair(index);
+  }
+  LookupResult lookup(GetIsolate());
+  LocalLookup(name, &lookup);
+  if (lookup.IsPropertyCallbacks() &&
+      lookup.GetCallbackObject()->IsAccessorPair()) {
+    return AccessorPair::cast(lookup.GetCallbackObject());
+  }
+  return NULL;
+}
+
+
+AccessorPair* JSObject::GetLocalElementAccessorPair(uint32_t index) {
+  return GetElementsAccessor()->GetAccessorPair(this, this, index);
+}
+
+
+JSObject::LocalElementKind JSObject::GetLocalElementKind(uint32_t index) {
   // Check access rights if needed.
   if (IsAccessCheckNeeded()) {
     Heap* heap = GetHeap();
@@ -9617,7 +9653,7 @@ JSObject::LocalElementType JSObject::GetLocalElementType(uint32_t index) {
     Object* proto = GetPrototype();
     if (proto->IsNull()) return UNDEFINED_ELEMENT;
     ASSERT(proto->IsJSGlobalObject());
-    return JSObject::cast(proto)->GetLocalElementType(index);
+    return JSObject::cast(proto)->GetLocalElementKind(index);
   }
 
   // Check for lookup interceptor
@@ -10370,8 +10406,8 @@ MaybeObject* JSObject::SetElement(uint32_t index,
   Handle<Object> old_length;
 
   if (old_attributes != ABSENT) {
-    // TODO(observe): only read & set old_value if we have a data property
-    old_value = Object::GetElement(self, index);
+    if (GetLocalElementAccessorPair(index) == NULL)
+      old_value = Object::GetElement(self, index);
   } else if (self->IsJSArray()) {
     // Store old array length in case adding an element grows the array.
     old_length = handle(Handle<JSArray>::cast(self)->length());

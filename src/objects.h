@@ -1842,8 +1842,13 @@ class JSObject: public JSReceiver {
     return old_capacity + (old_capacity >> 1) + 16;
   }
 
+  PropertyType GetLocalPropertyType(String* name);
+  PropertyType GetLocalElementType(uint32_t index);
+  AccessorPair* GetLocalPropertyAccessorPair(String* name);
+  AccessorPair* GetLocalElementAccessorPair(uint32_t index);
+
   // Tells whether the index'th element is present and how it is stored.
-  enum LocalElementType {
+  enum LocalElementKind {
     // There is no element with given index.
     UNDEFINED_ELEMENT,
 
@@ -1860,7 +1865,7 @@ class JSObject: public JSReceiver {
     DICTIONARY_ELEMENT
   };
 
-  LocalElementType GetLocalElementType(uint32_t index);
+  LocalElementKind GetLocalElementKind(uint32_t index);
 
   MUST_USE_RESULT MaybeObject* SetFastElement(uint32_t index,
                                               Object* value,

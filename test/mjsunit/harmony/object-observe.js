@@ -56,6 +56,7 @@ function createObserver() {
     assertCallbackRecords: function(recs) {
       this.assertRecordCount(recs.length);
       for (var i = 0; i < recs.length; i++) {
+        print(i, JSON.stringify(this.records[i]), JSON.stringify(recs[i]))
         assertSame(this.records[i].object, recs[i].object);
         assertEquals('string', typeof recs[i].type);
         assertPropertiesEqual(this.records[i], recs[i]);
@@ -320,6 +321,7 @@ obj[1] = 7;  // ignored
 Object.defineProperty(obj, "1", {value: 8});
 Object.defineProperty(obj, "1", {value: 7, writable: true});
 Object.defineProperty(obj, "1", {get: function() {}});
+Object.defineProperty(obj, "1", {get: function() {}});
 delete obj[1];
 delete obj[1];
 Object.defineProperty(obj, "1", {get: function() {}, configurable: true});
@@ -339,11 +341,10 @@ observer.assertCallbackRecords([
   { object: obj, name: "1", type: "updated", oldValue: 6 },
   { object: obj, name: "1", type: "reconfigured", oldValue: 8 },
   { object: obj, name: "1", type: "reconfigured", oldValue: 7 },
-  // TODO(observe): oldValue should not be present below.
-  { object: obj, name: "1", type: "deleted", oldValue: undefined },
+  { object: obj, name: "1", type: "reconfigured" },
+  { object: obj, name: "1", type: "deleted" },
   { object: obj, name: "1", type: "new" },
-  // TODO(observe): oldValue should be absent below, and type = "reconfigured".
-  { object: obj, name: "1", type: "updated", oldValue: undefined },
+  { object: obj, name: "1", type: "reconfigured" },
   { object: obj, name: "1", type: "updated", oldValue: 9 },
   { object: obj, name: "1", type: "deleted", oldValue: 10 },
   { object: obj, name: "1", type: "new" },
