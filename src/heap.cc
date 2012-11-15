@@ -137,6 +137,7 @@ Heap::Heap()
       tracer_(NULL),
       young_survivors_after_last_gc_(0),
       high_survival_rate_period_length_(0),
+      low_survival_rate_period_length_(0),
       survival_rate_(0),
       previous_survival_rate_trend_(Heap::STABLE),
       survival_rate_trend_(Heap::STABLE),
