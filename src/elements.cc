@@ -696,7 +696,7 @@ class ElementsAccessorBase : public ElementsAccessor {
         }
       }
     }
-    if (from->length() == 0) {
+    if (from->length() == 0 || copy_size == 0) {
       return from;
     }
     return ElementsAccessorSubclass::CopyElementsImpl(
