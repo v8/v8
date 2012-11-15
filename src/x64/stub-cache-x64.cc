@@ -1551,6 +1551,7 @@ Handle<Code> CallStubCompiler::CompileArrayPushCall(
 
       // Save new length.
       __ Integer32ToSmiField(FieldOperand(rdx, JSArray::kLengthOffset), rax);
+      __ Integer32ToSmi(rax, rax);  // Return new length as smi.
       __ ret((argc + 1) * kPointerSize);
 
       __ bind(&with_write_barrier);
