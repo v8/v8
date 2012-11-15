@@ -673,14 +673,17 @@ BUILTIN(ArrayPop) {
 
   ElementsAccessor* accessor = array->GetElementsAccessor();
   int new_length = len - 1;
-  Object* result;
-  MaybeObject* maybe_result = accessor->Get(array, array, new_length);
-  if (!maybe_result->To(&result)) return maybe_result;
+  MaybeObject* maybe_result;
+  if (accessor->HasElement(array, array, new_length, elms_obj)) {
+    maybe_result = accessor->Get(array, array, new_length, elms_obj);
+  } else {
+    maybe_result = array->GetPrototype()->GetElement(len - 1);
+  }
+  if (maybe_result->IsFailure()) return maybe_result;
   MaybeObject* maybe_failure =
       accessor->SetLength(array, Smi::FromInt(new_length));
   if (maybe_failure->IsFailure()) return maybe_failure;
-  if (!result->IsTheHole()) return result;
-  return array->GetPrototype()->GetElement(len - 1);
+  return maybe_result;
 }
 
 
