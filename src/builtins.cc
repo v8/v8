@@ -714,6 +714,9 @@ BUILTIN(ArrayShift) {
   Object* first;
   MaybeObject* maybe_first = accessor->Get(receiver, array, 0, elms_obj);
   if (!maybe_first->To(&first)) return maybe_first;
+  if (first->IsTheHole()) {
+    first = heap->undefined_value();
+  }
 
   if (!heap->lo_space()->Contains(elms_obj)) {
     array->set_elements(LeftTrimFixedArray(heap, elms_obj, 1));
