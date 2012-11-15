@@ -507,7 +507,8 @@ void MacroAssembler::StoreNumberToDoubleElements(
     Register scratch1,
     XMMRegister scratch2,
     Label* fail,
-    bool specialize_for_processor) {
+    bool specialize_for_processor,
+    int elements_offset) {
   Label smi_value, done, maybe_nan, not_nan, is_nan, have_double_value;
   JumpIfSmi(maybe_number, &smi_value, Label::kNear);
 
@@ -529,12 +530,14 @@ void MacroAssembler::StoreNumberToDoubleElements(
     CpuFeatures::Scope use_sse2(SSE2);
     movdbl(scratch2, FieldOperand(maybe_number, HeapNumber::kValueOffset));
     bind(&have_double_value);
-    movdbl(FieldOperand(elements, key, times_4, FixedDoubleArray::kHeaderSize),
+    movdbl(FieldOperand(elements, key, times_4,
+                        FixedDoubleArray::kHeaderSize - elements_offset),
            scratch2);
   } else {
     fld_d(FieldOperand(maybe_number, HeapNumber::kValueOffset));
     bind(&have_double_value);
-    fstp_d(FieldOperand(elements, key, times_4, FixedDoubleArray::kHeaderSize));
+    fstp_d(FieldOperand(elements, key, times_4,
+                        FixedDoubleArray::kHeaderSize - elements_offset));
   }
   jmp(&done);
 
@@ -561,13 +564,15 @@ void MacroAssembler::StoreNumberToDoubleElements(
   if (CpuFeatures::IsSupported(SSE2) && specialize_for_processor) {
     CpuFeatures::Scope fscope(SSE2);
     cvtsi2sd(scratch2, scratch1);
-    movdbl(FieldOperand(elements, key, times_4, FixedDoubleArray::kHeaderSize),
+    movdbl(FieldOperand(elements, key, times_4,
+                        FixedDoubleArray::kHeaderSize - elements_offset),
            scratch2);
   } else {
     push(scratch1);
     fild_s(Operand(esp, 0));
     pop(scratch1);
-    fstp_d(FieldOperand(elements, key, times_4, FixedDoubleArray::kHeaderSize));
+    fstp_d(FieldOperand(elements, key, times_4,
+                        FixedDoubleArray::kHeaderSize - elements_offset));
   }
   bind(&done);
 }

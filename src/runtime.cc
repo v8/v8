@@ -4102,8 +4102,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_KeyedGetProperty) {
       // become FAST_DOUBLE_ELEMENTS.
       Handle<JSObject> js_object(args.at<JSObject>(0));
       ElementsKind elements_kind = js_object->GetElementsKind();
-      if (IsFastElementsKind(elements_kind) &&
-          !IsFastObjectElementsKind(elements_kind)) {
+      if (IsFastDoubleElementsKind(elements_kind)) {
         FixedArrayBase* elements = js_object->elements();
         if (args.at<Smi>(1)->value() >= elements->length()) {
           if (IsFastHoleyElementsKind(elements_kind)) {
@@ -4116,6 +4115,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_KeyedGetProperty) {
                                                          isolate);
           if (maybe_object->IsFailure()) return maybe_object;
         }
+      } else {
+        ASSERT(IsFastSmiOrObjectElementsKind(elements_kind) ||
+               !IsFastElementsKind(elements_kind));
       }
     }
   } else if (args[0]->IsString() && args[1]->IsSmi()) {
@@ -9303,7 +9305,7 @@ class ArrayConcatVisitor {
       clear_storage();
       set_storage(*result);
     }
-}
+  }
 
   void increase_index_offset(uint32_t delta) {
     if (JSObject::kMaxElementCount - index_offset_ < delta) {
@@ -9394,10 +9396,22 @@ static uint32_t EstimateElementCount(Handle<JSArray> array) {
       break;
     }
     case FAST_DOUBLE_ELEMENTS:
-    case FAST_HOLEY_DOUBLE_ELEMENTS:
-      // TODO(1810): Decide if it's worthwhile to implement this.
-      UNREACHABLE();
+    case FAST_HOLEY_DOUBLE_ELEMENTS: {
+      // Fast elements can't have lengths that are not representable by
+      // a 32-bit signed integer.
+      ASSERT(static_cast<int32_t>(FixedDoubleArray::kMaxLength) >= 0);
+      int fast_length = static_cast<int>(length);
+      if (array->elements()->IsFixedArray()) {
+        ASSERT(FixedArray::cast(array->elements())->length() == 0);
+        break;
+      }
+      Handle<FixedDoubleArray> elements(
+          FixedDoubleArray::cast(array->elements()));
+      for (int i = 0; i < fast_length; i++) {
+        if (!elements->is_the_hole(i)) element_count++;
+      }
       break;
+    }
     case DICTIONARY_ELEMENTS: {
       Handle<SeededNumberDictionary> dictionary(
           SeededNumberDictionary::cast(array->elements()));
@@ -9640,8 +9654,27 @@ static bool IterateElements(Isolate* isolate,
     }
     case FAST_HOLEY_DOUBLE_ELEMENTS:
     case FAST_DOUBLE_ELEMENTS: {
-      // TODO(1810): Decide if it's worthwhile to implement this.
-      UNREACHABLE();
+      // Run through the elements FixedArray and use HasElement and GetElement
+      // to check the prototype for missing elements.
+      Handle<FixedDoubleArray> elements(
+          FixedDoubleArray::cast(receiver->elements()));
+      int fast_length = static_cast<int>(length);
+      ASSERT(fast_length <= elements->length());
+      for (int j = 0; j < fast_length; j++) {
+        HandleScope loop_scope(isolate);
+        if (!elements->is_the_hole(j)) {
+          double double_value = elements->get_scalar(j);
+          Handle<Object> element_value =
+              isolate->factory()->NewNumber(double_value);
+          visitor->visit(j, element_value);
+        } else if (receiver->HasElement(j)) {
+          // Call GetElement on receiver, not its prototype, or getters won't
+          // have the correct receiver.
+          Handle<Object> element_value = Object::GetElement(receiver, j);
+          RETURN_IF_EMPTY_HANDLE_VALUE(isolate, element_value, false);
+          visitor->visit(j, element_value);
+        }
+      }
       break;
     }
     case DICTIONARY_ELEMENTS: {
@@ -9744,48 +9777,51 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ArrayConcat) {
   // that mutate other arguments (but will otherwise be precise).
   // The number of elements is precise if there are no inherited elements.
 
+  ElementsKind kind = FAST_SMI_ELEMENTS;
+
   uint32_t estimate_result_length = 0;
   uint32_t estimate_nof_elements = 0;
-  {
-    for (int i = 0; i < argument_count; i++) {
-      HandleScope loop_scope;
-      Handle<Object> obj(elements->get(i));
-      uint32_t length_estimate;
-      uint32_t element_estimate;
-      if (obj->IsJSArray()) {
-        Handle<JSArray> array(Handle<JSArray>::cast(obj));
-        // TODO(1810): Find out if it's worthwhile to properly support
-        // arbitrary ElementsKinds. For now, pessimistically transition to
-        // FAST_*_ELEMENTS.
-        if (array->HasFastDoubleElements()) {
-          ElementsKind to_kind = FAST_ELEMENTS;
-          if (array->HasFastHoleyElements()) {
-            to_kind = FAST_HOLEY_ELEMENTS;
-          }
-          array = Handle<JSArray>::cast(
-              JSObject::TransitionElementsKind(array, to_kind));
+  for (int i = 0; i < argument_count; i++) {
+    HandleScope loop_scope;
+    Handle<Object> obj(elements->get(i));
+    uint32_t length_estimate;
+    uint32_t element_estimate;
+    if (obj->IsJSArray()) {
+      Handle<JSArray> array(Handle<JSArray>::cast(obj));
+      length_estimate = static_cast<uint32_t>(array->length()->Number());
+      if (length_estimate != 0) {
+        ElementsKind array_kind =
+            GetPackedElementsKind(array->map()->elements_kind());
+        if (IsMoreGeneralElementsKindTransition(kind, array_kind)) {
+          kind = array_kind;
         }
-        length_estimate =
-            static_cast<uint32_t>(array->length()->Number());
-        element_estimate =
-            EstimateElementCount(array);
-      } else {
-        length_estimate = 1;
-        element_estimate = 1;
       }
-      // Avoid overflows by capping at kMaxElementCount.
-      if (JSObject::kMaxElementCount - estimate_result_length <
-          length_estimate) {
-        estimate_result_length = JSObject::kMaxElementCount;
-      } else {
-        estimate_result_length += length_estimate;
+      element_estimate = EstimateElementCount(array);
+    } else {
+      if (obj->IsHeapObject()) {
+        if (obj->IsNumber()) {
+          if (IsMoreGeneralElementsKindTransition(kind, FAST_DOUBLE_ELEMENTS)) {
+            kind = FAST_DOUBLE_ELEMENTS;
+          }
+        } else if (IsMoreGeneralElementsKindTransition(kind, FAST_ELEMENTS)) {
+          kind = FAST_ELEMENTS;
+        }
       }
-      if (JSObject::kMaxElementCount - estimate_nof_elements <
-          element_estimate) {
-        estimate_nof_elements = JSObject::kMaxElementCount;
-      } else {
-        estimate_nof_elements += element_estimate;
-      }
+      length_estimate = 1;
+      element_estimate = 1;
+    }
+    // Avoid overflows by capping at kMaxElementCount.
+    if (JSObject::kMaxElementCount - estimate_result_length <
+        length_estimate) {
+      estimate_result_length = JSObject::kMaxElementCount;
+    } else {
+      estimate_result_length += length_estimate;
+    }
+    if (JSObject::kMaxElementCount - estimate_nof_elements <
+        element_estimate) {
+      estimate_nof_elements = JSObject::kMaxElementCount;
+    } else {
+      estimate_nof_elements += element_estimate;
     }
   }
 
@@ -9796,8 +9832,76 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ArrayConcat) {
 
   Handle<FixedArray> storage;
   if (fast_case) {
-    // The backing storage array must have non-existing elements to
-    // preserve holes across concat operations.
+    if (kind == FAST_DOUBLE_ELEMENTS) {
+      Handle<FixedDoubleArray> double_storage =
+          isolate->factory()->NewFixedDoubleArray(estimate_result_length);
+      int j = 0;
+      bool failure = false;
+      for (int i = 0; i < argument_count; i++) {
+        Handle<Object> obj(elements->get(i));
+        if (obj->IsSmi()) {
+          double_storage->set(j, Smi::cast(*obj)->value());
+          j++;
+        } else if (obj->IsNumber()) {
+          double_storage->set(j, obj->Number());
+          j++;
+        } else {
+          JSArray* array = JSArray::cast(*obj);
+          uint32_t length = static_cast<uint32_t>(array->length()->Number());
+          switch (array->map()->elements_kind()) {
+            case FAST_HOLEY_DOUBLE_ELEMENTS:
+            case FAST_DOUBLE_ELEMENTS: {
+              // Empty fixed array indicates that there are no elements.
+              if (array->elements()->IsFixedArray()) break;
+              FixedDoubleArray* elements =
+                  FixedDoubleArray::cast(array->elements());
+              for (uint32_t i = 0; i < length; i++) {
+                if (elements->is_the_hole(i)) {
+                  failure = true;
+                  break;
+                }
+                double double_value = elements->get_scalar(i);
+                double_storage->set(j, double_value);
+                j++;
+              }
+              break;
+            }
+            case FAST_HOLEY_SMI_ELEMENTS:
+            case FAST_SMI_ELEMENTS: {
+              FixedArray* elements(
+                  FixedArray::cast(array->elements()));
+              for (uint32_t i = 0; i < length; i++) {
+                Object* element = elements->get(i);
+                if (element->IsTheHole()) {
+                  failure = true;
+                  break;
+                }
+                int32_t int_value = Smi::cast(element)->value();
+                double_storage->set(j, int_value);
+                j++;
+              }
+              break;
+            }
+            case FAST_HOLEY_ELEMENTS:
+              ASSERT_EQ(0, length);
+              break;
+            default:
+              UNREACHABLE();
+          }
+        }
+        if (failure) break;
+      }
+      Handle<JSArray> array = isolate->factory()->NewJSArray(0);
+      Smi* length = Smi::FromInt(j);
+      Handle<Map> map;
+      map = isolate->factory()->GetElementsTransitionMap(array, kind);
+      array->set_map(*map);
+      array->set_length(length);
+      array->set_elements(*double_storage);
+      return *array;
+    }
+    // The backing storage array must have non-existing elements to preserve
+    // holes across concat operations.
     storage = isolate->factory()->NewFixedArrayWithHoles(
         estimate_result_length);
   } else {

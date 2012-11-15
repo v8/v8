@@ -1955,13 +1955,13 @@ void MacroAssembler::CheckFastSmiElements(Register map,
 
 void MacroAssembler::StoreNumberToDoubleElements(Register value_reg,
                                                  Register key_reg,
-                                                 Register receiver_reg,
                                                  Register elements_reg,
                                                  Register scratch1,
                                                  Register scratch2,
                                                  Register scratch3,
                                                  Register scratch4,
-                                                 Label* fail) {
+                                                 Label* fail,
+                                                 int elements_offset) {
   Label smi_value, maybe_nan, have_double_value, is_nan, done;
   Register mantissa_reg = scratch2;
   Register exponent_reg = scratch3;
@@ -1988,8 +1988,10 @@ void MacroAssembler::StoreNumberToDoubleElements(Register value_reg,
   bind(&have_double_value);
   add(scratch1, elements_reg,
       Operand(key_reg, LSL, kDoubleSizeLog2 - kSmiTagSize));
-  str(mantissa_reg, FieldMemOperand(scratch1, FixedDoubleArray::kHeaderSize));
-  uint32_t offset = FixedDoubleArray::kHeaderSize + sizeof(kHoleNanLower32);
+  str(mantissa_reg, FieldMemOperand(
+      scratch1, FixedDoubleArray::kHeaderSize - elements_offset));
+  uint32_t offset = FixedDoubleArray::kHeaderSize - elements_offset +
+      sizeof(kHoleNanLower32);
   str(exponent_reg, FieldMemOperand(scratch1, offset));
   jmp(&done);
 
@@ -2010,7 +2012,8 @@ void MacroAssembler::StoreNumberToDoubleElements(Register value_reg,
 
   bind(&smi_value);
   add(scratch1, elements_reg,
-      Operand(FixedDoubleArray::kHeaderSize - kHeapObjectTag));
+      Operand(FixedDoubleArray::kHeaderSize - kHeapObjectTag -
+              elements_offset));
   add(scratch1, scratch1,
       Operand(key_reg, LSL, kDoubleSizeLog2 - kSmiTagSize));
   // scratch1 is now effective address of the double element

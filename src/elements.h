@@ -197,16 +197,6 @@ class ElementsAccessor {
   DISALLOW_COPY_AND_ASSIGN(ElementsAccessor);
 };
 
-
-void CopyObjectToObjectElements(FixedArray* from_obj,
-                                ElementsKind from_kind,
-                                uint32_t from_start,
-                                FixedArray* to_obj,
-                                ElementsKind to_kind,
-                                uint32_t to_start,
-                                int copy_size);
-
-
 } }  // namespace v8::internal
 
 #endif  // V8_ELEMENTS_H_

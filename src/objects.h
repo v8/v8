@@ -1574,6 +1574,8 @@ class JSObject: public JSReceiver {
   // Returns true if an object has elements of FAST_ELEMENTS or
   // FAST_SMI_ONLY_ELEMENTS.
   inline bool HasFastSmiOrObjectElements();
+  // Returns true if an object has any of the fast elements kinds.
+  inline bool HasFastElements();
   // Returns true if an object has elements of FAST_DOUBLE_ELEMENTS
   // ElementsKind.
   inline bool HasFastDoubleElements();
@@ -2384,11 +2386,11 @@ class FixedArray: public FixedArrayBase {
   inline void set_unchecked(Heap* heap, int index, Object* value,
                             WriteBarrierMode mode);
 
-  // Gives access to raw memory which stores the array's data.
-  inline Object** data_start();
-
   inline Object** GetFirstElementAddress();
   inline bool ContainsOnlySmisOrHoles();
+
+  // Gives access to raw memory which stores the array's data.
+  inline Object** data_start();
 
   // Copy operations.
   MUST_USE_RESULT inline MaybeObject* Copy();
@@ -2490,6 +2492,9 @@ class FixedDoubleArray: public FixedArrayBase {
   inline static int SizeFor(int length) {
     return kHeaderSize + length * kDoubleSize;
   }
+
+  // Gives access to raw memory which stores the array's data.
+  inline double* data_start();
 
   // Code Generation support.
   static int OffsetOfElementAt(int index) { return SizeFor(index); }

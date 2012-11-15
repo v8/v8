@@ -388,7 +388,8 @@ class MacroAssembler: public Assembler {
                                    Register scratch1,
                                    XMMRegister scratch2,
                                    Label* fail,
-                                   bool specialize_for_processor);
+                                   bool specialize_for_processor,
+                                   int offset = 0);
 
   // Compare an object's map with the specified map and its transitioned
   // elements maps if mode is ALLOW_ELEMENT_TRANSITION_MAPS. FLAGS are set with

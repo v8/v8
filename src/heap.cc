@@ -4182,7 +4182,7 @@ MaybeObject* Heap::AllocateJSObjectFromMap(Map* map, PretenureFlag pretenure) {
   InitializeJSObjectFromMap(JSObject::cast(obj),
                             FixedArray::cast(properties),
                             map);
-  ASSERT(JSObject::cast(obj)->HasFastSmiOrObjectElements());
+  ASSERT(JSObject::cast(obj)->HasFastElements());
   return obj;
 }
 
@@ -4247,7 +4247,7 @@ MaybeObject* Heap::AllocateJSArrayAndStorage(
 
   FixedArrayBase* elms;
   MaybeObject* maybe_elms = NULL;
-  if (elements_kind == FAST_DOUBLE_ELEMENTS) {
+  if (IsFastDoubleElementsKind(elements_kind)) {
     if (mode == DONT_INITIALIZE_ARRAY_ELEMENTS) {
       maybe_elms = AllocateUninitializedFixedDoubleArray(capacity);
     } else {
@@ -4274,13 +4274,14 @@ MaybeObject* Heap::AllocateJSArrayAndStorage(
 MaybeObject* Heap::AllocateJSArrayWithElements(
     FixedArrayBase* elements,
     ElementsKind elements_kind,
+    int length,
     PretenureFlag pretenure) {
   MaybeObject* maybe_array = AllocateJSArray(elements_kind, pretenure);
   JSArray* array;
   if (!maybe_array->To(&array)) return maybe_array;
 
   array->set_elements(elements);
-  array->set_length(Smi::FromInt(elements->length()));
+  array->set_length(Smi::FromInt(length));
   array->ValidateElements();
   return array;
 }

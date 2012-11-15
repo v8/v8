@@ -146,13 +146,13 @@ static Failure* ThrowArrayLengthRangeError(Heap* heap) {
 }
 
 
-void CopyObjectToObjectElements(FixedArray* from,
-                                ElementsKind from_kind,
-                                uint32_t from_start,
-                                FixedArray* to,
-                                ElementsKind to_kind,
-                                uint32_t to_start,
-                                int raw_copy_size) {
+static void CopyObjectToObjectElements(FixedArray* from,
+                                       ElementsKind from_kind,
+                                       uint32_t from_start,
+                                       FixedArray* to,
+                                       ElementsKind to_kind,
+                                       uint32_t to_start,
+                                       int raw_copy_size) {
   ASSERT(to->map() != HEAP->fixed_cow_array_map());
   int copy_size = raw_copy_size;
   if (raw_copy_size < 0) {

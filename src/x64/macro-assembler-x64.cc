@@ -2774,7 +2774,8 @@ void MacroAssembler::StoreNumberToDoubleElements(
     Register elements,
     Register index,
     XMMRegister xmm_scratch,
-    Label* fail) {
+    Label* fail,
+    int elements_offset) {
   Label smi_value, is_nan, maybe_nan, not_nan, have_double_value, done;
 
   JumpIfSmi(maybe_number, &smi_value, Label::kNear);
@@ -2793,7 +2794,8 @@ void MacroAssembler::StoreNumberToDoubleElements(
   bind(&not_nan);
   movsd(xmm_scratch, FieldOperand(maybe_number, HeapNumber::kValueOffset));
   bind(&have_double_value);
-  movsd(FieldOperand(elements, index, times_8, FixedDoubleArray::kHeaderSize),
+  movsd(FieldOperand(elements, index, times_8,
+                     FixedDoubleArray::kHeaderSize - elements_offset),
         xmm_scratch);
   jmp(&done);
 
@@ -2816,7 +2818,8 @@ void MacroAssembler::StoreNumberToDoubleElements(
   // Preserve original value.
   SmiToInteger32(kScratchRegister, maybe_number);
   cvtlsi2sd(xmm_scratch, kScratchRegister);
-  movsd(FieldOperand(elements, index, times_8, FixedDoubleArray::kHeaderSize),
+  movsd(FieldOperand(elements, index, times_8,
+                     FixedDoubleArray::kHeaderSize - elements_offset),
         xmm_scratch);
   bind(&done);
 }

@@ -584,6 +584,7 @@ class Heap {
   MUST_USE_RESULT MaybeObject* AllocateJSArrayWithElements(
       FixedArrayBase* array_base,
       ElementsKind elements_kind,
+      int length,
       PretenureFlag pretenure = NOT_TENURED);
 
   // Allocates and initializes a new global object based on a constructor.

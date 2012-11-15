@@ -1943,6 +1943,11 @@ void FixedArray::set_null_unchecked(Heap* heap, int index) {
 }
 
 
+double* FixedDoubleArray::data_start() {
+  return &READ_DOUBLE_FIELD(this, kHeaderSize);
+}
+
+
 Object** FixedArray::data_start() {
   return HeapObject::RawField(this, kHeaderSize);
 }
@@ -4785,6 +4790,11 @@ bool JSObject::HasFastDoubleElements() {
 
 bool JSObject::HasFastHoleyElements() {
   return IsFastHoleyElementsKind(GetElementsKind());
+}
+
+
+bool JSObject::HasFastElements() {
+  return IsFastElementsKind(GetElementsKind());
 }
 
 

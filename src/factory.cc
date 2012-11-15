@@ -968,6 +968,7 @@ Handle<JSArray> Factory::NewJSArrayWithElements(Handle<FixedArrayBase> elements,
       isolate(),
       isolate()->heap()->AllocateJSArrayWithElements(*elements,
                                                      elements_kind,
+                                                     elements->length(),
                                                      pretenure),
       JSArray);
 }
