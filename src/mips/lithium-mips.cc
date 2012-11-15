@@ -177,6 +177,7 @@ const char* LArithmeticT::Mnemonic() const {
     case Token::BIT_AND: return "bit-and-t";
     case Token::BIT_OR: return "bit-or-t";
     case Token::BIT_XOR: return "bit-xor-t";
+    case Token::ROR: return "ror-t";
     case Token::SHL: return "sll-t";
     case Token::SAR: return "sra-t";
     case Token::SHR: return "srl-t";

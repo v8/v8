@@ -1148,6 +1148,9 @@ void LCodeGen::DoShiftI(LShiftI* instr) {
     // No need to mask the right operand on MIPS, it is built into the variable
     // shift instructions.
     switch (instr->op()) {
+      case Token::ROR:
+        __ Ror(result, left, Operand(ToRegister(right_op)));
+        break;
       case Token::SAR:
         __ srav(result, left, ToRegister(right_op));
         break;
@@ -1169,6 +1172,13 @@ void LCodeGen::DoShiftI(LShiftI* instr) {
     int value = ToInteger32(LConstantOperand::cast(right_op));
     uint8_t shift_count = static_cast<uint8_t>(value & 0x1F);
     switch (instr->op()) {
+      case Token::ROR:
+        if (shift_count != 0) {
+          __ Ror(result, left, Operand(shift_count));
+        } else {
+          __ Move(result, left);
+        }
+        break;
       case Token::SAR:
         if (shift_count != 0) {
           __ sra(result, left, shift_count);
