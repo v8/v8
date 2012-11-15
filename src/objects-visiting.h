@@ -435,6 +435,10 @@ class StaticMarkingVisitor : public StaticVisitorBase {
   };
 
   typedef FlexibleBodyVisitor<StaticVisitor,
+                              FixedArray::BodyDescriptor,
+                              void> FixedArrayVisitor;
+
+  typedef FlexibleBodyVisitor<StaticVisitor,
                               JSObject::BodyDescriptor,
                               void> JSObjectVisitor;
 

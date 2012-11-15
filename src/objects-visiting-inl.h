@@ -110,10 +110,7 @@ void StaticMarkingVisitor<StaticVisitor>::Initialize() {
                   SlicedString::BodyDescriptor,
                   void>::Visit);
 
-  table_.Register(kVisitFixedArray,
-                  &FlexibleBodyVisitor<StaticVisitor,
-                  FixedArray::BodyDescriptor,
-                  void>::Visit);
+  table_.Register(kVisitFixedArray, &FixedArrayVisitor::Visit);
 
   table_.Register(kVisitFixedDoubleArray, &DataObjectVisitor::Visit);
 

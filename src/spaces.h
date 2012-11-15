@@ -397,6 +397,12 @@ class MemoryChunk {
     WAS_SWEPT_PRECISELY,
     WAS_SWEPT_CONSERVATIVELY,
 
+    // Large objects can have a progress bar in their page header. These object
+    // are scanned in increments and will be kept black while being scanned.
+    // Even if the mutator writes to them they will be kept black and a white
+    // to grey transition is performed in the value.
+    HAS_PROGRESS_BAR,
+
     // Last flag, keep at bottom.
     NUM_MEMORY_CHUNK_FLAGS
   };
@@ -480,6 +486,23 @@ class MemoryChunk {
     write_barrier_counter_ = counter;
   }
 
+  int progress_bar() {
+    ASSERT(IsFlagSet(HAS_PROGRESS_BAR));
+    return progress_bar_;
+  }
+
+  void set_progress_bar(int progress_bar) {
+    ASSERT(IsFlagSet(HAS_PROGRESS_BAR));
+    progress_bar_ = progress_bar;
+  }
+
+  void ResetProgressBar() {
+    if (IsFlagSet(MemoryChunk::HAS_PROGRESS_BAR)) {
+      set_progress_bar(0);
+      ClearFlag(MemoryChunk::HAS_PROGRESS_BAR);
+    }
+  }
+
 
   static void IncrementLiveBytesFromGC(Address address, int by) {
     MemoryChunk::FromAddress(address)->IncrementLiveBytes(by);
@@ -505,7 +528,7 @@ class MemoryChunk {
       kSlotsBufferOffset + kPointerSize + kPointerSize;
 
   static const size_t kHeaderSize =
-      kWriteBarrierCounterOffset + kPointerSize + kPointerSize;
+      kWriteBarrierCounterOffset + kPointerSize + kIntSize + kIntSize;
 
   static const int kBodyOffset =
       CODE_POINTER_ALIGN(kHeaderSize + Bitmap::kSize);
@@ -649,6 +672,9 @@ class MemoryChunk {
   SlotsBuffer* slots_buffer_;
   SkipList* skip_list_;
   intptr_t write_barrier_counter_;
+  // Used by the incremental marker to keep track of the scanning progress in
+  // large objects that have a progress bar and are scanned in increments.
+  int progress_bar_;
   // Assuming the initial allocation on a page is sequential,
   // count highest number of bytes ever allocated on the page.
   int high_water_mark_;
