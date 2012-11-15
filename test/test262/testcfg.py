@@ -179,6 +179,8 @@ class Test262TestConfiguration(test.TestConfiguration):
     for root, dirs, files in os.walk(testroot):
       for dotted in [x for x in dirs if x.startswith('.')]:
         dirs.remove(dotted)
+      for skipped in [x for x in dirs if x in TEST_262_SKIP]:
+        dirs.remove(skipped)
       dirs.sort()
       root_path = root[len(self.root):].split(os.path.sep)
       root_path = current_path + [x for x in root_path if x]
