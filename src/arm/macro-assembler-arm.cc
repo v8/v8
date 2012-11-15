@@ -3338,8 +3338,10 @@ void MacroAssembler::JumpIfBothInstanceTypesAreNotSequentialAscii(
     Register scratch2,
     Label* failure) {
   int kFlatAsciiStringMask =
-      kIsNotStringMask | kStringEncodingMask | kStringRepresentationMask;
+      kIsNotStringMask | kStringEncodingMask | kAsciiDataHintMask |
+      kStringRepresentationMask;
   int kFlatAsciiStringTag = ASCII_STRING_TYPE;
+  ASSERT_EQ(ASCII_STRING_TYPE, ASCII_STRING_TYPE & kFlatAsciiStringMask);
   and_(scratch1, first, Operand(kFlatAsciiStringMask));
   and_(scratch2, second, Operand(kFlatAsciiStringMask));
   cmp(scratch1, Operand(kFlatAsciiStringTag));
@@ -3353,8 +3355,10 @@ void MacroAssembler::JumpIfInstanceTypeIsNotSequentialAscii(Register type,
                                                             Register scratch,
                                                             Label* failure) {
   int kFlatAsciiStringMask =
-      kIsNotStringMask | kStringEncodingMask | kStringRepresentationMask;
+      kIsNotStringMask | kStringEncodingMask | kAsciiDataHintMask |
+      kStringRepresentationMask;
   int kFlatAsciiStringTag = ASCII_STRING_TYPE;
+  ASSERT_EQ(ASCII_STRING_TYPE, ASCII_STRING_TYPE & kFlatAsciiStringMask);
   and_(scratch, type, Operand(kFlatAsciiStringMask));
   cmp(scratch, Operand(kFlatAsciiStringTag));
   b(ne, failure);
