@@ -751,7 +751,7 @@ void StringCharLoadGenerator::Generate(MacroAssembler* masm,
   __ movzx_b(result, FieldOperand(string,
                                   index,
                                   times_1,
-                                  SeqAsciiString::kHeaderSize));
+                                  SeqOneByteString::kHeaderSize));
   __ bind(&done);
 }
 

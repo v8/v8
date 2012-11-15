@@ -3580,7 +3580,7 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(CallRuntime* expr) {
   __ cmp(scratch, kStringTag | kOneByteStringTag | kSeqStringTag);
   __ j(not_equal, &bailout);
   __ add(string_length,
-         FieldOperand(string, SeqAsciiString::kLengthOffset));
+         FieldOperand(string, SeqOneByteString::kLengthOffset));
   __ j(overflow, &bailout);
   __ add(index, Immediate(1));
   __ cmp(index, array_length);
@@ -3617,7 +3617,7 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(CallRuntime* expr) {
   // Add (separator length times array_length) - separator length
   // to string_length.
   __ mov(scratch, separator_operand);
-  __ mov(scratch, FieldOperand(scratch, SeqAsciiString::kLengthOffset));
+  __ mov(scratch, FieldOperand(scratch, SeqOneByteString::kLengthOffset));
   __ sub(string_length, scratch);  // May be negative, temporarily.
   __ imul(scratch, array_length_operand);
   __ j(overflow, &bailout);
@@ -3631,11 +3631,11 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(CallRuntime* expr) {
   __ AllocateAsciiString(result_pos, string_length, scratch,
                          index, string, &bailout);
   __ mov(result_operand, result_pos);
-  __ lea(result_pos, FieldOperand(result_pos, SeqAsciiString::kHeaderSize));
+  __ lea(result_pos, FieldOperand(result_pos, SeqOneByteString::kHeaderSize));
 
 
   __ mov(string, separator_operand);
-  __ cmp(FieldOperand(string, SeqAsciiString::kLengthOffset),
+  __ cmp(FieldOperand(string, SeqOneByteString::kLengthOffset),
          Immediate(Smi::FromInt(1)));
   __ j(equal, &one_char_separator);
   __ j(greater, &long_separator);
@@ -3660,7 +3660,7 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(CallRuntime* expr) {
          FieldOperand(string, String::kLengthOffset));
   __ shr(string_length, 1);
   __ lea(string,
-         FieldOperand(string, SeqAsciiString::kHeaderSize));
+         FieldOperand(string, SeqOneByteString::kHeaderSize));
   __ CopyBytes(string, result_pos, string_length, scratch);
   __ add(index, Immediate(1));
   __ bind(&loop_1_condition);
@@ -3673,7 +3673,7 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(CallRuntime* expr) {
   // One-character separator case
   __ bind(&one_char_separator);
   // Replace separator with its ASCII character value.
-  __ mov_b(scratch, FieldOperand(string, SeqAsciiString::kHeaderSize));
+  __ mov_b(scratch, FieldOperand(string, SeqOneByteString::kHeaderSize));
   __ mov_b(separator_operand, scratch);
 
   __ Set(index, Immediate(0));
@@ -3701,7 +3701,7 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(CallRuntime* expr) {
          FieldOperand(string, String::kLengthOffset));
   __ shr(string_length, 1);
   __ lea(string,
-         FieldOperand(string, SeqAsciiString::kHeaderSize));
+         FieldOperand(string, SeqOneByteString::kHeaderSize));
   __ CopyBytes(string, result_pos, string_length, scratch);
   __ add(index, Immediate(1));
 
@@ -3730,7 +3730,7 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(CallRuntime* expr) {
          FieldOperand(string, String::kLengthOffset));
   __ shr(string_length, 1);
   __ lea(string,
-         FieldOperand(string, SeqAsciiString::kHeaderSize));
+         FieldOperand(string, SeqOneByteString::kHeaderSize));
   __ CopyBytes(string, result_pos, string_length, scratch);
 
   __ bind(&loop_3_entry);
@@ -3742,7 +3742,7 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(CallRuntime* expr) {
          FieldOperand(string, String::kLengthOffset));
   __ shr(string_length, 1);
   __ lea(string,
-         FieldOperand(string, SeqAsciiString::kHeaderSize));
+         FieldOperand(string, SeqOneByteString::kHeaderSize));
   __ CopyBytes(string, result_pos, string_length, scratch);
   __ add(index, Immediate(1));
 

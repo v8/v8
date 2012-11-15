@@ -58,7 +58,7 @@ class JsonParser BASE_EMBEDDED {
     if (position_ >= source_length_) {
       c0_ = kEndOfString;
     } else if (seq_ascii) {
-      c0_ = seq_source_->SeqAsciiStringGet(position_);
+      c0_ = seq_source_->SeqOneByteStringGet(position_);
     } else {
       c0_ = source_->Get(position_);
     }
@@ -160,7 +160,7 @@ class JsonParser BASE_EMBEDDED {
  private:
   Handle<String> source_;
   int source_length_;
-  Handle<SeqAsciiString> seq_source_;
+  Handle<SeqOneByteString> seq_source_;
 
   PretenureFlag pretenure_;
   Isolate* isolate_;
@@ -186,7 +186,7 @@ Handle<Object> JsonParser<seq_ascii>::ParseJson(Handle<String> source,
 
   // Optimized fast case where we only have ASCII characters.
   if (seq_ascii) {
-    seq_source_ = Handle<SeqAsciiString>::cast(source_);
+    seq_source_ = Handle<SeqOneByteString>::cast(source_);
   }
 
   // Set initial position right before the string.
@@ -472,8 +472,8 @@ inline void SeqStringSet(Handle<SeqTwoByteString> seq_str, int i, uc32 c) {
 }
 
 template <>
-inline void SeqStringSet(Handle<SeqAsciiString> seq_str, int i, uc32 c) {
-  seq_str->SeqAsciiStringSet(i, c);
+inline void SeqStringSet(Handle<SeqOneByteString> seq_str, int i, uc32 c) {
+  seq_str->SeqOneByteStringSet(i, c);
 }
 
 template <typename StringType>
@@ -489,10 +489,10 @@ inline Handle<SeqTwoByteString> NewRawString(Factory* factory,
 }
 
 template <>
-inline Handle<SeqAsciiString> NewRawString(Factory* factory,
+inline Handle<SeqOneByteString> NewRawString(Factory* factory,
                                            int length,
                                            PretenureFlag pretenure) {
-  return factory->NewRawAsciiString(length, pretenure);
+  return factory->NewRawOneByteString(length, pretenure);
 }
 
 
@@ -530,7 +530,7 @@ Handle<String> JsonParser<seq_ascii>::SlowScanJsonString(
         SeqStringSet(seq_str, count++, c0_);
         Advance();
       } else {
-        // StringType is SeqAsciiString and we just read a non-ASCII char.
+        // StringType is SeqOneByteString and we just read a non-ASCII char.
         return SlowScanJsonString<SeqTwoByteString, uc16>(seq_str, 0, count);
       }
     } else {
@@ -570,7 +570,7 @@ Handle<String> JsonParser<seq_ascii>::SlowScanJsonString(
             SeqStringSet(seq_str, count++, value);
             break;
           } else {
-            // StringType is SeqAsciiString and we just read a non-ASCII char.
+            // StringType is SeqOneByteString and we just read a non-ASCII char.
             position_ -= 6;  // Rewind position_ to \ in \uxxxx.
             Advance();
             return SlowScanJsonString<SeqTwoByteString, uc16>(seq_str,
@@ -626,7 +626,7 @@ Handle<String> JsonParser<seq_ascii>::ScanJsonString() {
         c0_ = c0;
         int beg_pos = position_;
         position_ = position;
-        return SlowScanJsonString<SeqAsciiString, char>(source_,
+        return SlowScanJsonString<SeqOneByteString, char>(source_,
                                                         beg_pos,
                                                         position_);
       }
@@ -634,7 +634,7 @@ Handle<String> JsonParser<seq_ascii>::ScanJsonString() {
       running_hash = StringHasher::AddCharacterCore(running_hash, c0);
       position++;
       if (position >= source_length_) return Handle<String>::null();
-      c0 = seq_source_->SeqAsciiStringGet(position);
+      c0 = seq_source_->SeqOneByteStringGet(position);
     } while (c0 != '"');
     int length = position - position_;
     uint32_t hash = (length <= String::kMaxHashCalcLength)
@@ -677,7 +677,7 @@ Handle<String> JsonParser<seq_ascii>::ScanJsonString() {
                                                           position_);
       }
     } else {
-      return SlowScanJsonString<SeqAsciiString, char>(source_,
+      return SlowScanJsonString<SeqOneByteString, char>(source_,
                                                       beg_pos,
                                                       position_);
     }
@@ -689,8 +689,8 @@ Handle<String> JsonParser<seq_ascii>::ScanJsonString() {
                                           beg_pos,
                                           length);
   } else {
-    result = factory()->NewRawAsciiString(length, pretenure_);
-    char* dest = SeqAsciiString::cast(*result)->GetChars();
+    result = factory()->NewRawOneByteString(length, pretenure_);
+    char* dest = SeqOneByteString::cast(*result)->GetChars();
     String::WriteToFlat(*source_, dest, beg_pos, position_);
   }
   ASSERT_EQ('"', c0_);

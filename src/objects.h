@@ -97,7 +97,7 @@
 //           - ExternalFloatArray
 //       - String
 //         - SeqString
-//           - SeqAsciiString
+//           - SeqOneByteString
 //           - SeqTwoByteString
 //         - SlicedString
 //         - ConsString
@@ -829,7 +829,7 @@ class MaybeObject BASE_EMBEDDED {
   V(ExternalTwoByteString)                     \
   V(ExternalAsciiString)                       \
   V(SeqTwoByteString)                          \
-  V(SeqAsciiString)                            \
+  V(SeqOneByteString)                            \
                                                \
   V(ExternalArray)                             \
   V(ExternalByteArray)                         \
@@ -3037,7 +3037,7 @@ class SymbolTableShape : public BaseShape<HashTableKey*> {
   static const int kEntrySize = 1;
 };
 
-class SeqAsciiString;
+class SeqOneByteString;
 
 // SymbolTable.
 //
@@ -3053,7 +3053,7 @@ class SymbolTable: public HashTable<SymbolTableShape, HashTableKey*> {
   MUST_USE_RESULT MaybeObject* LookupAsciiSymbol(Vector<const char> str,
                                                  Object** s);
   MUST_USE_RESULT MaybeObject* LookupSubStringAsciiSymbol(
-      Handle<SeqAsciiString> str,
+      Handle<SeqOneByteString> str,
       int from,
       int length,
       Object** s);
@@ -7581,13 +7581,13 @@ class SeqString: public String {
 
 // The AsciiString class captures sequential ASCII string objects.
 // Each character in the AsciiString is an ASCII character.
-class SeqAsciiString: public SeqString {
+class SeqOneByteString: public SeqString {
  public:
   static const bool kHasAsciiEncoding = true;
 
   // Dispatched behavior.
-  inline uint16_t SeqAsciiStringGet(int index);
-  inline void SeqAsciiStringSet(int index, uint16_t value);
+  inline uint16_t SeqOneByteStringGet(int index);
+  inline void SeqOneByteStringSet(int index, uint16_t value);
 
   // Get the address of the characters in this string.
   inline Address GetCharsAddress();
@@ -7595,12 +7595,12 @@ class SeqAsciiString: public SeqString {
   inline char* GetChars();
 
   // Casting
-  static inline SeqAsciiString* cast(Object* obj);
+  static inline SeqOneByteString* cast(Object* obj);
 
   // Garbage collection support.  This method is called by the
   // garbage collector to compute the actual size of an AsciiString
   // instance.
-  inline int SeqAsciiStringSize(InstanceType instance_type);
+  inline int SeqOneByteStringSize(InstanceType instance_type);
 
   // Computes the size for an AsciiString instance of a given length.
   static int SizeFor(int length) {
@@ -7614,17 +7614,17 @@ class SeqAsciiString: public SeqString {
   static const int kMaxLength = (kMaxSize - kHeaderSize);
 
   // Support for StringInputBuffer.
-  inline void SeqAsciiStringReadBlockIntoBuffer(ReadBlockBuffer* buffer,
+  inline void SeqOneByteStringReadBlockIntoBuffer(ReadBlockBuffer* buffer,
                                                 unsigned* offset,
                                                 unsigned chars);
-  inline const unibrow::byte* SeqAsciiStringReadBlock(unsigned* remaining,
+  inline const unibrow::byte* SeqOneByteStringReadBlock(unsigned* remaining,
                                                       unsigned* offset,
                                                       unsigned chars);
 
-  DECLARE_VERIFIER(SeqAsciiString)
+  DECLARE_VERIFIER(SeqOneByteString)
 
  private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(SeqAsciiString);
+  DISALLOW_IMPLICIT_CONSTRUCTORS(SeqOneByteString);
 };
 
 

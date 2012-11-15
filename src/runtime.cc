@@ -2515,7 +2515,7 @@ class ReplacementStringBuilder {
 
     Handle<String> joined_string;
     if (is_ascii_) {
-      Handle<SeqAsciiString> seq = NewRawAsciiString(character_count_);
+      Handle<SeqOneByteString> seq = NewRawOneByteString(character_count_);
       AssertNoAllocation no_alloc;
       char* char_buffer = seq->GetChars();
       StringBuilderConcatHelper(*subject_,
@@ -2546,8 +2546,8 @@ class ReplacementStringBuilder {
   }
 
  private:
-  Handle<SeqAsciiString> NewRawAsciiString(int length) {
-    return heap_->isolate()->factory()->NewRawAsciiString(length);
+  Handle<SeqOneByteString> NewRawOneByteString(int length) {
+    return heap_->isolate()->factory()->NewRawOneByteString(length);
   }
 
 
@@ -2996,7 +2996,7 @@ MUST_USE_RESULT static MaybeObject* StringReplaceAtomRegExpWithString(
   Handle<ResultSeqString> result;
   if (ResultSeqString::kHasAsciiEncoding) {
     result = Handle<ResultSeqString>::cast(
-        isolate->factory()->NewRawAsciiString(result_len));
+        isolate->factory()->NewRawOneByteString(result_len));
   } else {
     result = Handle<ResultSeqString>::cast(
         isolate->factory()->NewRawTwoByteString(result_len));
@@ -3065,7 +3065,7 @@ MUST_USE_RESULT static MaybeObject* StringReplaceRegExpWithString(
       regexp->TypeTag() == JSRegExp::ATOM &&
       simple_replace) {
     if (subject->HasOnlyAsciiChars() && replacement->HasOnlyAsciiChars()) {
-      return StringReplaceAtomRegExpWithString<SeqAsciiString>(
+      return StringReplaceAtomRegExpWithString<SeqOneByteString>(
           isolate, subject, regexp, replacement, last_match_info);
     } else {
       return StringReplaceAtomRegExpWithString<SeqTwoByteString>(
@@ -3155,7 +3155,7 @@ MUST_USE_RESULT static MaybeObject* StringReplaceRegExpWithEmptyString(
       regexp->TypeTag() == JSRegExp::ATOM) {
     Handle<String> empty_string(HEAP->empty_string());
     if (subject->HasOnlyAsciiChars()) {
-      return StringReplaceAtomRegExpWithString<SeqAsciiString>(
+      return StringReplaceAtomRegExpWithString<SeqOneByteString>(
           isolate,
           subject,
           regexp,
@@ -3191,7 +3191,7 @@ MUST_USE_RESULT static MaybeObject* StringReplaceRegExpWithEmptyString(
   Handle<ResultSeqString> answer;
   if (ResultSeqString::kHasAsciiEncoding) {
     answer = Handle<ResultSeqString>::cast(
-        isolate->factory()->NewRawAsciiString(new_length));
+        isolate->factory()->NewRawOneByteString(new_length));
   } else {
     answer = Handle<ResultSeqString>::cast(
         isolate->factory()->NewRawTwoByteString(new_length));
@@ -3283,7 +3283,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringReplaceRegExpWithString) {
 
   if (replacement->length() == 0) {
     if (subject->HasOnlyAsciiChars()) {
-      return StringReplaceRegExpWithEmptyString<SeqAsciiString>(
+      return StringReplaceRegExpWithEmptyString<SeqOneByteString>(
           isolate, subject, regexp, last_match_info);
     } else {
       return StringReplaceRegExpWithEmptyString<SeqTwoByteString>(
@@ -5161,10 +5161,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringToNumber) {
 
   // Fast case: short integer or some sorts of junk values.
   int len = subject->length();
-  if (subject->IsSeqAsciiString()) {
+  if (subject->IsSeqOneByteString()) {
     if (len == 0) return Smi::FromInt(0);
 
-    char const* data = SeqAsciiString::cast(subject)->GetChars();
+    char const* data = SeqOneByteString::cast(subject)->GetChars();
     bool minus = (data[0] == '-');
     int start_pos = (minus ? 1 : 0);
 
@@ -5531,7 +5531,7 @@ MaybeObject* AllocateRawString<SeqTwoByteString>(Isolate* isolate, int length) {
 
 
 template <>
-MaybeObject* AllocateRawString<SeqAsciiString>(Isolate* isolate, int length) {
+MaybeObject* AllocateRawString<SeqOneByteString>(Isolate* isolate, int length) {
   return isolate->heap()->AllocateRawAsciiString(length);
 }
 
@@ -5683,7 +5683,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_QuoteJSONString) {
     return QuoteJsonString<uc16, SeqTwoByteString, false>(isolate,
                                                           flat.ToUC16Vector());
   } else {
-    return QuoteJsonString<char, SeqAsciiString, false>(isolate,
+    return QuoteJsonString<char, SeqOneByteString, false>(isolate,
                                                         flat.ToAsciiVector());
   }
 }
@@ -5706,7 +5706,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_QuoteJSONStringComma) {
     return QuoteJsonString<uc16, SeqTwoByteString, true>(isolate,
                                                          flat.ToUC16Vector());
   } else {
-    return QuoteJsonString<char, SeqAsciiString, true>(isolate,
+    return QuoteJsonString<char, SeqOneByteString, true>(isolate,
                                                        flat.ToAsciiVector());
   }
 }
@@ -5798,7 +5798,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_QuoteJSONStringArray) {
   }
 
   if (ascii) {
-    return QuoteJsonStringArray<char, SeqAsciiString>(isolate,
+    return QuoteJsonStringArray<char, SeqOneByteString>(isolate,
                                                       elements,
                                                       worst_case_length);
   } else {
@@ -6095,14 +6095,14 @@ MUST_USE_RESULT static MaybeObject* ConvertCase(
   // character is also ASCII.  This is currently the case, but it
   // might break in the future if we implement more context and locale
   // dependent upper/lower conversions.
-  if (s->IsSeqAsciiString()) {
+  if (s->IsSeqOneByteString()) {
     Object* o;
     { MaybeObject* maybe_o = isolate->heap()->AllocateRawAsciiString(length);
       if (!maybe_o->ToObject(&o)) return maybe_o;
     }
-    SeqAsciiString* result = SeqAsciiString::cast(o);
+    SeqOneByteString* result = SeqOneByteString::cast(o);
     bool has_changed_character = ConvertTraits::AsciiConverter::Convert(
-        result->GetChars(), SeqAsciiString::cast(s)->GetChars(), length);
+        result->GetChars(), SeqOneByteString::cast(s)->GetChars(), length);
     return has_changed_character ? result : s;
   }
 
@@ -6680,7 +6680,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringBuilderConcat) {
           isolate->heap()->AllocateRawAsciiString(length);
       if (!maybe_object->ToObject(&object)) return maybe_object;
     }
-    SeqAsciiString* answer = SeqAsciiString::cast(object);
+    SeqOneByteString* answer = SeqOneByteString::cast(object);
     StringBuilderConcatHelper(special,
                               answer->GetChars(),
                               fixed_array,
@@ -6842,7 +6842,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SparseJoinWithSeparator) {
   bool is_ascii = separator->IsAsciiRepresentation();
   int max_string_length;
   if (is_ascii) {
-    max_string_length = SeqAsciiString::kMaxLength;
+    max_string_length = SeqOneByteString::kMaxLength;
   } else {
     max_string_length = SeqTwoByteString::kMaxLength;
   }
@@ -6894,8 +6894,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SparseJoinWithSeparator) {
     MaybeObject* result_allocation =
         isolate->heap()->AllocateRawAsciiString(string_length);
     if (result_allocation->IsFailure()) return result_allocation;
-    SeqAsciiString* result_string =
-        SeqAsciiString::cast(result_allocation->ToObjectUnchecked());
+    SeqOneByteString* result_string =
+        SeqOneByteString::cast(result_allocation->ToObjectUnchecked());
     JoinSparseArrayWithSeparator<char>(elements,
                                        elements_length,
                                        array_length,
@@ -9066,7 +9066,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ParseJson) {
   source = Handle<String>(source->TryFlattenGetString());
   // Optimized fast case where we only have ASCII characters.
   Handle<Object> result;
-  if (source->IsSeqAsciiString()) {
+  if (source->IsSeqOneByteString()) {
     result = JsonParser<true>::Parse(source, zone);
   } else {
     result = JsonParser<false>::Parse(source, zone);

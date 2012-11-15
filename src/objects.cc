@@ -889,7 +889,7 @@ MaybeObject* String::SlowTryFlatten(PretenureFlag pretenure) {
         result = String::cast(object);
         String* first = cs->first();
         int first_length = first->length();
-        char* dest = SeqAsciiString::cast(result)->GetChars();
+        char* dest = SeqOneByteString::cast(result)->GetChars();
         WriteToFlat(first, dest, 0, first_length);
         String* second = cs->second();
         WriteToFlat(second,
@@ -6512,7 +6512,7 @@ String::FlatContent String::GetFlatContent() {
   if (shape.encoding_tag() == kOneByteStringTag) {
     const char* start;
     if (shape.representation_tag() == kSeqStringTag) {
-      start = SeqAsciiString::cast(string)->GetChars();
+      start = SeqOneByteString::cast(string)->GetChars();
     } else {
       start = ExternalAsciiString::cast(string)->GetChars();
     }
@@ -6676,7 +6676,7 @@ void SeqTwoByteString::SeqTwoByteStringReadBlockIntoBuffer(ReadBlockBuffer* rbb,
 }
 
 
-const unibrow::byte* SeqAsciiString::SeqAsciiStringReadBlock(
+const unibrow::byte* SeqOneByteString::SeqOneByteStringReadBlock(
     unsigned* remaining,
     unsigned* offset_ptr,
     unsigned max_chars) {
@@ -6804,7 +6804,7 @@ void ExternalTwoByteString::ExternalTwoByteStringReadBlockIntoBuffer(
 }
 
 
-void SeqAsciiString::SeqAsciiStringReadBlockIntoBuffer(ReadBlockBuffer* rbb,
+void SeqOneByteString::SeqOneByteStringReadBlockIntoBuffer(ReadBlockBuffer* rbb,
                                                  unsigned* offset_ptr,
                                                  unsigned max_chars) {
   unsigned capacity = rbb->capacity - rbb->cursor;
@@ -6848,8 +6848,8 @@ const unibrow::byte* String::ReadBlock(String* input,
   switch (StringShape(input).representation_tag()) {
     case kSeqStringTag:
       if (input->IsAsciiRepresentation()) {
-        SeqAsciiString* str = SeqAsciiString::cast(input);
-        return str->SeqAsciiStringReadBlock(&rbb->remaining,
+        SeqOneByteString* str = SeqOneByteString::cast(input);
+        return str->SeqOneByteStringReadBlock(&rbb->remaining,
                                             offset_ptr,
                                             max_chars);
       } else {
@@ -6997,7 +6997,7 @@ void String::ReadBlockIntoBuffer(String* input,
   switch (StringShape(input).representation_tag()) {
     case kSeqStringTag:
       if (input->IsAsciiRepresentation()) {
-        SeqAsciiString::cast(input)->SeqAsciiStringReadBlockIntoBuffer(rbb,
+        SeqOneByteString::cast(input)->SeqOneByteStringReadBlockIntoBuffer(rbb,
                                                                  offset_ptr,
                                                                  max_chars);
         return;
@@ -7214,7 +7214,7 @@ void String::WriteToFlat(String* src,
       }
       case kOneByteStringTag | kSeqStringTag: {
         CopyChars(sink,
-                  SeqAsciiString::cast(source)->GetChars() + from,
+                  SeqOneByteString::cast(source)->GetChars() + from,
                   to - from);
         return;
       }
@@ -7249,9 +7249,9 @@ void String::WriteToFlat(String* src,
             // common case of sequential ascii right child.
             if (to - boundary == 1) {
               sink[boundary - from] = static_cast<sinkchar>(second->Get(0));
-            } else if (second->IsSeqAsciiString()) {
+            } else if (second->IsSeqOneByteString()) {
               CopyChars(sink + boundary - from,
-                        SeqAsciiString::cast(second)->GetChars(),
+                        SeqOneByteString::cast(second)->GetChars(),
                         to - boundary);
             } else {
               WriteToFlat(second,
@@ -7390,8 +7390,8 @@ bool String::SlowEquals(String* other) {
 
   if (StringShape(lhs).IsSequentialAscii() &&
       StringShape(rhs).IsSequentialAscii()) {
-    const char* str1 = SeqAsciiString::cast(lhs)->GetChars();
-    const char* str2 = SeqAsciiString::cast(rhs)->GetChars();
+    const char* str1 = SeqOneByteString::cast(lhs)->GetChars();
+    const char* str2 = SeqOneByteString::cast(rhs)->GetChars();
     return CompareRawStringContents(Vector<const char>(str1, len),
                                     Vector<const char>(str2, len));
   }
@@ -7519,7 +7519,7 @@ uint32_t String::ComputeAndSetHash() {
   // Compute the hash code.
   uint32_t field = 0;
   if (StringShape(this).IsSequentialAscii()) {
-    field = HashSequentialString(SeqAsciiString::cast(this)->GetChars(),
+    field = HashSequentialString(SeqOneByteString::cast(this)->GetChars(),
                                  len,
                                  GetHeap()->HashSeed());
   } else if (StringShape(this).IsSequentialTwoByte()) {
@@ -11655,7 +11655,7 @@ class AsciiSymbolKey : public SequentialSymbolKey<char> {
 
 class SubStringAsciiSymbolKey : public HashTableKey {
  public:
-  explicit SubStringAsciiSymbolKey(Handle<SeqAsciiString> string,
+  explicit SubStringAsciiSymbolKey(Handle<SeqOneByteString> string,
                                    int from,
                                    int length,
                                    uint32_t seed)
@@ -11676,7 +11676,7 @@ class SubStringAsciiSymbolKey : public HashTableKey {
       // chance this is an array index.
       while (i < length_ && hasher.is_array_index()) {
         hasher.AddCharacter(static_cast<uc32>(
-            string_->SeqAsciiStringGet(i + from_)));
+            string_->SeqOneByteStringGet(i + from_)));
         i++;
       }
 
@@ -11684,7 +11684,7 @@ class SubStringAsciiSymbolKey : public HashTableKey {
       // index.
       while (i < length_) {
         hasher.AddCharacterNoIndex(static_cast<uc32>(
-            string_->SeqAsciiStringGet(i + from_)));
+            string_->SeqOneByteStringGet(i + from_)));
         i++;
       }
       hash_field_ = hasher.GetHashField();
@@ -11712,7 +11712,7 @@ class SubStringAsciiSymbolKey : public HashTableKey {
   }
 
  private:
-  Handle<SeqAsciiString> string_;
+  Handle<SeqOneByteString> string_;
   int from_;
   int length_;
   uint32_t hash_field_;
@@ -12637,10 +12637,11 @@ MaybeObject* SymbolTable::LookupAsciiSymbol(Vector<const char> str,
 }
 
 
-MaybeObject* SymbolTable::LookupSubStringAsciiSymbol(Handle<SeqAsciiString> str,
-                                                     int from,
-                                                     int length,
-                                                     Object** s) {
+MaybeObject* SymbolTable::LookupSubStringAsciiSymbol(
+    Handle<SeqOneByteString> str,
+    int from,
+    int length,
+    Object** s) {
   SubStringAsciiSymbolKey key(str, from, length, GetHeap()->HashSeed());
   return LookupKey(&key, s);
 }

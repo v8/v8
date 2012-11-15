@@ -219,7 +219,7 @@ BasicJsonStringifier::BasicJsonStringifier(Isolate* isolate)
   accumulator_store_ = Handle<JSValue>::cast(
                            factory_->ToObject(factory_->empty_string()));
   part_length_ = kInitialPartLength;
-  current_part_ = factory_->NewRawAsciiString(kInitialPartLength);
+  current_part_ = factory_->NewRawOneByteString(kInitialPartLength);
   tojson_symbol_ = factory_->LookupAsciiSymbol("toJSON");
   stack_ = factory_->NewJSArray(8);
 }
@@ -246,7 +246,7 @@ MaybeObject* BasicJsonStringifier::Stringify(Handle<Object> object) {
 template <bool is_ascii, typename Char>
 void BasicJsonStringifier::Append_(Char c) {
   if (is_ascii) {
-    SeqAsciiString::cast(*current_part_)->SeqAsciiStringSet(
+    SeqOneByteString::cast(*current_part_)->SeqOneByteStringSet(
         current_index_++, c);
   } else {
     SeqTwoByteString::cast(*current_part_)->SeqTwoByteStringSet(
@@ -636,8 +636,8 @@ void BasicJsonStringifier::ShrinkCurrentPart() {
 
   int string_size, allocated_string_size;
   if (is_ascii_) {
-    allocated_string_size = SeqAsciiString::SizeFor(part_length_);
-    string_size = SeqAsciiString::SizeFor(current_index_);
+    allocated_string_size = SeqOneByteString::SizeFor(part_length_);
+    string_size = SeqOneByteString::SizeFor(current_index_);
   } else {
     allocated_string_size = SeqTwoByteString::SizeFor(part_length_);
     string_size = SeqTwoByteString::SizeFor(current_index_);
@@ -663,7 +663,7 @@ void BasicJsonStringifier::Extend() {
     part_length_ *= kPartLengthGrowthFactor;
   }
   if (is_ascii_) {
-    current_part_ = factory_->NewRawAsciiString(part_length_);
+    current_part_ = factory_->NewRawOneByteString(part_length_);
   } else {
     current_part_ = factory_->NewRawTwoByteString(part_length_);
   }
@@ -719,7 +719,7 @@ void BasicJsonStringifier::SerializeString_(Vector<const Char> vector,
     if (is_ascii) {
       SerializeStringUnchecked_(
           vector.start(),
-          SeqAsciiString::cast(*current_part_)->GetChars(),
+          SeqOneByteString::cast(*current_part_)->GetChars(),
           length);
     } else {
       SerializeStringUnchecked_(

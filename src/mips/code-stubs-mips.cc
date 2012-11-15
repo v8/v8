@@ -5322,7 +5322,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ lw(subject,
         FieldMemOperand(subject, ExternalString::kResourceDataOffset));
   // Move the pointer so that offset-wise, it looks like a sequential string.
-  STATIC_ASSERT(SeqTwoByteString::kHeaderSize == SeqAsciiString::kHeaderSize);
+  STATIC_ASSERT(SeqTwoByteString::kHeaderSize == SeqOneByteString::kHeaderSize);
   __ Subu(subject,
           subject,
           SeqTwoByteString::kHeaderSize - kHeapObjectTag);
@@ -6071,7 +6071,7 @@ void StringHelper::GenerateTwoCharacterSymbolTableProbe(MacroAssembler* masm,
 
     // Check if the two characters match.
     // Assumes that word load is little endian.
-    __ lhu(scratch, FieldMemOperand(candidate, SeqAsciiString::kHeaderSize));
+    __ lhu(scratch, FieldMemOperand(candidate, SeqOneByteString::kHeaderSize));
     __ Branch(&found_in_symbol_table, eq, chars, Operand(scratch));
     __ bind(&next_probe[i]);
   }
@@ -6288,8 +6288,8 @@ void SubStringStub::Generate(MacroAssembler* masm) {
 
   __ bind(&sequential_string);
   // Locate first character of underlying subject string.
-  STATIC_ASSERT(SeqTwoByteString::kHeaderSize == SeqAsciiString::kHeaderSize);
-  __ Addu(t1, t1, Operand(SeqAsciiString::kHeaderSize - kHeapObjectTag));
+  STATIC_ASSERT(SeqTwoByteString::kHeaderSize == SeqOneByteString::kHeaderSize);
+  __ Addu(t1, t1, Operand(SeqOneByteString::kHeaderSize - kHeapObjectTag));
 
   __ bind(&allocate_result);
   // Sequential acii string.  Allocate the result.
@@ -6304,13 +6304,13 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   __ Addu(t1, t1, a3);
 
   // Locate first character of result.
-  __ Addu(a1, v0, Operand(SeqAsciiString::kHeaderSize - kHeapObjectTag));
+  __ Addu(a1, v0, Operand(SeqOneByteString::kHeaderSize - kHeapObjectTag));
 
   // v0: result string
   // a1: first character of result string
   // a2: result string length
   // t1: first character of substring to copy
-  STATIC_ASSERT((SeqAsciiString::kHeaderSize & kObjectAlignmentMask) == 0);
+  STATIC_ASSERT((SeqOneByteString::kHeaderSize & kObjectAlignmentMask) == 0);
   StringHelper::GenerateCopyCharactersLong(
       masm, a1, t1, a2, a3, t0, t2, t3, t4, COPY_ASCII | DEST_ALWAYS_ALIGNED);
   __ jmp(&return_v0);
@@ -6442,7 +6442,7 @@ void StringCompareStub::GenerateAsciiCharsCompareLoop(
   // doesn't need an additional compare.
   __ SmiUntag(length);
   __ Addu(scratch1, length,
-          Operand(SeqAsciiString::kHeaderSize - kHeapObjectTag));
+          Operand(SeqOneByteString::kHeaderSize - kHeapObjectTag));
   __ Addu(left, left, Operand(scratch1));
   __ Addu(right, right, Operand(scratch1));
   __ Subu(length, zero_reg, length);
@@ -6597,8 +6597,8 @@ void StringAddStub::Generate(MacroAssembler* masm) {
                                                  &call_runtime);
 
   // Get the two characters forming the sub string.
-  __ lbu(a2, FieldMemOperand(a0, SeqAsciiString::kHeaderSize));
-  __ lbu(a3, FieldMemOperand(a1, SeqAsciiString::kHeaderSize));
+  __ lbu(a2, FieldMemOperand(a0, SeqOneByteString::kHeaderSize));
+  __ lbu(a3, FieldMemOperand(a1, SeqOneByteString::kHeaderSize));
 
   // Try to lookup two character string in symbol table. If it is not found
   // just allocate a new one.
@@ -6616,7 +6616,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   // in a little endian mode).
   __ li(t2, Operand(2));
   __ AllocateAsciiString(v0, t2, t0, t1, t5, &call_runtime);
-  __ sh(a2, FieldMemOperand(v0, SeqAsciiString::kHeaderSize));
+  __ sh(a2, FieldMemOperand(v0, SeqOneByteString::kHeaderSize));
   __ IncrementCounter(counters->string_add_native(), 1, a2, a3);
   __ DropAndRet(2);
 
@@ -6701,11 +6701,11 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   STATIC_ASSERT(kSeqStringTag == 0);
   __ And(t4, t0, Operand(kStringRepresentationMask));
 
-  STATIC_ASSERT(SeqAsciiString::kHeaderSize == SeqTwoByteString::kHeaderSize);
+  STATIC_ASSERT(SeqOneByteString::kHeaderSize == SeqTwoByteString::kHeaderSize);
   Label skip_first_add;
   __ Branch(&skip_first_add, ne, t4, Operand(zero_reg));
   __ Branch(USE_DELAY_SLOT, &first_prepared);
-  __ addiu(t3, a0, SeqAsciiString::kHeaderSize - kHeapObjectTag);
+  __ addiu(t3, a0, SeqOneByteString::kHeaderSize - kHeapObjectTag);
   __ bind(&skip_first_add);
   // External string: rule out short external string and load string resource.
   STATIC_ASSERT(kShortExternalStringTag != 0);
@@ -6716,11 +6716,11 @@ void StringAddStub::Generate(MacroAssembler* masm) {
 
   STATIC_ASSERT(kSeqStringTag == 0);
   __ And(t4, t1, Operand(kStringRepresentationMask));
-  STATIC_ASSERT(SeqAsciiString::kHeaderSize == SeqTwoByteString::kHeaderSize);
+  STATIC_ASSERT(SeqOneByteString::kHeaderSize == SeqTwoByteString::kHeaderSize);
   Label skip_second_add;
   __ Branch(&skip_second_add, ne, t4, Operand(zero_reg));
   __ Branch(USE_DELAY_SLOT, &second_prepared);
-  __ addiu(a1, a1, SeqAsciiString::kHeaderSize - kHeapObjectTag);
+  __ addiu(a1, a1, SeqOneByteString::kHeaderSize - kHeapObjectTag);
   __ bind(&skip_second_add);
   // External string: rule out short external string and load string resource.
   STATIC_ASSERT(kShortExternalStringTag != 0);
@@ -6741,7 +6741,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   __ Branch(&non_ascii_string_add_flat_result, eq, t4, Operand(zero_reg));
 
   __ AllocateAsciiString(v0, t2, t0, t1, t5, &call_runtime);
-  __ Addu(t2, v0, Operand(SeqAsciiString::kHeaderSize - kHeapObjectTag));
+  __ Addu(t2, v0, Operand(SeqOneByteString::kHeaderSize - kHeapObjectTag));
   // v0: result string.
   // t3: first character of first string.
   // a1: first character of second string

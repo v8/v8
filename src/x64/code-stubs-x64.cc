@@ -3014,8 +3014,8 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // r15: original subject string
   __ testb(rcx, rcx);  // Last use of rcx as encoding of subject string.
   __ j(zero, &setup_two_byte, Label::kNear);
-  __ lea(arg4, FieldOperand(rdi, r14, times_1, SeqAsciiString::kHeaderSize));
-  __ lea(arg3, FieldOperand(rdi, rbx, times_1, SeqAsciiString::kHeaderSize));
+  __ lea(arg4, FieldOperand(rdi, r14, times_1, SeqOneByteString::kHeaderSize));
+  __ lea(arg3, FieldOperand(rdi, rbx, times_1, SeqOneByteString::kHeaderSize));
   __ jmp(&setup_rest, Label::kNear);
   __ bind(&setup_two_byte);
   __ lea(arg4, FieldOperand(rdi, r14, times_2, SeqTwoByteString::kHeaderSize));
@@ -3155,7 +3155,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   }
   __ movq(rdi, FieldOperand(rdi, ExternalString::kResourceDataOffset));
   // Move the pointer so that offset-wise, it looks like a sequential string.
-  STATIC_ASSERT(SeqTwoByteString::kHeaderSize == SeqAsciiString::kHeaderSize);
+  STATIC_ASSERT(SeqTwoByteString::kHeaderSize == SeqOneByteString::kHeaderSize);
   __ subq(rdi, Immediate(SeqTwoByteString::kHeaderSize - kHeapObjectTag));
   STATIC_ASSERT(kTwoByteStringTag == 0);
   __ testb(rbx, Immediate(kStringEncodingMask));
@@ -4656,8 +4656,8 @@ void StringAddStub::Generate(MacroAssembler* masm) {
                                                   &call_runtime);
 
   // Get the two characters forming the sub string.
-  __ movzxbq(rbx, FieldOperand(rax, SeqAsciiString::kHeaderSize));
-  __ movzxbq(rcx, FieldOperand(rdx, SeqAsciiString::kHeaderSize));
+  __ movzxbq(rbx, FieldOperand(rax, SeqOneByteString::kHeaderSize));
+  __ movzxbq(rcx, FieldOperand(rdx, SeqOneByteString::kHeaderSize));
 
   // Try to lookup two character string in symbol table. If it is not found
   // just allocate a new one.
@@ -4673,11 +4673,11 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   // rbx - first byte: first character
   // rbx - second byte: *maybe* second character
   // Make sure that the second byte of rbx contains the second character.
-  __ movzxbq(rcx, FieldOperand(rdx, SeqAsciiString::kHeaderSize));
+  __ movzxbq(rcx, FieldOperand(rdx, SeqOneByteString::kHeaderSize));
   __ shll(rcx, Immediate(kBitsPerByte));
   __ orl(rbx, rcx);
   // Write both characters to the new string.
-  __ movw(FieldOperand(rax, SeqAsciiString::kHeaderSize), rbx);
+  __ movw(FieldOperand(rax, SeqOneByteString::kHeaderSize), rbx);
   __ IncrementCounter(counters->string_add_native(), 1);
   __ ret(2 * kPointerSize);
 
@@ -4754,8 +4754,8 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   __ movq(rcx, FieldOperand(rax, ExternalString::kResourceDataOffset));
   __ jmp(&first_prepared, Label::kNear);
   __ bind(&first_is_sequential);
-  STATIC_ASSERT(SeqAsciiString::kHeaderSize == SeqTwoByteString::kHeaderSize);
-  __ lea(rcx, FieldOperand(rax, SeqAsciiString::kHeaderSize));
+  STATIC_ASSERT(SeqOneByteString::kHeaderSize == SeqTwoByteString::kHeaderSize);
+  __ lea(rcx, FieldOperand(rax, SeqOneByteString::kHeaderSize));
   __ bind(&first_prepared);
 
   // Check whether both strings have same encoding.
@@ -4775,8 +4775,8 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   __ movq(rdx, FieldOperand(rdx, ExternalString::kResourceDataOffset));
   __ jmp(&second_prepared, Label::kNear);
   __ bind(&second_is_sequential);
-  STATIC_ASSERT(SeqAsciiString::kHeaderSize == SeqTwoByteString::kHeaderSize);
-  __ lea(rdx, FieldOperand(rdx, SeqAsciiString::kHeaderSize));
+  STATIC_ASSERT(SeqOneByteString::kHeaderSize == SeqTwoByteString::kHeaderSize);
+  __ lea(rdx, FieldOperand(rdx, SeqOneByteString::kHeaderSize));
   __ bind(&second_prepared);
 
   Label non_ascii_string_add_flat_result;
@@ -4792,7 +4792,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   __ AllocateAsciiString(rax, rbx, rdi, r8, r9, &call_runtime);
   // rax: result string
   // Locate first character of result.
-  __ lea(rbx, FieldOperand(rax, SeqAsciiString::kHeaderSize));
+  __ lea(rbx, FieldOperand(rax, SeqOneByteString::kHeaderSize));
   // rcx: first char of first string
   // rbx: first character of result
   // r14: length of first string
@@ -5065,7 +5065,7 @@ void StringHelper::GenerateTwoCharacterSymbolTableProbe(MacroAssembler* masm,
         temp, temp, &next_probe[i]);
 
     // Check if the two characters match.
-    __ movl(temp, FieldOperand(candidate, SeqAsciiString::kHeaderSize));
+    __ movl(temp, FieldOperand(candidate, SeqOneByteString::kHeaderSize));
     __ andl(temp, Immediate(0x0000ffff));
     __ cmpl(chars, temp);
     __ j(equal, &found_in_symbol_table);
@@ -5283,7 +5283,7 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   __ j(not_zero, &runtime);
   __ movq(rdi, FieldOperand(rdi, ExternalString::kResourceDataOffset));
   // Move the pointer so that offset-wise, it looks like a sequential string.
-  STATIC_ASSERT(SeqTwoByteString::kHeaderSize == SeqAsciiString::kHeaderSize);
+  STATIC_ASSERT(SeqTwoByteString::kHeaderSize == SeqOneByteString::kHeaderSize);
   __ subq(rdi, Immediate(SeqTwoByteString::kHeaderSize - kHeapObjectTag));
 
   __ bind(&sequential_string);
@@ -5300,10 +5300,10 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   {  // Locate character of sub string start.
     SmiIndex smi_as_index = masm->SmiToIndex(rdx, rdx, times_1);
     __ lea(rsi, Operand(rdi, smi_as_index.reg, smi_as_index.scale,
-                        SeqAsciiString::kHeaderSize - kHeapObjectTag));
+                        SeqOneByteString::kHeaderSize - kHeapObjectTag));
   }
   // Locate first character of result.
-  __ lea(rdi, FieldOperand(rax, SeqAsciiString::kHeaderSize));
+  __ lea(rdi, FieldOperand(rax, SeqOneByteString::kHeaderSize));
 
   // rax: result string
   // rcx: result length
@@ -5325,7 +5325,7 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   {  // Locate character of sub string start.
     SmiIndex smi_as_index = masm->SmiToIndex(rdx, rdx, times_2);
     __ lea(rsi, Operand(rdi, smi_as_index.reg, smi_as_index.scale,
-                        SeqAsciiString::kHeaderSize - kHeapObjectTag));
+                        SeqOneByteString::kHeaderSize - kHeapObjectTag));
   }
   // Locate first character of result.
   __ lea(rdi, FieldOperand(rax, SeqTwoByteString::kHeaderSize));
@@ -5465,9 +5465,9 @@ void StringCompareStub::GenerateAsciiCharsCompareLoop(
   // doesn't need an additional compare.
   __ SmiToInteger32(length, length);
   __ lea(left,
-         FieldOperand(left, length, times_1, SeqAsciiString::kHeaderSize));
+         FieldOperand(left, length, times_1, SeqOneByteString::kHeaderSize));
   __ lea(right,
-         FieldOperand(right, length, times_1, SeqAsciiString::kHeaderSize));
+         FieldOperand(right, length, times_1, SeqOneByteString::kHeaderSize));
   __ neg(length);
   Register index = length;  // index = -length;
 

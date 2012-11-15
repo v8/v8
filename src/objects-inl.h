@@ -229,7 +229,7 @@ bool Object::IsSeqString() {
 }
 
 
-bool Object::IsSeqAsciiString() {
+bool Object::IsSeqOneByteString() {
   if (!IsString()) return false;
   return StringShape(String::cast(this)).IsSequential() &&
          String::cast(this)->IsAsciiRepresentation();
@@ -2358,7 +2358,7 @@ CAST_ACCESSOR(PolymorphicCodeCacheHashTable)
 CAST_ACCESSOR(MapCache)
 CAST_ACCESSOR(String)
 CAST_ACCESSOR(SeqString)
-CAST_ACCESSOR(SeqAsciiString)
+CAST_ACCESSOR(SeqOneByteString)
 CAST_ACCESSOR(SeqTwoByteString)
 CAST_ACCESSOR(SlicedString)
 CAST_ACCESSOR(ConsString)
@@ -2463,7 +2463,7 @@ uint16_t String::Get(int index) {
   ASSERT(index >= 0 && index < length());
   switch (StringShape(this).full_representation_tag()) {
     case kSeqStringTag | kOneByteStringTag:
-      return SeqAsciiString::cast(this)->SeqAsciiStringGet(index);
+      return SeqOneByteString::cast(this)->SeqOneByteStringGet(index);
     case kSeqStringTag | kTwoByteStringTag:
       return SeqTwoByteString::cast(this)->SeqTwoByteStringGet(index);
     case kConsStringTag | kOneByteStringTag:
@@ -2490,7 +2490,7 @@ void String::Set(int index, uint16_t value) {
   ASSERT(StringShape(this).IsSequential());
 
   return this->IsAsciiRepresentation()
-      ? SeqAsciiString::cast(this)->SeqAsciiStringSet(index, value)
+      ? SeqOneByteString::cast(this)->SeqOneByteStringSet(index, value)
       : SeqTwoByteString::cast(this)->SeqTwoByteStringSet(index, value);
 }
 
@@ -2512,25 +2512,25 @@ String* String::GetUnderlying() {
 }
 
 
-uint16_t SeqAsciiString::SeqAsciiStringGet(int index) {
+uint16_t SeqOneByteString::SeqOneByteStringGet(int index) {
   ASSERT(index >= 0 && index < length());
   return READ_BYTE_FIELD(this, kHeaderSize + index * kCharSize);
 }
 
 
-void SeqAsciiString::SeqAsciiStringSet(int index, uint16_t value) {
+void SeqOneByteString::SeqOneByteStringSet(int index, uint16_t value) {
   ASSERT(index >= 0 && index < length() && value <= kMaxAsciiCharCode);
   WRITE_BYTE_FIELD(this, kHeaderSize + index * kCharSize,
                    static_cast<byte>(value));
 }
 
 
-Address SeqAsciiString::GetCharsAddress() {
+Address SeqOneByteString::GetCharsAddress() {
   return FIELD_ADDR(this, kHeaderSize);
 }
 
 
-char* SeqAsciiString::GetChars() {
+char* SeqOneByteString::GetChars() {
   return reinterpret_cast<char*>(GetCharsAddress());
 }
 
@@ -2562,7 +2562,7 @@ int SeqTwoByteString::SeqTwoByteStringSize(InstanceType instance_type) {
 }
 
 
-int SeqAsciiString::SeqAsciiStringSize(InstanceType instance_type) {
+int SeqOneByteString::SeqOneByteStringSize(InstanceType instance_type) {
   return SizeFor(length());
 }
 
@@ -2980,8 +2980,8 @@ int HeapObject::SizeFromMap(Map* map) {
     return FixedArray::BodyDescriptor::SizeOf(map, this);
   }
   if (instance_type == ASCII_STRING_TYPE) {
-    return SeqAsciiString::SizeFor(
-        reinterpret_cast<SeqAsciiString*>(this)->length());
+    return SeqOneByteString::SizeFor(
+        reinterpret_cast<SeqOneByteString*>(this)->length());
   }
   if (instance_type == BYTE_ARRAY_TYPE) {
     return reinterpret_cast<ByteArray*>(this)->ByteArraySize();

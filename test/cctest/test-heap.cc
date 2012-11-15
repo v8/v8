@@ -2150,7 +2150,7 @@ TEST(Regress2237) {
     v8::HandleScope inner_scope;
     const char* c = "This text is long enough to trigger sliced strings.";
     Handle<String> s = FACTORY->NewStringFromAscii(CStrVector(c));
-    CHECK(s->IsSeqAsciiString());
+    CHECK(s->IsSeqOneByteString());
     CHECK(HEAP->InNewSpace(*s));
 
     // Generate a sliced string that is based on the above parent and
@@ -2168,9 +2168,9 @@ TEST(Regress2237) {
     *slice.location() = *t.location();
   }
 
-  CHECK(SlicedString::cast(*slice)->parent()->IsSeqAsciiString());
+  CHECK(SlicedString::cast(*slice)->parent()->IsSeqOneByteString());
   HEAP->CollectAllGarbage(Heap::kNoGCFlags);
-  CHECK(SlicedString::cast(*slice)->parent()->IsSeqAsciiString());
+  CHECK(SlicedString::cast(*slice)->parent()->IsSeqOneByteString());
 }
 
 

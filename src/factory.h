@@ -82,7 +82,7 @@ class Factory {
   Handle<String> LookupSymbol(Vector<const char> str);
   Handle<String> LookupSymbol(Handle<String> str);
   Handle<String> LookupAsciiSymbol(Vector<const char> str);
-  Handle<String> LookupAsciiSymbol(Handle<SeqAsciiString>,
+  Handle<String> LookupAsciiSymbol(Handle<SeqOneByteString>,
                                    int from,
                                    int length);
   Handle<String> LookupTwoByteSymbol(Vector<const uc16> str);
@@ -130,7 +130,7 @@ class Factory {
   // Allocates and partially initializes an ASCII or TwoByte String. The
   // characters of the string are uninitialized. Currently used in regexp code
   // only, where they are pretenured.
-  Handle<SeqAsciiString> NewRawAsciiString(
+  Handle<SeqOneByteString> NewRawOneByteString(
       int length,
       PretenureFlag pretenure = NOT_TENURED);
   Handle<SeqTwoByteString> NewRawTwoByteString(

@@ -178,7 +178,7 @@ Handle<String> Factory::LookupAsciiSymbol(Vector<const char> string) {
 }
 
 
-Handle<String> Factory::LookupAsciiSymbol(Handle<SeqAsciiString> string,
+Handle<String> Factory::LookupAsciiSymbol(Handle<SeqOneByteString> string,
                                           int from,
                                           int length) {
   CALL_HEAP_FUNCTION(isolate(),
@@ -222,12 +222,12 @@ Handle<String> Factory::NewStringFromTwoByte(Vector<const uc16> string,
 }
 
 
-Handle<SeqAsciiString> Factory::NewRawAsciiString(int length,
+Handle<SeqOneByteString> Factory::NewRawOneByteString(int length,
                                                   PretenureFlag pretenure) {
   CALL_HEAP_FUNCTION(
       isolate(),
       isolate()->heap()->AllocateRawAsciiString(length, pretenure),
-      SeqAsciiString);
+      SeqOneByteString);
 }
 
 

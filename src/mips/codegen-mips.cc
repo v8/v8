@@ -408,7 +408,7 @@ void StringCharLoadGenerator::Generate(MacroAssembler* masm,
   __ Branch(&external_string, ne, at, Operand(zero_reg));
 
   // Prepare sequential strings
-  STATIC_ASSERT(SeqTwoByteString::kHeaderSize == SeqAsciiString::kHeaderSize);
+  STATIC_ASSERT(SeqTwoByteString::kHeaderSize == SeqOneByteString::kHeaderSize);
   __ Addu(string,
           string,
           SeqTwoByteString::kHeaderSize - kHeapObjectTag);
