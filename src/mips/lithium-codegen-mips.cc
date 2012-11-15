@@ -136,15 +136,23 @@ bool LCodeGen::GeneratePrologue() {
   // function calls.
   if (!info_->is_classic_mode() || info_->is_native()) {
     Label ok;
+    Label begin;
+    __ bind(&begin);
     __ Branch(&ok, eq, t1, Operand(zero_reg));
 
     int receiver_offset = scope()->num_parameters() * kPointerSize;
     __ LoadRoot(a2, Heap::kUndefinedValueRootIndex);
     __ sw(a2, MemOperand(sp, receiver_offset));
     __ bind(&ok);
+    ASSERT_EQ(kSizeOfOptimizedStrictModePrologue, ok.pos() - begin.pos());
   }
 
+  // The following three instructions must remain together and unmodified for
+  // code aging to work properly.
   __ Push(ra, fp, cp, a1);
+  // Add unused load of ip to ensure prologue sequence is identical for
+  // full-codegen and lithium-codegen.
+  __ LoadRoot(at, Heap::kUndefinedValueRootIndex);
   __ Addu(fp, sp, Operand(2 * kPointerSize));  // Adj. FP to point to saved FP.
 
   // Reserve space for the stack slots needed by the code.

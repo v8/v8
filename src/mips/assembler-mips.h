@@ -663,7 +663,9 @@ class Assembler : public AssemblerBase {
     PROPERTY_ACCESS_INLINED_CONTEXT_DONT_DELETE,
     // Helper values.
     LAST_CODE_MARKER,
-    FIRST_IC_MARKER = PROPERTY_ACCESS_INLINED
+    FIRST_IC_MARKER = PROPERTY_ACCESS_INLINED,
+    // Code aging
+    CODE_AGE_MARKER_NOP = 6
   };
 
   // Type == 0 is the default non-marking nop. For mips this is a
