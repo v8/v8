@@ -1733,6 +1733,7 @@ TEST(InstanceOfStubWriteBarrier) {
 
   InitializeVM();
   if (!i::V8::UseCrankshaft()) return;
+  if (i::FLAG_force_marking_deque_overflows) return;
   v8::HandleScope outer_scope;
 
   {
