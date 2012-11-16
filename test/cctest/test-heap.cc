@@ -1781,6 +1781,10 @@ TEST(InstanceOfStubWriteBarrier) {
 }
 
 
+// Implemented in the test-alloc.cc test suite.
+void SimulateFullSpace(PagedSpace* space);
+
+
 TEST(PrototypeTransitionClearing) {
   InitializeVM();
   v8::HandleScope scope;
@@ -1819,10 +1823,11 @@ TEST(PrototypeTransitionClearing) {
   // Make sure next prototype is placed on an old-space evacuation candidate.
   Handle<JSObject> prototype;
   PagedSpace* space = HEAP->old_pointer_space();
-  do {
+  {
+    AlwaysAllocateScope always_allocate;
+    SimulateFullSpace(space);
     prototype = FACTORY->NewJSArray(32 * KB, FAST_HOLEY_ELEMENTS, TENURED);
-  } while (space->FirstPage() == space->LastPage() ||
-      !space->LastPage()->Contains(prototype->address()));
+  }
 
   // Add a prototype on an evacuation candidate and verify that transition
   // clearing correctly records slots in prototype transition array.
@@ -2092,10 +2097,6 @@ TEST(Regress2143b) {
   CHECK(root->IsJSObject());
   CHECK(root->map()->IsMap());
 }
-
-
-// Implemented in the test-alloc.cc test suite.
-void SimulateFullSpace(PagedSpace* space);
 
 
 TEST(ReleaseOverReservedPages) {
