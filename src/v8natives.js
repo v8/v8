@@ -970,7 +970,7 @@ function ToStringArray(obj, trap) {
   }
   var n = ToUint32(obj.length);
   var array = new $Array(n);
-  var names = {};  // TODO(rossberg): use sets once they are ready.
+  var names = { __proto__: null };  // TODO(rossberg): use sets once ready.
   for (var index = 0; index < n; index++) {
     var s = ToString(obj[index]);
     if (%HasLocalProperty(names, s)) {
@@ -1025,7 +1025,7 @@ function ObjectGetOwnPropertyNames(obj) {
   }
 
   // Property names are expected to be unique strings.
-  var propertySet = {};
+  var propertySet = { __proto__: null };
   var j = 0;
   for (var i = 0; i < propertyNames.length; ++i) {
     var name = ToString(propertyNames[i]);
@@ -1066,7 +1066,7 @@ function ObjectDefineProperty(obj, p, attributes) {
     // Clone the attributes object for protection.
     // TODO(rossberg): not spec'ed yet, so not sure if this should involve
     // non-own properties as it does (or non-enumerable ones, as it doesn't?).
-    var attributesClone = {};
+    var attributesClone = { __proto__: null };
     for (var a in attributes) {
       attributesClone[a] = attributes[a];
     }
