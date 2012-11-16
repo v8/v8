@@ -864,7 +864,10 @@ void Compiler::RecompileParallel(Handle<JSFunction> closure) {
   {
     CompilationHandleScope handle_scope(*info);
 
-    if (InstallCodeFromOptimizedCodeMap(*info)) return;
+    if (!FLAG_manual_parallel_recompilation &&
+        InstallCodeFromOptimizedCodeMap(*info)) {
+      return;
+    }
 
     if (ParserApi::Parse(*info, kNoParsingFlags)) {
       LanguageMode language_mode = info->function()->language_mode();

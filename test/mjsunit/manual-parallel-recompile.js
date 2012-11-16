@@ -75,6 +75,5 @@ assertUnoptimized(g);
 assertOptimized(f);
 assertUnoptimized(g);
 
-%InstallRecompiledCode("the rest");
+%InstallRecompiledCode(g);
 assertOptimized(g);
-

@@ -7882,14 +7882,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_InstallRecompiledCode) {
   if (!V8::UseCrankshaft()) return isolate->heap()->undefined_value();
   HandleScope handle_scope(isolate);
   ASSERT(FLAG_parallel_recompilation && FLAG_manual_parallel_recompilation);
-  CONVERT_ARG_HANDLE_CHECKED(HeapObject, arg, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, fun, 0);
   OptimizingCompilerThread* opt_thread = isolate->optimizing_compiler_thread();
-  if (!arg->IsJSFunction()) {
-    opt_thread->InstallOptimizedFunctions();
-  } else if (!JSFunction::cast(*arg)->IsOptimized()) {
-    Handle<SharedFunctionInfo> shared(JSFunction::cast(*arg)->shared());
-    while (*opt_thread->InstallNextOptimizedFunction() != *shared) { }
-  }
+  Handle<SharedFunctionInfo> shared(fun->shared());
+  while (*opt_thread->InstallNextOptimizedFunction() != *shared) { }
   return isolate->heap()->undefined_value();
 }
 
