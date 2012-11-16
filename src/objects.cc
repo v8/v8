@@ -247,6 +247,18 @@ MaybeObject* JSProxy::GetPropertyWithHandler(Object* receiver_raw,
 }
 
 
+Handle<Object> Object::GetProperty(Handle<Object> object, Handle<String> name) {
+  // TODO(rossberg): The index test should not be here but in the GetProperty
+  // method (or somewhere else entirely). Needs more global clean-up.
+  uint32_t index;
+  if (name->AsArrayIndex(&index)) return GetElement(object, index);
+  Isolate* isolate = object->IsHeapObject()
+      ? Handle<HeapObject>::cast(object)->GetIsolate()
+      : Isolate::Current();
+  CALL_HEAP_FUNCTION(isolate, object->GetProperty(*name), Object);
+}
+
+
 Handle<Object> Object::GetElement(Handle<Object> object, uint32_t index) {
   Isolate* isolate = object->IsHeapObject()
       ? Handle<HeapObject>::cast(object)->GetIsolate()
@@ -3332,6 +3344,11 @@ PropertyAttributes JSObject::GetElementAttributeWithReceiver(
   // Check for lookup interceptor except when bootstrapping.
   if (HasIndexedInterceptor() && !isolate->bootstrapper()->IsActive()) {
     return GetElementAttributeWithInterceptor(receiver, index, continue_search);
+  }
+
+  // Handle [] on String objects.
+  if (this->IsStringObjectWithCharacterAt(index)) {
+    return static_cast<PropertyAttributes>(READ_ONLY | DONT_DELETE);
   }
 
   return GetElementAttributeWithoutInterceptor(
@@ -9628,8 +9645,10 @@ AccessorPair* JSObject::GetLocalPropertyAccessorPair(String* name) {
   if (name->AsArrayIndex(&index)) {
     return GetLocalElementAccessorPair(index);
   }
+
   LookupResult lookup(GetIsolate());
-  LocalLookup(name, &lookup);
+  LocalLookupRealNamedProperty(name, &lookup);
+
   if (lookup.IsPropertyCallbacks() &&
       lookup.GetCallbackObject()->IsAccessorPair()) {
     return AccessorPair::cast(lookup.GetCallbackObject());
@@ -9639,116 +9658,17 @@ AccessorPair* JSObject::GetLocalPropertyAccessorPair(String* name) {
 
 
 AccessorPair* JSObject::GetLocalElementAccessorPair(uint32_t index) {
-  return GetElementsAccessor()->GetAccessorPair(this, this, index);
-}
-
-
-JSObject::LocalElementKind JSObject::GetLocalElementKind(uint32_t index) {
-  // Check access rights if needed.
-  if (IsAccessCheckNeeded()) {
-    Heap* heap = GetHeap();
-    if (!heap->isolate()->MayIndexedAccess(this, index, v8::ACCESS_HAS)) {
-      heap->isolate()->ReportFailedAccessCheck(this, v8::ACCESS_HAS);
-      return UNDEFINED_ELEMENT;
-    }
-  }
-
   if (IsJSGlobalProxy()) {
     Object* proto = GetPrototype();
-    if (proto->IsNull()) return UNDEFINED_ELEMENT;
+    if (proto->IsNull()) return NULL;
     ASSERT(proto->IsJSGlobalObject());
-    return JSObject::cast(proto)->GetLocalElementKind(index);
+    return JSObject::cast(proto)->GetLocalElementAccessorPair(index);
   }
 
-  // Check for lookup interceptor
-  if (HasIndexedInterceptor()) {
-    return GetElementAttributeWithInterceptor(this, index, false) != ABSENT
-        ? INTERCEPTED_ELEMENT : UNDEFINED_ELEMENT;
-  }
+  // Check for lookup interceptor.
+  if (HasIndexedInterceptor()) return NULL;
 
-  // Handle [] on String objects.
-  if (this->IsStringObjectWithCharacterAt(index)) {
-    return STRING_CHARACTER_ELEMENT;
-  }
-
-  switch (GetElementsKind()) {
-    case FAST_SMI_ELEMENTS:
-    case FAST_ELEMENTS:
-    case FAST_HOLEY_SMI_ELEMENTS:
-    case FAST_HOLEY_ELEMENTS: {
-      uint32_t length = IsJSArray() ?
-          static_cast<uint32_t>
-              (Smi::cast(JSArray::cast(this)->length())->value()) :
-          static_cast<uint32_t>(FixedArray::cast(elements())->length());
-      if ((index < length) &&
-          !FixedArray::cast(elements())->get(index)->IsTheHole()) {
-        return FAST_ELEMENT;
-      }
-      break;
-    }
-    case FAST_DOUBLE_ELEMENTS:
-    case FAST_HOLEY_DOUBLE_ELEMENTS: {
-      uint32_t length = IsJSArray() ?
-          static_cast<uint32_t>
-              (Smi::cast(JSArray::cast(this)->length())->value()) :
-          static_cast<uint32_t>(FixedDoubleArray::cast(elements())->length());
-      if ((index < length) &&
-          !FixedDoubleArray::cast(elements())->is_the_hole(index)) {
-        return FAST_ELEMENT;
-      }
-      break;
-    }
-    case EXTERNAL_PIXEL_ELEMENTS: {
-      ExternalPixelArray* pixels = ExternalPixelArray::cast(elements());
-      if (index < static_cast<uint32_t>(pixels->length())) return FAST_ELEMENT;
-      break;
-    }
-    case EXTERNAL_BYTE_ELEMENTS:
-    case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
-    case EXTERNAL_SHORT_ELEMENTS:
-    case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
-    case EXTERNAL_INT_ELEMENTS:
-    case EXTERNAL_UNSIGNED_INT_ELEMENTS:
-    case EXTERNAL_FLOAT_ELEMENTS:
-    case EXTERNAL_DOUBLE_ELEMENTS: {
-      ExternalArray* array = ExternalArray::cast(elements());
-      if (index < static_cast<uint32_t>(array->length())) return FAST_ELEMENT;
-      break;
-    }
-    case DICTIONARY_ELEMENTS: {
-      if (element_dictionary()->FindEntry(index) !=
-          SeededNumberDictionary::kNotFound) {
-        return DICTIONARY_ELEMENT;
-      }
-      break;
-    }
-    case NON_STRICT_ARGUMENTS_ELEMENTS: {
-      // Aliased parameters and non-aliased elements in a fast backing store
-      // behave as FAST_ELEMENT.  Non-aliased elements in a dictionary
-      // backing store behave as DICTIONARY_ELEMENT.
-      FixedArray* parameter_map = FixedArray::cast(elements());
-      uint32_t length = parameter_map->length();
-      Object* probe =
-          index < (length - 2) ? parameter_map->get(index + 2) : NULL;
-      if (probe != NULL && !probe->IsTheHole()) return FAST_ELEMENT;
-      // If not aliased, check the arguments.
-      FixedArray* arguments = FixedArray::cast(parameter_map->get(1));
-      if (arguments->IsDictionary()) {
-        SeededNumberDictionary* dictionary =
-            SeededNumberDictionary::cast(arguments);
-        if (dictionary->FindEntry(index) != SeededNumberDictionary::kNotFound) {
-          return DICTIONARY_ELEMENT;
-        }
-      } else {
-        length = arguments->length();
-        probe = (index < length) ? arguments->get(index) : NULL;
-        if (probe != NULL && !probe->IsTheHole()) return FAST_ELEMENT;
-      }
-      break;
-    }
-  }
-
-  return UNDEFINED_ELEMENT;
+  return GetElementsAccessor()->GetAccessorPair(this, this, index);
 }
 
 

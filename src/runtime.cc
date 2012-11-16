@@ -977,94 +977,106 @@ static void GetOwnPropertyImplementation(JSObject* obj,
 
   Object* proto = obj->GetPrototype();
   if (proto->IsJSObject() &&
-    JSObject::cast(proto)->map()->is_hidden_prototype())
+      JSObject::cast(proto)->map()->is_hidden_prototype()) {
     GetOwnPropertyImplementation(JSObject::cast(proto),
                                  name, result);
+  }
 }
 
 
-static bool CheckAccessException(LookupResult* result,
+static bool CheckAccessException(Object* callback,
                                  v8::AccessType access_type) {
-  if (result->type() == CALLBACKS) {
-    Object* callback = result->GetCallbackObject();
-    if (callback->IsAccessorInfo()) {
-      AccessorInfo* info = AccessorInfo::cast(callback);
-      bool can_access =
-          (access_type == v8::ACCESS_HAS &&
-              (info->all_can_read() || info->all_can_write())) ||
-          (access_type == v8::ACCESS_GET && info->all_can_read()) ||
-          (access_type == v8::ACCESS_SET && info->all_can_write());
-      return can_access;
-    }
+  if (callback->IsAccessorInfo()) {
+    AccessorInfo* info = AccessorInfo::cast(callback);
+    return
+        (access_type == v8::ACCESS_HAS &&
+           (info->all_can_read() || info->all_can_write())) ||
+        (access_type == v8::ACCESS_GET && info->all_can_read()) ||
+        (access_type == v8::ACCESS_SET && info->all_can_write());
   }
-
   return false;
 }
 
 
-static bool CheckAccess(JSObject* obj,
-                        String* name,
-                        LookupResult* result,
-                        v8::AccessType access_type) {
-  ASSERT(result->IsProperty());
-
-  JSObject* holder = result->holder();
-  JSObject* current = obj;
-  Isolate* isolate = obj->GetIsolate();
-  while (true) {
+template<class Key>
+static bool CheckGenericAccess(
+    JSObject* receiver,
+    JSObject* holder,
+    Key key,
+    v8::AccessType access_type,
+    bool (Isolate::*mayAccess)(JSObject*, Key, v8::AccessType)) {
+  Isolate* isolate = receiver->GetIsolate();
+  for (JSObject* current = receiver;
+       true;
+       current = JSObject::cast(current->GetPrototype())) {
     if (current->IsAccessCheckNeeded() &&
-        !isolate->MayNamedAccess(current, name, access_type)) {
-      // Access check callback denied the access, but some properties
-      // can have a special permissions which override callbacks descision
-      // (currently see v8::AccessControl).
-      break;
+        !(isolate->*mayAccess)(current, key, access_type)) {
+      return false;
     }
+    if (current == holder) break;
+  }
+  return true;
+}
 
-    if (current == holder) {
-      return true;
-    }
 
-    current = JSObject::cast(current->GetPrototype());
+static bool CheckElementAccess(
+    JSObject* obj,
+    uint32_t index,
+    v8::AccessType access_type) {
+  // TODO(1095): we should traverse hidden prototype hierachy as well.
+  if (CheckGenericAccess(
+          obj, obj, index, access_type, &Isolate::MayIndexedAccess)) {
+    return true;
   }
 
+  obj->GetIsolate()->ReportFailedAccessCheck(obj, access_type);
+  return false;
+}
+
+
+static bool CheckPropertyAccess(
+    JSObject* obj,
+    String* name,
+    v8::AccessType access_type) {
+  uint32_t index;
+  if (name->AsArrayIndex(&index)) {
+    return CheckElementAccess(obj, index, access_type);
+  }
+
+  LookupResult lookup(obj->GetIsolate());
+  obj->LocalLookup(name, &lookup);
+
+  if (CheckGenericAccess<Object*>(
+          obj, lookup.holder(), name, access_type, &Isolate::MayNamedAccess)) {
+    return true;
+  }
+
+  // Access check callback denied the access, but some properties
+  // can have a special permissions which override callbacks descision
+  // (currently see v8::AccessControl).
   // API callbacks can have per callback access exceptions.
-  switch (result->type()) {
-    case CALLBACKS: {
-      if (CheckAccessException(result, access_type)) {
+  switch (lookup.type()) {
+    case CALLBACKS:
+      if (CheckAccessException(lookup.GetCallbackObject(), access_type)) {
         return true;
       }
       break;
-    }
-    case INTERCEPTOR: {
+    case INTERCEPTOR:
       // If the object has an interceptor, try real named properties.
       // Overwrite the result to fetch the correct property later.
-      holder->LookupRealNamedProperty(name, result);
-      if (result->IsProperty()) {
-        if (CheckAccessException(result, access_type)) {
+      lookup.holder()->LookupRealNamedProperty(name, &lookup);
+      if (lookup.IsProperty() && lookup.IsPropertyCallbacks()) {
+        if (CheckAccessException(lookup.GetCallbackObject(), access_type)) {
           return true;
         }
       }
       break;
-    }
     default:
       break;
   }
 
-  isolate->ReportFailedAccessCheck(current, access_type);
+  obj->GetIsolate()->ReportFailedAccessCheck(obj, access_type);
   return false;
-}
-
-
-// TODO(1095): we should traverse hidden prototype hierachy as well.
-static bool CheckElementAccess(JSObject* obj,
-                               uint32_t index,
-                               v8::AccessType access_type) {
-  if (obj->IsAccessCheckNeeded() &&
-      !obj->GetIsolate()->MayIndexedAccess(obj, index, access_type)) {
-    return false;
-  }
-
-  return true;
 }
 
 
@@ -1085,141 +1097,33 @@ static MaybeObject* GetOwnProperty(Isolate* isolate,
                                    Handle<JSObject> obj,
                                    Handle<String> name) {
   Heap* heap = isolate->heap();
+  PropertyAttributes attrs = obj->GetLocalPropertyAttribute(*name);
+  if (attrs == ABSENT) return heap->undefined_value();
+  AccessorPair* accessors = obj->GetLocalPropertyAccessorPair(*name);
+
   Handle<FixedArray> elms = isolate->factory()->NewFixedArray(DESCRIPTOR_SIZE);
-  Handle<JSArray> desc = isolate->factory()->NewJSArrayWithElements(elms);
-  LookupResult result(isolate);
-  // This could be an element.
-  uint32_t index;
-  if (name->AsArrayIndex(&index)) {
-    switch (obj->GetLocalElementKind(index)) {
-      case JSObject::UNDEFINED_ELEMENT:
-        return heap->undefined_value();
+  elms->set(ENUMERABLE_INDEX, heap->ToBoolean((attrs & DONT_ENUM) == 0));
+  elms->set(CONFIGURABLE_INDEX, heap->ToBoolean((attrs & DONT_DELETE) == 0));
+  elms->set(IS_ACCESSOR_INDEX, heap->ToBoolean(accessors != NULL));
 
-      case JSObject::STRING_CHARACTER_ELEMENT: {
-        // Special handling of string objects according to ECMAScript 5
-        // 15.5.5.2. Note that this might be a string object with elements
-        // other than the actual string value. This is covered by the
-        // subsequent cases.
-        Handle<JSValue> js_value = Handle<JSValue>::cast(obj);
-        Handle<String> str(String::cast(js_value->value()));
-        Handle<String> substr = SubString(str, index, index + 1, NOT_TENURED);
-
-        elms->set(IS_ACCESSOR_INDEX, heap->false_value());
-        elms->set(VALUE_INDEX, *substr);
-        elms->set(WRITABLE_INDEX, heap->false_value());
-        elms->set(ENUMERABLE_INDEX,  heap->true_value());
-        elms->set(CONFIGURABLE_INDEX, heap->false_value());
-        return *desc;
-      }
-
-      case JSObject::INTERCEPTED_ELEMENT:
-      case JSObject::FAST_ELEMENT: {
-        elms->set(IS_ACCESSOR_INDEX, heap->false_value());
-        Handle<Object> value = Object::GetElement(obj, index);
-        RETURN_IF_EMPTY_HANDLE(isolate, value);
-        elms->set(VALUE_INDEX, *value);
-        elms->set(WRITABLE_INDEX, heap->true_value());
-        elms->set(ENUMERABLE_INDEX,  heap->true_value());
-        elms->set(CONFIGURABLE_INDEX, heap->true_value());
-        return *desc;
-      }
-
-      case JSObject::DICTIONARY_ELEMENT: {
-        Handle<JSObject> holder = obj;
-        if (obj->IsJSGlobalProxy()) {
-          Object* proto = obj->GetPrototype();
-          if (proto->IsNull()) return heap->undefined_value();
-          ASSERT(proto->IsJSGlobalObject());
-          holder = Handle<JSObject>(JSObject::cast(proto));
-        }
-        FixedArray* elements = FixedArray::cast(holder->elements());
-        SeededNumberDictionary* dictionary = NULL;
-        if (elements->map() == heap->non_strict_arguments_elements_map()) {
-          dictionary = SeededNumberDictionary::cast(elements->get(1));
-        } else {
-          dictionary = SeededNumberDictionary::cast(elements);
-        }
-        int entry = dictionary->FindEntry(index);
-        ASSERT(entry != SeededNumberDictionary::kNotFound);
-        PropertyDetails details = dictionary->DetailsAt(entry);
-        switch (details.type()) {
-          case CALLBACKS: {
-            // This is an accessor property with getter and/or setter.
-            AccessorPair* accessors =
-                AccessorPair::cast(dictionary->ValueAt(entry));
-            elms->set(IS_ACCESSOR_INDEX, heap->true_value());
-            if (CheckElementAccess(*obj, index, v8::ACCESS_GET)) {
-              elms->set(GETTER_INDEX, accessors->GetComponent(ACCESSOR_GETTER));
-            }
-            if (CheckElementAccess(*obj, index, v8::ACCESS_SET)) {
-              elms->set(SETTER_INDEX, accessors->GetComponent(ACCESSOR_SETTER));
-            }
-            break;
-          }
-          case NORMAL: {
-            // This is a data property.
-            elms->set(IS_ACCESSOR_INDEX, heap->false_value());
-            Handle<Object> value = Object::GetElement(obj, index);
-            ASSERT(!value.is_null());
-            elms->set(VALUE_INDEX, *value);
-            elms->set(WRITABLE_INDEX, heap->ToBoolean(!details.IsReadOnly()));
-            break;
-          }
-          default:
-            UNREACHABLE();
-            break;
-        }
-        elms->set(ENUMERABLE_INDEX, heap->ToBoolean(!details.IsDontEnum()));
-        elms->set(CONFIGURABLE_INDEX, heap->ToBoolean(!details.IsDontDelete()));
-        return *desc;
-      }
-    }
-  }
-
-  // Use recursive implementation to also traverse hidden prototypes
-  GetOwnPropertyImplementation(*obj, *name, &result);
-
-  if (!result.IsProperty()) {
-    return heap->undefined_value();
-  }
-
-  if (!CheckAccess(*obj, *name, &result, v8::ACCESS_HAS)) {
-    return heap->false_value();
-  }
-
-  elms->set(ENUMERABLE_INDEX, heap->ToBoolean(!result.IsDontEnum()));
-  elms->set(CONFIGURABLE_INDEX, heap->ToBoolean(!result.IsDontDelete()));
-
-  bool is_js_accessor = result.IsPropertyCallbacks() &&
-                        (result.GetCallbackObject()->IsAccessorPair());
-
-  if (is_js_accessor) {
-    // __defineGetter__/__defineSetter__ callback.
-    elms->set(IS_ACCESSOR_INDEX, heap->true_value());
-
-    AccessorPair* accessors = AccessorPair::cast(result.GetCallbackObject());
+  if (accessors == NULL) {
+    elms->set(WRITABLE_INDEX, heap->ToBoolean((attrs & READ_ONLY) == 0));
+    // GetProperty does access check.
+    elms->set(VALUE_INDEX, *GetProperty(obj, name));
+  } else {
+    // Access checks are performed for both accessors separately.
+    // When they fail, the respective field is not set in the descriptor.
     Object* getter = accessors->GetComponent(ACCESSOR_GETTER);
-    if (!getter->IsMap() && CheckAccess(*obj, *name, &result, v8::ACCESS_GET)) {
+    Object* setter = accessors->GetComponent(ACCESSOR_SETTER);
+    if (!getter->IsMap() && CheckPropertyAccess(*obj, *name, v8::ACCESS_GET)) {
       elms->set(GETTER_INDEX, getter);
     }
-    Object* setter = accessors->GetComponent(ACCESSOR_SETTER);
-    if (!setter->IsMap() && CheckAccess(*obj, *name, &result, v8::ACCESS_SET)) {
+    if (!setter->IsMap() && CheckPropertyAccess(*obj, *name, v8::ACCESS_SET)) {
       elms->set(SETTER_INDEX, setter);
     }
-  } else {
-    elms->set(IS_ACCESSOR_INDEX, heap->false_value());
-    elms->set(WRITABLE_INDEX, heap->ToBoolean(!result.IsReadOnly()));
-
-    PropertyAttributes attrs;
-    Object* value;
-    // GetProperty will check access and report any violations.
-    { MaybeObject* maybe_value = obj->GetProperty(*obj, &result, *name, &attrs);
-      if (!maybe_value->ToObject(&value)) return maybe_value;
-    }
-    elms->set(VALUE_INDEX, value);
   }
 
-  return *desc;
+  return *isolate->factory()->NewJSArrayWithElements(elms);
 }
 
 
@@ -4726,41 +4630,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_IsPropertyEnumerable) {
 
   CONVERT_ARG_CHECKED(JSObject, object, 0);
   CONVERT_ARG_CHECKED(String, key, 1);
-
-  uint32_t index;
-  if (key->AsArrayIndex(&index)) {
-    JSObject::LocalElementKind type = object->GetLocalElementKind(index);
-    switch (type) {
-      case JSObject::UNDEFINED_ELEMENT:
-      case JSObject::STRING_CHARACTER_ELEMENT:
-        return isolate->heap()->false_value();
-      case JSObject::INTERCEPTED_ELEMENT:
-      case JSObject::FAST_ELEMENT:
-        return isolate->heap()->true_value();
-      case JSObject::DICTIONARY_ELEMENT: {
-        if (object->IsJSGlobalProxy()) {
-          Object* proto = object->GetPrototype();
-          if (proto->IsNull()) {
-            return isolate->heap()->false_value();
-          }
-          ASSERT(proto->IsJSGlobalObject());
-          object = JSObject::cast(proto);
-        }
-        FixedArray* elements = FixedArray::cast(object->elements());
-        SeededNumberDictionary* dictionary = NULL;
-        if (elements->map() ==
-            isolate->heap()->non_strict_arguments_elements_map()) {
-          dictionary = SeededNumberDictionary::cast(elements->get(1));
-        } else {
-          dictionary = SeededNumberDictionary::cast(elements);
-        }
-        int entry = dictionary->FindEntry(index);
-        ASSERT(entry != SeededNumberDictionary::kNotFound);
-        PropertyDetails details = dictionary->DetailsAt(entry);
-        return isolate->heap()->ToBoolean(!details.IsDontEnum());
-      }
-    }
-  }
 
   PropertyAttributes att = object->GetLocalPropertyAttribute(key);
   return isolate->heap()->ToBoolean(att != ABSENT && (att & DONT_ENUM) == 0);

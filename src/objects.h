@@ -973,6 +973,7 @@ class Object : public MaybeObject {
       String* key,
       PropertyAttributes* attributes);
 
+  static Handle<Object> GetProperty(Handle<Object> object, Handle<String> key);
   static Handle<Object> GetProperty(Handle<Object> object,
                                     Handle<Object> receiver,
                                     LookupResult* result,
@@ -1846,28 +1847,10 @@ class JSObject: public JSReceiver {
 
   PropertyType GetLocalPropertyType(String* name);
   PropertyType GetLocalElementType(uint32_t index);
+
+  // These methods do not perform access checks!
   AccessorPair* GetLocalPropertyAccessorPair(String* name);
   AccessorPair* GetLocalElementAccessorPair(uint32_t index);
-
-  // Tells whether the index'th element is present and how it is stored.
-  enum LocalElementKind {
-    // There is no element with given index.
-    UNDEFINED_ELEMENT,
-
-    // Element with given index is handled by interceptor.
-    INTERCEPTED_ELEMENT,
-
-    // Element with given index is character in string.
-    STRING_CHARACTER_ELEMENT,
-
-    // Element with given index is stored in fast backing store.
-    FAST_ELEMENT,
-
-    // Element with given index is stored in slow backing store.
-    DICTIONARY_ELEMENT
-  };
-
-  LocalElementKind GetLocalElementKind(uint32_t index);
 
   MUST_USE_RESULT MaybeObject* SetFastElement(uint32_t index,
                                               Object* value,
