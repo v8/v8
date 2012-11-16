@@ -119,7 +119,7 @@ void FullCodeGenerator::Generate() {
   handler_table_ =
       isolate()->factory()->NewFixedArray(function()->handler_count(), TENURED);
   profiling_counter_ = isolate()->factory()->NewJSGlobalPropertyCell(
-      Handle<Smi>(Smi::FromInt(FLAG_interrupt_budget)));
+      Handle<Smi>(Smi::FromInt(FLAG_interrupt_budget), isolate()));
   SetFunctionPosition(function());
   Comment cmnt(masm_, "[ function compiled by full code generator");
 
@@ -2304,7 +2304,7 @@ void FullCodeGenerator::VisitCall(Call* expr) {
   VariableProxy* proxy = callee->AsVariableProxy();
   Property* property = callee->AsProperty();
 
-  if (proxy != NULL && proxy->var()->is_possibly_eval()) {
+  if (proxy != NULL && proxy->var()->is_possibly_eval(isolate())) {
     // In a call to eval, we first call %ResolvePossiblyDirectEval to
     // resolve the function we need to call and the receiver of the call.
     // Then we call the resolved function using the given arguments.

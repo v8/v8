@@ -789,9 +789,9 @@ class MaybeObject BASE_EMBEDDED {
   }
 
   template<typename T>
-  inline bool ToHandle(Handle<T>* obj) {
+    inline bool ToHandle(Handle<T>* obj, Isolate* isolate) {
     if (IsFailure()) return false;
-    *obj = handle(T::cast(reinterpret_cast<Object*>(this)));
+    *obj = handle(T::cast(reinterpret_cast<Object*>(this)), isolate);
     return true;
   }
 

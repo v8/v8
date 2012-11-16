@@ -3153,7 +3153,7 @@ MUST_USE_RESULT static MaybeObject* StringReplaceRegExpWithEmptyString(
   // Shortcut for simple non-regexp global replacements
   if (is_global &&
       regexp->TypeTag() == JSRegExp::ATOM) {
-    Handle<String> empty_string(HEAP->empty_string());
+    Handle<String> empty_string = isolate->factory()->empty_string();
     if (subject->HasOnlyAsciiChars()) {
       return StringReplaceAtomRegExpWithString<SeqOneByteString>(
           isolate,

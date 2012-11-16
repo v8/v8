@@ -3203,7 +3203,8 @@ Expression* Parser::ParseUnaryExpression(bool* ok) {
       if (op == Token::NOT) {
         // Convert the literal to a boolean condition and negate it.
         bool condition = literal->ToBoolean()->IsTrue();
-        Handle<Object> result(isolate()->heap()->ToBoolean(!condition));
+        Handle<Object> result(isolate()->heap()->ToBoolean(!condition),
+                              isolate());
         return factory()->NewLiteral(result);
       } else if (literal->IsNumber()) {
         // Compute some expressions involving only number literals.

@@ -1678,6 +1678,7 @@ MaybeObject* JSObject::AddProperty(String* name,
   ASSERT(!IsJSGlobalProxy());
   Map* map_of_this = map();
   Heap* heap = GetHeap();
+  Isolate* isolate = heap->isolate();
   MaybeObject* result;
   if (extensibility_check == PERFORM_EXTENSIBILITY_CHECK &&
       !map_of_this->is_extensible()) {
@@ -1685,7 +1686,7 @@ MaybeObject* JSObject::AddProperty(String* name,
       return value;
     } else {
       Handle<Object> args[1] = {Handle<String>(name)};
-      return heap->isolate()->Throw(
+      return isolate->Throw(
           *FACTORY->NewTypeError("object_not_extensible",
                                  HandleVector(args, 1)));
     }
@@ -1715,11 +1716,13 @@ MaybeObject* JSObject::AddProperty(String* name,
   }
 
   Handle<Object> hresult;
-  if (!result->ToHandle(&hresult)) return result;
+  if (!result->ToHandle(&hresult, isolate)) return result;
 
   if (FLAG_harmony_observation && map()->is_observed()) {
-    EnqueueChangeRecord(handle(this), "new", handle(name),
-                        handle(heap->the_hole_value()));
+    EnqueueChangeRecord(handle(this, isolate),
+                        "new",
+                        handle(name, isolate),
+                        handle(heap->the_hole_value(), isolate));
   }
 
   return *hresult;
@@ -2855,6 +2858,7 @@ MaybeObject* JSObject::SetPropertyForResult(LookupResult* lookup,
                                             StrictModeFlag strict_mode,
                                             StoreFromKeyed store_mode) {
   Heap* heap = GetHeap();
+  Isolate* isolate = heap->isolate();
   // Make sure that the top context does not change when doing callbacks or
   // interceptor calls.
   AssertNoContextChange ncc;
@@ -2873,7 +2877,7 @@ MaybeObject* JSObject::SetPropertyForResult(LookupResult* lookup,
 
   // Check access rights if needed.
   if (IsAccessCheckNeeded()) {
-    if (!heap->isolate()->MayNamedAccess(this, name_raw, v8::ACCESS_SET)) {
+    if (!isolate->MayNamedAccess(this, name_raw, v8::ACCESS_SET)) {
       return SetPropertyWithFailedAccessCheck(
           lookup, name_raw, value_raw, true, strict_mode);
     }
@@ -2889,10 +2893,10 @@ MaybeObject* JSObject::SetPropertyForResult(LookupResult* lookup,
 
   // From this point on everything needs to be handlified, because
   // SetPropertyViaPrototypes might call back into JavaScript.
-  HandleScope scope(GetIsolate());
+  HandleScope scope(isolate);
   Handle<JSObject> self(this);
   Handle<String> name(name_raw);
-  Handle<Object> value(value_raw);
+  Handle<Object> value(value_raw, isolate);
 
   if (!lookup->IsProperty() && !self->IsJSContextExtensionObject()) {
     bool done = false;
@@ -2910,16 +2914,16 @@ MaybeObject* JSObject::SetPropertyForResult(LookupResult* lookup,
   if (lookup->IsProperty() && lookup->IsReadOnly()) {
     if (strict_mode == kStrictMode) {
       Handle<Object> args[] = { name, self };
-      return heap->isolate()->Throw(*heap->isolate()->factory()->NewTypeError(
+      return isolate->Throw(*isolate->factory()->NewTypeError(
           "strict_read_only_property", HandleVector(args, ARRAY_SIZE(args))));
     } else {
       return *value;
     }
   }
 
-  Handle<Object> old_value(heap->the_hole_value());
+  Handle<Object> old_value(heap->the_hole_value(), isolate);
   if (FLAG_harmony_observation && map()->is_observed()) {
-    old_value = handle(lookup->GetLazyValue());
+    old_value = handle(lookup->GetLazyValue(), isolate);
   }
 
   // This is a real property that is not read-only, or it is a
@@ -2997,13 +3001,13 @@ MaybeObject* JSObject::SetPropertyForResult(LookupResult* lookup,
   }
 
   Handle<Object> hresult;
-  if (!result->ToHandle(&hresult)) return result;
+  if (!result->ToHandle(&hresult, isolate)) return result;
 
   if (FLAG_harmony_observation && map()->is_observed()) {
     if (lookup->IsTransition()) {
       EnqueueChangeRecord(self, "new", name, old_value);
     } else {
-      LookupResult new_lookup(self->GetIsolate());
+      LookupResult new_lookup(isolate);
       self->LocalLookup(*name, &new_lookup);
       ASSERT(!new_lookup.GetLazyValue()->IsTheHole());
       if (!new_lookup.GetLazyValue()->SameValue(*old_value)) {
@@ -3076,15 +3080,15 @@ MaybeObject* JSObject::SetLocalPropertyIgnoreAttributes(
   }
 
   // From this point on everything needs to be handlified.
-  HandleScope scope(GetIsolate());
+  HandleScope scope(isolate);
   Handle<JSObject> self(this);
   Handle<String> name(name_raw);
-  Handle<Object> value(value_raw);
+  Handle<Object> value(value_raw, isolate);
 
-  Handle<Object> old_value(isolate->heap()->the_hole_value());
+  Handle<Object> old_value(isolate->heap()->the_hole_value(), isolate);
   PropertyAttributes old_attributes = ABSENT;
   if (FLAG_harmony_observation && map()->is_observed()) {
-    old_value = handle(lookup.GetLazyValue());
+    old_value = handle(lookup.GetLazyValue(), isolate);
     old_attributes = lookup.GetAttributes();
   }
 
@@ -3146,7 +3150,7 @@ MaybeObject* JSObject::SetLocalPropertyIgnoreAttributes(
   }
 
   Handle<Object> hresult;
-  if (!result->ToHandle(&hresult)) return result;
+  if (!result->ToHandle(&hresult, isolate)) return result;
 
   if (FLAG_harmony_observation && map()->is_observed()) {
     if (lookup.IsTransition()) {
@@ -4153,7 +4157,7 @@ MaybeObject* JSObject::DeleteElement(uint32_t index, DeleteMode mode) {
   }
 
   Handle<Object> hresult;
-  if (!result->ToHandle(&hresult)) return result;
+  if (!result->ToHandle(&hresult, isolate)) return result;
 
   if (FLAG_harmony_observation && map()->is_observed()) {
     if (preexists && !self->HasLocalElement(index))
@@ -4218,7 +4222,7 @@ MaybeObject* JSObject::DeleteProperty(String* name, DeleteMode mode) {
 
   Handle<Object> old_value(isolate->heap()->the_hole_value());
   if (FLAG_harmony_observation && map()->is_observed()) {
-    old_value = handle(lookup.GetLazyValue());
+    old_value = handle(lookup.GetLazyValue(), isolate);
   }
   MaybeObject* result;
 
@@ -4240,7 +4244,7 @@ MaybeObject* JSObject::DeleteProperty(String* name, DeleteMode mode) {
   }
 
   Handle<Object> hresult;
-  if (!result->ToHandle(&hresult)) return result;
+  if (!result->ToHandle(&hresult, isolate)) return result;
 
   if (FLAG_harmony_observation && map()->is_observed()) {
     if (!self->HasLocalProperty(*hname))
@@ -4878,7 +4882,7 @@ MaybeObject* JSObject::DefineAccessor(String* name_raw,
   if (!CanSetCallback(name_raw)) return isolate->heap()->undefined_value();
 
   // From this point on everything needs to be handlified.
-  HandleScope scope(GetIsolate());
+  HandleScope scope(isolate);
   Handle<JSObject> self(this);
   Handle<String> name(name_raw);
   Handle<Object> getter(getter_raw);
@@ -4899,7 +4903,7 @@ MaybeObject* JSObject::DefineAccessor(String* name_raw,
       LookupResult lookup(isolate);
       LocalLookup(*name, &lookup);
       preexists = lookup.IsProperty();
-      if (preexists) old_value = handle(lookup.GetLazyValue());
+      if (preexists) old_value = handle(lookup.GetLazyValue(), isolate);
     }
   }
 
@@ -4908,7 +4912,7 @@ MaybeObject* JSObject::DefineAccessor(String* name_raw,
     self->DefinePropertyAccessor(*name, *getter, *setter, attributes);
 
   Handle<Object> hresult;
-  if (!result->ToHandle(&hresult)) return result;
+  if (!result->ToHandle(&hresult, isolate)) return result;
 
   if (FLAG_harmony_observation && map()->is_observed()) {
     const char* type = preexists ? "reconfigured" : "new";
@@ -9414,7 +9418,7 @@ MaybeObject* JSArray::SetElementsLength(Object* len) {
   MaybeObject* result =
       self->GetElementsAccessor()->SetLength(*self, *new_length_handle);
   Handle<Object> hresult;
-  if (!result->ToHandle(&hresult)) return result;
+  if (!result->ToHandle(&hresult, isolate)) return result;
 
   CHECK(self->length()->ToArrayIndex(&new_length));
   if (old_length != new_length) {
@@ -10375,7 +10379,7 @@ MaybeObject* JSObject::SetElement(uint32_t index,
   // Don't allow element properties to be redefined for external arrays.
   if (HasExternalArrayElements() && set_mode == DEFINE_PROPERTY) {
     Handle<Object> number = isolate->factory()->NewNumberFromUint(index);
-    Handle<Object> args[] = { handle(this), number };
+    Handle<Object> args[] = { handle(this, isolate), number };
     Handle<Object> error = isolate->factory()->NewTypeError(
         "redef_external_array_element", HandleVector(args, ARRAY_SIZE(args)));
     return isolate->Throw(*error);
@@ -10410,7 +10414,7 @@ MaybeObject* JSObject::SetElement(uint32_t index,
       old_value = Object::GetElement(self, index);
   } else if (self->IsJSArray()) {
     // Store old array length in case adding an element grows the array.
-    old_length = handle(Handle<JSArray>::cast(self)->length());
+    old_length = handle(Handle<JSArray>::cast(self)->length(), isolate);
   }
 
   // Check for lookup interceptor
@@ -10421,7 +10425,7 @@ MaybeObject* JSObject::SetElement(uint32_t index,
         index, *value, attributes, strict_mode, check_prototype, set_mode);
 
   Handle<Object> hresult;
-  if (!result->ToHandle(&hresult)) return result;
+  if (!result->ToHandle(&hresult, isolate)) return result;
 
   Handle<String> name = isolate->factory()->Uint32ToString(index);
   PropertyAttributes new_attributes = self->GetLocalElementAttribute(index);

@@ -3237,9 +3237,8 @@ HGraph* HGraphBuilder::CreateGraph() {
     // optimization. Disable optimistic LICM in that case.
     Handle<Code> unoptimized_code(info()->shared_info()->code());
     ASSERT(unoptimized_code->kind() == Code::FUNCTION);
-    Handle<Object> maybe_type_info(unoptimized_code->type_feedback_info());
     Handle<TypeFeedbackInfo> type_info(
-        Handle<TypeFeedbackInfo>::cast(maybe_type_info));
+        TypeFeedbackInfo::cast(unoptimized_code->type_feedback_info()));
     int checksum = type_info->own_type_change_checksum();
     int composite_checksum = graph()->update_type_change_checksum(checksum);
     graph()->set_use_optimistic_licm(
@@ -7115,9 +7114,8 @@ bool HGraphBuilder::TryInline(CallKind call_kind,
   inlined_count_ += nodes_added;
 
   ASSERT(unoptimized_code->kind() == Code::FUNCTION);
-  Handle<Object> maybe_type_info(unoptimized_code->type_feedback_info());
   Handle<TypeFeedbackInfo> type_info(
-      Handle<TypeFeedbackInfo>::cast(maybe_type_info));
+      TypeFeedbackInfo::cast(unoptimized_code->type_feedback_info()));
   graph()->update_type_change_checksum(type_info->own_type_change_checksum());
 
   TraceInline(target, caller, NULL);
@@ -7642,7 +7640,7 @@ void HGraphBuilder::VisitCall(Call* expr) {
     VariableProxy* proxy = expr->expression()->AsVariableProxy();
     bool global_call = proxy != NULL && proxy->var()->IsUnallocated();
 
-    if (proxy != NULL && proxy->var()->is_possibly_eval()) {
+    if (proxy != NULL && proxy->var()->is_possibly_eval(isolate())) {
       return Bailout("possible direct call to eval");
     }
 

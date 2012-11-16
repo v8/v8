@@ -79,7 +79,7 @@ static uint32_t IdToKey(TypeFeedbackId ast_id) {
 Handle<Object> TypeFeedbackOracle::GetInfo(TypeFeedbackId ast_id) {
   int entry = dictionary_->FindEntry(IdToKey(ast_id));
   return entry != UnseededNumberDictionary::kNotFound
-      ? Handle<Object>(dictionary_->ValueAt(entry))
+      ? Handle<Object>(dictionary_->ValueAt(entry), isolate_)
       : Handle<Object>::cast(isolate_->factory()->undefined_value());
 }
 

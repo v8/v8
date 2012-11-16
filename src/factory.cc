@@ -1367,7 +1367,7 @@ Handle<Map> Factory::ObjectLiteralMapFromCache(Handle<Context> context,
   // Check to see whether there is a matching element in the cache.
   Handle<MapCache> cache =
       Handle<MapCache>(MapCache::cast(context->map_cache()));
-  Handle<Object> result = Handle<Object>(cache->Lookup(*keys));
+  Handle<Object> result = Handle<Object>(cache->Lookup(*keys), isolate());
   if (result->IsMap()) return Handle<Map>::cast(result);
   // Create a new map and add it to the cache.
   Handle<Map> map =
@@ -1419,7 +1419,7 @@ void Factory::ConfigureInstance(Handle<FunctionTemplateInfo> desc,
                                 bool* pending_exception) {
   // Configure the instance by adding the properties specified by the
   // instance template.
-  Handle<Object> instance_template = Handle<Object>(desc->instance_template());
+  Handle<Object> instance_template(desc->instance_template(), isolate());
   if (!instance_template->IsUndefined()) {
     Execution::ConfigureInstance(instance,
                                  instance_template,

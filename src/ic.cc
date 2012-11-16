@@ -310,7 +310,8 @@ void IC::PostPatching(Address address, Code* target, Code* old_target) {
   if (FLAG_type_info_threshold == 0 && !FLAG_watch_ic_patching) {
     return;
   }
-  Code* host = target->GetHeap()->isolate()->
+  Isolate* isolate = target->GetHeap()->isolate();
+  Code* host = isolate->
       inner_pointer_to_code_cache()->GetCacheEntry(address)->code;
   if (host->kind() != Code::FUNCTION) return;
 
@@ -333,7 +334,7 @@ void IC::PostPatching(Address address, Code* target, Code* old_target) {
   }
   if (FLAG_watch_ic_patching) {
     host->set_profiler_ticks(0);
-    Isolate::Current()->runtime_profiler()->NotifyICChanged();
+    isolate->runtime_profiler()->NotifyICChanged();
   }
   // TODO(2029): When an optimized function is patched, it would
   // be nice to propagate the corresponding type information to its
