@@ -7990,7 +7990,36 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ParallelRecompile) {
   HandleScope handle_scope(isolate);
   ASSERT(FLAG_parallel_recompilation);
   Compiler::RecompileParallel(args.at<JSFunction>(0));
-  return *isolate->factory()->undefined_value();
+  return isolate->heap()->undefined_value();
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_ForceParallelRecompile) {
+  HandleScope handle_scope(isolate);
+  ASSERT(FLAG_parallel_recompilation && FLAG_manual_parallel_recompilation);
+  if (!isolate->optimizing_compiler_thread()->IsQueueAvailable()) {
+    return isolate->Throw(
+        *isolate->factory()->LookupAsciiSymbol("Recompile queue is full."));
+  }
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, fun, 0);
+  fun->ReplaceCode(isolate->builtins()->builtin(Builtins::kParallelRecompile));
+  Compiler::RecompileParallel(fun);
+  return isolate->heap()->undefined_value();
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_InstallRecompiledCode) {
+  HandleScope handle_scope(isolate);
+  ASSERT(FLAG_parallel_recompilation && FLAG_manual_parallel_recompilation);
+  CONVERT_ARG_HANDLE_CHECKED(HeapObject, arg, 0);
+  OptimizingCompilerThread* opt_thread = isolate->optimizing_compiler_thread();
+  if (!arg->IsJSFunction()) {
+    opt_thread->InstallOptimizedFunctions();
+  } else if (!JSFunction::cast(*arg)->IsOptimized()) {
+    Handle<SharedFunctionInfo> shared(JSFunction::cast(*arg)->shared());
+    while (*opt_thread->InstallNextOptimizedFunction() != *shared) { }
+  }
+  return isolate->heap()->undefined_value();
 }
 
 

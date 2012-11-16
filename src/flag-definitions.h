@@ -225,7 +225,7 @@ DEFINE_int(loop_weight, 1, "loop weight for representation inference")
 DEFINE_bool(optimize_for_in, true,
             "optimize functions containing for-in loops")
 DEFINE_bool(opt_safe_uint32_operations, true,
-            "allow uint32 values on optimize frames if they are used only in"
+            "allow uint32 values on optimize frames if they are used only in "
             "safe operations")
 
 DEFINE_bool(parallel_recompilation, false,
@@ -233,6 +233,9 @@ DEFINE_bool(parallel_recompilation, false,
 DEFINE_bool(trace_parallel_recompilation, false, "track parallel recompilation")
 DEFINE_int(parallel_recompilation_queue_length, 2,
            "the length of the parallel compilation queue")
+DEFINE_bool(manual_parallel_recompilation, false,
+            "disable automatic optimization")
+DEFINE_implication(manual_parallel_recompilation, parallel_recompilation)
 
 // Experimental profiler changes.
 DEFINE_bool(experimental_profiler, true, "enable all profiler experiments")

@@ -937,7 +937,8 @@ MaybeObject* Execution::HandleStackGuardInterrupt(Isolate* isolate) {
     }
     stack_guard->Continue(CODE_READY);
   }
-  if (!stack_guard->IsTerminateExecution()) {
+  if (!stack_guard->IsTerminateExecution() &&
+      !FLAG_manual_parallel_recompilation) {
     isolate->optimizing_compiler_thread()->InstallOptimizedFunctions();
   }
 
