@@ -70,9 +70,6 @@
 
     'v8_enable_disassembler%': 0,
 
-    # Enable extra checks in API functions and other strategic places.
-    'v8_enable_extra_checks%': 1,
-
     'v8_enable_gdbjit%': 0,
 
     'v8_object_print%': 0,
@@ -113,9 +110,6 @@
       }],
       ['v8_enable_disassembler==1', {
         'defines': ['ENABLE_DISASSEMBLER',],
-      }],
-      ['v8_enable_extra_checks==1', {
-        'defines': ['ENABLE_EXTRA_CHECKS',],
       }],
       ['v8_enable_gdbjit==1', {
         'defines': ['ENABLE_GDB_JIT_INTERFACE',],
@@ -336,6 +330,9 @@
     ],  # conditions
     'configurations': {
       'Debug': {
+        'variables': {
+          'v8_enable_extra_checks%': 1,
+        },
         'defines': [
           'DEBUG',
           'ENABLE_DISASSEMBLER',
@@ -360,6 +357,9 @@
           },
         },
         'conditions': [
+          ['v8_enable_extra_checks==1', {
+            'defines': ['ENABLE_EXTRA_CHECKS',],
+          }],
           ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="netbsd"', {
             'cflags': [ '-Wall', '<(werror)', '-W', '-Wno-unused-parameter',
                         '-Wnon-virtual-dtor', '-Woverloaded-virtual' ],
@@ -381,7 +381,13 @@
         ],
       },  # Debug
       'Release': {
+        'variables': {
+          'v8_enable_extra_checks%': 0,
+        },
         'conditions': [
+          ['v8_enable_extra_checks==1', {
+            'defines': ['ENABLE_EXTRA_CHECKS',],
+          }],
           ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="netbsd" \
             or OS=="android"', {
             'cflags!': [
