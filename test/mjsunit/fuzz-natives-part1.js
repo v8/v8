@@ -195,7 +195,11 @@ var knownProblems = {
 
   // Only applicable to strings.
   "_HasCachedArrayIndex": true,
-  "_GetCachedArrayIndex": true
+  "_GetCachedArrayIndex": true,
+
+  // Only for debugging parallel recompilation.
+  "InstallRecompiledCode": true,
+  "ForceParallelRecompile": true
 };
 
 var currentlyUncallable = {

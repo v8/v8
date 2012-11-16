@@ -7995,6 +7995,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ParallelRecompile) {
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_ForceParallelRecompile) {
+  if (!V8::UseCrankshaft()) return isolate->heap()->undefined_value();
   HandleScope handle_scope(isolate);
   ASSERT(FLAG_parallel_recompilation && FLAG_manual_parallel_recompilation);
   if (!isolate->optimizing_compiler_thread()->IsQueueAvailable()) {
@@ -8009,6 +8010,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ForceParallelRecompile) {
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_InstallRecompiledCode) {
+  if (!V8::UseCrankshaft()) return isolate->heap()->undefined_value();
   HandleScope handle_scope(isolate);
   ASSERT(FLAG_parallel_recompilation && FLAG_manual_parallel_recompilation);
   CONVERT_ARG_HANDLE_CHECKED(HeapObject, arg, 0);
