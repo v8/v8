@@ -56,6 +56,7 @@ function createObserver() {
     assertCallbackRecords: function(recs) {
       this.assertRecordCount(recs.length);
       for (var i = 0; i < recs.length; i++) {
+        print(i, JSON.stringify(this.records[i]), JSON.stringify(recs[i]))
         assertSame(this.records[i].object, recs[i].object);
         assertEquals('string', typeof recs[i].type);
         assertPropertiesEqual(this.records[i], recs[i]);
@@ -100,6 +101,7 @@ assertThrows(function() { Object.observe(obj, frozenFunction); }, TypeError);
 
 // Object.unobserve
 assertThrows(function() { Object.unobserve(4, observer.callback); }, TypeError);
+assertThrows(function() { Object.unobserve(obj, nonFunction); }, TypeError);
 
 // Object.getNotifier
 var notifier = Object.getNotifier(obj);
@@ -127,8 +129,24 @@ assertFalse(recordCreated);  // not observed yet
 // Object.deliverChangeRecords
 assertThrows(function() { Object.deliverChangeRecords(nonFunction); }, TypeError);
 
-// Multiple records are delivered.
 Object.observe(obj, observer.callback);
+
+// notify uses to [[CreateOwnProperty]] to create changeRecord;
+reset();
+var protoExpandoAccessed = false;
+Object.defineProperty(Object.prototype, 'protoExpando',
+  {
+    configurable: true,
+    set: function() { protoExpandoAccessed = true; }
+  }
+);
+notifier.notify({ type: 'foo', protoExpando: 'val'});
+assertFalse(protoExpandoAccessed);
+delete Object.prototype.protoExpando;
+Object.deliverChangeRecords(observer.callback);
+
+// Multiple records are delivered.
+reset();
 notifier.notify({
   type: 'updated',
   name: 'foo',
@@ -319,6 +337,7 @@ obj[1] = 7;  // ignored
 Object.defineProperty(obj, "1", {value: 8});
 Object.defineProperty(obj, "1", {value: 7, writable: true});
 Object.defineProperty(obj, "1", {get: function() {}});
+Object.defineProperty(obj, "1", {get: function() {}});
 delete obj[1];
 delete obj[1];
 Object.defineProperty(obj, "1", {get: function() {}, configurable: true});
@@ -338,11 +357,10 @@ observer.assertCallbackRecords([
   { object: obj, name: "1", type: "updated", oldValue: 6 },
   { object: obj, name: "1", type: "reconfigured", oldValue: 8 },
   { object: obj, name: "1", type: "reconfigured", oldValue: 7 },
-  // TODO(observe): oldValue should not be present below.
-  { object: obj, name: "1", type: "deleted", oldValue: undefined },
+  { object: obj, name: "1", type: "reconfigured" },
+  { object: obj, name: "1", type: "deleted" },
   { object: obj, name: "1", type: "new" },
-  // TODO(observe): oldValue should be absent below, and type = "reconfigured".
-  { object: obj, name: "1", type: "updated", oldValue: undefined },
+  { object: obj, name: "1", type: "reconfigured" },
   { object: obj, name: "1", type: "updated", oldValue: 9 },
   { object: obj, name: "1", type: "deleted", oldValue: 10 },
   { object: obj, name: "1", type: "new" },
@@ -588,4 +606,18 @@ observer.assertCallbackRecords([
   { object: array, name: '1', type: 'updated', oldValue: 2 },
   { object: array, name: '2', type: 'updated', oldValue: 3 },
   { object: array, name: 'length', type: 'updated', oldValue: 3 },
+]);
+
+// Exercise StoreIC_ArrayLength
+reset();
+var dummy = {};
+Object.observe(dummy, observer.callback);
+Object.unobserve(dummy, observer.callback);
+var array = [0];
+Object.observe(array, observer.callback);
+array.splice(0, 1);
+Object.deliverChangeRecords(observer.callback);
+observer.assertCallbackRecords([
+  { object: array, name: '0', type: 'deleted', oldValue: 0 },
+  { object: array, name: 'length', type: 'updated', oldValue: 1},
 ]);

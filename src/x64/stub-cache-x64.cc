@@ -1487,7 +1487,7 @@ Handle<Code> CallStubCompiler::CompileArrayPushCall(
     Label call_builtin;
 
     if (argc == 1) {  // Otherwise fall through to call builtin.
-      Label attempt_to_grow_elements, with_write_barrier;
+      Label attempt_to_grow_elements, with_write_barrier, check_double;
 
       // Get the elements array of the object.
       __ movq(rdi, FieldOperand(rdx, JSArray::kElementsOffset));
@@ -1495,7 +1495,7 @@ Handle<Code> CallStubCompiler::CompileArrayPushCall(
       // Check that the elements are in fast mode and writable.
       __ Cmp(FieldOperand(rdi, HeapObject::kMapOffset),
              factory()->fixed_array_map());
-      __ j(not_equal, &call_builtin);
+      __ j(not_equal, &check_double);
 
       // Get the array's length into rax and calculate new length.
       __ SmiToInteger32(rax, FieldOperand(rdx, JSArray::kLengthOffset));
@@ -1526,6 +1526,34 @@ Handle<Code> CallStubCompiler::CompileArrayPushCall(
       __ Integer32ToSmi(rax, rax);  // Return new length as smi.
       __ ret((argc + 1) * kPointerSize);
 
+      __ bind(&check_double);
+
+      // Check that the elements are in double mode.
+      __ Cmp(FieldOperand(rdi, HeapObject::kMapOffset),
+             factory()->fixed_double_array_map());
+      __ j(not_equal, &call_builtin);
+
+      // Get the array's length into rax and calculate new length.
+      __ SmiToInteger32(rax, FieldOperand(rdx, JSArray::kLengthOffset));
+      STATIC_ASSERT(FixedArray::kMaxLength < Smi::kMaxValue);
+      __ addl(rax, Immediate(argc));
+
+      // Get the elements' length into rcx.
+      __ SmiToInteger32(rcx, FieldOperand(rdi, FixedArray::kLengthOffset));
+
+      // Check if we could survive without allocation.
+      __ cmpl(rax, rcx);
+      __ j(greater, &call_builtin);
+
+      __ movq(rcx, Operand(rsp, argc * kPointerSize));
+      __ StoreNumberToDoubleElements(
+          rcx, rdi, rax, xmm0, &call_builtin, argc * kDoubleSize);
+
+      // Save new length.
+      __ Integer32ToSmiField(FieldOperand(rdx, JSArray::kLengthOffset), rax);
+      __ Integer32ToSmi(rax, rax);  // Return new length as smi.
+      __ ret((argc + 1) * kPointerSize);
+
       __ bind(&with_write_barrier);
 
       __ movq(rbx, FieldOperand(rdx, HeapObject::kMapOffset));
@@ -1537,6 +1565,9 @@ Handle<Code> CallStubCompiler::CompileArrayPushCall(
         // In case of fast smi-only, convert to fast object, otherwise bail out.
         __ bind(&not_fast_object);
         __ CheckFastSmiElements(rbx, &call_builtin);
+        __ Cmp(FieldOperand(rcx, HeapObject::kMapOffset),
+               factory()->heap_number_map());
+        __ j(equal, &call_builtin);
         // rdx: receiver
         // rbx: map
 

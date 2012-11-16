@@ -325,6 +325,18 @@ BUILTIN(ArrayCodeGeneric) {
 }
 
 
+static void MoveDoubleElements(FixedDoubleArray* dst,
+                               int dst_index,
+                               FixedDoubleArray* src,
+                               int src_index,
+                               int len) {
+  if (len == 0) return;
+  memmove(dst->data_start() + dst_index,
+          src->data_start() + src_index,
+          len * kDoubleSize);
+}
+
+
 static void MoveElements(Heap* heap,
                          AssertNoAllocation* no_gc,
                          FixedArray* dst,
@@ -351,24 +363,39 @@ static void FillWithHoles(Heap* heap, FixedArray* dst, int from, int to) {
 }
 
 
-static FixedArray* LeftTrimFixedArray(Heap* heap,
-                                      FixedArray* elms,
-                                      int to_trim) {
+static void FillWithHoles(FixedDoubleArray* dst, int from, int to) {
+  for (int i = from; i < to; i++) {
+    dst->set_the_hole(i);
+  }
+}
+
+
+static FixedArrayBase* LeftTrimFixedArray(Heap* heap,
+                                          FixedArrayBase* elms,
+                                          int to_trim) {
+  Map* map = elms->map();
+  int entry_size;
+  if (elms->IsFixedArray()) {
+    entry_size = kPointerSize;
+  } else {
+    entry_size = kDoubleSize;
+  }
   ASSERT(elms->map() != HEAP->fixed_cow_array_map());
   // For now this trick is only applied to fixed arrays in new and paged space.
   // In large object space the object's start must coincide with chunk
   // and thus the trick is just not applicable.
   ASSERT(!HEAP->lo_space()->Contains(elms));
 
-  STATIC_ASSERT(FixedArray::kMapOffset == 0);
-  STATIC_ASSERT(FixedArray::kLengthOffset == kPointerSize);
-  STATIC_ASSERT(FixedArray::kHeaderSize == 2 * kPointerSize);
+  STATIC_ASSERT(FixedArrayBase::kMapOffset == 0);
+  STATIC_ASSERT(FixedArrayBase::kLengthOffset == kPointerSize);
+  STATIC_ASSERT(FixedArrayBase::kHeaderSize == 2 * kPointerSize);
 
   Object** former_start = HeapObject::RawField(elms, 0);
 
   const int len = elms->length();
 
-  if (to_trim > FixedArray::kHeaderSize / kPointerSize &&
+  if (to_trim > FixedArrayBase::kHeaderSize / entry_size &&
+      elms->IsFixedArray() &&
       !heap->new_space()->Contains(elms)) {
     // If we are doing a big trim in old space then we zap the space that was
     // formerly part of the array so that the GC (aided by the card-based
@@ -382,14 +409,15 @@ static FixedArray* LeftTrimFixedArray(Heap* heap,
   // Technically in new space this write might be omitted (except for
   // debug mode which iterates through the heap), but to play safer
   // we still do it.
-  heap->CreateFillerObjectAt(elms->address(), to_trim * kPointerSize);
+  heap->CreateFillerObjectAt(elms->address(), to_trim * entry_size);
 
-  former_start[to_trim] = heap->fixed_array_map();
-  former_start[to_trim + 1] = Smi::FromInt(len - to_trim);
+  int new_start_index = to_trim * (entry_size / kPointerSize);
+  former_start[new_start_index] = map;
+  former_start[new_start_index + 1] = Smi::FromInt(len - to_trim);
 
   // Maintain marking consistency for HeapObjectIterator and
   // IncrementalMarking.
-  int size_delta = to_trim * kPointerSize;
+  int size_delta = to_trim * entry_size;
   if (heap->marking()->TransferMark(elms->address(),
                                     elms->address() + size_delta)) {
     MemoryChunk::IncrementLiveBytesFromMutator(elms->address(), -size_delta);
@@ -397,8 +425,8 @@ static FixedArray* LeftTrimFixedArray(Heap* heap,
 
   HEAP_PROFILE(heap, ObjectMoveEvent(elms->address(),
                                      elms->address() + size_delta));
-  return FixedArray::cast(HeapObject::FromAddress(
-      elms->address() + to_trim * kPointerSize));
+  return FixedArrayBase::cast(HeapObject::FromAddress(
+      elms->address() + to_trim * entry_size));
 }
 
 
@@ -427,19 +455,14 @@ static inline MaybeObject* EnsureJSArrayWithWritableFastElements(
   Map* map = elms->map();
   if (map == heap->fixed_array_map()) {
     if (args == NULL || array->HasFastObjectElements()) return elms;
-    if (array->HasFastDoubleElements()) {
-      ASSERT(elms == heap->empty_fixed_array());
-      MaybeObject* maybe_transition =
-          array->TransitionElementsKind(FAST_ELEMENTS);
-      if (maybe_transition->IsFailure()) return maybe_transition;
-      return elms;
-    }
   } else if (map == heap->fixed_cow_array_map()) {
     MaybeObject* maybe_writable_result = array->EnsureWritableFastElements();
     if (args == NULL || array->HasFastObjectElements() ||
-        maybe_writable_result->IsFailure()) {
+        !maybe_writable_result->To(&elms)) {
       return maybe_writable_result;
     }
+  } else if (map == heap->fixed_double_array_map()) {
+    if (args == NULL) return elms;
   } else {
     return NULL;
   }
@@ -449,13 +472,28 @@ static inline MaybeObject* EnsureJSArrayWithWritableFastElements(
   int args_length = args->length();
   if (first_added_arg >= args_length) return array->elements();
 
-  MaybeObject* maybe_array = array->EnsureCanContainElements(
-      args,
-      first_added_arg,
-      args_length - first_added_arg,
-      DONT_ALLOW_DOUBLE_ELEMENTS);
-  if (maybe_array->IsFailure()) return maybe_array;
-  return array->elements();
+  ElementsKind origin_kind = array->map()->elements_kind();
+  ASSERT(!IsFastObjectElementsKind(origin_kind));
+  ElementsKind target_kind = origin_kind;
+  int arg_count = args->length() - first_added_arg;
+  Object** arguments = args->arguments() - first_added_arg - (arg_count - 1);
+  for (int i = 0; i < arg_count; i++) {
+    Object* arg = arguments[i];
+    if (arg->IsHeapObject()) {
+      if (arg->IsHeapNumber()) {
+        target_kind = FAST_DOUBLE_ELEMENTS;
+      } else {
+        target_kind = FAST_ELEMENTS;
+        break;
+      }
+    }
+  }
+  if (target_kind != origin_kind) {
+    MaybeObject* maybe_failure = array->TransitionElementsKind(target_kind);
+    if (maybe_failure->IsFailure()) return maybe_failure;
+    return array->elements();
+  }
+  return elms;
 }
 
 
@@ -499,75 +537,131 @@ MUST_USE_RESULT static MaybeObject* CallJsBuiltin(
 BUILTIN(ArrayPush) {
   Heap* heap = isolate->heap();
   Object* receiver = *args.receiver();
-  Object* elms_obj;
-  { MaybeObject* maybe_elms_obj =
-        EnsureJSArrayWithWritableFastElements(heap, receiver, &args, 1);
-    if (maybe_elms_obj == NULL) {
-      return CallJsBuiltin(isolate, "ArrayPush", args);
-    }
-    if (!maybe_elms_obj->ToObject(&elms_obj)) return maybe_elms_obj;
+  FixedArrayBase* elms_obj;
+  MaybeObject* maybe_elms_obj =
+      EnsureJSArrayWithWritableFastElements(heap, receiver, &args, 1);
+  if (maybe_elms_obj == NULL) {
+    return CallJsBuiltin(isolate, "ArrayPush", args);
   }
-  FixedArray* elms = FixedArray::cast(elms_obj);
-  JSArray* array = JSArray::cast(receiver);
+  if (!maybe_elms_obj->To(&elms_obj)) return maybe_elms_obj;
 
-  if (FLAG_harmony_observation && array->map()->is_observed()) {
+  if (FLAG_harmony_observation &&
+      JSObject::cast(receiver)->map()->is_observed()) {
     return CallJsBuiltin(isolate, "ArrayPush", args);
   }
 
-  int len = Smi::cast(array->length())->value();
-  int to_add = args.length() - 1;
-  if (to_add == 0) {
-    return Smi::FromInt(len);
-  }
-  // Currently fixed arrays cannot grow too big, so
-  // we should never hit this case.
-  ASSERT(to_add <= (Smi::kMaxValue - len));
+  JSArray* array = JSArray::cast(receiver);
+  ElementsKind kind = array->GetElementsKind();
 
-  int new_length = len + to_add;
+  if (IsFastSmiOrObjectElementsKind(kind)) {
+    FixedArray* elms = FixedArray::cast(elms_obj);
 
-  if (new_length > elms->length()) {
-    // New backing storage is needed.
-    int capacity = new_length + (new_length >> 1) + 16;
-    Object* obj;
-    { MaybeObject* maybe_obj = heap->AllocateUninitializedFixedArray(capacity);
-      if (!maybe_obj->ToObject(&obj)) return maybe_obj;
+    int len = Smi::cast(array->length())->value();
+    int to_add = args.length() - 1;
+    if (to_add == 0) {
+      return Smi::FromInt(len);
     }
-    FixedArray* new_elms = FixedArray::cast(obj);
+    // Currently fixed arrays cannot grow too big, so
+    // we should never hit this case.
+    ASSERT(to_add <= (Smi::kMaxValue - len));
 
-    ElementsKind kind = array->GetElementsKind();
-    CopyObjectToObjectElements(elms, kind, 0, new_elms, kind, 0, len);
-    FillWithHoles(heap, new_elms, new_length, capacity);
+    int new_length = len + to_add;
 
-    elms = new_elms;
+    if (new_length > elms->length()) {
+      // New backing storage is needed.
+      int capacity = new_length + (new_length >> 1) + 16;
+      FixedArray* new_elms;
+      MaybeObject* maybe_obj = heap->AllocateUninitializedFixedArray(capacity);
+      if (!maybe_obj->To(&new_elms)) return maybe_obj;
+
+      ElementsAccessor* accessor = array->GetElementsAccessor();
+      MaybeObject* maybe_failure =
+          accessor->CopyElements(array, 0, new_elms, kind, 0, len, elms_obj);
+      ASSERT(!maybe_failure->IsFailure());
+      USE(maybe_failure);
+      FillWithHoles(heap, new_elms, new_length, capacity);
+
+      elms = new_elms;
+    }
+
+    // Add the provided values.
+    AssertNoAllocation no_gc;
+    WriteBarrierMode mode = elms->GetWriteBarrierMode(no_gc);
+    for (int index = 0; index < to_add; index++) {
+      elms->set(index + len, args[index + 1], mode);
+    }
+
+    if (elms != array->elements()) {
+      array->set_elements(elms);
+    }
+
+    // Set the length.
+    array->set_length(Smi::FromInt(new_length));
+    return Smi::FromInt(new_length);
+  } else {
+    int len = Smi::cast(array->length())->value();
+    int elms_len = elms_obj->length();
+
+    int to_add = args.length() - 1;
+    if (to_add == 0) {
+      return Smi::FromInt(len);
+    }
+    // Currently fixed arrays cannot grow too big, so
+    // we should never hit this case.
+    ASSERT(to_add <= (Smi::kMaxValue - len));
+
+    int new_length = len + to_add;
+
+    FixedDoubleArray* new_elms;
+
+    if (new_length > elms_len) {
+      // New backing storage is needed.
+      int capacity = new_length + (new_length >> 1) + 16;
+      MaybeObject* maybe_obj =
+          heap->AllocateUninitializedFixedDoubleArray(capacity);
+      if (!maybe_obj->To(&new_elms)) return maybe_obj;
+
+      ElementsAccessor* accessor = array->GetElementsAccessor();
+      MaybeObject* maybe_failure =
+          accessor->CopyElements(array, 0, new_elms, kind, 0, len, elms_obj);
+      ASSERT(!maybe_failure->IsFailure());
+      USE(maybe_failure);
+
+      FillWithHoles(new_elms, len + to_add, new_elms->length());
+    } else {
+      // to_add is > 0 and new_length <= elms_len, so elms_obj cannot be the
+      // empty_fixed_array.
+      new_elms = FixedDoubleArray::cast(elms_obj);
+    }
+
+    // Add the provided values.
+    AssertNoAllocation no_gc;
+    int index;
+    for (index = 0; index < to_add; index++) {
+      Object* arg = args[index + 1];
+      new_elms->set(index + len, arg->Number());
+    }
+
+    if (new_elms != array->elements()) {
+      array->set_elements(new_elms);
+    }
+
+    // Set the length.
+    array->set_length(Smi::FromInt(new_length));
+    return Smi::FromInt(new_length);
   }
-
-  // Add the provided values.
-  AssertNoAllocation no_gc;
-  WriteBarrierMode mode = elms->GetWriteBarrierMode(no_gc);
-  for (int index = 0; index < to_add; index++) {
-    elms->set(index + len, args[index + 1], mode);
-  }
-
-  if (elms != array->elements()) {
-    array->set_elements(elms);
-  }
-
-  // Set the length.
-  array->set_length(Smi::FromInt(new_length));
-  return Smi::FromInt(new_length);
 }
 
 
 BUILTIN(ArrayPop) {
   Heap* heap = isolate->heap();
   Object* receiver = *args.receiver();
-  Object* elms_obj;
-  { MaybeObject* maybe_elms_obj =
-        EnsureJSArrayWithWritableFastElements(heap, receiver, NULL, 0);
-    if (maybe_elms_obj == NULL) return CallJsBuiltin(isolate, "ArrayPop", args);
-    if (!maybe_elms_obj->ToObject(&elms_obj)) return maybe_elms_obj;
-  }
-  FixedArray* elms = FixedArray::cast(elms_obj);
+  FixedArrayBase* elms_obj;
+  MaybeObject* maybe_elms =
+      EnsureJSArrayWithWritableFastElements(heap, receiver, NULL, 0);
+  if (maybe_elms == NULL) return CallJsBuiltin(isolate, "ArrayPop", args);
+  if (!maybe_elms->To(&elms_obj)) return maybe_elms;
+
   JSArray* array = JSArray::cast(receiver);
 
   if (FLAG_harmony_observation && array->map()->is_observed()) {
@@ -577,38 +671,36 @@ BUILTIN(ArrayPop) {
   int len = Smi::cast(array->length())->value();
   if (len == 0) return heap->undefined_value();
 
-  // Get top element
-  Object* top = elms->get(len - 1);
-
-  // Set the length.
-  array->set_length(Smi::FromInt(len - 1));
-
-  if (!top->IsTheHole()) {
-    // Delete the top element.
-    elms->set_the_hole(len - 1);
-    return top;
+  ElementsAccessor* accessor = array->GetElementsAccessor();
+  int new_length = len - 1;
+  MaybeObject* maybe_result;
+  if (accessor->HasElement(array, array, new_length, elms_obj)) {
+    maybe_result = accessor->Get(array, array, new_length, elms_obj);
+  } else {
+    maybe_result = array->GetPrototype()->GetElement(len - 1);
   }
-
-  return array->GetPrototype()->GetElement(len - 1);
+  if (maybe_result->IsFailure()) return maybe_result;
+  MaybeObject* maybe_failure =
+      accessor->SetLength(array, Smi::FromInt(new_length));
+  if (maybe_failure->IsFailure()) return maybe_failure;
+  return maybe_result;
 }
 
 
 BUILTIN(ArrayShift) {
   Heap* heap = isolate->heap();
   Object* receiver = *args.receiver();
-  Object* elms_obj;
-  { MaybeObject* maybe_elms_obj =
-        EnsureJSArrayWithWritableFastElements(heap, receiver, NULL, 0);
-    if (maybe_elms_obj == NULL)
-        return CallJsBuiltin(isolate, "ArrayShift", args);
-    if (!maybe_elms_obj->ToObject(&elms_obj)) return maybe_elms_obj;
-  }
+  FixedArrayBase* elms_obj;
+  MaybeObject* maybe_elms_obj =
+      EnsureJSArrayWithWritableFastElements(heap, receiver, NULL, 0);
+  if (maybe_elms_obj == NULL)
+      return CallJsBuiltin(isolate, "ArrayShift", args);
+  if (!maybe_elms_obj->To(&elms_obj)) return maybe_elms_obj;
+
   if (!IsJSArrayFastElementMovingAllowed(heap, JSArray::cast(receiver))) {
     return CallJsBuiltin(isolate, "ArrayShift", args);
   }
-  FixedArray* elms = FixedArray::cast(elms_obj);
   JSArray* array = JSArray::cast(receiver);
-  ASSERT(array->HasFastSmiOrObjectElements());
 
   if (FLAG_harmony_observation && array->map()->is_observed()) {
     return CallJsBuiltin(isolate, "ArrayShift", args);
@@ -618,18 +710,28 @@ BUILTIN(ArrayShift) {
   if (len == 0) return heap->undefined_value();
 
   // Get first element
-  Object* first = elms->get(0);
+  ElementsAccessor* accessor = array->GetElementsAccessor();
+  Object* first;
+  MaybeObject* maybe_first = accessor->Get(receiver, array, 0, elms_obj);
+  if (!maybe_first->To(&first)) return maybe_first;
   if (first->IsTheHole()) {
     first = heap->undefined_value();
   }
 
-  if (!heap->lo_space()->Contains(elms)) {
-    array->set_elements(LeftTrimFixedArray(heap, elms, 1));
+  if (!heap->lo_space()->Contains(elms_obj)) {
+    array->set_elements(LeftTrimFixedArray(heap, elms_obj, 1));
   } else {
     // Shift the elements.
-    AssertNoAllocation no_gc;
-    MoveElements(heap, &no_gc, elms, 0, elms, 1, len - 1);
-    elms->set(len - 1, heap->the_hole_value());
+    if (elms_obj->IsFixedArray()) {
+      FixedArray* elms = FixedArray::cast(elms_obj);
+      AssertNoAllocation no_gc;
+      MoveElements(heap, &no_gc, elms, 0, elms, 1, len - 1);
+      elms->set(len - 1, heap->the_hole_value());
+    } else {
+      FixedDoubleArray* elms = FixedDoubleArray::cast(elms_obj);
+      MoveDoubleElements(elms, 0, elms, 1, len - 1);
+      elms->set_the_hole(len - 1);
+    }
   }
 
   // Set the length.
@@ -642,19 +744,21 @@ BUILTIN(ArrayShift) {
 BUILTIN(ArrayUnshift) {
   Heap* heap = isolate->heap();
   Object* receiver = *args.receiver();
-  Object* elms_obj;
-  { MaybeObject* maybe_elms_obj =
-        EnsureJSArrayWithWritableFastElements(heap, receiver, NULL, 0);
-    if (maybe_elms_obj == NULL)
-        return CallJsBuiltin(isolate, "ArrayUnshift", args);
-    if (!maybe_elms_obj->ToObject(&elms_obj)) return maybe_elms_obj;
-  }
+  FixedArrayBase* elms_obj;
+  MaybeObject* maybe_elms_obj =
+      EnsureJSArrayWithWritableFastElements(heap, receiver, NULL, 0);
+  if (maybe_elms_obj == NULL)
+      return CallJsBuiltin(isolate, "ArrayUnshift", args);
+  if (!maybe_elms_obj->To(&elms_obj)) return maybe_elms_obj;
+
   if (!IsJSArrayFastElementMovingAllowed(heap, JSArray::cast(receiver))) {
     return CallJsBuiltin(isolate, "ArrayUnshift", args);
   }
-  FixedArray* elms = FixedArray::cast(elms_obj);
   JSArray* array = JSArray::cast(receiver);
-  ASSERT(array->HasFastSmiOrObjectElements());
+  if (!array->HasFastSmiOrObjectElements()) {
+    return CallJsBuiltin(isolate, "ArrayUnshift", args);
+  }
+  FixedArray* elms = FixedArray::cast(elms_obj);
 
   if (FLAG_harmony_observation && array->map()->is_observed()) {
     return CallJsBuiltin(isolate, "ArrayUnshift", args);
@@ -675,13 +779,17 @@ BUILTIN(ArrayUnshift) {
   if (new_length > elms->length()) {
     // New backing storage is needed.
     int capacity = new_length + (new_length >> 1) + 16;
-    Object* obj;
-    { MaybeObject* maybe_obj = heap->AllocateUninitializedFixedArray(capacity);
-      if (!maybe_obj->ToObject(&obj)) return maybe_obj;
-    }
-    FixedArray* new_elms = FixedArray::cast(obj);
+    FixedArray* new_elms;
+    MaybeObject* maybe_elms = heap->AllocateUninitializedFixedArray(capacity);
+    if (!maybe_elms->To(&new_elms)) return maybe_elms;
+
     ElementsKind kind = array->GetElementsKind();
-    CopyObjectToObjectElements(elms, kind, 0, new_elms, kind, to_add, len);
+    ElementsAccessor* accessor = array->GetElementsAccessor();
+    MaybeObject* maybe_failure =
+        accessor->CopyElements(array, 0, new_elms, kind, to_add, len, elms);
+    ASSERT(!maybe_failure->IsFailure());
+    USE(maybe_failure);
+
     FillWithHoles(heap, new_elms, new_length, capacity);
     elms = new_elms;
     array->set_elements(elms);
@@ -706,16 +814,20 @@ BUILTIN(ArrayUnshift) {
 BUILTIN(ArraySlice) {
   Heap* heap = isolate->heap();
   Object* receiver = *args.receiver();
-  FixedArray* elms;
+  FixedArrayBase* elms;
   int len = -1;
   if (receiver->IsJSArray()) {
     JSArray* array = JSArray::cast(receiver);
-    if (!array->HasFastSmiOrObjectElements() ||
-        !IsJSArrayFastElementMovingAllowed(heap, array)) {
+    if (!IsJSArrayFastElementMovingAllowed(heap, array)) {
       return CallJsBuiltin(isolate, "ArraySlice", args);
     }
 
-    elms = FixedArray::cast(array->elements());
+    if (array->HasFastElements()) {
+      elms = array->elements();
+    } else {
+      return CallJsBuiltin(isolate, "ArraySlice", args);
+    }
+
     len = Smi::cast(array->length())->value();
   } else {
     // Array.slice(arguments, ...) is quite a common idiom (notably more
@@ -724,15 +836,19 @@ BUILTIN(ArraySlice) {
         isolate->context()->native_context()->arguments_boilerplate()->map();
 
     bool is_arguments_object_with_fast_elements =
-        receiver->IsJSObject()
-        && JSObject::cast(receiver)->map() == arguments_map
-        && JSObject::cast(receiver)->HasFastSmiOrObjectElements();
+        receiver->IsJSObject() &&
+        JSObject::cast(receiver)->map() == arguments_map;
     if (!is_arguments_object_with_fast_elements) {
       return CallJsBuiltin(isolate, "ArraySlice", args);
     }
-    elms = FixedArray::cast(JSObject::cast(receiver)->elements());
-    Object* len_obj = JSObject::cast(receiver)
-        ->InObjectPropertyAt(Heap::kArgumentsLengthIndex);
+    JSObject* object = JSObject::cast(receiver);
+
+    if (object->HasFastElements()) {
+      elms = object->elements();
+    } else {
+      return CallJsBuiltin(isolate, "ArraySlice", args);
+    }
+    Object* len_obj = object->InObjectPropertyAt(Heap::kArgumentsLengthIndex);
     if (!len_obj->IsSmi()) {
       return CallJsBuiltin(isolate, "ArraySlice", args);
     }
@@ -740,12 +856,27 @@ BUILTIN(ArraySlice) {
     if (len > elms->length()) {
       return CallJsBuiltin(isolate, "ArraySlice", args);
     }
+  }
+
+  JSObject* object = JSObject::cast(receiver);
+  ElementsKind kind = object->GetElementsKind();
+
+  if (IsHoleyElementsKind(kind)) {
+    bool packed = true;
+    ElementsAccessor* accessor = ElementsAccessor::ForKind(kind);
     for (int i = 0; i < len; i++) {
-      if (elms->get(i) == heap->the_hole_value()) {
-        return CallJsBuiltin(isolate, "ArraySlice", args);
+      if (!accessor->HasElement(object, object, i, elms)) {
+        packed = false;
+        break;
       }
     }
+    if (packed) {
+      kind = GetPackedElementsKind(kind);
+    } else if (!receiver->IsJSArray()) {
+      return CallJsBuiltin(isolate, "ArraySlice", args);
+    }
   }
+
   ASSERT(len >= 0);
   int n_arguments = args.length() - 1;
 
@@ -758,6 +889,12 @@ BUILTIN(ArraySlice) {
     Object* arg1 = args[1];
     if (arg1->IsSmi()) {
       relative_start = Smi::cast(arg1)->value();
+    } else if (arg1->IsHeapNumber()) {
+      double start = HeapNumber::cast(arg1)->value();
+      if (start < kMinInt || start > kMaxInt) {
+        return CallJsBuiltin(isolate, "ArraySlice", args);
+      }
+      relative_start = static_cast<int>(start);
     } else if (!arg1->IsUndefined()) {
       return CallJsBuiltin(isolate, "ArraySlice", args);
     }
@@ -765,6 +902,12 @@ BUILTIN(ArraySlice) {
       Object* arg2 = args[2];
       if (arg2->IsSmi()) {
         relative_end = Smi::cast(arg2)->value();
+      } else if (arg2->IsHeapNumber()) {
+        double end = HeapNumber::cast(arg2)->value();
+        if (end < kMinInt || end > kMaxInt) {
+          return CallJsBuiltin(isolate, "ArraySlice", args);
+        }
+        relative_end = static_cast<int>(end);
       } else if (!arg2->IsUndefined()) {
         return CallJsBuiltin(isolate, "ArraySlice", args);
       }
@@ -779,21 +922,21 @@ BUILTIN(ArraySlice) {
   int final = (relative_end < 0) ? Max(len + relative_end, 0)
                                  : Min(relative_end, len);
 
-  ElementsKind elements_kind = JSObject::cast(receiver)->GetElementsKind();
-
   // Calculate the length of result array.
   int result_len = Max(final - k, 0);
 
-  MaybeObject* maybe_array =
-      heap->AllocateJSArrayAndStorage(elements_kind,
-                                      result_len,
-                                      result_len);
   JSArray* result_array;
+  MaybeObject* maybe_array = heap->AllocateJSArrayAndStorage(kind,
+                                                             result_len,
+                                                             result_len);
   if (!maybe_array->To(&result_array)) return maybe_array;
 
-  CopyObjectToObjectElements(elms, elements_kind, k,
-                             FixedArray::cast(result_array->elements()),
-                             elements_kind, 0, result_len);
+  ElementsAccessor* accessor = object->GetElementsAccessor();
+  MaybeObject* maybe_failure =
+      accessor->CopyElements(object, k, result_array->elements(),
+                             kind, 0, result_len, elms);
+  ASSERT(!maybe_failure->IsFailure());
+  USE(maybe_failure);
 
   return result_array;
 }
@@ -802,19 +945,18 @@ BUILTIN(ArraySlice) {
 BUILTIN(ArraySplice) {
   Heap* heap = isolate->heap();
   Object* receiver = *args.receiver();
-  Object* elms_obj;
-  { MaybeObject* maybe_elms_obj =
-        EnsureJSArrayWithWritableFastElements(heap, receiver, &args, 3);
-    if (maybe_elms_obj == NULL)
-        return CallJsBuiltin(isolate, "ArraySplice", args);
-    if (!maybe_elms_obj->ToObject(&elms_obj)) return maybe_elms_obj;
+  FixedArrayBase* elms_obj;
+  MaybeObject* maybe_elms =
+      EnsureJSArrayWithWritableFastElements(heap, receiver, &args, 3);
+  if (maybe_elms == NULL) {
+    return CallJsBuiltin(isolate, "ArraySplice", args);
   }
+  if (!maybe_elms->To(&elms_obj)) return maybe_elms;
+
   if (!IsJSArrayFastElementMovingAllowed(heap, JSArray::cast(receiver))) {
     return CallJsBuiltin(isolate, "ArraySplice", args);
   }
-  FixedArray* elms = FixedArray::cast(elms_obj);
   JSArray* array = JSArray::cast(receiver);
-  ASSERT(array->HasFastSmiOrObjectElements());
 
   if (FLAG_harmony_observation && array->map()->is_observed()) {
     return CallJsBuiltin(isolate, "ArraySplice", args);
@@ -829,6 +971,12 @@ BUILTIN(ArraySplice) {
     Object* arg1 = args[1];
     if (arg1->IsSmi()) {
       relative_start = Smi::cast(arg1)->value();
+    } else if (arg1->IsHeapNumber()) {
+      double start = HeapNumber::cast(arg1)->value();
+      if (start < kMinInt || start > kMaxInt) {
+        return CallJsBuiltin(isolate, "ArraySplice", args);
+      }
+      relative_start = static_cast<int>(start);
     } else if (!arg1->IsUndefined()) {
       return CallJsBuiltin(isolate, "ArraySplice", args);
     }
@@ -858,51 +1006,83 @@ BUILTIN(ArraySplice) {
     actual_delete_count = Min(Max(value, 0), len - actual_start);
   }
 
+  ElementsKind elements_kind = array->GetElementsKind();
+
+  int item_count = (n_arguments > 1) ? (n_arguments - 2) : 0;
+  int new_length = len - actual_delete_count + item_count;
+
+  // For double mode we do not support changing the length.
+  if (new_length > len && IsFastDoubleElementsKind(elements_kind)) {
+    return CallJsBuiltin(isolate, "ArraySplice", args);
+  }
+
+  if (new_length == 0) {
+    MaybeObject* maybe_array = heap->AllocateJSArrayWithElements(
+        elms_obj, elements_kind, actual_delete_count);
+    if (maybe_array->IsFailure()) return maybe_array;
+    array->set_elements(heap->empty_fixed_array());
+    array->set_length(Smi::FromInt(0));
+    return maybe_array;
+  }
+
   JSArray* result_array = NULL;
-  ElementsKind elements_kind =
-      JSObject::cast(receiver)->GetElementsKind();
   MaybeObject* maybe_array =
       heap->AllocateJSArrayAndStorage(elements_kind,
                                       actual_delete_count,
                                       actual_delete_count);
   if (!maybe_array->To(&result_array)) return maybe_array;
 
-  {
-    // Fill newly created array.
-    CopyObjectToObjectElements(elms, elements_kind, actual_start,
-                               FixedArray::cast(result_array->elements()),
-                               elements_kind, 0, actual_delete_count);
+  if (actual_delete_count > 0) {
+    ElementsAccessor* accessor = array->GetElementsAccessor();
+    MaybeObject* maybe_failure =
+        accessor->CopyElements(array, actual_start, result_array->elements(),
+                               elements_kind, 0, actual_delete_count, elms_obj);
+    // Cannot fail since the origin and target array are of the same elements
+    // kind.
+    ASSERT(!maybe_failure->IsFailure());
+    USE(maybe_failure);
   }
-
-  int item_count = (n_arguments > 1) ? (n_arguments - 2) : 0;
-  int new_length = len - actual_delete_count + item_count;
 
   bool elms_changed = false;
   if (item_count < actual_delete_count) {
     // Shrink the array.
-    const bool trim_array = !heap->lo_space()->Contains(elms) &&
+    const bool trim_array = !heap->lo_space()->Contains(elms_obj) &&
       ((actual_start + item_count) <
           (len - actual_delete_count - actual_start));
     if (trim_array) {
       const int delta = actual_delete_count - item_count;
 
-      {
+      if (elms_obj->IsFixedDoubleArray()) {
+        FixedDoubleArray* elms = FixedDoubleArray::cast(elms_obj);
+        MoveDoubleElements(elms, delta, elms, 0, actual_start);
+      } else {
+        FixedArray* elms = FixedArray::cast(elms_obj);
         AssertNoAllocation no_gc;
         MoveElements(heap, &no_gc, elms, delta, elms, 0, actual_start);
       }
 
-      elms = LeftTrimFixedArray(heap, elms, delta);
+      elms_obj = LeftTrimFixedArray(heap, elms_obj, delta);
 
       elms_changed = true;
     } else {
-      AssertNoAllocation no_gc;
-      MoveElements(heap, &no_gc,
-                   elms, actual_start + item_count,
-                   elms, actual_start + actual_delete_count,
-                   (len - actual_delete_count - actual_start));
-      FillWithHoles(heap, elms, new_length, len);
+      if (elms_obj->IsFixedDoubleArray()) {
+        FixedDoubleArray* elms = FixedDoubleArray::cast(elms_obj);
+        MoveDoubleElements(elms, actual_start + item_count,
+                           elms, actual_start + actual_delete_count,
+                           (len - actual_delete_count - actual_start));
+        FillWithHoles(elms, new_length, len);
+      } else {
+        FixedArray* elms = FixedArray::cast(elms_obj);
+        AssertNoAllocation no_gc;
+        MoveElements(heap, &no_gc,
+                     elms, actual_start + item_count,
+                     elms, actual_start + actual_delete_count,
+                     (len - actual_delete_count - actual_start));
+        FillWithHoles(heap, elms, new_length, len);
+      }
     }
   } else if (item_count > actual_delete_count) {
+    FixedArray* elms = FixedArray::cast(elms_obj);
     // Currently fixed arrays cannot grow too big, so
     // we should never hit this case.
     ASSERT((item_count - actual_delete_count) <= (Smi::kMaxValue - len));
@@ -911,28 +1091,27 @@ BUILTIN(ArraySplice) {
     if (new_length > elms->length()) {
       // New backing storage is needed.
       int capacity = new_length + (new_length >> 1) + 16;
-      Object* obj;
-      { MaybeObject* maybe_obj =
-            heap->AllocateUninitializedFixedArray(capacity);
-        if (!maybe_obj->ToObject(&obj)) return maybe_obj;
-      }
-      FixedArray* new_elms = FixedArray::cast(obj);
+      FixedArray* new_elms;
+      MaybeObject* maybe_obj = heap->AllocateUninitializedFixedArray(capacity);
+      if (!maybe_obj->To(&new_elms)) return maybe_obj;
 
-      {
-        // Copy the part before actual_start as is.
-        ElementsKind kind = array->GetElementsKind();
-        CopyObjectToObjectElements(elms, kind, 0,
-                                   new_elms, kind, 0, actual_start);
-        const int to_copy = len - actual_delete_count - actual_start;
-        CopyObjectToObjectElements(elms, kind,
-                                   actual_start + actual_delete_count,
-                                   new_elms, kind,
-                                   actual_start + item_count, to_copy);
-      }
+      // Copy the part before actual_start as is.
+      ElementsKind kind = array->GetElementsKind();
+      ElementsAccessor* accessor = array->GetElementsAccessor();
+      MaybeObject* maybe_failure = accessor->CopyElements(
+          array, 0, new_elms, kind, 0, actual_start, elms);
+      ASSERT(!maybe_failure->IsFailure());
+      USE(maybe_failure);
+      const int to_copy = len - actual_delete_count - actual_start;
+      maybe_failure = accessor->CopyElements(
+          array, actual_start + actual_delete_count, new_elms, kind,
+          actual_start + item_count, to_copy, elms);
+      ASSERT(!maybe_failure->IsFailure());
+      USE(maybe_failure);
 
       FillWithHoles(heap, new_elms, new_length, capacity);
 
-      elms = new_elms;
+      elms_obj = new_elms;
       elms_changed = true;
     } else {
       AssertNoAllocation no_gc;
@@ -943,16 +1122,28 @@ BUILTIN(ArraySplice) {
     }
   }
 
-  AssertNoAllocation no_gc;
-  WriteBarrierMode mode = elms->GetWriteBarrierMode(no_gc);
-  for (int k = actual_start; k < actual_start + item_count; k++) {
-    elms->set(k, args[3 + k - actual_start], mode);
+  if (IsFastDoubleElementsKind(elements_kind)) {
+    FixedDoubleArray* elms = FixedDoubleArray::cast(elms_obj);
+    for (int k = actual_start; k < actual_start + item_count; k++) {
+      Object* arg = args[3 + k - actual_start];
+      if (arg->IsSmi()) {
+        elms->set(k, Smi::cast(arg)->value());
+      } else {
+        elms->set(k, HeapNumber::cast(arg)->value());
+      }
+    }
+  } else {
+    FixedArray* elms = FixedArray::cast(elms_obj);
+    AssertNoAllocation no_gc;
+    WriteBarrierMode mode = elms->GetWriteBarrierMode(no_gc);
+    for (int k = actual_start; k < actual_start + item_count; k++) {
+      elms->set(k, args[3 + k - actual_start], mode);
+    }
   }
 
   if (elms_changed) {
-    array->set_elements(elms);
+    array->set_elements(elms_obj);
   }
-
   // Set the length.
   array->set_length(Smi::FromInt(new_length));
 
@@ -977,11 +1168,10 @@ BUILTIN(ArrayConcat) {
   for (int i = 0; i < n_arguments; i++) {
     Object* arg = args[i];
     if (!arg->IsJSArray() ||
-        !JSArray::cast(arg)->HasFastSmiOrObjectElements() ||
+        !JSArray::cast(arg)->HasFastElements() ||
         JSArray::cast(arg)->GetPrototype() != array_proto) {
       return CallJsBuiltin(isolate, "ArrayConcat", args);
     }
-
     int len = Smi::cast(JSArray::cast(arg)->length())->value();
 
     // We shouldn't overflow when adding another len.
@@ -991,27 +1181,24 @@ BUILTIN(ArrayConcat) {
     result_len += len;
     ASSERT(result_len >= 0);
 
-    if (result_len > FixedArray::kMaxLength) {
+    if (result_len > FixedDoubleArray::kMaxLength) {
       return CallJsBuiltin(isolate, "ArrayConcat", args);
     }
 
-    if (!JSArray::cast(arg)->HasFastSmiElements()) {
-      if (IsFastSmiElementsKind(elements_kind)) {
-        if (IsFastHoleyElementsKind(elements_kind)) {
-          elements_kind = FAST_HOLEY_ELEMENTS;
-        } else {
-          elements_kind = FAST_ELEMENTS;
-        }
+    ElementsKind arg_kind = JSArray::cast(arg)->map()->elements_kind();
+    ElementsKind packed_kind = GetPackedElementsKind(arg_kind);
+    if (IsMoreGeneralElementsKindTransition(
+            GetPackedElementsKind(elements_kind), packed_kind)) {
+      if (IsFastHoleyElementsKind(elements_kind)) {
+        elements_kind = GetHoleyElementsKind(arg_kind);
+      } else {
+        elements_kind = arg_kind;
       }
-    }
-
-    if (JSArray::cast(arg)->HasFastHoleyElements()) {
-      elements_kind = GetHoleyElementsKind(elements_kind);
     }
   }
 
-  // Allocate result.
   JSArray* result_array;
+  // Allocate result.
   MaybeObject* maybe_array =
       heap->AllocateJSArrayAndStorage(elements_kind,
                                       result_len,
@@ -1019,19 +1206,19 @@ BUILTIN(ArrayConcat) {
   if (!maybe_array->To(&result_array)) return maybe_array;
   if (result_len == 0) return result_array;
 
-  // Copy data.
-  int start_pos = 0;
-  FixedArray* result_elms(FixedArray::cast(result_array->elements()));
+  int j = 0;
+  FixedArrayBase* storage = result_array->elements();
   for (int i = 0; i < n_arguments; i++) {
     JSArray* array = JSArray::cast(args[i]);
+    ElementsAccessor* accessor = array->GetElementsAccessor();
     int len = Smi::cast(array->length())->value();
-    FixedArray* elms = FixedArray::cast(array->elements());
-    CopyObjectToObjectElements(elms, elements_kind, 0,
-                               result_elms, elements_kind,
-                               start_pos, len);
-    start_pos += len;
+    MaybeObject* maybe_failure =
+        accessor->CopyElements(array, 0, storage, elements_kind, j, len);
+    if (maybe_failure->IsFailure()) return maybe_failure;
+    j += len;
   }
-  ASSERT(start_pos == result_len);
+
+  ASSERT(j == result_len);
 
   return result_array;
 }

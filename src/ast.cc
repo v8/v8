@@ -476,6 +476,7 @@ void CountOperation::RecordTypeFeedback(TypeFeedbackOracle* oracle,
 
 void CaseClause::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
   TypeInfo info = oracle->SwitchType(this);
+  if (info.IsUninitialized()) info = TypeInfo::Unknown();
   if (info.IsSmi()) {
     compare_type_ = SMI_ONLY;
   } else if (info.IsSymbol()) {
@@ -600,18 +601,6 @@ void CallNew::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
   is_monomorphic_ = oracle->CallNewIsMonomorphic(this);
   if (is_monomorphic_) {
     target_ = oracle->GetCallNewTarget(this);
-  }
-}
-
-
-void CompareOperation::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
-  TypeInfo info = oracle->CompareType(this);
-  if (info.IsSmi()) {
-    compare_type_ = SMI_ONLY;
-  } else if (info.IsNonPrimitive()) {
-    compare_type_ = OBJECT_ONLY;
-  } else {
-    ASSERT(compare_type_ == NONE);
   }
 }
 

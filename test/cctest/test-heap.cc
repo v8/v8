@@ -1733,6 +1733,7 @@ TEST(InstanceOfStubWriteBarrier) {
 
   InitializeVM();
   if (!i::V8::UseCrankshaft()) return;
+  if (i::FLAG_force_marking_deque_overflows) return;
   v8::HandleScope outer_scope;
 
   {
@@ -1780,6 +1781,10 @@ TEST(InstanceOfStubWriteBarrier) {
 }
 
 
+// Implemented in the test-alloc.cc test suite.
+void SimulateFullSpace(PagedSpace* space);
+
+
 TEST(PrototypeTransitionClearing) {
   InitializeVM();
   v8::HandleScope scope;
@@ -1818,10 +1823,11 @@ TEST(PrototypeTransitionClearing) {
   // Make sure next prototype is placed on an old-space evacuation candidate.
   Handle<JSObject> prototype;
   PagedSpace* space = HEAP->old_pointer_space();
-  do {
+  {
+    AlwaysAllocateScope always_allocate;
+    SimulateFullSpace(space);
     prototype = FACTORY->NewJSArray(32 * KB, FAST_HOLEY_ELEMENTS, TENURED);
-  } while (space->FirstPage() == space->LastPage() ||
-      !space->LastPage()->Contains(prototype->address()));
+  }
 
   // Add a prototype on an evacuation candidate and verify that transition
   // clearing correctly records slots in prototype transition array.
@@ -2093,10 +2099,6 @@ TEST(Regress2143b) {
 }
 
 
-// Implemented in the test-alloc.cc test suite.
-void SimulateFullSpace(PagedSpace* space);
-
-
 TEST(ReleaseOverReservedPages) {
   i::FLAG_trace_gc = true;
   // The optimizer can allocate stuff, messing up the test.
@@ -2150,7 +2152,7 @@ TEST(Regress2237) {
     v8::HandleScope inner_scope;
     const char* c = "This text is long enough to trigger sliced strings.";
     Handle<String> s = FACTORY->NewStringFromAscii(CStrVector(c));
-    CHECK(s->IsSeqAsciiString());
+    CHECK(s->IsSeqOneByteString());
     CHECK(HEAP->InNewSpace(*s));
 
     // Generate a sliced string that is based on the above parent and
@@ -2168,9 +2170,9 @@ TEST(Regress2237) {
     *slice.location() = *t.location();
   }
 
-  CHECK(SlicedString::cast(*slice)->parent()->IsSeqAsciiString());
+  CHECK(SlicedString::cast(*slice)->parent()->IsSeqOneByteString());
   HEAP->CollectAllGarbage(Heap::kNoGCFlags);
-  CHECK(SlicedString::cast(*slice)->parent()->IsSeqAsciiString());
+  CHECK(SlicedString::cast(*slice)->parent()->IsSeqOneByteString());
 }
 
 

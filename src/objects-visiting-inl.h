@@ -68,7 +68,7 @@ void StaticNewSpaceVisitor<StaticVisitor>::Initialize() {
                   SharedFunctionInfo::BodyDescriptor,
                   int>::Visit);
 
-  table_.Register(kVisitSeqAsciiString, &VisitSeqAsciiString);
+  table_.Register(kVisitSeqOneByteString, &VisitSeqOneByteString);
 
   table_.Register(kVisitSeqTwoByteString, &VisitSeqTwoByteString);
 
@@ -110,10 +110,7 @@ void StaticMarkingVisitor<StaticVisitor>::Initialize() {
                   SlicedString::BodyDescriptor,
                   void>::Visit);
 
-  table_.Register(kVisitFixedArray,
-                  &FlexibleBodyVisitor<StaticVisitor,
-                  FixedArray::BodyDescriptor,
-                  void>::Visit);
+  table_.Register(kVisitFixedArray, &FixedArrayVisitor::Visit);
 
   table_.Register(kVisitFixedDoubleArray, &DataObjectVisitor::Visit);
 
@@ -123,7 +120,7 @@ void StaticMarkingVisitor<StaticVisitor>::Initialize() {
 
   table_.Register(kVisitFreeSpace, &DataObjectVisitor::Visit);
 
-  table_.Register(kVisitSeqAsciiString, &DataObjectVisitor::Visit);
+  table_.Register(kVisitSeqOneByteString, &DataObjectVisitor::Visit);
 
   table_.Register(kVisitSeqTwoByteString, &DataObjectVisitor::Visit);
 

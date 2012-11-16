@@ -83,8 +83,8 @@ const byte* NativeRegExpMacroAssembler::StringCharacterPosition(
       const char* data = ExternalAsciiString::cast(subject)->GetChars();
       address = reinterpret_cast<const byte*>(data);
     } else {
-      ASSERT(subject->IsSeqAsciiString());
-      char* data = SeqAsciiString::cast(subject)->GetChars();
+      ASSERT(subject->IsSeqOneByteString());
+      char* data = SeqOneByteString::cast(subject)->GetChars();
       address = reinterpret_cast<const byte*>(data);
     }
     return address + start_index;

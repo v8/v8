@@ -416,7 +416,7 @@ void StringCharLoadGenerator::Generate(MacroAssembler* masm,
   __ b(ne, &external_string);
 
   // Prepare sequential strings
-  STATIC_ASSERT(SeqTwoByteString::kHeaderSize == SeqAsciiString::kHeaderSize);
+  STATIC_ASSERT(SeqTwoByteString::kHeaderSize == SeqOneByteString::kHeaderSize);
   __ add(string,
          string,
          Operand(SeqTwoByteString::kHeaderSize - kHeapObjectTag));

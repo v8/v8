@@ -85,6 +85,81 @@ void HValue::AssumeRepresentation(Representation r) {
 }
 
 
+void HValue::InferRepresentation(HInferRepresentation* h_infer) {
+  ASSERT(CheckFlag(kFlexibleRepresentation));
+  Representation new_rep = RepresentationFromInputs();
+  UpdateRepresentation(new_rep, h_infer, "inputs");
+  new_rep = RepresentationFromUses();
+  UpdateRepresentation(new_rep, h_infer, "uses");
+}
+
+
+Representation HValue::RepresentationFromUses() {
+  if (HasNoUses()) return Representation::None();
+
+  // Array of use counts for each representation.
+  int use_count[Representation::kNumRepresentations] = { 0 };
+
+  for (HUseIterator it(uses()); !it.Done(); it.Advance()) {
+    HValue* use = it.value();
+    Representation rep = use->observed_input_representation(it.index());
+    if (rep.IsNone()) continue;
+    if (FLAG_trace_representation) {
+      PrintF("#%d %s is used by #%d %s as %s%s\n",
+             id(), Mnemonic(), use->id(), use->Mnemonic(), rep.Mnemonic(),
+             (use->CheckFlag(kTruncatingToInt32) ? "-trunc" : ""));
+    }
+    use_count[rep.kind()] += use->LoopWeight();
+  }
+  if (IsPhi()) HPhi::cast(this)->AddIndirectUsesTo(&use_count[0]);
+  int tagged_count = use_count[Representation::kTagged];
+  int double_count = use_count[Representation::kDouble];
+  int int32_count = use_count[Representation::kInteger32];
+
+  if (tagged_count > 0) return Representation::Tagged();
+  if (double_count > 0) return Representation::Double();
+  if (int32_count > 0) return Representation::Integer32();
+
+  return Representation::None();
+}
+
+
+void HValue::UpdateRepresentation(Representation new_rep,
+                                  HInferRepresentation* h_infer,
+                                  const char* reason) {
+  Representation r = representation();
+  if (new_rep.is_more_general_than(r)) {
+    // When an HConstant is marked "not convertible to integer", then
+    // never try to represent it as an integer.
+    if (new_rep.IsInteger32() && !IsConvertibleToInteger()) {
+      new_rep = Representation::Tagged();
+      if (FLAG_trace_representation) {
+        PrintF("Changing #%d %s representation %s -> %s because it's NCTI"
+               " (%s want i)\n",
+               id(), Mnemonic(), r.Mnemonic(), new_rep.Mnemonic(), reason);
+      }
+    } else {
+      if (FLAG_trace_representation) {
+        PrintF("Changing #%d %s representation %s -> %s based on %s\n",
+               id(), Mnemonic(), r.Mnemonic(), new_rep.Mnemonic(), reason);
+      }
+    }
+    ChangeRepresentation(new_rep);
+    AddDependantsToWorklist(h_infer);
+  }
+}
+
+
+void HValue::AddDependantsToWorklist(HInferRepresentation* h_infer) {
+  for (HUseIterator it(uses()); !it.Done(); it.Advance()) {
+    h_infer->AddToWorklist(it.value());
+  }
+  for (int i = 0; i < OperandCount(); ++i) {
+    h_infer->AddToWorklist(OperandAt(i));
+  }
+}
+
+
 static int32_t ConvertAndSetOverflow(int64_t result, bool* overflow) {
   if (result > kMaxInt) {
     *overflow = true;
@@ -301,6 +376,7 @@ HUseListNode* HUseListNode::tail() {
 
 bool HValue::CheckUsesForFlag(Flag f) {
   for (HUseIterator it(uses()); !it.Done(); it.Advance()) {
+    if (it.value()->IsSimulate()) continue;
     if (!it.value()->CheckFlag(f)) return false;
   }
   return true;
@@ -761,6 +837,24 @@ void HIsNilAndBranch::PrintDataTo(StringStream* stream) {
 
 void HReturn::PrintDataTo(StringStream* stream) {
   value()->PrintNameTo(stream);
+}
+
+
+Representation HBranch::observed_input_representation(int index) {
+  static const ToBooleanStub::Types tagged_types(
+      ToBooleanStub::UNDEFINED |
+      ToBooleanStub::NULL_TYPE |
+      ToBooleanStub::SPEC_OBJECT |
+      ToBooleanStub::STRING);
+  if (expected_input_types_.ContainsAnyOf(tagged_types)) {
+    return Representation::Tagged();
+  } else if (expected_input_types_.Contains(ToBooleanStub::HEAP_NUMBER)) {
+    return Representation::Double();
+  } else if (expected_input_types_.Contains(ToBooleanStub::SMI)) {
+    return Representation::Integer32();
+  } else {
+    return Representation::None();
+  }
 }
 
 
@@ -1339,15 +1433,11 @@ void HPhi::InitRealUses(int phi_id) {
   for (HUseIterator it(uses()); !it.Done(); it.Advance()) {
     HValue* value = it.value();
     if (!value->IsPhi()) {
-      Representation rep = value->ObservedInputRepresentation(it.index());
+      Representation rep = value->observed_input_representation(it.index());
       non_phi_uses_[rep.kind()] += value->LoopWeight();
       if (FLAG_trace_representation) {
-        PrintF("%d %s is used by %d %s as %s\n",
-               this->id(),
-               this->Mnemonic(),
-               value->id(),
-               value->Mnemonic(),
-               rep.Mnemonic());
+        PrintF("#%d Phi is used by real #%d %s as %s\n",
+               id(), value->id(), value->Mnemonic(), rep.Mnemonic());
       }
     }
   }
@@ -1356,11 +1446,8 @@ void HPhi::InitRealUses(int phi_id) {
 
 void HPhi::AddNonPhiUsesFrom(HPhi* other) {
   if (FLAG_trace_representation) {
-    PrintF("adding to %d %s uses of %d %s: i%d d%d t%d\n",
-           this->id(),
-           this->Mnemonic(),
-           other->id(),
-           other->Mnemonic(),
+    PrintF("adding to #%d Phi uses of #%d Phi: i%d d%d t%d\n",
+           id(), other->id(),
            other->non_phi_uses_[Representation::kInteger32],
            other->non_phi_uses_[Representation::kDouble],
            other->non_phi_uses_[Representation::kTagged]);
@@ -1379,9 +1466,20 @@ void HPhi::AddIndirectUsesTo(int* dest) {
 }
 
 
-void HPhi::ResetInteger32Uses() {
-  non_phi_uses_[Representation::kInteger32] = 0;
-  indirect_uses_[Representation::kInteger32] = 0;
+void HSimulate::MergeInto(HSimulate* other) {
+  for (int i = 0; i < values_.length(); ++i) {
+    HValue* value = values_[i];
+    if (HasAssignedIndexAt(i)) {
+      other->AddAssignedValue(GetAssignedIndexAt(i), value);
+    } else {
+      if (other->pop_count_ > 0) {
+        other->pop_count_--;
+      } else {
+        other->AddPushedValue(value);
+      }
+    }
+  }
+  other->pop_count_ += pop_count();
 }
 
 
@@ -1390,7 +1488,7 @@ void HSimulate::PrintDataTo(StringStream* stream) {
   if (pop_count_ > 0) stream->Add(" pop %d", pop_count_);
   if (values_.length() > 0) {
     if (pop_count_ > 0) stream->Add(" /");
-    for (int i = 0; i < values_.length(); ++i) {
+    for (int i = values_.length() - 1; i >= 0; --i) {
       if (i > 0) stream->Add(",");
       if (HasAssignedIndexAt(i)) {
         stream->Add(" var[%d] = ", GetAssignedIndexAt(i));
@@ -1429,7 +1527,6 @@ HConstant::HConstant(Handle<Object> handle, Representation r)
     : handle_(handle),
       has_int32_value_(false),
       has_double_value_(false) {
-  set_representation(r);
   SetFlag(kUseGVN);
   if (handle_->IsNumber()) {
     double n = handle_->Number();
@@ -1438,6 +1535,16 @@ HConstant::HConstant(Handle<Object> handle, Representation r)
     double_value_ = n;
     has_double_value_ = true;
   }
+  if (r.IsNone()) {
+    if (has_int32_value_) {
+      r = Representation::Integer32();
+    } else if (has_double_value_) {
+      r = Representation::Double();
+    } else {
+      r = Representation::Tagged();
+    }
+  }
+  set_representation(r);
 }
 
 
@@ -1533,6 +1640,52 @@ void HBinaryOperation::PrintDataTo(StringStream* stream) {
   right()->PrintNameTo(stream);
   if (CheckFlag(kCanOverflow)) stream->Add(" !");
   if (CheckFlag(kBailoutOnMinusZero)) stream->Add(" -0?");
+}
+
+
+void HBinaryOperation::InferRepresentation(HInferRepresentation* h_infer) {
+  ASSERT(CheckFlag(kFlexibleRepresentation));
+  Representation new_rep = RepresentationFromInputs();
+  UpdateRepresentation(new_rep, h_infer, "inputs");
+  // When the operation has information about its own output type, don't look
+  // at uses.
+  if (!observed_output_representation_.IsNone()) return;
+  new_rep = RepresentationFromUses();
+  UpdateRepresentation(new_rep, h_infer, "uses");
+}
+
+
+Representation HBinaryOperation::RepresentationFromInputs() {
+  // Determine the worst case of observed input representations and
+  // the currently assumed output representation.
+  Representation rep = representation();
+  if (observed_output_representation_.is_more_general_than(rep)) {
+    rep = observed_output_representation_;
+  }
+  for (int i = 1; i <= 2; ++i) {
+    Representation input_rep = observed_input_representation(i);
+    if (input_rep.is_more_general_than(rep)) rep = input_rep;
+  }
+  // If any of the actual input representation is more general than what we
+  // have so far but not Tagged, use that representation instead.
+  Representation left_rep = left()->representation();
+  Representation right_rep = right()->representation();
+
+  if (left_rep.is_more_general_than(rep) &&
+      left()->CheckFlag(kFlexibleRepresentation)) {
+    rep = left_rep;
+  }
+  if (right_rep.is_more_general_than(rep) &&
+      right()->CheckFlag(kFlexibleRepresentation)) {
+    rep = right_rep;
+  }
+  return rep;
+}
+
+
+void HBinaryOperation::AssumeRepresentation(Representation r) {
+  set_observed_input_representation(r, r);
+  HValue::AssumeRepresentation(r);
 }
 
 
@@ -1667,9 +1820,19 @@ void HGoto::PrintDataTo(StringStream* stream) {
 }
 
 
-void HCompareIDAndBranch::SetInputRepresentation(Representation r) {
-  input_representation_ = r;
-  if (r.IsDouble()) {
+void HCompareIDAndBranch::InferRepresentation(HInferRepresentation* h_infer) {
+  Representation rep = Representation::None();
+  Representation left_rep = left()->representation();
+  Representation right_rep = right()->representation();
+  bool observed_integers =
+      observed_input_representation(0).IsInteger32() &&
+      observed_input_representation(1).IsInteger32();
+  bool inputs_are_not_doubles =
+      !left_rep.IsDouble() && !right_rep.IsDouble();
+  if (observed_integers && inputs_are_not_doubles) {
+    rep = Representation::Integer32();
+  } else {
+    rep = Representation::Double();
     // According to the ES5 spec (11.9.3, 11.8.5), Equality comparisons (==, ===
     // and !=) have special handling of undefined, e.g. undefined == undefined
     // is 'true'. Relational comparisons have a different semantic, first
@@ -1686,9 +1849,8 @@ void HCompareIDAndBranch::SetInputRepresentation(Representation r) {
     if (!Token::IsOrderedRelationalCompareOp(token_)) {
       SetFlag(kDeoptimizeOnUndefined);
     }
-  } else {
-    ASSERT(r.IsInteger32());
   }
+  ChangeRepresentation(rep);
 }
 
 
@@ -2451,7 +2613,41 @@ void HBitwise::PrintDataTo(StringStream* stream) {
 }
 
 
-Representation HPhi::InferredRepresentation() {
+void HPhi::InferRepresentation(HInferRepresentation* h_infer) {
+  ASSERT(CheckFlag(kFlexibleRepresentation));
+  // If there are non-Phi uses, and all of them have observed the same
+  // representation, than that's what this Phi is going to use.
+  Representation new_rep = RepresentationObservedByAllNonPhiUses();
+  if (!new_rep.IsNone()) {
+    UpdateRepresentation(new_rep, h_infer, "unanimous use observations");
+    return;
+  }
+  new_rep = RepresentationFromInputs();
+  UpdateRepresentation(new_rep, h_infer, "inputs");
+  new_rep = RepresentationFromUses();
+  UpdateRepresentation(new_rep, h_infer, "uses");
+  new_rep = RepresentationFromUseRequirements();
+  UpdateRepresentation(new_rep, h_infer, "use requirements");
+}
+
+
+Representation HPhi::RepresentationObservedByAllNonPhiUses() {
+  int non_phi_use_count = 0;
+  for (int i = Representation::kInteger32;
+       i < Representation::kNumRepresentations; ++i) {
+    non_phi_use_count += non_phi_uses_[i];
+  }
+  if (non_phi_use_count <= 1) return Representation::None();
+  for (int i = 0; i < Representation::kNumRepresentations; ++i) {
+    if (non_phi_uses_[i] == non_phi_use_count) {
+      return Representation::FromKind(static_cast<Representation::Kind>(i));
+    }
+  }
+  return Representation::None();
+}
+
+
+Representation HPhi::RepresentationFromInputs() {
   bool double_occurred = false;
   bool int32_occurred = false;
   for (int i = 0; i < OperandCount(); ++i) {
@@ -2460,6 +2656,7 @@ Representation HPhi::InferredRepresentation() {
       HPhi* hint_value = HUnknownOSRValue::cast(value)->incoming_value();
       if (hint_value != NULL) {
         Representation hint = hint_value->representation();
+        if (hint.IsTagged()) return hint;
         if (hint.IsDouble()) double_occurred = true;
         if (hint.IsInteger32()) int32_occurred = true;
       }
@@ -2478,7 +2675,9 @@ Representation HPhi::InferredRepresentation() {
           return Representation::Tagged();
         }
       } else {
-        return Representation::Tagged();
+        if (value->IsPhi() && !IsConvertibleToInteger()) {
+          return Representation::Tagged();
+        }
       }
     }
   }
@@ -2486,6 +2685,37 @@ Representation HPhi::InferredRepresentation() {
   if (double_occurred) return Representation::Double();
 
   if (int32_occurred) return Representation::Integer32();
+
+  return Representation::None();
+}
+
+
+Representation HPhi::RepresentationFromUseRequirements() {
+  Representation all_uses_require = Representation::None();
+  bool all_uses_require_the_same = true;
+  for (HUseIterator it(uses()); !it.Done(); it.Advance()) {
+    // We check for observed_input_representation elsewhere.
+    Representation use_rep =
+        it.value()->RequiredInputRepresentation(it.index());
+    // No useful info from this use -> look at the next one.
+    if (use_rep.IsNone()) {
+      continue;
+    }
+    if (use_rep.Equals(all_uses_require)) {
+      continue;
+    }
+    // This use's representation contradicts what we've seen so far.
+    if (!all_uses_require.IsNone()) {
+      ASSERT(!use_rep.Equals(all_uses_require));
+      all_uses_require_the_same = false;
+      break;
+    }
+    // Otherwise, initialize observed representation.
+    all_uses_require = use_rep;
+  }
+  if (all_uses_require_the_same) {
+    return all_uses_require;
+  }
 
   return Representation::None();
 }

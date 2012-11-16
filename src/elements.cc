@@ -146,13 +146,13 @@ static Failure* ThrowArrayLengthRangeError(Heap* heap) {
 }
 
 
-void CopyObjectToObjectElements(FixedArray* from,
-                                ElementsKind from_kind,
-                                uint32_t from_start,
-                                FixedArray* to,
-                                ElementsKind to_kind,
-                                uint32_t to_start,
-                                int raw_copy_size) {
+static void CopyObjectToObjectElements(FixedArray* from,
+                                       ElementsKind from_kind,
+                                       uint32_t from_start,
+                                       FixedArray* to,
+                                       ElementsKind to_kind,
+                                       uint32_t to_start,
+                                       int raw_copy_size) {
   ASSERT(to->map() != HEAP->fixed_cow_array_map());
   int copy_size = raw_copy_size;
   if (raw_copy_size < 0) {
@@ -586,6 +586,49 @@ class ElementsAccessorBase : public ElementsAccessor {
     return backing_store->is_the_hole(key) ? ABSENT : NONE;
   }
 
+  MUST_USE_RESULT virtual PropertyType GetType(
+      Object* receiver,
+      JSObject* holder,
+      uint32_t key,
+      FixedArrayBase* backing_store) {
+    if (backing_store == NULL) {
+      backing_store = holder->elements();
+    }
+    return ElementsAccessorSubclass::GetTypeImpl(
+        receiver, holder, key, BackingStore::cast(backing_store));
+  }
+
+  MUST_USE_RESULT static PropertyType GetTypeImpl(
+        Object* receiver,
+        JSObject* obj,
+        uint32_t key,
+        BackingStore* backing_store) {
+    if (key >= ElementsAccessorSubclass::GetCapacityImpl(backing_store)) {
+      return NONEXISTENT;
+    }
+    return backing_store->is_the_hole(key) ? NONEXISTENT : FIELD;
+  }
+
+  MUST_USE_RESULT virtual AccessorPair* GetAccessorPair(
+      Object* receiver,
+      JSObject* holder,
+      uint32_t key,
+      FixedArrayBase* backing_store) {
+    if (backing_store == NULL) {
+      backing_store = holder->elements();
+    }
+    return ElementsAccessorSubclass::GetAccessorPairImpl(
+        receiver, holder, key, BackingStore::cast(backing_store));
+  }
+
+  MUST_USE_RESULT static AccessorPair* GetAccessorPairImpl(
+        Object* receiver,
+        JSObject* obj,
+        uint32_t key,
+        BackingStore* backing_store) {
+    return NULL;
+  }
+
   MUST_USE_RESULT virtual MaybeObject* SetLength(JSArray* array,
                                                  Object* length) {
     return ElementsAccessorSubclass::SetLengthImpl(
@@ -653,7 +696,7 @@ class ElementsAccessorBase : public ElementsAccessor {
         }
       }
     }
-    if (from->length() == 0) {
+    if (from->length() == 0 || copy_size == 0) {
       return from;
     }
     return ElementsAccessorSubclass::CopyElementsImpl(
@@ -1172,7 +1215,17 @@ class ExternalElementsAccessor
       BackingStore* backing_store) {
     return
         key < ExternalElementsAccessorSubclass::GetCapacityImpl(backing_store)
-        ? NONE : ABSENT;
+          ? NONE : ABSENT;
+  }
+
+  MUST_USE_RESULT static PropertyType GetTypeImpl(
+      Object* receiver,
+      JSObject* obj,
+      uint32_t key,
+      BackingStore* backing_store) {
+    return
+        key < ExternalElementsAccessorSubclass::GetCapacityImpl(backing_store)
+          ? FIELD : NONEXISTENT;
   }
 
   MUST_USE_RESULT static MaybeObject* SetLengthImpl(
@@ -1475,6 +1528,32 @@ class DictionaryElementsAccessor
     return ABSENT;
   }
 
+  MUST_USE_RESULT static PropertyType GetTypeImpl(
+      Object* receiver,
+      JSObject* obj,
+      uint32_t key,
+      SeededNumberDictionary* backing_store) {
+    int entry = backing_store->FindEntry(key);
+    if (entry != SeededNumberDictionary::kNotFound) {
+      return backing_store->DetailsAt(entry).type();
+    }
+    return NONEXISTENT;
+  }
+
+  MUST_USE_RESULT static AccessorPair* GetAccessorPairImpl(
+      Object* receiver,
+      JSObject* obj,
+      uint32_t key,
+      BackingStore* backing_store) {
+    int entry = backing_store->FindEntry(key);
+    if (entry != SeededNumberDictionary::kNotFound &&
+        backing_store->DetailsAt(entry).type() == CALLBACKS &&
+        backing_store->ValueAt(entry)->IsAccessorPair()) {
+      return AccessorPair::cast(backing_store->ValueAt(entry));
+    }
+    return NULL;
+  }
+
   static bool HasElementImpl(Object* receiver,
                              JSObject* holder,
                              uint32_t key,
@@ -1546,6 +1625,38 @@ class NonStrictArgumentsElementsAccessor : public ElementsAccessorBase<
       // If not aliased, check the arguments.
       FixedArray* arguments = FixedArray::cast(parameter_map->get(1));
       return ElementsAccessor::ForArray(arguments)->GetAttributes(
+          receiver, obj, key, arguments);
+    }
+  }
+
+  MUST_USE_RESULT static PropertyType GetTypeImpl(
+      Object* receiver,
+      JSObject* obj,
+      uint32_t key,
+      FixedArray* parameter_map) {
+    Object* probe = GetParameterMapArg(obj, parameter_map, key);
+    if (!probe->IsTheHole()) {
+      return FIELD;
+    } else {
+      // If not aliased, check the arguments.
+      FixedArray* arguments = FixedArray::cast(parameter_map->get(1));
+      return ElementsAccessor::ForArray(arguments)->GetType(
+          receiver, obj, key, arguments);
+    }
+  }
+
+  MUST_USE_RESULT static AccessorPair* GetAccessorPairImpl(
+      Object* receiver,
+      JSObject* obj,
+      uint32_t key,
+      FixedArray* parameter_map) {
+    Object* probe = GetParameterMapArg(obj, parameter_map, key);
+    if (!probe->IsTheHole()) {
+      return NULL;
+    } else {
+      // If not aliased, check the arguments.
+      FixedArray* arguments = FixedArray::cast(parameter_map->get(1));
+      return ElementsAccessor::ForArray(arguments)->GetAccessorPair(
           receiver, obj, key, arguments);
     }
   }

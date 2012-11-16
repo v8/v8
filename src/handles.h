@@ -97,8 +97,8 @@ class Handle {
 
 // Convenience wrapper.
 template<class T>
-inline Handle<T> handle(T* t) {
-  return Handle<T>(t);
+inline Handle<T> handle(T* t, Isolate* isolate) {
+  return Handle<T>(t, isolate);
 }
 
 

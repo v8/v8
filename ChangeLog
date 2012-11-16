@@ -1,3 +1,28 @@
+2012-11-16: Version 3.15.4
+
+        Fixed Array.prototype.join evaluation order. (issue 2263)
+
+        Perform CPU sampling by CPU sampling thread only iff processing thread
+        is not running. (issue 2364)
+
+        When using an Object as a set in Object.getOwnPropertyNames, null out
+        the proto. (issue 2410)
+
+        Disabled EXTRA_CHECKS in Release build.
+
+        Heap explorer: Show representation of strings.
+
+        Removed 'type' and 'arguments' properties from Error object.
+        (issue 2397)
+
+        Added atomics implementation for ThreadSanitizer v2.
+        (Chromium issue 128314)
+
+        Fixed LiveEdit crashes when object/array literal is added. (issue 2368)
+
+        Performance and stability improvements on all platforms.
+
+
 2012-11-13: Version 3.15.3
 
         Changed sample shell to send non-JS output (e.g. errors) to stderr

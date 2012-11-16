@@ -463,13 +463,13 @@ void String::StringVerify() {
     ConsString::cast(this)->ConsStringVerify();
   } else if (IsSlicedString()) {
     SlicedString::cast(this)->SlicedStringVerify();
-  } else if (IsSeqAsciiString()) {
-    SeqAsciiString::cast(this)->SeqAsciiStringVerify();
+  } else if (IsSeqOneByteString()) {
+    SeqOneByteString::cast(this)->SeqOneByteStringVerify();
   }
 }
 
 
-void SeqAsciiString::SeqAsciiStringVerify() {
+void SeqOneByteString::SeqOneByteStringVerify() {
   CHECK(String::IsAscii(GetChars(), length()));
 }
 

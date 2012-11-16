@@ -225,7 +225,7 @@ DEFINE_int(loop_weight, 1, "loop weight for representation inference")
 DEFINE_bool(optimize_for_in, true,
             "optimize functions containing for-in loops")
 DEFINE_bool(opt_safe_uint32_operations, true,
-            "allow uint32 values on optimize frames if they are used only in"
+            "allow uint32 values on optimize frames if they are used only in "
             "safe operations")
 
 DEFINE_bool(parallel_recompilation, false,
@@ -233,6 +233,9 @@ DEFINE_bool(parallel_recompilation, false,
 DEFINE_bool(trace_parallel_recompilation, false, "track parallel recompilation")
 DEFINE_int(parallel_recompilation_queue_length, 2,
            "the length of the parallel compilation queue")
+DEFINE_bool(manual_parallel_recompilation, false,
+            "disable automatic optimization")
+DEFINE_implication(manual_parallel_recompilation, parallel_recompilation)
 
 // Experimental profiler changes.
 DEFINE_bool(experimental_profiler, true, "enable all profiler experiments")
@@ -346,6 +349,10 @@ DEFINE_bool(compilation_cache, true, "enable compilation cache")
 
 DEFINE_bool(cache_prototype_transitions, true, "cache prototype transitions")
 
+// cpu-profiler.cc
+DEFINE_int(cpu_profiler_sampling_period, 1000,
+           "CPU profiler sampling period in microseconds")
+
 // debug.cc
 DEFINE_bool(trace_debug_json, false, "trace debugging JSON request/response")
 DEFINE_bool(debugger_auto_break, true,
@@ -438,6 +445,9 @@ DEFINE_bool(incremental_code_compaction, true,
 DEFINE_bool(cleanup_code_caches_at_gc, true,
             "Flush inline caches prior to mark compact collection and "
             "flush code caches in maps during mark compact cycle.")
+DEFINE_bool(use_marking_progress_bar, false,
+            "Use a progress bar to scan large objects in increments when "
+            "incremental marking is active.")
 DEFINE_int(random_seed, 0,
            "Default seed for initializing random generator "
            "(0, the default, means to use system random).")

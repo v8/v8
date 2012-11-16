@@ -109,12 +109,12 @@ MaybeObject* Heap::AllocateSymbol(Vector<const char> str,
 
 MaybeObject* Heap::AllocateAsciiSymbol(Vector<const char> str,
                                        uint32_t hash_field) {
-  if (str.length() > SeqAsciiString::kMaxLength) {
+  if (str.length() > SeqOneByteString::kMaxLength) {
     return Failure::OutOfMemoryException();
   }
   // Compute map and object size.
   Map* map = ascii_symbol_map();
-  int size = SeqAsciiString::SizeFor(str.length());
+  int size = SeqOneByteString::SizeFor(str.length());
 
   // Allocate string.
   Object* result;
@@ -134,7 +134,7 @@ MaybeObject* Heap::AllocateAsciiSymbol(Vector<const char> str,
   ASSERT_EQ(size, answer->Size());
 
   // Fill in the characters.
-  memcpy(answer->address() + SeqAsciiString::kHeaderSize,
+  memcpy(answer->address() + SeqOneByteString::kHeaderSize,
          str.start(), str.length());
 
   return answer;

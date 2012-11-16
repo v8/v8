@@ -825,7 +825,7 @@ class SamplerThread : public Thread {
   void SampleContext(Sampler* sampler) {
     thread_act_t profiled_thread = sampler->platform_data()->profiled_thread();
     TickSample sample_obj;
-    TickSample* sample = CpuProfiler::TickSampleEvent(sampler->isolate());
+    TickSample* sample = CpuProfiler::StartTickSampleEvent(sampler->isolate());
     if (sample == NULL) sample = &sample_obj;
 
     if (KERN_SUCCESS != thread_suspend(profiled_thread)) return;
@@ -863,6 +863,7 @@ class SamplerThread : public Thread {
       sampler->SampleStack(sample);
       sampler->Tick(sample);
     }
+    CpuProfiler::FinishTickSampleEvent(sampler->isolate());
     thread_resume(profiled_thread);
   }
 
@@ -915,6 +916,11 @@ Sampler::~Sampler() {
 }
 
 
+void Sampler::DoSample() {
+  // TODO(rogulenko): implement
+}
+
+
 void Sampler::Start() {
   ASSERT(!IsActive());
   SetActive(true);
@@ -926,6 +932,14 @@ void Sampler::Stop() {
   ASSERT(IsActive());
   SamplerThread::RemoveActiveSampler(this);
   SetActive(false);
+}
+
+
+void Sampler::StartSampling() {
+}
+
+
+void Sampler::StopSampling() {
 }
 
 

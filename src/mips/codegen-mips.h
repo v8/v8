@@ -36,6 +36,9 @@
 namespace v8 {
 namespace internal {
 
+static const int kSizeOfFullCodegenStrictModePrologue = 16;
+static const int kSizeOfOptimizedStrictModePrologue = 16;
+
 // Forward declarations
 class CompilationInfo;
 

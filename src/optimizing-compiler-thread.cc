@@ -72,7 +72,13 @@ void OptimizingCompilerThread::Run() {
     USE(status);
 
     output_queue_.Enqueue(optimizing_compiler);
-    isolate_->stack_guard()->RequestCodeReadyEvent();
+    if (!FLAG_manual_parallel_recompilation) {
+      isolate_->stack_guard()->RequestCodeReadyEvent();
+    } else {
+      // In manual mode, do not trigger a code ready event.
+      // Instead, wait for the optimized functions to be installed manually.
+      output_queue_semaphore_->Signal();
+    }
 
     if (FLAG_trace_parallel_recompilation) {
       time_spent_compiling_ += OS::Ticks() - compiling_start;
@@ -99,6 +105,9 @@ void OptimizingCompilerThread::InstallOptimizedFunctions() {
   HandleScope handle_scope(isolate_);
   int functions_installed = 0;
   while (!output_queue_.IsEmpty()) {
+    if (FLAG_manual_parallel_recompilation) {
+      output_queue_semaphore_->Wait();
+    }
     OptimizingCompiler* compiler = NULL;
     output_queue_.Dequeue(&compiler);
     Compiler::InstallOptimizedCode(compiler);
@@ -107,6 +116,17 @@ void OptimizingCompilerThread::InstallOptimizedFunctions() {
   if (FLAG_trace_parallel_recompilation && functions_installed != 0) {
     PrintF("  ** Installed %d function(s).\n", functions_installed);
   }
+}
+
+
+Handle<SharedFunctionInfo>
+    OptimizingCompilerThread::InstallNextOptimizedFunction() {
+  ASSERT(FLAG_manual_parallel_recompilation);
+  output_queue_semaphore_->Wait();
+  OptimizingCompiler* compiler = NULL;
+  output_queue_.Dequeue(&compiler);
+  Compiler::InstallOptimizedCode(compiler);
+  return compiler->info()->shared_info();
 }
 
 

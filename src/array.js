@@ -413,6 +413,7 @@ function ArrayJoin(separator) {
                         ["Array.prototype.join"]);
   }
 
+  var length = TO_UINT32(this.length);
   if (IS_UNDEFINED(separator)) {
     separator = ',';
   } else if (!IS_STRING(separator)) {
@@ -422,7 +423,7 @@ function ArrayJoin(separator) {
   var result = %_FastAsciiArrayJoin(this, separator);
   if (!IS_UNDEFINED(result)) return result;
 
-  return Join(this, TO_UINT32(this.length), separator, ConvertToString);
+  return Join(this, length, separator, ConvertToString);
 }
 
 

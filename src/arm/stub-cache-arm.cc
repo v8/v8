@@ -1623,7 +1623,7 @@ Handle<Code> CallStubCompiler::CompileArrayPushCall(
     Label call_builtin;
 
     if (argc == 1) {  // Otherwise fall through to call the builtin.
-      Label attempt_to_grow_elements;
+      Label attempt_to_grow_elements, with_write_barrier, check_double;
 
       Register elements = r6;
       Register end_elements = r5;
@@ -1634,9 +1634,8 @@ Handle<Code> CallStubCompiler::CompileArrayPushCall(
       __ CheckMap(elements,
                   r0,
                   Heap::kFixedArrayMapRootIndex,
-                  &call_builtin,
+                  &check_double,
                   DONT_DO_SMI_CHECK);
-
 
       // Get the array's length into r0 and calculate new length.
       __ ldr(r0, FieldMemOperand(receiver, JSArray::kLengthOffset));
@@ -1652,7 +1651,6 @@ Handle<Code> CallStubCompiler::CompileArrayPushCall(
       __ b(gt, &attempt_to_grow_elements);
 
       // Check if value is a smi.
-      Label with_write_barrier;
       __ ldr(r4, MemOperand(sp, (argc - 1) * kPointerSize));
       __ JumpIfNotSmi(r4, &with_write_barrier);
 
@@ -1672,6 +1670,40 @@ Handle<Code> CallStubCompiler::CompileArrayPushCall(
       __ Drop(argc + 1);
       __ Ret();
 
+      __ bind(&check_double);
+
+      // Check that the elements are in fast mode and writable.
+      __ CheckMap(elements,
+                  r0,
+                  Heap::kFixedDoubleArrayMapRootIndex,
+                  &call_builtin,
+                  DONT_DO_SMI_CHECK);
+
+      // Get the array's length into r0 and calculate new length.
+      __ ldr(r0, FieldMemOperand(receiver, JSArray::kLengthOffset));
+      STATIC_ASSERT(kSmiTagSize == 1);
+      STATIC_ASSERT(kSmiTag == 0);
+      __ add(r0, r0, Operand(Smi::FromInt(argc)));
+
+      // Get the elements' length.
+      __ ldr(r4, FieldMemOperand(elements, FixedArray::kLengthOffset));
+
+      // Check if we could survive without allocation.
+      __ cmp(r0, r4);
+      __ b(gt, &call_builtin);
+
+      __ ldr(r4, MemOperand(sp, (argc - 1) * kPointerSize));
+      __ StoreNumberToDoubleElements(
+          r4, r0, elements, r3, r5, r2, r9,
+          &call_builtin, argc * kDoubleSize);
+
+      // Save new length.
+      __ str(r0, FieldMemOperand(receiver, JSArray::kLengthOffset));
+
+      // Check for a smi.
+      __ Drop(argc + 1);
+      __ Ret();
+
       __ bind(&with_write_barrier);
 
       __ ldr(r3, FieldMemOperand(receiver, HeapObject::kMapOffset));
@@ -1683,6 +1715,11 @@ Handle<Code> CallStubCompiler::CompileArrayPushCall(
         // In case of fast smi-only, convert to fast object, otherwise bail out.
         __ bind(&not_fast_object);
         __ CheckFastSmiElements(r3, r7, &call_builtin);
+
+        __ ldr(r7, FieldMemOperand(r4, HeapObject::kMapOffset));
+        __ LoadRoot(ip, Heap::kHeapNumberMapRootIndex);
+        __ cmp(r7, ip);
+        __ b(eq, &call_builtin);
         // edx: receiver
         // r3: map
         Label try_holey_map;
@@ -3819,20 +3856,20 @@ void KeyedLoadStubCompiler::GenerateLoadExternalArray(
       __ AllocateHeapNumber(r5, r3, r4, r6, &slow, TAG_RESULT);
       // Now we can use r0 for the result as key is not needed any more.
       __ mov(r0, r5);
-      Register dst1 = r1;
-      Register dst2 = r3;
+      Register dst_mantissa = r1;
+      Register dst_exponent = r3;
       FloatingPointHelper::Destination dest =
           FloatingPointHelper::kCoreRegisters;
       FloatingPointHelper::ConvertIntToDouble(masm,
                                               value,
                                               dest,
                                               d0,
-                                              dst1,
-                                              dst2,
+                                              dst_mantissa,
+                                              dst_exponent,
                                               r9,
                                               s0);
-      __ str(dst1, FieldMemOperand(r0, HeapNumber::kMantissaOffset));
-      __ str(dst2, FieldMemOperand(r0, HeapNumber::kExponentOffset));
+      __ str(dst_mantissa, FieldMemOperand(r0, HeapNumber::kMantissaOffset));
+      __ str(dst_exponent, FieldMemOperand(r0, HeapNumber::kExponentOffset));
       __ Ret();
     }
   } else if (elements_kind == EXTERNAL_UNSIGNED_INT_ELEMENTS) {
@@ -4101,7 +4138,7 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
       }
       FloatingPointHelper::ConvertIntToDouble(
           masm, r5, destination,
-          d0, r6, r7,  // These are: double_dst, dst1, dst2.
+          d0, r6, r7,  // These are: double_dst, dst_mantissa, dst_exponent.
           r4, s2);  // These are: scratch2, single_scratch.
       if (destination == FloatingPointHelper::kVFPRegisters) {
         CpuFeatures::Scope scope(VFP2);
@@ -4698,7 +4735,6 @@ void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
   __ bind(&finish_store);
   __ StoreNumberToDoubleElements(value_reg,
                                  key_reg,
-                                 receiver_reg,
                                  // All registers after this are overwritten.
                                  elements_reg,
                                  scratch1,

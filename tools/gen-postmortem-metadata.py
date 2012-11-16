@@ -114,7 +114,7 @@ extras_accessors = [
     'ConsString, first, String, kFirstOffset',
     'ConsString, second, String, kSecondOffset',
     'ExternalString, resource, Object, kResourceOffset',
-    'SeqAsciiString, chars, char, kHeaderSize',
+    'SeqOneByteString, chars, char, kHeaderSize',
     'SharedFunctionInfo, code, Code, kCodeOffset',
     'Code, instruction_start, uintptr_t, kHeaderSize',
     'Code, instruction_size, int, kInstructionSizeOffset',
@@ -128,7 +128,7 @@ extras_accessors = [
 expected_classes = [
     'ConsString', 'FixedArray', 'HeapNumber', 'JSArray', 'JSFunction',
     'JSObject', 'JSRegExp', 'JSValue', 'Map', 'Oddball', 'Script',
-    'SeqAsciiString', 'SharedFunctionInfo'
+    'SeqOneByteString', 'SharedFunctionInfo'
 ];
 
 
@@ -293,7 +293,7 @@ def load_objects():
                             cctype.find('Sliced') == -1):
                                 if (cctype.find('Ascii') != -1):
                                         cctype = re.sub('AsciiString$',
-                                            'SeqAsciiString', cctype);
+                                            'SeqOneByteString', cctype);
                                 else:
                                         cctype = re.sub('String$',
                                             'SeqString', cctype);

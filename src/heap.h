@@ -584,6 +584,7 @@ class Heap {
   MUST_USE_RESULT MaybeObject* AllocateJSArrayWithElements(
       FixedArrayBase* array_base,
       ElementsKind elements_kind,
+      int length,
       PretenureFlag pretenure = NOT_TENURED);
 
   // Allocates and initializes a new global object based on a constructor.
@@ -1044,9 +1045,8 @@ class Heap {
     return LookupSymbol(CStrVector(str));
   }
   MUST_USE_RESULT MaybeObject* LookupSymbol(String* str);
-  MUST_USE_RESULT MaybeObject* LookupAsciiSymbol(Handle<SeqAsciiString> string,
-                                                 int from,
-                                                 int length);
+  MUST_USE_RESULT MaybeObject* LookupAsciiSymbol(
+      Handle<SeqOneByteString> string, int from, int length);
 
   bool LookupSymbolIfExists(String* str, String** symbol);
   bool LookupTwoCharsSymbolIfExists(String* str, String** symbol);

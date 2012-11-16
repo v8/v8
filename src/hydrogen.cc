@@ -133,7 +133,8 @@ HDeoptimize* HBasicBlock::CreateDeoptimize(
 }
 
 
-HSimulate* HBasicBlock::CreateSimulate(BailoutId ast_id) {
+HSimulate* HBasicBlock::CreateSimulate(BailoutId ast_id,
+                                       RemovableSimulate removable) {
   ASSERT(HasEnvironment());
   HEnvironment* environment = last_environment();
   ASSERT(ast_id.IsNone() ||
@@ -142,8 +143,12 @@ HSimulate* HBasicBlock::CreateSimulate(BailoutId ast_id) {
   int push_count = environment->push_count();
   int pop_count = environment->pop_count();
 
-  HSimulate* instr = new(zone()) HSimulate(ast_id, pop_count, zone());
-  for (int i = push_count - 1; i >= 0; --i) {
+  HSimulate* instr =
+      new(zone()) HSimulate(ast_id, pop_count, zone(), removable);
+  // Order of pushed values: newest (top of stack) first. This allows
+  // HSimulate::MergeInto() to easily append additional pushed values
+  // that are older (from further down the stack).
+  for (int i = 0; i < push_count; ++i) {
     instr->AddPushedValue(environment->ExpressionStackAt(i));
   }
   for (int i = 0; i < environment->assigned_variables()->length(); ++i) {
@@ -1291,7 +1296,7 @@ void HRangeAnalysis::Analyze(HBasicBlock* block) {
 void HRangeAnalysis::InferControlFlowRange(HCompareIDAndBranch* test,
                                            HBasicBlock* dest) {
   ASSERT((test->FirstSuccessor() == dest) == (test->SecondSuccessor() != dest));
-  if (test->GetInputRepresentation().IsInteger32()) {
+  if (test->representation().IsInteger32()) {
     Token::Value op = test->token();
     if (test->SecondSuccessor() == dest) {
       op = Token::NegateCompareOp(op);
@@ -2239,135 +2244,12 @@ void HGlobalValueNumberer::AnalyzeGraph() {
 }
 
 
-class HInferRepresentation BASE_EMBEDDED {
- public:
-  explicit HInferRepresentation(HGraph* graph)
-      : graph_(graph),
-        worklist_(8, graph->zone()),
-        in_worklist_(graph->GetMaximumValueID(), graph->zone()) { }
-
-  void Analyze();
-
- private:
-  Representation TryChange(HValue* current);
-  void AddToWorklist(HValue* current);
-  void InferBasedOnInputs(HValue* current);
-  void AddDependantsToWorklist(HValue* current);
-  void InferBasedOnUses(HValue* current);
-
-  Zone* zone() const { return graph_->zone(); }
-
-  HGraph* graph_;
-  ZoneList<HValue*> worklist_;
-  BitVector in_worklist_;
-};
-
-
 void HInferRepresentation::AddToWorklist(HValue* current) {
-  if (current->representation().IsSpecialization()) return;
+  if (current->representation().IsTagged()) return;
   if (!current->CheckFlag(HValue::kFlexibleRepresentation)) return;
   if (in_worklist_.Contains(current->id())) return;
   worklist_.Add(current, zone());
   in_worklist_.Add(current->id());
-}
-
-
-// This method tries to specialize the representation type of the value
-// given as a parameter. The value is asked to infer its representation type
-// based on its inputs. If the inferred type is more specialized, then this
-// becomes the new representation type of the node.
-void HInferRepresentation::InferBasedOnInputs(HValue* current) {
-  Representation r = current->representation();
-  if (r.IsSpecialization()) return;
-  ASSERT(current->CheckFlag(HValue::kFlexibleRepresentation));
-  Representation inferred = current->InferredRepresentation();
-  if (inferred.IsSpecialization()) {
-    if (FLAG_trace_representation) {
-      PrintF("Changing #%d representation %s -> %s based on inputs\n",
-             current->id(),
-             r.Mnemonic(),
-             inferred.Mnemonic());
-    }
-    current->ChangeRepresentation(inferred);
-    AddDependantsToWorklist(current);
-  }
-}
-
-
-void HInferRepresentation::AddDependantsToWorklist(HValue* value) {
-  for (HUseIterator it(value->uses()); !it.Done(); it.Advance()) {
-    AddToWorklist(it.value());
-  }
-  for (int i = 0; i < value->OperandCount(); ++i) {
-    AddToWorklist(value->OperandAt(i));
-  }
-}
-
-
-// This method calculates whether specializing the representation of the value
-// given as the parameter has a benefit in terms of less necessary type
-// conversions. If there is a benefit, then the representation of the value is
-// specialized.
-void HInferRepresentation::InferBasedOnUses(HValue* value) {
-  Representation r = value->representation();
-  if (r.IsSpecialization() || value->HasNoUses()) return;
-  ASSERT(value->CheckFlag(HValue::kFlexibleRepresentation));
-  Representation new_rep = TryChange(value);
-  if (!new_rep.IsNone()) {
-    if (!value->representation().Equals(new_rep)) {
-      if (FLAG_trace_representation) {
-        PrintF("Changing #%d representation %s -> %s based on uses\n",
-               value->id(),
-               r.Mnemonic(),
-               new_rep.Mnemonic());
-      }
-      value->ChangeRepresentation(new_rep);
-      AddDependantsToWorklist(value);
-    }
-  }
-}
-
-
-Representation HInferRepresentation::TryChange(HValue* value) {
-  // Array of use counts for each representation.
-  int use_count[Representation::kNumRepresentations] = { 0 };
-
-  for (HUseIterator it(value->uses()); !it.Done(); it.Advance()) {
-    HValue* use = it.value();
-    Representation rep = use->ObservedInputRepresentation(it.index());
-    if (rep.IsNone()) continue;
-    if (FLAG_trace_representation) {
-      PrintF("%d %s is used by %d %s as %s\n",
-             value->id(),
-             value->Mnemonic(),
-             use->id(),
-             use->Mnemonic(),
-             rep.Mnemonic());
-    }
-    if (use->IsPhi()) HPhi::cast(use)->AddIndirectUsesTo(&use_count[0]);
-    use_count[rep.kind()] += use->LoopWeight();
-  }
-  int tagged_count = use_count[Representation::kTagged];
-  int double_count = use_count[Representation::kDouble];
-  int int32_count = use_count[Representation::kInteger32];
-  int non_tagged_count = double_count + int32_count;
-
-  // If a non-loop phi has tagged uses, don't convert it to untagged.
-  if (value->IsPhi() && !value->block()->IsLoopHeader() && tagged_count > 0) {
-    return Representation::None();
-  }
-
-  // Prefer unboxing over boxing, the latter is more expensive.
-  if (tagged_count > non_tagged_count) return Representation::None();
-
-  // Prefer Integer32 over Double, if possible.
-  if (int32_count > 0 && value->IsConvertibleToInteger()) {
-    return Representation::Integer32();
-  }
-
-  if (double_count > 0) return Representation::Double();
-
-  return Representation::None();
 }
 
 
@@ -2421,7 +2303,6 @@ void HInferRepresentation::Analyze() {
          it.Advance()) {
       HPhi* phi = phi_list->at(it.Current());
       phi->set_is_convertible_to_integer(false);
-      phi->ResetInteger32Uses();
     }
   }
 
@@ -2457,8 +2338,74 @@ void HInferRepresentation::Analyze() {
   while (!worklist_.is_empty()) {
     HValue* current = worklist_.RemoveLast();
     in_worklist_.Remove(current->id());
-    InferBasedOnInputs(current);
-    InferBasedOnUses(current);
+    current->InferRepresentation(this);
+  }
+
+  // Lastly: any instruction that we don't have representation information
+  // for defaults to Tagged.
+  for (int i = 0; i < graph_->blocks()->length(); ++i) {
+    HBasicBlock* block = graph_->blocks()->at(i);
+    const ZoneList<HPhi*>* phis = block->phis();
+    for (int j = 0; j < phis->length(); ++j) {
+      HPhi* phi = phis->at(j);
+      if (phi->representation().IsNone()) {
+        phi->ChangeRepresentation(Representation::Tagged());
+      }
+    }
+    for (HInstruction* current = block->first();
+         current != NULL; current = current->next()) {
+      if (current->representation().IsNone() &&
+          current->CheckFlag(HInstruction::kFlexibleRepresentation)) {
+        current->ChangeRepresentation(Representation::Tagged());
+      }
+    }
+  }
+}
+
+
+void HGraph::MergeRemovableSimulates() {
+  for (int i = 0; i < blocks()->length(); ++i) {
+    HBasicBlock* block = blocks()->at(i);
+    // Always reset the folding candidate at the start of a block.
+    HSimulate* folding_candidate = NULL;
+    // Nasty heuristic: Never remove the first simulate in a block. This
+    // just so happens to have a beneficial effect on register allocation.
+    bool first = true;
+    for (HInstruction* current = block->first();
+         current != NULL; current = current->next()) {
+      if (current->IsLeaveInlined()) {
+        // Never fold simulates from inlined environments into simulates
+        // in the outer environment.
+        // (Before each HEnterInlined, there is a non-foldable HSimulate
+        // anyway, so we get the barrier in the other direction for free.)
+        if (folding_candidate != NULL) {
+          folding_candidate->DeleteAndReplaceWith(NULL);
+        }
+        folding_candidate = NULL;
+        continue;
+      }
+      // If we have an HSimulate and a candidate, perform the folding.
+      if (!current->IsSimulate()) continue;
+      if (first) {
+        first = false;
+        continue;
+      }
+      HSimulate* current_simulate = HSimulate::cast(current);
+      if (folding_candidate != NULL) {
+        folding_candidate->MergeInto(current_simulate);
+        folding_candidate->DeleteAndReplaceWith(NULL);
+        folding_candidate = NULL;
+      }
+      // Check if the current simulate is a candidate for folding.
+      if (current_simulate->previous()->HasObservableSideEffects() &&
+          !current_simulate->next()->IsSimulate()) {
+        continue;
+      }
+      if (!current_simulate->is_candidate_for_removal()) {
+        continue;
+      }
+      folding_candidate = current_simulate;
+    }
   }
 }
 
@@ -2553,7 +2500,6 @@ void HGraph::InsertRepresentationChangeForUse(HValue* value,
   } else {
     next = HInstruction::cast(use_value);
   }
-
   // For constants we try to make the representation change at compile
   // time. When a representation change is not possible without loss of
   // information we treat constants like normal instructions and insert the
@@ -2565,7 +2511,7 @@ void HGraph::InsertRepresentationChangeForUse(HValue* value,
   if (value->IsConstant()) {
     HConstant* constant = HConstant::cast(value);
     // Try to create a new copy of the constant with the new representation.
-    new_value = is_truncating
+    new_value = (is_truncating && to.IsInteger32())
         ? constant->CopyToTruncatedInt32(zone())
         : constant->CopyToRepresentation(to, zone());
   }
@@ -2625,9 +2571,23 @@ void HGraph::InsertRepresentationChanges() {
     for (int i = 0; i < phi_list()->length(); i++) {
       HPhi* phi = phi_list()->at(i);
       if (!phi->CheckFlag(HValue::kTruncatingToInt32)) continue;
-      if (!phi->CheckUsesForFlag(HValue::kTruncatingToInt32)) {
-        phi->ClearFlag(HValue::kTruncatingToInt32);
-        change = true;
+      for (HUseIterator it(phi->uses()); !it.Done(); it.Advance()) {
+        // If a Phi is used as a non-truncating int32 or as a double,
+        // clear its "truncating" flag.
+        HValue* use = it.value();
+        Representation input_representation =
+            use->RequiredInputRepresentation(it.index());
+        if ((input_representation.IsInteger32() &&
+             !use->CheckFlag(HValue::kTruncatingToInt32)) ||
+            input_representation.IsDouble()) {
+          if (FLAG_trace_representation) {
+            PrintF("#%d Phi is not truncating because of #%d %s\n",
+                   phi->id(), it.value()->id(), it.value()->Mnemonic());
+          }
+          phi->ClearFlag(HValue::kTruncatingToInt32);
+          change = true;
+          break;
+        }
       }
     }
   }
@@ -2642,8 +2602,9 @@ void HGraph::InsertRepresentationChanges() {
     // Process normal instructions.
     HInstruction* current = blocks_[i]->first();
     while (current != NULL) {
+      HInstruction* next = current->next();
       InsertRepresentationChangesForValue(current);
-      current = current->next();
+      current = next;
     }
   }
 }
@@ -3038,7 +2999,9 @@ void TestContext::ReturnValue(HValue* value) {
 void EffectContext::ReturnInstruction(HInstruction* instr, BailoutId ast_id) {
   ASSERT(!instr->IsControlInstruction());
   owner()->AddInstruction(instr);
-  if (instr->HasObservableSideEffects()) owner()->AddSimulate(ast_id);
+  if (instr->HasObservableSideEffects()) {
+    owner()->AddSimulate(ast_id, REMOVABLE_SIMULATE);
+  }
 }
 
 
@@ -3062,7 +3025,9 @@ void ValueContext::ReturnInstruction(HInstruction* instr, BailoutId ast_id) {
   }
   owner()->AddInstruction(instr);
   owner()->Push(instr);
-  if (instr->HasObservableSideEffects()) owner()->AddSimulate(ast_id);
+  if (instr->HasObservableSideEffects()) {
+    owner()->AddSimulate(ast_id, REMOVABLE_SIMULATE);
+  }
 }
 
 
@@ -3094,7 +3059,7 @@ void TestContext::ReturnInstruction(HInstruction* instr, BailoutId ast_id) {
   // this one isn't actually needed (and wouldn't work if it were targeted).
   if (instr->HasObservableSideEffects()) {
     builder->Push(instr);
-    builder->AddSimulate(ast_id);
+    builder->AddSimulate(ast_id, REMOVABLE_SIMULATE);
     builder->Pop();
   }
   BuildBranch(instr);
@@ -3272,9 +3237,8 @@ HGraph* HGraphBuilder::CreateGraph() {
     // optimization. Disable optimistic LICM in that case.
     Handle<Code> unoptimized_code(info()->shared_info()->code());
     ASSERT(unoptimized_code->kind() == Code::FUNCTION);
-    Handle<Object> maybe_type_info(unoptimized_code->type_feedback_info());
     Handle<TypeFeedbackInfo> type_info(
-        Handle<TypeFeedbackInfo>::cast(maybe_type_info));
+        TypeFeedbackInfo::cast(unoptimized_code->type_feedback_info()));
     int checksum = type_info->own_type_change_checksum();
     int composite_checksum = graph()->update_type_change_checksum(checksum);
     graph()->set_use_optimistic_licm(
@@ -3320,6 +3284,11 @@ bool HGraph::Optimize(SmartArrayPointer<char>* bailout_reason) {
 
   HInferRepresentation rep(this);
   rep.Analyze();
+
+  // Remove HSimulate instructions that have turned out not to be needed
+  // after all by folding them into the following HSimulate.
+  // This must happen after inferring representations.
+  MergeRemovableSimulates();
 
   MarkDeoptimizeOnUndefined();
   InsertRepresentationChanges();
@@ -3810,9 +3779,9 @@ HInstruction* HGraphBuilder::AddInstruction(HInstruction* instr) {
 }
 
 
-void HGraphBuilder::AddSimulate(BailoutId ast_id) {
+void HGraphBuilder::AddSimulate(BailoutId ast_id, RemovableSimulate removable) {
   ASSERT(current_block() != NULL);
-  current_block()->AddSimulate(ast_id);
+  current_block()->AddSimulate(ast_id, removable);
 }
 
 
@@ -4169,7 +4138,7 @@ void HGraphBuilder::VisitSwitchStatement(SwitchStatement* stmt) {
                 !clause->label()->IsStringLiteral()) ||
                (switch_type == SMI_SWITCH &&
                 !clause->label()->IsSmiLiteral())) {
-      return Bailout("SwitchStatemnt: mixed label types are not supported");
+      return Bailout("SwitchStatement: mixed label types are not supported");
     }
   }
 
@@ -4223,12 +4192,13 @@ void HGraphBuilder::VisitSwitchStatement(SwitchStatement* stmt) {
           new(zone()) HCompareIDAndBranch(tag_value,
                                           label_value,
                                           Token::EQ_STRICT);
-      compare_->SetInputRepresentation(Representation::Integer32());
+      compare_->set_observed_input_representation(
+          Representation::Integer32(), Representation::Integer32());
       compare = compare_;
     } else {
       compare = new(zone()) HStringCompareAndBranch(context, tag_value,
-                                                     label_value,
-                                                     Token::EQ_STRICT);
+                                                    label_value,
+                                                    Token::EQ_STRICT);
     }
 
     compare->SetSuccessorAt(0, body_block);
@@ -4587,7 +4557,8 @@ void HGraphBuilder::VisitForInStatement(ForInStatement* stmt) {
   // Check that we still have more keys.
   HCompareIDAndBranch* compare_index =
       new(zone()) HCompareIDAndBranch(index, limit, Token::LT);
-  compare_index->SetInputRepresentation(Representation::Integer32());
+  compare_index->set_observed_input_representation(
+      Representation::Integer32(), Representation::Integer32());
 
   HBasicBlock* loop_body = graph()->CreateBasicBlock();
   HBasicBlock* loop_successor = graph()->CreateBasicBlock();
@@ -4862,7 +4833,7 @@ void HGraphBuilder::VisitLiteral(Literal* expr) {
   ASSERT(current_block() != NULL);
   ASSERT(current_block()->HasPredecessor());
   HConstant* instr =
-      new(zone()) HConstant(expr->handle(), Representation::Tagged());
+      new(zone()) HConstant(expr->handle(), Representation::None());
   return ast_context()->ReturnInstruction(instr, expr->id());
 }
 
@@ -5099,7 +5070,9 @@ void HGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
                                                              map));
             }
             AddInstruction(store);
-            if (store->HasObservableSideEffects()) AddSimulate(key->id());
+            if (store->HasObservableSideEffects()) {
+              AddSimulate(key->id(), REMOVABLE_SIMULATE);
+            }
           } else {
             CHECK_ALIVE(VisitForEffect(value));
           }
@@ -5480,10 +5453,10 @@ void HGraphBuilder::HandlePolymorphicStoreNamedField(Assignment* expr,
       // unoptimized code).
       if (instr->HasObservableSideEffects()) {
         if (ast_context()->IsEffect()) {
-          AddSimulate(expr->id());
+          AddSimulate(expr->id(), REMOVABLE_SIMULATE);
         } else {
           Push(value);
-          AddSimulate(expr->id());
+          AddSimulate(expr->id(), REMOVABLE_SIMULATE);
           Drop(1);
         }
       }
@@ -5553,7 +5526,9 @@ void HGraphBuilder::HandlePropertyAssignment(Assignment* expr) {
     Push(value);
     instr->set_position(expr->position());
     AddInstruction(instr);
-    if (instr->HasObservableSideEffects()) AddSimulate(expr->AssignmentId());
+    if (instr->HasObservableSideEffects()) {
+      AddSimulate(expr->AssignmentId(), REMOVABLE_SIMULATE);
+    }
     return ast_context()->ReturnValue(Pop());
 
   } else {
@@ -5570,7 +5545,7 @@ void HGraphBuilder::HandlePropertyAssignment(Assignment* expr) {
                              &has_side_effects);
     Push(value);
     ASSERT(has_side_effects);  // Stores always have side effects.
-    AddSimulate(expr->AssignmentId());
+    AddSimulate(expr->AssignmentId(), REMOVABLE_SIMULATE);
     return ast_context()->ReturnValue(Pop());
   }
 }
@@ -5592,7 +5567,9 @@ void HGraphBuilder::HandleGlobalVariableAssignment(Variable* var,
         new(zone()) HStoreGlobalCell(value, cell, lookup.GetPropertyDetails());
     instr->set_position(position);
     AddInstruction(instr);
-    if (instr->HasObservableSideEffects()) AddSimulate(ast_id);
+    if (instr->HasObservableSideEffects()) {
+      AddSimulate(ast_id, REMOVABLE_SIMULATE);
+    }
   } else {
     HValue* context =  environment()->LookupContext();
     HGlobalObject* global_object = new(zone()) HGlobalObject(context);
@@ -5606,7 +5583,7 @@ void HGraphBuilder::HandleGlobalVariableAssignment(Variable* var,
     instr->set_position(position);
     AddInstruction(instr);
     ASSERT(instr->HasObservableSideEffects());
-    if (instr->HasObservableSideEffects()) AddSimulate(ast_id);
+    AddSimulate(ast_id, REMOVABLE_SIMULATE);
   }
 }
 
@@ -5683,7 +5660,7 @@ void HGraphBuilder::HandleCompoundAssignment(Assignment* expr) {
             new(zone()) HStoreContextSlot(context, var->index(), mode, Top());
         AddInstruction(instr);
         if (instr->HasObservableSideEffects()) {
-          AddSimulate(expr->AssignmentId());
+          AddSimulate(expr->AssignmentId(), REMOVABLE_SIMULATE);
         }
         break;
       }
@@ -5723,7 +5700,9 @@ void HGraphBuilder::HandleCompoundAssignment(Assignment* expr) {
         load = BuildLoadNamedGeneric(object, name, prop);
       }
       PushAndAdd(load);
-      if (load->HasObservableSideEffects()) AddSimulate(prop->LoadId());
+      if (load->HasObservableSideEffects()) {
+        AddSimulate(prop->LoadId(), REMOVABLE_SIMULATE);
+      }
 
       CHECK_ALIVE(VisitForValue(expr->value()));
       HValue* right = Pop();
@@ -5731,7 +5710,9 @@ void HGraphBuilder::HandleCompoundAssignment(Assignment* expr) {
 
       HInstruction* instr = BuildBinaryOperation(operation, left, right);
       PushAndAdd(instr);
-      if (instr->HasObservableSideEffects()) AddSimulate(operation->id());
+      if (instr->HasObservableSideEffects()) {
+        AddSimulate(operation->id(), REMOVABLE_SIMULATE);
+      }
 
       HInstruction* store;
       if (!monomorphic) {
@@ -5753,7 +5734,9 @@ void HGraphBuilder::HandleCompoundAssignment(Assignment* expr) {
       // Drop the simulated receiver and value.  Return the value.
       Drop(2);
       Push(instr);
-      if (store->HasObservableSideEffects()) AddSimulate(expr->AssignmentId());
+      if (store->HasObservableSideEffects()) {
+        AddSimulate(expr->AssignmentId(), REMOVABLE_SIMULATE);
+      }
       return ast_context()->ReturnValue(Pop());
 
     } else {
@@ -5769,7 +5752,7 @@ void HGraphBuilder::HandleCompoundAssignment(Assignment* expr) {
           false,  // is_store
           &has_side_effects);
       Push(load);
-      if (has_side_effects) AddSimulate(prop->LoadId());
+      if (has_side_effects) AddSimulate(prop->LoadId(), REMOVABLE_SIMULATE);
 
 
       CHECK_ALIVE(VisitForValue(expr->value()));
@@ -5778,7 +5761,9 @@ void HGraphBuilder::HandleCompoundAssignment(Assignment* expr) {
 
       HInstruction* instr = BuildBinaryOperation(operation, left, right);
       PushAndAdd(instr);
-      if (instr->HasObservableSideEffects()) AddSimulate(operation->id());
+      if (instr->HasObservableSideEffects()) {
+        AddSimulate(operation->id(), REMOVABLE_SIMULATE);
+      }
 
       expr->RecordTypeFeedback(oracle(), zone());
       HandleKeyedElementAccess(obj, key, instr, expr, expr->AssignmentId(),
@@ -5790,7 +5775,7 @@ void HGraphBuilder::HandleCompoundAssignment(Assignment* expr) {
       Drop(3);
       Push(instr);
       ASSERT(has_side_effects);  // Stores always have side effects.
-      AddSimulate(expr->AssignmentId());
+      AddSimulate(expr->AssignmentId(), REMOVABLE_SIMULATE);
       return ast_context()->ReturnValue(Pop());
     }
 
@@ -5913,7 +5898,7 @@ void HGraphBuilder::VisitAssignment(Assignment* expr) {
             context, var->index(), mode, Top());
         AddInstruction(instr);
         if (instr->HasObservableSideEffects()) {
-          AddSimulate(expr->AssignmentId());
+          AddSimulate(expr->AssignmentId(), REMOVABLE_SIMULATE);
         }
         return ast_context()->ReturnValue(Pop());
       }
@@ -6051,13 +6036,6 @@ HInstruction* HGraphBuilder::BuildExternalArrayElementAccess(
       case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
       case EXTERNAL_INT_ELEMENTS:
       case EXTERNAL_UNSIGNED_INT_ELEMENTS: {
-        if (!val->representation().IsInteger32()) {
-          val = AddInstruction(new(zone()) HChange(
-              val,
-              Representation::Integer32(),
-              true,  // Truncate to int32.
-              false));  // Don't deoptimize undefined (irrelevant here).
-        }
         break;
       }
       case EXTERNAL_FLOAT_ELEMENTS:
@@ -6678,10 +6656,10 @@ void HGraphBuilder::VisitProperty(Property* expr) {
         &has_side_effects);
     if (has_side_effects) {
       if (ast_context()->IsEffect()) {
-        AddSimulate(expr->id());
+        AddSimulate(expr->id(), REMOVABLE_SIMULATE);
       } else {
         Push(load);
-        AddSimulate(expr->id());
+        AddSimulate(expr->id(), REMOVABLE_SIMULATE);
         Drop(1);
       }
     }
@@ -7136,9 +7114,8 @@ bool HGraphBuilder::TryInline(CallKind call_kind,
   inlined_count_ += nodes_added;
 
   ASSERT(unoptimized_code->kind() == Code::FUNCTION);
-  Handle<Object> maybe_type_info(unoptimized_code->type_feedback_info());
   Handle<TypeFeedbackInfo> type_info(
-      Handle<TypeFeedbackInfo>::cast(maybe_type_info));
+      TypeFeedbackInfo::cast(unoptimized_code->type_feedback_info()));
   graph()->update_type_change_checksum(type_info->own_type_change_checksum());
 
   TraceInline(target, caller, NULL);
@@ -7512,6 +7489,55 @@ bool HGraphBuilder::TryCallApply(Call* expr) {
 }
 
 
+// Checks if all maps in |types| are from the same family, i.e., are elements
+// transitions of each other. Returns either NULL if they are not from the same
+// family, or a Map* indicating the map with the first elements kind of the
+// family that is in the list.
+static Map* CheckSameElementsFamily(SmallMapList* types) {
+  if (types->length() <= 1) return NULL;
+  // Check if all maps belong to the same transition family.
+  Map* kinds[kFastElementsKindCount];
+  Map* first_map = *types->first();
+  ElementsKind first_kind = first_map->elements_kind();
+  if (!IsFastElementsKind(first_kind)) return NULL;
+  int first_index = GetSequenceIndexFromFastElementsKind(first_kind);
+  int last_index = first_index;
+
+  for (int i = 0; i < kFastElementsKindCount; i++) kinds[i] = NULL;
+
+  kinds[first_index] = first_map;
+
+  for (int i = 1; i < types->length(); ++i) {
+    Map* map = *types->at(i);
+    ElementsKind elements_kind = map->elements_kind();
+    if (!IsFastElementsKind(elements_kind)) return NULL;
+    int index = GetSequenceIndexFromFastElementsKind(elements_kind);
+    if (index < first_index) {
+      first_index = index;
+    } else if (index > last_index) {
+      last_index = index;
+    } else if (kinds[index] != map) {
+      return NULL;
+    }
+    kinds[index] = map;
+  }
+
+  Map* current = kinds[first_index];
+  for (int i = first_index + 1; i <= last_index; i++) {
+    Map* next = kinds[i];
+    if (next != NULL) {
+      ElementsKind current_kind = next->elements_kind();
+      if (next != current->LookupElementsTransitionMap(current_kind)) {
+        return NULL;
+      }
+      current = next;
+    }
+  }
+
+  return kinds[first_index];
+}
+
+
 void HGraphBuilder::VisitCall(Call* expr) {
   ASSERT(!HasStackOverflow());
   ASSERT(current_block() != NULL);
@@ -7551,15 +7577,25 @@ void HGraphBuilder::VisitCall(Call* expr) {
     CHECK_ALIVE(VisitExpressions(expr->arguments()));
 
     Handle<String> name = prop->key()->AsLiteral()->AsPropertyName();
-
     SmallMapList* types = expr->GetReceiverTypes();
+
+    bool monomorphic = expr->IsMonomorphic();
+    Handle<Map> receiver_map;
+    if (monomorphic) {
+      receiver_map = (types == NULL || types->is_empty())
+          ? Handle<Map>::null()
+          : types->first();
+    } else {
+      Map* family_map = CheckSameElementsFamily(types);
+      if (family_map != NULL) {
+        receiver_map = Handle<Map>(family_map);
+        monomorphic = expr->ComputeTarget(receiver_map, name);
+      }
+    }
 
     HValue* receiver =
         environment()->ExpressionStackAt(expr->arguments()->length());
-    if (expr->IsMonomorphic()) {
-      Handle<Map> receiver_map = (types == NULL || types->is_empty())
-          ? Handle<Map>::null()
-          : types->first();
+    if (monomorphic) {
       if (TryInlineBuiltinMethodCall(expr,
                                      receiver,
                                      receiver_map,
@@ -7604,7 +7640,7 @@ void HGraphBuilder::VisitCall(Call* expr) {
     VariableProxy* proxy = expr->expression()->AsVariableProxy();
     bool global_call = proxy != NULL && proxy->var()->IsUnallocated();
 
-    if (proxy != NULL && proxy->var()->is_possibly_eval()) {
+    if (proxy != NULL && proxy->var()->is_possibly_eval(isolate())) {
       return Bailout("possible direct call to eval");
     }
 
@@ -7930,14 +7966,13 @@ void HGraphBuilder::VisitSub(UnaryOperation* expr) {
   HInstruction* instr =
       new(zone()) HMul(context, value, graph_->GetConstantMinus1());
   TypeInfo info = oracle()->UnaryType(expr);
+  Representation rep = ToRepresentation(info);
   if (info.IsUninitialized()) {
     AddInstruction(new(zone()) HSoftDeoptimize);
     current_block()->MarkAsDeoptimizing();
     info = TypeInfo::Unknown();
   }
-  Representation rep = ToRepresentation(info);
-  TraceRepresentation(expr->op(), info, instr, rep);
-  instr->AssumeRepresentation(rep);
+  HBinaryOperation::cast(instr)->set_observed_input_representation(rep, rep);
   return ast_context()->ReturnInstruction(instr, expr->id());
 }
 
@@ -8026,8 +8061,11 @@ HInstruction* HGraphBuilder::BuildIncrement(bool returns_original_input,
       : graph_->GetConstantMinus1();
   HValue* context = environment()->LookupContext();
   HInstruction* instr = new(zone()) HAdd(context, Top(), delta);
-  TraceRepresentation(expr->op(), info, instr, rep);
+  // We can't insert a simulate here, because it would break deoptimization,
+  // so the HAdd must not have side effects, so we must freeze its
+  // representation.
   instr->AssumeRepresentation(rep);
+  instr->ClearAllSideEffects();
   AddInstruction(instr);
   return instr;
 }
@@ -8101,7 +8139,7 @@ void HGraphBuilder::VisitCountOperation(CountOperation* expr) {
             new(zone()) HStoreContextSlot(context, var->index(), mode, after);
         AddInstruction(instr);
         if (instr->HasObservableSideEffects()) {
-          AddSimulate(expr->AssignmentId());
+          AddSimulate(expr->AssignmentId(), REMOVABLE_SIMULATE);
         }
         break;
       }
@@ -8142,7 +8180,9 @@ void HGraphBuilder::VisitCountOperation(CountOperation* expr) {
         load = BuildLoadNamedGeneric(object, name, prop);
       }
       PushAndAdd(load);
-      if (load->HasObservableSideEffects()) AddSimulate(prop->LoadId());
+      if (load->HasObservableSideEffects()) {
+        AddSimulate(prop->LoadId(), REMOVABLE_SIMULATE);
+      }
 
       after = BuildIncrement(returns_original_input, expr);
       input = Pop();
@@ -8170,7 +8210,9 @@ void HGraphBuilder::VisitCountOperation(CountOperation* expr) {
       // necessary.
       environment()->SetExpressionStackAt(0, after);
       if (returns_original_input) environment()->SetExpressionStackAt(1, input);
-      if (store->HasObservableSideEffects()) AddSimulate(expr->AssignmentId());
+      if (store->HasObservableSideEffects()) {
+        AddSimulate(expr->AssignmentId(), REMOVABLE_SIMULATE);
+      }
 
     } else {
       // Keyed property.
@@ -8187,7 +8229,7 @@ void HGraphBuilder::VisitCountOperation(CountOperation* expr) {
           false,  // is_store
           &has_side_effects);
       Push(load);
-      if (has_side_effects) AddSimulate(prop->LoadId());
+      if (has_side_effects) AddSimulate(prop->LoadId(), REMOVABLE_SIMULATE);
 
       after = BuildIncrement(returns_original_input, expr);
       input = Pop();
@@ -8205,7 +8247,7 @@ void HGraphBuilder::VisitCountOperation(CountOperation* expr) {
       environment()->SetExpressionStackAt(0, after);
       if (returns_original_input) environment()->SetExpressionStackAt(1, input);
       ASSERT(has_side_effects);  // Stores always have side effects.
-      AddSimulate(expr->AssignmentId());
+      AddSimulate(expr->AssignmentId(), REMOVABLE_SIMULATE);
     }
   }
 
@@ -8286,16 +8328,22 @@ HInstruction* HGraphBuilder::BuildBinaryOperation(BinaryOperation* expr,
                                                   HValue* left,
                                                   HValue* right) {
   HValue* context = environment()->LookupContext();
-  TypeInfo info = oracle()->BinaryType(expr);
-  if (info.IsUninitialized()) {
+  TypeInfo left_info, right_info, result_info, combined_info;
+  oracle()->BinaryType(expr, &left_info, &right_info, &result_info);
+  Representation left_rep = ToRepresentation(left_info);
+  Representation right_rep = ToRepresentation(right_info);
+  Representation result_rep = ToRepresentation(result_info);
+  if (left_info.IsUninitialized()) {
+    // Can't have initialized one but not the other.
+    ASSERT(right_info.IsUninitialized());
     AddInstruction(new(zone()) HSoftDeoptimize);
     current_block()->MarkAsDeoptimizing();
-    info = TypeInfo::Unknown();
+    left_info = right_info = TypeInfo::Unknown();
   }
   HInstruction* instr = NULL;
   switch (expr->op()) {
     case Token::ADD:
-      if (info.IsString()) {
+      if (left_info.IsString() && right_info.IsString()) {
         AddInstruction(new(zone()) HCheckNonSmi(left));
         AddInstruction(HCheckInstanceType::NewIsString(left, zone()));
         AddInstruction(new(zone()) HCheckNonSmi(right));
@@ -8323,7 +8371,7 @@ HInstruction* HGraphBuilder::BuildBinaryOperation(BinaryOperation* expr,
       break;
     case Token::BIT_OR: {
       HValue* operand, *shift_amount;
-      if (info.IsInteger32() &&
+      if (left_info.IsInteger32() && right_info.IsInteger32() &&
           MatchRotateRight(left, right, &operand, &shift_amount)) {
         instr = new(zone()) HRor(context, operand, shift_amount);
       } else {
@@ -8348,23 +8396,11 @@ HInstruction* HGraphBuilder::BuildBinaryOperation(BinaryOperation* expr,
       UNREACHABLE();
   }
 
-  // If we hit an uninitialized binary op stub we will get type info
-  // for a smi operation. If one of the operands is a constant string
-  // do not generate code assuming it is a smi operation.
-  if (info.IsSmi() &&
-      ((left->IsConstant() && HConstant::cast(left)->handle()->IsString()) ||
-       (right->IsConstant() && HConstant::cast(right)->handle()->IsString()))) {
-    return instr;
+  if (instr->IsBinaryOperation()) {
+    HBinaryOperation* binop = HBinaryOperation::cast(instr);
+    binop->set_observed_input_representation(left_rep, right_rep);
+    binop->initialize_output_representation(result_rep);
   }
-  Representation rep = ToRepresentation(info);
-  // We only generate either int32 or generic tagged bitwise operations.
-  if (instr->IsBitwiseBinaryOperation()) {
-    HBitwiseBinaryOperation::cast(instr)->
-         InitializeObservedInputRepresentation(rep);
-    if (rep.IsDouble()) rep = Representation::Integer32();
-  }
-  TraceRepresentation(expr->op(), info, instr, rep);
-  instr->AssumeRepresentation(rep);
   return instr;
 }
 
@@ -8508,27 +8544,8 @@ void HGraphBuilder::VisitArithmeticExpression(BinaryOperation* expr) {
 }
 
 
-void HGraphBuilder::TraceRepresentation(Token::Value op,
-                                        TypeInfo info,
-                                        HValue* value,
-                                        Representation rep) {
-  if (!FLAG_trace_representation) return;
-  // TODO(svenpanne) Under which circumstances are we actually not flexible?
-  // At first glance, this looks a bit weird...
-  bool flexible = value->CheckFlag(HValue::kFlexibleRepresentation);
-  PrintF("Operation %s has type info %s, %schange representation assumption "
-         "for %s (ID %d) from %s to %s\n",
-         Token::Name(op),
-         info.ToString(),
-         flexible ? "" : " DO NOT ",
-         value->Mnemonic(),
-         graph_->GetMaximumValueID(),
-         value->representation().Mnemonic(),
-         rep.Mnemonic());
-}
-
-
 Representation HGraphBuilder::ToRepresentation(TypeInfo info) {
+  if (info.IsUninitialized()) return Representation::None();
   if (info.IsSmi()) return Representation::Integer32();
   if (info.IsInteger32()) return Representation::Integer32();
   if (info.IsDouble()) return Representation::Double();
@@ -8626,13 +8643,17 @@ void HGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
     return ast_context()->ReturnControl(instr, expr->id());
   }
 
-  TypeInfo type_info = oracle()->CompareType(expr);
+  TypeInfo left_type, right_type, overall_type_info;
+  oracle()->CompareType(expr, &left_type, &right_type, &overall_type_info);
+  Representation combined_rep = ToRepresentation(overall_type_info);
+  Representation left_rep = ToRepresentation(left_type);
+  Representation right_rep = ToRepresentation(right_type);
   // Check if this expression was ever executed according to type feedback.
   // Note that for the special typeof/null/undefined cases we get unknown here.
-  if (type_info.IsUninitialized()) {
+  if (overall_type_info.IsUninitialized()) {
     AddInstruction(new(zone()) HSoftDeoptimize);
     current_block()->MarkAsDeoptimizing();
-    type_info = TypeInfo::Unknown();
+    overall_type_info = left_type = right_type = TypeInfo::Unknown();
   }
 
   CHECK_ALIVE(VisitForValue(expr->left()));
@@ -8704,7 +8725,7 @@ void HGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
     HIn* result = new(zone()) HIn(context, left, right);
     result->set_position(expr->position());
     return ast_context()->ReturnInstruction(result, expr->id());
-  } else if (type_info.IsNonPrimitive()) {
+  } else if (overall_type_info.IsNonPrimitive()) {
     switch (op) {
       case Token::EQ:
       case Token::EQ_STRICT: {
@@ -8731,8 +8752,7 @@ void HGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
       default:
         return Bailout("Unsupported non-primitive compare");
     }
-  } else if (type_info.IsString() && oracle()->IsSymbolCompare(expr) &&
-             (op == Token::EQ || op == Token::EQ_STRICT)) {
+  } else if (overall_type_info.IsSymbol() && Token::IsEqualityOp(op)) {
     AddInstruction(new(zone()) HCheckNonSmi(left));
     AddInstruction(HCheckInstanceType::NewIsSymbol(left, zone()));
     AddInstruction(new(zone()) HCheckNonSmi(right));
@@ -8742,17 +8762,17 @@ void HGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
     result->set_position(expr->position());
     return ast_context()->ReturnControl(result, expr->id());
   } else {
-    Representation r = ToRepresentation(type_info);
-    if (r.IsTagged()) {
+    if (combined_rep.IsTagged() || combined_rep.IsNone()) {
       HCompareGeneric* result =
           new(zone()) HCompareGeneric(context, left, right, op);
+      result->set_observed_input_representation(left_rep, right_rep);
       result->set_position(expr->position());
       return ast_context()->ReturnInstruction(result, expr->id());
     } else {
       HCompareIDAndBranch* result =
           new(zone()) HCompareIDAndBranch(left, right, op);
+      result->set_observed_input_representation(left_rep, right_rep);
       result->set_position(expr->position());
-      result->SetInputRepresentation(r);
       return ast_context()->ReturnControl(result, expr->id());
     }
   }
@@ -8839,7 +8859,9 @@ void HGraphBuilder::VisitVariableDeclaration(VariableDeclaration* declaration) {
         HStoreContextSlot* store = new(zone()) HStoreContextSlot(
             context, variable->index(), HStoreContextSlot::kNoCheck, value);
         AddInstruction(store);
-        if (store->HasObservableSideEffects()) AddSimulate(proxy->id());
+        if (store->HasObservableSideEffects()) {
+          AddSimulate(proxy->id(), REMOVABLE_SIMULATE);
+        }
       }
       break;
     case Variable::LOOKUP:
@@ -8875,7 +8897,9 @@ void HGraphBuilder::VisitFunctionDeclaration(FunctionDeclaration* declaration) {
       HStoreContextSlot* store = new(zone()) HStoreContextSlot(
           context, variable->index(), HStoreContextSlot::kNoCheck, value);
       AddInstruction(store);
-      if (store->HasObservableSideEffects()) AddSimulate(proxy->id());
+      if (store->HasObservableSideEffects()) {
+        AddSimulate(proxy->id(), REMOVABLE_SIMULATE);
+      }
       break;
     }
     case Variable::LOOKUP:

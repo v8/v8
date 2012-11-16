@@ -905,7 +905,7 @@ i::Object** v8::HandleScope::RawClose(i::Object** value) {
   }
 
   // Allocate a new handle on the previous handle block.
-  i::Handle<i::Object> handle(result);
+  i::Handle<i::Object> handle(result, isolate_);
   return handle.location();
 }
 
@@ -3414,7 +3414,7 @@ v8::Local<v8::Value> v8::Object::GetHiddenValue(v8::Handle<v8::String> key) {
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
   i::Handle<i::String> key_obj = Utils::OpenHandle(*key);
   i::Handle<i::String> key_symbol = FACTORY->LookupSymbol(key_obj);
-  i::Handle<i::Object> result(self->GetHiddenProperty(*key_symbol));
+  i::Handle<i::Object> result(self->GetHiddenProperty(*key_symbol), isolate);
   if (result->IsUndefined()) return v8::Local<v8::Value>();
   return Utils::ToLocal(result);
 }
@@ -4649,13 +4649,14 @@ v8::Local<v8::Context> Context::GetCalling() {
 
 
 v8::Local<v8::Object> Context::Global() {
-  if (IsDeadCheck(i::Isolate::Current(), "v8::Context::Global()")) {
+  i::Isolate* isolate = i::Isolate::Current();
+  if (IsDeadCheck(isolate, "v8::Context::Global()")) {
     return Local<v8::Object>();
   }
   i::Object** ctx = reinterpret_cast<i::Object**>(this);
   i::Handle<i::Context> context =
       i::Handle<i::Context>::cast(i::Handle<i::Object>(ctx));
-  i::Handle<i::Object> global(context->global_proxy());
+  i::Handle<i::Object> global(context->global_proxy(), isolate);
   return Utils::ToLocal(i::Handle<i::JSObject>::cast(global));
 }
 

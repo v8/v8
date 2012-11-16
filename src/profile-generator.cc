@@ -1774,7 +1774,14 @@ void V8HeapExplorer::AddRootEntries(SnapshotFillerInterface* filler) {
 
 const char* V8HeapExplorer::GetSystemEntryName(HeapObject* object) {
   switch (object->map()->instance_type()) {
-    case MAP_TYPE: return "system / Map";
+    case MAP_TYPE:
+      switch (Map::cast(object)->instance_type()) {
+#define MAKE_STRING_MAP_CASE(instance_type, size, name, Name) \
+        case instance_type: return "system / Map (" #Name ")";
+      STRING_TYPE_LIST(MAKE_STRING_MAP_CASE)
+#undef MAKE_STRING_MAP_CASE
+        default: return "system / Map";
+      }
     case JS_GLOBAL_PROPERTY_CELL_TYPE: return "system / JSGlobalPropertyCell";
     case FOREIGN_TYPE: return "system / Foreign";
     case ODDBALL_TYPE: return "system / Oddball";
@@ -1851,7 +1858,6 @@ void V8HeapExplorer::ExtractReferences(HeapObject* obj) {
     ExtractJSObjectReferences(entry, JSObject::cast(obj));
   } else if (obj->IsString()) {
     ExtractStringReferences(entry, String::cast(obj));
-    extract_indexed_refs = false;
   } else if (obj->IsContext()) {
     ExtractContextReferences(entry, Context::cast(obj));
   } else if (obj->IsMap()) {
@@ -1966,11 +1972,14 @@ void V8HeapExplorer::ExtractJSObjectReferences(
 void V8HeapExplorer::ExtractStringReferences(int entry, String* string) {
   if (string->IsConsString()) {
     ConsString* cs = ConsString::cast(string);
-    SetInternalReference(cs, entry, "first", cs->first());
-    SetInternalReference(cs, entry, "second", cs->second());
+    SetInternalReference(cs, entry, "first", cs->first(),
+                         ConsString::kFirstOffset);
+    SetInternalReference(cs, entry, "second", cs->second(),
+                         ConsString::kSecondOffset);
   } else if (string->IsSlicedString()) {
     SlicedString* ss = SlicedString::cast(string);
-    SetInternalReference(ss, entry, "parent", ss->parent());
+    SetInternalReference(ss, entry, "parent", ss->parent(),
+                         SlicedString::kParentOffset);
   }
 }
 
@@ -2130,9 +2139,11 @@ void V8HeapExplorer::ExtractCodeReferences(int entry, Code* code) {
   SetInternalReference(code, entry,
                        "deoptimization_data", code->deoptimization_data(),
                        Code::kDeoptimizationDataOffset);
-  SetInternalReference(code, entry,
-                       "type_feedback_info", code->type_feedback_info(),
-                       Code::kTypeFeedbackInfoOffset);
+  if (code->kind() == Code::FUNCTION) {
+    SetInternalReference(code, entry,
+                         "type_feedback_info", code->type_feedback_info(),
+                         Code::kTypeFeedbackInfoOffset);
+  }
   SetInternalReference(code, entry,
                        "gc_metadata", code->gc_metadata(),
                        Code::kGCMetadataOffset);

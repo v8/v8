@@ -137,6 +137,7 @@ Heap::Heap()
       tracer_(NULL),
       young_survivors_after_last_gc_(0),
       high_survival_rate_period_length_(0),
+      low_survival_rate_period_length_(0),
       survival_rate_(0),
       previous_survival_rate_trend_(Heap::STABLE),
       survival_rate_trend_(Heap::STABLE),
@@ -1763,7 +1764,7 @@ template<MarksHandling marks_handling,
 class ScavengingVisitor : public StaticVisitorBase {
  public:
   static void Initialize() {
-    table_.Register(kVisitSeqAsciiString, &EvacuateSeqAsciiString);
+    table_.Register(kVisitSeqOneByteString, &EvacuateSeqOneByteString);
     table_.Register(kVisitSeqTwoByteString, &EvacuateSeqTwoByteString);
     table_.Register(kVisitShortcutCandidate, &EvacuateShortcutCandidate);
     table_.Register(kVisitByteArray, &EvacuateByteArray);
@@ -2007,11 +2008,11 @@ class ScavengingVisitor : public StaticVisitorBase {
   }
 
 
-  static inline void EvacuateSeqAsciiString(Map* map,
+  static inline void EvacuateSeqOneByteString(Map* map,
                                             HeapObject** slot,
                                             HeapObject* object) {
-    int object_size = SeqAsciiString::cast(object)->
-        SeqAsciiStringSize(map->instance_type());
+    int object_size = SeqOneByteString::cast(object)->
+        SeqOneByteStringSize(map->instance_type());
     EvacuateObject<DATA_OBJECT, UNKNOWN_SIZE, kObjectAlignment>(
         map, slot, object, object_size);
   }
@@ -3353,7 +3354,7 @@ MUST_USE_RESULT static inline MaybeObject* MakeOrFindTwoCharacterString(
     { MaybeObject* maybe_result = heap->AllocateRawAsciiString(2);
       if (!maybe_result->ToObject(&result)) return maybe_result;
     }
-    char* dest = SeqAsciiString::cast(result)->GetChars();
+    char* dest = SeqOneByteString::cast(result)->GetChars();
     dest[0] = c1;
     dest[1] = c2;
     return result;
@@ -3427,20 +3428,20 @@ MaybeObject* Heap::AllocateConsString(String* first, String* second) {
         if (!maybe_result->ToObject(&result)) return maybe_result;
       }
       // Copy the characters into the new object.
-      char* dest = SeqAsciiString::cast(result)->GetChars();
+      char* dest = SeqOneByteString::cast(result)->GetChars();
       // Copy first part.
       const char* src;
       if (first->IsExternalString()) {
         src = ExternalAsciiString::cast(first)->GetChars();
       } else {
-        src = SeqAsciiString::cast(first)->GetChars();
+        src = SeqOneByteString::cast(first)->GetChars();
       }
       for (int i = 0; i < first_length; i++) *dest++ = src[i];
       // Copy second part.
       if (second->IsExternalString()) {
         src = ExternalAsciiString::cast(second)->GetChars();
       } else {
-        src = SeqAsciiString::cast(second)->GetChars();
+        src = SeqOneByteString::cast(second)->GetChars();
       }
       for (int i = 0; i < second_length; i++) *dest++ = src[i];
       return result;
@@ -3451,7 +3452,7 @@ MaybeObject* Heap::AllocateConsString(String* first, String* second) {
           if (!maybe_result->ToObject(&result)) return maybe_result;
         }
         // Copy the characters into the new object.
-        char* dest = SeqAsciiString::cast(result)->GetChars();
+        char* dest = SeqOneByteString::cast(result)->GetChars();
         String::WriteToFlat(first, dest, 0, first_length);
         String::WriteToFlat(second, dest + first_length, 0, second_length);
         isolate_->counters()->string_add_runtime_ext_to_ascii()->Increment();
@@ -3528,7 +3529,7 @@ MaybeObject* Heap::AllocateSubString(String* buffer,
     // Copy the characters into the new object.
     if (is_ascii) {
       ASSERT(string_result->IsAsciiRepresentation());
-      char* dest = SeqAsciiString::cast(string_result)->GetChars();
+      char* dest = SeqOneByteString::cast(string_result)->GetChars();
       String::WriteToFlat(buffer, dest, start, end);
     } else {
       ASSERT(string_result->IsTwoByteRepresentation());
@@ -3787,7 +3788,7 @@ MaybeObject* Heap::CreateCode(const CodeDesc& desc,
     code->set_check_type(RECEIVER_MAP_CHECK);
   }
   code->set_deoptimization_data(empty_fixed_array(), SKIP_WRITE_BARRIER);
-  code->set_type_feedback_info(undefined_value(), SKIP_WRITE_BARRIER);
+  code->InitializeTypeFeedbackInfoNoWriteBarrier(undefined_value());
   code->set_handler_table(empty_fixed_array(), SKIP_WRITE_BARRIER);
   code->set_gc_metadata(Smi::FromInt(0));
   code->set_ic_age(global_ic_age_);
@@ -4181,7 +4182,7 @@ MaybeObject* Heap::AllocateJSObjectFromMap(Map* map, PretenureFlag pretenure) {
   InitializeJSObjectFromMap(JSObject::cast(obj),
                             FixedArray::cast(properties),
                             map);
-  ASSERT(JSObject::cast(obj)->HasFastSmiOrObjectElements());
+  ASSERT(JSObject::cast(obj)->HasFastElements());
   return obj;
 }
 
@@ -4246,7 +4247,7 @@ MaybeObject* Heap::AllocateJSArrayAndStorage(
 
   FixedArrayBase* elms;
   MaybeObject* maybe_elms = NULL;
-  if (elements_kind == FAST_DOUBLE_ELEMENTS) {
+  if (IsFastDoubleElementsKind(elements_kind)) {
     if (mode == DONT_INITIALIZE_ARRAY_ELEMENTS) {
       maybe_elms = AllocateUninitializedFixedDoubleArray(capacity);
     } else {
@@ -4273,13 +4274,14 @@ MaybeObject* Heap::AllocateJSArrayAndStorage(
 MaybeObject* Heap::AllocateJSArrayWithElements(
     FixedArrayBase* elements,
     ElementsKind elements_kind,
+    int length,
     PretenureFlag pretenure) {
   MaybeObject* maybe_array = AllocateJSArray(elements_kind, pretenure);
   JSArray* array;
   if (!maybe_array->To(&array)) return maybe_array;
 
   array->set_elements(elements);
-  array->set_length(Smi::FromInt(elements->length()));
+  array->set_length(Smi::FromInt(length));
   array->ValidateElements();
   return array;
 }
@@ -4570,7 +4572,7 @@ MaybeObject* Heap::AllocateStringFromAscii(Vector<const char> string,
   }
 
   // Copy the characters into the new object.
-  CopyChars(SeqAsciiString::cast(result)->GetChars(), string.start(), length);
+  CopyChars(SeqOneByteString::cast(result)->GetChars(), string.start(), length);
   return result;
 }
 
@@ -4625,7 +4627,7 @@ MaybeObject* Heap::AllocateStringFromTwoByte(Vector<const uc16> string,
   if (String::IsAscii(start, length)) {
     MaybeObject* maybe_result = AllocateRawAsciiString(length, pretenure);
     if (!maybe_result->ToObject(&result)) return maybe_result;
-    CopyChars(SeqAsciiString::cast(result)->GetChars(), start, length);
+    CopyChars(SeqOneByteString::cast(result)->GetChars(), start, length);
   } else {  // It's not an ASCII string.
     MaybeObject* maybe_result = AllocateRawTwoByteString(length, pretenure);
     if (!maybe_result->ToObject(&result)) return maybe_result;
@@ -4680,11 +4682,11 @@ MaybeObject* Heap::AllocateInternalSymbol(unibrow::CharacterStream* buffer,
   Map* map;
 
   if (is_ascii) {
-    if (chars > SeqAsciiString::kMaxLength) {
+    if (chars > SeqOneByteString::kMaxLength) {
       return Failure::OutOfMemoryException();
     }
     map = ascii_symbol_map();
-    size = SeqAsciiString::SizeFor(chars);
+    size = SeqOneByteString::SizeFor(chars);
   } else {
     if (chars > SeqTwoByteString::kMaxLength) {
       return Failure::OutOfMemoryException();
@@ -4725,12 +4727,12 @@ MaybeObject* Heap::AllocateInternalSymbol(unibrow::CharacterStream* buffer,
 
 
 MaybeObject* Heap::AllocateRawAsciiString(int length, PretenureFlag pretenure) {
-  if (length < 0 || length > SeqAsciiString::kMaxLength) {
+  if (length < 0 || length > SeqOneByteString::kMaxLength) {
     return Failure::OutOfMemoryException();
   }
 
-  int size = SeqAsciiString::SizeFor(length);
-  ASSERT(size <= SeqAsciiString::kMaxSize);
+  int size = SeqOneByteString::SizeFor(length);
+  ASSERT(size <= SeqOneByteString::kMaxSize);
 
   AllocationSpace space = (pretenure == TENURED) ? OLD_DATA_SPACE : NEW_SPACE;
   AllocationSpace retry_space = OLD_DATA_SPACE;
@@ -4762,7 +4764,7 @@ MaybeObject* Heap::AllocateRawAsciiString(int length, PretenureFlag pretenure) {
   if (FLAG_verify_heap) {
     // Initialize string's content to ensure ASCII-ness (character range 0-127)
     // as required when verifying the heap.
-    char* dest = SeqAsciiString::cast(result)->GetChars();
+    char* dest = SeqOneByteString::cast(result)->GetChars();
     memset(dest, 0x0F, length * kCharSize);
   }
 #endif
@@ -5623,7 +5625,7 @@ MaybeObject* Heap::LookupAsciiSymbol(Vector<const char> string) {
 }
 
 
-MaybeObject* Heap::LookupAsciiSymbol(Handle<SeqAsciiString> string,
+MaybeObject* Heap::LookupAsciiSymbol(Handle<SeqOneByteString> string,
                                      int from,
                                      int length) {
   Object* symbol = NULL;
@@ -7227,6 +7229,7 @@ GCTracer::~GCTracer() {
     } else {
       PrintF("stepscount=%d ", steps_count_);
       PrintF("stepstook=%d ", static_cast<int>(steps_took_));
+      PrintF("longeststep=%.f ", longest_step_);
     }
 
     PrintF("\n");

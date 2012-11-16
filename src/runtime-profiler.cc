@@ -140,6 +140,9 @@ static void GetICCounts(JSFunction* function,
 
 void RuntimeProfiler::Optimize(JSFunction* function, const char* reason) {
   ASSERT(function->IsOptimizable());
+  // If we are in manual mode, don't auto-optimize anything.
+  if (FLAG_manual_parallel_recompilation) return;
+
   if (FLAG_trace_opt) {
     PrintF("[marking ");
     function->PrintName();

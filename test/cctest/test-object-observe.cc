@@ -166,6 +166,30 @@ TEST(DeliveryOrderingReentrant) {
   CHECK_EQ(2, CompileRun("ordering[1]")->Int32Value());
 }
 
+TEST(DeliveryOrderingDeliverChangeRecords) {
+  HarmonyIsolate isolate;
+  HandleScope scope;
+  LocalContext context;
+  CompileRun(
+      "var obj = {};"
+      "var ordering = [];"
+      "function observer1() { ordering.push(1); if (!obj.b) obj.b = true };"
+      "function observer2() { ordering.push(2); };"
+      "Object.observe(obj, observer1);"
+      "Object.observe(obj, observer2);"
+      "obj.a = 1;"
+      "Object.deliverChangeRecords(observer2);");
+  CHECK_EQ(4, CompileRun("ordering.length")->Int32Value());
+  // First, observer2 is called due to deliverChangeRecords
+  CHECK_EQ(2, CompileRun("ordering[0]")->Int32Value());
+  // Then, observer1 is called when the stack unwinds
+  CHECK_EQ(1, CompileRun("ordering[1]")->Int32Value());
+  // observer1's mutation causes both 1 and 2 to be reactivated,
+  // with 1 having priority.
+  CHECK_EQ(1, CompileRun("ordering[2]")->Int32Value());
+  CHECK_EQ(2, CompileRun("ordering[3]")->Int32Value());
+}
+
 TEST(ObjectHashTableGrowth) {
   HarmonyIsolate isolate;
   HandleScope scope;

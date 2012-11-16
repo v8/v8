@@ -2390,6 +2390,20 @@ void Assembler::vmul(const DwVfpRegister dst,
 }
 
 
+void Assembler::vmla(const DwVfpRegister dst,
+                     const DwVfpRegister src1,
+                     const DwVfpRegister src2,
+                     const Condition cond) {
+  // Instruction details available in ARM DDI 0406C.b, A8-892.
+  // cond(31-28) | 11100(27-23) | D=?(22) | 00(21-20) | Vn(19-16) |
+  // Vd(15-12) | 101(11-9) | sz(8)=1 | N=?(7) | op(6)=0 | M=?(5) | 0(4) |
+  // Vm(3-0)
+  unsigned x = (cond | 0x1C*B23 | src1.code()*B16 |
+      dst.code()*B12 | 0x5*B9 | B8 | src2.code());
+  emit(x);
+}
+
+
 void Assembler::vdiv(const DwVfpRegister dst,
                      const DwVfpRegister src1,
                      const DwVfpRegister src2,
