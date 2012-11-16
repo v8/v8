@@ -3856,20 +3856,20 @@ void KeyedLoadStubCompiler::GenerateLoadExternalArray(
       __ AllocateHeapNumber(r5, r3, r4, r6, &slow, TAG_RESULT);
       // Now we can use r0 for the result as key is not needed any more.
       __ mov(r0, r5);
-      Register dst1 = r1;
-      Register dst2 = r3;
+      Register dst_mantissa = r1;
+      Register dst_exponent = r3;
       FloatingPointHelper::Destination dest =
           FloatingPointHelper::kCoreRegisters;
       FloatingPointHelper::ConvertIntToDouble(masm,
                                               value,
                                               dest,
                                               d0,
-                                              dst1,
-                                              dst2,
+                                              dst_mantissa,
+                                              dst_exponent,
                                               r9,
                                               s0);
-      __ str(dst1, FieldMemOperand(r0, HeapNumber::kMantissaOffset));
-      __ str(dst2, FieldMemOperand(r0, HeapNumber::kExponentOffset));
+      __ str(dst_mantissa, FieldMemOperand(r0, HeapNumber::kMantissaOffset));
+      __ str(dst_exponent, FieldMemOperand(r0, HeapNumber::kExponentOffset));
       __ Ret();
     }
   } else if (elements_kind == EXTERNAL_UNSIGNED_INT_ELEMENTS) {
@@ -4138,7 +4138,7 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
       }
       FloatingPointHelper::ConvertIntToDouble(
           masm, r5, destination,
-          d0, r6, r7,  // These are: double_dst, dst1, dst2.
+          d0, r6, r7,  // These are: double_dst, dst_mantissa, dst_exponent.
           r4, s2);  // These are: scratch2, single_scratch.
       if (destination == FloatingPointHelper::kVFPRegisters) {
         CpuFeatures::Scope scope(VFP2);

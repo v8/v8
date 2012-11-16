@@ -729,13 +729,13 @@ void FloatingPointHelper::ConvertIntToDouble(MacroAssembler* masm,
                                              Register int_scratch,
                                              Destination destination,
                                              DwVfpRegister double_dst,
-                                             Register dst1,
-                                             Register dst2,
+                                             Register dst_mantissa,
+                                             Register dst_exponent,
                                              Register scratch2,
                                              SwVfpRegister single_scratch) {
   ASSERT(!int_scratch.is(scratch2));
-  ASSERT(!int_scratch.is(dst1));
-  ASSERT(!int_scratch.is(dst2));
+  ASSERT(!int_scratch.is(dst_mantissa));
+  ASSERT(!int_scratch.is(dst_exponent));
 
   Label done;
 
@@ -744,56 +744,57 @@ void FloatingPointHelper::ConvertIntToDouble(MacroAssembler* masm,
     __ vmov(single_scratch, int_scratch);
     __ vcvt_f64_s32(double_dst, single_scratch);
     if (destination == kCoreRegisters) {
-      __ vmov(dst1, dst2, double_dst);
+      __ vmov(dst_mantissa, dst_exponent, double_dst);
     }
   } else {
     Label fewer_than_20_useful_bits;
     // Expected output:
-    // |         dst2            |         dst1            |
+    // |       dst_exponent      |       dst_mantissa      |
     // | s |   exp   |              mantissa               |
 
     // Check for zero.
     __ cmp(int_scratch, Operand::Zero());
-    __ mov(dst2, int_scratch);
-    __ mov(dst1, int_scratch);
+    __ mov(dst_exponent, int_scratch);
+    __ mov(dst_mantissa, int_scratch);
     __ b(eq, &done);
 
     // Preload the sign of the value.
-    __ and_(dst2, int_scratch, Operand(HeapNumber::kSignMask), SetCC);
+    __ and_(dst_exponent, int_scratch, Operand(HeapNumber::kSignMask), SetCC);
     // Get the absolute value of the object (as an unsigned integer).
     __ rsb(int_scratch, int_scratch, Operand::Zero(), SetCC, mi);
 
     // Get mantissa[51:20].
 
     // Get the position of the first set bit.
-    __ CountLeadingZeros(dst1, int_scratch, scratch2);
-    __ rsb(dst1, dst1, Operand(31));
+    __ CountLeadingZeros(dst_mantissa, int_scratch, scratch2);
+    __ rsb(dst_mantissa, dst_mantissa, Operand(31));
 
     // Set the exponent.
-    __ add(scratch2, dst1, Operand(HeapNumber::kExponentBias));
-    __ Bfi(dst2, scratch2, scratch2,
+    __ add(scratch2, dst_mantissa, Operand(HeapNumber::kExponentBias));
+    __ Bfi(dst_exponent, scratch2, scratch2,
         HeapNumber::kExponentShift, HeapNumber::kExponentBits);
 
     // Clear the first non null bit.
     __ mov(scratch2, Operand(1));
-    __ bic(int_scratch, int_scratch, Operand(scratch2, LSL, dst1));
+    __ bic(int_scratch, int_scratch, Operand(scratch2, LSL, dst_mantissa));
 
-    __ cmp(dst1, Operand(HeapNumber::kMantissaBitsInTopWord));
+    __ cmp(dst_mantissa, Operand(HeapNumber::kMantissaBitsInTopWord));
     // Get the number of bits to set in the lower part of the mantissa.
-    __ sub(scratch2, dst1, Operand(HeapNumber::kMantissaBitsInTopWord), SetCC);
+    __ sub(scratch2, dst_mantissa, Operand(HeapNumber::kMantissaBitsInTopWord),
+           SetCC);
     __ b(mi, &fewer_than_20_useful_bits);
     // Set the higher 20 bits of the mantissa.
-    __ orr(dst2, dst2, Operand(int_scratch, LSR, scratch2));
+    __ orr(dst_exponent, dst_exponent, Operand(int_scratch, LSR, scratch2));
     __ rsb(scratch2, scratch2, Operand(32));
-    __ mov(dst1, Operand(int_scratch, LSL, scratch2));
+    __ mov(dst_mantissa, Operand(int_scratch, LSL, scratch2));
     __ b(&done);
 
     __ bind(&fewer_than_20_useful_bits);
-    __ rsb(scratch2, dst1, Operand(HeapNumber::kMantissaBitsInTopWord));
+    __ rsb(scratch2, dst_mantissa, Operand(HeapNumber::kMantissaBitsInTopWord));
     __ mov(scratch2, Operand(int_scratch, LSL, scratch2));
-    __ orr(dst2, dst2, scratch2);
+    __ orr(dst_exponent, dst_exponent, scratch2);
     // Set dst1 to 0.
-    __ mov(dst1, Operand::Zero());
+    __ mov(dst_mantissa, Operand::Zero());
   }
   __ bind(&done);
 }
@@ -804,8 +805,8 @@ void FloatingPointHelper::LoadNumberAsInt32Double(MacroAssembler* masm,
                                                   Destination destination,
                                                   DwVfpRegister double_dst,
                                                   DwVfpRegister double_scratch,
-                                                  Register dst1,
-                                                  Register dst2,
+                                                  Register dst_mantissa,
+                                                  Register dst_exponent,
                                                   Register heap_number_map,
                                                   Register scratch1,
                                                   Register scratch2,
@@ -821,8 +822,8 @@ void FloatingPointHelper::LoadNumberAsInt32Double(MacroAssembler* masm,
 
   __ JumpIfNotSmi(object, &obj_is_not_smi);
   __ SmiUntag(scratch1, object);
-  ConvertIntToDouble(masm, scratch1, destination, double_dst, dst1, dst2,
-                     scratch2, single_scratch);
+  ConvertIntToDouble(masm, scratch1, destination, double_dst, dst_mantissa,
+                     dst_exponent, scratch2, single_scratch);
   __ b(&done);
 
   __ bind(&obj_is_not_smi);
@@ -849,26 +850,52 @@ void FloatingPointHelper::LoadNumberAsInt32Double(MacroAssembler* masm,
     __ b(ne, not_int32);
 
     if (destination == kCoreRegisters) {
-      __ vmov(dst1, dst2, double_dst);
+      __ vmov(dst_mantissa, dst_exponent, double_dst);
     }
 
   } else {
     ASSERT(!scratch1.is(object) && !scratch2.is(object));
-    // Load the double value in the destination registers..
-    __ Ldrd(dst1, dst2, FieldMemOperand(object, HeapNumber::kValueOffset));
+    // Load the double value in the destination registers.
+    bool save_registers = object.is(dst_mantissa) || object.is(dst_exponent);
+    if (save_registers) {
+      // Save both output registers, because the other one probably holds
+      // an important value too.
+      __ Push(dst_exponent, dst_mantissa);
+    }
+    __ Ldrd(dst_mantissa, dst_exponent,
+            FieldMemOperand(object, HeapNumber::kValueOffset));
 
     // Check for 0 and -0.
-    __ bic(scratch1, dst1, Operand(HeapNumber::kSignMask));
-    __ orr(scratch1, scratch1, Operand(dst2));
+    Label zero;
+    __ bic(scratch1, dst_exponent, Operand(HeapNumber::kSignMask));
+    __ orr(scratch1, scratch1, Operand(dst_mantissa));
     __ cmp(scratch1, Operand::Zero());
-    __ b(eq, &done);
+    __ b(eq, &zero);
 
     // Check that the value can be exactly represented by a 32-bit integer.
     // Jump to not_int32 if that's not the case.
-    DoubleIs32BitInteger(masm, dst1, dst2, scratch1, scratch2, not_int32);
+    Label restore_input_and_miss;
+    DoubleIs32BitInteger(masm, dst_exponent, dst_mantissa, scratch1, scratch2,
+                         &restore_input_and_miss);
 
-    // dst1 and dst2 were trashed. Reload the double value.
-    __ Ldrd(dst1, dst2, FieldMemOperand(object, HeapNumber::kValueOffset));
+    // dst_* were trashed. Reload the double value.
+    if (save_registers) {
+      __ Pop(dst_exponent, dst_mantissa);
+    }
+    __ Ldrd(dst_mantissa, dst_exponent,
+            FieldMemOperand(object, HeapNumber::kValueOffset));
+    __ b(&done);
+
+    __ bind(&restore_input_and_miss);
+    if (save_registers) {
+      __ Pop(dst_exponent, dst_mantissa);
+    }
+    __ b(not_int32);
+
+    __ bind(&zero);
+    if (save_registers) {
+      __ Drop(2);
+    }
   }
 
   __ bind(&done);
@@ -960,14 +987,14 @@ void FloatingPointHelper::LoadNumberAsInt32(MacroAssembler* masm,
 
 
 void FloatingPointHelper::DoubleIs32BitInteger(MacroAssembler* masm,
-                                               Register src1,
-                                               Register src2,
+                                               Register src_exponent,
+                                               Register src_mantissa,
                                                Register dst,
                                                Register scratch,
                                                Label* not_int32) {
   // Get exponent alone in scratch.
   __ Ubfx(scratch,
-          src1,
+          src_exponent,
           HeapNumber::kExponentShift,
           HeapNumber::kExponentBits);
 
@@ -987,11 +1014,11 @@ void FloatingPointHelper::DoubleIs32BitInteger(MacroAssembler* masm,
   // Another way to put it is that if (exponent - signbit) > 30 then the
   // number cannot be represented as an int32.
   Register tmp = dst;
-  __ sub(tmp, scratch, Operand(src1, LSR, 31));
+  __ sub(tmp, scratch, Operand(src_exponent, LSR, 31));
   __ cmp(tmp, Operand(30));
   __ b(gt, not_int32);
   // - Bits [21:0] in the mantissa are not null.
-  __ tst(src2, Operand(0x3fffff));
+  __ tst(src_mantissa, Operand(0x3fffff));
   __ b(ne, not_int32);
 
   // Otherwise the exponent needs to be big enough to shift left all the
@@ -1002,19 +1029,19 @@ void FloatingPointHelper::DoubleIs32BitInteger(MacroAssembler* masm,
 
   // Get the 32 higher bits of the mantissa in dst.
   __ Ubfx(dst,
-          src2,
+          src_mantissa,
           HeapNumber::kMantissaBitsInTopWord,
           32 - HeapNumber::kMantissaBitsInTopWord);
   __ orr(dst,
          dst,
-         Operand(src1, LSL, HeapNumber::kNonMantissaBitsInTopWord));
+         Operand(src_exponent, LSL, HeapNumber::kNonMantissaBitsInTopWord));
 
   // Create the mask and test the lower bits (of the higher bits).
   __ rsb(scratch, scratch, Operand(32));
-  __ mov(src2, Operand(1));
-  __ mov(src1, Operand(src2, LSL, scratch));
-  __ sub(src1, src1, Operand(1));
-  __ tst(dst, src1);
+  __ mov(src_mantissa, Operand(1));
+  __ mov(src_exponent, Operand(src_mantissa, LSL, scratch));
+  __ sub(src_exponent, src_exponent, Operand(1));
+  __ tst(dst, src_exponent);
   __ b(ne, not_int32);
 }
 
