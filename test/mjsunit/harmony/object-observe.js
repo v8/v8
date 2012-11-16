@@ -129,8 +129,24 @@ assertFalse(recordCreated);  // not observed yet
 // Object.deliverChangeRecords
 assertThrows(function() { Object.deliverChangeRecords(nonFunction); }, TypeError);
 
-// Multiple records are delivered.
 Object.observe(obj, observer.callback);
+
+// notify uses to [[CreateOwnProperty]] to create changeRecord;
+reset();
+var protoExpandoAccessed = false;
+Object.defineProperty(Object.prototype, 'protoExpando',
+  {
+    configurable: true,
+    set: function() { protoExpandoAccessed = true; }
+  }
+);
+notifier.notify({ type: 'foo', protoExpando: 'val'});
+assertFalse(protoExpandoAccessed);
+delete Object.prototype.protoExpando;
+Object.deliverChangeRecords(observer.callback);
+
+// Multiple records are delivered.
+reset();
 notifier.notify({
   type: 'updated',
   name: 'foo',

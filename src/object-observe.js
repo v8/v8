@@ -27,9 +27,6 @@
 
 "use strict";
 
-var InternalObjectIsFrozen = $Object.isFrozen;
-var InternalObjectFreeze = $Object.freeze;
-
 var observationState = %GetObservationState();
 if (IS_UNDEFINED(observationState.observerInfoMap)) {
   observationState.observerInfoMap = %CreateObjectHashTable();
@@ -74,7 +71,7 @@ function ObjectObserve(object, callback) {
     throw MakeTypeError("observe_non_object", ["observe"]);
   if (!IS_SPEC_FUNCTION(callback))
     throw MakeTypeError("observe_non_function", ["observe"]);
-  if (InternalObjectIsFrozen(callback))
+  if (ObjectIsFrozen(callback))
     throw MakeTypeError("observe_callback_frozen");
 
   if (!observerInfoMap.has(callback)) {
@@ -134,7 +131,7 @@ function NotifyChange(type, object, name, oldValue) {
   var changeRecord = (arguments.length < 4) ?
       { type: type, object: object, name: name } :
       { type: type, object: object, name: name, oldValue: oldValue };
-  InternalObjectFreeze(changeRecord);
+  ObjectFreeze(changeRecord);
   EnqueueChangeRecord(changeRecord, objectInfo.changeObservers);
 }
 
@@ -164,9 +161,11 @@ function ObjectNotifierNotify(changeRecord) {
   for (var prop in changeRecord) {
     if (prop === 'object')
       continue;
-    newRecord[prop] = changeRecord[prop];
+
+    %DefineOrRedefineDataProperty(newRecord, prop, changeRecord[prop],
+        READ_ONLY + DONT_DELETE);
   }
-  InternalObjectFreeze(newRecord);
+  ObjectFreeze(newRecord);
 
   EnqueueChangeRecord(newRecord, objectInfo.changeObservers);
 }
@@ -175,7 +174,7 @@ function ObjectGetNotifier(object) {
   if (!IS_SPEC_OBJECT(object))
     throw MakeTypeError("observe_non_object", ["getNotifier"]);
 
-  if (InternalObjectIsFrozen(object))
+  if (ObjectIsFrozen(object))
     return null;
 
   var objectInfo = objectInfoMap.get(object);
