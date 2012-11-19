@@ -5033,10 +5033,6 @@ bool JSReceiver::HasLocalProperty(String* name) {
 
 
 PropertyAttributes JSReceiver::GetPropertyAttribute(String* key) {
-  uint32_t index;
-  if (IsJSObject() && key->AsArrayIndex(&index)) {
-    return GetElementAttribute(index);
-  }
   return GetPropertyAttributeWithReceiver(this, key);
 }
 
