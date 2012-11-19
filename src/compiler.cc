@@ -194,6 +194,11 @@ void OptimizingCompiler::RecordOptimizationStats() {
            code_size,
            compilation_time);
   }
+  if (FLAG_hydrogen_stats) {
+    HStatistics::Instance()->IncrementSubtotals(time_taken_to_create_graph_,
+                                                time_taken_to_optimize_,
+                                                time_taken_to_codegen_);
+  }
 }
 
 
@@ -284,7 +289,6 @@ OptimizingCompiler::Status OptimizingCompiler::CreateGraph() {
   // doesn't have deoptimization support. Alternatively, we may decide to
   // run the full code generator to get a baseline for the compile-time
   // performance of the hydrogen-based compiler.
-  Timer t(this, &time_taken_to_create_graph_);
   bool should_recompile = !info()->shared_info()->has_deoptimization_support();
   if (should_recompile || FLAG_hydrogen_stats) {
     HPhase phase(HPhase::kFullCodeGen);
@@ -324,7 +328,8 @@ OptimizingCompiler::Status OptimizingCompiler::CreateGraph() {
   oracle_ = new(info()->zone()) TypeFeedbackOracle(
       code, native_context, info()->isolate(), info()->zone());
   graph_builder_ = new(info()->zone()) HGraphBuilder(info(), oracle_);
-  HPhase phase(HPhase::kTotal);
+
+  Timer t(this, &time_taken_to_create_graph_);
   graph_ = graph_builder_->CreateGraph();
 
   if (info()->isolate()->has_pending_exception()) {
@@ -371,15 +376,17 @@ OptimizingCompiler::Status OptimizingCompiler::OptimizeGraph() {
 
 OptimizingCompiler::Status OptimizingCompiler::GenerateAndInstallCode() {
   ASSERT(last_status() == SUCCEEDED);
-  Timer timer(this, &time_taken_to_codegen_);
-  ASSERT(chunk_ != NULL);
-  ASSERT(graph_ != NULL);
-  Handle<Code> optimized_code = chunk_->Codegen();
-  if (optimized_code.is_null()) {
-    info()->set_bailout_reason("code generation failed");
-    return AbortOptimization();
+  {  // Scope for timer.
+    Timer timer(this, &time_taken_to_codegen_);
+    ASSERT(chunk_ != NULL);
+    ASSERT(graph_ != NULL);
+    Handle<Code> optimized_code = chunk_->Codegen();
+    if (optimized_code.is_null()) {
+      info()->set_bailout_reason("code generation failed");
+      return AbortOptimization();
+    }
+    info()->SetCode(optimized_code);
   }
-  info()->SetCode(optimized_code);
   RecordOptimizationStats();
   return SetLastStatus(SUCCEEDED);
 }
