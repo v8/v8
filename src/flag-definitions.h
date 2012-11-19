@@ -445,7 +445,7 @@ DEFINE_bool(incremental_code_compaction, true,
 DEFINE_bool(cleanup_code_caches_at_gc, true,
             "Flush inline caches prior to mark compact collection and "
             "flush code caches in maps during mark compact cycle.")
-DEFINE_bool(use_marking_progress_bar, false,
+DEFINE_bool(use_marking_progress_bar, true,
             "Use a progress bar to scan large objects in increments when "
             "incremental marking is active.")
 DEFINE_int(random_seed, 0,
