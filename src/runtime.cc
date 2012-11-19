@@ -1002,22 +1002,29 @@ static bool CheckGenericAccess(
 }
 
 
-static bool CheckElementAccess(
+enum AccessCheckResult {
+  ACCESS_FORBIDDEN,
+  ACCESS_ALLOWED,
+  ACCESS_ABSENT
+};
+
+
+static AccessCheckResult CheckElementAccess(
     JSObject* obj,
     uint32_t index,
     v8::AccessType access_type) {
   // TODO(1095): we should traverse hidden prototype hierachy as well.
   if (CheckGenericAccess(
           obj, obj, index, access_type, &Isolate::MayIndexedAccess)) {
-    return true;
+    return ACCESS_ALLOWED;
   }
 
   obj->GetIsolate()->ReportFailedAccessCheck(obj, access_type);
-  return false;
+  return ACCESS_FORBIDDEN;
 }
 
 
-static bool CheckPropertyAccess(
+static AccessCheckResult CheckPropertyAccess(
     JSObject* obj,
     String* name,
     v8::AccessType access_type) {
@@ -1029,9 +1036,10 @@ static bool CheckPropertyAccess(
   LookupResult lookup(obj->GetIsolate());
   obj->LocalLookup(name, &lookup);
 
+  if (!lookup.IsProperty()) return ACCESS_ABSENT;
   if (CheckGenericAccess<Object*>(
           obj, lookup.holder(), name, access_type, &Isolate::MayNamedAccess)) {
-    return true;
+    return ACCESS_ALLOWED;
   }
 
   // Access check callback denied the access, but some properties
@@ -1041,7 +1049,7 @@ static bool CheckPropertyAccess(
   switch (lookup.type()) {
     case CALLBACKS:
       if (CheckAccessException(lookup.GetCallbackObject(), access_type)) {
-        return true;
+        return ACCESS_ALLOWED;
       }
       break;
     case INTERCEPTOR:
@@ -1050,7 +1058,7 @@ static bool CheckPropertyAccess(
       lookup.holder()->LookupRealNamedProperty(name, &lookup);
       if (lookup.IsProperty() && lookup.IsPropertyCallbacks()) {
         if (CheckAccessException(lookup.GetCallbackObject(), access_type)) {
-          return true;
+          return ACCESS_ALLOWED;
         }
       }
       break;
@@ -1059,7 +1067,7 @@ static bool CheckPropertyAccess(
   }
 
   obj->GetIsolate()->ReportFailedAccessCheck(obj, access_type);
-  return false;
+  return ACCESS_FORBIDDEN;
 }
 
 
@@ -1080,6 +1088,14 @@ static MaybeObject* GetOwnProperty(Isolate* isolate,
                                    Handle<JSObject> obj,
                                    Handle<String> name) {
   Heap* heap = isolate->heap();
+  // Due to some WebKit tests, we want to make sure that we do not log
+  // more than one access failure here.
+  switch (CheckPropertyAccess(*obj, *name, v8::ACCESS_HAS)) {
+    case ACCESS_FORBIDDEN: return heap->false_value();
+    case ACCESS_ALLOWED: break;
+    case ACCESS_ABSENT: return heap->undefined_value();
+  }
+
   PropertyAttributes attrs = obj->GetLocalPropertyAttribute(*name);
   if (attrs == ABSENT) return heap->undefined_value();
   AccessorPair* accessors = obj->GetLocalPropertyAccessorPair(*name);
