@@ -967,23 +967,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_IsInPrototypeChain) {
 }
 
 
-// Recursively traverses hidden prototypes if property is not found
-static void GetOwnPropertyImplementation(JSObject* obj,
-                                         String* name,
-                                         LookupResult* result) {
-  obj->LocalLookupRealNamedProperty(name, result);
-
-  if (result->IsFound()) return;
-
-  Object* proto = obj->GetPrototype();
-  if (proto->IsJSObject() &&
-      JSObject::cast(proto)->map()->is_hidden_prototype()) {
-    GetOwnPropertyImplementation(JSObject::cast(proto),
-                                 name, result);
-  }
-}
-
-
 static bool CheckAccessException(Object* callback,
                                  v8::AccessType access_type) {
   if (callback->IsAccessorInfo()) {
