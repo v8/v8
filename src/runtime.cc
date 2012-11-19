@@ -1109,7 +1109,8 @@ static MaybeObject* GetOwnProperty(Isolate* isolate,
   if (accessors == NULL) {
     elms->set(WRITABLE_INDEX, heap->ToBoolean((attrs & READ_ONLY) == 0));
     // GetProperty does access check.
-    elms->set(VALUE_INDEX, *GetProperty(obj, name));
+    Handle<Object> value = GetProperty(obj, name);
+    elms->set(VALUE_INDEX, *value);
   } else {
     // Access checks are performed for both accessors separately.
     // When they fail, the respective field is not set in the descriptor.
