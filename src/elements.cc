@@ -696,9 +696,6 @@ class ElementsAccessorBase : public ElementsAccessor {
         }
       }
     }
-    if (from->length() == 0 || copy_size == 0) {
-      return from;
-    }
     return ElementsAccessorSubclass::CopyElementsImpl(
         from, from_start, to, to_kind, to_start, packed_size, copy_size);
   }
@@ -1022,17 +1019,17 @@ class FastSmiOrObjectElementsAccessor
             packed_size != kPackedSizeNotKnown) {
           CopyPackedSmiToDoubleElements(
               FixedArray::cast(from), from_start,
-              FixedDoubleArray::cast(to), to_start,
+              FixedDoubleArray::castOrEmptyFixedArray(to), to_start,
               packed_size, copy_size);
         } else {
           CopySmiToDoubleElements(
               FixedArray::cast(from), from_start,
-              FixedDoubleArray::cast(to), to_start, copy_size);
+              FixedDoubleArray::castOrEmptyFixedArray(to), to_start, copy_size);
         }
       } else {
         CopyObjectToDoubleElements(
             FixedArray::cast(from), from_start,
-            FixedDoubleArray::cast(to), to_start, copy_size);
+            FixedDoubleArray::castOrEmptyFixedArray(to), to_start, copy_size);
       }
     } else {
       UNREACHABLE();
@@ -1136,13 +1133,13 @@ class FastDoubleElementsAccessor
       case FAST_HOLEY_SMI_ELEMENTS:
       case FAST_HOLEY_ELEMENTS:
         return CopyDoubleToObjectElements(
-            FixedDoubleArray::cast(from), from_start, FixedArray::cast(to),
-            to_kind, to_start, copy_size);
+            FixedDoubleArray::castOrEmptyFixedArray(from), from_start,
+            FixedArray::cast(to), to_kind, to_start, copy_size);
       case FAST_DOUBLE_ELEMENTS:
       case FAST_HOLEY_DOUBLE_ELEMENTS:
-        CopyDoubleToDoubleElements(FixedDoubleArray::cast(from), from_start,
-                                   FixedDoubleArray::cast(to),
-                                   to_start, copy_size);
+        CopyDoubleToDoubleElements(
+            FixedDoubleArray::castOrEmptyFixedArray(from), from_start,
+            FixedDoubleArray::castOrEmptyFixedArray(to), to_start, copy_size);
         return from;
       default:
         UNREACHABLE();
@@ -1476,7 +1473,8 @@ class DictionaryElementsAccessor
       case FAST_HOLEY_DOUBLE_ELEMENTS:
         CopyDictionaryToDoubleElements(
             SeededNumberDictionary::cast(from), from_start,
-            FixedDoubleArray::cast(to), to_start, copy_size);
+            FixedDoubleArray::castOrEmptyFixedArray(to), to_start,
+            copy_size);
         return from;
       default:
         UNREACHABLE();
