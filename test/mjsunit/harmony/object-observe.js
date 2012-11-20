@@ -98,10 +98,12 @@ Object.defineProperty(changeRecordWithAccessor, 'name', {
 assertThrows(function() { Object.observe("non-object", observer.callback); }, TypeError);
 assertThrows(function() { Object.observe(obj, nonFunction); }, TypeError);
 assertThrows(function() { Object.observe(obj, frozenFunction); }, TypeError);
+assertEquals(obj, Object.observe(obj, observer.callback));
 
 // Object.unobserve
 assertThrows(function() { Object.unobserve(4, observer.callback); }, TypeError);
 assertThrows(function() { Object.unobserve(obj, nonFunction); }, TypeError);
+assertEquals(obj, Object.unobserve(obj, observer.callback));
 
 // Object.getNotifier
 var notifier = Object.getNotifier(obj);
