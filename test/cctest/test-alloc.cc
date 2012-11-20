@@ -34,16 +34,6 @@
 using namespace v8::internal;
 
 
-// Also used in test-heap.cc test cases.
-void SimulateFullSpace(PagedSpace* space) {
-  int old_linear_size = static_cast<int>(space->limit() - space->top());
-  space->Free(space->top(), old_linear_size);
-  space->SetTop(space->limit(), space->limit());
-  space->ResetFreeList();
-  space->ClearStats();
-}
-
-
 static MaybeObject* AllocateAfterFailures() {
   static int attempts = 0;
   if (++attempts < 3) return Failure::RetryAfterGC();

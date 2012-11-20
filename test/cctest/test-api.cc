@@ -11505,10 +11505,6 @@ static void event_handler(const v8::JitCodeEvent* event) {
 }
 
 
-// Implemented in the test-alloc.cc test suite.
-void SimulateFullSpace(i::PagedSpace* space);
-
-
 static bool MatchPointers(void* key1, void* key2) {
   return key1 == key2;
 }
