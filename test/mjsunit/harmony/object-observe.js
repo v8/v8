@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --harmony-observation
+// Flags: --harmony-observation --harmony-proxies --harmony-collections
 
 var allObservers = [];
 function reset() {
@@ -56,7 +56,7 @@ function createObserver() {
     assertCallbackRecords: function(recs) {
       this.assertRecordCount(recs.length);
       for (var i = 0; i < recs.length; i++) {
-        print(i, JSON.stringify(this.records[i]), JSON.stringify(recs[i]))
+        print(i, JSON.stringify(this.records[i]), JSON.stringify(recs[i]));
         assertSame(this.records[i].object, recs[i].object);
         assertEquals('string', typeof recs[i].type);
         assertPropertiesEqual(this.records[i], recs[i]);
@@ -367,6 +367,159 @@ observer.assertCallbackRecords([
   { object: obj, name: "1", type: "deleted", oldValue: 10 },
   { object: obj, name: "1", type: "new" },
 ]);
+
+
+// Test all kinds of objects generically.
+function TestObserveConfigurable(obj, prop) {
+  reset();
+  obj[prop] = 1;
+  Object.observe(obj, observer.callback);
+  obj[prop] = 2;
+  obj[prop] = 3;
+  delete obj[prop];
+  obj[prop] = 4;
+  obj[prop] = 4;  // ignored
+  obj[prop] = 5;
+  Object.defineProperty(obj, prop, {value: 6});
+  Object.defineProperty(obj, prop, {writable: false});
+  obj[prop] = 7;  // ignored
+  Object.defineProperty(obj, prop, {value: 8});
+  Object.defineProperty(obj, prop, {value: 7, writable: true});
+  Object.defineProperty(obj, prop, {get: function() {}});
+  Object.defineProperty(obj, prop, {get: function() {}});
+  delete obj[prop];
+  delete obj[prop];
+  Object.defineProperty(obj, prop, {get: function() {}, configurable: true});
+  Object.defineProperty(obj, prop, {value: 9, writable: true});
+  obj[prop] = 10;
+  delete obj[prop];
+  Object.defineProperty(obj, prop, {value: 11, configurable: true});
+  Object.deliverChangeRecords(observer.callback);
+  observer.assertCallbackRecords([
+    { object: obj, name: prop, type: "updated", oldValue: 1 },
+    { object: obj, name: prop, type: "updated", oldValue: 2 },
+    { object: obj, name: prop, type: "deleted", oldValue: 3 },
+    { object: obj, name: prop, type: "new" },
+    { object: obj, name: prop, type: "updated", oldValue: 4 },
+    { object: obj, name: prop, type: "updated", oldValue: 5 },
+    { object: obj, name: prop, type: "reconfigured", oldValue: 6 },
+    { object: obj, name: prop, type: "updated", oldValue: 6 },
+    { object: obj, name: prop, type: "reconfigured", oldValue: 8 },
+    { object: obj, name: prop, type: "reconfigured", oldValue: 7 },
+    { object: obj, name: prop, type: "reconfigured" },
+    { object: obj, name: prop, type: "deleted" },
+    { object: obj, name: prop, type: "new" },
+    { object: obj, name: prop, type: "reconfigured" },
+    { object: obj, name: prop, type: "updated", oldValue: 9 },
+    { object: obj, name: prop, type: "deleted", oldValue: 10 },
+    { object: obj, name: prop, type: "new" },
+  ]);
+  Object.unobserve(obj, observer.callback);
+  delete obj[prop];
+}
+
+function TestObserveNonConfigurable(obj, prop) {
+  reset();
+  obj[prop] = 1;
+  Object.observe(obj, observer.callback);
+  obj[prop] = 4;
+  obj[prop] = 4;  // ignored
+  obj[prop] = 5;
+  Object.defineProperty(obj, prop, {value: 6});
+  Object.defineProperty(obj, prop, {value: 6});  // ignored
+  Object.defineProperty(obj, prop, {writable: false});
+  obj[prop] = 7;  // ignored
+  Object.deliverChangeRecords(observer.callback);
+  observer.assertCallbackRecords([
+    { object: obj, name: prop, type: "updated", oldValue: 1 },
+    { object: obj, name: prop, type: "updated", oldValue: 4 },
+    { object: obj, name: prop, type: "updated", oldValue: 5 },
+    { object: obj, name: prop, type: "reconfigured", oldValue: 6 },
+  ]);
+  Object.unobserve(obj, observer.callback);
+}
+
+function createProxy(create, x) {
+  var handler = {
+    getPropertyDescriptor: function(k) {
+      return Object.getOwnPropertyDescriptor(this.target, k);
+    },
+    getOwnPropertyDescriptor: function(k) {
+      return Object.getOwnPropertyDescriptor(this.target, k);
+    },
+    defineProperty: function(k, desc) {
+      var x = Object.defineProperty(this.target, k, desc);
+      Object.deliverChangeRecords(this.callback);
+      return x;
+    },
+    delete: function(k) {
+      var x = delete this.target[k];
+      Object.deliverChangeRecords(this.callback);
+      return x;
+    },
+    getPropertyNames: function() {
+      return Object.getOwnPropertyNames(this.target);
+    },
+    target: {isProxy: true},
+    callback: function(changeRecords) {
+      print("callback", JSON.stringify(handler.proxy), JSON.stringify(got));
+      for (var i in changeRecords) {
+        var got = changeRecords[i];
+        var change = {object: handler.proxy, name: got.name, type: got.type};
+        if ("oldValue" in got) change.oldValue = got.oldValue;
+        Object.getNotifier(handler.proxy).notify(change);
+      }
+    },
+  };
+  Object.observe(handler.target, handler.callback);
+  return handler.proxy = create(handler, x);
+}
+
+var objects = [
+  {},
+  [],
+  this,  // global object
+  function(){},
+  (function(){ return arguments })(),
+  (function(){ "use strict"; return arguments })(),
+  Object(1), Object(true), Object("bla"),
+  new Date(),
+  Object, Function, Date, RegExp,
+  new Set, new Map, new WeakMap,
+  new ArrayBuffer(10), new Int32Array(5),
+  createProxy(Proxy.create, null),
+  createProxy(Proxy.createFunction, function(){}),
+];
+var properties = ["a", "1", 1, "length", "prototype"];
+
+// Cases that yield non-standard results.
+// TODO(observe): ...or don't work yet.
+function blacklisted(obj, prop) {
+  return (obj instanceof Array && prop == 1) ||
+    (obj instanceof Int32Array && prop == 1) ||
+    (obj instanceof Int32Array && prop === "length") ||
+    // TODO(observe): oldValue when deleting/reconfiguring indexed accessor
+    prop == 1 ||
+    // TODO(observe): oldValue when reconfiguring array length
+    (obj instanceof Array && prop === "length") ||
+    // TODO(observe): prototype property on functions
+    (obj instanceof Function && prop === "prototype") ||
+    // TODO(observe): global object
+    obj === this;
+}
+
+for (var i in objects) for (var j in properties) {
+  var obj = objects[i];
+  var prop = properties[j];
+  if (blacklisted(obj, prop)) continue;
+  var desc = Object.getOwnPropertyDescriptor(obj, prop);
+  print("***", typeof obj, JSON.stringify(obj), prop);
+  if (!desc || desc.configurable)
+    TestObserveConfigurable(obj, prop);
+  else if (desc.writable)
+    TestObserveNonConfigurable(obj, prop);
+}
+
 
 // Observing array length (including truncation)
 reset();
