@@ -1328,6 +1328,12 @@ LInstruction* LChunkBuilder::DoSub(HSub* instr) {
   if (instr->representation().IsInteger32()) {
     ASSERT(instr->left()->representation().IsInteger32());
     ASSERT(instr->right()->representation().IsInteger32());
+
+    if (instr->left()->IsConstant()) {
+      // If lhs is constant, do reverse subtraction instead.
+      return DoRSub(instr);
+    }
+
     LOperand* left = UseRegisterAtStart(instr->left());
     LOperand* right = UseOrConstantAtStart(instr->right());
     LSubI* sub = new(zone()) LSubI(left, right);
@@ -1342,6 +1348,25 @@ LInstruction* LChunkBuilder::DoSub(HSub* instr) {
     return DoArithmeticT(Token::SUB, instr);
   }
 }
+
+
+LInstruction* LChunkBuilder::DoRSub(HSub* instr) {
+  ASSERT(instr->representation().IsInteger32());
+  ASSERT(instr->left()->representation().IsInteger32());
+  ASSERT(instr->right()->representation().IsInteger32());
+
+  // Note: The lhs of the subtraction becomes the rhs of the
+  // reverse-subtraction.
+  LOperand* left = UseRegisterAtStart(instr->right());
+  LOperand* right = UseOrConstantAtStart(instr->left());
+  LRSubI* rsb = new(zone()) LRSubI(left, right);
+  LInstruction* result = DefineAsRegister(rsb);
+  if (instr->CheckFlag(HValue::kCanOverflow)) {
+    result = AssignEnvironment(result);
+  }
+  return result;
+}
+
 
 LInstruction* LChunkBuilder::DoMultiplyAdd(HMul* mul, HValue* addend) {
   LOperand* multiplier_op = UseRegisterAtStart(mul->left());

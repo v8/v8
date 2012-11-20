@@ -1619,6 +1619,27 @@ void LCodeGen::DoSubI(LSubI* instr) {
 }
 
 
+void LCodeGen::DoRSubI(LRSubI* instr) {
+  LOperand* left = instr->left();
+  LOperand* right = instr->right();
+  LOperand* result = instr->result();
+  bool can_overflow = instr->hydrogen()->CheckFlag(HValue::kCanOverflow);
+  SBit set_cond = can_overflow ? SetCC : LeaveCC;
+
+  if (right->IsStackSlot() || right->IsArgument()) {
+    Register right_reg = EmitLoadRegister(right, ip);
+    __ rsb(ToRegister(result), ToRegister(left), Operand(right_reg), set_cond);
+  } else {
+    ASSERT(right->IsRegister() || right->IsConstantOperand());
+    __ rsb(ToRegister(result), ToRegister(left), ToOperand(right), set_cond);
+  }
+
+  if (can_overflow) {
+    DeoptimizeIf(vs, instr->environment());
+  }
+}
+
+
 void LCodeGen::DoConstantI(LConstantI* instr) {
   ASSERT(instr->result()->IsRegister());
   __ mov(ToRegister(instr->result()), Operand(instr->value()));
