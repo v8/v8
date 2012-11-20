@@ -1966,7 +1966,7 @@ MaybeObject* JSReceiver::SetProperty(String* name,
                                      StrictModeFlag strict_mode,
                                      JSReceiver::StoreFromKeyed store_mode) {
   LookupResult result(GetIsolate());
-  LocalLookup(name, &result);
+  LocalLookup(name, &result, true);
   if (!result.IsFound()) {
     map()->LookupTransition(JSObject::cast(this), name, &result);
   }
@@ -3020,7 +3020,7 @@ MaybeObject* JSObject::SetPropertyForResult(LookupResult* lookup,
       EnqueueChangeRecord(self, "new", name, old_value);
     } else {
       LookupResult new_lookup(isolate);
-      self->LocalLookup(*name, &new_lookup);
+      self->LocalLookup(*name, &new_lookup, true);
       ASSERT(!new_lookup.GetLazyValue()->IsTheHole());
       if (!new_lookup.GetLazyValue()->SameValue(*old_value)) {
         EnqueueChangeRecord(self, "updated", name, old_value);
@@ -3062,7 +3062,7 @@ MaybeObject* JSObject::SetLocalPropertyIgnoreAttributes(
   AssertNoContextChange ncc;
   Isolate* isolate = GetIsolate();
   LookupResult lookup(isolate);
-  LocalLookup(name_raw, &lookup);
+  LocalLookup(name_raw, &lookup, true);
   if (!lookup.IsFound()) map()->LookupTransition(this, name_raw, &lookup);
   // Check access rights if needed.
   if (IsAccessCheckNeeded()) {
@@ -3169,7 +3169,7 @@ MaybeObject* JSObject::SetLocalPropertyIgnoreAttributes(
       EnqueueChangeRecord(self, "new", name, old_value);
     } else {
       LookupResult new_lookup(isolate);
-      self->LocalLookup(*name, &new_lookup);
+      self->LocalLookup(*name, &new_lookup, true);
       ASSERT(!new_lookup.GetLazyValue()->IsTheHole());
       if (old_value->IsTheHole() ||
           new_lookup.GetAttributes() != old_attributes) {
@@ -3316,7 +3316,7 @@ PropertyAttributes JSReceiver::GetLocalPropertyAttribute(String* name) {
   }
   // Named property.
   LookupResult lookup(GetIsolate());
-  LocalLookup(name, &lookup);
+  LocalLookup(name, &lookup, true);
   return GetPropertyAttributeForResult(this, &lookup, name, false);
 }
 
@@ -4218,7 +4218,7 @@ MaybeObject* JSObject::DeleteProperty(String* name, DeleteMode mode) {
   }
 
   LookupResult lookup(isolate);
-  LocalLookup(name, &lookup);
+  LocalLookup(name, &lookup, true);
   if (!lookup.IsFound()) return isolate->heap()->true_value();
   // Ignore attributes if forcing a deletion.
   if (lookup.IsDontDelete() && mode != FORCE_DELETION) {
@@ -4548,7 +4548,8 @@ AccessorDescriptor* Map::FindAccessor(String* name) {
 }
 
 
-void JSReceiver::LocalLookup(String* name, LookupResult* result) {
+void JSReceiver::LocalLookup(
+    String* name, LookupResult* result, bool search_hidden_prototypes) {
   ASSERT(name->IsString());
 
   Heap* heap = GetHeap();
@@ -4557,7 +4558,8 @@ void JSReceiver::LocalLookup(String* name, LookupResult* result) {
     Object* proto = GetPrototype();
     if (proto->IsNull()) return result->NotFound();
     ASSERT(proto->IsJSGlobalObject());
-    return JSReceiver::cast(proto)->LocalLookup(name, result);
+    return JSReceiver::cast(proto)->LocalLookup(
+        name, result, search_hidden_prototypes);
   }
 
   if (IsJSProxy()) {
@@ -4587,6 +4589,14 @@ void JSReceiver::LocalLookup(String* name, LookupResult* result) {
   }
 
   js_object->LocalLookupRealNamedProperty(name, result);
+  if (result->IsFound() || !search_hidden_prototypes) return;
+
+  Object* proto = js_object->GetPrototype();
+  if (!proto->IsJSReceiver()) return;
+  JSReceiver* receiver = JSReceiver::cast(proto);
+  if (receiver->map()->is_hidden_prototype()) {
+    receiver->LocalLookup(name, result, search_hidden_prototypes);
+  }
 }
 
 
@@ -4596,7 +4606,7 @@ void JSReceiver::Lookup(String* name, LookupResult* result) {
   for (Object* current = this;
        current != heap->null_value();
        current = JSObject::cast(current)->GetPrototype()) {
-    JSReceiver::cast(current)->LocalLookup(name, result);
+    JSReceiver::cast(current)->LocalLookup(name, result, false);
     if (result->IsFound()) return;
   }
   result->NotFound();
@@ -4918,7 +4928,7 @@ MaybeObject* JSObject::DefineAccessor(String* name_raw,
       }
     } else {
       LookupResult lookup(isolate);
-      LocalLookup(*name, &lookup);
+      LocalLookup(*name, &lookup, true);
       preexists = lookup.IsProperty();
       if (preexists) old_value = handle(lookup.GetLazyValue(), isolate);
     }
@@ -5116,7 +5126,7 @@ MaybeObject* JSObject::DefineAccessor(AccessorInfo* info) {
   } else {
     // Lookup the name.
     LookupResult result(isolate);
-    LocalLookup(name, &result);
+    LocalLookup(name, &result, true);
     // ES5 forbids turning a property into an accessor if it's not
     // configurable (that is IsDontDelete in ES3 and v8), see 8.6.1 (Table 5).
     if (result.IsFound() && (result.IsReadOnly() || result.IsDontDelete())) {
@@ -9630,7 +9640,7 @@ PropertyType JSObject::GetLocalPropertyType(String* name) {
     return GetLocalElementType(index);
   }
   LookupResult lookup(GetIsolate());
-  LocalLookup(name, &lookup);
+  LocalLookup(name, &lookup, true);
   return lookup.type();
 }
 

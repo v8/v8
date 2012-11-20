@@ -1516,7 +1516,8 @@ class JSReceiver: public HeapObject {
 
   // Lookup a property.  If found, the result is valid and has
   // detailed information.
-  void LocalLookup(String* name, LookupResult* result);
+  void LocalLookup(String* name, LookupResult* result,
+                   bool search_hidden_prototypes = false);
   void Lookup(String* name, LookupResult* result);
 
  protected:

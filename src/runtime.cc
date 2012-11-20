@@ -1034,7 +1034,7 @@ static AccessCheckResult CheckPropertyAccess(
   }
 
   LookupResult lookup(obj->GetIsolate());
-  obj->LocalLookup(name, &lookup);
+  obj->LocalLookup(name, &lookup, true);
 
   if (!lookup.IsProperty()) return ACCESS_ABSENT;
   if (CheckGenericAccess<Object*>(
@@ -1290,13 +1290,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DeclareGlobals) {
       // Do the lookup locally only, see ES5 erratum.
       LookupResult lookup(isolate);
       if (FLAG_es52_globals) {
-        Object* obj = *global;
-        do {
-          JSObject::cast(obj)->LocalLookup(*name, &lookup);
-          if (lookup.IsFound()) break;
-          obj = obj->GetPrototype();
-        } while (obj->IsJSObject() &&
-                 JSObject::cast(obj)->map()->is_hidden_prototype());
+        global->LocalLookup(*name, &lookup, true);
       } else {
         global->Lookup(*name, &lookup);
       }
@@ -1320,7 +1314,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DeclareGlobals) {
     }
 
     LookupResult lookup(isolate);
-    global->LocalLookup(*name, &lookup);
+    global->LocalLookup(*name, &lookup, true);
 
     // Compute the property attributes. According to ECMA-262,
     // the property must be non-configurable except in eval.
@@ -1499,27 +1493,20 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_InitializeVarGlobal) {
   // the whole chain of hidden prototypes to do a 'local' lookup.
   Object* object = global;
   LookupResult lookup(isolate);
-  while (object->IsJSObject() &&
-         JSObject::cast(object)->map()->is_hidden_prototype()) {
-    JSObject* raw_holder = JSObject::cast(object);
-    raw_holder->LocalLookup(*name, &lookup);
-    if (lookup.IsInterceptor()) {
-      HandleScope handle_scope(isolate);
-      Handle<JSObject> holder(raw_holder);
-      PropertyAttributes intercepted = holder->GetPropertyAttribute(*name);
-      // Update the raw pointer in case it's changed due to GC.
-      raw_holder = *holder;
-      if (intercepted != ABSENT && (intercepted & READ_ONLY) == 0) {
-        // Found an interceptor that's not read only.
-        if (assign) {
-          return raw_holder->SetProperty(
-              &lookup, *name, args[2], attributes, strict_mode_flag);
-        } else {
-          return isolate->heap()->undefined_value();
-        }
+  JSObject::cast(object)->LocalLookup(*name, &lookup, true);
+  if (lookup.IsInterceptor()) {
+    HandleScope handle_scope(isolate);
+    PropertyAttributes intercepted =
+        lookup.holder()->GetPropertyAttribute(*name);
+    if (intercepted != ABSENT && (intercepted & READ_ONLY) == 0) {
+      // Found an interceptor that's not read only.
+      if (assign) {
+        return lookup.holder()->SetProperty(
+            &lookup, *name, args[2], attributes, strict_mode_flag);
+      } else {
+        return isolate->heap()->undefined_value();
       }
     }
-    object = raw_holder->GetPrototype();
   }
 
   // Reload global in case the loop above performed a GC.
