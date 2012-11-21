@@ -25,9 +25,6 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Deprecated API entries use other deprecated entries, too.
-#define V8_DISABLE_DEPRECATIONS 1
-
 #include "api.h"
 
 #include <math.h>  // For isnan.
