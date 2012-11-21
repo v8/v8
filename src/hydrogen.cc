@@ -6653,7 +6653,7 @@ void HGraphBuilder::VisitProperty(Property* expr) {
         is_array = true;
         for (int i = 0; i < types->length(); i++) {
           Handle<Map> current_map = types->at(i);
-          if (!current_map->instance_type() == JS_ARRAY_TYPE) {
+          if (current_map->instance_type() != JS_ARRAY_TYPE) {
             is_array = false;
             break;
           }
