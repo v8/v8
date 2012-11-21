@@ -1268,7 +1268,6 @@ static void KeyedStoreGenerateGenericHelper(
   __ bind(&fast_double_without_map_check);
   __ StoreNumberToDoubleElements(value,
                                  key,
-                                 receiver,
                                  elements,  // Overwritten.
                                  a3,        // Scratch regs...
                                  t0,

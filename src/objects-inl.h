@@ -1944,7 +1944,7 @@ void FixedArray::set_null_unchecked(Heap* heap, int index) {
 
 
 double* FixedDoubleArray::data_start() {
-  return &READ_DOUBLE_FIELD(this, kHeaderSize);
+  return reinterpret_cast<double*>(FIELD_ADDR(this, kHeaderSize));
 }
 
 
