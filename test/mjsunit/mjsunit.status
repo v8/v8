@@ -41,7 +41,7 @@ regress/regress-524: SKIP
 # regress/regress-524: (PASS || TIMEOUT), SKIP if $mode == debug
 
 # Failing in debug mode on Windows.
-# manual-parallel-recompile: PASS, SKIP if $mode == debug
+manual-parallel-recompile: PASS, SKIP if $mode == debug
 
 ##############################################################################
 # Too slow in debug mode with --stress-opt
