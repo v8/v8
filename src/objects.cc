@@ -894,8 +894,9 @@ MaybeObject* String::SlowTryFlatten(PretenureFlag pretenure) {
       int len = length();
       Object* object;
       String* result;
-      if (IsAsciiRepresentation()) {
-        { MaybeObject* maybe_object = heap->AllocateRawAsciiString(len, tenure);
+      if (IsOneByteRepresentation()) {
+        { MaybeObject* maybe_object =
+              heap->AllocateRawOneByteString(len, tenure);
           if (!maybe_object->ToObject(&object)) return maybe_object;
         }
         result = String::cast(object);
@@ -954,7 +955,7 @@ bool String::MakeExternal(v8::String::ExternalStringResource* resource) {
   if (size < ExternalString::kShortSize) {
     return false;
   }
-  bool is_ascii = this->IsAsciiRepresentation();
+  bool is_ascii = this->IsOneByteRepresentation();
   bool is_symbol = this->IsSymbol();
 
   // Morph the object to an external string by adjusting the map and
@@ -6626,7 +6627,7 @@ const uc16* String::GetTwoByteData() {
 
 
 const uc16* String::GetTwoByteData(unsigned start) {
-  ASSERT(!IsAsciiRepresentationUnderneath());
+  ASSERT(!IsOneByteRepresentationUnderneath());
   switch (StringShape(this).representation_tag()) {
     case kSeqStringTag:
       return SeqTwoByteString::cast(this)->SeqTwoByteStringGetData(start);
@@ -6878,7 +6879,7 @@ const unibrow::byte* String::ReadBlock(String* input,
   }
   switch (StringShape(input).representation_tag()) {
     case kSeqStringTag:
-      if (input->IsAsciiRepresentation()) {
+      if (input->IsOneByteRepresentation()) {
         SeqOneByteString* str = SeqOneByteString::cast(input);
         return str->SeqOneByteStringReadBlock(&rbb->remaining,
                                             offset_ptr,
@@ -6895,7 +6896,7 @@ const unibrow::byte* String::ReadBlock(String* input,
                                                           offset_ptr,
                                                           max_chars);
     case kExternalStringTag:
-      if (input->IsAsciiRepresentation()) {
+      if (input->IsOneByteRepresentation()) {
         return ExternalAsciiString::cast(input)->ExternalAsciiStringReadBlock(
             &rbb->remaining,
             offset_ptr,
@@ -7027,7 +7028,7 @@ void String::ReadBlockIntoBuffer(String* input,
 
   switch (StringShape(input).representation_tag()) {
     case kSeqStringTag:
-      if (input->IsAsciiRepresentation()) {
+      if (input->IsOneByteRepresentation()) {
         SeqOneByteString::cast(input)->SeqOneByteStringReadBlockIntoBuffer(rbb,
                                                                  offset_ptr,
                                                                  max_chars);
@@ -7044,7 +7045,7 @@ void String::ReadBlockIntoBuffer(String* input,
                                                              max_chars);
       return;
     case kExternalStringTag:
-      if (input->IsAsciiRepresentation()) {
+      if (input->IsOneByteRepresentation()) {
         ExternalAsciiString::cast(input)->
             ExternalAsciiStringReadBlockIntoBuffer(rbb, offset_ptr, max_chars);
       } else {

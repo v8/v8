@@ -66,7 +66,7 @@ static MaybeObject* AllocateAfterFailures() {
 
   // Old data space.
   SimulateFullSpace(heap->old_data_space());
-  CHECK(!heap->AllocateRawAsciiString(100, TENURED)->IsFailure());
+  CHECK(!heap->AllocateRawOneByteString(100, TENURED)->IsFailure());
 
   // Old pointer space.
   SimulateFullSpace(heap->old_pointer_space());

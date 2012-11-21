@@ -232,7 +232,7 @@ bool Object::IsSeqString() {
 bool Object::IsSeqOneByteString() {
   if (!IsString()) return false;
   return StringShape(String::cast(this)).IsSequential() &&
-         String::cast(this)->IsAsciiRepresentation();
+         String::cast(this)->IsOneByteRepresentation();
 }
 
 
@@ -252,7 +252,7 @@ bool Object::IsExternalString() {
 bool Object::IsExternalAsciiString() {
   if (!IsString()) return false;
   return StringShape(String::cast(this)).IsExternal() &&
-         String::cast(this)->IsAsciiRepresentation();
+         String::cast(this)->IsOneByteRepresentation();
 }
 
 
@@ -295,7 +295,7 @@ bool StringShape::IsSymbol() {
 }
 
 
-bool String::IsAsciiRepresentation() {
+bool String::IsOneByteRepresentation() {
   uint32_t type = map()->instance_type();
   return (type & kStringEncodingMask) == kOneByteStringTag;
 }
@@ -307,7 +307,7 @@ bool String::IsTwoByteRepresentation() {
 }
 
 
-bool String::IsAsciiRepresentationUnderneath() {
+bool String::IsOneByteRepresentationUnderneath() {
   uint32_t type = map()->instance_type();
   STATIC_ASSERT(kIsIndirectStringTag != 0);
   STATIC_ASSERT((kIsIndirectStringMask & kStringEncodingMask) == 0);
@@ -318,7 +318,7 @@ bool String::IsAsciiRepresentationUnderneath() {
     case kTwoByteStringTag:
       return false;
     default:  // Cons or sliced string.  Need to go deeper.
-      return GetUnderlying()->IsAsciiRepresentation();
+      return GetUnderlying()->IsOneByteRepresentation();
   }
 }
 
@@ -2496,7 +2496,7 @@ void String::Set(int index, uint16_t value) {
   ASSERT(index >= 0 && index < length());
   ASSERT(StringShape(this).IsSequential());
 
-  return this->IsAsciiRepresentation()
+  return this->IsOneByteRepresentation()
       ? SeqOneByteString::cast(this)->SeqOneByteStringSet(index, value)
       : SeqTwoByteString::cast(this)->SeqTwoByteStringSet(index, value);
 }
@@ -4119,7 +4119,7 @@ bool Script::HasValidSource() {
   if (!src->IsString()) return true;
   String* src_str = String::cast(src);
   if (!StringShape(src_str).IsExternal()) return true;
-  if (src_str->IsAsciiRepresentation()) {
+  if (src_str->IsOneByteRepresentation()) {
     return ExternalAsciiString::cast(src)->resource() != NULL;
   } else if (src_str->IsTwoByteRepresentation()) {
     return ExternalTwoByteString::cast(src)->resource() != NULL;

@@ -91,7 +91,7 @@ MaybeObject* Heap::AllocateStringFromUtf8(Vector<const char> str,
   if (non_ascii_start >= length) {
     // If the string is ASCII, we do not need to convert the characters
     // since UTF8 is backwards compatible with ASCII.
-    return AllocateStringFromAscii(str, pretenure);
+    return AllocateStringFromOneByte(str, pretenure);
   }
   // Non-ASCII and we need to decode.
   return AllocateStringFromUtf8Slow(str, non_ascii_start, pretenure);

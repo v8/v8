@@ -2353,7 +2353,7 @@ class ReplacementStringBuilder {
         array_builder_(heap->isolate(), estimated_part_count),
         subject_(subject),
         character_count_(0),
-        is_ascii_(subject->IsAsciiRepresentation()) {
+        is_ascii_(subject->IsOneByteRepresentation()) {
     // Require a non-zero initial size. Ensures that doubling the size to
     // extend the array will work.
     ASSERT(estimated_part_count > 0);
@@ -2393,7 +2393,7 @@ class ReplacementStringBuilder {
     int length = string->length();
     ASSERT(length > 0);
     AddElement(*string);
-    if (!string->IsAsciiRepresentation()) {
+    if (!string->IsOneByteRepresentation()) {
       is_ascii_ = false;
     }
     IncrementCharacterCount(length);
@@ -3760,7 +3760,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NumberToRadixString) {
   }
   char* str = DoubleToRadixCString(value, radix);
   MaybeObject* result =
-      isolate->heap()->AllocateStringFromAscii(CStrVector(str));
+      isolate->heap()->AllocateStringFromOneByte(CStrVector(str));
   DeleteArray(str);
   return result;
 }
@@ -3785,7 +3785,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NumberToFixed) {
   RUNTIME_ASSERT(f >= 0);
   char* str = DoubleToFixedCString(value, f);
   MaybeObject* res =
-      isolate->heap()->AllocateStringFromAscii(CStrVector(str));
+      isolate->heap()->AllocateStringFromOneByte(CStrVector(str));
   DeleteArray(str);
   return res;
 }
@@ -3810,7 +3810,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NumberToExponential) {
   RUNTIME_ASSERT(f >= -1 && f <= 20);
   char* str = DoubleToExponentialCString(value, f);
   MaybeObject* res =
-      isolate->heap()->AllocateStringFromAscii(CStrVector(str));
+      isolate->heap()->AllocateStringFromOneByte(CStrVector(str));
   DeleteArray(str);
   return res;
 }
@@ -3835,7 +3835,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NumberToPrecision) {
   RUNTIME_ASSERT(f >= 1 && f <= 21);
   char* str = DoubleToPrecisionCString(value, f);
   MaybeObject* res =
-      isolate->heap()->AllocateStringFromAscii(CStrVector(str));
+      isolate->heap()->AllocateStringFromOneByte(CStrVector(str));
   DeleteArray(str);
   return res;
 }
@@ -5088,7 +5088,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringFromCharCodeArray) {
 
   MaybeObject* maybe_object = NULL;
   if (i == length) {  // The string is ASCII.
-    maybe_object = isolate->heap()->AllocateRawAsciiString(length);
+    maybe_object = isolate->heap()->AllocateRawOneByteString(length);
   } else {  // The string is not ASCII.
     maybe_object = isolate->heap()->AllocateRawTwoByteString(length);
   }
@@ -5182,7 +5182,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_URIEscape) {
   }
   Object* o;
   { MaybeObject* maybe_o =
-        isolate->heap()->AllocateRawAsciiString(escaped_length);
+        isolate->heap()->AllocateRawOneByteString(escaped_length);
     if (!maybe_o->ToObject(&o)) return maybe_o;
   }
   String* destination = String::cast(o);
@@ -5290,7 +5290,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_URIUnescape) {
   Object* o;
   { MaybeObject* maybe_o =
         ascii ?
-        isolate->heap()->AllocateRawAsciiString(unescaped_length) :
+        isolate->heap()->AllocateRawOneByteString(unescaped_length) :
         isolate->heap()->AllocateRawTwoByteString(unescaped_length);
     if (!maybe_o->ToObject(&o)) return maybe_o;
   }
@@ -5389,7 +5389,7 @@ MaybeObject* AllocateRawString<SeqTwoByteString>(Isolate* isolate, int length) {
 
 template <>
 MaybeObject* AllocateRawString<SeqOneByteString>(Isolate* isolate, int length) {
-  return isolate->heap()->AllocateRawAsciiString(length);
+  return isolate->heap()->AllocateRawOneByteString(length);
 }
 
 
@@ -5720,8 +5720,8 @@ MUST_USE_RESULT static MaybeObject* ConvertCaseHelper(
   // might break in the future if we implement more context and locale
   // dependent upper/lower conversions.
   Object* o;
-  { MaybeObject* maybe_o = s->IsAsciiRepresentation()
-        ? isolate->heap()->AllocateRawAsciiString(length)
+  { MaybeObject* maybe_o = s->IsOneByteRepresentation()
+        ? isolate->heap()->AllocateRawOneByteString(length)
         : isolate->heap()->AllocateRawTwoByteString(length);
     if (!maybe_o->ToObject(&o)) return maybe_o;
   }
@@ -5954,7 +5954,7 @@ MUST_USE_RESULT static MaybeObject* ConvertCase(
   // dependent upper/lower conversions.
   if (s->IsSeqOneByteString()) {
     Object* o;
-    { MaybeObject* maybe_o = isolate->heap()->AllocateRawAsciiString(length);
+    { MaybeObject* maybe_o = isolate->heap()->AllocateRawOneByteString(length);
       if (!maybe_o->ToObject(&o)) return maybe_o;
     }
     SeqOneByteString* result = SeqOneByteString::cast(o);
@@ -6161,7 +6161,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringToArray) {
 
   Handle<FixedArray> elements;
   int position = 0;
-  if (s->IsFlat() && s->IsAsciiRepresentation()) {
+  if (s->IsFlat() && s->IsOneByteRepresentation()) {
     // Try using cached chars where possible.
     Object* obj;
     { MaybeObject* maybe_obj =
@@ -6534,7 +6534,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringBuilderConcat) {
 
   if (ascii) {
     { MaybeObject* maybe_object =
-          isolate->heap()->AllocateRawAsciiString(length);
+          isolate->heap()->AllocateRawOneByteString(length);
       if (!maybe_object->ToObject(&object)) return maybe_object;
     }
     SeqOneByteString* answer = SeqOneByteString::cast(object);
@@ -6696,7 +6696,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SparseJoinWithSeparator) {
 
   // Find total length of join result.
   int string_length = 0;
-  bool is_ascii = separator->IsAsciiRepresentation();
+  bool is_ascii = separator->IsOneByteRepresentation();
   int max_string_length;
   if (is_ascii) {
     max_string_length = SeqOneByteString::kMaxLength;
@@ -6713,7 +6713,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SparseJoinWithSeparator) {
     RUNTIME_ASSERT(elements->get(i + 1)->IsString());
     String* string = String::cast(elements->get(i + 1));
     int length = string->length();
-    if (is_ascii && !string->IsAsciiRepresentation()) {
+    if (is_ascii && !string->IsOneByteRepresentation()) {
       is_ascii = false;
       max_string_length = SeqTwoByteString::kMaxLength;
     }
@@ -6749,7 +6749,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SparseJoinWithSeparator) {
 
   if (is_ascii) {
     MaybeObject* result_allocation =
-        isolate->heap()->AllocateRawAsciiString(string_length);
+        isolate->heap()->AllocateRawOneByteString(string_length);
     if (result_allocation->IsFailure()) return result_allocation;
     SeqOneByteString* result_string =
         SeqOneByteString::cast(result_allocation->ToObjectUnchecked());
@@ -12930,7 +12930,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetV8Version) {
 
   const char* version_string = v8::V8::GetVersion();
 
-  return isolate->heap()->AllocateStringFromAscii(CStrVector(version_string),
+  return isolate->heap()->AllocateStringFromOneByte(CStrVector(version_string),
                                                   NOT_TENURED);
 }
 

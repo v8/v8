@@ -12626,7 +12626,7 @@ static void MorphAString(i::String* string,
                          AsciiVectorResource* ascii_resource,
                          UC16VectorResource* uc16_resource) {
   CHECK(i::StringShape(string).IsExternal());
-  if (string->IsAsciiRepresentation()) {
+  if (string->IsOneByteRepresentation()) {
     // Check old map is not symbol or long.
     CHECK(string->map() == HEAP->external_ascii_string_map());
     // Morph external string to be TwoByte string.
@@ -15785,13 +15785,13 @@ THREADED_TEST(TwoByteStringInAsciiCons) {
   CHECK(result->IsString());
   i::Handle<i::String> string = v8::Utils::OpenHandle(String::Cast(*result));
   int length = string->length();
-  CHECK(string->IsAsciiRepresentation());
+  CHECK(string->IsOneByteRepresentation());
 
   FlattenString(string);
   i::Handle<i::String> flat_string = FlattenGetString(string);
 
-  CHECK(string->IsAsciiRepresentation());
-  CHECK(flat_string->IsAsciiRepresentation());
+  CHECK(string->IsOneByteRepresentation());
+  CHECK(flat_string->IsOneByteRepresentation());
 
   // Create external resource.
   uint16_t* uc16_buffer = new uint16_t[length + 1];
@@ -15810,7 +15810,7 @@ THREADED_TEST(TwoByteStringInAsciiCons) {
   // ASCII characters). This is a valid sequence of steps, and it can happen
   // in real pages.
 
-  CHECK(string->IsAsciiRepresentation());
+  CHECK(string->IsOneByteRepresentation());
   i::ConsString* cons = i::ConsString::cast(*string);
   CHECK_EQ(0, cons->second()->length());
   CHECK(cons->first()->IsTwoByteRepresentation());

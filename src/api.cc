@@ -3850,7 +3850,7 @@ static int RecursivelySerializeToUtf8(i::String* string,
                                       int32_t* last_character) {
   int utf8_bytes = 0;
   while (true) {
-    if (string->IsAsciiRepresentation()) {
+    if (string->IsOneByteRepresentation()) {
       i::String::WriteToFlat(string, buffer, start, end);
       *last_character = unibrow::Utf16::kNoPreviousCharacter;
       return utf8_bytes + end - start;
@@ -3950,7 +3950,7 @@ int String::WriteUtf8(char* buffer,
     FlattenString(str);  // Flatten the string for efficiency.
   }
   int string_length = str->length();
-  if (str->IsAsciiRepresentation()) {
+  if (str->IsOneByteRepresentation()) {
     int len;
     if (capacity == -1) {
       capacity = str->length() + 1;
@@ -4084,7 +4084,7 @@ int String::WriteAscii(char* buffer,
     FlattenString(str);  // Flatten the string for efficiency.
   }
 
-  if (str->IsAsciiRepresentation()) {
+  if (str->IsOneByteRepresentation()) {
     // WriteToFlat is faster than using the StringInputBuffer.
     if (length == -1) length = str->length() + 1;
     int len = i::Min(length, str->length() - start);
@@ -4199,7 +4199,7 @@ void v8::String::VerifyExternalStringResourceBase(
     expectedEncoding = TWO_BYTE_ENCODING;
   } else {
     expected = NULL;
-    expectedEncoding = str->IsAsciiRepresentation() ? ASCII_ENCODING
+    expectedEncoding = str->IsOneByteRepresentation() ? ASCII_ENCODING
                                                     : TWO_BYTE_ENCODING;
   }
   CHECK_EQ(expected, value);

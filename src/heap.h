@@ -706,7 +706,7 @@ class Heap {
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.
   // Please note this does not perform a garbage collection.
-  MUST_USE_RESULT MaybeObject* AllocateStringFromAscii(
+  MUST_USE_RESULT MaybeObject* AllocateStringFromOneByte(
       Vector<const char> str,
       PretenureFlag pretenure = NOT_TENURED);
   MUST_USE_RESULT inline MaybeObject* AllocateStringFromUtf8(
@@ -750,7 +750,7 @@ class Heap {
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.
   // Please note this does not perform a garbage collection.
-  MUST_USE_RESULT MaybeObject* AllocateRawAsciiString(
+  MUST_USE_RESULT MaybeObject* AllocateRawOneByteString(
       int length,
       PretenureFlag pretenure = NOT_TENURED);
   MUST_USE_RESULT MaybeObject* AllocateRawTwoByteString(
