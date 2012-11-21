@@ -2201,7 +2201,8 @@ class HLoadExternalArrayPointer: public HUnaryOperation {
 class HCheckMaps: public HTemplateInstruction<2> {
  public:
   HCheckMaps(HValue* value, Handle<Map> map, Zone* zone,
-             HValue* typecheck = NULL) {
+             HValue* typecheck = NULL,
+             CompareMapMode mode = REQUIRE_EXACT_MAP) : mode_(mode) {
     SetOperandAt(0, value);
     // If callers don't depend on a typecheck, they can pass in NULL. In that
     // case we use a copy of the |value| argument as a dummy value.
@@ -2212,7 +2213,8 @@ class HCheckMaps: public HTemplateInstruction<2> {
     SetGVNFlag(kDependsOnElementsKind);
     map_set()->Add(map, zone);
   }
-  HCheckMaps(HValue* value, SmallMapList* maps, Zone* zone) {
+  HCheckMaps(HValue* value, SmallMapList* maps, Zone* zone,
+             CompareMapMode mode = REQUIRE_EXACT_MAP) : mode_(mode) {
     SetOperandAt(0, value);
     SetOperandAt(1, value);
     set_representation(Representation::Tagged());
@@ -2257,6 +2259,7 @@ class HCheckMaps: public HTemplateInstruction<2> {
 
   HValue* value() { return OperandAt(0); }
   SmallMapList* map_set() { return &map_set_; }
+  CompareMapMode mode() { return mode_; }
 
   DECLARE_CONCRETE_INSTRUCTION(CheckMaps)
 
@@ -2273,6 +2276,7 @@ class HCheckMaps: public HTemplateInstruction<2> {
 
  private:
   SmallMapList map_set_;
+  CompareMapMode mode_;
 };
 
 

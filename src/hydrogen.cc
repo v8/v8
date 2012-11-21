@@ -6591,6 +6591,8 @@ void HGraphBuilder::VisitProperty(Property* expr) {
 
   HInstruction* instr = NULL;
   if (expr->AsProperty()->IsArrayLength()) {
+    // Note that in the monomorphic case IsArrayLength() is false because we
+    // handle that it with a regular property load IC.
     HValue* array = Pop();
     AddInstruction(new(zone()) HCheckNonSmi(array));
     HInstruction* mapcheck =
@@ -6626,23 +6628,74 @@ void HGraphBuilder::VisitProperty(Property* expr) {
       map = types->first();
       if (map->is_dictionary_map()) monomorphic = false;
     }
-    if (monomorphic) {
-      Handle<JSFunction> getter;
-      Handle<JSObject> holder;
-      if (LookupGetter(map, name, &getter, &holder)) {
-        AddCheckConstantFunction(holder, Top(), map);
-        if (FLAG_inline_accessors && TryInlineGetter(getter, expr)) return;
-        AddInstruction(new(zone()) HPushArgument(Pop()));
-        instr = new(zone()) HCallConstantFunction(getter, 1);
+
+    // Try to see if this is an array length access.
+    if (name->Equals(isolate()->heap()->length_symbol())) {
+      bool is_array = false;
+      bool fast_mode = false;
+      bool map_mode = false;
+      HInstruction* mapcheck = NULL;
+
+      if (expr->IsMonomorphic()) {
+        // Even if there is more than one map they all must be element
+        // transition maps, so checking just one is ok.
+        if (map->instance_type() == JS_ARRAY_TYPE) {
+          is_array = true;
+          map_mode = true;
+          fast_mode = IsFastElementsKind(map->elements_kind());
+        }
       } else {
-        instr = BuildLoadNamedMonomorphic(Pop(), name, expr, map);
+        // Since we will emit an instance check we have to conservatively
+        // assume that some arrays will contain slow elements, so we set
+        // fast_mode to false.
+        map_mode = false;
+        fast_mode = false;
+        is_array = true;
+        for (int i = 0; i < types->length(); i++) {
+          Handle<Map> current_map = types->at(i);
+          if (!current_map->instance_type() == JS_ARRAY_TYPE) {
+            is_array = false;
+            break;
+          }
+        }
       }
-    } else if (types != NULL && types->length() > 1) {
-      return HandlePolymorphicLoadNamedField(expr, Pop(), types, name);
-    } else {
-      instr = BuildLoadNamedGeneric(Pop(), name, expr);
+
+      // It is an array length access so we produce a HJSArrayLength.
+      if (is_array) {
+        HValue* array = Pop();
+        AddInstruction(new(zone()) HCheckNonSmi(array));
+        mapcheck = map_mode ?
+            HInstruction::cast(
+                new(zone()) HCheckMaps(array, map, zone(), NULL,
+                                       ALLOW_ELEMENT_TRANSITION_MAPS)) :
+            HInstruction::cast(
+                HCheckInstanceType::NewIsJSArray(array, zone()));
+        AddInstruction(mapcheck);
+        instr = new(zone()) HJSArrayLength(
+            array, mapcheck, fast_mode ? HType::Smi() : HType::Tagged());
+      }
     }
 
+    // We cannot know if it was an array length access so we handle it as
+    // a regular property access.
+    if (instr == NULL) {
+      if (monomorphic) {
+        Handle<JSFunction> getter;
+        Handle<JSObject> holder;
+        if (LookupGetter(map, name, &getter, &holder)) {
+          AddCheckConstantFunction(holder, Top(), map);
+          if (FLAG_inline_accessors && TryInlineGetter(getter, expr)) return;
+          AddInstruction(new(zone()) HPushArgument(Pop()));
+          instr = new(zone()) HCallConstantFunction(getter, 1);
+        } else {
+          instr = BuildLoadNamedMonomorphic(Pop(), name, expr, map);
+        }
+      } else if (types != NULL && types->length() > 1) {
+        return HandlePolymorphicLoadNamedField(expr, Pop(), types, name);
+      } else {
+        instr = BuildLoadNamedGeneric(Pop(), name, expr);
+      }
+    }
   } else {
     CHECK_ALIVE(VisitForValue(expr->key()));
 

@@ -855,26 +855,6 @@ MaybeObject* LoadIC::Load(State state,
       return Smi::FromInt(String::cast(*string)->length());
     }
 
-    // Use specialized code for getting the length of arrays.
-    if (object->IsJSArray() &&
-        name->Equals(isolate()->heap()->length_symbol())) {
-      Handle<Code> stub;
-      if (state == UNINITIALIZED) {
-        stub = pre_monomorphic_stub();
-      } else if (state == PREMONOMORPHIC) {
-        stub = isolate()->builtins()->LoadIC_ArrayLength();
-      } else if (state != MEGAMORPHIC) {
-        stub = megamorphic_stub();
-      }
-      if (!stub.is_null()) {
-        set_target(*stub);
-#ifdef DEBUG
-        if (FLAG_trace_ic) PrintF("[LoadIC : +#length /array]\n");
-#endif
-      }
-      return JSArray::cast(*object)->length();
-    }
-
     // Use specialized code for getting prototype of functions.
     if (object->IsJSFunction() &&
         name->Equals(isolate()->heap()->prototype_symbol()) &&
@@ -1006,6 +986,17 @@ void LoadIC::UpdateCaches(LookupResult* lookup,
           if (!holder->HasFastProperties()) return;
           code = isolate()->stub_cache()->ComputeLoadViaGetter(
               name, receiver, holder, Handle<JSFunction>::cast(getter));
+        } else if (holder->IsJSArray() &&
+            name->Equals(isolate()->heap()->length_symbol())) {
+          ASSERT(callback->IsForeign());
+          ASSERT(reinterpret_cast<AccessorDescriptor*>(
+              Handle<Foreign>::cast(callback)->foreign_address())
+              == &Accessors::ArrayLength);
+          // Use a "load field" IC for getting the array length.
+          // Note that the resulting code object is marked as "Code::FIELD"
+          // and not as "Code::CALLBACKS".
+          code = isolate()->stub_cache()->ComputeLoadField(
+              name, receiver, holder, JSArray::ArrayLengthIndex());
         } else {
           ASSERT(callback->IsForeign());
           // No IC support for old-style native accessors.

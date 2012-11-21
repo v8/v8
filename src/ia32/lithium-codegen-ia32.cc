@@ -4770,11 +4770,11 @@ void LCodeGen::DoCheckMaps(LCheckMaps* instr) {
   SmallMapList* map_set = instr->hydrogen()->map_set();
   for (int i = 0; i < map_set->length() - 1; i++) {
     Handle<Map> map = map_set->at(i);
-    __ CompareMap(reg, map, &success, REQUIRE_EXACT_MAP);
+    __ CompareMap(reg, map, &success, instr->hydrogen()->mode());
     __ j(equal, &success);
   }
   Handle<Map> map = map_set->last();
-  DoCheckMapCommon(reg, map, REQUIRE_EXACT_MAP, instr->environment());
+  DoCheckMapCommon(reg, map, instr->hydrogen()->mode(), instr->environment());
   __ bind(&success);
 }
 
