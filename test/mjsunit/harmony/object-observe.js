@@ -56,6 +56,8 @@ function createObserver() {
     assertCallbackRecords: function(recs) {
       this.assertRecordCount(recs.length);
       for (var i = 0; i < recs.length; i++) {
+        if ('name' in recs[i])
+          recs[i].name = String(recs[i].name);
         print(i, JSON.stringify(this.records[i]), JSON.stringify(recs[i]));
         assertSame(this.records[i].object, recs[i].object);
         assertEquals('string', typeof recs[i].type);
@@ -495,11 +497,9 @@ var properties = ["a", "1", 1, "length", "prototype"];
 // Cases that yield non-standard results.
 // TODO(observe): ...or don't work yet.
 function blacklisted(obj, prop) {
-  return (obj instanceof Array && prop == 1) ||
-    (obj instanceof Int32Array && prop == 1) ||
+  return (obj instanceof Int32Array && prop == 1) ||
     (obj instanceof Int32Array && prop === "length") ||
-    // TODO(observe): oldValue when deleting/reconfiguring indexed accessor
-    prop == 1 ||
+    (obj instanceof ArrayBuffer && prop == 1) ||
     // TODO(observe): oldValue when reconfiguring array length
     (obj instanceof Array && prop === "length") ||
     // TODO(observe): prototype property on functions
