@@ -274,6 +274,31 @@ class Logger {
   void SharedLibraryEvent(const wchar_t* library_path,
                           uintptr_t start,
                           uintptr_t end);
+  void TimerEvent(const char* name, int64_t start, int64_t end);
+
+  class TimerEventScope {
+   public:
+    TimerEventScope(Logger* logger, const char* name)
+        : logger_(logger), name_(name), start_(0) {
+      if (FLAG_log_timer_events) start_ = OS::Ticks();
+    }
+
+    ~TimerEventScope() {
+      if (FLAG_log_timer_events) {
+        logger_->TimerEvent(name_, start_, OS::Ticks());
+      }
+    }
+
+    static const char* v8_recompile_synchronous;
+    static const char* v8_recompile_parallel;
+    static const char* v8_compile_full_code;
+    static const char* v8_execute;
+
+   private:
+    Logger* logger_;
+    const char* name_;
+    int64_t start_;
+  };
 
   // ==== Events logged by --log-regexp ====
   // Regexp compilation and execution events.
@@ -448,6 +473,8 @@ class Logger {
   Address prev_to_;
   //  Logger::FunctionCreateEvent(...)
   Address prev_code_;
+
+  int64_t epoch_;
 
   friend class CpuProfiler;
 };

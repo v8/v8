@@ -667,6 +667,7 @@ DEFINE_string(logfile, "v8.log", "Specify the name of the log file.")
 DEFINE_bool(ll_prof, false, "Enable low-level linux profiler.")
 DEFINE_string(gc_fake_mmap, "/tmp/__v8_gc__",
               "Specify the name of the file for fake gc mmap used in ll_prof")
+DEFINE_bool(log_timer_events, false, "Log histogram timer events.")
 
 //
 // Disassembler only flags

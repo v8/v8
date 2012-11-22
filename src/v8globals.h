@@ -355,7 +355,7 @@ struct AccessorDescriptor {
   V(JS)                                         \
   V(GC)                                         \
   V(COMPILER)                                   \
-  V(PARALLEL_COMPILER_PROLOGUE)                 \
+  V(PARALLEL_COMPILER)                          \
   V(OTHER)                                      \
   V(EXTERNAL)
 

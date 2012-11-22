@@ -396,7 +396,10 @@ static bool GenerateCode(CompilationInfo* info) {
   bool is_optimizing = V8::UseCrankshaft() &&
                        !info->IsCompilingForDebugging() &&
                        info->IsOptimizing();
+  Logger* logger = info->isolate()->logger();
   if (is_optimizing) {
+    Logger::TimerEventScope timer(
+        logger, Logger::TimerEventScope::v8_recompile_synchronous);
     return MakeCrankshaftCode(info);
   } else {
     if (info->IsOptimizing()) {
@@ -404,6 +407,8 @@ static bool GenerateCode(CompilationInfo* info) {
       // BASE or NONOPT.
       info->DisableOptimization();
     }
+    Logger::TimerEventScope timer(
+        logger, Logger::TimerEventScope::v8_compile_full_code);
     return FullCodeGenerator::MakeCode(info);
   }
 }
@@ -852,6 +857,11 @@ void Compiler::RecompileParallel(Handle<JSFunction> closure) {
   ASSERT(closure->IsMarkedForParallelRecompilation());
 
   Isolate* isolate = closure->GetIsolate();
+  // Here we prepare compile data for the parallel recompilation thread, but
+  // this still happens synchronously and interrupts execution.
+  Logger::TimerEventScope timer(
+      isolate->logger(), Logger::TimerEventScope::v8_recompile_synchronous);
+
   if (!isolate->optimizing_compiler_thread()->IsQueueAvailable()) {
     if (FLAG_trace_parallel_recompilation) {
       PrintF("  ** Compilation queue, will retry opting on next run.\n");
@@ -860,7 +870,7 @@ void Compiler::RecompileParallel(Handle<JSFunction> closure) {
   }
 
   SmartPointer<CompilationInfo> info(new CompilationInfoWithZone(closure));
-  VMState state(isolate, PARALLEL_COMPILER_PROLOGUE);
+  VMState state(isolate, PARALLEL_COMPILER);
   PostponeInterruptsScope postpone(isolate);
 
   Handle<SharedFunctionInfo> shared = info->shared_info();
@@ -908,6 +918,10 @@ void Compiler::RecompileParallel(Handle<JSFunction> closure) {
 
 void Compiler::InstallOptimizedCode(OptimizingCompiler* optimizing_compiler) {
   SmartPointer<CompilationInfo> info(optimizing_compiler->info());
+  Isolate* isolate = info->isolate();
+  VMState state(isolate, PARALLEL_COMPILER);
+  Logger::TimerEventScope timer(
+      isolate->logger(), Logger::TimerEventScope::v8_recompile_synchronous);
   // If crankshaft succeeded, install the optimized code else install
   // the unoptimized code.
   OptimizingCompiler::Status status = optimizing_compiler->last_status();
