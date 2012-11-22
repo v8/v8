@@ -56,7 +56,8 @@ struct StatsCounter;
 
 class AssemblerBase: public Malloced {
  public:
-  explicit AssemblerBase(Isolate* isolate);
+  AssemblerBase(Isolate* isolate, void* buffer, int buffer_size);
+  virtual ~AssemblerBase();
 
   Isolate* isolate() const { return isolate_; }
   int jit_cookie() const { return jit_cookie_; }
@@ -70,6 +71,20 @@ class AssemblerBase: public Malloced {
   // Overwrite a host NaN with a quiet target NaN.  Used by mksnapshot for
   // cross-snapshotting.
   static void QuietNaN(HeapObject* nan) { }
+
+  int pc_offset() const { return static_cast<int>(pc_ - buffer_); }
+
+  static const int kMinimalBufferSize = 4*KB;
+
+ protected:
+  // The buffer into which code and relocation info are generated. It could
+  // either be owned by the assembler or be provided externally.
+  byte* buffer_;
+  int buffer_size_;
+  bool own_buffer_;
+
+  // The program counter, which points into the buffer above and moves forward.
+  byte* pc_;
 
  private:
   Isolate* isolate_;
