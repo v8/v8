@@ -296,7 +296,11 @@ obj.a = 7;  // ignored
 Object.defineProperty(obj, "a", {value: 8});
 Object.defineProperty(obj, "a", {value: 7, writable: true});
 Object.defineProperty(obj, "a", {get: function() {}});
-Object.defineProperty(obj, "a", {get: function() {}});
+Object.defineProperty(obj, "a", {get: frozenFunction});
+Object.defineProperty(obj, "a", {get: frozenFunction});  // ignored
+Object.defineProperty(obj, "a", {get: frozenFunction, set: frozenFunction});
+Object.defineProperty(obj, "a", {set: frozenFunction});  // ignored
+Object.defineProperty(obj, "a", {get: undefined, set: frozenFunction});
 delete obj.a;
 delete obj.a;
 Object.defineProperty(obj, "a", {get: function() {}, configurable: true});
@@ -316,6 +320,8 @@ observer.assertCallbackRecords([
   { object: obj, name: "a", type: "updated", oldValue: 6 },
   { object: obj, name: "a", type: "reconfigured", oldValue: 8 },
   { object: obj, name: "a", type: "reconfigured", oldValue: 7 },
+  { object: obj, name: "a", type: "reconfigured" },
+  { object: obj, name: "a", type: "reconfigured" },
   { object: obj, name: "a", type: "reconfigured" },
   { object: obj, name: "a", type: "deleted" },
   { object: obj, name: "a", type: "new" },
@@ -341,7 +347,11 @@ obj[1] = 7;  // ignored
 Object.defineProperty(obj, "1", {value: 8});
 Object.defineProperty(obj, "1", {value: 7, writable: true});
 Object.defineProperty(obj, "1", {get: function() {}});
-Object.defineProperty(obj, "1", {get: function() {}});
+Object.defineProperty(obj, "1", {get: frozenFunction});
+Object.defineProperty(obj, "1", {get: frozenFunction});  // ignored
+Object.defineProperty(obj, "1", {get: frozenFunction, set: frozenFunction});
+Object.defineProperty(obj, "1", {set: frozenFunction});  // ignored
+Object.defineProperty(obj, "1", {get: undefined, set: frozenFunction});
 delete obj[1];
 delete obj[1];
 Object.defineProperty(obj, "1", {get: function() {}, configurable: true});
@@ -361,6 +371,8 @@ observer.assertCallbackRecords([
   { object: obj, name: "1", type: "updated", oldValue: 6 },
   { object: obj, name: "1", type: "reconfigured", oldValue: 8 },
   { object: obj, name: "1", type: "reconfigured", oldValue: 7 },
+  { object: obj, name: "1", type: "reconfigured" },
+  { object: obj, name: "1", type: "reconfigured" },
   { object: obj, name: "1", type: "reconfigured" },
   { object: obj, name: "1", type: "deleted" },
   { object: obj, name: "1", type: "new" },
@@ -388,7 +400,11 @@ function TestObserveConfigurable(obj, prop) {
   Object.defineProperty(obj, prop, {value: 8});
   Object.defineProperty(obj, prop, {value: 7, writable: true});
   Object.defineProperty(obj, prop, {get: function() {}});
-  Object.defineProperty(obj, prop, {get: function() {}});
+  Object.defineProperty(obj, prop, {get: frozenFunction});
+  Object.defineProperty(obj, prop, {get: frozenFunction});  // ignored
+  Object.defineProperty(obj, prop, {get: frozenFunction, set: frozenFunction});
+  Object.defineProperty(obj, prop, {set: frozenFunction});  // ignored
+  Object.defineProperty(obj, prop, {get: undefined, set: frozenFunction});
   delete obj[prop];
   delete obj[prop];
   Object.defineProperty(obj, prop, {get: function() {}, configurable: true});
@@ -408,6 +424,8 @@ function TestObserveConfigurable(obj, prop) {
     { object: obj, name: prop, type: "updated", oldValue: 6 },
     { object: obj, name: prop, type: "reconfigured", oldValue: 8 },
     { object: obj, name: prop, type: "reconfigured", oldValue: 7 },
+    { object: obj, name: prop, type: "reconfigured" },
+    { object: obj, name: prop, type: "reconfigured" },
     { object: obj, name: prop, type: "reconfigured" },
     { object: obj, name: prop, type: "deleted" },
     { object: obj, name: prop, type: "new" },
@@ -429,14 +447,18 @@ function TestObserveNonConfigurable(obj, prop) {
   obj[prop] = 5;
   Object.defineProperty(obj, prop, {value: 6});
   Object.defineProperty(obj, prop, {value: 6});  // ignored
+  Object.defineProperty(obj, prop, {value: 7});
+  Object.defineProperty(obj, prop, {enumerable: true});  // ignored
   Object.defineProperty(obj, prop, {writable: false});
   obj[prop] = 7;  // ignored
+  Object.defineProperty(obj, prop, {get: function() {}});  // ignored
   Object.deliverChangeRecords(observer.callback);
   observer.assertCallbackRecords([
     { object: obj, name: prop, type: "updated", oldValue: 1 },
     { object: obj, name: prop, type: "updated", oldValue: 4 },
     { object: obj, name: prop, type: "updated", oldValue: 5 },
-    { object: obj, name: prop, type: "reconfigured", oldValue: 6 },
+    { object: obj, name: prop, type: "updated", oldValue: 6 },
+    { object: obj, name: prop, type: "reconfigured", oldValue: 7 },
   ]);
   Object.unobserve(obj, observer.callback);
 }
