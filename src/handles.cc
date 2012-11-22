@@ -229,12 +229,12 @@ Handle<Object> SetPrototype(Handle<JSFunction> function,
 }
 
 
-Handle<Object> SetProperty(Handle<Object> object,
+Handle<Object> SetProperty(Isolate* isolate,
+                           Handle<Object> object,
                            Handle<Object> key,
                            Handle<Object> value,
                            PropertyAttributes attributes,
                            StrictModeFlag strict_mode) {
-  Isolate* isolate = Isolate::Current();
   CALL_HEAP_FUNCTION(
       isolate,
       Runtime::SetObjectProperty(

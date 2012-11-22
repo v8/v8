@@ -10639,7 +10639,8 @@ static bool CopyContextLocalsToScopeObject(
 
     RETURN_IF_EMPTY_HANDLE_VALUE(
         isolate,
-        SetProperty(scope_object,
+        SetProperty(isolate,
+                    scope_object,
                     Handle<String>(scope_info->ContextLocalName(i)),
                     Handle<Object>(context->get(context_index), isolate),
                     NONE,
@@ -10674,7 +10675,8 @@ static Handle<JSObject> MaterializeLocalScopeWithFrameInspector(
 
     RETURN_IF_EMPTY_HANDLE_VALUE(
         isolate,
-        SetProperty(local_scope,
+        SetProperty(isolate,
+                    local_scope,
                     Handle<String>(scope_info->ParameterName(i)),
                     value,
                     NONE,
@@ -10686,7 +10688,8 @@ static Handle<JSObject> MaterializeLocalScopeWithFrameInspector(
   for (int i = 0; i < scope_info->StackLocalCount(); ++i) {
     RETURN_IF_EMPTY_HANDLE_VALUE(
         isolate,
-        SetProperty(local_scope,
+        SetProperty(isolate,
+                    local_scope,
                     Handle<String>(scope_info->StackLocalName(i)),
                     Handle<Object>(frame_inspector->GetExpression(i)),
                     NONE,
@@ -10720,7 +10723,8 @@ static Handle<JSObject> MaterializeLocalScopeWithFrameInspector(
           Handle<String> key(String::cast(keys->get(i)));
           RETURN_IF_EMPTY_HANDLE_VALUE(
               isolate,
-              SetProperty(local_scope,
+              SetProperty(isolate,
+                          local_scope,
                           key,
                           GetProperty(ext, key),
                           NONE,
@@ -10781,7 +10785,8 @@ static Handle<JSObject> MaterializeClosure(Isolate* isolate,
       Handle<String> key(String::cast(keys->get(i)));
        RETURN_IF_EMPTY_HANDLE_VALUE(
           isolate,
-          SetProperty(closure_scope,
+          SetProperty(isolate,
+                      closure_scope,
                       key,
                       GetProperty(ext, key),
                       NONE,
@@ -10805,7 +10810,12 @@ static Handle<JSObject> MaterializeCatchScope(Isolate* isolate,
       isolate->factory()->NewJSObject(isolate->object_function());
   RETURN_IF_EMPTY_HANDLE_VALUE(
       isolate,
-      SetProperty(catch_scope, name, thrown_object, NONE, kNonStrictMode),
+      SetProperty(isolate,
+                  catch_scope,
+                  name,
+                  thrown_object,
+                  NONE,
+                  kNonStrictMode),
       Handle<JSObject>());
   return catch_scope;
 }

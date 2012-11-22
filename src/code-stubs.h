@@ -141,7 +141,7 @@ class CodeStub BASE_EMBEDDED {
   bool CompilingCallsToThisStubIsGCSafe() {
     bool is_pregenerated = IsPregenerated();
     Code* code = NULL;
-    CHECK(!is_pregenerated || FindCodeInCache(&code));
+    CHECK(!is_pregenerated || FindCodeInCache(&code, Isolate::Current()));
     return is_pregenerated;
   }
 
@@ -160,7 +160,7 @@ class CodeStub BASE_EMBEDDED {
   virtual bool SometimesSetsUpAFrame() { return true; }
 
   // Lookup the code in the (possibly custom) cache.
-  bool FindCodeInCache(Code** code_out);
+  bool FindCodeInCache(Code** code_out, Isolate* isolate);
 
  protected:
   static bool CanUseFPRegisters();
@@ -202,7 +202,9 @@ class CodeStub BASE_EMBEDDED {
   virtual void AddToSpecialCache(Handle<Code> new_object) { }
 
   // Find code in a specialized cache, work is delegated to the specific stub.
-  virtual bool FindCodeInSpecialCache(Code** code_out) { return false; }
+  virtual bool FindCodeInSpecialCache(Code** code_out, Isolate* isolate) {
+    return false;
+  }
 
   // If a stub uses a special cache override this.
   virtual bool UseSpecialCache() { return false; }
@@ -653,7 +655,7 @@ class ICCompareStub: public CodeStub {
   Condition GetCondition() const { return CompareIC::ComputeCondition(op_); }
 
   virtual void AddToSpecialCache(Handle<Code> new_object);
-  virtual bool FindCodeInSpecialCache(Code** code_out);
+  virtual bool FindCodeInSpecialCache(Code** code_out, Isolate* isolate);
   virtual bool UseSpecialCache() { return state_ == CompareIC::KNOWN_OBJECTS; }
 
   Token::Value op_;
