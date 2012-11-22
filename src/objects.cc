@@ -1132,6 +1132,10 @@ void JSObject::JSObjectShortPrint(StringStream* accumulator) {
       }
       break;
     }
+    case JS_MODULE_TYPE: {
+      accumulator->Add("<JS Module>");
+      break;
+    }
     // All other JSObjects are rather similar to each other (JSObject,
     // JSGlobalProxy, JSGlobalObject, JSUndetectableObject, JSValue).
     default: {

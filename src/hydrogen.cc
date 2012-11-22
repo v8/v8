@@ -8996,6 +8996,11 @@ void HGraphBuilder::VisitModuleUrl(ModuleUrl* module) {
 }
 
 
+void HGraphBuilder::VisitModuleStatement(ModuleStatement* stmt) {
+  UNREACHABLE();
+}
+
+
 // Generators for inline runtime functions.
 // Support for types.
 void HGraphBuilder::GenerateIsSmi(CallRuntime* call) {

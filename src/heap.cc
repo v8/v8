@@ -5141,7 +5141,7 @@ MaybeObject* Heap::AllocateModuleContext(ScopeInfo* scope_info) {
   }
   Context* context = reinterpret_cast<Context*>(result);
   context->set_map_no_write_barrier(module_context_map());
-  // Context links will be set later.
+  // Instance link will be set later.
   context->set_extension(Smi::FromInt(0));
   return context;
 }

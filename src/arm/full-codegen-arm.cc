@@ -917,34 +917,33 @@ void FullCodeGenerator::VisitFunctionDeclaration(
 
 
 void FullCodeGenerator::VisitModuleDeclaration(ModuleDeclaration* declaration) {
-  VariableProxy* proxy = declaration->proxy();
-  Variable* variable = proxy->var();
-  Handle<JSModule> instance = declaration->module()->interface()->Instance();
-  ASSERT(!instance.is_null());
+  Variable* variable = declaration->proxy()->var();
+  ASSERT(variable->location() == Variable::CONTEXT);
+  ASSERT(variable->interface()->IsFrozen());
 
-  switch (variable->location()) {
-    case Variable::UNALLOCATED: {
-      Comment cmnt(masm_, "[ ModuleDeclaration");
-      globals_->Add(variable->name(), zone());
-      globals_->Add(instance, zone());
-      Visit(declaration->module());
-      break;
-    }
+  Comment cmnt(masm_, "[ ModuleDeclaration");
+  EmitDebugCheckDeclarationContext(variable);
 
-    case Variable::CONTEXT: {
-      Comment cmnt(masm_, "[ ModuleDeclaration");
-      EmitDebugCheckDeclarationContext(variable);
-      __ mov(r1, Operand(instance));
-      __ str(r1, ContextOperand(cp, variable->index()));
-      Visit(declaration->module());
-      break;
-    }
+  // Load instance object.
+  __ LoadContext(r1, scope_->ContextChainLength(scope_->GlobalScope()));
+  __ ldr(r1, ContextOperand(r1, variable->interface()->Index()));
+  __ ldr(r1, ContextOperand(r1, Context::EXTENSION_INDEX));
 
-    case Variable::PARAMETER:
-    case Variable::LOCAL:
-    case Variable::LOOKUP:
-      UNREACHABLE();
-  }
+  // Assign it.
+  __ str(r1, ContextOperand(cp, variable->index()));
+  // We know that we have written a module, which is not a smi.
+  __ RecordWriteContextSlot(cp,
+                            Context::SlotOffset(variable->index()),
+                            r1,
+                            r3,
+                            kLRHasBeenSaved,
+                            kDontSaveFPRegs,
+                            EMIT_REMEMBERED_SET,
+                            OMIT_SMI_CHECK);
+  PrepareForBailoutForId(declaration->proxy()->id(), NO_REGISTERS);
+
+  // Traverse into body.
+  Visit(declaration->module());
 }
 
 
@@ -983,6 +982,14 @@ void FullCodeGenerator::DeclareGlobals(Handle<FixedArray> pairs) {
   __ mov(r0, Operand(Smi::FromInt(DeclareGlobalsFlags())));
   __ Push(cp, r1, r0);
   __ CallRuntime(Runtime::kDeclareGlobals, 3);
+  // Return value is ignored.
+}
+
+
+void FullCodeGenerator::DeclareModules(Handle<FixedArray> descriptions) {
+  // Call the runtime to declare the modules.
+  __ Push(descriptions);
+  __ CallRuntime(Runtime::kDeclareModules, 1);
   // Return value is ignored.
 }
 
@@ -1394,9 +1401,9 @@ void FullCodeGenerator::EmitDynamicLookupFastCase(Variable* var,
   } else if (var->mode() == DYNAMIC_LOCAL) {
     Variable* local = var->local_if_not_shadowed();
     __ ldr(r0, ContextSlotOperandCheckExtensions(local, slow));
-    if (local->mode() == CONST ||
-        local->mode() == CONST_HARMONY ||
-        local->mode() == LET) {
+    if (local->mode() == LET ||
+        local->mode() == CONST ||
+        local->mode() == CONST_HARMONY) {
       __ CompareRoot(r0, Heap::kTheHoleValueRootIndex);
       if (local->mode() == CONST) {
         __ LoadRoot(r0, Heap::kUndefinedValueRootIndex, eq);

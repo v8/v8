@@ -6318,7 +6318,7 @@ class GlobalObject: public JSObject {
       Handle<GlobalObject> global,
       Handle<String> name);
   // TODO(kmillikin): This function can be eliminated once the stub cache is
-  // full handlified (and the static helper can be written directly).
+  // fully handlified (and the static helper can be written directly).
   MUST_USE_RESULT MaybeObject* EnsurePropertyCell(String* name);
 
   // Casting.

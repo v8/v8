@@ -1160,7 +1160,7 @@ Statement* Parser::ParseModuleDeclaration(ZoneStringList* names, bool* ok) {
 #endif
 
   Module* module = ParseModule(CHECK_OK);
-  VariableProxy* proxy = NewUnresolved(name, LET, module->interface());
+  VariableProxy* proxy = NewUnresolved(name, MODULE, module->interface());
   Declaration* declaration =
       factory()->NewModuleDeclaration(proxy, module, top_scope_);
   Declare(declaration, true, CHECK_OK);
@@ -1179,7 +1179,7 @@ Statement* Parser::ParseModuleDeclaration(ZoneStringList* names, bool* ok) {
   if (module->body() == NULL)
     return factory()->NewEmptyStatement();
   else
-    return module->body();
+    return factory()->NewModuleStatement(proxy, module->body());
 }
 
 
@@ -1328,12 +1328,15 @@ Module* Parser::ParseModuleUrl(bool* ok) {
   if (FLAG_print_interface_details) PrintF("# Url ");
 #endif
 
-  Module* result = factory()->NewModuleUrl(symbol);
-  Interface* interface = result->interface();
+  // Create an empty literal as long as the feature isn't finished.
+  USE(symbol);
+  Scope* scope = NewScope(top_scope_, MODULE_SCOPE);
+  Block* body = factory()->NewBlock(NULL, 1, false);
+  body->set_scope(scope);
+  Interface* interface = scope->interface();
+  Module* result = factory()->NewModuleLiteral(body, interface);
   interface->Freeze(ok);
   ASSERT(*ok);
-  // Create dummy scope to avoid errors as long as the feature isn't finished.
-  Scope* scope = NewScope(top_scope_, MODULE_SCOPE);
   interface->Unify(scope->interface(), zone(), ok);
   ASSERT(*ok);
   return result;
@@ -1702,10 +1705,9 @@ void Parser::Declare(Declaration* declaration, bool resolve, bool* ok) {
         *ok = false;
         return;
       }
-      const char* type =
-          (var->mode() == VAR) ? "var" : var->is_const_mode() ? "const" : "let";
       Handle<String> type_string =
-          isolate()->factory()->NewStringFromUtf8(CStrVector(type), TENURED);
+          isolate()->factory()->NewStringFromUtf8(CStrVector("Variable"),
+                                                  TENURED);
       Expression* expression =
           NewThrowTypeError(isolate()->factory()->redeclaration_symbol(),
                             type_string, name);

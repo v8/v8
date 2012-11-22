@@ -758,8 +758,7 @@ void FullCodeGenerator::PrepareForBailoutBeforeSplit(Expression* expr,
 
 
 void FullCodeGenerator::EmitDebugCheckDeclarationContext(Variable* variable) {
-  // The variable in the declaration always resides in the current function
-  // context.
+  // The variable in the declaration always resides in the current context.
   ASSERT_EQ(0, scope()->ContextChainLength(variable->scope()));
   if (generate_debug_code_) {
     // Check that we're not inside a with or catch context.
@@ -888,33 +887,32 @@ void FullCodeGenerator::VisitFunctionDeclaration(
 
 
 void FullCodeGenerator::VisitModuleDeclaration(ModuleDeclaration* declaration) {
-  VariableProxy* proxy = declaration->proxy();
-  Variable* variable = proxy->var();
-  Handle<JSModule> instance = declaration->module()->interface()->Instance();
-  ASSERT(!instance.is_null());
+  Variable* variable = declaration->proxy()->var();
+  ASSERT(variable->location() == Variable::CONTEXT);
+  ASSERT(variable->interface()->IsFrozen());
 
-  switch (variable->location()) {
-    case Variable::UNALLOCATED: {
-      Comment cmnt(masm_, "[ ModuleDeclaration");
-      globals_->Add(variable->name(), zone());
-      globals_->Add(instance, zone());
-      Visit(declaration->module());
-      break;
-    }
+  Comment cmnt(masm_, "[ ModuleDeclaration");
+  EmitDebugCheckDeclarationContext(variable);
 
-    case Variable::CONTEXT: {
-      Comment cmnt(masm_, "[ ModuleDeclaration");
-      EmitDebugCheckDeclarationContext(variable);
-      __ mov(ContextOperand(esi, variable->index()), Immediate(instance));
-      Visit(declaration->module());
-      break;
-    }
+  // Load instance object.
+  __ LoadContext(eax, scope_->ContextChainLength(scope_->GlobalScope()));
+  __ mov(eax, ContextOperand(eax, variable->interface()->Index()));
+  __ mov(eax, ContextOperand(eax, Context::EXTENSION_INDEX));
 
-    case Variable::PARAMETER:
-    case Variable::LOCAL:
-    case Variable::LOOKUP:
-      UNREACHABLE();
-  }
+  // Assign it.
+  __ mov(ContextOperand(esi, variable->index()), eax);
+  // We know that we have written a module, which is not a smi.
+  __ RecordWriteContextSlot(esi,
+                            Context::SlotOffset(variable->index()),
+                            eax,
+                            ecx,
+                            kDontSaveFPRegs,
+                            EMIT_REMEMBERED_SET,
+                            OMIT_SMI_CHECK);
+  PrepareForBailoutForId(declaration->proxy()->id(), NO_REGISTERS);
+
+  // Traverse into body.
+  Visit(declaration->module());
 }
 
 
@@ -949,9 +947,17 @@ void FullCodeGenerator::VisitExportDeclaration(ExportDeclaration* declaration) {
 void FullCodeGenerator::DeclareGlobals(Handle<FixedArray> pairs) {
   // Call the runtime to declare the globals.
   __ push(esi);  // The context is the first argument.
-  __ push(Immediate(pairs));
-  __ push(Immediate(Smi::FromInt(DeclareGlobalsFlags())));
+  __ Push(pairs);
+  __ Push(Smi::FromInt(DeclareGlobalsFlags()));
   __ CallRuntime(Runtime::kDeclareGlobals, 3);
+  // Return value is ignored.
+}
+
+
+void FullCodeGenerator::DeclareModules(Handle<FixedArray> descriptions) {
+  // Call the runtime to declare the modules.
+  __ Push(descriptions);
+  __ CallRuntime(Runtime::kDeclareModules, 1);
   // Return value is ignored.
 }
 
@@ -1350,9 +1356,9 @@ void FullCodeGenerator::EmitDynamicLookupFastCase(Variable* var,
   } else if (var->mode() == DYNAMIC_LOCAL) {
     Variable* local = var->local_if_not_shadowed();
     __ mov(eax, ContextSlotOperandCheckExtensions(local, slow));
-    if (local->mode() == CONST ||
-        local->mode() == CONST_HARMONY ||
-        local->mode() == LET) {
+    if (local->mode() == LET ||
+        local->mode() == CONST ||
+        local->mode() == CONST_HARMONY) {
       __ cmp(eax, isolate()->factory()->the_hole_value());
       __ j(not_equal, done);
       if (local->mode() == CONST) {

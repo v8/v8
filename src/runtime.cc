@@ -1282,8 +1282,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DeclareGlobals) {
     bool is_var = value->IsUndefined();
     bool is_const = value->IsTheHole();
     bool is_function = value->IsSharedFunctionInfo();
-    bool is_module = value->IsJSModule();
-    ASSERT(is_var + is_const + is_function + is_module == 1);
+    ASSERT(is_var + is_const + is_function == 1);
 
     if (is_var || is_const) {
       // Lookup the property in the global object, and don't set the
@@ -1321,24 +1320,23 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DeclareGlobals) {
     // the property must be non-configurable except in eval.
     int attr = NONE;
     bool is_eval = DeclareGlobalsEvalFlag::decode(flags);
-    if (!is_eval || is_module) {
+    if (!is_eval) {
       attr |= DONT_DELETE;
     }
     bool is_native = DeclareGlobalsNativeFlag::decode(flags);
-    if (is_const || is_module || (is_native && is_function)) {
+    if (is_const || (is_native && is_function)) {
       attr |= READ_ONLY;
     }
 
     LanguageMode language_mode = DeclareGlobalsLanguageMode::decode(flags);
 
-    if (!lookup.IsFound() || is_function || is_module) {
+    if (!lookup.IsFound() || is_function) {
       // If the local property exists, check that we can reconfigure it
       // as required for function declarations.
       if (lookup.IsFound() && lookup.IsDontDelete()) {
         if (lookup.IsReadOnly() || lookup.IsDontEnum() ||
             lookup.IsPropertyCallbacks()) {
-          return ThrowRedeclarationError(
-              isolate, is_function ? "function" : "module", name);
+          return ThrowRedeclarationError(isolate, "function", name);
         }
         // If the existing property is not configurable, keep its attributes.
         attr = lookup.GetAttributes();
@@ -8419,20 +8417,89 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_IsJSModule) {
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_PushModuleContext) {
-  NoHandleAllocation ha;
-  ASSERT(args.length() == 1);
-  CONVERT_ARG_HANDLE_CHECKED(JSModule, instance, 0);
+  ASSERT(args.length() == 2);
+  CONVERT_SMI_ARG_CHECKED(index, 0);
 
-  Context* context = Context::cast(instance->context());
+  if (!args[1]->IsScopeInfo()) {
+    // Module already initialized. Find hosting context and retrieve context.
+    Context* host = Context::cast(isolate->context())->global_context();
+    Context* context = Context::cast(host->get(index));
+    ASSERT(context->previous() == isolate->context());
+    isolate->set_context(context);
+    return context;
+  }
+
+  CONVERT_ARG_HANDLE_CHECKED(ScopeInfo, scope_info, 1);
+
+  // Allocate module context.
+  HandleScope scope(isolate);
+  Factory* factory = isolate->factory();
+  Handle<Context> context = factory->NewModuleContext(scope_info);
+  Handle<JSModule> module = factory->NewJSModule(context, scope_info);
+  context->set_module(*module);
   Context* previous = isolate->context();
-  ASSERT(context->IsModuleContext());
-  // Initialize the context links.
   context->set_previous(previous);
   context->set_closure(previous->closure());
   context->set_global_object(previous->global_object());
-  isolate->set_context(context);
+  isolate->set_context(*context);
 
-  return context;
+  // Find hosting scope and initialize internal variable holding module there.
+  previous->global_context()->set(index, *context);
+
+  return *context;
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_DeclareModules) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(FixedArray, descriptions, 0);
+  Context* host_context = isolate->context();
+
+  for (int i = 0; i < descriptions->length(); ++i) {
+    Handle<ModuleInfo> description(ModuleInfo::cast(descriptions->get(i)));
+    int host_index = description->host_index();
+    Handle<Context> context(Context::cast(host_context->get(host_index)));
+    Handle<JSModule> module(context->module());
+
+    for (int j = 0; j < description->length(); ++j) {
+      Handle<String> name(description->name(j));
+      VariableMode mode = description->mode(j);
+      int index = description->index(j);
+      switch (mode) {
+        case VAR:
+        case LET:
+        case CONST:
+        case CONST_HARMONY: {
+          PropertyAttributes attr =
+              IsImmutableVariableMode(mode) ? FROZEN : SEALED;
+          Handle<AccessorInfo> info =
+              Accessors::MakeModuleExport(name, index, attr);
+          Handle<Object> result = SetAccessor(module, info);
+          ASSERT(!(result.is_null() || result->IsUndefined()));
+          USE(result);
+          break;
+        }
+        case MODULE: {
+          Object* referenced_context = Context::cast(host_context)->get(index);
+          Handle<JSModule> value(Context::cast(referenced_context)->module());
+          JSReceiver::SetProperty(module, name, value, FROZEN, kStrictMode);
+          break;
+        }
+        case INTERNAL:
+        case TEMPORARY:
+        case DYNAMIC:
+        case DYNAMIC_GLOBAL:
+        case DYNAMIC_LOCAL:
+          UNREACHABLE();
+      }
+    }
+
+    JSObject::PreventExtensions(module);
+  }
+
+  ASSERT(!isolate->has_pending_exception());
+  return isolate->heap()->undefined_value();
 }
 
 
