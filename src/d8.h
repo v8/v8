@@ -384,6 +384,7 @@ class Shell : public i::AllStatic {
   static void InstallUtilityScript();
 #endif  // V8_SHARED
   static void Initialize(Isolate* isolate);
+  static void InitializeDebugger(Isolate* isolate);
   static void RunShell(Isolate* isolate);
   static bool SetOptions(int argc, char* argv[]);
   static Handle<ObjectTemplate> CreateGlobalTemplate(Isolate* isolate);

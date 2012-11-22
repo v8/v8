@@ -1269,8 +1269,11 @@ void Shell::Initialize(Isolate* isolate) {
     V8::SetAddHistogramSampleFunction(AddHistogramSample);
   }
 #endif  // V8_SHARED
-  if (options.test_shell) return;
+}
 
+
+void Shell::InitializeDebugger(Isolate* isolate) {
+  if (options.test_shell) return;
 #ifndef V8_SHARED
   Locker lock;
   HandleScope scope;
@@ -1897,8 +1900,9 @@ int Shell::Main(int argc, char* argv[]) {
   int result = 0;
   Isolate* isolate = Isolate::GetCurrent();
   {
-    Symbols symbols(isolate);
     Initialize(isolate);
+    Symbols symbols(isolate);
+    InitializeDebugger(isolate);
 
     if (options.stress_opt || options.stress_deopt) {
       Testing::SetStressRunType(options.stress_opt
