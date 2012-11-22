@@ -2014,7 +2014,12 @@ void HLoadKeyed::PrintDataTo(StringStream* stream) {
 
   stream->Add("[");
   key()->PrintNameTo(stream);
-  stream->Add("] ");
+  if (IsDehoisted()) {
+    stream->Add(" + %d] ", index_offset());
+  } else {
+    stream->Add("] ");
+  }
+
   dependency()->PrintNameTo(stream);
   if (RequiresHoleCheck()) {
     stream->Add(" check_hole");
@@ -2123,7 +2128,12 @@ void HStoreKeyed::PrintDataTo(StringStream* stream) {
 
   stream->Add("[");
   key()->PrintNameTo(stream);
-  stream->Add("] = ");
+  if (IsDehoisted()) {
+    stream->Add(" + %d] = ", index_offset());
+  } else {
+    stream->Add("] = ");
+  }
+
   value()->PrintNameTo(stream);
 }
 
