@@ -268,7 +268,7 @@ static MaybeObject* ArrayCodeGenericCommon(Arguments* args,
     maybe_elms = heap->AllocateFixedArrayWithHoles(number_of_elements);
   }
   FixedArrayBase* elms;
-  if (!maybe_elms->To<FixedArrayBase>(&elms)) return maybe_elms;
+  if (!maybe_elms->To(&elms)) return maybe_elms;
 
   // Fill in the content
   switch (array->GetElementsKind()) {
@@ -394,7 +394,7 @@ static FixedArrayBase* LeftTrimFixedArray(Heap* heap,
 
   const int len = elms->length();
 
-  if (to_trim > FixedArrayBase::kHeaderSize / entry_size &&
+  if (to_trim * entry_size > FixedArrayBase::kHeaderSize &&
       elms->IsFixedArray() &&
       !heap->new_space()->Contains(elms)) {
     // If we are doing a big trim in old space then we zap the space that was
@@ -577,7 +577,7 @@ BUILTIN(ArrayPush) {
       if (len > 0) {
         ElementsAccessor* accessor = array->GetElementsAccessor();
         MaybeObject* maybe_failure =
-            accessor->CopyElements(array, 0, new_elms, kind, 0, len, elms_obj);
+            accessor->CopyElements(NULL, 0, new_elms, kind, 0, len, elms_obj);
         ASSERT(!maybe_failure->IsFailure());
         USE(maybe_failure);
       }
@@ -626,7 +626,7 @@ BUILTIN(ArrayPush) {
       if (len > 0) {
         ElementsAccessor* accessor = array->GetElementsAccessor();
         MaybeObject* maybe_failure =
-            accessor->CopyElements(array, 0, new_elms, kind, 0, len, elms_obj);
+            accessor->CopyElements(NULL, 0, new_elms, kind, 0, len, elms_obj);
         ASSERT(!maybe_failure->IsFailure());
         USE(maybe_failure);
       }
@@ -791,7 +791,7 @@ BUILTIN(ArrayUnshift) {
       ElementsKind kind = array->GetElementsKind();
       ElementsAccessor* accessor = array->GetElementsAccessor();
       MaybeObject* maybe_failure =
-          accessor->CopyElements(array, 0, new_elms, kind, to_add, len, elms);
+          accessor->CopyElements(NULL, 0, new_elms, kind, to_add, len, elms);
       ASSERT(!maybe_failure->IsFailure());
       USE(maybe_failure);
     }
@@ -936,12 +936,13 @@ BUILTIN(ArraySlice) {
                                                              result_len,
                                                              result_len);
 
+  AssertNoAllocation no_gc;
   if (result_len == 0) return maybe_array;
   if (!maybe_array->To(&result_array)) return maybe_array;
 
   ElementsAccessor* accessor = object->GetElementsAccessor();
   MaybeObject* maybe_failure =
-      accessor->CopyElements(object, k, result_array->elements(),
+      accessor->CopyElements(NULL, k, result_array->elements(),
                              kind, 0, result_len, elms);
   ASSERT(!maybe_failure->IsFailure());
   USE(maybe_failure);
@@ -1041,9 +1042,10 @@ BUILTIN(ArraySplice) {
   if (!maybe_array->To(&result_array)) return maybe_array;
 
   if (actual_delete_count > 0) {
+    AssertNoAllocation no_gc;
     ElementsAccessor* accessor = array->GetElementsAccessor();
     MaybeObject* maybe_failure =
-        accessor->CopyElements(array, actual_start, result_array->elements(),
+        accessor->CopyElements(NULL, actual_start, result_array->elements(),
                                elements_kind, 0, actual_delete_count, elms_obj);
     // Cannot fail since the origin and target array are of the same elements
     // kind.
@@ -1103,19 +1105,21 @@ BUILTIN(ArraySplice) {
       MaybeObject* maybe_obj = heap->AllocateUninitializedFixedArray(capacity);
       if (!maybe_obj->To(&new_elms)) return maybe_obj;
 
+      AssertNoAllocation no_gc;
+
       ElementsKind kind = array->GetElementsKind();
       ElementsAccessor* accessor = array->GetElementsAccessor();
       if (actual_start > 0) {
         // Copy the part before actual_start as is.
         MaybeObject* maybe_failure = accessor->CopyElements(
-            array, 0, new_elms, kind, 0, actual_start, elms);
+            NULL, 0, new_elms, kind, 0, actual_start, elms);
         ASSERT(!maybe_failure->IsFailure());
         USE(maybe_failure);
       }
       const int to_copy = len - actual_delete_count - actual_start;
       if (to_copy > 0) {
         MaybeObject* maybe_failure = accessor->CopyElements(
-            array, actual_start + actual_delete_count, new_elms, kind,
+            NULL, actual_start + actual_delete_count, new_elms, kind,
             actual_start + item_count, to_copy, elms);
         ASSERT(!maybe_failure->IsFailure());
         USE(maybe_failure);
@@ -1177,6 +1181,8 @@ BUILTIN(ArrayConcat) {
   int n_arguments = args.length();
   int result_len = 0;
   ElementsKind elements_kind = GetInitialFastElementsKind();
+  bool has_double = false;
+  bool is_holey = false;
   for (int i = 0; i < n_arguments; i++) {
     Object* arg = args[i];
     if (!arg->IsJSArray() ||
@@ -1198,18 +1204,28 @@ BUILTIN(ArrayConcat) {
     }
 
     ElementsKind arg_kind = JSArray::cast(arg)->map()->elements_kind();
+    has_double = has_double || IsFastDoubleElementsKind(arg_kind);
+    is_holey = is_holey || IsFastHoleyElementsKind(arg_kind);
     if (IsMoreGeneralElementsKindTransition(elements_kind, arg_kind)) {
-      elements_kind = IsFastHoleyElementsKind(elements_kind)
-          ? GetHoleyElementsKind(arg_kind) : arg_kind;
+      elements_kind = arg_kind;
     }
   }
 
+  if (is_holey) elements_kind = GetHoleyElementsKind(elements_kind);
+
+  // If a double array is concatted into a fast elements array, the fast
+  // elements array needs to be initialized to contain proper holes, since
+  // boxing doubles may cause incremental marking.
+  ArrayStorageAllocationMode mode =
+      has_double && IsFastObjectElementsKind(elements_kind)
+      ? INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE : DONT_INITIALIZE_ARRAY_ELEMENTS;
   JSArray* result_array;
   // Allocate result.
   MaybeObject* maybe_array =
       heap->AllocateJSArrayAndStorage(elements_kind,
                                       result_len,
-                                      result_len);
+                                      result_len,
+                                      mode);
   if (!maybe_array->To(&result_array)) return maybe_array;
   if (result_len == 0) return result_array;
 

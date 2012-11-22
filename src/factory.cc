@@ -950,6 +950,9 @@ Handle<JSObject> Factory::NewJSObjectFromMap(Handle<Map> map) {
 Handle<JSArray> Factory::NewJSArray(int capacity,
                                     ElementsKind elements_kind,
                                     PretenureFlag pretenure) {
+  if (capacity != 0) {
+    elements_kind = GetHoleyElementsKind(elements_kind);
+  }
   CALL_HEAP_FUNCTION(isolate(),
                      isolate()->heap()->AllocateJSArrayAndStorage(
                          elements_kind,

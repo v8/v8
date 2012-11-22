@@ -10493,6 +10493,8 @@ MaybeObject* JSObject::TransitionElementsKind(ElementsKind to_kind) {
     to_kind = GetHoleyElementsKind(to_kind);
   }
 
+  if (from_kind == to_kind) return this;
+
   Isolate* isolate = GetIsolate();
   if (elements() == isolate->heap()->empty_fixed_array() ||
       (IsFastSmiOrObjectElementsKind(from_kind) &&

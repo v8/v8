@@ -4232,9 +4232,6 @@ MaybeObject* Heap::AllocateJSArrayAndStorage(
     ArrayStorageAllocationMode mode,
     PretenureFlag pretenure) {
   ASSERT(capacity >= length);
-  if (length != 0 && mode == INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE) {
-    elements_kind = GetHoleyElementsKind(elements_kind);
-  }
   MaybeObject* maybe_array = AllocateJSArray(elements_kind, pretenure);
   JSArray* array;
   if (!maybe_array->To(&array)) return maybe_array;
