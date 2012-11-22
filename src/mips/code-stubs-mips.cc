@@ -7555,12 +7555,7 @@ void RecordWriteStub::InformIncrementalMarker(MacroAssembler* masm, Mode mode) {
   ASSERT(!address.is(a0));
   __ Move(address, regs_.address());
   __ Move(a0, regs_.object());
-  if (mode == INCREMENTAL_COMPACTION) {
-    __ Move(a1, address);
-  } else {
-    ASSERT(mode == INCREMENTAL);
-    __ lw(a1, MemOperand(address, 0));
-  }
+  __ Move(a1, address);
   __ li(a2, Operand(ExternalReference::isolate_address()));
 
   AllowExternalCallThatCantCauseGC scope(masm);

@@ -127,7 +127,7 @@ class IncrementalMarking {
   }
 
   static void RecordWriteFromCode(HeapObject* obj,
-                                  Object* value,
+                                  Object** slot,
                                   Isolate* isolate);
 
   static void RecordWriteForEvacuationFromCode(HeapObject* obj,

@@ -6214,13 +6214,8 @@ void RecordWriteStub::InformIncrementalMarker(MacroAssembler* masm, Mode mode) {
   ASSERT(!address.is(arg1));
   __ Move(address, regs_.address());
   __ Move(arg1, regs_.object());
-  if (mode == INCREMENTAL_COMPACTION) {
-    // TODO(gc) Can we just set address arg2 in the beginning?
-    __ Move(arg2, address);
-  } else {
-    ASSERT(mode == INCREMENTAL);
-    __ movq(arg2, Operand(address, 0));
-  }
+  // TODO(gc) Can we just set address arg2 in the beginning?
+  __ Move(arg2, address);
   __ LoadAddress(arg3, ExternalReference::isolate_address());
   int argument_count = 3;
 
