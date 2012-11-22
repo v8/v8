@@ -152,6 +152,28 @@ AssemblerBase::~AssemblerBase() {
 
 
 // -----------------------------------------------------------------------------
+// Implementation of PredictableCodeSizeScope
+
+PredictableCodeSizeScope::PredictableCodeSizeScope(AssemblerBase* assembler,
+                                                   int expected_size)
+    : assembler_(assembler),
+      expected_size_(expected_size),
+      start_offset_(assembler->pc_offset()),
+      old_value_(assembler->predictable_code_size()) {
+  assembler_->set_predictable_code_size(true);
+}
+
+
+PredictableCodeSizeScope::~PredictableCodeSizeScope() {
+  // TODO(svenpanne) Remove the 'if' when everything works.
+  if (expected_size_ >= 0) {
+    CHECK_EQ(expected_size_, assembler_->pc_offset() - start_offset_);
+  }
+  assembler_->set_predictable_code_size(old_value_);
+}
+
+
+// -----------------------------------------------------------------------------
 // Implementation of Label
 
 int Label::pos() const {

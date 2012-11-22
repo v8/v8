@@ -98,18 +98,13 @@ class AssemblerBase: public Malloced {
 // snapshot and the running VM.
 class PredictableCodeSizeScope {
  public:
-  explicit PredictableCodeSizeScope(AssemblerBase* assembler)
-      : assembler_(assembler) {
-    old_value_ = assembler_->predictable_code_size();
-    assembler_->set_predictable_code_size(true);
-  }
-
-  ~PredictableCodeSizeScope() {
-    assembler_->set_predictable_code_size(old_value_);
-  }
+  PredictableCodeSizeScope(AssemblerBase* assembler, int expected_size);
+  ~PredictableCodeSizeScope();
 
  private:
   AssemblerBase* assembler_;
+  int expected_size_;
+  int start_offset_;
   bool old_value_;
 };
 

@@ -7549,7 +7549,7 @@ void StoreArrayLiteralElementStub::Generate(MacroAssembler* masm) {
 
 void ProfileEntryHookStub::MaybeCallEntryHook(MacroAssembler* masm) {
   if (entry_hook_ != NULL) {
-    PredictableCodeSizeScope predictable(masm);
+    PredictableCodeSizeScope predictable(masm, 4 * Assembler::kInstrSize);
     ProfileEntryHookStub stub;
     __ push(lr);
     __ CallStub(&stub);

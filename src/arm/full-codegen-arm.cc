@@ -290,7 +290,7 @@ void FullCodeGenerator::Generate() {
       __ LoadRoot(ip, Heap::kStackLimitRootIndex);
       __ cmp(sp, Operand(ip));
       __ b(hs, &ok);
-      PredictableCodeSizeScope predictable(masm_);
+      PredictableCodeSizeScope predictable(masm_, 2 * Assembler::kInstrSize);
       StackCheckStub stub;
       __ CallStub(&stub);
       __ bind(&ok);
@@ -368,7 +368,7 @@ void FullCodeGenerator::EmitStackCheck(IterationStatement* stmt,
     __ LoadRoot(ip, Heap::kStackLimitRootIndex);
     __ cmp(sp, Operand(ip));
     __ b(hs, &ok);
-    PredictableCodeSizeScope predictable(masm_);
+    PredictableCodeSizeScope predictable(masm_, 2 * Assembler::kInstrSize);
     StackCheckStub stub;
     __ CallStub(&stub);
   }
@@ -442,7 +442,8 @@ void FullCodeGenerator::EmitReturnSequence() {
       // tool from instrumenting as we rely on the code size here.
       int32_t sp_delta = (info_->scope()->num_parameters() + 1) * kPointerSize;
       CodeGenerator::RecordPositions(masm_, function()->end_position() - 1);
-      PredictableCodeSizeScope predictable(masm_);
+      // TODO(svenpanne) The code below is sometimes 4 words, sometimes 5!
+      PredictableCodeSizeScope predictable(masm_, -1);
       __ RecordJSReturn();
       masm_->mov(sp, fp);
       masm_->ldm(ia_w, sp, fp.bit() | lr.bit());
