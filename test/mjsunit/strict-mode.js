@@ -1160,7 +1160,7 @@ function CheckPillDescriptor(func, name) {
 
   function recurse(n, then) {
     if (n > 0) {
-      recurse(n - 1);
+      recurse(n - 1, then);
     } else {
       return then();
     }
