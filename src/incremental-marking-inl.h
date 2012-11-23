@@ -90,6 +90,10 @@ void IncrementalMarking::RecordWrites(HeapObject* obj) {
   if (IsMarking()) {
     MarkBit obj_bit = Marking::MarkBitFrom(obj);
     if (Marking::IsBlack(obj_bit)) {
+      MemoryChunk* chunk = MemoryChunk::FromAddress(obj->address());
+      if (chunk->IsFlagSet(MemoryChunk::HAS_PROGRESS_BAR)) {
+        chunk->set_progress_bar(0);
+      }
       BlackToGreyAndUnshift(obj, obj_bit);
       RestartIfNotMarking();
     }
