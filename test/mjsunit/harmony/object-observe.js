@@ -405,7 +405,12 @@ function TestObserveConfigurable(obj, prop) {
   Object.defineProperty(obj, prop, {get: frozenFunction, set: frozenFunction});
   Object.defineProperty(obj, prop, {set: frozenFunction});  // ignored
   Object.defineProperty(obj, prop, {get: undefined, set: frozenFunction});
+  obj.__defineSetter__(prop, frozenFunction);  // ignored
+  obj.__defineSetter__(prop, function() {});
+  obj.__defineGetter__(prop, function() {});
   delete obj[prop];
+  delete obj[prop];  // ignored
+  obj.__defineGetter__(prop, function() {});
   delete obj[prop];
   Object.defineProperty(obj, prop, {get: function() {}, configurable: true});
   Object.defineProperty(obj, prop, {value: 9, writable: true});
@@ -427,6 +432,10 @@ function TestObserveConfigurable(obj, prop) {
     { object: obj, name: prop, type: "reconfigured" },
     { object: obj, name: prop, type: "reconfigured" },
     { object: obj, name: prop, type: "reconfigured" },
+    { object: obj, name: prop, type: "reconfigured" },
+    { object: obj, name: prop, type: "reconfigured" },
+    { object: obj, name: prop, type: "deleted" },
+    { object: obj, name: prop, type: "new" },
     { object: obj, name: prop, type: "deleted" },
     { object: obj, name: prop, type: "new" },
     { object: obj, name: prop, type: "reconfigured" },
@@ -466,7 +475,11 @@ function TestObserveNonConfigurable(obj, prop) {
 function createProxy(create, x) {
   var handler = {
     getPropertyDescriptor: function(k) {
-      return Object.getOwnPropertyDescriptor(this.target, k);
+      for (var o = this.target; o; o = Object.getPrototypeOf(o)) {
+        var desc = Object.getOwnPropertyDescriptor(o, k);
+        if (desc) return desc;
+      }
+      return undefined;
     },
     getOwnPropertyDescriptor: function(k) {
       return Object.getOwnPropertyDescriptor(this.target, k);
