@@ -200,11 +200,11 @@ void RuntimeProfiler::AttemptOnStackReplacement(JSFunction* function) {
   Code* stack_check_code = NULL;
   if (FLAG_count_based_interrupts) {
     InterruptStub interrupt_stub;
-    found_code = interrupt_stub.FindCodeInCache(&stack_check_code);
+    found_code = interrupt_stub.FindCodeInCache(&stack_check_code, isolate_);
   } else  // NOLINT
   {  // NOLINT
     StackCheckStub check_stub;
-    found_code = check_stub.FindCodeInCache(&stack_check_code);
+    found_code = check_stub.FindCodeInCache(&stack_check_code, isolate_);
   }
   if (found_code) {
     Code* replacement_code =

@@ -47,8 +47,8 @@ inline const char* StateToString(StateTag state) {
       return "GC";
     case COMPILER:
       return "COMPILER";
-    case PARALLEL_COMPILER_PROLOGUE:
-      return "PARALLEL_COMPILER_PROLOGUE";
+    case PARALLEL_COMPILER:
+      return "PARALLEL_COMPILER";
     case OTHER:
       return "OTHER";
     case EXTERNAL:

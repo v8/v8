@@ -166,6 +166,7 @@ class LCodeGen;
   V(StringCompareAndBranch)                     \
   V(StringLength)                               \
   V(SubI)                                       \
+  V(RSubI)                                      \
   V(TaggedToI)                                  \
   V(ThisFunction)                               \
   V(Throw)                                      \
@@ -1004,6 +1005,21 @@ class LSubI: public LTemplateInstruction<1, 2, 0> {
 };
 
 
+class LRSubI: public LTemplateInstruction<1, 2, 0> {
+ public:
+  LRSubI(LOperand* left, LOperand* right) {
+    inputs_[0] = left;
+    inputs_[1] = right;
+  }
+
+  LOperand* left() { return inputs_[0]; }
+  LOperand* right() { return inputs_[1]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(RSubI, "rsub-i")
+  DECLARE_HYDROGEN_ACCESSOR(Sub)
+};
+
+
 class LConstantI: public LTemplateInstruction<1, 0, 0> {
  public:
   DECLARE_CONCRETE_INSTRUCTION(ConstantI, "constant-i")
@@ -1391,6 +1407,7 @@ class LLoadKeyed: public LTemplateInstruction<1, 2, 0> {
   DECLARE_CONCRETE_INSTRUCTION(LoadKeyed, "load-keyed")
   DECLARE_HYDROGEN_ACCESSOR(LoadKeyed)
 
+  virtual void PrintDataTo(StringStream* stream);
   uint32_t additional_index() const { return hydrogen()->index_offset(); }
 };
 
@@ -2416,6 +2433,7 @@ class LChunkBuilder BASE_EMBEDDED {
 #undef DECLARE_DO
 
   LInstruction* DoMultiplyAdd(HMul* mul, HValue* addend);
+  LInstruction* DoRSub(HSub* instr);
 
   static bool HasMagicNumberForDivisor(int32_t divisor);
   static HValue* SimplifiedDividendForMathFloorOfDiv(HValue* val);

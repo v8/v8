@@ -7225,13 +7225,7 @@ void RecordWriteStub::InformIncrementalMarker(MacroAssembler* masm, Mode mode) {
   int argument_count = 3;
   __ PrepareCallCFunction(argument_count, regs_.scratch0());
   __ mov(Operand(esp, 0 * kPointerSize), regs_.object());
-  if (mode == INCREMENTAL_COMPACTION) {
-    __ mov(Operand(esp, 1 * kPointerSize), regs_.address());  // Slot.
-  } else {
-    ASSERT(mode == INCREMENTAL);
-    __ mov(regs_.scratch0(), Operand(regs_.address(), 0));
-    __ mov(Operand(esp, 1 * kPointerSize), regs_.scratch0());  // Value.
-  }
+  __ mov(Operand(esp, 1 * kPointerSize), regs_.address());  // Slot.
   __ mov(Operand(esp, 2 * kPointerSize),
          Immediate(ExternalReference::isolate_address()));
 

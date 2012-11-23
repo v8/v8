@@ -1364,6 +1364,7 @@ class LLoadKeyed: public LTemplateInstruction<1, 2, 0> {
   }
   LOperand* elements() { return inputs_[0]; }
   LOperand* key() { return inputs_[1]; }
+  virtual void PrintDataTo(StringStream* stream);
   uint32_t additional_index() const { return hydrogen()->index_offset(); }
   ElementsKind elements_kind() const {
     return hydrogen()->elements_kind();

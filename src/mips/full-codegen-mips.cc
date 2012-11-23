@@ -4103,9 +4103,8 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
   JumpPatchSite patch_site(masm_);
 
   int count_value = expr->op() == Token::INC ? 1 : -1;
-  __ li(a1, Operand(Smi::FromInt(count_value)));
-
   if (ShouldInlineSmiCase(expr->op())) {
+    __ li(a1, Operand(Smi::FromInt(count_value)));
     __ AdduAndCheckForOverflow(v0, a0, a1, t0);
     __ BranchOnOverflow(&stub_call, t0);  // Do stub on overflow.
 
@@ -4114,6 +4113,8 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
     patch_site.EmitJumpIfSmi(v0, &done);
     __ bind(&stub_call);
   }
+  __ mov(a1, a0);
+  __ li(a0, Operand(Smi::FromInt(count_value)));
 
   // Record position before stub call.
   SetSourcePosition(expr->position());
@@ -4336,29 +4337,7 @@ void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
 
     default: {
       VisitForAccumulatorValue(expr->right());
-      Condition cc = eq;
-      switch (op) {
-        case Token::EQ_STRICT:
-        case Token::EQ:
-          cc = eq;
-          break;
-        case Token::LT:
-          cc = lt;
-          break;
-        case Token::GT:
-          cc = gt;
-         break;
-        case Token::LTE:
-          cc = le;
-          break;
-        case Token::GTE:
-          cc = ge;
-          break;
-        case Token::IN:
-        case Token::INSTANCEOF:
-        default:
-          UNREACHABLE();
-      }
+      Condition cc = CompareIC::ComputeCondition(op);
       __ mov(a0, result_register());
       __ pop(a1);
 

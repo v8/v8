@@ -78,7 +78,7 @@ void IncrementalMarking::RecordWriteSlow(HeapObject* obj,
 
 
 void IncrementalMarking::RecordWriteFromCode(HeapObject* obj,
-                                             Object* value,
+                                             Object** slot,
                                              Isolate* isolate) {
   ASSERT(obj->IsHeapObject());
   IncrementalMarking* marking = isolate->heap()->incremental_marking();
@@ -94,7 +94,7 @@ void IncrementalMarking::RecordWriteFromCode(HeapObject* obj,
         MemoryChunk::kWriteBarrierCounterGranularity);
   }
 
-  marking->RecordWrite(obj, NULL, value);
+  marking->RecordWrite(obj, slot, *slot);
 }
 
 

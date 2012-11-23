@@ -50,7 +50,6 @@ namespace internal {
   HT(compile_eval, V8.CompileEval)                                    \
   HT(compile_lazy, V8.CompileLazy)
 
-
 #define HISTOGRAM_PERCENTAGE_LIST(HP)                                 \
   HP(external_fragmentation_total,                                    \
      V8.MemoryExternalFragmentationTotal)                             \

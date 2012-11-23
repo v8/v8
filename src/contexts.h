@@ -345,6 +345,9 @@ class Context: public FixedArray {
   // The builtins object.
   JSBuiltinsObject* builtins();
 
+  // Get the innermost global context by traversing the context chain.
+  Context* global_context();
+
   // Compute the native context by traversing the context chain.
   Context* native_context();
 

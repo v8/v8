@@ -355,7 +355,7 @@ struct AccessorDescriptor {
   V(JS)                                         \
   V(GC)                                         \
   V(COMPILER)                                   \
-  V(PARALLEL_COMPILER_PROLOGUE)                 \
+  V(PARALLEL_COMPILER)                          \
   V(OTHER)                                      \
   V(EXTERNAL)
 
@@ -483,11 +483,19 @@ enum VariableMode {
 
   CONST,           // declared via 'const' declarations
 
-  LET,             // declared via 'let' declarations
+  LET,             // declared via 'let' declarations (first lexical)
 
   CONST_HARMONY,   // declared via 'const' declarations in harmony mode
 
+  MODULE,          // declared via 'module' declaration (last lexical)
+
   // Variables introduced by the compiler:
+  INTERNAL,        // like VAR, but not user-visible (may or may not
+                   // be in a context)
+
+  TEMPORARY,       // temporary variables (not user-visible), never
+                   // in a context
+
   DYNAMIC,         // always require dynamic lookup (we don't know
                    // the declaration)
 
@@ -495,16 +503,10 @@ enum VariableMode {
                    // variable is global unless it has been shadowed
                    // by an eval-introduced variable
 
-  DYNAMIC_LOCAL,   // requires dynamic lookup, but we know that the
+  DYNAMIC_LOCAL    // requires dynamic lookup, but we know that the
                    // variable is local and where it is unless it
                    // has been shadowed by an eval-introduced
                    // variable
-
-  INTERNAL,        // like VAR, but not user-visible (may or may not
-                   // be in a context)
-
-  TEMPORARY        // temporary variables (not user-visible), never
-                   // in a context
 };
 
 
@@ -514,17 +516,17 @@ inline bool IsDynamicVariableMode(VariableMode mode) {
 
 
 inline bool IsDeclaredVariableMode(VariableMode mode) {
-  return mode >= VAR && mode <= CONST_HARMONY;
+  return mode >= VAR && mode <= MODULE;
 }
 
 
 inline bool IsLexicalVariableMode(VariableMode mode) {
-  return mode >= LET && mode <= CONST_HARMONY;
+  return mode >= LET && mode <= MODULE;
 }
 
 
 inline bool IsImmutableVariableMode(VariableMode mode) {
-  return mode == CONST || mode == CONST_HARMONY;
+  return mode == CONST || (mode >= CONST_HARMONY && mode <= MODULE);
 }
 
 

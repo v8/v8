@@ -973,6 +973,7 @@ class Object : public MaybeObject {
       String* key,
       PropertyAttributes* attributes);
 
+  static Handle<Object> GetProperty(Handle<Object> object, Handle<String> key);
   static Handle<Object> GetProperty(Handle<Object> object,
                                     Handle<Object> receiver,
                                     LookupResult* result,
@@ -1515,7 +1516,8 @@ class JSReceiver: public HeapObject {
 
   // Lookup a property.  If found, the result is valid and has
   // detailed information.
-  void LocalLookup(String* name, LookupResult* result);
+  void LocalLookup(String* name, LookupResult* result,
+                   bool search_hidden_prototypes = false);
   void Lookup(String* name, LookupResult* result);
 
  protected:
@@ -1846,28 +1848,10 @@ class JSObject: public JSReceiver {
 
   PropertyType GetLocalPropertyType(String* name);
   PropertyType GetLocalElementType(uint32_t index);
+
+  // These methods do not perform access checks!
   AccessorPair* GetLocalPropertyAccessorPair(String* name);
   AccessorPair* GetLocalElementAccessorPair(uint32_t index);
-
-  // Tells whether the index'th element is present and how it is stored.
-  enum LocalElementKind {
-    // There is no element with given index.
-    UNDEFINED_ELEMENT,
-
-    // Element with given index is handled by interceptor.
-    INTERCEPTED_ELEMENT,
-
-    // Element with given index is character in string.
-    STRING_CHARACTER_ELEMENT,
-
-    // Element with given index is stored in fast backing store.
-    FAST_ELEMENT,
-
-    // Element with given index is stored in slow backing store.
-    DICTIONARY_ELEMENT
-  };
-
-  LocalElementKind GetLocalElementKind(uint32_t index);
 
   MUST_USE_RESULT MaybeObject* SetFastElement(uint32_t index,
                                               Object* value,
@@ -2505,6 +2489,7 @@ class FixedDoubleArray: public FixedArrayBase {
 
   // Casting.
   static inline FixedDoubleArray* cast(Object* obj);
+  static inline FixedDoubleArray* castOrEmptyFixedArray(Object* obj);
 
   // Maximal allowed size, in bytes, of a single FixedDoubleArray.
   // Prevents overflowing size computations, as well as extreme memory
@@ -6333,7 +6318,7 @@ class GlobalObject: public JSObject {
       Handle<GlobalObject> global,
       Handle<String> name);
   // TODO(kmillikin): This function can be eliminated once the stub cache is
-  // full handlified (and the static helper can be written directly).
+  // fully handlified (and the static helper can be written directly).
   MUST_USE_RESULT MaybeObject* EnsurePropertyCell(String* name);
 
   // Casting.
@@ -7235,13 +7220,13 @@ class String: public HeapObject {
   // be ASCII encoded.  This might be the case even if the string is
   // two-byte.  Such strings may appear when the embedder prefers
   // two-byte external representations even for ASCII data.
-  inline bool IsAsciiRepresentation();
+  inline bool IsOneByteRepresentation();
   inline bool IsTwoByteRepresentation();
 
   // Cons and slices have an encoding flag that may not represent the actual
   // encoding of the underlying string.  This is taken into account here.
   // Requires: this->IsFlat()
-  inline bool IsAsciiRepresentationUnderneath();
+  inline bool IsOneByteRepresentationUnderneath();
   inline bool IsTwoByteRepresentationUnderneath();
 
   // NOTE: this should be considered only a hint.  False negatives are

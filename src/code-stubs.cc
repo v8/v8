@@ -37,11 +37,11 @@
 namespace v8 {
 namespace internal {
 
-bool CodeStub::FindCodeInCache(Code** code_out) {
-  Heap* heap = Isolate::Current()->heap();
-  int index = heap->code_stubs()->FindEntry(GetKey());
+bool CodeStub::FindCodeInCache(Code** code_out, Isolate* isolate) {
+  UnseededNumberDictionary* stubs = isolate->heap()->code_stubs();
+  int index = stubs->FindEntry(GetKey());
   if (index != UnseededNumberDictionary::kNotFound) {
-    *code_out = Code::cast(heap->code_stubs()->ValueAt(index));
+    *code_out = Code::cast(stubs->ValueAt(index));
     return true;
   }
   return false;
@@ -93,8 +93,8 @@ Handle<Code> CodeStub::GetCode() {
   Heap* heap = isolate->heap();
   Code* code;
   if (UseSpecialCache()
-      ? FindCodeInSpecialCache(&code)
-      : FindCodeInCache(&code)) {
+      ? FindCodeInSpecialCache(&code, isolate)
+      : FindCodeInCache(&code, isolate)) {
     ASSERT(IsPregenerated() == code->is_pregenerated());
     return Handle<Code>(code);
   }
@@ -297,8 +297,7 @@ void ICCompareStub::AddToSpecialCache(Handle<Code> new_object) {
 }
 
 
-bool ICCompareStub::FindCodeInSpecialCache(Code** code_out) {
-  Isolate* isolate = known_map_->GetIsolate();
+bool ICCompareStub::FindCodeInSpecialCache(Code** code_out, Isolate* isolate) {
   Factory* factory = isolate->factory();
   Code::Flags flags = Code::ComputeFlags(
       static_cast<Code::Kind>(GetCodeKind()),

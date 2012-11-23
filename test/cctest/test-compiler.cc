@@ -100,10 +100,11 @@ static MaybeObject* GetGlobalProperty(const char* name) {
 
 
 static void SetGlobalProperty(const char* name, Object* value) {
+  Isolate* isolate = Isolate::Current();
   Handle<Object> object(value);
   Handle<String> symbol = FACTORY->LookupAsciiSymbol(name);
   Handle<JSObject> global(Isolate::Current()->context()->global_object());
-  SetProperty(global, symbol, object, NONE, kNonStrictMode);
+  SetProperty(isolate, global, symbol, object, NONE, kNonStrictMode);
 }
 
 

@@ -2568,7 +2568,7 @@ RUNTIME_FUNCTION(MaybeObject*, BinaryOp_Patch) {
 Code* CompareIC::GetRawUninitialized(Token::Value op) {
   ICCompareStub stub(op, UNINITIALIZED, UNINITIALIZED, UNINITIALIZED);
   Code* code = NULL;
-  CHECK(stub.FindCodeInCache(&code));
+  CHECK(stub.FindCodeInCache(&code, Isolate::Current()));
   return code;
 }
 

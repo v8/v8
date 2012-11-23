@@ -1628,7 +1628,7 @@ Handle<Code> CallStubCompiler::CompileArrayPushCall(
   } else {
     Label call_builtin;
     if (argc == 1) {  // Otherwise fall through to call the builtin.
-      Label attempt_to_grow_elements;
+      Label attempt_to_grow_elements, with_write_barrier, check_double;
 
       Register elements = t2;
       Register end_elements = t1;
@@ -1639,7 +1639,7 @@ Handle<Code> CallStubCompiler::CompileArrayPushCall(
       __ CheckMap(elements,
                   v0,
                   Heap::kFixedArrayMapRootIndex,
-                  &call_builtin,
+                  &check_double,
                   DONT_DO_SMI_CHECK);
 
       // Get the array's length into v0 and calculate new length.
@@ -1655,7 +1655,6 @@ Handle<Code> CallStubCompiler::CompileArrayPushCall(
       __ Branch(&attempt_to_grow_elements, gt, v0, Operand(t0));
 
       // Check if value is a smi.
-      Label with_write_barrier;
       __ lw(t0, MemOperand(sp, (argc - 1) * kPointerSize));
       __ JumpIfNotSmi(t0, &with_write_barrier);
 
@@ -1676,6 +1675,39 @@ Handle<Code> CallStubCompiler::CompileArrayPushCall(
       __ Drop(argc + 1);
       __ Ret();
 
+      __ bind(&check_double);
+
+      // Check that the elements are in fast mode and writable.
+      __ CheckMap(elements,
+                  a0,
+                  Heap::kFixedDoubleArrayMapRootIndex,
+                  &call_builtin,
+                  DONT_DO_SMI_CHECK);
+
+      // Get the array's length into r0 and calculate new length.
+      __ lw(a0, FieldMemOperand(receiver, JSArray::kLengthOffset));
+      STATIC_ASSERT(kSmiTagSize == 1);
+      STATIC_ASSERT(kSmiTag == 0);
+      __ Addu(a0, a0, Operand(Smi::FromInt(argc)));
+
+      // Get the elements' length.
+      __ lw(t0, FieldMemOperand(elements, FixedArray::kLengthOffset));
+
+      // Check if we could survive without allocation.
+      __ Branch(&call_builtin, gt, a0, Operand(t0));
+
+      __ lw(t0, MemOperand(sp, (argc - 1) * kPointerSize));
+      __ StoreNumberToDoubleElements(
+          t0, a0, elements, a3, t1, a2, t5,
+          &call_builtin, argc * kDoubleSize);
+
+      // Save new length.
+      __ sw(a0, FieldMemOperand(receiver, JSArray::kLengthOffset));
+
+      // Check for a smi.
+      __ Drop(argc + 1);
+      __ Ret();
+
       __ bind(&with_write_barrier);
 
       __ lw(a3, FieldMemOperand(receiver, HeapObject::kMapOffset));
@@ -1687,8 +1719,12 @@ Handle<Code> CallStubCompiler::CompileArrayPushCall(
         // In case of fast smi-only, convert to fast object, otherwise bail out.
         __ bind(&not_fast_object);
         __ CheckFastSmiElements(a3, t3, &call_builtin);
+
+        __ lw(t3, FieldMemOperand(t0, HeapObject::kMapOffset));
+        __ LoadRoot(at, Heap::kHeapNumberMapRootIndex);
+        __ Branch(&call_builtin, eq, t3, Operand(at));
         // edx: receiver
-        // r3: map
+        // a3: map
         Label try_holey_map;
         __ LoadTransitionedArrayMapConditional(FAST_SMI_ELEMENTS,
                                                FAST_ELEMENTS,
@@ -4757,7 +4793,6 @@ void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
 
   __ StoreNumberToDoubleElements(value_reg,
                                  key_reg,
-                                 receiver_reg,
                                  // All registers after this are overwritten.
                                  elements_reg,
                                  scratch1,

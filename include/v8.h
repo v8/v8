@@ -76,12 +76,9 @@
 
 #endif  // _WIN32
 
-// TODO(svenpanne) Remove this when the Chrome's v8 bindings have been adapted.
-#define V8_DISABLE_DEPRECATIONS 1
-
-#if defined(__GNUC__) && !defined(V8_DISABLE_DEPRECATIONS)
+#if defined(__GNUC__) && !V8_DISABLE_DEPRECATIONS
 #define V8_DEPRECATED(func) func __attribute__ ((deprecated))
-#elif defined(_MSC_VER) && !defined(V8_DISABLE_DEPRECATIONS)
+#elif defined(_MSC_VER) && !V8_DISABLE_DEPRECATIONS
 #define V8_DEPRECATED(func) __declspec(deprecated) func
 #else
 #define V8_DEPRECATED(func) func

@@ -1781,10 +1781,6 @@ TEST(InstanceOfStubWriteBarrier) {
 }
 
 
-// Implemented in the test-alloc.cc test suite.
-void SimulateFullSpace(PagedSpace* space);
-
-
 TEST(PrototypeTransitionClearing) {
   InitializeVM();
   v8::HandleScope scope;

@@ -88,10 +88,10 @@ function ObjectObserve(object, callback) {
   }
 
   var changeObservers = objectInfo.changeObservers;
-  if (changeObservers.indexOf(callback) >= 0)
-    return;
+  if (changeObservers.indexOf(callback) < 0)
+    changeObservers.push(callback);
 
-  changeObservers.push(callback);
+  return object;
 }
 
 function ObjectUnobserve(object, callback) {
@@ -102,14 +102,14 @@ function ObjectUnobserve(object, callback) {
 
   var objectInfo = objectInfoMap.get(object);
   if (IS_UNDEFINED(objectInfo))
-    return;
+    return object;
 
   var changeObservers = objectInfo.changeObservers;
   var index = changeObservers.indexOf(callback);
-  if (index < 0)
-    return;
+  if (index >= 0)
+    changeObservers.splice(index, 1);
 
-  changeObservers.splice(index, 1);
+  return object;
 }
 
 function EnqueueChangeRecord(changeRecord, observers) {

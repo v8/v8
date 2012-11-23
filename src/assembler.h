@@ -56,7 +56,8 @@ struct StatsCounter;
 
 class AssemblerBase: public Malloced {
  public:
-  explicit AssemblerBase(Isolate* isolate);
+  AssemblerBase(Isolate* isolate, void* buffer, int buffer_size);
+  virtual ~AssemblerBase();
 
   Isolate* isolate() const { return isolate_; }
   int jit_cookie() const { return jit_cookie_; }
@@ -71,6 +72,20 @@ class AssemblerBase: public Malloced {
   // cross-snapshotting.
   static void QuietNaN(HeapObject* nan) { }
 
+  int pc_offset() const { return static_cast<int>(pc_ - buffer_); }
+
+  static const int kMinimalBufferSize = 4*KB;
+
+ protected:
+  // The buffer into which code and relocation info are generated. It could
+  // either be owned by the assembler or be provided externally.
+  byte* buffer_;
+  int buffer_size_;
+  bool own_buffer_;
+
+  // The program counter, which points into the buffer above and moves forward.
+  byte* pc_;
+
  private:
   Isolate* isolate_;
   int jit_cookie_;
@@ -83,18 +98,13 @@ class AssemblerBase: public Malloced {
 // snapshot and the running VM.
 class PredictableCodeSizeScope {
  public:
-  explicit PredictableCodeSizeScope(AssemblerBase* assembler)
-      : assembler_(assembler) {
-    old_value_ = assembler_->predictable_code_size();
-    assembler_->set_predictable_code_size(true);
-  }
-
-  ~PredictableCodeSizeScope() {
-    assembler_->set_predictable_code_size(old_value_);
-  }
+  PredictableCodeSizeScope(AssemblerBase* assembler, int expected_size);
+  ~PredictableCodeSizeScope();
 
  private:
   AssemblerBase* assembler_;
+  int expected_size_;
+  int start_offset_;
   bool old_value_;
 };
 

@@ -2219,10 +2219,10 @@ void Simulator::DecodeTypeRegister(Instruction* instr) {
           set_register(HI, static_cast<int32_t>(u64hilo >> 32));
           break;
         case DIV:
-          // Divide by zero was not checked in the configuration step - div and
-          // divu do not raise exceptions. On division by 0, the result will
-          // be UNPREDICTABLE.
-          if (rt != 0) {
+          // Divide by zero and overflow was not checked in the configuration
+          // step - div and divu do not raise exceptions. On division by 0 and
+          // on overflow (INT_MIN/-1), the result will be UNPREDICTABLE.
+          if (rt != 0 && !(rs == INT_MIN && rt == -1)) {
             set_register(LO, rs / rt);
             set_register(HI, rs % rt);
           }

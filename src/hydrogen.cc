@@ -8943,6 +8943,11 @@ void HGraphBuilder::VisitModuleUrl(ModuleUrl* module) {
 }
 
 
+void HGraphBuilder::VisitModuleStatement(ModuleStatement* stmt) {
+  UNREACHABLE();
+}
+
+
 // Generators for inline runtime functions.
 // Support for types.
 void HGraphBuilder::GenerateIsSmi(CallRuntime* call) {
@@ -9959,28 +9964,43 @@ void HStatistics::Print() {
     double size_percent = static_cast<double>(size) * 100 / total_size_;
     PrintF(" %8u bytes / %4.1f %%\n", size, size_percent);
   }
-  double source_size_in_kb = static_cast<double>(source_size_) / 1024;
-  double normalized_time =  source_size_in_kb > 0
-      ? (static_cast<double>(sum) / 1000) / source_size_in_kb
-      : 0;
-  double normalized_bytes = source_size_in_kb > 0
-      ? total_size_ / source_size_in_kb
-      : 0;
-  PrintF("%30s - %7.3f ms           %7.3f bytes\n", "Sum",
-         normalized_time, normalized_bytes);
+
+  PrintF("---------------------------------------------------------------\n");
+  int64_t total = create_graph_ + optimize_graph_ + generate_code_;
+  PrintF("%30s - %7.3f ms / %4.1f %% \n",
+         "Create graph",
+         static_cast<double>(create_graph_) / 1000,
+         static_cast<double>(create_graph_) * 100 / total);
+  PrintF("%30s - %7.3f ms / %4.1f %% \n",
+         "Optimize graph",
+         static_cast<double>(optimize_graph_) / 1000,
+         static_cast<double>(optimize_graph_) * 100 / total);
+  PrintF("%30s - %7.3f ms / %4.1f %% \n",
+         "Generate and install code",
+         static_cast<double>(generate_code_) / 1000,
+         static_cast<double>(generate_code_) * 100 / total);
   PrintF("---------------------------------------------------------------\n");
   PrintF("%30s - %7.3f ms (%.1f times slower than full code gen)\n",
          "Total",
-         static_cast<double>(total_) / 1000,
-         static_cast<double>(total_) / full_code_gen_);
+         static_cast<double>(total) / 1000,
+         static_cast<double>(total) / full_code_gen_);
+
+  double source_size_in_kb = static_cast<double>(source_size_) / 1024;
+  double normalized_time =  source_size_in_kb > 0
+      ? (static_cast<double>(total) / 1000) / source_size_in_kb
+      : 0;
+  double normalized_size_in_kb = source_size_in_kb > 0
+      ? total_size_ / 1024 / source_size_in_kb
+      : 0;
+  PrintF("%30s - %7.3f ms           %7.3f kB allocated\n",
+         "Average per kB source",
+         normalized_time, normalized_size_in_kb);
 }
 
 
 void HStatistics::SaveTiming(const char* name, int64_t ticks, unsigned size) {
   if (name == HPhase::kFullCodeGen) {
     full_code_gen_ += ticks;
-  } else if (name == HPhase::kTotal) {
-    total_ += ticks;
   } else {
     total_size_ += size;
     for (int i = 0; i < names_.length(); ++i) {
@@ -9998,8 +10018,6 @@ void HStatistics::SaveTiming(const char* name, int64_t ticks, unsigned size) {
 
 
 const char* const HPhase::kFullCodeGen = "Full code generator";
-const char* const HPhase::kTotal = "Total";
-
 
 void HPhase::Begin(const char* name,
                    HGraph* graph,

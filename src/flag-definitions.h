@@ -445,7 +445,7 @@ DEFINE_bool(incremental_code_compaction, true,
 DEFINE_bool(cleanup_code_caches_at_gc, true,
             "Flush inline caches prior to mark compact collection and "
             "flush code caches in maps during mark compact cycle.")
-DEFINE_bool(use_marking_progress_bar, false,
+DEFINE_bool(use_marking_progress_bar, true,
             "Use a progress bar to scan large objects in increments when "
             "incremental marking is active.")
 DEFINE_int(random_seed, 0,
@@ -667,6 +667,7 @@ DEFINE_string(logfile, "v8.log", "Specify the name of the log file.")
 DEFINE_bool(ll_prof, false, "Enable low-level linux profiler.")
 DEFINE_string(gc_fake_mmap, "/tmp/__v8_gc__",
               "Specify the name of the file for fake gc mmap used in ll_prof")
+DEFINE_bool(log_timer_events, false, "Log histogram timer events.")
 
 //
 // Disassembler only flags

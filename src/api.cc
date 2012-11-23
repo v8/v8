@@ -25,9 +25,6 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Deprecated API entries use other deprecated entries, too.
-#define V8_DISABLE_DEPRECATIONS 1
-
 #include "api.h"
 
 #include <math.h>  // For isnan.
@@ -1684,6 +1681,8 @@ Local<Value> Script::Run() {
   ON_BAILOUT(isolate, "v8::Script::Run()", return Local<Value>());
   LOG_API(isolate, "Script::Run");
   ENTER_V8(isolate);
+  i::Logger::TimerEventScope timer_scope(
+      isolate->logger(), i::Logger::TimerEventScope::v8_execute);
   i::Object* raw_result = NULL;
   {
     i::HandleScope scope(isolate);
@@ -2860,6 +2859,7 @@ bool v8::Object::Set(v8::Handle<Value> key, v8::Handle<Value> value,
   i::Handle<i::Object> value_obj = Utils::OpenHandle(*value);
   EXCEPTION_PREAMBLE(isolate);
   i::Handle<i::Object> obj = i::SetProperty(
+      isolate,
       self,
       key_obj,
       value_obj,
@@ -3850,7 +3850,7 @@ static int RecursivelySerializeToUtf8(i::String* string,
                                       int32_t* last_character) {
   int utf8_bytes = 0;
   while (true) {
-    if (string->IsAsciiRepresentation()) {
+    if (string->IsOneByteRepresentation()) {
       i::String::WriteToFlat(string, buffer, start, end);
       *last_character = unibrow::Utf16::kNoPreviousCharacter;
       return utf8_bytes + end - start;
@@ -3950,7 +3950,7 @@ int String::WriteUtf8(char* buffer,
     FlattenString(str);  // Flatten the string for efficiency.
   }
   int string_length = str->length();
-  if (str->IsAsciiRepresentation()) {
+  if (str->IsOneByteRepresentation()) {
     int len;
     if (capacity == -1) {
       capacity = str->length() + 1;
@@ -4084,7 +4084,7 @@ int String::WriteAscii(char* buffer,
     FlattenString(str);  // Flatten the string for efficiency.
   }
 
-  if (str->IsAsciiRepresentation()) {
+  if (str->IsOneByteRepresentation()) {
     // WriteToFlat is faster than using the StringInputBuffer.
     if (length == -1) length = str->length() + 1;
     int len = i::Min(length, str->length() - start);
@@ -4199,7 +4199,7 @@ void v8::String::VerifyExternalStringResourceBase(
     expectedEncoding = TWO_BYTE_ENCODING;
   } else {
     expected = NULL;
-    expectedEncoding = str->IsAsciiRepresentation() ? ASCII_ENCODING
+    expectedEncoding = str->IsOneByteRepresentation() ? ASCII_ENCODING
                                                     : TWO_BYTE_ENCODING;
   }
   CHECK_EQ(expected, value);

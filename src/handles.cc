@@ -229,12 +229,12 @@ Handle<Object> SetPrototype(Handle<JSFunction> function,
 }
 
 
-Handle<Object> SetProperty(Handle<Object> object,
+Handle<Object> SetProperty(Isolate* isolate,
+                           Handle<Object> object,
                            Handle<Object> key,
                            Handle<Object> value,
                            PropertyAttributes attributes,
                            StrictModeFlag strict_mode) {
-  Isolate* isolate = Isolate::Current();
   CALL_HEAP_FUNCTION(
       isolate,
       Runtime::SetObjectProperty(
@@ -915,7 +915,7 @@ int Utf8LengthHelper(String* input,
   int total = 0;
   bool dummy;
   while (true) {
-    if (input->IsAsciiRepresentation()) {
+    if (input->IsOneByteRepresentation()) {
       *starts_with_surrogate = false;
       return total + to - from;
     }
@@ -948,14 +948,14 @@ int Utf8LengthHelper(String* input,
         } else {
           if (first_length > from) {
             // Left hand side is shorter.
-            if (first->IsAsciiRepresentation()) {
+            if (first->IsOneByteRepresentation()) {
               total += first_length - from;
               *starts_with_surrogate = false;
               starts_with_surrogate = &dummy;
               input = second;
               from = 0;
               to -= first_length;
-            } else if (second->IsAsciiRepresentation()) {
+            } else if (second->IsOneByteRepresentation()) {
               followed_by_surrogate = false;
               total += to - first_length;
               input = first;

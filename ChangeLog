@@ -1,3 +1,13 @@
+2012-11-23: Version 3.15.5
+
+        Fixed JSON.stringify for objects with interceptor handlers.
+        (Chromium issue 161028)
+
+        Fixed corner case in x64 compare stubs. (issue 2416)
+
+        Performance and stability improvements on all platforms.
+
+
 2012-11-16: Version 3.15.4
 
         Fixed Array.prototype.join evaluation order. (issue 2263)

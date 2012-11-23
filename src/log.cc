@@ -531,7 +531,8 @@ Logger::Logger()
     prev_sp_(NULL),
     prev_function_(NULL),
     prev_to_(NULL),
-    prev_code_(NULL) {
+    prev_code_(NULL),
+    epoch_(0) {
 }
 
 
@@ -702,6 +703,25 @@ void Logger::SharedLibraryEvent(const wchar_t* library_path,
              end);
   msg.WriteToLogFile();
 }
+
+
+void Logger::TimerEvent(const char* name, int64_t start, int64_t end) {
+  ASSERT(FLAG_log_timer_events);
+  LogMessageBuilder msg(this);
+  int since_epoch = static_cast<int>(start - epoch_);
+  int pause_time = static_cast<int>(end - start);
+  msg.Append("timer-event,\"%s\",%ld,%ld\n", name, since_epoch, pause_time);
+  msg.WriteToLogFile();
+}
+
+
+const char* Logger::TimerEventScope::v8_recompile_synchronous =
+    "V8.RecompileSynchronous";
+const char* Logger::TimerEventScope::v8_recompile_parallel =
+    "V8.RecompileParallel";
+const char* Logger::TimerEventScope::v8_compile_full_code =
+    "V8.CompileFullCode";
+const char* Logger::TimerEventScope::v8_execute = "V8.Execute";
 
 
 void Logger::LogRegExpSource(Handle<JSRegExp> regexp) {
@@ -1727,7 +1747,8 @@ bool Logger::SetUp() {
 
   bool start_logging = FLAG_log || FLAG_log_runtime || FLAG_log_api
     || FLAG_log_code || FLAG_log_gc || FLAG_log_handles || FLAG_log_suspect
-    || FLAG_log_regexp || FLAG_log_state_changes || FLAG_ll_prof;
+    || FLAG_log_regexp || FLAG_log_state_changes || FLAG_ll_prof
+    || FLAG_log_timer_events;
 
   if (start_logging) {
     logging_nesting_ = 1;
@@ -1744,6 +1765,8 @@ bool Logger::SetUp() {
       profiler_->Engage();
     }
   }
+
+  if (FLAG_log_timer_events) epoch_ = OS::Ticks();
 
   return true;
 }

@@ -7381,12 +7381,7 @@ void RecordWriteStub::InformIncrementalMarker(MacroAssembler* masm, Mode mode) {
   ASSERT(!address.is(r0));
   __ Move(address, regs_.address());
   __ Move(r0, regs_.object());
-  if (mode == INCREMENTAL_COMPACTION) {
-    __ Move(r1, address);
-  } else {
-    ASSERT(mode == INCREMENTAL);
-    __ ldr(r1, MemOperand(address, 0));
-  }
+  __ Move(r1, address);
   __ mov(r2, Operand(ExternalReference::isolate_address()));
 
   AllowExternalCallThatCantCauseGC scope(masm);
@@ -7554,7 +7549,7 @@ void StoreArrayLiteralElementStub::Generate(MacroAssembler* masm) {
 
 void ProfileEntryHookStub::MaybeCallEntryHook(MacroAssembler* masm) {
   if (entry_hook_ != NULL) {
-    PredictableCodeSizeScope predictable(masm);
+    PredictableCodeSizeScope predictable(masm, 4 * Assembler::kInstrSize);
     ProfileEntryHookStub stub;
     __ push(lr);
     __ CallStub(&stub);

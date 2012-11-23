@@ -49,7 +49,7 @@ function get(foo) { return foo; }  // Used to generate dynamic values.
 function array_natives_test() {
 
   // Ensure small array literals start in specific element kind mode.
-  assertTrue(%HasFastSmiElements([]));
+  assertTrue(%HasFastObjectElements([]));
   assertTrue(%HasFastSmiElements([1]));
   assertTrue(%HasFastSmiElements([1,2]));
   assertTrue(%HasFastDoubleElements([1.1]));
@@ -73,7 +73,7 @@ function array_natives_test() {
   // Concat
   var a1;
   a1 = [1,2,3].concat([]);
-  assertTrue(%HasFastSmiElements(a1));
+  assertTrue(%HasFastObjectElements(a1));
   assertEquals([1,2,3], a1);
   a1 = [1,2,3].concat([4,5,6]);
   assertTrue(%HasFastSmiElements(a1));
@@ -82,7 +82,7 @@ function array_natives_test() {
   assertTrue(%HasFastSmiElements(a1));
   assertEquals([1,2,3,4,5,6,7,8,9], a1);
   a1 = [1.1,2,3].concat([]);
-  assertTrue(%HasFastDoubleElements(a1));
+  assertTrue(%HasFastObjectElements(a1));
   assertEquals([1.1,2,3], a1);
   a1 = [1,2,3].concat([1.1, 2]);
   assertTrue(%HasFastDoubleElements(a1));
@@ -173,7 +173,7 @@ function array_natives_test() {
   a3r = a3.splice(0, 0, 2);
   // Commented out since handled in js, which takes the best fit.
   // assertTrue(%HasFastDoubleElements(a3r));
-  assertTrue(%HasFastSmiElements(a3r));
+  assertTrue(%HasFastObjectElements(a3r));
   assertTrue(%HasFastDoubleElements(a3));
   assertEquals([], a3r);
   assertEquals([2, 1.1, 2, 3], a3);
@@ -187,7 +187,7 @@ function array_natives_test() {
   a3r = a3.splice(0, 0, 2.1);
   // Commented out since handled in js, which takes the best fit.
   // assertTrue(%HasFastDoubleElements(a3r));
-  assertTrue(%HasFastSmiElements(a3r));
+  assertTrue(%HasFastObjectElements(a3r));
   assertTrue(%HasFastDoubleElements(a3));
   assertEquals([], a3r);
   assertEquals([2.1, 1.1, 2, 3], a3);
@@ -201,7 +201,7 @@ function array_natives_test() {
   a3r = a3.splice(0, 0, 2.1);
   // Commented out since handled in js, which takes the best fit.
   // assertTrue(%HasFastDoubleElements(a3r));
-  assertTrue(%HasFastSmiElements(a3r));
+  assertTrue(%HasFastObjectElements(a3r));
   assertTrue(%HasFastDoubleElements(a3));
   assertEquals([], a3r);
   assertEquals([2.1, 1, 2, 3], a3);
