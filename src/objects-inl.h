@@ -4669,11 +4669,6 @@ bool Code::contains(byte* inner_pointer) {
 ACCESSORS(JSArray, length, Object, kLengthOffset)
 
 
-PropertyIndex JSArray::ArrayLengthIndex() {
-  return PropertyIndex::NewHeaderIndex(kLengthOffset / kPointerSize);
-}
-
-
 ACCESSORS(JSRegExp, data, Object, kDataOffset)
 
 

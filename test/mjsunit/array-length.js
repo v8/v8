@@ -25,8 +25,6 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax
-
 var a = [0,1,2,3];
 assertEquals(0, a.length = 0);
 
@@ -121,42 +119,3 @@ for (var i = 0; i < 7; i++) {
   t = a.length = 7;
   assertEquals(7, t);
 }
-
-function TestLengthAccess() {
-  var TestGetLength = function(a, l, getLength, getKeyedLength) {
-    assertEquals(l, getLength(a));
-    assertEquals(l, getKeyedLength(a));
-  }
-
-  var Test = function(a, l, getLength, getKeyedLength) {
-    // Make the ICs reach the state we want.
-    TestGetLength(a, l, getLength, getKeyedLength);
-    TestGetLength(a, l, getLength, getKeyedLength);
-    TestGetLength(a, l, getLength, getKeyedLength);
-    // Also test crankshaft.
-    %OptimizeFunctionOnNextCall(getLength);
-    %OptimizeFunctionOnNextCall(getKeyedLength);
-    TestGetLength(a, l, getLength, getKeyedLength);
-  }
-
-  var getLength = function(a) { return a.length; }
-  var getKeyedLength = function(a) { return a['length']; }
-  Test(new Array(4), 4, getLength, getKeyedLength);
-
-  getLength = function(a) { return a.length; }
-  getKeyedLength = function(a) { return a['length']; }
-  Test([1, 2, 3, 4], 4, getLength, getKeyedLength);
-
-  getLength = function(a) { return a.length; }
-  getKeyedLength = function(a) { return a['length']; }
-  Test(Object.create(new Array(4)), 4, getLength, getKeyedLength);
-
-  getLength = function(a) { return a.length; }
-  getKeyedLength = function(a) { return a['length']; }
-  // Set the 'length' of the global object.
-  length = 4;
-  var globalObject = (1,eval)("this");
-  Test(globalObject, 4, getLength, getKeyedLength);
-}
-TestLengthAccess();
-

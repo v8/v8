@@ -4639,11 +4639,10 @@ void LCodeGen::DoCheckMaps(LCheckMaps* instr) {
   for (int i = 0; i < map_set->length() - 1; i++) {
     Handle<Map> map = map_set->at(i);
     __ CompareMapAndBranch(
-        reg, scratch, map, &success, eq, &success, instr->hydrogen()->mode());
+        reg, scratch, map, &success, eq, &success, REQUIRE_EXACT_MAP);
   }
   Handle<Map> map = map_set->last();
-  DoCheckMapCommon(reg, scratch, map, instr->hydrogen()->mode(),
-                   instr->environment());
+  DoCheckMapCommon(reg, scratch, map, REQUIRE_EXACT_MAP, instr->environment());
   __ bind(&success);
 }
 

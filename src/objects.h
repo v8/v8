@@ -8323,9 +8323,6 @@ class Foreign: public HeapObject {
 };
 
 
-class PropertyIndex;
-
-
 // The JSArray describes JavaScript Arrays
 //  Such an array can be in one of two modes:
 //    - fast, backing storage is a FixedArray and length <= elements.length();
@@ -8378,9 +8375,6 @@ class JSArray: public JSObject {
   // Layout description.
   static const int kLengthOffset = JSObject::kHeaderSize;
   static const int kSize = kLengthOffset + kPointerSize;
-
-  static inline PropertyIndex ArrayLengthIndex();
-  STATIC_ASSERT(kLengthOffset % kPointerSize == 0);
 
  private:
   // Expand the fixed array backing of a fast-case JSArray to at least
