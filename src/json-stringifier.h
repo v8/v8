@@ -76,9 +76,6 @@ class BasicJsonStringifier BASE_EMBEDDED {
     }
   }
 
-  Handle<Object> GetProperty(Handle<JSObject> object,
-                             Handle<String> key);
-
   Handle<Object> ApplyToJsonFunction(Handle<Object> object,
                                      Handle<Object> key);
 
@@ -262,34 +259,6 @@ void BasicJsonStringifier::Append_(const Char* chars) {
 }
 
 
-Handle<Object> BasicJsonStringifier::GetProperty(Handle<JSObject> object,
-                                                 Handle<String> key) {
-  LookupResult lookup(isolate_);
-  object->LocalLookupRealNamedProperty(*key, &lookup);
-  if (!lookup.IsProperty()) return factory_->undefined_value();
-  switch (lookup.type()) {
-    case NORMAL: {
-      Object* value = lookup.holder()->GetNormalizedProperty(&lookup);
-      ASSERT(!value->IsTheHole());
-      return Handle<Object>(value, isolate_);
-    }
-    case FIELD: {
-      Object* value = lookup.holder()->FastPropertyAt(
-          lookup.GetFieldIndex().field_index());
-      ASSERT(!value->IsTheHole());
-      return Handle<Object>(value, isolate_);
-    }
-    case CONSTANT_FUNCTION:
-      return Handle<Object>(lookup.GetConstantFunction(), isolate_);
-    default: {
-      PropertyAttributes attr;
-      return Object::GetProperty(object, object, &lookup, key, &attr);
-    }
-  }
-  return Handle<Object>::null();
-}
-
-
 Handle<Object> BasicJsonStringifier::ApplyToJsonFunction(
     Handle<Object> object, Handle<Object> key) {
   LookupResult lookup(isolate_);
@@ -400,8 +369,8 @@ BasicJsonStringifier::Result BasicJsonStringifier::SerializeGeneric(
     bool deferred_comma,
     bool deferred_key) {
   Handle<JSObject> builtins(isolate_->native_context()->builtins());
-  Handle<JSFunction> builtin = Handle<JSFunction>::cast(
-      v8::internal::GetProperty(builtins, "JSONSerializeAdapter"));
+  Handle<JSFunction> builtin =
+      Handle<JSFunction>::cast(GetProperty(builtins, "JSONSerializeAdapter"));
 
   Handle<Object> argv[] = { key, object };
   bool has_exception = false;
