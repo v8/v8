@@ -127,8 +127,9 @@ Handle<SharedFunctionInfo>
   output_queue_semaphore_->Wait();
   OptimizingCompiler* compiler = NULL;
   output_queue_.Dequeue(&compiler);
+  Handle<SharedFunctionInfo> shared = compiler->info()->shared_info();
   Compiler::InstallOptimizedCode(compiler);
-  return compiler->info()->shared_info();
+  return shared;
 }
 
 

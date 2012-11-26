@@ -44,6 +44,9 @@ class OptimizingCompilerThread : public Thread {
  public:
   explicit OptimizingCompilerThread(Isolate *isolate) :
       Thread("OptimizingCompilerThread"),
+#ifdef DEBUG
+      thread_id_(0),
+#endif
       isolate_(isolate),
       stop_semaphore_(OS::CreateSemaphore(0)),
       input_queue_semaphore_(OS::CreateSemaphore(0)),
@@ -81,12 +84,16 @@ class OptimizingCompilerThread : public Thread {
 #endif
 
   ~OptimizingCompilerThread() {
-    delete input_queue_semaphore_;
     delete output_queue_semaphore_;  // Only used for manual mode.
+    delete input_queue_semaphore_;
     delete stop_semaphore_;
   }
 
  private:
+#ifdef DEBUG
+  int thread_id_;
+#endif
+
   Isolate* isolate_;
   Semaphore* stop_semaphore_;
   Semaphore* input_queue_semaphore_;
@@ -97,10 +104,6 @@ class OptimizingCompilerThread : public Thread {
   volatile Atomic32 queue_length_;
   int64_t time_spent_compiling_;
   int64_t time_spent_total_;
-
-#ifdef DEBUG
-  int thread_id_;
-#endif
 };
 
 } }  // namespace v8::internal
