@@ -706,12 +706,18 @@ void Logger::SharedLibraryEvent(const wchar_t* library_path,
 
 
 void Logger::TimerEvent(const char* name, int64_t start, int64_t end) {
+  if (!log_->IsEnabled()) return;
   ASSERT(FLAG_log_timer_events);
   LogMessageBuilder msg(this);
   int since_epoch = static_cast<int>(start - epoch_);
   int pause_time = static_cast<int>(end - start);
   msg.Append("timer-event,\"%s\",%ld,%ld\n", name, since_epoch, pause_time);
   msg.WriteToLogFile();
+}
+
+
+void Logger::TimerEventScope::LogTimerEvent() {
+  LOG(isolate_, TimerEvent(name_, start_, OS::Ticks()));
 }
 
 

@@ -117,7 +117,6 @@ Heap::Heap()
       allocation_allowed_(true),
       allocation_timeout_(0),
       disallow_allocation_failure_(false),
-      debug_utils_(NULL),
 #endif  // DEBUG
       new_space_high_promotion_mode_active_(false),
       old_gen_promotion_limit_(kMinimumPromotionLimit),
@@ -6124,172 +6123,6 @@ intptr_t Heap::PromotedExternalMemorySize() {
       - amount_of_external_allocated_memory_at_last_global_gc_;
 }
 
-#ifdef DEBUG
-
-// Tags 0, 1, and 3 are used. Use 2 for marking visited HeapObject.
-static const int kMarkTag = 2;
-
-
-class HeapDebugUtils {
- public:
-  explicit HeapDebugUtils(Heap* heap)
-    : search_for_any_global_(false),
-      search_target_(NULL),
-      found_target_(false),
-      object_stack_(20),
-      heap_(heap) {
-  }
-
-  class MarkObjectVisitor : public ObjectVisitor {
-   public:
-    explicit MarkObjectVisitor(HeapDebugUtils* utils) : utils_(utils) { }
-
-    void VisitPointers(Object** start, Object** end) {
-      // Copy all HeapObject pointers in [start, end)
-      for (Object** p = start; p < end; p++) {
-        if ((*p)->IsHeapObject())
-          utils_->MarkObjectRecursively(p);
-      }
-    }
-
-    HeapDebugUtils* utils_;
-  };
-
-  void MarkObjectRecursively(Object** p) {
-    if (!(*p)->IsHeapObject()) return;
-
-    HeapObject* obj = HeapObject::cast(*p);
-
-    Object* map = obj->map();
-
-    if (!map->IsHeapObject()) return;  // visited before
-
-    if (found_target_) return;  // stop if target found
-    object_stack_.Add(obj);
-    if ((search_for_any_global_ && obj->IsJSGlobalObject()) ||
-        (!search_for_any_global_ && (obj == search_target_))) {
-      found_target_ = true;
-      return;
-    }
-
-    // not visited yet
-    Map* map_p = reinterpret_cast<Map*>(HeapObject::cast(map));
-
-    Address map_addr = map_p->address();
-
-    obj->set_map_no_write_barrier(reinterpret_cast<Map*>(map_addr + kMarkTag));
-
-    MarkObjectRecursively(&map);
-
-    MarkObjectVisitor mark_visitor(this);
-
-    obj->IterateBody(map_p->instance_type(), obj->SizeFromMap(map_p),
-                     &mark_visitor);
-
-    if (!found_target_)  // don't pop if found the target
-      object_stack_.RemoveLast();
-  }
-
-
-  class UnmarkObjectVisitor : public ObjectVisitor {
-   public:
-    explicit UnmarkObjectVisitor(HeapDebugUtils* utils) : utils_(utils) { }
-
-    void VisitPointers(Object** start, Object** end) {
-      // Copy all HeapObject pointers in [start, end)
-      for (Object** p = start; p < end; p++) {
-        if ((*p)->IsHeapObject())
-          utils_->UnmarkObjectRecursively(p);
-      }
-    }
-
-    HeapDebugUtils* utils_;
-  };
-
-
-  void UnmarkObjectRecursively(Object** p) {
-    if (!(*p)->IsHeapObject()) return;
-
-    HeapObject* obj = HeapObject::cast(*p);
-
-    Object* map = obj->map();
-
-    if (map->IsHeapObject()) return;  // unmarked already
-
-    Address map_addr = reinterpret_cast<Address>(map);
-
-    map_addr -= kMarkTag;
-
-    ASSERT_TAG_ALIGNED(map_addr);
-
-    HeapObject* map_p = HeapObject::FromAddress(map_addr);
-
-    obj->set_map_no_write_barrier(reinterpret_cast<Map*>(map_p));
-
-    UnmarkObjectRecursively(reinterpret_cast<Object**>(&map_p));
-
-    UnmarkObjectVisitor unmark_visitor(this);
-
-    obj->IterateBody(Map::cast(map_p)->instance_type(),
-                     obj->SizeFromMap(Map::cast(map_p)),
-                     &unmark_visitor);
-  }
-
-
-  void MarkRootObjectRecursively(Object** root) {
-    if (search_for_any_global_) {
-      ASSERT(search_target_ == NULL);
-    } else {
-      ASSERT(search_target_->IsHeapObject());
-    }
-    found_target_ = false;
-    object_stack_.Clear();
-
-    MarkObjectRecursively(root);
-    UnmarkObjectRecursively(root);
-
-    if (found_target_) {
-      PrintF("=====================================\n");
-      PrintF("====        Path to object       ====\n");
-      PrintF("=====================================\n\n");
-
-      ASSERT(!object_stack_.is_empty());
-      for (int i = 0; i < object_stack_.length(); i++) {
-        if (i > 0) PrintF("\n     |\n     |\n     V\n\n");
-        Object* obj = object_stack_[i];
-        obj->Print();
-      }
-      PrintF("=====================================\n");
-    }
-  }
-
-  // Helper class for visiting HeapObjects recursively.
-  class MarkRootVisitor: public ObjectVisitor {
-   public:
-    explicit MarkRootVisitor(HeapDebugUtils* utils) : utils_(utils) { }
-
-    void VisitPointers(Object** start, Object** end) {
-      // Visit all HeapObject pointers in [start, end)
-      for (Object** p = start; p < end; p++) {
-        if ((*p)->IsHeapObject())
-          utils_->MarkRootObjectRecursively(p);
-      }
-    }
-
-    HeapDebugUtils* utils_;
-  };
-
-  bool search_for_any_global_;
-  Object* search_target_;
-  bool found_target_;
-  List<Object*> object_stack_;
-  Heap* heap_;
-
-  friend class Heap;
-};
-
-#endif
-
 
 V8_DECLARE_ONCE(initialize_gc_once);
 
@@ -6302,7 +6135,6 @@ static void InitializeGCOnce() {
 bool Heap::SetUp(bool create_heap_objects) {
 #ifdef DEBUG
   allocation_timeout_ = FLAG_gc_interval;
-  debug_utils_ = new HeapDebugUtils(this);
 #endif
 
   // Initialize heap spaces and initial maps and objects. Whenever something
@@ -6497,11 +6329,6 @@ void Heap::TearDown() {
   isolate_->memory_allocator()->TearDown();
 
   delete relocation_mutex_;
-
-#ifdef DEBUG
-  delete debug_utils_;
-  debug_utils_ = NULL;
-#endif
 }
 
 

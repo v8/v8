@@ -102,6 +102,43 @@ UnaryMathFunction CreateTranscendentalFunction(TranscendentalCache::Type type) {
 }
 
 
+UnaryMathFunction CreateExpFunction() {
+  if (!CpuFeatures::IsSupported(SSE2)) return &exp;
+  if (!FLAG_fast_math) return &exp;
+  size_t actual_size;
+  byte* buffer = static_cast<byte*>(OS::Allocate(1 * KB, &actual_size, true));
+  if (buffer == NULL) return &exp;
+  ExternalReference::InitializeMathExpData();
+
+  MacroAssembler masm(NULL, buffer, static_cast<int>(actual_size));
+  // esp[1 * kPointerSize]: raw double input
+  // esp[0 * kPointerSize]: return address
+  {
+    CpuFeatures::Scope use_sse2(SSE2);
+    XMMRegister input = xmm1;
+    XMMRegister result = xmm2;
+    __ movdbl(input, Operand(esp, 1 * kPointerSize));
+    __ push(eax);
+    __ push(ebx);
+
+    MathExpGenerator::EmitMathExp(&masm, input, result, xmm0, eax, ebx);
+
+    __ pop(ebx);
+    __ pop(eax);
+    __ movdbl(Operand(esp, 1 * kPointerSize), result);
+    __ fld_d(Operand(esp, 1 * kPointerSize));
+    __ Ret();
+  }
+
+  CodeDesc desc;
+  masm.GetCode(&desc);
+
+  CPU::FlushICache(buffer, actual_size);
+  OS::ProtectCode(buffer, actual_size);
+  return FUNCTION_CAST<UnaryMathFunction>(buffer);
+}
+
+
 UnaryMathFunction CreateSqrtFunction() {
   size_t actual_size;
   // Allocate buffer in executable space.
@@ -752,6 +789,63 @@ void StringCharLoadGenerator::Generate(MacroAssembler* masm,
                                   index,
                                   times_1,
                                   SeqOneByteString::kHeaderSize));
+  __ bind(&done);
+}
+
+
+static Operand ExpConstant(int index) {
+  return Operand::StaticVariable(ExternalReference::math_exp_constants(index));
+}
+
+
+void MathExpGenerator::EmitMathExp(MacroAssembler* masm,
+                                   XMMRegister input,
+                                   XMMRegister result,
+                                   XMMRegister double_scratch,
+                                   Register temp1,
+                                   Register temp2) {
+  ASSERT(!input.is(double_scratch));
+  ASSERT(!input.is(result));
+  ASSERT(!result.is(double_scratch));
+  ASSERT(!temp1.is(temp2));
+  ASSERT(ExternalReference::math_exp_constants(0).address() != NULL);
+
+  Label done;
+
+  __ movdbl(double_scratch, ExpConstant(0));
+  __ xorpd(result, result);
+  __ ucomisd(double_scratch, input);
+  __ j(above_equal, &done);
+  __ ucomisd(input, ExpConstant(1));
+  __ movdbl(result, ExpConstant(2));
+  __ j(above_equal, &done);
+  __ movdbl(double_scratch, ExpConstant(3));
+  __ movdbl(result, ExpConstant(4));
+  __ mulsd(double_scratch, input);
+  __ addsd(double_scratch, result);
+  __ movd(temp2, double_scratch);
+  __ subsd(double_scratch, result);
+  __ movdbl(result, ExpConstant(6));
+  __ mulsd(double_scratch, ExpConstant(5));
+  __ subsd(double_scratch, input);
+  __ subsd(result, double_scratch);
+  __ movsd(input, double_scratch);
+  __ mulsd(input, double_scratch);
+  __ mulsd(result, input);
+  __ mov(temp1, temp2);
+  __ mulsd(result, ExpConstant(7));
+  __ subsd(result, double_scratch);
+  __ add(temp1, Immediate(0x1ff800));
+  __ addsd(result, ExpConstant(8));
+  __ and_(temp2, Immediate(0x7ff));
+  __ shr(temp1, 11);
+  __ shl(temp1, 20);
+  __ movd(input, temp1);
+  __ pshufd(input, input, static_cast<uint8_t>(0xe1));  // Order: 11 10 00 01
+  __ movdbl(double_scratch, Operand::StaticArray(
+      temp2, times_8, ExternalReference::math_exp_log_table()));
+  __ por(input, double_scratch);
+  __ mulsd(result, input);
   __ bind(&done);
 }
 

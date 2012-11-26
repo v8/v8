@@ -7153,7 +7153,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_exp) {
   isolate->counters()->math_exp()->Increment();
 
   CONVERT_DOUBLE_ARG_CHECKED(x, 0);
-  return isolate->transcendental_cache()->Get(TranscendentalCache::EXP, x);
+  lazily_initialize_fast_exp();
+  return isolate->heap()->NumberFromDouble(fast_exp(x));
 }
 
 

@@ -286,14 +286,6 @@ class StoreBufferRebuilder {
 
 
 
-// The all static Heap captures the interface to the global object heap.
-// All JavaScript contexts by this process share the same object heap.
-
-#ifdef DEBUG
-class HeapDebugUtils;
-#endif
-
-
 // A queue of objects promoted during scavenge. Each object is accompanied
 // by it's size to avoid dereferencing a map pointer for scanning.
 class PromotionQueue {
@@ -1793,8 +1785,6 @@ class Heap {
   // Do we expect to be able to handle allocation failure at this
   // time?
   bool disallow_allocation_failure_;
-
-  HeapDebugUtils* debug_utils_;
 #endif  // DEBUG
 
   // Indicates that the new space should be kept small due to high promotion

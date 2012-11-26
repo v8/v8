@@ -1682,7 +1682,7 @@ Local<Value> Script::Run() {
   LOG_API(isolate, "Script::Run");
   ENTER_V8(isolate);
   i::Logger::TimerEventScope timer_scope(
-      isolate->logger(), i::Logger::TimerEventScope::v8_execute);
+      isolate, i::Logger::TimerEventScope::v8_execute);
   i::Object* raw_result = NULL;
   {
     i::HandleScope scope(isolate);
@@ -3651,6 +3651,8 @@ Local<v8::Value> Object::CallAsFunction(v8::Handle<v8::Object> recv,
              return Local<v8::Value>());
   LOG_API(isolate, "Object::CallAsFunction");
   ENTER_V8(isolate);
+  i::Logger::TimerEventScope timer_scope(
+      isolate, i::Logger::TimerEventScope::v8_execute);
   i::HandleScope scope(isolate);
   i::Handle<i::JSObject> obj = Utils::OpenHandle(this);
   i::Handle<i::Object> recv_obj = Utils::OpenHandle(*recv);
@@ -3682,6 +3684,8 @@ Local<v8::Value> Object::CallAsConstructor(int argc,
              return Local<v8::Object>());
   LOG_API(isolate, "Object::CallAsConstructor");
   ENTER_V8(isolate);
+  i::Logger::TimerEventScope timer_scope(
+      isolate, i::Logger::TimerEventScope::v8_execute);
   i::HandleScope scope(isolate);
   i::Handle<i::JSObject> obj = Utils::OpenHandle(this);
   STATIC_ASSERT(sizeof(v8::Handle<v8::Value>) == sizeof(i::Object**));
@@ -3724,6 +3728,8 @@ Local<v8::Object> Function::NewInstance(int argc,
              return Local<v8::Object>());
   LOG_API(isolate, "Function::NewInstance");
   ENTER_V8(isolate);
+  i::Logger::TimerEventScope timer_scope(
+      isolate, i::Logger::TimerEventScope::v8_execute);
   HandleScope scope;
   i::Handle<i::JSFunction> function = Utils::OpenHandle(this);
   STATIC_ASSERT(sizeof(v8::Handle<v8::Value>) == sizeof(i::Object**));
@@ -3742,6 +3748,8 @@ Local<v8::Value> Function::Call(v8::Handle<v8::Object> recv, int argc,
   ON_BAILOUT(isolate, "v8::Function::Call()", return Local<v8::Value>());
   LOG_API(isolate, "Function::Call");
   ENTER_V8(isolate);
+  i::Logger::TimerEventScope timer_scope(
+      isolate, i::Logger::TimerEventScope::v8_execute);
   i::Object* raw_result = NULL;
   {
     i::HandleScope scope(isolate);

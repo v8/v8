@@ -3397,7 +3397,7 @@ PropertyAttributes JSObject::GetElementAttributeWithInterceptor(
       VMState state(isolate, EXTERNAL);
       result = getter(index, info);
     }
-    if (!result.IsEmpty()) return DONT_ENUM;
+    if (!result.IsEmpty()) return NONE;
   }
 
   return holder->GetElementAttributeWithoutInterceptor(

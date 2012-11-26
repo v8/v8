@@ -1,3 +1,11 @@
+2012-11-26: Version 3.15.6
+
+        Ensure double arrays are filled with holes when extended from
+        variations of empty arrays. (Chromium issue 162085)
+
+        Performance and stability improvements on all platforms.
+
+
 2012-11-23: Version 3.15.5
 
         Fixed JSON.stringify for objects with interceptor handlers.

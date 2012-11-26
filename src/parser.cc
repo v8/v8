@@ -3718,7 +3718,6 @@ Expression* Parser::ParseArrayLiteral(bool* ok) {
       isolate()->factory()->NewFixedArray(values->length(), TENURED);
   Handle<FixedDoubleArray> double_literals;
   ElementsKind elements_kind = FAST_SMI_ELEMENTS;
-  bool has_only_undefined_values = true;
   bool has_hole_values = false;
 
   // Fill in the literals.
@@ -3750,7 +3749,6 @@ Expression* Parser::ParseArrayLiteral(bool* ok) {
       // FAST_DOUBLE_ELEMENTS and FAST_ELEMENTS as necessary.  Always remember
       // the tagged value, no matter what the ElementsKind is in case we
       // ultimately end up in FAST_ELEMENTS.
-      has_only_undefined_values = false;
       object_literals->set(i, *boilerplate_value);
       if (elements_kind == FAST_SMI_ELEMENTS) {
         // Smi only elements. Notice if a transition to FAST_DOUBLE_ELEMENTS or
@@ -3787,13 +3785,6 @@ Expression* Parser::ParseArrayLiteral(bool* ok) {
         }
       }
     }
-  }
-
-  // Very small array literals that don't have a concrete hint about their type
-  // from a constant value should default to the slow case to avoid lots of
-  // elements transitions on really small objects.
-  if (has_only_undefined_values && values->length() <= 2) {
-    elements_kind = FAST_ELEMENTS;
   }
 
   // Simple and shallow arrays can be lazily copied, we transform the

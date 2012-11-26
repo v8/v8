@@ -4026,7 +4026,7 @@ void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
   //  -- rsp[0] : return address
   // -----------------------------------
   Label miss_force_generic, transition_elements_kind, finish_store;
-  Label grow, slow, check_capacity;
+  Label grow, slow, check_capacity, restore_key_transition_elements_kind;
 
   // This stub is meant to be tail-jumped to, the receiver must already
   // have been verified by the caller to not be a smi.
@@ -4055,7 +4055,7 @@ void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
   __ bind(&finish_store);
   __ SmiToInteger32(rcx, rcx);
   __ StoreNumberToDoubleElements(rax, rdi, rcx, xmm0,
-                                 &transition_elements_kind);
+                                 &restore_key_transition_elements_kind);
   __ ret(0);
 
   // Handle store cache miss, replacing the ic with the generic stub.
@@ -4064,9 +4064,10 @@ void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
       masm->isolate()->builtins()->KeyedStoreIC_MissForceGeneric();
   __ jmp(ic_force_generic, RelocInfo::CODE_TARGET);
 
-  __ bind(&transition_elements_kind);
+  __ bind(&restore_key_transition_elements_kind);
   // Restore smi-tagging of rcx.
   __ Integer32ToSmi(rcx, rcx);
+  __ bind(&transition_elements_kind);
   Handle<Code> ic_miss = masm->isolate()->builtins()->KeyedStoreIC_Miss();
   __ jmp(ic_miss, RelocInfo::CODE_TARGET);
 
@@ -4107,6 +4108,16 @@ void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
     __ Move(FieldOperand(rdi, FixedDoubleArray::kLengthOffset),
             Smi::FromInt(JSArray::kPreallocatedArrayElements));
 
+    __ movq(r8, BitCast<int64_t, uint64_t>(kHoleNanInt64), RelocInfo::NONE);
+    for (int i = 1; i < JSArray::kPreallocatedArrayElements; i++) {
+      __ movq(FieldOperand(rdi, FixedDoubleArray::OffsetOfElementAt(i)), r8);
+    }
+
+    // Increment the length of the array.
+    __ SmiToInteger32(rcx, rcx);
+    __ StoreNumberToDoubleElements(rax, rdi, rcx, xmm0,
+                                   &restore_key_transition_elements_kind);
+
     // Install the new backing store in the JSArray.
     __ movq(FieldOperand(rdx, JSObject::kElementsOffset), rdi);
     __ RecordWriteField(rdx, JSObject::kElementsOffset, rdi, rbx,
@@ -4115,7 +4126,7 @@ void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
     // Increment the length of the array.
     __ Move(FieldOperand(rdx, JSArray::kLengthOffset), Smi::FromInt(1));
     __ movq(rdi, FieldOperand(rdx, JSObject::kElementsOffset));
-    __ jmp(&finish_store);
+    __ ret(0);
 
     __ bind(&check_capacity);
     // rax: value

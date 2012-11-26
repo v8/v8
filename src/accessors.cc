@@ -649,19 +649,6 @@ const AccessorDescriptor Accessors::FunctionArguments = {
 //
 
 
-static MaybeObject* CheckNonStrictCallerOrThrow(
-    Isolate* isolate,
-    JSFunction* caller) {
-  DisableAssertNoAllocation enable_allocation;
-  if (!caller->shared()->is_classic_mode()) {
-    return isolate->Throw(
-        *isolate->factory()->NewTypeError("strict_caller",
-                                          HandleVector<Object>(NULL, 0)));
-  }
-  return caller;
-}
-
-
 class FrameFunctionIterator {
  public:
   FrameFunctionIterator(Isolate* isolate, const AssertNoAllocation& promise)
@@ -748,7 +735,14 @@ MaybeObject* Accessors::FunctionGetCaller(Object* object, void*) {
   if (caller->shared()->bound()) {
     return isolate->heap()->null_value();
   }
-  return CheckNonStrictCallerOrThrow(isolate, caller);
+  // Censor if the caller is not a classic mode function.
+  // Change from ES5, which used to throw, see:
+  // https://bugs.ecmascript.org/show_bug.cgi?id=310
+  if (!caller->shared()->is_classic_mode()) {
+    return isolate->heap()->null_value();
+  }
+
+  return caller;
 }
 
 
