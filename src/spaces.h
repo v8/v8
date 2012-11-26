@@ -503,6 +503,12 @@ class MemoryChunk {
     }
   }
 
+  bool IsLeftOfProgressBar(Object** slot) {
+    Address slot_address = reinterpret_cast<Address>(slot);
+    ASSERT(slot_address > this->address());
+    return (slot_address - this->address() + kObjectStartOffset) <
+           progress_bar();
+  }
 
   static void IncrementLiveBytesFromGC(Address address, int by) {
     MemoryChunk::FromAddress(address)->IncrementLiveBytes(by);
