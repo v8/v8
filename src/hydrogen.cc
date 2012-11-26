@@ -7253,6 +7253,9 @@ bool HGraphBuilder::TryInlineBuiltinFunctionCall(Call* expr, bool drop_extra) {
   if (!expr->target()->shared()->HasBuiltinFunctionId()) return false;
   BuiltinFunctionId id = expr->target()->shared()->builtin_function_id();
   switch (id) {
+    case kMathExp:
+      if (!FLAG_fast_math) break;
+      // Fall through if FLAG_fast_math.
     case kMathRound:
     case kMathAbs:
     case kMathSqrt:
@@ -7313,6 +7316,9 @@ bool HGraphBuilder::TryInlineBuiltinMethodCall(Call* expr,
         return true;
       }
       break;
+    case kMathExp:
+      if (!FLAG_fast_math) break;
+      // Fall through if FLAG_fast_math.
     case kMathRound:
     case kMathFloor:
     case kMathAbs:

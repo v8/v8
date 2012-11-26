@@ -115,6 +115,7 @@ void V8::TearDown() {
 
   ElementsAccessor::TearDown();
   LOperand::TearDownCaches();
+  ExternalReference::TearDownMathExpData();
   RegisteredExtension::UnregisterAll();
 
   is_running_ = false;

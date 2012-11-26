@@ -2221,7 +2221,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
     // F2XM1 calculates 2^st(0) - 1 for -1 < st(0) < 1
     __ f2xm1();    // 2^(X-rnd(X)) - 1, rnd(X)
     __ fld1();     // 1, 2^(X-rnd(X)) - 1, rnd(X)
-    __ faddp(1);   // 1, 2^(X-rnd(X)), rnd(X)
+    __ faddp(1);   // 2^(X-rnd(X)), rnd(X)
     // FSCALE calculates st(0) * 2^st(1)
     __ fscale();   // 2^X, rnd(X)
     __ fstp(1);

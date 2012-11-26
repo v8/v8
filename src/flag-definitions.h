@@ -181,6 +181,7 @@ DEFINE_int(max_inlined_nodes, 196,
 DEFINE_int(max_inlined_nodes_cumulative, 196,
            "maximum cumulative number of AST nodes considered for inlining")
 DEFINE_bool(loop_invariant_code_motion, true, "loop invariant code motion")
+DEFINE_bool(fast_math, true, "faster (but maybe less accurate) math functions")
 DEFINE_bool(collect_megamorphic_maps_from_stub_cache,
             true,
             "crankshaft harvests type feedback from stub cache")

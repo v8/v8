@@ -297,6 +297,11 @@ void LUnaryMathOperation::PrintDataTo(StringStream* stream) {
 }
 
 
+void LMathExp::PrintDataTo(StringStream* stream) {
+  value()->PrintTo(stream);
+}
+
+
 void LLoadContextSlot::PrintDataTo(StringStream* stream) {
   context()->PrintTo(stream);
   stream->Add("[%d]", slot_index());
@@ -1041,6 +1046,15 @@ LInstruction* LChunkBuilder::DoUnaryMathOperation(HUnaryMathOperation* instr) {
     LOperand* input = UseFixedDouble(instr->value(), d2);
     LUnaryMathOperation* result = new(zone()) LUnaryMathOperation(input, NULL);
     return MarkAsCall(DefineFixedDouble(result, d2), instr);
+  } else if (op == kMathExp) {
+    ASSERT(instr->representation().IsDouble());
+    ASSERT(instr->value()->representation().IsDouble());
+    LOperand* input = UseTempRegister(instr->value());
+    LOperand* temp1 = TempRegister();
+    LOperand* temp2 = TempRegister();
+    LOperand* double_temp = FixedTemp(d3);  // Chosen by fair dice roll.
+    LMathExp* result = new(zone()) LMathExp(input, double_temp, temp1, temp2);
+    return DefineAsRegister(result);
   } else if (op == kMathPowHalf) {
     LOperand* input = UseFixedDouble(instr->value(), d2);
     LOperand* temp = FixedTemp(d3);

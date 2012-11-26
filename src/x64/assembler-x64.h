@@ -1363,8 +1363,10 @@ class Assembler : public AssemblerBase {
   void cvtsd2siq(Register dst, XMMRegister src);
 
   void addsd(XMMRegister dst, XMMRegister src);
+  void addsd(XMMRegister dst, const Operand& src);
   void subsd(XMMRegister dst, XMMRegister src);
   void mulsd(XMMRegister dst, XMMRegister src);
+  void mulsd(XMMRegister dst, const Operand& src);
   void divsd(XMMRegister dst, XMMRegister src);
 
   void andpd(XMMRegister dst, XMMRegister src);

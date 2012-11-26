@@ -990,8 +990,10 @@ class Assembler : public AssemblerBase {
   void cvtsd2ss(XMMRegister dst, XMMRegister src);
 
   void addsd(XMMRegister dst, XMMRegister src);
+  void addsd(XMMRegister dst, const Operand& src);
   void subsd(XMMRegister dst, XMMRegister src);
   void mulsd(XMMRegister dst, XMMRegister src);
+  void mulsd(XMMRegister dst, const Operand& src);
   void divsd(XMMRegister dst, XMMRegister src);
   void xorpd(XMMRegister dst, XMMRegister src);
   void xorps(XMMRegister dst, XMMRegister src);
@@ -1048,7 +1050,7 @@ class Assembler : public AssemblerBase {
   void psllq(XMMRegister dst, XMMRegister src);
   void psrlq(XMMRegister reg, int8_t shift);
   void psrlq(XMMRegister dst, XMMRegister src);
-  void pshufd(XMMRegister dst, XMMRegister src, int8_t shuffle);
+  void pshufd(XMMRegister dst, XMMRegister src, uint8_t shuffle);
   void pextrd(Register dst, XMMRegister src, int8_t offset) {
     pextrd(Operand(dst), src, offset);
   }

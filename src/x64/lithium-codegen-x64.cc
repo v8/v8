@@ -3477,6 +3477,16 @@ void LCodeGen::DoDeferredRandom(LRandom* instr) {
 }
 
 
+void LCodeGen::DoMathExp(LMathExp* instr) {
+  XMMRegister input = ToDoubleRegister(instr->value());
+  XMMRegister result = ToDoubleRegister(instr->result());
+  Register temp1 = ToRegister(instr->temp1());
+  Register temp2 = ToRegister(instr->temp2());
+
+  MathExpGenerator::EmitMathExp(masm(), input, result, xmm0, temp1, temp2);
+}
+
+
 void LCodeGen::DoMathLog(LUnaryMathOperation* instr) {
   ASSERT(ToDoubleRegister(instr->result()).is(xmm1));
   TranscendentalCacheStub stub(TranscendentalCache::LOG,

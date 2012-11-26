@@ -2084,6 +2084,9 @@ class HUnaryMathOperation: public HTemplateInstruction<2> {
         set_representation(Representation::Double());
         SetGVNFlag(kChangesNewSpacePromotion);
         break;
+      case kMathExp:
+        set_representation(Representation::Double());
+        break;
       default:
         UNREACHABLE();
     }
@@ -2110,6 +2113,7 @@ class HUnaryMathOperation: public HTemplateInstruction<2> {
         case kMathSqrt:
         case kMathPowHalf:
         case kMathLog:
+        case kMathExp:
         case kMathSin:
         case kMathCos:
         case kMathTan:

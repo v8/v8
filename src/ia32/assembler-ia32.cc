@@ -1966,7 +1966,27 @@ void Assembler::addsd(XMMRegister dst, XMMRegister src) {
 }
 
 
+void Assembler::addsd(XMMRegister dst, const Operand& src) {
+  ASSERT(CpuFeatures::IsEnabled(SSE2));
+  EnsureSpace ensure_space(this);
+  EMIT(0xF2);
+  EMIT(0x0F);
+  EMIT(0x58);
+  emit_sse_operand(dst, src);
+}
+
+
 void Assembler::mulsd(XMMRegister dst, XMMRegister src) {
+  ASSERT(CpuFeatures::IsEnabled(SSE2));
+  EnsureSpace ensure_space(this);
+  EMIT(0xF2);
+  EMIT(0x0F);
+  EMIT(0x59);
+  emit_sse_operand(dst, src);
+}
+
+
+void Assembler::mulsd(XMMRegister dst, const Operand& src) {
   ASSERT(CpuFeatures::IsEnabled(SSE2));
   EnsureSpace ensure_space(this);
   EMIT(0xF2);
@@ -2372,7 +2392,7 @@ void Assembler::psrlq(XMMRegister dst, XMMRegister src) {
 }
 
 
-void Assembler::pshufd(XMMRegister dst, XMMRegister src, int8_t shuffle) {
+void Assembler::pshufd(XMMRegister dst, XMMRegister src, uint8_t shuffle) {
   ASSERT(CpuFeatures::IsEnabled(SSE2));
   EnsureSpace ensure_space(this);
   EMIT(0x66);

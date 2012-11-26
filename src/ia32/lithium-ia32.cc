@@ -299,6 +299,11 @@ void LUnaryMathOperation::PrintDataTo(StringStream* stream) {
 }
 
 
+void LMathExp::PrintDataTo(StringStream* stream) {
+  value()->PrintTo(stream);
+}
+
+
 void LMathPowHalf::PrintDataTo(StringStream* stream) {
   stream->Add("/pow_half ");
   value()->PrintTo(stream);
@@ -1087,6 +1092,14 @@ LInstruction* LChunkBuilder::DoUnaryMathOperation(HUnaryMathOperation* instr) {
     LUnaryMathOperation* result = new(zone()) LUnaryMathOperation(context,
                                                                   input);
     return DefineSameAsFirst(result);
+  } else if (op == kMathExp) {
+    ASSERT(instr->representation().IsDouble());
+    ASSERT(instr->value()->representation().IsDouble());
+    LOperand* value = UseTempRegister(instr->value());
+    LOperand* temp1 = TempRegister();
+    LOperand* temp2 = TempRegister();
+    LMathExp* result = new(zone()) LMathExp(value, temp1, temp2);
+    return DefineAsRegister(result);
   } else if (op == kMathSin || op == kMathCos || op == kMathTan) {
     LOperand* context = UseFixed(instr->context(), esi);
     LOperand* input = UseFixedDouble(instr->value(), xmm1);
