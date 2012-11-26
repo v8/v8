@@ -375,6 +375,9 @@ static void CopyPackedSmiToDoubleElements(FixedArray* from,
     copy_size = from->length() - from_start;
     if (raw_copy_size == ElementsAccessor::kCopyToEndAndInitializeToHole) {
       to_end = to->length();
+      for (uint32_t i = to_start + copy_size; i < to_end; ++i) {
+        to->set_the_hole(i);
+      }
     } else {
       to_end = to_start + static_cast<uint32_t>(copy_size);
     }
@@ -391,10 +394,6 @@ static void CopyPackedSmiToDoubleElements(FixedArray* from,
     Object* smi = from->get(from_start);
     ASSERT(!smi->IsTheHole());
     to->set(to_start, Smi::cast(smi)->value());
-  }
-
-  while (to_start < to_end) {
-    to->set_the_hole(to_start++);
   }
 }
 

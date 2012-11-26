@@ -4353,12 +4353,21 @@ void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
     // ecx: key
     // edx: receiver
     // edi: elements
-    // Initialize the new FixedDoubleArray. Leave elements unitialized for
-    // efficiency, they are guaranteed to be initialized before use.
+    // Initialize the new FixedDoubleArray.
     __ mov(FieldOperand(edi, JSObject::kMapOffset),
            Immediate(masm->isolate()->factory()->fixed_double_array_map()));
     __ mov(FieldOperand(edi, FixedDoubleArray::kLengthOffset),
            Immediate(Smi::FromInt(JSArray::kPreallocatedArrayElements)));
+
+    for (int i = 1; i < JSArray::kPreallocatedArrayElements; i++) {
+      int offset = FixedDoubleArray::OffsetOfElementAt(i);
+      __ mov(FieldOperand(edi, offset), Immediate(kHoleNanLower32));
+      __ mov(FieldOperand(edi, offset + kPointerSize),
+             Immediate(kHoleNanUpper32));
+    }
+
+    __ StoreNumberToDoubleElements(eax, edi, ecx, ebx, xmm0,
+                                   &transition_elements_kind, true);
 
     // Install the new backing store in the JSArray.
     __ mov(FieldOperand(edx, JSObject::kElementsOffset), edi);
@@ -4369,7 +4378,7 @@ void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
     __ add(FieldOperand(edx, JSArray::kLengthOffset),
            Immediate(Smi::FromInt(1)));
     __ mov(edi, FieldOperand(edx, JSObject::kElementsOffset));
-    __ jmp(&finish_store);
+    __ ret(0);
 
     __ bind(&check_capacity);
     // eax: value
