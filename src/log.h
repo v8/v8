@@ -76,6 +76,7 @@ class Profiler;
 class Semaphore;
 class SlidingStateWindow;
 class Ticker;
+class Isolate;
 
 #undef LOG
 #define LOG(isolate, Call)                          \
@@ -278,16 +279,16 @@ class Logger {
 
   class TimerEventScope {
    public:
-    TimerEventScope(Logger* logger, const char* name)
-        : logger_(logger), name_(name), start_(0) {
+    TimerEventScope(Isolate* isolate, const char* name)
+        : isolate_(isolate), name_(name), start_(0) {
       if (FLAG_log_timer_events) start_ = OS::Ticks();
     }
 
     ~TimerEventScope() {
-      if (FLAG_log_timer_events) {
-        logger_->TimerEvent(name_, start_, OS::Ticks());
-      }
+      if (FLAG_log_timer_events) LogTimerEvent();
     }
+
+    void LogTimerEvent();
 
     static const char* v8_recompile_synchronous;
     static const char* v8_recompile_parallel;
@@ -295,7 +296,7 @@ class Logger {
     static const char* v8_execute;
 
    private:
-    Logger* logger_;
+    Isolate* isolate_;
     const char* name_;
     int64_t start_;
   };

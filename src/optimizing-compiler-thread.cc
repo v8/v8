@@ -49,7 +49,7 @@ void OptimizingCompilerThread::Run() {
   while (true) {
     input_queue_semaphore_->Wait();
     Logger::TimerEventScope timer(
-        isolate_->logger(), Logger::TimerEventScope::v8_recompile_parallel);
+        isolate_, Logger::TimerEventScope::v8_recompile_parallel);
     if (Acquire_Load(&stop_thread_)) {
       stop_semaphore_->Signal();
       if (FLAG_trace_parallel_recompilation) {

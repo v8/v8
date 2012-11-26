@@ -92,9 +92,8 @@ void HistogramTimer::Stop() {
     histogram_.AddSample(milliseconds);
   }
   if (FLAG_log_timer_events) {
-    stop_time_ = OS::Ticks();
-    Isolate::Current()->logger()->TimerEvent(
-        histogram_.name_, start_time_, stop_time_);
+    LOG(Isolate::Current(),
+        TimerEvent(histogram_.name_, start_time_, OS::Ticks()));
   }
 }
 
