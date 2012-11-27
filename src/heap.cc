@@ -615,7 +615,7 @@ bool Heap::CollectGarbage(AllocationSpace space,
   }
 
   if (collector == MARK_COMPACTOR &&
-      !mark_compact_collector()->abort_incremental_marking_ &&
+      !mark_compact_collector()->abort_incremental_marking() &&
       !incremental_marking()->IsStopped() &&
       !incremental_marking()->should_hurry() &&
       FLAG_incremental_marking_steps) {
@@ -657,10 +657,13 @@ bool Heap::CollectGarbage(AllocationSpace space,
     GarbageCollectionEpilogue();
   }
 
-  if (incremental_marking()->IsStopped()) {
-    if (incremental_marking()->WorthActivating() && NextGCIsLikelyToBeFull()) {
-      incremental_marking()->Start();
-    }
+  // Start incremental marking for the next cycle. The heap snapshot
+  // generator needs incremental marking to stay off after it aborted.
+  if (!mark_compact_collector()->abort_incremental_marking() &&
+      incremental_marking()->IsStopped() &&
+      incremental_marking()->WorthActivating() &&
+      NextGCIsLikelyToBeFull()) {
+    incremental_marking()->Start();
   }
 
   return next_gc_likely_to_collect_more;
