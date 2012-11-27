@@ -651,9 +651,6 @@ bool Heap::CollectGarbage(AllocationSpace space,
           PerformGarbageCollection(collector, &tracer);
     }
 
-    ASSERT(collector == SCAVENGER || incremental_marking()->IsStopped());
-
-    // This can do debug callbacks and restart incremental marking.
     GarbageCollectionEpilogue();
   }
 
@@ -959,6 +956,10 @@ bool Heap::PerformGarbageCollection(GarbageCollector collector,
   }
 
   isolate_->counters()->objs_since_last_young()->Set(0);
+
+  // Callbacks that fire after this point might trigger nested GCs and
+  // restart incremental marking, the assertion can't be moved down.
+  ASSERT(collector == SCAVENGER || incremental_marking()->IsStopped());
 
   gc_post_processing_depth_++;
   { DisableAssertNoAllocation allow_allocation;
