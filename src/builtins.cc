@@ -574,14 +574,12 @@ BUILTIN(ArrayPush) {
       MaybeObject* maybe_obj = heap->AllocateUninitializedFixedArray(capacity);
       if (!maybe_obj->To(&new_elms)) return maybe_obj;
 
-      if (len > 0) {
-        ElementsAccessor* accessor = array->GetElementsAccessor();
-        MaybeObject* maybe_failure =
-            accessor->CopyElements(NULL, 0, new_elms, kind, 0, len, elms_obj);
-        ASSERT(!maybe_failure->IsFailure());
-        USE(maybe_failure);
-      }
-      FillWithHoles(heap, new_elms, new_length, capacity);
+      ElementsAccessor* accessor = array->GetElementsAccessor();
+      MaybeObject* maybe_failure = accessor->CopyElements(
+           NULL, 0, new_elms, kind, 0,
+           ElementsAccessor::kCopyToEndAndInitializeToHole, elms_obj);
+      ASSERT(!maybe_failure->IsFailure());
+      USE(maybe_failure);
 
       elms = new_elms;
     }
@@ -623,15 +621,12 @@ BUILTIN(ArrayPush) {
           heap->AllocateUninitializedFixedDoubleArray(capacity);
       if (!maybe_obj->To(&new_elms)) return maybe_obj;
 
-      if (len > 0) {
-        ElementsAccessor* accessor = array->GetElementsAccessor();
-        MaybeObject* maybe_failure =
-            accessor->CopyElements(NULL, 0, new_elms, kind, 0, len, elms_obj);
-        ASSERT(!maybe_failure->IsFailure());
-        USE(maybe_failure);
-      }
-
-      FillWithHoles(new_elms, len + to_add, new_elms->length());
+      ElementsAccessor* accessor = array->GetElementsAccessor();
+      MaybeObject* maybe_failure = accessor->CopyElements(
+              NULL, 0, new_elms, kind, 0,
+              ElementsAccessor::kCopyToEndAndInitializeToHole, elms_obj);
+      ASSERT(!maybe_failure->IsFailure());
+      USE(maybe_failure);
     } else {
       // to_add is > 0 and new_length <= elms_len, so elms_obj cannot be the
       // empty_fixed_array.
@@ -787,16 +782,14 @@ BUILTIN(ArrayUnshift) {
     MaybeObject* maybe_elms = heap->AllocateUninitializedFixedArray(capacity);
     if (!maybe_elms->To(&new_elms)) return maybe_elms;
 
-    if (len > 0) {
-      ElementsKind kind = array->GetElementsKind();
-      ElementsAccessor* accessor = array->GetElementsAccessor();
-      MaybeObject* maybe_failure =
-          accessor->CopyElements(NULL, 0, new_elms, kind, to_add, len, elms);
-      ASSERT(!maybe_failure->IsFailure());
-      USE(maybe_failure);
-    }
+    ElementsKind kind = array->GetElementsKind();
+    ElementsAccessor* accessor = array->GetElementsAccessor();
+    MaybeObject* maybe_failure = accessor->CopyElements(
+            NULL, 0, new_elms, kind, to_add,
+            ElementsAccessor::kCopyToEndAndInitializeToHole, elms);
+    ASSERT(!maybe_failure->IsFailure());
+    USE(maybe_failure);
 
-    FillWithHoles(heap, new_elms, new_length, capacity);
     elms = new_elms;
     array->set_elements(elms);
   } else {
@@ -1116,16 +1109,12 @@ BUILTIN(ArraySplice) {
         ASSERT(!maybe_failure->IsFailure());
         USE(maybe_failure);
       }
-      const int to_copy = len - actual_delete_count - actual_start;
-      if (to_copy > 0) {
-        MaybeObject* maybe_failure = accessor->CopyElements(
-            NULL, actual_start + actual_delete_count, new_elms, kind,
-            actual_start + item_count, to_copy, elms);
-        ASSERT(!maybe_failure->IsFailure());
-        USE(maybe_failure);
-      }
-
-      FillWithHoles(heap, new_elms, new_length, capacity);
+      MaybeObject* maybe_failure = accessor->CopyElements(
+          NULL, actual_start + actual_delete_count, new_elms, kind,
+          actual_start + item_count,
+          ElementsAccessor::kCopyToEndAndInitializeToHole, elms);
+      ASSERT(!maybe_failure->IsFailure());
+      USE(maybe_failure);
 
       elms_obj = new_elms;
       elms_changed = true;

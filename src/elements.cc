@@ -154,21 +154,21 @@ static void CopyObjectToObjectElements(FixedArray* from,
                                        uint32_t to_start,
                                        int raw_copy_size) {
   ASSERT(to->map() != HEAP->fixed_cow_array_map());
+  AssertNoAllocation no_allocation;
   int copy_size = raw_copy_size;
   if (raw_copy_size < 0) {
     ASSERT(raw_copy_size == ElementsAccessor::kCopyToEnd ||
            raw_copy_size == ElementsAccessor::kCopyToEndAndInitializeToHole);
     copy_size = Min(from->length() - from_start,
                     to->length() - to_start);
-#ifdef DEBUG
-    // FAST_*_ELEMENTS arrays cannot be uninitialized. Ensure they are already
-    // marked with the hole.
     if (raw_copy_size == ElementsAccessor::kCopyToEndAndInitializeToHole) {
-      for (int i = to_start + copy_size; i < to->length(); ++i) {
-        ASSERT(to->get(i)->IsTheHole());
+      int start = to_start + copy_size;
+      int length = to->length() - start;
+      if (length > 0) {
+        Heap* heap = from->GetHeap();
+        MemsetPointer(to->data_start() + start, heap->the_hole_value(), length);
       }
     }
-#endif
   }
   ASSERT((copy_size + static_cast<int>(to_start)) <= to->length() &&
          (copy_size + static_cast<int>(from_start)) <= from->length());
@@ -199,21 +199,21 @@ static void CopyDictionaryToObjectElements(SeededNumberDictionary* from,
                                            ElementsKind to_kind,
                                            uint32_t to_start,
                                            int raw_copy_size) {
+  AssertNoAllocation no_allocation;
   int copy_size = raw_copy_size;
   Heap* heap = from->GetHeap();
   if (raw_copy_size < 0) {
     ASSERT(raw_copy_size == ElementsAccessor::kCopyToEnd ||
            raw_copy_size == ElementsAccessor::kCopyToEndAndInitializeToHole);
     copy_size = from->max_number_key() + 1 - from_start;
-#ifdef DEBUG
-    // Fast object arrays cannot be uninitialized. Ensure they are already
-    // marked with the hole.
     if (raw_copy_size == ElementsAccessor::kCopyToEndAndInitializeToHole) {
-      for (int i = to_start + copy_size; i < to->length(); ++i) {
-        ASSERT(to->get(i)->IsTheHole());
+      int start = to_start + copy_size;
+      int length = to->length() - start;
+      if (length > 0) {
+        Heap* heap = from->GetHeap();
+        MemsetPointer(to->data_start() + start, heap->the_hole_value(), length);
       }
     }
-#endif
   }
   ASSERT(to != from);
   ASSERT(IsFastSmiOrObjectElementsKind(to_kind));
@@ -257,15 +257,17 @@ MUST_USE_RESULT static MaybeObject* CopyDoubleToObjectElements(
            raw_copy_size == ElementsAccessor::kCopyToEndAndInitializeToHole);
     copy_size = Min(from->length() - from_start,
                     to->length() - to_start);
-#ifdef DEBUG
-    // FAST_*_ELEMENTS arrays cannot be uninitialized. Ensure they are already
-    // marked with the hole.
     if (raw_copy_size == ElementsAccessor::kCopyToEndAndInitializeToHole) {
-      for (int i = to_start + copy_size; i < to->length(); ++i) {
-        ASSERT(to->get(i)->IsTheHole());
+      // Also initialize the area that will be copied over since HeapNumber
+      // allocation below can cause an incremental marking step, requiring all
+      // existing heap objects to be propertly initialized.
+      int start = to_start;
+      int length = to->length() - start;
+      if (length > 0) {
+        Heap* heap = from->GetHeap();
+        MemsetPointer(to->data_start() + start, heap->the_hole_value(), length);
       }
     }
-#endif
   }
   ASSERT((copy_size + static_cast<int>(to_start)) <= to->length() &&
          (copy_size + static_cast<int>(from_start)) <= from->length());

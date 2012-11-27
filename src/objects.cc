@@ -9283,9 +9283,8 @@ MaybeObject* JSObject::SetFastElementsCapacityAndLength(
 
   // Allocate a new fast elements backing store.
   FixedArray* new_elements;
-  { MaybeObject* maybe = heap->AllocateFixedArrayWithHoles(capacity);
-    if (!maybe->To(&new_elements)) return maybe;
-  }
+  MaybeObject* maybe = heap->AllocateUninitializedFixedArray(capacity);
+  if (!maybe->To(&new_elements)) return maybe;
 
   ElementsKind elements_kind = GetElementsKind();
   ElementsKind new_elements_kind;
@@ -9309,10 +9308,10 @@ MaybeObject* JSObject::SetFastElementsCapacityAndLength(
   }
   FixedArrayBase* old_elements = elements();
   ElementsAccessor* accessor = ElementsAccessor::ForKind(elements_kind);
-  { MaybeObject* maybe_obj =
-        accessor->CopyElements(this, new_elements, new_elements_kind);
-    if (maybe_obj->IsFailure()) return maybe_obj;
-  }
+  MaybeObject* maybe_obj =
+      accessor->CopyElements(this, new_elements, new_elements_kind);
+  if (maybe_obj->IsFailure()) return maybe_obj;
+
   if (elements_kind != NON_STRICT_ARGUMENTS_ELEMENTS) {
     Map* new_map = map();
     if (new_elements_kind != elements_kind) {
