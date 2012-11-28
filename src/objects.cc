@@ -13269,8 +13269,7 @@ MaybeObject* StringDictionary::TransformPropertiesToFastFor(
       PropertyType type = DetailsAt(i).type();
       ASSERT(type != FIELD);
       instance_descriptor_length++;
-      if (type == NORMAL &&
-          (!value->IsJSFunction() || heap->InNewSpace(value))) {
+      if (type == NORMAL && !value->IsJSFunction()) {
         number_of_fields += 1;
       }
     }
@@ -13335,7 +13334,7 @@ MaybeObject* StringDictionary::TransformPropertiesToFastFor(
       int enumeration_index = details.descriptor_index();
       PropertyType type = details.type();
 
-      if (value->IsJSFunction() && !heap->InNewSpace(value)) {
+      if (value->IsJSFunction()) {
         ConstantFunctionDescriptor d(key,
                                      JSFunction::cast(value),
                                      details.attributes(),
