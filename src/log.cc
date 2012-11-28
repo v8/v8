@@ -727,6 +727,19 @@ void Logger::ExternalSwitch(StateTag old_tag, StateTag new_tag) {
 }
 
 
+void Logger::EnterExternal() {
+  LOGGER->enter_external_ = OS::Ticks();
+}
+
+
+void Logger::LeaveExternal() {
+  if (enter_external_ == 0) return;
+  Logger* logger = LOGGER;
+  logger->TimerEvent("V8.External", enter_external_, OS::Ticks());
+  logger->enter_external_ = 0;
+}
+
+
 int64_t Logger::enter_external_ = 0;
 
 

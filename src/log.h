@@ -280,6 +280,9 @@ class Logger {
   void TimerEvent(const char* name, int64_t start, int64_t end);
   void ExternalSwitch(StateTag old_tag, StateTag new_tag);
 
+  static void EnterExternal();
+  static void LeaveExternal();
+
   class TimerEventScope {
    public:
     TimerEventScope(Isolate* isolate, const char* name)
