@@ -528,7 +528,7 @@ class ElementsAccessorBase : public ElementsAccessor {
   static bool HasElementImpl(Object* receiver,
                              JSObject* holder,
                              uint32_t key,
-                             BackingStore* backing_store) {
+                             FixedArrayBase* backing_store) {
     return ElementsAccessorSubclass::GetAttributesImpl(
         receiver, holder, key, backing_store) != ABSENT;
   }
@@ -573,18 +573,18 @@ class ElementsAccessorBase : public ElementsAccessor {
       backing_store = holder->elements();
     }
     return ElementsAccessorSubclass::GetAttributesImpl(
-        receiver, holder, key, BackingStore::cast(backing_store));
+        receiver, holder, key, backing_store);
   }
 
   MUST_USE_RESULT static PropertyAttributes GetAttributesImpl(
         Object* receiver,
         JSObject* obj,
         uint32_t key,
-        BackingStore* backing_store) {
+        FixedArrayBase* backing_store) {
     if (key >= ElementsAccessorSubclass::GetCapacityImpl(backing_store)) {
       return ABSENT;
     }
-    return backing_store->is_the_hole(key) ? ABSENT : NONE;
+    return BackingStore::cast(backing_store)->is_the_hole(key) ? ABSENT : NONE;
   }
 
   MUST_USE_RESULT virtual PropertyType GetType(
@@ -784,13 +784,12 @@ class ElementsAccessorBase : public ElementsAccessor {
   }
 
  protected:
-  static uint32_t GetCapacityImpl(BackingStore* backing_store) {
+  static uint32_t GetCapacityImpl(FixedArrayBase* backing_store) {
     return backing_store->length();
   }
 
   virtual uint32_t GetCapacity(FixedArrayBase* backing_store) {
-    return ElementsAccessorSubclass::GetCapacityImpl(
-        BackingStore::cast(backing_store));
+    return ElementsAccessorSubclass::GetCapacityImpl(backing_store);
   }
 
   static uint32_t GetKeyForIndexImpl(BackingStore* backing_store,
@@ -1210,7 +1209,7 @@ class ExternalElementsAccessor
       Object* receiver,
       JSObject* obj,
       uint32_t key,
-      BackingStore* backing_store) {
+      FixedArrayBase* backing_store) {
     return
         key < ExternalElementsAccessorSubclass::GetCapacityImpl(backing_store)
           ? NONE : ABSENT;
@@ -1519,10 +1518,12 @@ class DictionaryElementsAccessor
       Object* receiver,
       JSObject* obj,
       uint32_t key,
-      SeededNumberDictionary* backing_store) {
-    int entry = backing_store->FindEntry(key);
+      FixedArrayBase* backing_store) {
+    SeededNumberDictionary* dictionary =
+        SeededNumberDictionary::cast(backing_store);
+    int entry = dictionary->FindEntry(key);
     if (entry != SeededNumberDictionary::kNotFound) {
-      return backing_store->DetailsAt(entry).attributes();
+      return dictionary->DetailsAt(entry).attributes();
     }
     return ABSENT;
   }
@@ -1616,7 +1617,8 @@ class NonStrictArgumentsElementsAccessor : public ElementsAccessorBase<
       Object* receiver,
       JSObject* obj,
       uint32_t key,
-      FixedArray* parameter_map) {
+      FixedArrayBase* backing_store) {
+    FixedArray* parameter_map = FixedArray::cast(backing_store);
     Object* probe = GetParameterMapArg(obj, parameter_map, key);
     if (!probe->IsTheHole()) {
       return NONE;
@@ -1708,7 +1710,8 @@ class NonStrictArgumentsElementsAccessor : public ElementsAccessorBase<
                                   to_start, copy_size, arguments);
   }
 
-  static uint32_t GetCapacityImpl(FixedArray* parameter_map) {
+  static uint32_t GetCapacityImpl(FixedArrayBase* backing_store) {
+    FixedArray* parameter_map = FixedArray::cast(backing_store);
     FixedArrayBase* arguments = FixedArrayBase::cast(parameter_map->get(1));
     return Max(static_cast<uint32_t>(parameter_map->length() - 2),
                ForArray(arguments)->GetCapacity(arguments));
