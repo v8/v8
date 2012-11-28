@@ -5330,10 +5330,6 @@ bool Heap::IdleNotification(int hint) {
       AdvanceIdleIncrementalMarking(step_size);
       contexts_disposed_ = 0;
     }
-    // Make sure that we have no pending context disposals.
-    // Take into account that we might have decided to delay full collection
-    // because incremental marking is in progress.
-    ASSERT((contexts_disposed_ == 0) || !incremental_marking()->IsStopped());
     // After context disposal there is likely a lot of garbage remaining, reset
     // the idle notification counters in order to trigger more incremental GCs
     // on subsequent idle notifications.
