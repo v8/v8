@@ -34,6 +34,7 @@ fi
 
 # nm spits out 'no symbols found' messages to stderr.
 cat $log_file | $d8_exec $tools_path/csvparser.js \
+    $tools_path/splaytree.js $tools_path/codemap.js \
     $tools_path/logreader.js $tools_path/plot-timer-events.js \
     2>/dev/null | gnuplot > timer-events.png
 
