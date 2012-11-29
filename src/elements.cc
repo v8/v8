@@ -374,7 +374,7 @@ static void CopyPackedSmiToDoubleElements(FixedArray* from,
   if (raw_copy_size < 0) {
     ASSERT(raw_copy_size == ElementsAccessor::kCopyToEnd ||
            raw_copy_size == ElementsAccessor::kCopyToEndAndInitializeToHole);
-    copy_size = from->length() - from_start;
+    copy_size = packed_size - from_start;
     if (raw_copy_size == ElementsAccessor::kCopyToEndAndInitializeToHole) {
       to_end = to->length();
       for (uint32_t i = to_start + copy_size; i < to_end; ++i) {
