@@ -3976,6 +3976,14 @@ void MacroAssembler::CallApiFunctionAndReturn(ExternalReference function,
   Addu(s2, s2, Operand(1));
   sw(s2, MemOperand(s3, kLevelOffset));
 
+  if (FLAG_log_timer_events) {
+    FrameScope frame(this, StackFrame::MANUAL);
+    PushSafepointRegisters();
+    PrepareCallCFunction(0, a0);
+    CallCFunction(ExternalReference::log_enter_external_function(isolate()), 0);
+    PopSafepointRegisters();
+  }
+
   // The O32 ABI requires us to pass a pointer in a0 where the returned struct
   // (4 bytes) will be placed. This is also built into the Simulator.
   // Set up the pointer to the returned value (a0). It was allocated in
@@ -3987,6 +3995,14 @@ void MacroAssembler::CallApiFunctionAndReturn(ExternalReference function,
   // DirectCEntry stub itself is generated early and never moves.
   DirectCEntryStub stub;
   stub.GenerateCall(this, function);
+
+  if (FLAG_log_timer_events) {
+    FrameScope frame(this, StackFrame::MANUAL);
+    PushSafepointRegisters();
+    PrepareCallCFunction(0, a0);
+    CallCFunction(ExternalReference::log_leave_external_function(isolate()), 0);
+    PopSafepointRegisters();
+  }
 
   // As mentioned above, on MIPS a pointer is returned - we need to dereference
   // it to get the actual return value (which is also a pointer).
