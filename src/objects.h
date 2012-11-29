@@ -2489,7 +2489,6 @@ class FixedDoubleArray: public FixedArrayBase {
 
   // Casting.
   static inline FixedDoubleArray* cast(Object* obj);
-  static inline FixedDoubleArray* castOrEmptyFixedArray(Object* obj);
 
   // Maximal allowed size, in bytes, of a single FixedDoubleArray.
   // Prevents overflowing size computations, as well as extreme memory

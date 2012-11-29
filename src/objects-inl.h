@@ -2342,13 +2342,6 @@ void SeededNumberDictionary::set_requires_slow_elements() {
 // Cast operations
 
 
-FixedDoubleArray* FixedDoubleArray::castOrEmptyFixedArray(Object* object) {
-  ASSERT(object == HeapObject::cast(object)->GetHeap()->empty_fixed_array() ||
-         object->IsFixedDoubleArray());
-  return reinterpret_cast<FixedDoubleArray*>(object);
-}
-
-
 CAST_ACCESSOR(FixedArray)
 CAST_ACCESSOR(FixedDoubleArray)
 CAST_ACCESSOR(DescriptorArray)
