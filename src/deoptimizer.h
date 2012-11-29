@@ -537,9 +537,6 @@ class FrameDescription {
   intptr_t context_;
   StackFrame::Type type_;
   Smi* state_;
-#ifdef DEBUG
-  Code::Kind kind_;
-#endif
 
   // Continuation is the PC where the execution continues after
   // deoptimizing.

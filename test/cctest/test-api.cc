@@ -17993,7 +17993,6 @@ class ThreadInterruptTest {
 
    private:
      ThreadInterruptTest* test_;
-     struct sigaction sa_;
   };
 
   i::Semaphore* sem_;

@@ -11595,9 +11595,8 @@ class SubStringAsciiSymbolKey : public HashTableKey {
  public:
   explicit SubStringAsciiSymbolKey(Handle<SeqOneByteString> string,
                                    int from,
-                                   int length,
-                                   uint32_t seed)
-      : string_(string), from_(from), length_(length), seed_(seed) { }
+                                   int length)
+      : string_(string), from_(from), length_(length) { }
 
   uint32_t Hash() {
     ASSERT(length_ >= 0);
@@ -11654,7 +11653,6 @@ class SubStringAsciiSymbolKey : public HashTableKey {
   int from_;
   int length_;
   uint32_t hash_field_;
-  uint32_t seed_;
 };
 
 
@@ -12580,7 +12578,7 @@ MaybeObject* SymbolTable::LookupSubStringAsciiSymbol(
     int from,
     int length,
     Object** s) {
-  SubStringAsciiSymbolKey key(str, from, length, GetHeap()->HashSeed());
+  SubStringAsciiSymbolKey key(str, from, length);
   return LookupKey(&key, s);
 }
 

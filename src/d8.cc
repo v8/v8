@@ -1511,9 +1511,9 @@ void Shell::RunShell(Isolate* isolate) {
 class ShellThread : public i::Thread {
  public:
   // Takes ownership of the underlying char array of |files|.
-  ShellThread(Isolate* isolate, int no, char* files)
+  ShellThread(Isolate* isolate, char* files)
       : Thread("d8:ShellThread"),
-        isolate_(isolate), no_(no), files_(files) { }
+        isolate_(isolate), files_(files) { }
 
   ~ShellThread() {
     delete[] files_;
@@ -1522,7 +1522,6 @@ class ShellThread : public i::Thread {
   virtual void Run();
  private:
   Isolate* isolate_;
-  int no_;
   char* files_;
 };
 
@@ -1829,7 +1828,7 @@ int Shell::RunMain(Isolate* isolate, int argc, char* argv[]) {
         printf("File list '%s' not found\n", options.parallel_files[i]);
         Exit(1);
       }
-      ShellThread* thread = new ShellThread(isolate, threads.length(), files);
+      ShellThread* thread = new ShellThread(isolate, files);
       thread->Start();
       threads.Add(thread);
     }
