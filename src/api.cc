@@ -1237,7 +1237,7 @@ void FunctionTemplate::SetHiddenPrototype(bool value) {
 
 void FunctionTemplate::ReadOnlyPrototype() {
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
-  if (IsDeadCheck(isolate, "v8::FunctionTemplate::SetPrototypeAttributes()")) {
+  if (IsDeadCheck(isolate, "v8::FunctionTemplate::ReadOnlyPrototype()")) {
     return;
   }
   ENTER_V8(isolate);
