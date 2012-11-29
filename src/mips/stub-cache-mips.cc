@@ -4843,13 +4843,30 @@ void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
     __ AllocateInNewSpace(size, elements_reg, scratch1, scratch2, &slow,
                           TAG_OBJECT);
 
-    // Initialize the new FixedDoubleArray. Leave elements unitialized for
-    // efficiency, they are guaranteed to be initialized before use.
+    // Initialize the new FixedDoubleArray.
     __ LoadRoot(scratch1, Heap::kFixedDoubleArrayMapRootIndex);
     __ sw(scratch1, FieldMemOperand(elements_reg, JSObject::kMapOffset));
     __ li(scratch1, Operand(Smi::FromInt(JSArray::kPreallocatedArrayElements)));
     __ sw(scratch1,
           FieldMemOperand(elements_reg, FixedDoubleArray::kLengthOffset));
+
+    __ li(scratch1, Operand(kHoleNanLower32));
+    __ li(scratch2, Operand(kHoleNanUpper32));
+    for (int i = 1; i < JSArray::kPreallocatedArrayElements; i++) {
+      int offset = FixedDoubleArray::OffsetOfElementAt(i);
+      __ sw(scratch1, FieldMemOperand(elements_reg, offset));
+      __ sw(scratch2, FieldMemOperand(elements_reg, offset + kPointerSize));
+    }
+
+    __ StoreNumberToDoubleElements(value_reg,
+                                   key_reg,
+                                   // All registers after this are overwritten.
+                                   elements_reg,
+                                   scratch1,
+                                   scratch2,
+                                   scratch3,
+                                   scratch4,
+                                   &transition_elements_kind);
 
     // Install the new backing store in the JSArray.
     __ sw(elements_reg,
@@ -4863,7 +4880,7 @@ void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
     __ sw(length_reg, FieldMemOperand(receiver_reg, JSArray::kLengthOffset));
     __ lw(elements_reg,
           FieldMemOperand(receiver_reg, JSObject::kElementsOffset));
-    __ jmp(&finish_store);
+    __ Ret();
 
     __ bind(&check_capacity);
     // Make sure that the backing store can hold additional elements.
