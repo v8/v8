@@ -816,6 +816,7 @@ void FloatingPointHelper::LoadNumberAsInt32Double(MacroAssembler* masm,
                                                   Register object,
                                                   Destination destination,
                                                   DoubleRegister double_dst,
+                                                  DoubleRegister double_scratch,
                                                   Register dst1,
                                                   Register dst2,
                                                   Register heap_number_map,
@@ -851,9 +852,10 @@ void FloatingPointHelper::LoadNumberAsInt32Double(MacroAssembler* masm,
 
     Register except_flag = scratch2;
     __ EmitFPUTruncate(kRoundToZero,
-                       single_scratch,
-                       double_dst,
                        scratch1,
+                       double_dst,
+                       at,
+                       double_scratch,
                        except_flag,
                        kCheckForInexactConversion);
 
@@ -895,7 +897,8 @@ void FloatingPointHelper::LoadNumberAsInt32(MacroAssembler* masm,
                                             Register scratch1,
                                             Register scratch2,
                                             Register scratch3,
-                                            DoubleRegister double_scratch,
+                                            DoubleRegister double_scratch0,
+                                            DoubleRegister double_scratch1,
                                             Label* not_int32) {
   ASSERT(!dst.is(object));
   ASSERT(!scratch1.is(object) && !scratch2.is(object) && !scratch3.is(object));
@@ -918,22 +921,19 @@ void FloatingPointHelper::LoadNumberAsInt32(MacroAssembler* masm,
   if (CpuFeatures::IsSupported(FPU)) {
     CpuFeatures::Scope scope(FPU);
     // Load the double value.
-    __ ldc1(double_scratch, FieldMemOperand(object, HeapNumber::kValueOffset));
+    __ ldc1(double_scratch0, FieldMemOperand(object, HeapNumber::kValueOffset));
 
-    FPURegister single_scratch = double_scratch.low();
     Register except_flag = scratch2;
     __ EmitFPUTruncate(kRoundToZero,
-                       single_scratch,
-                       double_scratch,
+                       dst,
+                       double_scratch0,
                        scratch1,
+                       double_scratch1,
                        except_flag,
                        kCheckForInexactConversion);
 
     // Jump to not_int32 if the operation did not succeed.
     __ Branch(not_int32, ne, except_flag, Operand(zero_reg));
-    // Get the result in the destination register.
-    __ mfc1(dst, single_scratch);
-
   } else {
     // Load the double value in the destination registers.
     __ lw(scratch2, FieldMemOperand(object, HeapNumber::kExponentOffset));
@@ -2955,6 +2955,7 @@ void BinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
                                                    right,
                                                    destination,
                                                    f14,
+                                                   f16,
                                                    a2,
                                                    a3,
                                                    heap_number_map,
@@ -2966,6 +2967,7 @@ void BinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
                                                    left,
                                                    destination,
                                                    f12,
+                                                   f16,
                                                    t0,
                                                    t1,
                                                    heap_number_map,
@@ -3002,9 +3004,10 @@ void BinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
 
           Register except_flag = scratch2;
           __ EmitFPUTruncate(kRoundToZero,
-                             single_scratch,
-                             f10,
                              scratch1,
+                             f10,
+                             at,
+                             f16,
                              except_flag);
 
           if (result_type_ <= BinaryOpIC::INT32) {
@@ -3013,7 +3016,6 @@ void BinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
           }
 
           // Check if the result fits in a smi.
-          __ mfc1(scratch1, single_scratch);
           __ Addu(scratch2, scratch1, Operand(0x40000000));
           // If not try to return a heap number.
           __ Branch(&return_heap_number, lt, scratch2, Operand(zero_reg));
@@ -3108,6 +3110,7 @@ void BinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
                                              scratch2,
                                              scratch3,
                                              f0,
+                                             f2,
                                              &transition);
       FloatingPointHelper::LoadNumberAsInt32(masm,
                                              right,
@@ -3117,6 +3120,7 @@ void BinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
                                              scratch2,
                                              scratch3,
                                              f0,
+                                             f2,
                                              &transition);
 
       // The ECMA-262 standard specifies that, for shift operations, only the
@@ -3683,9 +3687,10 @@ void MathPowStub::Generate(MacroAssembler* masm) {
     Label int_exponent_convert;
     // Detect integer exponents stored as double.
     __ EmitFPUTruncate(kRoundToMinusInf,
-                       single_scratch,
-                       double_exponent,
                        scratch,
+                       double_exponent,
+                       at,
+                       double_scratch,
                        scratch2,
                        kCheckForInexactConversion);
     // scratch2 == 0 means there was no conversion error.
@@ -3743,7 +3748,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
     __ push(ra);
     {
       AllowExternalCallThatCantCauseGC scope(masm);
-      __ PrepareCallCFunction(0, 2, scratch);
+      __ PrepareCallCFunction(0, 2, scratch2);
       __ SetCallCDoubleArguments(double_base, double_exponent);
       __ CallCFunction(
           ExternalReference::power_double_double_function(masm->isolate()),
@@ -3754,7 +3759,6 @@ void MathPowStub::Generate(MacroAssembler* masm) {
     __ jmp(&done);
 
     __ bind(&int_exponent_convert);
-    __ mfc1(scratch, single_scratch);
   }
 
   // Calculate power with integer exponent.

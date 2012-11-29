@@ -3262,21 +3262,18 @@ void LCodeGen::DoMathAbs(LUnaryMathOperation* instr) {
 void LCodeGen::DoMathFloor(LUnaryMathOperation* instr) {
   DoubleRegister input = ToDoubleRegister(instr->value());
   Register result = ToRegister(instr->result());
-  FPURegister single_scratch = double_scratch0().low();
   Register scratch1 = scratch0();
   Register except_flag = ToRegister(instr->temp());
 
   __ EmitFPUTruncate(kRoundToMinusInf,
-                     single_scratch,
+                     result,
                      input,
                      scratch1,
+                     double_scratch0(),
                      except_flag);
 
   // Deopt if the operation did not succeed.
   DeoptimizeIf(ne, instr->environment(), except_flag, Operand(zero_reg));
-
-  // Load the result.
-  __ mfc1(result, single_scratch);
 
   if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
     // Test for -0.
@@ -3293,6 +3290,7 @@ void LCodeGen::DoMathFloor(LUnaryMathOperation* instr) {
 void LCodeGen::DoMathRound(LUnaryMathOperation* instr) {
   DoubleRegister input = ToDoubleRegister(instr->value());
   Register result = ToRegister(instr->result());
+  DoubleRegister double_scratch1 = ToDoubleRegister(instr->temp());
   Register scratch = scratch0();
   Label done, check_sign_on_zero;
 
@@ -3344,16 +3342,14 @@ void LCodeGen::DoMathRound(LUnaryMathOperation* instr) {
   }
 
   Register except_flag = scratch;
-
   __ EmitFPUTruncate(kRoundToMinusInf,
-                     double_scratch0().low(),
-                     double_scratch0(),
                      result,
+                     double_scratch0(),
+                     at,
+                     double_scratch1,
                      except_flag);
 
   DeoptimizeIf(ne, instr->environment(), except_flag, Operand(zero_reg));
-
-  __ mfc1(result, double_scratch0().low());
 
   if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
     // Test for -0.
@@ -4391,7 +4387,7 @@ void LCodeGen::DoDeferredTaggedToI(LTaggedToI* instr) {
   Register scratch1 = scratch0();
   Register scratch2 = ToRegister(instr->temp());
   DoubleRegister double_scratch = double_scratch0();
-  FPURegister single_scratch = double_scratch.low();
+  DoubleRegister double_scratch2 = ToDoubleRegister(instr->temp3());
 
   ASSERT(!scratch1.is(input_reg) && !scratch1.is(scratch2));
   ASSERT(!scratch2.is(input_reg) && !scratch2.is(scratch1));
@@ -4407,7 +4403,7 @@ void LCodeGen::DoDeferredTaggedToI(LTaggedToI* instr) {
 
   if (instr->truncating()) {
     Register scratch3 = ToRegister(instr->temp2());
-    DoubleRegister double_scratch2 = ToDoubleRegister(instr->temp3());
+    FPURegister single_scratch = double_scratch.low();
     ASSERT(!scratch3.is(input_reg) &&
            !scratch3.is(scratch1) &&
            !scratch3.is(scratch2));
@@ -4442,17 +4438,15 @@ void LCodeGen::DoDeferredTaggedToI(LTaggedToI* instr) {
 
     Register except_flag = scratch2;
     __ EmitFPUTruncate(kRoundToZero,
-                       single_scratch,
+                       input_reg,
                        double_scratch,
                        scratch1,
+                       double_scratch2,
                        except_flag,
                        kCheckForInexactConversion);
 
     // Deopt if the operation did not succeed.
     DeoptimizeIf(ne, instr->environment(), except_flag, Operand(zero_reg));
-
-    // Load the result.
-    __ mfc1(input_reg, single_scratch);
 
     if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
       __ Branch(&done, ne, input_reg, Operand(zero_reg));
@@ -4515,10 +4509,10 @@ void LCodeGen::DoDoubleToI(LDoubleToI* instr) {
   Register scratch1 = scratch0();
   Register scratch2 = ToRegister(instr->temp());
   DoubleRegister double_input = ToDoubleRegister(instr->value());
-  FPURegister single_scratch = double_scratch0().low();
 
   if (instr->truncating()) {
     Register scratch3 = ToRegister(instr->temp2());
+    FPURegister single_scratch = double_scratch0().low();
     __ EmitECMATruncate(result_reg,
                         double_input,
                         single_scratch,
@@ -4529,17 +4523,15 @@ void LCodeGen::DoDoubleToI(LDoubleToI* instr) {
     Register except_flag = scratch2;
 
     __ EmitFPUTruncate(kRoundToMinusInf,
-                       single_scratch,
+                       result_reg,
                        double_input,
                        scratch1,
+                       double_scratch0(),
                        except_flag,
                        kCheckForInexactConversion);
 
     // Deopt if the operation did not succeed (except_flag != 0).
     DeoptimizeIf(ne, instr->environment(), except_flag, Operand(zero_reg));
-
-    // Load the result.
-    __ mfc1(result_reg, single_scratch);
   }
 }
 

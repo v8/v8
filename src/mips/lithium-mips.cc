@@ -1049,7 +1049,9 @@ LInstruction* LChunkBuilder::DoUnaryMathOperation(HUnaryMathOperation* instr) {
     return DefineFixedDouble(result, f4);
   } else {
     LOperand* input = UseRegisterAtStart(instr->value());
-    LOperand* temp = (op == kMathFloor) ? TempRegister() : NULL;
+
+    LOperand* temp = (op == kMathRound) ? FixedTemp(f6) :
+        (op == kMathFloor) ? TempRegister() : NULL;
     LUnaryMathOperation* result = new(zone()) LUnaryMathOperation(input, temp);
     switch (op) {
       case kMathAbs:
@@ -1566,8 +1568,7 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
         LOperand* temp1 = TempRegister();
         LOperand* temp2 = instr->CanTruncateToInt32() ? TempRegister()
                                                       : NULL;
-        LOperand* temp3 = instr->CanTruncateToInt32() ? FixedTemp(f22)
-                                                      : NULL;
+        LOperand* temp3 = FixedTemp(f22);
         res = DefineSameAsFirst(new(zone()) LTaggedToI(value,
                                                        temp1,
                                                        temp2,

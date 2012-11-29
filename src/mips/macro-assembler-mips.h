@@ -753,14 +753,16 @@ class MacroAssembler: public Assembler {
                       FPURegister double_scratch,
                       Label *not_int32);
 
-  // Truncates a double using a specific rounding mode.
+  // Truncates a double using a specific rounding mode, and writes the value
+  // to the result register.
   // The except_flag will contain any exceptions caused by the instruction.
-  // If check_inexact is kDontCheckForInexactConversion, then the inexacat
+  // If check_inexact is kDontCheckForInexactConversion, then the inexact
   // exception is masked.
   void EmitFPUTruncate(FPURoundingMode rounding_mode,
-                       FPURegister result,
+                       Register result,
                        DoubleRegister double_input,
-                       Register scratch1,
+                       Register scratch,
+                       DoubleRegister double_scratch,
                        Register except_flag,
                        CheckForInexactConversion check_inexact
                            = kDontCheckForInexactConversion);
