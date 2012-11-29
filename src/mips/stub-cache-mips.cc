@@ -4746,11 +4746,12 @@ void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
   //  -- a1    : key
   //  -- a2    : receiver
   //  -- ra    : return address
-  //  -- a3    : scratch
+  //  -- a3    : scratch (elements backing store)
   //  -- t0    : scratch (elements_reg)
   //  -- t1    : scratch (mantissa_reg)
   //  -- t2    : scratch (exponent_reg)
   //  -- t3    : scratch4
+  //  -- t4    : scratch
   // -----------------------------------
   Label miss_force_generic, transition_elements_kind, grow, slow;
   Label finish_store, check_capacity;
@@ -4763,6 +4764,7 @@ void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
   Register scratch2 = t1;
   Register scratch3 = t2;
   Register scratch4 = t3;
+  Register scratch5 = t4;
   Register length_reg = t3;
 
   // This stub is meant to be tail-jumped to, the receiver must already
@@ -4858,14 +4860,15 @@ void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
       __ sw(scratch2, FieldMemOperand(elements_reg, offset + kPointerSize));
     }
 
+    __ mov(scratch1, elements_reg);
     __ StoreNumberToDoubleElements(value_reg,
                                    key_reg,
                                    // All registers after this are overwritten.
-                                   elements_reg,
                                    scratch1,
                                    scratch2,
                                    scratch3,
                                    scratch4,
+                                   scratch5,
                                    &transition_elements_kind);
 
     // Install the new backing store in the JSArray.
