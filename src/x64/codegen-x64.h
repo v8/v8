@@ -39,9 +39,6 @@ class CompilationInfo;
 
 enum TypeofState { INSIDE_TYPEOF, NOT_INSIDE_TYPEOF };
 
-static const int kSizeOfFullCodegenStrictModePrologue = 14;
-static const int kSizeOfOptimizedStrictModePrologue = 14;
-
 // -------------------------------------------------------------------------
 // CodeGenerator
 

@@ -3795,6 +3795,7 @@ MaybeObject* Heap::CreateCode(const CodeDesc& desc,
   code->set_handler_table(empty_fixed_array(), SKIP_WRITE_BARRIER);
   code->set_gc_metadata(Smi::FromInt(0));
   code->set_ic_age(global_ic_age_);
+  code->set_prologue_offset(kPrologueOffsetNotSet);
   // Allow self references to created code object by patching the handle to
   // point to the newly allocated Code object.
   if (!self_reference.is_null()) {

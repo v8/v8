@@ -52,57 +52,53 @@ namespace internal {
 
 
 CompilationInfo::CompilationInfo(Handle<Script> script, Zone* zone)
-    : isolate_(script->GetIsolate()),
-      flags_(LanguageModeField::encode(CLASSIC_MODE)),
-      function_(NULL),
-      scope_(NULL),
-      global_scope_(NULL),
+    : flags_(LanguageModeField::encode(CLASSIC_MODE)),
       script_(script),
-      extension_(NULL),
-      pre_parse_data_(NULL),
-      osr_ast_id_(BailoutId::None()),
-      zone_(zone),
-      deferred_handles_(NULL) {
-  Initialize(BASE);
+      osr_ast_id_(BailoutId::None()) {
+  Initialize(zone);
 }
 
 
 CompilationInfo::CompilationInfo(Handle<SharedFunctionInfo> shared_info,
                                  Zone* zone)
-    : isolate_(shared_info->GetIsolate()),
-      flags_(LanguageModeField::encode(CLASSIC_MODE) |
-             IsLazy::encode(true)),
-      function_(NULL),
-      scope_(NULL),
-      global_scope_(NULL),
+    : flags_(LanguageModeField::encode(CLASSIC_MODE) | IsLazy::encode(true)),
       shared_info_(shared_info),
       script_(Handle<Script>(Script::cast(shared_info->script()))),
-      extension_(NULL),
-      pre_parse_data_(NULL),
-      osr_ast_id_(BailoutId::None()),
-      zone_(zone),
-      deferred_handles_(NULL) {
-  Initialize(BASE);
+      osr_ast_id_(BailoutId::None()) {
+  Initialize(zone);
 }
 
 
 CompilationInfo::CompilationInfo(Handle<JSFunction> closure, Zone* zone)
-    : isolate_(closure->GetIsolate()),
-      flags_(LanguageModeField::encode(CLASSIC_MODE) |
-             IsLazy::encode(true)),
-      function_(NULL),
-      scope_(NULL),
-      global_scope_(NULL),
+    : flags_(LanguageModeField::encode(CLASSIC_MODE) | IsLazy::encode(true)),
       closure_(closure),
       shared_info_(Handle<SharedFunctionInfo>(closure->shared())),
       script_(Handle<Script>(Script::cast(shared_info_->script()))),
-      extension_(NULL),
-      pre_parse_data_(NULL),
       context_(closure->context()),
-      osr_ast_id_(BailoutId::None()),
-      zone_(zone),
-      deferred_handles_(NULL) {
-  Initialize(BASE);
+      osr_ast_id_(BailoutId::None()) {
+  Initialize(zone);
+}
+
+
+void CompilationInfo::Initialize(Zone* zone) {
+  isolate_ = script_->GetIsolate();
+  function_ = NULL;
+  scope_ = NULL;
+  global_scope_ = NULL;
+  extension_ = NULL;
+  pre_parse_data_ = NULL;
+  zone_ = zone;
+  deferred_handles_ = NULL;
+  prologue_offset_ = kPrologueOffsetNotSet;
+  mode_ = V8::UseCrankshaft() ? BASE : NONOPT;
+  if (script_->type()->value() == Script::TYPE_NATIVE) {
+    MarkAsNative();
+  }
+  if (!shared_info_.is_null()) {
+    ASSERT(language_mode() == CLASSIC_MODE);
+    SetLanguageMode(shared_info_->language_mode());
+  }
+  set_bailout_reason("unknown");
 }
 
 

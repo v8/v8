@@ -8875,11 +8875,10 @@ bool Code::IsOld() {
 
 byte* Code::FindCodeAgeSequence() {
   return FLAG_age_code &&
-      strlen(FLAG_stop_at) == 0 &&
-      !ProfileEntryHookStub::HasEntryHook() &&
+      prologue_offset() != kPrologueOffsetNotSet &&
       (kind() == OPTIMIZED_FUNCTION ||
        (kind() == FUNCTION && !has_debug_break_slots()))
-      ? FindPlatformCodeAgeSequence()
+      ? instruction_start() + prologue_offset()
       : NULL;
 }
 

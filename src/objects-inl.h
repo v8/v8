@@ -4578,6 +4578,7 @@ JSMessageObject* JSMessageObject::cast(Object* obj) {
 
 
 INT_ACCESSORS(Code, instruction_size, kInstructionSizeOffset)
+INT_ACCESSORS(Code, prologue_offset, kPrologueOffset)
 ACCESSORS(Code, relocation_info, ByteArray, kRelocationInfoOffset)
 ACCESSORS(Code, handler_table, FixedArray, kHandlerTableOffset)
 ACCESSORS(Code, deoptimization_data, FixedArray, kDeoptimizationDataOffset)

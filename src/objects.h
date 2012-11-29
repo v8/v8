@@ -4325,6 +4325,11 @@ class Code: public HeapObject {
   inline void set_ic_age(int count);
   inline int ic_age();
 
+  // [prologue_offset]: Offset of the function prologue, used for aging
+  // FUNCTIONs and OPTIMIZED_FUNCTIONs.
+  inline int prologue_offset();
+  inline void set_prologue_offset(int offset);
+
   // Unchecked accessors to be used during GC.
   inline ByteArray* unchecked_relocation_info();
   inline FixedArray* unchecked_deoptimization_data();
@@ -4593,8 +4598,10 @@ class Code: public HeapObject {
   static const int kKindSpecificFlags1Offset = kFlagsOffset + kIntSize;
   static const int kKindSpecificFlags2Offset =
       kKindSpecificFlags1Offset + kIntSize;
+  // Note: We might be able to squeeze this into the flags above.
+  static const int kPrologueOffset = kKindSpecificFlags2Offset + kIntSize;
 
-  static const int kHeaderPaddingStart = kKindSpecificFlags2Offset + kIntSize;
+  static const int kHeaderPaddingStart = kPrologueOffset + kIntSize;
 
   // Add padding to align the instruction start following right after
   // the Code object header.
@@ -4688,7 +4695,6 @@ class Code: public HeapObject {
   static Code* GetCodeAgeStub(Age age, MarkingParity parity);
 
   // Code aging -- platform-specific
-  byte* FindPlatformCodeAgeSequence();
   static void PatchPlatformCodeAge(byte* sequence, Age age,
                                    MarkingParity parity);
 
