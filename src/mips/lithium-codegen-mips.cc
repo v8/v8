@@ -4245,7 +4245,7 @@ void LCodeGen::DoDeferredNumberTagI(LInstruction* instr,
 
   if (FLAG_inline_new) {
     __ LoadRoot(t2, Heap::kHeapNumberMapRootIndex);
-    __ AllocateHeapNumber(t1, a3, t0, t2, &slow);
+    __ AllocateHeapNumber(t1, a3, t0, t2, &slow, DONT_TAG_RESULT);
     __ Move(dst, t1);
     __ Branch(&done);
   }
@@ -4259,11 +4259,13 @@ void LCodeGen::DoDeferredNumberTagI(LInstruction* instr,
   __ StoreToSafepointRegisterSlot(zero_reg, dst);
   CallRuntimeFromDeferred(Runtime::kAllocateHeapNumber, 0, instr);
   __ Move(dst, v0);
+  __ Subu(dst, dst, kHeapObjectTag);
 
   // Done. Put the value in dbl_scratch into the value of the allocated heap
   // number.
   __ bind(&done);
-  __ sdc1(dbl_scratch, FieldMemOperand(dst, HeapNumber::kValueOffset));
+  __ sdc1(dbl_scratch, MemOperand(dst, HeapNumber::kValueOffset));
+  __ Addu(dst, dst, kHeapObjectTag);
   __ StoreToSafepointRegisterSlot(dst, dst);
 }
 
@@ -4288,12 +4290,16 @@ void LCodeGen::DoNumberTagD(LNumberTagD* instr) {
   DeferredNumberTagD* deferred = new(zone()) DeferredNumberTagD(this, instr);
   if (FLAG_inline_new) {
     __ LoadRoot(scratch, Heap::kHeapNumberMapRootIndex);
-    __ AllocateHeapNumber(reg, temp1, temp2, scratch, deferred->entry());
+    // We want the untagged address first for performance
+    __ AllocateHeapNumber(reg, temp1, temp2, scratch, deferred->entry(),
+                          DONT_TAG_RESULT);
   } else {
     __ Branch(deferred->entry());
   }
   __ bind(deferred->exit());
-  __ sdc1(input_reg, FieldMemOperand(reg, HeapNumber::kValueOffset));
+  __ sdc1(input_reg, MemOperand(reg, HeapNumber::kValueOffset));
+  // Now that we have finished with the object's real address tag it
+  __ Addu(reg, reg, kHeapObjectTag);
 }
 
 
@@ -4306,6 +4312,7 @@ void LCodeGen::DoDeferredNumberTagD(LNumberTagD* instr) {
 
   PushSafepointRegistersScope scope(this, Safepoint::kWithRegisters);
   CallRuntimeFromDeferred(Runtime::kAllocateHeapNumber, 0, instr);
+  __ Subu(v0, v0, kHeapObjectTag);
   __ StoreToSafepointRegisterSlot(v0, reg);
 }
 

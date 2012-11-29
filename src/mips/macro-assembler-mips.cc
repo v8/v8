@@ -3234,7 +3234,8 @@ void MacroAssembler::AllocateHeapNumber(Register result,
                                         Register scratch1,
                                         Register scratch2,
                                         Register heap_number_map,
-                                        Label* need_gc) {
+                                        Label* need_gc,
+                                        TaggingMode tagging_mode) {
   // Allocate an object in the heap for the heap number and tag it as a heap
   // object.
   AllocateInNewSpace(HeapNumber::kSize,
@@ -3242,11 +3243,16 @@ void MacroAssembler::AllocateHeapNumber(Register result,
                      scratch1,
                      scratch2,
                      need_gc,
-                     TAG_OBJECT);
+                     tagging_mode == TAG_RESULT ? TAG_OBJECT :
+                                                  NO_ALLOCATION_FLAGS);
 
   // Store heap number map in the allocated object.
   AssertRegisterIsRoot(heap_number_map, Heap::kHeapNumberMapRootIndex);
-  sw(heap_number_map, FieldMemOperand(result, HeapObject::kMapOffset));
+  if (tagging_mode == TAG_RESULT) {
+    sw(heap_number_map, FieldMemOperand(result, HeapObject::kMapOffset));
+  } else {
+    sw(heap_number_map, MemOperand(result, HeapObject::kMapOffset));
+  }
 }
 
 

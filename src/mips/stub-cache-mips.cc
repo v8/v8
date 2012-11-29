@@ -3847,20 +3847,27 @@ void KeyedLoadStubCompiler::GenerateLoadExternalArray(
     __ Ret();
 
     __ bind(&box_int);
-    // Allocate a HeapNumber for the result and perform int-to-double
-    // conversion.
-    // The arm version uses a temporary here to save r0, but we don't need to
-    // (a0 is not modified).
-    __ LoadRoot(t1, Heap::kHeapNumberMapRootIndex);
-    __ AllocateHeapNumber(v0, a3, t0, t1, &slow);
 
     if (CpuFeatures::IsSupported(FPU)) {
       CpuFeatures::Scope scope(FPU);
+      // Allocate a HeapNumber for the result and perform int-to-double
+      // conversion.
+      // The arm version uses a temporary here to save r0, but we don't need to
+      // (a0 is not modified).
+      __ LoadRoot(t1, Heap::kHeapNumberMapRootIndex);
+      __ AllocateHeapNumber(v0, a3, t0, t1, &slow, DONT_TAG_RESULT);
       __ mtc1(value, f0);
       __ cvt_d_w(f0, f0);
-      __ sdc1(f0, FieldMemOperand(v0, HeapNumber::kValueOffset));
+      __ sdc1(f0, MemOperand(v0, HeapNumber::kValueOffset));
+      __ Addu(v0, v0, kHeapObjectTag);
       __ Ret();
     } else {
+      // Allocate a HeapNumber for the result and perform int-to-double
+      // conversion.
+      // The arm version uses a temporary here to save r0, but we don't need to
+      // (a0 is not modified).
+      __ LoadRoot(t1, Heap::kHeapNumberMapRootIndex);
+      __ AllocateHeapNumber(v0, a3, t0, t1, &slow, TAG_RESULT);
       Register dst1 = t2;
       Register dst2 = t3;
       FloatingPointHelper::Destination dest =
@@ -3897,7 +3904,7 @@ void KeyedLoadStubCompiler::GenerateLoadExternalArray(
       // conversion. Don't use a0 and a1 as AllocateHeapNumber clobbers all
       // registers - also when jumping due to exhausted young space.
       __ LoadRoot(t6, Heap::kHeapNumberMapRootIndex);
-      __ AllocateHeapNumber(v0, t2, t3, t6, &slow);
+      __ AllocateHeapNumber(v0, t2, t3, t6, &slow, DONT_TAG_RESULT);
 
       // This is replaced by a macro:
       // __ mtc1(value, f0);     // LS 32-bits.
@@ -3906,8 +3913,9 @@ void KeyedLoadStubCompiler::GenerateLoadExternalArray(
 
       __ Cvt_d_uw(f0, value, f22);
 
-      __ sdc1(f0, FieldMemOperand(v0, HeapNumber::kValueOffset));
+      __ sdc1(f0, MemOperand(v0, HeapNumber::kValueOffset));
 
+      __ Addu(v0, v0, kHeapObjectTag);
       __ Ret();
     } else {
       // Check whether unsigned integer fits into smi.
@@ -3940,7 +3948,7 @@ void KeyedLoadStubCompiler::GenerateLoadExternalArray(
       // clobbers all registers - also when jumping due to exhausted young
       // space.
       __ LoadRoot(t6, Heap::kHeapNumberMapRootIndex);
-      __ AllocateHeapNumber(t2, t3, t5, t6, &slow);
+      __ AllocateHeapNumber(t2, t3, t5, t6, &slow, TAG_RESULT);
 
       __ sw(hiword, FieldMemOperand(t2, HeapNumber::kExponentOffset));
       __ sw(loword, FieldMemOperand(t2, HeapNumber::kMantissaOffset));
@@ -3957,17 +3965,19 @@ void KeyedLoadStubCompiler::GenerateLoadExternalArray(
       // AllocateHeapNumber clobbers all registers - also when jumping due to
       // exhausted young space.
       __ LoadRoot(t6, Heap::kHeapNumberMapRootIndex);
-      __ AllocateHeapNumber(v0, t3, t5, t6, &slow);
+      __ AllocateHeapNumber(v0, t3, t5, t6, &slow, DONT_TAG_RESULT);
       // The float (single) value is already in fpu reg f0 (if we use float).
       __ cvt_d_s(f0, f0);
-      __ sdc1(f0, FieldMemOperand(v0, HeapNumber::kValueOffset));
+      __ sdc1(f0, MemOperand(v0, HeapNumber::kValueOffset));
+
+      __ Addu(v0, v0, kHeapObjectTag);
       __ Ret();
     } else {
       // Allocate a HeapNumber for the result. Don't use a0 and a1 as
       // AllocateHeapNumber clobbers all registers - also when jumping due to
       // exhausted young space.
       __ LoadRoot(t6, Heap::kHeapNumberMapRootIndex);
-      __ AllocateHeapNumber(v0, t3, t5, t6, &slow);
+      __ AllocateHeapNumber(v0, t3, t5, t6, &slow, TAG_RESULT);
       // FPU is not available, do manual single to double conversion.
 
       // a2: floating point value (binary32).
@@ -4022,16 +4032,18 @@ void KeyedLoadStubCompiler::GenerateLoadExternalArray(
       // AllocateHeapNumber clobbers all registers - also when jumping due to
       // exhausted young space.
       __ LoadRoot(t6, Heap::kHeapNumberMapRootIndex);
-      __ AllocateHeapNumber(v0, t3, t5, t6, &slow);
+      __ AllocateHeapNumber(v0, t3, t5, t6, &slow, DONT_TAG_RESULT);
       // The double value is already in f0
-      __ sdc1(f0, FieldMemOperand(v0, HeapNumber::kValueOffset));
+      __ sdc1(f0, MemOperand(v0, HeapNumber::kValueOffset));
+
+      __ Addu(v0, v0, kHeapObjectTag);
       __ Ret();
     } else {
       // Allocate a HeapNumber for the result. Don't use a0 and a1 as
       // AllocateHeapNumber clobbers all registers - also when jumping due to
       // exhausted young space.
       __ LoadRoot(t6, Heap::kHeapNumberMapRootIndex);
-      __ AllocateHeapNumber(v0, t3, t5, t6, &slow);
+      __ AllocateHeapNumber(v0, t3, t5, t6, &slow, TAG_RESULT);
 
       __ sw(a2, FieldMemOperand(v0, HeapNumber::kMantissaOffset));
       __ sw(a3, FieldMemOperand(v0, HeapNumber::kExponentOffset));
@@ -4549,7 +4561,7 @@ void KeyedLoadStubCompiler::GenerateLoadFastDoubleElement(
   // Non-NaN. Allocate a new heap number and copy the double value into it.
   __ LoadRoot(heap_number_map, Heap::kHeapNumberMapRootIndex);
   __ AllocateHeapNumber(heap_number_reg, scratch2, scratch3,
-                        heap_number_map, &slow_allocate_heapnumber);
+                        heap_number_map, &slow_allocate_heapnumber, TAG_RESULT);
 
   // Don't need to reload the upper 32 bits of the double, it's already in
   // scratch.
