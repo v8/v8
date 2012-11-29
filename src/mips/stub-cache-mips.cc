@@ -3868,20 +3868,20 @@ void KeyedLoadStubCompiler::GenerateLoadExternalArray(
       // (a0 is not modified).
       __ LoadRoot(t1, Heap::kHeapNumberMapRootIndex);
       __ AllocateHeapNumber(v0, a3, t0, t1, &slow, TAG_RESULT);
-      Register dst1 = t2;
-      Register dst2 = t3;
+      Register dst_mantissa = t2;
+      Register dst_exponent = t3;
       FloatingPointHelper::Destination dest =
           FloatingPointHelper::kCoreRegisters;
       FloatingPointHelper::ConvertIntToDouble(masm,
                                               value,
                                               dest,
                                               f0,
-                                              dst1,
-                                              dst2,
+                                              dst_mantissa,
+                                              dst_exponent,
                                               t1,
                                               f2);
-      __ sw(dst1, FieldMemOperand(v0, HeapNumber::kMantissaOffset));
-      __ sw(dst2, FieldMemOperand(v0, HeapNumber::kExponentOffset));
+      __ sw(dst_mantissa, FieldMemOperand(v0, HeapNumber::kMantissaOffset));
+      __ sw(dst_exponent, FieldMemOperand(v0, HeapNumber::kExponentOffset));
       __ Ret();
     }
   } else if (elements_kind == EXTERNAL_UNSIGNED_INT_ELEMENTS) {
@@ -4180,7 +4180,7 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
       }
       FloatingPointHelper::ConvertIntToDouble(
           masm, t1, destination,
-          f0, t2, t3,  // These are: double_dst, dst1, dst2.
+          f0, t2, t3,  // These are: double_dst, dst_mantissa, dst_exponent.
           t0, f2);  // These are: scratch2, single_scratch.
       if (destination == FloatingPointHelper::kFPURegisters) {
         CpuFeatures::Scope scope(FPU);
