@@ -4852,14 +4852,6 @@ void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
     __ sw(scratch1,
           FieldMemOperand(elements_reg, FixedDoubleArray::kLengthOffset));
 
-    __ li(scratch1, Operand(kHoleNanLower32));
-    __ li(scratch2, Operand(kHoleNanUpper32));
-    for (int i = 1; i < JSArray::kPreallocatedArrayElements; i++) {
-      int offset = FixedDoubleArray::OffsetOfElementAt(i);
-      __ sw(scratch1, FieldMemOperand(elements_reg, offset));
-      __ sw(scratch2, FieldMemOperand(elements_reg, offset + kPointerSize));
-    }
-
     __ mov(scratch1, elements_reg);
     __ StoreNumberToDoubleElements(value_reg,
                                    key_reg,
@@ -4870,6 +4862,14 @@ void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
                                    scratch4,
                                    scratch5,
                                    &transition_elements_kind);
+
+    __ li(scratch1, Operand(kHoleNanLower32));
+    __ li(scratch2, Operand(kHoleNanUpper32));
+    for (int i = 1; i < JSArray::kPreallocatedArrayElements; i++) {
+      int offset = FixedDoubleArray::OffsetOfElementAt(i);
+      __ sw(scratch1, FieldMemOperand(elements_reg, offset));
+      __ sw(scratch2, FieldMemOperand(elements_reg, offset + kPointerSize));
+    }
 
     // Install the new backing store in the JSArray.
     __ sw(elements_reg,
