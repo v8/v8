@@ -25,16 +25,12 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-var a = [0,1,2,3];
-a[2000000] = 2000000;
-a.length=2000;
-for (var i = 0; i <= 256; i++) {
-    a[i] = new Object();
-}
+// Transitioning from a PackedSmi to PackedDouble should fill the destination
+// with holes.
+//
+// See http://code.google.com/p/v8/issues/detail?id=2433 for details.
 
-a = [0.5,1.5,2.5,3.5,4.5,5.5];
-a[2000000] = 2000000;
-a.length=2000;
-for (var i = 0; i <= 256; i++) {
-    a[i] = new Object();
-}
+arr = [];
+arr[0] = 0;
+arr[0] = 1.1;
+assertEquals(undefined, arr[1]);

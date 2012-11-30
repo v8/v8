@@ -661,6 +661,10 @@ class ExternalReference BASE_EMBEDDED {
   static ExternalReference new_deoptimizer_function(Isolate* isolate);
   static ExternalReference compute_output_frames_function(Isolate* isolate);
 
+  // Log support.
+  static ExternalReference log_enter_external_function(Isolate* isolate);
+  static ExternalReference log_leave_external_function(Isolate* isolate);
+
   // Static data in the keyed lookup cache.
   static ExternalReference keyed_lookup_cache_keys(Isolate* isolate);
   static ExternalReference keyed_lookup_cache_field_offsets(Isolate* isolate);

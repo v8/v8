@@ -4690,9 +4690,12 @@ void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
   //  -- r1    : key
   //  -- r2    : receiver
   //  -- lr    : return address
-  //  -- r3    : scratch
+  //  -- r3    : scratch (elements backing store)
   //  -- r4    : scratch
   //  -- r5    : scratch
+  //  -- r6    : scratch
+  //  -- r7    : scratch
+  //  -- r9    : scratch
   // -----------------------------------
   Label miss_force_generic, transition_elements_kind, grow, slow;
   Label finish_store, check_capacity;
@@ -4705,6 +4708,7 @@ void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
   Register scratch2 = r5;
   Register scratch3 = r6;
   Register scratch4 = r7;
+  Register scratch5 = r9;
   Register length_reg = r7;
 
   // This stub is meant to be tail-jumped to, the receiver must already
@@ -4791,6 +4795,17 @@ void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
     __ str(scratch1,
            FieldMemOperand(elements_reg, FixedDoubleArray::kLengthOffset));
 
+    __ mov(scratch1, elements_reg);
+    __ StoreNumberToDoubleElements(value_reg,
+                                   key_reg,
+                                   // All registers after this are overwritten.
+                                   scratch1,
+                                   scratch2,
+                                   scratch3,
+                                   scratch4,
+                                   scratch5,
+                                   &transition_elements_kind);
+
     __ mov(scratch1, Operand(kHoleNanLower32));
     __ mov(scratch2, Operand(kHoleNanUpper32));
     for (int i = 1; i < JSArray::kPreallocatedArrayElements; i++) {
@@ -4798,16 +4813,6 @@ void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
       __ str(scratch1, FieldMemOperand(elements_reg, offset));
       __ str(scratch2, FieldMemOperand(elements_reg, offset + kPointerSize));
     }
-
-    __ StoreNumberToDoubleElements(value_reg,
-                                   key_reg,
-                                   // All registers after this are overwritten.
-                                   elements_reg,
-                                   scratch1,
-                                   scratch2,
-                                   scratch3,
-                                   scratch4,
-                                   &transition_elements_kind);
 
     // Install the new backing store in the JSArray.
     __ str(elements_reg,

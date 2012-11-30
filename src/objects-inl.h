@@ -2342,13 +2342,6 @@ void SeededNumberDictionary::set_requires_slow_elements() {
 // Cast operations
 
 
-FixedDoubleArray* FixedDoubleArray::castOrEmptyFixedArray(Object* object) {
-  ASSERT(object == HeapObject::cast(object)->GetHeap()->empty_fixed_array() ||
-         object->IsFixedDoubleArray());
-  return reinterpret_cast<FixedDoubleArray*>(object);
-}
-
-
 CAST_ACCESSOR(FixedArray)
 CAST_ACCESSOR(FixedDoubleArray)
 CAST_ACCESSOR(DescriptorArray)
@@ -4578,6 +4571,7 @@ JSMessageObject* JSMessageObject::cast(Object* obj) {
 
 
 INT_ACCESSORS(Code, instruction_size, kInstructionSizeOffset)
+INT_ACCESSORS(Code, prologue_offset, kPrologueOffset)
 ACCESSORS(Code, relocation_info, ByteArray, kRelocationInfoOffset)
 ACCESSORS(Code, handler_table, FixedArray, kHandlerTableOffset)
 ACCESSORS(Code, deoptimization_data, FixedArray, kDeoptimizationDataOffset)

@@ -140,8 +140,6 @@ bool LCodeGen::GeneratePrologue() {
   // receiver object). ecx is zero for method calls and non-zero for
   // function calls.
   if (!info_->is_classic_mode() || info_->is_native()) {
-    Label begin;
-    __ bind(&begin);
     Label ok;
     __ test(ecx, Operand(ecx));
     __ j(zero, &ok, Label::kNear);
@@ -150,14 +148,10 @@ bool LCodeGen::GeneratePrologue() {
     __ mov(Operand(esp, receiver_offset),
            Immediate(isolate()->factory()->undefined_value()));
     __ bind(&ok);
-    ASSERT(!FLAG_age_code ||
-           (kSizeOfOptimizedStrictModePrologue == ok.pos() - begin.pos()));
   }
 
 
   if (dynamic_frame_alignment_) {
-    Label begin;
-    __ bind(&begin);
     // Move state of dynamic frame alignment into edx.
     __ mov(edx, Immediate(kNoAlignmentPadding));
 
@@ -180,11 +174,9 @@ bool LCodeGen::GeneratePrologue() {
     __ j(not_zero, &align_loop, Label::kNear);
     __ mov(Operand(ebx, 0), Immediate(kAlignmentZapValue));
     __ bind(&do_not_pad);
-    ASSERT(!FLAG_age_code ||
-           (kSizeOfOptimizedAlignStackPrologue ==
-            do_not_pad.pos() - begin.pos()));
   }
 
+  info()->set_prologue_offset(masm_->pc_offset());
   __ push(ebp);  // Caller's frame pointer.
   __ mov(ebp, esp);
   __ push(esi);  // Callee's context.

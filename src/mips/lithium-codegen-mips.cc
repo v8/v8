@@ -136,17 +136,15 @@ bool LCodeGen::GeneratePrologue() {
   // function calls.
   if (!info_->is_classic_mode() || info_->is_native()) {
     Label ok;
-    Label begin;
-    __ bind(&begin);
     __ Branch(&ok, eq, t1, Operand(zero_reg));
 
     int receiver_offset = scope()->num_parameters() * kPointerSize;
     __ LoadRoot(a2, Heap::kUndefinedValueRootIndex);
     __ sw(a2, MemOperand(sp, receiver_offset));
     __ bind(&ok);
-    ASSERT_EQ(kSizeOfOptimizedStrictModePrologue, ok.pos() - begin.pos());
   }
 
+  info()->set_prologue_offset(masm_->pc_offset());
   // The following three instructions must remain together and unmodified for
   // code aging to work properly.
   __ Push(ra, fp, cp, a1);
@@ -3264,21 +3262,18 @@ void LCodeGen::DoMathAbs(LUnaryMathOperation* instr) {
 void LCodeGen::DoMathFloor(LUnaryMathOperation* instr) {
   DoubleRegister input = ToDoubleRegister(instr->value());
   Register result = ToRegister(instr->result());
-  FPURegister single_scratch = double_scratch0().low();
   Register scratch1 = scratch0();
   Register except_flag = ToRegister(instr->temp());
 
   __ EmitFPUTruncate(kRoundToMinusInf,
-                     single_scratch,
+                     result,
                      input,
                      scratch1,
+                     double_scratch0(),
                      except_flag);
 
   // Deopt if the operation did not succeed.
   DeoptimizeIf(ne, instr->environment(), except_flag, Operand(zero_reg));
-
-  // Load the result.
-  __ mfc1(result, single_scratch);
 
   if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
     // Test for -0.
@@ -3295,6 +3290,7 @@ void LCodeGen::DoMathFloor(LUnaryMathOperation* instr) {
 void LCodeGen::DoMathRound(LUnaryMathOperation* instr) {
   DoubleRegister input = ToDoubleRegister(instr->value());
   Register result = ToRegister(instr->result());
+  DoubleRegister double_scratch1 = ToDoubleRegister(instr->temp());
   Register scratch = scratch0();
   Label done, check_sign_on_zero;
 
@@ -3346,16 +3342,14 @@ void LCodeGen::DoMathRound(LUnaryMathOperation* instr) {
   }
 
   Register except_flag = scratch;
-
   __ EmitFPUTruncate(kRoundToMinusInf,
-                     double_scratch0().low(),
-                     double_scratch0(),
                      result,
+                     double_scratch0(),
+                     at,
+                     double_scratch1,
                      except_flag);
 
   DeoptimizeIf(ne, instr->environment(), except_flag, Operand(zero_reg));
-
-  __ mfc1(result, double_scratch0().low());
 
   if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
     // Test for -0.
@@ -3503,6 +3497,20 @@ void LCodeGen::DoDeferredRandom(LRandom* instr) {
   __ PrepareCallCFunction(1, scratch0());
   __ CallCFunction(ExternalReference::random_uint32_function(isolate()), 1);
   // Return value is in v0.
+}
+
+
+void LCodeGen::DoMathExp(LMathExp* instr) {
+  DoubleRegister input = ToDoubleRegister(instr->value());
+  DoubleRegister result = ToDoubleRegister(instr->result());
+  DoubleRegister double_scratch1 = ToDoubleRegister(instr->double_temp());
+  DoubleRegister double_scratch2 = double_scratch0();
+  Register temp1 = ToRegister(instr->temp1());
+  Register temp2 = ToRegister(instr->temp2());
+
+  MathExpGenerator::EmitMathExp(
+      masm(), input, result, double_scratch1, double_scratch2,
+      temp1, temp2, scratch0());
 }
 
 
@@ -4251,7 +4259,7 @@ void LCodeGen::DoDeferredNumberTagI(LInstruction* instr,
 
   if (FLAG_inline_new) {
     __ LoadRoot(t2, Heap::kHeapNumberMapRootIndex);
-    __ AllocateHeapNumber(t1, a3, t0, t2, &slow);
+    __ AllocateHeapNumber(t1, a3, t0, t2, &slow, DONT_TAG_RESULT);
     __ Move(dst, t1);
     __ Branch(&done);
   }
@@ -4265,11 +4273,13 @@ void LCodeGen::DoDeferredNumberTagI(LInstruction* instr,
   __ StoreToSafepointRegisterSlot(zero_reg, dst);
   CallRuntimeFromDeferred(Runtime::kAllocateHeapNumber, 0, instr);
   __ Move(dst, v0);
+  __ Subu(dst, dst, kHeapObjectTag);
 
   // Done. Put the value in dbl_scratch into the value of the allocated heap
   // number.
   __ bind(&done);
-  __ sdc1(dbl_scratch, FieldMemOperand(dst, HeapNumber::kValueOffset));
+  __ sdc1(dbl_scratch, MemOperand(dst, HeapNumber::kValueOffset));
+  __ Addu(dst, dst, kHeapObjectTag);
   __ StoreToSafepointRegisterSlot(dst, dst);
 }
 
@@ -4294,12 +4304,16 @@ void LCodeGen::DoNumberTagD(LNumberTagD* instr) {
   DeferredNumberTagD* deferred = new(zone()) DeferredNumberTagD(this, instr);
   if (FLAG_inline_new) {
     __ LoadRoot(scratch, Heap::kHeapNumberMapRootIndex);
-    __ AllocateHeapNumber(reg, temp1, temp2, scratch, deferred->entry());
+    // We want the untagged address first for performance
+    __ AllocateHeapNumber(reg, temp1, temp2, scratch, deferred->entry(),
+                          DONT_TAG_RESULT);
   } else {
     __ Branch(deferred->entry());
   }
   __ bind(deferred->exit());
-  __ sdc1(input_reg, FieldMemOperand(reg, HeapNumber::kValueOffset));
+  __ sdc1(input_reg, MemOperand(reg, HeapNumber::kValueOffset));
+  // Now that we have finished with the object's real address tag it
+  __ Addu(reg, reg, kHeapObjectTag);
 }
 
 
@@ -4312,6 +4326,7 @@ void LCodeGen::DoDeferredNumberTagD(LNumberTagD* instr) {
 
   PushSafepointRegistersScope scope(this, Safepoint::kWithRegisters);
   CallRuntimeFromDeferred(Runtime::kAllocateHeapNumber, 0, instr);
+  __ Subu(v0, v0, kHeapObjectTag);
   __ StoreToSafepointRegisterSlot(v0, reg);
 }
 
@@ -4393,7 +4408,7 @@ void LCodeGen::DoDeferredTaggedToI(LTaggedToI* instr) {
   Register scratch1 = scratch0();
   Register scratch2 = ToRegister(instr->temp());
   DoubleRegister double_scratch = double_scratch0();
-  FPURegister single_scratch = double_scratch.low();
+  DoubleRegister double_scratch2 = ToDoubleRegister(instr->temp3());
 
   ASSERT(!scratch1.is(input_reg) && !scratch1.is(scratch2));
   ASSERT(!scratch2.is(input_reg) && !scratch2.is(scratch1));
@@ -4409,7 +4424,7 @@ void LCodeGen::DoDeferredTaggedToI(LTaggedToI* instr) {
 
   if (instr->truncating()) {
     Register scratch3 = ToRegister(instr->temp2());
-    DoubleRegister double_scratch2 = ToDoubleRegister(instr->temp3());
+    FPURegister single_scratch = double_scratch.low();
     ASSERT(!scratch3.is(input_reg) &&
            !scratch3.is(scratch1) &&
            !scratch3.is(scratch2));
@@ -4444,17 +4459,15 @@ void LCodeGen::DoDeferredTaggedToI(LTaggedToI* instr) {
 
     Register except_flag = scratch2;
     __ EmitFPUTruncate(kRoundToZero,
-                       single_scratch,
+                       input_reg,
                        double_scratch,
                        scratch1,
+                       double_scratch2,
                        except_flag,
                        kCheckForInexactConversion);
 
     // Deopt if the operation did not succeed.
     DeoptimizeIf(ne, instr->environment(), except_flag, Operand(zero_reg));
-
-    // Load the result.
-    __ mfc1(input_reg, single_scratch);
 
     if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
       __ Branch(&done, ne, input_reg, Operand(zero_reg));
@@ -4517,10 +4530,10 @@ void LCodeGen::DoDoubleToI(LDoubleToI* instr) {
   Register scratch1 = scratch0();
   Register scratch2 = ToRegister(instr->temp());
   DoubleRegister double_input = ToDoubleRegister(instr->value());
-  FPURegister single_scratch = double_scratch0().low();
 
   if (instr->truncating()) {
     Register scratch3 = ToRegister(instr->temp2());
+    FPURegister single_scratch = double_scratch0().low();
     __ EmitECMATruncate(result_reg,
                         double_input,
                         single_scratch,
@@ -4531,17 +4544,15 @@ void LCodeGen::DoDoubleToI(LDoubleToI* instr) {
     Register except_flag = scratch2;
 
     __ EmitFPUTruncate(kRoundToMinusInf,
-                       single_scratch,
+                       result_reg,
                        double_input,
                        scratch1,
+                       double_scratch0(),
                        except_flag,
                        kCheckForInexactConversion);
 
     // Deopt if the operation did not succeed (except_flag != 0).
     DeoptimizeIf(ne, instr->environment(), except_flag, Operand(zero_reg));
-
-    // Load the result.
-    __ mfc1(result_reg, single_scratch);
   }
 }
 

@@ -1,3 +1,16 @@
+2012-11-30: Version 3.15.7
+
+        Activated code aging by default.
+
+        Included more information in --prof log.
+
+        Removed eager sweeping for lazy swept spaces. Try to find in
+        SlowAllocateRaw a bounded number of times a big enough memory slot.
+        (issue 2194)
+
+        Performance and stability improvements on all platforms.
+
+
 2012-11-26: Version 3.15.6
 
         Ensure double arrays are filled with holes when extended from

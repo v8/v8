@@ -1944,7 +1944,7 @@ TEST(OptimizedAllocationAlwaysInNewSpace) {
   if (!i::V8::UseCrankshaft() || i::FLAG_always_opt) return;
   v8::HandleScope scope;
 
-  FillUpNewSpace(HEAP->new_space());
+  SimulateFullSpace(HEAP->new_space());
   AlwaysAllocateScope always_allocate;
   v8::Local<v8::Value> res = CompileRun(
       "function c(x) {"
@@ -2153,14 +2153,9 @@ TEST(Regress2237) {
 
     // Generate a sliced string that is based on the above parent and
     // lives in old-space.
-    FillUpNewSpace(HEAP->new_space());
+    SimulateFullSpace(HEAP->new_space());
     AlwaysAllocateScope always_allocate;
-    Handle<String> t;
-    // TODO(mstarzinger): Unfortunately FillUpNewSpace() still leaves
-    // some slack, so we need to allocate a few sliced strings.
-    for (int i = 0; i < 16; i++) {
-      t = FACTORY->NewProperSubString(s, 5, 35);
-    }
+    Handle<String> t = FACTORY->NewProperSubString(s, 5, 35);
     CHECK(t->IsSlicedString());
     CHECK(!HEAP->InNewSpace(*t));
     *slice.location() = *t.location();

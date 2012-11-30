@@ -716,6 +716,33 @@ void Logger::TimerEvent(const char* name, int64_t start, int64_t end) {
 }
 
 
+void Logger::ExternalSwitch(StateTag old_tag, StateTag new_tag) {
+  if (old_tag != EXTERNAL && new_tag == EXTERNAL) {
+    enter_external_ = OS::Ticks();
+  }
+  if (old_tag == EXTERNAL && new_tag != EXTERNAL && enter_external_ != 0) {
+    TimerEvent("V8.External", enter_external_, OS::Ticks());
+    enter_external_ = 0;
+  }
+}
+
+
+void Logger::EnterExternal() {
+  LOGGER->enter_external_ = OS::Ticks();
+}
+
+
+void Logger::LeaveExternal() {
+  if (enter_external_ == 0) return;
+  Logger* logger = LOGGER;
+  logger->TimerEvent("V8.External", enter_external_, OS::Ticks());
+  logger->enter_external_ = 0;
+}
+
+
+int64_t Logger::enter_external_ = 0;
+
+
 void Logger::TimerEventScope::LogTimerEvent() {
   LOG(isolate_, TimerEvent(name_, start_, OS::Ticks()));
 }
@@ -900,7 +927,7 @@ void Logger::CallbackEventInternal(const char* prefix, const char* name,
                                    Address entry_point) {
   if (!log_->IsEnabled() || !FLAG_log_code) return;
   LogMessageBuilder msg(this);
-  msg.Append("%s,%s,",
+  msg.Append("%s,%s,-3,",
              kLogEventsNames[CODE_CREATION_EVENT],
              kLogEventsNames[CALLBACK_TAG]);
   msg.AppendAddress(entry_point);
@@ -956,9 +983,10 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag,
   }
   if (!FLAG_log_code) return;
   LogMessageBuilder msg(this);
-  msg.Append("%s,%s,",
+  msg.Append("%s,%s,%d,",
              kLogEventsNames[CODE_CREATION_EVENT],
-             kLogEventsNames[tag]);
+             kLogEventsNames[tag],
+             code->kind());
   msg.AppendAddress(code->address());
   msg.Append(",%d,\"", code->ExecutableSize());
   for (const char* p = comment; *p != '\0'; p++) {
@@ -995,9 +1023,10 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag,
   }
   if (!FLAG_log_code) return;
   LogMessageBuilder msg(this);
-  msg.Append("%s,%s,",
+  msg.Append("%s,%s,%d,",
              kLogEventsNames[CODE_CREATION_EVENT],
-             kLogEventsNames[tag]);
+             kLogEventsNames[tag],
+             code->kind());
   msg.AppendAddress(code->address());
   msg.Append(",%d,\"", code->ExecutableSize());
   msg.AppendDetailed(name, false);
@@ -1047,9 +1076,10 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag,
   LogMessageBuilder msg(this);
   SmartArrayPointer<char> str =
       name->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
-  msg.Append("%s,%s,",
+  msg.Append("%s,%s,%d,",
              kLogEventsNames[CODE_CREATION_EVENT],
-             kLogEventsNames[tag]);
+             kLogEventsNames[tag],
+             code->kind());
   msg.AppendAddress(code->address());
   msg.Append(",%d,\"%s\",", code->ExecutableSize(), *str);
   msg.AppendAddress(shared->address());
@@ -1094,9 +1124,10 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag,
       shared->DebugName()->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
   SmartArrayPointer<char> sourcestr =
       source->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
-  msg.Append("%s,%s,",
+  msg.Append("%s,%s,%d,",
              kLogEventsNames[CODE_CREATION_EVENT],
-             kLogEventsNames[tag]);
+             kLogEventsNames[tag],
+             code->kind());
   msg.AppendAddress(code->address());
   msg.Append(",%d,\"%s %s:%d\",",
              code->ExecutableSize(),
@@ -1130,9 +1161,10 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag, Code* code, int args_count) {
   }
   if (!FLAG_log_code) return;
   LogMessageBuilder msg(this);
-  msg.Append("%s,%s,",
+  msg.Append("%s,%s,%d,",
              kLogEventsNames[CODE_CREATION_EVENT],
-             kLogEventsNames[tag]);
+             kLogEventsNames[tag],
+             code->kind());
   msg.AppendAddress(code->address());
   msg.Append(",%d,\"args_count: %d\"", code->ExecutableSize(), args_count);
   msg.Append('\n');
@@ -1167,7 +1199,7 @@ void Logger::RegExpCodeCreateEvent(Code* code, String* source) {
   }
   if (!FLAG_log_code) return;
   LogMessageBuilder msg(this);
-  msg.Append("%s,%s,",
+  msg.Append("%s,%s,-2,",
              kLogEventsNames[CODE_CREATION_EVENT],
              kLogEventsNames[REG_EXP_TAG]);
   msg.AppendAddress(code->address());
@@ -1347,6 +1379,8 @@ void Logger::TickEvent(TickSample* sample, bool overflow) {
   msg.AppendAddress(sample->pc);
   msg.Append(',');
   msg.AppendAddress(sample->sp);
+  msg.Append(",%ld",
+      FLAG_log_timer_events ? static_cast<int>(OS::Ticks() - epoch_) : 0);
   if (sample->has_external_callback) {
     msg.Append(",1,");
     msg.AppendAddress(sample->external_callback);

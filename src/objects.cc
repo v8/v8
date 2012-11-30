@@ -4157,14 +4157,12 @@ MaybeObject* JSObject::DeleteElement(uint32_t index, DeleteMode mode) {
   HandleScope scope(isolate);
   Handle<JSObject> self(this);
 
-  Handle<String> name;
   Handle<Object> old_value;
-  bool preexists = false;
-  if (FLAG_harmony_observation && map()->is_observed()) {
-    name = isolate->factory()->Uint32ToString(index);
-    preexists = self->HasLocalElement(index);
-    if (preexists) {
-      old_value = GetLocalElementAccessorPair(index) != NULL
+  bool should_enqueue_change_record = false;
+  if (FLAG_harmony_observation && self->map()->is_observed()) {
+    should_enqueue_change_record = self->HasLocalElement(index);
+    if (should_enqueue_change_record) {
+      old_value = self->GetLocalElementAccessorPair(index) != NULL
           ? Handle<Object>::cast(isolate->factory()->the_hole_value())
           : Object::GetElement(self, index);
     }
@@ -4181,9 +4179,9 @@ MaybeObject* JSObject::DeleteElement(uint32_t index, DeleteMode mode) {
   Handle<Object> hresult;
   if (!result->ToHandle(&hresult, isolate)) return result;
 
-  if (FLAG_harmony_observation && map()->is_observed()) {
-    if (preexists && !self->HasLocalElement(index))
-      EnqueueChangeRecord(self, "deleted", name, old_value);
+  if (should_enqueue_change_record && !self->HasLocalElement(index)) {
+    Handle<String> name = isolate->factory()->Uint32ToString(index);
+    EnqueueChangeRecord(self, "deleted", name, old_value);
   }
 
   return *hresult;
@@ -4243,7 +4241,8 @@ MaybeObject* JSObject::DeleteProperty(String* name, DeleteMode mode) {
   Handle<String> hname(name);
 
   Handle<Object> old_value(isolate->heap()->the_hole_value());
-  if (FLAG_harmony_observation && map()->is_observed()) {
+  bool is_observed = FLAG_harmony_observation && self->map()->is_observed();
+  if (is_observed) {
     old_value = handle(lookup.GetLazyValue(), isolate);
   }
   MaybeObject* result;
@@ -4268,9 +4267,8 @@ MaybeObject* JSObject::DeleteProperty(String* name, DeleteMode mode) {
   Handle<Object> hresult;
   if (!result->ToHandle(&hresult, isolate)) return result;
 
-  if (FLAG_harmony_observation && map()->is_observed()) {
-    if (!self->HasLocalProperty(*hname))
-      EnqueueChangeRecord(self, "deleted", hname, old_value);
+  if (is_observed && !self->HasLocalProperty(*hname)) {
+    EnqueueChangeRecord(self, "deleted", hname, old_value);
   }
 
   return *hresult;
@@ -4924,11 +4922,12 @@ MaybeObject* JSObject::DefineAccessor(String* name_raw,
   bool is_element = name->AsArrayIndex(&index);
 
   Handle<Object> old_value = isolate->factory()->the_hole_value();
+  bool is_observed = FLAG_harmony_observation && self->map()->is_observed();
   bool preexists = false;
-  if (FLAG_harmony_observation && map()->is_observed()) {
+  if (is_observed) {
     if (is_element) {
       preexists = HasLocalElement(index);
-      if (preexists && GetLocalElementAccessorPair(index) == NULL) {
+      if (preexists && self->GetLocalElementAccessorPair(index) == NULL) {
         old_value = Object::GetElement(self, index);
       }
     } else {
@@ -4946,7 +4945,7 @@ MaybeObject* JSObject::DefineAccessor(String* name_raw,
   Handle<Object> hresult;
   if (!result->ToHandle(&hresult, isolate)) return result;
 
-  if (FLAG_harmony_observation && map()->is_observed()) {
+  if (is_observed) {
     const char* type = preexists ? "reconfigured" : "new";
     EnqueueChangeRecord(self, type, name, old_value);
   }
@@ -8876,11 +8875,10 @@ bool Code::IsOld() {
 
 byte* Code::FindCodeAgeSequence() {
   return FLAG_age_code &&
-      strlen(FLAG_stop_at) == 0 &&
-      !ProfileEntryHookStub::HasEntryHook() &&
+      prologue_offset() != kPrologueOffsetNotSet &&
       (kind() == OPTIMIZED_FUNCTION ||
        (kind() == FUNCTION && !has_debug_break_slots()))
-      ? FindPlatformCodeAgeSequence()
+      ? instruction_start() + prologue_offset()
       : NULL;
 }
 
@@ -9283,9 +9281,8 @@ MaybeObject* JSObject::SetFastElementsCapacityAndLength(
 
   // Allocate a new fast elements backing store.
   FixedArray* new_elements;
-  { MaybeObject* maybe = heap->AllocateFixedArrayWithHoles(capacity);
-    if (!maybe->To(&new_elements)) return maybe;
-  }
+  MaybeObject* maybe = heap->AllocateUninitializedFixedArray(capacity);
+  if (!maybe->To(&new_elements)) return maybe;
 
   ElementsKind elements_kind = GetElementsKind();
   ElementsKind new_elements_kind;
@@ -9309,10 +9306,10 @@ MaybeObject* JSObject::SetFastElementsCapacityAndLength(
   }
   FixedArrayBase* old_elements = elements();
   ElementsAccessor* accessor = ElementsAccessor::ForKind(elements_kind);
-  { MaybeObject* maybe_obj =
-        accessor->CopyElements(this, new_elements, new_elements_kind);
-    if (maybe_obj->IsFailure()) return maybe_obj;
-  }
+  MaybeObject* maybe_obj =
+      accessor->CopyElements(this, new_elements, new_elements_kind);
+  if (maybe_obj->IsFailure()) return maybe_obj;
+
   if (elements_kind != NON_STRICT_ARGUMENTS_ELEMENTS) {
     Map* new_map = map();
     if (new_elements_kind != elements_kind) {
@@ -10345,7 +10342,7 @@ MaybeObject* JSObject::SetElement(uint32_t index,
   Handle<Object> old_length;
 
   if (old_attributes != ABSENT) {
-    if (GetLocalElementAccessorPair(index) == NULL)
+    if (self->GetLocalElementAccessorPair(index) == NULL)
       old_value = Object::GetElement(self, index);
   } else if (self->IsJSArray()) {
     // Store old array length in case adding an element grows the array.
@@ -11598,9 +11595,8 @@ class SubStringAsciiSymbolKey : public HashTableKey {
  public:
   explicit SubStringAsciiSymbolKey(Handle<SeqOneByteString> string,
                                    int from,
-                                   int length,
-                                   uint32_t seed)
-      : string_(string), from_(from), length_(length), seed_(seed) { }
+                                   int length)
+      : string_(string), from_(from), length_(length) { }
 
   uint32_t Hash() {
     ASSERT(length_ >= 0);
@@ -11657,7 +11653,6 @@ class SubStringAsciiSymbolKey : public HashTableKey {
   int from_;
   int length_;
   uint32_t hash_field_;
-  uint32_t seed_;
 };
 
 
@@ -12583,7 +12578,7 @@ MaybeObject* SymbolTable::LookupSubStringAsciiSymbol(
     int from,
     int length,
     Object** s) {
-  SubStringAsciiSymbolKey key(str, from, length, GetHeap()->HashSeed());
+  SubStringAsciiSymbolKey key(str, from, length);
   return LookupKey(&key, s);
 }
 
@@ -13271,8 +13266,7 @@ MaybeObject* StringDictionary::TransformPropertiesToFastFor(
       PropertyType type = DetailsAt(i).type();
       ASSERT(type != FIELD);
       instance_descriptor_length++;
-      if (type == NORMAL &&
-          (!value->IsJSFunction() || heap->InNewSpace(value))) {
+      if (type == NORMAL && !value->IsJSFunction()) {
         number_of_fields += 1;
       }
     }
@@ -13337,7 +13331,7 @@ MaybeObject* StringDictionary::TransformPropertiesToFastFor(
       int enumeration_index = details.descriptor_index();
       PropertyType type = details.type();
 
-      if (value->IsJSFunction() && !heap->InNewSpace(value)) {
+      if (value->IsJSFunction()) {
         ConstantFunctionDescriptor d(key,
                                      JSFunction::cast(value),
                                      details.attributes(),

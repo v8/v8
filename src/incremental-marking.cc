@@ -338,10 +338,9 @@ class IncrementalMarkingMarkingVisitor
 
 class IncrementalMarkingRootMarkingVisitor : public ObjectVisitor {
  public:
-  IncrementalMarkingRootMarkingVisitor(Heap* heap,
-                                       IncrementalMarking* incremental_marking)
-      : heap_(heap),
-        incremental_marking_(incremental_marking) {
+  explicit IncrementalMarkingRootMarkingVisitor(
+      IncrementalMarking* incremental_marking)
+      : incremental_marking_(incremental_marking) {
   }
 
   void VisitPointer(Object** p) {
@@ -368,7 +367,6 @@ class IncrementalMarkingRootMarkingVisitor : public ObjectVisitor {
     }
   }
 
-  Heap* heap_;
   IncrementalMarking* incremental_marking_;
 };
 
@@ -493,7 +491,8 @@ bool IncrementalMarking::WorthActivating() {
   static const intptr_t kActivationThreshold = 0;
 #endif
 
-  return FLAG_incremental_marking &&
+  return !FLAG_expose_gc &&
+      FLAG_incremental_marking &&
       !Serializer::enabled() &&
       heap_->PromotedSpaceSizeOfObjects() > kActivationThreshold;
 }
@@ -628,7 +627,7 @@ void IncrementalMarking::StartMarking(CompactionFlag flag) {
   }
 
   // Mark strong roots grey.
-  IncrementalMarkingRootMarkingVisitor visitor(heap_, this);
+  IncrementalMarkingRootMarkingVisitor visitor(this);
   heap_->IterateStrongRoots(&visitor, VISIT_ONLY_STRONG);
 
   // Ready to start incremental marking.

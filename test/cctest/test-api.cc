@@ -626,6 +626,8 @@ THREADED_TEST(UsingExternalAsciiString) {
 
 
 THREADED_TEST(ScavengeExternalString) {
+  i::FLAG_stress_compaction = false;
+  i::FLAG_gc_global = false;
   int dispose_count = 0;
   bool in_new_space = false;
   {
@@ -646,6 +648,8 @@ THREADED_TEST(ScavengeExternalString) {
 
 
 THREADED_TEST(ScavengeExternalAsciiString) {
+  i::FLAG_stress_compaction = false;
+  i::FLAG_gc_global = false;
   int dispose_count = 0;
   bool in_new_space = false;
   {
@@ -2546,6 +2550,8 @@ THREADED_TEST(ApiObjectGroupsCycle) {
 // TODO(mstarzinger): This should be a THREADED_TEST but causes failures
 // on the buildbots, so was made non-threaded for the time being.
 TEST(ApiObjectGroupsCycleForScavenger) {
+  i::FLAG_stress_compaction = false;
+  i::FLAG_gc_global = false;
   HandleScope scope;
   LocalContext env;
 
@@ -17987,7 +17993,6 @@ class ThreadInterruptTest {
 
    private:
      ThreadInterruptTest* test_;
-     struct sigaction sa_;
   };
 
   i::Semaphore* sem_;

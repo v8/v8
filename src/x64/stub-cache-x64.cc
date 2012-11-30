@@ -4108,15 +4108,15 @@ void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
     __ Move(FieldOperand(rdi, FixedDoubleArray::kLengthOffset),
             Smi::FromInt(JSArray::kPreallocatedArrayElements));
 
-    __ movq(r8, BitCast<int64_t, uint64_t>(kHoleNanInt64), RelocInfo::NONE);
-    for (int i = 1; i < JSArray::kPreallocatedArrayElements; i++) {
-      __ movq(FieldOperand(rdi, FixedDoubleArray::OffsetOfElementAt(i)), r8);
-    }
-
     // Increment the length of the array.
     __ SmiToInteger32(rcx, rcx);
     __ StoreNumberToDoubleElements(rax, rdi, rcx, xmm0,
                                    &restore_key_transition_elements_kind);
+
+    __ movq(r8, BitCast<int64_t, uint64_t>(kHoleNanInt64), RelocInfo::NONE);
+    for (int i = 1; i < JSArray::kPreallocatedArrayElements; i++) {
+      __ movq(FieldOperand(rdi, FixedDoubleArray::OffsetOfElementAt(i)), r8);
+    }
 
     // Install the new backing store in the JSArray.
     __ movq(FieldOperand(rdx, JSObject::kElementsOffset), rdi);

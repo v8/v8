@@ -658,6 +658,8 @@ class MarkCompactCollector {
 
   void ClearMarkbits();
 
+  bool abort_incremental_marking() const { return abort_incremental_marking_; }
+
   bool is_compacting() const { return compacting_; }
 
   MarkingParity marking_parity() { return marking_parity_; }

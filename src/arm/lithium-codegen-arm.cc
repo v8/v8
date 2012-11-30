@@ -138,17 +138,16 @@ bool LCodeGen::GeneratePrologue() {
   // function calls.
   if (!info_->is_classic_mode() || info_->is_native()) {
     Label ok;
-    Label begin;
-    __ bind(&begin);
     __ cmp(r5, Operand(0));
     __ b(eq, &ok);
     int receiver_offset = scope()->num_parameters() * kPointerSize;
     __ LoadRoot(r2, Heap::kUndefinedValueRootIndex);
     __ str(r2, MemOperand(sp, receiver_offset));
     __ bind(&ok);
-    ASSERT_EQ(kSizeOfOptimizedStrictModePrologue, ok.pos() - begin.pos());
   }
 
+
+  info()->set_prologue_offset(masm_->pc_offset());
   // The following three instructions must remain together and unmodified for
   // code aging to work properly.
   __ stm(db_w, sp, r1.bit() | cp.bit() | fp.bit() | lr.bit());

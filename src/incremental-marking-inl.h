@@ -44,8 +44,12 @@ bool IncrementalMarking::BaseRecordWrite(HeapObject* obj,
     if (Marking::IsBlack(obj_bit)) {
       MemoryChunk* chunk = MemoryChunk::FromAddress(obj->address());
       if (chunk->IsFlagSet(MemoryChunk::HAS_PROGRESS_BAR)) {
-        WhiteToGreyAndPush(value_heap_obj, value_bit);
-        RestartIfNotMarking();
+        if (chunk->IsLeftOfProgressBar(slot)) {
+          WhiteToGreyAndPush(value_heap_obj, value_bit);
+          RestartIfNotMarking();
+        } else {
+          return false;
+        }
       } else {
         BlackToGreyAndUnshift(obj, obj_bit);
         RestartIfNotMarking();

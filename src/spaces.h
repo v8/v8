@@ -503,6 +503,12 @@ class MemoryChunk {
     }
   }
 
+  bool IsLeftOfProgressBar(Object** slot) {
+    Address slot_address = reinterpret_cast<Address>(slot);
+    ASSERT(slot_address > this->address());
+    return (slot_address - (this->address() + kObjectStartOffset)) <
+           progress_bar();
+  }
 
   static void IncrementLiveBytesFromGC(Address address, int by) {
     MemoryChunk::FromAddress(address)->IncrementLiveBytes(by);
@@ -2434,11 +2440,9 @@ class FixedSpace : public PagedSpace {
   FixedSpace(Heap* heap,
              intptr_t max_capacity,
              AllocationSpace id,
-             int object_size_in_bytes,
-             const char* name)
+             int object_size_in_bytes)
       : PagedSpace(heap, max_capacity, id, NOT_EXECUTABLE),
-        object_size_in_bytes_(object_size_in_bytes),
-        name_(name) {
+        object_size_in_bytes_(object_size_in_bytes) {
     page_extra_ = Page::kNonCodeObjectAreaSize % object_size_in_bytes;
   }
 
@@ -2455,9 +2459,6 @@ class FixedSpace : public PagedSpace {
  private:
   // The size of objects in this space.
   int object_size_in_bytes_;
-
-  // The name of this space.
-  const char* name_;
 };
 
 
@@ -2468,7 +2469,7 @@ class MapSpace : public FixedSpace {
  public:
   // Creates a map space object with a maximum capacity.
   MapSpace(Heap* heap, intptr_t max_capacity, AllocationSpace id)
-      : FixedSpace(heap, max_capacity, id, Map::kSize, "map"),
+      : FixedSpace(heap, max_capacity, id, Map::kSize),
         max_map_space_pages_(kMaxMapPageIndex - 1) {
   }
 
@@ -2509,7 +2510,7 @@ class CellSpace : public FixedSpace {
  public:
   // Creates a property cell space object with a maximum capacity.
   CellSpace(Heap* heap, intptr_t max_capacity, AllocationSpace id)
-      : FixedSpace(heap, max_capacity, id, JSGlobalPropertyCell::kSize, "cell")
+      : FixedSpace(heap, max_capacity, id, JSGlobalPropertyCell::kSize)
   {}
 
   virtual int RoundSizeDownToObjectAlignment(int size) {

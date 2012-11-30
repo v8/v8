@@ -297,6 +297,11 @@ void LUnaryMathOperation::PrintDataTo(StringStream* stream) {
 }
 
 
+void LMathExp::PrintDataTo(StringStream* stream) {
+  value()->PrintTo(stream);
+}
+
+
 void LLoadContextSlot::PrintDataTo(StringStream* stream) {
   context()->PrintTo(stream);
   stream->Add("[%d]", slot_index());
@@ -394,6 +399,15 @@ void LStoreKeyed::PrintDataTo(StringStream* stream) {
   } else {
     stream->Add("] <- ");
   }
+  value()->PrintTo(stream);
+}
+
+
+void LStoreKeyedGeneric::PrintDataTo(StringStream* stream) {
+  object()->PrintTo(stream);
+  stream->Add("[");
+  key()->PrintTo(stream);
+  stream->Add("] <- ");
   value()->PrintTo(stream);
 }
 
@@ -1031,6 +1045,15 @@ LInstruction* LChunkBuilder::DoUnaryMathOperation(HUnaryMathOperation* instr) {
     LOperand* input = UseFixedDouble(instr->value(), f4);
     LUnaryMathOperation* result = new(zone()) LUnaryMathOperation(input, NULL);
     return MarkAsCall(DefineFixedDouble(result, f4), instr);
+  } else if (op == kMathExp) {
+    ASSERT(instr->representation().IsDouble());
+    ASSERT(instr->value()->representation().IsDouble());
+    LOperand* input = UseTempRegister(instr->value());
+    LOperand* temp1 = TempRegister();
+    LOperand* temp2 = TempRegister();
+    LOperand* double_temp = FixedTemp(f6);  // Chosen by fair dice roll.
+    LMathExp* result = new(zone()) LMathExp(input, double_temp, temp1, temp2);
+    return DefineAsRegister(result);
   } else if (op == kMathPowHalf) {
     // Input cannot be the same as the result.
     // See lithium-codegen-mips.cc::DoMathPowHalf.
@@ -1040,7 +1063,9 @@ LInstruction* LChunkBuilder::DoUnaryMathOperation(HUnaryMathOperation* instr) {
     return DefineFixedDouble(result, f4);
   } else {
     LOperand* input = UseRegisterAtStart(instr->value());
-    LOperand* temp = (op == kMathFloor) ? TempRegister() : NULL;
+
+    LOperand* temp = (op == kMathRound) ? FixedTemp(f6) :
+        (op == kMathFloor) ? TempRegister() : NULL;
     LUnaryMathOperation* result = new(zone()) LUnaryMathOperation(input, temp);
     switch (op) {
       case kMathAbs:
@@ -1557,8 +1582,7 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
         LOperand* temp1 = TempRegister();
         LOperand* temp2 = instr->CanTruncateToInt32() ? TempRegister()
                                                       : NULL;
-        LOperand* temp3 = instr->CanTruncateToInt32() ? FixedTemp(f22)
-                                                      : NULL;
+        LOperand* temp3 = FixedTemp(f22);
         res = DefineSameAsFirst(new(zone()) LTaggedToI(value,
                                                        temp1,
                                                        temp2,

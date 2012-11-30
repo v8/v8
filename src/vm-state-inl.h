@@ -67,6 +67,10 @@ VMState::VMState(Isolate* isolate, StateTag tag)
     LOG(isolate, UncheckedStringEvent("From", StateToString(previous_tag_)));
   }
 
+  if (FLAG_log_timer_events) {
+    LOG(isolate, ExternalSwitch(previous_tag_, tag));
+  }
+
   isolate_->SetCurrentVMState(tag);
 }
 
@@ -78,6 +82,10 @@ VMState::~VMState() {
                               StateToString(isolate_->current_vm_state())));
     LOG(isolate_,
         UncheckedStringEvent("To", StateToString(previous_tag_)));
+  }
+
+  if (FLAG_log_timer_events) {
+    LOG(isolate_, ExternalSwitch(isolate_->current_vm_state(), previous_tag_));
   }
 
   isolate_->SetCurrentVMState(previous_tag_);

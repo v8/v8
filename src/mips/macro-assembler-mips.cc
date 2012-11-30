@@ -1395,49 +1395,68 @@ void MacroAssembler::ConvertToInt32(Register source,
 
 
 void MacroAssembler::EmitFPUTruncate(FPURoundingMode rounding_mode,
-                                     FPURegister result,
+                                     Register result,
                                      DoubleRegister double_input,
-                                     Register scratch1,
+                                     Register scratch,
+                                     DoubleRegister double_scratch,
                                      Register except_flag,
                                      CheckForInexactConversion check_inexact) {
+  ASSERT(!result.is(scratch));
+  ASSERT(!double_input.is(double_scratch));
+  ASSERT(!except_flag.is(scratch));
+
   ASSERT(CpuFeatures::IsSupported(FPU));
   CpuFeatures::Scope scope(FPU);
+  Label done;
+
+  // Clear the except flag (0 = no exception)
+  mov(except_flag, zero_reg);
+
+  // Test for values that can be exactly represented as a signed 32-bit integer.
+  cvt_w_d(double_scratch, double_input);
+  mfc1(result, double_scratch);
+  cvt_d_w(double_scratch, double_scratch);
+  BranchF(&done, NULL, eq, double_input, double_scratch);
 
   int32_t except_mask = kFCSRFlagMask;  // Assume interested in all exceptions.
 
   if (check_inexact == kDontCheckForInexactConversion) {
-    // Ingore inexact exceptions.
+    // Ignore inexact exceptions.
     except_mask &= ~kFCSRInexactFlagMask;
   }
 
   // Save FCSR.
-  cfc1(scratch1, FCSR);
+  cfc1(scratch, FCSR);
   // Disable FPU exceptions.
   ctc1(zero_reg, FCSR);
 
   // Do operation based on rounding mode.
   switch (rounding_mode) {
     case kRoundToNearest:
-      Round_w_d(result, double_input);
+      Round_w_d(double_scratch, double_input);
       break;
     case kRoundToZero:
-      Trunc_w_d(result, double_input);
+      Trunc_w_d(double_scratch, double_input);
       break;
     case kRoundToPlusInf:
-      Ceil_w_d(result, double_input);
+      Ceil_w_d(double_scratch, double_input);
       break;
     case kRoundToMinusInf:
-      Floor_w_d(result, double_input);
+      Floor_w_d(double_scratch, double_input);
       break;
   }  // End of switch-statement.
 
   // Retrieve FCSR.
   cfc1(except_flag, FCSR);
   // Restore FCSR.
-  ctc1(scratch1, FCSR);
+  ctc1(scratch, FCSR);
+  // Move the converted value into the result register.
+  mfc1(result, double_scratch);
 
   // Check for fpu exceptions.
   And(except_flag, except_flag, Operand(except_mask));
+
+  bind(&done);
 }
 
 
@@ -3215,7 +3234,8 @@ void MacroAssembler::AllocateHeapNumber(Register result,
                                         Register scratch1,
                                         Register scratch2,
                                         Register heap_number_map,
-                                        Label* need_gc) {
+                                        Label* need_gc,
+                                        TaggingMode tagging_mode) {
   // Allocate an object in the heap for the heap number and tag it as a heap
   // object.
   AllocateInNewSpace(HeapNumber::kSize,
@@ -3223,11 +3243,16 @@ void MacroAssembler::AllocateHeapNumber(Register result,
                      scratch1,
                      scratch2,
                      need_gc,
-                     TAG_OBJECT);
+                     tagging_mode == TAG_RESULT ? TAG_OBJECT :
+                                                  NO_ALLOCATION_FLAGS);
 
   // Store heap number map in the allocated object.
   AssertRegisterIsRoot(heap_number_map, Heap::kHeapNumberMapRootIndex);
-  sw(heap_number_map, FieldMemOperand(result, HeapObject::kMapOffset));
+  if (tagging_mode == TAG_RESULT) {
+    sw(heap_number_map, FieldMemOperand(result, HeapObject::kMapOffset));
+  } else {
+    sw(heap_number_map, MemOperand(result, HeapObject::kMapOffset));
+  }
 }
 
 
@@ -3951,6 +3976,14 @@ void MacroAssembler::CallApiFunctionAndReturn(ExternalReference function,
   Addu(s2, s2, Operand(1));
   sw(s2, MemOperand(s3, kLevelOffset));
 
+  if (FLAG_log_timer_events) {
+    FrameScope frame(this, StackFrame::MANUAL);
+    PushSafepointRegisters();
+    PrepareCallCFunction(0, a0);
+    CallCFunction(ExternalReference::log_enter_external_function(isolate()), 0);
+    PopSafepointRegisters();
+  }
+
   // The O32 ABI requires us to pass a pointer in a0 where the returned struct
   // (4 bytes) will be placed. This is also built into the Simulator.
   // Set up the pointer to the returned value (a0). It was allocated in
@@ -3962,6 +3995,14 @@ void MacroAssembler::CallApiFunctionAndReturn(ExternalReference function,
   // DirectCEntry stub itself is generated early and never moves.
   DirectCEntryStub stub;
   stub.GenerateCall(this, function);
+
+  if (FLAG_log_timer_events) {
+    FrameScope frame(this, StackFrame::MANUAL);
+    PushSafepointRegisters();
+    PrepareCallCFunction(0, a0);
+    CallCFunction(ExternalReference::log_leave_external_function(isolate()), 0);
+    PopSafepointRegisters();
+  }
 
   // As mentioned above, on MIPS a pointer is returned - we need to dereference
   // it to get the actual return value (which is also a pointer).

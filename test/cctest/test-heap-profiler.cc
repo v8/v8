@@ -1015,7 +1015,6 @@ class TestRetainedObjectInfo : public v8::RetainedObjectInfo {
 
  private:
   bool disposed_;
-  int category_;
   int hash_;
   const char* group_label_;
   const char* label_;

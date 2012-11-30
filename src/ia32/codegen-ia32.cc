@@ -872,42 +872,6 @@ static byte* GetNoCodeAgeSequence(uint32_t* length) {
 }
 
 
-byte* Code::FindPlatformCodeAgeSequence() {
-  byte* start = instruction_start();
-  uint32_t young_length;
-  byte* young_sequence = GetNoCodeAgeSequence(&young_length);
-  if (!memcmp(start, young_sequence, young_length) ||
-      *start == kCallOpcode) {
-    return start;
-  } else {
-    if (kind() == FUNCTION) {
-      byte* start_after_strict =
-          start + kSizeOfFullCodegenStrictModePrologue;
-      ASSERT(!memcmp(start_after_strict, young_sequence, young_length) ||
-             start[kSizeOfFullCodegenStrictModePrologue] == kCallOpcode);
-      return start_after_strict;
-    } else {
-      ASSERT(kind() == OPTIMIZED_FUNCTION);
-      start = instruction_start() + kSizeOfOptimizedStrictModePrologue;
-      if (!memcmp(start, young_sequence, young_length) ||
-          *start == kCallOpcode) {
-        return start;
-      }
-      start = instruction_start() + kSizeOfOptimizedAlignStackPrologue;
-      if (!memcmp(start, young_sequence, young_length) ||
-          *start == kCallOpcode) {
-        return start;
-      }
-      start = instruction_start() + kSizeOfOptimizedAlignStackPrologue +
-          kSizeOfOptimizedStrictModePrologue;
-      ASSERT(!memcmp(start, young_sequence, young_length) ||
-             *start == kCallOpcode);
-      return start;
-    }
-  }
-}
-
-
 bool Code::IsYoungSequence(byte* sequence) {
   uint32_t young_length;
   byte* young_sequence = GetNoCodeAgeSequence(&young_length);

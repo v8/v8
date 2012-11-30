@@ -657,6 +657,7 @@ class FloatingPointHelper : public AllStatic {
                                       Register object,
                                       Destination destination,
                                       FPURegister double_dst,
+                                      FPURegister double_scratch,
                                       Register dst1,
                                       Register dst2,
                                       Register heap_number_map,
@@ -678,7 +679,8 @@ class FloatingPointHelper : public AllStatic {
                                 Register scratch1,
                                 Register scratch2,
                                 Register scratch3,
-                                FPURegister double_scratch,
+                                FPURegister double_scratch0,
+                                FPURegister double_scratch1,
                                 Label* not_int32);
 
   // Generate non FPU code to check if a double can be exactly represented by a

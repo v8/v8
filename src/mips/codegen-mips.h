@@ -36,9 +36,6 @@
 namespace v8 {
 namespace internal {
 
-static const int kSizeOfFullCodegenStrictModePrologue = 16;
-static const int kSizeOfOptimizedStrictModePrologue = 16;
-
 // Forward declarations
 class CompilationInfo;
 
@@ -91,6 +88,22 @@ class StringCharLoadGenerator : public AllStatic {
 
  private:
   DISALLOW_COPY_AND_ASSIGN(StringCharLoadGenerator);
+};
+
+
+class MathExpGenerator : public AllStatic {
+ public:
+  static void EmitMathExp(MacroAssembler* masm,
+                          DoubleRegister input,
+                          DoubleRegister result,
+                          DoubleRegister double_scratch1,
+                          DoubleRegister double_scratch2,
+                          Register temp1,
+                          Register temp2,
+                          Register temp3);
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(MathExpGenerator);
 };
 
 } }  // namespace v8::internal

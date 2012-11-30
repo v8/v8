@@ -138,8 +138,6 @@ void FullCodeGenerator::Generate() {
   // function calls.
   if (!info->is_classic_mode() || info->is_native()) {
     Label ok;
-    Label start;
-    __ bind(&start);
     __ test(ecx, ecx);
     __ j(zero, &ok, Label::kNear);
     // +1 for return address.
@@ -151,8 +149,6 @@ void FullCodeGenerator::Generate() {
     __ mov(Operand(esp, receiver_offset),
            Immediate(isolate()->factory()->undefined_value()));
     __ bind(&ok);
-    ASSERT(!FLAG_age_code ||
-           (kSizeOfFullCodegenStrictModePrologue == ok.pos() - start.pos()));
   }
 
   // Open a frame scope to indicate that there is a frame on the stack.  The
@@ -160,6 +156,7 @@ void FullCodeGenerator::Generate() {
   // the frame (that is done below).
   FrameScope frame_scope(masm_, StackFrame::MANUAL);
 
+  info->set_prologue_offset(masm_->pc_offset());
   __ push(ebp);  // Caller's frame pointer.
   __ mov(ebp, esp);
   __ push(esi);  // Callee's context.

@@ -275,7 +275,13 @@ class Logger {
   void SharedLibraryEvent(const wchar_t* library_path,
                           uintptr_t start,
                           uintptr_t end);
+
+  // ==== Events logged by --log-timer-events. ====
   void TimerEvent(const char* name, int64_t start, int64_t end);
+  void ExternalSwitch(StateTag old_tag, StateTag new_tag);
+
+  static void EnterExternal();
+  static void LeaveExternal();
 
   class TimerEventScope {
    public:
@@ -476,6 +482,7 @@ class Logger {
   Address prev_code_;
 
   int64_t epoch_;
+  static int64_t enter_external_;
 
   friend class CpuProfiler;
 };
