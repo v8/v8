@@ -378,6 +378,11 @@
               }],
             ],
           }],
+          ['OS=="mac"', {
+            'xcode_settings': {
+              'GCC_OPTIMIZATION_LEVEL': '0',  # -O0
+            },
+          }],
         ],
       },  # Debug
       'Release': {
