@@ -5323,7 +5323,8 @@ bool Heap::IdleNotification(int hint) {
       AgeInlineCaches();
     }
     int mark_sweep_time = Min(TimeMarkSweepWouldTakeInMs(), 1000);
-    if (hint >= mark_sweep_time && incremental_marking()->IsStopped()) {
+    if (hint >= mark_sweep_time && !FLAG_expose_gc &&
+        incremental_marking()->IsStopped()) {
       HistogramTimerScope scope(isolate_->counters()->gc_context());
       CollectAllGarbage(kReduceMemoryFootprintMask,
                         "idle notification: contexts disposed");
@@ -5338,7 +5339,7 @@ bool Heap::IdleNotification(int hint) {
     return false;
   }
 
-  if (!FLAG_incremental_marking || Serializer::enabled()) {
+  if (!FLAG_incremental_marking || FLAG_expose_gc || Serializer::enabled()) {
     return IdleGlobalGC();
   }
 
