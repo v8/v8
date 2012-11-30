@@ -1414,9 +1414,9 @@ class MacroAssembler: public Assembler {
     return kNumSafepointRegisters - kSafepointPushRegisterIndices[reg_code] - 1;
   }
 
-  // Needs access to SafepointRegisterStackIndex for compiled frame
+  // Needs access to SafepointRegisterStackIndex for optimized frame
   // traversal.
-  friend class CompiledFrame;
+  friend class OptimizedFrame;
 };
 
 

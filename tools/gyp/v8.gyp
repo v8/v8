@@ -262,7 +262,6 @@
             '../../src/circular-queue.h',
             '../../src/code-stubs.cc',
             '../../src/code-stubs.h',
-            '../../src/code-stubs-hydrogen.cc',
             '../../src/code.h',
             '../../src/codegen.cc',
             '../../src/codegen.h',

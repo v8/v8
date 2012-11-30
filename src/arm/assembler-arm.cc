@@ -85,33 +85,6 @@ static unsigned CpuFeaturesImpliedByCompiler() {
 }
 
 
-int Register::NumAllocatableRegisters() {
-  if (CpuFeatures::IsSupported(VFP2)) {
-    return kMaxNumAllocatableRegisters;
-  } else {
-    return kMaxNumAllocatableRegisters - kGPRsPerNonVFP2Double;
-  }
-}
-
-
-int DoubleRegister::NumAllocatableRegisters() {
-  if (CpuFeatures::IsSupported(VFP2)) {
-    return DwVfpRegister::kMaxNumAllocatableRegisters;
-  } else {
-    return SoftFloatRegister::kMaxNumAllocatableRegisters;
-  }
-}
-
-
-const char* DoubleRegister::AllocationIndexToString(int index) {
-  if (CpuFeatures::IsSupported(VFP2)) {
-    return DwVfpRegister::AllocationIndexToString(index);
-  } else {
-    return SoftFloatRegister::AllocationIndexToString(index);
-  }
-}
-
-
 void CpuFeatures::Probe() {
   unsigned standard_features = static_cast<unsigned>(
       OS::CpuFeaturesImpliedByPlatform()) | CpuFeaturesImpliedByCompiler();

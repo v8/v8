@@ -924,9 +924,9 @@ class MacroAssembler: public Assembler {
   Operand SafepointRegisterSlot(Register reg);
   static int SafepointRegisterStackIndex(int reg_code);
 
-  // Needs access to SafepointRegisterStackIndex for compiled frame
+  // Needs access to SafepointRegisterStackIndex for optimized frame
   // traversal.
-  friend class CompiledFrame;
+  friend class OptimizedFrame;
 };
 
 

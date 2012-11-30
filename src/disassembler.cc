@@ -287,12 +287,7 @@ static int DecodeIt(FILE* f,
         Address addr = relocinfo.target_address();
         int id = Deoptimizer::GetDeoptimizationId(addr, Deoptimizer::EAGER);
         if (id == Deoptimizer::kNotDeoptimizationEntry) {
-          id = Deoptimizer::GetDeoptimizationId(addr, Deoptimizer::LAZY);
-          if (id == Deoptimizer::kNotDeoptimizationEntry) {
-            out.AddFormatted("    ;; %s", RelocInfo::RelocModeName(rmode));
-          } else {
-            out.AddFormatted("    ;; lazy deoptimization bailout %d", id);
-          }
+          out.AddFormatted("    ;; %s", RelocInfo::RelocModeName(rmode));
         } else {
           out.AddFormatted("    ;; deoptimization bailout %d", id);
         }
@@ -327,8 +322,7 @@ int Disassembler::Decode(FILE* f, byte* begin, byte* end) {
 
 // Called by Code::CodePrint.
 void Disassembler::Decode(FILE* f, Code* code) {
-  int decode_size = (code->kind() == Code::OPTIMIZED_FUNCTION ||
-                     code->kind() == Code::COMPILED_STUB)
+  int decode_size = (code->kind() == Code::OPTIMIZED_FUNCTION)
       ? static_cast<int>(code->safepoint_table_offset())
       : code->instruction_size();
   // If there might be a stack check table, stop before reaching it.

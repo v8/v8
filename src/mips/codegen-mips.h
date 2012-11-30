@@ -70,8 +70,6 @@ class CodeGenerator: public AstVisitor {
                               int pos,
                               bool right_here = false);
 
-  DEFINE_AST_VISITOR_SUBCLASS_METHODS();
-
  private:
   DISALLOW_COPY_AND_ASSIGN(CodeGenerator);
 };

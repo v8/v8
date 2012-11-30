@@ -40,24 +40,6 @@
 namespace v8 {
 namespace internal {
 
-
-CodeStubInterfaceDescriptor*
-    KeyedLoadFastElementStub::GetInterfaceDescriptor(Isolate* isolate) {
-  static CodeStubInterfaceDescriptor* result = NULL;
-  if (result == NULL) {
-    Handle<Code> miss = isolate->builtins()->KeyedLoadIC_Miss();
-    static Register registers[] = { edx, ecx };
-    static CodeStubInterfaceDescriptor info = {
-      2,
-      registers,
-      miss
-    };
-    result = &info;
-  }
-  return result;
-}
-
-
 #define __ ACCESS_MASM(masm)
 
 void ToNumberStub::Generate(MacroAssembler* masm) {
@@ -2444,7 +2426,6 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
 
     __ bind(&loaded);
   } else {  // UNTAGGED.
-    CpuFeatures::Scope scope(SSE2);
     if (CpuFeatures::IsSupported(SSE4_1)) {
       CpuFeatures::Scope sse4_scope(SSE4_1);
       __ pextrd(edx, xmm1, 0x1);  // copy xmm1[63..32] to edx.
@@ -2517,7 +2498,6 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
     __ fstp(0);
     __ ret(kPointerSize);
   } else {  // UNTAGGED.
-    CpuFeatures::Scope scope(SSE2);
     __ movdbl(xmm1, FieldOperand(eax, HeapNumber::kValueOffset));
     __ Ret();
   }
@@ -2530,7 +2510,6 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
   if (tagged) {
     __ AllocateHeapNumber(eax, edi, no_reg, &runtime_call_clear_stack);
   } else {  // UNTAGGED.
-    CpuFeatures::Scope scope(SSE2);
     __ AllocateHeapNumber(eax, edi, no_reg, &skip_cache);
     __ sub(esp, Immediate(kDoubleSize));
     __ movdbl(Operand(esp, 0), xmm1);
@@ -2545,7 +2524,6 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
   if (tagged) {
     __ ret(kPointerSize);
   } else {  // UNTAGGED.
-    CpuFeatures::Scope scope(SSE2);
     __ movdbl(xmm1, FieldOperand(eax, HeapNumber::kValueOffset));
     __ Ret();
 
@@ -2578,7 +2556,6 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
         ExternalReference(RuntimeFunction(), masm->isolate());
     __ TailCallExternalReference(runtime, 1, 1);
   } else {  // UNTAGGED.
-    CpuFeatures::Scope scope(SSE2);
     __ bind(&runtime_call_clear_stack);
     __ bind(&runtime_call);
     __ AllocateHeapNumber(eax, edi, no_reg, &skip_cache);
@@ -4831,12 +4808,10 @@ void CodeStub::GenerateStubsAheadOfTime() {
 
 
 void CodeStub::GenerateFPStubs() {
-  if (CpuFeatures::IsSupported(SSE2)) {
-    CEntryStub save_doubles(1, kSaveFPRegs);
-    Handle<Code> code = save_doubles.GetCode();
-    code->set_is_pregenerated(true);
-    code->GetIsolate()->set_fp_stubs_generated(true);
-  }
+  CEntryStub save_doubles(1, kSaveFPRegs);
+  Handle<Code> code = save_doubles.GetCode();
+  code->set_is_pregenerated(true);
+  code->GetIsolate()->set_fp_stubs_generated(true);
 }
 
 

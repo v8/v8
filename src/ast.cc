@@ -616,6 +616,14 @@ void ObjectLiteral::Property::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
 // ----------------------------------------------------------------------------
 // Implementation of AstVisitor
 
+bool AstVisitor::CheckStackOverflow() {
+  if (stack_overflow_) return true;
+  StackLimitCheck check(isolate_);
+  if (!check.HasOverflowed()) return false;
+  return (stack_overflow_ = true);
+}
+
+
 void AstVisitor::VisitDeclarations(ZoneList<Declaration*>* declarations) {
   for (int i = 0; i < declarations->length(); i++) {
     Visit(declarations->at(i));

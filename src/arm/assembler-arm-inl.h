@@ -47,15 +47,6 @@ namespace v8 {
 namespace internal {
 
 
-ArmDoubleRegister ArmDoubleRegister::FromAllocationIndex(int index) {
-  if (CpuFeatures::IsSupported(VFP2)) {
-    return DwVfpRegister::FromAllocationIndex(index);
-  } else {
-    return SoftFloatRegister::FromAllocationIndex(index);
-  }
-}
-
-
 int DwVfpRegister::ToAllocationIndex(DwVfpRegister reg) {
   ASSERT(!reg.is(kDoubleRegZero));
   ASSERT(!reg.is(kScratchDoubleReg));
