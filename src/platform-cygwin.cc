@@ -699,7 +699,7 @@ class SamplerThread : public Thread {
     memset(&context, 0, sizeof(context));
 
     TickSample sample_obj;
-    TickSample* sample = CpuProfiler::StartTickSampleEvent(sampler->isolate());
+    TickSample* sample = CpuProfiler::TickSampleEvent(sampler->isolate());
     if (sample == NULL) sample = &sample_obj;
 
     static const DWORD kSuspendFailed = static_cast<DWORD>(-1);
@@ -720,7 +720,6 @@ class SamplerThread : public Thread {
       sampler->SampleStack(sample);
       sampler->Tick(sample);
     }
-    CpuProfiler::FinishTickSampleEvent(sampler->isolate());
     ResumeThread(profiled_thread);
   }
 
@@ -775,11 +774,6 @@ Sampler::~Sampler() {
 }
 
 
-void Sampler::DoSample() {
-  // TODO(rogulenko): implement
-}
-
-
 void Sampler::Start() {
   ASSERT(!IsActive());
   SetActive(true);
@@ -791,14 +785,6 @@ void Sampler::Stop() {
   ASSERT(IsActive());
   SamplerThread::RemoveActiveSampler(this);
   SetActive(false);
-}
-
-
-void Sampler::StartSampling() {
-}
-
-
-void Sampler::StopSampling() {
 }
 
 

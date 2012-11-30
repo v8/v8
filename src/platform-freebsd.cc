@@ -685,7 +685,7 @@ static void ProfilerSignalHandler(int signal, siginfo_t* info, void* context) {
   if (sampler == NULL || !sampler->IsActive()) return;
 
   TickSample sample_obj;
-  TickSample* sample = CpuProfiler::StartTickSampleEvent(isolate);
+  TickSample* sample = CpuProfiler::TickSampleEvent(isolate);
   if (sample == NULL) sample = &sample_obj;
 
   // Extracting the sample from the context is extremely machine dependent.
@@ -707,7 +707,6 @@ static void ProfilerSignalHandler(int signal, siginfo_t* info, void* context) {
 #endif
   sampler->SampleStack(sample);
   sampler->Tick(sample);
-  CpuProfiler::FinishTickSampleEvent(isolate);
 }
 
 
@@ -891,11 +890,6 @@ Sampler::~Sampler() {
 }
 
 
-void Sampler::DoSample() {
-  // TODO(rogulenko): implement
-}
-
-
 void Sampler::Start() {
   ASSERT(!IsActive());
   SetActive(true);
@@ -907,14 +901,6 @@ void Sampler::Stop() {
   ASSERT(IsActive());
   SignalSender::RemoveActiveSampler(this);
   SetActive(false);
-}
-
-
-void Sampler::StartSampling() {
-}
-
-
-void Sampler::StopSampling() {
 }
 
 
