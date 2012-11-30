@@ -410,17 +410,24 @@ Deoptimizer::Deoptimizer(Isolate* isolate,
            reinterpret_cast<intptr_t>(from),
            fp_to_sp_delta - (2 * kPointerSize));
   }
-  function->shared()->increment_deopt_count();
+  // For COMPILED_STUBs called from builtins, the function pointer
+  // is a SMI indicating an internal frame.
+  if (function->IsSmi()) {
+    function = NULL;
+  }
+  if (function != NULL && function->IsOptimized()) {
+    function->shared()->increment_deopt_count();
+  }
   // Find the optimized code.
   if (type == EAGER) {
     ASSERT(from == NULL);
-    optimized_code_ = function_->code();
+    compiled_code_ = function_->code();
     if (FLAG_trace_deopt && FLAG_code_comments) {
       // Print instruction associated with this bailout.
       const char* last_comment = NULL;
       int mask = RelocInfo::ModeMask(RelocInfo::COMMENT)
           | RelocInfo::ModeMask(RelocInfo::RUNTIME_ENTRY);
-      for (RelocIterator it(optimized_code_, mask); !it.done(); it.next()) {
+      for (RelocIterator it(compiled_code_, mask); !it.done(); it.next()) {
         RelocInfo* info = it.rinfo();
         if (info->rmode() == RelocInfo::COMMENT) {
           last_comment = reinterpret_cast<const char*>(info->data());
@@ -436,18 +443,22 @@ Deoptimizer::Deoptimizer(Isolate* isolate,
       }
     }
   } else if (type == LAZY) {
-    optimized_code_ = FindDeoptimizingCodeFromAddress(from);
-    ASSERT(optimized_code_ != NULL);
+    compiled_code_ = FindDeoptimizingCodeFromAddress(from);
+    if (compiled_code_ == NULL) {
+      compiled_code_ =
+          static_cast<Code*>(isolate->heap()->FindCodeObject(from));
+    }
+    ASSERT(compiled_code_ != NULL);
   } else if (type == OSR) {
     // The function has already been optimized and we're transitioning
     // from the unoptimized shared version to the optimized one in the
     // function. The return address (from) points to unoptimized code.
-    optimized_code_ = function_->code();
-    ASSERT(optimized_code_->kind() == Code::OPTIMIZED_FUNCTION);
-    ASSERT(!optimized_code_->contains(from));
+    compiled_code_ = function_->code();
+    ASSERT(compiled_code_->kind() == Code::OPTIMIZED_FUNCTION);
+    ASSERT(!compiled_code_->contains(from));
   } else if (type == DEBUGGER) {
-    optimized_code_ = optimized_code;
-    ASSERT(optimized_code_->contains(from));
+    compiled_code_ = optimized_code;
+    ASSERT(compiled_code_->contains(from));
   }
   ASSERT(HEAP->allow_allocation(false));
   unsigned size = ComputeInputFrameSize();
@@ -573,7 +584,7 @@ void Deoptimizer::DoComputeOutputFrames() {
   // Determine basic deoptimization information.  The optimized frame is
   // described by the input data.
   DeoptimizationInputData* input_data =
-      DeoptimizationInputData::cast(optimized_code_->deoptimization_data());
+      DeoptimizationInputData::cast(compiled_code_->deoptimization_data());
   BailoutId node_id = input_data->AstId(bailout_id_);
   ByteArray* translations = input_data->TranslationByteArray();
   unsigned translation_index =
@@ -618,6 +629,9 @@ void Deoptimizer::DoComputeOutputFrames() {
       case Translation::SETTER_STUB_FRAME:
         DoComputeAccessorStubFrame(&iterator, i, true);
         break;
+      case Translation::COMPILED_STUB_FRAME:
+        DoCompiledStubFrame(&iterator, i);
+        break;
       case Translation::BEGIN:
       case Translation::REGISTER:
       case Translation::INT32_REGISTER:
@@ -630,6 +644,7 @@ void Deoptimizer::DoComputeOutputFrames() {
       case Translation::LITERAL:
       case Translation::ARGUMENTS_OBJECT:
       case Translation::DUPLICATE:
+      default:
         UNREACHABLE();
         break;
     }
@@ -809,6 +824,7 @@ void Deoptimizer::DoTranslateCommand(TranslationIterator* iterator,
     case Translation::CONSTRUCT_STUB_FRAME:
     case Translation::GETTER_STUB_FRAME:
     case Translation::SETTER_STUB_FRAME:
+    case Translation::COMPILED_STUB_FRAME:
     case Translation::DUPLICATE:
       UNREACHABLE();
       return;
@@ -1117,6 +1133,7 @@ bool Deoptimizer::DoOsrTranslateCommand(TranslationIterator* iterator,
     case Translation::CONSTRUCT_STUB_FRAME:
     case Translation::GETTER_STUB_FRAME:
     case Translation::SETTER_STUB_FRAME:
+    case Translation::COMPILED_STUB_FRAME:
     case Translation::DUPLICATE:
       UNREACHABLE();  // Malformed input.
        return false;
@@ -1337,8 +1354,9 @@ unsigned Deoptimizer::ComputeInputFrameSize() const {
     // environment at the OSR entry. The code for that his built into
     // the DoComputeOsrOutputFrame function for now.
   } else {
-    unsigned stack_slots = optimized_code_->stack_slots();
-    unsigned outgoing_size = ComputeOutgoingArgumentSize();
+    unsigned stack_slots = compiled_code_->stack_slots();
+    unsigned outgoing_size = compiled_code_->kind() == Code::COMPILED_STUB
+        ? 0 : ComputeOutgoingArgumentSize();
     ASSERT(result == fixed_size + (stack_slots * kPointerSize) + outgoing_size);
   }
 #endif
@@ -1357,6 +1375,10 @@ unsigned Deoptimizer::ComputeFixedSize(JSFunction* function) const {
 unsigned Deoptimizer::ComputeIncomingArgumentSize(JSFunction* function) const {
   // The incoming arguments is the values for formal parameters and
   // the receiver. Every slot contains a pointer.
+  if (function->IsSmi()) {
+    ASSERT(Smi::cast(function) == Smi::FromInt(StackFrame::STUB));
+    return 0;
+  }
   unsigned arguments = function->shared()->formal_parameter_count() + 1;
   return arguments * kPointerSize;
 }
@@ -1364,7 +1386,7 @@ unsigned Deoptimizer::ComputeIncomingArgumentSize(JSFunction* function) const {
 
 unsigned Deoptimizer::ComputeOutgoingArgumentSize() const {
   DeoptimizationInputData* data = DeoptimizationInputData::cast(
-      optimized_code_->deoptimization_data());
+      compiled_code_->deoptimization_data());
   unsigned height = data->ArgumentsStackHeight(bailout_id_)->value();
   return height * kPointerSize;
 }
@@ -1372,7 +1394,7 @@ unsigned Deoptimizer::ComputeOutgoingArgumentSize() const {
 
 Object* Deoptimizer::ComputeLiteral(int index) const {
   DeoptimizationInputData* data = DeoptimizationInputData::cast(
-      optimized_code_->deoptimization_data());
+      compiled_code_->deoptimization_data());
   FixedArray* literals = data->LiteralArray();
   return literals->get(index);
 }
@@ -1403,8 +1425,6 @@ void Deoptimizer::EnsureCodeForDeoptimizationEntry(BailoutType type,
   // cause us to emit relocation information for the external
   // references. This is fine because the deoptimizer's code section
   // isn't meant to be serialized at all.
-  ASSERT(!Serializer::enabled());
-
   ASSERT(type == EAGER || type == LAZY);
   DeoptimizerData* data = Isolate::Current()->deoptimizer_data();
   int entry_count = (type == EAGER)
@@ -1419,7 +1439,6 @@ void Deoptimizer::EnsureCodeForDeoptimizationEntry(BailoutType type,
   GenerateDeoptimizationEntries(&masm, entry_count, type);
   CodeDesc desc;
   masm.GetCode(&desc);
-  ASSERT(desc.reloc_size == 0);
 
   VirtualMemory* memory = type == EAGER
       ? data->eager_deoptimization_entry_code_
@@ -1681,6 +1700,11 @@ void Translation::BeginJSFrame(BailoutId node_id,
 }
 
 
+void Translation::BeginCompiledStubFrame() {
+  buffer_->Add(COMPILED_STUB_FRAME, zone());
+}
+
+
 void Translation::StoreRegister(Register reg) {
   buffer_->Add(REGISTER, zone());
   buffer_->Add(reg.code(), zone());
@@ -1762,6 +1786,7 @@ int Translation::NumberOfOperandsFor(Opcode opcode) {
     case UINT32_STACK_SLOT:
     case DOUBLE_STACK_SLOT:
     case LITERAL:
+    case COMPILED_STUB_FRAME:
       return 1;
     case BEGIN:
     case ARGUMENTS_ADAPTOR_FRAME:
@@ -1792,6 +1817,8 @@ const char* Translation::StringFor(Opcode opcode) {
       return "GETTER_STUB_FRAME";
     case SETTER_STUB_FRAME:
       return "SETTER_STUB_FRAME";
+    case COMPILED_STUB_FRAME:
+      return "COMPILED_STUB_FRAME";
     case REGISTER:
       return "REGISTER";
     case INT32_REGISTER:
@@ -1899,6 +1926,10 @@ SlotRef SlotRef::ComputeSlotForNextArgument(TranslationIterator* iterator,
       int literal_index = iterator->Next();
       return SlotRef(data->LiteralArray()->get(literal_index));
     }
+
+    case Translation::COMPILED_STUB_FRAME:
+      UNREACHABLE();
+      break;
   }
 
   UNREACHABLE();

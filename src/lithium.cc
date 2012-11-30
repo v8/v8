@@ -414,7 +414,7 @@ LChunk* LChunk::NewChunk(HGraph* graph) {
 }
 
 
-Handle<Code> LChunk::Codegen() {
+Handle<Code> LChunk::Codegen(Code::Kind kind) {
   MacroAssembler assembler(info()->isolate(), NULL, 0);
   LCodeGen generator(this, &assembler, info());
 
@@ -425,7 +425,7 @@ Handle<Code> LChunk::Codegen() {
       PrintF("Crankshaft Compiler - ");
     }
     CodeGenerator::MakeCodePrologue(info());
-    Code::Flags flags = Code::ComputeFlags(Code::OPTIMIZED_FUNCTION);
+    Code::Flags flags = Code::ComputeFlags(kind);
     Handle<Code> code =
         CodeGenerator::MakeCodeEpilogue(&assembler, flags, info());
     generator.FinishCode(code);

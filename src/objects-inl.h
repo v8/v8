@@ -3225,6 +3225,7 @@ int Code::arguments_count() {
 
 int Code::major_key() {
   ASSERT(kind() == STUB ||
+         kind() == COMPILED_STUB ||
          kind() == UNARY_OP_IC ||
          kind() == BINARY_OP_IC ||
          kind() == COMPARE_IC ||
@@ -3236,6 +3237,7 @@ int Code::major_key() {
 
 void Code::set_major_key(int major) {
   ASSERT(kind() == STUB ||
+         kind() == COMPILED_STUB ||
          kind() == UNARY_OP_IC ||
          kind() == BINARY_OP_IC ||
          kind() == COMPARE_IC ||
@@ -3344,7 +3346,7 @@ void Code::set_profiler_ticks(int ticks) {
 
 
 unsigned Code::stack_slots() {
-  ASSERT(kind() == OPTIMIZED_FUNCTION);
+  ASSERT(kind() == OPTIMIZED_FUNCTION || kind() == COMPILED_STUB);
   return StackSlotsField::decode(
       READ_UINT32_FIELD(this, kKindSpecificFlags1Offset));
 }
@@ -3352,7 +3354,7 @@ unsigned Code::stack_slots() {
 
 void Code::set_stack_slots(unsigned slots) {
   CHECK(slots <= (1 << kStackSlotsBitCount));
-  ASSERT(kind() == OPTIMIZED_FUNCTION);
+  ASSERT(kind() == OPTIMIZED_FUNCTION || kind() == COMPILED_STUB);
   int previous = READ_UINT32_FIELD(this, kKindSpecificFlags1Offset);
   int updated = StackSlotsField::update(previous, slots);
   WRITE_UINT32_FIELD(this, kKindSpecificFlags1Offset, updated);
@@ -3360,7 +3362,7 @@ void Code::set_stack_slots(unsigned slots) {
 
 
 unsigned Code::safepoint_table_offset() {
-  ASSERT(kind() == OPTIMIZED_FUNCTION);
+  ASSERT(kind() == OPTIMIZED_FUNCTION || kind() == COMPILED_STUB);
   return SafepointTableOffsetField::decode(
       READ_UINT32_FIELD(this, kKindSpecificFlags2Offset));
 }
@@ -3368,7 +3370,7 @@ unsigned Code::safepoint_table_offset() {
 
 void Code::set_safepoint_table_offset(unsigned offset) {
   CHECK(offset <= (1 << kSafepointTableOffsetBitCount));
-  ASSERT(kind() == OPTIMIZED_FUNCTION);
+  ASSERT(kind() == OPTIMIZED_FUNCTION || kind() == COMPILED_STUB);
   ASSERT(IsAligned(offset, static_cast<unsigned>(kIntSize)));
   int previous = READ_UINT32_FIELD(this, kKindSpecificFlags2Offset);
   int updated = SafepointTableOffsetField::update(previous, offset);

@@ -235,8 +235,18 @@ inline Object* JavaScriptFrame::function() const {
 }
 
 
-inline OptimizedFrame::OptimizedFrame(StackFrameIterator* iterator)
+inline CompiledFrame::CompiledFrame(StackFrameIterator* iterator)
     : JavaScriptFrame(iterator) {
+}
+
+
+inline StubFrame::StubFrame(StackFrameIterator* iterator)
+    : CompiledFrame(iterator) {
+}
+
+
+inline OptimizedFrame::OptimizedFrame(StackFrameIterator* iterator)
+    : CompiledFrame(iterator) {
 }
 
 

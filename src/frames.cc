@@ -617,7 +617,7 @@ bool StandardFrame::IsExpressionInsideHandler(int n) const {
 }
 
 
-void OptimizedFrame::Iterate(ObjectVisitor* v) const {
+void CompiledFrame::Iterate(ObjectVisitor* v) const {
 #ifdef DEBUG
   // Make sure that optimized frames do not contain any stack handlers.
   StackHandlerIterator it(this, top_handler());
@@ -649,7 +649,7 @@ void OptimizedFrame::Iterate(ObjectVisitor* v) const {
 
   // Skip saved double registers.
   if (safepoint_entry.has_doubles()) {
-    parameters_base += DoubleRegister::kNumAllocatableRegisters *
+    parameters_base += DoubleRegister::NumAllocatableRegisters() *
         kDoubleSize / kPointerSize;
   }
 
@@ -681,14 +681,24 @@ void OptimizedFrame::Iterate(ObjectVisitor* v) const {
     }
   }
 
+  // Visit the return address in the callee and incoming arguments.
+  IteratePc(v, pc_address(), code);
+}
+
+
+void StubFrame::Iterate(ObjectVisitor* v) const {
+  CompiledFrame::Iterate(v);
+}
+
+
+void OptimizedFrame::Iterate(ObjectVisitor* v) const {
+  CompiledFrame::Iterate(v);
+
   // Visit the context and the function.
   Object** fixed_base = &Memory::Object_at(
       fp() + JavaScriptFrameConstants::kFunctionOffset);
   Object** fixed_limit = &Memory::Object_at(fp());
   v->VisitPointers(fixed_base, fixed_limit);
-
-  // Visit the return address in the callee and incoming arguments.
-  IteratePc(v, pc_address(), code);
 }
 
 

@@ -36,7 +36,7 @@ namespace internal {
 
 // Compute a transcendental math function natively, or call the
 // TranscendentalCache runtime function.
-class TranscendentalCacheStub: public CodeStub {
+class TranscendentalCacheStub: public PlatformCodeStub {
  public:
   enum ArgumentType {
     TAGGED = 0 << TranscendentalCache::kTranscendentalTypeBits,
@@ -58,7 +58,7 @@ class TranscendentalCacheStub: public CodeStub {
 };
 
 
-class StoreBufferOverflowStub: public CodeStub {
+class StoreBufferOverflowStub: public PlatformCodeStub {
  public:
   explicit StoreBufferOverflowStub(SaveFPRegsMode save_fp)
       : save_doubles_(save_fp) { }
@@ -77,7 +77,7 @@ class StoreBufferOverflowStub: public CodeStub {
 };
 
 
-class UnaryOpStub: public CodeStub {
+class UnaryOpStub: public PlatformCodeStub {
  public:
   UnaryOpStub(Token::Value op,
               UnaryOverwriteMode mode,
@@ -219,7 +219,7 @@ enum StringAddFlags {
 };
 
 
-class StringAddStub: public CodeStub {
+class StringAddStub: public PlatformCodeStub {
  public:
   explicit StringAddStub(StringAddFlags flags) : flags_(flags) {}
 
@@ -242,7 +242,7 @@ class StringAddStub: public CodeStub {
 };
 
 
-class SubStringStub: public CodeStub {
+class SubStringStub: public PlatformCodeStub {
  public:
   SubStringStub() {}
 
@@ -255,7 +255,7 @@ class SubStringStub: public CodeStub {
 
 
 
-class StringCompareStub: public CodeStub {
+class StringCompareStub: public PlatformCodeStub {
  public:
   StringCompareStub() { }
 
@@ -295,7 +295,7 @@ class StringCompareStub: public CodeStub {
 // This stub can convert a signed int32 to a heap number (double).  It does
 // not work for int32s that are in Smi range!  No GC occurs during this stub
 // so you don't have to set up the frame.
-class WriteInt32ToHeapNumberStub : public CodeStub {
+class WriteInt32ToHeapNumberStub : public PlatformCodeStub {
  public:
   WriteInt32ToHeapNumberStub(Register the_int,
                              Register the_heap_number,
@@ -329,7 +329,7 @@ class WriteInt32ToHeapNumberStub : public CodeStub {
 };
 
 
-class NumberToStringStub: public CodeStub {
+class NumberToStringStub: public PlatformCodeStub {
  public:
   NumberToStringStub() { }
 
@@ -355,7 +355,7 @@ class NumberToStringStub: public CodeStub {
 };
 
 
-class RecordWriteStub: public CodeStub {
+class RecordWriteStub: public PlatformCodeStub {
  public:
   RecordWriteStub(Register object,
                   Register value,
@@ -511,7 +511,7 @@ class RecordWriteStub: public CodeStub {
     Register GetRegThatIsNotOneOf(Register r1,
                                   Register r2,
                                   Register r3) {
-      for (int i = 0; i < Register::kNumAllocatableRegisters; i++) {
+      for (int i = 0; i < Register::NumAllocatableRegisters(); i++) {
         Register candidate = Register::FromAllocationIndex(i);
         if (candidate.is(r1)) continue;
         if (candidate.is(r2)) continue;
@@ -570,7 +570,7 @@ class RecordWriteStub: public CodeStub {
 // Enter C code from generated RegExp code in a way that allows
 // the C code to fix the return address in case of a GC.
 // Currently only needed on ARM.
-class RegExpCEntryStub: public CodeStub {
+class RegExpCEntryStub: public PlatformCodeStub {
  public:
   RegExpCEntryStub() {}
   virtual ~RegExpCEntryStub() {}
@@ -589,7 +589,7 @@ class RegExpCEntryStub: public CodeStub {
 // keep the code which called into native pinned in the memory. Currently the
 // simplest approach is to generate such stub early enough so it can never be
 // moved by GC
-class DirectCEntryStub: public CodeStub {
+class DirectCEntryStub: public PlatformCodeStub {
  public:
   DirectCEntryStub() {}
   void Generate(MacroAssembler* masm);
@@ -739,7 +739,7 @@ class FloatingPointHelper : public AllStatic {
 };
 
 
-class StringDictionaryLookupStub: public CodeStub {
+class StringDictionaryLookupStub: public PlatformCodeStub {
  public:
   enum LookupMode { POSITIVE_LOOKUP, NEGATIVE_LOOKUP };
 
