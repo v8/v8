@@ -48,7 +48,9 @@ class JumpPatchSite;
 // debugger to piggybag on.
 class BreakableStatementChecker: public AstVisitor {
  public:
-  BreakableStatementChecker() : is_breakable_(false) {}
+  BreakableStatementChecker() : is_breakable_(false) {
+    InitializeAstVisitor();
+  }
 
   void Check(Statement* stmt);
   void Check(Expression* stmt);
@@ -63,6 +65,7 @@ class BreakableStatementChecker: public AstVisitor {
 
   bool is_breakable_;
 
+  DEFINE_AST_VISITOR_SUBCLASS_MEMBERS();
   DISALLOW_COPY_AND_ASSIGN(BreakableStatementChecker);
 };
 
@@ -824,6 +827,7 @@ class FullCodeGenerator: public AstVisitor {
 
   friend class NestedStatement;
 
+  DEFINE_AST_VISITOR_SUBCLASS_MEMBERS();
   DISALLOW_COPY_AND_ASSIGN(FullCodeGenerator);
 };
 

@@ -71,21 +71,23 @@ namespace internal {
 // Core register
 struct Register {
   static const int kNumRegisters = 16;
-  static const int kNumAllocatableRegisters = 8;
+  static const int kMaxNumAllocatableRegisters = 8;
+  static const int kGPRsPerNonVFP2Double = 2;
+  static int NumAllocatableRegisters();
   static const int kSizeInBytes = 4;
 
   static int ToAllocationIndex(Register reg) {
-    ASSERT(reg.code() < kNumAllocatableRegisters);
+    ASSERT(reg.code() < NumAllocatableRegisters());
     return reg.code();
   }
 
   static Register FromAllocationIndex(int index) {
-    ASSERT(index >= 0 && index < kNumAllocatableRegisters);
+    ASSERT(index >= 0 && index < NumAllocatableRegisters());
     return from_code(index);
   }
 
   static const char* AllocationIndexToString(int index) {
-    ASSERT(index >= 0 && index < kNumAllocatableRegisters);
+    ASSERT(index >= 0 && index < NumAllocatableRegisters());
     const char* const names[] = {
       "r0",
       "r1",
@@ -188,26 +190,57 @@ struct SwVfpRegister {
 };
 
 
-// Double word VFP register.
-struct DwVfpRegister {
-  static const int kNumRegisters = 16;
+struct ArmDoubleRegister {
+  static const int kMaxNumRegisters = 16;
   // A few double registers are reserved: one as a scratch register and one to
   // hold 0.0, that does not fit in the immediate field of vmov instructions.
   //  d14: 0.0
   //  d15: scratch register.
   static const int kNumReservedRegisters = 2;
-  static const int kNumAllocatableRegisters = kNumRegisters -
+  static const int kMaxNumAllocatableRegisters = kMaxNumRegisters -
       kNumReservedRegisters;
+  explicit ArmDoubleRegister(int code) { code_ = code; }
+  static int NumAllocatableRegisters();
+  static int NumRegisters() { return kNumRegisters; }
+  static const char* AllocationIndexToString(int index);
+  inline static ArmDoubleRegister FromAllocationIndex(int index);
+  inline static int ToAllocationIndex(ArmDoubleRegister reg) {
+    return reg.code();
+  }
 
-  inline static int ToAllocationIndex(DwVfpRegister reg);
+  static ArmDoubleRegister from_code(int code) {
+    ArmDoubleRegister r = ArmDoubleRegister(code);
+    return r;
+  }
+
+  bool is_valid() const {
+    return 0 <= code_ && code_ < NumRegisters();
+  }
+  bool is(ArmDoubleRegister reg) const { return code_ == reg.code_; }
+  int code() const {
+    ASSERT(is_valid());
+    return code_;
+  }
+
+  int code_;
+};
+
+
+// Double word VFP register.
+struct DwVfpRegister : ArmDoubleRegister {
+  static const int kNumRegisters = 16;
+
+  explicit DwVfpRegister(int code) : ArmDoubleRegister(code) {}
+
+  inline int ToAllocationIndex(DwVfpRegister reg);
 
   static DwVfpRegister FromAllocationIndex(int index) {
-    ASSERT(index >= 0 && index < kNumAllocatableRegisters);
+    ASSERT(index >= 0 && index < kMaxNumAllocatableRegisters);
     return from_code(index);
   }
 
   static const char* AllocationIndexToString(int index) {
-    ASSERT(index >= 0 && index < kNumAllocatableRegisters);
+    ASSERT(index >= 0 && index < kMaxNumAllocatableRegisters);
     const char* const names[] = {
       "d0",
       "d1",
@@ -228,8 +261,7 @@ struct DwVfpRegister {
   }
 
   static DwVfpRegister from_code(int code) {
-    DwVfpRegister r = { code };
-    return r;
+    return DwVfpRegister(code);
   }
 
   // Supporting d0 to d15, can be later extended to d31.
@@ -262,12 +294,37 @@ struct DwVfpRegister {
     *m = (code_ & 0x10) >> 4;
     *vm = code_ & 0x0F;
   }
-
-  int code_;
 };
 
 
-typedef DwVfpRegister DoubleRegister;
+// Double word VFP register.
+struct SoftFloatRegister : ArmDoubleRegister {
+  static const int kNumRegisters = 1;
+  static const int kMaxNumAllocatableRegisters = kNumRegisters;
+
+  explicit SoftFloatRegister(int code) : ArmDoubleRegister(code) {}
+
+  static SoftFloatRegister FromAllocationIndex(int index) {
+    ASSERT(index >= 0 && index < kMaxNumAllocatableRegisters);
+    return from_code(index);
+  }
+
+  static const char* AllocationIndexToString(int index) {
+    ASSERT(index >= 0 && index < kMaxNumAllocatableRegisters);
+    const char* const names[] = {
+      "sfpd0"
+    };
+    return names[index];
+  }
+
+  static SoftFloatRegister from_code(int code) {
+    SoftFloatRegister r = SoftFloatRegister(code);
+    return r;
+  }
+};
+
+
+typedef ArmDoubleRegister DoubleRegister;
 
 
 // Support for the VFP registers s0 to s31 (d0 to d15).
@@ -305,23 +362,26 @@ const SwVfpRegister s29 = { 29 };
 const SwVfpRegister s30 = { 30 };
 const SwVfpRegister s31 = { 31 };
 
-const DwVfpRegister no_dreg = { -1 };
-const DwVfpRegister d0  = {  0 };
-const DwVfpRegister d1  = {  1 };
-const DwVfpRegister d2  = {  2 };
-const DwVfpRegister d3  = {  3 };
-const DwVfpRegister d4  = {  4 };
-const DwVfpRegister d5  = {  5 };
-const DwVfpRegister d6  = {  6 };
-const DwVfpRegister d7  = {  7 };
-const DwVfpRegister d8  = {  8 };
-const DwVfpRegister d9  = {  9 };
-const DwVfpRegister d10 = { 10 };
-const DwVfpRegister d11 = { 11 };
-const DwVfpRegister d12 = { 12 };
-const DwVfpRegister d13 = { 13 };
-const DwVfpRegister d14 = { 14 };
-const DwVfpRegister d15 = { 15 };
+const DwVfpRegister no_dreg = DwVfpRegister(-1);
+const DwVfpRegister d0  = DwVfpRegister(0);
+const DwVfpRegister d1  = DwVfpRegister(1);
+const DwVfpRegister d2  = DwVfpRegister(2);
+const DwVfpRegister d3  = DwVfpRegister(3);
+const DwVfpRegister d4  = DwVfpRegister(4);
+const DwVfpRegister d5  = DwVfpRegister(5);
+const DwVfpRegister d6  = DwVfpRegister(6);
+const DwVfpRegister d7  = DwVfpRegister(7);
+const DwVfpRegister d8  = DwVfpRegister(8);
+const DwVfpRegister d9  = DwVfpRegister(9);
+const DwVfpRegister d10 = DwVfpRegister(10);
+const DwVfpRegister d11 = DwVfpRegister(11);
+const DwVfpRegister d12 = DwVfpRegister(12);
+const DwVfpRegister d13 = DwVfpRegister(13);
+const DwVfpRegister d14 = DwVfpRegister(14);
+const DwVfpRegister d15 = DwVfpRegister(15);
+
+const Register sfpd_lo  = { kRegister_r6_Code };
+const Register sfpd_hi  = { kRegister_r7_Code };
 
 // Aliases for double registers.  Defined using #define instead of
 // "static const DwVfpRegister&" because Clang complains otherwise when a

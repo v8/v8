@@ -30,6 +30,7 @@
 #include "accessors.h"
 #include "api.h"
 #include "bootstrapper.h"
+#include "deoptimizer.h"
 #include "execution.h"
 #include "global-handles.h"
 #include "ic-inl.h"
@@ -527,6 +528,17 @@ void ExternalReferenceTable::PopulateTable(Isolate* isolate) {
       UNCLASSIFIED,
       51,
       "Code::MakeCodeYoung");
+
+  // Add a small set of deopt entry addresses to encoder without generating the
+  // deopt table code, which isn't possible at deserialization time.
+  HandleScope scope(Isolate::Current());
+  for (int entry = 0; entry < kDeoptTableSerializeEntryCount; ++entry) {
+    Address address = Deoptimizer::GetDeoptimizationEntry(
+        entry,
+        Deoptimizer::LAZY,
+        Deoptimizer::CALCULATE_ENTRY_ADDRESS);
+    Add(address, LAZY_DEOPTIMIZATION, 52 + entry, "lazy_deopt");
+  }
 }
 
 

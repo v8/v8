@@ -1619,6 +1619,7 @@ Isolate::Isolate()
       string_tracker_(NULL),
       regexp_stack_(NULL),
       date_cache_(NULL),
+      code_stub_interface_descriptors_(NULL),
       context_exit_happened_(false),
       deferred_handles_head_(NULL),
       optimizing_compiler_thread_(this) {
@@ -1780,6 +1781,9 @@ Isolate::~Isolate() {
 
   delete date_cache_;
   date_cache_ = NULL;
+
+  delete[] code_stub_interface_descriptors_;
+  code_stub_interface_descriptors_ = NULL;
 
   delete regexp_stack_;
   regexp_stack_ = NULL;
@@ -1944,6 +1948,10 @@ bool Isolate::Init(Deserializer* des) {
   regexp_stack_ = new RegExpStack();
   regexp_stack_->isolate_ = this;
   date_cache_ = new DateCache();
+  code_stub_interface_descriptors_ =
+      new CodeStubInterfaceDescriptor*[CodeStub::NUMBER_OF_IDS];
+  memset(code_stub_interface_descriptors_, 0,
+         kPointerSize * CodeStub::NUMBER_OF_IDS);
 
   // Enable logging before setting up the heap
   logger_->SetUp();
@@ -2004,6 +2012,8 @@ bool Isolate::Init(Deserializer* des) {
   debug_->SetUp(create_heap_objects);
 #endif
 
+  deoptimizer_data_ = new DeoptimizerData;
+
   // If we are deserializing, read the state into the now-empty heap.
   if (!create_heap_objects) {
     des->Deserialize();
@@ -2022,7 +2032,6 @@ bool Isolate::Init(Deserializer* des) {
   // Quiet the heap NaN if needed on target platform.
   if (!create_heap_objects) Assembler::QuietNaN(heap_.nan_value());
 
-  deoptimizer_data_ = new DeoptimizerData;
   runtime_profiler_ = new RuntimeProfiler(this);
   runtime_profiler_->SetUp();
 
@@ -2044,6 +2053,17 @@ bool Isolate::Init(Deserializer* des) {
 
   state_ = INITIALIZED;
   time_millis_at_init_ = OS::TimeCurrentMillis();
+
+  if (!create_heap_objects) {
+    // Now that the heap is consistent, it's OK to generate the code for the
+    // deopt entry table that might have been referred to by optimized code in
+    // the snapshot.
+    HandleScope scope(this);
+    Deoptimizer::EnsureCodeForDeoptimizationEntry(
+        Deoptimizer::LAZY,
+        kDeoptTableSerializeEntryCount - 1);
+  }
+
   if (FLAG_parallel_recompilation) optimizing_compiler_thread_.Start();
   return true;
 }

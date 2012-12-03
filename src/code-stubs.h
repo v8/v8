@@ -162,20 +162,29 @@ class CodeStub BASE_EMBEDDED {
   // Lookup the code in the (possibly custom) cache.
   bool FindCodeInCache(Code** code_out, Isolate* isolate);
 
+  // Returns information for computing the number key.
+  virtual Major MajorKey() = 0;
+  virtual int MinorKey() = 0;
+
  protected:
   static bool CanUseFPRegisters();
 
- private:
-  // Nonvirtual wrapper around the stub-specific Generate function.  Call
-  // this function to set up the macro assembler and generate the code.
-  void GenerateCode(MacroAssembler* masm);
-
   // Generates the assembler code for the stub.
-  virtual void Generate(MacroAssembler* masm) = 0;
+  virtual Handle<Code> GenerateCode() = 0;
 
+  // BinaryOpStub needs to override this.
+  virtual InlineCacheState GetICState() {
+    return UNINITIALIZED;
+  }
+
+  // Returns whether the code generated for this stub needs to be allocated as
+  // a fixed (non-moveable) code object.
+  virtual bool NeedsImmovableCode() { return false; }
+
+ private:
   // Perform bookkeeping required after code generation when stub code is
   // initially generated.
-  void RecordCodeGeneration(Code* code, MacroAssembler* masm);
+  void RecordCodeGeneration(Code* code, Isolate* isolate);
 
   // Finish the code object after it has been generated.
   virtual void FinishCode(Handle<Code> code) { }
@@ -184,17 +193,8 @@ class CodeStub BASE_EMBEDDED {
   // registering stub in the stub cache.
   virtual void Activate(Code* code) { }
 
-  // Returns information for computing the number key.
-  virtual Major MajorKey() = 0;
-  virtual int MinorKey() = 0;
-
   // BinaryOpStub needs to override this.
   virtual int GetCodeKind();
-
-  // BinaryOpStub needs to override this.
-  virtual InlineCacheState GetICState() {
-    return UNINITIALIZED;
-  }
 
   // Add the code to a specialized cache, specific to an individual
   // stub type. Please note, this method must add the code object to a
@@ -213,10 +213,6 @@ class CodeStub BASE_EMBEDDED {
   SmartArrayPointer<const char> GetName();
   virtual void PrintName(StringStream* stream);
 
-  // Returns whether the code generated for this stub needs to be allocated as
-  // a fixed (non-moveable) code object.
-  virtual bool NeedsImmovableCode() { return false; }
-
   // Computes the key based on major and minor.
   uint32_t GetKey() {
     ASSERT(static_cast<int>(MajorKey()) < NUMBER_OF_IDS);
@@ -229,6 +225,43 @@ class CodeStub BASE_EMBEDDED {
       kStubMajorKeyBits, kStubMinorKeyBits> {};  // NOLINT
 
   friend class BreakPointIterator;
+};
+
+
+class PlatformCodeStub : public CodeStub {
+ public:
+  // Retrieve the code for the stub. Generate the code if needed.
+  virtual Handle<Code> GenerateCode();
+
+  virtual int GetCodeKind() { return Code::STUB; }
+
+ protected:
+  // Generates the assembler code for the stub.
+  virtual void Generate(MacroAssembler* masm) = 0;
+};
+
+
+struct CodeStubInterfaceDescriptor {
+  int number_of_register_params;
+  Register* register_params;
+  Handle<Code> deoptimization_handler;
+};
+
+
+class HGraph;
+struct Register;
+class HydrogenCodeStub : public CodeStub {
+ public:
+  // Retrieve the code for the stub. Generate the code if needed.
+  virtual Handle<Code> GenerateCode() = 0;
+
+  virtual int GetCodeKind() { return Code::COMPILED_STUB; }
+
+  virtual CodeStubInterfaceDescriptor* GetInterfaceDescriptor(
+      Isolate* isolate) = 0;
+
+ protected:
+  Handle<Code> CodeFromGraph(HGraph* graph);
 };
 
 
@@ -289,7 +322,7 @@ class NopRuntimeCallHelper : public RuntimeCallHelper {
 };
 
 
-class StackCheckStub : public CodeStub {
+class StackCheckStub : public PlatformCodeStub {
  public:
   StackCheckStub() { }
 
@@ -301,7 +334,7 @@ class StackCheckStub : public CodeStub {
 };
 
 
-class InterruptStub : public CodeStub {
+class InterruptStub : public PlatformCodeStub {
  public:
   InterruptStub() { }
 
@@ -313,7 +346,7 @@ class InterruptStub : public CodeStub {
 };
 
 
-class ToNumberStub: public CodeStub {
+class ToNumberStub: public PlatformCodeStub {
  public:
   ToNumberStub() { }
 
@@ -325,7 +358,7 @@ class ToNumberStub: public CodeStub {
 };
 
 
-class FastNewClosureStub : public CodeStub {
+class FastNewClosureStub : public PlatformCodeStub {
  public:
   explicit FastNewClosureStub(LanguageMode language_mode)
     : language_mode_(language_mode) { }
@@ -341,7 +374,7 @@ class FastNewClosureStub : public CodeStub {
 };
 
 
-class FastNewContextStub : public CodeStub {
+class FastNewContextStub : public PlatformCodeStub {
  public:
   static const int kMaximumSlots = 64;
 
@@ -359,7 +392,7 @@ class FastNewContextStub : public CodeStub {
 };
 
 
-class FastNewBlockContextStub : public CodeStub {
+class FastNewBlockContextStub : public PlatformCodeStub {
  public:
   static const int kMaximumSlots = 64;
 
@@ -377,7 +410,7 @@ class FastNewBlockContextStub : public CodeStub {
 };
 
 
-class FastCloneShallowArrayStub : public CodeStub {
+class FastCloneShallowArrayStub : public PlatformCodeStub {
  public:
   // Maximum length of copied elements array.
   static const int kMaximumClonedLength = 8;
@@ -410,7 +443,7 @@ class FastCloneShallowArrayStub : public CodeStub {
 };
 
 
-class FastCloneShallowObjectStub : public CodeStub {
+class FastCloneShallowObjectStub : public PlatformCodeStub {
  public:
   // Maximum number of properties in copied object.
   static const int kMaximumClonedProperties = 6;
@@ -430,7 +463,7 @@ class FastCloneShallowObjectStub : public CodeStub {
 };
 
 
-class InstanceofStub: public CodeStub {
+class InstanceofStub: public PlatformCodeStub {
  public:
   enum Flags {
     kNoFlags = 0,
@@ -468,7 +501,7 @@ class InstanceofStub: public CodeStub {
 };
 
 
-class MathPowStub: public CodeStub {
+class MathPowStub: public PlatformCodeStub {
  public:
   enum ExponentType { INTEGER, DOUBLE, TAGGED, ON_STACK};
 
@@ -484,7 +517,7 @@ class MathPowStub: public CodeStub {
 };
 
 
-class BinaryOpStub: public CodeStub {
+class BinaryOpStub: public PlatformCodeStub {
  public:
   BinaryOpStub(Token::Value op, OverwriteMode mode)
       : op_(op),
@@ -600,7 +633,7 @@ class BinaryOpStub: public CodeStub {
 };
 
 
-class ICCompareStub: public CodeStub {
+class ICCompareStub: public PlatformCodeStub {
  public:
   ICCompareStub(Token::Value op,
                 CompareIC::State left,
@@ -666,7 +699,7 @@ class ICCompareStub: public CodeStub {
 };
 
 
-class CEntryStub : public CodeStub {
+class CEntryStub : public PlatformCodeStub {
  public:
   explicit CEntryStub(int result_size,
                       SaveFPRegsMode save_doubles = kDontSaveFPRegs)
@@ -700,7 +733,7 @@ class CEntryStub : public CodeStub {
 };
 
 
-class JSEntryStub : public CodeStub {
+class JSEntryStub : public PlatformCodeStub {
  public:
   JSEntryStub() { }
 
@@ -734,7 +767,7 @@ class JSConstructEntryStub : public JSEntryStub {
 };
 
 
-class ArgumentsAccessStub: public CodeStub {
+class ArgumentsAccessStub: public PlatformCodeStub {
  public:
   enum Type {
     READ_ELEMENT,
@@ -761,7 +794,7 @@ class ArgumentsAccessStub: public CodeStub {
 };
 
 
-class RegExpExecStub: public CodeStub {
+class RegExpExecStub: public PlatformCodeStub {
  public:
   RegExpExecStub() { }
 
@@ -773,7 +806,7 @@ class RegExpExecStub: public CodeStub {
 };
 
 
-class RegExpConstructResultStub: public CodeStub {
+class RegExpConstructResultStub: public PlatformCodeStub {
  public:
   RegExpConstructResultStub() { }
 
@@ -785,7 +818,7 @@ class RegExpConstructResultStub: public CodeStub {
 };
 
 
-class CallFunctionStub: public CodeStub {
+class CallFunctionStub: public PlatformCodeStub {
  public:
   CallFunctionStub(int argc, CallFunctionFlags flags)
       : argc_(argc), flags_(flags) { }
@@ -826,7 +859,7 @@ class CallFunctionStub: public CodeStub {
 };
 
 
-class CallConstructStub: public CodeStub {
+class CallConstructStub: public PlatformCodeStub {
  public:
   explicit CallConstructStub(CallFunctionFlags flags) : flags_(flags) {}
 
@@ -1017,25 +1050,53 @@ class AllowStubCallsScope {
 };
 
 
-class KeyedLoadElementStub : public CodeStub {
+class KeyedLoadDictionaryElementStub : public PlatformCodeStub {
  public:
-  explicit KeyedLoadElementStub(ElementsKind elements_kind)
-      : elements_kind_(elements_kind)
-  { }
+  KeyedLoadDictionaryElementStub() {}
 
   Major MajorKey() { return KeyedLoadElement; }
-  int MinorKey() { return elements_kind_; }
+  int MinorKey() { return DICTIONARY_ELEMENTS; }
 
   void Generate(MacroAssembler* masm);
 
  private:
-  ElementsKind elements_kind_;
-
-  DISALLOW_COPY_AND_ASSIGN(KeyedLoadElementStub);
+  DISALLOW_COPY_AND_ASSIGN(KeyedLoadDictionaryElementStub);
 };
 
 
-class KeyedStoreElementStub : public CodeStub {
+class KeyedLoadFastElementStub : public HydrogenCodeStub {
+ public:
+  KeyedLoadFastElementStub(bool is_js_array, ElementsKind elements_kind) {
+    bit_field_ = ElementsKindBits::encode(elements_kind) |
+        IsJSArrayBits::encode(is_js_array);
+  }
+
+  Major MajorKey() { return KeyedLoadElement; }
+  int MinorKey() { return bit_field_; }
+
+  bool is_js_array() const {
+    return IsJSArrayBits::decode(bit_field_);
+  }
+
+  ElementsKind elements_kind() const {
+    return ElementsKindBits::decode(bit_field_);
+  }
+
+  virtual Handle<Code> GenerateCode();
+
+  virtual CodeStubInterfaceDescriptor* GetInterfaceDescriptor(
+      Isolate* isolate);
+
+ private:
+  class IsJSArrayBits: public BitField<bool, 8, 1> {};
+  class ElementsKindBits: public BitField<ElementsKind, 0, 8> {};
+  uint32_t bit_field_;
+
+  DISALLOW_COPY_AND_ASSIGN(KeyedLoadFastElementStub);
+};
+
+
+class KeyedStoreElementStub : public PlatformCodeStub {
  public:
   KeyedStoreElementStub(bool is_js_array,
                         ElementsKind elements_kind,
@@ -1070,7 +1131,7 @@ class KeyedStoreElementStub : public CodeStub {
 };
 
 
-class ToBooleanStub: public CodeStub {
+class ToBooleanStub: public PlatformCodeStub {
  public:
   enum Type {
     UNDEFINED,
@@ -1140,7 +1201,7 @@ class ToBooleanStub: public CodeStub {
 };
 
 
-class ElementsTransitionAndStoreStub : public CodeStub {
+class ElementsTransitionAndStoreStub : public PlatformCodeStub {
  public:
   ElementsTransitionAndStoreStub(ElementsKind from,
                                  ElementsKind to,
@@ -1181,7 +1242,7 @@ class ElementsTransitionAndStoreStub : public CodeStub {
 };
 
 
-class StoreArrayLiteralElementStub : public CodeStub {
+class StoreArrayLiteralElementStub : public PlatformCodeStub {
  public:
   StoreArrayLiteralElementStub()
         : fp_registers_(CanUseFPRegisters()) { }
@@ -1200,7 +1261,7 @@ class StoreArrayLiteralElementStub : public CodeStub {
 };
 
 
-class ProfileEntryHookStub : public CodeStub {
+class ProfileEntryHookStub : public PlatformCodeStub {
  public:
   explicit ProfileEntryHookStub() {}
 
