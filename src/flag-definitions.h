@@ -398,7 +398,7 @@ DEFINE_bool(collect_maps, true,
             "garbage collect maps from which no objects can be reached")
 DEFINE_bool(flush_code, true,
             "flush code that we expect not to use again (during full gc)")
-DEFINE_bool(flush_code_incrementally, false,
+DEFINE_bool(flush_code_incrementally, true,
             "flush code that we expect not to use again (incrementally)")
 DEFINE_bool(age_code, true,
             "track un-executed functions to age code and flush only "
