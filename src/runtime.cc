@@ -10902,6 +10902,52 @@ static Handle<JSObject> MaterializeClosure(Isolate* isolate,
 }
 
 
+// This method copies structure of MaterializeClosure method above.
+static bool SetClosureVariableValue(Isolate* isolate,
+                                    Handle<Context> context,
+                                    Handle<String> variable_name,
+                                    Handle<Object> new_value) {
+  ASSERT(context->IsFunctionContext());
+
+  Handle<SharedFunctionInfo> shared(context->closure()->shared());
+  Handle<ScopeInfo> scope_info(shared->scope_info());
+
+  // Context locals to the context extension.
+  for (int i = 0; i < scope_info->ContextLocalCount(); i++) {
+    Handle<String> next_name(scope_info->ContextLocalName(i));
+    if (variable_name->Equals(*next_name)) {
+      VariableMode mode;
+      InitializationFlag init_flag;
+      int context_index =
+          scope_info->ContextSlotIndex(*next_name, &mode, &init_flag);
+      if (context_index < 0) {
+        return false;
+      }
+      context->set(context_index, *new_value);
+      return true;
+    }
+  }
+
+  // Properties from the function context extension. This will
+  // be variables introduced by eval.
+  if (context->has_extension()) {
+    Handle<JSObject> ext(JSObject::cast(context->extension()));
+    if (ext->HasProperty(*variable_name)) {
+      // We don't expect this to do anything except replacing property value.
+      SetProperty(isolate,
+                  ext,
+                  variable_name,
+                  new_value,
+                  NONE,
+                  kNonStrictMode);
+      return true;
+    }
+  }
+
+  return false;
+}
+
+
 // Create a plain JSObject which materializes the scope for the specified
 // catch context.
 static Handle<JSObject> MaterializeCatchScope(Isolate* isolate,
@@ -11182,6 +11228,33 @@ class ScopeIterator {
     return Handle<JSObject>();
   }
 
+  bool SetVariableValue(Handle<String> variable_name,
+                        Handle<Object> new_value) {
+    ASSERT(!failed_);
+    switch (Type()) {
+      case ScopeIterator::ScopeTypeGlobal:
+        break;
+      case ScopeIterator::ScopeTypeLocal:
+        // TODO(2399): implement.
+        break;
+      case ScopeIterator::ScopeTypeWith:
+        break;
+      case ScopeIterator::ScopeTypeCatch:
+        // TODO(2399): implement.
+        break;
+      case ScopeIterator::ScopeTypeClosure:
+        return SetClosureVariableValue(isolate_, CurrentContext(),
+            variable_name, new_value);
+      case ScopeIterator::ScopeTypeBlock:
+        // TODO(2399): should we implement it?
+        break;
+      case ScopeIterator::ScopeTypeModule:
+        // TODO(2399): should we implement it?
+        break;
+    }
+    return false;
+  }
+
   Handle<ScopeInfo> CurrentScopeInfo() {
     ASSERT(!failed_);
     if (!nested_scope_chain_.is_empty()) {
@@ -11418,6 +11491,64 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetFunctionScopeDetails) {
   }
 
   return MaterializeScopeDetails(isolate, &it);
+}
+
+
+static bool SetScopeVariableValue(ScopeIterator* it, int index,
+                                  Handle<String> variable_name,
+                                  Handle<Object> new_value) {
+  for (int n = 0; !it->Done() && n < index; it->Next()) {
+    n++;
+  }
+  if (it->Done()) {
+    return false;
+  }
+  return it->SetVariableValue(variable_name, new_value);
+}
+
+
+// Change variable value in closure or local scope
+// args[0]: number or JsFunction: break id or function
+// args[1]: number: frame index (when arg[0] is break id)
+// args[2]: number: inlined frame index (when arg[0] is break id)
+// args[3]: number: scope index
+// args[4]: string: variable name
+// args[5]: object: new value
+//
+// Return true if success and false otherwise
+RUNTIME_FUNCTION(MaybeObject*, Runtime_SetScopeVariableValue) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 6);
+
+  // Check arguments.
+  CONVERT_NUMBER_CHECKED(int, index, Int32, args[3]);
+  CONVERT_ARG_HANDLE_CHECKED(String, variable_name, 4);
+  Handle<Object> new_value = args.at<Object>(5);
+
+  bool res;
+  if (args[0]->IsNumber()) {
+    Object* check;
+    { MaybeObject* maybe_check = Runtime_CheckExecutionState(
+        RUNTIME_ARGUMENTS(isolate, args));
+      if (!maybe_check->ToObject(&check)) return maybe_check;
+    }
+    CONVERT_SMI_ARG_CHECKED(wrapped_id, 1);
+    CONVERT_NUMBER_CHECKED(int, inlined_jsframe_index, Int32, args[2]);
+
+    // Get the frame where the debugging is performed.
+    StackFrame::Id id = UnwrapFrameId(wrapped_id);
+    JavaScriptFrameIterator frame_it(isolate, id);
+    JavaScriptFrame* frame = frame_it.frame();
+
+    ScopeIterator it(isolate, frame, inlined_jsframe_index);
+    res = SetScopeVariableValue(&it, index, variable_name, new_value);
+  } else {
+    CONVERT_ARG_HANDLE_CHECKED(JSFunction, fun, 0);
+    ScopeIterator it(isolate, fun);
+    res = SetScopeVariableValue(&it, index, variable_name, new_value);
+  }
+
+  return isolate->heap()->ToBoolean(res);
 }
 
 
