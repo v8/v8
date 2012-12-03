@@ -7532,4 +7532,18 @@ TEST(LiveEditDisabled) {
 }
 
 
+TEST(DebugContextOOM) {
+  v8::HandleScope scope;
+  LocalContext context;
+  v8::V8::IgnoreOutOfMemoryException();
+
+  v8::Local<v8::Value> result = CompileRun("a = '1'; while (true) a += a;");
+
+  // Check for out of memory state.
+  CHECK(result.IsEmpty());
+  CHECK(context->HasOutOfMemoryException());
+
+  v8::Debug::GetDebugContext();
+}
+
 #endif  // ENABLE_DEBUGGER_SUPPORT
