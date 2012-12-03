@@ -460,7 +460,7 @@ intptr_t Heap::AdjustAmountOfExternalAllocatedMemory(
     intptr_t change_in_bytes) {
   ASSERT(HasBeenSetUp());
   intptr_t amount = amount_of_external_allocated_memory_ + change_in_bytes;
-  if (change_in_bytes >= 0) {
+  if (change_in_bytes > 0) {
     // Avoid overflow.
     if (amount > amount_of_external_allocated_memory_) {
       amount_of_external_allocated_memory_ = amount;
