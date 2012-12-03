@@ -2762,6 +2762,23 @@ void FindAsciiStringIndices(Vector<const char> subject,
 }
 
 
+void FindTwoByteStringIndices(const Vector<const uc16> subject,
+                              uc16 pattern,
+                              ZoneList<int>* indices,
+                              unsigned int limit,
+                              Zone* zone) {
+  ASSERT(limit > 0);
+  const uc16* subject_start = subject.start();
+  const uc16* subject_end = subject_start + subject.length();
+  for (const uc16* pos = subject_start; pos < subject_end && limit > 0; pos++) {
+    if (*pos == pattern) {
+      indices->Add(static_cast<int>(pos - subject_start), zone);
+      limit--;
+    }
+  }
+}
+
+
 template <typename SubjectChar, typename PatternChar>
 void FindStringIndices(Isolate* isolate,
                        Vector<const SubjectChar> subject,
@@ -2826,19 +2843,37 @@ void FindStringIndicesDispatch(Isolate* isolate,
     } else {
       Vector<const uc16> subject_vector = subject_content.ToUC16Vector();
       if (pattern_content.IsAscii()) {
-        FindStringIndices(isolate,
-                          subject_vector,
-                          pattern_content.ToAsciiVector(),
-                          indices,
-                          limit,
-                          zone);
+        Vector<const char> pattern_vector = pattern_content.ToAsciiVector();
+        if (pattern_vector.length() == 1) {
+          FindTwoByteStringIndices(subject_vector,
+                                   pattern_vector[0],
+                                   indices,
+                                   limit,
+                                   zone);
+        } else {
+          FindStringIndices(isolate,
+                            subject_vector,
+                            pattern_vector,
+                            indices,
+                            limit,
+                            zone);
+        }
       } else {
-        FindStringIndices(isolate,
-                          subject_vector,
-                          pattern_content.ToUC16Vector(),
-                          indices,
-                          limit,
-                          zone);
+        Vector<const uc16> pattern_vector = pattern_content.ToUC16Vector();
+        if (pattern_vector.length() == 1) {
+          FindTwoByteStringIndices(subject_vector,
+                                   pattern_vector[0],
+                                   indices,
+                                   limit,
+                                   zone);
+        } else {
+          FindStringIndices(isolate,
+                            subject_vector,
+                            pattern_vector,
+                            indices,
+                            limit,
+                            zone);
+        }
       }
     }
   }
