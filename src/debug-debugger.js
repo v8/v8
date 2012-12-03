@@ -1306,9 +1306,12 @@ ProtocolMessage.prototype.setOption = function(name, value) {
 };
 
 
-ProtocolMessage.prototype.failed = function(message) {
+ProtocolMessage.prototype.failed = function(message, opt_details) {
   this.success = false;
   this.message = message;
+  if (IS_OBJECT(opt_details)) {
+    this.error_details = opt_details;
+  }
 };
 
 
@@ -1354,6 +1357,9 @@ ProtocolMessage.prototype.toJSONProtocol = function() {
   }
   if (this.message) {
     json.message = this.message;
+  }
+  if (this.error_details) {
+    json.error_details = this.error_details;
   }
   json.running = this.running;
   return JSON.stringify(json);
@@ -2461,8 +2467,17 @@ DebugCommandProcessor.prototype.changeLiveRequest_ = function(
 
   var new_source = request.arguments.new_source;
 
-  var result_description = Debug.LiveEdit.SetScriptSource(the_script,
-      new_source, preview_only, change_log);
+  var result_description;
+  try {
+    result_description = Debug.LiveEdit.SetScriptSource(the_script,
+        new_source, preview_only, change_log);
+  } catch (e) {
+    if (e instanceof Debug.LiveEdit.Failure && "details" in e) {
+      response.failed(e.message, e.details);
+      return;
+    }
+    throw e;
+  }
   response.body = {change_log: change_log, result: result_description};
 
   if (!preview_only && !this.running_ && result_description.stack_modified) {

@@ -36,6 +36,7 @@
 #include "debug.h"
 #include "deoptimizer.h"
 #include "global-handles.h"
+#include "messages.h"
 #include "parser.h"
 #include "scopeinfo.h"
 #include "scopes.h"
@@ -925,11 +926,58 @@ JSArray* LiveEdit::GatherCompileInfo(Handle<Script> script,
   Handle<Object> original_source = Handle<Object>(script->source());
   script->set_source(*source);
   isolate->set_active_function_info_listener(&listener);
-  CompileScriptForTracker(isolate, script);
+
+  {
+    // Creating verbose TryCatch from public API is currently the only way to
+    // force code save location. We do not use this the object directly.
+    v8::TryCatch try_catch;
+    try_catch.SetVerbose(true);
+
+    // A logical 'try' section.
+    CompileScriptForTracker(isolate, script);
+  }
+
+  // A logical 'catch' section.
+  Handle<Object> rethrow_exception;
+  if (isolate->has_pending_exception()) {
+    Handle<Object> exception(isolate->pending_exception()->ToObjectChecked());
+    MessageLocation message_location = isolate->GetMessageLocation();
+
+    isolate->clear_pending_message();
+    isolate->clear_pending_exception();
+
+    // If possible, copy positions from message object to exception object.
+    if (exception->IsJSObject() && !message_location.script().is_null()) {
+      Handle<JSObject> exception_struct = Handle<JSObject>::cast(exception);
+
+      Factory* factory = isolate->factory();
+      JSReceiver::SetProperty(exception_struct,
+          factory->LookupAsciiSymbol("startPosition"),
+          Handle<Smi>(Smi::FromInt(message_location.start_pos())),
+          NONE, kNonStrictMode);
+      JSReceiver::SetProperty(exception_struct,
+          factory->LookupAsciiSymbol("endPosition"),
+          Handle<Smi>(Smi::FromInt(message_location.end_pos())),
+          NONE, kNonStrictMode);
+      JSReceiver::SetProperty(exception_struct,
+          factory->LookupAsciiSymbol("scriptObject"),
+          GetScriptWrapper(message_location.script()),
+          NONE, kNonStrictMode);
+    }
+
+    rethrow_exception = exception;
+  }
+
+  // A logical 'finally' section.
   isolate->set_active_function_info_listener(NULL);
   script->set_source(*original_source);
 
-  return *(listener.GetResult());
+  if (rethrow_exception.is_null()) {
+    return *(listener.GetResult());
+  } else {
+    isolate->Throw(*rethrow_exception);
+    return 0;
+  }
 }
 
 

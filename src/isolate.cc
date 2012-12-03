@@ -1366,6 +1366,24 @@ void Isolate::ReportPendingMessages() {
 }
 
 
+MessageLocation Isolate::GetMessageLocation() {
+  ASSERT(has_pending_exception());
+
+  if (thread_local_top_.pending_exception_ != Failure::OutOfMemoryException() &&
+      thread_local_top_.pending_exception_ != heap()->termination_exception() &&
+      thread_local_top_.has_pending_message_ &&
+      !thread_local_top_.pending_message_obj_->IsTheHole() &&
+      thread_local_top_.pending_message_script_ != NULL) {
+    Handle<Script> script(thread_local_top_.pending_message_script_);
+    int start_pos = thread_local_top_.pending_message_start_pos_;
+    int end_pos = thread_local_top_.pending_message_end_pos_;
+    return MessageLocation(script, start_pos, end_pos);
+  }
+
+  return MessageLocation();
+}
+
+
 void Isolate::TraceException(bool flag) {
   FLAG_trace_exception = flag;  // TODO(isolates): This is an unfortunate use.
 }

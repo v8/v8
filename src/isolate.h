@@ -743,6 +743,8 @@ class Isolate {
   Failure* ReThrow(MaybeObject* exception);
   void ScheduleThrow(Object* exception);
   void ReportPendingMessages();
+  // Return pending location if any or unfilled structure.
+  MessageLocation GetMessageLocation();
   Failure* ThrowIllegalOperation();
 
   // Promote a scheduled exception to pending. Asserts has_scheduled_exception.
