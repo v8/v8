@@ -606,6 +606,7 @@ static byte* GetNoCodeAgeSequence(uint32_t* length) {
   *length = kNoCodeAgeSequenceLength * Assembler::kInstrSize;
   if (!initialized) {
     CodePatcher patcher(byte_sequence, kNoCodeAgeSequenceLength);
+    PredictableCodeSizeScope scope(patcher.masm(), *length);
     patcher.masm()->stm(db_w, sp, r1.bit() | cp.bit() | fp.bit() | lr.bit());
     patcher.masm()->LoadRoot(ip, Heap::kUndefinedValueRootIndex);
     patcher.masm()->add(fp, sp, Operand(2 * kPointerSize));

@@ -423,7 +423,8 @@ void MacroAssembler::LoadRoot(Register destination,
                               Heap::RootListIndex index,
                               Condition cond) {
   if (CpuFeatures::IsSupported(MOVW_MOVT_IMMEDIATE_LOADS) &&
-      !Heap::RootCanBeWrittenAfterInitialization(index)) {
+      !Heap::RootCanBeWrittenAfterInitialization(index) &&
+      !predictable_code_size()) {
     Handle<Object> root(isolate()->heap()->roots_array_start()[index]);
     if (!isolate()->heap()->InNewSpace(*root)) {
       // The CPU supports fast immediate values, and this root will never
