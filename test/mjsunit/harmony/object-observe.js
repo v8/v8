@@ -584,8 +584,7 @@ Object.defineProperty(arr3, 'length', {value: 10, writable: false});
 Object.deliverChangeRecords(observer.callback);
 observer.assertCallbackRecords([
   { object: arr, name: '3', type: 'deleted', oldValue: 'd' },
-  // TODO(adamk): oldValue should not be present below
-  { object: arr, name: '2', type: 'deleted', oldValue: undefined },
+  { object: arr, name: '2', type: 'deleted' },
   { object: arr, name: 'length', type: 'updated', oldValue: 4 },
   { object: arr, name: '1', type: 'deleted', oldValue: 'b' },
   { object: arr, name: 'length', type: 'updated', oldValue: 2 },

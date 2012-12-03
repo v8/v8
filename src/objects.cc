@@ -9439,8 +9439,10 @@ MaybeObject* JSArray::SetElementsLength(Object* len) {
     // A non-configurable property will cause the truncation operation to
     // stop at this index.
     if (attributes == DONT_DELETE) break;
-    // TODO(adamk): Don't fetch the old value if it's an accessor.
-    old_values.Add(Object::GetElement(self, i));
+    old_values.Add(
+        self->GetLocalElementAccessorPair(i) == NULL
+        ? Object::GetElement(self, i)
+        : Handle<Object>::cast(isolate->factory()->the_hole_value()));
     indices.Add(isolate->factory()->Uint32ToString(i));
   }
 
