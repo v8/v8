@@ -1116,8 +1116,10 @@ TEST(TestCodeFlushingIncrementalScavenge) {
   // Bump the code age so that flushing is triggered while the function
   // object is still located in new-space.
   const int kAgingThreshold = 6;
-  function->shared()->set_code_age(kAgingThreshold);
-  function2->shared()->set_code_age(kAgingThreshold);
+  for (int i = 0; i < kAgingThreshold; i++) {
+    function->shared()->code()->MakeOlder(static_cast<MarkingParity>(i % 2));
+    function2->shared()->code()->MakeOlder(static_cast<MarkingParity>(i % 2));
+  }
 
   // Simulate incremental marking so that the functions are enqueued as
   // code flushing candidates. Then kill one of the functions. Finally
@@ -1166,7 +1168,9 @@ TEST(TestCodeFlushingIncrementalAbort) {
 
   // Bump the code age so that flushing is triggered.
   const int kAgingThreshold = 6;
-  function->shared()->set_code_age(kAgingThreshold);
+  for (int i = 0; i < kAgingThreshold; i++) {
+    function->shared()->code()->MakeOlder(static_cast<MarkingParity>(i % 2));
+  }
 
   // Simulate incremental marking so that the function is enqueued as
   // code flushing candidate.
