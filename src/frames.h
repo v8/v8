@@ -136,7 +136,6 @@ class StackHandler BASE_EMBEDDED {
   V(EXIT,              ExitFrame)             \
   V(JAVA_SCRIPT,       JavaScriptFrame)       \
   V(OPTIMIZED,         OptimizedFrame)        \
-  V(STUB,              StubFrame)             \
   V(INTERNAL,          InternalFrame)         \
   V(CONSTRUCT,         ConstructFrame)        \
   V(ARGUMENTS_ADAPTOR, ArgumentsAdaptorFrame)
@@ -556,33 +555,7 @@ class JavaScriptFrame: public StandardFrame {
 };
 
 
-class CompiledFrame : public JavaScriptFrame {
- public:
-  virtual Type type() const = 0;
-
-  // GC support.
-  virtual void Iterate(ObjectVisitor* v) const;
-
- protected:
-  inline explicit CompiledFrame(StackFrameIterator* iterator);
-};
-
-
-class StubFrame : public CompiledFrame {
- public:
-  virtual Type type() const { return STUB; }
-
-  // GC support.
-  virtual void Iterate(ObjectVisitor* v) const;
-
- protected:
-  inline explicit StubFrame(StackFrameIterator* iterator);
-
-  friend class StackFrameIterator;
-};
-
-
-class OptimizedFrame : public CompiledFrame {
+class OptimizedFrame : public JavaScriptFrame {
  public:
   virtual Type type() const { return OPTIMIZED; }
 

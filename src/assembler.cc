@@ -1375,11 +1375,6 @@ ExternalReference ExternalReference::page_flags(Page* page) {
 }
 
 
-ExternalReference ExternalReference::ForDeoptEntry(Address entry) {
-  return ExternalReference(entry);
-}
-
-
 // Helper function to compute x^y, where y is known to be an
 // integer. Uses binary decomposition to limit the number of
 // multiplications; see the discussion in "Hacker's Delight" by Henry

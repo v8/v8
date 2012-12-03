@@ -1680,7 +1680,6 @@ static void ReportCodeKindStatistics() {
       CASE(FUNCTION);
       CASE(OPTIMIZED_FUNCTION);
       CASE(STUB);
-      CASE(COMPILED_STUB);
       CASE(BUILTIN);
       CASE(LOAD_IC);
       CASE(KEYED_LOAD_IC);

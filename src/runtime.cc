@@ -7937,17 +7937,6 @@ class ActivationsFinder : public ThreadVisitor {
 };
 
 
-RUNTIME_FUNCTION(MaybeObject*, Runtime_NotifyICMiss) {
-  HandleScope scope(isolate);
-  ASSERT(args.length() == 0);
-  Deoptimizer* deoptimizer = Deoptimizer::Grab(isolate);
-  ASSERT(isolate->heap()->IsAllocationAllowed());
-  ASSERT(deoptimizer->compiled_code_kind() == Code::COMPILED_STUB);
-  delete deoptimizer;
-  return isolate->heap()->undefined_value();
-}
-
-
 RUNTIME_FUNCTION(MaybeObject*, Runtime_NotifyDeoptimized) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 1);
@@ -7956,11 +7945,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NotifyDeoptimized) {
       static_cast<Deoptimizer::BailoutType>(args.smi_at(0));
   Deoptimizer* deoptimizer = Deoptimizer::Grab(isolate);
   ASSERT(isolate->heap()->IsAllocationAllowed());
-
-  ASSERT(deoptimizer->compiled_code_kind() != Code::COMPILED_STUB);
+  JavaScriptFrameIterator it(isolate);
 
   // Make sure to materialize objects before causing any allocation.
-  JavaScriptFrameIterator it(isolate);
   deoptimizer->MaterializeHeapObjects(&it);
   delete deoptimizer;
 

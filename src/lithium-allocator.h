@@ -608,9 +608,9 @@ class LAllocator BASE_EMBEDDED {
   ZoneList<LiveRange*> live_ranges_;
 
   // Lists of live ranges
-  EmbeddedVector<LiveRange*, Register::kMaxNumAllocatableRegisters>
+  EmbeddedVector<LiveRange*, Register::kNumAllocatableRegisters>
       fixed_live_ranges_;
-  EmbeddedVector<LiveRange*, DoubleRegister::kMaxNumAllocatableRegisters>
+  EmbeddedVector<LiveRange*, DoubleRegister::kNumAllocatableRegisters>
       fixed_double_live_ranges_;
   ZoneList<LiveRange*> unhandled_live_ranges_;
   ZoneList<LiveRange*> active_live_ranges_;

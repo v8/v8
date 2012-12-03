@@ -38,7 +38,6 @@ namespace internal {
 static const int kPrologueOffsetNotSet = -1;
 
 class ScriptDataImpl;
-class HydrogenCodeStub;
 
 // CompilationInfo encapsulates some information known at compile time.  It
 // is constructed based on the resources available at compile-time.
@@ -47,7 +46,6 @@ class CompilationInfo {
   CompilationInfo(Handle<Script> script, Zone* zone);
   CompilationInfo(Handle<SharedFunctionInfo> shared_info, Zone* zone);
   CompilationInfo(Handle<JSFunction> closure, Zone* zone);
-  CompilationInfo(HydrogenCodeStub* stub, Isolate* isolate, Zone* zone);
 
   virtual ~CompilationInfo();
 
@@ -74,14 +72,10 @@ class CompilationInfo {
   Handle<JSFunction> closure() const { return closure_; }
   Handle<SharedFunctionInfo> shared_info() const { return shared_info_; }
   Handle<Script> script() const { return script_; }
-  HydrogenCodeStub* code_stub() {return code_stub_; }
   v8::Extension* extension() const { return extension_; }
   ScriptDataImpl* pre_parse_data() const { return pre_parse_data_; }
   Handle<Context> context() const { return context_; }
   BailoutId osr_ast_id() const { return osr_ast_id_; }
-  int num_parameters() const;
-  int num_heap_slots() const;
-  Code::Flags flags() const;
 
   void MarkAsEval() {
     ASSERT(!is_lazy());
@@ -104,31 +98,9 @@ class CompilationInfo {
   void MarkAsNative() {
     flags_ |= IsNative::encode(true);
   }
-
   bool is_native() const {
     return IsNative::decode(flags_);
   }
-
-  bool is_calling() const {
-    return is_deferred_calling() || is_non_deferred_calling();
-  }
-
-  void MarkAsDeferredCalling() {
-    flags_ |= IsDeferredCalling::encode(true);
-  }
-
-  bool is_deferred_calling() const {
-    return IsDeferredCalling::decode(flags_);
-  }
-
-  void MarkAsNonDeferredCalling() {
-    flags_ |= IsNonDeferredCalling::encode(true);
-  }
-
-  bool is_non_deferred_calling() const {
-    return IsNonDeferredCalling::decode(flags_);
-  }
-
   void SetFunction(FunctionLiteral* literal) {
     ASSERT(function_ == NULL);
     function_ = literal;
@@ -179,7 +151,6 @@ class CompilationInfo {
   // Accessors for the different compilation modes.
   bool IsOptimizing() const { return mode_ == OPTIMIZE; }
   bool IsOptimizable() const { return mode_ == BASE; }
-  bool IsStub() const { return mode_ == STUB; }
   void SetOptimizing(BailoutId osr_ast_id) {
     SetMode(OPTIMIZE);
     osr_ast_id_ = osr_ast_id;
@@ -238,11 +209,10 @@ class CompilationInfo {
   enum Mode {
     BASE,
     OPTIMIZE,
-    NONOPT,
-    STUB
+    NONOPT
   };
 
-  void Initialize(Isolate* isolate, Mode mode, Zone* zone);
+  void Initialize(Zone* zone);
 
   void SetMode(Mode mode) {
     ASSERT(V8::UseCrankshaft());
@@ -268,12 +238,6 @@ class CompilationInfo {
   // If compiling for debugging produce just full code matching the
   // initial mode setting.
   class IsCompilingForDebugging: public BitField<bool, 8, 1> {};
-  // If the compiled code contains calls that require building a frame
-  class IsCalling: public BitField<bool, 9, 1> {};
-  // If the compiled code contains calls that require building a frame
-  class IsDeferredCalling: public BitField<bool, 10, 1> {};
-  // If the compiled code contains calls that require building a frame
-  class IsNonDeferredCalling: public BitField<bool, 11, 1> {};
 
 
   unsigned flags_;
@@ -286,8 +250,6 @@ class CompilationInfo {
   Scope* scope_;
   // The global scope provided as a convenience.
   Scope* global_scope_;
-  // For compiled stubs, the stub object
-  HydrogenCodeStub* code_stub_;
   // The compiled code.
   Handle<Code> code_;
 
@@ -348,10 +310,6 @@ class CompilationInfoWithZone: public CompilationInfo {
       : CompilationInfo(closure, &zone_),
         zone_(closure->GetIsolate()),
         zone_scope_(&zone_, DELETE_ON_EXIT) {}
-  explicit CompilationInfoWithZone(HydrogenCodeStub* stub, Isolate* isolate)
-      : CompilationInfo(stub, isolate, &zone_),
-        zone_(isolate),
-        zone_scope_(&zone_, DELETE_ON_EXIT) {}
 
  private:
   Zone zone_;
@@ -377,7 +335,7 @@ class CompilationHandleScope BASE_EMBEDDED {
 
 
 class HGraph;
-class HOptimizedGraphBuilder;
+class HGraphBuilder;
 class LChunk;
 
 // A helper class that calls the three compilation phases in
@@ -419,7 +377,7 @@ class OptimizingCompiler: public ZoneObject {
  private:
   CompilationInfo* info_;
   TypeFeedbackOracle* oracle_;
-  HOptimizedGraphBuilder* graph_builder_;
+  HGraphBuilder* graph_builder_;
   HGraph* graph_;
   LChunk* chunk_;
   int64_t time_taken_to_create_graph_;

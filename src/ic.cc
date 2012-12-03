@@ -1054,13 +1054,7 @@ Handle<Code> KeyedLoadIC::GetElementStubWithoutMapCheck(
     ElementsKind elements_kind,
     KeyedAccessGrowMode grow_mode) {
   ASSERT(grow_mode == DO_NOT_ALLOW_JSARRAY_GROWTH);
-  if (IsFastElementsKind(elements_kind) ||
-      IsExternalArrayElementsKind(elements_kind)) {
-    return KeyedLoadFastElementStub(is_js_array, elements_kind).GetCode();
-  } else {
-    ASSERT(elements_kind == DICTIONARY_ELEMENTS);
-    return KeyedLoadDictionaryElementStub().GetCode();
-  }
+  return KeyedLoadElementStub(elements_kind).GetCode();
 }
 
 

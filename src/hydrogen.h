@@ -429,8 +429,7 @@ enum FrameType {
   JS_CONSTRUCT,
   JS_GETTER,
   JS_SETTER,
-  ARGUMENTS_ADAPTOR,
-  STUB
+  ARGUMENTS_ADAPTOR
 };
 
 
@@ -440,8 +439,6 @@ class HEnvironment: public ZoneObject {
                Scope* scope,
                Handle<JSFunction> closure,
                Zone* zone);
-
-  explicit HEnvironment(Zone* zone);
 
   HEnvironment* arguments_environment() {
     return outer()->frame_type() == ARGUMENTS_ADAPTOR ? outer() : this;
@@ -639,7 +636,7 @@ class HInferRepresentation BASE_EMBEDDED {
 };
 
 
-class HOptimizedGraphBuilder;
+class HGraphBuilder;
 
 enum ArgumentsAllowedFlag {
   ARGUMENTS_NOT_ALLOWED,
@@ -675,10 +672,10 @@ class AstContext {
   bool is_for_typeof() { return for_typeof_; }
 
  protected:
-  AstContext(HOptimizedGraphBuilder* owner, Expression::Context kind);
+  AstContext(HGraphBuilder* owner, Expression::Context kind);
   virtual ~AstContext();
 
-  HOptimizedGraphBuilder* owner() const { return owner_; }
+  HGraphBuilder* owner() const { return owner_; }
 
   inline Zone* zone() const;
 
@@ -689,7 +686,7 @@ class AstContext {
 #endif
 
  private:
-  HOptimizedGraphBuilder* owner_;
+  HGraphBuilder* owner_;
   Expression::Context kind_;
   AstContext* outer_;
   bool for_typeof_;
@@ -698,7 +695,7 @@ class AstContext {
 
 class EffectContext: public AstContext {
  public:
-  explicit EffectContext(HOptimizedGraphBuilder* owner)
+  explicit EffectContext(HGraphBuilder* owner)
       : AstContext(owner, Expression::kEffect) {
   }
   virtual ~EffectContext();
@@ -711,7 +708,7 @@ class EffectContext: public AstContext {
 
 class ValueContext: public AstContext {
  public:
-  ValueContext(HOptimizedGraphBuilder* owner, ArgumentsAllowedFlag flag)
+  explicit ValueContext(HGraphBuilder* owner, ArgumentsAllowedFlag flag)
       : AstContext(owner, Expression::kValue), flag_(flag) {
   }
   virtual ~ValueContext();
@@ -729,7 +726,7 @@ class ValueContext: public AstContext {
 
 class TestContext: public AstContext {
  public:
-  TestContext(HOptimizedGraphBuilder* owner,
+  TestContext(HGraphBuilder* owner,
               Expression* condition,
               TypeFeedbackOracle* oracle,
               HBasicBlock* if_true,
@@ -769,7 +766,7 @@ class TestContext: public AstContext {
 
 class FunctionState {
  public:
-  FunctionState(HOptimizedGraphBuilder* owner,
+  FunctionState(HGraphBuilder* owner,
                 CompilationInfo* info,
                 TypeFeedbackOracle* oracle,
                 InliningKind inlining_kind);
@@ -799,7 +796,7 @@ class FunctionState {
   bool arguments_pushed() { return arguments_elements() != NULL; }
 
  private:
-  HOptimizedGraphBuilder* owner_;
+  HGraphBuilder* owner_;
 
   CompilationInfo* compilation_info_;
   TypeFeedbackOracle* oracle_;
@@ -831,65 +828,7 @@ class FunctionState {
 };
 
 
-class HGraphBuilder {
- public:
-  explicit HGraphBuilder(CompilationInfo* info)
-      : info_(info), graph_(NULL), current_block_(NULL) {}
-  virtual ~HGraphBuilder() {}
-
-  HBasicBlock* current_block() const { return current_block_; }
-  void set_current_block(HBasicBlock* block) { current_block_ = block; }
-  HEnvironment* environment() const {
-    return current_block()->last_environment();
-  }
-  Zone* zone() const { return info_->zone(); }
-  HGraph* graph() { return graph_; }
-
-  HGraph* CreateGraph();
-
-  // Adding instructions.
-  HInstruction* AddInstruction(HInstruction* instr);
-  void AddSimulate(BailoutId id,
-                   RemovableSimulate removable = FIXED_SIMULATE);
-
- protected:
-  virtual bool BuildGraph() = 0;
-
-  // Building common constructs
-  HInstruction* BuildExternalArrayElementAccess(
-      HValue* external_elements,
-      HValue* checked_key,
-      HValue* val,
-      HValue* dependency,
-      ElementsKind elements_kind,
-      bool is_store);
-
-  HInstruction* BuildFastElementAccess(
-      HValue* elements,
-      HValue* checked_key,
-      HValue* val,
-      HValue* dependency,
-      ElementsKind elements_kind,
-      bool is_store);
-
-  HInstruction* BuildUncheckedMonomorphicElementAccess(
-      HValue* object,
-      HValue* key,
-      HValue* val,
-      HCheckMaps* mapcheck,
-      bool is_js_array,
-      ElementsKind elements_kind,
-      bool is_store);
-
- private:
-  HGraphBuilder();
-  CompilationInfo* info_;
-  HGraph* graph_;
-  HBasicBlock* current_block_;
-};
-
-
-class HOptimizedGraphBuilder: public HGraphBuilder, public AstVisitor {
+class HGraphBuilder: public AstVisitor {
  public:
   enum BreakType { BREAK, CONTINUE };
   enum SwitchType { UNKNOWN_SWITCH, SMI_SWITCH, STRING_SWITCH };
@@ -925,8 +864,7 @@ class HOptimizedGraphBuilder: public HGraphBuilder, public AstVisitor {
   // structures mirroring BreakableStatement nesting.
   class BreakAndContinueScope BASE_EMBEDDED {
    public:
-    BreakAndContinueScope(BreakAndContinueInfo* info,
-                          HOptimizedGraphBuilder* owner)
+    BreakAndContinueScope(BreakAndContinueInfo* info, HGraphBuilder* owner)
         : info_(info), owner_(owner), next_(owner->break_scope()) {
       owner->set_break_scope(this);
     }
@@ -934,7 +872,7 @@ class HOptimizedGraphBuilder: public HGraphBuilder, public AstVisitor {
     ~BreakAndContinueScope() { owner_->set_break_scope(next_); }
 
     BreakAndContinueInfo* info() { return info_; }
-    HOptimizedGraphBuilder* owner() { return owner_; }
+    HGraphBuilder* owner() { return owner_; }
     BreakAndContinueScope* next() { return next_; }
 
     // Search the break stack for a break or continue target.
@@ -942,19 +880,31 @@ class HOptimizedGraphBuilder: public HGraphBuilder, public AstVisitor {
 
    private:
     BreakAndContinueInfo* info_;
-    HOptimizedGraphBuilder* owner_;
+    HGraphBuilder* owner_;
     BreakAndContinueScope* next_;
   };
 
-  HOptimizedGraphBuilder(CompilationInfo* info, TypeFeedbackOracle* oracle);
+  HGraphBuilder(CompilationInfo* info, TypeFeedbackOracle* oracle);
 
-  virtual bool BuildGraph();
+  HGraph* CreateGraph();
 
   // Simple accessors.
+  HGraph* graph() const { return graph_; }
   BreakAndContinueScope* break_scope() const { return break_scope_; }
   void set_break_scope(BreakAndContinueScope* head) { break_scope_ = head; }
 
+  HBasicBlock* current_block() const { return current_block_; }
+  void set_current_block(HBasicBlock* block) { current_block_ = block; }
+  HEnvironment* environment() const {
+    return current_block()->last_environment();
+  }
+
   bool inline_bailout() { return inline_bailout_; }
+
+  // Adding instructions.
+  HInstruction* AddInstruction(HInstruction* instr);
+  void AddSimulate(BailoutId ast_id,
+                   RemovableSimulate removable = FIXED_SIMULATE);
 
   // Bailout environment manipulation.
   void Push(HValue* value) { environment()->Push(value); }
@@ -978,12 +928,9 @@ class HOptimizedGraphBuilder: public HGraphBuilder, public AstVisitor {
   void operator delete(void* pointer, Zone* zone) { }
   void operator delete(void* pointer) { }
 
-  DEFINE_AST_VISITOR_SUBCLASS_MEMBERS();
-
  private:
   // Type of a member function that generates inline code for a native function.
-  typedef void (HOptimizedGraphBuilder::*InlineFunctionGenerator)
-      (CallRuntime* call);
+  typedef void (HGraphBuilder::*InlineFunctionGenerator)(CallRuntime* call);
 
   // Forward declarations for inner scope classes.
   class SubgraphScope;
@@ -1192,13 +1139,24 @@ class HOptimizedGraphBuilder: public HGraphBuilder, public AstVisitor {
                                      HValue* right);
   HInstruction* BuildIncrement(bool returns_original_input,
                                CountOperation* expr);
-  HInstruction* BuildLoadKeyedGeneric(HValue* object,
-                                      HValue* key);
+  HInstruction* BuildFastElementAccess(HValue* elements,
+                                       HValue* checked_key,
+                                       HValue* val,
+                                       HValue* dependency,
+                                       ElementsKind elements_kind,
+                                       bool is_store);
 
   HInstruction* TryBuildConsolidatedElementLoad(HValue* object,
                                                 HValue* key,
                                                 HValue* val,
                                                 SmallMapList* maps);
+
+  HInstruction* BuildUncheckedMonomorphicElementAccess(HValue* object,
+                                                       HValue* key,
+                                                       HValue* val,
+                                                       HCheckMaps* mapcheck,
+                                                       Handle<Map> map,
+                                                       bool is_store);
 
   HInstruction* BuildMonomorphicElementAccess(HValue* object,
                                               HValue* key,
@@ -1239,6 +1197,14 @@ class HOptimizedGraphBuilder: public HGraphBuilder, public AstVisitor {
                                           Handle<String> name,
                                           Property* expr,
                                           Handle<Map> map);
+  HInstruction* BuildLoadKeyedGeneric(HValue* object, HValue* key);
+  HInstruction* BuildExternalArrayElementAccess(
+      HValue* external_elements,
+      HValue* checked_key,
+      HValue* val,
+      HValue* dependency,
+      ElementsKind elements_kind,
+      bool is_store);
 
   void AddCheckMapsWithTransitions(HValue* object,
                                    Handle<Map> map);
@@ -1280,6 +1246,8 @@ class HOptimizedGraphBuilder: public HGraphBuilder, public AstVisitor {
                         HValue** operand,
                         HValue** shift_amount);
 
+  Zone* zone() const { return zone_; }
+
   // The translation state of the currently-being-translated function.
   FunctionState* function_state_;
 
@@ -1293,16 +1261,20 @@ class HOptimizedGraphBuilder: public HGraphBuilder, public AstVisitor {
   // A stack of breakable statements entered.
   BreakAndContinueScope* break_scope_;
 
+  HGraph* graph_;
+  HBasicBlock* current_block_;
+
   int inlined_count_;
   ZoneList<Handle<Object> > globals_;
+
+  Zone* zone_;
 
   bool inline_bailout_;
 
   friend class FunctionState;  // Pushes and pops the state stack.
   friend class AstContext;  // Pushes and pops the AST context stack.
-  friend class KeyedLoadFastElementStub;
 
-  DISALLOW_COPY_AND_ASSIGN(HOptimizedGraphBuilder);
+  DISALLOW_COPY_AND_ASSIGN(HGraphBuilder);
 };
 
 
@@ -1475,7 +1447,7 @@ class HPhase BASE_EMBEDDED {
 
 class HTracer: public Malloced {
  public:
-  void TraceCompilation(CompilationInfo* info);
+  void TraceCompilation(FunctionLiteral* function);
   void TraceHydrogen(const char* name, HGraph* graph);
   void TraceLithium(const char* name, LChunk* chunk);
   void TraceLiveRanges(const char* name, LAllocator* allocator);
