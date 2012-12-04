@@ -1252,12 +1252,28 @@ BUILTIN(StrictModePoisonPill) {
 //
 
 
+// Searches the hidden prototype chain of the given object for the first
+// object that is an instance of the given type.  If no such object can
+// be found then Heap::null_value() is returned.
+static inline Object* FindHidden(Heap* heap,
+                                 Object* object,
+                                 FunctionTemplateInfo* type) {
+  if (object->IsInstanceOf(type)) return object;
+  Object* proto = object->GetPrototype();
+  if (proto->IsJSObject() &&
+      JSObject::cast(proto)->map()->is_hidden_prototype()) {
+    return FindHidden(heap, proto, type);
+  }
+  return heap->null_value();
+}
+
+
 // Returns the holder JSObject if the function can legally be called
 // with this receiver.  Returns Heap::null_value() if the call is
 // illegal.  Any arguments that don't fit the expected type is
-// overwritten with undefined.  Arguments that do fit the expected
-// type is overwritten with the object in the prototype chain that
-// actually has that type.
+// overwritten with undefined.  Note that holder and the arguments are
+// implicitly rewritten with the first object in the hidden prototype
+// chain that actually has the expected type.
 static inline Object* TypeCheck(Heap* heap,
                                 int argc,
                                 Object** argv,
@@ -1270,15 +1286,10 @@ static inline Object* TypeCheck(Heap* heap,
   SignatureInfo* sig = SignatureInfo::cast(sig_obj);
   // If necessary, check the receiver
   Object* recv_type = sig->receiver();
-
   Object* holder = recv;
   if (!recv_type->IsUndefined()) {
-    for (; holder != heap->null_value(); holder = holder->GetPrototype()) {
-      if (holder->IsInstanceOf(FunctionTemplateInfo::cast(recv_type))) {
-        break;
-      }
-    }
-    if (holder == heap->null_value()) return holder;
+    holder = FindHidden(heap, holder, FunctionTemplateInfo::cast(recv_type));
+    if (holder == heap->null_value()) return heap->null_value();
   }
   Object* args_obj = sig->args();
   // If there is no argument signature we're done
@@ -1291,13 +1302,9 @@ static inline Object* TypeCheck(Heap* heap,
     if (argtype->IsUndefined()) continue;
     Object** arg = &argv[-1 - i];
     Object* current = *arg;
-    for (; current != heap->null_value(); current = current->GetPrototype()) {
-      if (current->IsInstanceOf(FunctionTemplateInfo::cast(argtype))) {
-        *arg = current;
-        break;
-      }
-    }
-    if (current == heap->null_value()) *arg = heap->undefined_value();
+    current = FindHidden(heap, current, FunctionTemplateInfo::cast(argtype));
+    if (current == heap->null_value()) current = heap->undefined_value();
+    *arg = current;
   }
   return holder;
 }

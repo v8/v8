@@ -1562,6 +1562,7 @@ int CallOptimization::GetPrototypeDepthOfExpectedType(
   while (!object.is_identical_to(holder)) {
     if (object->IsInstanceOf(*expected_receiver_type_)) return depth;
     object = Handle<JSObject>(JSObject::cast(object->GetPrototype()));
+    if (!object->map()->is_hidden_prototype()) return kInvalidProtoDepth;
     ++depth;
   }
   if (holder->IsInstanceOf(*expected_receiver_type_)) return depth;

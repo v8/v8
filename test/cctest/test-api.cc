@@ -8093,12 +8093,8 @@ THREADED_TEST(ShadowObject) {
   Local<ObjectTemplate> proto = t->PrototypeTemplate();
   Local<ObjectTemplate> instance = t->InstanceTemplate();
 
-  // Only allow calls of f on instances of t.
-  Local<v8::Signature> signature = v8::Signature::New(t);
   proto->Set(v8_str("f"),
-             v8::FunctionTemplate::New(ShadowFunctionCallback,
-                                       Local<Value>(),
-                                       signature));
+             v8::FunctionTemplate::New(ShadowFunctionCallback, Local<Value>()));
   proto->Set(v8_str("x"), v8_num(12));
 
   instance->SetAccessor(v8_str("y"), ShadowYGetter, ShadowYSetter);
@@ -9963,6 +9959,7 @@ THREADED_TEST(InterceptorCallICFastApi_SimpleSignature) {
                                 v8::Signature::New(fun_templ));
   v8::Handle<v8::ObjectTemplate> proto_templ = fun_templ->PrototypeTemplate();
   proto_templ->Set(v8_str("method"), method_templ);
+  fun_templ->SetHiddenPrototype(true);
   v8::Handle<v8::ObjectTemplate> templ = fun_templ->InstanceTemplate();
   templ->SetNamedPropertyHandler(InterceptorCallICFastApi,
                                  NULL, NULL, NULL, NULL,
@@ -9993,6 +9990,7 @@ THREADED_TEST(InterceptorCallICFastApi_SimpleSignature_Miss1) {
                                 v8::Signature::New(fun_templ));
   v8::Handle<v8::ObjectTemplate> proto_templ = fun_templ->PrototypeTemplate();
   proto_templ->Set(v8_str("method"), method_templ);
+  fun_templ->SetHiddenPrototype(true);
   v8::Handle<v8::ObjectTemplate> templ = fun_templ->InstanceTemplate();
   templ->SetNamedPropertyHandler(InterceptorCallICFastApi,
                                  NULL, NULL, NULL, NULL,
@@ -10029,6 +10027,7 @@ THREADED_TEST(InterceptorCallICFastApi_SimpleSignature_Miss2) {
                                 v8::Signature::New(fun_templ));
   v8::Handle<v8::ObjectTemplate> proto_templ = fun_templ->PrototypeTemplate();
   proto_templ->Set(v8_str("method"), method_templ);
+  fun_templ->SetHiddenPrototype(true);
   v8::Handle<v8::ObjectTemplate> templ = fun_templ->InstanceTemplate();
   templ->SetNamedPropertyHandler(InterceptorCallICFastApi,
                                  NULL, NULL, NULL, NULL,
@@ -10065,6 +10064,7 @@ THREADED_TEST(InterceptorCallICFastApi_SimpleSignature_Miss3) {
                                 v8::Signature::New(fun_templ));
   v8::Handle<v8::ObjectTemplate> proto_templ = fun_templ->PrototypeTemplate();
   proto_templ->Set(v8_str("method"), method_templ);
+  fun_templ->SetHiddenPrototype(true);
   v8::Handle<v8::ObjectTemplate> templ = fun_templ->InstanceTemplate();
   templ->SetNamedPropertyHandler(InterceptorCallICFastApi,
                                  NULL, NULL, NULL, NULL,
@@ -10104,6 +10104,7 @@ THREADED_TEST(InterceptorCallICFastApi_SimpleSignature_TypeError) {
                                 v8::Signature::New(fun_templ));
   v8::Handle<v8::ObjectTemplate> proto_templ = fun_templ->PrototypeTemplate();
   proto_templ->Set(v8_str("method"), method_templ);
+  fun_templ->SetHiddenPrototype(true);
   v8::Handle<v8::ObjectTemplate> templ = fun_templ->InstanceTemplate();
   templ->SetNamedPropertyHandler(InterceptorCallICFastApi,
                                  NULL, NULL, NULL, NULL,
@@ -10166,6 +10167,7 @@ THREADED_TEST(CallICFastApi_SimpleSignature) {
                                 v8::Signature::New(fun_templ));
   v8::Handle<v8::ObjectTemplate> proto_templ = fun_templ->PrototypeTemplate();
   proto_templ->Set(v8_str("method"), method_templ);
+  fun_templ->SetHiddenPrototype(true);
   v8::Handle<v8::ObjectTemplate> templ(fun_templ->InstanceTemplate());
   CHECK(!templ.IsEmpty());
   LocalContext context;
@@ -10193,6 +10195,7 @@ THREADED_TEST(CallICFastApi_SimpleSignature_Miss1) {
                                 v8::Signature::New(fun_templ));
   v8::Handle<v8::ObjectTemplate> proto_templ = fun_templ->PrototypeTemplate();
   proto_templ->Set(v8_str("method"), method_templ);
+  fun_templ->SetHiddenPrototype(true);
   v8::Handle<v8::ObjectTemplate> templ(fun_templ->InstanceTemplate());
   CHECK(!templ.IsEmpty());
   LocalContext context;
@@ -10225,6 +10228,7 @@ THREADED_TEST(CallICFastApi_SimpleSignature_Miss2) {
                                 v8::Signature::New(fun_templ));
   v8::Handle<v8::ObjectTemplate> proto_templ = fun_templ->PrototypeTemplate();
   proto_templ->Set(v8_str("method"), method_templ);
+  fun_templ->SetHiddenPrototype(true);
   v8::Handle<v8::ObjectTemplate> templ(fun_templ->InstanceTemplate());
   CHECK(!templ.IsEmpty());
   LocalContext context;
@@ -10247,6 +10251,42 @@ THREADED_TEST(CallICFastApi_SimpleSignature_Miss2) {
       "}");
   CHECK(try_catch.HasCaught());
   CHECK_EQ(v8_str("TypeError: Object 333 has no method 'method'"),
+           try_catch.Exception()->ToString());
+  CHECK_EQ(42, context->Global()->Get(v8_str("saved_result"))->Int32Value());
+}
+
+THREADED_TEST(CallICFastApi_SimpleSignature_TypeError) {
+  v8::HandleScope scope;
+  v8::Handle<v8::FunctionTemplate> fun_templ = v8::FunctionTemplate::New();
+  v8::Handle<v8::FunctionTemplate> method_templ =
+      v8::FunctionTemplate::New(FastApiCallback_SimpleSignature,
+                                v8_str("method_data"),
+                                v8::Signature::New(fun_templ));
+  v8::Handle<v8::ObjectTemplate> proto_templ = fun_templ->PrototypeTemplate();
+  proto_templ->Set(v8_str("method"), method_templ);
+  fun_templ->SetHiddenPrototype(true);
+  v8::Handle<v8::ObjectTemplate> templ(fun_templ->InstanceTemplate());
+  CHECK(!templ.IsEmpty());
+  LocalContext context;
+  v8::Handle<v8::Function> fun = fun_templ->GetFunction();
+  GenerateSomeGarbage();
+  context->Global()->Set(v8_str("o"), fun->NewInstance());
+  v8::TryCatch try_catch;
+  CompileRun(
+      "o.foo = 17;"
+      "var receiver = {};"
+      "receiver.__proto__ = o;"
+      "var result = 0;"
+      "var saved_result = 0;"
+      "for (var i = 0; i < 100; i++) {"
+      "  result = receiver.method(41);"
+      "  if (i == 50) {"
+      "    saved_result = result;"
+      "    receiver = Object.create(receiver);"
+      "  }"
+      "}");
+  CHECK(try_catch.HasCaught());
+  CHECK_EQ(v8_str("TypeError: Illegal invocation"),
            try_catch.Exception()->ToString());
   CHECK_EQ(42, context->Global()->Get(v8_str("saved_result"))->Int32Value());
 }
