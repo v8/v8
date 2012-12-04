@@ -756,17 +756,13 @@ class MarkCompactCollector {
   // symbol table are weak.
   void MarkSymbolTable();
 
-  // Mark objects in object groups that have at least one object in the
-  // group marked.
-  void MarkObjectGroups();
-
   // Mark objects in implicit references groups if their parent object
   // is marked.
   void MarkImplicitRefGroups();
 
   // Mark all objects which are reachable due to host application
   // logic like object groups or implicit references' groups.
-  void ProcessExternalMarking();
+  void ProcessExternalMarking(RootMarkingVisitor* visitor);
 
   // Mark objects reachable (transitively) from objects in the marking stack
   // or overflowed in the heap.
@@ -790,6 +786,7 @@ class MarkCompactCollector {
   // Callback function for telling whether the object *p is an unmarked
   // heap object.
   static bool IsUnmarkedHeapObject(Object** p);
+  static bool IsUnmarkedHeapObjectWithHeap(Heap* heap, Object** p);
 
   // Map transitions from a live map to a dead map must be killed.
   // We replace them with a null descriptor, with the same key.

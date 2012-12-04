@@ -1745,6 +1745,16 @@ bool MarkCompactCollector::IsUnmarkedHeapObject(Object** p) {
 }
 
 
+bool MarkCompactCollector::IsUnmarkedHeapObjectWithHeap(Heap* heap,
+                                                        Object** p) {
+  Object* o = *p;
+  ASSERT(o->IsHeapObject());
+  HeapObject* heap_object = HeapObject::cast(o);
+  MarkBit mark = Marking::MarkBitFrom(heap_object);
+  return !mark.Get();
+}
+
+
 void MarkCompactCollector::MarkSymbolTable() {
   SymbolTable* symbol_table = heap()->symbol_table();
   // Mark the symbol table itself.
@@ -1770,54 +1780,6 @@ void MarkCompactCollector::MarkRoots(RootMarkingVisitor* visitor) {
     RefillMarkingDeque();
     EmptyMarkingDeque();
   }
-}
-
-
-void MarkCompactCollector::MarkObjectGroups() {
-  List<ObjectGroup*>* object_groups =
-      heap()->isolate()->global_handles()->object_groups();
-
-  int last = 0;
-  for (int i = 0; i < object_groups->length(); i++) {
-    ObjectGroup* entry = object_groups->at(i);
-    ASSERT(entry != NULL);
-
-    Object*** objects = entry->objects_;
-    bool group_marked = false;
-    for (size_t j = 0; j < entry->length_; j++) {
-      Object* object = *objects[j];
-      if (object->IsHeapObject()) {
-        HeapObject* heap_object = HeapObject::cast(object);
-        MarkBit mark = Marking::MarkBitFrom(heap_object);
-        if (mark.Get()) {
-          group_marked = true;
-          break;
-        }
-      }
-    }
-
-    if (!group_marked) {
-      (*object_groups)[last++] = entry;
-      continue;
-    }
-
-    // An object in the group is marked, so mark as grey all white heap
-    // objects in the group.
-    for (size_t j = 0; j < entry->length_; ++j) {
-      Object* object = *objects[j];
-      if (object->IsHeapObject()) {
-        HeapObject* heap_object = HeapObject::cast(object);
-        MarkBit mark = Marking::MarkBitFrom(heap_object);
-        MarkObject(heap_object, mark);
-      }
-    }
-
-    // Once the entire group has been colored grey, set the object group
-    // to NULL so it won't be processed again.
-    entry->Dispose();
-    object_groups->at(i) = NULL;
-  }
-  object_groups->Rewind(last);
 }
 
 
@@ -1939,11 +1901,12 @@ void MarkCompactCollector::ProcessMarkingDeque() {
 }
 
 
-void MarkCompactCollector::ProcessExternalMarking() {
+void MarkCompactCollector::ProcessExternalMarking(RootMarkingVisitor* visitor) {
   bool work_to_do = true;
   ASSERT(marking_deque_.IsEmpty());
   while (work_to_do) {
-    MarkObjectGroups();
+    heap()->isolate()->global_handles()->IterateObjectGroups(
+        visitor, &IsUnmarkedHeapObjectWithHeap);
     MarkImplicitRefGroups();
     work_to_do = !marking_deque_.IsEmpty();
     ProcessMarkingDeque();
@@ -2022,7 +1985,7 @@ void MarkCompactCollector::MarkLiveObjects() {
   // The objects reachable from the roots are marked, yet unreachable
   // objects are unmarked.  Mark objects reachable due to host
   // application specific logic.
-  ProcessExternalMarking();
+  ProcessExternalMarking(&root_visitor);
 
   // The objects reachable from the roots or object groups are marked,
   // yet unreachable objects are unmarked.  Mark objects reachable
@@ -2041,7 +2004,7 @@ void MarkCompactCollector::MarkLiveObjects() {
 
   // Repeat host application specific marking to mark unmarked objects
   // reachable from the weak roots.
-  ProcessExternalMarking();
+  ProcessExternalMarking(&root_visitor);
 
   AfterMarking();
 }

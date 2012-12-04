@@ -551,6 +551,51 @@ void GlobalHandles::IterateNewSpaceWeakIndependentRoots(ObjectVisitor* v) {
 }
 
 
+bool GlobalHandles::IterateObjectGroups(ObjectVisitor* v,
+                                        WeakSlotCallbackWithHeap can_skip) {
+  int last = 0;
+  bool any_group_was_visited = false;
+  for (int i = 0; i < object_groups_.length(); i++) {
+    ObjectGroup* entry = object_groups_.at(i);
+    ASSERT(entry != NULL);
+
+    Object*** objects = entry->objects_;
+    bool group_should_be_visited = false;
+    for (size_t j = 0; j < entry->length_; j++) {
+      Object* object = *objects[j];
+      if (object->IsHeapObject()) {
+        if (!can_skip(isolate_->heap(), &object)) {
+          group_should_be_visited = true;
+          break;
+        }
+      }
+    }
+
+    if (!group_should_be_visited) {
+      object_groups_[last++] = entry;
+      continue;
+    }
+
+    // An object in the group requires visiting, so iterate over all
+    // objects in the group.
+    for (size_t j = 0; j < entry->length_; ++j) {
+      Object* object = *objects[j];
+      if (object->IsHeapObject()) {
+        v->VisitPointer(&object);
+        any_group_was_visited = true;
+      }
+    }
+
+    // Once the entire group has been iterated over, set the object
+    // group to NULL so it won't be processed again.
+    entry->Dispose();
+    object_groups_.at(i) = NULL;
+  }
+  object_groups_.Rewind(last);
+  return any_group_was_visited;
+}
+
+
 bool GlobalHandles::PostGarbageCollectionProcessing(
     GarbageCollector collector) {
   // Process weak global handle callbacks. This must be done after the

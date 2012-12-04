@@ -1338,7 +1338,8 @@ void Heap::Scavenge() {
 
   new_space_front = DoScavenge(&scavenge_visitor, new_space_front);
 
-  while (IterateObjectGroups(&scavenge_visitor)) {
+  while (isolate()->global_handles()->IterateObjectGroups(
+      &scavenge_visitor, &IsUnscavengedHeapObject)) {
     new_space_front = DoScavenge(&scavenge_visitor, new_space_front);
   }
   isolate()->global_handles()->RemoveObjectGroups();
@@ -1380,51 +1381,6 @@ void Heap::Scavenge() {
   gc_state_ = NOT_IN_GC;
 
   scavenges_since_last_idle_round_++;
-}
-
-
-// TODO(mstarzinger): Unify this method with
-// MarkCompactCollector::MarkObjectGroups().
-bool Heap::IterateObjectGroups(ObjectVisitor* scavenge_visitor) {
-  List<ObjectGroup*>* object_groups =
-    isolate()->global_handles()->object_groups();
-
-  int last = 0;
-  bool changed = false;
-  for (int i = 0; i < object_groups->length(); i++) {
-    ObjectGroup* entry = object_groups->at(i);
-    ASSERT(entry != NULL);
-
-    Object*** objects = entry->objects_;
-    bool group_marked = false;
-    for (size_t j = 0; j < entry->length_; j++) {
-      Object* object = *objects[j];
-      if (object->IsHeapObject()) {
-        if (!IsUnscavengedHeapObject(this, &object)) {
-          group_marked = true;
-          break;
-        }
-      }
-    }
-
-    if (!group_marked) {
-      (*object_groups)[last++] = entry;
-      continue;
-    }
-
-    for (size_t j = 0; j < entry->length_; ++j) {
-      Object* object = *objects[j];
-      if (object->IsHeapObject()) {
-        scavenge_visitor->VisitPointer(&object);
-        changed = true;
-      }
-    }
-
-    entry->Dispose();
-    object_groups->at(i) = NULL;
-  }
-  object_groups->Rewind(last);
-  return changed;
 }
 
 
