@@ -770,7 +770,6 @@ class Isolate {
   void Iterate(ObjectVisitor* v);
   void Iterate(ObjectVisitor* v, ThreadLocalTop* t);
   char* Iterate(ObjectVisitor* v, char* t);
-  void IterateThread(ThreadVisitor* v);
   void IterateThread(ThreadVisitor* v, char* t);
 
 
@@ -922,10 +921,6 @@ class Isolate {
   }
 
   bool fp_stubs_generated() { return fp_stubs_generated_; }
-
-  StaticResource<SafeStringInputBuffer>* compiler_safe_string_input_buffer() {
-    return &compiler_safe_string_input_buffer_;
-  }
 
   Builtins* builtins() { return &builtins_; }
 
@@ -1233,7 +1228,6 @@ class Isolate {
   ThreadManager* thread_manager_;
   RuntimeState runtime_state_;
   bool fp_stubs_generated_;
-  StaticResource<SafeStringInputBuffer> compiler_safe_string_input_buffer_;
   Builtins builtins_;
   bool has_installed_extensions_;
   StringTracker* string_tracker_;

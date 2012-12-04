@@ -426,11 +426,6 @@ char* Isolate::Iterate(ObjectVisitor* v, char* thread_storage) {
 }
 
 
-void Isolate::IterateThread(ThreadVisitor* v) {
-  v->VisitThread(this, thread_local_top());
-}
-
-
 void Isolate::IterateThread(ThreadVisitor* v, char* t) {
   ThreadLocalTop* thread = reinterpret_cast<ThreadLocalTop*>(t);
   v->VisitThread(this, thread);

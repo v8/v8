@@ -7954,17 +7954,6 @@ class StringInputBuffer: public unibrow::InputBuffer<String, String*, 1024> {
 };
 
 
-class SafeStringInputBuffer
-  : public unibrow::InputBuffer<String, String**, 256> {
- public:
-  virtual void Seek(unsigned pos);
-  inline SafeStringInputBuffer()
-      : unibrow::InputBuffer<String, String**, 256>() {}
-  explicit inline SafeStringInputBuffer(String** backing)
-      : unibrow::InputBuffer<String, String**, 256>(backing) {}
-};
-
-
 template <typename T>
 class VectorIterator {
  public:

@@ -7013,11 +7013,6 @@ void StringInputBuffer::Seek(unsigned pos) {
 }
 
 
-void SafeStringInputBuffer::Seek(unsigned pos) {
-  Reset(pos, input_);
-}
-
-
 // This method determines the type of string involved and then copies
 // a whole chunk of characters into a buffer.  It can be used with strings
 // that have been glued together to form a ConsString and which must cooperate
