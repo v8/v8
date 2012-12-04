@@ -938,7 +938,7 @@ JSArray* LiveEdit::GatherCompileInfo(Handle<Script> script,
   }
 
   // A logical 'catch' section.
-  Handle<Object> rethrow_exception;
+  Handle<JSObject> rethrow_exception;
   if (isolate->has_pending_exception()) {
     Handle<Object> exception(isolate->pending_exception()->ToObjectChecked());
     MessageLocation message_location = isolate->GetMessageLocation();
@@ -948,24 +948,25 @@ JSArray* LiveEdit::GatherCompileInfo(Handle<Script> script,
 
     // If possible, copy positions from message object to exception object.
     if (exception->IsJSObject() && !message_location.script().is_null()) {
-      Handle<JSObject> exception_struct = Handle<JSObject>::cast(exception);
+      rethrow_exception = Handle<JSObject>::cast(exception);
 
       Factory* factory = isolate->factory();
-      JSReceiver::SetProperty(exception_struct,
-          factory->LookupAsciiSymbol("startPosition"),
-          Handle<Smi>(Smi::FromInt(message_location.start_pos())),
-          NONE, kNonStrictMode);
-      JSReceiver::SetProperty(exception_struct,
-          factory->LookupAsciiSymbol("endPosition"),
-          Handle<Smi>(Smi::FromInt(message_location.end_pos())),
-          NONE, kNonStrictMode);
-      JSReceiver::SetProperty(exception_struct,
-          factory->LookupAsciiSymbol("scriptObject"),
-          GetScriptWrapper(message_location.script()),
-          NONE, kNonStrictMode);
+      Handle<String> start_pos_key =
+          factory->LookupAsciiSymbol("startPosition");
+      Handle<String> end_pos_key =
+          factory->LookupAsciiSymbol("endPosition");
+      Handle<String> script_obj_key =
+          factory->LookupAsciiSymbol("scriptObject");
+      Handle<Smi> start_pos(Smi::FromInt(message_location.start_pos()));
+      Handle<Smi> end_pos(Smi::FromInt(message_location.end_pos()));
+      Handle<JSValue> script_obj = GetScriptWrapper(message_location.script());
+      JSReceiver::SetProperty(
+          rethrow_exception, start_pos_key, start_pos, NONE, kNonStrictMode);
+      JSReceiver::SetProperty(
+          rethrow_exception, end_pos_key, end_pos, NONE, kNonStrictMode);
+      JSReceiver::SetProperty(
+          rethrow_exception, script_obj_key, script_obj, NONE, kNonStrictMode);
     }
-
-    rethrow_exception = exception;
   }
 
   // A logical 'finally' section.
