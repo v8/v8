@@ -4573,7 +4573,6 @@ class Code: public HeapObject {
 
   // Code aging
   static void MakeCodeAgeSequenceYoung(byte* sequence);
-  void MakeYoung();
   void MakeOlder(MarkingParity);
   static bool IsYoungSequence(byte* sequence);
   bool IsOld();

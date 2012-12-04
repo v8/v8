@@ -618,7 +618,6 @@ Handle<SharedFunctionInfo> Compiler::Compile(Handle<String> source,
     if (result->ic_age() != HEAP->global_ic_age()) {
       result->ResetForNewContext(HEAP->global_ic_age());
     }
-    result->code()->MakeYoung();
   }
 
   if (result.is_null()) isolate->ReportPendingMessages();
@@ -680,7 +679,6 @@ Handle<SharedFunctionInfo> Compiler::CompileEval(Handle<String> source,
     if (result->ic_age() != HEAP->global_ic_age()) {
       result->ResetForNewContext(HEAP->global_ic_age());
     }
-    result->code()->MakeYoung();
   }
 
   return result;

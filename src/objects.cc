@@ -7972,7 +7972,6 @@ void SharedFunctionInfo::InstallFromOptimizedCodeMap(JSFunction* function,
   ASSERT(code != NULL);
   ASSERT(function->context()->native_context() == code_map->get(index - 1));
   function->ReplaceCode(code);
-  code->MakeYoung();
 }
 
 
@@ -8838,14 +8837,6 @@ bool Code::allowed_in_shared_map_code_cache() {
 
 void Code::MakeCodeAgeSequenceYoung(byte* sequence) {
   PatchPlatformCodeAge(sequence, kNoAge, NO_MARKING_PARITY);
-}
-
-
-void Code::MakeYoung() {
-  byte* sequence = FindCodeAgeSequence();
-  if (sequence != NULL) {
-    PatchPlatformCodeAge(sequence, kNoAge, NO_MARKING_PARITY);
-  }
 }
 
 
