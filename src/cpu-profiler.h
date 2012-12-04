@@ -124,9 +124,7 @@ class TickSampleEventRecord {
 // methods called by event producers: VM and stack sampler threads.
 class ProfilerEventsProcessor : public Thread {
  public:
-  explicit ProfilerEventsProcessor(ProfileGenerator* generator,
-                                   Sampler* sampler,
-                                   int period_in_useconds);
+  explicit ProfilerEventsProcessor(ProfileGenerator* generator);
   virtual ~ProfilerEventsProcessor() {}
 
   // Thread control.
@@ -158,12 +156,11 @@ class ProfilerEventsProcessor : public Thread {
   // Puts current stack into tick sample events buffer.
   void AddCurrentStack();
 
-  // StartTickSampleEvent returns a pointer only if the ticks_buffer_ is empty,
-  // FinishTickSampleEvent marks the ticks_buffer_ as filled.
-  // Finish should be called only after successful Start (returning non-NULL
-  // pointer).
-  INLINE(TickSample* StartTickSampleEvent());
-  INLINE(void FinishTickSampleEvent());
+  // Tick sample events are filled directly in the buffer of the circular
+  // queue (because the structure is of fixed width, but usually not all
+  // stack frame entries are filled.) This method returns a pointer to the
+  // next record of the buffer.
+  INLINE(TickSample* TickSampleEvent());
 
  private:
   union CodeEventsContainer {
@@ -176,19 +173,13 @@ class ProfilerEventsProcessor : public Thread {
   // Called from events processing thread (Run() method.)
   bool ProcessCodeEvent(unsigned* dequeue_order);
   bool ProcessTicks(unsigned dequeue_order);
-  void ProcessEventsQueue(int64_t stop_time, unsigned* dequeue_order);
 
   INLINE(static bool FilterOutCodeCreateEvent(Logger::LogEventsAndTags tag));
 
   ProfileGenerator* generator_;
-  Sampler* sampler_;
   bool running_;
-  // Sampling period in microseconds.
-  const int period_in_useconds_;
   UnboundQueue<CodeEventsContainer> events_buffer_;
-  TickSampleEventRecord ticks_buffer_;
-  bool ticks_buffer_is_empty_;
-  bool ticks_buffer_is_initialized_;
+  SamplingCircularQueue ticks_buffer_;
   UnboundQueue<TickSampleEventRecord> ticks_from_vm_buffer_;
   unsigned enqueue_order_;
 };
@@ -227,10 +218,7 @@ class CpuProfiler {
   static bool HasDetachedProfiles();
 
   // Invoked from stack sampler (thread or signal handler.)
-  // Finish should be called only after successful Start (returning non-NULL
-  // pointer).
-  static TickSample* StartTickSampleEvent(Isolate* isolate);
-  static void FinishTickSampleEvent(Isolate* isolate);
+  static TickSample* TickSampleEvent(Isolate* isolate);
 
   // Must be called via PROFILE macro, otherwise will crash when
   // profiling is not enabled.

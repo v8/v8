@@ -514,12 +514,4 @@ void ProfileSampler::Stop() {
 }
 
 
-void Sampler::StartSampling() {
-}
-
-
-void Sampler::StopSampling() {
-}
-
-
 } }  // namespace v8::internal

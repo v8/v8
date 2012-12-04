@@ -1901,8 +1901,6 @@ class Heap {
   bool PerformGarbageCollection(GarbageCollector collector,
                                 GCTracer* tracer);
 
-  bool IterateObjectGroups(ObjectVisitor* scavenge_visitor);
-
   inline void UpdateOldSpaceLimits();
 
   // Allocate an uninitialized object in map space.  The behavior is identical

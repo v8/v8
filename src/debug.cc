@@ -786,9 +786,11 @@ bool Debug::CompileDebuggerScript(int index) {
         "error_loading_debugger", &computed_location,
         Vector<Handle<Object> >::empty(), Handle<String>(), Handle<JSArray>());
     ASSERT(!isolate->has_pending_exception());
-    isolate->set_pending_exception(*exception);
-    MessageHandler::ReportMessage(Isolate::Current(), NULL, message);
-    isolate->clear_pending_exception();
+    if (!exception.is_null()) {
+      isolate->set_pending_exception(*exception);
+      MessageHandler::ReportMessage(Isolate::Current(), NULL, message);
+      isolate->clear_pending_exception();
+    }
     return false;
   }
 

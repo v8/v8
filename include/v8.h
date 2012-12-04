@@ -490,8 +490,8 @@ class V8EXPORT HandleScope {
   static internal::Object** CreateHandle(internal::HeapObject* value);
 
  private:
-  // Make it impossible to create heap-allocated or illegal handle
-  // scopes by disallowing certain operations.
+  // Make it hard to create heap-allocated or illegal handle scopes by
+  // disallowing certain operations.
   HandleScope(const HandleScope&);
   void operator=(const HandleScope&);
   void* operator new(size_t size);
@@ -3559,7 +3559,9 @@ class V8EXPORT V8 {
 class V8EXPORT TryCatch {
  public:
   /**
-   * Creates a new try/catch block and registers it with v8.
+   * Creates a new try/catch block and registers it with v8.  Note that
+   * all TryCatch blocks should be stack allocated because the memory
+   * location itself is compared against JavaScript try/catch blocks.
    */
   TryCatch();
 
@@ -3649,6 +3651,12 @@ class V8EXPORT TryCatch {
   void SetCaptureMessage(bool value);
 
  private:
+  // Make it hard to create heap-allocated TryCatch blocks.
+  TryCatch(const TryCatch&);
+  void operator=(const TryCatch&);
+  void* operator new(size_t size);
+  void operator delete(void*, size_t);
+
   v8::internal::Isolate* isolate_;
   void* next_;
   void* exception_;

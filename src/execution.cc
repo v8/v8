@@ -211,6 +211,9 @@ Handle<Object> Execution::TryCall(Handle<JSFunction> func,
     Isolate* isolate = Isolate::Current();
     ASSERT(isolate->has_pending_exception());
     ASSERT(isolate->external_caught_exception());
+    if (isolate->is_out_of_memory() && !isolate->ignore_out_of_memory()) {
+      V8::FatalProcessOutOfMemory("OOM during Execution::TryCall");
+    }
     if (isolate->pending_exception() ==
         isolate->heap()->termination_exception()) {
       result = isolate->factory()->termination_exception();

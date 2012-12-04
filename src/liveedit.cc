@@ -36,6 +36,7 @@
 #include "debug.h"
 #include "deoptimizer.h"
 #include "global-handles.h"
+#include "messages.h"
 #include "parser.h"
 #include "scopeinfo.h"
 #include "scopes.h"
@@ -925,11 +926,59 @@ JSArray* LiveEdit::GatherCompileInfo(Handle<Script> script,
   Handle<Object> original_source = Handle<Object>(script->source());
   script->set_source(*source);
   isolate->set_active_function_info_listener(&listener);
-  CompileScriptForTracker(isolate, script);
+
+  {
+    // Creating verbose TryCatch from public API is currently the only way to
+    // force code save location. We do not use this the object directly.
+    v8::TryCatch try_catch;
+    try_catch.SetVerbose(true);
+
+    // A logical 'try' section.
+    CompileScriptForTracker(isolate, script);
+  }
+
+  // A logical 'catch' section.
+  Handle<JSObject> rethrow_exception;
+  if (isolate->has_pending_exception()) {
+    Handle<Object> exception(isolate->pending_exception()->ToObjectChecked());
+    MessageLocation message_location = isolate->GetMessageLocation();
+
+    isolate->clear_pending_message();
+    isolate->clear_pending_exception();
+
+    // If possible, copy positions from message object to exception object.
+    if (exception->IsJSObject() && !message_location.script().is_null()) {
+      rethrow_exception = Handle<JSObject>::cast(exception);
+
+      Factory* factory = isolate->factory();
+      Handle<String> start_pos_key =
+          factory->LookupAsciiSymbol("startPosition");
+      Handle<String> end_pos_key =
+          factory->LookupAsciiSymbol("endPosition");
+      Handle<String> script_obj_key =
+          factory->LookupAsciiSymbol("scriptObject");
+      Handle<Smi> start_pos(Smi::FromInt(message_location.start_pos()));
+      Handle<Smi> end_pos(Smi::FromInt(message_location.end_pos()));
+      Handle<JSValue> script_obj = GetScriptWrapper(message_location.script());
+      JSReceiver::SetProperty(
+          rethrow_exception, start_pos_key, start_pos, NONE, kNonStrictMode);
+      JSReceiver::SetProperty(
+          rethrow_exception, end_pos_key, end_pos, NONE, kNonStrictMode);
+      JSReceiver::SetProperty(
+          rethrow_exception, script_obj_key, script_obj, NONE, kNonStrictMode);
+    }
+  }
+
+  // A logical 'finally' section.
   isolate->set_active_function_info_listener(NULL);
   script->set_source(*original_source);
 
-  return *(listener.GetResult());
+  if (rethrow_exception.is_null()) {
+    return *(listener.GetResult());
+  } else {
+    isolate->Throw(*rethrow_exception);
+    return 0;
+  }
 }
 
 

@@ -206,6 +206,11 @@ class GlobalHandles {
   // See the note above.
   void IterateNewSpaceWeakIndependentRoots(ObjectVisitor* v);
 
+  // Iterate over objects in object groups that have at least one object
+  // which requires visiting. The callback has to return true if objects
+  // can be skipped and false otherwise.
+  bool IterateObjectGroups(ObjectVisitor* v, WeakSlotCallbackWithHeap can_skip);
+
   // Add an object group.
   // Should be only used in GC callback function before a collection.
   // All groups are destroyed after a garbage collection.

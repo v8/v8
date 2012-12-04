@@ -7972,7 +7972,6 @@ void SharedFunctionInfo::InstallFromOptimizedCodeMap(JSFunction* function,
   ASSERT(code != NULL);
   ASSERT(function->context()->native_context() == code_map->get(index - 1));
   function->ReplaceCode(code);
-  code->MakeYoung();
 }
 
 
@@ -8841,14 +8840,6 @@ void Code::MakeCodeAgeSequenceYoung(byte* sequence) {
 }
 
 
-void Code::MakeYoung() {
-  byte* sequence = FindCodeAgeSequence();
-  if (sequence != NULL) {
-    PatchPlatformCodeAge(sequence, kNoAge, NO_MARKING_PARITY);
-  }
-}
-
-
 void Code::MakeOlder(MarkingParity current_parity) {
   byte* sequence = FindCodeAgeSequence();
   if (sequence != NULL) {
@@ -9439,8 +9430,10 @@ MaybeObject* JSArray::SetElementsLength(Object* len) {
     // A non-configurable property will cause the truncation operation to
     // stop at this index.
     if (attributes == DONT_DELETE) break;
-    // TODO(adamk): Don't fetch the old value if it's an accessor.
-    old_values.Add(Object::GetElement(self, i));
+    old_values.Add(
+        self->GetLocalElementAccessorPair(i) == NULL
+        ? Object::GetElement(self, i)
+        : Handle<Object>::cast(isolate->factory()->the_hole_value()));
     indices.Add(isolate->factory()->Uint32ToString(i));
   }
 

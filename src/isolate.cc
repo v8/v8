@@ -1062,9 +1062,12 @@ void Isolate::ScheduleThrow(Object* exception) {
   // When scheduling a throw we first throw the exception to get the
   // error reporting if it is uncaught before rescheduling it.
   Throw(exception);
-  thread_local_top()->scheduled_exception_ = pending_exception();
-  thread_local_top()->external_caught_exception_ = false;
-  clear_pending_exception();
+  PropagatePendingExceptionToExternalTryCatch();
+  if (has_pending_exception()) {
+    thread_local_top()->scheduled_exception_ = pending_exception();
+    thread_local_top()->external_caught_exception_ = false;
+    clear_pending_exception();
+  }
 }
 
 
@@ -1363,6 +1366,24 @@ void Isolate::ReportPendingMessages() {
     }
   }
   clear_pending_message();
+}
+
+
+MessageLocation Isolate::GetMessageLocation() {
+  ASSERT(has_pending_exception());
+
+  if (thread_local_top_.pending_exception_ != Failure::OutOfMemoryException() &&
+      thread_local_top_.pending_exception_ != heap()->termination_exception() &&
+      thread_local_top_.has_pending_message_ &&
+      !thread_local_top_.pending_message_obj_->IsTheHole() &&
+      thread_local_top_.pending_message_script_ != NULL) {
+    Handle<Script> script(thread_local_top_.pending_message_script_);
+    int start_pos = thread_local_top_.pending_message_start_pos_;
+    int end_pos = thread_local_top_.pending_message_end_pos_;
+    return MessageLocation(script, start_pos, end_pos);
+  }
+
+  return MessageLocation();
 }
 
 
