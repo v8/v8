@@ -6405,7 +6405,8 @@ SnapshotObjectId HeapProfiler::GetSnapshotObjectId(Handle<Value> value) {
 
 const HeapSnapshot* HeapProfiler::TakeSnapshot(Handle<String> title,
                                                HeapSnapshot::Type type,
-                                               ActivityControl* control) {
+                                               ActivityControl* control,
+                                               ObjectNameResolver* resolver) {
   i::Isolate* isolate = i::Isolate::Current();
   IsDeadCheck(isolate, "v8::HeapProfiler::TakeSnapshot");
   i::HeapSnapshot::Type internal_type = i::HeapSnapshot::kFull;
@@ -6418,7 +6419,7 @@ const HeapSnapshot* HeapProfiler::TakeSnapshot(Handle<String> title,
   }
   return reinterpret_cast<const HeapSnapshot*>(
       i::HeapProfiler::TakeSnapshot(
-          *Utils::OpenHandle(*title), internal_type, control));
+          *Utils::OpenHandle(*title), internal_type, control, resolver));
 }
 
 
