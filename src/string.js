@@ -810,6 +810,7 @@ function StringTrimRight() {
 
 var static_charcode_array = new InternalArray(4);
 
+
 // ECMA-262, section 15.5.3.2
 function StringFromCharCode(code) {
   var n = %_ArgumentsLength();
@@ -818,17 +819,24 @@ function StringFromCharCode(code) {
     return %_StringCharFromCode(code & 0xffff);
   }
 
-  // NOTE: This is not super-efficient, but it is necessary because we
-  // want to avoid converting to numbers from within the virtual
-  // machine. Maybe we can find another way of doing this?
-  var codes = static_charcode_array;
-  for (var i = 0; i < n; i++) {
+  var one_byte = %NewString(n, NEW_ONE_BYTE_STRING);
+  var i;
+  for (i = 0; i < n; i++) {
     var code = %_Arguments(i);
-    if (!%_IsSmi(code)) code = ToNumber(code);
-    codes[i] = code;
+    if (!%_IsSmi(code)) code = ToNumber(code) & 0xffff;
+    if (code > 0x7f) break;
+    %_OneByteSeqStringSetChar(one_byte, i, code);
   }
-  codes.length = n;
-  return %StringFromCharCodeArray(codes);
+  if (i == n) return one_byte;
+  one_byte = %TruncateString(one_byte, i);
+
+  var two_byte = %NewString(n - i, NEW_TWO_BYTE_STRING);
+  for (var j = 0; i < n; i++, j++) {
+    var code = %_Arguments(i);
+    if (!%_IsSmi(code)) code = ToNumber(code) & 0xffff;
+    %_TwoByteSeqStringSetChar(two_byte, j, code);
+  }
+  return one_byte + two_byte;
 }
 
 

@@ -7173,6 +7173,8 @@ class StringShape BASE_EMBEDDED {
 // All string values have a length field.
 class String: public HeapObject {
  public:
+  enum Encoding { ONE_BYTE_ENCODING, TWO_BYTE_ENCODING };
+
   // Representation of the flat content of a String.
   // A non-flat string doesn't have flat content.
   // A flat string has content that's encoded as a sequence of either
@@ -7568,6 +7570,11 @@ class SeqString: public String {
 
   // Layout description.
   static const int kHeaderSize = String::kSize;
+
+  // Truncate the string in-place if possible and return the result.
+  // In case of new_length == 0, the empty string is returned without
+  // truncating the original string.
+  MUST_USE_RESULT String* Truncate(int new_length);
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(SeqString);

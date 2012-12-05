@@ -5101,46 +5101,22 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringToNumber) {
 }
 
 
-RUNTIME_FUNCTION(MaybeObject*, Runtime_StringFromCharCodeArray) {
-  NoHandleAllocation ha;
-  ASSERT(args.length() == 1);
-
-  CONVERT_ARG_CHECKED(JSArray, codes, 0);
-  int length = Smi::cast(codes->length())->value();
-
-  // Check if the string can be ASCII.
-  int i;
-  for (i = 0; i < length; i++) {
-    Object* element;
-    { MaybeObject* maybe_element = codes->GetElement(i);
-      // We probably can't get an exception here, but just in order to enforce
-      // the checking of inputs in the runtime calls we check here.
-      if (!maybe_element->ToObject(&element)) return maybe_element;
-    }
-    CONVERT_NUMBER_CHECKED(int, chr, Int32, element);
-    if ((chr & 0xffff) > String::kMaxAsciiCharCode)
-      break;
+RUNTIME_FUNCTION(MaybeObject*, Runtime_NewString) {
+  CONVERT_SMI_ARG_CHECKED(length, 0);
+  CONVERT_BOOLEAN_ARG_CHECKED(is_one_byte, 1);
+  if (length == 0) return isolate->heap()->empty_string();
+  if (is_one_byte) {
+    return isolate->heap()->AllocateRawOneByteString(length);
+  } else {
+    return isolate->heap()->AllocateRawTwoByteString(length);
   }
+}
 
-  MaybeObject* maybe_object = NULL;
-  if (i == length) {  // The string is ASCII.
-    maybe_object = isolate->heap()->AllocateRawOneByteString(length);
-  } else {  // The string is not ASCII.
-    maybe_object = isolate->heap()->AllocateRawTwoByteString(length);
-  }
 
-  Object* object = NULL;
-  if (!maybe_object->ToObject(&object)) return maybe_object;
-  String* result = String::cast(object);
-  for (int i = 0; i < length; i++) {
-    Object* element;
-    { MaybeObject* maybe_element = codes->GetElement(i);
-      if (!maybe_element->ToObject(&element)) return maybe_element;
-    }
-    CONVERT_NUMBER_CHECKED(int, chr, Int32, element);
-    result->Set(i, chr & 0xffff);
-  }
-  return result;
+RUNTIME_FUNCTION(MaybeObject*, Runtime_TruncateString) {
+  CONVERT_ARG_CHECKED(SeqString, string, 0);
+  CONVERT_SMI_ARG_CHECKED(new_length, 1);
+  return string->Truncate(new_length);
 }
 
 

@@ -25,17 +25,48 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-var a = [];
-var new_space_string = "";
-for (var i = 0; i < 128; i++) {
-  new_space_string += String.fromCharCode((Math.random() * 26 + 65) | 0);
-}
-for (var i = 0; i < 10000; i++) a.push(new_space_string);
+// Flags: --expose-gc --allow-natives-syntax
 
-// At some point during the first stringify, allocation causes a GC and
-// new_space_string is moved to old space. Make sure that this does not
-// screw up reading from the correct location.
-json1 = JSON.stringify(a);
-json2 = JSON.stringify(a);
-assertTrue(json1 == json2, "GC caused JSON.stringify to fail.");
+function test() {
+  var s1 = %NewString(26, true);
+  for (i = 0; i < 26; i++) %_OneByteSeqStringSetChar(s1, i, i+65);
+  assertEquals("ABCDEFGHIJKLMNOPQRSTUVWXYZ", s1);
+  s1 = %TruncateString(s1, 13);
+  assertEquals("ABCDEFGHIJKLM", s1);
+
+  var s2 = %NewString(26, false);
+  for (i = 0; i < 26; i++) %_TwoByteSeqStringSetChar(s2, i, i+65);
+  assertEquals("ABCDEFGHIJKLMNOPQRSTUVWXYZ", s2);
+  s2 = %TruncateString(s1, 13);
+  assertEquals("ABCDEFGHIJKLM", s2);
+
+  var s3 = %NewString(26, false);
+  for (i = 0; i < 26; i++) %_TwoByteSeqStringSetChar(s3, i, i+1000);
+  for (i = 0; i < 26; i++) assertEquals(s3[i], String.fromCharCode(i+1000));
+
+  var a = [];
+  for (var i = 0; i < 1000; i++) {
+    var s = %NewString(10000, i % 2 == 1);
+    a.push(s);
+  }
+
+  gc();
+
+  for (var i = 0; i < 1000; i++) {
+    assertEquals(10000, a[i].length);
+    a[i] = %TruncateString(a[i], 5000);
+  }
+
+  gc();
+
+  for (var i = 0; i < 1000; i++) {
+    assertEquals(5000, a[i].length);
+  }
+}
+
+
+test();
+test();
+%OptimizeFunctionOnNextCall(test);
+test();
 

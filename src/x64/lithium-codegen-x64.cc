@@ -1533,6 +1533,15 @@ void LCodeGen::DoDateField(LDateField* instr) {
 }
 
 
+void LCodeGen::DoSeqStringSetChar(LSeqStringSetChar* instr) {
+  SeqStringSetCharGenerator::Generate(masm(),
+                                      instr->encoding(),
+                                      ToRegister(instr->string()),
+                                      ToRegister(instr->index()),
+                                      ToRegister(instr->value()));
+}
+
+
 void LCodeGen::DoBitNotI(LBitNotI* instr) {
   LOperand* input = instr->value();
   ASSERT(input->Equals(instr->result()));

@@ -7620,6 +7620,36 @@ bool String::SlowAsArrayIndex(uint32_t* index) {
 }
 
 
+String* SeqString::Truncate(int new_length) {
+  Heap* heap = GetHeap();
+  if (new_length <= 0) return heap->empty_string();
+
+  int string_size, allocated_string_size;
+  int old_length = length();
+  if (old_length <= new_length) return this;
+
+  if (IsSeqOneByteString()) {
+    allocated_string_size = SeqOneByteString::SizeFor(old_length);
+    string_size = SeqOneByteString::SizeFor(new_length);
+  } else {
+    allocated_string_size = SeqTwoByteString::SizeFor(old_length);
+    string_size = SeqTwoByteString::SizeFor(new_length);
+  }
+
+  int delta = allocated_string_size - string_size;
+  set_length(new_length);
+
+  // String sizes are pointer size aligned, so that we can use filler objects
+  // that are a multiple of pointer size.
+  Address end_of_string = address() + string_size;
+  heap->CreateFillerObjectAt(end_of_string, delta);
+  if (Marking::IsBlack(Marking::MarkBitFrom(this))) {
+    MemoryChunk::IncrementLiveBytesFromMutator(address(), -delta);
+  }
+  return this;
+}
+
+
 uint32_t StringHasher::MakeArrayIndexHash(uint32_t value, int length) {
   // For array indexes mix the length into the hash as an array index could
   // be zero.

@@ -149,6 +149,7 @@ class LCodeGen;
   V(Random)                                     \
   V(RegExpLiteral)                              \
   V(Return)                                     \
+  V(SeqStringSetChar)                           \
   V(ShiftI)                                     \
   V(SmiTag)                                     \
   V(SmiUntag)                                   \
@@ -1157,6 +1158,30 @@ class LDateField: public LTemplateInstruction<1, 1, 0> {
 
  private:
   Smi* index_;
+};
+
+
+class LSeqStringSetChar: public LTemplateInstruction<1, 3, 0> {
+ public:
+  LSeqStringSetChar(String::Encoding encoding,
+                    LOperand* string,
+                    LOperand* index,
+                    LOperand* value) : encoding_(encoding) {
+    inputs_[0] = string;
+    inputs_[1] = index;
+    inputs_[2] = value;
+  }
+
+  String::Encoding encoding() { return encoding_; }
+  LOperand* string() { return inputs_[0]; }
+  LOperand* index() { return inputs_[1]; }
+  LOperand* value() { return inputs_[2]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(SeqStringSetChar, "seq-string-set-char")
+  DECLARE_HYDROGEN_ACCESSOR(SeqStringSetChar)
+
+ private:
+  String::Encoding encoding_;
 };
 
 
