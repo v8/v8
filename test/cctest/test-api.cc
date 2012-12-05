@@ -2360,6 +2360,16 @@ THREADED_TEST(GlobalHandle) {
 }
 
 
+THREADED_TEST(LocalHandle) {
+  v8::HandleScope scope;
+  v8::Local<String> local = v8::Local<String>::New(v8_str("str"));
+  CHECK_EQ(local->Length(), 3);
+
+  local = v8::Local<String>::New(v8::Isolate::GetCurrent(), v8_str("str"));
+  CHECK_EQ(local->Length(), 3);
+}
+
+
 class WeakCallCounter {
  public:
   explicit WeakCallCounter(int id) : id_(id), number_of_weak_calls_(0) { }

@@ -769,6 +769,12 @@ i::Object** HandleScope::CreateHandle(i::Object* value) {
 }
 
 
+i::Object** HandleScope::CreateHandle(i::Isolate* isolate, i::Object* value) {
+  ASSERT(isolate == i::Isolate::Current());
+  return i::HandleScope::CreateHandle(value, isolate);
+}
+
+
 i::Object** HandleScope::CreateHandle(i::HeapObject* value) {
   ASSERT(value->IsHeapObject());
   return reinterpret_cast<i::Object**>(

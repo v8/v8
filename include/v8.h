@@ -308,11 +308,13 @@ template <class T> class Local : public Handle<T> {
     return Local<S>::Cast(*this);
   }
 
-  /** Create a local handle for the content of another handle.
-   *  The referee is kept alive by the local handle even when
-   *  the original handle is destroyed/disposed.
+  /**
+   * Create a local handle for the content of another handle.
+   * The referee is kept alive by the local handle even when
+   * the original handle is destroyed/disposed.
    */
   V8_INLINE(static Local<T> New(Handle<T> that));
+  V8_INLINE(static Local<T> New(Isolate* isolate, Handle<T> that));
 };
 
 
@@ -494,6 +496,8 @@ class V8EXPORT HandleScope {
    * Creates a new handle with the given value.
    */
   static internal::Object** CreateHandle(internal::Object* value);
+  static internal::Object** CreateHandle(internal::Isolate* isolate,
+                                         internal::Object* value);
   // Faster version, uses HeapObject to obtain the current Isolate.
   static internal::Object** CreateHandle(internal::HeapObject* value);
 
@@ -4281,6 +4285,16 @@ Local<T> Local<T>::New(Handle<T> that) {
         reinterpret_cast<internal::HeapObject*>(*p))));
   }
   return Local<T>(reinterpret_cast<T*>(HandleScope::CreateHandle(*p)));
+}
+
+
+template <class T>
+  Local<T> Local<T>::New(Isolate* isolate, Handle<T> that) {
+  if (that.IsEmpty()) return Local<T>();
+  T* that_ptr = *that;
+  internal::Object** p = reinterpret_cast<internal::Object**>(that_ptr);
+  return Local<T>(reinterpret_cast<T*>(HandleScope::CreateHandle(
+      reinterpret_cast<internal::Isolate*>(isolate), *p)));
 }
 
 
