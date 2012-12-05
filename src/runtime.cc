@@ -13415,6 +13415,12 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_HaveSameMap) {
 RUNTIME_FUNCTION(MaybeObject*, Runtime_IsObserved) {
   ASSERT(args.length() == 1);
   CONVERT_ARG_CHECKED(JSReceiver, obj, 0);
+  if (obj->IsJSGlobalProxy()) {
+    Object* proto = obj->GetPrototype();
+    if (obj->IsNull()) return isolate->heap()->false_value();
+    ASSERT(proto->IsJSGlobalObject());
+    obj = JSReceiver::cast(proto);
+  }
   return isolate->heap()->ToBoolean(obj->map()->is_observed());
 }
 
@@ -13423,6 +13429,12 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetIsObserved) {
   ASSERT(args.length() == 2);
   CONVERT_ARG_CHECKED(JSReceiver, obj, 0);
   CONVERT_BOOLEAN_ARG_CHECKED(is_observed, 1);
+  if (obj->IsJSGlobalProxy()) {
+    Object* proto = obj->GetPrototype();
+    if (obj->IsNull()) return isolate->heap()->undefined_value();
+    ASSERT(proto->IsJSGlobalObject());
+    obj = JSReceiver::cast(proto);
+  }
   if (obj->map()->is_observed() != is_observed) {
     MaybeObject* maybe = obj->map()->Copy();
     Map* map;
@@ -13458,6 +13470,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ObjectHashTableGet) {
   ASSERT(args.length() == 2);
   CONVERT_ARG_CHECKED(ObjectHashTable, table, 0);
   Object* key = args[1];
+  if (key->IsJSGlobalProxy()) {
+    key = key->GetPrototype();
+    if (key->IsNull()) return isolate->heap()->undefined_value();
+  }
   Object* lookup = table->Lookup(key);
   return lookup->IsTheHole() ? isolate->heap()->undefined_value() : lookup;
 }
@@ -13468,18 +13484,12 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ObjectHashTableSet) {
   ASSERT(args.length() == 3);
   CONVERT_ARG_HANDLE_CHECKED(ObjectHashTable, table, 0);
   Handle<Object> key = args.at<Object>(1);
+  if (key->IsJSGlobalProxy()) {
+    key = handle(key->GetPrototype(), isolate);
+    if (key->IsNull()) return *table;
+  }
   Handle<Object> value = args.at<Object>(2);
   return *PutIntoObjectHashTable(table, key, value);
-}
-
-
-RUNTIME_FUNCTION(MaybeObject*, Runtime_ObjectHashTableHas) {
-  NoHandleAllocation ha;
-  ASSERT(args.length() == 2);
-  CONVERT_ARG_CHECKED(ObjectHashTable, table, 0);
-  Object* key = args[1];
-  Object* lookup = table->Lookup(key);
-  return isolate->heap()->ToBoolean(!lookup->IsTheHole());
 }
 
 

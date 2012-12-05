@@ -49,7 +49,7 @@ InternalObjectHashTable.prototype = {
         %ObjectHashTableSet(observationState[this.tableName], key, value);
   },
   has: function(key) {
-    return %ObjectHashTableHas(observationState[this.tableName], key);
+    return !IS_UNDEFINED(this.get(key));
   }
 };
 

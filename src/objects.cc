@@ -1753,6 +1753,9 @@ void JSObject::EnqueueChangeRecord(Handle<JSObject> object,
   Isolate* isolate = object->GetIsolate();
   HandleScope scope;
   Handle<String> type = isolate->factory()->LookupAsciiSymbol(type_str);
+  if (object->IsJSGlobalObject()) {
+    object = handle(JSGlobalObject::cast(*object)->global_receiver(), isolate);
+  }
   Handle<Object> args[] = { type, object, name, old_value };
   bool threw;
   Execution::Call(Handle<JSFunction>(isolate->observers_notify_change()),

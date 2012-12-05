@@ -32,6 +32,14 @@ function reset() {
   allObservers.forEach(function(observer) { observer.reset(); });
 }
 
+function stringifyNoThrow(arg) {
+  try {
+    return JSON.stringify(arg);
+  } catch (e) {
+    return '{<circular reference>}';
+  }
+}
+
 function createObserver() {
   "use strict";  // So that |this| in callback can be undefined.
 
@@ -58,7 +66,7 @@ function createObserver() {
       for (var i = 0; i < recs.length; i++) {
         if ('name' in recs[i])
           recs[i].name = String(recs[i].name);
-        print(i, JSON.stringify(this.records[i]), JSON.stringify(recs[i]));
+        print(i, stringifyNoThrow(this.records[i]), stringifyNoThrow(recs[i]));
         assertSame(this.records[i].object, recs[i].object);
         assertEquals('string', typeof recs[i].type);
         assertPropertiesEqual(this.records[i], recs[i]);
@@ -499,7 +507,7 @@ function createProxy(create, x) {
     },
     target: {isProxy: true},
     callback: function(changeRecords) {
-      print("callback", JSON.stringify(handler.proxy), JSON.stringify(got));
+      print("callback", stringifyNoThrow(handler.proxy), stringifyNoThrow(got));
       for (var i in changeRecords) {
         var got = changeRecords[i];
         var change = {object: handler.proxy, name: got.name, type: got.type};
@@ -538,9 +546,7 @@ function blacklisted(obj, prop) {
     // TODO(observe): oldValue when reconfiguring array length
     (obj instanceof Array && prop === "length") ||
     // TODO(observe): prototype property on functions
-    (obj instanceof Function && prop === "prototype") ||
-    // TODO(observe): global object
-    obj === this;
+    (obj instanceof Function && prop === "prototype")
 }
 
 for (var i in objects) for (var j in properties) {
@@ -548,7 +554,7 @@ for (var i in objects) for (var j in properties) {
   var prop = properties[j];
   if (blacklisted(obj, prop)) continue;
   var desc = Object.getOwnPropertyDescriptor(obj, prop);
-  print("***", typeof obj, JSON.stringify(obj), prop);
+  print("***", typeof obj, stringifyNoThrow(obj), prop);
   if (!desc || desc.configurable)
     TestObserveConfigurable(obj, prop);
   else if (desc.writable)
