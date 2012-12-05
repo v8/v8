@@ -36,6 +36,24 @@
 namespace v8 {
 namespace internal {
 
+
+CodeStubInterfaceDescriptor*
+    KeyedLoadFastElementStub::GetInterfaceDescriptor(Isolate* isolate) {
+  static CodeStubInterfaceDescriptor* result = NULL;
+  if (result == NULL) {
+    Handle<Code> miss = isolate->builtins()->KeyedLoadIC_Miss();
+    static Register registers[] = { rdx, rax };
+    static CodeStubInterfaceDescriptor info = {
+      2,
+      registers,
+      miss
+    };
+    result = &info;
+  }
+  return result;
+}
+
+
 #define __ ACCESS_MASM(masm)
 
 void ToNumberStub::Generate(MacroAssembler* masm) {

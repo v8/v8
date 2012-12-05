@@ -47,10 +47,11 @@ enum TypeCode {
   EXTENSION,
   ACCESSOR,
   RUNTIME_ENTRY,
-  STUB_CACHE_TABLE
+  STUB_CACHE_TABLE,
+  LAZY_DEOPTIMIZATION
 };
 
-const int kTypeCodeCount = STUB_CACHE_TABLE + 1;
+const int kTypeCodeCount = LAZY_DEOPTIMIZATION + 1;
 const int kFirstTypeCode = UNCLASSIFIED;
 
 const int kReferenceIdBits = 16;
@@ -59,6 +60,7 @@ const int kReferenceTypeShift = kReferenceIdBits;
 const int kDebugRegisterBits = 4;
 const int kDebugIdShift = kDebugRegisterBits;
 
+const int kDeoptTableSerializeEntryCount = 8;
 
 // ExternalReferenceTable is a helper class that defines the relationship
 // between external references and their encodings. It is used to build

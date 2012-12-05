@@ -681,13 +681,6 @@ class KeyedLoadStubCompiler: public StubCompiler {
   Handle<Code> CompileLoadPolymorphic(MapHandleList* receiver_maps,
                                       CodeHandleList* handler_ics);
 
-  static void GenerateLoadExternalArray(MacroAssembler* masm,
-                                        ElementsKind elements_kind);
-
-  static void GenerateLoadFastElement(MacroAssembler* masm);
-
-  static void GenerateLoadFastDoubleElement(MacroAssembler* masm);
-
   static void GenerateLoadDictionaryElement(MacroAssembler* masm);
 
  private:
