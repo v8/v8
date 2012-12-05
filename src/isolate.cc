@@ -1965,7 +1965,7 @@ bool Isolate::Init(Deserializer* des) {
   regexp_stack_->isolate_ = this;
   date_cache_ = new DateCache();
   code_stub_interface_descriptors_ =
-      new CodeStubInterfaceDescriptor*[CodeStub::NUMBER_OF_IDS];
+      new CodeStubInterfaceDescriptor[CodeStub::NUMBER_OF_IDS];
   memset(code_stub_interface_descriptors_, 0,
          kPointerSize * CodeStub::NUMBER_OF_IDS);
 
@@ -2191,6 +2191,12 @@ void Isolate::UnlinkDeferredHandles(DeferredHandles* deferred) {
   if (deferred->previous_ != NULL) {
     deferred->previous_->next_ = deferred->next_;
   }
+}
+
+
+CodeStubInterfaceDescriptor*
+    Isolate::code_stub_interface_descriptor(int index) {
+  return code_stub_interface_descriptors_ + index;
 }
 
 

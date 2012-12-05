@@ -78,18 +78,16 @@ bool CodeStubGraphBuilderBase::BuildGraph() {
   set_current_block(next_block);
 
   int major_key = stub()->MajorKey();
-  CodeStubInterfaceDescriptor** descriptors =
-      info_.isolate()->code_stub_interface_descriptors();
-  if (descriptors[major_key] == NULL) {
-    descriptors[major_key] = stub()->GetInterfaceDescriptor(info_.isolate());
+  CodeStubInterfaceDescriptor* descriptor =
+      info_.isolate()->code_stub_interface_descriptor(major_key);
+  if (descriptor->register_param_count_ < 0) {
+    stub()->InitializeInterfaceDescriptor(info_.isolate(), descriptor);
   }
-
-  CodeStubInterfaceDescriptor* descriptor = descriptors[major_key];
-  parameters_.Reset(new HParameter*[descriptor->number_of_register_params]);
+  parameters_.Reset(new HParameter*[descriptor->register_param_count_]);
 
   HGraph* graph = this->graph();
   Zone* zone = this->zone();
-  for (int i = 0; i < descriptor->number_of_register_params; ++i) {
+  for (int i = 0; i < descriptor->register_param_count_; ++i) {
     HParameter* param = new(zone) HParameter(i);
     AddInstruction(param);
     graph->start_environment()->Push(param);

@@ -601,8 +601,8 @@ void Deoptimizer::DoCompiledStubFrame(TranslationIterator* iterator,
   ASSERT(compiled_code_->kind() == Code::COMPILED_STUB);
   int major_key = compiled_code_->major_key();
   CodeStubInterfaceDescriptor* descriptor =
-      isolate_->code_stub_interface_descriptors()[major_key];
-  Handle<Code> miss_ic(descriptor->deoptimization_handler);
+      isolate_->code_stub_interface_descriptor(major_key);
+  Handle<Code> miss_ic(descriptor->deoptimization_handler_);
   output_frame->SetPc(reinterpret_cast<intptr_t>(miss_ic->instruction_start()));
   unsigned input_frame_size = input_->GetFrameSize();
   intptr_t value = input_->GetFrameSlot(input_frame_size - kPointerSize);

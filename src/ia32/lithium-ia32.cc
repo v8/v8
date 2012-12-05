@@ -2284,7 +2284,7 @@ LInstruction* LChunkBuilder::DoParameter(HParameter* instr) {
     ASSERT(info()->IsStub());
     CodeStubInterfaceDescriptor* descriptor =
         info()->code_stub()->GetInterfaceDescriptor(info()->isolate());
-    Register reg = descriptor->register_params[instr->index()];
+    Register reg = descriptor->register_params_[instr->index()];
     return DefineFixed(result, reg);
   }
 }

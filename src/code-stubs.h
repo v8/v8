@@ -242,9 +242,12 @@ class PlatformCodeStub : public CodeStub {
 
 
 struct CodeStubInterfaceDescriptor {
-  int number_of_register_params;
-  Register* register_params;
-  Handle<Code> deoptimization_handler;
+  CodeStubInterfaceDescriptor()
+      : register_param_count_(-1),
+        register_params_(NULL) { }
+  int register_param_count_;
+  Register* register_params_;
+  Handle<Code> deoptimization_handler_;
 };
 
 
@@ -257,8 +260,13 @@ class HydrogenCodeStub : public CodeStub {
 
   virtual int GetCodeKind() { return Code::COMPILED_STUB; }
 
-  virtual CodeStubInterfaceDescriptor* GetInterfaceDescriptor(
-      Isolate* isolate) = 0;
+  CodeStubInterfaceDescriptor* GetInterfaceDescriptor(Isolate* isolate) {
+    return isolate->code_stub_interface_descriptor(MajorKey());
+  }
+
+  virtual void InitializeInterfaceDescriptor(
+      Isolate* isolate,
+      CodeStubInterfaceDescriptor* descriptor) = 0;
 
  protected:
   Handle<Code> CodeFromGraph(HGraph* graph);
@@ -1084,8 +1092,9 @@ class KeyedLoadFastElementStub : public HydrogenCodeStub {
 
   virtual Handle<Code> GenerateCode();
 
-  virtual CodeStubInterfaceDescriptor* GetInterfaceDescriptor(
-      Isolate* isolate);
+  virtual void InitializeInterfaceDescriptor(
+      Isolate* isolate,
+      CodeStubInterfaceDescriptor* descriptor);
 
  private:
   class IsJSArrayBits: public BitField<bool, 8, 1> {};
