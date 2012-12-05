@@ -707,7 +707,7 @@ void Logger::SharedLibraryEvent(const wchar_t* library_path,
 
 void Logger::TimerEvent(const char* name, int64_t start, int64_t end) {
   if (!log_->IsEnabled()) return;
-  ASSERT(FLAG_log_timer_events);
+  ASSERT(FLAG_log_internal_timer_events);
   LogMessageBuilder msg(this);
   int since_epoch = static_cast<int>(start - epoch_);
   int pause_time = static_cast<int>(end - start);
@@ -1379,8 +1379,7 @@ void Logger::TickEvent(TickSample* sample, bool overflow) {
   msg.AppendAddress(sample->pc);
   msg.Append(',');
   msg.AppendAddress(sample->sp);
-  msg.Append(",%ld",
-      FLAG_log_timer_events ? static_cast<int>(OS::Ticks() - epoch_) : 0);
+  msg.Append(",%ld", static_cast<int>(OS::Ticks() - epoch_));
   if (sample->has_external_callback) {
     msg.Append(",1,");
     msg.AppendAddress(sample->external_callback);
@@ -1789,7 +1788,7 @@ bool Logger::SetUp() {
   bool start_logging = FLAG_log || FLAG_log_runtime || FLAG_log_api
     || FLAG_log_code || FLAG_log_gc || FLAG_log_handles || FLAG_log_suspect
     || FLAG_log_regexp || FLAG_log_state_changes || FLAG_ll_prof
-    || FLAG_log_timer_events;
+    || FLAG_log_internal_timer_events;
 
   if (start_logging) {
     logging_nesting_ = 1;
@@ -1807,7 +1806,7 @@ bool Logger::SetUp() {
     }
   }
 
-  if (FLAG_log_timer_events) epoch_ = OS::Ticks();
+  if (FLAG_log_internal_timer_events || FLAG_prof) epoch_ = OS::Ticks();
 
   return true;
 }
