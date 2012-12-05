@@ -758,7 +758,7 @@ const AccessorDescriptor Accessors::FunctionCaller = {
 //
 
 
-MaybeObject* Accessors::ObjectGetPrototype(Object* receiver, void*) {
+static inline Object* GetPrototypeSkipHiddenPrototypes(Object* receiver) {
   Object* current = receiver->GetPrototype();
   while (current->IsJSObject() &&
          JSObject::cast(current)->map()->is_hidden_prototype()) {
@@ -768,12 +768,36 @@ MaybeObject* Accessors::ObjectGetPrototype(Object* receiver, void*) {
 }
 
 
-MaybeObject* Accessors::ObjectSetPrototype(JSObject* receiver,
-                                           Object* value,
+MaybeObject* Accessors::ObjectGetPrototype(Object* receiver, void*) {
+  return GetPrototypeSkipHiddenPrototypes(receiver);
+}
+
+
+MaybeObject* Accessors::ObjectSetPrototype(JSObject* receiver_raw,
+                                           Object* value_raw,
                                            void*) {
-  const bool skip_hidden_prototypes = true;
+  const bool kSkipHiddenPrototypes = true;
   // To be consistent with other Set functions, return the value.
-  return receiver->SetPrototype(value, skip_hidden_prototypes);
+  if (!(FLAG_harmony_observation && receiver_raw->map()->is_observed()))
+    return receiver_raw->SetPrototype(value_raw, kSkipHiddenPrototypes);
+
+  Isolate* isolate = receiver_raw->GetIsolate();
+  HandleScope scope(isolate);
+  Handle<JSObject> receiver(receiver_raw);
+  Handle<Object> value(value_raw);
+  Handle<Object> old_value(GetPrototypeSkipHiddenPrototypes(*receiver));
+
+  MaybeObject* result = receiver->SetPrototype(*value, kSkipHiddenPrototypes);
+  Handle<Object> hresult;
+  if (!result->ToHandle(&hresult, isolate)) return result;
+
+  Handle<Object> new_value(GetPrototypeSkipHiddenPrototypes(*receiver));
+  if (!new_value->SameValue(*old_value)) {
+    JSObject::EnqueueChangeRecord(receiver, "prototype",
+                                  isolate->factory()->Proto_symbol(),
+                                  old_value);
+  }
+  return *hresult;
 }
 
 

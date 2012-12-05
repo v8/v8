@@ -810,3 +810,23 @@ observer.assertCallbackRecords([
   { object: array, name: '0', type: 'deleted', oldValue: 0 },
   { object: array, name: 'length', type: 'updated', oldValue: 1},
 ]);
+
+// __proto__
+reset();
+var obj = {};
+Object.observe(obj, observer.callback);
+var p = {foo: 'yes'};
+var q = {bar: 'no'};
+obj.__proto__ = p;
+obj.__proto__ = p;  // ignored
+obj.__proto__ = null;
+obj.__proto__ = q;
+// TODO(adamk): Add tests for objects with hidden prototypes
+// once we support observing the global object.
+Object.deliverChangeRecords(observer.callback);
+observer.assertCallbackRecords([
+  { object: obj, name: '__proto__', type: 'prototype',
+    oldValue: Object.prototype },
+  { object: obj, name: '__proto__', type: 'prototype', oldValue: p },
+  { object: obj, name: '__proto__', type: 'prototype', oldValue: null },
+]);
