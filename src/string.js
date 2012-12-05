@@ -186,6 +186,9 @@ function StringMatch(regexp) {
   }
   var subject = TO_STRING_INLINE(this);
   if (IS_REGEXP(regexp)) {
+    // Emulate RegExp.prototype.exec's side effect in step 5, even though
+    // value is discarded.
+    ToInteger(regexp.lastIndex);
     if (!regexp.global) return RegExpExecNoTests(regexp, subject, 0);
     %_Log('regexp', 'regexp-match,%0S,%1r', [subject, regexp]);
     // lastMatchInfo is defined in regexp.js.
@@ -227,6 +230,9 @@ function StringReplace(search, replace) {
 
   // Delegate to one of the regular expression variants if necessary.
   if (IS_REGEXP(search)) {
+    // Emulate RegExp.prototype.exec's side effect in step 5, even though
+    // value is discarded.
+    ToInteger(search.lastIndex);
     %_Log('regexp', 'regexp-replace,%0r,%1S', [search, subject]);
     if (IS_SPEC_FUNCTION(replace)) {
       if (search.global) {
@@ -451,7 +457,10 @@ function StringReplaceGlobalRegExpWithFunction(subject, regexp, replace) {
 
 function StringReplaceNonGlobalRegExpWithFunction(subject, regexp, replace) {
   var matchInfo = DoRegExpExec(regexp, subject, 0);
-  if (IS_NULL(matchInfo)) return subject;
+  if (IS_NULL(matchInfo)) {
+    regexp.lastIndex = 0;
+    return subject;
+  }
   var index = matchInfo[CAPTURE0];
   var result = SubString(subject, 0, index);
   var endOfMatch = matchInfo[CAPTURE1];
