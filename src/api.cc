@@ -630,7 +630,16 @@ void V8::MakeWeak(i::Object** object, void* parameters,
   i::Isolate* isolate = i::Isolate::Current();
   LOG_API(isolate, "MakeWeak");
   isolate->global_handles()->MakeWeak(object, parameters,
-                                                    callback);
+                                      callback);
+}
+
+
+void V8::MakeWeak(i::Isolate* isolate, i::Object** object,
+                  void* parameters, WeakReferenceCallback callback) {
+  ASSERT(isolate == i::Isolate::Current());
+  LOG_API(isolate, "MakeWeak");
+  isolate->global_handles()->MakeWeak(object, parameters,
+                                      callback);
 }
 
 
@@ -695,6 +704,14 @@ bool V8::IsGlobalNearDeath(i::Object** obj) {
 
 bool V8::IsGlobalWeak(i::Object** obj) {
   i::Isolate* isolate = i::Isolate::Current();
+  LOG_API(isolate, "IsGlobalWeak");
+  if (!isolate->IsInitialized()) return false;
+  return i::GlobalHandles::IsWeak(obj);
+}
+
+
+bool V8::IsGlobalWeak(i::Isolate* isolate, i::Object** obj) {
+  ASSERT(isolate == i::Isolate::Current());
   LOG_API(isolate, "IsGlobalWeak");
   if (!isolate->IsInitialized()) return false;
   return i::GlobalHandles::IsWeak(obj);
@@ -5390,10 +5407,24 @@ void V8::SetFailedAccessCheckCallbackFunction(
   isolate->SetFailedAccessCheckCallback(callback);
 }
 
+
 void V8::AddObjectGroup(Persistent<Value>* objects,
                         size_t length,
                         RetainedObjectInfo* info) {
   i::Isolate* isolate = i::Isolate::Current();
+  if (IsDeadCheck(isolate, "v8::V8::AddObjectGroup()")) return;
+  STATIC_ASSERT(sizeof(Persistent<Value>) == sizeof(i::Object**));
+  isolate->global_handles()->AddObjectGroup(
+      reinterpret_cast<i::Object***>(objects), length, info);
+}
+
+
+void V8::AddObjectGroup(Isolate* exportedIsolate,
+                        Persistent<Value>* objects,
+                        size_t length,
+                        RetainedObjectInfo* info) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(exportedIsolate);
+  ASSERT(isolate == i::Isolate::Current());
   if (IsDeadCheck(isolate, "v8::V8::AddObjectGroup()")) return;
   STATIC_ASSERT(sizeof(Persistent<Value>) == sizeof(i::Object**));
   isolate->global_handles()->AddObjectGroup(

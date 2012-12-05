@@ -2487,23 +2487,41 @@ THREADED_TEST(ApiObjectGroupsCycle) {
   Persistent<Object> g2s2;
   Persistent<Object> g3s1;
   Persistent<Object> g3s2;
+  Persistent<Object> g4s1;
+  Persistent<Object> g4s2;
 
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
   {
     HandleScope scope;
     g1s1 = Persistent<Object>::New(Object::New());
     g1s2 = Persistent<Object>::New(Object::New());
     g1s1.MakeWeak(reinterpret_cast<void*>(&counter), &WeakPointerCallback);
     g1s2.MakeWeak(reinterpret_cast<void*>(&counter), &WeakPointerCallback);
+    CHECK(g1s1.IsWeak());
+    CHECK(g1s2.IsWeak());
 
     g2s1 = Persistent<Object>::New(Object::New());
     g2s2 = Persistent<Object>::New(Object::New());
     g2s1.MakeWeak(reinterpret_cast<void*>(&counter), &WeakPointerCallback);
     g2s2.MakeWeak(reinterpret_cast<void*>(&counter), &WeakPointerCallback);
+    CHECK(g2s1.IsWeak());
+    CHECK(g2s2.IsWeak());
 
     g3s1 = Persistent<Object>::New(Object::New());
     g3s2 = Persistent<Object>::New(Object::New());
     g3s1.MakeWeak(reinterpret_cast<void*>(&counter), &WeakPointerCallback);
     g3s2.MakeWeak(reinterpret_cast<void*>(&counter), &WeakPointerCallback);
+    CHECK(g3s1.IsWeak());
+    CHECK(g3s2.IsWeak());
+
+    g4s1 = Persistent<Object>::New(Object::New());
+    g4s2 = Persistent<Object>::New(Object::New());
+    g4s1.MakeWeak(isolate,
+                  reinterpret_cast<void*>(&counter), &WeakPointerCallback);
+    g4s2.MakeWeak(isolate,
+                  reinterpret_cast<void*>(&counter), &WeakPointerCallback);
+    CHECK(g4s1.IsWeak(isolate));
+    CHECK(g4s2.IsWeak(isolate));
   }
 
   Persistent<Object> root = Persistent<Object>::New(g1s1);  // make a root.
@@ -2517,13 +2535,17 @@ THREADED_TEST(ApiObjectGroupsCycle) {
     Persistent<Value> g2_objects[] = { g2s1, g2s2 };
     Persistent<Value> g2_children[] = { g3s1 };
     Persistent<Value> g3_objects[] = { g3s1, g3s2 };
-    Persistent<Value> g3_children[] = { g1s1 };
+    Persistent<Value> g3_children[] = { g4s1 };
+    Persistent<Value> g4_objects[] = { g4s1, g4s2 };
+    Persistent<Value> g4_children[] = { g1s1 };
     V8::AddObjectGroup(g1_objects, 2);
     V8::AddImplicitReferences(g1s1, g1_children, 1);
     V8::AddObjectGroup(g2_objects, 2);
     V8::AddImplicitReferences(g2s1, g2_children, 1);
     V8::AddObjectGroup(g3_objects, 2);
     V8::AddImplicitReferences(g3s1, g3_children, 1);
+    V8::AddObjectGroup(isolate, g4_objects, 2);
+    V8::AddImplicitReferences(g4s1, g4_children, 1);
   }
   // Do a single full GC
   HEAP->CollectAllGarbage(i::Heap::kAbortIncrementalMarkingMask);
@@ -2541,19 +2563,23 @@ THREADED_TEST(ApiObjectGroupsCycle) {
     Persistent<Value> g2_objects[] = { g2s1, g2s2 };
     Persistent<Value> g2_children[] = { g3s1 };
     Persistent<Value> g3_objects[] = { g3s1, g3s2 };
-    Persistent<Value> g3_children[] = { g1s1 };
+    Persistent<Value> g3_children[] = { g4s1 };
+    Persistent<Value> g4_objects[] = { g4s1, g4s2 };
+    Persistent<Value> g4_children[] = { g1s1 };
     V8::AddObjectGroup(g1_objects, 2);
     V8::AddImplicitReferences(g1s1, g1_children, 1);
     V8::AddObjectGroup(g2_objects, 2);
     V8::AddImplicitReferences(g2s1, g2_children, 1);
     V8::AddObjectGroup(g3_objects, 2);
     V8::AddImplicitReferences(g3s1, g3_children, 1);
+    V8::AddObjectGroup(g4_objects, 2);
+    V8::AddImplicitReferences(g4s1, g4_children, 1);
   }
 
   HEAP->CollectAllGarbage(i::Heap::kAbortIncrementalMarkingMask);
 
-  // All objects should be gone. 7 global handles in total.
-  CHECK_EQ(7, counter.NumberOfWeakCalls());
+  // All objects should be gone. 9 global handles in total.
+  CHECK_EQ(9, counter.NumberOfWeakCalls());
 }
 
 

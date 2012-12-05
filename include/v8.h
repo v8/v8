@@ -408,6 +408,9 @@ template <class T> class Persistent : public Handle<T> {
    * it the object reference and the given parameters.
    */
   V8_INLINE(void MakeWeak(void* parameters, WeakReferenceCallback callback));
+  V8_INLINE(void MakeWeak(Isolate* isolate,
+                          void* parameters,
+                          WeakReferenceCallback callback));
 
   /** Clears the weak reference to this object. */
   V8_INLINE(void ClearWeak());
@@ -442,6 +445,7 @@ template <class T> class Persistent : public Handle<T> {
 
   /** Returns true if the handle's reference is weak.  */
   V8_INLINE(bool IsWeak() const);
+  V8_INLINE(bool IsWeak(Isolate* isolate) const);
 
   /**
    * Assigns a wrapper class ID to the handle. See RetainedObjectInfo
@@ -3310,6 +3314,10 @@ class V8EXPORT V8 {
   static void AddObjectGroup(Persistent<Value>* objects,
                              size_t length,
                              RetainedObjectInfo* info = NULL);
+  static void AddObjectGroup(Isolate* isolate,
+                             Persistent<Value>* objects,
+                             size_t length,
+                             RetainedObjectInfo* info = NULL);
 
   /**
    * Allows the host application to declare implicit references between
@@ -3543,6 +3551,10 @@ class V8EXPORT V8 {
   static void MakeWeak(internal::Object** global_handle,
                        void* data,
                        WeakReferenceCallback);
+  static void MakeWeak(internal::Isolate* isolate,
+                       internal::Object** global_handle,
+                       void* data,
+                       WeakReferenceCallback);
   static void ClearWeak(internal::Object** global_handle);
   static void MarkIndependent(internal::Object** global_handle);
   static void MarkIndependent(internal::Isolate* isolate,
@@ -3555,6 +3567,8 @@ class V8EXPORT V8 {
                                   internal::Object** global_handle);
   static bool IsGlobalNearDeath(internal::Object** global_handle);
   static bool IsGlobalWeak(internal::Object** global_handle);
+  static bool IsGlobalWeak(internal::Isolate* isolate,
+                           internal::Object** global_handle);
   static void SetWrapperClassId(internal::Object** global_handle,
                                 uint16_t class_id);
   static uint16_t GetWrapperClassId(internal::Object** global_handle);
@@ -4336,6 +4350,14 @@ bool Persistent<T>::IsWeak() const {
 
 
 template <class T>
+bool Persistent<T>::IsWeak(Isolate* isolate) const {
+  if (this->IsEmpty()) return false;
+  return V8::IsGlobalWeak(reinterpret_cast<internal::Isolate*>(isolate),
+                          reinterpret_cast<internal::Object**>(**this));
+}
+
+
+template <class T>
 void Persistent<T>::Dispose() {
   if (this->IsEmpty()) return;
   V8::DisposeGlobal(reinterpret_cast<internal::Object**>(**this));
@@ -4356,6 +4378,15 @@ Persistent<T>::Persistent() : Handle<T>() { }
 template <class T>
 void Persistent<T>::MakeWeak(void* parameters, WeakReferenceCallback callback) {
   V8::MakeWeak(reinterpret_cast<internal::Object**>(**this),
+               parameters,
+               callback);
+}
+
+template <class T>
+void Persistent<T>::MakeWeak(Isolate* isolate, void* parameters,
+                             WeakReferenceCallback callback) {
+  V8::MakeWeak(reinterpret_cast<internal::Isolate*>(isolate),
+               reinterpret_cast<internal::Object**>(**this),
                parameters,
                callback);
 }
