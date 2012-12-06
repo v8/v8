@@ -40,9 +40,6 @@ regress/regress-524: SKIP
 # Skip long running test in debug and allow it to timeout in release mode.
 # regress/regress-524: (PASS || TIMEOUT), SKIP if $mode == debug
 
-# Failing in debug mode on Windows.
-manual-parallel-recompile: PASS, SKIP if $mode == debug
-
 ##############################################################################
 # Too slow in debug mode with --stress-opt
 compiler/regress-stacktrace-methods: PASS, SKIP if $mode == debug
