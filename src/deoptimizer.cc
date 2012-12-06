@@ -546,7 +546,7 @@ int Deoptimizer::GetOutputInfo(DeoptimizationOutputData* data,
   shared->SourceCodePrint(&stream, -1);
   PrintF("[source:\n%s\n]", *stream.ToCString());
 
-  UNREACHABLE();
+  FATAL("unable to find pc offset during deoptimization");
   return -1;
 }
 
