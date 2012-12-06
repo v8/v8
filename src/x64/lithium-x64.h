@@ -149,6 +149,7 @@ class LCodeGen;
   V(Random)                                     \
   V(RegExpLiteral)                              \
   V(Return)                                     \
+  V(SeqStringSetChar)                           \
   V(ShiftI)                                     \
   V(SmiTag)                                     \
   V(SmiUntag)                                   \
@@ -250,6 +251,11 @@ class LInstruction: public ZoneObject {
   HValue* hydrogen_value() const { return hydrogen_value_; }
 
   void MarkAsCall() { is_call_ = true; }
+
+  // Interface to the register allocator and iterators.
+  bool ClobbersTemps() const { return is_call_; }
+  bool ClobbersRegisters() const { return is_call_; }
+  bool ClobbersDoubleRegisters() const { return is_call_; }
 
   virtual void SetDeferredLazyDeoptimizationEnvironment(LEnvironment* env) { }
 
@@ -1152,6 +1158,30 @@ class LDateField: public LTemplateInstruction<1, 1, 0> {
 
  private:
   Smi* index_;
+};
+
+
+class LSeqStringSetChar: public LTemplateInstruction<1, 3, 0> {
+ public:
+  LSeqStringSetChar(String::Encoding encoding,
+                    LOperand* string,
+                    LOperand* index,
+                    LOperand* value) : encoding_(encoding) {
+    inputs_[0] = string;
+    inputs_[1] = index;
+    inputs_[2] = value;
+  }
+
+  String::Encoding encoding() { return encoding_; }
+  LOperand* string() { return inputs_[0]; }
+  LOperand* index() { return inputs_[1]; }
+  LOperand* value() { return inputs_[2]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(SeqStringSetChar, "seq-string-set-char")
+  DECLARE_HYDROGEN_ACCESSOR(SeqStringSetChar)
+
+ private:
+  String::Encoding encoding_;
 };
 
 
@@ -2266,8 +2296,9 @@ class LOsrEntry: public LTemplateInstruction<0, 0, 0> {
   // slot, i.e., that must also be restored to the spill slot on OSR entry.
   // NULL if the register has no assigned spill slot.  Indexed by allocation
   // index.
-  LOperand* register_spills_[Register::kNumAllocatableRegisters];
-  LOperand* double_register_spills_[DoubleRegister::kNumAllocatableRegisters];
+  LOperand* register_spills_[Register::kMaxNumAllocatableRegisters];
+  LOperand* double_register_spills_[
+      DoubleRegister::kMaxNumAllocatableRegisters];
 };
 
 

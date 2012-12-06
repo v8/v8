@@ -939,6 +939,10 @@ void CodeFlusher::EvictCandidate(JSFunction* function) {
   ASSERT(!function->next_function_link()->IsUndefined());
   Object* undefined = isolate_->heap()->undefined_value();
 
+  // The function is no longer a candidate, make sure it gets visited
+  // again so that previous flushing decisions are revisited.
+  isolate_->heap()->incremental_marking()->RecordWrites(function);
+
   JSFunction* candidate = jsfunction_candidates_head_;
   JSFunction* next_candidate;
   if (candidate == function) {

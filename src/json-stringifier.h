@@ -597,31 +597,8 @@ BasicJsonStringifier::Result BasicJsonStringifier::SerializeJSObject(
 
 void BasicJsonStringifier::ShrinkCurrentPart() {
   ASSERT(current_index_ < part_length_);
-  if (current_index_ == 0) {
-    current_part_ = factory_->empty_string();
-    return;
-  }
-
-  int string_size, allocated_string_size;
-  if (is_ascii_) {
-    allocated_string_size = SeqOneByteString::SizeFor(part_length_);
-    string_size = SeqOneByteString::SizeFor(current_index_);
-  } else {
-    allocated_string_size = SeqTwoByteString::SizeFor(part_length_);
-    string_size = SeqTwoByteString::SizeFor(current_index_);
-  }
-
-  int delta = allocated_string_size - string_size;
-  current_part_->set_length(current_index_);
-
-  // String sizes are pointer size aligned, so that we can use filler objects
-  // that are a multiple of pointer size.
-  Address end_of_string = current_part_->address() + string_size;
-  isolate_->heap()->CreateFillerObjectAt(end_of_string, delta);
-  if (Marking::IsBlack(Marking::MarkBitFrom(*current_part_))) {
-    MemoryChunk::IncrementLiveBytesFromMutator(
-        current_part_->address(), -delta);
-  }
+  current_part_ = Handle<String>(
+      SeqString::cast(*current_part_)->Truncate(current_index_), isolate_);
 }
 
 

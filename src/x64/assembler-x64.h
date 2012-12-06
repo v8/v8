@@ -95,21 +95,24 @@ struct Register {
   //  r10 - fixed scratch register
   //  r12 - smi constant register
   //  r13 - root register
+  static const int kMaxNumAllocatableRegisters = 10;
+  static int NumAllocatableRegisters() {
+    return kMaxNumAllocatableRegisters;
+  }
   static const int kNumRegisters = 16;
-  static const int kNumAllocatableRegisters = 10;
 
   static int ToAllocationIndex(Register reg) {
     return kAllocationIndexByRegisterCode[reg.code()];
   }
 
   static Register FromAllocationIndex(int index) {
-    ASSERT(index >= 0 && index < kNumAllocatableRegisters);
+    ASSERT(index >= 0 && index < kMaxNumAllocatableRegisters);
     Register result = { kRegisterCodeByAllocationIndex[index] };
     return result;
   }
 
   static const char* AllocationIndexToString(int index) {
-    ASSERT(index >= 0 && index < kNumAllocatableRegisters);
+    ASSERT(index >= 0 && index < kMaxNumAllocatableRegisters);
     const char* const names[] = {
       "rax",
       "rbx",
@@ -157,7 +160,7 @@ struct Register {
   int code_;
 
  private:
-  static const int kRegisterCodeByAllocationIndex[kNumAllocatableRegisters];
+  static const int kRegisterCodeByAllocationIndex[kMaxNumAllocatableRegisters];
   static const int kAllocationIndexByRegisterCode[kNumRegisters];
 };
 
@@ -200,7 +203,10 @@ const Register no_reg = { kRegister_no_reg_Code };
 
 struct XMMRegister {
   static const int kNumRegisters = 16;
-  static const int kNumAllocatableRegisters = 15;
+  static const int kMaxNumAllocatableRegisters = 15;
+  static int NumAllocatableRegisters() {
+    return kMaxNumAllocatableRegisters;
+  }
 
   static int ToAllocationIndex(XMMRegister reg) {
     ASSERT(reg.code() != 0);
@@ -208,13 +214,13 @@ struct XMMRegister {
   }
 
   static XMMRegister FromAllocationIndex(int index) {
-    ASSERT(0 <= index && index < kNumAllocatableRegisters);
+    ASSERT(0 <= index && index < kMaxNumAllocatableRegisters);
     XMMRegister result = { index + 1 };
     return result;
   }
 
   static const char* AllocationIndexToString(int index) {
-    ASSERT(index >= 0 && index < kNumAllocatableRegisters);
+    ASSERT(index >= 0 && index < kMaxNumAllocatableRegisters);
     const char* const names[] = {
       "xmm1",
       "xmm2",

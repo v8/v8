@@ -287,11 +287,11 @@ class Logger {
    public:
     TimerEventScope(Isolate* isolate, const char* name)
         : isolate_(isolate), name_(name), start_(0) {
-      if (FLAG_log_timer_events) start_ = OS::Ticks();
+      if (FLAG_log_internal_timer_events) start_ = OS::Ticks();
     }
 
     ~TimerEventScope() {
-      if (FLAG_log_timer_events) LogTimerEvent();
+      if (FLAG_log_internal_timer_events) LogTimerEvent();
     }
 
     void LogTimerEvent();

@@ -71,21 +71,24 @@ namespace internal {
 // Core register
 struct Register {
   static const int kNumRegisters = 16;
-  static const int kNumAllocatableRegisters = 8;
+  static const int kMaxNumAllocatableRegisters = 8;
   static const int kSizeInBytes = 4;
+  static const int kGPRsPerNonVFP2Double = 2;
+
+  inline static int NumAllocatableRegisters();
 
   static int ToAllocationIndex(Register reg) {
-    ASSERT(reg.code() < kNumAllocatableRegisters);
+    ASSERT(reg.code() < kMaxNumAllocatableRegisters);
     return reg.code();
   }
 
   static Register FromAllocationIndex(int index) {
-    ASSERT(index >= 0 && index < kNumAllocatableRegisters);
+    ASSERT(index >= 0 && index < kMaxNumAllocatableRegisters);
     return from_code(index);
   }
 
   static const char* AllocationIndexToString(int index) {
-    ASSERT(index >= 0 && index < kNumAllocatableRegisters);
+    ASSERT(index >= 0 && index < kMaxNumAllocatableRegisters);
     const char* const names[] = {
       "r0",
       "r1",
@@ -165,7 +168,6 @@ const Register sp  = { kRegister_sp_Code };
 const Register lr  = { kRegister_lr_Code };
 const Register pc  = { kRegister_pc_Code };
 
-
 // Single word VFP register.
 struct SwVfpRegister {
   bool is_valid() const { return 0 <= code_ && code_ < 32; }
@@ -196,35 +198,17 @@ struct DwVfpRegister {
   //  d14: 0.0
   //  d15: scratch register.
   static const int kNumReservedRegisters = 2;
-  static const int kNumAllocatableRegisters = kNumRegisters -
+  static const int kMaxNumAllocatableRegisters = kNumRegisters -
       kNumReservedRegisters;
 
+  inline static int NumRegisters();
+  inline static int NumAllocatableRegisters();
   inline static int ToAllocationIndex(DwVfpRegister reg);
+  static const char* AllocationIndexToString(int index);
 
   static DwVfpRegister FromAllocationIndex(int index) {
-    ASSERT(index >= 0 && index < kNumAllocatableRegisters);
+    ASSERT(index >= 0 && index < kMaxNumAllocatableRegisters);
     return from_code(index);
-  }
-
-  static const char* AllocationIndexToString(int index) {
-    ASSERT(index >= 0 && index < kNumAllocatableRegisters);
-    const char* const names[] = {
-      "d0",
-      "d1",
-      "d2",
-      "d3",
-      "d4",
-      "d5",
-      "d6",
-      "d7",
-      "d8",
-      "d9",
-      "d10",
-      "d11",
-      "d12",
-      "d13"
-    };
-    return names[index];
   }
 
   static DwVfpRegister from_code(int code) {
@@ -322,6 +306,9 @@ const DwVfpRegister d12 = { 12 };
 const DwVfpRegister d13 = { 13 };
 const DwVfpRegister d14 = { 14 };
 const DwVfpRegister d15 = { 15 };
+
+const Register sfpd_lo  = { kRegister_r6_Code };
+const Register sfpd_hi  = { kRegister_r7_Code };
 
 // Aliases for double registers.  Defined using #define instead of
 // "static const DwVfpRegister&" because Clang complains otherwise when a

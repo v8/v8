@@ -664,7 +664,10 @@ DEFINE_string(logfile, "v8.log", "Specify the name of the log file.")
 DEFINE_bool(ll_prof, false, "Enable low-level linux profiler.")
 DEFINE_string(gc_fake_mmap, "/tmp/__v8_gc__",
               "Specify the name of the file for fake gc mmap used in ll_prof")
-DEFINE_bool(log_timer_events, false, "Log histogram timer events.")
+DEFINE_bool(log_internal_timer_events, false, "Time internal events.")
+DEFINE_bool(log_timer_events, false,
+            "Time events including external callbacks.")
+DEFINE_implication(log_timer_events, log_internal_timer_events)
 
 //
 // Disassembler only flags

@@ -44,6 +44,10 @@ enum TypeofState { INSIDE_TYPEOF, NOT_INSIDE_TYPEOF };
 
 class CodeGenerator: public AstVisitor {
  public:
+  CodeGenerator() {
+    InitializeAstVisitor();
+  }
+
   static bool MakeCode(CompilationInfo* info);
 
   // Printing of AST, etc. as requested by flags.
@@ -62,6 +66,8 @@ class CodeGenerator: public AstVisitor {
   static bool RecordPositions(MacroAssembler* masm,
                               int pos,
                               bool right_here = false);
+
+  DEFINE_AST_VISITOR_SUBCLASS_MEMBERS();
 
  private:
   DISALLOW_COPY_AND_ASSIGN(CodeGenerator);

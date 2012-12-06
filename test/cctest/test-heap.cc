@@ -2508,3 +2508,63 @@ TEST(Regression144230) {
   USE(global->SetProperty(*name, *call_function, NONE, kNonStrictMode));
   CompileRun("call();");
 }
+
+
+TEST(Regress159140) {
+  i::FLAG_allow_natives_syntax = true;
+  i::FLAG_flush_code_incrementally = true;
+  InitializeVM();
+  v8::HandleScope scope;
+
+  // Perform one initial GC to enable code flushing.
+  HEAP->CollectAllGarbage(Heap::kNoGCFlags);
+
+  // Prepare several closures that are all eligible for code flushing
+  // because all reachable ones are not optimized. Make sure that the
+  // optimized code object is directly reachable through a handle so
+  // that it is marked black during incremental marking.
+  Handle<Code> code;
+  {
+    HandleScope inner_scope;
+    CompileRun("function h(x) {}"
+               "function mkClosure() {"
+               "  return function(x) { return x + 1; };"
+               "}"
+               "var f = mkClosure();"
+               "var g = mkClosure();"
+               "f(1); f(2);"
+               "g(1); g(2);"
+               "h(1); h(2);"
+               "%OptimizeFunctionOnNextCall(f); f(3);"
+               "%OptimizeFunctionOnNextCall(h); h(3);");
+
+    Handle<JSFunction> f =
+        v8::Utils::OpenHandle(
+            *v8::Handle<v8::Function>::Cast(
+                v8::Context::GetCurrent()->Global()->Get(v8_str("f"))));
+    CHECK(f->is_compiled());
+    CompileRun("f = null;");
+
+    Handle<JSFunction> g =
+        v8::Utils::OpenHandle(
+            *v8::Handle<v8::Function>::Cast(
+                v8::Context::GetCurrent()->Global()->Get(v8_str("g"))));
+    CHECK(g->is_compiled());
+    const int kAgingThreshold = 6;
+    for (int i = 0; i < kAgingThreshold; i++) {
+      g->code()->MakeOlder(static_cast<MarkingParity>(i % 2));
+    }
+
+    code = inner_scope.CloseAndEscape(Handle<Code>(f->code()));
+  }
+
+  // Simulate incremental marking so that the functions are enqueued as
+  // code flushing candidates. Then optimize one function. Finally
+  // finish the GC to complete code flushing.
+  SimulateIncrementalMarking();
+  CompileRun("%OptimizeFunctionOnNextCall(g); g(3);");
+  HEAP->CollectAllGarbage(Heap::kNoGCFlags);
+
+  // Unoptimized code is missing and the deoptimizer will go ballistic.
+  CompileRun("g('bozo');");
+}

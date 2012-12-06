@@ -73,10 +73,10 @@ UnaryMathFunction CreateExpFunction() {
 
   {
     CpuFeatures::Scope use_vfp(VFP2);
-    DoubleRegister input = d0;
-    DoubleRegister result = d1;
-    DoubleRegister double_scratch1 = d2;
-    DoubleRegister double_scratch2 = d3;
+    DwVfpRegister input = d0;
+    DwVfpRegister result = d1;
+    DwVfpRegister double_scratch1 = d2;
+    DwVfpRegister double_scratch2 = d3;
     Register temp1 = r4;
     Register temp2 = r5;
     Register temp3 = r6;
@@ -521,16 +521,60 @@ void StringCharLoadGenerator::Generate(MacroAssembler* masm,
 }
 
 
+void SeqStringSetCharGenerator::Generate(MacroAssembler* masm,
+                                         String::Encoding encoding,
+                                         Register string,
+                                         Register index,
+                                         Register value) {
+  if (FLAG_debug_code) {
+    __ tst(index, Operand(kSmiTagMask));
+    __ Check(eq, "Non-smi index");
+    __ tst(value, Operand(kSmiTagMask));
+    __ Check(eq, "Non-smi value");
+
+    __ ldr(ip, FieldMemOperand(string, String::kLengthOffset));
+    __ cmp(index, ip);
+    __ Check(lt, "Index is too large");
+
+    __ cmp(index, Operand(Smi::FromInt(0)));
+    __ Check(ge, "Index is negative");
+
+    __ ldr(ip, FieldMemOperand(string, HeapObject::kMapOffset));
+    __ ldrb(ip, FieldMemOperand(ip, Map::kInstanceTypeOffset));
+
+    __ and_(ip, ip, Operand(kStringRepresentationMask | kStringEncodingMask));
+    static const uint32_t one_byte_seq_type = kSeqStringTag | kOneByteStringTag;
+    static const uint32_t two_byte_seq_type = kSeqStringTag | kTwoByteStringTag;
+    __ cmp(ip, Operand(encoding == String::ONE_BYTE_ENCODING
+                           ? one_byte_seq_type : two_byte_seq_type));
+    __ Check(eq, "Unexpected string type");
+  }
+
+  __ add(ip,
+         string,
+         Operand(SeqString::kHeaderSize - kHeapObjectTag));
+  __ SmiUntag(value, value);
+  STATIC_ASSERT(kSmiTagSize == 1 && kSmiTag == 0);
+  if (encoding == String::ONE_BYTE_ENCODING) {
+    // Smis are tagged by left shift by 1, thus LSR by 1 to smi-untag inline.
+    __ strb(value, MemOperand(ip, index, LSR, 1));
+  } else {
+    // No need to untag a smi for two-byte addressing.
+    __ strh(value, MemOperand(ip, index));
+  }
+}
+
+
 static MemOperand ExpConstant(int index, Register base) {
   return MemOperand(base, index * kDoubleSize);
 }
 
 
 void MathExpGenerator::EmitMathExp(MacroAssembler* masm,
-                                   DoubleRegister input,
-                                   DoubleRegister result,
-                                   DoubleRegister double_scratch1,
-                                   DoubleRegister double_scratch2,
+                                   DwVfpRegister input,
+                                   DwVfpRegister result,
+                                   DwVfpRegister double_scratch1,
+                                   DwVfpRegister double_scratch2,
                                    Register temp1,
                                    Register temp2,
                                    Register temp3) {

@@ -4233,6 +4233,7 @@ class Code: public HeapObject {
   V(FUNCTION)             \
   V(OPTIMIZED_FUNCTION)   \
   V(STUB)                 \
+  V(COMPILED_STUB)        \
   V(BUILTIN)              \
   V(LOAD_IC)              \
   V(KEYED_LOAD_IC)        \
@@ -4846,6 +4847,10 @@ class Map: public HeapObject {
 
   inline bool has_fast_double_elements() {
     return IsFastDoubleElementsKind(elements_kind());
+  }
+
+  inline bool has_fast_elements() {
+    return IsFastElementsKind(elements_kind());
   }
 
   inline bool has_non_strict_arguments_elements() {
@@ -6646,6 +6651,7 @@ class JSRegExp: public JSObject {
   inline Object* DataAtUnchecked(int index);
   inline void SetDataAtUnchecked(int index, Object* value, Heap* heap);
   inline Type TypeTagUnchecked();
+  inline void ResetLastIndex();
 
   static int code_index(bool is_ascii) {
     if (is_ascii) {
@@ -7167,6 +7173,8 @@ class StringShape BASE_EMBEDDED {
 // All string values have a length field.
 class String: public HeapObject {
  public:
+  enum Encoding { ONE_BYTE_ENCODING, TWO_BYTE_ENCODING };
+
   // Representation of the flat content of a String.
   // A non-flat string doesn't have flat content.
   // A flat string has content that's encoded as a sequence of either
@@ -7505,6 +7513,14 @@ class String: public HeapObject {
     return NonAsciiStart(chars, length) >= length;
   }
 
+  template<class Visitor, class ConsOp>
+  static inline void Visit(String* string,
+                           unsigned offset,
+                           Visitor& visitor,
+                           ConsOp& consOp,
+                           int32_t type,
+                           unsigned length);
+
  protected:
   class ReadBlockBuffer {
    public:
@@ -7562,6 +7578,11 @@ class SeqString: public String {
 
   // Layout description.
   static const int kHeaderSize = String::kSize;
+
+  // Truncate the string in-place if possible and return the result.
+  // In case of new_length == 0, the empty string is returned without
+  // truncating the original string.
+  MUST_USE_RESULT String* Truncate(int new_length);
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(SeqString);
@@ -7954,14 +7975,75 @@ class StringInputBuffer: public unibrow::InputBuffer<String, String*, 1024> {
 };
 
 
-class SafeStringInputBuffer
-  : public unibrow::InputBuffer<String, String**, 256> {
+// This maintains an off-stack representation of the stack frames required
+// to traverse a ConsString, allowing an entirely iterative and restartable
+// traversal of the entire string
+// Note: this class is not GC-safe.
+class ConsStringIteratorOp {
  public:
-  virtual void Seek(unsigned pos);
-  inline SafeStringInputBuffer()
-      : unibrow::InputBuffer<String, String**, 256>() {}
-  explicit inline SafeStringInputBuffer(String** backing)
-      : unibrow::InputBuffer<String, String**, 256>(backing) {}
+  struct ContinueResponse {
+    String* string_;
+    unsigned offset_;
+    unsigned length_;
+    int32_t type_;
+  };
+  inline ConsStringIteratorOp() {}
+  String* Operate(ConsString* consString, unsigned* outerOffset,
+      int32_t* typeOut, unsigned* lengthOut);
+  inline bool ContinueOperation(ContinueResponse* response);
+  inline void Reset();
+  inline bool HasMore();
+
+ private:
+  // TODO(dcarney): Templatize this out for different stack sizes.
+  static const unsigned kStackSize = 32;
+  // Use a mask instead of doing modulo operations for stack wrapping.
+  static const unsigned kDepthMask = kStackSize-1;
+  STATIC_ASSERT(IS_POWER_OF_TWO(kStackSize));
+  static inline unsigned OffsetForDepth(unsigned depth);
+  static inline uint32_t MaskForDepth(unsigned depth);
+
+  inline void ClearRightDescent();
+  inline void SetRightDescent();
+  inline void PushLeft(ConsString* string);
+  inline void PushRight(ConsString* string, int32_t type);
+  inline void AdjustMaximumDepth();
+  inline void Pop();
+  inline void ResetStack();
+  String* NextLeaf(bool* blewStack, int32_t* typeOut);
+
+  unsigned depth_;
+  unsigned maximum_depth_;
+  uint32_t trace_;
+  ConsString* frames_[kStackSize];
+  unsigned consumed_;
+  ConsString* root_;
+  int32_t root_type_;
+  unsigned root_length_;
+  DISALLOW_COPY_AND_ASSIGN(ConsStringIteratorOp);
+};
+
+
+// Note: this class is not GC-safe.
+class StringCharacterStream {
+ public:
+  inline StringCharacterStream(
+      String* string, unsigned offset, ConsStringIteratorOp* op);
+  inline uint16_t GetNext();
+  inline bool HasMore();
+  inline void Reset(String* string, unsigned offset, ConsStringIteratorOp* op);
+  inline void VisitOneByteString(const uint8_t* chars, unsigned length);
+  inline void VisitTwoByteString(const uint16_t* chars, unsigned length);
+
+ private:
+  bool is_one_byte_;
+  union {
+    const uint8_t* buffer8_;
+    const uint16_t* buffer16_;
+  };
+  const uint8_t* end_;
+  ConsStringIteratorOp* op_;
+  DISALLOW_COPY_AND_ASSIGN(StringCharacterStream);
 };
 
 

@@ -25,17 +25,51 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-var a = [];
-var new_space_string = "";
-for (var i = 0; i < 128; i++) {
-  new_space_string += String.fromCharCode((Math.random() * 26 + 65) | 0);
-}
-for (var i = 0; i < 10000; i++) a.push(new_space_string);
+// Test Regexp.prototype.exec
+r = /a/;
+r.lastIndex = 1;
+r.exec("zzzz");
+assertEquals(0, r.lastIndex);
 
-// At some point during the first stringify, allocation causes a GC and
-// new_space_string is moved to old space. Make sure that this does not
-// screw up reading from the correct location.
-json1 = JSON.stringify(a);
-json2 = JSON.stringify(a);
-assertTrue(json1 == json2, "GC caused JSON.stringify to fail.");
+// Test Regexp.prototype.test
+r = /a/;
+r.lastIndex = 1;
+r.test("zzzz");
+assertEquals(0, r.lastIndex);
+
+// Test String.prototype.match
+r = /a/;
+r.lastIndex = 1;
+"zzzz".match(r);
+assertEquals(0, r.lastIndex);
+
+// Test String.prototype.replace with atomic regexp and empty string.
+r = /a/;
+r.lastIndex = 1;
+"zzzz".replace(r, "");
+assertEquals(0, r.lastIndex);
+
+// Test String.prototype.replace with non-atomic regexp and empty string.
+r = /\d/;
+r.lastIndex = 1;
+"zzzz".replace(r, "");
+assertEquals(0, r.lastIndex);
+
+// Test String.prototype.replace with atomic regexp and non-empty string.
+r = /a/;
+r.lastIndex = 1;
+"zzzz".replace(r, "a");
+assertEquals(0, r.lastIndex);
+
+// Test String.prototype.replace with non-atomic regexp and non-empty string.
+r = /\d/;
+r.lastIndex = 1;
+"zzzz".replace(r, "a");
+assertEquals(0, r.lastIndex);
+
+// Test String.prototype.replace with replacement function
+r = /a/;
+r.lastIndex = 1;
+"zzzz".replace(r, function() { return ""; });
+assertEquals(0, r.lastIndex);
 

@@ -152,6 +152,7 @@ var knownProblems = {
   "LazyRecompile": true,
   "ParallelRecompile": true,
   "NotifyDeoptimized": true,
+  "NotifyICMiss": true,
   "NotifyOSR": true,
   "CreateObjectLiteralBoilerplate": true,
   "CloneLiteralBoilerplate": true,
@@ -197,6 +198,8 @@ var knownProblems = {
   // Only applicable to strings.
   "_HasCachedArrayIndex": true,
   "_GetCachedArrayIndex": true,
+  "_OneByteSeqStringSetChar": true,
+  "_TwoByteSeqStringSetChar": true,
 
   // Only for debugging parallel recompilation.
   "InstallRecompiledCode": true,

@@ -1227,6 +1227,33 @@ TEST(DeleteHeapSnapshot) {
 }
 
 
+class NameResolver : public v8::HeapProfiler::ObjectNameResolver {
+ public:
+  virtual const char* GetName(v8::Handle<v8::Object> object) {
+    return "Global object name";
+  }
+};
+
+TEST(GlobalObjectName) {
+  v8::HandleScope scope;
+  LocalContext env;
+
+  CompileRun("document = { URL:\"abcdefgh\" };");
+
+  NameResolver name_resolver;
+  const v8::HeapSnapshot* snapshot =
+      v8::HeapProfiler::TakeSnapshot(v8_str("document"),
+      v8::HeapSnapshot::kFull,
+      NULL,
+      &name_resolver);
+  const v8::HeapGraphNode* global = GetGlobalObject(snapshot);
+  CHECK_NE(NULL, global);
+  CHECK_EQ("Object / Global object name" ,
+           const_cast<i::HeapEntry*>(
+               reinterpret_cast<const i::HeapEntry*>(global))->name());
+}
+
+
 TEST(DocumentURL) {
   v8::HandleScope scope;
   LocalContext env;

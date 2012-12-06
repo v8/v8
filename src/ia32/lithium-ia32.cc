@@ -44,10 +44,10 @@ LITHIUM_CONCRETE_INSTRUCTION_LIST(DEFINE_COMPILE)
 #undef DEFINE_COMPILE
 
 LOsrEntry::LOsrEntry() {
-  for (int i = 0; i < Register::kNumAllocatableRegisters; ++i) {
+  for (int i = 0; i < Register::NumAllocatableRegisters(); ++i) {
     register_spills_[i] = NULL;
   }
-  for (int i = 0; i < DoubleRegister::kNumAllocatableRegisters; ++i) {
+  for (int i = 0; i < DoubleRegister::NumAllocatableRegisters(); ++i) {
     double_register_spills_[i] = NULL;
   }
 }
@@ -460,9 +460,11 @@ LPlatformChunk* LChunkBuilder::Build() {
   status_ = BUILDING;
 
   // Reserve the first spill slot for the state of dynamic alignment.
-  int alignment_state_index = chunk_->GetNextSpillIndex(false);
-  ASSERT_EQ(alignment_state_index, 0);
-  USE(alignment_state_index);
+  if (info()->IsOptimizing()) {
+    int alignment_state_index = chunk_->GetNextSpillIndex(false);
+    ASSERT_EQ(alignment_state_index, 0);
+    USE(alignment_state_index);
+  }
 
   const ZoneList<HBasicBlock*>* blocks = graph()->blocks();
   for (int i = 0; i < blocks->length(); i++) {
@@ -491,6 +493,12 @@ LUnallocated* LChunkBuilder::ToUnallocated(Register reg) {
 LUnallocated* LChunkBuilder::ToUnallocated(XMMRegister reg) {
   return new(zone()) LUnallocated(LUnallocated::FIXED_DOUBLE_REGISTER,
                                   XMMRegister::ToAllocationIndex(reg));
+}
+
+
+LUnallocated* LChunkBuilder::ToUnallocated(X87TopOfStackRegister reg) {
+  return new(zone()) LUnallocated(LUnallocated::FIXED_DOUBLE_REGISTER,
+      X87TopOfStackRegister::ToAllocationIndex(reg));
 }
 
 
@@ -626,6 +634,13 @@ LInstruction* LChunkBuilder::DefineFixedDouble(
 }
 
 
+template<int I, int T>
+LInstruction* LChunkBuilder::DefineX87TOS(
+    LTemplateInstruction<1, I, T>* instr) {
+  return Define(instr, ToUnallocated(x87tos));
+}
+
+
 LInstruction* LChunkBuilder::AssignEnvironment(LInstruction* instr) {
   HEnvironment* hydrogen_env = current_block_->last_environment();
   int argument_index_accumulator = 0;
@@ -638,6 +653,8 @@ LInstruction* LChunkBuilder::AssignEnvironment(LInstruction* instr) {
 LInstruction* LChunkBuilder::MarkAsCall(LInstruction* instr,
                                         HInstruction* hinstr,
                                         CanDeoptimize can_deoptimize) {
+  info()->MarkAsNonDeferredCalling();
+
 #ifdef DEBUG
   instr->VerifyCall();
 #endif
@@ -1643,6 +1660,17 @@ LInstruction* LChunkBuilder::DoDateField(HDateField* instr) {
 }
 
 
+LInstruction* LChunkBuilder::DoSeqStringSetChar(HSeqStringSetChar* instr) {
+  LOperand* string = UseRegister(instr->string());
+  LOperand* index = UseRegister(instr->index());
+  ASSERT(ecx.is_byte_register());
+  LOperand* value = UseFixed(instr->value(), ecx);
+  LSeqStringSetChar* result =
+      new(zone()) LSeqStringSetChar(instr->encoding(), string, index, value);
+  return DefineSameAsFirst(result);
+}
+
+
 LInstruction* LChunkBuilder::DoBoundsCheck(HBoundsCheck* instr) {
   return AssignEnvironment(new(zone()) LBoundsCheck(
       UseRegisterOrConstantAtStart(instr->index()),
@@ -1680,8 +1708,12 @@ LInstruction* LChunkBuilder::DoForceRepresentation(HForceRepresentation* bad) {
 LInstruction* LChunkBuilder::DoChange(HChange* instr) {
   Representation from = instr->from();
   Representation to = instr->to();
+  // Only mark conversions that might need to allocate as calling rather than
+  // all changes. This makes simple, non-allocating conversion not have to force
+  // building a stack frame.
   if (from.IsTagged()) {
     if (to.IsDouble()) {
+      info()->MarkAsDeferredCalling();
       LOperand* value = UseRegister(instr->value());
       // Temp register only necessary for minus zero check.
       LOperand* temp = instr->deoptimize_on_minus_zero()
@@ -1706,7 +1738,10 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
     }
   } else if (from.IsDouble()) {
     if (to.IsTagged()) {
-      LOperand* value = UseRegister(instr->value());
+      info()->MarkAsDeferredCalling();
+      LOperand* value = CpuFeatures::IsSupported(SSE2)
+          ? UseRegisterAtStart(instr->value())
+          : UseAtStart(instr->value());
       LOperand* temp = TempRegister();
 
       // Make sure that temp and result_temp are different registers.
@@ -1724,6 +1759,7 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
           DefineAsRegister(new(zone()) LDoubleToI(value, temp)));
     }
   } else if (from.IsInteger32()) {
+    info()->MarkAsDeferredCalling();
     if (to.IsTagged()) {
       HValue* val = instr->value();
       LOperand* value = UseRegister(val);
@@ -2240,8 +2276,17 @@ LInstruction* LChunkBuilder::DoOsrEntry(HOsrEntry* instr) {
 
 
 LInstruction* LChunkBuilder::DoParameter(HParameter* instr) {
-  int spill_index = chunk()->GetParameterStackSlot(instr->index());
-  return DefineAsSpilled(new(zone()) LParameter, spill_index);
+  LParameter* result = new(zone()) LParameter;
+  if (info()->IsOptimizing()) {
+    int spill_index = chunk()->GetParameterStackSlot(instr->index());
+    return DefineAsSpilled(result, spill_index);
+  } else {
+    ASSERT(info()->IsStub());
+    CodeStubInterfaceDescriptor* descriptor =
+        info()->code_stub()->GetInterfaceDescriptor(info()->isolate());
+    Register reg = descriptor->register_params_[instr->index()];
+    return DefineFixed(result, reg);
+  }
 }
 
 
@@ -2342,6 +2387,7 @@ LInstruction* LChunkBuilder::DoSimulate(HSimulate* instr) {
 
 
 LInstruction* LChunkBuilder::DoStackCheck(HStackCheck* instr) {
+  info()->MarkAsDeferredCalling();
   if (instr->is_function_entry()) {
     LOperand* context = UseFixed(instr->context(), esi);
     return MarkAsCall(new(zone()) LStackCheck(context), instr);

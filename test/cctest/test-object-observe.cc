@@ -218,3 +218,63 @@ TEST(ObjectHashTableGrowth) {
   CompileRun("obj.foo = 'bar'");
   CHECK(CompileRun("ran")->BooleanValue());
 }
+
+TEST(GlobalObjectObservation) {
+  HarmonyIsolate isolate;
+  HandleScope scope;
+  LocalContext context;
+  Handle<Object> global_proxy = context->Global();
+  Handle<Object> inner_global = global_proxy->GetPrototype().As<Object>();
+  CompileRun(
+      "var records = [];"
+      "var global = this;"
+      "Object.observe(global, function(r) { [].push.apply(records, r) });"
+      "global.foo = 'hello';");
+  CHECK_EQ(1, CompileRun("records.length")->Int32Value());
+  CHECK(global_proxy->StrictEquals(CompileRun("records[0].object")));
+
+  // Detached, mutating the proxy has no effect.
+  context->DetachGlobal();
+  CompileRun("global.bar = 'goodbye';");
+  CHECK_EQ(1, CompileRun("records.length")->Int32Value());
+
+  // Mutating the global object directly still has an effect...
+  CompileRun("this.bar = 'goodbye';");
+  CHECK_EQ(2, CompileRun("records.length")->Int32Value());
+  CHECK(inner_global->StrictEquals(CompileRun("records[1].object")));
+
+  // Reattached, back to global proxy.
+  context->ReattachGlobal(global_proxy);
+  CompileRun("global.baz = 'again';");
+  CHECK_EQ(3, CompileRun("records.length")->Int32Value());
+  CHECK(global_proxy->StrictEquals(CompileRun("records[2].object")));
+
+  // Attached to a different context, should not leak mutations
+  // to the old context.
+  context->DetachGlobal();
+  {
+    LocalContext context2;
+    context2->DetachGlobal();
+    context2->ReattachGlobal(global_proxy);
+    CompileRun(
+        "var records2 = [];"
+        "Object.observe(this, function(r) { [].push.apply(records2, r) });"
+        "this.bat = 'context2';");
+    CHECK_EQ(1, CompileRun("records2.length")->Int32Value());
+    CHECK(global_proxy->StrictEquals(CompileRun("records2[0].object")));
+  }
+  CHECK_EQ(3, CompileRun("records.length")->Int32Value());
+
+  // Attaching by passing to Context::New
+  {
+    // Delegates to Context::New
+    LocalContext context3(NULL, Handle<ObjectTemplate>(), global_proxy);
+    CompileRun(
+        "var records3 = [];"
+        "Object.observe(this, function(r) { [].push.apply(records3, r) });"
+        "this.qux = 'context3';");
+    CHECK_EQ(1, CompileRun("records3.length")->Int32Value());
+    CHECK(global_proxy->StrictEquals(CompileRun("records3[0].object")));
+  }
+  CHECK_EQ(3, CompileRun("records.length")->Int32Value());
+}

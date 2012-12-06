@@ -25,17 +25,28 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-var a = [];
-var new_space_string = "";
-for (var i = 0; i < 128; i++) {
-  new_space_string += String.fromCharCode((Math.random() * 26 + 65) | 0);
-}
-for (var i = 0; i < 10000; i++) a.push(new_space_string);
+function testSideEffects(subject, re) {
+  var counter = 0;
+  var side_effect_object = { valueOf: function() { return counter++; } };
+  re.lastIndex = side_effect_object;
+  re.exec(subject);
+  assertEquals(1, counter);
 
-// At some point during the first stringify, allocation causes a GC and
-// new_space_string is moved to old space. Make sure that this does not
-// screw up reading from the correct location.
-json1 = JSON.stringify(a);
-json2 = JSON.stringify(a);
-assertTrue(json1 == json2, "GC caused JSON.stringify to fail.");
+  re.lastIndex = side_effect_object;
+  re.test(subject);
+  assertEquals(2, counter);
+
+  re.lastIndex = side_effect_object;
+  subject.match(re);
+  assertEquals(3, counter);
+
+  re.lastIndex = side_effect_object;
+  subject.replace(re, "");
+  assertEquals(4, counter);
+}
+
+testSideEffects("zzzz", /a/);
+testSideEffects("zzzz", /a/g);
+testSideEffects("xaxa", /a/);
+testSideEffects("xaxa", /a/g);
 

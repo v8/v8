@@ -1644,12 +1644,14 @@ HeapObject* const V8HeapExplorer::kLastGcSubrootObject =
 
 V8HeapExplorer::V8HeapExplorer(
     HeapSnapshot* snapshot,
-    SnapshottingProgressReportingInterface* progress)
+    SnapshottingProgressReportingInterface* progress,
+    v8::HeapProfiler::ObjectNameResolver* resolver)
     : heap_(Isolate::Current()->heap()),
       snapshot_(snapshot),
       collection_(snapshot_->collection()),
       progress_(progress),
-      filler_(NULL) {
+      filler_(NULL),
+      global_object_name_resolver_(resolver) {
 }
 
 
@@ -2712,21 +2714,30 @@ void V8HeapExplorer::TagGlobalObjects() {
       isolate->factory()->NewStringFromAscii(CStrVector("URL"));
   const char** urls = NewArray<const char*>(enumerator.count());
   for (int i = 0, l = enumerator.count(); i < l; ++i) {
-    urls[i] = NULL;
-    HandleScope scope;
-    Handle<JSGlobalObject> global_obj = enumerator.at(i);
-    Object* obj_document;
-    if (global_obj->GetProperty(*document_string)->ToObject(&obj_document) &&
-        obj_document->IsJSObject()) {
-      // FixMe: Workaround: SharedWorker's current Isolate has NULL context.
-      // As result GetProperty(*url_string) will crash.
-      if (!Isolate::Current()->context() && obj_document->IsJSGlobalProxy())
-        continue;
-      JSObject* document = JSObject::cast(obj_document);
-      Object* obj_url;
-      if (document->GetProperty(*url_string)->ToObject(&obj_url) &&
-          obj_url->IsString()) {
-        urls[i] = collection_->names()->GetName(String::cast(obj_url));
+    if (global_object_name_resolver_) {
+      HandleScope scope;
+      Handle<JSGlobalObject> global_obj = enumerator.at(i);
+      urls[i] = global_object_name_resolver_->GetName(
+          Utils::ToLocal(Handle<JSObject>::cast(global_obj)));
+    } else {
+      // TODO(yurys): This branch is going to be removed once Chromium migrates
+      // to the new name resolver.
+      urls[i] = NULL;
+      HandleScope scope;
+      Handle<JSGlobalObject> global_obj = enumerator.at(i);
+      Object* obj_document;
+      if (global_obj->GetProperty(*document_string)->ToObject(&obj_document) &&
+          obj_document->IsJSObject()) {
+        // FixMe: Workaround: SharedWorker's current Isolate has NULL context.
+        // As result GetProperty(*url_string) will crash.
+        if (!Isolate::Current()->context() && obj_document->IsJSGlobalProxy())
+          continue;
+        JSObject* document = JSObject::cast(obj_document);
+        Object* obj_url;
+        if (document->GetProperty(*url_string)->ToObject(&obj_url) &&
+            obj_url->IsString()) {
+          urls[i] = collection_->names()->GetName(String::cast(obj_url));
+        }
       }
     }
   }
@@ -3081,11 +3092,13 @@ class SnapshotFiller : public SnapshotFillerInterface {
 };
 
 
-HeapSnapshotGenerator::HeapSnapshotGenerator(HeapSnapshot* snapshot,
-                                             v8::ActivityControl* control)
+HeapSnapshotGenerator::HeapSnapshotGenerator(
+    HeapSnapshot* snapshot,
+    v8::ActivityControl* control,
+    v8::HeapProfiler::ObjectNameResolver* resolver)
     : snapshot_(snapshot),
       control_(control),
-      v8_heap_explorer_(snapshot_, this),
+      v8_heap_explorer_(snapshot_, this, resolver),
       dom_explorer_(snapshot_, this) {
 }
 

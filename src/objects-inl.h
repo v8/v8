@@ -2512,6 +2512,77 @@ String* String::GetUnderlying() {
 }
 
 
+template<class Visitor, class ConsOp>
+void String::Visit(
+    String* string,
+    unsigned offset,
+    Visitor& visitor,
+    ConsOp& consOp,
+    int32_t type,
+    unsigned length) {
+
+  ASSERT(length == static_cast<unsigned>(string->length()));
+  ASSERT(offset <= length);
+
+  unsigned sliceOffset = offset;
+  while (true) {
+    ASSERT(type == string->map()->instance_type());
+
+    switch (type & (kStringRepresentationMask | kStringEncodingMask)) {
+      case kSeqStringTag | kOneByteStringTag:
+        visitor.VisitOneByteString(
+            reinterpret_cast<const uint8_t*>(
+                SeqOneByteString::cast(string)->GetChars()) + sliceOffset,
+                length - offset);
+        return;
+
+      case kSeqStringTag | kTwoByteStringTag:
+        visitor.VisitTwoByteString(
+            reinterpret_cast<const uint16_t*>(
+                SeqTwoByteString::cast(string)->GetChars()) + sliceOffset,
+                length - offset);
+        return;
+
+      case kExternalStringTag | kOneByteStringTag:
+        visitor.VisitOneByteString(
+            reinterpret_cast<const uint8_t*>(
+                ExternalAsciiString::cast(string)->GetChars()) + sliceOffset,
+                length - offset);
+        return;
+
+      case kExternalStringTag | kTwoByteStringTag:
+        visitor.VisitTwoByteString(
+            reinterpret_cast<const uint16_t*>(
+                ExternalTwoByteString::cast(string)->GetChars()) + sliceOffset,
+                length - offset);
+        return;
+
+      case kSlicedStringTag | kOneByteStringTag:
+      case kSlicedStringTag | kTwoByteStringTag: {
+        SlicedString* slicedString = SlicedString::cast(string);
+        sliceOffset += slicedString->offset();
+        string = slicedString->parent();
+        type = string->map()->instance_type();
+        continue;
+      }
+
+      case kConsStringTag | kOneByteStringTag:
+      case kConsStringTag | kTwoByteStringTag:
+        string = consOp.Operate(ConsString::cast(string), &offset, &type,
+            &length);
+        if (string == NULL) return;
+        sliceOffset = offset;
+        ASSERT(length == static_cast<unsigned>(string->length()));
+        continue;
+
+      default:
+        UNREACHABLE();
+        return;
+    }
+  }
+}
+
+
 uint16_t SeqOneByteString::SeqOneByteStringGet(int index) {
   ASSERT(index >= 0 && index < length());
   return READ_BYTE_FIELD(this, kHeaderSize + index * kCharSize);
@@ -2687,6 +2758,146 @@ uint16_t ExternalTwoByteString::ExternalTwoByteStringGet(int index) {
 const uint16_t* ExternalTwoByteString::ExternalTwoByteStringGetData(
       unsigned start) {
   return GetChars() + start;
+}
+
+
+unsigned ConsStringIteratorOp::OffsetForDepth(unsigned depth) {
+  return depth & kDepthMask;
+}
+
+
+uint32_t ConsStringIteratorOp::MaskForDepth(unsigned depth) {
+  return 1 << OffsetForDepth(depth);
+}
+
+
+void ConsStringIteratorOp::SetRightDescent() {
+  trace_ |= MaskForDepth(depth_ - 1);
+}
+
+
+void ConsStringIteratorOp::ClearRightDescent() {
+  trace_ &= ~MaskForDepth(depth_ - 1);
+}
+
+
+void ConsStringIteratorOp::PushLeft(ConsString* string) {
+  frames_[depth_++ & kDepthMask] = string;
+}
+
+
+void ConsStringIteratorOp::PushRight(ConsString* string, int32_t type) {
+  // Inplace update
+  frames_[(depth_-1) & kDepthMask] = string;
+  if (depth_ != 1) return;
+  // Optimization: can replace root in this case.
+  root_ = string;
+  root_type_ = type;
+  root_length_ = string->length();
+}
+
+
+void ConsStringIteratorOp::AdjustMaximumDepth() {
+  if (depth_ > maximum_depth_) maximum_depth_ = depth_;
+}
+
+
+void ConsStringIteratorOp::Pop() {
+  ASSERT(depth_ > 0);
+  ASSERT(depth_ <= maximum_depth_);
+  depth_--;
+}
+
+
+void ConsStringIteratorOp::Reset() {
+  consumed_ = 0;
+  ResetStack();
+}
+
+
+bool ConsStringIteratorOp::HasMore() {
+  return depth_ != 0;
+}
+
+
+void ConsStringIteratorOp::ResetStack() {
+  depth_ = 0;
+  maximum_depth_ = 0;
+}
+
+
+bool ConsStringIteratorOp::ContinueOperation(ContinueResponse* response) {
+  bool blewStack;
+  int32_t type;
+  String* string = NextLeaf(&blewStack, &type);
+  // String found.
+  if (string != NULL) {
+    unsigned length = string->length();
+    consumed_ += length;
+    response->string_ = string;
+    response->offset_ = 0;
+    response->length_ = length;
+    response->type_ = type;
+    return true;
+  }
+  // Traversal complete.
+  if (!blewStack) return false;
+  // Restart search.
+  ResetStack();
+  response->string_ = root_;
+  response->offset_ = consumed_;
+  response->length_ = root_length_;
+  response->type_ = root_type_;
+  return true;
+}
+
+
+uint16_t StringCharacterStream::GetNext() {
+  ASSERT(buffer8_ != NULL);
+  return is_one_byte_ ? *buffer8_++ : *buffer16_++;
+}
+
+
+StringCharacterStream::StringCharacterStream(
+    String* string, unsigned offset, ConsStringIteratorOp* op)
+  : is_one_byte_(true),
+    buffer8_(NULL),
+    end_(NULL),
+    op_(op) {
+  op->Reset();
+  String::Visit(string,
+      offset, *this, *op, string->map()->instance_type(), string->length());
+}
+
+
+bool StringCharacterStream::HasMore() {
+  if (buffer8_ != end_) return true;
+  if (!op_->HasMore()) return false;
+  ConsStringIteratorOp::ContinueResponse response;
+  // This has been checked above
+  if (!op_->ContinueOperation(&response)) {
+    UNREACHABLE();
+    return false;
+  }
+  String::Visit(response.string_,
+      response.offset_, *this, *op_, response.type_, response.length_);
+  return true;
+}
+
+
+void StringCharacterStream::VisitOneByteString(
+    const uint8_t* chars, unsigned length) {
+  is_one_byte_ = true;
+  buffer8_ = chars;
+  end_ = chars + length;
+}
+
+
+void StringCharacterStream::VisitTwoByteString(
+    const uint16_t* chars, unsigned length) {
+  is_one_byte_ = false;
+  buffer16_ = chars;
+  end_ = reinterpret_cast<const uint8_t*>(chars + length);
 }
 
 
@@ -3225,6 +3436,7 @@ int Code::arguments_count() {
 
 int Code::major_key() {
   ASSERT(kind() == STUB ||
+         kind() == COMPILED_STUB ||
          kind() == UNARY_OP_IC ||
          kind() == BINARY_OP_IC ||
          kind() == COMPARE_IC ||
@@ -3236,6 +3448,7 @@ int Code::major_key() {
 
 void Code::set_major_key(int major) {
   ASSERT(kind() == STUB ||
+         kind() == COMPILED_STUB ||
          kind() == UNARY_OP_IC ||
          kind() == BINARY_OP_IC ||
          kind() == COMPARE_IC ||
@@ -3344,7 +3557,7 @@ void Code::set_profiler_ticks(int ticks) {
 
 
 unsigned Code::stack_slots() {
-  ASSERT(kind() == OPTIMIZED_FUNCTION);
+  ASSERT(kind() == OPTIMIZED_FUNCTION || kind() == COMPILED_STUB);
   return StackSlotsField::decode(
       READ_UINT32_FIELD(this, kKindSpecificFlags1Offset));
 }
@@ -3352,7 +3565,7 @@ unsigned Code::stack_slots() {
 
 void Code::set_stack_slots(unsigned slots) {
   CHECK(slots <= (1 << kStackSlotsBitCount));
-  ASSERT(kind() == OPTIMIZED_FUNCTION);
+  ASSERT(kind() == OPTIMIZED_FUNCTION || kind() == COMPILED_STUB);
   int previous = READ_UINT32_FIELD(this, kKindSpecificFlags1Offset);
   int updated = StackSlotsField::update(previous, slots);
   WRITE_UINT32_FIELD(this, kKindSpecificFlags1Offset, updated);
@@ -3360,7 +3573,7 @@ void Code::set_stack_slots(unsigned slots) {
 
 
 unsigned Code::safepoint_table_offset() {
-  ASSERT(kind() == OPTIMIZED_FUNCTION);
+  ASSERT(kind() == OPTIMIZED_FUNCTION || kind() == COMPILED_STUB);
   return SafepointTableOffsetField::decode(
       READ_UINT32_FIELD(this, kKindSpecificFlags2Offset));
 }
@@ -3368,7 +3581,7 @@ unsigned Code::safepoint_table_offset() {
 
 void Code::set_safepoint_table_offset(unsigned offset) {
   CHECK(offset <= (1 << kSafepointTableOffsetBitCount));
-  ASSERT(kind() == OPTIMIZED_FUNCTION);
+  ASSERT(kind() == OPTIMIZED_FUNCTION || kind() == COMPILED_STUB);
   ASSERT(IsAligned(offset, static_cast<unsigned>(kIntSize)));
   int previous = READ_UINT32_FIELD(this, kKindSpecificFlags2Offset);
   int updated = SafepointTableOffsetField::update(previous, offset);
@@ -4738,6 +4951,13 @@ void JSRegExp::SetDataAtUnchecked(int index, Object* value, Heap* heap) {
     // We only do this during GC, so we don't need to notify the write barrier.
     fa->set_unchecked(heap, index, value, SKIP_WRITE_BARRIER);
   }
+}
+
+
+void JSRegExp::ResetLastIndex() {
+  InObjectPropertyAtPut(JSRegExp::kLastIndexFieldIndex,
+                        Smi::FromInt(0),
+                        SKIP_WRITE_BARRIER);  // It's a Smi.
 }
 
 

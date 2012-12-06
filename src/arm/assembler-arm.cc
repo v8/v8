@@ -85,6 +85,33 @@ static unsigned CpuFeaturesImpliedByCompiler() {
 }
 
 
+const char* DwVfpRegister::AllocationIndexToString(int index) {
+  if (CpuFeatures::IsSupported(VFP2)) {
+    ASSERT(index >= 0 && index < kMaxNumAllocatableRegisters);
+    const char* const names[] = {
+      "d0",
+      "d1",
+      "d2",
+      "d3",
+      "d4",
+      "d5",
+      "d6",
+      "d7",
+      "d8",
+      "d9",
+      "d10",
+      "d11",
+      "d12",
+      "d13"
+    };
+    return names[index];
+  } else {
+    ASSERT(index == 0);
+    return "sfpd0";
+  }
+}
+
+
 void CpuFeatures::Probe() {
   unsigned standard_features = static_cast<unsigned>(
       OS::CpuFeaturesImpliedByPlatform()) | CpuFeaturesImpliedByCompiler();

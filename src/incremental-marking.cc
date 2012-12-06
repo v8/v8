@@ -881,7 +881,7 @@ void IncrementalMarking::Step(intptr_t allocated_bytes,
   // allocation), so to reduce the lumpiness we don't use the write barriers
   // invoked since last step directly to determine the amount of work to do.
   intptr_t bytes_to_process =
-      marking_speed_ * Max(allocated_, kWriteBarriersInvokedThreshold);
+      marking_speed_ * Max(allocated_, write_barriers_invoked_since_last_step_);
   allocated_ = 0;
   write_barriers_invoked_since_last_step_ = 0;
 

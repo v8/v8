@@ -36,7 +36,7 @@
 namespace v8 {
 namespace internal {
 
-class HGraphBuilder;
+class HOptimizedGraphBuilder;
 class OptimizingCompiler;
 class SharedFunctionInfo;
 

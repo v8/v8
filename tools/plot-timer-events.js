@@ -43,9 +43,6 @@ var kNumPauseLabels = 7;
 var kTickHalfDuration = 0.5;  // Milliseconds
 var kCodeKindLabelPadding = 100;
 
-var kOverrideRangeStart = undefined;
-var kOverrideRangeEnd = undefined;
-
 var num_timer_event = kY1Offset + 0.5;
 
 
@@ -103,11 +100,24 @@ var obj_index = 0;
 var execution_pauses = [];
 var code_map = new CodeMap();
 
+var xrange_start_override = undefined;
+var xrange_end_override = undefined;
+var distortion_per_entry = 0.005;  // Milliseconds
+
+var sort_by_start = [];
+var sort_by_end = [];
+var sorted_ticks = [];
+
 
 function Range(start, end) {
   // Everthing from here are in milliseconds.
   this.start = start;
   this.end = end;
+}
+
+
+function Tick(tick) {
+  this.tick = tick;
 }
 
 
@@ -120,11 +130,10 @@ function ProcessTimerEvent(name, start, length) {
   start /= 1000;  // Convert to milliseconds.
   length /= 1000;
   var end = start + length;
-  event.ranges.push(new Range(start, end));
-  if (event == kExecutionEvent) {
-    if (start < xrange_start) xrange_start = start;
-    if (end > xrange_end) xrange_end = end;
-  }
+  var range = new Range(start, end);
+  event.ranges.push(range);
+  sort_by_start.push(range);
+  sort_by_end.push(range);
 }
 
 
@@ -170,11 +179,13 @@ function FindCodeKind(kind) {
 
 function ProcessTickEvent(pc, sp, timer, unused_x, unused_y, vmstate, stack) {
   timer /= 1000;
-  var tick = new Range(timer - kTickHalfDuration, timer + kTickHalfDuration);
+  var tick = new Tick(timer);
 
+  var entered = false;
   var entry = code_map.findEntry(pc);
   if (entry) {
     FindCodeKind(entry.kind).in_execution.push(tick);
+    entered = true;
   }
 
   for (var i = 0; i < kStackFrames; i++) {
@@ -182,6 +193,76 @@ function ProcessTickEvent(pc, sp, timer, unused_x, unused_y, vmstate, stack) {
     var entry = code_map.findEntry(stack[i]);
     if (entry) {
       FindCodeKind(entry.kind).stack_frames[i].push(tick);
+      entered = true;
+    }
+  }
+
+  if (entered) sorted_ticks.push(tick);
+}
+
+
+function ProcessDistortion(distortion_in_picoseconds) {
+  distortion_per_entry = distortion_in_picoseconds / 1000000;
+}
+
+
+function ProcessPlotRange(start, end) {
+  xrange_start_override = start;
+  xrange_end_override = end;
+}
+
+
+function Undistort() {
+  // Undistort timers wrt instrumentation overhead.
+  sort_by_start.sort(function(a, b) { return b.start - a.start; });
+  sort_by_end.sort(function(a, b) { return b.end - a.end; });
+  sorted_ticks.sort(function(a, b) { return b.tick - a.tick; });
+  var distortion = 0;
+
+  var next_start = sort_by_start.pop();
+  var next_end = sort_by_end.pop();
+  var next_tick = sorted_ticks.pop();
+
+  function UndistortTicksUntil(tick) {
+    while (next_tick) {
+      if (next_tick.tick > tick) return;
+      next_tick.tick -= distortion;
+      next_tick = sorted_ticks.pop();
+    }
+  }
+
+  while (true) {
+    var next_start_start = next_start ? next_start.start : Infinity;
+    var next_end_end = next_end ? next_end.end : Infinity;
+    if (!next_start && !next_end) {
+      UndistortTicksUntil(Infinity);
+      break;
+    }
+    if (next_start_start <= next_end_end) {
+      UndistortTicksUntil(next_start_start);
+      // Undistort the start time stamp.
+      next_start.start -= distortion;
+      next_start = sort_by_start.pop();
+    } else {
+      // Undistort the end time stamp.  We completely attribute the overhead
+      // to the point when we stop and log the timer, so we increase the
+      // distortion only here.
+      UndistortTicksUntil(next_end_end);
+      next_end.end -= distortion;
+      distortion += distortion_per_entry;
+      next_end = sort_by_end.pop();
+    }
+  }
+
+  sort_by_start = undefined;
+  sort_by_end = undefined;
+  sorted_ticks = undefined;
+
+  // Make sure that start <= end applies for every range.
+  for (name in TimerEvents) {
+    var ranges = TimerEvents[name].ranges;
+    for (var j = 0; j < ranges.length; j++) {
+      if (ranges[j].end < ranges[j].start) ranges[j].end = ranges[j].start;
     }
   }
 }
@@ -203,11 +284,28 @@ function CollectData() {
       'tick':           { parsers: [parseInt, parseInt, parseInt,
                                     null, null, parseInt, 'var-args'],
                           processor: ProcessTickEvent },
+      'distortion':     { parsers: [parseInt],
+                          processor: ProcessDistortion },
+      'plot-range':     { parsers: [parseInt, parseInt],
+                          processor: ProcessPlotRange },
     });
 
   var line;
   while (line = readline()) {
     logreader.processLogLine(line);
+  }
+
+  Undistort();
+
+  // Figure out plot range.
+  var execution_ranges = kExecutionEvent.ranges;
+  for (var i = 0; i < execution_ranges.length; i++) {
+    if (execution_ranges[i].start < xrange_start) {
+      xrange_start = execution_ranges[i].start;
+    }
+    if (execution_ranges[i].end > xrange_end) {
+      xrange_end = execution_ranges[i].end;
+    }
   }
 
   // Collect execution pauses.
@@ -250,6 +348,16 @@ function DrawBar(row, color, start, end, width) {
 }
 
 
+function TicksToRanges(ticks) {
+  var ranges = [];
+  for (var i = 0; i < ticks.length; i++) {
+    var tick = ticks[i].tick;
+    ranges.push(new Range(tick - kTickHalfDuration, tick + kTickHalfDuration));
+  }
+  return ranges;
+}
+
+
 function MergeRanges(ranges) {
   ranges.sort(function(a, b) { return a.start - b.start; });
   var result = [];
@@ -268,6 +376,7 @@ function MergeRanges(ranges) {
       }
     }
     if (merge_end < xrange_start) continue;  // Out of plot range.
+    if (merge_end < merge_start) continue;  // Not an actual range.
     result.push(new Range(merge_start, merge_end));
   }
   return result;
@@ -357,8 +466,10 @@ function ExcludeRanges(include, exclude) {
 
 
 function GnuplotOutput() {
-  xrange_start = kOverrideRangeStart ? kOverrideRangeStart : xrange_start;
-  xrange_end = kOverrideRangeEnd ? kOverrideRangeEnd : xrange_end;
+  xrange_start = (xrange_start_override || xrange_start_override == 0)
+                     ? xrange_start_override : xrange_start;
+  xrange_end = (xrange_end_override || xrange_end_override == 0)
+                   ? xrange_end_override : xrange_end;
   print("set terminal pngcairo size " + kResX + "," + kResY +
         " enhanced font 'Helvetica,10'");
   print("set yrange [0:" + (num_timer_event + 1) + "]");
@@ -398,7 +509,7 @@ function GnuplotOutput() {
     var code_kind = CodeKinds[name];
     var offset = kY1Offset - 1;
     // Top most frame.
-    var row = MergeRanges(code_kind.in_execution);
+    var row = MergeRanges(TicksToRanges(code_kind.in_execution));
     for (var j = 0; j < row.length; j++) {
       DrawBar(offset, code_kind.color,
               row[j].start, row[j].end, kExecutionFrameWidth);
@@ -407,7 +518,7 @@ function GnuplotOutput() {
     // Javascript frames.
     for (var i = 0; i < kStackFrames; i++) {
       offset = offset - 2 * kStackFrameWidth - kGapWidth;
-      row = MergeRanges(code_kind.stack_frames[i]);
+      row = MergeRanges(TicksToRanges(code_kind.stack_frames[i]));
       for (var j = 0; j < row.length; j++) {
         DrawBar(offset, code_kind.color,
                 row[j].start, row[j].end, kStackFrameWidth);

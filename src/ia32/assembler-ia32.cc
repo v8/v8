@@ -55,6 +55,33 @@ uint64_t CpuFeatures::supported_ = 0;
 uint64_t CpuFeatures::found_by_runtime_probing_ = 0;
 
 
+int IntelDoubleRegister::NumAllocatableRegisters() {
+  if (CpuFeatures::IsSupported(SSE2)) {
+    return XMMRegister::kNumAllocatableRegisters;
+  } else {
+    return X87TopOfStackRegister::kNumAllocatableRegisters;
+  }
+}
+
+
+int IntelDoubleRegister::NumRegisters() {
+  if (CpuFeatures::IsSupported(SSE2)) {
+    return XMMRegister::kNumRegisters;
+  } else {
+    return X87TopOfStackRegister::kNumRegisters;
+  }
+}
+
+
+const char* IntelDoubleRegister::AllocationIndexToString(int index) {
+  if (CpuFeatures::IsSupported(SSE2)) {
+    return XMMRegister::AllocationIndexToString(index);
+  } else {
+    return X87TopOfStackRegister::AllocationIndexToString(index);
+  }
+}
+
+
 // The Probe method needs executable memory, so it uses Heap::CreateCode.
 // Allocation failure is silent and leads to safe default.
 void CpuFeatures::Probe() {
@@ -2199,7 +2226,8 @@ void Assembler::prefetch(const Operand& src, int level) {
   EnsureSpace ensure_space(this);
   EMIT(0x0F);
   EMIT(0x18);
-  XMMRegister code = { level };  // Emit hint number in Reg position of RegR/M.
+  // Emit hint number in Reg position of RegR/M.
+  XMMRegister code = XMMRegister::from_code(level);
   emit_sse_operand(code, src);
 }
 
