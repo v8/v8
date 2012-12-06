@@ -1,3 +1,17 @@
+2012-12-06: Version 3.15.9
+
+        Fixed candidate eviction in code flusher.
+        (Chromium issue 159140)
+
+        Iterate through all arguments for side effects in Math.min/max.
+        (issue 2444)
+
+        Fixed spec violations related to regexp.lastIndex
+        (issue 2437, issue 2438)
+
+        Performance and stability improvements on all platforms.
+
+
 2012-12-04: Version 3.15.8
 
         Enforced stack allocation of TryCatch blocks.
