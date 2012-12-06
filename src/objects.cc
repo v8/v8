@@ -7016,6 +7016,131 @@ void StringInputBuffer::Seek(unsigned pos) {
 }
 
 
+String* ConsStringIteratorOp::Operate(ConsString* consString,
+    unsigned* outerOffset, int32_t* typeOut, unsigned* lengthOut) {
+  ASSERT(*lengthOut == (unsigned)consString->length());
+  // Push the root string.
+  PushLeft(consString);
+  root_ = consString;
+  root_type_ = *typeOut;
+  root_length_ = *lengthOut;
+  unsigned targetOffset = *outerOffset;
+  unsigned offset = 0;
+  while (true) {
+    // Loop until the string is found which contains the target offset.
+    String* string = consString->first();
+    unsigned length = string->length();
+    int32_t type;
+    if (targetOffset < offset + length) {
+      // Target offset is in the left branch.
+      // Mark the descent.
+      ClearRightDescent();
+      // Keep going if we're still in a ConString.
+      type = string->map()->instance_type();
+      if ((type & kStringRepresentationMask) == kConsStringTag) {
+        consString = ConsString::cast(string);
+        PushLeft(consString);
+        continue;
+      }
+    } else {
+      // Descend right.
+      // Update progress through the string.
+      offset += length;
+      // Keep going if we're still in a ConString.
+      string = consString->second();
+      type = string->map()->instance_type();
+      if ((type & kStringRepresentationMask) == kConsStringTag) {
+        consString = ConsString::cast(string);
+        PushRight(consString, type);
+        continue;
+      }
+      // Mark the descent.
+      SetRightDescent();
+      // Need this to be updated for the current string.
+      length = string->length();
+      // Account for the possibility of an empty right leaf.
+      while (length == 0) {
+        bool blewStack;
+        // Need to adjust maximum depth for NextLeaf to work.
+        AdjustMaximumDepth();
+        string = NextLeaf(&blewStack, &type);
+        if (string == NULL) {
+          // Luckily, this case is impossible.
+          ASSERT(!blewStack);
+          return NULL;
+        }
+        length = string->length();
+      }
+    }
+    // Tell the stack we're done decending.
+    AdjustMaximumDepth();
+    ASSERT(length != 0);
+    // Adjust return values and exit.
+    unsigned innerOffset = targetOffset - offset;
+    consumed_ += length - innerOffset;
+    *outerOffset = innerOffset;
+    *typeOut = type;
+    *lengthOut = length;
+    return string;
+  }
+  UNREACHABLE();
+  return NULL;
+}
+
+
+String* ConsStringIteratorOp::NextLeaf(bool* blewStack, int32_t* typeOut) {
+  while (true) {
+    // Tree traversal complete.
+    if (depth_ == 0) {
+      *blewStack = false;
+      return NULL;
+    }
+    // We've lost track of higher nodes.
+    if (maximum_depth_ - depth_ == kStackSize) {
+      *blewStack = true;
+      return NULL;
+    }
+    // Check if we're done with this level.
+    bool haveAlreadyReadRight = trace_ & MaskForDepth(depth_ - 1);
+    if (haveAlreadyReadRight) {
+      Pop();
+      continue;
+    }
+    // Go right.
+    ConsString* consString = frames_[OffsetForDepth(depth_ - 1)];
+    String* string = consString->second();
+    int32_t type = string->map()->instance_type();
+    if ((type & kStringRepresentationMask) != kConsStringTag) {
+      // Don't need to mark the descent here.
+      // Pop stack so next iteration is in correct place.
+      Pop();
+      *typeOut = type;
+      return string;
+    }
+    // No need to mark the descent.
+    consString = ConsString::cast(string);
+    PushRight(consString, type);
+    // Need to traverse all the way left.
+    while (true) {
+      // Continue left.
+      // Update marker.
+      ClearRightDescent();
+      string = consString->first();
+      type = string->map()->instance_type();
+      if ((type & kStringRepresentationMask) != kConsStringTag) {
+        AdjustMaximumDepth();
+        *typeOut = type;
+        return string;
+      }
+      consString = ConsString::cast(string);
+      PushLeft(consString);
+    }
+  }
+  UNREACHABLE();
+  return NULL;
+}
+
+
 // This method determines the type of string involved and then copies
 // a whole chunk of characters into a buffer.  It can be used with strings
 // that have been glued together to form a ConsString and which must cooperate
