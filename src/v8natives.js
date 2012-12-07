@@ -1413,11 +1413,7 @@ function NumberToString(radix) {
 
 // ECMA-262 section 15.7.4.3
 function NumberToLocaleString() {
-  if (IS_NULL_OR_UNDEFINED(this) && !IS_UNDETECTABLE(this)) {
-    throw MakeTypeError("called_on_null_or_undefined",
-                        ["Number.prototype.toLocaleString"]);
-  }
-  return this.toString();
+  return NumberToString();
 }
 
 
@@ -1434,50 +1430,76 @@ function NumberValueOf() {
 
 // ECMA-262 section 15.7.4.5
 function NumberToFixed(fractionDigits) {
+  var x = this;
+  if (!IS_NUMBER(this)) {
+    if (!IS_NUMBER_WRAPPER(this)) {
+      throw MakeTypeError("incompatible_method_receiver",
+                          ["Number.prototype.toFixed", this]);
+    }
+    // Get the value of this number in case it's an object.
+    x = %_ValueOf(this);
+  }
   var f = TO_INTEGER(fractionDigits);
+
   if (f < 0 || f > 20) {
     throw new $RangeError("toFixed() digits argument must be between 0 and 20");
   }
-  if (IS_NULL_OR_UNDEFINED(this) && !IS_UNDETECTABLE(this)) {
-    throw MakeTypeError("called_on_null_or_undefined",
-                        ["Number.prototype.toFixed"]);
-  }
-  var x = ToNumber(this);
+
+  if (NUMBER_IS_NAN(x)) return "NaN";
+  if (x == 1/0) return "Infinity";
+  if (x == -1/0) return "-Infinity";
+
   return %NumberToFixed(x, f);
 }
 
 
 // ECMA-262 section 15.7.4.6
 function NumberToExponential(fractionDigits) {
-  var f = -1;
-  if (!IS_UNDEFINED(fractionDigits)) {
-    f = TO_INTEGER(fractionDigits);
-    if (f < 0 || f > 20) {
-      throw new $RangeError(
-          "toExponential() argument must be between 0 and 20");
+  var x = this;
+  if (!IS_NUMBER(this)) {
+    if (!IS_NUMBER_WRAPPER(this)) {
+      throw MakeTypeError("incompatible_method_receiver",
+                          ["Number.prototype.toExponential", this]);
     }
+    // Get the value of this number in case it's an object.
+    x = %_ValueOf(this);
   }
-  if (IS_NULL_OR_UNDEFINED(this) && !IS_UNDETECTABLE(this)) {
-    throw MakeTypeError("called_on_null_or_undefined",
-                        ["Number.prototype.toExponential"]);
+  var f = IS_UNDEFINED(fractionDigits) ? void 0 : TO_INTEGER(fractionDigits);
+
+  if (NUMBER_IS_NAN(x)) return "NaN";
+  if (x == 1/0) return "Infinity";
+  if (x == -1/0) return "-Infinity";
+
+  if (IS_UNDEFINED(f)) {
+    f = -1;  // Signal for runtime function that f is not defined.
+  } else if (f < 0 || f > 20) {
+    throw new $RangeError("toExponential() argument must be between 0 and 20");
   }
-  var x = ToNumber(this);
   return %NumberToExponential(x, f);
 }
 
 
 // ECMA-262 section 15.7.4.7
 function NumberToPrecision(precision) {
-  if (IS_NULL_OR_UNDEFINED(this) && !IS_UNDETECTABLE(this)) {
-    throw MakeTypeError("called_on_null_or_undefined",
-                        ["Number.prototype.toPrecision"]);
+  var x = this;
+  if (!IS_NUMBER(this)) {
+    if (!IS_NUMBER_WRAPPER(this)) {
+      throw MakeTypeError("incompatible_method_receiver",
+                          ["Number.prototype.toPrecision", this]);
+    }
+    // Get the value of this number in case it's an object.
+    x = %_ValueOf(this);
   }
   if (IS_UNDEFINED(precision)) return ToString(%_ValueOf(this));
   var p = TO_INTEGER(precision);
+
+  if (NUMBER_IS_NAN(x)) return "NaN";
+  if (x == 1/0) return "Infinity";
+  if (x == -1/0) return "-Infinity";
+
   if (p < 1 || p > 21) {
     throw new $RangeError("toPrecision() argument must be between 1 and 21");
   }
-  var x = ToNumber(this);
   return %NumberToPrecision(x, p);
 }
 

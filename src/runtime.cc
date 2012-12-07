@@ -3807,15 +3807,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NumberToFixed) {
   ASSERT(args.length() == 2);
 
   CONVERT_DOUBLE_ARG_CHECKED(value, 0);
-  if (isnan(value)) {
-    return *isolate->factory()->nan_symbol();
-  }
-  if (isinf(value)) {
-    if (value < 0) {
-      return *isolate->factory()->minus_infinity_symbol();
-    }
-    return *isolate->factory()->infinity_symbol();
-  }
   CONVERT_DOUBLE_ARG_CHECKED(f_number, 1);
   int f = FastD2IChecked(f_number);
   RUNTIME_ASSERT(f >= 0);
@@ -3832,15 +3823,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NumberToExponential) {
   ASSERT(args.length() == 2);
 
   CONVERT_DOUBLE_ARG_CHECKED(value, 0);
-  if (isnan(value)) {
-    return *isolate->factory()->nan_symbol();
-  }
-  if (isinf(value)) {
-    if (value < 0) {
-      return *isolate->factory()->minus_infinity_symbol();
-    }
-    return *isolate->factory()->infinity_symbol();
-  }
   CONVERT_DOUBLE_ARG_CHECKED(f_number, 1);
   int f = FastD2IChecked(f_number);
   RUNTIME_ASSERT(f >= -1 && f <= 20);
@@ -3857,15 +3839,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NumberToPrecision) {
   ASSERT(args.length() == 2);
 
   CONVERT_DOUBLE_ARG_CHECKED(value, 0);
-  if (isnan(value)) {
-    return *isolate->factory()->nan_symbol();
-  }
-  if (isinf(value)) {
-    if (value < 0) {
-      return *isolate->factory()->minus_infinity_symbol();
-    }
-    return *isolate->factory()->infinity_symbol();
-  }
   CONVERT_DOUBLE_ARG_CHECKED(f_number, 1);
   int f = FastD2IChecked(f_number);
   RUNTIME_ASSERT(f >= 1 && f <= 21);
