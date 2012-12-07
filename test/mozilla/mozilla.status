@@ -245,13 +245,6 @@ js1_5/Function/regress-338121-03: FAIL_OK
 # Expectes 'prototype' property of functions to be enumerable.
 js1_5/Function/10.1.6-01: FAIL_OK
 
-# toPrecision argument restricted to range 1..21 in JSC/V8
-js1_5/Regress/regress-452346: FAIL_OK
-ecma_3/Number/15.7.4.7-1: FAIL_OK
-
-# toExponential argument restricted to range 0..20 in JSC/V8
-ecma_3/Number/15.7.4.6-1: FAIL_OK
-
 #:=== RegExp:===
 # We don't match the syntax error message of Mozilla for invalid
 # RegExp flags.

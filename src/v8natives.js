@@ -1413,7 +1413,7 @@ function NumberToString(radix) {
 
 // ECMA-262 section 15.7.4.3
 function NumberToLocaleString() {
-  return NumberToString();
+  return %_CallFunction(this, NumberToString);
 }
 
 
