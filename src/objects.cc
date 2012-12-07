@@ -10142,7 +10142,7 @@ MaybeObject* JSObject::SetFastElement(uint32_t index,
 
 
 MaybeObject* JSObject::SetDictionaryElement(uint32_t index,
-                                            Object* value,
+                                            Object* value_raw,
                                             PropertyAttributes attributes,
                                             StrictModeFlag strict_mode,
                                             bool check_prototype,
@@ -10150,24 +10150,23 @@ MaybeObject* JSObject::SetDictionaryElement(uint32_t index,
   ASSERT(HasDictionaryElements() || HasDictionaryArgumentsElements());
   Isolate* isolate = GetIsolate();
   Heap* heap = isolate->heap();
+  Handle<JSObject> self(this);
+  Handle<Object> value(value_raw);
 
   // Insert element in the dictionary.
-  FixedArray* elements = FixedArray::cast(this->elements());
+  Handle<FixedArray> elements(FixedArray::cast(this->elements()));
   bool is_arguments =
       (elements->map() == heap->non_strict_arguments_elements_map());
-  SeededNumberDictionary* dictionary = NULL;
-  if (is_arguments) {
-    dictionary = SeededNumberDictionary::cast(elements->get(1));
-  } else {
-    dictionary = SeededNumberDictionary::cast(elements);
-  }
+  Handle<SeededNumberDictionary> dictionary(is_arguments
+    ? SeededNumberDictionary::cast(elements->get(1))
+    : SeededNumberDictionary::cast(*elements));
 
   int entry = dictionary->FindEntry(index);
   if (entry != SeededNumberDictionary::kNotFound) {
     Object* element = dictionary->ValueAt(entry);
     PropertyDetails details = dictionary->DetailsAt(entry);
     if (details.type() == CALLBACKS && set_mode == SET_PROPERTY) {
-      return SetElementWithCallback(element, index, value, this, strict_mode);
+      return SetElementWithCallback(element, index, *value, this, strict_mode);
     } else {
       dictionary->UpdateMaxNumberKey(index);
       // If a value has not been initialized we allow writing to it even if it
@@ -10196,24 +10195,24 @@ MaybeObject* JSObject::SetDictionaryElement(uint32_t index,
         Context* context = Context::cast(elements->get(0));
         int context_index = entry->aliased_context_slot();
         ASSERT(!context->get(context_index)->IsTheHole());
-        context->set(context_index, value);
+        context->set(context_index, *value);
         // For elements that are still writable we keep slow aliasing.
-        if (!details.IsReadOnly()) value = element;
+        if (!details.IsReadOnly()) value = handle(element, isolate);
       }
-      dictionary->ValueAtPut(entry, value);
+      dictionary->ValueAtPut(entry, *value);
     }
   } else {
     // Index not already used. Look for an accessor in the prototype chain.
+    // Can cause GC!
     if (check_prototype) {
       bool found;
-      MaybeObject* result =
-          SetElementWithCallbackSetterInPrototypes(
-              index, value, &found, strict_mode);
+      MaybeObject* result = SetElementWithCallbackSetterInPrototypes(
+          index, *value, &found, strict_mode);
       if (found) return result;
     }
     // When we set the is_extensible flag to false we always force the
     // element into dictionary mode (and force them to stay there).
-    if (!map()->is_extensible()) {
+    if (!self->map()->is_extensible()) {
       if (strict_mode == kNonStrictMode) {
         return isolate->heap()->undefined_value();
       } else {
@@ -10228,30 +10227,31 @@ MaybeObject* JSObject::SetDictionaryElement(uint32_t index,
     }
     FixedArrayBase* new_dictionary;
     PropertyDetails details = PropertyDetails(attributes, NORMAL);
-    MaybeObject* maybe = dictionary->AddNumberEntry(index, value, details);
+    MaybeObject* maybe = dictionary->AddNumberEntry(index, *value, details);
     if (!maybe->To(&new_dictionary)) return maybe;
-    if (dictionary != SeededNumberDictionary::cast(new_dictionary)) {
+    if (*dictionary != SeededNumberDictionary::cast(new_dictionary)) {
       if (is_arguments) {
         elements->set(1, new_dictionary);
       } else {
-        set_elements(new_dictionary);
+        self->set_elements(new_dictionary);
       }
-      dictionary = SeededNumberDictionary::cast(new_dictionary);
+      dictionary =
+          handle(SeededNumberDictionary::cast(new_dictionary), isolate);
     }
   }
 
   // Update the array length if this JSObject is an array.
-  if (IsJSArray()) {
+  if (self->IsJSArray()) {
     MaybeObject* result =
-        JSArray::cast(this)->JSArrayUpdateLengthFromIndex(index, value);
+        JSArray::cast(*self)->JSArrayUpdateLengthFromIndex(index, *value);
     if (result->IsFailure()) return result;
   }
 
   // Attempt to put this object back in fast case.
-  if (ShouldConvertToFastElements()) {
+  if (self->ShouldConvertToFastElements()) {
     uint32_t new_length = 0;
-    if (IsJSArray()) {
-      CHECK(JSArray::cast(this)->length()->ToArrayIndex(&new_length));
+    if (self->IsJSArray()) {
+      CHECK(JSArray::cast(*self)->length()->ToArrayIndex(&new_length));
     } else {
       new_length = dictionary->max_number_key() + 1;
     }
@@ -10260,16 +10260,15 @@ MaybeObject* JSObject::SetDictionaryElement(uint32_t index,
         : kDontAllowSmiElements;
     bool has_smi_only_elements = false;
     bool should_convert_to_fast_double_elements =
-        ShouldConvertToFastDoubleElements(&has_smi_only_elements);
+        self->ShouldConvertToFastDoubleElements(&has_smi_only_elements);
     if (has_smi_only_elements) {
       smi_mode = kForceSmiElements;
     }
     MaybeObject* result = should_convert_to_fast_double_elements
-        ? SetFastDoubleElementsCapacityAndLength(new_length, new_length)
-        : SetFastElementsCapacityAndLength(new_length,
-                                           new_length,
-                                           smi_mode);
-    ValidateElements();
+        ? self->SetFastDoubleElementsCapacityAndLength(new_length, new_length)
+        : self->SetFastElementsCapacityAndLength(
+            new_length, new_length, smi_mode);
+    self->ValidateElements();
     if (result->IsFailure()) return result;
 #ifdef DEBUG
     if (FLAG_trace_normalization) {
@@ -10278,7 +10277,7 @@ MaybeObject* JSObject::SetDictionaryElement(uint32_t index,
     }
 #endif
   }
-  return value;
+  return *value;
 }
 
 
