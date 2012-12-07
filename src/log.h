@@ -74,7 +74,6 @@ namespace internal {
 class LogMessageBuilder;
 class Profiler;
 class Semaphore;
-class SlidingStateWindow;
 class Ticker;
 class Isolate;
 
@@ -174,9 +173,6 @@ class Logger {
   // When a temporary file is used for the log, returns its stream descriptor,
   // leaving the file open.
   FILE* TearDown();
-
-  // Enable the computation of a sliding window of states.
-  void EnableSlidingStateWindow();
 
   // Emits an event with a string value -> (name, value).
   void StringEvent(const char* name, const char* value);
@@ -433,10 +429,6 @@ class Logger {
   // of samples.
   Profiler* profiler_;
 
-  // SlidingStateWindow instance keeping a sliding window of the most
-  // recent VM states.
-  SlidingStateWindow* sliding_state_window_;
-
   // An array of log events names.
   const char* const* log_events_;
 
@@ -447,7 +439,6 @@ class Logger {
   friend class LogMessageBuilder;
   friend class TimeLog;
   friend class Profiler;
-  friend class SlidingStateWindow;
   friend class StackTracer;
   friend class VMState;
 

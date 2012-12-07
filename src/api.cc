@@ -5391,13 +5391,6 @@ void V8::SetAddHistogramSampleFunction(AddHistogramSampleCallback callback) {
       SetAddHistogramSampleFunction(callback);
 }
 
-void V8::EnableSlidingStateWindow() {
-  i::Isolate* isolate = i::Isolate::Current();
-  if (IsDeadCheck(isolate, "v8::V8::EnableSlidingStateWindow()")) return;
-  isolate->logger()->EnableSlidingStateWindow();
-}
-
-
 void V8::SetFailedAccessCheckCallbackFunction(
       FailedAccessCheckCallback callback) {
   i::Isolate* isolate = i::Isolate::Current();
