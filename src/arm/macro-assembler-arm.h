@@ -959,6 +959,14 @@ class MacroAssembler: public Assembler {
                       DwVfpRegister double_scratch,
                       Label *not_int32);
 
+  // Try to convert a double to a signed 32-bit integer. If the double value
+  // can be exactly represented as an integer, the code jumps to 'done' and
+  // 'result' contains the integer value. Otherwise, the code falls through.
+  void TryFastDoubleToInt32(Register result,
+                            DwVfpRegister double_input,
+                            DwVfpRegister double_scratch,
+                            Label* done);
+
   // Truncates a double using a specific rounding mode, and writes the value
   // to the result register.
   // Clears the z flag (ne condition) if an overflow occurs.
@@ -989,7 +997,7 @@ class MacroAssembler: public Assembler {
   // Exits with 'result' holding the answer and all other registers clobbered.
   void EmitECMATruncate(Register result,
                         DwVfpRegister double_input,
-                        SwVfpRegister single_scratch,
+                        DwVfpRegister double_scratch,
                         Register scratch,
                         Register scratch2,
                         Register scratch3);
