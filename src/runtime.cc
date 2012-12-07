@@ -3807,15 +3807,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NumberToFixed) {
   ASSERT(args.length() == 2);
 
   CONVERT_DOUBLE_ARG_CHECKED(value, 0);
-  if (isnan(value)) {
-    return *isolate->factory()->nan_symbol();
-  }
-  if (isinf(value)) {
-    if (value < 0) {
-      return *isolate->factory()->minus_infinity_symbol();
-    }
-    return *isolate->factory()->infinity_symbol();
-  }
   CONVERT_DOUBLE_ARG_CHECKED(f_number, 1);
   int f = FastD2IChecked(f_number);
   RUNTIME_ASSERT(f >= 0);
@@ -3832,15 +3823,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NumberToExponential) {
   ASSERT(args.length() == 2);
 
   CONVERT_DOUBLE_ARG_CHECKED(value, 0);
-  if (isnan(value)) {
-    return *isolate->factory()->nan_symbol();
-  }
-  if (isinf(value)) {
-    if (value < 0) {
-      return *isolate->factory()->minus_infinity_symbol();
-    }
-    return *isolate->factory()->infinity_symbol();
-  }
   CONVERT_DOUBLE_ARG_CHECKED(f_number, 1);
   int f = FastD2IChecked(f_number);
   RUNTIME_ASSERT(f >= -1 && f <= 20);
@@ -3857,15 +3839,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NumberToPrecision) {
   ASSERT(args.length() == 2);
 
   CONVERT_DOUBLE_ARG_CHECKED(value, 0);
-  if (isnan(value)) {
-    return *isolate->factory()->nan_symbol();
-  }
-  if (isinf(value)) {
-    if (value < 0) {
-      return *isolate->factory()->minus_infinity_symbol();
-    }
-    return *isolate->factory()->infinity_symbol();
-  }
   CONVERT_DOUBLE_ARG_CHECKED(f_number, 1);
   int f = FastD2IChecked(f_number);
   RUNTIME_ASSERT(f >= 1 && f <= 21);
@@ -8175,15 +8148,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CompileForOnStackReplacement) {
     function->PrintName();
     PrintF("]\n");
   }
-  Handle<Code> check_code;
-  if (FLAG_count_based_interrupts) {
-    InterruptStub interrupt_stub;
-    check_code = interrupt_stub.GetCode();
-  } else  // NOLINT
-  {  // NOLINT
-    StackCheckStub check_stub;
-    check_code = check_stub.GetCode();
-  }
+  InterruptStub interrupt_stub;
+  Handle<Code> check_code = interrupt_stub.GetCode();
   Handle<Code> replacement_code = isolate->builtins()->OnStackReplacement();
   Deoptimizer::RevertStackCheckCode(*unoptimized,
                                     *check_code,

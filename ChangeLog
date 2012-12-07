@@ -1,3 +1,14 @@
+2012-12-07: Version 3.15.10
+
+        Enabled optimisation of functions inside eval. (issue 2315)
+
+        Fixed spec violations in methods of Number.prototype. (issue 2443)
+
+        Added GCTracer metrics for a scavenger GC for DOM wrappers.
+
+        Performance and stability improvements on all platforms.
+
+
 2012-12-06: Version 3.15.9
 
         Fixed candidate eviction in code flusher.

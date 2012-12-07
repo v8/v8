@@ -2549,6 +2549,18 @@ class GCTracer BASE_EMBEDDED {
     promoted_objects_size_ += object_size;
   }
 
+  void increment_nodes_died_in_new_space() {
+    nodes_died_in_new_space_++;
+  }
+
+  void increment_nodes_copied_in_new_space() {
+    nodes_copied_in_new_space_++;
+  }
+
+  void increment_nodes_promoted() {
+    nodes_promoted_++;
+  }
+
  private:
   // Returns a string matching the collector.
   const char* CollectorString();
@@ -2592,6 +2604,15 @@ class GCTracer BASE_EMBEDDED {
 
   // Size of objects promoted during the current collection.
   intptr_t promoted_objects_size_;
+
+  // Number of died nodes in the new space.
+  int nodes_died_in_new_space_;
+
+  // Number of copied nodes to the new space.
+  int nodes_copied_in_new_space_;
+
+  // Number of promoted nodes to the old space.
+  int nodes_promoted_;
 
   // Incremental marking steps counters.
   int steps_count_;

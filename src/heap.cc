@@ -965,7 +965,8 @@ bool Heap::PerformGarbageCollection(GarbageCollector collector,
   { DisableAssertNoAllocation allow_allocation;
     GCTracer::Scope scope(tracer, GCTracer::Scope::EXTERNAL);
     next_gc_likely_to_collect_more =
-        isolate_->global_handles()->PostGarbageCollectionProcessing(collector);
+        isolate_->global_handles()->PostGarbageCollectionProcessing(
+            collector, tracer);
   }
   gc_post_processing_depth_--;
 
@@ -6864,6 +6865,9 @@ GCTracer::GCTracer(Heap* heap,
       allocated_since_last_gc_(0),
       spent_in_mutator_(0),
       promoted_objects_size_(0),
+      nodes_died_in_new_space_(0),
+      nodes_copied_in_new_space_(0),
+      nodes_promoted_(0),
       heap_(heap),
       gc_reason_(gc_reason),
       collector_reason_(collector_reason) {
@@ -7004,6 +7008,9 @@ GCTracer::~GCTracer() {
 
     PrintF("allocated=%" V8_PTR_PREFIX "d ", allocated_since_last_gc_);
     PrintF("promoted=%" V8_PTR_PREFIX "d ", promoted_objects_size_);
+    PrintF("nodes_died_in_new=%d ", nodes_died_in_new_space_);
+    PrintF("nodes_copied_in_new=%d ", nodes_copied_in_new_space_);
+    PrintF("nodes_promoted=%d ", nodes_promoted_);
 
     if (collector_ == SCAVENGER) {
       PrintF("stepscount=%d ", steps_count_since_last_gc_);

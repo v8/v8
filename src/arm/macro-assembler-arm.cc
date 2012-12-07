@@ -2490,6 +2490,20 @@ void MacroAssembler::ConvertToInt32(Register source,
 }
 
 
+void MacroAssembler::TryFastDoubleToInt32(Register result,
+                                          DwVfpRegister double_input,
+                                          DwVfpRegister double_scratch,
+                                          Label* done) {
+  ASSERT(!double_input.is(double_scratch));
+
+  vcvt_s32_f64(double_scratch.low(), double_input);
+  vmov(result, double_scratch.low());
+  vcvt_f64_s32(double_scratch, double_scratch.low());
+  VFPCompareAndSetFlags(double_input, double_scratch);
+  b(eq, done);
+}
+
+
 void MacroAssembler::EmitVFPTruncate(VFPRoundingMode rounding_mode,
                                      Register result,
                                      DwVfpRegister double_input,
@@ -2505,11 +2519,7 @@ void MacroAssembler::EmitVFPTruncate(VFPRoundingMode rounding_mode,
   Label done;
 
   // Test for values that can be exactly represented as a signed 32-bit integer.
-  vcvt_s32_f64(double_scratch.low(), double_input);
-  vmov(result, double_scratch.low());
-  vcvt_f64_s32(double_scratch, double_scratch.low());
-  VFPCompareAndSetFlags(double_input, double_scratch);
-  b(eq, &done);
+  TryFastDoubleToInt32(result, double_input, double_scratch, &done);
 
   // Convert to integer, respecting rounding mode.
   int32_t check_inexact_conversion =
@@ -2626,7 +2636,7 @@ void MacroAssembler::EmitOutOfInt32RangeTruncate(Register result,
 
 void MacroAssembler::EmitECMATruncate(Register result,
                                       DwVfpRegister double_input,
-                                      SwVfpRegister single_scratch,
+                                      DwVfpRegister double_scratch,
                                       Register scratch,
                                       Register input_high,
                                       Register input_low) {
@@ -2637,16 +2647,18 @@ void MacroAssembler::EmitECMATruncate(Register result,
   ASSERT(!scratch.is(result) &&
          !scratch.is(input_high) &&
          !scratch.is(input_low));
-  ASSERT(!single_scratch.is(double_input.low()) &&
-         !single_scratch.is(double_input.high()));
+  ASSERT(!double_input.is(double_scratch));
 
   Label done;
+
+  // Test for values that can be exactly represented as a signed 32-bit integer.
+  TryFastDoubleToInt32(result, double_input, double_scratch, &done);
 
   // Clear cumulative exception flags.
   ClearFPSCRBits(kVFPExceptionMask, scratch);
   // Try a conversion to a signed integer.
-  vcvt_s32_f64(single_scratch, double_input);
-  vmov(result, single_scratch);
+  vcvt_s32_f64(double_scratch.low(), double_input);
+  vmov(result, double_scratch.low());
   // Retrieve he FPSCR.
   vmrs(scratch);
   // Check for overflow and NaNs.

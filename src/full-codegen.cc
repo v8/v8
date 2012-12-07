@@ -471,9 +471,8 @@ void FullCodeGenerator::RecordTypeFeedbackCell(
 }
 
 
-void FullCodeGenerator::RecordStackCheck(BailoutId ast_id) {
-  // The pc offset does not need to be encoded and packed together with a
-  // state.
+void FullCodeGenerator::RecordBackEdge(BailoutId ast_id) {
+  // The pc offset does not need to be encoded and packed together with a state.
   ASSERT(masm_->pc_offset() > 0);
   BailoutEntry entry = { ast_id, static_cast<unsigned>(masm_->pc_offset()) };
   stack_checks_.Add(entry, zone());
@@ -1269,7 +1268,7 @@ void FullCodeGenerator::VisitDoWhileStatement(DoWhileStatement* stmt) {
   // Check stack before looping.
   PrepareForBailoutForId(stmt->BackEdgeId(), NO_REGISTERS);
   __ bind(&stack_check);
-  EmitStackCheck(stmt, &body);
+  EmitBackEdgeBookkeeping(stmt, &body);
   __ jmp(&body);
 
   PrepareForBailoutForId(stmt->ExitId(), NO_REGISTERS);
@@ -1298,7 +1297,7 @@ void FullCodeGenerator::VisitWhileStatement(WhileStatement* stmt) {
   SetStatementPosition(stmt);
 
   // Check stack before looping.
-  EmitStackCheck(stmt, &body);
+  EmitBackEdgeBookkeeping(stmt, &body);
 
   __ bind(&test);
   VisitForControl(stmt->cond(),
@@ -1344,7 +1343,7 @@ void FullCodeGenerator::VisitForStatement(ForStatement* stmt) {
   SetStatementPosition(stmt);
 
   // Check stack before looping.
-  EmitStackCheck(stmt, &body);
+  EmitBackEdgeBookkeeping(stmt, &body);
 
   __ bind(&test);
   if (stmt->cond() != NULL) {

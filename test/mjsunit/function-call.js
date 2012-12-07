@@ -67,8 +67,7 @@ var should_throw_on_null_and_undefined =
      String.prototype.toLocaleLowerCase,
      String.prototype.toUpperCase,
      String.prototype.toLocaleUpperCase,
-     String.prototype.trim,
-     Number.prototype.toLocaleString];
+     String.prototype.trim];
 
 // Non generic natives do not work on any input other than the specific
 // type, but since this change will allow call to be invoked with undefined

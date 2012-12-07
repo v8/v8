@@ -597,7 +597,7 @@ bool GlobalHandles::IterateObjectGroups(ObjectVisitor* v,
 
 
 bool GlobalHandles::PostGarbageCollectionProcessing(
-    GarbageCollector collector) {
+    GarbageCollector collector, GCTracer* tracer) {
   // Process weak global handle callbacks. This must be done after the
   // GC is completely done, because the callbacks may invoke arbitrary
   // API functions.
@@ -647,10 +647,17 @@ bool GlobalHandles::PostGarbageCollectionProcessing(
   for (int i = 0; i < new_space_nodes_.length(); ++i) {
     Node* node = new_space_nodes_[i];
     ASSERT(node->is_in_new_space_list());
-    if (node->IsRetainer() && isolate_->heap()->InNewSpace(node->object())) {
-      new_space_nodes_[last++] = node;
+    if (node->IsRetainer()) {
+      if (isolate_->heap()->InNewSpace(node->object())) {
+        new_space_nodes_[last++] = node;
+        tracer->increment_nodes_copied_in_new_space();
+      } else {
+        node->set_in_new_space_list(false);
+        tracer->increment_nodes_promoted();
+      }
     } else {
       node->set_in_new_space_list(false);
+      tracer->increment_nodes_died_in_new_space();
     }
   }
   new_space_nodes_.Rewind(last);
