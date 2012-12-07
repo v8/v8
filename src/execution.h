@@ -194,8 +194,6 @@ class StackGuard {
   void Interrupt();
   bool IsTerminateExecution();
   void TerminateExecution();
-  bool IsRuntimeProfilerTick();
-  void RequestRuntimeProfilerTick();
   bool IsCodeReadyEvent();
   void RequestCodeReadyEvent();
 #ifdef ENABLE_DEBUGGER_SUPPORT
