@@ -3432,7 +3432,7 @@ void MacroAssembler::EnterExitFrameEpilogue(int arg_stack_space,
         arg_stack_space * kPointerSize;
     subq(rsp, Immediate(space));
     int offset = -2 * kPointerSize;
-    for (int i = 0; i < XMMRegister::NumAllocatableRegisters(); i++) {
+    for (int i = 0; i < XMMRegister::kNumAllocatableRegisters; i++) {
       XMMRegister reg = XMMRegister::FromAllocationIndex(i);
       movsd(Operand(rbp, offset - ((i + 1) * kDoubleSize)), reg);
     }
@@ -3476,7 +3476,7 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles) {
   // r15 : argv
   if (save_doubles) {
     int offset = -2 * kPointerSize;
-    for (int i = 0; i < XMMRegister::NumAllocatableRegisters(); i++) {
+    for (int i = 0; i < XMMRegister::kNumAllocatableRegisters; i++) {
       XMMRegister reg = XMMRegister::FromAllocationIndex(i);
       movsd(reg, Operand(rbp, offset - ((i + 1) * kDoubleSize)));
     }

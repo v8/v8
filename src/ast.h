@@ -2492,51 +2492,40 @@ inline ModuleVariable::ModuleVariable(VariableProxy* proxy)
 
 class AstVisitor BASE_EMBEDDED {
  public:
-  AstVisitor() {}
+  AstVisitor() : isolate_(Isolate::Current()), stack_overflow_(false) { }
   virtual ~AstVisitor() { }
 
   // Stack overflow check and dynamic dispatch.
-  virtual void Visit(AstNode* node) = 0;
+  void Visit(AstNode* node) { if (!CheckStackOverflow()) node->Accept(this); }
 
   // Iteration left-to-right.
   virtual void VisitDeclarations(ZoneList<Declaration*>* declarations);
   virtual void VisitStatements(ZoneList<Statement*>* statements);
   virtual void VisitExpressions(ZoneList<Expression*>* expressions);
 
+  // Stack overflow tracking support.
+  bool HasStackOverflow() const { return stack_overflow_; }
+  bool CheckStackOverflow();
+
+  // If a stack-overflow exception is encountered when visiting a
+  // node, calling SetStackOverflow will make sure that the visitor
+  // bails out without visiting more nodes.
+  void SetStackOverflow() { stack_overflow_ = true; }
+  void ClearStackOverflow() { stack_overflow_ = false; }
+
   // Individual AST nodes.
 #define DEF_VISIT(type)                         \
   virtual void Visit##type(type* node) = 0;
   AST_NODE_LIST(DEF_VISIT)
 #undef DEF_VISIT
+
+ protected:
+  Isolate* isolate() { return isolate_; }
+
+ private:
+  Isolate* isolate_;
+  bool stack_overflow_;
 };
-
-
-#define DEFINE_AST_VISITOR_SUBCLASS_MEMBERS()                       \
-public:                                                             \
-  virtual void Visit(AstNode* node) {                               \
-    if (!CheckStackOverflow()) node->Accept(this);                  \
-  }                                                                 \
-                                                                    \
-  void SetStackOverflow() { stack_overflow_ = true; }               \
-  void ClearStackOverflow() { stack_overflow_ = false; }            \
-  bool HasStackOverflow() const { return stack_overflow_; }         \
-                                                                    \
-  bool CheckStackOverflow() {                                       \
-    if (stack_overflow_) return true;                               \
-    StackLimitCheck check(isolate_);                                \
-    if (!check.HasOverflowed()) return false;                       \
-    return (stack_overflow_ = true);                                \
-  }                                                                 \
-                                                                    \
-private:                                                            \
-  void InitializeAstVisitor() {                                     \
-    isolate_ = Isolate::Current();                                  \
-    stack_overflow_ = false;                                        \
-  }                                                                 \
-  Isolate* isolate() { return isolate_; }                           \
-                                                                    \
-  Isolate* isolate_;                                                \
-  bool stack_overflow_
 
 
 // ----------------------------------------------------------------------------

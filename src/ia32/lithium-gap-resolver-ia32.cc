@@ -191,7 +191,7 @@ int LGapResolver::CountSourceUses(LOperand* operand) {
 
 Register LGapResolver::GetFreeRegisterNot(Register reg) {
   int skip_index = reg.is(no_reg) ? -1 : Register::ToAllocationIndex(reg);
-  for (int i = 0; i < Register::NumAllocatableRegisters(); ++i) {
+  for (int i = 0; i < Register::kNumAllocatableRegisters; ++i) {
     if (source_uses_[i] == 0 && destination_uses_[i] > 0 && i != skip_index) {
       return Register::FromAllocationIndex(i);
     }
@@ -204,7 +204,7 @@ bool LGapResolver::HasBeenReset() {
   if (!moves_.is_empty()) return false;
   if (spilled_register_ >= 0) return false;
 
-  for (int i = 0; i < Register::NumAllocatableRegisters(); ++i) {
+  for (int i = 0; i < Register::kNumAllocatableRegisters; ++i) {
     if (source_uses_[i] != 0) return false;
     if (destination_uses_[i] != 0) return false;
   }
@@ -256,7 +256,7 @@ Register LGapResolver::EnsureTempRegister() {
 
   // 3. Prefer to spill a register that is not used in any remaining move
   // because it will not need to be restored until the end.
-  for (int i = 0; i < Register::NumAllocatableRegisters(); ++i) {
+  for (int i = 0; i < Register::kNumAllocatableRegisters; ++i) {
     if (source_uses_[i] == 0 && destination_uses_[i] == 0) {
       Register scratch = Register::FromAllocationIndex(i);
       __ push(scratch);
@@ -324,38 +324,29 @@ void LGapResolver::EmitMove(int index) {
     }
 
   } else if (source->IsDoubleRegister()) {
-    if (CpuFeatures::IsSupported(SSE2)) {
-      CpuFeatures::Scope scope(SSE2);
-      XMMRegister src = cgen_->ToDoubleRegister(source);
-      if (destination->IsDoubleRegister()) {
-        XMMRegister dst = cgen_->ToDoubleRegister(destination);
-        __ movaps(dst, src);
-      } else {
-        ASSERT(destination->IsDoubleStackSlot());
-        Operand dst = cgen_->ToOperand(destination);
-        __ movdbl(dst, src);
-      }
+    XMMRegister src = cgen_->ToDoubleRegister(source);
+    if (destination->IsDoubleRegister()) {
+      XMMRegister dst = cgen_->ToDoubleRegister(destination);
+      __ movaps(dst, src);
     } else {
-      UNREACHABLE();
+      ASSERT(destination->IsDoubleStackSlot());
+      Operand dst = cgen_->ToOperand(destination);
+      __ movdbl(dst, src);
     }
   } else if (source->IsDoubleStackSlot()) {
-    if (CpuFeatures::IsSupported(SSE2)) {
-      CpuFeatures::Scope scope(SSE2);
-      ASSERT(destination->IsDoubleRegister() ||
-             destination->IsDoubleStackSlot());
-      Operand src = cgen_->ToOperand(source);
-      if (destination->IsDoubleRegister()) {
-        XMMRegister dst = cgen_->ToDoubleRegister(destination);
-        __ movdbl(dst, src);
-      } else {
-        // We rely on having xmm0 available as a fixed scratch register.
-        Operand dst = cgen_->ToOperand(destination);
-        __ movdbl(xmm0, src);
-        __ movdbl(dst, xmm0);
-      }
+    ASSERT(destination->IsDoubleRegister() ||
+           destination->IsDoubleStackSlot());
+    Operand src = cgen_->ToOperand(source);
+    if (destination->IsDoubleRegister()) {
+      XMMRegister dst = cgen_->ToDoubleRegister(destination);
+      __ movdbl(dst, src);
     } else {
-      UNREACHABLE();
+      // We rely on having xmm0 available as a fixed scratch register.
+      Operand dst = cgen_->ToOperand(destination);
+      __ movdbl(xmm0, src);
+      __ movdbl(dst, xmm0);
     }
+
   } else {
     UNREACHABLE();
   }
@@ -419,7 +410,6 @@ void LGapResolver::EmitSwap(int index) {
       __ mov(src, tmp0);
     }
   } else if (source->IsDoubleRegister() && destination->IsDoubleRegister()) {
-    CpuFeatures::Scope scope(SSE2);
     // XMM register-register swap. We rely on having xmm0
     // available as a fixed scratch register.
     XMMRegister src = cgen_->ToDoubleRegister(source);

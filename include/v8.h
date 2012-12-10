@@ -3205,12 +3205,6 @@ class V8EXPORT V8 {
   static void SetCreateHistogramFunction(CreateHistogramCallback);
   static void SetAddHistogramSampleFunction(AddHistogramSampleCallback);
 
-  /**
-   * Enables the computation of a sliding window of states. The sliding
-   * window information is recorded in statistics counters.
-   */
-  static void EnableSlidingStateWindow();
-
   /** Callback function for reporting failed access checks.*/
   static void SetFailedAccessCheckCallbackFunction(FailedAccessCheckCallback);
 

@@ -1259,26 +1259,6 @@ CODE_AGE_LIST(DEFINE_CODE_AGE_BUILTIN_GENERATOR)
 #undef DEFINE_CODE_AGE_BUILTIN_GENERATOR
 
 
-void Builtins::Generate_NotifyICMiss(MacroAssembler* masm) {
-  {
-    FrameScope scope(masm, StackFrame::INTERNAL);
-
-    // Preserve registers across notification, this is important for compiled
-    // stubs that tail call the runtime on deopts passing their parameters in
-    // registers.
-    __ stm(db_w, sp, kJSCallerSaved | kCalleeSaved);
-    // Pass the function and deoptimization type to the runtime system.
-    __ CallRuntime(Runtime::kNotifyICMiss, 0);
-    __ ldm(ia_w, sp, kJSCallerSaved | kCalleeSaved);
-  }
-
-  __ mov(ip, lr);  // Stash the miss continuation
-  __ add(sp, sp, Operand(kPointerSize));  // Ignore state
-  __ pop(lr);  // Restore LR to continuation in JSFunction
-  __ mov(pc, ip);  // Jump to miss handler
-}
-
-
 static void Generate_NotifyDeoptimizedHelper(MacroAssembler* masm,
                                              Deoptimizer::BailoutType type) {
   {

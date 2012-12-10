@@ -89,7 +89,6 @@ namespace internal {
   F(ForceParallelRecompile, 1, 1) \
   F(InstallRecompiledCode, 1, 1) \
   F(NotifyDeoptimized, 1, 1) \
-  F(NotifyICMiss, 0, 1) \
   F(NotifyOSR, 0, 1) \
   F(DeoptimizeFunction, 1, 1) \
   F(ClearFunctionTypeFeedback, 1, 1) \

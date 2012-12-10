@@ -928,7 +928,6 @@ MaybeObject* Execution::HandleStackGuardInterrupt(Isolate* isolate) {
 
   isolate->counters()->stack_interrupts()->Increment();
   isolate->counters()->runtime_profiler_ticks()->Increment();
-  stack_guard->Continue(RUNTIME_PROFILER_TICK);
   isolate->runtime_profiler()->OptimizeNow();
 #ifdef ENABLE_DEBUGGER_SUPPORT
   if (stack_guard->IsDebugBreak() || stack_guard->IsDebugCommand()) {

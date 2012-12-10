@@ -1927,9 +1927,9 @@ class Heap {
 
   void CreateFixedStubs();
 
-  MaybeObject* CreateOddball(const char* to_string,
-                             Object* to_number,
-                             byte kind);
+  MUST_USE_RESULT MaybeObject* CreateOddball(const char* to_string,
+                                             Object* to_number,
+                                             byte kind);
 
   // Allocate a JSArray with no elements
   MUST_USE_RESULT MaybeObject* AllocateJSArray(

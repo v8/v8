@@ -1689,6 +1689,14 @@ void HBinaryOperation::AssumeRepresentation(Representation r) {
 }
 
 
+void HMathMinMax::InferRepresentation(HInferRepresentation* h_infer) {
+  ASSERT(CheckFlag(kFlexibleRepresentation));
+  Representation new_rep = RepresentationFromInputs();
+  UpdateRepresentation(new_rep, h_infer, "inputs");
+  // Do not care about uses.
+}
+
+
 Range* HBitwise::InferRange(Zone* zone) {
   if (op() == Token::BIT_XOR) return HValue::InferRange(zone);
   const int32_t kDefaultMask = static_cast<int32_t>(0xffffffff);

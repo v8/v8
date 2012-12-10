@@ -143,12 +143,16 @@
               'CAN_USE_UNALIGNED_ACCESSES=0',
             ],
           }],
-          [ 'v8_can_use_vfp2_instructions=="true"', {
+          # NEON implies VFP3 and VFP3 implies VFP2.
+          [ 'v8_can_use_vfp2_instructions=="true" or arm_neon==1 or \
+             arm_fpu=="vfpv3" or arm_fpu=="vfpv3-d16"', {
             'defines': [
               'CAN_USE_VFP2_INSTRUCTIONS',
             ],
           }],
-          [ 'v8_can_use_vfp3_instructions=="true"', {
+          # NEON implies VFP3.
+          [ 'v8_can_use_vfp3_instructions=="true" or arm_neon==1 or \
+             arm_fpu=="vfpv3" or arm_fpu=="vfpv3-d16"', {
             'defines': [
               'CAN_USE_VFP3_INSTRUCTIONS',
             ],

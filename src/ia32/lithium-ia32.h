@@ -250,11 +250,7 @@ class LInstruction: public ZoneObject {
   void MarkAsCall() { is_call_ = true; }
 
   // Interface to the register allocator and iterators.
-  bool ClobbersTemps() const { return is_call_; }
-  bool ClobbersRegisters() const { return is_call_; }
-  virtual bool ClobbersDoubleRegisters() const {
-    return is_call_ || !CpuFeatures::IsSupported(SSE2);
-  }
+  bool IsMarkedAsCall() const { return is_call_; }
 
   virtual bool HasResult() const = 0;
   virtual LOperand* result() = 0;
@@ -360,7 +356,6 @@ class LGap: public LTemplateInstruction<0, 0, 0> {
 class LInstructionGap: public LGap {
  public:
   explicit LInstructionGap(HBasicBlock* block) : LGap(block) { }
-  virtual bool ClobbersDoubleRegisters() const { return false; }
 
   DECLARE_CONCRETE_INSTRUCTION(InstructionGap, "gap")
 };
@@ -1443,6 +1438,7 @@ class LLoadKeyed: public LTemplateInstruction<1, 2, 0> {
     inputs_[0] = elements;
     inputs_[1] = key;
   }
+
   LOperand* elements() { return inputs_[0]; }
   LOperand* key() { return inputs_[1]; }
   ElementsKind elements_kind() const {
@@ -1452,18 +1448,11 @@ class LLoadKeyed: public LTemplateInstruction<1, 2, 0> {
     return hydrogen()->is_external();
   }
 
-  virtual bool ClobbersDoubleRegisters() const {
-    return !IsDoubleOrFloatElementsKind(hydrogen()->elements_kind());
-  }
-
   DECLARE_CONCRETE_INSTRUCTION(LoadKeyed, "load-keyed")
   DECLARE_HYDROGEN_ACCESSOR(LoadKeyed)
 
   virtual void PrintDataTo(StringStream* stream);
   uint32_t additional_index() const { return hydrogen()->index_offset(); }
-  bool key_is_smi() {
-    return hydrogen()->key()->representation().IsTagged();
-  }
 };
 
 
@@ -2444,9 +2433,8 @@ class LOsrEntry: public LTemplateInstruction<0, 0, 0> {
   // slot, i.e., that must also be restored to the spill slot on OSR entry.
   // NULL if the register has no assigned spill slot.  Indexed by allocation
   // index.
-  LOperand* register_spills_[Register::kMaxNumAllocatableRegisters];
-  LOperand* double_register_spills_[
-      DoubleRegister::kMaxNumAllocatableRegisters];
+  LOperand* register_spills_[Register::kNumAllocatableRegisters];
+  LOperand* double_register_spills_[DoubleRegister::kNumAllocatableRegisters];
 };
 
 
@@ -2610,7 +2598,6 @@ class LChunkBuilder BASE_EMBEDDED {
   // Methods for getting operands for Use / Define / Temp.
   LUnallocated* ToUnallocated(Register reg);
   LUnallocated* ToUnallocated(XMMRegister reg);
-  LUnallocated* ToUnallocated(X87TopOfStackRegister reg);
 
   // Methods for setting up define-use relationships.
   MUST_USE_RESULT LOperand* Use(HValue* value, LUnallocated* operand);
@@ -2671,8 +2658,6 @@ class LChunkBuilder BASE_EMBEDDED {
   template<int I, int T>
       LInstruction* DefineFixedDouble(LTemplateInstruction<1, I, T>* instr,
                                       XMMRegister reg);
-  template<int I, int T>
-      LInstruction* DefineX87TOS(LTemplateInstruction<1, I, T>* instr);
   // Assigns an environment to an instruction.  An instruction which can
   // deoptimize must have an environment.
   LInstruction* AssignEnvironment(LInstruction* instr);

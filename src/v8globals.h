@@ -351,20 +351,13 @@ struct AccessorDescriptor {
 // VMState object leaves a state by popping the current state from the
 // stack.
 
-#define STATE_TAG_LIST(V)                       \
-  V(JS)                                         \
-  V(GC)                                         \
-  V(COMPILER)                                   \
-  V(PARALLEL_COMPILER)                          \
-  V(OTHER)                                      \
-  V(EXTERNAL)
-
 enum StateTag {
-#define DEF_STATE_TAG(name) name,
-  STATE_TAG_LIST(DEF_STATE_TAG)
-#undef DEF_STATE_TAG
-  // Pseudo-types.
-  state_tag_count
+  JS,
+  GC,
+  COMPILER,
+  PARALLEL_COMPILER,
+  OTHER,
+  EXTERNAL
 };
 
 

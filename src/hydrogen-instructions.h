@@ -3659,6 +3659,16 @@ class HDiv: public HArithmeticBinaryOperation {
     SetFlag(kCanOverflow);
   }
 
+  bool HasPowerOf2Divisor() {
+    if (right()->IsConstant() &&
+        HConstant::cast(right())->HasInteger32Value()) {
+      int32_t value = HConstant::cast(right())->Integer32Value();
+      return value != 0 && (IsPowerOf2(value) || IsPowerOf2(-value));
+    }
+
+    return false;
+  }
+
   virtual HValue* EnsureAndPropagateNotMinusZero(BitVector* visited);
 
   static HInstruction* NewHDiv(Zone* zone,
@@ -3691,6 +3701,8 @@ class HMathMinMax: public HArithmeticBinaryOperation {
   virtual Representation observed_input_representation(int index) {
     return RequiredInputRepresentation(index);
   }
+
+  virtual void InferRepresentation(HInferRepresentation* h_infer);
 
   virtual Representation RepresentationFromInputs() {
     Representation left_rep = left()->representation();

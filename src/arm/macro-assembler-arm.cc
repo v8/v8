@@ -290,7 +290,7 @@ void MacroAssembler::Move(Register dst, Register src, Condition cond) {
 }
 
 
-void MacroAssembler::Move(DwVfpRegister dst, DwVfpRegister src) {
+void MacroAssembler::Move(DoubleRegister dst, DoubleRegister src) {
   ASSERT(CpuFeatures::IsSupported(VFP2));
   CpuFeatures::Scope scope(VFP2);
   if (!dst.is(src)) {
@@ -643,19 +643,19 @@ void MacroAssembler::PopSafepointRegisters() {
 
 void MacroAssembler::PushSafepointRegistersAndDoubles() {
   PushSafepointRegisters();
-  sub(sp, sp, Operand(DwVfpRegister::NumAllocatableRegisters() *
+  sub(sp, sp, Operand(DwVfpRegister::kNumAllocatableRegisters *
                       kDoubleSize));
-  for (int i = 0; i < DwVfpRegister::NumAllocatableRegisters(); i++) {
+  for (int i = 0; i < DwVfpRegister::kNumAllocatableRegisters; i++) {
     vstr(DwVfpRegister::FromAllocationIndex(i), sp, i * kDoubleSize);
   }
 }
 
 
 void MacroAssembler::PopSafepointRegistersAndDoubles() {
-  for (int i = 0; i < DwVfpRegister::NumAllocatableRegisters(); i++) {
+  for (int i = 0; i < DwVfpRegister::kNumAllocatableRegisters; i++) {
     vldr(DwVfpRegister::FromAllocationIndex(i), sp, i * kDoubleSize);
   }
-  add(sp, sp, Operand(DwVfpRegister::NumAllocatableRegisters() *
+  add(sp, sp, Operand(DwVfpRegister::kNumAllocatableRegisters *
                       kDoubleSize));
   PopSafepointRegisters();
 }
@@ -691,7 +691,7 @@ MemOperand MacroAssembler::SafepointRegisterSlot(Register reg) {
 
 MemOperand MacroAssembler::SafepointRegistersAndDoublesSlot(Register reg) {
   // General purpose registers are pushed last on the stack.
-  int doubles_size = DwVfpRegister::NumAllocatableRegisters() * kDoubleSize;
+  int doubles_size = DwVfpRegister::kNumAllocatableRegisters * kDoubleSize;
   int register_offset = SafepointRegisterStackIndex(reg.code()) * kPointerSize;
   return MemOperand(sp, doubles_size + register_offset);
 }
@@ -967,7 +967,7 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles,
   }
 }
 
-void MacroAssembler::GetCFunctionDoubleResult(const DwVfpRegister dst) {
+void MacroAssembler::GetCFunctionDoubleResult(const DoubleRegister dst) {
   ASSERT(CpuFeatures::IsSupported(VFP2));
   if (use_eabi_hardfloat()) {
     Move(dst, d0);
@@ -2729,10 +2729,7 @@ void MacroAssembler::CallRuntimeSaveDoubles(Runtime::FunctionId id) {
   const Runtime::Function* function = Runtime::FunctionForId(id);
   mov(r0, Operand(function->nargs));
   mov(r1, Operand(ExternalReference(function, isolate())));
-  SaveFPRegsMode mode = CpuFeatures::IsSupported(VFP2)
-      ? kSaveFPRegs
-      : kDontSaveFPRegs;
-  CEntryStub stub(1, mode);
+  CEntryStub stub(1, kSaveFPRegs);
   CallStub(&stub);
 }
 
@@ -3408,9 +3405,9 @@ int MacroAssembler::CalculateStackPassedWords(int num_reg_arguments,
   if (use_eabi_hardfloat()) {
     // In the hard floating point calling convention, we can use
     // all double registers to pass doubles.
-    if (num_double_arguments > DoubleRegister::NumRegisters()) {
+    if (num_double_arguments > DoubleRegister::kNumRegisters) {
       stack_passed_words +=
-          2 * (num_double_arguments - DoubleRegister::NumRegisters());
+          2 * (num_double_arguments - DoubleRegister::kNumRegisters);
     }
   } else {
     // In the soft floating point calling convention, every double
@@ -3451,7 +3448,7 @@ void MacroAssembler::PrepareCallCFunction(int num_reg_arguments,
 }
 
 
-void MacroAssembler::SetCallCDoubleArguments(DwVfpRegister dreg) {
+void MacroAssembler::SetCallCDoubleArguments(DoubleRegister dreg) {
   ASSERT(CpuFeatures::IsSupported(VFP2));
   if (use_eabi_hardfloat()) {
     Move(d0, dreg);
@@ -3461,8 +3458,8 @@ void MacroAssembler::SetCallCDoubleArguments(DwVfpRegister dreg) {
 }
 
 
-void MacroAssembler::SetCallCDoubleArguments(DwVfpRegister dreg1,
-                                             DwVfpRegister dreg2) {
+void MacroAssembler::SetCallCDoubleArguments(DoubleRegister dreg1,
+                                             DoubleRegister dreg2) {
   ASSERT(CpuFeatures::IsSupported(VFP2));
   if (use_eabi_hardfloat()) {
     if (dreg2.is(d0)) {
@@ -3480,7 +3477,7 @@ void MacroAssembler::SetCallCDoubleArguments(DwVfpRegister dreg1,
 }
 
 
-void MacroAssembler::SetCallCDoubleArguments(DwVfpRegister dreg,
+void MacroAssembler::SetCallCDoubleArguments(DoubleRegister dreg,
                                              Register reg) {
   ASSERT(CpuFeatures::IsSupported(VFP2));
   if (use_eabi_hardfloat()) {
@@ -3763,8 +3760,8 @@ void MacroAssembler::ClampUint8(Register output_reg, Register input_reg) {
 
 
 void MacroAssembler::ClampDoubleToUint8(Register result_reg,
-                                        DwVfpRegister input_reg,
-                                        DwVfpRegister temp_double_reg) {
+                                        DoubleRegister input_reg,
+                                        DoubleRegister temp_double_reg) {
   Label above_zero;
   Label done;
   Label in_bounds;

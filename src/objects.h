@@ -773,7 +773,9 @@ class MaybeObject BASE_EMBEDDED {
     return reinterpret_cast<Failure*>(this);
   }
   inline Object* ToObjectUnchecked() {
-    ASSERT(!IsFailure());
+    // TODO(jkummerow): Turn this back into an ASSERT when we can be certain
+    // that it never fires in Release mode in the wild.
+    CHECK(!IsFailure());
     return reinterpret_cast<Object*>(this);
   }
   inline Object* ToObjectChecked() {
@@ -4233,7 +4235,6 @@ class Code: public HeapObject {
   V(FUNCTION)             \
   V(OPTIMIZED_FUNCTION)   \
   V(STUB)                 \
-  V(COMPILED_STUB)        \
   V(BUILTIN)              \
   V(LOAD_IC)              \
   V(KEYED_LOAD_IC)        \
@@ -4847,10 +4848,6 @@ class Map: public HeapObject {
 
   inline bool has_fast_double_elements() {
     return IsFastDoubleElementsKind(elements_kind());
-  }
-
-  inline bool has_fast_elements() {
-    return IsFastElementsKind(elements_kind());
   }
 
   inline bool has_non_strict_arguments_elements() {

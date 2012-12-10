@@ -43,9 +43,7 @@ class Processor: public AstVisitor {
         result_assigned_(false),
         is_set_(false),
         in_try_(false),
-        factory_(Isolate::Current(), zone) {
-    InitializeAstVisitor();
-  }
+        factory_(isolate(), zone) { }
 
   virtual ~Processor() { }
 
@@ -88,8 +86,6 @@ class Processor: public AstVisitor {
 #undef DEF_VISIT
 
   void VisitIterationStatement(IterationStatement* stmt);
-
-  DEFINE_AST_VISITOR_SUBCLASS_MEMBERS();
 };
 
 

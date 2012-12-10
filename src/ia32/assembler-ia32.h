@@ -65,10 +65,7 @@ namespace internal {
 // and best performance in optimized code.
 //
 struct Register {
-  static const int kMaxNumAllocatableRegisters = 6;
-  static int NumAllocatableRegisters() {
-    return kMaxNumAllocatableRegisters;
-  }
+  static const int kNumAllocatableRegisters = 6;
   static const int kNumRegisters = 8;
 
   static inline const char* AllocationIndexToString(int index);
@@ -122,7 +119,7 @@ const Register no_reg = { kRegister_no_reg_Code };
 
 
 inline const char* Register::AllocationIndexToString(int index) {
-  ASSERT(index >= 0 && index < kMaxNumAllocatableRegisters);
+  ASSERT(index >= 0 && index < kNumAllocatableRegisters);
   // This is the mapping of allocation indices to registers.
   const char* const kNames[] = { "eax", "ecx", "edx", "ebx", "esi", "edi" };
   return kNames[index];
@@ -136,69 +133,22 @@ inline int Register::ToAllocationIndex(Register reg) {
 
 
 inline Register Register::FromAllocationIndex(int index)  {
-  ASSERT(index >= 0 && index < kMaxNumAllocatableRegisters);
+  ASSERT(index >= 0 && index < kNumAllocatableRegisters);
   return (index >= 4) ? from_code(index + 2) : from_code(index);
 }
 
 
-struct IntelDoubleRegister {
-  static const int kMaxNumAllocatableRegisters = 7;
-  static int NumAllocatableRegisters();
-  static int NumRegisters();
-  static const char* AllocationIndexToString(int index);
+struct XMMRegister {
+  static const int kNumAllocatableRegisters = 7;
+  static const int kNumRegisters = 8;
 
-  static int ToAllocationIndex(IntelDoubleRegister reg) {
+  static int ToAllocationIndex(XMMRegister reg) {
     ASSERT(reg.code() != 0);
     return reg.code() - 1;
   }
 
-  static IntelDoubleRegister FromAllocationIndex(int index) {
-    ASSERT(index >= 0 && index < NumAllocatableRegisters());
-    return from_code(index + 1);
-  }
-
-  static IntelDoubleRegister from_code(int code) {
-    IntelDoubleRegister result = { code };
-    return result;
-  }
-
-  bool is_valid() const {
-    return 0 <= code_ && code_ < NumRegisters();
-  }
-  int code() const {
-    ASSERT(is_valid());
-    return code_;
-  }
-
-  int code_;
-};
-
-
-const IntelDoubleRegister double_register_0 = { 0 };
-const IntelDoubleRegister double_register_1 = { 1 };
-const IntelDoubleRegister double_register_2 = { 2 };
-const IntelDoubleRegister double_register_3 = { 3 };
-const IntelDoubleRegister double_register_4 = { 4 };
-const IntelDoubleRegister double_register_5 = { 5 };
-const IntelDoubleRegister double_register_6 = { 6 };
-const IntelDoubleRegister double_register_7 = { 7 };
-
-
-struct XMMRegister : IntelDoubleRegister {
-  static const int kNumAllocatableRegisters = 7;
-  static const int kNumRegisters = 8;
-
-  static XMMRegister from_code(int code) {
-    STATIC_ASSERT(sizeof(XMMRegister) == sizeof(IntelDoubleRegister));
-    XMMRegister result;
-    result.code_ = code;
-    return result;
-  }
-
-  bool is(XMMRegister reg) const { return code_ == reg.code_; }
-
   static XMMRegister FromAllocationIndex(int index) {
-    ASSERT(index >= 0 && index < NumAllocatableRegisters());
+    ASSERT(index >= 0 && index < kNumAllocatableRegisters);
     return from_code(index + 1);
   }
 
@@ -215,46 +165,34 @@ struct XMMRegister : IntelDoubleRegister {
     };
     return names[index];
   }
+
+  static XMMRegister from_code(int code) {
+    XMMRegister r = { code };
+    return r;
+  }
+
+  bool is_valid() const { return 0 <= code_ && code_ < kNumRegisters; }
+  bool is(XMMRegister reg) const { return code_ == reg.code_; }
+  int code() const {
+    ASSERT(is_valid());
+    return code_;
+  }
+
+  int code_;
 };
 
 
-#define xmm0 (static_cast<const XMMRegister&>(double_register_0))
-#define xmm1 (static_cast<const XMMRegister&>(double_register_1))
-#define xmm2 (static_cast<const XMMRegister&>(double_register_2))
-#define xmm3 (static_cast<const XMMRegister&>(double_register_3))
-#define xmm4 (static_cast<const XMMRegister&>(double_register_4))
-#define xmm5 (static_cast<const XMMRegister&>(double_register_5))
-#define xmm6 (static_cast<const XMMRegister&>(double_register_6))
-#define xmm7 (static_cast<const XMMRegister&>(double_register_7))
+const XMMRegister xmm0 = { 0 };
+const XMMRegister xmm1 = { 1 };
+const XMMRegister xmm2 = { 2 };
+const XMMRegister xmm3 = { 3 };
+const XMMRegister xmm4 = { 4 };
+const XMMRegister xmm5 = { 5 };
+const XMMRegister xmm6 = { 6 };
+const XMMRegister xmm7 = { 7 };
 
 
-struct X87TopOfStackRegister : IntelDoubleRegister {
-  static const int kNumAllocatableRegisters = 1;
-  static const int kNumRegisters = 1;
-
-  bool is(X87TopOfStackRegister reg) const {
-    return code_ == reg.code_;
-  }
-
-  static const char* AllocationIndexToString(int index) {
-    ASSERT(index >= 0 && index < kNumAllocatableRegisters);
-    const char* const names[] = {
-      "st0",
-    };
-    return names[index];
-  }
-
-  static int ToAllocationIndex(X87TopOfStackRegister reg) {
-    ASSERT(reg.code() == 0);
-    return 0;
-  }
-};
-
-#define x87tos \
-  static_cast<const X87TopOfStackRegister&>(double_register_0)
-
-
-typedef IntelDoubleRegister DoubleRegister;
+typedef XMMRegister DoubleRegister;
 
 
 enum Condition {
