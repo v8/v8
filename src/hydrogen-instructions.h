@@ -348,6 +348,13 @@ class Representation {
   }
   const char* Mnemonic() const;
 
+  Representation KeyedAccessIndexRequirement() {
+    // This is intended to be used in RequiredInputRepresentation for keyed
+    // loads and stores to avoid inserting unneeded HChange instructions:
+    // keyed loads and stores can work on both int32 and tagged indexes.
+    return IsInteger32() ? Integer32() : Tagged();
+  }
+
  private:
   explicit Representation(Kind k) : kind_(k) { }
 
@@ -2827,6 +2834,65 @@ class HWrapReceiver: public HTemplateInstruction<2> {
 };
 
 
+enum BoundsCheckKeyMode {
+  DONT_ALLOW_SMI_KEY,
+  ALLOW_SMI_KEY
+};
+
+
+class HBoundsCheck: public HTemplateInstruction<2> {
+ public:
+  HBoundsCheck(HValue* index, HValue* length,
+               BoundsCheckKeyMode key_mode = DONT_ALLOW_SMI_KEY)
+      : key_mode_(key_mode) {
+    SetOperandAt(0, index);
+    SetOperandAt(1, length);
+    set_representation(Representation::Integer32());
+    SetFlag(kUseGVN);
+  }
+
+  virtual Representation RequiredInputRepresentation(int arg_index) {
+    if (key_mode_ == DONT_ALLOW_SMI_KEY ||
+        !length()->representation().IsTagged()) {
+      return Representation::Integer32();
+    }
+    // If the index is tagged and isn't constant, then allow the length
+    // to be tagged, since it is usually already tagged from loading it out of
+    // the length field of a JSArray. This allows for direct comparison without
+    // untagging.
+    if (index()->representation().IsTagged() && !index()->IsConstant()) {
+      return Representation::Tagged();
+    }
+    // Also allow the length to be tagged if the index is constant, because
+    // it can be tagged to allow direct comparison.
+    if (index()->IsConstant() &&
+        index()->representation().IsInteger32() &&
+        arg_index == 1) {
+      return Representation::Tagged();
+    }
+    return Representation::Integer32();
+  }
+  virtual Representation observed_input_representation(int index) {
+    return Representation::Integer32();
+  }
+
+  virtual void PrintDataTo(StringStream* stream);
+
+  HValue* index() { return OperandAt(0); }
+  HValue* length() { return OperandAt(1); }
+
+  DECLARE_CONCRETE_INSTRUCTION(BoundsCheck)
+
+  static HValue* ExtractUncheckedIndex(HValue* index) {
+    return index->IsBoundsCheck() ? HBoundsCheck::cast(index)->index() : index;
+  }
+
+ protected:
+  virtual bool DataEquals(HValue* other) { return true; }
+  BoundsCheckKeyMode key_mode_;
+};
+
+
 class HApplyArguments: public HTemplateInstruction<4> {
  public:
   HApplyArguments(HValue* function,
@@ -2905,87 +2971,45 @@ class HArgumentsLength: public HUnaryOperation {
 };
 
 
-class HAccessArgumentsAt: public HTemplateInstruction<3> {
+class HAccessArgumentsAt: public HTemplateInstruction<4> {
  public:
-  HAccessArgumentsAt(HValue* arguments, HValue* length, HValue* index) {
+  HAccessArgumentsAt(HValue* arguments,
+                     HValue* length,
+                     HValue* checked_index) {
     set_representation(Representation::Tagged());
     SetFlag(kUseGVN);
     SetOperandAt(0, arguments);
     SetOperandAt(1, length);
-    SetOperandAt(2, index);
+    SetOperandAt(2, HBoundsCheck::ExtractUncheckedIndex(checked_index));
+    SetOperandAt(3, checked_index);
   }
 
   virtual void PrintDataTo(StringStream* stream);
 
   virtual Representation RequiredInputRepresentation(int index) {
-    // The arguments elements is considered tagged.
-    return index == 0
-        ? Representation::Tagged()
-        : Representation::Integer32();
+    switch (index) {
+      // The arguments elements is considered tagged.
+      case 0: return Representation::Tagged();
+      case 1: return Representation::Integer32();
+      case 2: return Representation::Integer32();
+      // The checked index is a control flow dependency to avoid hoisting
+      // and therefore it has no representation requirements.
+      case 3: return Representation::None();
+      default: {
+        UNREACHABLE();
+        return Representation::None();
+      }
+    }
   }
 
   HValue* arguments() { return OperandAt(0); }
   HValue* length() { return OperandAt(1); }
   HValue* index() { return OperandAt(2); }
+  HValue* checked_index() { return OperandAt(3); }
 
   DECLARE_CONCRETE_INSTRUCTION(AccessArgumentsAt)
 
   virtual bool DataEquals(HValue* other) { return true; }
-};
-
-
-enum BoundsCheckKeyMode {
-  DONT_ALLOW_SMI_KEY,
-  ALLOW_SMI_KEY
-};
-
-
-class HBoundsCheck: public HTemplateInstruction<2> {
- public:
-  HBoundsCheck(HValue* index, HValue* length,
-               BoundsCheckKeyMode key_mode = DONT_ALLOW_SMI_KEY)
-      : key_mode_(key_mode) {
-    SetOperandAt(0, index);
-    SetOperandAt(1, length);
-    set_representation(Representation::Integer32());
-    SetFlag(kUseGVN);
-  }
-
-  virtual Representation RequiredInputRepresentation(int arg_index) {
-    if (key_mode_ == DONT_ALLOW_SMI_KEY ||
-        !length()->representation().IsTagged()) {
-      return Representation::Integer32();
-    }
-    // If the index is tagged and isn't constant, then allow the length
-    // to be tagged, since it is usually already tagged from loading it out of
-    // the length field of a JSArray. This allows for direct comparison without
-    // untagging.
-    if (index()->representation().IsTagged() && !index()->IsConstant()) {
-      return Representation::Tagged();
-    }
-    // Also allow the length to be tagged if the index is constant, because
-    // it can be tagged to allow direct comparison.
-    if (index()->IsConstant() &&
-        index()->representation().IsInteger32() &&
-        arg_index == 1) {
-      return Representation::Tagged();
-    }
-    return Representation::Integer32();
-  }
-  virtual Representation observed_input_representation(int index) {
-    return Representation::Integer32();
-  }
-
-  virtual void PrintDataTo(StringStream* stream);
-
-  HValue* index() { return OperandAt(0); }
-  HValue* length() { return OperandAt(1); }
-
-  DECLARE_CONCRETE_INSTRUCTION(BoundsCheck)
-
- protected:
-  virtual bool DataEquals(HValue* other) { return true; }
-  BoundsCheckKeyMode key_mode_;
 };
 
 
@@ -4343,18 +4367,18 @@ class ArrayInstructionInterface {
 
 
 class HLoadKeyed
-    : public HTemplateInstruction<3>, public ArrayInstructionInterface {
+    : public HTemplateInstruction<4>, public ArrayInstructionInterface {
  public:
   HLoadKeyed(HValue* obj,
-             HValue* key,
+             HValue* checked_key,
              HValue* dependency,
              ElementsKind elements_kind)
       : bit_field_(0) {
     bit_field_ = ElementsKindField::encode(elements_kind);
-
     SetOperandAt(0, obj);
-    SetOperandAt(1, key);
+    SetOperandAt(1, HBoundsCheck::ExtractUncheckedIndex(checked_key));
     SetOperandAt(2, dependency);
+    SetOperandAt(3, checked_key);
 
     if (!is_external()) {
       // I can detect the case between storing double (holey and fast) and
@@ -4396,6 +4420,7 @@ class HLoadKeyed
   HValue* elements() { return OperandAt(0); }
   HValue* key() { return OperandAt(1); }
   HValue* dependency() { return OperandAt(2); }
+  HValue* checked_key() { return OperandAt(3); }
   uint32_t index_offset() { return IndexOffsetField::decode(bit_field_); }
   void SetIndexOffset(uint32_t index_offset) {
     bit_field_ = IndexOffsetField::update(bit_field_, index_offset);
@@ -4418,7 +4443,9 @@ class HLoadKeyed
       return is_external() ? Representation::External()
           : Representation::Tagged();
     }
-    if (index == 1) return Representation::Integer32();
+    if (index == 1) {
+      return OperandAt(1)->representation().KeyedAccessIndexRequirement();
+    }
     return Representation::None();
   }
 
@@ -4600,14 +4627,15 @@ class HStoreNamedGeneric: public HTemplateInstruction<3> {
 
 
 class HStoreKeyed
-    : public HTemplateInstruction<3>, public ArrayInstructionInterface {
+    : public HTemplateInstruction<4>, public ArrayInstructionInterface {
  public:
-  HStoreKeyed(HValue* obj, HValue* key, HValue* val,
+  HStoreKeyed(HValue* obj, HValue* checked_key, HValue* val,
               ElementsKind elements_kind)
       : elements_kind_(elements_kind), index_offset_(0), is_dehoisted_(false) {
     SetOperandAt(0, obj);
-    SetOperandAt(1, key);
+    SetOperandAt(1, HBoundsCheck::ExtractUncheckedIndex(checked_key));
     SetOperandAt(2, val);
+    SetOperandAt(3, checked_key);
 
     if (is_external()) {
       SetGVNFlag(kChangesSpecializedArrayElements);
@@ -4633,7 +4661,9 @@ class HStoreKeyed
       return is_external() ? Representation::External()
                            : Representation::Tagged();
     } else if (index == 1) {
-      return Representation::Integer32();
+      return OperandAt(1)->representation().KeyedAccessIndexRequirement();
+    } else if (index == 3) {
+      return Representation::None();
     }
 
     ASSERT_EQ(index, 2);
@@ -4664,6 +4694,7 @@ class HStoreKeyed
   HValue* elements() { return OperandAt(0); }
   HValue* key() { return OperandAt(1); }
   HValue* value() { return OperandAt(2); }
+  HValue* checked_key() { return OperandAt(3); }
   bool value_is_smi() const {
     return IsFastSmiElementsKind(elements_kind_);
   }
@@ -4806,12 +4837,13 @@ class HStringAdd: public HBinaryOperation {
 };
 
 
-class HStringCharCodeAt: public HTemplateInstruction<3> {
+class HStringCharCodeAt: public HTemplateInstruction<4> {
  public:
-  HStringCharCodeAt(HValue* context, HValue* string, HValue* index) {
+  HStringCharCodeAt(HValue* context, HValue* string, HValue* checked_index) {
     SetOperandAt(0, context);
     SetOperandAt(1, string);
-    SetOperandAt(2, index);
+    SetOperandAt(2, HBoundsCheck::ExtractUncheckedIndex(checked_index));
+    SetOperandAt(3, checked_index);
     set_representation(Representation::Integer32());
     SetFlag(kUseGVN);
     SetGVNFlag(kDependsOnMaps);
@@ -4819,15 +4851,25 @@ class HStringCharCodeAt: public HTemplateInstruction<3> {
   }
 
   virtual Representation RequiredInputRepresentation(int index) {
-    // The index is supposed to be Integer32.
-    return index == 2
-        ? Representation::Integer32()
-        : Representation::Tagged();
+    switch (index) {
+      case 0: return Representation::Tagged();
+      case 1: return Representation::Tagged();
+      // The index is supposed to be Integer32.
+      case 2: return Representation::Integer32();
+      // The checked index is a control flow dependency to avoid hoisting
+      // and therefore it has no representation requirements.
+      case 3: return Representation::None();
+      default: {
+        UNREACHABLE();
+        return Representation::None();
+      }
+    }
   }
 
   HValue* context() { return OperandAt(0); }
   HValue* string() { return OperandAt(1); }
   HValue* index() { return OperandAt(2); }
+  HValue* checked_index() { return OperandAt(3); }
 
   DECLARE_CONCRETE_INSTRUCTION(StringCharCodeAt)
 
