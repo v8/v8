@@ -455,7 +455,7 @@ function TestObserveConfigurable(obj, prop) {
   delete obj[prop];
 }
 
-function TestObserveNonConfigurable(obj, prop) {
+function TestObserveNonConfigurable(obj, prop, desc) {
   reset();
   obj[prop] = 1;
   Object.observe(obj, observer.callback);
@@ -465,10 +465,10 @@ function TestObserveNonConfigurable(obj, prop) {
   Object.defineProperty(obj, prop, {value: 6});
   Object.defineProperty(obj, prop, {value: 6});  // ignored
   Object.defineProperty(obj, prop, {value: 7});
-  Object.defineProperty(obj, prop, {enumerable: true});  // ignored
+  Object.defineProperty(obj, prop,
+                        {enumerable: desc.enumerable});  // ignored
   Object.defineProperty(obj, prop, {writable: false});
   obj[prop] = 7;  // ignored
-  Object.defineProperty(obj, prop, {get: function() {}});  // ignored
   Object.deliverChangeRecords(observer.callback);
   observer.assertCallbackRecords([
     { object: obj, name: prop, type: "updated", oldValue: 1 },
@@ -544,9 +544,7 @@ function blacklisted(obj, prop) {
     (obj instanceof Int32Array && prop === "length") ||
     (obj instanceof ArrayBuffer && prop == 1) ||
     // TODO(observe): oldValue when reconfiguring array length
-    (obj instanceof Array && prop === "length") ||
-    // TODO(observe): prototype property on functions
-    (obj instanceof Function && prop === "prototype")
+    (obj instanceof Array && prop === "length")
 }
 
 for (var i in objects) for (var j in properties) {
@@ -558,7 +556,7 @@ for (var i in objects) for (var j in properties) {
   if (!desc || desc.configurable)
     TestObserveConfigurable(obj, prop);
   else if (desc.writable)
-    TestObserveNonConfigurable(obj, prop);
+    TestObserveNonConfigurable(obj, prop, desc);
 }
 
 
@@ -817,6 +815,7 @@ observer.assertCallbackRecords([
   { object: array, name: 'length', type: 'updated', oldValue: 1},
 ]);
 
+
 // __proto__
 reset();
 var obj = {};
@@ -836,3 +835,39 @@ observer.assertCallbackRecords([
   { object: obj, name: '__proto__', type: 'prototype', oldValue: p },
   { object: obj, name: '__proto__', type: 'prototype', oldValue: null },
 ]);
+
+// Function.prototype
+reset();
+var fun = function(){};
+Object.observe(fun, observer.callback);
+var myproto = {foo: 'bar'};
+fun.prototype = myproto;
+fun.prototype = 7;
+fun.prototype = 7;  // ignored
+Object.defineProperty(fun, 'prototype', {value: 8});
+Object.deliverChangeRecords(observer.callback);
+observer.assertRecordCount(3);
+// Manually examine the first record in order to test
+// lazy creation of oldValue
+assertSame(fun, observer.records[0].object);
+assertEquals('prototype', observer.records[0].name);
+assertEquals('updated', observer.records[0].type);
+// The only existing reference to the oldValue object is in this
+// record, so to test that lazy creation happened correctly
+// we compare its constructor to our function (one of the invariants
+// ensured when creating an object via AllocateFunctionPrototype).
+assertSame(fun, observer.records[0].oldValue.constructor);
+observer.records.splice(0, 1);
+observer.assertCallbackRecords([
+  { object: fun, name: 'prototype', type: 'updated', oldValue: myproto },
+  { object: fun, name: 'prototype', type: 'updated', oldValue: 7 },
+]);
+
+// Function.prototype should not be observable except on the object itself
+reset();
+var fun = function(){};
+var obj = { __proto__: fun };
+Object.observe(obj, observer.callback);
+obj.prototype = 7;
+Object.deliverChangeRecords(observer.callback);
+observer.assertNotCalled();

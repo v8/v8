@@ -27,6 +27,7 @@
 
 #include "v8.h"
 
+#include "accessors.h"
 #include "api.h"
 #include "arguments.h"
 #include "bootstrapper.h"
@@ -3107,8 +3108,17 @@ MaybeObject* JSObject::SetLocalPropertyIgnoreAttributes(
 
   Handle<Object> old_value(isolate->heap()->the_hole_value(), isolate);
   PropertyAttributes old_attributes = ABSENT;
-  if (FLAG_harmony_observation && map()->is_observed()) {
-    old_value = handle(lookup.GetLazyValue(), isolate);
+  bool is_observed = FLAG_harmony_observation && self->map()->is_observed();
+  if (is_observed) {
+    // Function prototypes are stored specially
+    if (self->IsJSFunction() &&
+        JSFunction::cast(*self)->should_have_prototype() &&
+        name->Equals(isolate->heap()->prototype_symbol())) {
+      MaybeObject* maybe = Accessors::FunctionGetPrototype(*self, NULL);
+      if (!maybe->ToHandle(&old_value, isolate)) return maybe;
+    } else {
+      old_value = handle(lookup.GetLazyValue(), isolate);
+    }
     old_attributes = lookup.GetAttributes();
   }
 
@@ -3172,7 +3182,7 @@ MaybeObject* JSObject::SetLocalPropertyIgnoreAttributes(
   Handle<Object> hresult;
   if (!result->ToHandle(&hresult, isolate)) return result;
 
-  if (FLAG_harmony_observation && map()->is_observed()) {
+  if (is_observed) {
     if (lookup.IsTransition()) {
       EnqueueChangeRecord(self, "new", name, old_value);
     } else {

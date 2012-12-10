@@ -465,24 +465,46 @@ MaybeObject* Accessors::FunctionGetPrototype(Object* object, void*) {
 
 
 MaybeObject* Accessors::FunctionSetPrototype(JSObject* object,
-                                             Object* value,
+                                             Object* value_raw,
                                              void*) {
-  Heap* heap = object->GetHeap();
-  JSFunction* function = FindInstanceOf<JSFunction>(object);
-  if (function == NULL) return heap->undefined_value();
-  if (!function->should_have_prototype()) {
+  Isolate* isolate = object->GetIsolate();
+  Heap* heap = isolate->heap();
+  JSFunction* function_raw = FindInstanceOf<JSFunction>(object);
+  if (function_raw == NULL) return heap->undefined_value();
+  if (!function_raw->should_have_prototype()) {
     // Since we hit this accessor, object will have no prototype property.
     return object->SetLocalPropertyIgnoreAttributes(heap->prototype_symbol(),
-                                                    value,
+                                                    value_raw,
                                                     NONE);
   }
 
-  Object* prototype;
-  { MaybeObject* maybe_prototype = function->SetPrototype(value);
-    if (!maybe_prototype->ToObject(&prototype)) return maybe_prototype;
+  HandleScope scope(isolate);
+  Handle<JSFunction> function(function_raw, isolate);
+  Handle<Object> value(value_raw, isolate);
+
+  Handle<Object> old_value;
+  bool is_observed =
+      FLAG_harmony_observation &&
+      *function == object &&
+      function->map()->is_observed();
+  if (is_observed) {
+    if (function->has_prototype())
+      old_value = handle(function->prototype(), isolate);
+    else
+      old_value = isolate->factory()->NewFunctionPrototype(function);
   }
-  ASSERT(function->prototype() == value);
-  return function;
+
+  Handle<Object> result;
+  MaybeObject* maybe_result = function->SetPrototype(*value);
+  if (!maybe_result->ToHandle(&result, isolate)) return maybe_result;
+  ASSERT(function->prototype() == *value);
+
+  if (is_observed && !old_value->SameValue(*value)) {
+    JSObject::EnqueueChangeRecord(
+        function, "updated", isolate->factory()->prototype_symbol(), old_value);
+  }
+
+  return *function;
 }
 
 
