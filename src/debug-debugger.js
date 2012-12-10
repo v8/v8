@@ -2143,16 +2143,14 @@ DebugCommandProcessor.prototype.evaluateRequest_ = function(request, response) {
     additional_context_object = {};
     for (var i = 0; i < additional_context.length; i++) {
       var mapping = additional_context[i];
-      if (!IS_STRING(mapping.name) || !IS_NUMBER(mapping.handle)) {
+
+      if (!IS_STRING(mapping.name)) {
         return response.failed("Context element #" + i +
-            " must contain name:string and handle:number");
+            " doesn't contain name:string property");
       }
-      var context_value_mirror = LookupMirror(mapping.handle);
-      if (!context_value_mirror) {
-        return response.failed("Context object '" + mapping.name +
-            "' #" + mapping.handle + "# not found");
-      }
-      additional_context_object[mapping.name] = context_value_mirror.value();
+
+      var raw_value = DebugCommandProcessor.resolveValue_(mapping);
+      additional_context_object[mapping.name] = raw_value;
     }
   }
 
