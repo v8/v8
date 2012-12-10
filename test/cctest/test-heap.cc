@@ -26,8 +26,10 @@ static void InitializeVM() {
 // Go through all incremental marking steps in one swoop.
 static void SimulateIncrementalMarking() {
   IncrementalMarking* marking = HEAP->incremental_marking();
-  CHECK(marking->IsStopped());
-  marking->Start();
+  CHECK(marking->IsMarking() || marking->IsStopped());
+  if (marking->IsStopped()) {
+    marking->Start();
+  }
   CHECK(marking->IsMarking());
   while (!marking->IsComplete()) {
     marking->Step(MB, IncrementalMarking::NO_GC_VIA_STACK_GUARD);
@@ -413,9 +415,10 @@ TEST(WeakGlobalHandlesMark) {
     h2 = global_handles->Create(*u);
   }
 
+  // Make sure the objects are promoted.
   HEAP->CollectGarbage(OLD_POINTER_SPACE);
   HEAP->CollectGarbage(NEW_SPACE);
-  // Make sure the object is promoted.
+  CHECK(!HEAP->InNewSpace(*h1) && !HEAP->InNewSpace(*h2));
 
   global_handles->MakeWeak(h2.location(),
                            reinterpret_cast<void*>(1234),
@@ -423,7 +426,8 @@ TEST(WeakGlobalHandlesMark) {
   CHECK(!GlobalHandles::IsNearDeath(h1.location()));
   CHECK(!GlobalHandles::IsNearDeath(h2.location()));
 
-  HEAP->CollectGarbage(OLD_POINTER_SPACE);
+  // Incremental marking potentially marked handles before they turned weak.
+  HEAP->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
 
   CHECK((*h1)->IsString());
 
@@ -1035,7 +1039,6 @@ TEST(TestCodeFlushingIncremental) {
   // Simulate several GCs that use incremental marking.
   const int kAgingThreshold = 6;
   for (int i = 0; i < kAgingThreshold; i++) {
-    HEAP->incremental_marking()->Abort();
     SimulateIncrementalMarking();
     HEAP->CollectAllGarbage(Heap::kNoGCFlags);
   }
@@ -1050,7 +1053,6 @@ TEST(TestCodeFlushingIncremental) {
   // Simulate several GCs that use incremental marking but make sure
   // the loop breaks once the function is enqueued as a candidate.
   for (int i = 0; i < kAgingThreshold; i++) {
-    HEAP->incremental_marking()->Abort();
     SimulateIncrementalMarking();
     if (!function->next_function_link()->IsUndefined()) break;
     HEAP->CollectAllGarbage(Heap::kNoGCFlags);
@@ -1224,6 +1226,10 @@ static int CountOptimizedUserFunctions(v8::Handle<v8::Context> context) {
 
 TEST(TestInternalWeakLists) {
   v8::V8::Initialize();
+
+  // Some flags turn Scavenge collections into Mark-sweep collections
+  // and hence are incompatible with this test case.
+  if (FLAG_gc_global || FLAG_stress_compaction) return;
 
   static const int kNumTestContexts = 10;
 
@@ -1946,6 +1952,7 @@ TEST(OptimizedAllocationAlwaysInNewSpace) {
   i::FLAG_allow_natives_syntax = true;
   InitializeVM();
   if (!i::V8::UseCrankshaft() || i::FLAG_always_opt) return;
+  if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
   v8::HandleScope scope;
 
   SimulateFullSpace(HEAP->new_space());
@@ -2121,7 +2128,7 @@ TEST(ReleaseOverReservedPages) {
   // Triggering one GC will cause a lot of garbage to be discovered but
   // even spread across all allocated pages.
   HEAP->CollectAllGarbage(Heap::kNoGCFlags, "triggered for preparation");
-  CHECK_EQ(number_of_test_pages + 1, old_pointer_space->CountTotalPages());
+  CHECK_GE(number_of_test_pages + 1, old_pointer_space->CountTotalPages());
 
   // Triggering subsequent GCs should cause at least half of the pages
   // to be released to the OS after at most two cycles.

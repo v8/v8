@@ -40,18 +40,7 @@ static MaybeObject* AllocateAfterFailures() {
   Heap* heap = Isolate::Current()->heap();
 
   // New space.
-  NewSpace* new_space = heap->new_space();
-  static const int kNewSpaceFillerSize = ByteArray::SizeFor(0);
-  while (new_space->Available() > kNewSpaceFillerSize) {
-    int available_before = static_cast<int>(new_space->Available());
-    CHECK(!heap->AllocateByteArray(0)->IsFailure());
-    if (available_before == new_space->Available()) {
-      // It seems that we are avoiding new space allocations when
-      // allocation is forced, so no need to fill up new space
-      // in order to make the test harder.
-      break;
-    }
-  }
+  SimulateFullSpace(heap->new_space());
   CHECK(!heap->AllocateByteArray(100)->IsFailure());
   CHECK(!heap->AllocateFixedArray(100, NOT_TENURED)->IsFailure());
 
@@ -90,6 +79,7 @@ static MaybeObject* AllocateAfterFailures() {
   CHECK(!heap->AllocateMap(JS_OBJECT_TYPE, instance_size)->IsFailure());
 
   // Test that we can allocate in old pointer space and code space.
+  SimulateFullSpace(heap->code_space());
   CHECK(!heap->AllocateFixedArray(100, TENURED)->IsFailure());
   CHECK(!heap->CopyCode(Isolate::Current()->builtins()->builtin(
       Builtins::kIllegal))->IsFailure());
