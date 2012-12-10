@@ -1064,7 +1064,11 @@ Failure* Failure::Construct(Type type, intptr_t value) {
   uintptr_t info =
       (static_cast<uintptr_t>(value) << kFailureTypeTagSize) | type;
   ASSERT(((info << kFailureTagSize) >> kFailureTagSize) == info);
-  return reinterpret_cast<Failure*>((info << kFailureTagSize) | kFailureTag);
+  // Fill the unused bits with a pattern that's easy to recognize in crash
+  // dumps.
+  static const int kFailureMagicPattern = 0x0BAD0000;
+  return reinterpret_cast<Failure*>(
+      (info << kFailureTagSize) | kFailureTag | kFailureMagicPattern);
 }
 
 
