@@ -736,8 +736,6 @@ class ExternalReference BASE_EMBEDDED {
 
   static ExternalReference page_flags(Page* page);
 
-  static ExternalReference ForDeoptEntry(Address entry);
-
   Address address() const {return reinterpret_cast<Address>(address_);}
 
 #ifdef ENABLE_DEBUGGER_SUPPORT

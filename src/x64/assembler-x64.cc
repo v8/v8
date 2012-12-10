@@ -201,8 +201,7 @@ void RelocInfo::PatchCode(byte* instructions, int instruction_count) {
 // -----------------------------------------------------------------------------
 // Register constants.
 
-const int
-    Register::kRegisterCodeByAllocationIndex[kMaxNumAllocatableRegisters] = {
+const int Register::kRegisterCodeByAllocationIndex[kNumAllocatableRegisters] = {
   // rax, rbx, rdx, rcx, rdi, r8, r9, r11, r14, r15
   0, 3, 2, 1, 7, 8, 9, 11, 14, 15
 };

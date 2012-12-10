@@ -1015,7 +1015,6 @@ class BailoutId {
   static BailoutId FunctionEntry() { return BailoutId(kFunctionEntryId); }
   static BailoutId Declarations() { return BailoutId(kDeclarationsId); }
   static BailoutId FirstUsable() { return BailoutId(kFirstUsableId); }
-  static BailoutId StubEntry() { return BailoutId(kStubEntryId); }
 
   bool IsNone() const { return id_ == kNoneId; }
   bool operator==(const BailoutId& other) const { return id_ == other.id_; }
@@ -1031,11 +1030,8 @@ class BailoutId {
   // code (function declarations).
   static const int kDeclarationsId = 3;
 
-  // Every FunctionState starts with this id.
+  // Ever FunctionState starts with this id.
   static const int kFirstUsableId = 4;
-
-  // Every compiled stub starts with this id.
-  static const int kStubEntryId = 5;
 
   int id_;
 };

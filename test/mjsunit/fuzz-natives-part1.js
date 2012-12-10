@@ -152,7 +152,6 @@ var knownProblems = {
   "LazyRecompile": true,
   "ParallelRecompile": true,
   "NotifyDeoptimized": true,
-  "NotifyICMiss": true,
   "NotifyOSR": true,
   "CreateObjectLiteralBoilerplate": true,
   "CloneLiteralBoilerplate": true,

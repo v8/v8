@@ -9141,12 +9141,6 @@ void DeoptimizationInputData::DeoptimizationInputDataPrint(FILE* out) {
           break;
         }
 
-        case Translation::COMPILED_STUB_FRAME: {
-          Code::Kind stub_kind = static_cast<Code::Kind>(iterator.Next());
-          PrintF(out, "{kind=%d}", stub_kind);
-          break;
-        }
-
         case Translation::ARGUMENTS_ADAPTOR_FRAME:
         case Translation::CONSTRUCT_STUB_FRAME: {
           int function_id = iterator.Next();
@@ -9261,7 +9255,6 @@ const char* Code::Kind2String(Kind kind) {
   switch (kind) {
     case FUNCTION: return "FUNCTION";
     case OPTIMIZED_FUNCTION: return "OPTIMIZED_FUNCTION";
-    case COMPILED_STUB: return "COMPILED_STUB";
     case STUB: return "STUB";
     case BUILTIN: return "BUILTIN";
     case LOAD_IC: return "LOAD_IC";
@@ -9381,7 +9374,7 @@ void Code::Disassemble(const char* name, FILE* out) {
   }
   PrintF("\n");
 
-  if (kind() == OPTIMIZED_FUNCTION || kind() == COMPILED_STUB) {
+  if (kind() == OPTIMIZED_FUNCTION) {
     SafepointTable table(this);
     PrintF(out, "Safepoints (size = %u)\n", table.size());
     for (unsigned i = 0; i < table.length(); i++) {

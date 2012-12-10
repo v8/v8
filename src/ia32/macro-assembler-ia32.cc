@@ -1801,8 +1801,7 @@ void MacroAssembler::CallRuntimeSaveDoubles(Runtime::FunctionId id) {
   const Runtime::Function* function = Runtime::FunctionForId(id);
   Set(eax, Immediate(function->nargs));
   mov(ebx, Immediate(ExternalReference(function, isolate())));
-  CEntryStub ces(1, CpuFeatures::IsSupported(SSE2) ? kSaveFPRegs
-                                                   : kDontSaveFPRegs);
+  CEntryStub ces(1, kSaveFPRegs);
   CallStub(&ces);
 }
 

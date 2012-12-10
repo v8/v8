@@ -121,21 +121,19 @@ void CodeGenerator::PrintCode(Handle<Code> code, CompilationInfo* info) {
   if (print_code) {
     // Print the source code if available.
     FunctionLiteral* function = info->function();
-    if (code->kind() != Code::COMPILED_STUB) {
-      Handle<Script> script = info->script();
-      if (!script->IsUndefined() && !script->source()->IsUndefined()) {
-        PrintF("--- Raw source ---\n");
-        StringInputBuffer stream(String::cast(script->source()));
-        stream.Seek(function->start_position());
-        // fun->end_position() points to the last character in the stream. We
-        // need to compensate by adding one to calculate the length.
-        int source_len =
-            function->end_position() - function->start_position() + 1;
-        for (int i = 0; i < source_len; i++) {
-          if (stream.has_more()) PrintF("%c", stream.GetNext());
-        }
-        PrintF("\n\n");
+    Handle<Script> script = info->script();
+    if (!script->IsUndefined() && !script->source()->IsUndefined()) {
+      PrintF("--- Raw source ---\n");
+      StringInputBuffer stream(String::cast(script->source()));
+      stream.Seek(function->start_position());
+      // fun->end_position() points to the last character in the stream. We
+      // need to compensate by adding one to calculate the length.
+      int source_len =
+          function->end_position() - function->start_position() + 1;
+      for (int i = 0; i < source_len; i++) {
+        if (stream.has_more()) PrintF("%c", stream.GetNext());
       }
+      PrintF("\n\n");
     }
     if (info->IsOptimizing()) {
       if (FLAG_print_unopt_code) {
@@ -147,12 +145,7 @@ void CodeGenerator::PrintCode(Handle<Code> code, CompilationInfo* info) {
     } else {
       PrintF("--- Code ---\n");
     }
-    if (info->IsStub()) {
-      CodeStub::Major major_key = info->code_stub()->MajorKey();
-      code->Disassemble(CodeStub::MajorName(major_key, false));
-    } else {
-      code->Disassemble(*function->debug_name()->ToCString());
-    }
+    code->Disassemble(*function->debug_name()->ToCString());
   }
 #endif  // ENABLE_DISASSEMBLER
 }

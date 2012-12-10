@@ -73,10 +73,10 @@ UnaryMathFunction CreateExpFunction() {
 
   {
     CpuFeatures::Scope use_vfp(VFP2);
-    DwVfpRegister input = d0;
-    DwVfpRegister result = d1;
-    DwVfpRegister double_scratch1 = d2;
-    DwVfpRegister double_scratch2 = d3;
+    DoubleRegister input = d0;
+    DoubleRegister result = d1;
+    DoubleRegister double_scratch1 = d2;
+    DoubleRegister double_scratch2 = d3;
     Register temp1 = r4;
     Register temp2 = r5;
     Register temp3 = r6;
@@ -571,10 +571,10 @@ static MemOperand ExpConstant(int index, Register base) {
 
 
 void MathExpGenerator::EmitMathExp(MacroAssembler* masm,
-                                   DwVfpRegister input,
-                                   DwVfpRegister result,
-                                   DwVfpRegister double_scratch1,
-                                   DwVfpRegister double_scratch2,
+                                   DoubleRegister input,
+                                   DoubleRegister result,
+                                   DoubleRegister double_scratch1,
+                                   DoubleRegister double_scratch2,
                                    Register temp1,
                                    Register temp2,
                                    Register temp3) {

@@ -47,33 +47,6 @@ namespace v8 {
 namespace internal {
 
 
-int Register::NumAllocatableRegisters() {
-  if (CpuFeatures::IsSupported(VFP2)) {
-    return kMaxNumAllocatableRegisters;
-  } else {
-    return kMaxNumAllocatableRegisters - kGPRsPerNonVFP2Double;
-  }
-}
-
-
-int DwVfpRegister::NumRegisters() {
-  if (CpuFeatures::IsSupported(VFP2)) {
-    return DwVfpRegister::kNumRegisters;
-  } else {
-    return 1;
-  }
-}
-
-
-int DwVfpRegister::NumAllocatableRegisters() {
-  if (CpuFeatures::IsSupported(VFP2)) {
-    return DwVfpRegister::kMaxNumAllocatableRegisters;
-  } else {
-    return 1;
-  }
-}
-
-
 int DwVfpRegister::ToAllocationIndex(DwVfpRegister reg) {
   ASSERT(!reg.is(kDoubleRegZero));
   ASSERT(!reg.is(kScratchDoubleReg));
