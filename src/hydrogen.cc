@@ -3326,8 +3326,8 @@ bool HGraph::Optimize(SmartArrayPointer<char>* bailout_reason) {
   HStackCheckEliminator sce(this);
   sce.Process();
 
-  if (FLAG_array_bounds_checks_elimination) EliminateRedundantBoundsChecks();
-  if (FLAG_array_index_dehoisting) DehoistSimpleArrayIndexComputations();
+  EliminateRedundantBoundsChecks();
+  DehoistSimpleArrayIndexComputations();
   if (FLAG_dead_code_elimination) DeadCodeElimination();
 
   return true;
@@ -3484,7 +3484,7 @@ class BoundsCheckBbData: public ZoneObject {
     }
 
     if (!keep_new_check) {
-      new_check->DeleteAndReplaceWith(new_check->index());
+      new_check->DeleteAndReplaceWith(NULL);
     }
   }
 
@@ -3591,13 +3591,21 @@ class BoundsCheckTable : private ZoneHashMap {
 
 
 // Eliminates checks in bb and recursively in the dominated blocks.
+// Also replace the results of check instructions with the original value, if
+// the result is used. This is safe now, since we don't do code motion after
+// this point. It enables better register allocation since the value produced
+// by check instructions is really a copy of the original value.
 void HGraph::EliminateRedundantBoundsChecks(HBasicBlock* bb,
                                             BoundsCheckTable* table) {
   BoundsCheckBbData* bb_data_list = NULL;
 
   for (HInstruction* i = bb->first(); i != NULL; i = i->next()) {
     if (!i->IsBoundsCheck()) continue;
+
     HBoundsCheck* check = HBoundsCheck::cast(i);
+    check->ReplaceAllUsesWith(check->index());
+
+    if (!FLAG_array_bounds_checks_elimination) continue;
 
     int32_t offset;
     BoundsCheckKey* key =
@@ -3616,7 +3624,7 @@ void HGraph::EliminateRedundantBoundsChecks(HBasicBlock* bb,
                                                    NULL);
       *data_p = bb_data_list;
     } else if (data->OffsetIsCovered(offset)) {
-      check->DeleteAndReplaceWith(check->index());
+      check->DeleteAndReplaceWith(NULL);
     } else if (data->BasicBlock() == bb) {
       data->CoverCheck(check, offset);
     } else {
@@ -3711,6 +3719,8 @@ static void DehoistArrayIndex(ArrayInstructionInterface* array_operation) {
 
 
 void HGraph::DehoistSimpleArrayIndexComputations() {
+  if (!FLAG_array_index_dehoisting) return;
+
   HPhase phase("H_Dehoist index computations", this);
   for (int i = 0; i < blocks()->length(); ++i) {
     for (HInstruction* instr = blocks()->at(i)->first();
