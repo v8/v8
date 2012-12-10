@@ -3726,6 +3726,8 @@ class HMathMinMax: public HArithmeticBinaryOperation {
     return RequiredInputRepresentation(index);
   }
 
+  virtual void InferRepresentation(HInferRepresentation* h_infer);
+
   virtual Representation RepresentationFromInputs() {
     Representation left_rep = left()->representation();
     Representation right_rep = right()->representation();
