@@ -1088,9 +1088,9 @@ function captureStackTrace(obj, cons_opt) {
   if (stackTraceLimit < 0 || stackTraceLimit > 10000) {
     stackTraceLimit = 10000;
   }
-  var raw_stack = %CollectStackTrace(obj,
-                                     cons_opt ? cons_opt : captureStackTrace,
-                                     stackTraceLimit);
+  var stack = %CollectStackTrace(obj,
+                                 cons_opt ? cons_opt : captureStackTrace,
+                                 stackTraceLimit);
 
   // Don't be lazy if the error stack formatting is custom (observable).
   if (IS_FUNCTION($Error.prepareStackTrace)) {
@@ -1098,7 +1098,7 @@ function captureStackTrace(obj, cons_opt) {
     // Use default error formatting for the case that custom formatting throws.
     $Error.prepareStackTrace = null;
     var array = [];
-    %MoveArrayContents(GetStackFrames(raw_stack), array);
+    %MoveArrayContents(GetStackFrames(stack), array);
     obj.stack = custom_stacktrace_fun(obj, array);
     $Error.prepareStackTrace = custom_stacktrace_fun;
     return;
@@ -1108,10 +1108,14 @@ function captureStackTrace(obj, cons_opt) {
   // Note that 'obj' and 'this' maybe different when called on objects that
   // have the error object on its prototype chain.  The getter replaces itself
   // with a data property as soon as the stack trace has been formatted.
+  // The getter must not change the object layout as it may be called after GC.
   var getter = function() {
-    var value = FormatStackTrace(error_string, GetStackFrames(raw_stack));
-    %DefineOrRedefineDataProperty(obj, 'stack', value, NONE);
-    return value;
+    if (IS_STRING(stack)) return stack;
+    // Stack is still a raw array awaiting to be formatted.
+    stack = FormatStackTrace(error_string, GetStackFrames(stack));
+    // Release context value.
+    error_string = void 0;
+    return stack;
   };
   %MarkOneShotGetter(getter);
 
@@ -1263,18 +1267,21 @@ function SetUpStackOverflowBoilerplate() {
   // a data property.
   var error_string = boilerplate.name + ": " + boilerplate.message;
 
+  // The getter must not change the object layout as it may be called after GC.
   function getter() {
     var holder = this;
     while (!IS_ERROR(holder)) {
       holder = %GetPrototype(holder);
       if (holder == null) return MakeSyntaxError('illegal_access', []);
     }
-    var raw_stack = %GetOverflowedRawStackTrace(holder);
-    var result = IS_ARRAY(raw_stack)
-                     ? FormatStackTrace(error_string, GetStackFrames(raw_stack))
-                     : void 0;
-    %DefineOrRedefineDataProperty(holder, 'stack', result, NONE);
-    return result;
+    var stack = %GetOverflowedStackTrace(holder);
+    if (IS_STRING(stack)) return stack;
+    if (IS_ARRAY(stack)) {
+      var result = FormatStackTrace(error_string, GetStackFrames(stack));
+      %SetOverflowedStackTrace(holder, result);
+      return result;
+    }
+    return void 0;
   }
   %MarkOneShotGetter(getter);
 
@@ -1282,6 +1289,8 @@ function SetUpStackOverflowBoilerplate() {
   // the receiver is the same as holder, this accessor pair is replaced.
   function setter(v) {
     %DefineOrRedefineDataProperty(this, 'stack', v, NONE);
+    // Release the stack trace that is stored as hidden property, if exists.
+    %SetOverflowedStackTrace(this, void 0);
   }
 
   %DefineOrRedefineAccessorProperty(

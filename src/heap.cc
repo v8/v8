@@ -7223,7 +7223,7 @@ void ErrorObjectList::DeferredFormatStackTrace(Isolate* isolate) {
   // If formatting the stack trace causes a GC, this method will be
   // recursively called.  In that case, skip the recursive call, since
   // the loop modifies the list while iterating over it.
-  if (nested_) return;
+  if (nested_ || isolate->has_pending_exception()) return;
   nested_ = true;
   HandleScope scope(isolate);
   Handle<String> stack_key = isolate->factory()->stack_symbol();
@@ -7249,14 +7249,20 @@ void ErrorObjectList::DeferredFormatStackTrace(Isolate* isolate) {
     JSFunction* getter_fun = JSFunction::cast(getter_obj);
     String* key = isolate->heap()->hidden_stack_trace_symbol();
     if (key != getter_fun->GetHiddenProperty(key)) continue;
+    budget--;
     bool has_exception = false;
     Execution::Call(Handle<Object>(getter_fun, isolate),
                     Handle<Object>(object, isolate),
                     0,
                     NULL,
                     &has_exception);
-    ASSERT(!has_exception);
-    budget--;
+    if (has_exception) {
+      // Hit an exception (most likely a stack overflow).
+      // Wrap up this pass and retry after another GC.
+      isolate->clear_pending_exception();
+      list_[write_index++] = object;
+      budget = 0;
+    }
   }
   list_.Rewind(write_index);
   list_.Trim();
