@@ -40,7 +40,7 @@ class RandomNumberGenerator {
     i = (i + 1) & (kQSize-1);
     uint64_t t = a * Q[i] + c;
     c = (t >> 32);
-    uint32_t x = t + c;
+    uint32_t x = static_cast<uint32_t>(t + c);
     if (x < c) {
       x++;
       c++;
@@ -635,7 +635,7 @@ static void VerifyCharacterStream(
   // Iterate start search in multiple places in the string.
   int outer_iterations = length > 20 ? 20 : length;
   for (int j = 0; j <= outer_iterations; j++) {
-    int offset = static_cast<double>(length)*j/outer_iterations;
+    int offset = length * j / outer_iterations;
     if (offset < 0) offset = 0;
     // Want to test the offset == length case.
     if (offset > length) offset = length;
