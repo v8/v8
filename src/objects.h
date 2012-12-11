@@ -7514,7 +7514,7 @@ class String: public HeapObject {
   static inline void Visit(String* string,
                            unsigned offset,
                            Visitor& visitor,
-                           ConsOp& consOp,
+                           ConsOp& cons_op,
                            int32_t type,
                            unsigned length);
 
@@ -7985,8 +7985,8 @@ class ConsStringIteratorOp {
     int32_t type_;
   };
   inline ConsStringIteratorOp() {}
-  String* Operate(ConsString* consString, unsigned* outerOffset,
-      int32_t* typeOut, unsigned* lengthOut);
+  String* Operate(ConsString* cons_string, unsigned* offset_out,
+      int32_t* type_out, unsigned* length_out);
   inline bool ContinueOperation(ContinueResponse* response);
   inline void Reset();
   inline bool HasMore();
@@ -7998,20 +7998,17 @@ class ConsStringIteratorOp {
   static const unsigned kDepthMask = kStackSize-1;
   STATIC_ASSERT(IS_POWER_OF_TWO(kStackSize));
   static inline unsigned OffsetForDepth(unsigned depth);
-  static inline uint32_t MaskForDepth(unsigned depth);
 
-  inline void ClearRightDescent();
-  inline void SetRightDescent();
   inline void PushLeft(ConsString* string);
-  inline void PushRight(ConsString* string, int32_t type);
+  inline void PushRight(ConsString* string);
   inline void AdjustMaximumDepth();
   inline void Pop();
-  inline void ResetStack();
-  String* NextLeaf(bool* blewStack, int32_t* typeOut);
+  String* NextLeaf(bool* blew_stack, int32_t* type_out, unsigned* length_out);
 
   unsigned depth_;
   unsigned maximum_depth_;
-  uint32_t trace_;
+  // Stack must always contain only frames for which right traversal
+  // has not yet been performed.
   ConsString* frames_[kStackSize];
   unsigned consumed_;
   ConsString* root_;

@@ -15,16 +15,57 @@
 #include "cctest.h"
 #include "zone-inl.h"
 
-unsigned int seed = 123;
+// Adapted from http://en.wikipedia.org/wiki/Multiply-with-carry
+class RandomNumberGenerator {
+ public:
+  RandomNumberGenerator() {
+    init();
+  }
 
-static uint32_t gen() {
-        uint64_t z;
-        z = seed;
-        z *= 279470273;
-        z %= 4294967291U;
-        seed = static_cast<unsigned int>(z);
-        return static_cast<uint32_t>(seed >> 16);
-}
+  void init(uint32_t seed = 0x5688c73e) {
+    static const uint32_t phi = 0x9e3779b9;
+    c = 362436;
+    i = kQSize-1;
+    Q[0] = seed;
+    Q[1] = seed + phi;
+    Q[2] = seed + phi + phi;
+    for (unsigned j = 3; j < kQSize; j++) {
+      Q[j] = Q[j - 3] ^ Q[j - 2] ^ phi ^ j;
+    }
+  }
+
+  uint32_t next() {
+    uint64_t a = 18782;
+    uint32_t r = 0xfffffffe;
+    i = (i + 1) & (kQSize-1);
+    uint64_t t = a * Q[i] + c;
+    c = (t >> 32);
+    uint32_t x = t + c;
+    if (x < c) {
+      x++;
+      c++;
+    }
+    return (Q[i] = r - x);
+  }
+
+  uint32_t next(int max) {
+    return next() % max;
+  }
+
+  bool next(double threshold) {
+    ASSERT(threshold >= 0.0 && threshold <= 1.0);
+    if (threshold == 1.0) return true;
+    if (threshold == 0.0) return false;
+    uint32_t value = next() % 100000;
+    return threshold > static_cast<double>(value)/100000.0;
+  }
+
+ private:
+  static const uint32_t kQSize = 4096;
+  uint32_t Q[kQSize];
+  uint32_t c;
+  uint32_t i;
+};
 
 
 using namespace v8::internal;
@@ -44,7 +85,7 @@ static void InitializeVM() {
 }
 
 
-static const int NUMBER_OF_BUILDING_BLOCKS = 128;
+static const int NUMBER_OF_BUILDING_BLOCKS = 256;
 static const int DEEP_DEPTH = 8 * 1024;
 static const int SUPER_DEEP_DEPTH = 80 * 1024;
 
@@ -79,21 +120,42 @@ class AsciiResource: public v8::String::ExternalAsciiStringResource,
 };
 
 
-static void InitializeBuildingBlocks(
-    Handle<String> building_blocks[NUMBER_OF_BUILDING_BLOCKS]) {
+static void InitializeBuildingBlocks(Handle<String>* building_blocks,
+                                     int bb_length,
+                                     bool long_blocks,
+                                     RandomNumberGenerator* rng) {
   // A list of pointers that we don't have any interest in cleaning up.
   // If they are reachable from a root then leak detection won't complain.
   Zone* zone = Isolate::Current()->runtime_zone();
-  for (int i = 0; i < NUMBER_OF_BUILDING_BLOCKS; i++) {
-    int len = gen() % 16;
-    if (len > 14) {
+  for (int i = 0; i < bb_length; i++) {
+    int len = rng->next(16);
+    int slice_head_chars = 0;
+    int slice_tail_chars = 0;
+    int slice_depth = 0;
+    for (int j = 0; j < 3; j++) {
+      if (rng->next(0.35)) slice_depth++;
+    }
+    // Must truncate something for a slice string. Loop until
+    // at least one end will be sliced.
+    while (slice_head_chars == 0 && slice_tail_chars == 0) {
+      slice_head_chars = rng->next(15);
+      slice_tail_chars = rng->next(12);
+    }
+    if (long_blocks) {
+      // Generate building blocks which will never be merged
+      len += ConsString::kMinLength + 1;
+    } else if (len > 14) {
       len += 1234;
     }
-    switch (gen() % 4) {
+    // Don't slice 0 length strings.
+    if (len == 0) slice_depth = 0;
+    int slice_length = slice_depth*(slice_head_chars + slice_tail_chars);
+    len += slice_length;
+    switch (rng->next(4)) {
       case 0: {
         uc16 buf[2000];
         for (int j = 0; j < len; j++) {
-          buf[j] = gen() % 65536;
+          buf[j] = rng->next(0x10000);
         }
         building_blocks[i] =
             FACTORY->NewStringFromTwoByte(Vector<const uc16>(buf, len));
@@ -105,7 +167,7 @@ static void InitializeBuildingBlocks(
       case 1: {
         char buf[2000];
         for (int j = 0; j < len; j++) {
-          buf[j] = gen() % 128;
+          buf[j] = rng->next(0x80);
         }
         building_blocks[i] =
             FACTORY->NewStringFromAscii(Vector<const char>(buf, len));
@@ -117,7 +179,7 @@ static void InitializeBuildingBlocks(
       case 2: {
         uc16* buf = zone->NewArray<uc16>(len);
         for (int j = 0; j < len; j++) {
-          buf[j] = gen() % 65536;
+          buf[j] = rng->next(0x10000);
         }
         Resource* resource = new(zone) Resource(Vector<const uc16>(buf, len));
         building_blocks[i] = FACTORY->NewExternalStringFromTwoByte(resource);
@@ -127,19 +189,26 @@ static void InitializeBuildingBlocks(
         break;
       }
       case 3: {
-        char* buf = NewArray<char>(len);
+        char* buf = zone->NewArray<char>(len);
         for (int j = 0; j < len; j++) {
-          buf[j] = gen() % 128;
+          buf[j] = rng->next(128);
         }
-        building_blocks[i] =
-            FACTORY->NewStringFromAscii(Vector<const char>(buf, len));
+        AsciiResource* resource =
+            new(zone) AsciiResource(Vector<const char>(buf, len));
+        building_blocks[i] = FACTORY->NewExternalStringFromAscii(resource);
         for (int j = 0; j < len; j++) {
           CHECK_EQ(buf[j], building_blocks[i]->Get(j));
         }
-        DeleteArray<char>(buf);
         break;
       }
     }
+    for (int j = slice_depth; j > 0; j--) {
+      building_blocks[i] = FACTORY->NewSubString(
+          building_blocks[i],
+          slice_head_chars,
+          building_blocks[i]->length() - slice_tail_chars);
+    }
+    CHECK(len == building_blocks[i]->length() + slice_length);
   }
 }
 
@@ -198,18 +267,27 @@ static Handle<String> ConstructBalanced(
 
 
 static StringInputBuffer buffer;
-
+static ConsStringIteratorOp cons_string_iterator_op_1;
+static ConsStringIteratorOp cons_string_iterator_op_2;
 
 static void Traverse(Handle<String> s1, Handle<String> s2) {
   int i = 0;
   buffer.Reset(*s1);
+  StringCharacterStream character_stream_1(*s1, 0, &cons_string_iterator_op_1);
+  StringCharacterStream character_stream_2(*s2, 0, &cons_string_iterator_op_2);
   StringInputBuffer buffer2(*s2);
   while (buffer.has_more()) {
     CHECK(buffer2.has_more());
+    CHECK(character_stream_1.HasMore());
+    CHECK(character_stream_2.HasMore());
     uint16_t c = buffer.GetNext();
     CHECK_EQ(c, buffer2.GetNext());
+    CHECK_EQ(c, character_stream_1.GetNext());
+    CHECK_EQ(c, character_stream_2.GetNext());
     i++;
   }
+  CHECK(!character_stream_1.HasMore());
+  CHECK(!character_stream_2.HasMore());
   CHECK_EQ(s1->length(), i);
   CHECK_EQ(s2->length(), i);
 }
@@ -219,10 +297,16 @@ static void TraverseFirst(Handle<String> s1, Handle<String> s2, int chars) {
   int i = 0;
   buffer.Reset(*s1);
   StringInputBuffer buffer2(*s2);
+  StringCharacterStream character_stream_1(*s1, 0, &cons_string_iterator_op_1);
+  StringCharacterStream character_stream_2(*s2, 0, &cons_string_iterator_op_2);
   while (buffer.has_more() && i < chars) {
     CHECK(buffer2.has_more());
+    CHECK(character_stream_1.HasMore());
+    CHECK(character_stream_2.HasMore());
     uint16_t c = buffer.GetNext();
     CHECK_EQ(c, buffer2.GetNext());
+    CHECK_EQ(c, character_stream_1.GetNext());
+    CHECK_EQ(c, character_stream_2.GetNext());
     i++;
   }
   s1->Get(s1->length() - 1);
@@ -236,7 +320,10 @@ TEST(Traverse) {
   v8::HandleScope scope;
   Handle<String> building_blocks[NUMBER_OF_BUILDING_BLOCKS];
   ZoneScope zone(Isolate::Current()->runtime_zone(), DELETE_ON_EXIT);
-  InitializeBuildingBlocks(building_blocks);
+  RandomNumberGenerator rng;
+  rng.init();
+  InitializeBuildingBlocks(
+      building_blocks, NUMBER_OF_BUILDING_BLOCKS, false, &rng);
   Handle<String> flat = ConstructBalanced(building_blocks);
   FlattenString(flat);
   Handle<String> left_asymmetric = ConstructLeft(building_blocks, DEEP_DEPTH);
@@ -272,6 +359,324 @@ TEST(Traverse) {
   printf("16\n");
   FlattenString(left_deep_asymmetric);
   printf("18\n");
+}
+
+
+class ConsStringStats {
+ public:
+  ConsStringStats() {
+    Reset();
+  }
+  void Reset();
+  void VerifyEqual(const ConsStringStats& that) const;
+  unsigned leaves_;
+  unsigned empty_leaves_;
+  unsigned chars_;
+  unsigned left_traversals_;
+  unsigned right_traversals_;
+ private:
+  DISALLOW_COPY_AND_ASSIGN(ConsStringStats);
+};
+
+
+void ConsStringStats::Reset() {
+  leaves_ = 0;
+  empty_leaves_ = 0;
+  chars_ = 0;
+  left_traversals_ = 0;
+  right_traversals_ = 0;
+}
+
+
+void ConsStringStats::VerifyEqual(const ConsStringStats& that) const {
+  CHECK(this->leaves_ == that.leaves_);
+  CHECK(this->empty_leaves_ == that.empty_leaves_);
+  CHECK(this->chars_ == that.chars_);
+  CHECK(this->left_traversals_ == that.left_traversals_);
+  CHECK(this->right_traversals_ == that.right_traversals_);
+}
+
+
+class ConsStringGenerationData {
+ public:
+  ConsStringGenerationData();
+  void Reset();
+  // Input variables.
+  double early_termination_threshold_;
+  double leftness_;
+  double rightness_;
+  double empty_leaf_threshold_;
+  unsigned max_leaves_;
+  // Cached data.
+  Handle<String> building_blocks_[NUMBER_OF_BUILDING_BLOCKS];
+  String* empty_string_;
+  RandomNumberGenerator rng_;
+  // Stats.
+  ConsStringStats stats_;
+  unsigned early_terminations_;
+ private:
+  DISALLOW_COPY_AND_ASSIGN(ConsStringGenerationData);
+};
+
+
+ConsStringGenerationData::ConsStringGenerationData() {
+  rng_.init();
+  InitializeBuildingBlocks(
+      building_blocks_, NUMBER_OF_BUILDING_BLOCKS, true, &rng_);
+  empty_string_ = Isolate::Current()->heap()->empty_string();
+  Reset();
+}
+
+
+void ConsStringGenerationData::Reset() {
+  early_termination_threshold_ = 0.01;
+  leftness_ = 0.75;
+  rightness_ = 0.75;
+  empty_leaf_threshold_ = 0.02;
+  max_leaves_ = 1000;
+  stats_.Reset();
+  early_terminations_ = 0;
+}
+
+
+void VerifyConsString(ConsString* cons_string, ConsStringStats* stats) {
+  int left_length = cons_string->first()->length();
+  int right_length = cons_string->second()->length();
+  CHECK(cons_string->length() == left_length + right_length);
+  // Check left side.
+  if (cons_string->first()->IsConsString()) {
+    stats->left_traversals_++;
+    VerifyConsString(ConsString::cast(cons_string->first()), stats);
+  } else {
+    CHECK_NE(left_length, 0);
+    stats->leaves_++;
+    stats->chars_ += left_length;
+  }
+  // Check right side.
+  if (cons_string->second()->IsConsString()) {
+    stats->right_traversals_++;
+    VerifyConsString(ConsString::cast(cons_string->second()), stats);
+  } else {
+    if (right_length == 0) stats->empty_leaves_++;
+    stats->leaves_++;
+    stats->chars_ += right_length;
+  }
+}
+
+
+void VerifyConsStringWithOperator(
+    ConsString* cons_string, ConsStringStats* stats) {
+  // Init op.
+  ConsStringIteratorOp op;
+  op.Reset();
+  // Use response for initial search and on blown stack.
+  ConsStringIteratorOp::ContinueResponse response;
+  response.string_ = cons_string;
+  response.offset_ = 0;
+  response.type_ = cons_string->map()->instance_type();
+  response.length_ = (uint32_t) cons_string->length();
+  while (true) {
+    String* string = op.Operate(ConsString::cast(response.string_),
+                                &response.offset_,
+                                &response.type_,
+                                &response.length_);
+    CHECK(string != NULL);
+    while (true) {
+      // Accumulate stats.
+      stats->leaves_++;
+      stats->chars_ += string->length();
+      // Check for completion.
+      bool keep_going_fast_check = op.HasMore();
+      bool keep_going = op.ContinueOperation(&response);
+      if (!keep_going) return;
+      // Verify no false positives for fast check.
+      CHECK(keep_going_fast_check);
+      CHECK(response.string_ != NULL);
+      // Blew stack. Restart outer loop.
+      if (response.string_->IsConsString()) break;
+      string = response.string_;
+    }
+  };
+}
+
+
+void VerifyConsString(Handle<String> root, ConsStringGenerationData* data) {
+  // Verify basic data.
+  CHECK(root->IsConsString());
+  CHECK((unsigned)root->length() == data->stats_.chars_);
+  // Recursive verify.
+  ConsStringStats stats;
+  VerifyConsString(ConsString::cast(*root), &stats);
+  stats.VerifyEqual(data->stats_);
+  // Iteratively verify.
+  stats.Reset();
+  VerifyConsStringWithOperator(ConsString::cast(*root), &stats);
+  // Don't see these. Must copy over.
+  stats.empty_leaves_ = data->stats_.empty_leaves_;
+  stats.left_traversals_ = data->stats_.left_traversals_;
+  stats.right_traversals_ = data->stats_.right_traversals_;
+  // Adjust total leaves to compensate.
+  stats.leaves_ += stats.empty_leaves_;
+  stats.VerifyEqual(data->stats_);
+}
+
+
+static Handle<String> ConstructRandomString(ConsStringGenerationData* data,
+                                            unsigned max_recursion) {
+  // Compute termination characteristics.
+  bool terminate = false;
+  bool flat = data->rng_.next(data->empty_leaf_threshold_);
+  bool terminate_early = data->rng_.next(data->early_termination_threshold_);
+  if (terminate_early) data->early_terminations_++;
+  // The obvious condition.
+  terminate |= max_recursion == 0;
+  // Flat cons string terminate by definition.
+  terminate |= flat;
+  // Cap for max leaves.
+  terminate |= data->stats_.leaves_ >= data->max_leaves_;
+  // Roll the dice.
+  terminate |= terminate_early;
+  // Compute termination characteristics for each side.
+  bool terminate_left = terminate || !data->rng_.next(data->leftness_);
+  bool terminate_right = terminate || !data->rng_.next(data->rightness_);
+  // Generate left string.
+  Handle<String> left;
+  if (terminate_left) {
+    left = data->building_blocks_[data->rng_.next(NUMBER_OF_BUILDING_BLOCKS)];
+    data->stats_.leaves_++;
+    data->stats_.chars_ += left->length();
+  } else {
+    left = ConstructRandomString(data, max_recursion - 1);
+    data->stats_.left_traversals_++;
+  }
+  // Generate right string.
+  Handle<String> right;
+  if (terminate_right) {
+    right = data->building_blocks_[data->rng_.next(NUMBER_OF_BUILDING_BLOCKS)];
+    data->stats_.leaves_++;
+    data->stats_.chars_ += right->length();
+  } else {
+    right = ConstructRandomString(data, max_recursion - 1);
+    data->stats_.right_traversals_++;
+  }
+  // Build the cons string.
+  Handle<String> root = FACTORY->NewConsString(left, right);
+  CHECK(root->IsConsString() && !root->IsFlat());
+  // Special work needed for flat string.
+  if (flat) {
+    data->stats_.empty_leaves_++;
+    FlattenString(root);
+    CHECK(root->IsConsString() && root->IsFlat());
+  }
+  return root;
+}
+
+
+static const int kCharacterStreamRandomCases = 150;
+static const int kCharacterStreamEdgeCases =
+    kCharacterStreamRandomCases + 5;
+
+
+static Handle<String> BuildConsStrings(int testCase,
+                                       ConsStringGenerationData* data) {
+  // For random constructions, need to reset the generator.
+  data->rng_.init();
+  for (int j = 0; j < testCase * 50; j++) {
+    data->rng_.next();
+  }
+  Handle<String> string;
+  switch (testCase) {
+    case 0:
+      return ConstructBalanced(data->building_blocks_);
+    case 1:
+      return ConstructLeft(data->building_blocks_, DEEP_DEPTH);
+    case 2:
+      return ConstructRight(data->building_blocks_, DEEP_DEPTH);
+    case 3:
+      return ConstructLeft(data->building_blocks_, 10);
+    case 4:
+      return ConstructRight(data->building_blocks_, 10);
+    case 5:
+      return FACTORY->NewConsString(
+          data->building_blocks_[0], data->building_blocks_[1]);
+    default:
+      if (testCase >= kCharacterStreamEdgeCases) {
+        CHECK(false);
+        return string;
+      }
+      // Random test case.
+      data->Reset();
+      string = ConstructRandomString(data, 200);
+      AssertNoAllocation no_alloc;
+      VerifyConsString(string, data);
+#ifdef DEBUG
+      printf(
+          "%s: [%d], %s: [%d], %s: [%d], %s: [%d], %s: [%d], %s: [%d]\n",
+          "leaves", data->stats_.leaves_,
+          "empty", data->stats_.empty_leaves_,
+          "chars", data->stats_.chars_,
+          "lefts", data->stats_.left_traversals_,
+          "rights", data->stats_.right_traversals_,
+          "early_terminations", data->early_terminations_);
+#endif
+      return string;
+    }
+}
+
+
+static void VerifyCharacterStream(
+    String* flat_string, String* cons_string) {
+  // Do not want to test ConString traversal on flat string.
+  CHECK(flat_string->IsFlat());
+  CHECK(!flat_string->IsConsString());
+  CHECK(cons_string->IsConsString());
+  // TODO(dcarney) Test stream reset as well.
+  int length = flat_string->length();
+  // Iterate start search in multiple places in the string.
+  int outer_iterations = length > 20 ? 20 : length;
+  for (int j = 0; j <= outer_iterations; j++) {
+    int offset = static_cast<double>(length)*j/outer_iterations;
+    if (offset < 0) offset = 0;
+    // Want to test the offset == length case.
+    if (offset > length) offset = length;
+    StringCharacterStream flat_stream(
+        flat_string, (unsigned) offset, &cons_string_iterator_op_1);
+    StringCharacterStream cons_stream(
+        cons_string, (unsigned) offset, &cons_string_iterator_op_2);
+    for (int i = offset; i < length; i++) {
+      uint16_t c = flat_string->Get(i);
+      CHECK(flat_stream.HasMore());
+      CHECK(cons_stream.HasMore());
+      CHECK_EQ(c, flat_stream.GetNext());
+      CHECK_EQ(c, cons_stream.GetNext());
+    }
+    CHECK(!flat_stream.HasMore());
+    CHECK(!cons_stream.HasMore());
+  }
+}
+
+
+TEST(StringCharacterStreamEdgeCases) {
+  printf("TestStringCharacterStreamEdgeCases\n");
+  InitializeVM();
+  Isolate* isolate = Isolate::Current();
+  HandleScope outer_scope(isolate);
+  ZoneScope zone(Isolate::Current()->runtime_zone(), DELETE_ON_EXIT);
+  ConsStringGenerationData data;
+  for (int i = 0; i < kCharacterStreamEdgeCases; i++) {
+    printf("%d\n", i);
+    isolate->heap()->CollectAllGarbage(
+        Heap::kNoGCFlags, "must not allocate in loop");
+    AlwaysAllocateScope always_allocate;
+    HandleScope inner_scope(isolate);
+    Handle<String> cons_string = BuildConsStrings(i, &data);
+    Handle<String> flat_string = BuildConsStrings(i, &data);
+    FlattenString(flat_string);
+    AssertNoAllocation no_alloc;
+    CHECK(flat_string->IsConsString() && flat_string->IsFlat());
+    VerifyCharacterStream(ConsString::cast(*flat_string)->first(),
+        *cons_string);
+  }
 }
 
 

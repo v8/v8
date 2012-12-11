@@ -7026,71 +7026,67 @@ void StringInputBuffer::Seek(unsigned pos) {
 }
 
 
-String* ConsStringIteratorOp::Operate(ConsString* consString,
-    unsigned* outerOffset, int32_t* typeOut, unsigned* lengthOut) {
-  ASSERT(*lengthOut == (unsigned)consString->length());
+String* ConsStringIteratorOp::Operate(ConsString* cons_string,
+    unsigned* offset_out, int32_t* type_out, unsigned* length_out) {
+  ASSERT(*length_out == (unsigned)cons_string->length());
+  ASSERT(depth_ == 0);
   // Push the root string.
-  PushLeft(consString);
-  root_ = consString;
-  root_type_ = *typeOut;
-  root_length_ = *lengthOut;
-  unsigned targetOffset = *outerOffset;
+  PushLeft(cons_string);
+  root_ = cons_string;
+  root_type_ = *type_out;
+  root_length_ = *length_out;
+  consumed_ = *offset_out;
+  unsigned targetOffset = *offset_out;
   unsigned offset = 0;
   while (true) {
     // Loop until the string is found which contains the target offset.
-    String* string = consString->first();
+    String* string = cons_string->first();
     unsigned length = string->length();
     int32_t type;
     if (targetOffset < offset + length) {
       // Target offset is in the left branch.
-      // Mark the descent.
-      ClearRightDescent();
       // Keep going if we're still in a ConString.
       type = string->map()->instance_type();
       if ((type & kStringRepresentationMask) == kConsStringTag) {
-        consString = ConsString::cast(string);
-        PushLeft(consString);
+        cons_string = ConsString::cast(string);
+        PushLeft(cons_string);
         continue;
       }
+      // Tell the stack we're done decending.
+      AdjustMaximumDepth();
     } else {
       // Descend right.
       // Update progress through the string.
       offset += length;
       // Keep going if we're still in a ConString.
-      string = consString->second();
+      string = cons_string->second();
       type = string->map()->instance_type();
       if ((type & kStringRepresentationMask) == kConsStringTag) {
-        consString = ConsString::cast(string);
-        PushRight(consString, type);
+        cons_string = ConsString::cast(string);
+        PushRight(cons_string);
+        // TODO(dcarney) Add back root optimization.
         continue;
       }
-      // Mark the descent.
-      SetRightDescent();
       // Need this to be updated for the current string.
       length = string->length();
       // Account for the possibility of an empty right leaf.
-      while (length == 0) {
-        bool blewStack;
-        // Need to adjust maximum depth for NextLeaf to work.
-        AdjustMaximumDepth();
-        string = NextLeaf(&blewStack, &type);
-        if (string == NULL) {
-          // Luckily, this case is impossible.
-          ASSERT(!blewStack);
-          return NULL;
-        }
-        length = string->length();
+      // This happens only if we have asked for an offset outside the string.
+      if (length == 0) {
+        Reset();
+        return NULL;
       }
+      // Tell the stack we're done decending.
+      AdjustMaximumDepth();
+      // Pop stack so next iteration is in correct place.
+      Pop();
     }
-    // Tell the stack we're done decending.
-    AdjustMaximumDepth();
     ASSERT(length != 0);
     // Adjust return values and exit.
     unsigned innerOffset = targetOffset - offset;
     consumed_ += length - innerOffset;
-    *outerOffset = innerOffset;
-    *typeOut = type;
-    *lengthOut = length;
+    *offset_out = innerOffset;
+    *type_out = type;
+    *length_out = length;
     return string;
   }
   UNREACHABLE();
@@ -7098,52 +7094,49 @@ String* ConsStringIteratorOp::Operate(ConsString* consString,
 }
 
 
-String* ConsStringIteratorOp::NextLeaf(bool* blewStack, int32_t* typeOut) {
+String* ConsStringIteratorOp::NextLeaf(
+    bool* blew_stack, int32_t* type_out, unsigned* length_out) {
   while (true) {
     // Tree traversal complete.
     if (depth_ == 0) {
-      *blewStack = false;
+      *blew_stack = false;
       return NULL;
     }
     // We've lost track of higher nodes.
     if (maximum_depth_ - depth_ == kStackSize) {
-      *blewStack = true;
+      *blew_stack = true;
       return NULL;
     }
-    // Check if we're done with this level.
-    bool haveAlreadyReadRight = trace_ & MaskForDepth(depth_ - 1);
-    if (haveAlreadyReadRight) {
-      Pop();
-      continue;
-    }
     // Go right.
-    ConsString* consString = frames_[OffsetForDepth(depth_ - 1)];
-    String* string = consString->second();
+    ConsString* cons_string = frames_[OffsetForDepth(depth_ - 1)];
+    String* string = cons_string->second();
     int32_t type = string->map()->instance_type();
     if ((type & kStringRepresentationMask) != kConsStringTag) {
-      // Don't need to mark the descent here.
       // Pop stack so next iteration is in correct place.
       Pop();
-      *typeOut = type;
+      unsigned length = (unsigned) string->length();
+      // Could be a flattened ConsString.
+      if (length == 0) continue;
+      *length_out = length;
+      *type_out = type;
       return string;
     }
-    // No need to mark the descent.
-    consString = ConsString::cast(string);
-    PushRight(consString, type);
+    cons_string = ConsString::cast(string);
+    // TODO(dcarney) Add back root optimization.
+    PushRight(cons_string);
     // Need to traverse all the way left.
     while (true) {
       // Continue left.
-      // Update marker.
-      ClearRightDescent();
-      string = consString->first();
+      string = cons_string->first();
       type = string->map()->instance_type();
       if ((type & kStringRepresentationMask) != kConsStringTag) {
         AdjustMaximumDepth();
-        *typeOut = type;
+        *type_out = type;
+        *length_out = string->length();
         return string;
       }
-      consString = ConsString::cast(string);
-      PushLeft(consString);
+      cons_string = ConsString::cast(string);
+      PushLeft(cons_string);
     }
   }
   UNREACHABLE();
