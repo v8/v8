@@ -10798,6 +10798,92 @@ static Handle<JSObject> MaterializeLocalScope(
 }
 
 
+// Set the context local variable value.
+static bool SetContextLocalValue(Isolate* isolate,
+                                 Handle<ScopeInfo> scope_info,
+                                 Handle<Context> context,
+                                 Handle<String> variable_name,
+                                 Handle<Object> new_value) {
+  for (int i = 0; i < scope_info->ContextLocalCount(); i++) {
+    Handle<String> next_name(scope_info->ContextLocalName(i));
+    if (variable_name->Equals(*next_name)) {
+      VariableMode mode;
+      InitializationFlag init_flag;
+      int context_index =
+          scope_info->ContextSlotIndex(*next_name, &mode, &init_flag);
+      context->set(context_index, *new_value);
+      return true;
+    }
+  }
+
+  return false;
+}
+
+
+static bool SetLocalVariableValue(Isolate* isolate,
+                                  JavaScriptFrame* frame,
+                                  int inlined_jsframe_index,
+                                  Handle<String> variable_name,
+                                  Handle<Object> new_value) {
+  if (inlined_jsframe_index != 0 || frame->is_optimized()) {
+    // Optimized frames are not supported.
+    return false;
+  }
+
+  Handle<JSFunction> function(JSFunction::cast(frame->function()));
+  Handle<SharedFunctionInfo> shared(function->shared());
+  Handle<ScopeInfo> scope_info(shared->scope_info());
+
+  // Parameters.
+  for (int i = 0; i < scope_info->ParameterCount(); ++i) {
+    if (scope_info->ParameterName(i)->Equals(*variable_name)) {
+      frame->SetParameterValue(i, *new_value);
+      return true;
+    }
+  }
+
+  // Stack locals.
+  for (int i = 0; i < scope_info->StackLocalCount(); ++i) {
+    if (scope_info->StackLocalName(i)->Equals(*variable_name)) {
+      frame->SetExpression(i, *new_value);
+      return true;
+    }
+  }
+
+  if (scope_info->HasContext()) {
+    // Context locals.
+    Handle<Context> frame_context(Context::cast(frame->context()));
+    Handle<Context> function_context(frame_context->declaration_context());
+    if (SetContextLocalValue(
+        isolate, scope_info, function_context, variable_name, new_value)) {
+      return true;
+    }
+
+    // Function context extension. These are variables introduced by eval.
+    if (function_context->closure() == *function) {
+      if (function_context->has_extension() &&
+          !function_context->IsNativeContext()) {
+        Handle<JSObject> ext(JSObject::cast(function_context->extension()));
+
+        if (ext->HasProperty(*variable_name)) {
+          // We don't expect this to do anything except replacing
+          // property value.
+          SetProperty(isolate,
+                      ext,
+                      variable_name,
+                      new_value,
+                      NONE,
+                      kNonStrictMode);
+          return true;
+        }
+      }
+    }
+  }
+
+  return false;
+}
+
+
 // Create a plain JSObject which materializes the closure content for the
 // context.
 static Handle<JSObject> MaterializeClosure(Isolate* isolate,
@@ -10858,19 +10944,9 @@ static bool SetClosureVariableValue(Isolate* isolate,
   Handle<ScopeInfo> scope_info(shared->scope_info());
 
   // Context locals to the context extension.
-  for (int i = 0; i < scope_info->ContextLocalCount(); i++) {
-    Handle<String> next_name(scope_info->ContextLocalName(i));
-    if (variable_name->Equals(*next_name)) {
-      VariableMode mode;
-      InitializationFlag init_flag;
-      int context_index =
-          scope_info->ContextSlotIndex(*next_name, &mode, &init_flag);
-      if (context_index < 0) {
-        return false;
-      }
-      context->set(context_index, *new_value);
-      return true;
-    }
+  if (SetContextLocalValue(
+          isolate, scope_info, context, variable_name, new_value)) {
+    return true;
   }
 
   // Properties from the function context extension. This will
@@ -10912,6 +10988,20 @@ static Handle<JSObject> MaterializeCatchScope(Isolate* isolate,
                   kNonStrictMode),
       Handle<JSObject>());
   return catch_scope;
+}
+
+
+static bool SetCatchVariableValue(Isolate* isolate,
+                                  Handle<Context> context,
+                                  Handle<String> variable_name,
+                                  Handle<Object> new_value) {
+  ASSERT(context->IsCatchContext());
+  Handle<String> name(String::cast(context->extension()));
+  if (!name->Equals(*variable_name)) {
+    return false;
+  }
+  context->set(Context::THROWN_OBJECT_INDEX, *new_value);
+  return true;
 }
 
 
@@ -11180,13 +11270,13 @@ class ScopeIterator {
       case ScopeIterator::ScopeTypeGlobal:
         break;
       case ScopeIterator::ScopeTypeLocal:
-        // TODO(2399): implement.
-        break;
+        return SetLocalVariableValue(isolate_, frame_, inlined_jsframe_index_,
+            variable_name, new_value);
       case ScopeIterator::ScopeTypeWith:
         break;
       case ScopeIterator::ScopeTypeCatch:
-        // TODO(2399): implement.
-        break;
+        return SetCatchVariableValue(isolate_, CurrentContext(),
+            variable_name, new_value);
       case ScopeIterator::ScopeTypeClosure:
         return SetClosureVariableValue(isolate_, CurrentContext(),
             variable_name, new_value);
