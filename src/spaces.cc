@@ -1937,7 +1937,7 @@ void FreeListCategory::Reset() {
 
 
 intptr_t FreeListCategory::CountFreeListItemsInList(Page* p) {
-  intptr_t sum = 0;
+  int sum = 0;
   FreeListNode* n = top_;
   while (n != NULL) {
     if (Page::FromAddress(n->address()) == p) {
@@ -1951,7 +1951,7 @@ intptr_t FreeListCategory::CountFreeListItemsInList(Page* p) {
 
 
 intptr_t FreeListCategory::EvictFreeListItemsInList(Page* p) {
-  intptr_t sum = 0;
+  int sum = 0;
   FreeListNode** n = &top_;
   while (*n != NULL) {
     if (Page::FromAddress((*n)->address()) == p) {
