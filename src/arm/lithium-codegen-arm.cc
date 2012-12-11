@@ -4945,33 +4945,33 @@ void LCodeGen::DoCheckFunction(LCheckFunction* instr) {
 }
 
 
-void LCodeGen::DoCheckMapCommon(Register reg,
-                                Register scratch,
+void LCodeGen::DoCheckMapCommon(Register map_reg,
                                 Handle<Map> map,
                                 CompareMapMode mode,
                                 LEnvironment* env) {
   Label success;
-  __ CompareMap(reg, scratch, map, &success, mode);
+  __ CompareMap(map_reg, map, &success, mode);
   DeoptimizeIf(ne, env);
   __ bind(&success);
 }
 
 
 void LCodeGen::DoCheckMaps(LCheckMaps* instr) {
-  Register scratch = scratch0();
+  Register map_reg = scratch0();
   LOperand* input = instr->value();
   ASSERT(input->IsRegister());
   Register reg = ToRegister(input);
 
   Label success;
   SmallMapList* map_set = instr->hydrogen()->map_set();
+  __ ldr(map_reg, FieldMemOperand(reg, HeapObject::kMapOffset));
   for (int i = 0; i < map_set->length() - 1; i++) {
     Handle<Map> map = map_set->at(i);
-    __ CompareMap(reg, scratch, map, &success, REQUIRE_EXACT_MAP);
+    __ CompareMap(map_reg, map, &success, REQUIRE_EXACT_MAP);
     __ b(eq, &success);
   }
   Handle<Map> map = map_set->last();
-  DoCheckMapCommon(reg, scratch, map, REQUIRE_EXACT_MAP, instr->environment());
+  DoCheckMapCommon(map_reg, map, REQUIRE_EXACT_MAP, instr->environment());
   __ bind(&success);
 }
 
@@ -5030,28 +5030,29 @@ void LCodeGen::DoClampTToUint8(LClampTToUint8* instr) {
 
 void LCodeGen::DoCheckPrototypeMaps(LCheckPrototypeMaps* instr) {
   ASSERT(instr->temp()->Equals(instr->result()));
-  Register temp1 = ToRegister(instr->temp());
-  Register temp2 = ToRegister(instr->temp2());
+  Register prototype_reg = ToRegister(instr->temp());
+  Register map_reg = ToRegister(instr->temp2());
 
   Handle<JSObject> holder = instr->holder();
   Handle<JSObject> current_prototype = instr->prototype();
 
   // Load prototype object.
-  __ LoadHeapObject(temp1, current_prototype);
+  __ LoadHeapObject(prototype_reg, current_prototype);
 
   // Check prototype maps up to the holder.
   while (!current_prototype.is_identical_to(holder)) {
-    DoCheckMapCommon(temp1, temp2,
+    __ ldr(map_reg, FieldMemOperand(prototype_reg, HeapObject::kMapOffset));
+    DoCheckMapCommon(map_reg,
                      Handle<Map>(current_prototype->map()),
                      ALLOW_ELEMENT_TRANSITION_MAPS, instr->environment());
     current_prototype =
         Handle<JSObject>(JSObject::cast(current_prototype->GetPrototype()));
     // Load next prototype object.
-    __ LoadHeapObject(temp1, current_prototype);
+    __ LoadHeapObject(prototype_reg, current_prototype);
   }
 
   // Check the holder map.
-  DoCheckMapCommon(temp1, temp2,
+  DoCheckMapCommon(map_reg,
                    Handle<Map>(current_prototype->map()),
                    ALLOW_ELEMENT_TRANSITION_MAPS, instr->environment());
 }
