@@ -9217,8 +9217,12 @@ void DeoptimizationInputData::DeoptimizationInputDataPrint(FILE* out) {
           break;
         }
 
-        case Translation::ARGUMENTS_OBJECT:
+        case Translation::ARGUMENTS_OBJECT: {
+          int args_index = iterator.Next();
+          int args_length = iterator.Next();
+          PrintF(out, "{index=%d, length=%d}", args_index, args_length);
           break;
+        }
       }
       PrintF(out, "\n");
     }
