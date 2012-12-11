@@ -1842,7 +1842,7 @@ v8::Local<Value> v8::TryCatch::StackTrace() const {
     if (!raw_obj->IsJSObject()) return v8::Local<Value>();
     i::HandleScope scope(isolate_);
     i::Handle<i::JSObject> obj(i::JSObject::cast(raw_obj), isolate_);
-    i::Handle<i::String> name = isolate_->factory()->LookupAsciiSymbol("stack");
+    i::Handle<i::String> name = isolate_->factory()->stack_symbol();
     if (!obj->HasProperty(*name)) return v8::Local<Value>();
     i::Handle<i::Object> value = i::GetProperty(obj, name);
     if (value.is_null()) return v8::Local<Value>();

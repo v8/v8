@@ -13098,6 +13098,17 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CollectStackTrace) {
 }
 
 
+// Mark a function to recognize when called after GC to format the stack trace.
+RUNTIME_FUNCTION(MaybeObject*, Runtime_MarkOneShotGetter) {
+  ASSERT_EQ(args.length(), 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, fun, 0);
+  HandleScope scope(isolate);
+  Handle<String> key = isolate->factory()->hidden_stack_trace_symbol();
+  JSObject::SetHiddenProperty(fun, key, key);
+  return *fun;
+}
+
+
 // Retrieve the raw stack trace collected on stack overflow and delete
 // it since it is used only once to avoid keeping it alive.
 RUNTIME_FUNCTION(MaybeObject*, Runtime_GetOverflowedRawStackTrace) {

@@ -2429,11 +2429,7 @@ void ReleaseStackTraceDataTest(const char* source) {
     CHECK(!resource->IsDisposed());
   }
   HEAP->CollectAllAvailableGarbage();
-  // External source is being retained by the stack trace.
-  CHECK(!resource->IsDisposed());
 
-  CompileRun("error.stack;");
-  HEAP->CollectAllAvailableGarbage();
   // External source has been released.
   CHECK(resource->IsDisposed());
   delete resource;
