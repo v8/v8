@@ -767,7 +767,7 @@ class SignalSender : public Thread {
       if (state == SamplerRegistry::HAS_CPU_PROFILING_SAMPLERS) {
         SamplerRegistry::IterateActiveSamplers(&DoCpuProfile, this);
       } else {
-        if (rate_limiter_.SuspendIfNecessary()) continue;
+        if (RuntimeProfiler::WaitForSomeIsolateToEnterJS()) continue;
       }
       Sleep();  // TODO(svenpanne) Figure out if OS:Sleep(interval_) is enough.
     }
@@ -802,7 +802,6 @@ class SignalSender : public Thread {
   }
 
   const int interval_;
-  RuntimeProfilerRateLimiter rate_limiter_;
 
   // Protects the process wide state below.
   static Mutex* mutex_;

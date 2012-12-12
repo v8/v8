@@ -1015,7 +1015,6 @@ class Isolate {
         RuntimeProfiler::IsolateEnteredJS(this);
       } else if (current_state == JS && state != JS) {
         // JS -> non-JS transition.
-        ASSERT(RuntimeProfiler::IsSomeIsolateInJS());
         RuntimeProfiler::IsolateExitedJS(this);
       } else {
         // Other types of state transitions are not interesting to the
