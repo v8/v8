@@ -2571,3 +2571,48 @@ TEST(Regress159140) {
   // Unoptimized code is missing and the deoptimizer will go ballistic.
   CompileRun("g('bozo');");
 }
+
+
+TEST(Regress165495) {
+  i::FLAG_allow_natives_syntax = true;
+  i::FLAG_flush_code_incrementally = true;
+  InitializeVM();
+  v8::HandleScope scope;
+
+  // Perform one initial GC to enable code flushing.
+  HEAP->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
+
+  // Prepare an optimized closure that the optimized code map will get
+  // populated. Then age the unoptimized code to trigger code flushing
+  // but make sure the optimized code is unreachable.
+  {
+    HandleScope inner_scope;
+    CompileRun("function mkClosure() {"
+               "  return function(x) { return x + 1; };"
+               "}"
+               "var f = mkClosure();"
+               "f(1); f(2);"
+               "%OptimizeFunctionOnNextCall(f); f(3);");
+
+    Handle<JSFunction> f =
+        v8::Utils::OpenHandle(
+            *v8::Handle<v8::Function>::Cast(
+                v8::Context::GetCurrent()->Global()->Get(v8_str("f"))));
+    CHECK(f->is_compiled());
+    const int kAgingThreshold = 6;
+    for (int i = 0; i < kAgingThreshold; i++) {
+      f->shared()->code()->MakeOlder(static_cast<MarkingParity>(i % 2));
+    }
+
+    CompileRun("f = null;");
+  }
+
+  // Simulate incremental marking so that unoptimized code is flushed
+  // even though it still is cached in the optimized code map.
+  SimulateIncrementalMarking();
+  HEAP->CollectAllGarbage(Heap::kNoGCFlags);
+
+  // Make a new closure that will get code installed from the code map.
+  // Unoptimized code is missing and the deoptimizer will go ballistic.
+  CompileRun("var g = mkClosure(); g('bozo');");
+}
