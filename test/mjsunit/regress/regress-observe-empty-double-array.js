@@ -32,6 +32,7 @@
 arr = [1.1];
 Object.observe(arr, function(){});
 arr.length = 0;
-assertTrue(%HasFastDoubleElements(arr));
+// TODO(observe): we currently disallow fast elements for observed object.
+// assertTrue(%HasFastDoubleElements(arr));
 // Should not crash
 arr.push(1.1);

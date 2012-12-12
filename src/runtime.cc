@@ -13493,6 +13493,13 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetIsObserved) {
     if (!maybe->To(&map)) return maybe;
     map->set_is_observed(is_observed);
     obj->set_map(map);
+    if (is_observed && obj->IsJSObject() &&
+        !JSObject::cast(obj)->HasExternalArrayElements()) {
+      // Go to dictionary mode, so that we don't skip map checks.
+      maybe = JSObject::cast(obj)->NormalizeElements();
+      if (maybe->IsFailure()) return maybe;
+      ASSERT(!JSObject::cast(obj)->HasFastElements());
+    }
   }
   return isolate->heap()->undefined_value();
 }

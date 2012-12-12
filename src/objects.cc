@@ -9424,6 +9424,7 @@ MaybeObject* JSObject::SetFastElementsCapacityAndLength(
   Heap* heap = GetHeap();
   // We should never end in here with a pixel or external array.
   ASSERT(!HasExternalArrayElements());
+  ASSERT(!map()->is_observed());
 
   // Allocate a new fast elements backing store.
   FixedArray* new_elements;
@@ -9488,6 +9489,7 @@ MaybeObject* JSObject::SetFastDoubleElementsCapacityAndLength(
   Heap* heap = GetHeap();
   // We should never end in here with a pixel or external array.
   ASSERT(!HasExternalArrayElements());
+  ASSERT(!map()->is_observed());
 
   FixedArrayBase* elems;
   { MaybeObject* maybe_obj =
@@ -10631,6 +10633,7 @@ Handle<Object> JSObject::TransitionElementsKind(Handle<JSObject> object,
 
 
 MaybeObject* JSObject::TransitionElementsKind(ElementsKind to_kind) {
+  ASSERT(!map()->is_observed());
   ElementsKind from_kind = map()->elements_kind();
 
   if (IsFastHoleyElementsKind(from_kind)) {
@@ -10887,6 +10890,9 @@ bool JSObject::ShouldConvertToFastElements() {
   // An object requiring access checks is never allowed to have fast
   // elements.  If it had fast elements we would skip security checks.
   if (IsAccessCheckNeeded()) return false;
+  // Observed objects may not go to fast mode because they rely on map checks,
+  // and for fast element accesses we sometimes check element kinds only.
+  if (FLAG_harmony_observation && map()->is_observed()) return false;
 
   FixedArray* elements = FixedArray::cast(this->elements());
   SeededNumberDictionary* dictionary = NULL;

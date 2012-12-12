@@ -1426,6 +1426,13 @@ MaybeObject* JSObject::ResetElements() {
   if (!maybe_obj->ToObject(&obj)) return maybe_obj;
   set_map(Map::cast(obj));
   initialize_elements();
+  if (FLAG_harmony_observation && map()->is_observed()) {
+    // Maintain invariant that observed elements are always in dictionary mode.
+    // For this to work on arrays, we have to make sure to reset length first.
+    if (IsJSArray()) JSArray::cast(this)->set_length(Smi::FromInt(0));
+    maybe_obj = NormalizeElements();
+    if (maybe_obj->IsFailure()) return maybe_obj;
+  }
   return this;
 }
 
