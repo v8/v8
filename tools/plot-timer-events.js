@@ -94,8 +94,8 @@ var CodeKinds = {
 }
 
 
-var xrange_start = Infinity;
-var xrange_end = 0;
+var xrange_start;
+var xrange_end;
 var obj_index = 0;
 var execution_pauses = [];
 var code_map = new CodeMap();
@@ -268,6 +268,38 @@ function Undistort() {
 }
 
 
+function FindPlotRange() {
+  var start_found = (xrange_start_override || xrange_start_override == 0);
+  var end_found = (xrange_end_override || xrange_end_override == 0);
+  xrange_start = start_found ? xrange_start_override : Infinity;
+  xrange_end = end_found ? xrange_end_override : -Infinity;
+
+  if (start_found && end_found) return;
+
+  var execution_ranges = kExecutionEvent.ranges;
+  for (var i = 0; i < execution_ranges.length; i++) {
+    if (execution_ranges[i].start < xrange_start && !start_found) {
+      xrange_start = execution_ranges[i].start;
+    }
+    if (execution_ranges[i].end > xrange_end && !end_found) {
+      xrange_end = execution_ranges[i].end;
+    }
+  }
+
+  for (codekind in CodeKinds) {
+    var ticks = CodeKinds[codekind].in_execution;
+    for (var i = 0; i < ticks.length; i++) {
+      if (ticks[i].tick < xrange_start && !start_found) {
+        xrange_start = ticks[i].tick;
+      }
+      if (ticks[i].tick > xrange_end && !end_found) {
+        xrange_end = ticks[i].tick;
+      }
+    }
+  }
+}
+
+
 function CollectData() {
   // Collect data from log.
   var logreader = new LogReader(
@@ -296,17 +328,6 @@ function CollectData() {
   }
 
   Undistort();
-
-  // Figure out plot range.
-  var execution_ranges = kExecutionEvent.ranges;
-  for (var i = 0; i < execution_ranges.length; i++) {
-    if (execution_ranges[i].start < xrange_start) {
-      xrange_start = execution_ranges[i].start;
-    }
-    if (execution_ranges[i].end > xrange_end) {
-      xrange_end = execution_ranges[i].end;
-    }
-  }
 
   // Collect execution pauses.
   for (name in TimerEvents) {
@@ -466,10 +487,8 @@ function ExcludeRanges(include, exclude) {
 
 
 function GnuplotOutput() {
-  xrange_start = (xrange_start_override || xrange_start_override == 0)
-                     ? xrange_start_override : xrange_start;
-  xrange_end = (xrange_end_override || xrange_end_override == 0)
-                   ? xrange_end_override : xrange_end;
+  FindPlotRange();
+
   print("set terminal pngcairo size " + kResX + "," + kResY +
         " enhanced font 'Helvetica,10'");
   print("set yrange [0:" + (num_timer_event + 1) + "]");
