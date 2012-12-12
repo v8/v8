@@ -858,23 +858,6 @@ BUILTIN(ArraySlice) {
   }
 
   JSObject* object = JSObject::cast(receiver);
-  ElementsKind kind = object->GetElementsKind();
-
-  if (IsHoleyElementsKind(kind)) {
-    bool packed = true;
-    ElementsAccessor* accessor = ElementsAccessor::ForKind(kind);
-    for (int i = 0; i < len; i++) {
-      if (!accessor->HasElement(object, object, i, elms)) {
-        packed = false;
-        break;
-      }
-    }
-    if (packed) {
-      kind = GetPackedElementsKind(kind);
-    } else if (!receiver->IsJSArray()) {
-      return CallJsBuiltin(isolate, "ArraySlice", args);
-    }
-  }
 
   ASSERT(len >= 0);
   int n_arguments = args.length() - 1;
@@ -923,6 +906,23 @@ BUILTIN(ArraySlice) {
 
   // Calculate the length of result array.
   int result_len = Max(final - k, 0);
+
+  ElementsKind kind = object->GetElementsKind();
+  if (IsHoleyElementsKind(kind)) {
+    bool packed = true;
+    ElementsAccessor* accessor = ElementsAccessor::ForKind(kind);
+    for (int i = k; i < final; i++) {
+      if (!accessor->HasElement(object, object, i, elms)) {
+        packed = false;
+        break;
+      }
+    }
+    if (packed) {
+      kind = GetPackedElementsKind(kind);
+    } else if (!receiver->IsJSArray()) {
+      return CallJsBuiltin(isolate, "ArraySlice", args);
+    }
+  }
 
   JSArray* result_array;
   MaybeObject* maybe_array = heap->AllocateJSArrayAndStorage(kind,
