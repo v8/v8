@@ -2708,10 +2708,6 @@ void V8HeapExplorer::TagGlobalObjects() {
   Isolate* isolate = Isolate::Current();
   GlobalObjectsEnumerator enumerator;
   isolate->global_handles()->IterateAllRoots(&enumerator);
-  Handle<String> document_string =
-      isolate->factory()->NewStringFromAscii(CStrVector("document"));
-  Handle<String> url_string =
-      isolate->factory()->NewStringFromAscii(CStrVector("URL"));
   const char** urls = NewArray<const char*>(enumerator.count());
   for (int i = 0, l = enumerator.count(); i < l; ++i) {
     if (global_object_name_resolver_) {
@@ -2720,25 +2716,7 @@ void V8HeapExplorer::TagGlobalObjects() {
       urls[i] = global_object_name_resolver_->GetName(
           Utils::ToLocal(Handle<JSObject>::cast(global_obj)));
     } else {
-      // TODO(yurys): This branch is going to be removed once Chromium migrates
-      // to the new name resolver.
       urls[i] = NULL;
-      HandleScope scope;
-      Handle<JSGlobalObject> global_obj = enumerator.at(i);
-      Object* obj_document;
-      if (global_obj->GetProperty(*document_string)->ToObject(&obj_document) &&
-          obj_document->IsJSObject()) {
-        // FixMe: Workaround: SharedWorker's current Isolate has NULL context.
-        // As result GetProperty(*url_string) will crash.
-        if (!Isolate::Current()->context() && obj_document->IsJSGlobalProxy())
-          continue;
-        JSObject* document = JSObject::cast(obj_document);
-        Object* obj_url;
-        if (document->GetProperty(*url_string)->ToObject(&obj_url) &&
-            obj_url->IsString()) {
-          urls[i] = collection_->names()->GetName(String::cast(obj_url));
-        }
-      }
     }
   }
 

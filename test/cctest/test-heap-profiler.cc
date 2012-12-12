@@ -1254,56 +1254,6 @@ TEST(GlobalObjectName) {
 }
 
 
-TEST(DocumentURL) {
-  v8::HandleScope scope;
-  LocalContext env;
-
-  CompileRun("document = { URL:\"abcdefgh\" };");
-
-  const v8::HeapSnapshot* snapshot =
-      v8::HeapProfiler::TakeSnapshot(v8_str("document"));
-  const v8::HeapGraphNode* global = GetGlobalObject(snapshot);
-  CHECK_NE(NULL, global);
-  CHECK_EQ("Object / abcdefgh",
-           const_cast<i::HeapEntry*>(
-               reinterpret_cast<const i::HeapEntry*>(global))->name());
-}
-
-
-TEST(DocumentWithException) {
-  v8::HandleScope scope;
-  LocalContext env;
-
-  CompileRun(
-      "this.__defineGetter__(\"document\", function() { throw new Error(); })");
-  const v8::HeapSnapshot* snapshot =
-      v8::HeapProfiler::TakeSnapshot(v8_str("document"));
-  const v8::HeapGraphNode* global = GetGlobalObject(snapshot);
-  CHECK_NE(NULL, global);
-  CHECK_EQ("Object",
-           const_cast<i::HeapEntry*>(
-               reinterpret_cast<const i::HeapEntry*>(global))->name());
-}
-
-
-TEST(DocumentURLWithException) {
-  v8::HandleScope scope;
-  LocalContext env;
-
-  CompileRun(
-      "function URLWithException() {}\n"
-      "URLWithException.prototype = { get URL() { throw new Error(); } };\n"
-      "document = { URL: new URLWithException() };");
-  const v8::HeapSnapshot* snapshot =
-      v8::HeapProfiler::TakeSnapshot(v8_str("document"));
-  const v8::HeapGraphNode* global = GetGlobalObject(snapshot);
-  CHECK_NE(NULL, global);
-  CHECK_EQ("Object",
-           const_cast<i::HeapEntry*>(
-               reinterpret_cast<const i::HeapEntry*>(global))->name());
-}
-
-
 TEST(NoHandleLeaks) {
   v8::HandleScope scope;
   LocalContext env;
