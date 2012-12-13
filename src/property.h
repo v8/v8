@@ -310,6 +310,26 @@ class LookupResult BASE_EMBEDDED {
     return IsFound() && !IsTransition();
   }
 
+  bool IsDataProperty() {
+    switch (type()) {
+      case FIELD:
+      case NORMAL:
+      case CONSTANT_FUNCTION:
+        return true;
+      case CALLBACKS: {
+        Object* callback = GetCallbackObject();
+        return callback->IsAccessorInfo() || callback->IsForeign();
+      }
+      case HANDLER:
+      case INTERCEPTOR:
+      case TRANSITION:
+      case NONEXISTENT:
+        return false;
+    }
+    UNREACHABLE();
+    return false;
+  }
+
   bool IsCacheable() { return cacheable_; }
   void DisallowCaching() { cacheable_ = false; }
 
@@ -327,9 +347,15 @@ class LookupResult BASE_EMBEDDED {
       }
       case CONSTANT_FUNCTION:
         return GetConstantFunction();
-      default:
+      case CALLBACKS:
+      case HANDLER:
+      case INTERCEPTOR:
+      case TRANSITION:
+      case NONEXISTENT:
         return Isolate::Current()->heap()->the_hole_value();
     }
+    UNREACHABLE();
+    return NULL;
   }
 
   Map* GetTransitionTarget() {

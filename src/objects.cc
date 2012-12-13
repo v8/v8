@@ -2943,8 +2943,9 @@ MaybeObject* JSObject::SetPropertyForResult(LookupResult* lookup,
   }
 
   Handle<Object> old_value(heap->the_hole_value(), isolate);
-  if (FLAG_harmony_observation && map()->is_observed()) {
-    old_value = handle(lookup->GetLazyValue(), isolate);
+  if (FLAG_harmony_observation &&
+      map()->is_observed() && lookup->IsDataProperty()) {
+    old_value = Object::GetProperty(self, name);
   }
 
   // This is a real property that is not read-only, or it is a
@@ -3030,8 +3031,8 @@ MaybeObject* JSObject::SetPropertyForResult(LookupResult* lookup,
     } else {
       LookupResult new_lookup(isolate);
       self->LocalLookup(*name, &new_lookup, true);
-      ASSERT(!new_lookup.GetLazyValue()->IsTheHole());
-      if (!new_lookup.GetLazyValue()->SameValue(*old_value)) {
+      if (new_lookup.IsDataProperty() &&
+          !Object::GetProperty(self, name)->SameValue(*old_value)) {
         EnqueueChangeRecord(self, "updated", name, old_value);
       }
     }
@@ -3110,15 +3111,7 @@ MaybeObject* JSObject::SetLocalPropertyIgnoreAttributes(
   PropertyAttributes old_attributes = ABSENT;
   bool is_observed = FLAG_harmony_observation && self->map()->is_observed();
   if (is_observed) {
-    // Function prototypes are stored specially
-    if (self->IsJSFunction() &&
-        JSFunction::cast(*self)->should_have_prototype() &&
-        name->Equals(isolate->heap()->prototype_symbol())) {
-      MaybeObject* maybe = Accessors::FunctionGetPrototype(*self, NULL);
-      if (!maybe->ToHandle(&old_value, isolate)) return maybe;
-    } else {
-      old_value = handle(lookup.GetLazyValue(), isolate);
-    }
+    if (lookup.IsDataProperty()) old_value = Object::GetProperty(self, name);
     old_attributes = lookup.GetAttributes();
   }
 
@@ -3188,11 +3181,11 @@ MaybeObject* JSObject::SetLocalPropertyIgnoreAttributes(
     } else {
       LookupResult new_lookup(isolate);
       self->LocalLookup(*name, &new_lookup, true);
-      ASSERT(!new_lookup.GetLazyValue()->IsTheHole());
       if (old_value->IsTheHole() ||
           new_lookup.GetAttributes() != old_attributes) {
         EnqueueChangeRecord(self, "reconfigured", name, old_value);
-      } else if (!new_lookup.GetLazyValue()->SameValue(*old_value)) {
+      } else if (new_lookup.IsDataProperty() &&
+          !Object::GetProperty(self, name)->SameValue(*old_value)) {
         EnqueueChangeRecord(self, "updated", name, old_value);
       }
     }
@@ -4255,8 +4248,8 @@ MaybeObject* JSObject::DeleteProperty(String* name, DeleteMode mode) {
 
   Handle<Object> old_value(isolate->heap()->the_hole_value());
   bool is_observed = FLAG_harmony_observation && self->map()->is_observed();
-  if (is_observed) {
-    old_value = handle(lookup.GetLazyValue(), isolate);
+  if (is_observed && lookup.IsDataProperty()) {
+    old_value = Object::GetProperty(self, hname);
   }
   MaybeObject* result;
 
@@ -4947,7 +4940,9 @@ MaybeObject* JSObject::DefineAccessor(String* name_raw,
       LookupResult lookup(isolate);
       LocalLookup(*name, &lookup, true);
       preexists = lookup.IsProperty();
-      if (preexists) old_value = handle(lookup.GetLazyValue(), isolate);
+      if (preexists && lookup.IsDataProperty()) {
+        old_value = Object::GetProperty(self, name);
+      }
     }
   }
 

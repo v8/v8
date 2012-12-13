@@ -84,8 +84,8 @@ function ObjectObserve(object, callback) {
   var objectInfo = objectInfoMap.get(object);
   if (IS_UNDEFINED(objectInfo)) {
     objectInfo = CreateObjectInfo(object);
-    %SetIsObserved(object, true);
   }
+  %SetIsObserved(object, true);
 
   var changeObservers = objectInfo.changeObservers;
   if (changeObservers.indexOf(callback) < 0)
@@ -106,8 +106,11 @@ function ObjectUnobserve(object, callback) {
 
   var changeObservers = objectInfo.changeObservers;
   var index = changeObservers.indexOf(callback);
-  if (index >= 0)
+  if (index >= 0) {
     changeObservers.splice(index, 1);
+    if (changeObservers.length === 0)
+      %SetIsObserved(object, false);
+  }
 
   return object;
 }

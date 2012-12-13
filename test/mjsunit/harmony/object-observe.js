@@ -536,16 +536,13 @@ var objects = [
   createProxy(Proxy.create, null),
   createProxy(Proxy.createFunction, function(){}),
 ];
-var properties = ["a", "1", 1, "length", "prototype"];
+var properties = ["a", "1", 1, "length", "prototype", "name", "caller"];
 
 // Cases that yield non-standard results.
-// TODO(observe): ...or don't work yet.
 function blacklisted(obj, prop) {
   return (obj instanceof Int32Array && prop == 1) ||
     (obj instanceof Int32Array && prop === "length") ||
-    (obj instanceof ArrayBuffer && prop == 1) ||
-    // TODO(observe): oldValue when reconfiguring array length
-    (obj instanceof Array && prop === "length")
+    (obj instanceof ArrayBuffer && prop == 1)
 }
 
 for (var i in objects) for (var j in properties) {
@@ -581,8 +578,10 @@ Object.observe(arr3, observer.callback);
 arr.length = 2;
 arr.length = 0;
 arr.length = 10;
+Object.defineProperty(arr, 'length', {writable: false});
 arr2.length = 0;
 arr2.length = 1; // no change expected
+Object.defineProperty(arr2, 'length', {value: 1, writable: false});
 arr3.length = 0;
 Object.defineProperty(arr3, 'length', {value: 5});
 Object.defineProperty(arr3, 'length', {value: 10, writable: false});
@@ -594,15 +593,15 @@ observer.assertCallbackRecords([
   { object: arr, name: '1', type: 'deleted', oldValue: 'b' },
   { object: arr, name: 'length', type: 'updated', oldValue: 2 },
   { object: arr, name: 'length', type: 'updated', oldValue: 1 },
+  { object: arr, name: 'length', type: 'reconfigured', oldValue: 10 },
   { object: arr2, name: '1', type: 'deleted', oldValue: 'beta' },
   { object: arr2, name: 'length', type: 'updated', oldValue: 2 },
+  { object: arr2, name: 'length', type: 'reconfigured', oldValue: 1 },
   { object: arr3, name: '2', type: 'deleted', oldValue: 'goodbye' },
   { object: arr3, name: '0', type: 'deleted', oldValue: 'hello' },
   { object: arr3, name: 'length', type: 'updated', oldValue: 6 },
   { object: arr3, name: 'length', type: 'updated', oldValue: 0 },
-  { object: arr3, name: 'length', type: 'updated', oldValue: 5 },
-  // TODO(adamk): This record should be merged with the above
-  { object: arr3, name: 'length', type: 'reconfigured' },
+  { object: arr3, name: 'length', type: 'reconfigured', oldValue: 5 },
 ]);
 
 // Assignments in loops (checking different IC states).
@@ -944,8 +943,11 @@ function TestFastElementsLength(polymorphic, optimize, oldSize, newSize) {
   }
 }
 
+// TODO(rossberg): Still flaky on buildbots, disable for now...
+/*
 for (var b1 = 0; b1 < 2; ++b1)
   for (var b2 = 0; b2 < 2; ++b2)
     for (var n1 = 0; n1 < 3; ++n1)
       for (var n2 = 0; n2 < 3; ++n2)
         TestFastElementsLength(b1 != 0, b2 != 0, 20*n1, 20*n2);
+*/

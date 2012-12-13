@@ -893,14 +893,33 @@ function DefineArrayProperty(obj, p, desc, should_throw) {
     }
     // Make sure the below call to DefineObjectProperty() doesn't overwrite
     // any magic "length" property by removing the value.
+    // TODO(mstarzinger): This hack should be removed once we have addressed the
+    // respective TODO in Runtime_DefineOrRedefineDataProperty.
+    // For the time being, we need a hack to prevent Object.observe from
+    // generating two change records.
+    var isObserved = %IsObserved(obj);
+    if (isObserved) %SetIsObserved(obj, false);
     obj.length = new_length;
     desc.value_ = void 0;
     desc.hasValue_ = false;
-    if (!DefineObjectProperty(obj, "length", desc, should_throw) || threw) {
+    threw = !DefineObjectProperty(obj, "length", desc, should_throw) || threw;
+    if (isObserved) %SetIsObserved(obj, true);
+    if (threw) {
       if (should_throw) {
         throw MakeTypeError("redefine_disallowed", [p]);
       } else {
         return false;
+      }
+    }
+    if (isObserved) {
+      var new_desc = GetOwnProperty(obj, "length");
+      var updated = length_desc.value_ !== new_desc.value_;
+      var reconfigured = length_desc.writable_ !== new_desc.writable_ ||
+          length_desc.configurable_ !== new_desc.configurable_ ||
+          length_desc.enumerable_ !== new_desc.configurable_;
+      if (updated || reconfigured) {
+        NotifyChange(reconfigured ? "reconfigured" : "updated",
+            obj, "length", length_desc.value_);
       }
     }
     return true;
