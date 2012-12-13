@@ -423,6 +423,14 @@ bool StackGuard::IsTerminateExecution() {
 }
 
 
+void StackGuard::ResumeExecution() {
+  ASSERT(thread_local_.interrupt_flags_ & TERMINATE);
+  ExecutionAccess access(isolate_);
+  Continue(TERMINATE);
+  isolate_->ResumeExecution();
+}
+
+
 void StackGuard::TerminateExecution() {
   ExecutionAccess access(isolate_);
   thread_local_.interrupt_flags_ |= TERMINATE;

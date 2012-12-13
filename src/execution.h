@@ -193,6 +193,7 @@ class StackGuard {
   void Interrupt();
   bool IsTerminateExecution();
   void TerminateExecution();
+  void ResumeExecution();
   bool IsCodeReadyEvent();
   void RequestCodeReadyEvent();
 #ifdef ENABLE_DEBUGGER_SUPPORT

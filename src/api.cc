@@ -1788,7 +1788,8 @@ v8::TryCatch::TryCatch()
       is_verbose_(false),
       can_continue_(true),
       capture_message_(true),
-      rethrow_(false) {
+      rethrow_(false),
+      has_terminated_(false) {
   isolate_->RegisterTryCatchHandler(this);
 }
 
@@ -1813,6 +1814,11 @@ bool v8::TryCatch::HasCaught() const {
 
 bool v8::TryCatch::CanContinue() const {
   return can_continue_;
+}
+
+
+bool v8::TryCatch::HasTerminated() const {
+  return has_terminated_;
 }
 
 
@@ -5580,6 +5586,11 @@ bool V8::IsExecutionTerminating(Isolate* isolate) {
   i::Isolate* i_isolate = isolate != NULL ?
       reinterpret_cast<i::Isolate*>(isolate) : i::Isolate::Current();
   return IsExecutionTerminatingCheck(i_isolate);
+}
+
+
+void V8::ResumeExecution(Isolate* isolate) {
+  reinterpret_cast<i::Isolate*>(isolate)->stack_guard()->ResumeExecution();
 }
 
 
