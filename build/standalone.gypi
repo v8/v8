@@ -100,7 +100,7 @@
           [ 'OS=="linux"', {
             'cflags': [ '-ansi' ],
           }],
-          [ 'visibility=="hidden"', {
+          [ 'visibility=="hidden" and v8_enable_backtrace==0', {
             'cflags': [ '-fvisibility=hidden' ],
           }],
           [ 'component=="shared_library"', {

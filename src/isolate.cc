@@ -812,7 +812,7 @@ static void PrintFrames(StringStream* accumulator,
 void Isolate::PrintStack(StringStream* accumulator) {
   if (!IsInitialized()) {
     accumulator->Add(
-        "\n==== Stack trace is not available ==========================\n\n");
+        "\n==== JS stack trace is not available =======================\n\n");
     accumulator->Add(
         "\n==== Isolate for the thread is not initialized =============\n\n");
     return;
@@ -825,7 +825,7 @@ void Isolate::PrintStack(StringStream* accumulator) {
   if (c_entry_fp(thread_local_top()) == 0) return;
 
   accumulator->Add(
-      "\n==== Stack trace ============================================\n\n");
+      "\n==== JS stack trace =========================================\n\n");
   PrintFrames(accumulator, StackFrame::OVERVIEW);
 
   accumulator->Add(

@@ -202,6 +202,11 @@ void OS::DebugBreak() {
 }
 
 
+void OS::DumpBacktrace() {
+  // Currently unsupported.
+}
+
+
 class PosixMemoryMappedFile : public OS::MemoryMappedFile {
  public:
   PosixMemoryMappedFile(FILE* file, void* memory, int size)

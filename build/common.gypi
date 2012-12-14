@@ -68,6 +68,8 @@
 
     'v8_enable_debugger_support%': 1,
 
+    'v8_enable_backtrace%': 0,
+
     'v8_enable_disassembler%': 0,
 
     'v8_enable_gdbjit%': 0,
@@ -367,6 +369,10 @@
           ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="netbsd"', {
             'cflags': [ '-Wall', '<(werror)', '-W', '-Wno-unused-parameter',
                         '-Wnon-virtual-dtor', '-Woverloaded-virtual' ],
+          }],
+          ['OS=="linux" and v8_enable_backtrace==1', {
+            # Support for backtrace_symbols.
+            'ldflags': [ '-rdynamic' ],
           }],
           ['OS=="android"', {
             'variables': {

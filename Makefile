@@ -62,6 +62,12 @@ endif
 ifeq ($(verifyheap), on)
   GYPFLAGS += -Dv8_enable_verify_heap=1
 endif
+# backtrace=off
+ifeq ($(backtrace), off)
+  GYPFLAGS += -Dv8_enable_backtrace=0
+else
+  GYPFLAGS += -Dv8_enable_backtrace=1
+endif
 # snapshot=off
 ifeq ($(snapshot), off)
   GYPFLAGS += -Dv8_use_snapshot='false'
