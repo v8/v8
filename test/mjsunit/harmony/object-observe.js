@@ -943,11 +943,8 @@ function TestFastElementsLength(polymorphic, optimize, oldSize, newSize) {
   }
 }
 
-// TODO(rossberg): Still flaky on buildbots, disable for now...
-/*
 for (var b1 = 0; b1 < 2; ++b1)
   for (var b2 = 0; b2 < 2; ++b2)
     for (var n1 = 0; n1 < 3; ++n1)
       for (var n2 = 0; n2 < 3; ++n2)
         TestFastElementsLength(b1 != 0, b2 != 0, 20*n1, 20*n2);
-*/

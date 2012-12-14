@@ -4376,6 +4376,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_TransitionElementsSmiToDouble) {
   Handle<Object> object = args.at<Object>(0);
   if (object->IsJSObject()) {
     Handle<JSObject> js_object(Handle<JSObject>::cast(object));
+    ASSERT(!js_object->map()->is_observed());
     ElementsKind new_kind = js_object->HasFastHoleyElements()
         ? FAST_HOLEY_DOUBLE_ELEMENTS
         : FAST_DOUBLE_ELEMENTS;
@@ -4392,6 +4393,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_TransitionElementsDoubleToObject) {
   Handle<Object> object = args.at<Object>(0);
   if (object->IsJSObject()) {
     Handle<JSObject> js_object(Handle<JSObject>::cast(object));
+    ASSERT(!js_object->map()->is_observed());
     ElementsKind new_kind = js_object->HasFastHoleyElements()
         ? FAST_HOLEY_ELEMENTS
         : FAST_ELEMENTS;
@@ -13487,19 +13489,21 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetIsObserved) {
     ASSERT(proto->IsJSGlobalObject());
     obj = JSReceiver::cast(proto);
   }
+  ASSERT(!(obj->map()->is_observed() && obj->IsJSObject() &&
+           JSObject::cast(obj)->HasFastElements()));
   if (obj->map()->is_observed() != is_observed) {
+    if (is_observed && obj->IsJSObject() &&
+        !JSObject::cast(obj)->HasExternalArrayElements()) {
+      // Go to dictionary mode, so that we don't skip map checks.
+      MaybeObject* maybe = JSObject::cast(obj)->NormalizeElements();
+      if (maybe->IsFailure()) return maybe;
+      ASSERT(!JSObject::cast(obj)->HasFastElements());
+    }
     MaybeObject* maybe = obj->map()->Copy();
     Map* map;
     if (!maybe->To(&map)) return maybe;
     map->set_is_observed(is_observed);
     obj->set_map(map);
-    if (is_observed && obj->IsJSObject() &&
-        !JSObject::cast(obj)->HasExternalArrayElements()) {
-      // Go to dictionary mode, so that we don't skip map checks.
-      maybe = JSObject::cast(obj)->NormalizeElements();
-      if (maybe->IsFailure()) return maybe;
-      ASSERT(!JSObject::cast(obj)->HasFastElements());
-    }
   }
   return isolate->heap()->undefined_value();
 }

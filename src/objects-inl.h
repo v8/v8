@@ -1416,23 +1416,29 @@ void JSObject::initialize_elements() {
 
 
 MaybeObject* JSObject::ResetElements() {
-  Object* obj;
+  if (map()->is_observed()) {
+    // Maintain invariant that observed elements are always in dictionary mode.
+    SeededNumberDictionary* dictionary;
+    MaybeObject* maybe = SeededNumberDictionary::Allocate(0);
+    if (!maybe->To(&dictionary)) return maybe;
+    if (map() == GetHeap()->non_strict_arguments_elements_map()) {
+      FixedArray::cast(elements())->set(1, dictionary);
+    } else {
+      set_elements(dictionary);
+    }
+    return this;
+  }
+
   ElementsKind elements_kind = GetInitialFastElementsKind();
   if (!FLAG_smi_only_arrays) {
     elements_kind = FastSmiToObjectElementsKind(elements_kind);
   }
-  MaybeObject* maybe_obj = GetElementsTransitionMap(GetIsolate(),
-                                                    elements_kind);
-  if (!maybe_obj->ToObject(&obj)) return maybe_obj;
-  set_map(Map::cast(obj));
+  MaybeObject* maybe = GetElementsTransitionMap(GetIsolate(), elements_kind);
+  Map* map;
+  if (!maybe->To(&map)) return maybe;
+  set_map(map);
   initialize_elements();
-  if (FLAG_harmony_observation && map()->is_observed()) {
-    // Maintain invariant that observed elements are always in dictionary mode.
-    // For this to work on arrays, we have to make sure to reset length first.
-    if (IsJSArray()) JSArray::cast(this)->set_length(Smi::FromInt(0));
-    maybe_obj = NormalizeElements();
-    if (maybe_obj->IsFailure()) return maybe_obj;
-  }
+
   return this;
 }
 
@@ -3362,6 +3368,9 @@ bool Map::owns_descriptors() {
 
 
 void Map::set_is_observed(bool is_observed) {
+  ASSERT(instance_type() < FIRST_JS_OBJECT_TYPE ||
+         instance_type() > LAST_JS_OBJECT_TYPE ||
+         has_slow_elements_kind() || has_external_array_elements());
   set_bit_field3(IsObserved::update(bit_field3(), is_observed));
 }
 

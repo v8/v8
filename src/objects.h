@@ -4764,6 +4764,10 @@ class Map: public HeapObject {
   inline void set_elements_kind(ElementsKind elements_kind) {
     ASSERT(elements_kind < kElementsKindCount);
     ASSERT(kElementsKindCount <= (1 << kElementsKindBitCount));
+    ASSERT(!is_observed() ||
+           elements_kind == DICTIONARY_ELEMENTS ||
+           elements_kind == NON_STRICT_ARGUMENTS_ELEMENTS ||
+           IsExternalArrayElementsKind(elements_kind));
     set_bit_field2((bit_field2() & ~kElementsKindMask) |
         (elements_kind << kElementsKindShift));
     ASSERT(this->elements_kind() == elements_kind);
