@@ -671,10 +671,10 @@ void TestStringCharacterStream(BuildString build, int test_cases) {
   HandleScope outer_scope(isolate);
   ZoneScope zone(Isolate::Current()->runtime_zone(), DELETE_ON_EXIT);
   ConsStringGenerationData data(true);
-  bool last_test_did_gc = false;
   for (int i = 0; i < test_cases; i++) {
     printf("%d\n", i);
     HandleScope inner_scope(isolate);
+    AlwaysAllocateScope always_allocate;
     // Build flat version of cons string.
     Handle<String> flat_string = build(i, &data);
     ConsStringStats flat_string_stats;
@@ -685,22 +685,6 @@ void TestStringCharacterStream(BuildString build, int test_cases) {
     Handle<String> cons_string = build(i, &data);
     ConsStringStats cons_string_stats;
     AccumulateStats(cons_string, &cons_string_stats);
-    // Check if gc changed our data structure.
-    bool broken_by_gc =
-        cons_string_stats.leaves_ != data.stats_.leaves_ ||
-        cons_string_stats.leaves_ != flat_string_stats.leaves_;
-    // If gc altered the data structure, do a full collection and retry test.
-    if (broken_by_gc) {
-      // Bail if test runs twice.
-      if (last_test_did_gc) CHECK(false);
-      printf("forcing gc\n");
-      isolate->heap()->CollectAllGarbage(Heap::kNoGCFlags, "retry test");
-      // Retry test.
-      last_test_did_gc = true;
-      i--;
-      continue;
-    }
-    last_test_did_gc = false;
     AssertNoAllocation no_alloc;
     PrintStats(data);
     // Full verify of cons string.
