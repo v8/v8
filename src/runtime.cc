@@ -10836,11 +10836,14 @@ static bool SetLocalVariableValue(Isolate* isolate,
   Handle<SharedFunctionInfo> shared(function->shared());
   Handle<ScopeInfo> scope_info(shared->scope_info());
 
+  bool default_result = false;
+
   // Parameters.
   for (int i = 0; i < scope_info->ParameterCount(); ++i) {
     if (scope_info->ParameterName(i)->Equals(*variable_name)) {
       frame->SetParameterValue(i, *new_value);
-      return true;
+      // Argument might be shadowed in heap context, don't stop here.
+      default_result = true;
     }
   }
 
@@ -10882,7 +10885,7 @@ static bool SetLocalVariableValue(Isolate* isolate,
     }
   }
 
-  return false;
+  return default_result;
 }
 
 
