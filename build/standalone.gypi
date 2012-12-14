@@ -32,6 +32,7 @@
     'library%': 'static_library',
     'component%': 'static_library',
     'visibility%': 'hidden',
+    'v8_enable_backtrace%': 0,
     'msvs_multi_core_compile%': '1',
     'mac_deployment_target%': '10.5',
     'variables': {
