@@ -4811,6 +4811,18 @@ void Code::set_stub_info(int value) {
 }
 
 
+void Code::set_deoptimizing_functions(Object* value) {
+  ASSERT(kind() == OPTIMIZED_FUNCTION);
+  WRITE_FIELD(this, kTypeFeedbackInfoOffset, value);
+}
+
+
+Object* Code::deoptimizing_functions() {
+  ASSERT(kind() == OPTIMIZED_FUNCTION);
+  return Object::cast(READ_FIELD(this, kTypeFeedbackInfoOffset));
+}
+
+
 ACCESSORS(Code, gc_metadata, Object, kGCMetadataOffset)
 INT_ACCESSORS(Code, ic_age, kICAgeOffset)
 

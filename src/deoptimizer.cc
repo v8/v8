@@ -247,45 +247,6 @@ void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
 }
 
 
-class DeoptimizingVisitor : public OptimizedFunctionVisitor {
- public:
-  virtual void EnterContext(Context* context) {
-    if (FLAG_trace_deopt) {
-      PrintF("[deoptimize context: %" V8PRIxPTR "]\n",
-             reinterpret_cast<intptr_t>(context));
-    }
-  }
-
-  virtual void VisitFunction(JSFunction* function) {
-    Deoptimizer::DeoptimizeFunction(function);
-  }
-
-  virtual void LeaveContext(Context* context) {
-    context->ClearOptimizedFunctions();
-  }
-};
-
-
-void Deoptimizer::DeoptimizeAll() {
-  AssertNoAllocation no_allocation;
-
-  if (FLAG_trace_deopt) {
-    PrintF("[deoptimize all contexts]\n");
-  }
-
-  DeoptimizingVisitor visitor;
-  VisitAllOptimizedFunctions(&visitor);
-}
-
-
-void Deoptimizer::DeoptimizeGlobalObject(JSObject* object) {
-  AssertNoAllocation no_allocation;
-
-  DeoptimizingVisitor visitor;
-  VisitAllOptimizedFunctionsForGlobalObject(object, &visitor);
-}
-
-
 void Deoptimizer::VisitAllOptimizedFunctionsForContext(
     Context* context, OptimizedFunctionVisitor* visitor) {
   Isolate* isolate = context->GetIsolate();
@@ -315,22 +276,6 @@ void Deoptimizer::VisitAllOptimizedFunctionsForContext(
 }
 
 
-void Deoptimizer::VisitAllOptimizedFunctionsForGlobalObject(
-    JSObject* object, OptimizedFunctionVisitor* visitor) {
-  AssertNoAllocation no_allocation;
-
-  if (object->IsJSGlobalProxy()) {
-    Object* proto = object->GetPrototype();
-    ASSERT(proto->IsJSGlobalObject());
-    VisitAllOptimizedFunctionsForContext(
-        GlobalObject::cast(proto)->native_context(), visitor);
-  } else if (object->IsGlobalObject()) {
-    VisitAllOptimizedFunctionsForContext(
-        GlobalObject::cast(object)->native_context(), visitor);
-  }
-}
-
-
 void Deoptimizer::VisitAllOptimizedFunctions(
     OptimizedFunctionVisitor* visitor) {
   AssertNoAllocation no_allocation;
@@ -338,13 +283,144 @@ void Deoptimizer::VisitAllOptimizedFunctions(
   // Run through the list of all native contexts and deoptimize.
   Object* context = Isolate::Current()->heap()->native_contexts_list();
   while (!context->IsUndefined()) {
-    // GC can happen when the context is not fully initialized,
-    // so the global field of the context can be undefined.
-    Object* global = Context::cast(context)->get(Context::GLOBAL_OBJECT_INDEX);
-    if (!global->IsUndefined()) {
-      VisitAllOptimizedFunctionsForGlobalObject(JSObject::cast(global),
-                                                visitor);
+    VisitAllOptimizedFunctionsForContext(Context::cast(context), visitor);
+    context = Context::cast(context)->get(Context::NEXT_CONTEXT_LINK);
+  }
+}
+
+
+// Removes the functions selected by the given filter from the optimized
+// function list of the given context and partitions the removed functions
+// into one or more lists such that all functions in a list share the same
+// code. The head of each list is written in the deoptimizing_functions field
+// of the corresponding code object.
+// The found code objects are returned in the given zone list.
+static void PartitionOptimizedFunctions(Context* context,
+                                        OptimizedFunctionFilter* filter,
+                                        ZoneList<Code*>* partitions,
+                                        Zone* zone,
+                                        Object* undefined) {
+  AssertNoAllocation no_allocation;
+  Object* current = context->get(Context::OPTIMIZED_FUNCTIONS_LIST);
+  Object* remainder_head = undefined;
+  Object* remainder_tail = undefined;
+  ASSERT_EQ(0, partitions->length());
+  while (current != undefined) {
+    JSFunction* function = JSFunction::cast(current);
+    current = function->next_function_link();
+    if (filter->TakeFunction(function)) {
+      Code* code = function->code();
+      if (code->deoptimizing_functions() == undefined) {
+        partitions->Add(code, zone);
+      } else {
+        ASSERT(partitions->Contains(code));
+      }
+      function->set_next_function_link(code->deoptimizing_functions());
+      code->set_deoptimizing_functions(function);
+    } else {
+      if (remainder_head == undefined) {
+        remainder_head = function;
+      } else {
+        JSFunction::cast(remainder_tail)->set_next_function_link(function);
+      }
+      remainder_tail = function;
     }
+  }
+  if (remainder_tail != undefined) {
+    JSFunction::cast(remainder_tail)->set_next_function_link(undefined);
+  }
+  context->set(Context::OPTIMIZED_FUNCTIONS_LIST, remainder_head);
+}
+
+
+class DeoptimizeAllFilter : public OptimizedFunctionFilter {
+ public:
+  virtual bool TakeFunction(JSFunction* function) {
+    return true;
+  }
+};
+
+
+class DeoptimizeWithMatchingCodeFilter : public OptimizedFunctionFilter {
+ public:
+  explicit DeoptimizeWithMatchingCodeFilter(Code* code) : code_(code) {}
+  virtual bool TakeFunction(JSFunction* function) {
+    return function->code() == code_;
+  }
+ private:
+  Code* code_;
+};
+
+
+void Deoptimizer::DeoptimizeAll() {
+  AssertNoAllocation no_allocation;
+
+  if (FLAG_trace_deopt) {
+    PrintF("[deoptimize all contexts]\n");
+  }
+
+  DeoptimizeAllFilter filter;
+  DeoptimizeAllFunctionsWith(&filter);
+}
+
+
+void Deoptimizer::DeoptimizeGlobalObject(JSObject* object) {
+  AssertNoAllocation no_allocation;
+  DeoptimizeAllFilter filter;
+  if (object->IsJSGlobalProxy()) {
+    Object* proto = object->GetPrototype();
+    ASSERT(proto->IsJSGlobalObject());
+    DeoptimizeAllFunctionsForContext(
+        GlobalObject::cast(proto)->native_context(), &filter);
+  } else if (object->IsGlobalObject()) {
+    DeoptimizeAllFunctionsForContext(
+        GlobalObject::cast(object)->native_context(), &filter);
+  }
+}
+
+
+void Deoptimizer::DeoptimizeFunction(JSFunction* function) {
+  if (!function->IsOptimized()) return;
+  Code* code = function->code();
+  Context* context = function->context()->native_context();
+  Isolate* isolate = context->GetIsolate();
+  Object* undefined = isolate->heap()->undefined_value();
+  Zone* zone = isolate->runtime_zone();
+  ZoneScope zone_scope(zone, DELETE_ON_EXIT);
+  ZoneList<Code*> codes(1, zone);
+  DeoptimizeWithMatchingCodeFilter filter(code);
+  PartitionOptimizedFunctions(context, &filter, &codes, zone, undefined);
+  ASSERT_EQ(1, codes.length());
+  DeoptimizeFunctionWithPreparedFunctionList(
+      JSFunction::cast(codes.at(0)->deoptimizing_functions()));
+  codes.at(0)->set_deoptimizing_functions(undefined);
+}
+
+
+void Deoptimizer::DeoptimizeAllFunctionsForContext(
+    Context* context, OptimizedFunctionFilter* filter) {
+  ASSERT(context->IsNativeContext());
+  Isolate* isolate = context->GetIsolate();
+  Object* undefined = isolate->heap()->undefined_value();
+  Zone* zone = isolate->runtime_zone();
+  ZoneScope zone_scope(zone, DELETE_ON_EXIT);
+  ZoneList<Code*> codes(1, zone);
+  PartitionOptimizedFunctions(context, filter, &codes, zone, undefined);
+  for (int i = 0; i < codes.length(); ++i) {
+    DeoptimizeFunctionWithPreparedFunctionList(
+        JSFunction::cast(codes.at(i)->deoptimizing_functions()));
+    codes.at(i)->set_deoptimizing_functions(undefined);
+  }
+}
+
+
+void Deoptimizer::DeoptimizeAllFunctionsWith(OptimizedFunctionFilter* filter) {
+  AssertNoAllocation no_allocation;
+
+  // Run through the list of all native contexts and deoptimize.
+  Object* context = Isolate::Current()->heap()->native_contexts_list();
+  while (!context->IsUndefined()) {
+    DeoptimizeAllFunctionsForContext(Context::cast(context), filter);
     context = Context::cast(context)->get(Context::NEXT_CONTEXT_LINK);
   }
 }
@@ -1476,44 +1552,11 @@ void Deoptimizer::RemoveDeoptimizingCode(Code* code) {
 }
 
 
-static Object* CutOutRelatedFunctionsList(Context* context,
-                                          Code* code,
-                                          Object* undefined) {
-  Object* result_list_head = undefined;
-  Object* head;
-  Object* current;
-  current = head = context->get(Context::OPTIMIZED_FUNCTIONS_LIST);
-  JSFunction* prev = NULL;
-  while (current != undefined) {
-    JSFunction* func = JSFunction::cast(current);
-    current = func->next_function_link();
-    if (func->code() == code) {
-      func->set_next_function_link(result_list_head);
-      result_list_head = func;
-      if (prev) {
-        prev->set_next_function_link(current);
-      } else {
-        head = current;
-      }
-    } else {
-      prev = func;
-    }
-  }
-  if (head != context->get(Context::OPTIMIZED_FUNCTIONS_LIST)) {
-    context->set(Context::OPTIMIZED_FUNCTIONS_LIST, head);
-  }
-  return result_list_head;
-}
-
-
 void Deoptimizer::ReplaceCodeForRelatedFunctions(JSFunction* function,
                                                  Code* code) {
-  Context* context = function->context()->native_context();
-
   SharedFunctionInfo* shared = function->shared();
-
   Object* undefined = Isolate::Current()->heap()->undefined_value();
-  Object* current = CutOutRelatedFunctionsList(context, code, undefined);
+  Object* current = function;
 
   while (current != undefined) {
     JSFunction* func = JSFunction::cast(current);

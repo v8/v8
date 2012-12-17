@@ -114,16 +114,18 @@ void Deoptimizer::EnsureRelocSpaceForLazyDeoptimization(Handle<Code> code) {
 }
 
 
-void Deoptimizer::DeoptimizeFunction(JSFunction* function) {
-  if (!function->IsOptimized()) return;
+void Deoptimizer::DeoptimizeFunctionWithPreparedFunctionList(
+    JSFunction* function) {
+  Isolate* isolate = function->GetIsolate();
+  HandleScope scope(isolate);
+  AssertNoAllocation no_allocation;
+
+  ASSERT(function->IsOptimized());
+  ASSERT(function->FunctionsInFunctionListShareSameCode());
 
   // The optimized code is going to be patched, so we cannot use it
   // any more.  Play safe and reset the whole cache.
   function->shared()->ClearOptimizedCodeMap();
-
-  Isolate* isolate = function->GetIsolate();
-  HandleScope scope(isolate);
-  AssertNoAllocation no_allocation;
 
   // Get the optimized code.
   Code* code = function->code();

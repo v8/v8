@@ -87,6 +87,14 @@ class OptimizedFunctionVisitor BASE_EMBEDDED {
 };
 
 
+class OptimizedFunctionFilter BASE_EMBEDDED {
+ public:
+  virtual ~OptimizedFunctionFilter() {}
+
+  virtual bool TakeFunction(JSFunction* function) = 0;
+};
+
+
 class Deoptimizer;
 
 
@@ -177,11 +185,13 @@ class Deoptimizer : public Malloced {
 
   static void DeoptimizeGlobalObject(JSObject* object);
 
+  static void DeoptimizeAllFunctionsWith(OptimizedFunctionFilter* filter);
+
+  static void DeoptimizeAllFunctionsForContext(
+      Context* context, OptimizedFunctionFilter* filter);
+
   static void VisitAllOptimizedFunctionsForContext(
       Context* context, OptimizedFunctionVisitor* visitor);
-
-  static void VisitAllOptimizedFunctionsForGlobalObject(
-      JSObject* object, OptimizedFunctionVisitor* visitor);
 
   static void VisitAllOptimizedFunctions(OptimizedFunctionVisitor* visitor);
 
@@ -352,6 +362,10 @@ class Deoptimizer : public Malloced {
       v8::Persistent<v8::Value> obj, void* data);
   static Code* FindDeoptimizingCodeFromAddress(Address addr);
   static void RemoveDeoptimizingCode(Code* code);
+
+  // Deoptimize function assuming that function->next_function_link() points
+  // to a list that contains all functions that share the same optimized code.
+  static void DeoptimizeFunctionWithPreparedFunctionList(JSFunction* function);
 
   // Fill the input from from a JavaScript frame. This is used when
   // the debugger needs to inspect an optimized frame. For normal
