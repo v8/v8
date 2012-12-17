@@ -192,7 +192,7 @@ function NoSideEffectToString(obj) {
   if (IS_NULL(obj)) return 'null';
   if (IS_FUNCTION(obj)) return  %_CallFunction(obj, FunctionToString);
   if (IS_OBJECT(obj) && %GetDataProperty(obj, "toString") === ObjectToString) {
-    var constructor = obj.constructor;
+    var constructor = %GetDataProperty(obj, "constructor");
     if (typeof constructor == "function") {
       var constructorName = constructor.name;
       if (IS_STRING(constructorName) && constructorName !== "") {
