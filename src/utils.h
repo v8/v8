@@ -522,6 +522,8 @@ class ScopedVector : public Vector<T> {
   DISALLOW_IMPLICIT_CONSTRUCTORS(ScopedVector);
 };
 
+#define STATIC_ASCII_VECTOR(x)                        \
+  v8::internal::Vector<const char>(x, ARRAY_SIZE(x)-1)
 
 inline Vector<const char> CStrVector(const char* data) {
   return Vector<const char>(data, StrLength(data));

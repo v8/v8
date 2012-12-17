@@ -1753,7 +1753,7 @@ void JSObject::EnqueueChangeRecord(Handle<JSObject> object,
                                    Handle<Object> old_value) {
   Isolate* isolate = object->GetIsolate();
   HandleScope scope;
-  Handle<String> type = isolate->factory()->LookupAsciiSymbol(type_str);
+  Handle<String> type = isolate->factory()->LookupUtf8Symbol(type_str);
   if (object->IsJSGlobalObject()) {
     object = handle(JSGlobalObject::cast(*object)->global_receiver(), isolate);
   }
@@ -2656,15 +2656,16 @@ MUST_USE_RESULT MaybeObject* JSProxy::SetPropertyViaPrototypesWithHandler(
   if (has_pending_exception) return Failure::Exception();
 
   // [[GetProperty]] requires to check that all properties are configurable.
-  Handle<String> configurable_name =
-      isolate->factory()->LookupAsciiSymbol("configurable_");
+  Handle<String> configurable_name = isolate->factory()->LookupOneByteSymbol(
+      STATIC_ASCII_VECTOR("configurable_"));
   Handle<Object> configurable(
       v8::internal::GetProperty(desc, configurable_name));
   ASSERT(!isolate->has_pending_exception());
   ASSERT(configurable->IsTrue() || configurable->IsFalse());
   if (configurable->IsFalse()) {
     Handle<String> trap =
-        isolate->factory()->LookupAsciiSymbol("getPropertyDescriptor");
+        isolate->factory()->LookupOneByteSymbol(
+            STATIC_ASCII_VECTOR("getPropertyDescriptor"));
     Handle<Object> args[] = { handler, trap, name };
     Handle<Object> error = isolate->factory()->NewTypeError(
         "proxy_prop_not_configurable", HandleVector(args, ARRAY_SIZE(args)));
@@ -2674,13 +2675,15 @@ MUST_USE_RESULT MaybeObject* JSProxy::SetPropertyViaPrototypesWithHandler(
 
   // Check for DataDescriptor.
   Handle<String> hasWritable_name =
-      isolate->factory()->LookupAsciiSymbol("hasWritable_");
+      isolate->factory()->LookupOneByteSymbol(
+          STATIC_ASCII_VECTOR("hasWritable_"));
   Handle<Object> hasWritable(v8::internal::GetProperty(desc, hasWritable_name));
   ASSERT(!isolate->has_pending_exception());
   ASSERT(hasWritable->IsTrue() || hasWritable->IsFalse());
   if (hasWritable->IsTrue()) {
     Handle<String> writable_name =
-        isolate->factory()->LookupAsciiSymbol("writable_");
+        isolate->factory()->LookupOneByteSymbol(
+            STATIC_ASCII_VECTOR("writable_"));
     Handle<Object> writable(v8::internal::GetProperty(desc, writable_name));
     ASSERT(!isolate->has_pending_exception());
     ASSERT(writable->IsTrue() || writable->IsFalse());
@@ -2694,7 +2697,8 @@ MUST_USE_RESULT MaybeObject* JSProxy::SetPropertyViaPrototypesWithHandler(
   }
 
   // We have an AccessorDescriptor.
-  Handle<String> set_name = isolate->factory()->LookupAsciiSymbol("set_");
+  Handle<String> set_name = isolate->factory()->LookupOneByteSymbol(
+      STATIC_ASCII_VECTOR("set_"));
   Handle<Object> setter(v8::internal::GetProperty(desc, set_name));
   ASSERT(!isolate->has_pending_exception());
   if (!setter->IsUndefined()) {
@@ -2726,7 +2730,8 @@ MUST_USE_RESULT MaybeObject* JSProxy::DeletePropertyWithHandler(
   Object* bool_result = result->ToBoolean();
   if (mode == STRICT_DELETION && bool_result == GetHeap()->false_value()) {
     Handle<Object> handler(receiver->handler());
-    Handle<String> trap_name = isolate->factory()->LookupAsciiSymbol("delete");
+    Handle<String> trap_name = isolate->factory()->LookupOneByteSymbol(
+        STATIC_ASCII_VECTOR("delete"));
     Handle<Object> args[] = { handler, trap_name };
     Handle<Object> error = isolate->factory()->NewTypeError(
         "handler_failed", HandleVector(args, ARRAY_SIZE(args)));
@@ -2772,19 +2777,22 @@ MUST_USE_RESULT PropertyAttributes JSProxy::GetPropertyAttributeWithHandler(
   if (has_pending_exception) return NONE;
 
   // Convert result to PropertyAttributes.
-  Handle<String> enum_n = isolate->factory()->LookupAsciiSymbol("enumerable");
+  Handle<String> enum_n = isolate->factory()->LookupOneByteSymbol(
+      STATIC_ASCII_VECTOR("enumerable"));
   Handle<Object> enumerable(v8::internal::GetProperty(desc, enum_n));
   if (isolate->has_pending_exception()) return NONE;
-  Handle<String> conf_n = isolate->factory()->LookupAsciiSymbol("configurable");
+  Handle<String> conf_n = isolate->factory()->LookupOneByteSymbol(
+      STATIC_ASCII_VECTOR("configurable"));
   Handle<Object> configurable(v8::internal::GetProperty(desc, conf_n));
   if (isolate->has_pending_exception()) return NONE;
-  Handle<String> writ_n = isolate->factory()->LookupAsciiSymbol("writable");
+  Handle<String> writ_n = isolate->factory()->LookupOneByteSymbol(
+      STATIC_ASCII_VECTOR("writable"));
   Handle<Object> writable(v8::internal::GetProperty(desc, writ_n));
   if (isolate->has_pending_exception()) return NONE;
 
   if (configurable->IsFalse()) {
-    Handle<String> trap =
-        isolate->factory()->LookupAsciiSymbol("getPropertyDescriptor");
+    Handle<String> trap = isolate->factory()->LookupOneByteSymbol(
+        STATIC_ASCII_VECTOR("getPropertyDescriptor"));
     Handle<Object> args[] = { handler, trap, name };
     Handle<Object> error = isolate->factory()->NewTypeError(
         "proxy_prop_not_configurable", HandleVector(args, ARRAY_SIZE(args)));
@@ -2844,7 +2852,7 @@ MUST_USE_RESULT Handle<Object> JSProxy::CallTrap(const char* name,
   Isolate* isolate = GetIsolate();
   Handle<Object> handler(this->handler());
 
-  Handle<String> trap_name = isolate->factory()->LookupAsciiSymbol(name);
+  Handle<String> trap_name = isolate->factory()->LookupUtf8Symbol(name);
   Handle<Object> trap(v8::internal::GetProperty(handler, trap_name));
   if (isolate->has_pending_exception()) return trap;
 
@@ -8326,7 +8334,7 @@ MaybeObject* Oddball::Initialize(const char* to_string,
                                  byte kind) {
   String* symbol;
   { MaybeObject* maybe_symbol =
-        Isolate::Current()->heap()->LookupAsciiSymbol(to_string);
+        Isolate::Current()->heap()->LookupUtf8Symbol(CStrVector(to_string));
     if (!maybe_symbol->To(&symbol)) return maybe_symbol;
   }
   set_to_string(symbol);
@@ -12707,21 +12715,21 @@ bool SymbolTable::LookupTwoCharsSymbolIfExists(uint32_t c1,
 }
 
 
-MaybeObject* SymbolTable::LookupSymbol(Vector<const char> str,
-                                       Object** s) {
+MaybeObject* SymbolTable::LookupUtf8Symbol(Vector<const char> str,
+                                           Object** s) {
   Utf8SymbolKey key(str, GetHeap()->HashSeed());
   return LookupKey(&key, s);
 }
 
 
-MaybeObject* SymbolTable::LookupAsciiSymbol(Vector<const char> str,
-                                            Object** s) {
+MaybeObject* SymbolTable::LookupOneByteSymbol(Vector<const char> str,
+                                              Object** s) {
   AsciiSymbolKey key(str, GetHeap()->HashSeed());
   return LookupKey(&key, s);
 }
 
 
-MaybeObject* SymbolTable::LookupSubStringAsciiSymbol(
+MaybeObject* SymbolTable::LookupSubStringOneByteSymbol(
     Handle<SeqOneByteString> str,
     int from,
     int length,

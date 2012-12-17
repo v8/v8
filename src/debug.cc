@@ -836,7 +836,8 @@ bool Debug::Load() {
   isolate_->set_context(*context);
 
   // Expose the builtins object in the debugger context.
-  Handle<String> key = isolate_->factory()->LookupAsciiSymbol("builtins");
+  Handle<String> key = isolate_->factory()->LookupOneByteSymbol(
+      STATIC_ASCII_VECTOR("builtins"));
   Handle<GlobalObject> global = Handle<GlobalObject>(context->global_object());
   RETURN_IF_EMPTY_HANDLE_VALUE(
       isolate_,
@@ -1100,7 +1101,8 @@ bool Debug::CheckBreakPoint(Handle<Object> break_point_object) {
 
   // Get the function IsBreakPointTriggered (defined in debug-debugger.js).
   Handle<String> is_break_point_triggered_symbol =
-      factory->LookupAsciiSymbol("IsBreakPointTriggered");
+      factory->LookupOneByteSymbol(
+          STATIC_ASCII_VECTOR("IsBreakPointTriggered"));
   Handle<JSFunction> check_break_point =
     Handle<JSFunction>(JSFunction::cast(
         debug_context()->global_object()->GetPropertyNoExceptionThrown(
@@ -2425,8 +2427,8 @@ void Debug::ClearMirrorCache() {
   ASSERT(isolate_->context() == *Debug::debug_context());
 
   // Clear the mirror cache.
-  Handle<String> function_name =
-      isolate_->factory()->LookupSymbol(CStrVector("ClearMirrorCache"));
+  Handle<String> function_name = isolate_->factory()->LookupOneByteSymbol(
+      STATIC_ASCII_VECTOR("ClearMirrorCache"));
   Handle<Object> fun(
       Isolate::Current()->global_object()->GetPropertyNoExceptionThrown(
       *function_name));
@@ -2554,7 +2556,7 @@ Handle<Object> Debugger::MakeJSObject(Vector<const char> constructor_name,
 
   // Create the execution state object.
   Handle<String> constructor_str =
-      isolate_->factory()->LookupSymbol(constructor_name);
+      isolate_->factory()->LookupUtf8Symbol(constructor_name);
   Handle<Object> constructor(
       isolate_->global_object()->GetPropertyNoExceptionThrown(
           *constructor_str));
@@ -2785,7 +2787,8 @@ void Debugger::OnAfterCompile(Handle<Script> script,
 
   // Get the function UpdateScriptBreakPoints (defined in debug-debugger.js).
   Handle<String> update_script_break_points_symbol =
-      isolate_->factory()->LookupAsciiSymbol("UpdateScriptBreakPoints");
+      isolate_->factory()->LookupOneByteSymbol(
+          STATIC_ASCII_VECTOR("UpdateScriptBreakPoints"));
   Handle<Object> update_script_break_points =
       Handle<Object>(debug->debug_context()->global_object()->
           GetPropertyNoExceptionThrown(*update_script_break_points_symbol));

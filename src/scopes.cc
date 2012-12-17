@@ -1386,9 +1386,8 @@ void Scope::AllocateModulesRecursively(Scope* host_scope) {
   if (already_resolved()) return;
   if (is_module_scope()) {
     ASSERT(interface_->IsFrozen());
-    const char raw_name[] = ".module";
-    Handle<String> name = isolate_->factory()->LookupSymbol(
-        Vector<const char>(raw_name, StrLength(raw_name)));
+    Handle<String> name = isolate_->factory()->LookupOneByteSymbol(
+        STATIC_ASCII_VECTOR(".module"));
     ASSERT(module_var_ == NULL);
     module_var_ = host_scope->NewInternal(name);
     ++host_scope->num_modules_;

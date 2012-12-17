@@ -79,16 +79,16 @@ class Factory {
 
   Handle<TypeFeedbackInfo> NewTypeFeedbackInfo();
 
-  Handle<String> LookupSymbol(Vector<const char> str);
+  Handle<String> LookupUtf8Symbol(Vector<const char> str);
+  Handle<String> LookupUtf8Symbol(const char* str) {
+    return LookupUtf8Symbol(CStrVector(str));
+  }
   Handle<String> LookupSymbol(Handle<String> str);
-  Handle<String> LookupAsciiSymbol(Vector<const char> str);
-  Handle<String> LookupAsciiSymbol(Handle<SeqOneByteString>,
+  Handle<String> LookupOneByteSymbol(Vector<const char> str);
+  Handle<String> LookupOneByteSymbol(Handle<SeqOneByteString>,
                                    int from,
                                    int length);
   Handle<String> LookupTwoByteSymbol(Vector<const uc16> str);
-  Handle<String> LookupAsciiSymbol(const char* str) {
-    return LookupSymbol(CStrVector(str));
-  }
 
 
   // String creation functions.  Most of the string creation functions take

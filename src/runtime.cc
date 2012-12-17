@@ -1843,7 +1843,7 @@ static Handle<JSFunction> InstallBuiltin(Isolate* isolate,
                                          Handle<JSObject> holder,
                                          const char* name,
                                          Builtins::Name builtin_name) {
-  Handle<String> key = isolate->factory()->LookupAsciiSymbol(name);
+  Handle<String> key = isolate->factory()->LookupUtf8Symbol(name);
   Handle<Code> code(isolate->builtins()->builtin(builtin_name));
   Handle<JSFunction> optimized =
       isolate->factory()->NewFunction(key,
@@ -7844,8 +7844,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ForceParallelRecompile) {
   HandleScope handle_scope(isolate);
   ASSERT(FLAG_parallel_recompilation && FLAG_manual_parallel_recompilation);
   if (!isolate->optimizing_compiler_thread()->IsQueueAvailable()) {
-    return isolate->Throw(
-        *isolate->factory()->LookupAsciiSymbol("Recompile queue is full."));
+    return isolate->Throw(*isolate->factory()->LookupOneByteSymbol(
+        STATIC_ASCII_VECTOR("Recompile queue is full.")));
   }
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, fun, 0);
   fun->ReplaceCode(isolate->builtins()->builtin(Builtins::kParallelRecompile));
@@ -12809,7 +12809,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_LiveEditRestartFrame) {
   const char* error_message =
       LiveEdit::RestartFrame(it.frame(), isolate->runtime_zone());
   if (error_message) {
-    return *(isolate->factory()->LookupAsciiSymbol(error_message));
+    return *(isolate->factory()->LookupUtf8Symbol(error_message));
   }
   return heap->true_value();
 }
@@ -13586,7 +13586,7 @@ MaybeObject* Runtime::InitializeIntrinsicFunctionNames(Heap* heap,
   for (int i = 0; i < kNumFunctions; ++i) {
     Object* name_symbol;
     { MaybeObject* maybe_name_symbol =
-          heap->LookupAsciiSymbol(kIntrinsicFunctions[i].name);
+          heap->LookupUtf8Symbol(kIntrinsicFunctions[i].name);
       if (!maybe_name_symbol->ToObject(&name_symbol)) return maybe_name_symbol;
     }
     StringDictionary* string_dictionary = StringDictionary::cast(dictionary);

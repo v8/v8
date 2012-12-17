@@ -291,7 +291,8 @@ static void SanityCheck() {
   CHECK(Isolate::Current()->global_object()->IsJSObject());
   CHECK(Isolate::Current()->native_context()->IsContext());
   CHECK(HEAP->symbol_table()->IsSymbolTable());
-  CHECK(!FACTORY->LookupAsciiSymbol("Empty")->IsFailure());
+  CHECK(!FACTORY->LookupOneByteSymbol(
+      STATIC_ASCII_VECTOR("Empty"))->IsFailure());
 }
 
 

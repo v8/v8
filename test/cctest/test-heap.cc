@@ -218,10 +218,10 @@ TEST(GarbageCollection) {
   // Check GC.
   HEAP->CollectGarbage(NEW_SPACE);
 
-  Handle<String> name = FACTORY->LookupAsciiSymbol("theFunction");
-  Handle<String> prop_name = FACTORY->LookupAsciiSymbol("theSlot");
-  Handle<String> prop_namex = FACTORY->LookupAsciiSymbol("theSlotx");
-  Handle<String> obj_name = FACTORY->LookupAsciiSymbol("theObject");
+  Handle<String> name = FACTORY->LookupUtf8Symbol("theFunction");
+  Handle<String> prop_name = FACTORY->LookupUtf8Symbol("theSlot");
+  Handle<String> prop_namex = FACTORY->LookupUtf8Symbol("theSlotx");
+  Handle<String> obj_name = FACTORY->LookupUtf8Symbol("theObject");
 
   {
     v8::HandleScope inner_scope;
@@ -536,12 +536,12 @@ static const char* not_so_random_string_table[] = {
 static void CheckSymbols(const char** strings) {
   for (const char* string = *strings; *strings != 0; string = *strings++) {
     Object* a;
-    MaybeObject* maybe_a = HEAP->LookupAsciiSymbol(string);
-    // LookupAsciiSymbol may return a failure if a GC is needed.
+    MaybeObject* maybe_a = HEAP->LookupUtf8Symbol(string);
+    // LookupUtf8Symbol may return a failure if a GC is needed.
     if (!maybe_a->ToObject(&a)) continue;
     CHECK(a->IsSymbol());
     Object* b;
-    MaybeObject* maybe_b = HEAP->LookupAsciiSymbol(string);
+    MaybeObject* maybe_b = HEAP->LookupUtf8Symbol(string);
     if (!maybe_b->ToObject(&b)) continue;
     CHECK_EQ(b, a);
     CHECK(String::cast(b)->IsEqualTo(CStrVector(string)));
@@ -561,14 +561,14 @@ TEST(FunctionAllocation) {
   InitializeVM();
 
   v8::HandleScope sc;
-  Handle<String> name = FACTORY->LookupAsciiSymbol("theFunction");
+  Handle<String> name = FACTORY->LookupUtf8Symbol("theFunction");
   Handle<JSFunction> function =
       FACTORY->NewFunction(name, FACTORY->undefined_value());
   Handle<Map> initial_map =
       FACTORY->NewMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
   function->set_initial_map(*initial_map);
 
-  Handle<String> prop_name = FACTORY->LookupAsciiSymbol("theSlot");
+  Handle<String> prop_name = FACTORY->LookupUtf8Symbol("theSlot");
   Handle<JSObject> obj = FACTORY->NewJSObject(function);
   obj->SetProperty(
       *prop_name, Smi::FromInt(23), NONE, kNonStrictMode)->ToObjectChecked();
@@ -590,8 +590,8 @@ TEST(ObjectProperties) {
   JSFunction* object_function = JSFunction::cast(raw_object);
   Handle<JSFunction> constructor(object_function);
   Handle<JSObject> obj = FACTORY->NewJSObject(constructor);
-  Handle<String> first = FACTORY->LookupAsciiSymbol("first");
-  Handle<String> second = FACTORY->LookupAsciiSymbol("second");
+  Handle<String> first = FACTORY->LookupUtf8Symbol("first");
+  Handle<String> second = FACTORY->LookupUtf8Symbol("second");
 
   // check for empty
   CHECK(!obj->HasLocalProperty(*first));
@@ -640,12 +640,12 @@ TEST(ObjectProperties) {
   Handle<String> s1 = FACTORY->NewStringFromAscii(CStrVector(string1));
   obj->SetProperty(
       *s1, Smi::FromInt(1), NONE, kNonStrictMode)->ToObjectChecked();
-  Handle<String> s1_symbol = FACTORY->LookupAsciiSymbol(string1);
+  Handle<String> s1_symbol = FACTORY->LookupUtf8Symbol(string1);
   CHECK(obj->HasLocalProperty(*s1_symbol));
 
   // check symbol and string match
   const char* string2 = "fugl";
-  Handle<String> s2_symbol = FACTORY->LookupAsciiSymbol(string2);
+  Handle<String> s2_symbol = FACTORY->LookupUtf8Symbol(string2);
   obj->SetProperty(
       *s2_symbol, Smi::FromInt(1), NONE, kNonStrictMode)->ToObjectChecked();
   Handle<String> s2 = FACTORY->NewStringFromAscii(CStrVector(string2));
@@ -657,14 +657,14 @@ TEST(JSObjectMaps) {
   InitializeVM();
 
   v8::HandleScope sc;
-  Handle<String> name = FACTORY->LookupAsciiSymbol("theFunction");
+  Handle<String> name = FACTORY->LookupUtf8Symbol("theFunction");
   Handle<JSFunction> function =
       FACTORY->NewFunction(name, FACTORY->undefined_value());
   Handle<Map> initial_map =
       FACTORY->NewMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
   function->set_initial_map(*initial_map);
 
-  Handle<String> prop_name = FACTORY->LookupAsciiSymbol("theSlot");
+  Handle<String> prop_name = FACTORY->LookupUtf8Symbol("theSlot");
   Handle<JSObject> obj = FACTORY->NewJSObject(function);
 
   // Set a propery
@@ -681,7 +681,7 @@ TEST(JSArray) {
   InitializeVM();
 
   v8::HandleScope sc;
-  Handle<String> name = FACTORY->LookupAsciiSymbol("Array");
+  Handle<String> name = FACTORY->LookupUtf8Symbol("Array");
   Object* raw_object = Isolate::Current()->context()->global_object()->
       GetProperty(*name)->ToObjectChecked();
   Handle<JSFunction> function = Handle<JSFunction>(
@@ -734,8 +734,8 @@ TEST(JSObjectCopy) {
   JSFunction* object_function = JSFunction::cast(raw_object);
   Handle<JSFunction> constructor(object_function);
   Handle<JSObject> obj = FACTORY->NewJSObject(constructor);
-  Handle<String> first = FACTORY->LookupAsciiSymbol("first");
-  Handle<String> second = FACTORY->LookupAsciiSymbol("second");
+  Handle<String> first = FACTORY->LookupUtf8Symbol("first");
+  Handle<String> second = FACTORY->LookupUtf8Symbol("second");
 
   obj->SetProperty(
       *first, Smi::FromInt(1), NONE, kNonStrictMode)->ToObjectChecked();
@@ -790,10 +790,10 @@ TEST(StringAllocation) {
       non_ascii[3 * i + 2] = chars[2];
     }
     Handle<String> non_ascii_sym =
-        FACTORY->LookupSymbol(Vector<const char>(non_ascii, 3 * length));
+        FACTORY->LookupUtf8Symbol(Vector<const char>(non_ascii, 3 * length));
     CHECK_EQ(length, non_ascii_sym->length());
     Handle<String> ascii_sym =
-        FACTORY->LookupSymbol(Vector<const char>(ascii, length));
+        FACTORY->LookupOneByteSymbol(Vector<const char>(ascii, length));
     CHECK_EQ(length, ascii_sym->length());
     Handle<String> non_ascii_str =
         FACTORY->NewStringFromUtf8(Vector<const char>(non_ascii, 3 * length));
@@ -970,7 +970,7 @@ TEST(TestCodeFlushing) {
                        "  var z = x + y;"
                        "};"
                        "foo()";
-  Handle<String> foo_name = FACTORY->LookupAsciiSymbol("foo");
+  Handle<String> foo_name = FACTORY->LookupUtf8Symbol("foo");
 
   // This compile will add the code to the compilation cache.
   { v8::HandleScope scope;
@@ -1017,7 +1017,7 @@ TEST(TestCodeFlushingIncremental) {
                        "  var z = x + y;"
                        "};"
                        "foo()";
-  Handle<String> foo_name = FACTORY->LookupAsciiSymbol("foo");
+  Handle<String> foo_name = FACTORY->LookupUtf8Symbol("foo");
 
   // This compile will add the code to the compilation cache.
   { v8::HandleScope scope;
@@ -1087,8 +1087,8 @@ TEST(TestCodeFlushingIncrementalScavenge) {
                        "  var x = 23;"
                        "};"
                        "bar();";
-  Handle<String> foo_name = FACTORY->LookupAsciiSymbol("foo");
-  Handle<String> bar_name = FACTORY->LookupAsciiSymbol("bar");
+  Handle<String> foo_name = FACTORY->LookupUtf8Symbol("foo");
+  Handle<String> bar_name = FACTORY->LookupUtf8Symbol("bar");
 
   // Perfrom one initial GC to enable code flushing.
   HEAP->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
@@ -1149,7 +1149,7 @@ TEST(TestCodeFlushingIncrementalAbort) {
                        "  var z = x + y;"
                        "};"
                        "foo()";
-  Handle<String> foo_name = FACTORY->LookupAsciiSymbol("foo");
+  Handle<String> foo_name = FACTORY->LookupUtf8Symbol("foo");
 
   // This compile will add the code to the compilation cache.
   { v8::HandleScope scope;
@@ -2493,7 +2493,7 @@ TEST(Regression144230) {
   // Fourth is the tricky part. Make sure the code containing the CallIC is
   // visited first without clearing the IC. The shared function info is then
   // visited later, causing the CallIC to be cleared.
-  Handle<String> name = FACTORY->LookupAsciiSymbol("call");
+  Handle<String> name = FACTORY->LookupUtf8Symbol("call");
   Handle<GlobalObject> global(ISOLATE->context()->global_object());
   MaybeObject* maybe_call = global->GetProperty(*name);
   JSFunction* call = JSFunction::cast(maybe_call->ToObjectChecked());

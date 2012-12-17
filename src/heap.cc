@@ -2776,7 +2776,7 @@ bool Heap::CreateInitialObjects() {
 
   for (unsigned i = 0; i < ARRAY_SIZE(constant_symbol_table); i++) {
     { MaybeObject* maybe_obj =
-          LookupAsciiSymbol(constant_symbol_table[i].contents);
+          LookupUtf8Symbol(constant_symbol_table[i].contents);
       if (!maybe_obj->ToObject(&obj)) return false;
     }
     roots_[constant_symbol_table[i].index] = String::cast(obj);
@@ -3610,7 +3610,8 @@ MaybeObject* Heap::LookupSingleCharacterStringFromCode(uint16_t code) {
     char buffer[1];
     buffer[0] = static_cast<char>(code);
     Object* result;
-    MaybeObject* maybe_result = LookupSymbol(Vector<const char>(buffer, 1));
+    MaybeObject* maybe_result =
+        LookupOneByteSymbol(Vector<const char>(buffer, 1));
 
     if (!maybe_result->ToObject(&result)) return maybe_result;
     single_character_string_cache()->set(code, result);
@@ -4461,7 +4462,7 @@ MaybeObject* Heap::ReinitializeJSReceiver(
   SharedFunctionInfo* shared = NULL;
   if (type == JS_FUNCTION_TYPE) {
     String* name;
-    maybe = LookupAsciiSymbol("<freezing call trap>");
+    maybe = LookupOneByteSymbol(STATIC_ASCII_VECTOR("<freezing call trap>"));
     if (!maybe->To<String>(&name)) return maybe;
     maybe = AllocateSharedFunctionInfo(name);
     if (!maybe->To<SharedFunctionInfo>(&shared)) return maybe;
@@ -5554,11 +5555,11 @@ void Heap::Verify() {
 #endif
 
 
-MaybeObject* Heap::LookupSymbol(Vector<const char> string) {
+MaybeObject* Heap::LookupUtf8Symbol(Vector<const char> string) {
   Object* symbol = NULL;
   Object* new_table;
   { MaybeObject* maybe_new_table =
-        symbol_table()->LookupSymbol(string, &symbol);
+        symbol_table()->LookupUtf8Symbol(string, &symbol);
     if (!maybe_new_table->ToObject(&new_table)) return maybe_new_table;
   }
   // Can't use set_symbol_table because SymbolTable::cast knows that
@@ -5569,11 +5570,11 @@ MaybeObject* Heap::LookupSymbol(Vector<const char> string) {
 }
 
 
-MaybeObject* Heap::LookupAsciiSymbol(Vector<const char> string) {
+MaybeObject* Heap::LookupOneByteSymbol(Vector<const char> string) {
   Object* symbol = NULL;
   Object* new_table;
   { MaybeObject* maybe_new_table =
-        symbol_table()->LookupAsciiSymbol(string, &symbol);
+        symbol_table()->LookupOneByteSymbol(string, &symbol);
     if (!maybe_new_table->ToObject(&new_table)) return maybe_new_table;
   }
   // Can't use set_symbol_table because SymbolTable::cast knows that
@@ -5584,13 +5585,13 @@ MaybeObject* Heap::LookupAsciiSymbol(Vector<const char> string) {
 }
 
 
-MaybeObject* Heap::LookupAsciiSymbol(Handle<SeqOneByteString> string,
+MaybeObject* Heap::LookupOneByteSymbol(Handle<SeqOneByteString> string,
                                      int from,
                                      int length) {
   Object* symbol = NULL;
   Object* new_table;
   { MaybeObject* maybe_new_table =
-        symbol_table()->LookupSubStringAsciiSymbol(string,
+        symbol_table()->LookupSubStringOneByteSymbol(string,
                                                    from,
                                                    length,
                                                    &symbol);

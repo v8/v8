@@ -657,15 +657,21 @@ Handle<JSArray> Isolate::CaptureCurrentStackTrace(
   int limit = Max(frame_limit, 0);
   Handle<JSArray> stack_trace = factory()->NewJSArray(frame_limit);
 
-  Handle<String> column_key = factory()->LookupAsciiSymbol("column");
-  Handle<String> line_key = factory()->LookupAsciiSymbol("lineNumber");
-  Handle<String> script_key = factory()->LookupAsciiSymbol("scriptName");
+  Handle<String> column_key =
+      factory()->LookupOneByteSymbol(STATIC_ASCII_VECTOR("column"));
+  Handle<String> line_key =
+      factory()->LookupOneByteSymbol(STATIC_ASCII_VECTOR("lineNumber"));
+  Handle<String> script_key =
+      factory()->LookupOneByteSymbol(STATIC_ASCII_VECTOR("scriptName"));
   Handle<String> script_name_or_source_url_key =
-      factory()->LookupAsciiSymbol("scriptNameOrSourceURL");
-  Handle<String> function_key = factory()->LookupAsciiSymbol("functionName");
-  Handle<String> eval_key = factory()->LookupAsciiSymbol("isEval");
+      factory()->LookupOneByteSymbol(
+          STATIC_ASCII_VECTOR("scriptNameOrSourceURL"));
+  Handle<String> function_key =
+      factory()->LookupOneByteSymbol(STATIC_ASCII_VECTOR("functionName"));
+  Handle<String> eval_key =
+      factory()->LookupOneByteSymbol(STATIC_ASCII_VECTOR("isEval"));
   Handle<String> constructor_key =
-      factory()->LookupAsciiSymbol("isConstructor");
+      factory()->LookupOneByteSymbol(STATIC_ASCII_VECTOR("isConstructor"));
 
   StackTraceFrameIterator it(this);
   int frames_seen = 0;
@@ -1155,7 +1161,8 @@ bool Isolate::ShouldReportException(bool* can_be_caught_externally,
 bool Isolate::IsErrorObject(Handle<Object> obj) {
   if (!obj->IsJSObject()) return false;
 
-  String* error_key = *(factory()->LookupAsciiSymbol("$Error"));
+  String* error_key =
+      *(factory()->LookupOneByteSymbol(STATIC_ASCII_VECTOR("$Error")));
   Object* error_constructor =
       js_builtins_object()->GetPropertyNoExceptionThrown(error_key);
 
@@ -1236,7 +1243,8 @@ void Isolate::DoThrow(Object* exception, MessageLocation* location) {
         bool failed = false;
         exception_arg = Execution::ToDetailString(exception_arg, &failed);
         if (failed) {
-          exception_arg = factory()->LookupAsciiSymbol("exception");
+          exception_arg =
+              factory()->LookupOneByteSymbol(STATIC_ASCII_VECTOR("exception"));
         }
       }
       Handle<Object> message_obj = MessageHandler::MakeMessageObject(

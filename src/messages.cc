@@ -61,7 +61,7 @@ Handle<JSMessageObject> MessageHandler::MakeMessageObject(
     Vector< Handle<Object> > args,
     Handle<String> stack_trace,
     Handle<JSArray> stack_frames) {
-  Handle<String> type_handle = FACTORY->LookupAsciiSymbol(type);
+  Handle<String> type_handle = FACTORY->LookupUtf8Symbol(type);
   Handle<FixedArray> arguments_elements =
       FACTORY->NewFixedArray(args.length());
   for (int i = 0; i < args.length(); i++) {
@@ -149,7 +149,8 @@ void MessageHandler::ReportMessage(Isolate* isolate,
 
 
 Handle<String> MessageHandler::GetMessage(Handle<Object> data) {
-  Handle<String> fmt_str = FACTORY->LookupAsciiSymbol("FormatMessage");
+  Handle<String> fmt_str =
+      FACTORY->LookupOneByteSymbol(STATIC_ASCII_VECTOR("FormatMessage"));
   Handle<JSFunction> fun =
       Handle<JSFunction>(
           JSFunction::cast(
@@ -168,7 +169,7 @@ Handle<String> MessageHandler::GetMessage(Handle<Object> data) {
                          &caught_exception);
 
   if (caught_exception || !result->IsString()) {
-    return FACTORY->LookupAsciiSymbol("<error>");
+    return FACTORY->LookupOneByteSymbol(STATIC_ASCII_VECTOR("<error>"));
   }
   Handle<String> result_string = Handle<String>::cast(result);
   // A string that has been obtained from JS code in this way is

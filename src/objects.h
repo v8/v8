@@ -3026,10 +3026,11 @@ class SymbolTable: public HashTable<SymbolTableShape, HashTableKey*> {
   // added.  The return value is the symbol table which might have
   // been enlarged.  If the return value is not a failure, the symbol
   // pointer *s is set to the symbol found.
-  MUST_USE_RESULT MaybeObject* LookupSymbol(Vector<const char> str, Object** s);
-  MUST_USE_RESULT MaybeObject* LookupAsciiSymbol(Vector<const char> str,
-                                                 Object** s);
-  MUST_USE_RESULT MaybeObject* LookupSubStringAsciiSymbol(
+  MUST_USE_RESULT MaybeObject* LookupUtf8Symbol(Vector<const char> str,
+                                                Object** s);
+  MUST_USE_RESULT MaybeObject* LookupOneByteSymbol(Vector<const char> str,
+                                                   Object** s);
+  MUST_USE_RESULT MaybeObject* LookupSubStringOneByteSymbol(
       Handle<SeqOneByteString> str,
       int from,
       int length,

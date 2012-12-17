@@ -216,7 +216,8 @@ BasicJsonStringifier::BasicJsonStringifier(Isolate* isolate)
                            factory_->ToObject(factory_->empty_string()));
   part_length_ = kInitialPartLength;
   current_part_ = factory_->NewRawOneByteString(kInitialPartLength);
-  tojson_symbol_ = factory_->LookupAsciiSymbol("toJSON");
+  tojson_symbol_ =
+      factory_->LookupOneByteSymbol(STATIC_ASCII_VECTOR("toJSON"));
   stack_ = factory_->NewJSArray(8);
 }
 

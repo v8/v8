@@ -685,9 +685,7 @@ Handle<String> JsonParser<seq_ascii>::ScanJsonString() {
   int length = position_ - beg_pos;
   Handle<String> result;
   if (seq_ascii && is_symbol) {
-    result = factory()->LookupAsciiSymbol(seq_source_,
-                                          beg_pos,
-                                          length);
+    result = factory()->LookupOneByteSymbol(seq_source_, beg_pos, length);
   } else {
     result = factory()->NewRawOneByteString(length, pretenure_);
     char* dest = SeqOneByteString::cast(*result)->GetChars();
