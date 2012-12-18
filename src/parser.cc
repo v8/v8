@@ -3006,6 +3006,7 @@ Expression* Parser::ParseAssignmentExpression(bool accept_IN, bool* ok) {
   // side expression.  We could report this as a syntax error here but
   // for compatibility with JSC we choose to report the error at
   // runtime.
+  // TODO(ES5): Should change parsing for spec conformance.
   if (expression == NULL || !expression->IsValidLeftHandSide()) {
     Handle<String> type =
         isolate()->factory()->invalid_lhs_in_assignment_symbol();
