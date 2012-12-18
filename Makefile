@@ -87,6 +87,12 @@ endif
 ifeq ($(liveobjectlist), on)
   GYPFLAGS += -Dv8_use_liveobjectlist=true
 endif
+# vfp2=off
+ifeq ($(vfp2), off)
+  GYPFLAGS += -Dv8_can_use_vfp2_instructions=false
+else
+  GYPFLAGS += -Dv8_can_use_vfp2_instructions=true
+endif
 # vfp3=off
 ifeq ($(vfp3), off)
   GYPFLAGS += -Dv8_can_use_vfp3_instructions=false

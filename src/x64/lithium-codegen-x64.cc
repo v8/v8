@@ -119,35 +119,45 @@ void LCodeGen::Comment(const char* format, ...) {
 bool LCodeGen::GeneratePrologue() {
   ASSERT(is_generating());
 
-  ProfileEntryHookStub::MaybeCallEntryHook(masm_);
+  if (info()->IsOptimizing()) {
+    ProfileEntryHookStub::MaybeCallEntryHook(masm_);
 
 #ifdef DEBUG
-  if (strlen(FLAG_stop_at) > 0 &&
-      info_->function()->name()->IsEqualTo(CStrVector(FLAG_stop_at))) {
-    __ int3();
-  }
+    if (strlen(FLAG_stop_at) > 0 &&
+        info_->function()->name()->IsEqualTo(CStrVector(FLAG_stop_at))) {
+      __ int3();
+    }
 #endif
 
-  // Strict mode functions need to replace the receiver with undefined
-  // when called as functions (without an explicit receiver
-  // object). rcx is zero for method calls and non-zero for function
-  // calls.
-  if (!info_->is_classic_mode() || info_->is_native()) {
-    Label ok;
-    __ testq(rcx, rcx);
-    __ j(zero, &ok, Label::kNear);
-    // +1 for return address.
-    int receiver_offset = (scope()->num_parameters() + 1) * kPointerSize;
-    __ LoadRoot(kScratchRegister, Heap::kUndefinedValueRootIndex);
-    __ movq(Operand(rsp, receiver_offset), kScratchRegister);
-    __ bind(&ok);
+    // Strict mode functions need to replace the receiver with undefined
+    // when called as functions (without an explicit receiver
+    // object). rcx is zero for method calls and non-zero for function
+    // calls.
+    if (!info_->is_classic_mode() || info_->is_native()) {
+      Label ok;
+      __ testq(rcx, rcx);
+      __ j(zero, &ok, Label::kNear);
+      // +1 for return address.
+      int receiver_offset = (scope()->num_parameters() + 1) * kPointerSize;
+      __ LoadRoot(kScratchRegister, Heap::kUndefinedValueRootIndex);
+      __ movq(Operand(rsp, receiver_offset), kScratchRegister);
+      __ bind(&ok);
+    }
   }
 
   info()->set_prologue_offset(masm_->pc_offset());
-  __ push(rbp);  // Caller's frame pointer.
-  __ movq(rbp, rsp);
-  __ push(rsi);  // Callee's context.
-  __ push(rdi);  // Callee's JS function.
+  if (NeedsEagerFrame()) {
+    ASSERT(!frame_is_built_);
+    frame_is_built_ = true;
+    __ push(rbp);  // Caller's frame pointer.
+    __ movq(rbp, rsp);
+    __ push(rsi);  // Callee's context.
+    if (info()->IsStub()) {
+      __ Push(Smi::FromInt(StackFrame::STUB));
+    } else {
+      __ push(rdi);  // Callee's JS function.
+    }
+  }
 
   // Reserve space for the stack slots needed by the code.
   int slots = GetStackSlotCount();
@@ -177,7 +187,7 @@ bool LCodeGen::GeneratePrologue() {
   }
 
   // Possibly allocate a local context.
-  int heap_slots = scope()->num_heap_slots() - Context::MIN_CONTEXT_SLOTS;
+  int heap_slots = info_->num_heap_slots() - Context::MIN_CONTEXT_SLOTS;
   if (heap_slots > 0) {
     Comment(";;; Allocate local context");
     // Argument to NewContext is the function, which is still in rdi.
@@ -213,7 +223,7 @@ bool LCodeGen::GeneratePrologue() {
   }
 
   // Trace the call.
-  if (FLAG_trace) {
+  if (FLAG_trace && info()->IsOptimizing()) {
     __ CallRuntime(Runtime::kTraceEnter, 0);
   }
   return !is_aborted();
@@ -266,9 +276,55 @@ bool LCodeGen::GenerateBody() {
 
 
 bool LCodeGen::GenerateJumpTable() {
+  Label needs_frame_not_call;
+  Label needs_frame_is_call;
   for (int i = 0; i < jump_table_.length(); i++) {
     __ bind(&jump_table_[i].label);
-    __ Jump(jump_table_[i].address, RelocInfo::RUNTIME_ENTRY);
+    Address entry = jump_table_[i].address;
+    if (jump_table_[i].needs_frame) {
+      __ movq(kScratchRegister, ExternalReference::ForDeoptEntry(entry));
+      if (jump_table_[i].is_lazy_deopt) {
+        if (needs_frame_is_call.is_bound()) {
+          __ jmp(&needs_frame_is_call);
+        } else {
+          __ bind(&needs_frame_is_call);
+          __ push(rbp);
+          __ movq(rbp, rsp);
+          __ push(rsi);
+          // This variant of deopt can only be used with stubs. Since we don't
+          // have a function pointer to install in the stack frame that we're
+          // building, install a special marker there instead.
+          ASSERT(info()->IsStub());
+          __ Move(rsi, Smi::FromInt(StackFrame::STUB));
+          __ push(rsi);
+          __ movq(rsi, MemOperand(rsp, kPointerSize));
+          __ call(kScratchRegister);
+        }
+      } else {
+        if (needs_frame_not_call.is_bound()) {
+          __ jmp(&needs_frame_not_call);
+        } else {
+          __ bind(&needs_frame_not_call);
+          __ push(rbp);
+          __ movq(rbp, rsp);
+          __ push(rsi);
+          // This variant of deopt can only be used with stubs. Since we don't
+          // have a function pointer to install in the stack frame that we're
+          // building, install a special marker there instead.
+          ASSERT(info()->IsStub());
+          __ Move(rsi, Smi::FromInt(StackFrame::STUB));
+          __ push(rsi);
+          __ movq(rsi, MemOperand(rsp, kPointerSize));
+          __ jmp(kScratchRegister);
+        }
+      }
+    } else {
+      if (jump_table_[i].is_lazy_deopt) {
+        __ Call(entry, RelocInfo::RUNTIME_ENTRY);
+      } else {
+        __ Jump(entry, RelocInfo::RUNTIME_ENTRY);
+      }
+    }
   }
   return !is_aborted();
 }
@@ -280,10 +336,32 @@ bool LCodeGen::GenerateDeferredCode() {
     for (int i = 0; !is_aborted() && i < deferred_.length(); i++) {
       LDeferredCode* code = deferred_[i];
       __ bind(code->entry());
+      if (NeedsDeferredFrame()) {
+        Comment(";;; Deferred build frame",
+                code->instruction_index(),
+                code->instr()->Mnemonic());
+        ASSERT(!frame_is_built_);
+        ASSERT(info()->IsStub());
+        frame_is_built_ = true;
+        // Build the frame in such a way that esi isn't trashed.
+        __ push(rbp);  // Caller's frame pointer.
+        __ push(Operand(rbp, StandardFrameConstants::kContextOffset));
+        __ Push(Smi::FromInt(StackFrame::STUB));
+        __ lea(rbp, Operand(rsp, 2 * kPointerSize));
+      }
       Comment(";;; Deferred code @%d: %s.",
               code->instruction_index(),
               code->instr()->Mnemonic());
       code->Generate();
+      if (NeedsDeferredFrame()) {
+        Comment(";;; Deferred destroy frame",
+                code->instruction_index(),
+                code->instr()->Mnemonic());
+        ASSERT(frame_is_built_);
+        frame_is_built_ = false;
+        __ movq(rsp, rbp);
+        __ pop(rbp);
+      }
       __ jmp(code->exit());
     }
   }
@@ -396,7 +474,9 @@ void LCodeGen::WriteTranslation(LEnvironment* environment,
                    translation,
                    arguments_index,
                    arguments_count);
-  int closure_id = *info()->closure() != *environment->closure()
+  bool has_closure_id = !info()->closure().is_null() &&
+      *info()->closure() != *environment->closure();
+  int closure_id = has_closure_id
       ? DefineDeoptimizationLiteral(environment->closure())
       : Translation::kSelfLiteralId;
 
@@ -419,6 +499,9 @@ void LCodeGen::WriteTranslation(LEnvironment* environment,
       break;
     case ARGUMENTS_ADAPTOR:
       translation->BeginArgumentsAdaptorFrame(closure_id, translation_size);
+      break;
+    case STUB:
+      translation->BeginCompiledStubFrame();
       break;
   }
 
@@ -610,20 +693,33 @@ void LCodeGen::DeoptimizeIf(Condition cc, LEnvironment* environment) {
   RegisterEnvironmentForDeoptimization(environment, Safepoint::kNoLazyDeopt);
   ASSERT(environment->HasBeenRegistered());
   int id = environment->deoptimization_index();
-  Address entry = Deoptimizer::GetDeoptimizationEntry(id, Deoptimizer::EAGER);
+  ASSERT(info()->IsOptimizing() || info()->IsStub());
+  Deoptimizer::BailoutType bailout_type = info()->IsStub()
+      ? Deoptimizer::LAZY
+      : Deoptimizer::EAGER;
+  Address entry = Deoptimizer::GetDeoptimizationEntry(id, bailout_type);
   if (entry == NULL) {
     Abort("bailout was not prepared");
     return;
   }
 
+  ASSERT(info()->IsStub() || frame_is_built_);
+  bool lazy_deopt = info()->IsStub();
   if (cc == no_condition) {
-    __ Jump(entry, RelocInfo::RUNTIME_ENTRY);
+    if (lazy_deopt) {
+      __ Call(entry, RelocInfo::RUNTIME_ENTRY);
+    } else {
+      __ Jump(entry, RelocInfo::RUNTIME_ENTRY);
+    }
   } else {
     // We often have several deopts to the same entry, reuse the last
     // jump entry if this is the case.
     if (jump_table_.is_empty() ||
-        jump_table_.last().address != entry) {
-      jump_table_.Add(JumpTableEntry(entry), zone());
+        jump_table_.last().address != entry ||
+        jump_table_.last().needs_frame != !frame_is_built_ ||
+        jump_table_.last().is_lazy_deopt != lazy_deopt) {
+      JumpTableEntry table_entry(entry, !frame_is_built_, lazy_deopt);
+      jump_table_.Add(table_entry, zone());
     }
     __ j(cc, &jump_table_.last().label);
   }
@@ -2334,15 +2430,22 @@ void LCodeGen::DoCmpT(LCmpT* instr) {
 
 
 void LCodeGen::DoReturn(LReturn* instr) {
-  if (FLAG_trace) {
+  if (FLAG_trace && info()->IsOptimizing()) {
     // Preserve the return value on the stack and rely on the runtime
     // call to return the value in the same register.
     __ push(rax);
     __ CallRuntime(Runtime::kTraceExit, 1);
   }
-  __ movq(rsp, rbp);
-  __ pop(rbp);
-  __ Ret((GetParameterCount() + 1) * kPointerSize, rcx);
+  if (NeedsEagerFrame()) {
+    __ movq(rsp, rbp);
+    __ pop(rbp);
+  }
+  if (info()->IsStub()) {
+    __ movq(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
+    __ Ret(0, r10);
+  } else {
+    __ Ret((GetParameterCount() + 1) * kPointerSize, rcx);
+  }
 }
 
 
@@ -4573,10 +4676,10 @@ void LCodeGen::DoCheckFunction(LCheckFunction* instr) {
 void LCodeGen::DoCheckMapCommon(Register reg,
                                 Handle<Map> map,
                                 CompareMapMode mode,
-                                LEnvironment* env) {
+                                LInstruction* instr) {
   Label success;
   __ CompareMap(reg, map, &success, mode);
-  DeoptimizeIf(not_equal, env);
+  DeoptimizeIf(not_equal, instr->environment());
   __ bind(&success);
 }
 
@@ -4594,7 +4697,7 @@ void LCodeGen::DoCheckMaps(LCheckMaps* instr) {
     __ j(equal, &success);
   }
   Handle<Map> map = map_set->last();
-  DoCheckMapCommon(reg, map, REQUIRE_EXACT_MAP, instr->environment());
+  DoCheckMapCommon(reg, map, REQUIRE_EXACT_MAP, instr);
   __ bind(&success);
 }
 
@@ -4661,7 +4764,7 @@ void LCodeGen::DoCheckPrototypeMaps(LCheckPrototypeMaps* instr) {
   // Check prototype maps up to the holder.
   while (!current_prototype.is_identical_to(holder)) {
     DoCheckMapCommon(reg, Handle<Map>(current_prototype->map()),
-                     ALLOW_ELEMENT_TRANSITION_MAPS, instr->environment());
+                     ALLOW_ELEMENT_TRANSITION_MAPS, instr);
     current_prototype =
         Handle<JSObject>(JSObject::cast(current_prototype->GetPrototype()));
     // Load next prototype object.
@@ -4670,7 +4773,7 @@ void LCodeGen::DoCheckPrototypeMaps(LCheckPrototypeMaps* instr) {
 
   // Check the holder map.
     DoCheckMapCommon(reg, Handle<Map>(current_prototype->map()),
-                     ALLOW_ELEMENT_TRANSITION_MAPS, instr->environment());
+                     ALLOW_ELEMENT_TRANSITION_MAPS, instr);
 }
 
 
@@ -5206,6 +5309,7 @@ void LCodeGen::EmitIsConstructCall(Register temp) {
 
 
 void LCodeGen::EnsureSpaceForLazyDeopt(int space_needed) {
+  if (info()->IsStub()) return;
   // Ensure that we have enough space after the previous lazy-bailout
   // instruction for patching the code here.
   int current_pc = masm()->pc_offset();

@@ -143,6 +143,8 @@ class Deoptimizer : public Malloced {
 
   int output_count() const { return output_count_; }
 
+  Code::Kind compiled_code_kind() const { return compiled_code_->kind(); }
+
   // Number of created JS frames. Not all created frames are necessarily JS.
   int jsframe_count() const { return jsframe_count_; }
 
@@ -307,6 +309,9 @@ class Deoptimizer : public Malloced {
 
   static size_t GetMaxDeoptTableSize();
 
+  static void EnsureCodeForDeoptimizationEntry(BailoutType type,
+                                               int max_entry_id);
+
  private:
   static const int kMinNumberOfEntries = 64;
   static const int kMaxNumberOfEntries = 16384;
@@ -330,6 +335,8 @@ class Deoptimizer : public Malloced {
   void DoComputeAccessorStubFrame(TranslationIterator* iterator,
                                   int frame_index,
                                   bool is_setter_stub_frame);
+  void DoCompiledStubFrame(TranslationIterator* iterator,
+                           int frame_index);
   void DoTranslateCommand(TranslationIterator* iterator,
                           int frame_index,
                           unsigned output_offset);
@@ -352,8 +359,6 @@ class Deoptimizer : public Malloced {
   void AddArgumentsObjectValue(intptr_t value);
   void AddDoubleValue(intptr_t slot_address, double value);
 
-  static void EnsureCodeForDeoptimizationEntry(BailoutType type,
-                                               int max_entry_id);
   static void GenerateDeoptimizationEntries(
       MacroAssembler* masm, int count, BailoutType type);
 
@@ -374,7 +379,7 @@ class Deoptimizer : public Malloced {
 
   Isolate* isolate_;
   JSFunction* function_;
-  Code* optimized_code_;
+  Code* compiled_code_;
   unsigned bailout_id_;
   BailoutType bailout_type_;
   Address from_;
@@ -544,7 +549,7 @@ class FrameDescription {
   uintptr_t frame_size_;  // Number of bytes.
   JSFunction* function_;
   intptr_t registers_[Register::kNumRegisters];
-  double double_registers_[DoubleRegister::kNumAllocatableRegisters];
+  double double_registers_[DoubleRegister::kMaxNumAllocatableRegisters];
   intptr_t top_;
   intptr_t pc_;
   intptr_t fp_;
@@ -614,6 +619,7 @@ class Translation BASE_EMBEDDED {
     GETTER_STUB_FRAME,
     SETTER_STUB_FRAME,
     ARGUMENTS_ADAPTOR_FRAME,
+    COMPILED_STUB_FRAME,
     REGISTER,
     INT32_REGISTER,
     UINT32_REGISTER,
@@ -644,6 +650,7 @@ class Translation BASE_EMBEDDED {
 
   // Commands.
   void BeginJSFrame(BailoutId node_id, int literal_id, unsigned height);
+  void BeginCompiledStubFrame();
   void BeginArgumentsAdaptorFrame(int literal_id, unsigned height);
   void BeginConstructStubFrame(int literal_id, unsigned height);
   void BeginGetterStubFrame(int literal_id);

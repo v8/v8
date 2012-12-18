@@ -53,6 +53,7 @@ namespace internal {
 class Bootstrapper;
 class CodeGenerator;
 class CodeRange;
+struct CodeStubInterfaceDescriptor;
 class CompilationCache;
 class ContextSlotCache;
 class ContextSwitcher;
@@ -1058,6 +1059,9 @@ class Isolate {
     date_cache_ = date_cache;
   }
 
+  CodeStubInterfaceDescriptor*
+      code_stub_interface_descriptor(int index);
+
   void IterateDeferredHandles(ObjectVisitor* visitor);
   void LinkDeferredHandles(DeferredHandles* deferred_handles);
   void UnlinkDeferredHandles(DeferredHandles* deferred_handles);
@@ -1240,6 +1244,7 @@ class Isolate {
   RegExpStack* regexp_stack_;
   DateCache* date_cache_;
   unibrow::Mapping<unibrow::Ecma262Canonicalize> interp_canonicalize_mapping_;
+  CodeStubInterfaceDescriptor* code_stub_interface_descriptors_;
 
   // The garbage collector should be a little more aggressive when it knows
   // that a context was recently exited.
