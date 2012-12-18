@@ -1253,12 +1253,8 @@ class String : public Primitive {
 
   /**
    * Allocates a new string from either UTF-8 encoded or ASCII data.
-   * The second parameter 'length' gives the buffer length.
-   * If the data is UTF-8 encoded, the caller must
-   * be careful to supply the length parameter.
-   * If it is not given, the function calls
-   * 'strlen' to determine the buffer length, it might be
-   * wrong if 'data' contains a null character.
+   * The second parameter 'length' gives the buffer length. If omitted,
+   * the function calls 'strlen' to determine the buffer length.
    */
   V8EXPORT static Local<String> New(const char* data, int length = -1);
 
