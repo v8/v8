@@ -3312,15 +3312,16 @@ MUST_USE_RESULT static inline MaybeObject* MakeOrFindTwoCharacterString(
     return symbol;
   // Now we know the length is 2, we might as well make use of that fact
   // when building the new string.
-  } else if ((c1 | c2) <= String::kMaxAsciiCharCodeU) {  // We can do this
+  } else if (static_cast<unsigned>(c1 | c2) <= String::kMaxAsciiCharCodeU) {
+    // We can do this.
     ASSERT(IsPowerOf2(String::kMaxAsciiCharCodeU + 1));  // because of this.
     Object* result;
     { MaybeObject* maybe_result = heap->AllocateRawOneByteString(2);
       if (!maybe_result->ToObject(&result)) return maybe_result;
     }
     char* dest = SeqOneByteString::cast(result)->GetChars();
-    dest[0] = c1;
-    dest[1] = c2;
+    dest[0] = static_cast<char>(c1);
+    dest[1] = static_cast<char>(c2);
     return result;
   } else {
     Object* result;
