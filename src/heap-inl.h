@@ -98,12 +98,34 @@ MaybeObject* Heap::AllocateStringFromUtf8(Vector<const char> str,
 }
 
 
+template<>
+bool inline Heap::IsOneByte(Vector<const char> str, int chars) {
+  // TODO(dcarney): incorporate Latin-1 check when Latin-1 is supported?
+  // ASCII only check.
+  return chars == str.length();
+}
+
+
+template<>
+bool inline Heap::IsOneByte(String* str, int chars) {
+  return str->IsOneByteRepresentation();
+}
+
+
 MaybeObject* Heap::AllocateSymbol(Vector<const char> str,
                                   int chars,
                                   uint32_t hash_field) {
-  unibrow::Utf8InputBuffer<> buffer(str.start(),
-                                    static_cast<unsigned>(str.length()));
-  return AllocateInternalSymbol(&buffer, chars, hash_field);
+  if (IsOneByte(str, chars)) return AllocateAsciiSymbol(str, hash_field);
+  return AllocateInternalSymbol<false>(str, chars, hash_field);
+}
+
+
+template<typename T>
+MaybeObject* Heap::AllocateInternalSymbol(T t, int chars, uint32_t hash_field) {
+  if (IsOneByte(t, chars)) {
+    return AllocateInternalSymbol<true>(t, chars, hash_field);
+  }
+  return AllocateInternalSymbol<false>(t, chars, hash_field);
 }
 
 

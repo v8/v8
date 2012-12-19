@@ -764,12 +764,16 @@ class Heap {
         Vector<const uc16> str,
         uint32_t hash_field);
 
-  MUST_USE_RESULT MaybeObject* AllocateInternalSymbol(
-      unibrow::CharacterStream* buffer, int chars, uint32_t hash_field);
+  template<typename T>
+  static inline bool IsOneByte(T t, int chars);
 
-  MUST_USE_RESULT MaybeObject* AllocateExternalSymbol(
-      Vector<const char> str,
-      int chars);
+  template<typename T>
+  MUST_USE_RESULT inline MaybeObject* AllocateInternalSymbol(
+      T t, int chars, uint32_t hash_field);
+
+  template<bool is_one_byte, typename T>
+  MUST_USE_RESULT MaybeObject* AllocateInternalSymbol(
+      T t, int chars, uint32_t hash_field);
 
   // Allocates and partially initializes a String.  There are two String
   // encodings: ASCII and two byte.  These functions allocate a string of the

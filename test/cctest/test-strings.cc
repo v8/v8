@@ -345,37 +345,24 @@ void AccumulateStats(Handle<String> cons_string, ConsStringStats* stats) {
 
 void AccumulateStatsWithOperator(
     ConsString* cons_string, ConsStringStats* stats) {
-  // Init op.
+  unsigned offset = 0;
+  int32_t type = cons_string->map()->instance_type();
+  unsigned length = static_cast<unsigned>(cons_string->length());
   ConsStringIteratorOp op;
-  op.Reset();
-  // Use response for initial search and on blown stack.
-  ConsStringIteratorOp::ContinueResponse response;
-  response.string_ = cons_string;
-  response.offset_ = 0;
-  response.type_ = cons_string->map()->instance_type();
-  response.length_ = (uint32_t) cons_string->length();
+  String* string = op.Operate(cons_string, &offset, &type, &length);
+  CHECK(string != NULL);
   while (true) {
-    String* string = op.Operate(ConsString::cast(response.string_),
-                                &response.offset_,
-                                &response.type_,
-                                &response.length_);
-    CHECK(string != NULL);
-    while (true) {
-      // Accumulate stats.
-      stats->leaves_++;
-      stats->chars_ += string->length();
-      // Check for completion.
-      bool keep_going_fast_check = op.HasMore();
-      bool keep_going = op.ContinueOperation(&response);
-      if (!keep_going) return;
-      // Verify no false positives for fast check.
-      CHECK(keep_going_fast_check);
-      CHECK(response.string_ != NULL);
-      // Blew stack. Restart outer loop.
-      if (response.string_->IsConsString()) break;
-      string = response.string_;
-    }
-  };
+    ASSERT(!string->IsConsString());
+    // Accumulate stats.
+    stats->leaves_++;
+    stats->chars_ += string->length();
+    // Check for completion.
+    bool keep_going_fast_check = op.HasMore();
+    string = op.ContinueOperation(&type, &length);
+    if (string == NULL) return;
+    // Verify no false positives for fast check.
+    CHECK(keep_going_fast_check);
+  }
 }
 
 

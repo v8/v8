@@ -112,7 +112,7 @@ const char* StringsStorage::GetCopy(const char* src) {
   OS::StrNCpy(dst, src, len);
   dst[len] = '\0';
   uint32_t hash =
-      HashSequentialString(dst.start(), len, HEAP->HashSeed());
+      StringHasher::HashSequentialString(dst.start(), len, HEAP->HashSeed());
   return AddOrDisposeString(dst.start(), hash);
 }
 
@@ -145,7 +145,7 @@ const char* StringsStorage::GetVFormatted(const char* format, va_list args) {
     DeleteArray(str.start());
     return format;
   }
-  uint32_t hash = HashSequentialString(
+  uint32_t hash = StringHasher::HashSequentialString(
       str.start(), len, HEAP->HashSeed());
   return AddOrDisposeString(str.start(), hash);
 }
@@ -156,8 +156,8 @@ const char* StringsStorage::GetName(String* name) {
     int length = Min(kMaxNameSize, name->length());
     SmartArrayPointer<char> data =
         name->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL, 0, length);
-    uint32_t hash =
-        HashSequentialString(*data, length, name->GetHeap()->HashSeed());
+    uint32_t hash = StringHasher::HashSequentialString(
+        *data, length, name->GetHeap()->HashSeed());
     return AddOrDisposeString(data.Detach(), hash);
   }
   return "";
@@ -1451,9 +1451,9 @@ void HeapObjectsMap::RemoveDeadEntries() {
 SnapshotObjectId HeapObjectsMap::GenerateId(v8::RetainedObjectInfo* info) {
   SnapshotObjectId id = static_cast<SnapshotObjectId>(info->GetHash());
   const char* label = info->GetLabel();
-  id ^= HashSequentialString(label,
-                             static_cast<int>(strlen(label)),
-                             HEAP->HashSeed());
+  id ^= StringHasher::HashSequentialString(label,
+                                           static_cast<int>(strlen(label)),
+                                           HEAP->HashSeed());
   intptr_t element_count = info->GetElementCount();
   if (element_count != -1)
     id ^= ComputeIntegerHash(static_cast<uint32_t>(element_count),
@@ -2940,9 +2940,10 @@ class NativeGroupRetainedObjectInfo : public v8::RetainedObjectInfo {
 NativeGroupRetainedObjectInfo* NativeObjectsExplorer::FindOrAddGroupInfo(
     const char* label) {
   const char* label_copy = collection_->names()->GetCopy(label);
-  uint32_t hash = HashSequentialString(label_copy,
-                                       static_cast<int>(strlen(label_copy)),
-                                       HEAP->HashSeed());
+  uint32_t hash = StringHasher::HashSequentialString(
+      label_copy,
+      static_cast<int>(strlen(label_copy)),
+      HEAP->HashSeed());
   HashMap::Entry* entry = native_groups_.Lookup(const_cast<char*>(label_copy),
                                                 hash, true);
   if (entry->value == NULL) {

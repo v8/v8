@@ -2584,8 +2584,7 @@ void String::Visit(
 
       case kConsStringTag | kOneByteStringTag:
       case kConsStringTag | kTwoByteStringTag:
-        string = cons_op.Operate(ConsString::cast(string), &offset, &type,
-            &length);
+        string = cons_op.Operate(string, &offset, &type, &length);
         if (string == NULL) return;
         slice_offset = offset;
         ASSERT(length == static_cast<unsigned>(string->length()));
@@ -2777,6 +2776,11 @@ const uint16_t* ExternalTwoByteString::ExternalTwoByteStringGetData(
 }
 
 
+String* ConsStringNullOp::Operate(String*, unsigned*, int32_t*, unsigned*) {
+  return NULL;
+}
+
+
 unsigned ConsStringIteratorOp::OffsetForDepth(unsigned depth) {
   return depth & kDepthMask;
 }
@@ -2805,42 +2809,38 @@ void ConsStringIteratorOp::Pop() {
 }
 
 
-void ConsStringIteratorOp::Reset() {
-  depth_ = 0;
-  maximum_depth_ = 0;
-}
-
-
 bool ConsStringIteratorOp::HasMore() {
   return depth_ != 0;
 }
 
 
-bool ConsStringIteratorOp::ContinueOperation(ContinueResponse* response) {
+void ConsStringIteratorOp::Reset() {
+  depth_ = 0;
+}
+
+
+String* ConsStringIteratorOp::ContinueOperation(int32_t* type_out,
+                                                unsigned* length_out) {
   bool blew_stack;
-  int32_t type;
-  unsigned length;
-  String* string = NextLeaf(&blew_stack, &type, &length);
+  String* string = NextLeaf(&blew_stack, type_out, length_out);
   // String found.
   if (string != NULL) {
-    consumed_ += length;
-    response->string_ = string;
-    response->offset_ = 0;
-    response->length_ = length;
-    response->type_ = type;
-    return true;
+    // Verify output.
+    ASSERT(*length_out == static_cast<unsigned>(string->length()));
+    ASSERT(*type_out == string->map()->instance_type());
+    return string;
   }
   // Traversal complete.
-  if (!blew_stack) return false;
-  // Restart search.
-  Reset();
-  // TODO(dcarney) This is unnecessary.
-  // After a reset, we don't need a String::Visit
-  response->string_ = root_;
-  response->offset_ = consumed_;
-  response->length_ = root_length_;
-  response->type_ = root_type_;
-  return true;
+  if (!blew_stack) return NULL;
+  // Restart search from root.
+  unsigned offset_out;
+  string = Search(&offset_out, type_out, length_out);
+  // Verify output.
+  ASSERT(string == NULL || offset_out == 0);
+  ASSERT(string == NULL ||
+         *length_out == static_cast<unsigned>(string->length()));
+  ASSERT(string == NULL || *type_out == string->map()->instance_type());
+  return string;
 }
 
 
@@ -2857,18 +2857,24 @@ StringCharacterStream::StringCharacterStream(
     end_(NULL),
     op_(op) {
   op->Reset();
-  String::Visit(string,
-      offset, *this, *op, string->map()->instance_type(), string->length());
+  int32_t type = string->map()->instance_type();
+  unsigned length = string->length();
+  String::Visit(string, offset, *this, *op, type, length);
 }
 
 
 bool StringCharacterStream::HasMore() {
   if (buffer8_ != end_) return true;
   if (!op_->HasMore()) return false;
-  ConsStringIteratorOp::ContinueResponse response;
-  if (!op_->ContinueOperation(&response)) return false;
-  String::Visit(response.string_,
-      response.offset_, *this, *op_, response.type_, response.length_);
+  unsigned length;
+  int32_t type;
+  String* string = op_->ContinueOperation(&type, &length);
+  if (string == NULL) return false;
+  ASSERT(!string->IsConsString());
+  ASSERT(string->length() != 0);
+  ConsStringNullOp null_op;
+  String::Visit(string, 0, *this, null_op, type, length);
+  ASSERT(buffer8_ != end_);
   return true;
 }
 
@@ -5138,7 +5144,7 @@ bool StringHasher::has_trivial_hash() {
 }
 
 
-uint32_t StringHasher::AddCharacterCore(uint32_t running_hash, uint32_t c) {
+uint32_t StringHasher::AddCharacterCore(uint32_t running_hash, uint16_t c) {
   running_hash += c;
   running_hash += (running_hash << 10);
   running_hash ^= (running_hash >> 6);
@@ -5157,66 +5163,62 @@ uint32_t StringHasher::GetHashCore(uint32_t running_hash) {
 }
 
 
-void StringHasher::AddCharacter(uint32_t c) {
-  if (c > unibrow::Utf16::kMaxNonSurrogateCharCode) {
-    AddSurrogatePair(c);  // Not inlined.
-    return;
-  }
+void StringHasher::AddCharacter(uint16_t c) {
   // Use the Jenkins one-at-a-time hash function to update the hash
   // for the given character.
   raw_running_hash_ = AddCharacterCore(raw_running_hash_, c);
-  // Incremental array index computation.
-  if (is_array_index_) {
-    if (c < '0' || c > '9') {
+}
+
+
+bool StringHasher::UpdateIndex(uint16_t c) {
+  ASSERT(is_array_index_);
+  if (c < '0' || c > '9') {
+    is_array_index_ = false;
+    return false;
+  }
+  int d = c - '0';
+  if (is_first_char_) {
+    is_first_char_ = false;
+    if (c == '0' && length_ > 1) {
       is_array_index_ = false;
-    } else {
-      int d = c - '0';
-      if (is_first_char_) {
-        is_first_char_ = false;
-        if (c == '0' && length_ > 1) {
-          is_array_index_ = false;
-          return;
-        }
-      }
-      if (array_index_ > 429496729U - ((d + 2) >> 3)) {
-        is_array_index_ = false;
-      } else {
-        array_index_ = array_index_ * 10 + d;
+      return false;
+    }
+  }
+  if (array_index_ > 429496729U - ((d + 2) >> 3)) {
+    is_array_index_ = false;
+    return false;
+  }
+  array_index_ = array_index_ * 10 + d;
+  return true;
+}
+
+
+template<typename Char>
+inline void StringHasher::AddCharacters(const Char* chars, int length) {
+  ASSERT(sizeof(Char) == 1 || sizeof(Char) == 2);
+  int i = 0;
+  if (is_array_index_) {
+    for (; i < length; i++) {
+      AddCharacter(chars[i]);
+      if (!UpdateIndex(chars[i])) {
+        i++;
+        break;
       }
     }
   }
-}
-
-
-void StringHasher::AddCharacterNoIndex(uint32_t c) {
-  ASSERT(!is_array_index());
-  if (c > unibrow::Utf16::kMaxNonSurrogateCharCode) {
-    AddSurrogatePairNoIndex(c);  // Not inlined.
-    return;
+  for (; i < length; i++) {
+    ASSERT(!is_array_index_);
+    AddCharacter(chars[i]);
   }
-  raw_running_hash_ = AddCharacterCore(raw_running_hash_, c);
-}
-
-
-uint32_t StringHasher::GetHash() {
-  // Get the calculated raw hash value and do some more bit ops to distribute
-  // the hash further. Ensure that we never return zero as the hash value.
-  return GetHashCore(raw_running_hash_);
 }
 
 
 template <typename schar>
-uint32_t HashSequentialString(const schar* chars, int length, uint32_t seed) {
+uint32_t StringHasher::HashSequentialString(const schar* chars,
+                                            int length,
+                                            uint32_t seed) {
   StringHasher hasher(length, seed);
-  if (!hasher.has_trivial_hash()) {
-    int i;
-    for (i = 0; hasher.is_array_index() && (i < length); i++) {
-      hasher.AddCharacter(chars[i]);
-    }
-    for (; i < length; i++) {
-      hasher.AddCharacterNoIndex(chars[i]);
-    }
-  }
+  if (!hasher.has_trivial_hash()) hasher.AddCharacters(chars, length);
   return hasher.GetHashField();
 }
 

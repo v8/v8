@@ -170,10 +170,6 @@ class Utf8 {
   // that match are coded as a 4 byte UTF-8 sequence.
   static const unsigned kBytesSavedByCombiningSurrogates = 2;
   static const unsigned kSizeOfUnmatchedSurrogate = 3;
-
- private:
-  template <unsigned s> friend class Utf8InputBuffer;
-  friend class Test;
   static inline uchar ValueOf(const byte* str,
                               unsigned length,
                               unsigned* cursor);

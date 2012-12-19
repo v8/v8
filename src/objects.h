@@ -3043,7 +3043,7 @@ class SymbolTable: public HashTable<SymbolTableShape, HashTableKey*> {
   // true if it is found, assigning the symbol to the given output
   // parameter.
   bool LookupSymbolIfExists(String* str, String** symbol);
-  bool LookupTwoCharsSymbolIfExists(uint32_t c1, uint32_t c2, String** symbol);
+  bool LookupTwoCharsSymbolIfExists(uint16_t c1, uint16_t c2, String** symbol);
 
   // Casting.
   static inline SymbolTable* cast(Object* obj);
@@ -6929,30 +6929,14 @@ class StringHasher {
  public:
   explicit inline StringHasher(int length, uint32_t seed);
 
-  // Returns true if the hash of this string can be computed without
-  // looking at the contents.
-  inline bool has_trivial_hash();
+  template <typename schar>
+  static inline uint32_t HashSequentialString(const schar* chars,
+                                              int length,
+                                              uint32_t seed);
 
-  // Add a character to the hash and update the array index calculation.
-  inline void AddCharacter(uint32_t c);
-
-  // Adds a character to the hash but does not update the array index
-  // calculation.  This can only be called when it has been verified
-  // that the input is not an array index.
-  inline void AddCharacterNoIndex(uint32_t c);
-
-  // Add a character above 0xffff as a surrogate pair.  These can get into
-  // the hasher through the routines that take a UTF-8 string and make a symbol.
-  void AddSurrogatePair(uc32 c);
-  void AddSurrogatePairNoIndex(uc32 c);
-
-  // Returns the value to store in the hash field of a string with
-  // the given length and contents.
-  uint32_t GetHashField();
-
-  // Returns true if the characters seen so far make up a legal array
-  // index.
-  bool is_array_index() { return is_array_index_; }
+  static uint32_t ComputeHashField(unibrow::CharacterStream* buffer,
+                                   int length,
+                                   uint32_t seed);
 
   // Calculated hash value for a string consisting of 1 to
   // String::kMaxArrayIndexSize digits with no leading zeros (except "0").
@@ -6964,49 +6948,34 @@ class StringHasher {
   // use 27 instead.
   static const int kZeroHash = 27;
 
- private:
-  uint32_t array_index() {
-    ASSERT(is_array_index());
-    return array_index_;
-  }
-
-  inline uint32_t GetHash();
-
   // Reusable parts of the hashing algorithm.
-  INLINE(static uint32_t AddCharacterCore(uint32_t running_hash, uint32_t c));
+  INLINE(static uint32_t AddCharacterCore(uint32_t running_hash, uint16_t c));
   INLINE(static uint32_t GetHashCore(uint32_t running_hash));
+
+ protected:
+  // Returns the value to store in the hash field of a string with
+  // the given length and contents.
+  uint32_t GetHashField();
+  // Returns true if the hash of this string can be computed without
+  // looking at the contents.
+  inline bool has_trivial_hash();
+  // Adds a block of characters to the hash.
+  template<typename Char>
+  inline void AddCharacters(const Char* chars, int len);
+
+ private:
+  // Add a character to the hash.
+  inline void AddCharacter(uint16_t c);
+  // Update index. Returns true if string is still an index.
+  inline bool UpdateIndex(uint16_t c);
 
   int length_;
   uint32_t raw_running_hash_;
   uint32_t array_index_;
   bool is_array_index_;
   bool is_first_char_;
-  friend class TwoCharHashTableKey;
-
-  template <bool seq_ascii> friend class JsonParser;
+  DISALLOW_COPY_AND_ASSIGN(StringHasher);
 };
-
-
-class IncrementalAsciiStringHasher {
- public:
-  explicit inline IncrementalAsciiStringHasher(uint32_t seed, char first_char);
-  inline void AddCharacter(uc32 c);
-  inline uint32_t GetHash();
-
- private:
-  int length_;
-  uint32_t raw_running_hash_;
-  uint32_t array_index_;
-  bool is_array_index_;
-  char first_char_;
-};
-
-
-// Calculates string hash.
-template <typename schar>
-inline uint32_t HashSequentialString(const schar* chars,
-                                     int length,
-                                     uint32_t seed);
 
 
 // The characteristics of a string are stored in its map.  Retrieving these
@@ -7226,10 +7195,6 @@ class String: public HeapObject {
 
   // Returns a hash value used for the property table
   inline uint32_t Hash();
-
-  static uint32_t ComputeHashField(unibrow::CharacterStream* buffer,
-                                   int length,
-                                   uint32_t seed);
 
   static bool ComputeArrayIndex(unibrow::CharacterStream* buffer,
                                 uint32_t* index,
@@ -7870,22 +7835,30 @@ class StringInputBuffer: public unibrow::InputBuffer<String, String*, 1024> {
 };
 
 
+// A ConsStringOp that returns null.
+// Useful when the operation to apply on a ConsString
+// requires an expensive data structure.
+class ConsStringNullOp {
+ public:
+  inline ConsStringNullOp() {}
+  static inline String* Operate(String*, unsigned*, int32_t*, unsigned*);
+ private:
+  DISALLOW_COPY_AND_ASSIGN(ConsStringNullOp);
+};
+
+
 // This maintains an off-stack representation of the stack frames required
 // to traverse a ConsString, allowing an entirely iterative and restartable
 // traversal of the entire string
 // Note: this class is not GC-safe.
 class ConsStringIteratorOp {
  public:
-  struct ContinueResponse {
-    String* string_;
-    unsigned offset_;
-    unsigned length_;
-    int32_t type_;
-  };
   inline ConsStringIteratorOp() {}
-  String* Operate(ConsString* cons_string, unsigned* offset_out,
-      int32_t* type_out, unsigned* length_out);
-  inline bool ContinueOperation(ContinueResponse* response);
+  String* Operate(String* string,
+                  unsigned* offset_out,
+                  int32_t* type_out,
+                  unsigned* length_out);
+  inline String* ContinueOperation(int32_t* type_out, unsigned* length_out);
   inline void Reset();
   inline bool HasMore();
 
@@ -7902,6 +7875,9 @@ class ConsStringIteratorOp {
   inline void AdjustMaximumDepth();
   inline void Pop();
   String* NextLeaf(bool* blew_stack, int32_t* type_out, unsigned* length_out);
+  String* Search(unsigned* offset_out,
+                 int32_t* type_out,
+                 unsigned* length_out);
 
   unsigned depth_;
   unsigned maximum_depth_;
@@ -7910,8 +7886,6 @@ class ConsStringIteratorOp {
   ConsString* frames_[kStackSize];
   unsigned consumed_;
   ConsString* root_;
-  int32_t root_type_;
-  unsigned root_length_;
   DISALLOW_COPY_AND_ASSIGN(ConsStringIteratorOp);
 };
 
@@ -7919,8 +7893,9 @@ class ConsStringIteratorOp {
 // Note: this class is not GC-safe.
 class StringCharacterStream {
  public:
-  inline StringCharacterStream(
-      String* string, unsigned offset, ConsStringIteratorOp* op);
+  inline StringCharacterStream(String* string,
+                               unsigned offset,
+                               ConsStringIteratorOp* op);
   inline uint16_t GetNext();
   inline bool HasMore();
   inline void Reset(String* string, unsigned offset, ConsStringIteratorOp* op);

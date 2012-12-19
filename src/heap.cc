@@ -3302,8 +3302,8 @@ static inline bool Between(uint32_t character, uint32_t from, uint32_t to) {
 
 MUST_USE_RESULT static inline MaybeObject* MakeOrFindTwoCharacterString(
     Heap* heap,
-    uint32_t c1,
-    uint32_t c2) {
+    uint16_t c1,
+    uint16_t c2) {
   String* symbol;
   // Numeric strings have a different hash algorithm not known by
   // LookupTwoCharsSymbolIfExists, so we skip this step for such strings.
@@ -3352,8 +3352,8 @@ MaybeObject* Heap::AllocateConsString(String* first, String* second) {
   // dictionary.  Check whether we already have the string in the symbol
   // table to prevent creation of many unneccesary strings.
   if (length == 2) {
-    unsigned c1 = first->Get(0);
-    unsigned c2 = second->Get(0);
+    uint16_t c1 = first->Get(0);
+    uint16_t c2 = second->Get(0);
     return MakeOrFindTwoCharacterString(this, c1, c2);
   }
 
@@ -3467,8 +3467,8 @@ MaybeObject* Heap::AllocateSubString(String* buffer,
     // Optimization for 2-byte strings often used as keys in a decompression
     // dictionary.  Check whether we already have the string in the symbol
     // table to prevent creation of many unneccesary strings.
-    unsigned c1 = buffer->Get(start);
-    unsigned c2 = buffer->Get(start + 1);
+    uint16_t c1 = buffer->Get(start);
+    uint16_t c2 = buffer->Get(start + 1);
     return MakeOrFindTwoCharacterString(this, c1, c2);
   }
 
@@ -4624,27 +4624,88 @@ Map* Heap::SymbolMapForString(String* string) {
 }
 
 
-MaybeObject* Heap::AllocateInternalSymbol(unibrow::CharacterStream* buffer,
+template<typename T>
+class AllocateInternalSymbolHelper {
+ public:
+  static void WriteOneByteData(T t, char* chars, int len);
+  static void WriteTwoByteData(T t, uint16_t* chars, int len);
+ private:
+  DISALLOW_COPY_AND_ASSIGN(AllocateInternalSymbolHelper);
+};
+
+
+template<>
+class AllocateInternalSymbolHelper< Vector<const char> > {
+ public:
+  static inline void WriteOneByteData(Vector<const char> vector,
+                                      char* chars,
+                                      int len) {
+    // Only works for ascii.
+    ASSERT(vector.length() == len);
+    memcpy(chars, vector.start(), len);
+  }
+
+  static inline void WriteTwoByteData(Vector<const char> vector,
+                                      uint16_t* chars,
+                                      int len) {
+    const uint8_t* stream = reinterpret_cast<const uint8_t*>(vector.start());
+    unsigned stream_length = vector.length();
+    while (stream_length != 0) {
+      unsigned consumed = 0;
+      uint32_t c = unibrow::Utf8::ValueOf(stream, stream_length, &consumed);
+      ASSERT(c != unibrow::Utf8::kBadChar);
+      ASSERT(consumed <= stream_length);
+      stream_length -= consumed;
+      stream += consumed;
+      if (c > unibrow::Utf16::kMaxNonSurrogateCharCode) {
+        len -= 2;
+        if (len < 0) break;
+        *chars++ = unibrow::Utf16::LeadSurrogate(c);
+        *chars++ = unibrow::Utf16::TrailSurrogate(c);
+      } else {
+        len -= 1;
+        if (len < 0) break;
+        *chars++ = c;
+      }
+    }
+    ASSERT(stream_length == 0);
+    ASSERT(len == 0);
+  }
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(AllocateInternalSymbolHelper);
+};
+
+
+template<>
+class AllocateInternalSymbolHelper<String*> {
+ public:
+  static inline void WriteOneByteData(String* s, char* chars, int len) {
+    ASSERT(s->length() == len);
+    String::WriteToFlat(s, chars, 0, len);
+  }
+
+  static inline void WriteTwoByteData(String* s, uint16_t* chars, int len) {
+    ASSERT(s->length() == len);
+    String::WriteToFlat(s, chars, 0, len);
+  }
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(AllocateInternalSymbolHelper<String*>);
+};
+
+
+template<bool is_one_byte, typename T>
+MaybeObject* Heap::AllocateInternalSymbol(T t,
                                           int chars,
                                           uint32_t hash_field) {
+  typedef AllocateInternalSymbolHelper<T> H;
   ASSERT(chars >= 0);
-  // Ensure the chars matches the number of characters in the buffer.
-  ASSERT(static_cast<unsigned>(chars) == buffer->Utf16Length());
-  // Determine whether the string is ASCII.
-  bool is_ascii = true;
-  while (buffer->has_more()) {
-    if (buffer->GetNext() > unibrow::Utf8::kMaxOneByteChar) {
-      is_ascii = false;
-      break;
-    }
-  }
-  buffer->Rewind();
-
   // Compute map and object size.
   int size;
   Map* map;
 
-  if (is_ascii) {
+  if (is_one_byte) {
     if (chars > SeqOneByteString::kMaxLength) {
       return Failure::OutOfMemoryException();
     }
@@ -4674,19 +4735,24 @@ MaybeObject* Heap::AllocateInternalSymbol(unibrow::CharacterStream* buffer,
 
   ASSERT_EQ(size, answer->Size());
 
-  // Fill in the characters.
-  int i = 0;
-  while (i < chars) {
-    uint32_t character = buffer->GetNext();
-    if (character > unibrow::Utf16::kMaxNonSurrogateCharCode) {
-      answer->Set(i++, unibrow::Utf16::LeadSurrogate(character));
-      answer->Set(i++, unibrow::Utf16::TrailSurrogate(character));
-    } else {
-      answer->Set(i++, character);
-    }
+  if (is_one_byte) {
+    H::WriteOneByteData(t, SeqOneByteString::cast(answer)->GetChars(), chars);
+  } else {
+    H::WriteTwoByteData(t, SeqTwoByteString::cast(answer)->GetChars(), chars);
   }
   return answer;
 }
+
+
+// Need explicit instantiations.
+template
+MaybeObject* Heap::AllocateInternalSymbol<true>(String*, int, uint32_t);
+template
+MaybeObject* Heap::AllocateInternalSymbol<false>(String*, int, uint32_t);
+template
+MaybeObject* Heap::AllocateInternalSymbol<false>(Vector<const char>,
+                                                 int,
+                                                 uint32_t);
 
 
 MaybeObject* Heap::AllocateRawOneByteString(int length,

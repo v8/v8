@@ -7029,24 +7029,36 @@ void StringInputBuffer::Seek(unsigned pos) {
 }
 
 
-String* ConsStringIteratorOp::Operate(ConsString* cons_string,
-    unsigned* offset_out, int32_t* type_out, unsigned* length_out) {
-  ASSERT(*length_out == (unsigned)cons_string->length());
-  ASSERT(depth_ == 0);
-  // Push the root string.
-  PushLeft(cons_string);
+String* ConsStringIteratorOp::Operate(String* string,
+                                      unsigned* offset_out,
+                                      int32_t* type_out,
+                                      unsigned* length_out) {
+  ASSERT(string->IsConsString());
+  ConsString* cons_string = ConsString::cast(string);
+  // Set up search data.
   root_ = cons_string;
-  root_type_ = *type_out;
-  root_length_ = *length_out;
   consumed_ = *offset_out;
-  unsigned targetOffset = *offset_out;
+  // Now search.
+  return Search(offset_out, type_out, length_out);
+}
+
+
+String* ConsStringIteratorOp::Search(unsigned* offset_out,
+                                     int32_t* type_out,
+                                     unsigned* length_out) {
+  ConsString* cons_string = root_;
+  // Reset the stack, pushing the root string.
+  depth_ = 1;
+  maximum_depth_ = 1;
+  frames_[0] = cons_string;
+  const unsigned consumed = consumed_;
   unsigned offset = 0;
   while (true) {
     // Loop until the string is found which contains the target offset.
     String* string = cons_string->first();
     unsigned length = string->length();
     int32_t type;
-    if (targetOffset < offset + length) {
+    if (consumed < offset + length) {
       // Target offset is in the left branch.
       // Keep going if we're still in a ConString.
       type = string->map()->instance_type();
@@ -7075,6 +7087,7 @@ String* ConsStringIteratorOp::Operate(ConsString* cons_string,
       // Account for the possibility of an empty right leaf.
       // This happens only if we have asked for an offset outside the string.
       if (length == 0) {
+        // Reset depth so future operations will return null immediately.
         Reset();
         return NULL;
       }
@@ -7085,9 +7098,8 @@ String* ConsStringIteratorOp::Operate(ConsString* cons_string,
     }
     ASSERT(length != 0);
     // Adjust return values and exit.
-    unsigned innerOffset = targetOffset - offset;
-    consumed_ += length - innerOffset;
-    *offset_out = innerOffset;
+    consumed_ = offset + length;
+    *offset_out = consumed - offset;
     *type_out = type;
     *length_out = length;
     return string;
@@ -7097,8 +7109,9 @@ String* ConsStringIteratorOp::Operate(ConsString* cons_string,
 }
 
 
-String* ConsStringIteratorOp::NextLeaf(
-    bool* blew_stack, int32_t* type_out, unsigned* length_out) {
+String* ConsStringIteratorOp::NextLeaf(bool* blew_stack,
+                                       int32_t* type_out,
+                                       unsigned* length_out) {
   while (true) {
     // Tree traversal complete.
     if (depth_ == 0) {
@@ -7122,6 +7135,7 @@ String* ConsStringIteratorOp::NextLeaf(
       if (length == 0) continue;
       *length_out = length;
       *type_out = type;
+      consumed_ += length;
       return string;
     }
     cons_string = ConsString::cast(string);
@@ -7134,8 +7148,11 @@ String* ConsStringIteratorOp::NextLeaf(
       type = string->map()->instance_type();
       if ((type & kStringRepresentationMask) != kConsStringTag) {
         AdjustMaximumDepth();
+        unsigned length = (unsigned) string->length();
+        ASSERT(length != 0);
+        *length_out = length;
         *type_out = type;
-        *length_out = string->length();
+        consumed_ += length;
         return string;
       }
       cons_string = ConsString::cast(string);
@@ -7674,28 +7691,62 @@ bool String::IsTwoByteEqualTo(Vector<const uc16> str) {
 }
 
 
+class IteratingStringHasher: public StringHasher {
+ public:
+  static inline uint32_t Hash(String* string, uint32_t seed) {
+    const unsigned len = static_cast<unsigned>(string->length());
+    IteratingStringHasher hasher(len, seed);
+    if (hasher.has_trivial_hash()) {
+      return hasher.GetHashField();
+    }
+    int32_t type = string->map()->instance_type();
+    ConsStringNullOp null_op;
+    String::Visit(string, 0, hasher, null_op, type, len);
+    // Flat strings terminate immediately.
+    if (hasher.consumed_ == len) {
+      ASSERT(!string->IsConsString());
+      return hasher.GetHashField();
+    }
+    ASSERT(string->IsConsString());
+    // This is a ConsString, iterate across it.
+    ConsStringIteratorOp op;
+    unsigned offset = 0;
+    unsigned leaf_length = len;
+    string = op.Operate(string, &offset, &type, &leaf_length);
+    while (true) {
+      ASSERT(hasher.consumed_ < len);
+      String::Visit(string, 0, hasher, null_op, type, leaf_length);
+      if (hasher.consumed_ == len) break;
+      string = op.ContinueOperation(&type, &leaf_length);
+      // This should be taken care of by the length check.
+      ASSERT(string != NULL);
+    }
+    return hasher.GetHashField();
+  }
+  inline void VisitOneByteString(const uint8_t* chars, unsigned length) {
+    AddCharacters(chars, static_cast<int>(length));
+    consumed_ += length;
+  }
+  inline void VisitTwoByteString(const uint16_t* chars, unsigned length) {
+    AddCharacters(chars, static_cast<int>(length));
+    consumed_ += length;
+  }
+
+ private:
+  inline IteratingStringHasher(int len, uint32_t seed)
+    : StringHasher(len, seed),
+      consumed_(0) {}
+  unsigned consumed_;
+  DISALLOW_COPY_AND_ASSIGN(IteratingStringHasher);
+};
+
+
 uint32_t String::ComputeAndSetHash() {
   // Should only be called if hash code has not yet been computed.
   ASSERT(!HasHashCode());
 
-  const int len = length();
-
-  // Compute the hash code.
-  uint32_t field = 0;
-  if (StringShape(this).IsSequentialAscii()) {
-    field = HashSequentialString(SeqOneByteString::cast(this)->GetChars(),
-                                 len,
-                                 GetHeap()->HashSeed());
-  } else if (StringShape(this).IsSequentialTwoByte()) {
-    field = HashSequentialString(SeqTwoByteString::cast(this)->GetChars(),
-                                 len,
-                                 GetHeap()->HashSeed());
-  } else {
-    StringInputBuffer buffer(this);
-    field = ComputeHashField(&buffer, len, GetHeap()->HashSeed());
-  }
-
   // Store the hash code in the object.
+  uint32_t field = IteratingStringHasher::Hash(this, GetHeap()->HashSeed());
   set_hash_field(field);
 
   // Check the hash code is there.
@@ -7799,57 +7850,59 @@ uint32_t StringHasher::MakeArrayIndexHash(uint32_t value, int length) {
 }
 
 
-void StringHasher::AddSurrogatePair(uc32 c) {
-  uint16_t lead = unibrow::Utf16::LeadSurrogate(c);
-  AddCharacter(lead);
-  uint16_t trail = unibrow::Utf16::TrailSurrogate(c);
-  AddCharacter(trail);
-}
-
-
-void StringHasher::AddSurrogatePairNoIndex(uc32 c) {
-  uint16_t lead = unibrow::Utf16::LeadSurrogate(c);
-  AddCharacterNoIndex(lead);
-  uint16_t trail = unibrow::Utf16::TrailSurrogate(c);
-  AddCharacterNoIndex(trail);
-}
-
-
 uint32_t StringHasher::GetHashField() {
   if (length_ <= String::kMaxHashCalcLength) {
-    if (is_array_index()) {
-      return MakeArrayIndexHash(array_index(), length_);
+    if (is_array_index_) {
+      return MakeArrayIndexHash(array_index_, length_);
     }
-    return (GetHash() << String::kHashShift) | String::kIsNotArrayIndexMask;
+    return (GetHashCore(raw_running_hash_) << String::kHashShift) |
+           String::kIsNotArrayIndexMask;
   } else {
     return (length_ << String::kHashShift) | String::kIsNotArrayIndexMask;
   }
 }
 
 
-uint32_t String::ComputeHashField(unibrow::CharacterStream* buffer,
-                                  int length,
-                                  uint32_t seed) {
+uint32_t StringHasher::ComputeHashField(unibrow::CharacterStream* buffer,
+                                        int length,
+                                        uint32_t seed) {
+  typedef unibrow::Utf16 u;
   StringHasher hasher(length, seed);
-
   // Very long strings have a trivial hash that doesn't inspect the
   // string contents.
   if (hasher.has_trivial_hash()) {
     return hasher.GetHashField();
   }
-
   // Do the iterative array index computation as long as there is a
   // chance this is an array index.
-  while (buffer->has_more() && hasher.is_array_index()) {
-    hasher.AddCharacter(buffer->GetNext());
+  if (hasher.is_array_index_) {
+    while (buffer->has_more()) {
+      uint32_t c = buffer->GetNext();
+      if (c > u::kMaxNonSurrogateCharCode) {
+        uint16_t c1 = u::LeadSurrogate(c);
+        uint16_t c2 = u::TrailSurrogate(c);
+        hasher.AddCharacter(c1);
+        hasher.AddCharacter(c2);
+        if (!hasher.UpdateIndex(c1)) break;
+        if (!hasher.UpdateIndex(c2)) break;
+      } else {
+        hasher.AddCharacter(c);
+        if (!hasher.UpdateIndex(c)) break;
+      }
+    }
   }
-
   // Process the remaining characters without updating the array
   // index.
   while (buffer->has_more()) {
-    hasher.AddCharacterNoIndex(buffer->GetNext());
+    ASSERT(!hasher.is_array_index_);
+    uint32_t c = buffer->GetNext();
+    if (c > u::kMaxNonSurrogateCharCode) {
+      hasher.AddCharacter(u::LeadSurrogate(c));
+      hasher.AddCharacter(u::TrailSurrogate(c));
+    } else {
+      hasher.AddCharacter(c);
+    }
   }
-
   return hasher.GetHashField();
 }
 
@@ -11667,7 +11720,7 @@ class Utf8SymbolKey : public HashTableKey {
     unibrow::Utf8InputBuffer<> buffer(string_.start(),
                                       static_cast<unsigned>(string_.length()));
     chars_ = buffer.Utf16Length();
-    hash_field_ = String::ComputeHashField(&buffer, chars_, seed_);
+    hash_field_ = StringHasher::ComputeHashField(&buffer, chars_, seed_);
     uint32_t result = hash_field_ >> String::kHashShift;
     ASSERT(result != 0);  // Ensure that the hash value of 0 is never computed.
     return result;
@@ -11697,29 +11750,9 @@ class SequentialSymbolKey : public HashTableKey {
       : string_(string), hash_field_(0), seed_(seed) { }
 
   uint32_t Hash() {
-    StringHasher hasher(string_.length(), seed_);
-
-    // Very long strings have a trivial hash that doesn't inspect the
-    // string contents.
-    if (hasher.has_trivial_hash()) {
-      hash_field_ = hasher.GetHashField();
-    } else {
-      int i = 0;
-      // Do the iterative array index computation as long as there is a
-      // chance this is an array index.
-      while (i < string_.length() && hasher.is_array_index()) {
-        hasher.AddCharacter(static_cast<uc32>(string_[i]));
-        i++;
-      }
-
-      // Process the remaining characters without updating the array
-      // index.
-      while (i < string_.length()) {
-        hasher.AddCharacterNoIndex(static_cast<uc32>(string_[i]));
-        i++;
-      }
-      hash_field_ = hasher.GetHashField();
-    }
+    hash_field_ = StringHasher::HashSequentialString<Char>(string_.start(),
+                                                           string_.length(),
+                                                           seed_);
 
     uint32_t result = hash_field_ >> String::kHashShift;
     ASSERT(result != 0);  // Ensure that the hash value of 0 is never computed.
@@ -11764,32 +11797,9 @@ class SubStringAsciiSymbolKey : public HashTableKey {
   uint32_t Hash() {
     ASSERT(length_ >= 0);
     ASSERT(from_ + length_ <= string_->length());
-    StringHasher hasher(length_, string_->GetHeap()->HashSeed());
-
-    // Very long strings have a trivial hash that doesn't inspect the
-    // string contents.
-    if (hasher.has_trivial_hash()) {
-      hash_field_ = hasher.GetHashField();
-    } else {
-      int i = 0;
-      // Do the iterative array index computation as long as there is a
-      // chance this is an array index.
-      while (i < length_ && hasher.is_array_index()) {
-        hasher.AddCharacter(static_cast<uc32>(
-            string_->SeqOneByteStringGet(i + from_)));
-        i++;
-      }
-
-      // Process the remaining characters without updating the array
-      // index.
-      while (i < length_) {
-        hasher.AddCharacterNoIndex(static_cast<uc32>(
-            string_->SeqOneByteStringGet(i + from_)));
-        i++;
-      }
-      hash_field_ = hasher.GetHashField();
-    }
-
+    char* chars = string_->GetChars() + from_;
+    hash_field_ = StringHasher::HashSequentialString(
+        chars, length_, string_->GetHeap()->HashSeed());
     uint32_t result = hash_field_ >> String::kHashShift;
     ASSERT(result != 0);  // Ensure that the hash value of 0 is never computed.
     return result;
@@ -11864,8 +11874,7 @@ class SymbolKey : public HashTableKey {
       return string_;
     }
     // Otherwise allocate a new symbol.
-    StringInputBuffer buffer(string_);
-    return heap->AllocateInternalSymbol(&buffer,
+    return heap->AllocateInternalSymbol(string_,
                                         string_->length(),
                                         string_->hash_field());
   }
@@ -12635,7 +12644,7 @@ MaybeObject* SymbolTable::LookupString(String* string, Object** s) {
 // algorithm.
 class TwoCharHashTableKey : public HashTableKey {
  public:
-  TwoCharHashTableKey(uint32_t c1, uint32_t c2, uint32_t seed)
+  TwoCharHashTableKey(uint16_t c1, uint16_t c2, uint32_t seed)
     : c1_(c1), c2_(c2) {
     // Char 1.
     uint32_t hash = seed;
@@ -12651,17 +12660,17 @@ class TwoCharHashTableKey : public HashTableKey {
     hash ^= hash >> 11;
     hash += hash << 15;
     if ((hash & String::kHashBitMask) == 0) hash = StringHasher::kZeroHash;
+    hash_ = hash;
 #ifdef DEBUG
-    StringHasher hasher(2, seed);
-    hasher.AddCharacter(c1);
-    hasher.AddCharacter(c2);
     // If this assert fails then we failed to reproduce the two-character
     // version of the string hashing algorithm above.  One reason could be
     // that we were passed two digits as characters, since the hash
     // algorithm is different in that case.
-    ASSERT_EQ(static_cast<int>(hasher.GetHash()), static_cast<int>(hash));
+    uint16_t chars[2] = {c1, c2};
+    uint32_t check_hash = StringHasher::HashSequentialString(chars, 2, seed);
+    hash = (hash << String::kHashShift) | String::kIsNotArrayIndexMask;
+    ASSERT_EQ(static_cast<int32_t>(hash), static_cast<int32_t>(check_hash));
 #endif
-    hash_ = hash;
   }
 
   bool IsMatch(Object* o) {
@@ -12686,8 +12695,8 @@ class TwoCharHashTableKey : public HashTableKey {
   }
 
  private:
-  uint32_t c1_;
-  uint32_t c2_;
+  uint16_t c1_;
+  uint16_t c2_;
   uint32_t hash_;
 };
 
@@ -12706,8 +12715,8 @@ bool SymbolTable::LookupSymbolIfExists(String* string, String** symbol) {
 }
 
 
-bool SymbolTable::LookupTwoCharsSymbolIfExists(uint32_t c1,
-                                               uint32_t c2,
+bool SymbolTable::LookupTwoCharsSymbolIfExists(uint16_t c1,
+                                               uint16_t c2,
                                                String** symbol) {
   TwoCharHashTableKey key(c1, c2, GetHeap()->HashSeed());
   int entry = FindEntry(&key);
