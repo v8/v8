@@ -8233,6 +8233,66 @@ THREADED_TEST(HiddenPrototype) {
 }
 
 
+THREADED_TEST(HiddenPrototypeSet) {
+  v8::HandleScope handle_scope;
+  LocalContext context;
+
+  Local<v8::FunctionTemplate> ot = v8::FunctionTemplate::New();
+  Local<v8::FunctionTemplate> ht = v8::FunctionTemplate::New();
+  ht->SetHiddenPrototype(true);
+  Local<v8::FunctionTemplate> pt = v8::FunctionTemplate::New();
+  ht->InstanceTemplate()->Set(v8_str("x"), v8_num(0));
+
+  Local<v8::Object> o = ot->GetFunction()->NewInstance();
+  Local<v8::Object> h = ht->GetFunction()->NewInstance();
+  Local<v8::Object> p = pt->GetFunction()->NewInstance();
+  o->Set(v8_str("__proto__"), h);
+  h->Set(v8_str("__proto__"), p);
+
+  // Setting a property that exists on the hidden prototype goes there.
+  o->Set(v8_str("x"), v8_num(7));
+  CHECK_EQ(7, o->Get(v8_str("x"))->Int32Value());
+  CHECK_EQ(7, h->Get(v8_str("x"))->Int32Value());
+  CHECK(p->Get(v8_str("x"))->IsUndefined());
+
+  // Setting a new property should not be forwarded to the hidden prototype.
+  o->Set(v8_str("y"), v8_num(6));
+  CHECK_EQ(6, o->Get(v8_str("y"))->Int32Value());
+  CHECK(h->Get(v8_str("y"))->IsUndefined());
+  CHECK(p->Get(v8_str("y"))->IsUndefined());
+
+  // Setting a property that only exists on a prototype of the hidden prototype
+  // is treated normally again.
+  p->Set(v8_str("z"), v8_num(8));
+  CHECK_EQ(8, o->Get(v8_str("z"))->Int32Value());
+  CHECK_EQ(8, h->Get(v8_str("z"))->Int32Value());
+  CHECK_EQ(8, p->Get(v8_str("z"))->Int32Value());
+  o->Set(v8_str("z"), v8_num(9));
+  CHECK_EQ(9, o->Get(v8_str("z"))->Int32Value());
+  CHECK_EQ(8, h->Get(v8_str("z"))->Int32Value());
+  CHECK_EQ(8, p->Get(v8_str("z"))->Int32Value());
+}
+
+
+// Regression test for issue 2457.
+THREADED_TEST(HiddenPrototypeIdentityHash) {
+  v8::HandleScope handle_scope;
+  LocalContext context;
+
+  Handle<FunctionTemplate> t = FunctionTemplate::New();
+  t->SetHiddenPrototype(true);
+  t->InstanceTemplate()->Set(v8_str("foo"), v8_num(75));
+  Handle<Object> p = t->GetFunction()->NewInstance();
+  Handle<Object> o = Object::New();
+  o->SetPrototype(p);
+
+  int hash = o->GetIdentityHash();
+  USE(hash);
+  o->Set(v8_str("foo"), v8_num(42));
+  ASSERT_EQ(hash, o->GetIdentityHash());
+}
+
+
 THREADED_TEST(SetPrototype) {
   v8::HandleScope handle_scope;
   LocalContext context;

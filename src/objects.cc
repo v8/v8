@@ -2920,6 +2920,9 @@ MaybeObject* JSObject::SetPropertyForResult(LookupResult* lookup,
         lookup, name_raw, value_raw, attributes, strict_mode, store_mode);
   }
 
+  ASSERT(!lookup->IsFound() || lookup->holder() == this ||
+         lookup->holder()->map()->is_hidden_prototype());
+
   // From this point on everything needs to be handlified, because
   // SetPropertyViaPrototypes might call back into JavaScript.
   HandleScope scope(isolate);
@@ -2961,10 +2964,10 @@ MaybeObject* JSObject::SetPropertyForResult(LookupResult* lookup,
   MaybeObject* result = *value;
   switch (lookup->type()) {
     case NORMAL:
-      result = self->SetNormalizedProperty(lookup, *value);
+      result = lookup->holder()->SetNormalizedProperty(lookup, *value);
       break;
     case FIELD:
-      result = self->FastPropertyAtPut(
+      result = lookup->holder()->FastPropertyAtPut(
           lookup->GetFieldIndex().field_index(), *value);
       break;
     case CONSTANT_FUNCTION:
@@ -2972,21 +2975,17 @@ MaybeObject* JSObject::SetPropertyForResult(LookupResult* lookup,
       if (*value == lookup->GetConstantFunction()) return *value;
       // Preserve the attributes of this existing property.
       attributes = lookup->GetAttributes();
-      result = self->ConvertDescriptorToField(*name, *value, attributes);
+      result =
+          lookup->holder()->ConvertDescriptorToField(*name, *value, attributes);
       break;
     case CALLBACKS: {
       Object* callback_object = lookup->GetCallbackObject();
-      return self->SetPropertyWithCallback(callback_object,
-                                           *name,
-                                           *value,
-                                           lookup->holder(),
-                                           strict_mode);
+      return self->SetPropertyWithCallback(
+          callback_object, *name, *value, lookup->holder(), strict_mode);
     }
     case INTERCEPTOR:
-      result = self->SetPropertyWithInterceptor(*name,
-                                                *value,
-                                                attributes,
-                                                strict_mode);
+      result = lookup->holder()->SetPropertyWithInterceptor(
+          *name, *value, attributes, strict_mode);
       break;
     case TRANSITION: {
       Map* transition_map = lookup->GetTransitionTarget();
@@ -2998,15 +2997,15 @@ MaybeObject* JSObject::SetPropertyForResult(LookupResult* lookup,
       if (details.type() == FIELD) {
         if (attributes == details.attributes()) {
           int field_index = descriptors->GetFieldIndex(descriptor);
-          result = self->AddFastPropertyUsingMap(transition_map,
-                                                 *name,
-                                                 *value,
-                                                 field_index);
+          result = lookup->holder()->AddFastPropertyUsingMap(
+              transition_map, *name, *value, field_index);
         } else {
-          result = self->ConvertDescriptorToField(*name, *value, attributes);
+          result = lookup->holder()->ConvertDescriptorToField(
+              *name, *value, attributes);
         }
       } else if (details.type() == CALLBACKS) {
-        result = self->ConvertDescriptorToField(*name, *value, attributes);
+        result = lookup->holder()->ConvertDescriptorToField(
+            *name, *value, attributes);
       } else {
         ASSERT(details.type() == CONSTANT_FUNCTION);
 
@@ -3014,12 +3013,12 @@ MaybeObject* JSObject::SetPropertyForResult(LookupResult* lookup,
         if (constant_function == *value) {
           // If the same constant function is being added we can simply
           // transition to the target map.
-          self->set_map(transition_map);
+          lookup->holder()->set_map(transition_map);
           result = constant_function;
         } else {
           // Otherwise, replace with a map transition to a new map with a FIELD,
           // even if the value is a constant function.
-          result = self->ConvertTransitionToMapTransition(
+          result = lookup->holder()->ConvertTransitionToMapTransition(
               lookup->GetTransitionIndex(), *name, *value, attributes);
         }
       }
