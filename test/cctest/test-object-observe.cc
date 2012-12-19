@@ -278,3 +278,77 @@ TEST(GlobalObjectObservation) {
   }
   CHECK_EQ(3, CompileRun("records.length")->Int32Value());
 }
+
+struct RecordExpectation {
+  Handle<Value> object;
+  const char* type;
+  const char* name;
+  Handle<Value> old_value;
+};
+
+// TODO(adamk): Use this helper elsewhere in this file.
+static void ExpectRecords(Handle<Value> records,
+                          const RecordExpectation expectations[],
+                          int num) {
+  CHECK(records->IsArray());
+  Handle<Array> recordArray = records.As<Array>();
+  CHECK_EQ(num, static_cast<int>(recordArray->Length()));
+  for (int i = 0; i < num; ++i) {
+    Handle<Value> record = recordArray->Get(i);
+    CHECK(record->IsObject());
+    Handle<Object> recordObj = record.As<Object>();
+    CHECK(expectations[i].object->StrictEquals(
+        recordObj->Get(String::New("object"))));
+    CHECK(String::New(expectations[i].type)->Equals(
+        recordObj->Get(String::New("type"))));
+    CHECK(String::New(expectations[i].name)->Equals(
+        recordObj->Get(String::New("name"))));
+    if (!expectations[i].old_value.IsEmpty()) {
+      CHECK(expectations[i].old_value->Equals(
+          recordObj->Get(String::New("oldValue"))));
+    }
+  }
+}
+
+TEST(APITestBasicMutation) {
+  HarmonyIsolate isolate;
+  HandleScope scope;
+  LocalContext context;
+  Handle<Object> obj = Handle<Object>::Cast(CompileRun(
+      "var records = [];"
+      "var obj = {};"
+      "function observer(r) { [].push.apply(records, r); };"
+      "Object.observe(obj, observer);"
+      "obj"));
+  obj->Set(String::New("foo"), Number::New(1));
+  obj->Set(1, Number::New(2));
+  // ForceSet should work just as well as Set
+  obj->ForceSet(String::New("foo"), Number::New(3));
+  obj->ForceSet(Number::New(1), Number::New(4));
+  // Setting an indexed element via the property setting method
+  obj->Set(Number::New(1), Number::New(5));
+  // Setting with a non-String, non-uint32 key
+  obj->Set(Number::New(1.1), Number::New(6), DontDelete);
+  obj->Delete(String::New("foo"));
+  obj->Delete(1);
+  obj->ForceDelete(Number::New(1.1));
+
+  // Force delivery
+  // TODO(adamk): Should the above set methods trigger delivery themselves?
+  CompileRun("void 0");
+  CHECK_EQ(9, CompileRun("records.length")->Int32Value());
+  const RecordExpectation expected_records[] = {
+    { obj, "new", "foo", Handle<Value>() },
+    { obj, "new", "1", Handle<Value>() },
+    { obj, "updated", "foo", Number::New(1) },
+    { obj, "updated", "1", Number::New(2) },
+    { obj, "updated", "1", Number::New(4) },
+    { obj, "new", "1.1", Handle<Value>() },
+    { obj, "deleted", "foo", Number::New(3) },
+    { obj, "deleted", "1", Number::New(5) },
+    { obj, "deleted", "1.1", Number::New(6) }
+  };
+  ExpectRecords(CompileRun("records"),
+                expected_records,
+                ARRAY_SIZE(expected_records));
+}
