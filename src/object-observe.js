@@ -82,14 +82,11 @@ function ObjectObserve(object, callback) {
   }
 
   var objectInfo = objectInfoMap.get(object);
-  if (IS_UNDEFINED(objectInfo)) {
-    objectInfo = CreateObjectInfo(object);
-  }
+  if (IS_UNDEFINED(objectInfo)) objectInfo = CreateObjectInfo(object);
   %SetIsObserved(object, true);
 
   var changeObservers = objectInfo.changeObservers;
-  if (changeObservers.indexOf(callback) < 0)
-    changeObservers.push(callback);
+  if (changeObservers.indexOf(callback) < 0) changeObservers.push(callback);
 
   return object;
 }
@@ -108,8 +105,7 @@ function ObjectUnobserve(object, callback) {
   var index = changeObservers.indexOf(callback);
   if (index >= 0) {
     changeObservers.splice(index, 1);
-    if (changeObservers.length === 0)
-      %SetIsObserved(object, false);
+    if (changeObservers.length === 0) %SetIsObserved(object, false);
   }
 
   return object;
@@ -141,30 +137,21 @@ function NotifyChange(type, object, name, oldValue) {
 var notifierPrototype = {};
 
 function ObjectNotifierNotify(changeRecord) {
+  var target = notifierTargetMap.get(this);
   if (!IS_SPEC_OBJECT(this))
     throw MakeTypeError("called_on_non_object", ["notify"]);
-
-  var target = notifierTargetMap.get(this);
   if (IS_UNDEFINED(target))
     throw MakeTypeError("observe_notify_non_notifier");
-
   if (!IS_STRING(changeRecord.type))
     throw MakeTypeError("observe_type_non_string");
 
   var objectInfo = objectInfoMap.get(target);
-  if (IS_UNDEFINED(objectInfo))
+  if (IS_UNDEFINED(objectInfo) || objectInfo.changeObservers.length === 0)
     return;
 
-  if (!objectInfo.changeObservers.length)
-    return;
-
-  var newRecord = {
-    object: target
-  };
+  var newRecord = { object: target };
   for (var prop in changeRecord) {
-    if (prop === 'object')
-      continue;
-
+    if (prop === 'object') continue;
     %DefineOrRedefineDataProperty(newRecord, prop, changeRecord[prop],
         READ_ONLY + DONT_DELETE);
   }
@@ -177,17 +164,13 @@ function ObjectGetNotifier(object) {
   if (!IS_SPEC_OBJECT(object))
     throw MakeTypeError("observe_non_object", ["getNotifier"]);
 
-  if (ObjectIsFrozen(object))
-    return null;
+  if (ObjectIsFrozen(object)) return null;
 
   var objectInfo = objectInfoMap.get(object);
-  if (IS_UNDEFINED(objectInfo))
-    objectInfo = CreateObjectInfo(object);
+  if (IS_UNDEFINED(objectInfo)) objectInfo = CreateObjectInfo(object);
 
   if (IS_NULL(objectInfo.notifier)) {
-    objectInfo.notifier = {
-      __proto__: notifierPrototype
-    };
+    objectInfo.notifier = { __proto__: notifierPrototype };
     notifierTargetMap.set(objectInfo.notifier, object);
   }
 
@@ -197,11 +180,11 @@ function ObjectGetNotifier(object) {
 function DeliverChangeRecordsForObserver(observer) {
   var observerInfo = observerInfoMap.get(observer);
   if (IS_UNDEFINED(observerInfo))
-    return;
+    return false;
 
   var pendingChangeRecords = observerInfo.pendingChangeRecords;
   if (IS_NULL(pendingChangeRecords))
-    return;
+    return false;
 
   observerInfo.pendingChangeRecords = null;
   delete observationState.pendingObservers[observerInfo.priority];
@@ -210,13 +193,14 @@ function DeliverChangeRecordsForObserver(observer) {
   try {
     %Call(void 0, delivered, observer);
   } catch (ex) {}
+  return true;
 }
 
 function ObjectDeliverChangeRecords(callback) {
   if (!IS_SPEC_FUNCTION(callback))
     throw MakeTypeError("observe_non_function", ["deliverChangeRecords"]);
 
-  DeliverChangeRecordsForObserver(callback);
+  while (DeliverChangeRecordsForObserver(callback)) {}
 }
 
 function DeliverChangeRecords() {

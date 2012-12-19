@@ -65,8 +65,7 @@ function createObserver() {
     assertCallbackRecords: function(recs) {
       this.assertRecordCount(recs.length);
       for (var i = 0; i < recs.length; i++) {
-        if ('name' in recs[i])
-          recs[i].name = String(recs[i].name);
+        if ('name' in recs[i]) recs[i].name = String(recs[i].name);
         print(i, stringifyNoThrow(this.records[i]), stringifyNoThrow(recs[i]));
         assertSame(this.records[i].object, recs[i].object);
         assertEquals('string', typeof recs[i].type);
@@ -105,16 +104,19 @@ Object.defineProperty(changeRecordWithAccessor, 'name', {
   enumerable: true
 })
 
+
 // Object.observe
 assertThrows(function() { Object.observe("non-object", observer.callback); }, TypeError);
 assertThrows(function() { Object.observe(obj, nonFunction); }, TypeError);
 assertThrows(function() { Object.observe(obj, frozenFunction); }, TypeError);
 assertEquals(obj, Object.observe(obj, observer.callback));
 
+
 // Object.unobserve
 assertThrows(function() { Object.unobserve(4, observer.callback); }, TypeError);
 assertThrows(function() { Object.unobserve(obj, nonFunction); }, TypeError);
 assertEquals(obj, Object.unobserve(obj, observer.callback));
+
 
 // Object.getNotifier
 var notifier = Object.getNotifier(obj);
@@ -139,10 +141,12 @@ assertFalse(recordCreated);
 notifier.notify(changeRecordWithAccessor);
 assertFalse(recordCreated);  // not observed yet
 
+
 // Object.deliverChangeRecords
 assertThrows(function() { Object.deliverChangeRecords(nonFunction); }, TypeError);
 
 Object.observe(obj, observer.callback);
+
 
 // notify uses to [[CreateOwnProperty]] to create changeRecord;
 reset();
@@ -157,6 +161,7 @@ notifier.notify({ type: 'foo', protoExpando: 'val'});
 assertFalse(protoExpandoAccessed);
 delete Object.prototype.protoExpando;
 Object.deliverChangeRecords(observer.callback);
+
 
 // Multiple records are delivered.
 reset();
@@ -178,10 +183,12 @@ observer.assertCallbackRecords([
   { object: obj, name: 'bar', type: 'deleted', expando2: 'str' }
 ]);
 
+
 // No delivery takes place if no records are pending
 reset();
 Object.deliverChangeRecords(observer.callback);
 observer.assertNotCalled();
+
 
 // Multiple observation has no effect.
 reset();
@@ -193,6 +200,7 @@ Object.getNotifier(obj).notify({
 Object.deliverChangeRecords(observer.callback);
 observer.assertCalled();
 
+
 // Observation can be stopped.
 reset();
 Object.unobserve(obj, observer.callback);
@@ -201,6 +209,7 @@ Object.getNotifier(obj).notify({
 });
 Object.deliverChangeRecords(observer.callback);
 observer.assertNotCalled();
+
 
 // Multiple unobservation has no effect
 reset();
@@ -211,6 +220,7 @@ Object.getNotifier(obj).notify({
 });
 Object.deliverChangeRecords(observer.callback);
 observer.assertNotCalled();
+
 
 // Re-observation works and only includes changeRecords after of call.
 reset();
@@ -224,6 +234,7 @@ Object.getNotifier(obj).notify({
 records = undefined;
 Object.deliverChangeRecords(observer.callback);
 observer.assertRecordCount(1);
+
 
 // Observing a continuous stream of changes, while itermittantly unobserving.
 reset();
@@ -265,6 +276,7 @@ observer.assertCallbackRecords([
   { object: obj, type: 'foo', val: 5 }
 ]);
 
+
 // Observing multiple objects; records appear in order.
 reset();
 var obj2 = {};
@@ -288,6 +300,37 @@ observer.assertCallbackRecords([
   { object: obj2, type: 'foo2' },
   { object: obj3, type: 'foo3' }
 ]);
+
+
+// Recursive observation.
+var obj = {a: 1};
+var callbackCount = 0;
+function recursiveObserver(r) {
+  assertEquals(1, r.length);
+  ++callbackCount;
+  if (r[0].oldValue < 100) ++obj[r[0].name];
+}
+Object.observe(obj, recursiveObserver);
+++obj.a;
+Object.deliverChangeRecords(recursiveObserver);
+assertEquals(100, callbackCount);
+
+var obj1 = {a: 1};
+var obj2 = {a: 1};
+var recordCount = 0;
+function recursiveObserver2(r) {
+  recordCount += r.length;
+  if (r[0].oldValue < 100) {
+    ++obj1.a;
+    ++obj2.a;
+  }
+}
+Object.observe(obj1, recursiveObserver2);
+Object.observe(obj2, recursiveObserver2);
+++obj1.a;
+Object.deliverChangeRecords(recursiveObserver2);
+assertEquals(199, recordCount);
+
 
 // Observing named properties.
 reset();
@@ -339,6 +382,7 @@ observer.assertCallbackRecords([
   { object: obj, name: "a", type: "deleted", oldValue: 10 },
   { object: obj, name: "a", type: "new" },
 ]);
+
 
 // Observing indexed properties.
 reset();
@@ -466,8 +510,7 @@ function TestObserveNonConfigurable(obj, prop, desc) {
   Object.defineProperty(obj, prop, {value: 6});
   Object.defineProperty(obj, prop, {value: 6});  // ignored
   Object.defineProperty(obj, prop, {value: 7});
-  Object.defineProperty(obj, prop,
-                        {enumerable: desc.enumerable});  // ignored
+  Object.defineProperty(obj, prop, {enumerable: desc.enumerable});  // ignored
   Object.defineProperty(obj, prop, {writable: false});
   obj[prop] = 7;  // ignored
   Object.deliverChangeRecords(observer.callback);
@@ -541,8 +584,8 @@ var properties = ["a", "1", 1, "length", "prototype", "name", "caller"];
 // Cases that yield non-standard results.
 function blacklisted(obj, prop) {
   return (obj instanceof Int32Array && prop == 1) ||
-    (obj instanceof Int32Array && prop === "length") ||
-    (obj instanceof ArrayBuffer && prop == 1)
+         (obj instanceof Int32Array && prop === "length") ||
+         (obj instanceof ArrayBuffer && prop == 1)
 }
 
 for (var i in objects) for (var j in properties) {
@@ -604,6 +647,7 @@ observer.assertCallbackRecords([
   { object: arr3, name: 'length', type: 'reconfigured', oldValue: 5 },
 ]);
 
+
 // Assignments in loops (checking different IC states).
 reset();
 var obj = {};
@@ -635,6 +679,7 @@ observer.assertCallbackRecords([
   { object: obj, name: "4", type: "new" },
 ]);
 
+
 // Adding elements past the end of an array should notify on length
 reset();
 var arr = [1, 2, 3];
@@ -656,6 +701,7 @@ observer.assertCallbackRecords([
   { object: arr, name: 'length', type: 'updated', oldValue: 201 },
   { object: arr, name: '50', type: 'new' },
 ]);
+
 
 // Tests for array methods, first on arrays and then on plain objects
 //
@@ -729,6 +775,7 @@ observer.assertCallbackRecords([
   { object: array, name: '1', type: 'updated', oldValue: 2 },
   { object: array, name: '2', type: 'updated', oldValue: 3 },
 ]);
+
 
 //
 // === PLAIN OBJECTS ===
@@ -836,6 +883,7 @@ observer.assertCallbackRecords([
   { object: obj, name: '__proto__', type: 'prototype', oldValue: null },
 ]);
 
+
 // Function.prototype
 reset();
 var fun = function(){};
@@ -903,7 +951,6 @@ for (var b1 = 0; b1 < 2; ++b1)
   for (var b2 = 0; b2 < 2; ++b2)
     for (var b3 = 0; b3 < 2; ++b3)
       TestFastElements(b1 != 0, b2 != 0, b3 != 0);
-
 
 function TestFastElementsLength(polymorphic, optimize, oldSize, newSize) {
   var setLength = eval(
