@@ -76,7 +76,13 @@ void CodeGenerator::MakeCodePrologue(CompilationInfo* info) {
 
   if (FLAG_trace_codegen || print_source || print_ast) {
     PrintF("*** Generate code for %s function: ", ftype);
-    info->function()->name()->ShortPrint();
+    if (info->IsStub()) {
+      const char* name =
+          CodeStub::MajorName(info->code_stub()->MajorKey(), true);
+      PrintF("%s", name == NULL ? "<unknown>" : name);
+    } else {
+      info->function()->name()->ShortPrint();
+    }
     PrintF(" ***\n");
   }
 
