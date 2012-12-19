@@ -8569,6 +8569,9 @@ class FunctionTemplateInfo: public TemplateInfo {
   DECL_ACCESSORS(access_check_info, Object)
   DECL_ACCESSORS(flag, Smi)
 
+  inline int length();
+  inline void set_length(int value);
+
   // Following properties use flag bits.
   DECL_BOOLEAN_ACCESSORS(hidden_prototype)
   DECL_BOOLEAN_ACCESSORS(undetectable)
@@ -8602,7 +8605,8 @@ class FunctionTemplateInfo: public TemplateInfo {
   static const int kAccessCheckInfoOffset =
       kInstanceCallHandlerOffset + kPointerSize;
   static const int kFlagOffset = kAccessCheckInfoOffset + kPointerSize;
-  static const int kSize = kFlagOffset + kPointerSize;
+  static const int kLengthOffset = kFlagOffset + kPointerSize;
+  static const int kSize = kLengthOffset + kPointerSize;
 
  private:
   // Bit position in the flag, from least significant bit position.

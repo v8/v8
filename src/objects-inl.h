@@ -4092,6 +4092,7 @@ ACCESSORS(SharedFunctionInfo, this_property_assignments, Object,
 SMI_ACCESSORS(SharedFunctionInfo, ast_node_count, kAstNodeCountOffset)
 
 
+SMI_ACCESSORS(FunctionTemplateInfo, length, kLengthOffset)
 BOOL_ACCESSORS(FunctionTemplateInfo, flag, hidden_prototype,
                kHiddenPrototypeBit)
 BOOL_ACCESSORS(FunctionTemplateInfo, flag, undetectable, kUndetectableBit)

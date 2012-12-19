@@ -1260,6 +1260,10 @@ Handle<JSFunction> Factory::CreateApiFunction(
                   instance_size,
                   code,
                   true);
+
+  // Set length.
+  result->shared()->set_length(obj->length());
+
   // Set class name.
   Handle<Object> class_name = Handle<Object>(obj->class_name());
   if (class_name->IsString()) {

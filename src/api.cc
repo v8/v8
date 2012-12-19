@@ -1053,7 +1053,7 @@ void FunctionTemplate::Inherit(v8::Handle<FunctionTemplate> value) {
 
 
 Local<FunctionTemplate> FunctionTemplate::New(InvocationCallback callback,
-    v8::Handle<Value> data, v8::Handle<Signature> signature) {
+    v8::Handle<Value> data, v8::Handle<Signature> signature, int length) {
   i::Isolate* isolate = i::Isolate::Current();
   EnsureInitializedForIsolate(isolate, "v8::FunctionTemplate::New()");
   LOG_API(isolate, "FunctionTemplate::New");
@@ -1070,6 +1070,7 @@ Local<FunctionTemplate> FunctionTemplate::New(InvocationCallback callback,
     if (data.IsEmpty()) data = v8::Undefined();
     Utils::ToLocal(obj)->SetCallHandler(callback, data);
   }
+  obj->set_length(length);
   obj->set_undetectable(false);
   obj->set_needs_access_check(false);
 
@@ -1237,6 +1238,14 @@ Local<ObjectTemplate> FunctionTemplate::InstanceTemplate() {
   i::Handle<i::ObjectTemplateInfo> result(i::ObjectTemplateInfo::cast(
         Utils::OpenHandle(this)->instance_template()));
   return Utils::ToLocal(result);
+}
+
+
+void FunctionTemplate::SetLength(int length) {
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  if (IsDeadCheck(isolate, "v8::FunctionTemplate::SetLength()")) return;
+  ENTER_V8(isolate);
+  Utils::OpenHandle(this)->set_length(length);
 }
 
 

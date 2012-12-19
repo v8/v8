@@ -137,9 +137,10 @@ function NotifyChange(type, object, name, oldValue) {
 var notifierPrototype = {};
 
 function ObjectNotifierNotify(changeRecord) {
-  var target = notifierTargetMap.get(this);
   if (!IS_SPEC_OBJECT(this))
     throw MakeTypeError("called_on_non_object", ["notify"]);
+
+  var target = notifierTargetMap.get(this);
   if (IS_UNDEFINED(target))
     throw MakeTypeError("observe_notify_non_notifier");
   if (!IS_STRING(changeRecord.type))

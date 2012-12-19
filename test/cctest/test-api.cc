@@ -853,6 +853,38 @@ THREADED_TEST(FunctionTemplate) {
 }
 
 
+THREADED_TEST(FunctionTemplateSetLength) {
+  v8::HandleScope scope;
+  LocalContext env;
+  {
+    Local<v8::FunctionTemplate> fun_templ = v8::FunctionTemplate::New(
+        handle_call, Handle<v8::Value>(), Handle<v8::Signature>(), 23);
+    Local<Function> fun = fun_templ->GetFunction();
+    env->Global()->Set(v8_str("obj"), fun);
+    Local<Script> script = v8_compile("obj.length");
+    CHECK_EQ(23, script->Run()->Int32Value());
+  }
+  {
+    Local<v8::FunctionTemplate> fun_templ =
+        v8::FunctionTemplate::New(handle_call);
+    fun_templ->SetLength(22);
+    Local<Function> fun = fun_templ->GetFunction();
+    env->Global()->Set(v8_str("obj"), fun);
+    Local<Script> script = v8_compile("obj.length");
+    CHECK_EQ(22, script->Run()->Int32Value());
+  }
+  {
+    // Without setting length it defaults to 0.
+    Local<v8::FunctionTemplate> fun_templ =
+        v8::FunctionTemplate::New(handle_call);
+    Local<Function> fun = fun_templ->GetFunction();
+    env->Global()->Set(v8_str("obj"), fun);
+    Local<Script> script = v8_compile("obj.length");
+    CHECK_EQ(0, script->Run()->Int32Value());
+  }
+}
+
+
 static void* expected_ptr;
 static v8::Handle<v8::Value> callback(const v8::Arguments& args) {
   void* ptr = v8::External::Unwrap(args.Data());
