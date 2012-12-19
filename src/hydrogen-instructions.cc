@@ -1342,6 +1342,11 @@ Range* HMod::InferRange(Zone* zone) {
     if (a->CanBeMinusZero() || a->CanBeNegative()) {
       result->set_can_be_minus_zero(true);
     }
+
+    if (right()->range()->Includes(-1) && left()->range()->Includes(kMinInt)) {
+      SetFlag(HValue::kCanOverflow);
+    }
+
     if (!right()->range()->CanBeZero()) {
       ClearFlag(HValue::kCanBeDivByZero);
     }

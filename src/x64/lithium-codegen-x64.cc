@@ -1016,6 +1016,17 @@ void LCodeGen::DoModI(LModI* instr) {
 
     // Slow case, using idiv instruction.
     __ bind(&slow);
+
+    // Check for (kMinInt % -1).
+    if (instr->hydrogen()->CheckFlag(HValue::kCanOverflow)) {
+      Label left_not_min_int;
+      __ cmpl(left_reg, Immediate(kMinInt));
+      __ j(not_zero, &left_not_min_int, Label::kNear);
+      __ cmpl(right_reg, Immediate(-1));
+      DeoptimizeIf(zero, instr->environment());
+      __ bind(&left_not_min_int);
+    }
+
     // Sign extend eax to edx.
     // (We are using only the low 32 bits of the values.)
     __ cdq();
