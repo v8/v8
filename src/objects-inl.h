@@ -2821,7 +2821,7 @@ void ConsStringIteratorOp::Reset() {
 
 String* ConsStringIteratorOp::ContinueOperation(int32_t* type_out,
                                                 unsigned* length_out) {
-  bool blew_stack;
+  bool blew_stack = false;
   String* string = NextLeaf(&blew_stack, type_out, length_out);
   // String found.
   if (string != NULL) {
