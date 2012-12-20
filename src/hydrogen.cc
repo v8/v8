@@ -5910,7 +5910,7 @@ void HOptimizedGraphBuilder::HandleCompoundAssignment(Assignment* expr) {
       }
 
       HInstruction* store;
-      if (!monomorphic) {
+      if (!monomorphic || map->is_observed()) {
         // If we don't know the monomorphic type, do a generic store.
         CHECK_ALIVE(store = BuildStoreNamedGeneric(object, name, instr));
       } else {
@@ -8265,7 +8265,7 @@ void HOptimizedGraphBuilder::VisitCountOperation(CountOperation* expr) {
       input = Pop();
 
       HInstruction* store;
-      if (!monomorphic) {
+      if (!monomorphic || map->is_observed()) {
         // If we don't know the monomorphic type, do a generic store.
         CHECK_ALIVE(store = BuildStoreNamedGeneric(object, name, after));
       } else {

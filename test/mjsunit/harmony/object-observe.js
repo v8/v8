@@ -303,7 +303,6 @@ observer.assertCallbackRecords([
 
 
 // Recursive observation.
-/* TODO(rossberg): temporarily disabled until fixed.
 var obj = {a: 1};
 var callbackCount = 0;
 function recursiveObserver(r) {
@@ -331,7 +330,6 @@ Object.observe(obj2, recursiveObserver2);
 ++obj1.a;
 Object.deliverChangeRecords(recursiveObserver2);
 assertEquals(199, recordCount);
-*/
 
 
 // Observing named properties.
@@ -360,6 +358,9 @@ delete obj.a;
 Object.defineProperty(obj, "a", {get: function() {}, configurable: true});
 Object.defineProperty(obj, "a", {value: 9, writable: true});
 obj.a = 10;
+++obj.a;
+obj.a++;
+obj.a *= 3;
 delete obj.a;
 Object.defineProperty(obj, "a", {value: 11, configurable: true});
 Object.deliverChangeRecords(observer.callback);
@@ -381,7 +382,10 @@ observer.assertCallbackRecords([
   { object: obj, name: "a", type: "new" },
   { object: obj, name: "a", type: "reconfigured" },
   { object: obj, name: "a", type: "updated", oldValue: 9 },
-  { object: obj, name: "a", type: "deleted", oldValue: 10 },
+  { object: obj, name: "a", type: "updated", oldValue: 10 },
+  { object: obj, name: "a", type: "updated", oldValue: 11 },
+  { object: obj, name: "a", type: "updated", oldValue: 12 },
+  { object: obj, name: "a", type: "deleted", oldValue: 36 },
   { object: obj, name: "a", type: "new" },
 ]);
 
@@ -412,6 +416,9 @@ delete obj[1];
 Object.defineProperty(obj, "1", {get: function() {}, configurable: true});
 Object.defineProperty(obj, "1", {value: 9, writable: true});
 obj[1] = 10;
+++obj[1];
+obj[1]++;
+obj[1] *= 3;
 delete obj[1];
 Object.defineProperty(obj, "1", {value: 11, configurable: true});
 Object.deliverChangeRecords(observer.callback);
@@ -433,7 +440,10 @@ observer.assertCallbackRecords([
   { object: obj, name: "1", type: "new" },
   { object: obj, name: "1", type: "reconfigured" },
   { object: obj, name: "1", type: "updated", oldValue: 9 },
-  { object: obj, name: "1", type: "deleted", oldValue: 10 },
+  { object: obj, name: "1", type: "updated", oldValue: 10 },
+  { object: obj, name: "1", type: "updated", oldValue: 11 },
+  { object: obj, name: "1", type: "updated", oldValue: 12 },
+  { object: obj, name: "1", type: "deleted", oldValue: 36 },
   { object: obj, name: "1", type: "new" },
 ]);
 
@@ -470,6 +480,9 @@ function TestObserveConfigurable(obj, prop) {
   Object.defineProperty(obj, prop, {get: function() {}, configurable: true});
   Object.defineProperty(obj, prop, {value: 9, writable: true});
   obj[prop] = 10;
+  ++obj[prop];
+  obj[prop]++;
+  obj[prop] *= 3;
   delete obj[prop];
   Object.defineProperty(obj, prop, {value: 11, configurable: true});
   Object.deliverChangeRecords(observer.callback);
@@ -495,7 +508,10 @@ function TestObserveConfigurable(obj, prop) {
     { object: obj, name: prop, type: "new" },
     { object: obj, name: prop, type: "reconfigured" },
     { object: obj, name: prop, type: "updated", oldValue: 9 },
-    { object: obj, name: prop, type: "deleted", oldValue: 10 },
+    { object: obj, name: prop, type: "updated", oldValue: 10 },
+    { object: obj, name: prop, type: "updated", oldValue: 11 },
+    { object: obj, name: prop, type: "updated", oldValue: 12 },
+    { object: obj, name: prop, type: "deleted", oldValue: 36 },
     { object: obj, name: prop, type: "new" },
   ]);
   Object.unobserve(obj, observer.callback);
@@ -628,6 +644,9 @@ arr2.length = 0;
 arr2.length = 1; // no change expected
 Object.defineProperty(arr2, 'length', {value: 1, writable: false});
 arr3.length = 0;
+++arr3.length;
+arr3.length++;
+arr3.length /= 2;
 Object.defineProperty(arr3, 'length', {value: 5});
 Object.defineProperty(arr3, 'length', {value: 10, writable: false});
 Object.deliverChangeRecords(observer.callback);
@@ -646,6 +665,9 @@ observer.assertCallbackRecords([
   { object: arr3, name: '0', type: 'deleted', oldValue: 'hello' },
   { object: arr3, name: 'length', type: 'updated', oldValue: 6 },
   { object: arr3, name: 'length', type: 'updated', oldValue: 0 },
+  { object: arr3, name: 'length', type: 'updated', oldValue: 1 },
+  { object: arr3, name: 'length', type: 'updated', oldValue: 2 },
+  { object: arr3, name: 'length', type: 'updated', oldValue: 1 },
   { object: arr3, name: 'length', type: 'reconfigured', oldValue: 5 },
 ]);
 
@@ -925,39 +947,65 @@ observer.assertNotCalled();
 
 // Check that changes in observation status are detected in all IC states and
 // in optimized code, especially in cases usually using fast elements.
-function TestFastElements(prepopulate, polymorphic, optimize) {
+var mutation = [
+  "a[i] = v",
+  "a[i] ? ++a[i] : a[i] = v",
+  "a[i] ? a[i]++ : a[i] = v",
+  "a[i] ? a[i] += 1 : a[i] = v",
+  "a[i] ? a[i] -= -1 : a[i] = v",
+];
+
+var props = [1, "1", "a"];
+
+function TestFastElements(prop, mutation, prepopulate, polymorphic, optimize) {
   var setElement = eval(
-    "(function setElement(a, i, v) { a[i] = v " +
-    "/* " + prepopulate + " " + polymorphic + " " + optimize + " */" +
+    "(function setElement(a, i, v) { " + mutation + "; " +
+    "/* " + [].join.call(arguments, " ") + " */" +
     "})"
   );
   print("TestFastElements:", setElement);
 
   var arr = prepopulate ? [1, 2, 3, 4, 5] : [0];
-  setElement(arr, 1, 210);
-  setElement(arr, 1, 211);
+  if (prepopulate) arr[prop] = 2;  // for non-element case
+  setElement(arr, prop, 3);
+  setElement(arr, prop, 4);
   if (polymorphic) setElement(["M", "i", "l", "n", "e", "r"], 0, "m");
   if (optimize) %OptimizeFunctionOnNextCall(setElement);
-  setElement(arr, 1, 212);
+  setElement(arr, prop, 5);
 
   reset();
   Object.observe(arr, observer.callback);
-  setElement(arr, 1, 989898);
+  setElement(arr, prop, 989898);
   Object.deliverChangeRecords(observer.callback);
   observer.assertCallbackRecords([
-    { object: arr, name: '1', type: 'updated', oldValue: 212 }
+    { object: arr, name: "" + prop, type: 'updated', oldValue: 5 }
   ]);
 }
 
 for (var b1 = 0; b1 < 2; ++b1)
   for (var b2 = 0; b2 < 2; ++b2)
     for (var b3 = 0; b3 < 2; ++b3)
-      TestFastElements(b1 != 0, b2 != 0, b3 != 0);
+      for (var i in props)
+        for (var j in mutation)
+          TestFastElements(props[i], mutation[j], b1 != 0, b2 != 0, b3 != 0);
 
-function TestFastElementsLength(polymorphic, optimize, oldSize, newSize) {
+
+var mutation = [
+  "a.length = v",
+  "a.length += newSize - oldSize",
+  "a.length -= oldSize - newSize",
+];
+
+var mutationByIncr = [
+  "++a.length",
+  "a.length++",
+];
+
+function TestFastElementsLength(
+  mutation, polymorphic, optimize, oldSize, newSize) {
   var setLength = eval(
-    "(function setLength(a, n) { a.length = n " +
-    "/* " + polymorphic + " " + optimize + " " + oldSize + " " + newSize + " */"
+    "(function setLength(a, v) { " + mutation + "; " +
+    "/* " + [].join.call(arguments, " ") + " */"
     + "})"
   );
   print("TestFastElementsLength:", setLength);
@@ -996,4 +1044,11 @@ for (var b1 = 0; b1 < 2; ++b1)
   for (var b2 = 0; b2 < 2; ++b2)
     for (var n1 = 0; n1 < 3; ++n1)
       for (var n2 = 0; n2 < 3; ++n2)
-        TestFastElementsLength(b1 != 0, b2 != 0, 20*n1, 20*n2);
+        for (var i in mutation)
+          TestFastElementsLength(mutation[i], b1 != 0, b2 != 0, 20*n1, 20*n2);
+
+for (var b1 = 0; b1 < 2; ++b1)
+  for (var b2 = 0; b2 < 2; ++b2)
+    for (var n = 0; n < 3; ++n)
+      for (var i in mutationByIncr)
+        TestFastElementsLength(mutationByIncr[i], b1 != 0, b2 != 0, 7*n, 7*n+1);
