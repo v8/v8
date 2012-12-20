@@ -246,7 +246,7 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
                       HeapObject::kMapOffset,
                       a3,
                       t5,
-                      kRAHasBeenSaved,
+                      kRAHasNotBeenSaved,
                       kDontSaveFPRegs,
                       OMIT_REMEMBERED_SET,
                       OMIT_SMI_CHECK);
