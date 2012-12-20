@@ -477,6 +477,40 @@ void Deoptimizer::ComputeOutputFrames(Deoptimizer* deoptimizer) {
 }
 
 
+static Code* FindOptimizedCode(Isolate* isolate,
+                               JSFunction* function,
+                               Deoptimizer::BailoutType type,
+                               Address from,
+                               Code* optimized_code) {
+  switch (type) {
+    case Deoptimizer::EAGER:
+      ASSERT(from == NULL);
+      return function->code();
+    case Deoptimizer::LAZY: {
+      Code* compiled_code =
+          isolate->deoptimizer_data()->FindDeoptimizingCode(from);
+      return (compiled_code == NULL)
+          ? static_cast<Code*>(isolate->heap()->FindCodeObject(from))
+          : compiled_code;
+    }
+    case Deoptimizer::OSR: {
+      // The function has already been optimized and we're transitioning
+      // from the unoptimized shared version to the optimized one in the
+      // function. The return address (from) points to unoptimized code.
+      Code* compiled_code = function->code();
+      ASSERT(compiled_code->kind() == Code::OPTIMIZED_FUNCTION);
+      ASSERT(!compiled_code->contains(from));
+      return compiled_code;
+    }
+    case Deoptimizer::DEBUGGER:
+      ASSERT(optimized_code->contains(from));
+      return optimized_code;
+  }
+  UNREACHABLE();
+  return NULL;
+}
+
+
 Deoptimizer::Deoptimizer(Isolate* isolate,
                          JSFunction* function,
                          BailoutType type,
@@ -525,28 +559,10 @@ Deoptimizer::Deoptimizer(Isolate* isolate,
   if (function != NULL && function->IsOptimized()) {
     function->shared()->increment_deopt_count();
   }
-  // Find the optimized code.
-  if (type == EAGER) {
-    ASSERT(from == NULL);
-    compiled_code_ = function_->code();
-    if (FLAG_trace_deopt) compiled_code_->PrintDeoptLocation(bailout_id);
-  } else if (type == LAZY) {
-    compiled_code_ = isolate->deoptimizer_data()->FindDeoptimizingCode(from);
-    if (compiled_code_ == NULL) {
-      compiled_code_ =
-          static_cast<Code*>(isolate->heap()->FindCodeObject(from));
-    }
-    ASSERT(compiled_code_ != NULL);
-  } else if (type == OSR) {
-    // The function has already been optimized and we're transitioning
-    // from the unoptimized shared version to the optimized one in the
-    // function. The return address (from) points to unoptimized code.
-    compiled_code_ = function_->code();
-    ASSERT(compiled_code_->kind() == Code::OPTIMIZED_FUNCTION);
-    ASSERT(!compiled_code_->contains(from));
-  } else if (type == DEBUGGER) {
-    compiled_code_ = optimized_code;
-    ASSERT(compiled_code_->contains(from));
+  compiled_code_ =
+      FindOptimizedCode(isolate, function, type, from, optimized_code);
+  if (FLAG_trace_deopt && type == EAGER) {
+    compiled_code_->PrintDeoptLocation(bailout_id);
   }
   ASSERT(HEAP->allow_allocation(false));
   unsigned size = ComputeInputFrameSize();
