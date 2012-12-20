@@ -2441,33 +2441,112 @@ void BinaryOpStub_GenerateSmiSmiOperation(MacroAssembler* masm,
       // We fall through here if we multiplied a negative number with 0, because
       // that would mean we should produce -0.
       break;
-    case Token::DIV:
+    case Token::DIV: {
+      Label div_with_sdiv;
+
+      // Check for 0 divisor.
+      __ cmp(right, Operand(0));
+      __ b(eq, &not_smi_result);
+
       // Check for power of two on the right hand side.
-      __ JumpIfNotPowerOfTwoOrZero(right, scratch1, &not_smi_result);
-      // Check for positive and no remainder (scratch1 contains right - 1).
-      __ orr(scratch2, scratch1, Operand(0x80000000u));
-      __ tst(left, scratch2);
-      __ b(ne, &not_smi_result);
+      __ sub(scratch1, right, Operand(1));
+      __ tst(scratch1, right);
+      if (CpuFeatures::IsSupported(SUDIV)) {
+        __ b(ne, &div_with_sdiv);
+        // Check for no remainder.
+        __ tst(left, scratch1);
+        __ b(ne, &not_smi_result);
+        // Check for positive left hand side.
+        __ cmp(left, Operand(0));
+        __ b(mi, &div_with_sdiv);
+      } else {
+        __ b(ne, &not_smi_result);
+        // Check for positive and no remainder.
+        __ orr(scratch2, scratch1, Operand(0x80000000u));
+        __ tst(left, scratch2);
+        __ b(ne, &not_smi_result);
+      }
 
       // Perform division by shifting.
       __ CountLeadingZeros(scratch1, scratch1, scratch2);
       __ rsb(scratch1, scratch1, Operand(31));
       __ mov(right, Operand(left, LSR, scratch1));
       __ Ret();
+
+      if (CpuFeatures::IsSupported(SUDIV)) {
+        Label result_not_zero;
+
+        __ bind(&div_with_sdiv);
+        // Do division.
+        __ sdiv(scratch1, left, right);
+        // Check that the remainder is zero.
+        __ mls(scratch2, scratch1, right, left);
+        __ cmp(scratch2, Operand(0));
+        __ b(ne, &not_smi_result);
+        // Check for negative zero result.
+        __ cmp(scratch1, Operand(0));
+        __ b(ne, &result_not_zero);
+        __ cmp(right, Operand(0));
+        __ b(lt, &not_smi_result);
+        __ bind(&result_not_zero);
+        // Check for the corner case of dividing the most negative smi by -1.
+        __ cmp(scratch1, Operand(0x40000000));
+        __ b(eq, &not_smi_result);
+        // Tag and return the result.
+        __ SmiTag(right, scratch1);
+        __ Ret();
+      }
       break;
-    case Token::MOD:
-      // Check for two positive smis.
-      __ orr(scratch1, left, Operand(right));
-      __ tst(scratch1, Operand(0x80000000u | kSmiTagMask));
-      __ b(ne, &not_smi_result);
+    }
+    case Token::MOD: {
+      Label modulo_with_sdiv;
 
-      // Check for power of two on the right hand side.
-      __ JumpIfNotPowerOfTwoOrZero(right, scratch1, &not_smi_result);
+      if (CpuFeatures::IsSupported(SUDIV)) {
+        // Check for x % 0.
+        __ cmp(right, Operand(0));
+        __ b(eq, &not_smi_result);
 
-      // Perform modulus by masking.
+        // Check for two positive smis.
+        __ orr(scratch1, left, Operand(right));
+        __ tst(scratch1, Operand(0x80000000u));
+        __ b(ne, &modulo_with_sdiv);
+
+        // Check for power of two on the right hand side.
+        __ sub(scratch1, right, Operand(1));
+        __ tst(scratch1, right);
+        __ b(ne, &modulo_with_sdiv);
+      } else {
+        // Check for two positive smis.
+        __ orr(scratch1, left, Operand(right));
+        __ tst(scratch1, Operand(0x80000000u));
+        __ b(ne, &not_smi_result);
+
+        // Check for power of two on the right hand side.
+        __ JumpIfNotPowerOfTwoOrZero(right, scratch1, &not_smi_result);
+      }
+
+      // Perform modulus by masking (scratch1 contains right - 1).
       __ and_(right, left, Operand(scratch1));
       __ Ret();
+
+      if (CpuFeatures::IsSupported(SUDIV)) {
+        __ bind(&modulo_with_sdiv);
+        __ mov(scratch2, right);
+        // Perform modulus with sdiv and mls.
+        __ sdiv(scratch1, left, right);
+        __ mls(right, scratch1, right, left);
+        // Return if the result is not 0.
+        __ cmp(right, Operand(0));
+        __ Ret(ne);
+        // The result is 0, check for -0 case.
+        __ cmp(left, Operand(0));
+        __ Ret(pl);
+        // This is a -0 case, restore the value of right.
+        __ mov(right, scratch2);
+        // We fall through here to not_smi_result to produce -0.
+      }
       break;
+    }
     case Token::BIT_OR:
       __ orr(right, left, Operand(right));
       __ Ret();

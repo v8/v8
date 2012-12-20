@@ -1433,25 +1433,68 @@ void LCodeGen::DoMathFloorOfDiv(LMathFloorOfDiv* instr) {
   const Register remainder = ToRegister(instr->temp());
   const Register scratch = scratch0();
 
-  // We only optimize this for division by constants, because the standard
-  // integer division routine is usually slower than transitionning to VFP.
-  // This could be optimized on processors with SDIV available.
-  ASSERT(instr->right()->IsConstantOperand());
-  int32_t divisor = ToInteger32(LConstantOperand::cast(instr->right()));
-  if (divisor < 0) {
-    __ cmp(left, Operand(0));
+  if (!CpuFeatures::IsSupported(SUDIV)) {
+    // If the CPU doesn't support sdiv instruction, we only optimize when we
+    // have magic numbers for the divisor. The standard integer division routine
+    // is usually slower than transitionning to VFP.
+    ASSERT(instr->right()->IsConstantOperand());
+    int32_t divisor = ToInteger32(LConstantOperand::cast(instr->right()));
+    ASSERT(LChunkBuilder::HasMagicNumberForDivisor(divisor));
+    if (divisor < 0) {
+      __ cmp(left, Operand(0));
+      DeoptimizeIf(eq, instr->environment());
+    }
+    EmitSignedIntegerDivisionByConstant(result,
+                                        left,
+                                        divisor,
+                                        remainder,
+                                        scratch,
+                                        instr->environment());
+    // We performed a truncating division. Correct the result if necessary.
+    __ cmp(remainder, Operand(0));
+    __ teq(remainder, Operand(divisor), ne);
+    __ sub(result, result, Operand(1), LeaveCC, mi);
+  } else {
+    CpuFeatures::Scope scope(SUDIV);
+    const Register right = ToRegister(instr->right());
+
+    // Check for x / 0.
+    __ cmp(right, Operand(0));
     DeoptimizeIf(eq, instr->environment());
+
+    // Check for (kMinInt / -1).
+    if (instr->hydrogen()->CheckFlag(HValue::kCanOverflow)) {
+      Label left_not_min_int;
+      __ cmp(left, Operand(kMinInt));
+      __ b(ne, &left_not_min_int);
+      __ cmp(right, Operand(-1));
+      DeoptimizeIf(eq, instr->environment());
+      __ bind(&left_not_min_int);
+    }
+
+    // Check for (0 / -x) that will produce negative zero.
+    if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
+      __ cmp(right, Operand(0));
+      __ cmp(left, Operand(0), mi);
+      // "right" can't be null because the code would have already been
+      // deoptimized. The Z flag is set only if (right < 0) and (left == 0).
+      // In this case we need to deoptimize to produce a -0.
+      DeoptimizeIf(eq, instr->environment());
+    }
+
+    Label done;
+    __ sdiv(result, left, right);
+    // If both operands have the same sign then we are done.
+    __ eor(remainder, left, Operand(right), SetCC);
+    __ b(pl, &done);
+
+    // Check if the result needs to be corrected.
+    __ mls(remainder, result, right, left);
+    __ cmp(remainder, Operand(0));
+    __ sub(result, result, Operand(1), LeaveCC, ne);
+
+    __ bind(&done);
   }
-  EmitSignedIntegerDivisionByConstant(result,
-                                      left,
-                                      divisor,
-                                      remainder,
-                                      scratch,
-                                      instr->environment());
-  // We operated a truncating division. Correct the result if necessary.
-  __ cmp(remainder, Operand(0));
-  __ teq(remainder, Operand(divisor), ne);
-  __ sub(result, result, Operand(1), LeaveCC, mi);
 }
 
 

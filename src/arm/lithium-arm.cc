@@ -1241,31 +1241,43 @@ HValue* LChunkBuilder::SimplifiedDividendForMathFloorOfDiv(HValue* dividend) {
 
 
 HValue* LChunkBuilder::SimplifiedDivisorForMathFloorOfDiv(HValue* divisor) {
-  // Only optimize when we have magic numbers for the divisor.
-  // The standard integer division routine is usually slower than transitionning
-  // to VFP.
-  if (divisor->IsConstant() &&
-      HConstant::cast(divisor)->HasInteger32Value()) {
+  if (CpuFeatures::IsSupported(SUDIV)) {
+    // A value with an integer representation does not need to be transformed.
+    if (divisor->representation().IsInteger32()) {
+      return divisor;
+    // A change from an integer32 can be replaced by the integer32 value.
+    } else if (divisor->IsChange() &&
+               HChange::cast(divisor)->from().IsInteger32()) {
+      return HChange::cast(divisor)->value();
+    }
+  }
+
+  if (divisor->IsConstant() && HConstant::cast(divisor)->HasInteger32Value()) {
     HConstant* constant_val = HConstant::cast(divisor);
     int32_t int32_val = constant_val->Integer32Value();
-    if (LChunkBuilder::HasMagicNumberForDivisor(int32_val)) {
+    if (LChunkBuilder::HasMagicNumberForDivisor(int32_val) ||
+        CpuFeatures::IsSupported(SUDIV)) {
       return constant_val->CopyToRepresentation(Representation::Integer32(),
                                                 divisor->block()->zone());
     }
   }
+
   return NULL;
 }
 
 
 LInstruction* LChunkBuilder::DoMathFloorOfDiv(HMathFloorOfDiv* instr) {
-    HValue* right = instr->right();
-    LOperand* dividend = UseRegister(instr->left());
-    LOperand* divisor = UseRegisterOrConstant(right);
-    LOperand* remainder = TempRegister();
-    ASSERT(right->IsConstant() &&
-           HConstant::cast(right)->HasInteger32Value() &&
-           HasMagicNumberForDivisor(HConstant::cast(right)->Integer32Value()));
-    return AssignEnvironment(DefineAsRegister(
+  HValue* right = instr->right();
+  LOperand* dividend = UseRegister(instr->left());
+  LOperand* divisor = CpuFeatures::IsSupported(SUDIV)
+      ? UseRegister(right)
+      : UseOrConstant(right);
+  LOperand* remainder = TempRegister();
+  ASSERT(CpuFeatures::IsSupported(SUDIV) ||
+         (right->IsConstant() &&
+          HConstant::cast(right)->HasInteger32Value() &&
+          HasMagicNumberForDivisor(HConstant::cast(right)->Integer32Value())));
+  return AssignEnvironment(DefineAsRegister(
           new(zone()) LMathFloorOfDiv(dividend, divisor, remainder)));
 }
 
