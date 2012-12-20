@@ -4528,6 +4528,8 @@ class Code: public HeapObject {
   static bool IsYoungSequence(byte* sequence);
   bool IsOld();
 
+  void PrintDeoptLocation(int bailout_id);
+
   // Max loop nesting marker used to postpose OSR. We don't take loop
   // nesting that is deeper than 5 levels into account.
   static const int kMaxLoopNestingMarker = 6;

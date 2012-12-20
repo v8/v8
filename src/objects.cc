@@ -9138,6 +9138,25 @@ Code* Code::GetCodeAgeStub(Age age, MarkingParity parity) {
 }
 
 
+void Code::PrintDeoptLocation(int bailout_id) {
+  const char* last_comment = NULL;
+  int mask = RelocInfo::ModeMask(RelocInfo::COMMENT)
+      | RelocInfo::ModeMask(RelocInfo::RUNTIME_ENTRY);
+  for (RelocIterator it(this, mask); !it.done(); it.next()) {
+    RelocInfo* info = it.rinfo();
+    if (info->rmode() == RelocInfo::COMMENT) {
+      last_comment = reinterpret_cast<const char*>(info->data());
+    } else if (last_comment != NULL &&
+               bailout_id == Deoptimizer::GetDeoptimizationId(
+                   info->target_address(), Deoptimizer::EAGER)) {
+      CHECK(info->rmode() == RelocInfo::RUNTIME_ENTRY);
+      PrintF("            %s\n", last_comment);
+      return;
+    }
+  }
+}
+
+
 #ifdef ENABLE_DISASSEMBLER
 
 void DeoptimizationInputData::DeoptimizationInputDataPrint(FILE* out) {

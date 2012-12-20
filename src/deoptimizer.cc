@@ -529,26 +529,7 @@ Deoptimizer::Deoptimizer(Isolate* isolate,
   if (type == EAGER) {
     ASSERT(from == NULL);
     compiled_code_ = function_->code();
-    if (FLAG_trace_deopt && FLAG_code_comments) {
-      // Print instruction associated with this bailout.
-      const char* last_comment = NULL;
-      int mask = RelocInfo::ModeMask(RelocInfo::COMMENT)
-          | RelocInfo::ModeMask(RelocInfo::RUNTIME_ENTRY);
-      for (RelocIterator it(compiled_code_, mask); !it.done(); it.next()) {
-        RelocInfo* info = it.rinfo();
-        if (info->rmode() == RelocInfo::COMMENT) {
-          last_comment = reinterpret_cast<const char*>(info->data());
-        }
-        if (info->rmode() == RelocInfo::RUNTIME_ENTRY) {
-          unsigned id = Deoptimizer::GetDeoptimizationId(
-              info->target_address(), Deoptimizer::EAGER);
-          if (id == bailout_id && last_comment != NULL) {
-            PrintF("            %s\n", last_comment);
-            break;
-          }
-        }
-      }
-    }
+    if (FLAG_trace_deopt) compiled_code_->PrintDeoptLocation(bailout_id);
   } else if (type == LAZY) {
     compiled_code_ = isolate->deoptimizer_data()->FindDeoptimizingCode(from);
     if (compiled_code_ == NULL) {
