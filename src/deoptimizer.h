@@ -107,6 +107,9 @@ class DeoptimizerData {
   void Iterate(ObjectVisitor* v);
 #endif
 
+  Code* FindDeoptimizingCode(Address addr);
+  void RemoveDeoptimizingCode(Code* code);
+
  private:
   int eager_deoptimization_entry_code_entries_;
   int lazy_deoptimization_entry_code_entries_;
@@ -365,8 +368,6 @@ class Deoptimizer : public Malloced {
   // Weak handle callback for deoptimizing code objects.
   static void HandleWeakDeoptimizedCode(
       v8::Persistent<v8::Value> obj, void* data);
-  static Code* FindDeoptimizingCodeFromAddress(Address addr);
-  static void RemoveDeoptimizingCode(Code* code);
 
   // Deoptimize function assuming that function->next_function_link() points
   // to a list that contains all functions that share the same optimized code.
