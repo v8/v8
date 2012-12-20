@@ -240,10 +240,51 @@ void InputBuffer<R, I, s>::Seek(unsigned position) {
   buffer_ = R::ReadBlock(input_, util_buffer_, s, &remaining_, &offset_);
 }
 
-template <unsigned s>
-Utf8InputBuffer<s>::Utf8InputBuffer(const char* data, unsigned length)
-    : InputBuffer<Utf8, Buffer<const char*>, s>(Buffer<const char*>(data,
-                                                                    length)) {
+Utf8DecoderBase::Utf8DecoderBase()
+  : unbuffered_start_(NULL),
+    utf16_length_(0),
+    last_byte_of_buffer_unused_(false) {}
+
+Utf8DecoderBase::Utf8DecoderBase(uint16_t* buffer,
+                                 unsigned buffer_length,
+                                 const uint8_t* stream,
+                                 unsigned stream_length) {
+  Reset(buffer, buffer_length, stream, stream_length);
+}
+
+template<unsigned kBufferSize>
+Utf8Decoder<kBufferSize>::Utf8Decoder(const char* stream, unsigned length)
+  : Utf8DecoderBase(buffer_,
+                    kBufferSize,
+                    reinterpret_cast<const uint8_t*>(stream),
+                    length) {
+}
+
+template<unsigned kBufferSize>
+void Utf8Decoder<kBufferSize>::Reset(const char* stream, unsigned length) {
+  Utf8DecoderBase::Reset(buffer_,
+                         kBufferSize,
+                         reinterpret_cast<const uint8_t*>(stream),
+                         length);
+}
+
+template <unsigned kBufferSize>
+unsigned Utf8Decoder<kBufferSize>::WriteUtf16(uint16_t* data,
+                                              unsigned length) const {
+  ASSERT(length > 0);
+  if (length > utf16_length_) length = utf16_length_;
+  // memcpy everything in buffer.
+  unsigned buffer_length =
+      last_byte_of_buffer_unused_ ? kBufferSize - 1 : kBufferSize;
+  unsigned memcpy_length = length <= buffer_length  ? length : buffer_length;
+  memcpy(data, buffer_, memcpy_length*sizeof(uint16_t));
+  if (length <= buffer_length) return length;
+  ASSERT(unbuffered_start_ != NULL);
+  // Copy the rest the slow way.
+  WriteUtf16Slow(unbuffered_start_,
+                 data + buffer_length,
+                 length - buffer_length);
+  return length;
 }
 
 }  // namespace unibrow

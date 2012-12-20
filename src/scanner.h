@@ -145,7 +145,7 @@ class UnicodeCache {
 // Caching predicates used by scanners.
  public:
   UnicodeCache() {}
-  typedef unibrow::Utf8InputBuffer<1024> Utf8Decoder;
+  typedef unibrow::Utf8Decoder<512> Utf8Decoder;
 
   StaticResource<Utf8Decoder>* utf8_decoder() {
     return &utf8_decoder_;
@@ -314,8 +314,6 @@ class Scanner {
 
   // -1 is outside of the range of any real source code.
   static const int kNoOctalLocation = -1;
-
-  typedef unibrow::Utf8InputBuffer<1024> Utf8Decoder;
 
   explicit Scanner(UnicodeCache* scanner_contants);
 

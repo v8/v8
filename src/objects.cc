@@ -7641,14 +7641,20 @@ bool String::MarkAsUndetectable() {
 
 
 bool String::IsEqualTo(Vector<const char> str) {
-  Isolate* isolate = GetIsolate();
   int slen = length();
-  Access<UnicodeCache::Utf8Decoder>
-      decoder(isolate->unicode_cache()->utf8_decoder());
-  decoder->Reset(str.start(), str.length());
+  // Can't check exact length equality, but we can check bounds.
+  int str_len = str.length();
+  if (str_len < slen ||
+      str_len > slen*static_cast<int>(unibrow::Utf8::kMaxEncodedSize)) {
+    return false;
+  }
   int i;
-  for (i = 0; i < slen && decoder->has_more(); i++) {
-    uint32_t r = decoder->GetNext();
+  unsigned remaining_in_str = static_cast<unsigned>(str_len);
+  const uint8_t* utf8_data = reinterpret_cast<const uint8_t*>(str.start());
+  for (i = 0; i < slen && remaining_in_str > 0; i++) {
+    unsigned cursor = 0;
+    uint32_t r = unibrow::Utf8::ValueOf(utf8_data, remaining_in_str, &cursor);
+    ASSERT(cursor > 0 && cursor <= remaining_in_str);
     if (r > unibrow::Utf16::kMaxNonSurrogateCharCode) {
       if (i > slen - 1) return false;
       if (Get(i++) != unibrow::Utf16::LeadSurrogate(r)) return false;
@@ -7656,8 +7662,10 @@ bool String::IsEqualTo(Vector<const char> str) {
     } else {
       if (Get(i) != r) return false;
     }
+    utf8_data += cursor;
+    remaining_in_str -= cursor;
   }
-  return i == slen && !decoder->has_more();
+  return i == slen && remaining_in_str == 0;
 }
 
 
@@ -7862,46 +7870,51 @@ uint32_t StringHasher::GetHashField() {
 }
 
 
-uint32_t StringHasher::ComputeHashField(unibrow::CharacterStream* buffer,
-                                        int length,
-                                        uint32_t seed) {
-  typedef unibrow::Utf16 u;
-  StringHasher hasher(length, seed);
-  // Very long strings have a trivial hash that doesn't inspect the
-  // string contents.
-  if (hasher.has_trivial_hash()) {
-    return hasher.GetHashField();
+uint32_t StringHasher::ComputeUtf8Hash(Vector<const char> chars,
+                                       uint32_t seed,
+                                       int* utf16_length_out) {
+  int vector_length = chars.length();
+  // Handle some edge cases
+  if (vector_length <= 1) {
+    ASSERT(vector_length == 0 ||
+           static_cast<uint8_t>(chars.start()[0]) <=
+               unibrow::Utf8::kMaxOneByteChar);
+    *utf16_length_out = vector_length;
+    return HashSequentialString(chars.start(), vector_length, seed);
   }
-  // Do the iterative array index computation as long as there is a
-  // chance this is an array index.
-  if (hasher.is_array_index_) {
-    while (buffer->has_more()) {
-      uint32_t c = buffer->GetNext();
-      if (c > u::kMaxNonSurrogateCharCode) {
-        uint16_t c1 = u::LeadSurrogate(c);
-        uint16_t c2 = u::TrailSurrogate(c);
-        hasher.AddCharacter(c1);
-        hasher.AddCharacter(c2);
-        if (!hasher.UpdateIndex(c1)) break;
-        if (!hasher.UpdateIndex(c2)) break;
-      } else {
-        hasher.AddCharacter(c);
-        if (!hasher.UpdateIndex(c)) break;
-      }
-    }
-  }
-  // Process the remaining characters without updating the array
-  // index.
-  while (buffer->has_more()) {
-    ASSERT(!hasher.is_array_index_);
-    uint32_t c = buffer->GetNext();
-    if (c > u::kMaxNonSurrogateCharCode) {
-      hasher.AddCharacter(u::LeadSurrogate(c));
-      hasher.AddCharacter(u::TrailSurrogate(c));
+  // Start with a fake length which won't affect computation.
+  // It will be updated later.
+  StringHasher hasher(String::kMaxArrayIndexSize, seed);
+  unsigned remaining = static_cast<unsigned>(vector_length);
+  const uint8_t* stream = reinterpret_cast<const uint8_t*>(chars.start());
+  int utf16_length = 0;
+  bool is_index = true;
+  ASSERT(hasher.is_array_index_);
+  while (remaining > 0) {
+    unsigned consumed = 0;
+    uint32_t c = unibrow::Utf8::ValueOf(stream, remaining, &consumed);
+    ASSERT(consumed > 0 && consumed <= remaining);
+    stream += consumed;
+    remaining -= consumed;
+    bool is_two_characters = c > unibrow::Utf16::kMaxNonSurrogateCharCode;
+    utf16_length += is_two_characters ? 2 : 1;
+    // No need to keep hashing. But we do need to calculate utf16_length.
+    if (utf16_length > String::kMaxHashCalcLength) continue;
+    if (is_two_characters) {
+      uint16_t c1 = unibrow::Utf16::LeadSurrogate(c);
+      uint16_t c2 = unibrow::Utf16::TrailSurrogate(c);
+      hasher.AddCharacter(c1);
+      hasher.AddCharacter(c2);
+      if (is_index) is_index = hasher.UpdateIndex(c1);
+      if (is_index) is_index = hasher.UpdateIndex(c2);
     } else {
       hasher.AddCharacter(c);
+      if (is_index) is_index = hasher.UpdateIndex(c);
     }
   }
+  *utf16_length_out = static_cast<int>(utf16_length);
+  // Must set length here so that hash computation is correct.
+  hasher.length_ = utf16_length;
   return hasher.GetHashField();
 }
 
@@ -11716,10 +11729,7 @@ class Utf8SymbolKey : public HashTableKey {
 
   uint32_t Hash() {
     if (hash_field_ != 0) return hash_field_ >> String::kHashShift;
-    unibrow::Utf8InputBuffer<> buffer(string_.start(),
-                                      static_cast<unsigned>(string_.length()));
-    chars_ = buffer.Utf16Length();
-    hash_field_ = StringHasher::ComputeHashField(&buffer, chars_, seed_);
+    hash_field_ = StringHasher::ComputeUtf8Hash(string_, seed_, &chars_);
     uint32_t result = hash_field_ >> String::kHashShift;
     ASSERT(result != 0);  // Ensure that the hash value of 0 is never computed.
     return result;

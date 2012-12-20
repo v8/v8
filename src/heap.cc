@@ -4546,37 +4546,31 @@ MaybeObject* Heap::AllocateStringFromUtf8Slow(Vector<const char> string,
                                               PretenureFlag pretenure) {
   // Continue counting the number of characters in the UTF-8 string, starting
   // from the first non-ascii character or word.
-  int chars = non_ascii_start;
   Access<UnicodeCache::Utf8Decoder>
       decoder(isolate_->unicode_cache()->utf8_decoder());
-  decoder->Reset(string.start() + non_ascii_start, string.length() - chars);
-  while (decoder->has_more()) {
-    uint32_t r = decoder->GetNext();
-    if (r <= unibrow::Utf16::kMaxNonSurrogateCharCode) {
-      chars++;
-    } else {
-      chars += 2;
-    }
-  }
-
+  decoder->Reset(string.start() + non_ascii_start,
+                 string.length() - non_ascii_start);
+  int utf16_length = decoder->Utf16Length();
+  ASSERT(utf16_length > 0);
+  // Allocate string.
   Object* result;
-  { MaybeObject* maybe_result = AllocateRawTwoByteString(chars, pretenure);
+  {
+    int chars = non_ascii_start + utf16_length;
+    MaybeObject* maybe_result = AllocateRawTwoByteString(chars, pretenure);
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
-
   // Convert and copy the characters into the new object.
   SeqTwoByteString* twobyte = SeqTwoByteString::cast(result);
-  decoder->Reset(string.start(), string.length());
-  int i = 0;
-  while (i < chars) {
-    uint32_t r = decoder->GetNext();
-    if (r > unibrow::Utf16::kMaxNonSurrogateCharCode) {
-      twobyte->SeqTwoByteStringSet(i++, unibrow::Utf16::LeadSurrogate(r));
-      twobyte->SeqTwoByteStringSet(i++, unibrow::Utf16::TrailSurrogate(r));
-    } else {
-      twobyte->SeqTwoByteStringSet(i++, r);
+  // Copy ascii portion.
+  uint16_t* data = twobyte->GetChars();
+  if (non_ascii_start != 0) {
+    const char* ascii_data = string.start();
+    for (int i = 0; i < non_ascii_start; i++) {
+      *data++ = *ascii_data++;
     }
   }
+  // Now write the remainder.
+  decoder->WriteUtf16(data, utf16_length);
   return result;
 }
 
