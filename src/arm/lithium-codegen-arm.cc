@@ -1105,6 +1105,16 @@ void LCodeGen::DoModI(LModI* instr) {
       DeoptimizeIf(eq, instr->environment());
     }
 
+    // Check for (kMinInt % -1).
+    if (instr->hydrogen()->CheckFlag(HValue::kCanOverflow)) {
+      Label left_not_min_int;
+      __ cmp(left, Operand(kMinInt));
+      __ b(ne, &left_not_min_int);
+      __ cmp(right, Operand(-1));
+      DeoptimizeIf(eq, instr->environment());
+      __ bind(&left_not_min_int);
+    }
+
     // For  r3 = r1 % r2; we can have the following ARM code
     // sdiv r3, r1, r2
     // mls r3, r3, r2, r1
@@ -1133,6 +1143,8 @@ void LCodeGen::DoModI(LModI* instr) {
     ASSERT(!scratch.is(result));
 
     Label vfp_modulo, both_positive, right_negative;
+
+    CpuFeatures::Scope scope(VFP2);
 
     // Check for x % 0.
     if (instr->hydrogen()->CheckFlag(HValue::kCanBeDivByZero)) {
@@ -1356,7 +1368,7 @@ void LCodeGen::DoDivI(LDivI* instr) {
     __ bind(&left_not_zero);
   }
 
-  // Check for (-kMinInt / -1).
+  // Check for (kMinInt / -1).
   if (instr->hydrogen()->CheckFlag(HValue::kCanOverflow)) {
     Label left_not_min_int;
     __ cmp(left, Operand(kMinInt));
