@@ -29,7 +29,6 @@
 #define V8_UNICODE_H_
 
 #include <sys/types.h>
-#include <stdint.h>
 #include <globals.h>
 /**
  * \file
