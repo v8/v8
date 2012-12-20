@@ -7293,36 +7293,41 @@ void ErrorObjectList::DeferredFormatStackTrace(Isolate* isolate) {
   int budget = kBudgetPerGC;
   for (int i = 0; i < list_.length(); i++) {
     Object* object = list_[i];
-    // Skip possible holes in the list.
-    if (object->IsTheHole()) continue;
-    if (isolate->heap()->InNewSpace(object) || budget == 0) {
-      list_[write_index++] = object;
-      continue;
+    JSFunction* getter_fun;
+
+    { AssertNoAllocation assert;
+      // Skip possible holes in the list.
+      if (object->IsTheHole()) continue;
+      if (isolate->heap()->InNewSpace(object) || budget == 0) {
+        list_[write_index++] = object;
+        continue;
+      }
+
+      // Check whether the stack property is backed by the original getter.
+      LookupResult lookup(isolate);
+      JSObject::cast(object)->LocalLookupRealNamedProperty(*stack_key, &lookup);
+      if (!lookup.IsFound() || lookup.type() != CALLBACKS) continue;
+      Object* callback = lookup.GetCallbackObject();
+      if (!callback->IsAccessorPair()) continue;
+      Object* getter_obj = AccessorPair::cast(callback)->getter();
+      if (!getter_obj->IsJSFunction()) continue;
+      getter_fun = JSFunction::cast(getter_obj);
+      String* key = isolate->heap()->hidden_stack_trace_symbol();
+      if (key != getter_fun->GetHiddenProperty(key)) continue;
     }
 
-    // Fire the stack property getter, if it is the original marked getter.
-    LookupResult lookup(isolate);
-    JSObject::cast(object)->LocalLookupRealNamedProperty(*stack_key, &lookup);
-    if (!lookup.IsFound() || lookup.type() != CALLBACKS) continue;
-    Object* callback = lookup.GetCallbackObject();
-    if (!callback->IsAccessorPair()) continue;
-    Object* getter_obj = AccessorPair::cast(callback)->getter();
-    if (!getter_obj->IsJSFunction()) continue;
-    JSFunction* getter_fun = JSFunction::cast(getter_obj);
-    String* key = isolate->heap()->hidden_stack_trace_symbol();
-    if (key != getter_fun->GetHiddenProperty(key)) continue;
     budget--;
+    HandleScope scope(isolate);
     bool has_exception = false;
-    Execution::Call(Handle<Object>(getter_fun, isolate),
-                    Handle<Object>(object, isolate),
-                    0,
-                    NULL,
-                    &has_exception);
+    Handle<Object> object_handle(object, isolate);
+    Handle<Object> getter_handle(getter_fun, isolate);
+    Execution::Call(getter_handle, object_handle, 0, NULL, &has_exception);
     if (has_exception) {
       // Hit an exception (most likely a stack overflow).
       // Wrap up this pass and retry after another GC.
       isolate->clear_pending_exception();
-      list_[write_index++] = object;
+      // We use the handle since calling the getter might have caused a GC.
+      list_[write_index++] = *object_handle;
       budget = 0;
     }
   }

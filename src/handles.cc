@@ -375,6 +375,15 @@ Handle<JSValue> GetScriptWrapper(Handle<Script> script) {
   Handle<JSFunction> constructor = isolate->script_function();
   Handle<JSValue> result =
       Handle<JSValue>::cast(isolate->factory()->NewJSObject(constructor));
+
+  // The allocation might have triggered a GC, which could have called this
+  // function recursively, and a wrapper has already been created and cached.
+  // In that case, simply return the cached wrapper.
+  if (script->wrapper()->foreign_address() != NULL) {
+    return Handle<JSValue>(
+        reinterpret_cast<JSValue**>(script->wrapper()->foreign_address()));
+  }
+
   result->set_value(*script);
 
   // Create a new weak global handle and use it to cache the wrapper

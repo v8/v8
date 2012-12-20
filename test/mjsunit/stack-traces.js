@@ -310,9 +310,9 @@ assertTrue(fired);
 error.stack;
 assertTrue(fired);
 
-//Check that throwing exception in a custom stack trace formatting function
-//does not lead to recursion.
-Error.prepareStackTrace = function() { throw new Error("abc"); }
+// Check that throwing exception in a custom stack trace formatting function
+// does not lead to recursion.
+Error.prepareStackTrace = function() { throw new Error("abc"); };
 var message;
 try {
   throw new Error();
@@ -321,3 +321,9 @@ try {
 }
 
 assertEquals("abc", message);
+
+// Test that modifying Error.prepareStackTrace by itself works.
+Error.prepareStackTrace = function() { Error.prepareStackTrace = "custom"; };
+new Error();
+
+assertEquals("custom", Error.prepareStackTrace);

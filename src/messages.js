@@ -1082,6 +1082,10 @@ function GetTypeName(obj, requireConstructor) {
 }
 
 
+// Flag to prevent recursive call of Error.prepareStackTrace.
+var formatting_custom_stack_trace = false;
+
+
 function captureStackTrace(obj, cons_opt) {
   var stackTraceLimit = $Error.stackTraceLimit;
   if (!stackTraceLimit || !IS_NUMBER(stackTraceLimit)) return;
@@ -1093,14 +1097,17 @@ function captureStackTrace(obj, cons_opt) {
                                  stackTraceLimit);
 
   // Don't be lazy if the error stack formatting is custom (observable).
-  if (IS_FUNCTION($Error.prepareStackTrace)) {
-    var custom_stacktrace_fun = $Error.prepareStackTrace;
-    // Use default error formatting for the case that custom formatting throws.
-    $Error.prepareStackTrace = null;
+  if (IS_FUNCTION($Error.prepareStackTrace) && !formatting_custom_stack_trace) {
     var array = [];
     %MoveArrayContents(GetStackFrames(stack), array);
-    obj.stack = custom_stacktrace_fun(obj, array);
-    $Error.prepareStackTrace = custom_stacktrace_fun;
+    formatting_custom_stack_trace = true;
+    try {
+      obj.stack = $Error.prepareStackTrace(obj, array);
+    } catch (e) {
+      throw e;  // The custom formatting function threw.  Rethrow.
+    } finally {
+      formatting_custom_stack_trace = false;
+    }
     return;
   }
 
