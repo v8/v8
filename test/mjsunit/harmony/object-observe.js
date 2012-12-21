@@ -26,6 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Flags: --harmony-observation --harmony-proxies --harmony-collections
+// Flags: --allow-natives-syntax
 
 var allObservers = [];
 function reset() {
@@ -64,8 +65,7 @@ function createObserver() {
     assertCallbackRecords: function(recs) {
       this.assertRecordCount(recs.length);
       for (var i = 0; i < recs.length; i++) {
-        if ('name' in recs[i])
-          recs[i].name = String(recs[i].name);
+        if ('name' in recs[i]) recs[i].name = String(recs[i].name);
         print(i, stringifyNoThrow(this.records[i]), stringifyNoThrow(recs[i]));
         assertSame(this.records[i].object, recs[i].object);
         assertEquals('string', typeof recs[i].type);
@@ -104,16 +104,19 @@ Object.defineProperty(changeRecordWithAccessor, 'name', {
   enumerable: true
 })
 
+
 // Object.observe
 assertThrows(function() { Object.observe("non-object", observer.callback); }, TypeError);
 assertThrows(function() { Object.observe(obj, nonFunction); }, TypeError);
 assertThrows(function() { Object.observe(obj, frozenFunction); }, TypeError);
 assertEquals(obj, Object.observe(obj, observer.callback));
 
+
 // Object.unobserve
 assertThrows(function() { Object.unobserve(4, observer.callback); }, TypeError);
 assertThrows(function() { Object.unobserve(obj, nonFunction); }, TypeError);
 assertEquals(obj, Object.unobserve(obj, observer.callback));
+
 
 // Object.getNotifier
 var notifier = Object.getNotifier(obj);
@@ -138,10 +141,12 @@ assertFalse(recordCreated);
 notifier.notify(changeRecordWithAccessor);
 assertFalse(recordCreated);  // not observed yet
 
+
 // Object.deliverChangeRecords
 assertThrows(function() { Object.deliverChangeRecords(nonFunction); }, TypeError);
 
 Object.observe(obj, observer.callback);
+
 
 // notify uses to [[CreateOwnProperty]] to create changeRecord;
 reset();
@@ -156,6 +161,7 @@ notifier.notify({ type: 'foo', protoExpando: 'val'});
 assertFalse(protoExpandoAccessed);
 delete Object.prototype.protoExpando;
 Object.deliverChangeRecords(observer.callback);
+
 
 // Multiple records are delivered.
 reset();
@@ -177,10 +183,12 @@ observer.assertCallbackRecords([
   { object: obj, name: 'bar', type: 'deleted', expando2: 'str' }
 ]);
 
+
 // No delivery takes place if no records are pending
 reset();
 Object.deliverChangeRecords(observer.callback);
 observer.assertNotCalled();
+
 
 // Multiple observation has no effect.
 reset();
@@ -192,6 +200,7 @@ Object.getNotifier(obj).notify({
 Object.deliverChangeRecords(observer.callback);
 observer.assertCalled();
 
+
 // Observation can be stopped.
 reset();
 Object.unobserve(obj, observer.callback);
@@ -200,6 +209,7 @@ Object.getNotifier(obj).notify({
 });
 Object.deliverChangeRecords(observer.callback);
 observer.assertNotCalled();
+
 
 // Multiple unobservation has no effect
 reset();
@@ -210,6 +220,7 @@ Object.getNotifier(obj).notify({
 });
 Object.deliverChangeRecords(observer.callback);
 observer.assertNotCalled();
+
 
 // Re-observation works and only includes changeRecords after of call.
 reset();
@@ -223,6 +234,7 @@ Object.getNotifier(obj).notify({
 records = undefined;
 Object.deliverChangeRecords(observer.callback);
 observer.assertRecordCount(1);
+
 
 // Observing a continuous stream of changes, while itermittantly unobserving.
 reset();
@@ -264,6 +276,7 @@ observer.assertCallbackRecords([
   { object: obj, type: 'foo', val: 5 }
 ]);
 
+
 // Observing multiple objects; records appear in order.
 reset();
 var obj2 = {};
@@ -287,6 +300,37 @@ observer.assertCallbackRecords([
   { object: obj2, type: 'foo2' },
   { object: obj3, type: 'foo3' }
 ]);
+
+
+// Recursive observation.
+var obj = {a: 1};
+var callbackCount = 0;
+function recursiveObserver(r) {
+  assertEquals(1, r.length);
+  ++callbackCount;
+  if (r[0].oldValue < 100) ++obj[r[0].name];
+}
+Object.observe(obj, recursiveObserver);
+++obj.a;
+Object.deliverChangeRecords(recursiveObserver);
+assertEquals(100, callbackCount);
+
+var obj1 = {a: 1};
+var obj2 = {a: 1};
+var recordCount = 0;
+function recursiveObserver2(r) {
+  recordCount += r.length;
+  if (r[0].oldValue < 100) {
+    ++obj1.a;
+    ++obj2.a;
+  }
+}
+Object.observe(obj1, recursiveObserver2);
+Object.observe(obj2, recursiveObserver2);
+++obj1.a;
+Object.deliverChangeRecords(recursiveObserver2);
+assertEquals(199, recordCount);
+
 
 // Observing named properties.
 reset();
@@ -314,6 +358,9 @@ delete obj.a;
 Object.defineProperty(obj, "a", {get: function() {}, configurable: true});
 Object.defineProperty(obj, "a", {value: 9, writable: true});
 obj.a = 10;
+++obj.a;
+obj.a++;
+obj.a *= 3;
 delete obj.a;
 Object.defineProperty(obj, "a", {value: 11, configurable: true});
 Object.deliverChangeRecords(observer.callback);
@@ -335,9 +382,13 @@ observer.assertCallbackRecords([
   { object: obj, name: "a", type: "new" },
   { object: obj, name: "a", type: "reconfigured" },
   { object: obj, name: "a", type: "updated", oldValue: 9 },
-  { object: obj, name: "a", type: "deleted", oldValue: 10 },
+  { object: obj, name: "a", type: "updated", oldValue: 10 },
+  { object: obj, name: "a", type: "updated", oldValue: 11 },
+  { object: obj, name: "a", type: "updated", oldValue: 12 },
+  { object: obj, name: "a", type: "deleted", oldValue: 36 },
   { object: obj, name: "a", type: "new" },
 ]);
+
 
 // Observing indexed properties.
 reset();
@@ -365,6 +416,9 @@ delete obj[1];
 Object.defineProperty(obj, "1", {get: function() {}, configurable: true});
 Object.defineProperty(obj, "1", {value: 9, writable: true});
 obj[1] = 10;
+++obj[1];
+obj[1]++;
+obj[1] *= 3;
 delete obj[1];
 Object.defineProperty(obj, "1", {value: 11, configurable: true});
 Object.deliverChangeRecords(observer.callback);
@@ -386,7 +440,10 @@ observer.assertCallbackRecords([
   { object: obj, name: "1", type: "new" },
   { object: obj, name: "1", type: "reconfigured" },
   { object: obj, name: "1", type: "updated", oldValue: 9 },
-  { object: obj, name: "1", type: "deleted", oldValue: 10 },
+  { object: obj, name: "1", type: "updated", oldValue: 10 },
+  { object: obj, name: "1", type: "updated", oldValue: 11 },
+  { object: obj, name: "1", type: "updated", oldValue: 12 },
+  { object: obj, name: "1", type: "deleted", oldValue: 36 },
   { object: obj, name: "1", type: "new" },
 ]);
 
@@ -423,6 +480,9 @@ function TestObserveConfigurable(obj, prop) {
   Object.defineProperty(obj, prop, {get: function() {}, configurable: true});
   Object.defineProperty(obj, prop, {value: 9, writable: true});
   obj[prop] = 10;
+  ++obj[prop];
+  obj[prop]++;
+  obj[prop] *= 3;
   delete obj[prop];
   Object.defineProperty(obj, prop, {value: 11, configurable: true});
   Object.deliverChangeRecords(observer.callback);
@@ -448,7 +508,10 @@ function TestObserveConfigurable(obj, prop) {
     { object: obj, name: prop, type: "new" },
     { object: obj, name: prop, type: "reconfigured" },
     { object: obj, name: prop, type: "updated", oldValue: 9 },
-    { object: obj, name: prop, type: "deleted", oldValue: 10 },
+    { object: obj, name: prop, type: "updated", oldValue: 10 },
+    { object: obj, name: prop, type: "updated", oldValue: 11 },
+    { object: obj, name: prop, type: "updated", oldValue: 12 },
+    { object: obj, name: prop, type: "deleted", oldValue: 36 },
     { object: obj, name: prop, type: "new" },
   ]);
   Object.unobserve(obj, observer.callback);
@@ -465,8 +528,7 @@ function TestObserveNonConfigurable(obj, prop, desc) {
   Object.defineProperty(obj, prop, {value: 6});
   Object.defineProperty(obj, prop, {value: 6});  // ignored
   Object.defineProperty(obj, prop, {value: 7});
-  Object.defineProperty(obj, prop,
-                        {enumerable: desc.enumerable});  // ignored
+  Object.defineProperty(obj, prop, {enumerable: desc.enumerable});  // ignored
   Object.defineProperty(obj, prop, {writable: false});
   obj[prop] = 7;  // ignored
   Object.deliverChangeRecords(observer.callback);
@@ -535,16 +597,13 @@ var objects = [
   createProxy(Proxy.create, null),
   createProxy(Proxy.createFunction, function(){}),
 ];
-var properties = ["a", "1", 1, "length", "prototype"];
+var properties = ["a", "1", 1, "length", "prototype", "name", "caller"];
 
 // Cases that yield non-standard results.
-// TODO(observe): ...or don't work yet.
 function blacklisted(obj, prop) {
   return (obj instanceof Int32Array && prop == 1) ||
-    (obj instanceof Int32Array && prop === "length") ||
-    (obj instanceof ArrayBuffer && prop == 1) ||
-    // TODO(observe): oldValue when reconfiguring array length
-    (obj instanceof Array && prop === "length")
+         (obj instanceof Int32Array && prop === "length") ||
+         (obj instanceof ArrayBuffer && prop == 1)
 }
 
 for (var i in objects) for (var j in properties) {
@@ -580,9 +639,14 @@ Object.observe(arr3, observer.callback);
 arr.length = 2;
 arr.length = 0;
 arr.length = 10;
+Object.defineProperty(arr, 'length', {writable: false});
 arr2.length = 0;
 arr2.length = 1; // no change expected
+Object.defineProperty(arr2, 'length', {value: 1, writable: false});
 arr3.length = 0;
+++arr3.length;
+arr3.length++;
+arr3.length /= 2;
 Object.defineProperty(arr3, 'length', {value: 5});
 Object.defineProperty(arr3, 'length', {value: 10, writable: false});
 Object.deliverChangeRecords(observer.callback);
@@ -593,16 +657,20 @@ observer.assertCallbackRecords([
   { object: arr, name: '1', type: 'deleted', oldValue: 'b' },
   { object: arr, name: 'length', type: 'updated', oldValue: 2 },
   { object: arr, name: 'length', type: 'updated', oldValue: 1 },
+  { object: arr, name: 'length', type: 'reconfigured', oldValue: 10 },
   { object: arr2, name: '1', type: 'deleted', oldValue: 'beta' },
   { object: arr2, name: 'length', type: 'updated', oldValue: 2 },
+  { object: arr2, name: 'length', type: 'reconfigured', oldValue: 1 },
   { object: arr3, name: '2', type: 'deleted', oldValue: 'goodbye' },
   { object: arr3, name: '0', type: 'deleted', oldValue: 'hello' },
   { object: arr3, name: 'length', type: 'updated', oldValue: 6 },
   { object: arr3, name: 'length', type: 'updated', oldValue: 0 },
-  { object: arr3, name: 'length', type: 'updated', oldValue: 5 },
-  // TODO(adamk): This record should be merged with the above
-  { object: arr3, name: 'length', type: 'reconfigured' },
+  { object: arr3, name: 'length', type: 'updated', oldValue: 1 },
+  { object: arr3, name: 'length', type: 'updated', oldValue: 2 },
+  { object: arr3, name: 'length', type: 'updated', oldValue: 1 },
+  { object: arr3, name: 'length', type: 'reconfigured', oldValue: 5 },
 ]);
+
 
 // Assignments in loops (checking different IC states).
 reset();
@@ -635,6 +703,7 @@ observer.assertCallbackRecords([
   { object: obj, name: "4", type: "new" },
 ]);
 
+
 // Adding elements past the end of an array should notify on length
 reset();
 var arr = [1, 2, 3];
@@ -656,6 +725,7 @@ observer.assertCallbackRecords([
   { object: arr, name: 'length', type: 'updated', oldValue: 201 },
   { object: arr, name: '50', type: 'new' },
 ]);
+
 
 // Tests for array methods, first on arrays and then on plain objects
 //
@@ -729,6 +799,7 @@ observer.assertCallbackRecords([
   { object: array, name: '1', type: 'updated', oldValue: 2 },
   { object: array, name: '2', type: 'updated', oldValue: 3 },
 ]);
+
 
 //
 // === PLAIN OBJECTS ===
@@ -836,6 +907,7 @@ observer.assertCallbackRecords([
   { object: obj, name: '__proto__', type: 'prototype', oldValue: null },
 ]);
 
+
 // Function.prototype
 reset();
 var fun = function(){};
@@ -871,3 +943,112 @@ Object.observe(obj, observer.callback);
 obj.prototype = 7;
 Object.deliverChangeRecords(observer.callback);
 observer.assertNotCalled();
+
+
+// Check that changes in observation status are detected in all IC states and
+// in optimized code, especially in cases usually using fast elements.
+var mutation = [
+  "a[i] = v",
+  "a[i] ? ++a[i] : a[i] = v",
+  "a[i] ? a[i]++ : a[i] = v",
+  "a[i] ? a[i] += 1 : a[i] = v",
+  "a[i] ? a[i] -= -1 : a[i] = v",
+];
+
+var props = [1, "1", "a"];
+
+function TestFastElements(prop, mutation, prepopulate, polymorphic, optimize) {
+  var setElement = eval(
+    "(function setElement(a, i, v) { " + mutation + "; " +
+    "/* " + [].join.call(arguments, " ") + " */" +
+    "})"
+  );
+  print("TestFastElements:", setElement);
+
+  var arr = prepopulate ? [1, 2, 3, 4, 5] : [0];
+  if (prepopulate) arr[prop] = 2;  // for non-element case
+  setElement(arr, prop, 3);
+  setElement(arr, prop, 4);
+  if (polymorphic) setElement(["M", "i", "l", "n", "e", "r"], 0, "m");
+  if (optimize) %OptimizeFunctionOnNextCall(setElement);
+  setElement(arr, prop, 5);
+
+  reset();
+  Object.observe(arr, observer.callback);
+  setElement(arr, prop, 989898);
+  Object.deliverChangeRecords(observer.callback);
+  observer.assertCallbackRecords([
+    { object: arr, name: "" + prop, type: 'updated', oldValue: 5 }
+  ]);
+}
+
+for (var b1 = 0; b1 < 2; ++b1)
+  for (var b2 = 0; b2 < 2; ++b2)
+    for (var b3 = 0; b3 < 2; ++b3)
+      for (var i in props)
+        for (var j in mutation)
+          TestFastElements(props[i], mutation[j], b1 != 0, b2 != 0, b3 != 0);
+
+
+var mutation = [
+  "a.length = v",
+  "a.length += newSize - oldSize",
+  "a.length -= oldSize - newSize",
+];
+
+var mutationByIncr = [
+  "++a.length",
+  "a.length++",
+];
+
+function TestFastElementsLength(
+  mutation, polymorphic, optimize, oldSize, newSize) {
+  var setLength = eval(
+    "(function setLength(a, v) { " + mutation + "; " +
+    "/* " + [].join.call(arguments, " ") + " */"
+    + "})"
+  );
+  print("TestFastElementsLength:", setLength);
+
+  function array(n) {
+    var arr = new Array(n);
+    for (var i = 0; i < n; ++i) arr[i] = i;
+    return arr;
+  }
+
+  setLength(array(oldSize), newSize);
+  setLength(array(oldSize), newSize);
+  if (polymorphic) setLength(array(oldSize).map(isNaN), newSize);
+  if (optimize) %OptimizeFunctionOnNextCall(setLength);
+  setLength(array(oldSize), newSize);
+
+  reset();
+  var arr = array(oldSize);
+  Object.observe(arr, observer.callback);
+  setLength(arr, newSize);
+  Object.deliverChangeRecords(observer.callback);
+  if (oldSize === newSize) {
+    observer.assertNotCalled();
+  } else {
+    var count = oldSize > newSize ? oldSize - newSize : 0;
+    observer.assertRecordCount(count + 1);
+    var lengthRecord = observer.records[count];
+    assertSame(arr, lengthRecord.object);
+    assertEquals('length', lengthRecord.name);
+    assertEquals('updated', lengthRecord.type);
+    assertSame(oldSize, lengthRecord.oldValue);
+  }
+}
+
+for (var b1 = 0; b1 < 2; ++b1)
+  for (var b2 = 0; b2 < 2; ++b2)
+    for (var n1 = 0; n1 < 3; ++n1)
+      for (var n2 = 0; n2 < 3; ++n2)
+        for (var i in mutation)
+          TestFastElementsLength(mutation[i], b1 != 0, b2 != 0, 20*n1, 20*n2);
+
+for (var b1 = 0; b1 < 2; ++b1)
+  for (var b2 = 0; b2 < 2; ++b2)
+    for (var n = 0; n < 3; ++n)
+      for (var i in mutationByIncr)
+        TestFastElementsLength(mutationByIncr[i], b1 != 0, b2 != 0, 7*n, 7*n+1);

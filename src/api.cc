@@ -1053,7 +1053,7 @@ void FunctionTemplate::Inherit(v8::Handle<FunctionTemplate> value) {
 
 
 Local<FunctionTemplate> FunctionTemplate::New(InvocationCallback callback,
-    v8::Handle<Value> data, v8::Handle<Signature> signature) {
+    v8::Handle<Value> data, v8::Handle<Signature> signature, int length) {
   i::Isolate* isolate = i::Isolate::Current();
   EnsureInitializedForIsolate(isolate, "v8::FunctionTemplate::New()");
   LOG_API(isolate, "FunctionTemplate::New");
@@ -1070,6 +1070,7 @@ Local<FunctionTemplate> FunctionTemplate::New(InvocationCallback callback,
     if (data.IsEmpty()) data = v8::Undefined();
     Utils::ToLocal(obj)->SetCallHandler(callback, data);
   }
+  obj->set_length(length);
   obj->set_undetectable(false);
   obj->set_needs_access_check(false);
 
@@ -1237,6 +1238,14 @@ Local<ObjectTemplate> FunctionTemplate::InstanceTemplate() {
   i::Handle<i::ObjectTemplateInfo> result(i::ObjectTemplateInfo::cast(
         Utils::OpenHandle(this)->instance_template()));
   return Utils::ToLocal(result);
+}
+
+
+void FunctionTemplate::SetLength(int length) {
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  if (IsDeadCheck(isolate, "v8::FunctionTemplate::SetLength()")) return;
+  ENTER_V8(isolate);
+  Utils::OpenHandle(this)->set_length(length);
 }
 
 
@@ -1842,7 +1851,7 @@ v8::Local<Value> v8::TryCatch::StackTrace() const {
     if (!raw_obj->IsJSObject()) return v8::Local<Value>();
     i::HandleScope scope(isolate_);
     i::Handle<i::JSObject> obj(i::JSObject::cast(raw_obj), isolate_);
-    i::Handle<i::String> name = isolate_->factory()->LookupAsciiSymbol("stack");
+    i::Handle<i::String> name = isolate_->factory()->stack_symbol();
     if (!obj->HasProperty(*name)) return v8::Local<Value>();
     i::Handle<i::Object> value = i::GetProperty(obj, name);
     if (value.is_null()) return v8::Local<Value>();
@@ -1953,7 +1962,7 @@ static i::Handle<i::Object> CallV8HeapFunction(const char* name,
                                                i::Handle<i::Object> argv[],
                                                bool* has_pending_exception) {
   i::Isolate* isolate = i::Isolate::Current();
-  i::Handle<i::String> fmt_str = isolate->factory()->LookupAsciiSymbol(name);
+  i::Handle<i::String> fmt_str = isolate->factory()->LookupUtf8Symbol(name);
   i::Object* object_fun =
       isolate->js_builtins_object()->GetPropertyNoExceptionThrown(*fmt_str);
   i::Handle<i::JSFunction> fun =
@@ -2369,7 +2378,7 @@ bool Value::IsNumberObject() const {
 static i::Object* LookupBuiltin(i::Isolate* isolate,
                                 const char* builtin_name) {
   i::Handle<i::String> symbol =
-      isolate->factory()->LookupAsciiSymbol(builtin_name);
+      isolate->factory()->LookupUtf8Symbol(builtin_name);
   i::Handle<i::JSBuiltinsObject> builtins = isolate->js_builtins_object();
   return builtins->GetPropertyNoExceptionThrown(*symbol);
 }
@@ -5129,8 +5138,8 @@ void v8::Date::DateTimeConfigurationChangeNotification() {
 
   i::HandleScope scope(isolate);
   // Get the function ResetDateCache (defined in date.js).
-  i::Handle<i::String> func_name_str =
-      isolate->factory()->LookupAsciiSymbol("ResetDateCache");
+  i::Handle<i::String> func_name_str = isolate->factory()->LookupOneByteSymbol(
+      STATIC_ASCII_VECTOR("ResetDateCache"));
   i::MaybeObject* result =
       isolate->js_builtins_object()->GetProperty(*func_name_str);
   i::Object* object_func;
@@ -5160,7 +5169,7 @@ static i::Handle<i::String> RegExpFlagsToString(RegExp::Flags flags) {
   if ((flags & RegExp::kMultiline) != 0) flags_buf[num_flags++] = 'm';
   if ((flags & RegExp::kIgnoreCase) != 0) flags_buf[num_flags++] = 'i';
   ASSERT(num_flags <= static_cast<int>(ARRAY_SIZE(flags_buf)));
-  return FACTORY->LookupSymbol(
+  return FACTORY->LookupOneByteSymbol(
       i::Vector<const char>(flags_buf, num_flags));
 }
 
@@ -5265,8 +5274,8 @@ Local<String> v8::String::NewSymbol(const char* data, int length) {
   LOG_API(isolate, "String::NewSymbol(char)");
   ENTER_V8(isolate);
   if (length == -1) length = i::StrLength(data);
-  i::Handle<i::String> result =
-      isolate->factory()->LookupSymbol(i::Vector<const char>(data, length));
+  i::Handle<i::String> result = isolate->factory()->LookupUtf8Symbol(
+      i::Vector<const char>(data, length));
   return Utils::ToLocal(result);
 }
 
@@ -5960,8 +5969,8 @@ Local<Value> Debug::GetMirror(v8::Handle<v8::Value> obj) {
   i::Debug* isolate_debug = isolate->debug();
   isolate_debug->Load();
   i::Handle<i::JSObject> debug(isolate_debug->debug_context()->global_object());
-  i::Handle<i::String> name =
-      isolate->factory()->LookupAsciiSymbol("MakeMirror");
+  i::Handle<i::String> name = isolate->factory()->LookupOneByteSymbol(
+      STATIC_ASCII_VECTOR("MakeMirror"));
   i::Handle<i::Object> fun_obj = i::GetProperty(debug, name);
   i::Handle<i::JSFunction> fun = i::Handle<i::JSFunction>::cast(fun_obj);
   v8::Handle<v8::Function> v8_fun = Utils::ToLocal(fun);
@@ -6023,11 +6032,11 @@ Handle<String> CpuProfileNode::GetFunctionName() const {
   const i::CodeEntry* entry = node->entry();
   if (!entry->has_name_prefix()) {
     return Handle<String>(ToApi<String>(
-        isolate->factory()->LookupAsciiSymbol(entry->name())));
+        isolate->factory()->LookupUtf8Symbol(entry->name())));
   } else {
     return Handle<String>(ToApi<String>(isolate->factory()->NewConsString(
-        isolate->factory()->LookupAsciiSymbol(entry->name_prefix()),
-        isolate->factory()->LookupAsciiSymbol(entry->name()))));
+        isolate->factory()->LookupUtf8Symbol(entry->name_prefix()),
+        isolate->factory()->LookupUtf8Symbol(entry->name()))));
   }
 }
 
@@ -6036,7 +6045,7 @@ Handle<String> CpuProfileNode::GetScriptResourceName() const {
   i::Isolate* isolate = i::Isolate::Current();
   IsDeadCheck(isolate, "v8::CpuProfileNode::GetScriptResourceName");
   const i::ProfileNode* node = reinterpret_cast<const i::ProfileNode*>(this);
-  return Handle<String>(ToApi<String>(isolate->factory()->LookupAsciiSymbol(
+  return Handle<String>(ToApi<String>(isolate->factory()->LookupUtf8Symbol(
       node->entry()->resource_name())));
 }
 
@@ -6122,7 +6131,7 @@ Handle<String> CpuProfile::GetTitle() const {
   i::Isolate* isolate = i::Isolate::Current();
   IsDeadCheck(isolate, "v8::CpuProfile::GetTitle");
   const i::CpuProfile* profile = reinterpret_cast<const i::CpuProfile*>(this);
-  return Handle<String>(ToApi<String>(isolate->factory()->LookupAsciiSymbol(
+  return Handle<String>(ToApi<String>(isolate->factory()->LookupUtf8Symbol(
       profile->title())));
 }
 
@@ -6219,7 +6228,7 @@ Handle<Value> HeapGraphEdge::GetName() const {
     case i::HeapGraphEdge::kInternal:
     case i::HeapGraphEdge::kProperty:
     case i::HeapGraphEdge::kShortcut:
-      return Handle<String>(ToApi<String>(isolate->factory()->LookupAsciiSymbol(
+      return Handle<String>(ToApi<String>(isolate->factory()->LookupUtf8Symbol(
           edge->name())));
     case i::HeapGraphEdge::kElement:
     case i::HeapGraphEdge::kHidden:
@@ -6263,7 +6272,7 @@ HeapGraphNode::Type HeapGraphNode::GetType() const {
 Handle<String> HeapGraphNode::GetName() const {
   i::Isolate* isolate = i::Isolate::Current();
   IsDeadCheck(isolate, "v8::HeapGraphNode::GetName");
-  return Handle<String>(ToApi<String>(isolate->factory()->LookupAsciiSymbol(
+  return Handle<String>(ToApi<String>(isolate->factory()->LookupUtf8Symbol(
       ToInternal(this)->name())));
 }
 
@@ -6342,7 +6351,7 @@ unsigned HeapSnapshot::GetUid() const {
 Handle<String> HeapSnapshot::GetTitle() const {
   i::Isolate* isolate = i::Isolate::Current();
   IsDeadCheck(isolate, "v8::HeapSnapshot::GetTitle");
-  return Handle<String>(ToApi<String>(isolate->factory()->LookupAsciiSymbol(
+  return Handle<String>(ToApi<String>(isolate->factory()->LookupUtf8Symbol(
       ToInternal(this)->title())));
 }
 

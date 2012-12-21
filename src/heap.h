@@ -209,6 +209,7 @@ namespace internal {
   V(char_at_symbol, "CharAt")                                            \
   V(undefined_symbol, "undefined")                                       \
   V(value_of_symbol, "valueOf")                                          \
+  V(stack_symbol, "stack")                                               \
   V(InitializeVarGlobal_symbol, "InitializeVarGlobal")                   \
   V(InitializeConstGlobal_symbol, "InitializeConstGlobal")               \
   V(KeyedLoadElementMonomorphic_symbol,                                  \
@@ -424,6 +425,41 @@ class ExternalStringTable {
   Heap* heap_;
 
   DISALLOW_COPY_AND_ASSIGN(ExternalStringTable);
+};
+
+
+// The stack property of an error object is implemented as a getter that
+// formats the attached raw stack trace into a string.  This raw stack trace
+// keeps code and function objects alive until the getter is called the first
+// time.  To release those objects, we call the getter after each GC for
+// newly tenured error objects that are kept in a list.
+class ErrorObjectList {
+ public:
+  inline void Add(JSObject* object);
+
+  inline void Iterate(ObjectVisitor* v);
+
+  void TearDown();
+
+  void RemoveUnmarked(Heap* heap);
+
+  void DeferredFormatStackTrace(Isolate* isolate);
+
+  void UpdateReferences();
+
+  void UpdateReferencesInNewSpace(Heap* heap);
+
+ private:
+  static const int kBudgetPerGC = 16;
+
+  ErrorObjectList() : nested_(false) { }
+
+  friend class Heap;
+
+  List<Object*> list_;
+  bool nested_;
+
+  DISALLOW_COPY_AND_ASSIGN(ErrorObjectList);
 };
 
 
@@ -728,12 +764,16 @@ class Heap {
         Vector<const uc16> str,
         uint32_t hash_field);
 
-  MUST_USE_RESULT MaybeObject* AllocateInternalSymbol(
-      unibrow::CharacterStream* buffer, int chars, uint32_t hash_field);
+  template<typename T>
+  static inline bool IsOneByte(T t, int chars);
 
-  MUST_USE_RESULT MaybeObject* AllocateExternalSymbol(
-      Vector<const char> str,
-      int chars);
+  template<typename T>
+  MUST_USE_RESULT inline MaybeObject* AllocateInternalSymbol(
+      T t, int chars, uint32_t hash_field);
+
+  template<bool is_one_byte, typename T>
+  MUST_USE_RESULT MaybeObject* AllocateInternalSymbol(
+      T t, int chars, uint32_t hash_field);
 
   // Allocates and partially initializes a String.  There are two String
   // encodings: ASCII and two byte.  These functions allocate a string of the
@@ -1030,14 +1070,14 @@ class Heap {
   // Returns Failure::RetryAfterGC(requested_bytes, space) if allocation
   // failed.
   // Please note this function does not perform a garbage collection.
-  MUST_USE_RESULT MaybeObject* LookupSymbol(Vector<const char> str);
-  MUST_USE_RESULT MaybeObject* LookupAsciiSymbol(Vector<const char> str);
-  MUST_USE_RESULT MaybeObject* LookupTwoByteSymbol(Vector<const uc16> str);
-  MUST_USE_RESULT MaybeObject* LookupAsciiSymbol(const char* str) {
-    return LookupSymbol(CStrVector(str));
+  MUST_USE_RESULT MaybeObject* LookupUtf8Symbol(Vector<const char> str);
+  MUST_USE_RESULT MaybeObject* LookupUtf8Symbol(const char* str) {
+    return LookupUtf8Symbol(CStrVector(str));
   }
+  MUST_USE_RESULT MaybeObject* LookupOneByteSymbol(Vector<const char> str);
+  MUST_USE_RESULT MaybeObject* LookupTwoByteSymbol(Vector<const uc16> str);
   MUST_USE_RESULT MaybeObject* LookupSymbol(String* str);
-  MUST_USE_RESULT MaybeObject* LookupAsciiSymbol(
+  MUST_USE_RESULT MaybeObject* LookupOneByteSymbol(
       Handle<SeqOneByteString> string, int from, int length);
 
   bool LookupSymbolIfExists(String* str, String** symbol);
@@ -1571,6 +1611,10 @@ class Heap {
 
   ExternalStringTable* external_string_table() {
     return &external_string_table_;
+  }
+
+  ErrorObjectList* error_object_list() {
+    return &error_object_list_;
   }
 
   // Returns the current sweep generation.
@@ -2148,6 +2192,8 @@ class Heap {
   bool configured_;
 
   ExternalStringTable external_string_table_;
+
+  ErrorObjectList error_object_list_;
 
   VisitorDispatchTable<ScavengingCallback> scavenging_visitors_table_;
 

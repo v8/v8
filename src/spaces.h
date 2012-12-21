@@ -1381,6 +1381,50 @@ class FreeListNode: public HeapObject {
 };
 
 
+// The free list category holds a pointer to the top element and a pointer to
+// the end element of the linked list of free memory blocks.
+class FreeListCategory {
+ public:
+  FreeListCategory() : top_(NULL), end_(NULL), available_(0) {}
+
+  void Reset();
+
+  void Free(FreeListNode* node, int size_in_bytes);
+
+  FreeListNode* PickNodeFromList(int *node_size);
+
+  intptr_t CountFreeListItemsInList(Page* p);
+
+  intptr_t EvictFreeListItemsInList(Page* p);
+
+  void RepairFreeList(Heap* heap);
+
+  FreeListNode** GetTopAddress() { return &top_; }
+  FreeListNode* top() const { return top_; }
+  void set_top(FreeListNode* top) { top_ = top; }
+
+  FreeListNode** GetEndAddress() { return &end_; }
+  FreeListNode* end() const { return end_; }
+  void set_end(FreeListNode* end) { end_ = end; }
+
+  int* GetAvailableAddress() { return &available_; }
+  int available() const { return available_; }
+  void set_available(int available) { available_ = available; }
+
+#ifdef DEBUG
+  intptr_t SumFreeList();
+  int FreeListLength();
+#endif
+
+ private:
+  FreeListNode* top_;
+  FreeListNode* end_;
+
+  // Total available bytes in all blocks of this free list category.
+  int available_;
+};
+
+
 // The free list for the old space.  The free list is organized in such a way
 // as to encourage objects allocated around the same time to be near each
 // other.  The normal way to allocate is intended to be by bumping a 'top'
@@ -1412,7 +1456,10 @@ class FreeList BASE_EMBEDDED {
   void Reset();
 
   // Return the number of bytes available on the free list.
-  intptr_t available() { return available_; }
+  intptr_t available() {
+    return small_list_.available() + medium_list_.available() +
+           large_list_.available() + huge_list_.available();
+  }
 
   // Place a node on the free list.  The block of size 'size_in_bytes'
   // starting at 'start' is placed on the free list.  The return value is the
@@ -1430,8 +1477,6 @@ class FreeList BASE_EMBEDDED {
 
 #ifdef DEBUG
   void Zap();
-  static intptr_t SumFreeList(FreeListNode* node);
-  static int FreeListLength(FreeListNode* cur);
   intptr_t SumFreeLists();
   bool IsVeryLong();
 #endif
@@ -1459,15 +1504,10 @@ class FreeList BASE_EMBEDDED {
   static const int kMinBlockSize = 3 * kPointerSize;
   static const int kMaxBlockSize = Page::kMaxNonCodeHeapObjectSize;
 
-  FreeListNode* PickNodeFromList(FreeListNode** list, int* node_size);
-
   FreeListNode* FindNodeFor(int size_in_bytes, int* node_size);
 
   PagedSpace* owner_;
   Heap* heap_;
-
-  // Total available bytes in all blocks on this free list.
-  int available_;
 
   static const int kSmallListMin = 0x20 * kPointerSize;
   static const int kSmallListMax = 0xff * kPointerSize;
@@ -1476,10 +1516,10 @@ class FreeList BASE_EMBEDDED {
   static const int kSmallAllocationMax = kSmallListMin - kPointerSize;
   static const int kMediumAllocationMax = kSmallListMax;
   static const int kLargeAllocationMax = kMediumListMax;
-  FreeListNode* small_list_;
-  FreeListNode* medium_list_;
-  FreeListNode* large_list_;
-  FreeListNode* huge_list_;
+  FreeListCategory small_list_;
+  FreeListCategory medium_list_;
+  FreeListCategory large_list_;
+  FreeListCategory huge_list_;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(FreeList);
 };

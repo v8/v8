@@ -254,7 +254,7 @@ Handle<String> Parser::LookupSymbol(int symbol_id) {
   if (static_cast<unsigned>(symbol_id)
       >= static_cast<unsigned>(symbol_cache_.length())) {
     if (scanner().is_literal_ascii()) {
-      return isolate()->factory()->LookupAsciiSymbol(
+      return isolate()->factory()->LookupOneByteSymbol(
           scanner().literal_ascii_string());
     } else {
       return isolate()->factory()->LookupTwoByteSymbol(
@@ -275,7 +275,7 @@ Handle<String> Parser::LookupCachedSymbol(int symbol_id) {
   Handle<String> result = symbol_cache_.at(symbol_id);
   if (result.is_null()) {
     if (scanner().is_literal_ascii()) {
-      result = isolate()->factory()->LookupAsciiSymbol(
+      result = isolate()->factory()->LookupOneByteSymbol(
           scanner().literal_ascii_string());
     } else {
       result = isolate()->factory()->LookupTwoByteSymbol(
@@ -3006,6 +3006,7 @@ Expression* Parser::ParseAssignmentExpression(bool accept_IN, bool* ok) {
   // side expression.  We could report this as a syntax error here but
   // for compatibility with JSC we choose to report the error at
   // runtime.
+  // TODO(ES5): Should change parsing for spec conformance.
   if (expression == NULL || !expression->IsValidLeftHandSide()) {
     Handle<String> type =
         isolate()->factory()->invalid_lhs_in_assignment_symbol();
@@ -3988,7 +3989,7 @@ ObjectLiteral::Property* Parser::ParseObjectLiteralGetSet(bool is_getter,
       next == Token::STRING || is_keyword) {
     Handle<String> name;
     if (is_keyword) {
-      name = isolate_->factory()->LookupAsciiSymbol(Token::String(next));
+      name = isolate_->factory()->LookupUtf8Symbol(Token::String(next));
     } else {
       name = GetSymbol(CHECK_OK);
     }

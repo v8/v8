@@ -34,8 +34,10 @@ var Debug = debug.Debug;
 // A variable 'variable_name' must be initialized before debugger statement
 // and returned after the statement. The test will alter variable value when
 // on debugger statement and check that returned value reflects the change.
-function RunPauseTest(scope_number, variable_name, expected_new_value, fun) {
-  var old_value = fun();
+function RunPauseTest(scope_number, expected_old_result, variable_name,
+    new_value, expected_new_result, fun) {
+  var actual_old_result = fun();
+  assertEquals(expected_old_result, actual_old_result);
 
   var listener_delegate;
   var listener_called = false;
@@ -43,7 +45,7 @@ function RunPauseTest(scope_number, variable_name, expected_new_value, fun) {
 
   function listener_delegate(exec_state) {
     var scope = exec_state.frame(0).scope(scope_number);
-    scope.setVariableValue(variable_name, expected_new_value);
+    scope.setVariableValue(variable_name, new_value);
   }
 
   function listener(event, exec_state, event_data, data) {
@@ -62,102 +64,233 @@ function RunPauseTest(scope_number, variable_name, expected_new_value, fun) {
 
   var actual_new_value;
   try {
-    actual_new_value = fun();
+    actual_new_result = fun();
   } finally {
     Debug.setListener(null);
   }
 
   if (exception != null) {
-   assertUnreachable("Exception: " + exception);
+   assertUnreachable("Exception in listener\n" + exception.stack);
   }
   assertTrue(listener_called);
 
-  assertTrue(old_value != actual_new_value);
-  assertTrue(expected_new_value == actual_new_value);
+  assertEquals(expected_new_result, actual_new_result);
 }
 
 // Accepts a closure 'fun' that returns a variable from it's outer scope.
 // The test changes the value of variable via the handle to function and checks
 // that the return value changed accordingly.
-function RunClosureTest(scope_number, variable_name, expected_new_value, fun) {
-  var old_value = fun();
+function RunClosureTest(scope_number, expected_old_result, variable_name,
+    new_value, expected_new_result, fun) {
+  var actual_old_result = fun();
+  assertEquals(expected_old_result, actual_old_result);
 
   var fun_mirror = Debug.MakeMirror(fun);
 
   var scope = fun_mirror.scope(scope_number);
-  scope.setVariableValue(variable_name, expected_new_value);
+  scope.setVariableValue(variable_name, new_value);
 
-  var actual_new_value = fun();
+  var actual_new_result = fun();
 
-  assertTrue(old_value != actual_new_value);
-  assertTrue(expected_new_value == actual_new_value);
+  assertEquals(expected_new_result, actual_new_result);
 }
 
-// Test changing variable value when in pause
-RunPauseTest(1, 'v1', 5, (function Factory() {
-  var v1 = 'cat';
+
+function ClosureTestCase(scope_index, old_result, variable_name, new_value,
+    new_result, success_expected, factory) {
+  this.scope_index_ = scope_index;
+  this.old_result_ = old_result;
+  this.variable_name_ = variable_name;
+  this.new_value_ = new_value;
+  this.new_result_ = new_result;
+  this.success_expected_ = success_expected;
+  this.factory_ = factory;
+}
+
+ClosureTestCase.prototype.run_pause_test = function() {
+  var th = this;
+  var fun = this.factory_(true);
+  this.run_and_catch_(function() {
+    RunPauseTest(th.scope_index_ + 1, th.old_result_, th.variable_name_,
+        th.new_value_, th.new_result_, fun);
+  });
+}
+
+ClosureTestCase.prototype.run_closure_test = function() {
+  var th = this;
+  var fun = this.factory_(false);
+  this.run_and_catch_(function() {
+    RunClosureTest(th.scope_index_, th.old_result_, th.variable_name_,
+        th.new_value_, th.new_result_, fun);
+  });
+}
+
+ClosureTestCase.prototype.run_and_catch_ = function(runnable) {
+  if (this.success_expected_) {
+    runnable();
+  } else {
+    assertThrows(runnable);
+  }
+}
+
+
+// Test scopes visible from closures.
+
+var closure_test_cases = [
+  new ClosureTestCase(0, 'cat', 'v1', 5, 5, true,
+      function Factory(debug_stop) {
+    var v1 = 'cat';
+    return function() {
+      if (debug_stop) debugger;
+      return v1;
+    }
+  }),
+
+  new ClosureTestCase(0, 4, 't', 7, 9, true, function Factory(debug_stop) {
+    var t = 2;
+    var r = eval("t");
+    return function() {
+      if (debug_stop) debugger;
+      return r + t;
+    }
+  }),
+
+  new ClosureTestCase(0, 6, 't', 10, 13, true, function Factory(debug_stop) {
+    var t = 2;
+    var r = eval("t = 3");
+    return function() {
+      if (debug_stop) debugger;
+      return r + t;
+    }
+  }),
+
+  new ClosureTestCase(0, 17, 's', 'Bird', 'Bird', true,
+      function Factory(debug_stop) {
+    eval("var s = 17");
+    return function() {
+      if (debug_stop) debugger;
+      return s;
+    }
+  }),
+
+  new ClosureTestCase(2, 'capybara', 'foo', 77, 77, true,
+      function Factory(debug_stop) {
+    var foo = "capybara";
+    return (function() {
+      var bar = "fish";
+      try {
+        throw {name: "test exception"};
+      } catch (e) {
+        return function() {
+          if (debug_stop) debugger;
+          bar = "beast";
+          return foo;
+        }
+      }
+    })();
+  }),
+
+  new ClosureTestCase(0, 'AlphaBeta', 'eee', 5, '5Beta', true,
+      function Factory(debug_stop) {
+    var foo = "Beta";
+    return (function() {
+      var bar = "fish";
+      try {
+        throw "Alpha";
+      } catch (eee) {
+        return function() {
+          if (debug_stop) debugger;
+          return eee + foo;
+        }
+      }
+    })();
+  })
+];
+
+for (var i = 0; i < closure_test_cases.length; i++) {
+  closure_test_cases[i].run_pause_test();
+}
+
+for (var i = 0; i < closure_test_cases.length; i++) {
+  closure_test_cases[i].run_closure_test();
+}
+
+
+// Test local scope.
+
+RunPauseTest(0, 'HelloYou', 'u', 'We', 'HelloWe', (function Factory() {
   return function() {
+    var u = "You";
+    var v = "Hello";
+    debugger;
+    return v + u;
+  }
+})());
+
+RunPauseTest(0, 'Helloworld', 'p', 'GoodBye', 'HelloGoodBye',
+    (function Factory() {
+  function H(p) {
+    var v = "Hello";
+    debugger;
+    return v + p;
+  }
+  return function() {
+    return H("world");
+  }
+})());
+
+RunPauseTest(0, 'mouse', 'v1', 'dog', 'dog', (function Factory() {
+  return function() {
+    var v1 = 'cat';
+    eval("v1 = 'mouse'");
     debugger;
     return v1;
   }
 })());
 
-RunPauseTest(1, 'v2', 11, (function Factory(v2) {
+RunPauseTest(0, 'mouse', 'v1', 'dog', 'dog', (function Factory() {
   return function() {
+    eval("var v1 = 'mouse'");
     debugger;
-    return v2;
-  }
-})('dog'));
-
-RunPauseTest(3, 'foo', 77, (function Factory() {
-  var foo = "capybara";
-  return (function() {
-    var bar = "fish";
-    try {
-      throw {name: "test exception"};
-    } catch (e) {
-      return function() {
-        debugger;
-        bar = "beast";
-        return foo;
-      }
-    }
-  })();
-})());
-
-
-
-// Test changing variable value in closure by handle
-RunClosureTest(0, 'v1', 5, (function Factory() {
-  var v1 = 'cat';
-  return function() {
     return v1;
   }
 })());
 
-RunClosureTest(0, 'v2', 11, (function Factory(v2) {
-  return function() {
-    return v2;
-  }
-})('dog'));
 
-RunClosureTest(2, 'foo', 77, (function Factory() {
-  var foo = "capybara";
-  return (function() {
-    var bar = "fish";
-    try {
-      throw {name: "test exception"};
-    } catch (e) {
-      return function() {
-        bar = "beast";
-        return foo;
+// Check that we correctly update local variable that
+// is referenced from an inner closure.
+RunPauseTest(0, 'Blue', 'v', 'Green', 'Green', (function Factory() {
+  return function() {
+    function A() {
+      var v = "Blue";
+      function Inner() {
+        return void v;
       }
+      debugger;
+      return v;
     }
-  })();
+    return A();
+  }
+})());
+
+// Check that we correctly update parameter, that is known to be stored
+// both on stack and in heap.
+RunPauseTest(0, 5, 'p', 2012, 2012, (function Factory() {
+  return function() {
+    function A(p) {
+      function Inner() {
+        return void p;
+      }
+      debugger;
+      return p;
+    }
+    return A(5);
+  }
 })());
 
 
 // Test value description protocol JSON
+
 assertEquals(true, Debug.TestApi.CommandProcessorResolveValue({value: true}));
 
 assertSame(null, Debug.TestApi.CommandProcessorResolveValue({type: "null"}));
@@ -173,4 +306,3 @@ assertSame(Number, Debug.TestApi.CommandProcessorResolveValue(
     {handle: Debug.MakeMirror(Number).handle()}));
 assertSame(RunClosureTest, Debug.TestApi.CommandProcessorResolveValue(
     {handle: Debug.MakeMirror(RunClosureTest).handle()}));
-

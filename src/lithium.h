@@ -682,7 +682,7 @@ class LChunk: public ZoneObject {
 
   Zone* zone() const { return info_->zone(); }
 
-  Handle<Code> Codegen();
+  Handle<Code> Codegen(Code::Kind kind);
 
  protected:
   LChunk(CompilationInfo* info, HGraph* graph)

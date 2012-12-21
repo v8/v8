@@ -1843,7 +1843,7 @@ static Handle<JSFunction> InstallBuiltin(Isolate* isolate,
                                          Handle<JSObject> holder,
                                          const char* name,
                                          Builtins::Name builtin_name) {
-  Handle<String> key = isolate->factory()->LookupAsciiSymbol(name);
+  Handle<String> key = isolate->factory()->LookupUtf8Symbol(name);
   Handle<Code> code(isolate->builtins()->builtin(builtin_name));
   Handle<JSFunction> optimized =
       isolate->factory()->NewFunction(key,
@@ -4376,6 +4376,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_TransitionElementsSmiToDouble) {
   Handle<Object> object = args.at<Object>(0);
   if (object->IsJSObject()) {
     Handle<JSObject> js_object(Handle<JSObject>::cast(object));
+    ASSERT(!js_object->map()->is_observed());
     ElementsKind new_kind = js_object->HasFastHoleyElements()
         ? FAST_HOLEY_DOUBLE_ELEMENTS
         : FAST_DOUBLE_ELEMENTS;
@@ -4392,6 +4393,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_TransitionElementsDoubleToObject) {
   Handle<Object> object = args.at<Object>(0);
   if (object->IsJSObject()) {
     Handle<JSObject> js_object(Handle<JSObject>::cast(object));
+    ASSERT(!js_object->map()->is_observed());
     ElementsKind new_kind = js_object->HasFastHoleyElements()
         ? FAST_HOLEY_ELEMENTS
         : FAST_ELEMENTS;
@@ -7842,8 +7844,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ForceParallelRecompile) {
   HandleScope handle_scope(isolate);
   ASSERT(FLAG_parallel_recompilation && FLAG_manual_parallel_recompilation);
   if (!isolate->optimizing_compiler_thread()->IsQueueAvailable()) {
-    return isolate->Throw(
-        *isolate->factory()->LookupAsciiSymbol("Recompile queue is full."));
+    return isolate->Throw(*isolate->factory()->LookupOneByteSymbol(
+        STATIC_ASCII_VECTOR("Recompile queue is full.")));
   }
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, fun, 0);
   fun->ReplaceCode(isolate->builtins()->builtin(Builtins::kParallelRecompile));
@@ -7889,6 +7891,17 @@ class ActivationsFinder : public ThreadVisitor {
 };
 
 
+RUNTIME_FUNCTION(MaybeObject*, Runtime_NotifyICMiss) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 0);
+  Deoptimizer* deoptimizer = Deoptimizer::Grab(isolate);
+  ASSERT(isolate->heap()->IsAllocationAllowed());
+  ASSERT(deoptimizer->compiled_code_kind() == Code::COMPILED_STUB);
+  delete deoptimizer;
+  return isolate->heap()->undefined_value();
+}
+
+
 RUNTIME_FUNCTION(MaybeObject*, Runtime_NotifyDeoptimized) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 1);
@@ -7897,9 +7910,11 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NotifyDeoptimized) {
       static_cast<Deoptimizer::BailoutType>(args.smi_at(0));
   Deoptimizer* deoptimizer = Deoptimizer::Grab(isolate);
   ASSERT(isolate->heap()->IsAllocationAllowed());
-  JavaScriptFrameIterator it(isolate);
+
+  ASSERT(deoptimizer->compiled_code_kind() != Code::COMPILED_STUB);
 
   // Make sure to materialize objects before causing any allocation.
+  JavaScriptFrameIterator it(isolate);
   deoptimizer->MaterializeHeapObjects(&it);
   delete deoptimizer;
 
@@ -10798,6 +10813,95 @@ static Handle<JSObject> MaterializeLocalScope(
 }
 
 
+// Set the context local variable value.
+static bool SetContextLocalValue(Isolate* isolate,
+                                 Handle<ScopeInfo> scope_info,
+                                 Handle<Context> context,
+                                 Handle<String> variable_name,
+                                 Handle<Object> new_value) {
+  for (int i = 0; i < scope_info->ContextLocalCount(); i++) {
+    Handle<String> next_name(scope_info->ContextLocalName(i));
+    if (variable_name->Equals(*next_name)) {
+      VariableMode mode;
+      InitializationFlag init_flag;
+      int context_index =
+          scope_info->ContextSlotIndex(*next_name, &mode, &init_flag);
+      context->set(context_index, *new_value);
+      return true;
+    }
+  }
+
+  return false;
+}
+
+
+static bool SetLocalVariableValue(Isolate* isolate,
+                                  JavaScriptFrame* frame,
+                                  int inlined_jsframe_index,
+                                  Handle<String> variable_name,
+                                  Handle<Object> new_value) {
+  if (inlined_jsframe_index != 0 || frame->is_optimized()) {
+    // Optimized frames are not supported.
+    return false;
+  }
+
+  Handle<JSFunction> function(JSFunction::cast(frame->function()));
+  Handle<SharedFunctionInfo> shared(function->shared());
+  Handle<ScopeInfo> scope_info(shared->scope_info());
+
+  bool default_result = false;
+
+  // Parameters.
+  for (int i = 0; i < scope_info->ParameterCount(); ++i) {
+    if (scope_info->ParameterName(i)->Equals(*variable_name)) {
+      frame->SetParameterValue(i, *new_value);
+      // Argument might be shadowed in heap context, don't stop here.
+      default_result = true;
+    }
+  }
+
+  // Stack locals.
+  for (int i = 0; i < scope_info->StackLocalCount(); ++i) {
+    if (scope_info->StackLocalName(i)->Equals(*variable_name)) {
+      frame->SetExpression(i, *new_value);
+      return true;
+    }
+  }
+
+  if (scope_info->HasContext()) {
+    // Context locals.
+    Handle<Context> frame_context(Context::cast(frame->context()));
+    Handle<Context> function_context(frame_context->declaration_context());
+    if (SetContextLocalValue(
+        isolate, scope_info, function_context, variable_name, new_value)) {
+      return true;
+    }
+
+    // Function context extension. These are variables introduced by eval.
+    if (function_context->closure() == *function) {
+      if (function_context->has_extension() &&
+          !function_context->IsNativeContext()) {
+        Handle<JSObject> ext(JSObject::cast(function_context->extension()));
+
+        if (ext->HasProperty(*variable_name)) {
+          // We don't expect this to do anything except replacing
+          // property value.
+          SetProperty(isolate,
+                      ext,
+                      variable_name,
+                      new_value,
+                      NONE,
+                      kNonStrictMode);
+          return true;
+        }
+      }
+    }
+  }
+
+  return default_result;
+}
+
+
 // Create a plain JSObject which materializes the closure content for the
 // context.
 static Handle<JSObject> MaterializeClosure(Isolate* isolate,
@@ -10858,19 +10962,9 @@ static bool SetClosureVariableValue(Isolate* isolate,
   Handle<ScopeInfo> scope_info(shared->scope_info());
 
   // Context locals to the context extension.
-  for (int i = 0; i < scope_info->ContextLocalCount(); i++) {
-    Handle<String> next_name(scope_info->ContextLocalName(i));
-    if (variable_name->Equals(*next_name)) {
-      VariableMode mode;
-      InitializationFlag init_flag;
-      int context_index =
-          scope_info->ContextSlotIndex(*next_name, &mode, &init_flag);
-      if (context_index < 0) {
-        return false;
-      }
-      context->set(context_index, *new_value);
-      return true;
-    }
+  if (SetContextLocalValue(
+          isolate, scope_info, context, variable_name, new_value)) {
+    return true;
   }
 
   // Properties from the function context extension. This will
@@ -10912,6 +11006,20 @@ static Handle<JSObject> MaterializeCatchScope(Isolate* isolate,
                   kNonStrictMode),
       Handle<JSObject>());
   return catch_scope;
+}
+
+
+static bool SetCatchVariableValue(Isolate* isolate,
+                                  Handle<Context> context,
+                                  Handle<String> variable_name,
+                                  Handle<Object> new_value) {
+  ASSERT(context->IsCatchContext());
+  Handle<String> name(String::cast(context->extension()));
+  if (!name->Equals(*variable_name)) {
+    return false;
+  }
+  context->set(Context::THROWN_OBJECT_INDEX, *new_value);
+  return true;
 }
 
 
@@ -11180,13 +11288,13 @@ class ScopeIterator {
       case ScopeIterator::ScopeTypeGlobal:
         break;
       case ScopeIterator::ScopeTypeLocal:
-        // TODO(2399): implement.
-        break;
+        return SetLocalVariableValue(isolate_, frame_, inlined_jsframe_index_,
+            variable_name, new_value);
       case ScopeIterator::ScopeTypeWith:
         break;
       case ScopeIterator::ScopeTypeCatch:
-        // TODO(2399): implement.
-        break;
+        return SetCatchVariableValue(isolate_, CurrentContext(),
+            variable_name, new_value);
       case ScopeIterator::ScopeTypeClosure:
         return SetClosureVariableValue(isolate_, CurrentContext(),
             variable_name, new_value);
@@ -12714,7 +12822,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_LiveEditRestartFrame) {
   const char* error_message =
       LiveEdit::RestartFrame(it.frame(), isolate->runtime_zone());
   if (error_message) {
-    return *(isolate->factory()->LookupAsciiSymbol(error_message));
+    return *(isolate->factory()->LookupUtf8Symbol(error_message));
   }
   return heap->true_value();
 }
@@ -13098,16 +13206,46 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CollectStackTrace) {
 }
 
 
-// Retrieve the raw stack trace collected on stack overflow and delete
-// it since it is used only once to avoid keeping it alive.
-RUNTIME_FUNCTION(MaybeObject*, Runtime_GetOverflowedRawStackTrace) {
+// Mark a function to recognize when called after GC to format the stack trace.
+RUNTIME_FUNCTION(MaybeObject*, Runtime_MarkOneShotGetter) {
+  ASSERT_EQ(args.length(), 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, fun, 0);
+  HandleScope scope(isolate);
+  Handle<String> key = isolate->factory()->hidden_stack_trace_symbol();
+  JSObject::SetHiddenProperty(fun, key, key);
+  return *fun;
+}
+
+
+// Retrieve the stack trace.  This could be the raw stack trace collected
+// on stack overflow or the already formatted stack trace string.
+RUNTIME_FUNCTION(MaybeObject*, Runtime_GetOverflowedStackTrace) {
+  HandleScope scope(isolate);
   ASSERT_EQ(args.length(), 1);
   CONVERT_ARG_CHECKED(JSObject, error_object, 0);
   String* key = isolate->heap()->hidden_stack_trace_symbol();
   Object* result = error_object->GetHiddenProperty(key);
-  RUNTIME_ASSERT(result->IsJSArray() || result->IsUndefined());
-  error_object->DeleteHiddenProperty(key);
+  RUNTIME_ASSERT(result->IsJSArray() ||
+                 result->IsString() ||
+                 result->IsUndefined());
   return result;
+}
+
+
+// Set or clear the stack trace attached to an stack overflow error object.
+RUNTIME_FUNCTION(MaybeObject*, Runtime_SetOverflowedStackTrace) {
+  HandleScope scope(isolate);
+  ASSERT_EQ(args.length(), 2);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, error_object, 0);
+  CONVERT_ARG_HANDLE_CHECKED(HeapObject, value, 1);
+  Handle<String> key = isolate->factory()->hidden_stack_trace_symbol();
+  if (value->IsUndefined()) {
+    error_object->DeleteHiddenProperty(*key);
+  } else {
+    RUNTIME_ASSERT(value->IsString());
+    JSObject::SetHiddenProperty(error_object, key, value);
+  }
+  return *error_object;
 }
 
 
@@ -13367,7 +13505,16 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetIsObserved) {
     ASSERT(proto->IsJSGlobalObject());
     obj = JSReceiver::cast(proto);
   }
+  ASSERT(!(obj->map()->is_observed() && obj->IsJSObject() &&
+           JSObject::cast(obj)->HasFastElements()));
   if (obj->map()->is_observed() != is_observed) {
+    if (is_observed && obj->IsJSObject() &&
+        !JSObject::cast(obj)->HasExternalArrayElements()) {
+      // Go to dictionary mode, so that we don't skip map checks.
+      MaybeObject* maybe = JSObject::cast(obj)->NormalizeElements();
+      if (maybe->IsFailure()) return maybe;
+      ASSERT(!JSObject::cast(obj)->HasFastElements());
+    }
     MaybeObject* maybe = obj->map()->Copy();
     Map* map;
     if (!maybe->To(&map)) return maybe;
@@ -13452,7 +13599,7 @@ MaybeObject* Runtime::InitializeIntrinsicFunctionNames(Heap* heap,
   for (int i = 0; i < kNumFunctions; ++i) {
     Object* name_symbol;
     { MaybeObject* maybe_name_symbol =
-          heap->LookupAsciiSymbol(kIntrinsicFunctions[i].name);
+          heap->LookupUtf8Symbol(kIntrinsicFunctions[i].name);
       if (!maybe_name_symbol->ToObject(&name_symbol)) return maybe_name_symbol;
     }
     StringDictionary* string_dictionary = StringDictionary::cast(dictionary);

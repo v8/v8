@@ -853,6 +853,38 @@ THREADED_TEST(FunctionTemplate) {
 }
 
 
+THREADED_TEST(FunctionTemplateSetLength) {
+  v8::HandleScope scope;
+  LocalContext env;
+  {
+    Local<v8::FunctionTemplate> fun_templ = v8::FunctionTemplate::New(
+        handle_call, Handle<v8::Value>(), Handle<v8::Signature>(), 23);
+    Local<Function> fun = fun_templ->GetFunction();
+    env->Global()->Set(v8_str("obj"), fun);
+    Local<Script> script = v8_compile("obj.length");
+    CHECK_EQ(23, script->Run()->Int32Value());
+  }
+  {
+    Local<v8::FunctionTemplate> fun_templ =
+        v8::FunctionTemplate::New(handle_call);
+    fun_templ->SetLength(22);
+    Local<Function> fun = fun_templ->GetFunction();
+    env->Global()->Set(v8_str("obj"), fun);
+    Local<Script> script = v8_compile("obj.length");
+    CHECK_EQ(22, script->Run()->Int32Value());
+  }
+  {
+    // Without setting length it defaults to 0.
+    Local<v8::FunctionTemplate> fun_templ =
+        v8::FunctionTemplate::New(handle_call);
+    Local<Function> fun = fun_templ->GetFunction();
+    env->Global()->Set(v8_str("obj"), fun);
+    Local<Script> script = v8_compile("obj.length");
+    CHECK_EQ(0, script->Run()->Int32Value());
+  }
+}
+
+
 static void* expected_ptr;
 static v8::Handle<v8::Value> callback(const v8::Arguments& args) {
   void* ptr = v8::External::Unwrap(args.Data());
@@ -8198,6 +8230,66 @@ THREADED_TEST(HiddenPrototype) {
   Local<Value> proto = o0->Get(v8_str("__proto__"));
   CHECK(proto->IsObject());
   CHECK(proto.As<v8::Object>()->Get(v8_str("z"))->IsUndefined());
+}
+
+
+THREADED_TEST(HiddenPrototypeSet) {
+  v8::HandleScope handle_scope;
+  LocalContext context;
+
+  Local<v8::FunctionTemplate> ot = v8::FunctionTemplate::New();
+  Local<v8::FunctionTemplate> ht = v8::FunctionTemplate::New();
+  ht->SetHiddenPrototype(true);
+  Local<v8::FunctionTemplate> pt = v8::FunctionTemplate::New();
+  ht->InstanceTemplate()->Set(v8_str("x"), v8_num(0));
+
+  Local<v8::Object> o = ot->GetFunction()->NewInstance();
+  Local<v8::Object> h = ht->GetFunction()->NewInstance();
+  Local<v8::Object> p = pt->GetFunction()->NewInstance();
+  o->Set(v8_str("__proto__"), h);
+  h->Set(v8_str("__proto__"), p);
+
+  // Setting a property that exists on the hidden prototype goes there.
+  o->Set(v8_str("x"), v8_num(7));
+  CHECK_EQ(7, o->Get(v8_str("x"))->Int32Value());
+  CHECK_EQ(7, h->Get(v8_str("x"))->Int32Value());
+  CHECK(p->Get(v8_str("x"))->IsUndefined());
+
+  // Setting a new property should not be forwarded to the hidden prototype.
+  o->Set(v8_str("y"), v8_num(6));
+  CHECK_EQ(6, o->Get(v8_str("y"))->Int32Value());
+  CHECK(h->Get(v8_str("y"))->IsUndefined());
+  CHECK(p->Get(v8_str("y"))->IsUndefined());
+
+  // Setting a property that only exists on a prototype of the hidden prototype
+  // is treated normally again.
+  p->Set(v8_str("z"), v8_num(8));
+  CHECK_EQ(8, o->Get(v8_str("z"))->Int32Value());
+  CHECK_EQ(8, h->Get(v8_str("z"))->Int32Value());
+  CHECK_EQ(8, p->Get(v8_str("z"))->Int32Value());
+  o->Set(v8_str("z"), v8_num(9));
+  CHECK_EQ(9, o->Get(v8_str("z"))->Int32Value());
+  CHECK_EQ(8, h->Get(v8_str("z"))->Int32Value());
+  CHECK_EQ(8, p->Get(v8_str("z"))->Int32Value());
+}
+
+
+// Regression test for issue 2457.
+THREADED_TEST(HiddenPrototypeIdentityHash) {
+  v8::HandleScope handle_scope;
+  LocalContext context;
+
+  Handle<FunctionTemplate> t = FunctionTemplate::New();
+  t->SetHiddenPrototype(true);
+  t->InstanceTemplate()->Set(v8_str("foo"), v8_num(75));
+  Handle<Object> p = t->GetFunction()->NewInstance();
+  Handle<Object> o = Object::New();
+  o->SetPrototype(p);
+
+  int hash = o->GetIdentityHash();
+  USE(hash);
+  o->Set(v8_str("foo"), v8_num(42));
+  ASSERT_EQ(hash, o->GetIdentityHash());
 }
 
 

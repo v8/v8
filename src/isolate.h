@@ -53,6 +53,7 @@ namespace internal {
 class Bootstrapper;
 class CodeGenerator;
 class CodeRange;
+struct CodeStubInterfaceDescriptor;
 class CompilationCache;
 class ContextSlotCache;
 class ContextSwitcher;
@@ -1015,7 +1016,6 @@ class Isolate {
         RuntimeProfiler::IsolateEnteredJS(this);
       } else if (current_state == JS && state != JS) {
         // JS -> non-JS transition.
-        ASSERT(RuntimeProfiler::IsSomeIsolateInJS());
         RuntimeProfiler::IsolateExitedJS(this);
       } else {
         // Other types of state transitions are not interesting to the
@@ -1058,6 +1058,9 @@ class Isolate {
     }
     date_cache_ = date_cache;
   }
+
+  CodeStubInterfaceDescriptor*
+      code_stub_interface_descriptor(int index);
 
   void IterateDeferredHandles(ObjectVisitor* visitor);
   void LinkDeferredHandles(DeferredHandles* deferred_handles);
@@ -1241,6 +1244,7 @@ class Isolate {
   RegExpStack* regexp_stack_;
   DateCache* date_cache_;
   unibrow::Mapping<unibrow::Ecma262Canonicalize> interp_canonicalize_mapping_;
+  CodeStubInterfaceDescriptor* code_stub_interface_descriptors_;
 
   // The garbage collector should be a little more aggressive when it knows
   // that a context was recently exited.

@@ -42,11 +42,14 @@ int Deoptimizer::patch_size() {
 }
 
 
-void Deoptimizer::DeoptimizeFunction(JSFunction* function) {
-  HandleScope scope;
+void Deoptimizer::DeoptimizeFunctionWithPreparedFunctionList(
+    JSFunction* function) {
+  Isolate* isolate = function->GetIsolate();
+  HandleScope scope(isolate);
   AssertNoAllocation no_allocation;
 
-  if (!function->IsOptimized()) return;
+  ASSERT(function->IsOptimized());
+  ASSERT(function->FunctionsInFunctionListShareSameCode());
 
   // The optimized code is going to be patched, so we cannot use it
   // any more.  Play safe and reset the whole cache.
@@ -86,8 +89,6 @@ void Deoptimizer::DeoptimizeFunction(JSFunction* function) {
     prev_call_address = call_address;
 #endif
   }
-
-  Isolate* isolate = code->GetIsolate();
 
   // Add the deoptimizing code to the list.
   DeoptimizingCodeListNode* node = new DeoptimizingCodeListNode(code);

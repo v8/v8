@@ -42,10 +42,10 @@ LITHIUM_CONCRETE_INSTRUCTION_LIST(DEFINE_COMPILE)
 #undef DEFINE_COMPILE
 
 LOsrEntry::LOsrEntry() {
-  for (int i = 0; i < Register::kNumAllocatableRegisters; ++i) {
+  for (int i = 0; i < Register::NumAllocatableRegisters(); ++i) {
     register_spills_[i] = NULL;
   }
-  for (int i = 0; i < DoubleRegister::kNumAllocatableRegisters; ++i) {
+  for (int i = 0; i < DoubleRegister::NumAllocatableRegisters(); ++i) {
     double_register_spills_[i] = NULL;
   }
 }
@@ -612,6 +612,7 @@ LInstruction* LChunkBuilder::AssignEnvironment(LInstruction* instr) {
 LInstruction* LChunkBuilder::MarkAsCall(LInstruction* instr,
                                         HInstruction* hinstr,
                                         CanDeoptimize can_deoptimize) {
+  info()->MarkAsNonDeferredCalling();
 #ifdef DEBUG
   instr->VerifyCall();
 #endif
@@ -1240,31 +1241,43 @@ HValue* LChunkBuilder::SimplifiedDividendForMathFloorOfDiv(HValue* dividend) {
 
 
 HValue* LChunkBuilder::SimplifiedDivisorForMathFloorOfDiv(HValue* divisor) {
-  // Only optimize when we have magic numbers for the divisor.
-  // The standard integer division routine is usually slower than transitionning
-  // to VFP.
-  if (divisor->IsConstant() &&
-      HConstant::cast(divisor)->HasInteger32Value()) {
+  if (CpuFeatures::IsSupported(SUDIV)) {
+    // A value with an integer representation does not need to be transformed.
+    if (divisor->representation().IsInteger32()) {
+      return divisor;
+    // A change from an integer32 can be replaced by the integer32 value.
+    } else if (divisor->IsChange() &&
+               HChange::cast(divisor)->from().IsInteger32()) {
+      return HChange::cast(divisor)->value();
+    }
+  }
+
+  if (divisor->IsConstant() && HConstant::cast(divisor)->HasInteger32Value()) {
     HConstant* constant_val = HConstant::cast(divisor);
     int32_t int32_val = constant_val->Integer32Value();
-    if (LChunkBuilder::HasMagicNumberForDivisor(int32_val)) {
+    if (LChunkBuilder::HasMagicNumberForDivisor(int32_val) ||
+        CpuFeatures::IsSupported(SUDIV)) {
       return constant_val->CopyToRepresentation(Representation::Integer32(),
                                                 divisor->block()->zone());
     }
   }
+
   return NULL;
 }
 
 
 LInstruction* LChunkBuilder::DoMathFloorOfDiv(HMathFloorOfDiv* instr) {
-    HValue* right = instr->right();
-    LOperand* dividend = UseRegister(instr->left());
-    LOperand* divisor = UseRegisterOrConstant(right);
-    LOperand* remainder = TempRegister();
-    ASSERT(right->IsConstant() &&
-           HConstant::cast(right)->HasInteger32Value() &&
-           HasMagicNumberForDivisor(HConstant::cast(right)->Integer32Value()));
-    return AssignEnvironment(DefineAsRegister(
+  HValue* right = instr->right();
+  LOperand* dividend = UseRegister(instr->left());
+  LOperand* divisor = CpuFeatures::IsSupported(SUDIV)
+      ? UseRegister(right)
+      : UseOrConstant(right);
+  LOperand* remainder = TempRegister();
+  ASSERT(CpuFeatures::IsSupported(SUDIV) ||
+         (right->IsConstant() &&
+          HConstant::cast(right)->HasInteger32Value() &&
+          HasMagicNumberForDivisor(HConstant::cast(right)->Integer32Value())));
+  return AssignEnvironment(DefineAsRegister(
           new(zone()) LMathFloorOfDiv(dividend, divisor, remainder)));
 }
 
@@ -1694,6 +1707,7 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
   Representation to = instr->to();
   if (from.IsTagged()) {
     if (to.IsDouble()) {
+      info()->MarkAsDeferredCalling();
       LOperand* value = UseRegister(instr->value());
       LNumberUntagD* res = new(zone()) LNumberUntagD(value);
       return AssignEnvironment(DefineAsRegister(res));
@@ -1718,6 +1732,7 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
     }
   } else if (from.IsDouble()) {
     if (to.IsTagged()) {
+      info()->MarkAsDeferredCalling();
       LOperand* value = UseRegister(instr->value());
       LOperand* temp1 = TempRegister();
       LOperand* temp2 = TempRegister();
@@ -1737,6 +1752,7 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
       return AssignEnvironment(DefineAsRegister(res));
     }
   } else if (from.IsInteger32()) {
+    info()->MarkAsDeferredCalling();
     if (to.IsTagged()) {
       HValue* val = instr->value();
       LOperand* value = UseRegisterAtStart(val);
@@ -1974,7 +1990,16 @@ LInstruction* LChunkBuilder::DoLoadKeyed(HLoadKeyed* instr) {
         (instr->representation().IsDouble() &&
          ((elements_kind == EXTERNAL_FLOAT_ELEMENTS) ||
           (elements_kind == EXTERNAL_DOUBLE_ELEMENTS))));
-    LOperand* external_pointer = UseRegister(instr->elements());
+    // float->double conversion on non-VFP2 requires an extra scratch
+    // register. For convenience, just mark the elements register as "UseTemp"
+    // so that it can be used as a temp during the float->double conversion
+    // after it's no longer needed after the float load.
+    bool needs_temp =
+        !CpuFeatures::IsSupported(VFP2) &&
+        (elements_kind == EXTERNAL_FLOAT_ELEMENTS);
+    LOperand* external_pointer = needs_temp
+        ? UseTempRegister(instr->elements())
+        : UseRegister(instr->elements());
     result = new(zone()) LLoadKeyed(external_pointer, key);
   }
 
@@ -2192,8 +2217,17 @@ LInstruction* LChunkBuilder::DoOsrEntry(HOsrEntry* instr) {
 
 
 LInstruction* LChunkBuilder::DoParameter(HParameter* instr) {
-  int spill_index = chunk()->GetParameterStackSlot(instr->index());
-  return DefineAsSpilled(new(zone()) LParameter, spill_index);
+  LParameter* result = new(zone()) LParameter;
+  if (info()->IsOptimizing()) {
+    int spill_index = chunk()->GetParameterStackSlot(instr->index());
+    return DefineAsSpilled(result, spill_index);
+  } else {
+    ASSERT(info()->IsStub());
+    CodeStubInterfaceDescriptor* descriptor =
+        info()->code_stub()->GetInterfaceDescriptor(info()->isolate());
+    Register reg = descriptor->register_params_[instr->index()];
+    return DefineFixed(result, reg);
+  }
 }
 
 

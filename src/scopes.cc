@@ -308,23 +308,6 @@ bool Scope::Analyze(CompilationInfo* info) {
   }
 #endif
 
-  if (FLAG_harmony_scoping) {
-    VariableProxy* proxy = scope->CheckAssignmentToConst();
-    if (proxy != NULL) {
-      // Found an assignment to const. Throw a syntax error.
-      MessageLocation location(info->script(),
-                               proxy->position(),
-                               proxy->position());
-      Isolate* isolate = info->isolate();
-      Factory* factory = isolate->factory();
-      Handle<JSArray> array = factory->NewJSArray(0);
-      Handle<Object> result =
-          factory->NewSyntaxError("harmony_const_assign", array);
-      isolate->Throw(*result, &location);
-      return false;
-    }
-  }
-
   info->SetScope(scope);
   return true;
 }
@@ -587,29 +570,6 @@ Declaration* Scope::CheckConflictingVarDeclarations() {
       current = current->outer_scope_;
     } while (!previous->is_declaration_scope());
   }
-  return NULL;
-}
-
-
-VariableProxy* Scope::CheckAssignmentToConst() {
-  // Check this scope.
-  if (is_extended_mode()) {
-    for (int i = 0; i < unresolved_.length(); i++) {
-      ASSERT(unresolved_[i]->var() != NULL);
-      if (unresolved_[i]->var()->is_const_mode() &&
-          unresolved_[i]->IsLValue()) {
-        return unresolved_[i];
-      }
-    }
-  }
-
-  // Check inner scopes.
-  for (int i = 0; i < inner_scopes_.length(); i++) {
-    VariableProxy* proxy = inner_scopes_[i]->CheckAssignmentToConst();
-    if (proxy != NULL) return proxy;
-  }
-
-  // No assignments to const found.
   return NULL;
 }
 
@@ -1102,6 +1062,20 @@ bool Scope::ResolveVariable(CompilationInfo* info,
 
   ASSERT(var != NULL);
 
+  if (FLAG_harmony_scoping && is_extended_mode() &&
+      var->is_const_mode() && proxy->IsLValue()) {
+    // Assignment to const. Throw a syntax error.
+    MessageLocation location(
+        info->script(), proxy->position(), proxy->position());
+    Isolate* isolate = Isolate::Current();
+    Factory* factory = isolate->factory();
+    Handle<JSArray> array = factory->NewJSArray(0);
+    Handle<Object> result =
+        factory->NewSyntaxError("harmony_const_assign", array);
+    isolate->Throw(*result, &location);
+    return false;
+  }
+
   if (FLAG_harmony_modules) {
     bool ok;
 #ifdef DEBUG
@@ -1122,9 +1096,8 @@ bool Scope::ResolveVariable(CompilationInfo* info,
 
       // Inconsistent use of module. Throw a syntax error.
       // TODO(rossberg): generate more helpful error message.
-      MessageLocation location(info->script(),
-                               proxy->position(),
-                               proxy->position());
+      MessageLocation location(
+          info->script(), proxy->position(), proxy->position());
       Isolate* isolate = Isolate::Current();
       Factory* factory = isolate->factory();
       Handle<JSArray> array = factory->NewJSArray(1);
@@ -1386,9 +1359,8 @@ void Scope::AllocateModulesRecursively(Scope* host_scope) {
   if (already_resolved()) return;
   if (is_module_scope()) {
     ASSERT(interface_->IsFrozen());
-    const char raw_name[] = ".module";
-    Handle<String> name = isolate_->factory()->LookupSymbol(
-        Vector<const char>(raw_name, StrLength(raw_name)));
+    Handle<String> name = isolate_->factory()->LookupOneByteSymbol(
+        STATIC_ASCII_VECTOR(".module"));
     ASSERT(module_var_ == NULL);
     module_var_ = host_scope->NewInternal(name);
     ++host_scope->num_modules_;

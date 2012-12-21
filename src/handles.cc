@@ -282,7 +282,7 @@ Handle<Object> SetPropertyWithInterceptor(Handle<JSObject> object,
 Handle<Object> GetProperty(Handle<JSReceiver> obj,
                            const char* name) {
   Isolate* isolate = obj->GetIsolate();
-  Handle<String> str = isolate->factory()->LookupAsciiSymbol(name);
+  Handle<String> str = isolate->factory()->LookupUtf8Symbol(name);
   CALL_HEAP_FUNCTION(isolate, obj->GetProperty(*str), Object);
 }
 
@@ -375,6 +375,15 @@ Handle<JSValue> GetScriptWrapper(Handle<Script> script) {
   Handle<JSFunction> constructor = isolate->script_function();
   Handle<JSValue> result =
       Handle<JSValue>::cast(isolate->factory()->NewJSObject(constructor));
+
+  // The allocation might have triggered a GC, which could have called this
+  // function recursively, and a wrapper has already been created and cached.
+  // In that case, simply return the cached wrapper.
+  if (script->wrapper()->foreign_address() != NULL) {
+    return Handle<JSValue>(
+        reinterpret_cast<JSValue**>(script->wrapper()->foreign_address()));
+  }
+
   result->set_value(*script);
 
   // Create a new weak global handle and use it to cache the wrapper
@@ -596,7 +605,8 @@ v8::Handle<v8::Array> GetKeysForIndexedInterceptor(Handle<JSReceiver> receiver,
 Handle<Object> GetScriptNameOrSourceURL(Handle<Script> script) {
   Isolate* isolate = script->GetIsolate();
   Handle<String> name_or_source_url_key =
-      isolate->factory()->LookupAsciiSymbol("nameOrSourceURL");
+      isolate->factory()->LookupOneByteSymbol(
+          STATIC_ASCII_VECTOR("nameOrSourceURL"));
   Handle<JSValue> script_wrapper = GetScriptWrapper(script);
   Handle<Object> property = GetProperty(script_wrapper,
                                         name_or_source_url_key);

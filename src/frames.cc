@@ -617,13 +617,7 @@ bool StandardFrame::IsExpressionInsideHandler(int n) const {
 }
 
 
-void OptimizedFrame::Iterate(ObjectVisitor* v) const {
-#ifdef DEBUG
-  // Make sure that optimized frames do not contain any stack handlers.
-  StackHandlerIterator it(this, top_handler());
-  ASSERT(it.done());
-#endif
-
+void StandardFrame::IterateCompiledFrame(ObjectVisitor* v) const {
   // Make sure that we're not doing "safe" stack frame iteration. We cannot
   // possibly find pointers in optimized frames in that state.
   ASSERT(!SafeStackFrameIterator::is_active(isolate()));
@@ -649,7 +643,7 @@ void OptimizedFrame::Iterate(ObjectVisitor* v) const {
 
   // Skip saved double registers.
   if (safepoint_entry.has_doubles()) {
-    parameters_base += DoubleRegister::kNumAllocatableRegisters *
+    parameters_base += DoubleRegister::NumAllocatableRegisters() *
         kDoubleSize / kPointerSize;
   }
 
@@ -681,14 +675,50 @@ void OptimizedFrame::Iterate(ObjectVisitor* v) const {
     }
   }
 
+  // Visit the return address in the callee and incoming arguments.
+  IteratePc(v, pc_address(), code);
+}
+
+
+void StubFrame::Iterate(ObjectVisitor* v) const {
+  IterateCompiledFrame(v);
+}
+
+
+Code* StubFrame::unchecked_code() const {
+  return static_cast<Code*>(isolate()->heap()->FindCodeObject(pc()));
+}
+
+
+Address StubFrame::GetCallerStackPointer() const {
+  return fp() + ExitFrameConstants::kCallerSPDisplacement;
+}
+
+
+int StubFrame::GetNumberOfIncomingArguments() const {
+  return 0;
+}
+
+
+void OptimizedFrame::Iterate(ObjectVisitor* v) const {
+#ifdef DEBUG
+  // Make sure that optimized frames do not contain any stack handlers.
+  StackHandlerIterator it(this, top_handler());
+  ASSERT(it.done());
+#endif
+
+  IterateCompiledFrame(v);
+
   // Visit the context and the function.
   Object** fixed_base = &Memory::Object_at(
       fp() + JavaScriptFrameConstants::kFunctionOffset);
   Object** fixed_limit = &Memory::Object_at(fp());
   v->VisitPointers(fixed_base, fixed_limit);
+}
 
-  // Visit the return address in the callee and incoming arguments.
-  IteratePc(v, pc_address(), code);
+
+void JavaScriptFrame::SetParameterValue(int index, Object* value) const {
+  Memory::Object_at(GetParameterSlot(index)) = value;
 }
 
 

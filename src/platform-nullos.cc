@@ -277,6 +277,11 @@ void OS::DebugBreak() {
 }
 
 
+void OS::DumpBacktrace() {
+  // Currently unsupported.
+}
+
+
 OS::MemoryMappedFile* OS::MemoryMappedFile::open(const char* name) {
   UNIMPLEMENTED();
   return NULL;

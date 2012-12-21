@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax --nouse_inlining
+// Flags: --allow-natives-syntax --nouse_inlining --enable_sudiv
 
 // Use this function as reference. Make sure it is not inlined.
 function div(a, b) {
@@ -184,7 +184,7 @@ test_div();
 %OptimizeFunctionOnNextCall(test_div);
 test_div();
 
-// Test for negative zero and overflow.
+// Test for negative zero, overflow and division by 0.
 // Separate the tests to prevent deoptimizations from making the other optimized
 // test unreachable.
 
@@ -197,20 +197,34 @@ function IsNegativeZero(x) {
 
 function test_div_deopt_minus_zero() {
   var zero_in_array = [0];
-  assertTrue(IsNegativeZero(Math.floor((zero_in_array[0] | 0) / -1)));
+  for (var i = 0; i < 2; ++i) {
+    assertTrue(IsNegativeZero(Math.floor((zero_in_array[0] | 0) / -1)));
+  }
 }
 
 function test_div_deopt_overflow() {
   // We box the value in an array to avoid constant propagation.
   var min_int_in_array = [-2147483648];
-  // We use '| 0' to force the representation to int32.
-  assertEquals(-min_int_in_array[0],
-               Math.floor((min_int_in_array[0] | 0) / -1));
+  for (var i = 0; i < 2; ++i) {
+    // We use '| 0' to force the representation to int32.
+    assertEquals(-min_int_in_array[0],
+                 Math.floor((min_int_in_array[0] | 0) / -1));
+  }
+}
+
+function test_div_deopt_div_by_zero() {
+  for (var i = 0; i < 2; ++i) {
+    assertEquals(div(i, 0),
+                 Math.floor(i / 0));
+  }
 }
 
 test_div_deopt_minus_zero();
 test_div_deopt_overflow();
+test_div_deopt_div_by_zero();
 %OptimizeFunctionOnNextCall(test_div_deopt_minus_zero);
 %OptimizeFunctionOnNextCall(test_div_deopt_overflow);
+%OptimizeFunctionOnNextCall(test_div_deopt_div_by_zero);
 test_div_deopt_minus_zero();
 test_div_deopt_overflow();
+test_div_deopt_div_by_zero();

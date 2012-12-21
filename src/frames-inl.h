@@ -235,6 +235,11 @@ inline Object* JavaScriptFrame::function() const {
 }
 
 
+inline StubFrame::StubFrame(StackFrameIterator* iterator)
+    : StandardFrame(iterator) {
+}
+
+
 inline OptimizedFrame::OptimizedFrame(StackFrameIterator* iterator)
     : JavaScriptFrame(iterator) {
 }

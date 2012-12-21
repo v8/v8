@@ -606,7 +606,7 @@ void LAllocator::AddInitialIntervals(HBasicBlock* block,
 
 
 int LAllocator::FixedDoubleLiveRangeID(int index) {
-  return -index - 1 - Register::kNumAllocatableRegisters;
+  return -index - 1 - Register::kMaxNumAllocatableRegisters;
 }
 
 
@@ -638,7 +638,7 @@ LOperand* LAllocator::AllocateFixed(LUnallocated* operand,
 
 
 LiveRange* LAllocator::FixedLiveRangeFor(int index) {
-  ASSERT(index < Register::kNumAllocatableRegisters);
+  ASSERT(index < Register::kMaxNumAllocatableRegisters);
   LiveRange* result = fixed_live_ranges_[index];
   if (result == NULL) {
     result = new(zone_) LiveRange(FixedLiveRangeID(index), zone_);
@@ -651,7 +651,7 @@ LiveRange* LAllocator::FixedLiveRangeFor(int index) {
 
 
 LiveRange* LAllocator::FixedDoubleLiveRangeFor(int index) {
-  ASSERT(index < DoubleRegister::kNumAllocatableRegisters);
+  ASSERT(index < DoubleRegister::NumAllocatableRegisters());
   LiveRange* result = fixed_double_live_ranges_[index];
   if (result == NULL) {
     result = new(zone_) LiveRange(FixedDoubleLiveRangeID(index), zone_);
@@ -768,6 +768,7 @@ void LAllocator::AddConstraintsGapMove(int index,
 void LAllocator::MeetRegisterConstraints(HBasicBlock* block) {
   int start = block->first_instruction_index();
   int end = block->last_instruction_index();
+  if (start == -1) return;
   for (int i = start; i <= end; ++i) {
     if (IsGapAt(i)) {
       LInstruction* instr = NULL;
@@ -946,8 +947,8 @@ void LAllocator::ProcessInstructions(HBasicBlock* block, BitVector* live) {
           Define(curr_position, output, NULL);
         }
 
-        if (instr->IsMarkedAsCall()) {
-          for (int i = 0; i < Register::kNumAllocatableRegisters; ++i) {
+        if (instr->ClobbersRegisters()) {
+          for (int i = 0; i < Register::kMaxNumAllocatableRegisters; ++i) {
             if (output == NULL || !output->IsRegister() ||
                 output->index() != i) {
               LiveRange* range = FixedLiveRangeFor(i);
@@ -958,8 +959,8 @@ void LAllocator::ProcessInstructions(HBasicBlock* block, BitVector* live) {
           }
         }
 
-        if (instr->IsMarkedAsCall()) {
-          for (int i = 0; i < DoubleRegister::kNumAllocatableRegisters; ++i) {
+        if (instr->ClobbersDoubleRegisters()) {
+          for (int i = 0; i < DoubleRegister::NumAllocatableRegisters(); ++i) {
             if (output == NULL || !output->IsDoubleRegister() ||
                 output->index() != i) {
               LiveRange* range = FixedDoubleLiveRangeFor(i);
@@ -989,7 +990,7 @@ void LAllocator::ProcessInstructions(HBasicBlock* block, BitVector* live) {
 
         for (TempIterator it(instr); !it.Done(); it.Advance()) {
           LOperand* temp = it.Current();
-          if (instr->IsMarkedAsCall()) {
+          if (instr->ClobbersTemps()) {
             if (temp->IsRegister()) continue;
             if (temp->IsUnallocated()) {
               LUnallocated* temp_unalloc = LUnallocated::cast(temp);
@@ -1324,8 +1325,14 @@ void LAllocator::BuildLiveRanges() {
       while (!iterator.Done()) {
         found = true;
         int operand_index = iterator.Current();
-        PrintF("Function: %s\n",
-               *chunk_->info()->function()->debug_name()->ToCString());
+        if (chunk_->info()->IsStub()) {
+          CodeStub::Major major_key = chunk_->info()->code_stub()->MajorKey();
+          PrintF("Function: %s\n", CodeStub::MajorName(major_key, false));
+        } else {
+          ASSERT(chunk_->info()->IsOptimizing());
+          PrintF("Function: %s\n",
+                 *chunk_->info()->function()->debug_name()->ToCString());
+        }
         PrintF("Value %d used before first definition!\n", operand_index);
         LiveRange* range = LiveRangeFor(operand_index);
         PrintF("First use is at %d\n", range->first_pos()->pos().Value());
@@ -1471,14 +1478,14 @@ void LAllocator::ProcessOsrEntry() {
 
 void LAllocator::AllocateGeneralRegisters() {
   HPhase phase("L_Allocate general registers", this);
-  num_registers_ = Register::kNumAllocatableRegisters;
+  num_registers_ = Register::NumAllocatableRegisters();
   AllocateRegisters();
 }
 
 
 void LAllocator::AllocateDoubleRegisters() {
   HPhase phase("L_Allocate double registers", this);
-  num_registers_ = DoubleRegister::kNumAllocatableRegisters;
+  num_registers_ = DoubleRegister::NumAllocatableRegisters();
   mode_ = DOUBLE_REGISTERS;
   AllocateRegisters();
 }
@@ -1757,14 +1764,14 @@ void LAllocator::InactiveToActive(LiveRange* range) {
 
 // TryAllocateFreeReg and AllocateBlockedReg assume this
 // when allocating local arrays.
-STATIC_ASSERT(DoubleRegister::kNumAllocatableRegisters >=
-              Register::kNumAllocatableRegisters);
+STATIC_ASSERT(DoubleRegister::kMaxNumAllocatableRegisters >=
+              Register::kMaxNumAllocatableRegisters);
 
 
 bool LAllocator::TryAllocateFreeReg(LiveRange* current) {
-  LifetimePosition free_until_pos[DoubleRegister::kNumAllocatableRegisters];
+  LifetimePosition free_until_pos[DoubleRegister::kMaxNumAllocatableRegisters];
 
-  for (int i = 0; i < DoubleRegister::kNumAllocatableRegisters; i++) {
+  for (int i = 0; i < DoubleRegister::kMaxNumAllocatableRegisters; i++) {
     free_until_pos[i] = LifetimePosition::MaxPosition();
   }
 
@@ -1853,10 +1860,10 @@ void LAllocator::AllocateBlockedReg(LiveRange* current) {
   }
 
 
-  LifetimePosition use_pos[DoubleRegister::kNumAllocatableRegisters];
-  LifetimePosition block_pos[DoubleRegister::kNumAllocatableRegisters];
+  LifetimePosition use_pos[DoubleRegister::kMaxNumAllocatableRegisters];
+  LifetimePosition block_pos[DoubleRegister::kMaxNumAllocatableRegisters];
 
-  for (int i = 0; i < DoubleRegister::kNumAllocatableRegisters; i++) {
+  for (int i = 0; i < DoubleRegister::NumAllocatableRegisters(); i++) {
     use_pos[i] = block_pos[i] = LifetimePosition::MaxPosition();
   }
 

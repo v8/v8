@@ -756,6 +756,12 @@ template <class C> static inline bool Is(Object* obj);
 #define DECLARE_VERIFIER(Name)
 #endif
 
+#ifdef OBJECT_PRINT
+#define DECLARE_PRINTER(Name) void Name##Print(FILE* out = stdout);
+#else
+#define DECLARE_PRINTER(Name)
+#endif
+
 class MaybeObject BASE_EMBEDDED {
  public:
   inline bool IsFailure();
@@ -2109,12 +2115,7 @@ class JSObject: public JSReceiver {
 
   // Dispatched behavior.
   void JSObjectShortPrint(StringStream* accumulator);
-#ifdef OBJECT_PRINT
-  inline void JSObjectPrint() {
-    JSObjectPrint(stdout);
-  }
-  void JSObjectPrint(FILE* out);
-#endif
+  DECLARE_PRINTER(JSObject)
   DECLARE_VERIFIER(JSObject)
 #ifdef OBJECT_PRINT
   inline void PrintProperties() {
@@ -2408,12 +2409,7 @@ class FixedArray: public FixedArrayBase {
   static const int kMaxLength = (kMaxSize - kHeaderSize) / kPointerSize;
 
   // Dispatched behavior.
-#ifdef OBJECT_PRINT
-  inline void FixedArrayPrint() {
-    FixedArrayPrint(stdout);
-  }
-  void FixedArrayPrint(FILE* out);
-#endif
+  DECLARE_PRINTER(FixedArray)
   DECLARE_VERIFIER(FixedArray)
 #ifdef DEBUG
   // Checks if two FixedArrays have identical contents.
@@ -2500,12 +2496,7 @@ class FixedDoubleArray: public FixedArrayBase {
   static const int kMaxLength = (kMaxSize - kHeaderSize) / kDoubleSize;
 
   // Dispatched behavior.
-#ifdef OBJECT_PRINT
-  inline void FixedDoubleArrayPrint() {
-    FixedDoubleArrayPrint(stdout);
-  }
-  void FixedDoubleArrayPrint(FILE* out);
-#endif
+  DECLARE_PRINTER(FixedDoubleArray)
   DECLARE_VERIFIER(FixedDoubleArray)
 
  private:
@@ -3035,10 +3026,11 @@ class SymbolTable: public HashTable<SymbolTableShape, HashTableKey*> {
   // added.  The return value is the symbol table which might have
   // been enlarged.  If the return value is not a failure, the symbol
   // pointer *s is set to the symbol found.
-  MUST_USE_RESULT MaybeObject* LookupSymbol(Vector<const char> str, Object** s);
-  MUST_USE_RESULT MaybeObject* LookupAsciiSymbol(Vector<const char> str,
-                                                 Object** s);
-  MUST_USE_RESULT MaybeObject* LookupSubStringAsciiSymbol(
+  MUST_USE_RESULT MaybeObject* LookupUtf8Symbol(Vector<const char> str,
+                                                Object** s);
+  MUST_USE_RESULT MaybeObject* LookupOneByteSymbol(Vector<const char> str,
+                                                   Object** s);
+  MUST_USE_RESULT MaybeObject* LookupSubStringOneByteSymbol(
       Handle<SeqOneByteString> str,
       int from,
       int length,
@@ -3051,7 +3043,7 @@ class SymbolTable: public HashTable<SymbolTableShape, HashTableKey*> {
   // true if it is found, assigning the symbol to the given output
   // parameter.
   bool LookupSymbolIfExists(String* str, String** symbol);
-  bool LookupTwoCharsSymbolIfExists(uint32_t c1, uint32_t c2, String** symbol);
+  bool LookupTwoCharsSymbolIfExists(uint16_t c1, uint16_t c2, String** symbol);
 
   // Casting.
   static inline SymbolTable* cast(Object* obj);
@@ -3705,12 +3697,7 @@ class ByteArray: public FixedArrayBase {
   inline int ByteArraySize() {
     return SizeFor(this->length());
   }
-#ifdef OBJECT_PRINT
-  inline void ByteArrayPrint() {
-    ByteArrayPrint(stdout);
-  }
-  void ByteArrayPrint(FILE* out);
-#endif
+  DECLARE_PRINTER(ByteArray)
   DECLARE_VERIFIER(ByteArray)
 
   // Layout description.
@@ -3739,12 +3726,8 @@ class FreeSpace: public HeapObject {
   // Casting.
   static inline FreeSpace* cast(Object* obj);
 
-#ifdef OBJECT_PRINT
-  inline void FreeSpacePrint() {
-    FreeSpacePrint(stdout);
-  }
-  void FreeSpacePrint(FILE* out);
-#endif
+  // Dispatched behavior.
+  DECLARE_PRINTER(FreeSpace)
   DECLARE_VERIFIER(FreeSpace)
 
   // Layout description.
@@ -3819,12 +3802,8 @@ class ExternalPixelArray: public ExternalArray {
   // Casting.
   static inline ExternalPixelArray* cast(Object* obj);
 
-#ifdef OBJECT_PRINT
-  inline void ExternalPixelArrayPrint() {
-    ExternalPixelArrayPrint(stdout);
-  }
-  void ExternalPixelArrayPrint(FILE* out);
-#endif
+  // Dispatched behavior.
+  DECLARE_PRINTER(ExternalPixelArray)
   DECLARE_VERIFIER(ExternalPixelArray)
 
  private:
@@ -3846,12 +3825,8 @@ class ExternalByteArray: public ExternalArray {
   // Casting.
   static inline ExternalByteArray* cast(Object* obj);
 
-#ifdef OBJECT_PRINT
-  inline void ExternalByteArrayPrint() {
-    ExternalByteArrayPrint(stdout);
-  }
-  void ExternalByteArrayPrint(FILE* out);
-#endif
+  // Dispatched behavior.
+  DECLARE_PRINTER(ExternalByteArray)
   DECLARE_VERIFIER(ExternalByteArray)
 
  private:
@@ -3873,12 +3848,8 @@ class ExternalUnsignedByteArray: public ExternalArray {
   // Casting.
   static inline ExternalUnsignedByteArray* cast(Object* obj);
 
-#ifdef OBJECT_PRINT
-  inline void ExternalUnsignedByteArrayPrint() {
-    ExternalUnsignedByteArrayPrint(stdout);
-  }
-  void ExternalUnsignedByteArrayPrint(FILE* out);
-#endif
+  // Dispatched behavior.
+  DECLARE_PRINTER(ExternalUnsignedByteArray)
   DECLARE_VERIFIER(ExternalUnsignedByteArray)
 
  private:
@@ -3900,12 +3871,8 @@ class ExternalShortArray: public ExternalArray {
   // Casting.
   static inline ExternalShortArray* cast(Object* obj);
 
-#ifdef OBJECT_PRINT
-  inline void ExternalShortArrayPrint() {
-    ExternalShortArrayPrint(stdout);
-  }
-  void ExternalShortArrayPrint(FILE* out);
-#endif
+  // Dispatched behavior.
+  DECLARE_PRINTER(ExternalShortArray)
   DECLARE_VERIFIER(ExternalShortArray)
 
  private:
@@ -3927,12 +3894,8 @@ class ExternalUnsignedShortArray: public ExternalArray {
   // Casting.
   static inline ExternalUnsignedShortArray* cast(Object* obj);
 
-#ifdef OBJECT_PRINT
-  inline void ExternalUnsignedShortArrayPrint() {
-    ExternalUnsignedShortArrayPrint(stdout);
-  }
-  void ExternalUnsignedShortArrayPrint(FILE* out);
-#endif
+  // Dispatched behavior.
+  DECLARE_PRINTER(ExternalUnsignedShortArray)
   DECLARE_VERIFIER(ExternalUnsignedShortArray)
 
  private:
@@ -3954,12 +3917,8 @@ class ExternalIntArray: public ExternalArray {
   // Casting.
   static inline ExternalIntArray* cast(Object* obj);
 
-#ifdef OBJECT_PRINT
-  inline void ExternalIntArrayPrint() {
-    ExternalIntArrayPrint(stdout);
-  }
-  void ExternalIntArrayPrint(FILE* out);
-#endif
+  // Dispatched behavior.
+  DECLARE_PRINTER(ExternalIntArray)
   DECLARE_VERIFIER(ExternalIntArray)
 
  private:
@@ -3981,12 +3940,8 @@ class ExternalUnsignedIntArray: public ExternalArray {
   // Casting.
   static inline ExternalUnsignedIntArray* cast(Object* obj);
 
-#ifdef OBJECT_PRINT
-  inline void ExternalUnsignedIntArrayPrint() {
-    ExternalUnsignedIntArrayPrint(stdout);
-  }
-  void ExternalUnsignedIntArrayPrint(FILE* out);
-#endif
+  // Dispatched behavior.
+  DECLARE_PRINTER(ExternalUnsignedIntArray)
   DECLARE_VERIFIER(ExternalUnsignedIntArray)
 
  private:
@@ -4008,12 +3963,8 @@ class ExternalFloatArray: public ExternalArray {
   // Casting.
   static inline ExternalFloatArray* cast(Object* obj);
 
-#ifdef OBJECT_PRINT
-  inline void ExternalFloatArrayPrint() {
-    ExternalFloatArrayPrint(stdout);
-  }
-  void ExternalFloatArrayPrint(FILE* out);
-#endif
+  // Dispatched behavior.
+  DECLARE_PRINTER(ExternalFloatArray)
   DECLARE_VERIFIER(ExternalFloatArray)
 
  private:
@@ -4035,12 +3986,8 @@ class ExternalDoubleArray: public ExternalArray {
   // Casting.
   static inline ExternalDoubleArray* cast(Object* obj);
 
-#ifdef OBJECT_PRINT
-  inline void ExternalDoubleArrayPrint() {
-    ExternalDoubleArrayPrint(stdout);
-  }
-  void ExternalDoubleArrayPrint(FILE* out);
-#endif  // OBJECT_PRINT
+  // Dispatched behavior.
+  DECLARE_PRINTER(ExternalDoubleArray)
   DECLARE_VERIFIER(ExternalDoubleArray)
 
  private:
@@ -4235,6 +4182,7 @@ class Code: public HeapObject {
   V(FUNCTION)             \
   V(OPTIMIZED_FUNCTION)   \
   V(STUB)                 \
+  V(COMPILED_STUB)        \
   V(BUILTIN)              \
   V(LOAD_IC)              \
   V(KEYED_LOAD_IC)        \
@@ -4263,6 +4211,8 @@ class Code: public HeapObject {
   // Flags.
   STATIC_ASSERT(LAST_CODE_KIND < 16);
 
+  static const char* Kind2String(Kind kind);
+
   // Types of stubs.
   enum StubType {
     NORMAL,
@@ -4284,7 +4234,6 @@ class Code: public HeapObject {
 
 #ifdef ENABLE_DISASSEMBLER
   // Printing
-  static const char* Kind2String(Kind kind);
   static const char* ICState2String(InlineCacheState state);
   static const char* StubType2String(StubType type);
   static void PrintExtraICState(FILE* out, Kind kind, ExtraICState extra);
@@ -4308,13 +4257,18 @@ class Code: public HeapObject {
   // [deoptimization_data]: Array containing data for deopt.
   DECL_ACCESSORS(deoptimization_data, FixedArray)
 
-  // [type_feedback_info]: Struct containing type feedback information.
+  // [type_feedback_info]: Struct containing type feedback information for
+  // unoptimized code. Optimized code can temporarily store the head of
+  // the list of the dependent optimized functions during deoptimization.
   // STUBs can use this slot to store arbitrary information as a Smi.
-  // Will contain either a TypeFeedbackInfo object, or undefined, or a Smi.
+  // Will contain either a TypeFeedbackInfo object, or JSFunction object,
+  // or undefined, or a Smi.
   DECL_ACCESSORS(type_feedback_info, Object)
   inline void InitializeTypeFeedbackInfoNoWriteBarrier(Object* value);
   inline int stub_info();
   inline void set_stub_info(int info);
+  inline Object* deoptimizing_functions();
+  inline void set_deoptimizing_functions(Object* value);
 
   // [gc_metadata]: Field used to hold GC related metadata. The contents of this
   // field does not have to be traced during garbage collection since
@@ -4552,12 +4506,8 @@ class Code: public HeapObject {
 
   template<typename StaticVisitor>
   inline void CodeIterateBody(Heap* heap);
-#ifdef OBJECT_PRINT
-  inline void CodePrint() {
-    CodePrint(stdout);
-  }
-  void CodePrint(FILE* out);
-#endif
+
+  DECLARE_PRINTER(Code)
   DECLARE_VERIFIER(Code)
 
   void ClearInlineCaches();
@@ -4578,6 +4528,8 @@ class Code: public HeapObject {
   void MakeOlder(MarkingParity);
   static bool IsYoungSequence(byte* sequence);
   bool IsOld();
+
+  void PrintDeoptLocation(int bailout_id);
 
   // Max loop nesting marker used to postpose OSR. We don't take loop
   // nesting that is deeper than 5 levels into account.
@@ -4822,6 +4774,10 @@ class Map: public HeapObject {
   inline void set_elements_kind(ElementsKind elements_kind) {
     ASSERT(elements_kind < kElementsKindCount);
     ASSERT(kElementsKindCount <= (1 << kElementsKindBitCount));
+    ASSERT(!is_observed() ||
+           elements_kind == DICTIONARY_ELEMENTS ||
+           elements_kind == NON_STRICT_ARGUMENTS_ELEMENTS ||
+           IsExternalArrayElementsKind(elements_kind));
     set_bit_field2((bit_field2() & ~kElementsKindMask) |
         (elements_kind << kElementsKindShift));
     ASSERT(this->elements_kind() == elements_kind);
@@ -4848,6 +4804,10 @@ class Map: public HeapObject {
 
   inline bool has_fast_double_elements() {
     return IsFastDoubleElementsKind(elements_kind());
+  }
+
+  inline bool has_fast_elements() {
+    return IsFastElementsKind(elements_kind());
   }
 
   inline bool has_non_strict_arguments_elements() {
@@ -5133,12 +5093,7 @@ class Map: public HeapObject {
   void ZapTransitions();
 
   // Dispatched behavior.
-#ifdef OBJECT_PRINT
-  inline void MapPrint() {
-    MapPrint(stdout);
-  }
-  void MapPrint(FILE* out);
-#endif
+  DECLARE_PRINTER(Map)
   DECLARE_VERIFIER(Map)
 
 #ifdef VERIFY_HEAP
@@ -5184,8 +5139,7 @@ class Map: public HeapObject {
       kConstructorOffset + kPointerSize;
   static const int kDescriptorsOffset =
       kTransitionsOrBackPointerOffset + kPointerSize;
-  static const int kCodeCacheOffset =
-      kDescriptorsOffset + kPointerSize;
+  static const int kCodeCacheOffset = kDescriptorsOffset + kPointerSize;
   static const int kBitField3Offset = kCodeCacheOffset + kPointerSize;
   static const int kSize = kBitField3Offset + kPointerSize;
 
@@ -5339,12 +5293,8 @@ class Script: public Struct {
   // resource is accessible. Otherwise, always return true.
   inline bool HasValidSource();
 
-#ifdef OBJECT_PRINT
-  inline void ScriptPrint() {
-    ScriptPrint(stdout);
-  }
-  void ScriptPrint(FILE* out);
-#endif
+  // Dispatched behavior.
+  DECLARE_PRINTER(Script)
   DECLARE_VERIFIER(Script)
 
   static const int kSourceOffset = HeapObject::kHeaderSize;
@@ -5819,12 +5769,7 @@ class SharedFunctionInfo: public HeapObject {
   // Dispatched behavior.
   // Set max_length to -1 for unlimited length.
   void SourceCodePrint(StringStream* accumulator, int max_length);
-#ifdef OBJECT_PRINT
-  inline void SharedFunctionInfoPrint() {
-    SharedFunctionInfoPrint(stdout);
-  }
-  void SharedFunctionInfoPrint(FILE* out);
-#endif
+  DECLARE_PRINTER(SharedFunctionInfo)
   DECLARE_VERIFIER(SharedFunctionInfo)
 
   void ResetForNewContext(int new_ic_age);
@@ -6053,12 +5998,7 @@ class JSModule: public JSObject {
   static inline JSModule* cast(Object* obj);
 
   // Dispatched behavior.
-#ifdef OBJECT_PRINT
-  inline void JSModulePrint() {
-    JSModulePrint(stdout);
-  }
-  void JSModulePrint(FILE* out);
-#endif
+  DECLARE_PRINTER(JSModule)
   DECLARE_VERIFIER(JSModule)
 
   // Layout description.
@@ -6212,12 +6152,7 @@ class JSFunction: public JSObject {
   void JSFunctionIterateBody(int object_size, ObjectVisitor* v);
 
   // Dispatched behavior.
-#ifdef OBJECT_PRINT
-  inline void JSFunctionPrint() {
-    JSFunctionPrint(stdout);
-  }
-  void JSFunctionPrint(FILE* out);
-#endif
+  DECLARE_PRINTER(JSFunction)
   DECLARE_VERIFIER(JSFunction)
 
   // Returns the number of allocated literals.
@@ -6225,6 +6160,18 @@ class JSFunction: public JSObject {
 
   // Retrieve the native context from a function's literal array.
   static Context* NativeContextFromLiterals(FixedArray* literals);
+
+#ifdef DEBUG
+  bool FunctionsInFunctionListShareSameCode() {
+    Object* current = this;
+    while (!current->IsUndefined()) {
+      JSFunction* function = JSFunction::cast(current);
+      current = function->next_function_link();
+      if (function->code() != this->code()) return false;
+    }
+    return true;
+  }
+#endif
 
   // Layout descriptors. The last property (from kNonWeakFieldsEndOffset to
   // kSize) is weak and has special handling during garbage collection.
@@ -6271,12 +6218,7 @@ class JSGlobalProxy : public JSObject {
   static inline JSGlobalProxy* cast(Object* obj);
 
   // Dispatched behavior.
-#ifdef OBJECT_PRINT
-  inline void JSGlobalProxyPrint() {
-    JSGlobalProxyPrint(stdout);
-  }
-  void JSGlobalProxyPrint(FILE* out);
-#endif
+  DECLARE_PRINTER(JSGlobalProxy)
   DECLARE_VERIFIER(JSGlobalProxy)
 
   // Layout description.
@@ -6349,12 +6291,7 @@ class JSGlobalObject: public GlobalObject {
   static inline JSGlobalObject* cast(Object* obj);
 
   // Dispatched behavior.
-#ifdef OBJECT_PRINT
-  inline void JSGlobalObjectPrint() {
-    JSGlobalObjectPrint(stdout);
-  }
-  void JSGlobalObjectPrint(FILE* out);
-#endif
+  DECLARE_PRINTER(JSGlobalObject)
   DECLARE_VERIFIER(JSGlobalObject)
 
   // Layout description.
@@ -6381,12 +6318,7 @@ class JSBuiltinsObject: public GlobalObject {
   static inline JSBuiltinsObject* cast(Object* obj);
 
   // Dispatched behavior.
-#ifdef OBJECT_PRINT
-  inline void JSBuiltinsObjectPrint() {
-    JSBuiltinsObjectPrint(stdout);
-  }
-  void JSBuiltinsObjectPrint(FILE* out);
-#endif
+  DECLARE_PRINTER(JSBuiltinsObject)
   DECLARE_VERIFIER(JSBuiltinsObject)
 
   // Layout description.  The size of the builtins object includes
@@ -6422,12 +6354,7 @@ class JSValue: public JSObject {
   static inline JSValue* cast(Object* obj);
 
   // Dispatched behavior.
-#ifdef OBJECT_PRINT
-  inline void JSValuePrint() {
-    JSValuePrint(stdout);
-  }
-  void JSValuePrint(FILE* out);
-#endif
+  DECLARE_PRINTER(JSValue)
   DECLARE_VERIFIER(JSValue)
 
   // Layout description.
@@ -6476,12 +6403,7 @@ class JSDate: public JSObject {
 
 
   // Dispatched behavior.
-#ifdef OBJECT_PRINT
-  inline void JSDatePrint() {
-    JSDatePrint(stdout);
-  }
-  void JSDatePrint(FILE* out);
-#endif
+  DECLARE_PRINTER(JSDate)
   DECLARE_VERIFIER(JSDate)
 
   // The order is important. It must be kept in sync with date macros
@@ -6573,12 +6495,7 @@ class JSMessageObject: public JSObject {
   static inline JSMessageObject* cast(Object* obj);
 
   // Dispatched behavior.
-#ifdef OBJECT_PRINT
-  inline void JSMessageObjectPrint() {
-    JSMessageObjectPrint(stdout);
-  }
-  void JSMessageObjectPrint(FILE* out);
-#endif
+  DECLARE_PRINTER(JSMessageObject)
   DECLARE_VERIFIER(JSMessageObject)
 
   // Layout description.
@@ -6819,12 +6736,8 @@ class CodeCache: public Struct {
 
   static inline CodeCache* cast(Object* obj);
 
-#ifdef OBJECT_PRINT
-  inline void CodeCachePrint() {
-    CodeCachePrint(stdout);
-  }
-  void CodeCachePrint(FILE* out);
-#endif
+  // Dispatched behavior.
+  DECLARE_PRINTER(CodeCache)
   DECLARE_VERIFIER(CodeCache)
 
   static const int kDefaultCacheOffset = HeapObject::kHeaderSize;
@@ -6908,12 +6821,8 @@ class PolymorphicCodeCache: public Struct {
 
   static inline PolymorphicCodeCache* cast(Object* obj);
 
-#ifdef OBJECT_PRINT
-  inline void PolymorphicCodeCachePrint() {
-    PolymorphicCodeCachePrint(stdout);
-  }
-  void PolymorphicCodeCachePrint(FILE* out);
-#endif
+  // Dispatched behavior.
+  DECLARE_PRINTER(PolymorphicCodeCache)
   DECLARE_VERIFIER(PolymorphicCodeCache)
 
   static const int kCacheOffset = HeapObject::kHeaderSize;
@@ -6961,12 +6870,8 @@ class TypeFeedbackInfo: public Struct {
 
   static inline TypeFeedbackInfo* cast(Object* obj);
 
-#ifdef OBJECT_PRINT
-  inline void TypeFeedbackInfoPrint() {
-    TypeFeedbackInfoPrint(stdout);
-  }
-  void TypeFeedbackInfoPrint(FILE* out);
-#endif
+  // Dispatched behavior.
+  DECLARE_PRINTER(TypeFeedbackInfo)
   DECLARE_VERIFIER(TypeFeedbackInfo)
 
   static const int kStorage1Offset = HeapObject::kHeaderSize;
@@ -7007,12 +6912,8 @@ class AliasedArgumentsEntry: public Struct {
 
   static inline AliasedArgumentsEntry* cast(Object* obj);
 
-#ifdef OBJECT_PRINT
-  inline void AliasedArgumentsEntryPrint() {
-    AliasedArgumentsEntryPrint(stdout);
-  }
-  void AliasedArgumentsEntryPrint(FILE* out);
-#endif
+  // Dispatched behavior.
+  DECLARE_PRINTER(AliasedArgumentsEntry)
   DECLARE_VERIFIER(AliasedArgumentsEntry)
 
   static const int kAliasedContextSlot = HeapObject::kHeaderSize;
@@ -7031,30 +6932,15 @@ class StringHasher {
  public:
   explicit inline StringHasher(int length, uint32_t seed);
 
-  // Returns true if the hash of this string can be computed without
-  // looking at the contents.
-  inline bool has_trivial_hash();
+  template <typename schar>
+  static inline uint32_t HashSequentialString(const schar* chars,
+                                              int length,
+                                              uint32_t seed);
 
-  // Add a character to the hash and update the array index calculation.
-  inline void AddCharacter(uint32_t c);
-
-  // Adds a character to the hash but does not update the array index
-  // calculation.  This can only be called when it has been verified
-  // that the input is not an array index.
-  inline void AddCharacterNoIndex(uint32_t c);
-
-  // Add a character above 0xffff as a surrogate pair.  These can get into
-  // the hasher through the routines that take a UTF-8 string and make a symbol.
-  void AddSurrogatePair(uc32 c);
-  void AddSurrogatePairNoIndex(uc32 c);
-
-  // Returns the value to store in the hash field of a string with
-  // the given length and contents.
-  uint32_t GetHashField();
-
-  // Returns true if the characters seen so far make up a legal array
-  // index.
-  bool is_array_index() { return is_array_index_; }
+  // Reads all the data, even for long strings and computes the utf16 length.
+  static uint32_t ComputeUtf8Hash(Vector<const char> chars,
+                                  uint32_t seed,
+                                  int* utf16_length_out);
 
   // Calculated hash value for a string consisting of 1 to
   // String::kMaxArrayIndexSize digits with no leading zeros (except "0").
@@ -7066,49 +6952,34 @@ class StringHasher {
   // use 27 instead.
   static const int kZeroHash = 27;
 
- private:
-  uint32_t array_index() {
-    ASSERT(is_array_index());
-    return array_index_;
-  }
-
-  inline uint32_t GetHash();
-
   // Reusable parts of the hashing algorithm.
-  INLINE(static uint32_t AddCharacterCore(uint32_t running_hash, uint32_t c));
+  INLINE(static uint32_t AddCharacterCore(uint32_t running_hash, uint16_t c));
   INLINE(static uint32_t GetHashCore(uint32_t running_hash));
+
+ protected:
+  // Returns the value to store in the hash field of a string with
+  // the given length and contents.
+  uint32_t GetHashField();
+  // Returns true if the hash of this string can be computed without
+  // looking at the contents.
+  inline bool has_trivial_hash();
+  // Adds a block of characters to the hash.
+  template<typename Char>
+  inline void AddCharacters(const Char* chars, int len);
+
+ private:
+  // Add a character to the hash.
+  inline void AddCharacter(uint16_t c);
+  // Update index. Returns true if string is still an index.
+  inline bool UpdateIndex(uint16_t c);
 
   int length_;
   uint32_t raw_running_hash_;
   uint32_t array_index_;
   bool is_array_index_;
   bool is_first_char_;
-  friend class TwoCharHashTableKey;
-
-  template <bool seq_ascii> friend class JsonParser;
+  DISALLOW_COPY_AND_ASSIGN(StringHasher);
 };
-
-
-class IncrementalAsciiStringHasher {
- public:
-  explicit inline IncrementalAsciiStringHasher(uint32_t seed, char first_char);
-  inline void AddCharacter(uc32 c);
-  inline uint32_t GetHash();
-
- private:
-  int length_;
-  uint32_t raw_running_hash_;
-  uint32_t array_index_;
-  bool is_array_index_;
-  char first_char_;
-};
-
-
-// Calculates string hash.
-template <typename schar>
-inline uint32_t HashSequentialString(const schar* chars,
-                                     int length,
-                                     uint32_t seed);
 
 
 // The characteristics of a string are stored in its map.  Retrieving these
@@ -7329,10 +7200,6 @@ class String: public HeapObject {
   // Returns a hash value used for the property table
   inline uint32_t Hash();
 
-  static uint32_t ComputeHashField(unibrow::CharacterStream* buffer,
-                                   int length,
-                                   uint32_t seed);
-
   static bool ComputeArrayIndex(unibrow::CharacterStream* buffer,
                                 uint32_t* index,
                                 int length);
@@ -7514,7 +7381,7 @@ class String: public HeapObject {
   static inline void Visit(String* string,
                            unsigned offset,
                            Visitor& visitor,
-                           ConsOp& consOp,
+                           ConsOp& cons_op,
                            int32_t type,
                            unsigned length);
 
@@ -7972,22 +7839,30 @@ class StringInputBuffer: public unibrow::InputBuffer<String, String*, 1024> {
 };
 
 
+// A ConsStringOp that returns null.
+// Useful when the operation to apply on a ConsString
+// requires an expensive data structure.
+class ConsStringNullOp {
+ public:
+  inline ConsStringNullOp() {}
+  static inline String* Operate(String*, unsigned*, int32_t*, unsigned*);
+ private:
+  DISALLOW_COPY_AND_ASSIGN(ConsStringNullOp);
+};
+
+
 // This maintains an off-stack representation of the stack frames required
 // to traverse a ConsString, allowing an entirely iterative and restartable
 // traversal of the entire string
 // Note: this class is not GC-safe.
 class ConsStringIteratorOp {
  public:
-  struct ContinueResponse {
-    String* string_;
-    unsigned offset_;
-    unsigned length_;
-    int32_t type_;
-  };
   inline ConsStringIteratorOp() {}
-  String* Operate(ConsString* consString, unsigned* outerOffset,
-      int32_t* typeOut, unsigned* lengthOut);
-  inline bool ContinueOperation(ContinueResponse* response);
+  String* Operate(String* string,
+                  unsigned* offset_out,
+                  int32_t* type_out,
+                  unsigned* length_out);
+  inline String* ContinueOperation(int32_t* type_out, unsigned* length_out);
   inline void Reset();
   inline bool HasMore();
 
@@ -7998,25 +7873,23 @@ class ConsStringIteratorOp {
   static const unsigned kDepthMask = kStackSize-1;
   STATIC_ASSERT(IS_POWER_OF_TWO(kStackSize));
   static inline unsigned OffsetForDepth(unsigned depth);
-  static inline uint32_t MaskForDepth(unsigned depth);
 
-  inline void ClearRightDescent();
-  inline void SetRightDescent();
   inline void PushLeft(ConsString* string);
-  inline void PushRight(ConsString* string, int32_t type);
+  inline void PushRight(ConsString* string);
   inline void AdjustMaximumDepth();
   inline void Pop();
-  inline void ResetStack();
-  String* NextLeaf(bool* blewStack, int32_t* typeOut);
+  String* NextLeaf(bool* blew_stack, int32_t* type_out, unsigned* length_out);
+  String* Search(unsigned* offset_out,
+                 int32_t* type_out,
+                 unsigned* length_out);
 
   unsigned depth_;
   unsigned maximum_depth_;
-  uint32_t trace_;
+  // Stack must always contain only frames for which right traversal
+  // has not yet been performed.
   ConsString* frames_[kStackSize];
   unsigned consumed_;
   ConsString* root_;
-  int32_t root_type_;
-  unsigned root_length_;
   DISALLOW_COPY_AND_ASSIGN(ConsStringIteratorOp);
 };
 
@@ -8024,8 +7897,9 @@ class ConsStringIteratorOp {
 // Note: this class is not GC-safe.
 class StringCharacterStream {
  public:
-  inline StringCharacterStream(
-      String* string, unsigned offset, ConsStringIteratorOp* op);
+  inline StringCharacterStream(String* string,
+                               unsigned offset,
+                               ConsStringIteratorOp* op);
   inline uint16_t GetNext();
   inline bool HasMore();
   inline void Reset(String* string, unsigned offset, ConsStringIteratorOp* op);
@@ -8124,14 +7998,9 @@ class JSGlobalPropertyCell: public HeapObject {
     return address() + kValueOffset;
   }
 
+  // Dispatched behavior.
+  DECLARE_PRINTER(JSGlobalPropertyCell)
   DECLARE_VERIFIER(JSGlobalPropertyCell)
-
-#ifdef OBJECT_PRINT
-  inline void JSGlobalPropertyCellPrint() {
-    JSGlobalPropertyCellPrint(stdout);
-  }
-  void JSGlobalPropertyCellPrint(FILE* out);
-#endif
 
   // Layout description.
   static const int kValueOffset = HeapObject::kHeaderSize;
@@ -8222,12 +8091,7 @@ class JSProxy: public JSReceiver {
                           Handle<Object> args[]);
 
   // Dispatched behavior.
-#ifdef OBJECT_PRINT
-  inline void JSProxyPrint() {
-    JSProxyPrint(stdout);
-  }
-  void JSProxyPrint(FILE* out);
-#endif
+  DECLARE_PRINTER(JSProxy)
   DECLARE_VERIFIER(JSProxy)
 
   // Layout description. We add padding so that a proxy has the same
@@ -8263,12 +8127,7 @@ class JSFunctionProxy: public JSProxy {
   static inline JSFunctionProxy* cast(Object* obj);
 
   // Dispatched behavior.
-#ifdef OBJECT_PRINT
-  inline void JSFunctionProxyPrint() {
-    JSFunctionProxyPrint(stdout);
-  }
-  void JSFunctionProxyPrint(FILE* out);
-#endif
+  DECLARE_PRINTER(JSFunctionProxy)
   DECLARE_VERIFIER(JSFunctionProxy)
 
   // Layout description.
@@ -8298,12 +8157,8 @@ class JSSet: public JSObject {
   // Casting.
   static inline JSSet* cast(Object* obj);
 
-#ifdef OBJECT_PRINT
-  inline void JSSetPrint() {
-    JSSetPrint(stdout);
-  }
-  void JSSetPrint(FILE* out);
-#endif
+  // Dispatched behavior.
+  DECLARE_PRINTER(JSSet)
   DECLARE_VERIFIER(JSSet)
 
   static const int kTableOffset = JSObject::kHeaderSize;
@@ -8323,12 +8178,8 @@ class JSMap: public JSObject {
   // Casting.
   static inline JSMap* cast(Object* obj);
 
-#ifdef OBJECT_PRINT
-  inline void JSMapPrint() {
-    JSMapPrint(stdout);
-  }
-  void JSMapPrint(FILE* out);
-#endif
+  // Dispatched behavior.
+  DECLARE_PRINTER(JSMap)
   DECLARE_VERIFIER(JSMap)
 
   static const int kTableOffset = JSObject::kHeaderSize;
@@ -8351,12 +8202,8 @@ class JSWeakMap: public JSObject {
   // Casting.
   static inline JSWeakMap* cast(Object* obj);
 
-#ifdef OBJECT_PRINT
-  inline void JSWeakMapPrint() {
-    JSWeakMapPrint(stdout);
-  }
-  void JSWeakMapPrint(FILE* out);
-#endif
+  // Dispatched behavior.
+  DECLARE_PRINTER(JSWeakMap)
   DECLARE_VERIFIER(JSWeakMap)
 
   static const int kTableOffset = JSObject::kHeaderSize;
@@ -8386,12 +8233,8 @@ class Foreign: public HeapObject {
   template<typename StaticVisitor>
   inline void ForeignIterateBody();
 
-#ifdef OBJECT_PRINT
-  inline void ForeignPrint() {
-    ForeignPrint(stdout);
-  }
-  void ForeignPrint(FILE* out);
-#endif
+  // Dispatched behavior.
+  DECLARE_PRINTER(Foreign)
   DECLARE_VERIFIER(Foreign)
 
   // Layout description.
@@ -8444,12 +8287,7 @@ class JSArray: public JSObject {
   inline void EnsureSize(int minimum_size_of_backing_fixed_array);
 
   // Dispatched behavior.
-#ifdef OBJECT_PRINT
-  inline void JSArrayPrint() {
-    JSArrayPrint(stdout);
-  }
-  void JSArrayPrint(FILE* out);
-#endif
+  DECLARE_PRINTER(JSArray)
   DECLARE_VERIFIER(JSArray)
 
   // Number of element slots to pre-allocate for an empty array.
@@ -8523,12 +8361,8 @@ class AccessorInfo: public Struct {
 
   static inline AccessorInfo* cast(Object* obj);
 
-#ifdef OBJECT_PRINT
-  inline void AccessorInfoPrint() {
-    AccessorInfoPrint(stdout);
-  }
-  void AccessorInfoPrint(FILE* out);
-#endif
+  // Dispatched behavior.
+  DECLARE_PRINTER(AccessorInfo)
   DECLARE_VERIFIER(AccessorInfo)
 
   static const int kGetterOffset = HeapObject::kHeaderSize;
@@ -8590,9 +8424,8 @@ class AccessorPair: public Struct {
     return IsJSAccessor(getter()) || IsJSAccessor(setter());
   }
 
-#ifdef OBJECT_PRINT
-  void AccessorPairPrint(FILE* out = stdout);
-#endif
+  // Dispatched behavior.
+  DECLARE_PRINTER(AccessorPair)
   DECLARE_VERIFIER(AccessorPair)
 
   static const int kGetterOffset = HeapObject::kHeaderSize;
@@ -8621,12 +8454,8 @@ class AccessCheckInfo: public Struct {
 
   static inline AccessCheckInfo* cast(Object* obj);
 
-#ifdef OBJECT_PRINT
-  inline void AccessCheckInfoPrint() {
-    AccessCheckInfoPrint(stdout);
-  }
-  void AccessCheckInfoPrint(FILE* out);
-#endif
+  // Dispatched behavior.
+  DECLARE_PRINTER(AccessCheckInfo)
   DECLARE_VERIFIER(AccessCheckInfo)
 
   static const int kNamedCallbackOffset   = HeapObject::kHeaderSize;
@@ -8650,12 +8479,8 @@ class InterceptorInfo: public Struct {
 
   static inline InterceptorInfo* cast(Object* obj);
 
-#ifdef OBJECT_PRINT
-  inline void InterceptorInfoPrint() {
-    InterceptorInfoPrint(stdout);
-  }
-  void InterceptorInfoPrint(FILE* out);
-#endif
+  // Dispatched behavior.
+  DECLARE_PRINTER(InterceptorInfo)
   DECLARE_VERIFIER(InterceptorInfo)
 
   static const int kGetterOffset = HeapObject::kHeaderSize;
@@ -8678,12 +8503,8 @@ class CallHandlerInfo: public Struct {
 
   static inline CallHandlerInfo* cast(Object* obj);
 
-#ifdef OBJECT_PRINT
-  inline void CallHandlerInfoPrint() {
-    CallHandlerInfoPrint(stdout);
-  }
-  void CallHandlerInfoPrint(FILE* out);
-#endif
+  // Dispatched behavior.
+  DECLARE_PRINTER(CallHandlerInfo)
   DECLARE_VERIFIER(CallHandlerInfo)
 
   static const int kCallbackOffset = HeapObject::kHeaderSize;
@@ -8727,6 +8548,9 @@ class FunctionTemplateInfo: public TemplateInfo {
   DECL_ACCESSORS(access_check_info, Object)
   DECL_ACCESSORS(flag, Smi)
 
+  inline int length();
+  inline void set_length(int value);
+
   // Following properties use flag bits.
   DECL_BOOLEAN_ACCESSORS(hidden_prototype)
   DECL_BOOLEAN_ACCESSORS(undetectable)
@@ -8737,12 +8561,8 @@ class FunctionTemplateInfo: public TemplateInfo {
 
   static inline FunctionTemplateInfo* cast(Object* obj);
 
-#ifdef OBJECT_PRINT
-  inline void FunctionTemplateInfoPrint() {
-    FunctionTemplateInfoPrint(stdout);
-  }
-  void FunctionTemplateInfoPrint(FILE* out);
-#endif
+  // Dispatched behavior.
+  DECLARE_PRINTER(FunctionTemplateInfo)
   DECLARE_VERIFIER(FunctionTemplateInfo)
 
   static const int kSerialNumberOffset = TemplateInfo::kHeaderSize;
@@ -8764,7 +8584,8 @@ class FunctionTemplateInfo: public TemplateInfo {
   static const int kAccessCheckInfoOffset =
       kInstanceCallHandlerOffset + kPointerSize;
   static const int kFlagOffset = kAccessCheckInfoOffset + kPointerSize;
-  static const int kSize = kFlagOffset + kPointerSize;
+  static const int kLengthOffset = kFlagOffset + kPointerSize;
+  static const int kSize = kLengthOffset + kPointerSize;
 
  private:
   // Bit position in the flag, from least significant bit position.
@@ -8784,12 +8605,8 @@ class ObjectTemplateInfo: public TemplateInfo {
 
   static inline ObjectTemplateInfo* cast(Object* obj);
 
-#ifdef OBJECT_PRINT
-  inline void ObjectTemplateInfoPrint() {
-    ObjectTemplateInfoPrint(stdout);
-  }
-  void ObjectTemplateInfoPrint(FILE* out);
-#endif
+  // Dispatched behavior.
+  DECLARE_PRINTER(ObjectTemplateInfo)
   DECLARE_VERIFIER(ObjectTemplateInfo)
 
   static const int kConstructorOffset = TemplateInfo::kHeaderSize;
@@ -8806,12 +8623,8 @@ class SignatureInfo: public Struct {
 
   static inline SignatureInfo* cast(Object* obj);
 
-#ifdef OBJECT_PRINT
-  inline void SignatureInfoPrint() {
-    SignatureInfoPrint(stdout);
-  }
-  void SignatureInfoPrint(FILE* out);
-#endif
+  // Dispatched behavior.
+  DECLARE_PRINTER(SignatureInfo)
   DECLARE_VERIFIER(SignatureInfo)
 
   static const int kReceiverOffset = Struct::kHeaderSize;
@@ -8829,12 +8642,8 @@ class TypeSwitchInfo: public Struct {
 
   static inline TypeSwitchInfo* cast(Object* obj);
 
-#ifdef OBJECT_PRINT
-  inline void TypeSwitchInfoPrint() {
-    TypeSwitchInfoPrint(stdout);
-  }
-  void TypeSwitchInfoPrint(FILE* out);
-#endif
+  // Dispatched behavior.
+  DECLARE_PRINTER(TypeSwitchInfo)
   DECLARE_VERIFIER(TypeSwitchInfo)
 
   static const int kTypesOffset = Struct::kHeaderSize;
@@ -8879,12 +8688,8 @@ class DebugInfo: public Struct {
 
   static inline DebugInfo* cast(Object* obj);
 
-#ifdef OBJECT_PRINT
-  inline void DebugInfoPrint() {
-    DebugInfoPrint(stdout);
-  }
-  void DebugInfoPrint(FILE* out);
-#endif
+  // Dispatched behavior.
+  DECLARE_PRINTER(DebugInfo)
   DECLARE_VERIFIER(DebugInfo)
 
   static const int kSharedFunctionInfoIndex = Struct::kHeaderSize;
@@ -8935,12 +8740,8 @@ class BreakPointInfo: public Struct {
 
   static inline BreakPointInfo* cast(Object* obj);
 
-#ifdef OBJECT_PRINT
-  inline void BreakPointInfoPrint() {
-    BreakPointInfoPrint(stdout);
-  }
-  void BreakPointInfoPrint(FILE* out);
-#endif
+  // Dispatched behavior.
+  DECLARE_PRINTER(BreakPointInfo)
   DECLARE_VERIFIER(BreakPointInfo)
 
   static const int kCodePositionIndex = Struct::kHeaderSize;

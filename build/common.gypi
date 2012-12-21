@@ -68,6 +68,8 @@
 
     'v8_enable_debugger_support%': 1,
 
+    'v8_enable_backtrace%': 0,
+
     'v8_enable_disassembler%': 0,
 
     'v8_enable_gdbjit%': 0,
@@ -160,7 +162,7 @@
           [ 'v8_use_arm_eabi_hardfloat=="true"', {
             'defines': [
               'USE_EABI_HARDFLOAT=1',
-              'CAN_USE_VFP3_INSTRUCTIONS',
+              'CAN_USE_VFP2_INSTRUCTIONS',
             ],
             'target_conditions': [
               ['_toolset=="target"', {
@@ -367,6 +369,10 @@
           ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="netbsd"', {
             'cflags': [ '-Wall', '<(werror)', '-W', '-Wno-unused-parameter',
                         '-Wnon-virtual-dtor', '-Woverloaded-virtual' ],
+          }],
+          ['OS=="linux" and v8_enable_backtrace==1', {
+            # Support for backtrace_symbols.
+            'ldflags': [ '-rdynamic' ],
           }],
           ['OS=="android"', {
             'variables': {

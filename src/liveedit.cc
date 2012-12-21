@@ -952,11 +952,11 @@ JSArray* LiveEdit::GatherCompileInfo(Handle<Script> script,
 
       Factory* factory = isolate->factory();
       Handle<String> start_pos_key =
-          factory->LookupAsciiSymbol("startPosition");
+          factory->LookupOneByteSymbol(STATIC_ASCII_VECTOR("startPosition"));
       Handle<String> end_pos_key =
-          factory->LookupAsciiSymbol("endPosition");
+          factory->LookupOneByteSymbol(STATIC_ASCII_VECTOR("endPosition"));
       Handle<String> script_obj_key =
-          factory->LookupAsciiSymbol("scriptObject");
+          factory->LookupOneByteSymbol(STATIC_ASCII_VECTOR("scriptObject"));
       Handle<Smi> start_pos(Smi::FromInt(message_location.start_pos()));
       Handle<Smi> end_pos(Smi::FromInt(message_location.end_pos()));
       Handle<JSValue> script_obj = GetScriptWrapper(message_location.script());
@@ -1223,23 +1223,15 @@ static bool IsInlined(JSFunction* function, SharedFunctionInfo* candidate) {
 }
 
 
-class DependentFunctionsDeoptimizingVisitor : public OptimizedFunctionVisitor {
+class DependentFunctionFilter : public OptimizedFunctionFilter {
  public:
-  explicit DependentFunctionsDeoptimizingVisitor(
+  explicit DependentFunctionFilter(
       SharedFunctionInfo* function_info)
       : function_info_(function_info) {}
 
-  virtual void EnterContext(Context* context) {
-  }
-
-  virtual void VisitFunction(JSFunction* function) {
-    if (function->shared() == function_info_ ||
-        IsInlined(function, function_info_)) {
-      Deoptimizer::DeoptimizeFunction(function);
-    }
-  }
-
-  virtual void LeaveContext(Context* context) {
+  virtual bool TakeFunction(JSFunction* function) {
+    return (function->shared() == function_info_ ||
+            IsInlined(function, function_info_));
   }
 
  private:
@@ -1250,8 +1242,8 @@ class DependentFunctionsDeoptimizingVisitor : public OptimizedFunctionVisitor {
 static void DeoptimizeDependentFunctions(SharedFunctionInfo* function_info) {
   AssertNoAllocation no_allocation;
 
-  DependentFunctionsDeoptimizingVisitor visitor(function_info);
-  Deoptimizer::VisitAllOptimizedFunctions(&visitor);
+  DependentFunctionFilter filter(function_info);
+  Deoptimizer::DeoptimizeAllFunctionsWith(&filter);
 }
 
 

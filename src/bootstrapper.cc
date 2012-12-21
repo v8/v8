@@ -353,7 +353,7 @@ static Handle<JSFunction> InstallFunction(Handle<JSObject> target,
                                           bool is_ecma_native) {
   Isolate* isolate = target->GetIsolate();
   Factory* factory = isolate->factory();
-  Handle<String> symbol = factory->LookupAsciiSymbol(name);
+  Handle<String> symbol = factory->LookupUtf8Symbol(name);
   Handle<Code> call_code = Handle<Code>(isolate->builtins()->builtin(call));
   Handle<JSFunction> function = prototype.is_null() ?
     factory->NewFunctionWithoutPrototype(symbol, call_code) :
@@ -488,7 +488,8 @@ Handle<JSFunction> Genesis::CreateEmptyFunction(Isolate* isolate) {
 
   // Allocate the empty function as the prototype for function ECMAScript
   // 262 15.3.4.
-  Handle<String> symbol = factory->LookupAsciiSymbol("Empty");
+  Handle<String> symbol =
+      factory->LookupOneByteSymbol(STATIC_ASCII_VECTOR("Empty"));
   Handle<JSFunction> empty_function =
       factory->NewFunctionWithoutPrototype(symbol, CLASSIC_MODE);
 
@@ -570,7 +571,8 @@ void Genesis::SetStrictFunctionInstanceDescriptor(
 // ECMAScript 5th Edition, 13.2.3
 Handle<JSFunction> Genesis::GetThrowTypeErrorFunction() {
   if (throw_type_error_function.is_null()) {
-    Handle<String> name = factory()->LookupAsciiSymbol("ThrowTypeError");
+    Handle<String> name = factory()->LookupOneByteSymbol(
+        STATIC_ASCII_VECTOR("ThrowTypeError"));
     throw_type_error_function =
       factory()->NewFunctionWithoutPrototype(name, CLASSIC_MODE);
     Handle<Code> code(isolate()->builtins()->builtin(
@@ -771,7 +773,8 @@ Handle<JSGlobalProxy> Genesis::CreateNewGlobals(
                                      factory()->OuterGlobalObject);
   }
 
-  Handle<String> global_name = factory()->LookupAsciiSymbol("global");
+  Handle<String> global_name = factory()->LookupOneByteSymbol(
+      STATIC_ASCII_VECTOR("global"));
   global_proxy_function->shared()->set_instance_class_name(*global_name);
   global_proxy_function->initial_map()->set_is_access_check_needed(true);
 
@@ -811,7 +814,8 @@ void Genesis::HookUpInnerGlobal(Handle<GlobalObject> inner_global) {
   static const PropertyAttributes attributes =
       static_cast<PropertyAttributes>(READ_ONLY | DONT_DELETE);
   ForceSetProperty(builtins_global,
-                   factory()->LookupAsciiSymbol("global"),
+                   factory()->LookupOneByteSymbol(
+                       STATIC_ASCII_VECTOR("global")),
                    inner_global,
                    attributes);
   // Set up the reference from the global object to the builtins object.
@@ -1049,7 +1053,8 @@ bool Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
     // Make sure we can recognize argument objects at runtime.
     // This is done by introducing an anonymous function with
     // class_name equals 'Arguments'.
-    Handle<String> symbol = factory->LookupAsciiSymbol("Arguments");
+    Handle<String> symbol = factory->LookupOneByteSymbol(
+        STATIC_ASCII_VECTOR("Arguments"));
     Handle<Code> code = Handle<Code>(
         isolate->builtins()->builtin(Builtins::kIllegal));
     Handle<JSObject> prototype =
@@ -1207,7 +1212,8 @@ bool Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
                              code,
                              true);
 
-    Handle<String> name = factory->LookupAsciiSymbol("context_extension");
+    Handle<String> name =
+        factory->LookupOneByteSymbol(STATIC_ASCII_VECTOR("context_extension"));
     context_extension_fun->shared()->set_instance_class_name(*name);
     native_context()->set_context_extension_function(*context_extension_fun);
   }
@@ -1381,11 +1387,12 @@ bool Genesis::CompileScriptCached(Vector<const char> name,
 }
 
 
-#define INSTALL_NATIVE(Type, name, var)                                       \
-  Handle<String> var##_name = factory()->LookupAsciiSymbol(name);             \
-  Object* var##_native =                                                      \
-      native_context()->builtins()->GetPropertyNoExceptionThrown(             \
-           *var##_name);                                                      \
+#define INSTALL_NATIVE(Type, name, var)                                 \
+  Handle<String> var##_name =                                           \
+    factory()->LookupOneByteSymbol(STATIC_ASCII_VECTOR(name));          \
+  Object* var##_native =                                                \
+      native_context()->builtins()->GetPropertyNoExceptionThrown(       \
+           *var##_name);                                                \
   native_context()->set_##var(Type::cast(var##_native));
 
 
@@ -1439,7 +1446,8 @@ bool Genesis::InstallNatives() {
                              JS_BUILTINS_OBJECT_TYPE,
                              JSBuiltinsObject::kSize, code, true);
 
-  Handle<String> name = factory()->LookupAsciiSymbol("builtins");
+  Handle<String> name =
+      factory()->LookupOneByteSymbol(STATIC_ASCII_VECTOR("builtins"));
   builtins_fun->shared()->set_instance_class_name(*name);
   builtins_fun->initial_map()->set_dictionary_map(true);
   builtins_fun->initial_map()->set_prototype(heap()->null_value());
@@ -1458,7 +1466,8 @@ bool Genesis::InstallNatives() {
   // global object.
   static const PropertyAttributes attributes =
       static_cast<PropertyAttributes>(READ_ONLY | DONT_DELETE);
-  Handle<String> global_symbol = factory()->LookupAsciiSymbol("global");
+  Handle<String> global_symbol =
+      factory()->LookupOneByteSymbol(STATIC_ASCII_VECTOR("global"));
   Handle<Object> global_obj(native_context()->global_object());
   CHECK_NOT_EMPTY_HANDLE(isolate(),
                          JSObject::SetLocalPropertyIgnoreAttributes(
@@ -1501,41 +1510,49 @@ bool Genesis::InstallNatives() {
     Handle<Foreign> script_source(
         factory()->NewForeign(&Accessors::ScriptSource));
     Handle<Foreign> script_name(factory()->NewForeign(&Accessors::ScriptName));
-    Handle<String> id_symbol(factory()->LookupAsciiSymbol("id"));
+    Handle<String> id_symbol(factory()->LookupOneByteSymbol(
+        STATIC_ASCII_VECTOR("id")));
     Handle<Foreign> script_id(factory()->NewForeign(&Accessors::ScriptId));
     Handle<String> line_offset_symbol(
-        factory()->LookupAsciiSymbol("line_offset"));
+        factory()->LookupOneByteSymbol(STATIC_ASCII_VECTOR("line_offset")));
     Handle<Foreign> script_line_offset(
         factory()->NewForeign(&Accessors::ScriptLineOffset));
     Handle<String> column_offset_symbol(
-        factory()->LookupAsciiSymbol("column_offset"));
+        factory()->LookupOneByteSymbol(STATIC_ASCII_VECTOR("column_offset")));
     Handle<Foreign> script_column_offset(
         factory()->NewForeign(&Accessors::ScriptColumnOffset));
-    Handle<String> data_symbol(factory()->LookupAsciiSymbol("data"));
+    Handle<String> data_symbol(factory()->LookupOneByteSymbol(
+        STATIC_ASCII_VECTOR("data")));
     Handle<Foreign> script_data(factory()->NewForeign(&Accessors::ScriptData));
-    Handle<String> type_symbol(factory()->LookupAsciiSymbol("type"));
+    Handle<String> type_symbol(factory()->LookupOneByteSymbol(
+        STATIC_ASCII_VECTOR("type")));
     Handle<Foreign> script_type(factory()->NewForeign(&Accessors::ScriptType));
     Handle<String> compilation_type_symbol(
-        factory()->LookupAsciiSymbol("compilation_type"));
+        factory()->LookupOneByteSymbol(
+            STATIC_ASCII_VECTOR("compilation_type")));
     Handle<Foreign> script_compilation_type(
         factory()->NewForeign(&Accessors::ScriptCompilationType));
-    Handle<String> line_ends_symbol(factory()->LookupAsciiSymbol("line_ends"));
+    Handle<String> line_ends_symbol(factory()->LookupOneByteSymbol(
+        STATIC_ASCII_VECTOR("line_ends")));
     Handle<Foreign> script_line_ends(
         factory()->NewForeign(&Accessors::ScriptLineEnds));
     Handle<String> context_data_symbol(
-        factory()->LookupAsciiSymbol("context_data"));
+        factory()->LookupOneByteSymbol(STATIC_ASCII_VECTOR("context_data")));
     Handle<Foreign> script_context_data(
         factory()->NewForeign(&Accessors::ScriptContextData));
     Handle<String> eval_from_script_symbol(
-        factory()->LookupAsciiSymbol("eval_from_script"));
+        factory()->LookupOneByteSymbol(
+            STATIC_ASCII_VECTOR("eval_from_script")));
     Handle<Foreign> script_eval_from_script(
         factory()->NewForeign(&Accessors::ScriptEvalFromScript));
     Handle<String> eval_from_script_position_symbol(
-        factory()->LookupAsciiSymbol("eval_from_script_position"));
+        factory()->LookupOneByteSymbol(
+            STATIC_ASCII_VECTOR("eval_from_script_position")));
     Handle<Foreign> script_eval_from_script_position(
         factory()->NewForeign(&Accessors::ScriptEvalFromScriptPosition));
     Handle<String> eval_from_function_name_symbol(
-        factory()->LookupAsciiSymbol("eval_from_function_name"));
+        factory()->LookupOneByteSymbol(
+            STATIC_ASCII_VECTOR("eval_from_function_name")));
     Handle<Foreign> script_eval_from_function_name(
         factory()->NewForeign(&Accessors::ScriptEvalFromFunctionName));
     PropertyAttributes attribs =
@@ -1855,13 +1872,13 @@ static Handle<JSObject> ResolveBuiltinIdHolder(
   const char* period_pos = strchr(holder_expr, '.');
   if (period_pos == NULL) {
     return Handle<JSObject>::cast(
-        GetProperty(global, factory->LookupAsciiSymbol(holder_expr)));
+        GetProperty(global, factory->LookupUtf8Symbol(holder_expr)));
   }
   ASSERT_EQ(".prototype", period_pos);
   Vector<const char> property(holder_expr,
                               static_cast<int>(period_pos - holder_expr));
   Handle<JSFunction> function = Handle<JSFunction>::cast(
-      GetProperty(global, factory->LookupSymbol(property)));
+      GetProperty(global, factory->LookupUtf8Symbol(property)));
   return Handle<JSObject>(JSObject::cast(function->prototype()));
 }
 
@@ -1870,7 +1887,7 @@ static void InstallBuiltinFunctionId(Handle<JSObject> holder,
                                      const char* function_name,
                                      BuiltinFunctionId id) {
   Factory* factory = holder->GetIsolate()->factory();
-  Handle<String> name = factory->LookupAsciiSymbol(function_name);
+  Handle<String> name = factory->LookupUtf8Symbol(function_name);
   Object* function_object = holder->GetProperty(*name)->ToObjectUnchecked();
   Handle<JSFunction> function(JSFunction::cast(function_object));
   function->shared()->set_function_data(Smi::FromInt(id));
@@ -1961,7 +1978,7 @@ void Genesis::InstallSpecialObjects(Handle<Context> native_context) {
       native_context->global_object()));
   // Expose the natives in global if a name for it is specified.
   if (FLAG_expose_natives_as != NULL && strlen(FLAG_expose_natives_as) != 0) {
-    Handle<String> natives = factory->LookupAsciiSymbol(FLAG_expose_natives_as);
+    Handle<String> natives = factory->LookupUtf8Symbol(FLAG_expose_natives_as);
     CHECK_NOT_EMPTY_HANDLE(isolate,
                            JSObject::SetLocalPropertyIgnoreAttributes(
                                global, natives,
@@ -1971,7 +1988,8 @@ void Genesis::InstallSpecialObjects(Handle<Context> native_context) {
 
   Handle<Object> Error = GetProperty(global, "Error");
   if (Error->IsJSObject()) {
-    Handle<String> name = factory->LookupAsciiSymbol("stackTraceLimit");
+    Handle<String> name =
+        factory->LookupOneByteSymbol(STATIC_ASCII_VECTOR("stackTraceLimit"));
     Handle<Smi> stack_trace_limit(Smi::FromInt(FLAG_stack_trace_limit));
     CHECK_NOT_EMPTY_HANDLE(isolate,
                            JSObject::SetLocalPropertyIgnoreAttributes(
@@ -1993,7 +2011,7 @@ void Genesis::InstallSpecialObjects(Handle<Context> native_context) {
         native_context->security_token());
 
     Handle<String> debug_string =
-        factory->LookupAsciiSymbol(FLAG_expose_debug_as);
+        factory->LookupUtf8Symbol(FLAG_expose_debug_as);
     Handle<Object> global_proxy(debug->debug_context()->global_proxy());
     CHECK_NOT_EMPTY_HANDLE(isolate,
                            JSObject::SetLocalPropertyIgnoreAttributes(
@@ -2137,7 +2155,7 @@ bool Genesis::InstallJSBuiltins(Handle<JSBuiltinsObject> builtins) {
   Factory* factory = builtins->GetIsolate()->factory();
   for (int i = 0; i < Builtins::NumberOfJavaScriptBuiltins(); i++) {
     Builtins::JavaScript id = static_cast<Builtins::JavaScript>(i);
-    Handle<String> name = factory->LookupAsciiSymbol(Builtins::GetName(id));
+    Handle<String> name = factory->LookupUtf8Symbol(Builtins::GetName(id));
     Object* function_object = builtins->GetPropertyNoExceptionThrown(*name);
     Handle<JSFunction> function
         = Handle<JSFunction>(JSFunction::cast(function_object));

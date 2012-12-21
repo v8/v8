@@ -89,6 +89,7 @@ namespace internal {
   F(ForceParallelRecompile, 1, 1) \
   F(InstallRecompiledCode, 1, 1) \
   F(NotifyDeoptimized, 1, 1) \
+  F(NotifyICMiss, 0, 1) \
   F(NotifyOSR, 0, 1) \
   F(DeoptimizeFunction, 1, 1) \
   F(ClearFunctionTypeFeedback, 1, 1) \
@@ -236,7 +237,9 @@ namespace internal {
   F(FunctionIsBuiltin, 1, 1) \
   F(GetScript, 1, 1) \
   F(CollectStackTrace, 3, 1) \
-  F(GetOverflowedRawStackTrace, 1, 1) \
+  F(MarkOneShotGetter, 1, 1) \
+  F(GetOverflowedStackTrace, 1, 1) \
+  F(SetOverflowedStackTrace, 2, 1) \
   F(GetV8Version, 0, 1) \
   \
   F(ClassOf, 1, 1) \

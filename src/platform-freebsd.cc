@@ -198,6 +198,31 @@ void OS::DebugBreak() {
 }
 
 
+void OS::DumpBacktrace() {
+  void* trace[100];
+  int size = backtrace(trace, ARRAY_SIZE(trace));
+  char** symbols = backtrace_symbols(trace, size);
+  fprintf(stderr, "\n==== C stack trace ===============================\n\n");
+  if (size == 0) {
+    fprintf(stderr, "(empty)\n");
+  } else if (symbols == NULL) {
+    fprintf(stderr, "(no symbols)\n");
+  } else {
+    for (int i = 1; i < size; ++i) {
+      fprintf(stderr, "%2d: ", i);
+      char mangled[201];
+      if (sscanf(symbols[i], "%*[^(]%*[(]%200[^)+]", mangled) == 1) {  // NOLINT
+        fprintf(stderr, "%s\n", mangled);
+      } else {
+        fprintf(stderr, "??\n");
+      }
+    }
+  }
+  fflush(stderr);
+  free(symbols);
+}
+
+
 class PosixMemoryMappedFile : public OS::MemoryMappedFile {
  public:
   PosixMemoryMappedFile(FILE* file, void* memory, int size)
@@ -767,7 +792,7 @@ class SignalSender : public Thread {
       if (state == SamplerRegistry::HAS_CPU_PROFILING_SAMPLERS) {
         SamplerRegistry::IterateActiveSamplers(&DoCpuProfile, this);
       } else {
-        if (rate_limiter_.SuspendIfNecessary()) continue;
+        if (RuntimeProfiler::WaitForSomeIsolateToEnterJS()) continue;
       }
       Sleep();  // TODO(svenpanne) Figure out if OS:Sleep(interval_) is enough.
     }
@@ -802,7 +827,6 @@ class SignalSender : public Thread {
   }
 
   const int interval_;
-  RuntimeProfilerRateLimiter rate_limiter_;
 
   // Protects the process wide state below.
   static Mutex* mutex_;

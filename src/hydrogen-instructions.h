@@ -1937,7 +1937,7 @@ class HJSArrayLength: public HTemplateInstruction<2> {
     // object. It is guaranteed to be 32 bit integer, but it can be
     // represented as either a smi or heap number.
     SetOperandAt(0, value);
-    SetOperandAt(1, typecheck);
+    SetOperandAt(1, typecheck != NULL ? typecheck : value);
     set_representation(Representation::Tagged());
     SetFlag(kUseGVN);
     SetGVNFlag(kDependsOnArrayLengths);
@@ -1951,7 +1951,11 @@ class HJSArrayLength: public HTemplateInstruction<2> {
   virtual void PrintDataTo(StringStream* stream);
 
   HValue* value() { return OperandAt(0); }
-  HValue* typecheck() { return OperandAt(1); }
+  HValue* typecheck() {
+    ASSERT(HasTypeCheck());
+    return OperandAt(1);
+  }
+  bool HasTypeCheck() const { return OperandAt(0) != OperandAt(1); }
 
   DECLARE_CONCRETE_INSTRUCTION(JSArrayLength)
 
@@ -2152,14 +2156,18 @@ class HLoadElements: public HTemplateInstruction<2> {
  public:
   HLoadElements(HValue* value, HValue* typecheck) {
     SetOperandAt(0, value);
-    SetOperandAt(1, typecheck);
+    SetOperandAt(1, typecheck != NULL ? typecheck : value);
     set_representation(Representation::Tagged());
     SetFlag(kUseGVN);
     SetGVNFlag(kDependsOnElementsPointer);
   }
 
   HValue* value() { return OperandAt(0); }
-  HValue* typecheck() { return OperandAt(1); }
+  HValue* typecheck() {
+    ASSERT(HasTypeCheck());
+    return OperandAt(1);
+  }
+  bool HasTypeCheck() const { return OperandAt(0) != OperandAt(1); }
 
   virtual void PrintDataTo(StringStream* stream);
 
@@ -4366,7 +4374,7 @@ class HLoadKeyed
 
     SetOperandAt(0, obj);
     SetOperandAt(1, key);
-    SetOperandAt(2, dependency);
+    SetOperandAt(2, dependency != NULL ? dependency : obj);
 
     if (!is_external()) {
       // I can detect the case between storing double (holey and fast) and
@@ -4407,7 +4415,11 @@ class HLoadKeyed
   }
   HValue* elements() { return OperandAt(0); }
   HValue* key() { return OperandAt(1); }
-  HValue* dependency() { return OperandAt(2); }
+  HValue* dependency() {
+    ASSERT(HasDependency());
+    return OperandAt(2);
+  }
+  bool HasDependency() const { return OperandAt(0) != OperandAt(2); }
   uint32_t index_offset() { return IndexOffsetField::decode(bit_field_); }
   void SetIndexOffset(uint32_t index_offset) {
     bit_field_ = IndexOffsetField::update(bit_field_, index_offset);

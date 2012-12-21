@@ -29,7 +29,7 @@
 #define V8_UNICODE_H_
 
 #include <sys/types.h>
-
+#include <globals.h>
 /**
  * \file
  * Definitions and convenience functions for working with unicode.
@@ -140,10 +140,10 @@ class Utf16 {
   // One UTF-16 surrogate is endoded (illegally) as 3 UTF-8 bytes.
   // The illegality stems from the surrogate not being part of a pair.
   static const int kUtf8BytesToCodeASurrogate = 3;
-  static inline uchar LeadSurrogate(int char_code) {
+  static inline uint16_t LeadSurrogate(uint32_t char_code) {
     return 0xd800 + (((char_code - 0x10000) >> 10) & 0x3ff);
   }
-  static inline uchar TrailSurrogate(int char_code) {
+  static inline uint16_t TrailSurrogate(uint32_t char_code) {
     return 0xdc00 + (char_code & 0x3ff);
   }
 };
@@ -154,8 +154,6 @@ class Utf8 {
   static inline uchar Length(uchar chr, int previous);
   static inline unsigned Encode(
       char* out, uchar c, int previous);
-  static const byte* ReadBlock(Buffer<const char*> str, byte* buffer,
-      unsigned capacity, unsigned* chars_read, unsigned* offset);
   static uchar CalculateValue(const byte* str,
                               unsigned length,
                               unsigned* cursor);
@@ -170,10 +168,6 @@ class Utf8 {
   // that match are coded as a 4 byte UTF-8 sequence.
   static const unsigned kBytesSavedByCombiningSurrogates = 2;
   static const unsigned kSizeOfUnmatchedSurrogate = 3;
-
- private:
-  template <unsigned s> friend class Utf8InputBuffer;
-  friend class Test;
   static inline uchar ValueOf(const byte* str,
                               unsigned length,
                               unsigned* cursor);
@@ -245,17 +239,42 @@ class InputBuffer : public CharacterStream {
   byte util_buffer_[kSize];
 };
 
-// --- U t f 8   I n p u t   B u f f e r ---
 
-template <unsigned s = 256>
-class Utf8InputBuffer : public InputBuffer<Utf8, Buffer<const char*>, s> {
+class Utf8DecoderBase {
  public:
-  inline Utf8InputBuffer() { }
-  inline Utf8InputBuffer(const char* data, unsigned length);
-  inline void Reset(const char* data, unsigned length) {
-    InputBuffer<Utf8, Buffer<const char*>, s>::Reset(
-        Buffer<const char*>(data, length));
-  }
+  // Initialization done in subclass.
+  inline Utf8DecoderBase();
+  inline Utf8DecoderBase(uint16_t* buffer,
+                         unsigned buffer_length,
+                         const uint8_t* stream,
+                         unsigned stream_length);
+  inline unsigned Utf16Length() const { return utf16_length_; }
+ protected:
+  // This reads all characters and sets the utf16_length_.
+  // The first buffer_length utf16 chars are cached in the buffer.
+  void Reset(uint16_t* buffer,
+             unsigned buffer_length,
+             const uint8_t* stream,
+             unsigned stream_length);
+  static void WriteUtf16Slow(const uint8_t* stream,
+                             uint16_t* data,
+                             unsigned length);
+  const uint8_t* unbuffered_start_;
+  unsigned utf16_length_;
+  bool last_byte_of_buffer_unused_;
+ private:
+  DISALLOW_COPY_AND_ASSIGN(Utf8DecoderBase);
+};
+
+template <unsigned kBufferSize>
+class Utf8Decoder : public Utf8DecoderBase {
+ public:
+  inline Utf8Decoder() {}
+  inline Utf8Decoder(const char* stream, unsigned length);
+  inline void Reset(const char* stream, unsigned length);
+  inline unsigned WriteUtf16(uint16_t* data, unsigned length) const;
+ private:
+  uint16_t buffer_[kBufferSize];
 };
 
 

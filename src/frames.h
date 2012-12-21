@@ -136,6 +136,7 @@ class StackHandler BASE_EMBEDDED {
   V(EXIT,              ExitFrame)             \
   V(JAVA_SCRIPT,       JavaScriptFrame)       \
   V(OPTIMIZED,         OptimizedFrame)        \
+  V(STUB,              StubFrame)             \
   V(INTERNAL,          InternalFrame)         \
   V(CONSTRUCT,         ConstructFrame)        \
   V(ARGUMENTS_ADAPTOR, ArgumentsAdaptorFrame)
@@ -263,11 +264,11 @@ class StackFrame BASE_EMBEDDED {
                      PrintMode mode,
                      int index) const { }
 
+  Isolate* isolate() const { return isolate_; }
+
  protected:
   inline explicit StackFrame(StackFrameIterator* iterator);
   virtual ~StackFrame() { }
-
-  Isolate* isolate() const { return isolate_; }
 
   // Compute the stack pointer for the calling frame.
   virtual Address GetCallerStackPointer() const = 0;
@@ -448,6 +449,9 @@ class StandardFrame: public StackFrame {
   // construct frame.
   static inline bool IsConstructFrame(Address fp);
 
+  // Used by OptimizedFrames and StubFrames.
+  void IterateCompiledFrame(ObjectVisitor* v) const;
+
  private:
   friend class StackFrame;
   friend class StackFrameIterator;
@@ -499,6 +503,9 @@ class JavaScriptFrame: public StandardFrame {
   inline int ComputeParametersCount() const {
     return GetNumberOfIncomingArguments();
   }
+
+  // Debugger access.
+  void SetParameterValue(int index, Object* value) const;
 
   // Check if this frame is a constructor frame invoked through 'new'.
   bool IsConstructor() const;
@@ -552,6 +559,27 @@ class JavaScriptFrame: public StandardFrame {
 
   friend class StackFrameIterator;
   friend class StackTracer;
+};
+
+
+class StubFrame : public StandardFrame {
+ public:
+  virtual Type type() const { return STUB; }
+
+  // GC support.
+  virtual void Iterate(ObjectVisitor* v) const;
+
+  // Determine the code for the frame.
+  virtual Code* unchecked_code() const;
+
+ protected:
+  inline explicit StubFrame(StackFrameIterator* iterator);
+
+  virtual Address GetCallerStackPointer() const;
+
+  virtual int GetNumberOfIncomingArguments() const;
+
+  friend class StackFrameIterator;
 };
 
 

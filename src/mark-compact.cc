@@ -835,8 +835,6 @@ void MarkCompactCollector::Finish() {
   // GC, because it relies on the new address of certain old space
   // objects (empty string, illegal builtin).
   heap()->isolate()->stub_cache()->Clear();
-
-  heap()->external_string_table_.CleanUp();
 }
 
 
@@ -2030,6 +2028,7 @@ void MarkCompactCollector::AfterMarking() {
   symbol_table->ElementsRemoved(v.PointersRemoved());
   heap()->external_string_table_.Iterate(&v);
   heap()->external_string_table_.CleanUp();
+  heap()->error_object_list_.RemoveUnmarked(heap());
 
   // Process the weak references.
   MarkCompactWeakObjectRetainer mark_compact_object_retainer;
@@ -3068,6 +3067,9 @@ void MarkCompactCollector::EvacuateNewSpaceAndCandidates() {
   // Update pointers from external string table.
   heap_->UpdateReferencesInExternalStringTable(
       &UpdateReferenceInExternalStringTableEntry);
+
+  // Update pointers in the new error object list.
+  heap_->error_object_list()->UpdateReferences();
 
   if (!FLAG_watch_ic_patching) {
     // Update JSFunction pointers from the runtime profiler.

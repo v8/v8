@@ -98,7 +98,6 @@ static SmartArrayPointer<const char> Parse(const char* input) {
 static bool CheckSimple(const char* input) {
   V8::Initialize(NULL);
   v8::HandleScope scope;
-  unibrow::Utf8InputBuffer<> buffer(input, StrLength(input));
   ZoneScope zone_scope(Isolate::Current()->runtime_zone(), DELETE_ON_EXIT);
   FlatStringReader reader(Isolate::Current(), CStrVector(input));
   RegExpCompileData result;
@@ -117,7 +116,6 @@ struct MinMaxPair {
 static MinMaxPair CheckMinMaxMatch(const char* input) {
   V8::Initialize(NULL);
   v8::HandleScope scope;
-  unibrow::Utf8InputBuffer<> buffer(input, StrLength(input));
   ZoneScope zone_scope(Isolate::Current()->runtime_zone(), DELETE_ON_EXIT);
   FlatStringReader reader(Isolate::Current(), CStrVector(input));
   RegExpCompileData result;

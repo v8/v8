@@ -202,6 +202,11 @@ void OS::DebugBreak() {
 }
 
 
+void OS::DumpBacktrace() {
+  // Currently unsupported.
+}
+
+
 class PosixMemoryMappedFile : public OS::MemoryMappedFile {
  public:
   PosixMemoryMappedFile(FILE* file, void* memory, int size)
@@ -762,7 +767,7 @@ class SignalSender : public Thread {
         SamplerRegistry::IterateActiveSamplers(&DoCpuProfile, this);
       } else {
         if (signal_handler_installed_) RestoreSignalHandler();
-        if (rate_limiter_.SuspendIfNecessary()) continue;
+        if (RuntimeProfiler::WaitForSomeIsolateToEnterJS()) continue;
       }
       Sleep();  // TODO(svenpanne) Figure out if OS:Sleep(interval_) is enough.
     }
@@ -797,7 +802,6 @@ class SignalSender : public Thread {
   }
 
   const int interval_;
-  RuntimeProfilerRateLimiter rate_limiter_;
 
   // Protects the process wide state below.
   static Mutex* mutex_;

@@ -430,11 +430,6 @@ void RuntimeProfiler::HandleWakeUp(Isolate* isolate) {
 }
 
 
-bool RuntimeProfiler::IsSomeIsolateInJS() {
-  return NoBarrier_Load(&state_) > 0;
-}
-
-
 bool RuntimeProfiler::WaitForSomeIsolateToEnterJS() {
   Atomic32 old_state = NoBarrier_CompareAndSwap(&state_, 0, -1);
   ASSERT(old_state >= -1);
@@ -481,14 +476,6 @@ void RuntimeProfiler::UpdateSamplesAfterCompact(ObjectVisitor* visitor) {
   for (int i = 0; i < kSamplerWindowSize; i++) {
     visitor->VisitPointer(&sampler_window_[i]);
   }
-}
-
-
-bool RuntimeProfilerRateLimiter::SuspendIfNecessary() {
-  if (!RuntimeProfiler::IsSomeIsolateInJS()) {
-    return RuntimeProfiler::WaitForSomeIsolateToEnterJS();
-  }
-  return false;
 }
 
 

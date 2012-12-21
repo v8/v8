@@ -631,7 +631,17 @@ Handle<String> JsonParser<seq_ascii>::ScanJsonString() {
                                                         position_);
       }
       if (c0 < 0x20) return Handle<String>::null();
-      running_hash = StringHasher::AddCharacterCore(running_hash, c0);
+      if (static_cast<uint32_t>(c0) >
+          unibrow::Utf16::kMaxNonSurrogateCharCode) {
+        running_hash =
+            StringHasher::AddCharacterCore(running_hash,
+                                           unibrow::Utf16::LeadSurrogate(c0));
+        running_hash =
+            StringHasher::AddCharacterCore(running_hash,
+                                           unibrow::Utf16::TrailSurrogate(c0));
+      } else {
+        running_hash = StringHasher::AddCharacterCore(running_hash, c0);
+      }
       position++;
       if (position >= source_length_) return Handle<String>::null();
       c0 = seq_source_->SeqOneByteStringGet(position);
@@ -685,9 +695,7 @@ Handle<String> JsonParser<seq_ascii>::ScanJsonString() {
   int length = position_ - beg_pos;
   Handle<String> result;
   if (seq_ascii && is_symbol) {
-    result = factory()->LookupAsciiSymbol(seq_source_,
-                                          beg_pos,
-                                          length);
+    result = factory()->LookupOneByteSymbol(seq_source_, beg_pos, length);
   } else {
     result = factory()->NewRawOneByteString(length, pretenure_);
     char* dest = SeqOneByteString::cast(*result)->GetChars();

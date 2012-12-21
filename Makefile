@@ -62,6 +62,12 @@ endif
 ifeq ($(verifyheap), on)
   GYPFLAGS += -Dv8_enable_verify_heap=1
 endif
+# backtrace=off
+ifeq ($(backtrace), off)
+  GYPFLAGS += -Dv8_enable_backtrace=0
+else
+  GYPFLAGS += -Dv8_enable_backtrace=1
+endif
 # snapshot=off
 ifeq ($(snapshot), off)
   GYPFLAGS += -Dv8_use_snapshot='false'
@@ -80,6 +86,12 @@ endif
 # liveobjectlist=on
 ifeq ($(liveobjectlist), on)
   GYPFLAGS += -Dv8_use_liveobjectlist=true
+endif
+# vfp2=off
+ifeq ($(vfp2), off)
+  GYPFLAGS += -Dv8_can_use_vfp2_instructions=false
+else
+  GYPFLAGS += -Dv8_can_use_vfp2_instructions=true
 endif
 # vfp3=off
 ifeq ($(vfp3), off)

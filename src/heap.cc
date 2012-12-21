@@ -550,6 +550,8 @@ void Heap::GarbageCollectionEpilogue() {
 #ifdef ENABLE_DEBUGGER_SUPPORT
   isolate_->debug()->AfterGarbageCollection();
 #endif  // ENABLE_DEBUGGER_SUPPORT
+
+  error_object_list_.DeferredFormatStackTrace(isolate());
 }
 
 
@@ -1353,6 +1355,8 @@ void Heap::Scavenge() {
 
   UpdateNewSpaceReferencesInExternalStringTable(
       &UpdateNewSpaceReferenceInExternalStringTableEntry);
+
+  error_object_list_.UpdateReferencesInNewSpace(this);
 
   promotion_queue_.Destroy();
 
@@ -2772,7 +2776,7 @@ bool Heap::CreateInitialObjects() {
 
   for (unsigned i = 0; i < ARRAY_SIZE(constant_symbol_table); i++) {
     { MaybeObject* maybe_obj =
-          LookupAsciiSymbol(constant_symbol_table[i].contents);
+          LookupUtf8Symbol(constant_symbol_table[i].contents);
       if (!maybe_obj->ToObject(&obj)) return false;
     }
     roots_[constant_symbol_table[i].index] = String::cast(obj);
@@ -3298,8 +3302,8 @@ static inline bool Between(uint32_t character, uint32_t from, uint32_t to) {
 
 MUST_USE_RESULT static inline MaybeObject* MakeOrFindTwoCharacterString(
     Heap* heap,
-    uint32_t c1,
-    uint32_t c2) {
+    uint16_t c1,
+    uint16_t c2) {
   String* symbol;
   // Numeric strings have a different hash algorithm not known by
   // LookupTwoCharsSymbolIfExists, so we skip this step for such strings.
@@ -3308,15 +3312,16 @@ MUST_USE_RESULT static inline MaybeObject* MakeOrFindTwoCharacterString(
     return symbol;
   // Now we know the length is 2, we might as well make use of that fact
   // when building the new string.
-  } else if ((c1 | c2) <= String::kMaxAsciiCharCodeU) {  // We can do this
+  } else if (static_cast<unsigned>(c1 | c2) <= String::kMaxAsciiCharCodeU) {
+    // We can do this.
     ASSERT(IsPowerOf2(String::kMaxAsciiCharCodeU + 1));  // because of this.
     Object* result;
     { MaybeObject* maybe_result = heap->AllocateRawOneByteString(2);
       if (!maybe_result->ToObject(&result)) return maybe_result;
     }
     char* dest = SeqOneByteString::cast(result)->GetChars();
-    dest[0] = c1;
-    dest[1] = c2;
+    dest[0] = static_cast<char>(c1);
+    dest[1] = static_cast<char>(c2);
     return result;
   } else {
     Object* result;
@@ -3348,8 +3353,8 @@ MaybeObject* Heap::AllocateConsString(String* first, String* second) {
   // dictionary.  Check whether we already have the string in the symbol
   // table to prevent creation of many unneccesary strings.
   if (length == 2) {
-    unsigned c1 = first->Get(0);
-    unsigned c2 = second->Get(0);
+    uint16_t c1 = first->Get(0);
+    uint16_t c2 = second->Get(0);
     return MakeOrFindTwoCharacterString(this, c1, c2);
   }
 
@@ -3463,8 +3468,8 @@ MaybeObject* Heap::AllocateSubString(String* buffer,
     // Optimization for 2-byte strings often used as keys in a decompression
     // dictionary.  Check whether we already have the string in the symbol
     // table to prevent creation of many unneccesary strings.
-    unsigned c1 = buffer->Get(start);
-    unsigned c2 = buffer->Get(start + 1);
+    uint16_t c1 = buffer->Get(start);
+    uint16_t c2 = buffer->Get(start + 1);
     return MakeOrFindTwoCharacterString(this, c1, c2);
   }
 
@@ -3606,7 +3611,8 @@ MaybeObject* Heap::LookupSingleCharacterStringFromCode(uint16_t code) {
     char buffer[1];
     buffer[0] = static_cast<char>(code);
     Object* result;
-    MaybeObject* maybe_result = LookupSymbol(Vector<const char>(buffer, 1));
+    MaybeObject* maybe_result =
+        LookupOneByteSymbol(Vector<const char>(buffer, 1));
 
     if (!maybe_result->ToObject(&result)) return maybe_result;
     single_character_string_cache()->set(code, result);
@@ -4457,7 +4463,7 @@ MaybeObject* Heap::ReinitializeJSReceiver(
   SharedFunctionInfo* shared = NULL;
   if (type == JS_FUNCTION_TYPE) {
     String* name;
-    maybe = LookupAsciiSymbol("<freezing call trap>");
+    maybe = LookupOneByteSymbol(STATIC_ASCII_VECTOR("<freezing call trap>"));
     if (!maybe->To<String>(&name)) return maybe;
     maybe = AllocateSharedFunctionInfo(name);
     if (!maybe->To<SharedFunctionInfo>(&shared)) return maybe;
@@ -4540,37 +4546,31 @@ MaybeObject* Heap::AllocateStringFromUtf8Slow(Vector<const char> string,
                                               PretenureFlag pretenure) {
   // Continue counting the number of characters in the UTF-8 string, starting
   // from the first non-ascii character or word.
-  int chars = non_ascii_start;
   Access<UnicodeCache::Utf8Decoder>
       decoder(isolate_->unicode_cache()->utf8_decoder());
-  decoder->Reset(string.start() + non_ascii_start, string.length() - chars);
-  while (decoder->has_more()) {
-    uint32_t r = decoder->GetNext();
-    if (r <= unibrow::Utf16::kMaxNonSurrogateCharCode) {
-      chars++;
-    } else {
-      chars += 2;
-    }
-  }
-
+  decoder->Reset(string.start() + non_ascii_start,
+                 string.length() - non_ascii_start);
+  int utf16_length = decoder->Utf16Length();
+  ASSERT(utf16_length > 0);
+  // Allocate string.
   Object* result;
-  { MaybeObject* maybe_result = AllocateRawTwoByteString(chars, pretenure);
+  {
+    int chars = non_ascii_start + utf16_length;
+    MaybeObject* maybe_result = AllocateRawTwoByteString(chars, pretenure);
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
-
   // Convert and copy the characters into the new object.
   SeqTwoByteString* twobyte = SeqTwoByteString::cast(result);
-  decoder->Reset(string.start(), string.length());
-  int i = 0;
-  while (i < chars) {
-    uint32_t r = decoder->GetNext();
-    if (r > unibrow::Utf16::kMaxNonSurrogateCharCode) {
-      twobyte->SeqTwoByteStringSet(i++, unibrow::Utf16::LeadSurrogate(r));
-      twobyte->SeqTwoByteStringSet(i++, unibrow::Utf16::TrailSurrogate(r));
-    } else {
-      twobyte->SeqTwoByteStringSet(i++, r);
+  // Copy ascii portion.
+  uint16_t* data = twobyte->GetChars();
+  if (non_ascii_start != 0) {
+    const char* ascii_data = string.start();
+    for (int i = 0; i < non_ascii_start; i++) {
+      *data++ = *ascii_data++;
     }
   }
+  // Now write the remainder.
+  decoder->WriteUtf16(data, utf16_length);
   return result;
 }
 
@@ -4619,27 +4619,88 @@ Map* Heap::SymbolMapForString(String* string) {
 }
 
 
-MaybeObject* Heap::AllocateInternalSymbol(unibrow::CharacterStream* buffer,
+template<typename T>
+class AllocateInternalSymbolHelper {
+ public:
+  static void WriteOneByteData(T t, char* chars, int len);
+  static void WriteTwoByteData(T t, uint16_t* chars, int len);
+ private:
+  DISALLOW_COPY_AND_ASSIGN(AllocateInternalSymbolHelper);
+};
+
+
+template<>
+class AllocateInternalSymbolHelper< Vector<const char> > {
+ public:
+  static inline void WriteOneByteData(Vector<const char> vector,
+                                      char* chars,
+                                      int len) {
+    // Only works for ascii.
+    ASSERT(vector.length() == len);
+    memcpy(chars, vector.start(), len);
+  }
+
+  static inline void WriteTwoByteData(Vector<const char> vector,
+                                      uint16_t* chars,
+                                      int len) {
+    const uint8_t* stream = reinterpret_cast<const uint8_t*>(vector.start());
+    unsigned stream_length = vector.length();
+    while (stream_length != 0) {
+      unsigned consumed = 0;
+      uint32_t c = unibrow::Utf8::ValueOf(stream, stream_length, &consumed);
+      ASSERT(c != unibrow::Utf8::kBadChar);
+      ASSERT(consumed <= stream_length);
+      stream_length -= consumed;
+      stream += consumed;
+      if (c > unibrow::Utf16::kMaxNonSurrogateCharCode) {
+        len -= 2;
+        if (len < 0) break;
+        *chars++ = unibrow::Utf16::LeadSurrogate(c);
+        *chars++ = unibrow::Utf16::TrailSurrogate(c);
+      } else {
+        len -= 1;
+        if (len < 0) break;
+        *chars++ = c;
+      }
+    }
+    ASSERT(stream_length == 0);
+    ASSERT(len == 0);
+  }
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(AllocateInternalSymbolHelper);
+};
+
+
+template<>
+class AllocateInternalSymbolHelper<String*> {
+ public:
+  static inline void WriteOneByteData(String* s, char* chars, int len) {
+    ASSERT(s->length() == len);
+    String::WriteToFlat(s, chars, 0, len);
+  }
+
+  static inline void WriteTwoByteData(String* s, uint16_t* chars, int len) {
+    ASSERT(s->length() == len);
+    String::WriteToFlat(s, chars, 0, len);
+  }
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(AllocateInternalSymbolHelper<String*>);
+};
+
+
+template<bool is_one_byte, typename T>
+MaybeObject* Heap::AllocateInternalSymbol(T t,
                                           int chars,
                                           uint32_t hash_field) {
+  typedef AllocateInternalSymbolHelper<T> H;
   ASSERT(chars >= 0);
-  // Ensure the chars matches the number of characters in the buffer.
-  ASSERT(static_cast<unsigned>(chars) == buffer->Utf16Length());
-  // Determine whether the string is ASCII.
-  bool is_ascii = true;
-  while (buffer->has_more()) {
-    if (buffer->GetNext() > unibrow::Utf8::kMaxOneByteChar) {
-      is_ascii = false;
-      break;
-    }
-  }
-  buffer->Rewind();
-
   // Compute map and object size.
   int size;
   Map* map;
 
-  if (is_ascii) {
+  if (is_one_byte) {
     if (chars > SeqOneByteString::kMaxLength) {
       return Failure::OutOfMemoryException();
     }
@@ -4669,19 +4730,24 @@ MaybeObject* Heap::AllocateInternalSymbol(unibrow::CharacterStream* buffer,
 
   ASSERT_EQ(size, answer->Size());
 
-  // Fill in the characters.
-  int i = 0;
-  while (i < chars) {
-    uint32_t character = buffer->GetNext();
-    if (character > unibrow::Utf16::kMaxNonSurrogateCharCode) {
-      answer->Set(i++, unibrow::Utf16::LeadSurrogate(character));
-      answer->Set(i++, unibrow::Utf16::TrailSurrogate(character));
-    } else {
-      answer->Set(i++, character);
-    }
+  if (is_one_byte) {
+    H::WriteOneByteData(t, SeqOneByteString::cast(answer)->GetChars(), chars);
+  } else {
+    H::WriteTwoByteData(t, SeqTwoByteString::cast(answer)->GetChars(), chars);
   }
   return answer;
 }
+
+
+// Need explicit instantiations.
+template
+MaybeObject* Heap::AllocateInternalSymbol<true>(String*, int, uint32_t);
+template
+MaybeObject* Heap::AllocateInternalSymbol<false>(String*, int, uint32_t);
+template
+MaybeObject* Heap::AllocateInternalSymbol<false>(Vector<const char>,
+                                                 int,
+                                                 uint32_t);
 
 
 MaybeObject* Heap::AllocateRawOneByteString(int length,
@@ -5550,11 +5616,11 @@ void Heap::Verify() {
 #endif
 
 
-MaybeObject* Heap::LookupSymbol(Vector<const char> string) {
+MaybeObject* Heap::LookupUtf8Symbol(Vector<const char> string) {
   Object* symbol = NULL;
   Object* new_table;
   { MaybeObject* maybe_new_table =
-        symbol_table()->LookupSymbol(string, &symbol);
+        symbol_table()->LookupUtf8Symbol(string, &symbol);
     if (!maybe_new_table->ToObject(&new_table)) return maybe_new_table;
   }
   // Can't use set_symbol_table because SymbolTable::cast knows that
@@ -5565,11 +5631,11 @@ MaybeObject* Heap::LookupSymbol(Vector<const char> string) {
 }
 
 
-MaybeObject* Heap::LookupAsciiSymbol(Vector<const char> string) {
+MaybeObject* Heap::LookupOneByteSymbol(Vector<const char> string) {
   Object* symbol = NULL;
   Object* new_table;
   { MaybeObject* maybe_new_table =
-        symbol_table()->LookupAsciiSymbol(string, &symbol);
+        symbol_table()->LookupOneByteSymbol(string, &symbol);
     if (!maybe_new_table->ToObject(&new_table)) return maybe_new_table;
   }
   // Can't use set_symbol_table because SymbolTable::cast knows that
@@ -5580,13 +5646,13 @@ MaybeObject* Heap::LookupAsciiSymbol(Vector<const char> string) {
 }
 
 
-MaybeObject* Heap::LookupAsciiSymbol(Handle<SeqOneByteString> string,
+MaybeObject* Heap::LookupOneByteSymbol(Handle<SeqOneByteString> string,
                                      int from,
                                      int length) {
   Object* symbol = NULL;
   Object* new_table;
   { MaybeObject* maybe_new_table =
-        symbol_table()->LookupSubStringAsciiSymbol(string,
+        symbol_table()->LookupSubStringOneByteSymbol(string,
                                                    from,
                                                    length,
                                                    &symbol);
@@ -5870,6 +5936,7 @@ void Heap::IterateWeakRoots(ObjectVisitor* v, VisitMode mode) {
       mode != VISIT_ALL_IN_SWEEP_NEWSPACE) {
     // Scavenge collections have special processing for this.
     external_string_table_.Iterate(v);
+    error_object_list_.Iterate(v);
   }
   v->Synchronize(VisitorSynchronization::kExternalStringsTable);
 }
@@ -6242,6 +6309,8 @@ void Heap::TearDown() {
   isolate_->global_handles()->TearDown();
 
   external_string_table_.TearDown();
+
+  error_object_list_.TearDown();
 
   new_space_.TearDown();
 
@@ -7149,6 +7218,8 @@ void ExternalStringTable::CleanUp() {
     }
   }
   new_space_strings_.Rewind(last);
+  new_space_strings_.Trim();
+
   last = 0;
   for (int i = 0; i < old_space_strings_.length(); ++i) {
     if (old_space_strings_[i] == heap_->the_hole_value()) {
@@ -7158,6 +7229,7 @@ void ExternalStringTable::CleanUp() {
     old_space_strings_[last++] = old_space_strings_[i];
   }
   old_space_strings_.Rewind(last);
+  old_space_strings_.Trim();
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap) {
     Verify();
@@ -7169,6 +7241,114 @@ void ExternalStringTable::CleanUp() {
 void ExternalStringTable::TearDown() {
   new_space_strings_.Free();
   old_space_strings_.Free();
+}
+
+
+// Update all references.
+void ErrorObjectList::UpdateReferences() {
+  for (int i = 0; i < list_.length(); i++) {
+    HeapObject* object = HeapObject::cast(list_[i]);
+    MapWord first_word = object->map_word();
+    if (first_word.IsForwardingAddress()) {
+      list_[i] = first_word.ToForwardingAddress();
+    }
+  }
+}
+
+
+// Unforwarded objects in new space are dead and removed from the list.
+void ErrorObjectList::UpdateReferencesInNewSpace(Heap* heap) {
+  if (!nested_) {
+    int write_index = 0;
+    for (int i = 0; i < list_.length(); i++) {
+      MapWord first_word = HeapObject::cast(list_[i])->map_word();
+      if (first_word.IsForwardingAddress()) {
+        list_[write_index++] = first_word.ToForwardingAddress();
+      }
+    }
+    list_.Rewind(write_index);
+  } else {
+    // If a GC is triggered during DeferredFormatStackTrace, we do not move
+    // objects in the list, just remove dead ones, as to not confuse the
+    // loop in DeferredFormatStackTrace.
+    for (int i = 0; i < list_.length(); i++) {
+      MapWord first_word = HeapObject::cast(list_[i])->map_word();
+      list_[i] = first_word.IsForwardingAddress()
+                     ? first_word.ToForwardingAddress()
+                     : heap->the_hole_value();
+    }
+  }
+}
+
+
+void ErrorObjectList::DeferredFormatStackTrace(Isolate* isolate) {
+  // If formatting the stack trace causes a GC, this method will be
+  // recursively called.  In that case, skip the recursive call, since
+  // the loop modifies the list while iterating over it.
+  if (nested_ || isolate->has_pending_exception()) return;
+  nested_ = true;
+  HandleScope scope(isolate);
+  Handle<String> stack_key = isolate->factory()->stack_symbol();
+  int write_index = 0;
+  int budget = kBudgetPerGC;
+  for (int i = 0; i < list_.length(); i++) {
+    Object* object = list_[i];
+    JSFunction* getter_fun;
+
+    { AssertNoAllocation assert;
+      // Skip possible holes in the list.
+      if (object->IsTheHole()) continue;
+      if (isolate->heap()->InNewSpace(object) || budget == 0) {
+        list_[write_index++] = object;
+        continue;
+      }
+
+      // Check whether the stack property is backed by the original getter.
+      LookupResult lookup(isolate);
+      JSObject::cast(object)->LocalLookupRealNamedProperty(*stack_key, &lookup);
+      if (!lookup.IsFound() || lookup.type() != CALLBACKS) continue;
+      Object* callback = lookup.GetCallbackObject();
+      if (!callback->IsAccessorPair()) continue;
+      Object* getter_obj = AccessorPair::cast(callback)->getter();
+      if (!getter_obj->IsJSFunction()) continue;
+      getter_fun = JSFunction::cast(getter_obj);
+      String* key = isolate->heap()->hidden_stack_trace_symbol();
+      if (key != getter_fun->GetHiddenProperty(key)) continue;
+    }
+
+    budget--;
+    HandleScope scope(isolate);
+    bool has_exception = false;
+    Handle<Object> object_handle(object, isolate);
+    Handle<Object> getter_handle(getter_fun, isolate);
+    Execution::Call(getter_handle, object_handle, 0, NULL, &has_exception);
+    if (has_exception) {
+      // Hit an exception (most likely a stack overflow).
+      // Wrap up this pass and retry after another GC.
+      isolate->clear_pending_exception();
+      // We use the handle since calling the getter might have caused a GC.
+      list_[write_index++] = *object_handle;
+      budget = 0;
+    }
+  }
+  list_.Rewind(write_index);
+  list_.Trim();
+  nested_ = false;
+}
+
+
+void ErrorObjectList::RemoveUnmarked(Heap* heap) {
+  for (int i = 0; i < list_.length(); i++) {
+    HeapObject* object = HeapObject::cast(list_[i]);
+    if (!Marking::MarkBitFrom(object).Get()) {
+      list_[i] = heap->the_hole_value();
+    }
+  }
+}
+
+
+void ErrorObjectList::TearDown() {
+  list_.Free();
 }
 
 

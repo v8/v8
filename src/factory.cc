@@ -158,9 +158,9 @@ Handle<TypeFeedbackInfo> Factory::NewTypeFeedbackInfo() {
 
 
 // Symbols are created in the old generation (data space).
-Handle<String> Factory::LookupSymbol(Vector<const char> string) {
+Handle<String> Factory::LookupUtf8Symbol(Vector<const char> string) {
   CALL_HEAP_FUNCTION(isolate(),
-                     isolate()->heap()->LookupSymbol(string),
+                     isolate()->heap()->LookupUtf8Symbol(string),
                      String);
 }
 
@@ -171,18 +171,18 @@ Handle<String> Factory::LookupSymbol(Handle<String> string) {
                      String);
 }
 
-Handle<String> Factory::LookupAsciiSymbol(Vector<const char> string) {
+Handle<String> Factory::LookupOneByteSymbol(Vector<const char> string) {
   CALL_HEAP_FUNCTION(isolate(),
-                     isolate()->heap()->LookupAsciiSymbol(string),
+                     isolate()->heap()->LookupOneByteSymbol(string),
                      String);
 }
 
 
-Handle<String> Factory::LookupAsciiSymbol(Handle<SeqOneByteString> string,
+Handle<String> Factory::LookupOneByteSymbol(Handle<SeqOneByteString> string,
                                           int from,
                                           int length) {
   CALL_HEAP_FUNCTION(isolate(),
-                     isolate()->heap()->LookupAsciiSymbol(string,
+                     isolate()->heap()->LookupOneByteSymbol(string,
                                                           from,
                                                           length),
                      String);
@@ -741,7 +741,7 @@ Handle<String> Factory::EmergencyNewError(const char* type,
 Handle<Object> Factory::NewError(const char* maker,
                                  const char* type,
                                  Handle<JSArray> args) {
-  Handle<String> make_str = LookupAsciiSymbol(maker);
+  Handle<String> make_str = LookupUtf8Symbol(maker);
   Handle<Object> fun_obj(
       isolate()->js_builtins_object()->GetPropertyNoExceptionThrown(*make_str));
   // If the builtins haven't been properly configured yet this error
@@ -750,7 +750,7 @@ Handle<Object> Factory::NewError(const char* maker,
     return EmergencyNewError(type, args);
   }
   Handle<JSFunction> fun = Handle<JSFunction>::cast(fun_obj);
-  Handle<Object> type_obj = LookupAsciiSymbol(type);
+  Handle<Object> type_obj = LookupUtf8Symbol(type);
   Handle<Object> argv[] = { type_obj, args };
 
   // Invoke the JavaScript factory method. If an exception is thrown while
@@ -772,7 +772,7 @@ Handle<Object> Factory::NewError(Handle<String> message) {
 
 Handle<Object> Factory::NewError(const char* constructor,
                                  Handle<String> message) {
-  Handle<String> constr = LookupAsciiSymbol(constructor);
+  Handle<String> constr = LookupUtf8Symbol(constructor);
   Handle<JSFunction> fun = Handle<JSFunction>(
       JSFunction::cast(isolate()->js_builtins_object()->
                        GetPropertyNoExceptionThrown(*constr)));
@@ -1260,6 +1260,10 @@ Handle<JSFunction> Factory::CreateApiFunction(
                   instance_size,
                   code,
                   true);
+
+  // Set length.
+  result->shared()->set_length(obj->length());
+
   // Set class name.
   Handle<Object> class_name = Handle<Object>(obj->class_name());
   if (class_name->IsString()) {

@@ -1680,6 +1680,7 @@ static void ReportCodeKindStatistics() {
       CASE(FUNCTION);
       CASE(OPTIMIZED_FUNCTION);
       CASE(STUB);
+      CASE(COMPILED_STUB);
       CASE(BUILTIN);
       CASE(LOAD_IC);
       CASE(KEYED_LOAD_IC);
@@ -1929,52 +1930,49 @@ void FreeListNode::set_next(FreeListNode* next) {
 }
 
 
-FreeList::FreeList(PagedSpace* owner)
-    : owner_(owner), heap_(owner->heap()) {
-  Reset();
-}
-
-
-void FreeList::Reset() {
+void FreeListCategory::Reset() {
+  top_ = NULL;
+  end_ = NULL;
   available_ = 0;
-  small_list_ = NULL;
-  medium_list_ = NULL;
-  large_list_ = NULL;
-  huge_list_ = NULL;
 }
 
 
-int FreeList::Free(Address start, int size_in_bytes) {
-  if (size_in_bytes == 0) return 0;
-  FreeListNode* node = FreeListNode::FromAddress(start);
-  node->set_size(heap_, size_in_bytes);
-
-  // Early return to drop too-small blocks on the floor.
-  if (size_in_bytes < kSmallListMin) return size_in_bytes;
-
-  // Insert other blocks at the head of a free list of the appropriate
-  // magnitude.
-  if (size_in_bytes <= kSmallListMax) {
-    node->set_next(small_list_);
-    small_list_ = node;
-  } else if (size_in_bytes <= kMediumListMax) {
-    node->set_next(medium_list_);
-    medium_list_ = node;
-  } else if (size_in_bytes <= kLargeListMax) {
-    node->set_next(large_list_);
-    large_list_ = node;
-  } else {
-    node->set_next(huge_list_);
-    huge_list_ = node;
+intptr_t FreeListCategory::CountFreeListItemsInList(Page* p) {
+  int sum = 0;
+  FreeListNode* n = top_;
+  while (n != NULL) {
+    if (Page::FromAddress(n->address()) == p) {
+      FreeSpace* free_space = reinterpret_cast<FreeSpace*>(n);
+      sum += free_space->Size();
+    }
+    n = n->next();
   }
-  available_ += size_in_bytes;
-  ASSERT(IsVeryLong() || available_ == SumFreeLists());
-  return 0;
+  return sum;
 }
 
 
-FreeListNode* FreeList::PickNodeFromList(FreeListNode** list, int* node_size) {
-  FreeListNode* node = *list;
+intptr_t FreeListCategory::EvictFreeListItemsInList(Page* p) {
+  int sum = 0;
+  FreeListNode** n = &top_;
+  while (*n != NULL) {
+    if (Page::FromAddress((*n)->address()) == p) {
+      FreeSpace* free_space = reinterpret_cast<FreeSpace*>(*n);
+      sum += free_space->Size();
+      *n = (*n)->next();
+    } else {
+      n = (*n)->next_address();
+    }
+  }
+  if (top_ == NULL) {
+    end_ = NULL;
+  }
+  available_ -= sum;
+  return sum;
+}
+
+
+FreeListNode* FreeListCategory::PickNodeFromList(int *node_size) {
+  FreeListNode* node = top_;
 
   if (node == NULL) return NULL;
 
@@ -1985,13 +1983,82 @@ FreeListNode* FreeList::PickNodeFromList(FreeListNode** list, int* node_size) {
   }
 
   if (node != NULL) {
+    set_top(node->next());
     *node_size = node->Size();
-    *list = node->next();
+    available_ -= *node_size;
   } else {
-    *list = NULL;
+    set_top(NULL);
+  }
+
+  if (top() == NULL) {
+    set_end(NULL);
   }
 
   return node;
+}
+
+
+void FreeListCategory::Free(FreeListNode* node, int size_in_bytes) {
+  node->set_next(top_);
+  top_ = node;
+  if (end_ == NULL) {
+    end_ = node;
+  }
+  available_ += size_in_bytes;
+}
+
+
+void FreeListCategory::RepairFreeList(Heap* heap) {
+  FreeListNode* n = top_;
+  while (n != NULL) {
+    Map** map_location = reinterpret_cast<Map**>(n->address());
+    if (*map_location == NULL) {
+      *map_location = heap->free_space_map();
+    } else {
+      ASSERT(*map_location == heap->free_space_map());
+    }
+    n = n->next();
+  }
+}
+
+
+FreeList::FreeList(PagedSpace* owner)
+    : owner_(owner), heap_(owner->heap()) {
+  Reset();
+}
+
+
+void FreeList::Reset() {
+  small_list_.Reset();
+  medium_list_.Reset();
+  large_list_.Reset();
+  huge_list_.Reset();
+}
+
+
+int FreeList::Free(Address start, int size_in_bytes) {
+  if (size_in_bytes == 0) return 0;
+
+  FreeListNode* node = FreeListNode::FromAddress(start);
+  node->set_size(heap_, size_in_bytes);
+
+  // Early return to drop too-small blocks on the floor.
+  if (size_in_bytes < kSmallListMin) return size_in_bytes;
+
+  // Insert other blocks at the head of a free list of the appropriate
+  // magnitude.
+  if (size_in_bytes <= kSmallListMax) {
+    small_list_.Free(node, size_in_bytes);
+  } else if (size_in_bytes <= kMediumListMax) {
+    medium_list_.Free(node, size_in_bytes);
+  } else if (size_in_bytes <= kLargeListMax) {
+    large_list_.Free(node, size_in_bytes);
+  } else {
+    huge_list_.Free(node, size_in_bytes);
+  }
+
+  ASSERT(IsVeryLong() || available() == SumFreeLists());
+  return 0;
 }
 
 
@@ -1999,32 +2066,36 @@ FreeListNode* FreeList::FindNodeFor(int size_in_bytes, int* node_size) {
   FreeListNode* node = NULL;
 
   if (size_in_bytes <= kSmallAllocationMax) {
-    node = PickNodeFromList(&small_list_, node_size);
+    node = small_list_.PickNodeFromList(node_size);
     if (node != NULL) return node;
   }
 
   if (size_in_bytes <= kMediumAllocationMax) {
-    node = PickNodeFromList(&medium_list_, node_size);
+    node = medium_list_.PickNodeFromList(node_size);
     if (node != NULL) return node;
   }
 
   if (size_in_bytes <= kLargeAllocationMax) {
-    node = PickNodeFromList(&large_list_, node_size);
+    node = large_list_.PickNodeFromList(node_size);
     if (node != NULL) return node;
   }
 
-  for (FreeListNode** cur = &huge_list_;
+  int huge_list_available = huge_list_.available();
+  for (FreeListNode** cur = huge_list_.GetTopAddress();
        *cur != NULL;
        cur = (*cur)->next_address()) {
     FreeListNode* cur_node = *cur;
     while (cur_node != NULL &&
            Page::FromAddress(cur_node->address())->IsEvacuationCandidate()) {
-      available_ -= reinterpret_cast<FreeSpace*>(cur_node)->Size();
+      huge_list_available -= reinterpret_cast<FreeSpace*>(cur_node)->Size();
       cur_node = cur_node->next();
     }
 
     *cur = cur_node;
-    if (cur_node == NULL) break;
+    if (cur_node == NULL) {
+      huge_list_.set_end(NULL);
+      break;
+    }
 
     ASSERT((*cur)->map() == HEAP->raw_unchecked_free_space_map());
     FreeSpace* cur_as_free_space = reinterpret_cast<FreeSpace*>(*cur);
@@ -2032,11 +2103,19 @@ FreeListNode* FreeList::FindNodeFor(int size_in_bytes, int* node_size) {
     if (size >= size_in_bytes) {
       // Large enough node found.  Unlink it from the list.
       node = *cur;
-      *node_size = size;
       *cur = node->next();
+      *node_size = size;
+      huge_list_available -= size;
       break;
     }
   }
+
+  if (huge_list_.top() == NULL) {
+    huge_list_.set_end(NULL);
+  }
+
+  huge_list_.set_available(huge_list_available);
+  ASSERT(IsVeryLong() || available() == SumFreeLists());
 
   return node;
 }
@@ -2057,8 +2136,6 @@ HeapObject* FreeList::Allocate(int size_in_bytes) {
   FreeListNode* new_node = FindNodeFor(size_in_bytes, &new_node_size);
   if (new_node == NULL) return NULL;
 
-  available_ -= new_node_size;
-  ASSERT(IsVeryLong() || available_ == SumFreeLists());
 
   int bytes_left = new_node_size - size_in_bytes;
   ASSERT(bytes_left >= 0);
@@ -2116,25 +2193,12 @@ HeapObject* FreeList::Allocate(int size_in_bytes) {
 }
 
 
-static intptr_t CountFreeListItemsInList(FreeListNode* n, Page* p) {
-  intptr_t sum = 0;
-  while (n != NULL) {
-    if (Page::FromAddress(n->address()) == p) {
-      FreeSpace* free_space = reinterpret_cast<FreeSpace*>(n);
-      sum += free_space->Size();
-    }
-    n = n->next();
-  }
-  return sum;
-}
-
-
 void FreeList::CountFreeListItems(Page* p, SizeStats* sizes) {
-  sizes->huge_size_ = CountFreeListItemsInList(huge_list_, p);
+  sizes->huge_size_ = huge_list_.CountFreeListItemsInList(p);
   if (sizes->huge_size_ < p->area_size()) {
-    sizes->small_size_ = CountFreeListItemsInList(small_list_, p);
-    sizes->medium_size_ = CountFreeListItemsInList(medium_list_, p);
-    sizes->large_size_ = CountFreeListItemsInList(large_list_, p);
+    sizes->small_size_ = small_list_.CountFreeListItemsInList(p);
+    sizes->medium_size_ = medium_list_.CountFreeListItemsInList(p);
+    sizes->large_size_ = large_list_.CountFreeListItemsInList(p);
   } else {
     sizes->small_size_ = 0;
     sizes->medium_size_ = 0;
@@ -2143,39 +2207,31 @@ void FreeList::CountFreeListItems(Page* p, SizeStats* sizes) {
 }
 
 
-static intptr_t EvictFreeListItemsInList(FreeListNode** n, Page* p) {
-  intptr_t sum = 0;
-  while (*n != NULL) {
-    if (Page::FromAddress((*n)->address()) == p) {
-      FreeSpace* free_space = reinterpret_cast<FreeSpace*>(*n);
-      sum += free_space->Size();
-      *n = (*n)->next();
-    } else {
-      n = (*n)->next_address();
-    }
+intptr_t FreeList::EvictFreeListItems(Page* p) {
+  intptr_t sum = huge_list_.EvictFreeListItemsInList(p);
+
+  if (sum < p->area_size()) {
+    sum += small_list_.EvictFreeListItemsInList(p) +
+        medium_list_.EvictFreeListItemsInList(p) +
+        large_list_.EvictFreeListItemsInList(p);
   }
+
   return sum;
 }
 
 
-intptr_t FreeList::EvictFreeListItems(Page* p) {
-  intptr_t sum = EvictFreeListItemsInList(&huge_list_, p);
-
-  if (sum < p->area_size()) {
-    sum += EvictFreeListItemsInList(&small_list_, p) +
-        EvictFreeListItemsInList(&medium_list_, p) +
-        EvictFreeListItemsInList(&large_list_, p);
-  }
-
-  available_ -= static_cast<int>(sum);
-
-  return sum;
+void FreeList::RepairLists(Heap* heap) {
+  small_list_.RepairFreeList(heap);
+  medium_list_.RepairFreeList(heap);
+  large_list_.RepairFreeList(heap);
+  huge_list_.RepairFreeList(heap);
 }
 
 
 #ifdef DEBUG
-intptr_t FreeList::SumFreeList(FreeListNode* cur) {
+intptr_t FreeListCategory::SumFreeList() {
   intptr_t sum = 0;
+  FreeListNode* cur = top_;
   while (cur != NULL) {
     ASSERT(cur->map() == HEAP->raw_unchecked_free_space_map());
     FreeSpace* cur_as_free_space = reinterpret_cast<FreeSpace*>(cur);
@@ -2189,8 +2245,9 @@ intptr_t FreeList::SumFreeList(FreeListNode* cur) {
 static const int kVeryLongFreeList = 500;
 
 
-int FreeList::FreeListLength(FreeListNode* cur) {
+int FreeListCategory::FreeListLength() {
   int length = 0;
+  FreeListNode* cur = top_;
   while (cur != NULL) {
     length++;
     cur = cur->next();
@@ -2201,10 +2258,10 @@ int FreeList::FreeListLength(FreeListNode* cur) {
 
 
 bool FreeList::IsVeryLong() {
-  if (FreeListLength(small_list_) == kVeryLongFreeList) return  true;
-  if (FreeListLength(medium_list_) == kVeryLongFreeList) return  true;
-  if (FreeListLength(large_list_) == kVeryLongFreeList) return  true;
-  if (FreeListLength(huge_list_) == kVeryLongFreeList) return  true;
+  if (small_list_.FreeListLength() == kVeryLongFreeList) return  true;
+  if (medium_list_.FreeListLength() == kVeryLongFreeList) return  true;
+  if (large_list_.FreeListLength() == kVeryLongFreeList) return  true;
+  if (huge_list_.FreeListLength() == kVeryLongFreeList) return  true;
   return false;
 }
 
@@ -2213,10 +2270,10 @@ bool FreeList::IsVeryLong() {
 // on the free list, so it should not be called if FreeListLength returns
 // kVeryLongFreeList.
 intptr_t FreeList::SumFreeLists() {
-  intptr_t sum = SumFreeList(small_list_);
-  sum += SumFreeList(medium_list_);
-  sum += SumFreeList(large_list_);
-  sum += SumFreeList(huge_list_);
+  intptr_t sum = small_list_.SumFreeList();
+  sum += medium_list_.SumFreeList();
+  sum += large_list_.SumFreeList();
+  sum += huge_list_.SumFreeList();
   return sum;
 }
 #endif
@@ -2301,27 +2358,6 @@ bool PagedSpace::ReserveSpace(int size_in_bytes) {
 
   SetTop(new_area->address(), new_area->address() + size_in_bytes);
   return true;
-}
-
-
-static void RepairFreeList(Heap* heap, FreeListNode* n) {
-  while (n != NULL) {
-    Map** map_location = reinterpret_cast<Map**>(n->address());
-    if (*map_location == NULL) {
-      *map_location = heap->free_space_map();
-    } else {
-      ASSERT(*map_location == heap->free_space_map());
-    }
-    n = n->next();
-  }
-}
-
-
-void FreeList::RepairLists(Heap* heap) {
-  RepairFreeList(heap, small_list_);
-  RepairFreeList(heap, medium_list_);
-  RepairFreeList(heap, large_list_);
-  RepairFreeList(heap, huge_list_);
 }
 
 

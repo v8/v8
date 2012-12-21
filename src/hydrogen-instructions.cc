@@ -1031,8 +1031,10 @@ void HChange::PrintDataTo(StringStream* stream) {
 
 void HJSArrayLength::PrintDataTo(StringStream* stream) {
   value()->PrintNameTo(stream);
-  stream->Add(" ");
-  typecheck()->PrintNameTo(stream);
+  if (HasTypeCheck()) {
+    stream->Add(" ");
+    typecheck()->PrintNameTo(stream);
+  }
 }
 
 
@@ -1144,8 +1146,10 @@ void HCheckInstanceType::GetCheckMaskAndTag(uint8_t* mask, uint8_t* tag) {
 
 void HLoadElements::PrintDataTo(StringStream* stream) {
   value()->PrintNameTo(stream);
-  stream->Add(" ");
-  typecheck()->PrintNameTo(stream);
+  if (HasTypeCheck()) {
+    stream->Add(" ");
+    typecheck()->PrintNameTo(stream);
+  }
 }
 
 
@@ -1338,6 +1342,11 @@ Range* HMod::InferRange(Zone* zone) {
     if (a->CanBeMinusZero() || a->CanBeNegative()) {
       result->set_can_be_minus_zero(true);
     }
+
+    if (right()->range()->Includes(-1) && left()->range()->Includes(kMinInt)) {
+      SetFlag(HValue::kCanOverflow);
+    }
+
     if (!right()->range()->CanBeZero()) {
       ClearFlag(HValue::kCanBeDivByZero);
     }
@@ -2023,12 +2032,16 @@ void HLoadKeyed::PrintDataTo(StringStream* stream) {
   stream->Add("[");
   key()->PrintNameTo(stream);
   if (IsDehoisted()) {
-    stream->Add(" + %d] ", index_offset());
+    stream->Add(" + %d]", index_offset());
   } else {
-    stream->Add("] ");
+    stream->Add("]");
   }
 
-  dependency()->PrintNameTo(stream);
+  if (HasDependency()) {
+    stream->Add(" ");
+    dependency()->PrintNameTo(stream);
+  }
+
   if (RequiresHoleCheck()) {
     stream->Add(" check_hole");
   }

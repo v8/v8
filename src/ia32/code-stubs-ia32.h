@@ -38,7 +38,7 @@ namespace internal {
 
 // Compute a transcendental math function natively, or call the
 // TranscendentalCache runtime function.
-class TranscendentalCacheStub: public CodeStub {
+class TranscendentalCacheStub: public PlatformCodeStub {
  public:
   enum ArgumentType {
     TAGGED = 0,
@@ -61,7 +61,7 @@ class TranscendentalCacheStub: public CodeStub {
 };
 
 
-class StoreBufferOverflowStub: public CodeStub {
+class StoreBufferOverflowStub: public PlatformCodeStub {
  public:
   explicit StoreBufferOverflowStub(SaveFPRegsMode save_fp)
       : save_doubles_(save_fp) { }
@@ -80,7 +80,7 @@ class StoreBufferOverflowStub: public CodeStub {
 };
 
 
-class UnaryOpStub: public CodeStub {
+class UnaryOpStub: public PlatformCodeStub {
  public:
   UnaryOpStub(Token::Value op,
               UnaryOverwriteMode mode,
@@ -225,7 +225,7 @@ enum StringAddFlags {
 };
 
 
-class StringAddStub: public CodeStub {
+class StringAddStub: public PlatformCodeStub {
  public:
   explicit StringAddStub(StringAddFlags flags) : flags_(flags) {}
 
@@ -247,7 +247,7 @@ class StringAddStub: public CodeStub {
 };
 
 
-class SubStringStub: public CodeStub {
+class SubStringStub: public PlatformCodeStub {
  public:
   SubStringStub() {}
 
@@ -259,7 +259,7 @@ class SubStringStub: public CodeStub {
 };
 
 
-class StringCompareStub: public CodeStub {
+class StringCompareStub: public PlatformCodeStub {
  public:
   StringCompareStub() { }
 
@@ -295,7 +295,7 @@ class StringCompareStub: public CodeStub {
 };
 
 
-class NumberToStringStub: public CodeStub {
+class NumberToStringStub: public PlatformCodeStub {
  public:
   NumberToStringStub() { }
 
@@ -320,7 +320,7 @@ class NumberToStringStub: public CodeStub {
 };
 
 
-class StringDictionaryLookupStub: public CodeStub {
+class StringDictionaryLookupStub: public PlatformCodeStub {
  public:
   enum LookupMode { POSITIVE_LOOKUP, NEGATIVE_LOOKUP };
 
@@ -382,7 +382,7 @@ class StringDictionaryLookupStub: public CodeStub {
 };
 
 
-class RecordWriteStub: public CodeStub {
+class RecordWriteStub: public PlatformCodeStub {
  public:
   RecordWriteStub(Register object,
                   Register value,
@@ -585,7 +585,7 @@ class RecordWriteStub: public CodeStub {
     Register GetRegThatIsNotEcxOr(Register r1,
                                   Register r2,
                                   Register r3) {
-      for (int i = 0; i < Register::kNumAllocatableRegisters; i++) {
+      for (int i = 0; i < Register::NumAllocatableRegisters(); i++) {
         Register candidate = Register::FromAllocationIndex(i);
         if (candidate.is(ecx)) continue;
         if (candidate.is(r1)) continue;

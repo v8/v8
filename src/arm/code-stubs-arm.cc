@@ -37,6 +37,17 @@ namespace v8 {
 namespace internal {
 
 
+void KeyedLoadFastElementStub::InitializeInterfaceDescriptor(
+    Isolate* isolate,
+    CodeStubInterfaceDescriptor* descriptor) {
+  static Register registers[] = { r1, r0 };
+  descriptor->register_param_count_ = 2;
+  descriptor->register_params_ = registers;
+  descriptor->deoptimization_handler_ =
+      isolate->builtins()->KeyedLoadIC_Miss();
+}
+
+
 #define __ ACCESS_MASM(masm)
 
 static void EmitIdenticalObjectComparison(MacroAssembler* masm,
@@ -503,7 +514,7 @@ void FastCloneShallowObjectStub::Generate(MacroAssembler* masm) {
 // 52 fraction bits (20 in the first word, 32 in the second).  Zeros is a
 // scratch register.  Destroys the source register.  No GC occurs during this
 // stub so you don't have to set up the frame.
-class ConvertToDoubleStub : public CodeStub {
+class ConvertToDoubleStub : public PlatformCodeStub {
  public:
   ConvertToDoubleStub(Register result_reg_1,
                       Register result_reg_2,
@@ -2430,33 +2441,112 @@ void BinaryOpStub_GenerateSmiSmiOperation(MacroAssembler* masm,
       // We fall through here if we multiplied a negative number with 0, because
       // that would mean we should produce -0.
       break;
-    case Token::DIV:
+    case Token::DIV: {
+      Label div_with_sdiv;
+
+      // Check for 0 divisor.
+      __ cmp(right, Operand(0));
+      __ b(eq, &not_smi_result);
+
       // Check for power of two on the right hand side.
-      __ JumpIfNotPowerOfTwoOrZero(right, scratch1, &not_smi_result);
-      // Check for positive and no remainder (scratch1 contains right - 1).
-      __ orr(scratch2, scratch1, Operand(0x80000000u));
-      __ tst(left, scratch2);
-      __ b(ne, &not_smi_result);
+      __ sub(scratch1, right, Operand(1));
+      __ tst(scratch1, right);
+      if (CpuFeatures::IsSupported(SUDIV)) {
+        __ b(ne, &div_with_sdiv);
+        // Check for no remainder.
+        __ tst(left, scratch1);
+        __ b(ne, &not_smi_result);
+        // Check for positive left hand side.
+        __ cmp(left, Operand(0));
+        __ b(mi, &div_with_sdiv);
+      } else {
+        __ b(ne, &not_smi_result);
+        // Check for positive and no remainder.
+        __ orr(scratch2, scratch1, Operand(0x80000000u));
+        __ tst(left, scratch2);
+        __ b(ne, &not_smi_result);
+      }
 
       // Perform division by shifting.
       __ CountLeadingZeros(scratch1, scratch1, scratch2);
       __ rsb(scratch1, scratch1, Operand(31));
       __ mov(right, Operand(left, LSR, scratch1));
       __ Ret();
+
+      if (CpuFeatures::IsSupported(SUDIV)) {
+        Label result_not_zero;
+
+        __ bind(&div_with_sdiv);
+        // Do division.
+        __ sdiv(scratch1, left, right);
+        // Check that the remainder is zero.
+        __ mls(scratch2, scratch1, right, left);
+        __ cmp(scratch2, Operand(0));
+        __ b(ne, &not_smi_result);
+        // Check for negative zero result.
+        __ cmp(scratch1, Operand(0));
+        __ b(ne, &result_not_zero);
+        __ cmp(right, Operand(0));
+        __ b(lt, &not_smi_result);
+        __ bind(&result_not_zero);
+        // Check for the corner case of dividing the most negative smi by -1.
+        __ cmp(scratch1, Operand(0x40000000));
+        __ b(eq, &not_smi_result);
+        // Tag and return the result.
+        __ SmiTag(right, scratch1);
+        __ Ret();
+      }
       break;
-    case Token::MOD:
-      // Check for two positive smis.
-      __ orr(scratch1, left, Operand(right));
-      __ tst(scratch1, Operand(0x80000000u | kSmiTagMask));
-      __ b(ne, &not_smi_result);
+    }
+    case Token::MOD: {
+      Label modulo_with_sdiv;
 
-      // Check for power of two on the right hand side.
-      __ JumpIfNotPowerOfTwoOrZero(right, scratch1, &not_smi_result);
+      if (CpuFeatures::IsSupported(SUDIV)) {
+        // Check for x % 0.
+        __ cmp(right, Operand(0));
+        __ b(eq, &not_smi_result);
 
-      // Perform modulus by masking.
+        // Check for two positive smis.
+        __ orr(scratch1, left, Operand(right));
+        __ tst(scratch1, Operand(0x80000000u));
+        __ b(ne, &modulo_with_sdiv);
+
+        // Check for power of two on the right hand side.
+        __ sub(scratch1, right, Operand(1));
+        __ tst(scratch1, right);
+        __ b(ne, &modulo_with_sdiv);
+      } else {
+        // Check for two positive smis.
+        __ orr(scratch1, left, Operand(right));
+        __ tst(scratch1, Operand(0x80000000u));
+        __ b(ne, &not_smi_result);
+
+        // Check for power of two on the right hand side.
+        __ JumpIfNotPowerOfTwoOrZero(right, scratch1, &not_smi_result);
+      }
+
+      // Perform modulus by masking (scratch1 contains right - 1).
       __ and_(right, left, Operand(scratch1));
       __ Ret();
+
+      if (CpuFeatures::IsSupported(SUDIV)) {
+        __ bind(&modulo_with_sdiv);
+        __ mov(scratch2, right);
+        // Perform modulus with sdiv and mls.
+        __ sdiv(scratch1, left, right);
+        __ mls(right, scratch1, right, left);
+        // Return if the result is not 0.
+        __ cmp(right, Operand(0));
+        __ Ret(ne);
+        // The result is 0, check for -0 case.
+        __ cmp(left, Operand(0));
+        __ Ret(pl);
+        // This is a -0 case, restore the value of right.
+        __ mov(right, scratch2);
+        // We fall through here to not_smi_result to produce -0.
+      }
       break;
+    }
     case Token::BIT_OR:
       __ orr(right, left, Operand(right));
       __ Ret();
@@ -3568,10 +3658,10 @@ void MathPowStub::Generate(MacroAssembler* masm) {
   const Register exponent = r2;
   const Register heapnumbermap = r5;
   const Register heapnumber = r0;
-  const DoubleRegister double_base = d1;
-  const DoubleRegister double_exponent = d2;
-  const DoubleRegister double_result = d3;
-  const DoubleRegister double_scratch = d0;
+  const DwVfpRegister double_base = d1;
+  const DwVfpRegister double_exponent = d2;
+  const DwVfpRegister double_result = d3;
+  const DwVfpRegister double_scratch = d0;
   const SwVfpRegister single_scratch = s0;
   const Register scratch = r9;
   const Register scratch2 = r7;
@@ -3781,12 +3871,29 @@ void CodeStub::GenerateStubsAheadOfTime() {
 
 
 void CodeStub::GenerateFPStubs() {
-  CEntryStub save_doubles(1, kSaveFPRegs);
-  Handle<Code> code = save_doubles.GetCode();
-  code->set_is_pregenerated(true);
-  StoreBufferOverflowStub stub(kSaveFPRegs);
-  stub.GetCode()->set_is_pregenerated(true);
-  code->GetIsolate()->set_fp_stubs_generated(true);
+  SaveFPRegsMode mode = CpuFeatures::IsSupported(VFP2)
+      ? kSaveFPRegs
+      : kDontSaveFPRegs;
+  CEntryStub save_doubles(1, mode);
+  StoreBufferOverflowStub stub(mode);
+  // These stubs might already be in the snapshot, detect that and don't
+  // regenerate, which would lead to code stub initialization state being messed
+  // up.
+  Code* save_doubles_code = NULL;
+  Code* store_buffer_overflow_code = NULL;
+  if (!save_doubles.FindCodeInCache(&save_doubles_code, ISOLATE)) {
+    if (CpuFeatures::IsSupported(VFP2)) {
+      CpuFeatures::Scope scope2(VFP2);
+      save_doubles_code = *save_doubles.GetCode();
+      store_buffer_overflow_code = *stub.GetCode();
+    } else {
+      save_doubles_code = *save_doubles.GetCode();
+      store_buffer_overflow_code = *stub.GetCode();
+    }
+    save_doubles_code->set_is_pregenerated(true);
+    store_buffer_overflow_code->set_is_pregenerated(true);
+  }
+  ISOLATE->set_fp_stubs_generated(true);
 }
 
 
