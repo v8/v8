@@ -2130,6 +2130,15 @@ void Assembler::movmskpd(Register dst, XMMRegister src) {
 }
 
 
+void Assembler::movmskps(Register dst, XMMRegister src) {
+  ASSERT(CpuFeatures::IsEnabled(SSE2));
+  EnsureSpace ensure_space(this);
+  EMIT(0x0F);
+  EMIT(0x50);
+  emit_sse_operand(dst, src);
+}
+
+
 void Assembler::pcmpeqd(XMMRegister dst, XMMRegister src) {
   ASSERT(CpuFeatures::IsEnabled(SSE2));
   EnsureSpace ensure_space(this);
