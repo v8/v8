@@ -2871,9 +2871,10 @@ void FloatingPointHelper::CheckSSE2OperandIsInt32(MacroAssembler* masm,
   __ cvttsd2si(scratch, Operand(operand));
   __ cvtsi2sd(xmm_scratch, scratch);
   __ pcmpeqd(xmm_scratch, operand);
-  __ movmskpd(scratch, xmm_scratch);
-  __ test(scratch, Immediate(1));
-  __ j(zero, non_int32);
+  __ movmskps(scratch, xmm_scratch);
+  __ neg(scratch);
+  __ test(scratch, Immediate(3));
+  __ j(not_zero, non_int32);
 }
 
 
