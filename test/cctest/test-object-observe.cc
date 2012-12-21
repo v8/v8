@@ -279,6 +279,7 @@ TEST(GlobalObjectObservation) {
   CHECK_EQ(3, CompileRun("records.length")->Int32Value());
 }
 
+
 struct RecordExpectation {
   Handle<Value> object;
   const char* type;
@@ -309,6 +310,9 @@ static void ExpectRecords(Handle<Value> records,
     }
   }
 }
+
+#define EXPECT_RECORDS(records, expectations) \
+    ExpectRecords(records, expectations, ARRAY_SIZE(expectations))
 
 TEST(APITestBasicMutation) {
   HarmonyIsolate isolate;
@@ -348,7 +352,48 @@ TEST(APITestBasicMutation) {
     { obj, "deleted", "1", Number::New(5) },
     { obj, "deleted", "1.1", Number::New(6) }
   };
-  ExpectRecords(CompileRun("records"),
-                expected_records,
-                ARRAY_SIZE(expected_records));
+  EXPECT_RECORDS(CompileRun("records"), expected_records);
+}
+
+TEST(HiddenPrototypeObservation) {
+  HarmonyIsolate isolate;
+  HandleScope scope;
+  LocalContext context;
+  Handle<FunctionTemplate> tmpl = FunctionTemplate::New();
+  tmpl->SetHiddenPrototype(true);
+  tmpl->InstanceTemplate()->Set(String::New("foo"), Number::New(75));
+  Handle<Object> proto = tmpl->GetFunction()->NewInstance();
+  Handle<Object> obj = Object::New();
+  obj->SetPrototype(proto);
+  context->Global()->Set(String::New("obj"), obj);
+  context->Global()->Set(String::New("proto"), proto);
+  CompileRun(
+      "var records;"
+      "function observer(r) { records = r; };"
+      "Object.observe(obj, observer);"
+      "obj.foo = 41;"  // triggers a notification
+      "proto.foo = 42;");  // does not trigger a notification
+  const RecordExpectation expected_records[] = {
+    { obj, "updated", "foo", Number::New(75) }
+  };
+  EXPECT_RECORDS(CompileRun("records"), expected_records);
+  obj->SetPrototype(Null());
+  CompileRun("obj.foo = 43");
+  const RecordExpectation expected_records2[] = {
+    { obj, "new", "foo", Handle<Value>() }
+  };
+  EXPECT_RECORDS(CompileRun("records"), expected_records2);
+  obj->SetPrototype(proto);
+  CompileRun(
+      "Object.observe(proto, observer);"
+      "proto.bar = 1;"
+      "Object.unobserve(obj, observer);"
+      "obj.foo = 44;");
+  const RecordExpectation expected_records3[] = {
+    { proto, "new", "bar", Handle<Value>() }
+    // TODO(adamk): The below record should be emitted since proto is observed
+    // and has been modified. Not clear if this happens in practice.
+    // { proto, "updated", "foo", Number::New(43) }
+  };
+  EXPECT_RECORDS(CompileRun("records"), expected_records3);
 }
