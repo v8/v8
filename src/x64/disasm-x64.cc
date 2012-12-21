@@ -1731,6 +1731,11 @@ int DisassemblerX64::InstructionDecode(v8::internal::Vector<char> out_buffer,
         data += F6F7Instruction(data);
         break;
 
+      case 0x3C:
+        AppendToBuffer("cmp al, 0x%x", *reinterpret_cast<int8_t*>(data + 1));
+        data +=2;
+        break;
+
       default:
         UnimplementedInstruction();
         data += 1;
