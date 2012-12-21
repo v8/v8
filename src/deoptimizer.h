@@ -144,6 +144,9 @@ class Deoptimizer : public Malloced {
     DEBUGGER
   };
 
+  static bool TraceEnabledFor(BailoutType type);
+  static const char* MessageFor(BailoutType type);
+
   int output_count() const { return output_count_; }
 
   Code::Kind compiled_code_kind() const { return compiled_code_->kind(); }
@@ -326,6 +329,9 @@ class Deoptimizer : public Malloced {
               Address from,
               int fp_to_sp_delta,
               Code* optimized_code);
+  Code* FindOptimizedCode(JSFunction* function, Code* optimized_code);
+  void Trace();
+  void PrintFunctionName();
   void DeleteFrameDescriptions();
 
   void DoComputeOutputFrames();

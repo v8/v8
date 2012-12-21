@@ -4211,6 +4211,8 @@ class Code: public HeapObject {
   // Flags.
   STATIC_ASSERT(LAST_CODE_KIND < 16);
 
+  static const char* Kind2String(Kind kind);
+
   // Types of stubs.
   enum StubType {
     NORMAL,
@@ -4232,7 +4234,6 @@ class Code: public HeapObject {
 
 #ifdef ENABLE_DISASSEMBLER
   // Printing
-  static const char* Kind2String(Kind kind);
   static const char* ICState2String(InlineCacheState state);
   static const char* StubType2String(StubType type);
   static void PrintExtraICState(FILE* out, Kind kind, ExtraICState extra);

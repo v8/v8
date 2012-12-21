@@ -477,37 +477,32 @@ void Deoptimizer::ComputeOutputFrames(Deoptimizer* deoptimizer) {
 }
 
 
-static Code* FindOptimizedCode(Isolate* isolate,
-                               JSFunction* function,
-                               Deoptimizer::BailoutType type,
-                               Address from,
-                               Code* optimized_code) {
+bool Deoptimizer::TraceEnabledFor(BailoutType type) {
   switch (type) {
-    case Deoptimizer::EAGER:
-      ASSERT(from == NULL);
-      return function->code();
-    case Deoptimizer::LAZY: {
-      Code* compiled_code =
-          isolate->deoptimizer_data()->FindDeoptimizingCode(from);
-      return (compiled_code == NULL)
-          ? static_cast<Code*>(isolate->heap()->FindCodeObject(from))
-          : compiled_code;
-    }
-    case Deoptimizer::OSR: {
-      // The function has already been optimized and we're transitioning
-      // from the unoptimized shared version to the optimized one in the
-      // function. The return address (from) points to unoptimized code.
-      Code* compiled_code = function->code();
-      ASSERT(compiled_code->kind() == Code::OPTIMIZED_FUNCTION);
-      ASSERT(!compiled_code->contains(from));
-      return compiled_code;
-    }
-    case Deoptimizer::DEBUGGER:
-      ASSERT(optimized_code->contains(from));
-      return optimized_code;
+    case EAGER:
+    case LAZY:
+    case DEBUGGER:
+      return FLAG_trace_deopt;
+    case OSR:
+      return FLAG_trace_osr;
   }
   UNREACHABLE();
-  return NULL;
+  return false;
+}
+
+
+const char* Deoptimizer::MessageFor(BailoutType type) {
+  switch (type) {
+    case EAGER:
+    case LAZY:
+      return "DEOPT";
+    case DEBUGGER:
+      return "DEOPT FOR DEBUGGER";
+    case OSR:
+      return "OSR";
+  }
+  UNREACHABLE();
+  return false;
 }
 
 
@@ -532,42 +527,71 @@ Deoptimizer::Deoptimizer(Isolate* isolate,
       deferred_arguments_objects_values_(0),
       deferred_arguments_objects_(0),
       deferred_heap_numbers_(0) {
-  if (FLAG_trace_deopt && type != OSR) {
-    if (type == DEBUGGER) {
-      PrintF("**** DEOPT FOR DEBUGGER: ");
-    } else {
-      PrintF("**** DEOPT: ");
-    }
-    function->PrintName();
-    PrintF(" at bailout #%u, address 0x%" V8PRIxPTR ", frame size %d\n",
-           bailout_id,
-           reinterpret_cast<intptr_t>(from),
-           fp_to_sp_delta - (2 * kPointerSize));
-  } else if (FLAG_trace_osr && type == OSR) {
-    PrintF("**** OSR: ");
-    function->PrintName();
-    PrintF(" at ast id #%u, address 0x%" V8PRIxPTR ", frame size %d\n",
-           bailout_id,
-           reinterpret_cast<intptr_t>(from),
-           fp_to_sp_delta - (2 * kPointerSize));
-  }
-  // For COMPILED_STUBs called from builtins, the function pointer
-  // is a SMI indicating an internal frame.
+  // For COMPILED_STUBs called from builtins, the function pointer is a SMI
+  // indicating an internal frame.
   if (function->IsSmi()) {
     function = NULL;
   }
   if (function != NULL && function->IsOptimized()) {
     function->shared()->increment_deopt_count();
   }
-  compiled_code_ =
-      FindOptimizedCode(isolate, function, type, from, optimized_code);
-  if (FLAG_trace_deopt && type == EAGER) {
-    compiled_code_->PrintDeoptLocation(bailout_id);
-  }
+  compiled_code_ = FindOptimizedCode(function, optimized_code);
+  if (TraceEnabledFor(type)) Trace();
   ASSERT(HEAP->allow_allocation(false));
   unsigned size = ComputeInputFrameSize();
   input_ = new(size) FrameDescription(size, function);
   input_->SetFrameType(StackFrame::JAVA_SCRIPT);
+}
+
+
+Code* Deoptimizer::FindOptimizedCode(JSFunction* function,
+                                     Code* optimized_code) {
+  switch (bailout_type_) {
+    case Deoptimizer::EAGER:
+      ASSERT(from_ == NULL);
+      return function->code();
+    case Deoptimizer::LAZY: {
+      Code* compiled_code =
+          isolate_->deoptimizer_data()->FindDeoptimizingCode(from_);
+      return (compiled_code == NULL)
+          ? static_cast<Code*>(isolate_->heap()->FindCodeObject(from_))
+          : compiled_code;
+    }
+    case Deoptimizer::OSR: {
+      // The function has already been optimized and we're transitioning
+      // from the unoptimized shared version to the optimized one in the
+      // function. The return address (from_) points to unoptimized code.
+      Code* compiled_code = function->code();
+      ASSERT(compiled_code->kind() == Code::OPTIMIZED_FUNCTION);
+      ASSERT(!compiled_code->contains(from_));
+      return compiled_code;
+    }
+    case Deoptimizer::DEBUGGER:
+      ASSERT(optimized_code->contains(from_));
+      return optimized_code;
+  }
+  UNREACHABLE();
+  return NULL;
+}
+
+
+void Deoptimizer::Trace() {
+  PrintF("**** %s: ", Deoptimizer::MessageFor(bailout_type_));
+  PrintFunctionName();
+  PrintF(" at id #%u, address 0x%" V8PRIxPTR ", frame size %d\n",
+         bailout_id_,
+         reinterpret_cast<intptr_t>(from_),
+         fp_to_sp_delta_ - (2 * kPointerSize));
+  if (bailout_type_ == EAGER) compiled_code_->PrintDeoptLocation(bailout_id_);
+}
+
+
+void Deoptimizer::PrintFunctionName() {
+  if (function_->IsJSFunction()) {
+    function_->PrintName();
+  } else {
+    PrintF("%s", Code::Kind2String(compiled_code_->kind()));
+  }
 }
 
 
@@ -681,7 +705,7 @@ void Deoptimizer::DoComputeOutputFrames() {
     PrintF("[deoptimizing%s: begin 0x%08" V8PRIxPTR " ",
            (bailout_type_ == LAZY ? " (lazy)" : ""),
            reinterpret_cast<intptr_t>(function_));
-    function_->PrintName();
+    PrintFunctionName();
     PrintF(" @%d]\n", bailout_id_);
   }
 
@@ -761,7 +785,7 @@ void Deoptimizer::DoComputeOutputFrames() {
     JSFunction* function = output_[index]->GetFunction();
     PrintF("[deoptimizing: end 0x%08" V8PRIxPTR " ",
            reinterpret_cast<intptr_t>(function));
-    function->PrintName();
+    if (function != NULL) function->PrintName();
     PrintF(" => node=%d, pc=0x%08" V8PRIxPTR ", state=%s, alignment=%s,"
            " took %0.3f ms]\n",
            node_id.ToInt(),
