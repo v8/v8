@@ -502,7 +502,7 @@ const char* Deoptimizer::MessageFor(BailoutType type) {
       return "OSR";
   }
   UNREACHABLE();
-  return false;
+  return NULL;
 }
 
 
