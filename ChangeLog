@@ -1,4 +1,4 @@
-2012-12-21: Version 3.15.12
+2012-12-21: Version 3.16.0
 
         V8_Fatal now prints C++ stack trace in debug mode.
 
