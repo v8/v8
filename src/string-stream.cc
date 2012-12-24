@@ -318,7 +318,7 @@ bool StringStream::Put(String* str, int start, int end) {
     if (c >= 127 || c < 32) {
       c = '?';
     }
-    if (!Put(c)) {
+    if (!Put(static_cast<char>(c))) {
       return false;  // Output was truncated.
     }
   }

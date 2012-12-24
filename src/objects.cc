@@ -1068,7 +1068,7 @@ void String::StringShortPrint(StringStream* accumulator) {
   if (ascii) {
     accumulator->Add("<String[%u]: ", length());
     for (int i = 0; i < len; i++) {
-      accumulator->Put(stream.GetNext());
+      accumulator->Put(static_cast<char>(stream.GetNext()));
     }
     accumulator->Put('>');
   } else {
@@ -1086,7 +1086,7 @@ void String::StringShortPrint(StringStream* accumulator) {
       } else if (c < 32 || c > 126) {
         accumulator->Add("\\x%02x", c);
       } else {
-        accumulator->Put(c);
+        accumulator->Put(static_cast<char>(c));
       }
     }
     if (truncated) {
@@ -7533,7 +7533,7 @@ class StringComparator {
   class State {
    public:
     explicit inline State(ConsStringIteratorOp* op)
-      : op_(op) {}
+      : op_(op), is_one_byte_(true), length_(0), buffer8_(NULL) {}
 
     inline void Init(String* string, unsigned len) {
       op_->Reset();
@@ -7567,8 +7567,8 @@ class StringComparator {
       }
       // Advance state.
       ASSERT(op_->HasMore());
-      int32_t type;
-      unsigned length;
+      int32_t type = 0;
+      unsigned length = 0;
       String* next = op_->ContinueOperation(&type, &length);
       ASSERT(next != NULL);
       ConsStringNullOp null_op;
@@ -7577,7 +7577,6 @@ class StringComparator {
 
     ConsStringIteratorOp* const op_;
     bool is_one_byte_;
-    unsigned offset_;
     unsigned length_;
     union {
       const uint8_t* buffer8_;
