@@ -1635,7 +1635,7 @@ Isolate::Isolate()
       free_list_(0),
       preallocated_storage_preallocated_(false),
       inner_pointer_to_code_cache_(NULL),
-      write_input_buffer_(NULL),
+      write_iterator_(NULL),
       global_handles_(NULL),
       context_switcher_(NULL),
       thread_manager_(NULL),
@@ -1846,8 +1846,8 @@ Isolate::~Isolate() {
   bootstrapper_ = NULL;
   delete inner_pointer_to_code_cache_;
   inner_pointer_to_code_cache_ = NULL;
-  delete write_input_buffer_;
-  write_input_buffer_ = NULL;
+  delete write_iterator_;
+  write_iterator_ = NULL;
 
   delete context_switcher_;
   context_switcher_ = NULL;
@@ -1965,7 +1965,7 @@ bool Isolate::Init(Deserializer* des) {
   descriptor_lookup_cache_ = new DescriptorLookupCache();
   unicode_cache_ = new UnicodeCache();
   inner_pointer_to_code_cache_ = new InnerPointerToCodeCache(this);
-  write_input_buffer_ = new StringInputBuffer();
+  write_iterator_ = new ConsStringIteratorOp();
   global_handles_ = new GlobalHandles(this);
   bootstrapper_ = new Bootstrapper();
   handle_scope_implementer_ = new HandleScopeImplementer(this);

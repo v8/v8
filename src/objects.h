@@ -7200,9 +7200,7 @@ class String: public HeapObject {
   // Returns a hash value used for the property table
   inline uint32_t Hash();
 
-  static bool ComputeArrayIndex(unibrow::CharacterStream* buffer,
-                                uint32_t* index,
-                                int length);
+  bool ComputeArrayIndex(uint32_t* index);
 
   // Externalization.
   bool MakeExternal(v8::String::ExternalStringResource* resource);
@@ -7898,11 +7896,11 @@ class ConsStringIteratorOp {
 class StringCharacterStream {
  public:
   inline StringCharacterStream(String* string,
-                               unsigned offset,
-                               ConsStringIteratorOp* op);
+                               ConsStringIteratorOp* op,
+                               unsigned offset = 0);
   inline uint16_t GetNext();
   inline bool HasMore();
-  inline void Reset(String* string, unsigned offset, ConsStringIteratorOp* op);
+  inline void Reset(String* string, unsigned offset = 0);
   inline void VisitOneByteString(const uint8_t* chars, unsigned length);
   inline void VisitTwoByteString(const uint16_t* chars, unsigned length);
 
