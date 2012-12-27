@@ -2900,6 +2900,7 @@ bool Heap::RootCanBeWrittenAfterInitialization(Heap::RootListIndex root_index) {
   RootListIndex writable_roots[] = {
     kStoreBufferTopRootIndex,
     kStackLimitRootIndex,
+    kNumberStringCacheRootIndex,
     kInstanceofCacheFunctionRootIndex,
     kInstanceofCacheMapRootIndex,
     kInstanceofCacheAnswerRootIndex,
