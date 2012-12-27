@@ -161,7 +161,6 @@ void DeclarationContext::Check(const char* source,
       CHECK_EQ(value, catcher.Exception());
     }
   }
-  HEAP->CollectAllAvailableGarbage();  // Clean slate for the next test.
 }
 
 
