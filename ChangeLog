@@ -1,3 +1,14 @@
+2012-12-27: Version 3.16.1
+
+        Fixed x64 MathMinMax for negative untagged int32 arguments.
+        (Chromium issue 164442)
+
+        Fixed FloatingPointHelper::CheckSSE2OperandIsInt32.
+        (issue 2458)
+
+        Performance and stability improvements on all platforms.
+
+
 2012-12-21: Version 3.16.0
 
         V8_Fatal now prints C++ stack trace in debug mode.
