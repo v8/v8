@@ -2845,31 +2845,21 @@ String* ConsStringIteratorOp::ContinueOperation(int32_t* type_out,
 
 
 uint16_t StringCharacterStream::GetNext() {
-  ASSERT(buffer8_ != NULL && end_ != NULL);
-  // Advance cursor if needed.
-  // TODO(dcarney): Ensure uses of the api call HasMore first and avoid this.
-  if (buffer8_ == end_) HasMore();
-  ASSERT(buffer8_ < end_);
+  ASSERT((buffer8_ == NULL && end_ == NULL) || buffer8_ < end_);
   return is_one_byte_ ? *buffer8_++ : *buffer16_++;
 }
 
 
-StringCharacterStream::StringCharacterStream(String* string,
-                                             ConsStringIteratorOp* op,
-                                             unsigned offset)
+StringCharacterStream::StringCharacterStream(
+    String* string, unsigned offset, ConsStringIteratorOp* op)
   : is_one_byte_(false),
+    buffer8_(NULL),
+    end_(NULL),
     op_(op) {
-  Reset(string, offset);
-}
-
-
-void StringCharacterStream::Reset(String* string, unsigned offset) {
-  op_->Reset();
-  buffer8_ = NULL;
-  end_ = NULL;
+  op->Reset();
   int32_t type = string->map()->instance_type();
   unsigned length = string->length();
-  String::Visit(string, offset, *this, *op_, type, length);
+  String::Visit(string, offset, *this, *op, type, length);
 }
 
 

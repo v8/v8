@@ -577,8 +577,8 @@ namespace internal {
 
 class RuntimeState {
  public:
-  StaticResource<ConsStringIteratorOp>* string_iterator() {
-    return &string_iterator_;
+  StaticResource<StringInputBuffer>* string_input_buffer() {
+    return &string_input_buffer_;
   }
   unibrow::Mapping<unibrow::ToUppercase, 128>* to_upper_mapping() {
     return &to_upper_mapping_;
@@ -586,29 +586,29 @@ class RuntimeState {
   unibrow::Mapping<unibrow::ToLowercase, 128>* to_lower_mapping() {
     return &to_lower_mapping_;
   }
-  ConsStringIteratorOp* string_iterator_compare_x() {
-    return &string_iterator_compare_x_;
+  StringInputBuffer* string_input_buffer_compare_bufx() {
+    return &string_input_buffer_compare_bufx_;
   }
-  ConsStringIteratorOp* string_iterator_compare_y() {
-    return &string_iterator_compare_y_;
+  StringInputBuffer* string_input_buffer_compare_bufy() {
+    return &string_input_buffer_compare_bufy_;
   }
-  ConsStringIteratorOp* string_locale_compare_it1() {
-    return &string_locale_compare_it1_;
+  StringInputBuffer* string_locale_compare_buf1() {
+    return &string_locale_compare_buf1_;
   }
-  ConsStringIteratorOp* string_locale_compare_it2() {
-    return &string_locale_compare_it2_;
+  StringInputBuffer* string_locale_compare_buf2() {
+    return &string_locale_compare_buf2_;
   }
 
  private:
   RuntimeState() {}
   // Non-reentrant string buffer for efficient general use in the runtime.
-  StaticResource<ConsStringIteratorOp> string_iterator_;
+  StaticResource<StringInputBuffer> string_input_buffer_;
   unibrow::Mapping<unibrow::ToUppercase, 128> to_upper_mapping_;
   unibrow::Mapping<unibrow::ToLowercase, 128> to_lower_mapping_;
-  ConsStringIteratorOp string_iterator_compare_x_;
-  ConsStringIteratorOp string_iterator_compare_y_;
-  ConsStringIteratorOp string_locale_compare_it1_;
-  ConsStringIteratorOp string_locale_compare_it2_;
+  StringInputBuffer string_input_buffer_compare_bufx_;
+  StringInputBuffer string_input_buffer_compare_bufy_;
+  StringInputBuffer string_locale_compare_buf1_;
+  StringInputBuffer string_locale_compare_buf2_;
 
   friend class Isolate;
   friend class Runtime;

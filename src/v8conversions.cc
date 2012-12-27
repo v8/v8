@@ -41,40 +41,40 @@ namespace internal {
 
 namespace {
 
-// C++-style iterator adaptor for StringCharacterStream
+// C++-style iterator adaptor for StringInputBuffer
 // (unlike C++ iterators the end-marker has different type).
-class StringCharacterStreamIterator {
+class StringInputBufferIterator {
  public:
   class EndMarker {};
 
-  explicit StringCharacterStreamIterator(StringCharacterStream* stream);
+  explicit StringInputBufferIterator(StringInputBuffer* buffer);
 
-  uint16_t operator*() const;
+  int operator*() const;
   void operator++();
   bool operator==(EndMarker const&) const { return end_; }
   bool operator!=(EndMarker const& m) const { return !end_; }
 
  private:
-  StringCharacterStream* const stream_;
-  uint16_t current_;
+  StringInputBuffer* const buffer_;
+  int current_;
   bool end_;
 };
 
 
-StringCharacterStreamIterator::StringCharacterStreamIterator(
-    StringCharacterStream* stream) : stream_(stream) {
+StringInputBufferIterator::StringInputBufferIterator(
+    StringInputBuffer* buffer) : buffer_(buffer) {
   ++(*this);
 }
 
-uint16_t StringCharacterStreamIterator::operator*() const {
+int StringInputBufferIterator::operator*() const {
   return current_;
 }
 
 
-void StringCharacterStreamIterator::operator++() {
-  end_ = !stream_->HasMore();
+void StringInputBufferIterator::operator++() {
+  end_ = !buffer_->has_more();
   if (!end_) {
-    current_ = stream_->GetNext();
+    current_ = buffer_->GetNext();
   }
 }
 }  // End anonymous namespace.
@@ -83,7 +83,6 @@ void StringCharacterStreamIterator::operator++() {
 double StringToDouble(UnicodeCache* unicode_cache,
                       String* str, int flags, double empty_string_val) {
   StringShape shape(str);
-  // TODO(dcarney): Use a Visitor here.
   if (shape.IsSequentialAscii()) {
     const char* begin = SeqOneByteString::cast(str)->GetChars();
     const char* end = begin + str->length();
@@ -95,11 +94,10 @@ double StringToDouble(UnicodeCache* unicode_cache,
     return InternalStringToDouble(unicode_cache, begin, end, flags,
                                   empty_string_val);
   } else {
-    ConsStringIteratorOp op;
-    StringCharacterStream stream(str, &op);
+    StringInputBuffer buffer(str);
     return InternalStringToDouble(unicode_cache,
-                                  StringCharacterStreamIterator(&stream),
-                                  StringCharacterStreamIterator::EndMarker(),
+                                  StringInputBufferIterator(&buffer),
+                                  StringInputBufferIterator::EndMarker(),
                                   flags,
                                   empty_string_val);
   }
@@ -110,7 +108,6 @@ double StringToInt(UnicodeCache* unicode_cache,
                    String* str,
                    int radix) {
   StringShape shape(str);
-  // TODO(dcarney): Use a Visitor here.
   if (shape.IsSequentialAscii()) {
     const char* begin = SeqOneByteString::cast(str)->GetChars();
     const char* end = begin + str->length();
@@ -120,11 +117,10 @@ double StringToInt(UnicodeCache* unicode_cache,
     const uc16* end = begin + str->length();
     return InternalStringToInt(unicode_cache, begin, end, radix);
   } else {
-    ConsStringIteratorOp op;
-    StringCharacterStream stream(str, &op);
+    StringInputBuffer buffer(str);
     return InternalStringToInt(unicode_cache,
-                               StringCharacterStreamIterator(&stream),
-                               StringCharacterStreamIterator::EndMarker(),
+                               StringInputBufferIterator(&buffer),
+                               StringInputBufferIterator::EndMarker(),
                                radix);
   }
 }

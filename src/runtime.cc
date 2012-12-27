@@ -3489,17 +3489,17 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringLocaleCompare) {
   str1->TryFlatten();
   str2->TryFlatten();
 
-  ConsStringIteratorOp* op1 =
-      isolate->runtime_state()->string_locale_compare_it1();
-  ConsStringIteratorOp* op2 =
-      isolate->runtime_state()->string_locale_compare_it2();
-  // TODO(dcarney) Can do array compares here more efficiently.
-  StringCharacterStream stream1(str1, op1);
-  StringCharacterStream stream2(str2, op2);
+  StringInputBuffer& buf1 =
+      *isolate->runtime_state()->string_locale_compare_buf1();
+  StringInputBuffer& buf2 =
+      *isolate->runtime_state()->string_locale_compare_buf2();
+
+  buf1.Reset(str1);
+  buf2.Reset(str2);
 
   for (int i = 0; i < end; i++) {
-    uint16_t char1 = stream1.GetNext();
-    uint16_t char2 = stream2.GetNext();
+    uint16_t char1 = buf1.GetNext();
+    uint16_t char2 = buf2.GetNext();
     if (char1 != char2) return Smi::FromInt(char1 - char2);
   }
 
@@ -5143,11 +5143,11 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_URIEscape) {
   int escaped_length = 0;
   int length = source->length();
   {
-    Access<ConsStringIteratorOp> op(
-        isolate->runtime_state()->string_iterator());
-    StringCharacterStream stream(source, op.value());
-    while (stream.HasMore()) {
-      uint16_t character = stream.GetNext();
+    Access<StringInputBuffer> buffer(
+        isolate->runtime_state()->string_input_buffer());
+    buffer->Reset(source);
+    while (buffer->has_more()) {
+      uint16_t character = buffer->GetNext();
       if (character >= 256) {
         escaped_length += 6;
       } else if (IsNotEscaped(character)) {
@@ -5175,11 +5175,11 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_URIEscape) {
   String* destination = String::cast(o);
   int dest_position = 0;
 
-  Access<ConsStringIteratorOp> op(
-      isolate->runtime_state()->string_iterator());
-  StringCharacterStream stream(source, op.value());
-  while (stream.HasMore()) {
-    uint16_t chr = stream.GetNext();
+  Access<StringInputBuffer> buffer(
+      isolate->runtime_state()->string_input_buffer());
+  buffer->Rewind();
+  while (buffer->has_more()) {
+    uint16_t chr = buffer->GetNext();
     if (chr >= 256) {
       destination->Set(dest_position, '%');
       destination->Set(dest_position+1, 'u');
@@ -5717,15 +5717,15 @@ MUST_USE_RESULT static MaybeObject* ConvertCaseHelper(
 
   // Convert all characters to upper case, assuming that they will fit
   // in the buffer
-  Access<ConsStringIteratorOp> op(
-      isolate->runtime_state()->string_iterator());
-  StringCharacterStream stream(s, op.value());
+  Access<StringInputBuffer> buffer(
+      isolate->runtime_state()->string_input_buffer());
+  buffer->Reset(s);
   unibrow::uchar chars[Converter::kMaxWidth];
   // We can assume that the string is not empty
-  uc32 current = stream.GetNext();
+  uc32 current = buffer->GetNext();
   for (int i = 0; i < length;) {
-    bool has_next = stream.HasMore();
-    uc32 next = has_next ? stream.GetNext() : 0;
+    bool has_next = buffer->has_more();
+    uc32 next = has_next ? buffer->GetNext() : 0;
     int char_length = mapping->get(current, next, chars);
     if (char_length == 0) {
       // The case conversion of this character is the character itself.
@@ -5755,8 +5755,8 @@ MUST_USE_RESULT static MaybeObject* ConvertCaseHelper(
         if (next_length == 0) next_length = 1;
       }
       int current_length = i + char_length + next_length;
-      while (stream.HasMore()) {
-        current = stream.GetNext();
+      while (buffer->has_more()) {
+        current = buffer->GetNext();
         // NOTE: we use 0 as the next character here because, while
         // the next character may affect what a character converts to,
         // it does not in any case affect the length of what it convert
@@ -6960,21 +6960,23 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SmiLexicographicCompare) {
 }
 
 
-static Object* StringCharacterStreamCompare(RuntimeState* state,
+static Object* StringInputBufferCompare(RuntimeState* state,
                                         String* x,
                                         String* y) {
-  StringCharacterStream stream_x(x, state->string_iterator_compare_x());
-  StringCharacterStream stream_y(y, state->string_iterator_compare_y());
-  while (stream_x.HasMore() && stream_y.HasMore()) {
-    int d = stream_x.GetNext() - stream_y.GetNext();
+  StringInputBuffer& bufx = *state->string_input_buffer_compare_bufx();
+  StringInputBuffer& bufy = *state->string_input_buffer_compare_bufy();
+  bufx.Reset(x);
+  bufy.Reset(y);
+  while (bufx.has_more() && bufy.has_more()) {
+    int d = bufx.GetNext() - bufy.GetNext();
     if (d < 0) return Smi::FromInt(LESS);
     else if (d > 0) return Smi::FromInt(GREATER);
   }
 
   // x is (non-trivial) prefix of y:
-  if (stream_y.HasMore()) return Smi::FromInt(LESS);
+  if (bufy.has_more()) return Smi::FromInt(LESS);
   // y is prefix of x:
-  return Smi::FromInt(stream_x.HasMore() ? GREATER : EQUAL);
+  return Smi::FromInt(bufx.has_more() ? GREATER : EQUAL);
 }
 
 
@@ -7018,7 +7020,7 @@ static Object* FlatStringCompare(String* x, String* y) {
     result = (r < 0) ? Smi::FromInt(LESS) : Smi::FromInt(GREATER);
   }
   ASSERT(result ==
-      StringCharacterStreamCompare(Isolate::Current()->runtime_state(), x, y));
+      StringInputBufferCompare(Isolate::Current()->runtime_state(), x, y));
   return result;
 }
 
@@ -7054,7 +7056,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringCompare) {
   }
 
   return (x->IsFlat() && y->IsFlat()) ? FlatStringCompare(x, y)
-      : StringCharacterStreamCompare(isolate->runtime_state(), x, y);
+      : StringInputBufferCompare(isolate->runtime_state(), x, y);
 }
 
 
@@ -9883,10 +9885,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GlobalPrint) {
   ASSERT(args.length() == 1);
 
   CONVERT_ARG_CHECKED(String, string, 0);
-  ConsStringIteratorOp op;
-  StringCharacterStream stream(string, &op);
-  while (stream.HasMore()) {
-    uint16_t character = stream.GetNext();
+  StringInputBuffer buffer(string);
+  while (buffer.has_more()) {
+    uint16_t character = buffer.GetNext();
     PrintF("%c", character);
   }
   return string;
