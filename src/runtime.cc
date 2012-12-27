@@ -13206,46 +13206,16 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CollectStackTrace) {
 }
 
 
-// Mark a function to recognize when called after GC to format the stack trace.
-RUNTIME_FUNCTION(MaybeObject*, Runtime_MarkOneShotGetter) {
-  ASSERT_EQ(args.length(), 1);
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, fun, 0);
-  HandleScope scope(isolate);
-  Handle<String> key = isolate->factory()->hidden_stack_trace_symbol();
-  JSObject::SetHiddenProperty(fun, key, key);
-  return *fun;
-}
-
-
-// Retrieve the stack trace.  This could be the raw stack trace collected
-// on stack overflow or the already formatted stack trace string.
-RUNTIME_FUNCTION(MaybeObject*, Runtime_GetOverflowedStackTrace) {
-  HandleScope scope(isolate);
+// Retrieve the raw stack trace collected on stack overflow and delete
+// it since it is used only once to avoid keeping it alive.
+RUNTIME_FUNCTION(MaybeObject*, Runtime_GetOverflowedRawStackTrace) {
   ASSERT_EQ(args.length(), 1);
   CONVERT_ARG_CHECKED(JSObject, error_object, 0);
   String* key = isolate->heap()->hidden_stack_trace_symbol();
   Object* result = error_object->GetHiddenProperty(key);
-  RUNTIME_ASSERT(result->IsJSArray() ||
-                 result->IsString() ||
-                 result->IsUndefined());
+  RUNTIME_ASSERT(result->IsJSArray() || result->IsUndefined());
+  error_object->DeleteHiddenProperty(key);
   return result;
-}
-
-
-// Set or clear the stack trace attached to an stack overflow error object.
-RUNTIME_FUNCTION(MaybeObject*, Runtime_SetOverflowedStackTrace) {
-  HandleScope scope(isolate);
-  ASSERT_EQ(args.length(), 2);
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, error_object, 0);
-  CONVERT_ARG_HANDLE_CHECKED(HeapObject, value, 1);
-  Handle<String> key = isolate->factory()->hidden_stack_trace_symbol();
-  if (value->IsUndefined()) {
-    error_object->DeleteHiddenProperty(*key);
-  } else {
-    RUNTIME_ASSERT(value->IsString());
-    JSObject::SetHiddenProperty(error_object, key, value);
-  }
-  return *error_object;
 }
 
 

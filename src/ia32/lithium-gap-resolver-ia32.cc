@@ -324,37 +324,29 @@ void LGapResolver::EmitMove(int index) {
     }
 
   } else if (source->IsDoubleRegister()) {
-    if (CpuFeatures::IsSupported(SSE2)) {
-      CpuFeatures::Scope scope(SSE2);
-      XMMRegister src = cgen_->ToDoubleRegister(source);
-      if (destination->IsDoubleRegister()) {
-        XMMRegister dst = cgen_->ToDoubleRegister(destination);
-        __ movaps(dst, src);
-      } else {
-        ASSERT(destination->IsDoubleStackSlot());
-        Operand dst = cgen_->ToOperand(destination);
-        __ movdbl(dst, src);
-      }
+    CpuFeatures::Scope scope(SSE2);
+    XMMRegister src = cgen_->ToDoubleRegister(source);
+    if (destination->IsDoubleRegister()) {
+      XMMRegister dst = cgen_->ToDoubleRegister(destination);
+      __ movaps(dst, src);
     } else {
-      UNREACHABLE();
+      ASSERT(destination->IsDoubleStackSlot());
+      Operand dst = cgen_->ToOperand(destination);
+      __ movdbl(dst, src);
     }
   } else if (source->IsDoubleStackSlot()) {
-    if (CpuFeatures::IsSupported(SSE2)) {
-      CpuFeatures::Scope scope(SSE2);
-      ASSERT(destination->IsDoubleRegister() ||
-             destination->IsDoubleStackSlot());
-      Operand src = cgen_->ToOperand(source);
-      if (destination->IsDoubleRegister()) {
-        XMMRegister dst = cgen_->ToDoubleRegister(destination);
-        __ movdbl(dst, src);
-      } else {
-        // We rely on having xmm0 available as a fixed scratch register.
-        Operand dst = cgen_->ToOperand(destination);
-        __ movdbl(xmm0, src);
-        __ movdbl(dst, xmm0);
-      }
+    CpuFeatures::Scope scope(SSE2);
+    ASSERT(destination->IsDoubleRegister() ||
+           destination->IsDoubleStackSlot());
+    Operand src = cgen_->ToOperand(source);
+    if (destination->IsDoubleRegister()) {
+      XMMRegister dst = cgen_->ToDoubleRegister(destination);
+      __ movdbl(dst, src);
     } else {
-      UNREACHABLE();
+      // We rely on having xmm0 available as a fixed scratch register.
+      Operand dst = cgen_->ToOperand(destination);
+      __ movdbl(xmm0, src);
+      __ movdbl(dst, xmm0);
     }
   } else {
     UNREACHABLE();
@@ -429,6 +421,7 @@ void LGapResolver::EmitSwap(int index) {
     __ movaps(dst, xmm0);
 
   } else if (source->IsDoubleRegister() || destination->IsDoubleRegister()) {
+    CpuFeatures::Scope scope(SSE2);
     // XMM register-memory swap.  We rely on having xmm0
     // available as a fixed scratch register.
     ASSERT(source->IsDoubleStackSlot() || destination->IsDoubleStackSlot());
@@ -442,6 +435,7 @@ void LGapResolver::EmitSwap(int index) {
     __ movdbl(reg, Operand(xmm0));
 
   } else if (source->IsDoubleStackSlot() && destination->IsDoubleStackSlot()) {
+    CpuFeatures::Scope scope(SSE2);
     // Double-width memory-to-memory.  Spill on demand to use a general
     // purpose temporary register and also rely on having xmm0 available as
     // a fixed scratch register.
