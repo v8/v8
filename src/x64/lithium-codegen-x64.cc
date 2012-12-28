@@ -1144,7 +1144,7 @@ void LCodeGen::DoMathFloorOfDiv(LMathFloorOfDiv* instr) {
 
 
 void LCodeGen::DoDivI(LDivI* instr) {
-  if (instr->hydrogen()->HasPowerOf2Divisor()) {
+  if (!instr->is_flooring() && instr->hydrogen()->HasPowerOf2Divisor()) {
     Register dividend = ToRegister(instr->left());
     int32_t divisor =
         HConstant::cast(instr->hydrogen()->right())->Integer32Value();
@@ -1191,13 +1191,13 @@ void LCodeGen::DoDivI(LDivI* instr) {
 
   // Check for x / 0.
   Register right_reg = ToRegister(right);
-  if (instr->hydrogen()->CheckFlag(HValue::kCanBeDivByZero)) {
+  if (instr->hydrogen_value()->CheckFlag(HValue::kCanBeDivByZero)) {
     __ testl(right_reg, right_reg);
     DeoptimizeIf(zero, instr->environment());
   }
 
   // Check for (0 / -x) that will produce negative zero.
-  if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
+  if (instr->hydrogen_value()->CheckFlag(HValue::kBailoutOnMinusZero)) {
     Label left_not_zero;
     __ testl(left_reg, left_reg);
     __ j(not_zero, &left_not_zero, Label::kNear);
@@ -1207,7 +1207,7 @@ void LCodeGen::DoDivI(LDivI* instr) {
   }
 
   // Check for (kMinInt / -1).
-  if (instr->hydrogen()->CheckFlag(HValue::kCanOverflow)) {
+  if (instr->hydrogen_value()->CheckFlag(HValue::kCanOverflow)) {
     Label left_not_min_int;
     __ cmpl(left_reg, Immediate(kMinInt));
     __ j(not_zero, &left_not_min_int, Label::kNear);
@@ -1220,9 +1220,19 @@ void LCodeGen::DoDivI(LDivI* instr) {
   __ cdq();
   __ idivl(right_reg);
 
-  // Deoptimize if remainder is not 0.
-  __ testl(rdx, rdx);
-  DeoptimizeIf(not_zero, instr->environment());
+  if (!instr->is_flooring()) {
+    // Deoptimize if remainder is not 0.
+    __ testl(rdx, rdx);
+    DeoptimizeIf(not_zero, instr->environment());
+  } else {
+    Label done;
+    __ testl(rdx, rdx);
+    __ j(zero, &done, Label::kNear);
+    __ xorl(rdx, right_reg);
+    __ sarl(rdx, Immediate(31));
+    __ addl(rax, rdx);
+    __ bind(&done);
+  }
 }
 
 
@@ -1712,6 +1722,7 @@ void LCodeGen::DoArithmeticD(LArithmeticD* instr) {
       break;
     case Token::DIV:
       __ divsd(left, right);
+      __ movaps(left, left);
       break;
     case Token::MOD:
       __ PrepareCallCFunction(2);

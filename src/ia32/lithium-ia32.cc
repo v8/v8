@@ -1305,12 +1305,31 @@ HValue* LChunkBuilder::SimplifiedDivisorForMathFloorOfDiv(HValue* divisor) {
     return constant_val->CopyToRepresentation(Representation::Integer32(),
                                               divisor->block()->zone());
   }
+  // A value with an integer representation does not need to be transformed.
+  if (divisor->representation().IsInteger32()) {
+    return divisor;
+  // A change from an integer32 can be replaced by the integer32 value.
+  } else if (divisor->IsChange() &&
+             HChange::cast(divisor)->from().IsInteger32()) {
+    return HChange::cast(divisor)->value();
+  }
   return NULL;
 }
 
 
 LInstruction* LChunkBuilder::DoMathFloorOfDiv(HMathFloorOfDiv* instr) {
   HValue* right = instr->right();
+  if (!right->IsConstant()) {
+    ASSERT(right->representation().IsInteger32());
+    // The temporary operand is necessary to ensure that right is not allocated
+    // into edx.
+    LOperand* temp = FixedTemp(edx);
+    LOperand* dividend = UseFixed(instr->left(), eax);
+    LOperand* divisor = UseRegister(instr->right());
+    LDivI* flooring_div = new(zone()) LDivI(dividend, divisor, temp);
+    return AssignEnvironment(DefineFixed(flooring_div, eax));
+  }
+
   ASSERT(right->IsConstant() && HConstant::cast(right)->HasInteger32Value());
   LOperand* divisor = chunk_->DefineConstantOperand(HConstant::cast(right));
   int32_t divisor_si = HConstant::cast(right)->Integer32Value();
