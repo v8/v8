@@ -581,6 +581,7 @@ class ShallowIterator BASE_EMBEDDED {
 
   LOperand* Current() {
     ASSERT(!Done());
+    ASSERT(env_->values()->at(current_) != NULL);
     return env_->values()->at(current_);
   }
 
@@ -622,6 +623,7 @@ class DeepIterator BASE_EMBEDDED {
 
   LOperand* Current() {
     ASSERT(!current_iterator_.Done());
+    ASSERT(current_iterator_.Current() != NULL);
     return current_iterator_.Current();
   }
 

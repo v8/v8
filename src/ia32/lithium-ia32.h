@@ -1344,10 +1344,11 @@ class LArithmeticT: public LTemplateInstruction<1, 3, 0> {
 };
 
 
-class LReturn: public LTemplateInstruction<0, 1, 0> {
+class LReturn: public LTemplateInstruction<0, 2, 0> {
  public:
-  explicit LReturn(LOperand* value) {
+  explicit LReturn(LOperand* value, LOperand* context) {
     inputs_[0] = value;
+    inputs_[1] = context;
   }
 
   DECLARE_CONCRETE_INSTRUCTION(Return, "return")

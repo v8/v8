@@ -1055,7 +1055,13 @@ LInstruction* LChunkBuilder::DoThisFunction(HThisFunction* instr) {
 
 
 LInstruction* LChunkBuilder::DoContext(HContext* instr) {
-  return instr->HasNoUses() ? NULL : DefineAsRegister(new(zone()) LContext);
+  if (instr->HasNoUses()) return NULL;
+
+  if (info()->IsStub()) {
+    return DefineFixed(new(zone()) LContext, esi);
+  }
+
+  return DefineAsRegister(new(zone()) LContext);
 }
 
 
@@ -1884,7 +1890,10 @@ LInstruction* LChunkBuilder::DoClampToUint8(HClampToUint8* instr) {
 
 
 LInstruction* LChunkBuilder::DoReturn(HReturn* instr) {
-  return new(zone()) LReturn(UseFixed(instr->value(), eax));
+  LOperand* context = info()->IsStub()
+      ? UseFixed(instr->context(), esi)
+      : NULL;
+  return new(zone()) LReturn(UseFixed(instr->value(), eax), context);
 }
 
 

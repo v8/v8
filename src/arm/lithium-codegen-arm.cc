@@ -2820,9 +2820,6 @@ void LCodeGen::DoReturn(LReturn* instr) {
     __ ldm(ia_w, sp, fp.bit() | lr.bit());
     __ add(sp, sp, Operand(sp_delta));
   }
-  if (info()->IsStub()) {
-    __ ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
-  }
   __ Jump(lr);
 }
 

@@ -804,9 +804,9 @@ void LCodeGen::DeoptimizeIf(Condition cc, LEnvironment* environment) {
   ASSERT(environment->HasBeenRegistered());
   int id = environment->deoptimization_index();
   ASSERT(info()->IsOptimizing() || info()->IsStub());
-  Deoptimizer::BailoutType bailout_type = frame_is_built_
-      ? Deoptimizer::EAGER
-      : Deoptimizer::LAZY;
+  Deoptimizer::BailoutType bailout_type = info()->IsStub()
+      ? Deoptimizer::LAZY
+      : Deoptimizer::EAGER;
   Address entry = Deoptimizer::GetDeoptimizationEntry(id, bailout_type);
   if (entry == NULL) {
     Abort("bailout was not prepared");
@@ -2661,7 +2661,6 @@ void LCodeGen::DoReturn(LReturn* instr) {
     __ bind(&no_padding);
   }
   if (info()->IsStub()) {
-    __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
     __ Ret();
   } else {
     __ Ret((GetParameterCount() + 1) * kPointerSize, ecx);
@@ -3396,7 +3395,12 @@ void LCodeGen::DoThisFunction(LThisFunction* instr) {
 
 void LCodeGen::DoContext(LContext* instr) {
   Register result = ToRegister(instr->result());
-  __ mov(result, Operand(ebp, StandardFrameConstants::kContextOffset));
+  if (info()->IsOptimizing()) {
+    __ mov(result, Operand(ebp, StandardFrameConstants::kContextOffset));
+  } else {
+    // If there is no frame, the context must be in esi.
+    ASSERT(result.is(esi));
+  }
 }
 
 

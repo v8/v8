@@ -2463,7 +2463,6 @@ void LCodeGen::DoReturn(LReturn* instr) {
     __ pop(rbp);
   }
   if (info()->IsStub()) {
-    __ movq(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
     __ Ret(0, r10);
   } else {
     __ Ret((GetParameterCount() + 1) * kPointerSize, rcx);
