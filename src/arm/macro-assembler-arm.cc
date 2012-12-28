@@ -2210,9 +2210,11 @@ void MacroAssembler::TryGetFunctionPrototype(Register function,
 }
 
 
-void MacroAssembler::CallStub(CodeStub* stub, Condition cond) {
+void MacroAssembler::CallStub(CodeStub* stub,
+                              TypeFeedbackId ast_id,
+                              Condition cond) {
   ASSERT(AllowThisStubCall(stub));  // Stub calls are not allowed in some stubs.
-  Call(stub->GetCode(), RelocInfo::CODE_TARGET, TypeFeedbackId::None(), cond);
+  Call(stub->GetCode(), RelocInfo::CODE_TARGET, ast_id, cond);
 }
 
 

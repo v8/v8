@@ -1001,7 +1001,9 @@ class MacroAssembler: public Assembler {
   // Runtime calls
 
   // Call a code stub.
-  void CallStub(CodeStub* stub, Condition cond = al);
+  void CallStub(CodeStub* stub,
+                TypeFeedbackId ast_id = TypeFeedbackId::None(),
+                Condition cond = al);
 
   // Call a code stub.
   void TailCallStub(CodeStub* stub, Condition cond = al);
