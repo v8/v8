@@ -434,24 +434,11 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
   // Allocate new FixedDoubleArray.
   // edx: receiver
   // edi: length of source FixedArray (smi-tagged)
-  __ lea(esi, Operand(edi,
-                      times_4,
-                      FixedDoubleArray::kHeaderSize + kPointerSize));
-  __ AllocateInNewSpace(esi, eax, ebx, no_reg, &gc_required, TAG_OBJECT);
-
-  Label aligned, aligned_done;
-  __ test(eax, Immediate(kDoubleAlignmentMask - kHeapObjectTag));
-  __ j(zero, &aligned, Label::kNear);
-  __ mov(FieldOperand(eax, 0),
-         Immediate(masm->isolate()->factory()->one_pointer_filler_map()));
-  __ add(eax, Immediate(kPointerSize));
-  __ jmp(&aligned_done);
-
-  __ bind(&aligned);
-  __ mov(Operand(eax, esi, times_1, -kPointerSize-1),
-         Immediate(masm->isolate()->factory()->one_pointer_filler_map()));
-
-  __ bind(&aligned_done);
+  AllocationFlags flags =
+      static_cast<AllocationFlags>(TAG_OBJECT | DOUBLE_ALIGNMENT);
+  __ AllocateInNewSpace(FixedDoubleArray::kHeaderSize, times_8,
+                        edi, REGISTER_VALUE_IS_SMI,
+                        eax, ebx, no_reg, &gc_required, flags);
 
   // eax: destination FixedDoubleArray
   // edi: number of elements

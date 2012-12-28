@@ -257,6 +257,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       __ AllocateInNewSpace(FixedArray::kHeaderSize,
                             times_pointer_size,
                             edx,
+                            REGISTER_VALUE_IS_INT32,
                             edi,
                             ecx,
                             no_reg,
@@ -1102,8 +1103,9 @@ static void AllocateJSArray(MacroAssembler* masm,
   // requested elements.
   STATIC_ASSERT(kSmiTagSize == 1 && kSmiTag == 0);
   __ AllocateInNewSpace(JSArray::kSize + FixedArray::kHeaderSize,
-                        times_half_pointer_size,  // array_size is a smi.
+                        times_pointer_size,
                         array_size,
+                        REGISTER_VALUE_IS_SMI,
                         result,
                         elements_array_end,
                         scratch,

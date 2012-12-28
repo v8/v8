@@ -361,12 +361,11 @@ static void GenerateFastCloneShallowArrayCommon(
 
   // Allocate both the JS array and the elements array in one big
   // allocation. This avoids multiple limit checks.
-  __ AllocateInNewSpace(size,
-                        r0,
-                        r1,
-                        r2,
-                        fail,
-                        TAG_OBJECT);
+  AllocationFlags flags = TAG_OBJECT;
+  if (mode == FastCloneShallowArrayStub::CLONE_DOUBLE_ELEMENTS) {
+    flags = static_cast<AllocationFlags>(DOUBLE_ALIGNMENT | flags);
+  }
+  __ AllocateInNewSpace(size, r0, r1, r2, fail, flags);
 
   // Copy the JS array part.
   for (int i = 0; i < JSArray::kSize; i += kPointerSize) {

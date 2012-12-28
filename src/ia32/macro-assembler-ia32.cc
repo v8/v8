@@ -1241,6 +1241,7 @@ void MacroAssembler::AllocateInNewSpace(int object_size,
                                         Register scratch,
                                         Label* gc_required,
                                         AllocationFlags flags) {
+  ASSERT((flags & (RESULT_CONTAINS_TOP | SIZE_IN_WORDS)) == 0);
   if (!FLAG_inline_new) {
     if (emit_debug_code()) {
       // Trash the registers to simulate an allocation failure.
@@ -1260,6 +1261,19 @@ void MacroAssembler::AllocateInNewSpace(int object_size,
   // Load address of new object into result.
   LoadAllocationTopHelper(result, scratch, flags);
 
+  // Align the next allocation. Storing the filler map without checking top is
+  // always safe because the limit of the heap is always aligned.
+  if ((flags & DOUBLE_ALIGNMENT) != 0) {
+    ASSERT(kPointerAlignment * 2 == kDoubleAlignment);
+    Label aligned;
+    test(result, Immediate(kDoubleAlignmentMask));
+    j(zero, &aligned, Label::kNear);
+    mov(Operand(result, 0),
+        Immediate(isolate()->factory()->one_pointer_filler_map()));
+    add(result, Immediate(kDoubleSize / 2));
+    bind(&aligned);
+  }
+
   Register top_reg = result_end.is_valid() ? result_end : result;
 
   // Calculate new top and bail out if new space is exhausted.
@@ -1278,26 +1292,31 @@ void MacroAssembler::AllocateInNewSpace(int object_size,
   UpdateAllocationTopHelper(top_reg, scratch);
 
   // Tag result if requested.
+  bool tag_result = (flags & TAG_OBJECT) != 0;
   if (top_reg.is(result)) {
-    if ((flags & TAG_OBJECT) != 0) {
+    if (tag_result) {
       sub(result, Immediate(object_size - kHeapObjectTag));
     } else {
       sub(result, Immediate(object_size));
     }
-  } else if ((flags & TAG_OBJECT) != 0) {
-    add(result, Immediate(kHeapObjectTag));
+  } else if (tag_result) {
+    ASSERT(kHeapObjectTag == 1);
+    inc(result);
   }
 }
 
 
-void MacroAssembler::AllocateInNewSpace(int header_size,
-                                        ScaleFactor element_size,
-                                        Register element_count,
-                                        Register result,
-                                        Register result_end,
-                                        Register scratch,
-                                        Label* gc_required,
-                                        AllocationFlags flags) {
+void MacroAssembler::AllocateInNewSpace(
+    int header_size,
+    ScaleFactor element_size,
+    Register element_count,
+    RegisterValueType element_count_type,
+    Register result,
+    Register result_end,
+    Register scratch,
+    Label* gc_required,
+    AllocationFlags flags) {
+  ASSERT((flags & SIZE_IN_WORDS) == 0);
   if (!FLAG_inline_new) {
     if (emit_debug_code()) {
       // Trash the registers to simulate an allocation failure.
@@ -1316,21 +1335,44 @@ void MacroAssembler::AllocateInNewSpace(int header_size,
   // Load address of new object into result.
   LoadAllocationTopHelper(result, scratch, flags);
 
+  // Align the next allocation. Storing the filler map without checking top is
+  // always safe because the limit of the heap is always aligned.
+  if ((flags & DOUBLE_ALIGNMENT) != 0) {
+    ASSERT(kPointerAlignment * 2 == kDoubleAlignment);
+    Label aligned;
+    test(result, Immediate(kDoubleAlignmentMask));
+    j(zero, &aligned, Label::kNear);
+    mov(Operand(result, 0),
+        Immediate(isolate()->factory()->one_pointer_filler_map()));
+    add(result, Immediate(kDoubleSize / 2));
+    bind(&aligned);
+  }
+
   // Calculate new top and bail out if new space is exhausted.
   ExternalReference new_space_allocation_limit =
       ExternalReference::new_space_allocation_limit_address(isolate());
 
   // We assume that element_count*element_size + header_size does not
   // overflow.
+  if (element_count_type == REGISTER_VALUE_IS_SMI) {
+    STATIC_ASSERT(static_cast<ScaleFactor>(times_2 - 1) == times_1);
+    STATIC_ASSERT(static_cast<ScaleFactor>(times_4 - 1) == times_2);
+    STATIC_ASSERT(static_cast<ScaleFactor>(times_8 - 1) == times_4);
+    ASSERT(element_size >= times_2);
+    ASSERT(kSmiTagSize == 1);
+    element_size = static_cast<ScaleFactor>(element_size - 1);
+  } else {
+    ASSERT(element_count_type == REGISTER_VALUE_IS_INT32);
+  }
   lea(result_end, Operand(element_count, element_size, header_size));
   add(result_end, result);
   j(carry, gc_required);
   cmp(result_end, Operand::StaticVariable(new_space_allocation_limit));
   j(above, gc_required);
 
-  // Tag result if requested.
   if ((flags & TAG_OBJECT) != 0) {
-    lea(result, Operand(result, kHeapObjectTag));
+    ASSERT(kHeapObjectTag == 1);
+    inc(result);
   }
 
   // Update allocation top.
@@ -1344,6 +1386,8 @@ void MacroAssembler::AllocateInNewSpace(Register object_size,
                                         Register scratch,
                                         Label* gc_required,
                                         AllocationFlags flags) {
+  ASSERT((flags & (DOUBLE_ALIGNMENT | RESULT_CONTAINS_TOP |
+                   SIZE_IN_WORDS)) == 0);
   if (!FLAG_inline_new) {
     if (emit_debug_code()) {
       // Trash the registers to simulate an allocation failure.
@@ -1433,6 +1477,7 @@ void MacroAssembler::AllocateTwoByteString(Register result,
   AllocateInNewSpace(SeqTwoByteString::kHeaderSize,
                      times_1,
                      scratch1,
+                     REGISTER_VALUE_IS_INT32,
                      result,
                      scratch2,
                      scratch3,
@@ -1468,6 +1513,7 @@ void MacroAssembler::AllocateAsciiString(Register result,
   AllocateInNewSpace(SeqOneByteString::kHeaderSize,
                      times_1,
                      scratch1,
+                     REGISTER_VALUE_IS_INT32,
                      result,
                      scratch2,
                      scratch3,

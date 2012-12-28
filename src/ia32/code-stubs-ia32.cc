@@ -340,7 +340,11 @@ static void GenerateFastCloneShallowArrayCommon(
 
   // Allocate both the JS array and the elements array in one big
   // allocation. This avoids multiple limit checks.
-  __ AllocateInNewSpace(size, eax, ebx, edx, fail, TAG_OBJECT);
+  AllocationFlags flags = TAG_OBJECT;
+  if (mode == FastCloneShallowArrayStub::CLONE_DOUBLE_ELEMENTS) {
+    flags = static_cast<AllocationFlags>(DOUBLE_ALIGNMENT | flags);
+  }
+  __ AllocateInNewSpace(size, eax, ebx, edx, fail, flags);
 
   // Copy the JS array part.
   for (int i = 0; i < JSArray::kSize; i += kPointerSize) {
@@ -4080,8 +4084,9 @@ void RegExpConstructResultStub::Generate(MacroAssembler* masm) {
   // JSArray:   [Map][empty properties][Elements][Length-smi][index][input]
   // Elements:  [Map][Length][..elements..]
   __ AllocateInNewSpace(JSRegExpResult::kSize + FixedArray::kHeaderSize,
-                        times_half_pointer_size,
-                        ebx,  // In: Number of elements (times 2, being a smi)
+                        times_pointer_size,
+                        ebx,  // In: Number of elements as a smi
+                        REGISTER_VALUE_IS_SMI,
                         eax,  // Out: Start of allocation (tagged).
                         ecx,  // Out: End of allocation.
                         edx,  // Scratch register
