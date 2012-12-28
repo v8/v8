@@ -3934,8 +3934,7 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
     __ movq(rdi, rax);
 #endif
     __ movq(kScratchRegister,
-            FUNCTION_ADDR(Runtime::PerformGC),
-            RelocInfo::RUNTIME_ENTRY);
+            ExternalReference::perform_gc_function(masm->isolate()));
     __ call(kScratchRegister);
   }
 

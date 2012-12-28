@@ -731,7 +731,7 @@ void MacroAssembler::CallApiFunctionAndReturn(Address function_address,
 
   // Call the api function!
   movq(rax, reinterpret_cast<int64_t>(function_address),
-       RelocInfo::RUNTIME_ENTRY);
+       RelocInfo::EXTERNAL_REFERENCE);
   call(rax);
 
   if (FLAG_log_timer_events) {
