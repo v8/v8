@@ -693,7 +693,9 @@ RelocIterator::RelocIterator(const CodeDesc& desc, int mode_mask) {
 const char* RelocInfo::RelocModeName(RelocInfo::Mode rmode) {
   switch (rmode) {
     case RelocInfo::NONE:
-      return "no reloc";
+      return "no reloc 32";
+    case RelocInfo::NONE64:
+      return "no reloc 64";
     case RelocInfo::EMBEDDED_OBJECT:
       return "embedded object";
     case RelocInfo::CONSTRUCT_CALL:
@@ -817,6 +819,7 @@ void RelocInfo::Verify() {
     case CONST_POOL:
     case DEBUG_BREAK_SLOT:
     case NONE:
+    case NONE64:
       break;
     case NUMBER_OF_MODES:
       UNREACHABLE();

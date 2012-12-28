@@ -248,7 +248,8 @@ class RelocInfo BASE_EMBEDDED {
     // add more as needed
     // Pseudo-types
     NUMBER_OF_MODES,  // There are at most 15 modes with noncompact encoding.
-    NONE,  // never recorded
+    NONE,  // never recorded 32-bit value
+    NONE64,  // never recorded 64-bit value
     CODE_AGE_SEQUENCE,  // Not stored in RelocInfo array, used explictly by
                         // code aging.
     FIRST_REAL_RELOC_MODE = CODE_TARGET,
@@ -267,6 +268,9 @@ class RelocInfo BASE_EMBEDDED {
 
   RelocInfo(byte* pc, Mode rmode, intptr_t data, Code* host)
       : pc_(pc), rmode_(rmode), data_(data), host_(host) {
+  }
+  RelocInfo(byte* pc, double data64)
+      : pc_(pc), rmode_(NONE64), data64_(data64), host_(NULL) {
   }
 
   static inline bool IsRealRelocMode(Mode mode) {
@@ -315,6 +319,9 @@ class RelocInfo BASE_EMBEDDED {
   static inline bool IsDebugBreakSlot(Mode mode) {
     return mode == DEBUG_BREAK_SLOT;
   }
+  static inline bool IsNone(Mode mode) {
+    return mode == NONE || mode == NONE64;
+  }
   static inline bool IsCodeAgeSequence(Mode mode) {
     return mode == CODE_AGE_SEQUENCE;
   }
@@ -325,6 +332,7 @@ class RelocInfo BASE_EMBEDDED {
   void set_pc(byte* pc) { pc_ = pc; }
   Mode rmode() const {  return rmode_; }
   intptr_t data() const { return data_; }
+  double data64() const { return data64_; }
   Code* host() const { return host_; }
 
   // Apply a relocation by delta bytes
@@ -423,7 +431,10 @@ class RelocInfo BASE_EMBEDDED {
   // comment).
   byte* pc_;
   Mode rmode_;
-  intptr_t data_;
+  union {
+    intptr_t data_;
+    double data64_;
+  };
   Code* host_;
   // Code and Embedded Object pointers on some platforms are stored split
   // across two consecutive 32-bit instructions. Heap management
