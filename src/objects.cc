@@ -1048,7 +1048,8 @@ void String::StringShortPrint(StringStream* accumulator) {
     return;
   }
 
-  StringInputBuffer buf(this);
+  ConsStringIteratorOp op;
+  StringCharacterStream stream(this, &op);
 
   bool truncated = false;
   if (len > kMaxShortPrintLength) {
@@ -1057,17 +1058,17 @@ void String::StringShortPrint(StringStream* accumulator) {
   }
   bool ascii = true;
   for (int i = 0; i < len; i++) {
-    int c = buf.GetNext();
+    uint16_t c = stream.GetNext();
 
     if (c < 32 || c >= 127) {
       ascii = false;
     }
   }
-  buf.Reset(this);
+  stream.Reset(this);
   if (ascii) {
     accumulator->Add("<String[%u]: ", length());
     for (int i = 0; i < len; i++) {
-      accumulator->Put(buf.GetNext());
+      accumulator->Put(static_cast<char>(stream.GetNext()));
     }
     accumulator->Put('>');
   } else {
@@ -1075,7 +1076,7 @@ void String::StringShortPrint(StringStream* accumulator) {
     // characters and that backslashes are therefore escaped.
     accumulator->Add("<String[%u]\\: ", length());
     for (int i = 0; i < len; i++) {
-      int c = buf.GetNext();
+      uint16_t c = stream.GetNext();
       if (c == '\n') {
         accumulator->Add("\\n");
       } else if (c == '\r') {
@@ -1085,7 +1086,7 @@ void String::StringShortPrint(StringStream* accumulator) {
       } else if (c < 32 || c > 126) {
         accumulator->Add("\\x%02x", c);
       } else {
-        accumulator->Put(c);
+        accumulator->Put(static_cast<char>(c));
       }
     }
     if (truncated) {
@@ -1537,15 +1538,16 @@ MaybeObject* JSObject::AddFastPropertyUsingMap(Map* new_map,
 }
 
 
-static bool IsIdentifier(UnicodeCache* cache,
-                         unibrow::CharacterStream* buffer) {
+static bool IsIdentifier(UnicodeCache* cache, String* string) {
   // Checks whether the buffer contains an identifier (no escape).
-  if (!buffer->has_more()) return false;
-  if (!cache->IsIdentifierStart(buffer->GetNext())) {
+  if (string->length() == 0) return false;
+  ConsStringIteratorOp op;
+  StringCharacterStream stream(string, &op);
+  if (!cache->IsIdentifierStart(stream.GetNext())) {
     return false;
   }
-  while (buffer->has_more()) {
-    if (!cache->IsIdentifierPart(buffer->GetNext())) {
+  while (stream.HasMore()) {
+    if (!cache->IsIdentifierPart(stream.GetNext())) {
       return false;
     }
   }
@@ -1566,8 +1568,7 @@ MaybeObject* JSObject::AddFastProperty(String* name,
   // hidden symbols) and is not a real identifier.
   // Normalize the object if it will have too many fast properties.
   Isolate* isolate = GetHeap()->isolate();
-  StringInputBuffer buffer(name);
-  if ((!IsIdentifier(isolate->unicode_cache(), &buffer)
+  if ((!IsIdentifier(isolate->unicode_cache(), name)
        && name != isolate->heap()->hidden_symbol()) ||
       (map()->unused_property_fields() == 0 &&
        TooManyFastProperties(properties()->length(), store_mode))) {
@@ -6594,14 +6595,14 @@ SmartArrayPointer<char> String::ToCString(AllowNullsFlag allow_nulls,
   if (length < 0) length = kMaxInt - offset;
 
   // Compute the size of the UTF-8 string. Start at the specified offset.
-  Access<StringInputBuffer> buffer(
-      heap->isolate()->objects_string_input_buffer());
-  buffer->Reset(offset, this);
+  Access<ConsStringIteratorOp> op(
+      heap->isolate()->objects_string_iterator());
+  StringCharacterStream stream(this, op.value(), offset);
   int character_position = offset;
   int utf8_bytes = 0;
   int last = unibrow::Utf16::kNoPreviousCharacter;
-  while (buffer->has_more() && character_position++ < offset + length) {
-    uint16_t character = buffer->GetNext();
+  while (stream.HasMore() && character_position++ < offset + length) {
+    uint16_t character = stream.GetNext();
     utf8_bytes += unibrow::Utf8::Length(character, last);
     last = character;
   }
@@ -6613,13 +6614,12 @@ SmartArrayPointer<char> String::ToCString(AllowNullsFlag allow_nulls,
   char* result = NewArray<char>(utf8_bytes + 1);
 
   // Convert the UTF-16 string to a UTF-8 buffer. Start at the specified offset.
-  buffer->Rewind();
-  buffer->Seek(offset);
+  stream.Reset(this, offset);
   character_position = offset;
   int utf8_byte_position = 0;
   last = unibrow::Utf16::kNoPreviousCharacter;
-  while (buffer->has_more() && character_position++ < offset + length) {
-    uint16_t character = buffer->GetNext();
+  while (stream.HasMore() && character_position++ < offset + length) {
+    uint16_t character = stream.GetNext();
     if (allow_nulls == DISALLOW_NULLS && character == 0) {
       character = ' ';
     }
@@ -6671,15 +6671,15 @@ SmartArrayPointer<uc16> String::ToWideCString(RobustnessFlag robust_flag) {
   }
   Heap* heap = GetHeap();
 
-  Access<StringInputBuffer> buffer(
-      heap->isolate()->objects_string_input_buffer());
-  buffer->Reset(this);
+  Access<ConsStringIteratorOp> op(
+      heap->isolate()->objects_string_iterator());
+  StringCharacterStream stream(this, op.value());
 
   uc16* result = NewArray<uc16>(length() + 1);
 
   int i = 0;
-  while (buffer->has_more()) {
-    uint16_t character = buffer->GetNext();
+  while (stream.HasMore()) {
+    uint16_t character = stream.GetNext();
     result[i++] = character;
   }
   result[i] = 0;
@@ -7457,46 +7457,28 @@ void String::WriteToFlat(String* src,
 }
 
 
-template <typename IteratorA, typename IteratorB>
-static inline bool CompareStringContents(IteratorA* ia, IteratorB* ib) {
-  // General slow case check.  We know that the ia and ib iterators
-  // have the same length.
-  while (ia->has_more()) {
-    uint32_t ca = ia->GetNext();
-    uint32_t cb = ib->GetNext();
-    ASSERT(ca <= unibrow::Utf16::kMaxNonSurrogateCharCode);
-    ASSERT(cb <= unibrow::Utf16::kMaxNonSurrogateCharCode);
-    if (ca != cb)
-      return false;
-  }
-  return true;
-}
-
-
 // Compares the contents of two strings by reading and comparing
 // int-sized blocks of characters.
 template <typename Char>
-static inline bool CompareRawStringContents(Vector<Char> a, Vector<Char> b) {
-  int length = a.length();
-  ASSERT_EQ(length, b.length());
-  const Char* pa = a.start();
-  const Char* pb = b.start();
+static inline bool CompareRawStringContents(const Char* const a,
+                                            const Char* const b,
+                                            int length) {
   int i = 0;
 #ifndef V8_HOST_CAN_READ_UNALIGNED
   // If this architecture isn't comfortable reading unaligned ints
   // then we have to check that the strings are aligned before
   // comparing them blockwise.
   const int kAlignmentMask = sizeof(uint32_t) - 1;  // NOLINT
-  uint32_t pa_addr = reinterpret_cast<uint32_t>(pa);
-  uint32_t pb_addr = reinterpret_cast<uint32_t>(pb);
+  uint32_t pa_addr = reinterpret_cast<uint32_t>(a);
+  uint32_t pb_addr = reinterpret_cast<uint32_t>(b);
   if (((pa_addr & kAlignmentMask) | (pb_addr & kAlignmentMask)) == 0) {
 #endif
     const int kStepSize = sizeof(int) / sizeof(Char);  // NOLINT
     int endpoint = length - kStepSize;
     // Compare blocks until we reach near the end of the string.
     for (; i <= endpoint; i += kStepSize) {
-      uint32_t wa = *reinterpret_cast<const uint32_t*>(pa + i);
-      uint32_t wb = *reinterpret_cast<const uint32_t*>(pb + i);
+      uint32_t wa = *reinterpret_cast<const uint32_t*>(a + i);
+      uint32_t wb = *reinterpret_cast<const uint32_t*>(b + i);
       if (wa != wb) {
         return false;
       }
@@ -7514,25 +7496,145 @@ static inline bool CompareRawStringContents(Vector<Char> a, Vector<Char> b) {
 }
 
 
-template <typename IteratorA>
-static inline bool CompareStringContentsPartial(Isolate* isolate,
-                                                IteratorA* ia,
-                                                String* b) {
-  String::FlatContent content = b->GetFlatContent();
-  if (content.IsFlat()) {
-    if (content.IsAscii()) {
-      VectorIterator<char> ib(content.ToAsciiVector());
-      return CompareStringContents(ia, &ib);
-    } else {
-      VectorIterator<uc16> ib(content.ToUC16Vector());
-      return CompareStringContents(ia, &ib);
+template<typename Chars1, typename Chars2>
+class RawStringComparator : public AllStatic {
+ public:
+  static inline bool compare(const Chars1* a, const Chars2* b, int len) {
+    ASSERT(sizeof(Chars1) != sizeof(Chars2));
+    for (int i = 0; i < len; i++) {
+      if (a[i] != b[i]) {
+        return false;
+      }
     }
-  } else {
-    isolate->objects_string_compare_buffer_b()->Reset(0, b);
-    return CompareStringContents(ia,
-                                 isolate->objects_string_compare_buffer_b());
+    return true;
   }
-}
+};
+
+
+template<>
+class RawStringComparator<uint16_t, uint16_t> {
+ public:
+  static inline bool compare(const uint16_t* a, const uint16_t* b, int len) {
+    return CompareRawStringContents(a, b, len);
+  }
+};
+
+
+template<>
+class RawStringComparator<uint8_t, uint8_t> {
+ public:
+  static inline bool compare(const uint8_t* a, const uint8_t* b, int len) {
+    return CompareRawStringContents(a, b, len);
+  }
+};
+
+
+class StringComparator {
+  class State {
+   public:
+    explicit inline State(ConsStringIteratorOp* op)
+      : op_(op), is_one_byte_(true), length_(0), buffer8_(NULL) {}
+
+    inline void Init(String* string, unsigned len) {
+      op_->Reset();
+      int32_t type = string->map()->instance_type();
+      String::Visit(string, 0, *this, *op_, type, len);
+    }
+
+    inline void VisitOneByteString(const uint8_t* chars, unsigned length) {
+      is_one_byte_ = true;
+      buffer8_ = chars;
+      length_ = length;
+    }
+
+    inline void VisitTwoByteString(const uint16_t* chars, unsigned length) {
+      is_one_byte_ = false;
+      buffer16_ = chars;
+      length_ = length;
+    }
+
+    void Advance(unsigned consumed) {
+      ASSERT(consumed <= length_);
+      // Still in buffer.
+      if (length_ != consumed) {
+        if (is_one_byte_) {
+          buffer8_ += consumed;
+        } else {
+          buffer16_ += consumed;
+        }
+        length_ -= consumed;
+        return;
+      }
+      // Advance state.
+      ASSERT(op_->HasMore());
+      int32_t type = 0;
+      unsigned length = 0;
+      String* next = op_->ContinueOperation(&type, &length);
+      ASSERT(next != NULL);
+      ConsStringNullOp null_op;
+      String::Visit(next, 0, *this, null_op, type, length);
+    }
+
+    ConsStringIteratorOp* const op_;
+    bool is_one_byte_;
+    unsigned length_;
+    union {
+      const uint8_t* buffer8_;
+      const uint16_t* buffer16_;
+    };
+    DISALLOW_IMPLICIT_CONSTRUCTORS(State);
+  };
+
+ public:
+  inline StringComparator(ConsStringIteratorOp* op_1,
+                          ConsStringIteratorOp* op_2)
+    : state_1_(op_1),
+      state_2_(op_2) {
+  }
+
+  template<typename Chars1, typename Chars2>
+  static inline bool Equals(State* state_1, State* state_2, unsigned to_check) {
+    const Chars1* a = reinterpret_cast<const Chars1*>(state_1->buffer8_);
+    const Chars2* b = reinterpret_cast<const Chars2*>(state_2->buffer8_);
+    return RawStringComparator<Chars1, Chars2>::compare(a, b, to_check);
+  }
+
+  bool Equals(unsigned length, String* string_1, String* string_2) {
+    ASSERT(length != 0);
+    state_1_.Init(string_1, length);
+    state_2_.Init(string_2, length);
+    while (true) {
+      unsigned to_check = Min(state_1_.length_, state_2_.length_);
+      ASSERT(to_check > 0 && to_check <= length);
+      bool is_equal;
+      if (state_1_.is_one_byte_) {
+        if (state_2_.is_one_byte_) {
+          is_equal = Equals<uint8_t, uint8_t>(&state_1_, &state_2_, to_check);
+        } else {
+          is_equal = Equals<uint8_t, uint16_t>(&state_1_, &state_2_, to_check);
+        }
+      } else {
+        if (state_2_.is_one_byte_) {
+          is_equal = Equals<uint16_t, uint8_t>(&state_1_, &state_2_, to_check);
+        } else {
+          is_equal = Equals<uint16_t, uint16_t>(&state_1_, &state_2_, to_check);
+        }
+      }
+      // Looping done.
+      if (!is_equal) return false;
+      length -= to_check;
+      // Exit condition. Strings are equal.
+      if (length == 0) return true;
+      state_1_.Advance(to_check);
+      state_2_.Advance(to_check);
+    }
+  }
+
+ private:
+  State state_1_;
+  State state_2_;
+  DISALLOW_IMPLICIT_CONSTRUCTORS(StringComparator);
+};
 
 
 bool String::SlowEquals(String* other) {
@@ -7568,58 +7670,19 @@ bool String::SlowEquals(String* other) {
   String* lhs = this->TryFlattenGetString();
   String* rhs = other->TryFlattenGetString();
 
+  // TODO(dcarney): Compare all types of flat strings with a Visitor.
   if (StringShape(lhs).IsSequentialAscii() &&
       StringShape(rhs).IsSequentialAscii()) {
     const char* str1 = SeqOneByteString::cast(lhs)->GetChars();
     const char* str2 = SeqOneByteString::cast(rhs)->GetChars();
-    return CompareRawStringContents(Vector<const char>(str1, len),
-                                    Vector<const char>(str2, len));
+    return CompareRawStringContents(str1, str2, len);
   }
 
   Isolate* isolate = GetIsolate();
-  String::FlatContent lhs_content = lhs->GetFlatContent();
-  String::FlatContent rhs_content = rhs->GetFlatContent();
-  if (lhs_content.IsFlat()) {
-    if (lhs_content.IsAscii()) {
-      Vector<const char> vec1 = lhs_content.ToAsciiVector();
-      if (rhs_content.IsFlat()) {
-        if (rhs_content.IsAscii()) {
-          Vector<const char> vec2 = rhs_content.ToAsciiVector();
-          return CompareRawStringContents(vec1, vec2);
-        } else {
-          VectorIterator<char> buf1(vec1);
-          VectorIterator<uc16> ib(rhs_content.ToUC16Vector());
-          return CompareStringContents(&buf1, &ib);
-        }
-      } else {
-        VectorIterator<char> buf1(vec1);
-        isolate->objects_string_compare_buffer_b()->Reset(0, rhs);
-        return CompareStringContents(&buf1,
-            isolate->objects_string_compare_buffer_b());
-      }
-    } else {
-      Vector<const uc16> vec1 = lhs_content.ToUC16Vector();
-      if (rhs_content.IsFlat()) {
-        if (rhs_content.IsAscii()) {
-          VectorIterator<uc16> buf1(vec1);
-          VectorIterator<char> ib(rhs_content.ToAsciiVector());
-          return CompareStringContents(&buf1, &ib);
-        } else {
-          Vector<const uc16> vec2(rhs_content.ToUC16Vector());
-          return CompareRawStringContents(vec1, vec2);
-        }
-      } else {
-        VectorIterator<uc16> buf1(vec1);
-        isolate->objects_string_compare_buffer_b()->Reset(0, rhs);
-        return CompareStringContents(&buf1,
-            isolate->objects_string_compare_buffer_b());
-      }
-    }
-  } else {
-    isolate->objects_string_compare_buffer_a()->Reset(0, lhs);
-    return CompareStringContentsPartial(isolate,
-        isolate->objects_string_compare_buffer_a(), rhs);
-  }
+  StringComparator comparator(isolate->objects_string_compare_iterator_a(),
+                              isolate->objects_string_compare_iterator_b());
+
+  return comparator.Equals(static_cast<unsigned>(len), lhs, rhs);
 }
 
 
@@ -7764,11 +7827,12 @@ uint32_t String::ComputeAndSetHash() {
 }
 
 
-bool String::ComputeArrayIndex(unibrow::CharacterStream* buffer,
-                               uint32_t* index,
-                               int length) {
+bool String::ComputeArrayIndex(uint32_t* index) {
+  int length = this->length();
   if (length == 0 || length > kMaxArrayIndexSize) return false;
-  uc32 ch = buffer->GetNext();
+  ConsStringIteratorOp op;
+  StringCharacterStream stream(this, &op);
+  uint16_t ch = stream.GetNext();
 
   // If the string begins with a '0' character, it must only consist
   // of it to be a legal array index.
@@ -7781,8 +7845,8 @@ bool String::ComputeArrayIndex(unibrow::CharacterStream* buffer,
   int d = ch - '0';
   if (d < 0 || d > 9) return false;
   uint32_t result = d;
-  while (buffer->has_more()) {
-    d = buffer->GetNext() - '0';
+  while (stream.HasMore()) {
+    d = stream.GetNext() - '0';
     if (d < 0 || d > 9) return false;
     // Check that the new result is below the 32 bit limit.
     if (result > 429496729U - ((d > 5) ? 1 : 0)) return false;
@@ -7803,8 +7867,7 @@ bool String::SlowAsArrayIndex(uint32_t* index) {
     *index = (kArrayIndexHashMask & field) >> kHashShift;
     return true;
   } else {
-    StringInputBuffer buffer(this);
-    return ComputeArrayIndex(&buffer, index, length());
+    return ComputeArrayIndex(index);
   }
 }
 

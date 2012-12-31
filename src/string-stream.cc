@@ -311,14 +311,14 @@ bool StringStream::Put(String* str) {
 
 
 bool StringStream::Put(String* str, int start, int end) {
-  StringInputBuffer name_buffer(str);
-  name_buffer.Seek(start);
-  for (int i = start; i < end && name_buffer.has_more(); i++) {
-    int c = name_buffer.GetNext();
+  ConsStringIteratorOp op;
+  StringCharacterStream stream(str, &op, start);
+  for (int i = start; i < end && stream.HasMore(); i++) {
+    uint16_t c = stream.GetNext();
     if (c >= 127 || c < 32) {
       c = '?';
     }
-    if (!Put(c)) {
+    if (!Put(static_cast<char>(c))) {
       return false;  // Output was truncated.
     }
   }

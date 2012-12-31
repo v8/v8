@@ -4044,10 +4044,9 @@ int String::WriteUtf8(char* buffer,
   }
 
   // Slow case.
-  i::StringInputBuffer& write_input_buffer = *isolate->write_input_buffer();
+  i::StringCharacterStream stream(*str, isolate->write_iterator());
   isolate->string_tracker()->RecordWrite(str);
 
-  write_input_buffer.Reset(0, *str);
   int len = str->length();
   // Encode the first K - 3 bytes directly into the buffer since we
   // know there's room for them.  If no capacity is given we copy all
@@ -4058,7 +4057,7 @@ int String::WriteUtf8(char* buffer,
   int nchars = 0;
   int previous = unibrow::Utf16::kNoPreviousCharacter;
   for (i = 0; i < len && (capacity == -1 || pos < fast_end); i++) {
-    i::uc32 c = write_input_buffer.GetNext();
+    i::uc32 c = stream.GetNext();
     int written = unibrow::Utf8::Encode(buffer + pos, c, previous);
     pos += written;
     nchars++;
@@ -4070,7 +4069,7 @@ int String::WriteUtf8(char* buffer,
     // buffer.
     char intermediate[unibrow::Utf8::kMaxEncodedSize];
     for (; i < len && pos < capacity; i++) {
-      i::uc32 c = write_input_buffer.GetNext();
+      i::uc32 c = stream.GetNext();
       if (unibrow::Utf16::IsTrailSurrogate(c) &&
           unibrow::Utf16::IsLeadSurrogate(previous)) {
         // We can't use the intermediate buffer here because the encoding
@@ -4126,7 +4125,7 @@ int String::WriteAscii(char* buffer,
   }
 
   if (str->IsOneByteRepresentation()) {
-    // WriteToFlat is faster than using the StringInputBuffer.
+    // WriteToFlat is faster than using the StringCharacterStream.
     if (length == -1) length = str->length() + 1;
     int len = i::Min(length, str->length() - start);
     i::String::WriteToFlat(*str, buffer, start, start + len);
@@ -4141,16 +4140,15 @@ int String::WriteAscii(char* buffer,
     return len;
   }
 
-  i::StringInputBuffer& write_input_buffer = *isolate->write_input_buffer();
   int end = length;
   if ((length == -1) || (length > str->length() - start)) {
     end = str->length() - start;
   }
   if (end < 0) return 0;
-  write_input_buffer.Reset(start, *str);
+  i::StringCharacterStream write_stream(*str, isolate->write_iterator(), start);
   int i;
   for (i = 0; i < end; i++) {
-    char c = static_cast<char>(write_input_buffer.GetNext());
+    char c = static_cast<char>(write_stream.GetNext());
     if (c == '\0' && !(options & PRESERVE_ASCII_NULL)) c = ' ';
     buffer[i] = c;
   }
@@ -4174,7 +4172,7 @@ int String::Write(uint16_t* buffer,
   isolate->string_tracker()->RecordWrite(str);
   if (options & HINT_MANY_WRITES_EXPECTED) {
     // Flatten the string for efficiency.  This applies whether we are
-    // using StringInputBuffer or Get(i) to access the characters.
+    // using StringCharacterStream or Get(i) to access the characters.
     FlattenString(str);
   }
   int end = start + length;

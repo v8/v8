@@ -131,14 +131,16 @@ void CodeGenerator::PrintCode(Handle<Code> code, CompilationInfo* info) {
       Handle<Script> script = info->script();
       if (!script->IsUndefined() && !script->source()->IsUndefined()) {
         PrintF("--- Raw source ---\n");
-        StringInputBuffer stream(String::cast(script->source()));
-        stream.Seek(function->start_position());
+        ConsStringIteratorOp op;
+        StringCharacterStream stream(String::cast(script->source()),
+                                     &op,
+                                     function->start_position());
         // fun->end_position() points to the last character in the stream. We
         // need to compensate by adding one to calculate the length.
         int source_len =
             function->end_position() - function->start_position() + 1;
         for (int i = 0; i < source_len; i++) {
-          if (stream.has_more()) PrintF("%c", stream.GetNext());
+          if (stream.HasMore()) PrintF("%c", stream.GetNext());
         }
         PrintF("\n\n");
       }
