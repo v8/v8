@@ -9609,9 +9609,9 @@ MaybeObject* JSObject::SetFastElementsCapacityAndLength(
     }
   }
   FixedArrayBase* old_elements = elements();
-  ElementsAccessor* accessor = ElementsAccessor::ForKind(elements_kind);
+  ElementsAccessor* accessor = ElementsAccessor::ForKind(new_elements_kind);
   MaybeObject* maybe_obj =
-      accessor->CopyElements(this, new_elements, new_elements_kind);
+      accessor->CopyElements(this, new_elements, elements_kind);
   if (maybe_obj->IsFailure()) return maybe_obj;
 
   if (elements_kind != NON_STRICT_ARGUMENTS_ELEMENTS) {
@@ -9669,9 +9669,9 @@ MaybeObject* JSObject::SetFastDoubleElementsCapacityAndLength(
   }
 
   FixedArrayBase* old_elements = elements();
-  ElementsAccessor* accessor = ElementsAccessor::ForKind(elements_kind);
+  ElementsAccessor* accessor = ElementsAccessor::ForKind(FAST_DOUBLE_ELEMENTS);
   { MaybeObject* maybe_obj =
-        accessor->CopyElements(this, elems, FAST_DOUBLE_ELEMENTS);
+        accessor->CopyElements(this, elems, elements_kind);
     if (maybe_obj->IsFailure()) return maybe_obj;
   }
   if (elements_kind != NON_STRICT_ARGUMENTS_ELEMENTS) {

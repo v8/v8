@@ -576,7 +576,7 @@ BUILTIN(ArrayPush) {
 
       ElementsAccessor* accessor = array->GetElementsAccessor();
       MaybeObject* maybe_failure = accessor->CopyElements(
-           NULL, 0, new_elms, kind, 0,
+           NULL, 0, kind, new_elms, 0,
            ElementsAccessor::kCopyToEndAndInitializeToHole, elms_obj);
       ASSERT(!maybe_failure->IsFailure());
       USE(maybe_failure);
@@ -623,7 +623,7 @@ BUILTIN(ArrayPush) {
 
       ElementsAccessor* accessor = array->GetElementsAccessor();
       MaybeObject* maybe_failure = accessor->CopyElements(
-              NULL, 0, new_elms, kind, 0,
+              NULL, 0, kind, new_elms, 0,
               ElementsAccessor::kCopyToEndAndInitializeToHole, elms_obj);
       ASSERT(!maybe_failure->IsFailure());
       USE(maybe_failure);
@@ -785,7 +785,7 @@ BUILTIN(ArrayUnshift) {
     ElementsKind kind = array->GetElementsKind();
     ElementsAccessor* accessor = array->GetElementsAccessor();
     MaybeObject* maybe_failure = accessor->CopyElements(
-            NULL, 0, new_elms, kind, to_add,
+            NULL, 0, kind, new_elms, to_add,
             ElementsAccessor::kCopyToEndAndInitializeToHole, elms);
     ASSERT(!maybe_failure->IsFailure());
     USE(maybe_failure);
@@ -934,9 +934,8 @@ BUILTIN(ArraySlice) {
   if (!maybe_array->To(&result_array)) return maybe_array;
 
   ElementsAccessor* accessor = object->GetElementsAccessor();
-  MaybeObject* maybe_failure =
-      accessor->CopyElements(NULL, k, result_array->elements(),
-                             kind, 0, result_len, elms);
+  MaybeObject* maybe_failure = accessor->CopyElements(
+      NULL, k, kind, result_array->elements(), 0, result_len, elms);
   ASSERT(!maybe_failure->IsFailure());
   USE(maybe_failure);
 
@@ -1037,9 +1036,9 @@ BUILTIN(ArraySplice) {
   if (actual_delete_count > 0) {
     AssertNoAllocation no_gc;
     ElementsAccessor* accessor = array->GetElementsAccessor();
-    MaybeObject* maybe_failure =
-        accessor->CopyElements(NULL, actual_start, result_array->elements(),
-                               elements_kind, 0, actual_delete_count, elms_obj);
+    MaybeObject* maybe_failure = accessor->CopyElements(
+        NULL, actual_start, elements_kind, result_array->elements(),
+        0, actual_delete_count, elms_obj);
     // Cannot fail since the origin and target array are of the same elements
     // kind.
     ASSERT(!maybe_failure->IsFailure());
@@ -1105,12 +1104,12 @@ BUILTIN(ArraySplice) {
       if (actual_start > 0) {
         // Copy the part before actual_start as is.
         MaybeObject* maybe_failure = accessor->CopyElements(
-            NULL, 0, new_elms, kind, 0, actual_start, elms);
+            NULL, 0, kind, new_elms, 0, actual_start, elms);
         ASSERT(!maybe_failure->IsFailure());
         USE(maybe_failure);
       }
       MaybeObject* maybe_failure = accessor->CopyElements(
-          NULL, actual_start + actual_delete_count, new_elms, kind,
+          NULL, actual_start + actual_delete_count, kind, new_elms,
           actual_start + item_count,
           ElementsAccessor::kCopyToEndAndInitializeToHole, elms);
       ASSERT(!maybe_failure->IsFailure());
@@ -1220,13 +1219,14 @@ BUILTIN(ArrayConcat) {
 
   int j = 0;
   FixedArrayBase* storage = result_array->elements();
+  ElementsAccessor* accessor = ElementsAccessor::ForKind(elements_kind);
   for (int i = 0; i < n_arguments; i++) {
     JSArray* array = JSArray::cast(args[i]);
     int len = Smi::cast(array->length())->value();
+    ElementsKind from_kind = array->GetElementsKind();
     if (len > 0) {
-      ElementsAccessor* accessor = array->GetElementsAccessor();
       MaybeObject* maybe_failure =
-          accessor->CopyElements(array, 0, storage, elements_kind, j, len);
+          accessor->CopyElements(array, 0, from_kind, storage, j, len);
       if (maybe_failure->IsFailure()) return maybe_failure;
       j += len;
     }
