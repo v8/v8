@@ -473,6 +473,10 @@ static uintptr_t ReadLong(char* buffer, intptr_t* position, int base) {
 }
 
 
+// The memory use computed this way is not entirely accurate and depends on
+// the way malloc allocates memory.  That's why the memory use may seem to
+// increase even though the sum of the allocated object sizes decreases.  It
+// also means that the memory use depends on the kernel and stdlib.
 static intptr_t MemoryInUse() {
   intptr_t memory_use = 0;
 
@@ -538,17 +542,18 @@ TEST(BootUpMemoryUse) {
   if (initial_memory >= 0) {
     InitializeVM();
     intptr_t delta = MemoryInUse() - initial_memory;
-    if (sizeof(initial_memory) == 8) {
+    printf("delta: %" V8_PTR_PREFIX "d kB\n", delta / 1024);
+    if (sizeof(initial_memory) == 8) {  // 64-bit.
       if (v8::internal::Snapshot::IsEnabled()) {
-        CHECK_LE(delta, 3600 * 1024);  // 3396.
+        CHECK_LE(delta, 3700 * 1024);
       } else {
-        CHECK_LE(delta, 4000 * 1024);  // 3948.
+        CHECK_LE(delta, 4200 * 1024);
       }
-    } else {
+    } else {                            // 32-bit.
       if (v8::internal::Snapshot::IsEnabled()) {
-        CHECK_LE(delta, 2600 * 1024);  // 2400.
+        CHECK_LE(delta, 2600 * 1024);
       } else {
-        CHECK_LE(delta, 3000 * 1024);  // 2920.
+        CHECK_LE(delta, 3000 * 1024);
       }
     }
   }

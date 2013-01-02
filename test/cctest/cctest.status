@@ -56,10 +56,6 @@ test-profile-generator/RecordStackTraceAtStartProfiling: PASS || FAIL
 # We do not yet shrink weak maps after they have been emptied by the GC
 test-weakmaps/Shrinking: FAIL
 
-# Measurement of memory consumption seems bogus.
-# Revision 13291 only slightly decreases the size of the isolate.
-test-mark-compact/BootUpMemoryUse: PASS || FAIL
-
 ##############################################################################
 [ $arch == arm ]
 
