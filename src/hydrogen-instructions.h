@@ -1262,6 +1262,8 @@ class HForceRepresentation: public HTemplateInstruction<1> {
     return representation();  // Same as the output representation.
   }
 
+  virtual void PrintDataTo(StringStream* stream);
+
   DECLARE_CONCRETE_INSTRUCTION(ForceRepresentation)
 };
 
