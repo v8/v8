@@ -3873,102 +3873,6 @@ int String::Length() const {
   return str->length();
 }
 
-
-int String::Utf8Length() const {
-  i::Handle<i::String> str = Utils::OpenHandle(this);
-  if (IsDeadCheck(str->GetIsolate(), "v8::String::Utf8Length()")) return 0;
-  return i::Utf8Length(str);
-}
-
-
-// Will fail with a negative answer if the recursion depth is too high.
-static int RecursivelySerializeToUtf8(i::String* string,
-                                      char* buffer,
-                                      int start,
-                                      int end,
-                                      int recursion_budget,
-                                      int32_t previous_character,
-                                      int32_t* last_character) {
-  int utf8_bytes = 0;
-  while (true) {
-    if (string->IsOneByteRepresentation()) {
-      i::String::WriteToFlat(string, buffer, start, end);
-      *last_character = unibrow::Utf16::kNoPreviousCharacter;
-      return utf8_bytes + end - start;
-    }
-    switch (i::StringShape(string).representation_tag()) {
-      case i::kExternalStringTag: {
-        const uint16_t* data = i::ExternalTwoByteString::cast(string)->
-          ExternalTwoByteStringGetData(0);
-        char* current = buffer;
-        for (int i = start; i < end; i++) {
-          uint16_t character = data[i];
-          current +=
-              unibrow::Utf8::Encode(current, character, previous_character);
-          previous_character = character;
-        }
-        *last_character = previous_character;
-        return static_cast<int>(utf8_bytes + current - buffer);
-      }
-      case i::kSeqStringTag: {
-        const uint16_t* data =
-            i::SeqTwoByteString::cast(string)->SeqTwoByteStringGetData(0);
-        char* current = buffer;
-        for (int i = start; i < end; i++) {
-          uint16_t character = data[i];
-          current +=
-              unibrow::Utf8::Encode(current, character, previous_character);
-          previous_character = character;
-        }
-        *last_character = previous_character;
-        return static_cast<int>(utf8_bytes + current - buffer);
-      }
-      case i::kSlicedStringTag: {
-        i::SlicedString* slice = i::SlicedString::cast(string);
-        unsigned offset = slice->offset();
-        string = slice->parent();
-        start += offset;
-        end += offset;
-        continue;
-      }
-      case i::kConsStringTag: {
-        i::ConsString* cons_string = i::ConsString::cast(string);
-        i::String* first = cons_string->first();
-        int boundary = first->length();
-        if (start >= boundary) {
-          // Only need RHS.
-          string = cons_string->second();
-          start -= boundary;
-          end -= boundary;
-          continue;
-        } else if (end <= boundary) {
-          // Only need LHS.
-          string = first;
-        } else {
-          if (recursion_budget == 0) return -1;
-          int extra_utf8_bytes =
-              RecursivelySerializeToUtf8(first,
-                                         buffer,
-                                         start,
-                                         boundary,
-                                         recursion_budget - 1,
-                                         previous_character,
-                                         &previous_character);
-          if (extra_utf8_bytes < 0) return extra_utf8_bytes;
-          buffer += extra_utf8_bytes;
-          utf8_bytes += extra_utf8_bytes;
-          string = cons_string->second();
-          start = 0;
-          end -= boundary;
-        }
-      }
-    }
-  }
-  UNREACHABLE();
-  return 0;
-}
-
-
 bool String::MayContainNonAscii() const {
   i::Handle<i::String> str = Utils::OpenHandle(this);
   if (IsDeadCheck(str->GetIsolate(), "v8::String::MayContainNonAscii()")) {
@@ -3976,6 +3880,222 @@ bool String::MayContainNonAscii() const {
   }
   return !str->HasOnlyAsciiChars();
 }
+
+
+class Utf8LengthVisitor {
+ public:
+  explicit Utf8LengthVisitor()
+    : utf8_length_(0),
+      last_character_(unibrow::Utf16::kNoPreviousCharacter) {}
+
+  inline int GetLength() {
+    return utf8_length_;
+  }
+
+  template<typename Char>
+  inline void Visit(const Char* chars, unsigned length) {
+    ASSERT(length > 0);
+    // TODO(dcarney) Add back ascii fast path.
+    int utf8_length = 0;
+    int last_character = last_character_;
+    for (unsigned i = 0; i < length; i++) {
+      uint16_t c = chars[i];
+      utf8_length += unibrow::Utf8::Length(c, last_character);
+      last_character = c;
+    }
+    last_character_ = last_character;
+    utf8_length_ += utf8_length;
+  }
+
+  inline void VisitOneByteString(const uint8_t* chars, unsigned length) {
+    Visit(chars, length);
+  }
+
+  inline void VisitTwoByteString(const uint16_t* chars, unsigned length) {
+    Visit(chars, length);
+  }
+
+ private:
+  int utf8_length_;
+  int last_character_;
+  DISALLOW_COPY_AND_ASSIGN(Utf8LengthVisitor);
+};
+
+
+static int Utf8Length(i::String* str, i::Isolate* isolate) {
+  unsigned length = static_cast<unsigned>(str->length());
+  if (length == 0) return 0;
+  int32_t type = str->map()->instance_type();
+  Utf8LengthVisitor visitor;
+  // Non ConsString branch.
+  if ((type & i::kStringRepresentationMask) != i::kConsStringTag) {
+    i::ConsStringNullOp null_op;
+    i::String::Visit(str, 0, visitor, null_op, type, length);
+    return visitor.GetLength();
+  }
+  i::ConsStringIteratorOp* op = isolate->write_iterator();
+  unsigned offset = 0;
+  i::String* leaf = op->Operate(str, &offset, &type, &length);
+  ASSERT(leaf != NULL);
+  while (leaf != NULL) {
+    i::ConsStringNullOp null_op;
+    ASSERT(offset == 0);
+    i::String::Visit(leaf, 0, visitor, null_op, type, length);
+    leaf = op->ContinueOperation(&type, &length);
+  }
+  return visitor.GetLength();
+}
+
+
+int String::Utf8Length() const {
+  i::Handle<i::String> str = Utils::OpenHandle(this);
+  i::Isolate* isolate = str->GetIsolate();
+  if (IsDeadCheck(isolate, "v8::String::Utf8Length()")) return 0;
+  return v8::Utf8Length(*str, isolate);
+}
+
+
+class Utf8WriterVisitor {
+ public:
+  Utf8WriterVisitor(char* buffer, int capacity)
+    : early_termination_(false),
+      last_character_(unibrow::Utf16::kNoPreviousCharacter),
+      buffer_(buffer),
+      start_(buffer),
+      capacity_(capacity),
+      utf16_chars_read_(0) {
+  }
+
+  static int WriteEndCharacter(uint16_t character,
+                               int last_character,
+                               int remaining,
+                               char* const buffer) {
+    using namespace unibrow;
+    ASSERT(remaining > 0);
+    // We can't use a local buffer here because Encode needs to modify
+    // previous characters in the stream.  We know, however, that
+    // exactly one character will be advanced.
+    if (Utf16::IsTrailSurrogate(character) &&
+        Utf16::IsLeadSurrogate(last_character)) {
+      int written = Utf8::Encode(buffer, character, last_character);
+      ASSERT(written == 1);
+      return written;
+    }
+    // Use a scratch buffer to check the required characters.
+    char temp_buffer[Utf8::kMaxEncodedSize];
+    // Can't encode using last_character as gcc has array bounds issues.
+    int written = Utf8::Encode(temp_buffer,
+                               character,
+                               unibrow::Utf16::kNoPreviousCharacter);
+    // Won't fit.
+    if (written > remaining) return 0;
+    // Copy over the character from temp_buffer.
+    for (int j = 0; j < written; j++) {
+      buffer[j] = temp_buffer[j];
+    }
+    return written;
+  }
+
+  template<typename Char>
+  void Visit(const Char* chars, const int length) {
+    using namespace unibrow;
+    // TODO(dcarney): Add back ascii fast path.
+    ASSERT(!early_termination_);
+    ASSERT(length > 0);
+    // Copy state to stack.
+    char* buffer = buffer_;
+    int last_character = last_character_;
+    int i = 0;
+    // Do a fast loop where there is no exit capacity check.
+    while (true) {
+      int fast_length;
+      if (capacity_ == -1) {
+        fast_length = length;
+      } else {
+        int remaining_capacity = capacity_ - (buffer - start_);
+        // Need enough space to write everything but one character.
+        STATIC_ASSERT(Utf16::kMaxExtraUtf8BytesForOneUtf16CodeUnit == 3);
+        int writable_length = (remaining_capacity - 3)/3;
+        // Need to drop into slow loop.
+        if (writable_length <= 0) break;
+        fast_length = i + writable_length;
+        if (fast_length > length) fast_length = length;
+      }
+      // Write the characters to the stream.
+      for (; i < fast_length; i++) {
+        uint16_t character = *chars++;
+        buffer += Utf8::Encode(buffer, character, last_character);
+        last_character = character;
+        ASSERT(capacity_ == -1 || (buffer - start_) <= capacity_);
+      }
+      // Array is fully written. Exit.
+      if (fast_length == length) {
+        // Write state back out to object.
+        last_character_ = last_character;
+        buffer_ = buffer;
+        utf16_chars_read_ += i;
+        return;
+      }
+    }
+    ASSERT(capacity_ != -1);
+    // Slow loop. Must check capacity on each iteration.
+    int remaining_capacity = capacity_ - (buffer - start_);
+    ASSERT(remaining_capacity >= 0);
+    for (; i < length && remaining_capacity > 0; i++) {
+      uint16_t character = *chars++;
+      int written = WriteEndCharacter(character,
+                                      last_character,
+                                      remaining_capacity,
+                                      buffer);
+      if (written == 0) {
+        early_termination_ = true;
+        break;
+      }
+      buffer += written;
+      remaining_capacity -= written;
+      last_character = character;
+    }
+    // Write state back out to object.
+    last_character_ = last_character;
+    buffer_ = buffer;
+    utf16_chars_read_ += i;
+  }
+
+  inline bool IsDone() {
+    return early_termination_;
+  }
+
+  inline void VisitOneByteString(const uint8_t* chars, unsigned length) {
+    Visit(chars, static_cast<int>(length));
+  }
+
+  inline void VisitTwoByteString(const uint16_t* chars, unsigned length) {
+    Visit(chars, static_cast<int>(length));
+  }
+
+  inline int CompleteWrite(bool write_null, int* utf16_chars_read_out) {
+    // Write out number of utf16 characters written to the stream.
+    if (utf16_chars_read_out != NULL) {
+      *utf16_chars_read_out = utf16_chars_read_;
+    }
+    // Only null terminate if all of the string was written and there's space.
+    if (write_null &&
+        !early_termination_ &&
+        (capacity_ == -1 || (buffer_ - start_) < capacity_)) {
+      *buffer_++ = '\0';
+    }
+    return buffer_ - start_;
+  }
+
+ private:
+  bool early_termination_;
+  int last_character_;
+  char* buffer_;
+  char* const start_;
+  int capacity_;
+  int utf16_chars_read_;
+  DISALLOW_IMPLICIT_CONSTRUCTORS(Utf8WriterVisitor);
+};
 
 
 int String::WriteUtf8(char* buffer,
@@ -3990,122 +4110,23 @@ int String::WriteUtf8(char* buffer,
   if (options & HINT_MANY_WRITES_EXPECTED) {
     FlattenString(str);  // Flatten the string for efficiency.
   }
-  int string_length = str->length();
-  if (str->IsOneByteRepresentation()) {
-    int len;
-    if (capacity == -1) {
-      capacity = str->length() + 1;
-      len = string_length;
-    } else {
-      len = i::Min(capacity, str->length());
-    }
-    i::String::WriteToFlat(*str, buffer, 0, len);
-    if (nchars_ref != NULL) *nchars_ref = len;
-    if (!(options & NO_NULL_TERMINATION) && capacity > len) {
-      buffer[len] = '\0';
-      return len + 1;
-    }
-    return len;
-  }
-
-  if (capacity == -1 || capacity / 3 >= string_length) {
-    int32_t previous = unibrow::Utf16::kNoPreviousCharacter;
-    const int kMaxRecursion = 100;
-    int utf8_bytes =
-        RecursivelySerializeToUtf8(*str,
-                                   buffer,
-                                   0,
-                                   string_length,
-                                   kMaxRecursion,
-                                   previous,
-                                   &previous);
-    if (utf8_bytes >= 0) {
-      // Success serializing with recursion.
-      if ((options & NO_NULL_TERMINATION) == 0 &&
-          (capacity > utf8_bytes || capacity == -1)) {
-        buffer[utf8_bytes++] = '\0';
-      }
-      if (nchars_ref != NULL) *nchars_ref = string_length;
-      return utf8_bytes;
-    }
-    FlattenString(str);
-    // Recurse once.  This time around the string is flat and the serializing
-    // with recursion will certainly succeed.
-    return WriteUtf8(buffer, capacity, nchars_ref, options);
-  } else if (capacity >= string_length) {
-    // First check that the buffer is large enough.  If it is, then recurse
-    // once without a capacity limit, which will get into the other branch of
-    // this 'if'.
-    int utf8_bytes = i::Utf8Length(str);
-    if ((options & NO_NULL_TERMINATION) == 0) utf8_bytes++;
-    if (utf8_bytes <= capacity) {
-      return WriteUtf8(buffer, -1, nchars_ref, options);
+  Utf8WriterVisitor writer(buffer, capacity);
+  i::ConsStringIteratorOp* op = isolate->write_iterator();
+  op->Reset();
+  int32_t type = str->map()->instance_type();
+  unsigned str_length = static_cast<unsigned>(str->length());
+  if (str_length != 0) {
+    i::String::Visit(*str, 0, writer, *op, type, str_length);
+    while (!writer.IsDone()) {
+      unsigned length_out;
+      i::String* next = op->ContinueOperation(&type, &length_out);
+      if (next == NULL) break;
+      // TODO(dcarney): need an asserting null op.
+      i::ConsStringNullOp null_op;
+      i::String::Visit(next, 0, writer, null_op, type, length_out);
     }
   }
-
-  // Slow case.
-  i::StringCharacterStream stream(*str, isolate->write_iterator());
-  isolate->string_tracker()->RecordWrite(str);
-
-  int len = str->length();
-  // Encode the first K - 3 bytes directly into the buffer since we
-  // know there's room for them.  If no capacity is given we copy all
-  // of them here.
-  int fast_end = capacity - (unibrow::Utf8::kMaxEncodedSize - 1);
-  int i;
-  int pos = 0;
-  int nchars = 0;
-  int previous = unibrow::Utf16::kNoPreviousCharacter;
-  for (i = 0; i < len && (capacity == -1 || pos < fast_end); i++) {
-    i::uc32 c = stream.GetNext();
-    int written = unibrow::Utf8::Encode(buffer + pos, c, previous);
-    pos += written;
-    nchars++;
-    previous = c;
-  }
-  if (i < len) {
-    // For the last characters we need to check the length for each one
-    // because they may be longer than the remaining space in the
-    // buffer.
-    char intermediate[unibrow::Utf8::kMaxEncodedSize];
-    for (; i < len && pos < capacity; i++) {
-      i::uc32 c = stream.GetNext();
-      if (unibrow::Utf16::IsTrailSurrogate(c) &&
-          unibrow::Utf16::IsLeadSurrogate(previous)) {
-        // We can't use the intermediate buffer here because the encoding
-        // of surrogate pairs is done under assumption that you can step
-        // back and fix the UTF8 stream.  Luckily we only need space for one
-        // more byte, so there is always space.
-        ASSERT(pos < capacity);
-        int written = unibrow::Utf8::Encode(buffer + pos, c, previous);
-        ASSERT(written == 1);
-        pos += written;
-        nchars++;
-      } else {
-        int written =
-            unibrow::Utf8::Encode(intermediate,
-                                  c,
-                                  unibrow::Utf16::kNoPreviousCharacter);
-        if (pos + written <= capacity) {
-          for (int j = 0; j < written; j++) {
-            buffer[pos + j] = intermediate[j];
-          }
-          pos += written;
-          nchars++;
-        } else {
-          // We've reached the end of the buffer
-          break;
-        }
-      }
-      previous = c;
-    }
-  }
-  if (nchars_ref != NULL) *nchars_ref = nchars;
-  if (!(options & NO_NULL_TERMINATION) &&
-      (i == len && (capacity == -1 || pos < capacity))) {
-    buffer[pos++] = '\0';
-  }
-  return pos;
+  return writer.CompleteWrite(!(options & NO_NULL_TERMINATION), nchars_ref);
 }
 
 
@@ -5637,7 +5658,7 @@ String::Utf8Value::Utf8Value(v8::Handle<v8::Value> obj)
   Handle<String> str = obj->ToString();
   if (str.IsEmpty()) return;
   i::Handle<i::String> i_str = Utils::OpenHandle(*str);
-  length_ = i::Utf8Length(i_str);
+  length_ = v8::Utf8Length(*i_str, isolate);
   str_ = i::NewArray<char>(length_ + 1);
   str->WriteUtf8(str_);
 }
