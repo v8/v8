@@ -114,7 +114,11 @@ void LInstruction::PrintDataTo(StringStream* stream) {
   stream->Add("= ");
   for (int i = 0; i < InputCount(); i++) {
     if (i > 0) stream->Add(" ");
-    InputAt(i)->PrintTo(stream);
+    if (InputAt(i) == NULL) {
+      stream->Add("NULL");
+    } else {
+      InputAt(i)->PrintTo(stream);
+    }
   }
 }
 
