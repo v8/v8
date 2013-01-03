@@ -4012,7 +4012,7 @@ class Utf8WriterVisitor {
       if (capacity_ == -1) {
         fast_length = length;
       } else {
-        int remaining_capacity = capacity_ - (buffer - start_);
+        int remaining_capacity = capacity_ - static_cast<int>(buffer - start_);
         // Need enough space to write everything but one character.
         STATIC_ASSERT(Utf16::kMaxExtraUtf8BytesForOneUtf16CodeUnit == 3);
         int writable_length = (remaining_capacity - 3)/3;
@@ -4039,7 +4039,7 @@ class Utf8WriterVisitor {
     }
     ASSERT(capacity_ != -1);
     // Slow loop. Must check capacity on each iteration.
-    int remaining_capacity = capacity_ - (buffer - start_);
+    int remaining_capacity = capacity_ - static_cast<int>(buffer - start_);
     ASSERT(remaining_capacity >= 0);
     for (; i < length && remaining_capacity > 0; i++) {
       uint16_t character = *chars++;
@@ -4084,7 +4084,7 @@ class Utf8WriterVisitor {
         (capacity_ == -1 || (buffer_ - start_) < capacity_)) {
       *buffer_++ = '\0';
     }
-    return buffer_ - start_;
+    return static_cast<int>(buffer_ - start_);
   }
 
  private:
