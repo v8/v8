@@ -79,14 +79,12 @@ consts_misc = [
     { 'name': 'SmiShiftSize',           'value': 'kSmiShiftSize' },
     { 'name': 'PointerSizeLog2',        'value': 'kPointerSizeLog2' },
 
-    { 'name': 'prop_idx_transitions',
-        'value': 'DescriptorArray::kTransitionsIndex' },
     { 'name': 'prop_idx_first',
         'value': 'DescriptorArray::kFirstIndex' },
     { 'name': 'prop_type_field',
         'value': 'FIELD' },
     { 'name': 'prop_type_first_phantom',
-        'value': 'MAP_TRANSITION' },
+        'value': 'TRANSITION' },
     { 'name': 'prop_type_mask',
         'value': 'PropertyDetails::TypeField::kMask' },
 
@@ -108,7 +106,6 @@ extras_accessors = [
     'JSObject, elements, Object, kElementsOffset',
     'FixedArray, data, uintptr_t, kHeaderSize',
     'Map, instance_attributes, int, kInstanceAttributesOffset',
-    'Map, instance_descriptors, int, kInstanceDescriptorsOrBitField3Offset',
     'Map, inobject_properties, int, kInObjectPropertiesOffset',
     'Map, instance_size, int, kInstanceSizeOffset',
     'HeapNumber, value, double, kValueOffset',
