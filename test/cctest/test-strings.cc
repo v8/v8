@@ -1,7 +1,7 @@
 // Copyright 2012 the V8 project authors. All rights reserved.
 
 // Check that we can traverse very deep stacks of ConsStrings using
-// StringInputBuffer.  Check that Get(int) works on very deep stacks
+// StringCharacterStram.  Check that Get(int) works on very deep stacks
 // of ConsStrings.  These operations may not be very fast, but they
 // should be possible without getting errors due to too deep recursion.
 
@@ -514,23 +514,16 @@ static Handle<String> ConstructBalanced(
 }
 
 
-static StringInputBuffer buffer;
 static ConsStringIteratorOp cons_string_iterator_op_1;
 static ConsStringIteratorOp cons_string_iterator_op_2;
 
 static void Traverse(Handle<String> s1, Handle<String> s2) {
   int i = 0;
-  buffer.Reset(*s1);
   StringCharacterStream character_stream_1(*s1, &cons_string_iterator_op_1);
   StringCharacterStream character_stream_2(*s2, &cons_string_iterator_op_2);
-  StringInputBuffer buffer2(*s2);
-  while (buffer.has_more()) {
-    CHECK(buffer2.has_more());
-    CHECK(character_stream_1.HasMore());
+  while (character_stream_1.HasMore()) {
     CHECK(character_stream_2.HasMore());
-    uint16_t c = buffer.GetNext();
-    CHECK_EQ(c, buffer2.GetNext());
-    CHECK_EQ(c, character_stream_1.GetNext());
+    uint16_t c = character_stream_1.GetNext();
     CHECK_EQ(c, character_stream_2.GetNext());
     i++;
   }
@@ -543,17 +536,11 @@ static void Traverse(Handle<String> s1, Handle<String> s2) {
 
 static void TraverseFirst(Handle<String> s1, Handle<String> s2, int chars) {
   int i = 0;
-  buffer.Reset(*s1);
-  StringInputBuffer buffer2(*s2);
   StringCharacterStream character_stream_1(*s1, &cons_string_iterator_op_1);
   StringCharacterStream character_stream_2(*s2, &cons_string_iterator_op_2);
-  while (buffer.has_more() && i < chars) {
-    CHECK(buffer2.has_more());
-    CHECK(character_stream_1.HasMore());
+  while (character_stream_1.HasMore() && i < chars) {
     CHECK(character_stream_2.HasMore());
-    uint16_t c = buffer.GetNext();
-    CHECK_EQ(c, buffer2.GetNext());
-    CHECK_EQ(c, character_stream_1.GetNext());
+    uint16_t c = character_stream_1.GetNext();
     CHECK_EQ(c, character_stream_2.GetNext());
     i++;
   }

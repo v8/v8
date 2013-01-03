@@ -430,10 +430,6 @@ class Scanner {
   // be empty).
   bool ScanRegExpFlags();
 
-  // Tells whether the buffer contains an identifier (no escapes).
-  // Used for checking if a property name is an identifier.
-  static bool IsIdentifier(unibrow::CharacterStream* buffer);
-
  private:
   // The current and look-ahead token.
   struct TokenDesc {
