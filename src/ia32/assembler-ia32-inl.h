@@ -366,7 +366,7 @@ void Assembler::emit(Handle<Object> handle) {
 void Assembler::emit(uint32_t x, RelocInfo::Mode rmode, TypeFeedbackId id) {
   if (rmode == RelocInfo::CODE_TARGET && !id.IsNone()) {
     RecordRelocInfo(RelocInfo::CODE_TARGET_WITH_ID, id.ToInt());
-  } else if (rmode != RelocInfo::NONE) {
+  } else if (!RelocInfo::IsNone(rmode)) {
     RecordRelocInfo(rmode);
   }
   emit(x);
@@ -379,7 +379,7 @@ void Assembler::emit(const Immediate& x) {
     emit_code_relative_offset(label);
     return;
   }
-  if (x.rmode_ != RelocInfo::NONE) RecordRelocInfo(x.rmode_);
+  if (!RelocInfo::IsNone(x.rmode_)) RecordRelocInfo(x.rmode_);
   emit(x.x_);
 }
 

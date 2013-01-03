@@ -373,7 +373,7 @@ class MacroAssembler: public Assembler {
   void InitializeSmiConstantRegister() {
     movq(kSmiConstantRegister,
          reinterpret_cast<uint64_t>(Smi::FromInt(kSmiConstantRegisterValue)),
-         RelocInfo::NONE);
+         RelocInfo::NONE64);
   }
 
   // Conversions between tagged smi values and non-tagged integer values.

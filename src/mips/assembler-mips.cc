@@ -805,7 +805,7 @@ bool Assembler::is_near(Label* L) {
 // space.  There is no guarantee that the relocated location can be similarly
 // encoded.
 bool Assembler::MustUseReg(RelocInfo::Mode rmode) {
-  return rmode != RelocInfo::NONE;
+  return !RelocInfo::IsNone(rmode);
 }
 
 void Assembler::GenInstrRegister(Opcode opcode,
@@ -1990,7 +1990,7 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
            || RelocInfo::IsPosition(rmode));
     // These modes do not need an entry in the constant pool.
   }
-  if (rinfo.rmode() != RelocInfo::NONE) {
+  if (!RelocInfo::IsNone(rinfo.rmode())) {
     // Don't record external references unless the heap will be serialized.
     if (rmode == RelocInfo::EXTERNAL_REFERENCE) {
 #ifdef DEBUG

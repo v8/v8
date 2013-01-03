@@ -319,7 +319,7 @@ void FullCodeGenerator::EmitProfilingCounterReset() {
   __ movq(rbx, profiling_counter_, RelocInfo::EMBEDDED_OBJECT);
   __ movq(kScratchRegister,
           reinterpret_cast<uint64_t>(Smi::FromInt(reset_value)),
-          RelocInfo::NONE);
+          RelocInfo::NONE64);
   __ movq(FieldOperand(rbx, JSGlobalPropertyCell::kValueOffset),
           kScratchRegister);
 }
@@ -3021,10 +3021,10 @@ void FullCodeGenerator::EmitDateField(CallRuntime* expr) {
     __ PrepareCallCFunction(2);
 #ifdef _WIN64
   __ movq(rcx, object);
-  __ movq(rdx, index, RelocInfo::NONE);
+  __ movq(rdx, index, RelocInfo::NONE64);
 #else
   __ movq(rdi, object);
-  __ movq(rsi, index, RelocInfo::NONE);
+  __ movq(rsi, index, RelocInfo::NONE64);
 #endif
     __ CallCFunction(ExternalReference::get_date_field_function(isolate()), 2);
     __ movq(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));

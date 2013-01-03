@@ -406,7 +406,7 @@ void MacroAssembler::Set(const Operand& dst, const Immediate& x) {
 
 bool MacroAssembler::IsUnsafeImmediate(const Immediate& x) {
   static const int kMaxImmediateBits = 17;
-  if (x.rmode_ != RelocInfo::NONE) return false;
+  if (!RelocInfo::IsNone(x.rmode_)) return false;
   return !is_intn(x.x_, kMaxImmediateBits);
 }
 
