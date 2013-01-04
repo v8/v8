@@ -2643,7 +2643,7 @@ void Assembler::dd(uint32_t data) {
 
 
 void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
-  ASSERT(rmode != RelocInfo::NONE);
+  ASSERT(!RelocInfo::IsNone(rmode));
   // Don't record external references unless the heap will be serialized.
   if (rmode == RelocInfo::EXTERNAL_REFERENCE) {
 #ifdef DEBUG

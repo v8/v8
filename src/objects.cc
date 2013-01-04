@@ -1048,7 +1048,8 @@ void String::StringShortPrint(StringStream* accumulator) {
     return;
   }
 
-  StringInputBuffer buf(this);
+  ConsStringIteratorOp op;
+  StringCharacterStream stream(this, &op);
 
   bool truncated = false;
   if (len > kMaxShortPrintLength) {
@@ -1057,17 +1058,17 @@ void String::StringShortPrint(StringStream* accumulator) {
   }
   bool ascii = true;
   for (int i = 0; i < len; i++) {
-    int c = buf.GetNext();
+    uint16_t c = stream.GetNext();
 
     if (c < 32 || c >= 127) {
       ascii = false;
     }
   }
-  buf.Reset(this);
+  stream.Reset(this);
   if (ascii) {
     accumulator->Add("<String[%u]: ", length());
     for (int i = 0; i < len; i++) {
-      accumulator->Put(buf.GetNext());
+      accumulator->Put(static_cast<char>(stream.GetNext()));
     }
     accumulator->Put('>');
   } else {
@@ -1075,7 +1076,7 @@ void String::StringShortPrint(StringStream* accumulator) {
     // characters and that backslashes are therefore escaped.
     accumulator->Add("<String[%u]\\: ", length());
     for (int i = 0; i < len; i++) {
-      int c = buf.GetNext();
+      uint16_t c = stream.GetNext();
       if (c == '\n') {
         accumulator->Add("\\n");
       } else if (c == '\r') {
@@ -1085,7 +1086,7 @@ void String::StringShortPrint(StringStream* accumulator) {
       } else if (c < 32 || c > 126) {
         accumulator->Add("\\x%02x", c);
       } else {
-        accumulator->Put(c);
+        accumulator->Put(static_cast<char>(c));
       }
     }
     if (truncated) {
@@ -1537,15 +1538,16 @@ MaybeObject* JSObject::AddFastPropertyUsingMap(Map* new_map,
 }
 
 
-static bool IsIdentifier(UnicodeCache* cache,
-                         unibrow::CharacterStream* buffer) {
+static bool IsIdentifier(UnicodeCache* cache, String* string) {
   // Checks whether the buffer contains an identifier (no escape).
-  if (!buffer->has_more()) return false;
-  if (!cache->IsIdentifierStart(buffer->GetNext())) {
+  if (string->length() == 0) return false;
+  ConsStringIteratorOp op;
+  StringCharacterStream stream(string, &op);
+  if (!cache->IsIdentifierStart(stream.GetNext())) {
     return false;
   }
-  while (buffer->has_more()) {
-    if (!cache->IsIdentifierPart(buffer->GetNext())) {
+  while (stream.HasMore()) {
+    if (!cache->IsIdentifierPart(stream.GetNext())) {
       return false;
     }
   }
@@ -1566,8 +1568,7 @@ MaybeObject* JSObject::AddFastProperty(String* name,
   // hidden symbols) and is not a real identifier.
   // Normalize the object if it will have too many fast properties.
   Isolate* isolate = GetHeap()->isolate();
-  StringInputBuffer buffer(name);
-  if ((!IsIdentifier(isolate->unicode_cache(), &buffer)
+  if ((!IsIdentifier(isolate->unicode_cache(), name)
        && name != isolate->heap()->hidden_symbol()) ||
       (map()->unused_property_fields() == 0 &&
        TooManyFastProperties(properties()->length(), store_mode))) {
@@ -6594,14 +6595,14 @@ SmartArrayPointer<char> String::ToCString(AllowNullsFlag allow_nulls,
   if (length < 0) length = kMaxInt - offset;
 
   // Compute the size of the UTF-8 string. Start at the specified offset.
-  Access<StringInputBuffer> buffer(
-      heap->isolate()->objects_string_input_buffer());
-  buffer->Reset(offset, this);
+  Access<ConsStringIteratorOp> op(
+      heap->isolate()->objects_string_iterator());
+  StringCharacterStream stream(this, op.value(), offset);
   int character_position = offset;
   int utf8_bytes = 0;
   int last = unibrow::Utf16::kNoPreviousCharacter;
-  while (buffer->has_more() && character_position++ < offset + length) {
-    uint16_t character = buffer->GetNext();
+  while (stream.HasMore() && character_position++ < offset + length) {
+    uint16_t character = stream.GetNext();
     utf8_bytes += unibrow::Utf8::Length(character, last);
     last = character;
   }
@@ -6613,13 +6614,12 @@ SmartArrayPointer<char> String::ToCString(AllowNullsFlag allow_nulls,
   char* result = NewArray<char>(utf8_bytes + 1);
 
   // Convert the UTF-16 string to a UTF-8 buffer. Start at the specified offset.
-  buffer->Rewind();
-  buffer->Seek(offset);
+  stream.Reset(this, offset);
   character_position = offset;
   int utf8_byte_position = 0;
   last = unibrow::Utf16::kNoPreviousCharacter;
-  while (buffer->has_more() && character_position++ < offset + length) {
-    uint16_t character = buffer->GetNext();
+  while (stream.HasMore() && character_position++ < offset + length) {
+    uint16_t character = stream.GetNext();
     if (allow_nulls == DISALLOW_NULLS && character == 0) {
       character = ' ';
     }
@@ -6671,15 +6671,15 @@ SmartArrayPointer<uc16> String::ToWideCString(RobustnessFlag robust_flag) {
   }
   Heap* heap = GetHeap();
 
-  Access<StringInputBuffer> buffer(
-      heap->isolate()->objects_string_input_buffer());
-  buffer->Reset(this);
+  Access<ConsStringIteratorOp> op(
+      heap->isolate()->objects_string_iterator());
+  StringCharacterStream stream(this, op.value());
 
   uc16* result = NewArray<uc16>(length() + 1);
 
   int i = 0;
-  while (buffer->has_more()) {
-    uint16_t character = buffer->GetNext();
+  while (stream.HasMore()) {
+    uint16_t character = stream.GetNext();
     result[i++] = character;
   }
   result[i] = 0;
@@ -6690,252 +6690,6 @@ SmartArrayPointer<uc16> String::ToWideCString(RobustnessFlag robust_flag) {
 const uc16* SeqTwoByteString::SeqTwoByteStringGetData(unsigned start) {
   return reinterpret_cast<uc16*>(
       reinterpret_cast<char*>(this) - kHeapObjectTag + kHeaderSize) + start;
-}
-
-
-void SeqTwoByteString::SeqTwoByteStringReadBlockIntoBuffer(ReadBlockBuffer* rbb,
-                                                           unsigned* offset_ptr,
-                                                           unsigned max_chars) {
-  unsigned chars_read = 0;
-  unsigned offset = *offset_ptr;
-  while (chars_read < max_chars) {
-    uint16_t c = *reinterpret_cast<uint16_t*>(
-        reinterpret_cast<char*>(this) -
-            kHeapObjectTag + kHeaderSize + offset * kShortSize);
-    if (c <= kMaxAsciiCharCode) {
-      // Fast case for ASCII characters.   Cursor is an input output argument.
-      if (!unibrow::CharacterStream::EncodeAsciiCharacter(c,
-                                                          rbb->util_buffer,
-                                                          rbb->capacity,
-                                                          rbb->cursor)) {
-        break;
-      }
-    } else {
-      if (!unibrow::CharacterStream::EncodeNonAsciiCharacter(c,
-                                                             rbb->util_buffer,
-                                                             rbb->capacity,
-                                                             rbb->cursor)) {
-        break;
-      }
-    }
-    offset++;
-    chars_read++;
-  }
-  *offset_ptr = offset;
-  rbb->remaining += chars_read;
-}
-
-
-const unibrow::byte* SeqOneByteString::SeqOneByteStringReadBlock(
-    unsigned* remaining,
-    unsigned* offset_ptr,
-    unsigned max_chars) {
-  const unibrow::byte* b = reinterpret_cast<unibrow::byte*>(this) -
-      kHeapObjectTag + kHeaderSize + *offset_ptr * kCharSize;
-  *remaining = max_chars;
-  *offset_ptr += max_chars;
-  return b;
-}
-
-
-// This will iterate unless the block of string data spans two 'halves' of
-// a ConsString, in which case it will recurse.  Since the block of string
-// data to be read has a maximum size this limits the maximum recursion
-// depth to something sane.  Since C++ does not have tail call recursion
-// elimination, the iteration must be explicit. Since this is not an
-// -IntoBuffer method it can delegate to one of the efficient
-// *AsciiStringReadBlock routines.
-const unibrow::byte* ConsString::ConsStringReadBlock(ReadBlockBuffer* rbb,
-                                                     unsigned* offset_ptr,
-                                                     unsigned max_chars) {
-  ConsString* current = this;
-  unsigned offset = *offset_ptr;
-  int offset_correction = 0;
-
-  while (true) {
-    String* left = current->first();
-    unsigned left_length = (unsigned)left->length();
-    if (left_length > offset &&
-        (max_chars <= left_length - offset ||
-         (rbb->capacity <= left_length - offset &&
-          (max_chars = left_length - offset, true)))) {  // comma operator!
-      // Left hand side only - iterate unless we have reached the bottom of
-      // the cons tree.  The assignment on the left of the comma operator is
-      // in order to make use of the fact that the -IntoBuffer routines can
-      // produce at most 'capacity' characters.  This enables us to postpone
-      // the point where we switch to the -IntoBuffer routines (below) in order
-      // to maximize the chances of delegating a big chunk of work to the
-      // efficient *AsciiStringReadBlock routines.
-      if (StringShape(left).IsCons()) {
-        current = ConsString::cast(left);
-        continue;
-      } else {
-        const unibrow::byte* answer =
-            String::ReadBlock(left, rbb, &offset, max_chars);
-        *offset_ptr = offset + offset_correction;
-        return answer;
-      }
-    } else if (left_length <= offset) {
-      // Right hand side only - iterate unless we have reached the bottom of
-      // the cons tree.
-      String* right = current->second();
-      offset -= left_length;
-      offset_correction += left_length;
-      if (StringShape(right).IsCons()) {
-        current = ConsString::cast(right);
-        continue;
-      } else {
-        const unibrow::byte* answer =
-            String::ReadBlock(right, rbb, &offset, max_chars);
-        *offset_ptr = offset + offset_correction;
-        return answer;
-      }
-    } else {
-      // The block to be read spans two sides of the ConsString, so we call the
-      // -IntoBuffer version, which will recurse.  The -IntoBuffer methods
-      // are able to assemble data from several part strings because they use
-      // the util_buffer to store their data and never return direct pointers
-      // to their storage.  We don't try to read more than the buffer capacity
-      // here or we can get too much recursion.
-      ASSERT(rbb->remaining == 0);
-      ASSERT(rbb->cursor == 0);
-      current->ConsStringReadBlockIntoBuffer(
-          rbb,
-          &offset,
-          max_chars > rbb->capacity ? rbb->capacity : max_chars);
-      *offset_ptr = offset + offset_correction;
-      return rbb->util_buffer;
-    }
-  }
-}
-
-
-const unibrow::byte* ExternalAsciiString::ExternalAsciiStringReadBlock(
-      unsigned* remaining,
-      unsigned* offset_ptr,
-      unsigned max_chars) {
-  // Cast const char* to unibrow::byte* (signedness difference).
-  const unibrow::byte* b =
-      reinterpret_cast<const unibrow::byte*>(GetChars()) + *offset_ptr;
-  *remaining = max_chars;
-  *offset_ptr += max_chars;
-  return b;
-}
-
-
-void ExternalTwoByteString::ExternalTwoByteStringReadBlockIntoBuffer(
-      ReadBlockBuffer* rbb,
-      unsigned* offset_ptr,
-      unsigned max_chars) {
-  unsigned chars_read = 0;
-  unsigned offset = *offset_ptr;
-  const uint16_t* data = GetChars();
-  while (chars_read < max_chars) {
-    uint16_t c = data[offset];
-    if (c <= kMaxAsciiCharCode) {
-      // Fast case for ASCII characters. Cursor is an input output argument.
-      if (!unibrow::CharacterStream::EncodeAsciiCharacter(c,
-                                                          rbb->util_buffer,
-                                                          rbb->capacity,
-                                                          rbb->cursor))
-        break;
-    } else {
-      if (!unibrow::CharacterStream::EncodeNonAsciiCharacter(c,
-                                                             rbb->util_buffer,
-                                                             rbb->capacity,
-                                                             rbb->cursor))
-        break;
-    }
-    offset++;
-    chars_read++;
-  }
-  *offset_ptr = offset;
-  rbb->remaining += chars_read;
-}
-
-
-void SeqOneByteString::SeqOneByteStringReadBlockIntoBuffer(ReadBlockBuffer* rbb,
-                                                 unsigned* offset_ptr,
-                                                 unsigned max_chars) {
-  unsigned capacity = rbb->capacity - rbb->cursor;
-  if (max_chars > capacity) max_chars = capacity;
-  memcpy(rbb->util_buffer + rbb->cursor,
-         reinterpret_cast<char*>(this) - kHeapObjectTag + kHeaderSize +
-             *offset_ptr * kCharSize,
-         max_chars);
-  rbb->remaining += max_chars;
-  *offset_ptr += max_chars;
-  rbb->cursor += max_chars;
-}
-
-
-void ExternalAsciiString::ExternalAsciiStringReadBlockIntoBuffer(
-      ReadBlockBuffer* rbb,
-      unsigned* offset_ptr,
-      unsigned max_chars) {
-  unsigned capacity = rbb->capacity - rbb->cursor;
-  if (max_chars > capacity) max_chars = capacity;
-  memcpy(rbb->util_buffer + rbb->cursor, GetChars() + *offset_ptr, max_chars);
-  rbb->remaining += max_chars;
-  *offset_ptr += max_chars;
-  rbb->cursor += max_chars;
-}
-
-
-// This method determines the type of string involved and then copies
-// a whole chunk of characters into a buffer, or returns a pointer to a buffer
-// where they can be found.  The pointer is not necessarily valid across a GC
-// (see AsciiStringReadBlock).
-const unibrow::byte* String::ReadBlock(String* input,
-                                       ReadBlockBuffer* rbb,
-                                       unsigned* offset_ptr,
-                                       unsigned max_chars) {
-  ASSERT(*offset_ptr <= static_cast<unsigned>(input->length()));
-  if (max_chars == 0) {
-    rbb->remaining = 0;
-    return NULL;
-  }
-  switch (StringShape(input).representation_tag()) {
-    case kSeqStringTag:
-      if (input->IsOneByteRepresentation()) {
-        SeqOneByteString* str = SeqOneByteString::cast(input);
-        return str->SeqOneByteStringReadBlock(&rbb->remaining,
-                                            offset_ptr,
-                                            max_chars);
-      } else {
-        SeqTwoByteString* str = SeqTwoByteString::cast(input);
-        str->SeqTwoByteStringReadBlockIntoBuffer(rbb,
-                                                 offset_ptr,
-                                                 max_chars);
-        return rbb->util_buffer;
-      }
-    case kConsStringTag:
-      return ConsString::cast(input)->ConsStringReadBlock(rbb,
-                                                          offset_ptr,
-                                                          max_chars);
-    case kExternalStringTag:
-      if (input->IsOneByteRepresentation()) {
-        return ExternalAsciiString::cast(input)->ExternalAsciiStringReadBlock(
-            &rbb->remaining,
-            offset_ptr,
-            max_chars);
-      } else {
-        ExternalTwoByteString::cast(input)->
-            ExternalTwoByteStringReadBlockIntoBuffer(rbb,
-                                                     offset_ptr,
-                                                     max_chars);
-        return rbb->util_buffer;
-      }
-    case kSlicedStringTag:
-      return SlicedString::cast(input)->SlicedStringReadBlock(rbb,
-                                                              offset_ptr,
-                                                              max_chars);
-    default:
-      break;
-  }
-
-  UNREACHABLE();
-  return 0;
 }
 
 
@@ -7020,11 +6774,6 @@ void FlatStringReader::PostGarbageCollection() {
   } else {
     start_ = content.ToUC16Vector().start();
   }
-}
-
-
-void StringInputBuffer::Seek(unsigned pos) {
-  Reset(pos, input_);
 }
 
 
@@ -7163,154 +6912,6 @@ String* ConsStringIteratorOp::NextLeaf(bool* blew_stack,
 }
 
 
-// This method determines the type of string involved and then copies
-// a whole chunk of characters into a buffer.  It can be used with strings
-// that have been glued together to form a ConsString and which must cooperate
-// to fill up a buffer.
-void String::ReadBlockIntoBuffer(String* input,
-                                 ReadBlockBuffer* rbb,
-                                 unsigned* offset_ptr,
-                                 unsigned max_chars) {
-  ASSERT(*offset_ptr <= (unsigned)input->length());
-  if (max_chars == 0) return;
-
-  switch (StringShape(input).representation_tag()) {
-    case kSeqStringTag:
-      if (input->IsOneByteRepresentation()) {
-        SeqOneByteString::cast(input)->SeqOneByteStringReadBlockIntoBuffer(rbb,
-                                                                 offset_ptr,
-                                                                 max_chars);
-        return;
-      } else {
-        SeqTwoByteString::cast(input)->SeqTwoByteStringReadBlockIntoBuffer(rbb,
-                                                                     offset_ptr,
-                                                                     max_chars);
-        return;
-      }
-    case kConsStringTag:
-      ConsString::cast(input)->ConsStringReadBlockIntoBuffer(rbb,
-                                                             offset_ptr,
-                                                             max_chars);
-      return;
-    case kExternalStringTag:
-      if (input->IsOneByteRepresentation()) {
-        ExternalAsciiString::cast(input)->
-            ExternalAsciiStringReadBlockIntoBuffer(rbb, offset_ptr, max_chars);
-      } else {
-        ExternalTwoByteString::cast(input)->
-            ExternalTwoByteStringReadBlockIntoBuffer(rbb,
-                                                     offset_ptr,
-                                                     max_chars);
-       }
-       return;
-    case kSlicedStringTag:
-      SlicedString::cast(input)->SlicedStringReadBlockIntoBuffer(rbb,
-                                                                 offset_ptr,
-                                                                 max_chars);
-      return;
-    default:
-      break;
-  }
-
-  UNREACHABLE();
-  return;
-}
-
-
-const unibrow::byte* String::ReadBlock(String* input,
-                                       unibrow::byte* util_buffer,
-                                       unsigned capacity,
-                                       unsigned* remaining,
-                                       unsigned* offset_ptr) {
-  ASSERT(*offset_ptr <= (unsigned)input->length());
-  unsigned chars = input->length() - *offset_ptr;
-  ReadBlockBuffer rbb(util_buffer, 0, capacity, 0);
-  const unibrow::byte* answer = ReadBlock(input, &rbb, offset_ptr, chars);
-  ASSERT(rbb.remaining <= static_cast<unsigned>(input->length()));
-  *remaining = rbb.remaining;
-  return answer;
-}
-
-
-const unibrow::byte* String::ReadBlock(String** raw_input,
-                                       unibrow::byte* util_buffer,
-                                       unsigned capacity,
-                                       unsigned* remaining,
-                                       unsigned* offset_ptr) {
-  Handle<String> input(raw_input);
-  ASSERT(*offset_ptr <= (unsigned)input->length());
-  unsigned chars = input->length() - *offset_ptr;
-  if (chars > capacity) chars = capacity;
-  ReadBlockBuffer rbb(util_buffer, 0, capacity, 0);
-  ReadBlockIntoBuffer(*input, &rbb, offset_ptr, chars);
-  ASSERT(rbb.remaining <= static_cast<unsigned>(input->length()));
-  *remaining = rbb.remaining;
-  return rbb.util_buffer;
-}
-
-
-// This will iterate unless the block of string data spans two 'halves' of
-// a ConsString, in which case it will recurse.  Since the block of string
-// data to be read has a maximum size this limits the maximum recursion
-// depth to something sane.  Since C++ does not have tail call recursion
-// elimination, the iteration must be explicit.
-void ConsString::ConsStringReadBlockIntoBuffer(ReadBlockBuffer* rbb,
-                                               unsigned* offset_ptr,
-                                               unsigned max_chars) {
-  ConsString* current = this;
-  unsigned offset = *offset_ptr;
-  int offset_correction = 0;
-
-  while (true) {
-    String* left = current->first();
-    unsigned left_length = (unsigned)left->length();
-    if (left_length > offset &&
-      max_chars <= left_length - offset) {
-      // Left hand side only - iterate unless we have reached the bottom of
-      // the cons tree.
-      if (StringShape(left).IsCons()) {
-        current = ConsString::cast(left);
-        continue;
-      } else {
-        String::ReadBlockIntoBuffer(left, rbb, &offset, max_chars);
-        *offset_ptr = offset + offset_correction;
-        return;
-      }
-    } else if (left_length <= offset) {
-      // Right hand side only - iterate unless we have reached the bottom of
-      // the cons tree.
-      offset -= left_length;
-      offset_correction += left_length;
-      String* right = current->second();
-      if (StringShape(right).IsCons()) {
-        current = ConsString::cast(right);
-        continue;
-      } else {
-        String::ReadBlockIntoBuffer(right, rbb, &offset, max_chars);
-        *offset_ptr = offset + offset_correction;
-        return;
-      }
-    } else {
-      // The block to be read spans two sides of the ConsString, so we recurse.
-      // First recurse on the left.
-      max_chars -= left_length - offset;
-      String::ReadBlockIntoBuffer(left, rbb, &offset, left_length - offset);
-      // We may have reached the max or there may not have been enough space
-      // in the buffer for the characters in the left hand side.
-      if (offset == left_length) {
-        // Recurse on the right.
-        String* right = String::cast(current->second());
-        offset -= left_length;
-        offset_correction += left_length;
-        String::ReadBlockIntoBuffer(right, rbb, &offset, max_chars);
-      }
-      *offset_ptr = offset + offset_correction;
-      return;
-    }
-  }
-}
-
-
 uint16_t ConsString::ConsStringGet(int index) {
   ASSERT(index >= 0 && index < this->length());
 
@@ -7346,26 +6947,6 @@ uint16_t SlicedString::SlicedStringGet(int index) {
   return parent()->Get(offset() + index);
 }
 
-
-const unibrow::byte* SlicedString::SlicedStringReadBlock(
-    ReadBlockBuffer* buffer, unsigned* offset_ptr, unsigned chars) {
-  unsigned offset = this->offset();
-  *offset_ptr += offset;
-  const unibrow::byte* answer = String::ReadBlock(String::cast(parent()),
-                                                  buffer, offset_ptr, chars);
-  *offset_ptr -= offset;
-  return answer;
-}
-
-
-void SlicedString::SlicedStringReadBlockIntoBuffer(
-    ReadBlockBuffer* buffer, unsigned* offset_ptr, unsigned chars) {
-  unsigned offset = this->offset();
-  *offset_ptr += offset;
-  String::ReadBlockIntoBuffer(String::cast(parent()),
-                              buffer, offset_ptr, chars);
-  *offset_ptr -= offset;
-}
 
 template <typename sinkchar>
 void String::WriteToFlat(String* src,
@@ -7457,46 +7038,28 @@ void String::WriteToFlat(String* src,
 }
 
 
-template <typename IteratorA, typename IteratorB>
-static inline bool CompareStringContents(IteratorA* ia, IteratorB* ib) {
-  // General slow case check.  We know that the ia and ib iterators
-  // have the same length.
-  while (ia->has_more()) {
-    uint32_t ca = ia->GetNext();
-    uint32_t cb = ib->GetNext();
-    ASSERT(ca <= unibrow::Utf16::kMaxNonSurrogateCharCode);
-    ASSERT(cb <= unibrow::Utf16::kMaxNonSurrogateCharCode);
-    if (ca != cb)
-      return false;
-  }
-  return true;
-}
-
-
 // Compares the contents of two strings by reading and comparing
 // int-sized blocks of characters.
 template <typename Char>
-static inline bool CompareRawStringContents(Vector<Char> a, Vector<Char> b) {
-  int length = a.length();
-  ASSERT_EQ(length, b.length());
-  const Char* pa = a.start();
-  const Char* pb = b.start();
+static inline bool CompareRawStringContents(const Char* const a,
+                                            const Char* const b,
+                                            int length) {
   int i = 0;
 #ifndef V8_HOST_CAN_READ_UNALIGNED
   // If this architecture isn't comfortable reading unaligned ints
   // then we have to check that the strings are aligned before
   // comparing them blockwise.
   const int kAlignmentMask = sizeof(uint32_t) - 1;  // NOLINT
-  uint32_t pa_addr = reinterpret_cast<uint32_t>(pa);
-  uint32_t pb_addr = reinterpret_cast<uint32_t>(pb);
+  uint32_t pa_addr = reinterpret_cast<uint32_t>(a);
+  uint32_t pb_addr = reinterpret_cast<uint32_t>(b);
   if (((pa_addr & kAlignmentMask) | (pb_addr & kAlignmentMask)) == 0) {
 #endif
     const int kStepSize = sizeof(int) / sizeof(Char);  // NOLINT
     int endpoint = length - kStepSize;
     // Compare blocks until we reach near the end of the string.
     for (; i <= endpoint; i += kStepSize) {
-      uint32_t wa = *reinterpret_cast<const uint32_t*>(pa + i);
-      uint32_t wb = *reinterpret_cast<const uint32_t*>(pb + i);
+      uint32_t wa = *reinterpret_cast<const uint32_t*>(a + i);
+      uint32_t wb = *reinterpret_cast<const uint32_t*>(b + i);
       if (wa != wb) {
         return false;
       }
@@ -7514,25 +7077,145 @@ static inline bool CompareRawStringContents(Vector<Char> a, Vector<Char> b) {
 }
 
 
-template <typename IteratorA>
-static inline bool CompareStringContentsPartial(Isolate* isolate,
-                                                IteratorA* ia,
-                                                String* b) {
-  String::FlatContent content = b->GetFlatContent();
-  if (content.IsFlat()) {
-    if (content.IsAscii()) {
-      VectorIterator<char> ib(content.ToAsciiVector());
-      return CompareStringContents(ia, &ib);
-    } else {
-      VectorIterator<uc16> ib(content.ToUC16Vector());
-      return CompareStringContents(ia, &ib);
+template<typename Chars1, typename Chars2>
+class RawStringComparator : public AllStatic {
+ public:
+  static inline bool compare(const Chars1* a, const Chars2* b, int len) {
+    ASSERT(sizeof(Chars1) != sizeof(Chars2));
+    for (int i = 0; i < len; i++) {
+      if (a[i] != b[i]) {
+        return false;
+      }
     }
-  } else {
-    isolate->objects_string_compare_buffer_b()->Reset(0, b);
-    return CompareStringContents(ia,
-                                 isolate->objects_string_compare_buffer_b());
+    return true;
   }
-}
+};
+
+
+template<>
+class RawStringComparator<uint16_t, uint16_t> {
+ public:
+  static inline bool compare(const uint16_t* a, const uint16_t* b, int len) {
+    return CompareRawStringContents(a, b, len);
+  }
+};
+
+
+template<>
+class RawStringComparator<uint8_t, uint8_t> {
+ public:
+  static inline bool compare(const uint8_t* a, const uint8_t* b, int len) {
+    return CompareRawStringContents(a, b, len);
+  }
+};
+
+
+class StringComparator {
+  class State {
+   public:
+    explicit inline State(ConsStringIteratorOp* op)
+      : op_(op), is_one_byte_(true), length_(0), buffer8_(NULL) {}
+
+    inline void Init(String* string, unsigned len) {
+      op_->Reset();
+      int32_t type = string->map()->instance_type();
+      String::Visit(string, 0, *this, *op_, type, len);
+    }
+
+    inline void VisitOneByteString(const uint8_t* chars, unsigned length) {
+      is_one_byte_ = true;
+      buffer8_ = chars;
+      length_ = length;
+    }
+
+    inline void VisitTwoByteString(const uint16_t* chars, unsigned length) {
+      is_one_byte_ = false;
+      buffer16_ = chars;
+      length_ = length;
+    }
+
+    void Advance(unsigned consumed) {
+      ASSERT(consumed <= length_);
+      // Still in buffer.
+      if (length_ != consumed) {
+        if (is_one_byte_) {
+          buffer8_ += consumed;
+        } else {
+          buffer16_ += consumed;
+        }
+        length_ -= consumed;
+        return;
+      }
+      // Advance state.
+      ASSERT(op_->HasMore());
+      int32_t type = 0;
+      unsigned length = 0;
+      String* next = op_->ContinueOperation(&type, &length);
+      ASSERT(next != NULL);
+      ConsStringNullOp null_op;
+      String::Visit(next, 0, *this, null_op, type, length);
+    }
+
+    ConsStringIteratorOp* const op_;
+    bool is_one_byte_;
+    unsigned length_;
+    union {
+      const uint8_t* buffer8_;
+      const uint16_t* buffer16_;
+    };
+    DISALLOW_IMPLICIT_CONSTRUCTORS(State);
+  };
+
+ public:
+  inline StringComparator(ConsStringIteratorOp* op_1,
+                          ConsStringIteratorOp* op_2)
+    : state_1_(op_1),
+      state_2_(op_2) {
+  }
+
+  template<typename Chars1, typename Chars2>
+  static inline bool Equals(State* state_1, State* state_2, unsigned to_check) {
+    const Chars1* a = reinterpret_cast<const Chars1*>(state_1->buffer8_);
+    const Chars2* b = reinterpret_cast<const Chars2*>(state_2->buffer8_);
+    return RawStringComparator<Chars1, Chars2>::compare(a, b, to_check);
+  }
+
+  bool Equals(unsigned length, String* string_1, String* string_2) {
+    ASSERT(length != 0);
+    state_1_.Init(string_1, length);
+    state_2_.Init(string_2, length);
+    while (true) {
+      unsigned to_check = Min(state_1_.length_, state_2_.length_);
+      ASSERT(to_check > 0 && to_check <= length);
+      bool is_equal;
+      if (state_1_.is_one_byte_) {
+        if (state_2_.is_one_byte_) {
+          is_equal = Equals<uint8_t, uint8_t>(&state_1_, &state_2_, to_check);
+        } else {
+          is_equal = Equals<uint8_t, uint16_t>(&state_1_, &state_2_, to_check);
+        }
+      } else {
+        if (state_2_.is_one_byte_) {
+          is_equal = Equals<uint16_t, uint8_t>(&state_1_, &state_2_, to_check);
+        } else {
+          is_equal = Equals<uint16_t, uint16_t>(&state_1_, &state_2_, to_check);
+        }
+      }
+      // Looping done.
+      if (!is_equal) return false;
+      length -= to_check;
+      // Exit condition. Strings are equal.
+      if (length == 0) return true;
+      state_1_.Advance(to_check);
+      state_2_.Advance(to_check);
+    }
+  }
+
+ private:
+  State state_1_;
+  State state_2_;
+  DISALLOW_IMPLICIT_CONSTRUCTORS(StringComparator);
+};
 
 
 bool String::SlowEquals(String* other) {
@@ -7568,58 +7251,19 @@ bool String::SlowEquals(String* other) {
   String* lhs = this->TryFlattenGetString();
   String* rhs = other->TryFlattenGetString();
 
+  // TODO(dcarney): Compare all types of flat strings with a Visitor.
   if (StringShape(lhs).IsSequentialAscii() &&
       StringShape(rhs).IsSequentialAscii()) {
     const char* str1 = SeqOneByteString::cast(lhs)->GetChars();
     const char* str2 = SeqOneByteString::cast(rhs)->GetChars();
-    return CompareRawStringContents(Vector<const char>(str1, len),
-                                    Vector<const char>(str2, len));
+    return CompareRawStringContents(str1, str2, len);
   }
 
   Isolate* isolate = GetIsolate();
-  String::FlatContent lhs_content = lhs->GetFlatContent();
-  String::FlatContent rhs_content = rhs->GetFlatContent();
-  if (lhs_content.IsFlat()) {
-    if (lhs_content.IsAscii()) {
-      Vector<const char> vec1 = lhs_content.ToAsciiVector();
-      if (rhs_content.IsFlat()) {
-        if (rhs_content.IsAscii()) {
-          Vector<const char> vec2 = rhs_content.ToAsciiVector();
-          return CompareRawStringContents(vec1, vec2);
-        } else {
-          VectorIterator<char> buf1(vec1);
-          VectorIterator<uc16> ib(rhs_content.ToUC16Vector());
-          return CompareStringContents(&buf1, &ib);
-        }
-      } else {
-        VectorIterator<char> buf1(vec1);
-        isolate->objects_string_compare_buffer_b()->Reset(0, rhs);
-        return CompareStringContents(&buf1,
-            isolate->objects_string_compare_buffer_b());
-      }
-    } else {
-      Vector<const uc16> vec1 = lhs_content.ToUC16Vector();
-      if (rhs_content.IsFlat()) {
-        if (rhs_content.IsAscii()) {
-          VectorIterator<uc16> buf1(vec1);
-          VectorIterator<char> ib(rhs_content.ToAsciiVector());
-          return CompareStringContents(&buf1, &ib);
-        } else {
-          Vector<const uc16> vec2(rhs_content.ToUC16Vector());
-          return CompareRawStringContents(vec1, vec2);
-        }
-      } else {
-        VectorIterator<uc16> buf1(vec1);
-        isolate->objects_string_compare_buffer_b()->Reset(0, rhs);
-        return CompareStringContents(&buf1,
-            isolate->objects_string_compare_buffer_b());
-      }
-    }
-  } else {
-    isolate->objects_string_compare_buffer_a()->Reset(0, lhs);
-    return CompareStringContentsPartial(isolate,
-        isolate->objects_string_compare_buffer_a(), rhs);
-  }
+  StringComparator comparator(isolate->objects_string_compare_iterator_a(),
+                              isolate->objects_string_compare_iterator_b());
+
+  return comparator.Equals(static_cast<unsigned>(len), lhs, rhs);
 }
 
 
@@ -7764,11 +7408,12 @@ uint32_t String::ComputeAndSetHash() {
 }
 
 
-bool String::ComputeArrayIndex(unibrow::CharacterStream* buffer,
-                               uint32_t* index,
-                               int length) {
+bool String::ComputeArrayIndex(uint32_t* index) {
+  int length = this->length();
   if (length == 0 || length > kMaxArrayIndexSize) return false;
-  uc32 ch = buffer->GetNext();
+  ConsStringIteratorOp op;
+  StringCharacterStream stream(this, &op);
+  uint16_t ch = stream.GetNext();
 
   // If the string begins with a '0' character, it must only consist
   // of it to be a legal array index.
@@ -7781,8 +7426,8 @@ bool String::ComputeArrayIndex(unibrow::CharacterStream* buffer,
   int d = ch - '0';
   if (d < 0 || d > 9) return false;
   uint32_t result = d;
-  while (buffer->has_more()) {
-    d = buffer->GetNext() - '0';
+  while (stream.HasMore()) {
+    d = stream.GetNext() - '0';
     if (d < 0 || d > 9) return false;
     // Check that the new result is below the 32 bit limit.
     if (result > 429496729U - ((d > 5) ? 1 : 0)) return false;
@@ -7803,8 +7448,7 @@ bool String::SlowAsArrayIndex(uint32_t* index) {
     *index = (kArrayIndexHashMask & field) >> kHashShift;
     return true;
   } else {
-    StringInputBuffer buffer(this);
-    return ComputeArrayIndex(&buffer, index, length());
+    return ComputeArrayIndex(index);
   }
 }
 
@@ -9546,9 +9190,9 @@ MaybeObject* JSObject::SetFastElementsCapacityAndLength(
     }
   }
   FixedArrayBase* old_elements = elements();
-  ElementsAccessor* accessor = ElementsAccessor::ForKind(elements_kind);
+  ElementsAccessor* accessor = ElementsAccessor::ForKind(new_elements_kind);
   MaybeObject* maybe_obj =
-      accessor->CopyElements(this, new_elements, new_elements_kind);
+      accessor->CopyElements(this, new_elements, elements_kind);
   if (maybe_obj->IsFailure()) return maybe_obj;
 
   if (elements_kind != NON_STRICT_ARGUMENTS_ELEMENTS) {
@@ -9606,9 +9250,9 @@ MaybeObject* JSObject::SetFastDoubleElementsCapacityAndLength(
   }
 
   FixedArrayBase* old_elements = elements();
-  ElementsAccessor* accessor = ElementsAccessor::ForKind(elements_kind);
+  ElementsAccessor* accessor = ElementsAccessor::ForKind(FAST_DOUBLE_ELEMENTS);
   { MaybeObject* maybe_obj =
-        accessor->CopyElements(this, elems, FAST_DOUBLE_ELEMENTS);
+        accessor->CopyElements(this, elems, elements_kind);
     if (maybe_obj->IsFailure()) return maybe_obj;
   }
   if (elements_kind != NON_STRICT_ARGUMENTS_ELEMENTS) {

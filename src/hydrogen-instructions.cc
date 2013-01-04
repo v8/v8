@@ -1019,6 +1019,12 @@ void HTypeof::PrintDataTo(StringStream* stream) {
 }
 
 
+void HForceRepresentation::PrintDataTo(StringStream* stream) {
+  stream->Add("%s ", representation().Mnemonic());
+  value()->PrintNameTo(stream);
+}
+
+
 void HChange::PrintDataTo(StringStream* stream) {
   HUnaryOperation::PrintDataTo(stream);
   stream->Add(" %s to %s", from().Mnemonic(), to().Mnemonic());

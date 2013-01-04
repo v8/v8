@@ -565,6 +565,8 @@ class LDivI: public LTemplateInstruction<1, 2, 1> {
   LOperand* left() { return inputs_[0]; }
   LOperand* right() { return inputs_[1]; }
 
+  bool is_flooring() { return hydrogen_value()->IsMathFloorOfDiv(); }
+
   DECLARE_CONCRETE_INSTRUCTION(DivI, "div-i")
   DECLARE_HYDROGEN_ACCESSOR(Div)
 };
@@ -1342,10 +1344,11 @@ class LArithmeticT: public LTemplateInstruction<1, 3, 0> {
 };
 
 
-class LReturn: public LTemplateInstruction<0, 1, 0> {
+class LReturn: public LTemplateInstruction<0, 2, 0> {
  public:
-  explicit LReturn(LOperand* value) {
+  explicit LReturn(LOperand* value, LOperand* context) {
     inputs_[0] = value;
+    inputs_[1] = context;
   }
 
   DECLARE_CONCRETE_INSTRUCTION(Return, "return")

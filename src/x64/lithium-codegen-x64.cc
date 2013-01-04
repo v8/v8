@@ -164,7 +164,7 @@ bool LCodeGen::GeneratePrologue() {
   if (slots > 0) {
     if (FLAG_debug_code) {
       __ Set(rax, slots);
-      __ movq(kScratchRegister, kSlotsZapValue, RelocInfo::NONE);
+      __ movq(kScratchRegister, kSlotsZapValue, RelocInfo::NONE64);
       Label loop;
       __ bind(&loop);
       __ push(kScratchRegister);
@@ -1133,7 +1133,7 @@ void LCodeGen::DoMathFloorOfDiv(LMathFloorOfDiv* instr) {
       __ neg(reg1);
       DeoptimizeIf(zero, instr->environment());
     }
-    __ movq(reg2, multiplier, RelocInfo::NONE);
+    __ movq(reg2, multiplier, RelocInfo::NONE64);
     // Result just fit in r64, because it's int32 * uint32.
     __ imul(reg2, reg1);
 
@@ -1144,7 +1144,7 @@ void LCodeGen::DoMathFloorOfDiv(LMathFloorOfDiv* instr) {
 
 
 void LCodeGen::DoDivI(LDivI* instr) {
-  if (instr->hydrogen()->HasPowerOf2Divisor()) {
+  if (!instr->is_flooring() && instr->hydrogen()->HasPowerOf2Divisor()) {
     Register dividend = ToRegister(instr->left());
     int32_t divisor =
         HConstant::cast(instr->hydrogen()->right())->Integer32Value();
@@ -1191,13 +1191,13 @@ void LCodeGen::DoDivI(LDivI* instr) {
 
   // Check for x / 0.
   Register right_reg = ToRegister(right);
-  if (instr->hydrogen()->CheckFlag(HValue::kCanBeDivByZero)) {
+  if (instr->hydrogen_value()->CheckFlag(HValue::kCanBeDivByZero)) {
     __ testl(right_reg, right_reg);
     DeoptimizeIf(zero, instr->environment());
   }
 
   // Check for (0 / -x) that will produce negative zero.
-  if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
+  if (instr->hydrogen_value()->CheckFlag(HValue::kBailoutOnMinusZero)) {
     Label left_not_zero;
     __ testl(left_reg, left_reg);
     __ j(not_zero, &left_not_zero, Label::kNear);
@@ -1207,7 +1207,7 @@ void LCodeGen::DoDivI(LDivI* instr) {
   }
 
   // Check for (kMinInt / -1).
-  if (instr->hydrogen()->CheckFlag(HValue::kCanOverflow)) {
+  if (instr->hydrogen_value()->CheckFlag(HValue::kCanOverflow)) {
     Label left_not_min_int;
     __ cmpl(left_reg, Immediate(kMinInt));
     __ j(not_zero, &left_not_min_int, Label::kNear);
@@ -1220,9 +1220,19 @@ void LCodeGen::DoDivI(LDivI* instr) {
   __ cdq();
   __ idivl(right_reg);
 
-  // Deoptimize if remainder is not 0.
-  __ testl(rdx, rdx);
-  DeoptimizeIf(not_zero, instr->environment());
+  if (!instr->is_flooring()) {
+    // Deoptimize if remainder is not 0.
+    __ testl(rdx, rdx);
+    DeoptimizeIf(not_zero, instr->environment());
+  } else {
+    Label done;
+    __ testl(rdx, rdx);
+    __ j(zero, &done, Label::kNear);
+    __ xorl(rdx, right_reg);
+    __ sarl(rdx, Immediate(31));
+    __ addl(rax, rdx);
+    __ bind(&done);
+  }
 }
 
 
@@ -1569,10 +1579,10 @@ void LCodeGen::DoDateField(LDateField* instr) {
     __ PrepareCallCFunction(2);
 #ifdef _WIN64
   __ movq(rcx, object);
-  __ movq(rdx, index, RelocInfo::NONE);
+  __ movq(rdx, index, RelocInfo::NONE64);
 #else
   __ movq(rdi, object);
-  __ movq(rsi, index, RelocInfo::NONE);
+  __ movq(rsi, index, RelocInfo::NONE64);
 #endif
     __ CallCFunction(ExternalReference::get_date_field_function(isolate()), 2);
     __ movq(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
@@ -1712,6 +1722,7 @@ void LCodeGen::DoArithmeticD(LArithmeticD* instr) {
       break;
     case Token::DIV:
       __ divsd(left, right);
+      __ movaps(left, left);
       break;
     case Token::MOD:
       __ PrepareCallCFunction(2);
@@ -2452,7 +2463,6 @@ void LCodeGen::DoReturn(LReturn* instr) {
     __ pop(rbp);
   }
   if (info()->IsStub()) {
-    __ movq(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
     __ Ret(0, r10);
   } else {
     __ Ret((GetParameterCount() + 1) * kPointerSize, rcx);
@@ -3428,7 +3438,7 @@ void LCodeGen::DoMathRound(LUnaryMathOperation* instr) {
 
   Label done;
   // xmm_scratch = 0.5
-  __ movq(kScratchRegister, V8_INT64_C(0x3FE0000000000000), RelocInfo::NONE);
+  __ movq(kScratchRegister, V8_INT64_C(0x3FE0000000000000), RelocInfo::NONE64);
   __ movq(xmm_scratch, kScratchRegister);
   Label below_half;
   __ ucomisd(xmm_scratch, input_reg);
@@ -3457,7 +3467,9 @@ void LCodeGen::DoMathRound(LUnaryMathOperation* instr) {
     // Bailout if below -0.5, otherwise round to (positive) zero, even
     // if negative.
     // xmm_scrach = -0.5
-    __ movq(kScratchRegister, V8_INT64_C(0xBFE0000000000000), RelocInfo::NONE);
+    __ movq(kScratchRegister,
+            V8_INT64_C(0xBFE0000000000000),
+            RelocInfo::NONE64);
     __ movq(xmm_scratch, kScratchRegister);
     __ ucomisd(input_reg, xmm_scratch);
     DeoptimizeIf(below, instr->environment());
@@ -3486,7 +3498,7 @@ void LCodeGen::DoMathPowHalf(LUnaryMathOperation* instr) {
   Label done, sqrt;
   // Check base for -Infinity.  According to IEEE-754, double-precision
   // -Infinity has the highest 12 bits set and the lowest 52 bits cleared.
-  __ movq(kScratchRegister, V8_INT64_C(0xFFF0000000000000), RelocInfo::NONE);
+  __ movq(kScratchRegister, V8_INT64_C(0xFFF0000000000000), RelocInfo::NONE64);
   __ movq(xmm_scratch, kScratchRegister);
   __ ucomisd(xmm_scratch, input_reg);
   // Comparing -Infinity with NaN results in "unordered", which sets the
@@ -4582,7 +4594,9 @@ void LCodeGen::DoDoubleToI(LDoubleToI* instr) {
     // Performs a truncating conversion of a floating point number as used by
     // the JS bitwise operations.
     __ cvttsd2siq(result_reg, input_reg);
-    __ movq(kScratchRegister, V8_INT64_C(0x8000000000000000), RelocInfo::NONE);
+    __ movq(kScratchRegister,
+            V8_INT64_C(0x8000000000000000),
+            RelocInfo::NONE64);
     __ cmpq(result_reg, kScratchRegister);
     DeoptimizeIf(equal, instr->environment());
   } else {
@@ -4983,7 +4997,7 @@ void LCodeGen::EmitDeepCopy(Handle<JSObject> object,
       __ LoadHeapObject(rcx, Handle<HeapObject>::cast(value));
       __ movq(FieldOperand(result, total_offset), rcx);
     } else {
-      __ movq(rcx, value, RelocInfo::NONE);
+      __ movq(rcx, value, RelocInfo::NONE64);
       __ movq(FieldOperand(result, total_offset), rcx);
     }
   }
@@ -5005,7 +5019,7 @@ void LCodeGen::EmitDeepCopy(Handle<JSObject> object,
         int64_t value = double_array->get_representation(i);
         int total_offset =
             elements_offset + FixedDoubleArray::OffsetOfElementAt(i);
-        __ movq(rcx, value, RelocInfo::NONE);
+        __ movq(rcx, value, RelocInfo::NONE64);
         __ movq(FieldOperand(result, total_offset), rcx);
       }
     } else if (elements->IsFixedArray()) {
@@ -5023,7 +5037,7 @@ void LCodeGen::EmitDeepCopy(Handle<JSObject> object,
           __ LoadHeapObject(rcx, Handle<HeapObject>::cast(value));
           __ movq(FieldOperand(result, total_offset), rcx);
         } else {
-          __ movq(rcx, value, RelocInfo::NONE);
+          __ movq(rcx, value, RelocInfo::NONE64);
           __ movq(FieldOperand(result, total_offset), rcx);
         }
       }

@@ -1,7 +1,7 @@
 // Copyright 2012 the V8 project authors. All rights reserved.
 
 // Check that we can traverse very deep stacks of ConsStrings using
-// StringInputBuffer.  Check that Get(int) works on very deep stacks
+// StringCharacterStram.  Check that Get(int) works on very deep stacks
 // of ConsStrings.  These operations may not be very fast, but they
 // should be possible without getting errors due to too deep recursion.
 
@@ -369,7 +369,7 @@ void AccumulateStatsWithOperator(
 void VerifyConsString(Handle<String> root, ConsStringGenerationData* data) {
   // Verify basic data.
   CHECK(root->IsConsString());
-  CHECK((unsigned)root->length() == data->stats_.chars_);
+  CHECK(static_cast<unsigned>(root->length()) == data->stats_.chars_);
   // Recursive verify.
   ConsStringStats stats;
   AccumulateStats(ConsString::cast(*root), &stats);
@@ -514,23 +514,16 @@ static Handle<String> ConstructBalanced(
 }
 
 
-static StringInputBuffer buffer;
 static ConsStringIteratorOp cons_string_iterator_op_1;
 static ConsStringIteratorOp cons_string_iterator_op_2;
 
 static void Traverse(Handle<String> s1, Handle<String> s2) {
   int i = 0;
-  buffer.Reset(*s1);
-  StringCharacterStream character_stream_1(*s1, 0, &cons_string_iterator_op_1);
-  StringCharacterStream character_stream_2(*s2, 0, &cons_string_iterator_op_2);
-  StringInputBuffer buffer2(*s2);
-  while (buffer.has_more()) {
-    CHECK(buffer2.has_more());
-    CHECK(character_stream_1.HasMore());
+  StringCharacterStream character_stream_1(*s1, &cons_string_iterator_op_1);
+  StringCharacterStream character_stream_2(*s2, &cons_string_iterator_op_2);
+  while (character_stream_1.HasMore()) {
     CHECK(character_stream_2.HasMore());
-    uint16_t c = buffer.GetNext();
-    CHECK_EQ(c, buffer2.GetNext());
-    CHECK_EQ(c, character_stream_1.GetNext());
+    uint16_t c = character_stream_1.GetNext();
     CHECK_EQ(c, character_stream_2.GetNext());
     i++;
   }
@@ -543,17 +536,11 @@ static void Traverse(Handle<String> s1, Handle<String> s2) {
 
 static void TraverseFirst(Handle<String> s1, Handle<String> s2, int chars) {
   int i = 0;
-  buffer.Reset(*s1);
-  StringInputBuffer buffer2(*s2);
-  StringCharacterStream character_stream_1(*s1, 0, &cons_string_iterator_op_1);
-  StringCharacterStream character_stream_2(*s2, 0, &cons_string_iterator_op_2);
-  while (buffer.has_more() && i < chars) {
-    CHECK(buffer2.has_more());
-    CHECK(character_stream_1.HasMore());
+  StringCharacterStream character_stream_1(*s1, &cons_string_iterator_op_1);
+  StringCharacterStream character_stream_2(*s2, &cons_string_iterator_op_2);
+  while (character_stream_1.HasMore() && i < chars) {
     CHECK(character_stream_2.HasMore());
-    uint16_t c = buffer.GetNext();
-    CHECK_EQ(c, buffer2.GetNext());
-    CHECK_EQ(c, character_stream_1.GetNext());
+    uint16_t c = character_stream_1.GetNext();
     CHECK_EQ(c, character_stream_2.GetNext());
     i++;
   }
@@ -621,9 +608,9 @@ static void VerifyCharacterStream(
     // Want to test the offset == length case.
     if (offset > length) offset = length;
     StringCharacterStream flat_stream(
-        flat_string, (unsigned) offset, &cons_string_iterator_op_1);
+        flat_string, &cons_string_iterator_op_1, static_cast<unsigned>(offset));
     StringCharacterStream cons_stream(
-        cons_string, (unsigned) offset, &cons_string_iterator_op_2);
+        cons_string, &cons_string_iterator_op_2, static_cast<unsigned>(offset));
     for (int i = offset; i < length; i++) {
       uint16_t c = flat_string->Get(i);
       CHECK(flat_stream.HasMore());

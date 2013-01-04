@@ -162,7 +162,7 @@ void MacroAssembler::PushAddress(ExternalReference source) {
   int64_t address = reinterpret_cast<int64_t>(source.address());
   if (is_int32(address) && !Serializer::enabled()) {
     if (emit_debug_code()) {
-      movq(kScratchRegister, BitCast<int64_t>(kZapValue), RelocInfo::NONE);
+      movq(kScratchRegister, BitCast<int64_t>(kZapValue), RelocInfo::NONE64);
     }
     push(Immediate(static_cast<int32_t>(address)));
     return;
@@ -287,7 +287,7 @@ void MacroAssembler::InNewSpace(Register object,
     ASSERT(is_int32(static_cast<int64_t>(HEAP->NewSpaceMask())));
     intptr_t new_space_start =
         reinterpret_cast<intptr_t>(HEAP->NewSpaceStart());
-    movq(kScratchRegister, -new_space_start, RelocInfo::NONE);
+    movq(kScratchRegister, -new_space_start, RelocInfo::NONE64);
     if (scratch.is(object)) {
       addq(scratch, kScratchRegister);
     } else {
@@ -342,8 +342,8 @@ void MacroAssembler::RecordWriteField(
   // Clobber clobbered input registers when running with the debug-code flag
   // turned on to provoke errors.
   if (emit_debug_code()) {
-    movq(value, BitCast<int64_t>(kZapValue), RelocInfo::NONE);
-    movq(dst, BitCast<int64_t>(kZapValue), RelocInfo::NONE);
+    movq(value, BitCast<int64_t>(kZapValue), RelocInfo::NONE64);
+    movq(dst, BitCast<int64_t>(kZapValue), RelocInfo::NONE64);
   }
 }
 
@@ -376,8 +376,8 @@ void MacroAssembler::RecordWriteArray(Register object,
   // Clobber clobbered input registers when running with the debug-code flag
   // turned on to provoke errors.
   if (emit_debug_code()) {
-    movq(value, BitCast<int64_t>(kZapValue), RelocInfo::NONE);
-    movq(index, BitCast<int64_t>(kZapValue), RelocInfo::NONE);
+    movq(value, BitCast<int64_t>(kZapValue), RelocInfo::NONE64);
+    movq(index, BitCast<int64_t>(kZapValue), RelocInfo::NONE64);
   }
 }
 
@@ -442,8 +442,8 @@ void MacroAssembler::RecordWrite(Register object,
   // Clobber clobbered registers when running with the debug-code flag
   // turned on to provoke errors.
   if (emit_debug_code()) {
-    movq(address, BitCast<int64_t>(kZapValue), RelocInfo::NONE);
-    movq(value, BitCast<int64_t>(kZapValue), RelocInfo::NONE);
+    movq(address, BitCast<int64_t>(kZapValue), RelocInfo::NONE64);
+    movq(value, BitCast<int64_t>(kZapValue), RelocInfo::NONE64);
   }
 }
 
@@ -524,11 +524,11 @@ void MacroAssembler::Abort(const char* msg) {
   }
 #endif
   push(rax);
-  movq(kScratchRegister, p0, RelocInfo::NONE);
+  movq(kScratchRegister, p0, RelocInfo::NONE64);
   push(kScratchRegister);
   movq(kScratchRegister,
        reinterpret_cast<intptr_t>(Smi::FromInt(static_cast<int>(p1 - p0))),
-       RelocInfo::NONE);
+       RelocInfo::NONE64);
   push(kScratchRegister);
 
   if (!has_frame_) {
@@ -731,7 +731,7 @@ void MacroAssembler::CallApiFunctionAndReturn(Address function_address,
 
   // Call the api function!
   movq(rax, reinterpret_cast<int64_t>(function_address),
-       RelocInfo::RUNTIME_ENTRY);
+       RelocInfo::EXTERNAL_REFERENCE);
   call(rax);
 
   if (FLAG_log_timer_events) {
@@ -937,7 +937,7 @@ void MacroAssembler::Set(Register dst, int64_t x) {
   } else if (is_int32(x)) {
     movq(dst, Immediate(static_cast<int32_t>(x)));
   } else {
-    movq(dst, x, RelocInfo::NONE);
+    movq(dst, x, RelocInfo::NONE64);
   }
 }
 
@@ -1002,7 +1002,7 @@ void MacroAssembler::LoadSmiConstant(Register dst, Smi* source) {
   if (emit_debug_code()) {
     movq(dst,
          reinterpret_cast<uint64_t>(Smi::FromInt(kSmiConstantRegisterValue)),
-         RelocInfo::NONE);
+         RelocInfo::NONE64);
     cmpq(dst, kSmiConstantRegister);
     if (allow_stub_calls()) {
       Assert(equal, "Uninitialized kSmiConstantRegister");
@@ -1049,7 +1049,7 @@ void MacroAssembler::LoadSmiConstant(Register dst, Smi* source) {
       UNREACHABLE();
       return;
     default:
-      movq(dst, reinterpret_cast<uint64_t>(source), RelocInfo::NONE);
+      movq(dst, reinterpret_cast<uint64_t>(source), RelocInfo::NONE64);
       return;
   }
   if (negative) {
@@ -2927,7 +2927,7 @@ void MacroAssembler::LoadUint32(XMMRegister dst,
   cmpl(src, Immediate(0));
   movq(kScratchRegister,
        reinterpret_cast<int64_t>(&kUint32Bias),
-       RelocInfo::NONE);
+       RelocInfo::NONE64);
   movsd(scratch, Operand(kScratchRegister, 0));
   cvtlsi2sd(dst, src);
   j(not_sign, &done, Label::kNear);
@@ -3011,7 +3011,7 @@ void MacroAssembler::AssertSmi(const Operand& object) {
 void MacroAssembler::AssertZeroExtended(Register int32_register) {
   if (emit_debug_code()) {
     ASSERT(!int32_register.is(kScratchRegister));
-    movq(kScratchRegister, 0x100000000l, RelocInfo::NONE);
+    movq(kScratchRegister, 0x100000000l, RelocInfo::NONE64);
     cmpq(kScratchRegister, int32_register);
     Check(above_equal, "32 bit value in register is not zero-extended");
   }
@@ -3758,6 +3758,7 @@ void MacroAssembler::AllocateInNewSpace(int object_size,
                                         Register scratch,
                                         Label* gc_required,
                                         AllocationFlags flags) {
+  ASSERT((flags & (RESULT_CONTAINS_TOP | SIZE_IN_WORDS)) == 0);
   if (!FLAG_inline_new) {
     if (emit_debug_code()) {
       // Trash the registers to simulate an allocation failure.
@@ -3777,6 +3778,13 @@ void MacroAssembler::AllocateInNewSpace(int object_size,
   // Load address of new object into result.
   LoadAllocationTopHelper(result, scratch, flags);
 
+  // Align the next allocation. Storing the filler map without checking top is
+  // always safe because the limit of the heap is always aligned.
+  if (((flags & DOUBLE_ALIGNMENT) != 0) && FLAG_debug_code) {
+    testq(result, Immediate(kDoubleAlignmentMask));
+    Check(zero, "Allocation is not double aligned");
+  }
+
   // Calculate new top and bail out if new space is exhausted.
   ExternalReference new_space_allocation_limit =
       ExternalReference::new_space_allocation_limit_address(isolate());
@@ -3795,15 +3803,17 @@ void MacroAssembler::AllocateInNewSpace(int object_size,
   // Update allocation top.
   UpdateAllocationTopHelper(top_reg, scratch);
 
+  bool tag_result = (flags & TAG_OBJECT) != 0;
   if (top_reg.is(result)) {
-    if ((flags & TAG_OBJECT) != 0) {
+    if (tag_result) {
       subq(result, Immediate(object_size - kHeapObjectTag));
     } else {
       subq(result, Immediate(object_size));
     }
-  } else if ((flags & TAG_OBJECT) != 0) {
+  } else if (tag_result) {
     // Tag the result if requested.
-    addq(result, Immediate(kHeapObjectTag));
+    ASSERT(kHeapObjectTag == 1);
+    incq(result);
   }
 }
 
@@ -3816,6 +3826,7 @@ void MacroAssembler::AllocateInNewSpace(int header_size,
                                         Register scratch,
                                         Label* gc_required,
                                         AllocationFlags flags) {
+  ASSERT((flags & SIZE_IN_WORDS) == 0);
   if (!FLAG_inline_new) {
     if (emit_debug_code()) {
       // Trash the registers to simulate an allocation failure.
@@ -3833,6 +3844,13 @@ void MacroAssembler::AllocateInNewSpace(int header_size,
 
   // Load address of new object into result.
   LoadAllocationTopHelper(result, scratch, flags);
+
+  // Align the next allocation. Storing the filler map without checking top is
+  // always safe because the limit of the heap is always aligned.
+  if (((flags & DOUBLE_ALIGNMENT) != 0) && FLAG_debug_code) {
+    testq(result, Immediate(kDoubleAlignmentMask));
+    Check(zero, "Allocation is not double aligned");
+  }
 
   // Calculate new top and bail out if new space is exhausted.
   ExternalReference new_space_allocation_limit =
@@ -3852,7 +3870,8 @@ void MacroAssembler::AllocateInNewSpace(int header_size,
 
   // Tag the result if requested.
   if ((flags & TAG_OBJECT) != 0) {
-    addq(result, Immediate(kHeapObjectTag));
+    ASSERT(kHeapObjectTag == 1);
+    incq(result);
   }
 }
 
@@ -3863,6 +3882,8 @@ void MacroAssembler::AllocateInNewSpace(Register object_size,
                                         Register scratch,
                                         Label* gc_required,
                                         AllocationFlags flags) {
+  ASSERT((flags & (DOUBLE_ALIGNMENT | RESULT_CONTAINS_TOP |
+                   SIZE_IN_WORDS)) == 0);
   if (!FLAG_inline_new) {
     if (emit_debug_code()) {
       // Trash the registers to simulate an allocation failure.

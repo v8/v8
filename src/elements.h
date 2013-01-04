@@ -143,17 +143,17 @@ class ElementsAccessor {
   MUST_USE_RESULT virtual MaybeObject* CopyElements(
       JSObject* source_holder,
       uint32_t source_start,
+      ElementsKind source_kind,
       FixedArrayBase* destination,
-      ElementsKind destination_kind,
       uint32_t destination_start,
       int copy_size,
       FixedArrayBase* source = NULL) = 0;
 
   MUST_USE_RESULT MaybeObject* CopyElements(JSObject* from_holder,
                                             FixedArrayBase* to,
-                                            ElementsKind to_kind,
+                                            ElementsKind from_kind,
                                             FixedArrayBase* from = NULL) {
-    return CopyElements(from_holder, 0, to, to_kind, 0,
+    return CopyElements(from_holder, 0, from_kind, to, 0,
                         kCopyToEndAndInitializeToHole, from);
   }
 

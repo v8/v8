@@ -7200,9 +7200,7 @@ class String: public HeapObject {
   // Returns a hash value used for the property table
   inline uint32_t Hash();
 
-  static bool ComputeArrayIndex(unibrow::CharacterStream* buffer,
-                                uint32_t* index,
-                                int length);
+  bool ComputeArrayIndex(uint32_t* index);
 
   // Externalization.
   bool MakeExternal(v8::String::ExternalStringResource* resource);
@@ -7315,18 +7313,6 @@ class String: public HeapObject {
   const uc16* GetTwoByteData();
   const uc16* GetTwoByteData(unsigned start);
 
-  // Support for StringInputBuffer
-  static const unibrow::byte* ReadBlock(String* input,
-                                        unibrow::byte* util_buffer,
-                                        unsigned capacity,
-                                        unsigned* remaining,
-                                        unsigned* offset);
-  static const unibrow::byte* ReadBlock(String** input,
-                                        unibrow::byte* util_buffer,
-                                        unsigned capacity,
-                                        unsigned* remaining,
-                                        unsigned* offset);
-
   // Helper function for flattening strings.
   template <typename sinkchar>
   static void WriteToFlat(String* source,
@@ -7384,33 +7370,6 @@ class String: public HeapObject {
                            ConsOp& cons_op,
                            int32_t type,
                            unsigned length);
-
- protected:
-  class ReadBlockBuffer {
-   public:
-    ReadBlockBuffer(unibrow::byte* util_buffer_,
-                    unsigned cursor_,
-                    unsigned capacity_,
-                    unsigned remaining_) :
-      util_buffer(util_buffer_),
-      cursor(cursor_),
-      capacity(capacity_),
-      remaining(remaining_) {
-    }
-    unibrow::byte* util_buffer;
-    unsigned       cursor;
-    unsigned       capacity;
-    unsigned       remaining;
-  };
-
-  static inline const unibrow::byte* ReadBlock(String* input,
-                                               ReadBlockBuffer* buffer,
-                                               unsigned* offset,
-                                               unsigned max_chars);
-  static void ReadBlockIntoBuffer(String* input,
-                                  ReadBlockBuffer* buffer,
-                                  unsigned* offset_ptr,
-                                  unsigned max_chars);
 
  private:
   // Try to flatten the top level ConsString that is hiding behind this
@@ -7487,14 +7446,6 @@ class SeqOneByteString: public SeqString {
   // Q.v. String::kMaxLength which is the maximal size of concatenated strings.
   static const int kMaxLength = (kMaxSize - kHeaderSize);
 
-  // Support for StringInputBuffer.
-  inline void SeqOneByteStringReadBlockIntoBuffer(ReadBlockBuffer* buffer,
-                                                unsigned* offset,
-                                                unsigned chars);
-  inline const unibrow::byte* SeqOneByteStringReadBlock(unsigned* remaining,
-                                                      unsigned* offset,
-                                                      unsigned chars);
-
   DECLARE_VERIFIER(SeqOneByteString)
 
  private:
@@ -7539,11 +7490,6 @@ class SeqTwoByteString: public SeqString {
   // Q.v. String::kMaxLength which is the maximal size of concatenated strings.
   static const int kMaxLength = (kMaxSize - kHeaderSize) / sizeof(uint16_t);
 
-  // Support for StringInputBuffer.
-  inline void SeqTwoByteStringReadBlockIntoBuffer(ReadBlockBuffer* buffer,
-                                                  unsigned* offset_ptr,
-                                                  unsigned chars);
-
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(SeqTwoByteString);
 };
@@ -7585,14 +7531,6 @@ class ConsString: public String {
   static const int kFirstOffset = POINTER_SIZE_ALIGN(String::kSize);
   static const int kSecondOffset = kFirstOffset + kPointerSize;
   static const int kSize = kSecondOffset + kPointerSize;
-
-  // Support for StringInputBuffer.
-  inline const unibrow::byte* ConsStringReadBlock(ReadBlockBuffer* buffer,
-                                                  unsigned* offset_ptr,
-                                                  unsigned chars);
-  inline void ConsStringReadBlockIntoBuffer(ReadBlockBuffer* buffer,
-                                            unsigned* offset_ptr,
-                                            unsigned chars);
 
   // Minimum length for a cons string.
   static const int kMinLength = 13;
@@ -7638,13 +7576,6 @@ class SlicedString: public String {
   static const int kOffsetOffset = kParentOffset + kPointerSize;
   static const int kSize = kOffsetOffset + kPointerSize;
 
-  // Support for StringInputBuffer
-  inline const unibrow::byte* SlicedStringReadBlock(ReadBlockBuffer* buffer,
-                                                    unsigned* offset_ptr,
-                                                    unsigned chars);
-  inline void SlicedStringReadBlockIntoBuffer(ReadBlockBuffer* buffer,
-                                              unsigned* offset_ptr,
-                                              unsigned chars);
   // Minimum length for a sliced string.
   static const int kMinLength = 13;
 
@@ -7721,14 +7652,6 @@ class ExternalAsciiString: public ExternalString {
   template<typename StaticVisitor>
   inline void ExternalAsciiStringIterateBody();
 
-  // Support for StringInputBuffer.
-  const unibrow::byte* ExternalAsciiStringReadBlock(unsigned* remaining,
-                                                    unsigned* offset,
-                                                    unsigned chars);
-  inline void ExternalAsciiStringReadBlockIntoBuffer(ReadBlockBuffer* buffer,
-                                                     unsigned* offset,
-                                                     unsigned chars);
-
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(ExternalAsciiString);
 };
@@ -7768,12 +7691,6 @@ class ExternalTwoByteString: public ExternalString {
 
   template<typename StaticVisitor>
   inline void ExternalTwoByteStringIterateBody();
-
-
-  // Support for StringInputBuffer.
-  void ExternalTwoByteStringReadBlockIntoBuffer(ReadBlockBuffer* buffer,
-                                                unsigned* offset_ptr,
-                                                unsigned chars);
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(ExternalTwoByteString);
@@ -7818,24 +7735,6 @@ class FlatStringReader : public Relocatable {
   bool is_ascii_;
   int length_;
   const void* start_;
-};
-
-
-// Note that StringInputBuffers are not valid across a GC!  To fix this
-// it would have to store a String Handle instead of a String* and
-// AsciiStringReadBlock would have to be modified to use memcpy.
-//
-// StringInputBuffer is able to traverse any string regardless of how
-// deeply nested a sequence of ConsStrings it is made of.  However,
-// performance will be better if deep strings are flattened before they
-// are traversed.  Since flattening requires memory allocation this is
-// not always desirable, however (esp. in debugging situations).
-class StringInputBuffer: public unibrow::InputBuffer<String, String*, 1024> {
- public:
-  virtual void Seek(unsigned pos);
-  inline StringInputBuffer(): unibrow::InputBuffer<String, String*, 1024>() {}
-  explicit inline StringInputBuffer(String* backing):
-      unibrow::InputBuffer<String, String*, 1024>(backing) {}
 };
 
 
@@ -7898,11 +7797,11 @@ class ConsStringIteratorOp {
 class StringCharacterStream {
  public:
   inline StringCharacterStream(String* string,
-                               unsigned offset,
-                               ConsStringIteratorOp* op);
+                               ConsStringIteratorOp* op,
+                               unsigned offset = 0);
   inline uint16_t GetNext();
   inline bool HasMore();
-  inline void Reset(String* string, unsigned offset, ConsStringIteratorOp* op);
+  inline void Reset(String* string, unsigned offset = 0);
   inline void VisitOneByteString(const uint8_t* chars, unsigned length);
   inline void VisitTwoByteString(const uint16_t* chars, unsigned length);
 

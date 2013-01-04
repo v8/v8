@@ -114,7 +114,11 @@ void LInstruction::PrintDataTo(StringStream* stream) {
   stream->Add("= ");
   for (int i = 0; i < InputCount(); i++) {
     if (i > 0) stream->Add(" ");
-    InputAt(i)->PrintTo(stream);
+    if (InputAt(i) == NULL) {
+      stream->Add("NULL");
+    } else {
+      InputAt(i)->PrintTo(stream);
+    }
   }
 }
 
@@ -1055,7 +1059,13 @@ LInstruction* LChunkBuilder::DoThisFunction(HThisFunction* instr) {
 
 
 LInstruction* LChunkBuilder::DoContext(HContext* instr) {
-  return instr->HasNoUses() ? NULL : DefineAsRegister(new(zone()) LContext);
+  if (instr->HasNoUses()) return NULL;
+
+  if (info()->IsStub()) {
+    return DefineFixed(new(zone()) LContext, esi);
+  }
+
+  return DefineAsRegister(new(zone()) LContext);
 }
 
 
@@ -1305,12 +1315,31 @@ HValue* LChunkBuilder::SimplifiedDivisorForMathFloorOfDiv(HValue* divisor) {
     return constant_val->CopyToRepresentation(Representation::Integer32(),
                                               divisor->block()->zone());
   }
+  // A value with an integer representation does not need to be transformed.
+  if (divisor->representation().IsInteger32()) {
+    return divisor;
+  // A change from an integer32 can be replaced by the integer32 value.
+  } else if (divisor->IsChange() &&
+             HChange::cast(divisor)->from().IsInteger32()) {
+    return HChange::cast(divisor)->value();
+  }
   return NULL;
 }
 
 
 LInstruction* LChunkBuilder::DoMathFloorOfDiv(HMathFloorOfDiv* instr) {
   HValue* right = instr->right();
+  if (!right->IsConstant()) {
+    ASSERT(right->representation().IsInteger32());
+    // The temporary operand is necessary to ensure that right is not allocated
+    // into edx.
+    LOperand* temp = FixedTemp(edx);
+    LOperand* dividend = UseFixed(instr->left(), eax);
+    LOperand* divisor = UseRegister(instr->right());
+    LDivI* flooring_div = new(zone()) LDivI(dividend, divisor, temp);
+    return AssignEnvironment(DefineFixed(flooring_div, eax));
+  }
+
   ASSERT(right->IsConstant() && HConstant::cast(right)->HasInteger32Value());
   LOperand* divisor = chunk_->DefineConstantOperand(HConstant::cast(right));
   int32_t divisor_si = HConstant::cast(right)->Integer32Value();
@@ -1865,7 +1894,10 @@ LInstruction* LChunkBuilder::DoClampToUint8(HClampToUint8* instr) {
 
 
 LInstruction* LChunkBuilder::DoReturn(HReturn* instr) {
-  return new(zone()) LReturn(UseFixed(instr->value(), eax));
+  LOperand* context = info()->IsStub()
+      ? UseFixed(instr->context(), esi)
+      : NULL;
+  return new(zone()) LReturn(UseFixed(instr->value(), eax), context);
 }
 
 

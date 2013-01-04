@@ -686,7 +686,7 @@ class ElementsAccessorBase : public ElementsAccessor {
   MUST_USE_RESULT static MaybeObject* CopyElementsImpl(FixedArrayBase* from,
                                                        uint32_t from_start,
                                                        FixedArrayBase* to,
-                                                       ElementsKind to_kind,
+                                                       ElementsKind from_kind,
                                                        uint32_t to_start,
                                                        int packed_size,
                                                        int copy_size) {
@@ -696,8 +696,8 @@ class ElementsAccessorBase : public ElementsAccessor {
 
   MUST_USE_RESULT virtual MaybeObject* CopyElements(JSObject* from_holder,
                                                     uint32_t from_start,
+                                                    ElementsKind from_kind,
                                                     FixedArrayBase* to,
-                                                    ElementsKind to_kind,
                                                     uint32_t to_start,
                                                     int copy_size,
                                                     FixedArrayBase* from) {
@@ -707,8 +707,7 @@ class ElementsAccessorBase : public ElementsAccessor {
     }
 
     if (from_holder) {
-      ElementsKind elements_kind = from_holder->GetElementsKind();
-      bool is_packed = IsFastPackedElementsKind(elements_kind) &&
+      bool is_packed = IsFastPackedElementsKind(from_kind) &&
           from_holder->IsJSArray();
       if (is_packed) {
         packed_size = Smi::cast(JSArray::cast(from_holder)->length())->value();
@@ -718,7 +717,7 @@ class ElementsAccessorBase : public ElementsAccessor {
       }
     }
     return ElementsAccessorSubclass::CopyElementsImpl(
-        from, from_start, to, to_kind, to_start, packed_size, copy_size);
+        from, from_start, to, from_kind, to_start, packed_size, copy_size);
   }
 
   MUST_USE_RESULT virtual MaybeObject* AddElementsToFixedArray(
@@ -1003,6 +1002,41 @@ class FastElementsAccessor
 };
 
 
+static inline ElementsKind ElementsKindForArray(FixedArrayBase* array) {
+  switch (array->map()->instance_type()) {
+    case FIXED_ARRAY_TYPE:
+      if (array->IsDictionary()) {
+        return DICTIONARY_ELEMENTS;
+      } else {
+        return FAST_HOLEY_ELEMENTS;
+      }
+    case FIXED_DOUBLE_ARRAY_TYPE:
+      return FAST_HOLEY_DOUBLE_ELEMENTS;
+    case EXTERNAL_BYTE_ARRAY_TYPE:
+      return EXTERNAL_BYTE_ELEMENTS;
+    case EXTERNAL_UNSIGNED_BYTE_ARRAY_TYPE:
+      return EXTERNAL_UNSIGNED_BYTE_ELEMENTS;
+    case EXTERNAL_SHORT_ARRAY_TYPE:
+      return EXTERNAL_SHORT_ELEMENTS;
+    case EXTERNAL_UNSIGNED_SHORT_ARRAY_TYPE:
+      return EXTERNAL_UNSIGNED_SHORT_ELEMENTS;
+    case EXTERNAL_INT_ARRAY_TYPE:
+      return EXTERNAL_INT_ELEMENTS;
+    case EXTERNAL_UNSIGNED_INT_ARRAY_TYPE:
+      return EXTERNAL_UNSIGNED_INT_ELEMENTS;
+    case EXTERNAL_FLOAT_ARRAY_TYPE:
+      return EXTERNAL_FLOAT_ELEMENTS;
+    case EXTERNAL_DOUBLE_ARRAY_TYPE:
+      return EXTERNAL_DOUBLE_ELEMENTS;
+    case EXTERNAL_PIXEL_ARRAY_TYPE:
+      return EXTERNAL_PIXEL_ELEMENTS;
+    default:
+      UNREACHABLE();
+  }
+  return FAST_HOLEY_ELEMENTS;
+}
+
+
 template<typename FastElementsAccessorSubclass,
          typename KindTraits>
 class FastSmiOrObjectElementsAccessor
@@ -1018,29 +1052,49 @@ class FastSmiOrObjectElementsAccessor
   static MaybeObject* CopyElementsImpl(FixedArrayBase* from,
                                        uint32_t from_start,
                                        FixedArrayBase* to,
-                                       ElementsKind to_kind,
+                                       ElementsKind from_kind,
                                        uint32_t to_start,
                                        int packed_size,
                                        int copy_size) {
-    if (IsFastSmiOrObjectElementsKind(to_kind)) {
-      CopyObjectToObjectElements(
-          from, KindTraits::Kind, from_start, to, to_kind, to_start, copy_size);
-    } else if (IsFastDoubleElementsKind(to_kind)) {
-      if (IsFastSmiElementsKind(KindTraits::Kind)) {
-        if (IsFastPackedElementsKind(KindTraits::Kind) &&
-            packed_size != kPackedSizeNotKnown) {
-          CopyPackedSmiToDoubleElements(
-              from, from_start, to, to_start, packed_size, copy_size);
-        } else {
-          CopySmiToDoubleElements(from, from_start, to, to_start, copy_size);
-        }
-      } else {
-        CopyObjectToDoubleElements(from, from_start, to, to_start, copy_size);
+    ElementsKind to_kind = KindTraits::Kind;
+    switch (from_kind) {
+      case FAST_SMI_ELEMENTS:
+      case FAST_HOLEY_SMI_ELEMENTS:
+      case FAST_ELEMENTS:
+      case FAST_HOLEY_ELEMENTS:
+        CopyObjectToObjectElements(
+            from, from_kind, from_start, to, to_kind, to_start, copy_size);
+        return to->GetHeap()->undefined_value();
+      case FAST_DOUBLE_ELEMENTS:
+      case FAST_HOLEY_DOUBLE_ELEMENTS:
+        return CopyDoubleToObjectElements(
+            from, from_start, to, to_kind, to_start, copy_size);
+      case DICTIONARY_ELEMENTS:
+        CopyDictionaryToObjectElements(
+            from, from_start, to, to_kind, to_start, copy_size);
+        return to->GetHeap()->undefined_value();
+      case NON_STRICT_ARGUMENTS_ELEMENTS: {
+        // TODO(verwaest): This is a temporary hack to support extending
+        // NON_STRICT_ARGUMENTS_ELEMENTS in SetFastElementsCapacityAndLength.
+        // This case should be UNREACHABLE().
+        FixedArray* parameter_map = FixedArray::cast(from);
+        FixedArrayBase* arguments = FixedArrayBase::cast(parameter_map->get(1));
+        ElementsKind from_kind = ElementsKindForArray(arguments);
+        return CopyElementsImpl(arguments, from_start, to, from_kind,
+                                to_start, packed_size, copy_size);
       }
-    } else {
-      UNREACHABLE();
+      case EXTERNAL_BYTE_ELEMENTS:
+      case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
+      case EXTERNAL_SHORT_ELEMENTS:
+      case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
+      case EXTERNAL_INT_ELEMENTS:
+      case EXTERNAL_UNSIGNED_INT_ELEMENTS:
+      case EXTERNAL_FLOAT_ELEMENTS:
+      case EXTERNAL_DOUBLE_ELEMENTS:
+      case EXTERNAL_PIXEL_ELEMENTS:
+        UNREACHABLE();
     }
-    return to->GetHeap()->undefined_value();
+    return NULL;
   }
 
 
@@ -1129,22 +1183,40 @@ class FastDoubleElementsAccessor
   static MaybeObject* CopyElementsImpl(FixedArrayBase* from,
                                        uint32_t from_start,
                                        FixedArrayBase* to,
-                                       ElementsKind to_kind,
+                                       ElementsKind from_kind,
                                        uint32_t to_start,
                                        int packed_size,
                                        int copy_size) {
-    switch (to_kind) {
+    switch (from_kind) {
       case FAST_SMI_ELEMENTS:
-      case FAST_ELEMENTS:
+        CopyPackedSmiToDoubleElements(
+            from, from_start, to, to_start, packed_size, copy_size);
+        break;
       case FAST_HOLEY_SMI_ELEMENTS:
-      case FAST_HOLEY_ELEMENTS:
-        return CopyDoubleToObjectElements(
-            from, from_start, to, to_kind, to_start, copy_size);
+        CopySmiToDoubleElements(from, from_start, to, to_start, copy_size);
+        break;
       case FAST_DOUBLE_ELEMENTS:
       case FAST_HOLEY_DOUBLE_ELEMENTS:
         CopyDoubleToDoubleElements(from, from_start, to, to_start, copy_size);
-        return from;
-      default:
+        break;
+      case FAST_ELEMENTS:
+      case FAST_HOLEY_ELEMENTS:
+        CopyObjectToDoubleElements(from, from_start, to, to_start, copy_size);
+        break;
+      case DICTIONARY_ELEMENTS:
+        CopyDictionaryToDoubleElements(
+            from, from_start, to, to_start, copy_size);
+        break;
+      case NON_STRICT_ARGUMENTS_ELEMENTS:
+      case EXTERNAL_BYTE_ELEMENTS:
+      case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
+      case EXTERNAL_SHORT_ELEMENTS:
+      case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
+      case EXTERNAL_INT_ELEMENTS:
+      case EXTERNAL_UNSIGNED_INT_ELEMENTS:
+      case EXTERNAL_FLOAT_ELEMENTS:
+      case EXTERNAL_DOUBLE_ELEMENTS:
+      case EXTERNAL_PIXEL_ELEMENTS:
         UNREACHABLE();
     }
     return to->GetHeap()->undefined_value();
@@ -1460,27 +1532,12 @@ class DictionaryElementsAccessor
   MUST_USE_RESULT static MaybeObject* CopyElementsImpl(FixedArrayBase* from,
                                                        uint32_t from_start,
                                                        FixedArrayBase* to,
-                                                       ElementsKind to_kind,
+                                                       ElementsKind from_kind,
                                                        uint32_t to_start,
                                                        int packed_size,
                                                        int copy_size) {
-    switch (to_kind) {
-      case FAST_SMI_ELEMENTS:
-      case FAST_ELEMENTS:
-      case FAST_HOLEY_SMI_ELEMENTS:
-      case FAST_HOLEY_ELEMENTS:
-        CopyDictionaryToObjectElements(
-            from, from_start, to, to_kind, to_start, copy_size);
-        return from;
-      case FAST_DOUBLE_ELEMENTS:
-      case FAST_HOLEY_DOUBLE_ELEMENTS:
-        CopyDictionaryToDoubleElements(
-            from, from_start, to, to_start, copy_size);
-        return from;
-      default:
-        UNREACHABLE();
-    }
-    return to->GetHeap()->undefined_value();
+    UNREACHABLE();
+    return NULL;
   }
 
 
@@ -1707,15 +1764,12 @@ class NonStrictArgumentsElementsAccessor : public ElementsAccessorBase<
   MUST_USE_RESULT static MaybeObject* CopyElementsImpl(FixedArrayBase* from,
                                                        uint32_t from_start,
                                                        FixedArrayBase* to,
-                                                       ElementsKind to_kind,
+                                                       ElementsKind from_kind,
                                                        uint32_t to_start,
                                                        int packed_size,
                                                        int copy_size) {
-    FixedArray* parameter_map = FixedArray::cast(from);
-    FixedArrayBase* arguments = FixedArrayBase::cast(parameter_map->get(1));
-    ElementsAccessor* accessor = ElementsAccessor::ForArray(arguments);
-    return accessor->CopyElements(NULL, from_start, to, to_kind,
-                                  to_start, copy_size, arguments);
+    UNREACHABLE();
+    return NULL;
   }
 
   static uint32_t GetCapacityImpl(FixedArrayBase* backing_store) {
@@ -1761,35 +1815,7 @@ class NonStrictArgumentsElementsAccessor : public ElementsAccessorBase<
 
 
 ElementsAccessor* ElementsAccessor::ForArray(FixedArrayBase* array) {
-  switch (array->map()->instance_type()) {
-    case FIXED_ARRAY_TYPE:
-      if (array->IsDictionary()) {
-        return elements_accessors_[DICTIONARY_ELEMENTS];
-      } else {
-        return elements_accessors_[FAST_HOLEY_ELEMENTS];
-      }
-    case EXTERNAL_BYTE_ARRAY_TYPE:
-      return elements_accessors_[EXTERNAL_BYTE_ELEMENTS];
-    case EXTERNAL_UNSIGNED_BYTE_ARRAY_TYPE:
-      return elements_accessors_[EXTERNAL_UNSIGNED_BYTE_ELEMENTS];
-    case EXTERNAL_SHORT_ARRAY_TYPE:
-      return elements_accessors_[EXTERNAL_SHORT_ELEMENTS];
-    case EXTERNAL_UNSIGNED_SHORT_ARRAY_TYPE:
-      return elements_accessors_[EXTERNAL_UNSIGNED_SHORT_ELEMENTS];
-    case EXTERNAL_INT_ARRAY_TYPE:
-      return elements_accessors_[EXTERNAL_INT_ELEMENTS];
-    case EXTERNAL_UNSIGNED_INT_ARRAY_TYPE:
-      return elements_accessors_[EXTERNAL_UNSIGNED_INT_ELEMENTS];
-    case EXTERNAL_FLOAT_ARRAY_TYPE:
-      return elements_accessors_[EXTERNAL_FLOAT_ELEMENTS];
-    case EXTERNAL_DOUBLE_ARRAY_TYPE:
-      return elements_accessors_[EXTERNAL_DOUBLE_ELEMENTS];
-    case EXTERNAL_PIXEL_ARRAY_TYPE:
-      return elements_accessors_[EXTERNAL_PIXEL_ELEMENTS];
-    default:
-      UNREACHABLE();
-      return NULL;
-  }
+  return elements_accessors_[ElementsKindForArray(array)];
 }
 
 

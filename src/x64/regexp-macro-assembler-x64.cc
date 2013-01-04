@@ -280,7 +280,7 @@ void RegExpMacroAssemblerX64::CheckCharacters(Vector<const uc16> str,
             (static_cast<uint64_t>(str[i + 5]) << 40) ||
             (static_cast<uint64_t>(str[i + 6]) << 48) ||
             (static_cast<uint64_t>(str[i + 7]) << 56);
-        __ movq(rax, combined_chars, RelocInfo::NONE);
+        __ movq(rax, combined_chars, RelocInfo::NONE64);
         __ cmpq(rax, Operand(rbx, byte_offset + i));
         i += 8;
       } else if (i + 4 <= n) {
@@ -300,7 +300,7 @@ void RegExpMacroAssemblerX64::CheckCharacters(Vector<const uc16> str,
       ASSERT(mode_ == UC16);
       if (i + 4 <= n) {
         uint64_t combined_chars = *reinterpret_cast<const uint64_t*>(&str[i]);
-        __ movq(rax, combined_chars, RelocInfo::NONE);
+        __ movq(rax, combined_chars, RelocInfo::NONE64);
         __ cmpq(rax,
                 Operand(rsi, rdi, times_1, byte_offset + i * sizeof(uc16)));
         i += 4;

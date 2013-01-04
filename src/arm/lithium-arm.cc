@@ -112,7 +112,11 @@ void LInstruction::PrintDataTo(StringStream* stream) {
   stream->Add("= ");
   for (int i = 0; i < InputCount(); i++) {
     if (i > 0) stream->Add(" ");
-    InputAt(i)->PrintTo(stream);
+    if (InputAt(i) == NULL) {
+      stream->Add("NULL");
+    } else {
+      InputAt(i)->PrintTo(stream);
+    }
   }
 }
 
@@ -999,7 +1003,14 @@ LInstruction* LChunkBuilder::DoThisFunction(HThisFunction* instr) {
 
 
 LInstruction* LChunkBuilder::DoContext(HContext* instr) {
-  return instr->HasNoUses() ? NULL : DefineAsRegister(new(zone()) LContext);
+  // If there is a non-return use, the context must be allocated in a register.
+  for (HUseIterator it(instr->uses()); !it.Done(); it.Advance()) {
+    if (!it.value()->IsReturn()) {
+      return DefineAsRegister(new(zone()) LContext);
+    }
+  }
+
+  return NULL;
 }
 
 

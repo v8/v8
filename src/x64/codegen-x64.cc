@@ -212,7 +212,7 @@ ModuloFunction CreateModuloFunction() {
   __ j(zero, &valid_result);
   __ fstp(0);  // Drop result in st(0).
   int64_t kNaNValue = V8_INT64_C(0x7ff8000000000000);
-  __ movq(rcx, kNaNValue, RelocInfo::NONE);
+  __ movq(rcx, kNaNValue, RelocInfo::NONE64);
   __ movq(Operand(rsp, kPointerSize), rcx);
   __ movsd(xmm0, Operand(rsp, kPointerSize));
   __ jmp(&return_result);
@@ -327,7 +327,7 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
   STATIC_ASSERT(FixedDoubleArray::kHeaderSize == FixedArray::kHeaderSize);
 
   Label loop, entry, convert_hole;
-  __ movq(r15, BitCast<int64_t, uint64_t>(kHoleNanInt64), RelocInfo::NONE);
+  __ movq(r15, BitCast<int64_t, uint64_t>(kHoleNanInt64), RelocInfo::NONE64);
   // r15: the-hole NaN
   __ jmp(&entry);
 
@@ -425,7 +425,7 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
   __ movq(FieldOperand(r11, FixedArray::kLengthOffset), r14);
 
   // Prepare for conversion loop.
-  __ movq(rsi, BitCast<int64_t, uint64_t>(kHoleNanInt64), RelocInfo::NONE);
+  __ movq(rsi, BitCast<int64_t, uint64_t>(kHoleNanInt64), RelocInfo::NONE64);
   __ LoadRoot(rdi, Heap::kTheHoleValueRootIndex);
   // rsi: the-hole NaN
   // rdi: pointer to the-hole

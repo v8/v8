@@ -2088,7 +2088,7 @@ Handle<Code> CallStubCompiler::CompileMathAbsCall(
   const int sign_mask_shift =
       (HeapNumber::kExponentOffset - HeapNumber::kValueOffset) * kBitsPerByte;
   __ movq(rdi, static_cast<int64_t>(HeapNumber::kSignMask) << sign_mask_shift,
-          RelocInfo::NONE);
+          RelocInfo::NONE64);
   __ testq(rbx, rdi);
   __ j(not_zero, &negative_sign);
   __ ret(2 * kPointerSize);
@@ -3894,7 +3894,7 @@ void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
     __ StoreNumberToDoubleElements(rax, rdi, rcx, xmm0,
                                    &restore_key_transition_elements_kind);
 
-    __ movq(r8, BitCast<int64_t, uint64_t>(kHoleNanInt64), RelocInfo::NONE);
+    __ movq(r8, BitCast<int64_t, uint64_t>(kHoleNanInt64), RelocInfo::NONE64);
     for (int i = 1; i < JSArray::kPreallocatedArrayElements; i++) {
       __ movq(FieldOperand(rdi, FixedDoubleArray::OffsetOfElementAt(i)), r8);
     }

@@ -110,7 +110,7 @@ void CpuFeatures::Probe() {
     __ or_(rdi, rcx);
 
     // Get the sahf supported flag, from CPUID(0x80000001)
-    __ movq(rax, 0x80000001, RelocInfo::NONE);
+    __ movq(rax, 0x80000001, RelocInfo::NONE64);
     __ cpuid();
   }
   supported_ = kDefaultCpuFeatures;
@@ -173,7 +173,7 @@ void RelocInfo::PatchCodeWithCall(Address target, int guard_bytes) {
 #endif
 
   // Patch the code.
-  patcher.masm()->movq(r10, target, RelocInfo::NONE);
+  patcher.masm()->movq(r10, target, RelocInfo::NONE64);
   patcher.masm()->call(r10);
 
   // Check that the size of the code generated is as expected.
@@ -1498,7 +1498,7 @@ void Assembler::movq(Register dst, void* value, RelocInfo::Mode rmode) {
 
 void Assembler::movq(Register dst, int64_t value, RelocInfo::Mode rmode) {
   // Non-relocatable values might not need a 64-bit representation.
-  if (rmode == RelocInfo::NONE) {
+  if (RelocInfo::IsNone(rmode)) {
     // Sadly, there is no zero or sign extending move for 8-bit immediates.
     if (is_int32(value)) {
       movq(dst, Immediate(static_cast<int32_t>(value)));
@@ -1558,11 +1558,11 @@ void Assembler::movl(const Operand& dst, Label* src) {
 void Assembler::movq(Register dst, Handle<Object> value, RelocInfo::Mode mode) {
   // If there is no relocation info, emit the value of the handle efficiently
   // (possibly using less that 8 bytes for the value).
-  if (mode == RelocInfo::NONE) {
+  if (RelocInfo::IsNone(mode)) {
     // There is no possible reason to store a heap pointer without relocation
     // info, so it must be a smi.
     ASSERT(value->IsSmi());
-    movq(dst, reinterpret_cast<int64_t>(*value), RelocInfo::NONE);
+    movq(dst, reinterpret_cast<int64_t>(*value), RelocInfo::NONE64);
   } else {
     EnsureSpace ensure_space(this);
     ASSERT(value->IsHeapObject());
@@ -2995,7 +2995,7 @@ void Assembler::dd(uint32_t data) {
 // Relocation information implementations.
 
 void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
-  ASSERT(rmode != RelocInfo::NONE);
+  ASSERT(!RelocInfo::IsNone(rmode));
   // Don't record external references unless the heap will be serialized.
   if (rmode == RelocInfo::EXTERNAL_REFERENCE) {
 #ifdef DEBUG

@@ -309,8 +309,11 @@ const Instr kPopRegPattern =
 // mov lr, pc
 const Instr kMovLrPc = al | MOV | kRegister_pc_Code | kRegister_lr_Code * B12;
 // ldr rd, [pc, #offset]
-const Instr kLdrPCMask = kCondMask | 15 * B24 | 7 * B20 | 15 * B16;
-const Instr kLdrPCPattern = al | 5 * B24 | L | kRegister_pc_Code * B16;
+const Instr kLdrPCMask = 15 * B24 | 7 * B20 | 15 * B16;
+const Instr kLdrPCPattern = 5 * B24 | L | kRegister_pc_Code * B16;
+// vldr dd, [pc, #offset]
+const Instr kVldrDPCMask = 15 * B24 | 3 * B20 | 15 * B16 | 15 * B8;
+const Instr kVldrDPCPattern = 13 * B24 | L | kRegister_pc_Code * B16 | 11 * B8;
 // blxcc rm
 const Instr kBlxRegMask =
     15 * B24 | 15 * B20 | 15 * B16 | 15 * B12 | 15 * B8 | 15 * B4;
@@ -351,6 +354,7 @@ Assembler::Assembler(Isolate* isolate, void* buffer, int buffer_size)
       positions_recorder_(this) {
   reloc_info_writer.Reposition(buffer_ + buffer_size_, pc_);
   num_pending_reloc_info_ = 0;
+  num_pending_64_bit_reloc_info_ = 0;
   next_buffer_check_ = 0;
   const_pool_blocked_nesting_ = 0;
   no_const_pool_before_ = 0;
@@ -369,6 +373,7 @@ void Assembler::GetCode(CodeDesc* desc) {
   // Emit constant pool if necessary.
   CheckConstPool(true, false);
   ASSERT(num_pending_reloc_info_ == 0);
+  ASSERT(num_pending_64_bit_reloc_info_ == 0);
 
   // Set up code descriptor.
   desc->buffer = buffer_;
@@ -415,10 +420,24 @@ bool Assembler::IsLdrRegisterImmediate(Instr instr) {
 }
 
 
+bool Assembler::IsVldrDRegisterImmediate(Instr instr) {
+  return (instr & (15 * B24 | 3 * B20 | 15 * B8)) == (13 * B24 | B20 | 11 * B8);
+}
+
+
 int Assembler::GetLdrRegisterImmediateOffset(Instr instr) {
   ASSERT(IsLdrRegisterImmediate(instr));
   bool positive = (instr & B23) == B23;
   int offset = instr & kOff12Mask;  // Zero extended offset.
+  return positive ? offset : -offset;
+}
+
+
+int Assembler::GetVldrDRegisterImmediateOffset(Instr instr) {
+  ASSERT(IsVldrDRegisterImmediate(instr));
+  bool positive = (instr & B23) == B23;
+  int offset = instr & kOff8Mask;  // Zero extended offset.
+  offset <<= 2;
   return positive ? offset : -offset;
 }
 
@@ -432,6 +451,19 @@ Instr Assembler::SetLdrRegisterImmediateOffset(Instr instr, int offset) {
   instr = (instr & ~B23) | (positive ? B23 : 0);
   // Set the actual offset.
   return (instr & ~kOff12Mask) | offset;
+}
+
+
+Instr Assembler::SetVldrDRegisterImmediateOffset(Instr instr, int offset) {
+  ASSERT(IsVldrDRegisterImmediate(instr));
+  ASSERT((offset & ~3) == offset);  // Must be 64-bit aligned.
+  bool positive = offset >= 0;
+  if (!positive) offset = -offset;
+  ASSERT(is_uint10(offset));
+  // Set bit indicating whether the offset should be added.
+  instr = (instr & ~B23) | (positive ? B23 : 0);
+  // Set the actual offset. Its bottom 2 bits are zero.
+  return (instr & ~kOff8Mask) | (offset >> 2);
 }
 
 
@@ -520,7 +552,14 @@ bool Assembler::IsLdrRegFpNegOffset(Instr instr) {
 bool Assembler::IsLdrPcImmediateOffset(Instr instr) {
   // Check the instruction is indeed a
   // ldr<cond> <Rd>, [pc +/- offset_12].
-  return (instr & (kLdrPCMask & ~kCondMask)) == 0x051f0000;
+  return (instr & kLdrPCMask) == kLdrPCPattern;
+}
+
+
+bool Assembler::IsVldrDPcImmediateOffset(Instr instr) {
+  // Check the instruction is indeed a
+  // vldr<cond> <Dd>, [pc +/- offset_10].
+  return (instr & kVldrDPCMask) == kVldrDPCPattern;
 }
 
 
@@ -796,7 +835,7 @@ bool Operand::must_output_reloc_info(const Assembler* assembler) const {
 #endif  // def DEBUG
     if (assembler != NULL && assembler->predictable_code_size()) return true;
     return Serializer::enabled();
-  } else if (rmode_ == RelocInfo::NONE) {
+  } else if (RelocInfo::IsNone(rmode_)) {
     return false;
   }
   return true;
@@ -2027,9 +2066,26 @@ void Assembler::vmov(const DwVfpRegister dst,
   if (CpuFeatures::IsSupported(VFP3) && FitsVMOVDoubleImmediate(imm, &enc)) {
     // The double can be encoded in the instruction.
     emit(cond | 0xE*B24 | 0xB*B20 | dst.code()*B12 | 0xB*B8 | enc);
+  } else if (FLAG_enable_vldr_imm) {
+    // TODO(jfb) Temporarily turned off until we have constant blinding or
+    //           some equivalent mitigation: an attacker can otherwise control
+    //           generated data which also happens to be executable, a Very Bad
+    //           Thing indeed.
+    //           Blinding gets tricky because we don't have xor, we probably
+    //           need to add/subtract without losing precision, which requires a
+    //           cookie value that Lithium is probably better positioned to
+    //           choose.
+    //           We could also add a few peepholes here like detecting 0.0 and
+    //           -0.0 and doing a vmov from the sequestered d14, forcing denorms
+    //           to zero (we set flush-to-zero), and normalizing NaN values.
+    //           We could also detect redundant values.
+    //           The code could also randomize the order of values, though
+    //           that's tricky because vldr has a limited reach. Furthermore
+    //           it breaks load locality.
+    RecordRelocInfo(imm);
+    vldr(dst, MemOperand(pc, 0), cond);
   } else {
-    // Synthesise the double from ARM immediates. This could be implemented
-    // using vldr from a constant pool.
+    // Synthesise the double from ARM immediates.
     uint32_t lo, hi;
     DoubleAsTwoUInt32(imm, &lo, &hi);
     mov(ip, Operand(lo));
@@ -2592,6 +2648,7 @@ void Assembler::db(uint8_t data) {
   // to write pure data with no pointers and the constant pool should
   // be emitted before using db.
   ASSERT(num_pending_reloc_info_ == 0);
+  ASSERT(num_pending_64_bit_reloc_info_ == 0);
   CheckBuffer();
   *reinterpret_cast<uint8_t*>(pc_) = data;
   pc_ += sizeof(uint8_t);
@@ -2603,6 +2660,7 @@ void Assembler::dd(uint32_t data) {
   // to write pure data with no pointers and the constant pool should
   // be emitted before using dd.
   ASSERT(num_pending_reloc_info_ == 0);
+  ASSERT(num_pending_64_bit_reloc_info_ == 0);
   CheckBuffer();
   *reinterpret_cast<uint32_t*>(pc_) = data;
   pc_ += sizeof(uint32_t);
@@ -2626,16 +2684,9 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data,
            || mode == DONT_USE_CONSTANT_POOL);
     // These modes do not need an entry in the constant pool.
   } else {
-    ASSERT(num_pending_reloc_info_ < kMaxNumPendingRelocInfo);
-    if (num_pending_reloc_info_ == 0) {
-      first_const_pool_use_ = pc_offset();
-    }
-    pending_reloc_info_[num_pending_reloc_info_++] = rinfo;
-    // Make sure the constant pool is not emitted in place of the next
-    // instruction for which we just recorded relocation info.
-    BlockConstPoolFor(1);
+    RecordRelocInfoConstantPoolEntryHelper(rinfo);
   }
-  if (rinfo.rmode() != RelocInfo::NONE) {
+  if (!RelocInfo::IsNone(rinfo.rmode())) {
     // Don't record external references unless the heap will be serialized.
     if (rmode == RelocInfo::EXTERNAL_REFERENCE) {
 #ifdef DEBUG
@@ -2661,14 +2712,38 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data,
   }
 }
 
+void Assembler::RecordRelocInfo(double data) {
+  // We do not try to reuse pool constants.
+  RelocInfo rinfo(pc_, data);
+  RecordRelocInfoConstantPoolEntryHelper(rinfo);
+}
+
+
+void Assembler::RecordRelocInfoConstantPoolEntryHelper(const RelocInfo& rinfo) {
+  ASSERT(num_pending_reloc_info_ < kMaxNumPendingRelocInfo);
+  if (num_pending_reloc_info_ == 0) {
+    first_const_pool_use_ = pc_offset();
+  }
+  pending_reloc_info_[num_pending_reloc_info_++] = rinfo;
+  if (rinfo.rmode() == RelocInfo::NONE64) {
+    ++num_pending_64_bit_reloc_info_;
+  }
+  ASSERT(num_pending_64_bit_reloc_info_ <= num_pending_reloc_info_);
+  // Make sure the constant pool is not emitted in place of the next
+  // instruction for which we just recorded relocation info.
+  BlockConstPoolFor(1);
+}
+
 
 void Assembler::BlockConstPoolFor(int instructions) {
   int pc_limit = pc_offset() + instructions * kInstrSize;
   if (no_const_pool_before_ < pc_limit) {
     // If there are some pending entries, the constant pool cannot be blocked
-    // further than first_const_pool_use_ + kMaxDistToPool
+    // further than constant pool instruction's reach.
     ASSERT((num_pending_reloc_info_ == 0) ||
-           (pc_limit < (first_const_pool_use_ + kMaxDistToPool)));
+           (pc_limit - first_const_pool_use_ < kMaxDistToIntPool));
+    // TODO(jfb) Also check 64-bit entries are in range (requires splitting
+    //           them up from 32-bit entries).
     no_const_pool_before_ = pc_limit;
   }
 
@@ -2690,29 +2765,60 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
 
   // There is nothing to do if there are no pending constant pool entries.
   if (num_pending_reloc_info_ == 0)  {
+    ASSERT(num_pending_64_bit_reloc_info_ == 0);
     // Calculate the offset of the next check.
     next_buffer_check_ = pc_offset() + kCheckPoolInterval;
-    return;
-  }
-
-  // We emit a constant pool when:
-  //  * requested to do so by parameter force_emit (e.g. after each function).
-  //  * the distance to the first instruction accessing the constant pool is
-  //    kAvgDistToPool or more.
-  //  * no jump is required and the distance to the first instruction accessing
-  //    the constant pool is at least kMaxDistToPool / 2.
-  ASSERT(first_const_pool_use_ >= 0);
-  int dist = pc_offset() - first_const_pool_use_;
-  if (!force_emit && dist < kAvgDistToPool &&
-      (require_jump || (dist < (kMaxDistToPool / 2)))) {
     return;
   }
 
   // Check that the code buffer is large enough before emitting the constant
   // pool (include the jump over the pool and the constant pool marker and
   // the gap to the relocation information).
+  // Note 64-bit values are wider, and the first one needs to be 64-bit aligned.
   int jump_instr = require_jump ? kInstrSize : 0;
-  int size = jump_instr + kInstrSize + num_pending_reloc_info_ * kPointerSize;
+  int size_up_to_marker = jump_instr + kInstrSize;
+  int size_after_marker = num_pending_reloc_info_ * kPointerSize;
+  bool has_fp_values = (num_pending_64_bit_reloc_info_ > 0);
+  // 64-bit values must be 64-bit aligned.
+  // We'll start emitting at PC: branch+marker, then 32-bit values, then
+  // 64-bit values which might need to be aligned.
+  bool require_64_bit_align = has_fp_values &&
+      (((uintptr_t)pc_ + size_up_to_marker + size_after_marker) & 0x3);
+  if (require_64_bit_align) {
+    size_after_marker += kInstrSize;
+  }
+  // num_pending_reloc_info_ also contains 64-bit entries, the above code
+  // therefore already counted half of the size for 64-bit entries. Add the
+  // remaining size.
+  STATIC_ASSERT(kPointerSize == kDoubleSize / 2);
+  size_after_marker += num_pending_64_bit_reloc_info_ * (kDoubleSize / 2);
+
+  int size = size_up_to_marker + size_after_marker;
+
+  // We emit a constant pool when:
+  //  * requested to do so by parameter force_emit (e.g. after each function).
+  //  * the distance from the first instruction accessing the constant pool to
+  //    any of the constant pool entries will exceed its limit the next
+  //    time the pool is checked. This is overly restrictive, but we don't emit
+  //    constant pool entries in-order so it's conservatively correct.
+  //  * the instruction doesn't require a jump after itself to jump over the
+  //    constant pool, and we're getting close to running out of range.
+  if (!force_emit) {
+    ASSERT((first_const_pool_use_ >= 0) && (num_pending_reloc_info_ > 0));
+    int dist = pc_offset() + size - first_const_pool_use_;
+    if (has_fp_values) {
+      if ((dist < kMaxDistToFPPool - kCheckPoolInterval) &&
+          (require_jump || (dist < kMaxDistToFPPool / 2))) {
+        return;
+      }
+    } else {
+      if ((dist < kMaxDistToIntPool - kCheckPoolInterval) &&
+          (require_jump || (dist < kMaxDistToIntPool / 2))) {
+        return;
+      }
+    }
+  }
+
   int needed_space = size + kGap;
   while (buffer_space() <= needed_space) GrowBuffer();
 
@@ -2729,10 +2835,43 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
     }
 
     // Put down constant pool marker "Undefined instruction".
-    emit(kConstantPoolMarker |
-         EncodeConstantPoolLength(num_pending_reloc_info_));
+    // The data size helps disassembly know what to print.
+    emit(kConstantPoolMarker | EncodeConstantPoolLength(size_after_marker));
 
-    // Emit constant pool entries.
+    if (require_64_bit_align) {
+      emit(kConstantPoolMarker);
+    }
+
+    // Emit 64-bit constant pool entries first: their range is smaller than
+    // 32-bit entries.
+    for (int i = 0; i < num_pending_reloc_info_; i++) {
+      RelocInfo& rinfo = pending_reloc_info_[i];
+
+      if (rinfo.rmode() != RelocInfo::NONE64) {
+        // 32-bit values emitted later.
+        continue;
+      }
+
+      ASSERT(!((uintptr_t)pc_ & 0x3));  // Check 64-bit alignment.
+
+      Instr instr = instr_at(rinfo.pc());
+      // Instruction to patch must be 'vldr rd, [pc, #offset]' with offset == 0.
+      ASSERT((IsVldrDPcImmediateOffset(instr) &&
+              GetVldrDRegisterImmediateOffset(instr) == 0));
+
+      int delta = pc_ - rinfo.pc() - kPcLoadDelta;
+      ASSERT(is_uint10(delta));
+
+      instr_at_put(rinfo.pc(), SetVldrDRegisterImmediateOffset(instr, delta));
+
+      const double double_data = rinfo.data64();
+      uint64_t uint_data = 0;
+      memcpy(&uint_data, &double_data, sizeof(double_data));
+      emit(uint_data & 0xFFFFFFFF);
+      emit(uint_data >> 32);
+    }
+
+    // Emit 32-bit constant pool entries.
     for (int i = 0; i < num_pending_reloc_info_; i++) {
       RelocInfo& rinfo = pending_reloc_info_[i];
       ASSERT(rinfo.rmode() != RelocInfo::COMMENT &&
@@ -2740,25 +2879,35 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
              rinfo.rmode() != RelocInfo::STATEMENT_POSITION &&
              rinfo.rmode() != RelocInfo::CONST_POOL);
 
+      if (rinfo.rmode() == RelocInfo::NONE64) {
+        // 64-bit values emitted earlier.
+        continue;
+      }
+
       Instr instr = instr_at(rinfo.pc());
-      // Instruction to patch must be 'ldr rd, [pc, #offset]' with offset == 0.
+
+      // 64-bit loads shouldn't get here.
+      ASSERT(!IsVldrDPcImmediateOffset(instr));
+
+      int delta = pc_ - rinfo.pc() - kPcLoadDelta;
+      // 0 is the smallest delta:
+      //   ldr rd, [pc, #0]
+      //   constant pool marker
+      //   data
+
       if (IsLdrPcImmediateOffset(instr) &&
           GetLdrRegisterImmediateOffset(instr) == 0) {
-        int delta = pc_ - rinfo.pc() - kPcLoadDelta;
-        // 0 is the smallest delta:
-        //   ldr rd, [pc, #0]
-        //   constant pool marker
-        //   data
         ASSERT(is_uint12(delta));
-
         instr_at_put(rinfo.pc(), SetLdrRegisterImmediateOffset(instr, delta));
+        emit(rinfo.data());
       } else {
         ASSERT(IsMovW(instr));
+        emit(rinfo.data());
       }
-      emit(rinfo.data());
     }
 
     num_pending_reloc_info_ = 0;
+    num_pending_64_bit_reloc_info_ = 0;
     first_const_pool_use_ = -1;
 
     RecordComment("]");

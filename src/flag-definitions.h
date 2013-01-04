@@ -300,6 +300,8 @@ DEFINE_bool(enable_unaligned_accesses, true,
             "enable unaligned accesses for ARMv7 (ARM only)")
 DEFINE_bool(enable_fpu, true,
             "enable use of MIPS FPU instructions if available (MIPS only)")
+DEFINE_bool(enable_vldr_imm, false,
+            "enable use of constant pools for double immediate (ARM only)")
 
 // bootstrapper.cc
 DEFINE_string(expose_natives_as, NULL, "expose natives in global object")

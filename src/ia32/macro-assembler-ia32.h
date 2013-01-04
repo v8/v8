@@ -35,24 +35,18 @@
 namespace v8 {
 namespace internal {
 
-// Flags used for the AllocateInNewSpace functions.
-enum AllocationFlags {
-  // No special flags.
-  NO_ALLOCATION_FLAGS = 0,
-  // Return the pointer to the allocated already tagged as a heap object.
-  TAG_OBJECT = 1 << 0,
-  // The content of the result register already contains the allocation top in
-  // new space.
-  RESULT_CONTAINS_TOP = 1 << 1
-};
-
-
 // Convenience for platform-independent signatures.  We do not normally
 // distinguish memory operands from other operands on ia32.
 typedef Operand MemOperand;
 
 enum RememberedSetAction { EMIT_REMEMBERED_SET, OMIT_REMEMBERED_SET };
 enum SmiCheck { INLINE_SMI_CHECK, OMIT_SMI_CHECK };
+
+
+enum RegisterValueType {
+  REGISTER_VALUE_IS_SMI,
+  REGISTER_VALUE_IS_INT32
+};
 
 
 bool AreAliased(Register r1, Register r2, Register r3, Register r4);
@@ -576,6 +570,7 @@ class MacroAssembler: public Assembler {
   void AllocateInNewSpace(int header_size,
                           ScaleFactor element_size,
                           Register element_count,
+                          RegisterValueType element_count_type,
                           Register result,
                           Register result_end,
                           Register scratch,

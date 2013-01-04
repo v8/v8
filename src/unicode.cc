@@ -277,33 +277,6 @@ uchar Utf8::CalculateValue(const byte* str,
 }
 
 
-unsigned CharacterStream::Length() {
-  unsigned result = 0;
-  while (has_more()) {
-    result++;
-    GetNext();
-  }
-  Rewind();
-  return result;
-}
-
-unsigned CharacterStream::Utf16Length() {
-  unsigned result = 0;
-  while (has_more()) {
-    uchar c = GetNext();
-    result += c > Utf16::kMaxNonSurrogateCharCode ? 2 : 1;
-  }
-  Rewind();
-  return result;
-}
-
-void CharacterStream::Seek(unsigned position) {
-  Rewind();
-  for (unsigned i = 0; i < position; i++) {
-    GetNext();
-  }
-}
-
 void Utf8DecoderBase::Reset(uint16_t* buffer,
                             unsigned buffer_length,
                             const uint8_t* stream,

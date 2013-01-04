@@ -51,17 +51,19 @@ Handle<Code> HydrogenCodeStub::CodeFromGraph(HGraph* graph) {
 class CodeStubGraphBuilderBase : public HGraphBuilder {
  public:
   CodeStubGraphBuilderBase(Isolate* isolate, HydrogenCodeStub* stub)
-      : HGraphBuilder(&info_), info_(stub, isolate) {}
+      : HGraphBuilder(&info_), info_(stub, isolate), context_(NULL) {}
   virtual bool BuildGraph();
 
  protected:
   virtual void BuildCodeStub() = 0;
   HParameter* GetParameter(int parameter) { return parameters_[parameter]; }
   HydrogenCodeStub* stub() { return info_.code_stub(); }
+  HContext* context() { return context_; }
 
  private:
   SmartArrayPointer<HParameter*> parameters_;
   CompilationInfoWithZone info_;
+  HContext* context_;
 };
 
 
@@ -76,6 +78,9 @@ bool CodeStubGraphBuilderBase::BuildGraph() {
   HGoto* jump = new(zone()) HGoto(next_block);
   graph()->entry_block()->Finish(jump);
   set_current_block(next_block);
+
+  context_ = new(zone()) HContext();
+  AddInstruction(context_);
 
   int major_key = stub()->MajorKey();
   CodeStubInterfaceDescriptor* descriptor =
@@ -121,7 +126,7 @@ void CodeStubGraphBuilder<KeyedLoadFastElementStub>::BuildCodeStub() {
       casted_stub()->is_js_array(), casted_stub()->elements_kind(), false);
   AddInstruction(load);
 
-  HReturn* ret = new(zone) HReturn(load);
+  HReturn* ret = new(zone) HReturn(load, context());
   current_block()->Finish(ret);
 }
 

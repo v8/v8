@@ -1278,8 +1278,11 @@ class Assembler : public AssemblerBase {
   static bool IsBranch(Instr instr);
   static int GetBranchOffset(Instr instr);
   static bool IsLdrRegisterImmediate(Instr instr);
+  static bool IsVldrDRegisterImmediate(Instr instr);
   static int GetLdrRegisterImmediateOffset(Instr instr);
+  static int GetVldrDRegisterImmediateOffset(Instr instr);
   static Instr SetLdrRegisterImmediateOffset(Instr instr, int offset);
+  static Instr SetVldrDRegisterImmediateOffset(Instr instr, int offset);
   static bool IsStrRegisterImmediate(Instr instr);
   static Instr SetStrRegisterImmediateOffset(Instr instr, int offset);
   static bool IsAddRegisterImmediate(Instr instr);
@@ -1294,6 +1297,7 @@ class Assembler : public AssemblerBase {
   static bool IsStrRegFpNegOffset(Instr instr);
   static bool IsLdrRegFpNegOffset(Instr instr);
   static bool IsLdrPcImmediateOffset(Instr instr);
+  static bool IsVldrDPcImmediateOffset(Instr instr);
   static bool IsTstImmediate(Instr instr);
   static bool IsCmpRegister(Instr instr);
   static bool IsCmpImmediate(Instr instr);
@@ -1304,12 +1308,13 @@ class Assembler : public AssemblerBase {
   static bool IsMovW(Instr instr);
 
   // Constants in pools are accessed via pc relative addressing, which can
-  // reach +/-4KB thereby defining a maximum distance between the instruction
-  // and the accessed constant.
-  static const int kMaxDistToPool = 4*KB;
-  static const int kMaxNumPendingRelocInfo = kMaxDistToPool/kInstrSize;
-  STATIC_ASSERT((kConstantPoolLengthMaxMask & kMaxNumPendingRelocInfo) ==
-                kMaxNumPendingRelocInfo);
+  // reach +/-4KB for integer PC-relative loads and +/-1KB for floating-point
+  // PC-relative loads, thereby defining a maximum distance between the
+  // instruction and the accessed constant.
+  static const int kMaxDistToIntPool = 4*KB;
+  static const int kMaxDistToFPPool = 1*KB;
+  // All relocations could be integer, it therefore acts as the limit.
+  static const int kMaxNumPendingRelocInfo = kMaxDistToIntPool/kInstrSize;
 
   // Postpone the generation of the constant pool for the specified number of
   // instructions.
@@ -1349,7 +1354,9 @@ class Assembler : public AssemblerBase {
     if (--const_pool_blocked_nesting_ == 0) {
       // Check the constant pool hasn't been blocked for too long.
       ASSERT((num_pending_reloc_info_ == 0) ||
-             (pc_offset() < (first_const_pool_use_ + kMaxDistToPool)));
+             (pc_offset() < (first_const_pool_use_ + kMaxDistToIntPool)));
+      ASSERT((num_pending_64_bit_reloc_info_ == 0) ||
+             (pc_offset() < (first_const_pool_use_ + kMaxDistToFPPool)));
       // Two cases:
       //  * no_const_pool_before_ >= next_buffer_check_ and the emission is
       //    still blocked
@@ -1392,13 +1399,6 @@ class Assembler : public AssemblerBase {
   static const int kCheckPoolInterval = kCheckPoolIntervalInst * kInstrSize;
 
 
-  // Average distance beetween a constant pool and the first instruction
-  // accessing the constant pool. Longer distance should result in less I-cache
-  // pollution.
-  // In practice the distance will be smaller since constant pool emission is
-  // forced after function return and sometimes after unconditional branches.
-  static const int kAvgDistToPool = kMaxDistToPool - kCheckPoolInterval;
-
   // Emission of the constant pool may be blocked in some code sequences.
   int const_pool_blocked_nesting_;  // Block emission if this is not zero.
   int no_const_pool_before_;  // Block emission before this pc offset.
@@ -1423,6 +1423,9 @@ class Assembler : public AssemblerBase {
   RelocInfo pending_reloc_info_[kMaxNumPendingRelocInfo];
   // number of pending reloc info entries in the buffer
   int num_pending_reloc_info_;
+  // Number of pending reloc info entries included above which also happen to
+  // be 64-bit.
+  int num_pending_64_bit_reloc_info_;
 
   // The bound position, before this we cannot do instruction elimination.
   int last_bound_pos_;
@@ -1459,6 +1462,8 @@ class Assembler : public AssemblerBase {
   // Record reloc info for current pc_
   void RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data = 0,
                        UseConstantPoolMode mode = USE_CONSTANT_POOL);
+  void RecordRelocInfo(double data);
+  void RecordRelocInfoConstantPoolEntryHelper(const RelocInfo& rinfo);
 
   friend class RegExpMacroAssemblerARM;
   friend class RelocInfo;

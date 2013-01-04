@@ -333,7 +333,11 @@ static void GenerateFastCloneShallowArrayCommon(
 
   // Allocate both the JS array and the elements array in one big
   // allocation. This avoids multiple limit checks.
-  __ AllocateInNewSpace(size, rax, rbx, rdx, fail, TAG_OBJECT);
+  AllocationFlags flags = TAG_OBJECT;
+  if (mode == FastCloneShallowArrayStub::CLONE_DOUBLE_ELEMENTS) {
+    flags = static_cast<AllocationFlags>(DOUBLE_ALIGNMENT | flags);
+  }
+  __ AllocateInNewSpace(size, rax, rbx, rdx, fail, flags);
 
   // Copy the JS array part.
   for (int i = 0; i < JSArray::kSize; i += kPointerSize) {
@@ -2148,7 +2152,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
       Label continue_sqrt, continue_rsqrt, not_plus_half;
       // Test for 0.5.
       // Load double_scratch with 0.5.
-      __ movq(scratch, V8_UINT64_C(0x3FE0000000000000), RelocInfo::NONE);
+      __ movq(scratch, V8_UINT64_C(0x3FE0000000000000), RelocInfo::NONE64);
       __ movq(double_scratch, scratch);
       // Already ruled out NaNs for exponent.
       __ ucomisd(double_scratch, double_exponent);
@@ -2158,7 +2162,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
       // Math.pow(-Infinity, 0.5) == Infinity (ECMA spec, 15.8.2.13).
       // According to IEEE-754, double-precision -Infinity has the highest
       // 12 bits set and the lowest 52 bits cleared.
-      __ movq(scratch, V8_UINT64_C(0xFFF0000000000000), RelocInfo::NONE);
+      __ movq(scratch, V8_UINT64_C(0xFFF0000000000000), RelocInfo::NONE64);
       __ movq(double_scratch, scratch);
       __ ucomisd(double_scratch, double_base);
       // Comparing -Infinity with NaN results in "unordered", which sets the
@@ -2190,7 +2194,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
       // case of Math.pow(-Infinity, -0.5) == 0 (ECMA spec, 15.8.2.13).
       // According to IEEE-754, double-precision -Infinity has the highest
       // 12 bits set and the lowest 52 bits cleared.
-      __ movq(scratch, V8_UINT64_C(0xFFF0000000000000), RelocInfo::NONE);
+      __ movq(scratch, V8_UINT64_C(0xFFF0000000000000), RelocInfo::NONE64);
       __ movq(double_scratch, scratch);
       __ ucomisd(double_scratch, double_base);
       // Comparing -Infinity with NaN results in "unordered", which sets the
@@ -3930,8 +3934,7 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
     __ movq(rdi, rax);
 #endif
     __ movq(kScratchRegister,
-            FUNCTION_ADDR(Runtime::PerformGC),
-            RelocInfo::RUNTIME_ENTRY);
+            ExternalReference::perform_gc_function(masm->isolate()));
     __ call(kScratchRegister);
   }
 
@@ -4009,7 +4012,7 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   __ j(zero, &retry, Label::kNear);
 
   // Special handling of out of memory exceptions.
-  __ movq(kScratchRegister, Failure::OutOfMemoryException(), RelocInfo::NONE);
+  __ movq(kScratchRegister, Failure::OutOfMemoryException(), RelocInfo::NONE64);
   __ cmpq(rax, kScratchRegister);
   __ j(equal, throw_out_of_memory_exception);
 
@@ -4089,7 +4092,7 @@ void CEntryStub::Generate(MacroAssembler* masm) {
 
   // Do full GC and retry runtime call one final time.
   Failure* failure = Failure::InternalError();
-  __ movq(rax, failure, RelocInfo::NONE);
+  __ movq(rax, failure, RelocInfo::NONE64);
   GenerateCore(masm,
                &throw_normal_exception,
                &throw_termination_exception,
@@ -4108,7 +4111,7 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   // Set pending exception and rax to out of memory exception.
   ExternalReference pending_exception(Isolate::kPendingExceptionAddress,
                                       isolate);
-  __ movq(rax, Failure::OutOfMemoryException(), RelocInfo::NONE);
+  __ movq(rax, Failure::OutOfMemoryException(), RelocInfo::NONE64);
   __ Store(pending_exception, rax);
   // Fall through to the next label.
 
@@ -4136,7 +4139,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
     // Cannot use smi-register for loading yet.
     __ movq(kScratchRegister,
             reinterpret_cast<uint64_t>(Smi::FromInt(marker)),
-            RelocInfo::NONE);
+            RelocInfo::NONE64);
     __ push(kScratchRegister);  // context slot
     __ push(kScratchRegister);  // function slot
     // Save callee-saved registers (X64/Win64 calling conventions).
@@ -4191,7 +4194,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   ExternalReference pending_exception(Isolate::kPendingExceptionAddress,
                                       isolate);
   __ Store(pending_exception, rax);
-  __ movq(rax, Failure::Exception(), RelocInfo::NONE);
+  __ movq(rax, Failure::Exception(), RelocInfo::NONE64);
   __ jmp(&exit);
 
   // Invoke: Link this frame into the handler chain.  There's only one
@@ -6462,7 +6465,7 @@ void ProfileEntryHookStub::Generate(MacroAssembler* masm) {
 #endif
 
   // Call the entry hook function.
-  __ movq(rax, &entry_hook_, RelocInfo::NONE);
+  __ movq(rax, &entry_hook_, RelocInfo::NONE64);
   __ movq(rax, Operand(rax, 0));
 
   AllowExternalCallThatCantCauseGC scope(masm);

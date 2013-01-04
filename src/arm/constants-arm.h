@@ -267,7 +267,8 @@ enum {
   kCoprocessorMask = 15 << 8,
   kOpCodeMask = 15 << 21,  // In data-processing instructions.
   kImm24Mask  = (1 << 24) - 1,
-  kOff12Mask  = (1 << 12) - 1
+  kOff12Mask  = (1 << 12) - 1,
+  kOff8Mask  = (1 << 8) - 1
 };
 
 
@@ -464,6 +465,9 @@ extern const Instr kMovLrPc;
 // ldr rd, [pc, #offset]
 extern const Instr kLdrPCMask;
 extern const Instr kLdrPCPattern;
+// vldr dd, [pc, #offset]
+extern const Instr kVldrDPCMask;
+extern const Instr kVldrDPCPattern;
 // blxcc rm
 extern const Instr kBlxRegMask;
 

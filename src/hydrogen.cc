@@ -3399,7 +3399,8 @@ bool HOptimizedGraphBuilder::BuildGraph() {
   if (HasStackOverflow()) return false;
 
   if (current_block() != NULL) {
-    HReturn* instr = new(zone()) HReturn(graph()->GetConstantUndefined());
+    HReturn* instr = new(zone()) HReturn(graph()->GetConstantUndefined(),
+                                         context);
     current_block()->FinishExit(instr);
     set_current_block(NULL);
   }
@@ -4215,7 +4216,9 @@ void HOptimizedGraphBuilder::VisitReturnStatement(ReturnStatement* stmt) {
     // Not an inlined return, so an actual one.
     CHECK_ALIVE(VisitForValue(stmt->expression()));
     HValue* result = environment()->Pop();
-    current_block()->FinishExit(new(zone()) HReturn(result));
+    current_block()->FinishExit(new(zone()) HReturn(
+        result,
+        environment()->LookupContext()));
   } else if (state->inlining_kind() == CONSTRUCT_CALL_RETURN) {
     // Return from an inlined construct call. In a test context the return value
     // will always evaluate to true, in a value context the return value needs

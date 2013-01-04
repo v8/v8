@@ -91,13 +91,13 @@ endif
 ifeq ($(vfp2), off)
   GYPFLAGS += -Dv8_can_use_vfp2_instructions=false
 else
-  GYPFLAGS += -Dv8_can_use_vfp2_instructions=true
+  GYPFLAGS += -Dv8_can_use_vfp2_instructions=true -Darm_fpu=vfpv2
 endif
 # vfp3=off
 ifeq ($(vfp3), off)
   GYPFLAGS += -Dv8_can_use_vfp3_instructions=false
 else
-  GYPFLAGS += -Dv8_can_use_vfp3_instructions=true
+  GYPFLAGS += -Dv8_can_use_vfp3_instructions=true -Darm_fpu=vfpv3
 endif
 # debuggersupport=off
 ifeq ($(debuggersupport), off)
@@ -126,6 +126,10 @@ endif
 # hardfp=on
 ifeq ($(hardfp), on)
   GYPFLAGS += -Dv8_use_arm_eabi_hardfloat=true
+endif
+# armv7=false
+ifeq ($(armv7), false)
+  GYPFLAGS += -Darmv7=0
 endif
 
 # ----------------- available targets: --------------------

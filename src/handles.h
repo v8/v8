@@ -214,8 +214,6 @@ void FlattenString(Handle<String> str);
 // string.
 Handle<String> FlattenGetString(Handle<String> str);
 
-int Utf8Length(Handle<String> str);
-
 Handle<Object> SetProperty(Isolate* isolate,
                            Handle<Object> object,
                            Handle<Object> key,

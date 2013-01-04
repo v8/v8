@@ -804,9 +804,9 @@ void LCodeGen::DeoptimizeIf(Condition cc, LEnvironment* environment) {
   ASSERT(environment->HasBeenRegistered());
   int id = environment->deoptimization_index();
   ASSERT(info()->IsOptimizing() || info()->IsStub());
-  Deoptimizer::BailoutType bailout_type = frame_is_built_
-      ? Deoptimizer::EAGER
-      : Deoptimizer::LAZY;
+  Deoptimizer::BailoutType bailout_type = info()->IsStub()
+      ? Deoptimizer::LAZY
+      : Deoptimizer::EAGER;
   Address entry = Deoptimizer::GetDeoptimizationEntry(id, bailout_type);
   if (entry == NULL) {
     Abort("bailout was not prepared");
@@ -1212,7 +1212,7 @@ void LCodeGen::DoModI(LModI* instr) {
 
 
 void LCodeGen::DoDivI(LDivI* instr) {
-  if (instr->hydrogen()->HasPowerOf2Divisor()) {
+  if (!instr->is_flooring() && instr->hydrogen()->HasPowerOf2Divisor()) {
     Register dividend = ToRegister(instr->left());
     int32_t divisor =
         HConstant::cast(instr->hydrogen()->right())->Integer32Value();
@@ -1259,13 +1259,13 @@ void LCodeGen::DoDivI(LDivI* instr) {
 
   // Check for x / 0.
   Register right_reg = ToRegister(right);
-  if (instr->hydrogen()->CheckFlag(HValue::kCanBeDivByZero)) {
+  if (instr->hydrogen_value()->CheckFlag(HValue::kCanBeDivByZero)) {
     __ test(right_reg, ToOperand(right));
     DeoptimizeIf(zero, instr->environment());
   }
 
   // Check for (0 / -x) that will produce negative zero.
-  if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
+  if (instr->hydrogen_value()->CheckFlag(HValue::kBailoutOnMinusZero)) {
     Label left_not_zero;
     __ test(left_reg, Operand(left_reg));
     __ j(not_zero, &left_not_zero, Label::kNear);
@@ -1275,7 +1275,7 @@ void LCodeGen::DoDivI(LDivI* instr) {
   }
 
   // Check for (kMinInt / -1).
-  if (instr->hydrogen()->CheckFlag(HValue::kCanOverflow)) {
+  if (instr->hydrogen_value()->CheckFlag(HValue::kCanOverflow)) {
     Label left_not_min_int;
     __ cmp(left_reg, kMinInt);
     __ j(not_zero, &left_not_min_int, Label::kNear);
@@ -1288,9 +1288,19 @@ void LCodeGen::DoDivI(LDivI* instr) {
   __ cdq();
   __ idiv(right_reg);
 
-  // Deoptimize if remainder is not 0.
-  __ test(edx, Operand(edx));
-  DeoptimizeIf(not_zero, instr->environment());
+  if (!instr->is_flooring()) {
+    // Deoptimize if remainder is not 0.
+    __ test(edx, Operand(edx));
+    DeoptimizeIf(not_zero, instr->environment());
+  } else {
+    Label done;
+    __ test(edx, edx);
+    __ j(zero, &done, Label::kNear);
+    __ xor_(edx, right_reg);
+    __ sar(edx, 31);
+    __ add(eax, edx);
+    __ bind(&done);
+  }
 }
 
 
@@ -2651,7 +2661,6 @@ void LCodeGen::DoReturn(LReturn* instr) {
     __ bind(&no_padding);
   }
   if (info()->IsStub()) {
-    __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
     __ Ret();
   } else {
     __ Ret((GetParameterCount() + 1) * kPointerSize, ecx);
@@ -3386,7 +3395,12 @@ void LCodeGen::DoThisFunction(LThisFunction* instr) {
 
 void LCodeGen::DoContext(LContext* instr) {
   Register result = ToRegister(instr->result());
-  __ mov(result, Operand(ebp, StandardFrameConstants::kContextOffset));
+  if (info()->IsOptimizing()) {
+    __ mov(result, Operand(ebp, StandardFrameConstants::kContextOffset));
+  } else {
+    // If there is no frame, the context must be in esi.
+    ASSERT(result.is(esi));
+  }
 }
 
 

@@ -100,21 +100,6 @@ class UnicodeData {
   static const uchar kMaxCodePoint;
 };
 
-// --- U t f   8   a n d   16 ---
-
-template <typename Data>
-class Buffer {
- public:
-  inline Buffer(Data data, unsigned length) : data_(data), length_(length) { }
-  inline Buffer() : data_(0), length_(0) { }
-  Data data() { return data_; }
-  unsigned length() { return length_; }
- private:
-  Data data_;
-  unsigned length_;
-};
-
-
 class Utf16 {
  public:
   static inline bool IsLeadSurrogate(int code) {
@@ -171,72 +156,6 @@ class Utf8 {
   static inline uchar ValueOf(const byte* str,
                               unsigned length,
                               unsigned* cursor);
-};
-
-// --- C h a r a c t e r   S t r e a m ---
-
-class CharacterStream {
- public:
-  inline uchar GetNext();
-  inline bool has_more() { return remaining_ != 0; }
-  // Note that default implementation is not efficient.
-  virtual void Seek(unsigned);
-  unsigned Length();
-  unsigned Utf16Length();
-  virtual ~CharacterStream() { }
-  static inline bool EncodeCharacter(uchar c, byte* buffer, unsigned capacity,
-      unsigned& offset);
-  static inline bool EncodeAsciiCharacter(uchar c, byte* buffer,
-      unsigned capacity, unsigned& offset);
-  static inline bool EncodeNonAsciiCharacter(uchar c, byte* buffer,
-      unsigned capacity, unsigned& offset);
-  static inline uchar DecodeCharacter(const byte* buffer, unsigned* offset);
-  virtual void Rewind() = 0;
-
- protected:
-  virtual void FillBuffer() = 0;
-  virtual bool BoundsCheck(unsigned offset) = 0;
-  // The number of characters left in the current buffer
-  unsigned remaining_;
-  // The current offset within the buffer
-  unsigned cursor_;
-  // The buffer containing the decoded characters.
-  const byte* buffer_;
-};
-
-// --- I n p u t   B u f f e r ---
-
-/**
- * Provides efficient access to encoded characters in strings.  It
- * does so by reading characters one block at a time, rather than one
- * character at a time, which gives string implementations an
- * opportunity to optimize the decoding.
- */
-template <class Reader, class Input = Reader*, unsigned kSize = 256>
-class InputBuffer : public CharacterStream {
- public:
-  virtual void Rewind();
-  inline void Reset(Input input);
-  void Seek(unsigned position);
-  inline void Reset(unsigned position, Input input);
- protected:
-  InputBuffer() { }
-  explicit InputBuffer(Input input) { Reset(input); }
-  virtual void FillBuffer();
-  virtual bool BoundsCheck(unsigned offset) {
-    return (buffer_ != util_buffer_) || (offset < kSize);
-  }
-
-  // A custom offset that can be used by the string implementation to
-  // mark progress within the encoded string.
-  unsigned offset_;
-  // The input string
-  Input input_;
-  // To avoid heap allocation, we keep an internal buffer to which
-  // the encoded string can write its characters.  The string
-  // implementation is free to decide whether it wants to use this
-  // buffer or not.
-  byte util_buffer_[kSize];
 };
 
 

@@ -1171,10 +1171,11 @@ class HCompareMap: public HUnaryControlInstruction {
 };
 
 
-class HReturn: public HTemplateControlInstruction<0, 1> {
+class HReturn: public HTemplateControlInstruction<0, 2> {
  public:
-  explicit HReturn(HValue* value) {
+  HReturn(HValue* value, HValue* context) {
     SetOperandAt(0, value);
+    SetOperandAt(1, context);
   }
 
   virtual Representation RequiredInputRepresentation(int index) {
@@ -1184,6 +1185,7 @@ class HReturn: public HTemplateControlInstruction<0, 1> {
   virtual void PrintDataTo(StringStream* stream);
 
   HValue* value() { return OperandAt(0); }
+  HValue* context() { return OperandAt(1); }
 
   DECLARE_CONCRETE_INSTRUCTION(Return)
 };
@@ -1259,6 +1261,8 @@ class HForceRepresentation: public HTemplateInstruction<1> {
   virtual Representation RequiredInputRepresentation(int index) {
     return representation();  // Same as the output representation.
   }
+
+  virtual void PrintDataTo(StringStream* stream);
 
   DECLARE_CONCRETE_INSTRUCTION(ForceRepresentation)
 };
