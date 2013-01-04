@@ -399,40 +399,6 @@ class LiveRange: public ZoneObject {
 };
 
 
-class GrowableBitVector BASE_EMBEDDED {
- public:
-  GrowableBitVector() : bits_(NULL) { }
-
-  bool Contains(int value) const {
-    if (!InBitsRange(value)) return false;
-    return bits_->Contains(value);
-  }
-
-  void Add(int value, Zone* zone) {
-    EnsureCapacity(value, zone);
-    bits_->Add(value);
-  }
-
- private:
-  static const int kInitialLength = 1024;
-
-  bool InBitsRange(int value) const {
-    return bits_ != NULL && bits_->length() > value;
-  }
-
-  void EnsureCapacity(int value, Zone* zone) {
-    if (InBitsRange(value)) return;
-    int new_length = bits_ == NULL ? kInitialLength : bits_->length();
-    while (new_length <= value) new_length *= 2;
-    BitVector* new_bits = new(zone) BitVector(new_length, zone);
-    if (bits_ != NULL) new_bits->CopyFrom(*bits_);
-    bits_ = new_bits;
-  }
-
-  BitVector* bits_;
-};
-
-
 class LAllocator BASE_EMBEDDED {
  public:
   LAllocator(int first_virtual_register, HGraph* graph);
