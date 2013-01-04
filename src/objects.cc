@@ -11896,8 +11896,9 @@ MaybeObject* JSObject::PrepareSlowElementsForSort(uint32_t limit) {
       ASSERT(!k->IsHeapNumber() || HeapNumber::cast(k)->value() <= kMaxUInt32);
       Object* value = dict->ValueAt(i);
       PropertyDetails details = dict->DetailsAt(i);
-      if (details.type() == CALLBACKS) {
+      if (details.type() == CALLBACKS || details.IsReadOnly()) {
         // Bail out and do the sorting of undefineds and array holes in JS.
+        // Also bail out if the element is not supposed to be moved.
         return Smi::FromInt(-1);
       }
       uint32_t key = NumberToUint32(k);
