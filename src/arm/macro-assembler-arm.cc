@@ -304,7 +304,7 @@ void MacroAssembler::And(Register dst, Register src1, const Operand& src2,
   if (!src2.is_reg() &&
       !src2.must_output_reloc_info(this) &&
       src2.immediate() == 0) {
-    mov(dst, Operand(0, RelocInfo::NONE), LeaveCC, cond);
+    mov(dst, Operand(0, RelocInfo::NONE32), LeaveCC, cond);
   } else if (!src2.is_single_instruction(this) &&
              !src2.must_output_reloc_info(this) &&
              CpuFeatures::IsSupported(ARMv7) &&
@@ -410,7 +410,7 @@ void MacroAssembler::Usat(Register dst, int satpos, const Operand& src,
     }
     tst(dst, Operand(~satval));
     b(eq, &done);
-    mov(dst, Operand(0, RelocInfo::NONE), LeaveCC, mi);  // 0 if negative.
+    mov(dst, Operand(0, RelocInfo::NONE32), LeaveCC, mi);  // 0 if negative.
     mov(dst, Operand(satval), LeaveCC, pl);  // satval if positive.
     bind(&done);
   } else {
@@ -948,7 +948,7 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles,
   }
 
   // Clear top frame.
-  mov(r3, Operand(0, RelocInfo::NONE));
+  mov(r3, Operand(0, RelocInfo::NONE32));
   mov(ip, Operand(ExternalReference(Isolate::kCEntryFPAddress, isolate())));
   str(r3, MemOperand(ip));
 
@@ -1218,7 +1218,7 @@ void MacroAssembler::IsObjectJSStringType(Register object,
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
 void MacroAssembler::DebugBreak() {
-  mov(r0, Operand(0, RelocInfo::NONE));
+  mov(r0, Operand(0, RelocInfo::NONE32));
   mov(r1, Operand(ExternalReference(Runtime::kDebugBreak, isolate())));
   CEntryStub ces(1);
   ASSERT(AllowThisStubCall(&ces));
@@ -1249,7 +1249,7 @@ void MacroAssembler::PushTryHandler(StackHandler::Kind kind,
   // Push the frame pointer, context, state, and code object.
   if (kind == StackHandler::JS_ENTRY) {
     mov(r7, Operand(Smi::FromInt(0)));  // Indicates no context.
-    mov(ip, Operand(0, RelocInfo::NONE));  // NULL frame pointer.
+    mov(ip, Operand(0, RelocInfo::NONE32));  // NULL frame pointer.
     stm(db_w, sp, r5.bit() | r6.bit() | r7.bit() | ip.bit());
   } else {
     stm(db_w, sp, r5.bit() | r6.bit() | cp.bit() | fp.bit());
@@ -1373,7 +1373,7 @@ void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
   ldr(scratch, MemOperand(fp, StandardFrameConstants::kContextOffset));
   // In debug mode, make sure the lexical context is set.
 #ifdef DEBUG
-  cmp(scratch, Operand(0, RelocInfo::NONE));
+  cmp(scratch, Operand(0, RelocInfo::NONE32));
   Check(ne, "we should not have an empty lexical context");
 #endif
 
@@ -2456,7 +2456,7 @@ void MacroAssembler::ConvertToInt32(Register source,
          HeapNumber::kExponentBits);
     // Load dest with zero.  We use this either for the final shift or
     // for the answer.
-    mov(dest, Operand(0, RelocInfo::NONE));
+    mov(dest, Operand(0, RelocInfo::NONE32));
     // Check whether the exponent matches a 32 bit signed int that is not a Smi.
     // A non-Smi integer is 1.xxx * 2^30 so the exponent is 30 (biased). This is
     // the exponent that we are fastest at and also the highest exponent we can
@@ -2510,7 +2510,7 @@ void MacroAssembler::ConvertToInt32(Register source,
     // Move down according to the exponent.
     mov(dest, Operand(scratch, LSR, dest));
     // Fix sign if sign bit was set.
-    rsb(dest, dest, Operand(0, RelocInfo::NONE), LeaveCC, ne);
+    rsb(dest, dest, Operand(0, RelocInfo::NONE32), LeaveCC, ne);
     bind(&done);
   }
 }
@@ -3368,7 +3368,7 @@ void MacroAssembler::CountLeadingZeros(Register zeros,   // Answer.
   // Order of the next two lines is important: zeros register
   // can be the same as source register.
   Move(scratch, source);
-  mov(zeros, Operand(0, RelocInfo::NONE));
+  mov(zeros, Operand(0, RelocInfo::NONE32));
   // Top 16.
   tst(scratch, Operand(0xffff0000));
   add(zeros, zeros, Operand(16), LeaveCC, eq);

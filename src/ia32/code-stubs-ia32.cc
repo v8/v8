@@ -7470,7 +7470,7 @@ void ProfileEntryHookStub::Generate(MacroAssembler* masm) {
 
   // Call the entry hook.
   int32_t hook_location = reinterpret_cast<int32_t>(&entry_hook_);
-  __ call(Operand(hook_location, RelocInfo::NONE));
+  __ call(Operand(hook_location, RelocInfo::NONE32));
   __ add(esp, Immediate(2 * kPointerSize));
 
   // Restore ecx.

@@ -337,12 +337,12 @@ class Immediate BASE_EMBEDDED {
     return Immediate(label);
   }
 
-  bool is_zero() const { return x_ == 0 && rmode_ == RelocInfo::NONE; }
+  bool is_zero() const { return x_ == 0 && rmode_ == RelocInfo::NONE32; }
   bool is_int8() const {
-    return -128 <= x_ && x_ < 128 && rmode_ == RelocInfo::NONE;
+    return -128 <= x_ && x_ < 128 && rmode_ == RelocInfo::NONE32;
   }
   bool is_int16() const {
-    return -32768 <= x_ && x_ < 32768 && rmode_ == RelocInfo::NONE;
+    return -32768 <= x_ && x_ < 32768 && rmode_ == RelocInfo::NONE32;
   }
 
  private:
@@ -382,20 +382,20 @@ class Operand BASE_EMBEDDED {
 
   // [base + disp/r]
   explicit Operand(Register base, int32_t disp,
-                   RelocInfo::Mode rmode = RelocInfo::NONE);
+                   RelocInfo::Mode rmode = RelocInfo::NONE32);
 
   // [base + index*scale + disp/r]
   explicit Operand(Register base,
                    Register index,
                    ScaleFactor scale,
                    int32_t disp,
-                   RelocInfo::Mode rmode = RelocInfo::NONE);
+                   RelocInfo::Mode rmode = RelocInfo::NONE32);
 
   // [index*scale + disp/r]
   explicit Operand(Register index,
                    ScaleFactor scale,
                    int32_t disp,
-                   RelocInfo::Mode rmode = RelocInfo::NONE);
+                   RelocInfo::Mode rmode = RelocInfo::NONE32);
 
   static Operand StaticVariable(const ExternalReference& ext) {
     return Operand(reinterpret_cast<int32_t>(ext.address()),

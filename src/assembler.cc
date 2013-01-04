@@ -692,7 +692,7 @@ RelocIterator::RelocIterator(const CodeDesc& desc, int mode_mask) {
 #ifdef ENABLE_DISASSEMBLER
 const char* RelocInfo::RelocModeName(RelocInfo::Mode rmode) {
   switch (rmode) {
-    case RelocInfo::NONE:
+    case RelocInfo::NONE32:
       return "no reloc 32";
     case RelocInfo::NONE64:
       return "no reloc 64";
@@ -818,7 +818,7 @@ void RelocInfo::Verify() {
     case INTERNAL_REFERENCE:
     case CONST_POOL:
     case DEBUG_BREAK_SLOT:
-    case NONE:
+    case NONE32:
     case NONE64:
       break;
     case NUMBER_OF_MODES:

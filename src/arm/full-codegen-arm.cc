@@ -3018,7 +3018,7 @@ void FullCodeGenerator::EmitRandomHeapNumber(CallRuntime* expr) {
     // Move 0x41300000xxxxxxxx (x = random bits) to VFP.
     __ vmov(d7, r0, r1);
     // Move 0x4130000000000000 to VFP.
-    __ mov(r0, Operand(0, RelocInfo::NONE));
+    __ mov(r0, Operand(0, RelocInfo::NONE32));
     __ vmov(d8, r0, r1);
     // Subtract and store the result in the heap number.
     __ vsub(d7, d7, d8);

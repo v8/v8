@@ -386,7 +386,7 @@ class Operand BASE_EMBEDDED {
  public:
   // immediate
   INLINE(explicit Operand(int32_t immediate,
-         RelocInfo::Mode rmode = RelocInfo::NONE));
+         RelocInfo::Mode rmode = RelocInfo::NONE32));
   INLINE(static Operand Zero()) {
     return Operand(static_cast<int32_t>(0));
   }

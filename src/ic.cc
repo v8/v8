@@ -273,7 +273,7 @@ RelocInfo::Mode IC::ComputeMode() {
     if (info->pc() == addr) return info->rmode();
   }
   UNREACHABLE();
-  return RelocInfo::NONE;
+  return RelocInfo::NONE32;
 }
 
 

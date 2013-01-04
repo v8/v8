@@ -89,7 +89,7 @@ TEST(1) {
   Label L, C;
 
   __ mov(r1, Operand(r0));
-  __ mov(r0, Operand(0, RelocInfo::NONE));
+  __ mov(r0, Operand(0, RelocInfo::NONE32));
   __ b(&C);
 
   __ bind(&L);
@@ -97,7 +97,7 @@ TEST(1) {
   __ sub(r1, r1, Operand(1));
 
   __ bind(&C);
-  __ teq(r1, Operand(0, RelocInfo::NONE));
+  __ teq(r1, Operand(0, RelocInfo::NONE32));
   __ b(ne, &L);
   __ mov(pc, Operand(lr));
 
@@ -134,7 +134,7 @@ TEST(2) {
   __ sub(r1, r1, Operand(1));
 
   __ bind(&C);
-  __ teq(r1, Operand(0, RelocInfo::NONE));
+  __ teq(r1, Operand(0, RelocInfo::NONE32));
   __ b(ne, &L);
   __ mov(pc, Operand(lr));
 

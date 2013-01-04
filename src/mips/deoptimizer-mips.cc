@@ -75,12 +75,12 @@ void Deoptimizer::DeoptimizeFunctionWithPreparedFunctionList(
     Address call_address = code_start_address + deopt_data->Pc(i)->value();
     Address deopt_entry = GetDeoptimizationEntry(i, LAZY);
     int call_size_in_bytes = MacroAssembler::CallSize(deopt_entry,
-                                                      RelocInfo::NONE);
+                                                      RelocInfo::NONE32);
     int call_size_in_words = call_size_in_bytes / Assembler::kInstrSize;
     ASSERT(call_size_in_bytes % Assembler::kInstrSize == 0);
     ASSERT(call_size_in_bytes <= patch_size());
     CodePatcher patcher(call_address, call_size_in_words);
-    patcher.masm()->Call(deopt_entry, RelocInfo::NONE);
+    patcher.masm()->Call(deopt_entry, RelocInfo::NONE32);
     ASSERT(prev_call_address == NULL ||
            call_address >= prev_call_address + patch_size());
     ASSERT(call_address + patch_size() <= code->instruction_end());

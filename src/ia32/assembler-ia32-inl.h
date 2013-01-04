@@ -300,7 +300,7 @@ void RelocInfo::Visit(Heap* heap) {
 
 Immediate::Immediate(int x)  {
   x_ = x;
-  rmode_ = RelocInfo::NONE;
+  rmode_ = RelocInfo::NONE32;
 }
 
 
@@ -326,20 +326,20 @@ Immediate::Immediate(Handle<Object> handle) {
   } else {
     // no relocation needed
     x_ =  reinterpret_cast<intptr_t>(obj);
-    rmode_ = RelocInfo::NONE;
+    rmode_ = RelocInfo::NONE32;
   }
 }
 
 
 Immediate::Immediate(Smi* value) {
   x_ = reinterpret_cast<intptr_t>(value);
-  rmode_ = RelocInfo::NONE;
+  rmode_ = RelocInfo::NONE32;
 }
 
 
 Immediate::Immediate(Address addr) {
   x_ = reinterpret_cast<int32_t>(addr);
-  rmode_ = RelocInfo::NONE;
+  rmode_ = RelocInfo::NONE32;
 }
 
 
@@ -396,7 +396,7 @@ void Assembler::emit_code_relative_offset(Label* label) {
 
 
 void Assembler::emit_w(const Immediate& x) {
-  ASSERT(x.rmode_ == RelocInfo::NONE);
+  ASSERT(x.rmode_ == RelocInfo::NONE32);
   uint16_t value = static_cast<uint16_t>(x.x_);
   reinterpret_cast<uint16_t*>(pc_)[0] = value;
   pc_ += sizeof(uint16_t);

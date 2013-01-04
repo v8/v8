@@ -221,7 +221,7 @@ Operand::Operand(Handle<Object> handle) {
   } else {
     // No relocation needed.
     imm32_ = reinterpret_cast<intptr_t>(obj);
-    rmode_ = RelocInfo::NONE;
+    rmode_ = RelocInfo::NONE32;
   }
 }
 

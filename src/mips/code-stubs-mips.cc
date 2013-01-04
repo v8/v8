@@ -4109,7 +4109,7 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   Isolate* isolate = masm->isolate();
   ExternalReference external_caught(Isolate::kExternalCaughtExceptionAddress,
                                     isolate);
-  __ li(a0, Operand(false, RelocInfo::NONE));
+  __ li(a0, Operand(false, RelocInfo::NONE32));
   __ li(a2, Operand(external_caught));
   __ sw(a0, MemOperand(a2));
 
@@ -5538,8 +5538,8 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
   // Check for function proxy.
   __ Branch(&non_function, ne, a3, Operand(JS_FUNCTION_PROXY_TYPE));
   __ push(a1);  // Put proxy as additional argument.
-  __ li(a0, Operand(argc_ + 1, RelocInfo::NONE));
-  __ li(a2, Operand(0, RelocInfo::NONE));
+  __ li(a0, Operand(argc_ + 1, RelocInfo::NONE32));
+  __ li(a2, Operand(0, RelocInfo::NONE32));
   __ GetBuiltinEntry(a3, Builtins::CALL_FUNCTION_PROXY);
   __ SetCallKind(t1, CALL_AS_METHOD);
   {
@@ -5596,7 +5596,7 @@ void CallConstructStub::Generate(MacroAssembler* masm) {
   __ GetBuiltinEntry(a3, Builtins::CALL_NON_FUNCTION_AS_CONSTRUCTOR);
   __ bind(&do_call);
   // Set expected number of arguments to zero (not changing r0).
-  __ li(a2, Operand(0, RelocInfo::NONE));
+  __ li(a2, Operand(0, RelocInfo::NONE32));
   __ SetCallKind(t1, CALL_AS_METHOD);
   __ Jump(masm->isolate()->builtins()->ArgumentsAdaptorTrampoline(),
           RelocInfo::CODE_TARGET);

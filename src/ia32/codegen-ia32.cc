@@ -938,7 +938,7 @@ void Code::PatchPlatformCodeAge(byte* sequence,
   } else {
     Code* stub = GetCodeAgeStub(age, parity);
     CodePatcher patcher(sequence, young_length);
-    patcher.masm()->call(stub->instruction_start(), RelocInfo::NONE);
+    patcher.masm()->call(stub->instruction_start(), RelocInfo::NONE32);
   }
 }
 
