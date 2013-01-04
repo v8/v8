@@ -1,3 +1,11 @@
+2013-01-04: Version 3.16.2
+
+        Added Makefile options to build for the Raspberry Pi (armv7=0,
+        arm_fpu=vfp2).
+
+        Performance and stability improvements on all platforms.
+
+
 2012-12-27: Version 3.16.1
 
         Fixed x64 MathMinMax for negative untagged int32 arguments.
