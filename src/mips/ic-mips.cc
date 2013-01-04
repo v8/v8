@@ -858,7 +858,7 @@ void KeyedLoadIC::GenerateNonStrictArguments(MacroAssembler* masm) {
   __ Ret(USE_DELAY_SLOT);
   __ mov(v0, a2);
   __ bind(&slow);
-  GenerateMiss(masm, false);
+  GenerateMiss(masm, MISS);
 }
 
 
@@ -893,7 +893,7 @@ void KeyedStoreIC::GenerateNonStrictArguments(MacroAssembler* masm) {
   __ Ret(USE_DELAY_SLOT);
   __ mov(v0, a0);  // (In delay slot) return the value stored in v0.
   __ bind(&slow);
-  GenerateMiss(masm, false);
+  GenerateMiss(masm, MISS);
 }
 
 
@@ -926,7 +926,7 @@ void KeyedCallIC::GenerateNonStrictArguments(MacroAssembler* masm,
 Object* KeyedLoadIC_Miss(Arguments args);
 
 
-void KeyedLoadIC::GenerateMiss(MacroAssembler* masm, bool force_generic) {
+void KeyedLoadIC::GenerateMiss(MacroAssembler* masm, ICMissMode miss_mode) {
   // ---------- S t a t e --------------
   //  -- ra     : return address
   //  -- a0     : key
@@ -939,7 +939,7 @@ void KeyedLoadIC::GenerateMiss(MacroAssembler* masm, bool force_generic) {
   __ Push(a1, a0);
 
   // Perform tail call to the entry.
-  ExternalReference ref = force_generic
+  ExternalReference ref = miss_mode == MISS_FORCE_GENERIC
       ? ExternalReference(IC_Utility(kKeyedLoadIC_MissForceGeneric), isolate)
       : ExternalReference(IC_Utility(kKeyedLoadIC_Miss), isolate);
 
@@ -1166,7 +1166,7 @@ void KeyedLoadIC::GenerateString(MacroAssembler* masm) {
   char_at_generator.GenerateSlow(masm, call_helper);
 
   __ bind(&miss);
-  GenerateMiss(masm, false);
+  GenerateMiss(masm, MISS);
 }
 
 
@@ -1452,11 +1452,11 @@ void KeyedLoadIC::GenerateIndexedInterceptor(MacroAssembler* masm) {
        IC_Utility(kKeyedLoadPropertyWithInterceptor), masm->isolate()), 2, 1);
 
   __ bind(&slow);
-  GenerateMiss(masm, false);
+  GenerateMiss(masm, MISS);
 }
 
 
-void KeyedStoreIC::GenerateMiss(MacroAssembler* masm, bool force_generic) {
+void KeyedStoreIC::GenerateMiss(MacroAssembler* masm, ICMissMode miss_mode) {
   // ---------- S t a t e --------------
   //  -- a0     : value
   //  -- a1     : key
@@ -1467,7 +1467,7 @@ void KeyedStoreIC::GenerateMiss(MacroAssembler* masm, bool force_generic) {
   // Push receiver, key and value for runtime call.
   __ Push(a2, a1, a0);
 
-  ExternalReference ref = force_generic
+  ExternalReference ref = miss_mode == MISS_FORCE_GENERIC
       ? ExternalReference(IC_Utility(kKeyedStoreIC_MissForceGeneric),
                           masm->isolate())
       : ExternalReference(IC_Utility(kKeyedStoreIC_Miss), masm->isolate());

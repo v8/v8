@@ -1536,12 +1536,12 @@ static void Generate_KeyedLoadIC_Slow(MacroAssembler* masm) {
 
 
 static void Generate_KeyedLoadIC_Miss(MacroAssembler* masm) {
-  KeyedLoadIC::GenerateMiss(masm, false);
+  KeyedLoadIC::GenerateMiss(masm, MISS);
 }
 
 
 static void Generate_KeyedLoadIC_MissForceGeneric(MacroAssembler* masm) {
-  KeyedLoadIC::GenerateMiss(masm, true);
+  KeyedLoadIC::GenerateMiss(masm, MISS_FORCE_GENERIC);
 }
 
 
@@ -1638,12 +1638,12 @@ static void Generate_KeyedStoreIC_Generic_Strict(MacroAssembler* masm) {
 
 
 static void Generate_KeyedStoreIC_Miss(MacroAssembler* masm) {
-  KeyedStoreIC::GenerateMiss(masm, false);
+  KeyedStoreIC::GenerateMiss(masm, MISS);
 }
 
 
 static void Generate_KeyedStoreIC_MissForceGeneric(MacroAssembler* masm) {
-  KeyedStoreIC::GenerateMiss(masm, true);
+  KeyedStoreIC::GenerateMiss(masm, MISS_FORCE_GENERIC);
 }
 
 

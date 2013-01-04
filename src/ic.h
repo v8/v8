@@ -476,6 +476,12 @@ class KeyedIC: public IC {
 };
 
 
+enum ICMissMode {
+  MISS_FORCE_GENERIC,
+  MISS
+};
+
+
 class KeyedLoadIC: public KeyedIC {
  public:
   explicit KeyedLoadIC(Isolate* isolate) : KeyedIC(isolate) {
@@ -485,16 +491,16 @@ class KeyedLoadIC: public KeyedIC {
   MUST_USE_RESULT MaybeObject* Load(State state,
                                     Handle<Object> object,
                                     Handle<Object> key,
-                                    bool force_generic_stub);
+                                    ICMissMode force_generic);
 
   // Code generator routines.
-  static void GenerateMiss(MacroAssembler* masm, bool force_generic);
+  static void GenerateMiss(MacroAssembler* masm, ICMissMode force_generic);
   static void GenerateRuntimeGetProperty(MacroAssembler* masm);
   static void GenerateInitialize(MacroAssembler* masm) {
-    GenerateMiss(masm, false);
+    GenerateMiss(masm, MISS);
   }
   static void GeneratePreMonomorphic(MacroAssembler* masm) {
-    GenerateMiss(masm, false);
+    GenerateMiss(masm, MISS);
   }
   static void GenerateGeneric(MacroAssembler* masm);
   static void GenerateString(MacroAssembler* masm);
@@ -654,13 +660,13 @@ class KeyedStoreIC: public KeyedIC {
                                      Handle<Object> object,
                                      Handle<Object> name,
                                      Handle<Object> value,
-                                     bool force_generic);
+                                     ICMissMode force_generic);
 
   // Code generators for stub routines.  Only called once at startup.
   static void GenerateInitialize(MacroAssembler* masm) {
-    GenerateMiss(masm, false);
+    GenerateMiss(masm, MISS);
   }
-  static void GenerateMiss(MacroAssembler* masm, bool force_generic);
+  static void GenerateMiss(MacroAssembler* masm, ICMissMode force_generic);
   static void GenerateSlow(MacroAssembler* masm);
   static void GenerateRuntimeSetProperty(MacroAssembler* masm,
                                          StrictModeFlag strict_mode);
@@ -686,7 +692,7 @@ class KeyedStoreIC: public KeyedIC {
                                               StrictModeFlag strict_mode,
                                               KeyedAccessGrowMode grow_mode);
 
-  private:
+ private:
   // Update the inline cache.
   void UpdateCaches(LookupResult* lookup,
                     State state,

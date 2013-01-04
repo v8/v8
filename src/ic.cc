@@ -1108,7 +1108,7 @@ static Handle<Object> TryConvertKey(Handle<Object> key, Isolate* isolate) {
 MaybeObject* KeyedLoadIC::Load(State state,
                                Handle<Object> object,
                                Handle<Object> key,
-                               bool force_generic_stub) {
+                               ICMissMode miss_mode) {
   // Check for values that can be converted into a symbol directly or
   // is representable as a smi.
   key = TryConvertKey(key, isolate());
@@ -1209,7 +1209,7 @@ MaybeObject* KeyedLoadIC::Load(State state,
 
   if (use_ic) {
     Handle<Code> stub = generic_stub();
-    if (!force_generic_stub) {
+    if (miss_mode != MISS_FORCE_GENERIC) {
       if (object->IsString() && key->IsNumber()) {
         if (state == UNINITIALIZED) {
           stub = string_stub();
@@ -1880,7 +1880,7 @@ MaybeObject* KeyedStoreIC::Store(State state,
                                  Handle<Object> object,
                                  Handle<Object> key,
                                  Handle<Object> value,
-                                 bool force_generic) {
+                                 ICMissMode miss_mode) {
   // Check for values that can be converted into a symbol directly or
   // is representable as a smi.
   key = TryConvertKey(key, isolate());
@@ -1942,7 +1942,7 @@ MaybeObject* KeyedStoreIC::Store(State state,
       if (receiver->elements()->map() ==
           isolate()->heap()->non_strict_arguments_elements_map()) {
         stub = non_strict_arguments_stub();
-      } else if (!force_generic) {
+      } else if (miss_mode != MISS_FORCE_GENERIC) {
         if (key->IsSmi() && (target() != *non_strict_arguments_stub())) {
           StubKind stub_kind = GetStubKind(receiver, key, value);
           stub = ComputeStub(receiver, stub_kind, strict_mode, stub);
@@ -2110,7 +2110,7 @@ RUNTIME_FUNCTION(MaybeObject*, KeyedLoadIC_Miss) {
   ASSERT(args.length() == 2);
   KeyedLoadIC ic(isolate);
   IC::State state = IC::StateFrom(ic.target(), args[0], args[1]);
-  return ic.Load(state, args.at<Object>(0), args.at<Object>(1), false);
+  return ic.Load(state, args.at<Object>(0), args.at<Object>(1), MISS);
 }
 
 
@@ -2119,7 +2119,10 @@ RUNTIME_FUNCTION(MaybeObject*, KeyedLoadIC_MissForceGeneric) {
   ASSERT(args.length() == 2);
   KeyedLoadIC ic(isolate);
   IC::State state = IC::StateFrom(ic.target(), args[0], args[1]);
-  return ic.Load(state, args.at<Object>(0), args.at<Object>(1), true);
+  return ic.Load(state,
+                 args.at<Object>(0),
+                 args.at<Object>(1),
+                 MISS_FORCE_GENERIC);
 }
 
 
@@ -2211,7 +2214,7 @@ RUNTIME_FUNCTION(MaybeObject*, KeyedStoreIC_Miss) {
                   args.at<Object>(0),
                   args.at<Object>(1),
                   args.at<Object>(2),
-                  false);
+                  MISS);
 }
 
 
@@ -2244,7 +2247,7 @@ RUNTIME_FUNCTION(MaybeObject*, KeyedStoreIC_MissForceGeneric) {
                   args.at<Object>(0),
                   args.at<Object>(1),
                   args.at<Object>(2),
-                  true);
+                  MISS_FORCE_GENERIC);
 }
 
 
