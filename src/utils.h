@@ -304,7 +304,7 @@ inline uint32_t ComputeLongHash(uint64_t key) {
   hash = hash ^ (hash >> 11);
   hash = hash + (hash << 6);
   hash = hash ^ (hash >> 22);
-  return (uint32_t) hash;
+  return static_cast<uint32_t>(hash);
 }
 
 

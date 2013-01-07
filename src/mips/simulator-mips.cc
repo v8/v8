@@ -1545,7 +1545,7 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
                FUNCTION_ADDR(target), arg1);
       }
       v8::Handle<v8::Value> result = target(arg1);
-      *(reinterpret_cast<int*>(arg0)) = (int32_t) *result;
+      *(reinterpret_cast<int*>(arg0)) = reinterpret_cast<int32_t>(*result);
       set_register(v0, arg0);
     } else if (redirection->type() == ExternalReference::DIRECT_GETTER_CALL) {
       // See DirectCEntryStub::GenerateCall for explanation of register usage.
@@ -1556,7 +1556,7 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
                FUNCTION_ADDR(target), arg1, arg2);
       }
       v8::Handle<v8::Value> result = target(arg1, arg2);
-      *(reinterpret_cast<int*>(arg0)) = (int32_t) *result;
+      *(reinterpret_cast<int*>(arg0)) = reinterpret_cast<int32_t>(*result);
       set_register(v0, arg0);
     } else {
       SimulatorRuntimeCall target =
@@ -2193,8 +2193,8 @@ void Simulator::DecodeTypeRegister(Instruction* instr) {
           case CVT_D_L:  // Mips32r2 instruction.
             // Watch the signs here, we want 2 32-bit vals
             // to make a sign-64.
-            i64 = (uint32_t) get_fpu_register(fs_reg);
-            i64 |= ((int64_t) get_fpu_register(fs_reg + 1) << 32);
+            i64 = static_cast<uint32_t>(get_fpu_register(fs_reg));
+            i64 |= static_cast<int64_t>(get_fpu_register(fs_reg + 1)) << 32;
             set_fpu_register_double(fd_reg, static_cast<double>(i64));
             break;
             case CVT_S_L:

@@ -6878,7 +6878,7 @@ String* ConsStringIteratorOp::NextLeaf(bool* blew_stack,
     if ((type & kStringRepresentationMask) != kConsStringTag) {
       // Pop stack so next iteration is in correct place.
       Pop();
-      unsigned length = (unsigned) string->length();
+      unsigned length = static_cast<unsigned>(string->length());
       // Could be a flattened ConsString.
       if (length == 0) continue;
       *length_out = length;
@@ -6896,7 +6896,7 @@ String* ConsStringIteratorOp::NextLeaf(bool* blew_stack,
       type = string->map()->instance_type();
       if ((type & kStringRepresentationMask) != kConsStringTag) {
         AdjustMaximumDepth();
-        unsigned length = (unsigned) string->length();
+        unsigned length = static_cast<unsigned>(string->length());
         ASSERT(length != 0);
         *length_out = length;
         *type_out = type;

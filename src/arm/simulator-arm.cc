@@ -1776,7 +1776,7 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
         if (::v8::internal::FLAG_trace_sim) {
           PrintF("Returned %p\n", reinterpret_cast<void *>(*result));
         }
-        set_register(r0, (int32_t) *result);
+        set_register(r0, reinterpret_cast<int32_t>(*result));
       } else if (redirection->type() == ExternalReference::DIRECT_GETTER_CALL) {
         SimulatorRuntimeDirectGetterCall target =
             reinterpret_cast<SimulatorRuntimeDirectGetterCall>(external);
@@ -1793,7 +1793,7 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
         if (::v8::internal::FLAG_trace_sim) {
           PrintF("Returned %p\n", reinterpret_cast<void *>(*result));
         }
-        set_register(r0, (int32_t) *result);
+        set_register(r0, reinterpret_cast<int32_t>(*result));
       } else {
         // builtin call.
         ASSERT(redirection->type() == ExternalReference::BUILTIN_CALL);
@@ -3083,15 +3083,15 @@ void Simulator::DecodeVCVTBetweenFloatingPointAndInteger(Instruction* instr) {
 
     if (src_precision == kDoublePrecision) {
       if (unsigned_integer) {
-        set_d_register_from_double(dst,
-                                   static_cast<double>((uint32_t)val));
+        set_d_register_from_double(
+            dst, static_cast<double>(static_cast<uint32_t>(val)));
       } else {
         set_d_register_from_double(dst, static_cast<double>(val));
       }
     } else {
       if (unsigned_integer) {
-        set_s_register_from_float(dst,
-                                  static_cast<float>((uint32_t)val));
+        set_s_register_from_float(
+            dst, static_cast<float>(static_cast<uint32_t>(val)));
       } else {
         set_s_register_from_float(dst, static_cast<float>(val));
       }

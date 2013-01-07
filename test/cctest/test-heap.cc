@@ -164,6 +164,13 @@ TEST(HeapObjects) {
   CHECK_EQ(static_cast<double>(static_cast<uint32_t>(Smi::kMaxValue) + 1),
            value->Number());
 
+  maybe_value = HEAP->NumberFromUint32(static_cast<uint32_t>(1) << 31);
+  value = maybe_value->ToObjectChecked();
+  CHECK(value->IsHeapNumber());
+  CHECK(value->IsNumber());
+  CHECK_EQ(static_cast<double>(static_cast<uint32_t>(1) << 31),
+           value->Number());
+
   // nan oddball checks
   CHECK(HEAP->nan_value()->IsNumber());
   CHECK(isnan(HEAP->nan_value()->Number()));

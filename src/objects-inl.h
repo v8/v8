@@ -1734,7 +1734,7 @@ bool Object::IsStringObjectWithCharacterAt(uint32_t index) {
   if (!js_value->value()->IsString()) return false;
 
   String* str = String::cast(js_value->value());
-  if (index >= (uint32_t)str->length()) return false;
+  if (index >= static_cast<uint32_t>(str->length())) return false;
 
   return true;
 }

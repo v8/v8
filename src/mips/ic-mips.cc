@@ -1703,7 +1703,7 @@ bool CompareIC::HasInlinedSmiCode(Address address) {
   // was inlined.
   Instr instr = Assembler::instr_at(andi_instruction_address);
   return Assembler::IsAndImmediate(instr) &&
-      Assembler::GetRt(instr) == (uint32_t)zero_reg.code();
+      Assembler::GetRt(instr) == static_cast<uint32_t>(zero_reg.code());
 }
 
 
@@ -1715,7 +1715,7 @@ void PatchInlinedSmiCode(Address address, InlinedSmiCheck check) {
   // was inlined.
   Instr instr = Assembler::instr_at(andi_instruction_address);
   if (!(Assembler::IsAndImmediate(instr) &&
-        Assembler::GetRt(instr) == (uint32_t)zero_reg.code())) {
+        Assembler::GetRt(instr) == static_cast<uint32_t>(zero_reg.code()))) {
     return;
   }
 
