@@ -43,9 +43,10 @@ namespace internal {
 char IC::TransitionMarkFromState(IC::State state) {
   switch (state) {
     case UNINITIALIZED: return '0';
-    case PREMONOMORPHIC: return 'P';
+    case PREMONOMORPHIC: return '.';
     case MONOMORPHIC: return '1';
     case MONOMORPHIC_PROTOTYPE_FAILURE: return '^';
+    case POLYMORPHIC: return 'P';
     case MEGAMORPHIC: return IsGeneric() ? 'G' : 'N';
 
     // We never see the debugger states here, because the state is
@@ -772,6 +773,9 @@ void CallICBase::UpdateCaches(LookupResult* lookup,
     case DEBUG_BREAK:
     case DEBUG_PREPARE_STEP_IN:
       break;
+    case POLYMORPHIC:
+      UNREACHABLE();
+      break;
   }
 
   TRACE_IC(kind_ == Code::CALL_IC ? "CallIC" : "KeyedCallIC",
@@ -1065,6 +1069,9 @@ void LoadIC::UpdateCaches(LookupResult* lookup,
     case DEBUG_BREAK:
     case DEBUG_PREPARE_STEP_IN:
       break;
+    case POLYMORPHIC:
+      UNREACHABLE();
+      break;
   }
 
   TRACE_IC("LoadIC", name, state, target());
@@ -1335,6 +1342,7 @@ void KeyedLoadIC::UpdateCaches(LookupResult* lookup,
     case DEBUG_PREPARE_STEP_IN:
       break;
     case MONOMORPHIC_PROTOTYPE_FAILURE:
+    case POLYMORPHIC:
       UNREACHABLE();
       break;
   }
@@ -1610,6 +1618,9 @@ void StoreIC::UpdateCaches(LookupResult* lookup,
     case DEBUG_BREAK:
     case DEBUG_PREPARE_STEP_IN:
       break;
+    case POLYMORPHIC:
+      UNREACHABLE();
+      break;
   }
 
   TRACE_IC("StoreIC", name, state, target());
@@ -1654,6 +1665,7 @@ void KeyedIC::GetReceiverMapsForStub(Handle<Code> stub,
       case UNINITIALIZED:
       case PREMONOMORPHIC:
       case MONOMORPHIC_PROTOTYPE_FAILURE:
+      case POLYMORPHIC:
       case DEBUG_BREAK:
       case DEBUG_PREPARE_STEP_IN:
         UNREACHABLE();
@@ -1747,7 +1759,7 @@ Handle<Code> KeyedIC::ComputeStub(Handle<JSObject> receiver,
       isolate()->factory()->polymorphic_code_cache();
   Code::ExtraICState extra_state = Code::ComputeExtraICState(grow_mode,
                                                              strict_mode);
-  Code::Flags flags = Code::ComputeFlags(kind(), MEGAMORPHIC, extra_state);
+  Code::Flags flags = Code::ComputeFlags(kind(), POLYMORPHIC, extra_state);
   Handle<Object> probe = cache->Lookup(&target_receiver_maps, flags);
   if (probe->IsCode()) return Handle<Code>::cast(probe);
 
@@ -2104,6 +2116,7 @@ void KeyedStoreIC::UpdateCaches(LookupResult* lookup,
     case DEBUG_PREPARE_STEP_IN:
       break;
     case MONOMORPHIC_PROTOTYPE_FAILURE:
+    case POLYMORPHIC:
       UNREACHABLE();
       break;
   }

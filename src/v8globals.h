@@ -260,6 +260,8 @@ enum InlineCacheState {
   // Like MONOMORPHIC but check failed due to prototype.
   MONOMORPHIC_PROTOTYPE_FAILURE,
   // Multiple receiver types have been seen.
+  POLYMORPHIC,
+  // Many receiver types have been seen.
   MEGAMORPHIC,
   // Special states for debug break or step in prepare stubs.
   DEBUG_BREAK,
