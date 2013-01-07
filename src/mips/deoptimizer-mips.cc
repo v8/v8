@@ -206,7 +206,7 @@ static int LookupBailoutId(DeoptimizationInputData* data, BailoutId ast_id) {
 
 void Deoptimizer::DoComputeOsrOutputFrame() {
   DeoptimizationInputData* data = DeoptimizationInputData::cast(
-      optimized_code_->deoptimization_data());
+      compiled_code_->deoptimization_data());
   unsigned ast_id = data->OsrAstId()->value();
 
   int bailout_id = LookupBailoutId(data, BailoutId(ast_id));
@@ -240,7 +240,7 @@ void Deoptimizer::DoComputeOsrOutputFrame() {
   unsigned input_frame_size = input_->GetFrameSize();
   ASSERT(fixed_size + height_in_bytes == input_frame_size);
 
-  unsigned stack_slot_size = optimized_code_->stack_slots() * kPointerSize;
+  unsigned stack_slot_size = compiled_code_->stack_slots() * kPointerSize;
   unsigned outgoing_height = data->ArgumentsStackHeight(bailout_id)->value();
   unsigned outgoing_size = outgoing_height * kPointerSize;
   unsigned output_frame_size = fixed_size + stack_slot_size + outgoing_size;
@@ -332,7 +332,7 @@ void Deoptimizer::DoComputeOsrOutputFrame() {
 
     unsigned pc_offset = data->OsrPcOffset()->value();
     uint32_t pc = reinterpret_cast<uint32_t>(
-        optimized_code_->entry() + pc_offset);
+        compiled_code_->entry() + pc_offset);
     output_[0]->SetPc(pc);
   }
   Code* continuation = isolate_->builtins()->builtin(Builtins::kNotifyOSR);
@@ -442,6 +442,70 @@ void Deoptimizer::DoComputeArgumentsAdaptorFrame(TranslationIterator* iterator,
       adaptor_trampoline->instruction_start() +
       isolate_->heap()->arguments_adaptor_deopt_pc_offset()->value());
   output_frame->SetPc(pc);
+}
+
+
+void Deoptimizer::DoCompiledStubFrame(TranslationIterator* iterator,
+                                      int frame_index) {
+  //
+  //               FROM                                  TO             <-fp
+  //    |          ....           |          |          ....           |
+  //    +-------------------------+          +-------------------------+
+  //    | JSFunction continuation |          | JSFunction continuation |
+  //    +-------------------------+          +-------------------------+<-sp
+  // |  |   saved frame (fp)      |
+  // |  +=========================+<-fp
+  // |  |   JSFunction context    |
+  // v  +-------------------------+
+  //    |   COMPILED_STUB marker  |          fp = saved frame
+  //    +-------------------------+          f8 = JSFunction context
+  //    |                         |
+  //    | ...                     |
+  //    |                         |
+  //    +-------------------------+<-sp
+  //
+  //
+  int output_frame_size = 1 * kPointerSize;
+  FrameDescription* output_frame =
+      new(output_frame_size) FrameDescription(output_frame_size, 0);
+  Code* notify_miss =
+      isolate_->builtins()->builtin(Builtins::kNotifyICMiss);
+  output_frame->SetState(Smi::FromInt(FullCodeGenerator::NO_REGISTERS));
+  output_frame->SetContinuation(
+      reinterpret_cast<intptr_t>(notify_miss->entry()));
+
+  ASSERT(compiled_code_->kind() == Code::COMPILED_STUB);
+  int major_key = compiled_code_->major_key();
+  CodeStubInterfaceDescriptor* descriptor =
+      isolate_->code_stub_interface_descriptor(major_key);
+  Handle<Code> miss_ic(descriptor->deoptimization_handler_);
+  output_frame->SetPc(reinterpret_cast<intptr_t>(miss_ic->instruction_start()));
+  unsigned input_frame_size = input_->GetFrameSize();
+  intptr_t value = input_->GetFrameSlot(input_frame_size - kPointerSize);
+  output_frame->SetFrameSlot(0, value);
+  value = input_->GetFrameSlot(input_frame_size - 2 * kPointerSize);
+  output_frame->SetRegister(fp.code(), value);
+  output_frame->SetFp(value);
+  value = input_->GetFrameSlot(input_frame_size - 3 * kPointerSize);
+  output_frame->SetRegister(cp.code(), value);
+
+  Translation::Opcode opcode =
+      static_cast<Translation::Opcode>(iterator->Next());
+  ASSERT(opcode == Translation::REGISTER);
+  USE(opcode);
+  int input_reg = iterator->Next();
+  intptr_t input_value = input_->GetRegister(input_reg);
+  output_frame->SetRegister(a1.code(), input_value);
+
+  int32_t next = iterator->Next();
+  opcode = static_cast<Translation::Opcode>(next);
+  ASSERT(opcode == Translation::REGISTER);
+  input_reg = iterator->Next();
+  input_value = input_->GetRegister(input_reg);
+  output_frame->SetRegister(a0.code(), input_value);
+
+  ASSERT(frame_index == 0);
+  output_[frame_index] = output_frame;
 }
 
 
@@ -868,7 +932,7 @@ void Deoptimizer::FillInputFrame(Address tos, JavaScriptFrame* frame) {
   }
   input_->SetRegister(sp.code(), reinterpret_cast<intptr_t>(frame->sp()));
   input_->SetRegister(fp.code(), reinterpret_cast<intptr_t>(frame->fp()));
-  for (int i = 0; i < DoubleRegister::kNumAllocatableRegisters; i++) {
+  for (int i = 0; i < DoubleRegister::NumAllocatableRegisters(); i++) {
     input_->SetDoubleRegister(i, 0.0);
   }
 
@@ -889,7 +953,6 @@ void Deoptimizer::EntryGenerator::Generate() {
 
   Isolate* isolate = masm()->isolate();
 
-  CpuFeatures::Scope scope(FPU);
   // Unlike on ARM we don't save all the registers, just the useful ones.
   // For the rest, there are gaps on the stack, so the offsets remain the same.
   const int kNumberOfRegisters = Register::kNumRegisters;
@@ -898,14 +961,19 @@ void Deoptimizer::EntryGenerator::Generate() {
   RegList saved_regs = restored_regs | sp.bit() | ra.bit();
 
   const int kDoubleRegsSize =
-      kDoubleSize * FPURegister::kNumAllocatableRegisters;
+      kDoubleSize * FPURegister::kMaxNumAllocatableRegisters;
 
-  // Save all FPU registers before messing with them.
-  __ Subu(sp, sp, Operand(kDoubleRegsSize));
-  for (int i = 0; i < FPURegister::kNumAllocatableRegisters; ++i) {
-    FPURegister fpu_reg = FPURegister::FromAllocationIndex(i);
-    int offset = i * kDoubleSize;
-    __ sdc1(fpu_reg, MemOperand(sp, offset));
+  if (CpuFeatures::IsSupported(FPU)) {
+    CpuFeatures::Scope scope(FPU);
+    // Save all FPU registers before messing with them.
+    __ Subu(sp, sp, Operand(kDoubleRegsSize));
+    for (int i = 0; i < FPURegister::kMaxNumAllocatableRegisters; ++i) {
+      FPURegister fpu_reg = FPURegister::FromAllocationIndex(i);
+      int offset = i * kDoubleSize;
+      __ sdc1(fpu_reg, MemOperand(sp, offset));
+    }
+  } else {
+    __ Subu(sp, sp, Operand(kDoubleRegsSize));
   }
 
   // Push saved_regs (needed to populate FrameDescription::registers_).
@@ -977,14 +1045,17 @@ void Deoptimizer::EntryGenerator::Generate() {
     }
   }
 
-  // Copy FPU registers to
-  // double_registers_[DoubleRegister::kNumAllocatableRegisters]
-  int double_regs_offset = FrameDescription::double_registers_offset();
-  for (int i = 0; i < FPURegister::kNumAllocatableRegisters; ++i) {
-    int dst_offset = i * kDoubleSize + double_regs_offset;
-    int src_offset = i * kDoubleSize + kNumberOfRegisters * kPointerSize;
-    __ ldc1(f0, MemOperand(sp, src_offset));
-    __ sdc1(f0, MemOperand(a1, dst_offset));
+  if (CpuFeatures::IsSupported(FPU)) {
+    CpuFeatures::Scope scope(FPU);
+    // Copy FPU registers to
+    // double_registers_[DoubleRegister::kNumAllocatableRegisters]
+    int double_regs_offset = FrameDescription::double_registers_offset();
+    for (int i = 0; i < FPURegister::NumAllocatableRegisters(); ++i) {
+      int dst_offset = i * kDoubleSize + double_regs_offset;
+      int src_offset = i * kDoubleSize + kNumberOfRegisters * kPointerSize;
+      __ ldc1(f0, MemOperand(sp, src_offset));
+      __ sdc1(f0, MemOperand(a1, dst_offset));
+    }
   }
 
   // Remove the bailout id, eventually return address, and the saved registers
@@ -1005,11 +1076,14 @@ void Deoptimizer::EntryGenerator::Generate() {
   // frame description.
   __ Addu(a3, a1, Operand(FrameDescription::frame_content_offset()));
   Label pop_loop;
+  Label pop_loop_header;
+  __ Branch(&pop_loop_header);
   __ bind(&pop_loop);
   __ pop(t0);
   __ sw(t0, MemOperand(a3, 0));
-  __ Branch(USE_DELAY_SLOT, &pop_loop, ne, a2, Operand(sp));
-  __ addiu(a3, a3, sizeof(uint32_t));  // In delay slot.
+  __ addiu(a3, a3, sizeof(uint32_t));
+  __ bind(&pop_loop_header);
+  __ Branch(&pop_loop, ne, a2, Operand(sp));
 
   // Compute the output frame in the deoptimizer.
   __ push(a0);  // Preserve deoptimizer object across call.
@@ -1024,25 +1098,30 @@ void Deoptimizer::EntryGenerator::Generate() {
   __ pop(a0);  // Restore deoptimizer object (class Deoptimizer).
 
   // Replace the current (input) frame with the output frames.
-  Label outer_push_loop, inner_push_loop;
+  Label outer_push_loop, inner_push_loop,
+      outer_loop_header, inner_loop_header;
   // Outer loop state: a0 = current "FrameDescription** output_",
   // a1 = one past the last FrameDescription**.
   __ lw(a1, MemOperand(a0, Deoptimizer::output_count_offset()));
   __ lw(a0, MemOperand(a0, Deoptimizer::output_offset()));  // a0 is output_.
   __ sll(a1, a1, kPointerSizeLog2);  // Count to offset.
   __ addu(a1, a0, a1);  // a1 = one past the last FrameDescription**.
+  __ jmp(&outer_loop_header);
   __ bind(&outer_push_loop);
   // Inner loop state: a2 = current FrameDescription*, a3 = loop index.
   __ lw(a2, MemOperand(a0, 0));  // output_[ix]
   __ lw(a3, MemOperand(a2, FrameDescription::frame_size_offset()));
+  __ jmp(&inner_loop_header);
   __ bind(&inner_push_loop);
   __ Subu(a3, a3, Operand(sizeof(uint32_t)));
   __ Addu(t2, a2, Operand(a3));
   __ lw(t3, MemOperand(t2, FrameDescription::frame_content_offset()));
   __ push(t3);
+  __ bind(&inner_loop_header);
   __ Branch(&inner_push_loop, ne, a3, Operand(zero_reg));
 
   __ Addu(a0, a0, Operand(kPointerSize));
+  __ bind(&outer_loop_header);
   __ Branch(&outer_push_loop, lt, a0, Operand(a1));
 
 

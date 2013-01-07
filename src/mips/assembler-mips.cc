@@ -73,6 +73,33 @@ static uint64_t CpuFeaturesImpliedByCompiler() {
 }
 
 
+const char* DoubleRegister::AllocationIndexToString(int index) {
+  if (CpuFeatures::IsSupported(FPU)) {
+    ASSERT(index >= 0 && index < kMaxNumAllocatableRegisters);
+    const char* const names[] = {
+      "f0",
+      "f2",
+      "f4",
+      "f6",
+      "f8",
+      "f10",
+      "f12",
+      "f14",
+      "f16",
+      "f18",
+      "f20",
+      "f22",
+      "f24",
+      "f26"
+    };
+    return names[index];
+  } else {
+    ASSERT(index == 0);
+    return "sfpd0";
+  }
+}
+
+
 void CpuFeatures::Probe() {
   unsigned standard_features = (OS::CpuFeaturesImpliedByPlatform() |
                                 CpuFeaturesImpliedByCompiler());

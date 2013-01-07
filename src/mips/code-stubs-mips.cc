@@ -38,6 +38,17 @@ namespace v8 {
 namespace internal {
 
 
+void KeyedLoadFastElementStub::InitializeInterfaceDescriptor(
+    Isolate* isolate,
+    CodeStubInterfaceDescriptor* descriptor) {
+  static Register registers[] = { a1, a0 };
+  descriptor->register_param_count_ = 2;
+  descriptor->register_params_ = registers;
+  descriptor->deoptimization_handler_ =
+      isolate->builtins()->KeyedLoadIC_Miss();
+}
+
+
 #define __ ACCESS_MASM(masm)
 
 static void EmitIdenticalObjectComparison(MacroAssembler* masm,
@@ -500,7 +511,7 @@ void FastCloneShallowObjectStub::Generate(MacroAssembler* masm) {
 // 52 fraction bits (20 in the first word, 32 in the second).  Zeros is a
 // scratch register.  Destroys the source register.  No GC occurs during this
 // stub so you don't have to set up the frame.
-class ConvertToDoubleStub : public CodeStub {
+class ConvertToDoubleStub : public PlatformCodeStub {
  public:
   ConvertToDoubleStub(Register result_reg_1,
                       Register result_reg_2,
@@ -3893,12 +3904,29 @@ void CodeStub::GenerateStubsAheadOfTime() {
 
 
 void CodeStub::GenerateFPStubs() {
-  CEntryStub save_doubles(1, kSaveFPRegs);
-  Handle<Code> code = save_doubles.GetCode();
-  code->set_is_pregenerated(true);
-  StoreBufferOverflowStub stub(kSaveFPRegs);
-  stub.GetCode()->set_is_pregenerated(true);
-  code->GetIsolate()->set_fp_stubs_generated(true);
+  SaveFPRegsMode mode = CpuFeatures::IsSupported(FPU)
+      ? kSaveFPRegs
+      : kDontSaveFPRegs;
+  CEntryStub save_doubles(1, mode);
+  StoreBufferOverflowStub stub(mode);
+  // These stubs might already be in the snapshot, detect that and don't
+  // regenerate, which would lead to code stub initialization state being messed
+  // up.
+  Code* save_doubles_code = NULL;
+  Code* store_buffer_overflow_code = NULL;
+  if (!save_doubles.FindCodeInCache(&save_doubles_code, ISOLATE)) {
+    if (CpuFeatures::IsSupported(FPU)) {
+      CpuFeatures::Scope scope2(FPU);
+      save_doubles_code = *save_doubles.GetCode();
+      store_buffer_overflow_code = *stub.GetCode();
+    } else {
+      save_doubles_code = *save_doubles.GetCode();
+      store_buffer_overflow_code = *stub.GetCode();
+    }
+    save_doubles_code->set_is_pregenerated(true);
+    store_buffer_overflow_code->set_is_pregenerated(true);
+  }
+  ISOLATE->set_fp_stubs_generated(true);
 }
 
 
