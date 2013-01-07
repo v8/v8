@@ -201,6 +201,19 @@ class BitVector: public ZoneObject {
 
 class GrowableBitVector BASE_EMBEDDED {
  public:
+  class Iterator BASE_EMBEDDED {
+   public:
+    Iterator(const GrowableBitVector* target, Zone* zone)
+        : it_(target->bits_ == NULL
+              ? new(zone) BitVector(1, zone)
+              : target->bits_) { }
+    bool Done() const { return it_.Done(); }
+    void Advance() { it_.Advance(); }
+    int Current() const { return it_.Current(); }
+   private:
+    BitVector::Iterator it_;
+  };
+
   GrowableBitVector() : bits_(NULL) { }
 
   bool Contains(int value) const {
@@ -212,6 +225,14 @@ class GrowableBitVector BASE_EMBEDDED {
     EnsureCapacity(value, zone);
     bits_->Add(value);
   }
+
+  void Union(const GrowableBitVector& other, Zone* zone) {
+    for (Iterator it(&other, zone); !it.Done(); it.Advance()) {
+      Add(it.Current(), zone);
+    }
+  }
+
+  void Clear() { if (bits_ != NULL) bits_->Clear(); }
 
  private:
   static const int kInitialLength = 1024;
