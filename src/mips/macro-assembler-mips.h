@@ -1141,6 +1141,7 @@ class MacroAssembler: public Assembler {
 
   // Call a code stub.
   void CallStub(CodeStub* stub,
+                TypeFeedbackId ast_id = TypeFeedbackId::None(),
                 Condition cond = cc_always,
                 Register r1 = zero_reg,
                 const Operand& r2 = Operand(zero_reg),

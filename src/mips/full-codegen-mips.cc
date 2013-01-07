@@ -675,7 +675,7 @@ void FullCodeGenerator::DoTest(Expression* condition,
                                Label* fall_through) {
   if (CpuFeatures::IsSupported(FPU)) {
     ToBooleanStub stub(result_register());
-    __ CallStub(&stub);
+    __ CallStub(&stub, condition->test_id());
     __ mov(at, zero_reg);
   } else {
     // Call the runtime to find the boolean value of the source and then
@@ -2353,7 +2353,7 @@ void FullCodeGenerator::EmitCallWithStub(Call* expr, CallFunctionFlags flags) {
 
   CallFunctionStub stub(arg_count, flags);
   __ lw(a1, MemOperand(sp, (arg_count + 1) * kPointerSize));
-  __ CallStub(&stub);
+  __ CallStub(&stub, expr->CallFeedbackId());
   RecordJSReturnSite(expr);
   // Restore context register.
   __ lw(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
