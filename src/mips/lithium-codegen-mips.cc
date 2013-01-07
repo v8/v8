@@ -2468,9 +2468,6 @@ void LCodeGen::DoReturn(LReturn* instr) {
     __ Pop(ra, fp);
     __ Addu(sp, sp, Operand(sp_delta));
   }
-  if (info()->IsStub()) {
-    __ lw(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
-  }
   __ Jump(ra);
 }
 
