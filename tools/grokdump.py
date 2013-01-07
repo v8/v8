@@ -296,6 +296,42 @@ MINIDUMP_CONTEXT_X86 = Descriptor([
                 MD_CONTEXT_X86_EXTENDED_REGISTERS))
 ])
 
+MD_CONTEXT_ARM = 0x40000000
+MD_CONTEXT_ARM_INTEGER = (MD_CONTEXT_ARM | 0x00000002)
+MD_CONTEXT_ARM_FLOATING_POINT = (MD_CONTEXT_ARM | 0x00000004)
+MD_FLOATINGSAVEAREA_ARM_FPR_COUNT = 32
+MD_FLOATINGSAVEAREA_ARM_FPEXTRA_COUNT = 8
+
+MINIDUMP_FLOATING_SAVE_AREA_ARM = Descriptor([
+  ("fpscr", ctypes.c_uint64),
+  ("regs", ctypes.c_uint64 * MD_FLOATINGSAVEAREA_ARM_FPR_COUNT),
+  ("extra", ctypes.c_uint64 * MD_FLOATINGSAVEAREA_ARM_FPEXTRA_COUNT)
+])
+
+MINIDUMP_CONTEXT_ARM = Descriptor([
+  ("context_flags", ctypes.c_uint32),
+  # MD_CONTEXT_ARM_INTEGER.
+  ("r0", EnableOnFlag(ctypes.c_uint32, MD_CONTEXT_ARM_INTEGER)),
+  ("r1", EnableOnFlag(ctypes.c_uint32, MD_CONTEXT_ARM_INTEGER)),
+  ("r2", EnableOnFlag(ctypes.c_uint32, MD_CONTEXT_ARM_INTEGER)),
+  ("r3", EnableOnFlag(ctypes.c_uint32, MD_CONTEXT_ARM_INTEGER)),
+  ("r4", EnableOnFlag(ctypes.c_uint32, MD_CONTEXT_ARM_INTEGER)),
+  ("r5", EnableOnFlag(ctypes.c_uint32, MD_CONTEXT_ARM_INTEGER)),
+  ("r6", EnableOnFlag(ctypes.c_uint32, MD_CONTEXT_ARM_INTEGER)),
+  ("r7", EnableOnFlag(ctypes.c_uint32, MD_CONTEXT_ARM_INTEGER)),
+  ("r8", EnableOnFlag(ctypes.c_uint32, MD_CONTEXT_ARM_INTEGER)),
+  ("r9", EnableOnFlag(ctypes.c_uint32, MD_CONTEXT_ARM_INTEGER)),
+  ("r10", EnableOnFlag(ctypes.c_uint32, MD_CONTEXT_ARM_INTEGER)),
+  ("r11", EnableOnFlag(ctypes.c_uint32, MD_CONTEXT_ARM_INTEGER)),
+  ("r12", EnableOnFlag(ctypes.c_uint32, MD_CONTEXT_ARM_INTEGER)),
+  ("sp", EnableOnFlag(ctypes.c_uint32, MD_CONTEXT_ARM_INTEGER)),
+  ("lr", EnableOnFlag(ctypes.c_uint32, MD_CONTEXT_ARM_INTEGER)),
+  ("pc", EnableOnFlag(ctypes.c_uint32, MD_CONTEXT_ARM_INTEGER)),
+  ("cpsr", ctypes.c_uint32),
+  ("float_save", EnableOnFlag(MINIDUMP_FLOATING_SAVE_AREA_ARM.ctype,
+                              MD_CONTEXT_ARM_FLOATING_POINT))
+])
+
 MD_CONTEXT_AMD64 = 0x00100000
 MD_CONTEXT_AMD64_CONTROL = (MD_CONTEXT_AMD64 | 0x00000001)
 MD_CONTEXT_AMD64_INTEGER = (MD_CONTEXT_AMD64 | 0x00000002)
@@ -429,6 +465,7 @@ MINIDUMP_RAW_SYSTEM_INFO = Descriptor([
 ])
 
 MD_CPU_ARCHITECTURE_X86 = 0
+MD_CPU_ARCHITECTURE_ARM = 5
 MD_CPU_ARCHITECTURE_AMD64 = 9
 
 class FuncSymbol:
@@ -481,7 +518,9 @@ class MinidumpReader(object):
         system_info = MINIDUMP_RAW_SYSTEM_INFO.Read(
             self.minidump, d.location.rva)
         self.arch = system_info.processor_architecture
-        assert self.arch in [MD_CPU_ARCHITECTURE_AMD64, MD_CPU_ARCHITECTURE_X86]
+        assert self.arch in [MD_CPU_ARCHITECTURE_AMD64,
+                             MD_CPU_ARCHITECTURE_ARM,
+                             MD_CPU_ARCHITECTURE_X86]
     assert not self.arch is None
 
     for d in directories:
@@ -495,6 +534,9 @@ class MinidumpReader(object):
               self.minidump, self.exception.thread_context.rva)
         elif self.arch == MD_CPU_ARCHITECTURE_AMD64:
           self.exception_context = MINIDUMP_CONTEXT_AMD64.Read(
+              self.minidump, self.exception.thread_context.rva)
+        elif self.arch == MD_CPU_ARCHITECTURE_ARM:
+          self.exception_context = MINIDUMP_CONTEXT_ARM.Read(
               self.minidump, self.exception.thread_context.rva)
         DebugPrint(self.exception_context)
       elif d.stream_type == MD_THREAD_LIST_STREAM:
@@ -541,6 +583,8 @@ class MinidumpReader(object):
   def ReadUIntPtr(self, address):
     if self.arch == MD_CPU_ARCHITECTURE_AMD64:
       return self.ReadU64(address)
+    elif self.arch == MD_CPU_ARCHITECTURE_ARM:
+      return self.ReadU32(address)
     elif self.arch == MD_CPU_ARCHITECTURE_X86:
       return self.ReadU32(address)
 
@@ -551,6 +595,8 @@ class MinidumpReader(object):
   def _ReadWord(self, location):
     if self.arch == MD_CPU_ARCHITECTURE_AMD64:
       return ctypes.c_uint64.from_buffer(self.minidump, location).value
+    elif self.arch == MD_CPU_ARCHITECTURE_ARM:
+      return ctypes.c_uint32.from_buffer(self.minidump, location).value
     elif self.arch == MD_CPU_ARCHITECTURE_X86:
       return ctypes.c_uint32.from_buffer(self.minidump, location).value
 
@@ -647,18 +693,29 @@ class MinidumpReader(object):
     return None
 
   def GetDisasmLines(self, address, size):
+    def CountUndefinedInstructions(lines):
+      pattern = "<UNDEFINED>"
+      return sum([line.count(pattern) for (ignore, line) in lines])
+
     location = self.FindLocation(address)
     if location is None: return []
     arch = None
+    possible_objdump_flags = [""]
     if self.arch == MD_CPU_ARCHITECTURE_X86:
       arch = "ia32"
+    elif self.arch == MD_CPU_ARCHITECTURE_ARM:
+      arch = "arm"
+      possible_objdump_flags = ["", "--disassembler-options=force-thumb"]
     elif self.arch == MD_CPU_ARCHITECTURE_AMD64:
       arch = "x64"
-    return disasm.GetDisasmLines(self.minidump_name,
-                                 location,
-                                 size,
-                                 arch,
-                                 False)
+    results = [ disasm.GetDisasmLines(self.minidump_name,
+                                     location,
+                                     size,
+                                     arch,
+                                     False,
+                                     objdump_flags)
+                for objdump_flags in possible_objdump_flags ]
+    return min(results, key=CountUndefinedInstructions)
 
 
   def Dispose(self):
@@ -668,24 +725,32 @@ class MinidumpReader(object):
   def ExceptionIP(self):
     if self.arch == MD_CPU_ARCHITECTURE_AMD64:
       return self.exception_context.rip
+    elif self.arch == MD_CPU_ARCHITECTURE_ARM:
+      return self.exception_context.pc
     elif self.arch == MD_CPU_ARCHITECTURE_X86:
       return self.exception_context.eip
 
   def ExceptionSP(self):
     if self.arch == MD_CPU_ARCHITECTURE_AMD64:
       return self.exception_context.rsp
+    elif self.arch == MD_CPU_ARCHITECTURE_ARM:
+      return self.exception_context.sp
     elif self.arch == MD_CPU_ARCHITECTURE_X86:
       return self.exception_context.esp
 
   def FormatIntPtr(self, value):
     if self.arch == MD_CPU_ARCHITECTURE_AMD64:
       return "%016x" % value
+    elif self.arch == MD_CPU_ARCHITECTURE_ARM:
+      return "%08x" % value
     elif self.arch == MD_CPU_ARCHITECTURE_X86:
       return "%08x" % value
 
   def PointerSize(self):
     if self.arch == MD_CPU_ARCHITECTURE_AMD64:
       return 8
+    elif self.arch == MD_CPU_ARCHITECTURE_ARM:
+      return 4
     elif self.arch == MD_CPU_ARCHITECTURE_X86:
       return 4
 
@@ -1462,6 +1527,8 @@ class V8Heap(object):
   def MapAlignmentMask(self):
     if self.reader.arch == MD_CPU_ARCHITECTURE_AMD64:
       return (1 << 4) - 1
+    elif self.reader.arch == MD_CPU_ARCHITECTURE_ARM:
+      return (1 << 4) - 1
     elif self.reader.arch == MD_CPU_ARCHITECTURE_X86:
       return (1 << 5) - 1
 
@@ -1746,6 +1813,9 @@ CONTEXT_FOR_ARCH = {
     MD_CPU_ARCHITECTURE_AMD64:
       ['rax', 'rbx', 'rcx', 'rdx', 'rdi', 'rsi', 'rbp', 'rsp', 'rip',
        'r8', 'r9', 'r10', 'r11', 'r12', 'r13', 'r14', 'r15'],
+    MD_CPU_ARCHITECTURE_ARM:
+      ['r0', 'r1', 'r2', 'r3', 'r4', 'r5', 'r6', 'r7', 'r8', 'r9',
+       'r10', 'r11', 'r12', 'sp', 'lr', 'pc'],
     MD_CPU_ARCHITECTURE_X86:
       ['eax', 'ebx', 'ecx', 'edx', 'edi', 'esi', 'ebp', 'esp', 'eip']
 }
@@ -1771,7 +1841,11 @@ def AnalyzeMinidump(options, minidump_name):
     for r in CONTEXT_FOR_ARCH[reader.arch]:
       print "    %s: %s" % (r, reader.FormatIntPtr(reader.Register(r)))
     # TODO(vitalyr): decode eflags.
-    print "    eflags: %s" % bin(reader.exception_context.eflags)[2:]
+    if reader.arch == MD_CPU_ARCHITECTURE_ARM:
+      print "    cpsr: %s" % bin(reader.exception_context.cpsr)[2:]
+    else:
+      print "    eflags: %s" % bin(reader.exception_context.eflags)[2:]
+
     print
     print "  modules:"
     for module in reader.module_list.modules:
@@ -1842,7 +1916,15 @@ if __name__ == "__main__":
                     help="dump all information contained in the minidump")
   parser.add_option("--symdir", dest="symdir", default=".",
                     help="directory containing *.pdb.sym file with symbols")
+  parser.add_option("--objdump",
+                    default="/usr/bin/objdump",
+                    help="objdump tool to use [default: %default]")
   options, args = parser.parse_args()
+  if os.path.exists(options.objdump):
+    disasm.OBJDUMP_BIN = options.objdump
+    OBJDUMP_BIN = options.objdump
+  else:
+    print "Cannot find %s, falling back to default objdump" % options.objdump
   if len(args) != 1:
     parser.print_help()
     sys.exit(1)
