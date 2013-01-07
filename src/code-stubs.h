@@ -247,7 +247,7 @@ struct CodeStubInterfaceDescriptor {
         register_params_(NULL) { }
   int register_param_count_;
   Register* register_params_;
-  Handle<Code> deoptimization_handler_;
+  Address deoptimization_handler_;
 };
 
 

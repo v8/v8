@@ -1259,7 +1259,7 @@ CODE_AGE_LIST(DEFINE_CODE_AGE_BUILTIN_GENERATOR)
 #undef DEFINE_CODE_AGE_BUILTIN_GENERATOR
 
 
-void Builtins::Generate_NotifyICMiss(MacroAssembler* masm) {
+void Builtins::Generate_NotifyStubFailure(MacroAssembler* masm) {
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
 
@@ -1268,7 +1268,7 @@ void Builtins::Generate_NotifyICMiss(MacroAssembler* masm) {
     // registers.
     __ stm(db_w, sp, kJSCallerSaved | kCalleeSaved);
     // Pass the function and deoptimization type to the runtime system.
-    __ CallRuntime(Runtime::kNotifyICMiss, 0);
+    __ CallRuntime(Runtime::kNotifyStubFailure, 0);
     __ ldm(ia_w, sp, kJSCallerSaved | kCalleeSaved);
   }
 

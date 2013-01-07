@@ -854,6 +854,8 @@ class ToBooleanIC: public IC {
 enum InlinedSmiCheck { ENABLE_INLINED_SMI_CHECK, DISABLE_INLINED_SMI_CHECK };
 void PatchInlinedSmiCode(Address address, InlinedSmiCheck check);
 
+DECLARE_RUNTIME_FUNCTION(MaybeObject*, KeyedLoadIC_Miss);
+
 } }  // namespace v8::internal
 
 #endif  // V8_IC_H_
