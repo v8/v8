@@ -5399,6 +5399,10 @@ static bool ComputeLoadStoreField(Handle<Map> type,
                                   Handle<String> name,
                                   LookupResult* lookup,
                                   bool is_store) {
+  if (type->has_named_interceptor()) {
+    lookup->InterceptorResult(NULL);
+    return false;
+  }
   // If we directly find a field, the access can be inlined.
   type->LookupDescriptor(NULL, *name, lookup);
   if (lookup->IsField()) return true;
