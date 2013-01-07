@@ -140,7 +140,7 @@ static void AllocateEmptyJSArray(MacroAssembler* masm,
   __ LoadRoot(scratch1, Heap::kEmptyFixedArrayRootIndex);
   __ str(scratch1, FieldMemOperand(result, JSArray::kPropertiesOffset));
   // Field JSArray::kElementsOffset is initialized later.
-  __ mov(scratch3,  Operand(0, RelocInfo::NONE32));
+  __ mov(scratch3,  Operand::Zero());
   __ str(scratch3, FieldMemOperand(result, JSArray::kLengthOffset));
 
   if (initial_capacity == 0) {
@@ -319,7 +319,7 @@ static void ArrayNativeCode(MacroAssembler* masm,
       has_non_smi_element, finish, cant_transition_map, not_double;
 
   // Check for array construction with zero arguments or one.
-  __ cmp(r0, Operand(0, RelocInfo::NONE32));
+  __ cmp(r0, Operand::Zero());
   __ b(ne, &argc_one_or_more);
 
   // Handle construction of an empty array.
@@ -347,7 +347,7 @@ static void ArrayNativeCode(MacroAssembler* masm,
   __ tst(r2, r2);
   __ b(ne, &not_empty_array);
   __ Drop(1);  // Adjust stack.
-  __ mov(r0, Operand(0));  // Treat this as a call with argc of zero.
+  __ mov(r0, Operand::Zero());  // Treat this as a call with argc of zero.
   __ b(&empty_array);
 
   __ bind(&not_empty_array);
@@ -590,7 +590,7 @@ void Builtins::Generate_StringConstructCode(MacroAssembler* masm) {
 
   // Load the first arguments in r0 and get rid of the rest.
   Label no_arguments;
-  __ cmp(r0, Operand(0, RelocInfo::NONE32));
+  __ cmp(r0, Operand::Zero());
   __ b(eq, &no_arguments);
   // First args = sp[(argc - 1) * 4].
   __ sub(r0, r0, Operand(1));
@@ -634,7 +634,7 @@ void Builtins::Generate_StringConstructCode(MacroAssembler* masm) {
     __ cmp(r4, Operand(JSValue::kSize >> kPointerSizeLog2));
     __ Assert(eq, "Unexpected string wrapper instance size");
     __ ldrb(r4, FieldMemOperand(map, Map::kUnusedPropertyFieldsOffset));
-    __ cmp(r4, Operand(0, RelocInfo::NONE32));
+    __ cmp(r4, Operand::Zero());
     __ Assert(eq, "Unexpected unused properties of string wrapper");
   }
   __ str(map, FieldMemOperand(r0, HeapObject::kMapOffset));
@@ -1097,7 +1097,7 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
   // r5-r7, cp may be clobbered
 
   // Clear the context before we push it when entering the internal frame.
-  __ mov(cp, Operand(0, RelocInfo::NONE32));
+  __ mov(cp, Operand::Zero());
 
   // Enter an internal frame.
   {
@@ -1375,7 +1375,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
   // 1. Make sure we have at least one argument.
   // r0: actual number of arguments
   { Label done;
-    __ cmp(r0, Operand(0));
+    __ cmp(r0, Operand::Zero());
     __ b(ne, &done);
     __ LoadRoot(r2, Heap::kUndefinedValueRootIndex);
     __ push(r2);
@@ -1396,7 +1396,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
   // r0: actual number of arguments
   // r1: function
   Label shift_arguments;
-  __ mov(r4, Operand(0, RelocInfo::NONE32));  // indicate regular JS_FUNCTION
+  __ mov(r4, Operand::Zero());  // indicate regular JS_FUNCTION
   { Label convert_to_object, use_global_receiver, patch_receiver;
     // Change context eagerly in case we need the global receiver.
     __ ldr(cp, FieldMemOperand(r1, JSFunction::kContextOffset));
@@ -1451,7 +1451,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
 
     // Restore the function to r1, and the flag to r4.
     __ ldr(r1, MemOperand(sp, r0, LSL, kPointerSizeLog2));
-    __ mov(r4, Operand(0, RelocInfo::NONE32));
+    __ mov(r4, Operand::Zero());
     __ jmp(&patch_receiver);
 
     // Use the global receiver object from the called function as the
@@ -1521,7 +1521,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     __ tst(r4, r4);
     __ b(eq, &function);
     // Expected number of arguments is 0 for CALL_NON_FUNCTION.
-    __ mov(r2, Operand(0, RelocInfo::NONE32));
+    __ mov(r2, Operand::Zero());
     __ SetCallKind(r5, CALL_AS_METHOD);
     __ cmp(r4, Operand(1));
     __ b(ne, &non_proxy);
@@ -1599,7 +1599,7 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
     // Push current limit and index.
     __ bind(&okay);
     __ push(r0);  // limit
-    __ mov(r1, Operand(0, RelocInfo::NONE32));  // initial index
+    __ mov(r1, Operand::Zero());  // initial index
     __ push(r1);
 
     // Get the receiver.
@@ -1711,7 +1711,7 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
     __ bind(&call_proxy);
     __ push(r1);  // add function proxy as last argument
     __ add(r0, r0, Operand(1));
-    __ mov(r2, Operand(0, RelocInfo::NONE32));
+    __ mov(r2, Operand::Zero());
     __ SetCallKind(r5, CALL_AS_METHOD);
     __ GetBuiltinEntry(r3, Builtins::CALL_FUNCTION_PROXY);
     __ Call(masm->isolate()->builtins()->ArgumentsAdaptorTrampoline(),

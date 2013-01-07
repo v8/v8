@@ -89,7 +89,7 @@ TEST(1) {
   Label L, C;
 
   __ mov(r1, Operand(r0));
-  __ mov(r0, Operand(0, RelocInfo::NONE32));
+  __ mov(r0, Operand::Zero());
   __ b(&C);
 
   __ bind(&L);
@@ -97,7 +97,7 @@ TEST(1) {
   __ sub(r1, r1, Operand(1));
 
   __ bind(&C);
-  __ teq(r1, Operand(0, RelocInfo::NONE32));
+  __ teq(r1, Operand::Zero());
   __ b(ne, &L);
   __ mov(pc, Operand(lr));
 
@@ -134,7 +134,7 @@ TEST(2) {
   __ sub(r1, r1, Operand(1));
 
   __ bind(&C);
-  __ teq(r1, Operand(0, RelocInfo::NONE32));
+  __ teq(r1, Operand::Zero());
   __ b(ne, &L);
   __ mov(pc, Operand(lr));
 
@@ -979,13 +979,13 @@ TEST(11) {
 
   // Test corner cases.
   __ mov(r1, Operand(0xffffffff));
-  __ mov(r2, Operand(0));
+  __ mov(r2, Operand::Zero());
   __ mov(r3, Operand(r1, ASR, 1), SetCC);  // Set the carry.
   __ adc(r3, r1, Operand(r2));
   __ str(r3, MemOperand(r0, OFFSET_OF(I, c)));
 
   __ mov(r1, Operand(0xffffffff));
-  __ mov(r2, Operand(0));
+  __ mov(r2, Operand::Zero());
   __ mov(r3, Operand(r2, ASR, 1), SetCC);  // Unset the carry.
   __ adc(r3, r1, Operand(r2));
   __ str(r3, MemOperand(r0, OFFSET_OF(I, d)));
