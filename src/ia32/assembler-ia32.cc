@@ -255,11 +255,11 @@ void RelocInfo::PatchCodeWithCall(Address target, int guard_bytes) {
 
 Operand::Operand(Register base, int32_t disp, RelocInfo::Mode rmode) {
   // [base + disp/r]
-  if (disp == 0 && rmode == RelocInfo::NONE32 && !base.is(ebp)) {
+  if (disp == 0 && RelocInfo::IsNone(rmode) && !base.is(ebp)) {
     // [base]
     set_modrm(0, base);
     if (base.is(esp)) set_sib(times_1, esp, base);
-  } else if (is_int8(disp) && rmode == RelocInfo::NONE32) {
+  } else if (is_int8(disp) && RelocInfo::IsNone(rmode)) {
     // [base + disp8]
     set_modrm(1, base);
     if (base.is(esp)) set_sib(times_1, esp, base);
@@ -280,11 +280,11 @@ Operand::Operand(Register base,
                  RelocInfo::Mode rmode) {
   ASSERT(!index.is(esp));  // illegal addressing mode
   // [base + index*scale + disp/r]
-  if (disp == 0 && rmode == RelocInfo::NONE32 && !base.is(ebp)) {
+  if (disp == 0 && RelocInfo::IsNone(rmode) && !base.is(ebp)) {
     // [base + index*scale]
     set_modrm(0, esp);
     set_sib(scale, index, base);
-  } else if (is_int8(disp) && rmode == RelocInfo::NONE32) {
+  } else if (is_int8(disp) && RelocInfo::IsNone(rmode)) {
     // [base + index*scale + disp8]
     set_modrm(1, esp);
     set_sib(scale, index, base);
@@ -1180,7 +1180,7 @@ void Assembler::test(Register reg, const Immediate& imm) {
   EnsureSpace ensure_space(this);
   // Only use test against byte for registers that have a byte
   // variant: eax, ebx, ecx, and edx.
-  if (imm.rmode_ == RelocInfo::NONE32 &&
+  if (RelocInfo::IsNone(imm.rmode_) &&
       is_uint8(imm.x_) &&
       reg.is_byte_register()) {
     uint8_t imm8 = imm.x_;
@@ -2614,7 +2614,7 @@ void Assembler::emit_operand(Register reg, const Operand& adr) {
   pc_ += length;
 
   // Emit relocation information if necessary.
-  if (length >= sizeof(int32_t) && adr.rmode_ != RelocInfo::NONE32) {
+  if (length >= sizeof(int32_t) && !RelocInfo::IsNone(adr.rmode_)) {
     pc_ -= sizeof(int32_t);  // pc_ must be *at* disp32
     RecordRelocInfo(adr.rmode_);
     pc_ += sizeof(int32_t);

@@ -396,7 +396,7 @@ void Assembler::emit_code_relative_offset(Label* label) {
 
 
 void Assembler::emit_w(const Immediate& x) {
-  ASSERT(x.rmode_ == RelocInfo::NONE32);
+  ASSERT(RelocInfo::IsNone(x.rmode_));
   uint16_t value = static_cast<uint16_t>(x.x_);
   reinterpret_cast<uint16_t*>(pc_)[0] = value;
   pc_ += sizeof(uint16_t);
