@@ -532,8 +532,9 @@ Handle<Value> Shell::CreateExternalArray(const Arguments& args,
     if (args[0]->IsObject() &&
         args[0]->ToObject()->Has(Symbols::length(isolate))) {
       // Construct from array.
-      length = convertToUint(
-          args[0]->ToObject()->Get(Symbols::length(isolate)), &try_catch);
+      Local<Value> value = args[0]->ToObject()->Get(Symbols::length(isolate));
+      if (try_catch.HasCaught()) return try_catch.ReThrow();
+      length = convertToUint(value, &try_catch);
       if (try_catch.HasCaught()) return try_catch.ReThrow();
       init_from_array = true;
     } else {
