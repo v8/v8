@@ -976,6 +976,14 @@ void LCodeGen::DoModI(LModI* instr) {
       DeoptimizeIf(eq, instr->environment(), right, Operand(zero_reg));
     }
 
+    // Check for (kMinInt % -1).
+    if (instr->hydrogen()->CheckFlag(HValue::kCanOverflow)) {
+      Label left_not_min_int;
+      __ Branch(&left_not_min_int, ne, left, Operand(kMinInt));
+      DeoptimizeIf(eq, instr->environment(), right, Operand(-1));
+      __ bind(&left_not_min_int);
+    }
+
     __ Branch(USE_DELAY_SLOT, &done, ge, left, Operand(zero_reg));
     __ mfhi(result);
 
@@ -1009,7 +1017,7 @@ void LCodeGen::DoDivI(LDivI* instr) {
     __ bind(&left_not_zero);
   }
 
-  // Check for (-kMinInt / -1).
+  // Check for (kMinInt / -1).
   if (instr->hydrogen()->CheckFlag(HValue::kCanOverflow)) {
     Label left_not_min_int;
     __ Branch(&left_not_min_int, ne, left, Operand(kMinInt));
