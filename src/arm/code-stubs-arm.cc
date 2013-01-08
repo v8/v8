@@ -344,6 +344,7 @@ static void GenerateFastCloneShallowArrayCommon(
     MacroAssembler* masm,
     int length,
     FastCloneShallowArrayStub::Mode mode,
+    AllocationSiteInfoMode allocation_site_info_mode,
     Label* fail) {
   // Registers on entry:
   //
@@ -357,7 +358,12 @@ static void GenerateFastCloneShallowArrayCommon(
         ? FixedDoubleArray::SizeFor(length)
         : FixedArray::SizeFor(length);
   }
-  int size = JSArray::kSize + elements_size;
+  int size = JSArray::kSize;
+  int allocation_info_start = size;
+  if (allocation_site_info_mode == TRACK_ALLOCATION_SITE_INFO) {
+    size += AllocationSiteInfo::kSize;
+  }
+  size += elements_size;
 
   // Allocate both the JS array and the elements array in one big
   // allocation. This avoids multiple limit checks.
@@ -366,6 +372,13 @@ static void GenerateFastCloneShallowArrayCommon(
     flags = static_cast<AllocationFlags>(DOUBLE_ALIGNMENT | flags);
   }
   __ AllocateInNewSpace(size, r0, r1, r2, fail, flags);
+
+  if (allocation_site_info_mode == TRACK_ALLOCATION_SITE_INFO) {
+    __ mov(r2, Operand(Handle<Map>(masm->isolate()->heap()->
+                                   allocation_site_info_map())));
+    __ str(r2, FieldMemOperand(r0, allocation_info_start));
+    __ str(r3, FieldMemOperand(r0, allocation_info_start + kPointerSize));
+  }
 
   // Copy the JS array part.
   for (int i = 0; i < JSArray::kSize; i += kPointerSize) {
@@ -379,7 +392,11 @@ static void GenerateFastCloneShallowArrayCommon(
     // Get hold of the elements array of the boilerplate and setup the
     // elements pointer in the resulting object.
     __ ldr(r3, FieldMemOperand(r3, JSArray::kElementsOffset));
-    __ add(r2, r0, Operand(JSArray::kSize));
+    if (allocation_site_info_mode == TRACK_ALLOCATION_SITE_INFO) {
+      __ add(r2, r0, Operand(JSArray::kSize + AllocationSiteInfo::kSize));
+    } else {
+      __ add(r2, r0, Operand(JSArray::kSize));
+    }
     __ str(r2, FieldMemOperand(r0, JSArray::kElementsOffset));
 
     // Copy the elements array.
@@ -406,6 +423,13 @@ void FastCloneShallowArrayStub::Generate(MacroAssembler* masm) {
   __ b(eq, &slow_case);
 
   FastCloneShallowArrayStub::Mode mode = mode_;
+  AllocationSiteInfoMode allocation_site_info_mode =
+      DONT_TRACK_ALLOCATION_SITE_INFO;
+  if (mode == CLONE_ANY_ELEMENTS_WITH_ALLOCATION_SITE_INFO) {
+    mode = CLONE_ANY_ELEMENTS;
+    allocation_site_info_mode = TRACK_ALLOCATION_SITE_INFO;
+  }
+
   if (mode == CLONE_ANY_ELEMENTS) {
     Label double_elements, check_fast_elements;
     __ ldr(r0, FieldMemOperand(r3, JSArray::kElementsOffset));
@@ -413,7 +437,9 @@ void FastCloneShallowArrayStub::Generate(MacroAssembler* masm) {
     __ CompareRoot(r0, Heap::kFixedCOWArrayMapRootIndex);
     __ b(ne, &check_fast_elements);
     GenerateFastCloneShallowArrayCommon(masm, 0,
-                                        COPY_ON_WRITE_ELEMENTS, &slow_case);
+                                        COPY_ON_WRITE_ELEMENTS,
+                                        allocation_site_info_mode,
+                                        &slow_case);
     // Return and remove the on-stack parameters.
     __ add(sp, sp, Operand(3 * kPointerSize));
     __ Ret();
@@ -422,7 +448,9 @@ void FastCloneShallowArrayStub::Generate(MacroAssembler* masm) {
     __ CompareRoot(r0, Heap::kFixedArrayMapRootIndex);
     __ b(ne, &double_elements);
     GenerateFastCloneShallowArrayCommon(masm, length_,
-                                        CLONE_ELEMENTS, &slow_case);
+                                        CLONE_ELEMENTS,
+                                        allocation_site_info_mode,
+                                        &slow_case);
     // Return and remove the on-stack parameters.
     __ add(sp, sp, Operand(3 * kPointerSize));
     __ Ret();
@@ -454,7 +482,8 @@ void FastCloneShallowArrayStub::Generate(MacroAssembler* masm) {
     __ pop(r3);
   }
 
-  GenerateFastCloneShallowArrayCommon(masm, length_, mode, &slow_case);
+  GenerateFastCloneShallowArrayCommon(masm, length_, mode,
+                                      allocation_site_info_mode, &slow_case);
 
   // Return and remove the on-stack parameters.
   __ add(sp, sp, Operand(3 * kPointerSize));

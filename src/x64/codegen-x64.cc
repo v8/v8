@@ -283,6 +283,10 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
   // The fail label is not actually used since we do not allocate.
   Label allocated, new_backing_store, only_change_map, done;
 
+  if (FLAG_track_allocation_sites) {
+    masm->TestJSArrayForAllocationSiteInfo(rdx, rdi, fail);
+  }
+
   // Check for empty arrays, which only require a map transition and no changes
   // to the backing store.
   __ movq(r8, FieldOperand(rdx, JSObject::kElementsOffset));

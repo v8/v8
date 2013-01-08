@@ -388,6 +388,7 @@ OS::MemCopyFunction CreateMemCopyFunction() {
 
 #define __ ACCESS_MASM(masm)
 
+
 void ElementsTransitionGenerator::GenerateMapChangeElementsTransition(
     MacroAssembler* masm) {
   // ----------- S t a t e -------------
@@ -419,6 +420,10 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
   //  -- esp[0] : return address
   // -----------------------------------
   Label loop, entry, convert_hole, gc_required, only_change_map;
+
+  if (FLAG_track_allocation_sites) {
+    masm->TestJSArrayForAllocationSiteInfo(edx, edi, fail);
+  }
 
   // Check for empty arrays, which only require a map transition and no changes
   // to the backing store.

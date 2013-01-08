@@ -179,6 +179,10 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
   Label loop, entry, convert_hole, gc_required, only_change_map, done;
   bool vfp2_supported = CpuFeatures::IsSupported(VFP2);
 
+  if (FLAG_track_allocation_sites) {
+    masm->TestJSArrayForAllocationSiteInfo(r2, r4, fail);
+  }
+
   // Check for empty arrays, which only require a map transition and no changes
   // to the backing store.
   __ ldr(r4, FieldMemOperand(r2, JSObject::kElementsOffset));

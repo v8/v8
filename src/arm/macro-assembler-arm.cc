@@ -3883,6 +3883,29 @@ void MacroAssembler::CheckEnumCache(Register null_value, Label* call_runtime) {
 }
 
 
+void MacroAssembler::TestJSArrayForAllocationSiteInfo(
+    Register receiver_reg,
+    Register scratch_reg,
+    Label* allocation_info_present) {
+  Label no_info_available;
+  ExternalReference new_space_start =
+      ExternalReference::new_space_start(isolate());
+  ExternalReference new_space_allocation_top =
+      ExternalReference::new_space_allocation_top_address(isolate());
+  ldr(scratch_reg, FieldMemOperand(receiver_reg,
+                                   JSArray::kSize + AllocationSiteInfo::kSize));
+  cmp(scratch_reg, Operand(new_space_start));
+  b(lt, &no_info_available);
+  cmp(scratch_reg, Operand(new_space_allocation_top));
+  b(hs, &no_info_available);
+  ldr(scratch_reg, MemOperand(scratch_reg, 0));
+  cmp(scratch_reg,
+      Operand(Handle<Map>(isolate()->heap()->allocation_site_info_map())));
+  b(eq, allocation_info_present);
+  bind(&no_info_available);
+}
+
+
 #ifdef DEBUG
 bool AreAliased(Register reg1,
                 Register reg2,

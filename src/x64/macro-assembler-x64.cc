@@ -4609,6 +4609,29 @@ void MacroAssembler::CheckEnumCache(Register null_value, Label* call_runtime) {
   j(not_equal, &next);
 }
 
+void MacroAssembler::TestJSArrayForAllocationSiteInfo(
+    Register receiver_reg,
+    Register scratch_reg,
+    Label* allocation_info_present) {
+  Label no_info_available;
+  ExternalReference new_space_start =
+      ExternalReference::new_space_start(isolate());
+  ExternalReference new_space_allocation_top =
+      ExternalReference::new_space_allocation_top_address(isolate());
+
+  lea(scratch_reg, Operand(receiver_reg,
+                           JSArray::kSize + AllocationSiteInfo::kSize));
+  movq(kScratchRegister, new_space_start);
+  cmpq(scratch_reg, kScratchRegister);
+  j(less, &no_info_available);
+  cmpq(scratch_reg, ExternalOperand(new_space_allocation_top));
+  j(greater_equal, &no_info_available);
+  CompareRoot(MemOperand(scratch_reg, 0),
+              Heap::kAllocationSiteInfoMapRootIndex);
+  j(equal, allocation_info_present);
+  bind(&no_info_available);
+}
+
 
 } }  // namespace v8::internal
 

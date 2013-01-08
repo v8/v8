@@ -316,6 +316,7 @@ static void GenerateFastCloneShallowArrayCommon(
     MacroAssembler* masm,
     int length,
     FastCloneShallowArrayStub::Mode mode,
+    AllocationSiteInfoMode allocation_site_info_mode,
     Label* fail) {
   // Registers on entry:
   //
@@ -329,7 +330,12 @@ static void GenerateFastCloneShallowArrayCommon(
         ? FixedDoubleArray::SizeFor(length)
         : FixedArray::SizeFor(length);
   }
-  int size = JSArray::kSize + elements_size;
+  int size = JSArray::kSize;
+  int allocation_info_start = size;
+  if (allocation_site_info_mode == TRACK_ALLOCATION_SITE_INFO) {
+    size += AllocationSiteInfo::kSize;
+  }
+  size += elements_size;
 
   // Allocate both the JS array and the elements array in one big
   // allocation. This avoids multiple limit checks.
@@ -338,6 +344,12 @@ static void GenerateFastCloneShallowArrayCommon(
     flags = static_cast<AllocationFlags>(DOUBLE_ALIGNMENT | flags);
   }
   __ AllocateInNewSpace(size, rax, rbx, rdx, fail, flags);
+
+  if (allocation_site_info_mode == TRACK_ALLOCATION_SITE_INFO) {
+    __ LoadRoot(kScratchRegister, Heap::kAllocationSiteInfoMapRootIndex);
+    __ movq(FieldOperand(rax, allocation_info_start), kScratchRegister);
+    __ movq(FieldOperand(rax, allocation_info_start + kPointerSize), rcx);
+  }
 
   // Copy the JS array part.
   for (int i = 0; i < JSArray::kSize; i += kPointerSize) {
@@ -351,7 +363,11 @@ static void GenerateFastCloneShallowArrayCommon(
     // Get hold of the elements array of the boilerplate and setup the
     // elements pointer in the resulting object.
     __ movq(rcx, FieldOperand(rcx, JSArray::kElementsOffset));
-    __ lea(rdx, Operand(rax, JSArray::kSize));
+    if (allocation_site_info_mode == TRACK_ALLOCATION_SITE_INFO) {
+      __ lea(rdx, Operand(rax, JSArray::kSize + AllocationSiteInfo::kSize));
+    } else {
+      __ lea(rdx, Operand(rax, JSArray::kSize));
+    }
     __ movq(FieldOperand(rax, JSArray::kElementsOffset), rdx);
 
     // Copy the elements array.
@@ -398,6 +414,13 @@ void FastCloneShallowArrayStub::Generate(MacroAssembler* masm) {
   FastCloneShallowArrayStub::Mode mode = mode_;
   // rcx is boilerplate object.
   Factory* factory = masm->isolate()->factory();
+  AllocationSiteInfoMode allocation_site_info_mode =
+      DONT_TRACK_ALLOCATION_SITE_INFO;
+  if (mode == CLONE_ANY_ELEMENTS_WITH_ALLOCATION_SITE_INFO) {
+    mode = CLONE_ANY_ELEMENTS;
+    allocation_site_info_mode = TRACK_ALLOCATION_SITE_INFO;
+  }
+
   if (mode == CLONE_ANY_ELEMENTS) {
     Label double_elements, check_fast_elements;
     __ movq(rbx, FieldOperand(rcx, JSArray::kElementsOffset));
@@ -405,7 +428,9 @@ void FastCloneShallowArrayStub::Generate(MacroAssembler* masm) {
            factory->fixed_cow_array_map());
     __ j(not_equal, &check_fast_elements);
     GenerateFastCloneShallowArrayCommon(masm, 0,
-                                        COPY_ON_WRITE_ELEMENTS, &slow_case);
+                                        COPY_ON_WRITE_ELEMENTS,
+                                        allocation_site_info_mode,
+                                        &slow_case);
     __ ret(3 * kPointerSize);
 
     __ bind(&check_fast_elements);
@@ -413,7 +438,9 @@ void FastCloneShallowArrayStub::Generate(MacroAssembler* masm) {
            factory->fixed_array_map());
     __ j(not_equal, &double_elements);
     GenerateFastCloneShallowArrayCommon(masm, length_,
-                                        CLONE_ELEMENTS, &slow_case);
+                                        CLONE_ELEMENTS,
+                                        allocation_site_info_mode,
+                                        &slow_case);
     __ ret(3 * kPointerSize);
 
     __ bind(&double_elements);
@@ -443,7 +470,8 @@ void FastCloneShallowArrayStub::Generate(MacroAssembler* masm) {
     __ pop(rcx);
   }
 
-  GenerateFastCloneShallowArrayCommon(masm, length_, mode, &slow_case);
+  GenerateFastCloneShallowArrayCommon(masm, length_, mode,
+                                      allocation_site_info_mode, &slow_case);
   __ ret(3 * kPointerSize);
 
   __ bind(&slow_case);

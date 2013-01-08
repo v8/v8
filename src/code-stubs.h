@@ -422,13 +422,16 @@ class FastCloneShallowArrayStub : public PlatformCodeStub {
  public:
   // Maximum length of copied elements array.
   static const int kMaximumClonedLength = 8;
-
   enum Mode {
     CLONE_ELEMENTS,
     CLONE_DOUBLE_ELEMENTS,
     COPY_ON_WRITE_ELEMENTS,
-    CLONE_ANY_ELEMENTS
+    CLONE_ANY_ELEMENTS,
+    CLONE_ANY_ELEMENTS_WITH_ALLOCATION_SITE_INFO,
+    LAST_CLONE_MODE = CLONE_ANY_ELEMENTS_WITH_ALLOCATION_SITE_INFO
   };
+
+  static const int kFastCloneModeCount = LAST_CLONE_MODE + 1;
 
   FastCloneShallowArrayStub(Mode mode, int length)
       : mode_(mode),
@@ -445,8 +448,8 @@ class FastCloneShallowArrayStub : public PlatformCodeStub {
 
   Major MajorKey() { return FastCloneShallowArray; }
   int MinorKey() {
-    ASSERT(mode_ == 0 || mode_ == 1 || mode_ == 2 || mode_ == 3);
-    return length_ * 4 +  mode_;
+    ASSERT(mode_ >= 0 && mode_ <= LAST_CLONE_MODE);
+    return length_ * kFastCloneModeCount + mode_;
   }
 };
 

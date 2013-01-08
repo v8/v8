@@ -774,6 +774,13 @@ void TypeSwitchInfo::TypeSwitchInfoVerify() {
 }
 
 
+void AllocationSiteInfo::AllocationSiteInfoVerify() {
+  CHECK(IsAllocationSiteInfo());
+  VerifyHeapPointer(payload());
+  CHECK(payload()->IsObject());
+}
+
+
 void Script::ScriptVerify() {
   CHECK(IsScript());
   VerifyPointer(source());

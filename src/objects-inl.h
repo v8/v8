@@ -4064,6 +4064,8 @@ ACCESSORS(SignatureInfo, args, Object, kArgsOffset)
 
 ACCESSORS(TypeSwitchInfo, types, Object, kTypesOffset)
 
+ACCESSORS(AllocationSiteInfo, payload, Object, kPayloadOffset)
+
 ACCESSORS(Script, source, Object, kSourceOffset)
 ACCESSORS(Script, name, Object, kNameOffset)
 ACCESSORS(Script, id, Object, kIdOffset)
