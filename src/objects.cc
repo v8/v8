@@ -9861,7 +9861,7 @@ MaybeObject* JSObject::SetFastElement(uint32_t index,
         : FAST_DOUBLE_ELEMENTS;
 
     MaybeObject* trans = PossiblyTransitionArrayBoilerplate(to_kind);
-    if (trans != NULL && trans->IsFailure()) return trans;
+    if (trans->IsFailure()) return trans;
 
     MaybeObject* maybe =
         SetFastDoubleElementsCapacityAndLength(new_capacity, array_length);
@@ -10406,15 +10406,16 @@ Handle<Object> JSObject::TransitionElementsKind(Handle<JSObject> object,
 
 MaybeObject* JSObject::PossiblyTransitionArrayBoilerplate(
     ElementsKind to_kind) {
-  ASSERT(IsJSArray());
   MaybeObject* ret = NULL;
-  AllocationSiteInfo* info = AllocationSiteInfo::FindForJSObject(this);
-  if (info != NULL) {
-    JSObject* payload = JSObject::cast(info->payload());
-    if (payload->GetElementsKind() != to_kind) {
-      if (IsMoreGeneralElementsKindTransition(payload->GetElementsKind(),
-                                              to_kind)) {
-        ret = payload->TransitionElementsKind(to_kind);
+  if (IsJSArray()) {
+    AllocationSiteInfo* info = AllocationSiteInfo::FindForJSObject(this);
+    if (info != NULL) {
+      JSObject* payload = JSObject::cast(info->payload());
+      if (payload->GetElementsKind() != to_kind) {
+        if (IsMoreGeneralElementsKindTransition(payload->GetElementsKind(),
+                                                to_kind)) {
+          ret = payload->TransitionElementsKind(to_kind);
+        }
       }
     }
   }
@@ -10433,7 +10434,7 @@ MaybeObject* JSObject::TransitionElementsKind(ElementsKind to_kind) {
   if (from_kind == to_kind) return this;
 
   MaybeObject* trans = PossiblyTransitionArrayBoilerplate(to_kind);
-  if (trans != NULL && trans->IsFailure()) return trans;
+  if (trans->IsFailure()) return trans;
 
   Isolate* isolate = GetIsolate();
   if (elements() == isolate->heap()->empty_fixed_array() ||
