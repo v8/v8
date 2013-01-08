@@ -1403,7 +1403,8 @@ double power_double_int(double x, int y) {
 
 
 double power_double_double(double x, double y) {
-#ifdef __MINGW64_VERSION_MAJOR
+#if defined(__MINGW64_VERSION_MAJOR) && \
+    (!defined(__MINGW64_VERSION_RC) || __MINGW64_VERSION_RC < 1)
   // MinGW64 has a custom implementation for pow.  This handles certain
   // special cases that are different.
   if ((x == 0.0 || isinf(x)) && isfinite(y)) {
