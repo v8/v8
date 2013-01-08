@@ -596,7 +596,9 @@ void Deoptimizer::DoCompiledStubFrame(TranslationIterator* iterator,
       reinterpret_cast<uint32_t>(notify_failure->entry()));
 
   Code* code;
-  CEntryStub(1, kSaveFPRegs).FindCodeInCache(&code, isolate_);
+  SaveFPRegsMode mode =
+      CpuFeatures::IsSupported(SSE2) ? kSaveFPRegs : kDontSaveFPRegs;
+  CEntryStub(1, mode).FindCodeInCache(&code, isolate_);
   output_frame->SetPc(reinterpret_cast<intptr_t>(code->instruction_start()));
   unsigned input_frame_size = input_->GetFrameSize();
   intptr_t value = input_->GetFrameSlot(input_frame_size - kPointerSize);
