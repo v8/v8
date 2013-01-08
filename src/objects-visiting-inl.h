@@ -211,7 +211,8 @@ void StaticMarkingVisitor<StaticVisitor>::VisitCodeTarget(
   // when they might be keeping a Context alive, or when the heap is about
   // to be serialized.
   if (FLAG_cleanup_code_caches_at_gc && target->is_inline_cache_stub()
-      && (target->ic_state() == MEGAMORPHIC || heap->flush_monomorphic_ics() ||
+      && (target->ic_state() == MEGAMORPHIC ||
+          target->ic_state() == POLYMORPHIC || heap->flush_monomorphic_ics() ||
           Serializer::enabled() || target->ic_age() != heap->global_ic_age())) {
     IC::Clear(rinfo->pc());
     target = Code::GetCodeFromTargetAddress(rinfo->target_address());

@@ -111,14 +111,11 @@ bool TypeFeedbackOracle::LoadIsMonomorphicNormal(Property* expr) {
 }
 
 
-bool TypeFeedbackOracle::LoadIsMegamorphicWithTypeInfo(Property* expr) {
+bool TypeFeedbackOracle::LoadIsPolymorphic(Property* expr) {
   Handle<Object> map_or_code = GetInfo(expr->PropertyFeedbackId());
   if (map_or_code->IsCode()) {
     Handle<Code> code = Handle<Code>::cast(map_or_code);
-    Builtins* builtins = isolate_->builtins();
-    return code->is_keyed_load_stub() &&
-        *code != builtins->builtin(Builtins::kKeyedLoadIC_Generic) &&
-        code->ic_state() == MEGAMORPHIC;
+    return code->is_keyed_load_stub() && code->ic_state() == POLYMORPHIC;
   }
   return false;
 }
@@ -145,19 +142,15 @@ bool TypeFeedbackOracle::StoreIsMonomorphicNormal(TypeFeedbackId ast_id) {
 }
 
 
-bool TypeFeedbackOracle::StoreIsMegamorphicWithTypeInfo(TypeFeedbackId ast_id) {
+bool TypeFeedbackOracle::StoreIsPolymorphic(TypeFeedbackId ast_id) {
   Handle<Object> map_or_code = GetInfo(ast_id);
   if (map_or_code->IsCode()) {
     Handle<Code> code = Handle<Code>::cast(map_or_code);
-    Builtins* builtins = isolate_->builtins();
     bool allow_growth =
         Code::GetKeyedAccessGrowMode(code->extra_ic_state()) ==
         ALLOW_JSARRAY_GROWTH;
-    return code->is_keyed_store_stub() &&
-        !allow_growth &&
-        *code != builtins->builtin(Builtins::kKeyedStoreIC_Generic) &&
-        *code != builtins->builtin(Builtins::kKeyedStoreIC_Generic_Strict) &&
-        code->ic_state() == MEGAMORPHIC;
+    return code->is_keyed_store_stub() && !allow_growth &&
+        code->ic_state() == POLYMORPHIC;
   }
   return false;
 }
@@ -667,7 +660,7 @@ void TypeFeedbackOracle::ProcessRelocInfos(ZoneList<RelocInfo>* infos) {
       case Code::KEYED_LOAD_IC:
       case Code::KEYED_STORE_IC:
         if (target->ic_state() == MONOMORPHIC ||
-            target->ic_state() == MEGAMORPHIC) {
+            target->ic_state() == POLYMORPHIC) {
           SetInfo(ast_id, target);
         }
         break;

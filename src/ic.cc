@@ -1109,7 +1109,7 @@ Handle<Code> KeyedLoadIC::ComputePolymorphicStub(
       receiver_maps, &handler_ics);
   isolate()->counters()->keyed_load_polymorphic_stubs()->Increment();
   PROFILE(isolate(),
-          CodeCreateEvent(Logger::KEYED_LOAD_MEGAMORPHIC_IC_TAG, *code, 0));
+          CodeCreateEvent(Logger::KEYED_LOAD_POLYMORPHIC_IC_TAG, *code, 0));
   return code;
 }
 
@@ -1329,6 +1329,7 @@ void KeyedLoadIC::UpdateCaches(LookupResult* lookup,
   switch (state) {
     case UNINITIALIZED:
     case PREMONOMORPHIC:
+    case POLYMORPHIC:
       set_target(*code);
       break;
     case MONOMORPHIC:
@@ -1342,7 +1343,6 @@ void KeyedLoadIC::UpdateCaches(LookupResult* lookup,
     case DEBUG_PREPARE_STEP_IN:
       break;
     case MONOMORPHIC_PROTOTYPE_FAILURE:
-    case POLYMORPHIC:
       UNREACHABLE();
       break;
   }
@@ -1651,7 +1651,7 @@ void KeyedIC::GetReceiverMapsForStub(Handle<Code> stub,
       case MONOMORPHIC:
         result->Add(Handle<Map>(stub->FindFirstMap()));
         break;
-      case MEGAMORPHIC: {
+      case POLYMORPHIC: {
         AssertNoAllocation no_allocation;
         int mask = RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT);
         for (RelocIterator it(*stub, mask); !it.done(); it.next()) {
@@ -1662,10 +1662,11 @@ void KeyedIC::GetReceiverMapsForStub(Handle<Code> stub,
         }
         break;
       }
+      case MEGAMORPHIC:
+        break;
       case UNINITIALIZED:
       case PREMONOMORPHIC:
       case MONOMORPHIC_PROTOTYPE_FAILURE:
-      case POLYMORPHIC:
       case DEBUG_BREAK:
       case DEBUG_PREPARE_STEP_IN:
         UNREACHABLE();
@@ -1877,7 +1878,7 @@ Handle<Code> KeyedStoreIC::ComputePolymorphicStub(
       receiver_maps, &handler_ics, &transitioned_maps);
   isolate()->counters()->keyed_store_polymorphic_stubs()->Increment();
   PROFILE(isolate(),
-          CodeCreateEvent(Logger::KEYED_STORE_MEGAMORPHIC_IC_TAG, *code, 0));
+          CodeCreateEvent(Logger::KEYED_STORE_POLYMORPHIC_IC_TAG, *code, 0));
   return code;
 }
 
@@ -2101,6 +2102,7 @@ void KeyedStoreIC::UpdateCaches(LookupResult* lookup,
   switch (state) {
     case UNINITIALIZED:
     case PREMONOMORPHIC:
+    case POLYMORPHIC:
       set_target(*code);
       break;
     case MONOMORPHIC:
@@ -2116,7 +2118,6 @@ void KeyedStoreIC::UpdateCaches(LookupResult* lookup,
     case DEBUG_PREPARE_STEP_IN:
       break;
     case MONOMORPHIC_PROTOTYPE_FAILURE:
-    case POLYMORPHIC:
       UNREACHABLE();
       break;
   }
