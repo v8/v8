@@ -135,6 +135,7 @@ class LCodeGen;
   V(MathMinMax)                                 \
   V(ModI)                                       \
   V(MulI)                                       \
+  V(MultiplyAddD)                               \
   V(NumberTagD)                                 \
   V(NumberTagI)                                 \
   V(NumberTagU)                                 \
@@ -605,6 +606,24 @@ class LMulI: public LTemplateInstruction<1, 2, 1> {
 
   DECLARE_CONCRETE_INSTRUCTION(MulI, "mul-i")
   DECLARE_HYDROGEN_ACCESSOR(Mul)
+};
+
+
+// Instruction for computing multiplier * multiplicand + addend.
+class LMultiplyAddD: public LTemplateInstruction<1, 3, 0> {
+ public:
+  LMultiplyAddD(LOperand* addend, LOperand* multiplier,
+                LOperand* multiplicand) {
+    inputs_[0] = addend;
+    inputs_[1] = multiplier;
+    inputs_[2] = multiplicand;
+  }
+
+  LOperand* addend() { return inputs_[0]; }
+  LOperand* multiplier() { return inputs_[1]; }
+  LOperand* multiplicand() { return inputs_[2]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(MultiplyAddD, "multiply-add-d")
 };
 
 
@@ -2432,6 +2451,8 @@ class LChunkBuilder BASE_EMBEDDED {
 #define DECLARE_DO(type) LInstruction* Do##type(H##type* node);
   HYDROGEN_CONCRETE_INSTRUCTION_LIST(DECLARE_DO)
 #undef DECLARE_DO
+
+  LInstruction* DoMultiplyAdd(HMul* mul, HValue* addend);
 
  private:
   enum Status {

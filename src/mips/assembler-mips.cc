@@ -876,6 +876,20 @@ void Assembler::GenInstrRegister(Opcode opcode,
 
 
 void Assembler::GenInstrRegister(Opcode opcode,
+                                 FPURegister fr,
+                                 FPURegister ft,
+                                 FPURegister fs,
+                                 FPURegister fd,
+                                 SecondaryField func) {
+  ASSERT(fd.is_valid() && fr.is_valid() && fs.is_valid() && ft.is_valid());
+  ASSERT(CpuFeatures::IsEnabled(FPU));
+  Instr instr = opcode | (fr.code() << kFrShift) | (ft.code() << kFtShift)
+      | (fs.code() << kFsShift) | (fd.code() << kFdShift) | func;
+  emit(instr);
+}
+
+
+void Assembler::GenInstrRegister(Opcode opcode,
                                  SecondaryField fmt,
                                  Register rt,
                                  FPURegister fs,
@@ -1677,6 +1691,12 @@ void Assembler::sub_d(FPURegister fd, FPURegister fs, FPURegister ft) {
 
 void Assembler::mul_d(FPURegister fd, FPURegister fs, FPURegister ft) {
   GenInstrRegister(COP1, D, ft, fs, fd, MUL_D);
+}
+
+
+void Assembler::madd_d(FPURegister fd, FPURegister fr, FPURegister fs,
+    FPURegister ft) {
+  GenInstrRegister(COP1X, fr, ft, fs, fd, MADD_D);
 }
 
 

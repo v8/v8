@@ -1760,6 +1760,8 @@ void Simulator::ConfigureTypeRegister(Instruction* instr,
           UNIMPLEMENTED_MIPS();
       };
       break;
+    case COP1X:
+      break;
     case SPECIAL:
       switch (instr->FunctionFieldRaw()) {
         case JR:
@@ -1949,6 +1951,7 @@ void Simulator::DecodeTypeRegister(Instruction* instr) {
   const uint32_t rt_u   = static_cast<uint32_t>(rt);
   const int32_t  rd_reg = instr->RdValue();
 
+  const int32_t  fr_reg = instr->FrValue();
   const int32_t  fs_reg = instr->FsValue();
   const int32_t  ft_reg = instr->FtValue();
   const int32_t  fd_reg = instr->FdValue();
@@ -2205,6 +2208,19 @@ void Simulator::DecodeTypeRegister(Instruction* instr) {
           }
           break;
         case PS:
+          break;
+        default:
+          UNREACHABLE();
+      };
+      break;
+    case COP1X:
+      switch (instr->FunctionFieldRaw()) {
+        case MADD_D:
+          double fr, ft, fs;
+          fr = get_fpu_register_double(fr_reg);
+          fs = get_fpu_register_double(fs_reg);
+          ft = get_fpu_register_double(ft_reg);
+          set_fpu_register_double(fd_reg, fs * ft + fr);
           break;
         default:
           UNREACHABLE();

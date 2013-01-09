@@ -1283,8 +1283,22 @@ LInstruction* LChunkBuilder::DoMul(HMul* instr) {
     return DefineAsRegister(mul);
 
   } else if (instr->representation().IsDouble()) {
+    if (kArchVariant == kMips32r2) {
+      if (instr->UseCount() == 1 && instr->uses().value()->IsAdd()) {
+        HAdd* add = HAdd::cast(instr->uses().value());
+        if (instr == add->left()) {
+          // This mul is the lhs of an add. The add and mul will be folded
+          // into a multiply-add.
+          return NULL;
+        }
+        if (instr == add->right() && !add->left()->IsMul()) {
+          // This mul is the rhs of an add, where the lhs is not another mul.
+          // The add and mul will be folded into a multiply-add.
+          return NULL;
+        }
+      }
+    }
     return DoArithmeticD(Token::MUL, instr);
-
   } else {
     return DoArithmeticT(Token::MUL, instr);
   }
@@ -1311,6 +1325,15 @@ LInstruction* LChunkBuilder::DoSub(HSub* instr) {
 }
 
 
+LInstruction* LChunkBuilder::DoMultiplyAdd(HMul* mul, HValue* addend) {
+  LOperand* multiplier_op = UseRegisterAtStart(mul->left());
+  LOperand* multiplicand_op = UseRegisterAtStart(mul->right());
+  LOperand* addend_op = UseRegisterAtStart(addend);
+  return DefineSameAsFirst(new(zone()) LMultiplyAddD(addend_op, multiplier_op,
+                                                     multiplicand_op));
+}
+
+
 LInstruction* LChunkBuilder::DoAdd(HAdd* instr) {
   if (instr->representation().IsInteger32()) {
     ASSERT(instr->left()->representation().IsInteger32());
@@ -1324,6 +1347,15 @@ LInstruction* LChunkBuilder::DoAdd(HAdd* instr) {
     }
     return result;
   } else if (instr->representation().IsDouble()) {
+    if (kArchVariant == kMips32r2) {
+      if (instr->left()->IsMul())
+        return DoMultiplyAdd(HMul::cast(instr->left()), instr->right());
+
+      if (instr->right()->IsMul()) {
+        ASSERT(!instr->left()->IsMul());
+        return DoMultiplyAdd(HMul::cast(instr->right()), instr->left());
+      }
+    }
     return DoArithmeticD(Token::ADD, instr);
   } else {
     ASSERT(instr->representation().IsTagged());

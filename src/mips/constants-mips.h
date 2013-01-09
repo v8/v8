@@ -216,6 +216,8 @@ const int kImm28Bits  = 28;
 // and are therefore shifted by 2.
 const int kImmFieldShift = 2;
 
+const int kFrBits        = 5;
+const int kFrShift       = 21;
 const int kFsShift       = 11;
 const int kFsBits        = 5;
 const int kFtShift       = 16;
@@ -295,7 +297,9 @@ enum Opcode {
   LDC1      =   ((6 << 3) + 5) << kOpcodeShift,
 
   SWC1      =   ((7 << 3) + 1) << kOpcodeShift,
-  SDC1      =   ((7 << 3) + 5) << kOpcodeShift
+  SDC1      =   ((7 << 3) + 5) << kOpcodeShift,
+
+  COP1X     =   ((1 << 4) + 3) << kOpcodeShift
 };
 
 enum SecondaryField {
@@ -416,6 +420,8 @@ enum SecondaryField {
   CVT_S_L   =   ((4 << 3) + 0),
   CVT_D_L   =   ((4 << 3) + 1),
   // COP1 Encoding of Function Field When rs=PS.
+  // COP1X Encoding of Function Field.
+  MADD_D    =   ((4 << 3) + 1),
 
   NULLSF    =   0
 };
@@ -675,6 +681,10 @@ class Instruction {
 
   inline int FtValue() const {
     return Bits(kFtShift + kFtBits - 1, kFtShift);
+  }
+
+  inline int FrValue() const {
+    return Bits(kFrShift + kFrBits -1, kFrShift);
   }
 
   // Float Compare condition code instruction bits.

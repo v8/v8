@@ -276,6 +276,8 @@ TEST(MIPS3) {
     double e;
     double f;
     double g;
+    double h;
+    double i;
   } T;
   T t;
 
@@ -312,6 +314,13 @@ TEST(MIPS3) {
     __ sdc1(f14, MemOperand(a0, OFFSET_OF(T, g)) );
     // g = sqrt(f) = 10.97451593465515908537
 
+  if (kArchVariant == kMips32r2) {
+    __ ldc1(f4, MemOperand(a0, OFFSET_OF(T, h)) );
+    __ ldc1(f6, MemOperand(a0, OFFSET_OF(T, i)) );
+    __ madd_d(f14, f6, f4, f6);
+    __ sdc1(f14, MemOperand(a0, OFFSET_OF(T, h)) );
+  }
+
     __ jr(ra);
     __ nop();
 
@@ -329,6 +338,8 @@ TEST(MIPS3) {
     t.d = 0.0;
     t.e = 0.0;
     t.f = 0.0;
+    t.h = 1.5;
+    t.i = 2.75;
     Object* dummy = CALL_GENERATED_CODE(f, &t, 0, 0, 0, 0);
     USE(dummy);
     CHECK_EQ(1.5e14, t.a);
@@ -338,6 +349,7 @@ TEST(MIPS3) {
     CHECK_EQ(1.8066e16, t.e);
     CHECK_EQ(120.44, t.f);
     CHECK_EQ(10.97451593465515908537, t.g);
+    CHECK_EQ(6.875, t.h);
   }
 }
 

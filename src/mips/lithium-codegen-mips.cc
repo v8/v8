@@ -1143,6 +1143,18 @@ void LCodeGen::DoDivI(LDivI* instr) {
 }
 
 
+void LCodeGen::DoMultiplyAddD(LMultiplyAddD* instr) {
+  DoubleRegister addend = ToDoubleRegister(instr->addend());
+  DoubleRegister multiplier = ToDoubleRegister(instr->multiplier());
+  DoubleRegister multiplicand = ToDoubleRegister(instr->multiplicand());
+
+  // This is computed in-place.
+  ASSERT(addend.is(ToDoubleRegister(instr->result())));
+
+  __ madd_d(addend, addend, multiplier, multiplicand);
+}
+
+
 void LCodeGen::DoMulI(LMulI* instr) {
   Register scratch = scratch0();
   Register result = ToRegister(instr->result());

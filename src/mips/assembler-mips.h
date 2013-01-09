@@ -805,6 +805,7 @@ class Assembler : public AssemblerBase {
   void add_d(FPURegister fd, FPURegister fs, FPURegister ft);
   void sub_d(FPURegister fd, FPURegister fs, FPURegister ft);
   void mul_d(FPURegister fd, FPURegister fs, FPURegister ft);
+  void madd_d(FPURegister fd, FPURegister fr, FPURegister fs, FPURegister ft);
   void div_d(FPURegister fd, FPURegister fs, FPURegister ft);
   void abs_d(FPURegister fd, FPURegister fs);
   void mov_d(FPURegister fd, FPURegister fs);
@@ -1140,6 +1141,13 @@ class Assembler : public AssemblerBase {
 
   void GenInstrRegister(Opcode opcode,
                         SecondaryField fmt,
+                        FPURegister ft,
+                        FPURegister fs,
+                        FPURegister fd,
+                        SecondaryField func = NULLSF);
+
+  void GenInstrRegister(Opcode opcode,
+                        FPURegister fr,
                         FPURegister ft,
                         FPURegister fs,
                         FPURegister fd,
