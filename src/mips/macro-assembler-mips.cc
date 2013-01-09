@@ -5449,6 +5449,27 @@ void MacroAssembler::ClampDoubleToUint8(Register result_reg,
 }
 
 
+void MacroAssembler::TestJSArrayForAllocationSiteInfo(
+    Register receiver_reg,
+    Register scratch_reg,
+    Label* allocation_info_present) {
+  Label no_info_available;
+  ExternalReference new_space_start =
+      ExternalReference::new_space_start(isolate());
+  ExternalReference new_space_allocation_top =
+      ExternalReference::new_space_allocation_top_address(isolate());
+  lw(scratch_reg, FieldMemOperand(receiver_reg,
+                                  JSArray::kSize + AllocationSiteInfo::kSize));
+  Branch(&no_info_available, lt, scratch_reg, Operand(new_space_start));
+  Branch(&no_info_available, hs, scratch_reg,
+      Operand(new_space_allocation_top));
+  lw(scratch_reg, MemOperand(scratch_reg));
+  Branch(allocation_info_present, eq, scratch_reg,
+      Operand(Handle<Map>(isolate()->heap()->allocation_site_info_map())));
+  bind(&no_info_available);
+}
+
+
 bool AreAliased(Register r1, Register r2, Register r3, Register r4) {
   if (r1.is(r2)) return true;
   if (r1.is(r3)) return true;
