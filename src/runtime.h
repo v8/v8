@@ -104,6 +104,7 @@ namespace internal {
   F(StoreArrayLiteralElement, 5, 1) \
   F(DebugCallbackSupportsStepping, 1, 1) \
   F(DebugPrepareStepInIfStepping, 1, 1) \
+  F(FlattenString, 1, 1) \
   \
   /* Array join support */ \
   F(PushIfAbsent, 2, 1) \
