@@ -1043,8 +1043,8 @@ Failure* Failure::Exception() {
 }
 
 
-Failure* Failure::OutOfMemoryException() {
-  return Construct(OUT_OF_MEMORY_EXCEPTION);
+Failure* Failure::OutOfMemoryException(intptr_t value) {
+  return Construct(OUT_OF_MEMORY_EXCEPTION, value);
 }
 
 

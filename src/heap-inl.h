@@ -134,7 +134,7 @@ MaybeObject* Heap::AllocateInternalSymbol(T t, int chars, uint32_t hash_field) {
 MaybeObject* Heap::AllocateOneByteSymbol(Vector<const uint8_t> str,
                                        uint32_t hash_field) {
   if (str.length() > SeqOneByteString::kMaxLength) {
-    return Failure::OutOfMemoryException();
+    return Failure::OutOfMemoryException(0x2);
   }
   // Compute map and object size.
   Map* map = ascii_symbol_map();
@@ -168,7 +168,7 @@ MaybeObject* Heap::AllocateOneByteSymbol(Vector<const uint8_t> str,
 MaybeObject* Heap::AllocateTwoByteSymbol(Vector<const uc16> str,
                                          uint32_t hash_field) {
   if (str.length() > SeqTwoByteString::kMaxLength) {
-    return Failure::OutOfMemoryException();
+    return Failure::OutOfMemoryException(0x3);
   }
   // Compute map and object size.
   Map* map = symbol_map();

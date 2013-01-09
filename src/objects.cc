@@ -11640,7 +11640,7 @@ MaybeObject* HashTable<Shape, Key>::Allocate(int at_least_space_for,
                      ? at_least_space_for
                      : ComputeCapacity(at_least_space_for);
   if (capacity > HashTable::kMaxCapacity) {
-    return Failure::OutOfMemoryException();
+    return Failure::OutOfMemoryException(0x10);
   }
 
   Object* obj;

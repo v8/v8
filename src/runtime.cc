@@ -1804,25 +1804,27 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_RegExpInitializeObject) {
   result = regexp->SetLocalPropertyIgnoreAttributes(heap->source_symbol(),
                                                     source,
                                                     final);
-  ASSERT(!result->IsFailure());
+  // TODO(jkummerow): Turn these back into ASSERTs when we can be certain
+  // that it never fires in Release mode in the wild.
+  CHECK(!result->IsFailure());
   result = regexp->SetLocalPropertyIgnoreAttributes(heap->global_symbol(),
                                                     global,
                                                     final);
-  ASSERT(!result->IsFailure());
+  CHECK(!result->IsFailure());
   result =
       regexp->SetLocalPropertyIgnoreAttributes(heap->ignore_case_symbol(),
                                                ignoreCase,
                                                final);
-  ASSERT(!result->IsFailure());
+  CHECK(!result->IsFailure());
   result = regexp->SetLocalPropertyIgnoreAttributes(heap->multiline_symbol(),
                                                     multiline,
                                                     final);
-  ASSERT(!result->IsFailure());
+  CHECK(!result->IsFailure());
   result =
       regexp->SetLocalPropertyIgnoreAttributes(heap->last_index_symbol(),
                                                Smi::FromInt(0),
                                                writable);
-  ASSERT(!result->IsFailure());
+  CHECK(!result->IsFailure());
   USE(result);
   return regexp;
 }
@@ -2913,7 +2915,7 @@ MUST_USE_RESULT static MaybeObject* StringReplaceAtomRegExpWithString(
        static_cast<int64_t>(pattern_len)) *
       static_cast<int64_t>(matches) +
       static_cast<int64_t>(subject_len);
-  if (result_len_64 > INT_MAX) return Failure::OutOfMemoryException();
+  if (result_len_64 > INT_MAX) return Failure::OutOfMemoryException(0x11);
   int result_len = static_cast<int>(result_len_64);
 
   int subject_pos = 0;
@@ -5160,7 +5162,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_URIEscape) {
       ASSERT(String::kMaxLength < 0x7fffffff - 6);  // Cannot overflow.
       if (escaped_length > String::kMaxLength) {
         isolate->context()->mark_out_of_memory();
-        return Failure::OutOfMemoryException();
+        return Failure::OutOfMemoryException(0x12);
       }
     }
   }
@@ -5767,7 +5769,7 @@ MUST_USE_RESULT static MaybeObject* ConvertCaseHelper(
         current_length += char_length;
         if (current_length > Smi::kMaxValue) {
           isolate->context()->mark_out_of_memory();
-          return Failure::OutOfMemoryException();
+          return Failure::OutOfMemoryException(0x13);
         }
       }
       // Try again with the real length.
@@ -6437,7 +6439,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringBuilderConcat) {
   CONVERT_ARG_CHECKED(JSArray, array, 0);
   if (!args[1]->IsSmi()) {
     isolate->context()->mark_out_of_memory();
-    return Failure::OutOfMemoryException();
+    return Failure::OutOfMemoryException(0x14);
   }
   int array_length = args.smi_at(1);
   CONVERT_ARG_CHECKED(String, special, 2);
@@ -6514,7 +6516,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringBuilderConcat) {
     }
     if (increment > String::kMaxLength - position) {
       isolate->context()->mark_out_of_memory();
-      return Failure::OutOfMemoryException();
+      return Failure::OutOfMemoryException(0x15);
     }
     position += increment;
   }
@@ -6554,7 +6556,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringBuilderJoin) {
   CONVERT_ARG_CHECKED(JSArray, array, 0);
   if (!args[1]->IsSmi()) {
     isolate->context()->mark_out_of_memory();
-    return Failure::OutOfMemoryException();
+    return Failure::OutOfMemoryException(0x16);
   }
   int array_length = args.smi_at(1);
   CONVERT_ARG_CHECKED(String, separator, 2);
@@ -6579,7 +6581,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringBuilderJoin) {
       (String::kMaxLength + separator_length - 1) / separator_length;
   if (max_nof_separators < (array_length - 1)) {
       isolate->context()->mark_out_of_memory();
-      return Failure::OutOfMemoryException();
+      return Failure::OutOfMemoryException(0x17);
   }
   int length = (array_length - 1) * separator_length;
   for (int i = 0; i < array_length; i++) {
@@ -6592,7 +6594,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringBuilderJoin) {
     int increment = element->length();
     if (increment > String::kMaxLength - length) {
       isolate->context()->mark_out_of_memory();
-      return Failure::OutOfMemoryException();
+      return Failure::OutOfMemoryException(0x18);
     }
     length += increment;
   }

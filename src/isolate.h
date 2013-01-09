@@ -615,7 +615,7 @@ class Isolate {
   bool IsExternallyCaught();
 
   bool is_catchable_by_javascript(MaybeObject* exception) {
-    return (exception != Failure::OutOfMemoryException()) &&
+    return (!exception->IsOutOfMemory()) &&
         (exception != heap()->termination_exception());
   }
 

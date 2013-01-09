@@ -3362,7 +3362,7 @@ MaybeObject* Heap::AllocateConsString(String* first, String* second) {
   // of the new cons string is too large.
   if (length > String::kMaxLength || length < 0) {
     isolate()->context()->mark_out_of_memory();
-    return Failure::OutOfMemoryException();
+    return Failure::OutOfMemoryException(0x4);
   }
 
   bool is_ascii_data_in_two_byte_string = false;
@@ -3550,7 +3550,7 @@ MaybeObject* Heap::AllocateExternalStringFromAscii(
   size_t length = resource->length();
   if (length > static_cast<size_t>(String::kMaxLength)) {
     isolate()->context()->mark_out_of_memory();
-    return Failure::OutOfMemoryException();
+    return Failure::OutOfMemoryException(0x5);
   }
 
   ASSERT(String::IsAscii(resource->data(), static_cast<int>(length)));
@@ -3575,7 +3575,7 @@ MaybeObject* Heap::AllocateExternalStringFromTwoByte(
   size_t length = resource->length();
   if (length > static_cast<size_t>(String::kMaxLength)) {
     isolate()->context()->mark_out_of_memory();
-    return Failure::OutOfMemoryException();
+    return Failure::OutOfMemoryException(0x6);
   }
 
   // For small strings we check whether the resource contains only
@@ -3627,7 +3627,7 @@ MaybeObject* Heap::LookupSingleCharacterStringFromCode(uint16_t code) {
 
 MaybeObject* Heap::AllocateByteArray(int length, PretenureFlag pretenure) {
   if (length < 0 || length > ByteArray::kMaxLength) {
-    return Failure::OutOfMemoryException();
+    return Failure::OutOfMemoryException(0x7);
   }
   if (pretenure == NOT_TENURED) {
     return AllocateByteArray(length);
@@ -3649,7 +3649,7 @@ MaybeObject* Heap::AllocateByteArray(int length, PretenureFlag pretenure) {
 
 MaybeObject* Heap::AllocateByteArray(int length) {
   if (length < 0 || length > ByteArray::kMaxLength) {
-    return Failure::OutOfMemoryException();
+    return Failure::OutOfMemoryException(0x8);
   }
   int size = ByteArray::SizeFor(length);
   AllocationSpace space =
@@ -4700,13 +4700,13 @@ MaybeObject* Heap::AllocateInternalSymbol(T t,
 
   if (is_one_byte) {
     if (chars > SeqOneByteString::kMaxLength) {
-      return Failure::OutOfMemoryException();
+      return Failure::OutOfMemoryException(0x9);
     }
     map = ascii_symbol_map();
     size = SeqOneByteString::SizeFor(chars);
   } else {
     if (chars > SeqTwoByteString::kMaxLength) {
-      return Failure::OutOfMemoryException();
+      return Failure::OutOfMemoryException(0xa);
     }
     map = symbol_map();
     size = SeqTwoByteString::SizeFor(chars);
@@ -4751,7 +4751,7 @@ MaybeObject* Heap::AllocateInternalSymbol<false>(Vector<const char>,
 MaybeObject* Heap::AllocateRawOneByteString(int length,
                                             PretenureFlag pretenure) {
   if (length < 0 || length > SeqOneByteString::kMaxLength) {
-    return Failure::OutOfMemoryException();
+    return Failure::OutOfMemoryException(0xb);
   }
 
   int size = SeqOneByteString::SizeFor(length);
@@ -4799,7 +4799,7 @@ MaybeObject* Heap::AllocateRawOneByteString(int length,
 MaybeObject* Heap::AllocateRawTwoByteString(int length,
                                             PretenureFlag pretenure) {
   if (length < 0 || length > SeqTwoByteString::kMaxLength) {
-    return Failure::OutOfMemoryException();
+    return Failure::OutOfMemoryException(0xc);
   }
   int size = SeqTwoByteString::SizeFor(length);
   ASSERT(size <= SeqTwoByteString::kMaxSize);
@@ -4868,7 +4868,7 @@ MaybeObject* Heap::AllocateEmptyFixedArray() {
 
 MaybeObject* Heap::AllocateRawFixedArray(int length) {
   if (length < 0 || length > FixedArray::kMaxLength) {
-    return Failure::OutOfMemoryException();
+    return Failure::OutOfMemoryException(0xd);
   }
   ASSERT(length > 0);
   // Use the general function if we're forced to always allocate.
@@ -4944,7 +4944,7 @@ MaybeObject* Heap::AllocateFixedArray(int length) {
 
 MaybeObject* Heap::AllocateRawFixedArray(int length, PretenureFlag pretenure) {
   if (length < 0 || length > FixedArray::kMaxLength) {
-    return Failure::OutOfMemoryException();
+    return Failure::OutOfMemoryException(0xe);
   }
 
   AllocationSpace space =
@@ -5077,7 +5077,7 @@ MaybeObject* Heap::AllocateFixedDoubleArrayWithHoles(
 MaybeObject* Heap::AllocateRawFixedDoubleArray(int length,
                                                PretenureFlag pretenure) {
   if (length < 0 || length > FixedDoubleArray::kMaxLength) {
-    return Failure::OutOfMemoryException();
+    return Failure::OutOfMemoryException(0xf);
   }
 
   AllocationSpace space =

@@ -3932,6 +3932,18 @@ void CEntryStub::GenerateAheadOfTime() {
 }
 
 
+static void JumpIfOOM(MacroAssembler* masm,
+                      Register value,
+                      Register scratch,
+                      Label* oom_label) {
+  STATIC_ASSERT(Failure::OUT_OF_MEMORY_EXCEPTION == 3);
+  STATIC_ASSERT(kFailureTag == 3);
+  __ and_(scratch, value, Operand(0xf));
+  __ cmp(scratch, Operand(0xf));
+  __ b(eq, oom_label);
+}
+
+
 void CEntryStub::GenerateCore(MacroAssembler* masm,
                               Label* throw_normal_exception,
                               Label* throw_termination_exception,
@@ -4031,9 +4043,7 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   __ b(eq, &retry);
 
   // Special handling of out of memory exceptions.
-  Failure* out_of_memory = Failure::OutOfMemoryException();
-  __ cmp(r0, Operand(reinterpret_cast<int32_t>(out_of_memory)));
-  __ b(eq, throw_out_of_memory_exception);
+  JumpIfOOM(masm, r0, ip, throw_out_of_memory_exception);
 
   // Retrieve the pending exception and clear the variable.
   __ mov(r3, Operand(isolate->factory()->the_hole_value()));
@@ -4125,8 +4135,11 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   __ str(r0, MemOperand(r2));
 
   // Set pending exception and r0 to out of memory exception.
-  Failure* out_of_memory = Failure::OutOfMemoryException();
+  Label already_have_failure;
+  JumpIfOOM(masm, r0, ip, &already_have_failure);
+  Failure* out_of_memory = Failure::OutOfMemoryException(0x1);
   __ mov(r0, Operand(reinterpret_cast<int32_t>(out_of_memory)));
+  __ bind(&already_have_failure);
   __ mov(r2, Operand(ExternalReference(Isolate::kPendingExceptionAddress,
                                        isolate)));
   __ str(r0, MemOperand(r2));

@@ -1144,7 +1144,9 @@ class Failure: public MaybeObject {
   static inline Failure* RetryAfterGC();  // NEW_SPACE
   static inline Failure* Exception();
   static inline Failure* InternalError();
-  static inline Failure* OutOfMemoryException();
+  // TODO(jkummerow): The value is temporary instrumentation. Remove it
+  // when it has served its purpose.
+  static inline Failure* OutOfMemoryException(intptr_t value);
   // Casting.
   static inline Failure* cast(MaybeObject* object);
 

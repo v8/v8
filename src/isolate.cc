@@ -1344,7 +1344,7 @@ void Isolate::ReportPendingMessages() {
   // since the GenerateThrowOutOfMemory stub cannot make a RuntimeCall to
   // set it.
   HandleScope scope;
-  if (thread_local_top_.pending_exception_ == Failure::OutOfMemoryException()) {
+  if (thread_local_top_.pending_exception_->IsOutOfMemory()) {
     context()->mark_out_of_memory();
   } else if (thread_local_top_.pending_exception_ ==
              heap()->termination_exception()) {
@@ -1375,7 +1375,7 @@ void Isolate::ReportPendingMessages() {
 MessageLocation Isolate::GetMessageLocation() {
   ASSERT(has_pending_exception());
 
-  if (thread_local_top_.pending_exception_ != Failure::OutOfMemoryException() &&
+  if (!thread_local_top_.pending_exception_->IsOutOfMemory() &&
       thread_local_top_.pending_exception_ != heap()->termination_exception() &&
       thread_local_top_.has_pending_message_ &&
       !thread_local_top_.pending_message_obj_->IsTheHole() &&
@@ -1889,7 +1889,7 @@ void Isolate::PropagatePendingExceptionToExternalTryCatch() {
 
   if (!external_caught) return;
 
-  if (thread_local_top_.pending_exception_ == Failure::OutOfMemoryException()) {
+  if (thread_local_top_.pending_exception_->IsOutOfMemory()) {
     // Do not propagate OOM exception: we should kill VM asap.
   } else if (thread_local_top_.pending_exception_ ==
              heap()->termination_exception()) {

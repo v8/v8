@@ -3927,6 +3927,19 @@ void CEntryStub::GenerateAheadOfTime() {
 }
 
 
+static void JumpIfOOM(MacroAssembler* masm,
+                      Register value,
+                      Register scratch,
+                      Label* oom_label) {
+  __ movq(scratch, value);
+  STATIC_ASSERT(Failure::OUT_OF_MEMORY_EXCEPTION == 3);
+  STATIC_ASSERT(kFailureTag == 3);
+  __ and_(scratch, Immediate(0xf));
+  __ cmpq(scratch, Immediate(0xf));
+  __ j(equal, oom_label);
+}
+
+
 void CEntryStub::GenerateCore(MacroAssembler* masm,
                               Label* throw_normal_exception,
                               Label* throw_termination_exception,
@@ -4040,9 +4053,7 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   __ j(zero, &retry, Label::kNear);
 
   // Special handling of out of memory exceptions.
-  __ movq(kScratchRegister, Failure::OutOfMemoryException(), RelocInfo::NONE64);
-  __ cmpq(rax, kScratchRegister);
-  __ j(equal, throw_out_of_memory_exception);
+  JumpIfOOM(masm, rax, kScratchRegister, throw_out_of_memory_exception);
 
   // Retrieve the pending exception and clear the variable.
   ExternalReference pending_exception_address(
@@ -4139,7 +4150,10 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   // Set pending exception and rax to out of memory exception.
   ExternalReference pending_exception(Isolate::kPendingExceptionAddress,
                                       isolate);
-  __ movq(rax, Failure::OutOfMemoryException(), RelocInfo::NONE64);
+  Label already_have_failure;
+  JumpIfOOM(masm, rax, kScratchRegister, &already_have_failure);
+  __ movq(rax, Failure::OutOfMemoryException(0x1), RelocInfo::NONE64);
+  __ bind(&already_have_failure);
   __ Store(pending_exception, rax);
   // Fall through to the next label.
 
