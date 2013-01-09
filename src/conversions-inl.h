@@ -212,7 +212,7 @@ double InternalStringToIntDouble(UnicodeCache* unicode_cache,
       }
 
       // Rounding up may cause overflow.
-      if ((number & ((int64_t)1 << 53)) != 0) {
+      if ((number & (static_cast<int64_t>(1) << 53)) != 0) {
         exponent++;
         number >>= 1;
       }

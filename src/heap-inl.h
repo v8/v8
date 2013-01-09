@@ -112,10 +112,12 @@ bool inline Heap::IsOneByte(String* str, int chars) {
 }
 
 
-MaybeObject* Heap::AllocateSymbol(Vector<const char> str,
-                                  int chars,
-                                  uint32_t hash_field) {
-  if (IsOneByte(str, chars)) return AllocateAsciiSymbol(str, hash_field);
+MaybeObject* Heap::AllocateSymbolFromUtf8(Vector<const char> str,
+                                          int chars,
+                                          uint32_t hash_field) {
+  if (IsOneByte(str, chars)) {
+    return AllocateOneByteSymbol(Vector<const uint8_t>::cast(str), hash_field);
+  }
   return AllocateInternalSymbol<false>(str, chars, hash_field);
 }
 
@@ -129,10 +131,10 @@ MaybeObject* Heap::AllocateInternalSymbol(T t, int chars, uint32_t hash_field) {
 }
 
 
-MaybeObject* Heap::AllocateAsciiSymbol(Vector<const char> str,
+MaybeObject* Heap::AllocateOneByteSymbol(Vector<const uint8_t> str,
                                        uint32_t hash_field) {
   if (str.length() > SeqOneByteString::kMaxLength) {
-    return Failure::OutOfMemoryException();
+    return Failure::OutOfMemoryException(0x2);
   }
   // Compute map and object size.
   Map* map = ascii_symbol_map();
@@ -166,7 +168,7 @@ MaybeObject* Heap::AllocateAsciiSymbol(Vector<const char> str,
 MaybeObject* Heap::AllocateTwoByteSymbol(Vector<const uc16> str,
                                          uint32_t hash_field) {
   if (str.length() > SeqTwoByteString::kMaxLength) {
-    return Failure::OutOfMemoryException();
+    return Failure::OutOfMemoryException(0x3);
   }
   // Compute map and object size.
   Map* map = symbol_map();
@@ -261,8 +263,9 @@ MaybeObject* Heap::NumberFromInt32(
 
 MaybeObject* Heap::NumberFromUint32(
     uint32_t value, PretenureFlag pretenure) {
-  if ((int32_t)value >= 0 && Smi::IsValid((int32_t)value)) {
-    return Smi::FromInt((int32_t)value);
+  if (static_cast<int32_t>(value) >= 0 &&
+      Smi::IsValid(static_cast<int32_t>(value))) {
+    return Smi::FromInt(static_cast<int32_t>(value));
   }
   // Bypass NumberFromDouble to avoid various redundant checks.
   return AllocateHeapNumber(FastUI2D(value), pretenure);

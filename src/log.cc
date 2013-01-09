@@ -384,7 +384,10 @@ class Logger::NameBuffer {
     if (str == NULL) return;
     if (str->HasOnlyAsciiChars()) {
       int utf8_length = Min(str->length(), kUtf8BufferSize - utf8_pos_);
-      String::WriteToFlat(str, utf8_buffer_ + utf8_pos_, 0, utf8_length);
+      String::WriteToFlat(str,
+                          reinterpret_cast<uint8_t*>(utf8_buffer_ + utf8_pos_),
+                          0,
+                          utf8_length);
       utf8_pos_ += utf8_length;
       return;
     }
@@ -393,7 +396,7 @@ class Logger::NameBuffer {
     int previous = unibrow::Utf16::kNoPreviousCharacter;
     for (int i = 0; i < uc16_length && utf8_pos_ < kUtf8BufferSize; ++i) {
       uc16 c = utf16_buffer[i];
-      if (c <= String::kMaxAsciiCharCodeU) {
+      if (c <= unibrow::Utf8::kMaxOneByteChar) {
         utf8_buffer_[utf8_pos_++] = static_cast<char>(c);
       } else {
         int char_length = unibrow::Utf8::Length(c, previous);

@@ -450,7 +450,7 @@ class HEnvironment: public ZoneObject {
   // Simple accessors.
   Handle<JSFunction> closure() const { return closure_; }
   const ZoneList<HValue*>* values() const { return &values_; }
-  const ZoneList<int>* assigned_variables() const {
+  const GrowableBitVector* assigned_variables() const {
     return &assigned_variables_;
   }
   FrameType frame_type() const { return frame_type_; }
@@ -557,7 +557,7 @@ class HEnvironment: public ZoneObject {
   void ClearHistory() {
     pop_count_ = 0;
     push_count_ = 0;
-    assigned_variables_.Rewind(0);
+    assigned_variables_.Clear();
   }
 
   void SetValueAt(int index, HValue* value) {
@@ -606,7 +606,7 @@ class HEnvironment: public ZoneObject {
   Handle<JSFunction> closure_;
   // Value array [parameters] [specials] [locals] [temporaries].
   ZoneList<HValue*> values_;
-  ZoneList<int> assigned_variables_;
+  GrowableBitVector assigned_variables_;
   FrameType frame_type_;
   int parameter_count_;
   int specials_count_;

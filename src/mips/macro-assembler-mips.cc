@@ -118,8 +118,8 @@ void MacroAssembler::PopSafepointRegisters() {
 
 void MacroAssembler::PushSafepointRegistersAndDoubles() {
   PushSafepointRegisters();
-  Subu(sp, sp, Operand(FPURegister::kNumAllocatableRegisters * kDoubleSize));
-  for (int i = 0; i < FPURegister::kNumAllocatableRegisters; i+=2) {
+  Subu(sp, sp, Operand(FPURegister::NumAllocatableRegisters() * kDoubleSize));
+  for (int i = 0; i < FPURegister::NumAllocatableRegisters(); i+=2) {
     FPURegister reg = FPURegister::FromAllocationIndex(i);
     sdc1(reg, MemOperand(sp, i * kDoubleSize));
   }
@@ -127,11 +127,11 @@ void MacroAssembler::PushSafepointRegistersAndDoubles() {
 
 
 void MacroAssembler::PopSafepointRegistersAndDoubles() {
-  for (int i = 0; i < FPURegister::kNumAllocatableRegisters; i+=2) {
+  for (int i = 0; i < FPURegister::NumAllocatableRegisters(); i+=2) {
     FPURegister reg = FPURegister::FromAllocationIndex(i);
     ldc1(reg, MemOperand(sp, i * kDoubleSize));
   }
-  Addu(sp, sp, Operand(FPURegister::kNumAllocatableRegisters * kDoubleSize));
+  Addu(sp, sp, Operand(FPURegister::NumAllocatableRegisters() * kDoubleSize));
   PopSafepointRegisters();
 }
 
@@ -167,7 +167,7 @@ MemOperand MacroAssembler::SafepointRegisterSlot(Register reg) {
 MemOperand MacroAssembler::SafepointRegistersAndDoublesSlot(Register reg) {
   UNIMPLEMENTED_MIPS();
   // General purpose registers are pushed last on the stack.
-  int doubles_size = FPURegister::kNumAllocatableRegisters * kDoubleSize;
+  int doubles_size = FPURegister::NumAllocatableRegisters() * kDoubleSize;
   int register_offset = SafepointRegisterStackIndex(reg.code()) * kPointerSize;
   return MemOperand(sp, doubles_size + register_offset);
 }
@@ -3935,12 +3935,13 @@ void MacroAssembler::GetObjectType(Register object,
 // Runtime calls.
 
 void MacroAssembler::CallStub(CodeStub* stub,
+                              TypeFeedbackId ast_id,
                               Condition cond,
                               Register r1,
                               const Operand& r2,
                               BranchDelaySlot bd) {
   ASSERT(AllowThisStubCall(stub));  // Stub calls are not allowed in some stubs.
-  Call(stub->GetCode(), RelocInfo::CODE_TARGET, TypeFeedbackId::None(),
+  Call(stub->GetCode(), RelocInfo::CODE_TARGET, ast_id,
        cond, r1, r2, bd);
 }
 
@@ -4249,7 +4250,10 @@ void MacroAssembler::CallRuntimeSaveDoubles(Runtime::FunctionId id) {
   const Runtime::Function* function = Runtime::FunctionForId(id);
   PrepareCEntryArgs(function->nargs);
   PrepareCEntryFunction(ExternalReference(function, isolate()));
-  CEntryStub stub(1, kSaveFPRegs);
+  SaveFPRegsMode mode = CpuFeatures::IsSupported(FPU)
+      ? kSaveFPRegs
+      : kDontSaveFPRegs;
+  CEntryStub stub(1, mode);
   CallStub(&stub);
 }
 
@@ -4266,7 +4270,7 @@ void MacroAssembler::CallExternalReference(const ExternalReference& ext,
   PrepareCEntryFunction(ext);
 
   CEntryStub stub(1);
-  CallStub(&stub, al, zero_reg, Operand(zero_reg), bd);
+  CallStub(&stub, TypeFeedbackId::None(), al, zero_reg, Operand(zero_reg), bd);
 }
 
 
@@ -5442,6 +5446,27 @@ void MacroAssembler::ClampDoubleToUint8(Register result_reg,
   cvt_w_d(temp_double_reg, input_reg);
   mfc1(result_reg, temp_double_reg);
   bind(&done);
+}
+
+
+void MacroAssembler::TestJSArrayForAllocationSiteInfo(
+    Register receiver_reg,
+    Register scratch_reg,
+    Label* allocation_info_present) {
+  Label no_info_available;
+  ExternalReference new_space_start =
+      ExternalReference::new_space_start(isolate());
+  ExternalReference new_space_allocation_top =
+      ExternalReference::new_space_allocation_top_address(isolate());
+  lw(scratch_reg, FieldMemOperand(receiver_reg,
+                                  JSArray::kSize + AllocationSiteInfo::kSize));
+  Branch(&no_info_available, lt, scratch_reg, Operand(new_space_start));
+  Branch(&no_info_available, hs, scratch_reg,
+      Operand(new_space_allocation_top));
+  lw(scratch_reg, MemOperand(scratch_reg));
+  Branch(allocation_info_present, eq, scratch_reg,
+      Operand(Handle<Map>(isolate()->heap()->allocation_site_info_map())));
+  bind(&no_info_available);
 }
 
 

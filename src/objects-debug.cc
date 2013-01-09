@@ -473,7 +473,9 @@ void String::StringVerify() {
 
 
 void SeqOneByteString::SeqOneByteStringVerify() {
-  CHECK(String::IsAscii(GetChars(), length()));
+#ifndef ENABLE_LATIN_1
+  CHECK(!HasOnlyAsciiChars() || String::IsAscii(GetChars(), length()));
+#endif
 }
 
 
@@ -771,6 +773,13 @@ void SignatureInfo::SignatureInfoVerify() {
 void TypeSwitchInfo::TypeSwitchInfoVerify() {
   CHECK(IsTypeSwitchInfo());
   VerifyPointer(types());
+}
+
+
+void AllocationSiteInfo::AllocationSiteInfoVerify() {
+  CHECK(IsAllocationSiteInfo());
+  VerifyHeapPointer(payload());
+  CHECK(payload()->IsObject());
 }
 
 

@@ -25,9 +25,6 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-assertEquals(String.fromCharCode(97, 220, 256), 'a' + '\u00DC' + '\u0100');
-assertEquals(String.fromCharCode(97, 220, 256), 'a\u00DC\u0100');
-
-assertEquals(['a', 'b', '\xdc'], ['b', '\xdc', 'a'].sort());
-assertEquals(['\xfc\xdc', '\xfc'], new RegExp('(\xdc)\\1', 'i').exec('\xfc\xdc'));
-
+var o = {};
+Object.defineProperty(o, "length", { get: function() { throw "bail"; }});
+assertThrows("new Int16Array(o);");

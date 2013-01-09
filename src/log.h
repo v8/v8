@@ -127,10 +127,10 @@ class Isolate;
   V(EVAL_TAG,                       "Eval")                             \
   V(FUNCTION_TAG,                   "Function")                         \
   V(KEYED_LOAD_IC_TAG,              "KeyedLoadIC")                      \
-  V(KEYED_LOAD_MEGAMORPHIC_IC_TAG,  "KeyedLoadMegamorphicIC")           \
+  V(KEYED_LOAD_POLYMORPHIC_IC_TAG,  "KeyedLoadPolymorphicIC")           \
   V(KEYED_EXTERNAL_ARRAY_LOAD_IC_TAG, "KeyedExternalArrayLoadIC")       \
   V(KEYED_STORE_IC_TAG,             "KeyedStoreIC")                     \
-  V(KEYED_STORE_MEGAMORPHIC_IC_TAG, "KeyedStoreMegamorphicIC")          \
+  V(KEYED_STORE_POLYMORPHIC_IC_TAG, "KeyedStorePolymorphicIC")          \
   V(KEYED_EXTERNAL_ARRAY_STORE_IC_TAG, "KeyedExternalArrayStoreIC")     \
   V(LAZY_COMPILE_TAG,               "LazyCompile")                      \
   V(LOAD_IC_TAG,                    "LoadIC")                           \

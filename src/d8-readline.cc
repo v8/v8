@@ -25,8 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-
 #include <cstdio>  // NOLINT
+#include <string.h> // NOLINT
 #include <readline/readline.h> // NOLINT
 #include <readline/history.h> // NOLINT
 
@@ -34,7 +34,6 @@
 #undef RETURN
 
 #include "d8.h"
-
 
 // There are incompatibilities between different versions and different
 // implementations of readline.  This smooths out one known incompatibility.
@@ -58,8 +57,10 @@ class ReadLineEditor: public LineEditor {
   static const int kMaxHistoryEntries;
 
  private:
+#ifndef V8_SHARED
   static char** AttemptedCompletion(const char* text, int start, int end);
   static char* CompletionGenerator(const char* text, int state);
+#endif  // V8_SHARED
   static char kWordBreakCharacters[];
 };
 
@@ -76,7 +77,15 @@ const int ReadLineEditor::kMaxHistoryEntries = 1000;
 
 bool ReadLineEditor::Open() {
   rl_initialize();
+
+#ifdef V8_SHARED
+  // Don't do completion on shared library mode
+  // http://cnswww.cns.cwru.edu/php/chet/readline/readline.html#SEC24
+  rl_bind_key('\t', rl_insert);
+#else
   rl_attempted_completion_function = AttemptedCompletion;
+#endif  // V8_SHARED
+
   rl_completer_word_break_characters = kWordBreakCharacters;
   rl_bind_key('\t', rl_complete);
   using_history();
@@ -122,6 +131,7 @@ void ReadLineEditor::AddHistory(const char* str) {
 }
 
 
+#ifndef V8_SHARED
 char** ReadLineEditor::AttemptedCompletion(const char* text,
                                            int start,
                                            int end) {
@@ -155,6 +165,7 @@ char* ReadLineEditor::CompletionGenerator(const char* text, int state) {
     return NULL;
   }
 }
+#endif  // V8_SHARED
 
 
 }  // namespace v8

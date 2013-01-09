@@ -66,7 +66,7 @@ Operand::Operand(const ExternalReference& f)  {
 Operand::Operand(Smi* value) {
   rm_ = no_reg;
   imm32_ =  reinterpret_cast<intptr_t>(value);
-  rmode_ = RelocInfo::NONE;
+  rmode_ = RelocInfo::NONE32;
 }
 
 
@@ -80,9 +80,36 @@ bool Operand::is_reg() const {
 }
 
 
+int Register::NumAllocatableRegisters() {
+  if (CpuFeatures::IsSupported(FPU)) {
+    return kMaxNumAllocatableRegisters;
+  } else {
+    return kMaxNumAllocatableRegisters - kGPRsPerNonFPUDouble;
+  }
+}
+
+
+int DoubleRegister::NumRegisters() {
+  if (CpuFeatures::IsSupported(FPU)) {
+    return FPURegister::kNumRegisters;
+  } else {
+    return 1;
+  }
+}
+
+
+int DoubleRegister::NumAllocatableRegisters() {
+  if (CpuFeatures::IsSupported(FPU)) {
+    return FPURegister::kMaxNumAllocatableRegisters;
+  } else {
+    return 1;
+  }
+}
+
+
 int FPURegister::ToAllocationIndex(FPURegister reg) {
   ASSERT(reg.code() % 2 == 0);
-  ASSERT(reg.code() / 2 < kNumAllocatableRegisters);
+  ASSERT(reg.code() / 2 < kMaxNumAllocatableRegisters);
   ASSERT(reg.is_valid());
   ASSERT(!reg.is(kDoubleRegZero));
   ASSERT(!reg.is(kLithiumScratchDouble));

@@ -1804,25 +1804,27 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_RegExpInitializeObject) {
   result = regexp->SetLocalPropertyIgnoreAttributes(heap->source_symbol(),
                                                     source,
                                                     final);
-  ASSERT(!result->IsFailure());
+  // TODO(jkummerow): Turn these back into ASSERTs when we can be certain
+  // that it never fires in Release mode in the wild.
+  CHECK(!result->IsFailure());
   result = regexp->SetLocalPropertyIgnoreAttributes(heap->global_symbol(),
                                                     global,
                                                     final);
-  ASSERT(!result->IsFailure());
+  CHECK(!result->IsFailure());
   result =
       regexp->SetLocalPropertyIgnoreAttributes(heap->ignore_case_symbol(),
                                                ignoreCase,
                                                final);
-  ASSERT(!result->IsFailure());
+  CHECK(!result->IsFailure());
   result = regexp->SetLocalPropertyIgnoreAttributes(heap->multiline_symbol(),
                                                     multiline,
                                                     final);
-  ASSERT(!result->IsFailure());
+  CHECK(!result->IsFailure());
   result =
       regexp->SetLocalPropertyIgnoreAttributes(heap->last_index_symbol(),
                                                Smi::FromInt(0),
                                                writable);
-  ASSERT(!result->IsFailure());
+  CHECK(!result->IsFailure());
   USE(result);
   return regexp;
 }
@@ -2405,7 +2407,7 @@ class ReplacementStringBuilder {
     if (is_ascii_) {
       Handle<SeqOneByteString> seq = NewRawOneByteString(character_count_);
       AssertNoAllocation no_alloc;
-      char* char_buffer = seq->GetChars();
+      uint8_t* char_buffer = seq->GetChars();
       StringBuilderConcatHelper(*subject_,
                                 char_buffer,
                                 *array_builder_.array(),
@@ -2662,7 +2664,7 @@ bool CompiledReplacement::Compile(Handle<String> replacement,
     bool simple = false;
     if (content.IsAscii()) {
       simple = ParseReplacementPattern(&parts_,
-                                       content.ToAsciiVector(),
+                                       content.ToOneByteVector(),
                                        capture_count,
                                        subject_length,
                                        zone());
@@ -2738,7 +2740,7 @@ void CompiledReplacement::Apply(ReplacementStringBuilder* builder,
 }
 
 
-void FindAsciiStringIndices(Vector<const char> subject,
+void FindAsciiStringIndices(Vector<const uint8_t> subject,
                             char pattern,
                             ZoneList<int>* indices,
                             unsigned int limit,
@@ -2746,11 +2748,11 @@ void FindAsciiStringIndices(Vector<const char> subject,
   ASSERT(limit > 0);
   // Collect indices of pattern in subject using memchr.
   // Stop after finding at most limit values.
-  const char* subject_start = reinterpret_cast<const char*>(subject.start());
-  const char* subject_end = subject_start + subject.length();
-  const char* pos = subject_start;
+  const uint8_t* subject_start = subject.start();
+  const uint8_t* subject_end = subject_start + subject.length();
+  const uint8_t* pos = subject_start;
   while (limit > 0) {
-    pos = reinterpret_cast<const char*>(
+    pos = reinterpret_cast<const uint8_t*>(
         memchr(pos, pattern, subject_end - pos));
     if (pos == NULL) return;
     indices->Add(static_cast<int>(pos - subject_start), zone);
@@ -2813,9 +2815,10 @@ void FindStringIndicesDispatch(Isolate* isolate,
     ASSERT(subject_content.IsFlat());
     ASSERT(pattern_content.IsFlat());
     if (subject_content.IsAscii()) {
-      Vector<const char> subject_vector = subject_content.ToAsciiVector();
+      Vector<const uint8_t> subject_vector = subject_content.ToOneByteVector();
       if (pattern_content.IsAscii()) {
-        Vector<const char> pattern_vector = pattern_content.ToAsciiVector();
+        Vector<const uint8_t> pattern_vector =
+            pattern_content.ToOneByteVector();
         if (pattern_vector.length() == 1) {
           FindAsciiStringIndices(subject_vector,
                                  pattern_vector[0],
@@ -2841,7 +2844,8 @@ void FindStringIndicesDispatch(Isolate* isolate,
     } else {
       Vector<const uc16> subject_vector = subject_content.ToUC16Vector();
       if (pattern_content.IsAscii()) {
-        Vector<const char> pattern_vector = pattern_content.ToAsciiVector();
+        Vector<const uint8_t> pattern_vector =
+            pattern_content.ToOneByteVector();
         if (pattern_vector.length() == 1) {
           FindTwoByteStringIndices(subject_vector,
                                    pattern_vector[0],
@@ -2913,7 +2917,7 @@ MUST_USE_RESULT static MaybeObject* StringReplaceAtomRegExpWithString(
        static_cast<int64_t>(pattern_len)) *
       static_cast<int64_t>(matches) +
       static_cast<int64_t>(subject_len);
-  if (result_len_64 > INT_MAX) return Failure::OutOfMemoryException();
+  if (result_len_64 > INT_MAX) return Failure::OutOfMemoryException(0x11);
   int result_len = static_cast<int>(result_len_64);
 
   int subject_pos = 0;
@@ -2990,7 +2994,8 @@ MUST_USE_RESULT static MaybeObject* StringReplaceRegExpWithString(
   if (is_global &&
       regexp->TypeTag() == JSRegExp::ATOM &&
       simple_replace) {
-    if (subject->HasOnlyAsciiChars() && replacement->HasOnlyAsciiChars()) {
+    if (subject->IsOneByteConvertible() &&
+        replacement->IsOneByteConvertible()) {
       return StringReplaceAtomRegExpWithString<SeqOneByteString>(
           isolate, subject, regexp, replacement, last_match_info);
     } else {
@@ -3081,7 +3086,7 @@ MUST_USE_RESULT static MaybeObject* StringReplaceRegExpWithEmptyString(
   if (is_global &&
       regexp->TypeTag() == JSRegExp::ATOM) {
     Handle<String> empty_string = isolate->factory()->empty_string();
-    if (subject->HasOnlyAsciiChars()) {
+    if (subject->IsOneByteRepresentation()) {
       return StringReplaceAtomRegExpWithString<SeqOneByteString>(
           isolate,
           subject,
@@ -3210,7 +3215,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringReplaceRegExpWithString) {
   ASSERT(last_match_info->HasFastObjectElements());
 
   if (replacement->length() == 0) {
-    if (subject->HasOnlyAsciiChars()) {
+    if (subject->IsOneByteConvertible()) {
       return StringReplaceRegExpWithEmptyString<SeqOneByteString>(
           isolate, subject, regexp, last_match_info);
     } else {
@@ -3322,10 +3327,10 @@ int Runtime::StringMatch(Isolate* isolate,
 
   // dispatch on type of strings
   if (seq_pat.IsAscii()) {
-    Vector<const char> pat_vector = seq_pat.ToAsciiVector();
+    Vector<const uint8_t> pat_vector = seq_pat.ToOneByteVector();
     if (seq_sub.IsAscii()) {
       return SearchString(isolate,
-                          seq_sub.ToAsciiVector(),
+                          seq_sub.ToOneByteVector(),
                           pat_vector,
                           start_index);
     }
@@ -3337,7 +3342,7 @@ int Runtime::StringMatch(Isolate* isolate,
   Vector<const uc16> pat_vector = seq_pat.ToUC16Vector();
   if (seq_sub.IsAscii()) {
     return SearchString(isolate,
-                        seq_sub.ToAsciiVector(),
+                        seq_sub.ToOneByteVector(),
                         pat_vector,
                         start_index);
   }
@@ -3377,7 +3382,7 @@ static int StringMatchBackwards(Vector<const schar> subject,
   if (sizeof(schar) == 1 && sizeof(pchar) > 1) {
     for (int i = 0; i < pattern_length; i++) {
       uc16 c = pattern[i];
-      if (c > String::kMaxAsciiCharCode) {
+      if (c > String::kMaxOneByteCharCode) {
         return -1;
       }
     }
@@ -3432,9 +3437,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringLastIndexOf) {
   String::FlatContent pat_content = pat->GetFlatContent();
 
   if (pat_content.IsAscii()) {
-    Vector<const char> pat_vector = pat_content.ToAsciiVector();
+    Vector<const uint8_t> pat_vector = pat_content.ToOneByteVector();
     if (sub_content.IsAscii()) {
-      position = StringMatchBackwards(sub_content.ToAsciiVector(),
+      position = StringMatchBackwards(sub_content.ToOneByteVector(),
                                       pat_vector,
                                       start_index);
     } else {
@@ -3445,7 +3450,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringLastIndexOf) {
   } else {
     Vector<const uc16> pat_vector = pat_content.ToUC16Vector();
     if (sub_content.IsAscii()) {
-      position = StringMatchBackwards(sub_content.ToAsciiVector(),
+      position = StringMatchBackwards(sub_content.ToOneByteVector(),
                                       pat_vector,
                                       start_index);
     } else {
@@ -4999,7 +5004,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Typeof) {
 }
 
 
-static bool AreDigits(const char*s, int from, int to) {
+static bool AreDigits(const uint8_t*s, int from, int to) {
   for (int i = from; i < to; i++) {
     if (s[i] < '0' || s[i] > '9') return false;
   }
@@ -5008,7 +5013,7 @@ static bool AreDigits(const char*s, int from, int to) {
 }
 
 
-static int ParseDecimalInteger(const char*s, int from, int to) {
+static int ParseDecimalInteger(const uint8_t*s, int from, int to) {
   ASSERT(to - from < 10);  // Overflow is not possible.
   ASSERT(from < to);
   int d = s[from] - '0';
@@ -5032,7 +5037,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringToNumber) {
   if (subject->IsSeqOneByteString()) {
     if (len == 0) return Smi::FromInt(0);
 
-    char const* data = SeqOneByteString::cast(subject)->GetChars();
+    uint8_t const* data = SeqOneByteString::cast(subject)->GetChars();
     bool minus = (data[0] == '-');
     int start_pos = (minus ? 1 : 0);
 
@@ -5159,7 +5164,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_URIEscape) {
       ASSERT(String::kMaxLength < 0x7fffffff - 6);  // Cannot overflow.
       if (escaped_length > String::kMaxLength) {
         isolate->context()->mark_out_of_memory();
-        return Failure::OutOfMemoryException();
+        return Failure::OutOfMemoryException(0x12);
       }
     }
   }
@@ -5258,14 +5263,14 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_URIUnescape) {
 
   source->TryFlatten();
 
-  bool ascii = true;
+  bool one_byte = true;
   int length = source->length();
 
   int unescaped_length = 0;
   for (int i = 0; i < length; unescaped_length++) {
     int step;
-    if (Unescape(source, i, length, &step) > String::kMaxAsciiCharCode) {
-      ascii = false;
+    if (Unescape(source, i, length, &step) > String::kMaxOneByteCharCode) {
+      one_byte = false;
     }
     i += step;
   }
@@ -5276,7 +5281,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_URIUnescape) {
 
   Object* o;
   { MaybeObject* maybe_o =
-        ascii ?
+        one_byte ?
         isolate->heap()->AllocateRawOneByteString(unescaped_length) :
         isolate->heap()->AllocateRawTwoByteString(unescaped_length);
     if (!maybe_o->ToObject(&o)) return maybe_o;
@@ -5527,8 +5532,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_QuoteJSONString) {
     return QuoteJsonString<uc16, SeqTwoByteString, false>(isolate,
                                                           flat.ToUC16Vector());
   } else {
-    return QuoteJsonString<char, SeqOneByteString, false>(isolate,
-                                                        flat.ToAsciiVector());
+    return QuoteJsonString<uint8_t, SeqOneByteString, false>(
+        isolate,
+        flat.ToOneByteVector());
   }
 }
 
@@ -5550,8 +5556,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_QuoteJSONStringComma) {
     return QuoteJsonString<uc16, SeqTwoByteString, true>(isolate,
                                                          flat.ToUC16Vector());
   } else {
-    return QuoteJsonString<char, SeqOneByteString, true>(isolate,
-                                                       flat.ToAsciiVector());
+    return QuoteJsonString<uint8_t, SeqOneByteString, true>(
+        isolate,
+        flat.ToOneByteVector());
   }
 }
 
@@ -5592,9 +5599,10 @@ static MaybeObject* QuoteJsonStringArray(Isolate* isolate,
                                                       write_cursor,
                                                       content.ToUC16Vector());
     } else {
-      write_cursor = WriteQuoteJsonString<Char, char>(isolate,
-                                                      write_cursor,
-                                                      content.ToAsciiVector());
+      write_cursor =
+          WriteQuoteJsonString<Char, uint8_t>(isolate,
+                                              write_cursor,
+                                              content.ToOneByteVector());
     }
   }
   *(write_cursor++) = ']';
@@ -5766,7 +5774,7 @@ MUST_USE_RESULT static MaybeObject* ConvertCaseHelper(
         current_length += char_length;
         if (current_length > Smi::kMaxValue) {
           isolate->context()->mark_out_of_memory();
-          return Failure::OutOfMemoryException();
+          return Failure::OutOfMemoryException(0x13);
         }
       }
       // Try again with the real length.
@@ -5933,6 +5941,7 @@ MUST_USE_RESULT static MaybeObject* ConvertCase(
   // Assume that the string is not empty; we need this assumption later
   if (length == 0) return s;
 
+#ifndef ENABLE_LATIN_1
   // Simpler handling of ASCII strings.
   //
   // NOTE: This assumes that the upper/lower case of an ASCII
@@ -5946,9 +5955,12 @@ MUST_USE_RESULT static MaybeObject* ConvertCase(
     }
     SeqOneByteString* result = SeqOneByteString::cast(o);
     bool has_changed_character = ConvertTraits::AsciiConverter::Convert(
-        result->GetChars(), SeqOneByteString::cast(s)->GetChars(), length);
+        reinterpret_cast<char*>(result->GetChars()),
+        reinterpret_cast<char*>(SeqOneByteString::cast(s)->GetChars()),
+        length);
     return has_changed_character ? result : s;
   }
+#endif
 
   Object* answer;
   { MaybeObject* maybe_answer =
@@ -6107,7 +6119,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringSplit) {
 // not in the cache and fills the remainder with smi zeros. Returns
 // the length of the successfully copied prefix.
 static int CopyCachedAsciiCharsToArray(Heap* heap,
-                                       const char* chars,
+                                       const uint8_t* chars,
                                        FixedArray* elements,
                                        int length) {
   AssertNoAllocation no_gc;
@@ -6158,7 +6170,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringToArray) {
     elements = Handle<FixedArray>(FixedArray::cast(obj), isolate);
     String::FlatContent content = s->GetFlatContent();
     if (content.IsAscii()) {
-      Vector<const char> chars = content.ToAsciiVector();
+      Vector<const uint8_t> chars = content.ToOneByteVector();
       // Note, this will initialize all elements (not only the prefix)
       // to prevent GC from seeing partially initialized array.
       position = CopyCachedAsciiCharsToArray(isolate->heap(),
@@ -6434,7 +6446,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringBuilderConcat) {
   CONVERT_ARG_CHECKED(JSArray, array, 0);
   if (!args[1]->IsSmi()) {
     isolate->context()->mark_out_of_memory();
-    return Failure::OutOfMemoryException();
+    return Failure::OutOfMemoryException(0x14);
   }
   int array_length = args.smi_at(1);
   CONVERT_ARG_CHECKED(String, special, 2);
@@ -6461,7 +6473,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringBuilderConcat) {
     if (first->IsString()) return first;
   }
 
-  bool ascii = special->HasOnlyAsciiChars();
+  bool one_byte = special->IsOneByteConvertible();
   int position = 0;
   for (int i = 0; i < array_length; i++) {
     int increment = 0;
@@ -6502,8 +6514,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringBuilderConcat) {
       String* element = String::cast(elt);
       int element_length = element->length();
       increment = element_length;
-      if (ascii && !element->HasOnlyAsciiChars()) {
-        ascii = false;
+      if (one_byte && !element->IsOneByteConvertible()) {
+        one_byte = false;
       }
     } else {
       ASSERT(!elt->IsTheHole());
@@ -6511,7 +6523,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringBuilderConcat) {
     }
     if (increment > String::kMaxLength - position) {
       isolate->context()->mark_out_of_memory();
-      return Failure::OutOfMemoryException();
+      return Failure::OutOfMemoryException(0x15);
     }
     position += increment;
   }
@@ -6519,7 +6531,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringBuilderConcat) {
   int length = position;
   Object* object;
 
-  if (ascii) {
+  if (one_byte) {
     { MaybeObject* maybe_object =
           isolate->heap()->AllocateRawOneByteString(length);
       if (!maybe_object->ToObject(&object)) return maybe_object;
@@ -6551,7 +6563,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringBuilderJoin) {
   CONVERT_ARG_CHECKED(JSArray, array, 0);
   if (!args[1]->IsSmi()) {
     isolate->context()->mark_out_of_memory();
-    return Failure::OutOfMemoryException();
+    return Failure::OutOfMemoryException(0x16);
   }
   int array_length = args.smi_at(1);
   CONVERT_ARG_CHECKED(String, separator, 2);
@@ -6576,7 +6588,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringBuilderJoin) {
       (String::kMaxLength + separator_length - 1) / separator_length;
   if (max_nof_separators < (array_length - 1)) {
       isolate->context()->mark_out_of_memory();
-      return Failure::OutOfMemoryException();
+      return Failure::OutOfMemoryException(0x17);
   }
   int length = (array_length - 1) * separator_length;
   for (int i = 0; i < array_length; i++) {
@@ -6589,7 +6601,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringBuilderJoin) {
     int increment = element->length();
     if (increment > String::kMaxLength - length) {
       isolate->context()->mark_out_of_memory();
-      return Failure::OutOfMemoryException();
+      return Failure::OutOfMemoryException(0x18);
     }
     length += increment;
   }
@@ -6624,7 +6636,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringBuilderJoin) {
   }
   ASSERT(sink == end);
 
-  ASSERT(!answer->HasOnlyAsciiChars());  // Use %_FastAsciiArrayJoin instead.
+  // Use %_FastAsciiArrayJoin instead.
+  ASSERT(!answer->IsOneByteRepresentation());
   return answer;
 }
 
@@ -6740,12 +6753,13 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SparseJoinWithSeparator) {
     if (result_allocation->IsFailure()) return result_allocation;
     SeqOneByteString* result_string =
         SeqOneByteString::cast(result_allocation->ToObjectUnchecked());
-    JoinSparseArrayWithSeparator<char>(elements,
-                                       elements_length,
-                                       array_length,
-                                       separator,
-                                       Vector<char>(result_string->GetChars(),
-                                                    string_length));
+    JoinSparseArrayWithSeparator<uint8_t>(elements,
+                                          elements_length,
+                                          array_length,
+                                          separator,
+                                          Vector<uint8_t>(
+                                              result_string->GetChars(),
+                                              string_length));
     return result_string;
   } else {
     MaybeObject* result_allocation =
@@ -6993,9 +7007,9 @@ static Object* FlatStringCompare(String* x, String* y) {
   String::FlatContent x_content = x->GetFlatContent();
   String::FlatContent y_content = y->GetFlatContent();
   if (x_content.IsAscii()) {
-    Vector<const char> x_chars = x_content.ToAsciiVector();
+    Vector<const uint8_t> x_chars = x_content.ToOneByteVector();
     if (y_content.IsAscii()) {
-      Vector<const char> y_chars = y_content.ToAsciiVector();
+      Vector<const uint8_t> y_chars = y_content.ToOneByteVector();
       r = CompareChars(x_chars.start(), y_chars.start(), prefix_length);
     } else {
       Vector<const uc16> y_chars = y_content.ToUC16Vector();
@@ -7004,7 +7018,7 @@ static Object* FlatStringCompare(String* x, String* y) {
   } else {
     Vector<const uc16> x_chars = x_content.ToUC16Vector();
     if (y_content.IsAscii()) {
-      Vector<const char> y_chars = y_content.ToAsciiVector();
+      Vector<const uint8_t> y_chars = y_content.ToOneByteVector();
       r = CompareChars(x_chars.start(), y_chars.start(), prefix_length);
     } else {
       Vector<const uc16> y_chars = y_content.ToUC16Vector();
@@ -7889,7 +7903,7 @@ class ActivationsFinder : public ThreadVisitor {
 };
 
 
-RUNTIME_FUNCTION(MaybeObject*, Runtime_NotifyICMiss) {
+RUNTIME_FUNCTION(MaybeObject*, Runtime_NotifyStubFailure) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 0);
   Deoptimizer* deoptimizer = Deoptimizer::Grab(isolate);
@@ -8016,7 +8030,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_OptimizeFunctionOnNextCall) {
   if (args.length() == 2 &&
       unoptimized->kind() == Code::FUNCTION) {
     CONVERT_ARG_HANDLE_CHECKED(String, type, 1);
-    CHECK(type->IsEqualTo(CStrVector("osr")));
+    CHECK(type->IsOneByteEqualTo(STATIC_ASCII_VECTOR("osr")));
     isolate->runtime_profiler()->AttemptOnStackReplacement(*function);
     unoptimized->set_allow_osr_at_loop_nesting_level(
         Code::kMaxLoopNestingMarker);
@@ -8954,7 +8968,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DateParseString) {
   bool result;
   String::FlatContent str_content = str->GetFlatContent();
   if (str_content.IsAscii()) {
-    result = DateParser::Parse(str_content.ToAsciiVector(),
+    result = DateParser::Parse(str_content.ToOneByteVector(),
                                output_array,
                                isolate->unicode_cache());
   } else {
@@ -13242,6 +13256,15 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Abort) {
 }
 
 
+RUNTIME_FUNCTION(MaybeObject*, Runtime_FlattenString) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(String, str, 0);
+  FlattenString(str);
+  return isolate->heap()->undefined_value();
+}
+
+
 RUNTIME_FUNCTION(MaybeObject*, Runtime_GetFromCache) {
   // This is only called from codegen, so checks might be more lax.
   CONVERT_ARG_CHECKED(JSFunctionResultCache, cache, 0);
@@ -13403,8 +13426,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Log) {
   CONVERT_ARG_CHECKED(JSArray, elms, 1);
   String::FlatContent format_content = format->GetFlatContent();
   RUNTIME_ASSERT(format_content.IsAscii());
-  Vector<const char> chars = format_content.ToAsciiVector();
-  LOGGER->LogRuntime(chars, elms);
+  Vector<const uint8_t> chars = format_content.ToOneByteVector();
+  LOGGER->LogRuntime(Vector<const char>::cast(chars), elms);
   return isolate->heap()->undefined_value();
 }
 

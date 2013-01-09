@@ -170,7 +170,7 @@ void MacroAssembler::LoadUint32(XMMRegister dst,
   Label done;
   cmp(src, Immediate(0));
   movdbl(scratch,
-         Operand(reinterpret_cast<int32_t>(&kUint32Bias), RelocInfo::NONE));
+         Operand(reinterpret_cast<int32_t>(&kUint32Bias), RelocInfo::NONE32));
   cvtsi2sd(dst, src);
   j(not_sign, &done, Label::kNear);
   addsd(dst, scratch);
@@ -3050,6 +3050,30 @@ void MacroAssembler::CheckEnumCache(Label* call_runtime) {
   cmp(ecx, isolate()->factory()->null_value());
   j(not_equal, &next);
 }
+
+
+void MacroAssembler::TestJSArrayForAllocationSiteInfo(
+    Register receiver_reg,
+    Register scratch_reg,
+    Label* allocation_info_present) {
+  Label no_info_available;
+  ExternalReference new_space_start =
+      ExternalReference::new_space_start(isolate());
+  ExternalReference new_space_allocation_top =
+      ExternalReference::new_space_allocation_top_address(isolate());
+
+  lea(scratch_reg, Operand(receiver_reg,
+                           JSArray::kSize + AllocationSiteInfo::kSize));
+  cmp(scratch_reg, Immediate(new_space_start));
+  j(less, &no_info_available);
+  cmp(scratch_reg, Operand::StaticVariable(new_space_allocation_top));
+  j(greater_equal, &no_info_available);
+  cmp(MemOperand(scratch_reg, 0),
+      Immediate(Handle<Map>(isolate()->heap()->allocation_site_info_map())));
+  j(equal, allocation_info_present);
+  bind(&no_info_available);
+}
+
 
 } }  // namespace v8::internal
 

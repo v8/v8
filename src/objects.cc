@@ -903,7 +903,7 @@ MaybeObject* String::SlowTryFlatten(PretenureFlag pretenure) {
         result = String::cast(object);
         String* first = cs->first();
         int first_length = first->length();
-        char* dest = SeqOneByteString::cast(result)->GetChars();
+        uint8_t* dest = SeqOneByteString::cast(result)->GetChars();
         WriteToFlat(first, dest, 0, first_length);
         String* second = cs->second();
         WriteToFlat(second,
@@ -6561,13 +6561,13 @@ String::FlatContent String::GetFlatContent() {
            shape.representation_tag() != kSlicedStringTag);
   }
   if (shape.encoding_tag() == kOneByteStringTag) {
-    const char* start;
+    const uint8_t* start;
     if (shape.representation_tag() == kSeqStringTag) {
       start = SeqOneByteString::cast(string)->GetChars();
     } else {
       start = ExternalAsciiString::cast(string)->GetChars();
     }
-    return FlatContent(Vector<const char>(start + offset, length));
+    return FlatContent(Vector<const uint8_t>(start + offset, length));
   } else {
     ASSERT(shape.encoding_tag() == kTwoByteStringTag);
     const uc16* start;
@@ -6770,7 +6770,7 @@ void FlatStringReader::PostGarbageCollection() {
   ASSERT(content.IsFlat());
   is_ascii_ = content.IsAscii();
   if (is_ascii_) {
-    start_ = content.ToAsciiVector().start();
+    start_ = content.ToOneByteVector().start();
   } else {
     start_ = content.ToUC16Vector().start();
   }
@@ -6878,7 +6878,7 @@ String* ConsStringIteratorOp::NextLeaf(bool* blew_stack,
     if ((type & kStringRepresentationMask) != kConsStringTag) {
       // Pop stack so next iteration is in correct place.
       Pop();
-      unsigned length = (unsigned) string->length();
+      unsigned length = static_cast<unsigned>(string->length());
       // Could be a flattened ConsString.
       if (length == 0) continue;
       *length_out = length;
@@ -6896,7 +6896,7 @@ String* ConsStringIteratorOp::NextLeaf(bool* blew_stack,
       type = string->map()->instance_type();
       if ((type & kStringRepresentationMask) != kConsStringTag) {
         AdjustMaximumDepth();
-        unsigned length = (unsigned) string->length();
+        unsigned length = static_cast<unsigned>(string->length());
         ASSERT(length != 0);
         *length_out = length;
         *type_out = type;
@@ -7254,8 +7254,8 @@ bool String::SlowEquals(String* other) {
   // TODO(dcarney): Compare all types of flat strings with a Visitor.
   if (StringShape(lhs).IsSequentialAscii() &&
       StringShape(rhs).IsSequentialAscii()) {
-    const char* str1 = SeqOneByteString::cast(lhs)->GetChars();
-    const char* str2 = SeqOneByteString::cast(rhs)->GetChars();
+    const uint8_t* str1 = SeqOneByteString::cast(lhs)->GetChars();
+    const uint8_t* str2 = SeqOneByteString::cast(rhs)->GetChars();
     return CompareRawStringContents(str1, str2, len);
   }
 
@@ -7284,7 +7284,7 @@ bool String::MarkAsUndetectable() {
 }
 
 
-bool String::IsEqualTo(Vector<const char> str) {
+bool String::IsUtf8EqualTo(Vector<const char> str) {
   int slen = length();
   // Can't check exact length equality, but we can check bounds.
   int str_len = str.length();
@@ -7313,12 +7313,12 @@ bool String::IsEqualTo(Vector<const char> str) {
 }
 
 
-bool String::IsAsciiEqualTo(Vector<const char> str) {
+bool String::IsOneByteEqualTo(Vector<const uint8_t> str) {
   int slen = length();
   if (str.length() != slen) return false;
   FlatContent content = GetFlatContent();
   if (content.IsAscii()) {
-    return CompareChars(content.ToAsciiVector().start(),
+    return CompareChars(content.ToOneByteVector().start(),
                         str.start(), slen) == 0;
   }
   for (int i = 0; i < slen; i++) {
@@ -7480,6 +7480,31 @@ String* SeqString::Truncate(int new_length) {
     MemoryChunk::IncrementLiveBytesFromMutator(address(), -delta);
   }
   return this;
+}
+
+
+AllocationSiteInfo* AllocationSiteInfo::FindForJSObject(JSObject* object) {
+  // Currently, AllocationSiteInfo objects are only allocated immediately
+  // after JSArrays in NewSpace, and detecting whether a JSArray has one
+  // involves carefully checking the object immediately after the JSArray
+  // (if there is one) to see if it's an AllocationSiteInfo.
+  if (FLAG_track_allocation_sites && object->GetHeap()->InNewSpace(object)) {
+    Address ptr_end = (reinterpret_cast<Address>(object) - kHeapObjectTag) +
+        object->Size();
+    if ((ptr_end + AllocationSiteInfo::kSize) <=
+        object->GetHeap()->NewSpaceTop()) {
+      // There is room in newspace for allocation info. Do we have some?
+      Map** possible_allocation_site_info_map =
+          reinterpret_cast<Map**>(ptr_end);
+      if (*possible_allocation_site_info_map ==
+          object->GetHeap()->allocation_site_info_map()) {
+        AllocationSiteInfo* info = AllocationSiteInfo::cast(
+            reinterpret_cast<Object*>(ptr_end + 1));
+        return info;
+      }
+    }
+  }
+  return NULL;
 }
 
 
@@ -9009,6 +9034,7 @@ const char* Code::ICState2String(InlineCacheState state) {
     case PREMONOMORPHIC: return "PREMONOMORPHIC";
     case MONOMORPHIC: return "MONOMORPHIC";
     case MONOMORPHIC_PROTOTYPE_FAILURE: return "MONOMORPHIC_PROTOTYPE_FAILURE";
+    case POLYMORPHIC: return "POLYMORPHIC";
     case MEGAMORPHIC: return "MEGAMORPHIC";
     case DEBUG_BREAK: return "DEBUG_BREAK";
     case DEBUG_PREPARE_STEP_IN: return "DEBUG_PREPARE_STEP_IN";
@@ -9829,6 +9855,14 @@ MaybeObject* JSObject::SetFastElement(uint32_t index,
   }
   // Convert to fast double elements if appropriate.
   if (HasFastSmiElements() && !value->IsSmi() && value->IsNumber()) {
+    // Consider fixing the boilerplate as well if we have one.
+    ElementsKind to_kind = IsHoleyElementsKind(elements_kind)
+        ? FAST_HOLEY_DOUBLE_ELEMENTS
+        : FAST_DOUBLE_ELEMENTS;
+
+    MaybeObject* trans = PossiblyTransitionArrayBoilerplate(to_kind);
+    if (trans->IsFailure()) return trans;
+
     MaybeObject* maybe =
         SetFastDoubleElementsCapacityAndLength(new_capacity, array_length);
     if (maybe->IsFailure()) return maybe;
@@ -10370,6 +10404,25 @@ Handle<Object> JSObject::TransitionElementsKind(Handle<JSObject> object,
 }
 
 
+MaybeObject* JSObject::PossiblyTransitionArrayBoilerplate(
+    ElementsKind to_kind) {
+  MaybeObject* ret = NULL;
+  if (IsJSArray()) {
+    AllocationSiteInfo* info = AllocationSiteInfo::FindForJSObject(this);
+    if (info != NULL) {
+      JSObject* payload = JSObject::cast(info->payload());
+      if (payload->GetElementsKind() != to_kind) {
+        if (IsMoreGeneralElementsKindTransition(payload->GetElementsKind(),
+                                                to_kind)) {
+          ret = payload->TransitionElementsKind(to_kind);
+        }
+      }
+    }
+  }
+  return ret;
+}
+
+
 MaybeObject* JSObject::TransitionElementsKind(ElementsKind to_kind) {
   ASSERT(!map()->is_observed());
   ElementsKind from_kind = map()->elements_kind();
@@ -10379,6 +10432,9 @@ MaybeObject* JSObject::TransitionElementsKind(ElementsKind to_kind) {
   }
 
   if (from_kind == to_kind) return this;
+
+  MaybeObject* trans = PossiblyTransitionArrayBoilerplate(to_kind);
+  if (trans->IsFailure()) return trans;
 
   Isolate* isolate = GetIsolate();
   if (elements() == isolate->heap()->empty_fixed_array() ||
@@ -11387,7 +11443,7 @@ class Utf8SymbolKey : public HashTableKey {
       : string_(string), hash_field_(0), seed_(seed) { }
 
   bool IsMatch(Object* string) {
-    return String::cast(string)->IsEqualTo(string_);
+    return String::cast(string)->IsUtf8EqualTo(string_);
   }
 
   uint32_t Hash() {
@@ -11404,7 +11460,7 @@ class Utf8SymbolKey : public HashTableKey {
 
   MaybeObject* AsObject() {
     if (hash_field_ == 0) Hash();
-    return Isolate::Current()->heap()->AllocateSymbol(
+    return Isolate::Current()->heap()->AllocateSymbolFromUtf8(
         string_, chars_, hash_field_);
   }
 
@@ -11443,25 +11499,25 @@ class SequentialSymbolKey : public HashTableKey {
 
 
 
-class AsciiSymbolKey : public SequentialSymbolKey<char> {
+class OneByteSymbolKey : public SequentialSymbolKey<uint8_t> {
  public:
-  AsciiSymbolKey(Vector<const char> str, uint32_t seed)
-      : SequentialSymbolKey<char>(str, seed) { }
+  OneByteSymbolKey(Vector<const uint8_t> str, uint32_t seed)
+      : SequentialSymbolKey<uint8_t>(str, seed) { }
 
   bool IsMatch(Object* string) {
-    return String::cast(string)->IsAsciiEqualTo(string_);
+    return String::cast(string)->IsOneByteEqualTo(string_);
   }
 
   MaybeObject* AsObject() {
     if (hash_field_ == 0) Hash();
-    return HEAP->AllocateAsciiSymbol(string_, hash_field_);
+    return HEAP->AllocateOneByteSymbol(string_, hash_field_);
   }
 };
 
 
-class SubStringAsciiSymbolKey : public HashTableKey {
+class SubStringOneByteSymbolKey : public HashTableKey {
  public:
-  explicit SubStringAsciiSymbolKey(Handle<SeqOneByteString> string,
+  explicit SubStringOneByteSymbolKey(Handle<SeqOneByteString> string,
                                    int from,
                                    int length)
       : string_(string), from_(from), length_(length) { }
@@ -11469,7 +11525,7 @@ class SubStringAsciiSymbolKey : public HashTableKey {
   uint32_t Hash() {
     ASSERT(length_ >= 0);
     ASSERT(from_ + length_ <= string_->length());
-    char* chars = string_->GetChars() + from_;
+    uint8_t* chars = string_->GetChars() + from_;
     hash_field_ = StringHasher::HashSequentialString(
         chars, length_, string_->GetHeap()->HashSeed());
     uint32_t result = hash_field_ >> String::kHashShift;
@@ -11483,14 +11539,14 @@ class SubStringAsciiSymbolKey : public HashTableKey {
   }
 
   bool IsMatch(Object* string) {
-    Vector<const char> chars(string_->GetChars() + from_, length_);
-    return String::cast(string)->IsAsciiEqualTo(chars);
+    Vector<const uint8_t> chars(string_->GetChars() + from_, length_);
+    return String::cast(string)->IsOneByteEqualTo(chars);
   }
 
   MaybeObject* AsObject() {
     if (hash_field_ == 0) Hash();
-    Vector<const char> chars(string_->GetChars() + from_, length_);
-    return HEAP->AllocateAsciiSymbol(chars, hash_field_);
+    Vector<const uint8_t> chars(string_->GetChars() + from_, length_);
+    return HEAP->AllocateOneByteSymbol(chars, hash_field_);
   }
 
  private:
@@ -11582,7 +11638,7 @@ MaybeObject* HashTable<Shape, Key>::Allocate(int at_least_space_for,
                      ? at_least_space_for
                      : ComputeCapacity(at_least_space_for);
   if (capacity > HashTable::kMaxCapacity) {
-    return Failure::OutOfMemoryException();
+    return Failure::OutOfMemoryException(0x10);
   }
 
   Object* obj;
@@ -11896,8 +11952,9 @@ MaybeObject* JSObject::PrepareSlowElementsForSort(uint32_t limit) {
       ASSERT(!k->IsHeapNumber() || HeapNumber::cast(k)->value() <= kMaxUInt32);
       Object* value = dict->ValueAt(i);
       PropertyDetails details = dict->DetailsAt(i);
-      if (details.type() == CALLBACKS) {
+      if (details.type() == CALLBACKS || details.IsReadOnly()) {
         // Bail out and do the sorting of undefineds and array holes in JS.
+        // Also bail out if the element is not supposed to be moved.
         return Smi::FromInt(-1);
       }
       uint32_t key = NumberToUint32(k);
@@ -12410,9 +12467,9 @@ MaybeObject* SymbolTable::LookupUtf8Symbol(Vector<const char> str,
 }
 
 
-MaybeObject* SymbolTable::LookupOneByteSymbol(Vector<const char> str,
+MaybeObject* SymbolTable::LookupOneByteSymbol(Vector<const uint8_t> str,
                                               Object** s) {
-  AsciiSymbolKey key(str, GetHeap()->HashSeed());
+  OneByteSymbolKey key(str, GetHeap()->HashSeed());
   return LookupKey(&key, s);
 }
 
@@ -12422,7 +12479,7 @@ MaybeObject* SymbolTable::LookupSubStringOneByteSymbol(
     int from,
     int length,
     Object** s) {
-  SubStringAsciiSymbolKey key(str, from, length);
+  SubStringOneByteSymbolKey key(str, from, length);
   return LookupKey(&key, s);
 }
 

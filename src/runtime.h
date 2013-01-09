@@ -89,7 +89,7 @@ namespace internal {
   F(ForceParallelRecompile, 1, 1) \
   F(InstallRecompiledCode, 1, 1) \
   F(NotifyDeoptimized, 1, 1) \
-  F(NotifyICMiss, 0, 1) \
+  F(NotifyStubFailure, 0, 1) \
   F(NotifyOSR, 0, 1) \
   F(DeoptimizeFunction, 1, 1) \
   F(ClearFunctionTypeFeedback, 1, 1) \
@@ -104,6 +104,7 @@ namespace internal {
   F(StoreArrayLiteralElement, 5, 1) \
   F(DebugCallbackSupportsStepping, 1, 1) \
   F(DebugPrepareStepInIfStepping, 1, 1) \
+  F(FlattenString, 1, 1) \
   \
   /* Array join support */ \
   F(PushIfAbsent, 2, 1) \

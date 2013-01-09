@@ -217,7 +217,7 @@ void RegExpMacroAssemblerIA32::CheckCharacters(Vector<const uc16> str,
   // If input is ASCII, don't even bother calling here if the string to
   // match contains a non-ASCII character.
   if (mode_ == ASCII) {
-    ASSERT(String::IsAscii(str.start(), str.length()));
+    ASSERT(String::IsOneByte(str.start(), str.length()));
   }
 #endif
   int byte_length = str.length() * char_size();
@@ -344,7 +344,19 @@ void RegExpMacroAssemblerIA32::CheckNotBackReferenceIgnoreCase(
     __ or_(eax, 0x20);  // Convert match character to lower-case.
     __ lea(ecx, Operand(eax, -'a'));
     __ cmp(ecx, static_cast<int32_t>('z' - 'a'));  // Is eax a lowercase letter?
-    __ j(above, &fail);
+#ifndef ENABLE_LATIN_1
+    __ j(above, &fail);  // Weren't letters anyway.
+#else
+    Label convert_capture;
+    __ j(below_equal, &convert_capture);  // In range 'a'-'z'.
+    // Latin-1: Check for values in range [224,254] but not 247.
+    __ sub(ecx, Immediate(224 - 'a'));
+    __ cmp(ecx, Immediate(254 - 224));
+    __ j(above, &fail);  // Weren't Latin-1 letters.
+    __ cmp(ecx, Immediate(247 - 224));  // Check for 247.
+    __ j(equal, &fail);
+    __ bind(&convert_capture);
+#endif
     // Also convert capture character.
     __ movzx_b(ecx, Operand(edx, 0));
     __ or_(ecx, 0x20);
@@ -569,7 +581,7 @@ void RegExpMacroAssemblerIA32::CheckBitInTable(
     Label* on_bit_set) {
   __ mov(eax, Immediate(table));
   Register index = current_character();
-  if (mode_ != ASCII || kTableMask != String::kMaxAsciiCharCode) {
+  if (mode_ != ASCII || kTableMask != String::kMaxOneByteCharCode) {
     __ mov(ebx, kTableSize - 1);
     __ and_(ebx, current_character());
     index = ebx;

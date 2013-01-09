@@ -532,8 +532,9 @@ Handle<Value> Shell::CreateExternalArray(const Arguments& args,
     if (args[0]->IsObject() &&
         args[0]->ToObject()->Has(Symbols::length(isolate))) {
       // Construct from array.
-      length = convertToUint(
-          args[0]->ToObject()->Get(Symbols::length(isolate)), &try_catch);
+      Local<Value> value = args[0]->ToObject()->Get(Symbols::length(isolate));
+      if (try_catch.HasCaught()) return try_catch.ReThrow();
+      length = convertToUint(value, &try_catch);
       if (try_catch.HasCaught()) return try_catch.ReThrow();
       init_from_array = true;
     } else {
@@ -888,9 +889,7 @@ Handle<Value> Shell::Yield(const Arguments& args) {
 
 Handle<Value> Shell::Quit(const Arguments& args) {
   int exit_code = args[0]->Int32Value();
-#ifndef V8_SHARED
   OnExit();
-#endif  // V8_SHARED
   exit(exit_code);
   return Undefined();
 }
@@ -1340,9 +1339,13 @@ int CompareKeys(const void* a, const void* b) {
   return strcmp(static_cast<const CounterAndKey*>(a)->key,
                 static_cast<const CounterAndKey*>(b)->key);
 }
+#endif  // V8_SHARED
 
 
 void Shell::OnExit() {
+  LineEditor* line_editor = LineEditor::Get();
+  if (line_editor) line_editor->Close();
+#ifndef V8_SHARED
   if (i::FLAG_dump_counters) {
     int number_of_counters = 0;
     for (CounterMap::Iterator i(counter_map_); i.More(); i.Next()) {
@@ -1377,8 +1380,9 @@ void Shell::OnExit() {
   }
   delete counters_file_;
   delete counter_map_;
-}
 #endif  // V8_SHARED
+}
+
 
 
 static FILE* FOpen(const char* path, const char* mode) {
@@ -1503,7 +1507,6 @@ void Shell::RunShell(Isolate* isolate) {
     ExecuteString(input, name, true, true);
   }
   printf("\n");
-  console->Close();
 }
 
 
@@ -1954,9 +1957,7 @@ int Shell::Main(int argc, char* argv[]) {
   }
   V8::Dispose();
 
-#ifndef V8_SHARED
   OnExit();
-#endif  // V8_SHARED
 
   return result;
 }

@@ -84,7 +84,7 @@ class Factory {
     return LookupUtf8Symbol(CStrVector(str));
   }
   Handle<String> LookupSymbol(Handle<String> str);
-  Handle<String> LookupOneByteSymbol(Vector<const char> str);
+  Handle<String> LookupOneByteSymbol(Vector<const uint8_t> str);
   Handle<String> LookupOneByteSymbol(Handle<SeqOneByteString>,
                                    int from,
                                    int length);
@@ -113,9 +113,15 @@ class Factory {
   //     two byte.
   //
   // ASCII strings are pretenured when used as keys in the SourceCodeCache.
-  Handle<String> NewStringFromAscii(
-      Vector<const char> str,
+  Handle<String> NewStringFromOneByte(
+      Vector<const uint8_t> str,
       PretenureFlag pretenure = NOT_TENURED);
+  // TODO(dcarney): remove this function.
+  inline Handle<String> NewStringFromAscii(
+      Vector<const char> str,
+      PretenureFlag pretenure = NOT_TENURED) {
+    return NewStringFromOneByte(Vector<const uint8_t>::cast(str), pretenure);
+  }
 
   // UTF8 strings are pretenured when used for regexp literal patterns and
   // flags in the parser.

@@ -12225,8 +12225,8 @@ static bool NamedGetAccessBlockAandH(Local<v8::Object> obj,
   if (!name->IsString()) return false;
   i::Handle<i::String> name_handle =
       v8::Utils::OpenHandle(String::Cast(*name));
-  return !name_handle->IsEqualTo(i::CStrVector(kPropertyA))
-      && !name_handle->IsEqualTo(i::CStrVector(kPropertyH));
+  return !name_handle->IsUtf8EqualTo(i::CStrVector(kPropertyA))
+      && !name_handle->IsUtf8EqualTo(i::CStrVector(kPropertyH));
 }
 
 

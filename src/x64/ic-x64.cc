@@ -576,7 +576,7 @@ void KeyedLoadIC::GenerateString(MacroAssembler* masm) {
   char_at_generator.GenerateSlow(masm, call_helper);
 
   __ bind(&miss);
-  GenerateMiss(masm, false);
+  GenerateMiss(masm, MISS);
 }
 
 
@@ -619,7 +619,7 @@ void KeyedLoadIC::GenerateIndexedInterceptor(MacroAssembler* masm) {
       1);
 
   __ bind(&slow);
-  GenerateMiss(masm, false);
+  GenerateMiss(masm, MISS);
 }
 
 
@@ -1278,7 +1278,7 @@ void KeyedLoadIC::GenerateNonStrictArguments(MacroAssembler* masm) {
   __ movq(rax, unmapped_location);
   __ Ret();
   __ bind(&slow);
-  GenerateMiss(masm, false);
+  GenerateMiss(masm, MISS);
 }
 
 
@@ -1317,7 +1317,7 @@ void KeyedStoreIC::GenerateNonStrictArguments(MacroAssembler* masm) {
                  INLINE_SMI_CHECK);
   __ Ret();
   __ bind(&slow);
-  GenerateMiss(masm, false);
+  GenerateMiss(masm, MISS);
 }
 
 
@@ -1411,7 +1411,7 @@ void LoadIC::GenerateMiss(MacroAssembler* masm) {
 }
 
 
-void KeyedLoadIC::GenerateMiss(MacroAssembler* masm, bool force_generic) {
+void KeyedLoadIC::GenerateMiss(MacroAssembler* masm, ICMissMode miss_mode) {
   // ----------- S t a t e -------------
   //  -- rax    : key
   //  -- rdx    : receiver
@@ -1427,7 +1427,7 @@ void KeyedLoadIC::GenerateMiss(MacroAssembler* masm, bool force_generic) {
   __ push(rbx);  // return address
 
   // Perform tail call to the entry.
-  ExternalReference ref = force_generic
+  ExternalReference ref = miss_mode == MISS_FORCE_GENERIC
       ? ExternalReference(IC_Utility(kKeyedLoadIC_MissForceGeneric),
                           masm->isolate())
       : ExternalReference(IC_Utility(kKeyedLoadIC_Miss), masm->isolate());
@@ -1638,7 +1638,7 @@ void KeyedStoreIC::GenerateSlow(MacroAssembler* masm) {
 }
 
 
-void KeyedStoreIC::GenerateMiss(MacroAssembler* masm, bool force_generic) {
+void KeyedStoreIC::GenerateMiss(MacroAssembler* masm, ICMissMode miss_mode) {
   // ----------- S t a t e -------------
   //  -- rax     : value
   //  -- rcx     : key
@@ -1653,7 +1653,7 @@ void KeyedStoreIC::GenerateMiss(MacroAssembler* masm, bool force_generic) {
   __ push(rbx);  // return address
 
   // Do tail-call to runtime routine.
-  ExternalReference ref = force_generic
+  ExternalReference ref = miss_mode == MISS_FORCE_GENERIC
     ? ExternalReference(IC_Utility(kKeyedStoreIC_MissForceGeneric),
                         masm->isolate())
     : ExternalReference(IC_Utility(kKeyedStoreIC_Miss), masm->isolate());

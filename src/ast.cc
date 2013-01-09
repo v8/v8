@@ -430,7 +430,7 @@ void Property::RecordTypeFeedback(TypeFeedbackOracle* oracle,
   } else if (is_monomorphic_) {
     receiver_types_.Add(oracle->LoadMonomorphicReceiverType(this),
                         zone);
-  } else if (oracle->LoadIsMegamorphicWithTypeInfo(this)) {
+  } else if (oracle->LoadIsPolymorphic(this)) {
     receiver_types_.Reserve(kMaxKeyedPolymorphism, zone);
     oracle->CollectKeyedReceiverTypes(PropertyFeedbackId(), &receiver_types_);
   }
@@ -452,7 +452,7 @@ void Assignment::RecordTypeFeedback(TypeFeedbackOracle* oracle,
   } else if (is_monomorphic_) {
     // Record receiver type for monomorphic keyed stores.
     receiver_types_.Add(oracle->StoreMonomorphicReceiverType(id), zone);
-  } else if (oracle->StoreIsMegamorphicWithTypeInfo(id)) {
+  } else if (oracle->StoreIsPolymorphic(id)) {
     receiver_types_.Reserve(kMaxKeyedPolymorphism, zone);
     oracle->CollectKeyedReceiverTypes(id, &receiver_types_);
   }
@@ -468,7 +468,7 @@ void CountOperation::RecordTypeFeedback(TypeFeedbackOracle* oracle,
     // Record receiver type for monomorphic keyed stores.
     receiver_types_.Add(
         oracle->StoreMonomorphicReceiverType(id), zone);
-  } else if (oracle->StoreIsMegamorphicWithTypeInfo(id)) {
+  } else if (oracle->StoreIsPolymorphic(id)) {
     receiver_types_.Reserve(kMaxKeyedPolymorphism, zone);
     oracle->CollectKeyedReceiverTypes(id, &receiver_types_);
   }
@@ -1083,8 +1083,9 @@ void AstConstructionVisitor::VisitCallRuntime(CallRuntime* node) {
     // optimize them.
     add_flag(kDontInline);
   } else if (node->function()->intrinsic_type == Runtime::INLINE &&
-      (node->name()->IsEqualTo(CStrVector("_ArgumentsLength")) ||
-       node->name()->IsEqualTo(CStrVector("_Arguments")))) {
+      (node->name()->IsOneByteEqualTo(
+          STATIC_ASCII_VECTOR("_ArgumentsLength")) ||
+       node->name()->IsOneByteEqualTo(STATIC_ASCII_VECTOR("_Arguments")))) {
     // Don't inline the %_ArgumentsLength or %_Arguments because their
     // implementation will not work.  There is no stack frame to get them
     // from.

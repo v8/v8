@@ -135,7 +135,7 @@ bool LCodeGen::GeneratePrologue() {
 
 #ifdef DEBUG
     if (strlen(FLAG_stop_at) > 0 &&
-        info_->function()->name()->IsEqualTo(CStrVector(FLAG_stop_at))) {
+        info_->function()->name()->IsUtf8EqualTo(CStrVector(FLAG_stop_at))) {
       __ int3();
     }
 #endif
@@ -2411,7 +2411,7 @@ void LCodeGen::EmitClassOfTest(Label* is_true,
   ASSERT(!temp.is(temp2));
   __ JumpIfSmi(input, is_false);
 
-  if (class_name->IsEqualTo(CStrVector("Function"))) {
+  if (class_name->IsOneByteEqualTo(STATIC_ASCII_VECTOR("Function"))) {
     // Assuming the following assertions, we can use the same compares to test
     // for both being a function type and being in the object type range.
     STATIC_ASSERT(NUM_OF_CALLABLE_SPEC_OBJECT_TYPES == 2);
@@ -2441,7 +2441,7 @@ void LCodeGen::EmitClassOfTest(Label* is_true,
   __ mov(temp, FieldOperand(temp, Map::kConstructorOffset));
   // Objects with a non-function constructor have class 'Object'.
   __ CmpObjectType(temp, JS_FUNCTION_TYPE, temp2);
-  if (class_name->IsEqualTo(CStrVector("Object"))) {
+  if (class_name->IsOneByteEqualTo(STATIC_ASCII_VECTOR("Object"))) {
     __ j(not_equal, is_true);
   } else {
     __ j(not_equal, is_false);
@@ -4432,7 +4432,7 @@ void LCodeGen::DoStringCharFromCode(LStringCharFromCode* instr) {
   Register result = ToRegister(instr->result());
   ASSERT(!char_code.is(result));
 
-  __ cmp(char_code, String::kMaxAsciiCharCode);
+  __ cmp(char_code, String::kMaxOneByteCharCode);
   __ j(above, deferred->entry());
   __ Set(result, Immediate(factory()->single_character_string_cache()));
   __ mov(result, FieldOperand(result,

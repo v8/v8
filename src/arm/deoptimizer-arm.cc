@@ -80,12 +80,12 @@ void Deoptimizer::DeoptimizeFunctionWithPreparedFunctionList(
     // this is optimized code, so we don't have to have a predictable size.
     int call_size_in_bytes =
         MacroAssembler::CallSizeNotPredictableCodeSize(deopt_entry,
-                                                       RelocInfo::NONE);
+                                                       RelocInfo::NONE32);
     int call_size_in_words = call_size_in_bytes / Assembler::kInstrSize;
     ASSERT(call_size_in_bytes % Assembler::kInstrSize == 0);
     ASSERT(call_size_in_bytes <= patch_size());
     CodePatcher patcher(call_address, call_size_in_words);
-    patcher.masm()->Call(deopt_entry, RelocInfo::NONE);
+    patcher.masm()->Call(deopt_entry, RelocInfo::NONE32);
     ASSERT(prev_call_address == NULL ||
            call_address >= prev_call_address + patch_size());
     ASSERT(call_address + patch_size() <= code->instruction_end());
@@ -458,35 +458,39 @@ void Deoptimizer::DoCompiledStubFrame(TranslationIterator* iterator,
   //               FROM                                  TO             <-fp
   //    |          ....           |          |          ....           |
   //    +-------------------------+          +-------------------------+
-  //    | JSFunction continuation |          | JSFunction continuation |
+  //    | JSFunction continuation |          |       parameter 1       |
+  //    +-------------------------+          +-------------------------+
+  // |  |   saved frame (fp)      |          |          ....           |
+  // |  +=========================+<-fp      +-------------------------+
+  // |  |   JSFunction context    |          |       parameter n       |
+  // v  +-------------------------+          +-------------------------|
+  //    |   COMPILED_STUB marker  |          | JSFunction continuation |
   //    +-------------------------+          +-------------------------+<-sp
-  // |  |   saved frame (fp)      |
-  // |  +=========================+<-fp
-  // |  |   JSFunction context    |
-  // v  +-------------------------+
-  //    |   COMPILED_STUB marker  |          fp = saved frame
-  //    +-------------------------+          f8 = JSFunction context
-  //    |                         |
-  //    | ...                     |
-  //    |                         |
-  //    +-------------------------+<-sp
+  //    |                         |          r0 = number of parameters
+  //    | ...                     |          r1 = failure handler address
+  //    |                         |          fp = saved frame
+  //    +-------------------------+<-sp      cp = JSFunction context
   //
   //
-  int output_frame_size = 1 * kPointerSize;
-  FrameDescription* output_frame =
-      new(output_frame_size) FrameDescription(output_frame_size, 0);
-  Code* notify_miss =
-      isolate_->builtins()->builtin(Builtins::kNotifyICMiss);
-  output_frame->SetState(Smi::FromInt(FullCodeGenerator::NO_REGISTERS));
-  output_frame->SetContinuation(
-      reinterpret_cast<intptr_t>(notify_miss->entry()));
 
   ASSERT(compiled_code_->kind() == Code::COMPILED_STUB);
   int major_key = compiled_code_->major_key();
   CodeStubInterfaceDescriptor* descriptor =
       isolate_->code_stub_interface_descriptor(major_key);
-  Handle<Code> miss_ic(descriptor->deoptimization_handler_);
-  output_frame->SetPc(reinterpret_cast<intptr_t>(miss_ic->instruction_start()));
+
+  int output_frame_size =
+      (1 + descriptor->register_param_count_) * kPointerSize;
+  FrameDescription* output_frame =
+      new(output_frame_size) FrameDescription(output_frame_size, 0);
+  Code* notify_failure =
+      isolate_->builtins()->builtin(Builtins::kNotifyStubFailure);
+  output_frame->SetState(Smi::FromInt(FullCodeGenerator::NO_REGISTERS));
+  output_frame->SetContinuation(
+      reinterpret_cast<uint32_t>(notify_failure->entry()));
+
+  Code* code;
+  CEntryStub(1, kSaveFPRegs).FindCodeInCache(&code, isolate_);
+  output_frame->SetPc(reinterpret_cast<intptr_t>(code->instruction_start()));
   unsigned input_frame_size = input_->GetFrameSize();
   intptr_t value = input_->GetFrameSlot(input_frame_size - kPointerSize);
   output_frame->SetFrameSlot(0, value);
@@ -496,20 +500,23 @@ void Deoptimizer::DoCompiledStubFrame(TranslationIterator* iterator,
   value = input_->GetFrameSlot(input_frame_size - 3 * kPointerSize);
   output_frame->SetRegister(cp.code(), value);
 
-  Translation::Opcode opcode =
-      static_cast<Translation::Opcode>(iterator->Next());
-  ASSERT(opcode == Translation::REGISTER);
-  USE(opcode);
-  int input_reg = iterator->Next();
-  intptr_t input_value = input_->GetRegister(input_reg);
-  output_frame->SetRegister(r1.code(), input_value);
+  int parameter_offset = kPointerSize * descriptor->register_param_count_;
+  for (int i = 0; i < descriptor->register_param_count_; ++i) {
+    Translation::Opcode opcode =
+        static_cast<Translation::Opcode>(iterator->Next());
+    ASSERT(opcode == Translation::REGISTER);
+    USE(opcode);
+    int input_reg = iterator->Next();
+    intptr_t reg_value = input_->GetRegister(input_reg);
+    output_frame->SetFrameSlot(parameter_offset, reg_value);
+    parameter_offset -= kPointerSize;
+  }
 
-  int32_t next = iterator->Next();
-  opcode = static_cast<Translation::Opcode>(next);
-  ASSERT(opcode == Translation::REGISTER);
-  input_reg = iterator->Next();
-  input_value = input_->GetRegister(input_reg);
-  output_frame->SetRegister(r0.code(), input_value);
+  ApiFunction function(descriptor->deoptimization_handler_);
+  ExternalReference xref(&function, ExternalReference::BUILTIN_CALL, isolate_);
+  intptr_t handler = reinterpret_cast<intptr_t>(xref.address());
+  output_frame->SetRegister(r0.code(), descriptor->register_param_count_);
+  output_frame->SetRegister(r1.code(), handler);
 
   ASSERT(frame_index == 0);
   output_[frame_index] = output_frame;
@@ -1009,7 +1016,7 @@ void Deoptimizer::EntryGenerator::Generate() {
   // address for lazy deoptimization) and compute the fp-to-sp delta in
   // register r4.
   if (type() == EAGER) {
-    __ mov(r3, Operand(0));
+    __ mov(r3, Operand::Zero());
     // Correct one word for bailout id.
     __ add(r4, sp, Operand(kSavedRegistersAreaSize + (1 * kPointerSize)));
   } else if (type() == OSR) {
@@ -1124,7 +1131,7 @@ void Deoptimizer::EntryGenerator::Generate() {
   __ ldr(r7, MemOperand(r6, FrameDescription::frame_content_offset()));
   __ push(r7);
   __ bind(&inner_loop_header);
-  __ cmp(r3, Operand(0));
+  __ cmp(r3, Operand::Zero());
   __ b(ne, &inner_push_loop);  // test for gt?
   __ add(r0, r0, Operand(kPointerSize));
   __ bind(&outer_loop_header);

@@ -127,7 +127,7 @@ void FullCodeGenerator::Generate() {
 
 #ifdef DEBUG
   if (strlen(FLAG_stop_at) > 0 &&
-      info->function()->name()->IsEqualTo(CStrVector(FLAG_stop_at))) {
+      info->function()->name()->IsUtf8EqualTo(CStrVector(FLAG_stop_at))) {
     __ int3();
   }
 #endif
@@ -1703,6 +1703,15 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
     FastCloneShallowArrayStub::Mode mode = has_constant_fast_elements
         ? FastCloneShallowArrayStub::CLONE_ELEMENTS
         : FastCloneShallowArrayStub::CLONE_ANY_ELEMENTS;
+
+    // Tracking allocation info allows us to pre-transition later if it makes
+    // sense.
+    if (mode == FastCloneShallowArrayStub::CLONE_ANY_ELEMENTS &&
+        FLAG_track_allocation_sites) {
+      mode = FastCloneShallowArrayStub::
+          CLONE_ANY_ELEMENTS_WITH_ALLOCATION_SITE_INFO;
+    }
+
     FastCloneShallowArrayStub stub(mode, length);
     __ CallStub(&stub);
   }

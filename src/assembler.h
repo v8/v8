@@ -248,7 +248,7 @@ class RelocInfo BASE_EMBEDDED {
     // add more as needed
     // Pseudo-types
     NUMBER_OF_MODES,  // There are at most 15 modes with noncompact encoding.
-    NONE,  // never recorded 32-bit value
+    NONE32,  // never recorded 32-bit value
     NONE64,  // never recorded 64-bit value
     CODE_AGE_SEQUENCE,  // Not stored in RelocInfo array, used explictly by
                         // code aging.
@@ -320,7 +320,7 @@ class RelocInfo BASE_EMBEDDED {
     return mode == DEBUG_BREAK_SLOT;
   }
   static inline bool IsNone(Mode mode) {
-    return mode == NONE || mode == NONE64;
+    return mode == NONE32 || mode == NONE64;
   }
   static inline bool IsCodeAgeSequence(Mode mode) {
     return mode == CODE_AGE_SEQUENCE;

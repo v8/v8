@@ -85,8 +85,8 @@ double StringToDouble(UnicodeCache* unicode_cache,
   StringShape shape(str);
   // TODO(dcarney): Use a Visitor here.
   if (shape.IsSequentialAscii()) {
-    const char* begin = SeqOneByteString::cast(str)->GetChars();
-    const char* end = begin + str->length();
+    const uint8_t* begin = SeqOneByteString::cast(str)->GetChars();
+    const uint8_t* end = begin + str->length();
     return InternalStringToDouble(unicode_cache, begin, end, flags,
                                   empty_string_val);
   } else if (shape.IsSequentialTwoByte()) {
@@ -112,8 +112,8 @@ double StringToInt(UnicodeCache* unicode_cache,
   StringShape shape(str);
   // TODO(dcarney): Use a Visitor here.
   if (shape.IsSequentialAscii()) {
-    const char* begin = SeqOneByteString::cast(str)->GetChars();
-    const char* end = begin + str->length();
+    const uint8_t* begin = SeqOneByteString::cast(str)->GetChars();
+    const uint8_t* end = begin + str->length();
     return InternalStringToInt(unicode_cache, begin, end, radix);
   } else if (shape.IsSequentialTwoByte()) {
     const uc16* begin = SeqTwoByteString::cast(str)->GetChars();

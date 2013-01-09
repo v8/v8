@@ -277,11 +277,11 @@ class Shell : public i::AllStatic {
   static int RunMain(Isolate* isolate, int argc, char* argv[]);
   static int Main(int argc, char* argv[]);
   static void Exit(int exit_code);
+  static void OnExit();
 
 #ifndef V8_SHARED
   static Handle<Array> GetCompletions(Handle<String> text,
                                       Handle<String> full);
-  static void OnExit();
   static int* LookupCounter(const char* name);
   static void* CreateHistogram(const char* name,
                                int min,

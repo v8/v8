@@ -80,11 +80,11 @@ const byte* NativeRegExpMacroAssembler::StringCharacterPosition(
   if (subject->IsOneByteRepresentation()) {
     const byte* address;
     if (StringShape(subject).IsExternal()) {
-      const char* data = ExternalAsciiString::cast(subject)->GetChars();
+      const uint8_t* data = ExternalAsciiString::cast(subject)->GetChars();
       address = reinterpret_cast<const byte*>(data);
     } else {
       ASSERT(subject->IsSeqOneByteString());
-      char* data = SeqOneByteString::cast(subject)->GetChars();
+      const uint8_t* data = SeqOneByteString::cast(subject)->GetChars();
       address = reinterpret_cast<const byte*>(data);
     }
     return address + start_index;

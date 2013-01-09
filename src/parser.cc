@@ -255,7 +255,7 @@ Handle<String> Parser::LookupSymbol(int symbol_id) {
       >= static_cast<unsigned>(symbol_cache_.length())) {
     if (scanner().is_literal_ascii()) {
       return isolate()->factory()->LookupOneByteSymbol(
-          scanner().literal_ascii_string());
+          Vector<const uint8_t>::cast(scanner().literal_ascii_string()));
     } else {
       return isolate()->factory()->LookupTwoByteSymbol(
           scanner().literal_utf16_string());
@@ -276,7 +276,7 @@ Handle<String> Parser::LookupCachedSymbol(int symbol_id) {
   if (result.is_null()) {
     if (scanner().is_literal_ascii()) {
       result = isolate()->factory()->LookupOneByteSymbol(
-          scanner().literal_ascii_string());
+          Vector<const uint8_t>::cast(scanner().literal_ascii_string()));
     } else {
       result = isolate()->factory()->LookupTwoByteSymbol(
           scanner().literal_utf16_string());
@@ -1429,7 +1429,7 @@ Statement* Parser::ParseExportDeclaration(bool* ok) {
     case Token::IDENTIFIER: {
       Handle<String> name = ParseIdentifier(CHECK_OK);
       // Handle 'module' as a context-sensitive keyword.
-      if (!name->IsEqualTo(CStrVector("module"))) {
+      if (!name->IsOneByteEqualTo(STATIC_ASCII_VECTOR("module"))) {
         names.Add(name, zone());
         while (peek() == Token::COMMA) {
           Consume(Token::COMMA);
@@ -4711,7 +4711,7 @@ void Parser::ExpectContextualKeyword(const char* keyword, bool* ok) {
   if (!*ok) return;
   Handle<String> symbol = GetSymbol(ok);
   if (!*ok) return;
-  if (!symbol->IsEqualTo(CStrVector(keyword))) {
+  if (!symbol->IsUtf8EqualTo(CStrVector(keyword))) {
     *ok = false;
     ReportUnexpectedToken(scanner().current_token());
   }

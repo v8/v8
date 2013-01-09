@@ -1141,6 +1141,7 @@ class MacroAssembler: public Assembler {
 
   // Call a code stub.
   void CallStub(CodeStub* stub,
+                TypeFeedbackId ast_id = TypeFeedbackId::None(),
                 Condition cond = cc_always,
                 Register r1 = zero_reg,
                 const Operand& r2 = Operand(zero_reg),
@@ -1439,6 +1440,16 @@ class MacroAssembler: public Assembler {
   // in a0.  Assumes that any other register can be used as a scratch.
   void CheckEnumCache(Register null_value, Label* call_runtime);
 
+  // AllocationSiteInfo support. Arrays may have an associated
+  // AllocationSiteInfo object that can be checked for in order to pretransition
+  // to another type.
+  // On entry, receiver_reg should point to the array object.
+  // scratch_reg gets clobbered.
+  // If allocation info is present, jump to allocation_info_present
+  void TestJSArrayForAllocationSiteInfo(Register receiver_reg,
+                                        Register scratch_reg,
+                                        Label* allocation_info_present);
+
  private:
   void CallCFunctionHelper(Register function,
                            int num_reg_arguments,
@@ -1513,9 +1524,9 @@ class MacroAssembler: public Assembler {
   // This handle will be patched with the code object on installation.
   Handle<Object> code_object_;
 
-  // Needs access to SafepointRegisterStackIndex for optimized frame
+  // Needs access to SafepointRegisterStackIndex for compiled frame
   // traversal.
-  friend class OptimizedFrame;
+  friend class StandardFrame;
 };
 
 

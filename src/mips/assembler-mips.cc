@@ -73,6 +73,33 @@ static uint64_t CpuFeaturesImpliedByCompiler() {
 }
 
 
+const char* DoubleRegister::AllocationIndexToString(int index) {
+  if (CpuFeatures::IsSupported(FPU)) {
+    ASSERT(index >= 0 && index < kMaxNumAllocatableRegisters);
+    const char* const names[] = {
+      "f0",
+      "f2",
+      "f4",
+      "f6",
+      "f8",
+      "f10",
+      "f12",
+      "f14",
+      "f16",
+      "f18",
+      "f20",
+      "f22",
+      "f24",
+      "f26"
+    };
+    return names[index];
+  } else {
+    ASSERT(index == 0);
+    return "sfpd0";
+  }
+}
+
+
 void CpuFeatures::Probe() {
   unsigned standard_features = (OS::CpuFeaturesImpliedByPlatform() |
                                 CpuFeaturesImpliedByCompiler());
@@ -221,7 +248,7 @@ Operand::Operand(Handle<Object> handle) {
   } else {
     // No relocation needed.
     imm32_ = reinterpret_cast<intptr_t>(obj);
-    rmode_ = RelocInfo::NONE;
+    rmode_ = RelocInfo::NONE32;
   }
 }
 
@@ -556,7 +583,7 @@ bool Assembler::IsNop(Instr instr, unsigned int type) {
 
 int32_t Assembler::GetBranchOffset(Instr instr) {
   ASSERT(IsBranch(instr));
-  return ((int16_t)(instr & kImm16Mask)) << 2;
+  return (static_cast<int16_t>(instr & kImm16Mask)) << 2;
 }
 
 
@@ -689,7 +716,7 @@ void Assembler::target_at_put(int32_t pos, int32_t target_pos) {
     Instr instr_lui = instr_at(pos + 0 * Assembler::kInstrSize);
     Instr instr_ori = instr_at(pos + 1 * Assembler::kInstrSize);
     ASSERT(IsOri(instr_ori));
-    uint32_t imm = (uint32_t)buffer_ + target_pos;
+    uint32_t imm = reinterpret_cast<uint32_t>(buffer_) + target_pos;
     ASSERT((imm & 3) == 0);
 
     instr_lui &= ~kImm16Mask;
@@ -700,7 +727,7 @@ void Assembler::target_at_put(int32_t pos, int32_t target_pos) {
     instr_at_put(pos + 1 * Assembler::kInstrSize,
                  instr_ori | (imm & kImm16Mask));
   } else {
-    uint32_t imm28 = (uint32_t)buffer_ + target_pos;
+    uint32_t imm28 = reinterpret_cast<uint32_t>(buffer_) + target_pos;
     imm28 &= kImm28Mask;
     ASSERT((imm28 & 3) == 0);
 
@@ -849,6 +876,20 @@ void Assembler::GenInstrRegister(Opcode opcode,
 
 
 void Assembler::GenInstrRegister(Opcode opcode,
+                                 FPURegister fr,
+                                 FPURegister ft,
+                                 FPURegister fs,
+                                 FPURegister fd,
+                                 SecondaryField func) {
+  ASSERT(fd.is_valid() && fr.is_valid() && fs.is_valid() && ft.is_valid());
+  ASSERT(CpuFeatures::IsEnabled(FPU));
+  Instr instr = opcode | (fr.code() << kFrShift) | (ft.code() << kFtShift)
+      | (fs.code() << kFsShift) | (fd.code() << kFdShift) | func;
+  emit(instr);
+}
+
+
+void Assembler::GenInstrRegister(Opcode opcode,
                                  SecondaryField fmt,
                                  Register rt,
                                  FPURegister fs,
@@ -952,7 +993,7 @@ uint32_t Assembler::jump_address(Label* L) {
     }
   }
 
-  uint32_t imm = (uint32_t)buffer_ + target_pos;
+  uint32_t imm = reinterpret_cast<uint32_t>(buffer_) + target_pos;
   ASSERT((imm & 3) == 0);
 
   return imm;
@@ -1087,7 +1128,8 @@ void Assembler::j(int32_t target) {
 #if DEBUG
   // Get pc of delay slot.
   uint32_t ipc = reinterpret_cast<uint32_t>(pc_ + 1 * kInstrSize);
-  bool in_range = ((uint32_t)(ipc^target) >> (kImm26Bits+kImmFieldShift)) == 0;
+  bool in_range = (ipc ^ static_cast<uint32_t>(target) >>
+                  (kImm26Bits + kImmFieldShift)) == 0;
   ASSERT(in_range && ((target & 3) == 0));
 #endif
   GenInstrJump(J, target >> 2);
@@ -1108,7 +1150,8 @@ void Assembler::jal(int32_t target) {
 #ifdef DEBUG
   // Get pc of delay slot.
   uint32_t ipc = reinterpret_cast<uint32_t>(pc_ + 1 * kInstrSize);
-  bool in_range = ((uint32_t)(ipc^target) >> (kImm26Bits+kImmFieldShift)) == 0;
+  bool in_range = (ipc ^ static_cast<uint32_t>(target) >>
+                  (kImm26Bits + kImmFieldShift)) == 0;
   ASSERT(in_range && ((target & 3) == 0));
 #endif
   positions_recorder()->WriteRecordedPositions();
@@ -1127,8 +1170,8 @@ void Assembler::jalr(Register rs, Register rd) {
 void Assembler::j_or_jr(int32_t target, Register rs) {
   // Get pc of delay slot.
   uint32_t ipc = reinterpret_cast<uint32_t>(pc_ + 1 * kInstrSize);
-  bool in_range = ((uint32_t)(ipc^target) >> (kImm26Bits+kImmFieldShift)) == 0;
-
+  bool in_range = (ipc ^ static_cast<uint32_t>(target) >>
+                  (kImm26Bits + kImmFieldShift)) == 0;
   if (in_range) {
       j(target);
   } else {
@@ -1140,8 +1183,8 @@ void Assembler::j_or_jr(int32_t target, Register rs) {
 void Assembler::jal_or_jalr(int32_t target, Register rs) {
   // Get pc of delay slot.
   uint32_t ipc = reinterpret_cast<uint32_t>(pc_ + 1 * kInstrSize);
-  bool in_range = ((uint32_t)(ipc^target) >> (kImm26Bits+kImmFieldShift)) == 0;
-
+  bool in_range = (ipc ^ static_cast<uint32_t>(target) >>
+                  (kImm26Bits+kImmFieldShift)) == 0;
   if (in_range) {
       jal(target);
   } else {
@@ -1651,6 +1694,12 @@ void Assembler::mul_d(FPURegister fd, FPURegister fs, FPURegister ft) {
 }
 
 
+void Assembler::madd_d(FPURegister fd, FPURegister fr, FPURegister fs,
+    FPURegister ft) {
+  GenInstrRegister(COP1X, fr, ft, fs, fd, MADD_D);
+}
+
+
 void Assembler::div_d(FPURegister fd, FPURegister fs, FPURegister ft) {
   GenInstrRegister(COP1, D, ft, fs, fd, DIV_D);
 }
@@ -1900,7 +1949,7 @@ int Assembler::RelocateInternalReference(byte* pc, intptr_t pc_delta) {
     return 2;  // Number of instructions patched.
   } else {
     uint32_t imm28 = (instr & static_cast<int32_t>(kImm26Mask)) << 2;
-    if ((int32_t)imm28 == kEndOfJumpChain) {
+    if (static_cast<int32_t>(imm28) == kEndOfJumpChain) {
       return 0;  // Number of instructions patched.
     }
     imm28 += pc_delta;
@@ -2150,9 +2199,10 @@ void Assembler::set_target_address_at(Address pc, Address target) {
 
   Instr instr3 = instr_at(pc + 2 * kInstrSize);
   uint32_t ipc = reinterpret_cast<uint32_t>(pc + 3 * kInstrSize);
-  bool in_range =
-             ((uint32_t)(ipc ^ itarget) >> (kImm26Bits + kImmFieldShift)) == 0;
-  uint32_t target_field = (uint32_t)(itarget & kJumpAddrMask) >> kImmFieldShift;
+  bool in_range = (ipc ^ static_cast<uint32_t>(itarget) >>
+                  (kImm26Bits + kImmFieldShift)) == 0;
+  uint32_t target_field =
+      static_cast<uint32_t>(itarget & kJumpAddrMask) >>kImmFieldShift;
   bool patched_jump = false;
 
 #ifndef ALLOW_JAL_IN_BOUNDARY_REGION

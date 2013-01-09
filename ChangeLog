@@ -1,3 +1,17 @@
+2013-01-09: Version 3.16.3
+
+        Improved GC performance when moving parts of a FixedArray (issue 2452).
+
+        Enabled readline on d8 while building a shared lib (issue 1781).
+
+        Fixed missing exception check in typed array constructor
+        (Chromium issue 168545).
+
+        Check for read-only-ness when preparing for array sort (issue 2419).
+
+        Performance and stability improvements on all platforms.
+
+
 2013-01-04: Version 3.16.2
 
         Added Makefile options to build for the Raspberry Pi (armv7=0,

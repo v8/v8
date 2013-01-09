@@ -1545,7 +1545,7 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
                FUNCTION_ADDR(target), arg1);
       }
       v8::Handle<v8::Value> result = target(arg1);
-      *(reinterpret_cast<int*>(arg0)) = (int32_t) *result;
+      *(reinterpret_cast<int*>(arg0)) = reinterpret_cast<int32_t>(*result);
       set_register(v0, arg0);
     } else if (redirection->type() == ExternalReference::DIRECT_GETTER_CALL) {
       // See DirectCEntryStub::GenerateCall for explanation of register usage.
@@ -1556,7 +1556,7 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
                FUNCTION_ADDR(target), arg1, arg2);
       }
       v8::Handle<v8::Value> result = target(arg1, arg2);
-      *(reinterpret_cast<int*>(arg0)) = (int32_t) *result;
+      *(reinterpret_cast<int*>(arg0)) = reinterpret_cast<int32_t>(*result);
       set_register(v0, arg0);
     } else {
       SimulatorRuntimeCall target =
@@ -1760,6 +1760,8 @@ void Simulator::ConfigureTypeRegister(Instruction* instr,
           UNIMPLEMENTED_MIPS();
       };
       break;
+    case COP1X:
+      break;
     case SPECIAL:
       switch (instr->FunctionFieldRaw()) {
         case JR:
@@ -1949,6 +1951,7 @@ void Simulator::DecodeTypeRegister(Instruction* instr) {
   const uint32_t rt_u   = static_cast<uint32_t>(rt);
   const int32_t  rd_reg = instr->RdValue();
 
+  const int32_t  fr_reg = instr->FrValue();
   const int32_t  fs_reg = instr->FsValue();
   const int32_t  ft_reg = instr->FtValue();
   const int32_t  fd_reg = instr->FdValue();
@@ -2193,8 +2196,8 @@ void Simulator::DecodeTypeRegister(Instruction* instr) {
           case CVT_D_L:  // Mips32r2 instruction.
             // Watch the signs here, we want 2 32-bit vals
             // to make a sign-64.
-            i64 = (uint32_t) get_fpu_register(fs_reg);
-            i64 |= ((int64_t) get_fpu_register(fs_reg + 1) << 32);
+            i64 = static_cast<uint32_t>(get_fpu_register(fs_reg));
+            i64 |= static_cast<int64_t>(get_fpu_register(fs_reg + 1)) << 32;
             set_fpu_register_double(fd_reg, static_cast<double>(i64));
             break;
             case CVT_S_L:
@@ -2205,6 +2208,19 @@ void Simulator::DecodeTypeRegister(Instruction* instr) {
           }
           break;
         case PS:
+          break;
+        default:
+          UNREACHABLE();
+      };
+      break;
+    case COP1X:
+      switch (instr->FunctionFieldRaw()) {
+        case MADD_D:
+          double fr, ft, fs;
+          fr = get_fpu_register_double(fr_reg);
+          fs = get_fpu_register_double(fs_reg);
+          ft = get_fpu_register_double(ft_reg);
+          set_fpu_register_double(fd_reg, fs * ft + fr);
           break;
         default:
           UNREACHABLE();

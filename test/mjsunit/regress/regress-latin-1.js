@@ -28,6 +28,32 @@
 assertEquals(String.fromCharCode(97, 220, 256), 'a' + '\u00DC' + '\u0100');
 assertEquals(String.fromCharCode(97, 220, 256), 'a\u00DC\u0100');
 
-assertEquals(['a', 'b', '\xdc'], ['b', '\xdc', 'a'].sort());
-assertEquals(['\xfc\xdc', '\xfc'], new RegExp('(\xdc)\\1', 'i').exec('\xfc\xdc'));
+assertEquals(0x80, JSON.stringify("\x80").charCodeAt(1));
 
+assertEquals(['a', 'b', '\xdc'], ['b', '\xdc', 'a'].sort());
+
+assertEquals(['\xfc\xdc', '\xfc'], new RegExp('(\xdc)\\1', 'i').exec('\xfc\xdc'));
+// Same test but for all values in Latin-1 range.
+var total_lo = 0;
+for (var i = 0; i < 0xff; i++) {
+  var base = String.fromCharCode(i);
+  var escaped = base;
+  if (base == '(' || base == ')' || base == '*' || base == '+' ||
+      base == '?' || base == '[' || base == ']' || base == '\\' ||
+      base == '$' || base == '^' || base == '|') {
+    escaped = '\\' + base;
+  }
+  var lo = String.fromCharCode(i + 0x20);
+  base_result = new RegExp('(' + escaped + ')\\1', 'i').exec(base + base);
+  assertEquals( base_result, [base + base, base]);
+  lo_result = new RegExp('(' + escaped + ')\\1', 'i').exec(base + lo);
+  if (base.toLowerCase() == lo) {
+    assertEquals([base + lo, base], lo_result);
+    total_lo++;
+  } else {
+    assertEquals(null, lo_result);
+  }
+}
+// Should have hit the branch for the following char codes:
+// [A-Z], [192-222] but not 215
+assertEquals((90-65+1)+(222-192-1+1), total_lo);

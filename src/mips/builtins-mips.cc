@@ -1297,6 +1297,26 @@ CODE_AGE_LIST(DEFINE_CODE_AGE_BUILTIN_GENERATOR)
 #undef DEFINE_CODE_AGE_BUILTIN_GENERATOR
 
 
+void Builtins::Generate_NotifyStubFailure(MacroAssembler* masm) {
+  {
+    FrameScope scope(masm, StackFrame::INTERNAL);
+
+    // Preserve registers across notification, this is important for compiled
+    // stubs that tail call the runtime on deopts passing their parameters in
+    // registers.
+    __ MultiPush(kJSCallerSaved | kCalleeSaved);
+    // Pass the function and deoptimization type to the runtime system.
+    __ CallRuntime(Runtime::kNotifyStubFailure, 0);
+    __ MultiPop(kJSCallerSaved | kCalleeSaved);
+  }
+
+  __ mov(at, ra);  // Stash the miss continuation
+  __ Addu(sp, sp, Operand(kPointerSize));  // Ignore state
+  __ pop(ra);  // Restore RA to continuation in JSFunction
+  __ Jump(at);  // Jump to miss handler
+}
+
+
 static void Generate_NotifyDeoptimizedHelper(MacroAssembler* masm,
                                              Deoptimizer::BailoutType type) {
   {
@@ -1413,7 +1433,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
   // a0: actual number of arguments
   // a1: function
   Label shift_arguments;
-  __ li(t0, Operand(0, RelocInfo::NONE));  // Indicate regular JS_FUNCTION.
+  __ li(t0, Operand(0, RelocInfo::NONE32));  // Indicate regular JS_FUNCTION.
   { Label convert_to_object, use_global_receiver, patch_receiver;
     // Change context eagerly in case we need the global receiver.
     __ lw(cp, FieldMemOperand(a1, JSFunction::kContextOffset));
@@ -1467,7 +1487,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     __ sll(at, a0, kPointerSizeLog2);
     __ addu(at, sp, at);
     __ lw(a1, MemOperand(at));
-    __ li(t0, Operand(0, RelocInfo::NONE));
+    __ li(t0, Operand(0, RelocInfo::NONE32));
     __ Branch(&patch_receiver);
 
     // Use the global receiver object from the called function as the
@@ -1490,11 +1510,11 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
 
   // 3b. Check for function proxy.
   __ bind(&slow);
-  __ li(t0, Operand(1, RelocInfo::NONE));  // Indicate function proxy.
+  __ li(t0, Operand(1, RelocInfo::NONE32));  // Indicate function proxy.
   __ Branch(&shift_arguments, eq, a2, Operand(JS_FUNCTION_PROXY_TYPE));
 
   __ bind(&non_function);
-  __ li(t0, Operand(2, RelocInfo::NONE));  // Indicate non-function.
+  __ li(t0, Operand(2, RelocInfo::NONE32));  // Indicate non-function.
 
   // 3c. Patch the first argument when calling a non-function.  The
   //     CALL_NON_FUNCTION builtin expects the non-function callee as
@@ -1725,7 +1745,7 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
     __ bind(&call_proxy);
     __ push(a1);  // Add function proxy as last argument.
     __ Addu(a0, a0, Operand(1));
-    __ li(a2, Operand(0, RelocInfo::NONE));
+    __ li(a2, Operand(0, RelocInfo::NONE32));
     __ SetCallKind(t1, CALL_AS_METHOD);
     __ GetBuiltinEntry(a3, Builtins::CALL_FUNCTION_PROXY);
     __ Call(masm->isolate()->builtins()->ArgumentsAdaptorTrampoline(),

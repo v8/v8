@@ -1002,6 +1002,22 @@ void TypeSwitchInfo::TypeSwitchInfoPrint(FILE* out) {
 }
 
 
+void AllocationSiteInfo::AllocationSiteInfoPrint(FILE* out) {
+  HeapObject::PrintHeader(out, "AllocationSiteInfo");
+  PrintF(out, " - payload: ");
+  if (payload()->IsJSArray()) {
+    PrintF(out, "Array literal ");
+    payload()->ShortPrint(out);
+    PrintF(out, "\n");
+    return;
+  }
+
+  PrintF(out, "unknown payload ");
+  payload()->ShortPrint(out);
+  PrintF(out, "\n");
+}
+
+
 void Script::ScriptPrint(FILE* out) {
   HeapObject::PrintHeader(out, "Script");
   PrintF(out, "\n - source: ");

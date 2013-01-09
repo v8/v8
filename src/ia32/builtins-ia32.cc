@@ -575,7 +575,7 @@ CODE_AGE_LIST(DEFINE_CODE_AGE_BUILTIN_GENERATOR)
 #undef DEFINE_CODE_AGE_BUILTIN_GENERATOR
 
 
-void Builtins::Generate_NotifyICMiss(MacroAssembler* masm) {
+void Builtins::Generate_NotifyStubFailure(MacroAssembler* masm) {
   // Enter an internal frame.
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
@@ -584,7 +584,7 @@ void Builtins::Generate_NotifyICMiss(MacroAssembler* masm) {
     // stubs that tail call the runtime on deopts passing their parameters in
     // registers.
     __ pushad();
-    __ CallRuntime(Runtime::kNotifyICMiss, 0);
+    __ CallRuntime(Runtime::kNotifyStubFailure, 0);
     __ popad();
     // Tear down internal frame.
   }

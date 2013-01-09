@@ -133,6 +133,14 @@ class Utf16 {
   }
 };
 
+class Latin1 {
+ public:
+#ifndef ENABLE_LATIN_1
+  static const unsigned kMaxChar = 0x7f;
+#else
+  static const unsigned kMaxChar = 0xff;
+#endif
+};
 
 class Utf8 {
  public:

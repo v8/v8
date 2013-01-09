@@ -345,6 +345,11 @@ bool String::HasOnlyAsciiChars() {
 }
 
 
+bool String::IsOneByteConvertible() {
+  return HasOnlyAsciiChars() || IsOneByteRepresentation();
+}
+
+
 bool StringShape::IsCons() {
   return (type_ & kStringRepresentationMask) == kConsStringTag;
 }
@@ -1038,8 +1043,8 @@ Failure* Failure::Exception() {
 }
 
 
-Failure* Failure::OutOfMemoryException() {
-  return Construct(OUT_OF_MEMORY_EXCEPTION);
+Failure* Failure::OutOfMemoryException(intptr_t value) {
+  return Construct(OUT_OF_MEMORY_EXCEPTION, value);
 }
 
 
@@ -1734,7 +1739,7 @@ bool Object::IsStringObjectWithCharacterAt(uint32_t index) {
   if (!js_value->value()->IsString()) return false;
 
   String* str = String::cast(js_value->value());
-  if (index >= (uint32_t)str->length()) return false;
+  if (index >= static_cast<uint32_t>(str->length())) return false;
 
   return true;
 }
@@ -2546,31 +2551,26 @@ void String::Visit(
     switch (type & (kStringRepresentationMask | kStringEncodingMask)) {
       case kSeqStringTag | kOneByteStringTag:
         visitor.VisitOneByteString(
-            reinterpret_cast<const uint8_t*>(
-                SeqOneByteString::cast(string)->GetChars()) + slice_offset,
-                length - offset);
+            SeqOneByteString::cast(string)->GetChars() + slice_offset,
+            length - offset);
         return;
 
       case kSeqStringTag | kTwoByteStringTag:
         visitor.VisitTwoByteString(
-            reinterpret_cast<const uint16_t*>(
-                SeqTwoByteString::cast(string)->GetChars()) + slice_offset,
-                length - offset);
+            SeqTwoByteString::cast(string)->GetChars() + slice_offset,
+            length - offset);
         return;
 
       case kExternalStringTag | kOneByteStringTag:
         visitor.VisitOneByteString(
-            reinterpret_cast<const uint8_t*>(
-                ExternalAsciiString::cast(string)->GetChars()) + slice_offset,
-                length - offset);
+            ExternalAsciiString::cast(string)->GetChars() + slice_offset,
+            length - offset);
         return;
 
       case kExternalStringTag | kTwoByteStringTag:
         visitor.VisitTwoByteString(
-            reinterpret_cast<const uint16_t*>(
-                ExternalTwoByteString::cast(string)->GetChars())
-                    + slice_offset,
-                length - offset);
+            ExternalTwoByteString::cast(string)->GetChars() + slice_offset,
+            length - offset);
         return;
 
       case kSlicedStringTag | kOneByteStringTag:
@@ -2605,7 +2605,7 @@ uint16_t SeqOneByteString::SeqOneByteStringGet(int index) {
 
 
 void SeqOneByteString::SeqOneByteStringSet(int index, uint16_t value) {
-  ASSERT(index >= 0 && index < length() && value <= kMaxAsciiCharCode);
+  ASSERT(index >= 0 && index < length() && value <= kMaxOneByteCharCode);
   WRITE_BYTE_FIELD(this, kHeaderSize + index * kCharSize,
                    static_cast<byte>(value));
 }
@@ -2616,8 +2616,8 @@ Address SeqOneByteString::GetCharsAddress() {
 }
 
 
-char* SeqOneByteString::GetChars() {
-  return reinterpret_cast<char*>(GetCharsAddress());
+uint8_t* SeqOneByteString::GetChars() {
+  return reinterpret_cast<uint8_t*>(GetCharsAddress());
 }
 
 
@@ -2727,8 +2727,8 @@ void ExternalAsciiString::set_resource(
 }
 
 
-const char* ExternalAsciiString::GetChars() {
-  return resource()->data();
+const uint8_t* ExternalAsciiString::GetChars() {
+  return reinterpret_cast<const uint8_t*>(resource()->data());
 }
 
 
@@ -4063,6 +4063,8 @@ ACCESSORS(SignatureInfo, receiver, Object, kReceiverOffset)
 ACCESSORS(SignatureInfo, args, Object, kArgsOffset)
 
 ACCESSORS(TypeSwitchInfo, types, Object, kTypesOffset)
+
+ACCESSORS(AllocationSiteInfo, payload, Object, kPayloadOffset)
 
 ACCESSORS(Script, source, Object, kSourceOffset)
 ACCESSORS(Script, name, Object, kNameOffset)

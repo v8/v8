@@ -1689,10 +1689,10 @@ static void DiscoverGreyObjectsOnPage(MarkingDeque* marking_deque, Page* p) {
   for (;
        cell_index < last_cell_index;
        cell_index++, cell_base += 32 * kPointerSize) {
-    ASSERT((unsigned)cell_index ==
-        Bitmap::IndexToCell(
-            Bitmap::CellAlignIndex(
-                p->AddressToMarkbitIndex(cell_base))));
+    ASSERT(static_cast<unsigned>(cell_index) ==
+           Bitmap::IndexToCell(
+               Bitmap::CellAlignIndex(
+                   p->AddressToMarkbitIndex(cell_base))));
 
     const MarkBit::CellType current_cell = cells[cell_index];
     if (current_cell == 0) continue;
@@ -2589,10 +2589,10 @@ void MarkCompactCollector::EvacuateLiveObjectsFromPage(Page* p) {
   for (;
        cell_index < last_cell_index;
        cell_index++, cell_base += 32 * kPointerSize) {
-    ASSERT((unsigned)cell_index ==
-        Bitmap::IndexToCell(
-            Bitmap::CellAlignIndex(
-                p->AddressToMarkbitIndex(cell_base))));
+    ASSERT(static_cast<unsigned>(cell_index) ==
+           Bitmap::IndexToCell(
+               Bitmap::CellAlignIndex(
+                   p->AddressToMarkbitIndex(cell_base))));
     if (cells[cell_index] == 0) continue;
 
     int live_objects = MarkWordToObjectStarts(cells[cell_index], offsets);
@@ -2762,10 +2762,10 @@ static void SweepPrecisely(PagedSpace* space,
   for (;
        cell_index < last_cell_index;
        cell_index++, object_address += 32 * kPointerSize) {
-    ASSERT((unsigned)cell_index ==
-        Bitmap::IndexToCell(
-            Bitmap::CellAlignIndex(
-                p->AddressToMarkbitIndex(object_address))));
+    ASSERT(static_cast<unsigned>(cell_index) ==
+           Bitmap::IndexToCell(
+               Bitmap::CellAlignIndex(
+                   p->AddressToMarkbitIndex(object_address))));
     int live_objects = MarkWordToObjectStarts(cells[cell_index], offsets);
     int live_index = 0;
     for ( ; live_objects != 0; live_objects--) {
@@ -3442,10 +3442,10 @@ intptr_t MarkCompactCollector::SweepConservatively(PagedSpace* space, Page* p) {
   for ( ;
        cell_index < last_cell_index;
        cell_index++, block_address += 32 * kPointerSize) {
-    ASSERT((unsigned)cell_index ==
-        Bitmap::IndexToCell(
-            Bitmap::CellAlignIndex(
-                p->AddressToMarkbitIndex(block_address))));
+    ASSERT(static_cast<unsigned>(cell_index) ==
+           Bitmap::IndexToCell(
+               Bitmap::CellAlignIndex(
+                   p->AddressToMarkbitIndex(block_address))));
     uint32_t cell = cells[cell_index];
     if (cell != 0) {
       // We have a live object.  Check approximately whether it is more than 32

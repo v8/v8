@@ -423,7 +423,7 @@ static void CalculateLineEnds(Isolate* isolate,
                               Vector<const SourceChar> src,
                               bool with_last_line) {
   const int src_len = src.length();
-  StringSearch<char, SourceChar> search(isolate, CStrVector("\n"));
+  StringSearch<uint8_t, SourceChar> search(isolate, STATIC_ASCII_VECTOR("\n"));
 
   // Find and record line ends.
   int position = 0;
@@ -457,7 +457,7 @@ Handle<FixedArray> CalculateLineEnds(Handle<String> src,
     if (content.IsAscii()) {
       CalculateLineEnds(isolate,
                         &line_ends,
-                        content.ToAsciiVector(),
+                        content.ToOneByteVector(),
                         with_last_line);
     } else {
       CalculateLineEnds(isolate,

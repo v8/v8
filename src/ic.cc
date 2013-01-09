@@ -43,9 +43,10 @@ namespace internal {
 char IC::TransitionMarkFromState(IC::State state) {
   switch (state) {
     case UNINITIALIZED: return '0';
-    case PREMONOMORPHIC: return 'P';
+    case PREMONOMORPHIC: return '.';
     case MONOMORPHIC: return '1';
     case MONOMORPHIC_PROTOTYPE_FAILURE: return '^';
+    case POLYMORPHIC: return 'P';
     case MEGAMORPHIC: return IsGeneric() ? 'G' : 'N';
 
     // We never see the debugger states here, because the state is
@@ -273,7 +274,7 @@ RelocInfo::Mode IC::ComputeMode() {
     if (info->pc() == addr) return info->rmode();
   }
   UNREACHABLE();
-  return RelocInfo::NONE;
+  return RelocInfo::NONE32;
 }
 
 
@@ -712,7 +713,6 @@ void CallICBase::UpdateCaches(LookupResult* lookup,
 
   // Compute the number of arguments.
   int argc = target()->arguments_count();
-  bool had_proto_failure = false;
   Handle<Code> code;
   if (state == UNINITIALIZED) {
     // This is the first time we execute this inline cache.
@@ -729,7 +729,7 @@ void CallICBase::UpdateCaches(LookupResult* lookup,
                TryRemoveInvalidPrototypeDependentStub(target(),
                                                       *object,
                                                       *name)) {
-      had_proto_failure = true;
+      state = MONOMORPHIC_PROTOTYPE_FAILURE;
       code = ComputeMonomorphicStub(lookup, state, extra_ic_state,
                                     object, name);
     } else {
@@ -745,22 +745,39 @@ void CallICBase::UpdateCaches(LookupResult* lookup,
   if (code.is_null()) return;
 
   // Patch the call site depending on the state of the cache.
-  if (state == UNINITIALIZED ||
-      state == PREMONOMORPHIC ||
-      state == MONOMORPHIC ||
-      state == MONOMORPHIC_PROTOTYPE_FAILURE) {
-    set_target(*code);
-  } else if (state == MEGAMORPHIC) {
-    // Cache code holding map should be consistent with
-    // GenerateMonomorphicCacheProbe. It is not the map which holds the stub.
-    Handle<JSObject> cache_object = object->IsJSObject()
-        ? Handle<JSObject>::cast(object)
-        : Handle<JSObject>(JSObject::cast(object->GetPrototype()));
-    // Update the stub cache.
-    isolate()->stub_cache()->Set(*name, cache_object->map(), *code);
+  switch (state) {
+    case UNINITIALIZED:
+    case MONOMORPHIC_PROTOTYPE_FAILURE:
+    case PREMONOMORPHIC:
+      set_target(*code);
+      break;
+    case MONOMORPHIC:
+      if (code->ic_state() != MONOMORPHIC) {
+        Map* map = target()->FindFirstMap();
+        if (map != NULL) {
+          isolate()->stub_cache()->Set(*name, map, target());
+        }
+      }
+      set_target(*code);
+      break;
+    case MEGAMORPHIC: {
+      // Cache code holding map should be consistent with
+      // GenerateMonomorphicCacheProbe. It is not the map which holds the stub.
+      Handle<JSObject> cache_object = object->IsJSObject()
+          ? Handle<JSObject>::cast(object)
+          : Handle<JSObject>(JSObject::cast(object->GetPrototype()));
+      // Update the stub cache.
+      isolate()->stub_cache()->Set(*name, cache_object->map(), *code);
+      break;
+    }
+    case DEBUG_BREAK:
+    case DEBUG_PREPARE_STEP_IN:
+      break;
+    case POLYMORPHIC:
+      UNREACHABLE();
+      break;
   }
 
-  if (had_proto_failure) state = MONOMORPHIC_PROTOTYPE_FAILURE;
   TRACE_IC(kind_ == Code::CALL_IC ? "CallIC" : "KeyedCallIC",
            name, state, target());
 }
@@ -1024,25 +1041,37 @@ void LoadIC::UpdateCaches(LookupResult* lookup,
   }
 
   // Patch the call site depending on the state of the cache.
-  if (state == UNINITIALIZED ||
-      state == PREMONOMORPHIC ||
-      state == MONOMORPHIC_PROTOTYPE_FAILURE) {
-    set_target(*code);
-  } else if (state == MONOMORPHIC) {
-    // We are transitioning from monomorphic to megamorphic case.
-    // Place the current monomorphic stub and stub compiled for
-    // the receiver into stub cache.
-    Map* map = target()->FindFirstMap();
-    if (map != NULL) {
-      isolate()->stub_cache()->Set(*name, map, target());
-    }
-    isolate()->stub_cache()->Set(*name, receiver->map(), *code);
+  switch (state) {
+    case UNINITIALIZED:
+    case PREMONOMORPHIC:
+    case MONOMORPHIC_PROTOTYPE_FAILURE:
+      set_target(*code);
+      break;
+    case MONOMORPHIC:
+      if (target() != *code) {
+        // We are transitioning from monomorphic to megamorphic case.
+        // Place the current monomorphic stub and stub compiled for
+        // the receiver into stub cache.
+        Map* map = target()->FindFirstMap();
+        if (map != NULL) {
+          isolate()->stub_cache()->Set(*name, map, target());
+        }
+        isolate()->stub_cache()->Set(*name, receiver->map(), *code);
 
-    set_target(*megamorphic_stub());
-  } else if (state == MEGAMORPHIC) {
-    // Cache code holding map should be consistent with
-    // GenerateMonomorphicCacheProbe.
-    isolate()->stub_cache()->Set(*name, receiver->map(), *code);
+        set_target(*megamorphic_stub());
+      }
+      break;
+    case MEGAMORPHIC:
+      // Cache code holding map should be consistent with
+      // GenerateMonomorphicCacheProbe.
+      isolate()->stub_cache()->Set(*name, receiver->map(), *code);
+      break;
+    case DEBUG_BREAK:
+    case DEBUG_PREPARE_STEP_IN:
+      break;
+    case POLYMORPHIC:
+      UNREACHABLE();
+      break;
   }
 
   TRACE_IC("LoadIC", name, state, target());
@@ -1080,7 +1109,7 @@ Handle<Code> KeyedLoadIC::ComputePolymorphicStub(
       receiver_maps, &handler_ics);
   isolate()->counters()->keyed_load_polymorphic_stubs()->Increment();
   PROFILE(isolate(),
-          CodeCreateEvent(Logger::KEYED_LOAD_MEGAMORPHIC_IC_TAG, *code, 0));
+          CodeCreateEvent(Logger::KEYED_LOAD_POLYMORPHIC_IC_TAG, *code, 0));
   return code;
 }
 
@@ -1108,7 +1137,7 @@ static Handle<Object> TryConvertKey(Handle<Object> key, Isolate* isolate) {
 MaybeObject* KeyedLoadIC::Load(State state,
                                Handle<Object> object,
                                Handle<Object> key,
-                               bool force_generic_stub) {
+                               ICMissMode miss_mode) {
   // Check for values that can be converted into a symbol directly or
   // is representable as a smi.
   key = TryConvertKey(key, isolate());
@@ -1209,7 +1238,7 @@ MaybeObject* KeyedLoadIC::Load(State state,
 
   if (use_ic) {
     Handle<Code> stub = generic_stub();
-    if (!force_generic_stub) {
+    if (miss_mode != MISS_FORCE_GENERIC) {
       if (object->IsString() && key->IsNumber()) {
         if (state == UNINITIALIZED) {
           stub = string_stub();
@@ -1296,13 +1325,26 @@ void KeyedLoadIC::UpdateCaches(LookupResult* lookup,
     }
   }
 
-  // Patch the call site depending on the state of the cache.  Make
-  // sure to always rewrite from monomorphic to megamorphic.
-  ASSERT(state != MONOMORPHIC_PROTOTYPE_FAILURE);
-  if (state == UNINITIALIZED || state == PREMONOMORPHIC) {
-    set_target(*code);
-  } else if (state == MONOMORPHIC) {
-    set_target(*megamorphic_stub());
+  // Patch the call site depending on the state of the cache.
+  switch (state) {
+    case UNINITIALIZED:
+    case PREMONOMORPHIC:
+    case POLYMORPHIC:
+      set_target(*code);
+      break;
+    case MONOMORPHIC:
+      // Only move to megamorphic if the target changes.
+      if (target() != *code) {
+        set_target(*megamorphic_stub());
+      }
+      break;
+    case MEGAMORPHIC:
+    case DEBUG_BREAK:
+    case DEBUG_PREPARE_STEP_IN:
+      break;
+    case MONOMORPHIC_PROTOTYPE_FAILURE:
+      UNREACHABLE();
+      break;
   }
 
   TRACE_IC("KeyedLoadIC", name, state, target());
@@ -1547,18 +1589,38 @@ void StoreIC::UpdateCaches(LookupResult* lookup,
   }
 
   // Patch the call site depending on the state of the cache.
-  if (state == UNINITIALIZED || state == MONOMORPHIC_PROTOTYPE_FAILURE) {
-    set_target(*code);
-  } else if (state == MONOMORPHIC) {
-    // Only move to megamorphic if the target changes.
-    if (target() != *code) {
-      set_target((strict_mode == kStrictMode)
-                   ? megamorphic_stub_strict()
-                   : megamorphic_stub());
-    }
-  } else if (state == MEGAMORPHIC) {
-    // Update the stub cache.
-    isolate()->stub_cache()->Set(*name, receiver->map(), *code);
+  switch (state) {
+    case UNINITIALIZED:
+    case PREMONOMORPHIC:
+    case MONOMORPHIC_PROTOTYPE_FAILURE:
+      set_target(*code);
+      break;
+    case MONOMORPHIC:
+      // Only move to megamorphic if the target changes.
+      if (target() != *code) {
+        // We are transitioning from monomorphic to megamorphic case.
+        // Place the current monomorphic stub and stub compiled for
+        // the receiver into stub cache.
+        Map* map = target()->FindFirstMap();
+        if (map != NULL) {
+          isolate()->stub_cache()->Set(*name, map, target());
+        }
+        isolate()->stub_cache()->Set(*name, receiver->map(), *code);
+        set_target((strict_mode == kStrictMode)
+                     ? megamorphic_stub_strict()
+                     : megamorphic_stub());
+      }
+      break;
+    case MEGAMORPHIC:
+      // Update the stub cache.
+      isolate()->stub_cache()->Set(*name, receiver->map(), *code);
+      break;
+    case DEBUG_BREAK:
+    case DEBUG_PREPARE_STEP_IN:
+      break;
+    case POLYMORPHIC:
+      UNREACHABLE();
+      break;
   }
 
   TRACE_IC("StoreIC", name, state, target());
@@ -1585,18 +1647,30 @@ void KeyedIC::GetReceiverMapsForStub(Handle<Code> stub,
   if (!string_stub().is_null() && stub.is_identical_to(string_stub())) {
     return result->Add(isolate()->factory()->string_map());
   } else if (stub->is_keyed_load_stub() || stub->is_keyed_store_stub()) {
-    if (stub->ic_state() == MONOMORPHIC) {
-      result->Add(Handle<Map>(stub->FindFirstMap()));
-    } else {
-      ASSERT(stub->ic_state() == MEGAMORPHIC);
-      AssertNoAllocation no_allocation;
-      int mask = RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT);
-      for (RelocIterator it(*stub, mask); !it.done(); it.next()) {
-        RelocInfo* info = it.rinfo();
-        Handle<Object> object(info->target_object());
-        ASSERT(object->IsMap());
-        AddOneReceiverMapIfMissing(result, Handle<Map>::cast(object));
+    switch (stub->ic_state()) {
+      case MONOMORPHIC:
+        result->Add(Handle<Map>(stub->FindFirstMap()));
+        break;
+      case POLYMORPHIC: {
+        AssertNoAllocation no_allocation;
+        int mask = RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT);
+        for (RelocIterator it(*stub, mask); !it.done(); it.next()) {
+          RelocInfo* info = it.rinfo();
+          Handle<Object> object(info->target_object());
+          ASSERT(object->IsMap());
+          AddOneReceiverMapIfMissing(result, Handle<Map>::cast(object));
+        }
+        break;
       }
+      case MEGAMORPHIC:
+        break;
+      case UNINITIALIZED:
+      case PREMONOMORPHIC:
+      case MONOMORPHIC_PROTOTYPE_FAILURE:
+      case DEBUG_BREAK:
+      case DEBUG_PREPARE_STEP_IN:
+        UNREACHABLE();
+        break;
     }
   }
 }
@@ -1686,7 +1760,7 @@ Handle<Code> KeyedIC::ComputeStub(Handle<JSObject> receiver,
       isolate()->factory()->polymorphic_code_cache();
   Code::ExtraICState extra_state = Code::ComputeExtraICState(grow_mode,
                                                              strict_mode);
-  Code::Flags flags = Code::ComputeFlags(kind(), MEGAMORPHIC, extra_state);
+  Code::Flags flags = Code::ComputeFlags(kind(), POLYMORPHIC, extra_state);
   Handle<Object> probe = cache->Lookup(&target_receiver_maps, flags);
   if (probe->IsCode()) return Handle<Code>::cast(probe);
 
@@ -1804,7 +1878,7 @@ Handle<Code> KeyedStoreIC::ComputePolymorphicStub(
       receiver_maps, &handler_ics, &transitioned_maps);
   isolate()->counters()->keyed_store_polymorphic_stubs()->Increment();
   PROFILE(isolate(),
-          CodeCreateEvent(Logger::KEYED_STORE_MEGAMORPHIC_IC_TAG, *code, 0));
+          CodeCreateEvent(Logger::KEYED_STORE_POLYMORPHIC_IC_TAG, *code, 0));
   return code;
 }
 
@@ -1880,7 +1954,7 @@ MaybeObject* KeyedStoreIC::Store(State state,
                                  Handle<Object> object,
                                  Handle<Object> key,
                                  Handle<Object> value,
-                                 bool force_generic) {
+                                 ICMissMode miss_mode) {
   // Check for values that can be converted into a symbol directly or
   // is representable as a smi.
   key = TryConvertKey(key, isolate());
@@ -1942,7 +2016,7 @@ MaybeObject* KeyedStoreIC::Store(State state,
       if (receiver->elements()->map() ==
           isolate()->heap()->non_strict_arguments_elements_map()) {
         stub = non_strict_arguments_stub();
-      } else if (!force_generic) {
+      } else if (miss_mode != MISS_FORCE_GENERIC) {
         if (key->IsSmi() && (target() != *non_strict_arguments_stub())) {
           StubKind stub_kind = GetStubKind(receiver, key, value);
           stub = ComputeStub(receiver, stub_kind, strict_mode, stub);
@@ -2024,15 +2098,28 @@ void KeyedStoreIC::UpdateCaches(LookupResult* lookup,
 
   ASSERT(!code.is_null());
 
-  // Patch the call site depending on the state of the cache.  Make
-  // sure to always rewrite from monomorphic to megamorphic.
-  ASSERT(state != MONOMORPHIC_PROTOTYPE_FAILURE);
-  if (state == UNINITIALIZED || state == PREMONOMORPHIC) {
-    set_target(*code);
-  } else if (state == MONOMORPHIC) {
-    set_target((strict_mode == kStrictMode)
-                 ? *megamorphic_stub_strict()
-                 : *megamorphic_stub());
+  // Patch the call site depending on the state of the cache.
+  switch (state) {
+    case UNINITIALIZED:
+    case PREMONOMORPHIC:
+    case POLYMORPHIC:
+      set_target(*code);
+      break;
+    case MONOMORPHIC:
+      // Only move to megamorphic if the target changes.
+      if (target() != *code) {
+        set_target((strict_mode == kStrictMode)
+                     ? *megamorphic_stub_strict()
+                     : *megamorphic_stub());
+      }
+      break;
+    case MEGAMORPHIC:
+    case DEBUG_BREAK:
+    case DEBUG_PREPARE_STEP_IN:
+      break;
+    case MONOMORPHIC_PROTOTYPE_FAILURE:
+      UNREACHABLE();
+      break;
   }
 
   TRACE_IC("KeyedStoreIC", name, state, target());
@@ -2057,13 +2144,12 @@ RUNTIME_FUNCTION(MaybeObject*, CallIC_Miss) {
                                               extra_ic_state,
                                               args.at<Object>(0),
                                               args.at<String>(1));
-  // Result could be a function or a failure.
-  JSFunction* raw_function = NULL;
+  JSFunction* raw_function;
   if (!maybe_result->To(&raw_function)) return maybe_result;
 
   // The first time the inline cache is updated may be the first time the
-  // function it references gets called.  If the function is lazily compiled
-  // then the first call will trigger a compilation.  We check for this case
+  // function it references gets called. If the function is lazily compiled
+  // then the first call will trigger a compilation. We check for this case
   // and we do the compilation immediately, instead of waiting for the stub
   // currently attached to the JSFunction object to trigger compilation.
   if (raw_function->is_compiled()) return raw_function;
@@ -2110,7 +2196,7 @@ RUNTIME_FUNCTION(MaybeObject*, KeyedLoadIC_Miss) {
   ASSERT(args.length() == 2);
   KeyedLoadIC ic(isolate);
   IC::State state = IC::StateFrom(ic.target(), args[0], args[1]);
-  return ic.Load(state, args.at<Object>(0), args.at<Object>(1), false);
+  return ic.Load(state, args.at<Object>(0), args.at<Object>(1), MISS);
 }
 
 
@@ -2119,7 +2205,10 @@ RUNTIME_FUNCTION(MaybeObject*, KeyedLoadIC_MissForceGeneric) {
   ASSERT(args.length() == 2);
   KeyedLoadIC ic(isolate);
   IC::State state = IC::StateFrom(ic.target(), args[0], args[1]);
-  return ic.Load(state, args.at<Object>(0), args.at<Object>(1), true);
+  return ic.Load(state,
+                 args.at<Object>(0),
+                 args.at<Object>(1),
+                 MISS_FORCE_GENERIC);
 }
 
 
@@ -2211,7 +2300,7 @@ RUNTIME_FUNCTION(MaybeObject*, KeyedStoreIC_Miss) {
                   args.at<Object>(0),
                   args.at<Object>(1),
                   args.at<Object>(2),
-                  false);
+                  MISS);
 }
 
 
@@ -2244,7 +2333,7 @@ RUNTIME_FUNCTION(MaybeObject*, KeyedStoreIC_MissForceGeneric) {
                   args.at<Object>(0),
                   args.at<Object>(1),
                   args.at<Object>(2),
-                  true);
+                  MISS_FORCE_GENERIC);
 }
 
 

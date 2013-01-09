@@ -234,7 +234,7 @@ void RegExpMacroAssemblerX64::CheckCharacters(Vector<const uc16> str,
   // If input is ASCII, don't even bother calling here if the string to
   // match contains a non-ASCII character.
   if (mode_ == ASCII) {
-    ASSERT(String::IsAscii(str.start(), str.length()));
+    ASSERT(String::IsOneByte(str.start(), str.length()));
   }
 #endif
   int byte_length = str.length() * char_size();
@@ -393,8 +393,17 @@ void RegExpMacroAssemblerX64::CheckNotBackReferenceIgnoreCase(
     __ j(not_equal, on_no_match);  // Definitely not equal.
     __ subb(rax, Immediate('a'));
     __ cmpb(rax, Immediate('z' - 'a'));
+#ifndef ENABLE_LATIN_1
     __ j(above, on_no_match);  // Weren't letters anyway.
-
+#else
+    __ j(below_equal, &loop_increment);  // In range 'a'-'z'.
+    // Latin-1: Check for values in range [224,254] but not 247.
+    __ subb(rax, Immediate(224 - 'a'));
+    __ cmpb(rax, Immediate(254 - 224));
+    __ j(above, on_no_match);  // Weren't Latin-1 letters.
+    __ cmpb(rax, Immediate(247 - 224));  // Check for 247.
+    __ j(equal, on_no_match);
+#endif
     __ bind(&loop_increment);
     // Increment pointers into match and capture strings.
     __ addq(r11, Immediate(1));
@@ -610,7 +619,7 @@ void RegExpMacroAssemblerX64::CheckBitInTable(
     Label* on_bit_set) {
   __ Move(rax, table);
   Register index = current_character();
-  if (mode_ != ASCII || kTableMask != String::kMaxAsciiCharCode) {
+  if (mode_ != ASCII || kTableMask != String::kMaxOneByteCharCode) {
     __ movq(rbx, current_character());
     __ and_(rbx, Immediate(kTableMask));
     index = rbx;

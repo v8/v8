@@ -180,6 +180,10 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
 
   Register scratch = t6;
 
+  if (FLAG_track_allocation_sites) {
+    masm->TestJSArrayForAllocationSiteInfo(a2, t0, fail);
+  }
+
   // Check for empty arrays, which only require a map transition and no changes
   // to the backing store.
   __ lw(t0, FieldMemOperand(a2, JSObject::kElementsOffset));

@@ -44,7 +44,7 @@ void KeyedLoadFastElementStub::InitializeInterfaceDescriptor(
   descriptor->register_param_count_ = 2;
   descriptor->register_params_ = registers;
   descriptor->deoptimization_handler_ =
-      isolate->builtins()->KeyedLoadIC_Miss();
+      FUNCTION_ADDR(KeyedLoadIC_Miss);
 }
 
 
@@ -316,6 +316,7 @@ static void GenerateFastCloneShallowArrayCommon(
     MacroAssembler* masm,
     int length,
     FastCloneShallowArrayStub::Mode mode,
+    AllocationSiteInfoMode allocation_site_info_mode,
     Label* fail) {
   // Registers on entry:
   //
@@ -329,7 +330,12 @@ static void GenerateFastCloneShallowArrayCommon(
         ? FixedDoubleArray::SizeFor(length)
         : FixedArray::SizeFor(length);
   }
-  int size = JSArray::kSize + elements_size;
+  int size = JSArray::kSize;
+  int allocation_info_start = size;
+  if (allocation_site_info_mode == TRACK_ALLOCATION_SITE_INFO) {
+    size += AllocationSiteInfo::kSize;
+  }
+  size += elements_size;
 
   // Allocate both the JS array and the elements array in one big
   // allocation. This avoids multiple limit checks.
@@ -338,6 +344,12 @@ static void GenerateFastCloneShallowArrayCommon(
     flags = static_cast<AllocationFlags>(DOUBLE_ALIGNMENT | flags);
   }
   __ AllocateInNewSpace(size, rax, rbx, rdx, fail, flags);
+
+  if (allocation_site_info_mode == TRACK_ALLOCATION_SITE_INFO) {
+    __ LoadRoot(kScratchRegister, Heap::kAllocationSiteInfoMapRootIndex);
+    __ movq(FieldOperand(rax, allocation_info_start), kScratchRegister);
+    __ movq(FieldOperand(rax, allocation_info_start + kPointerSize), rcx);
+  }
 
   // Copy the JS array part.
   for (int i = 0; i < JSArray::kSize; i += kPointerSize) {
@@ -351,7 +363,11 @@ static void GenerateFastCloneShallowArrayCommon(
     // Get hold of the elements array of the boilerplate and setup the
     // elements pointer in the resulting object.
     __ movq(rcx, FieldOperand(rcx, JSArray::kElementsOffset));
-    __ lea(rdx, Operand(rax, JSArray::kSize));
+    if (allocation_site_info_mode == TRACK_ALLOCATION_SITE_INFO) {
+      __ lea(rdx, Operand(rax, JSArray::kSize + AllocationSiteInfo::kSize));
+    } else {
+      __ lea(rdx, Operand(rax, JSArray::kSize));
+    }
     __ movq(FieldOperand(rax, JSArray::kElementsOffset), rdx);
 
     // Copy the elements array.
@@ -398,6 +414,13 @@ void FastCloneShallowArrayStub::Generate(MacroAssembler* masm) {
   FastCloneShallowArrayStub::Mode mode = mode_;
   // rcx is boilerplate object.
   Factory* factory = masm->isolate()->factory();
+  AllocationSiteInfoMode allocation_site_info_mode =
+      DONT_TRACK_ALLOCATION_SITE_INFO;
+  if (mode == CLONE_ANY_ELEMENTS_WITH_ALLOCATION_SITE_INFO) {
+    mode = CLONE_ANY_ELEMENTS;
+    allocation_site_info_mode = TRACK_ALLOCATION_SITE_INFO;
+  }
+
   if (mode == CLONE_ANY_ELEMENTS) {
     Label double_elements, check_fast_elements;
     __ movq(rbx, FieldOperand(rcx, JSArray::kElementsOffset));
@@ -405,7 +428,9 @@ void FastCloneShallowArrayStub::Generate(MacroAssembler* masm) {
            factory->fixed_cow_array_map());
     __ j(not_equal, &check_fast_elements);
     GenerateFastCloneShallowArrayCommon(masm, 0,
-                                        COPY_ON_WRITE_ELEMENTS, &slow_case);
+                                        COPY_ON_WRITE_ELEMENTS,
+                                        allocation_site_info_mode,
+                                        &slow_case);
     __ ret(3 * kPointerSize);
 
     __ bind(&check_fast_elements);
@@ -413,7 +438,9 @@ void FastCloneShallowArrayStub::Generate(MacroAssembler* masm) {
            factory->fixed_array_map());
     __ j(not_equal, &double_elements);
     GenerateFastCloneShallowArrayCommon(masm, length_,
-                                        CLONE_ELEMENTS, &slow_case);
+                                        CLONE_ELEMENTS,
+                                        allocation_site_info_mode,
+                                        &slow_case);
     __ ret(3 * kPointerSize);
 
     __ bind(&double_elements);
@@ -443,7 +470,8 @@ void FastCloneShallowArrayStub::Generate(MacroAssembler* masm) {
     __ pop(rcx);
   }
 
-  GenerateFastCloneShallowArrayCommon(masm, length_, mode, &slow_case);
+  GenerateFastCloneShallowArrayCommon(masm, length_, mode,
+                                      allocation_site_info_mode, &slow_case);
   __ ret(3 * kPointerSize);
 
   __ bind(&slow_case);
@@ -3899,6 +3927,19 @@ void CEntryStub::GenerateAheadOfTime() {
 }
 
 
+static void JumpIfOOM(MacroAssembler* masm,
+                      Register value,
+                      Register scratch,
+                      Label* oom_label) {
+  __ movq(scratch, value);
+  STATIC_ASSERT(Failure::OUT_OF_MEMORY_EXCEPTION == 3);
+  STATIC_ASSERT(kFailureTag == 3);
+  __ and_(scratch, Immediate(0xf));
+  __ cmpq(scratch, Immediate(0xf));
+  __ j(equal, oom_label);
+}
+
+
 void CEntryStub::GenerateCore(MacroAssembler* masm,
                               Label* throw_normal_exception,
                               Label* throw_termination_exception,
@@ -4012,9 +4053,7 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   __ j(zero, &retry, Label::kNear);
 
   // Special handling of out of memory exceptions.
-  __ movq(kScratchRegister, Failure::OutOfMemoryException(), RelocInfo::NONE64);
-  __ cmpq(rax, kScratchRegister);
-  __ j(equal, throw_out_of_memory_exception);
+  JumpIfOOM(masm, rax, kScratchRegister, throw_out_of_memory_exception);
 
   // Retrieve the pending exception and clear the variable.
   ExternalReference pending_exception_address(
@@ -4111,7 +4150,10 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   // Set pending exception and rax to out of memory exception.
   ExternalReference pending_exception(Isolate::kPendingExceptionAddress,
                                       isolate);
-  __ movq(rax, Failure::OutOfMemoryException(), RelocInfo::NONE64);
+  Label already_have_failure;
+  JumpIfOOM(masm, rax, kScratchRegister, &already_have_failure);
+  __ movq(rax, Failure::OutOfMemoryException(0x1), RelocInfo::NONE64);
+  __ bind(&already_have_failure);
   __ Store(pending_exception, rax);
   // Fall through to the next label.
 
@@ -4534,7 +4576,7 @@ void StringCharCodeAtGenerator::GenerateSlow(
 void StringCharFromCodeGenerator::GenerateFast(MacroAssembler* masm) {
   // Fast case of Heap::LookupSingleCharacterStringFromCode.
   __ JumpIfNotSmi(code_, &slow_case_);
-  __ SmiCompare(code_, Smi::FromInt(String::kMaxAsciiCharCode));
+  __ SmiCompare(code_, Smi::FromInt(String::kMaxOneByteCharCode));
   __ j(above, &slow_case_);
 
   __ LoadRoot(result_, Heap::kSingleCharacterStringCacheRootIndex);
@@ -5445,16 +5487,32 @@ void StringCompareStub::GenerateCompareFlatAsciiStrings(MacroAssembler* masm,
   // Compare lengths (precomputed).
   __ bind(&compare_lengths);
   __ SmiTest(length_difference);
+#ifndef ENABLE_LATIN_1
   __ j(not_zero, &result_not_equal, Label::kNear);
+#else
+  Label length_not_equal;
+  __ j(not_zero, &length_not_equal, Label::kNear);
+#endif
 
   // Result is EQUAL.
   __ Move(rax, Smi::FromInt(EQUAL));
   __ ret(0);
 
   Label result_greater;
+#ifdef ENABLE_LATIN_1
+  Label result_less;
+  __ bind(&length_not_equal);
+  __ j(greater, &result_greater, Label::kNear);
+  __ jmp(&result_less, Label::kNear);
+#endif
   __ bind(&result_not_equal);
   // Unequal comparison of left to right, either character or length.
+#ifndef ENABLE_LATIN_1
   __ j(greater, &result_greater, Label::kNear);
+#else
+  __ j(above, &result_greater, Label::kNear);
+  __ bind(&result_less);
+#endif
 
   // Result is LESS.
   __ Move(rax, Smi::FromInt(LESS));

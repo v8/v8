@@ -291,6 +291,7 @@ const int kStubMinorKeyBits = kBitsPerInt - kSmiTagSize - kStubMajorKeyBits;
   V(OBJECT_TEMPLATE_INFO_TYPE)                                                 \
   V(SIGNATURE_INFO_TYPE)                                                       \
   V(TYPE_SWITCH_INFO_TYPE)                                                     \
+  V(ALLOCATION_SITE_INFO_TYPE)                                                 \
   V(SCRIPT_TYPE)                                                               \
   V(CODE_CACHE_TYPE)                                                           \
   V(POLYMORPHIC_CODE_CACHE_TYPE)                                               \
@@ -444,6 +445,7 @@ const int kStubMinorKeyBits = kBitsPerInt - kSmiTagSize - kStubMajorKeyBits;
   V(SIGNATURE_INFO, SignatureInfo, signature_info)                             \
   V(TYPE_SWITCH_INFO, TypeSwitchInfo, type_switch_info)                        \
   V(SCRIPT, Script, script)                                                    \
+  V(ALLOCATION_SITE_INFO, AllocationSiteInfo, allocation_site_info)            \
   V(CODE_CACHE, CodeCache, code_cache)                                         \
   V(POLYMORPHIC_CODE_CACHE, PolymorphicCodeCache, polymorphic_code_cache)      \
   V(TYPE_FEEDBACK_INFO, TypeFeedbackInfo, type_feedback_info)                  \
@@ -606,6 +608,7 @@ enum InstanceType {
   OBJECT_TEMPLATE_INFO_TYPE,
   SIGNATURE_INFO_TYPE,
   TYPE_SWITCH_INFO_TYPE,
+  ALLOCATION_SITE_INFO_TYPE,
   SCRIPT_TYPE,
   CODE_CACHE_TYPE,
   POLYMORPHIC_CODE_CACHE_TYPE,
@@ -1141,7 +1144,9 @@ class Failure: public MaybeObject {
   static inline Failure* RetryAfterGC();  // NEW_SPACE
   static inline Failure* Exception();
   static inline Failure* InternalError();
-  static inline Failure* OutOfMemoryException();
+  // TODO(jkummerow): The value is temporary instrumentation. Remove it
+  // when it has served its purpose.
+  static inline Failure* OutOfMemoryException(intptr_t value);
   // Casting.
   static inline Failure* cast(MaybeObject* object);
 
@@ -2012,6 +2017,8 @@ class JSObject: public JSReceiver {
                                                ElementsKind to_kind);
 
   MUST_USE_RESULT MaybeObject* TransitionElementsKind(ElementsKind to_kind);
+  MUST_USE_RESULT MaybeObject* PossiblyTransitionArrayBoilerplate(
+      ElementsKind to_kind);
 
   // Replaces an existing transition with a transition to a map with a FIELD.
   MUST_USE_RESULT MaybeObject* ConvertTransitionToMapTransition(
@@ -3028,7 +3035,7 @@ class SymbolTable: public HashTable<SymbolTableShape, HashTableKey*> {
   // pointer *s is set to the symbol found.
   MUST_USE_RESULT MaybeObject* LookupUtf8Symbol(Vector<const char> str,
                                                 Object** s);
-  MUST_USE_RESULT MaybeObject* LookupOneByteSymbol(Vector<const char> str,
+  MUST_USE_RESULT MaybeObject* LookupOneByteSymbol(Vector<const uint8_t> str,
                                                    Object** s);
   MUST_USE_RESULT MaybeObject* LookupSubStringOneByteSymbol(
       Handle<SeqOneByteString> str,
@@ -6897,6 +6904,32 @@ class TypeFeedbackInfo: public Struct {
 };
 
 
+enum AllocationSiteInfoMode {
+  DONT_TRACK_ALLOCATION_SITE_INFO,
+  TRACK_ALLOCATION_SITE_INFO
+};
+
+
+class AllocationSiteInfo: public Struct {
+ public:
+  DECL_ACCESSORS(payload, Object)
+
+  static inline AllocationSiteInfo* cast(Object* obj);
+
+  DECLARE_PRINTER(AllocationSiteInfo)
+  DECLARE_VERIFIER(AllocationSiteInfo)
+
+  // Returns NULL if no AllocationSiteInfo is available for object.
+  static AllocationSiteInfo* FindForJSObject(JSObject* object);
+
+  static const int kPayloadOffset = HeapObject::kHeaderSize;
+  static const int kSize = kPayloadOffset + kPointerSize;
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(AllocationSiteInfo);
+};
+
+
 // Representation of a slow alias as part of a non-strict arguments objects.
 // For fast aliases (if HasNonStrictArgumentsElements()):
 // - the parameter map contains an index into the context
@@ -7057,11 +7090,11 @@ class String: public HeapObject {
     // Returns true if the structure contains two-byte content.
     bool IsTwoByte() { return state_ == TWO_BYTE; }
 
-    // Return the ASCII content of the string. Only use if IsAscii() returns
+    // Return the one byte content of the string. Only use if IsAscii() returns
     // true.
-    Vector<const char> ToAsciiVector() {
+    Vector<const uint8_t> ToOneByteVector() {
       ASSERT_EQ(ASCII, state_);
-      return Vector<const char>::cast(buffer_);
+      return buffer_;
     }
     // Return the two-byte content of the string. Only use if IsTwoByte()
     // returns true.
@@ -7074,15 +7107,15 @@ class String: public HeapObject {
     enum State { NON_FLAT, ASCII, TWO_BYTE };
 
     // Constructors only used by String::GetFlatContent().
-    explicit FlatContent(Vector<const char> chars)
-        : buffer_(Vector<const byte>::cast(chars)),
+    explicit FlatContent(Vector<const uint8_t> chars)
+        : buffer_(chars),
           state_(ASCII) { }
     explicit FlatContent(Vector<const uc16> chars)
         : buffer_(Vector<const byte>::cast(chars)),
           state_(TWO_BYTE) { }
     FlatContent() : buffer_(), state_(NON_FLAT) { }
 
-    Vector<const byte> buffer_;
+    Vector<const uint8_t> buffer_;
     State state_;
 
     friend class String;
@@ -7112,6 +7145,8 @@ class String: public HeapObject {
   // NOTE: this should be considered only a hint.  False negatives are
   // possible.
   inline bool HasOnlyAsciiChars();
+
+  inline bool IsOneByteConvertible();
 
   // Get and set individual two byte chars in the string.
   inline void Set(int index, uint16_t value);
@@ -7163,8 +7198,8 @@ class String: public HeapObject {
 
   // String equality operations.
   inline bool Equals(String* other);
-  bool IsEqualTo(Vector<const char> str);
-  bool IsAsciiEqualTo(Vector<const char> str);
+  bool IsUtf8EqualTo(Vector<const char> str);
+  bool IsOneByteEqualTo(Vector<const uint8_t> str);
   bool IsTwoByteEqualTo(Vector<const uc16> str);
 
   // Return a UTF8 representation of the string.  The string is null
@@ -7240,9 +7275,9 @@ class String: public HeapObject {
   // value into an array index.
   static const int kMaxArrayIndexSize = 10;
 
-  // Max ASCII char code.
-  static const int kMaxAsciiCharCode = unibrow::Utf8::kMaxOneByteChar;
-  static const unsigned kMaxAsciiCharCodeU = unibrow::Utf8::kMaxOneByteChar;
+  // Max char codes.
+  static const int32_t kMaxOneByteCharCode = unibrow::Latin1::kMaxChar;
+  static const uint32_t kMaxOneByteCharCodeU = unibrow::Latin1::kMaxChar;
   static const int kMaxUtf16CodeUnit = 0xffff;
 
   // Mask constant for checking if a string has a computed hash code
@@ -7327,7 +7362,7 @@ class String: public HeapObject {
     const char* start = chars;
     const char* limit = chars + length;
 #ifdef V8_HOST_CAN_READ_UNALIGNED
-    ASSERT(kMaxAsciiCharCode == 0x7F);
+    ASSERT(unibrow::Utf8::kMaxOneByteChar == 0x7F);
     const uintptr_t non_ascii_mask = kUintptrAllBitsSet / 0xFF * 0x80;
     while (chars + sizeof(uintptr_t) <= limit) {
       if (*reinterpret_cast<const uintptr_t*>(chars) & non_ascii_mask) {
@@ -7337,7 +7372,7 @@ class String: public HeapObject {
     }
 #endif
     while (chars < limit) {
-      if (static_cast<uint8_t>(*chars) > kMaxAsciiCharCodeU) {
+      if (static_cast<uint8_t>(*chars) > unibrow::Utf8::kMaxOneByteChar) {
         return static_cast<int>(chars - start);
       }
       ++chars;
@@ -7349,18 +7384,23 @@ class String: public HeapObject {
     return NonAsciiStart(chars, length) >= length;
   }
 
-  static inline int NonAsciiStart(const uc16* chars, int length) {
+  static inline bool IsAscii(const uint8_t* chars, int length) {
+    return
+        NonAsciiStart(reinterpret_cast<const char*>(chars), length) >= length;
+  }
+
+  static inline int NonOneByteStart(const uc16* chars, int length) {
     const uc16* limit = chars + length;
     const uc16* start = chars;
     while (chars < limit) {
-      if (*chars > kMaxAsciiCharCodeU) return static_cast<int>(chars - start);
+      if (*chars > kMaxOneByteCharCodeU) return static_cast<int>(chars - start);
       ++chars;
     }
     return static_cast<int>(chars - start);
   }
 
-  static inline bool IsAscii(const uc16* chars, int length) {
-    return NonAsciiStart(chars, length) >= length;
+  static inline bool IsOneByte(const uc16* chars, int length) {
+    return NonOneByteStart(chars, length) >= length;
   }
 
   template<class Visitor, class ConsOp>
@@ -7425,7 +7465,7 @@ class SeqOneByteString: public SeqString {
   // Get the address of the characters in this string.
   inline Address GetCharsAddress();
 
-  inline char* GetChars();
+  inline uint8_t* GetChars();
 
   // Casting
   static inline SeqOneByteString* cast(Object* obj);
@@ -7638,7 +7678,7 @@ class ExternalAsciiString: public ExternalString {
   // which the pointer cache has to be refreshed.
   inline void update_data_cache();
 
-  inline const char* GetChars();
+  inline const uint8_t* GetChars();
 
   // Dispatched behavior.
   inline uint16_t ExternalAsciiStringGet(int index);

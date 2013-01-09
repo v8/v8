@@ -127,7 +127,7 @@ static Handle<Object> Invoke(bool is_construct,
   ASSERT(*has_pending_exception == Isolate::Current()->has_pending_exception());
   if (*has_pending_exception) {
     isolate->ReportPendingMessages();
-    if (isolate->pending_exception() == Failure::OutOfMemoryException()) {
+    if (isolate->pending_exception()->IsOutOfMemory()) {
       if (!isolate->ignore_out_of_memory()) {
         V8::FatalProcessOutOfMemory("JS", true);
       }

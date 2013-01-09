@@ -57,17 +57,27 @@ function array_natives_test() {
 
   // Push
   var a0 = [1, 2, 3];
-  assertTrue(%HasFastSmiElements(a0));
-  a0.push(4);
-  assertTrue(%HasFastSmiElements(a0));
-  a0.push(1.3);
-  assertTrue(%HasFastDoubleElements(a0));
-  a0.push(1.5);
-  assertTrue(%HasFastDoubleElements(a0));
-  a0.push({});
-  assertTrue(%HasFastObjectElements(a0));
-  a0.push({});
-  assertTrue(%HasFastObjectElements(a0));
+  if (%HasFastSmiElements(a0)) {
+    assertTrue(%HasFastSmiElements(a0));
+    a0.push(4);
+    assertTrue(%HasFastSmiElements(a0));
+    a0.push(1.3);
+    assertTrue(%HasFastDoubleElements(a0));
+    a0.push(1.5);
+    assertTrue(%HasFastDoubleElements(a0));
+    a0.push({});
+    assertTrue(%HasFastObjectElements(a0));
+    a0.push({});
+    assertTrue(%HasFastObjectElements(a0));
+  } else {
+    assertTrue(%HasFastObjectElements(a0));
+    a0.push(4);
+    a0.push(1.3);
+    a0.push(1.5);
+    a0.push({});
+    a0.push({});
+    assertTrue(%HasFastObjectElements(a0));
+  }
   assertEquals([1,2,3,4,1.3,1.5,{},{}], a0);
 
   // Concat

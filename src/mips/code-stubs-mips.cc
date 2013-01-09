@@ -38,6 +38,17 @@ namespace v8 {
 namespace internal {
 
 
+void KeyedLoadFastElementStub::InitializeInterfaceDescriptor(
+    Isolate* isolate,
+    CodeStubInterfaceDescriptor* descriptor) {
+  static Register registers[] = { a1, a0 };
+  descriptor->register_param_count_ = 2;
+  descriptor->register_params_ = registers;
+  descriptor->deoptimization_handler_ =
+      FUNCTION_ADDR(KeyedLoadIC_Miss);
+}
+
+
 #define __ ACCESS_MASM(masm)
 
 static void EmitIdenticalObjectComparison(MacroAssembler* masm,
@@ -332,6 +343,7 @@ static void GenerateFastCloneShallowArrayCommon(
     MacroAssembler* masm,
     int length,
     FastCloneShallowArrayStub::Mode mode,
+    AllocationSiteInfoMode allocation_site_info_mode,
     Label* fail) {
   // Registers on entry:
   // a3: boilerplate literal array.
@@ -344,7 +356,12 @@ static void GenerateFastCloneShallowArrayCommon(
         ? FixedDoubleArray::SizeFor(length)
         : FixedArray::SizeFor(length);
   }
-  int size = JSArray::kSize + elements_size;
+  int size = JSArray::kSize;
+  int allocation_info_start = size;
+  if (allocation_site_info_mode == TRACK_ALLOCATION_SITE_INFO) {
+    size += AllocationSiteInfo::kSize;
+  }
+  size += elements_size;
 
   // Allocate both the JS array and the elements array in one big
   // allocation. This avoids multiple limit checks.
@@ -354,6 +371,13 @@ static void GenerateFastCloneShallowArrayCommon(
                         a2,
                         fail,
                         TAG_OBJECT);
+
+  if (allocation_site_info_mode == TRACK_ALLOCATION_SITE_INFO) {
+    __ li(a2, Operand(Handle<Map>(masm->isolate()->heap()->
+                                   allocation_site_info_map())));
+    __ sw(a2, FieldMemOperand(v0, allocation_info_start));
+    __ sw(a3, FieldMemOperand(v0, allocation_info_start + kPointerSize));
+  }
 
   // Copy the JS array part.
   for (int i = 0; i < JSArray::kSize; i += kPointerSize) {
@@ -367,7 +391,11 @@ static void GenerateFastCloneShallowArrayCommon(
     // Get hold of the elements array of the boilerplate and setup the
     // elements pointer in the resulting object.
     __ lw(a3, FieldMemOperand(a3, JSArray::kElementsOffset));
-    __ Addu(a2, v0, Operand(JSArray::kSize));
+    if (allocation_site_info_mode == TRACK_ALLOCATION_SITE_INFO) {
+      __ Addu(a2, v0, Operand(JSArray::kSize + AllocationSiteInfo::kSize));
+    } else {
+      __ Addu(a2, v0, Operand(JSArray::kSize));
+    }
     __ sw(a2, FieldMemOperand(v0, JSArray::kElementsOffset));
 
     // Copy the elements array.
@@ -396,6 +424,12 @@ void FastCloneShallowArrayStub::Generate(MacroAssembler* masm) {
   __ Branch(&slow_case, eq, a3, Operand(t1));
 
   FastCloneShallowArrayStub::Mode mode = mode_;
+  AllocationSiteInfoMode allocation_site_info_mode =
+      DONT_TRACK_ALLOCATION_SITE_INFO;
+  if (mode == CLONE_ANY_ELEMENTS_WITH_ALLOCATION_SITE_INFO) {
+    mode = CLONE_ANY_ELEMENTS;
+    allocation_site_info_mode = TRACK_ALLOCATION_SITE_INFO;
+  }
   if (mode == CLONE_ANY_ELEMENTS) {
     Label double_elements, check_fast_elements;
     __ lw(v0, FieldMemOperand(a3, JSArray::kElementsOffset));
@@ -403,7 +437,9 @@ void FastCloneShallowArrayStub::Generate(MacroAssembler* masm) {
     __ LoadRoot(t1, Heap::kFixedCOWArrayMapRootIndex);
     __ Branch(&check_fast_elements, ne, v0, Operand(t1));
     GenerateFastCloneShallowArrayCommon(masm, 0,
-                                        COPY_ON_WRITE_ELEMENTS, &slow_case);
+                                        COPY_ON_WRITE_ELEMENTS,
+                                        allocation_site_info_mode,
+                                        &slow_case);
     // Return and remove the on-stack parameters.
     __ DropAndRet(3);
 
@@ -411,7 +447,9 @@ void FastCloneShallowArrayStub::Generate(MacroAssembler* masm) {
     __ LoadRoot(t1, Heap::kFixedArrayMapRootIndex);
     __ Branch(&double_elements, ne, v0, Operand(t1));
     GenerateFastCloneShallowArrayCommon(masm, length_,
-                                        CLONE_ELEMENTS, &slow_case);
+                                        CLONE_ELEMENTS,
+                                        allocation_site_info_mode,
+                                        &slow_case);
     // Return and remove the on-stack parameters.
     __ DropAndRet(3);
 
@@ -442,7 +480,8 @@ void FastCloneShallowArrayStub::Generate(MacroAssembler* masm) {
     __ pop(a3);
   }
 
-  GenerateFastCloneShallowArrayCommon(masm, length_, mode, &slow_case);
+  GenerateFastCloneShallowArrayCommon(masm, length_, mode,
+                                      allocation_site_info_mode, &slow_case);
 
   // Return and remove the on-stack parameters.
   __ DropAndRet(3);
@@ -500,7 +539,7 @@ void FastCloneShallowObjectStub::Generate(MacroAssembler* masm) {
 // 52 fraction bits (20 in the first word, 32 in the second).  Zeros is a
 // scratch register.  Destroys the source register.  No GC occurs during this
 // stub so you don't have to set up the frame.
-class ConvertToDoubleStub : public CodeStub {
+class ConvertToDoubleStub : public PlatformCodeStub {
  public:
   ConvertToDoubleStub(Register result_reg_1,
                       Register result_reg_2,
@@ -3893,12 +3932,29 @@ void CodeStub::GenerateStubsAheadOfTime() {
 
 
 void CodeStub::GenerateFPStubs() {
-  CEntryStub save_doubles(1, kSaveFPRegs);
-  Handle<Code> code = save_doubles.GetCode();
-  code->set_is_pregenerated(true);
-  StoreBufferOverflowStub stub(kSaveFPRegs);
-  stub.GetCode()->set_is_pregenerated(true);
-  code->GetIsolate()->set_fp_stubs_generated(true);
+  SaveFPRegsMode mode = CpuFeatures::IsSupported(FPU)
+      ? kSaveFPRegs
+      : kDontSaveFPRegs;
+  CEntryStub save_doubles(1, mode);
+  StoreBufferOverflowStub stub(mode);
+  // These stubs might already be in the snapshot, detect that and don't
+  // regenerate, which would lead to code stub initialization state being messed
+  // up.
+  Code* save_doubles_code = NULL;
+  Code* store_buffer_overflow_code = NULL;
+  if (!save_doubles.FindCodeInCache(&save_doubles_code, ISOLATE)) {
+    if (CpuFeatures::IsSupported(FPU)) {
+      CpuFeatures::Scope scope2(FPU);
+      save_doubles_code = *save_doubles.GetCode();
+      store_buffer_overflow_code = *stub.GetCode();
+    } else {
+      save_doubles_code = *save_doubles.GetCode();
+      store_buffer_overflow_code = *stub.GetCode();
+    }
+    save_doubles_code->set_is_pregenerated(true);
+    store_buffer_overflow_code->set_is_pregenerated(true);
+  }
+  ISOLATE->set_fp_stubs_generated(true);
 }
 
 
@@ -4109,7 +4165,7 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   Isolate* isolate = masm->isolate();
   ExternalReference external_caught(Isolate::kExternalCaughtExceptionAddress,
                                     isolate);
-  __ li(a0, Operand(false, RelocInfo::NONE));
+  __ li(a0, Operand(false, RelocInfo::NONE32));
   __ li(a2, Operand(external_caught));
   __ sw(a0, MemOperand(a2));
 
@@ -5538,8 +5594,8 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
   // Check for function proxy.
   __ Branch(&non_function, ne, a3, Operand(JS_FUNCTION_PROXY_TYPE));
   __ push(a1);  // Put proxy as additional argument.
-  __ li(a0, Operand(argc_ + 1, RelocInfo::NONE));
-  __ li(a2, Operand(0, RelocInfo::NONE));
+  __ li(a0, Operand(argc_ + 1, RelocInfo::NONE32));
+  __ li(a2, Operand(0, RelocInfo::NONE32));
   __ GetBuiltinEntry(a3, Builtins::CALL_FUNCTION_PROXY);
   __ SetCallKind(t1, CALL_AS_METHOD);
   {
@@ -5596,7 +5652,7 @@ void CallConstructStub::Generate(MacroAssembler* masm) {
   __ GetBuiltinEntry(a3, Builtins::CALL_NON_FUNCTION_AS_CONSTRUCTOR);
   __ bind(&do_call);
   // Set expected number of arguments to zero (not changing r0).
-  __ li(a2, Operand(0, RelocInfo::NONE));
+  __ li(a2, Operand(0, RelocInfo::NONE32));
   __ SetCallKind(t1, CALL_AS_METHOD);
   __ Jump(masm->isolate()->builtins()->ArgumentsAdaptorTrampoline(),
           RelocInfo::CODE_TARGET);
@@ -5713,11 +5769,11 @@ void StringCharFromCodeGenerator::GenerateFast(MacroAssembler* masm) {
 
   STATIC_ASSERT(kSmiTag == 0);
   STATIC_ASSERT(kSmiShiftSize == 0);
-  ASSERT(IsPowerOf2(String::kMaxAsciiCharCode + 1));
+  ASSERT(IsPowerOf2(String::kMaxOneByteCharCode + 1));
   __ And(t0,
          code_,
          Operand(kSmiTagMask |
-                 ((~String::kMaxAsciiCharCode) << kSmiTagSize)));
+                 ((~String::kMaxOneByteCharCode) << kSmiTagSize)));
   __ Branch(&slow_case_, ne, t0, Operand(zero_reg));
 
   __ LoadRoot(result_, Heap::kSingleCharacterStringCacheRootIndex);

@@ -241,7 +241,7 @@ TEST(AssemblerIa325) {
   v8::internal::byte buffer[256];
   Assembler assm(Isolate::Current(), buffer, sizeof buffer);
 
-  __ mov(eax, Operand(reinterpret_cast<intptr_t>(&baz), RelocInfo::NONE));
+  __ mov(eax, Operand(reinterpret_cast<intptr_t>(&baz), RelocInfo::NONE32));
   __ ret(0);
 
   CodeDesc desc;

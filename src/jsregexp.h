@@ -628,7 +628,7 @@ class RegExpNode: public ZoneObject {
   // If we know that the input is ASCII then there are some nodes that can
   // never match.  This method returns a node that can be substituted for
   // itself, or NULL if the node can never match.
-  virtual RegExpNode* FilterASCII(int depth) { return this; }
+  virtual RegExpNode* FilterASCII(int depth, bool ignore_case) { return this; }
   // Helper for FilterASCII.
   RegExpNode* replacement() {
     ASSERT(info()->replacement_calculated);
@@ -723,7 +723,7 @@ class SeqRegExpNode: public RegExpNode {
       : RegExpNode(on_success->zone()), on_success_(on_success) { }
   RegExpNode* on_success() { return on_success_; }
   void set_on_success(RegExpNode* node) { on_success_ = node; }
-  virtual RegExpNode* FilterASCII(int depth);
+  virtual RegExpNode* FilterASCII(int depth, bool ignore_case);
   virtual void FillInBMInfo(int offset,
                             int recursion_depth,
                             int budget,
@@ -735,7 +735,7 @@ class SeqRegExpNode: public RegExpNode {
   }
 
  protected:
-  RegExpNode* FilterSuccessor(int depth);
+  RegExpNode* FilterSuccessor(int depth, bool ignore_case);
 
  private:
   RegExpNode* on_success_;
@@ -861,7 +861,7 @@ class TextNode: public SeqRegExpNode {
                             BoyerMooreLookahead* bm,
                             bool not_at_start);
   void CalculateOffsets();
-  virtual RegExpNode* FilterASCII(int depth);
+  virtual RegExpNode* FilterASCII(int depth, bool ignore_case);
 
  private:
   enum TextEmitPassType {
@@ -1097,7 +1097,7 @@ class ChoiceNode: public RegExpNode {
   void set_not_at_start() { not_at_start_ = true; }
   void set_being_calculated(bool b) { being_calculated_ = b; }
   virtual bool try_to_emit_quick_check_for_alternative(int i) { return true; }
-  virtual RegExpNode* FilterASCII(int depth);
+  virtual RegExpNode* FilterASCII(int depth, bool ignore_case);
 
  protected:
   int GreedyLoopTextLengthForAlternative(GuardedAlternative* alternative);
@@ -1155,7 +1155,7 @@ class NegativeLookaheadChoiceNode: public ChoiceNode {
   // characters, but on a negative lookahead the negative branch did not take
   // part in that calculation (EatsAtLeast) so the assumptions don't hold.
   virtual bool try_to_emit_quick_check_for_alternative(int i) { return i != 0; }
-  virtual RegExpNode* FilterASCII(int depth);
+  virtual RegExpNode* FilterASCII(int depth, bool ignore_case);
 };
 
 
@@ -1185,7 +1185,7 @@ class LoopChoiceNode: public ChoiceNode {
   RegExpNode* continue_node() { return continue_node_; }
   bool body_can_be_zero_length() { return body_can_be_zero_length_; }
   virtual void Accept(NodeVisitor* visitor);
-  virtual RegExpNode* FilterASCII(int depth);
+  virtual RegExpNode* FilterASCII(int depth, bool ignore_case);
 
  private:
   // AddAlternative is made private for loop nodes because alternatives

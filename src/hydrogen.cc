@@ -152,8 +152,11 @@ HSimulate* HBasicBlock::CreateSimulate(BailoutId ast_id,
   for (int i = 0; i < push_count; ++i) {
     instr->AddPushedValue(environment->ExpressionStackAt(i));
   }
-  for (int i = 0; i < environment->assigned_variables()->length(); ++i) {
-    int index = environment->assigned_variables()->at(i);
+  for (GrowableBitVector::Iterator it(environment->assigned_variables(),
+                                      zone());
+       !it.Done();
+       it.Advance()) {
+    int index = it.Current();
     instr->AddAssignedValue(index, environment->Lookup(index));
   }
   environment->ClearHistory();
@@ -5399,6 +5402,10 @@ static bool ComputeLoadStoreField(Handle<Map> type,
                                   Handle<String> name,
                                   LookupResult* lookup,
                                   bool is_store) {
+  if (type->has_named_interceptor()) {
+    lookup->InterceptorResult(NULL);
+    return false;
+  }
   // If we directly find a field, the access can be inlined.
   type->LookupDescriptor(NULL, *name, lookup);
   if (lookup->IsField()) return true;
@@ -6599,7 +6606,7 @@ bool HOptimizedGraphBuilder::TryArgumentsAccess(Property* expr) {
   HInstruction* result = NULL;
   if (expr->key()->IsPropertyName()) {
     Handle<String> name = expr->key()->AsLiteral()->AsPropertyName();
-    if (!name->IsEqualTo(CStrVector("length"))) return false;
+    if (!name->IsOneByteEqualTo(STATIC_ASCII_VECTOR("length"))) return false;
 
     if (function_state()->outer() == NULL) {
       HInstruction* elements = AddInstruction(
@@ -8495,7 +8502,9 @@ static bool IsClassOfTest(CompareOperation* expr) {
   Literal* literal = expr->right()->AsLiteral();
   if (literal == NULL) return false;
   if (!literal->handle()->IsString()) return false;
-  if (!call->name()->IsEqualTo(CStrVector("_ClassOf"))) return false;
+  if (!call->name()->IsOneByteEqualTo(STATIC_ASCII_VECTOR("_ClassOf"))) {
+    return false;
+  }
   ASSERT(call->arguments()->length() == 1);
   return true;
 }
@@ -9566,7 +9575,6 @@ HEnvironment::HEnvironment(HEnvironment* outer,
                            Zone* zone)
     : closure_(closure),
       values_(0, zone),
-      assigned_variables_(4, zone),
       frame_type_(JS_FUNCTION),
       parameter_count_(0),
       specials_count_(1),
@@ -9583,7 +9591,6 @@ HEnvironment::HEnvironment(HEnvironment* outer,
 
 HEnvironment::HEnvironment(Zone* zone)
     : values_(0, zone),
-      assigned_variables_(0, zone),
       frame_type_(STUB),
       parameter_count_(0),
       specials_count_(0),
@@ -9600,7 +9607,6 @@ HEnvironment::HEnvironment(Zone* zone)
 
 HEnvironment::HEnvironment(const HEnvironment* other, Zone* zone)
     : values_(0, zone),
-      assigned_variables_(0, zone),
       frame_type_(JS_FUNCTION),
       parameter_count_(0),
       specials_count_(1),
@@ -9622,7 +9628,6 @@ HEnvironment::HEnvironment(HEnvironment* outer,
                            Zone* zone)
     : closure_(closure),
       values_(arguments, zone),
-      assigned_variables_(0, zone),
       frame_type_(frame_type),
       parameter_count_(arguments),
       local_count_(0),
@@ -9651,7 +9656,7 @@ void HEnvironment::Initialize(int parameter_count,
 void HEnvironment::Initialize(const HEnvironment* other) {
   closure_ = other->closure();
   values_.AddAll(other->values_, zone());
-  assigned_variables_.AddAll(other->assigned_variables_, zone());
+  assigned_variables_.Union(other->assigned_variables_, zone());
   frame_type_ = other->frame_type_;
   parameter_count_ = other->parameter_count_;
   local_count_ = other->local_count_;
@@ -9695,9 +9700,7 @@ void HEnvironment::AddIncomingEdge(HBasicBlock* block, HEnvironment* other) {
 
 void HEnvironment::Bind(int index, HValue* value) {
   ASSERT(value != NULL);
-  if (!assigned_variables_.Contains(index)) {
-    assigned_variables_.Add(index, zone());
-  }
+  assigned_variables_.Add(index, zone());
   values_[index] = value;
 }
 

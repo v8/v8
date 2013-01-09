@@ -147,7 +147,7 @@ void FullCodeGenerator::Generate() {
 
 #ifdef DEBUG
   if (strlen(FLAG_stop_at) > 0 &&
-      info->function()->name()->IsEqualTo(CStrVector(FLAG_stop_at))) {
+      info->function()->name()->IsUtf8EqualTo(CStrVector(FLAG_stop_at))) {
     __ stop("stop-at");
   }
 #endif
@@ -675,7 +675,7 @@ void FullCodeGenerator::DoTest(Expression* condition,
                                Label* fall_through) {
   if (CpuFeatures::IsSupported(FPU)) {
     ToBooleanStub stub(result_register());
-    __ CallStub(&stub);
+    __ CallStub(&stub, condition->test_id());
     __ mov(at, zero_reg);
   } else {
     // Call the runtime to find the boolean value of the source and then
@@ -1744,6 +1744,15 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
     FastCloneShallowArrayStub::Mode mode = has_fast_elements
       ? FastCloneShallowArrayStub::CLONE_ELEMENTS
       : FastCloneShallowArrayStub::CLONE_ANY_ELEMENTS;
+
+    // Tracking allocation info allows us to pre-transition later if it makes
+    // sense.
+    if (mode == FastCloneShallowArrayStub::CLONE_ANY_ELEMENTS &&
+        FLAG_track_allocation_sites) {
+      mode = FastCloneShallowArrayStub::
+          CLONE_ANY_ELEMENTS_WITH_ALLOCATION_SITE_INFO;
+    }
+
     FastCloneShallowArrayStub stub(mode, length);
     __ CallStub(&stub);
   }
@@ -2353,7 +2362,7 @@ void FullCodeGenerator::EmitCallWithStub(Call* expr, CallFunctionFlags flags) {
 
   CallFunctionStub stub(arg_count, flags);
   __ lw(a1, MemOperand(sp, (arg_count + 1) * kPointerSize));
-  __ CallStub(&stub);
+  __ CallStub(&stub, expr->CallFeedbackId());
   RecordJSReturnSite(expr);
   // Restore context register.
   __ lw(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));

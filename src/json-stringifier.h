@@ -60,7 +60,7 @@ class BasicJsonStringifier BASE_EMBEDDED {
   template <bool is_ascii, typename Char>
   INLINE(void Append_(const Char* chars));
 
-  INLINE(void Append(char c)) {
+  INLINE(void Append(uint8_t c)) {
     if (is_ascii_) {
       Append_<true>(c);
     } else {
@@ -68,11 +68,11 @@ class BasicJsonStringifier BASE_EMBEDDED {
     }
   }
 
-  INLINE(void Append(const char* chars)) {
+  INLINE(void AppendAscii(const char* chars)) {
     if (is_ascii_) {
-      Append_<true>(chars);
+      Append_<true>(reinterpret_cast<const uint8_t*>(chars));
     } else {
-      Append_<false>(chars);
+      Append_<false>(reinterpret_cast<const uint8_t*>(chars));
     }
   }
 
@@ -327,15 +327,15 @@ BasicJsonStringifier::Result BasicJsonStringifier::Serialize_(
       switch (Oddball::cast(*object)->kind()) {
         case Oddball::kFalse:
           if (deferred_string_key) SerializeDeferredKey(comma, key);
-          Append("false");
+          AppendAscii("false");
           return SUCCESS;
         case Oddball::kTrue:
           if (deferred_string_key) SerializeDeferredKey(comma, key);
-          Append("true");
+          AppendAscii("true");
           return SUCCESS;
         case Oddball::kNull:
           if (deferred_string_key) SerializeDeferredKey(comma, key);
-          Append("null");
+          AppendAscii("null");
           return SUCCESS;
         default:
           return UNCHANGED;
@@ -412,7 +412,7 @@ BasicJsonStringifier::Result BasicJsonStringifier::SerializeJSValue(
     ASSERT(class_name == isolate_->heap()->Boolean_symbol());
     Object* value = JSValue::cast(*object)->value();
     ASSERT(value->IsBoolean());
-    Append(value->IsTrue() ? "true" : "false");
+    AppendAscii(value->IsTrue() ? "true" : "false");
   }
   return SUCCESS;
 }
@@ -422,7 +422,7 @@ BasicJsonStringifier::Result BasicJsonStringifier::SerializeSmi(Smi* object) {
   static const int kBufferSize = 100;
   char chars[kBufferSize];
   Vector<char> buffer(chars, kBufferSize);
-  Append(IntToCString(object->value(), buffer));
+  AppendAscii(IntToCString(object->value(), buffer));
   return SUCCESS;
 }
 
@@ -430,13 +430,13 @@ BasicJsonStringifier::Result BasicJsonStringifier::SerializeSmi(Smi* object) {
 BasicJsonStringifier::Result BasicJsonStringifier::SerializeDouble(
     double number) {
   if (isinf(number) || isnan(number)) {
-    Append("null");
+    AppendAscii("null");
     return SUCCESS;
   }
   static const int kBufferSize = 100;
   char chars[kBufferSize];
   Vector<char> buffer(chars, kBufferSize);
-  Append(DoubleToCString(number, buffer));
+  AppendAscii(DoubleToCString(number, buffer));
   return SUCCESS;
 }
 
@@ -476,7 +476,7 @@ BasicJsonStringifier::Result BasicJsonStringifier::SerializeJSArray(
             SerializeElement(Handle<Object>(elements->get(i), isolate_), i);
         if (result == SUCCESS) continue;
         if (result == UNCHANGED) {
-          Append("null");
+          AppendAscii("null");
         } else {
           return result;
         }
@@ -505,12 +505,12 @@ BasicJsonStringifier::Result BasicJsonStringifier::SerializeJSArraySlow(
     if (i > 0) Append(',');
     Handle<Object> element = Object::GetElement(object, i);
     if (element->IsUndefined()) {
-      Append("null");
+      AppendAscii("null");
     } else {
       Result result = SerializeElement(element, i);
       if (result == SUCCESS) continue;
       if (result == UNCHANGED) {
-        Append("null");
+        AppendAscii("null");
       } else {
         return result;
       }
@@ -682,8 +682,9 @@ void BasicJsonStringifier::SerializeString_(Handle<String> string) {
       if (DoNotEscape(c)) {
         Append_<is_ascii, Char>(c);
       } else {
-        Append_<is_ascii, char>(
-            &JsonEscapeTable[c * kJsonEscapeTableEntrySize]);
+        Append_<is_ascii, uint8_t>(
+            reinterpret_cast<const uint8_t*>(
+                &JsonEscapeTable[c * kJsonEscapeTableEntrySize]));
       }
       // If GC moved the string, we need to refresh the vector.
       if (*string != string_location) {
@@ -693,27 +694,22 @@ void BasicJsonStringifier::SerializeString_(Handle<String> string) {
     }
   }
 
-  Append_<is_ascii, char>('"');
+  Append_<is_ascii, uint8_t>('"');
 }
 
 
-template <>
-bool BasicJsonStringifier::DoNotEscape(char c) {
-  return c >= '#' && c <= '~' && c != '\\';
-}
-
-
-template <>
-bool BasicJsonStringifier::DoNotEscape(uc16 c) {
+template <typename Char>
+bool BasicJsonStringifier::DoNotEscape(Char c) {
   return (c >= 0x80) || (c >= '#' && c <= '~' && c != '\\');
 }
 
 
 template <>
-Vector<const char> BasicJsonStringifier::GetCharVector(Handle<String> string) {
+Vector<const uint8_t> BasicJsonStringifier::GetCharVector(
+    Handle<String> string) {
   String::FlatContent flat = string->GetFlatContent();
   ASSERT(flat.IsAscii());
-  return flat.ToAsciiVector();
+  return flat.ToOneByteVector();
 }
 
 
@@ -730,14 +726,14 @@ void BasicJsonStringifier::SerializeString(Handle<String> object) {
   String::FlatContent flat = object->GetFlatContent();
   if (is_ascii_) {
     if (flat.IsAscii()) {
-      SerializeString_<true, char>(object);
+      SerializeString_<true, uint8_t>(object);
     } else {
       ChangeEncoding();
       SerializeString(object);
     }
   } else {
     if (flat.IsAscii()) {
-      SerializeString_<false, char>(object);
+      SerializeString_<false, uint8_t>(object);
     } else {
       SerializeString_<false, uc16>(object);
     }
