@@ -677,6 +677,29 @@ void Heap::PerformScavenge() {
 }
 
 
+void Heap::MoveElements(FixedArray* array,
+                        int dst_index,
+                        int src_index,
+                        int len) {
+  if (len == 0) return;
+
+  ASSERT(array->map() != HEAP->fixed_cow_array_map());
+  Object** dst_objects = array->data_start() + dst_index;
+  memmove(dst_objects,
+          array->data_start() + src_index,
+          len * kPointerSize);
+  if (!InNewSpace(array)) {
+    for (int i = 0; i < len; i++) {
+      // TODO(hpayer): check store buffer for entries
+      if (InNewSpace(dst_objects[i])) {
+        RecordWrite(array->address(), array->OffsetOfElementAt(dst_index + i));
+      }
+    }
+  }
+  incremental_marking()->RecordWrites(array);
+}
+
+
 #ifdef VERIFY_HEAP
 // Helper class for verifying the symbol table.
 class SymbolTableVerifier : public ObjectVisitor {

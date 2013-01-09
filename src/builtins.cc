@@ -337,26 +337,6 @@ static void MoveDoubleElements(FixedDoubleArray* dst,
 }
 
 
-static void MoveElements(Heap* heap,
-                         AssertNoAllocation* no_gc,
-                         FixedArray* dst,
-                         int dst_index,
-                         FixedArray* src,
-                         int src_index,
-                         int len) {
-  if (len == 0) return;
-  ASSERT(dst->map() != HEAP->fixed_cow_array_map());
-  memmove(dst->data_start() + dst_index,
-          src->data_start() + src_index,
-          len * kPointerSize);
-  WriteBarrierMode mode = dst->GetWriteBarrierMode(*no_gc);
-  if (mode == UPDATE_WRITE_BARRIER) {
-    heap->RecordWrites(dst->address(), dst->OffsetOfElementAt(dst_index), len);
-  }
-  heap->incremental_marking()->RecordWrites(dst);
-}
-
-
 static void FillWithHoles(Heap* heap, FixedArray* dst, int from, int to) {
   ASSERT(dst->map() != heap->fixed_cow_array_map());
   MemsetPointer(dst->data_start() + from, heap->the_hole_value(), to - from);
@@ -724,7 +704,7 @@ BUILTIN(ArrayShift) {
     if (elms_obj->IsFixedArray()) {
       FixedArray* elms = FixedArray::cast(elms_obj);
       AssertNoAllocation no_gc;
-      MoveElements(heap, &no_gc, elms, 0, elms, 1, len - 1);
+      heap->MoveElements(elms, 0, 1, len - 1);
       elms->set(len - 1, heap->the_hole_value());
     } else {
       FixedDoubleArray* elms = FixedDoubleArray::cast(elms_obj);
@@ -794,7 +774,7 @@ BUILTIN(ArrayUnshift) {
     array->set_elements(elms);
   } else {
     AssertNoAllocation no_gc;
-    MoveElements(heap, &no_gc, elms, to_add, elms, 0, len);
+    heap->MoveElements(elms, to_add, 0, len);
   }
 
   // Add the provided values.
@@ -1060,7 +1040,7 @@ BUILTIN(ArraySplice) {
       } else {
         FixedArray* elms = FixedArray::cast(elms_obj);
         AssertNoAllocation no_gc;
-        MoveElements(heap, &no_gc, elms, delta, elms, 0, actual_start);
+        heap->MoveElements(elms, delta, 0, actual_start);
       }
 
       elms_obj = LeftTrimFixedArray(heap, elms_obj, delta);
@@ -1076,10 +1056,9 @@ BUILTIN(ArraySplice) {
       } else {
         FixedArray* elms = FixedArray::cast(elms_obj);
         AssertNoAllocation no_gc;
-        MoveElements(heap, &no_gc,
-                     elms, actual_start + item_count,
-                     elms, actual_start + actual_delete_count,
-                     (len - actual_delete_count - actual_start));
+        heap->MoveElements(elms, actual_start + item_count,
+                           actual_start + actual_delete_count,
+                           (len - actual_delete_count - actual_start));
         FillWithHoles(heap, elms, new_length, len);
       }
     }
@@ -1119,10 +1098,9 @@ BUILTIN(ArraySplice) {
       elms_changed = true;
     } else {
       AssertNoAllocation no_gc;
-      MoveElements(heap, &no_gc,
-                   elms, actual_start + item_count,
-                   elms, actual_start + actual_delete_count,
-                   (len - actual_delete_count - actual_start));
+      heap->MoveElements(elms, actual_start + item_count,
+                         actual_start + actual_delete_count,
+                         (len - actual_delete_count - actual_start));
     }
   }
 

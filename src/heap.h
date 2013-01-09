@@ -813,6 +813,10 @@ class Heap {
   // Please note this does not perform a garbage collection.
   MUST_USE_RESULT MaybeObject* AllocateUninitializedFixedArray(int length);
 
+  // Move len elements within a given array from src_index index to dst_index
+  // index.
+  void MoveElements(FixedArray* array, int dst_index, int src_index, int len);
+
   // Make a copy of src and return it. Returns
   // Failure::RetryAfterGC(requested_bytes, space) if the allocation failed.
   MUST_USE_RESULT inline MaybeObject* CopyFixedArray(FixedArray* src);
