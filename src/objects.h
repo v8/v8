@@ -7090,13 +7090,6 @@ class String: public HeapObject {
     // Returns true if the structure contains two-byte content.
     bool IsTwoByte() { return state_ == TWO_BYTE; }
 
-    // TODO(dcarney): Remove this function.
-    // Return the ASCII content of the string. Only use if IsAscii() returns
-    // true.
-    Vector<const char> ToAsciiVector() {
-      ASSERT_EQ(ASCII, state_);
-      return Vector<const char>::cast(buffer_);
-    }
     // Return the one byte content of the string. Only use if IsAscii() returns
     // true.
     Vector<const uint8_t> ToOneByteVector() {
@@ -7114,15 +7107,15 @@ class String: public HeapObject {
     enum State { NON_FLAT, ASCII, TWO_BYTE };
 
     // Constructors only used by String::GetFlatContent().
-    explicit FlatContent(Vector<const char> chars)
-        : buffer_(Vector<const byte>::cast(chars)),
+    explicit FlatContent(Vector<const uint8_t> chars)
+        : buffer_(chars),
           state_(ASCII) { }
     explicit FlatContent(Vector<const uc16> chars)
         : buffer_(Vector<const byte>::cast(chars)),
           state_(TWO_BYTE) { }
     FlatContent() : buffer_(), state_(NON_FLAT) { }
 
-    Vector<const byte> buffer_;
+    Vector<const uint8_t> buffer_;
     State state_;
 
     friend class String;
@@ -7391,6 +7384,11 @@ class String: public HeapObject {
     return NonAsciiStart(chars, length) >= length;
   }
 
+  static inline bool IsAscii(const uint8_t* chars, int length) {
+    return
+        NonAsciiStart(reinterpret_cast<const char*>(chars), length) >= length;
+  }
+
   static inline int NonOneByteStart(const uc16* chars, int length) {
     const uc16* limit = chars + length;
     const uc16* start = chars;
@@ -7467,9 +7465,7 @@ class SeqOneByteString: public SeqString {
   // Get the address of the characters in this string.
   inline Address GetCharsAddress();
 
-  // TODO(dcarney): remove GetChars and rename GetCharsU to GetChars.
-  inline char* GetChars();
-  inline uint8_t* GetCharsU();
+  inline uint8_t* GetChars();
 
   // Casting
   static inline SeqOneByteString* cast(Object* obj);
@@ -7682,7 +7678,7 @@ class ExternalAsciiString: public ExternalString {
   // which the pointer cache has to be refreshed.
   inline void update_data_cache();
 
-  inline const char* GetChars();
+  inline const uint8_t* GetChars();
 
   // Dispatched behavior.
   inline uint16_t ExternalAsciiStringGet(int index);

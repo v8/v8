@@ -384,7 +384,10 @@ class Logger::NameBuffer {
     if (str == NULL) return;
     if (str->HasOnlyAsciiChars()) {
       int utf8_length = Min(str->length(), kUtf8BufferSize - utf8_pos_);
-      String::WriteToFlat(str, utf8_buffer_ + utf8_pos_, 0, utf8_length);
+      String::WriteToFlat(str,
+                          reinterpret_cast<uint8_t*>(utf8_buffer_ + utf8_pos_),
+                          0,
+                          utf8_length);
       utf8_pos_ += utf8_length;
       return;
     }

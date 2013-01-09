@@ -903,7 +903,7 @@ MaybeObject* String::SlowTryFlatten(PretenureFlag pretenure) {
         result = String::cast(object);
         String* first = cs->first();
         int first_length = first->length();
-        char* dest = SeqOneByteString::cast(result)->GetChars();
+        uint8_t* dest = SeqOneByteString::cast(result)->GetChars();
         WriteToFlat(first, dest, 0, first_length);
         String* second = cs->second();
         WriteToFlat(second,
@@ -6561,13 +6561,13 @@ String::FlatContent String::GetFlatContent() {
            shape.representation_tag() != kSlicedStringTag);
   }
   if (shape.encoding_tag() == kOneByteStringTag) {
-    const char* start;
+    const uint8_t* start;
     if (shape.representation_tag() == kSeqStringTag) {
       start = SeqOneByteString::cast(string)->GetChars();
     } else {
       start = ExternalAsciiString::cast(string)->GetChars();
     }
-    return FlatContent(Vector<const char>(start + offset, length));
+    return FlatContent(Vector<const uint8_t>(start + offset, length));
   } else {
     ASSERT(shape.encoding_tag() == kTwoByteStringTag);
     const uc16* start;
@@ -6770,7 +6770,7 @@ void FlatStringReader::PostGarbageCollection() {
   ASSERT(content.IsFlat());
   is_ascii_ = content.IsAscii();
   if (is_ascii_) {
-    start_ = content.ToAsciiVector().start();
+    start_ = content.ToOneByteVector().start();
   } else {
     start_ = content.ToUC16Vector().start();
   }
@@ -7254,8 +7254,8 @@ bool String::SlowEquals(String* other) {
   // TODO(dcarney): Compare all types of flat strings with a Visitor.
   if (StringShape(lhs).IsSequentialAscii() &&
       StringShape(rhs).IsSequentialAscii()) {
-    const char* str1 = SeqOneByteString::cast(lhs)->GetChars();
-    const char* str2 = SeqOneByteString::cast(rhs)->GetChars();
+    const uint8_t* str1 = SeqOneByteString::cast(lhs)->GetChars();
+    const uint8_t* str2 = SeqOneByteString::cast(rhs)->GetChars();
     return CompareRawStringContents(str1, str2, len);
   }
 
@@ -11525,7 +11525,7 @@ class SubStringOneByteSymbolKey : public HashTableKey {
   uint32_t Hash() {
     ASSERT(length_ >= 0);
     ASSERT(from_ + length_ <= string_->length());
-    char* chars = string_->GetChars() + from_;
+    uint8_t* chars = string_->GetChars() + from_;
     hash_field_ = StringHasher::HashSequentialString(
         chars, length_, string_->GetHeap()->HashSeed());
     uint32_t result = hash_field_ >> String::kHashShift;
@@ -11539,15 +11539,13 @@ class SubStringOneByteSymbolKey : public HashTableKey {
   }
 
   bool IsMatch(Object* string) {
-    Vector<const uint8_t> chars(string_->GetCharsU() + from_, length_);
+    Vector<const uint8_t> chars(string_->GetChars() + from_, length_);
     return String::cast(string)->IsOneByteEqualTo(chars);
   }
 
   MaybeObject* AsObject() {
     if (hash_field_ == 0) Hash();
-    Vector<const uint8_t> chars(
-        reinterpret_cast<uint8_t*>(string_->GetChars()) + from_,
-        length_);
+    Vector<const uint8_t> chars(string_->GetChars() + from_, length_);
     return HEAP->AllocateOneByteSymbol(chars, hash_field_);
   }
 

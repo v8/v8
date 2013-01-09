@@ -309,16 +309,16 @@ int RegExpImpl::AtomExecRaw(Handle<JSRegExp> regexp,
     index = (needle_content.IsAscii()
              ? (subject_content.IsAscii()
                 ? SearchString(isolate,
-                               subject_content.ToAsciiVector(),
-                               needle_content.ToAsciiVector(),
+                               subject_content.ToOneByteVector(),
+                               needle_content.ToOneByteVector(),
                                index)
                 : SearchString(isolate,
                                subject_content.ToUC16Vector(),
-                               needle_content.ToAsciiVector(),
+                               needle_content.ToOneByteVector(),
                                index))
              : (subject_content.IsAscii()
                 ? SearchString(isolate,
-                               subject_content.ToAsciiVector(),
+                               subject_content.ToOneByteVector(),
                                needle_content.ToUC16Vector(),
                                index)
                 : SearchString(isolate,

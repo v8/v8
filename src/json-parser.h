@@ -441,21 +441,21 @@ Handle<Object> JsonParser<seq_ascii>::ParseJsonNumber() {
   int length = position_ - beg_pos;
   double number;
   if (seq_ascii) {
-    Vector<const char> chars(seq_source_->GetChars() +  beg_pos, length);
+    Vector<const uint8_t> chars(seq_source_->GetChars() +  beg_pos, length);
     number = StringToDouble(isolate()->unicode_cache(),
-                             chars,
+                             Vector<const char>::cast(chars),
                              NO_FLAGS,  // Hex, octal or trailing junk.
                              OS::nan_value());
   } else {
-    Vector<char> buffer = Vector<char>::New(length);
+    Vector<uint8_t> buffer = Vector<uint8_t>::New(length);
     String::WriteToFlat(*source_, buffer.start(), beg_pos, position_);
-    Vector<const char> result =
-        Vector<const char>(reinterpret_cast<const char*>(buffer.start()),
-        length);
+    Vector<const uint8_t> result =
+        Vector<const uint8_t>(buffer.start(), length);
     number = StringToDouble(isolate()->unicode_cache(),
-                             result,
-                             NO_FLAGS,  // Hex, octal or trailing junk.
-                             0.0);
+                            // TODO(dcarney): Convert StringToDouble to uint_t.
+                            Vector<const char>::cast(result),
+                            NO_FLAGS,  // Hex, octal or trailing junk.
+                            0.0);
     buffer.Dispose();
   }
   SkipWhitespace();
@@ -627,9 +627,9 @@ Handle<String> JsonParser<seq_ascii>::ScanJsonString() {
         c0_ = c0;
         int beg_pos = position_;
         position_ = position;
-        return SlowScanJsonString<SeqOneByteString, char>(source_,
-                                                        beg_pos,
-                                                        position_);
+        return SlowScanJsonString<SeqOneByteString, uint8_t>(source_,
+                                                            beg_pos,
+                                                            position_);
       }
       if (c0 < 0x20) return Handle<String>::null();
       if (static_cast<uint32_t>(c0) >
@@ -651,7 +651,7 @@ Handle<String> JsonParser<seq_ascii>::ScanJsonString() {
     uint32_t hash = (length <= String::kMaxHashCalcLength)
         ? StringHasher::GetHashCore(running_hash) : length;
     Vector<const uint8_t> string_vector(
-        seq_source_->GetCharsU() + position_, length);
+        seq_source_->GetChars() + position_, length);
     SymbolTable* symbol_table = isolate()->heap()->symbol_table();
     uint32_t capacity = symbol_table->Capacity();
     uint32_t entry = SymbolTable::FirstProbe(hash, capacity);
@@ -688,9 +688,9 @@ Handle<String> JsonParser<seq_ascii>::ScanJsonString() {
                                                           position_);
       }
     } else {
-      return SlowScanJsonString<SeqOneByteString, char>(source_,
-                                                      beg_pos,
-                                                      position_);
+      return SlowScanJsonString<SeqOneByteString, uint8_t>(source_,
+                                                           beg_pos,
+                                                           position_);
     }
   } while (c0_ != '"');
   int length = position_ - beg_pos;
@@ -699,7 +699,7 @@ Handle<String> JsonParser<seq_ascii>::ScanJsonString() {
     result = factory()->LookupOneByteSymbol(seq_source_, beg_pos, length);
   } else {
     result = factory()->NewRawOneByteString(length, pretenure_);
-    char* dest = SeqOneByteString::cast(*result)->GetChars();
+    uint8_t* dest = SeqOneByteString::cast(*result)->GetChars();
     String::WriteToFlat(*source_, dest, beg_pos, position_);
   }
   ASSERT_EQ('"', c0_);

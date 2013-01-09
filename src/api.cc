@@ -4149,7 +4149,10 @@ int String::WriteAscii(char* buffer,
     // WriteToFlat is faster than using the StringCharacterStream.
     if (length == -1) length = str->length() + 1;
     int len = i::Min(length, str->length() - start);
-    i::String::WriteToFlat(*str, buffer, start, start + len);
+    i::String::WriteToFlat(*str,
+                           reinterpret_cast<uint8_t*>(buffer),
+                           start,
+                           start + len);
     if (!(options & PRESERVE_ASCII_NULL)) {
       for (int i = 0; i < len; i++) {
         if (buffer[i] == '\0') buffer[i] = ' ';

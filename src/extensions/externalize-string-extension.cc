@@ -94,10 +94,10 @@ v8::Handle<v8::Value> ExternalizeStringExtension::Externalize(
         "externalizeString() can't externalize twice."));
   }
   if (string->IsOneByteRepresentation() && !force_two_byte) {
-    char* data = new char[string->length()];
+    uint8_t* data = new uint8_t[string->length()];
     String::WriteToFlat(*string, data, 0, string->length());
     SimpleAsciiStringResource* resource = new SimpleAsciiStringResource(
-        data, string->length());
+        reinterpret_cast<char*>(data), string->length());
     result = string->MakeExternal(resource);
     if (result && !string->IsSymbol()) {
       HEAP->external_string_table()->AddString(*string);

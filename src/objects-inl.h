@@ -2551,31 +2551,26 @@ void String::Visit(
     switch (type & (kStringRepresentationMask | kStringEncodingMask)) {
       case kSeqStringTag | kOneByteStringTag:
         visitor.VisitOneByteString(
-            reinterpret_cast<const uint8_t*>(
-                SeqOneByteString::cast(string)->GetChars()) + slice_offset,
-                length - offset);
+            SeqOneByteString::cast(string)->GetChars() + slice_offset,
+            length - offset);
         return;
 
       case kSeqStringTag | kTwoByteStringTag:
         visitor.VisitTwoByteString(
-            reinterpret_cast<const uint16_t*>(
-                SeqTwoByteString::cast(string)->GetChars()) + slice_offset,
-                length - offset);
+            SeqTwoByteString::cast(string)->GetChars() + slice_offset,
+            length - offset);
         return;
 
       case kExternalStringTag | kOneByteStringTag:
         visitor.VisitOneByteString(
-            reinterpret_cast<const uint8_t*>(
-                ExternalAsciiString::cast(string)->GetChars()) + slice_offset,
-                length - offset);
+            ExternalAsciiString::cast(string)->GetChars() + slice_offset,
+            length - offset);
         return;
 
       case kExternalStringTag | kTwoByteStringTag:
         visitor.VisitTwoByteString(
-            reinterpret_cast<const uint16_t*>(
-                ExternalTwoByteString::cast(string)->GetChars())
-                    + slice_offset,
-                length - offset);
+            ExternalTwoByteString::cast(string)->GetChars() + slice_offset,
+            length - offset);
         return;
 
       case kSlicedStringTag | kOneByteStringTag:
@@ -2621,12 +2616,7 @@ Address SeqOneByteString::GetCharsAddress() {
 }
 
 
-char* SeqOneByteString::GetChars() {
-  return reinterpret_cast<char*>(GetCharsAddress());
-}
-
-
-uint8_t* SeqOneByteString::GetCharsU() {
+uint8_t* SeqOneByteString::GetChars() {
   return reinterpret_cast<uint8_t*>(GetCharsAddress());
 }
 
@@ -2737,8 +2727,8 @@ void ExternalAsciiString::set_resource(
 }
 
 
-const char* ExternalAsciiString::GetChars() {
-  return resource()->data();
+const uint8_t* ExternalAsciiString::GetChars() {
+  return reinterpret_cast<const uint8_t*>(resource()->data());
 }
 
 

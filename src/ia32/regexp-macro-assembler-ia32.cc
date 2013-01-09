@@ -344,7 +344,19 @@ void RegExpMacroAssemblerIA32::CheckNotBackReferenceIgnoreCase(
     __ or_(eax, 0x20);  // Convert match character to lower-case.
     __ lea(ecx, Operand(eax, -'a'));
     __ cmp(ecx, static_cast<int32_t>('z' - 'a'));  // Is eax a lowercase letter?
-    __ j(above, &fail);
+#ifndef ENABLE_LATIN_1
+    __ j(above, &fail);  // Weren't letters anyway.
+#else
+    Label convert_capture;
+    __ j(below_equal, &convert_capture);  // In range 'a'-'z'.
+    // Latin-1: Check for values in range [224,254] but not 247.
+    __ sub(ecx, Immediate(224 - 'a'));
+    __ cmp(ecx, Immediate(254 - 224));
+    __ j(above, &fail);  // Weren't Latin-1 letters.
+    __ cmp(ecx, Immediate(247 - 224));  // Check for 247.
+    __ j(equal, &fail);
+    __ bind(&convert_capture);
+#endif
     // Also convert capture character.
     __ movzx_b(ecx, Operand(edx, 0));
     __ or_(ecx, 0x20);

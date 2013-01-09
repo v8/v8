@@ -3339,9 +3339,9 @@ MUST_USE_RESULT static inline MaybeObject* MakeOrFindTwoCharacterString(
     { MaybeObject* maybe_result = heap->AllocateRawOneByteString(2);
       if (!maybe_result->ToObject(&result)) return maybe_result;
     }
-    char* dest = SeqOneByteString::cast(result)->GetChars();
-    dest[0] = static_cast<char>(c1);
-    dest[1] = static_cast<char>(c2);
+    uint8_t* dest = SeqOneByteString::cast(result)->GetChars();
+    dest[0] = static_cast<uint8_t>(c1);
+    dest[1] = static_cast<uint8_t>(c2);
     return result;
   } else {
     Object* result;
@@ -3412,9 +3412,9 @@ MaybeObject* Heap::AllocateConsString(String* first, String* second) {
         if (!maybe_result->ToObject(&result)) return maybe_result;
       }
       // Copy the characters into the new object.
-      char* dest = SeqOneByteString::cast(result)->GetChars();
+      uint8_t* dest = SeqOneByteString::cast(result)->GetChars();
       // Copy first part.
-      const char* src;
+      const uint8_t* src;
       if (first->IsExternalString()) {
         src = ExternalAsciiString::cast(first)->GetChars();
       } else {
@@ -3436,7 +3436,7 @@ MaybeObject* Heap::AllocateConsString(String* first, String* second) {
           if (!maybe_result->ToObject(&result)) return maybe_result;
         }
         // Copy the characters into the new object.
-        char* dest = SeqOneByteString::cast(result)->GetChars();
+        uint8_t* dest = SeqOneByteString::cast(result)->GetChars();
         String::WriteToFlat(first, dest, 0, first_length);
         String::WriteToFlat(second, dest + first_length, 0, second_length);
         isolate_->counters()->string_add_runtime_ext_to_ascii()->Increment();
@@ -3513,7 +3513,7 @@ MaybeObject* Heap::AllocateSubString(String* buffer,
     // Copy the characters into the new object.
     if (is_one_byte) {
       ASSERT(string_result->IsOneByteRepresentation());
-      char* dest = SeqOneByteString::cast(string_result)->GetChars();
+      uint8_t* dest = SeqOneByteString::cast(string_result)->GetChars();
       String::WriteToFlat(buffer, dest, start, end);
     } else {
       ASSERT(string_result->IsTwoByteRepresentation());
@@ -4555,7 +4555,7 @@ MaybeObject* Heap::AllocateStringFromOneByte(Vector<const uint8_t> string,
   }
 
   // Copy the characters into the new object.
-  CopyChars(SeqOneByteString::cast(result)->GetCharsU(),
+  CopyChars(SeqOneByteString::cast(result)->GetChars(),
             string.start(),
             length);
   return result;
@@ -4654,7 +4654,7 @@ template<>
 class AllocateInternalSymbolHelper< Vector<const char> > {
  public:
   static inline void WriteOneByteData(Vector<const char> vector,
-                                      char* chars,
+                                      uint8_t* chars,
                                       int len) {
     // Only works for ascii.
     ASSERT(vector.length() == len);
@@ -4696,7 +4696,7 @@ class AllocateInternalSymbolHelper< Vector<const char> > {
 template<>
 class AllocateInternalSymbolHelper<String*> {
  public:
-  static inline void WriteOneByteData(String* s, char* chars, int len) {
+  static inline void WriteOneByteData(String* s, uint8_t* chars, int len) {
     ASSERT(s->length() == len);
     String::WriteToFlat(s, chars, 0, len);
   }
@@ -4806,13 +4806,15 @@ MaybeObject* Heap::AllocateRawOneByteString(int length,
   String::cast(result)->set_hash_field(String::kEmptyHashField);
   ASSERT_EQ(size, HeapObject::cast(result)->Size());
 
+#ifndef ENABLE_LATIN_1
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap) {
     // Initialize string's content to ensure ASCII-ness (character range 0-127)
     // as required when verifying the heap.
-    char* dest = SeqOneByteString::cast(result)->GetChars();
+    uint8_t* dest = SeqOneByteString::cast(result)->GetChars();
     memset(dest, 0x0F, length * kCharSize);
   }
+#endif
 #endif
 
   return result;

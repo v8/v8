@@ -153,22 +153,25 @@ void generate(MacroAssembler* masm, uint32_t key) {
 
 
 void check(i::Vector<const uint8_t> string) {
-  v8::HandleScope scope;
+  Isolate* isolate = Isolate::Current();
+  Factory* factory = isolate->factory();
+  HandleScope scope(isolate);
+
   v8::internal::byte buffer[2048];
-  MacroAssembler masm(Isolate::Current(), buffer, sizeof buffer);
+  MacroAssembler masm(isolate, buffer, sizeof buffer);
 
   generate(&masm, string);
 
   CodeDesc desc;
   masm.GetCode(&desc);
-  Code* code = Code::cast(HEAP->CreateCode(
-      desc,
-      Code::ComputeFlags(Code::STUB),
-      Handle<Object>(HEAP->undefined_value()))->ToObjectChecked());
+  Handle<Object> undefined(isolate->heap()->undefined_value(), isolate);
+  Handle<Code> code = factory->NewCode(desc,
+                                       Code::ComputeFlags(Code::STUB),
+                                       undefined);
   CHECK(code->IsCode());
 
   HASH_FUNCTION hash = FUNCTION_CAST<HASH_FUNCTION>(code->entry());
-  Handle<String> v8_string = FACTORY->NewStringFromOneByte(string);
+  Handle<String> v8_string = factory->NewStringFromOneByte(string);
   v8_string->set_hash_field(String::kEmptyHashField);
 #ifdef USE_SIMULATOR
   uint32_t codegen_hash =
@@ -187,7 +190,10 @@ void check(i::Vector<const char> s) {
 
 
 void check(uint32_t key) {
-  v8::HandleScope scope;
+  Isolate* isolate = Isolate::Current();
+  Factory* factory = isolate->factory();
+  HandleScope scope(isolate);
+
   v8::internal::byte buffer[2048];
   MacroAssembler masm(Isolate::Current(), buffer, sizeof buffer);
 
@@ -195,10 +201,10 @@ void check(uint32_t key) {
 
   CodeDesc desc;
   masm.GetCode(&desc);
-  Code* code = Code::cast(HEAP->CreateCode(
-      desc,
-      Code::ComputeFlags(Code::STUB),
-      Handle<Object>(HEAP->undefined_value()))->ToObjectChecked());
+  Handle<Object> undefined(isolate->heap()->undefined_value(), isolate);
+  Handle<Code> code = factory->NewCode(desc,
+                                       Code::ComputeFlags(Code::STUB),
+                                       undefined);
   CHECK(code->IsCode());
 
   HASH_FUNCTION hash = FUNCTION_CAST<HASH_FUNCTION>(code->entry());
@@ -209,9 +215,7 @@ void check(uint32_t key) {
   uint32_t codegen_hash = hash();
 #endif
 
-  uint32_t runtime_hash = ComputeIntegerHash(
-      key,
-      Isolate::Current()->heap()->HashSeed());
+  uint32_t runtime_hash = ComputeIntegerHash(key, isolate->heap()->HashSeed());
   CHECK(runtime_hash == codegen_hash);
 }
 
@@ -229,12 +233,12 @@ static uint32_t PseudoRandom(uint32_t i, uint32_t j) {
 
 TEST(StringHash) {
   if (env.IsEmpty()) env = v8::Context::New();
-  for (int a = 0; a < String::kMaxOneByteCharCode; a++) {
+  for (uint8_t a = 0; a < String::kMaxOneByteCharCode; a++) {
     // Numbers are hashed differently.
     if (a >= '0' && a <= '9') continue;
-    for (int b = 0; b < String::kMaxOneByteCharCode; b++) {
+    for (uint8_t b = 0; b < String::kMaxOneByteCharCode; b++) {
       if (b >= '0' && b <= '9') continue;
-      check_twochars(static_cast<uint8_t>(a), static_cast<uint8_t>(b));
+      check_twochars(a, b);
     }
   }
   check(i::Vector<const char>("*",       1));
