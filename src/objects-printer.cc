@@ -703,7 +703,7 @@ char* String::ToAsciiArray() {
   static char* buffer = NULL;
   if (buffer != NULL) free(buffer);
   buffer = new char[length()+1];
-  WriteToFlat(this, buffer, 0, length());
+  WriteToFlat(this, reinterpret_cast<uint8_t*>(buffer), 0, length());
   buffer[length()] = 0;
   return buffer;
 }
