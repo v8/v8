@@ -171,7 +171,7 @@ Handle<String> Factory::LookupSymbol(Handle<String> string) {
                      String);
 }
 
-Handle<String> Factory::LookupOneByteSymbol(Vector<const char> string) {
+Handle<String> Factory::LookupOneByteSymbol(Vector<const uint8_t> string) {
   CALL_HEAP_FUNCTION(isolate(),
                      isolate()->heap()->LookupOneByteSymbol(string),
                      String);
@@ -196,8 +196,8 @@ Handle<String> Factory::LookupTwoByteSymbol(Vector<const uc16> string) {
 }
 
 
-Handle<String> Factory::NewStringFromAscii(Vector<const char> string,
-                                           PretenureFlag pretenure) {
+Handle<String> Factory::NewStringFromOneByte(Vector<const uint8_t> string,
+                                             PretenureFlag pretenure) {
   CALL_HEAP_FUNCTION(
       isolate(),
       isolate()->heap()->AllocateStringFromOneByte(string, pretenure),

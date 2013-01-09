@@ -202,13 +202,44 @@ Vector<const char> ReadFile(FILE* file,
                             bool verbose = true);
 
 
+template <typename sourcechar, typename sinkchar>
+INLINE(static void CopyCharsUnsigned(sinkchar* dest,
+                                     const sourcechar* src,
+                                     int chars));
+
 // Copy from ASCII/16bit chars to ASCII/16bit chars.
 template <typename sourcechar, typename sinkchar>
 INLINE(void CopyChars(sinkchar* dest, const sourcechar* src, int chars));
 
+template<typename sourcechar, typename sinkchar>
+void CopyChars(sinkchar* dest, const sourcechar* src, int chars) {
+  ASSERT(sizeof(sourcechar) <= 2);
+  ASSERT(sizeof(sinkchar) <= 2);
+  if (sizeof(sinkchar) == 1) {
+    if (sizeof(sourcechar) == 1) {
+      CopyCharsUnsigned(reinterpret_cast<uint8_t*>(dest),
+                        reinterpret_cast<const uint8_t*>(src),
+                        chars);
+    } else {
+      CopyCharsUnsigned(reinterpret_cast<uint8_t*>(dest),
+                        reinterpret_cast<const uint16_t*>(src),
+                        chars);
+    }
+  } else {
+    if (sizeof(sourcechar) == 1) {
+      CopyCharsUnsigned(reinterpret_cast<uint16_t*>(dest),
+                        reinterpret_cast<const uint8_t*>(src),
+                        chars);
+    } else {
+      CopyCharsUnsigned(reinterpret_cast<uint16_t*>(dest),
+                        reinterpret_cast<const uint16_t*>(src),
+                        chars);
+    }
+  }
+}
 
 template <typename sourcechar, typename sinkchar>
-void CopyChars(sinkchar* dest, const sourcechar* src, int chars) {
+void CopyCharsUnsigned(sinkchar* dest, const sourcechar* src, int chars) {
   sinkchar* limit = dest + chars;
 #ifdef V8_HOST_CAN_READ_UNALIGNED
   if (sizeof(*dest) == sizeof(*src)) {

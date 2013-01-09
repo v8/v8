@@ -1083,8 +1083,9 @@ void AstConstructionVisitor::VisitCallRuntime(CallRuntime* node) {
     // optimize them.
     add_flag(kDontInline);
   } else if (node->function()->intrinsic_type == Runtime::INLINE &&
-      (node->name()->IsEqualTo(CStrVector("_ArgumentsLength")) ||
-       node->name()->IsEqualTo(CStrVector("_Arguments")))) {
+      (node->name()->IsOneByteEqualTo(
+          STATIC_ASCII_VECTOR("_ArgumentsLength")) ||
+       node->name()->IsOneByteEqualTo(STATIC_ASCII_VECTOR("_Arguments")))) {
     // Don't inline the %_ArgumentsLength or %_Arguments because their
     // implementation will not work.  There is no stack frame to get them
     // from.

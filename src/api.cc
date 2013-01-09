@@ -3124,7 +3124,7 @@ Local<String> v8::Object::ObjectProtoToString() {
 
   } else {
     i::Handle<i::String> class_name = i::Handle<i::String>::cast(name);
-    if (class_name->IsEqualTo(i::CStrVector("Arguments"))) {
+    if (class_name->IsOneByteEqualTo(STATIC_ASCII_VECTOR("Arguments"))) {
       return v8::String::New("[object Object]");
 
     } else {
@@ -4145,7 +4145,7 @@ int String::WriteAscii(char* buffer,
     FlattenString(str);  // Flatten the string for efficiency.
   }
 
-  if (str->IsOneByteRepresentation()) {
+  if (str->HasOnlyAsciiChars()) {
     // WriteToFlat is faster than using the StringCharacterStream.
     if (length == -1) length = str->length() + 1;
     int len = i::Min(length, str->length() - start);
@@ -5183,14 +5183,14 @@ void v8::Date::DateTimeConfigurationChangeNotification() {
 
 
 static i::Handle<i::String> RegExpFlagsToString(RegExp::Flags flags) {
-  char flags_buf[3];
+  uint8_t flags_buf[3];
   int num_flags = 0;
   if ((flags & RegExp::kGlobal) != 0) flags_buf[num_flags++] = 'g';
   if ((flags & RegExp::kMultiline) != 0) flags_buf[num_flags++] = 'm';
   if ((flags & RegExp::kIgnoreCase) != 0) flags_buf[num_flags++] = 'i';
   ASSERT(num_flags <= static_cast<int>(ARRAY_SIZE(flags_buf)));
   return FACTORY->LookupOneByteSymbol(
-      i::Vector<const char>(flags_buf, num_flags));
+      i::Vector<const uint8_t>(flags_buf, num_flags));
 }
 
 

@@ -183,9 +183,9 @@ class LiteralBuffer {
   INLINE(void AddChar(uint32_t code_unit)) {
     if (position_ >= backing_store_.length()) ExpandBuffer();
     if (is_ascii_) {
-      if (code_unit < kMaxAsciiCharCodeU) {
+      if (code_unit <= unibrow::Latin1::kMaxChar) {
         backing_store_[position_] = static_cast<byte>(code_unit);
-        position_ += kASCIISize;
+        position_ += kOneByteSize;
         return;
       }
       ConvertToUtf16();
@@ -250,7 +250,7 @@ class LiteralBuffer {
     } else {
       new_store = backing_store_;
     }
-    char* src = reinterpret_cast<char*>(backing_store_.start());
+    uint8_t* src = backing_store_.start();
     uc16* dst = reinterpret_cast<uc16*>(new_store.start());
     for (int i = position_ - 1; i >= 0; i--) {
       dst[i] = src[i];

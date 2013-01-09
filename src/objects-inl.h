@@ -345,6 +345,11 @@ bool String::HasOnlyAsciiChars() {
 }
 
 
+bool String::IsOneByteConvertible() {
+  return HasOnlyAsciiChars() || IsOneByteRepresentation();
+}
+
+
 bool StringShape::IsCons() {
   return (type_ & kStringRepresentationMask) == kConsStringTag;
 }
@@ -2605,7 +2610,7 @@ uint16_t SeqOneByteString::SeqOneByteStringGet(int index) {
 
 
 void SeqOneByteString::SeqOneByteStringSet(int index, uint16_t value) {
-  ASSERT(index >= 0 && index < length() && value <= kMaxAsciiCharCode);
+  ASSERT(index >= 0 && index < length() && value <= kMaxOneByteCharCode);
   WRITE_BYTE_FIELD(this, kHeaderSize + index * kCharSize,
                    static_cast<byte>(value));
 }
@@ -2618,6 +2623,11 @@ Address SeqOneByteString::GetCharsAddress() {
 
 char* SeqOneByteString::GetChars() {
   return reinterpret_cast<char*>(GetCharsAddress());
+}
+
+
+uint8_t* SeqOneByteString::GetCharsU() {
+  return reinterpret_cast<uint8_t*>(GetCharsAddress());
 }
 
 

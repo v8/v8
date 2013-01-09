@@ -262,7 +262,7 @@ void RegExpMacroAssemblerMIPS::CheckCharacters(Vector<const uc16> str,
     if (mode_ == ASCII) {
       __ lbu(a1, MemOperand(a0, 0));
       __ addiu(a0, a0, char_size());
-      ASSERT(str[i] <= String::kMaxAsciiCharCode);
+      ASSERT(str[i] <= String::kMaxOneByteCharCode);
       BranchOrBacktrack(on_failure, ne, a1, Operand(str[i]));
     } else {
       __ lhu(a1, MemOperand(a0, 0));
@@ -511,7 +511,7 @@ void RegExpMacroAssemblerMIPS::CheckBitInTable(
     Handle<ByteArray> table,
     Label* on_bit_set) {
   __ li(a0, Operand(table));
-  if (mode_ != ASCII || kTableMask != String::kMaxAsciiCharCode) {
+  if (mode_ != ASCII || kTableMask != String::kMaxOneByteCharCode) {
     __ And(a1, current_character(), Operand(kTableSize - 1));
     __ Addu(a0, a0, a1);
   } else {

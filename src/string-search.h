@@ -61,12 +61,12 @@ class StringSearchBase {
   // to compensate for the algorithmic overhead compared to simple brute force.
   static const int kBMMinPatternLength = 7;
 
-  static inline bool IsAsciiString(Vector<const char>) {
+  static inline bool IsOneByteString(Vector<const char> string) {
     return true;
   }
 
-  static inline bool IsAsciiString(Vector<const uc16> string) {
-    return String::IsAscii(string.start(), string.length());
+  static inline bool IsOneByteString(Vector<const uc16> string) {
+    return String::IsOneByte(string.start(), string.length());
   }
 
   friend class Isolate;
@@ -81,7 +81,7 @@ class StringSearch : private StringSearchBase {
         pattern_(pattern),
         start_(Max(0, pattern.length() - kBMMaxShift)) {
     if (sizeof(PatternChar) > sizeof(SubjectChar)) {
-      if (!IsAsciiString(pattern_)) {
+      if (!IsOneByteString(pattern_)) {
         strategy_ = &FailSearch;
         return;
       }
@@ -156,7 +156,7 @@ class StringSearch : private StringSearchBase {
       return bad_char_occurrence[static_cast<int>(char_code)];
     }
     if (sizeof(PatternChar) == 1) {
-      if (static_cast<unsigned int>(char_code) > String::kMaxAsciiCharCodeU) {
+      if (static_cast<unsigned int>(char_code) > String::kMaxOneByteCharCodeU) {
         return -1;
       }
       return bad_char_occurrence[static_cast<unsigned int>(char_code)];
@@ -223,7 +223,8 @@ int StringSearch<PatternChar, SubjectChar>::SingleCharSearch(
     return static_cast<int>(pos - subject.start());
   } else {
     if (sizeof(PatternChar) > sizeof(SubjectChar)) {
-      if (static_cast<uc16>(pattern_first_char) > String::kMaxAsciiCharCodeU) {
+      if (static_cast<uc16>(pattern_first_char) >
+            String::kMaxOneByteCharCodeU) {
         return -1;
       }
     }

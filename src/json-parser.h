@@ -526,7 +526,7 @@ Handle<String> JsonParser<seq_ascii>::SlowScanJsonString(
       // in the ASCII sink.
       if (sizeof(SinkChar) == kUC16Size ||
           seq_ascii ||
-          c0_ <= kMaxAsciiCharCode) {
+          c0_ <= String::kMaxOneByteCharCode) {
         SeqStringSet(seq_str, count++, c0_);
         Advance();
       } else {
@@ -566,7 +566,8 @@ Handle<String> JsonParser<seq_ascii>::SlowScanJsonString(
             }
             value = value * 16 + digit;
           }
-          if (sizeof(SinkChar) == kUC16Size || value <= kMaxAsciiCharCode) {
+          if (sizeof(SinkChar) == kUC16Size ||
+              value <= String::kMaxOneByteCharCode) {
             SeqStringSet(seq_str, count++, value);
             break;
           } else {
@@ -649,8 +650,8 @@ Handle<String> JsonParser<seq_ascii>::ScanJsonString() {
     int length = position - position_;
     uint32_t hash = (length <= String::kMaxHashCalcLength)
         ? StringHasher::GetHashCore(running_hash) : length;
-    Vector<const char> string_vector(
-        seq_source_->GetChars() + position_, length);
+    Vector<const uint8_t> string_vector(
+        seq_source_->GetCharsU() + position_, length);
     SymbolTable* symbol_table = isolate()->heap()->symbol_table();
     uint32_t capacity = symbol_table->Capacity();
     uint32_t entry = SymbolTable::FirstProbe(hash, capacity);
@@ -662,7 +663,7 @@ Handle<String> JsonParser<seq_ascii>::ScanJsonString() {
         break;
       }
       if (element != isolate()->heap()->the_hole_value() &&
-          String::cast(element)->IsAsciiEqualTo(string_vector)) {
+          String::cast(element)->IsOneByteEqualTo(string_vector)) {
         // Lookup success, update the current position.
         position_ = position;
         // Advance past the last '"'.
@@ -679,7 +680,7 @@ Handle<String> JsonParser<seq_ascii>::ScanJsonString() {
     // Check for control character (0x00-0x1f) or unterminated string (<0).
     if (c0_ < 0x20) return Handle<String>::null();
     if (c0_ != '\\') {
-      if (seq_ascii || c0_ <= kMaxAsciiCharCode) {
+      if (seq_ascii || c0_ <= String::kMaxOneByteCharCode) {
         Advance();
       } else {
         return SlowScanJsonString<SeqTwoByteString, uc16>(source_,

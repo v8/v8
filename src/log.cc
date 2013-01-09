@@ -393,7 +393,7 @@ class Logger::NameBuffer {
     int previous = unibrow::Utf16::kNoPreviousCharacter;
     for (int i = 0; i < uc16_length && utf8_pos_ < kUtf8BufferSize; ++i) {
       uc16 c = utf16_buffer[i];
-      if (c <= String::kMaxAsciiCharCodeU) {
+      if (c <= unibrow::Utf8::kMaxOneByteChar) {
         utf8_buffer_[utf8_pos_++] = static_cast<char>(c);
       } else {
         int char_length = unibrow::Utf8::Length(c, previous);

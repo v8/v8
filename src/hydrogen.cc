@@ -6606,7 +6606,7 @@ bool HOptimizedGraphBuilder::TryArgumentsAccess(Property* expr) {
   HInstruction* result = NULL;
   if (expr->key()->IsPropertyName()) {
     Handle<String> name = expr->key()->AsLiteral()->AsPropertyName();
-    if (!name->IsEqualTo(CStrVector("length"))) return false;
+    if (!name->IsOneByteEqualTo(STATIC_ASCII_VECTOR("length"))) return false;
 
     if (function_state()->outer() == NULL) {
       HInstruction* elements = AddInstruction(
@@ -8502,7 +8502,9 @@ static bool IsClassOfTest(CompareOperation* expr) {
   Literal* literal = expr->right()->AsLiteral();
   if (literal == NULL) return false;
   if (!literal->handle()->IsString()) return false;
-  if (!call->name()->IsEqualTo(CStrVector("_ClassOf"))) return false;
+  if (!call->name()->IsOneByteEqualTo(STATIC_ASCII_VECTOR("_ClassOf"))) {
+    return false;
+  }
   ASSERT(call->arguments()->length() == 1);
   return true;
 }

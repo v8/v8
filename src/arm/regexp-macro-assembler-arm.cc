@@ -261,7 +261,7 @@ void RegExpMacroAssemblerARM::CheckCharacters(Vector<const uc16> str,
   for (int i = 0; i < str.length(); i++) {
     if (mode_ == ASCII) {
       __ ldrb(r1, MemOperand(r0, char_size(), PostIndex));
-      ASSERT(str[i] <= String::kMaxAsciiCharCode);
+      ASSERT(str[i] <= String::kMaxOneByteCharCode);
       __ cmp(r1, Operand(str[i]));
     } else {
       __ ldrh(r1, MemOperand(r0, char_size(), PostIndex));
@@ -508,7 +508,7 @@ void RegExpMacroAssemblerARM::CheckBitInTable(
     Handle<ByteArray> table,
     Label* on_bit_set) {
   __ mov(r0, Operand(table));
-  if (mode_ != ASCII || kTableMask != String::kMaxAsciiCharCode) {
+  if (mode_ != ASCII || kTableMask != String::kMaxOneByteCharCode) {
     __ and_(r1, current_character(), Operand(kTableSize - 1));
     __ add(r1, r1, Operand(ByteArray::kHeaderSize - kHeapObjectTag));
   } else {

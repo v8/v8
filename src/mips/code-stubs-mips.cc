@@ -5769,11 +5769,11 @@ void StringCharFromCodeGenerator::GenerateFast(MacroAssembler* masm) {
 
   STATIC_ASSERT(kSmiTag == 0);
   STATIC_ASSERT(kSmiShiftSize == 0);
-  ASSERT(IsPowerOf2(String::kMaxAsciiCharCode + 1));
+  ASSERT(IsPowerOf2(String::kMaxOneByteCharCode + 1));
   __ And(t0,
          code_,
          Operand(kSmiTagMask |
-                 ((~String::kMaxAsciiCharCode) << kSmiTagSize)));
+                 ((~String::kMaxOneByteCharCode) << kSmiTagSize)));
   __ Branch(&slow_case_, ne, t0, Operand(zero_reg));
 
   __ LoadRoot(result_, Heap::kSingleCharacterStringCacheRootIndex);

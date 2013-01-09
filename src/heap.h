@@ -699,8 +699,15 @@ class Heap {
   // failed.
   // Please note this does not perform a garbage collection.
   MUST_USE_RESULT MaybeObject* AllocateStringFromOneByte(
-      Vector<const char> str,
+      Vector<const uint8_t> str,
       PretenureFlag pretenure = NOT_TENURED);
+  // TODO(dcarney): remove this function.
+  MUST_USE_RESULT inline MaybeObject* AllocateStringFromOneByte(
+      Vector<const char> str,
+      PretenureFlag pretenure = NOT_TENURED) {
+    return AllocateStringFromOneByte(Vector<const uint8_t>::cast(str),
+                                     pretenure);
+  }
   MUST_USE_RESULT inline MaybeObject* AllocateStringFromUtf8(
       Vector<const char> str,
       PretenureFlag pretenure = NOT_TENURED);
@@ -716,12 +723,13 @@ class Heap {
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.
   // Please note this function does not perform a garbage collection.
-  MUST_USE_RESULT inline MaybeObject* AllocateSymbol(Vector<const char> str,
-                                                     int chars,
-                                                     uint32_t hash_field);
+  MUST_USE_RESULT inline MaybeObject* AllocateSymbolFromUtf8(
+      Vector<const char> str,
+      int chars,
+      uint32_t hash_field);
 
-  MUST_USE_RESULT inline MaybeObject* AllocateAsciiSymbol(
-        Vector<const char> str,
+  MUST_USE_RESULT inline MaybeObject* AllocateOneByteSymbol(
+        Vector<const uint8_t> str,
         uint32_t hash_field);
 
   MUST_USE_RESULT inline MaybeObject* AllocateTwoByteSymbol(
@@ -1038,7 +1046,7 @@ class Heap {
   MUST_USE_RESULT MaybeObject* LookupUtf8Symbol(const char* str) {
     return LookupUtf8Symbol(CStrVector(str));
   }
-  MUST_USE_RESULT MaybeObject* LookupOneByteSymbol(Vector<const char> str);
+  MUST_USE_RESULT MaybeObject* LookupOneByteSymbol(Vector<const uint8_t> str);
   MUST_USE_RESULT MaybeObject* LookupTwoByteSymbol(Vector<const uc16> str);
   MUST_USE_RESULT MaybeObject* LookupSymbol(String* str);
   MUST_USE_RESULT MaybeObject* LookupOneByteSymbol(

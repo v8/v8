@@ -473,7 +473,9 @@ void String::StringVerify() {
 
 
 void SeqOneByteString::SeqOneByteStringVerify() {
-  CHECK(String::IsAscii(GetChars(), length()));
+#ifndef ENABLE_LATIN_1
+  CHECK(!HasOnlyAsciiChars() || String::IsAscii(GetChars(), length()));
+#endif
 }
 
 

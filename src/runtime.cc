@@ -2990,7 +2990,8 @@ MUST_USE_RESULT static MaybeObject* StringReplaceRegExpWithString(
   if (is_global &&
       regexp->TypeTag() == JSRegExp::ATOM &&
       simple_replace) {
-    if (subject->HasOnlyAsciiChars() && replacement->HasOnlyAsciiChars()) {
+    if (subject->IsOneByteConvertible() &&
+        replacement->IsOneByteConvertible()) {
       return StringReplaceAtomRegExpWithString<SeqOneByteString>(
           isolate, subject, regexp, replacement, last_match_info);
     } else {
@@ -3081,7 +3082,7 @@ MUST_USE_RESULT static MaybeObject* StringReplaceRegExpWithEmptyString(
   if (is_global &&
       regexp->TypeTag() == JSRegExp::ATOM) {
     Handle<String> empty_string = isolate->factory()->empty_string();
-    if (subject->HasOnlyAsciiChars()) {
+    if (subject->IsOneByteRepresentation()) {
       return StringReplaceAtomRegExpWithString<SeqOneByteString>(
           isolate,
           subject,
@@ -3210,7 +3211,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringReplaceRegExpWithString) {
   ASSERT(last_match_info->HasFastObjectElements());
 
   if (replacement->length() == 0) {
-    if (subject->HasOnlyAsciiChars()) {
+    if (subject->IsOneByteConvertible()) {
       return StringReplaceRegExpWithEmptyString<SeqOneByteString>(
           isolate, subject, regexp, last_match_info);
     } else {
@@ -3377,7 +3378,7 @@ static int StringMatchBackwards(Vector<const schar> subject,
   if (sizeof(schar) == 1 && sizeof(pchar) > 1) {
     for (int i = 0; i < pattern_length; i++) {
       uc16 c = pattern[i];
-      if (c > String::kMaxAsciiCharCode) {
+      if (c > String::kMaxOneByteCharCode) {
         return -1;
       }
     }
@@ -5258,14 +5259,14 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_URIUnescape) {
 
   source->TryFlatten();
 
-  bool ascii = true;
+  bool one_byte = true;
   int length = source->length();
 
   int unescaped_length = 0;
   for (int i = 0; i < length; unescaped_length++) {
     int step;
-    if (Unescape(source, i, length, &step) > String::kMaxAsciiCharCode) {
-      ascii = false;
+    if (Unescape(source, i, length, &step) > String::kMaxOneByteCharCode) {
+      one_byte = false;
     }
     i += step;
   }
@@ -5276,7 +5277,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_URIUnescape) {
 
   Object* o;
   { MaybeObject* maybe_o =
-        ascii ?
+        one_byte ?
         isolate->heap()->AllocateRawOneByteString(unescaped_length) :
         isolate->heap()->AllocateRawTwoByteString(unescaped_length);
     if (!maybe_o->ToObject(&o)) return maybe_o;
@@ -5933,6 +5934,7 @@ MUST_USE_RESULT static MaybeObject* ConvertCase(
   // Assume that the string is not empty; we need this assumption later
   if (length == 0) return s;
 
+#ifndef ENABLE_LATIN_1
   // Simpler handling of ASCII strings.
   //
   // NOTE: This assumes that the upper/lower case of an ASCII
@@ -5949,6 +5951,7 @@ MUST_USE_RESULT static MaybeObject* ConvertCase(
         result->GetChars(), SeqOneByteString::cast(s)->GetChars(), length);
     return has_changed_character ? result : s;
   }
+#endif
 
   Object* answer;
   { MaybeObject* maybe_answer =
@@ -6461,7 +6464,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringBuilderConcat) {
     if (first->IsString()) return first;
   }
 
-  bool ascii = special->HasOnlyAsciiChars();
+  bool one_byte = special->IsOneByteConvertible();
   int position = 0;
   for (int i = 0; i < array_length; i++) {
     int increment = 0;
@@ -6502,8 +6505,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringBuilderConcat) {
       String* element = String::cast(elt);
       int element_length = element->length();
       increment = element_length;
-      if (ascii && !element->HasOnlyAsciiChars()) {
-        ascii = false;
+      if (one_byte && !element->IsOneByteConvertible()) {
+        one_byte = false;
       }
     } else {
       ASSERT(!elt->IsTheHole());
@@ -6519,7 +6522,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringBuilderConcat) {
   int length = position;
   Object* object;
 
-  if (ascii) {
+  if (one_byte) {
     { MaybeObject* maybe_object =
           isolate->heap()->AllocateRawOneByteString(length);
       if (!maybe_object->ToObject(&object)) return maybe_object;
@@ -6624,7 +6627,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringBuilderJoin) {
   }
   ASSERT(sink == end);
 
-  ASSERT(!answer->HasOnlyAsciiChars());  // Use %_FastAsciiArrayJoin instead.
+  // Use %_FastAsciiArrayJoin instead.
+  ASSERT(!answer->IsOneByteRepresentation());
   return answer;
 }
 
@@ -8016,7 +8020,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_OptimizeFunctionOnNextCall) {
   if (args.length() == 2 &&
       unoptimized->kind() == Code::FUNCTION) {
     CONVERT_ARG_HANDLE_CHECKED(String, type, 1);
-    CHECK(type->IsEqualTo(CStrVector("osr")));
+    CHECK(type->IsOneByteEqualTo(STATIC_ASCII_VECTOR("osr")));
     isolate->runtime_profiler()->AttemptOnStackReplacement(*function);
     unoptimized->set_allow_osr_at_loop_nesting_level(
         Code::kMaxLoopNestingMarker);

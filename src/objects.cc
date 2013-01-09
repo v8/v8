@@ -7284,7 +7284,7 @@ bool String::MarkAsUndetectable() {
 }
 
 
-bool String::IsEqualTo(Vector<const char> str) {
+bool String::IsUtf8EqualTo(Vector<const char> str) {
   int slen = length();
   // Can't check exact length equality, but we can check bounds.
   int str_len = str.length();
@@ -7313,12 +7313,12 @@ bool String::IsEqualTo(Vector<const char> str) {
 }
 
 
-bool String::IsAsciiEqualTo(Vector<const char> str) {
+bool String::IsOneByteEqualTo(Vector<const uint8_t> str) {
   int slen = length();
   if (str.length() != slen) return false;
   FlatContent content = GetFlatContent();
   if (content.IsAscii()) {
-    return CompareChars(content.ToAsciiVector().start(),
+    return CompareChars(content.ToOneByteVector().start(),
                         str.start(), slen) == 0;
   }
   for (int i = 0; i < slen; i++) {
@@ -11443,7 +11443,7 @@ class Utf8SymbolKey : public HashTableKey {
       : string_(string), hash_field_(0), seed_(seed) { }
 
   bool IsMatch(Object* string) {
-    return String::cast(string)->IsEqualTo(string_);
+    return String::cast(string)->IsUtf8EqualTo(string_);
   }
 
   uint32_t Hash() {
@@ -11460,7 +11460,7 @@ class Utf8SymbolKey : public HashTableKey {
 
   MaybeObject* AsObject() {
     if (hash_field_ == 0) Hash();
-    return Isolate::Current()->heap()->AllocateSymbol(
+    return Isolate::Current()->heap()->AllocateSymbolFromUtf8(
         string_, chars_, hash_field_);
   }
 
@@ -11499,25 +11499,25 @@ class SequentialSymbolKey : public HashTableKey {
 
 
 
-class AsciiSymbolKey : public SequentialSymbolKey<char> {
+class OneByteSymbolKey : public SequentialSymbolKey<uint8_t> {
  public:
-  AsciiSymbolKey(Vector<const char> str, uint32_t seed)
-      : SequentialSymbolKey<char>(str, seed) { }
+  OneByteSymbolKey(Vector<const uint8_t> str, uint32_t seed)
+      : SequentialSymbolKey<uint8_t>(str, seed) { }
 
   bool IsMatch(Object* string) {
-    return String::cast(string)->IsAsciiEqualTo(string_);
+    return String::cast(string)->IsOneByteEqualTo(string_);
   }
 
   MaybeObject* AsObject() {
     if (hash_field_ == 0) Hash();
-    return HEAP->AllocateAsciiSymbol(string_, hash_field_);
+    return HEAP->AllocateOneByteSymbol(string_, hash_field_);
   }
 };
 
 
-class SubStringAsciiSymbolKey : public HashTableKey {
+class SubStringOneByteSymbolKey : public HashTableKey {
  public:
-  explicit SubStringAsciiSymbolKey(Handle<SeqOneByteString> string,
+  explicit SubStringOneByteSymbolKey(Handle<SeqOneByteString> string,
                                    int from,
                                    int length)
       : string_(string), from_(from), length_(length) { }
@@ -11539,14 +11539,16 @@ class SubStringAsciiSymbolKey : public HashTableKey {
   }
 
   bool IsMatch(Object* string) {
-    Vector<const char> chars(string_->GetChars() + from_, length_);
-    return String::cast(string)->IsAsciiEqualTo(chars);
+    Vector<const uint8_t> chars(string_->GetCharsU() + from_, length_);
+    return String::cast(string)->IsOneByteEqualTo(chars);
   }
 
   MaybeObject* AsObject() {
     if (hash_field_ == 0) Hash();
-    Vector<const char> chars(string_->GetChars() + from_, length_);
-    return HEAP->AllocateAsciiSymbol(chars, hash_field_);
+    Vector<const uint8_t> chars(
+        reinterpret_cast<uint8_t*>(string_->GetChars()) + from_,
+        length_);
+    return HEAP->AllocateOneByteSymbol(chars, hash_field_);
   }
 
  private:
@@ -12467,9 +12469,9 @@ MaybeObject* SymbolTable::LookupUtf8Symbol(Vector<const char> str,
 }
 
 
-MaybeObject* SymbolTable::LookupOneByteSymbol(Vector<const char> str,
+MaybeObject* SymbolTable::LookupOneByteSymbol(Vector<const uint8_t> str,
                                               Object** s) {
-  AsciiSymbolKey key(str, GetHeap()->HashSeed());
+  OneByteSymbolKey key(str, GetHeap()->HashSeed());
   return LookupKey(&key, s);
 }
 
@@ -12479,7 +12481,7 @@ MaybeObject* SymbolTable::LookupSubStringOneByteSymbol(
     int from,
     int length,
     Object** s) {
-  SubStringAsciiSymbolKey key(str, from, length);
+  SubStringOneByteSymbolKey key(str, from, length);
   return LookupKey(&key, s);
 }
 

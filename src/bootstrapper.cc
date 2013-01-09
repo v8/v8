@@ -499,7 +499,8 @@ Handle<JSFunction> Genesis::CreateEmptyFunction(Isolate* isolate) {
           Builtins::kEmptyFunction));
   empty_function->set_code(*code);
   empty_function->shared()->set_code(*code);
-  Handle<String> source = factory->NewStringFromAscii(CStrVector("() {}"));
+  Handle<String> source =
+      factory->NewStringFromOneByte(STATIC_ASCII_VECTOR("() {}"));
   Handle<Script> script = factory->NewScript(source);
   script->set_type(Smi::FromInt(Script::TYPE_NATIVE));
   empty_function->shared()->set_script(*script);

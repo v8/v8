@@ -2785,7 +2785,7 @@ bool Heap::CreateInitialObjects() {
   // hash code in place. The hash code for the hidden_symbol is zero to ensure
   // that it will always be at the first entry in property descriptors.
   { MaybeObject* maybe_obj =
-        AllocateSymbol(CStrVector(""), 0, String::kEmptyStringHash);
+        AllocateOneByteSymbol(OneByteVector("", 0), String::kEmptyStringHash);
     if (!maybe_obj->ToObject(&obj)) return false;
   }
   hidden_symbol_ = String::cast(obj);
@@ -2838,9 +2838,9 @@ bool Heap::CreateInitialObjects() {
   }
   set_number_string_cache(FixedArray::cast(obj));
 
-  // Allocate cache for single character ASCII strings.
+  // Allocate cache for single character one byte strings.
   { MaybeObject* maybe_obj =
-        AllocateFixedArray(String::kMaxAsciiCharCode + 1, TENURED);
+        AllocateFixedArray(String::kMaxOneByteCharCode + 1, TENURED);
     if (!maybe_obj->ToObject(&obj)) return false;
   }
   set_single_character_string_cache(FixedArray::cast(obj));
@@ -3309,9 +3309,9 @@ MUST_USE_RESULT static inline MaybeObject* MakeOrFindTwoCharacterString(
     return symbol;
   // Now we know the length is 2, we might as well make use of that fact
   // when building the new string.
-  } else if (static_cast<unsigned>(c1 | c2) <= String::kMaxAsciiCharCodeU) {
+  } else if (static_cast<unsigned>(c1 | c2) <= String::kMaxOneByteCharCodeU) {
     // We can do this.
-    ASSERT(IsPowerOf2(String::kMaxAsciiCharCodeU + 1));  // because of this.
+    ASSERT(IsPowerOf2(String::kMaxOneByteCharCodeU + 1));  // because of this.
     Object* result;
     { MaybeObject* maybe_result = heap->AllocateRawOneByteString(2);
       if (!maybe_result->ToObject(&result)) return maybe_result;
@@ -3355,10 +3355,9 @@ MaybeObject* Heap::AllocateConsString(String* first, String* second) {
     return MakeOrFindTwoCharacterString(this, c1, c2);
   }
 
-  bool first_is_ascii = first->IsOneByteRepresentation();
-  bool second_is_ascii = second->IsOneByteRepresentation();
-  bool is_ascii = first_is_ascii && second_is_ascii;
-
+  bool first_is_one_byte = first->IsOneByteRepresentation();
+  bool second_is_one_byte = second->IsOneByteRepresentation();
+  bool is_one_byte = first_is_one_byte && second_is_one_byte;
   // Make sure that an out of memory exception is thrown if the length
   // of the new cons string is too large.
   if (length > String::kMaxLength || length < 0) {
@@ -3367,7 +3366,7 @@ MaybeObject* Heap::AllocateConsString(String* first, String* second) {
   }
 
   bool is_ascii_data_in_two_byte_string = false;
-  if (!is_ascii) {
+  if (!is_one_byte) {
     // At least one of the strings uses two-byte representation so we
     // can't use the fast case code for short ASCII strings below, but
     // we can try to save memory if all chars actually fit in ASCII.
@@ -3384,7 +3383,7 @@ MaybeObject* Heap::AllocateConsString(String* first, String* second) {
     STATIC_ASSERT(ConsString::kMinLength <= SlicedString::kMinLength);
     ASSERT(first->IsFlat());
     ASSERT(second->IsFlat());
-    if (is_ascii) {
+    if (is_one_byte) {
       Object* result;
       { MaybeObject* maybe_result = AllocateRawOneByteString(length);
         if (!maybe_result->ToObject(&result)) return maybe_result;
@@ -3433,7 +3432,7 @@ MaybeObject* Heap::AllocateConsString(String* first, String* second) {
     }
   }
 
-  Map* map = (is_ascii || is_ascii_data_in_two_byte_string) ?
+  Map* map = (is_one_byte || is_ascii_data_in_two_byte_string) ?
       cons_ascii_string_map() : cons_string_map();
 
   Object* result;
@@ -3481,15 +3480,15 @@ MaybeObject* Heap::AllocateSubString(String* buffer,
     // WriteToFlat takes care of the case when an indirect string has a
     // different encoding from its underlying string.  These encodings may
     // differ because of externalization.
-    bool is_ascii = buffer->IsOneByteRepresentation();
-    { MaybeObject* maybe_result = is_ascii
+    bool is_one_byte = buffer->IsOneByteRepresentation();
+    { MaybeObject* maybe_result = is_one_byte
                                   ? AllocateRawOneByteString(length, pretenure)
                                   : AllocateRawTwoByteString(length, pretenure);
       if (!maybe_result->ToObject(&result)) return maybe_result;
     }
     String* string_result = String::cast(result);
     // Copy the characters into the new object.
-    if (is_ascii) {
+    if (is_one_byte) {
       ASSERT(string_result->IsOneByteRepresentation());
       char* dest = SeqOneByteString::cast(string_result)->GetChars();
       String::WriteToFlat(buffer, dest, start, end);
@@ -3580,11 +3579,11 @@ MaybeObject* Heap::AllocateExternalStringFromTwoByte(
   }
 
   // For small strings we check whether the resource contains only
-  // ASCII characters.  If yes, we use a different string map.
+  // one byte characters.  If yes, we use a different string map.
   static const size_t kAsciiCheckLengthLimit = 32;
-  bool is_ascii = length <= kAsciiCheckLengthLimit &&
-      String::IsAscii(resource->data(), static_cast<int>(length));
-  Map* map = is_ascii ?
+  bool is_one_byte = length <= kAsciiCheckLengthLimit &&
+      String::IsOneByte(resource->data(), static_cast<int>(length));
+  Map* map = is_one_byte ?
       external_string_with_ascii_data_map() : external_string_map();
   Object* result;
   { MaybeObject* maybe_result = Allocate(map, NEW_SPACE);
@@ -3601,15 +3600,15 @@ MaybeObject* Heap::AllocateExternalStringFromTwoByte(
 
 
 MaybeObject* Heap::LookupSingleCharacterStringFromCode(uint16_t code) {
-  if (code <= String::kMaxAsciiCharCode) {
+  if (code <= String::kMaxOneByteCharCode) {
     Object* value = single_character_string_cache()->get(code);
     if (value != undefined_value()) return value;
 
-    char buffer[1];
-    buffer[0] = static_cast<char>(code);
+    uint8_t buffer[1];
+    buffer[0] = static_cast<uint8_t>(code);
     Object* result;
     MaybeObject* maybe_result =
-        LookupOneByteSymbol(Vector<const char>(buffer, 1));
+        LookupOneByteSymbol(Vector<const uint8_t>(buffer, 1));
 
     if (!maybe_result->ToObject(&result)) return maybe_result;
     single_character_string_cache()->set(code, result);
@@ -4520,7 +4519,7 @@ MaybeObject* Heap::ReinitializeJSGlobalProxy(JSFunction* constructor,
 }
 
 
-MaybeObject* Heap::AllocateStringFromOneByte(Vector<const char> string,
+MaybeObject* Heap::AllocateStringFromOneByte(Vector<const uint8_t> string,
                                            PretenureFlag pretenure) {
   int length = string.length();
   if (length == 1) {
@@ -4533,7 +4532,9 @@ MaybeObject* Heap::AllocateStringFromOneByte(Vector<const char> string,
   }
 
   // Copy the characters into the new object.
-  CopyChars(SeqOneByteString::cast(result)->GetChars(), string.start(), length);
+  CopyChars(SeqOneByteString::cast(result)->GetCharsU(),
+            string.start(),
+            length);
   return result;
 }
 
@@ -4579,11 +4580,11 @@ MaybeObject* Heap::AllocateStringFromTwoByte(Vector<const uc16> string,
   int length = string.length();
   const uc16* start = string.start();
 
-  if (String::IsAscii(start, length)) {
+  if (String::IsOneByte(start, length)) {
     MaybeObject* maybe_result = AllocateRawOneByteString(length, pretenure);
     if (!maybe_result->ToObject(&result)) return maybe_result;
     CopyChars(SeqOneByteString::cast(result)->GetChars(), start, length);
-  } else {  // It's not an ASCII string.
+  } else {  // It's not a one byte string.
     MaybeObject* maybe_result = AllocateRawTwoByteString(length, pretenure);
     if (!maybe_result->ToObject(&result)) return maybe_result;
     CopyChars(SeqTwoByteString::cast(result)->GetChars(), start, length);
@@ -5628,7 +5629,7 @@ MaybeObject* Heap::LookupUtf8Symbol(Vector<const char> string) {
 }
 
 
-MaybeObject* Heap::LookupOneByteSymbol(Vector<const char> string) {
+MaybeObject* Heap::LookupOneByteSymbol(Vector<const uint8_t> string) {
   Object* symbol = NULL;
   Object* new_table;
   { MaybeObject* maybe_new_table =

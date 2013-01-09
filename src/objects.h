@@ -3033,7 +3033,7 @@ class SymbolTable: public HashTable<SymbolTableShape, HashTableKey*> {
   // pointer *s is set to the symbol found.
   MUST_USE_RESULT MaybeObject* LookupUtf8Symbol(Vector<const char> str,
                                                 Object** s);
-  MUST_USE_RESULT MaybeObject* LookupOneByteSymbol(Vector<const char> str,
+  MUST_USE_RESULT MaybeObject* LookupOneByteSymbol(Vector<const uint8_t> str,
                                                    Object** s);
   MUST_USE_RESULT MaybeObject* LookupSubStringOneByteSymbol(
       Handle<SeqOneByteString> str,
@@ -7088,11 +7088,18 @@ class String: public HeapObject {
     // Returns true if the structure contains two-byte content.
     bool IsTwoByte() { return state_ == TWO_BYTE; }
 
+    // TODO(dcarney): Remove this function.
     // Return the ASCII content of the string. Only use if IsAscii() returns
     // true.
     Vector<const char> ToAsciiVector() {
       ASSERT_EQ(ASCII, state_);
       return Vector<const char>::cast(buffer_);
+    }
+    // Return the one byte content of the string. Only use if IsAscii() returns
+    // true.
+    Vector<const uint8_t> ToOneByteVector() {
+      ASSERT_EQ(ASCII, state_);
+      return buffer_;
     }
     // Return the two-byte content of the string. Only use if IsTwoByte()
     // returns true.
@@ -7144,6 +7151,8 @@ class String: public HeapObject {
   // possible.
   inline bool HasOnlyAsciiChars();
 
+  inline bool IsOneByteConvertible();
+
   // Get and set individual two byte chars in the string.
   inline void Set(int index, uint16_t value);
   // Get individual two byte char in the string.  Repeated calls
@@ -7194,8 +7203,8 @@ class String: public HeapObject {
 
   // String equality operations.
   inline bool Equals(String* other);
-  bool IsEqualTo(Vector<const char> str);
-  bool IsAsciiEqualTo(Vector<const char> str);
+  bool IsUtf8EqualTo(Vector<const char> str);
+  bool IsOneByteEqualTo(Vector<const uint8_t> str);
   bool IsTwoByteEqualTo(Vector<const uc16> str);
 
   // Return a UTF8 representation of the string.  The string is null
@@ -7271,9 +7280,9 @@ class String: public HeapObject {
   // value into an array index.
   static const int kMaxArrayIndexSize = 10;
 
-  // Max ASCII char code.
-  static const int kMaxAsciiCharCode = unibrow::Utf8::kMaxOneByteChar;
-  static const unsigned kMaxAsciiCharCodeU = unibrow::Utf8::kMaxOneByteChar;
+  // Max char codes.
+  static const int32_t kMaxOneByteCharCode = unibrow::Latin1::kMaxChar;
+  static const uint32_t kMaxOneByteCharCodeU = unibrow::Latin1::kMaxChar;
   static const int kMaxUtf16CodeUnit = 0xffff;
 
   // Mask constant for checking if a string has a computed hash code
@@ -7358,7 +7367,7 @@ class String: public HeapObject {
     const char* start = chars;
     const char* limit = chars + length;
 #ifdef V8_HOST_CAN_READ_UNALIGNED
-    ASSERT(kMaxAsciiCharCode == 0x7F);
+    ASSERT(unibrow::Utf8::kMaxOneByteChar == 0x7F);
     const uintptr_t non_ascii_mask = kUintptrAllBitsSet / 0xFF * 0x80;
     while (chars + sizeof(uintptr_t) <= limit) {
       if (*reinterpret_cast<const uintptr_t*>(chars) & non_ascii_mask) {
@@ -7368,7 +7377,7 @@ class String: public HeapObject {
     }
 #endif
     while (chars < limit) {
-      if (static_cast<uint8_t>(*chars) > kMaxAsciiCharCodeU) {
+      if (static_cast<uint8_t>(*chars) > unibrow::Utf8::kMaxOneByteChar) {
         return static_cast<int>(chars - start);
       }
       ++chars;
@@ -7380,18 +7389,18 @@ class String: public HeapObject {
     return NonAsciiStart(chars, length) >= length;
   }
 
-  static inline int NonAsciiStart(const uc16* chars, int length) {
+  static inline int NonOneByteStart(const uc16* chars, int length) {
     const uc16* limit = chars + length;
     const uc16* start = chars;
     while (chars < limit) {
-      if (*chars > kMaxAsciiCharCodeU) return static_cast<int>(chars - start);
+      if (*chars > kMaxOneByteCharCodeU) return static_cast<int>(chars - start);
       ++chars;
     }
     return static_cast<int>(chars - start);
   }
 
-  static inline bool IsAscii(const uc16* chars, int length) {
-    return NonAsciiStart(chars, length) >= length;
+  static inline bool IsOneByte(const uc16* chars, int length) {
+    return NonOneByteStart(chars, length) >= length;
   }
 
   template<class Visitor, class ConsOp>
@@ -7456,7 +7465,9 @@ class SeqOneByteString: public SeqString {
   // Get the address of the characters in this string.
   inline Address GetCharsAddress();
 
+  // TODO(dcarney): remove GetChars and rename GetCharsU to GetChars.
   inline char* GetChars();
+  inline uint8_t* GetCharsU();
 
   // Casting
   static inline SeqOneByteString* cast(Object* obj);

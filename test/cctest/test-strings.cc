@@ -1273,5 +1273,5 @@ TEST(StringReplaceAtomTwoByteResult) {
 
 TEST(IsAscii) {
   CHECK(String::IsAscii(static_cast<char*>(NULL), 0));
-  CHECK(String::IsAscii(static_cast<uc16*>(NULL), 0));
+  CHECK(String::IsOneByte(static_cast<uc16*>(NULL), 0));
 }

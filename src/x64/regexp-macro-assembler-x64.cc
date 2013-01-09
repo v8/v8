@@ -234,7 +234,7 @@ void RegExpMacroAssemblerX64::CheckCharacters(Vector<const uc16> str,
   // If input is ASCII, don't even bother calling here if the string to
   // match contains a non-ASCII character.
   if (mode_ == ASCII) {
-    ASSERT(String::IsAscii(str.start(), str.length()));
+    ASSERT(String::IsOneByte(str.start(), str.length()));
   }
 #endif
   int byte_length = str.length() * char_size();
@@ -610,7 +610,7 @@ void RegExpMacroAssemblerX64::CheckBitInTable(
     Label* on_bit_set) {
   __ Move(rax, table);
   Register index = current_character();
-  if (mode_ != ASCII || kTableMask != String::kMaxAsciiCharCode) {
+  if (mode_ != ASCII || kTableMask != String::kMaxOneByteCharCode) {
     __ movq(rbx, current_character());
     __ and_(rbx, Immediate(kTableMask));
     index = rbx;

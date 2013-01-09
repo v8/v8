@@ -316,8 +316,8 @@ OptimizingCompiler::Status OptimizingCompiler::CreateGraph() {
   if (*FLAG_hydrogen_filter != '\0') {
     Vector<const char> filter = CStrVector(FLAG_hydrogen_filter);
     if ((filter[0] == '-'
-         && name->IsEqualTo(filter.SubVector(1, filter.length())))
-        || (filter[0] != '-' && !name->IsEqualTo(filter))) {
+         && name->IsUtf8EqualTo(filter.SubVector(1, filter.length())))
+        || (filter[0] != '-' && !name->IsUtf8EqualTo(filter))) {
       info()->SetCode(code);
       return SetLastStatus(BAILED_OUT);
     }

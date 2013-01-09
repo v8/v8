@@ -174,7 +174,7 @@ bool CodeGenerator::ShouldGenerateLog(Expression* type) {
   }
   Handle<String> name = Handle<String>::cast(type->AsLiteral()->handle());
   if (FLAG_log_regexp) {
-    if (name->IsEqualTo(CStrVector("regexp")))
+    if (name->IsOneByteEqualTo(STATIC_ASCII_VECTOR("regexp")))
       return true;
   }
   return false;

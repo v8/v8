@@ -62,7 +62,7 @@ static void CheckOddball(Object* obj, const char* string) {
   CHECK(obj->IsOddball());
   bool exc;
   Object* print_string = *Execution::ToString(Handle<Object>(obj), &exc);
-  CHECK(String::cast(print_string)->IsEqualTo(CStrVector(string)));
+  CHECK(String::cast(print_string)->IsUtf8EqualTo(CStrVector(string)));
 }
 
 
@@ -70,7 +70,7 @@ static void CheckSmi(int value, const char* string) {
   bool exc;
   Object* print_string =
       *Execution::ToString(Handle<Object>(Smi::FromInt(value)), &exc);
-  CHECK(String::cast(print_string)->IsEqualTo(CStrVector(string)));
+  CHECK(String::cast(print_string)->IsUtf8EqualTo(CStrVector(string)));
 }
 
 
@@ -79,7 +79,7 @@ static void CheckNumber(double value, const char* string) {
   CHECK(obj->IsNumber());
   bool exc;
   Object* print_string = *Execution::ToString(Handle<Object>(obj), &exc);
-  CHECK(String::cast(print_string)->IsEqualTo(CStrVector(string)));
+  CHECK(String::cast(print_string)->IsUtf8EqualTo(CStrVector(string)));
 }
 
 
@@ -551,7 +551,7 @@ static void CheckSymbols(const char** strings) {
     MaybeObject* maybe_b = HEAP->LookupUtf8Symbol(string);
     if (!maybe_b->ToObject(&b)) continue;
     CHECK_EQ(b, a);
-    CHECK(String::cast(b)->IsEqualTo(CStrVector(string)));
+    CHECK(String::cast(b)->IsUtf8EqualTo(CStrVector(string)));
   }
 }
 
@@ -800,7 +800,7 @@ TEST(StringAllocation) {
         FACTORY->LookupUtf8Symbol(Vector<const char>(non_ascii, 3 * length));
     CHECK_EQ(length, non_ascii_sym->length());
     Handle<String> ascii_sym =
-        FACTORY->LookupOneByteSymbol(Vector<const char>(ascii, length));
+        FACTORY->LookupOneByteSymbol(OneByteVector(ascii, length));
     CHECK_EQ(length, ascii_sym->length());
     Handle<String> non_ascii_str =
         FACTORY->NewStringFromUtf8(Vector<const char>(non_ascii, 3 * length));

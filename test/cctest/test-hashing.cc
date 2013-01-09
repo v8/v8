@@ -49,7 +49,7 @@ static v8::Persistent<v8::Context> env;
 #define __ masm->
 
 
-void generate(MacroAssembler* masm, i::Vector<const char> string) {
+void generate(MacroAssembler* masm, i::Vector<const uint8_t> string) {
   // GenerateHashInit takes the first character as an argument so it can't
   // handle the zero length string.
   ASSERT(string.length() > 0);
@@ -152,7 +152,7 @@ void generate(MacroAssembler* masm, uint32_t key) {
 }
 
 
-void check(i::Vector<const char> string) {
+void check(i::Vector<const uint8_t> string) {
   v8::HandleScope scope;
   v8::internal::byte buffer[2048];
   MacroAssembler masm(Isolate::Current(), buffer, sizeof buffer);
@@ -168,7 +168,7 @@ void check(i::Vector<const char> string) {
   CHECK(code->IsCode());
 
   HASH_FUNCTION hash = FUNCTION_CAST<HASH_FUNCTION>(code->entry());
-  Handle<String> v8_string = FACTORY->NewStringFromAscii(string);
+  Handle<String> v8_string = FACTORY->NewStringFromOneByte(string);
   v8_string->set_hash_field(String::kEmptyHashField);
 #ifdef USE_SIMULATOR
   uint32_t codegen_hash =
@@ -178,6 +178,11 @@ void check(i::Vector<const char> string) {
 #endif
   uint32_t runtime_hash = v8_string->Hash();
   CHECK(runtime_hash == codegen_hash);
+}
+
+
+void check(i::Vector<const char> s) {
+  check(i::Vector<const uint8_t>::cast(s));
 }
 
 
@@ -211,9 +216,9 @@ void check(uint32_t key) {
 }
 
 
-void check_twochars(char a, char b) {
-  char ab[2] = {a, b};
-  check(i::Vector<const char>(ab, 2));
+void check_twochars(uint8_t a, uint8_t b) {
+  uint8_t ab[2] = {a, b};
+  check(i::Vector<const uint8_t>(ab, 2));
 }
 
 
@@ -224,12 +229,12 @@ static uint32_t PseudoRandom(uint32_t i, uint32_t j) {
 
 TEST(StringHash) {
   if (env.IsEmpty()) env = v8::Context::New();
-  for (int a = 0; a < String::kMaxAsciiCharCode; a++) {
+  for (int a = 0; a < String::kMaxOneByteCharCode; a++) {
     // Numbers are hashed differently.
     if (a >= '0' && a <= '9') continue;
-    for (int b = 0; b < String::kMaxAsciiCharCode; b++) {
+    for (int b = 0; b < String::kMaxOneByteCharCode; b++) {
       if (b >= '0' && b <= '9') continue;
-      check_twochars(static_cast<char>(a), static_cast<char>(b));
+      check_twochars(static_cast<uint8_t>(a), static_cast<uint8_t>(b));
     }
   }
   check(i::Vector<const char>("*",       1));

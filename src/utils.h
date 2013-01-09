@@ -523,10 +523,19 @@ class ScopedVector : public Vector<T> {
 };
 
 #define STATIC_ASCII_VECTOR(x)                        \
-  v8::internal::Vector<const char>(x, ARRAY_SIZE(x)-1)
+  v8::internal::Vector<const uint8_t>(reinterpret_cast<const uint8_t*>(x), \
+                                      ARRAY_SIZE(x)-1)
 
 inline Vector<const char> CStrVector(const char* data) {
   return Vector<const char>(data, StrLength(data));
+}
+
+inline Vector<const uint8_t> OneByteVector(const char* data, int length) {
+  return Vector<const uint8_t>(reinterpret_cast<const uint8_t*>(data), length);
+}
+
+inline Vector<const uint8_t> OneByteVector(const char* data) {
+  return OneByteVector(data, StrLength(data));
 }
 
 inline Vector<char> MutableCStrVector(char* data) {
@@ -767,7 +776,9 @@ class SequenceCollector : public Collector<T, growth_factor, max_growth> {
 
 // Compare ASCII/16bit chars to ASCII/16bit chars.
 template <typename lchar, typename rchar>
-inline int CompareChars(const lchar* lhs, const rchar* rhs, int chars) {
+inline int CompareCharsUnsigned(const lchar* lhs,
+                                const rchar* rhs,
+                                int chars) {
   const lchar* limit = lhs + chars;
 #ifdef V8_HOST_CAN_READ_UNALIGNED
   if (sizeof(*lhs) == sizeof(*rhs)) {
@@ -790,6 +801,33 @@ inline int CompareChars(const lchar* lhs, const rchar* rhs, int chars) {
     ++rhs;
   }
   return 0;
+}
+
+template<typename lchar, typename rchar>
+inline int CompareChars(const lchar* lhs, const rchar* rhs, int chars) {
+  ASSERT(sizeof(lchar) <= 2);
+  ASSERT(sizeof(rchar) <= 2);
+  if (sizeof(lchar) == 1) {
+    if (sizeof(rchar) == 1) {
+      return CompareCharsUnsigned(reinterpret_cast<const uint8_t*>(lhs),
+                                  reinterpret_cast<const uint8_t*>(rhs),
+                                  chars);
+    } else {
+      return CompareCharsUnsigned(reinterpret_cast<const uint8_t*>(lhs),
+                                  reinterpret_cast<const uint16_t*>(rhs),
+                                  chars);
+    }
+  } else {
+    if (sizeof(rchar) == 1) {
+      return CompareCharsUnsigned(reinterpret_cast<const uint16_t*>(lhs),
+                                  reinterpret_cast<const uint8_t*>(rhs),
+                                  chars);
+    } else {
+      return CompareCharsUnsigned(reinterpret_cast<const uint16_t*>(lhs),
+                                  reinterpret_cast<const uint16_t*>(rhs),
+                                  chars);
+    }
+  }
 }
 
 

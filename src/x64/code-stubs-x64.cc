@@ -4562,7 +4562,7 @@ void StringCharCodeAtGenerator::GenerateSlow(
 void StringCharFromCodeGenerator::GenerateFast(MacroAssembler* masm) {
   // Fast case of Heap::LookupSingleCharacterStringFromCode.
   __ JumpIfNotSmi(code_, &slow_case_);
-  __ SmiCompare(code_, Smi::FromInt(String::kMaxAsciiCharCode));
+  __ SmiCompare(code_, Smi::FromInt(String::kMaxOneByteCharCode));
   __ j(above, &slow_case_);
 
   __ LoadRoot(result_, Heap::kSingleCharacterStringCacheRootIndex);

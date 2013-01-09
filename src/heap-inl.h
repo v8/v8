@@ -112,10 +112,12 @@ bool inline Heap::IsOneByte(String* str, int chars) {
 }
 
 
-MaybeObject* Heap::AllocateSymbol(Vector<const char> str,
-                                  int chars,
-                                  uint32_t hash_field) {
-  if (IsOneByte(str, chars)) return AllocateAsciiSymbol(str, hash_field);
+MaybeObject* Heap::AllocateSymbolFromUtf8(Vector<const char> str,
+                                          int chars,
+                                          uint32_t hash_field) {
+  if (IsOneByte(str, chars)) {
+    return AllocateOneByteSymbol(Vector<const uint8_t>::cast(str), hash_field);
+  }
   return AllocateInternalSymbol<false>(str, chars, hash_field);
 }
 
@@ -129,7 +131,7 @@ MaybeObject* Heap::AllocateInternalSymbol(T t, int chars, uint32_t hash_field) {
 }
 
 
-MaybeObject* Heap::AllocateAsciiSymbol(Vector<const char> str,
+MaybeObject* Heap::AllocateOneByteSymbol(Vector<const uint8_t> str,
                                        uint32_t hash_field) {
   if (str.length() > SeqOneByteString::kMaxLength) {
     return Failure::OutOfMemoryException();
