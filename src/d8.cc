@@ -1489,7 +1489,7 @@ Handle<String> Shell::ReadFile(Isolate* isolate, const char* name) {
   int size = 0;
   char* chars = ReadChars(isolate, name, &size);
   if (chars == NULL) return Handle<String>();
-  Handle<String> result = String::New(chars);
+  Handle<String> result = String::New(chars, size);
   delete[] chars;
   return result;
 }
