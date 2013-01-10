@@ -561,7 +561,11 @@ Handle<Value> Shell::CreateExternalArray(const Arguments& args,
 
   if (init_from_array) {
     Handle<Object> init = args[0]->ToObject();
-    for (int i = 0; i < length; ++i) array->Set(i, init->Get(i));
+    for (int i = 0; i < length; ++i) {
+      Local<Value> value = init->Get(i);
+      if (try_catch.HasCaught()) return try_catch.ReThrow();
+      array->Set(i, value);
+    }
   }
 
   return array;
