@@ -128,8 +128,13 @@ namespace v8 {
 
 static void DefaultFatalErrorHandler(const char* location,
                                      const char* message) {
-  i::VMState __state__(i::Isolate::Current(), i::OTHER);
-  API_Fatal(location, message);
+  i::Isolate* isolate = i::Isolate::Current();
+  if (isolate->IsInitialized()) {
+    i::VMState __state__(isolate, i::OTHER);
+    API_Fatal(location, message);
+  } else {
+    API_Fatal(location, message);
+  }
 }
 
 
@@ -202,15 +207,21 @@ void i::V8::FatalProcessOutOfMemory(const char* location, bool take_snapshot) {
   int end_marker;
   heap_stats.end_marker = &end_marker;
   i::Isolate* isolate = i::Isolate::Current();
-  // BUG(1718):
-  // Don't use the take_snapshot since we don't support HeapIterator here
-  // without doing a special GC.
-  isolate->heap()->RecordStats(&heap_stats, false);
+  if (isolate->heap()->HasBeenSetUp()) {
+    // BUG(1718): Don't use the take_snapshot since we don't support
+    // HeapIterator here without doing a special GC.
+    isolate->heap()->RecordStats(&heap_stats, false);
+  }
   i::V8::SetFatalError();
   FatalErrorCallback callback = GetFatalErrorHandler();
+  const char* message = "Allocation failed - process out of memory";
   {
-    LEAVE_V8(isolate);
-    callback(location, "Allocation failed - process out of memory");
+    if (isolate->IsInitialized()) {
+      LEAVE_V8(isolate);
+      callback(location, message);
+    } else {
+      callback(location, message);
+    }
   }
   // If the callback returns, we stop execution.
   UNREACHABLE();

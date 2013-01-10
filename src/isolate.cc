@@ -2003,7 +2003,7 @@ bool Isolate::Init(Deserializer* des) {
   const bool create_heap_objects = (des == NULL);
   ASSERT(!heap_.HasBeenSetUp());
   if (!heap_.SetUp(create_heap_objects)) {
-    V8::SetFatalError();
+    V8::FatalProcessOutOfMemory("heap setup");
     return false;
   }
 
