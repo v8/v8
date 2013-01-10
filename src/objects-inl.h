@@ -3418,14 +3418,13 @@ InlineCacheState Code::ic_state() {
   // a call to code object has been replaced with a debug break call.
   ASSERT(is_inline_cache_stub() ||
          result == UNINITIALIZED ||
-         result == DEBUG_BREAK ||
-         result == DEBUG_PREPARE_STEP_IN);
+         result == DEBUG_STUB);
   return result;
 }
 
 
 Code::ExtraICState Code::extra_ic_state() {
-  ASSERT(is_inline_cache_stub());
+  ASSERT(is_inline_cache_stub() || ic_state() == DEBUG_STUB);
   return ExtractExtraICStateFromFlags(flags());
 }
 
@@ -3673,6 +3672,11 @@ void Code::set_has_function_cache(bool flag) {
 bool Code::is_inline_cache_stub() {
   Kind kind = this->kind();
   return kind >= FIRST_IC_KIND && kind <= LAST_IC_KIND;
+}
+
+
+bool Code::is_debug_break() {
+  return ic_state() == DEBUG_STUB && extra_ic_state() == DEBUG_BREAK;
 }
 
 

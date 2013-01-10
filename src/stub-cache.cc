@@ -909,7 +909,7 @@ Handle<Code> StubCache::ComputeCallDebugBreak(int argc,
   // Extra IC state is irrelevant for debug break ICs. They jump to
   // the actual call ic to carry out the work.
   Code::Flags flags =
-      Code::ComputeFlags(kind, DEBUG_BREAK, Code::kNoExtraICState,
+      Code::ComputeFlags(kind, DEBUG_STUB, DEBUG_BREAK,
                          Code::NORMAL, argc);
   Handle<UnseededNumberDictionary> cache =
       isolate_->factory()->non_monomorphic_cache();
@@ -928,7 +928,7 @@ Handle<Code> StubCache::ComputeCallDebugPrepareStepIn(int argc,
   // Extra IC state is irrelevant for debug break ICs. They jump to
   // the actual call ic to carry out the work.
   Code::Flags flags =
-      Code::ComputeFlags(kind, DEBUG_PREPARE_STEP_IN, Code::kNoExtraICState,
+      Code::ComputeFlags(kind, DEBUG_STUB, DEBUG_PREPARE_STEP_IN,
                          Code::NORMAL, argc);
   Handle<UnseededNumberDictionary> cache =
       isolate_->factory()->non_monomorphic_cache();

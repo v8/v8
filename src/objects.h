@@ -178,6 +178,12 @@ enum TransitionFlag {
 };
 
 
+enum DebugExtraICState {
+  DEBUG_BREAK,
+  DEBUG_PREPARE_STEP_IN
+};
+
+
 // Indicates whether the transition is simple: the target map of the transition
 // either extends the current map with a new property, or it modifies the
 // property that was added last to the current map.
@@ -4311,6 +4317,7 @@ class Code: public HeapObject {
 
   // Testers for IC stub kinds.
   inline bool is_inline_cache_stub();
+  inline bool is_debug_break();
   inline bool is_load_stub() { return kind() == LOAD_IC; }
   inline bool is_keyed_load_stub() { return kind() == KEYED_LOAD_IC; }
   inline bool is_store_stub() { return kind() == STORE_IC; }

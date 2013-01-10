@@ -52,8 +52,7 @@ char IC::TransitionMarkFromState(IC::State state) {
     // We never see the debugger states here, because the state is
     // computed from the original code - not the patched code. Let
     // these cases fall through to the unreachable code below.
-    case DEBUG_BREAK: break;
-    case DEBUG_PREPARE_STEP_IN: break;
+    case DEBUG_STUB: break;
   }
   UNREACHABLE();
   return 0;
@@ -347,7 +346,7 @@ void IC::Clear(Address address) {
   Code* target = GetTargetAtAddress(address);
 
   // Don't clear debug break inline cache as it will remove the break point.
-  if (target->ic_state() == DEBUG_BREAK) return;
+  if (target->is_debug_break()) return;
 
   switch (target->kind()) {
     case Code::LOAD_IC: return LoadIC::Clear(address, target);
@@ -770,8 +769,7 @@ void CallICBase::UpdateCaches(LookupResult* lookup,
       isolate()->stub_cache()->Set(*name, cache_object->map(), *code);
       break;
     }
-    case DEBUG_BREAK:
-    case DEBUG_PREPARE_STEP_IN:
+    case DEBUG_STUB:
       break;
     case POLYMORPHIC:
       UNREACHABLE();
@@ -1066,8 +1064,7 @@ void LoadIC::UpdateCaches(LookupResult* lookup,
       // GenerateMonomorphicCacheProbe.
       isolate()->stub_cache()->Set(*name, receiver->map(), *code);
       break;
-    case DEBUG_BREAK:
-    case DEBUG_PREPARE_STEP_IN:
+    case DEBUG_STUB:
       break;
     case POLYMORPHIC:
       UNREACHABLE();
@@ -1339,8 +1336,7 @@ void KeyedLoadIC::UpdateCaches(LookupResult* lookup,
       }
       break;
     case MEGAMORPHIC:
-    case DEBUG_BREAK:
-    case DEBUG_PREPARE_STEP_IN:
+    case DEBUG_STUB:
       break;
     case MONOMORPHIC_PROTOTYPE_FAILURE:
       UNREACHABLE();
@@ -1615,8 +1611,7 @@ void StoreIC::UpdateCaches(LookupResult* lookup,
       // Update the stub cache.
       isolate()->stub_cache()->Set(*name, receiver->map(), *code);
       break;
-    case DEBUG_BREAK:
-    case DEBUG_PREPARE_STEP_IN:
+    case DEBUG_STUB:
       break;
     case POLYMORPHIC:
       UNREACHABLE();
@@ -1667,8 +1662,7 @@ void KeyedIC::GetReceiverMapsForStub(Handle<Code> stub,
       case UNINITIALIZED:
       case PREMONOMORPHIC:
       case MONOMORPHIC_PROTOTYPE_FAILURE:
-      case DEBUG_BREAK:
-      case DEBUG_PREPARE_STEP_IN:
+      case DEBUG_STUB:
         UNREACHABLE();
         break;
     }
@@ -2114,8 +2108,7 @@ void KeyedStoreIC::UpdateCaches(LookupResult* lookup,
       }
       break;
     case MEGAMORPHIC:
-    case DEBUG_BREAK:
-    case DEBUG_PREPARE_STEP_IN:
+    case DEBUG_STUB:
       break;
     case MONOMORPHIC_PROTOTYPE_FAILURE:
       UNREACHABLE();

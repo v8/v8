@@ -9036,8 +9036,7 @@ const char* Code::ICState2String(InlineCacheState state) {
     case MONOMORPHIC_PROTOTYPE_FAILURE: return "MONOMORPHIC_PROTOTYPE_FAILURE";
     case POLYMORPHIC: return "POLYMORPHIC";
     case MEGAMORPHIC: return "MEGAMORPHIC";
-    case DEBUG_BREAK: return "DEBUG_BREAK";
-    case DEBUG_PREPARE_STEP_IN: return "DEBUG_PREPARE_STEP_IN";
+    case DEBUG_STUB: return "DEBUG_STUB";
   }
   UNREACHABLE();
   return NULL;
