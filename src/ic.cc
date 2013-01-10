@@ -2449,10 +2449,13 @@ RUNTIME_FUNCTION(MaybeObject*, UnaryOp_Patch) {
   Handle<Code> code = stub.GetCode();
   if (!code.is_null()) {
     if (FLAG_trace_ic) {
-      PrintF("[UnaryOpIC (%s->%s)#%s]\n",
+      PrintF("[UnaryOpIC in ");
+      JavaScriptFrame::PrintTop(stdout, false, true);
+      PrintF(" (%s->%s)#%s @ %p]\n",
              UnaryOpIC::GetName(previous_type),
              UnaryOpIC::GetName(type),
-             Token::Name(op));
+             Token::Name(op),
+             static_cast<void*>(*code));
     }
     UnaryOpIC ic(isolate);
     ic.patch(*code);
