@@ -1,3 +1,10 @@
+2013-01-11: Version 3.16.4
+
+        Fixed Chromium issues 168545 and 169209.
+
+        Performance and stability improvements on all platforms.
+
+
 2013-01-09: Version 3.16.3
 
         Improved GC performance when moving parts of a FixedArray (issue 2452).

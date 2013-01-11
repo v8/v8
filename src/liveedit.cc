@@ -1663,7 +1663,7 @@ static const char* DropFrames(Vector<StackFrame*> frames,
   Code* pre_top_frame_code = pre_top_frame->LookupCode();
   bool frame_has_padding;
   if (pre_top_frame_code->is_inline_cache_stub() &&
-      pre_top_frame_code->ic_state() == DEBUG_BREAK) {
+      pre_top_frame_code->is_debug_break()) {
     // OK, we can drop inline cache calls.
     *mode = Debug::FRAME_DROPPED_IN_IC_CALL;
     frame_has_padding = Debug::FramePaddingLayout::kIsSupported;

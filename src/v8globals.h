@@ -263,9 +263,8 @@ enum InlineCacheState {
   POLYMORPHIC,
   // Many receiver types have been seen.
   MEGAMORPHIC,
-  // Special states for debug break or step in prepare stubs.
-  DEBUG_BREAK,
-  DEBUG_PREPARE_STEP_IN
+  // Special state for debug break or step in prepare stubs.
+  DEBUG_STUB
 };
 
 
