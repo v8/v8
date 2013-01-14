@@ -209,6 +209,7 @@ namespace internal {
   V(char_at_symbol, "CharAt")                                            \
   V(undefined_symbol, "undefined")                                       \
   V(value_of_symbol, "valueOf")                                          \
+  V(stack_symbol, "stack")                                               \
   V(InitializeVarGlobal_symbol, "InitializeVarGlobal")                   \
   V(InitializeConstGlobal_symbol, "InitializeConstGlobal")               \
   V(KeyedLoadElementMonomorphic_symbol,                                  \
@@ -424,6 +425,41 @@ class ExternalStringTable {
   Heap* heap_;
 
   DISALLOW_COPY_AND_ASSIGN(ExternalStringTable);
+};
+
+
+// The stack property of an error object is implemented as a getter that
+// formats the attached raw stack trace into a string.  This raw stack trace
+// keeps code and function objects alive until the getter is called the first
+// time.  To release those objects, we call the getter after each GC for
+// newly tenured error objects that are kept in a list.
+class ErrorObjectList {
+ public:
+  inline void Add(JSObject* object);
+
+  inline void Iterate(ObjectVisitor* v);
+
+  void TearDown();
+
+  void RemoveUnmarked(Heap* heap);
+
+  void DeferredFormatStackTrace(Isolate* isolate);
+
+  void UpdateReferences();
+
+  void UpdateReferencesInNewSpace(Heap* heap);
+
+ private:
+  static const int kBudgetPerGC = 16;
+
+  ErrorObjectList() : nested_(false) { }
+
+  friend class Heap;
+
+  List<Object*> list_;
+  bool nested_;
+
+  DISALLOW_COPY_AND_ASSIGN(ErrorObjectList);
 };
 
 
@@ -1589,6 +1625,10 @@ class Heap {
     return &external_string_table_;
   }
 
+  ErrorObjectList* error_object_list() {
+    return &error_object_list_;
+  }
+
   // Returns the current sweep generation.
   int sweep_generation() {
     return sweep_generation_;
@@ -2164,6 +2204,8 @@ class Heap {
   bool configured_;
 
   ExternalStringTable external_string_table_;
+
+  ErrorObjectList error_object_list_;
 
   VisitorDispatchTable<ScavengingCallback> scavenging_visitors_table_;
 
