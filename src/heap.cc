@@ -892,9 +892,12 @@ bool Heap::PerformGarbageCollection(GarbageCollector collector,
   GCType gc_type =
       collector == MARK_COMPACTOR ? kGCTypeMarkSweepCompact : kGCTypeScavenge;
 
-  for (int i = 0; i < gc_prologue_callbacks_.length(); ++i) {
-    if (gc_type & gc_prologue_callbacks_[i].gc_type) {
-      gc_prologue_callbacks_[i].callback(gc_type, kNoGCCallbackFlags);
+  {
+    GCTracer::Scope scope(tracer, GCTracer::Scope::EXTERNAL);
+    for (int i = 0; i < gc_prologue_callbacks_.length(); ++i) {
+      if (gc_type & gc_prologue_callbacks_[i].gc_type) {
+        gc_prologue_callbacks_[i].callback(gc_type, kNoGCCallbackFlags);
+      }
     }
   }
 
@@ -1002,10 +1005,13 @@ bool Heap::PerformGarbageCollection(GarbageCollector collector,
         amount_of_external_allocated_memory_;
   }
 
-  GCCallbackFlags callback_flags = kNoGCCallbackFlags;
-  for (int i = 0; i < gc_epilogue_callbacks_.length(); ++i) {
-    if (gc_type & gc_epilogue_callbacks_[i].gc_type) {
-      gc_epilogue_callbacks_[i].callback(gc_type, callback_flags);
+  {
+    GCTracer::Scope scope(tracer, GCTracer::Scope::EXTERNAL);
+    GCCallbackFlags callback_flags = kNoGCCallbackFlags;
+    for (int i = 0; i < gc_epilogue_callbacks_.length(); ++i) {
+      if (gc_type & gc_epilogue_callbacks_[i].gc_type) {
+        gc_epilogue_callbacks_[i].callback(gc_type, callback_flags);
+      }
     }
   }
 
