@@ -6220,8 +6220,10 @@ static void Utf16Helper(
       Local<v8::String>::Cast(a->Get(i));
     Local<v8::Number> expected_len =
       Local<v8::Number>::Cast(alens->Get(i));
+#ifndef ENABLE_LATIN_1
     CHECK_EQ(expected_len->Value() != string->Length(),
              string->MayContainNonAscii());
+#endif
     int length = GetUtf8Length(string);
     CHECK_EQ(static_cast<int>(expected_len->Value()), length);
   }
@@ -12801,8 +12803,10 @@ THREADED_TEST(MorphCompositeStringTest) {
         "var slice = lhs.substring(1, lhs.length - 1);"
         "var slice_on_cons = (lhs + rhs).substring(1, lhs.length *2 - 1);");
 
+#ifndef ENABLE_LATIN_1
     CHECK(!lhs->MayContainNonAscii());
     CHECK(!rhs->MayContainNonAscii());
+#endif
 
     MorphAString(*v8::Utils::OpenHandle(*lhs), &ascii_resource, &uc16_resource);
     MorphAString(*v8::Utils::OpenHandle(*rhs), &ascii_resource, &uc16_resource);

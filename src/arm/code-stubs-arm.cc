@@ -6607,6 +6607,11 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   __ tst(r4, Operand(kAsciiDataHintMask));
   __ tst(r5, Operand(kAsciiDataHintMask), ne);
   __ b(ne, &ascii_data);
+  __ eor(r4, r4, Operand(r5));
+  STATIC_ASSERT(kOneByteStringTag != 0 && kAsciiDataHintTag != 0);
+  __ and_(r4, r4, Operand(kOneByteStringTag | kAsciiDataHintTag));
+  __ cmp(r4, Operand(kOneByteStringTag | kAsciiDataHintTag));
+  __ b(eq, &ascii_data);
 
   // Allocate a two byte cons string.
   __ AllocateTwoByteConsString(r7, r6, r4, r5, &call_runtime);

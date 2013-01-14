@@ -4782,6 +4782,11 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   // r9: second instance type.
   __ testb(rcx, Immediate(kAsciiDataHintMask));
   __ j(not_zero, &ascii_data);
+  __ xor_(r8, r9);
+  STATIC_ASSERT(kOneByteStringTag != 0 && kAsciiDataHintTag != 0);
+  __ andb(r8, Immediate(kOneByteStringTag | kAsciiDataHintTag));
+  __ cmpb(r8, Immediate(kOneByteStringTag | kAsciiDataHintTag));
+  __ j(equal, &ascii_data);
   // Allocate a two byte cons string.
   __ AllocateTwoByteConsString(rcx, rdi, no_reg, &call_runtime);
   __ jmp(&allocated);
