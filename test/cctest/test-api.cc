@@ -25,9 +25,6 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// We want to test our deprecated API entries, too.
-#define V8_DISABLE_DEPRECATIONS 1
-
 #include <limits.h>
 
 #ifndef WIN32
@@ -887,7 +884,7 @@ THREADED_TEST(FunctionTemplateSetLength) {
 
 static void* expected_ptr;
 static v8::Handle<v8::Value> callback(const v8::Arguments& args) {
-  void* ptr = v8::External::Unwrap(args.Data());
+  void* ptr = v8::External::Cast(*args.Data())->Value();
   CHECK_EQ(expected_ptr, ptr);
   return v8::True();
 }
@@ -897,7 +894,7 @@ static void TestExternalPointerWrapping() {
   v8::HandleScope scope;
   LocalContext env;
 
-  v8::Handle<v8::Value> data = v8::External::Wrap(expected_ptr);
+  v8::Handle<v8::Value> data = v8::External::New(expected_ptr);
 
   v8::Handle<v8::Object> obj = v8::Object::New();
   obj->Set(v8_str("func"),
@@ -2025,82 +2022,12 @@ THREADED_TEST(GlobalObjectInternalFields) {
 }
 
 
-THREADED_TEST(InternalFieldsNativePointers) {
-  v8::HandleScope scope;
-  LocalContext env;
-
-  Local<v8::FunctionTemplate> templ = v8::FunctionTemplate::New();
-  Local<v8::ObjectTemplate> instance_templ = templ->InstanceTemplate();
-  instance_templ->SetInternalFieldCount(1);
-  Local<v8::Object> obj = templ->GetFunction()->NewInstance();
-  CHECK_EQ(1, obj->InternalFieldCount());
-  CHECK(obj->GetPointerFromInternalField(0) == NULL);
-
-  char* data = new char[100];
-
-  void* aligned = data;
-  CHECK_EQ(0, static_cast<int>(reinterpret_cast<uintptr_t>(aligned) & 0x1));
-  void* unaligned = data + 1;
-  CHECK_EQ(1, static_cast<int>(reinterpret_cast<uintptr_t>(unaligned) & 0x1));
-
-  // Check reading and writing aligned pointers.
-  obj->SetPointerInInternalField(0, aligned);
-  HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
-  CHECK_EQ(aligned, obj->GetPointerFromInternalField(0));
-
-  // Check reading and writing unaligned pointers.
-  obj->SetPointerInInternalField(0, unaligned);
-  HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
-  CHECK_EQ(unaligned, obj->GetPointerFromInternalField(0));
-
-  delete[] data;
-}
-
-
-THREADED_TEST(InternalFieldsNativePointersAndExternal) {
-  v8::HandleScope scope;
-  LocalContext env;
-
-  Local<v8::FunctionTemplate> templ = v8::FunctionTemplate::New();
-  Local<v8::ObjectTemplate> instance_templ = templ->InstanceTemplate();
-  instance_templ->SetInternalFieldCount(1);
-  Local<v8::Object> obj = templ->GetFunction()->NewInstance();
-  CHECK_EQ(1, obj->InternalFieldCount());
-  CHECK(obj->GetPointerFromInternalField(0) == NULL);
-
-  char* data = new char[100];
-
-  void* aligned = data;
-  CHECK_EQ(0, static_cast<int>(reinterpret_cast<uintptr_t>(aligned) & 0x1));
-  void* unaligned = data + 1;
-  CHECK_EQ(1, static_cast<int>(reinterpret_cast<uintptr_t>(unaligned) & 0x1));
-
-  obj->SetPointerInInternalField(0, aligned);
-  HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
-  CHECK_EQ(aligned, v8::External::Unwrap(obj->GetInternalField(0)));
-
-  obj->SetPointerInInternalField(0, unaligned);
-  HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
-  CHECK_EQ(unaligned, v8::External::Unwrap(obj->GetInternalField(0)));
-
-  obj->SetInternalField(0, v8::External::Wrap(aligned));
-  HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
-  CHECK_EQ(aligned, obj->GetPointerFromInternalField(0));
-
-  obj->SetInternalField(0, v8::External::Wrap(unaligned));
-  HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
-  CHECK_EQ(unaligned, obj->GetPointerFromInternalField(0));
-
-  delete[] data;
-}
-
-
 static void CheckAlignedPointerInInternalField(Handle<v8::Object> obj,
                                                void* value) {
   CHECK_EQ(0, static_cast<int>(reinterpret_cast<uintptr_t>(value) & 0x1));
-  obj->SetPointerInInternalField(0, value);
+  obj->SetAlignedPointerInInternalField(0, value);
   HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
-  CHECK_EQ(value, obj->GetPointerFromInternalField(0));
+  CHECK_EQ(value, obj->GetAlignedPointerFromInternalField(0));
 }
 
 
@@ -2355,18 +2282,18 @@ THREADED_TEST(External) {
 
   // Make sure unaligned pointers are wrapped properly.
   char* data = i::StrDup("0123456789");
-  Local<v8::Value> zero = v8::External::Wrap(&data[0]);
-  Local<v8::Value> one = v8::External::Wrap(&data[1]);
-  Local<v8::Value> two = v8::External::Wrap(&data[2]);
-  Local<v8::Value> three = v8::External::Wrap(&data[3]);
+  Local<v8::Value> zero = v8::External::New(&data[0]);
+  Local<v8::Value> one = v8::External::New(&data[1]);
+  Local<v8::Value> two = v8::External::New(&data[2]);
+  Local<v8::Value> three = v8::External::New(&data[3]);
 
-  char* char_ptr = reinterpret_cast<char*>(v8::External::Unwrap(zero));
+  char* char_ptr = reinterpret_cast<char*>(v8::External::Cast(*zero)->Value());
   CHECK_EQ('0', *char_ptr);
-  char_ptr = reinterpret_cast<char*>(v8::External::Unwrap(one));
+  char_ptr = reinterpret_cast<char*>(v8::External::Cast(*one)->Value());
   CHECK_EQ('1', *char_ptr);
-  char_ptr = reinterpret_cast<char*>(v8::External::Unwrap(two));
+  char_ptr = reinterpret_cast<char*>(v8::External::Cast(*two)->Value());
   CHECK_EQ('2', *char_ptr);
-  char_ptr = reinterpret_cast<char*>(v8::External::Unwrap(three));
+  char_ptr = reinterpret_cast<char*>(v8::External::Cast(*three)->Value());
   CHECK_EQ('3', *char_ptr);
   i::DeleteArray(data);
 }
@@ -9904,7 +9831,8 @@ THREADED_TEST(InterceptorCallICCachedFromGlobal) {
 static v8::Handle<Value> InterceptorCallICFastApi(Local<String> name,
                                                   const AccessorInfo& info) {
   ApiTestFuzzer::Fuzz();
-  int* call_count = reinterpret_cast<int*>(v8::External::Unwrap(info.Data()));
+  int* call_count =
+      reinterpret_cast<int*>(v8::External::Cast(*info.Data())->Value());
   ++(*call_count);
   if ((*call_count) % 20 == 0) {
     HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
@@ -10063,7 +9991,7 @@ THREADED_TEST(InterceptorCallICFastApi_TrivialSignature) {
   v8::Handle<v8::ObjectTemplate> templ = fun_templ->InstanceTemplate();
   templ->SetNamedPropertyHandler(InterceptorCallICFastApi,
                                  NULL, NULL, NULL, NULL,
-                                 v8::External::Wrap(&interceptor_call_count));
+                                 v8::External::New(&interceptor_call_count));
   LocalContext context;
   v8::Handle<v8::Function> fun = fun_templ->GetFunction();
   GenerateSomeGarbage();
@@ -10091,7 +10019,7 @@ THREADED_TEST(InterceptorCallICFastApi_SimpleSignature) {
   v8::Handle<v8::ObjectTemplate> templ = fun_templ->InstanceTemplate();
   templ->SetNamedPropertyHandler(InterceptorCallICFastApi,
                                  NULL, NULL, NULL, NULL,
-                                 v8::External::Wrap(&interceptor_call_count));
+                                 v8::External::New(&interceptor_call_count));
   LocalContext context;
   v8::Handle<v8::Function> fun = fun_templ->GetFunction();
   GenerateSomeGarbage();
@@ -10122,7 +10050,7 @@ THREADED_TEST(InterceptorCallICFastApi_SimpleSignature_Miss1) {
   v8::Handle<v8::ObjectTemplate> templ = fun_templ->InstanceTemplate();
   templ->SetNamedPropertyHandler(InterceptorCallICFastApi,
                                  NULL, NULL, NULL, NULL,
-                                 v8::External::Wrap(&interceptor_call_count));
+                                 v8::External::New(&interceptor_call_count));
   LocalContext context;
   v8::Handle<v8::Function> fun = fun_templ->GetFunction();
   GenerateSomeGarbage();
@@ -10159,7 +10087,7 @@ THREADED_TEST(InterceptorCallICFastApi_SimpleSignature_Miss2) {
   v8::Handle<v8::ObjectTemplate> templ = fun_templ->InstanceTemplate();
   templ->SetNamedPropertyHandler(InterceptorCallICFastApi,
                                  NULL, NULL, NULL, NULL,
-                                 v8::External::Wrap(&interceptor_call_count));
+                                 v8::External::New(&interceptor_call_count));
   LocalContext context;
   v8::Handle<v8::Function> fun = fun_templ->GetFunction();
   GenerateSomeGarbage();
@@ -10196,7 +10124,7 @@ THREADED_TEST(InterceptorCallICFastApi_SimpleSignature_Miss3) {
   v8::Handle<v8::ObjectTemplate> templ = fun_templ->InstanceTemplate();
   templ->SetNamedPropertyHandler(InterceptorCallICFastApi,
                                  NULL, NULL, NULL, NULL,
-                                 v8::External::Wrap(&interceptor_call_count));
+                                 v8::External::New(&interceptor_call_count));
   LocalContext context;
   v8::Handle<v8::Function> fun = fun_templ->GetFunction();
   GenerateSomeGarbage();
@@ -10236,7 +10164,7 @@ THREADED_TEST(InterceptorCallICFastApi_SimpleSignature_TypeError) {
   v8::Handle<v8::ObjectTemplate> templ = fun_templ->InstanceTemplate();
   templ->SetNamedPropertyHandler(InterceptorCallICFastApi,
                                  NULL, NULL, NULL, NULL,
-                                 v8::External::Wrap(&interceptor_call_count));
+                                 v8::External::New(&interceptor_call_count));
   LocalContext context;
   v8::Handle<v8::Function> fun = fun_templ->GetFunction();
   GenerateSomeGarbage();
@@ -15472,7 +15400,7 @@ TEST(Regress528) {
 
     context->Enter();
     Local<v8::String> obj = v8::String::New("");
-    context->SetData(obj);
+    context->SetEmbedderData(0, obj);
     CompileRun(source_simple);
     context->Exit();
   }

@@ -4435,14 +4435,6 @@ static void* ExternalValue(i::Object* obj) {
 }
 
 
-void* Object::GetPointerFromInternalField(int index) {
-  i::Handle<i::JSObject> obj = Utils::OpenHandle(this);
-  const char* location = "v8::Object::GetPointerFromInternalField()";
-  if (!InternalFieldOK(obj, index, location)) return NULL;
-  return ExternalValue(obj->GetInternalField(index));
-}
-
-
 // --- E n v i r o n m e n t ---
 
 

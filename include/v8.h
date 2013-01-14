@@ -1636,22 +1636,6 @@ class V8EXPORT Object : public Value {
   void SetInternalField(int index, Handle<Value> value);
 
   /**
-   * Gets a native pointer from an internal field. Deprecated. If the pointer is
-   * always 2-byte-aligned, use GetAlignedPointerFromInternalField instead,
-   * otherwise use a combination of GetInternalField, External::Cast and
-   * External::Value.
-   */
-  V8_DEPRECATED(void* GetPointerFromInternalField(int index));
-
-  /**
-   * Sets a native pointer in an internal field. Deprecated. If the pointer is
-   * always 2-byte aligned, use SetAlignedPointerInInternalField instead,
-   * otherwise use a combination of External::New and SetInternalField.
-   */
-  V8_DEPRECATED(V8_INLINE(void SetPointerInInternalField(int index,
-                                                         void* value)));
-
-  /**
    * Gets a 2-byte-aligned native pointer from an internal field. This field
    * must have been set by SetAlignedPointerInInternalField, everything else
    * leads to undefined behavior.
@@ -2005,12 +1989,6 @@ class V8EXPORT RegExp : public Object {
  */
 class V8EXPORT External : public Value {
  public:
-  /** Deprecated, use New instead. */
-  V8_DEPRECATED(V8_INLINE(static Local<Value> Wrap(void* value)));
-
-  /** Deprecated, use a combination of Cast and Value instead. */
-  V8_DEPRECATED(V8_INLINE(static void* Unwrap(Handle<Value> obj)));
-
   static Local<External> New(void* value);
   V8_INLINE(static External* Cast(Value* obj));
   void* Value() const;
@@ -3819,18 +3797,6 @@ class V8EXPORT Context {
   static bool InContext();
 
   /**
-   * Gets embedder data with index 0. Deprecated, use GetEmbedderData with index
-   * 0 instead.
-   */
-  V8_DEPRECATED(V8_INLINE(Local<Value> GetData()));
-
-  /**
-   * Sets embedder data with index 0. Deprecated, use SetEmbedderData with index
-   * 0 instead.
-   */
-  V8_DEPRECATED(V8_INLINE(void SetData(Handle<Value> value)));
-
-  /**
    * Gets the embedder data with the given index, which must have been set by a
    * previous call to SetEmbedderData with the same index. Note that index 0
    * currently has a special meaning for Chrome's debugger.
@@ -4524,11 +4490,6 @@ Local<Value> Object::GetInternalField(int index) {
 }
 
 
-void Object::SetPointerInInternalField(int index, void* value) {
-  SetInternalField(index, External::New(value));
-}
-
-
 void* Object::GetAlignedPointerFromInternalField(int index) {
 #ifndef V8_ENABLE_CHECKS
   typedef internal::Object O;
@@ -4733,16 +4694,6 @@ Function* Function::Cast(v8::Value* value) {
 }
 
 
-Local<Value> External::Wrap(void* value) {
-  return External::New(value);
-}
-
-
-void* External::Unwrap(Handle<v8::Value> obj) {
-  return External::Cast(*obj)->Value();
-}
-
-
 External* External::Cast(v8::Value* value) {
 #ifdef V8_ENABLE_CHECKS
   CheckCast(value);
@@ -4816,15 +4767,6 @@ void Isolate::SetData(void* data) {
 void* Isolate::GetData() {
   typedef internal::Internals I;
   return I::GetEmbedderData(this);
-}
-
-
-Local<Value> Context::GetData() {
-  return GetEmbedderData(0);
-}
-
-void Context::SetData(Handle<Value> data) {
-  SetEmbedderData(0, data);
 }
 
 
