@@ -611,7 +611,7 @@ class V8EXPORT ScriptData {  // NOLINT
 /**
  * The origin, within a file, of a script.
  */
-class ScriptOrigin {
+class V8EXPORT ScriptOrigin {
  public:
   V8_INLINE(ScriptOrigin(
       Handle<Value> resource_name,
@@ -904,7 +904,7 @@ class V8EXPORT StackFrame {
 /**
  * The superclass of all JavaScript values and objects.
  */
-class Value : public Data {
+class V8EXPORT Value : public Data {
  public:
   /**
    * Returns true if this value is the undefined value.  See ECMA-262
@@ -921,12 +921,12 @@ class Value : public Data {
    /**
    * Returns true if this value is true.
    */
-  V8EXPORT bool IsTrue() const;
+  bool IsTrue() const;
 
   /**
    * Returns true if this value is false.
    */
-  V8EXPORT bool IsFalse() const;
+  bool IsFalse() const;
 
   /**
    * Returns true if this value is an instance of the String type.
@@ -937,121 +937,121 @@ class Value : public Data {
   /**
    * Returns true if this value is a function.
    */
-  V8EXPORT bool IsFunction() const;
+  bool IsFunction() const;
 
   /**
    * Returns true if this value is an array.
    */
-  V8EXPORT bool IsArray() const;
+  bool IsArray() const;
 
   /**
    * Returns true if this value is an object.
    */
-  V8EXPORT bool IsObject() const;
+  bool IsObject() const;
 
   /**
    * Returns true if this value is boolean.
    */
-  V8EXPORT bool IsBoolean() const;
+  bool IsBoolean() const;
 
   /**
    * Returns true if this value is a number.
    */
-  V8EXPORT bool IsNumber() const;
+  bool IsNumber() const;
 
   /**
    * Returns true if this value is external.
    */
-  V8EXPORT bool IsExternal() const;
+  bool IsExternal() const;
 
   /**
    * Returns true if this value is a 32-bit signed integer.
    */
-  V8EXPORT bool IsInt32() const;
+  bool IsInt32() const;
 
   /**
    * Returns true if this value is a 32-bit unsigned integer.
    */
-  V8EXPORT bool IsUint32() const;
+  bool IsUint32() const;
 
   /**
    * Returns true if this value is a Date.
    */
-  V8EXPORT bool IsDate() const;
+  bool IsDate() const;
 
   /**
    * Returns true if this value is a Boolean object.
    */
-  V8EXPORT bool IsBooleanObject() const;
+  bool IsBooleanObject() const;
 
   /**
    * Returns true if this value is a Number object.
    */
-  V8EXPORT bool IsNumberObject() const;
+  bool IsNumberObject() const;
 
   /**
    * Returns true if this value is a String object.
    */
-  V8EXPORT bool IsStringObject() const;
+  bool IsStringObject() const;
 
   /**
    * Returns true if this value is a NativeError.
    */
-  V8EXPORT bool IsNativeError() const;
+  bool IsNativeError() const;
 
   /**
    * Returns true if this value is a RegExp.
    */
-  V8EXPORT bool IsRegExp() const;
+  bool IsRegExp() const;
 
-  V8EXPORT Local<Boolean> ToBoolean() const;
-  V8EXPORT Local<Number> ToNumber() const;
-  V8EXPORT Local<String> ToString() const;
-  V8EXPORT Local<String> ToDetailString() const;
-  V8EXPORT Local<Object> ToObject() const;
-  V8EXPORT Local<Integer> ToInteger() const;
-  V8EXPORT Local<Uint32> ToUint32() const;
-  V8EXPORT Local<Int32> ToInt32() const;
+  Local<Boolean> ToBoolean() const;
+  Local<Number> ToNumber() const;
+  Local<String> ToString() const;
+  Local<String> ToDetailString() const;
+  Local<Object> ToObject() const;
+  Local<Integer> ToInteger() const;
+  Local<Uint32> ToUint32() const;
+  Local<Int32> ToInt32() const;
 
   /**
    * Attempts to convert a string to an array index.
    * Returns an empty handle if the conversion fails.
    */
-  V8EXPORT Local<Uint32> ToArrayIndex() const;
+  Local<Uint32> ToArrayIndex() const;
 
-  V8EXPORT bool BooleanValue() const;
-  V8EXPORT double NumberValue() const;
-  V8EXPORT int64_t IntegerValue() const;
-  V8EXPORT uint32_t Uint32Value() const;
-  V8EXPORT int32_t Int32Value() const;
+  bool BooleanValue() const;
+  double NumberValue() const;
+  int64_t IntegerValue() const;
+  uint32_t Uint32Value() const;
+  int32_t Int32Value() const;
 
   /** JS == */
-  V8EXPORT bool Equals(Handle<Value> that) const;
-  V8EXPORT bool StrictEquals(Handle<Value> that) const;
+  bool Equals(Handle<Value> that) const;
+  bool StrictEquals(Handle<Value> that) const;
 
  private:
   V8_INLINE(bool QuickIsUndefined() const);
   V8_INLINE(bool QuickIsNull() const);
   V8_INLINE(bool QuickIsString() const);
-  V8EXPORT bool FullIsUndefined() const;
-  V8EXPORT bool FullIsNull() const;
-  V8EXPORT bool FullIsString() const;
+  bool FullIsUndefined() const;
+  bool FullIsNull() const;
+  bool FullIsString() const;
 };
 
 
 /**
  * The superclass of primitive values.  See ECMA-262 4.3.2.
  */
-class Primitive : public Value { };
+class V8EXPORT Primitive : public Value { };
 
 
 /**
  * A primitive boolean value (ECMA-262, 4.3.14).  Either the true
  * or false value.
  */
-class Boolean : public Primitive {
+class V8EXPORT Boolean : public Primitive {
  public:
-  V8EXPORT bool Value() const;
+  bool Value() const;
   V8_INLINE(static Handle<Boolean> New(bool value));
 };
 
@@ -1059,7 +1059,7 @@ class Boolean : public Primitive {
 /**
  * A JavaScript string value (ECMA-262, 4.3.17).
  */
-class String : public Primitive {
+class V8EXPORT String : public Primitive {
  public:
   enum Encoding {
     UNKNOWN_ENCODING = 0x1,
@@ -1069,13 +1069,13 @@ class String : public Primitive {
   /**
    * Returns the number of characters in this string.
    */
-  V8EXPORT int Length() const;
+  int Length() const;
 
   /**
    * Returns the number of bytes in the UTF-8 encoded
    * representation of this string.
    */
-  V8EXPORT int Utf8Length() const;
+  int Utf8Length() const;
 
   /**
    * A fast conservative check for non-ASCII characters.  May
@@ -1083,7 +1083,7 @@ class String : public Primitive {
    * false you can be sure that all characters are in the range
    * 0-127.
    */
-  V8EXPORT bool MayContainNonAscii() const;
+  bool MayContainNonAscii() const;
 
   /**
    * Write the contents of the string to an external buffer.
@@ -1118,36 +1118,36 @@ class String : public Primitive {
   };
 
   // 16-bit character codes.
-  V8EXPORT int Write(uint16_t* buffer,
-                     int start = 0,
-                     int length = -1,
-                     int options = NO_OPTIONS) const;
+  int Write(uint16_t* buffer,
+            int start = 0,
+            int length = -1,
+            int options = NO_OPTIONS) const;
   // ASCII characters.
-  V8EXPORT int WriteAscii(char* buffer,
-                          int start = 0,
-                          int length = -1,
-                          int options = NO_OPTIONS) const;
+  int WriteAscii(char* buffer,
+                 int start = 0,
+                 int length = -1,
+                 int options = NO_OPTIONS) const;
   // UTF-8 encoded characters.
-  V8EXPORT int WriteUtf8(char* buffer,
-                         int length = -1,
-                         int* nchars_ref = NULL,
-                         int options = NO_OPTIONS) const;
+  int WriteUtf8(char* buffer,
+                int length = -1,
+                int* nchars_ref = NULL,
+                int options = NO_OPTIONS) const;
 
   /**
    * A zero length string.
    */
-  V8EXPORT static v8::Local<v8::String> Empty();
+  static v8::Local<v8::String> Empty();
   V8_INLINE(static v8::Local<v8::String> Empty(Isolate* isolate));
 
   /**
    * Returns true if the string is external
    */
-  V8EXPORT bool IsExternal() const;
+  bool IsExternal() const;
 
   /**
    * Returns true if the string is both external and ASCII
    */
-  V8EXPORT bool IsExternalAscii() const;
+  bool IsExternalAscii() const;
 
   class V8EXPORT ExternalStringResourceBase {  // NOLINT
    public:
@@ -1246,8 +1246,7 @@ class String : public Primitive {
    * Get the ExternalAsciiStringResource for an external ASCII string.
    * Returns NULL if IsExternalAscii() doesn't return true.
    */
-  V8EXPORT const ExternalAsciiStringResource* GetExternalAsciiStringResource()
-      const;
+  const ExternalAsciiStringResource* GetExternalAsciiStringResource() const;
 
   V8_INLINE(static String* Cast(v8::Value* obj));
 
@@ -1256,20 +1255,19 @@ class String : public Primitive {
    * The second parameter 'length' gives the buffer length. If omitted,
    * the function calls 'strlen' to determine the buffer length.
    */
-  V8EXPORT static Local<String> New(const char* data, int length = -1);
+  static Local<String> New(const char* data, int length = -1);
 
   /** Allocates a new string from 16-bit character codes.*/
-  V8EXPORT static Local<String> New(const uint16_t* data, int length = -1);
+  static Local<String> New(const uint16_t* data, int length = -1);
 
   /** Creates a symbol. Returns one if it exists already.*/
-  V8EXPORT static Local<String> NewSymbol(const char* data, int length = -1);
+  static Local<String> NewSymbol(const char* data, int length = -1);
 
   /**
    * Creates a new string by concatenating the left and the right strings
    * passed in as parameters.
    */
-  V8EXPORT static Local<String> Concat(Handle<String> left,
-                                       Handle<String> right);
+  static Local<String> Concat(Handle<String> left, Handle<String> right);
 
   /**
    * Creates a new external string using the data defined in the given
@@ -1279,7 +1277,7 @@ class String : public Primitive {
    * should the underlying buffer be deallocated or modified except through the
    * destructor of the external string resource.
    */
-  V8EXPORT static Local<String> NewExternal(ExternalStringResource* resource);
+  static Local<String> NewExternal(ExternalStringResource* resource);
 
   /**
    * Associate an external string resource with this string by transforming it
@@ -1290,7 +1288,7 @@ class String : public Primitive {
    * The string is not modified if the operation fails. See NewExternal for
    * information on the lifetime of the resource.
    */
-  V8EXPORT bool MakeExternal(ExternalStringResource* resource);
+  bool MakeExternal(ExternalStringResource* resource);
 
   /**
    * Creates a new external string using the ASCII data defined in the given
@@ -1299,8 +1297,8 @@ class String : public Primitive {
    * this function should not otherwise delete or modify the resource. Neither
    * should the underlying buffer be deallocated or modified except through the
    * destructor of the external string resource.
-   */ V8EXPORT static Local<String> NewExternal(
-      ExternalAsciiStringResource* resource);
+   */
+  static Local<String> NewExternal(ExternalAsciiStringResource* resource);
 
   /**
    * Associate an external string resource with this string by transforming it
@@ -1311,20 +1309,18 @@ class String : public Primitive {
    * The string is not modified if the operation fails. See NewExternal for
    * information on the lifetime of the resource.
    */
-  V8EXPORT bool MakeExternal(ExternalAsciiStringResource* resource);
+  bool MakeExternal(ExternalAsciiStringResource* resource);
 
   /**
    * Returns true if this string can be made external.
    */
-  V8EXPORT bool CanMakeExternal();
+  bool CanMakeExternal();
 
   /** Creates an undetectable string from the supplied ASCII or UTF-8 data.*/
-  V8EXPORT static Local<String> NewUndetectable(const char* data,
-                                                int length = -1);
+  static Local<String> NewUndetectable(const char* data, int length = -1);
 
   /** Creates an undetectable string from the supplied 16-bit character codes.*/
-  V8EXPORT static Local<String> NewUndetectable(const uint16_t* data,
-                                                int length = -1);
+  static Local<String> NewUndetectable(const uint16_t* data, int length = -1);
 
   /**
    * Converts an object to a UTF-8-encoded character array.  Useful if
@@ -1395,63 +1391,63 @@ class String : public Primitive {
   };
 
  private:
-  V8EXPORT void VerifyExternalStringResourceBase(ExternalStringResourceBase* v,
-                                                 Encoding encoding) const;
-  V8EXPORT void VerifyExternalStringResource(ExternalStringResource* val) const;
-  V8EXPORT static void CheckCast(v8::Value* obj);
+  void VerifyExternalStringResourceBase(ExternalStringResourceBase* v,
+                                        Encoding encoding) const;
+  void VerifyExternalStringResource(ExternalStringResource* val) const;
+  static void CheckCast(v8::Value* obj);
 };
 
 
 /**
  * A JavaScript number value (ECMA-262, 4.3.20)
  */
-class Number : public Primitive {
+class V8EXPORT Number : public Primitive {
  public:
-  V8EXPORT double Value() const;
-  V8EXPORT static Local<Number> New(double value);
+  double Value() const;
+  static Local<Number> New(double value);
   V8_INLINE(static Number* Cast(v8::Value* obj));
  private:
-  V8EXPORT Number();
-  V8EXPORT static void CheckCast(v8::Value* obj);
+  Number();
+  static void CheckCast(v8::Value* obj);
 };
 
 
 /**
  * A JavaScript value representing a signed integer.
  */
-class Integer : public Number {
+class V8EXPORT Integer : public Number {
  public:
-  V8EXPORT static Local<Integer> New(int32_t value);
-  V8EXPORT static Local<Integer> NewFromUnsigned(uint32_t value);
-  V8EXPORT static Local<Integer> New(int32_t value, Isolate*);
-  V8EXPORT static Local<Integer> NewFromUnsigned(uint32_t value, Isolate*);
-  V8EXPORT int64_t Value() const;
+  static Local<Integer> New(int32_t value);
+  static Local<Integer> NewFromUnsigned(uint32_t value);
+  static Local<Integer> New(int32_t value, Isolate*);
+  static Local<Integer> NewFromUnsigned(uint32_t value, Isolate*);
+  int64_t Value() const;
   V8_INLINE(static Integer* Cast(v8::Value* obj));
  private:
-  V8EXPORT Integer();
-  V8EXPORT static void CheckCast(v8::Value* obj);
+  Integer();
+  static void CheckCast(v8::Value* obj);
 };
 
 
 /**
  * A JavaScript value representing a 32-bit signed integer.
  */
-class Int32 : public Integer {
+class V8EXPORT Int32 : public Integer {
  public:
-  V8EXPORT int32_t Value() const;
+  int32_t Value() const;
  private:
-  V8EXPORT Int32();
+  Int32();
 };
 
 
 /**
  * A JavaScript value representing a 32-bit unsigned integer.
  */
-class Uint32 : public Integer {
+class V8EXPORT Uint32 : public Integer {
  public:
-  V8EXPORT uint32_t Value() const;
+  uint32_t Value() const;
  private:
-  V8EXPORT Uint32();
+  Uint32();
 };
 
 
@@ -1512,14 +1508,13 @@ enum AccessControl {
 /**
  * A JavaScript object (ECMA-262, 4.3.3)
  */
-class Object : public Value {
+class V8EXPORT Object : public Value {
  public:
-  V8EXPORT bool Set(Handle<Value> key,
-                    Handle<Value> value,
-                    PropertyAttribute attribs = None);
+  bool Set(Handle<Value> key,
+           Handle<Value> value,
+           PropertyAttribute attribs = None);
 
-  V8EXPORT bool Set(uint32_t index,
-                    Handle<Value> value);
+  bool Set(uint32_t index, Handle<Value> value);
 
   // Sets a local property on this object bypassing interceptors and
   // overriding accessors or read-only properties.
@@ -1529,41 +1524,41 @@ class Object : public Value {
   // will only be returned if the interceptor doesn't return a value.
   //
   // Note also that this only works for named properties.
-  V8EXPORT bool ForceSet(Handle<Value> key,
-                         Handle<Value> value,
-                         PropertyAttribute attribs = None);
+  bool ForceSet(Handle<Value> key,
+                Handle<Value> value,
+                PropertyAttribute attribs = None);
 
-  V8EXPORT Local<Value> Get(Handle<Value> key);
+  Local<Value> Get(Handle<Value> key);
 
-  V8EXPORT Local<Value> Get(uint32_t index);
+  Local<Value> Get(uint32_t index);
 
   /**
    * Gets the property attributes of a property which can be None or
    * any combination of ReadOnly, DontEnum and DontDelete. Returns
    * None when the property doesn't exist.
    */
-  V8EXPORT PropertyAttribute GetPropertyAttributes(Handle<Value> key);
+  PropertyAttribute GetPropertyAttributes(Handle<Value> key);
 
   // TODO(1245389): Replace the type-specific versions of these
   // functions with generic ones that accept a Handle<Value> key.
-  V8EXPORT bool Has(Handle<String> key);
+  bool Has(Handle<String> key);
 
-  V8EXPORT bool Delete(Handle<String> key);
+  bool Delete(Handle<String> key);
 
   // Delete a property on this object bypassing interceptors and
   // ignoring dont-delete attributes.
-  V8EXPORT bool ForceDelete(Handle<Value> key);
+  bool ForceDelete(Handle<Value> key);
 
-  V8EXPORT bool Has(uint32_t index);
+  bool Has(uint32_t index);
 
-  V8EXPORT bool Delete(uint32_t index);
+  bool Delete(uint32_t index);
 
-  V8EXPORT bool SetAccessor(Handle<String> name,
-                            AccessorGetter getter,
-                            AccessorSetter setter = 0,
-                            Handle<Value> data = Handle<Value>(),
-                            AccessControl settings = DEFAULT,
-                            PropertyAttribute attribute = None);
+  bool SetAccessor(Handle<String> name,
+                   AccessorGetter getter,
+                   AccessorSetter setter = 0,
+                   Handle<Value> data = Handle<Value>(),
+                   AccessControl settings = DEFAULT,
+                   PropertyAttribute attribute = None);
 
   /**
    * Returns an array containing the names of the enumerable properties
@@ -1571,62 +1566,61 @@ class Object : public Value {
    * array returned by this method contains the same values as would
    * be enumerated by a for-in statement over this object.
    */
-  V8EXPORT Local<Array> GetPropertyNames();
+  Local<Array> GetPropertyNames();
 
   /**
    * This function has the same functionality as GetPropertyNames but
    * the returned array doesn't contain the names of properties from
    * prototype objects.
    */
-  V8EXPORT Local<Array> GetOwnPropertyNames();
+  Local<Array> GetOwnPropertyNames();
 
   /**
    * Get the prototype object.  This does not skip objects marked to
    * be skipped by __proto__ and it does not consult the security
    * handler.
    */
-  V8EXPORT Local<Value> GetPrototype();
+  Local<Value> GetPrototype();
 
   /**
    * Set the prototype object.  This does not skip objects marked to
    * be skipped by __proto__ and it does not consult the security
    * handler.
    */
-  V8EXPORT bool SetPrototype(Handle<Value> prototype);
+  bool SetPrototype(Handle<Value> prototype);
 
   /**
    * Finds an instance of the given function template in the prototype
    * chain.
    */
-  V8EXPORT Local<Object> FindInstanceInPrototypeChain(
-      Handle<FunctionTemplate> tmpl);
+  Local<Object> FindInstanceInPrototypeChain(Handle<FunctionTemplate> tmpl);
 
   /**
    * Call builtin Object.prototype.toString on this object.
    * This is different from Value::ToString() that may call
    * user-defined toString function. This one does not.
    */
-  V8EXPORT Local<String> ObjectProtoToString();
+  Local<String> ObjectProtoToString();
 
   /**
    * Returns the function invoked as a constructor for this object.
    * May be the null value.
    */
-  V8EXPORT Local<Value> GetConstructor();
+  Local<Value> GetConstructor();
 
   /**
    * Returns the name of the function invoked as a constructor for this object.
    */
-  V8EXPORT Local<String> GetConstructorName();
+  Local<String> GetConstructorName();
 
   /** Gets the number of internal fields for this Object. */
-  V8EXPORT int InternalFieldCount();
+  int InternalFieldCount();
 
   /** Gets the value from an internal field. */
   V8_INLINE(Local<Value> GetInternalField(int index));
 
   /** Sets the value in an internal field. */
-  V8EXPORT void SetInternalField(int index, Handle<Value> value);
+  void SetInternalField(int index, Handle<Value> value);
 
   /**
    * Gets a native pointer from an internal field. Deprecated. If the pointer is
@@ -1634,7 +1628,7 @@ class Object : public Value {
    * otherwise use a combination of GetInternalField, External::Cast and
    * External::Value.
    */
-  V8EXPORT V8_DEPRECATED(void* GetPointerFromInternalField(int index));
+  V8_DEPRECATED(void* GetPointerFromInternalField(int index));
 
   /**
    * Sets a native pointer in an internal field. Deprecated. If the pointer is
@@ -1656,40 +1650,39 @@ class Object : public Value {
    * a field, GetAlignedPointerFromInternalField must be used, everything else
    * leads to undefined behavior.
    */
-  V8EXPORT void SetAlignedPointerInInternalField(int index, void* value);
+  void SetAlignedPointerInInternalField(int index, void* value);
 
   // Testers for local properties.
-  V8EXPORT bool HasOwnProperty(Handle<String> key);
-  V8EXPORT bool HasRealNamedProperty(Handle<String> key);
-  V8EXPORT bool HasRealIndexedProperty(uint32_t index);
-  V8EXPORT bool HasRealNamedCallbackProperty(Handle<String> key);
+  bool HasOwnProperty(Handle<String> key);
+  bool HasRealNamedProperty(Handle<String> key);
+  bool HasRealIndexedProperty(uint32_t index);
+  bool HasRealNamedCallbackProperty(Handle<String> key);
 
   /**
    * If result.IsEmpty() no real property was located in the prototype chain.
    * This means interceptors in the prototype chain are not called.
    */
-  V8EXPORT Local<Value> GetRealNamedPropertyInPrototypeChain(
-      Handle<String> key);
+  Local<Value> GetRealNamedPropertyInPrototypeChain(Handle<String> key);
 
   /**
    * If result.IsEmpty() no real property was located on the object or
    * in the prototype chain.
    * This means interceptors in the prototype chain are not called.
    */
-  V8EXPORT Local<Value> GetRealNamedProperty(Handle<String> key);
+  Local<Value> GetRealNamedProperty(Handle<String> key);
 
   /** Tests for a named lookup interceptor.*/
-  V8EXPORT bool HasNamedLookupInterceptor();
+  bool HasNamedLookupInterceptor();
 
   /** Tests for an index lookup interceptor.*/
-  V8EXPORT bool HasIndexedLookupInterceptor();
+  bool HasIndexedLookupInterceptor();
 
   /**
    * Turns on access check on the object if the object is an instance of
    * a template that has access check callbacks. If an object has no
    * access check info, the object cannot be accessed by anyone.
    */
-  V8EXPORT void TurnOnAccessCheck();
+  void TurnOnAccessCheck();
 
   /**
    * Returns the identity hash for this object. The current implementation
@@ -1698,7 +1691,7 @@ class Object : public Value {
    * The return value will never be 0. Also, it is not guaranteed to be
    * unique.
    */
-  V8EXPORT int GetIdentityHash();
+  int GetIdentityHash();
 
   /**
    * Access hidden properties on JavaScript objects. These properties are
@@ -1706,9 +1699,9 @@ class Object : public Value {
    * C++ API. Hidden properties introduced by V8 internally (for example the
    * identity hash) are prefixed with "v8::".
    */
-  V8EXPORT bool SetHiddenValue(Handle<String> key, Handle<Value> value);
-  V8EXPORT Local<Value> GetHiddenValue(Handle<String> key);
-  V8EXPORT bool DeleteHiddenValue(Handle<String> key);
+  bool SetHiddenValue(Handle<String> key, Handle<Value> value);
+  Local<Value> GetHiddenValue(Handle<String> key);
+  bool DeleteHiddenValue(Handle<String> key);
 
   /**
    * Returns true if this is an instance of an api function (one
@@ -1717,18 +1710,18 @@ class Object : public Value {
    * conservative and may return true for objects that haven't actually
    * been modified.
    */
-  V8EXPORT bool IsDirty();
+  bool IsDirty();
 
   /**
    * Clone this object with a fast but shallow copy.  Values will point
    * to the same values as the original object.
    */
-  V8EXPORT Local<Object> Clone();
+  Local<Object> Clone();
 
   /**
    * Returns the context in which the object was created.
    */
-  V8EXPORT Local<Context> CreationContext();
+  Local<Context> CreationContext();
 
   /**
    * Set the backing store of the indexed properties to be managed by the
@@ -1737,10 +1730,10 @@ class Object : public Value {
    * Note: The embedding program still owns the data and needs to ensure that
    *       the backing store is preserved while V8 has a reference.
    */
-  V8EXPORT void SetIndexedPropertiesToPixelData(uint8_t* data, int length);
-  V8EXPORT bool HasIndexedPropertiesInPixelData();
-  V8EXPORT uint8_t* GetIndexedPropertiesPixelData();
-  V8EXPORT int GetIndexedPropertiesPixelDataLength();
+  void SetIndexedPropertiesToPixelData(uint8_t* data, int length);
+  bool HasIndexedPropertiesInPixelData();
+  uint8_t* GetIndexedPropertiesPixelData();
+  int GetIndexedPropertiesPixelDataLength();
 
   /**
    * Set the backing store of the indexed properties to be managed by the
@@ -1749,87 +1742,83 @@ class Object : public Value {
    * Note: The embedding program still owns the data and needs to ensure that
    *       the backing store is preserved while V8 has a reference.
    */
-  V8EXPORT void SetIndexedPropertiesToExternalArrayData(
-      void* data,
-      ExternalArrayType array_type,
-      int number_of_elements);
-  V8EXPORT bool HasIndexedPropertiesInExternalArrayData();
-  V8EXPORT void* GetIndexedPropertiesExternalArrayData();
-  V8EXPORT ExternalArrayType GetIndexedPropertiesExternalArrayDataType();
-  V8EXPORT int GetIndexedPropertiesExternalArrayDataLength();
+  void SetIndexedPropertiesToExternalArrayData(void* data,
+                                               ExternalArrayType array_type,
+                                               int number_of_elements);
+  bool HasIndexedPropertiesInExternalArrayData();
+  void* GetIndexedPropertiesExternalArrayData();
+  ExternalArrayType GetIndexedPropertiesExternalArrayDataType();
+  int GetIndexedPropertiesExternalArrayDataLength();
 
   /**
    * Checks whether a callback is set by the
    * ObjectTemplate::SetCallAsFunctionHandler method.
    * When an Object is callable this method returns true.
    */
-  V8EXPORT bool IsCallable();
+  bool IsCallable();
 
   /**
    * Call an Object as a function if a callback is set by the
    * ObjectTemplate::SetCallAsFunctionHandler method.
    */
-  V8EXPORT Local<Value> CallAsFunction(Handle<Object> recv,
-                                       int argc,
-                                       Handle<Value> argv[]);
+  Local<Value> CallAsFunction(Handle<Object> recv,
+                              int argc,
+                              Handle<Value> argv[]);
 
   /**
    * Call an Object as a constructor if a callback is set by the
    * ObjectTemplate::SetCallAsFunctionHandler method.
    * Note: This method behaves like the Function::NewInstance method.
    */
-  V8EXPORT Local<Value> CallAsConstructor(int argc,
-                                          Handle<Value> argv[]);
+  Local<Value> CallAsConstructor(int argc, Handle<Value> argv[]);
 
-  V8EXPORT static Local<Object> New();
+  static Local<Object> New();
   V8_INLINE(static Object* Cast(Value* obj));
 
  private:
-  V8EXPORT Object();
-  V8EXPORT static void CheckCast(Value* obj);
-  V8EXPORT Local<Value> SlowGetInternalField(int index);
-  V8EXPORT void* SlowGetAlignedPointerFromInternalField(int index);
+  Object();
+  static void CheckCast(Value* obj);
+  Local<Value> SlowGetInternalField(int index);
+  void* SlowGetAlignedPointerFromInternalField(int index);
 };
 
 
 /**
  * An instance of the built-in array constructor (ECMA-262, 15.4.2).
  */
-class Array : public Object {
+class V8EXPORT Array : public Object {
  public:
-  V8EXPORT uint32_t Length() const;
+  uint32_t Length() const;
 
   /**
    * Clones an element at index |index|.  Returns an empty
    * handle if cloning fails (for any reason).
    */
-  V8EXPORT Local<Object> CloneElementAt(uint32_t index);
+  Local<Object> CloneElementAt(uint32_t index);
 
   /**
    * Creates a JavaScript array with the given length. If the length
    * is negative the returned array will have length 0.
    */
-  V8EXPORT static Local<Array> New(int length = 0);
+  static Local<Array> New(int length = 0);
 
   V8_INLINE(static Array* Cast(Value* obj));
  private:
-  V8EXPORT Array();
-  V8EXPORT static void CheckCast(Value* obj);
+  Array();
+  static void CheckCast(Value* obj);
 };
 
 
 /**
  * A JavaScript function object (ECMA-262, 15.3).
  */
-class Function : public Object {
+class V8EXPORT Function : public Object {
  public:
-  V8EXPORT Local<Object> NewInstance() const;
-  V8EXPORT Local<Object> NewInstance(int argc, Handle<Value> argv[]) const;
-  V8EXPORT Local<Value> Call(Handle<Object> recv,
-                             int argc,
-                             Handle<Value> argv[]);
-  V8EXPORT void SetName(Handle<String> name);
-  V8EXPORT Handle<Value> GetName() const;
+  Local<Object> NewInstance() const;
+  Local<Object> NewInstance(int argc, Handle<Value> argv[]) const;
+  Local<Value> Call(Handle<Object> recv, int argc, Handle<Value> argv[]);
+  void SetName(Handle<String> name);
+  Handle<Value> GetName() const;
 
   /**
    * Name inferred from variable or property assignment of this function.
@@ -1837,41 +1826,41 @@ class Function : public Object {
    * in an OO style, where many functions are anonymous but are assigned
    * to object properties.
    */
-  V8EXPORT Handle<Value> GetInferredName() const;
+  Handle<Value> GetInferredName() const;
 
   /**
    * Returns zero based line number of function body and
    * kLineOffsetNotFound if no information available.
    */
-  V8EXPORT int GetScriptLineNumber() const;
+  int GetScriptLineNumber() const;
   /**
    * Returns zero based column number of function body and
    * kLineOffsetNotFound if no information available.
    */
-  V8EXPORT int GetScriptColumnNumber() const;
-  V8EXPORT Handle<Value> GetScriptId() const;
-  V8EXPORT ScriptOrigin GetScriptOrigin() const;
+  int GetScriptColumnNumber() const;
+  Handle<Value> GetScriptId() const;
+  ScriptOrigin GetScriptOrigin() const;
   V8_INLINE(static Function* Cast(Value* obj));
-  V8EXPORT static const int kLineOffsetNotFound;
+  static const int kLineOffsetNotFound;
 
  private:
-  V8EXPORT Function();
-  V8EXPORT static void CheckCast(Value* obj);
+  Function();
+  static void CheckCast(Value* obj);
 };
 
 
 /**
  * An instance of the built-in Date constructor (ECMA-262, 15.9).
  */
-class Date : public Object {
+class V8EXPORT Date : public Object {
  public:
-  V8EXPORT static Local<Value> New(double time);
+  static Local<Value> New(double time);
 
   /**
    * A specialization of Value::NumberValue that is more efficient
    * because we know the structure of this object.
    */
-  V8EXPORT double NumberValue() const;
+  double NumberValue() const;
 
   V8_INLINE(static Date* Cast(v8::Value* obj));
 
@@ -1887,74 +1876,74 @@ class Date : public Object {
    * This API should not be called more than needed as it will
    * negatively impact the performance of date operations.
    */
-  V8EXPORT static void DateTimeConfigurationChangeNotification();
+  static void DateTimeConfigurationChangeNotification();
 
  private:
-  V8EXPORT static void CheckCast(v8::Value* obj);
+  static void CheckCast(v8::Value* obj);
 };
 
 
 /**
  * A Number object (ECMA-262, 4.3.21).
  */
-class NumberObject : public Object {
+class V8EXPORT NumberObject : public Object {
  public:
-  V8EXPORT static Local<Value> New(double value);
+  static Local<Value> New(double value);
 
   /**
    * Returns the Number held by the object.
    */
-  V8EXPORT double NumberValue() const;
+  double NumberValue() const;
 
   V8_INLINE(static NumberObject* Cast(v8::Value* obj));
 
  private:
-  V8EXPORT static void CheckCast(v8::Value* obj);
+  static void CheckCast(v8::Value* obj);
 };
 
 
 /**
  * A Boolean object (ECMA-262, 4.3.15).
  */
-class BooleanObject : public Object {
+class V8EXPORT BooleanObject : public Object {
  public:
-  V8EXPORT static Local<Value> New(bool value);
+  static Local<Value> New(bool value);
 
   /**
    * Returns the Boolean held by the object.
    */
-  V8EXPORT bool BooleanValue() const;
+  bool BooleanValue() const;
 
   V8_INLINE(static BooleanObject* Cast(v8::Value* obj));
 
  private:
-  V8EXPORT static void CheckCast(v8::Value* obj);
+  static void CheckCast(v8::Value* obj);
 };
 
 
 /**
  * A String object (ECMA-262, 4.3.18).
  */
-class StringObject : public Object {
+class V8EXPORT StringObject : public Object {
  public:
-  V8EXPORT static Local<Value> New(Handle<String> value);
+  static Local<Value> New(Handle<String> value);
 
   /**
    * Returns the String held by the object.
    */
-  V8EXPORT Local<String> StringValue() const;
+  Local<String> StringValue() const;
 
   V8_INLINE(static StringObject* Cast(v8::Value* obj));
 
  private:
-  V8EXPORT static void CheckCast(v8::Value* obj);
+  static void CheckCast(v8::Value* obj);
 };
 
 
 /**
  * An instance of the built-in RegExp constructor (ECMA-262, 15.10).
  */
-class RegExp : public Object {
+class V8EXPORT RegExp : public Object {
  public:
   /**
    * Regular expression flag bits. They can be or'ed to enable a set
@@ -1977,24 +1966,23 @@ class RegExp : public Object {
    *               static_cast<RegExp::Flags>(kGlobal | kMultiline))
    * is equivalent to evaluating "/foo/gm".
    */
-  V8EXPORT static Local<RegExp> New(Handle<String> pattern,
-                                    Flags flags);
+  static Local<RegExp> New(Handle<String> pattern, Flags flags);
 
   /**
    * Returns the value of the source property: a string representing
    * the regular expression.
    */
-  V8EXPORT Local<String> GetSource() const;
+  Local<String> GetSource() const;
 
   /**
    * Returns the flags bit field.
    */
-  V8EXPORT Flags GetFlags() const;
+  Flags GetFlags() const;
 
   V8_INLINE(static RegExp* Cast(v8::Value* obj));
 
  private:
-  V8EXPORT static void CheckCast(v8::Value* obj);
+  static void CheckCast(v8::Value* obj);
 };
 
 
@@ -2002,7 +1990,7 @@ class RegExp : public Object {
  * A JavaScript value that wraps a C++ void*. This type of value is mainly used
  * to associate C++ data structures with JavaScript objects.
  */
-class External : public Value {
+class V8EXPORT External : public Value {
  public:
   /** Deprecated, use New instead. */
   V8_DEPRECATED(V8_INLINE(static Local<Value> Wrap(void* value)));
@@ -2010,11 +1998,11 @@ class External : public Value {
   /** Deprecated, use a combination of Cast and Value instead. */
   V8_DEPRECATED(V8_INLINE(static void* Unwrap(Handle<Value> obj)));
 
-  V8EXPORT static Local<External> New(void* value);
+  static Local<External> New(void* value);
   V8_INLINE(static External* Cast(Value* obj));
-  V8EXPORT void* Value() const;
+  void* Value() const;
  private:
-  V8EXPORT static void CheckCast(v8::Value* obj);
+  static void CheckCast(v8::Value* obj);
 };
 
 
@@ -2044,7 +2032,7 @@ class V8EXPORT Template : public Data {
  * including the receiver, the number and values of arguments, and
  * the holder of the function.
  */
-class Arguments {
+class V8EXPORT Arguments {
  public:
   V8_INLINE(int Length() const);
   V8_INLINE(Local<Value> operator[](int i) const);
@@ -2944,7 +2932,7 @@ class V8EXPORT Isolate {
 };
 
 
-class StartupData {
+class V8EXPORT StartupData {
  public:
   enum CompressionAlgorithm {
     kUncompressed,
