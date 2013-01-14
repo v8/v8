@@ -3893,6 +3893,15 @@ bool String::MayContainNonAscii() const {
 }
 
 
+bool String::IsOneByte() const {
+  i::Handle<i::String> str = Utils::OpenHandle(this);
+  if (IsDeadCheck(str->GetIsolate(), "v8::String::IsOneByte()")) {
+    return false;
+  }
+  return str->IsOneByteConvertible();
+}
+
+
 class Utf8LengthVisitor {
  public:
   explicit Utf8LengthVisitor()
@@ -4194,32 +4203,52 @@ int String::WriteAscii(char* buffer,
 }
 
 
+template<typename CharType>
+struct WriteHelper {
+  static inline int Write(const String* string,
+                          CharType* buffer,
+                          int start,
+                          int length,
+                          int options) {
+    i::Isolate* isolate = Utils::OpenHandle(string)->GetIsolate();
+    if (IsDeadCheck(isolate, "v8::String::Write()")) return 0;
+    LOG_API(isolate, "String::Write");
+    ENTER_V8(isolate);
+    ASSERT(start >= 0 && length >= -1);
+    i::Handle<i::String> str = Utils::OpenHandle(string);
+    isolate->string_tracker()->RecordWrite(str);
+    if (options & String::HINT_MANY_WRITES_EXPECTED) {
+      // Flatten the string for efficiency.  This applies whether we are
+      // using StringCharacterStream or Get(i) to access the characters.
+      FlattenString(str);
+    }
+    int end = start + length;
+    if ((length == -1) || (length > str->length() - start) )
+      end = str->length();
+    if (end < 0) return 0;
+    i::String::WriteToFlat(*str, buffer, start, end);
+    if (!(options & String::NO_NULL_TERMINATION) &&
+        (length == -1 || end - start < length)) {
+      buffer[end - start] = '\0';
+    }
+    return end - start;
+  }
+};
+
+
+int String::WriteOneByte(uint8_t* buffer,
+                         int start,
+                         int length,
+                         int options) const {
+  return WriteHelper<uint8_t>::Write(this, buffer, start, length, options);
+}
+
+
 int String::Write(uint16_t* buffer,
                   int start,
                   int length,
                   int options) const {
-  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
-  if (IsDeadCheck(isolate, "v8::String::Write()")) return 0;
-  LOG_API(isolate, "String::Write");
-  ENTER_V8(isolate);
-  ASSERT(start >= 0 && length >= -1);
-  i::Handle<i::String> str = Utils::OpenHandle(this);
-  isolate->string_tracker()->RecordWrite(str);
-  if (options & HINT_MANY_WRITES_EXPECTED) {
-    // Flatten the string for efficiency.  This applies whether we are
-    // using StringCharacterStream or Get(i) to access the characters.
-    FlattenString(str);
-  }
-  int end = start + length;
-  if ((length == -1) || (length > str->length() - start) )
-    end = str->length();
-  if (end < 0) return 0;
-  i::String::WriteToFlat(*str, buffer, start, end);
-  if (!(options & NO_NULL_TERMINATION) &&
-      (length == -1 || end - start < length)) {
-    buffer[end - start] = '\0';
-  }
-  return end - start;
+  return WriteHelper<uint16_t>::Write(this, buffer, start, length, options);
 }
 
 

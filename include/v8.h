@@ -1064,7 +1064,8 @@ class V8EXPORT String : public Primitive {
   enum Encoding {
     UNKNOWN_ENCODING = 0x1,
     TWO_BYTE_ENCODING = 0x0,
-    ASCII_ENCODING = 0x4
+    ASCII_ENCODING = 0x4,
+    ONE_BYTE_ENCODING = 0x4
   };
   /**
    * Returns the number of characters in this string.
@@ -1084,6 +1085,11 @@ class V8EXPORT String : public Primitive {
    * 0-127.
    */
   bool MayContainNonAscii() const;
+
+  /**
+   * Returns whether this string contains only one byte data.
+   */
+  V8EXPORT bool IsOneByte() const;
 
   /**
    * Write the contents of the string to an external buffer.
@@ -1127,6 +1133,11 @@ class V8EXPORT String : public Primitive {
                  int start = 0,
                  int length = -1,
                  int options = NO_OPTIONS) const;
+  // One byte characters.
+  V8EXPORT int WriteOneByte(uint8_t* buffer,
+                            int start = 0,
+                            int length = -1,
+                            int options = NO_OPTIONS) const;
   // UTF-8 encoded characters.
   int WriteUtf8(char* buffer,
                 int length = -1,
@@ -1227,6 +1238,8 @@ class V8EXPORT String : public Primitive {
    protected:
     ExternalAsciiStringResource() {}
   };
+
+  typedef ExternalAsciiStringResource ExternalOneByteStringResource;
 
   /**
    * If the string is an external string, return the ExternalStringResourceBase
