@@ -1089,7 +1089,7 @@ class V8EXPORT String : public Primitive {
   /**
    * Returns whether this string contains only one byte data.
    */
-  V8EXPORT bool IsOneByte() const;
+  bool IsOneByte() const;
 
   /**
    * Write the contents of the string to an external buffer.
@@ -1134,7 +1134,7 @@ class V8EXPORT String : public Primitive {
                  int length = -1,
                  int options = NO_OPTIONS) const;
   // One byte characters.
-  V8EXPORT int WriteOneByte(uint8_t* buffer,
+  int WriteOneByte(uint8_t* buffer,
                             int start = 0,
                             int length = -1,
                             int options = NO_OPTIONS) const;
