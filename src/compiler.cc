@@ -474,6 +474,13 @@ bool Compiler::MakeCodeForLiveEdit(CompilationInfo* info) {
 #endif
 
 
+static bool DebuggerWantsEagerCompilation(CompilationInfo* info,
+                                          bool allow_lazy_without_ctx = false) {
+  return LiveEditFunctionTracker::IsActive(info->isolate()) ||
+         (info->isolate()->DebuggerHasBreakPoints() && !allow_lazy_without_ctx);
+}
+
+
 static Handle<SharedFunctionInfo> MakeFunctionInfo(CompilationInfo* info) {
   Isolate* isolate = info->isolate();
   ZoneScope zone_scope(info->zone(), DELETE_ON_EXIT);
@@ -511,8 +518,9 @@ static Handle<SharedFunctionInfo> MakeFunctionInfo(CompilationInfo* info) {
   // Only allow non-global compiles for eval.
   ASSERT(info->is_eval() || info->is_global());
   ParsingFlags flags = kNoParsingFlags;
-  if (info->pre_parse_data() != NULL ||
-      String::cast(script->source())->length() > FLAG_min_preparse_length) {
+  if ((info->pre_parse_data() != NULL ||
+       String::cast(script->source())->length() > FLAG_min_preparse_length) &&
+      !DebuggerWantsEagerCompilation(info)) {
     flags = kAllowLazy;
   }
   if (!ParserApi::Parse(info, flags)) {
@@ -1006,8 +1014,7 @@ Handle<SharedFunctionInfo> Compiler::BuildFunctionInfo(FunctionLiteral* literal,
   // Debug::FindSharedFunctionInfoInScript.
   bool allow_lazy_without_ctx = literal->AllowsLazyCompilationWithoutContext();
   bool allow_lazy = literal->AllowsLazyCompilation() &&
-      !LiveEditFunctionTracker::IsActive(info.isolate()) &&
-      (!info.isolate()->DebuggerHasBreakPoints() || allow_lazy_without_ctx);
+      !DebuggerWantsEagerCompilation(&info, allow_lazy_without_ctx);
 
   Handle<ScopeInfo> scope_info(ScopeInfo::Empty());
 
