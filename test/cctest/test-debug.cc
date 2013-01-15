@@ -27,9 +27,6 @@
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
 
-// TODO(svenpanne): Do not use Context::GetData and Context::SetData.
-#define V8_DISABLE_DEPRECATIONS 1
-
 #include <stdlib.h>
 
 #include "v8.h"
@@ -6222,7 +6219,7 @@ static v8::Handle<v8::Value> expected_context_data;
 // Check that the expected context is the one generating the debug event.
 static void ContextCheckMessageHandler(const v8::Debug::Message& message) {
   CHECK(message.GetEventContext() == expected_context);
-  CHECK(message.GetEventContext()->GetData()->StrictEquals(
+  CHECK(message.GetEventContext()->GetEmbedderData(0)->StrictEquals(
       expected_context_data));
   message_handler_hit_count++;
 
@@ -6255,16 +6252,16 @@ TEST(ContextData) {
   context_2 = v8::Context::New(NULL, global_template, global_object);
 
   // Default data value is undefined.
-  CHECK(context_1->GetData()->IsUndefined());
-  CHECK(context_2->GetData()->IsUndefined());
+  CHECK(context_1->GetEmbedderData(0)->IsUndefined());
+  CHECK(context_2->GetEmbedderData(0)->IsUndefined());
 
   // Set and check different data values.
   v8::Handle<v8::String> data_1 = v8::String::New("1");
   v8::Handle<v8::String> data_2 = v8::String::New("2");
-  context_1->SetData(data_1);
-  context_2->SetData(data_2);
-  CHECK(context_1->GetData()->StrictEquals(data_1));
-  CHECK(context_2->GetData()->StrictEquals(data_2));
+  context_1->SetEmbedderData(0, data_1);
+  context_2->SetEmbedderData(0, data_2);
+  CHECK(context_1->GetEmbedderData(0)->StrictEquals(data_1));
+  CHECK(context_2->GetEmbedderData(0)->StrictEquals(data_2));
 
   // Simple test function which causes a break.
   const char* source = "function f() { debugger; }";
@@ -6419,12 +6416,12 @@ static void ExecuteScriptForContextCheck() {
   context_1 = v8::Context::New(NULL, global_template);
 
   // Default data value is undefined.
-  CHECK(context_1->GetData()->IsUndefined());
+  CHECK(context_1->GetEmbedderData(0)->IsUndefined());
 
   // Set and check a data value.
   v8::Handle<v8::String> data_1 = v8::String::New("1");
-  context_1->SetData(data_1);
-  CHECK(context_1->GetData()->StrictEquals(data_1));
+  context_1->SetEmbedderData(0, data_1);
+  CHECK(context_1->GetEmbedderData(0)->StrictEquals(data_1));
 
   // Simple test function with eval that causes a break.
   const char* source = "function f() { eval('debugger;'); }";
@@ -6465,7 +6462,7 @@ static int continue_command_send_count = 0;
 static void DebugEvalContextCheckMessageHandler(
     const v8::Debug::Message& message) {
   CHECK(message.GetEventContext() == expected_context);
-  CHECK(message.GetEventContext()->GetData()->StrictEquals(
+  CHECK(message.GetEventContext()->GetEmbedderData(0)->StrictEquals(
       expected_context_data));
   message_handler_hit_count++;
 

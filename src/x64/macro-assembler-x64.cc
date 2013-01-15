@@ -2218,19 +2218,16 @@ void MacroAssembler::JumpIfNotBothSequentialAsciiStrings(
   // Check that both are flat ASCII strings.
   ASSERT(kNotStringTag != 0);
   const int kFlatAsciiStringMask =
-      kIsNotStringMask | kStringEncodingMask | kAsciiDataHintMask |
-      kStringRepresentationMask;
+      kIsNotStringMask | kStringRepresentationMask | kStringEncodingMask;
   const int kFlatAsciiStringTag = ASCII_STRING_TYPE;
 
   andl(scratch1, Immediate(kFlatAsciiStringMask));
   andl(scratch2, Immediate(kFlatAsciiStringMask));
   // Interleave the bits to check both scratch1 and scratch2 in one test.
-  ASSERT_EQ(0, kFlatAsciiStringMask & (kFlatAsciiStringMask << 8));
-  ASSERT_EQ(ASCII_STRING_TYPE, ASCII_STRING_TYPE & kFlatAsciiStringMask);
-  shl(scratch1, Immediate(8));
-  orl(scratch1, scratch2);
+  ASSERT_EQ(0, kFlatAsciiStringMask & (kFlatAsciiStringMask << 3));
+  lea(scratch1, Operand(scratch1, scratch2, times_8, 0));
   cmpl(scratch1,
-       Immediate(kFlatAsciiStringTag + (kFlatAsciiStringTag << 8)));
+       Immediate(kFlatAsciiStringTag + (kFlatAsciiStringTag << 3)));
   j(not_equal, on_fail, near_jump);
 }
 
@@ -2266,19 +2263,17 @@ void MacroAssembler::JumpIfBothInstanceTypesAreNotSequentialAscii(
 
   // Check that both are flat ASCII strings.
   ASSERT(kNotStringTag != 0);
-  const int kFlatAsciiStringMask = kIsNotStringMask | kStringRepresentationMask
-          | kStringEncodingMask | kAsciiDataHintTag;
+  const int kFlatAsciiStringMask =
+      kIsNotStringMask | kStringRepresentationMask | kStringEncodingMask;
   const int kFlatAsciiStringTag = ASCII_STRING_TYPE;
 
   andl(scratch1, Immediate(kFlatAsciiStringMask));
   andl(scratch2, Immediate(kFlatAsciiStringMask));
   // Interleave the bits to check both scratch1 and scratch2 in one test.
-  ASSERT_EQ(0, kFlatAsciiStringMask & (kFlatAsciiStringMask << 8));
-  ASSERT_EQ(ASCII_STRING_TYPE, ASCII_STRING_TYPE & kFlatAsciiStringMask);
-  shl(scratch1, Immediate(8));
-  orl(scratch1, scratch2);
+  ASSERT_EQ(0, kFlatAsciiStringMask & (kFlatAsciiStringMask << 3));
+  lea(scratch1, Operand(scratch1, scratch2, times_8, 0));
   cmpl(scratch1,
-       Immediate(kFlatAsciiStringTag + (kFlatAsciiStringTag << 8)));
+       Immediate(kFlatAsciiStringTag + (kFlatAsciiStringTag << 3)));
   j(not_equal, on_fail, near_jump);
 }
 

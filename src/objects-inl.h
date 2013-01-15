@@ -341,7 +341,12 @@ bool String::IsTwoByteRepresentationUnderneath() {
 
 bool String::HasOnlyAsciiChars() {
   uint32_t type = map()->instance_type();
+#ifndef ENABLE_LATIN_1
+  return (type & kStringEncodingMask) == kOneByteStringTag ||
+         (type & kAsciiDataHintMask) == kAsciiDataHintTag;
+#else
   return (type & kAsciiDataHintMask) == kAsciiDataHintTag;
+#endif
 }
 
 

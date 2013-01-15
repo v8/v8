@@ -1,3 +1,16 @@
+2013-01-15: Version 3.16.5
+
+        Removed deprecated functions from V8's external API.
+
+        Prepared API for WebKit use of Latin-1.
+
+        Fixed V8 issue 2486.
+
+        Fixed Chromium issue 169723.
+
+        Performance and stability improvements on all platforms.
+
+
 2013-01-11: Version 3.16.4
 
         Fixed Chromium issues 168545 and 169209.
