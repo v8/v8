@@ -933,6 +933,16 @@ void CodeFlusher::ProcessSharedFunctionInfoCandidates() {
 }
 
 
+bool CodeFlusher::ContainsCandidate(SharedFunctionInfo* shared_info) {
+  SharedFunctionInfo* candidate = shared_function_info_candidates_head_;
+  while (candidate != NULL) {
+    if (candidate == shared_info) return true;
+    candidate = GetNextCandidate(candidate);
+  }
+  return false;
+}
+
+
 void CodeFlusher::EvictCandidate(SharedFunctionInfo* shared_info) {
   // The function is no longer a candidate, make sure it gets visited
   // again so that previous flushing decisions are revisited.
