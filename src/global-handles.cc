@@ -46,7 +46,7 @@ class GlobalHandles::Node {
   // State transition diagram:
   // FREE -> NORMAL <-> WEAK -> PENDING -> NEAR_DEATH -> { NORMAL, WEAK, FREE }
   enum State {
-    FREE,
+    FREE = 0,
     NORMAL,     // Normal global handle.
     WEAK,       // Flagged as weak but not yet finalized.
     PENDING,    // Has been recognized as only reachable by weak handles.
@@ -68,9 +68,9 @@ class GlobalHandles::Node {
     object_ = NULL;
     class_id_ = v8::HeapProfiler::kPersistentHandleNoClassId;
     index_ = 0;
-    independent_ = false;
-    partially_dependent_ = false;
-    in_new_space_list_ = false;
+    set_independent(false);
+    set_partially_dependent(false);
+    set_in_new_space_list(false);
     parameter_or_next_free_.next_free = NULL;
     callback_ = NULL;
   }
@@ -79,33 +79,33 @@ class GlobalHandles::Node {
   void Initialize(int index, Node** first_free) {
     index_ = static_cast<uint8_t>(index);
     ASSERT(static_cast<int>(index_) == index);
-    state_ = FREE;
-    in_new_space_list_ = false;
+    set_state(FREE);
+    set_in_new_space_list(false);
     parameter_or_next_free_.next_free = *first_free;
     *first_free = this;
   }
 
   void Acquire(Object* object, GlobalHandles* global_handles) {
-    ASSERT(state_ == FREE);
+    ASSERT(state() == FREE);
     object_ = object;
     class_id_ = v8::HeapProfiler::kPersistentHandleNoClassId;
-    independent_ = false;
-    partially_dependent_ = false;
-    state_  = NORMAL;
+    set_independent(false);
+    set_partially_dependent(false);
+    set_state(NORMAL);
     parameter_or_next_free_.parameter = NULL;
     callback_ = NULL;
     IncreaseBlockUses(global_handles);
   }
 
   void Release(GlobalHandles* global_handles) {
-    ASSERT(state_ != FREE);
+    ASSERT(state() != FREE);
     if (IsWeakRetainer()) {
       global_handles->number_of_weak_handles_--;
       if (object_->IsJSGlobalObject()) {
         global_handles->number_of_global_object_weak_handles_--;
       }
     }
-    state_ = FREE;
+    set_state(FREE);
     parameter_or_next_free_.next_free = global_handles->first_free_;
     global_handles->first_free_ = this;
     DecreaseBlockUses(global_handles);
@@ -120,115 +120,134 @@ class GlobalHandles::Node {
   bool has_wrapper_class_id() const {
     return class_id_ != v8::HeapProfiler::kPersistentHandleNoClassId;
   }
+
   uint16_t wrapper_class_id() const { return class_id_; }
-  void set_wrapper_class_id(uint16_t class_id) {
-    class_id_ = class_id;
+  void set_wrapper_class_id(uint16_t class_id) { class_id_ = class_id; }
+
+  // State and flag accessors.
+
+  State state() const {
+    return NodeState::decode(flags_);
+  }
+  void set_state(State state) {
+    flags_ = NodeState::update(flags_, state);
   }
 
-  // State accessors.
+  bool is_independent() {
+    return IsIndependent::decode(flags_);
+  }
+  void set_independent(bool v) {
+    flags_ = IsIndependent::update(flags_, v);
+  }
 
-  State state() const { return state_; }
+  bool is_partially_dependent() {
+    return IsPartiallyDependent::decode(flags_);
+  }
+  void set_partially_dependent(bool v) {
+    flags_ = IsPartiallyDependent::update(flags_, v);
+  }
+
+  bool is_in_new_space_list() {
+    return IsInNewSpaceList::decode(flags_);
+  }
+  void set_in_new_space_list(bool v) {
+    flags_ = IsInNewSpaceList::update(flags_, v);
+  }
 
   bool IsNearDeath() const {
     // Check for PENDING to ensure correct answer when processing callbacks.
-    return state_ == PENDING || state_ == NEAR_DEATH;
+    return state() == PENDING || state() == NEAR_DEATH;
   }
 
-  bool IsWeak() const { return state_ == WEAK; }
+  bool IsWeak() const { return state() == WEAK; }
 
-  bool IsRetainer() const { return state_ != FREE; }
+  bool IsRetainer() const { return state() != FREE; }
 
-  bool IsStrongRetainer() const { return state_ == NORMAL; }
+  bool IsStrongRetainer() const { return state() == NORMAL; }
 
   bool IsWeakRetainer() const {
-    return state_ == WEAK || state_ == PENDING || state_ == NEAR_DEATH;
+    return state() == WEAK || state() == PENDING || state() == NEAR_DEATH;
   }
 
   void MarkPending() {
-    ASSERT(state_ == WEAK);
-    state_ = PENDING;
+    ASSERT(state() == WEAK);
+    set_state(PENDING);
   }
 
   // Independent flag accessors.
   void MarkIndependent() {
-    ASSERT(state_ != FREE);
-    independent_ = true;
+    ASSERT(state() != FREE);
+    set_independent(true);
   }
-  bool is_independent() const { return independent_; }
 
   void MarkPartiallyDependent(GlobalHandles* global_handles) {
-    ASSERT(state_ != FREE);
+    ASSERT(state() != FREE);
     if (global_handles->isolate()->heap()->InNewSpace(object_)) {
-      partially_dependent_ = true;
+      set_partially_dependent(true);
     }
   }
-  bool is_partially_dependent() const { return partially_dependent_; }
-  void clear_partially_dependent() { partially_dependent_ = false; }
-
-  // In-new-space-list flag accessors.
-  void set_in_new_space_list(bool v) { in_new_space_list_ = v; }
-  bool is_in_new_space_list() const { return in_new_space_list_; }
+  void clear_partially_dependent() { set_partially_dependent(false); }
 
   // Callback accessor.
   WeakReferenceCallback callback() { return callback_; }
 
   // Callback parameter accessors.
   void set_parameter(void* parameter) {
-    ASSERT(state_ != FREE);
+    ASSERT(state() != FREE);
     parameter_or_next_free_.parameter = parameter;
   }
   void* parameter() const {
-    ASSERT(state_ != FREE);
+    ASSERT(state() != FREE);
     return parameter_or_next_free_.parameter;
   }
 
   // Accessors for next free node in the free list.
   Node* next_free() {
-    ASSERT(state_ == FREE);
+    ASSERT(state() == FREE);
     return parameter_or_next_free_.next_free;
   }
   void set_next_free(Node* value) {
-    ASSERT(state_ == FREE);
+    ASSERT(state() == FREE);
     parameter_or_next_free_.next_free = value;
   }
 
   void MakeWeak(GlobalHandles* global_handles,
                 void* parameter,
                 WeakReferenceCallback callback) {
-    ASSERT(state_ != FREE);
+    ASSERT(state() != FREE);
     if (!IsWeakRetainer()) {
       global_handles->number_of_weak_handles_++;
       if (object_->IsJSGlobalObject()) {
         global_handles->number_of_global_object_weak_handles_++;
       }
     }
-    state_ = WEAK;
+    set_state(WEAK);
     set_parameter(parameter);
     callback_ = callback;
   }
 
   void ClearWeakness(GlobalHandles* global_handles) {
-    ASSERT(state_ != FREE);
+    ASSERT(state() != FREE);
     if (IsWeakRetainer()) {
       global_handles->number_of_weak_handles_--;
       if (object_->IsJSGlobalObject()) {
         global_handles->number_of_global_object_weak_handles_--;
       }
     }
-    state_ = NORMAL;
+    set_state(NORMAL);
     set_parameter(NULL);
   }
 
   bool PostGarbageCollectionProcessing(Isolate* isolate,
                                        GlobalHandles* global_handles) {
-    if (state_ != Node::PENDING) return false;
+    if (state() != Node::PENDING) return false;
     WeakReferenceCallback func = callback();
     if (func == NULL) {
       Release(global_handles);
       return false;
     }
     void* par = parameter();
-    state_ = NEAR_DEATH;
+    set_state(NEAR_DEATH);
     set_parameter(NULL);
 
     v8::Persistent<v8::Object> object = ToApi<v8::Object>(handle());
@@ -245,7 +264,7 @@ class GlobalHandles::Node {
     }
     // Absence of explicit cleanup or revival of weak handle
     // in most of the cases would lead to memory leak.
-    ASSERT(state_ != NEAR_DEATH);
+    ASSERT(state() != NEAR_DEATH);
     return true;
   }
 
@@ -267,12 +286,14 @@ class GlobalHandles::Node {
   // Index in the containing handle block.
   uint8_t index_;
 
-  // Need one more bit for MSVC as it treats enums as signed.
-  State state_ : 4;
+  // This stores three flags (independent, partially_dependent and
+  // in_new_space_list) and a State.
+  class NodeState:            public BitField<State, 0, 4> {};
+  class IsIndependent:        public BitField<bool,  4, 1> {};
+  class IsPartiallyDependent: public BitField<bool,  5, 1> {};
+  class IsInNewSpaceList:     public BitField<bool,  6, 1> {};
 
-  bool independent_ : 1;
-  bool partially_dependent_ : 1;
-  bool in_new_space_list_ : 1;
+  uint8_t flags_;
 
   // Handle specific callback.
   WeakReferenceCallback callback_;
