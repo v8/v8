@@ -5804,7 +5804,9 @@ MUST_USE_RESULT static MaybeObject* ConvertCaseHelper(
 namespace {
 
 static const uintptr_t kOneInEveryByte = kUintptrAllBitsSet / 0xFF;
-
+#ifdef ENABLE_LATIN_1
+static const uintptr_t kAsciiMask = kOneInEveryByte << 7;
+#endif
 
 // Given a word and two range boundaries returns a word with high bit
 // set in every byte iff the corresponding input byte was strictly in
@@ -5818,7 +5820,10 @@ static inline uintptr_t AsciiRangeMask(uintptr_t w, char m, char n) {
   ASSERT((w & (kOneInEveryByte * 0x7F)) == w);
   // Use strict inequalities since in edge cases the function could be
   // further simplified.
-  ASSERT(0 < m && m < n && n < 0x7F);
+  ASSERT(0 < m && m < n);
+#ifndef ENABLE_LATIN_1
+  ASSERT(n < 0x7F);
+#endif
   // Has high bit set in every w byte less than n.
   uintptr_t tmp1 = kOneInEveryByte * (0x7F + n) - w;
   // Has high bit set in every w byte greater than m.
@@ -5835,7 +5840,11 @@ enum AsciiCaseConversion {
 
 template <AsciiCaseConversion dir>
 struct FastAsciiConverter {
+#ifdef ENABLE_LATIN_1
+  static bool Convert(char* dst, char* src, int length, bool* changed_out) {
+#else
   static bool Convert(char* dst, char* src, int length) {
+#endif
 #ifdef DEBUG
     char* saved_dst = dst;
     char* saved_src = src;
@@ -5847,12 +5856,18 @@ struct FastAsciiConverter {
     const char lo = (dir == ASCII_TO_LOWER) ? 'A' - 1 : 'a' - 1;
     const char hi = (dir == ASCII_TO_LOWER) ? 'Z' + 1 : 'z' + 1;
     bool changed = false;
+#ifdef ENABLE_LATIN_1
+    uintptr_t or_acc = 0;
+#endif
     char* const limit = src + length;
 #ifdef V8_HOST_CAN_READ_UNALIGNED
     // Process the prefix of the input that requires no conversion one
     // (machine) word at a time.
     while (src <= limit - sizeof(uintptr_t)) {
       uintptr_t w = *reinterpret_cast<uintptr_t*>(src);
+#ifdef ENABLE_LATIN_1
+      or_acc |= w;
+#endif
       if (AsciiRangeMask(w, lo, hi) != 0) {
         changed = true;
         break;
@@ -5865,6 +5880,9 @@ struct FastAsciiConverter {
     // required one word at a time.
     while (src <= limit - sizeof(uintptr_t)) {
       uintptr_t w = *reinterpret_cast<uintptr_t*>(src);
+#ifdef ENABLE_LATIN_1
+      or_acc |= w;
+#endif
       uintptr_t m = AsciiRangeMask(w, lo, hi);
       // The mask has high (7th) bit set in every byte that needs
       // conversion and we know that the distance between cases is
@@ -5878,6 +5896,9 @@ struct FastAsciiConverter {
     // unaligned access is not supported).
     while (src < limit) {
       char c = *src;
+#ifdef ENABLE_LATIN_1
+      or_acc |= c;
+#endif
       if (lo < c && c < hi) {
         c ^= (1 << 5);
         changed = true;
@@ -5886,10 +5907,20 @@ struct FastAsciiConverter {
       ++src;
       ++dst;
     }
+#ifdef ENABLE_LATIN_1
+    if ((or_acc & kAsciiMask) != 0) {
+      return false;
+    }
+#endif
 #ifdef DEBUG
     CheckConvert(saved_dst, saved_src, length, changed);
 #endif
+#ifdef ENABLE_LATIN_1
+    *changed_out = changed;
+    return true;
+#else
     return changed;
+#endif
   }
 
 #ifdef DEBUG
@@ -5942,7 +5973,6 @@ MUST_USE_RESULT static MaybeObject* ConvertCase(
   // Assume that the string is not empty; we need this assumption later
   if (length == 0) return s;
 
-#ifndef ENABLE_LATIN_1
   // Simpler handling of ASCII strings.
   //
   // NOTE: This assumes that the upper/lower case of an ASCII
@@ -5955,13 +5985,25 @@ MUST_USE_RESULT static MaybeObject* ConvertCase(
       if (!maybe_o->ToObject(&o)) return maybe_o;
     }
     SeqOneByteString* result = SeqOneByteString::cast(o);
+#ifndef ENABLE_LATIN_1
     bool has_changed_character = ConvertTraits::AsciiConverter::Convert(
         reinterpret_cast<char*>(result->GetChars()),
         reinterpret_cast<char*>(SeqOneByteString::cast(s)->GetChars()),
         length);
     return has_changed_character ? result : s;
-  }
+#else
+    bool has_changed_character;
+    bool is_ascii = ConvertTraits::AsciiConverter::Convert(
+        reinterpret_cast<char*>(result->GetChars()),
+        reinterpret_cast<char*>(SeqOneByteString::cast(s)->GetChars()),
+        length,
+        &has_changed_character);
+    // If not ASCII, we discard the result and take the 2 byte path.
+    if (is_ascii) {
+      return has_changed_character ? result : s;
+    }
 #endif
+  }
 
   Object* answer;
   { MaybeObject* maybe_answer =
