@@ -1646,15 +1646,6 @@ void Assembler::movzxwl(Register dst, const Operand& src) {
 }
 
 
-void Assembler::movzxwl(Register dst, Register src) {
-  EnsureSpace ensure_space(this);
-  emit_optional_rex_32(dst, src);
-  emit(0x0F);
-  emit(0xB7);
-  emit_modrm(dst, src);
-}
-
-
 void Assembler::repmovsb() {
   EnsureSpace ensure_space(this);
   emit(0xF3);

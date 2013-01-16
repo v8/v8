@@ -3594,43 +3594,45 @@ void LCodeGen::DoRandom(LRandom* instr) {
   // rbx: FixedArray of the native context's random seeds
 
   // Load state[0].
-  __ movl(rcx, FieldOperand(rbx, ByteArray::kHeaderSize));
+  __ movl(rax, FieldOperand(rbx, ByteArray::kHeaderSize));
   // If state[0] == 0, call runtime to initialize seeds.
-  __ testl(rcx, rcx);
+  __ testl(rax, rax);
   __ j(zero, deferred->entry());
   // Load state[1].
-  __ movl(rax, FieldOperand(rbx, ByteArray::kHeaderSize + kSeedSize));
+  __ movl(rcx, FieldOperand(rbx, ByteArray::kHeaderSize + kSeedSize));
 
   // state[0] = 18273 * (state[0] & 0xFFFF) + (state[0] >> 16)
-  // Only operate on the lower 32 bit of rcx.
-  __ movzxwl(rdx, rcx);
+  // Only operate on the lower 32 bit of rax.
+  __ movl(rdx, rax);
+  __ andl(rdx, Immediate(0xFFFF));
   __ imull(rdx, rdx, Immediate(18273));
-  __ shrl(rcx, Immediate(16));
-  __ addl(rcx, rdx);
-  // Save state[0].
-  __ movl(FieldOperand(rbx, ByteArray::kHeaderSize), rcx);
-
-  // state[1] = 36969 * (state[1] & 0xFFFF) + (state[1] >> 16)
-  __ movzxwl(rdx, rax);
-  __ imull(rdx, rdx, Immediate(36969));
   __ shrl(rax, Immediate(16));
   __ addl(rax, rdx);
+  // Save state[0].
+  __ movl(FieldOperand(rbx, ByteArray::kHeaderSize), rax);
+
+  // state[1] = 36969 * (state[1] & 0xFFFF) + (state[1] >> 16)
+  __ movl(rdx, rcx);
+  __ andl(rdx, Immediate(0xFFFF));
+  __ imull(rdx, rdx, Immediate(36969));
+  __ shrl(rcx, Immediate(16));
+  __ addl(rcx, rdx);
   // Save state[1].
-  __ movl(FieldOperand(rbx, ByteArray::kHeaderSize + kSeedSize), rax);
+  __ movl(FieldOperand(rbx, ByteArray::kHeaderSize + kSeedSize), rcx);
 
   // Random bit pattern = (state[0] << 14) + (state[1] & 0x3FFFF)
-  __ shll(rcx, Immediate(14));
-  __ andl(rax, Immediate(0x3FFFF));
-  __ addl(rcx, rax);
+  __ shll(rax, Immediate(14));
+  __ andl(rcx, Immediate(0x3FFFF));
+  __ addl(rax, rcx);
 
   __ bind(deferred->exit());
-  // Convert 32 random bits in rcx to 0.(32 random bits) in a double
+  // Convert 32 random bits in rax to 0.(32 random bits) in a double
   // by computing:
   // ( 1.(20 0s)(32 random bits) x 2^20 ) - (1.0 x 2^20)).
-  __ movq(rax, V8_INT64_C(0x4130000000000000),
-          RelocInfo::NONE64);  // 1.0 x 2^20 as double
-  __ movq(xmm2, rax);
-  __ movd(xmm1, rcx);
+  __ movl(rcx, Immediate(0x49800000));  // 1.0 x 2^20 as single.
+  __ movd(xmm2, rcx);
+  __ movd(xmm1, rax);
+  __ cvtss2sd(xmm2, xmm2);
   __ xorps(xmm1, xmm2);
   __ subsd(xmm1, xmm2);
 }
