@@ -2840,7 +2840,7 @@ class IntrusiveMarking {
 };
 
 
-#if defined(DEBUG) || defined(LIVE_OBJECT_LIST)
+#ifdef DEBUG
 // Helper class for tracing paths to a search target Object from all roots.
 // The TracePathFrom() method can be used to trace paths from a specific
 // object to the search target object.
@@ -2897,7 +2897,7 @@ class PathTracer : public ObjectVisitor {
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(PathTracer);
 };
-#endif  // DEBUG || LIVE_OBJECT_LIST
+#endif  // DEBUG
 
 } }  // namespace v8::internal
 

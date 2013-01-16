@@ -264,33 +264,6 @@ void CopyCharsUnsigned(sinkchar* dest, const sourcechar* src, int chars) {
 }
 
 
-// A resource for using mmapped files to back external strings that are read
-// from files.
-class MemoryMappedExternalResource: public
-    v8::String::ExternalAsciiStringResource {
- public:
-  explicit MemoryMappedExternalResource(const char* filename);
-  MemoryMappedExternalResource(const char* filename,
-                               bool remove_file_on_cleanup);
-  virtual ~MemoryMappedExternalResource();
-
-  virtual const char* data() const { return data_; }
-  virtual size_t length() const { return length_; }
-
-  bool exists() const { return file_ != NULL; }
-  bool is_empty() const { return length_ == 0; }
-
- private:
-  void Init(const char* filename);
-
-  char* filename_;
-  OS::MemoryMappedFile* file_;
-
-  const char* data_;
-  size_t length_;
-  bool remove_file_on_cleanup_;
-};
-
 class StringBuilder : public SimpleStringBuilder {
  public:
   explicit StringBuilder(int size) : SimpleStringBuilder(size) { }

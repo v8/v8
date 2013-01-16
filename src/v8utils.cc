@@ -273,46 +273,4 @@ void StringBuilder::AddFormattedList(const char* format, va_list list) {
   }
 }
 
-
-MemoryMappedExternalResource::MemoryMappedExternalResource(const char* filename)
-    : filename_(NULL),
-      data_(NULL),
-      length_(0),
-      remove_file_on_cleanup_(false) {
-  Init(filename);
-}
-
-
-MemoryMappedExternalResource::
-    MemoryMappedExternalResource(const char* filename,
-                                 bool remove_file_on_cleanup)
-    : filename_(NULL),
-      data_(NULL),
-      length_(0),
-      remove_file_on_cleanup_(remove_file_on_cleanup) {
-  Init(filename);
-}
-
-
-MemoryMappedExternalResource::~MemoryMappedExternalResource() {
-  // Release the resources if we had successfully acquired them:
-  if (file_ != NULL) {
-    delete file_;
-    if (remove_file_on_cleanup_) {
-      OS::Remove(filename_);
-    }
-    DeleteArray<char>(filename_);
-  }
-}
-
-
-void MemoryMappedExternalResource::Init(const char* filename) {
-  file_ = OS::MemoryMappedFile::open(filename);
-  if (file_ != NULL) {
-    filename_ = StrDup(filename);
-    data_ = reinterpret_cast<char*>(file_->memory());
-    length_ = file_->size();
-  }
-}
-
 } }  // namespace v8::internal

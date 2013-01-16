@@ -36,7 +36,6 @@
 #include "heap-profiler.h"
 #include "ic-inl.h"
 #include "incremental-marking.h"
-#include "liveobjectlist-inl.h"
 #include "mark-compact.h"
 #include "objects-visiting.h"
 #include "objects-visiting-inl.h"
@@ -2592,9 +2591,6 @@ void MarkCompactCollector::EvacuateNewSpace() {
                     size,
                     NEW_SPACE);
     } else {
-      // Process the dead object before we write a NULL into its header.
-      LiveObjectList::ProcessNonLive(object);
-
       // Mark dead objects in the new space with null in their map field.
       Memory::Address_at(object->address()) = NULL;
     }
@@ -2994,7 +2990,6 @@ void MarkCompactCollector::EvacuateNewSpaceAndCandidates() {
                              GCTracer::Scope::MC_UPDATE_ROOT_TO_NEW_POINTERS);
     // Update roots.
     heap_->IterateRoots(&updating_visitor, VISIT_ALL_IN_SWEEP_NEWSPACE);
-    LiveObjectList::IterateElements(&updating_visitor);
   }
 
   { GCTracer::Scope gc_scope(tracer_,

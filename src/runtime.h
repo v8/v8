@@ -478,20 +478,6 @@ namespace internal {
   F(SetFlags, 1, 1) \
   F(CollectGarbage, 1, 1) \
   F(GetHeapUsage, 0, 1) \
-  \
-  /* LiveObjectList support*/ \
-  F(HasLOLEnabled, 0, 1) \
-  F(CaptureLOL, 0, 1) \
-  F(DeleteLOL, 1, 1) \
-  F(DumpLOL, 5, 1) \
-  F(GetLOLObj, 1, 1) \
-  F(GetLOLObjId, 1, 1) \
-  F(GetLOLObjRetainers, 6, 1) \
-  F(GetLOLPath, 3, 1) \
-  F(InfoLOL, 2, 1) \
-  F(PrintLOLObj, 1, 1) \
-  F(ResetLOL, 0, 1) \
-  F(SummarizeLOL, 3, 1)
 
 #else
 #define RUNTIME_FUNCTION_LIST_DEBUGGER_SUPPORT(F)

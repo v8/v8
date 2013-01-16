@@ -1235,12 +1235,6 @@ Handle<ObjectTemplate> Shell::CreateGlobalTemplate(Isolate* isolate) {
   global_template->Set(String::New("Uint8ClampedArray"),
                        CreateArrayTemplate(Uint8ClampedArray), attr);
 
-#ifdef LIVE_OBJECT_LIST
-  global_template->Set(String::New("lol_is_enabled"), True());
-#else
-  global_template->Set(String::New("lol_is_enabled"), False());
-#endif
-
 #if !defined(V8_SHARED) && !defined(_WIN32) && !defined(_WIN64)
   Handle<ObjectTemplate> os_templ = ObjectTemplate::New();
   AddOSMethods(os_templ);

@@ -419,12 +419,6 @@ DEFINE_bool(use_idle_notification, true,
 // ic.cc
 DEFINE_bool(use_ic, true, "use inline caching")
 
-#ifdef LIVE_OBJECT_LIST
-// liveobjectlist.cc
-DEFINE_string(lol_workdir, NULL, "path for lol temp files")
-DEFINE_bool(verify_lol, false, "perform debugging verification for lol")
-#endif
-
 // macro-assembler-ia32.cc
 DEFINE_bool(native_code_counters, false,
             "generate extra code for manipulating stats counters")

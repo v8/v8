@@ -37,7 +37,6 @@
 #include "global-handles.h"
 #include "heap-profiler.h"
 #include "incremental-marking.h"
-#include "liveobjectlist-inl.h"
 #include "mark-compact.h"
 #include "natives.h"
 #include "objects-visiting.h"
@@ -439,7 +438,6 @@ void Heap::GarbageCollectionPrologue() {
   ReportStatisticsBeforeGC();
 #endif  // DEBUG
 
-  LiveObjectList::GCPrologue();
   store_buffer()->GCPrologue();
 }
 
@@ -466,7 +464,6 @@ void Heap::RepairFreeListsAfterBoot() {
 
 void Heap::GarbageCollectionEpilogue() {
   store_buffer()->GCEpilogue();
-  LiveObjectList::GCEpilogue();
 
   // In release mode, we only zap the from space under heap verification.
   if (Heap::ShouldZapGarbage()) {
@@ -1393,7 +1390,6 @@ void Heap::Scavenge() {
 
   promotion_queue_.Destroy();
 
-  LiveObjectList::UpdateReferencesForScavengeGC();
   if (!FLAG_watch_ic_patching) {
     isolate()->runtime_profiler()->UpdateSamplesAfterScavenge();
   }
@@ -6748,7 +6744,7 @@ void HeapIterator::reset() {
 }
 
 
-#if defined(DEBUG) || defined(LIVE_OBJECT_LIST)
+#ifdef DEBUG
 
 Object* const PathTracer::kAnyGlobalObject = reinterpret_cast<Object*>(NULL);
 
@@ -6915,10 +6911,8 @@ void PathTracer::ProcessResults() {
     PrintF("=====================================\n");
   }
 }
-#endif  // DEBUG || LIVE_OBJECT_LIST
 
 
-#ifdef DEBUG
 // Triggers a depth-first traversal of reachable objects from one
 // given root object and finds a path to a specific heap object and
 // prints it.
