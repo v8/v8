@@ -16687,6 +16687,18 @@ TEST(PersistentHandleVisitor) {
 }
 
 
+TEST(WrapperClassId) {
+  v8::HandleScope scope;
+  LocalContext context;
+  v8::Persistent<v8::Object> object =
+      v8::Persistent<v8::Object>::New(v8::Object::New());
+  CHECK_EQ(0, object.WrapperClassId());
+  object.SetWrapperClassId(65535);
+  CHECK_EQ(65535, object.WrapperClassId());
+  object.Dispose();
+}
+
+
 TEST(RegExp) {
   v8::HandleScope scope;
   LocalContext context;

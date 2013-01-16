@@ -3541,9 +3541,6 @@ class V8EXPORT V8 {
   static bool IsGlobalWeak(internal::Object** global_handle);
   static bool IsGlobalWeak(internal::Isolate* isolate,
                            internal::Object** global_handle);
-  static void SetWrapperClassId(internal::Object** global_handle,
-                                uint16_t class_id);
-  static uint16_t GetWrapperClassId(internal::Object** global_handle);
 
   template <class T> friend class Handle;
   template <class T> friend class Local;
@@ -4155,6 +4152,7 @@ class Internals {
   static const int kIsolateStateOffset = 0;
   static const int kIsolateEmbedderDataOffset = 1 * kApiPointerSize;
   static const int kIsolateRootsOffset = 3 * kApiPointerSize;
+  static const int kNodeClassIdOffset = 1 * kApiPointerSize;
   static const int kNodeFlagsOffset = 1 * kApiPointerSize + 3;
   static const int kUndefinedValueRootIndex = 5;
   static const int kNullValueRootIndex = 7;
@@ -4407,12 +4405,18 @@ void Persistent<T>::MarkPartiallyDependent(Isolate* isolate) {
 
 template <class T>
 void Persistent<T>::SetWrapperClassId(uint16_t class_id) {
-  V8::SetWrapperClassId(reinterpret_cast<internal::Object**>(**this), class_id);
+  typedef internal::Internals I;
+  internal::Object** obj = reinterpret_cast<internal::Object**>(**this);
+  uint8_t* addr = reinterpret_cast<uint8_t*>(obj) + I::kNodeClassIdOffset;
+  *reinterpret_cast<uint16_t*>(addr) = class_id;
 }
 
 template <class T>
 uint16_t Persistent<T>::WrapperClassId() const {
-  return V8::GetWrapperClassId(reinterpret_cast<internal::Object**>(**this));
+  typedef internal::Internals I;
+  internal::Object** obj = reinterpret_cast<internal::Object**>(**this);
+  uint8_t* addr = reinterpret_cast<uint8_t*>(obj) + I::kNodeClassIdOffset;
+  return *reinterpret_cast<uint16_t*>(addr);
 }
 
 Arguments::Arguments(internal::Object** implicit_args,

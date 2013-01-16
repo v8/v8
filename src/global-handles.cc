@@ -61,6 +61,7 @@ class GlobalHandles::Node {
 
   Node() {
     ASSERT(OFFSET_OF(Node, flags_) == Internals::kNodeFlagsOffset);
+    ASSERT(OFFSET_OF(Node, class_id_) == Internals::kNodeClassIdOffset);
     ASSERT(static_cast<int>(IsIndependent::kShift) ==
            Internals::kNodeIsIndependentShift);
     ASSERT(static_cast<int>(IsPartiallyDependent::kShift) ==

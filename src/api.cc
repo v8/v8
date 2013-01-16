@@ -4807,16 +4807,6 @@ void Context::SetErrorMessageForCodeGenerationFromStrings(
 }
 
 
-void V8::SetWrapperClassId(i::Object** global_handle, uint16_t class_id) {
-  i::GlobalHandles::SetWrapperClassId(global_handle, class_id);
-}
-
-
-uint16_t V8::GetWrapperClassId(internal::Object** global_handle) {
-  return i::GlobalHandles::GetWrapperClassId(global_handle);
-}
-
-
 Local<v8::Object> ObjectTemplate::NewInstance() {
   i::Isolate* isolate = i::Isolate::Current();
   ON_BAILOUT(isolate, "v8::ObjectTemplate::NewInstance()",
