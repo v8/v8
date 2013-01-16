@@ -535,19 +535,20 @@ void OS::LogSharedLibraryAddresses() {
       // the beginning of the filename or the end of the line.
       do {
         c = getc(fp);
-      } while ((c != EOF) && (c != '\n') && (c != '/'));
+      } while ((c != EOF) && (c != '\n') && (c != '/') && (c != '['));
       if (c == EOF) break;  // EOF: Was unexpected, just exit.
 
       // Process the filename if found.
-      if (c == '/') {
-        ungetc(c, fp);  // Push the '/' back into the stream to be read below.
+      if ((c == '/') || (c == '[')) {
+        // Push the '/' or '[' back into the stream to be read below.
+        ungetc(c, fp);
 
         // Read to the end of the line. Exit if the read fails.
         if (fgets(lib_name, kLibNameLen, fp) == NULL) break;
 
         // Drop the newline character read by fgets. We do not need to check
         // for a zero-length string because we know that we at least read the
-        // '/' character.
+        // '/' or '[' character.
         lib_name[strlen(lib_name) - 1] = '\0';
       } else {
         // No library name found, just record the raw address range.
