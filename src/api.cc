@@ -668,13 +668,6 @@ void V8::MarkIndependent(i::Object** object) {
 }
 
 
-void V8::MarkIndependent(i::Isolate* isolate, i::Object** object) {
-  ASSERT(isolate == i::Isolate::Current());
-  LOG_API(isolate, "MarkIndependent");
-  isolate->global_handles()->MarkIndependent(object);
-}
-
-
 void V8::MarkPartiallyDependent(i::Object** object) {
   i::Isolate* isolate = i::Isolate::Current();
   LOG_API(isolate, "MarkPartiallyDependent");
@@ -682,23 +675,8 @@ void V8::MarkPartiallyDependent(i::Object** object) {
 }
 
 
-void V8::MarkPartiallyDependent(i::Isolate* isolate, i::Object** object) {
-  ASSERT(isolate == i::Isolate::Current());
-  LOG_API(isolate, "MarkPartiallyDependent");
-  isolate->global_handles()->MarkPartiallyDependent(object);
-}
-
-
 bool V8::IsGlobalIndependent(i::Object** obj) {
   i::Isolate* isolate = i::Isolate::Current();
-  LOG_API(isolate, "IsGlobalIndependent");
-  if (!isolate->IsInitialized()) return false;
-  return i::GlobalHandles::IsIndependent(obj);
-}
-
-
-bool V8::IsGlobalIndependent(i::Isolate* isolate, i::Object** obj) {
-  ASSERT(isolate == i::Isolate::Current());
   LOG_API(isolate, "IsGlobalIndependent");
   if (!isolate->IsInitialized()) return false;
   return i::GlobalHandles::IsIndependent(obj);

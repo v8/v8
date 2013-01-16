@@ -4152,11 +4152,15 @@ class Internals {
   static const int kIsolateStateOffset = 0;
   static const int kIsolateEmbedderDataOffset = 1 * kApiPointerSize;
   static const int kIsolateRootsOffset = 3 * kApiPointerSize;
+  static const int kNodeFlagsOffset = 1 * kApiPointerSize + 3;
   static const int kUndefinedValueRootIndex = 5;
   static const int kNullValueRootIndex = 7;
   static const int kTrueValueRootIndex = 8;
   static const int kFalseValueRootIndex = 9;
   static const int kEmptySymbolRootIndex = 119;
+
+  static const int kNodeIsIndependentShift = 4;
+  static const int kNodeIsPartiallyDependentShift = 5;
 
   static const int kJSObjectType = 0xab;
   static const int kFirstNonstringType = 0x80;
@@ -4194,6 +4198,18 @@ class Internals {
   V8_INLINE(static bool IsInitialized(v8::Isolate* isolate)) {
     uint8_t* addr = reinterpret_cast<uint8_t*>(isolate) + kIsolateStateOffset;
     return *reinterpret_cast<int*>(addr) == 1;
+  }
+
+  V8_INLINE(static uint8_t GetNodeFlag(internal::Object** obj, int shift)) {
+      uint8_t* addr = reinterpret_cast<uint8_t*>(obj) + kNodeFlagsOffset;
+      return *addr & (1 << shift);
+  }
+
+  V8_INLINE(static void UpdateNodeFlag(internal::Object** obj,
+                                       bool value, int shift)) {
+      uint8_t* addr = reinterpret_cast<uint8_t*>(obj) + kNodeFlagsOffset;
+      uint8_t mask = 1 << shift;
+      *addr = (*addr & ~mask) | (value << shift);
   }
 
   V8_INLINE(static void SetEmbedderData(v8::Isolate* isolate, void* data)) {
@@ -4289,9 +4305,11 @@ bool Persistent<T>::IsIndependent() const {
 
 template <class T>
 bool Persistent<T>::IsIndependent(Isolate* isolate) const {
+  typedef internal::Internals I;
   if (this->IsEmpty()) return false;
-  return V8::IsGlobalIndependent(reinterpret_cast<internal::Isolate*>(isolate),
-                                 reinterpret_cast<internal::Object**>(**this));
+  if (!I::IsInitialized(isolate)) return false;
+  return I::GetNodeFlag(reinterpret_cast<internal::Object**>(**this),
+                        I::kNodeIsIndependentShift);
 }
 
 
@@ -4363,8 +4381,11 @@ void Persistent<T>::MarkIndependent() {
 
 template <class T>
 void Persistent<T>::MarkIndependent(Isolate* isolate) {
-  V8::MarkIndependent(reinterpret_cast<internal::Isolate*>(isolate),
-                      reinterpret_cast<internal::Object**>(**this));
+  typedef internal::Internals I;
+  if (this->IsEmpty()) return;
+  if (!I::IsInitialized(isolate)) return;
+  I::UpdateNodeFlag(reinterpret_cast<internal::Object**>(**this),
+                    true, I::kNodeIsIndependentShift);
 }
 
 template <class T>
@@ -4374,8 +4395,11 @@ void Persistent<T>::MarkPartiallyDependent() {
 
 template <class T>
 void Persistent<T>::MarkPartiallyDependent(Isolate* isolate) {
-  V8::MarkPartiallyDependent(reinterpret_cast<internal::Isolate*>(isolate),
-                             reinterpret_cast<internal::Object**>(**this));
+  typedef internal::Internals I;
+  if (this->IsEmpty()) return;
+  if (!I::IsInitialized(isolate)) return;
+  I::UpdateNodeFlag(reinterpret_cast<internal::Object**>(**this),
+                    true, I::kNodeIsPartiallyDependentShift);
 }
 
 template <class T>

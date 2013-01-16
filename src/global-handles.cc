@@ -59,7 +59,13 @@ class GlobalHandles::Node {
     return reinterpret_cast<Node*>(location);
   }
 
-  Node() {}
+  Node() {
+    ASSERT(OFFSET_OF(Node, flags_) == Internals::kNodeFlagsOffset);
+    ASSERT(static_cast<int>(IsIndependent::kShift) ==
+           Internals::kNodeIsIndependentShift);
+    ASSERT(static_cast<int>(IsPartiallyDependent::kShift) ==
+           Internals::kNodeIsPartiallyDependentShift);
+  }
 
 #ifdef DEBUG
   ~Node() {
