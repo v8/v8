@@ -3796,6 +3796,9 @@ class V8EXPORT Context {
   /** Returns true if V8 has a current context. */
   static bool InContext();
 
+  /** Returns an isolate associated with a current context. */
+  v8::Isolate* GetIsolate();
+
   /**
    * Gets the embedder data with the given index, which must have been set by a
    * previous call to SetEmbedderData with the same index. Note that index 0

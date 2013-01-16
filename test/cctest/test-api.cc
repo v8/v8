@@ -168,6 +168,23 @@ THREADED_TEST(Handles) {
 }
 
 
+THREADED_TEST(IsolateOfContext) {
+  v8::HandleScope scope;
+  v8::Persistent<Context> env = Context::New();
+
+  CHECK(!env->InContext());
+  CHECK(env->GetIsolate() == v8::Isolate::GetCurrent());
+  env->Enter();
+  CHECK(env->InContext());
+  CHECK(env->GetIsolate() == v8::Isolate::GetCurrent());
+  env->Exit();
+  CHECK(!env->InContext());
+  CHECK(env->GetIsolate() == v8::Isolate::GetCurrent());
+
+  env.Dispose();
+}
+
+
 THREADED_TEST(ReceiverSignature) {
   v8::HandleScope scope;
   LocalContext env;

@@ -4682,6 +4682,12 @@ bool Context::InContext() {
 }
 
 
+v8::Isolate* Context::GetIsolate() {
+  i::Handle<i::Context> env = Utils::OpenHandle(this);
+  return reinterpret_cast<Isolate*>(env->GetIsolate());
+}
+
+
 v8::Local<v8::Context> Context::GetEntered() {
   i::Isolate* isolate = i::Isolate::Current();
   if (!EnsureInitializedForIsolate(isolate, "v8::Context::GetEntered()")) {
