@@ -633,20 +633,24 @@ void ExternalStringTable::Verify() {
     // TODO(yangguo): check that the object is indeed an external string.
     ASSERT(heap_->InNewSpace(obj));
     ASSERT(obj != HEAP->the_hole_value());
+#ifndef ENABLE_LATIN_1
     if (obj->IsExternalAsciiString()) {
       ExternalAsciiString* string = ExternalAsciiString::cast(obj);
       ASSERT(String::IsAscii(string->GetChars(), string->length()));
     }
+#endif
   }
   for (int i = 0; i < old_space_strings_.length(); ++i) {
     Object* obj = Object::cast(old_space_strings_[i]);
     // TODO(yangguo): check that the object is indeed an external string.
     ASSERT(!heap_->InNewSpace(obj));
     ASSERT(obj != HEAP->the_hole_value());
+#ifndef ENABLE_LATIN_1
     if (obj->IsExternalAsciiString()) {
       ExternalAsciiString* string = ExternalAsciiString::cast(obj);
       ASSERT(String::IsAscii(string->GetChars(), string->length()));
     }
+#endif
   }
 #endif
 }

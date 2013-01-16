@@ -2025,7 +2025,6 @@ Object* LiveObjectList::PrintObj(int obj_id) {
   MemoryMappedExternalResource* resource =
       new MemoryMappedExternalResource(temp_filename.start(), true);
   if (resource->exists() && !resource->is_empty()) {
-    ASSERT(resource->IsAscii());
     Handle<String> dump_string =
         factory->NewExternalStringFromAscii(resource);
     heap->external_string_table()->AddString(*dump_string);
@@ -2232,7 +2231,6 @@ Object* LiveObjectList::GetPathPrivate(HeapObject* obj1, HeapObject* obj2) {
   MemoryMappedExternalResource* resource =
       new MemoryMappedExternalResource(temp_filename.start(), true);
   if (resource->exists() && !resource->is_empty()) {
-    ASSERT(resource->IsAscii());
     Handle<String> path_string =
         factory->NewExternalStringFromAscii(resource);
     heap->external_string_table()->AddString(*path_string);

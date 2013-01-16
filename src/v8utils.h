@@ -280,10 +280,6 @@ class MemoryMappedExternalResource: public
   bool exists() const { return file_ != NULL; }
   bool is_empty() const { return length_ == 0; }
 
-  bool EnsureIsAscii(bool abort_if_failed) const;
-  bool EnsureIsAscii() const { return EnsureIsAscii(true); }
-  bool IsAscii() const { return EnsureIsAscii(false); }
-
  private:
   void Init(const char* filename);
 
