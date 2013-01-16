@@ -1148,7 +1148,16 @@ void Deoptimizer::EntryGenerator::Generate() {
       __ movdbl(Operand(ebx, dst_offset), xmm0);
     }
   }
-  __ fninit();
+
+  // Check that the TOP register is zero and clear all exceptions.
+  const int kTopMask = 0x3800;
+  __ push(eax);
+  __ fwait();
+  __ fnstsw_ax();
+  __ test(eax, Immediate(kTopMask));
+  __ Check(zero, "FPU TOP is not zero in deoptimizer.");
+  __ fnclex();
+  __ pop(eax);
 
   // Remove the bailout id and the double registers from the stack.
   if (type() == EAGER) {
