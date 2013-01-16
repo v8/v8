@@ -249,7 +249,8 @@ void CopyCharsUnsigned(sinkchar* dest, const sourcechar* src, int chars) {
     }
     // Number of characters in a uintptr_t.
     static const int kStepSize = sizeof(uintptr_t) / sizeof(*dest);  // NOLINT
-    while (dest <= limit - kStepSize) {
+    ASSERT(dest + kStepSize > dest);  // Check for overflow.
+    while (dest + kStepSize <= limit) {
       *reinterpret_cast<uintptr_t*>(dest) =
           *reinterpret_cast<const uintptr_t*>(src);
       dest += kStepSize;

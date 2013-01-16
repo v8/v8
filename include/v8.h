@@ -1135,9 +1135,9 @@ class V8EXPORT String : public Primitive {
                  int options = NO_OPTIONS) const;
   // One byte characters.
   int WriteOneByte(uint8_t* buffer,
-                            int start = 0,
-                            int length = -1,
-                            int options = NO_OPTIONS) const;
+                   int start = 0,
+                   int length = -1,
+                   int options = NO_OPTIONS) const;
   // UTF-8 encoded characters.
   int WriteUtf8(char* buffer,
                 int length = -1,

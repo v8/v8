@@ -6220,6 +6220,10 @@ THREADED_TEST(StringWrite) {
   CHECK_EQ(0, strcmp("abc", buf));
   CHECK_EQ(0, buf[3]);
   CHECK_EQ(0, strcmp("def", buf + 4));
+
+  CHECK_EQ(0, str->WriteAscii(NULL, 0, 0, String::NO_NULL_TERMINATION));
+  CHECK_EQ(0, str->WriteUtf8(NULL, 0, 0, String::NO_NULL_TERMINATION));
+  CHECK_EQ(0, str->Write(NULL, 0, 0, String::NO_NULL_TERMINATION));
 }
 
 
@@ -18144,4 +18148,5 @@ class ThreadInterruptTest {
 THREADED_TEST(SemaphoreInterruption) {
   ThreadInterruptTest().RunTest();
 }
+
 #endif  // WIN32
