@@ -86,12 +86,12 @@ void CodeGenerator::MakeCodePrologue(CompilationInfo* info) {
     PrintF(" ***\n");
   }
 
-  if (!info->IsStub() && print_source) {
+  if (print_source) {
     PrintF("--- Source from AST ---\n%s\n",
            PrettyPrinter().PrintProgram(info->function()));
   }
 
-  if (!info->IsStub() && print_ast) {
+  if (print_ast) {
     PrintF("--- AST ---\n%s\n",
            AstPrinter().PrintProgram(info->function()));
   }

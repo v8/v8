@@ -3639,7 +3639,8 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(CallRuntime* expr) {
   __ mov(scratch, FieldOperand(string, HeapObject::kMapOffset));
   __ movzx_b(scratch, FieldOperand(scratch, Map::kInstanceTypeOffset));
   __ and_(scratch, Immediate(
-      kIsNotStringMask | kStringEncodingMask | kStringRepresentationMask));
+      kIsNotStringMask | kStringEncodingMask | kAsciiDataHintMask |
+      kStringRepresentationMask));
   __ cmp(scratch, ASCII_STRING_TYPE);
   __ j(not_equal, &bailout);
 

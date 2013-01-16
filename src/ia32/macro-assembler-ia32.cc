@@ -2706,15 +2706,17 @@ void MacroAssembler::JumpIfNotBothSequentialAsciiStrings(Register object1,
   movzx_b(scratch2, FieldOperand(scratch2, Map::kInstanceTypeOffset));
 
   // Check that both are flat ASCII strings.
-  const int kFlatAsciiStringMask =
-      kIsNotStringMask | kStringRepresentationMask | kStringEncodingMask;
+  const int kFlatAsciiStringMask = kIsNotStringMask | kStringRepresentationMask
+          | kStringEncodingMask | kAsciiDataHintTag;
   const int kFlatAsciiStringTag = ASCII_STRING_TYPE;
   // Interleave bits from both instance types and compare them in one check.
-  ASSERT_EQ(0, kFlatAsciiStringMask & (kFlatAsciiStringMask << 3));
+  ASSERT_EQ(0, kFlatAsciiStringMask & (kFlatAsciiStringMask << 8));
+  ASSERT_EQ(ASCII_STRING_TYPE, ASCII_STRING_TYPE & kFlatAsciiStringMask);
   and_(scratch1, kFlatAsciiStringMask);
   and_(scratch2, kFlatAsciiStringMask);
-  lea(scratch1, Operand(scratch1, scratch2, times_8, 0));
-  cmp(scratch1, kFlatAsciiStringTag | (kFlatAsciiStringTag << 3));
+  shl(scratch1, 8);
+  or_(scratch1, scratch2);
+  cmp(scratch1, kFlatAsciiStringTag | (kFlatAsciiStringTag << 8));
   j(not_equal, failure);
 }
 
