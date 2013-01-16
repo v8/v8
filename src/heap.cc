@@ -888,6 +888,7 @@ bool Heap::PerformGarbageCollection(GarbageCollector collector,
   if (collector == MARK_COMPACTOR && global_gc_prologue_callback_) {
     ASSERT(!allocation_allowed_);
     GCTracer::Scope scope(tracer, GCTracer::Scope::EXTERNAL);
+    VMState state(isolate_, EXTERNAL);
     global_gc_prologue_callback_();
   }
 
@@ -896,6 +897,7 @@ bool Heap::PerformGarbageCollection(GarbageCollector collector,
 
   {
     GCTracer::Scope scope(tracer, GCTracer::Scope::EXTERNAL);
+    VMState state(isolate_, EXTERNAL);
     for (int i = 0; i < gc_prologue_callbacks_.length(); ++i) {
       if (gc_type & gc_prologue_callbacks_[i].gc_type) {
         gc_prologue_callbacks_[i].callback(gc_type, kNoGCCallbackFlags);
@@ -1009,6 +1011,7 @@ bool Heap::PerformGarbageCollection(GarbageCollector collector,
 
   {
     GCTracer::Scope scope(tracer, GCTracer::Scope::EXTERNAL);
+    VMState state(isolate_, EXTERNAL);
     GCCallbackFlags callback_flags = kNoGCCallbackFlags;
     for (int i = 0; i < gc_epilogue_callbacks_.length(); ++i) {
       if (gc_type & gc_epilogue_callbacks_[i].gc_type) {
@@ -1020,6 +1023,7 @@ bool Heap::PerformGarbageCollection(GarbageCollector collector,
   if (collector == MARK_COMPACTOR && global_gc_epilogue_callback_) {
     ASSERT(!allocation_allowed_);
     GCTracer::Scope scope(tracer, GCTracer::Scope::EXTERNAL);
+    VMState state(isolate_, EXTERNAL);
     global_gc_epilogue_callback_();
   }
 
