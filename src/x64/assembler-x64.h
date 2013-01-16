@@ -732,6 +732,7 @@ class Assembler : public AssemblerBase {
   void movzxbl(Register dst, const Operand& src);
   void movzxwq(Register dst, const Operand& src);
   void movzxwl(Register dst, const Operand& src);
+  void movzxwl(Register dst, Register src);
 
   // Repeated moves.
 
