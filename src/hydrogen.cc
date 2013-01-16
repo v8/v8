@@ -7548,7 +7548,10 @@ bool HOptimizedGraphBuilder::TryCallApply(Call* expr) {
     return true;
   } else {
     // We are inside inlined function and we know exactly what is inside
-    // arguments object.
+    // arguments object. But we need to be able to materialize at deopt.
+    // TODO(mstarzinger): For now we just ensure arguments are pushed
+    // right after HEnterInlined, but we could be smarter about this.
+    EnsureArgumentsArePushedForAccess();
     HValue* context = environment()->LookupContext();
 
     HValue* wrapped_receiver =
