@@ -47,7 +47,8 @@ char IC::TransitionMarkFromState(IC::State state) {
     case MONOMORPHIC: return '1';
     case MONOMORPHIC_PROTOTYPE_FAILURE: return '^';
     case POLYMORPHIC: return 'P';
-    case MEGAMORPHIC: return IsGeneric() ? 'G' : 'N';
+    case MEGAMORPHIC: return 'N';
+    case GENERIC: return 'G';
 
     // We never see the debugger states here, because the state is
     // computed from the original code - not the patched code. Let
@@ -772,6 +773,7 @@ void CallICBase::UpdateCaches(LookupResult* lookup,
     case DEBUG_STUB:
       break;
     case POLYMORPHIC:
+    case GENERIC:
       UNREACHABLE();
       break;
   }
@@ -796,6 +798,7 @@ MaybeObject* KeyedCallIC::LoadFunction(State state,
   }
 
   if (FLAG_use_ic && state != MEGAMORPHIC && object->IsHeapObject()) {
+    ASSERT(state != GENERIC);
     int argc = target()->arguments_count();
     Handle<Map> map =
         isolate()->factory()->non_strict_arguments_elements_map();
@@ -855,6 +858,7 @@ MaybeObject* LoadIC::Load(State state,
       } else if (state == MONOMORPHIC && object->IsStringWrapper()) {
         stub = isolate()->builtins()->LoadIC_StringWrapperLength();
       } else if (state != MEGAMORPHIC) {
+        ASSERT(state != GENERIC);
         stub = megamorphic_stub();
       }
       if (!stub.is_null()) {
@@ -879,6 +883,7 @@ MaybeObject* LoadIC::Load(State state,
       } else if (state == PREMONOMORPHIC) {
         stub = isolate()->builtins()->LoadIC_ArrayLength();
       } else if (state != MEGAMORPHIC) {
+        ASSERT(state != GENERIC);
         stub = megamorphic_stub();
       }
       if (!stub.is_null()) {
@@ -900,6 +905,7 @@ MaybeObject* LoadIC::Load(State state,
       } else if (state == PREMONOMORPHIC) {
         stub = isolate()->builtins()->LoadIC_FunctionPrototype();
       } else if (state != MEGAMORPHIC) {
+        ASSERT(state != GENERIC);
         stub = megamorphic_stub();
       }
       if (!stub.is_null()) {
@@ -1067,6 +1073,7 @@ void LoadIC::UpdateCaches(LookupResult* lookup,
     case DEBUG_STUB:
       break;
     case POLYMORPHIC:
+    case GENERIC:
       UNREACHABLE();
       break;
   }
@@ -1339,6 +1346,7 @@ void KeyedLoadIC::UpdateCaches(LookupResult* lookup,
     case DEBUG_STUB:
       break;
     case MONOMORPHIC_PROTOTYPE_FAILURE:
+    case GENERIC:
       UNREACHABLE();
       break;
   }
@@ -1614,6 +1622,7 @@ void StoreIC::UpdateCaches(LookupResult* lookup,
     case DEBUG_STUB:
       break;
     case POLYMORPHIC:
+    case GENERIC:
       UNREACHABLE();
       break;
   }
@@ -1658,6 +1667,7 @@ void KeyedIC::GetReceiverMapsForStub(Handle<Code> stub,
         break;
       }
       case MEGAMORPHIC:
+      case GENERIC:
         break;
       case UNINITIALIZED:
       case PREMONOMORPHIC:
@@ -2111,6 +2121,7 @@ void KeyedStoreIC::UpdateCaches(LookupResult* lookup,
     case DEBUG_STUB:
       break;
     case MONOMORPHIC_PROTOTYPE_FAILURE:
+    case GENERIC:
       UNREACHABLE();
       break;
   }
@@ -2354,7 +2365,7 @@ UnaryOpIC::State UnaryOpIC::ToState(TypeInfo type_info) {
     case HEAP_NUMBER:
       return MONOMORPHIC;
     case GENERIC:
-      return MEGAMORPHIC;
+      return ::v8::internal::GENERIC;
   }
   UNREACHABLE();
   return ::v8::internal::UNINITIALIZED;
@@ -2425,7 +2436,7 @@ BinaryOpIC::State BinaryOpIC::ToState(TypeInfo type_info) {
     case STRING:
       return MONOMORPHIC;
     case GENERIC:
-      return MEGAMORPHIC;
+      return ::v8::internal::GENERIC;
   }
   UNREACHABLE();
   return ::v8::internal::UNINITIALIZED;
