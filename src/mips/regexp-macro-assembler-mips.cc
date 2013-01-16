@@ -341,7 +341,17 @@ void RegExpMacroAssemblerMIPS::CheckNotBackReferenceIgnoreCase(
     __ Or(t0, t0, Operand(0x20));  // Also convert input character.
     __ Branch(&fail, ne, t0, Operand(a3));
     __ Subu(a3, a3, Operand('a'));
+#ifndef ENABLE_LATIN_1
     __ Branch(&fail, hi, a3, Operand('z' - 'a'));  // Is a3 a lowercase letter?
+#else
+    __ Branch(&loop_check, ls, a3, Operand('z' - 'a'));
+    // Latin-1: Check for values in range [224,254] but not 247.
+    __ Subu(a3, a3, Operand(224 - 'a'));
+    // Weren't Latin-1 letters.
+    __ Branch(&fail, hi, a3, Operand(254 - 224));
+    // Check for 247.
+    __ Branch(&fail, eq, a3, Operand(247 - 224));
+#endif
 
     __ bind(&loop_check);
     __ Branch(&loop, lt, a0, Operand(a1));
