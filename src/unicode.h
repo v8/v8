@@ -140,6 +140,7 @@ class Latin1 {
 #else
   static const unsigned kMaxChar = 0xff;
 #endif
+  static inline bool NonLatin1CanBeConvertedToLatin1(uint16_t);
 };
 
 class Utf8 {

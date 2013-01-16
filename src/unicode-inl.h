@@ -79,6 +79,36 @@ template <class T, int s> int Mapping<T, s>::CalculateValue(uchar c, uchar n,
 }
 
 
+bool Latin1::NonLatin1CanBeConvertedToLatin1(uint16_t c) {
+  ASSERT(c > Latin1::kMaxChar);
+  switch (c) {
+    case 0x130:
+    case 0x131:
+    case 0x149:
+    case 0x178:
+    case 0x17f:
+    case 0x1f0:
+    case 0x1e96:
+    case 0x1e97:
+    case 0x1e98:
+    case 0x1e99:
+    case 0x1e9a:
+    case 0x1e9e:
+    case 0x212a:
+    case 0x212b:
+    case 0xfb00:
+    case 0xfb01:
+    case 0xfb02:
+    case 0xfb03:
+    case 0xfb04:
+    case 0xfb05:
+    case 0xfb06:
+      return true;
+  }
+  return false;
+}
+
+
 unsigned Utf8::Encode(char* str, uchar c, int previous) {
   static const int kMask = ~(1 << 6);
   if (c <= kMaxOneByteChar) {

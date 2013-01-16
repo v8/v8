@@ -2875,23 +2875,9 @@ RegExpNode* TextNode::FilterASCII(int depth, bool ignore_case) {
         if (!ignore_case) return set_replacement(NULL);
         // Here, we need to check for characters whose upper and lower cases
         // are outside the Latin-1 range.
-        // TODO(dcarney): Replace this code with a simple
-        // table lookup in unibrow::Latin-1.
-        // TODO(dcarney): Test cases!.
-        unibrow::uchar result;
-        int chars;
-        chars = unibrow::ToLowercase::Convert(quarks[j], 0, &result, NULL);
-        if (chars > 1 ||
-            (chars == 1 && result <= String::kMaxOneByteCharCodeU)) {
-          continue;
+        if (!unibrow::Latin1::NonLatin1CanBeConvertedToLatin1(quarks[j])) {
+          return set_replacement(NULL);
         }
-        chars = unibrow::ToUppercase::Convert(quarks[j], 0, &result, NULL);
-        if (chars > 1 ||
-            (chars == 1 && result <= String::kMaxOneByteCharCodeU)) {
-          continue;
-        }
-        // This character is definitely not in the Latin-1 range.
-        return set_replacement(NULL);
 #endif
       }
     } else {
