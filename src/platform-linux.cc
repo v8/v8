@@ -1208,7 +1208,9 @@ class SignalSender : public Thread {
 #if defined(ANDROID)
     syscall(__NR_tgkill, vm_tgid_, tid, SIGPROF);
 #else
-    syscall(SYS_tgkill, vm_tgid_, tid, SIGPROF);
+    int result = syscall(SYS_tgkill, vm_tgid_, tid, SIGPROF);
+    USE(result);
+    ASSERT(result == 0);
 #endif
   }
 
