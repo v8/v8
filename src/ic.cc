@@ -1343,10 +1343,10 @@ void KeyedLoadIC::UpdateCaches(LookupResult* lookup,
       }
       break;
     case MEGAMORPHIC:
+    case GENERIC:
     case DEBUG_STUB:
       break;
     case MONOMORPHIC_PROTOTYPE_FAILURE:
-    case GENERIC:
       UNREACHABLE();
       break;
   }
@@ -2124,10 +2124,10 @@ void KeyedStoreIC::UpdateCaches(LookupResult* lookup,
       }
       break;
     case MEGAMORPHIC:
+    case GENERIC:
     case DEBUG_STUB:
       break;
     case MONOMORPHIC_PROTOTYPE_FAILURE:
-    case GENERIC:
       UNREACHABLE();
       break;
   }
