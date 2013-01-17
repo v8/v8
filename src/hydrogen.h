@@ -273,7 +273,6 @@ class HGraph: public ZoneObject {
   void EliminateRedundantBoundsChecks();
   void DehoistSimpleArrayIndexComputations();
   void DeadCodeElimination();
-  void ApplyActualValues();
   void PropagateDeoptimizingMark();
   void EliminateUnusedInstructions();
 
@@ -890,8 +889,7 @@ class HGraphBuilder {
       HCheckMaps* mapcheck,
       bool is_js_array,
       ElementsKind elements_kind,
-      bool is_store,
-      Representation checked_index_representation = Representation::None());
+      bool is_store);
 
  private:
   HGraphBuilder();
