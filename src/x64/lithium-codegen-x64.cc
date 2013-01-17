@@ -3601,8 +3601,7 @@ void LCodeGen::DoRandom(LRandom* instr) {
 
   // state[0] = 18273 * (state[0] & 0xFFFF) + (state[0] >> 16)
   // Only operate on the lower 32 bit of rax.
-  __ movl(rdx, rax);
-  __ andl(rdx, Immediate(0xFFFF));
+  __ movzxwl(rdx, rax);
   __ imull(rdx, rdx, Immediate(18273));
   __ shrl(rax, Immediate(16));
   __ addl(rax, rdx);
@@ -3610,8 +3609,7 @@ void LCodeGen::DoRandom(LRandom* instr) {
   __ movl(FieldOperand(rbx, ByteArray::kHeaderSize), rax);
 
   // state[1] = 36969 * (state[1] & 0xFFFF) + (state[1] >> 16)
-  __ movl(rdx, rcx);
-  __ andl(rdx, Immediate(0xFFFF));
+  __ movzxwl(rdx, rcx);
   __ imull(rdx, rdx, Immediate(36969));
   __ shrl(rcx, Immediate(16));
   __ addl(rcx, rdx);
@@ -3627,10 +3625,10 @@ void LCodeGen::DoRandom(LRandom* instr) {
   // Convert 32 random bits in rax to 0.(32 random bits) in a double
   // by computing:
   // ( 1.(20 0s)(32 random bits) x 2^20 ) - (1.0 x 2^20)).
-  __ movl(rcx, Immediate(0x49800000));  // 1.0 x 2^20 as single.
-  __ movd(xmm2, rcx);
+  __ movq(rcx, V8_INT64_C(0x4130000000000000),
+          RelocInfo::NONE64);  // 1.0 x 2^20 as double
+  __ movq(xmm2, rcx);
   __ movd(xmm1, rax);
-  __ cvtss2sd(xmm2, xmm2);
   __ xorps(xmm1, xmm2);
   __ subsd(xmm1, xmm2);
 }
