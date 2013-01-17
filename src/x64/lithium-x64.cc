@@ -690,6 +690,11 @@ LInstruction* LChunkBuilder::DoBlockEntry(HBlockEntry* instr) {
 }
 
 
+LInstruction* LChunkBuilder::DoDummyUse(HDummyUse* instr) {
+  return DefineAsRegister(new(zone()) LDummyUse(UseAny(instr->value())));
+}
+
+
 LInstruction* LChunkBuilder::DoSoftDeoptimize(HSoftDeoptimize* instr) {
   return AssignEnvironment(new(zone()) LDeoptimize);
 }

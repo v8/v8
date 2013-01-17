@@ -104,6 +104,7 @@ class LChunkBuilder;
   V(DeleteProperty)                            \
   V(Deoptimize)                                \
   V(Div)                                       \
+  V(DummyUse)                                  \
   V(ElementsKind)                              \
   V(EnterInlined)                              \
   V(FastLiteral)                               \
@@ -1029,6 +1030,28 @@ class HBlockEntry: public HTemplateInstruction<0> {
   }
 
   DECLARE_CONCRETE_INSTRUCTION(BlockEntry)
+};
+
+
+class HDummyUse: public HTemplateInstruction<1> {
+ public:
+  explicit HDummyUse(HValue* value) {
+    SetOperandAt(0, value);
+    // Pretend to be a Smi so that the HChange instructions inserted
+    // before any use generate as little code as possible.
+    set_representation(Representation::Tagged());
+    set_type(HType::Smi());
+  }
+
+  HValue* value() { return OperandAt(0); }
+
+  virtual Representation RequiredInputRepresentation(int index) {
+    return Representation::None();
+  }
+
+  virtual void PrintDataTo(StringStream* stream);
+
+  DECLARE_CONCRETE_INSTRUCTION(DummyUse);
 };
 
 

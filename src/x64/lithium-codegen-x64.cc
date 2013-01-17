@@ -5377,6 +5377,11 @@ void LCodeGen::DoDeoptimize(LDeoptimize* instr) {
 }
 
 
+void LCodeGen::DoDummyUse(LDummyUse* instr) {
+  // Nothing to see here, move on!
+}
+
+
 void LCodeGen::DoDeleteProperty(LDeleteProperty* instr) {
   LOperand* obj = instr->object();
   LOperand* key = instr->key();

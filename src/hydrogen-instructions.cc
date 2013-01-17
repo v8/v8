@@ -737,6 +737,11 @@ void HInstruction::Verify() {
 #endif
 
 
+void HDummyUse::PrintDataTo(StringStream* stream) {
+  value()->PrintNameTo(stream);
+}
+
+
 void HUnaryCall::PrintDataTo(StringStream* stream) {
   value()->PrintNameTo(stream);
   stream->Add(" ");

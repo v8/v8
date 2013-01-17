@@ -87,6 +87,7 @@ class LCodeGen;
   V(Deoptimize)                                 \
   V(DivI)                                       \
   V(DoubleToI)                                  \
+  V(DummyUse)                                   \
   V(ElementsKind)                               \
   V(FastLiteral)                                \
   V(FixedArrayBaseLength)                       \
@@ -384,6 +385,15 @@ class LGoto: public LTemplateInstruction<0, 0, 0> {
 class LLazyBailout: public LTemplateInstruction<0, 0, 0> {
  public:
   DECLARE_CONCRETE_INSTRUCTION(LazyBailout, "lazy-bailout")
+};
+
+
+class LDummyUse: public LTemplateInstruction<1, 1, 0> {
+ public:
+  explicit LDummyUse(LOperand* value) {
+    inputs_[0] = value;
+  }
+  DECLARE_CONCRETE_INSTRUCTION(DummyUse, "dummy-use")
 };
 
 
