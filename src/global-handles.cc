@@ -129,7 +129,6 @@ class GlobalHandles::Node {
   }
 
   uint16_t wrapper_class_id() const { return class_id_; }
-  void set_wrapper_class_id(uint16_t class_id) { class_id_ = class_id; }
 
   // State and flag accessors.
 
@@ -507,14 +506,6 @@ bool GlobalHandles::IsWeak(Object** location) {
   return Node::FromLocation(location)->IsWeak();
 }
 
-
-void GlobalHandles::SetWrapperClassId(Object** location, uint16_t class_id) {
-  Node::FromLocation(location)->set_wrapper_class_id(class_id);
-}
-
-uint16_t GlobalHandles::GetWrapperClassId(Object** location) {
-  return Node::FromLocation(location)->wrapper_class_id();
-}
 
 void GlobalHandles::IterateWeakRoots(ObjectVisitor* v) {
   for (NodeIterator it(this); !it.done(); it.Advance()) {
