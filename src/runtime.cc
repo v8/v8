@@ -667,7 +667,11 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateArrayLiteralShallow) {
       isolate->heap()->fixed_cow_array_map()) {
     isolate->counters()->cow_arrays_created_runtime()->Increment();
   }
-  return isolate->heap()->CopyJSObject(JSObject::cast(*boilerplate));
+
+  JSObject* boilerplate_object = JSObject::cast(*boilerplate);
+  AllocationSiteMode mode = AllocationSiteInfo::GetMode(
+      boilerplate_object->GetElementsKind());
+  return isolate->heap()->CopyJSObject(boilerplate_object, mode);
 }
 
 

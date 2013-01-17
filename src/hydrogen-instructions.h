@@ -4968,19 +4968,29 @@ class HAllocateObject: public HTemplateInstruction<1> {
 template <int V>
 class HMaterializedLiteral: public HTemplateInstruction<V> {
  public:
+  HMaterializedLiteral<V>(int index, int depth, AllocationSiteMode mode)
+      : literal_index_(index), depth_(depth), allocation_site_mode_(mode) {
+    this->set_representation(Representation::Tagged());
+  }
+
   HMaterializedLiteral<V>(int index, int depth)
-      : literal_index_(index), depth_(depth) {
+      : literal_index_(index), depth_(depth),
+        allocation_site_mode_(DONT_TRACK_ALLOCATION_SITE) {
     this->set_representation(Representation::Tagged());
   }
 
   int literal_index() const { return literal_index_; }
   int depth() const { return depth_; }
+  AllocationSiteMode allocation_site_mode() const {
+    return allocation_site_mode_;
+  }
 
  private:
   virtual bool IsDeletable() const { return true; }
 
   int literal_index_;
   int depth_;
+  AllocationSiteMode allocation_site_mode_;
 };
 
 
@@ -4990,8 +5000,9 @@ class HFastLiteral: public HMaterializedLiteral<1> {
                Handle<JSObject> boilerplate,
                int total_size,
                int literal_index,
-               int depth)
-      : HMaterializedLiteral<1>(literal_index, depth),
+               int depth,
+               AllocationSiteMode mode)
+      : HMaterializedLiteral<1>(literal_index, depth, mode),
         boilerplate_(boilerplate),
         total_size_(total_size) {
     SetOperandAt(0, context);
@@ -5006,7 +5017,6 @@ class HFastLiteral: public HMaterializedLiteral<1> {
   HValue* context() { return OperandAt(0); }
   Handle<JSObject> boilerplate() const { return boilerplate_; }
   int total_size() const { return total_size_; }
-
   virtual Representation RequiredInputRepresentation(int index) {
     return Representation::Tagged();
   }
@@ -5026,8 +5036,9 @@ class HArrayLiteral: public HMaterializedLiteral<1> {
                 Handle<HeapObject> boilerplate_object,
                 int length,
                 int literal_index,
-                int depth)
-      : HMaterializedLiteral<1>(literal_index, depth),
+                int depth,
+                AllocationSiteMode mode)
+      : HMaterializedLiteral<1>(literal_index, depth, mode),
         length_(length),
         boilerplate_object_(boilerplate_object) {
     SetOperandAt(0, context);
@@ -5043,7 +5054,6 @@ class HArrayLiteral: public HMaterializedLiteral<1> {
   }
   Handle<HeapObject> boilerplate_object() const { return boilerplate_object_; }
   int length() const { return length_; }
-
   bool IsCopyOnWrite() const;
 
   virtual Representation RequiredInputRepresentation(int index) {

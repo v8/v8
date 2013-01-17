@@ -1862,6 +1862,12 @@ Handle<Code> KeyedStoreIC::ComputePolymorphicStub(
     Handle<Code> cached_stub;
     Handle<Map> transitioned_map =
         receiver_map->FindTransitionedMap(receiver_maps);
+
+    // TODO(mvstanton): The code below is doing pessimistic elements
+    // transitions. I would like to stop doing that and rely on Allocation Site
+    // Tracking to do a better job of ensuring the data types are what they need
+    // to be. Not all the elements are in place yet, pessimistic elements
+    // transitions are still important for performance.
     if (!transitioned_map.is_null()) {
       cached_stub = ElementsTransitionAndStoreStub(
           receiver_map->elements_kind(),  // original elements_kind

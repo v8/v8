@@ -5213,7 +5213,8 @@ void HOptimizedGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
                                        boilerplate_object,
                                        total_size,
                                        expr->literal_index(),
-                                       expr->depth());
+                                       expr->depth(),
+                                       DONT_TRACK_ALLOCATION_SITE);
   } else {
     literal = new(zone()) HObjectLiteral(context,
                                          expr->constant_properties(),
@@ -5323,7 +5324,13 @@ void HOptimizedGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
 
   Handle<JSObject> boilerplate = Handle<JSObject>::cast(raw_boilerplate);
   ElementsKind boilerplate_elements_kind =
-        Handle<JSObject>::cast(boilerplate)->GetElementsKind();
+      Handle<JSObject>::cast(boilerplate)->GetElementsKind();
+
+  // TODO(mvstanton): This heuristic is only a temporary solution.  In the
+  // end, we want to quit creating allocation site info after a certain number
+  // of GCs for a call site.
+  AllocationSiteMode mode = AllocationSiteInfo::GetMode(
+      boilerplate_elements_kind);
 
   // Check whether to use fast or slow deep-copying for boilerplate.
   int total_size = 0;
@@ -5332,17 +5339,22 @@ void HOptimizedGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
                     HFastLiteral::kMaxLiteralDepth,
                     &max_properties,
                     &total_size)) {
+    if (mode == TRACK_ALLOCATION_SITE) {
+      total_size += AllocationSiteInfo::kSize;
+    }
     literal = new(zone()) HFastLiteral(context,
                                        boilerplate,
                                        total_size,
                                        expr->literal_index(),
-                                       expr->depth());
+                                       expr->depth(),
+                                       mode);
   } else {
     literal = new(zone()) HArrayLiteral(context,
                                         boilerplate,
                                         length,
                                         expr->literal_index(),
-                                        expr->depth());
+                                        expr->depth(),
+                                        mode);
   }
 
   // The array is expected in the bailout environment during computation

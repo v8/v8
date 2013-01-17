@@ -570,15 +570,16 @@ bool ToBooleanStub::Types::CanBeUndetectable() const {
 
 void ElementsTransitionAndStoreStub::Generate(MacroAssembler* masm) {
   Label fail;
+  AllocationSiteMode mode = AllocationSiteInfo::GetMode(from_, to_);
   ASSERT(!IsFastHoleyElementsKind(from_) || IsFastHoleyElementsKind(to_));
   if (!FLAG_trace_elements_transitions) {
     if (IsFastSmiOrObjectElementsKind(to_)) {
       if (IsFastSmiOrObjectElementsKind(from_)) {
         ElementsTransitionGenerator::
-            GenerateMapChangeElementsTransition(masm);
+            GenerateMapChangeElementsTransition(masm, mode, &fail);
       } else if (IsFastDoubleElementsKind(from_)) {
         ASSERT(!IsFastSmiElementsKind(to_));
-        ElementsTransitionGenerator::GenerateDoubleToObject(masm, &fail);
+        ElementsTransitionGenerator::GenerateDoubleToObject(masm, mode, &fail);
       } else {
         UNREACHABLE();
       }
@@ -588,14 +589,14 @@ void ElementsTransitionAndStoreStub::Generate(MacroAssembler* masm) {
                                                        grow_mode_);
     } else if (IsFastSmiElementsKind(from_) &&
                IsFastDoubleElementsKind(to_)) {
-      ElementsTransitionGenerator::GenerateSmiToDouble(masm, &fail);
+      ElementsTransitionGenerator::GenerateSmiToDouble(masm, mode, &fail);
       KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(masm,
                                                              is_jsarray_,
                                                              grow_mode_);
     } else if (IsFastDoubleElementsKind(from_)) {
       ASSERT(to_ == FAST_HOLEY_DOUBLE_ELEMENTS);
       ElementsTransitionGenerator::
-          GenerateMapChangeElementsTransition(masm);
+          GenerateMapChangeElementsTransition(masm, mode, &fail);
     } else {
       UNREACHABLE();
     }

@@ -4981,7 +4981,7 @@ class Map: public HeapObject {
     set_bit_field3(EnumLengthBits::update(bit_field3(), length));
   }
 
-
+  inline bool CanTrackAllocationSite();
   inline bool owns_descriptors();
   inline void set_owns_descriptors(bool is_shared);
   inline bool is_observed();
@@ -6905,9 +6905,10 @@ class TypeFeedbackInfo: public Struct {
 };
 
 
-enum AllocationSiteInfoMode {
-  DONT_TRACK_ALLOCATION_SITE_INFO,
-  TRACK_ALLOCATION_SITE_INFO
+enum AllocationSiteMode {
+  DONT_TRACK_ALLOCATION_SITE,
+  TRACK_ALLOCATION_SITE,
+  LAST_ALLOCATION_SITE_MODE = TRACK_ALLOCATION_SITE
 };
 
 
@@ -6922,6 +6923,9 @@ class AllocationSiteInfo: public Struct {
 
   // Returns NULL if no AllocationSiteInfo is available for object.
   static AllocationSiteInfo* FindForJSObject(JSObject* object);
+
+  static AllocationSiteMode GetMode(ElementsKind boilerplate_elements_kind);
+  static AllocationSiteMode GetMode(ElementsKind from, ElementsKind to);
 
   static const int kPayloadOffset = HeapObject::kHeaderSize;
   static const int kSize = kPayloadOffset + kPointerSize;

@@ -251,7 +251,8 @@ ModuloFunction CreateModuloFunction() {
 #define __ ACCESS_MASM(masm)
 
 void ElementsTransitionGenerator::GenerateMapChangeElementsTransition(
-    MacroAssembler* masm) {
+    MacroAssembler* masm, AllocationSiteMode mode,
+    Label* allocation_site_info_found) {
   // ----------- S t a t e -------------
   //  -- rax    : value
   //  -- rbx    : target map
@@ -259,6 +260,12 @@ void ElementsTransitionGenerator::GenerateMapChangeElementsTransition(
   //  -- rdx    : receiver
   //  -- rsp[0] : return address
   // -----------------------------------
+  if (mode == TRACK_ALLOCATION_SITE) {
+    ASSERT(allocation_site_info_found != NULL);
+    masm->TestJSArrayForAllocationSiteInfo(rdx, rdi,
+                                           allocation_site_info_found);
+  }
+
   // Set transitioned map.
   __ movq(FieldOperand(rdx, HeapObject::kMapOffset), rbx);
   __ RecordWriteField(rdx,
@@ -272,7 +279,7 @@ void ElementsTransitionGenerator::GenerateMapChangeElementsTransition(
 
 
 void ElementsTransitionGenerator::GenerateSmiToDouble(
-    MacroAssembler* masm, Label* fail) {
+    MacroAssembler* masm, AllocationSiteMode mode, Label* fail) {
   // ----------- S t a t e -------------
   //  -- rax    : value
   //  -- rbx    : target map
@@ -283,7 +290,7 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
   // The fail label is not actually used since we do not allocate.
   Label allocated, new_backing_store, only_change_map, done;
 
-  if (FLAG_track_allocation_sites) {
+  if (mode == TRACK_ALLOCATION_SITE) {
     masm->TestJSArrayForAllocationSiteInfo(rdx, rdi, fail);
   }
 
@@ -398,7 +405,7 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
 
 
 void ElementsTransitionGenerator::GenerateDoubleToObject(
-    MacroAssembler* masm, Label* fail) {
+    MacroAssembler* masm, AllocationSiteMode mode, Label* fail) {
   // ----------- S t a t e -------------
   //  -- rax    : value
   //  -- rbx    : target map
@@ -407,6 +414,10 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
   //  -- rsp[0] : return address
   // -----------------------------------
   Label loop, entry, convert_hole, gc_required, only_change_map;
+
+  if (mode == TRACK_ALLOCATION_SITE) {
+    masm->TestJSArrayForAllocationSiteInfo(rdx, rdi, fail);
+  }
 
   // Check for empty arrays, which only require a map transition and no changes
   // to the backing store.

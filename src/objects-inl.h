@@ -3378,6 +3378,11 @@ Code::Flags Code::flags() {
 }
 
 
+inline bool Map::CanTrackAllocationSite() {
+  return instance_type() == JS_ARRAY_TYPE;
+}
+
+
 void Map::set_owns_descriptors(bool is_shared) {
   set_bit_field3(OwnsDescriptors::update(bit_field3(), is_shared));
 }

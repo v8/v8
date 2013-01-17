@@ -344,7 +344,7 @@ static void GenerateFastCloneShallowArrayCommon(
     MacroAssembler* masm,
     int length,
     FastCloneShallowArrayStub::Mode mode,
-    AllocationSiteInfoMode allocation_site_info_mode,
+    AllocationSiteMode allocation_site_mode,
     Label* fail) {
   // Registers on entry:
   //
@@ -358,9 +358,10 @@ static void GenerateFastCloneShallowArrayCommon(
         ? FixedDoubleArray::SizeFor(length)
         : FixedArray::SizeFor(length);
   }
+
   int size = JSArray::kSize;
   int allocation_info_start = size;
-  if (allocation_site_info_mode == TRACK_ALLOCATION_SITE_INFO) {
+  if (allocation_site_mode == TRACK_ALLOCATION_SITE) {
     size += AllocationSiteInfo::kSize;
   }
   size += elements_size;
@@ -373,7 +374,7 @@ static void GenerateFastCloneShallowArrayCommon(
   }
   __ AllocateInNewSpace(size, r0, r1, r2, fail, flags);
 
-  if (allocation_site_info_mode == TRACK_ALLOCATION_SITE_INFO) {
+  if (allocation_site_mode == TRACK_ALLOCATION_SITE) {
     __ mov(r2, Operand(Handle<Map>(masm->isolate()->heap()->
                                    allocation_site_info_map())));
     __ str(r2, FieldMemOperand(r0, allocation_info_start));
@@ -392,7 +393,7 @@ static void GenerateFastCloneShallowArrayCommon(
     // Get hold of the elements array of the boilerplate and setup the
     // elements pointer in the resulting object.
     __ ldr(r3, FieldMemOperand(r3, JSArray::kElementsOffset));
-    if (allocation_site_info_mode == TRACK_ALLOCATION_SITE_INFO) {
+    if (allocation_site_mode == TRACK_ALLOCATION_SITE) {
       __ add(r2, r0, Operand(JSArray::kSize + AllocationSiteInfo::kSize));
     } else {
       __ add(r2, r0, Operand(JSArray::kSize));
@@ -423,22 +424,14 @@ void FastCloneShallowArrayStub::Generate(MacroAssembler* masm) {
   __ b(eq, &slow_case);
 
   FastCloneShallowArrayStub::Mode mode = mode_;
-  AllocationSiteInfoMode allocation_site_info_mode =
-      DONT_TRACK_ALLOCATION_SITE_INFO;
-  if (mode == CLONE_ANY_ELEMENTS_WITH_ALLOCATION_SITE_INFO) {
-    mode = CLONE_ANY_ELEMENTS;
-    allocation_site_info_mode = TRACK_ALLOCATION_SITE_INFO;
-  }
-
   if (mode == CLONE_ANY_ELEMENTS) {
     Label double_elements, check_fast_elements;
     __ ldr(r0, FieldMemOperand(r3, JSArray::kElementsOffset));
     __ ldr(r0, FieldMemOperand(r0, HeapObject::kMapOffset));
     __ CompareRoot(r0, Heap::kFixedCOWArrayMapRootIndex);
     __ b(ne, &check_fast_elements);
-    GenerateFastCloneShallowArrayCommon(masm, 0,
-                                        COPY_ON_WRITE_ELEMENTS,
-                                        allocation_site_info_mode,
+    GenerateFastCloneShallowArrayCommon(masm, 0, COPY_ON_WRITE_ELEMENTS,
+                                        allocation_site_mode_,
                                         &slow_case);
     // Return and remove the on-stack parameters.
     __ add(sp, sp, Operand(3 * kPointerSize));
@@ -447,9 +440,8 @@ void FastCloneShallowArrayStub::Generate(MacroAssembler* masm) {
     __ bind(&check_fast_elements);
     __ CompareRoot(r0, Heap::kFixedArrayMapRootIndex);
     __ b(ne, &double_elements);
-    GenerateFastCloneShallowArrayCommon(masm, length_,
-                                        CLONE_ELEMENTS,
-                                        allocation_site_info_mode,
+    GenerateFastCloneShallowArrayCommon(masm, length_, CLONE_ELEMENTS,
+                                        allocation_site_mode_,
                                         &slow_case);
     // Return and remove the on-stack parameters.
     __ add(sp, sp, Operand(3 * kPointerSize));
@@ -483,7 +475,8 @@ void FastCloneShallowArrayStub::Generate(MacroAssembler* masm) {
   }
 
   GenerateFastCloneShallowArrayCommon(masm, length_, mode,
-                                      allocation_site_info_mode, &slow_case);
+                                      allocation_site_mode_,
+                                      &slow_case);
 
   // Return and remove the on-stack parameters.
   __ add(sp, sp, Operand(3 * kPointerSize));

@@ -427,14 +427,16 @@ class FastCloneShallowArrayStub : public PlatformCodeStub {
     CLONE_DOUBLE_ELEMENTS,
     COPY_ON_WRITE_ELEMENTS,
     CLONE_ANY_ELEMENTS,
-    CLONE_ANY_ELEMENTS_WITH_ALLOCATION_SITE_INFO,
-    LAST_CLONE_MODE = CLONE_ANY_ELEMENTS_WITH_ALLOCATION_SITE_INFO
+    LAST_CLONE_MODE = CLONE_ANY_ELEMENTS
   };
 
   static const int kFastCloneModeCount = LAST_CLONE_MODE + 1;
 
-  FastCloneShallowArrayStub(Mode mode, int length)
+  FastCloneShallowArrayStub(Mode mode,
+                            AllocationSiteMode allocation_site_mode,
+                            int length)
       : mode_(mode),
+        allocation_site_mode_(allocation_site_mode),
         length_((mode == COPY_ON_WRITE_ELEMENTS) ? 0 : length) {
     ASSERT_GE(length_, 0);
     ASSERT_LE(length_, kMaximumClonedLength);
@@ -444,12 +446,21 @@ class FastCloneShallowArrayStub : public PlatformCodeStub {
 
  private:
   Mode mode_;
+  AllocationSiteMode allocation_site_mode_;
   int length_;
 
+  class AllocationSiteModeBits: public BitField<AllocationSiteMode, 0, 1> {};
+  class ModeBits: public BitField<Mode, 1, 4> {};
+  class LengthBits: public BitField<int, 5, 4> {};
+  // Ensure data fits within available bits.
+  STATIC_ASSERT(LAST_ALLOCATION_SITE_MODE == 1);
+  STATIC_ASSERT(kFastCloneModeCount < 16);
+  STATIC_ASSERT(kMaximumClonedLength < 16);
   Major MajorKey() { return FastCloneShallowArray; }
   int MinorKey() {
-    ASSERT(mode_ >= 0 && mode_ <= LAST_CLONE_MODE);
-    return length_ * kFastCloneModeCount + mode_;
+    return AllocationSiteModeBits::encode(allocation_site_mode_)
+        | ModeBits::encode(mode_)
+        | LengthBits::encode(length_);
   }
 };
 
