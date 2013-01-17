@@ -40,7 +40,7 @@ Handle<Code> HydrogenCodeStub::CodeFromGraph(HGraph* graph) {
   graph->AssignDominators();
   graph->CollectPhis();
   graph->InsertRepresentationChanges();
-  graph->EliminateRedundantBoundsChecks();
+  graph->ApplyActualValues();
   LChunk* chunk = LChunk::NewChunk(graph);
   ASSERT(chunk != NULL);
   Handle<Code> stub = chunk->Codegen(Code::COMPILED_STUB);
@@ -123,7 +123,8 @@ void CodeStubGraphBuilder<KeyedLoadFastElementStub>::BuildCodeStub() {
 
   HInstruction* load = BuildUncheckedMonomorphicElementAccess(
       GetParameter(0), GetParameter(1), NULL, NULL,
-      casted_stub()->is_js_array(), casted_stub()->elements_kind(), false);
+      casted_stub()->is_js_array(), casted_stub()->elements_kind(),
+      false, Representation::Tagged());
   AddInstruction(load);
 
   HReturn* ret = new(zone) HReturn(load, context());

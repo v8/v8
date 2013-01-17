@@ -495,8 +495,6 @@ XMMRegister LCodeGen::ToDoubleRegister(LOperand* op) const {
 
 int LCodeGen::ToInteger32(LConstantOperand* op) const {
   HConstant* constant = chunk_->LookupConstant(op);
-  ASSERT(chunk_->LookupLiteralRepresentation(op).IsInteger32());
-  ASSERT(constant->HasInteger32Value());
   return constant->Integer32Value();
 }
 
@@ -3200,13 +3198,6 @@ Operand LCodeGen::BuildFastArrayOperand(
     uint32_t additional_index) {
   Register elements_pointer_reg = ToRegister(elements_pointer);
   int shift_size = ElementsKindToShiftSize(elements_kind);
-  // Even though the HLoad/StoreKeyed instructions force the input
-  // representation for the key to be an integer, the input gets replaced during
-  // bound check elimination with the index argument to the bounds check, which
-  // can be tagged, so that case must be handled here, too.
-  if (key_representation.IsTagged() && (shift_size >= 1)) {
-    shift_size -= kSmiTagSize;
-  }
   if (key->IsConstantOperand()) {
     int constant_value = ToInteger32(LConstantOperand::cast(key));
     if (constant_value & 0xF0000000) {
@@ -3216,6 +3207,10 @@ Operand LCodeGen::BuildFastArrayOperand(
                    ((constant_value + additional_index) << shift_size)
                        + offset);
   } else {
+    // Take the tag bit into account while computing the shift size.
+    if (key_representation.IsTagged() && (shift_size >= 1)) {
+      shift_size -= kSmiTagSize;
+    }
     ScaleFactor scale_factor = static_cast<ScaleFactor>(shift_size);
     return Operand(elements_pointer_reg,
                    ToRegister(key),

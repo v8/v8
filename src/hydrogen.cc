@@ -743,7 +743,8 @@ HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
     HCheckMaps* mapcheck,
     bool is_js_array,
     ElementsKind elements_kind,
-    bool is_store) {
+    bool is_store,
+    Representation checked_index_representation) {
   Zone* zone = this->zone();
   // No GVNFlag is necessary for ElementsKind if there is an explicit dependency
   // on a HElementsTransition instruction. The flag can also be removed if the
@@ -771,8 +772,8 @@ HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
   HInstruction* checked_key = NULL;
   if (IsExternalArrayElementsKind(elements_kind)) {
     length = AddInstruction(new(zone) HFixedArrayBaseLength(elements));
-    checked_key = AddInstruction(new(zone) HBoundsCheck(key, length,
-                                                        ALLOW_SMI_KEY));
+    checked_key = AddInstruction(new(zone) HBoundsCheck(
+        key, length, ALLOW_SMI_KEY, checked_index_representation));
     HLoadExternalArrayPointer* external_elements =
         new(zone) HLoadExternalArrayPointer(elements);
     AddInstruction(external_elements);
@@ -789,8 +790,8 @@ HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
   } else {
     length = AddInstruction(new(zone) HFixedArrayBaseLength(elements));
   }
-  checked_key = AddInstruction(new(zone) HBoundsCheck(key, length,
-                                                      ALLOW_SMI_KEY));
+  checked_key = AddInstruction(new(zone) HBoundsCheck(
+      key, length, ALLOW_SMI_KEY, checked_index_representation));
   return BuildFastElementAccess(elements, checked_key, val, mapcheck,
                                 elements_kind, is_store);
 }
@@ -3503,9 +3504,11 @@ bool HGraph::Optimize(SmartArrayPointer<char>* bailout_reason) {
   HStackCheckEliminator sce(this);
   sce.Process();
 
-  EliminateRedundantBoundsChecks();
-  DehoistSimpleArrayIndexComputations();
+  if (FLAG_array_bounds_checks_elimination) EliminateRedundantBoundsChecks();
+  if (FLAG_array_index_dehoisting) DehoistSimpleArrayIndexComputations();
   if (FLAG_dead_code_elimination) DeadCodeElimination();
+
+  ApplyActualValues();
 
   return true;
 }
@@ -3666,7 +3669,7 @@ class BoundsCheckBbData: public ZoneObject {
     }
 
     if (!keep_new_check) {
-      new_check->DeleteAndReplaceWith(NULL);
+      new_check->DeleteAndReplaceWith(new_check->ActualValue());
     }
 
     return true;
@@ -3802,10 +3805,6 @@ void HGraph::EliminateRedundantBoundsChecks(HBasicBlock* bb,
     if (!i->IsBoundsCheck()) continue;
 
     HBoundsCheck* check = HBoundsCheck::cast(i);
-    check->ReplaceAllUsesWith(check->index());
-
-    if (!FLAG_array_bounds_checks_elimination) continue;
-
     int32_t offset;
     BoundsCheckKey* key =
         BoundsCheckKey::Create(zone(), check, &offset);
@@ -3823,7 +3822,7 @@ void HGraph::EliminateRedundantBoundsChecks(HBasicBlock* bb,
                                                    NULL);
       *data_p = bb_data_list;
     } else if (data->OffsetIsCovered(offset)) {
-      check->DeleteAndReplaceWith(NULL);
+      check->DeleteAndReplaceWith(check->ActualValue());
     } else if (data->BasicBlock() != bb ||
                !data->CoverCheck(check, offset)) {
       // If the check is in the current BB we try to modify it by calling
@@ -3920,8 +3919,6 @@ static void DehoistArrayIndex(ArrayInstructionInterface* array_operation) {
 
 
 void HGraph::DehoistSimpleArrayIndexComputations() {
-  if (!FLAG_array_index_dehoisting) return;
-
   HPhase phase("H_Dehoist index computations", this);
   for (int i = 0; i < blocks()->length(); ++i) {
     for (HInstruction* instr = blocks()->at(i)->first();
@@ -3968,6 +3965,30 @@ void HGraph::DeadCodeElimination() {
     for (int i = 0; i < instr->OperandCount(); ++i) {
       HValue* operand = instr->OperandAt(i);
       if (operand->IsDead()) worklist.Add(HInstruction::cast(operand), zone());
+    }
+  }
+}
+
+
+void HGraph::ApplyActualValues() {
+  HPhase phase("H_Apply actual values", this);
+
+  for (int block_index = 0; block_index < blocks()->length(); block_index++) {
+    HBasicBlock* block = blocks()->at(block_index);
+
+#ifdef DEBUG
+    for (int i = 0; i < block->phis()->length(); i++) {
+      HPhi* phi = block->phis()->at(i);
+      ASSERT(phi->ActualValue() == phi);
+    }
+#endif
+
+    for (HInstruction* instruction = block->first();
+        instruction != NULL;
+        instruction = instruction->next()) {
+      if (instruction->ActualValue() != instruction) {
+        instruction->ReplaceAllUsesWith(instruction->ActualValue());
+      }
     }
   }
 }
