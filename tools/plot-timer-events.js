@@ -276,13 +276,15 @@ function FindPlotRange() {
 
   if (start_found && end_found) return;
 
-  var execution_ranges = kExecutionEvent.ranges;
-  for (var i = 0; i < execution_ranges.length; i++) {
-    if (execution_ranges[i].start < xrange_start && !start_found) {
-      xrange_start = execution_ranges[i].start;
-    }
-    if (execution_ranges[i].end > xrange_end && !end_found) {
-      xrange_end = execution_ranges[i].end;
+  for (name in TimerEvents) {
+    var ranges = TimerEvents[name].ranges;
+    for (var i = 0; i < ranges.length; i++) {
+      if (ranges[i].start < xrange_start && !start_found) {
+        xrange_start = ranges[i].start;
+      }
+      if (ranges[i].end > xrange_end && !end_found) {
+        xrange_end = ranges[i].end;
+      }
     }
   }
 
