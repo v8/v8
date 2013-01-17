@@ -4674,82 +4674,57 @@ Map* Heap::SymbolMapForString(String* string) {
 }
 
 
-template<typename T>
-class AllocateInternalSymbolHelper {
- public:
-  static void WriteOneByteData(T t, char* chars, int len);
-  static void WriteTwoByteData(T t, uint16_t* chars, int len);
- private:
-  DISALLOW_COPY_AND_ASSIGN(AllocateInternalSymbolHelper);
-};
+static inline void WriteOneByteData(Vector<const char> vector,
+                                    uint8_t* chars,
+                                    int len) {
+  // Only works for ascii.
+  ASSERT(vector.length() == len);
+  memcpy(chars, vector.start(), len);
+}
 
-
-template<>
-class AllocateInternalSymbolHelper< Vector<const char> > {
- public:
-  static inline void WriteOneByteData(Vector<const char> vector,
-                                      uint8_t* chars,
-                                      int len) {
-    // Only works for ascii.
-    ASSERT(vector.length() == len);
-    memcpy(chars, vector.start(), len);
-  }
-
-  static inline void WriteTwoByteData(Vector<const char> vector,
-                                      uint16_t* chars,
-                                      int len) {
-    const uint8_t* stream = reinterpret_cast<const uint8_t*>(vector.start());
-    unsigned stream_length = vector.length();
-    while (stream_length != 0) {
-      unsigned consumed = 0;
-      uint32_t c = unibrow::Utf8::ValueOf(stream, stream_length, &consumed);
-      ASSERT(c != unibrow::Utf8::kBadChar);
-      ASSERT(consumed <= stream_length);
-      stream_length -= consumed;
-      stream += consumed;
-      if (c > unibrow::Utf16::kMaxNonSurrogateCharCode) {
-        len -= 2;
-        if (len < 0) break;
-        *chars++ = unibrow::Utf16::LeadSurrogate(c);
-        *chars++ = unibrow::Utf16::TrailSurrogate(c);
-      } else {
-        len -= 1;
-        if (len < 0) break;
-        *chars++ = c;
-      }
+static inline void WriteTwoByteData(Vector<const char> vector,
+                                    uint16_t* chars,
+                                    int len) {
+  const uint8_t* stream = reinterpret_cast<const uint8_t*>(vector.start());
+  unsigned stream_length = vector.length();
+  while (stream_length != 0) {
+    unsigned consumed = 0;
+    uint32_t c = unibrow::Utf8::ValueOf(stream, stream_length, &consumed);
+    ASSERT(c != unibrow::Utf8::kBadChar);
+    ASSERT(consumed <= stream_length);
+    stream_length -= consumed;
+    stream += consumed;
+    if (c > unibrow::Utf16::kMaxNonSurrogateCharCode) {
+      len -= 2;
+      if (len < 0) break;
+      *chars++ = unibrow::Utf16::LeadSurrogate(c);
+      *chars++ = unibrow::Utf16::TrailSurrogate(c);
+    } else {
+      len -= 1;
+      if (len < 0) break;
+      *chars++ = c;
     }
-    ASSERT(stream_length == 0);
-    ASSERT(len == 0);
   }
+  ASSERT(stream_length == 0);
+  ASSERT(len == 0);
+}
 
- private:
-  DISALLOW_COPY_AND_ASSIGN(AllocateInternalSymbolHelper);
-};
 
+static inline void WriteOneByteData(String* s, uint8_t* chars, int len) {
+  ASSERT(s->length() == len);
+  String::WriteToFlat(s, chars, 0, len);
+}
 
-template<>
-class AllocateInternalSymbolHelper<String*> {
- public:
-  static inline void WriteOneByteData(String* s, uint8_t* chars, int len) {
-    ASSERT(s->length() == len);
-    String::WriteToFlat(s, chars, 0, len);
-  }
-
-  static inline void WriteTwoByteData(String* s, uint16_t* chars, int len) {
-    ASSERT(s->length() == len);
-    String::WriteToFlat(s, chars, 0, len);
-  }
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(AllocateInternalSymbolHelper<String*>);
-};
+static inline void WriteTwoByteData(String* s, uint16_t* chars, int len) {
+  ASSERT(s->length() == len);
+  String::WriteToFlat(s, chars, 0, len);
+}
 
 
 template<bool is_one_byte, typename T>
 MaybeObject* Heap::AllocateInternalSymbol(T t,
                                           int chars,
                                           uint32_t hash_field) {
-  typedef AllocateInternalSymbolHelper<T> H;
   ASSERT(chars >= 0);
   // Compute map and object size.
   int size;
@@ -4786,9 +4761,9 @@ MaybeObject* Heap::AllocateInternalSymbol(T t,
   ASSERT_EQ(size, answer->Size());
 
   if (is_one_byte) {
-    H::WriteOneByteData(t, SeqOneByteString::cast(answer)->GetChars(), chars);
+    WriteOneByteData(t, SeqOneByteString::cast(answer)->GetChars(), chars);
   } else {
-    H::WriteTwoByteData(t, SeqTwoByteString::cast(answer)->GetChars(), chars);
+    WriteTwoByteData(t, SeqTwoByteString::cast(answer)->GetChars(), chars);
   }
   return answer;
 }
