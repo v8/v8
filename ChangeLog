@@ -1,3 +1,26 @@
+2013-01-18: Version 3.16.6
+
+        Made the Isolate parameter mandatory in Locker and Unlocker classes.
+        (issue 2487)
+
+        Avoid pointer underflow in CopyCharsUnsigned.
+        (issue 2493)
+
+        Generate shim headers when using system v8.
+        (Chromium issue 165264)
+
+        Fixed arguments materialization for inlined apply().
+        (issue 2489)
+
+        Sync'ed laziness between BuildFunctionInfo and MakeFunctionInfo.
+        (Chromium issue 147497)
+
+        Added sanity check to CodeFlusher::AddCandidate.
+        (Chromium issue 169209)
+
+        Performance and stability improvements on all platforms.
+
+
 2013-01-15: Version 3.16.5
 
         Removed deprecated functions from V8's external API.
