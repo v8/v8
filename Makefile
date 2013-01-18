@@ -83,10 +83,6 @@ endif
 ifeq ($(gdbjit), on)
   GYPFLAGS += -Dv8_enable_gdbjit=1
 endif
-# liveobjectlist=on
-ifeq ($(liveobjectlist), on)
-  GYPFLAGS += -Dv8_use_liveobjectlist=true
-endif
 # vfp2=off
 ifeq ($(vfp2), off)
   GYPFLAGS += -Dv8_can_use_vfp2_instructions=false

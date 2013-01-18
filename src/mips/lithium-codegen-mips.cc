@@ -4218,7 +4218,7 @@ void LCodeGen::DoTransitionElementsKind(LTransitionElementsKind* instr) {
   __ Branch(&not_applicable, ne, scratch, Operand(from_map));
 
   __ li(new_map_reg, Operand(to_map));
-  if (IsFastSmiElementsKind(from_kind) && IsFastObjectElementsKind(to_kind)) {
+  if (IsSimpleMapChangeTransition(from_kind, to_kind)) {
     __ sw(new_map_reg, FieldMemOperand(object_reg, HeapObject::kMapOffset));
     // Write barrier.
     __ RecordWriteField(object_reg, HeapObject::kMapOffset, new_map_reg,
@@ -5617,6 +5617,11 @@ void LCodeGen::DoLazyBailout(LLazyBailout* instr) {
 
 void LCodeGen::DoDeoptimize(LDeoptimize* instr) {
   DeoptimizeIf(al, instr->environment(), zero_reg, Operand(zero_reg));
+}
+
+
+void LCodeGen::DoDummyUse(LDummyUse* instr) {
+  // Nothing to see here, move on!
 }
 
 

@@ -668,13 +668,6 @@ void V8::MarkIndependent(i::Object** object) {
 }
 
 
-void V8::MarkIndependent(i::Isolate* isolate, i::Object** object) {
-  ASSERT(isolate == i::Isolate::Current());
-  LOG_API(isolate, "MarkIndependent");
-  isolate->global_handles()->MarkIndependent(object);
-}
-
-
 void V8::MarkPartiallyDependent(i::Object** object) {
   i::Isolate* isolate = i::Isolate::Current();
   LOG_API(isolate, "MarkPartiallyDependent");
@@ -682,23 +675,8 @@ void V8::MarkPartiallyDependent(i::Object** object) {
 }
 
 
-void V8::MarkPartiallyDependent(i::Isolate* isolate, i::Object** object) {
-  ASSERT(isolate == i::Isolate::Current());
-  LOG_API(isolate, "MarkPartiallyDependent");
-  isolate->global_handles()->MarkPartiallyDependent(object);
-}
-
-
 bool V8::IsGlobalIndependent(i::Object** obj) {
   i::Isolate* isolate = i::Isolate::Current();
-  LOG_API(isolate, "IsGlobalIndependent");
-  if (!isolate->IsInitialized()) return false;
-  return i::GlobalHandles::IsIndependent(obj);
-}
-
-
-bool V8::IsGlobalIndependent(i::Isolate* isolate, i::Object** obj) {
-  ASSERT(isolate == i::Isolate::Current());
   LOG_API(isolate, "IsGlobalIndependent");
   if (!isolate->IsInitialized()) return false;
   return i::GlobalHandles::IsIndependent(obj);
@@ -1862,8 +1840,7 @@ v8::Local<Value> v8::TryCatch::StackTrace() const {
     if (!raw_obj->IsJSObject()) return v8::Local<Value>();
     i::HandleScope scope(isolate_);
     i::Handle<i::JSObject> obj(i::JSObject::cast(raw_obj), isolate_);
-    i::Handle<i::String> name =
-        isolate_->factory()->LookupOneByteSymbol(STATIC_ASCII_VECTOR("stack"));
+    i::Handle<i::String> name = isolate_->factory()->stack_symbol();
     if (!obj->HasProperty(*name)) return v8::Local<Value>();
     i::Handle<i::Object> value = i::GetProperty(obj, name);
     if (value.is_null()) return v8::Local<Value>();
@@ -3893,6 +3870,15 @@ bool String::MayContainNonAscii() const {
 }
 
 
+bool String::IsOneByte() const {
+  i::Handle<i::String> str = Utils::OpenHandle(this);
+  if (IsDeadCheck(str->GetIsolate(), "v8::String::IsOneByte()")) {
+    return false;
+  }
+  return str->IsOneByteConvertible();
+}
+
+
 class Utf8LengthVisitor {
  public:
   explicit Utf8LengthVisitor()
@@ -4194,18 +4180,20 @@ int String::WriteAscii(char* buffer,
 }
 
 
-int String::Write(uint16_t* buffer,
-                  int start,
-                  int length,
-                  int options) const {
-  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+template<typename CharType>
+static inline int WriteHelper(const String* string,
+                              CharType* buffer,
+                              int start,
+                              int length,
+                              int options) {
+  i::Isolate* isolate = Utils::OpenHandle(string)->GetIsolate();
   if (IsDeadCheck(isolate, "v8::String::Write()")) return 0;
   LOG_API(isolate, "String::Write");
   ENTER_V8(isolate);
   ASSERT(start >= 0 && length >= -1);
-  i::Handle<i::String> str = Utils::OpenHandle(this);
+  i::Handle<i::String> str = Utils::OpenHandle(string);
   isolate->string_tracker()->RecordWrite(str);
-  if (options & HINT_MANY_WRITES_EXPECTED) {
+  if (options & String::HINT_MANY_WRITES_EXPECTED) {
     // Flatten the string for efficiency.  This applies whether we are
     // using StringCharacterStream or Get(i) to access the characters.
     FlattenString(str);
@@ -4215,11 +4203,27 @@ int String::Write(uint16_t* buffer,
     end = str->length();
   if (end < 0) return 0;
   i::String::WriteToFlat(*str, buffer, start, end);
-  if (!(options & NO_NULL_TERMINATION) &&
+  if (!(options & String::NO_NULL_TERMINATION) &&
       (length == -1 || end - start < length)) {
     buffer[end - start] = '\0';
   }
   return end - start;
+}
+
+
+int String::WriteOneByte(uint8_t* buffer,
+                         int start,
+                         int length,
+                         int options) const {
+  return WriteHelper(this, buffer, start, length, options);
+}
+
+
+int String::Write(uint16_t* buffer,
+                  int start,
+                  int length,
+                  int options) const {
+  return WriteHelper(this, buffer, start, length, options);
 }
 
 
@@ -4404,14 +4408,6 @@ static void* ExternalValue(i::Object* obj) {
   if (obj->IsUndefined()) return NULL;
   i::Object* foreign = i::JSObject::cast(obj)->GetInternalField(0);
   return i::Foreign::cast(foreign)->foreign_address();
-}
-
-
-void* Object::GetPointerFromInternalField(int index) {
-  i::Handle<i::JSObject> obj = Utils::OpenHandle(this);
-  const char* location = "v8::Object::GetPointerFromInternalField()";
-  if (!InternalFieldOK(obj, index, location)) return NULL;
-  return ExternalValue(obj->GetInternalField(index));
 }
 
 
@@ -4684,6 +4680,12 @@ bool Context::InContext() {
 }
 
 
+v8::Isolate* Context::GetIsolate() {
+  i::Handle<i::Context> env = Utils::OpenHandle(this);
+  return reinterpret_cast<Isolate*>(env->GetIsolate());
+}
+
+
 v8::Local<v8::Context> Context::GetEntered() {
   i::Isolate* isolate = i::Isolate::Current();
   if (!EnsureInitializedForIsolate(isolate, "v8::Context::GetEntered()")) {
@@ -4800,16 +4802,6 @@ void Context::SetErrorMessageForCodeGenerationFromStrings(
       i::Handle<i::Context>::cast(i::Handle<i::Object>(ctx));
   i::Handle<i::Object> error_handle = Utils::OpenHandle(*error);
   context->set_error_message_for_code_gen_from_strings(*error_handle);
-}
-
-
-void V8::SetWrapperClassId(i::Object** global_handle, uint16_t class_id) {
-  i::GlobalHandles::SetWrapperClassId(global_handle, class_id);
-}
-
-
-uint16_t V8::GetWrapperClassId(internal::Object** global_handle) {
-  return i::GlobalHandles::GetWrapperClassId(global_handle);
 }
 
 

@@ -70,7 +70,7 @@ ecma_3/Date/15.9.3.2-1: SKIP
 js1_2/function/Number: SKIP
 
 # TODO(2018): Temporarily allow timeout in debug mode.
-js1_5/GC/regress-203278-2: PASS || TIMEOUT if $mode == debug
+js1_5/GC/regress-203278-2: PASS || (TIMEOUT || FAIL) if $mode == debug
 
 ##################### SLOW TESTS #####################
 
@@ -106,7 +106,6 @@ js1_5/extensions/regress-365527: PASS || TIMEOUT if $mode == debug
 
 js1_5/Regress/regress-280769-3: PASS || FAIL if $mode == debug
 js1_5/Regress/regress-203278-1: PASS || FAIL if $mode == debug
-js1_5/GC/regress-203278-2: PASS || FAIL if $mode == debug
 js1_5/Regress/regress-244470: PASS || FAIL if $mode == debug
 ecma_3/RegExp/regress-209067: PASS || FAIL if $mode == debug
 js1_5/GC/regress-278725: PASS || FAIL if $mode == debug
@@ -127,7 +126,6 @@ ecma/Date/15.9.2.2-6: PASS || FAIL
 
 # 1026139: These date tests fail on arm and mips
 ecma/Date/15.9.5.29-1: PASS || FAIL if ($arch == arm || $arch == mipsel)
-ecma/Date/15.9.5.34-1: PASS || FAIL if ($arch == arm || $arch == mipsel)
 ecma/Date/15.9.5.28-1: PASS || FAIL if ($arch == arm || $arch == mipsel)
 
 # 1050186: Arm/MIPS vm is broken; probably unrelated to dates
@@ -179,7 +177,6 @@ ecma/Date/15.9.5.34-1: PASS || FAIL
 # These tests sometimes pass (in particular on Windows). They build up
 # a lot of stuff on the stack, which normally causes a stack overflow,
 # but sometimes it makes it through?
-js1_5/Regress/regress-290575: PASS || FAIL
 js1_5/Regress/regress-98901: PASS || FAIL
 
 
@@ -398,15 +395,6 @@ js1_5/decompilation/regress-460116-02: FAIL_OK
 js1_5/decompilation/regress-460501: FAIL_OK
 js1_5/decompilation/regress-460116-03: FAIL_OK
 js1_5/decompilation/regress-461110: FAIL_OK
-js1_5/decompilation/regress-456964-01: FAIL_OK
-js1_5/decompilation/regress-437288-02: FAIL_OK
-js1_5/decompilation/regress-457824: FAIL_OK
-js1_5/decompilation/regress-460116-01: FAIL_OK
-js1_5/decompilation/regress-460116-02: FAIL_OK
-js1_5/decompilation/regress-460116-03: FAIL_OK
-js1_5/decompilation/regress-460501: FAIL_OK
-js1_5/decompilation/regress-461110: FAIL_OK
-
 
 
 # Tests that use uneval.  Non-ECMA.
@@ -563,7 +551,7 @@ ecma_3/RegExp/15.10.2-1: PASS || FAIL_OK
 
 # This test requires a failure if we try to compile a function with more
 # than 65536 arguments.  This seems to be a Mozilla restriction.
-js1_5/Regress/regress-290575: FAIL_OK
+js1_5/Regress/regress-290575: PASS || FAIL_OK
 
 
 # Fails because of the way function declarations are
@@ -757,7 +745,6 @@ js1_5/extensions/toLocaleFormat-02: FAIL_OK
 
 js1_5/extensions/regress-330569: TIMEOUT
 js1_5/extensions/regress-351448: TIMEOUT
-js1_5/extensions/regress-342960: FAIL_OK || TIMEOUT if $mode == debug
 # In the 64-bit version, this test takes longer to run out of memory
 # than it does in the 32-bit version when attempting to generate a huge
 # error message in debug mode.
@@ -825,10 +812,6 @@ js1_5/decompilation/regress-460870: PASS || FAIL
 
 [ $arch == arm ]
 
-# Times out and print so much output that we need to skip it to not
-# hang the builder.
-js1_5/extensions/regress-342960: SKIP
-
 # BUG(3251229): Times out when running new crankshaft test script.
 ecma_3/RegExp/regress-311414: SKIP
 ecma/Date/15.9.5.8: SKIP
@@ -847,10 +830,6 @@ js1_5/GC/regress-203278-2: PASS || TIMEOUT
 
 
 [ $arch == mipsel ]
-
-# Times out and print so much output that we need to skip it to not
-# hang the builder.
-js1_5/extensions/regress-342960: SKIP
 
 # BUG(3251229): Times out when running new crankshaft test script.
 ecma_3/RegExp/regress-311414: SKIP

@@ -37,7 +37,6 @@
 #include "global-handles.h"
 #include "heap-profiler.h"
 #include "incremental-marking.h"
-#include "liveobjectlist-inl.h"
 #include "mark-compact.h"
 #include "natives.h"
 #include "objects-visiting.h"
@@ -439,7 +438,6 @@ void Heap::GarbageCollectionPrologue() {
   ReportStatisticsBeforeGC();
 #endif  // DEBUG
 
-  LiveObjectList::GCPrologue();
   store_buffer()->GCPrologue();
 }
 
@@ -466,7 +464,6 @@ void Heap::RepairFreeListsAfterBoot() {
 
 void Heap::GarbageCollectionEpilogue() {
   store_buffer()->GCEpilogue();
-  LiveObjectList::GCEpilogue();
 
   // In release mode, we only zap the from space under heap verification.
   if (Heap::ShouldZapGarbage()) {
@@ -550,6 +547,8 @@ void Heap::GarbageCollectionEpilogue() {
 #ifdef ENABLE_DEBUGGER_SUPPORT
   isolate_->debug()->AfterGarbageCollection();
 #endif  // ENABLE_DEBUGGER_SUPPORT
+
+  error_object_list_.DeferredFormatStackTrace(isolate());
 }
 
 
@@ -886,15 +885,20 @@ bool Heap::PerformGarbageCollection(GarbageCollector collector,
   if (collector == MARK_COMPACTOR && global_gc_prologue_callback_) {
     ASSERT(!allocation_allowed_);
     GCTracer::Scope scope(tracer, GCTracer::Scope::EXTERNAL);
+    VMState state(isolate_, EXTERNAL);
     global_gc_prologue_callback_();
   }
 
   GCType gc_type =
       collector == MARK_COMPACTOR ? kGCTypeMarkSweepCompact : kGCTypeScavenge;
 
-  for (int i = 0; i < gc_prologue_callbacks_.length(); ++i) {
-    if (gc_type & gc_prologue_callbacks_[i].gc_type) {
-      gc_prologue_callbacks_[i].callback(gc_type, kNoGCCallbackFlags);
+  {
+    GCTracer::Scope scope(tracer, GCTracer::Scope::EXTERNAL);
+    VMState state(isolate_, EXTERNAL);
+    for (int i = 0; i < gc_prologue_callbacks_.length(); ++i) {
+      if (gc_type & gc_prologue_callbacks_[i].gc_type) {
+        gc_prologue_callbacks_[i].callback(gc_type, kNoGCCallbackFlags);
+      }
     }
   }
 
@@ -1002,16 +1006,21 @@ bool Heap::PerformGarbageCollection(GarbageCollector collector,
         amount_of_external_allocated_memory_;
   }
 
-  GCCallbackFlags callback_flags = kNoGCCallbackFlags;
-  for (int i = 0; i < gc_epilogue_callbacks_.length(); ++i) {
-    if (gc_type & gc_epilogue_callbacks_[i].gc_type) {
-      gc_epilogue_callbacks_[i].callback(gc_type, callback_flags);
+  {
+    GCTracer::Scope scope(tracer, GCTracer::Scope::EXTERNAL);
+    VMState state(isolate_, EXTERNAL);
+    GCCallbackFlags callback_flags = kNoGCCallbackFlags;
+    for (int i = 0; i < gc_epilogue_callbacks_.length(); ++i) {
+      if (gc_type & gc_epilogue_callbacks_[i].gc_type) {
+        gc_epilogue_callbacks_[i].callback(gc_type, callback_flags);
+      }
     }
   }
 
   if (collector == MARK_COMPACTOR && global_gc_epilogue_callback_) {
     ASSERT(!allocation_allowed_);
     GCTracer::Scope scope(tracer, GCTracer::Scope::EXTERNAL);
+    VMState state(isolate_, EXTERNAL);
     global_gc_epilogue_callback_();
   }
 
@@ -1377,9 +1386,10 @@ void Heap::Scavenge() {
   UpdateNewSpaceReferencesInExternalStringTable(
       &UpdateNewSpaceReferenceInExternalStringTableEntry);
 
+  error_object_list_.UpdateReferencesInNewSpace(this);
+
   promotion_queue_.Destroy();
 
-  LiveObjectList::UpdateReferencesForScavengeGC();
   if (!FLAG_watch_ic_patching) {
     isolate()->runtime_profiler()->UpdateSamplesAfterScavenge();
   }
@@ -4384,7 +4394,8 @@ MaybeObject* Heap::AllocateGlobalObject(JSFunction* constructor) {
 }
 
 
-MaybeObject* Heap::CopyJSObject(JSObject* source) {
+MaybeObject* Heap::CopyJSObject(JSObject* source,
+                                AllocationSiteMode mode) {
   // Never used to copy functions.  If functions need to be copied we
   // have to be careful to clear the literals array.
   SLOW_ASSERT(!source->IsJSFunction());
@@ -4394,13 +4405,25 @@ MaybeObject* Heap::CopyJSObject(JSObject* source) {
   int object_size = map->instance_size();
   Object* clone;
 
+  bool track_origin = mode == TRACK_ALLOCATION_SITE &&
+      map->CanTrackAllocationSite();
+
   WriteBarrierMode wb_mode = UPDATE_WRITE_BARRIER;
 
   // If we're forced to always allocate, we use the general allocation
   // functions which may leave us with an object in old space.
+  int adjusted_object_size = object_size;
   if (always_allocate()) {
+    // We'll only track origin if we are certain to allocate in new space
+    if (track_origin) {
+      const int kMinFreeNewSpaceAfterGC = InitialSemiSpaceSize() * 3/4;
+      if ((object_size + AllocationSiteInfo::kSize) < kMinFreeNewSpaceAfterGC) {
+        adjusted_object_size += AllocationSiteInfo::kSize;
+      }
+    }
+
     { MaybeObject* maybe_clone =
-          AllocateRaw(object_size, NEW_SPACE, OLD_POINTER_SPACE);
+          AllocateRaw(adjusted_object_size, NEW_SPACE, OLD_POINTER_SPACE);
       if (!maybe_clone->ToObject(&clone)) return maybe_clone;
     }
     Address clone_address = HeapObject::cast(clone)->address();
@@ -4413,7 +4436,11 @@ MaybeObject* Heap::CopyJSObject(JSObject* source) {
                  (object_size - JSObject::kHeaderSize) / kPointerSize);
   } else {
     wb_mode = SKIP_WRITE_BARRIER;
-    { MaybeObject* maybe_clone = new_space_.AllocateRaw(object_size);
+    if (track_origin) {
+      adjusted_object_size += AllocationSiteInfo::kSize;
+    }
+
+    { MaybeObject* maybe_clone = new_space_.AllocateRaw(adjusted_object_size);
       if (!maybe_clone->ToObject(&clone)) return maybe_clone;
     }
     SLOW_ASSERT(InNewSpace(clone));
@@ -4422,6 +4449,13 @@ MaybeObject* Heap::CopyJSObject(JSObject* source) {
     CopyBlock(HeapObject::cast(clone)->address(),
               source->address(),
               object_size);
+  }
+
+  if (adjusted_object_size > object_size) {
+    AllocationSiteInfo* alloc_info = reinterpret_cast<AllocationSiteInfo*>(
+        reinterpret_cast<Address>(clone) + object_size);
+    alloc_info->set_map(allocation_site_info_map());
+    alloc_info->set_payload(source);
   }
 
   SLOW_ASSERT(
@@ -4640,82 +4674,57 @@ Map* Heap::SymbolMapForString(String* string) {
 }
 
 
-template<typename T>
-class AllocateInternalSymbolHelper {
- public:
-  static void WriteOneByteData(T t, char* chars, int len);
-  static void WriteTwoByteData(T t, uint16_t* chars, int len);
- private:
-  DISALLOW_COPY_AND_ASSIGN(AllocateInternalSymbolHelper);
-};
+static inline void WriteOneByteData(Vector<const char> vector,
+                                    uint8_t* chars,
+                                    int len) {
+  // Only works for ascii.
+  ASSERT(vector.length() == len);
+  memcpy(chars, vector.start(), len);
+}
 
-
-template<>
-class AllocateInternalSymbolHelper< Vector<const char> > {
- public:
-  static inline void WriteOneByteData(Vector<const char> vector,
-                                      uint8_t* chars,
-                                      int len) {
-    // Only works for ascii.
-    ASSERT(vector.length() == len);
-    memcpy(chars, vector.start(), len);
-  }
-
-  static inline void WriteTwoByteData(Vector<const char> vector,
-                                      uint16_t* chars,
-                                      int len) {
-    const uint8_t* stream = reinterpret_cast<const uint8_t*>(vector.start());
-    unsigned stream_length = vector.length();
-    while (stream_length != 0) {
-      unsigned consumed = 0;
-      uint32_t c = unibrow::Utf8::ValueOf(stream, stream_length, &consumed);
-      ASSERT(c != unibrow::Utf8::kBadChar);
-      ASSERT(consumed <= stream_length);
-      stream_length -= consumed;
-      stream += consumed;
-      if (c > unibrow::Utf16::kMaxNonSurrogateCharCode) {
-        len -= 2;
-        if (len < 0) break;
-        *chars++ = unibrow::Utf16::LeadSurrogate(c);
-        *chars++ = unibrow::Utf16::TrailSurrogate(c);
-      } else {
-        len -= 1;
-        if (len < 0) break;
-        *chars++ = c;
-      }
+static inline void WriteTwoByteData(Vector<const char> vector,
+                                    uint16_t* chars,
+                                    int len) {
+  const uint8_t* stream = reinterpret_cast<const uint8_t*>(vector.start());
+  unsigned stream_length = vector.length();
+  while (stream_length != 0) {
+    unsigned consumed = 0;
+    uint32_t c = unibrow::Utf8::ValueOf(stream, stream_length, &consumed);
+    ASSERT(c != unibrow::Utf8::kBadChar);
+    ASSERT(consumed <= stream_length);
+    stream_length -= consumed;
+    stream += consumed;
+    if (c > unibrow::Utf16::kMaxNonSurrogateCharCode) {
+      len -= 2;
+      if (len < 0) break;
+      *chars++ = unibrow::Utf16::LeadSurrogate(c);
+      *chars++ = unibrow::Utf16::TrailSurrogate(c);
+    } else {
+      len -= 1;
+      if (len < 0) break;
+      *chars++ = c;
     }
-    ASSERT(stream_length == 0);
-    ASSERT(len == 0);
   }
+  ASSERT(stream_length == 0);
+  ASSERT(len == 0);
+}
 
- private:
-  DISALLOW_COPY_AND_ASSIGN(AllocateInternalSymbolHelper);
-};
 
+static inline void WriteOneByteData(String* s, uint8_t* chars, int len) {
+  ASSERT(s->length() == len);
+  String::WriteToFlat(s, chars, 0, len);
+}
 
-template<>
-class AllocateInternalSymbolHelper<String*> {
- public:
-  static inline void WriteOneByteData(String* s, uint8_t* chars, int len) {
-    ASSERT(s->length() == len);
-    String::WriteToFlat(s, chars, 0, len);
-  }
-
-  static inline void WriteTwoByteData(String* s, uint16_t* chars, int len) {
-    ASSERT(s->length() == len);
-    String::WriteToFlat(s, chars, 0, len);
-  }
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(AllocateInternalSymbolHelper<String*>);
-};
+static inline void WriteTwoByteData(String* s, uint16_t* chars, int len) {
+  ASSERT(s->length() == len);
+  String::WriteToFlat(s, chars, 0, len);
+}
 
 
 template<bool is_one_byte, typename T>
 MaybeObject* Heap::AllocateInternalSymbol(T t,
                                           int chars,
                                           uint32_t hash_field) {
-  typedef AllocateInternalSymbolHelper<T> H;
   ASSERT(chars >= 0);
   // Compute map and object size.
   int size;
@@ -4752,9 +4761,9 @@ MaybeObject* Heap::AllocateInternalSymbol(T t,
   ASSERT_EQ(size, answer->Size());
 
   if (is_one_byte) {
-    H::WriteOneByteData(t, SeqOneByteString::cast(answer)->GetChars(), chars);
+    WriteOneByteData(t, SeqOneByteString::cast(answer)->GetChars(), chars);
   } else {
-    H::WriteTwoByteData(t, SeqTwoByteString::cast(answer)->GetChars(), chars);
+    WriteTwoByteData(t, SeqTwoByteString::cast(answer)->GetChars(), chars);
   }
   return answer;
 }
@@ -5959,6 +5968,7 @@ void Heap::IterateWeakRoots(ObjectVisitor* v, VisitMode mode) {
       mode != VISIT_ALL_IN_SWEEP_NEWSPACE) {
     // Scavenge collections have special processing for this.
     external_string_table_.Iterate(v);
+    error_object_list_.Iterate(v);
   }
   v->Synchronize(VisitorSynchronization::kExternalStringsTable);
 }
@@ -6331,6 +6341,8 @@ void Heap::TearDown() {
   isolate_->global_handles()->TearDown();
 
   external_string_table_.TearDown();
+
+  error_object_list_.TearDown();
 
   new_space_.TearDown();
 
@@ -6731,7 +6743,7 @@ void HeapIterator::reset() {
 }
 
 
-#if defined(DEBUG) || defined(LIVE_OBJECT_LIST)
+#ifdef DEBUG
 
 Object* const PathTracer::kAnyGlobalObject = reinterpret_cast<Object*>(NULL);
 
@@ -6898,10 +6910,8 @@ void PathTracer::ProcessResults() {
     PrintF("=====================================\n");
   }
 }
-#endif  // DEBUG || LIVE_OBJECT_LIST
 
 
-#ifdef DEBUG
 // Triggers a depth-first traversal of reachable objects from one
 // given root object and finds a path to a specific heap object and
 // prints it.
@@ -7238,6 +7248,8 @@ void ExternalStringTable::CleanUp() {
     }
   }
   new_space_strings_.Rewind(last);
+  new_space_strings_.Trim();
+
   last = 0;
   for (int i = 0; i < old_space_strings_.length(); ++i) {
     if (old_space_strings_[i] == heap_->the_hole_value()) {
@@ -7247,6 +7259,7 @@ void ExternalStringTable::CleanUp() {
     old_space_strings_[last++] = old_space_strings_[i];
   }
   old_space_strings_.Rewind(last);
+  old_space_strings_.Trim();
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap) {
     Verify();
@@ -7258,6 +7271,119 @@ void ExternalStringTable::CleanUp() {
 void ExternalStringTable::TearDown() {
   new_space_strings_.Free();
   old_space_strings_.Free();
+}
+
+
+// Update all references.
+void ErrorObjectList::UpdateReferences() {
+  for (int i = 0; i < list_.length(); i++) {
+    HeapObject* object = HeapObject::cast(list_[i]);
+    MapWord first_word = object->map_word();
+    if (first_word.IsForwardingAddress()) {
+      list_[i] = first_word.ToForwardingAddress();
+    }
+  }
+}
+
+
+// Unforwarded objects in new space are dead and removed from the list.
+void ErrorObjectList::UpdateReferencesInNewSpace(Heap* heap) {
+  if (list_.is_empty()) return;
+  if (!nested_) {
+    int write_index = 0;
+    for (int i = 0; i < list_.length(); i++) {
+      MapWord first_word = HeapObject::cast(list_[i])->map_word();
+      if (first_word.IsForwardingAddress()) {
+        list_[write_index++] = first_word.ToForwardingAddress();
+      }
+    }
+    list_.Rewind(write_index);
+  } else {
+    // If a GC is triggered during DeferredFormatStackTrace, we do not move
+    // objects in the list, just remove dead ones, as to not confuse the
+    // loop in DeferredFormatStackTrace.
+    for (int i = 0; i < list_.length(); i++) {
+      MapWord first_word = HeapObject::cast(list_[i])->map_word();
+      list_[i] = first_word.IsForwardingAddress()
+                     ? first_word.ToForwardingAddress()
+                     : heap->the_hole_value();
+    }
+  }
+}
+
+
+void ErrorObjectList::DeferredFormatStackTrace(Isolate* isolate) {
+  // If formatting the stack trace causes a GC, this method will be
+  // recursively called.  In that case, skip the recursive call, since
+  // the loop modifies the list while iterating over it.
+  if (nested_ || list_.is_empty() || isolate->has_pending_exception()) return;
+  nested_ = true;
+  HandleScope scope(isolate);
+  Handle<String> stack_key = isolate->factory()->stack_symbol();
+  int write_index = 0;
+  int budget = kBudgetPerGC;
+  for (int i = 0; i < list_.length(); i++) {
+    Object* object = list_[i];
+    JSFunction* getter_fun;
+
+    { AssertNoAllocation assert;
+      // Skip possible holes in the list.
+      if (object->IsTheHole()) continue;
+      if (isolate->heap()->InNewSpace(object) || budget == 0) {
+        list_[write_index++] = object;
+        continue;
+      }
+
+      // Check whether the stack property is backed by the original getter.
+      LookupResult lookup(isolate);
+      JSObject::cast(object)->LocalLookupRealNamedProperty(*stack_key, &lookup);
+      if (!lookup.IsFound() || lookup.type() != CALLBACKS) continue;
+      Object* callback = lookup.GetCallbackObject();
+      if (!callback->IsAccessorPair()) continue;
+      Object* getter_obj = AccessorPair::cast(callback)->getter();
+      if (!getter_obj->IsJSFunction()) continue;
+      getter_fun = JSFunction::cast(getter_obj);
+      String* key = isolate->heap()->hidden_stack_trace_symbol();
+      if (key != getter_fun->GetHiddenProperty(key)) continue;
+    }
+
+    budget--;
+    HandleScope scope(isolate);
+    bool has_exception = false;
+#ifdef DEBUG
+    Handle<Map> map(HeapObject::cast(object)->map(), isolate);
+#endif
+    Handle<Object> object_handle(object, isolate);
+    Handle<Object> getter_handle(getter_fun, isolate);
+    Execution::Call(getter_handle, object_handle, 0, NULL, &has_exception);
+    ASSERT(*map == HeapObject::cast(*object_handle)->map());
+    if (has_exception) {
+      // Hit an exception (most likely a stack overflow).
+      // Wrap up this pass and retry after another GC.
+      isolate->clear_pending_exception();
+      // We use the handle since calling the getter might have caused a GC.
+      list_[write_index++] = *object_handle;
+      budget = 0;
+    }
+  }
+  list_.Rewind(write_index);
+  list_.Trim();
+  nested_ = false;
+}
+
+
+void ErrorObjectList::RemoveUnmarked(Heap* heap) {
+  for (int i = 0; i < list_.length(); i++) {
+    HeapObject* object = HeapObject::cast(list_[i]);
+    if (!Marking::MarkBitFrom(object).Get()) {
+      list_[i] = heap->the_hole_value();
+    }
+  }
+}
+
+
+void ErrorObjectList::TearDown() {
+  list_.Free();
 }
 
 

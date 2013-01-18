@@ -48,7 +48,6 @@
 #include "json-parser.h"
 #include "json-stringifier.h"
 #include "liveedit.h"
-#include "liveobjectlist-inl.h"
 #include "misc-intrinsics.h"
 #include "parser.h"
 #include "platform.h"
@@ -668,7 +667,11 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateArrayLiteralShallow) {
       isolate->heap()->fixed_cow_array_map()) {
     isolate->counters()->cow_arrays_created_runtime()->Increment();
   }
-  return isolate->heap()->CopyJSObject(JSObject::cast(*boilerplate));
+
+  JSObject* boilerplate_object = JSObject::cast(*boilerplate);
+  AllocationSiteMode mode = AllocationSiteInfo::GetMode(
+      boilerplate_object->GetElementsKind());
+  return isolate->heap()->CopyJSObject(boilerplate_object, mode);
 }
 
 
@@ -1098,14 +1101,15 @@ static MaybeObject* GetOwnProperty(Isolate* isolate,
 
   PropertyAttributes attrs = obj->GetLocalPropertyAttribute(*name);
   if (attrs == ABSENT) return heap->undefined_value();
-  AccessorPair* accessors = obj->GetLocalPropertyAccessorPair(*name);
+  AccessorPair* raw_accessors = obj->GetLocalPropertyAccessorPair(*name);
+  Handle<AccessorPair> accessors(raw_accessors, isolate);
 
   Handle<FixedArray> elms = isolate->factory()->NewFixedArray(DESCRIPTOR_SIZE);
   elms->set(ENUMERABLE_INDEX, heap->ToBoolean((attrs & DONT_ENUM) == 0));
   elms->set(CONFIGURABLE_INDEX, heap->ToBoolean((attrs & DONT_DELETE) == 0));
-  elms->set(IS_ACCESSOR_INDEX, heap->ToBoolean(accessors != NULL));
+  elms->set(IS_ACCESSOR_INDEX, heap->ToBoolean(raw_accessors != NULL));
 
-  if (accessors == NULL) {
+  if (raw_accessors == NULL) {
     elms->set(WRITABLE_INDEX, heap->ToBoolean((attrs & READ_ONLY) == 0));
     // GetProperty does access check.
     Handle<Object> value = GetProperty(obj, name);
@@ -5803,7 +5807,9 @@ MUST_USE_RESULT static MaybeObject* ConvertCaseHelper(
 namespace {
 
 static const uintptr_t kOneInEveryByte = kUintptrAllBitsSet / 0xFF;
-
+#ifdef ENABLE_LATIN_1
+static const uintptr_t kAsciiMask = kOneInEveryByte << 7;
+#endif
 
 // Given a word and two range boundaries returns a word with high bit
 // set in every byte iff the corresponding input byte was strictly in
@@ -5817,7 +5823,10 @@ static inline uintptr_t AsciiRangeMask(uintptr_t w, char m, char n) {
   ASSERT((w & (kOneInEveryByte * 0x7F)) == w);
   // Use strict inequalities since in edge cases the function could be
   // further simplified.
-  ASSERT(0 < m && m < n && n < 0x7F);
+  ASSERT(0 < m && m < n);
+#ifndef ENABLE_LATIN_1
+  ASSERT(n < 0x7F);
+#endif
   // Has high bit set in every w byte less than n.
   uintptr_t tmp1 = kOneInEveryByte * (0x7F + n) - w;
   // Has high bit set in every w byte greater than m.
@@ -5834,7 +5843,11 @@ enum AsciiCaseConversion {
 
 template <AsciiCaseConversion dir>
 struct FastAsciiConverter {
+#ifdef ENABLE_LATIN_1
+  static bool Convert(char* dst, char* src, int length, bool* changed_out) {
+#else
   static bool Convert(char* dst, char* src, int length) {
+#endif
 #ifdef DEBUG
     char* saved_dst = dst;
     char* saved_src = src;
@@ -5846,12 +5859,18 @@ struct FastAsciiConverter {
     const char lo = (dir == ASCII_TO_LOWER) ? 'A' - 1 : 'a' - 1;
     const char hi = (dir == ASCII_TO_LOWER) ? 'Z' + 1 : 'z' + 1;
     bool changed = false;
+#ifdef ENABLE_LATIN_1
+    uintptr_t or_acc = 0;
+#endif
     char* const limit = src + length;
 #ifdef V8_HOST_CAN_READ_UNALIGNED
     // Process the prefix of the input that requires no conversion one
     // (machine) word at a time.
     while (src <= limit - sizeof(uintptr_t)) {
       uintptr_t w = *reinterpret_cast<uintptr_t*>(src);
+#ifdef ENABLE_LATIN_1
+      or_acc |= w;
+#endif
       if (AsciiRangeMask(w, lo, hi) != 0) {
         changed = true;
         break;
@@ -5864,6 +5883,9 @@ struct FastAsciiConverter {
     // required one word at a time.
     while (src <= limit - sizeof(uintptr_t)) {
       uintptr_t w = *reinterpret_cast<uintptr_t*>(src);
+#ifdef ENABLE_LATIN_1
+      or_acc |= w;
+#endif
       uintptr_t m = AsciiRangeMask(w, lo, hi);
       // The mask has high (7th) bit set in every byte that needs
       // conversion and we know that the distance between cases is
@@ -5877,6 +5899,9 @@ struct FastAsciiConverter {
     // unaligned access is not supported).
     while (src < limit) {
       char c = *src;
+#ifdef ENABLE_LATIN_1
+      or_acc |= c;
+#endif
       if (lo < c && c < hi) {
         c ^= (1 << 5);
         changed = true;
@@ -5885,10 +5910,20 @@ struct FastAsciiConverter {
       ++src;
       ++dst;
     }
+#ifdef ENABLE_LATIN_1
+    if ((or_acc & kAsciiMask) != 0) {
+      return false;
+    }
+#endif
 #ifdef DEBUG
     CheckConvert(saved_dst, saved_src, length, changed);
 #endif
+#ifdef ENABLE_LATIN_1
+    *changed_out = changed;
+    return true;
+#else
     return changed;
+#endif
   }
 
 #ifdef DEBUG
@@ -5941,7 +5976,6 @@ MUST_USE_RESULT static MaybeObject* ConvertCase(
   // Assume that the string is not empty; we need this assumption later
   if (length == 0) return s;
 
-#ifndef ENABLE_LATIN_1
   // Simpler handling of ASCII strings.
   //
   // NOTE: This assumes that the upper/lower case of an ASCII
@@ -5954,13 +5988,25 @@ MUST_USE_RESULT static MaybeObject* ConvertCase(
       if (!maybe_o->ToObject(&o)) return maybe_o;
     }
     SeqOneByteString* result = SeqOneByteString::cast(o);
+#ifndef ENABLE_LATIN_1
     bool has_changed_character = ConvertTraits::AsciiConverter::Convert(
         reinterpret_cast<char*>(result->GetChars()),
         reinterpret_cast<char*>(SeqOneByteString::cast(s)->GetChars()),
         length);
     return has_changed_character ? result : s;
-  }
+#else
+    bool has_changed_character;
+    bool is_ascii = ConvertTraits::AsciiConverter::Convert(
+        reinterpret_cast<char*>(result->GetChars()),
+        reinterpret_cast<char*>(SeqOneByteString::cast(s)->GetChars()),
+        length,
+        &has_changed_character);
+    // If not ASCII, we discard the result and take the 2 byte path.
+    if (is_ascii) {
+      return has_changed_character ? result : s;
+    }
 #endif
+  }
 
   Object* answer;
   { MaybeObject* maybe_answer =
@@ -12934,206 +12980,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetHeapUsage) {
   return Smi::FromInt(usage);
 }
 
-
-// Captures a live object list from the present heap.
-RUNTIME_FUNCTION(MaybeObject*, Runtime_HasLOLEnabled) {
-#ifdef LIVE_OBJECT_LIST
-  return isolate->heap()->true_value();
-#else
-  return isolate->heap()->false_value();
-#endif
-}
-
-
-// Captures a live object list from the present heap.
-RUNTIME_FUNCTION(MaybeObject*, Runtime_CaptureLOL) {
-#ifdef LIVE_OBJECT_LIST
-  return LiveObjectList::Capture();
-#else
-  return isolate->heap()->undefined_value();
-#endif
-}
-
-
-// Deletes the specified live object list.
-RUNTIME_FUNCTION(MaybeObject*, Runtime_DeleteLOL) {
-#ifdef LIVE_OBJECT_LIST
-  CONVERT_SMI_ARG_CHECKED(id, 0);
-  bool success = LiveObjectList::Delete(id);
-  return isolate->heap()->ToBoolean(success);
-#else
-  return isolate->heap()->undefined_value();
-#endif
-}
-
-
-// Generates the response to a debugger request for a dump of the objects
-// contained in the difference between the captured live object lists
-// specified by id1 and id2.
-// If id1 is 0 (i.e. not a valid lol), then the whole of lol id2 will be
-// dumped.
-RUNTIME_FUNCTION(MaybeObject*, Runtime_DumpLOL) {
-#ifdef LIVE_OBJECT_LIST
-  HandleScope scope;
-  CONVERT_SMI_ARG_CHECKED(id1, 0);
-  CONVERT_SMI_ARG_CHECKED(id2, 1);
-  CONVERT_SMI_ARG_CHECKED(start, 2);
-  CONVERT_SMI_ARG_CHECKED(count, 3);
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, filter_obj, 4);
-  EnterDebugger enter_debugger;
-  return LiveObjectList::Dump(id1, id2, start, count, filter_obj);
-#else
-  return isolate->heap()->undefined_value();
-#endif
-}
-
-
-// Gets the specified object as requested by the debugger.
-// This is only used for obj ids shown in live object lists.
-RUNTIME_FUNCTION(MaybeObject*, Runtime_GetLOLObj) {
-#ifdef LIVE_OBJECT_LIST
-  CONVERT_SMI_ARG_CHECKED(obj_id, 0);
-  Object* result = LiveObjectList::GetObj(obj_id);
-  return result;
-#else
-  return isolate->heap()->undefined_value();
-#endif
-}
-
-
-// Gets the obj id for the specified address if valid.
-// This is only used for obj ids shown in live object lists.
-RUNTIME_FUNCTION(MaybeObject*, Runtime_GetLOLObjId) {
-#ifdef LIVE_OBJECT_LIST
-  HandleScope scope;
-  CONVERT_ARG_HANDLE_CHECKED(String, address, 0);
-  Object* result = LiveObjectList::GetObjId(address);
-  return result;
-#else
-  return isolate->heap()->undefined_value();
-#endif
-}
-
-
-// Gets the retainers that references the specified object alive.
-RUNTIME_FUNCTION(MaybeObject*, Runtime_GetLOLObjRetainers) {
-#ifdef LIVE_OBJECT_LIST
-  HandleScope scope;
-  CONVERT_SMI_ARG_CHECKED(obj_id, 0);
-  RUNTIME_ASSERT(args[1]->IsUndefined() || args[1]->IsJSObject());
-  RUNTIME_ASSERT(args[2]->IsUndefined() || args[2]->IsBoolean());
-  RUNTIME_ASSERT(args[3]->IsUndefined() || args[3]->IsSmi());
-  RUNTIME_ASSERT(args[4]->IsUndefined() || args[4]->IsSmi());
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, filter_obj, 5);
-
-  Handle<JSObject> instance_filter;
-  if (args[1]->IsJSObject()) {
-    instance_filter = args.at<JSObject>(1);
-  }
-  bool verbose = false;
-  if (args[2]->IsBoolean()) {
-    verbose = args[2]->IsTrue();
-  }
-  int start = 0;
-  if (args[3]->IsSmi()) {
-    start = args.smi_at(3);
-  }
-  int limit = Smi::kMaxValue;
-  if (args[4]->IsSmi()) {
-    limit = args.smi_at(4);
-  }
-
-  return LiveObjectList::GetObjRetainers(obj_id,
-                                         instance_filter,
-                                         verbose,
-                                         start,
-                                         limit,
-                                         filter_obj);
-#else
-  return isolate->heap()->undefined_value();
-#endif
-}
-
-
-// Gets the reference path between 2 objects.
-RUNTIME_FUNCTION(MaybeObject*, Runtime_GetLOLPath) {
-#ifdef LIVE_OBJECT_LIST
-  HandleScope scope;
-  CONVERT_SMI_ARG_CHECKED(obj_id1, 0);
-  CONVERT_SMI_ARG_CHECKED(obj_id2, 1);
-  RUNTIME_ASSERT(args[2]->IsUndefined() || args[2]->IsJSObject());
-
-  Handle<JSObject> instance_filter;
-  if (args[2]->IsJSObject()) {
-    instance_filter = args.at<JSObject>(2);
-  }
-
-  Object* result =
-      LiveObjectList::GetPath(obj_id1, obj_id2, instance_filter);
-  return result;
-#else
-  return isolate->heap()->undefined_value();
-#endif
-}
-
-
-// Generates the response to a debugger request for a list of all
-// previously captured live object lists.
-RUNTIME_FUNCTION(MaybeObject*, Runtime_InfoLOL) {
-#ifdef LIVE_OBJECT_LIST
-  CONVERT_SMI_ARG_CHECKED(start, 0);
-  CONVERT_SMI_ARG_CHECKED(count, 1);
-  return LiveObjectList::Info(start, count);
-#else
-  return isolate->heap()->undefined_value();
-#endif
-}
-
-
-// Gets a dump of the specified object as requested by the debugger.
-// This is only used for obj ids shown in live object lists.
-RUNTIME_FUNCTION(MaybeObject*, Runtime_PrintLOLObj) {
-#ifdef LIVE_OBJECT_LIST
-  HandleScope scope;
-  CONVERT_SMI_ARG_CHECKED(obj_id, 0);
-  Object* result = LiveObjectList::PrintObj(obj_id);
-  return result;
-#else
-  return isolate->heap()->undefined_value();
-#endif
-}
-
-
-// Resets and releases all previously captured live object lists.
-RUNTIME_FUNCTION(MaybeObject*, Runtime_ResetLOL) {
-#ifdef LIVE_OBJECT_LIST
-  LiveObjectList::Reset();
-  return isolate->heap()->undefined_value();
-#else
-  return isolate->heap()->undefined_value();
-#endif
-}
-
-
-// Generates the response to a debugger request for a summary of the types
-// of objects in the difference between the captured live object lists
-// specified by id1 and id2.
-// If id1 is 0 (i.e. not a valid lol), then the whole of lol id2 will be
-// summarized.
-RUNTIME_FUNCTION(MaybeObject*, Runtime_SummarizeLOL) {
-#ifdef LIVE_OBJECT_LIST
-  HandleScope scope;
-  CONVERT_SMI_ARG_CHECKED(id1, 0);
-  CONVERT_SMI_ARG_CHECKED(id2, 1);
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, filter_obj, 2);
-
-  EnterDebugger enter_debugger;
-  return LiveObjectList::Summarize(id1, id2, filter_obj);
-#else
-  return isolate->heap()->undefined_value();
-#endif
-}
-
 #endif  // ENABLE_DEBUGGER_SUPPORT
 
 
@@ -13219,16 +13065,46 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CollectStackTrace) {
 }
 
 
-// Retrieve the raw stack trace collected on stack overflow and delete
-// it since it is used only once to avoid keeping it alive.
-RUNTIME_FUNCTION(MaybeObject*, Runtime_GetOverflowedRawStackTrace) {
+// Mark a function to recognize when called after GC to format the stack trace.
+RUNTIME_FUNCTION(MaybeObject*, Runtime_MarkOneShotGetter) {
+  ASSERT_EQ(args.length(), 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, fun, 0);
+  HandleScope scope(isolate);
+  Handle<String> key = isolate->factory()->hidden_stack_trace_symbol();
+  JSObject::SetHiddenProperty(fun, key, key);
+  return *fun;
+}
+
+
+// Retrieve the stack trace.  This could be the raw stack trace collected
+// on stack overflow or the already formatted stack trace string.
+RUNTIME_FUNCTION(MaybeObject*, Runtime_GetOverflowedStackTrace) {
+  HandleScope scope(isolate);
   ASSERT_EQ(args.length(), 1);
   CONVERT_ARG_CHECKED(JSObject, error_object, 0);
   String* key = isolate->heap()->hidden_stack_trace_symbol();
   Object* result = error_object->GetHiddenProperty(key);
-  RUNTIME_ASSERT(result->IsJSArray() || result->IsUndefined());
-  error_object->DeleteHiddenProperty(key);
+  RUNTIME_ASSERT(result->IsJSArray() ||
+                 result->IsString() ||
+                 result->IsUndefined());
   return result;
+}
+
+
+// Set or clear the stack trace attached to an stack overflow error object.
+RUNTIME_FUNCTION(MaybeObject*, Runtime_SetOverflowedStackTrace) {
+  HandleScope scope(isolate);
+  ASSERT_EQ(args.length(), 2);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, error_object, 0);
+  CONVERT_ARG_HANDLE_CHECKED(HeapObject, value, 1);
+  Handle<String> key = isolate->factory()->hidden_stack_trace_symbol();
+  if (value->IsUndefined()) {
+    error_object->DeleteHiddenProperty(*key);
+  } else {
+    RUNTIME_ASSERT(value->IsString());
+    JSObject::SetHiddenProperty(error_object, key, value);
+  }
+  return *error_object;
 }
 
 

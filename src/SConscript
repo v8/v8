@@ -89,7 +89,6 @@ SOURCES = {
     hydrogen.cc
     ic.cc
     incremental-marking.cc
-    inspector.cc
     interface.cc
     interpreter-irregexp.cc
     isolate.cc
@@ -97,7 +96,6 @@ SOURCES = {
     lithium-allocator.cc
     lithium.cc
     liveedit.cc
-    liveobjectlist.cc
     log-utils.cc
     log.cc
     mark-compact.cc

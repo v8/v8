@@ -209,6 +209,7 @@ namespace internal {
   V(char_at_symbol, "CharAt")                                            \
   V(undefined_symbol, "undefined")                                       \
   V(value_of_symbol, "valueOf")                                          \
+  V(stack_symbol, "stack")                                               \
   V(InitializeVarGlobal_symbol, "InitializeVarGlobal")                   \
   V(InitializeConstGlobal_symbol, "InitializeConstGlobal")               \
   V(KeyedLoadElementMonomorphic_symbol,                                  \
@@ -427,6 +428,41 @@ class ExternalStringTable {
 };
 
 
+// The stack property of an error object is implemented as a getter that
+// formats the attached raw stack trace into a string.  This raw stack trace
+// keeps code and function objects alive until the getter is called the first
+// time.  To release those objects, we call the getter after each GC for
+// newly tenured error objects that are kept in a list.
+class ErrorObjectList {
+ public:
+  inline void Add(JSObject* object);
+
+  inline void Iterate(ObjectVisitor* v);
+
+  void TearDown();
+
+  void RemoveUnmarked(Heap* heap);
+
+  void DeferredFormatStackTrace(Isolate* isolate);
+
+  void UpdateReferences();
+
+  void UpdateReferencesInNewSpace(Heap* heap);
+
+ private:
+  static const int kBudgetPerGC = 16;
+
+  ErrorObjectList() : nested_(false) { }
+
+  friend class Heap;
+
+  List<Object*> list_;
+  bool nested_;
+
+  DISALLOW_COPY_AND_ASSIGN(ErrorObjectList);
+};
+
+
 enum ArrayStorageAllocationMode {
   DONT_INITIALIZE_ARRAY_ELEMENTS,
   INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE
@@ -588,7 +624,9 @@ class Heap {
   // Returns a deep copy of the JavaScript object.
   // Properties and elements are copied too.
   // Returns failure if allocation failed.
-  MUST_USE_RESULT MaybeObject* CopyJSObject(JSObject* source);
+  MUST_USE_RESULT MaybeObject* CopyJSObject(
+      JSObject* source,
+      AllocationSiteMode mode = DONT_TRACK_ALLOCATION_SITE);
 
   // Allocates the function prototype.
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
@@ -1589,6 +1627,10 @@ class Heap {
     return &external_string_table_;
   }
 
+  ErrorObjectList* error_object_list() {
+    return &error_object_list_;
+  }
+
   // Returns the current sweep generation.
   int sweep_generation() {
     return sweep_generation_;
@@ -2164,6 +2206,8 @@ class Heap {
   bool configured_;
 
   ExternalStringTable external_string_table_;
+
+  ErrorObjectList error_object_list_;
 
   VisitorDispatchTable<ScavengingCallback> scavenging_visitors_table_;
 
@@ -2798,7 +2842,7 @@ class IntrusiveMarking {
 };
 
 
-#if defined(DEBUG) || defined(LIVE_OBJECT_LIST)
+#ifdef DEBUG
 // Helper class for tracing paths to a search target Object from all roots.
 // The TracePathFrom() method can be used to trace paths from a specific
 // object to the search target object.
@@ -2855,7 +2899,7 @@ class PathTracer : public ObjectVisitor {
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(PathTracer);
 };
-#endif  // DEBUG || LIVE_OBJECT_LIST
+#endif  // DEBUG
 
 } }  // namespace v8::internal
 

@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2013 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,36 +25,21 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// Flags: --expose-debug-as debug
 
-#ifndef V8_INSPECTOR_H_
-#define V8_INSPECTOR_H_
+Debug = debug.Debug;
 
-// Only build this code if we're configured with the INSPECTOR.
-#ifdef INSPECTOR
-
-#include "v8.h"
-
-#include "objects.h"
-
-namespace v8 {
-namespace internal {
-
-class Inspector {
- public:
-  static void DumpObjectType(FILE* out, Object* obj, bool print_more);
-  static void DumpObjectType(FILE* out, Object* obj) {
-    DumpObjectType(out, obj, false);
-  }
-  static void DumpObjectType(Object* obj, bool print_more) {
-    DumpObjectType(stdout, obj, print_more);
-  }
-  static void DumpObjectType(Object* obj) {
-    DumpObjectType(stdout, obj, false);
+function listener(event, exec_state, event_data, data) {
+  if (event == Debug.DebugEvent.Break) {
+    exec_state.prepareStep(Debug.StepAction.StepNext, 10);
   }
 };
 
-} }  // namespace v8::internal
+Debug.setListener(listener);
 
-#endif  // INSPECTOR
+var statement = "";
+for (var i = 0; i < 1024; i++) statement += "z";
+statement = 'with(0)' + statement + '=function foo(){}';
 
-#endif  // V8_INSPECTOR_H_
+debugger;
+eval(statement);

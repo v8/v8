@@ -3603,8 +3603,7 @@ void LCodeGen::DoRandom(LRandom* instr) {
 
   // state[0] = 18273 * (state[0] & 0xFFFF) + (state[0] >> 16)
   // Only operate on the lower 32 bit of rax.
-  __ movl(rdx, rax);
-  __ andl(rdx, Immediate(0xFFFF));
+  __ movzxwl(rdx, rax);
   __ imull(rdx, rdx, Immediate(18273));
   __ shrl(rax, Immediate(16));
   __ addl(rax, rdx);
@@ -3612,8 +3611,7 @@ void LCodeGen::DoRandom(LRandom* instr) {
   __ movl(FieldOperand(rbx, ByteArray::kHeaderSize), rax);
 
   // state[1] = 36969 * (state[1] & 0xFFFF) + (state[1] >> 16)
-  __ movl(rdx, rcx);
-  __ andl(rdx, Immediate(0xFFFF));
+  __ movzxwl(rdx, rcx);
   __ imull(rdx, rdx, Immediate(36969));
   __ shrl(rcx, Immediate(16));
   __ addl(rcx, rdx);
@@ -3629,10 +3627,10 @@ void LCodeGen::DoRandom(LRandom* instr) {
   // Convert 32 random bits in rax to 0.(32 random bits) in a double
   // by computing:
   // ( 1.(20 0s)(32 random bits) x 2^20 ) - (1.0 x 2^20)).
-  __ movl(rcx, Immediate(0x49800000));  // 1.0 x 2^20 as single.
-  __ movd(xmm2, rcx);
+  __ movq(rcx, V8_INT64_C(0x4130000000000000),
+          RelocInfo::NONE64);  // 1.0 x 2^20 as double
+  __ movq(xmm2, rcx);
   __ movd(xmm1, rax);
-  __ cvtss2sd(xmm2, xmm2);
   __ xorps(xmm1, xmm2);
   __ subsd(xmm1, xmm2);
 }
@@ -4903,6 +4901,8 @@ void LCodeGen::DoArrayLiteral(LArrayLiteral* instr) {
   Handle<FixedArray> literals(instr->environment()->closure()->literals());
   ElementsKind boilerplate_elements_kind =
       instr->hydrogen()->boilerplate_elements_kind();
+  AllocationSiteMode allocation_site_mode =
+      instr->hydrogen()->allocation_site_mode();
 
   // Deopt if the array literal boilerplate ElementsKind is of a type different
   // than the expected one. The check isn't necessary if the boilerplate has
@@ -4933,7 +4933,7 @@ void LCodeGen::DoArrayLiteral(LArrayLiteral* instr) {
     ASSERT(instr->hydrogen()->depth() == 1);
     FastCloneShallowArrayStub::Mode mode =
         FastCloneShallowArrayStub::COPY_ON_WRITE_ELEMENTS;
-    FastCloneShallowArrayStub stub(mode, length);
+    FastCloneShallowArrayStub stub(mode, DONT_TRACK_ALLOCATION_SITE, length);
     CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
   } else if (instr->hydrogen()->depth() > 1) {
     CallRuntime(Runtime::kCreateArrayLiteral, 3, instr);
@@ -4942,9 +4942,9 @@ void LCodeGen::DoArrayLiteral(LArrayLiteral* instr) {
   } else {
     FastCloneShallowArrayStub::Mode mode =
         boilerplate_elements_kind == FAST_DOUBLE_ELEMENTS
-            ? FastCloneShallowArrayStub::CLONE_DOUBLE_ELEMENTS
-            : FastCloneShallowArrayStub::CLONE_ELEMENTS;
-    FastCloneShallowArrayStub stub(mode, length);
+        ? FastCloneShallowArrayStub::CLONE_DOUBLE_ELEMENTS
+        : FastCloneShallowArrayStub::CLONE_ELEMENTS;
+    FastCloneShallowArrayStub stub(mode, allocation_site_mode, length);
     CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
   }
 }
@@ -4953,9 +4953,13 @@ void LCodeGen::DoArrayLiteral(LArrayLiteral* instr) {
 void LCodeGen::EmitDeepCopy(Handle<JSObject> object,
                             Register result,
                             Register source,
-                            int* offset) {
+                            int* offset,
+                            AllocationSiteMode mode) {
   ASSERT(!source.is(rcx));
   ASSERT(!result.is(rcx));
+
+  bool create_allocation_site_info = mode == TRACK_ALLOCATION_SITE &&
+      object->map()->CanTrackAllocationSite();
 
   // Only elements backing stores for non-COW arrays need to be copied.
   Handle<FixedArrayBase> elements(object->elements());
@@ -4966,8 +4970,13 @@ void LCodeGen::EmitDeepCopy(Handle<JSObject> object,
   // this object and its backing store.
   int object_offset = *offset;
   int object_size = object->map()->instance_size();
-  int elements_offset = *offset + object_size;
   int elements_size = has_elements ? elements->Size() : 0;
+  int elements_offset = *offset + object_size;
+  if (create_allocation_site_info) {
+    elements_offset += AllocationSiteInfo::kSize;
+    *offset += AllocationSiteInfo::kSize;
+  }
+
   *offset += object_size + elements_size;
 
   // Copy object header.
@@ -4992,7 +5001,8 @@ void LCodeGen::EmitDeepCopy(Handle<JSObject> object,
       __ lea(rcx, Operand(result, *offset));
       __ movq(FieldOperand(result, total_offset), rcx);
       __ LoadHeapObject(source, value_object);
-      EmitDeepCopy(value_object, result, source, offset);
+      EmitDeepCopy(value_object, result, source, offset,
+                   DONT_TRACK_ALLOCATION_SITE);
     } else if (value->IsHeapObject()) {
       __ LoadHeapObject(rcx, Handle<HeapObject>::cast(value));
       __ movq(FieldOperand(result, total_offset), rcx);
@@ -5000,6 +5010,13 @@ void LCodeGen::EmitDeepCopy(Handle<JSObject> object,
       __ movq(rcx, value, RelocInfo::NONE64);
       __ movq(FieldOperand(result, total_offset), rcx);
     }
+  }
+
+  // Build Allocation Site Info if desired
+  if (create_allocation_site_info) {
+    __ LoadRoot(kScratchRegister, Heap::kAllocationSiteInfoMapRootIndex);
+    __ movq(FieldOperand(result, object_size), kScratchRegister);
+    __ movq(FieldOperand(result, object_size + kPointerSize), source);
   }
 
   if (has_elements) {
@@ -5032,7 +5049,8 @@ void LCodeGen::EmitDeepCopy(Handle<JSObject> object,
           __ lea(rcx, Operand(result, *offset));
           __ movq(FieldOperand(result, total_offset), rcx);
           __ LoadHeapObject(source, value_object);
-          EmitDeepCopy(value_object, result, source, offset);
+          EmitDeepCopy(value_object, result, source, offset,
+                       DONT_TRACK_ALLOCATION_SITE);
         } else if (value->IsHeapObject()) {
           __ LoadHeapObject(rcx, Handle<HeapObject>::cast(value));
           __ movq(FieldOperand(result, total_offset), rcx);
@@ -5082,7 +5100,8 @@ void LCodeGen::DoFastLiteral(LFastLiteral* instr) {
   __ bind(&allocated);
   int offset = 0;
   __ LoadHeapObject(rbx, instr->hydrogen()->boilerplate());
-  EmitDeepCopy(instr->hydrogen()->boilerplate(), rax, rbx, &offset);
+  EmitDeepCopy(instr->hydrogen()->boilerplate(), rax, rbx, &offset,
+               instr->hydrogen()->allocation_site_mode());
   ASSERT_EQ(size, offset);
 }
 
@@ -5357,6 +5376,11 @@ void LCodeGen::DoLazyBailout(LLazyBailout* instr) {
 
 void LCodeGen::DoDeoptimize(LDeoptimize* instr) {
   DeoptimizeIf(no_condition, instr->environment());
+}
+
+
+void LCodeGen::DoDummyUse(LDummyUse* instr) {
+  // Nothing to see here, move on!
 }
 
 

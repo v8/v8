@@ -214,7 +214,7 @@ int RunMain(int argc, char* argv[]) {
 #ifdef ENABLE_DEBUGGER_SUPPORT
   debug_message_context = v8::Persistent<v8::Context>::New(context);
 
-  v8::Locker locker;
+  v8::Locker locker(v8::Isolate::GetCurrent());
 
   if (support_callback) {
     v8::Debug::SetDebugMessageDispatchHandler(DispatchDebugMessages, true);
@@ -265,7 +265,7 @@ int RunMain(int argc, char* argv[]) {
 bool RunCppCycle(v8::Handle<v8::Script> script, v8::Local<v8::Context> context,
                  bool report_exceptions) {
 #ifdef ENABLE_DEBUGGER_SUPPORT
-  v8::Locker lock;
+  v8::Locker lock(v8::Isolate::GetCurrent());
 #endif  // ENABLE_DEBUGGER_SUPPORT
 
   v8::Handle<v8::String> fun_name = v8::String::New("ProcessLine");
@@ -420,7 +420,7 @@ v8::Handle<v8::String> ReadLine() {
   char* res;
   {
 #ifdef ENABLE_DEBUGGER_SUPPORT
-    v8::Unlocker unlocker;
+    v8::Unlocker unlocker(v8::Isolate::GetCurrent());
 #endif  // ENABLE_DEBUGGER_SUPPORT
     res = fgets(buffer, kBufferSize, stdin);
   }

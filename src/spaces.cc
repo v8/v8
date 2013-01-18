@@ -27,7 +27,6 @@
 
 #include "v8.h"
 
-#include "liveobjectlist-inl.h"
 #include "macro-assembler.h"
 #include "mark-compact.h"
 #include "platform.h"

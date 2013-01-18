@@ -144,7 +144,8 @@ void StubRuntimeCallHelper::AfterCall(MacroAssembler* masm) const {
 #define __ ACCESS_MASM(masm)
 
 void ElementsTransitionGenerator::GenerateMapChangeElementsTransition(
-    MacroAssembler* masm) {
+    MacroAssembler* masm, AllocationSiteMode mode,
+    Label* allocation_site_info_found) {
   // ----------- S t a t e -------------
   //  -- r0    : value
   //  -- r1    : key
@@ -153,6 +154,12 @@ void ElementsTransitionGenerator::GenerateMapChangeElementsTransition(
   //  -- r3    : target map, scratch for subsequent call
   //  -- r4    : scratch (elements)
   // -----------------------------------
+  if (mode == TRACK_ALLOCATION_SITE) {
+    ASSERT(allocation_site_info_found != NULL);
+    masm->TestJSArrayForAllocationSiteInfo(r2, r4,
+                                           allocation_site_info_found);
+  }
+
   // Set transitioned map.
   __ str(r3, FieldMemOperand(r2, HeapObject::kMapOffset));
   __ RecordWriteField(r2,
@@ -167,7 +174,7 @@ void ElementsTransitionGenerator::GenerateMapChangeElementsTransition(
 
 
 void ElementsTransitionGenerator::GenerateSmiToDouble(
-    MacroAssembler* masm, Label* fail) {
+    MacroAssembler* masm, AllocationSiteMode mode, Label* fail) {
   // ----------- S t a t e -------------
   //  -- r0    : value
   //  -- r1    : key
@@ -179,7 +186,7 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
   Label loop, entry, convert_hole, gc_required, only_change_map, done;
   bool vfp2_supported = CpuFeatures::IsSupported(VFP2);
 
-  if (FLAG_track_allocation_sites) {
+  if (mode == TRACK_ALLOCATION_SITE) {
     masm->TestJSArrayForAllocationSiteInfo(r2, r4, fail);
   }
 
@@ -308,7 +315,7 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
 
 
 void ElementsTransitionGenerator::GenerateDoubleToObject(
-    MacroAssembler* masm, Label* fail) {
+    MacroAssembler* masm, AllocationSiteMode mode, Label* fail) {
   // ----------- S t a t e -------------
   //  -- r0    : value
   //  -- r1    : key
@@ -318,6 +325,10 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
   //  -- r4    : scratch (elements)
   // -----------------------------------
   Label entry, loop, convert_hole, gc_required, only_change_map;
+
+  if (mode == TRACK_ALLOCATION_SITE) {
+    masm->TestJSArrayForAllocationSiteInfo(r2, r4, fail);
+  }
 
   // Check for empty arrays, which only require a map transition and no changes
   // to the backing store.

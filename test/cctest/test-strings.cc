@@ -1275,3 +1275,40 @@ TEST(IsAscii) {
   CHECK(String::IsAscii(static_cast<char*>(NULL), 0));
   CHECK(String::IsOneByte(static_cast<uc16*>(NULL), 0));
 }
+
+
+static bool CanBeConvertedToLatin1(uint16_t c) {
+  CHECK(c > unibrow::Latin1::kMaxChar);
+  uint32_t result[4];
+  int chars;
+  chars = unibrow::ToLowercase::Convert(c, 0, result, NULL);
+  if (chars > 0) {
+    CHECK_LE(chars, static_cast<int>(sizeof(result)));
+    for (int i = 0; i < chars; i++) {
+      if (result[i] <= unibrow::Latin1::kMaxChar) {
+        return true;
+      }
+    }
+  }
+  chars = unibrow::ToUppercase::Convert(c, 0, result, NULL);
+  if (chars > 0) {
+    CHECK_LE(chars, static_cast<int>(sizeof(result)));
+    for (int i = 0; i < chars; i++) {
+      if (result[i] <= unibrow::Latin1::kMaxChar) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+
+TEST(Latin1) {
+#ifndef ENABLE_LATIN_1
+    if (true) return;
+#endif
+  for (uint16_t c = unibrow::Latin1::kMaxChar + 1; c != 0; c++) {
+    CHECK_EQ(CanBeConvertedToLatin1(c),
+             unibrow::Latin1::NonLatin1CanBeConvertedToLatin1(c));
+  }
+}

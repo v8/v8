@@ -97,8 +97,6 @@ class IC {
   Code* target() const { return GetTargetAtAddress(address()); }
   inline Address address() const;
 
-  virtual bool IsGeneric() const { return false; }
-
   // Compute the current IC state based on the target stub, receiver and name.
   static State StateFrom(Code* target, Object* receiver, Object* name);
 
@@ -519,10 +517,6 @@ class KeyedLoadIC: public KeyedIC {
       ElementsKind elements_kind,
       KeyedAccessGrowMode grow_mode);
 
-  virtual bool IsGeneric() const {
-    return target() == *generic_stub();
-  }
-
  protected:
   virtual Code::Kind kind() const { return Code::KEYED_LOAD_IC; }
 
@@ -679,11 +673,6 @@ class KeyedStoreIC: public KeyedIC {
       bool is_js_array,
       ElementsKind elements_kind,
       KeyedAccessGrowMode grow_mode);
-
-  virtual bool IsGeneric() const {
-    return target() == *generic_stub() ||
-        target() == *generic_stub_strict();
-  }
 
  protected:
   virtual Code::Kind kind() const { return Code::KEYED_STORE_IC; }

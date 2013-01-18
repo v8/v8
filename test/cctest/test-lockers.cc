@@ -536,7 +536,7 @@ class LockUnlockLockThread : public JoinableThread {
   virtual void Run() {
     v8::Locker lock1(isolate_);
     CHECK(v8::Locker::IsLocked(isolate_));
-    CHECK(!v8::Locker::IsLocked());
+    CHECK(!v8::Locker::IsLocked(CcTest::default_isolate()));
     {
       v8::Isolate::Scope isolate_scope(isolate_);
       v8::HandleScope handle_scope;
@@ -546,13 +546,13 @@ class LockUnlockLockThread : public JoinableThread {
     {
       v8::Unlocker unlock1(isolate_);
       CHECK(!v8::Locker::IsLocked(isolate_));
-      CHECK(!v8::Locker::IsLocked());
+      CHECK(!v8::Locker::IsLocked(CcTest::default_isolate()));
       {
         v8::Locker lock2(isolate_);
         v8::Isolate::Scope isolate_scope(isolate_);
         v8::HandleScope handle_scope;
         CHECK(v8::Locker::IsLocked(isolate_));
-        CHECK(!v8::Locker::IsLocked());
+        CHECK(!v8::Locker::IsLocked(CcTest::default_isolate()));
         v8::Context::Scope context_scope(context_);
         CalcFibAndCheck();
       }
@@ -594,16 +594,16 @@ class LockUnlockLockDefaultIsolateThread : public JoinableThread {
   }
 
   virtual void Run() {
-    v8::Locker lock1;
+    v8::Locker lock1(CcTest::default_isolate());
     {
       v8::HandleScope handle_scope;
       v8::Context::Scope context_scope(context_);
       CalcFibAndCheck();
     }
     {
-      v8::Unlocker unlock1;
+      v8::Unlocker unlock1(CcTest::default_isolate());
       {
-        v8::Locker lock2;
+        v8::Locker lock2(CcTest::default_isolate());
         v8::HandleScope handle_scope;
         v8::Context::Scope context_scope(context_);
         CalcFibAndCheck();
@@ -624,7 +624,7 @@ TEST(LockUnlockLockDefaultIsolateMultithreaded) {
 #endif
   Persistent<v8::Context> context;
   {
-    v8::Locker locker_;
+    v8::Locker locker_(CcTest::default_isolate());
     v8::HandleScope handle_scope;
     context = v8::Context::New();
   }

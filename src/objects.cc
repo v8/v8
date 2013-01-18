@@ -627,6 +627,8 @@ MaybeObject* Object::GetProperty(Object* receiver,
         // that even though we may not actually end up loading the named
         // property from the current object, we still check that we have
         // access to it.
+        // TODO(dcarney): revert.
+        CHECK(current->IsJSObject());
         JSObject* checked = JSObject::cast(current);
         if (!heap->isolate()->MayNamedAccess(checked, name, v8::ACCESS_GET)) {
           return checked->GetPropertyWithFailedAccessCheck(receiver,
@@ -7508,6 +7510,31 @@ AllocationSiteInfo* AllocationSiteInfo::FindForJSObject(JSObject* object) {
 }
 
 
+// Heuristic: We only need to create allocation site info if the boilerplate
+// elements kind is the initial elements kind.
+AllocationSiteMode AllocationSiteInfo::GetMode(
+    ElementsKind boilerplate_elements_kind) {
+  if (FLAG_track_allocation_sites &&
+      IsFastSmiElementsKind(boilerplate_elements_kind)) {
+    return TRACK_ALLOCATION_SITE;
+  }
+
+  return DONT_TRACK_ALLOCATION_SITE;
+}
+
+
+AllocationSiteMode AllocationSiteInfo::GetMode(ElementsKind from,
+                                               ElementsKind to) {
+  if (FLAG_track_allocation_sites &&
+      IsFastSmiElementsKind(from) &&
+      (IsFastObjectElementsKind(to) || IsFastDoubleElementsKind(to))) {
+    return TRACK_ALLOCATION_SITE;
+  }
+
+  return DONT_TRACK_ALLOCATION_SITE;
+}
+
+
 uint32_t StringHasher::MakeArrayIndexHash(uint32_t value, int length) {
   // For array indexes mix the length into the hash as an array index could
   // be zero.
@@ -9036,6 +9063,7 @@ const char* Code::ICState2String(InlineCacheState state) {
     case MONOMORPHIC_PROTOTYPE_FAILURE: return "MONOMORPHIC_PROTOTYPE_FAILURE";
     case POLYMORPHIC: return "POLYMORPHIC";
     case MEGAMORPHIC: return "MEGAMORPHIC";
+    case GENERIC: return "GENERIC";
     case DEBUG_STUB: return "DEBUG_STUB";
   }
   UNREACHABLE();
@@ -9875,6 +9903,10 @@ MaybeObject* JSObject::SetFastElement(uint32_t index,
     ElementsKind kind = HasFastHoleyElements()
         ? FAST_HOLEY_ELEMENTS
         : FAST_ELEMENTS;
+
+    MaybeObject* trans = PossiblyTransitionArrayBoilerplate(kind);
+    if (trans->IsFailure()) return trans;
+
     MaybeObject* maybe_new_map = GetElementsTransitionMap(GetIsolate(),
                                                           kind);
     if (!maybe_new_map->To(&new_map)) return maybe_new_map;
@@ -10406,15 +10438,31 @@ Handle<Object> JSObject::TransitionElementsKind(Handle<JSObject> object,
 MaybeObject* JSObject::PossiblyTransitionArrayBoilerplate(
     ElementsKind to_kind) {
   MaybeObject* ret = NULL;
-  if (IsJSArray()) {
-    AllocationSiteInfo* info = AllocationSiteInfo::FindForJSObject(this);
-    if (info != NULL) {
-      JSObject* payload = JSObject::cast(info->payload());
-      if (payload->GetElementsKind() != to_kind) {
-        if (IsMoreGeneralElementsKindTransition(payload->GetElementsKind(),
-                                                to_kind)) {
-          ret = payload->TransitionElementsKind(to_kind);
-        }
+  if (!FLAG_track_allocation_sites || !IsJSArray()) {
+    return ret;
+  }
+
+  AllocationSiteInfo* info = AllocationSiteInfo::FindForJSObject(this);
+  if (info == NULL) {
+    return ret;
+  }
+
+  ASSERT(info->payload()->IsJSArray());
+  JSArray* payload = JSArray::cast(info->payload());
+  ElementsKind kind = payload->GetElementsKind();
+  if (IsMoreGeneralElementsKindTransition(kind, to_kind)) {
+    // If the array is huge, it's not likely to be defined in a local
+    // function, so we shouldn't make new instances of it very often.
+    uint32_t length = 0;
+    CHECK(payload->length()->ToArrayIndex(&length));
+    if (length <= 8 * 1024) {
+      ret = payload->TransitionElementsKind(to_kind);
+      if (FLAG_trace_track_allocation_sites) {
+        PrintF(
+            "AllocationSiteInfo: JSArray %p boilerplate updated %s->%s\n",
+            reinterpret_cast<void*>(this),
+            ElementsKindToString(kind),
+            ElementsKindToString(to_kind));
       }
     }
   }

@@ -877,6 +877,7 @@ HGraph::HGraph(CompilationInfo* info)
       zone_(info->zone()),
       is_recursive_(false),
       use_optimistic_licm_(false),
+      has_soft_deoptimize_(false),
       type_change_checksum_(0) {
   if (info->IsStub()) {
     start_environment_ =
@@ -1244,12 +1245,17 @@ void HGraph::AssignDominators() {
   }
 }
 
+
 // Mark all blocks that are dominated by an unconditional soft deoptimize to
 // prevent code motion across those blocks.
 void HGraph::PropagateDeoptimizingMark() {
   HPhase phase("H_Propagate deoptimizing mark", this);
+  // Skip this phase if there is nothing to be done anyway.
+  if (!has_soft_deoptimize()) return;
   MarkAsDeoptimizingRecursively(entry_block());
+  NullifyUnreachableInstructions();
 }
+
 
 void HGraph::MarkAsDeoptimizingRecursively(HBasicBlock* block) {
   for (int i = 0; i < block->dominated_blocks()->length(); ++i) {
@@ -1258,6 +1264,67 @@ void HGraph::MarkAsDeoptimizingRecursively(HBasicBlock* block) {
     MarkAsDeoptimizingRecursively(dominated);
   }
 }
+
+
+void HGraph::NullifyUnreachableInstructions() {
+  int block_count = blocks_.length();
+  for (int i = 0; i < block_count; ++i) {
+    HBasicBlock* block = blocks_.at(i);
+    bool nullify = false;
+    const ZoneList<HBasicBlock*>* predecessors = block->predecessors();
+    int predecessors_length = predecessors->length();
+    bool all_predecessors_deoptimizing = (predecessors_length > 0);
+    for (int j = 0; j < predecessors_length; ++j) {
+      if (!predecessors->at(j)->IsDeoptimizing()) {
+        all_predecessors_deoptimizing = false;
+        break;
+      }
+    }
+    if (all_predecessors_deoptimizing) nullify = true;
+    for (HInstruction* instr = block->first(); instr != NULL;
+         instr = instr->next()) {
+      // Leave the basic structure of the graph intact.
+      if (instr->IsBlockEntry()) continue;
+      if (instr->IsControlInstruction()) continue;
+      if (instr->IsSimulate()) continue;
+      if (instr->IsEnterInlined()) continue;
+      if (instr->IsLeaveInlined()) continue;
+      if (nullify) {
+        HInstruction* last_dummy = NULL;
+        for (int j = 0; j < instr->OperandCount(); ++j) {
+          HValue* operand = instr->OperandAt(j);
+          // Insert an HDummyUse for each operand, unless the operand
+          // is an HDummyUse itself. If it's even from the same block,
+          // remember it as a potential replacement for the instruction.
+          if (operand->IsDummyUse()) {
+            if (operand->block() == instr->block() &&
+                last_dummy == NULL) {
+              last_dummy = HInstruction::cast(operand);
+            }
+            continue;
+          }
+          if (operand->IsControlInstruction()) {
+            // Inserting a dummy use for a value that's not defined anywhere
+            // will fail. Some instructions define fake inputs on such
+            // values as control flow dependencies.
+            continue;
+          }
+          HDummyUse* dummy = new(zone()) HDummyUse(operand);
+          dummy->InsertBefore(instr);
+          last_dummy = dummy;
+        }
+        if (last_dummy == NULL) last_dummy = GetConstant1();
+        instr->DeleteAndReplaceWith(last_dummy);
+        continue;
+      }
+      if (instr->IsSoftDeoptimize()) {
+        ASSERT(block->IsDeoptimizing());
+        nullify = true;
+      }
+    }
+  }
+}
+
 
 void HGraph::EliminateRedundantPhis() {
   HPhase phase("H_Redundant phi elimination", this);
@@ -3985,6 +4052,15 @@ void HOptimizedGraphBuilder::PushAndAdd(HInstruction* instr) {
 }
 
 
+void HOptimizedGraphBuilder::AddSoftDeoptimize() {
+  if (FLAG_always_opt) return;
+  if (current_block()->IsDeoptimizing()) return;
+  AddInstruction(new(zone()) HSoftDeoptimize());
+  current_block()->MarkAsDeoptimizing();
+  graph()->set_has_soft_deoptimize(true);
+}
+
+
 template <class Instruction>
 HInstruction* HOptimizedGraphBuilder::PreProcessCall(Instruction* call) {
   int count = call->argument_count();
@@ -5213,7 +5289,8 @@ void HOptimizedGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
                                        boilerplate_object,
                                        total_size,
                                        expr->literal_index(),
-                                       expr->depth());
+                                       expr->depth(),
+                                       DONT_TRACK_ALLOCATION_SITE);
   } else {
     literal = new(zone()) HObjectLiteral(context,
                                          expr->constant_properties(),
@@ -5323,7 +5400,13 @@ void HOptimizedGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
 
   Handle<JSObject> boilerplate = Handle<JSObject>::cast(raw_boilerplate);
   ElementsKind boilerplate_elements_kind =
-        Handle<JSObject>::cast(boilerplate)->GetElementsKind();
+      Handle<JSObject>::cast(boilerplate)->GetElementsKind();
+
+  // TODO(mvstanton): This heuristic is only a temporary solution.  In the
+  // end, we want to quit creating allocation site info after a certain number
+  // of GCs for a call site.
+  AllocationSiteMode mode = AllocationSiteInfo::GetMode(
+      boilerplate_elements_kind);
 
   // Check whether to use fast or slow deep-copying for boilerplate.
   int total_size = 0;
@@ -5332,17 +5415,22 @@ void HOptimizedGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
                     HFastLiteral::kMaxLiteralDepth,
                     &max_properties,
                     &total_size)) {
+    if (mode == TRACK_ALLOCATION_SITE) {
+      total_size += AllocationSiteInfo::kSize;
+    }
     literal = new(zone()) HFastLiteral(context,
                                        boilerplate,
                                        total_size,
                                        expr->literal_index(),
-                                       expr->depth());
+                                       expr->depth(),
+                                       mode);
   } else {
     literal = new(zone()) HArrayLiteral(context,
                                         boilerplate,
                                         length,
                                         expr->literal_index(),
-                                        expr->depth());
+                                        expr->depth(),
+                                        mode);
   }
 
   // The array is expected in the bailout environment during computation
@@ -6160,9 +6248,8 @@ HInstruction* HOptimizedGraphBuilder::BuildLoadNamedGeneric(
     HValue* object,
     Handle<String> name,
     Property* expr) {
-  if (expr->IsUninitialized() && !FLAG_always_opt) {
-    AddInstruction(new(zone()) HSoftDeoptimize);
-    current_block()->MarkAsDeoptimizing();
+  if (expr->IsUninitialized()) {
+    AddSoftDeoptimize();
   }
   HValue* context = environment()->LookupContext();
   return new(zone()) HLoadNamedGeneric(context, object, name);
@@ -8057,8 +8144,7 @@ void HOptimizedGraphBuilder::VisitSub(UnaryOperation* expr) {
   TypeInfo info = oracle()->UnaryType(expr);
   Representation rep = ToRepresentation(info);
   if (info.IsUninitialized()) {
-    AddInstruction(new(zone()) HSoftDeoptimize);
-    current_block()->MarkAsDeoptimizing();
+    AddSoftDeoptimize();
     info = TypeInfo::Unknown();
   }
   HBinaryOperation::cast(instr)->set_observed_input_representation(rep, rep);
@@ -8071,8 +8157,7 @@ void HOptimizedGraphBuilder::VisitBitNot(UnaryOperation* expr) {
   HValue* value = Pop();
   TypeInfo info = oracle()->UnaryType(expr);
   if (info.IsUninitialized()) {
-    AddInstruction(new(zone()) HSoftDeoptimize);
-    current_block()->MarkAsDeoptimizing();
+    AddSoftDeoptimize();
   }
   HInstruction* instr = new(zone()) HBitNot(value);
   return ast_context()->ReturnInstruction(instr, expr->id());
@@ -8428,8 +8513,7 @@ HInstruction* HOptimizedGraphBuilder::BuildBinaryOperation(
   if (left_info.IsUninitialized()) {
     // Can't have initialized one but not the other.
     ASSERT(right_info.IsUninitialized());
-    AddInstruction(new(zone()) HSoftDeoptimize);
-    current_block()->MarkAsDeoptimizing();
+    AddSoftDeoptimize();
     left_info = right_info = TypeInfo::Unknown();
   }
   HInstruction* instr = NULL;
@@ -8745,8 +8829,7 @@ void HOptimizedGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
   // Check if this expression was ever executed according to type feedback.
   // Note that for the special typeof/null/undefined cases we get unknown here.
   if (overall_type_info.IsUninitialized()) {
-    AddInstruction(new(zone()) HSoftDeoptimize);
-    current_block()->MarkAsDeoptimizing();
+    AddSoftDeoptimize();
     overall_type_info = left_type = right_type = TypeInfo::Unknown();
   }
 

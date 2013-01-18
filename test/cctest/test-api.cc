@@ -25,9 +25,6 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// We want to test our deprecated API entries, too.
-#define V8_DISABLE_DEPRECATIONS 1
-
 #include <limits.h>
 
 #ifndef WIN32
@@ -168,6 +165,23 @@ THREADED_TEST(Handles) {
   CHECK_EQ(6, script->Run()->Int32Value());
 
   local_env->Exit();
+}
+
+
+THREADED_TEST(IsolateOfContext) {
+  v8::HandleScope scope;
+  v8::Persistent<Context> env = Context::New();
+
+  CHECK(!env->InContext());
+  CHECK(env->GetIsolate() == v8::Isolate::GetCurrent());
+  env->Enter();
+  CHECK(env->InContext());
+  CHECK(env->GetIsolate() == v8::Isolate::GetCurrent());
+  env->Exit();
+  CHECK(!env->InContext());
+  CHECK(env->GetIsolate() == v8::Isolate::GetCurrent());
+
+  env.Dispose();
 }
 
 
@@ -887,7 +901,7 @@ THREADED_TEST(FunctionTemplateSetLength) {
 
 static void* expected_ptr;
 static v8::Handle<v8::Value> callback(const v8::Arguments& args) {
-  void* ptr = v8::External::Unwrap(args.Data());
+  void* ptr = v8::External::Cast(*args.Data())->Value();
   CHECK_EQ(expected_ptr, ptr);
   return v8::True();
 }
@@ -897,7 +911,7 @@ static void TestExternalPointerWrapping() {
   v8::HandleScope scope;
   LocalContext env;
 
-  v8::Handle<v8::Value> data = v8::External::Wrap(expected_ptr);
+  v8::Handle<v8::Value> data = v8::External::New(expected_ptr);
 
   v8::Handle<v8::Object> obj = v8::Object::New();
   obj->Set(v8_str("func"),
@@ -2025,82 +2039,12 @@ THREADED_TEST(GlobalObjectInternalFields) {
 }
 
 
-THREADED_TEST(InternalFieldsNativePointers) {
-  v8::HandleScope scope;
-  LocalContext env;
-
-  Local<v8::FunctionTemplate> templ = v8::FunctionTemplate::New();
-  Local<v8::ObjectTemplate> instance_templ = templ->InstanceTemplate();
-  instance_templ->SetInternalFieldCount(1);
-  Local<v8::Object> obj = templ->GetFunction()->NewInstance();
-  CHECK_EQ(1, obj->InternalFieldCount());
-  CHECK(obj->GetPointerFromInternalField(0) == NULL);
-
-  char* data = new char[100];
-
-  void* aligned = data;
-  CHECK_EQ(0, static_cast<int>(reinterpret_cast<uintptr_t>(aligned) & 0x1));
-  void* unaligned = data + 1;
-  CHECK_EQ(1, static_cast<int>(reinterpret_cast<uintptr_t>(unaligned) & 0x1));
-
-  // Check reading and writing aligned pointers.
-  obj->SetPointerInInternalField(0, aligned);
-  HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
-  CHECK_EQ(aligned, obj->GetPointerFromInternalField(0));
-
-  // Check reading and writing unaligned pointers.
-  obj->SetPointerInInternalField(0, unaligned);
-  HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
-  CHECK_EQ(unaligned, obj->GetPointerFromInternalField(0));
-
-  delete[] data;
-}
-
-
-THREADED_TEST(InternalFieldsNativePointersAndExternal) {
-  v8::HandleScope scope;
-  LocalContext env;
-
-  Local<v8::FunctionTemplate> templ = v8::FunctionTemplate::New();
-  Local<v8::ObjectTemplate> instance_templ = templ->InstanceTemplate();
-  instance_templ->SetInternalFieldCount(1);
-  Local<v8::Object> obj = templ->GetFunction()->NewInstance();
-  CHECK_EQ(1, obj->InternalFieldCount());
-  CHECK(obj->GetPointerFromInternalField(0) == NULL);
-
-  char* data = new char[100];
-
-  void* aligned = data;
-  CHECK_EQ(0, static_cast<int>(reinterpret_cast<uintptr_t>(aligned) & 0x1));
-  void* unaligned = data + 1;
-  CHECK_EQ(1, static_cast<int>(reinterpret_cast<uintptr_t>(unaligned) & 0x1));
-
-  obj->SetPointerInInternalField(0, aligned);
-  HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
-  CHECK_EQ(aligned, v8::External::Unwrap(obj->GetInternalField(0)));
-
-  obj->SetPointerInInternalField(0, unaligned);
-  HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
-  CHECK_EQ(unaligned, v8::External::Unwrap(obj->GetInternalField(0)));
-
-  obj->SetInternalField(0, v8::External::Wrap(aligned));
-  HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
-  CHECK_EQ(aligned, obj->GetPointerFromInternalField(0));
-
-  obj->SetInternalField(0, v8::External::Wrap(unaligned));
-  HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
-  CHECK_EQ(unaligned, obj->GetPointerFromInternalField(0));
-
-  delete[] data;
-}
-
-
 static void CheckAlignedPointerInInternalField(Handle<v8::Object> obj,
                                                void* value) {
   CHECK_EQ(0, static_cast<int>(reinterpret_cast<uintptr_t>(value) & 0x1));
-  obj->SetPointerInInternalField(0, value);
+  obj->SetAlignedPointerInInternalField(0, value);
   HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
-  CHECK_EQ(value, obj->GetPointerFromInternalField(0));
+  CHECK_EQ(value, obj->GetAlignedPointerFromInternalField(0));
 }
 
 
@@ -2355,18 +2299,18 @@ THREADED_TEST(External) {
 
   // Make sure unaligned pointers are wrapped properly.
   char* data = i::StrDup("0123456789");
-  Local<v8::Value> zero = v8::External::Wrap(&data[0]);
-  Local<v8::Value> one = v8::External::Wrap(&data[1]);
-  Local<v8::Value> two = v8::External::Wrap(&data[2]);
-  Local<v8::Value> three = v8::External::Wrap(&data[3]);
+  Local<v8::Value> zero = v8::External::New(&data[0]);
+  Local<v8::Value> one = v8::External::New(&data[1]);
+  Local<v8::Value> two = v8::External::New(&data[2]);
+  Local<v8::Value> three = v8::External::New(&data[3]);
 
-  char* char_ptr = reinterpret_cast<char*>(v8::External::Unwrap(zero));
+  char* char_ptr = reinterpret_cast<char*>(v8::External::Cast(*zero)->Value());
   CHECK_EQ('0', *char_ptr);
-  char_ptr = reinterpret_cast<char*>(v8::External::Unwrap(one));
+  char_ptr = reinterpret_cast<char*>(v8::External::Cast(*one)->Value());
   CHECK_EQ('1', *char_ptr);
-  char_ptr = reinterpret_cast<char*>(v8::External::Unwrap(two));
+  char_ptr = reinterpret_cast<char*>(v8::External::Cast(*two)->Value());
   CHECK_EQ('2', *char_ptr);
-  char_ptr = reinterpret_cast<char*>(v8::External::Unwrap(three));
+  char_ptr = reinterpret_cast<char*>(v8::External::Cast(*three)->Value());
   CHECK_EQ('3', *char_ptr);
   i::DeleteArray(data);
 }
@@ -6276,6 +6220,10 @@ THREADED_TEST(StringWrite) {
   CHECK_EQ(0, strcmp("abc", buf));
   CHECK_EQ(0, buf[3]);
   CHECK_EQ(0, strcmp("def", buf + 4));
+
+  CHECK_EQ(0, str->WriteAscii(NULL, 0, 0, String::NO_NULL_TERMINATION));
+  CHECK_EQ(0, str->WriteUtf8(NULL, 0, 0, String::NO_NULL_TERMINATION));
+  CHECK_EQ(0, str->Write(NULL, 0, 0, String::NO_NULL_TERMINATION));
 }
 
 
@@ -6293,8 +6241,10 @@ static void Utf16Helper(
       Local<v8::String>::Cast(a->Get(i));
     Local<v8::Number> expected_len =
       Local<v8::Number>::Cast(alens->Get(i));
+#ifndef ENABLE_LATIN_1
     CHECK_EQ(expected_len->Value() != string->Length(),
              string->MayContainNonAscii());
+#endif
     int length = GetUtf8Length(string);
     CHECK_EQ(static_cast<int>(expected_len->Value()), length);
   }
@@ -9904,7 +9854,8 @@ THREADED_TEST(InterceptorCallICCachedFromGlobal) {
 static v8::Handle<Value> InterceptorCallICFastApi(Local<String> name,
                                                   const AccessorInfo& info) {
   ApiTestFuzzer::Fuzz();
-  int* call_count = reinterpret_cast<int*>(v8::External::Unwrap(info.Data()));
+  int* call_count =
+      reinterpret_cast<int*>(v8::External::Cast(*info.Data())->Value());
   ++(*call_count);
   if ((*call_count) % 20 == 0) {
     HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
@@ -10063,7 +10014,7 @@ THREADED_TEST(InterceptorCallICFastApi_TrivialSignature) {
   v8::Handle<v8::ObjectTemplate> templ = fun_templ->InstanceTemplate();
   templ->SetNamedPropertyHandler(InterceptorCallICFastApi,
                                  NULL, NULL, NULL, NULL,
-                                 v8::External::Wrap(&interceptor_call_count));
+                                 v8::External::New(&interceptor_call_count));
   LocalContext context;
   v8::Handle<v8::Function> fun = fun_templ->GetFunction();
   GenerateSomeGarbage();
@@ -10091,7 +10042,7 @@ THREADED_TEST(InterceptorCallICFastApi_SimpleSignature) {
   v8::Handle<v8::ObjectTemplate> templ = fun_templ->InstanceTemplate();
   templ->SetNamedPropertyHandler(InterceptorCallICFastApi,
                                  NULL, NULL, NULL, NULL,
-                                 v8::External::Wrap(&interceptor_call_count));
+                                 v8::External::New(&interceptor_call_count));
   LocalContext context;
   v8::Handle<v8::Function> fun = fun_templ->GetFunction();
   GenerateSomeGarbage();
@@ -10122,7 +10073,7 @@ THREADED_TEST(InterceptorCallICFastApi_SimpleSignature_Miss1) {
   v8::Handle<v8::ObjectTemplate> templ = fun_templ->InstanceTemplate();
   templ->SetNamedPropertyHandler(InterceptorCallICFastApi,
                                  NULL, NULL, NULL, NULL,
-                                 v8::External::Wrap(&interceptor_call_count));
+                                 v8::External::New(&interceptor_call_count));
   LocalContext context;
   v8::Handle<v8::Function> fun = fun_templ->GetFunction();
   GenerateSomeGarbage();
@@ -10159,7 +10110,7 @@ THREADED_TEST(InterceptorCallICFastApi_SimpleSignature_Miss2) {
   v8::Handle<v8::ObjectTemplate> templ = fun_templ->InstanceTemplate();
   templ->SetNamedPropertyHandler(InterceptorCallICFastApi,
                                  NULL, NULL, NULL, NULL,
-                                 v8::External::Wrap(&interceptor_call_count));
+                                 v8::External::New(&interceptor_call_count));
   LocalContext context;
   v8::Handle<v8::Function> fun = fun_templ->GetFunction();
   GenerateSomeGarbage();
@@ -10196,7 +10147,7 @@ THREADED_TEST(InterceptorCallICFastApi_SimpleSignature_Miss3) {
   v8::Handle<v8::ObjectTemplate> templ = fun_templ->InstanceTemplate();
   templ->SetNamedPropertyHandler(InterceptorCallICFastApi,
                                  NULL, NULL, NULL, NULL,
-                                 v8::External::Wrap(&interceptor_call_count));
+                                 v8::External::New(&interceptor_call_count));
   LocalContext context;
   v8::Handle<v8::Function> fun = fun_templ->GetFunction();
   GenerateSomeGarbage();
@@ -10236,7 +10187,7 @@ THREADED_TEST(InterceptorCallICFastApi_SimpleSignature_TypeError) {
   v8::Handle<v8::ObjectTemplate> templ = fun_templ->InstanceTemplate();
   templ->SetNamedPropertyHandler(InterceptorCallICFastApi,
                                  NULL, NULL, NULL, NULL,
-                                 v8::External::Wrap(&interceptor_call_count));
+                                 v8::External::New(&interceptor_call_count));
   LocalContext context;
   v8::Handle<v8::Function> fun = fun_templ->GetFunction();
   GenerateSomeGarbage();
@@ -11066,7 +11017,7 @@ void ApiTestFuzzer::Run() {
   gate_->Wait();
   {
     // ... get the V8 lock and start running the test.
-    v8::Locker locker;
+    v8::Locker locker(CcTest::default_isolate());
     CallTest();
   }
   // This test finished.
@@ -11130,7 +11081,7 @@ void ApiTestFuzzer::ContextSwitch() {
   // If the new thread is the same as the current thread there is nothing to do.
   if (NextThread()) {
     // Now it can start.
-    v8::Unlocker unlocker;
+    v8::Unlocker unlocker(CcTest::default_isolate());
     // Wait till someone starts us again.
     gate_->Wait();
     // And we're off.
@@ -11182,12 +11133,12 @@ void ApiTestFuzzer::CallTest() {
 
 
 static v8::Handle<Value> ThrowInJS(const v8::Arguments& args) {
-  CHECK(v8::Locker::IsLocked());
+  CHECK(v8::Locker::IsLocked(CcTest::default_isolate()));
   ApiTestFuzzer::Fuzz();
-  v8::Unlocker unlocker;
+  v8::Unlocker unlocker(CcTest::default_isolate());
   const char* code = "throw 7;";
   {
-    v8::Locker nested_locker;
+    v8::Locker nested_locker(CcTest::default_isolate());
     v8::HandleScope scope;
     v8::Handle<Value> exception;
     { v8::TryCatch try_catch;
@@ -11205,12 +11156,12 @@ static v8::Handle<Value> ThrowInJS(const v8::Arguments& args) {
 
 
 static v8::Handle<Value> ThrowInJSNoCatch(const v8::Arguments& args) {
-  CHECK(v8::Locker::IsLocked());
+  CHECK(v8::Locker::IsLocked(CcTest::default_isolate()));
   ApiTestFuzzer::Fuzz();
-  v8::Unlocker unlocker;
+  v8::Unlocker unlocker(CcTest::default_isolate());
   const char* code = "throw 7;";
   {
-    v8::Locker nested_locker;
+    v8::Locker nested_locker(CcTest::default_isolate());
     v8::HandleScope scope;
     v8::Handle<Value> value = CompileRun(code);
     CHECK(value.IsEmpty());
@@ -11222,8 +11173,8 @@ static v8::Handle<Value> ThrowInJSNoCatch(const v8::Arguments& args) {
 // These are locking tests that don't need to be run again
 // as part of the locking aggregation tests.
 TEST(NestedLockers) {
-  v8::Locker locker;
-  CHECK(v8::Locker::IsLocked());
+  v8::Locker locker(CcTest::default_isolate());
+  CHECK(v8::Locker::IsLocked(CcTest::default_isolate()));
   v8::HandleScope scope;
   LocalContext env;
   Local<v8::FunctionTemplate> fun_templ = v8::FunctionTemplate::New(ThrowInJS);
@@ -11244,7 +11195,7 @@ TEST(NestedLockers) {
 // These are locking tests that don't need to be run again
 // as part of the locking aggregation tests.
 TEST(NestedLockersNoTryCatch) {
-  v8::Locker locker;
+  v8::Locker locker(CcTest::default_isolate());
   v8::HandleScope scope;
   LocalContext env;
   Local<v8::FunctionTemplate> fun_templ =
@@ -11264,24 +11215,24 @@ TEST(NestedLockersNoTryCatch) {
 
 
 THREADED_TEST(RecursiveLocking) {
-  v8::Locker locker;
+  v8::Locker locker(CcTest::default_isolate());
   {
-    v8::Locker locker2;
-    CHECK(v8::Locker::IsLocked());
+    v8::Locker locker2(CcTest::default_isolate());
+    CHECK(v8::Locker::IsLocked(CcTest::default_isolate()));
   }
 }
 
 
 static v8::Handle<Value> UnlockForAMoment(const v8::Arguments& args) {
   ApiTestFuzzer::Fuzz();
-  v8::Unlocker unlocker;
+  v8::Unlocker unlocker(CcTest::default_isolate());
   return v8::Undefined();
 }
 
 
 THREADED_TEST(LockUnlockLock) {
   {
-    v8::Locker locker;
+    v8::Locker locker(CcTest::default_isolate());
     v8::HandleScope scope;
     LocalContext env;
     Local<v8::FunctionTemplate> fun_templ =
@@ -11295,7 +11246,7 @@ THREADED_TEST(LockUnlockLock) {
     CHECK_EQ(42, script->Run()->Int32Value());
   }
   {
-    v8::Locker locker;
+    v8::Locker locker(CcTest::default_isolate());
     v8::HandleScope scope;
     LocalContext env;
     Local<v8::FunctionTemplate> fun_templ =
@@ -12546,7 +12497,7 @@ class RegExpInterruptTest {
 
     LongRunningRegExp();
     {
-      v8::Unlocker unlock;
+      v8::Unlocker unlock(CcTest::default_isolate());
       gc_thread.Join();
     }
     v8::Locker::StopPreemption();
@@ -12573,7 +12524,7 @@ class RegExpInterruptTest {
     block_->Wait();
     while (gc_during_regexp_ < kRequiredGCs) {
       {
-        v8::Locker lock;
+        v8::Locker lock(CcTest::default_isolate());
         // TODO(lrn): Perhaps create some garbage before collecting.
         HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
         gc_count_++;
@@ -12633,7 +12584,7 @@ class RegExpInterruptTest {
 // Test that a regular expression execution can be interrupted and
 // survive a garbage collection.
 TEST(RegExpInterruption) {
-  v8::Locker lock;
+  v8::Locker lock(CcTest::default_isolate());
   v8::V8::Initialize();
   v8::HandleScope scope;
   Local<Context> local_env;
@@ -12669,7 +12620,7 @@ class ApplyInterruptTest {
 
     LongRunningApply();
     {
-      v8::Unlocker unlock;
+      v8::Unlocker unlock(CcTest::default_isolate());
       gc_thread.Join();
     }
     v8::Locker::StopPreemption();
@@ -12696,7 +12647,7 @@ class ApplyInterruptTest {
     block_->Wait();
     while (gc_during_apply_ < kRequiredGCs) {
       {
-        v8::Locker lock;
+        v8::Locker lock(CcTest::default_isolate());
         HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
         gc_count_++;
       }
@@ -12742,7 +12693,7 @@ class ApplyInterruptTest {
 // Test that nothing bad happens if we get a preemption just when we were
 // about to do an apply().
 TEST(ApplyInterruption) {
-  v8::Locker lock;
+  v8::Locker lock(CcTest::default_isolate());
   v8::V8::Initialize();
   v8::HandleScope scope;
   Local<Context> local_env;
@@ -12873,8 +12824,10 @@ THREADED_TEST(MorphCompositeStringTest) {
         "var slice = lhs.substring(1, lhs.length - 1);"
         "var slice_on_cons = (lhs + rhs).substring(1, lhs.length *2 - 1);");
 
+#ifndef ENABLE_LATIN_1
     CHECK(!lhs->MayContainNonAscii());
     CHECK(!rhs->MayContainNonAscii());
+#endif
 
     MorphAString(*v8::Utils::OpenHandle(*lhs), &ascii_resource, &uc16_resource);
     MorphAString(*v8::Utils::OpenHandle(*rhs), &ascii_resource, &uc16_resource);
@@ -12978,7 +12931,7 @@ class RegExpStringModificationTest {
     v8::Locker::StartPreemption(1);
     LongRunningRegExp();
     {
-      v8::Unlocker unlock;
+      v8::Unlocker unlock(CcTest::default_isolate());
       morph_thread.Join();
     }
     v8::Locker::StopPreemption();
@@ -13007,7 +12960,7 @@ class RegExpStringModificationTest {
     while (morphs_during_regexp_ < kRequiredModifications &&
            morphs_ < kMaxModifications) {
       {
-        v8::Locker lock;
+        v8::Locker lock(CcTest::default_isolate());
         // Swap string between ascii and two-byte representation.
         i::String* string = *input_;
         MorphAString(string, &ascii_resource_, &uc16_resource_);
@@ -13055,7 +13008,7 @@ class RegExpStringModificationTest {
 // Test that a regular expression execution can be interrupted and
 // the string changed without failing.
 TEST(RegExpStringModification) {
-  v8::Locker lock;
+  v8::Locker lock(CcTest::default_isolate());
   v8::V8::Initialize();
   v8::HandleScope scope;
   Local<Context> local_env;
@@ -15188,7 +15141,7 @@ TEST(SetResourceConstraints) {
 TEST(SetResourceConstraintsInThread) {
   uint32_t* set_limit;
   {
-    v8::Locker locker;
+    v8::Locker locker(CcTest::default_isolate());
     static const int K = 1024;
     set_limit = ComputeStackLimit(128 * K);
 
@@ -15209,7 +15162,7 @@ TEST(SetResourceConstraintsInThread) {
     CHECK(stack_limit == set_limit);
   }
   {
-    v8::Locker locker;
+    v8::Locker locker(CcTest::default_isolate());
     CHECK(stack_limit == set_limit);
   }
 }
@@ -15472,7 +15425,7 @@ TEST(Regress528) {
 
     context->Enter();
     Local<v8::String> obj = v8::String::New("");
-    context->SetData(obj);
+    context->SetEmbedderData(0, obj);
     CompileRun(source_simple);
     context->Exit();
   }
@@ -16730,6 +16683,18 @@ TEST(PersistentHandleVisitor) {
   v8::V8::VisitHandlesWithClassIds(&visitor);
   CHECK_EQ(1, visitor.counter_);
 
+  object.Dispose();
+}
+
+
+TEST(WrapperClassId) {
+  v8::HandleScope scope;
+  LocalContext context;
+  v8::Persistent<v8::Object> object =
+      v8::Persistent<v8::Object>::New(v8::Object::New());
+  CHECK_EQ(0, object.WrapperClassId());
+  object.SetWrapperClassId(65535);
+  CHECK_EQ(65535, object.WrapperClassId());
   object.Dispose();
 }
 
@@ -18195,4 +18160,5 @@ class ThreadInterruptTest {
 THREADED_TEST(SemaphoreInterruption) {
   ThreadInterruptTest().RunTest();
 }
+
 #endif  // WIN32

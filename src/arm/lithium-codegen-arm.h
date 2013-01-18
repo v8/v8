@@ -365,7 +365,8 @@ class LCodeGen BASE_EMBEDDED {
   void EmitDeepCopy(Handle<JSObject> object,
                     Register result,
                     Register source,
-                    int* offset);
+                    int* offset,
+                    AllocationSiteMode mode);
 
   // Emit optimized code for integer division.
   // Inputs are signed.

@@ -92,7 +92,6 @@
 
     'v8_use_snapshot%': 'true',
     'host_os%': '<(OS)',
-    'v8_use_liveobjectlist%': 'false',
     'werror%': '-Werror',
 
     # With post mortem support enabled, metadata is embedded into libv8 that
@@ -257,14 +256,6 @@
         },
         'msvs_configuration_platform': 'x64',
       }],  # v8_target_arch=="x64"
-      ['v8_use_liveobjectlist=="true"', {
-        'defines': [
-          'ENABLE_DEBUGGER_SUPPORT',
-          'INSPECTOR',
-          'OBJECT_PRINT',
-          'LIVEOBJECTLIST',
-        ],
-      }],
       ['v8_compress_startup_data=="bz2"', {
         'defines': [
           'COMPRESS_STARTUP_DATA_BZ2',

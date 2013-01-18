@@ -276,13 +276,15 @@ function FindPlotRange() {
 
   if (start_found && end_found) return;
 
-  var execution_ranges = kExecutionEvent.ranges;
-  for (var i = 0; i < execution_ranges.length; i++) {
-    if (execution_ranges[i].start < xrange_start && !start_found) {
-      xrange_start = execution_ranges[i].start;
-    }
-    if (execution_ranges[i].end > xrange_end && !end_found) {
-      xrange_end = execution_ranges[i].end;
+  for (name in TimerEvents) {
+    var ranges = TimerEvents[name].ranges;
+    for (var i = 0; i < ranges.length; i++) {
+      if (ranges[i].start < xrange_start && !start_found) {
+        xrange_start = ranges[i].start;
+      }
+      if (ranges[i].end > xrange_end && !end_found) {
+        xrange_end = ranges[i].end;
+      }
     }
   }
 
@@ -500,11 +502,25 @@ function GnuplotOutput() {
   print("set xtics out nomirror");
   print("unset key");
 
+  var percentages = {};
+  var total = 0;
+  for (var name in TimerEvents) {
+    var event = TimerEvents[name];
+    var ranges = MergeRanges(event.ranges);
+    var exclude_ranges = [new Range(-Infinity, xrange_start),
+                          new Range(xrange_end, Infinity)];
+    ranges = ExcludeRanges(ranges, exclude_ranges);
+    var sum =
+      ranges.map(function(range) { return range.duration(); })
+          .reduce(function(a, b) { return a + b; }, 0);
+    percentages[name] = (sum / (xrange_end - xrange_start) * 100).toFixed(1);
+  }
+
   // Name Y-axis.
   var ytics = [];
   for (name in TimerEvents) {
     var index = TimerEvents[name].index;
-    ytics.push('"' + name + '"' + ' ' + index);
+    ytics.push('"' + name + ' (' + percentages[name] + '%%)" ' + index);
   }
   ytics.push('"code kind being executed"' + ' ' + (kY1Offset - 1));
   ytics.push('"top ' + kStackFrames + ' js stack frames"' + ' ' +
