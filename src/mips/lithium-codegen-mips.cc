@@ -5620,6 +5620,11 @@ void LCodeGen::DoDeoptimize(LDeoptimize* instr) {
 }
 
 
+void LCodeGen::DoDummyUse(LDummyUse* instr) {
+  // Nothing to see here, move on!
+}
+
+
 void LCodeGen::DoDeleteProperty(LDeleteProperty* instr) {
   Register object = ToRegister(instr->object());
   Register key = ToRegister(instr->key());
