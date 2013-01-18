@@ -381,7 +381,7 @@ class Shell : public i::AllStatic {
   static i::Mutex* context_mutex_;
 
   static Counter* GetCounter(const char* name, bool is_histogram);
-  static void InstallUtilityScript();
+  static void InstallUtilityScript(Isolate* isolate);
 #endif  // V8_SHARED
   static void Initialize(Isolate* isolate);
   static void InitializeDebugger(Isolate* isolate);

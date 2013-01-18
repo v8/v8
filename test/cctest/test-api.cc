@@ -11017,7 +11017,7 @@ void ApiTestFuzzer::Run() {
   gate_->Wait();
   {
     // ... get the V8 lock and start running the test.
-    v8::Locker locker;
+    v8::Locker locker(CcTest::default_isolate());
     CallTest();
   }
   // This test finished.
@@ -11081,7 +11081,7 @@ void ApiTestFuzzer::ContextSwitch() {
   // If the new thread is the same as the current thread there is nothing to do.
   if (NextThread()) {
     // Now it can start.
-    v8::Unlocker unlocker;
+    v8::Unlocker unlocker(CcTest::default_isolate());
     // Wait till someone starts us again.
     gate_->Wait();
     // And we're off.
@@ -11133,12 +11133,12 @@ void ApiTestFuzzer::CallTest() {
 
 
 static v8::Handle<Value> ThrowInJS(const v8::Arguments& args) {
-  CHECK(v8::Locker::IsLocked());
+  CHECK(v8::Locker::IsLocked(CcTest::default_isolate()));
   ApiTestFuzzer::Fuzz();
-  v8::Unlocker unlocker;
+  v8::Unlocker unlocker(CcTest::default_isolate());
   const char* code = "throw 7;";
   {
-    v8::Locker nested_locker;
+    v8::Locker nested_locker(CcTest::default_isolate());
     v8::HandleScope scope;
     v8::Handle<Value> exception;
     { v8::TryCatch try_catch;
@@ -11156,12 +11156,12 @@ static v8::Handle<Value> ThrowInJS(const v8::Arguments& args) {
 
 
 static v8::Handle<Value> ThrowInJSNoCatch(const v8::Arguments& args) {
-  CHECK(v8::Locker::IsLocked());
+  CHECK(v8::Locker::IsLocked(CcTest::default_isolate()));
   ApiTestFuzzer::Fuzz();
-  v8::Unlocker unlocker;
+  v8::Unlocker unlocker(CcTest::default_isolate());
   const char* code = "throw 7;";
   {
-    v8::Locker nested_locker;
+    v8::Locker nested_locker(CcTest::default_isolate());
     v8::HandleScope scope;
     v8::Handle<Value> value = CompileRun(code);
     CHECK(value.IsEmpty());
@@ -11173,8 +11173,8 @@ static v8::Handle<Value> ThrowInJSNoCatch(const v8::Arguments& args) {
 // These are locking tests that don't need to be run again
 // as part of the locking aggregation tests.
 TEST(NestedLockers) {
-  v8::Locker locker;
-  CHECK(v8::Locker::IsLocked());
+  v8::Locker locker(CcTest::default_isolate());
+  CHECK(v8::Locker::IsLocked(CcTest::default_isolate()));
   v8::HandleScope scope;
   LocalContext env;
   Local<v8::FunctionTemplate> fun_templ = v8::FunctionTemplate::New(ThrowInJS);
@@ -11195,7 +11195,7 @@ TEST(NestedLockers) {
 // These are locking tests that don't need to be run again
 // as part of the locking aggregation tests.
 TEST(NestedLockersNoTryCatch) {
-  v8::Locker locker;
+  v8::Locker locker(CcTest::default_isolate());
   v8::HandleScope scope;
   LocalContext env;
   Local<v8::FunctionTemplate> fun_templ =
@@ -11215,24 +11215,24 @@ TEST(NestedLockersNoTryCatch) {
 
 
 THREADED_TEST(RecursiveLocking) {
-  v8::Locker locker;
+  v8::Locker locker(CcTest::default_isolate());
   {
-    v8::Locker locker2;
-    CHECK(v8::Locker::IsLocked());
+    v8::Locker locker2(CcTest::default_isolate());
+    CHECK(v8::Locker::IsLocked(CcTest::default_isolate()));
   }
 }
 
 
 static v8::Handle<Value> UnlockForAMoment(const v8::Arguments& args) {
   ApiTestFuzzer::Fuzz();
-  v8::Unlocker unlocker;
+  v8::Unlocker unlocker(CcTest::default_isolate());
   return v8::Undefined();
 }
 
 
 THREADED_TEST(LockUnlockLock) {
   {
-    v8::Locker locker;
+    v8::Locker locker(CcTest::default_isolate());
     v8::HandleScope scope;
     LocalContext env;
     Local<v8::FunctionTemplate> fun_templ =
@@ -11246,7 +11246,7 @@ THREADED_TEST(LockUnlockLock) {
     CHECK_EQ(42, script->Run()->Int32Value());
   }
   {
-    v8::Locker locker;
+    v8::Locker locker(CcTest::default_isolate());
     v8::HandleScope scope;
     LocalContext env;
     Local<v8::FunctionTemplate> fun_templ =
@@ -12497,7 +12497,7 @@ class RegExpInterruptTest {
 
     LongRunningRegExp();
     {
-      v8::Unlocker unlock;
+      v8::Unlocker unlock(CcTest::default_isolate());
       gc_thread.Join();
     }
     v8::Locker::StopPreemption();
@@ -12524,7 +12524,7 @@ class RegExpInterruptTest {
     block_->Wait();
     while (gc_during_regexp_ < kRequiredGCs) {
       {
-        v8::Locker lock;
+        v8::Locker lock(CcTest::default_isolate());
         // TODO(lrn): Perhaps create some garbage before collecting.
         HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
         gc_count_++;
@@ -12584,7 +12584,7 @@ class RegExpInterruptTest {
 // Test that a regular expression execution can be interrupted and
 // survive a garbage collection.
 TEST(RegExpInterruption) {
-  v8::Locker lock;
+  v8::Locker lock(CcTest::default_isolate());
   v8::V8::Initialize();
   v8::HandleScope scope;
   Local<Context> local_env;
@@ -12620,7 +12620,7 @@ class ApplyInterruptTest {
 
     LongRunningApply();
     {
-      v8::Unlocker unlock;
+      v8::Unlocker unlock(CcTest::default_isolate());
       gc_thread.Join();
     }
     v8::Locker::StopPreemption();
@@ -12647,7 +12647,7 @@ class ApplyInterruptTest {
     block_->Wait();
     while (gc_during_apply_ < kRequiredGCs) {
       {
-        v8::Locker lock;
+        v8::Locker lock(CcTest::default_isolate());
         HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
         gc_count_++;
       }
@@ -12693,7 +12693,7 @@ class ApplyInterruptTest {
 // Test that nothing bad happens if we get a preemption just when we were
 // about to do an apply().
 TEST(ApplyInterruption) {
-  v8::Locker lock;
+  v8::Locker lock(CcTest::default_isolate());
   v8::V8::Initialize();
   v8::HandleScope scope;
   Local<Context> local_env;
@@ -12931,7 +12931,7 @@ class RegExpStringModificationTest {
     v8::Locker::StartPreemption(1);
     LongRunningRegExp();
     {
-      v8::Unlocker unlock;
+      v8::Unlocker unlock(CcTest::default_isolate());
       morph_thread.Join();
     }
     v8::Locker::StopPreemption();
@@ -12960,7 +12960,7 @@ class RegExpStringModificationTest {
     while (morphs_during_regexp_ < kRequiredModifications &&
            morphs_ < kMaxModifications) {
       {
-        v8::Locker lock;
+        v8::Locker lock(CcTest::default_isolate());
         // Swap string between ascii and two-byte representation.
         i::String* string = *input_;
         MorphAString(string, &ascii_resource_, &uc16_resource_);
@@ -13008,7 +13008,7 @@ class RegExpStringModificationTest {
 // Test that a regular expression execution can be interrupted and
 // the string changed without failing.
 TEST(RegExpStringModification) {
-  v8::Locker lock;
+  v8::Locker lock(CcTest::default_isolate());
   v8::V8::Initialize();
   v8::HandleScope scope;
   Local<Context> local_env;
@@ -15141,7 +15141,7 @@ TEST(SetResourceConstraints) {
 TEST(SetResourceConstraintsInThread) {
   uint32_t* set_limit;
   {
-    v8::Locker locker;
+    v8::Locker locker(CcTest::default_isolate());
     static const int K = 1024;
     set_limit = ComputeStackLimit(128 * K);
 
@@ -15162,7 +15162,7 @@ TEST(SetResourceConstraintsInThread) {
     CHECK(stack_limit == set_limit);
   }
   {
-    v8::Locker locker;
+    v8::Locker locker(CcTest::default_isolate());
     CHECK(stack_limit == set_limit);
   }
 }

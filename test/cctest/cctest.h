@@ -57,13 +57,17 @@ class CcTest {
   CcTest(TestFunction* callback, const char* file, const char* name,
          const char* dependency, bool enabled);
   void Run() { callback_(); }
-  static int test_count();
   static CcTest* last() { return last_; }
   CcTest* prev() { return prev_; }
   const char* file() { return file_; }
   const char* name() { return name_; }
   const char* dependency() { return dependency_; }
   bool enabled() { return enabled_; }
+  static void set_default_isolate(v8::Isolate* default_isolate) {
+    default_isolate_ = default_isolate;
+  }
+  static v8::Isolate* default_isolate() { return default_isolate_; }
+
  private:
   TestFunction* callback_;
   const char* file_;
@@ -72,6 +76,7 @@ class CcTest {
   bool enabled_;
   static CcTest* last_;
   CcTest* prev_;
+  static v8::Isolate* default_isolate_;
 };
 
 // Switches between all the Api tests using the threading support.
@@ -87,13 +92,6 @@ class CcTest {
 class ApiTestFuzzer: public v8::internal::Thread {
  public:
   void CallTest();
-  explicit ApiTestFuzzer(int num)
-      : Thread("ApiTestFuzzer"),
-        test_number_(num),
-        gate_(v8::internal::OS::CreateSemaphore(0)),
-        active_(true) {
-  }
-  ~ApiTestFuzzer() { delete gate_; }
 
   // The ApiTestFuzzer is also a Thread, so it has a Run method.
   virtual void Run();
@@ -112,6 +110,14 @@ class ApiTestFuzzer: public v8::internal::Thread {
   static void Fuzz();
 
  private:
+  explicit ApiTestFuzzer(int num)
+      : Thread("ApiTestFuzzer"),
+        test_number_(num),
+        gate_(v8::internal::OS::CreateSemaphore(0)),
+        active_(true) {
+  }
+  ~ApiTestFuzzer() { delete gate_; }
+
   static bool fuzzing_;
   static int tests_being_run_;
   static int current_;

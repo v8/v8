@@ -3767,6 +3767,7 @@ void MessageDispatchHelperThread::Schedule() {
 
 
 void MessageDispatchHelperThread::Run() {
+  Isolate* isolate = Isolate::Current();
   while (true) {
     sem_->Wait();
     {
@@ -3774,8 +3775,8 @@ void MessageDispatchHelperThread::Run() {
       already_signalled_ = false;
     }
     {
-      Locker locker;
-      Isolate::Current()->debugger()->CallMessageDispatchHandler();
+      Locker locker(reinterpret_cast<v8::Isolate*>(isolate));
+      isolate->debugger()->CallMessageDispatchHandler();
     }
   }
 }

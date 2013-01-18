@@ -886,7 +886,7 @@ Handle<Value> Shell::Uint8ClampedArray(const Arguments& args) {
 
 
 Handle<Value> Shell::Yield(const Arguments& args) {
-  v8::Unlocker unlocker;
+  v8::Unlocker unlocker(args.GetIsolate());
   return Undefined();
 }
 
@@ -1093,8 +1093,8 @@ void Shell::AddHistogramSample(void* histogram, int sample) {
 }
 
 
-void Shell::InstallUtilityScript() {
-  Locker lock;
+void Shell::InstallUtilityScript(Isolate* isolate) {
+  Locker lock(isolate);
   HandleScope scope;
   // If we use the utility context, we have to set the security tokens so that
   // utility, evaluation and debug context can all access each other.
@@ -1272,7 +1272,7 @@ void Shell::Initialize(Isolate* isolate) {
 void Shell::InitializeDebugger(Isolate* isolate) {
   if (options.test_shell) return;
 #ifndef V8_SHARED
-  Locker lock;
+  Locker lock(isolate);
   HandleScope scope;
   Handle<ObjectTemplate> global_template = CreateGlobalTemplate(isolate);
   utility_context_ = Context::New(NULL, global_template);
@@ -1490,7 +1490,7 @@ Handle<String> Shell::ReadFile(Isolate* isolate, const char* name) {
 
 
 void Shell::RunShell(Isolate* isolate) {
-  Locker locker;
+  Locker locker(isolate);
   Context::Scope context_scope(evaluation_context_);
   HandleScope outer_scope;
   Handle<String> name = String::New("(d8)");
@@ -1540,7 +1540,7 @@ void ShellThread::Run() {
     }
 
     // Prepare the context for this thread.
-    Locker locker;
+    Locker locker(isolate_);
     HandleScope outer_scope;
     Persistent<Context> thread_context =
         Shell::CreateEvaluationContext(isolate_);
@@ -1839,7 +1839,7 @@ int Shell::RunMain(Isolate* isolate, int argc, char* argv[]) {
   }
 #endif  // V8_SHARED
   {  // NOLINT
-    Locker lock;
+    Locker lock(isolate);
     HandleScope scope;
     Persistent<Context> context = CreateEvaluationContext(isolate);
     if (options.last_run) {
@@ -1849,7 +1849,7 @@ int Shell::RunMain(Isolate* isolate, int argc, char* argv[]) {
       // If the interactive debugger is enabled make sure to activate
       // it before running the files passed on the command line.
       if (i::FLAG_debugger) {
-        InstallUtilityScript();
+        InstallUtilityScript(isolate);
       }
 #endif  // !V8_SHARED && ENABLE_DEBUGGER_SUPPORT
     }
@@ -1887,7 +1887,7 @@ int Shell::RunMain(Isolate* isolate, int argc, char* argv[]) {
   }
 
   if (threads.length() > 0 && options.use_preemption) {
-    Locker lock;
+    Locker lock(isolate);
     Locker::StopPreemption();
   }
 #endif  // V8_SHARED
@@ -1934,7 +1934,7 @@ int Shell::Main(int argc, char* argv[]) {
 #if !defined(V8_SHARED) && defined(ENABLE_DEBUGGER_SUPPORT)
     // Run remote debugger if requested, but never on --test
     if (i::FLAG_remote_debugger && !options.test_shell) {
-      InstallUtilityScript();
+      InstallUtilityScript(isolate);
       RunRemoteDebugger(i::FLAG_debugger_port);
       return 0;
     }
@@ -1947,7 +1947,7 @@ int Shell::Main(int argc, char* argv[]) {
         && !options.test_shell ) {
 #if !defined(V8_SHARED) && defined(ENABLE_DEBUGGER_SUPPORT)
       if (!i::FLAG_debugger) {
-        InstallUtilityScript();
+        InstallUtilityScript(isolate);
       }
 #endif  // !V8_SHARED && ENABLE_DEBUGGER_SUPPORT
       RunShell(isolate);

@@ -408,9 +408,9 @@ void Isolate::EnterDefaultIsolate() {
 }
 
 
-Isolate* Isolate::GetDefaultIsolateForLocking() {
+v8::Isolate* Isolate::GetDefaultIsolateForLocking() {
   EnsureDefaultIsolate();
-  return default_isolate_;
+  return reinterpret_cast<v8::Isolate*>(default_isolate_);
 }
 
 
@@ -1743,7 +1743,7 @@ void Isolate::Deinit() {
     delete deoptimizer_data_;
     deoptimizer_data_ = NULL;
     if (FLAG_preemption) {
-      v8::Locker locker;
+      v8::Locker locker(reinterpret_cast<v8::Isolate*>(this));
       v8::Locker::StopPreemption();
     }
     builtins_.TearDown();
@@ -2034,7 +2034,7 @@ bool Isolate::Init(Deserializer* des) {
   }
 
   if (FLAG_preemption) {
-    v8::Locker locker;
+    v8::Locker locker(reinterpret_cast<v8::Isolate*>(this));
     v8::Locker::StartPreemption(100);
   }
 

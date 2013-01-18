@@ -38,6 +38,9 @@
 #ifndef V8_H_
 #define V8_H_
 
+// TODO(svenpanne) Remove me when the Chrome bindings are adapted.
+#define V8_DISABLE_DEPRECATIONS 1
+
 #include "v8stdint.h"
 
 #ifdef _WIN32
@@ -3879,21 +3882,19 @@ class V8EXPORT Context {
 
 
 /**
- * Multiple threads in V8 are allowed, but only one thread at a time
- * is allowed to use any given V8 isolate. See Isolate class
- * comments. The definition of 'using V8 isolate' includes
- * accessing handles or holding onto object pointers obtained
- * from V8 handles while in the particular V8 isolate.  It is up
- * to the user of V8 to ensure (perhaps with locking) that this
- * constraint is not violated.  In addition to any other synchronization
- * mechanism that may be used, the v8::Locker and v8::Unlocker classes
- * must be used to signal thead switches to V8.
+ * Multiple threads in V8 are allowed, but only one thread at a time is allowed
+ * to use any given V8 isolate, see the comments in the Isolate class. The
+ * definition of 'using a V8 isolate' includes accessing handles or holding onto
+ * object pointers obtained from V8 handles while in the particular V8 isolate.
+ * It is up to the user of V8 to ensure, perhaps with locking, that this
+ * constraint is not violated. In addition to any other synchronization
+ * mechanism that may be used, the v8::Locker and v8::Unlocker classes must be
+ * used to signal thead switches to V8.
  *
- * v8::Locker is a scoped lock object. While it's
- * active (i.e. between its construction and destruction) the current thread is
- * allowed to use the locked isolate. V8 guarantees that an isolate can be
- * locked by at most one thread at any time. In other words, the scope of a
- * v8::Locker is a critical section.
+ * v8::Locker is a scoped lock object. While it's active, i.e. between its
+ * construction and destruction, the current thread is allowed to use the locked
+ * isolate. V8 guarantees that an isolate can be locked by at most one thread at
+ * any time. In other words, the scope of a v8::Locker is a critical section.
  *
  * Sample usage:
 * \code
@@ -3907,9 +3908,9 @@ class V8EXPORT Context {
  * } // Destructor called here
  * \endcode
  *
- * If you wish to stop using V8 in a thread A you can do this either
- * by destroying the v8::Locker object as above or by constructing a
- * v8::Unlocker object:
+ * If you wish to stop using V8 in a thread A you can do this either by
+ * destroying the v8::Locker object as above or by constructing a v8::Unlocker
+ * object:
  *
  * \code
  * {
@@ -3922,19 +3923,17 @@ class V8EXPORT Context {
  * isolate->Enter();
  * \endcode
  *
- * The Unlocker object is intended for use in a long-running callback
- * from V8, where you want to release the V8 lock for other threads to
- * use.
+ * The Unlocker object is intended for use in a long-running callback from V8,
+ * where you want to release the V8 lock for other threads to use.
  *
- * The v8::Locker is a recursive lock.  That is, you can lock more than
- * once in a given thread.  This can be useful if you have code that can
- * be called either from code that holds the lock or from code that does
- * not.  The Unlocker is not recursive so you can not have several
- * Unlockers on the stack at once, and you can not use an Unlocker in a
- * thread that is not inside a Locker's scope.
+ * The v8::Locker is a recursive lock, i.e. you can lock more than once in a
+ * given thread. This can be useful if you have code that can be called either
+ * from code that holds the lock or from code that does not. The Unlocker is
+ * not recursive so you can not have several Unlockers on the stack at once, and
+ * you can not use an Unlocker in a thread that is not inside a Locker's scope.
  *
- * An unlocker will unlock several lockers if it has to and reinstate
- * the correct depth of locking on its destruction. eg.:
+ * An unlocker will unlock several lockers if it has to and reinstate the
+ * correct depth of locking on its destruction, e.g.:
  *
  * \code
  * // V8 not locked.
@@ -3957,17 +3956,23 @@ class V8EXPORT Context {
  * }
  * // V8 Now no longer locked.
  * \endcode
- *
- *
  */
 class V8EXPORT Unlocker {
  public:
   /**
-   * Initialize Unlocker for a given Isolate. NULL means default isolate.
+   * Initialize Unlocker for a given Isolate.
    */
-  explicit Unlocker(Isolate* isolate = NULL);
+  V8_INLINE(explicit Unlocker(Isolate* isolate)) { Initialize(isolate); }
+
+  /**
+   * Deprecated. Use Isolate version instead.
+   */
+  V8_DEPRECATED(Unlocker());
+
   ~Unlocker();
  private:
+  void Initialize(Isolate* isolate);
+
   internal::Isolate* isolate_;
 };
 
@@ -3975,9 +3980,15 @@ class V8EXPORT Unlocker {
 class V8EXPORT Locker {
  public:
   /**
-   * Initialize Locker for a given Isolate. NULL means default isolate.
+   * Initialize Locker for a given Isolate.
    */
-  explicit Locker(Isolate* isolate = NULL);
+  V8_INLINE(explicit Locker(Isolate* isolate)) { Initialize(isolate); }
+
+  /**
+   * Deprecated. Use Isolate version instead.
+   */
+  V8_DEPRECATED(Locker());
+
   ~Locker();
 
   /**
@@ -3995,10 +4006,10 @@ class V8EXPORT Locker {
   static void StopPreemption();
 
   /**
-   * Returns whether or not the locker for a given isolate, or default isolate
-   * if NULL is given, is locked by the current thread.
+   * Returns whether or not the locker for a given isolate, is locked by the
+   * current thread.
    */
-  static bool IsLocked(Isolate* isolate = NULL);
+  static bool IsLocked(Isolate* isolate);
 
   /**
    * Returns whether v8::Locker is being used by this V8 instance.
@@ -4006,6 +4017,8 @@ class V8EXPORT Locker {
   static bool IsActive();
 
  private:
+  void Initialize(Isolate* isolate);
+
   bool has_lock_;
   bool top_level_;
   internal::Isolate* isolate_;

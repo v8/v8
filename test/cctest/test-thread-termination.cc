@@ -202,7 +202,7 @@ class LoopingThread : public v8::internal::Thread {
  public:
   LoopingThread() : Thread("LoopingThread") { }
   void Run() {
-    v8::Locker locker;
+    v8::Locker locker(CcTest::default_isolate());
     v8::HandleScope scope;
     v8_thread_id_ = v8::V8::GetCurrentThreadId();
     v8::Handle<v8::ObjectTemplate> global =
@@ -228,7 +228,7 @@ class LoopingThread : public v8::internal::Thread {
 // from another thread when using Lockers and preemption.
 TEST(TerminateMultipleV8ThreadsDefaultIsolate) {
   {
-    v8::Locker locker;
+    v8::Locker locker(CcTest::default_isolate());
     v8::V8::Initialize();
     v8::Locker::StartPreemption(1);
     semaphore = v8::internal::OS::CreateSemaphore(0);
@@ -246,7 +246,7 @@ TEST(TerminateMultipleV8ThreadsDefaultIsolate) {
     semaphore->Wait();
   }
   {
-    v8::Locker locker;
+    v8::Locker locker(CcTest::default_isolate());
     for (int i = 0; i < kThreads; i++) {
       v8::V8::TerminateExecution(threads[i]->GetV8ThreadId());
     }
@@ -256,7 +256,7 @@ TEST(TerminateMultipleV8ThreadsDefaultIsolate) {
     delete threads[i];
   }
   {
-    v8::Locker locker;
+    v8::Locker locker(CcTest::default_isolate());
     v8::Locker::StopPreemption();
   }
 
@@ -372,4 +372,3 @@ TEST(TerminateAndReenterFromThreadItself) {
                                             "f()"))->Run()->IsTrue());
   context.Dispose();
 }
-
