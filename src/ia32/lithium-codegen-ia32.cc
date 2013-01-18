@@ -4159,11 +4159,6 @@ void LCodeGen::DoBoundsCheck(LBoundsCheck* instr) {
     }
     DeoptimizeIf(below_equal, instr->environment());
   } else {
-    if (instr->hydrogen()->index()->representation().IsTagged() &&
-        !instr->hydrogen()->index()->type().IsSmi()) {
-      __ test(ToRegister(instr->index()), Immediate(kSmiTagMask));
-      DeoptimizeIf(not_zero, instr->environment());
-    }
     __ cmp(ToRegister(instr->index()), ToOperand(instr->length()));
     DeoptimizeIf(above_equal, instr->environment());
   }
