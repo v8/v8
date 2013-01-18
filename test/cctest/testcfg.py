@@ -45,9 +45,9 @@ class CcTestSuite(testsuite.TestSuite):
     os.makedirs(self.serdes_dir)
 
   def ListTests(self, context):
+    shell = os.path.abspath(os.path.join(context.shell_dir, self.shell()))
     if utils.IsWindows():
       shell += '.exe'
-    shell = os.path.abspath(os.path.join(context.shell_dir, self.shell()))
     output = commands.Execute([context.command_prefix,
                                shell,
                                '--list',

@@ -90,7 +90,7 @@ class Runner(object):
     self.indicator.Starting()
     self._RunInternal(jobs)
     self.indicator.Done()
-    if self.failed:
+    if self.failed or self.remaining:
       return 1
     return 0
 
