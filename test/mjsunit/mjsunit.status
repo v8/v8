@@ -40,6 +40,9 @@ regress/regress-524: SKIP
 # Skip long running test in debug and allow it to timeout in release mode.
 # regress/regress-524: (PASS || TIMEOUT), SKIP if $mode == debug
 
+# Deferred stack trace formatting is temporarily disabled.
+stack-traces-gc: PASS || FAIL
+
 ##############################################################################
 # Too slow in debug mode with --stress-opt
 compiler/regress-stacktrace-methods: PASS, SKIP if $mode == debug

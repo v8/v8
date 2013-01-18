@@ -7288,6 +7288,7 @@ void ErrorObjectList::UpdateReferences() {
 
 // Unforwarded objects in new space are dead and removed from the list.
 void ErrorObjectList::UpdateReferencesInNewSpace(Heap* heap) {
+  if (list_.is_empty()) return;
   if (!nested_) {
     int write_index = 0;
     for (int i = 0; i < list_.length(); i++) {
@@ -7315,7 +7316,7 @@ void ErrorObjectList::DeferredFormatStackTrace(Isolate* isolate) {
   // If formatting the stack trace causes a GC, this method will be
   // recursively called.  In that case, skip the recursive call, since
   // the loop modifies the list while iterating over it.
-  if (nested_ || isolate->has_pending_exception()) return;
+  if (nested_ || list_.is_empty() || isolate->has_pending_exception()) return;
   nested_ = true;
   HandleScope scope(isolate);
   Handle<String> stack_key = isolate->factory()->stack_symbol();
