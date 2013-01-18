@@ -1303,6 +1303,12 @@ void HGraph::NullifyUnreachableInstructions() {
             }
             continue;
           }
+          if (operand->IsControlInstruction()) {
+            // Inserting a dummy use for a value that's not defined anywhere
+            // will fail. Some instructions define fake inputs on such
+            // values as control flow dependencies.
+            continue;
+          }
           HDummyUse* dummy = new(zone()) HDummyUse(operand);
           dummy->InsertBefore(instr);
           last_dummy = dummy;
