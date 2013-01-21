@@ -3456,6 +3456,8 @@ int Code::major_key() {
          kind() == UNARY_OP_IC ||
          kind() == BINARY_OP_IC ||
          kind() == COMPARE_IC ||
+         kind() == LOAD_IC ||
+         kind() == KEYED_LOAD_IC ||
          kind() == TO_BOOLEAN_IC);
   return StubMajorKeyField::decode(
       READ_UINT32_FIELD(this, kKindSpecificFlags2Offset));
@@ -3468,6 +3470,8 @@ void Code::set_major_key(int major) {
          kind() == UNARY_OP_IC ||
          kind() == BINARY_OP_IC ||
          kind() == COMPARE_IC ||
+         kind() == LOAD_IC ||
+         kind() == KEYED_LOAD_IC ||
          kind() == TO_BOOLEAN_IC);
   ASSERT(0 <= major && major < 256);
   int previous = READ_UINT32_FIELD(this, kKindSpecificFlags2Offset);
@@ -4847,14 +4851,17 @@ void Code::set_type_feedback_info(Object* value, WriteBarrierMode mode) {
 
 
 int Code::stub_info() {
-  ASSERT(kind() == COMPARE_IC || kind() == BINARY_OP_IC);
+  ASSERT(kind() == COMPARE_IC || kind() == BINARY_OP_IC || kind() == LOAD_IC);
   Object* value = READ_FIELD(this, kTypeFeedbackInfoOffset);
   return Smi::cast(value)->value();
 }
 
 
 void Code::set_stub_info(int value) {
-  ASSERT(kind() == COMPARE_IC || kind() == BINARY_OP_IC);
+  ASSERT(kind() == COMPARE_IC ||
+         kind() == BINARY_OP_IC ||
+         kind() == LOAD_IC ||
+         kind() == KEYED_LOAD_IC);
   WRITE_FIELD(this, kTypeFeedbackInfoOffset, Smi::FromInt(value));
 }
 

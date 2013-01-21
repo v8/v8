@@ -133,6 +133,18 @@ class IC {
                                              InlineCacheHolderFlag holder);
 
  protected:
+  virtual Handle<Code> pre_monomorphic_stub() {
+    UNREACHABLE();
+    return Handle<Code>::null();
+  }
+  virtual Handle<Code> megamorphic_stub() {
+    UNREACHABLE();
+    return Handle<Code>::null();
+  }
+  virtual Code::Kind kind() const {
+    UNREACHABLE();
+    return Code::STUB;
+  }
   Address fp() const { return fp_; }
   Address pc() const { return *pc_address_; }
   Isolate* isolate() const { return isolate_; }
@@ -164,6 +176,11 @@ class IC {
   static inline Code* GetTargetAtAddress(Address address);
   static inline void SetTargetAtAddress(Address address, Code* target);
   static void PostPatching(Address address, Code* target, Code* old_target);
+
+  bool HandleLoad(State state,
+                  Handle<Object> object,
+                  Handle<String> name,
+                  MaybeObject** result);
 
  private:
   // Frame pointer for the frame that uses (calls) the IC.
@@ -338,9 +355,14 @@ class LoadIC: public IC {
 
   // Specialized code generator routines.
   static void GenerateArrayLength(MacroAssembler* masm);
-  static void GenerateStringLength(MacroAssembler* masm,
-                                   bool support_wrappers);
   static void GenerateFunctionPrototype(MacroAssembler* masm);
+
+ protected:
+  virtual Code::Kind kind() const { return Code::LOAD_IC; }
+
+  virtual Handle<Code> megamorphic_stub() {
+    return isolate()->builtins()->LoadIC_Megamorphic();
+  }
 
  private:
   // Update the inline cache and the global stub cache based on the
@@ -351,14 +373,11 @@ class LoadIC: public IC {
                     Handle<String> name);
 
   // Stub accessors.
-  Handle<Code> megamorphic_stub() {
-    return isolate()->builtins()->LoadIC_Megamorphic();
-  }
   static Code* initialize_stub() {
     return Isolate::Current()->builtins()->builtin(
         Builtins::kLoadIC_Initialize);
   }
-  Handle<Code> pre_monomorphic_stub() {
+  virtual Handle<Code> pre_monomorphic_stub() {
     return isolate()->builtins()->LoadIC_PreMonomorphic();
   }
 
@@ -428,8 +447,6 @@ class KeyedIC: public IC {
   virtual Handle<Code> string_stub() {
     return Handle<Code>::null();
   }
-
-  virtual Code::Kind kind() const = 0;
 
   Handle<Code> ComputeStub(Handle<JSObject> receiver,
                            StubKind stub_kind,
@@ -520,6 +537,10 @@ class KeyedLoadIC: public KeyedIC {
  protected:
   virtual Code::Kind kind() const { return Code::KEYED_LOAD_IC; }
 
+  virtual Handle<Code> megamorphic_stub() {
+    return isolate()->builtins()->KeyedLoadIC_Generic();
+  }
+
   virtual Handle<Code> ComputePolymorphicStub(MapHandleList* receiver_maps,
                                               StrictModeFlag strict_mode,
                                               KeyedAccessGrowMode grow_mode);
@@ -540,13 +561,10 @@ class KeyedLoadIC: public KeyedIC {
     return Isolate::Current()->builtins()->builtin(
         Builtins::kKeyedLoadIC_Initialize);
   }
-  Handle<Code> megamorphic_stub() {
-    return isolate()->builtins()->KeyedLoadIC_Generic();
-  }
   Handle<Code> generic_stub() const {
     return isolate()->builtins()->KeyedLoadIC_Generic();
   }
-  Handle<Code> pre_monomorphic_stub() {
+  virtual Handle<Code> pre_monomorphic_stub() {
     return isolate()->builtins()->KeyedLoadIC_PreMonomorphic();
   }
   Handle<Code> indexed_interceptor_stub() {
@@ -584,6 +602,12 @@ class StoreIC: public IC {
   static void GenerateGlobalProxy(MacroAssembler* masm,
                                   StrictModeFlag strict_mode);
 
+ protected:
+  virtual Code::Kind kind() const { return Code::STORE_IC; }
+  virtual Handle<Code> megamorphic_stub() {
+    return isolate()->builtins()->StoreIC_Megamorphic();
+  }
+
  private:
   // Update the inline cache and the global stub cache based on the
   // lookup result.
@@ -602,10 +626,6 @@ class StoreIC: public IC {
   }
 
   // Stub accessors.
-  Code* megamorphic_stub() {
-    return isolate()->builtins()->builtin(
-        Builtins::kStoreIC_Megamorphic);
-  }
   Code* megamorphic_stub_strict() {
     return isolate()->builtins()->builtin(
         Builtins::kStoreIC_Megamorphic_Strict);

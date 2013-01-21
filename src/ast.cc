@@ -29,6 +29,7 @@
 
 #include <math.h>  // For isfinite.
 #include "builtins.h"
+#include "code-stubs.h"
 #include "conversions.h"
 #include "hashmap.h"
 #include "parser.h"
@@ -412,9 +413,10 @@ void Property::RecordTypeFeedback(TypeFeedbackOracle* oracle,
   is_monomorphic_ = oracle->LoadIsMonomorphicNormal(this);
   receiver_types_.Clear();
   if (key()->IsPropertyName()) {
+    StringLengthStub string_stub(Code::LOAD_IC, false);
     if (oracle->LoadIsBuiltin(this, Builtins::kLoadIC_ArrayLength)) {
       is_array_length_ = true;
-    } else if (oracle->LoadIsBuiltin(this, Builtins::kLoadIC_StringLength)) {
+    } else if (oracle->LoadIsStub(this, &string_stub)) {
       is_string_length_ = true;
     } else if (oracle->LoadIsBuiltin(this,
                                      Builtins::kLoadIC_FunctionPrototype)) {

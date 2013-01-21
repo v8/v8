@@ -47,6 +47,7 @@ namespace internal {
   V(Compare)                             \
   V(CompareIC)                           \
   V(MathPow)                             \
+  V(StringLength)                        \
   V(RecordWrite)                         \
   V(StoreBufferOverflow)                 \
   V(RegExpExec)                          \
@@ -536,6 +537,45 @@ class MathPowStub: public PlatformCodeStub {
   virtual int MinorKey() { return exponent_type_; }
 
   ExponentType exponent_type_;
+};
+
+
+class ICStub: public PlatformCodeStub {
+ public:
+  explicit ICStub(Code::Kind kind) : kind_(kind) { }
+  virtual int GetCodeKind() { return kind_; }
+  virtual InlineCacheState GetICState() { return MONOMORPHIC; }
+
+  bool Describes(Code* code) {
+    return GetMajorKey(code) == MajorKey() && code->stub_info() == MinorKey();
+  }
+
+ protected:
+  class KindBits: public BitField<Code::Kind, 0, 4> {};
+  virtual void FinishCode(Handle<Code> code) {
+    code->set_stub_info(MinorKey());
+  }
+  Code::Kind kind() { return kind_; }
+
+ private:
+  Code::Kind kind_;
+};
+
+
+class StringLengthStub: public ICStub {
+ public:
+  StringLengthStub(Code::Kind kind, bool support_wrapper)
+      : ICStub(kind), support_wrapper_(support_wrapper) { }
+  virtual void Generate(MacroAssembler* masm);
+
+ private:
+  class WrapperModeBits: public BitField<bool, 4, 1> {};
+  virtual CodeStub::Major MajorKey() { return StringLength; }
+  virtual int MinorKey() {
+    return KindBits::encode(kind()) | WrapperModeBits::encode(support_wrapper_);
+  }
+
+  bool support_wrapper_;
 };
 
 

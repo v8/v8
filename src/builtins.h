@@ -136,10 +136,6 @@ enum BuiltinExtraArguments {
                                     Code::kNoExtraICState)              \
   V(LoadIC_ArrayLength,             LOAD_IC, MONOMORPHIC,               \
                                     Code::kNoExtraICState)              \
-  V(LoadIC_StringLength,            LOAD_IC, MONOMORPHIC,               \
-                                    Code::kNoExtraICState)              \
-  V(LoadIC_StringWrapperLength,     LOAD_IC, MONOMORPHIC,               \
-                                    Code::kNoExtraICState)              \
   V(LoadIC_FunctionPrototype,       LOAD_IC, MONOMORPHIC,               \
                                     Code::kNoExtraICState)              \
   V(LoadIC_Megamorphic,             LOAD_IC, MEGAMORPHIC,               \

@@ -1458,16 +1458,6 @@ static void Generate_LoadIC_ArrayLength(MacroAssembler* masm) {
 }
 
 
-static void Generate_LoadIC_StringLength(MacroAssembler* masm) {
-  LoadIC::GenerateStringLength(masm, false);
-}
-
-
-static void Generate_LoadIC_StringWrapperLength(MacroAssembler* masm) {
-  LoadIC::GenerateStringLength(masm, true);
-}
-
-
 static void Generate_LoadIC_FunctionPrototype(MacroAssembler* masm) {
   LoadIC::GenerateFunctionPrototype(masm);
 }

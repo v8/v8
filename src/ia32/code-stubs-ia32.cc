@@ -3259,6 +3259,26 @@ void MathPowStub::Generate(MacroAssembler* masm) {
 }
 
 
+void StringLengthStub::Generate(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- ecx    : name
+  //  -- edx    : receiver
+  //  -- esp[0] : return address
+  // -----------------------------------
+  Label miss;
+
+  if (kind() == Code::KEYED_LOAD_IC) {
+    __ cmp(ecx, Immediate(masm->isolate()->factory()->length_symbol()));
+    __ j(not_equal, &miss);
+  }
+
+  StubCompiler::GenerateLoadStringLength(masm, edx, eax, ebx, &miss,
+                                         support_wrapper_);
+  __ bind(&miss);
+  StubCompiler::GenerateLoadMiss(masm, kind());
+}
+
+
 void ArgumentsAccessStub::GenerateReadElement(MacroAssembler* masm) {
   // The key is in edx and the parameter count is in eax.
 

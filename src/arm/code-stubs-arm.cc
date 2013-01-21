@@ -32,6 +32,7 @@
 #include "bootstrapper.h"
 #include "code-stubs.h"
 #include "regexp-macro-assembler.h"
+#include "stub-cache.h"
 
 namespace v8 {
 namespace internal {
@@ -4499,6 +4500,37 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
     __ LoadRoot(r0, Heap::kFalseValueRootIndex, ne);
     __ Ret(HasArgsInRegisters() ? 0 : 2);
   }
+}
+
+
+void StringLengthStub::Generate(MacroAssembler* masm) {
+  Label miss;
+  Register receiver;
+  if (kind() == Code::KEYED_LOAD_IC) {
+    // ----------- S t a t e -------------
+    //  -- lr    : return address
+    //  -- r0    : key
+    //  -- r1    : receiver
+    // -----------------------------------
+    __ cmp(r0, Operand(masm->isolate()->factory()->length_symbol()));
+    __ b(ne, &miss);
+    receiver = r1;
+  } else {
+    ASSERT(kind() == Code::LOAD_IC);
+    // ----------- S t a t e -------------
+    //  -- r2    : name
+    //  -- lr    : return address
+    //  -- r0    : receiver
+    //  -- sp[0] : receiver
+    // -----------------------------------
+    receiver = r0;
+  }
+
+  StubCompiler::GenerateLoadStringLength(masm, receiver, r3, r4, &miss,
+                                         support_wrapper_);
+
+  __ bind(&miss);
+  StubCompiler::GenerateLoadMiss(masm, kind());
 }
 
 

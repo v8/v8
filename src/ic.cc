@@ -832,6 +832,46 @@ MaybeObject* KeyedCallIC::LoadFunction(State state,
 }
 
 
+bool IC::HandleLoad(State state,
+                    Handle<Object> object,
+                    Handle<String> name,
+                    MaybeObject** result) {
+  // Use specialized code for getting the length of strings and
+  // string wrapper objects.  The length property of string wrapper
+  // objects is read-only and therefore always returns the length of
+  // the underlying string value.  See ECMA-262 15.5.5.1.
+  if ((object->IsString() || object->IsStringWrapper()) &&
+      name->Equals(isolate()->heap()->length_symbol())) {
+    Handle<Code> stub;
+    if (state == UNINITIALIZED) {
+      stub = pre_monomorphic_stub();
+    } else if (state == PREMONOMORPHIC) {
+      StringLengthStub string_length_stub(kind(), !object->IsString());
+      stub = string_length_stub.GetCode();
+    } else if (state == MONOMORPHIC && object->IsStringWrapper()) {
+      StringLengthStub string_length_stub(kind(), true);
+      stub = string_length_stub.GetCode();
+    } else if (state != MEGAMORPHIC) {
+      ASSERT(state != GENERIC);
+      stub = megamorphic_stub();
+    }
+    if (!stub.is_null()) {
+      set_target(*stub);
+#ifdef DEBUG
+      if (FLAG_trace_ic) PrintF("[LoadIC : +#length /string]\n");
+#endif
+    }
+    // Get the string if we have a string wrapper object.
+    Handle<Object> string = object->IsJSValue()
+        ? Handle<Object>(Handle<JSValue>::cast(object)->value())
+        : object;
+    *result = Smi::FromInt(String::cast(*string)->length());
+    return true;
+  }
+  return false;
+}
+
+
 MaybeObject* LoadIC::Load(State state,
                           Handle<Object> object,
                           Handle<String> name) {
@@ -842,36 +882,9 @@ MaybeObject* LoadIC::Load(State state,
   }
 
   if (FLAG_use_ic) {
-    // Use specialized code for getting the length of strings and
-    // string wrapper objects.  The length property of string wrapper
-    // objects is read-only and therefore always returns the length of
-    // the underlying string value.  See ECMA-262 15.5.5.1.
-    if ((object->IsString() || object->IsStringWrapper()) &&
-        name->Equals(isolate()->heap()->length_symbol())) {
-      Handle<Code> stub;
-      if (state == UNINITIALIZED) {
-        stub = pre_monomorphic_stub();
-      } else if (state == PREMONOMORPHIC) {
-        stub = object->IsString()
-            ? isolate()->builtins()->LoadIC_StringLength()
-            : isolate()->builtins()->LoadIC_StringWrapperLength();
-      } else if (state == MONOMORPHIC && object->IsStringWrapper()) {
-        stub = isolate()->builtins()->LoadIC_StringWrapperLength();
-      } else if (state != MEGAMORPHIC) {
-        ASSERT(state != GENERIC);
-        stub = megamorphic_stub();
-      }
-      if (!stub.is_null()) {
-        set_target(*stub);
-#ifdef DEBUG
-        if (FLAG_trace_ic) PrintF("[LoadIC : +#length /string]\n");
-#endif
-      }
-      // Get the string if we have a string wrapper object.
-      Handle<Object> string = object->IsJSValue()
-          ? Handle<Object>(Handle<JSValue>::cast(object)->value())
-          : object;
-      return Smi::FromInt(String::cast(*string)->length());
+    MaybeObject* result;
+    if (HandleLoad(state, object, name, &result)) {
+      return result;
     }
 
     // Use specialized code for getting the length of arrays.
@@ -1156,20 +1169,12 @@ MaybeObject* KeyedLoadIC::Load(State state,
     }
 
     if (FLAG_use_ic) {
-      // TODO(1073): don't ignore the current stub state.
-
-      // Use specialized code for getting the length of strings.
-      if (object->IsString() &&
-          name->Equals(isolate()->heap()->length_symbol())) {
-        Handle<String> string = Handle<String>::cast(object);
-        Handle<Code> code =
-            isolate()->stub_cache()->ComputeKeyedLoadStringLength(name, string);
-        ASSERT(!code.is_null());
-        set_target(*code);
-        TRACE_IC("KeyedLoadIC", name, state, target());
-        return Smi::FromInt(string->length());
+      MaybeObject* result;
+      if (HandleLoad(state, object, name, &result)) {
+        return result;
       }
 
+      // TODO(1073): don't ignore the current stub state.
       // Use specialized code for getting the length of arrays.
       if (object->IsJSArray() &&
           name->Equals(isolate()->heap()->length_symbol())) {
@@ -1612,7 +1617,7 @@ void StoreIC::UpdateCaches(LookupResult* lookup,
         isolate()->stub_cache()->Set(*name, receiver->map(), *code);
         set_target((strict_mode == kStrictMode)
                      ? megamorphic_stub_strict()
-                     : megamorphic_stub());
+                     : *megamorphic_stub());
       }
       break;
     case MEGAMORPHIC:
