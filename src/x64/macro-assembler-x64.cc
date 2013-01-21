@@ -4615,13 +4615,13 @@ void MacroAssembler::TestJSArrayForAllocationSiteInfo(
       ExternalReference::new_space_allocation_top_address(isolate());
 
   lea(scratch_reg, Operand(receiver_reg,
-                           JSArray::kSize + AllocationSiteInfo::kSize));
+      JSArray::kSize + AllocationSiteInfo::kSize - kHeapObjectTag));
   movq(kScratchRegister, new_space_start);
   cmpq(scratch_reg, kScratchRegister);
   j(less, &no_info_available);
   cmpq(scratch_reg, ExternalOperand(new_space_allocation_top));
-  j(greater_equal, &no_info_available);
-  CompareRoot(MemOperand(scratch_reg, 0),
+  j(greater, &no_info_available);
+  CompareRoot(MemOperand(scratch_reg, -AllocationSiteInfo::kSize),
               Heap::kAllocationSiteInfoMapRootIndex);
   j(equal, allocation_info_present);
   bind(&no_info_available);

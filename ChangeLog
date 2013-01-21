@@ -1,3 +1,14 @@
+2013-01-21: Version 3.16.7
+
+        Removed <(library) usage from v8.gyp.
+        (Chromium issue 111541)
+
+        Fixed out of bounds memory access in TestJSArrayForAllocationSiteInfo.
+        (Chromium issue 169928)
+
+        Performance and stability improvements on all platforms.
+
+
 2013-01-18: Version 3.16.6
 
         Made the Isolate parameter mandatory in Locker and Unlocker classes.

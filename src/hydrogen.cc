@@ -1267,6 +1267,7 @@ void HGraph::MarkAsDeoptimizingRecursively(HBasicBlock* block) {
 
 
 void HGraph::NullifyUnreachableInstructions() {
+  if (!FLAG_unreachable_code_elimination) return;
   int block_count = blocks_.length();
   for (int i = 0; i < block_count; ++i) {
     HBasicBlock* block = blocks_.at(i);

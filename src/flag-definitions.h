@@ -211,6 +211,8 @@ DEFINE_bool(array_index_dehoisting, true,
             "perform array index dehoisting")
 DEFINE_bool(dead_code_elimination, true, "use dead code elimination")
 DEFINE_bool(trace_dead_code_elimination, false, "trace dead code elimination")
+DEFINE_bool(unreachable_code_elimination, false,
+            "eliminate unreachable code (hidden behind soft deopts)")
 DEFINE_bool(track_allocation_sites, true,
             "Use allocation site info to reduce transitions")
 DEFINE_bool(trace_osr, false, "trace on-stack replacement")

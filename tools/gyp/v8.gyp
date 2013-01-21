@@ -99,7 +99,7 @@
         },
         {
           'target_name': 'v8_snapshot',
-          'type': '<(library)',
+          'type': 'static_library',
           'conditions': [
             ['want_separate_host_toolset==1', {
               'toolsets': ['host', 'target'],
@@ -190,7 +190,7 @@
         },
         {
           'target_name': 'v8_nosnapshot',
-          'type': '<(library)',
+          'type': 'static_library',
           'dependencies': [
             'v8_base',
           ],
@@ -220,7 +220,7 @@
         },
         {
           'target_name': 'v8_base',
-          'type': '<(library)',
+          'type': 'static_library',
           'variables': {
             'optimize': 'max',
           },
@@ -908,7 +908,7 @@
         },
         {
           'target_name': 'preparser_lib',
-          'type': '<(library)',
+          'type': 'static_library',
           'include_dirs+': [
             '../../src',
           ],
