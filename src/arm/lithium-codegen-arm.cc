@@ -5318,29 +5318,19 @@ void LCodeGen::DoCheckPrototypeMaps(LCheckPrototypeMaps* instr) {
   Register prototype_reg = ToRegister(instr->temp());
   Register map_reg = ToRegister(instr->temp2());
 
-  Handle<JSObject> holder = instr->holder();
-  Handle<JSObject> current_prototype = instr->prototype();
+  ZoneList<Handle<JSObject> >* prototypes = instr->prototypes();
+  ZoneList<Handle<Map> >* maps = instr->maps();
 
-  // Load prototype object.
-  __ LoadHeapObject(prototype_reg, current_prototype);
+  ASSERT(prototypes->length() == maps->length());
 
-  // Check prototype maps up to the holder.
-  while (!current_prototype.is_identical_to(holder)) {
+  for (int i = 0; i < prototypes->length(); i++) {
+    __ LoadHeapObject(prototype_reg, prototypes->at(i));
     __ ldr(map_reg, FieldMemOperand(prototype_reg, HeapObject::kMapOffset));
     DoCheckMapCommon(map_reg,
-                     Handle<Map>(current_prototype->map()),
-                     ALLOW_ELEMENT_TRANSITION_MAPS, instr->environment());
-    current_prototype =
-        Handle<JSObject>(JSObject::cast(current_prototype->GetPrototype()));
-    // Load next prototype object.
-    __ LoadHeapObject(prototype_reg, current_prototype);
+                     maps->at(i),
+                     ALLOW_ELEMENT_TRANSITION_MAPS,
+                     instr->environment());
   }
-
-  // Check the holder map.
-  __ ldr(map_reg, FieldMemOperand(prototype_reg, HeapObject::kMapOffset));
-  DoCheckMapCommon(map_reg,
-                   Handle<Map>(current_prototype->map()),
-                   ALLOW_ELEMENT_TRANSITION_MAPS, instr->environment());
 }
 
 

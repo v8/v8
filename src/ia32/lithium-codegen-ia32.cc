@@ -5169,26 +5169,15 @@ void LCodeGen::DoCheckPrototypeMaps(LCheckPrototypeMaps* instr) {
   ASSERT(instr->temp()->Equals(instr->result()));
   Register reg = ToRegister(instr->temp());
 
-  Handle<JSObject> holder = instr->holder();
-  Handle<JSObject> current_prototype = instr->prototype();
+  ZoneList<Handle<JSObject> >* prototypes = instr->prototypes();
+  ZoneList<Handle<Map> >* maps = instr->maps();
 
-  // Load prototype object.
-  __ LoadHeapObject(reg, current_prototype);
+  ASSERT(prototypes->length() == maps->length());
 
-  // Check prototype maps up to the holder.
-  while (!current_prototype.is_identical_to(holder)) {
-    DoCheckMapCommon(reg, Handle<Map>(current_prototype->map()),
-                     ALLOW_ELEMENT_TRANSITION_MAPS, instr);
-
-    current_prototype =
-        Handle<JSObject>(JSObject::cast(current_prototype->GetPrototype()));
-    // Load next prototype object.
-    __ LoadHeapObject(reg, current_prototype);
+  for (int i = 0; i < prototypes->length(); i++) {
+    __ LoadHeapObject(reg, prototypes->at(i));
+    DoCheckMapCommon(reg, maps->at(i), ALLOW_ELEMENT_TRANSITION_MAPS, instr);
   }
-
-  // Check the holder map.
-  DoCheckMapCommon(reg, Handle<Map>(current_prototype->map()),
-                   ALLOW_ELEMENT_TRANSITION_MAPS, instr);
 }
 
 

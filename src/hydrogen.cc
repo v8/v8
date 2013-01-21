@@ -5561,7 +5561,8 @@ HInstruction* HOptimizedGraphBuilder::BuildStoreNamedField(
     ASSERT(proto->IsJSObject());
     AddInstruction(new(zone()) HCheckPrototypeMaps(
         Handle<JSObject>(JSObject::cast(map->prototype())),
-        Handle<JSObject>(JSObject::cast(proto))));
+        Handle<JSObject>(JSObject::cast(proto)),
+        zone()));
   }
 
   int index = ComputeLoadStoreFieldIndex(map, name, lookup);
@@ -6296,8 +6297,8 @@ HInstruction* HOptimizedGraphBuilder::BuildLoadNamedMonomorphic(
     Handle<JSObject> holder(lookup.holder());
     Handle<Map> holder_map(holder->map());
     AddCheckMapsWithTransitions(object, map);
-    HInstruction* holder_value =
-        AddInstruction(new(zone()) HCheckPrototypeMaps(prototype, holder));
+    HInstruction* holder_value = AddInstruction(
+        new(zone()) HCheckPrototypeMaps(prototype, holder, zone()));
     return BuildLoadNamedField(holder_value, holder_map, &lookup);
   }
 
@@ -6836,8 +6837,9 @@ void HOptimizedGraphBuilder::VisitProperty(Property* expr) {
 void HOptimizedGraphBuilder::AddCheckPrototypeMaps(Handle<JSObject> holder,
                                                    Handle<Map> receiver_map) {
   if (!holder.is_null()) {
-    AddInstruction(new(zone()) HCheckPrototypeMaps(
-        Handle<JSObject>(JSObject::cast(receiver_map->prototype())), holder));
+    Handle<JSObject> prototype(JSObject::cast(receiver_map->prototype()));
+    AddInstruction(
+        new(zone()) HCheckPrototypeMaps(prototype, holder, zone()));
   }
 }
 
@@ -7469,7 +7471,8 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinMethodCall(
         ASSERT(!expr->holder().is_null());
         AddInstruction(new(zone()) HCheckPrototypeMaps(
             oracle()->GetPrototypeForPrimitiveCheck(STRING_CHECK),
-            expr->holder()));
+            expr->holder(),
+            zone()));
         HStringCharCodeAt* char_code =
             BuildStringCharCodeAt(context, string, index);
         if (id == kStringCharCodeAt) {
