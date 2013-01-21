@@ -134,8 +134,6 @@ enum BuiltinExtraArguments {
                                     Code::kNoExtraICState)              \
   V(LoadIC_Normal,                  LOAD_IC, MONOMORPHIC,               \
                                     Code::kNoExtraICState)              \
-  V(LoadIC_ArrayLength,             LOAD_IC, MONOMORPHIC,               \
-                                    Code::kNoExtraICState)              \
   V(LoadIC_FunctionPrototype,       LOAD_IC, MONOMORPHIC,               \
                                     Code::kNoExtraICState)              \
   V(LoadIC_Megamorphic,             LOAD_IC, MEGAMORPHIC,               \

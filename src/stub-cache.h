@@ -133,9 +133,6 @@ class StubCache {
                                            Handle<JSObject> receiver,
                                            Handle<JSObject> holder);
 
-  Handle<Code> ComputeKeyedLoadArrayLength(Handle<String> name,
-                                           Handle<JSArray> receiver);
-
   Handle<Code> ComputeKeyedLoadFunctionPrototype(Handle<String> name,
                                                  Handle<JSFunction> receiver);
 
@@ -666,8 +663,6 @@ class KeyedLoadStubCompiler: public StubCompiler {
   Handle<Code> CompileLoadInterceptor(Handle<JSObject> object,
                                       Handle<JSObject> holder,
                                       Handle<String> name);
-
-  Handle<Code> CompileLoadArrayLength(Handle<String> name);
 
   Handle<Code> CompileLoadFunctionPrototype(Handle<String> name);
 

@@ -224,20 +224,6 @@ static void GenerateDictionaryStore(MacroAssembler* masm,
 }
 
 
-void LoadIC::GenerateArrayLength(MacroAssembler* masm) {
-  // ----------- S t a t e -------------
-  //  -- rax    : receiver
-  //  -- rcx    : name
-  //  -- rsp[0] : return address
-  // -----------------------------------
-  Label miss;
-
-  StubCompiler::GenerateLoadArrayLength(masm, rax, rdx, &miss);
-  __ bind(&miss);
-  StubCompiler::GenerateLoadMiss(masm, Code::LOAD_IC);
-}
-
-
 void LoadIC::GenerateFunctionPrototype(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- rax    : receiver

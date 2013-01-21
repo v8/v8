@@ -868,6 +868,29 @@ bool IC::HandleLoad(State state,
     *result = Smi::FromInt(String::cast(*string)->length());
     return true;
   }
+
+  // Use specialized code for getting the length of arrays.
+  if (object->IsJSArray() && name->Equals(isolate()->heap()->length_symbol())) {
+    Handle<Code> stub;
+    if (state == UNINITIALIZED) {
+      stub = pre_monomorphic_stub();
+    } else if (state == PREMONOMORPHIC) {
+      ArrayLengthStub array_length_stub(kind());
+      stub = array_length_stub.GetCode();
+    } else if (state != MEGAMORPHIC) {
+      ASSERT(state != GENERIC);
+      stub = megamorphic_stub();
+    }
+    if (!stub.is_null()) {
+      set_target(*stub);
+#ifdef DEBUG
+      if (FLAG_trace_ic) PrintF("[LoadIC : +#length /array]\n");
+#endif
+    }
+    *result = JSArray::cast(*object)->length();
+    return true;
+  }
+
   return false;
 }
 
@@ -885,27 +908,6 @@ MaybeObject* LoadIC::Load(State state,
     MaybeObject* result;
     if (HandleLoad(state, object, name, &result)) {
       return result;
-    }
-
-    // Use specialized code for getting the length of arrays.
-    if (object->IsJSArray() &&
-        name->Equals(isolate()->heap()->length_symbol())) {
-      Handle<Code> stub;
-      if (state == UNINITIALIZED) {
-        stub = pre_monomorphic_stub();
-      } else if (state == PREMONOMORPHIC) {
-        stub = isolate()->builtins()->LoadIC_ArrayLength();
-      } else if (state != MEGAMORPHIC) {
-        ASSERT(state != GENERIC);
-        stub = megamorphic_stub();
-      }
-      if (!stub.is_null()) {
-        set_target(*stub);
-#ifdef DEBUG
-        if (FLAG_trace_ic) PrintF("[LoadIC : +#length /array]\n");
-#endif
-      }
-      return JSArray::cast(*object)->length();
     }
 
     // Use specialized code for getting prototype of functions.
@@ -1175,18 +1177,6 @@ MaybeObject* KeyedLoadIC::Load(State state,
       }
 
       // TODO(1073): don't ignore the current stub state.
-      // Use specialized code for getting the length of arrays.
-      if (object->IsJSArray() &&
-          name->Equals(isolate()->heap()->length_symbol())) {
-        Handle<JSArray> array = Handle<JSArray>::cast(object);
-        Handle<Code> code =
-            isolate()->stub_cache()->ComputeKeyedLoadArrayLength(name, array);
-        ASSERT(!code.is_null());
-        set_target(*code);
-        TRACE_IC("KeyedLoadIC", name, state, target());
-        return array->length();
-      }
-
       // Use specialized code for getting prototype of functions.
       if (object->IsJSFunction() &&
           name->Equals(isolate()->heap()->prototype_symbol()) &&

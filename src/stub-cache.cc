@@ -348,23 +348,6 @@ Handle<Code> StubCache::ComputeKeyedLoadCallback(
 }
 
 
-Handle<Code> StubCache::ComputeKeyedLoadArrayLength(Handle<String> name,
-                                                    Handle<JSArray> receiver) {
-  Code::Flags flags =
-      Code::ComputeMonomorphicFlags(Code::KEYED_LOAD_IC, Code::CALLBACKS);
-  Handle<Object> probe(receiver->map()->FindInCodeCache(*name, flags),
-                       isolate_);
-  if (probe->IsCode()) return Handle<Code>::cast(probe);
-
-  KeyedLoadStubCompiler compiler(isolate_);
-  Handle<Code> code = compiler.CompileLoadArrayLength(name);
-  PROFILE(isolate_, CodeCreateEvent(Logger::KEYED_LOAD_IC_TAG, *code, *name));
-  GDBJIT(AddCode(GDBJITInterface::KEYED_LOAD_IC, *name, *code));
-  JSObject::UpdateMapCodeCache(receiver, name, code);
-  return code;
-}
-
-
 Handle<Code> StubCache::ComputeKeyedLoadFunctionPrototype(
     Handle<String> name,
     Handle<JSFunction> receiver) {
