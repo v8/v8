@@ -106,12 +106,6 @@ class GlobalHandles::Node {
 
   void Release(GlobalHandles* global_handles) {
     ASSERT(state() != FREE);
-    if (IsWeakRetainer()) {
-      global_handles->number_of_weak_handles_--;
-      if (object_->IsJSGlobalObject()) {
-        global_handles->number_of_global_object_weak_handles_--;
-      }
-    }
     set_state(FREE);
     parameter_or_next_free_.next_free = global_handles->first_free_;
     global_handles->first_free_ = this;
@@ -221,12 +215,6 @@ class GlobalHandles::Node {
                 void* parameter,
                 WeakReferenceCallback callback) {
     ASSERT(state() != FREE);
-    if (!IsWeakRetainer()) {
-      global_handles->number_of_weak_handles_++;
-      if (object_->IsJSGlobalObject()) {
-        global_handles->number_of_global_object_weak_handles_++;
-      }
-    }
     set_state(WEAK);
     set_parameter(parameter);
     callback_ = callback;
@@ -234,12 +222,6 @@ class GlobalHandles::Node {
 
   void ClearWeakness(GlobalHandles* global_handles) {
     ASSERT(state() != FREE);
-    if (IsWeakRetainer()) {
-      global_handles->number_of_weak_handles_--;
-      if (object_->IsJSGlobalObject()) {
-        global_handles->number_of_global_object_weak_handles_--;
-      }
-    }
     set_state(NORMAL);
     set_parameter(NULL);
   }
@@ -421,8 +403,6 @@ class GlobalHandles::NodeIterator {
 
 GlobalHandles::GlobalHandles(Isolate* isolate)
     : isolate_(isolate),
-      number_of_weak_handles_(0),
-      number_of_global_object_weak_handles_(0),
       number_of_global_handles_(0),
       first_block_(NULL),
       first_used_block_(NULL),
@@ -709,6 +689,29 @@ void GlobalHandles::IterateAllRootsWithClassIds(ObjectVisitor* v) {
                                 it.node()->wrapper_class_id());
     }
   }
+}
+
+
+int GlobalHandles::NumberOfWeakHandles() {
+  int count = 0;
+  for (NodeIterator it(this); !it.done(); it.Advance()) {
+    if (it.node()->IsWeakRetainer()) {
+      count++;
+    }
+  }
+  return count;
+}
+
+
+int GlobalHandles::NumberOfGlobalObjectWeakHandles() {
+  int count = 0;
+  for (NodeIterator it(this); !it.done(); it.Advance()) {
+    if (it.node()->IsWeakRetainer() &&
+        it.node()->object()->IsJSGlobalObject()) {
+      count++;
+    }
+  }
+  return count;
 }
 
 

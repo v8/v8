@@ -130,16 +130,14 @@ class GlobalHandles {
                 void* parameter,
                 WeakReferenceCallback callback);
 
-  // Returns the current number of weak handles.
-  int NumberOfWeakHandles() { return number_of_weak_handles_; }
-
   void RecordStats(HeapStats* stats);
+
+  // Returns the current number of weak handles.
+  int NumberOfWeakHandles();
 
   // Returns the current number of weak handles to global objects.
   // These handles are also included in NumberOfWeakHandles().
-  int NumberOfGlobalObjectWeakHandles() {
-    return number_of_global_object_weak_handles_;
-  }
+  int NumberOfGlobalObjectWeakHandles();
 
   // Returns the current number of handles to global objects.
   int NumberOfGlobalHandles() {
@@ -254,14 +252,6 @@ class GlobalHandles {
   class NodeIterator;
 
   Isolate* isolate_;
-
-  // Field always containing the number of weak and near-death handles.
-  int number_of_weak_handles_;
-
-  // Field always containing the number of weak and near-death handles
-  // to global objects.  These objects are also included in
-  // number_of_weak_handles_.
-  int number_of_global_object_weak_handles_;
 
   // Field always containing the number of handles to global objects.
   int number_of_global_handles_;
