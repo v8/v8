@@ -63,8 +63,6 @@ static EntropySource entropy_source;
 
 
 bool V8::Initialize(Deserializer* des) {
-  FlagList::EnforceFlagImplications();
-
   InitializeOncePerProcess();
 
   // The current thread may not yet had entered an isolate to run.
@@ -263,31 +261,20 @@ Object* V8::FillHeapNumberWithRandom(Object* heap_number,
 }
 
 void V8::InitializeOncePerProcessImpl() {
-  OS::SetUp();
-
-  use_crankshaft_ = FLAG_crankshaft;
-
-  if (Serializer::enabled()) {
-    use_crankshaft_ = false;
-  }
-
-  CPU::SetUp();
-  if (!CPU::SupportsCrankshaft()) {
-    use_crankshaft_ = false;
-  }
-
-  OS::PostSetUp();
-
-  RuntimeProfiler::GlobalSetUp();
-
-  ElementsAccessor::InitializeOncePerProcess();
-
+  FlagList::EnforceFlagImplications();
   if (FLAG_stress_compaction) {
     FLAG_force_marking_deque_overflows = true;
     FLAG_gc_global = true;
     FLAG_max_new_space_size = (1 << (kPageSizeBits - 10)) * 2;
   }
-
+  OS::SetUp();
+  CPU::SetUp();
+  use_crankshaft_ = FLAG_crankshaft
+      && !Serializer::enabled()
+      && CPU::SupportsCrankshaft();
+  OS::PostSetUp();
+  RuntimeProfiler::GlobalSetUp();
+  ElementsAccessor::InitializeOncePerProcess();
   LOperand::SetUpCaches();
   SetUpJSCallerSavedCodeData();
   SamplerRegistry::SetUp();
