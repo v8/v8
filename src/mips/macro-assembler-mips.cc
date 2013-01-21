@@ -5455,7 +5455,7 @@ void MacroAssembler::TestJSArrayForAllocationSiteInfo(
   ExternalReference new_space_allocation_top =
       ExternalReference::new_space_allocation_top_address(isolate());
   lw(scratch_reg, FieldMemOperand(receiver_reg,
-      JSArray::kSize + AllocationSiteInfo::kSize - kHeapObjecTag));
+      JSArray::kSize + AllocationSiteInfo::kSize - kHeapObjectTag));
   Branch(&no_info_available, lt, scratch_reg, Operand(new_space_start));
   Branch(&no_info_available, gt, scratch_reg,
       Operand(new_space_allocation_top));

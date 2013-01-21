@@ -75,52 +75,52 @@ function assertKind(expected, obj, name_opt) {
 }
 
 if (support_smi_only_arrays) {
-    function fastliteralcase(literal, value) {
-        // var literal = [1, 2, 3];
-        literal[0] = value;
-        return literal;
-    }
+  function fastliteralcase(literal, value) {
+    // var literal = [1, 2, 3];
+    literal[0] = value;
+    return literal;
+  }
 
-    function get_standard_literal() {
-        var literal = [1, 2, 3];
-        return literal;
-    }
+  function get_standard_literal() {
+    var literal = [1, 2, 3];
+    return literal;
+  }
 
-    // Case: [1,2,3] as allocation site
-    obj = fastliteralcase(get_standard_literal(), 1);
-    assertKind(elements_kind.fast_smi_only, obj);
-    obj = fastliteralcase(get_standard_literal(), 1.5);
-    assertKind(elements_kind.fast_double, obj);
-    obj = fastliteralcase(get_standard_literal(), 2);
-    assertKind(elements_kind.fast_double, obj);
+  // Case: [1,2,3] as allocation site
+  obj = fastliteralcase(get_standard_literal(), 1);
+  assertKind(elements_kind.fast_smi_only, obj);
+  obj = fastliteralcase(get_standard_literal(), 1.5);
+  assertKind(elements_kind.fast_double, obj);
+  obj = fastliteralcase(get_standard_literal(), 2);
+  assertKind(elements_kind.fast_double, obj);
 
-    obj = fastliteralcase([5, 3, 2], 1.5);
-    assertKind(elements_kind.fast_double, obj);
-    obj = fastliteralcase([3, 6, 2], 1.5);
-    assertKind(elements_kind.fast_double, obj);
-    obj = fastliteralcase([2, 6, 3], 2);
-    assertKind(elements_kind.fast_double, obj);
+  obj = fastliteralcase([5, 3, 2], 1.5);
+  assertKind(elements_kind.fast_double, obj);
+  obj = fastliteralcase([3, 6, 2], 1.5);
+  assertKind(elements_kind.fast_double, obj);
+  obj = fastliteralcase([2, 6, 3], 2);
+  assertKind(elements_kind.fast_smi_only, obj);
 
-    // Verify that we will not pretransition the double->fast path.
-    obj = fastliteralcase(get_standard_literal(), "elliot");
-    assertKind(elements_kind.fast, obj);
+  // Verify that we will not pretransition the double->fast path.
+  obj = fastliteralcase(get_standard_literal(), "elliot");
+  assertKind(elements_kind.fast, obj);
 
-    // This fails until we turn off optimistic transitions to the
-    // most general elements kind seen on keyed stores. It's a goal
-    // to turn it off, but for now we need it.
-    // obj = fastliteralcase(3);
-    // assertKind(elements_kind.fast_double, obj);
+  // This fails until we turn off optimistic transitions to the
+  // most general elements kind seen on keyed stores. It's a goal
+  // to turn it off, but for now we need it.
+  // obj = fastliteralcase(3);
+  // assertKind(elements_kind.fast_double, obj);
 
-    function fastliteralcase_smifast(value) {
-        var literal = [1, 2, 3, 4];
-        literal[0] = value;
-        return literal;
-    }
+  function fastliteralcase_smifast(value) {
+    var literal = [1, 2, 3, 4];
+    literal[0] = value;
+    return literal;
+  }
 
-    obj = fastliteralcase_smifast(1);
-    assertKind(elements_kind.fast_smi_only, obj);
-    obj = fastliteralcase_smifast("carter");
-    assertKind(elements_kind.fast, obj);
-    obj = fastliteralcase_smifast(2);
-    assertKind(elements_kind.fast, obj);
+  obj = fastliteralcase_smifast(1);
+  assertKind(elements_kind.fast_smi_only, obj);
+  obj = fastliteralcase_smifast("carter");
+  assertKind(elements_kind.fast, obj);
+  obj = fastliteralcase_smifast(2);
+  assertKind(elements_kind.fast, obj);
 }
