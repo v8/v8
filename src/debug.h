@@ -875,7 +875,9 @@ class Debugger {
   void set_loading_debugger(bool v) { is_loading_debugger_ = v; }
   bool is_loading_debugger() const { return is_loading_debugger_; }
   void set_live_edit_enabled(bool v) { live_edit_enabled_ = v; }
-  bool live_edit_enabled() const { return live_edit_enabled_; }
+  bool live_edit_enabled() const {
+    return FLAG_enable_liveedit && live_edit_enabled_ ;
+  }
   void set_force_debugger_active(bool force_debugger_active) {
     force_debugger_active_ = force_debugger_active;
   }
