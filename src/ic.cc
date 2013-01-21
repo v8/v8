@@ -836,59 +836,86 @@ bool IC::HandleLoad(State state,
                     Handle<Object> object,
                     Handle<String> name,
                     MaybeObject** result) {
-  // Use specialized code for getting the length of strings and
-  // string wrapper objects.  The length property of string wrapper
-  // objects is read-only and therefore always returns the length of
-  // the underlying string value.  See ECMA-262 15.5.5.1.
-  if ((object->IsString() || object->IsStringWrapper()) &&
-      name->Equals(isolate()->heap()->length_symbol())) {
-    Handle<Code> stub;
-    if (state == UNINITIALIZED) {
-      stub = pre_monomorphic_stub();
-    } else if (state == PREMONOMORPHIC) {
-      StringLengthStub string_length_stub(kind(), !object->IsString());
-      stub = string_length_stub.GetCode();
-    } else if (state == MONOMORPHIC && object->IsStringWrapper()) {
-      StringLengthStub string_length_stub(kind(), true);
-      stub = string_length_stub.GetCode();
-    } else if (state != MEGAMORPHIC) {
-      ASSERT(state != GENERIC);
-      stub = megamorphic_stub();
-    }
-    if (!stub.is_null()) {
-      set_target(*stub);
+  if (FLAG_use_ic) {
+    // Use specialized code for getting the length of strings and
+    // string wrapper objects.  The length property of string wrapper
+    // objects is read-only and therefore always returns the length of
+    // the underlying string value.  See ECMA-262 15.5.5.1.
+    if ((object->IsString() || object->IsStringWrapper()) &&
+        name->Equals(isolate()->heap()->length_symbol())) {
+      Handle<Code> stub;
+      if (state == UNINITIALIZED) {
+        stub = pre_monomorphic_stub();
+      } else if (state == PREMONOMORPHIC) {
+        StringLengthStub string_length_stub(kind(), !object->IsString());
+        stub = string_length_stub.GetCode();
+      } else if (state == MONOMORPHIC && object->IsStringWrapper()) {
+        StringLengthStub string_length_stub(kind(), true);
+        stub = string_length_stub.GetCode();
+      } else if (state != MEGAMORPHIC) {
+        ASSERT(state != GENERIC);
+        stub = megamorphic_stub();
+      }
+      if (!stub.is_null()) {
+        set_target(*stub);
 #ifdef DEBUG
-      if (FLAG_trace_ic) PrintF("[LoadIC : +#length /string]\n");
+        if (FLAG_trace_ic) PrintF("[LoadIC : +#length /string]\n");
 #endif
+      }
+      // Get the string if we have a string wrapper object.
+      Handle<Object> string = object->IsJSValue()
+          ? Handle<Object>(Handle<JSValue>::cast(object)->value())
+          : object;
+      *result = Smi::FromInt(String::cast(*string)->length());
+      return true;
     }
-    // Get the string if we have a string wrapper object.
-    Handle<Object> string = object->IsJSValue()
-        ? Handle<Object>(Handle<JSValue>::cast(object)->value())
-        : object;
-    *result = Smi::FromInt(String::cast(*string)->length());
-    return true;
-  }
 
-  // Use specialized code for getting the length of arrays.
-  if (object->IsJSArray() && name->Equals(isolate()->heap()->length_symbol())) {
-    Handle<Code> stub;
-    if (state == UNINITIALIZED) {
-      stub = pre_monomorphic_stub();
-    } else if (state == PREMONOMORPHIC) {
-      ArrayLengthStub array_length_stub(kind());
-      stub = array_length_stub.GetCode();
-    } else if (state != MEGAMORPHIC) {
-      ASSERT(state != GENERIC);
-      stub = megamorphic_stub();
-    }
-    if (!stub.is_null()) {
-      set_target(*stub);
+    // Use specialized code for getting the length of arrays.
+    if (object->IsJSArray() &&
+        name->Equals(isolate()->heap()->length_symbol())) {
+      Handle<Code> stub;
+      if (state == UNINITIALIZED) {
+        stub = pre_monomorphic_stub();
+      } else if (state == PREMONOMORPHIC) {
+        ArrayLengthStub array_length_stub(kind());
+        stub = array_length_stub.GetCode();
+      } else if (state != MEGAMORPHIC) {
+        ASSERT(state != GENERIC);
+        stub = megamorphic_stub();
+      }
+      if (!stub.is_null()) {
+        set_target(*stub);
 #ifdef DEBUG
-      if (FLAG_trace_ic) PrintF("[LoadIC : +#length /array]\n");
+        if (FLAG_trace_ic) PrintF("[LoadIC : +#length /array]\n");
 #endif
+      }
+      *result = JSArray::cast(*object)->length();
+      return true;
     }
-    *result = JSArray::cast(*object)->length();
-    return true;
+
+    // Use specialized code for getting prototype of functions.
+    if (object->IsJSFunction() &&
+        name->Equals(isolate()->heap()->prototype_symbol()) &&
+        Handle<JSFunction>::cast(object)->should_have_prototype()) {
+      Handle<Code> stub;
+      if (state == UNINITIALIZED) {
+        stub = pre_monomorphic_stub();
+      } else if (state == PREMONOMORPHIC) {
+        FunctionPrototypeStub function_prototype_stub(kind());
+        stub = function_prototype_stub.GetCode();
+      } else if (state != MEGAMORPHIC) {
+        ASSERT(state != GENERIC);
+        stub = megamorphic_stub();
+      }
+      if (!stub.is_null()) {
+        set_target(*stub);
+#ifdef DEBUG
+        if (FLAG_trace_ic) PrintF("[LoadIC : +#prototype /function]\n");
+#endif
+      }
+      *result = Accessors::FunctionGetPrototype(*object, 0);
+      return true;
+    }
   }
 
   return false;
@@ -904,33 +931,9 @@ MaybeObject* LoadIC::Load(State state,
     return TypeError("non_object_property_load", object, name);
   }
 
-  if (FLAG_use_ic) {
-    MaybeObject* result;
-    if (HandleLoad(state, object, name, &result)) {
-      return result;
-    }
-
-    // Use specialized code for getting prototype of functions.
-    if (object->IsJSFunction() &&
-        name->Equals(isolate()->heap()->prototype_symbol()) &&
-        Handle<JSFunction>::cast(object)->should_have_prototype()) {
-      Handle<Code> stub;
-      if (state == UNINITIALIZED) {
-        stub = pre_monomorphic_stub();
-      } else if (state == PREMONOMORPHIC) {
-        stub = isolate()->builtins()->LoadIC_FunctionPrototype();
-      } else if (state != MEGAMORPHIC) {
-        ASSERT(state != GENERIC);
-        stub = megamorphic_stub();
-      }
-      if (!stub.is_null()) {
-        set_target(*stub);
-#ifdef DEBUG
-        if (FLAG_trace_ic) PrintF("[LoadIC : +#prototype /function]\n");
-#endif
-      }
-      return Accessors::FunctionGetPrototype(*object, 0);
-    }
+  MaybeObject* result;
+  if (HandleLoad(state, object, name, &result)) {
+    return result;
   }
 
   // Check if the name is trivially convertible to an index and get
@@ -1170,26 +1173,9 @@ MaybeObject* KeyedLoadIC::Load(State state,
       return TypeError("non_object_property_load", object, name);
     }
 
-    if (FLAG_use_ic) {
-      MaybeObject* result;
-      if (HandleLoad(state, object, name, &result)) {
-        return result;
-      }
-
-      // TODO(1073): don't ignore the current stub state.
-      // Use specialized code for getting prototype of functions.
-      if (object->IsJSFunction() &&
-          name->Equals(isolate()->heap()->prototype_symbol()) &&
-          Handle<JSFunction>::cast(object)->should_have_prototype()) {
-        Handle<JSFunction> function = Handle<JSFunction>::cast(object);
-        Handle<Code> code =
-            isolate()->stub_cache()->ComputeKeyedLoadFunctionPrototype(
-                name, function);
-        ASSERT(!code.is_null());
-        set_target(*code);
-        TRACE_IC("KeyedLoadIC", name, state, target());
-        return Accessors::FunctionGetPrototype(*object, 0);
-      }
+    MaybeObject* result;
+    if (HandleLoad(state, object, name, &result)) {
+      return result;
     }
 
     // Check if the name is trivially convertible to an index and get

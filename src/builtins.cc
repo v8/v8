@@ -1453,11 +1453,6 @@ BUILTIN(HandleApiCallAsConstructor) {
 }
 
 
-static void Generate_LoadIC_FunctionPrototype(MacroAssembler* masm) {
-  LoadIC::GenerateFunctionPrototype(masm);
-}
-
-
 static void Generate_LoadIC_Initialize(MacroAssembler* masm) {
   LoadIC::GenerateInitialize(masm);
 }

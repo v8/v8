@@ -3278,6 +3278,25 @@ void ArrayLengthStub::Generate(MacroAssembler* masm) {
 }
 
 
+void FunctionPrototypeStub::Generate(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- ecx    : name
+  //  -- edx    : receiver
+  //  -- esp[0] : return address
+  // -----------------------------------
+  Label miss;
+
+  if (kind() == Code::KEYED_LOAD_IC) {
+    __ cmp(ecx, Immediate(masm->isolate()->factory()->prototype_symbol()));
+    __ j(not_equal, &miss);
+  }
+
+  StubCompiler::GenerateLoadFunctionPrototype(masm, edx, eax, ebx, &miss);
+  __ bind(&miss);
+  StubCompiler::GenerateLoadMiss(masm, kind());
+}
+
+
 void StringLengthStub::Generate(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- ecx    : name

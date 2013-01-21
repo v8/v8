@@ -213,21 +213,6 @@ static void GenerateDictionaryStore(MacroAssembler* masm,
 }
 
 
-void LoadIC::GenerateFunctionPrototype(MacroAssembler* masm) {
-  // ----------- S t a t e -------------
-  //  -- r2    : name
-  //  -- lr    : return address
-  //  -- r0    : receiver
-  //  -- sp[0] : receiver
-  // -----------------------------------
-  Label miss;
-
-  StubCompiler::GenerateLoadFunctionPrototype(masm, r0, r1, r3, &miss);
-  __ bind(&miss);
-  StubCompiler::GenerateLoadMiss(masm, Code::LOAD_IC);
-}
-
-
 // Checks the receiver for special cases (value type, slow case bits).
 // Falls through for regular JS object.
 static void GenerateKeyedLoadReceiverCheck(MacroAssembler* masm,

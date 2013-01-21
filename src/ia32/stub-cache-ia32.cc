@@ -3315,32 +3315,6 @@ Handle<Code> KeyedLoadStubCompiler::CompileLoadInterceptor(
 }
 
 
-Handle<Code> KeyedLoadStubCompiler::CompileLoadFunctionPrototype(
-    Handle<String> name) {
-  // ----------- S t a t e -------------
-  //  -- ecx    : key
-  //  -- edx    : receiver
-  //  -- esp[0] : return address
-  // -----------------------------------
-  Label miss;
-
-  Counters* counters = isolate()->counters();
-  __ IncrementCounter(counters->keyed_load_function_prototype(), 1);
-
-  // Check that the name has not changed.
-  __ cmp(ecx, Immediate(name));
-  __ j(not_equal, &miss);
-
-  GenerateLoadFunctionPrototype(masm(), edx, eax, ebx, &miss);
-  __ bind(&miss);
-  __ DecrementCounter(counters->keyed_load_function_prototype(), 1);
-  GenerateLoadMiss(masm(), Code::KEYED_LOAD_IC);
-
-  // Return the generated code.
-  return GetCode(Code::CALLBACKS, name);
-}
-
-
 Handle<Code> KeyedLoadStubCompiler::CompileLoadElement(
     Handle<Map> receiver_map) {
   // ----------- S t a t e -------------

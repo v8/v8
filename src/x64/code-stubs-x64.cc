@@ -2387,6 +2387,33 @@ void ArrayLengthStub::Generate(MacroAssembler* masm) {
 }
 
 
+void FunctionPrototypeStub::Generate(MacroAssembler* masm) {
+  Label miss;
+  Register receiver;
+  if (kind() == Code::KEYED_LOAD_IC) {
+    // ----------- S t a t e -------------
+    //  -- rax    : key
+    //  -- rdx    : receiver
+    //  -- rsp[0] : return address
+    // -----------------------------------
+    __ Cmp(rax, masm->isolate()->factory()->prototype_symbol());
+    receiver = rdx;
+  } else {
+    ASSERT(kind() == Code::LOAD_IC);
+    // ----------- S t a t e -------------
+    //  -- rax    : receiver
+    //  -- rcx    : name
+    //  -- rsp[0] : return address
+    // -----------------------------------
+    receiver = rax;
+  }
+
+  StubCompiler::GenerateLoadFunctionPrototype(masm, receiver, r8, r9, &miss);
+  __ bind(&miss);
+  StubCompiler::GenerateLoadMiss(masm, kind());
+}
+
+
 void StringLengthStub::Generate(MacroAssembler* masm) {
   Label miss;
   Register receiver;

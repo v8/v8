@@ -49,6 +49,7 @@ namespace internal {
   V(MathPow)                             \
   V(ArrayLength)                         \
   V(StringLength)                        \
+  V(FunctionPrototype)                   \
   V(RecordWrite)                         \
   V(StoreBufferOverflow)                 \
   V(RegExpExec)                          \
@@ -574,6 +575,16 @@ class ArrayLengthStub: public ICStub {
 
  private:
   virtual CodeStub::Major MajorKey() { return ArrayLength; }
+};
+
+
+class FunctionPrototypeStub: public ICStub {
+ public:
+  explicit FunctionPrototypeStub(Code::Kind kind) : ICStub(kind) { }
+  virtual void Generate(MacroAssembler* masm);
+
+ private:
+  virtual CodeStub::Major MajorKey() { return FunctionPrototype; }
 };
 
 

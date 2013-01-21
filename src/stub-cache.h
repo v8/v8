@@ -133,9 +133,6 @@ class StubCache {
                                            Handle<JSObject> receiver,
                                            Handle<JSObject> holder);
 
-  Handle<Code> ComputeKeyedLoadFunctionPrototype(Handle<String> name,
-                                                 Handle<JSFunction> receiver);
-
   // ---
 
   Handle<Code> ComputeStoreField(Handle<String> name,
@@ -663,8 +660,6 @@ class KeyedLoadStubCompiler: public StubCompiler {
   Handle<Code> CompileLoadInterceptor(Handle<JSObject> object,
                                       Handle<JSObject> holder,
                                       Handle<String> name);
-
-  Handle<Code> CompileLoadFunctionPrototype(Handle<String> name);
 
   Handle<Code> CompileLoadElement(Handle<Map> receiver_map);
 
