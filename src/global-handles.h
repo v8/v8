@@ -108,8 +108,6 @@ class ImplicitRefGroup {
 };
 
 
-typedef void (*WeakReferenceGuest)(Object* object, void* parameter);
-
 class GlobalHandles {
  public:
   ~GlobalHandles();
@@ -177,10 +175,6 @@ class GlobalHandles {
 
   // Iterates over all weak roots in heap.
   void IterateWeakRoots(ObjectVisitor* v);
-
-  // Iterates over weak roots that are bound to a given callback.
-  void IterateWeakRoots(WeakReferenceGuest f,
-                        WeakReferenceCallback callback);
 
   // Find all weak handles satisfying the callback predicate, mark
   // them as pending.
