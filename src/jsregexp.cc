@@ -2855,6 +2855,29 @@ RegExpNode* SeqRegExpNode::FilterSuccessor(int depth, bool ignore_case) {
 }
 
 
+// We need to check for the following characters: 0x39c 0x3bc 0x178.
+static inline bool RangeContainsLatin1Equivalents(CharacterRange range) {
+#ifdef ENABLE_LATIN_1
+  // TODO(dcarney): this could be a lot more efficient.
+  return range.Contains(0x39c) ||
+      range.Contains(0x3bc) || range.Contains(0x178);
+#else
+  return false;
+#endif
+}
+
+
+#ifdef ENABLE_LATIN_1
+static bool RangesContainLatin1Equivalents(ZoneList<CharacterRange>* ranges) {
+  for (int i = 0; i < ranges->length(); i++) {
+    // TODO(dcarney): this could be a lot more efficient.
+    if (RangeContainsLatin1Equivalents(ranges->at(i))) return true;
+  }
+  return false;
+}
+#endif
+
+
 RegExpNode* TextNode::FilterASCII(int depth, bool ignore_case) {
   if (info()->replacement_calculated) return replacement();
   if (depth < 0) return this;
@@ -2871,21 +2894,21 @@ RegExpNode* TextNode::FilterASCII(int depth, bool ignore_case) {
           return set_replacement(NULL);
         }
 #else
-        if (quarks[j] <= String::kMaxOneByteCharCode) continue;
+        uint16_t c = quarks[j];
+        if (c <= String::kMaxOneByteCharCode) continue;
         if (!ignore_case) return set_replacement(NULL);
         // Here, we need to check for characters whose upper and lower cases
         // are outside the Latin-1 range.
-        if (!unibrow::Latin1::NonLatin1CanBeConvertedToLatin1(quarks[j])) {
-          return set_replacement(NULL);
-        }
+        uint16_t converted = unibrow::Latin1::ConvertNonLatin1ToLatin1(c);
+        // Character is outside Latin-1 completely
+        if (converted == 0) return set_replacement(NULL);
+        // Convert quark to Latin-1 in place.
+        uint16_t* copy = const_cast<uint16_t*>(quarks.start());
+        copy[j] = converted;
 #endif
       }
     } else {
       ASSERT(elm.type == TextElement::CHAR_CLASS);
-#ifdef ENABLE_LATIN_1
-      // TODO(dcarney): Can this be improved?
-      if (ignore_case) continue;
-#endif
       RegExpCharacterClass* cc = elm.data.u_char_class;
       ZoneList<CharacterRange>* ranges = cc->ranges(zone());
       if (!CharacterRange::IsCanonical(ranges)) {
@@ -2897,11 +2920,19 @@ RegExpNode* TextNode::FilterASCII(int depth, bool ignore_case) {
         if (range_count != 0 &&
             ranges->at(0).from() == 0 &&
             ranges->at(0).to() >= String::kMaxOneByteCharCode) {
+#ifdef ENABLE_LATIN_1
+          // This will be handled in a later filter.
+          if (ignore_case && RangesContainLatin1Equivalents(ranges)) continue;
+#endif
           return set_replacement(NULL);
         }
       } else {
         if (range_count == 0 ||
             ranges->at(0).from() > String::kMaxOneByteCharCode) {
+#ifdef ENABLE_LATIN_1
+          // This will be handled in a later filter.
+          if (ignore_case && RangesContainLatin1Equivalents(ranges)) continue;
+#endif
           return set_replacement(NULL);
         }
       }
@@ -5354,7 +5385,7 @@ void CharacterRange::AddCaseEquivalents(ZoneList<CharacterRange>* ranges,
   Isolate* isolate = Isolate::Current();
   uc16 bottom = from();
   uc16 top = to();
-  if (is_ascii) {
+  if (is_ascii && !RangeContainsLatin1Equivalents(*this)) {
     if (bottom > String::kMaxOneByteCharCode) return;
     if (top > String::kMaxOneByteCharCode) top = String::kMaxOneByteCharCode;
   }

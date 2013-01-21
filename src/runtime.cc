@@ -5051,8 +5051,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringToNumber) {
       // Fast check for a junk value. A valid string may start from a
       // whitespace, a sign ('+' or '-'), the decimal point, a decimal digit or
       // the 'I' character ('Infinity'). All of that have codes not greater than
-      // '9' except 'I'.
-      if (data[start_pos] != 'I') {
+      // '9' except 'I' and &nbsp;.
+      if (data[start_pos] != 'I' && data[start_pos] != 0xa0) {
         return isolate->heap()->nan_value();
       }
     } else if (len - start_pos < 10 && AreDigits(data, start_pos, len)) {

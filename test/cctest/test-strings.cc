@@ -1277,38 +1277,60 @@ TEST(IsAscii) {
 }
 
 
-static bool CanBeConvertedToLatin1(uint16_t c) {
-  CHECK(c > unibrow::Latin1::kMaxChar);
-  uint32_t result[4];
+
+#ifdef ENABLE_LATIN_1
+template<typename Op, bool return_first>
+static uint16_t ConvertLatin1(uint16_t c) {
+  uint32_t result[Op::kMaxWidth];
   int chars;
-  chars = unibrow::ToLowercase::Convert(c, 0, result, NULL);
-  if (chars > 0) {
-    CHECK_LE(chars, static_cast<int>(sizeof(result)));
-    for (int i = 0; i < chars; i++) {
-      if (result[i] <= unibrow::Latin1::kMaxChar) {
-        return true;
-      }
-    }
+  chars = Op::Convert(c, 0, result, NULL);
+  if (chars == 0) return 0;
+  CHECK_LE(chars, static_cast<int>(sizeof(result)));
+  if (!return_first && chars > 1) {
+    return 0;
   }
-  chars = unibrow::ToUppercase::Convert(c, 0, result, NULL);
-  if (chars > 0) {
-    CHECK_LE(chars, static_cast<int>(sizeof(result)));
-    for (int i = 0; i < chars; i++) {
-      if (result[i] <= unibrow::Latin1::kMaxChar) {
-        return true;
-      }
-    }
-  }
-  return false;
+  return result[0];
 }
 
 
-TEST(Latin1) {
-#ifndef ENABLE_LATIN_1
-    if (true) return;
-#endif
-  for (uint16_t c = unibrow::Latin1::kMaxChar + 1; c != 0; c++) {
-    CHECK_EQ(CanBeConvertedToLatin1(c),
-             unibrow::Latin1::NonLatin1CanBeConvertedToLatin1(c));
+static void CheckCanonicalEquivalence(uint16_t c, uint16_t test) {
+  uint16_t expect = ConvertLatin1<unibrow::Ecma262UnCanonicalize, true>(c);
+  if (expect > unibrow::Latin1::kMaxChar) expect = 0;
+  CHECK_EQ(expect, test);
+}
+
+
+TEST(Latin1IgnoreCase) {
+  if (true) return;
+  using namespace unibrow;
+  for (uint16_t c = Latin1::kMaxChar + 1; c != 0; c++) {
+    uint16_t lower = ConvertLatin1<ToLowercase, false>(c);
+    uint16_t upper = ConvertLatin1<ToUppercase, false>(c);
+    uint16_t test = Latin1::ConvertNonLatin1ToLatin1(c);
+    // Filter out all character whose upper is not their lower or vice versa.
+    if (lower == 0 && upper == 0) {
+      CheckCanonicalEquivalence(c, test);
+      continue;
+    }
+    if (lower > Latin1::kMaxChar && upper > Latin1::kMaxChar) {
+      CheckCanonicalEquivalence(c, test);
+      continue;
+    }
+    if (lower == 0 && upper != 0) {
+      lower = ConvertLatin1<ToLowercase, false>(upper);
+    }
+    if (upper == 0 && lower != c) {
+      upper = ConvertLatin1<ToUppercase, false>(lower);
+    }
+    if (lower > Latin1::kMaxChar && upper > Latin1::kMaxChar) {
+      CheckCanonicalEquivalence(c, test);
+      continue;
+    }
+    if (upper != c && lower != c) {
+      CheckCanonicalEquivalence(c, test);
+      continue;
+    }
+    CHECK_EQ(Min(upper, lower), test);
   }
 }
+#endif  // ENABLE_LATIN_1

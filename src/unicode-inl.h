@@ -79,33 +79,19 @@ template <class T, int s> int Mapping<T, s>::CalculateValue(uchar c, uchar n,
 }
 
 
-bool Latin1::NonLatin1CanBeConvertedToLatin1(uint16_t c) {
+uint16_t Latin1::ConvertNonLatin1ToLatin1(uint16_t c) {
   ASSERT(c > Latin1::kMaxChar);
   switch (c) {
-    case 0x130:
-    case 0x131:
-    case 0x149:
+    // This are equivalent characters in unicode.
+    case 0x39c:
+    case 0x3bc:
+      return 0xb5;
+    // This is an uppercase of a Latin-1 character
+    // outside of Latin-1.
     case 0x178:
-    case 0x17f:
-    case 0x1f0:
-    case 0x1e96:
-    case 0x1e97:
-    case 0x1e98:
-    case 0x1e99:
-    case 0x1e9a:
-    case 0x1e9e:
-    case 0x212a:
-    case 0x212b:
-    case 0xfb00:
-    case 0xfb01:
-    case 0xfb02:
-    case 0xfb03:
-    case 0xfb04:
-    case 0xfb05:
-    case 0xfb06:
-      return true;
+      return 0xff;
   }
-  return false;
+  return 0;
 }
 
 
