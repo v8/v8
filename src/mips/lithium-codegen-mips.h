@@ -375,7 +375,8 @@ class LCodeGen BASE_EMBEDDED {
   void EmitDeepCopy(Handle<JSObject> object,
                     Register result,
                     Register source,
-                    int* offset);
+                    int* offset,
+                    AllocationSiteMode mode);
 
   struct JumpTableEntry {
     inline JumpTableEntry(Address entry, bool frame, bool is_lazy)

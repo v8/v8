@@ -1693,7 +1693,9 @@ Handle<Code> CallStubCompiler::CompileArrayPushCall(
                                                &try_holey_map);
         __ mov(a2, receiver);
         ElementsTransitionGenerator::
-            GenerateMapChangeElementsTransition(masm());
+            GenerateMapChangeElementsTransition(masm(),
+                                                DONT_TRACK_ALLOCATION_SITE,
+                                                NULL);
         __ jmp(&fast_object);
 
         __ bind(&try_holey_map);
@@ -1704,7 +1706,9 @@ Handle<Code> CallStubCompiler::CompileArrayPushCall(
                                                &call_builtin);
         __ mov(a2, receiver);
         ElementsTransitionGenerator::
-            GenerateMapChangeElementsTransition(masm());
+            GenerateMapChangeElementsTransition(masm(),
+                                                DONT_TRACK_ALLOCATION_SITE,
+                                                NULL);
         __ bind(&fast_object);
       } else {
         __ CheckFastObjectElements(a3, a3, &call_builtin);

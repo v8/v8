@@ -143,7 +143,8 @@ void StubRuntimeCallHelper::AfterCall(MacroAssembler* masm) const {
 #define __ ACCESS_MASM(masm)
 
 void ElementsTransitionGenerator::GenerateMapChangeElementsTransition(
-    MacroAssembler* masm) {
+    MacroAssembler* masm, AllocationSiteMode mode,
+    Label* allocation_site_info_found) {
   // ----------- S t a t e -------------
   //  -- a0    : value
   //  -- a1    : key
@@ -152,6 +153,12 @@ void ElementsTransitionGenerator::GenerateMapChangeElementsTransition(
   //  -- a3    : target map, scratch for subsequent call
   //  -- t0    : scratch (elements)
   // -----------------------------------
+  if (mode == TRACK_ALLOCATION_SITE) {
+    ASSERT(allocation_site_info_found != NULL);
+    masm->TestJSArrayForAllocationSiteInfo(a2, t0,
+                                           allocation_site_info_found);
+  }
+
   // Set transitioned map.
   __ sw(a3, FieldMemOperand(a2, HeapObject::kMapOffset));
   __ RecordWriteField(a2,
@@ -166,7 +173,7 @@ void ElementsTransitionGenerator::GenerateMapChangeElementsTransition(
 
 
 void ElementsTransitionGenerator::GenerateSmiToDouble(
-    MacroAssembler* masm, Label* fail) {
+    MacroAssembler* masm, AllocationSiteMode mode, Label* fail) {
   // ----------- S t a t e -------------
   //  -- a0    : value
   //  -- a1    : key
@@ -180,7 +187,7 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
 
   Register scratch = t6;
 
-  if (FLAG_track_allocation_sites) {
+  if (mode == TRACK_ALLOCATION_SITE) {
     masm->TestJSArrayForAllocationSiteInfo(a2, t0, fail);
   }
 
@@ -313,7 +320,7 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
 
 
 void ElementsTransitionGenerator::GenerateDoubleToObject(
-    MacroAssembler* masm, Label* fail) {
+    MacroAssembler* masm, AllocationSiteMode mode, Label* fail) {
   // ----------- S t a t e -------------
   //  -- a0    : value
   //  -- a1    : key
@@ -323,6 +330,10 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
   //  -- t0    : scratch (elements)
   // -----------------------------------
   Label entry, loop, convert_hole, gc_required, only_change_map;
+
+  if (mode == TRACK_ALLOCATION_SITE) {
+    masm->TestJSArrayForAllocationSiteInfo(a2, t0, fail);
+  }
 
   // Check for empty arrays, which only require a map transition and no changes
   // to the backing store.
