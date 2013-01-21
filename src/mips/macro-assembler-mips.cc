@@ -5455,11 +5455,11 @@ void MacroAssembler::TestJSArrayForAllocationSiteInfo(
   ExternalReference new_space_allocation_top =
       ExternalReference::new_space_allocation_top_address(isolate());
   lw(scratch_reg, FieldMemOperand(receiver_reg,
-                                  JSArray::kSize + AllocationSiteInfo::kSize));
+      JSArray::kSize + AllocationSiteInfo::kSize - kHeapObjecTag));
   Branch(&no_info_available, lt, scratch_reg, Operand(new_space_start));
-  Branch(&no_info_available, hs, scratch_reg,
+  Branch(&no_info_available, gt, scratch_reg,
       Operand(new_space_allocation_top));
-  lw(scratch_reg, MemOperand(scratch_reg));
+  lw(scratch_reg, MemOperand(scratch_reg, -AllocationSiteInfo::kSize));
   Branch(allocation_info_present, eq, scratch_reg,
       Operand(Handle<Map>(isolate()->heap()->allocation_site_info_map())));
   bind(&no_info_available);

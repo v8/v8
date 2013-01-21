@@ -3055,18 +3055,19 @@ void MacroAssembler::TestJSArrayForAllocationSiteInfo(
     Register scratch_reg,
     Label* allocation_info_present) {
   Label no_info_available;
+
   ExternalReference new_space_start =
       ExternalReference::new_space_start(isolate());
   ExternalReference new_space_allocation_top =
       ExternalReference::new_space_allocation_top_address(isolate());
 
   lea(scratch_reg, Operand(receiver_reg,
-                           JSArray::kSize + AllocationSiteInfo::kSize));
+      JSArray::kSize + AllocationSiteInfo::kSize - kHeapObjectTag));
   cmp(scratch_reg, Immediate(new_space_start));
   j(less, &no_info_available);
   cmp(scratch_reg, Operand::StaticVariable(new_space_allocation_top));
-  j(greater_equal, &no_info_available);
-  cmp(MemOperand(scratch_reg, 0),
+  j(greater, &no_info_available);
+  cmp(MemOperand(scratch_reg, -AllocationSiteInfo::kSize),
       Immediate(Handle<Map>(isolate()->heap()->allocation_site_info_map())));
   j(equal, allocation_info_present);
   bind(&no_info_available);

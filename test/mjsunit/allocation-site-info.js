@@ -75,22 +75,34 @@ function assertKind(expected, obj, name_opt) {
 }
 
 if (support_smi_only_arrays) {
-    function fastliteralcase(value) {
-        var literal = [1, 2, 3];
+    function fastliteralcase(literal, value) {
+        // var literal = [1, 2, 3];
         literal[0] = value;
         return literal;
     }
 
+    function get_standard_literal() {
+        var literal = [1, 2, 3];
+        return literal;
+    }
+
     // Case: [1,2,3] as allocation site
-    obj = fastliteralcase(1);
+    obj = fastliteralcase(get_standard_literal(), 1);
     assertKind(elements_kind.fast_smi_only, obj);
-    obj = fastliteralcase(1.5);
+    obj = fastliteralcase(get_standard_literal(), 1.5);
     assertKind(elements_kind.fast_double, obj);
-    obj = fastliteralcase(2);
+    obj = fastliteralcase(get_standard_literal(), 2);
+    assertKind(elements_kind.fast_double, obj);
+
+    obj = fastliteralcase([5, 3, 2], 1.5);
+    assertKind(elements_kind.fast_double, obj);
+    obj = fastliteralcase([3, 6, 2], 1.5);
+    assertKind(elements_kind.fast_double, obj);
+    obj = fastliteralcase([2, 6, 3], 2);
     assertKind(elements_kind.fast_double, obj);
 
     // Verify that we will not pretransition the double->fast path.
-    obj = fastliteralcase("elliot");
+    obj = fastliteralcase(get_standard_literal(), "elliot");
     assertKind(elements_kind.fast, obj);
 
     // This fails until we turn off optimistic transitions to the

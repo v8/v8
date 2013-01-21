@@ -2694,3 +2694,87 @@ TEST(Regress169209) {
   HEAP->CollectAllGarbage(Heap::kNoGCFlags);
   CHECK(shared1->code()->gc_metadata() == NULL);
 }
+
+
+// Helper function that simulates a fill new-space in the heap.
+static inline void AllocateAllButNBytes(v8::internal::NewSpace* space,
+                                        int extra_bytes) {
+  int space_remaining = static_cast<int>(
+      *space->allocation_limit_address() - *space->allocation_top_address());
+  CHECK(space_remaining >= extra_bytes);
+  int new_linear_size = space_remaining - extra_bytes;
+  v8::internal::MaybeObject* maybe = space->AllocateRaw(new_linear_size);
+  v8::internal::FreeListNode* node = v8::internal::FreeListNode::cast(maybe);
+  node->set_size(space->heap(), new_linear_size);
+}
+
+
+TEST(Regress169928) {
+  i::FLAG_allow_natives_syntax = true;
+  i::FLAG_crankshaft = false;
+  InitializeVM();
+  v8::HandleScope scope;
+
+  // Some flags turn Scavenge collections into Mark-sweep collections
+  // and hence are incompatible with this test case.
+  if (FLAG_gc_global || FLAG_stress_compaction) return;
+
+  // Prepare the environment
+  CompileRun("function fastliteralcase(literal, value) {"
+             "    literal[0] = value;"
+             "    return literal;"
+             "}"
+             "function get_standard_literal() {"
+             "    var literal = [1, 2, 3];"
+             "    return literal;"
+             "}"
+             "obj = fastliteralcase(get_standard_literal(), 1);"
+             "obj = fastliteralcase(get_standard_literal(), 1.5);"
+             "obj = fastliteralcase(get_standard_literal(), 2);");
+
+  // prepare the heap
+  v8::Local<v8::String> mote_code_string =
+      v8_str("fastliteralcase(mote, 2.5);");
+
+  v8::Local<v8::String> array_name = v8_str("mote");
+  v8::Context::GetCurrent()->Global()->Set(array_name, v8::Int32::New(0));
+
+  // First make sure we flip spaces
+  HEAP->CollectGarbage(NEW_SPACE);
+
+  // Allocate the object.
+  Handle<FixedArray> array_data = FACTORY->NewFixedArray(2, NOT_TENURED);
+  array_data->set(0, Smi::FromInt(1));
+  array_data->set(1, Smi::FromInt(2));
+
+  AllocateAllButNBytes(HEAP->new_space(),
+                       JSArray::kSize + AllocationSiteInfo::kSize +
+                       kPointerSize);
+
+  Handle<JSArray> array = FACTORY->NewJSArrayWithElements(array_data,
+                                                          FAST_SMI_ELEMENTS,
+                                                          NOT_TENURED);
+
+  CHECK_EQ(Smi::FromInt(2), array->length());
+  CHECK(array->HasFastSmiOrObjectElements());
+
+  // We need filler the size of AllocationSiteInfo object, plus an extra
+  // fill pointer value.
+  MaybeObject* maybe_object = HEAP->AllocateRaw(
+      AllocationSiteInfo::kSize + kPointerSize, NEW_SPACE, OLD_POINTER_SPACE);
+  Object* obj = NULL;
+  CHECK(maybe_object->ToObject(&obj));
+  Address addr_obj = reinterpret_cast<Address>(
+      reinterpret_cast<byte*>(obj - kHeapObjectTag));
+  HEAP->CreateFillerObjectAt(addr_obj,
+                             AllocationSiteInfo::kSize + kPointerSize);
+
+  // Give the array a name, making sure not to allocate strings.
+  v8::Handle<v8::Object> array_obj = v8::Utils::ToLocal(array);
+  v8::Context::GetCurrent()->Global()->Set(array_name, array_obj);
+
+  // This should crash with a protection violation if we are running a build
+  // with the bug.
+  AlwaysAllocateScope aa_scope;
+  v8::Script::Compile(mote_code_string)->Run();
+}
