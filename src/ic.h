@@ -132,6 +132,10 @@ class IC {
   static inline JSObject* GetCodeCacheHolder(Object* object,
                                              InlineCacheHolderFlag holder);
 
+  MUST_USE_RESULT MaybeObject* Load(State state,
+                                    Handle<Object> object,
+                                    Handle<String> name);
+
  protected:
   virtual Handle<Code> pre_monomorphic_stub() {
     UNREACHABLE();
@@ -141,9 +145,19 @@ class IC {
     UNREACHABLE();
     return Handle<Code>::null();
   }
+  virtual Handle<Code> generic_stub() const {
+    UNREACHABLE();
+    return Handle<Code>::null();
+  }
   virtual Code::Kind kind() const {
     UNREACHABLE();
     return Code::STUB;
+  }
+  virtual void UpdateLoadCaches(LookupResult* lookup,
+                                State state,
+                                Handle<Object> object,
+                                Handle<String> name) {
+    UNREACHABLE();
   }
   Address fp() const { return fp_; }
   Address pc() const { return *pc_address_; }
@@ -176,11 +190,6 @@ class IC {
   static inline Code* GetTargetAtAddress(Address address);
   static inline void SetTargetAtAddress(Address address, Code* target);
   static void PostPatching(Address address, Code* target, Code* old_target);
-
-  bool HandleLoad(State state,
-                  Handle<Object> object,
-                  Handle<String> name,
-                  MaybeObject** result);
 
  private:
   // Frame pointer for the frame that uses (calls) the IC.
@@ -340,10 +349,6 @@ class LoadIC: public IC {
     ASSERT(target()->is_load_stub());
   }
 
-  MUST_USE_RESULT MaybeObject* Load(State state,
-                                    Handle<Object> object,
-                                    Handle<String> name);
-
   // Code generator routines.
   static void GenerateInitialize(MacroAssembler* masm) { GenerateMiss(masm); }
   static void GeneratePreMonomorphic(MacroAssembler* masm) {
@@ -364,14 +369,14 @@ class LoadIC: public IC {
     return isolate()->builtins()->LoadIC_Megamorphic();
   }
 
- private:
   // Update the inline cache and the global stub cache based on the
   // lookup result.
-  void UpdateCaches(LookupResult* lookup,
-                    State state,
-                    Handle<Object> object,
-                    Handle<String> name);
+  virtual void UpdateLoadCaches(LookupResult* lookup,
+                                State state,
+                                Handle<Object> object,
+                                Handle<String> name);
 
+ private:
   // Stub accessors.
   static Code* initialize_stub() {
     return Isolate::Current()->builtins()->builtin(
@@ -540,6 +545,9 @@ class KeyedLoadIC: public KeyedIC {
   virtual Handle<Code> megamorphic_stub() {
     return isolate()->builtins()->KeyedLoadIC_Generic();
   }
+  virtual Handle<Code> generic_stub() const {
+    return isolate()->builtins()->KeyedLoadIC_Generic();
+  }
 
   virtual Handle<Code> ComputePolymorphicStub(MapHandleList* receiver_maps,
                                               StrictModeFlag strict_mode,
@@ -549,20 +557,17 @@ class KeyedLoadIC: public KeyedIC {
     return isolate()->builtins()->KeyedLoadIC_String();
   }
 
- private:
   // Update the inline cache.
-  void UpdateCaches(LookupResult* lookup,
-                    State state,
-                    Handle<Object> object,
-                    Handle<String> name);
+  virtual void UpdateLoadCaches(LookupResult* lookup,
+                                State state,
+                                Handle<Object> object,
+                                Handle<String> name);
 
+ private:
   // Stub accessors.
   static Code* initialize_stub() {
     return Isolate::Current()->builtins()->builtin(
         Builtins::kKeyedLoadIC_Initialize);
-  }
-  Handle<Code> generic_stub() const {
-    return isolate()->builtins()->KeyedLoadIC_Generic();
   }
   virtual Handle<Code> pre_monomorphic_stub() {
     return isolate()->builtins()->KeyedLoadIC_PreMonomorphic();

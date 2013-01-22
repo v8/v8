@@ -832,10 +832,15 @@ MaybeObject* KeyedCallIC::LoadFunction(State state,
 }
 
 
-bool IC::HandleLoad(State state,
-                    Handle<Object> object,
-                    Handle<String> name,
-                    MaybeObject** result) {
+MaybeObject* IC::Load(State state,
+                      Handle<Object> object,
+                      Handle<String> name) {
+  // If the object is undefined or null it's illegal to try to get any
+  // of its properties; throw a TypeError in that case.
+  if (object->IsUndefined() || object->IsNull()) {
+    return TypeError("non_object_property_load", object, name);
+  }
+
   if (FLAG_use_ic) {
     // Use specialized code for getting the length of strings and
     // string wrapper objects.  The length property of string wrapper
@@ -866,8 +871,7 @@ bool IC::HandleLoad(State state,
       Handle<Object> string = object->IsJSValue()
           ? Handle<Object>(Handle<JSValue>::cast(object)->value())
           : object;
-      *result = Smi::FromInt(String::cast(*string)->length());
-      return true;
+      return Smi::FromInt(String::cast(*string)->length());
     }
 
     // Use specialized code for getting the length of arrays.
@@ -889,8 +893,7 @@ bool IC::HandleLoad(State state,
         if (FLAG_trace_ic) PrintF("[LoadIC : +#length /array]\n");
 #endif
       }
-      *result = JSArray::cast(*object)->length();
-      return true;
+      return JSArray::cast(*object)->length();
     }
 
     // Use specialized code for getting prototype of functions.
@@ -913,33 +916,18 @@ bool IC::HandleLoad(State state,
         if (FLAG_trace_ic) PrintF("[LoadIC : +#prototype /function]\n");
 #endif
       }
-      *result = Accessors::FunctionGetPrototype(*object, 0);
-      return true;
+      return Accessors::FunctionGetPrototype(*object, 0);
     }
   }
 
-  return false;
-}
-
-
-MaybeObject* LoadIC::Load(State state,
-                          Handle<Object> object,
-                          Handle<String> name) {
-  // If the object is undefined or null it's illegal to try to get any
-  // of its properties; throw a TypeError in that case.
-  if (object->IsUndefined() || object->IsNull()) {
-    return TypeError("non_object_property_load", object, name);
-  }
-
-  MaybeObject* result;
-  if (HandleLoad(state, object, name, &result)) {
-    return result;
-  }
-
   // Check if the name is trivially convertible to an index and get
-  // the element if so.
+  // the element or char if so.
   uint32_t index;
-  if (name->AsArrayIndex(&index)) return object->GetElement(index);
+  if (kind() == Code::KEYED_LOAD_IC && name->AsArrayIndex(&index)) {
+    // Rewrite to the generic keyed load stub.
+    if (FLAG_use_ic) set_target(*generic_stub());
+    return Runtime::GetElementOrCharAt(isolate(), object, index);
+  }
 
   // Named lookup in the object.
   LookupResult lookup(isolate());
@@ -955,7 +943,7 @@ MaybeObject* LoadIC::Load(State state,
 
   // Update inline cache and stub cache.
   if (FLAG_use_ic) {
-    UpdateCaches(&lookup, state, object, name);
+    UpdateLoadCaches(&lookup, state, object, name);
   }
 
   PropertyAttributes attr;
@@ -977,10 +965,10 @@ MaybeObject* LoadIC::Load(State state,
 }
 
 
-void LoadIC::UpdateCaches(LookupResult* lookup,
-                          State state,
-                          Handle<Object> object,
-                          Handle<String> name) {
+void LoadIC::UpdateLoadCaches(LookupResult* lookup,
+                              State state,
+                              Handle<Object> object,
+                              Handle<String> name) {
   // Bail out if the result is not cacheable.
   if (!lookup->IsCacheable()) return;
 
@@ -1165,56 +1153,7 @@ MaybeObject* KeyedLoadIC::Load(State state,
   key = TryConvertKey(key, isolate());
 
   if (key->IsSymbol()) {
-    Handle<String> name = Handle<String>::cast(key);
-
-    // If the object is undefined or null it's illegal to try to get any
-    // of its properties; throw a TypeError in that case.
-    if (object->IsUndefined() || object->IsNull()) {
-      return TypeError("non_object_property_load", object, name);
-    }
-
-    MaybeObject* result;
-    if (HandleLoad(state, object, name, &result)) {
-      return result;
-    }
-
-    // Check if the name is trivially convertible to an index and get
-    // the element or char if so.
-    uint32_t index = 0;
-    if (name->AsArrayIndex(&index)) {
-      // Rewrite to the generic keyed load stub.
-      if (FLAG_use_ic) set_target(*generic_stub());
-      return Runtime::GetElementOrCharAt(isolate(), object, index);
-    }
-
-    // Named lookup.
-    LookupResult lookup(isolate());
-    LookupForRead(object, name, &lookup);
-
-    // If we did not find a property, check if we need to throw an exception.
-    if (!lookup.IsFound() && IsContextual(object)) {
-      return ReferenceError("not_defined", name);
-    }
-
-    if (FLAG_use_ic) {
-      UpdateCaches(&lookup, state, object, name);
-    }
-
-    PropertyAttributes attr;
-    if (lookup.IsInterceptor()) {
-      // Get the property.
-      Handle<Object> result =
-          Object::GetProperty(object, object, &lookup, name, &attr);
-      RETURN_IF_EMPTY_HANDLE(isolate(), result);
-      // If the property is not present, check if we need to throw an
-      // exception.
-      if (attr == ABSENT && IsContextual(object)) {
-        return ReferenceError("not_defined", name);
-      }
-      return *result;
-    }
-
-    return object->GetProperty(*object, &lookup, *name, &attr);
+    return IC::Load(state, object, Handle<String>::cast(key));
   }
 
   // Do not use ICs for objects that require access checks (including
@@ -1236,7 +1175,7 @@ MaybeObject* KeyedLoadIC::Load(State state,
         } else if (receiver->HasIndexedInterceptor()) {
           stub = indexed_interceptor_stub();
         } else if (key->IsSmi() && (target() != *non_strict_arguments_stub())) {
-          stub = ComputeStub(receiver, LOAD, kNonStrictMode, stub);
+          stub = ComputeStub(receiver, KeyedIC::LOAD, kNonStrictMode, stub);
         }
       }
     } else {
@@ -1252,10 +1191,10 @@ MaybeObject* KeyedLoadIC::Load(State state,
 }
 
 
-void KeyedLoadIC::UpdateCaches(LookupResult* lookup,
-                               State state,
-                               Handle<Object> object,
-                               Handle<String> name) {
+void KeyedLoadIC::UpdateLoadCaches(LookupResult* lookup,
+                                   State state,
+                                   Handle<Object> object,
+                                   Handle<String> name) {
   // Bail out if we didn't find a result.
   if (!lookup->IsProperty() || !lookup->IsCacheable()) return;
 
