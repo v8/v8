@@ -3888,11 +3888,13 @@ void MacroAssembler::TestJSArrayForAllocationSiteInfo(
       ExternalReference::new_space_start(isolate());
   ExternalReference new_space_allocation_top =
       ExternalReference::new_space_allocation_top_address(isolate());
-  ldr(scratch_reg, FieldMemOperand(receiver_reg,
-      JSArray::kSize + AllocationSiteInfo::kSize - kHeapObjectTag));
+  add(scratch_reg, receiver_reg,
+      Operand(JSArray::kSize + AllocationSiteInfo::kSize - kHeapObjectTag));
   cmp(scratch_reg, Operand(new_space_start));
   b(lt, &no_info_available);
-  cmp(scratch_reg, Operand(new_space_allocation_top));
+  mov(ip, Operand(new_space_allocation_top));
+  ldr(ip, MemOperand(ip));
+  cmp(scratch_reg, ip);
   b(gt, &no_info_available);
   ldr(scratch_reg, MemOperand(scratch_reg, -AllocationSiteInfo::kSize));
   cmp(scratch_reg,
