@@ -33,6 +33,7 @@
 #include "code-stubs.h"
 #include "codegen.h"
 #include "regexp-macro-assembler.h"
+#include "stub-cache.h"
 
 namespace v8 {
 namespace internal {
@@ -4540,6 +4541,37 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
     __ LoadRoot(v0, Heap::kFalseValueRootIndex);
     __ DropAndRet(HasArgsInRegisters() ? 0 : 2);
   }
+}
+
+
+void StringLengthStub::Generate(MacroAssembler* masm) {
+  Label miss;
+  Register receiver;
+  if (kind() == Code::KEYED_LOAD_IC) {
+    // ----------- S t a t e -------------
+    //  -- ra    : return address
+    //  -- a0    : key
+    //  -- a1    : receiver
+    // -----------------------------------
+    __ Branch(&miss, ne, a0,
+        Operand(masm->isolate()->factory()->length_symbol()));
+    receiver = a1;
+  } else {
+    ASSERT(kind() == Code::LOAD_IC);
+    // ----------- S t a t e -------------
+    //  -- a2    : name
+    //  -- ra    : return address
+    //  -- a0    : receiver
+    //  -- sp[0] : receiver
+    // -----------------------------------
+    receiver = a0;
+  }
+
+  StubCompiler::GenerateLoadStringLength(masm, receiver, a3, t0, &miss,
+                                         support_wrapper_);
+
+  __ bind(&miss);
+  StubCompiler::GenerateLoadMiss(masm, kind());
 }
 
 
