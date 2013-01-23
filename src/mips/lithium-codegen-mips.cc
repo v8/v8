@@ -796,8 +796,7 @@ void LCodeGen::DeoptimizeIf(Condition cc,
 
   ASSERT(FLAG_deopt_every_n_times < 2);  // Other values not supported on MIPS.
 
-  if (FLAG_deopt_every_n_times == 1 &&
-      info_->shared_info()->opt_count() == id) {
+  if (FLAG_deopt_every_n_times == 1 && info_->opt_count() == id) {
     __ Jump(entry, RelocInfo::RUNTIME_ENTRY);
     return;
   }
@@ -4208,8 +4207,8 @@ void LCodeGen::DoTransitionElementsKind(LTransitionElementsKind* instr) {
 
   Handle<Map> from_map = instr->original_map();
   Handle<Map> to_map = instr->transitioned_map();
-  ElementsKind from_kind = from_map->elements_kind();
-  ElementsKind to_kind = to_map->elements_kind();
+  ElementsKind from_kind = instr->from_kind();
+  ElementsKind to_kind = instr->to_kind();
 
   __ mov(ToRegister(instr->result()), object_reg);
 
