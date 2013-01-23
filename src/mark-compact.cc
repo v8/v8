@@ -943,8 +943,7 @@ bool CodeFlusher::ContainsCandidate(SharedFunctionInfo* shared_info) {
 
 
 void CodeFlusher::EvictCandidate(SharedFunctionInfo* shared_info) {
-  // The function is no longer a candidate, make sure it gets visited
-  // again so that previous flushing decisions are revisited.
+  // Make sure previous flushing decisions are revisited.
   isolate_->heap()->incremental_marking()->RecordWrites(shared_info);
 
   SharedFunctionInfo* candidate = shared_function_info_candidates_head_;
@@ -974,9 +973,9 @@ void CodeFlusher::EvictCandidate(JSFunction* function) {
   ASSERT(!function->next_function_link()->IsUndefined());
   Object* undefined = isolate_->heap()->undefined_value();
 
-  // The function is no longer a candidate, make sure it gets visited
-  // again so that previous flushing decisions are revisited.
+  // Make sure previous flushing decisions are revisited.
   isolate_->heap()->incremental_marking()->RecordWrites(function);
+  isolate_->heap()->incremental_marking()->RecordWrites(function->shared());
 
   JSFunction* candidate = jsfunction_candidates_head_;
   JSFunction* next_candidate;

@@ -110,16 +110,16 @@ class IC {
 
   // Returns if this IC is for contextual (no explicit receiver)
   // access to properties.
-  bool IsContextual(Handle<Object> receiver) {
+  bool IsUndeclaredGlobal(Handle<Object> receiver) {
     if (receiver->IsGlobalObject()) {
-      return SlowIsContextual();
+      return SlowIsUndeclaredGlobal();
     } else {
-      ASSERT(!SlowIsContextual());
+      ASSERT(!SlowIsUndeclaredGlobal());
       return false;
     }
   }
 
-  bool SlowIsContextual() {
+  bool SlowIsUndeclaredGlobal() {
     return ComputeMode() == RelocInfo::CODE_TARGET_CONTEXT;
   }
 
