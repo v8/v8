@@ -528,6 +528,10 @@ void ExternalReferenceTable::PopulateTable(Isolate* isolate) {
       UNCLASSIFIED,
       51,
       "Code::MakeCodeYoung");
+  Add(ExternalReference::cpu_features().address(),
+      UNCLASSIFIED,
+      52,
+      "cpu_features");
 
   // Add a small set of deopt entry addresses to encoder without generating the
   // deopt table code, which isn't possible at deserialization time.
@@ -537,7 +541,7 @@ void ExternalReferenceTable::PopulateTable(Isolate* isolate) {
         entry,
         Deoptimizer::LAZY,
         Deoptimizer::CALCULATE_ENTRY_ADDRESS);
-    Add(address, LAZY_DEOPTIMIZATION, 52 + entry, "lazy_deopt");
+    Add(address, LAZY_DEOPTIMIZATION, 53 + entry, "lazy_deopt");
   }
 }
 

@@ -611,6 +611,7 @@ class CpuFeatures : public AllStatic {
   static uint64_t supported_;
   static uint64_t found_by_runtime_probing_;
 
+  friend class ExternalReference;
   DISALLOW_COPY_AND_ASSIGN(CpuFeatures);
 };
 

@@ -1509,7 +1509,7 @@ void LAllocator::AllocateRegisters() {
   ASSERT(inactive_live_ranges_.is_empty());
 
   if (mode_ == DOUBLE_REGISTERS) {
-    for (int i = 0; i < fixed_double_live_ranges_.length(); ++i) {
+    for (int i = 0; i < DoubleRegister::NumAllocatableRegisters(); ++i) {
       LiveRange* current = fixed_double_live_ranges_.at(i);
       if (current != NULL) {
         AddToInactive(current);

@@ -425,6 +425,10 @@ TEST(Vfp) {
 
   if (CpuFeatures::IsSupported(VFP3)) {
     CpuFeatures::Scope scope(VFP3);
+    COMPARE(vmov(d0, r2, r3),
+            "ec432b10       vmov d0, r2, r3");
+    COMPARE(vmov(r2, r3, d0),
+            "ec532b10       vmov r2, r3, d0");
     COMPARE(vmov(d0, d1),
             "eeb00b41       vmov.f64 d0, d1");
     COMPARE(vmov(d3, d3, eq),
@@ -473,6 +477,11 @@ TEST(Vfp) {
     COMPARE(vdiv(d6, d7, d7, hi),
             "8e876b07       vdiv.f64hi d6, d7, d7");
 
+    COMPARE(vcmp(d0, d1),
+            "eeb40b41       vcmp.f64 d0, d1");
+    COMPARE(vcmp(d0, 0.0),
+            "eeb50b40       vcmp.f64 d0, #0.0");
+
     COMPARE(vsqrt(d0, d0),
             "eeb10bc0       vsqrt.f64 d0, d0");
     COMPARE(vsqrt(d2, d3, ne),
@@ -482,6 +491,11 @@ TEST(Vfp) {
             "eeb70b00       vmov.f64 d0, #1");
     COMPARE(vmov(d2, -13.0),
             "eeba2b0a       vmov.f64 d2, #-13");
+
+    COMPARE(vmov(d0, 0, r0),
+            "ee000b10       vmov.32 d0[0], r0");
+    COMPARE(vmov(d0, 1, r0),
+            "ee200b10       vmov.32 d0[1], r0");
 
     COMPARE(vldr(s0, r0, 0),
             "ed900a00       vldr s0, [r0 + 4*0]");
@@ -552,6 +566,97 @@ TEST(Vfp) {
             "ee012b00       vmla.f64 d2, d1, d0");
     COMPARE(vmla(d6, d4, d5, cc),
             "3e046b05       vmla.f64cc d6, d4, d5");
+
+    COMPARE(vcvt_u32_f64(s0, d0),
+            "eebc0bc0       vcvt.u32.f64 s0, d0");
+    COMPARE(vcvt_s32_f64(s0, d0),
+            "eebd0bc0       vcvt.s32.f64 s0, d0");
+    COMPARE(vcvt_f64_u32(d0, s1),
+            "eeb80b60       vcvt.f64.u32 d0, s1");
+    COMPARE(vcvt_f64_s32(d0, s1),
+            "eeb80be0       vcvt.f64.s32 d0, s1");
+    COMPARE(vcvt_f32_s32(s0, s2),
+            "eeb80ac1       vcvt.f32.s32 s0, s2");
+
+    if (CpuFeatures::IsSupported(VFP32DREGS)) {
+      COMPARE(vmov(d3, d27),
+              "eeb03b6b       vmov.f64 d3, d27");
+      COMPARE(vmov(d18, d7),
+              "eef02b47       vmov.f64 d18, d7");
+      COMPARE(vmov(d18, r2, r3),
+              "ec432b32       vmov d18, r2, r3");
+      COMPARE(vmov(r2, r3, d18),
+              "ec532b32       vmov r2, r3, d18");
+      COMPARE(vmov(d20, d31),
+              "eef04b6f       vmov.f64 d20, d31");
+
+      COMPARE(vabs(d16, d31),
+              "eef00bef       vabs.f64 d16, d31");
+
+      COMPARE(vneg(d16, d31),
+              "eef10b6f       vneg.f64 d16, d31");
+
+      COMPARE(vadd(d16, d17, d18),
+              "ee710ba2       vadd.f64 d16, d17, d18");
+
+      COMPARE(vsub(d16, d17, d18),
+              "ee710be2       vsub.f64 d16, d17, d18");
+
+      COMPARE(vmul(d16, d17, d18),
+              "ee610ba2       vmul.f64 d16, d17, d18");
+
+      COMPARE(vdiv(d16, d17, d18),
+              "eec10ba2       vdiv.f64 d16, d17, d18");
+
+      COMPARE(vcmp(d16, d17),
+              "eef40b61       vcmp.f64 d16, d17");
+      COMPARE(vcmp(d16, 0.0),
+              "eef50b40       vcmp.f64 d16, #0.0");
+
+      COMPARE(vsqrt(d16, d17),
+              "eef10be1       vsqrt.f64 d16, d17");
+
+      COMPARE(vmov(d30, 16.0),
+              "eef3eb00       vmov.f64 d30, #16");
+
+      COMPARE(vmov(d31, 0, r7),
+              "ee0f7b90       vmov.32 d31[0], r7");
+      COMPARE(vmov(d31, 1, r7),
+              "ee2f7b90       vmov.32 d31[1], r7");
+
+      COMPARE(vldr(d25, r0, 0),
+              "edd09b00       vldr d25, [r0 + 4*0]");
+      COMPARE(vldr(d26, r1, 4),
+              "edd1ab01       vldr d26, [r1 + 4*1]");
+      COMPARE(vldr(d31, r10, 1020),
+              "eddafbff       vldr d31, [r10 + 4*255]");
+
+      COMPARE(vstr(d16, r0, 0),
+              "edc00b00       vstr d16, [r0 + 4*0]");
+      COMPARE(vstr(d17, r1, 4),
+              "edc11b01       vstr d17, [r1 + 4*1]");
+      COMPARE(vstr(d31, r10, 1020),
+              "edcafbff       vstr d31, [r10 + 4*255]");
+
+      COMPARE(vstm(ia, r0, d16, d31),
+              "ecc00b20       vstmia r0, {d16-d31}");
+      COMPARE(vldm(ia, r3, d16, d31),
+              "ecd30b20       vldmia r3, {d16-d31}");
+      COMPARE(vstm(ia, r0, d23, d27),
+              "ecc07b0a       vstmia r0, {d23-d27}");
+      COMPARE(vldm(ia, r3, d23, d27),
+              "ecd37b0a       vldmia r3, {d23-d27}");
+
+      COMPARE(vmla(d16, d17, d18),
+              "ee410ba2       vmla.f64 d16, d17, d18");
+
+      COMPARE(vcvt_u32_f64(s0, d16),
+              "eebc0be0       vcvt.u32.f64 s0, d16");
+      COMPARE(vcvt_s32_f64(s0, d16),
+              "eebd0be0       vcvt.s32.f64 s0, d16");
+      COMPARE(vcvt_f64_u32(d16, s1),
+              "eef80b60       vcvt.f64.u32 d16, s1");
+    }
   }
 
   VERIFY_RUN();

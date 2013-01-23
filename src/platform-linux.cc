@@ -156,8 +156,15 @@ bool OS::ArmCpuHasFeature(CpuFeature feature) {
     case SUDIV:
       search_string = "idiva";
       break;
+    case VFP32DREGS:
+      // This case is handled specially below.
+      break;
     default:
       UNREACHABLE();
+  }
+
+  if (feature == VFP32DREGS) {
+    return ArmCpuHasFeature(VFP3) && !CPUInfoContainsString("d16");
   }
 
   if (CPUInfoContainsString(search_string)) {

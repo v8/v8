@@ -2067,17 +2067,22 @@ void StoreBufferOverflowStub::Generate(MacroAssembler* masm) {
   // store the registers in any particular way, but we do have to store and
   // restore them.
   __ stm(db_w, sp, kCallerSaved | lr.bit());
+
+  const Register scratch = r1;
+
   if (save_doubles_ == kSaveFPRegs) {
     CpuFeatures::Scope scope(VFP2);
+    // Check CPU flags for number of registers, setting the Z condition flag.
+    __ CheckFor32DRegs(scratch);
+
     __ sub(sp, sp, Operand(kDoubleSize * DwVfpRegister::kNumRegisters));
     for (int i = 0; i < DwVfpRegister::kNumRegisters; i++) {
       DwVfpRegister reg = DwVfpRegister::from_code(i);
-      __ vstr(reg, MemOperand(sp, i * kDoubleSize));
+      __ vstr(reg, MemOperand(sp, i * kDoubleSize), i < 16 ? al : ne);
     }
   }
   const int argument_count = 1;
   const int fp_argument_count = 0;
-  const Register scratch = r1;
 
   AllowExternalCallThatCantCauseGC scope(masm);
   __ PrepareCallCFunction(argument_count, fp_argument_count, scratch);
@@ -2087,9 +2092,13 @@ void StoreBufferOverflowStub::Generate(MacroAssembler* masm) {
       argument_count);
   if (save_doubles_ == kSaveFPRegs) {
     CpuFeatures::Scope scope(VFP2);
+
+    // Check CPU flags for number of registers, setting the Z condition flag.
+    __ CheckFor32DRegs(scratch);
+
     for (int i = 0; i < DwVfpRegister::kNumRegisters; i++) {
       DwVfpRegister reg = DwVfpRegister::from_code(i);
-      __ vldr(reg, MemOperand(sp, i * kDoubleSize));
+      __ vldr(reg, MemOperand(sp, i * kDoubleSize), i < 16 ? al : ne);
     }
     __ add(sp, sp, Operand(kDoubleSize * DwVfpRegister::kNumRegisters));
   }

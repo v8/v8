@@ -158,8 +158,9 @@
                     ['armv7==1', {
                       # The ARM Architecture Manual mandates VFPv3 if NEON is
                       # available.
-                      # The current V8 doesn't use d16-d31, so for vfpv3-d16, we can
-                      # also enable vfp3 for the better performance.
+                      # V8 does not use d16-d31 unless explicitly enabled
+                      # (--enable_32dregs) or detected at run-time, so for vfpv3-d16,
+                      # we can also enable vfp3 for the better performance.
                       'conditions': [
                         ['arm_neon!=1 and arm_fpu!="vfpv3" and arm_fpu!="vfpv3-d16"', {
                           'variables': {

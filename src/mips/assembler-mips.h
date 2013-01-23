@@ -490,6 +490,7 @@ class CpuFeatures : public AllStatic {
   static unsigned supported_;
   static unsigned found_by_runtime_probing_;
 
+  friend class ExternalReference;
   DISALLOW_COPY_AND_ASSIGN(CpuFeatures);
 };
 

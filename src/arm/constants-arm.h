@@ -102,7 +102,7 @@ const int kNumRegisters = 16;
 
 // VFP support.
 const int kNumVFPSingleRegisters = 32;
-const int kNumVFPDoubleRegisters = 16;
+const int kNumVFPDoubleRegisters = 32;
 const int kNumVFPRegisters = kNumVFPSingleRegisters + kNumVFPDoubleRegisters;
 
 // PC is register 15.

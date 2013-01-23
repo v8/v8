@@ -1026,4 +1026,122 @@ TEST(12) {
   __ nop();
 }
 
+
+TEST(13) {
+  // Test VFP instructions using registers d16-d31.
+  InitializeVM();
+  v8::HandleScope scope;
+
+  if (!CpuFeatures::IsSupported(VFP32DREGS)) {
+    return;
+  }
+
+  typedef struct {
+    double a;
+    double b;
+    double c;
+    double x;
+    double y;
+    double z;
+    double i;
+    double j;
+    double k;
+  } T;
+  T t;
+
+  // Create a function that accepts &t, and loads, manipulates, and stores
+  // the doubles and floats.
+  Assembler assm(Isolate::Current(), NULL, 0);
+  Label L, C;
+
+
+  if (CpuFeatures::IsSupported(VFP3)) {
+    CpuFeatures::Scope scope(VFP3);
+
+    __ stm(db_w, sp, r4.bit() | lr.bit());
+
+    // Load a, b, c into d16, d17, d18.
+    __ mov(r4, Operand(r0));
+    __ vldr(d16, r4, OFFSET_OF(T, a));
+    __ vldr(d17, r4, OFFSET_OF(T, b));
+    __ vldr(d18, r4, OFFSET_OF(T, c));
+
+    __ vneg(d25, d16);
+    __ vadd(d25, d25, d17);
+    __ vsub(d25, d25, d18);
+    __ vmul(d25, d25, d25);
+    __ vdiv(d25, d25, d18);
+
+    __ vmov(d16, d25);
+    __ vsqrt(d17, d25);
+    __ vneg(d17, d17);
+    __ vabs(d17, d17);
+    __ vmla(d18, d16, d17);
+
+    // Store d16, d17, d18 into a, b, c.
+    __ mov(r4, Operand(r0));
+    __ vstr(d16, r4, OFFSET_OF(T, a));
+    __ vstr(d17, r4, OFFSET_OF(T, b));
+    __ vstr(d18, r4, OFFSET_OF(T, c));
+
+    // Load x, y, z into d29-d31.
+    __ add(r4, r0, Operand(OFFSET_OF(T, x)));
+    __ vldm(ia_w, r4, d29, d31);
+
+    // Swap d29 and d30 via r registers.
+    __ vmov(r1, r2, d29);
+    __ vmov(d29, d30);
+    __ vmov(d30, r1, r2);
+
+    // Convert to and from integer.
+    __ vcvt_s32_f64(s1, d31);
+    __ vcvt_f64_u32(d31, s1);
+
+    // Store d29-d31 into x, y, z.
+    __ add(r4, r0, Operand(OFFSET_OF(T, x)));
+    __ vstm(ia_w, r4, d29, d31);
+
+    // Move constants into d20, d21, d22 and store into i, j, k.
+    __ vmov(d20, 14.7610017472335499);
+    __ vmov(d21, 16.0);
+    __ mov(r1, Operand(372106121));
+    __ mov(r2, Operand(1079146608));
+    __ vmov(d22, 0, r1);
+    __ vmov(d22, 1, r2);
+    __ add(r4, r0, Operand(OFFSET_OF(T, i)));
+    __ vstm(ia_w, r4, d20, d22);
+
+    __ ldm(ia_w, sp, r4.bit() | pc.bit());
+
+    CodeDesc desc;
+    assm.GetCode(&desc);
+    Object* code = HEAP->CreateCode(
+        desc,
+        Code::ComputeFlags(Code::STUB),
+        Handle<Object>(HEAP->undefined_value()))->ToObjectChecked();
+    CHECK(code->IsCode());
+#ifdef DEBUG
+    Code::cast(code)->Print();
+#endif
+    F3 f = FUNCTION_CAST<F3>(Code::cast(code)->entry());
+    t.a = 1.5;
+    t.b = 2.75;
+    t.c = 17.17;
+    t.x = 1.5;
+    t.y = 2.75;
+    t.z = 17.17;
+    Object* dummy = CALL_GENERATED_CODE(f, &t, 0, 0, 0, 0);
+    USE(dummy);
+    CHECK_EQ(14.7610017472335499, t.a);
+    CHECK_EQ(3.84200491244266251, t.b);
+    CHECK_EQ(73.8818412254460241, t.c);
+    CHECK_EQ(2.75, t.x);
+    CHECK_EQ(1.5, t.y);
+    CHECK_EQ(17.0, t.z);
+    CHECK_EQ(14.7610017472335499, t.i);
+    CHECK_EQ(16.0, t.j);
+    CHECK_EQ(73.8818412254460241, t.k);
+  }
+}
+
 #undef __

@@ -3178,8 +3178,8 @@ void LCodeGen::DoLoadKeyedExternalArray(LLoadKeyed* instr) {
     if (CpuFeatures::IsSupported(VFP2)) {
       CpuFeatures::Scope scope(VFP2);
       if (elements_kind == EXTERNAL_FLOAT_ELEMENTS) {
-        __ vldr(result.low(), scratch0(), additional_offset);
-        __ vcvt_f64_f32(result, result.low());
+        __ vldr(kScratchDoubleReg.low(), scratch0(), additional_offset);
+        __ vcvt_f64_f32(result, kScratchDoubleReg.low());
       } else  {  // i.e. elements_kind == EXTERNAL_DOUBLE_ELEMENTS
         __ vldr(result, scratch0(), additional_offset);
       }
