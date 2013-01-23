@@ -3111,6 +3111,9 @@ class HMathFloorOfDiv: public HBinaryOperation {
     set_representation(Representation::Integer32());
     SetFlag(kUseGVN);
     SetFlag(kCanOverflow);
+    if (!right->IsConstant()) {
+      SetFlag(kCanBeDivByZero);
+    }
   }
 
   virtual HValue* EnsureAndPropagateNotMinusZero(BitVector* visited);
