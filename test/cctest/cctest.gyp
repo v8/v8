@@ -69,6 +69,7 @@
         'test-fixed-dtoa.cc',
         'test-flags.cc',
         'test-func-name-inference.cc',
+        'test-global-object.cc',
         'test-hashing.cc',
         'test-hashmap.cc',
         'test-heap.cc',

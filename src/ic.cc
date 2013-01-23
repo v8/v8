@@ -542,7 +542,7 @@ MaybeObject* CallICBase::LoadFunction(State state,
   if (!lookup.IsFound()) {
     // If the object does not have the requested property, check which
     // exception we need to throw.
-    return IsContextual(object)
+    return IsUndeclaredGlobal(object)
         ? ReferenceError("not_defined", name)
         : TypeError("undefined_method", object, name);
   }
@@ -561,7 +561,7 @@ MaybeObject* CallICBase::LoadFunction(State state,
   if (lookup.IsInterceptor() && attr == ABSENT) {
     // If the object does not have the requested property, check which
     // exception we need to throw.
-    return IsContextual(object)
+    return IsUndeclaredGlobal(object)
         ? ReferenceError("not_defined", name)
         : TypeError("undefined_method", object, name);
   }
@@ -933,7 +933,7 @@ MaybeObject* LoadIC::Load(State state,
 
   // If we did not find a property, check if we need to throw an exception.
   if (!lookup.IsFound()) {
-    if (IsContextual(object)) {
+    if (IsUndeclaredGlobal(object)) {
       return ReferenceError("not_defined", name);
     }
     LOG(isolate(), SuspectReadEvent(*name, *object));
@@ -952,7 +952,7 @@ MaybeObject* LoadIC::Load(State state,
     RETURN_IF_EMPTY_HANDLE(isolate(), result);
     // If the property is not present, check if we need to throw an
     // exception.
-    if (attr == ABSENT && IsContextual(object)) {
+    if (attr == ABSENT && IsUndeclaredGlobal(object)) {
       return ReferenceError("not_defined", name);
     }
     return *result;
@@ -1463,11 +1463,8 @@ MaybeObject* StoreIC::Store(State state,
     if (FLAG_use_ic) {
       UpdateStoreCaches(&lookup, state, strict_mode, receiver, name, value);
     }
-  } else if (strict_mode == kStrictMode &&
-             !lookup.IsFound() &&
-             IsContextual(object)) {
-    // Strict mode doesn't allow setting non-existent global property
-    // or an assignment to a read only property.
+  } else if (strict_mode == kStrictMode && IsUndeclaredGlobal(object)) {
+    // Strict mode doesn't allow setting non-existent global property.
     return ReferenceError("not_defined", name);
   }
 
