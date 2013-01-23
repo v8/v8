@@ -497,6 +497,8 @@ class ReachabilityAnalyzer BASE_EMBEDDED {
 
 
 void HGraph::Verify(bool do_full_verify) const {
+  // Allow dereferencing for debug mode verification.
+  AllowHandleDereference allow_handle_deref;
   for (int i = 0; i < blocks_.length(); i++) {
     HBasicBlock* block = blocks_.at(i);
 
@@ -2242,7 +2244,7 @@ void HGlobalValueNumberer::ProcessLoopBlock(
 
 
 bool HGlobalValueNumberer::AllowCodeMotion() {
-  return info()->shared_info()->opt_count() + 1 < FLAG_max_opt_count;
+  return info()->opt_count() + 1 < FLAG_max_opt_count;
 }
 
 
@@ -7221,13 +7223,15 @@ bool HOptimizedGraphBuilder::TryInline(CallKind call_kind,
       this, &target_info, &target_oracle, inlining_kind);
 
   HConstant* undefined = graph()->GetConstantUndefined();
+  bool undefined_receiver = HEnvironment::UseUndefinedReceiver(
+      target, function, call_kind, inlining_kind);
   HEnvironment* inner_env =
       environment()->CopyForInlining(target,
                                      arguments_count,
                                      function,
                                      undefined,
-                                     call_kind,
-                                     function_state()->inlining_kind());
+                                     function_state()->inlining_kind(),
+                                     undefined_receiver);
 #ifdef V8_TARGET_ARCH_IA32
   // IA32 only, overwrite the caller's context in the deoptimization
   // environment with the correct one.
@@ -7261,10 +7265,10 @@ bool HOptimizedGraphBuilder::TryInline(CallKind call_kind,
       new(zone()) HEnterInlined(target,
                                 arguments_count,
                                 function,
-                                call_kind,
                                 function_state()->inlining_kind(),
                                 function->scope()->arguments(),
-                                arguments_values);
+                                arguments_values,
+                                undefined_receiver);
   function_state()->set_entry(enter_inlined);
   AddInstruction(enter_inlined);
 
@@ -9886,8 +9890,8 @@ HEnvironment* HEnvironment::CopyForInlining(
     int arguments,
     FunctionLiteral* function,
     HConstant* undefined,
-    CallKind call_kind,
-    InliningKind inlining_kind) const {
+    InliningKind inlining_kind,
+    bool undefined_receiver) const {
   ASSERT(frame_type() == JS_FUNCTION);
 
   // Outer environment is a copy of this one without the arguments.
@@ -9928,8 +9932,7 @@ HEnvironment* HEnvironment::CopyForInlining(
   // If the function we are inlining is a strict mode function or a
   // builtin function, pass undefined as the receiver for function
   // calls (instead of the global receiver).
-  if ((target->shared()->native() || !function->is_classic_mode()) &&
-      call_kind == CALL_AS_FUNCTION && inlining_kind != CONSTRUCT_CALL_RETURN) {
+  if (undefined_receiver) {
     inner->SetValueAt(0, undefined);
   }
   inner->SetValueAt(arity + 1, LookupContext());

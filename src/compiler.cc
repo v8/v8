@@ -101,6 +101,7 @@ void CompilationInfo::Initialize(Isolate* isolate, Mode mode, Zone* zone) {
   deferred_handles_ = NULL;
   code_stub_ = NULL;
   prologue_offset_ = kPrologueOffsetNotSet;
+  opt_count_ = shared_info().is_null() ? 0 : shared_info()->opt_count();
   if (mode == STUB) {
     mode_ = STUB;
     return;
@@ -285,7 +286,7 @@ OptimizingCompiler::Status OptimizingCompiler::CreateGraph() {
   // the optimizing compiler.
   const int kMaxOptCount =
       FLAG_deopt_every_n_times == 0 ? FLAG_max_opt_count : 1000;
-  if (info()->shared_info()->opt_count() > kMaxOptCount) {
+  if (info()->opt_count() > kMaxOptCount) {
     info()->set_bailout_reason("optimized too many times");
     return AbortOptimization();
   }
@@ -394,6 +395,7 @@ OptimizingCompiler::Status OptimizingCompiler::CreateGraph() {
 OptimizingCompiler::Status OptimizingCompiler::OptimizeGraph() {
   AssertNoAllocation no_gc;
   NoHandleAllocation no_handles;
+  NoHandleDereference no_deref;
 
   ASSERT(last_status() == SUCCEEDED);
   Timer t(this, &time_taken_to_optimize_);

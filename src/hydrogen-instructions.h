@@ -1496,18 +1496,18 @@ class HEnterInlined: public HTemplateInstruction<0> {
   HEnterInlined(Handle<JSFunction> closure,
                 int arguments_count,
                 FunctionLiteral* function,
-                CallKind call_kind,
                 InliningKind inlining_kind,
                 Variable* arguments_var,
-                ZoneList<HValue*>* arguments_values)
+                ZoneList<HValue*>* arguments_values,
+                bool undefined_receiver)
       : closure_(closure),
         arguments_count_(arguments_count),
         arguments_pushed_(false),
         function_(function),
-        call_kind_(call_kind),
         inlining_kind_(inlining_kind),
         arguments_var_(arguments_var),
-        arguments_values_(arguments_values) {
+        arguments_values_(arguments_values),
+        undefined_receiver_(undefined_receiver) {
   }
 
   virtual void PrintDataTo(StringStream* stream);
@@ -1517,8 +1517,8 @@ class HEnterInlined: public HTemplateInstruction<0> {
   bool arguments_pushed() const { return arguments_pushed_; }
   void set_arguments_pushed() { arguments_pushed_ = true; }
   FunctionLiteral* function() const { return function_; }
-  CallKind call_kind() const { return call_kind_; }
   InliningKind inlining_kind() const { return inlining_kind_; }
+  bool undefined_receiver() const { return undefined_receiver_; }
 
   virtual Representation RequiredInputRepresentation(int index) {
     return Representation::None();
@@ -1534,10 +1534,10 @@ class HEnterInlined: public HTemplateInstruction<0> {
   int arguments_count_;
   bool arguments_pushed_;
   FunctionLiteral* function_;
-  CallKind call_kind_;
   InliningKind inlining_kind_;
   Variable* arguments_var_;
   ZoneList<HValue*>* arguments_values_;
+  bool undefined_receiver_;
 };
 
 
@@ -2322,6 +2322,7 @@ class HCheckFunction: public HUnaryOperation {
       : HUnaryOperation(value), target_(function) {
     set_representation(Representation::Tagged());
     SetFlag(kUseGVN);
+    target_in_new_space_ = Isolate::Current()->heap()->InNewSpace(*function);
   }
 
   virtual Representation RequiredInputRepresentation(int index) {
@@ -2335,6 +2336,7 @@ class HCheckFunction: public HUnaryOperation {
 #endif
 
   Handle<JSFunction> target() const { return target_; }
+  bool target_in_new_space() const { return target_in_new_space_; }
 
   DECLARE_CONCRETE_INSTRUCTION(CheckFunction)
 
@@ -2346,6 +2348,7 @@ class HCheckFunction: public HUnaryOperation {
 
  private:
   Handle<JSFunction> target_;
+  bool target_in_new_space_;
 };
 
 
@@ -2475,6 +2478,8 @@ class HCheckPrototypeMaps: public HTemplateInstruction<0> {
 
   virtual intptr_t Hashcode() {
     ASSERT_ALLOCATION_DISABLED;
+    // Dereferencing to use the object's raw address for hashing is safe.
+    AllowHandleDereference allow_handle_deref;
     intptr_t hash = 0;
     for (int i = 0; i < prototypes_.length(); i++) {
       hash = 17 * hash + reinterpret_cast<intptr_t>(*prototypes_[i]);
@@ -2692,15 +2697,16 @@ class HConstant: public HTemplateInstruction<0> {
     Heap* heap = HEAP;
     // We should have handled minus_zero_value and nan_value in the
     // has_double_value_ clause above.
+    // Dereferencing is safe to compare against singletons.
+    AllowHandleDereference allow_handle_deref;
     ASSERT(*handle_ != heap->minus_zero_value());
     ASSERT(*handle_ != heap->nan_value());
-    if (*handle_ == heap->undefined_value()) return true;
-    if (*handle_ == heap->null_value()) return true;
-    if (*handle_ == heap->true_value()) return true;
-    if (*handle_ == heap->false_value()) return true;
-    if (*handle_ == heap->the_hole_value()) return true;
-    if (*handle_ == heap->empty_string()) return true;
-    return false;
+    return *handle_ == heap->undefined_value() ||
+           *handle_ == heap->null_value() ||
+           *handle_ == heap->true_value() ||
+           *handle_ == heap->false_value() ||
+           *handle_ == heap->the_hole_value() ||
+           *handle_ == heap->empty_string();
   }
 
   virtual Representation RequiredInputRepresentation(int index) {
@@ -2752,6 +2758,8 @@ class HConstant: public HTemplateInstruction<0> {
       hash = static_cast<intptr_t>(BitCast<int64_t>(double_value_));
     } else {
       ASSERT(!handle_.is_null());
+      // Dereferencing to use the object's raw address for hashing is safe.
+      AllowHandleDereference allow_handle_deref;
       hash = reinterpret_cast<intptr_t>(*handle_);
     }
 
@@ -2779,7 +2787,7 @@ class HConstant: public HTemplateInstruction<0> {
     } else {
       ASSERT(!handle_.is_null());
       return !other_constant->handle_.is_null() &&
-          *handle_ == *other_constant->handle_;
+          handle_.is_identical_to(other_constant->handle_);
     }
   }
 
@@ -4013,13 +4021,15 @@ class HLoadGlobalCell: public HTemplateInstruction<0> {
     SetGVNFlag(kDependsOnGlobalVars);
   }
 
-  Handle<JSGlobalPropertyCell>  cell() const { return cell_; }
+  Handle<JSGlobalPropertyCell> cell() const { return cell_; }
   bool RequiresHoleCheck() const;
 
   virtual void PrintDataTo(StringStream* stream);
 
   virtual intptr_t Hashcode() {
     ASSERT_ALLOCATION_DISABLED;
+    // Dereferencing to use the object's raw address for hashing is safe.
+    AllowHandleDereference allow_handle_deref;
     return reinterpret_cast<intptr_t>(*cell_);
   }
 
@@ -4812,7 +4822,9 @@ class HTransitionElementsKind: public HTemplateInstruction<1> {
                           Handle<Map> original_map,
                           Handle<Map> transitioned_map)
       : original_map_(original_map),
-        transitioned_map_(transitioned_map) {
+        transitioned_map_(transitioned_map),
+        from_kind_(original_map->elements_kind()),
+        to_kind_(transitioned_map->elements_kind()) {
     SetOperandAt(0, object);
     SetFlag(kUseGVN);
     SetGVNFlag(kChangesElementsKind);
@@ -4834,6 +4846,8 @@ class HTransitionElementsKind: public HTemplateInstruction<1> {
   HValue* object() { return OperandAt(0); }
   Handle<Map> original_map() { return original_map_; }
   Handle<Map> transitioned_map() { return transitioned_map_; }
+  ElementsKind from_kind() { return from_kind_; }
+  ElementsKind to_kind() { return to_kind_; }
 
   virtual void PrintDataTo(StringStream* stream);
 
@@ -4849,6 +4863,8 @@ class HTransitionElementsKind: public HTemplateInstruction<1> {
  private:
   Handle<Map> original_map_;
   Handle<Map> transitioned_map_;
+  ElementsKind from_kind_;
+  ElementsKind to_kind_;
 };
 
 

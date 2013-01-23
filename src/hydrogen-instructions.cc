@@ -342,6 +342,10 @@ const char* HType::ToString() {
 
 
 HType HType::TypeFromValue(Handle<Object> value) {
+  // Handle dereferencing is safe here: an object's type as checked below
+  // never changes.
+  AllowHandleDereference allow_handle_deref;
+
   HType result = HType::Tagged();
   if (value->IsSmi()) {
     result = HType::Smi();
@@ -1119,10 +1123,11 @@ HValue* HCheckInstanceType::Canonicalize() {
       value()->type().IsString()) {
     return NULL;
   }
-  if (check_ == IS_SYMBOL &&
-      value()->IsConstant() &&
-      HConstant::cast(value())->handle()->IsSymbol()) {
-    return NULL;
+
+  if (check_ == IS_SYMBOL && value()->IsConstant()) {
+    // Dereferencing is safe here: a symbol cannot become a non-symbol.
+    AllowHandleDereference allow_handle_deref;
+    if (HConstant::cast(value())->handle()->IsSymbol()) return NULL;
   }
   return this;
 }
@@ -1555,6 +1560,8 @@ HConstant::HConstant(Handle<Object> handle, Representation r)
     : handle_(handle),
       has_int32_value_(false),
       has_double_value_(false) {
+  // Dereferencing here is safe: the value of a number object does not change.
+  AllowHandleDereference allow_handle_deref;
   SetFlag(kUseGVN);
   if (handle_->IsNumber()) {
     double n = handle_->Number();
@@ -1633,12 +1640,14 @@ bool HConstant::ToBoolean() {
     double v = DoubleValue();
     return v != 0 && !isnan(v);
   }
-  Handle<Object> literal = handle();
-  if (literal->IsTrue()) return true;
-  if (literal->IsFalse()) return false;
-  if (literal->IsUndefined()) return false;
-  if (literal->IsNull()) return false;
-  if (literal->IsString() && String::cast(*literal)->length() == 0) {
+  // Dereferencing is safe: singletons do not change and strings are
+  // immutable.
+  AllowHandleDereference allow_handle_deref;
+  if (handle_->IsTrue()) return true;
+  if (handle_->IsFalse()) return false;
+  if (handle_->IsUndefined()) return false;
+  if (handle_->IsNull()) return false;
+  if (handle_->IsString() && String::cast(*handle_)->length() == 0) {
     return false;
   }
   return true;
