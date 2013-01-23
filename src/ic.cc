@@ -1463,7 +1463,9 @@ MaybeObject* StoreIC::Store(State state,
     if (FLAG_use_ic) {
       UpdateStoreCaches(&lookup, state, strict_mode, receiver, name, value);
     }
-  } else if (strict_mode == kStrictMode && IsUndeclaredGlobal(object)) {
+  } else if (strict_mode == kStrictMode &&
+             !(lookup.IsProperty() && lookup.IsReadOnly()) &&
+             IsUndeclaredGlobal(object)) {
     // Strict mode doesn't allow setting non-existent global property.
     return ReferenceError("not_defined", name);
   }
