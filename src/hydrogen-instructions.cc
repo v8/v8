@@ -1205,7 +1205,8 @@ void HCheckInstanceType::PrintDataTo(StringStream* stream) {
 
 
 void HCheckPrototypeMaps::PrintDataTo(StringStream* stream) {
-  stream->Add("[receiver_prototype=%p,holder=%p]", *prototype(), *holder());
+  stream->Add("[receiver_prototype=%p,holder=%p]",
+              *prototypes_.first(), *prototypes_.last());
 }
 
 

@@ -1,3 +1,20 @@
+2013-01-23: Version 3.16.8
+
+        Correctly reset lastIndex in an RegExp object.
+        (Chromium issue 170856)
+
+        Added a workaround for Windows compilation problems related to V8EXPORT.
+        (issue 2507)
+
+        tools/run-tests.py: shlex.split() the value of --command-prefix
+        (Chromium issue 171553)
+
+        Fixed pattern detection for replacing shifts by rotation.
+        (Chromium issue 2499)
+
+        Performance and stability improvements on all platforms.
+
+
 2013-01-21: Version 3.16.7
 
         Removed <(library) usage from v8.gyp.

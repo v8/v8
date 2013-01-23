@@ -215,53 +215,6 @@ static void GenerateDictionaryStore(MacroAssembler* masm,
 }
 
 
-void LoadIC::GenerateArrayLength(MacroAssembler* masm) {
-  // ----------- S t a t e -------------
-  //  -- a2    : name
-  //  -- ra    : return address
-  //  -- a0    : receiver
-  //  -- sp[0] : receiver
-  // -----------------------------------
-  Label miss;
-
-  StubCompiler::GenerateLoadArrayLength(masm, a0, a3, &miss);
-  __ bind(&miss);
-  StubCompiler::GenerateLoadMiss(masm, Code::LOAD_IC);
-}
-
-
-void LoadIC::GenerateStringLength(MacroAssembler* masm, bool support_wrappers) {
-  // ----------- S t a t e -------------
-  //  -- a2    : name
-  //  -- lr    : return address
-  //  -- a0    : receiver
-  //  -- sp[0] : receiver
-  // -----------------------------------
-  Label miss;
-
-  StubCompiler::GenerateLoadStringLength(masm, a0, a1, a3, &miss,
-                                         support_wrappers);
-  // Cache miss: Jump to runtime.
-  __ bind(&miss);
-  StubCompiler::GenerateLoadMiss(masm, Code::LOAD_IC);
-}
-
-
-void LoadIC::GenerateFunctionPrototype(MacroAssembler* masm) {
-  // ----------- S t a t e -------------
-  //  -- a2    : name
-  //  -- lr    : return address
-  //  -- a0    : receiver
-  //  -- sp[0] : receiver
-  // -----------------------------------
-  Label miss;
-
-  StubCompiler::GenerateLoadFunctionPrototype(masm, a0, a1, a3, &miss);
-  __ bind(&miss);
-  StubCompiler::GenerateLoadMiss(masm, Code::LOAD_IC);
-}
-
-
 // Checks the receiver for special cases (value type, slow case bits).
 // Falls through for regular JS object.
 static void GenerateKeyedLoadReceiverCheck(MacroAssembler* masm,

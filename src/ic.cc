@@ -351,11 +351,9 @@ void IC::Clear(Address address) {
 
   switch (target->kind()) {
     case Code::LOAD_IC: return LoadIC::Clear(address, target);
-    case Code::KEYED_LOAD_IC:
-      return KeyedLoadIC::Clear(address, target);
+    case Code::KEYED_LOAD_IC: return KeyedLoadIC::Clear(address, target);
     case Code::STORE_IC: return StoreIC::Clear(address, target);
-    case Code::KEYED_STORE_IC:
-      return KeyedStoreIC::Clear(address, target);
+    case Code::KEYED_STORE_IC: return KeyedStoreIC::Clear(address, target);
     case Code::CALL_IC: return CallIC::Clear(address, target);
     case Code::KEYED_CALL_IC:  return KeyedCallIC::Clear(address, target);
     case Code::COMPARE_IC: return CompareIC::Clear(address, target);
@@ -387,13 +385,13 @@ void KeyedLoadIC::Clear(Address address, Code* target) {
   // Make sure to also clear the map used in inline fast cases.  If we
   // do not clear these maps, cached code can keep objects alive
   // through the embedded maps.
-  SetTargetAtAddress(address, initialize_stub());
+  SetTargetAtAddress(address, *initialize_stub());
 }
 
 
 void LoadIC::Clear(Address address, Code* target) {
   if (target->ic_state() == UNINITIALIZED) return;
-  SetTargetAtAddress(address, initialize_stub());
+  SetTargetAtAddress(address, *initialize_stub());
 }
 
 
@@ -401,8 +399,8 @@ void StoreIC::Clear(Address address, Code* target) {
   if (target->ic_state() == UNINITIALIZED) return;
   SetTargetAtAddress(address,
       (Code::GetStrictMode(target->extra_ic_state()) == kStrictMode)
-        ? initialize_stub_strict()
-        : initialize_stub());
+        ? *initialize_stub_strict()
+        : *initialize_stub());
 }
 
 
@@ -410,8 +408,8 @@ void KeyedStoreIC::Clear(Address address, Code* target) {
   if (target->ic_state() == UNINITIALIZED) return;
   SetTargetAtAddress(address,
       (Code::GetStrictMode(target->extra_ic_state()) == kStrictMode)
-        ? initialize_stub_strict()
-        : initialize_stub());
+        ? *initialize_stub_strict()
+        : *initialize_stub());
 }
 
 
@@ -832,9 +830,9 @@ MaybeObject* KeyedCallIC::LoadFunction(State state,
 }
 
 
-MaybeObject* LoadIC::Load(State state,
-                          Handle<Object> object,
-                          Handle<String> name) {
+MaybeObject* IC::Load(State state,
+                      Handle<Object> object,
+                      Handle<String> name) {
   // If the object is undefined or null it's illegal to try to get any
   // of its properties; throw a TypeError in that case.
   if (object->IsUndefined() || object->IsNull()) {
@@ -852,11 +850,11 @@ MaybeObject* LoadIC::Load(State state,
       if (state == UNINITIALIZED) {
         stub = pre_monomorphic_stub();
       } else if (state == PREMONOMORPHIC) {
-        stub = object->IsString()
-            ? isolate()->builtins()->LoadIC_StringLength()
-            : isolate()->builtins()->LoadIC_StringWrapperLength();
+        StringLengthStub string_length_stub(kind(), !object->IsString());
+        stub = string_length_stub.GetCode();
       } else if (state == MONOMORPHIC && object->IsStringWrapper()) {
-        stub = isolate()->builtins()->LoadIC_StringWrapperLength();
+        StringLengthStub string_length_stub(kind(), true);
+        stub = string_length_stub.GetCode();
       } else if (state != MEGAMORPHIC) {
         ASSERT(state != GENERIC);
         stub = megamorphic_stub();
@@ -881,7 +879,8 @@ MaybeObject* LoadIC::Load(State state,
       if (state == UNINITIALIZED) {
         stub = pre_monomorphic_stub();
       } else if (state == PREMONOMORPHIC) {
-        stub = isolate()->builtins()->LoadIC_ArrayLength();
+        ArrayLengthStub array_length_stub(kind());
+        stub = array_length_stub.GetCode();
       } else if (state != MEGAMORPHIC) {
         ASSERT(state != GENERIC);
         stub = megamorphic_stub();
@@ -903,7 +902,8 @@ MaybeObject* LoadIC::Load(State state,
       if (state == UNINITIALIZED) {
         stub = pre_monomorphic_stub();
       } else if (state == PREMONOMORPHIC) {
-        stub = isolate()->builtins()->LoadIC_FunctionPrototype();
+        FunctionPrototypeStub function_prototype_stub(kind());
+        stub = function_prototype_stub.GetCode();
       } else if (state != MEGAMORPHIC) {
         ASSERT(state != GENERIC);
         stub = megamorphic_stub();
@@ -919,9 +919,13 @@ MaybeObject* LoadIC::Load(State state,
   }
 
   // Check if the name is trivially convertible to an index and get
-  // the element if so.
+  // the element or char if so.
   uint32_t index;
-  if (name->AsArrayIndex(&index)) return object->GetElement(index);
+  if (kind() == Code::KEYED_LOAD_IC && name->AsArrayIndex(&index)) {
+    // Rewrite to the generic keyed load stub.
+    if (FLAG_use_ic) set_target(*generic_stub());
+    return Runtime::GetElementOrCharAt(isolate(), object, index);
+  }
 
   // Named lookup in the object.
   LookupResult lookup(isolate());
@@ -937,7 +941,7 @@ MaybeObject* LoadIC::Load(State state,
 
   // Update inline cache and stub cache.
   if (FLAG_use_ic) {
-    UpdateCaches(&lookup, state, object, name);
+    UpdateLoadCaches(&lookup, state, object, name);
   }
 
   PropertyAttributes attr;
@@ -959,10 +963,10 @@ MaybeObject* LoadIC::Load(State state,
 }
 
 
-void LoadIC::UpdateCaches(LookupResult* lookup,
-                          State state,
-                          Handle<Object> object,
-                          Handle<String> name) {
+void LoadIC::UpdateLoadCaches(LookupResult* lookup,
+                              State state,
+                              Handle<Object> object,
+                              Handle<String> name) {
   // Bail out if the result is not cacheable.
   if (!lookup->IsCacheable()) return;
 
@@ -1147,93 +1151,7 @@ MaybeObject* KeyedLoadIC::Load(State state,
   key = TryConvertKey(key, isolate());
 
   if (key->IsSymbol()) {
-    Handle<String> name = Handle<String>::cast(key);
-
-    // If the object is undefined or null it's illegal to try to get any
-    // of its properties; throw a TypeError in that case.
-    if (object->IsUndefined() || object->IsNull()) {
-      return TypeError("non_object_property_load", object, name);
-    }
-
-    if (FLAG_use_ic) {
-      // TODO(1073): don't ignore the current stub state.
-
-      // Use specialized code for getting the length of strings.
-      if (object->IsString() &&
-          name->Equals(isolate()->heap()->length_symbol())) {
-        Handle<String> string = Handle<String>::cast(object);
-        Handle<Code> code =
-            isolate()->stub_cache()->ComputeKeyedLoadStringLength(name, string);
-        ASSERT(!code.is_null());
-        set_target(*code);
-        TRACE_IC("KeyedLoadIC", name, state, target());
-        return Smi::FromInt(string->length());
-      }
-
-      // Use specialized code for getting the length of arrays.
-      if (object->IsJSArray() &&
-          name->Equals(isolate()->heap()->length_symbol())) {
-        Handle<JSArray> array = Handle<JSArray>::cast(object);
-        Handle<Code> code =
-            isolate()->stub_cache()->ComputeKeyedLoadArrayLength(name, array);
-        ASSERT(!code.is_null());
-        set_target(*code);
-        TRACE_IC("KeyedLoadIC", name, state, target());
-        return array->length();
-      }
-
-      // Use specialized code for getting prototype of functions.
-      if (object->IsJSFunction() &&
-          name->Equals(isolate()->heap()->prototype_symbol()) &&
-          Handle<JSFunction>::cast(object)->should_have_prototype()) {
-        Handle<JSFunction> function = Handle<JSFunction>::cast(object);
-        Handle<Code> code =
-            isolate()->stub_cache()->ComputeKeyedLoadFunctionPrototype(
-                name, function);
-        ASSERT(!code.is_null());
-        set_target(*code);
-        TRACE_IC("KeyedLoadIC", name, state, target());
-        return Accessors::FunctionGetPrototype(*object, 0);
-      }
-    }
-
-    // Check if the name is trivially convertible to an index and get
-    // the element or char if so.
-    uint32_t index = 0;
-    if (name->AsArrayIndex(&index)) {
-      // Rewrite to the generic keyed load stub.
-      if (FLAG_use_ic) set_target(*generic_stub());
-      return Runtime::GetElementOrCharAt(isolate(), object, index);
-    }
-
-    // Named lookup.
-    LookupResult lookup(isolate());
-    LookupForRead(object, name, &lookup);
-
-    // If we did not find a property, check if we need to throw an exception.
-    if (!lookup.IsFound() && IsContextual(object)) {
-      return ReferenceError("not_defined", name);
-    }
-
-    if (FLAG_use_ic) {
-      UpdateCaches(&lookup, state, object, name);
-    }
-
-    PropertyAttributes attr;
-    if (lookup.IsInterceptor()) {
-      // Get the property.
-      Handle<Object> result =
-          Object::GetProperty(object, object, &lookup, name, &attr);
-      RETURN_IF_EMPTY_HANDLE(isolate(), result);
-      // If the property is not present, check if we need to throw an
-      // exception.
-      if (attr == ABSENT && IsContextual(object)) {
-        return ReferenceError("not_defined", name);
-      }
-      return *result;
-    }
-
-    return object->GetProperty(*object, &lookup, *name, &attr);
+    return IC::Load(state, object, Handle<String>::cast(key));
   }
 
   // Do not use ICs for objects that require access checks (including
@@ -1255,7 +1173,7 @@ MaybeObject* KeyedLoadIC::Load(State state,
         } else if (receiver->HasIndexedInterceptor()) {
           stub = indexed_interceptor_stub();
         } else if (key->IsSmi() && (target() != *non_strict_arguments_stub())) {
-          stub = ComputeStub(receiver, LOAD, kNonStrictMode, stub);
+          stub = ComputeStub(receiver, KeyedIC::LOAD, kNonStrictMode, stub);
         }
       }
     } else {
@@ -1271,10 +1189,10 @@ MaybeObject* KeyedLoadIC::Load(State state,
 }
 
 
-void KeyedLoadIC::UpdateCaches(LookupResult* lookup,
-                               State state,
-                               Handle<Object> object,
-                               Handle<String> name) {
+void KeyedLoadIC::UpdateLoadCaches(LookupResult* lookup,
+                                   State state,
+                                   Handle<Object> object,
+                                   Handle<String> name) {
   // Bail out if we didn't find a result.
   if (!lookup->IsProperty() || !lookup->IsCacheable()) return;
 
@@ -1393,33 +1311,33 @@ static bool LookupForWrite(Handle<JSObject> receiver,
 }
 
 
-MaybeObject* StoreIC::Store(State state,
-                            StrictModeFlag strict_mode,
-                            Handle<Object> object,
-                            Handle<String> name,
-                            Handle<Object> value) {
-  if (!object->IsJSObject()) {
-    // Handle proxies.
-    if (object->IsJSProxy()) {
-      return JSProxy::cast(*object)->
-          SetProperty(*name, *value, NONE, strict_mode);
-    }
-
-    // If the object is undefined or null it's illegal to try to set any
-    // properties on it; throw a TypeError in that case.
-    if (object->IsUndefined() || object->IsNull()) {
-      return TypeError("non_object_property_store", object, name);
-    }
-
-    // The length property of string values is read-only. Throw in strict mode.
-    if (strict_mode == kStrictMode && object->IsString() &&
-        name->Equals(isolate()->heap()->length_symbol())) {
-      return TypeError("strict_read_only_property", object, name);
-    }
-    // Ignore other stores where the receiver is not a JSObject.
-    // TODO(1475): Must check prototype chains of object wrappers.
-    return *value;
+MaybeObject* IC::Store(State state,
+                       StrictModeFlag strict_mode,
+                       Handle<Object> object,
+                       Handle<String> name,
+                       Handle<Object> value,
+                       JSReceiver::StoreFromKeyed store_mode) {
+  // Handle proxies.
+  if (object->IsJSProxy()) {
+    return JSProxy::cast(*object)->
+        SetProperty(*name, *value, NONE, strict_mode);
   }
+
+  // If the object is undefined or null it's illegal to try to set any
+  // properties on it; throw a TypeError in that case.
+  if (object->IsUndefined() || object->IsNull()) {
+    return TypeError("non_object_property_store", object, name);
+  }
+
+  // The length property of string values is read-only. Throw in strict mode.
+  if (strict_mode == kStrictMode && object->IsString() &&
+      name->Equals(isolate()->heap()->length_symbol())) {
+    return TypeError("strict_read_only_property", object, name);
+  }
+
+  // Ignore other stores where the receiver is not a JSObject.
+  // TODO(1475): Must check prototype chains of object wrappers.
+  if (!object->IsJSObject()) return *value;
 
   Handle<JSObject> receiver = Handle<JSObject>::cast(object);
 
@@ -1434,75 +1352,63 @@ MaybeObject* StoreIC::Store(State state,
 
   // Observed objects are always modified through the runtime.
   if (FLAG_harmony_observation && receiver->map()->is_observed()) {
-    return receiver->SetProperty(*name, *value, NONE, strict_mode);
+    return receiver->SetProperty(*name, *value, NONE, strict_mode, store_mode);
   }
 
   // Use specialized code for setting the length of arrays with fast
-  // properties.  Slow properties might indicate redefinition of the
-  // length property.
-  if (receiver->IsJSArray() &&
+  // properties. Slow properties might indicate redefinition of the length
+  // property.
+  if (FLAG_use_ic &&
+      receiver->IsJSArray() &&
       name->Equals(isolate()->heap()->length_symbol()) &&
       Handle<JSArray>::cast(receiver)->AllowsSetElementsLength() &&
-      receiver->HasFastProperties()) {
-#ifdef DEBUG
-    if (FLAG_trace_ic) PrintF("[StoreIC : +#length /array]\n");
-#endif
+      receiver->HasFastProperties() &&
+      kind() != Code::KEYED_STORE_IC) {
     Handle<Code> stub = (strict_mode == kStrictMode)
         ? isolate()->builtins()->StoreIC_ArrayLength_Strict()
         : isolate()->builtins()->StoreIC_ArrayLength();
     set_target(*stub);
-    return receiver->SetProperty(*name, *value, NONE, strict_mode);
-  }
-
-  // Lookup the property locally in the receiver.
-  if (!receiver->IsJSGlobalProxy()) {
-    LookupResult lookup(isolate());
-
-    if (LookupForWrite(receiver, name, &lookup)) {
-      if (FLAG_use_ic) {  // Generate a stub for this store.
-        UpdateCaches(&lookup, state, strict_mode, receiver, name, value);
-      }
-    } else {
-      // Strict mode doesn't allow setting non-existent global property
-      // or an assignment to a read only property.
-      if (strict_mode == kStrictMode) {
-        if (lookup.IsProperty() && lookup.IsReadOnly()) {
-          return TypeError("strict_read_only_property", object, name);
-        } else if (IsContextual(object)) {
-          return ReferenceError("not_defined", name);
-        }
-      }
-    }
+    TRACE_IC("StoreIC", name, state, *stub);
+    return receiver->SetProperty(*name, *value, NONE, strict_mode, store_mode);
   }
 
   if (receiver->IsJSGlobalProxy()) {
-    // TODO(ulan): find out why we patch this site even with --no-use-ic
-    // Generate a generic stub that goes to the runtime when we see a global
-    // proxy as receiver.
-    Handle<Code> stub = (strict_mode == kStrictMode)
-        ? global_proxy_stub_strict()
-        : global_proxy_stub();
-    if (target() != *stub) {
+    if (FLAG_use_ic && kind() != Code::KEYED_STORE_IC) {
+      // Generate a generic stub that goes to the runtime when we see a global
+      // proxy as receiver.
+      Handle<Code> stub = (strict_mode == kStrictMode)
+          ? global_proxy_stub_strict()
+          : global_proxy_stub();
       set_target(*stub);
-      TRACE_IC("StoreIC", name, state, target());
+      TRACE_IC("StoreIC", name, state, *stub);
     }
+    return receiver->SetProperty(*name, *value, NONE, strict_mode, store_mode);
+  }
+
+  LookupResult lookup(isolate());
+  if (LookupForWrite(receiver, name, &lookup)) {
+    if (FLAG_use_ic) {
+      UpdateStoreCaches(&lookup, state, strict_mode, receiver, name, value);
+    }
+  } else if (strict_mode == kStrictMode &&
+             !lookup.IsFound() &&
+             IsContextual(object)) {
+    // Strict mode doesn't allow setting non-existent global property
+    // or an assignment to a read only property.
+    return ReferenceError("not_defined", name);
   }
 
   // Set the property.
-  return receiver->SetProperty(*name,
-                               *value,
-                               NONE,
-                               strict_mode,
-                               JSReceiver::CERTAINLY_NOT_STORE_FROM_KEYED);
+  return receiver->SetProperty(*name, *value, NONE, strict_mode, store_mode);
 }
 
 
-void StoreIC::UpdateCaches(LookupResult* lookup,
-                           State state,
-                           StrictModeFlag strict_mode,
-                           Handle<JSObject> receiver,
-                           Handle<String> name,
-                           Handle<Object> value) {
+void StoreIC::UpdateStoreCaches(LookupResult* lookup,
+                                State state,
+                                StrictModeFlag strict_mode,
+                                Handle<JSObject> receiver,
+                                Handle<String> name,
+                                Handle<Object> value) {
   ASSERT(!receiver->IsJSGlobalProxy());
   ASSERT(StoreICableLookup(lookup));
   ASSERT(lookup->IsFound());
@@ -1611,8 +1517,8 @@ void StoreIC::UpdateCaches(LookupResult* lookup,
         }
         isolate()->stub_cache()->Set(*name, receiver->map(), *code);
         set_target((strict_mode == kStrictMode)
-                     ? megamorphic_stub_strict()
-                     : megamorphic_stub());
+                     ? *megamorphic_stub_strict()
+                     : *megamorphic_stub());
       }
       break;
     case MEGAMORPHIC:
@@ -1971,43 +1877,12 @@ MaybeObject* KeyedStoreIC::Store(State state,
 
   if (key->IsSymbol()) {
     Handle<String> name = Handle<String>::cast(key);
-
-    // Handle proxies.
-    if (object->IsJSProxy()) {
-      return JSProxy::cast(*object)->SetProperty(
-          *name, *value, NONE, strict_mode);
-    }
-
-    // If the object is undefined or null it's illegal to try to set any
-    // properties on it; throw a TypeError in that case.
-    if (object->IsUndefined() || object->IsNull()) {
-      return TypeError("non_object_property_store", object, name);
-    }
-
-    // Ignore stores where the receiver is not a JSObject.
-    if (!object->IsJSObject()) return *value;
-    Handle<JSObject> receiver = Handle<JSObject>::cast(object);
-
-    // Check if the given name is an array index.
-    uint32_t index;
-    if (name->AsArrayIndex(&index)) {
-      Handle<Object> result =
-          JSObject::SetElement(receiver, index, value, NONE, strict_mode);
-      RETURN_IF_EMPTY_HANDLE(isolate(), result);
-      return *value;
-    }
-
-    // Update inline cache and stub cache.
-    if (FLAG_use_ic && !receiver->IsJSGlobalProxy() &&
-        !(FLAG_harmony_observation && receiver->map()->is_observed())) {
-      LookupResult lookup(isolate());
-      if (LookupForWrite(receiver, name, &lookup)) {
-        UpdateCaches(&lookup, state, strict_mode, receiver, name, value);
-      }
-    }
-
-    // Set the property.
-    return receiver->SetProperty(*name, *value, NONE, strict_mode);
+    return IC::Store(state,
+                     strict_mode,
+                     object,
+                     name,
+                     value,
+                     JSReceiver::MAY_BE_STORE_FROM_KEYED);
   }
 
   // Do not use ICs for objects that require access checks (including
@@ -2046,12 +1921,12 @@ MaybeObject* KeyedStoreIC::Store(State state,
 }
 
 
-void KeyedStoreIC::UpdateCaches(LookupResult* lookup,
-                                State state,
-                                StrictModeFlag strict_mode,
-                                Handle<JSObject> receiver,
-                                Handle<String> name,
-                                Handle<Object> value) {
+void KeyedStoreIC::UpdateStoreCaches(LookupResult* lookup,
+                                     State state,
+                                     StrictModeFlag strict_mode,
+                                     Handle<JSObject> receiver,
+                                     Handle<String> name,
+                                     Handle<Object> value) {
   ASSERT(!receiver->IsJSGlobalProxy());
   ASSERT(StoreICableLookup(lookup));
   ASSERT(lookup->IsFound());

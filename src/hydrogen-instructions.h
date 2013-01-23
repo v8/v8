@@ -2446,14 +2446,24 @@ class HCheckNonSmi: public HUnaryOperation {
 
 class HCheckPrototypeMaps: public HTemplateInstruction<0> {
  public:
-  HCheckPrototypeMaps(Handle<JSObject> prototype, Handle<JSObject> holder)
-      : prototype_(prototype), holder_(holder) {
+  HCheckPrototypeMaps(Handle<JSObject> prototype,
+                      Handle<JSObject> holder,
+                      Zone* zone) : prototypes_(2, zone), maps_(2, zone) {
     SetFlag(kUseGVN);
     SetGVNFlag(kDependsOnMaps);
+    // Keep a list of all objects on the prototype chain up to the holder
+    // and the expected maps.
+    while (true) {
+      prototypes_.Add(prototype, zone);
+      maps_.Add(Handle<Map>(prototype->map()), zone);
+      if (prototype.is_identical_to(holder)) break;
+      prototype = Handle<JSObject>(JSObject::cast(prototype->GetPrototype()));
+    }
   }
 
-  Handle<JSObject> prototype() const { return prototype_; }
-  Handle<JSObject> holder() const { return holder_; }
+  ZoneList<Handle<JSObject> >* prototypes() { return &prototypes_; }
+
+  ZoneList<Handle<Map> >* maps() { return &maps_; }
 
   DECLARE_CONCRETE_INSTRUCTION(CheckPrototypeMaps)
 
@@ -2465,21 +2475,33 @@ class HCheckPrototypeMaps: public HTemplateInstruction<0> {
 
   virtual intptr_t Hashcode() {
     ASSERT_ALLOCATION_DISABLED;
-    intptr_t hash = reinterpret_cast<intptr_t>(*prototype());
-    hash = 17 * hash + reinterpret_cast<intptr_t>(*holder());
+    intptr_t hash = 0;
+    for (int i = 0; i < prototypes_.length(); i++) {
+      hash = 17 * hash + reinterpret_cast<intptr_t>(*prototypes_[i]);
+      hash = 17 * hash + reinterpret_cast<intptr_t>(*maps_[i]);
+    }
     return hash;
   }
 
  protected:
   virtual bool DataEquals(HValue* other) {
     HCheckPrototypeMaps* b = HCheckPrototypeMaps::cast(other);
-    return prototype_.is_identical_to(b->prototype()) &&
-        holder_.is_identical_to(b->holder());
+#ifdef DEBUG
+    if (prototypes_.length() != b->prototypes()->length()) return false;
+    for (int i = 0; i < prototypes_.length(); i++) {
+      if (!prototypes_[i].is_identical_to(b->prototypes()->at(i))) return false;
+      if (!maps_[i].is_identical_to(b->maps()->at(i))) return false;
+    }
+    return true;
+#else
+    return prototypes_.first().is_identical_to(b->prototypes()->first()) &&
+           prototypes_.last().is_identical_to(b->prototypes()->last());
+#endif  // DEBUG
   }
 
  private:
-  Handle<JSObject> prototype_;
-  Handle<JSObject> holder_;
+  ZoneList<Handle<JSObject> > prototypes_;
+  ZoneList<Handle<Map> > maps_;
 };
 
 
@@ -3614,9 +3636,9 @@ class HSub: public HArithmeticBinaryOperation {
   virtual HValue* Canonicalize();
 
   static HInstruction* NewHSub(Zone* zone,
-                              HValue* context,
-                              HValue* left,
-                              HValue* right);
+                               HValue* context,
+                               HValue* left,
+                               HValue* right);
 
   DECLARE_CONCRETE_INSTRUCTION(Sub)
 

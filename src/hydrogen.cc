@@ -5561,7 +5561,8 @@ HInstruction* HOptimizedGraphBuilder::BuildStoreNamedField(
     ASSERT(proto->IsJSObject());
     AddInstruction(new(zone()) HCheckPrototypeMaps(
         Handle<JSObject>(JSObject::cast(map->prototype())),
-        Handle<JSObject>(JSObject::cast(proto))));
+        Handle<JSObject>(JSObject::cast(proto)),
+        zone()));
   }
 
   int index = ComputeLoadStoreFieldIndex(map, name, lookup);
@@ -6289,16 +6290,27 @@ HInstruction* HOptimizedGraphBuilder::BuildLoadNamedMonomorphic(
     return new(zone()) HConstant(function, Representation::Tagged());
   }
 
-  // Handle a load from a known field somewhere in the protoype chain.
+  // Handle a load from a known field somewhere in the prototype chain.
   LookupInPrototypes(map, name, &lookup);
   if (lookup.IsField()) {
     Handle<JSObject> prototype(JSObject::cast(map->prototype()));
     Handle<JSObject> holder(lookup.holder());
     Handle<Map> holder_map(holder->map());
     AddCheckMapsWithTransitions(object, map);
-    HInstruction* holder_value =
-        AddInstruction(new(zone()) HCheckPrototypeMaps(prototype, holder));
+    HInstruction* holder_value = AddInstruction(
+        new(zone()) HCheckPrototypeMaps(prototype, holder, zone()));
     return BuildLoadNamedField(holder_value, holder_map, &lookup);
+  }
+
+  // Handle a load of a constant function somewhere in the prototype chain.
+  if (lookup.IsConstantFunction()) {
+    Handle<JSObject> prototype(JSObject::cast(map->prototype()));
+    Handle<JSObject> holder(lookup.holder());
+    Handle<Map> holder_map(holder->map());
+    AddCheckMapsWithTransitions(object, map);
+    AddInstruction(new(zone()) HCheckPrototypeMaps(prototype, holder, zone()));
+    Handle<JSFunction> function(lookup.GetConstantFunctionFromMap(*holder_map));
+    return new(zone()) HConstant(function, Representation::Tagged());
   }
 
   // No luck, do a generic load.
@@ -6836,8 +6848,9 @@ void HOptimizedGraphBuilder::VisitProperty(Property* expr) {
 void HOptimizedGraphBuilder::AddCheckPrototypeMaps(Handle<JSObject> holder,
                                                    Handle<Map> receiver_map) {
   if (!holder.is_null()) {
-    AddInstruction(new(zone()) HCheckPrototypeMaps(
-        Handle<JSObject>(JSObject::cast(receiver_map->prototype())), holder));
+    Handle<JSObject> prototype(JSObject::cast(receiver_map->prototype()));
+    AddInstruction(
+        new(zone()) HCheckPrototypeMaps(prototype, holder, zone()));
   }
 }
 
@@ -7469,7 +7482,8 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinMethodCall(
         ASSERT(!expr->holder().is_null());
         AddInstruction(new(zone()) HCheckPrototypeMaps(
             oracle()->GetPrototypeForPrimitiveCheck(STRING_CHECK),
-            expr->holder()));
+            expr->holder(),
+            zone()));
         HStringCharCodeAt* char_code =
             BuildStringCharCodeAt(context, string, index);
         if (id == kStringCharCodeAt) {
@@ -8450,6 +8464,7 @@ static bool ShiftAmountsAllowReplaceByRotate(HValue* sa,
                                              HValue* const32_minus_sa) {
   if (!const32_minus_sa->IsSub()) return false;
   HSub* sub = HSub::cast(const32_minus_sa);
+  if (sa != sub->right()) return false;
   HValue* const32 = sub->left();
   if (!const32->IsConstant() ||
       HConstant::cast(const32)->Integer32Value() != 32) {
@@ -8478,6 +8493,7 @@ bool HOptimizedGraphBuilder::MatchRotateRight(HValue* left,
   } else {
     return false;
   }
+  if (shl->left() != shr->left()) return false;
 
   if (!ShiftAmountsAllowReplaceByRotate(shl->right(), shr->right()) &&
       !ShiftAmountsAllowReplaceByRotate(shr->right(), shl->right())) {

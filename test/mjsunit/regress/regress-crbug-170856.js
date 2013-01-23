@@ -1,4 +1,4 @@
-// Copyright 2012 the V8 project authors. All rights reserved.
+// Copyright 2013 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,14 +25,9 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --noenable-slow-asserts
-
-var a = [];
-
-for (var i = 0; i < 2; i++) {
-  for (var j = 0; j < 30000; j++) {
-    a.push(j);
-  }
+r = new RegExp("a");
+for (var i = 0; i < 100; i++) {
+  r["abc" + i] = i;
 }
-
-a.sort(function(a, b) { return a - b; } );
+"zzzz".replace(r, "");
+assertEquals(0, r.lastIndex);

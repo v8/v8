@@ -1,4 +1,4 @@
-// Copyright 2012 the V8 project authors. All rights reserved.
+// Copyright 2013 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,14 +25,16 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --noenable-slow-asserts
+// Flags: --allow-natives-syntax
 
-var a = [];
-
-for (var i = 0; i < 2; i++) {
-  for (var j = 0; j < 30000; j++) {
-    a.push(j);
-  }
+function foo(word, nBits) {
+  return (word[1] >>> nBits) | (word[0] << (32 - nBits));
 }
 
-a.sort(function(a, b) { return a - b; } );
+word = [0x1001, 0];
+
+var expected = foo(word, 1);
+foo(word, 1);
+%OptimizeFunctionOnNextCall(foo);
+var optimized = foo(word, 1);
+assertEquals(expected, optimized)

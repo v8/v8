@@ -1,4 +1,4 @@
-// Copyright 2012 the V8 project authors. All rights reserved.
+// Copyright 2013 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,14 +25,20 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --noenable-slow-asserts
+// Flags: --allow-natives-syntax
+// Flags: --parallel-recompilation --manual-parallel-recompilation
 
-var a = [];
+function f(foo) { return foo.bar(); }
 
-for (var i = 0; i < 2; i++) {
-  for (var j = 0; j < 30000; j++) {
-    a.push(j);
-  }
-}
+var o = {};
+o.__proto__ = { __proto__: { bar: function() { return 1; } } };
 
-a.sort(function(a, b) { return a - b; } );
+assertEquals(1, f(o));
+assertEquals(1, f(o));
+
+%ForceParallelRecompile(f);
+// Change the prototype chain during optimization.
+o.__proto__.__proto__ = { bar: function() { return 2; } };
+%InstallRecompiledCode(f);
+
+assertEquals(2, f(o));

@@ -57,3 +57,22 @@ for (var i = 0; i < 0xff; i++) {
 // Should have hit the branch for the following char codes:
 // [A-Z], [192-222] but not 215
 assertEquals((90-65+1)+(222-192-1+1), total_lo);
+
+// Latin-1 whitespace character
+assertEquals( 1, +(String.fromCharCode(0xA0) + '1') );
+
+// Latin-1 \W characters
+assertEquals(["+\u00a3", "=="], "+\u00a3==".match(/\W\W/g));
+
+// Latin-1 character that uppercases out of Latin-1.
+assertTrue(/\u0178/i.test('\u00ff'));
+
+// Unicode equivalence
+assertTrue(/\u039c/i.test('\u00b5'));
+assertTrue(/\u039c/i.test('\u03bc'));
+assertTrue(/\u00b5/i.test('\u03bc'));
+// Unicode equivalence ranges
+assertTrue(/[\u039b-\u039d]/i.test('\u00b5'));
+assertFalse(/[^\u039b-\u039d]/i.test('\u00b5'));
+assertFalse(/[\u039b-\u039d]/.test('\u00b5'));
+assertTrue(/[^\u039b-\u039d]/.test('\u00b5'));

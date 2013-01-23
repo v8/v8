@@ -305,6 +305,15 @@ bool TypeFeedbackOracle::LoadIsBuiltin(Property* expr, Builtins::Name id) {
 }
 
 
+bool TypeFeedbackOracle::LoadIsStub(Property* expr, ICStub* stub) {
+  Handle<Object> object = GetInfo(expr->PropertyFeedbackId());
+  if (!object->IsCode()) return false;
+  Handle<Code> code = Handle<Code>::cast(object);
+  if (!code->is_load_stub()) return false;
+  return stub->Describes(*code);
+}
+
+
 static TypeInfo TypeFromCompareType(CompareIC::State state) {
   switch (state) {
     case CompareIC::UNINITIALIZED:

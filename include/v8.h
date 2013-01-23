@@ -614,7 +614,7 @@ class V8EXPORT ScriptData {  // NOLINT
 /**
  * The origin, within a file, of a script.
  */
-class V8EXPORT ScriptOrigin {
+class ScriptOrigin {
  public:
   V8_INLINE(ScriptOrigin(
       Handle<Value> resource_name,
