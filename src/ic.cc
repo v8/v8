@@ -830,9 +830,9 @@ MaybeObject* KeyedCallIC::LoadFunction(State state,
 }
 
 
-MaybeObject* IC::Load(State state,
-                      Handle<Object> object,
-                      Handle<String> name) {
+MaybeObject* LoadIC::Load(State state,
+                          Handle<Object> object,
+                          Handle<String> name) {
   // If the object is undefined or null it's illegal to try to get any
   // of its properties; throw a TypeError in that case.
   if (object->IsUndefined() || object->IsNull()) {
@@ -1086,42 +1086,6 @@ void LoadIC::UpdateLoadCaches(LookupResult* lookup,
 }
 
 
-Handle<Code> KeyedLoadIC::GetElementStubWithoutMapCheck(
-    bool is_js_array,
-    ElementsKind elements_kind,
-    KeyedAccessGrowMode grow_mode) {
-  ASSERT(grow_mode == DO_NOT_ALLOW_JSARRAY_GROWTH);
-  if (IsFastElementsKind(elements_kind) ||
-      IsExternalArrayElementsKind(elements_kind)) {
-    return KeyedLoadFastElementStub(is_js_array, elements_kind).GetCode();
-  } else {
-    ASSERT(elements_kind == DICTIONARY_ELEMENTS);
-    return KeyedLoadDictionaryElementStub().GetCode();
-  }
-}
-
-
-Handle<Code> KeyedLoadIC::ComputePolymorphicStub(
-    MapHandleList* receiver_maps,
-    StrictModeFlag strict_mode,
-    KeyedAccessGrowMode growth_mode) {
-  CodeHandleList handler_ics(receiver_maps->length());
-  for (int i = 0; i < receiver_maps->length(); ++i) {
-    Handle<Map> receiver_map = receiver_maps->at(i);
-    Handle<Code> cached_stub = ComputeMonomorphicStubWithoutMapCheck(
-        receiver_map, strict_mode, growth_mode);
-    handler_ics.Add(cached_stub);
-  }
-  KeyedLoadStubCompiler compiler(isolate());
-  Handle<Code> code = compiler.CompileLoadPolymorphic(
-      receiver_maps, &handler_ics);
-  isolate()->counters()->keyed_load_polymorphic_stubs()->Increment();
-  PROFILE(isolate(),
-          CodeCreateEvent(Logger::KEYED_LOAD_POLYMORPHIC_IC_TAG, *code, 0));
-  return code;
-}
-
-
 static Handle<Object> TryConvertKey(Handle<Object> key, Isolate* isolate) {
   // This helper implements a few common fast cases for converting
   // non-smi keys of keyed loads/stores to a smi or a string.
@@ -1142,6 +1106,115 @@ static Handle<Object> TryConvertKey(Handle<Object> key, Isolate* isolate) {
 }
 
 
+static bool AddOneReceiverMapIfMissing(MapHandleList* receiver_maps,
+                                       Handle<Map> new_receiver_map) {
+  ASSERT(!new_receiver_map.is_null());
+  for (int current = 0; current < receiver_maps->length(); ++current) {
+    if (!receiver_maps->at(current).is_null() &&
+        receiver_maps->at(current).is_identical_to(new_receiver_map)) {
+      return false;
+    }
+  }
+  receiver_maps->Add(new_receiver_map);
+  return true;
+}
+
+
+static void GetReceiverMapsForStub(Handle<Code> stub,
+                                   MapHandleList* result) {
+  ASSERT(stub->is_inline_cache_stub());
+  if (stub->is_keyed_load_stub() || stub->is_keyed_store_stub()) {
+    switch (stub->ic_state()) {
+      case MONOMORPHIC:
+        result->Add(Handle<Map>(stub->FindFirstMap()));
+        break;
+      case POLYMORPHIC: {
+        AssertNoAllocation no_allocation;
+        int mask = RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT);
+        for (RelocIterator it(*stub, mask); !it.done(); it.next()) {
+          RelocInfo* info = it.rinfo();
+          Handle<Object> object(info->target_object());
+          ASSERT(object->IsMap());
+          AddOneReceiverMapIfMissing(result, Handle<Map>::cast(object));
+        }
+        break;
+      }
+      case MEGAMORPHIC:
+      case GENERIC:
+        break;
+      case UNINITIALIZED:
+      case PREMONOMORPHIC:
+      case MONOMORPHIC_PROTOTYPE_FAILURE:
+      case DEBUG_STUB:
+        UNREACHABLE();
+        break;
+    }
+  }
+}
+
+
+Handle<Code> KeyedLoadIC::LoadElementStub(Handle<JSObject> receiver) {
+  State ic_state = target()->ic_state();
+
+  // Don't handle megamorphic property accesses for INTERCEPTORS or CALLBACKS
+  // via megamorphic stubs, since they don't have a map in their relocation info
+  // and so the stubs can't be harvested for the object needed for a map check.
+  if (target()->type() != Code::NORMAL) {
+    TRACE_GENERIC_IC("KeyedIC", "non-NORMAL target type");
+    return generic_stub();
+  }
+
+  Handle<Map> receiver_map(receiver->map());
+  MapHandleList target_receiver_maps;
+  if (ic_state == UNINITIALIZED || ic_state == PREMONOMORPHIC) {
+    // Optimistically assume that ICs that haven't reached the MONOMORPHIC state
+    // yet will do so and stay there.
+    return isolate()->stub_cache()->ComputeKeyedLoadElement(receiver_map);
+  }
+
+  if (target() == *string_stub()) {
+    target_receiver_maps.Add(isolate()->factory()->string_map());
+  } else {
+    GetReceiverMapsForStub(Handle<Code>(target()), &target_receiver_maps);
+  }
+
+  // The first time a receiver is seen that is a transitioned version of the
+  // previous monomorphic receiver type, assume the new ElementsKind is the
+  // monomorphic type. This benefits global arrays that only transition
+  // once, and all call sites accessing them are faster if they remain
+  // monomorphic. If this optimistic assumption is not true, the IC will
+  // miss again and it will become polymorphic and support both the
+  // untransitioned and transitioned maps.
+  if (ic_state == MONOMORPHIC &&
+      IsMoreGeneralElementsKindTransition(
+          target_receiver_maps.at(0)->elements_kind(),
+          receiver->GetElementsKind())) {
+    return isolate()->stub_cache()->ComputeKeyedLoadElement(receiver_map);
+  }
+
+  ASSERT(target() != *generic_stub());
+
+  // Determine the list of receiver maps that this call site has seen,
+  // adding the map that was just encountered.
+  if (!AddOneReceiverMapIfMissing(&target_receiver_maps, receiver_map)) {
+    // If the miss wasn't due to an unseen map, a polymorphic stub
+    // won't help, use the generic stub.
+    TRACE_GENERIC_IC("KeyedIC", "same map added twice");
+    return generic_stub();
+  }
+
+  // If the maximum number of receiver maps has been exceeded, use the generic
+  // version of the IC.
+  if (target_receiver_maps.length() > kMaxKeyedPolymorphism) {
+    TRACE_GENERIC_IC("KeyedIC", "max polymorph exceeded");
+    return generic_stub();
+  }
+
+  return isolate()->stub_cache()->ComputeLoadElementPolymorphic(
+      &target_receiver_maps);
+}
+
+
 MaybeObject* KeyedLoadIC::Load(State state,
                                Handle<Object> object,
                                Handle<Object> key,
@@ -1151,7 +1224,7 @@ MaybeObject* KeyedLoadIC::Load(State state,
   key = TryConvertKey(key, isolate());
 
   if (key->IsSymbol()) {
-    return IC::Load(state, object, Handle<String>::cast(key));
+    return LoadIC::Load(state, object, Handle<String>::cast(key));
   }
 
   // Do not use ICs for objects that require access checks (including
@@ -1173,7 +1246,7 @@ MaybeObject* KeyedLoadIC::Load(State state,
         } else if (receiver->HasIndexedInterceptor()) {
           stub = indexed_interceptor_stub();
         } else if (key->IsSmi() && (target() != *non_strict_arguments_stub())) {
-          stub = ComputeStub(receiver, KeyedIC::LOAD, kNonStrictMode, stub);
+          stub = LoadElementStub(receiver);
         }
       }
     } else {
@@ -1311,12 +1384,12 @@ static bool LookupForWrite(Handle<JSObject> receiver,
 }
 
 
-MaybeObject* IC::Store(State state,
-                       StrictModeFlag strict_mode,
-                       Handle<Object> object,
-                       Handle<String> name,
-                       Handle<Object> value,
-                       JSReceiver::StoreFromKeyed store_mode) {
+MaybeObject* StoreIC::Store(State state,
+                            StrictModeFlag strict_mode,
+                            Handle<Object> object,
+                            Handle<String> name,
+                            Handle<Object> value,
+                            JSReceiver::StoreFromKeyed store_mode) {
   // Handle proxies.
   if (object->IsJSProxy()) {
     return JSProxy::cast(*object)->
@@ -1537,59 +1610,9 @@ void StoreIC::UpdateStoreCaches(LookupResult* lookup,
 }
 
 
-static bool AddOneReceiverMapIfMissing(MapHandleList* receiver_maps,
-                                       Handle<Map> new_receiver_map) {
-  ASSERT(!new_receiver_map.is_null());
-  for (int current = 0; current < receiver_maps->length(); ++current) {
-    if (!receiver_maps->at(current).is_null() &&
-        receiver_maps->at(current).is_identical_to(new_receiver_map)) {
-      return false;
-    }
-  }
-  receiver_maps->Add(new_receiver_map);
-  return true;
-}
-
-
-void KeyedIC::GetReceiverMapsForStub(Handle<Code> stub,
-                                     MapHandleList* result) {
-  ASSERT(stub->is_inline_cache_stub());
-  if (!string_stub().is_null() && stub.is_identical_to(string_stub())) {
-    return result->Add(isolate()->factory()->string_map());
-  } else if (stub->is_keyed_load_stub() || stub->is_keyed_store_stub()) {
-    switch (stub->ic_state()) {
-      case MONOMORPHIC:
-        result->Add(Handle<Map>(stub->FindFirstMap()));
-        break;
-      case POLYMORPHIC: {
-        AssertNoAllocation no_allocation;
-        int mask = RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT);
-        for (RelocIterator it(*stub, mask); !it.done(); it.next()) {
-          RelocInfo* info = it.rinfo();
-          Handle<Object> object(info->target_object());
-          ASSERT(object->IsMap());
-          AddOneReceiverMapIfMissing(result, Handle<Map>::cast(object));
-        }
-        break;
-      }
-      case MEGAMORPHIC:
-      case GENERIC:
-        break;
-      case UNINITIALIZED:
-      case PREMONOMORPHIC:
-      case MONOMORPHIC_PROTOTYPE_FAILURE:
-      case DEBUG_STUB:
-        UNREACHABLE();
-        break;
-    }
-  }
-}
-
-
-Handle<Code> KeyedIC::ComputeStub(Handle<JSObject> receiver,
-                                  StubKind stub_kind,
-                                  StrictModeFlag strict_mode,
-                                  Handle<Code> generic_stub) {
+Handle<Code> KeyedStoreIC::StoreElementStub(Handle<JSObject> receiver,
+                                            StubKind stub_kind,
+                                            StrictModeFlag strict_mode) {
   State ic_state = target()->ic_state();
   KeyedAccessGrowMode grow_mode = IsGrowStubKind(stub_kind)
       ? ALLOW_JSARRAY_GROWTH
@@ -1600,65 +1623,61 @@ Handle<Code> KeyedIC::ComputeStub(Handle<JSObject> receiver,
   // and so the stubs can't be harvested for the object needed for a map check.
   if (target()->type() != Code::NORMAL) {
     TRACE_GENERIC_IC("KeyedIC", "non-NORMAL target type");
-    return generic_stub;
+    return strict_mode == kStrictMode ? generic_stub_strict() : generic_stub();
   }
 
-  bool monomorphic = false;
-  bool is_transition_stub = IsTransitionStubKind(stub_kind);
   Handle<Map> receiver_map(receiver->map());
-  Handle<Map> monomorphic_map = receiver_map;
   MapHandleList target_receiver_maps;
   if (ic_state == UNINITIALIZED || ic_state == PREMONOMORPHIC) {
     // Optimistically assume that ICs that haven't reached the MONOMORPHIC state
     // yet will do so and stay there.
-    monomorphic = true;
-  } else {
-    GetReceiverMapsForStub(Handle<Code>(target()), &target_receiver_maps);
-    if (ic_state == MONOMORPHIC && (is_transition_stub || stub_kind == LOAD)) {
-      // The first time a receiver is seen that is a transitioned version of the
-      // previous monomorphic receiver type, assume the new ElementsKind is the
-      // monomorphic type. This benefits global arrays that only transition
-      // once, and all call sites accessing them are faster if they remain
-      // monomorphic. If this optimistic assumption is not true, the IC will
-      // miss again and it will become polymorphic and support both the
-      // untransitioned and transitioned maps.
-      monomorphic = IsMoreGeneralElementsKindTransition(
+    stub_kind = GetNoTransitionStubKind(stub_kind);
+    return isolate()->stub_cache()->ComputeKeyedStoreElement(
+        receiver_map, stub_kind, strict_mode, grow_mode);
+  }
+
+  GetReceiverMapsForStub(Handle<Code>(target()), &target_receiver_maps);
+  // The first time a receiver is seen that is a transitioned version of the
+  // previous monomorphic receiver type, assume the new ElementsKind is the
+  // monomorphic type. This benefits global arrays that only transition
+  // once, and all call sites accessing them are faster if they remain
+  // monomorphic. If this optimistic assumption is not true, the IC will
+  // miss again and it will become polymorphic and support both the
+  // untransitioned and transitioned maps.
+  if (ic_state == MONOMORPHIC &&
+      IsTransitionStubKind(stub_kind) &&
+      IsMoreGeneralElementsKindTransition(
           target_receiver_maps.at(0)->elements_kind(),
-          receiver->GetElementsKind());
-    }
+          receiver->GetElementsKind())) {
+    Handle<Map> monomorphic_map = ComputeTransitionedMap(receiver, stub_kind);
+    ASSERT(*monomorphic_map != *receiver_map);
+    stub_kind = GetNoTransitionStubKind(stub_kind);
+    return isolate()->stub_cache()->ComputeKeyedStoreElement(
+        monomorphic_map, stub_kind, strict_mode, grow_mode);
   }
 
-  if (monomorphic) {
-    if (is_transition_stub) {
-      monomorphic_map = ComputeTransitionedMap(receiver, stub_kind);
-      ASSERT(*monomorphic_map != *receiver_map);
-      stub_kind = GetNoTransitionStubKind(stub_kind);
-    }
-    return ComputeMonomorphicStub(
-        monomorphic_map, stub_kind, strict_mode, generic_stub);
-  }
-  ASSERT(target() != *generic_stub);
+  ASSERT(target() != *generic_stub() && target() != *generic_stub_strict());
 
-  // Determine the list of receiver maps that this call site has seen,
-  // adding the map that was just encountered.
   bool map_added =
       AddOneReceiverMapIfMissing(&target_receiver_maps, receiver_map);
+
   if (IsTransitionStubKind(stub_kind)) {
     Handle<Map> new_map = ComputeTransitionedMap(receiver, stub_kind);
     map_added |= AddOneReceiverMapIfMissing(&target_receiver_maps, new_map);
   }
+
   if (!map_added) {
     // If the miss wasn't due to an unseen map, a polymorphic stub
     // won't help, use the generic stub.
     TRACE_GENERIC_IC("KeyedIC", "same map added twice");
-    return generic_stub;
+    return strict_mode == kStrictMode ? generic_stub_strict() : generic_stub();
   }
 
   // If the maximum number of receiver maps has been exceeded, use the generic
   // version of the IC.
   if (target_receiver_maps.length() > kMaxKeyedPolymorphism) {
     TRACE_GENERIC_IC("KeyedIC", "max polymorph exceeded");
-    return generic_stub;
+    return strict_mode == kStrictMode ? generic_stub_strict() : generic_stub();
   }
 
   if ((Code::GetKeyedAccessGrowMode(target()->extra_ic_state()) ==
@@ -1666,81 +1685,34 @@ Handle<Code> KeyedIC::ComputeStub(Handle<JSObject> receiver,
     grow_mode = ALLOW_JSARRAY_GROWTH;
   }
 
-  Handle<PolymorphicCodeCache> cache =
-      isolate()->factory()->polymorphic_code_cache();
-  Code::ExtraICState extra_state = Code::ComputeExtraICState(grow_mode,
-                                                             strict_mode);
-  Code::Flags flags = Code::ComputeFlags(kind(), POLYMORPHIC, extra_state);
-  Handle<Object> probe = cache->Lookup(&target_receiver_maps, flags);
-  if (probe->IsCode()) return Handle<Code>::cast(probe);
-
-  Handle<Code> stub =
-      ComputePolymorphicStub(&target_receiver_maps, strict_mode, grow_mode);
-  PolymorphicCodeCache::Update(cache, &target_receiver_maps, flags, stub);
-  return stub;
+  return isolate()->stub_cache()->ComputeStoreElementPolymorphic(
+      &target_receiver_maps, grow_mode, strict_mode);
 }
 
 
-Handle<Code> KeyedIC::ComputeMonomorphicStubWithoutMapCheck(
-    Handle<Map> receiver_map,
-    StrictModeFlag strict_mode,
-    KeyedAccessGrowMode grow_mode) {
-  if ((receiver_map->instance_type() & kNotStringTag) == 0) {
-    ASSERT(!string_stub().is_null());
-    return string_stub();
-  } else {
-    ASSERT(receiver_map->has_dictionary_elements() ||
-           receiver_map->has_fast_smi_or_object_elements() ||
-           receiver_map->has_fast_double_elements() ||
-           receiver_map->has_external_array_elements());
-    bool is_js_array = receiver_map->instance_type() == JS_ARRAY_TYPE;
-    return GetElementStubWithoutMapCheck(is_js_array,
-                                         receiver_map->elements_kind(),
-                                         grow_mode);
-  }
-}
-
-
-Handle<Code> KeyedIC::ComputeMonomorphicStub(Handle<Map> receiver_map,
-                                             StubKind stub_kind,
-                                             StrictModeFlag strict_mode,
-                                             Handle<Code> generic_stub) {
-  ElementsKind elements_kind = receiver_map->elements_kind();
-  if (IsFastElementsKind(elements_kind) ||
-      IsExternalArrayElementsKind(elements_kind) ||
-      IsDictionaryElementsKind(elements_kind)) {
-    return isolate()->stub_cache()->ComputeKeyedLoadOrStoreElement(
-        receiver_map, stub_kind, strict_mode);
-  } else {
-    return generic_stub;
-  }
-}
-
-
-Handle<Map> KeyedIC::ComputeTransitionedMap(Handle<JSObject> receiver,
-                                            StubKind stub_kind) {
+Handle<Map> KeyedStoreIC::ComputeTransitionedMap(Handle<JSObject> receiver,
+                                                 StubKind stub_kind) {
   switch (stub_kind) {
-    case KeyedIC::STORE_TRANSITION_SMI_TO_OBJECT:
-    case KeyedIC::STORE_TRANSITION_DOUBLE_TO_OBJECT:
-    case KeyedIC::STORE_AND_GROW_TRANSITION_SMI_TO_OBJECT:
-    case KeyedIC::STORE_AND_GROW_TRANSITION_DOUBLE_TO_OBJECT:
+    case STORE_TRANSITION_SMI_TO_OBJECT:
+    case STORE_TRANSITION_DOUBLE_TO_OBJECT:
+    case STORE_AND_GROW_TRANSITION_SMI_TO_OBJECT:
+    case STORE_AND_GROW_TRANSITION_DOUBLE_TO_OBJECT:
       return JSObject::GetElementsTransitionMap(receiver, FAST_ELEMENTS);
-    case KeyedIC::STORE_TRANSITION_SMI_TO_DOUBLE:
-    case KeyedIC::STORE_AND_GROW_TRANSITION_SMI_TO_DOUBLE:
+    case STORE_TRANSITION_SMI_TO_DOUBLE:
+    case STORE_AND_GROW_TRANSITION_SMI_TO_DOUBLE:
       return JSObject::GetElementsTransitionMap(receiver, FAST_DOUBLE_ELEMENTS);
-    case KeyedIC::STORE_TRANSITION_HOLEY_SMI_TO_OBJECT:
-    case KeyedIC::STORE_TRANSITION_HOLEY_DOUBLE_TO_OBJECT:
-    case KeyedIC::STORE_AND_GROW_TRANSITION_HOLEY_SMI_TO_OBJECT:
-    case KeyedIC::STORE_AND_GROW_TRANSITION_HOLEY_DOUBLE_TO_OBJECT:
+    case STORE_TRANSITION_HOLEY_SMI_TO_OBJECT:
+    case STORE_TRANSITION_HOLEY_DOUBLE_TO_OBJECT:
+    case STORE_AND_GROW_TRANSITION_HOLEY_SMI_TO_OBJECT:
+    case STORE_AND_GROW_TRANSITION_HOLEY_DOUBLE_TO_OBJECT:
       return JSObject::GetElementsTransitionMap(receiver,
                                                 FAST_HOLEY_ELEMENTS);
-    case KeyedIC::STORE_TRANSITION_HOLEY_SMI_TO_DOUBLE:
-    case KeyedIC::STORE_AND_GROW_TRANSITION_HOLEY_SMI_TO_DOUBLE:
+    case STORE_TRANSITION_HOLEY_SMI_TO_DOUBLE:
+    case STORE_AND_GROW_TRANSITION_HOLEY_SMI_TO_DOUBLE:
       return JSObject::GetElementsTransitionMap(receiver,
                                                 FAST_HOLEY_DOUBLE_ELEMENTS);
-    case KeyedIC::LOAD:
-    case KeyedIC::STORE_NO_TRANSITION:
-    case KeyedIC::STORE_AND_GROW_NO_TRANSITION:
+    case STORE_NO_TRANSITION:
+    case STORE_AND_GROW_NO_TRANSITION:
       UNREACHABLE();
       break;
   }
@@ -1748,60 +1720,9 @@ Handle<Map> KeyedIC::ComputeTransitionedMap(Handle<JSObject> receiver,
 }
 
 
-Handle<Code> KeyedStoreIC::GetElementStubWithoutMapCheck(
-    bool is_js_array,
-    ElementsKind elements_kind,
-    KeyedAccessGrowMode grow_mode) {
-  return KeyedStoreElementStub(is_js_array, elements_kind, grow_mode).GetCode();
-}
-
-
-Handle<Code> KeyedStoreIC::ComputePolymorphicStub(
-    MapHandleList* receiver_maps,
-    StrictModeFlag strict_mode,
-    KeyedAccessGrowMode grow_mode) {
-  // Collect MONOMORPHIC stubs for all target_receiver_maps.
-  CodeHandleList handler_ics(receiver_maps->length());
-  MapHandleList transitioned_maps(receiver_maps->length());
-  for (int i = 0; i < receiver_maps->length(); ++i) {
-    Handle<Map> receiver_map(receiver_maps->at(i));
-    Handle<Code> cached_stub;
-    Handle<Map> transitioned_map =
-        receiver_map->FindTransitionedMap(receiver_maps);
-
-    // TODO(mvstanton): The code below is doing pessimistic elements
-    // transitions. I would like to stop doing that and rely on Allocation Site
-    // Tracking to do a better job of ensuring the data types are what they need
-    // to be. Not all the elements are in place yet, pessimistic elements
-    // transitions are still important for performance.
-    if (!transitioned_map.is_null()) {
-      cached_stub = ElementsTransitionAndStoreStub(
-          receiver_map->elements_kind(),  // original elements_kind
-          transitioned_map->elements_kind(),
-          receiver_map->instance_type() == JS_ARRAY_TYPE,  // is_js_array
-          strict_mode, grow_mode).GetCode();
-    } else {
-      cached_stub = ComputeMonomorphicStubWithoutMapCheck(receiver_map,
-                                                          strict_mode,
-                                                          grow_mode);
-    }
-    ASSERT(!cached_stub.is_null());
-    handler_ics.Add(cached_stub);
-    transitioned_maps.Add(transitioned_map);
-  }
-  KeyedStoreStubCompiler compiler(isolate(), strict_mode, grow_mode);
-  Handle<Code> code = compiler.CompileStorePolymorphic(
-      receiver_maps, &handler_ics, &transitioned_maps);
-  isolate()->counters()->keyed_store_polymorphic_stubs()->Increment();
-  PROFILE(isolate(),
-          CodeCreateEvent(Logger::KEYED_STORE_POLYMORPHIC_IC_TAG, *code, 0));
-  return code;
-}
-
-
-KeyedIC::StubKind KeyedStoreIC::GetStubKind(Handle<JSObject> receiver,
-                                            Handle<Object> key,
-                                            Handle<Object> value) {
+KeyedStoreIC::StubKind KeyedStoreIC::GetStubKind(Handle<JSObject> receiver,
+                                                 Handle<Object> key,
+                                                 Handle<Object> value) {
   ASSERT(key->IsSmi());
   int index = Smi::cast(*key)->value();
   bool allow_growth = receiver->IsJSArray() &&
@@ -1877,12 +1798,12 @@ MaybeObject* KeyedStoreIC::Store(State state,
 
   if (key->IsSymbol()) {
     Handle<String> name = Handle<String>::cast(key);
-    return IC::Store(state,
-                     strict_mode,
-                     object,
-                     name,
-                     value,
-                     JSReceiver::MAY_BE_STORE_FROM_KEYED);
+    return StoreIC::Store(state,
+                          strict_mode,
+                          object,
+                          name,
+                          value,
+                          JSReceiver::MAY_BE_STORE_FROM_KEYED);
   }
 
   // Do not use ICs for objects that require access checks (including
@@ -1904,7 +1825,7 @@ MaybeObject* KeyedStoreIC::Store(State state,
       } else if (miss_mode != MISS_FORCE_GENERIC) {
         if (key->IsSmi() && (target() != *non_strict_arguments_stub())) {
           StubKind stub_kind = GetStubKind(receiver, key, value);
-          stub = ComputeStub(receiver, stub_kind, strict_mode, stub);
+          stub = StoreElementStub(receiver, stub_kind, strict_mode);
         }
       } else {
         TRACE_GENERIC_IC("KeyedStoreIC", "force generic");
