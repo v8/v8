@@ -3203,26 +3203,6 @@ Handle<Code> KeyedLoadStubCompiler::CompileLoadInterceptor(
 }
 
 
-Handle<Code> KeyedLoadStubCompiler::CompileLoadArrayLength(
-    Handle<String> name) {
-  // ----------- S t a t e -------------
-  //  -- ra    : return address
-  //  -- a0    : key
-  //  -- a1    : receiver
-  // -----------------------------------
-  Label miss;
-
-  // Check the key is the cached one.
-  __ Branch(&miss, ne, a0, Operand(name));
-
-  GenerateLoadArrayLength(masm(), a1, a2, &miss);
-  __ bind(&miss);
-  GenerateLoadMiss(masm(), Code::KEYED_LOAD_IC);
-
-  return GetCode(Code::CALLBACKS, name);
-}
-
-
 Handle<Code> KeyedLoadStubCompiler::CompileLoadFunctionPrototype(
     Handle<String> name) {
   // ----------- S t a t e -------------
