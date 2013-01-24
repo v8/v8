@@ -1311,7 +1311,6 @@ class Isolate {
   friend class StackGuard;
   friend class ThreadId;
   friend class TestMemoryAllocatorScope;
-  friend class TestCodeRangeScope;
   friend class v8::Isolate;
   friend class v8::Locker;
   friend class v8::Unlocker;

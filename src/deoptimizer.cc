@@ -44,18 +44,8 @@ DeoptimizerData::DeoptimizerData() {
   eager_deoptimization_entry_code_entries_ = -1;
   lazy_deoptimization_entry_code_entries_ = -1;
   size_t deopt_table_size = Deoptimizer::GetMaxDeoptTableSize();
-  MemoryAllocator* allocator = Isolate::Current()->memory_allocator();
-  size_t initial_commit_size = OS::CommitPageSize();
-  eager_deoptimization_entry_code_ =
-      allocator->AllocateChunk(deopt_table_size,
-                               initial_commit_size,
-                               EXECUTABLE,
-                               NULL);
-  lazy_deoptimization_entry_code_ =
-       allocator->AllocateChunk(deopt_table_size,
-                               initial_commit_size,
-                               EXECUTABLE,
-                               NULL);
+  eager_deoptimization_entry_code_ = new VirtualMemory(deopt_table_size);
+  lazy_deoptimization_entry_code_ = new VirtualMemory(deopt_table_size);
   current_ = NULL;
   deoptimizing_code_list_ = NULL;
 #ifdef ENABLE_DEBUGGER_SUPPORT
@@ -65,11 +55,9 @@ DeoptimizerData::DeoptimizerData() {
 
 
 DeoptimizerData::~DeoptimizerData() {
-  Isolate::Current()->memory_allocator()->Free(
-      eager_deoptimization_entry_code_);
+  delete eager_deoptimization_entry_code_;
   eager_deoptimization_entry_code_ = NULL;
-  Isolate::Current()->memory_allocator()->Free(
-      lazy_deoptimization_entry_code_);
+  delete lazy_deoptimization_entry_code_;
   lazy_deoptimization_entry_code_ = NULL;
 
   DeoptimizingCodeListNode* current = deoptimizing_code_list_;
@@ -629,7 +617,7 @@ Address Deoptimizer::GetDeoptimizationEntry(int id,
                                             GetEntryMode mode) {
   ASSERT(id >= 0);
   if (id >= kMaxNumberOfEntries) return NULL;
-  MemoryChunk* base = NULL;
+  VirtualMemory* base = NULL;
   if (mode == ENSURE_ENTRY_CODE) {
     EnsureCodeForDeoptimizationEntry(type, id);
   } else {
@@ -641,27 +629,28 @@ Address Deoptimizer::GetDeoptimizationEntry(int id,
   } else {
     base = data->lazy_deoptimization_entry_code_;
   }
-  return base->area_start() + (id * table_entry_size_);
+  return
+      static_cast<Address>(base->address()) + (id * table_entry_size_);
 }
 
 
 int Deoptimizer::GetDeoptimizationId(Address addr, BailoutType type) {
-  MemoryChunk* base = NULL;
+  VirtualMemory* base = NULL;
   DeoptimizerData* data = Isolate::Current()->deoptimizer_data();
   if (type == EAGER) {
     base = data->eager_deoptimization_entry_code_;
   } else {
     base = data->lazy_deoptimization_entry_code_;
   }
-  Address start = base->area_start();
+  Address base_casted = reinterpret_cast<Address>(base->address());
   if (base == NULL ||
-      addr < start ||
-      addr >= start + (kMaxNumberOfEntries * table_entry_size_)) {
+      addr < base->address() ||
+      addr >= base_casted + (kMaxNumberOfEntries * table_entry_size_)) {
     return kNotDeoptimizationEntry;
   }
   ASSERT_EQ(0,
-            static_cast<int>(addr - start) % table_entry_size_);
-  return static_cast<int>(addr - start) / table_entry_size_;
+            static_cast<int>(addr - base_casted) % table_entry_size_);
+  return static_cast<int>(addr - base_casted) / table_entry_size_;
 }
 
 
@@ -1580,14 +1569,14 @@ void Deoptimizer::EnsureCodeForDeoptimizationEntry(BailoutType type,
   CodeDesc desc;
   masm.GetCode(&desc);
 
-  MemoryChunk* chunk = type == EAGER
+  VirtualMemory* memory = type == EAGER
       ? data->eager_deoptimization_entry_code_
       : data->lazy_deoptimization_entry_code_;
-  ASSERT(static_cast<int>(Deoptimizer::GetMaxDeoptTableSize()) >=
-         desc.instr_size);
-  chunk->CommitArea(desc.instr_size);
-  memcpy(chunk->area_start(), desc.buffer, desc.instr_size);
-  CPU::FlushICache(chunk->area_start(), desc.instr_size);
+  size_t table_size = Deoptimizer::GetMaxDeoptTableSize();
+  ASSERT(static_cast<int>(table_size) >= desc.instr_size);
+  memory->Commit(memory->address(), table_size, true);
+  memcpy(memory->address(), desc.buffer, desc.instr_size);
+  CPU::FlushICache(memory->address(), desc.instr_size);
 
   if (type == EAGER) {
     data->eager_deoptimization_entry_code_entries_ = entry_count;
