@@ -682,6 +682,17 @@ void GlobalHandles::IterateAllRootsWithClassIds(ObjectVisitor* v) {
 }
 
 
+void GlobalHandles::IterateAllRootsInNewSpaceWithClassIds(ObjectVisitor* v) {
+  for (int i = 0; i < new_space_nodes_.length(); ++i) {
+    Node* node = new_space_nodes_[i];
+    if (node->IsRetainer() && node->has_wrapper_class_id()) {
+      v->VisitEmbedderReference(node->location(),
+                                node->wrapper_class_id());
+    }
+  }
+}
+
+
 int GlobalHandles::NumberOfWeakHandles() {
   int count = 0;
   for (NodeIterator it(this); !it.done(); it.Advance()) {

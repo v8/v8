@@ -173,6 +173,10 @@ class GlobalHandles {
   // Iterates over all handles that have embedder-assigned class ID.
   void IterateAllRootsWithClassIds(ObjectVisitor* v);
 
+  // Iterates over all handles in the new space that have embedder-assigned
+  // class ID.
+  void IterateAllRootsInNewSpaceWithClassIds(ObjectVisitor* v);
+
   // Iterates over all weak roots in heap.
   void IterateWeakRoots(ObjectVisitor* v);
 

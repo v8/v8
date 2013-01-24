@@ -16699,6 +16699,32 @@ TEST(WrapperClassId) {
 }
 
 
+TEST(PersistentHandleInNewSpaceVisitor) {
+  v8::HandleScope scope;
+  LocalContext context;
+  v8::Persistent<v8::Object> object1 =
+      v8::Persistent<v8::Object>::New(v8::Object::New());
+  CHECK_EQ(0, object1.WrapperClassId());
+  object1.SetWrapperClassId(42);
+  CHECK_EQ(42, object1.WrapperClassId());
+
+  HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
+
+  v8::Persistent<v8::Object> object2 =
+      v8::Persistent<v8::Object>::New(v8::Object::New());
+  CHECK_EQ(0, object2.WrapperClassId());
+  object2.SetWrapperClassId(42);
+  CHECK_EQ(42, object2.WrapperClassId());
+
+  Visitor42 visitor(object2);
+  v8::V8::VisitHandlesForPartialDependence(v8::Isolate::GetCurrent(), &visitor);
+  CHECK_EQ(1, visitor.counter_);
+
+  object1.Dispose();
+  object2.Dispose();
+}
+
+
 TEST(RegExp) {
   v8::HandleScope scope;
   LocalContext context;

@@ -3489,6 +3489,16 @@ class V8EXPORT V8 {
   static void VisitHandlesWithClassIds(PersistentHandleVisitor* visitor);
 
   /**
+   * Iterates through all the persistent handles in the current isolate's heap
+   * that have class_ids and are candidates to be marked as partially dependent
+   * handles. This will visit handles to young objects created since the last
+   * garbage collection but is free to visit an arbitrary superset of these
+   * objects.
+   */
+  static void VisitHandlesForPartialDependence(
+      Isolate* isolate, PersistentHandleVisitor* visitor);
+
+  /**
    * Optional notification that the embedder is idle.
    * V8 uses the notification to reduce memory footprint.
    * This call can be used repeatedly if the embedder remains idle.
