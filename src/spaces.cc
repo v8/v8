@@ -206,17 +206,18 @@ void CodeRange::GetNextAllocationBlock(size_t requested) {
 }
 
 
-
-Address CodeRange::AllocateRawMemory(const size_t requested,
+Address CodeRange::AllocateRawMemory(const size_t requested_size,
+                                     const size_t commit_size,
                                      size_t* allocated) {
+  ASSERT(commit_size <= requested_size);
   ASSERT(current_allocation_block_index_ < allocation_list_.length());
-  if (requested > allocation_list_[current_allocation_block_index_].size) {
+  if (requested_size > allocation_list_[current_allocation_block_index_].size) {
     // Find an allocation block large enough.  This function call may
     // call V8::FatalProcessOutOfMemory if it cannot find a large enough block.
-    GetNextAllocationBlock(requested);
+    GetNextAllocationBlock(requested_size);
   }
   // Commit the requested memory at the start of the current allocation block.
-  size_t aligned_requested = RoundUp(requested, MemoryChunk::kAlignment);
+  size_t aligned_requested = RoundUp(requested_size, MemoryChunk::kAlignment);
   FreeBlock current = allocation_list_[current_allocation_block_index_];
   if (aligned_requested >= (current.size - Page::kPageSize)) {
     // Don't leave a small free block, useless for a large object or chunk.
@@ -226,9 +227,10 @@ Address CodeRange::AllocateRawMemory(const size_t requested,
   }
   ASSERT(*allocated <= current.size);
   ASSERT(IsAddressAligned(current.start, MemoryChunk::kAlignment));
-  if (!MemoryAllocator::CommitCodePage(code_range_,
-                                       current.start,
-                                       *allocated)) {
+  if (!MemoryAllocator::CommitExecutableMemory(code_range_,
+                                               current.start,
+                                               commit_size,
+                                               *allocated)) {
     *allocated = 0;
     return NULL;
   }
@@ -238,6 +240,16 @@ Address CodeRange::AllocateRawMemory(const size_t requested,
     GetNextAllocationBlock(0);  // This block is used up, get the next one.
   }
   return current.start;
+}
+
+
+bool CodeRange::CommitRawMemory(Address start, size_t length) {
+  return code_range_->Commit(start, length, true);
+}
+
+
+bool CodeRange::UncommitRawMemory(Address start, size_t length) {
+  return code_range_->Uncommit(start, length);
 }
 
 
@@ -345,27 +357,31 @@ Address MemoryAllocator::ReserveAlignedMemory(size_t size,
 
   if (!reservation.IsReserved()) return NULL;
   size_ += reservation.size();
-  Address base = RoundUp(static_cast<Address>(reservation.address()),
-                         alignment);
+  Address base = static_cast<Address>(reservation.address());
   controller->TakeControl(&reservation);
   return base;
 }
 
 
-Address MemoryAllocator::AllocateAlignedMemory(size_t size,
+Address MemoryAllocator::AllocateAlignedMemory(size_t reserve_size,
+                                               size_t commit_size,
                                                size_t alignment,
                                                Executability executable,
                                                VirtualMemory* controller) {
+  ASSERT(commit_size <= reserve_size);
   VirtualMemory reservation;
-  Address base = ReserveAlignedMemory(size, alignment, &reservation);
+  Address base = ReserveAlignedMemory(reserve_size, alignment, &reservation);
   if (base == NULL) return NULL;
 
   if (executable == EXECUTABLE) {
-    if (!CommitCodePage(&reservation, base, size)) {
+    if (!CommitExecutableMemory(&reservation,
+                                base,
+                                commit_size,
+                                reserve_size)) {
       base = NULL;
     }
   } else {
-    if (!reservation.Commit(base, size, false)) {
+    if (!reservation.Commit(base, commit_size, false)) {
       base = NULL;
     }
   }
@@ -469,6 +485,53 @@ MemoryChunk* MemoryChunk::Initialize(Heap* heap,
 }
 
 
+// Commit MemoryChunk area to the requested size.
+bool MemoryChunk::CommitArea(size_t requested) {
+  size_t guard_size = IsFlagSet(IS_EXECUTABLE) ?
+                      MemoryAllocator::CodePageGuardSize() : 0;
+  size_t header_size = area_start() - address() - guard_size;
+  size_t commit_size = RoundUp(header_size + requested, OS::CommitPageSize());
+  size_t committed_size = RoundUp(header_size + (area_end() - area_start()),
+                                  OS::CommitPageSize());
+
+  if (commit_size > committed_size) {
+    // Commit size should be less or equal than the reserved size.
+    ASSERT(commit_size <= size() - 2 * guard_size);
+    // Append the committed area.
+    Address start = address() + committed_size + guard_size;
+    size_t length = commit_size - committed_size;
+    if (reservation_.IsReserved()) {
+      if (!reservation_.Commit(start, length, IsFlagSet(IS_EXECUTABLE))) {
+        return false;
+      }
+    } else {
+      CodeRange* code_range = heap_->isolate()->code_range();
+      ASSERT(code_range->exists() && IsFlagSet(IS_EXECUTABLE));
+      if (!code_range->CommitRawMemory(start, length)) return false;
+    }
+
+    if (Heap::ShouldZapGarbage()) {
+      heap_->isolate()->memory_allocator()->ZapBlock(start, length);
+    }
+  } else if (commit_size < committed_size) {
+    ASSERT(commit_size > 0);
+    // Shrink the committed area.
+    size_t length = committed_size - commit_size;
+    Address start = address() + committed_size + guard_size - length;
+    if (reservation_.IsReserved()) {
+      if (!reservation_.Uncommit(start, length)) return false;
+    } else {
+      CodeRange* code_range = heap_->isolate()->code_range();
+      ASSERT(code_range->exists() && IsFlagSet(IS_EXECUTABLE));
+      if (!code_range->UncommitRawMemory(start, length)) return false;
+    }
+  }
+
+  area_end_ = area_start_ + requested;
+  return true;
+}
+
+
 void MemoryChunk::InsertAfter(MemoryChunk* other) {
   next_chunk_ = other->next_chunk_;
   prev_chunk_ = other;
@@ -489,9 +552,12 @@ void MemoryChunk::Unlink() {
 }
 
 
-MemoryChunk* MemoryAllocator::AllocateChunk(intptr_t body_size,
+MemoryChunk* MemoryAllocator::AllocateChunk(intptr_t reserve_area_size,
+                                            intptr_t commit_area_size,
                                             Executability executable,
                                             Space* owner) {
+  ASSERT(commit_area_size <= reserve_area_size);
+
   size_t chunk_size;
   Heap* heap = isolate_->heap();
   Address base = NULL;
@@ -499,8 +565,38 @@ MemoryChunk* MemoryAllocator::AllocateChunk(intptr_t body_size,
   Address area_start = NULL;
   Address area_end = NULL;
 
+  //
+  // MemoryChunk layout:
+  //
+  //             Executable
+  // +----------------------------+<- base aligned with MemoryChunk::kAlignment
+  // |           Header           |
+  // +----------------------------+<- base + CodePageGuardStartOffset
+  // |           Guard            |
+  // +----------------------------+<- area_start_
+  // |           Area             |
+  // +----------------------------+<- area_end_ (area_start + commit_area_size)
+  // |   Committed but not used   |
+  // +----------------------------+<- aligned at OS page boundary
+  // | Reserved but not committed |
+  // +----------------------------+<- aligned at OS page boundary
+  // |           Guard            |
+  // +----------------------------+<- base + chunk_size
+  //
+  //           Non-executable
+  // +----------------------------+<- base aligned with MemoryChunk::kAlignment
+  // |          Header            |
+  // +----------------------------+<- area_start_ (base + kObjectStartOffset)
+  // |           Area             |
+  // +----------------------------+<- area_end_ (area_start + commit_area_size)
+  // |  Committed but not used    |
+  // +----------------------------+<- aligned at OS page boundary
+  // | Reserved but not committed |
+  // +----------------------------+<- base + chunk_size
+  //
+
   if (executable == EXECUTABLE) {
-    chunk_size = RoundUp(CodePageAreaStartOffset() + body_size,
+    chunk_size = RoundUp(CodePageAreaStartOffset() + reserve_area_size,
                          OS::CommitPageSize()) + CodePageGuardSize();
 
     // Check executable memory limit.
@@ -511,10 +607,15 @@ MemoryChunk* MemoryAllocator::AllocateChunk(intptr_t body_size,
       return NULL;
     }
 
+    // Size of header (not executable) plus area (executable).
+    size_t commit_size = RoundUp(CodePageGuardStartOffset() + commit_area_size,
+                                 OS::CommitPageSize());
     // Allocate executable memory either from code range or from the
     // OS.
     if (isolate_->code_range()->exists()) {
-      base = isolate_->code_range()->AllocateRawMemory(chunk_size, &chunk_size);
+      base = isolate_->code_range()->AllocateRawMemory(chunk_size,
+                                                       commit_size,
+                                                       &chunk_size);
       ASSERT(IsAligned(reinterpret_cast<intptr_t>(base),
                        MemoryChunk::kAlignment));
       if (base == NULL) return NULL;
@@ -523,6 +624,7 @@ MemoryChunk* MemoryAllocator::AllocateChunk(intptr_t body_size,
       size_executable_ += chunk_size;
     } else {
       base = AllocateAlignedMemory(chunk_size,
+                                   commit_size,
                                    MemoryChunk::kAlignment,
                                    executable,
                                    &reservation);
@@ -533,14 +635,18 @@ MemoryChunk* MemoryAllocator::AllocateChunk(intptr_t body_size,
 
     if (Heap::ShouldZapGarbage()) {
       ZapBlock(base, CodePageGuardStartOffset());
-      ZapBlock(base + CodePageAreaStartOffset(), body_size);
+      ZapBlock(base + CodePageAreaStartOffset(), commit_area_size);
     }
 
     area_start = base + CodePageAreaStartOffset();
-    area_end = area_start + body_size;
+    area_end = area_start + commit_area_size;
   } else {
-    chunk_size = MemoryChunk::kObjectStartOffset + body_size;
+    chunk_size = RoundUp(MemoryChunk::kObjectStartOffset + reserve_area_size,
+                         OS::CommitPageSize());
+    size_t commit_size = RoundUp(MemoryChunk::kObjectStartOffset +
+                                 commit_area_size, OS::CommitPageSize());
     base = AllocateAlignedMemory(chunk_size,
+                                 commit_size,
                                  MemoryChunk::kAlignment,
                                  executable,
                                  &reservation);
@@ -548,13 +654,15 @@ MemoryChunk* MemoryAllocator::AllocateChunk(intptr_t body_size,
     if (base == NULL) return NULL;
 
     if (Heap::ShouldZapGarbage()) {
-      ZapBlock(base, chunk_size);
+      ZapBlock(base, Page::kObjectStartOffset + commit_area_size);
     }
 
     area_start = base + Page::kObjectStartOffset;
-    area_end = base + chunk_size;
+    area_end = area_start + commit_area_size;
   }
 
+  // Use chunk_size for statistics and callbacks because we assume that they
+  // treat reserved but not-yet committed memory regions of chunks as allocated.
   isolate_->counters()->memory_allocated()->
       Increment(static_cast<int>(chunk_size));
 
@@ -579,7 +687,7 @@ MemoryChunk* MemoryAllocator::AllocateChunk(intptr_t body_size,
 Page* MemoryAllocator::AllocatePage(intptr_t size,
                                     PagedSpace* owner,
                                     Executability executable) {
-  MemoryChunk* chunk = AllocateChunk(size, executable, owner);
+  MemoryChunk* chunk = AllocateChunk(size, size, executable, owner);
 
   if (chunk == NULL) return NULL;
 
@@ -590,7 +698,10 @@ Page* MemoryAllocator::AllocatePage(intptr_t size,
 LargePage* MemoryAllocator::AllocateLargePage(intptr_t object_size,
                                               Space* owner,
                                               Executability executable) {
-  MemoryChunk* chunk = AllocateChunk(object_size, executable, owner);
+  MemoryChunk* chunk = AllocateChunk(object_size,
+                                     object_size,
+                                     executable,
+                                     owner);
   if (chunk == NULL) return NULL;
   return LargePage::Initialize(isolate_->heap(), chunk);
 }
@@ -732,9 +843,10 @@ int MemoryAllocator::CodePageAreaEndOffset() {
 }
 
 
-bool MemoryAllocator::CommitCodePage(VirtualMemory* vm,
-                                     Address start,
-                                     size_t size) {
+bool MemoryAllocator::CommitExecutableMemory(VirtualMemory* vm,
+                                             Address start,
+                                             size_t commit_size,
+                                             size_t reserved_size) {
   // Commit page header (not executable).
   if (!vm->Commit(start,
                   CodePageGuardStartOffset(),
@@ -748,15 +860,14 @@ bool MemoryAllocator::CommitCodePage(VirtualMemory* vm,
   }
 
   // Commit page body (executable).
-  size_t area_size = size - CodePageAreaStartOffset() - CodePageGuardSize();
   if (!vm->Commit(start + CodePageAreaStartOffset(),
-                  area_size,
+                  commit_size - CodePageGuardStartOffset(),
                   true)) {
     return false;
   }
 
-  // Create guard page after the allocatable area.
-  if (!vm->Guard(start + CodePageAreaStartOffset() + area_size)) {
+  // Create guard page before the end.
+  if (!vm->Guard(start + reserved_size - CodePageGuardSize())) {
     return false;
   }
 

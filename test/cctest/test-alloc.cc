@@ -204,7 +204,9 @@ TEST(CodeRange) {
           (Page::kMaxNonCodeHeapObjectSize << (Pseudorandom() % 3)) +
           Pseudorandom() % 5000 + 1;
       size_t allocated = 0;
-      Address base = code_range->AllocateRawMemory(requested, &allocated);
+      Address base = code_range->AllocateRawMemory(requested,
+                                                   requested,
+                                                   &allocated);
       CHECK(base != NULL);
       blocks.Add(Block(base, static_cast<int>(allocated)));
       current_allocated += static_cast<int>(allocated);
