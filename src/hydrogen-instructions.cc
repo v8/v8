@@ -1173,7 +1173,7 @@ void HCheckMaps::SetSideEffectDominator(GVNFlag side_effect,
   // TODO(mstarzinger): For now we specialize on HStoreNamedField, but once
   // type information is rich enough we should generalize this to any HType
   // for which the map is known.
-  if (dominator->IsStoreNamedField()) {
+  if (HasNoUses() && dominator->IsStoreNamedField()) {
     HStoreNamedField* store = HStoreNamedField::cast(dominator);
     Handle<Map> map = store->transition();
     if (map.is_null() || store->object() != value()) return;
