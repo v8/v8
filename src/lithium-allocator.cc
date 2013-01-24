@@ -1418,7 +1418,7 @@ void LAllocator::PopulatePointerMaps() {
       LifetimePosition safe_point_pos =
           LifetimePosition::FromInstructionIndex(safe_point);
       LiveRange* cur = range;
-      while (cur != NULL && !cur->Covers(safe_point_pos.PrevInstruction())) {
+      while (cur != NULL && !cur->Covers(safe_point_pos)) {
         cur = cur->next();
       }
       if (cur == NULL) continue;
