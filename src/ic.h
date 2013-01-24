@@ -354,10 +354,14 @@ class LoadIC: public IC {
 
   // Update the inline cache and the global stub cache based on the
   // lookup result.
-  virtual void UpdateLoadCaches(LookupResult* lookup,
-                                State state,
-                                Handle<Object> object,
-                                Handle<String> name);
+  void UpdateCaches(LookupResult* lookup,
+                    State state,
+                    Handle<Object> object,
+                    Handle<String> name);
+  virtual Handle<Code> ComputeLoadMonomorphic(LookupResult* lookup,
+                                              Handle<JSObject> receiver,
+                                              Handle<String> name);
+  virtual void UpdateMegamorphicCache(Map* map, String* name, Code* code);
 
  private:
   // Stub accessors.
@@ -425,10 +429,10 @@ class KeyedLoadIC: public LoadIC {
   }
 
   // Update the inline cache.
-  virtual void UpdateLoadCaches(LookupResult* lookup,
-                                State state,
-                                Handle<Object> object,
-                                Handle<String> name);
+  virtual Handle<Code> ComputeLoadMonomorphic(LookupResult* lookup,
+                                              Handle<JSObject> receiver,
+                                              Handle<String> name);
+  virtual void UpdateMegamorphicCache(Map* map, String* name, Code* code) { }
 
  private:
   // Stub accessors.

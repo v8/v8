@@ -941,7 +941,7 @@ MaybeObject* LoadIC::Load(State state,
 
   // Update inline cache and stub cache.
   if (FLAG_use_ic) {
-    UpdateLoadCaches(&lookup, state, object, name);
+    UpdateCaches(&lookup, state, object, name);
   }
 
   PropertyAttributes attr;
@@ -963,89 +963,29 @@ MaybeObject* LoadIC::Load(State state,
 }
 
 
-void LoadIC::UpdateLoadCaches(LookupResult* lookup,
-                              State state,
-                              Handle<Object> object,
-                              Handle<String> name) {
+void LoadIC::UpdateCaches(LookupResult* lookup,
+                          State state,
+                          Handle<Object> object,
+                          Handle<String> name) {
   // Bail out if the result is not cacheable.
   if (!lookup->IsCacheable()) return;
 
   // Loading properties from values is not common, so don't try to
   // deal with non-JS objects here.
   if (!object->IsJSObject()) return;
-  Handle<JSObject> receiver = Handle<JSObject>::cast(object);
 
   if (HasNormalObjectsInPrototypeChain(isolate(), lookup, *object)) return;
 
-  // Compute the code stub for this load.
+  Handle<JSObject> receiver = Handle<JSObject>::cast(object);
   Handle<Code> code;
   if (state == UNINITIALIZED) {
     // This is the first time we execute this inline cache.
     // Set the target to the pre monomorphic stub to delay
     // setting the monomorphic state.
     code = pre_monomorphic_stub();
-  } else if (!lookup->IsProperty()) {
-    // Nonexistent property. The result is undefined.
-    code = isolate()->stub_cache()->ComputeLoadNonexistent(name, receiver);
   } else {
-    // Compute monomorphic stub.
-    Handle<JSObject> holder(lookup->holder());
-    switch (lookup->type()) {
-      case FIELD:
-        code = isolate()->stub_cache()->ComputeLoadField(
-            name, receiver, holder, lookup->GetFieldIndex());
-        break;
-      case CONSTANT_FUNCTION: {
-        Handle<JSFunction> constant(lookup->GetConstantFunction());
-        code = isolate()->stub_cache()->ComputeLoadConstant(
-            name, receiver, holder, constant);
-        break;
-      }
-      case NORMAL:
-        if (holder->IsGlobalObject()) {
-          Handle<GlobalObject> global = Handle<GlobalObject>::cast(holder);
-          Handle<JSGlobalPropertyCell> cell(global->GetPropertyCell(lookup));
-          code = isolate()->stub_cache()->ComputeLoadGlobal(
-              name, receiver, global, cell, lookup->IsDontDelete());
-        } else {
-          // There is only one shared stub for loading normalized
-          // properties. It does not traverse the prototype chain, so the
-          // property must be found in the receiver for the stub to be
-          // applicable.
-          if (!holder.is_identical_to(receiver)) return;
-          code = isolate()->stub_cache()->ComputeLoadNormal();
-        }
-        break;
-      case CALLBACKS: {
-        Handle<Object> callback(lookup->GetCallbackObject());
-        if (callback->IsAccessorInfo()) {
-          Handle<AccessorInfo> info = Handle<AccessorInfo>::cast(callback);
-          if (v8::ToCData<Address>(info->getter()) == 0) return;
-          if (!info->IsCompatibleReceiver(*receiver)) return;
-          code = isolate()->stub_cache()->ComputeLoadCallback(
-              name, receiver, holder, info);
-        } else if (callback->IsAccessorPair()) {
-          Handle<Object> getter(Handle<AccessorPair>::cast(callback)->getter());
-          if (!getter->IsJSFunction()) return;
-          if (holder->IsGlobalObject()) return;
-          if (!holder->HasFastProperties()) return;
-          code = isolate()->stub_cache()->ComputeLoadViaGetter(
-              name, receiver, holder, Handle<JSFunction>::cast(getter));
-        } else {
-          ASSERT(callback->IsForeign());
-          // No IC support for old-style native accessors.
-          return;
-        }
-        break;
-      }
-      case INTERCEPTOR:
-        ASSERT(HasInterceptorGetter(*holder));
-        code = isolate()->stub_cache()->ComputeLoadInterceptor(
-            name, receiver, holder);
-        break;
-      default:
-        return;
-    }
+    code = ComputeLoadMonomorphic(lookup, receiver, name);
+    if (code.is_null()) return;
   }
 
   // Patch the call site depending on the state of the cache.
@@ -1062,17 +1002,14 @@ void LoadIC::UpdateLoadCaches(LookupResult* lookup,
         // the receiver into stub cache.
         Map* map = target()->FindFirstMap();
         if (map != NULL) {
-          isolate()->stub_cache()->Set(*name, map, target());
+          UpdateMegamorphicCache(map, *name, target());
         }
-        isolate()->stub_cache()->Set(*name, receiver->map(), *code);
-
+        UpdateMegamorphicCache(receiver->map(), *name, *code);
         set_target(*megamorphic_stub());
       }
       break;
     case MEGAMORPHIC:
-      // Cache code holding map should be consistent with
-      // GenerateMonomorphicCacheProbe.
-      isolate()->stub_cache()->Set(*name, receiver->map(), *code);
+      UpdateMegamorphicCache(receiver->map(), *name, *code);
       break;
     case DEBUG_STUB:
       break;
@@ -1083,6 +1020,76 @@ void LoadIC::UpdateLoadCaches(LookupResult* lookup,
   }
 
   TRACE_IC("LoadIC", name, state, target());
+}
+
+
+void LoadIC::UpdateMegamorphicCache(Map* map, String* name, Code* code) {
+  // Cache code holding map should be consistent with
+  // GenerateMonomorphicCacheProbe.
+  isolate()->stub_cache()->Set(name, map, code);
+}
+
+
+Handle<Code> LoadIC::ComputeLoadMonomorphic(LookupResult* lookup,
+                                            Handle<JSObject> receiver,
+                                            Handle<String> name) {
+  if (!lookup->IsProperty()) {
+    // Nonexistent property. The result is undefined.
+    return isolate()->stub_cache()->ComputeLoadNonexistent(name, receiver);
+  }
+
+  // Compute monomorphic stub.
+  Handle<JSObject> holder(lookup->holder());
+  switch (lookup->type()) {
+    case FIELD:
+      return isolate()->stub_cache()->ComputeLoadField(
+          name, receiver, holder, lookup->GetFieldIndex());
+    case CONSTANT_FUNCTION: {
+      Handle<JSFunction> constant(lookup->GetConstantFunction());
+      return isolate()->stub_cache()->ComputeLoadConstant(
+          name, receiver, holder, constant);
+    }
+    case NORMAL:
+      if (holder->IsGlobalObject()) {
+        Handle<GlobalObject> global = Handle<GlobalObject>::cast(holder);
+        Handle<JSGlobalPropertyCell> cell(global->GetPropertyCell(lookup));
+        return isolate()->stub_cache()->ComputeLoadGlobal(
+            name, receiver, global, cell, lookup->IsDontDelete());
+      }
+      // There is only one shared stub for loading normalized
+      // properties. It does not traverse the prototype chain, so the
+      // property must be found in the receiver for the stub to be
+      // applicable.
+      if (!holder.is_identical_to(receiver)) break;
+      return isolate()->stub_cache()->ComputeLoadNormal();
+    case CALLBACKS: {
+      Handle<Object> callback(lookup->GetCallbackObject());
+      if (callback->IsAccessorInfo()) {
+        Handle<AccessorInfo> info = Handle<AccessorInfo>::cast(callback);
+        if (v8::ToCData<Address>(info->getter()) == 0) break;
+        if (!info->IsCompatibleReceiver(*receiver)) break;
+        return isolate()->stub_cache()->ComputeLoadCallback(
+            name, receiver, holder, info);
+      } else if (callback->IsAccessorPair()) {
+        Handle<Object> getter(Handle<AccessorPair>::cast(callback)->getter());
+        if (!getter->IsJSFunction()) break;
+        if (holder->IsGlobalObject()) break;
+        if (!holder->HasFastProperties()) break;
+        return isolate()->stub_cache()->ComputeLoadViaGetter(
+            name, receiver, holder, Handle<JSFunction>::cast(getter));
+      }
+      ASSERT(callback->IsForeign());
+      // No IC support for old-style native accessors.
+      break;
+    }
+    case INTERCEPTOR:
+      ASSERT(HasInterceptorGetter(*holder));
+      return isolate()->stub_cache()->ComputeLoadInterceptor(
+          name, receiver, holder);
+    default:
+      break;
+  }
+  return Handle<Code>::null();
 }
 
 
@@ -1262,87 +1269,43 @@ MaybeObject* KeyedLoadIC::Load(State state,
 }
 
 
-void KeyedLoadIC::UpdateLoadCaches(LookupResult* lookup,
-                                   State state,
-                                   Handle<Object> object,
-                                   Handle<String> name) {
+Handle<Code> KeyedLoadIC::ComputeLoadMonomorphic(LookupResult* lookup,
+                                                 Handle<JSObject> receiver,
+                                                 Handle<String> name) {
   // Bail out if we didn't find a result.
-  if (!lookup->IsProperty() || !lookup->IsCacheable()) return;
+  if (!lookup->IsProperty()) return Handle<Code>::null();
 
-  if (!object->IsJSObject()) return;
-  Handle<JSObject> receiver = Handle<JSObject>::cast(object);
-
-  if (HasNormalObjectsInPrototypeChain(isolate(), lookup, *object)) return;
-
-  // Compute the code stub for this load.
-  Handle<Code> code;
-
-  if (state == UNINITIALIZED) {
-    // This is the first time we execute this inline cache.
-    // Set the target to the pre monomorphic stub to delay
-    // setting the monomorphic state.
-    code = pre_monomorphic_stub();
-  } else {
-    // Compute a monomorphic stub.
-    Handle<JSObject> holder(lookup->holder());
-    switch (lookup->type()) {
-      case FIELD:
-        code = isolate()->stub_cache()->ComputeKeyedLoadField(
-            name, receiver, holder, lookup->GetFieldIndex());
-        break;
-      case CONSTANT_FUNCTION: {
-        Handle<JSFunction> constant(lookup->GetConstantFunction());
-        code = isolate()->stub_cache()->ComputeKeyedLoadConstant(
-            name, receiver, holder, constant);
-        break;
-      }
-      case CALLBACKS: {
-        Handle<Object> callback_object(lookup->GetCallbackObject());
-        if (!callback_object->IsAccessorInfo()) return;
-        Handle<AccessorInfo> callback =
-            Handle<AccessorInfo>::cast(callback_object);
-        if (v8::ToCData<Address>(callback->getter()) == 0) return;
-        if (!callback->IsCompatibleReceiver(*receiver)) return;
-        code = isolate()->stub_cache()->ComputeKeyedLoadCallback(
-            name, receiver, holder, callback);
-        break;
-      }
-      case INTERCEPTOR:
-        ASSERT(HasInterceptorGetter(lookup->holder()));
-        code = isolate()->stub_cache()->ComputeKeyedLoadInterceptor(
-            name, receiver, holder);
-        break;
-      default:
-        // Always rewrite to the generic case so that we do not
-        // repeatedly try to rewrite.
-        code = generic_stub();
-        break;
+  // Compute a monomorphic stub.
+  Handle<JSObject> holder(lookup->holder());
+  switch (lookup->type()) {
+    case FIELD:
+      return isolate()->stub_cache()->ComputeKeyedLoadField(
+          name, receiver, holder, lookup->GetFieldIndex());
+    case CONSTANT_FUNCTION: {
+      Handle<JSFunction> constant(lookup->GetConstantFunction());
+      return isolate()->stub_cache()->ComputeKeyedLoadConstant(
+          name, receiver, holder, constant);
     }
+    case CALLBACKS: {
+      Handle<Object> callback_object(lookup->GetCallbackObject());
+      if (!callback_object->IsAccessorInfo()) break;
+      Handle<AccessorInfo> callback =
+          Handle<AccessorInfo>::cast(callback_object);
+      if (v8::ToCData<Address>(callback->getter()) == 0) break;
+      if (!callback->IsCompatibleReceiver(*receiver)) break;
+      return isolate()->stub_cache()->ComputeKeyedLoadCallback(
+          name, receiver, holder, callback);
+    }
+    case INTERCEPTOR:
+      ASSERT(HasInterceptorGetter(lookup->holder()));
+      return isolate()->stub_cache()->ComputeKeyedLoadInterceptor(
+          name, receiver, holder);
+    default:
+      // Always rewrite to the generic case so that we do not
+      // repeatedly try to rewrite.
+      return generic_stub();
   }
-
-  // Patch the call site depending on the state of the cache.
-  switch (state) {
-    case UNINITIALIZED:
-    case PREMONOMORPHIC:
-    case POLYMORPHIC:
-      set_target(*code);
-      break;
-    case MONOMORPHIC:
-      // Only move to megamorphic if the target changes.
-      if (target() != *code) {
-        set_target(*megamorphic_stub());
-      }
-      break;
-    case MEGAMORPHIC:
-    case GENERIC:
-    case DEBUG_STUB:
-      break;
-    case MONOMORPHIC_PROTOTYPE_FAILURE:
-      UNREACHABLE();
-      break;
-  }
-
-  TRACE_IC("KeyedLoadIC", name, state, target());
+  return Handle<Code>::null();
 }
 
 
