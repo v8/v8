@@ -552,8 +552,16 @@ class HEnvironment: public ZoneObject {
                                 int arguments,
                                 FunctionLiteral* function,
                                 HConstant* undefined,
-                                CallKind call_kind,
-                                InliningKind inlining_kind) const;
+                                InliningKind inlining_kind,
+                                bool undefined_receiver) const;
+
+  static bool UseUndefinedReceiver(Handle<JSFunction> closure,
+                                   FunctionLiteral* function,
+                                   CallKind call_kind,
+                                   InliningKind inlining_kind) {
+    return (closure->shared()->native() || !function->is_classic_mode()) &&
+        call_kind == CALL_AS_FUNCTION && inlining_kind != CONSTRUCT_CALL_RETURN;
+  }
 
   HEnvironment* DiscardInlined(bool drop_extra) {
     HEnvironment* outer = outer_;

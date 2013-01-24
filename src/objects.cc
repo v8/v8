@@ -9480,6 +9480,34 @@ void Map::ZapPrototypeTransitions() {
 }
 
 
+Handle<DependentCodes> DependentCodes::Append(Handle<DependentCodes> codes,
+                                              Handle<Code> value) {
+  int append_index = codes->number_of_codes();
+  if (append_index > 0 && codes->code_at(append_index - 1) == *value) {
+    // Do not append the code if it is already in the array.
+    // It is sufficient to just check only the last element because
+    // we process embedded maps of an optimized code in one batch.
+    return codes;
+  }
+  if (codes->length() < kCodesIndex + append_index + 1) {
+    Factory* factory = codes->GetIsolate()->factory();
+    int capacity = kCodesIndex + append_index + 1;
+    if (capacity > 5) capacity = capacity * 5 / 4;
+    Handle<DependentCodes> new_codes = Handle<DependentCodes>::cast(
+        factory->CopySizeFixedArray(codes, capacity));
+    // The number of codes can change after GC.
+    append_index = codes->number_of_codes();
+    for (int i = 0; i < append_index; i++) {
+      codes->clear_code_at(i);
+    }
+    codes = new_codes;
+  }
+  codes->set_code_at(append_index, *value);
+  codes->set_number_of_codes(append_index + 1);
+  return codes;
+}
+
+
 MaybeObject* JSReceiver::SetPrototype(Object* value,
                                       bool skip_hidden_prototypes) {
 #ifdef DEBUG

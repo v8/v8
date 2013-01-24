@@ -2826,8 +2826,9 @@ int NativeObjectsExplorer::EstimateObjectsCount() {
 void NativeObjectsExplorer::FillRetainedObjects() {
   if (embedder_queried_) return;
   Isolate* isolate = Isolate::Current();
+  const GCType major_gc_type = kGCTypeMarkSweepCompact;
   // Record objects that are joined into ObjectGroups.
-  isolate->heap()->CallGlobalGCPrologueCallback();
+  isolate->heap()->CallGCPrologueCallbacks(major_gc_type);
   List<ObjectGroup*>* groups = isolate->global_handles()->object_groups();
   for (int i = 0; i < groups->length(); ++i) {
     ObjectGroup* group = groups->at(i);
@@ -2841,7 +2842,7 @@ void NativeObjectsExplorer::FillRetainedObjects() {
     group->info_ = NULL;  // Acquire info object ownership.
   }
   isolate->global_handles()->RemoveObjectGroups();
-  isolate->heap()->CallGlobalGCEpilogueCallback();
+  isolate->heap()->CallGCEpilogueCallbacks(major_gc_type);
   // Record objects that are not in ObjectGroups, but have class ID.
   GlobalHandlesExtractor extractor(this);
   isolate->global_handles()->IterateAllRootsWithClassIds(&extractor);
@@ -2870,6 +2871,7 @@ void NativeObjectsExplorer::FillImplicitReferences() {
           child_entry);
     }
   }
+  isolate->global_handles()->RemoveImplicitRefGroups();
 }
 
 List<HeapObject*>* NativeObjectsExplorer::GetListMaybeDisposeInfo(

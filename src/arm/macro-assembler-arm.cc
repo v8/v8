@@ -642,6 +642,8 @@ void MacroAssembler::PopSafepointRegisters() {
 
 
 void MacroAssembler::PushSafepointRegistersAndDoubles() {
+  // Number of d-regs not known at snapshot time.
+  ASSERT(!Serializer::enabled());
   PushSafepointRegisters();
   sub(sp, sp, Operand(DwVfpRegister::NumAllocatableRegisters() *
                       kDoubleSize));
@@ -652,6 +654,8 @@ void MacroAssembler::PushSafepointRegistersAndDoubles() {
 
 
 void MacroAssembler::PopSafepointRegistersAndDoubles() {
+  // Number of d-regs not known at snapshot time.
+  ASSERT(!Serializer::enabled());
   for (int i = 0; i < DwVfpRegister::NumAllocatableRegisters(); i++) {
     vldr(DwVfpRegister::FromAllocationIndex(i), sp, i * kDoubleSize);
   }
@@ -690,6 +694,8 @@ MemOperand MacroAssembler::SafepointRegisterSlot(Register reg) {
 
 
 MemOperand MacroAssembler::SafepointRegistersAndDoublesSlot(Register reg) {
+  // Number of d-regs not known at snapshot time.
+  ASSERT(!Serializer::enabled());
   // General purpose registers are pushed last on the stack.
   int doubles_size = DwVfpRegister::NumAllocatableRegisters() * kDoubleSize;
   int register_offset = SafepointRegisterStackIndex(reg.code()) * kPointerSize;
@@ -878,10 +884,12 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space) {
 
   // Optionally save all double registers.
   if (save_doubles) {
-    DwVfpRegister first = d0;
-    DwVfpRegister last =
-        DwVfpRegister::from_code(DwVfpRegister::kNumRegisters - 1);
-    vstm(db_w, sp, first, last);
+    // Check CPU flags for number of registers, setting the Z condition flag.
+    CheckFor32DRegs(ip);
+
+    vstm(db_w, sp, d16, d31, ne);
+    sub(sp, sp, Operand(16 * kDoubleSize), LeaveCC, eq);
+    vstm(db_w, sp, d0, d15);
     // Note that d0 will be accessible at
     //   fp - 2 * kPointerSize - DwVfpRegister::kNumRegisters * kDoubleSize,
     // since the sp slot and code slot were pushed after the fp.
@@ -941,10 +949,13 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles,
     // Calculate the stack location of the saved doubles and restore them.
     const int offset = 2 * kPointerSize;
     sub(r3, fp, Operand(offset + DwVfpRegister::kNumRegisters * kDoubleSize));
-    DwVfpRegister first = d0;
-    DwVfpRegister last =
-        DwVfpRegister::from_code(DwVfpRegister::kNumRegisters - 1);
-    vldm(ia, r3, first, last);
+
+    // Check CPU flags for number of registers, setting the Z condition flag.
+    CheckFor32DRegs(ip);
+
+    vldm(ia_w, r3, d0, d15);
+    vldm(ia_w, r3, d16, d31, ne);
+    add(r3, r3, Operand(16 * kDoubleSize), LeaveCC, eq);
   }
 
   // Clear top frame.
@@ -3389,6 +3400,13 @@ void MacroAssembler::CountLeadingZeros(Register zeros,   // Answer.
   tst(scratch, Operand(0x80000000u));
   add(zeros, zeros, Operand(1), LeaveCC, eq);
 #endif
+}
+
+
+void MacroAssembler::CheckFor32DRegs(Register scratch) {
+  mov(scratch, Operand(ExternalReference::cpu_features()));
+  ldr(scratch, MemOperand(scratch));
+  tst(scratch, Operand(1u << VFP32DREGS));
 }
 
 

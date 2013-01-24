@@ -55,6 +55,12 @@ uint64_t CpuFeatures::supported_ = 0;
 uint64_t CpuFeatures::found_by_runtime_probing_ = 0;
 
 
+ExternalReference ExternalReference::cpu_features() {
+  ASSERT(CpuFeatures::initialized_);
+  return ExternalReference(&CpuFeatures::supported_);
+}
+
+
 int IntelDoubleRegister::NumAllocatableRegisters() {
   if (CpuFeatures::IsSupported(SSE2)) {
     return XMMRegister::kNumAllocatableRegisters;

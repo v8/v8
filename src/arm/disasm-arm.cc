@@ -192,7 +192,7 @@ void Decoder::PrintSRegister(int reg) {
   Print(VFPRegisters::Name(reg, false));
 }
 
-// Print the  VFP D register name according to the active name converter.
+// Print the VFP D register name according to the active name converter.
 void Decoder::PrintDRegister(int reg) {
   Print(VFPRegisters::Name(reg, true));
 }
@@ -381,7 +381,16 @@ int Decoder::FormatVFPRegister(Instruction* instr, const char* format) {
   } else if (format[1] == 'm') {
     reg = instr->VFPMRegValue(precision);
   } else if (format[1] == 'd') {
-    reg = instr->VFPDRegValue(precision);
+    if ((instr->TypeValue() == 7) &&
+        (instr->Bit(24) == 0x0) &&
+        (instr->Bits(11, 9) == 0x5) &&
+        (instr->Bit(4) == 0x1)) {
+      // vmov.32 has Vd in a different place.
+      reg = instr->Bits(19, 16) | (instr->Bit(7) << 4);
+    } else {
+      reg = instr->VFPDRegValue(precision);
+    }
+
     if (format[2] == '+') {
       int immed8 = instr->Immed8Value();
       if (format[0] == 'S') reg += immed8 - 1;
@@ -1180,6 +1189,14 @@ void Decoder::DecodeTypeVFP(Instruction* instr) {
     if ((instr->VCValue() == 0x0) &&
         (instr->VAValue() == 0x0)) {
       DecodeVMOVBetweenCoreAndSinglePrecisionRegisters(instr);
+    } else if ((instr->VLValue() == 0x0) &&
+               (instr->VCValue() == 0x1) &&
+               (instr->Bit(23) == 0x0)) {
+      if (instr->Bit(21) == 0x0) {
+        Format(instr, "vmov.32'cond 'Dd[0], 'rt");
+      } else {
+        Format(instr, "vmov.32'cond 'Dd[1], 'rt");
+      }
     } else if ((instr->VCValue() == 0x0) &&
                (instr->VAValue() == 0x7) &&
                (instr->Bits(19, 16) == 0x1)) {
@@ -1343,7 +1360,7 @@ void Decoder::DecodeType6CoprocessorIns(Instruction* instr) {
     switch (instr->OpcodeValue()) {
       case 0x2:
         // Load and store double to two GP registers
-        if (instr->Bits(7, 4) != 0x1) {
+        if (instr->Bits(7, 6) != 0 || instr->Bit(4) != 1) {
           Unknown(instr);  // Not used by V8.
         } else if (instr->HasL()) {
           Format(instr, "vmov'cond 'rt, 'rn, 'Dm");
@@ -1352,6 +1369,7 @@ void Decoder::DecodeType6CoprocessorIns(Instruction* instr) {
         }
         break;
       case 0x8:
+      case 0xA:
         if (instr->HasL()) {
           Format(instr, "vldr'cond 'Dd, ['rn - 4*'imm08@00]");
         } else {
@@ -1359,6 +1377,7 @@ void Decoder::DecodeType6CoprocessorIns(Instruction* instr) {
         }
         break;
       case 0xC:
+      case 0xE:
         if (instr->HasL()) {
           Format(instr, "vldr'cond 'Dd, ['rn + 4*'imm08@00]");
         } else {
@@ -1367,7 +1386,10 @@ void Decoder::DecodeType6CoprocessorIns(Instruction* instr) {
         break;
       case 0x4:
       case 0x5:
-      case 0x9: {
+      case 0x6:
+      case 0x7:
+      case 0x9:
+      case 0xB: {
         bool to_vfp_register = (instr->VLValue() == 0x1);
         if (to_vfp_register) {
           Format(instr, "vldm'cond'pu 'rn'w, {'Dd-'Dd+}");

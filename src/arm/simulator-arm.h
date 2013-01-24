@@ -142,7 +142,9 @@ class Simulator {
     num_s_registers = 32,
     d0 = 0, d1, d2, d3, d4, d5, d6, d7,
     d8, d9, d10, d11, d12, d13, d14, d15,
-    num_d_registers = 16
+    d16, d17, d18, d19, d20, d21, d22, d23,
+    d24, d25, d26, d27, d28, d29, d30, d31,
+    num_d_registers = 32
   };
 
   explicit Simulator(Isolate* isolate);
@@ -371,7 +373,8 @@ class Simulator {
   bool v_flag_;
 
   // VFP architecture state.
-  unsigned int vfp_register[num_s_registers];
+  // TODO(hans): Rename vfp_register to vfp_registers_.
+  unsigned int vfp_register[num_d_registers * 2];
   bool n_flag_FPSCR_;
   bool z_flag_FPSCR_;
   bool c_flag_FPSCR_;

@@ -58,7 +58,7 @@ int Register::NumAllocatableRegisters() {
 
 int DwVfpRegister::NumRegisters() {
   if (CpuFeatures::IsSupported(VFP2)) {
-    return DwVfpRegister::kNumRegisters;
+    return CpuFeatures::IsSupported(VFP32DREGS) ? 32 : 16;
   } else {
     return 1;
   }
@@ -67,7 +67,7 @@ int DwVfpRegister::NumRegisters() {
 
 int DwVfpRegister::NumAllocatableRegisters() {
   if (CpuFeatures::IsSupported(VFP2)) {
-    return DwVfpRegister::kMaxNumAllocatableRegisters;
+    return NumRegisters() - kNumReservedRegisters;
   } else {
     return 1;
   }
@@ -77,7 +77,21 @@ int DwVfpRegister::NumAllocatableRegisters() {
 int DwVfpRegister::ToAllocationIndex(DwVfpRegister reg) {
   ASSERT(!reg.is(kDoubleRegZero));
   ASSERT(!reg.is(kScratchDoubleReg));
+  if (reg.code() > kDoubleRegZero.code()) {
+    return reg.code() - kNumReservedRegisters;
+  }
   return reg.code();
+}
+
+
+DwVfpRegister DwVfpRegister::FromAllocationIndex(int index) {
+  ASSERT(index >= 0 && index < NumAllocatableRegisters());
+  ASSERT(kScratchDoubleReg.code() - kDoubleRegZero.code() ==
+         kNumReservedRegisters - 1);
+  if (index >= kDoubleRegZero.code()) {
+    return from_code(index + kNumReservedRegisters);
+  }
+  return from_code(index);
 }
 
 

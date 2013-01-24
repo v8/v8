@@ -469,12 +469,15 @@ class RecordWriteStub: public PlatformCodeStub {
     void SaveCallerSaveRegisters(MacroAssembler* masm, SaveFPRegsMode mode) {
       masm->stm(db_w, sp, (kCallerSaved | lr.bit()) & ~scratch1_.bit());
       if (mode == kSaveFPRegs) {
+        // Number of d-regs not known at snapshot time.
+        ASSERT(!Serializer::enabled());
         CpuFeatures::Scope scope(VFP2);
         masm->sub(sp,
                   sp,
-                  Operand(kDoubleSize * (DwVfpRegister::kNumRegisters - 1)));
+                  Operand(kDoubleSize * (DwVfpRegister::NumRegisters() - 1)));
         // Save all VFP registers except d0.
-        for (int i = DwVfpRegister::kNumRegisters - 1; i > 0; i--) {
+        // TODO(hans): We should probably save d0 too. And maybe use vstm.
+        for (int i = DwVfpRegister::NumRegisters() - 1; i > 0; i--) {
           DwVfpRegister reg = DwVfpRegister::from_code(i);
           masm->vstr(reg, MemOperand(sp, (i - 1) * kDoubleSize));
         }
@@ -484,15 +487,18 @@ class RecordWriteStub: public PlatformCodeStub {
     inline void RestoreCallerSaveRegisters(MacroAssembler*masm,
                                            SaveFPRegsMode mode) {
       if (mode == kSaveFPRegs) {
+        // Number of d-regs not known at snapshot time.
+        ASSERT(!Serializer::enabled());
         CpuFeatures::Scope scope(VFP2);
         // Restore all VFP registers except d0.
-        for (int i = DwVfpRegister::kNumRegisters - 1; i > 0; i--) {
+        // TODO(hans): We should probably restore d0 too. And maybe use vldm.
+        for (int i = DwVfpRegister::NumRegisters() - 1; i > 0; i--) {
           DwVfpRegister reg = DwVfpRegister::from_code(i);
           masm->vldr(reg, MemOperand(sp, (i - 1) * kDoubleSize));
         }
         masm->add(sp,
                   sp,
-                  Operand(kDoubleSize * (DwVfpRegister::kNumRegisters - 1)));
+                  Operand(kDoubleSize * (DwVfpRegister::NumRegisters() - 1)));
       }
       masm->ldm(ia_w, sp, (kCallerSaved | lr.bit()) & ~scratch1_.bit());
     }

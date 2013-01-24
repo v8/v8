@@ -3216,7 +3216,7 @@ class V8EXPORT V8 {
    * or delete properties for example) since it is possible such
    * operations will result in the allocation of objects.
    */
-  static void SetGlobalGCPrologueCallback(GCCallback);
+  V8_DEPRECATED(static void SetGlobalGCPrologueCallback(GCCallback));
 
   /**
    * Enables the host application to receive a notification after a
@@ -3245,7 +3245,7 @@ class V8EXPORT V8 {
    * or delete properties for example) since it is possible such
    * operations will result in the allocation of objects.
    */
-  static void SetGlobalGCEpilogueCallback(GCCallback);
+  V8_DEPRECATED(static void SetGlobalGCEpilogueCallback(GCCallback));
 
   /**
    * Enables the host application to provide a mechanism to be notified
@@ -3487,6 +3487,16 @@ class V8EXPORT V8 {
    * that have class_ids.
    */
   static void VisitHandlesWithClassIds(PersistentHandleVisitor* visitor);
+
+  /**
+   * Iterates through all the persistent handles in the current isolate's heap
+   * that have class_ids and are candidates to be marked as partially dependent
+   * handles. This will visit handles to young objects created since the last
+   * garbage collection but is free to visit an arbitrary superset of these
+   * objects.
+   */
+  static void VisitHandlesForPartialDependence(
+      Isolate* isolate, PersistentHandleVisitor* visitor);
 
   /**
    * Optional notification that the embedder is idle.

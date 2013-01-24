@@ -4132,8 +4132,8 @@ void LCodeGen::DoTransitionElementsKind(LTransitionElementsKind* instr) {
 
   Handle<Map> from_map = instr->original_map();
   Handle<Map> to_map = instr->transitioned_map();
-  ElementsKind from_kind = from_map->elements_kind();
-  ElementsKind to_kind = to_map->elements_kind();
+  ElementsKind from_kind = instr->from_kind();
+  ElementsKind to_kind = instr->to_kind();
 
   Label not_applicable;
   __ Cmp(FieldOperand(object_reg, HeapObject::kMapOffset), from_map);

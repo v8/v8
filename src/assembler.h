@@ -749,6 +749,8 @@ class ExternalReference BASE_EMBEDDED {
 
   static ExternalReference ForDeoptEntry(Address entry);
 
+  static ExternalReference cpu_features();
+
   Address address() const {return reinterpret_cast<Address>(address_);}
 
 #ifdef ENABLE_DEBUGGER_SUPPORT

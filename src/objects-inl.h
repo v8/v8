@@ -584,6 +584,14 @@ bool Object::IsDeoptimizationOutputData() {
 }
 
 
+bool Object::IsDependentCodes() {
+  if (!IsFixedArray()) return false;
+  // There's actually no way to see the difference between a fixed array and
+  // a dependent codes array.
+  return true;
+}
+
+
 bool Object::IsTypeFeedbackCells() {
   if (!IsFixedArray()) return false;
   // There's actually no way to see the difference between a fixed array and
@@ -2374,6 +2382,7 @@ CAST_ACCESSOR(FixedDoubleArray)
 CAST_ACCESSOR(DescriptorArray)
 CAST_ACCESSOR(DeoptimizationInputData)
 CAST_ACCESSOR(DeoptimizationOutputData)
+CAST_ACCESSOR(DependentCodes)
 CAST_ACCESSOR(TypeFeedbackCells)
 CAST_ACCESSOR(SymbolTable)
 CAST_ACCESSOR(JSFunctionResultCache)
@@ -3406,6 +3415,47 @@ bool Map::is_observed() {
 }
 
 
+void Map::AddDependentCode(Handle<Code> code) {
+  Handle<DependentCodes> codes =
+      DependentCodes::Append(Handle<DependentCodes>(dependent_codes()), code);
+  if (*codes != dependent_codes()) {
+    set_dependent_codes(*codes);
+  }
+}
+
+
+int DependentCodes::number_of_codes() {
+  if (length() == 0) return 0;
+  return Smi::cast(get(kNumberOfCodesIndex))->value();
+}
+
+
+void DependentCodes::set_number_of_codes(int value) {
+  set(kNumberOfCodesIndex, Smi::FromInt(value));
+}
+
+
+Code* DependentCodes::code_at(int i) {
+  return Code::cast(get(kCodesIndex + i));
+}
+
+
+void DependentCodes::set_code_at(int i, Code* value) {
+  set(kCodesIndex + i, value);
+}
+
+
+Object** DependentCodes::code_slot_at(int i) {
+  return HeapObject::RawField(
+      this, FixedArray::OffsetOfElementAt(kCodesIndex + i));
+}
+
+
+void DependentCodes::clear_code_at(int i) {
+  set_undefined(kCodesIndex + i);
+}
+
+
 void Code::set_flags(Code::Flags flags) {
   STATIC_ASSERT(Code::NUMBER_OF_KINDS <= KindField::kMax + 1);
   // Make sure that all call stubs have an arguments count.
@@ -3679,6 +3729,21 @@ void Code::set_has_function_cache(bool flag) {
   ASSERT(kind() == STUB);
   int previous = READ_UINT32_FIELD(this, kKindSpecificFlags1Offset);
   int updated = HasFunctionCacheField::update(previous, flag);
+  WRITE_UINT32_FIELD(this, kKindSpecificFlags1Offset, updated);
+}
+
+
+bool Code::marked_for_deoptimization() {
+  ASSERT(kind() == OPTIMIZED_FUNCTION);
+  return MarkedForDeoptimizationField::decode(
+      READ_UINT32_FIELD(this, kKindSpecificFlags1Offset));
+}
+
+
+void Code::set_marked_for_deoptimization(bool flag) {
+  ASSERT(kind() == OPTIMIZED_FUNCTION);
+  int previous = READ_UINT32_FIELD(this, kKindSpecificFlags1Offset);
+  int updated = MarkedForDeoptimizationField::update(previous, flag);
   WRITE_UINT32_FIELD(this, kKindSpecificFlags1Offset, updated);
 }
 
@@ -4011,6 +4076,7 @@ HeapObject* Map::UncheckedPrototypeTransitions() {
 
 
 ACCESSORS(Map, code_cache, Object, kCodeCacheOffset)
+ACCESSORS(Map, dependent_codes, DependentCodes, kDependentCodesOffset)
 ACCESSORS(Map, constructor, Object, kConstructorOffset)
 
 ACCESSORS(JSFunction, shared, SharedFunctionInfo, kSharedFunctionInfoOffset)

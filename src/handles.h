@@ -58,25 +58,21 @@ class Handle {
     a = b;  // Fake assignment to enforce type checks.
     USE(a);
 #endif
-    location_ = reinterpret_cast<T**>(handle.location());
+    location_ = reinterpret_cast<T**>(handle.location_);
   }
 
   INLINE(T* operator ->() const) { return operator*(); }
 
   // Check if this handle refers to the exact same object as the other handle.
   bool is_identical_to(const Handle<T> other) const {
-    return operator*() == *other;
+    return *location_ == *other.location_;
   }
 
   // Provides the C++ dereference operator.
   INLINE(T* operator*() const);
 
   // Returns the address to where the raw pointer is stored.
-  T** location() const {
-    ASSERT(location_ == NULL ||
-           reinterpret_cast<Address>(*location_) != kZapValue);
-    return location_;
-  }
+  INLINE(T** location() const);
 
   template <class S> static Handle<T> cast(Handle<S> that) {
     T::cast(*that);
@@ -92,6 +88,9 @@ class Handle {
 
  private:
   T** location_;
+
+  // Handles of different classes are allowed to access each other's location_.
+  template<class S> friend class Handle;
 };
 
 
@@ -336,6 +335,34 @@ class NoHandleAllocation BASE_EMBEDDED {
  private:
   int level_;
   bool active_;
+#endif
+};
+
+
+class NoHandleDereference BASE_EMBEDDED {
+ public:
+#ifndef DEBUG
+  NoHandleDereference() {}
+  ~NoHandleDereference() {}
+#else
+  inline NoHandleDereference();
+  inline ~NoHandleDereference();
+ private:
+  bool old_state_;
+#endif
+};
+
+
+class AllowHandleDereference BASE_EMBEDDED {
+ public:
+#ifndef DEBUG
+  AllowHandleDereference() {}
+  ~AllowHandleDereference() {}
+#else
+  inline AllowHandleDereference();
+  inline ~AllowHandleDereference();
+ private:
+  bool old_state_;
 #endif
 };
 

@@ -997,6 +997,11 @@ class MacroAssembler: public Assembler {
                          Register source,
                          Register scratch);
 
+  // Check whether d16-d31 are available on the CPU. The result is given by the
+  // Z condition flag: Z==0 if d16-d31 available, Z==1 otherwise.
+  void CheckFor32DRegs(Register scratch);
+
+
   // ---------------------------------------------------------------------------
   // Runtime calls
 

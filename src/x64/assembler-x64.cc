@@ -46,6 +46,12 @@ uint64_t CpuFeatures::supported_ = CpuFeatures::kDefaultCpuFeatures;
 uint64_t CpuFeatures::found_by_runtime_probing_ = 0;
 
 
+ExternalReference ExternalReference::cpu_features() {
+  ASSERT(CpuFeatures::initialized_);
+  return ExternalReference(&CpuFeatures::supported_);
+}
+
+
 void CpuFeatures::Probe() {
   ASSERT(supported_ == CpuFeatures::kDefaultCpuFeatures);
 #ifdef DEBUG

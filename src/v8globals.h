@@ -431,6 +431,7 @@ enum CpuFeature { SSE4_1 = 32 + 19,  // x86
                   SUDIV = 4,   // ARM
                   UNALIGNED_ACCESSES = 5,  // ARM
                   MOVW_MOVT_IMMEDIATE_LOADS = 6,  // ARM
+                  VFP32DREGS = 7,  // ARM
                   SAHF = 0,    // x86
                   FPU = 1};    // MIPS
 

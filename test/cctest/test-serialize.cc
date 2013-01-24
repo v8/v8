@@ -132,6 +132,8 @@ TEST(ExternalReferenceEncoder) {
   CHECK_EQ(make_code(UNCLASSIFIED, 3),
            encoder.Encode(
                ExternalReference::roots_array_start(isolate).address()));
+  CHECK_EQ(make_code(UNCLASSIFIED, 52),
+           encoder.Encode(ExternalReference::cpu_features().address()));
 }
 
 

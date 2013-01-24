@@ -79,6 +79,7 @@ class CompilationInfo {
   ScriptDataImpl* pre_parse_data() const { return pre_parse_data_; }
   Handle<Context> context() const { return context_; }
   BailoutId osr_ast_id() const { return osr_ast_id_; }
+  int opt_count() const { return opt_count_; }
   int num_parameters() const;
   int num_heap_slots() const;
   Code::Flags flags() const;
@@ -325,6 +326,10 @@ class CompilationInfo {
   const char* bailout_reason_;
 
   int prologue_offset_;
+
+  // A copy of shared_info()->opt_count() to avoid handle deref
+  // during graph optimization.
+  int opt_count_;
 
   DISALLOW_COPY_AND_ASSIGN(CompilationInfo);
 };

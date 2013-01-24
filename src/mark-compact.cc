@@ -82,6 +82,15 @@ class VerifyMarkingVisitor: public ObjectVisitor {
       }
     }
   }
+
+  void VisitEmbeddedPointer(RelocInfo* rinfo) {
+    ASSERT(rinfo->rmode() == RelocInfo::EMBEDDED_OBJECT);
+    if (rinfo->host()->kind() != Code::OPTIMIZED_FUNCTION ||
+        !rinfo->target_object()->IsMap() ||
+        !Map::cast(rinfo->target_object())->CanTransition()) {
+      VisitPointer(rinfo->target_object_address());
+    }
+  }
 };
 
 
@@ -382,7 +391,7 @@ void MarkCompactCollector::CollectGarbage() {
   MarkLiveObjects();
   ASSERT(heap_->incremental_marking()->IsStopped());
 
-  if (FLAG_collect_maps) ClearNonLiveTransitions();
+  if (FLAG_collect_maps) ClearNonLiveReferences();
 
   ClearWeakMaps();
 
@@ -823,6 +832,13 @@ void MarkCompactCollector::Prepare(GCTracer* tracer) {
 #endif
 }
 
+class DeoptimizeMarkedCodeFilter : public OptimizedFunctionFilter {
+ public:
+  virtual bool TakeFunction(JSFunction* function) {
+    return function->code()->marked_for_deoptimization();
+  }
+};
+
 
 void MarkCompactCollector::Finish() {
 #ifdef DEBUG
@@ -834,6 +850,9 @@ void MarkCompactCollector::Finish() {
   // GC, because it relies on the new address of certain old space
   // objects (empty string, illegal builtin).
   heap()->isolate()->stub_cache()->Clear();
+
+  DeoptimizeMarkedCodeFilter filter;
+  Deoptimizer::DeoptimizeAllFunctionsWith(&filter);
 }
 
 
@@ -2165,7 +2184,7 @@ void MarkCompactCollector::ReattachInitialMaps() {
 }
 
 
-void MarkCompactCollector::ClearNonLiveTransitions() {
+void MarkCompactCollector::ClearNonLiveReferences() {
   HeapObjectIterator map_iterator(heap()->map_space());
   // Iterate over the map space, setting map transitions that go from
   // a marked map to an unmarked map to null transitions.  This action
@@ -2177,9 +2196,7 @@ void MarkCompactCollector::ClearNonLiveTransitions() {
     if (map->IsFreeSpace()) continue;
 
     ASSERT(map->IsMap());
-    // Only JSObject and subtypes have map transitions and back pointers.
-    STATIC_ASSERT(LAST_TYPE == LAST_JS_OBJECT_TYPE);
-    if (map->instance_type() < FIRST_JS_OBJECT_TYPE) continue;
+    if (!map->CanTransition()) continue;
 
     if (map_mark.Get() &&
         map->attached_to_shared_function_info()) {
@@ -2191,6 +2208,12 @@ void MarkCompactCollector::ClearNonLiveTransitions() {
 
     ClearNonLivePrototypeTransitions(map);
     ClearNonLiveMapTransitions(map, map_mark);
+
+    if (map_mark.Get()) {
+      ClearNonLiveDependentCodes(map);
+    } else {
+      ClearAndDeoptimizeDependentCodes(map);
+    }
   }
 }
 
@@ -2256,6 +2279,46 @@ void MarkCompactCollector::ClearNonLiveMapTransitions(Map* map,
   if (!current_is_alive && parent_is_alive) {
     parent->ClearNonLiveTransitions(heap());
   }
+}
+
+
+void MarkCompactCollector::ClearAndDeoptimizeDependentCodes(Map* map) {
+  AssertNoAllocation no_allocation_scope;
+  DependentCodes* codes = map->dependent_codes();
+  int number_of_codes = codes->number_of_codes();
+  if (number_of_codes == 0) return;
+  for (int i = 0; i < number_of_codes; i++) {
+    Code* code = codes->code_at(i);
+    if (IsMarked(code) && !code->marked_for_deoptimization()) {
+      code->set_marked_for_deoptimization(true);
+    }
+    codes->clear_code_at(i);
+  }
+  map->set_dependent_codes(DependentCodes::cast(heap()->empty_fixed_array()));
+}
+
+
+void MarkCompactCollector::ClearNonLiveDependentCodes(Map* map) {
+  AssertNoAllocation no_allocation_scope;
+  DependentCodes* codes = map->dependent_codes();
+  int number_of_codes = codes->number_of_codes();
+  if (number_of_codes == 0) return;
+  int new_number_of_codes = 0;
+  for (int i = 0; i < number_of_codes; i++) {
+    Code* code = codes->code_at(i);
+    if (IsMarked(code) && !code->marked_for_deoptimization()) {
+      if (new_number_of_codes != i) {
+        codes->set_code_at(new_number_of_codes, code);
+        Object** slot = codes->code_slot_at(new_number_of_codes);
+        RecordSlot(slot, slot, code);
+        new_number_of_codes++;
+      }
+    }
+  }
+  for (int i = new_number_of_codes; i < number_of_codes; i++) {
+    codes->clear_code_at(i);
+  }
+  codes->set_number_of_codes(new_number_of_codes);
 }
 
 

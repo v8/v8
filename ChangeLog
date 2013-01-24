@@ -1,3 +1,17 @@
+2013-01-24: Version 3.16.9
+
+        Made embedded maps in optimized code weak.
+        (issue 2073)
+
+        Fixed corner case when JSFunction is evicted from flusher.
+        (Chromium issue 168801)
+
+        Correctly set kCanBeDivByZero flag for HMathFloorOfDiv.
+        (Chromium issue 171641)
+
+        Performance and stability improvements on all platforms.
+
+
 2013-01-23: Version 3.16.8
 
         Correctly reset lastIndex in an RegExp object.

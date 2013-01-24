@@ -4495,27 +4495,44 @@ void v8::V8::VisitExternalResources(ExternalResourceVisitor* visitor) {
 }
 
 
+class VisitorAdapter : public i::ObjectVisitor {
+ public:
+  explicit VisitorAdapter(PersistentHandleVisitor* visitor)
+      : visitor_(visitor) {}
+  virtual void VisitPointers(i::Object** start, i::Object** end) {
+    UNREACHABLE();
+  }
+  virtual void VisitEmbedderReference(i::Object** p, uint16_t class_id) {
+    visitor_->VisitPersistentHandle(ToApi<Value>(i::Handle<i::Object>(p)),
+                                    class_id);
+  }
+ private:
+  PersistentHandleVisitor* visitor_;
+};
+
+
 void v8::V8::VisitHandlesWithClassIds(PersistentHandleVisitor* visitor) {
   i::Isolate* isolate = i::Isolate::Current();
   IsDeadCheck(isolate, "v8::V8::VisitHandlesWithClassId");
 
   i::AssertNoAllocation no_allocation;
 
-  class VisitorAdapter : public i::ObjectVisitor {
-   public:
-    explicit VisitorAdapter(PersistentHandleVisitor* visitor)
-        : visitor_(visitor) {}
-    virtual void VisitPointers(i::Object** start, i::Object** end) {
-      UNREACHABLE();
-    }
-    virtual void VisitEmbedderReference(i::Object** p, uint16_t class_id) {
-      visitor_->VisitPersistentHandle(ToApi<Value>(i::Handle<i::Object>(p)),
-                                      class_id);
-    }
-   private:
-    PersistentHandleVisitor* visitor_;
-  } visitor_adapter(visitor);
+  VisitorAdapter visitor_adapter(visitor);
   isolate->global_handles()->IterateAllRootsWithClassIds(&visitor_adapter);
+}
+
+
+void v8::V8::VisitHandlesForPartialDependence(
+    Isolate* exported_isolate, PersistentHandleVisitor* visitor) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(exported_isolate);
+  ASSERT(isolate == i::Isolate::Current());
+  IsDeadCheck(isolate, "v8::V8::VisitHandlesForPartialDependence");
+
+  i::AssertNoAllocation no_allocation;
+
+  VisitorAdapter visitor_adapter(visitor);
+  isolate->global_handles()->IterateAllRootsInNewSpaceWithClassIds(
+      &visitor_adapter);
 }
 
 
@@ -5447,11 +5464,11 @@ void V8::AddObjectGroup(Persistent<Value>* objects,
 }
 
 
-void V8::AddObjectGroup(Isolate* exportedIsolate,
+void V8::AddObjectGroup(Isolate* exported_isolate,
                         Persistent<Value>* objects,
                         size_t length,
                         RetainedObjectInfo* info) {
-  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(exportedIsolate);
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(exported_isolate);
   ASSERT(isolate == i::Isolate::Current());
   if (IsDeadCheck(isolate, "v8::V8::AddObjectGroup()")) return;
   STATIC_ASSERT(sizeof(Persistent<Value>) == sizeof(i::Object**));

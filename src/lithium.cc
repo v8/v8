@@ -429,11 +429,30 @@ Handle<Code> LChunk::Codegen(Code::Kind kind) {
     Handle<Code> code =
         CodeGenerator::MakeCodeEpilogue(&assembler, flags, info());
     generator.FinishCode(code);
+    RegisterDependentCodeForEmbeddedMaps(code);
     CodeGenerator::PrintCode(code, info());
     return code;
   }
   return Handle<Code>::null();
 }
 
+
+void LChunk::RegisterDependentCodeForEmbeddedMaps(Handle<Code> code) {
+  ZoneList<Handle<Map> > maps(1, zone());
+  int mode_mask = RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT);
+  for (RelocIterator it(*code, mode_mask); !it.done(); it.next()) {
+    RelocInfo::Mode mode = it.rinfo()->rmode();
+    if (mode == RelocInfo::EMBEDDED_OBJECT &&
+        it.rinfo()->target_object()->IsMap()) {
+      Handle<Map> map(Map::cast(it.rinfo()->target_object()));
+      if (map->CanTransition()) {
+        maps.Add(map, zone());
+      }
+    }
+  }
+  for (int i = 0; i < maps.length(); i++) {
+    maps.at(i)->AddDependentCode(code);
+  }
+}
 
 } }  // namespace v8::internal

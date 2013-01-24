@@ -371,69 +371,48 @@ Handle<Code> StubCache::ComputeStoreField(Handle<String> name,
 }
 
 
-Handle<Code> StubCache::ComputeKeyedLoadOrStoreElement(
-    Handle<Map> receiver_map,
-    KeyedIC::StubKind stub_kind,
-    StrictModeFlag strict_mode) {
-  KeyedAccessGrowMode grow_mode =
-      KeyedIC::GetGrowModeFromStubKind(stub_kind);
-  Code::ExtraICState extra_state =
-      Code::ComputeExtraICState(grow_mode, strict_mode);
+Handle<Code> StubCache::ComputeKeyedLoadElement(Handle<Map> receiver_map) {
   Code::Flags flags =
-      Code::ComputeMonomorphicFlags(
-          stub_kind == KeyedIC::LOAD ? Code::KEYED_LOAD_IC
-                                     : Code::KEYED_STORE_IC,
-          Code::NORMAL,
-          extra_state);
-  Handle<String> name;
-  switch (stub_kind) {
-    case KeyedIC::LOAD:
-      name = isolate()->factory()->KeyedLoadElementMonomorphic_symbol();
-      break;
-    case KeyedIC::STORE_NO_TRANSITION:
-      name = isolate()->factory()->KeyedStoreElementMonomorphic_symbol();
-      break;
-    case KeyedIC::STORE_AND_GROW_NO_TRANSITION:
-      name = isolate()->factory()->KeyedStoreAndGrowElementMonomorphic_symbol();
-      break;
-    default:
-      UNREACHABLE();
-      break;
-  }
+      Code::ComputeMonomorphicFlags(Code::KEYED_LOAD_IC, Code::NORMAL);
+  Handle<String> name =
+      isolate()->factory()->KeyedLoadElementMonomorphic_symbol();
+
   Handle<Object> probe(receiver_map->FindInCodeCache(*name, flags), isolate_);
   if (probe->IsCode()) return Handle<Code>::cast(probe);
 
-  Handle<Code> code;
-  switch (stub_kind) {
-    case KeyedIC::LOAD: {
-      KeyedLoadStubCompiler compiler(isolate_);
-      code = compiler.CompileLoadElement(receiver_map);
-      break;
-    }
-    case KeyedIC::STORE_AND_GROW_NO_TRANSITION: {
-      KeyedStoreStubCompiler compiler(isolate_, strict_mode,
-                                      ALLOW_JSARRAY_GROWTH);
-      code = compiler.CompileStoreElement(receiver_map);
-      break;
-    }
-    case KeyedIC::STORE_NO_TRANSITION: {
-      KeyedStoreStubCompiler compiler(isolate_, strict_mode,
-                                      DO_NOT_ALLOW_JSARRAY_GROWTH);
-      code = compiler.CompileStoreElement(receiver_map);
-      break;
-    }
-    default:
-      UNREACHABLE();
-      break;
-  }
+  KeyedLoadStubCompiler compiler(isolate());
+  Handle<Code> code = compiler.CompileLoadElement(receiver_map);
 
-  ASSERT(!code.is_null());
+  PROFILE(isolate(), CodeCreateEvent(Logger::KEYED_LOAD_IC_TAG, *code, 0));
+  Map::UpdateCodeCache(receiver_map, name, code);
+  return code;
+}
 
-  if (stub_kind == KeyedIC::LOAD) {
-    PROFILE(isolate_, CodeCreateEvent(Logger::KEYED_LOAD_IC_TAG, *code, 0));
-  } else {
-    PROFILE(isolate_, CodeCreateEvent(Logger::KEYED_STORE_IC_TAG, *code, 0));
-  }
+
+Handle<Code> StubCache::ComputeKeyedStoreElement(
+    Handle<Map> receiver_map,
+    KeyedStoreIC::StubKind stub_kind,
+    StrictModeFlag strict_mode,
+    KeyedAccessGrowMode grow_mode) {
+  Code::ExtraICState extra_state =
+      Code::ComputeExtraICState(grow_mode, strict_mode);
+  Code::Flags flags = Code::ComputeMonomorphicFlags(
+      Code::KEYED_STORE_IC, Code::NORMAL, extra_state);
+
+  ASSERT(stub_kind == KeyedStoreIC::STORE_NO_TRANSITION ||
+         stub_kind == KeyedStoreIC::STORE_AND_GROW_NO_TRANSITION);
+
+  Handle<String> name = stub_kind == KeyedStoreIC::STORE_NO_TRANSITION
+      ? isolate()->factory()->KeyedStoreElementMonomorphic_symbol()
+      : isolate()->factory()->KeyedStoreAndGrowElementMonomorphic_symbol();
+
+  Handle<Object> probe(receiver_map->FindInCodeCache(*name, flags), isolate_);
+  if (probe->IsCode()) return Handle<Code>::cast(probe);
+
+  KeyedStoreStubCompiler compiler(isolate(), strict_mode, grow_mode);
+  Handle<Code> code = compiler.CompileStoreElement(receiver_map);
+
+  PROFILE(isolate(), CodeCreateEvent(Logger::KEYED_STORE_IC_TAG, *code, 0));
   Map::UpdateCodeCache(receiver_map, name, code);
   return code;
 }
@@ -847,6 +826,41 @@ Handle<Code> StubCache::ComputeCallMiss(int argc,
   StubCompiler compiler(isolate_);
   Handle<Code> code = compiler.CompileCallMiss(flags);
   FillCache(isolate_, code);
+  return code;
+}
+
+
+Handle<Code> StubCache::ComputeLoadElementPolymorphic(
+    MapHandleList* receiver_maps) {
+  Code::Flags flags = Code::ComputeFlags(Code::KEYED_LOAD_IC, POLYMORPHIC);
+  Handle<PolymorphicCodeCache> cache =
+      isolate_->factory()->polymorphic_code_cache();
+  Handle<Object> probe = cache->Lookup(receiver_maps, flags);
+  if (probe->IsCode()) return Handle<Code>::cast(probe);
+
+  KeyedLoadStubCompiler compiler(isolate_);
+  Handle<Code> code = compiler.CompileLoadElementPolymorphic(receiver_maps);
+  PolymorphicCodeCache::Update(cache, receiver_maps, flags, code);
+  return code;
+}
+
+
+Handle<Code> StubCache::ComputeStoreElementPolymorphic(
+    MapHandleList* receiver_maps,
+    KeyedAccessGrowMode grow_mode,
+    StrictModeFlag strict_mode) {
+  Handle<PolymorphicCodeCache> cache =
+      isolate_->factory()->polymorphic_code_cache();
+  Code::ExtraICState extra_state = Code::ComputeExtraICState(grow_mode,
+                                                             strict_mode);
+  Code::Flags flags =
+      Code::ComputeFlags(Code::KEYED_STORE_IC, POLYMORPHIC, extra_state);
+  Handle<Object> probe = cache->Lookup(receiver_maps, flags);
+  if (probe->IsCode()) return Handle<Code>::cast(probe);
+
+  KeyedStoreStubCompiler compiler(isolate_, strict_mode, grow_mode);
+  Handle<Code> code = compiler.CompileStoreElementPolymorphic(receiver_maps);
+  PolymorphicCodeCache::Update(cache, receiver_maps, flags, code);
   return code;
 }
 
@@ -1366,6 +1380,40 @@ Handle<Code> KeyedLoadStubCompiler::GetCode(Code::StubType type,
 }
 
 
+Handle<Code> KeyedLoadStubCompiler::CompileLoadElementPolymorphic(
+    MapHandleList* receiver_maps) {
+  CodeHandleList handler_ics(receiver_maps->length());
+  for (int i = 0; i < receiver_maps->length(); ++i) {
+    Handle<Map> receiver_map = receiver_maps->at(i);
+    Handle<Code> cached_stub;
+
+    if ((receiver_map->instance_type() & kNotStringTag) == 0) {
+      cached_stub = isolate()->builtins()->KeyedLoadIC_String();
+    } else {
+      bool is_js_array = receiver_map->instance_type() == JS_ARRAY_TYPE;
+      ElementsKind elements_kind = receiver_map->elements_kind();
+
+      if (IsFastElementsKind(elements_kind) ||
+          IsExternalArrayElementsKind(elements_kind)) {
+        cached_stub =
+            KeyedLoadFastElementStub(is_js_array, elements_kind).GetCode();
+      } else {
+        ASSERT(elements_kind == DICTIONARY_ELEMENTS);
+        cached_stub = KeyedLoadDictionaryElementStub().GetCode();
+      }
+    }
+
+    handler_ics.Add(cached_stub);
+  }
+  Handle<Code> code = CompileLoadPolymorphic(receiver_maps, &handler_ics);
+  isolate()->counters()->keyed_load_polymorphic_stubs()->Increment();
+  PROFILE(isolate(),
+          CodeCreateEvent(Logger::KEYED_LOAD_POLYMORPHIC_IC_TAG, *code, 0));
+  return code;
+}
+
+
+
 Handle<Code> StoreStubCompiler::GetCode(Code::StubType type,
                                         Handle<String> name) {
   Code::Flags flags =
@@ -1387,6 +1435,50 @@ Handle<Code> KeyedStoreStubCompiler::GetCode(Code::StubType type,
   Handle<Code> code = GetCodeWithFlags(flags, name);
   PROFILE(isolate(), CodeCreateEvent(Logger::KEYED_STORE_IC_TAG, *code, *name));
   GDBJIT(AddCode(GDBJITInterface::KEYED_STORE_IC, *name, *code));
+  return code;
+}
+
+
+Handle<Code> KeyedStoreStubCompiler::CompileStoreElementPolymorphic(
+    MapHandleList* receiver_maps) {
+  // Collect MONOMORPHIC stubs for all |receiver_maps|.
+  CodeHandleList handler_ics(receiver_maps->length());
+  MapHandleList transitioned_maps(receiver_maps->length());
+  for (int i = 0; i < receiver_maps->length(); ++i) {
+    Handle<Map> receiver_map(receiver_maps->at(i));
+    Handle<Code> cached_stub;
+    Handle<Map> transitioned_map =
+        receiver_map->FindTransitionedMap(receiver_maps);
+
+    // TODO(mvstanton): The code below is doing pessimistic elements
+    // transitions. I would like to stop doing that and rely on Allocation Site
+    // Tracking to do a better job of ensuring the data types are what they need
+    // to be. Not all the elements are in place yet, pessimistic elements
+    // transitions are still important for performance.
+    bool is_js_array = receiver_map->instance_type() == JS_ARRAY_TYPE;
+    ElementsKind elements_kind = receiver_map->elements_kind();
+    if (!transitioned_map.is_null()) {
+      cached_stub = ElementsTransitionAndStoreStub(
+          elements_kind,
+          transitioned_map->elements_kind(),
+          is_js_array,
+          strict_mode_,
+          grow_mode_).GetCode();
+    } else {
+      cached_stub = KeyedStoreElementStub(
+          is_js_array,
+          elements_kind,
+          grow_mode_).GetCode();
+    }
+    ASSERT(!cached_stub.is_null());
+    handler_ics.Add(cached_stub);
+    transitioned_maps.Add(transitioned_map);
+  }
+  Handle<Code> code =
+      CompileStorePolymorphic(receiver_maps, &handler_ics, &transitioned_maps);
+  isolate()->counters()->keyed_store_polymorphic_stubs()->Increment();
+  PROFILE(isolate(),
+          CodeCreateEvent(Logger::KEYED_STORE_POLYMORPHIC_IC_TAG, *code, 0));
   return code;
 }
 

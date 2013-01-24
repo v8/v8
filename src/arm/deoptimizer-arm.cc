@@ -981,22 +981,17 @@ void Deoptimizer::EntryGenerator::Generate() {
 
   if (CpuFeatures::IsSupported(VFP2)) {
     CpuFeatures::Scope scope(VFP2);
-    // Save all VFP registers before messing with them.
-    DwVfpRegister first = DwVfpRegister::FromAllocationIndex(0);
-    DwVfpRegister last =
-        DwVfpRegister::FromAllocationIndex(
-            DwVfpRegister::kMaxNumAllocatableRegisters - 1);
-    ASSERT(last.code() > first.code());
-    ASSERT((last.code() - first.code()) ==
-           (DwVfpRegister::kMaxNumAllocatableRegisters - 1));
-#ifdef DEBUG
-    int max = DwVfpRegister::kMaxNumAllocatableRegisters - 1;
-    for (int i = 0; i <= max; i++) {
-      ASSERT((DwVfpRegister::FromAllocationIndex(i).code() <= last.code()) &&
-             (DwVfpRegister::FromAllocationIndex(i).code() >= first.code()));
-    }
-#endif
-    __ vstm(db_w, sp, first, last);
+    // Save all allocatable VFP registers before messing with them.
+    ASSERT(kDoubleRegZero.code() == 14);
+    ASSERT(kScratchDoubleReg.code() == 15);
+
+    // Check CPU flags for number of registers, setting the Z condition flag.
+    __ CheckFor32DRegs(ip);
+
+    // Push registers d0-d13, and possibly d16-d31, on the stack.
+    __ vstm(db_w, sp, d16, d31, ne);
+    __ sub(sp, sp, Operand(16 * kDoubleSize), LeaveCC, eq);
+    __ vstm(db_w, sp, d0, d13);
   } else {
     __ sub(sp, sp, Operand(kDoubleRegsSize));
   }
@@ -1063,7 +1058,7 @@ void Deoptimizer::EntryGenerator::Generate() {
     // Copy VFP registers to
     // double_registers_[DoubleRegister::kMaxNumAllocatableRegisters]
     int double_regs_offset = FrameDescription::double_registers_offset();
-    for (int i = 0; i < DwVfpRegister::NumAllocatableRegisters(); ++i) {
+    for (int i = 0; i < DwVfpRegister::kMaxNumAllocatableRegisters; ++i) {
       int dst_offset = i * kDoubleSize + double_regs_offset;
       int src_offset = i * kDoubleSize + kNumberOfRegisters * kPointerSize;
       __ vldr(d0, sp, src_offset);
@@ -1111,6 +1106,11 @@ void Deoptimizer::EntryGenerator::Generate() {
   }
   __ pop(r0);  // Restore deoptimizer object (class Deoptimizer).
 
+  // TODO(hans): Change the code below to not clobber r0, so that it can be
+  // used in the "restore the d registers" code further down, making this mov
+  // redundant.
+  __ mov(r4, r0);
+
   // Replace the current (input) frame with the output frames.
   Label outer_push_loop, inner_push_loop,
       outer_loop_header, inner_loop_header;
@@ -1137,6 +1137,26 @@ void Deoptimizer::EntryGenerator::Generate() {
   __ bind(&outer_loop_header);
   __ cmp(r0, r1);
   __ b(lt, &outer_push_loop);
+
+  if (CpuFeatures::IsSupported(VFP2)) {
+    CpuFeatures::Scope scope(VFP2);
+    // In case of OSR, we have to restore the d registers.
+    if (type() == OSR) {
+      // Check CPU flags for number of registers, setting the Z condition flag.
+      __ CheckFor32DRegs(ip);
+
+      __ ldr(r1, MemOperand(r4, Deoptimizer::input_offset()));
+      int src_offset = FrameDescription::double_registers_offset();
+      for (int i = 0; i < DwVfpRegister::kNumRegisters; ++i) {
+        if (i == kDoubleRegZero.code()) continue;
+        if (i == kScratchDoubleReg.code()) continue;
+
+        const DwVfpRegister reg = DwVfpRegister::from_code(i);
+        __ vldr(reg, r1, src_offset, i < 16 ? al : ne);
+        src_offset += kDoubleSize;
+      }
+    }
+  }
 
   // Push state, pc, and continuation from the last output frame.
   if (type() != OSR) {

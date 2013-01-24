@@ -51,6 +51,13 @@
     'v8_can_use_vfp2_instructions%': 'false',
     'v8_can_use_vfp3_instructions%': 'false',
 
+    # Setting 'v8_can_use_vfp32dregs' to 'true' will cause V8 to use the VFP
+    # registers d16-d31 in the generated code, both in the snapshot and for the
+    # ARM target. Leaving the default value of 'false' will avoid the use of
+    # these registers in the snapshot and use CPU feature probing when running
+    # on the target.
+    'v8_can_use_vfp32dregs%': 'false',
+
     # Similar to vfp but on MIPS.
     'v8_can_use_fpu_instructions%': 'true',
 
@@ -176,6 +183,11 @@
           }, {
             'defines': [
               'USE_EABI_HARDFLOAT=0',
+            ],
+          }],
+          [ 'v8_can_use_vfp32dregs=="true"', {
+            'defines': [
+              'CAN_USE_VFP32DREGS',
             ],
           }],
         ],
