@@ -175,8 +175,11 @@ void StaticMarkingVisitor<StaticVisitor>::VisitEmbeddedPointer(
   ASSERT(rinfo->rmode() == RelocInfo::EMBEDDED_OBJECT);
   ASSERT(!rinfo->target_object()->IsConsString());
   HeapObject* object = HeapObject::cast(rinfo->target_object());
-  heap->mark_compact_collector()->RecordRelocSlot(rinfo, object);
-  StaticVisitor::MarkObject(heap, object);
+  if (!FLAG_collect_maps || rinfo->host()->kind() != Code::OPTIMIZED_FUNCTION ||
+      !object->IsMap() || !Map::cast(object)->CanTransition()) {
+    heap->mark_compact_collector()->RecordRelocSlot(rinfo, object);
+    StaticVisitor::MarkObject(heap, object);
+  }
 }
 
 
@@ -262,12 +265,9 @@ void StaticMarkingVisitor<StaticVisitor>::VisitMap(
     map_object->ClearCodeCache(heap);
   }
 
-  // When map collection is enabled we have to mark through map's
-  // transitions and back pointers in a special way to make these links
-  // weak.  Only maps for subclasses of JSReceiver can have transitions.
-  STATIC_ASSERT(LAST_TYPE == LAST_JS_RECEIVER_TYPE);
-  if (FLAG_collect_maps &&
-      map_object->instance_type() >= FIRST_JS_RECEIVER_TYPE) {
+  // When map collection is enabled we have to mark through map's transitions
+  // and back pointers in a special way to make these links weak.
+  if (FLAG_collect_maps && map_object->CanTransition()) {
     MarkMapContents(heap, map_object);
   } else {
     StaticVisitor::VisitPointers(heap,
@@ -394,6 +394,14 @@ void StaticMarkingVisitor<StaticVisitor>::MarkMapContents(
     // Already marked by marking map->GetBackPointer() above.
     ASSERT(transitions->IsMap() || transitions->IsUndefined());
   }
+
+  // Mark prototype dependent codes array but do not push it onto marking
+  // stack, this will make references from it weak. We will clean dead
+  // codes when we iterate over maps in ClearNonLiveTransitions.
+  Object** slot = HeapObject::RawField(map, Map::kDependentCodesOffset);
+  HeapObject* obj = HeapObject::cast(*slot);
+  heap->mark_compact_collector()->RecordSlot(slot, slot, obj);
+  StaticVisitor::MarkObjectWithoutPush(heap, obj);
 
   // Mark the pointer fields of the Map. Since the transitions array has
   // been marked already, it is fine that one of these fields contains a
@@ -639,7 +647,7 @@ void Code::CodeIterateBody(ObjectVisitor* v) {
                   RelocInfo::ModeMask(RelocInfo::RUNTIME_ENTRY);
 
   // There are two places where we iterate code bodies: here and the
-  // templated CodeIterateBody (below).  They should be kept in sync.
+  // templated CodeIterateBody (below). They should be kept in sync.
   IteratePointer(v, kRelocationInfoOffset);
   IteratePointer(v, kHandlerTableOffset);
   IteratePointer(v, kDeoptimizationDataOffset);
@@ -662,8 +670,8 @@ void Code::CodeIterateBody(Heap* heap) {
                   RelocInfo::ModeMask(RelocInfo::DEBUG_BREAK_SLOT) |
                   RelocInfo::ModeMask(RelocInfo::RUNTIME_ENTRY);
 
-  // There are two places where we iterate code bodies: here and the
-  // non-templated CodeIterateBody (above).  They should be kept in sync.
+  // There are two places where we iterate code bodies: here and the non-
+  // templated CodeIterateBody (above). They should be kept in sync.
   StaticVisitor::VisitPointer(
       heap,
       reinterpret_cast<Object**>(this->address() + kRelocationInfoOffset));

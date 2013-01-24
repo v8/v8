@@ -695,6 +695,8 @@ class LChunk: public ZoneObject {
         pointer_maps_(8, graph->zone()),
         inlined_closures_(1, graph->zone()) { }
 
+  void RegisterDependentCodeForEmbeddedMaps(Handle<Code> code);
+
   int spill_slot_count_;
 
  private:

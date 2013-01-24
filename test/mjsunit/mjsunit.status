@@ -84,6 +84,10 @@ tools/tickprocessor: PASS, SKIP if ($arch == android_arm || $arch == android_ia3
 math-floor-of-div-nosudiv: PASS, SKIP if ($arch != arm && $arch != android_arm)
 
 ##############################################################################
+# Long running test that reproduces memory leak and should be run manually.
+regress/regress-2073: SKIP
+
+##############################################################################
 [ $arch == arm || $arch == android_arm ]
 
 # Slow tests which times out in debug mode.

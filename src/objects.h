@@ -862,6 +862,7 @@ class MaybeObject BASE_EMBEDDED {
   V(TransitionArray)                           \
   V(DeoptimizationInputData)                   \
   V(DeoptimizationOutputData)                  \
+  V(DependentCodes)                            \
   V(TypeFeedbackCells)                         \
   V(FixedArray)                                \
   V(FixedDoubleArray)                          \
@@ -4395,6 +4396,12 @@ class Code: public HeapObject {
   inline bool has_function_cache();
   inline void set_has_function_cache(bool flag);
 
+
+  // [marked_for_deoptimization]: For kind OPTIMIZED_FUNCTION tells whether
+  // the code is going to be deoptimized because of dead embedded maps.
+  inline bool marked_for_deoptimization();
+  inline void set_marked_for_deoptimization(bool flag);
+
   bool allowed_in_shared_map_code_cache();
 
   // Get the safepoint entry for the given pc.
@@ -4600,11 +4607,16 @@ class Code: public HeapObject {
   static const int kHasFunctionCacheFirstBit =
       kStackSlotsFirstBit + kStackSlotsBitCount;
   static const int kHasFunctionCacheBitCount = 1;
+  static const int kMarkedForDeoptimizationFirstBit =
+      kStackSlotsFirstBit + kStackSlotsBitCount + 1;
+  static const int kMarkedForDeoptimizationBitCount = 1;
 
   STATIC_ASSERT(kStackSlotsFirstBit + kStackSlotsBitCount <= 32);
   STATIC_ASSERT(kUnaryOpTypeFirstBit + kUnaryOpTypeBitCount <= 32);
   STATIC_ASSERT(kToBooleanStateFirstBit + kToBooleanStateBitCount <= 32);
   STATIC_ASSERT(kHasFunctionCacheFirstBit + kHasFunctionCacheBitCount <= 32);
+  STATIC_ASSERT(kMarkedForDeoptimizationFirstBit +
+                kMarkedForDeoptimizationBitCount <= 32);
 
   class StackSlotsField: public BitField<int,
       kStackSlotsFirstBit, kStackSlotsBitCount> {};  // NOLINT
@@ -4614,6 +4626,9 @@ class Code: public HeapObject {
       kToBooleanStateFirstBit, kToBooleanStateBitCount> {};  // NOLINT
   class HasFunctionCacheField: public BitField<bool,
       kHasFunctionCacheFirstBit, kHasFunctionCacheBitCount> {};  // NOLINT
+  class MarkedForDeoptimizationField: public BitField<bool,
+      kMarkedForDeoptimizationFirstBit,
+      kMarkedForDeoptimizationBitCount> {};  // NOLINT
 
   // KindSpecificFlags2 layout (STUB and OPTIMIZED_FUNCTION)
   static const int kStubMajorKeyFirstBit = 0;
@@ -4658,6 +4673,27 @@ class Code: public HeapObject {
                                    MarkingParity parity);
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(Code);
+};
+
+
+// This class describes the layout of dependent codes array of a map. The
+// first element contains the number of codes as a Smi. The subsequent
+// elements contain code objects. The suffix of the array can be filled with the
+// undefined value if the number of codes is less than the length of the array.
+class DependentCodes: public FixedArray {
+ public:
+  inline int number_of_codes();
+  inline void set_number_of_codes(int value);
+  inline Code* code_at(int i);
+  inline void set_code_at(int i, Code* value);
+  inline Object** code_slot_at(int i);
+  inline void clear_code_at(int i);
+  static Handle<DependentCodes> Append(Handle<DependentCodes> codes,
+                                       Handle<Code> value);
+  static inline DependentCodes* cast(Object* object);
+ private:
+  static const int kNumberOfCodesIndex = 0;
+  static const int kCodesIndex = 1;
 };
 
 
@@ -4890,6 +4926,9 @@ class Map: public HeapObject {
   // [stub cache]: contains stubs compiled for this map.
   DECL_ACCESSORS(code_cache, Object)
 
+  // [dependent codes]: list of optimized codes that have this map embedded.
+  DECL_ACCESSORS(dependent_codes, DependentCodes)
+
   // [back pointer]: points back to the parent map from which a transition
   // leads to this map. The field overlaps with prototype transitions and the
   // back pointer will be moved into the prototype transitions array if
@@ -5099,6 +5138,14 @@ class Map: public HeapObject {
   void ZapPrototypeTransitions();
   void ZapTransitions();
 
+  bool CanTransition() {
+    // Only JSObject and subtypes have map transitions and back pointers.
+    STATIC_ASSERT(LAST_TYPE == LAST_JS_OBJECT_TYPE);
+    return instance_type() >= FIRST_JS_OBJECT_TYPE;
+  }
+
+  inline void AddDependentCode(Handle<Code> code);
+
   // Dispatched behavior.
   DECLARE_PRINTER(Map)
   DECLARE_VERIFIER(Map)
@@ -5147,7 +5194,8 @@ class Map: public HeapObject {
   static const int kDescriptorsOffset =
       kTransitionsOrBackPointerOffset + kPointerSize;
   static const int kCodeCacheOffset = kDescriptorsOffset + kPointerSize;
-  static const int kBitField3Offset = kCodeCacheOffset + kPointerSize;
+  static const int kDependentCodesOffset = kCodeCacheOffset + kPointerSize;
+  static const int kBitField3Offset = kDependentCodesOffset + kPointerSize;
   static const int kSize = kBitField3Offset + kPointerSize;
 
   // Layout of pointer fields. Heap iteration code relies on them
