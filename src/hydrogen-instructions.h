@@ -193,6 +193,7 @@ class LChunkBuilder;
   V(WrapReceiver)
 
 #define GVN_TRACKED_FLAG_LIST(V)               \
+  V(Maps)                                      \
   V(NewSpacePromotion)
 
 #define GVN_UNTRACKED_FLAG_LIST(V)             \
@@ -205,7 +206,6 @@ class LChunkBuilder;
   V(DoubleArrayElements)                       \
   V(SpecializedArrayElements)                  \
   V(GlobalVars)                                \
-  V(Maps)                                      \
   V(ArrayLengths)                              \
   V(ContextSlots)                              \
   V(OsrEntries)
@@ -2248,6 +2248,7 @@ class HCheckMaps: public HTemplateInstruction<2> {
     SetOperandAt(1, typecheck != NULL ? typecheck : value);
     set_representation(Representation::Tagged());
     SetFlag(kUseGVN);
+    SetFlag(kTrackSideEffectDominators);
     SetGVNFlag(kDependsOnMaps);
     SetGVNFlag(kDependsOnElementsKind);
     map_set()->Add(map, zone);
@@ -2257,6 +2258,7 @@ class HCheckMaps: public HTemplateInstruction<2> {
     SetOperandAt(1, value);
     set_representation(Representation::Tagged());
     SetFlag(kUseGVN);
+    SetFlag(kTrackSideEffectDominators);
     SetGVNFlag(kDependsOnMaps);
     SetGVNFlag(kDependsOnElementsKind);
     for (int i = 0; i < maps->length(); i++) {
@@ -2291,7 +2293,7 @@ class HCheckMaps: public HTemplateInstruction<2> {
   virtual Representation RequiredInputRepresentation(int index) {
     return Representation::Tagged();
   }
-
+  virtual void SetSideEffectDominator(GVNFlag side_effect, HValue* dominator);
   virtual void PrintDataTo(StringStream* stream);
   virtual HType CalculateInferredType();
 
