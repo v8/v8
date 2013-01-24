@@ -6796,12 +6796,16 @@ void HOptimizedGraphBuilder::VisitProperty(Property* expr) {
   } else if (expr->key()->IsPropertyName()) {
     Handle<String> name = expr->key()->AsLiteral()->AsPropertyName();
     SmallMapList* types = expr->GetReceiverTypes();
+    HValue* object = Top();
 
-    bool monomorphic = expr->IsMonomorphic();
     Handle<Map> map;
+    bool monomorphic = false;
     if (expr->IsMonomorphic()) {
       map = types->first();
-      if (map->is_dictionary_map()) monomorphic = false;
+      monomorphic = !map->is_dictionary_map();
+    } else if (object->HasMonomorphicJSObjectType()) {
+      map = object->GetMonomorphicJSObjectMap();
+      monomorphic = !map->is_dictionary_map();
     }
     if (monomorphic) {
       Handle<JSFunction> getter;

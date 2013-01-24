@@ -571,6 +571,11 @@ void HValue::PrintNameTo(StringStream* stream) {
 }
 
 
+bool HValue::HasMonomorphicJSObjectType() {
+  return !GetMonomorphicJSObjectMap().is_null();
+}
+
+
 bool HValue::UpdateInferredType() {
   HType type = CalculateInferredType();
   bool result = (!type.Equals(type_));
