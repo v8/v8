@@ -882,24 +882,13 @@ bool Heap::PerformGarbageCollection(GarbageCollector collector,
   }
 #endif
 
-  if (collector == MARK_COMPACTOR && global_gc_prologue_callback_) {
-    ASSERT(!allocation_allowed_);
-    GCTracer::Scope scope(tracer, GCTracer::Scope::EXTERNAL);
-    VMState state(isolate_, EXTERNAL);
-    global_gc_prologue_callback_();
-  }
-
   GCType gc_type =
       collector == MARK_COMPACTOR ? kGCTypeMarkSweepCompact : kGCTypeScavenge;
 
   {
     GCTracer::Scope scope(tracer, GCTracer::Scope::EXTERNAL);
     VMState state(isolate_, EXTERNAL);
-    for (int i = 0; i < gc_prologue_callbacks_.length(); ++i) {
-      if (gc_type & gc_prologue_callbacks_[i].gc_type) {
-        gc_prologue_callbacks_[i].callback(gc_type, kNoGCCallbackFlags);
-      }
-    }
+    CallGCPrologueCallbacks(gc_type);
   }
 
   EnsureFromSpaceIsCommitted();
@@ -1009,19 +998,7 @@ bool Heap::PerformGarbageCollection(GarbageCollector collector,
   {
     GCTracer::Scope scope(tracer, GCTracer::Scope::EXTERNAL);
     VMState state(isolate_, EXTERNAL);
-    GCCallbackFlags callback_flags = kNoGCCallbackFlags;
-    for (int i = 0; i < gc_epilogue_callbacks_.length(); ++i) {
-      if (gc_type & gc_epilogue_callbacks_[i].gc_type) {
-        gc_epilogue_callbacks_[i].callback(gc_type, callback_flags);
-      }
-    }
-  }
-
-  if (collector == MARK_COMPACTOR && global_gc_epilogue_callback_) {
-    ASSERT(!allocation_allowed_);
-    GCTracer::Scope scope(tracer, GCTracer::Scope::EXTERNAL);
-    VMState state(isolate_, EXTERNAL);
-    global_gc_epilogue_callback_();
+    CallGCEpilogueCallbacks(gc_type);
   }
 
 #ifdef VERIFY_HEAP
@@ -1031,6 +1008,30 @@ bool Heap::PerformGarbageCollection(GarbageCollector collector,
 #endif
 
   return next_gc_likely_to_collect_more;
+}
+
+
+void Heap::CallGCPrologueCallbacks(GCType gc_type) {
+  if (gc_type == kGCTypeMarkSweepCompact && global_gc_prologue_callback_) {
+    global_gc_prologue_callback_();
+  }
+  for (int i = 0; i < gc_prologue_callbacks_.length(); ++i) {
+    if (gc_type & gc_prologue_callbacks_[i].gc_type) {
+      gc_prologue_callbacks_[i].callback(gc_type, kNoGCCallbackFlags);
+    }
+  }
+}
+
+
+void Heap::CallGCEpilogueCallbacks(GCType gc_type) {
+  for (int i = 0; i < gc_epilogue_callbacks_.length(); ++i) {
+    if (gc_type & gc_epilogue_callbacks_[i].gc_type) {
+      gc_epilogue_callbacks_[i].callback(gc_type, kNoGCCallbackFlags);
+    }
+  }
+  if (gc_type == kGCTypeMarkSweepCompact && global_gc_epilogue_callback_) {
+    global_gc_epilogue_callback_();
+  }
 }
 
 
@@ -1376,6 +1377,7 @@ void Heap::Scavenge() {
     new_space_front = DoScavenge(&scavenge_visitor, new_space_front);
   }
   isolate()->global_handles()->RemoveObjectGroups();
+  isolate()->global_handles()->RemoveImplicitRefGroups();
 
   isolate_->global_handles()->IdentifyNewSpaceWeakIndependentHandles(
       &IsUnscavengedHeapObject);

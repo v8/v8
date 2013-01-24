@@ -1638,13 +1638,8 @@ class Heap {
 
   inline Isolate* isolate();
 
-  inline void CallGlobalGCPrologueCallback() {
-    if (global_gc_prologue_callback_ != NULL) global_gc_prologue_callback_();
-  }
-
-  inline void CallGlobalGCEpilogueCallback() {
-    if (global_gc_epilogue_callback_ != NULL) global_gc_epilogue_callback_();
-  }
+  void CallGCPrologueCallbacks(GCType gc_type);
+  void CallGCEpilogueCallbacks(GCType gc_type);
 
   inline bool OldGenerationAllocationLimitReached();
 

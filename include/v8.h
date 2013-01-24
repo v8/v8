@@ -3216,7 +3216,7 @@ class V8EXPORT V8 {
    * or delete properties for example) since it is possible such
    * operations will result in the allocation of objects.
    */
-  static void SetGlobalGCPrologueCallback(GCCallback);
+  V8_DEPRECATED(static void SetGlobalGCPrologueCallback(GCCallback));
 
   /**
    * Enables the host application to receive a notification after a
@@ -3245,7 +3245,7 @@ class V8EXPORT V8 {
    * or delete properties for example) since it is possible such
    * operations will result in the allocation of objects.
    */
-  static void SetGlobalGCEpilogueCallback(GCCallback);
+  V8_DEPRECATED(static void SetGlobalGCEpilogueCallback(GCCallback));
 
   /**
    * Enables the host application to provide a mechanism to be notified
