@@ -60,8 +60,8 @@ class GlobalHandles::Node {
   }
 
   Node() {
-    STATIC_ASSERT(offsetof(Node, class_id_) == Internals::kNodeClassIdOffset);
-    STATIC_ASSERT(offsetof(Node, flags_) == Internals::kNodeFlagsOffset);
+    ASSERT(OFFSET_OF(Node, class_id_) == Internals::kNodeClassIdOffset);
+    ASSERT(OFFSET_OF(Node, flags_) == Internals::kNodeFlagsOffset);
     STATIC_ASSERT(static_cast<int>(NodeState::kMask) ==
                   Internals::kNodeStateMask);
     STATIC_ASSERT(WEAK == Internals::kNodeStateIsWeakValue);
