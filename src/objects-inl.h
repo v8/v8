@@ -3522,6 +3522,8 @@ void Code::set_major_key(int major) {
          kind() == COMPARE_IC ||
          kind() == LOAD_IC ||
          kind() == KEYED_LOAD_IC ||
+         kind() == STORE_IC ||
+         kind() == KEYED_STORE_IC ||
          kind() == TO_BOOLEAN_IC);
   ASSERT(0 <= major && major < 256);
   int previous = READ_UINT32_FIELD(this, kKindSpecificFlags2Offset);
@@ -4927,7 +4929,9 @@ void Code::set_stub_info(int value) {
   ASSERT(kind() == COMPARE_IC ||
          kind() == BINARY_OP_IC ||
          kind() == LOAD_IC ||
-         kind() == KEYED_LOAD_IC);
+         kind() == KEYED_LOAD_IC ||
+         kind() == STORE_IC ||
+         kind() == KEYED_STORE_IC);
   WRITE_FIELD(this, kTypeFeedbackInfoOffset, Smi::FromInt(value));
 }
 

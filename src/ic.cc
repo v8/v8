@@ -795,23 +795,23 @@ MaybeObject* KeyedCallIC::LoadFunction(State state,
     return TypeError("non_object_property_call", object, key);
   }
 
-  if (FLAG_use_ic && state != MEGAMORPHIC && object->IsHeapObject()) {
-    ASSERT(state != GENERIC);
+  bool use_ic = FLAG_use_ic && !object->IsAccessCheckNeeded();
+  ASSERT(!(use_ic && object->IsJSGlobalProxy()));
+
+  if (use_ic && state != MEGAMORPHIC) {
     int argc = target()->arguments_count();
-    Handle<Map> map =
-        isolate()->factory()->non_strict_arguments_elements_map();
-    if (object->IsJSObject() &&
-        Handle<JSObject>::cast(object)->elements()->map() == *map) {
-      Handle<Code> code = isolate()->stub_cache()->ComputeCallArguments(
-          argc, Code::KEYED_CALL_IC);
-      set_target(*code);
-      TRACE_IC("KeyedCallIC", key, state, target());
-    } else if (!object->IsAccessCheckNeeded()) {
-      Handle<Code> code = isolate()->stub_cache()->ComputeCallMegamorphic(
-          argc, Code::KEYED_CALL_IC, Code::kNoExtraICState);
-      set_target(*code);
-      TRACE_IC("KeyedCallIC", key, state, target());
+    Handle<Code> stub = isolate()->stub_cache()->ComputeCallMegamorphic(
+        argc, Code::KEYED_CALL_IC, Code::kNoExtraICState);
+    if (object->IsJSObject()) {
+      Handle<JSObject> receiver = Handle<JSObject>::cast(object);
+      if (receiver->elements()->map() ==
+          isolate()->heap()->non_strict_arguments_elements_map()) {
+        stub = isolate()->stub_cache()->ComputeCallArguments(argc);
+      }
     }
+    ASSERT(!stub.is_null());
+    set_target(*stub);
+    TRACE_IC("KeyedCallIC", key, state, target());
   }
 
   Handle<Object> result = GetProperty(object, key);
@@ -1243,9 +1243,8 @@ MaybeObject* KeyedLoadIC::Load(State state,
     return LoadIC::Load(state, object, Handle<String>::cast(key));
   }
 
-  // Do not use ICs for objects that require access checks (including
-  // the global object).
   bool use_ic = FLAG_use_ic && !object->IsAccessCheckNeeded();
+  ASSERT(!(use_ic && object->IsJSGlobalProxy()));
 
   if (use_ic) {
     Handle<Code> stub = generic_stub();
@@ -1268,12 +1267,12 @@ MaybeObject* KeyedLoadIC::Load(State state,
     } else {
       TRACE_GENERIC_IC("KeyedLoadIC", "force generic");
     }
-    if (!stub.is_null()) set_target(*stub);
+    ASSERT(!stub.is_null());
+    set_target(*stub);
+    TRACE_IC("KeyedLoadIC", key, state, target());
   }
 
-  TRACE_IC("KeyedLoadIC", key, state, target());
 
-  // Get the property.
   return Runtime::GetObjectProperty(isolate(), object, key);
 }
 
@@ -1407,11 +1406,8 @@ MaybeObject* StoreIC::Store(State state,
       receiver->IsJSArray() &&
       name->Equals(isolate()->heap()->length_symbol()) &&
       Handle<JSArray>::cast(receiver)->AllowsSetElementsLength() &&
-      receiver->HasFastProperties() &&
-      kind() != Code::KEYED_STORE_IC) {
-    Handle<Code> stub = (strict_mode == kStrictMode)
-        ? isolate()->builtins()->StoreIC_ArrayLength_Strict()
-        : isolate()->builtins()->StoreIC_ArrayLength();
+      receiver->HasFastProperties()) {
+    Handle<Code> stub = StoreArrayLengthStub(kind(), strict_mode).GetCode();
     set_target(*stub);
     TRACE_IC("StoreIC", name, state, *stub);
     return receiver->SetProperty(*name, *value, NONE, strict_mode, store_mode);
@@ -1728,17 +1724,14 @@ MaybeObject* KeyedStoreIC::Store(State state,
   key = TryConvertKey(key, isolate());
 
   if (key->IsSymbol()) {
-    Handle<String> name = Handle<String>::cast(key);
     return StoreIC::Store(state,
                           strict_mode,
                           object,
-                          name,
+                          Handle<String>::cast(key),
                           value,
                           JSReceiver::MAY_BE_STORE_FROM_KEYED);
   }
 
-  // Do not use ICs for objects that require access checks (including
-  // the global object), or are observed.
   bool use_ic = FLAG_use_ic && !object->IsAccessCheckNeeded() &&
       !(FLAG_harmony_observation && object->IsJSObject() &&
           JSObject::cast(*object)->map()->is_observed());
@@ -1748,26 +1741,25 @@ MaybeObject* KeyedStoreIC::Store(State state,
     Handle<Code> stub = (strict_mode == kStrictMode)
         ? generic_stub_strict()
         : generic_stub();
-    if (object->IsJSObject()) {
-      Handle<JSObject> receiver = Handle<JSObject>::cast(object);
-      if (receiver->elements()->map() ==
-          isolate()->heap()->non_strict_arguments_elements_map()) {
-        stub = non_strict_arguments_stub();
-      } else if (miss_mode != MISS_FORCE_GENERIC) {
-        if (key->IsSmi() && (target() != *non_strict_arguments_stub())) {
+    if (miss_mode != MISS_FORCE_GENERIC) {
+      if (object->IsJSObject()) {
+        Handle<JSObject> receiver = Handle<JSObject>::cast(object);
+        if (receiver->elements()->map() ==
+            isolate()->heap()->non_strict_arguments_elements_map()) {
+          stub = non_strict_arguments_stub();
+        } else if (key->IsSmi() && (target() != *non_strict_arguments_stub())) {
           StubKind stub_kind = GetStubKind(receiver, key, value);
           stub = StoreElementStub(receiver, stub_kind, strict_mode);
         }
-      } else {
-        TRACE_GENERIC_IC("KeyedStoreIC", "force generic");
       }
+    } else {
+      TRACE_GENERIC_IC("KeyedStoreIC", "force generic");
     }
-    if (!stub.is_null()) set_target(*stub);
+    ASSERT(!stub.is_null());
+    set_target(*stub);
+    TRACE_IC("KeyedStoreIC", key, state, target());
   }
 
-  TRACE_IC("KeyedStoreIC", key, state, target());
-
-  // Set the property.
   return Runtime::SetObjectProperty(
       isolate(), object , key, value, NONE, strict_mode);
 }
@@ -1936,9 +1928,9 @@ RUNTIME_FUNCTION(MaybeObject*, StoreIC_ArrayLength) {
 #endif
 
   Object* result;
-  { MaybeObject* maybe_result = receiver->SetElementsLength(len);
-    if (!maybe_result->ToObject(&result)) return maybe_result;
-  }
+  MaybeObject* maybe_result = receiver->SetElementsLength(len);
+  if (!maybe_result->To(&result)) return maybe_result;
+
   return len;
 }
 

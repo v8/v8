@@ -1455,65 +1455,6 @@ void StoreIC::GenerateMiss(MacroAssembler* masm) {
 }
 
 
-void StoreIC::GenerateArrayLength(MacroAssembler* masm) {
-  // ----------- S t a t e -------------
-  //  -- rax    : value
-  //  -- rcx    : name
-  //  -- rdx    : receiver
-  //  -- rsp[0] : return address
-  // -----------------------------------
-  //
-  // This accepts as a receiver anything JSArray::SetElementsLength accepts
-  // (currently anything except for external arrays which means anything with
-  // elements of FixedArray type).  Value must be a number, but only smis are
-  // accepted as the most common case.
-
-  Label miss;
-
-  Register receiver = rdx;
-  Register value = rax;
-  Register scratch = rbx;
-
-  // Check that the receiver isn't a smi.
-  __ JumpIfSmi(receiver, &miss);
-
-  // Check that the object is a JS array.
-  __ CmpObjectType(receiver, JS_ARRAY_TYPE, scratch);
-  __ j(not_equal, &miss);
-
-  // Check that elements are FixedArray.
-  // We rely on StoreIC_ArrayLength below to deal with all types of
-  // fast elements (including COW).
-  __ movq(scratch, FieldOperand(receiver, JSArray::kElementsOffset));
-  __ CmpObjectType(scratch, FIXED_ARRAY_TYPE, scratch);
-  __ j(not_equal, &miss);
-
-  // Check that the array has fast properties, otherwise the length
-  // property might have been redefined.
-  __ movq(scratch, FieldOperand(receiver, JSArray::kPropertiesOffset));
-  __ CompareRoot(FieldOperand(scratch, FixedArray::kMapOffset),
-                 Heap::kHashTableMapRootIndex);
-  __ j(equal, &miss);
-
-  // Check that value is a smi.
-  __ JumpIfNotSmi(value, &miss);
-
-  // Prepare tail call to StoreIC_ArrayLength.
-  __ pop(scratch);
-  __ push(receiver);
-  __ push(value);
-  __ push(scratch);  // return address
-
-  ExternalReference ref =
-      ExternalReference(IC_Utility(kStoreIC_ArrayLength), masm->isolate());
-  __ TailCallExternalReference(ref, 2, 1);
-
-  __ bind(&miss);
-
-  GenerateMiss(masm);
-}
-
-
 void StoreIC::GenerateNormal(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- rax    : value

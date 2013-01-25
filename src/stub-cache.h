@@ -227,7 +227,7 @@ class StubCache {
                                  Code::Kind kind,
                                  Code::ExtraICState state);
 
-  Handle<Code> ComputeCallArguments(int argc, Code::Kind kind);
+  Handle<Code> ComputeCallArguments(int argc);
 
   Handle<Code> ComputeCallMegamorphic(int argc,
                                       Code::Kind kind,
@@ -485,8 +485,8 @@ class StubCompiler BASE_EMBEDDED {
                           Register scratch2,
                           Label* miss_label);
 
-  static void GenerateLoadMiss(MacroAssembler* masm,
-                               Code::Kind kind);
+  static void GenerateLoadMiss(MacroAssembler* masm, Code::Kind kind);
+  static void GenerateStoreMiss(MacroAssembler* masm, Code::Kind kind);
 
   static void GenerateKeyedLoadMissForceGeneric(MacroAssembler* masm);
 

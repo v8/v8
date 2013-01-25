@@ -723,6 +723,15 @@ void StubCompiler::GenerateLoadMiss(MacroAssembler* masm, Code::Kind kind) {
 }
 
 
+void StubCompiler::GenerateStoreMiss(MacroAssembler* masm, Code::Kind kind) {
+  ASSERT(kind == Code::STORE_IC || kind == Code::KEYED_STORE_IC);
+  Handle<Code> code = (kind == Code::STORE_IC)
+      ? masm->isolate()->builtins()->StoreIC_Miss()
+      : masm->isolate()->builtins()->KeyedStoreIC_Miss();
+  __ Jump(code, RelocInfo::CODE_TARGET);
+}
+
+
 void StubCompiler::GenerateKeyedLoadMissForceGeneric(MacroAssembler* masm) {
   Handle<Code> code =
       masm->isolate()->builtins()->KeyedLoadIC_MissForceGeneric();

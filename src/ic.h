@@ -347,10 +347,6 @@ class LoadIC: public IC {
   static void GenerateMegamorphic(MacroAssembler* masm);
   static void GenerateNormal(MacroAssembler* masm);
 
-  // Specialized code generator routines.
-  static void GenerateArrayLength(MacroAssembler* masm);
-  static void GenerateFunctionPrototype(MacroAssembler* masm);
-
   MUST_USE_RESULT MaybeObject* Load(State state,
                                     Handle<Object> object,
                                     Handle<String> name);
@@ -483,7 +479,6 @@ class StoreIC: public IC {
   static void GenerateMiss(MacroAssembler* masm);
   static void GenerateMegamorphic(MacroAssembler* masm,
                                   StrictModeFlag strict_mode);
-  static void GenerateArrayLength(MacroAssembler* masm);
   static void GenerateNormal(MacroAssembler* masm);
   static void GenerateGlobalProxy(MacroAssembler* masm,
                                   StrictModeFlag strict_mode);
