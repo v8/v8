@@ -7094,8 +7094,6 @@ bool HOptimizedGraphBuilder::TryInline(CallKind call_kind,
     return false;
   }
 
-  Handle<SharedFunctionInfo> target_shared(target->shared());
-
 #if !defined(V8_TARGET_ARCH_IA32)
   // Target must be able to use caller's context.
   CompilationInfo* outer_info = info();
@@ -7126,7 +7124,7 @@ bool HOptimizedGraphBuilder::TryInline(CallKind call_kind,
   for (FunctionState* state = function_state();
        state != NULL;
        state = state->outer()) {
-    if (state->compilation_info()->closure()->shared() == *target_shared) {
+    if (*state->compilation_info()->closure() == *target) {
       TraceInline(target, caller, "target is recursive");
       return false;
     }
@@ -7141,6 +7139,7 @@ bool HOptimizedGraphBuilder::TryInline(CallKind call_kind,
 
   // Parse and allocate variables.
   CompilationInfo target_info(target, zone());
+  Handle<SharedFunctionInfo> target_shared(target->shared());
   if (!ParserApi::Parse(&target_info, kNoParsingFlags) ||
       !Scope::Analyze(&target_info)) {
     if (target_info.isolate()->has_pending_exception()) {
