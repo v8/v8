@@ -5075,17 +5075,6 @@ void JSRegExp::SetDataAtUnchecked(int index, Object* value, Heap* heap) {
 }
 
 
-void JSRegExp::ResetLastIndex(Isolate* isolate,
-                              Handle<JSRegExp> regexp) {
-  // Reset lastIndex property to 0.
-  SetProperty(regexp,
-              isolate->factory()->last_index_symbol(),
-              Handle<Smi>(Smi::FromInt(0)),
-              ::NONE,
-              kNonStrictMode);
-}
-
-
 ElementsKind JSObject::GetElementsKind() {
   ElementsKind kind = map()->elements_kind();
 #if DEBUG
