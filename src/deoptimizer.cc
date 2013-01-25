@@ -456,11 +456,13 @@ void Deoptimizer::DeoptimizeAllFunctionsWith(OptimizedFunctionFilter* filter) {
 }
 
 
-void Deoptimizer::HandleWeakDeoptimizedCode(v8::Persistent<v8::Value> obj,
+void Deoptimizer::HandleWeakDeoptimizedCode(v8::Isolate* isolate,
+                                            v8::Persistent<v8::Value> obj,
                                             void* parameter) {
   DeoptimizingCodeListNode* node =
       reinterpret_cast<DeoptimizingCodeListNode*>(parameter);
-  DeoptimizerData* data = Isolate::Current()->deoptimizer_data();
+  DeoptimizerData* data =
+      reinterpret_cast<Isolate*>(isolate)->deoptimizer_data();
   data->RemoveDeoptimizingCode(*node->code());
 #ifdef DEBUG
   for (DeoptimizingCodeListNode* current = data->deoptimizing_code_list_;
@@ -1913,6 +1915,7 @@ DeoptimizingCodeListNode::DeoptimizingCodeListNode(Code* code): next_(NULL) {
   code_ = Handle<Code>::cast(global_handles->Create(code));
   global_handles->MakeWeak(reinterpret_cast<Object**>(code_.location()),
                            this,
+                           NULL,
                            Deoptimizer::HandleWeakDeoptimizedCode);
 }
 

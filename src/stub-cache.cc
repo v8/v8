@@ -774,11 +774,10 @@ Handle<Code> StubCache::ComputeCallNormal(int argc,
 }
 
 
-Handle<Code> StubCache::ComputeCallArguments(int argc, Code::Kind kind) {
-  ASSERT(kind == Code::KEYED_CALL_IC);
+Handle<Code> StubCache::ComputeCallArguments(int argc) {
   Code::Flags flags =
-      Code::ComputeFlags(kind, MEGAMORPHIC, Code::kNoExtraICState,
-                         Code::NORMAL, argc);
+      Code::ComputeFlags(Code::KEYED_CALL_IC, MEGAMORPHIC,
+                         Code::kNoExtraICState, Code::NORMAL, argc);
   Handle<UnseededNumberDictionary> cache =
       isolate_->factory()->non_monomorphic_cache();
   int entry = cache->FindEntry(isolate_, flags);

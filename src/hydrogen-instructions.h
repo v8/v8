@@ -770,6 +770,14 @@ class HValue: public ZoneObject {
 
   const char* Mnemonic() const;
 
+  // Type information helpers.
+  bool HasMonomorphicJSObjectType();
+
+  // TODO(mstarzinger): For now instructions can override this function to
+  // specify statically known types, once HType can convey more information
+  // it should be based on the HType.
+  virtual Handle<Map> GetMonomorphicJSObjectMap() { return Handle<Map>(); }
+
   // Updated the inferred type of this instruction and returns true if
   // it has changed.
   bool UpdateInferredType();
@@ -5019,6 +5027,10 @@ class HAllocateObject: public HTemplateInstruction<1> {
   virtual Representation RequiredInputRepresentation(int index) {
     return Representation::Tagged();
   }
+  virtual Handle<Map> GetMonomorphicJSObjectMap() {
+    ASSERT(constructor()->has_initial_map());
+    return Handle<Map>(constructor()->initial_map());
+  }
   virtual HType CalculateInferredType();
 
   DECLARE_CONCRETE_INSTRUCTION(AllocateObject)
@@ -5085,6 +5097,9 @@ class HFastLiteral: public HMaterializedLiteral<1> {
   int total_size() const { return total_size_; }
   virtual Representation RequiredInputRepresentation(int index) {
     return Representation::Tagged();
+  }
+  virtual Handle<Map> GetMonomorphicJSObjectMap() {
+    return Handle<Map>(boilerplate()->map());
   }
   virtual HType CalculateInferredType();
 

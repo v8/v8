@@ -45,7 +45,8 @@ class TokenEnumerator {
   static const int kInheritsSecurityToken = -2;
 
  private:
-  static void TokenRemovedCallback(v8::Persistent<v8::Value> handle,
+  static void TokenRemovedCallback(v8::Isolate* isolate,
+                                   v8::Persistent<v8::Value> handle,
                                    void* parameter);
   void TokenRemoved(Object** token_location);
 

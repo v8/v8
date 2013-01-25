@@ -179,11 +179,13 @@ class LocalContext {
                v8::Handle<v8::Value> global_object = v8::Handle<v8::Value>())
     : context_(v8::Context::New(extensions, global_template, global_object)) {
     context_->Enter();
+    // We can't do this later perhaps because of a fatal error.
+    isolate_ = context_->GetIsolate();
   }
 
   virtual ~LocalContext() {
     context_->Exit();
-    context_.Dispose();
+    context_.Dispose(isolate_);
   }
 
   v8::Context* operator->() { return *context_; }
@@ -196,6 +198,7 @@ class LocalContext {
 
  private:
   v8::Persistent<v8::Context> context_;
+  v8::Isolate* isolate_;
 };
 
 

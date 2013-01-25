@@ -6622,8 +6622,6 @@ class JSRegExp: public JSObject {
   inline void SetDataAtUnchecked(int index, Object* value, Heap* heap);
   inline Type TypeTagUnchecked();
 
-  static inline void ResetLastIndex(Isolate* isolate, Handle<JSRegExp> regexp);
-
   static int code_index(bool is_ascii) {
     if (is_ascii) {
       return kIrregexpASCIICodeIndex;

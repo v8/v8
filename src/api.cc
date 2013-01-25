@@ -626,92 +626,31 @@ bool SetResourceConstraints(ResourceConstraints* constraints) {
 }
 
 
-i::Object** V8::GlobalizeReference(i::Object** obj) {
-  i::Isolate* isolate = i::Isolate::Current();
+i::Object** V8::GlobalizeReference(i::Isolate* isolate, i::Object** obj) {
   if (IsDeadCheck(isolate, "V8::Persistent::New")) return NULL;
   LOG_API(isolate, "Persistent::New");
-  i::Handle<i::Object> result =
-      isolate->global_handles()->Create(*obj);
+  i::Handle<i::Object> result = isolate->global_handles()->Create(*obj);
   return result.location();
 }
 
 
-void V8::MakeWeak(i::Object** object, void* parameters,
-                  WeakReferenceCallback callback) {
-  i::Isolate* isolate = i::Isolate::Current();
-  LOG_API(isolate, "MakeWeak");
-  isolate->global_handles()->MakeWeak(object, parameters,
-                                      callback);
-}
-
-
-void V8::MakeWeak(i::Isolate* isolate, i::Object** object,
-                  void* parameters, WeakReferenceCallback callback) {
+void V8::MakeWeak(i::Isolate* isolate,
+                  i::Object** object,
+                  void* parameters,
+                  WeakReferenceCallback weak_reference_callback,
+                  NearDeathCallback near_death_callback) {
   ASSERT(isolate == i::Isolate::Current());
   LOG_API(isolate, "MakeWeak");
-  isolate->global_handles()->MakeWeak(object, parameters,
-                                      callback);
+  isolate->global_handles()->MakeWeak(object,
+                                      parameters,
+                                      weak_reference_callback,
+                                      near_death_callback);
 }
 
 
-void V8::ClearWeak(i::Object** obj) {
-  i::Isolate* isolate = i::Isolate::Current();
+void V8::ClearWeak(i::Isolate* isolate, i::Object** obj) {
   LOG_API(isolate, "ClearWeak");
   isolate->global_handles()->ClearWeakness(obj);
-}
-
-
-void V8::MarkIndependent(i::Object** object) {
-  i::Isolate* isolate = i::Isolate::Current();
-  LOG_API(isolate, "MarkIndependent");
-  isolate->global_handles()->MarkIndependent(object);
-}
-
-
-void V8::MarkPartiallyDependent(i::Object** object) {
-  i::Isolate* isolate = i::Isolate::Current();
-  LOG_API(isolate, "MarkPartiallyDependent");
-  isolate->global_handles()->MarkPartiallyDependent(object);
-}
-
-
-bool V8::IsGlobalIndependent(i::Object** obj) {
-  i::Isolate* isolate = i::Isolate::Current();
-  LOG_API(isolate, "IsGlobalIndependent");
-  if (!isolate->IsInitialized()) return false;
-  return i::GlobalHandles::IsIndependent(obj);
-}
-
-
-bool V8::IsGlobalNearDeath(i::Object** obj) {
-  i::Isolate* isolate = i::Isolate::Current();
-  LOG_API(isolate, "IsGlobalNearDeath");
-  if (!isolate->IsInitialized()) return false;
-  return i::GlobalHandles::IsNearDeath(obj);
-}
-
-
-bool V8::IsGlobalWeak(i::Object** obj) {
-  i::Isolate* isolate = i::Isolate::Current();
-  LOG_API(isolate, "IsGlobalWeak");
-  if (!isolate->IsInitialized()) return false;
-  return i::GlobalHandles::IsWeak(obj);
-}
-
-
-bool V8::IsGlobalWeak(i::Isolate* isolate, i::Object** obj) {
-  ASSERT(isolate == i::Isolate::Current());
-  LOG_API(isolate, "IsGlobalWeak");
-  if (!isolate->IsInitialized()) return false;
-  return i::GlobalHandles::IsWeak(obj);
-}
-
-
-void V8::DisposeGlobal(i::Object** obj) {
-  i::Isolate* isolate = i::Isolate::Current();
-  LOG_API(isolate, "DisposeGlobal");
-  if (!isolate->IsInitialized()) return;
-  isolate->global_handles()->Destroy(obj);
 }
 
 

@@ -165,6 +165,21 @@ class IC {
   static inline void SetTargetAtAddress(Address address, Code* target);
   static void PostPatching(Address address, Code* target, Code* old_target);
 
+  void PatchCache(State state,
+                  StrictModeFlag strict_mode,
+                  Handle<JSObject> receiver,
+                  Handle<String> name,
+                  Handle<Code> code);
+  virtual void UpdateMegamorphicCache(Map* map, String* name, Code* code);
+  virtual Handle<Code> megamorphic_stub() {
+    UNREACHABLE();
+    return Handle<Code>::null();
+  }
+  virtual Handle<Code> megamorphic_stub_strict() {
+    UNREACHABLE();
+    return Handle<Code>::null();
+  }
+
  private:
   // Frame pointer for the frame that uses (calls) the IC.
   Address fp_;
@@ -332,10 +347,6 @@ class LoadIC: public IC {
   static void GenerateMegamorphic(MacroAssembler* masm);
   static void GenerateNormal(MacroAssembler* masm);
 
-  // Specialized code generator routines.
-  static void GenerateArrayLength(MacroAssembler* masm);
-  static void GenerateFunctionPrototype(MacroAssembler* masm);
-
   MUST_USE_RESULT MaybeObject* Load(State state,
                                     Handle<Object> object,
                                     Handle<String> name);
@@ -361,7 +372,6 @@ class LoadIC: public IC {
   virtual Handle<Code> ComputeLoadMonomorphic(LookupResult* lookup,
                                               Handle<JSObject> receiver,
                                               Handle<String> name);
-  virtual void UpdateMegamorphicCache(Map* map, String* name, Code* code);
 
  private:
   // Stub accessors.
@@ -469,7 +479,6 @@ class StoreIC: public IC {
   static void GenerateMiss(MacroAssembler* masm);
   static void GenerateMegamorphic(MacroAssembler* masm,
                                   StrictModeFlag strict_mode);
-  static void GenerateArrayLength(MacroAssembler* masm);
   static void GenerateNormal(MacroAssembler* masm);
   static void GenerateGlobalProxy(MacroAssembler* masm,
                                   StrictModeFlag strict_mode);
@@ -502,12 +511,19 @@ class StoreIC: public IC {
 
   // Update the inline cache and the global stub cache based on the
   // lookup result.
-  virtual void UpdateStoreCaches(LookupResult* lookup,
-                                 State state,
-                                 StrictModeFlag strict_mode,
-                                 Handle<JSObject> receiver,
-                                 Handle<String> name,
-                                 Handle<Object> value);
+  void UpdateCaches(LookupResult* lookup,
+                    State state,
+                    StrictModeFlag strict_mode,
+                    Handle<JSObject> receiver,
+                    Handle<String> name,
+                    Handle<Object> value);
+  // Compute the code stub for this store; used for rewriting to
+  // monomorphic state and making sure that the code stub is in the
+  // stub cache.
+  virtual Handle<Code> ComputeStoreMonomorphic(LookupResult* lookup,
+                                               StrictModeFlag strict_mode,
+                                               Handle<JSObject> receiver,
+                                               Handle<String> name);
 
  private:
   void set_target(Code* code) {
@@ -607,13 +623,11 @@ class KeyedStoreIC: public StoreIC {
  protected:
   virtual Code::Kind kind() const { return Code::KEYED_STORE_IC; }
 
-  // Update the inline cache.
-  virtual void UpdateStoreCaches(LookupResult* lookup,
-                                 State state,
-                                 StrictModeFlag strict_mode,
-                                 Handle<JSObject> receiver,
-                                 Handle<String> name,
-                                 Handle<Object> value);
+  virtual Handle<Code> ComputeStoreMonomorphic(LookupResult* lookup,
+                                               StrictModeFlag strict_mode,
+                                               Handle<JSObject> receiver,
+                                               Handle<String> name);
+  virtual void UpdateMegamorphicCache(Map* map, String* name, Code* code) { }
 
   virtual Handle<Code> megamorphic_stub() {
     return isolate()->builtins()->KeyedStoreIC_Generic();

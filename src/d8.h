@@ -404,7 +404,9 @@ class Shell : public i::AllStatic {
   static Handle<Value> CreateExternalArray(const Arguments& args,
                                            ExternalArrayType type,
                                            int32_t element_size);
-  static void ExternalArrayWeakCallback(Persistent<Value> object, void* data);
+  static void ExternalArrayWeakCallback(Isolate* isolate,
+                                        Persistent<Value> object,
+                                        void* data);
 };
 
 

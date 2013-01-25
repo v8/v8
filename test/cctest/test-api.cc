@@ -181,7 +181,7 @@ THREADED_TEST(IsolateOfContext) {
   CHECK(!env->InContext());
   CHECK(env->GetIsolate() == v8::Isolate::GetCurrent());
 
-  env.Dispose();
+  env.Dispose(env->GetIsolate());
 }
 
 
@@ -2317,22 +2317,23 @@ THREADED_TEST(External) {
 
 
 THREADED_TEST(GlobalHandle) {
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
   v8::Persistent<String> global;
   {
     v8::HandleScope scope;
     Local<String> str = v8_str("str");
-    global = v8::Persistent<String>::New(str);
+    global = v8::Persistent<String>::New(isolate, str);
   }
   CHECK_EQ(global->Length(), 3);
-  global.Dispose();
+  global.Dispose(isolate);
 
   {
     v8::HandleScope scope;
     Local<String> str = v8_str("str");
-    global = v8::Persistent<String>::New(str);
+    global = v8::Persistent<String>::New(isolate, str);
   }
   CHECK_EQ(global->Length(), 3);
-  global.Dispose(v8::Isolate::GetCurrent());
+  global.Dispose(isolate);
 }
 
 
@@ -2358,17 +2359,20 @@ class WeakCallCounter {
 };
 
 
-static void WeakPointerCallback(Persistent<Value> handle, void* id) {
+static void WeakPointerCallback(v8::Isolate* isolate,
+                                Persistent<Value> handle,
+                                void* id) {
   WeakCallCounter* counter = reinterpret_cast<WeakCallCounter*>(id);
   CHECK_EQ(1234, counter->id());
   counter->increment();
-  handle.Dispose();
+  handle.Dispose(isolate);
 }
 
 
 THREADED_TEST(ApiObjectGroups) {
   HandleScope scope;
   LocalContext env;
+  v8::Isolate* iso = env->GetIsolate();
 
   Persistent<Object> g1s1;
   Persistent<Object> g1s2;
@@ -2381,22 +2385,22 @@ THREADED_TEST(ApiObjectGroups) {
 
   {
     HandleScope scope;
-    g1s1 = Persistent<Object>::New(Object::New());
-    g1s2 = Persistent<Object>::New(Object::New());
-    g1c1 = Persistent<Object>::New(Object::New());
-    g1s1.MakeWeak(reinterpret_cast<void*>(&counter), &WeakPointerCallback);
-    g1s2.MakeWeak(reinterpret_cast<void*>(&counter), &WeakPointerCallback);
-    g1c1.MakeWeak(reinterpret_cast<void*>(&counter), &WeakPointerCallback);
+    g1s1 = Persistent<Object>::New(iso, Object::New());
+    g1s2 = Persistent<Object>::New(iso, Object::New());
+    g1c1 = Persistent<Object>::New(iso, Object::New());
+    g1s1.MakeWeak(iso, reinterpret_cast<void*>(&counter), &WeakPointerCallback);
+    g1s2.MakeWeak(iso, reinterpret_cast<void*>(&counter), &WeakPointerCallback);
+    g1c1.MakeWeak(iso, reinterpret_cast<void*>(&counter), &WeakPointerCallback);
 
-    g2s1 = Persistent<Object>::New(Object::New());
-    g2s2 = Persistent<Object>::New(Object::New());
-    g2c1 = Persistent<Object>::New(Object::New());
-    g2s1.MakeWeak(reinterpret_cast<void*>(&counter), &WeakPointerCallback);
-    g2s2.MakeWeak(reinterpret_cast<void*>(&counter), &WeakPointerCallback);
-    g2c1.MakeWeak(reinterpret_cast<void*>(&counter), &WeakPointerCallback);
+    g2s1 = Persistent<Object>::New(iso, Object::New());
+    g2s2 = Persistent<Object>::New(iso, Object::New());
+    g2c1 = Persistent<Object>::New(iso, Object::New());
+    g2s1.MakeWeak(iso, reinterpret_cast<void*>(&counter), &WeakPointerCallback);
+    g2s2.MakeWeak(iso, reinterpret_cast<void*>(&counter), &WeakPointerCallback);
+    g2c1.MakeWeak(iso, reinterpret_cast<void*>(&counter), &WeakPointerCallback);
   }
 
-  Persistent<Object> root = Persistent<Object>::New(g1s1);  // make a root.
+  Persistent<Object> root = Persistent<Object>::New(iso, g1s1);  // make a root.
 
   // Connect group 1 and 2, make a cycle.
   CHECK(g1s2->Set(0, g2s2));
@@ -2419,11 +2423,11 @@ THREADED_TEST(ApiObjectGroups) {
   CHECK_EQ(0, counter.NumberOfWeakCalls());
 
   // Weaken the root.
-  root.MakeWeak(reinterpret_cast<void*>(&counter), &WeakPointerCallback);
+  root.MakeWeak(iso, reinterpret_cast<void*>(&counter), &WeakPointerCallback);
   // But make children strong roots---all the objects (except for children)
   // should be collectable now.
-  g1c1.ClearWeak();
-  g2c1.ClearWeak();
+  g1c1.ClearWeak(iso);
+  g2c1.ClearWeak(iso);
 
   // Groups are deleted, rebuild groups.
   {
@@ -2443,8 +2447,8 @@ THREADED_TEST(ApiObjectGroups) {
   CHECK_EQ(5, counter.NumberOfWeakCalls());
 
   // And now make children weak again and collect them.
-  g1c1.MakeWeak(reinterpret_cast<void*>(&counter), &WeakPointerCallback);
-  g2c1.MakeWeak(reinterpret_cast<void*>(&counter), &WeakPointerCallback);
+  g1c1.MakeWeak(iso, reinterpret_cast<void*>(&counter), &WeakPointerCallback);
+  g2c1.MakeWeak(iso, reinterpret_cast<void*>(&counter), &WeakPointerCallback);
 
   HEAP->CollectAllGarbage(i::Heap::kAbortIncrementalMarkingMask);
   CHECK_EQ(7, counter.NumberOfWeakCalls());
@@ -2454,6 +2458,7 @@ THREADED_TEST(ApiObjectGroups) {
 THREADED_TEST(ApiObjectGroupsCycle) {
   HandleScope scope;
   LocalContext env;
+  v8::Isolate* iso = env->GetIsolate();
 
   WeakCallCounter counter(1234);
 
@@ -2466,41 +2471,38 @@ THREADED_TEST(ApiObjectGroupsCycle) {
   Persistent<Object> g4s1;
   Persistent<Object> g4s2;
 
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
   {
     HandleScope scope;
-    g1s1 = Persistent<Object>::New(Object::New());
-    g1s2 = Persistent<Object>::New(Object::New());
-    g1s1.MakeWeak(reinterpret_cast<void*>(&counter), &WeakPointerCallback);
-    g1s2.MakeWeak(reinterpret_cast<void*>(&counter), &WeakPointerCallback);
-    CHECK(g1s1.IsWeak());
-    CHECK(g1s2.IsWeak());
+    g1s1 = Persistent<Object>::New(iso, Object::New());
+    g1s2 = Persistent<Object>::New(iso, Object::New());
+    g1s1.MakeWeak(iso, reinterpret_cast<void*>(&counter), &WeakPointerCallback);
+    g1s2.MakeWeak(iso, reinterpret_cast<void*>(&counter), &WeakPointerCallback);
+    CHECK(g1s1.IsWeak(iso));
+    CHECK(g1s2.IsWeak(iso));
 
-    g2s1 = Persistent<Object>::New(Object::New());
-    g2s2 = Persistent<Object>::New(Object::New());
-    g2s1.MakeWeak(reinterpret_cast<void*>(&counter), &WeakPointerCallback);
-    g2s2.MakeWeak(reinterpret_cast<void*>(&counter), &WeakPointerCallback);
-    CHECK(g2s1.IsWeak());
-    CHECK(g2s2.IsWeak());
+    g2s1 = Persistent<Object>::New(iso, Object::New());
+    g2s2 = Persistent<Object>::New(iso, Object::New());
+    g2s1.MakeWeak(iso, reinterpret_cast<void*>(&counter), &WeakPointerCallback);
+    g2s2.MakeWeak(iso, reinterpret_cast<void*>(&counter), &WeakPointerCallback);
+    CHECK(g2s1.IsWeak(iso));
+    CHECK(g2s2.IsWeak(iso));
 
-    g3s1 = Persistent<Object>::New(Object::New());
-    g3s2 = Persistent<Object>::New(Object::New());
-    g3s1.MakeWeak(reinterpret_cast<void*>(&counter), &WeakPointerCallback);
-    g3s2.MakeWeak(reinterpret_cast<void*>(&counter), &WeakPointerCallback);
-    CHECK(g3s1.IsWeak());
-    CHECK(g3s2.IsWeak());
+    g3s1 = Persistent<Object>::New(iso, Object::New());
+    g3s2 = Persistent<Object>::New(iso, Object::New());
+    g3s1.MakeWeak(iso, reinterpret_cast<void*>(&counter), &WeakPointerCallback);
+    g3s2.MakeWeak(iso, reinterpret_cast<void*>(&counter), &WeakPointerCallback);
+    CHECK(g3s1.IsWeak(iso));
+    CHECK(g3s2.IsWeak(iso));
 
-    g4s1 = Persistent<Object>::New(Object::New());
-    g4s2 = Persistent<Object>::New(Object::New());
-    g4s1.MakeWeak(isolate,
-                  reinterpret_cast<void*>(&counter), &WeakPointerCallback);
-    g4s2.MakeWeak(isolate,
-                  reinterpret_cast<void*>(&counter), &WeakPointerCallback);
-    CHECK(g4s1.IsWeak(isolate));
-    CHECK(g4s2.IsWeak(isolate));
+    g4s1 = Persistent<Object>::New(iso, Object::New());
+    g4s2 = Persistent<Object>::New(iso, Object::New());
+    g4s1.MakeWeak(iso, reinterpret_cast<void*>(&counter), &WeakPointerCallback);
+    g4s2.MakeWeak(iso, reinterpret_cast<void*>(&counter), &WeakPointerCallback);
+    CHECK(g4s1.IsWeak(iso));
+    CHECK(g4s2.IsWeak(iso));
   }
 
-  Persistent<Object> root = Persistent<Object>::New(g1s1);  // make a root.
+  Persistent<Object> root = Persistent<Object>::New(iso, g1s1);  // make a root.
 
   // Connect groups.  We're building the following cycle:
   // G1: { g1s1, g2s1 }, g1s1 implicitly references g2s1, ditto for other
@@ -2520,7 +2522,7 @@ THREADED_TEST(ApiObjectGroupsCycle) {
     V8::AddImplicitReferences(g2s1, g2_children, 1);
     V8::AddObjectGroup(g3_objects, 2);
     V8::AddImplicitReferences(g3s1, g3_children, 1);
-    V8::AddObjectGroup(isolate, g4_objects, 2);
+    V8::AddObjectGroup(iso, g4_objects, 2);
     V8::AddImplicitReferences(g4s1, g4_children, 1);
   }
   // Do a single full GC
@@ -2530,7 +2532,7 @@ THREADED_TEST(ApiObjectGroupsCycle) {
   CHECK_EQ(0, counter.NumberOfWeakCalls());
 
   // Weaken the root.
-  root.MakeWeak(reinterpret_cast<void*>(&counter), &WeakPointerCallback);
+  root.MakeWeak(iso, reinterpret_cast<void*>(&counter), &WeakPointerCallback);
 
   // Groups are deleted, rebuild groups.
   {
@@ -2566,6 +2568,7 @@ TEST(ApiObjectGroupsCycleForScavenger) {
   i::FLAG_gc_global = false;
   HandleScope scope;
   LocalContext env;
+  v8::Isolate* iso = env->GetIsolate();
 
   WeakCallCounter counter(1234);
 
@@ -2578,36 +2581,36 @@ TEST(ApiObjectGroupsCycleForScavenger) {
 
   {
     HandleScope scope;
-    g1s1 = Persistent<Object>::New(Object::New());
-    g1s2 = Persistent<Object>::New(Object::New());
-    g1s1.MakeWeak(reinterpret_cast<void*>(&counter), &WeakPointerCallback);
-    g1s2.MakeWeak(reinterpret_cast<void*>(&counter), &WeakPointerCallback);
+    g1s1 = Persistent<Object>::New(iso, Object::New());
+    g1s2 = Persistent<Object>::New(iso, Object::New());
+    g1s1.MakeWeak(iso, reinterpret_cast<void*>(&counter), &WeakPointerCallback);
+    g1s2.MakeWeak(iso, reinterpret_cast<void*>(&counter), &WeakPointerCallback);
 
-    g2s1 = Persistent<Object>::New(Object::New());
-    g2s2 = Persistent<Object>::New(Object::New());
-    g2s1.MakeWeak(reinterpret_cast<void*>(&counter), &WeakPointerCallback);
-    g2s2.MakeWeak(reinterpret_cast<void*>(&counter), &WeakPointerCallback);
+    g2s1 = Persistent<Object>::New(iso, Object::New());
+    g2s2 = Persistent<Object>::New(iso, Object::New());
+    g2s1.MakeWeak(iso, reinterpret_cast<void*>(&counter), &WeakPointerCallback);
+    g2s2.MakeWeak(iso, reinterpret_cast<void*>(&counter), &WeakPointerCallback);
 
-    g3s1 = Persistent<Object>::New(Object::New());
-    g3s2 = Persistent<Object>::New(Object::New());
-    g3s1.MakeWeak(reinterpret_cast<void*>(&counter), &WeakPointerCallback);
-    g3s2.MakeWeak(reinterpret_cast<void*>(&counter), &WeakPointerCallback);
+    g3s1 = Persistent<Object>::New(iso, Object::New());
+    g3s2 = Persistent<Object>::New(iso, Object::New());
+    g3s1.MakeWeak(iso, reinterpret_cast<void*>(&counter), &WeakPointerCallback);
+    g3s2.MakeWeak(iso, reinterpret_cast<void*>(&counter), &WeakPointerCallback);
   }
 
   // Make a root.
-  Persistent<Object> root = Persistent<Object>::New(g1s1);
-  root.MarkPartiallyDependent();
+  Persistent<Object> root = Persistent<Object>::New(iso, g1s1);
+  root.MarkPartiallyDependent(iso);
 
   // Connect groups.  We're building the following cycle:
   // G1: { g1s1, g2s1 }, g1s1 implicitly references g2s1, ditto for other
   // groups.
   {
-    g1s1.MarkPartiallyDependent();
-    g1s2.MarkPartiallyDependent();
-    g2s1.MarkPartiallyDependent();
-    g2s2.MarkPartiallyDependent();
-    g3s1.MarkPartiallyDependent();
-    g3s2.MarkPartiallyDependent();
+    g1s1.MarkPartiallyDependent(iso);
+    g1s2.MarkPartiallyDependent(iso);
+    g2s1.MarkPartiallyDependent(iso);
+    g2s2.MarkPartiallyDependent(iso);
+    g3s1.MarkPartiallyDependent(iso);
+    g3s2.MarkPartiallyDependent(iso);
     Persistent<Value> g1_objects[] = { g1s1, g1s2 };
     Persistent<Value> g2_objects[] = { g2s1, g2s2 };
     Persistent<Value> g3_objects[] = { g3s1, g3s2 };
@@ -2625,8 +2628,8 @@ TEST(ApiObjectGroupsCycleForScavenger) {
   CHECK_EQ(0, counter.NumberOfWeakCalls());
 
   // Weaken the root.
-  root.MakeWeak(reinterpret_cast<void*>(&counter), &WeakPointerCallback);
-  root.MarkPartiallyDependent();
+  root.MakeWeak(iso, reinterpret_cast<void*>(&counter), &WeakPointerCallback);
+  root.MarkPartiallyDependent(iso);
 
   v8::Isolate* isolate = v8::Isolate::GetCurrent();
   // Groups are deleted, rebuild groups.
@@ -3759,6 +3762,7 @@ TEST(TryCatchNested) {
 THREADED_TEST(Equality) {
   v8::HandleScope scope;
   LocalContext context;
+  v8::Isolate* isolate = context->GetIsolate();
   // Check that equality works at all before relying on CHECK_EQ
   CHECK(v8_str("a")->Equals(v8_str("a")));
   CHECK(!v8_str("a")->Equals(v8_str("b")));
@@ -3782,9 +3786,10 @@ THREADED_TEST(Equality) {
   CHECK(!v8::False()->StrictEquals(v8::Undefined()));
 
   v8::Handle<v8::Object> obj = v8::Object::New();
-  v8::Persistent<v8::Object> alias = v8::Persistent<v8::Object>::New(obj);
+  v8::Persistent<v8::Object> alias =
+      v8::Persistent<v8::Object>::New(isolate, obj);
   CHECK(alias->StrictEquals(obj));
-  alias.Dispose();
+  alias.Dispose(isolate);
 }
 
 
@@ -4082,7 +4087,7 @@ static void SetXValue(Local<String> name,
   CHECK_EQ(info.Data(), v8_str("donut"));
   CHECK_EQ(name, v8_str("x"));
   CHECK(xValue.IsEmpty());
-  xValue = v8::Persistent<Value>::New(value);
+  xValue = v8::Persistent<Value>::New(info.GetIsolate(), value);
 }
 
 
@@ -4097,7 +4102,7 @@ THREADED_TEST(SimplePropertyWrite) {
     CHECK(xValue.IsEmpty());
     script->Run();
     CHECK_EQ(v8_num(4), xValue);
-    xValue.Dispose();
+    xValue.Dispose(context->GetIsolate());
     xValue = v8::Persistent<Value>();
   }
 }
@@ -4114,7 +4119,7 @@ THREADED_TEST(SetterOnly) {
     CHECK(xValue.IsEmpty());
     script->Run();
     CHECK_EQ(v8_num(4), xValue);
-    xValue.Dispose();
+    xValue.Dispose(context->GetIsolate());
     xValue = v8::Persistent<Value>();
   }
 }
@@ -4224,7 +4229,7 @@ THREADED_TEST(NamedInterceptorDictionaryICMultipleContext) {
   CompileRun("var obj = { x : 0 }; delete obj.x;");
   context1->Exit();
 
-  context1.Dispose();
+  context1.Dispose(context1->GetIsolate());
 }
 
 
@@ -4977,17 +4982,17 @@ template <typename T> static void USE(T) { }
 
 
 // This test is not intended to be run, just type checked.
-static inline void PersistentHandles() {
+static inline void PersistentHandles(v8::Isolate* isolate) {
   USE(PersistentHandles);
   Local<String> str = v8_str("foo");
-  v8::Persistent<String> p_str = v8::Persistent<String>::New(str);
+  v8::Persistent<String> p_str = v8::Persistent<String>::New(isolate, str);
   USE(p_str);
   Local<Script> scr = Script::Compile(v8_str(""));
-  v8::Persistent<Script> p_scr = v8::Persistent<Script>::New(scr);
+  v8::Persistent<Script> p_scr = v8::Persistent<Script>::New(isolate, scr);
   USE(p_scr);
   Local<ObjectTemplate> templ = ObjectTemplate::New();
   v8::Persistent<ObjectTemplate> p_templ =
-    v8::Persistent<ObjectTemplate>::New(templ);
+    v8::Persistent<ObjectTemplate>::New(isolate, templ);
   USE(p_templ);
 }
 
@@ -5006,7 +5011,7 @@ THREADED_TEST(GlobalObjectTemplate) {
   v8::Persistent<Context> context = Context::New(0, global_template);
   Context::Scope context_scope(context);
   Script::Compile(v8_str("JSNI_Log('LOG')"))->Run();
-  context.Dispose();
+  context.Dispose(context->GetIsolate());
 }
 
 
@@ -5475,29 +5480,30 @@ class Snorkel {
 
 class Whammy {
  public:
-  Whammy() {
-    cursor_ = 0;
-  }
-  ~Whammy() {
-    script_.Dispose();
-  }
+  explicit Whammy(v8::Isolate* isolate) : cursor_(0), isolate_(isolate) { }
+  ~Whammy() { script_.Dispose(isolate_); }
   v8::Handle<Script> getScript() {
-    if (script_.IsEmpty())
-      script_ = v8::Persistent<Script>::New(v8_compile("({}).blammo"));
+    if (script_.IsEmpty()) {
+      script_ = v8::Persistent<Script>::New(isolate_,
+                                            v8_compile("({}).blammo"));
+    }
     return Local<Script>(*script_);
   }
 
  public:
   static const int kObjectCount = 256;
   int cursor_;
+  v8::Isolate* isolate_;
   v8::Persistent<v8::Object> objects_[kObjectCount];
   v8::Persistent<Script> script_;
 };
 
-static void HandleWeakReference(v8::Persistent<v8::Value> obj, void* data) {
+static void HandleWeakReference(v8::Isolate* isolate,
+                                v8::Persistent<v8::Value> obj,
+                                void* data) {
   Snorkel* snorkel = reinterpret_cast<Snorkel*>(data);
   delete snorkel;
-  obj.ClearWeak();
+  obj.ClearWeak(isolate);
 }
 
 v8::Handle<Value> WhammyPropertyGetter(Local<String> name,
@@ -5508,10 +5514,11 @@ v8::Handle<Value> WhammyPropertyGetter(Local<String> name,
   v8::Persistent<v8::Object> prev = whammy->objects_[whammy->cursor_];
 
   v8::Handle<v8::Object> obj = v8::Object::New();
-  v8::Persistent<v8::Object> global = v8::Persistent<v8::Object>::New(obj);
+  v8::Persistent<v8::Object> global =
+      v8::Persistent<v8::Object>::New(info.GetIsolate(), obj);
   if (!prev.IsEmpty()) {
     prev->Set(v8_str("next"), obj);
-    prev.MakeWeak(new Snorkel(), &HandleWeakReference);
+    prev.MakeWeak(info.GetIsolate(), new Snorkel(), &HandleWeakReference);
     whammy->objects_[whammy->cursor_].Clear();
   }
   whammy->objects_[whammy->cursor_] = global;
@@ -5522,7 +5529,7 @@ v8::Handle<Value> WhammyPropertyGetter(Local<String> name,
 THREADED_TEST(WeakReference) {
   v8::HandleScope handle_scope;
   v8::Handle<v8::ObjectTemplate> templ= v8::ObjectTemplate::New();
-  Whammy* whammy = new Whammy();
+  Whammy* whammy = new Whammy(v8::Isolate::GetCurrent());
   templ->SetNamedPropertyHandler(WhammyPropertyGetter,
                                  0, 0, 0, 0,
                                  v8::External::New(whammy));
@@ -5545,12 +5552,14 @@ THREADED_TEST(WeakReference) {
   v8::Handle<Value> result = CompileRun(code);
   CHECK_EQ(4.0, result->NumberValue());
   delete whammy;
-  context.Dispose();
+  context.Dispose(context->GetIsolate());
 }
 
 
-static void DisposeAndSetFlag(v8::Persistent<v8::Value> obj, void* data) {
-  obj.Dispose();
+static void DisposeAndSetFlag(v8::Isolate* isolate,
+                              v8::Persistent<v8::Value> obj,
+                              void* data) {
+  obj.Dispose(isolate);
   obj.Clear();
   *(reinterpret_cast<bool*>(data)) = true;
 }
@@ -5558,27 +5567,25 @@ static void DisposeAndSetFlag(v8::Persistent<v8::Value> obj, void* data) {
 
 THREADED_TEST(IndependentWeakHandle) {
   v8::Persistent<Context> context = Context::New();
+  v8::Isolate* iso = context->GetIsolate();
   Context::Scope context_scope(context);
 
   v8::Persistent<v8::Object> object_a, object_b;
 
   {
     v8::HandleScope handle_scope;
-    object_a = v8::Persistent<v8::Object>::New(v8::Object::New());
-    object_b = v8::Persistent<v8::Object>::New(v8::Object::New());
+    object_a = v8::Persistent<v8::Object>::New(iso, v8::Object::New());
+    object_b = v8::Persistent<v8::Object>::New(iso, v8::Object::New());
   }
 
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
   bool object_a_disposed = false;
   bool object_b_disposed = false;
-  object_a.MakeWeak(&object_a_disposed, &DisposeAndSetFlag);
-  object_b.MakeWeak(&object_b_disposed, &DisposeAndSetFlag);
-  CHECK(!object_a.IsIndependent());
-  CHECK(!object_b.IsIndependent(isolate));
-  object_a.MarkIndependent();
-  object_b.MarkIndependent(isolate);
-  CHECK(object_a.IsIndependent());
-  CHECK(object_b.IsIndependent(isolate));
+  object_a.MakeWeak(iso, &object_a_disposed, &DisposeAndSetFlag);
+  object_b.MakeWeak(iso, &object_b_disposed, &DisposeAndSetFlag);
+  CHECK(!object_b.IsIndependent(iso));
+  object_a.MarkIndependent(iso);
+  object_b.MarkIndependent(iso);
+  CHECK(object_b.IsIndependent(iso));
   HEAP->PerformScavenge();
   CHECK(object_a_disposed);
   CHECK(object_b_disposed);
@@ -5595,16 +5602,20 @@ static void InvokeMarkSweep() {
 }
 
 
-static void ForceScavenge(v8::Persistent<v8::Value> obj, void* data) {
-  obj.Dispose();
+static void ForceScavenge(v8::Isolate* isolate,
+                          v8::Persistent<v8::Value> obj,
+                          void* data) {
+  obj.Dispose(isolate);
   obj.Clear();
   *(reinterpret_cast<bool*>(data)) = true;
   InvokeScavenge();
 }
 
 
-static void ForceMarkSweep(v8::Persistent<v8::Value> obj, void* data) {
-  obj.Dispose();
+static void ForceMarkSweep(v8::Isolate* isolate,
+                           v8::Persistent<v8::Value> obj,
+                           void* data) {
+  obj.Dispose(isolate);
   obj.Clear();
   *(reinterpret_cast<bool*>(data)) = true;
   InvokeMarkSweep();
@@ -5613,10 +5624,11 @@ static void ForceMarkSweep(v8::Persistent<v8::Value> obj, void* data) {
 
 THREADED_TEST(GCFromWeakCallbacks) {
   v8::Persistent<Context> context = Context::New();
+  v8::Isolate* isolate = context->GetIsolate();
   Context::Scope context_scope(context);
 
   static const int kNumberOfGCTypes = 2;
-  v8::WeakReferenceCallback gc_forcing_callback[kNumberOfGCTypes] =
+  v8::NearDeathCallback gc_forcing_callback[kNumberOfGCTypes] =
       {&ForceScavenge, &ForceMarkSweep};
 
   typedef void (*GCInvoker)();
@@ -5627,11 +5639,11 @@ THREADED_TEST(GCFromWeakCallbacks) {
       v8::Persistent<v8::Object> object;
       {
         v8::HandleScope handle_scope;
-        object = v8::Persistent<v8::Object>::New(v8::Object::New());
+        object = v8::Persistent<v8::Object>::New(isolate, v8::Object::New());
       }
       bool disposed = false;
-      object.MakeWeak(&disposed, gc_forcing_callback[inner_gc]);
-      object.MarkIndependent();
+      object.MakeWeak(isolate, &disposed, gc_forcing_callback[inner_gc]);
+      object.MarkIndependent(isolate);
       invoke_gc[outer_gc]();
       CHECK(disposed);
     }
@@ -5639,8 +5651,10 @@ THREADED_TEST(GCFromWeakCallbacks) {
 }
 
 
-static void RevivingCallback(v8::Persistent<v8::Value> obj, void* data) {
-  obj.ClearWeak();
+static void RevivingCallback(v8::Isolate* isolate,
+                             v8::Persistent<v8::Value> obj,
+                             void* data) {
+  obj.ClearWeak(isolate);
   *(reinterpret_cast<bool*>(data)) = true;
 }
 
@@ -5648,18 +5662,19 @@ static void RevivingCallback(v8::Persistent<v8::Value> obj, void* data) {
 THREADED_TEST(IndependentHandleRevival) {
   v8::Persistent<Context> context = Context::New();
   Context::Scope context_scope(context);
+  v8::Isolate* isolate = context->GetIsolate();
 
   v8::Persistent<v8::Object> object;
   {
     v8::HandleScope handle_scope;
-    object = v8::Persistent<v8::Object>::New(v8::Object::New());
+    object = v8::Persistent<v8::Object>::New(isolate, v8::Object::New());
     object->Set(v8_str("x"), v8::Integer::New(1));
     v8::Local<String> y_str = v8_str("y");
     object->Set(y_str, y_str);
   }
   bool revived = false;
-  object.MakeWeak(&revived, &RevivingCallback);
-  object.MarkIndependent();
+  object.MakeWeak(isolate, &revived, &RevivingCallback);
+  object.MarkIndependent(isolate);
   HEAP->PerformScavenge();
   CHECK(revived);
   HEAP->CollectAllGarbage(i::Heap::kAbortIncrementalMarkingMask);
@@ -6755,10 +6770,10 @@ TEST(SecurityHandler) {
   }
 
   context1->Exit();
-  context1.Dispose();
+  context1.Dispose(context1->GetIsolate());
 
   context0->Exit();
-  context0.Dispose();
+  context0.Dispose(context0->GetIsolate());
 }
 
 
@@ -6802,7 +6817,7 @@ THREADED_TEST(SecurityChecks) {
     CHECK(try_catch.HasCaught());
   }
 
-  env2.Dispose();
+  env2.Dispose(env2->GetIsolate());
 }
 
 
@@ -6871,7 +6886,7 @@ THREADED_TEST(SecurityChecksForPrototypeChain) {
     CHECK(!access_f3->Run()->Equals(v8_num(101)));
     CHECK(access_f3->Run()->IsUndefined());
   }
-  other.Dispose();
+  other.Dispose(other->GetIsolate());
 }
 
 
@@ -6904,7 +6919,7 @@ THREADED_TEST(CrossDomainDelete) {
   CHECK(v->IsNumber());
   CHECK_EQ(3, v->Int32Value());
 
-  env2.Dispose();
+  env2.Dispose(env2->GetIsolate());
 }
 
 
@@ -6939,7 +6954,7 @@ THREADED_TEST(CrossDomainIsPropertyEnumerable) {
     CHECK(result->IsFalse());
   }
 
-  env2.Dispose();
+  env2.Dispose(env2->GetIsolate());
 }
 
 
@@ -6972,7 +6987,7 @@ THREADED_TEST(CrossDomainForIn) {
                    "return true;})()");
     CHECK(result->IsTrue());
   }
-  env2.Dispose();
+  env2.Dispose(env2->GetIsolate());
 }
 
 
@@ -7035,8 +7050,8 @@ TEST(ContextDetachGlobal) {
     CHECK(r->IsUndefined());
   }
 
-  env2.Dispose();
-  env3.Dispose();
+  env2.Dispose(env2->GetIsolate());
+  env3.Dispose(env3->GetIsolate());
 }
 
 
@@ -7114,8 +7129,8 @@ TEST(DetachAndReattachGlobal) {
   CHECK(result->IsInt32());
   CHECK_EQ(42, result->Int32Value());
 
-  env2.Dispose();
-  env3.Dispose();
+  env2.Dispose(env2->GetIsolate());
+  env3.Dispose(env3->GetIsolate());
 }
 
 
@@ -7405,8 +7420,8 @@ TEST(AccessControl) {
 
   context1->Exit();
   context0->Exit();
-  context1.Dispose();
-  context0.Dispose();
+  context1.Dispose(context1->GetIsolate());
+  context0.Dispose(context0->GetIsolate());
 }
 
 
@@ -7534,8 +7549,8 @@ THREADED_TEST(AccessControlGetOwnPropertyNames) {
 
   context1->Exit();
   context0->Exit();
-  context1.Dispose();
-  context0.Dispose();
+  context1.Dispose(context1->GetIsolate());
+  context0.Dispose(context0->GetIsolate());
 }
 
 
@@ -7618,8 +7633,8 @@ THREADED_TEST(CrossDomainAccessors) {
 
   context1->Exit();
   context0->Exit();
-  context1.Dispose();
-  context0.Dispose();
+  context1.Dispose(context1->GetIsolate());
+  context0.Dispose(context0->GetIsolate());
 }
 
 
@@ -7753,8 +7768,8 @@ TEST(AccessControlIC) {
 
   context1->Exit();
   context0->Exit();
-  context1.Dispose();
-  context0.Dispose();
+  context1.Dispose(context1->GetIsolate());
+  context0.Dispose(context0->GetIsolate());
 }
 
 
@@ -7828,8 +7843,8 @@ THREADED_TEST(AccessControlFlatten) {
 
   context1->Exit();
   context0->Exit();
-  context1.Dispose();
-  context0.Dispose();
+  context1.Dispose(context1->GetIsolate());
+  context0.Dispose(context0->GetIsolate());
 }
 
 
@@ -7920,8 +7935,8 @@ THREADED_TEST(AccessControlInterceptorIC) {
 
   context1->Exit();
   context0->Exit();
-  context1.Dispose();
-  context0.Dispose();
+  context1.Dispose(context1->GetIsolate());
+  context0.Dispose(context0->GetIsolate());
 }
 
 
@@ -8811,8 +8826,8 @@ THREADED_TEST(EvalInDetachedGlobal) {
   CHECK(catcher.HasCaught());
   context1->Exit();
 
-  context1.Dispose();
-  context0.Dispose();
+  context1.Dispose(context1->GetIsolate());
+  context0.Dispose(context0->GetIsolate());
 }
 
 
@@ -11329,79 +11344,90 @@ TEST(DontLeakGlobalObjects) {
 v8::Persistent<v8::Object> some_object;
 v8::Persistent<v8::Object> bad_handle;
 
-void NewPersistentHandleCallback(v8::Persistent<v8::Value> handle, void*) {
+void NewPersistentHandleCallback(v8::Isolate* isolate,
+                                 v8::Persistent<v8::Value> handle,
+                                 void*) {
   v8::HandleScope scope;
-  bad_handle = v8::Persistent<v8::Object>::New(some_object);
-  handle.Dispose();
+  bad_handle = v8::Persistent<v8::Object>::New(isolate, some_object);
+  handle.Dispose(isolate);
 }
 
 
 THREADED_TEST(NewPersistentHandleFromWeakCallback) {
   LocalContext context;
+  v8::Isolate* isolate = context->GetIsolate();
 
   v8::Persistent<v8::Object> handle1, handle2;
   {
     v8::HandleScope scope;
-    some_object = v8::Persistent<v8::Object>::New(v8::Object::New());
-    handle1 = v8::Persistent<v8::Object>::New(v8::Object::New());
-    handle2 = v8::Persistent<v8::Object>::New(v8::Object::New());
+    some_object = v8::Persistent<v8::Object>::New(isolate, v8::Object::New());
+    handle1 = v8::Persistent<v8::Object>::New(isolate, v8::Object::New());
+    handle2 = v8::Persistent<v8::Object>::New(isolate, v8::Object::New());
   }
   // Note: order is implementation dependent alas: currently
   // global handle nodes are processed by PostGarbageCollectionProcessing
   // in reverse allocation order, so if second allocated handle is deleted,
   // weak callback of the first handle would be able to 'reallocate' it.
-  handle1.MakeWeak(NULL, NewPersistentHandleCallback);
-  handle2.Dispose();
+  handle1.MakeWeak(isolate, NULL, NewPersistentHandleCallback);
+  handle2.Dispose(isolate);
   HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
 }
 
 
 v8::Persistent<v8::Object> to_be_disposed;
 
-void DisposeAndForceGcCallback(v8::Persistent<v8::Value> handle, void*) {
-  to_be_disposed.Dispose();
+void DisposeAndForceGcCallback(v8::Isolate* isolate,
+                               v8::Persistent<v8::Value> handle,
+                               void*) {
+  to_be_disposed.Dispose(isolate);
   HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
-  handle.Dispose();
+  handle.Dispose(isolate);
 }
 
 
 THREADED_TEST(DoNotUseDeletedNodesInSecondLevelGc) {
   LocalContext context;
+  v8::Isolate* isolate = context->GetIsolate();
 
   v8::Persistent<v8::Object> handle1, handle2;
   {
     v8::HandleScope scope;
-    handle1 = v8::Persistent<v8::Object>::New(v8::Object::New());
-    handle2 = v8::Persistent<v8::Object>::New(v8::Object::New());
+    handle1 = v8::Persistent<v8::Object>::New(isolate, v8::Object::New());
+    handle2 = v8::Persistent<v8::Object>::New(isolate, v8::Object::New());
   }
-  handle1.MakeWeak(NULL, DisposeAndForceGcCallback);
+  handle1.MakeWeak(isolate, NULL, DisposeAndForceGcCallback);
   to_be_disposed = handle2;
   HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
 }
 
-void DisposingCallback(v8::Persistent<v8::Value> handle, void*) {
-  handle.Dispose();
+void DisposingCallback(v8::Isolate* isolate,
+                       v8::Persistent<v8::Value> handle,
+                       void*) {
+  handle.Dispose(isolate);
 }
 
-void HandleCreatingCallback(v8::Persistent<v8::Value> handle, void*) {
+void HandleCreatingCallback(v8::Isolate* isolate,
+                            v8::Persistent<v8::Value> handle,
+                            void*) {
   v8::HandleScope scope;
-  v8::Persistent<v8::Object>::New(v8::Object::New());
-  handle.Dispose();
+  v8::Persistent<v8::Object>::New(isolate, v8::Object::New());
+  handle.Dispose(isolate);
 }
 
 
 THREADED_TEST(NoGlobalHandlesOrphaningDueToWeakCallback) {
   LocalContext context;
+  v8::Isolate* isolate = context->GetIsolate();
 
   v8::Persistent<v8::Object> handle1, handle2, handle3;
   {
     v8::HandleScope scope;
-    handle3 = v8::Persistent<v8::Object>::New(v8::Object::New());
-    handle2 = v8::Persistent<v8::Object>::New(v8::Object::New());
-    handle1 = v8::Persistent<v8::Object>::New(v8::Object::New());
+    handle3 = v8::Persistent<v8::Object>::New(isolate, v8::Object::New());
+    handle2 = v8::Persistent<v8::Object>::New(isolate, v8::Object::New());
+    handle1 = v8::Persistent<v8::Object>::New(isolate, v8::Object::New());
   }
-  handle2.MakeWeak(NULL, DisposingCallback);
-  handle3.MakeWeak(NULL, HandleCreatingCallback);
+  handle2.MakeWeak(isolate, NULL, DisposingCallback);
+  handle3.MakeWeak(isolate, NULL, HandleCreatingCallback);
   HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
 }
 
@@ -11447,7 +11473,7 @@ THREADED_TEST(NestedHandleScopeAndContexts) {
   v8::Handle<String> str(value->ToString());
   CHECK(!str.IsEmpty());
   env->Exit();
-  env.Dispose();
+  env.Dispose(env->GetIsolate());
 }
 
 
@@ -11769,7 +11795,7 @@ THREADED_TEST(DisposeEnteredContext) {
   LocalContext outer;
   { v8::Persistent<v8::Context> inner = v8::Context::New();
     inner->Enter();
-    inner.Dispose();
+    inner.Dispose(inner->GetIsolate());
     inner.Clear();
     inner->Exit();
   }
@@ -11782,12 +11808,14 @@ THREADED_TEST(DisposeEnteredContext) {
 THREADED_TEST(Regress54) {
   v8::HandleScope outer;
   LocalContext context;
+  v8::Isolate* isolate = context->GetIsolate();
   static v8::Persistent<v8::ObjectTemplate> templ;
   if (templ.IsEmpty()) {
     v8::HandleScope inner;
     v8::Handle<v8::ObjectTemplate> local = v8::ObjectTemplate::New();
     local->SetInternalFieldCount(1);
-    templ = v8::Persistent<v8::ObjectTemplate>::New(inner.Close(local));
+    templ =
+        v8::Persistent<v8::ObjectTemplate>::New(isolate, inner.Close(local));
   }
   v8::Handle<v8::Object> result = templ->NewInstance();
   CHECK_EQ(1, result->InternalFieldCount());
@@ -12476,8 +12504,8 @@ THREADED_TEST(CrossContextNew) {
   context1->Exit();
 
   // Dispose the contexts to allow them to be garbage collected.
-  context0.Dispose();
-  context1.Dispose();
+  context0.Dispose(context0->GetIsolate());
+  context1.Dispose(context1->GetIsolate());
 }
 
 
@@ -13292,9 +13320,9 @@ TEST(InlinedFunctionAcrossContexts) {
         "ReferenceError: G is not defined");
     ctx2->Exit();
     ctx1->Exit();
-    ctx1.Dispose();
+    ctx1.Dispose(ctx1->GetIsolate());
   }
-  ctx2.Dispose();
+  ctx2.Dispose(ctx2->GetIsolate());
 }
 
 
@@ -13353,9 +13381,9 @@ THREADED_TEST(GetCallingContext) {
   calling_context2->Exit();
 
   // Dispose the contexts to allow them to be garbage collected.
-  calling_context0.Dispose();
-  calling_context1.Dispose();
-  calling_context2.Dispose();
+  calling_context0.Dispose(calling_context0->GetIsolate());
+  calling_context1.Dispose(calling_context1->GetIsolate());
+  calling_context2.Dispose(calling_context2->GetIsolate());
   calling_context0.Clear();
   calling_context1.Clear();
   calling_context2.Clear();
@@ -15077,7 +15105,7 @@ TEST(Regress2107) {
     ctx->Enter();
     CreateGarbageInOldSpace();
     ctx->Exit();
-    ctx.Dispose();
+    ctx.Dispose(ctx->GetIsolate());
     v8::V8::ContextDisposedNotification();
     v8::V8::IdleNotification(kLongIdlePauseInMs);
   }
@@ -15429,7 +15457,7 @@ TEST(Regress528) {
     CompileRun(source_simple);
     context->Exit();
   }
-  context.Dispose();
+  context.Dispose(context->GetIsolate());
   v8::V8::ContextDisposedNotification();
   for (gc_count = 1; gc_count < 10; gc_count++) {
     other_context->Enter();
@@ -15452,7 +15480,7 @@ TEST(Regress528) {
     CompileRun(source_eval);
     context->Exit();
   }
-  context.Dispose();
+  context.Dispose(context->GetIsolate());
   v8::V8::ContextDisposedNotification();
   for (gc_count = 1; gc_count < 10; gc_count++) {
     other_context->Enter();
@@ -15480,7 +15508,7 @@ TEST(Regress528) {
     CHECK_EQ(1, message->GetLineNumber());
     context->Exit();
   }
-  context.Dispose();
+  context.Dispose(context->GetIsolate());
   v8::V8::ContextDisposedNotification();
   for (gc_count = 1; gc_count < 10; gc_count++) {
     other_context->Enter();
@@ -15492,7 +15520,7 @@ TEST(Regress528) {
   CHECK_GE(2, gc_count);
   CHECK_EQ(1, GetGlobalObjectsCount());
 
-  other_context.Dispose();
+  other_context.Dispose(other_context->GetIsolate());
   v8::V8::ContextDisposedNotification();
 }
 
@@ -16282,10 +16310,10 @@ TEST(RunTwoIsolatesOnSingleThread) {
 
   {
     v8::Isolate::Scope iscope(isolate2);
-    context2.Dispose();
+    context2.Dispose(context2->GetIsolate());
   }
 
-  context1.Dispose();
+  context1.Dispose(context1->GetIsolate());
   isolate1->Exit();
 
   v8::V8::SetFatalErrorHandler(StoringErrorCallback);
@@ -16659,7 +16687,7 @@ class Visitor42 : public v8::PersistentHandleVisitor {
       CHECK(value->IsObject());
       v8::Persistent<v8::Object> visited =
           v8::Persistent<v8::Object>::Cast(value);
-      CHECK_EQ(42, visited.WrapperClassId());
+      CHECK_EQ(42, visited.WrapperClassId(v8::Isolate::GetCurrent()));
       CHECK_EQ(object_, visited);
       ++counter_;
     }
@@ -16673,55 +16701,58 @@ class Visitor42 : public v8::PersistentHandleVisitor {
 TEST(PersistentHandleVisitor) {
   v8::HandleScope scope;
   LocalContext context;
+  v8::Isolate* isolate = context->GetIsolate();
   v8::Persistent<v8::Object> object =
-      v8::Persistent<v8::Object>::New(v8::Object::New());
-  CHECK_EQ(0, object.WrapperClassId());
-  object.SetWrapperClassId(42);
-  CHECK_EQ(42, object.WrapperClassId());
+      v8::Persistent<v8::Object>::New(isolate, v8::Object::New());
+  CHECK_EQ(0, object.WrapperClassId(isolate));
+  object.SetWrapperClassId(isolate, 42);
+  CHECK_EQ(42, object.WrapperClassId(isolate));
 
   Visitor42 visitor(object);
   v8::V8::VisitHandlesWithClassIds(&visitor);
   CHECK_EQ(1, visitor.counter_);
 
-  object.Dispose();
+  object.Dispose(isolate);
 }
 
 
 TEST(WrapperClassId) {
   v8::HandleScope scope;
   LocalContext context;
+  v8::Isolate* isolate = context->GetIsolate();
   v8::Persistent<v8::Object> object =
-      v8::Persistent<v8::Object>::New(v8::Object::New());
-  CHECK_EQ(0, object.WrapperClassId());
-  object.SetWrapperClassId(65535);
-  CHECK_EQ(65535, object.WrapperClassId());
-  object.Dispose();
+      v8::Persistent<v8::Object>::New(isolate, v8::Object::New());
+  CHECK_EQ(0, object.WrapperClassId(isolate));
+  object.SetWrapperClassId(isolate, 65535);
+  CHECK_EQ(65535, object.WrapperClassId(isolate));
+  object.Dispose(isolate);
 }
 
 
 TEST(PersistentHandleInNewSpaceVisitor) {
   v8::HandleScope scope;
   LocalContext context;
+  v8::Isolate* isolate = context->GetIsolate();
   v8::Persistent<v8::Object> object1 =
-      v8::Persistent<v8::Object>::New(v8::Object::New());
-  CHECK_EQ(0, object1.WrapperClassId());
-  object1.SetWrapperClassId(42);
-  CHECK_EQ(42, object1.WrapperClassId());
+      v8::Persistent<v8::Object>::New(isolate, v8::Object::New());
+  CHECK_EQ(0, object1.WrapperClassId(isolate));
+  object1.SetWrapperClassId(isolate, 42);
+  CHECK_EQ(42, object1.WrapperClassId(isolate));
 
   HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
 
   v8::Persistent<v8::Object> object2 =
-      v8::Persistent<v8::Object>::New(v8::Object::New());
-  CHECK_EQ(0, object2.WrapperClassId());
-  object2.SetWrapperClassId(42);
-  CHECK_EQ(42, object2.WrapperClassId());
+      v8::Persistent<v8::Object>::New(isolate, v8::Object::New());
+  CHECK_EQ(0, object2.WrapperClassId(isolate));
+  object2.SetWrapperClassId(isolate, 42);
+  CHECK_EQ(42, object2.WrapperClassId(isolate));
 
   Visitor42 visitor(object2);
-  v8::V8::VisitHandlesForPartialDependence(v8::Isolate::GetCurrent(), &visitor);
+  v8::V8::VisitHandlesForPartialDependence(isolate, &visitor);
   CHECK_EQ(1, visitor.counter_);
 
-  object1.Dispose();
-  object2.Dispose();
+  object1.Dispose(isolate);
+  object2.Dispose(isolate);
 }
 
 
@@ -16951,9 +16982,9 @@ THREADED_TEST(CreationContext) {
     CheckContextId(instance2, 2);
   }
 
-  context1.Dispose();
-  context2.Dispose();
-  context3.Dispose();
+  context1.Dispose(context1->GetIsolate());
+  context2.Dispose(context2->GetIsolate());
+  context3.Dispose(context3->GetIsolate());
 }
 
 
@@ -16971,7 +17002,7 @@ THREADED_TEST(CreationContextOfJsFunction) {
   CHECK(function->CreationContext() == context);
   CheckContextId(function, 1);
 
-  context.Dispose();
+  context.Dispose(context->GetIsolate());
 }
 
 
@@ -17347,7 +17378,7 @@ THREADED_TEST(Regress93759) {
   Local<Value> result6 = CompileRun("Object.getPrototypeOf(phidden)");
   CHECK(result6->Equals(Undefined()));
 
-  context.Dispose();
+  context.Dispose(context->GetIsolate());
 }
 
 
@@ -17475,7 +17506,7 @@ THREADED_TEST(ForeignFunctionReceiver) {
   // Calling with no base.
   TestReceiver(o, context->Global(), "(1,func)()");
 
-  foreign_context.Dispose();
+  foreign_context.Dispose(foreign_context->GetIsolate());
 }
 
 

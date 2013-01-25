@@ -1,3 +1,17 @@
+2013-01-25: Version 3.16.10
+
+        Avoid excessive memory usage during redundant phi elimination.
+        (issue 2510)
+
+        Fixed additional spec violations wrt RegExp.lastIndex.
+        (issue 2437)
+
+        Added Isolate parameter to Persistent class.
+        (issue 2487)
+
+        Performance and stability improvements on all platforms.
+
+
 2013-01-24: Version 3.16.9
 
         Made embedded maps in optimized code weak.

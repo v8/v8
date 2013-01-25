@@ -384,7 +384,7 @@ int main(int argc, char** argv) {
   // context even after we have disposed of the context.
   HEAP->CollectAllGarbage(i::Heap::kNoGCFlags, "mksnapshot");
   i::Object* raw_context = *(v8::Utils::OpenHandle(*context));
-  context.Dispose();
+  context.Dispose(context->GetIsolate());
   CppByteSink sink(argv[1]);
   // This results in a somewhat smaller snapshot, probably because it gets rid
   // of some things that are cached between garbage collections.

@@ -116,10 +116,12 @@ class JsHttpRequestProcessor : public HttpRequestProcessor {
 
   // Utility methods for wrapping C++ objects as JavaScript objects,
   // and going back again.
-  static Handle<Object> WrapMap(map<string, string>* obj);
+  Handle<Object> WrapMap(map<string, string>* obj);
   static map<string, string>* UnwrapMap(Handle<Object> obj);
-  static Handle<Object> WrapRequest(HttpRequest* obj);
+  Handle<Object> WrapRequest(HttpRequest* obj);
   static HttpRequest* UnwrapRequest(Handle<Object> obj);
+
+  Isolate* GetIsolate() { return context_->GetIsolate(); }
 
   Handle<String> script_;
   Persistent<Context> context_;
@@ -187,7 +189,7 @@ bool JsHttpRequestProcessor::Initialize(map<string, string>* opts,
 
   // Store the function in a Persistent handle, since we also want
   // that to remain after this call returns
-  process_ = Persistent<Function>::New(process_fun);
+  process_ = Persistent<Function>::New(GetIsolate(), process_fun);
 
   // All done; all went well
   return true;
@@ -273,8 +275,9 @@ JsHttpRequestProcessor::~JsHttpRequestProcessor() {
   // Dispose the persistent handles.  When noone else has any
   // references to the objects stored in the handles they will be
   // automatically reclaimed.
-  context_.Dispose();
-  process_.Dispose();
+  v8::Isolate* isolate = GetIsolate();
+  context_.Dispose(isolate);
+  process_.Dispose(isolate);
 }
 
 
@@ -296,7 +299,7 @@ Handle<Object> JsHttpRequestProcessor::WrapMap(map<string, string>* obj) {
   // It only has to be created once, which we do on demand.
   if (map_template_.IsEmpty()) {
     Handle<ObjectTemplate> raw_template = MakeMapTemplate();
-    map_template_ = Persistent<ObjectTemplate>::New(raw_template);
+    map_template_ = Persistent<ObjectTemplate>::New(GetIsolate(), raw_template);
   }
   Handle<ObjectTemplate> templ = map_template_;
 
@@ -401,7 +404,8 @@ Handle<Object> JsHttpRequestProcessor::WrapRequest(HttpRequest* request) {
   // It only has to be created once, which we do on demand.
   if (request_template_.IsEmpty()) {
     Handle<ObjectTemplate> raw_template = MakeRequestTemplate();
-    request_template_ = Persistent<ObjectTemplate>::New(raw_template);
+    request_template_ =
+        Persistent<ObjectTemplate>::New(GetIsolate(), raw_template);
   }
   Handle<ObjectTemplate> templ = request_template_;
 

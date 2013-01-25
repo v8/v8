@@ -79,7 +79,7 @@ int main(int argc, char* argv[]) {
     result = RunMain(argc, argv);
     if (run_shell) RunShell(context);
     context->Exit();
-    context.Dispose();
+    context.Dispose(context->GetIsolate());
   }
   v8::V8::Dispose();
   return result;

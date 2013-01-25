@@ -137,7 +137,7 @@ class DebugLocalContext {
   }
   inline ~DebugLocalContext() {
     context_->Exit();
-    context_.Dispose();
+    context_.Dispose(context_->GetIsolate());
   }
   inline v8::Context* operator->() { return *context_; }
   inline v8::Context* operator*() { return *context_; }
@@ -4231,7 +4231,7 @@ TEST(NoBreakWhenBootstrapping) {
     const char* extension_names[] = { "simpletest" };
     v8::ExtensionConfiguration extensions(1, extension_names);
     v8::Persistent<v8::Context> context = v8::Context::New(&extensions);
-    context.Dispose();
+    context.Dispose(context->GetIsolate());
   }
   // Check that no DebugBreak events occured during the context creation.
   CHECK_EQ(0, break_point_hit_count);
@@ -7069,7 +7069,7 @@ TEST(DebugEventContext) {
   expected_context = v8::Context::New();
   v8::Context::Scope context_scope(expected_context);
   v8::Script::Compile(v8::String::New("(function(){debugger;})();"))->Run();
-  expected_context.Dispose();
+  expected_context.Dispose(expected_context->GetIsolate());
   expected_context.Clear();
   v8::Debug::SetDebugEventListener(NULL);
   expected_context_data = v8::Handle<v8::Value>();

@@ -50,6 +50,7 @@ namespace internal {
   V(ArrayLength)                         \
   V(StringLength)                        \
   V(FunctionPrototype)                   \
+  V(StoreArrayLength)                    \
   V(RecordWrite)                         \
   V(StoreBufferOverflow)                 \
   V(RegExpExec)                          \
@@ -178,6 +179,9 @@ class CodeStub BASE_EMBEDDED {
   // BinaryOpStub needs to override this.
   virtual InlineCacheState GetICState() {
     return UNINITIALIZED;
+  }
+  virtual Code::ExtraICState GetExtraICState() {
+    return Code::kNoExtraICState;
   }
 
   // Returns whether the code generated for this stub needs to be allocated as
@@ -602,6 +606,37 @@ class StringLengthStub: public ICStub {
   }
 
   bool support_wrapper_;
+};
+
+
+class StoreICStub: public ICStub {
+ public:
+  StoreICStub(Code::Kind kind, StrictModeFlag strict_mode)
+      : ICStub(kind), strict_mode_(strict_mode) { }
+
+ protected:
+  virtual Code::ExtraICState GetExtraICState() {
+    return strict_mode_;
+  }
+
+ private:
+  class StrictModeBits: public BitField<bool, 4, 1> {};
+  virtual int MinorKey() {
+    return KindBits::encode(kind()) | StrictModeBits::encode(strict_mode_);
+  }
+
+  StrictModeFlag strict_mode_;
+};
+
+
+class StoreArrayLengthStub: public StoreICStub {
+ public:
+  explicit StoreArrayLengthStub(Code::Kind kind, StrictModeFlag strict_mode)
+      : StoreICStub(kind, strict_mode) { }
+  virtual void Generate(MacroAssembler* masm);
+
+ private:
+  virtual CodeStub::Major MajorKey() { return StoreArrayLength; }
 };
 
 

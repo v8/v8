@@ -1560,16 +1560,6 @@ static void Generate_StoreIC_Megamorphic_Strict(MacroAssembler* masm) {
 }
 
 
-static void Generate_StoreIC_ArrayLength(MacroAssembler* masm) {
-  StoreIC::GenerateArrayLength(masm);
-}
-
-
-static void Generate_StoreIC_ArrayLength_Strict(MacroAssembler* masm) {
-  StoreIC::GenerateArrayLength(masm);
-}
-
-
 static void Generate_StoreIC_GlobalProxy(MacroAssembler* masm) {
   StoreIC::GenerateGlobalProxy(masm, kNonStrictMode);
 }

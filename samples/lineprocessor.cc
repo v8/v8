@@ -212,9 +212,10 @@ int RunMain(int argc, char* argv[]) {
   v8::Context::Scope context_scope(context);
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
-  debug_message_context = v8::Persistent<v8::Context>::New(context);
+  debug_message_context =
+      v8::Persistent<v8::Context>::New(context->GetIsolate(), context);
 
-  v8::Locker locker(v8::Isolate::GetCurrent());
+  v8::Locker locker(context->GetIsolate());
 
   if (support_callback) {
     v8::Debug::SetDebugMessageDispatchHandler(DispatchDebugMessages, true);
