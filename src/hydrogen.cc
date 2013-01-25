@@ -1329,37 +1329,50 @@ void HGraph::NullifyUnreachableInstructions() {
 }
 
 
+// Replace all phis consisting of a single non-loop operand plus any number of
+// loop operands by that single non-loop operand.
 void HGraph::EliminateRedundantPhis() {
   HPhase phase("H_Redundant phi elimination", this);
 
-  // Worklist of phis that can potentially be eliminated. Initialized with
-  // all phi nodes. When elimination of a phi node modifies another phi node
-  // the modified phi node is added to the worklist.
-  ZoneList<HPhi*> worklist(blocks_.length(), zone());
-  for (int i = 0; i < blocks_.length(); ++i) {
-    worklist.AddAll(*blocks_[i]->phis(), zone());
-  }
-
-  while (!worklist.is_empty()) {
-    HPhi* phi = worklist.RemoveLast();
-    HBasicBlock* block = phi->block();
-
-    // Skip phi node if it was already replaced.
-    if (block == NULL) continue;
-
-    // Get replacement value if phi is redundant.
-    HValue* replacement = phi->GetRedundantReplacement();
-
-    if (replacement != NULL) {
-      // Iterate through the uses and replace them all.
-      for (HUseIterator it(phi->uses()); !it.Done(); it.Advance()) {
-        HValue* value = it.value();
-        value->SetOperandAt(it.index(), replacement);
-        if (value->IsPhi()) worklist.Add(HPhi::cast(value), zone());
+  // We do a simple fixed point iteration without any work list, because
+  // machine-generated JavaScript can lead to a very dense Hydrogen graph with
+  // an enormous work list and will consequently result in OOM. Experiments
+  // showed that this simple algorithm is good enough, and even e.g. tracking
+  // the set or range of blocks to consider is not a real improvement.
+  bool need_another_iteration;
+  ZoneList<HPhi*> redundant_phis(blocks_.length(), zone());
+  do {
+    need_another_iteration = false;
+    for (int i = 0; i < blocks_.length(); ++i) {
+      HBasicBlock* block = blocks_[i];
+      for (int j = 0; j < block->phis()->length(); j++) {
+        HPhi* phi = block->phis()->at(j);
+        HValue* replacement = phi->GetRedundantReplacement();
+        if (replacement != NULL) {
+          // Remember phi to avoid concurrent modification of the block's phis.
+          redundant_phis.Add(phi, zone());
+          for (HUseIterator it(phi->uses()); !it.Done(); it.Advance()) {
+            HValue* value = it.value();
+            value->SetOperandAt(it.index(), replacement);
+            need_another_iteration |= value->IsPhi();
+          }
+        }
       }
-      block->RemovePhi(phi);
+      for (int i = 0; i < redundant_phis.length(); i++) {
+        block->RemovePhi(redundant_phis[i]);
+      }
+      redundant_phis.Clear();
+    }
+  } while (need_another_iteration);
+
+#if DEBUG
+  // Make sure that we *really* removed all redundant phis.
+  for (int i = 0; i < blocks_.length(); ++i) {
+    for (int j = 0; j < blocks_[i]->phis()->length(); j++) {
+      ASSERT(blocks_[i]->phis()->at(j)->GetRedundantReplacement() == NULL);
     }
   }
+#endif
 }
 
 
