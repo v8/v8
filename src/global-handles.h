@@ -126,7 +126,8 @@ class GlobalHandles {
   // reason is that Smi::FromInt(0) does not change during garage collection.
   void MakeWeak(Object** location,
                 void* parameter,
-                WeakReferenceCallback callback);
+                WeakReferenceCallback weak_reference_callback,
+                NearDeathCallback near_death_callback);
 
   void RecordStats(HeapStats* stats);
 

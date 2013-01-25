@@ -60,12 +60,16 @@ class GlobalHandles::Node {
   }
 
   Node() {
-    ASSERT(OFFSET_OF(Node, flags_) == Internals::kNodeFlagsOffset);
-    ASSERT(OFFSET_OF(Node, class_id_) == Internals::kNodeClassIdOffset);
-    ASSERT(static_cast<int>(IsIndependent::kShift) ==
-           Internals::kNodeIsIndependentShift);
-    ASSERT(static_cast<int>(IsPartiallyDependent::kShift) ==
-           Internals::kNodeIsPartiallyDependentShift);
+    STATIC_ASSERT(offsetof(Node, class_id_) == Internals::kNodeClassIdOffset);
+    STATIC_ASSERT(offsetof(Node, flags_) == Internals::kNodeFlagsOffset);
+    STATIC_ASSERT(static_cast<int>(NodeState::kMask) ==
+                  Internals::kNodeStateMask);
+    STATIC_ASSERT(WEAK == Internals::kNodeStateIsWeakValue);
+    STATIC_ASSERT(NEAR_DEATH == Internals::kNodeStateIsNearDeathValue);
+    STATIC_ASSERT(static_cast<int>(IsIndependent::kShift) ==
+                  Internals::kNodeIsIndependentShift);
+    STATIC_ASSERT(static_cast<int>(IsPartiallyDependent::kShift) ==
+                  Internals::kNodeIsPartiallyDependentShift);
   }
 
 #ifdef DEBUG
@@ -79,7 +83,8 @@ class GlobalHandles::Node {
     set_partially_dependent(false);
     set_in_new_space_list(false);
     parameter_or_next_free_.next_free = NULL;
-    callback_ = NULL;
+    weak_reference_callback_ = NULL;
+    near_death_callback_ = NULL;
   }
 #endif
 
@@ -100,7 +105,8 @@ class GlobalHandles::Node {
     set_partially_dependent(false);
     set_state(NORMAL);
     parameter_or_next_free_.parameter = NULL;
-    callback_ = NULL;
+    weak_reference_callback_ = NULL;
+    near_death_callback_ = NULL;
     IncreaseBlockUses(global_handles);
   }
 
@@ -189,7 +195,8 @@ class GlobalHandles::Node {
   void clear_partially_dependent() { set_partially_dependent(false); }
 
   // Callback accessor.
-  WeakReferenceCallback callback() { return callback_; }
+  // TODO(svenpanne) Re-enable or nuke later.
+  // WeakReferenceCallback callback() { return callback_; }
 
   // Callback parameter accessors.
   void set_parameter(void* parameter) {
@@ -213,11 +220,13 @@ class GlobalHandles::Node {
 
   void MakeWeak(GlobalHandles* global_handles,
                 void* parameter,
-                WeakReferenceCallback callback) {
+                WeakReferenceCallback weak_reference_callback,
+                NearDeathCallback near_death_callback) {
     ASSERT(state() != FREE);
     set_state(WEAK);
     set_parameter(parameter);
-    callback_ = callback;
+    weak_reference_callback_ = weak_reference_callback;
+    near_death_callback_ = near_death_callback;
   }
 
   void ClearWeakness(GlobalHandles* global_handles) {
@@ -229,8 +238,8 @@ class GlobalHandles::Node {
   bool PostGarbageCollectionProcessing(Isolate* isolate,
                                        GlobalHandles* global_handles) {
     if (state() != Node::PENDING) return false;
-    WeakReferenceCallback func = callback();
-    if (func == NULL) {
+    if (weak_reference_callback_ == NULL &&
+        near_death_callback_ == NULL) {
       Release(global_handles);
       return false;
     }
@@ -248,7 +257,14 @@ class GlobalHandles::Node {
              ExternalTwoByteString::cast(object_)->resource() != NULL);
       // Leaving V8.
       VMState state(isolate, EXTERNAL);
-      func(object, par);
+      if (weak_reference_callback_ != NULL) {
+        weak_reference_callback_(object, par);
+      }
+      if (near_death_callback_ != NULL) {
+        near_death_callback_(reinterpret_cast<v8::Isolate*>(isolate),
+                             object,
+                             par);
+      }
     }
     // Absence of explicit cleanup or revival of weak handle
     // in most of the cases would lead to memory leak.
@@ -284,7 +300,8 @@ class GlobalHandles::Node {
   uint8_t flags_;
 
   // Handle specific callback.
-  WeakReferenceCallback callback_;
+  WeakReferenceCallback weak_reference_callback_;
+  NearDeathCallback near_death_callback_;
 
   // Provided data for callback.  In FREE state, this is used for
   // the free list link.
@@ -450,10 +467,16 @@ void GlobalHandles::Destroy(Object** location) {
 }
 
 
-void GlobalHandles::MakeWeak(Object** location, void* parameter,
-                             WeakReferenceCallback callback) {
-  ASSERT(callback != NULL);
-  Node::FromLocation(location)->MakeWeak(this, parameter, callback);
+void GlobalHandles::MakeWeak(Object** location,
+                             void* parameter,
+                             WeakReferenceCallback weak_reference_callback,
+                             NearDeathCallback near_death_callback) {
+  ASSERT((weak_reference_callback != NULL) !=
+         (near_death_callback != NULL));
+  Node::FromLocation(location)->MakeWeak(this,
+                                         parameter,
+                                         weak_reference_callback,
+                                         near_death_callback);
 }
 
 

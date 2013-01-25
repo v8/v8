@@ -251,7 +251,7 @@ static void Serialize() {
   // will clear the pending fixups array, which would otherwise contain GC roots
   // that would confuse the serialization/deserialization process.
   v8::Persistent<v8::Context> env = v8::Context::New();
-  env.Dispose();
+  env.Dispose(env->GetIsolate());
   WriteToFile(FLAG_testing_serialization_file);
 }
 
@@ -390,7 +390,7 @@ TEST(PartialSerialization) {
     OS::SNPrintF(startup_name, "%s.startup", FLAG_testing_serialization_file);
 
     env->Exit();
-    env.Dispose();
+    env.Dispose(env->GetIsolate());
 
     FileByteSink startup_sink(startup_name.start());
     StartupSerializer startup_serializer(&startup_sink);
@@ -518,7 +518,7 @@ TEST(ContextSerialization) {
 
     Object* raw_context = *(v8::Utils::OpenHandle(*env));
 
-    env.Dispose();
+    env.Dispose(env->GetIsolate());
 
     FileByteSink startup_sink(startup_name.start());
     StartupSerializer startup_serializer(&startup_sink);

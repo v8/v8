@@ -53,7 +53,7 @@ class DeclarationContext {
   virtual ~DeclarationContext() {
     if (is_initialized_) {
       context_->Exit();
-      context_.Dispose();
+      context_.Dispose(context_->GetIsolate());
     }
   }
 
@@ -701,7 +701,7 @@ class SimpleContext {
 
   virtual ~SimpleContext() {
     context_->Exit();
-    context_.Dispose();
+    context_.Dispose(context_->GetIsolate());
   }
 
   void Check(const char* source,

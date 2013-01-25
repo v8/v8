@@ -649,7 +649,7 @@ TEST(Regress1433) {
       v8::Handle<Script> script = v8::Script::Compile(source);
       v8::Handle<Value> result = script->Run();
       v8::String::AsciiValue ascii(result);
-      context.Dispose();
+      context.Dispose(isolate);
     }
     isolate->Dispose();
   }
@@ -677,7 +677,7 @@ class IsolateGenesisThread : public JoinableThread {
       v8::ExtensionConfiguration extensions(count_, extension_names_);
       v8::Persistent<v8::Context> context = v8::Context::New(&extensions);
       CHECK(i::Isolate::Current()->has_installed_extensions());
-      context.Dispose();
+      context.Dispose(isolate);
     }
     isolate->Dispose();
   }

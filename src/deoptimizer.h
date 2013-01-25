@@ -372,8 +372,9 @@ class Deoptimizer : public Malloced {
       MacroAssembler* masm, int count, BailoutType type);
 
   // Weak handle callback for deoptimizing code objects.
-  static void HandleWeakDeoptimizedCode(
-      v8::Persistent<v8::Value> obj, void* data);
+  static void HandleWeakDeoptimizedCode(v8::Isolate* isolate,
+                                        v8::Persistent<v8::Value> obj,
+                                        void* data);
 
   // Deoptimize function assuming that function->next_function_link() points
   // to a list that contains all functions that share the same optimized code.

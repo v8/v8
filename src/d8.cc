@@ -95,14 +95,14 @@ class Symbols {
   explicit Symbols(Isolate* isolate) : isolate_(isolate) {
     HandleScope scope;
 #define INIT_SYMBOL(name, value) \
-    name##_ = Persistent<String>::New(String::NewSymbol(value));
+    name##_ = Persistent<String>::New(isolate, String::NewSymbol(value));
     FOR_EACH_SYMBOL(INIT_SYMBOL)
 #undef INIT_SYMBOL
     isolate->SetData(this);
   }
 
   ~Symbols() {
-#define DISPOSE_SYMBOL(name, value) name##_.Dispose();
+#define DISPOSE_SYMBOL(name, value) name##_.Dispose(isolate_);
     FOR_EACH_SYMBOL(DISPOSE_SYMBOL)
 #undef DISPOSE_SYMBOL
     isolate_->SetData(NULL);  // Not really needed, just to be sure...
@@ -399,9 +399,10 @@ Handle<Value> Shell::CreateExternalArrayBuffer(Isolate* isolate,
   memset(data, 0, length);
 
   buffer->SetHiddenValue(Symbols::ArrayBufferMarkerPropName(isolate), True());
-  Persistent<Object> persistent_array = Persistent<Object>::New(buffer);
-  persistent_array.MakeWeak(data, ExternalArrayWeakCallback);
-  persistent_array.MarkIndependent();
+  Persistent<Object> persistent_array =
+      Persistent<Object>::New(isolate, buffer);
+  persistent_array.MakeWeak(isolate, data, ExternalArrayWeakCallback);
+  persistent_array.MarkIndependent(isolate);
   V8::AdjustAmountOfExternalAllocatedMemory(length);
 
   buffer->SetIndexedPropertiesToExternalArrayData(
@@ -826,14 +827,15 @@ Handle<Value> Shell::ArraySet(const Arguments& args) {
 }
 
 
-void Shell::ExternalArrayWeakCallback(Persistent<Value> object, void* data) {
+void Shell::ExternalArrayWeakCallback(v8::Isolate* isolate,
+                                      Persistent<Value> object,
+                                      void* data) {
   HandleScope scope;
-  Isolate* isolate = Isolate::GetCurrent();
   int32_t length =
       object->ToObject()->Get(Symbols::byteLength(isolate))->Uint32Value();
   V8::AdjustAmountOfExternalAllocatedMemory(-length);
   delete[] static_cast<uint8_t*>(data);
-  object.Dispose();
+  object.Dispose(isolate);
 }
 
 
@@ -1442,9 +1444,10 @@ Handle<Value> Shell::ReadBuffer(const Arguments& args) {
   Isolate* isolate = args.GetIsolate();
   Handle<Object> buffer = Object::New();
   buffer->SetHiddenValue(Symbols::ArrayBufferMarkerPropName(isolate), True());
-  Persistent<Object> persistent_buffer = Persistent<Object>::New(buffer);
-  persistent_buffer.MakeWeak(data, ExternalArrayWeakCallback);
-  persistent_buffer.MarkIndependent();
+  Persistent<Object> persistent_buffer =
+      Persistent<Object>::New(isolate, buffer);
+  persistent_buffer.MakeWeak(isolate, data, ExternalArrayWeakCallback);
+  persistent_buffer.MarkIndependent(isolate);
   V8::AdjustAmountOfExternalAllocatedMemory(length);
 
   buffer->SetIndexedPropertiesToExternalArrayData(
@@ -1565,7 +1568,7 @@ void ShellThread::Run() {
       Shell::ExecuteString(str, String::New(filename), false, false);
     }
 
-    thread_context.Dispose();
+    thread_context.Dispose(thread_context->GetIsolate());
     ptr = next_line;
   }
 }
@@ -1649,7 +1652,7 @@ void SourceGroup::ExecuteInThread() {
         Context::Scope cscope(context);
         Execute(isolate);
       }
-      context.Dispose();
+      context.Dispose(isolate);
       if (Shell::options.send_idle_notification) {
         const int kLongIdlePauseInMs = 1000;
         V8::ContextDisposedNotification();
@@ -1858,7 +1861,7 @@ int Shell::RunMain(Isolate* isolate, int argc, char* argv[]) {
       options.isolate_sources[0].Execute(isolate);
     }
     if (!options.last_run) {
-      context.Dispose();
+      context.Dispose(isolate);
       if (options.send_idle_notification) {
         const int kLongIdlePauseInMs = 1000;
         V8::ContextDisposedNotification();

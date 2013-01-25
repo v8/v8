@@ -617,10 +617,10 @@ void ScriptCache::Add(Handle<Script> script) {
   Handle<Script> script_ =
       Handle<Script>::cast(
           (global_handles->Create(*script)));
-  global_handles->MakeWeak(
-      reinterpret_cast<Object**>(script_.location()),
-      this,
-      ScriptCache::HandleWeakScript);
+  global_handles->MakeWeak(reinterpret_cast<Object**>(script_.location()),
+                           this,
+                           NULL,
+                           ScriptCache::HandleWeakScript);
   entry->value = script_.location();
 }
 
@@ -663,7 +663,9 @@ void ScriptCache::Clear() {
 }
 
 
-void ScriptCache::HandleWeakScript(v8::Persistent<v8::Value> obj, void* data) {
+void ScriptCache::HandleWeakScript(v8::Isolate* isolate,
+                                   v8::Persistent<v8::Value> obj,
+                                   void* data) {
   ScriptCache* script_cache = reinterpret_cast<ScriptCache*>(data);
   // Find the location of the global handle.
   Script** location =
@@ -676,7 +678,7 @@ void ScriptCache::HandleWeakScript(v8::Persistent<v8::Value> obj, void* data) {
   script_cache->collected_scripts_.Add(id);
 
   // Clear the weak handle.
-  obj.Dispose();
+  obj.Dispose(isolate);
   obj.Clear();
 }
 
@@ -696,8 +698,10 @@ void Debug::SetUp(bool create_heap_objects) {
 }
 
 
-void Debug::HandleWeakDebugInfo(v8::Persistent<v8::Value> obj, void* data) {
-  Debug* debug = Isolate::Current()->debug();
+void Debug::HandleWeakDebugInfo(v8::Isolate* isolate,
+                                v8::Persistent<v8::Value> obj,
+                                void* data) {
+  Debug* debug = reinterpret_cast<Isolate*>(isolate)->debug();
   DebugInfoListNode* node = reinterpret_cast<DebugInfoListNode*>(data);
   // We need to clear all breakpoints associated with the function to restore
   // original code and avoid patching the code twice later because
@@ -721,10 +725,10 @@ DebugInfoListNode::DebugInfoListNode(DebugInfo* debug_info): next_(NULL) {
   // Globalize the request debug info object and make it weak.
   debug_info_ = Handle<DebugInfo>::cast(
       (global_handles->Create(debug_info)));
-  global_handles->MakeWeak(
-      reinterpret_cast<Object**>(debug_info_.location()),
-      this,
-      Debug::HandleWeakDebugInfo);
+  global_handles->MakeWeak(reinterpret_cast<Object**>(debug_info_.location()),
+                           this,
+                           NULL,
+                           Debug::HandleWeakDebugInfo);
 }
 
 

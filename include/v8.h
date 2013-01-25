@@ -157,6 +157,10 @@ class Isolate;
 typedef void (*WeakReferenceCallback)(Persistent<Value> object,
                                       void* parameter);
 
+// TODO(svenpanne) Temporary definition until Chrome is in sync.
+typedef void (*NearDeathCallback)(Isolate* isolate,
+                                  Persistent<Value> object,
+                                  void* parameter);
 
 // --- Handles ---
 
@@ -389,11 +393,16 @@ template <class T> class Persistent : public Handle<T> {
     return Persistent<S>::Cast(*this);
   }
 
+  /** Deprecated. Use Isolate version instead. */
+  V8_DEPRECATED(static Persistent<T> New(Handle<T> that));
+
   /**
-   * Creates a new persistent handle for an existing local or
-   * persistent handle.
+   * Creates a new persistent handle for an existing local or persistent handle.
    */
-  V8_INLINE(static Persistent<T> New(Handle<T> that));
+  V8_INLINE(static Persistent<T> New(Isolate* isolate, Handle<T> that));
+
+  /** Deprecated. Use Isolate version instead. */
+  V8_DEPRECATED(void Dispose());
 
   /**
    * Releases the storage cell referenced by this persistent handle.
@@ -401,66 +410,87 @@ template <class T> class Persistent : public Handle<T> {
    * This handle's reference, and any other references to the storage
    * cell remain and IsEmpty will still return false.
    */
-  V8_INLINE(void Dispose());
   V8_INLINE(void Dispose(Isolate* isolate));
+
+  /** Deprecated. Use Isolate version instead. */
+  V8_DEPRECATED(void MakeWeak(void* parameters,
+                              WeakReferenceCallback callback));
 
   /**
    * Make the reference to this object weak.  When only weak handles
    * refer to the object, the garbage collector will perform a
-   * callback to the given V8::WeakReferenceCallback function, passing
+   * callback to the given V8::NearDeathCallback function, passing
    * it the object reference and the given parameters.
    */
-  V8_INLINE(void MakeWeak(void* parameters, WeakReferenceCallback callback));
   V8_INLINE(void MakeWeak(Isolate* isolate,
                           void* parameters,
-                          WeakReferenceCallback callback));
+                          NearDeathCallback callback));
+
+  /** Deprecated. Use Isolate version instead. */
+  V8_DEPRECATED(void ClearWeak());
 
   /** Clears the weak reference to this object. */
-  V8_INLINE(void ClearWeak());
+  V8_INLINE(void ClearWeak(Isolate* isolate));
+
+  /** Deprecated. Use Isolate version instead. */
+  V8_DEPRECATED(void MarkIndependent());
 
   /**
-   * Marks the reference to this object independent. Garbage collector
-   * is free to ignore any object groups containing this object.
-   * Weak callback for an independent handle should not
-   * assume that it will be preceded by a global GC prologue callback
-   * or followed by a global GC epilogue callback.
+   * Marks the reference to this object independent. Garbage collector is free
+   * to ignore any object groups containing this object. Weak callback for an
+   * independent handle should not assume that it will be preceded by a global
+   * GC prologue callback or followed by a global GC epilogue callback.
    */
-  V8_INLINE(void MarkIndependent());
   V8_INLINE(void MarkIndependent(Isolate* isolate));
 
+  /** Deprecated. Use Isolate version instead. */
+  V8_DEPRECATED(void MarkPartiallyDependent());
+
   /**
-   * Marks the reference to this object partially dependent. Partially
-   * dependent handles only depend on other partially dependent handles and
-   * these dependencies are provided through object groups. It provides a way
-   * to build smaller object groups for young objects that represent only a
-   * subset of all external dependencies. This mark is automatically cleared
-   * after each garbage collection.
+   * Marks the reference to this object partially dependent. Partially dependent
+   * handles only depend on other partially dependent handles and these
+   * dependencies are provided through object groups. It provides a way to build
+   * smaller object groups for young objects that represent only a subset of all
+   * external dependencies. This mark is automatically cleared after each
+   * garbage collection.
    */
-  V8_INLINE(void MarkPartiallyDependent());
   V8_INLINE(void MarkPartiallyDependent(Isolate* isolate));
 
+  /** Deprecated. Use Isolate version instead. */
+  V8_DEPRECATED(bool IsIndependent() const);
+
   /** Returns true if this handle was previously marked as independent. */
-  V8_INLINE(bool IsIndependent() const);
   V8_INLINE(bool IsIndependent(Isolate* isolate) const);
 
+  /** Deprecated. Use Isolate version instead. */
+  V8_DEPRECATED(bool IsNearDeath() const);
+
   /** Checks if the handle holds the only reference to an object. */
-  V8_INLINE(bool IsNearDeath() const);
+  V8_INLINE(bool IsNearDeath(Isolate* isolate) const);
+
+  /** Deprecated. Use Isolate version instead. */
+  V8_DEPRECATED(bool IsWeak() const);
 
   /** Returns true if the handle's reference is weak.  */
-  V8_INLINE(bool IsWeak() const);
   V8_INLINE(bool IsWeak(Isolate* isolate) const);
 
-  /**
-   * Assigns a wrapper class ID to the handle. See RetainedObjectInfo
-   * interface description in v8-profiler.h for details.
-   */
-  V8_INLINE(void SetWrapperClassId(uint16_t class_id));
+  /** Deprecated. Use Isolate version instead. */
+  V8_DEPRECATED(void SetWrapperClassId(uint16_t class_id));
 
   /**
-   * Returns the class ID previously assigned to this handle or 0 if no class
-   * ID was previously assigned.
+   * Assigns a wrapper class ID to the handle. See RetainedObjectInfo interface
+   * description in v8-profiler.h for details.
    */
-  V8_INLINE(uint16_t WrapperClassId() const);
+  V8_INLINE(void SetWrapperClassId(Isolate* isolate, uint16_t class_id));
+
+  /** Deprecated. Use Isolate version instead. */
+  V8_DEPRECATED(uint16_t WrapperClassId() const);
+
+  /**
+   * Returns the class ID previously assigned to this handle or 0 if no class ID
+   * was previously assigned.
+   */
+  V8_INLINE(uint16_t WrapperClassId(Isolate* isolate) const);
 
  private:
   friend class ImplementationUtilities;
@@ -3529,31 +3559,17 @@ class V8EXPORT V8 {
  private:
   V8();
 
-  static internal::Object** GlobalizeReference(internal::Object** handle);
-  static void DisposeGlobal(internal::Object** global_handle);
+  static internal::Object** GlobalizeReference(internal::Isolate* isolate,
+                                               internal::Object** handle);
   static void DisposeGlobal(internal::Isolate* isolate,
                             internal::Object** global_handle);
-  static void MakeWeak(internal::Object** global_handle,
-                       void* data,
-                       WeakReferenceCallback);
   static void MakeWeak(internal::Isolate* isolate,
                        internal::Object** global_handle,
                        void* data,
-                       WeakReferenceCallback);
-  static void ClearWeak(internal::Object** global_handle);
-  static void MarkIndependent(internal::Object** global_handle);
-  static void MarkIndependent(internal::Isolate* isolate,
-                              internal::Object** global_handle);
-  static void MarkPartiallyDependent(internal::Object** global_handle);
-  static void MarkPartiallyDependent(internal::Isolate* isolate,
-                                     internal::Object** global_handle);
-  static bool IsGlobalIndependent(internal::Object** global_handle);
-  static bool IsGlobalIndependent(internal::Isolate* isolate,
-                                  internal::Object** global_handle);
-  static bool IsGlobalNearDeath(internal::Object** global_handle);
-  static bool IsGlobalWeak(internal::Object** global_handle);
-  static bool IsGlobalWeak(internal::Isolate* isolate,
-                           internal::Object** global_handle);
+                       WeakReferenceCallback weak_reference_callback,
+                       NearDeathCallback near_death_callback);
+  static void ClearWeak(internal::Isolate* isolate,
+                        internal::Object** global_handle);
 
   template <class T> friend class Handle;
   template <class T> friend class Local;
@@ -3974,9 +3990,7 @@ class V8EXPORT Unlocker {
    */
   V8_INLINE(explicit Unlocker(Isolate* isolate)) { Initialize(isolate); }
 
-  /**
-   * Deprecated. Use Isolate version instead.
-   */
+  /** Deprecated. Use Isolate version instead. */
   V8_DEPRECATED(Unlocker());
 
   ~Unlocker();
@@ -3994,9 +4008,7 @@ class V8EXPORT Locker {
    */
   V8_INLINE(explicit Locker(Isolate* isolate)) { Initialize(isolate); }
 
-  /**
-   * Deprecated. Use Isolate version instead.
-   */
+  /** Deprecated. Use Isolate version instead. */
   V8_DEPRECATED(Locker());
 
   ~Locker();
@@ -4175,14 +4187,17 @@ class Internals {
   static const int kIsolateStateOffset = 0;
   static const int kIsolateEmbedderDataOffset = 1 * kApiPointerSize;
   static const int kIsolateRootsOffset = 3 * kApiPointerSize;
-  static const int kNodeClassIdOffset = 1 * kApiPointerSize;
-  static const int kNodeFlagsOffset = 1 * kApiPointerSize + 3;
   static const int kUndefinedValueRootIndex = 5;
   static const int kNullValueRootIndex = 7;
   static const int kTrueValueRootIndex = 8;
   static const int kFalseValueRootIndex = 9;
   static const int kEmptySymbolRootIndex = 119;
 
+  static const int kNodeClassIdOffset = 1 * kApiPointerSize;
+  static const int kNodeFlagsOffset = 1 * kApiPointerSize + 3;
+  static const int kNodeStateMask = 0xf;
+  static const int kNodeStateIsWeakValue = 2;
+  static const int kNodeStateIsNearDeathValue = 4;
   static const int kNodeIsIndependentShift = 4;
   static const int kNodeIsPartiallyDependentShift = 5;
 
@@ -4234,6 +4249,17 @@ class Internals {
       uint8_t* addr = reinterpret_cast<uint8_t*>(obj) + kNodeFlagsOffset;
       uint8_t mask = 1 << shift;
       *addr = (*addr & ~mask) | (value << shift);
+  }
+
+  V8_INLINE(static uint8_t GetNodeState(internal::Object** obj)) {
+    uint8_t* addr = reinterpret_cast<uint8_t*>(obj) + kNodeFlagsOffset;
+    return *addr & kNodeStateMask;
+  }
+
+  V8_INLINE(static void UpdateNodeState(internal::Object** obj,
+                                        uint8_t value)) {
+    uint8_t* addr = reinterpret_cast<uint8_t*>(obj) + kNodeFlagsOffset;
+    *addr = (*addr & ~kNodeStateMask) | value;
   }
 
   V8_INLINE(static void SetEmbedderData(v8::Isolate* isolate, void* data)) {
@@ -4303,7 +4329,7 @@ Local<T> Local<T>::New(Handle<T> that) {
 
 
 template <class T>
-  Local<T> Local<T>::New(Isolate* isolate, Handle<T> that) {
+Local<T> Local<T>::New(Isolate* isolate, Handle<T> that) {
   if (that.IsEmpty()) return Local<T>();
   T* that_ptr = *that;
   internal::Object** p = reinterpret_cast<internal::Object**>(that_ptr);
@@ -4314,16 +4340,23 @@ template <class T>
 
 template <class T>
 Persistent<T> Persistent<T>::New(Handle<T> that) {
+  return New(Isolate::GetCurrent(), that);
+}
+
+
+template <class T>
+Persistent<T> Persistent<T>::New(Isolate* isolate, Handle<T> that) {
   if (that.IsEmpty()) return Persistent<T>();
   internal::Object** p = reinterpret_cast<internal::Object**>(*that);
-  return Persistent<T>(reinterpret_cast<T*>(V8::GlobalizeReference(p)));
+  return Persistent<T>(reinterpret_cast<T*>(
+      V8::GlobalizeReference(reinterpret_cast<internal::Isolate*>(isolate),
+                             p)));
 }
 
 
 template <class T>
 bool Persistent<T>::IsIndependent() const {
-  if (this->IsEmpty()) return false;
-  return V8::IsGlobalIndependent(reinterpret_cast<internal::Object**>(**this));
+  return IsIndependent(Isolate::GetCurrent());
 }
 
 
@@ -4339,30 +4372,39 @@ bool Persistent<T>::IsIndependent(Isolate* isolate) const {
 
 template <class T>
 bool Persistent<T>::IsNearDeath() const {
+  return IsNearDeath(Isolate::GetCurrent());
+}
+
+
+template <class T>
+bool Persistent<T>::IsNearDeath(Isolate* isolate) const {
+  typedef internal::Internals I;
   if (this->IsEmpty()) return false;
-  return V8::IsGlobalNearDeath(reinterpret_cast<internal::Object**>(**this));
+  if (!I::IsInitialized(isolate)) return false;
+  return I::GetNodeState(reinterpret_cast<internal::Object**>(**this)) ==
+      I::kNodeStateIsNearDeathValue;
 }
 
 
 template <class T>
 bool Persistent<T>::IsWeak() const {
-  if (this->IsEmpty()) return false;
-  return V8::IsGlobalWeak(reinterpret_cast<internal::Object**>(**this));
+  return IsWeak(Isolate::GetCurrent());
 }
 
 
 template <class T>
 bool Persistent<T>::IsWeak(Isolate* isolate) const {
+  typedef internal::Internals I;
   if (this->IsEmpty()) return false;
-  return V8::IsGlobalWeak(reinterpret_cast<internal::Isolate*>(isolate),
-                          reinterpret_cast<internal::Object**>(**this));
+  if (!I::IsInitialized(isolate)) return false;
+  return I::GetNodeState(reinterpret_cast<internal::Object**>(**this)) ==
+      I::kNodeStateIsWeakValue;
 }
 
 
 template <class T>
 void Persistent<T>::Dispose() {
-  if (this->IsEmpty()) return;
-  V8::DisposeGlobal(reinterpret_cast<internal::Object**>(**this));
+  Dispose(Isolate::GetCurrent());
 }
 
 
@@ -4379,28 +4421,39 @@ Persistent<T>::Persistent() : Handle<T>() { }
 
 template <class T>
 void Persistent<T>::MakeWeak(void* parameters, WeakReferenceCallback callback) {
-  V8::MakeWeak(reinterpret_cast<internal::Object**>(**this),
-               parameters,
-               callback);
-}
-
-template <class T>
-void Persistent<T>::MakeWeak(Isolate* isolate, void* parameters,
-                             WeakReferenceCallback callback) {
+  Isolate* isolate = Isolate::GetCurrent();
   V8::MakeWeak(reinterpret_cast<internal::Isolate*>(isolate),
                reinterpret_cast<internal::Object**>(**this),
                parameters,
+               callback,
+               NULL);
+}
+
+template <class T>
+void Persistent<T>::MakeWeak(Isolate* isolate,
+                             void* parameters,
+                             NearDeathCallback callback) {
+  V8::MakeWeak(reinterpret_cast<internal::Isolate*>(isolate),
+               reinterpret_cast<internal::Object**>(**this),
+               parameters,
+               NULL,
                callback);
 }
 
 template <class T>
 void Persistent<T>::ClearWeak() {
-  V8::ClearWeak(reinterpret_cast<internal::Object**>(**this));
+  ClearWeak(Isolate::GetCurrent());
+}
+
+template <class T>
+void Persistent<T>::ClearWeak(Isolate* isolate) {
+  V8::ClearWeak(reinterpret_cast<internal::Isolate*>(isolate),
+                reinterpret_cast<internal::Object**>(**this));
 }
 
 template <class T>
 void Persistent<T>::MarkIndependent() {
-  V8::MarkIndependent(reinterpret_cast<internal::Object**>(**this));
+  MarkIndependent(Isolate::GetCurrent());
 }
 
 template <class T>
@@ -4409,12 +4462,13 @@ void Persistent<T>::MarkIndependent(Isolate* isolate) {
   if (this->IsEmpty()) return;
   if (!I::IsInitialized(isolate)) return;
   I::UpdateNodeFlag(reinterpret_cast<internal::Object**>(**this),
-                    true, I::kNodeIsIndependentShift);
+                    true,
+                    I::kNodeIsIndependentShift);
 }
 
 template <class T>
 void Persistent<T>::MarkPartiallyDependent() {
-  V8::MarkPartiallyDependent(reinterpret_cast<internal::Object**>(**this));
+  MarkPartiallyDependent(Isolate::GetCurrent());
 }
 
 template <class T>
@@ -4423,12 +4477,20 @@ void Persistent<T>::MarkPartiallyDependent(Isolate* isolate) {
   if (this->IsEmpty()) return;
   if (!I::IsInitialized(isolate)) return;
   I::UpdateNodeFlag(reinterpret_cast<internal::Object**>(**this),
-                    true, I::kNodeIsPartiallyDependentShift);
+                    true,
+                    I::kNodeIsPartiallyDependentShift);
 }
 
 template <class T>
 void Persistent<T>::SetWrapperClassId(uint16_t class_id) {
+  SetWrapperClassId(Isolate::GetCurrent(), class_id);
+}
+
+template <class T>
+void Persistent<T>::SetWrapperClassId(Isolate* isolate, uint16_t class_id) {
   typedef internal::Internals I;
+  if (this->IsEmpty()) return;
+  if (!I::IsInitialized(isolate)) return;
   internal::Object** obj = reinterpret_cast<internal::Object**>(**this);
   uint8_t* addr = reinterpret_cast<uint8_t*>(obj) + I::kNodeClassIdOffset;
   *reinterpret_cast<uint16_t*>(addr) = class_id;
@@ -4436,7 +4498,14 @@ void Persistent<T>::SetWrapperClassId(uint16_t class_id) {
 
 template <class T>
 uint16_t Persistent<T>::WrapperClassId() const {
+  return WrapperClassId(Isolate::GetCurrent());
+}
+
+template <class T>
+uint16_t Persistent<T>::WrapperClassId(Isolate* isolate) const {
   typedef internal::Internals I;
+  if (this->IsEmpty()) return 0;
+  if (!I::IsInitialized(isolate)) return 0;
   internal::Object** obj = reinterpret_cast<internal::Object**>(**this);
   uint8_t* addr = reinterpret_cast<uint8_t*>(obj) + I::kNodeClassIdOffset;
   return *reinterpret_cast<uint16_t*>(addr);

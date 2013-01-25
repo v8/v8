@@ -714,7 +714,7 @@ class ContextInitializer {
   }
   ~ContextInitializer() {
     env_->Exit();
-    env_.Dispose();
+    env_.Dispose(env_->GetIsolate());
   }
  private:
   v8::Persistent<v8::Context> env_;
