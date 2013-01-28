@@ -753,7 +753,7 @@ void CallICBase::UpdateCaches(LookupResult* lookup,
       if (code->ic_state() != MONOMORPHIC) {
         Map* map = target()->FindFirstMap();
         if (map != NULL) {
-          isolate()->stub_cache()->Set(*name, map, target());
+          UpdateMegamorphicCache(map, *name, target());
         }
       }
       set_target(*code);
@@ -765,7 +765,7 @@ void CallICBase::UpdateCaches(LookupResult* lookup,
           ? Handle<JSObject>::cast(object)
           : Handle<JSObject>(JSObject::cast(object->GetPrototype()));
       // Update the stub cache.
-      isolate()->stub_cache()->Set(*name, cache_object->map(), *code);
+      UpdateMegamorphicCache(cache_object->map(), *name, *code);
       break;
     }
     case DEBUG_STUB:
@@ -972,7 +972,6 @@ void IC::PatchCache(State state,
     case UNINITIALIZED:
     case PREMONOMORPHIC:
     case MONOMORPHIC_PROTOTYPE_FAILURE:
-    case POLYMORPHIC:
       set_target(*code);
       break;
     case MONOMORPHIC:
@@ -994,6 +993,16 @@ void IC::PatchCache(State state,
     case MEGAMORPHIC:
       // Update the stub cache.
       UpdateMegamorphicCache(receiver->map(), *name, *code);
+      break;
+    case POLYMORPHIC:
+      // When trying to patch a polymorphic stub with anything other than
+      // another polymorphic stub, go generic.
+      // TODO(verwaest): Currently we always go generic since no polymorphic
+      // stubs enter this code path. Replace with proper updating once named
+      // load/store can also be polymorphic.
+      set_target((strict_mode == kStrictMode)
+                 ? *generic_stub_strict()
+                 : *generic_stub());
       break;
     case GENERIC:
     case DEBUG_STUB:
