@@ -274,9 +274,6 @@ class HydrogenCodeStub : public CodeStub {
   virtual void InitializeInterfaceDescriptor(
       Isolate* isolate,
       CodeStubInterfaceDescriptor* descriptor) = 0;
-
- protected:
-  Handle<Code> CodeFromGraph(HGraph* graph);
 };
 
 
