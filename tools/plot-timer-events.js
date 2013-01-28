@@ -33,7 +33,6 @@ var kExecutionFrameWidth = 0.2;
 var kStackFrameWidth = 0.1;
 var kGapWidth = 0.05;
 
-var kPauseTolerance = 0.1;  // Milliseconds.
 var kY1Offset = 10;
 
 var kResX = 1600;
@@ -42,35 +41,57 @@ var kPauseLabelPadding = 5;
 var kNumPauseLabels = 7;
 var kTickHalfDuration = 0.5;  // Milliseconds
 var kCodeKindLabelPadding = 100;
+var kMinRangeLength = 0.0005;  // Milliseconds
 
 var num_timer_event = kY1Offset + 0.5;
 
+var kNumThreads = 2;
+var kExecutionThreadId = 0;
 
-function TimerEvent(color, pause, no_execution) {
+function assert(something, message) {
+  if (!something) {
+    print(new Error(message).stack);
+  }
+}
+
+function TimerEvent(color, pause, thread_id) {
+  assert(thread_id >= 0 && thread_id < kNumThreads, "invalid thread id");
   this.color = color;
   this.pause = pause;
   this.ranges = [];
-  this.no_execution = no_execution;
+  this.thread_id = thread_id;
   this.index = ++num_timer_event;
 }
 
 
 var TimerEvents = {
-  'V8.Execute':              new TimerEvent("#000000", false, false),
-  'V8.External':             new TimerEvent("#3399FF", false,  true),
-  'V8.CompileFullCode':      new TimerEvent("#CC0000",  true,  true),
-  'V8.RecompileSynchronous': new TimerEvent("#CC0044",  true,  true),
-  'V8.RecompileParallel':    new TimerEvent("#CC4499", false, false),
-  'V8.CompileEval':          new TimerEvent("#CC4400",  true,  true),
-  'V8.Parse':                new TimerEvent("#00CC00",  true,  true),
-  'V8.PreParse':             new TimerEvent("#44CC00",  true,  true),
-  'V8.ParseLazy':            new TimerEvent("#00CC44",  true,  true),
-  'V8.GCScavenger':          new TimerEvent("#0044CC",  true,  true),
-  'V8.GCCompactor':          new TimerEvent("#4444CC",  true,  true),
-  'V8.GCContext':            new TimerEvent("#4400CC",  true,  true),
+  'V8.Execute':              new TimerEvent("#000000", false, 0),
+  'V8.External':             new TimerEvent("#3399FF", false, 0),
+  'V8.CompileFullCode':      new TimerEvent("#CC0000",  true, 0),
+  'V8.RecompileSynchronous': new TimerEvent("#CC0044",  true, 0),
+  'V8.RecompileParallel':    new TimerEvent("#CC4499", false, 1),
+  'V8.CompileEval':          new TimerEvent("#CC4400",  true, 0),
+  'V8.Parse':                new TimerEvent("#00CC00",  true, 0),
+  'V8.PreParse':             new TimerEvent("#44CC00",  true, 0),
+  'V8.ParseLazy':            new TimerEvent("#00CC44",  true, 0),
+  'V8.GCScavenger':          new TimerEvent("#0044CC",  true, 0),
+  'V8.GCCompactor':          new TimerEvent("#4444CC",  true, 0),
+  'V8.GCContext':            new TimerEvent("#4400CC",  true, 0),
 }
 
-var kExecutionEvent = TimerEvents['V8.Execute'];
+
+Array.prototype.top = function() {
+  if (this.length == 0) return undefined;
+  return this[this.length - 1];
+}
+
+var event_stack = [];
+var last_time_stamp = [];
+
+for (var i = 0; i < kNumThreads; i++) {
+  event_stack[i] = [];
+  last_time_stamp[i] = -1;
+}
 
 
 function CodeKind(color, kinds) {
@@ -103,10 +124,9 @@ var code_map = new CodeMap();
 var xrange_start_override = undefined;
 var xrange_end_override = undefined;
 var distortion_per_entry = 0.005;  // Milliseconds
+var pause_tolerance = 0.005;  // Milliseconds.
 
-var sort_by_start = [];
-var sort_by_end = [];
-var sorted_ticks = [];
+var distortion = 0;
 
 
 function Range(start, end) {
@@ -124,16 +144,37 @@ function Tick(tick) {
 Range.prototype.duration = function() { return this.end - this.start; }
 
 
-function ProcessTimerEvent(name, start, length) {
-  var event = TimerEvents[name];
-  if (event === undefined) return;
-  start /= 1000;  // Convert to milliseconds.
-  length /= 1000;
-  var end = start + length;
-  var range = new Range(start, end);
-  event.ranges.push(range);
-  sort_by_start.push(range);
-  sort_by_end.push(range);
+function ProcessTimerEventStart(name, start) {
+  // Find out the thread id.
+  var new_event = TimerEvents[name];
+  if (new_event === undefined) return;
+  var thread_id = new_event.thread_id;
+
+  start = Math.max(last_time_stamp[thread_id] + kMinRangeLength, start);
+
+  // Last event on this thread is done with the start of this event.
+  var last_event = event_stack[thread_id].top();
+  if (last_event !== undefined) {
+    var new_range = new Range(last_time_stamp[thread_id], start);
+    last_event.ranges.push(new_range);
+  }
+  event_stack[thread_id].push(new_event);
+  last_time_stamp[thread_id] = start;
+}
+
+
+function ProcessTimerEventEnd(name, end) {
+  // Find out about the thread_id.
+  var finished_event = TimerEvents[name];
+  var thread_id = finished_event.thread_id;
+  assert(finished_event === event_stack[thread_id].pop(),
+         "inconsistent event stack");
+
+  end = Math.max(last_time_stamp[thread_id] + kMinRangeLength, end);
+
+  var new_range = new Range(last_time_stamp[thread_id], end);
+  finished_event.ranges.push(new_range);
+  last_time_stamp[thread_id] = end;
 }
 
 
@@ -178,26 +219,16 @@ function FindCodeKind(kind) {
 
 
 function ProcessTickEvent(pc, sp, timer, unused_x, unused_y, vmstate, stack) {
-  timer /= 1000;
   var tick = new Tick(timer);
 
-  var entered = false;
   var entry = code_map.findEntry(pc);
-  if (entry) {
-    FindCodeKind(entry.kind).in_execution.push(tick);
-    entered = true;
-  }
+  if (entry) FindCodeKind(entry.kind).in_execution.push(tick);
 
   for (var i = 0; i < kStackFrames; i++) {
     if (!stack[i]) break;
     var entry = code_map.findEntry(stack[i]);
-    if (entry) {
-      FindCodeKind(entry.kind).stack_frames[i].push(tick);
-      entered = true;
-    }
+    if (entry) FindCodeKind(entry.kind).stack_frames[i].push(tick);
   }
-
-  if (entered) sorted_ticks.push(tick);
 }
 
 
@@ -209,62 +240,6 @@ function ProcessDistortion(distortion_in_picoseconds) {
 function ProcessPlotRange(start, end) {
   xrange_start_override = start;
   xrange_end_override = end;
-}
-
-
-function Undistort() {
-  // Undistort timers wrt instrumentation overhead.
-  sort_by_start.sort(function(a, b) { return b.start - a.start; });
-  sort_by_end.sort(function(a, b) { return b.end - a.end; });
-  sorted_ticks.sort(function(a, b) { return b.tick - a.tick; });
-  var distortion = 0;
-
-  var next_start = sort_by_start.pop();
-  var next_end = sort_by_end.pop();
-  var next_tick = sorted_ticks.pop();
-
-  function UndistortTicksUntil(tick) {
-    while (next_tick) {
-      if (next_tick.tick > tick) return;
-      next_tick.tick -= distortion;
-      next_tick = sorted_ticks.pop();
-    }
-  }
-
-  while (true) {
-    var next_start_start = next_start ? next_start.start : Infinity;
-    var next_end_end = next_end ? next_end.end : Infinity;
-    if (!next_start && !next_end) {
-      UndistortTicksUntil(Infinity);
-      break;
-    }
-    if (next_start_start <= next_end_end) {
-      UndistortTicksUntil(next_start_start);
-      // Undistort the start time stamp.
-      next_start.start -= distortion;
-      next_start = sort_by_start.pop();
-    } else {
-      // Undistort the end time stamp.  We completely attribute the overhead
-      // to the point when we stop and log the timer, so we increase the
-      // distortion only here.
-      UndistortTicksUntil(next_end_end);
-      next_end.end -= distortion;
-      distortion += distortion_per_entry;
-      next_end = sort_by_end.pop();
-    }
-  }
-
-  sort_by_start = undefined;
-  sort_by_end = undefined;
-  sorted_ticks = undefined;
-
-  // Make sure that start <= end applies for every range.
-  for (name in TimerEvents) {
-    var ranges = TimerEvents[name].ranges;
-    for (var j = 0; j < ranges.length; j++) {
-      if (ranges[j].end < ranges[j].start) ranges[j].end = ranges[j].start;
-    }
-  }
 }
 
 
@@ -299,14 +274,26 @@ function FindPlotRange() {
       }
     }
   }
+
+  // Set pause tolerance to something appropriate for the plot resolution
+  // to make it easier for gnuplot.
+  pause_tolerance = (xrange_end - xrange_start) / kResX / 10;
+}
+
+
+function parseTimeStamp(timestamp) {
+  distortion += distortion_per_entry;
+  return parseInt(timestamp) / 1000 - distortion;
 }
 
 
 function CollectData() {
   // Collect data from log.
   var logreader = new LogReader(
-    { 'timer-event' :   { parsers: [null, parseInt, parseInt],
-                          processor: ProcessTimerEvent },
+    { 'timer-event-start': { parsers: [null, parseTimeStamp],
+                             processor: ProcessTimerEventStart },
+      'timer-event-end':   { parsers: [null, parseTimeStamp],
+                             processor: ProcessTimerEventEnd },
       'shared-library': { parsers: [null, parseInt, parseInt],
                           processor: ProcessSharedLibrary },
       'code-creation':  { parsers: [null, parseInt, parseInt, parseInt, null],
@@ -315,7 +302,7 @@ function CollectData() {
                           processor: ProcessCodeMoveEvent },
       'code-delete':    { parsers: [parseInt],
                           processor: ProcessCodeDeleteEvent },
-      'tick':           { parsers: [parseInt, parseInt, parseInt,
+      'tick':           { parsers: [parseInt, parseInt, parseTimeStamp,
                                     null, null, parseInt, 'var-args'],
                           processor: ProcessTickEvent },
       'distortion':     { parsers: [parseInt],
@@ -329,8 +316,6 @@ function CollectData() {
     logreader.processLogLine(line);
   }
 
-  Undistort();
-
   // Collect execution pauses.
   for (name in TimerEvents) {
     var event = TimerEvents[name];
@@ -339,25 +324,6 @@ function CollectData() {
     for (var j = 0; j < ranges.length; j++) execution_pauses.push(ranges[j]);
   }
   execution_pauses = MergeRanges(execution_pauses);
-
-  // Knock out time not spent in javascript execution.  Note that this also
-  // includes time spent external code, which do not contribute to execution
-  // pauses.
-  var exclude_ranges = [];
-  for (name in TimerEvents) {
-    var event = TimerEvents[name];
-    if (!event.no_execution) continue;
-    var ranges = event.ranges;
-    // Add ranges of this event to the pause list.
-    for (var j = 0; j < ranges.length; j++) {
-      exclude_ranges.push(ranges[j]);
-    }
-  }
-
-  kExecutionEvent.ranges = MergeRanges(kExecutionEvent.ranges);
-  exclude_ranges = MergeRanges(exclude_ranges);
-  kExecutionEvent.ranges = ExcludeRanges(kExecutionEvent.ranges,
-                                         exclude_ranges);
 }
 
 
@@ -392,7 +358,7 @@ function MergeRanges(ranges) {
     for (j = i + 1; j < ranges.length; j++) {
       var next_range = ranges[j];
       // Don't merge ranges if there is no overlap (including merge tolerance).
-      if (next_range.start > merge_end + kPauseTolerance) break;
+      if (next_range.start > merge_end + pause_tolerance) break;
       // Merge ranges.
       if (next_range.end > merge_end) {  // Extend range end.
         merge_end = next_range.end;
@@ -406,84 +372,14 @@ function MergeRanges(ranges) {
 }
 
 
-function ExcludeRanges(include, exclude) {
-  // We assume that both input lists are sorted and merged with MergeRanges.
+function RestrictRangesTo(ranges, start, end) {
   var result = [];
-  var exclude_index = 0;
-  var include_index = 0;
-  var include_start, include_end, exclude_start, exclude_end;
-
-  function NextInclude() {
-    if (include_index >= include.length) return false;
-    include_start = include[include_index].start;
-    include_end = include[include_index].end;
-    include_index++;
-    return true;
-  }
-
-  function NextExclude() {
-    if (exclude_index >= exclude.length) {
-      // No more exclude, finish by repeating case (2).
-      exclude_start = Infinity;
-      exclude_end = Infinity;
-      return false;
-    }
-    exclude_start = exclude[exclude_index].start;
-    exclude_end = exclude[exclude_index].end;
-    exclude_index++;
-    return true;
-  }
-
-  if (!NextInclude() || !NextExclude()) return include;
-
-  while (true) {
-    if (exclude_end <= include_start) {
-      // (1) Exclude and include do not overlap.
-      // Include       #####
-      // Exclude   ##
-      NextExclude();
-    } else if (include_end <= exclude_start) {
-      // (2) Exclude and include do not overlap.
-      // Include   #####
-      // Exclude         ###
-      result.push(new Range(include_start, include_end));
-      if (!NextInclude()) break;
-    } else if (exclude_start <= include_start &&
-               exclude_end < include_end &&
-               include_start < exclude_end) {
-      // (3) Exclude overlaps with begin of include.
-      // Include    #######
-      // Exclude  #####
-      // Result        ####
-      include_start = exclude_end;
-      NextExclude();
-    } else if (include_start < exclude_start &&
-               include_end <= exclude_end &&
-               exclude_start < include_end) {
-      // (4) Exclude overlaps with end of include.
-      // Include    #######
-      // Exclude        #####
-      // Result     ####
-      result.push(new Range(include_start, exclude_start));
-      if (!NextInclude()) break;
-    } else if (exclude_start > include_start && exclude_end < include_end) {
-      // (5) Exclude splits include into two parts.
-      // Include    #######
-      // Exclude      ##
-      // Result     ##  ###
-      result.push(new Range(include_start, exclude_start));
-      include_start = exclude_end;
-      NextExclude();
-    } else if (exclude_start <= include_start && exclude_end >= include_end) {
-      // (6) Exclude entirely covers include.
-      // Include    ######
-      // Exclude   #########
-      if (!NextInclude()) break;
-    } else {
-      throw new Error("this should not happen!");
+  for (var i = 0; i < ranges.length; i++) {
+    if (ranges[i].start <= end && ranges[i].end >= start) {
+      result.push(new Range(Math.max(ranges[i].start, start),
+                            Math.min(ranges[i].end, end)));
     }
   }
-
   return result;
 }
 
@@ -506,10 +402,8 @@ function GnuplotOutput() {
   var total = 0;
   for (var name in TimerEvents) {
     var event = TimerEvents[name];
-    var ranges = MergeRanges(event.ranges);
-    var exclude_ranges = [new Range(-Infinity, xrange_start),
-                          new Range(xrange_end, Infinity)];
-    ranges = ExcludeRanges(ranges, exclude_ranges);
+    var ranges = RestrictRangesTo(event.ranges, xrange_start, xrange_end);
+    ranges = MergeRanges(ranges);
     var sum =
       ranges.map(function(range) { return range.duration(); })
           .reduce(function(a, b) { return a + b; }, 0);

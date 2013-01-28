@@ -273,8 +273,9 @@ class Logger {
                           uintptr_t end);
 
   // ==== Events logged by --log-timer-events. ====
-  void TimerEvent(const char* name, int64_t start, int64_t end);
-  void ExternalSwitch(StateTag old_tag, StateTag new_tag);
+  enum StartEnd { START, END };
+
+  void TimerEvent(StartEnd se, const char* name);
 
   static void EnterExternal();
   static void LeaveExternal();
@@ -282,25 +283,25 @@ class Logger {
   class TimerEventScope {
    public:
     TimerEventScope(Isolate* isolate, const char* name)
-        : isolate_(isolate), name_(name), start_(0) {
-      if (FLAG_log_internal_timer_events) start_ = OS::Ticks();
+        : isolate_(isolate), name_(name) {
+      if (FLAG_log_internal_timer_events) LogTimerEvent(START);
     }
 
     ~TimerEventScope() {
-      if (FLAG_log_internal_timer_events) LogTimerEvent();
+      if (FLAG_log_internal_timer_events) LogTimerEvent(END);
     }
 
-    void LogTimerEvent();
+    void LogTimerEvent(StartEnd se);
 
     static const char* v8_recompile_synchronous;
     static const char* v8_recompile_parallel;
     static const char* v8_compile_full_code;
     static const char* v8_execute;
+    static const char* v8_external;
 
    private:
     Isolate* isolate_;
     const char* name_;
-    int64_t start_;
   };
 
   // ==== Events logged by --log-regexp ====
@@ -473,7 +474,6 @@ class Logger {
   Address prev_code_;
 
   int64_t epoch_;
-  static int64_t enter_external_;
 
   friend class CpuProfiler;
 };

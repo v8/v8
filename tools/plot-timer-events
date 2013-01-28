@@ -41,18 +41,25 @@ else
 
   $d8_exec --nocrankshaft --prof --logfile $calibration_log \
        --log-timer-events -e "$calibration_script" > /dev/null
-  t_1=`grep "V8.Execute" $calibration_log  | tail -n1 | awk -F, '{print $4}'`
-  n_1=`grep "timer-event" $calibration_log  | wc -l`
+  t_1_start=`grep "timer-event-start,\"V8.Execute\"" $calibration_log  \
+       | tail -n1 | awk -F, '{print $3}'`
+  t_1_end=`grep "timer-event-end,\"V8.Execute\"" $calibration_log  \
+       | tail -n1 | awk -F, '{print $3}'`
+  n_1=`grep "timer-event\|tick" $calibration_log  | wc -l`
 
   $d8_exec --nocrankshaft --prof --logfile $calibration_log \
        --log-internal-timer-events -e "$calibration_script" > /dev/null
-  t_2=`grep "V8.Execute" $calibration_log  | tail -n1 | awk -F, '{print $4}'`
-  n_2=`grep "timer-event" $calibration_log  | wc -l`
+  t_2_start=`grep "timer-event-start,\"V8.Execute\"" $calibration_log  \
+       | tail -n1 | awk -F, '{print $3}'`
+  t_2_end=`grep "timer-event-end,\"V8.Execute\"" $calibration_log  \
+       | tail -n1 | awk -F, '{print $3}'`
+  n_2=`grep "timer-event\|tick" $calibration_log  | wc -l`
 
   rm $calibration_log
 
   # Overhead in picoseconds.
-  distortion=`echo "1000*($t_1 - $t_2)/($n_1 - $n_2)" | bc`
+  distortion=`echo "1000*(($t_1_end - $t_1_start) - ($t_2_end - $t_2_start)) \
+                    / ($n_1 - $n_2)" | bc`
 fi
 
 if [ -n "$PLOT_RANGE" ]; then
