@@ -1098,14 +1098,15 @@ static MaybeObject* GetOwnProperty(Isolate* isolate,
 
   PropertyAttributes attrs = obj->GetLocalPropertyAttribute(*name);
   if (attrs == ABSENT) return heap->undefined_value();
-  AccessorPair* accessors = obj->GetLocalPropertyAccessorPair(*name);
+  AccessorPair* raw_accessors = obj->GetLocalPropertyAccessorPair(*name);
+  Handle<AccessorPair> accessors(raw_accessors, isolate);
 
   Handle<FixedArray> elms = isolate->factory()->NewFixedArray(DESCRIPTOR_SIZE);
   elms->set(ENUMERABLE_INDEX, heap->ToBoolean((attrs & DONT_ENUM) == 0));
   elms->set(CONFIGURABLE_INDEX, heap->ToBoolean((attrs & DONT_DELETE) == 0));
-  elms->set(IS_ACCESSOR_INDEX, heap->ToBoolean(accessors != NULL));
+  elms->set(IS_ACCESSOR_INDEX, heap->ToBoolean(raw_accessors != NULL));
 
-  if (accessors == NULL) {
+  if (raw_accessors == NULL) {
     elms->set(WRITABLE_INDEX, heap->ToBoolean((attrs & READ_ONLY) == 0));
     // GetProperty does access check.
     Handle<Object> value = GetProperty(obj, name);
