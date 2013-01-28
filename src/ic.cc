@@ -1139,32 +1139,35 @@ static bool AddOneReceiverMapIfMissing(MapHandleList* receiver_maps,
 static void GetReceiverMapsForStub(Handle<Code> stub,
                                    MapHandleList* result) {
   ASSERT(stub->is_inline_cache_stub());
-  if (stub->is_keyed_load_stub() || stub->is_keyed_store_stub()) {
-    switch (stub->ic_state()) {
-      case MONOMORPHIC:
-        result->Add(Handle<Map>(stub->FindFirstMap()));
-        break;
-      case POLYMORPHIC: {
-        AssertNoAllocation no_allocation;
-        int mask = RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT);
-        for (RelocIterator it(*stub, mask); !it.done(); it.next()) {
-          RelocInfo* info = it.rinfo();
-          Handle<Object> object(info->target_object());
-          ASSERT(object->IsMap());
-          AddOneReceiverMapIfMissing(result, Handle<Map>::cast(object));
-        }
-        break;
+  ASSERT(stub->is_keyed_load_stub() || stub->is_keyed_store_stub());
+  switch (stub->ic_state()) {
+    case MONOMORPHIC: {
+      Map* map = stub->FindFirstMap();
+      if (map != NULL) {
+        result->Add(Handle<Map>(map));
       }
-      case MEGAMORPHIC:
-      case GENERIC:
-        break;
-      case UNINITIALIZED:
-      case PREMONOMORPHIC:
-      case MONOMORPHIC_PROTOTYPE_FAILURE:
-      case DEBUG_STUB:
-        UNREACHABLE();
-        break;
+      break;
     }
+    case POLYMORPHIC: {
+      AssertNoAllocation no_allocation;
+      int mask = RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT);
+      for (RelocIterator it(*stub, mask); !it.done(); it.next()) {
+        RelocInfo* info = it.rinfo();
+        Handle<Object> object(info->target_object());
+        ASSERT(object->IsMap());
+        AddOneReceiverMapIfMissing(result, Handle<Map>::cast(object));
+      }
+      break;
+    }
+    case MEGAMORPHIC:
+    case GENERIC:
+      break;
+    case UNINITIALIZED:
+    case PREMONOMORPHIC:
+    case MONOMORPHIC_PROTOTYPE_FAILURE:
+    case DEBUG_STUB:
+      UNREACHABLE();
+      break;
   }
 }
 
@@ -1192,6 +1195,9 @@ Handle<Code> KeyedLoadIC::LoadElementStub(Handle<JSObject> receiver) {
     target_receiver_maps.Add(isolate()->factory()->string_map());
   } else {
     GetReceiverMapsForStub(Handle<Code>(target()), &target_receiver_maps);
+    if (target_receiver_maps.length() == 0) {
+      return isolate()->stub_cache()->ComputeKeyedLoadElement(receiver_map);
+    }
   }
 
   // The first time a receiver is seen that is a transitioned version of the
@@ -1564,6 +1570,13 @@ Handle<Code> KeyedStoreIC::StoreElementStub(Handle<JSObject> receiver,
   }
 
   GetReceiverMapsForStub(Handle<Code>(target()), &target_receiver_maps);
+  if (target_receiver_maps.length() == 0) {
+    // Optimistically assume that ICs that haven't reached the MONOMORPHIC state
+    // yet will do so and stay there.
+    stub_kind = GetNoTransitionStubKind(stub_kind);
+    return isolate()->stub_cache()->ComputeKeyedStoreElement(
+        receiver_map, stub_kind, strict_mode, grow_mode);
+  }
   // The first time a receiver is seen that is a transitioned version of the
   // previous monomorphic receiver type, assume the new ElementsKind is the
   // monomorphic type. This benefits global arrays that only transition
