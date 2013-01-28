@@ -330,9 +330,18 @@ bool LCodeGen::GenerateDeoptJumpTable() {
   for (int i = 0; i < deopt_jump_table_.length(); i++) {
     __ bind(&deopt_jump_table_[i].label);
     Address entry = deopt_jump_table_[i].address;
+    bool is_lazy_deopt = deopt_jump_table_[i].is_lazy_deopt;
+    Deoptimizer::BailoutType type =
+        is_lazy_deopt ? Deoptimizer::LAZY : Deoptimizer::EAGER;
+    int id = Deoptimizer::GetDeoptimizationId(entry, type);
+    if (id == Deoptimizer::kNotDeoptimizationEntry) {
+      Comment(";;; jump table entry %d.", i);
+    } else {
+      Comment(";;; jump table entry %d: deoptimization bailout %d.", i, id);
+    }
     if (deopt_jump_table_[i].needs_frame) {
       __ mov(ip, Operand(ExternalReference::ForDeoptEntry(entry)));
-      if (deopt_jump_table_[i].is_lazy_deopt) {
+      if (is_lazy_deopt) {
         if (needs_frame_is_call.is_bound()) {
           __ b(&needs_frame_is_call);
         } else {
@@ -365,7 +374,7 @@ bool LCodeGen::GenerateDeoptJumpTable() {
         }
       }
     } else {
-      if (deopt_jump_table_[i].is_lazy_deopt) {
+      if (is_lazy_deopt) {
         __ mov(lr, Operand(pc), LeaveCC, al);
         __ mov(pc, Operand(ExternalReference::ForDeoptEntry(entry)));
       } else {
