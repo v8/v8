@@ -35,7 +35,6 @@ namespace v8 {
 namespace internal {
 
 
-// TODO(svenpanne) Merge with OptimizingCompiler::OptimizeGraph().
 static LChunk* OptimizeGraph(HGraph* graph) {
   AssertNoAllocation no_gc;
   NoHandleAllocation no_handles;
@@ -129,7 +128,8 @@ void CodeStubGraphBuilder<KeyedLoadFastElementStub>::BuildCodeStub() {
 
   HInstruction* load = BuildUncheckedMonomorphicElementAccess(
       GetParameter(0), GetParameter(1), NULL, NULL,
-      casted_stub()->is_js_array(), casted_stub()->elements_kind(), false);
+      casted_stub()->is_js_array(), casted_stub()->elements_kind(),
+      false, Representation::Tagged());
   AddInstruction(load);
 
   HReturn* ret = new(zone) HReturn(load, context());

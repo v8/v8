@@ -490,8 +490,6 @@ bool LCodeGen::IsInteger32(LConstantOperand* op) const {
 
 int LCodeGen::ToInteger32(LConstantOperand* op) const {
   HConstant* constant = chunk_->LookupConstant(op);
-  ASSERT(chunk_->LookupLiteralRepresentation(op).IsInteger32());
-  ASSERT(constant->HasInteger32Value());
   return constant->Integer32Value();
 }
 

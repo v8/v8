@@ -673,6 +673,31 @@ class HValue: public ZoneObject {
     return NULL;
   }
 
+  // There are HInstructions that do not really change a value, they
+  // only add pieces of information to it (like bounds checks, map checks,
+  // smi checks...).
+  // We call these instructions "informative definitions", or "iDef".
+  // One of the iDef operands is special because it is the value that is
+  // "transferred" to the output, we call it the "redefined operand".
+  // If an HValue is an iDef it must override RedefinedOperandIndex() so that
+  // it does not return kNoRedefinedOperand;
+  static const int kNoRedefinedOperand = -1;
+  virtual int RedefinedOperandIndex() { return kNoRedefinedOperand; }
+  bool IsInformativeDefinition() {
+    return RedefinedOperandIndex() != kNoRedefinedOperand;
+  }
+  HValue* RedefinedOperand() {
+    ASSERT(IsInformativeDefinition());
+    return OperandAt(RedefinedOperandIndex());
+  }
+
+  // This method must always return the original HValue SSA definition
+  // (regardless of any iDef of this value).
+  HValue* ActualValue() {
+    return IsInformativeDefinition() ? RedefinedOperand()->ActualValue()
+                                     : this;
+  }
+
   bool IsDefinedAfter(HBasicBlock* other) const;
 
   // Operands.
@@ -3020,43 +3045,37 @@ enum BoundsCheckKeyMode {
 class HBoundsCheck: public HTemplateInstruction<2> {
  public:
   HBoundsCheck(HValue* index, HValue* length,
-               BoundsCheckKeyMode key_mode = DONT_ALLOW_SMI_KEY)
+               BoundsCheckKeyMode key_mode = DONT_ALLOW_SMI_KEY,
+               Representation r = Representation::None())
       : key_mode_(key_mode) {
     SetOperandAt(0, index);
     SetOperandAt(1, length);
-    set_representation(Representation::Integer32());
+    if (r.IsNone()) {
+      // In the normal compilation pipeline the representation is flexible
+      // (see comment to RequiredInputRepresentation).
+      SetFlag(kFlexibleRepresentation);
+    } else {
+      // When compiling stubs we want to set the representation explicitly
+      // so the compilation pipeline can skip the HInferRepresentation phase.
+      set_representation(r);
+    }
     SetFlag(kUseGVN);
   }
 
   virtual Representation RequiredInputRepresentation(int arg_index) {
-    if (key_mode_ == DONT_ALLOW_SMI_KEY ||
-        !length()->representation().IsTagged()) {
-      return Representation::Integer32();
-    }
-    // If the index is tagged and isn't constant, then allow the length
-    // to be tagged, since it is usually already tagged from loading it out of
-    // the length field of a JSArray. This allows for direct comparison without
-    // untagging.
-    if (index()->representation().IsTagged() && !index()->IsConstant()) {
-      return Representation::Tagged();
-    }
-    // Also allow the length to be tagged if the index is constant, because
-    // it can be tagged to allow direct comparison.
-    if (index()->IsConstant() &&
-        index()->representation().IsInteger32() &&
-        arg_index == 1) {
-      return Representation::Tagged();
-    }
-    return Representation::Integer32();
+    return representation();
   }
   virtual Representation observed_input_representation(int index) {
     return Representation::Integer32();
   }
 
   virtual void PrintDataTo(StringStream* stream);
+  virtual void InferRepresentation(HInferRepresentation* h_infer);
 
   HValue* index() { return OperandAt(0); }
   HValue* length() { return OperandAt(1); }
+
+  virtual int RedefinedOperandIndex() { return 0; }
 
   DECLARE_CONCRETE_INSTRUCTION(BoundsCheck)
 
@@ -4433,6 +4452,11 @@ class ArrayInstructionInterface {
   virtual bool IsDehoisted() = 0;
   virtual void SetDehoisted(bool is_dehoisted) = 0;
   virtual ~ArrayInstructionInterface() { };
+
+  static Representation KeyedAccessIndexRequirement(Representation r) {
+    return r.IsInteger32() ? Representation::Integer32()
+                           : Representation::Tagged();
+  }
 };
 
 
@@ -4516,7 +4540,10 @@ class HLoadKeyed
       return is_external() ? Representation::External()
           : Representation::Tagged();
     }
-    if (index == 1) return Representation::Integer32();
+    if (index == 1) {
+      return ArrayInstructionInterface::KeyedAccessIndexRequirement(
+          OperandAt(1)->representation());
+    }
     return Representation::None();
   }
 
@@ -4731,7 +4758,8 @@ class HStoreKeyed
       return is_external() ? Representation::External()
                            : Representation::Tagged();
     } else if (index == 1) {
-      return Representation::Integer32();
+      return ArrayInstructionInterface::KeyedAccessIndexRequirement(
+          OperandAt(1)->representation());
     }
 
     ASSERT_EQ(index, 2);
