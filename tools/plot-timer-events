@@ -32,9 +32,7 @@ if [ ! -x "$d8_exec" ]; then
   exit 1
 fi
 
-if [ -n "$DISTORTION" ]; then
-  distortion=$DISTORTION
-else
+if [[ "$@" != *--distortion* ]]; then
   # Try to find out how much the instrumentation overhead is.
   calibration_log=calibration.log
   calibration_script="for (var i = 0; i < 1000000; i++) print();"
@@ -58,21 +56,15 @@ else
   rm $calibration_log
 
   # Overhead in picoseconds.
-  distortion=`echo "1000*(($t_1_end - $t_1_start) - ($t_2_end - $t_2_start)) \
-                    / ($n_1 - $n_2)" | bc`
+  options=--distortion=
+  options+=`echo "1000*(($t_1_end - $t_1_start) - ($t_2_end - $t_2_start)) \
+              / ($n_1 - $n_2)" | bc`
+  echo $options
 fi
-
-if [ -n "$PLOT_RANGE" ]; then
-  plot_range=$PLOT_RANGE
-else
-  plot_range=auto,auto
-fi
-
-echo "DISTORTION=$distortion"
-echo "PLOT_RANGE=$plot_range"
 
 echo -e "plot-range,$plot_range\ndistortion,$distortion" | cat - $log_file |
-    $d8_exec $tools_path/csvparser.js \
-    $tools_path/splaytree.js $tools_path/codemap.js \
-    $tools_path/logreader.js $tools_path/plot-timer-events.js \
+    $d8_exec $tools_path/csvparser.js $tools_path/splaytree.js \
+    $tools_path/codemap.js $tools_path/profile.js $tools_path/profile_view.js \
+    $tools_path/logreader.js $tools_path/tickprocessor.js \
+    $tools_path/plot-timer-events.js -- $options $@ | less \
     2>/dev/null | gnuplot > timer-events.png

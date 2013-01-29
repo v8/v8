@@ -232,17 +232,6 @@ function ProcessTickEvent(pc, sp, timer, unused_x, unused_y, vmstate, stack) {
 }
 
 
-function ProcessDistortion(distortion_in_picoseconds) {
-  distortion_per_entry = distortion_in_picoseconds / 1000000;
-}
-
-
-function ProcessPlotRange(start, end) {
-  xrange_start_override = start;
-  xrange_end_override = end;
-}
-
-
 function FindPlotRange() {
   var start_found = (xrange_start_override || xrange_start_override == 0);
   var end_found = (xrange_end_override || xrange_end_override == 0);
@@ -287,6 +276,26 @@ function parseTimeStamp(timestamp) {
 }
 
 
+function ParseArguments(args) {
+  var processor = new ArgumentsProcessor(args);
+  do {
+    if (!processor.parse()) break;
+    var result = processor.result();
+    var distortion = parseInt(result.distortion);
+    if (isNaN(distortion)) break;
+    // Convert picoseconds to milliseconds.
+    distortion_per_entry = distortion / 1000000;
+    var rangelimits = result.range.split(",");
+    var range_start = parseInt(rangelimits[0]);
+    var range_end = parseInt(rangelimits[1]);
+    xrange_start_override = isNaN(range_start) ? undefined : range_start;
+    xrange_end_override = isNaN(range_end) ? undefined : range_end;
+    return;
+  } while (false);
+  processor.printUsageAndExit();
+}
+
+
 function CollectData() {
   // Collect data from log.
   var logreader = new LogReader(
@@ -304,11 +313,7 @@ function CollectData() {
                           processor: ProcessCodeDeleteEvent },
       'tick':           { parsers: [parseInt, parseInt, parseTimeStamp,
                                     null, null, parseInt, 'var-args'],
-                          processor: ProcessTickEvent },
-      'distortion':     { parsers: [parseInt],
-                          processor: ProcessDistortion },
-      'plot-range':     { parsers: [parseInt, parseInt],
-                          processor: ProcessPlotRange },
+                          processor: ProcessTickEvent }
     });
 
   var line;
@@ -385,8 +390,6 @@ function RestrictRangesTo(ranges, start, end) {
 
 
 function GnuplotOutput() {
-  FindPlotRange();
-
   print("set terminal pngcairo size " + kResX + "," + kResY +
         " enhanced font 'Helvetica,10'");
   print("set yrange [0:" + (num_timer_event + 1) + "]");
@@ -501,5 +504,7 @@ function GnuplotOutput() {
 }
 
 
+ParseArguments(arguments);
 CollectData();
+FindPlotRange();
 GnuplotOutput();
