@@ -171,7 +171,7 @@ class Runner(object):
            [os.path.abspath(os.path.join(self.context.shell_dir, shell))] +
            d8testflag +
            test.suite.GetFlagsForTestCase(test, self.context) +
-           [self.context.extra_flags])
+           self.context.extra_flags)
     return cmd
 
 

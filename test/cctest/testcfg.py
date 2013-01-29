@@ -49,9 +49,8 @@ class CcTestSuite(testsuite.TestSuite):
     if utils.IsWindows():
       shell += ".exe"
     output = commands.Execute(context.command_prefix +
-                              [shell,
-                               "--list",
-                               context.extra_flags])
+                              [shell, "--list"] +
+                              context.extra_flags)
     if output.exit_code != 0:
       print output.stdout
       print output.stderr

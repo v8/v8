@@ -178,6 +178,7 @@ def ProcessOptions(options):
           "running tests locally.")
     options.no_network = True
   options.command_prefix = shlex.split(options.command_prefix)
+  options.extra_flags = shlex.split(options.extra_flags)
   if options.j == 0:
     options.j = multiprocessing.cpu_count()
   if options.no_stress:
