@@ -209,11 +209,7 @@ void Profiler::Engage() {
   if (engaged_) return;
   engaged_ = true;
 
-  // TODO(mnaganov): This is actually "Chromium" mode. Flags need to be revised.
-  // http://code.google.com/p/v8/issues/detail?id=487
-  if (!FLAG_prof_lazy) {
-    OS::LogSharedLibraryAddresses();
-  }
+  OS::LogSharedLibraryAddresses();
 
   // Start thread processing the profiler buffer.
   running_ = true;
