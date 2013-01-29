@@ -66,8 +66,6 @@ bool LCodeGen::GenerateCode() {
   ASSERT(is_unused());
   status_ = GENERATING;
 
-  CodeStub::GenerateFPStubs();
-
   // Open a frame scope to indicate that there is a frame on the stack.  The
   // NONE indicates that the scope shouldn't actually generate code to set up
   // the frame (that is done in GeneratePrologue).
