@@ -989,8 +989,10 @@ void IC::PatchCache(State state,
                  ? *generic_stub_strict()
                  : *generic_stub());
       break;
-    case GENERIC:
     case DEBUG_STUB:
+      break;
+    case GENERIC:
+      UNREACHABLE();
       break;
   }
 }
@@ -1154,11 +1156,11 @@ static void GetReceiverMapsForStub(Handle<Code> stub,
       break;
     }
     case MEGAMORPHIC:
-    case GENERIC:
       break;
     case UNINITIALIZED:
     case PREMONOMORPHIC:
     case MONOMORPHIC_PROTOTYPE_FAILURE:
+    case GENERIC:
     case DEBUG_STUB:
       UNREACHABLE();
       break;
@@ -1208,7 +1210,7 @@ Handle<Code> KeyedLoadIC::LoadElementStub(Handle<JSObject> receiver) {
     return isolate()->stub_cache()->ComputeKeyedLoadElement(receiver_map);
   }
 
-  ASSERT(target() != *generic_stub());
+  ASSERT(ic_state != GENERIC);
 
   // Determine the list of receiver maps that this call site has seen,
   // adding the map that was just encountered.
@@ -1590,7 +1592,7 @@ Handle<Code> KeyedStoreIC::StoreElementStub(Handle<JSObject> receiver,
         monomorphic_map, stub_kind, strict_mode, grow_mode);
   }
 
-  ASSERT(target() != *generic_stub() && target() != *generic_stub_strict());
+  ASSERT(ic_state != GENERIC);
 
   bool map_added =
       AddOneReceiverMapIfMissing(&target_receiver_maps, receiver_map);
