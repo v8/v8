@@ -500,8 +500,8 @@ void Deoptimizer::DoCompiledStubFrame(TranslationIterator* iterator,
   unsigned input_frame_size = input_->GetFrameSize();
 
   // JSFunction continuation
-  intptr_t input_frame_offset = input_frame_size - kPointerSize;
-  intptr_t output_frame_offset = output_frame_size - kPointerSize;
+  unsigned input_frame_offset = input_frame_size - kPointerSize;
+  unsigned output_frame_offset = output_frame_size - kPointerSize;
   intptr_t value = input_->GetFrameSlot(input_frame_offset);
   output_frame->SetFrameSlot(output_frame_offset, value);
 
