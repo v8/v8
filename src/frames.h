@@ -130,16 +130,17 @@ class StackHandler BASE_EMBEDDED {
 };
 
 
-#define STACK_FRAME_TYPE_LIST(V)              \
-  V(ENTRY,             EntryFrame)            \
-  V(ENTRY_CONSTRUCT,   EntryConstructFrame)   \
-  V(EXIT,              ExitFrame)             \
-  V(JAVA_SCRIPT,       JavaScriptFrame)       \
-  V(OPTIMIZED,         OptimizedFrame)        \
-  V(STUB,              StubFrame)             \
-  V(INTERNAL,          InternalFrame)         \
-  V(CONSTRUCT,         ConstructFrame)        \
-  V(ARGUMENTS_ADAPTOR, ArgumentsAdaptorFrame)
+#define STACK_FRAME_TYPE_LIST(V)                         \
+  V(ENTRY,                   EntryFrame)                 \
+  V(ENTRY_CONSTRUCT,         EntryConstructFrame)        \
+  V(EXIT,                    ExitFrame)                  \
+  V(JAVA_SCRIPT,             JavaScriptFrame)            \
+  V(OPTIMIZED,               OptimizedFrame)             \
+  V(STUB,                    StubFrame)                  \
+  V(STUB_FAILURE_TRAMPOLINE, StubFailureTrampolineFrame) \
+  V(INTERNAL,                InternalFrame)              \
+  V(CONSTRUCT,               ConstructFrame)             \
+  V(ARGUMENTS_ADAPTOR,       ArgumentsAdaptorFrame)
 
 
 // Abstract base class for all stack frames.
@@ -194,6 +195,9 @@ class StackFrame BASE_EMBEDDED {
   bool is_optimized() const { return type() == OPTIMIZED; }
   bool is_arguments_adaptor() const { return type() == ARGUMENTS_ADAPTOR; }
   bool is_internal() const { return type() == INTERNAL; }
+  bool is_stub_failure_trampoline() const {
+    return type() == STUB_FAILURE_TRAMPOLINE;
+  }
   bool is_construct() const { return type() == CONSTRUCT; }
   virtual bool is_standard() const { return false; }
 
@@ -662,6 +666,21 @@ class InternalFrame: public StandardFrame {
   inline explicit InternalFrame(StackFrameIterator* iterator);
 
   virtual Address GetCallerStackPointer() const;
+
+ private:
+  friend class StackFrameIterator;
+};
+
+
+class StubFailureTrampolineFrame: public InternalFrame {
+ public:
+  virtual Type type() const { return STUB_FAILURE_TRAMPOLINE; }
+
+  virtual void Iterate(ObjectVisitor* v) const;
+
+ protected:
+  inline explicit StubFailureTrampolineFrame(
+      StackFrameIterator* iterator);
 
  private:
   friend class StackFrameIterator;

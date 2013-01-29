@@ -554,7 +554,10 @@ Deoptimizer::Deoptimizer(Isolate* isolate,
   ASSERT(HEAP->allow_allocation(false));
   unsigned size = ComputeInputFrameSize();
   input_ = new(size) FrameDescription(size, function);
-  input_->SetFrameType(StackFrame::JAVA_SCRIPT);
+  StackFrame::Type frame_type = function == NULL
+      ? StackFrame::STUB
+      : StackFrame::JAVA_SCRIPT;
+  input_->SetFrameType(frame_type);
 }
 
 
@@ -1664,6 +1667,8 @@ int FrameDescription::ComputeParametersCount() {
       // Can't use GetExpression(0) because it would cause infinite recursion.
       return reinterpret_cast<Smi*>(*GetFrameSlotPointer(0))->value();
     }
+    case StackFrame::STUB:
+      return 0;
     default:
       UNREACHABLE();
       return 0;

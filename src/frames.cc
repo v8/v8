@@ -1303,6 +1303,15 @@ void InternalFrame::Iterate(ObjectVisitor* v) const {
 }
 
 
+void StubFailureTrampolineFrame::Iterate(ObjectVisitor* v) const {
+  const int offset = StandardFrameConstants::kContextOffset;
+  Object** base = &Memory::Object_at(sp());
+  Object** limit = &Memory::Object_at(fp() + offset) + 1;
+  v->VisitPointers(base, limit);
+  IteratePc(v, pc_address(), LookupCode());
+}
+
+
 // -------------------------------------------------------------------------
 
 

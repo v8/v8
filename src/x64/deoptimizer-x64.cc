@@ -451,22 +451,27 @@ void Deoptimizer::DoComputeArgumentsAdaptorFrame(TranslationIterator* iterator,
 void Deoptimizer::DoCompiledStubFrame(TranslationIterator* iterator,
                                       int frame_index) {
   //
-  //               FROM                                  TO             <-rbp
+  //               FROM                                  TO
   //    |          ....           |          |          ....           |
   //    +-------------------------+          +-------------------------+
-  //    | JSFunction continuation |          |       parameter 1       |
+  //    | JSFunction continuation |          | JSFunction continuation |
   //    +-------------------------+          +-------------------------+
-  // |  |   saved frame (rbp)     |          |          ....           |
-  // |  +=========================+<-rbp     +-------------------------+
-  // |  |   JSFunction context    |          |       parameter n       |
+  // |  |   saved frame (rbp)     |          |   saved frame (rbp)     |
+  // |  +=========================+<-rbp     +=========================+<-rbp
+  // |  |   JSFunction context    |          |   JSFunction context    |
   // v  +-------------------------+          +-------------------------|
-  //    |   COMPILED_STUB marker  |          | JSFunction continuation |
-  //    +-------------------------+          +-------------------------+<-rsp
-  //    |                         |          rax = number of parameters
-  //    | ...                     |          rbx = failure handler address
-  //    |                         |          rbp = saved frame
-  //    +-------------------------+<-rsp     rsi = JSFunction context
-  //
+  //    |   COMPILED_STUB marker  |          |   STUB_FAILURE marker   |
+  //    +-------------------------+          +-------------------------+
+  //    |                         |          |     stub parameter 1    |
+  //    | ...                     |          +-------------------------+
+  //    |                         |          |            ...          |
+  //    |-------------------------|<-rsp     +-------------------------+
+  //                                         |     stub parameter n    |
+  //      parameters in registers            +-------------------------+<-rsp
+  //       and spilled to stack              rax = number of parameters
+  //                                         rbx = failure handler address
+  //                                         rbp = saved frame
+  //                                         rsi = JSFunction context
   //
 
   ASSERT(compiled_code_->kind() == Code::COMPILED_STUB);
@@ -474,47 +479,64 @@ void Deoptimizer::DoCompiledStubFrame(TranslationIterator* iterator,
   CodeStubInterfaceDescriptor* descriptor =
       isolate_->code_stub_interface_descriptor(major_key);
 
-  int output_frame_size =
-      (1 + descriptor->register_param_count_) * kPointerSize;
+  int output_frame_size = StandardFrameConstants::kFixedFrameSize +
+      kPointerSize * descriptor->register_param_count_;
+
   FrameDescription* output_frame =
       new(output_frame_size) FrameDescription(output_frame_size, 0);
+  ASSERT(frame_index == 0);
+  output_[frame_index] = output_frame;
   Code* notify_failure =
       isolate_->builtins()->builtin(Builtins::kNotifyStubFailure);
   output_frame->SetState(Smi::FromInt(FullCodeGenerator::NO_REGISTERS));
   output_frame->SetContinuation(
       reinterpret_cast<intptr_t>(notify_failure->entry()));
 
-  Code* code;
-  CEntryStub(1, kDontSaveFPRegs).FindCodeInCache(&code, isolate_);
-  output_frame->SetPc(reinterpret_cast<intptr_t>(code->instruction_start()));
+  Code* trampoline = NULL;
+  StubFailureTrampolineStub().FindCodeInCache(&trampoline, isolate_);
+  ASSERT(trampoline != NULL);
+  output_frame->SetPc(reinterpret_cast<intptr_t>(
+      trampoline->instruction_start()));
   unsigned input_frame_size = input_->GetFrameSize();
-  intptr_t value = input_->GetFrameSlot(input_frame_size - kPointerSize);
-  output_frame->SetFrameSlot(0, value);
-  value = input_->GetFrameSlot(input_frame_size - 2 * kPointerSize);
+
+  // JSFunction continuation
+  intptr_t input_frame_offset = input_frame_size - kPointerSize;
+  intptr_t output_frame_offset = output_frame_size - kPointerSize;
+  intptr_t value = input_->GetFrameSlot(input_frame_offset);
+  output_frame->SetFrameSlot(output_frame_offset, value);
+
+  // saved frame ptr
+  input_frame_offset -= kPointerSize;
+  value = input_->GetFrameSlot(input_frame_offset);
+  output_frame_offset -= kPointerSize;
+  output_frame->SetFrameSlot(output_frame_offset, value);
+
+  // Restore context
+  input_frame_offset -= kPointerSize;
+  value = input_->GetFrameSlot(input_frame_offset);
+  output_frame->SetRegister(rsi.code(), value);
+  output_frame_offset -= kPointerSize;
+  output_frame->SetFrameSlot(output_frame_offset, value);
+
+  // Internal frame markers
+  output_frame_offset -= kPointerSize;
+  value = reinterpret_cast<intptr_t>(
+      Smi::FromInt(StackFrame::STUB_FAILURE_TRAMPOLINE));
+  output_frame->SetFrameSlot(output_frame_offset, value);
+
+  for (int i = 0; i < descriptor->register_param_count_; ++i) {
+    output_frame_offset -= kPointerSize;
+    DoTranslateCommand(iterator, 0, output_frame_offset);
+  }
+
+  value = input_->GetRegister(rbp.code());
   output_frame->SetRegister(rbp.code(), value);
   output_frame->SetFp(value);
-  value = input_->GetFrameSlot(input_frame_size - 3 * kPointerSize);
-  output_frame->SetRegister(rsi.code(), value);
-
-  int parameter_offset = kPointerSize * descriptor->register_param_count_;
-  for (int i = 0; i < descriptor->register_param_count_; ++i) {
-    Translation::Opcode opcode =
-        static_cast<Translation::Opcode>(iterator->Next());
-    ASSERT(opcode == Translation::REGISTER);
-    USE(opcode);
-    int input_reg = iterator->Next();
-    intptr_t reg_value = input_->GetRegister(input_reg);
-    output_frame->SetFrameSlot(parameter_offset, reg_value);
-    parameter_offset -= kPointerSize;
-  }
 
   intptr_t handler =
       reinterpret_cast<intptr_t>(descriptor->deoptimization_handler_);
   output_frame->SetRegister(rax.code(), descriptor->register_param_count_);
   output_frame->SetRegister(rbx.code(), handler);
-
-  ASSERT(frame_index == 0);
-  output_[frame_index] = output_frame;
 }
 
 

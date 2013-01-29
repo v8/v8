@@ -112,30 +112,15 @@ void IC::TraceIC(const char* type,
 
 IC::IC(FrameDepth depth, Isolate* isolate) : isolate_(isolate) {
   ASSERT(isolate == Isolate::Current());
-  // To improve the performance of the (much used) IC code, we unfold
-  // a few levels of the stack frame iteration code. This yields a
-  // ~35% speedup when running DeltaBlue with the '--nouse-ic' flag.
-  const Address entry =
-      Isolate::c_entry_fp(isolate->thread_local_top());
-  Address* pc_address =
-      reinterpret_cast<Address*>(entry + ExitFrameConstants::kCallerPCOffset);
-  Address fp = Memory::Address_at(entry + ExitFrameConstants::kCallerFPOffset);
-  // If there's another JavaScript frame on the stack, we need to look
-  // one frame further down the stack to find the frame pointer and
-  // the return address stack slot.
-  if (depth == EXTRA_CALL_FRAME) {
-    const int kCallerPCOffset = StandardFrameConstants::kCallerPCOffset;
-    pc_address = reinterpret_cast<Address*>(fp + kCallerPCOffset);
-    fp = Memory::Address_at(fp + StandardFrameConstants::kCallerFPOffset);
-  }
-#ifdef DEBUG
   StackFrameIterator it;
   for (int i = 0; i < depth + 1; i++) it.Advance();
+  // Skip StubFailureTrampolineFrames
+  if (it.frame()->is_stub_failure_trampoline()) {
+    it.Advance();
+  }
   StackFrame* frame = it.frame();
-  ASSERT(fp == frame->fp() && pc_address == frame->pc_address());
-#endif
-  fp_ = fp;
-  pc_address_ = pc_address;
+  fp_ = frame->fp();
+  pc_address_ = frame->pc_address();
 }
 
 

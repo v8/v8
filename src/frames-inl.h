@@ -255,6 +255,11 @@ inline InternalFrame::InternalFrame(StackFrameIterator* iterator)
 }
 
 
+inline StubFailureTrampolineFrame::StubFailureTrampolineFrame(
+    StackFrameIterator* iterator) : InternalFrame(iterator) {
+}
+
+
 inline ConstructFrame::ConstructFrame(StackFrameIterator* iterator)
     : InternalFrame(iterator) {
 }

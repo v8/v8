@@ -2093,6 +2093,9 @@ bool Isolate::Init(Deserializer* des) {
     Deoptimizer::EnsureCodeForDeoptimizationEntry(
         Deoptimizer::LAZY,
         kDeoptTableSerializeEntryCount - 1);
+
+    // Ensure that the stub failure trampoline has been generated.
+    StubFailureTrampolineStub().GetCode();
   }
 
   if (FLAG_parallel_recompilation) optimizing_compiler_thread_.Start();
