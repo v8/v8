@@ -3545,6 +3545,20 @@ static intptr_t Free(PagedSpace* space,
 }
 
 
+// Force instantiation of templatized SweepConservatively method for
+// SWEEP_SEQUENTIALLY mode.
+template intptr_t MarkCompactCollector::
+    SweepConservatively<MarkCompactCollector::SWEEP_SEQUENTIALLY>(
+        PagedSpace*, FreeList*, Page*);
+
+
+// Force instantiation of templatized SweepConservatively method for
+// SWEEP_IN_PARALLEL mode.
+template intptr_t MarkCompactCollector::
+    SweepConservatively<MarkCompactCollector::SWEEP_IN_PARALLEL>(
+        PagedSpace*, FreeList*, Page*);
+
+
 // Sweeps a space conservatively.  After this has been done the larger free
 // spaces have been put on the free list and the smaller ones have been
 // ignored and left untouched.  A free space is always either ignored or put
