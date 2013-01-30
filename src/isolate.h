@@ -78,6 +78,7 @@ class UnicodeCache;
 class ConsStringIteratorOp;
 class StringTracker;
 class StubCache;
+class SweeperThread;
 class ThreadManager;
 class ThreadState;
 class ThreadVisitor;  // Defined in v8threads.h
@@ -1078,6 +1079,10 @@ class Isolate {
   // TODO(svenpanne) This method is on death row...
   static v8::Isolate* GetDefaultIsolateForLocking();
 
+  SweeperThread** sweeper_threads() {
+    return sweeper_thread_;
+  }
+
  private:
   Isolate();
 
@@ -1301,11 +1306,13 @@ class Isolate {
 
   DeferredHandles* deferred_handles_head_;
   OptimizingCompilerThread optimizing_compiler_thread_;
+  SweeperThread** sweeper_thread_;
 
   friend class ExecutionAccess;
   friend class HandleScopeImplementer;
   friend class IsolateInitializer;
   friend class OptimizingCompilerThread;
+  friend class SweeperThread;
   friend class ThreadManager;
   friend class Simulator;
   friend class StackGuard;

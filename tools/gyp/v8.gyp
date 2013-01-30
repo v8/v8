@@ -461,6 +461,8 @@
             '../../src/strtod.h',
             '../../src/stub-cache.cc',
             '../../src/stub-cache.h',
+            '../../src/sweeper-thread.h',
+            '../../src/sweeper-thread.cc',
             '../../src/token.cc',
             '../../src/token.h',
             '../../src/transitions-inl.h',

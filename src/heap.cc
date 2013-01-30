@@ -1308,7 +1308,8 @@ void Heap::Scavenge() {
 
   incremental_marking()->PrepareForScavenge();
 
-  AdvanceSweepers(static_cast<int>(new_space_.Size()));
+  paged_space(OLD_DATA_SPACE)->EnsureSweeperProgress(new_space_.Size());
+  paged_space(OLD_POINTER_SPACE)->EnsureSweeperProgress(new_space_.Size());
 
   // Flip the semispaces.  After flipping, to space is empty, from space has
   // live objects.
@@ -5420,9 +5421,9 @@ bool Heap::IdleNotification(int hint) {
   // 3. many lazy sweep steps.
   // Use mark-sweep-compact events to count incremental GCs in a round.
 
-
   if (incremental_marking()->IsStopped()) {
-    if (!IsSweepingComplete() &&
+    if (!mark_compact_collector()->AreSweeperThreadsActivated() &&
+        !IsSweepingComplete() &&
         !AdvanceSweepers(static_cast<int>(step_size))) {
       return false;
     }

@@ -1636,6 +1636,7 @@ class Heap {
   }
 
   bool AdvanceSweepers(int step_size) {
+    ASSERT(!FLAG_parallel_sweeping && !FLAG_concurrent_sweeping);
     bool sweeping_complete = old_data_space()->AdvanceSweeper(step_size);
     sweeping_complete &= old_pointer_space()->AdvanceSweeper(step_size);
     return sweeping_complete;

@@ -466,6 +466,7 @@ MemoryChunk* MemoryChunk::Initialize(Heap* heap,
   chunk->write_barrier_counter_ = kWriteBarrierCounterGranularity;
   chunk->progress_bar_ = 0;
   chunk->high_water_mark_ = static_cast<int>(area_start - base);
+  chunk->parallel_sweeping_ = 0;
   chunk->ResetLiveBytes();
   Bitmap::Clear(chunk);
   chunk->initialize_scan_on_scavenge(false);
@@ -2041,6 +2042,29 @@ void FreeListNode::set_next(FreeListNode* next) {
 }
 
 
+intptr_t FreeListCategory::Concatenate(FreeListCategory* category) {
+  intptr_t free_bytes = 0;
+  if (category->top_ != NULL) {
+    ASSERT(category->end_ != NULL);
+    // This is safe (not going to deadlock) since Concatenate operations
+    // are never performed on the same free lists at the same time in
+    // reverse order.
+    ScopedLock lock_target(mutex_);
+    ScopedLock lock_source(category->mutex());
+    free_bytes = category->available();
+    if (end_ == NULL) {
+      end_ = category->end();
+    } else {
+      category->end()->set_next(top_);
+    }
+    top_ = category->top();
+    available_ += category->available();
+    category->Reset();
+  }
+  return free_bytes;
+}
+
+
 void FreeListCategory::Reset() {
   top_ = NULL;
   end_ = NULL;
@@ -2136,6 +2160,16 @@ void FreeListCategory::RepairFreeList(Heap* heap) {
 FreeList::FreeList(PagedSpace* owner)
     : owner_(owner), heap_(owner->heap()) {
   Reset();
+}
+
+
+intptr_t FreeList::Concatenate(FreeList* free_list) {
+  intptr_t free_bytes = 0;
+  free_bytes += small_list_.Concatenate(free_list->small_list());
+  free_bytes += medium_list_.Concatenate(free_list->medium_list());
+  free_bytes += large_list_.Concatenate(free_list->large_list());
+  free_bytes += huge_list_.Concatenate(free_list->huge_list());
+  return free_bytes;
 }
 
 
@@ -2503,7 +2537,10 @@ bool PagedSpace::AdvanceSweeper(intptr_t bytes_to_sweep) {
                reinterpret_cast<intptr_t>(p));
       }
       DecreaseUnsweptFreeBytes(p);
-      freed_bytes += MarkCompactCollector::SweepConservatively(this, p);
+      freed_bytes +=
+          MarkCompactCollector::
+              SweepConservatively<MarkCompactCollector::SWEEP_SEQUENTIALLY>(
+                  this, NULL, p);
     }
     p = next_page;
   } while (p != anchor() && freed_bytes < bytes_to_sweep);
@@ -2535,6 +2572,21 @@ void PagedSpace::EvictEvacuationCandidatesFromFreeLists() {
 }
 
 
+bool PagedSpace::EnsureSweeperProgress(intptr_t size_in_bytes) {
+  MarkCompactCollector* collector = heap()->mark_compact_collector();
+  if (collector->AreSweeperThreadsActivated()) {
+    if (FLAG_concurrent_sweeping &&
+        collector->StealMemoryFromSweeperThreads(this) < size_in_bytes) {
+      collector->WaitUntilSweepingCompleted();
+      return true;
+    }
+    return false;
+  } else {
+    return AdvanceSweeper(size_in_bytes);
+  }
+}
+
+
 HeapObject* PagedSpace::SlowAllocateRaw(int size_in_bytes) {
   // Allocation in this space has failed.
 
@@ -2544,7 +2596,7 @@ HeapObject* PagedSpace::SlowAllocateRaw(int size_in_bytes) {
   bool sweeping_complete = false;
 
   for (int i = 0; i < kMaxSweepingTries && !sweeping_complete; i++) {
-    sweeping_complete = AdvanceSweeper(size_in_bytes);
+    sweeping_complete = EnsureSweeperProgress(size_in_bytes);
 
     // Retry the free list allocation.
     HeapObject* object = free_list_.Allocate(size_in_bytes);
@@ -2567,7 +2619,7 @@ HeapObject* PagedSpace::SlowAllocateRaw(int size_in_bytes) {
   // Last ditch, sweep all the remaining pages to try to find space.  This may
   // cause a pause.
   if (!IsSweepingComplete()) {
-    AdvanceSweeper(kMaxInt);
+    EnsureSweeperProgress(kMaxInt);
 
     // Retry the free list allocation.
     HeapObject* object = free_list_.Allocate(size_in_bytes);

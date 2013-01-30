@@ -49,6 +49,7 @@
 #include "simulator.h"
 #include "spaces.h"
 #include "stub-cache.h"
+#include "sweeper-thread.h"
 #include "version.h"
 #include "vm-state-inl.h"
 
@@ -1699,6 +1700,7 @@ Isolate::Isolate()
 #undef ISOLATE_INIT_ARRAY_EXECUTE
 }
 
+
 void Isolate::TearDown() {
   TRACE_ISOLATE(tear_down);
 
@@ -1733,6 +1735,14 @@ void Isolate::TearDown() {
 void Isolate::Deinit() {
   if (state_ == INITIALIZED) {
     TRACE_ISOLATE(deinit);
+
+    if (FLAG_concurrent_sweeping || FLAG_parallel_sweeping) {
+      for (int i = 0; i < FLAG_sweeper_threads; i++) {
+        sweeper_thread_[i]->Stop();
+        delete sweeper_thread_[i];
+      }
+      delete[] sweeper_thread_;
+    }
 
     if (FLAG_parallel_recompilation) optimizing_compiler_thread_.Stop();
 
@@ -2103,6 +2113,17 @@ bool Isolate::Init(Deserializer* des) {
   }
 
   if (FLAG_parallel_recompilation) optimizing_compiler_thread_.Start();
+
+  if (FLAG_parallel_sweeping || FLAG_concurrent_sweeping) {
+    if (FLAG_sweeper_threads < 1) {
+      FLAG_sweeper_threads = 1;
+    }
+    sweeper_thread_ = new SweeperThread*[FLAG_sweeper_threads];
+    for (int i = 0; i < FLAG_sweeper_threads; i++) {
+      sweeper_thread_[i] = new SweeperThread(this);
+      sweeper_thread_[i]->Start();
+    }
+  }
   return true;
 }
 

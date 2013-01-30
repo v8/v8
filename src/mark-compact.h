@@ -594,7 +594,13 @@ class MarkCompactCollector {
   enum SweeperType {
     CONSERVATIVE,
     LAZY_CONSERVATIVE,
+    PARALLEL_CONSERVATIVE,
     PRECISE
+  };
+
+  enum SweepingParallelism {
+    SWEEP_SEQUENTIALLY,
+    SWEEP_IN_PARALLEL
   };
 
 #ifdef VERIFY_HEAP
@@ -605,7 +611,10 @@ class MarkCompactCollector {
 
   // Sweep a single page from the given space conservatively.
   // Return a number of reclaimed bytes.
-  static intptr_t SweepConservatively(PagedSpace* space, Page* p);
+  template<SweepingParallelism type>
+  static intptr_t SweepConservatively(PagedSpace* space,
+                                      FreeList* free_list,
+                                      Page* p);
 
   INLINE(static bool ShouldSkipEvacuationSlotRecording(Object** anchor)) {
     return Page::FromAddress(reinterpret_cast<Address>(anchor))->
@@ -671,6 +680,16 @@ class MarkCompactCollector {
 
   MarkingParity marking_parity() { return marking_parity_; }
 
+  void SweepInParallel(PagedSpace* space,
+                       FreeList* private_free_list,
+                       FreeList* free_list);
+
+  void WaitUntilSweepingCompleted();
+
+  intptr_t StealMemoryFromSweeperThreads(PagedSpace* space);
+
+  bool AreSweeperThreadsActivated();
+
  private:
   MarkCompactCollector();
   ~MarkCompactCollector();
@@ -679,6 +698,7 @@ class MarkCompactCollector {
   void RemoveDeadInvalidatedCode();
   void ProcessInvalidatedCode(ObjectVisitor* visitor);
 
+  void StartSweeperThreads();
 
 #ifdef DEBUG
   enum CollectorState {
