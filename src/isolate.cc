@@ -1652,7 +1652,8 @@ Isolate::Isolate()
       code_stub_interface_descriptors_(NULL),
       context_exit_happened_(false),
       deferred_handles_head_(NULL),
-      optimizing_compiler_thread_(this) {
+      optimizing_compiler_thread_(this),
+      sweeper_thread_(NULL) {
   TRACE_ISOLATE(constructor);
 
   memset(isolate_addresses_, 0,
