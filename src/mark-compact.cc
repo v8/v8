@@ -3588,7 +3588,8 @@ intptr_t MarkCompactCollector::SweepConservatively(PagedSpace* space,
   }
   size_t size = block_address - p->area_start();
   if (cell_index == last_cell_index) {
-    freed_bytes += Free<mode>(space, free_list, p->area_start(), size);
+    freed_bytes += Free<mode>(space, free_list, p->area_start(),
+                              static_cast<int>(size));
     ASSERT_EQ(0, p->LiveBytes());
     return freed_bytes;
   }
@@ -3597,7 +3598,8 @@ intptr_t MarkCompactCollector::SweepConservatively(PagedSpace* space,
   Address free_end = StartOfLiveObject(block_address, cells[cell_index]);
   // Free the first free space.
   size = free_end - p->area_start();
-  freed_bytes += Free<mode>(space, free_list, p->area_start(), size);
+  freed_bytes += Free<mode>(space, free_list, p->area_start(),
+                            static_cast<int>(size));
 
   // The start of the current free area is represented in undigested form by
   // the address of the last 32-word section that contained a live object and
