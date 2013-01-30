@@ -1310,10 +1310,8 @@ void Builtins::Generate_NotifyStubFailure(MacroAssembler* masm) {
     __ MultiPop(kJSCallerSaved | kCalleeSaved);
   }
 
-  __ mov(at, ra);  // Stash the miss continuation
   __ Addu(sp, sp, Operand(kPointerSize));  // Ignore state
-  __ pop(ra);  // Restore RA to continuation in JSFunction
-  __ Jump(at);  // Jump to miss handler
+  __ Jump(ra);  // Jump to miss handler
 }
 
 

@@ -7977,6 +7977,16 @@ void StoreArrayLiteralElementStub::Generate(MacroAssembler* masm) {
 }
 
 
+void StubFailureTrampolineStub::Generate(MacroAssembler* masm) {
+  ASSERT(!Serializer::enabled());
+  bool save_fp_regs = CpuFeatures::IsSupported(FPU);
+  CEntryStub ces(1, save_fp_regs ? kSaveFPRegs : kDontSaveFPRegs);
+  __ Call(ces.GetCode(), RelocInfo::CODE_TARGET);
+  masm->LeaveFrame(StackFrame::STUB_FAILURE_TRAMPOLINE);
+  __ Ret();
+}
+
+
 void ProfileEntryHookStub::MaybeCallEntryHook(MacroAssembler* masm) {
   if (entry_hook_ != NULL) {
     ProfileEntryHookStub stub;
