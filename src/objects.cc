@@ -1601,10 +1601,7 @@ MaybeObject* JSObject::AddFastProperty(String* name,
     if (!maybe_values->To(&values)) return maybe_values;
   }
 
-  // Only allow map transition if the object isn't the global object.
-  TransitionFlag flag = isolate->empty_object_map() != map()
-      ? INSERT_TRANSITION
-      : OMIT_TRANSITION;
+  TransitionFlag flag = INSERT_TRANSITION;
 
   Map* new_map;
   MaybeObject* maybe_new_map = map()->CopyAddDescriptor(&new_field, flag);
@@ -1630,15 +1627,11 @@ MaybeObject* JSObject::AddConstantFunctionProperty(
   // Allocate new instance descriptors with (name, function) added
   ConstantFunctionDescriptor d(name, function, attributes, 0);
 
-  Heap* heap = GetHeap();
   TransitionFlag flag =
-      // Do not add transitions to the empty object map (map of "new Object()"),
-      // nor to global objects.
-      (map() == heap->isolate()->empty_object_map() || IsGlobalObject() ||
+      // Do not add transitions to  global objects.
+      (IsGlobalObject() ||
       // Don't add transitions to special properties with non-trivial
       // attributes.
-      // TODO(verwaest): Once we support attribute changes, these transitions
-      // should be kept as well.
        attributes != NONE)
       ? OMIT_TRANSITION
       : INSERT_TRANSITION;
@@ -1841,10 +1834,8 @@ MaybeObject* JSObject::ConvertTransitionToMapTransition(
 
   if (!HasFastProperties()) return result;
 
-  // This method should only be used to convert existing transitions. Objects
-  // with the map of "new Object()" cannot have transitions in the first place.
+  // This method should only be used to convert existing transitions.
   Map* new_map = map();
-  ASSERT(new_map != GetIsolate()->empty_object_map());
 
   // TODO(verwaest): From here on we lose existing map transitions, causing
   // invalid back pointers. This will change once we can store multiple
@@ -2415,10 +2406,8 @@ MaybeObject* JSObject::GetElementsTransitionMapSlow(ElementsKind to_kind) {
   }
 
   bool allow_store_transition =
-      // Only remember the map transition if the object's map is NOT equal to
-      // the global object_function's map and there is not an already existing
+      // Only remember the map transition if there is not an already existing
       // non-matching element transition.
-      (GetIsolate()->empty_object_map() != map()) &&
       !start_map->IsUndefined() && !start_map->is_shared() &&
       IsFastElementsKind(from_kind);
 
