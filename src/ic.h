@@ -179,6 +179,14 @@ class IC {
     UNREACHABLE();
     return Handle<Code>::null();
   }
+  virtual Handle<Code> generic_stub() const {
+    UNREACHABLE();
+    return Handle<Code>::null();
+  }
+  virtual Handle<Code> generic_stub_strict() const {
+    UNREACHABLE();
+    return Handle<Code>::null();
+  }
 
  private:
   // Frame pointer for the frame that uses (calls) the IC.

@@ -1783,7 +1783,7 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
       LOperand* value = CpuFeatures::IsSupported(SSE2)
           ? UseRegisterAtStart(instr->value())
           : UseAtStart(instr->value());
-      LOperand* temp = TempRegister();
+      LOperand* temp = FLAG_inline_new ? TempRegister() : NULL;
 
       // Make sure that temp and result_temp are different registers.
       LUnallocated* result_temp = TempRegister();
@@ -1807,8 +1807,7 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
       if (val->HasRange() && val->range()->IsInSmiRange()) {
         return DefineSameAsFirst(new(zone()) LSmiTag(value));
       } else if (val->CheckFlag(HInstruction::kUint32)) {
-        LOperand* temp = FixedTemp(xmm1);
-        LNumberTagU* result = new(zone()) LNumberTagU(value, temp);
+        LNumberTagU* result = new(zone()) LNumberTagU(value);
         return AssignEnvironment(AssignPointerMap(DefineSameAsFirst(result)));
       } else {
         LNumberTagI* result = new(zone()) LNumberTagI(value);

@@ -429,7 +429,9 @@ Handle<Code> LChunk::Codegen(Code::Kind kind) {
     Handle<Code> code =
         CodeGenerator::MakeCodeEpilogue(&assembler, flags, info());
     generator.FinishCode(code);
-    RegisterDependentCodeForEmbeddedMaps(code);
+    if (FLAG_weak_embedded_maps_in_optimized_code) {
+      RegisterDependentCodeForEmbeddedMaps(code);
+    }
     CodeGenerator::PrintCode(code, info());
     return code;
   }

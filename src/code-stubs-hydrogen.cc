@@ -35,16 +35,21 @@ namespace v8 {
 namespace internal {
 
 
-Handle<Code> HydrogenCodeStub::CodeFromGraph(HGraph* graph) {
-  graph->OrderBlocks();
-  graph->AssignDominators();
-  graph->CollectPhis();
-  graph->InsertRepresentationChanges();
-  graph->EliminateRedundantBoundsChecks();
+static LChunk* OptimizeGraph(HGraph* graph) {
+  AssertNoAllocation no_gc;
+  NoHandleAllocation no_handles;
+  NoHandleDereference no_deref;
+
+  ASSERT(graph != NULL);
+  SmartArrayPointer<char> bailout_reason;
+  if (!graph->Optimize(&bailout_reason)) {
+    FATAL(bailout_reason.is_empty() ? "unknown" : *bailout_reason);
+  }
   LChunk* chunk = LChunk::NewChunk(graph);
-  ASSERT(chunk != NULL);
-  Handle<Code> stub = chunk->Codegen(Code::COMPILED_STUB);
-  return stub;
+  if (chunk == NULL) {
+    FATAL(graph->info()->bailout_reason());
+  }
+  return chunk;
 }
 
 
@@ -123,7 +128,8 @@ void CodeStubGraphBuilder<KeyedLoadFastElementStub>::BuildCodeStub() {
 
   HInstruction* load = BuildUncheckedMonomorphicElementAccess(
       GetParameter(0), GetParameter(1), NULL, NULL,
-      casted_stub()->is_js_array(), casted_stub()->elements_kind(), false);
+      casted_stub()->is_js_array(), casted_stub()->elements_kind(),
+      false, Representation::Tagged());
   AddInstruction(load);
 
   HReturn* ret = new(zone) HReturn(load, context());
@@ -133,7 +139,8 @@ void CodeStubGraphBuilder<KeyedLoadFastElementStub>::BuildCodeStub() {
 
 Handle<Code> KeyedLoadFastElementStub::GenerateCode() {
   CodeStubGraphBuilder<KeyedLoadFastElementStub> builder(this);
-  return CodeFromGraph(builder.CreateGraph());
+  LChunk* chunk = OptimizeGraph(builder.CreateGraph());
+  return chunk->Codegen(Code::COMPILED_STUB);
 }
 
 

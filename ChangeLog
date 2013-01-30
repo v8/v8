@@ -1,3 +1,11 @@
+2013-01-30: Version 3.16.11
+
+        Put making embedded maps in optimized code weak behind a flag.
+        (Chromium issue 172488,172489)
+
+        Performance and stability improvements on all platforms.
+
+
 2013-01-25: Version 3.16.10
 
         Avoid excessive memory usage during redundant phi elimination.

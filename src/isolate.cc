@@ -2095,6 +2095,13 @@ bool Isolate::Init(Deserializer* des) {
         kDeoptTableSerializeEntryCount - 1);
   }
 
+  if (!Serializer::enabled()) {
+    // Ensure that the stub failure trampoline has been generated.
+    HandleScope scope(this);
+    CodeStub::GenerateFPStubs();
+    StubFailureTrampolineStub().GetCode();
+  }
+
   if (FLAG_parallel_recompilation) optimizing_compiler_thread_.Start();
   return true;
 }

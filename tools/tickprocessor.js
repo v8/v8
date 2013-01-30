@@ -151,7 +151,9 @@ function TickProcessor(
     callGraphSize,
     ignoreUnknown,
     stateFilter,
-    snapshotLogProcessor) {
+    snapshotLogProcessor,
+    distortion,
+    range) {
   LogReader.call(this, {
       'shared-library': { parsers: [null, parseInt, parseInt],
           processor: this.processSharedLibrary },
@@ -174,6 +176,10 @@ function TickProcessor(
           processor: this.processHeapSampleBegin },
       'heap-sample-end': { parsers: [null, null],
           processor: this.processHeapSampleEnd },
+      'timer-event-start' : { parsers: [null, null, null],
+                              processor: this.advanceDistortion },
+      'timer-event-end' : { parsers: [null, null, null],
+                            processor: this.advanceDistortion },
       // Ignored events.
       'profiler': null,
       'function-creation': null,
@@ -193,6 +199,17 @@ function TickProcessor(
   this.deserializedEntriesNames_ = [];
   var ticks = this.ticks_ =
     { total: 0, unaccounted: 0, excluded: 0, gc: 0 };
+
+  distortion = parseInt(distortion);
+  // Convert picoseconds to nanoseconds.
+  this.distortion_per_entry = isNaN(distortion) ? 0 : (distortion / 1000);
+  this.distortion = 0;
+  var rangelimits = range.split(",");
+  var range_start = parseInt(rangelimits[0]);
+  var range_end = parseInt(rangelimits[1]);
+  // Convert milliseconds to nanoseconds.
+  this.range_start = isNaN(range_start) ? -Infinity : (range_start * 1000);
+  this.range_end = isNaN(range_end) ? Infinity : (range_end * 1000)
 
   V8Profile.prototype.handleUnknownCode = function(
       operation, addr, opt_stackPos) {
@@ -355,6 +372,11 @@ TickProcessor.prototype.processTick = function(pc,
                                                tos_or_external_callback,
                                                vmState,
                                                stack) {
+  this.distortion += this.distortion_per_entry;
+  ns_since_start -= this.distortion;
+  if (ns_since_start < this.range_start || ns_since_start > this.range_end) {
+    return;
+  }
   this.ticks_.total++;
   if (vmState == TickProcessor.VmStates.GC) this.ticks_.gc++;
   if (!this.includeTick(vmState)) {
@@ -379,6 +401,11 @@ TickProcessor.prototype.processTick = function(pc,
 
   this.profile_.recordTick(this.processStack(pc, tos_or_external_callback, stack));
 };
+
+
+TickProcessor.prototype.advanceDistortion = function() {
+  this.distortion += this.distortion_per_entry;
+}
 
 
 TickProcessor.prototype.processHeapSampleBegin = function(space, state, ticks) {
@@ -795,7 +822,11 @@ function ArgumentsProcessor(args) {
     '--target': ['targetRootFS', '',
         'Specify the target root directory for cross environment'],
     '--snapshot-log': ['snapshotLogFileName', 'snapshot.log',
-        'Specify snapshot log file to use (e.g. --snapshot-log=snapshot.log)']
+        'Specify snapshot log file to use (e.g. --snapshot-log=snapshot.log)'],
+    '--range': ['range', 'auto,auto',
+                'Specify the range limit as [start],[end]'],
+    '--distortion': ['distortion', 0,
+                     'Specify the logging overhead in picoseconds']
   };
   this.argsDispatch_['--js'] = this.argsDispatch_['-j'];
   this.argsDispatch_['--gc'] = this.argsDispatch_['-g'];
@@ -814,7 +845,9 @@ ArgumentsProcessor.DEFAULTS = {
   ignoreUnknown: false,
   separateIc: false,
   targetRootFS: '',
-  nm: 'nm'
+  nm: 'nm',
+  range: 'auto,auto',
+  distortion: 0
 };
 
 

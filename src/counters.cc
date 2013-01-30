@@ -77,9 +77,12 @@ void* Histogram::CreateHistogram() const {
 
 // Start the timer.
 void HistogramTimer::Start() {
-  if (histogram_.Enabled() || FLAG_log_internal_timer_events) {
+  if (histogram_.Enabled()) {
     stop_time_ = 0;
     start_time_ = OS::Ticks();
+  }
+  if (FLAG_log_internal_timer_events) {
+    LOG(Isolate::Current(), TimerEvent(Logger::START, histogram_.name_));
   }
 }
 
@@ -92,8 +95,7 @@ void HistogramTimer::Stop() {
     histogram_.AddSample(milliseconds);
   }
   if (FLAG_log_internal_timer_events) {
-    LOG(Isolate::Current(),
-        TimerEvent(histogram_.name_, start_time_, OS::Ticks()));
+    LOG(Isolate::Current(), TimerEvent(Logger::END, histogram_.name_));
   }
 }
 

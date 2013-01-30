@@ -745,7 +745,8 @@ HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
     HCheckMaps* mapcheck,
     bool is_js_array,
     ElementsKind elements_kind,
-    bool is_store) {
+    bool is_store,
+    Representation checked_index_representation) {
   Zone* zone = this->zone();
   // No GVNFlag is necessary for ElementsKind if there is an explicit dependency
   // on a HElementsTransition instruction. The flag can also be removed if the
@@ -773,8 +774,8 @@ HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
   HInstruction* checked_key = NULL;
   if (IsExternalArrayElementsKind(elements_kind)) {
     length = AddInstruction(new(zone) HFixedArrayBaseLength(elements));
-    checked_key = AddInstruction(new(zone) HBoundsCheck(key, length,
-                                                        ALLOW_SMI_KEY));
+    checked_key = AddInstruction(new(zone) HBoundsCheck(
+        key, length, ALLOW_SMI_KEY, checked_index_representation));
     HLoadExternalArrayPointer* external_elements =
         new(zone) HLoadExternalArrayPointer(elements);
     AddInstruction(external_elements);
@@ -791,8 +792,8 @@ HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
   } else {
     length = AddInstruction(new(zone) HFixedArrayBaseLength(elements));
   }
-  checked_key = AddInstruction(new(zone) HBoundsCheck(key, length,
-                                                      ALLOW_SMI_KEY));
+  checked_key = AddInstruction(new(zone) HBoundsCheck(
+      key, length, ALLOW_SMI_KEY, checked_index_representation));
   return BuildFastElementAccess(elements, checked_key, val, mapcheck,
                                 elements_kind, is_store);
 }
@@ -3586,9 +3587,11 @@ bool HGraph::Optimize(SmartArrayPointer<char>* bailout_reason) {
   HStackCheckEliminator sce(this);
   sce.Process();
 
-  EliminateRedundantBoundsChecks();
-  DehoistSimpleArrayIndexComputations();
+  if (FLAG_array_bounds_checks_elimination) EliminateRedundantBoundsChecks();
+  if (FLAG_array_index_dehoisting) DehoistSimpleArrayIndexComputations();
   if (FLAG_dead_code_elimination) DeadCodeElimination();
+
+  RestoreActualValues();
 
   return true;
 }
@@ -3727,6 +3730,7 @@ class BoundsCheckBbData: public ZoneObject {
                                      new_check->index()->representation(),
                                      new_offset);
         if (!result) return false;
+        upper_check_->ReplaceAllUsesWith(upper_check_->index());
         upper_check_->SetOperandAt(0, added_upper_index_);
       }
     } else if (new_offset < lower_offset_) {
@@ -3742,6 +3746,7 @@ class BoundsCheckBbData: public ZoneObject {
                                      new_check->index()->representation(),
                                      new_offset);
         if (!result) return false;
+        lower_check_->ReplaceAllUsesWith(lower_check_->index());
         lower_check_->SetOperandAt(0, added_lower_index_);
       }
     } else {
@@ -3749,7 +3754,7 @@ class BoundsCheckBbData: public ZoneObject {
     }
 
     if (!keep_new_check) {
-      new_check->DeleteAndReplaceWith(NULL);
+      new_check->DeleteAndReplaceWith(new_check->ActualValue());
     }
 
     return true;
@@ -3885,10 +3890,6 @@ void HGraph::EliminateRedundantBoundsChecks(HBasicBlock* bb,
     if (!i->IsBoundsCheck()) continue;
 
     HBoundsCheck* check = HBoundsCheck::cast(i);
-    check->ReplaceAllUsesWith(check->index());
-
-    if (!FLAG_array_bounds_checks_elimination) continue;
-
     int32_t offset;
     BoundsCheckKey* key =
         BoundsCheckKey::Create(zone(), check, &offset);
@@ -3906,7 +3907,7 @@ void HGraph::EliminateRedundantBoundsChecks(HBasicBlock* bb,
                                                    NULL);
       *data_p = bb_data_list;
     } else if (data->OffsetIsCovered(offset)) {
-      check->DeleteAndReplaceWith(NULL);
+      check->DeleteAndReplaceWith(check->ActualValue());
     } else if (data->BasicBlock() != bb ||
                !data->CoverCheck(check, offset)) {
       // If the check is in the current BB we try to modify it by calling
@@ -3955,7 +3956,7 @@ void HGraph::EliminateRedundantBoundsChecks() {
 
 
 static void DehoistArrayIndex(ArrayInstructionInterface* array_operation) {
-  HValue* index = array_operation->GetKey();
+  HValue* index = array_operation->GetKey()->ActualValue();
   if (!index->representation().IsInteger32()) return;
 
   HConstant* constant;
@@ -4003,8 +4004,6 @@ static void DehoistArrayIndex(ArrayInstructionInterface* array_operation) {
 
 
 void HGraph::DehoistSimpleArrayIndexComputations() {
-  if (!FLAG_array_index_dehoisting) return;
-
   HPhase phase("H_Dehoist index computations", this);
   for (int i = 0; i < blocks()->length(); ++i) {
     for (HInstruction* instr = blocks()->at(i)->first();
@@ -4051,6 +4050,30 @@ void HGraph::DeadCodeElimination() {
     for (int i = 0; i < instr->OperandCount(); ++i) {
       HValue* operand = instr->OperandAt(i);
       if (operand->IsDead()) worklist.Add(HInstruction::cast(operand), zone());
+    }
+  }
+}
+
+
+void HGraph::RestoreActualValues() {
+  HPhase phase("H_Restore actual values", this);
+
+  for (int block_index = 0; block_index < blocks()->length(); block_index++) {
+    HBasicBlock* block = blocks()->at(block_index);
+
+#ifdef DEBUG
+    for (int i = 0; i < block->phis()->length(); i++) {
+      HPhi* phi = block->phis()->at(i);
+      ASSERT(phi->ActualValue() == phi);
+    }
+#endif
+
+    for (HInstruction* instruction = block->first();
+        instruction != NULL;
+        instruction = instruction->next()) {
+      if (instruction->ActualValue() != instruction) {
+        instruction->ReplaceAllUsesWith(instruction->ActualValue());
+      }
     }
   }
 }
@@ -7094,8 +7117,6 @@ bool HOptimizedGraphBuilder::TryInline(CallKind call_kind,
     return false;
   }
 
-  Handle<SharedFunctionInfo> target_shared(target->shared());
-
 #if !defined(V8_TARGET_ARCH_IA32)
   // Target must be able to use caller's context.
   CompilationInfo* outer_info = info();
@@ -7126,7 +7147,7 @@ bool HOptimizedGraphBuilder::TryInline(CallKind call_kind,
   for (FunctionState* state = function_state();
        state != NULL;
        state = state->outer()) {
-    if (state->compilation_info()->closure()->shared() == *target_shared) {
+    if (*state->compilation_info()->closure() == *target) {
       TraceInline(target, caller, "target is recursive");
       return false;
     }
@@ -7141,6 +7162,7 @@ bool HOptimizedGraphBuilder::TryInline(CallKind call_kind,
 
   // Parse and allocate variables.
   CompilationInfo target_info(target, zone());
+  Handle<SharedFunctionInfo> target_shared(target->shared());
   if (!ParserApi::Parse(&target_info, kNoParsingFlags) ||
       !Scope::Analyze(&target_info)) {
     if (target_info.isolate()->has_pending_exception()) {
@@ -10229,29 +10251,31 @@ void HStatistics::Print() {
     PrintF("%30s", names_[i]);
     double ms = static_cast<double>(timing_[i]) / 1000;
     double percent = static_cast<double>(timing_[i]) * 100 / sum;
-    PrintF(" - %7.3f ms / %4.1f %% ", ms, percent);
+    PrintF(" - %8.3f ms / %4.1f %% ", ms, percent);
 
     unsigned size = sizes_[i];
     double size_percent = static_cast<double>(size) * 100 / total_size_;
-    PrintF(" %8u bytes / %4.1f %%\n", size, size_percent);
+    PrintF(" %9u bytes / %4.1f %%\n", size, size_percent);
   }
 
-  PrintF("---------------------------------------------------------------\n");
+  PrintF("----------------------------------------"
+         "---------------------------------------\n");
   int64_t total = create_graph_ + optimize_graph_ + generate_code_;
-  PrintF("%30s - %7.3f ms / %4.1f %% \n",
+  PrintF("%30s - %8.3f ms / %4.1f %% \n",
          "Create graph",
          static_cast<double>(create_graph_) / 1000,
          static_cast<double>(create_graph_) * 100 / total);
-  PrintF("%30s - %7.3f ms / %4.1f %% \n",
+  PrintF("%30s - %8.3f ms / %4.1f %% \n",
          "Optimize graph",
          static_cast<double>(optimize_graph_) / 1000,
          static_cast<double>(optimize_graph_) * 100 / total);
-  PrintF("%30s - %7.3f ms / %4.1f %% \n",
+  PrintF("%30s - %8.3f ms / %4.1f %% \n",
          "Generate and install code",
          static_cast<double>(generate_code_) / 1000,
          static_cast<double>(generate_code_) * 100 / total);
-  PrintF("---------------------------------------------------------------\n");
-  PrintF("%30s - %7.3f ms (%.1f times slower than full code gen)\n",
+  PrintF("----------------------------------------"
+         "---------------------------------------\n");
+  PrintF("%30s - %8.3f ms (%.1f times slower than full code gen)\n",
          "Total",
          static_cast<double>(total) / 1000,
          static_cast<double>(total) / full_code_gen_);
@@ -10263,7 +10287,7 @@ void HStatistics::Print() {
   double normalized_size_in_kb = source_size_in_kb > 0
       ? total_size_ / 1024 / source_size_in_kb
       : 0;
-  PrintF("%30s - %7.3f ms           %7.3f kB allocated\n",
+  PrintF("%30s - %8.3f ms           %7.3f kB allocated\n",
          "Average per kB source",
          normalized_time, normalized_size_in_kb);
 }
@@ -10275,7 +10299,7 @@ void HStatistics::SaveTiming(const char* name, int64_t ticks, unsigned size) {
   } else {
     total_size_ += size;
     for (int i = 0; i < names_.length(); ++i) {
-      if (names_[i] == name) {
+      if (strcmp(names_[i], name) == 0) {
         timing_[i] += ticks;
         sizes_[i] += size;
         return;

@@ -1883,11 +1883,10 @@ class LNumberTagI: public LTemplateInstruction<1, 1, 0> {
 };
 
 
-class LNumberTagU: public LTemplateInstruction<1, 1, 1> {
+class LNumberTagU: public LTemplateInstruction<1, 1, 0> {
  public:
-  explicit LNumberTagU(LOperand* value, LOperand* temp) {
+  explicit LNumberTagU(LOperand* value) {
     inputs_[0] = value;
-    temps_[0] = temp;
   }
 
   LOperand* value() { return inputs_[0]; }

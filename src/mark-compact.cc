@@ -85,7 +85,8 @@ class VerifyMarkingVisitor: public ObjectVisitor {
 
   void VisitEmbeddedPointer(RelocInfo* rinfo) {
     ASSERT(rinfo->rmode() == RelocInfo::EMBEDDED_OBJECT);
-    if (rinfo->host()->kind() != Code::OPTIMIZED_FUNCTION ||
+    if (!FLAG_weak_embedded_maps_in_optimized_code ||
+        rinfo->host()->kind() != Code::OPTIMIZED_FUNCTION ||
         !rinfo->target_object()->IsMap() ||
         !Map::cast(rinfo->target_object())->CanTransition()) {
       VisitPointer(rinfo->target_object_address());

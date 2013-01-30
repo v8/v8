@@ -72,8 +72,6 @@ bool LCodeGen::GenerateCode() {
   ASSERT(is_unused());
   status_ = GENERATING;
 
-  CodeStub::GenerateFPStubs();
-
   // Open a frame scope to indicate that there is a frame on the stack.  The
   // MANUAL indicates that the scope shouldn't actually generate code to set up
   // the frame (that is done in GeneratePrologue).
@@ -349,9 +347,18 @@ bool LCodeGen::GenerateJumpTable() {
   for (int i = 0; i < jump_table_.length(); i++) {
     __ bind(&jump_table_[i].label);
     Address entry = jump_table_[i].address;
+    bool is_lazy_deopt = jump_table_[i].is_lazy_deopt;
+    Deoptimizer::BailoutType type =
+        is_lazy_deopt ? Deoptimizer::LAZY : Deoptimizer::EAGER;
+    int id = Deoptimizer::GetDeoptimizationId(entry, type);
+    if (id == Deoptimizer::kNotDeoptimizationEntry) {
+      Comment(";;; jump table entry %d.", i);
+    } else {
+      Comment(";;; jump table entry %d: deoptimization bailout %d.", i, id);
+    }
     if (jump_table_[i].needs_frame) {
       __ push(Immediate(ExternalReference::ForDeoptEntry(entry)));
-      if (jump_table_[i].is_lazy_deopt) {
+      if (is_lazy_deopt) {
         if (needs_frame_is_call.is_bound()) {
           __ jmp(&needs_frame_is_call);
         } else {
@@ -396,7 +403,7 @@ bool LCodeGen::GenerateJumpTable() {
         }
       }
     } else {
-      if (jump_table_[i].is_lazy_deopt) {
+      if (is_lazy_deopt) {
         __ call(entry, RelocInfo::RUNTIME_ENTRY);
       } else {
         __ jmp(entry, RelocInfo::RUNTIME_ENTRY);
@@ -495,8 +502,6 @@ XMMRegister LCodeGen::ToDoubleRegister(LOperand* op) const {
 
 int LCodeGen::ToInteger32(LConstantOperand* op) const {
   HConstant* constant = chunk_->LookupConstant(op);
-  ASSERT(chunk_->LookupLiteralRepresentation(op).IsInteger32());
-  ASSERT(constant->HasInteger32Value());
   return constant->Integer32Value();
 }
 
@@ -3200,13 +3205,6 @@ Operand LCodeGen::BuildFastArrayOperand(
     uint32_t additional_index) {
   Register elements_pointer_reg = ToRegister(elements_pointer);
   int shift_size = ElementsKindToShiftSize(elements_kind);
-  // Even though the HLoad/StoreKeyed instructions force the input
-  // representation for the key to be an integer, the input gets replaced during
-  // bound check elimination with the index argument to the bounds check, which
-  // can be tagged, so that case must be handled here, too.
-  if (key_representation.IsTagged() && (shift_size >= 1)) {
-    shift_size -= kSmiTagSize;
-  }
   if (key->IsConstantOperand()) {
     int constant_value = ToInteger32(LConstantOperand::cast(key));
     if (constant_value & 0xF0000000) {
@@ -3216,6 +3214,10 @@ Operand LCodeGen::BuildFastArrayOperand(
                    ((constant_value + additional_index) << shift_size)
                        + offset);
   } else {
+    // Take the tag bit into account while computing the shift size.
+    if (key_representation.IsTagged() && (shift_size >= 1)) {
+      shift_size -= kSmiTagSize;
+    }
     ScaleFactor scale_factor = static_cast<ScaleFactor>(shift_size);
     return Operand(elements_pointer_reg,
                    ToRegister(key),
@@ -4577,7 +4579,13 @@ void LCodeGen::DoDeferredNumberTagI(LInstruction* instr,
       CpuFeatures::Scope feature_scope(SSE2);
       __ LoadUint32(xmm0, reg, xmm1);
     } else {
-      UNREACHABLE();
+      // There's no fild variant for unsigned values, so zero-extend to a 64-bit
+      // int manually.
+      __ push(Immediate(0));
+      __ push(reg);
+      __ fild_d(Operand(esp, 0));
+      __ pop(reg);
+      __ pop(reg);
     }
   }
 
@@ -4629,10 +4637,10 @@ void LCodeGen::DoNumberTagD(LNumberTagD* instr) {
   };
 
   Register reg = ToRegister(instr->result());
-  Register tmp = ToRegister(instr->temp());
 
   DeferredNumberTagD* deferred = new(zone()) DeferredNumberTagD(this, instr);
   if (FLAG_inline_new) {
+    Register tmp = ToRegister(instr->temp());
     __ AllocateHeapNumber(reg, tmp, no_reg, deferred->entry());
   } else {
     __ jmp(deferred->entry());

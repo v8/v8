@@ -645,6 +645,7 @@ class MemoryChunk {
   int area_size() {
     return static_cast<int>(area_end() - area_start());
   }
+  bool CommitArea(size_t requested);
 
   // Approximate amount of physical memory committed for this chunk.
   size_t CommittedPhysicalMemory() {
@@ -887,8 +888,11 @@ class CodeRange {
   // Allocates a chunk of memory from the large-object portion of
   // the code range.  On platforms with no separate code range, should
   // not be called.
-  MUST_USE_RESULT Address AllocateRawMemory(const size_t requested,
+  MUST_USE_RESULT Address AllocateRawMemory(const size_t requested_size,
+                                            const size_t commit_size,
                                             size_t* allocated);
+  bool CommitRawMemory(Address start, size_t length);
+  bool UncommitRawMemory(Address start, size_t length);
   void FreeRawMemory(Address buf, size_t length);
 
  private:
@@ -1036,14 +1040,19 @@ class MemoryAllocator {
   void ReportStatistics();
 #endif
 
-  MemoryChunk* AllocateChunk(intptr_t body_size,
+  // Returns a MemoryChunk in which the memory region from commit_area_size to
+  // reserve_area_size of the chunk area is reserved but not committed, it
+  // could be committed later by calling MemoryChunk::CommitArea.
+  MemoryChunk* AllocateChunk(intptr_t reserve_area_size,
+                             intptr_t commit_area_size,
                              Executability executable,
                              Space* space);
 
   Address ReserveAlignedMemory(size_t requested,
                                size_t alignment,
                                VirtualMemory* controller);
-  Address AllocateAlignedMemory(size_t requested,
+  Address AllocateAlignedMemory(size_t reserve_size,
+                                size_t commit_size,
                                 size_t alignment,
                                 Executability executable,
                                 VirtualMemory* controller);
@@ -1093,9 +1102,10 @@ class MemoryAllocator {
     return CodePageAreaEndOffset() - CodePageAreaStartOffset();
   }
 
-  MUST_USE_RESULT static bool CommitCodePage(VirtualMemory* vm,
-                                             Address start,
-                                             size_t size);
+  MUST_USE_RESULT static bool CommitExecutableMemory(VirtualMemory* vm,
+                                                     Address start,
+                                                     size_t commit_size,
+                                                     size_t reserved_size);
 
  private:
   Isolate* isolate_;

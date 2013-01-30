@@ -135,6 +135,8 @@ Handle<SharedFunctionInfo>
 
 void OptimizingCompilerThread::QueueForOptimization(
     OptimizingCompiler* optimizing_compiler) {
+  ASSERT(IsQueueAvailable());
+  Barrier_AtomicIncrement(&queue_length_, static_cast<Atomic32>(1));
   input_queue_.Enqueue(optimizing_compiler);
   input_queue_semaphore_->Signal();
 }

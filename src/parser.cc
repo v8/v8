@@ -52,7 +52,10 @@ namespace internal {
 class PositionStack  {
  public:
   explicit PositionStack(bool* ok) : top_(NULL), ok_(ok) {}
-  ~PositionStack() { ASSERT(!*ok_ || is_empty()); }
+  ~PositionStack() {
+    ASSERT(!*ok_ || is_empty());
+    USE(ok_);
+  }
 
   class Element  {
    public:

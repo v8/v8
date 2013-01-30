@@ -112,30 +112,15 @@ void IC::TraceIC(const char* type,
 
 IC::IC(FrameDepth depth, Isolate* isolate) : isolate_(isolate) {
   ASSERT(isolate == Isolate::Current());
-  // To improve the performance of the (much used) IC code, we unfold
-  // a few levels of the stack frame iteration code. This yields a
-  // ~35% speedup when running DeltaBlue with the '--nouse-ic' flag.
-  const Address entry =
-      Isolate::c_entry_fp(isolate->thread_local_top());
-  Address* pc_address =
-      reinterpret_cast<Address*>(entry + ExitFrameConstants::kCallerPCOffset);
-  Address fp = Memory::Address_at(entry + ExitFrameConstants::kCallerFPOffset);
-  // If there's another JavaScript frame on the stack, we need to look
-  // one frame further down the stack to find the frame pointer and
-  // the return address stack slot.
-  if (depth == EXTRA_CALL_FRAME) {
-    const int kCallerPCOffset = StandardFrameConstants::kCallerPCOffset;
-    pc_address = reinterpret_cast<Address*>(fp + kCallerPCOffset);
-    fp = Memory::Address_at(fp + StandardFrameConstants::kCallerFPOffset);
-  }
-#ifdef DEBUG
   StackFrameIterator it;
   for (int i = 0; i < depth + 1; i++) it.Advance();
+  // Skip StubFailureTrampolineFrames
+  if (it.frame()->is_stub_failure_trampoline()) {
+    it.Advance();
+  }
   StackFrame* frame = it.frame();
-  ASSERT(fp == frame->fp() && pc_address == frame->pc_address());
-#endif
-  fp_ = fp;
-  pc_address_ = pc_address;
+  fp_ = frame->fp();
+  pc_address_ = frame->pc_address();
 }
 
 
@@ -753,7 +738,7 @@ void CallICBase::UpdateCaches(LookupResult* lookup,
       if (code->ic_state() != MONOMORPHIC) {
         Map* map = target()->FindFirstMap();
         if (map != NULL) {
-          isolate()->stub_cache()->Set(*name, map, target());
+          UpdateMegamorphicCache(map, *name, target());
         }
       }
       set_target(*code);
@@ -765,7 +750,7 @@ void CallICBase::UpdateCaches(LookupResult* lookup,
           ? Handle<JSObject>::cast(object)
           : Handle<JSObject>(JSObject::cast(object->GetPrototype()));
       // Update the stub cache.
-      isolate()->stub_cache()->Set(*name, cache_object->map(), *code);
+      UpdateMegamorphicCache(cache_object->map(), *name, *code);
       break;
     }
     case DEBUG_STUB:
@@ -972,7 +957,6 @@ void IC::PatchCache(State state,
     case UNINITIALIZED:
     case PREMONOMORPHIC:
     case MONOMORPHIC_PROTOTYPE_FAILURE:
-    case POLYMORPHIC:
       set_target(*code);
       break;
     case MONOMORPHIC:
@@ -995,8 +979,20 @@ void IC::PatchCache(State state,
       // Update the stub cache.
       UpdateMegamorphicCache(receiver->map(), *name, *code);
       break;
-    case GENERIC:
+    case POLYMORPHIC:
+      // When trying to patch a polymorphic stub with anything other than
+      // another polymorphic stub, go generic.
+      // TODO(verwaest): Currently we always go generic since no polymorphic
+      // stubs enter this code path. Replace with proper updating once named
+      // load/store can also be polymorphic.
+      set_target((strict_mode == kStrictMode)
+                 ? *generic_stub_strict()
+                 : *generic_stub());
+      break;
     case DEBUG_STUB:
+      break;
+    case GENERIC:
+      UNREACHABLE();
       break;
   }
 }
@@ -1139,32 +1135,35 @@ static bool AddOneReceiverMapIfMissing(MapHandleList* receiver_maps,
 static void GetReceiverMapsForStub(Handle<Code> stub,
                                    MapHandleList* result) {
   ASSERT(stub->is_inline_cache_stub());
-  if (stub->is_keyed_load_stub() || stub->is_keyed_store_stub()) {
-    switch (stub->ic_state()) {
-      case MONOMORPHIC:
-        result->Add(Handle<Map>(stub->FindFirstMap()));
-        break;
-      case POLYMORPHIC: {
-        AssertNoAllocation no_allocation;
-        int mask = RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT);
-        for (RelocIterator it(*stub, mask); !it.done(); it.next()) {
-          RelocInfo* info = it.rinfo();
-          Handle<Object> object(info->target_object());
-          ASSERT(object->IsMap());
-          AddOneReceiverMapIfMissing(result, Handle<Map>::cast(object));
-        }
-        break;
+  ASSERT(stub->is_keyed_load_stub() || stub->is_keyed_store_stub());
+  switch (stub->ic_state()) {
+    case MONOMORPHIC: {
+      Map* map = stub->FindFirstMap();
+      if (map != NULL) {
+        result->Add(Handle<Map>(map));
       }
-      case MEGAMORPHIC:
-      case GENERIC:
-        break;
-      case UNINITIALIZED:
-      case PREMONOMORPHIC:
-      case MONOMORPHIC_PROTOTYPE_FAILURE:
-      case DEBUG_STUB:
-        UNREACHABLE();
-        break;
+      break;
     }
+    case POLYMORPHIC: {
+      AssertNoAllocation no_allocation;
+      int mask = RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT);
+      for (RelocIterator it(*stub, mask); !it.done(); it.next()) {
+        RelocInfo* info = it.rinfo();
+        Handle<Object> object(info->target_object());
+        ASSERT(object->IsMap());
+        AddOneReceiverMapIfMissing(result, Handle<Map>::cast(object));
+      }
+      break;
+    }
+    case MEGAMORPHIC:
+      break;
+    case UNINITIALIZED:
+    case PREMONOMORPHIC:
+    case MONOMORPHIC_PROTOTYPE_FAILURE:
+    case GENERIC:
+    case DEBUG_STUB:
+      UNREACHABLE();
+      break;
   }
 }
 
@@ -1192,6 +1191,9 @@ Handle<Code> KeyedLoadIC::LoadElementStub(Handle<JSObject> receiver) {
     target_receiver_maps.Add(isolate()->factory()->string_map());
   } else {
     GetReceiverMapsForStub(Handle<Code>(target()), &target_receiver_maps);
+    if (target_receiver_maps.length() == 0) {
+      return isolate()->stub_cache()->ComputeKeyedLoadElement(receiver_map);
+    }
   }
 
   // The first time a receiver is seen that is a transitioned version of the
@@ -1208,7 +1210,7 @@ Handle<Code> KeyedLoadIC::LoadElementStub(Handle<JSObject> receiver) {
     return isolate()->stub_cache()->ComputeKeyedLoadElement(receiver_map);
   }
 
-  ASSERT(target() != *generic_stub());
+  ASSERT(ic_state != GENERIC);
 
   // Determine the list of receiver maps that this call site has seen,
   // adding the map that was just encountered.
@@ -1564,6 +1566,13 @@ Handle<Code> KeyedStoreIC::StoreElementStub(Handle<JSObject> receiver,
   }
 
   GetReceiverMapsForStub(Handle<Code>(target()), &target_receiver_maps);
+  if (target_receiver_maps.length() == 0) {
+    // Optimistically assume that ICs that haven't reached the MONOMORPHIC state
+    // yet will do so and stay there.
+    stub_kind = GetNoTransitionStubKind(stub_kind);
+    return isolate()->stub_cache()->ComputeKeyedStoreElement(
+        receiver_map, stub_kind, strict_mode, grow_mode);
+  }
   // The first time a receiver is seen that is a transitioned version of the
   // previous monomorphic receiver type, assume the new ElementsKind is the
   // monomorphic type. This benefits global arrays that only transition
@@ -1583,7 +1592,7 @@ Handle<Code> KeyedStoreIC::StoreElementStub(Handle<JSObject> receiver,
         monomorphic_map, stub_kind, strict_mode, grow_mode);
   }
 
-  ASSERT(target() != *generic_stub() && target() != *generic_stub_strict());
+  ASSERT(ic_state != GENERIC);
 
   bool map_added =
       AddOneReceiverMapIfMissing(&target_receiver_maps, receiver_map);

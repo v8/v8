@@ -7629,6 +7629,16 @@ void StoreArrayLiteralElementStub::Generate(MacroAssembler* masm) {
 }
 
 
+void StubFailureTrampolineStub::Generate(MacroAssembler* masm) {
+  ASSERT(!Serializer::enabled());
+  bool save_fp_regs = CpuFeatures::IsSupported(SSE2);
+  CEntryStub ces(1, save_fp_regs ? kSaveFPRegs : kDontSaveFPRegs);
+  __ call(ces.GetCode(), RelocInfo::CODE_TARGET);
+  masm->LeaveFrame(StackFrame::STUB_FAILURE_TRAMPOLINE);
+  __ ret(0);  // Return to IC Miss stub, continuation still on stack.
+}
+
+
 void ProfileEntryHookStub::MaybeCallEntryHook(MacroAssembler* masm) {
   if (entry_hook_ != NULL) {
     ProfileEntryHookStub stub;

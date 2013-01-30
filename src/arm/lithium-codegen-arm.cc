@@ -66,8 +66,6 @@ bool LCodeGen::GenerateCode() {
   ASSERT(is_unused());
   status_ = GENERATING;
 
-  CodeStub::GenerateFPStubs();
-
   // Open a frame scope to indicate that there is a frame on the stack.  The
   // NONE indicates that the scope shouldn't actually generate code to set up
   // the frame (that is done in GeneratePrologue).
@@ -330,9 +328,18 @@ bool LCodeGen::GenerateDeoptJumpTable() {
   for (int i = 0; i < deopt_jump_table_.length(); i++) {
     __ bind(&deopt_jump_table_[i].label);
     Address entry = deopt_jump_table_[i].address;
+    bool is_lazy_deopt = deopt_jump_table_[i].is_lazy_deopt;
+    Deoptimizer::BailoutType type =
+        is_lazy_deopt ? Deoptimizer::LAZY : Deoptimizer::EAGER;
+    int id = Deoptimizer::GetDeoptimizationId(entry, type);
+    if (id == Deoptimizer::kNotDeoptimizationEntry) {
+      Comment(";;; jump table entry %d.", i);
+    } else {
+      Comment(";;; jump table entry %d: deoptimization bailout %d.", i, id);
+    }
     if (deopt_jump_table_[i].needs_frame) {
       __ mov(ip, Operand(ExternalReference::ForDeoptEntry(entry)));
-      if (deopt_jump_table_[i].is_lazy_deopt) {
+      if (is_lazy_deopt) {
         if (needs_frame_is_call.is_bound()) {
           __ b(&needs_frame_is_call);
         } else {
@@ -365,7 +372,7 @@ bool LCodeGen::GenerateDeoptJumpTable() {
         }
       }
     } else {
-      if (deopt_jump_table_[i].is_lazy_deopt) {
+      if (is_lazy_deopt) {
         __ mov(lr, Operand(pc), LeaveCC, al);
         __ mov(pc, Operand(ExternalReference::ForDeoptEntry(entry)));
       } else {
@@ -494,8 +501,6 @@ bool LCodeGen::IsInteger32(LConstantOperand* op) const {
 
 int LCodeGen::ToInteger32(LConstantOperand* op) const {
   HConstant* constant = chunk_->LookupConstant(op);
-  ASSERT(chunk_->LookupLiteralRepresentation(op).IsInteger32());
-  ASSERT(constant->HasInteger32Value());
   return constant->Integer32Value();
 }
 

@@ -78,6 +78,7 @@ namespace internal {
   V(StringDictionaryLookup)              \
   V(ElementsTransitionAndStore)          \
   V(StoreArrayLiteralElement)            \
+  V(StubFailureTrampoline)               \
   V(ProfileEntryHook)
 
 // List of code stubs only used on ARM platforms.
@@ -274,9 +275,6 @@ class HydrogenCodeStub : public CodeStub {
   virtual void InitializeInterfaceDescriptor(
       Isolate* isolate,
       CodeStubInterfaceDescriptor* descriptor) = 0;
-
- protected:
-  Handle<Code> CodeFromGraph(HGraph* graph);
 };
 
 
@@ -1382,6 +1380,20 @@ class StoreArrayLiteralElementStub : public PlatformCodeStub {
   bool fp_registers_;
 
   DISALLOW_COPY_AND_ASSIGN(StoreArrayLiteralElementStub);
+};
+
+
+class StubFailureTrampolineStub : public PlatformCodeStub {
+ public:
+  StubFailureTrampolineStub() {}
+
+ private:
+  Major MajorKey() { return StubFailureTrampoline; }
+  int MinorKey() { return 0; }
+
+  void Generate(MacroAssembler* masm);
+
+  DISALLOW_COPY_AND_ASSIGN(StubFailureTrampolineStub);
 };
 
 

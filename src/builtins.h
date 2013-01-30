@@ -145,11 +145,11 @@ enum BuiltinExtraArguments {
                                     Code::kNoExtraICState)              \
   V(KeyedLoadIC_Generic,            KEYED_LOAD_IC, GENERIC,             \
                                     Code::kNoExtraICState)              \
-  V(KeyedLoadIC_String,             KEYED_LOAD_IC, GENERIC,             \
+  V(KeyedLoadIC_String,             KEYED_LOAD_IC, MONOMORPHIC,         \
                                     Code::kNoExtraICState)              \
-  V(KeyedLoadIC_IndexedInterceptor, KEYED_LOAD_IC, GENERIC,             \
+  V(KeyedLoadIC_IndexedInterceptor, KEYED_LOAD_IC, MONOMORPHIC,         \
                                     Code::kNoExtraICState)              \
-  V(KeyedLoadIC_NonStrictArguments, KEYED_LOAD_IC, GENERIC,             \
+  V(KeyedLoadIC_NonStrictArguments, KEYED_LOAD_IC, MONOMORPHIC,         \
                                     Code::kNoExtraICState)              \
                                                                         \
   V(StoreIC_Initialize,             STORE_IC, UNINITIALIZED,            \
@@ -180,7 +180,7 @@ enum BuiltinExtraArguments {
                                     kStrictMode)                        \
   V(KeyedStoreIC_Generic_Strict,    KEYED_STORE_IC, GENERIC,            \
                                     kStrictMode)                        \
-  V(KeyedStoreIC_NonStrictArguments, KEYED_STORE_IC, GENERIC,           \
+  V(KeyedStoreIC_NonStrictArguments, KEYED_STORE_IC, MONOMORPHIC,       \
                                      Code::kNoExtraICState)             \
   V(TransitionElementsSmiToDouble,  BUILTIN, UNINITIALIZED,             \
                                     Code::kNoExtraICState)              \

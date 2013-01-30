@@ -113,8 +113,8 @@ class DeoptimizerData {
  private:
   int eager_deoptimization_entry_code_entries_;
   int lazy_deoptimization_entry_code_entries_;
-  VirtualMemory* eager_deoptimization_entry_code_;
-  VirtualMemory* lazy_deoptimization_entry_code_;
+  MemoryChunk* eager_deoptimization_entry_code_;
+  MemoryChunk* lazy_deoptimization_entry_code_;
   Deoptimizer* current_;
 
 #ifdef ENABLE_DEBUGGER_SUPPORT

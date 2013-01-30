@@ -1,4 +1,4 @@
-// Copyright 2012 the V8 project authors. All rights reserved.
+// Copyright 2013 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,38 +25,25 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// Flags: --allow-natives-syntax
 
-// Tick Processor's code flow.
+// Test inlining of multiple closures derived from one shared function.
 
-function processArguments(args) {
-  var processor = new ArgumentsProcessor(args);
-  if (processor.parse()) {
-    return processor.result();
-  } else {
-    processor.printUsageAndExit();
+function mkClosure(continuation) {
+  return function(value) {
+    if (continuation == 'g') return this.g(value);
+    if (continuation == 'h') return this.h(value);
+    return value.value;
   }
 }
 
-var entriesProviders = {
-  'unix': UnixCppEntriesProvider,
-  'windows': WindowsCppEntriesProvider,
-  'mac': MacCppEntriesProvider
-};
+var object = {};
+object.f = mkClosure('g');
+object.g = mkClosure('h');
+object.h = mkClosure('x');
 
-var params = processArguments(arguments);
-var snapshotLogProcessor;
-if (params.snapshotLogFileName) {
-  snapshotLogProcessor = new SnapshotLogProcessor();
-  snapshotLogProcessor.processLogFile(params.snapshotLogFileName);
-}
-var tickProcessor = new TickProcessor(
-  new (entriesProviders[params.platform])(params.nm, params.targetRootFS),
-  params.separateIc,
-  params.callGraphSize,
-  params.ignoreUnknown,
-  params.stateFilter,
-  snapshotLogProcessor,
-  params.distortion,
-  params.range);
-tickProcessor.processLogFile(params.logFileName);
-tickProcessor.printStatistics();
+assertSame(1, object.f({value:1}));
+assertSame(2, object.f({value:2}));
+%OptimizeFunctionOnNextCall(object.f);
+assertSame(3, object.f({value:3}));
+assertSame(undefined, object.f({}));
