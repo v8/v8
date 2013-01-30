@@ -5429,6 +5429,7 @@ class SharedFunctionInfo: public HeapObject {
 
   // [code]: Function code.
   DECL_ACCESSORS(code, Code)
+  inline void ReplaceCode(Code* code);
 
   // [optimized_code_map]: Map from native context to optimized code
   // and a shared literals array or Smi 0 if none.

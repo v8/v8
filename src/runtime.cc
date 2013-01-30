@@ -2146,7 +2146,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetCode) {
   // target function to undefined.  SetCode is only used for built-in
   // constructors like String, Array, and Object, and some web code
   // doesn't like seeing source code for constructors.
-  target_shared->set_code(source_shared->code());
+  target_shared->ReplaceCode(source_shared->code());
   target_shared->set_scope_info(source_shared->scope_info());
   target_shared->set_length(source_shared->length());
   target_shared->set_formal_parameter_count(
