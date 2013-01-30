@@ -333,6 +333,14 @@ class MemoryChunk {
            kFailureTag);
   }
 
+  // Workaround for a bug in Clang-3.3 which in some situations optimizes away
+  // an "if (chunk->owner() != NULL)" check.
+  bool has_owner() {
+    if (owner_ == 0) return false;
+    if (reinterpret_cast<intptr_t>(owner_) == kFailureTag) return false;
+    return true;
+  }
+
   VirtualMemory* reserved_memory() {
     return &reservation_;
   }
