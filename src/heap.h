@@ -1596,6 +1596,24 @@ class Heap {
   // Returns minimal interval between two subsequent collections.
   int get_min_in_mutator() { return min_in_mutator_; }
 
+  // TODO(hpayer): remove, should be handled by GCTracer
+  void AddMarkingTime(double marking_time) {
+    marking_time_ += marking_time;
+  }
+
+  double marking_time() const {
+    return marking_time_;
+  }
+
+  // TODO(hpayer): remove, should be handled by GCTracer
+  void AddSweepingTime(double sweeping_time) {
+    sweeping_time_ += sweeping_time;
+  }
+
+  double sweeping_time() const {
+    return sweeping_time_;
+  }
+
   MarkCompactCollector* mark_compact_collector() {
     return &mark_compact_collector_;
   }
@@ -2035,7 +2053,6 @@ class Heap {
 
   GCTracer* tracer_;
 
-
   // Allocates a small number to string cache.
   MUST_USE_RESULT MaybeObject* AllocateInitialNumberStringCache();
   // Creates and installs the full-sized number string cache.
@@ -2172,6 +2189,12 @@ class Heap {
   intptr_t alive_after_last_gc_;
 
   double last_gc_end_timestamp_;
+
+  // Cumulative GC time spent in marking
+  double marking_time_;
+
+  // Cumulative GC time spent in sweeping
+  double sweeping_time_;
 
   MarkCompactCollector mark_compact_collector_;
 

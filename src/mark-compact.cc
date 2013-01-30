@@ -2832,6 +2832,11 @@ static void SweepPrecisely(PagedSpace* space,
             space->identity() == CODE_SPACE);
   ASSERT((p->skip_list() == NULL) || (skip_list_mode == REBUILD_SKIP_LIST));
 
+  double start_time = 0.0;
+  if (FLAG_print_cumulative_gc_stat) {
+    start_time = OS::TimeCurrentMillis();
+  }
+
   MarkBit::CellType* cells = p->markbits()->cells();
   p->MarkSweptPrecisely();
 
@@ -2897,6 +2902,9 @@ static void SweepPrecisely(PagedSpace* space,
     space->Free(free_start, static_cast<int>(p->area_end() - free_start));
   }
   p->ResetLiveBytes();
+  if (FLAG_print_cumulative_gc_stat) {
+    space->heap()->AddSweepingTime(OS::TimeCurrentMillis() - start_time);
+  }
 }
 
 
@@ -3491,6 +3499,11 @@ static inline Address StartOfLiveObject(Address block_address, uint32_t cell) {
 // spaces will not contain the free space map.
 intptr_t MarkCompactCollector::SweepConservatively(PagedSpace* space, Page* p) {
   ASSERT(!p->IsEvacuationCandidate() && !p->WasSwept());
+  double start_time = 0.0;
+  if (FLAG_print_cumulative_gc_stat) {
+    start_time = OS::TimeCurrentMillis();
+  }
+
   MarkBit::CellType* cells = p->markbits()->cells();
   p->MarkSweptConservatively();
 
@@ -3577,6 +3590,10 @@ intptr_t MarkCompactCollector::SweepConservatively(PagedSpace* space, Page* p) {
   }
 
   p->ResetLiveBytes();
+
+  if (FLAG_print_cumulative_gc_stat) {
+    space->heap()->AddSweepingTime(OS::TimeCurrentMillis() - start_time);
+  }
   return freed_bytes;
 }
 

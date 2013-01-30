@@ -145,6 +145,8 @@ Heap::Heap()
       min_in_mutator_(kMaxInt),
       alive_after_last_gc_(0),
       last_gc_end_timestamp_(0.0),
+      marking_time_(0.0),
+      sweeping_time_(0.0),
       store_buffer_(this),
       marking_(this),
       incremental_marking_(this),
@@ -6338,7 +6340,7 @@ void Heap::TearDown() {
 #endif
 
   if (FLAG_print_cumulative_gc_stat) {
-    PrintF("\n\n");
+    PrintF("\n");
     PrintF("gc_count=%d ", gc_count_);
     PrintF("mark_sweep_count=%d ", ms_count_);
     PrintF("max_gc_pause=%d ", get_max_gc_pause());
@@ -6346,6 +6348,8 @@ void Heap::TearDown() {
     PrintF("min_in_mutator=%d ", get_min_in_mutator());
     PrintF("max_alive_after_gc=%" V8_PTR_PREFIX "d ",
            get_max_alive_after_gc());
+    PrintF("total_marking_time=%f ", marking_time());
+    PrintF("total_sweeping_time=%f ", sweeping_time());
     PrintF("\n\n");
   }
 
@@ -7036,6 +7040,9 @@ GCTracer::~GCTracer() {
 
   if (collector_ == SCAVENGER && FLAG_trace_gc_ignore_scavenger) return;
 
+  heap_->AddMarkingTime(scopes_[Scope::MC_MARK]);
+
+  if (FLAG_print_cumulative_gc_stat && !FLAG_trace_gc) return;
   PrintPID("%8.0f ms: ", heap_->isolate()->time_millis_since_init());
 
   if (!FLAG_trace_gc_nvp) {
