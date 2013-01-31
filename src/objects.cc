@@ -7646,11 +7646,12 @@ static void TrimDescriptorArray(Heap* heap,
                                 Map* map,
                                 DescriptorArray* descriptors,
                                 int number_of_own_descriptors) {
-  int number_of_descriptors = descriptors->number_of_descriptors();
+  int number_of_descriptors = descriptors->number_of_descriptors_storage();
   int to_trim = number_of_descriptors - number_of_own_descriptors;
-  if (to_trim <= 0) return;
+  if (to_trim == 0) return;
 
-  RightTrimFixedArray<FROM_GC>(heap, descriptors, to_trim);
+  RightTrimFixedArray<FROM_GC>(
+      heap, descriptors, to_trim * DescriptorArray::kDescriptorSize);
   descriptors->SetNumberOfDescriptors(number_of_own_descriptors);
 
   if (descriptors->HasEnumCache()) TrimEnumCache(heap, map, descriptors);
