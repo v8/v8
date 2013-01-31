@@ -40,6 +40,7 @@
 #include "isolate.h"
 #include "lithium-allocator.h"
 #include "log.h"
+#include "marking-thread.h"
 #include "messages.h"
 #include "platform.h"
 #include "regexp-stack.h"
@@ -1653,6 +1654,7 @@ Isolate::Isolate()
       context_exit_happened_(false),
       deferred_handles_head_(NULL),
       optimizing_compiler_thread_(this),
+      marking_thread_(NULL),
       sweeper_thread_(NULL) {
   TRACE_ISOLATE(constructor);
 
@@ -1743,6 +1745,14 @@ void Isolate::Deinit() {
         delete sweeper_thread_[i];
       }
       delete[] sweeper_thread_;
+    }
+
+    if (FLAG_parallel_marking) {
+      for (int i = 0; i < FLAG_marking_threads; i++) {
+        marking_thread_[i]->Stop();
+        delete marking_thread_[i];
+      }
+      delete[] marking_thread_;
     }
 
     if (FLAG_parallel_recompilation) optimizing_compiler_thread_.Stop();
@@ -2114,6 +2124,17 @@ bool Isolate::Init(Deserializer* des) {
   }
 
   if (FLAG_parallel_recompilation) optimizing_compiler_thread_.Start();
+
+  if (FLAG_parallel_marking) {
+    if (FLAG_marking_threads < 1) {
+      FLAG_marking_threads = 1;
+    }
+    marking_thread_ = new MarkingThread*[FLAG_marking_threads];
+    for (int i = 0; i < FLAG_marking_threads; i++) {
+      marking_thread_[i] = new MarkingThread(this);
+      marking_thread_[i]->Start();
+    }
+  }
 
   if (FLAG_parallel_sweeping || FLAG_concurrent_sweeping) {
     if (FLAG_sweeper_threads < 1) {

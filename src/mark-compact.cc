@@ -37,6 +37,7 @@
 #include "ic-inl.h"
 #include "incremental-marking.h"
 #include "mark-compact.h"
+#include "marking-thread.h"
 #include "objects-visiting.h"
 #include "objects-visiting-inl.h"
 #include "stub-cache.h"
@@ -537,6 +538,20 @@ intptr_t MarkCompactCollector::
 
 bool MarkCompactCollector::AreSweeperThreadsActivated() {
   return heap()->isolate()->sweeper_threads() != NULL;
+}
+
+
+void MarkCompactCollector::MarkInParallel() {
+  for (int i = 0; i < FLAG_marking_threads; i++) {
+    heap()->isolate()->marking_threads()[i]->StartMarking();
+  }
+}
+
+
+void MarkCompactCollector::WaitUntilMarkingCompleted() {
+  for (int i = 0; i < FLAG_marking_threads; i++) {
+    heap()->isolate()->marking_threads()[i]->WaitForMarkingThread();
+  }
 }
 
 
