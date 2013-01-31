@@ -608,7 +608,8 @@ class LoadStubCompiler: public StubCompiler {
 
   Handle<Code> CompileLoadNonexistent(Handle<String> name,
                                       Handle<JSObject> object,
-                                      Handle<JSObject> last);
+                                      Handle<JSObject> last,
+                                      Handle<GlobalObject> global);
 
   Handle<Code> CompileLoadField(Handle<JSObject> object,
                                 Handle<JSObject> holder,

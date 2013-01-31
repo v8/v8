@@ -169,26 +169,6 @@ Address IC::OriginalCodeAddress() const {
 #endif
 
 
-static bool HasNormalObjectsInPrototypeChain(Isolate* isolate,
-                                             LookupResult* lookup,
-                                             Object* receiver) {
-  Object* end = lookup->IsProperty()
-      ? lookup->holder() : Object::cast(isolate->heap()->null_value());
-  for (Object* current = receiver;
-       current != end;
-       current = current->GetPrototype()) {
-    if (current->IsJSObject() &&
-        !JSObject::cast(current)->HasFastProperties() &&
-        !current->IsJSGlobalProxy() &&
-        !current->IsJSGlobalObject()) {
-      return true;
-    }
-  }
-
-  return false;
-}
-
-
 static bool TryRemoveInvalidPrototypeDependentStub(Code* target,
                                                    Object* receiver,
                                                    Object* name) {
@@ -700,14 +680,6 @@ void CallICBase::UpdateCaches(LookupResult* lookup,
   // Bail out if we didn't find a result.
   if (!lookup->IsProperty() || !lookup->IsCacheable()) return;
 
-  if (lookup->holder() != *object &&
-      HasNormalObjectsInPrototypeChain(
-          isolate(), lookup, object->GetPrototype())) {
-    // Suppress optimization for prototype chains with slow properties objects
-    // in the middle.
-    return;
-  }
-
   // Compute the number of arguments.
   int argc = target()->arguments_count();
   Handle<Code> code;
@@ -1022,8 +994,6 @@ void LoadIC::UpdateCaches(LookupResult* lookup,
   // Loading properties from values is not common, so don't try to
   // deal with non-JS objects here.
   if (!object->IsJSObject()) return;
-
-  if (HasNormalObjectsInPrototypeChain(isolate(), lookup, *object)) return;
 
   Handle<JSObject> receiver = Handle<JSObject>::cast(object);
   Handle<Code> code;
