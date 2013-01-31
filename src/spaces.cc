@@ -711,7 +711,7 @@ LargePage* MemoryAllocator::AllocateLargePage(intptr_t object_size,
 
 void MemoryAllocator::Free(MemoryChunk* chunk) {
   LOG(isolate_, DeleteEvent("MemoryChunk", chunk));
-  if (chunk->has_owner()) {
+  if (chunk->owner() != NULL) {
     ObjectSpace space =
         static_cast<ObjectSpace>(1 << chunk->owner()->identity());
     PerformAllocationCallback(space, kAllocationActionFree, chunk->size());

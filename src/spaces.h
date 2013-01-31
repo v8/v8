@@ -320,7 +320,8 @@ class MemoryChunk {
   Space* owner() const {
     if ((reinterpret_cast<intptr_t>(owner_) & kFailureTagMask) ==
         kFailureTag) {
-      return reinterpret_cast<Space*>(owner_ - kFailureTag);
+      return reinterpret_cast<Space*>(reinterpret_cast<intptr_t>(owner_) -
+                                      kFailureTag);
     } else {
       return NULL;
     }
@@ -331,14 +332,6 @@ class MemoryChunk {
     owner_ = reinterpret_cast<Address>(space) + kFailureTag;
     ASSERT((reinterpret_cast<intptr_t>(owner_) & kFailureTagMask) ==
            kFailureTag);
-  }
-
-  // Workaround for a bug in Clang-3.3 which in some situations optimizes away
-  // an "if (chunk->owner() != NULL)" check.
-  bool has_owner() {
-    if (owner_ == 0) return false;
-    if (reinterpret_cast<intptr_t>(owner_) == kFailureTag) return false;
-    return true;
   }
 
   VirtualMemory* reserved_memory() {
