@@ -8534,6 +8534,10 @@ void ObjectVisitor::VisitCodeEntry(Address entry_address) {
   Object* old_code = code;
   VisitPointer(&code);
   if (code != old_code) {
+    // TODO(mstarzinger): Active in release mode to flush out problems.
+    // Should be turned back into an ASSERT or removed completely.
+    Page* target_page = Page::FromAddress(reinterpret_cast<Address>(code));
+    CHECK(!target_page->IsEvacuationCandidate());
     Memory::Address_at(entry_address) = reinterpret_cast<Code*>(code)->entry();
   }
 }
