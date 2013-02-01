@@ -1128,23 +1128,18 @@ void Deoptimizer::EntryGenerator::Generate() {
   }
   __ pop(r0);  // Restore deoptimizer object (class Deoptimizer).
 
-  // TODO(hans): Change the code below to not clobber r0, so that it can be
-  // used in the "restore the d registers" code further down, making this mov
-  // redundant.
-  __ mov(r4, r0);
-
   // Replace the current (input) frame with the output frames.
   Label outer_push_loop, inner_push_loop,
       outer_loop_header, inner_loop_header;
-  // Outer loop state: r0 = current "FrameDescription** output_",
+  // Outer loop state: r4 = current "FrameDescription** output_",
   // r1 = one past the last FrameDescription**.
   __ ldr(r1, MemOperand(r0, Deoptimizer::output_count_offset()));
-  __ ldr(r0, MemOperand(r0, Deoptimizer::output_offset()));  // r0 is output_.
-  __ add(r1, r0, Operand(r1, LSL, 2));
+  __ ldr(r4, MemOperand(r0, Deoptimizer::output_offset()));  // r4 is output_.
+  __ add(r1, r4, Operand(r1, LSL, 2));
   __ jmp(&outer_loop_header);
   __ bind(&outer_push_loop);
   // Inner loop state: r2 = current FrameDescription*, r3 = loop index.
-  __ ldr(r2, MemOperand(r0, 0));  // output_[ix]
+  __ ldr(r2, MemOperand(r4, 0));  // output_[ix]
   __ ldr(r3, MemOperand(r2, FrameDescription::frame_size_offset()));
   __ jmp(&inner_loop_header);
   __ bind(&inner_push_loop);
@@ -1155,9 +1150,9 @@ void Deoptimizer::EntryGenerator::Generate() {
   __ bind(&inner_loop_header);
   __ cmp(r3, Operand::Zero());
   __ b(ne, &inner_push_loop);  // test for gt?
-  __ add(r0, r0, Operand(kPointerSize));
+  __ add(r4, r4, Operand(kPointerSize));
   __ bind(&outer_loop_header);
-  __ cmp(r0, r1);
+  __ cmp(r4, r1);
   __ b(lt, &outer_push_loop);
 
   if (CpuFeatures::IsSupported(VFP2)) {
@@ -1167,7 +1162,7 @@ void Deoptimizer::EntryGenerator::Generate() {
       // Check CPU flags for number of registers, setting the Z condition flag.
       __ CheckFor32DRegs(ip);
 
-      __ ldr(r1, MemOperand(r4, Deoptimizer::input_offset()));
+      __ ldr(r1, MemOperand(r0, Deoptimizer::input_offset()));
       int src_offset = FrameDescription::double_registers_offset();
       for (int i = 0; i < DwVfpRegister::kNumRegisters; ++i) {
         if (i == kDoubleRegZero.code()) continue;

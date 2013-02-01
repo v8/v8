@@ -342,7 +342,7 @@ class KeyedCallIC: public CallICBase {
 
 class LoadIC: public IC {
  public:
-  explicit LoadIC(Isolate* isolate) : IC(NO_EXTRA_FRAME, isolate) {
+  explicit LoadIC(FrameDepth depth, Isolate* isolate) : IC(depth, isolate) {
     ASSERT(target()->is_load_stub() || target()->is_keyed_load_stub());
   }
 
@@ -404,7 +404,8 @@ enum ICMissMode {
 
 class KeyedLoadIC: public LoadIC {
  public:
-  explicit KeyedLoadIC(Isolate* isolate) : LoadIC(isolate) {
+  explicit KeyedLoadIC(FrameDepth depth, Isolate* isolate)
+      : LoadIC(depth, isolate) {
     ASSERT(target()->is_keyed_load_stub());
   }
 
@@ -813,6 +814,7 @@ enum InlinedSmiCheck { ENABLE_INLINED_SMI_CHECK, DISABLE_INLINED_SMI_CHECK };
 void PatchInlinedSmiCode(Address address, InlinedSmiCheck check);
 
 DECLARE_RUNTIME_FUNCTION(MaybeObject*, KeyedLoadIC_Miss);
+DECLARE_RUNTIME_FUNCTION(MaybeObject*, KeyedLoadIC_MissFromStubFailure);
 
 } }  // namespace v8::internal
 

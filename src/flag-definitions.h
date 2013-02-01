@@ -417,6 +417,12 @@ DEFINE_bool(trace_incremental_marking, false,
             "trace progress of the incremental marking")
 DEFINE_bool(track_gc_object_stats, false,
             "track object counts and memory usage")
+DEFINE_bool(parallel_sweeping, false, "enable parallel sweeping")
+DEFINE_bool(concurrent_sweeping, false, "enable concurrent sweeping")
+DEFINE_int(sweeper_threads, 1,
+           "number of parallel and concurrent sweeping threads")
+DEFINE_bool(parallel_marking, false, "enable parallel marking")
+DEFINE_int(marking_threads, 1, "number of parallel marking threads")
 #ifdef VERIFY_HEAP
 DEFINE_bool(verify_heap, false, "verify heap pointers before and after GC")
 #endif

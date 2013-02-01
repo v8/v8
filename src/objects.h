@@ -2609,6 +2609,8 @@ class DescriptorArray: public FixedArray {
   inline Object** GetKeySlot(int descriptor_number);
   inline Object* GetValue(int descriptor_number);
   inline Object** GetValueSlot(int descriptor_number);
+  inline Object** GetDescriptorStartSlot(int descriptor_number);
+  inline Object** GetDescriptorEndSlot(int descriptor_number);
   inline PropertyDetails GetDetails(int descriptor_number);
   inline PropertyType GetType(int descriptor_number);
   inline int GetFieldIndex(int descriptor_number);

@@ -754,18 +754,24 @@ void IncrementalMarking::ProcessMarkingDeque() {
 void IncrementalMarking::Hurry() {
   if (state() == MARKING) {
     double start = 0.0;
-    if (FLAG_trace_incremental_marking) {
-      PrintF("[IncrementalMarking] Hurry\n");
+    if (FLAG_trace_incremental_marking || FLAG_print_cumulative_gc_stat) {
       start = OS::TimeCurrentMillis();
+      if (FLAG_trace_incremental_marking) {
+        PrintF("[IncrementalMarking] Hurry\n");
+      }
     }
     // TODO(gc) hurry can mark objects it encounters black as mutator
     // was stopped.
     ProcessMarkingDeque();
     state_ = COMPLETE;
-    if (FLAG_trace_incremental_marking) {
+    if (FLAG_trace_incremental_marking || FLAG_print_cumulative_gc_stat) {
       double end = OS::TimeCurrentMillis();
-      PrintF("[IncrementalMarking] Complete (hurry), spent %d ms.\n",
-             static_cast<int>(end - start));
+      double delta = end - start;
+      heap_->AddMarkingTime(delta);
+      if (FLAG_trace_incremental_marking) {
+        PrintF("[IncrementalMarking] Complete (hurry), spent %d ms.\n",
+               static_cast<int>(delta));
+      }
     }
   }
 
@@ -889,7 +895,8 @@ void IncrementalMarking::Step(intptr_t allocated_bytes,
 
   double start = 0;
 
-  if (FLAG_trace_incremental_marking || FLAG_trace_gc) {
+  if (FLAG_trace_incremental_marking || FLAG_trace_gc ||
+      FLAG_print_cumulative_gc_stat) {
     start = OS::TimeCurrentMillis();
   }
 
@@ -969,12 +976,14 @@ void IncrementalMarking::Step(intptr_t allocated_bytes,
     }
   }
 
-  if (FLAG_trace_incremental_marking || FLAG_trace_gc) {
+  if (FLAG_trace_incremental_marking || FLAG_trace_gc ||
+      FLAG_print_cumulative_gc_stat) {
     double end = OS::TimeCurrentMillis();
     double delta = (end - start);
     longest_step_ = Max(longest_step_, delta);
     steps_took_ += delta;
     steps_took_since_last_gc_ += delta;
+    heap_->AddMarkingTime(delta);
   }
 }
 

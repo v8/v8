@@ -46,7 +46,7 @@ void KeyedLoadFastElementStub::InitializeInterfaceDescriptor(
   descriptor->register_param_count_ = 2;
   descriptor->register_params_ = registers;
   descriptor->deoptimization_handler_ =
-      FUNCTION_ADDR(KeyedLoadIC_Miss);
+      FUNCTION_ADDR(KeyedLoadIC_MissFromStubFailure);
 }
 
 
@@ -7974,6 +7974,16 @@ void StoreArrayLiteralElementStub::Generate(MacroAssembler* masm) {
                                  &slow_elements);
   __ Ret(USE_DELAY_SLOT);
   __ mov(v0, a0);
+}
+
+
+void StubFailureTrampolineStub::Generate(MacroAssembler* masm) {
+  ASSERT(!Serializer::enabled());
+  bool save_fp_regs = CpuFeatures::IsSupported(FPU);
+  CEntryStub ces(1, save_fp_regs ? kSaveFPRegs : kDontSaveFPRegs);
+  __ Call(ces.GetCode(), RelocInfo::CODE_TARGET);
+  masm->LeaveFrame(StackFrame::STUB_FAILURE_TRAMPOLINE);
+  __ Ret();
 }
 
 

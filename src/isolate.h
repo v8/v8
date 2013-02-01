@@ -71,6 +71,7 @@ class HeapProfiler;
 class InlineRuntimeFunctionsTable;
 class NoAllocationStringAllocator;
 class InnerPointerToCodeCache;
+class MarkingThread;
 class PreallocatedMemoryThread;
 class RegExpStack;
 class SaveContext;
@@ -78,6 +79,7 @@ class UnicodeCache;
 class ConsStringIteratorOp;
 class StringTracker;
 class StubCache;
+class SweeperThread;
 class ThreadManager;
 class ThreadState;
 class ThreadVisitor;  // Defined in v8threads.h
@@ -529,11 +531,6 @@ class Isolate {
   SaveContext* save_context() {return thread_local_top_.save_context_; }
   void set_save_context(SaveContext* save) {
     thread_local_top_.save_context_ = save;
-  }
-
-  // Access to the map of "new Object()".
-  Map* empty_object_map() {
-    return context()->native_context()->object_function()->map();
   }
 
   // Access to current thread id.
@@ -1078,6 +1075,14 @@ class Isolate {
   // TODO(svenpanne) This method is on death row...
   static v8::Isolate* GetDefaultIsolateForLocking();
 
+  MarkingThread** marking_threads() {
+    return marking_thread_;
+  }
+
+  SweeperThread** sweeper_threads() {
+    return sweeper_thread_;
+  }
+
  private:
   Isolate();
 
@@ -1301,11 +1306,15 @@ class Isolate {
 
   DeferredHandles* deferred_handles_head_;
   OptimizingCompilerThread optimizing_compiler_thread_;
+  MarkingThread** marking_thread_;
+  SweeperThread** sweeper_thread_;
 
   friend class ExecutionAccess;
   friend class HandleScopeImplementer;
   friend class IsolateInitializer;
+  friend class MarkingThread;
   friend class OptimizingCompilerThread;
+  friend class SweeperThread;
   friend class ThreadManager;
   friend class Simulator;
   friend class StackGuard;

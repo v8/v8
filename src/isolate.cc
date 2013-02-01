@@ -40,6 +40,7 @@
 #include "isolate.h"
 #include "lithium-allocator.h"
 #include "log.h"
+#include "marking-thread.h"
 #include "messages.h"
 #include "platform.h"
 #include "regexp-stack.h"
@@ -49,6 +50,7 @@
 #include "simulator.h"
 #include "spaces.h"
 #include "stub-cache.h"
+#include "sweeper-thread.h"
 #include "version.h"
 #include "vm-state-inl.h"
 
@@ -1651,7 +1653,9 @@ Isolate::Isolate()
       code_stub_interface_descriptors_(NULL),
       context_exit_happened_(false),
       deferred_handles_head_(NULL),
-      optimizing_compiler_thread_(this) {
+      optimizing_compiler_thread_(this),
+      marking_thread_(NULL),
+      sweeper_thread_(NULL) {
   TRACE_ISOLATE(constructor);
 
   memset(isolate_addresses_, 0,
@@ -1699,6 +1703,7 @@ Isolate::Isolate()
 #undef ISOLATE_INIT_ARRAY_EXECUTE
 }
 
+
 void Isolate::TearDown() {
   TRACE_ISOLATE(tear_down);
 
@@ -1733,6 +1738,22 @@ void Isolate::TearDown() {
 void Isolate::Deinit() {
   if (state_ == INITIALIZED) {
     TRACE_ISOLATE(deinit);
+
+    if (FLAG_concurrent_sweeping || FLAG_parallel_sweeping) {
+      for (int i = 0; i < FLAG_sweeper_threads; i++) {
+        sweeper_thread_[i]->Stop();
+        delete sweeper_thread_[i];
+      }
+      delete[] sweeper_thread_;
+    }
+
+    if (FLAG_parallel_marking) {
+      for (int i = 0; i < FLAG_marking_threads; i++) {
+        marking_thread_[i]->Stop();
+        delete marking_thread_[i];
+      }
+      delete[] marking_thread_;
+    }
 
     if (FLAG_parallel_recompilation) optimizing_compiler_thread_.Stop();
 
@@ -2103,6 +2124,28 @@ bool Isolate::Init(Deserializer* des) {
   }
 
   if (FLAG_parallel_recompilation) optimizing_compiler_thread_.Start();
+
+  if (FLAG_parallel_marking) {
+    if (FLAG_marking_threads < 1) {
+      FLAG_marking_threads = 1;
+    }
+    marking_thread_ = new MarkingThread*[FLAG_marking_threads];
+    for (int i = 0; i < FLAG_marking_threads; i++) {
+      marking_thread_[i] = new MarkingThread(this);
+      marking_thread_[i]->Start();
+    }
+  }
+
+  if (FLAG_parallel_sweeping || FLAG_concurrent_sweeping) {
+    if (FLAG_sweeper_threads < 1) {
+      FLAG_sweeper_threads = 1;
+    }
+    sweeper_thread_ = new SweeperThread*[FLAG_sweeper_threads];
+    for (int i = 0; i < FLAG_sweeper_threads; i++) {
+      sweeper_thread_[i] = new SweeperThread(this);
+      sweeper_thread_[i]->Start();
+    }
+  }
   return true;
 }
 

@@ -320,7 +320,8 @@ class MemoryChunk {
   Space* owner() const {
     if ((reinterpret_cast<intptr_t>(owner_) & kFailureTagMask) ==
         kFailureTag) {
-      return reinterpret_cast<Space*>(owner_ - kFailureTag);
+      return reinterpret_cast<Space*>(reinterpret_cast<intptr_t>(owner_) -
+                                      kFailureTag);
     } else {
       return NULL;
     }
@@ -331,14 +332,6 @@ class MemoryChunk {
     owner_ = reinterpret_cast<Address>(space) + kFailureTag;
     ASSERT((reinterpret_cast<intptr_t>(owner_) & kFailureTagMask) ==
            kFailureTag);
-  }
-
-  // Workaround for a bug in Clang-3.3 which in some situations optimizes away
-  // an "if (chunk->owner() != NULL)" check.
-  bool has_owner() {
-    if (owner_ == 0) return false;
-    if (reinterpret_cast<intptr_t>(owner_) == kFailureTag) return false;
-    return true;
   }
 
   VirtualMemory* reserved_memory() {
@@ -462,6 +455,18 @@ class MemoryChunk {
   // Return all current flags.
   intptr_t GetFlags() { return flags_; }
 
+  intptr_t parallel_sweeping() const {
+    return parallel_sweeping_;
+  }
+
+  void set_parallel_sweeping(intptr_t state) {
+    parallel_sweeping_ = state;
+  }
+
+  bool TryParallelSweeping() {
+    return NoBarrier_CompareAndSwap(&parallel_sweeping_, 1, 0) == 1;
+  }
+
   // Manage live byte count (count of bytes known to be live,
   // because they are marked black).
   void ResetLiveBytes() {
@@ -541,8 +546,8 @@ class MemoryChunk {
   static const size_t kWriteBarrierCounterOffset =
       kSlotsBufferOffset + kPointerSize + kPointerSize;
 
-  static const size_t kHeaderSize =
-      kWriteBarrierCounterOffset + kPointerSize + kIntSize + kIntSize;
+  static const size_t kHeaderSize = kWriteBarrierCounterOffset + kPointerSize +
+                                    kIntSize + kIntSize + kPointerSize;
 
   static const int kBodyOffset =
       CODE_POINTER_ALIGN(kHeaderSize + Bitmap::kSize);
@@ -693,6 +698,8 @@ class MemoryChunk {
   // Assuming the initial allocation on a page is sequential,
   // count highest number of bytes ever allocated on the page.
   int high_water_mark_;
+
+  intptr_t parallel_sweeping_;
 
   static MemoryChunk* Initialize(Heap* heap,
                                  Address base,
@@ -1403,7 +1410,17 @@ class FreeListNode: public HeapObject {
 // the end element of the linked list of free memory blocks.
 class FreeListCategory {
  public:
-  FreeListCategory() : top_(NULL), end_(NULL), available_(0) {}
+  FreeListCategory() :
+      top_(NULL),
+      end_(NULL),
+      mutex_(OS::CreateMutex()),
+      available_(0) {}
+
+  ~FreeListCategory() {
+    delete mutex_;
+  }
+
+  intptr_t Concatenate(FreeListCategory* category);
 
   void Reset();
 
@@ -1429,6 +1446,8 @@ class FreeListCategory {
   int available() const { return available_; }
   void set_available(int available) { available_ = available; }
 
+  Mutex* mutex() { return mutex_; }
+
 #ifdef DEBUG
   intptr_t SumFreeList();
   int FreeListLength();
@@ -1437,6 +1456,7 @@ class FreeListCategory {
  private:
   FreeListNode* top_;
   FreeListNode* end_;
+  Mutex* mutex_;
 
   // Total available bytes in all blocks of this free list category.
   int available_;
@@ -1469,6 +1489,8 @@ class FreeListCategory {
 class FreeList BASE_EMBEDDED {
  public:
   explicit FreeList(PagedSpace* owner);
+
+  intptr_t Concatenate(FreeList* free_list);
 
   // Clear the free list.
   void Reset();
@@ -1516,6 +1538,11 @@ class FreeList BASE_EMBEDDED {
   void CountFreeListItems(Page* p, SizeStats* sizes);
 
   intptr_t EvictFreeListItems(Page* p);
+
+  FreeListCategory* small_list() { return &small_list_; }
+  FreeListCategory* medium_list() { return &medium_list_; }
+  FreeListCategory* large_list() { return &large_list_; }
+  FreeListCategory* huge_list() { return &huge_list_; }
 
  private:
   // The size range of blocks, in bytes.
@@ -1731,6 +1758,11 @@ class PagedSpace : public Space {
 
   bool AdvanceSweeper(intptr_t bytes_to_sweep);
 
+  // When parallel sweeper threads are active this function waits
+  // for them to complete, otherwise AdvanceSweeper with size_in_bytes
+  // is called.
+  bool EnsureSweeperProgress(intptr_t size_in_bytes);
+
   bool IsSweepingComplete() {
     return !first_unswept_page_->is_valid();
   }
@@ -1755,6 +1787,12 @@ class PagedSpace : public Space {
   }
 
  protected:
+  FreeList* free_list() { return &free_list_; }
+
+  void AddToAccountingStats(intptr_t bytes) {
+    accounting_stats_.DeallocateBytes(bytes);
+  }
+
   int area_size_;
 
   // Maximum capacity of this space.
@@ -1804,6 +1842,7 @@ class PagedSpace : public Space {
   MUST_USE_RESULT virtual HeapObject* SlowAllocateRaw(int size_in_bytes);
 
   friend class PageIterator;
+  friend class SweeperThread;
 };
 
 

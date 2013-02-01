@@ -564,7 +564,7 @@ TEST(BootUpMemoryUse) {
       if (v8::internal::Snapshot::IsEnabled()) {
         CHECK_LE(delta, 2600 * 1024);
       } else {
-        CHECK_LE(delta, 3000 * 1024);
+        CHECK_LE(delta, 3100 * 1024);
       }
     }
   }

@@ -766,7 +766,7 @@ Simulator::Simulator(Isolate* isolate) : isolate_(isolate) {
   // even though s_registers_ & d_registers_ share the same
   // physical registers in the target.
   for (int i = 0; i < num_d_registers * 2; i++) {
-    vfp_register[i] = 0;
+    vfp_registers_[i] = 0;
   }
   n_flag_FPSCR_ = false;
   z_flag_FPSCR_ = false;
@@ -901,7 +901,7 @@ double Simulator::get_double_from_register_pair(int reg) {
   double dm_val = 0.0;
   // Read the bits from the unsigned integer register_[] array
   // into the double precision floating point value and return it.
-  char buffer[2 * sizeof(vfp_register[0])];
+  char buffer[2 * sizeof(vfp_registers_[0])];
   memcpy(buffer, &registers_[reg], 2 * sizeof(registers_[0]));
   memcpy(&dm_val, buffer, 2 * sizeof(registers_[0]));
   return(dm_val);
@@ -936,13 +936,13 @@ int32_t Simulator::get_pc() const {
 // Getting from and setting into VFP registers.
 void Simulator::set_s_register(int sreg, unsigned int value) {
   ASSERT((sreg >= 0) && (sreg < num_s_registers));
-  vfp_register[sreg] = value;
+  vfp_registers_[sreg] = value;
 }
 
 
 unsigned int Simulator::get_s_register(int sreg) const {
   ASSERT((sreg >= 0) && (sreg < num_s_registers));
-  return vfp_register[sreg];
+  return vfp_registers_[sreg];
 }
 
 
@@ -952,10 +952,10 @@ void Simulator::SetVFPRegister(int reg_index, const InputType& value) {
   if (register_size == 1) ASSERT(reg_index < num_s_registers);
   if (register_size == 2) ASSERT(reg_index < DwVfpRegister::NumRegisters());
 
-  char buffer[register_size * sizeof(vfp_register[0])];
-  memcpy(buffer, &value, register_size * sizeof(vfp_register[0]));
-  memcpy(&vfp_register[reg_index * register_size], buffer,
-         register_size * sizeof(vfp_register[0]));
+  char buffer[register_size * sizeof(vfp_registers_[0])];
+  memcpy(buffer, &value, register_size * sizeof(vfp_registers_[0]));
+  memcpy(&vfp_registers_[reg_index * register_size], buffer,
+         register_size * sizeof(vfp_registers_[0]));
 }
 
 
@@ -966,10 +966,10 @@ ReturnType Simulator::GetFromVFPRegister(int reg_index) {
   if (register_size == 2) ASSERT(reg_index < DwVfpRegister::NumRegisters());
 
   ReturnType value = 0;
-  char buffer[register_size * sizeof(vfp_register[0])];
-  memcpy(buffer, &vfp_register[register_size * reg_index],
-         register_size * sizeof(vfp_register[0]));
-  memcpy(&value, buffer, register_size * sizeof(vfp_register[0]));
+  char buffer[register_size * sizeof(vfp_registers_[0])];
+  memcpy(buffer, &vfp_registers_[register_size * reg_index],
+         register_size * sizeof(vfp_registers_[0]));
+  memcpy(&value, buffer, register_size * sizeof(vfp_registers_[0]));
   return value;
 }
 
@@ -978,8 +978,8 @@ ReturnType Simulator::GetFromVFPRegister(int reg_index) {
 // from r0-r3 or d0 and d1.
 void Simulator::GetFpArgs(double* x, double* y) {
   if (use_eabi_hardfloat()) {
-    *x = vfp_register[0];
-    *y = vfp_register[1];
+    *x = vfp_registers_[0];
+    *y = vfp_registers_[1];
   } else {
     // We use a char buffer to get around the strict-aliasing rules which
     // otherwise allow the compiler to optimize away the copy.
@@ -997,7 +997,7 @@ void Simulator::GetFpArgs(double* x, double* y) {
 // from r0 and r1 or d0.
 void Simulator::GetFpArgs(double* x) {
   if (use_eabi_hardfloat()) {
-    *x = vfp_register[0];
+    *x = vfp_registers_[0];
   } else {
     // We use a char buffer to get around the strict-aliasing rules which
     // otherwise allow the compiler to optimize away the copy.
@@ -1013,7 +1013,7 @@ void Simulator::GetFpArgs(double* x) {
 // from r0 and r1 or d0 and one integer value.
 void Simulator::GetFpArgs(double* x, int32_t* y) {
   if (use_eabi_hardfloat()) {
-    *x = vfp_register[0];
+    *x = vfp_registers_[0];
     *y = registers_[1];
   } else {
     // We use a char buffer to get around the strict-aliasing rules which
@@ -1032,10 +1032,10 @@ void Simulator::GetFpArgs(double* x, int32_t* y) {
 // The return value is either in r0/r1 or d0.
 void Simulator::SetFpResult(const double& result) {
   if (use_eabi_hardfloat()) {
-    char buffer[2 * sizeof(vfp_register[0])];
+    char buffer[2 * sizeof(vfp_registers_[0])];
     memcpy(buffer, &result, sizeof(buffer));
     // Copy result to d0.
-    memcpy(vfp_register, buffer, sizeof(buffer));
+    memcpy(vfp_registers_, buffer, sizeof(buffer));
   } else {
     char buffer[2 * sizeof(registers_[0])];
     memcpy(buffer, &result, sizeof(buffer));
@@ -1692,18 +1692,18 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
         switch (redirection->type()) {
         case ExternalReference::BUILTIN_FP_FP_CALL:
         case ExternalReference::BUILTIN_COMPARE_CALL:
-          arg0 = vfp_register[0];
-          arg1 = vfp_register[1];
-          arg2 = vfp_register[2];
-          arg3 = vfp_register[3];
+          arg0 = vfp_registers_[0];
+          arg1 = vfp_registers_[1];
+          arg2 = vfp_registers_[2];
+          arg3 = vfp_registers_[3];
           break;
         case ExternalReference::BUILTIN_FP_CALL:
-          arg0 = vfp_register[0];
-          arg1 = vfp_register[1];
+          arg0 = vfp_registers_[0];
+          arg1 = vfp_registers_[1];
           break;
         case ExternalReference::BUILTIN_FP_INT_CALL:
-          arg0 = vfp_register[0];
-          arg1 = vfp_register[1];
+          arg0 = vfp_registers_[0];
+          arg1 = vfp_registers_[1];
           arg2 = get_register(0);
           break;
         default:

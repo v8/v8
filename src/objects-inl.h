@@ -2142,6 +2142,16 @@ Object** DescriptorArray::GetKeySlot(int descriptor_number) {
 }
 
 
+Object** DescriptorArray::GetDescriptorStartSlot(int descriptor_number) {
+  return GetKeySlot(descriptor_number);
+}
+
+
+Object** DescriptorArray::GetDescriptorEndSlot(int descriptor_number) {
+  return GetValueSlot(descriptor_number - 1) + 1;
+}
+
+
 String* DescriptorArray::GetKey(int descriptor_number) {
   ASSERT(descriptor_number < number_of_descriptors());
   return String::cast(get(ToKeyIndex(descriptor_number)));

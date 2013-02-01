@@ -1,3 +1,8 @@
+2013-01-31: Version 3.16.12
+
+        Performance and stability improvements on all platforms.
+
+
 2013-01-30: Version 3.16.11
 
         Put making embedded maps in optimized code weak behind a flag.

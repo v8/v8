@@ -111,16 +111,30 @@ void IC::TraceIC(const char* type,
   ASSERT((TraceIC(type, name, old_state, new_target), true))
 
 IC::IC(FrameDepth depth, Isolate* isolate) : isolate_(isolate) {
-  ASSERT(isolate == Isolate::Current());
+  // To improve the performance of the (much used) IC code, we unfold a few
+  // levels of the stack frame iteration code. This yields a ~35% speedup when
+  // running DeltaBlue and a ~25% speedup of gbemu with the '--nouse-ic' flag.
+  const Address entry =
+      Isolate::c_entry_fp(isolate->thread_local_top());
+  Address* pc_address =
+      reinterpret_cast<Address*>(entry + ExitFrameConstants::kCallerPCOffset);
+  Address fp = Memory::Address_at(entry + ExitFrameConstants::kCallerFPOffset);
+  // If there's another JavaScript frame on the stack or a
+  // StubFailureTrampoline, we need to look one frame further down the stack to
+  // find the frame pointer and the return address stack slot.
+  if (depth == EXTRA_CALL_FRAME) {
+    const int kCallerPCOffset = StandardFrameConstants::kCallerPCOffset;
+    pc_address = reinterpret_cast<Address*>(fp + kCallerPCOffset);
+    fp = Memory::Address_at(fp + StandardFrameConstants::kCallerFPOffset);
+  }
+#ifdef DEBUG
   StackFrameIterator it;
   for (int i = 0; i < depth + 1; i++) it.Advance();
-  // Skip StubFailureTrampolineFrames
-  if (it.frame()->is_stub_failure_trampoline()) {
-    it.Advance();
-  }
   StackFrame* frame = it.frame();
-  fp_ = frame->fp();
-  pc_address_ = frame->pc_address();
+  ASSERT(fp == frame->fp() && pc_address == frame->pc_address());
+#endif
+  fp_ = fp;
+  pc_address_ = pc_address;
 }
 
 
@@ -153,26 +167,6 @@ Address IC::OriginalCodeAddress() const {
   return addr + delta;
 }
 #endif
-
-
-static bool HasNormalObjectsInPrototypeChain(Isolate* isolate,
-                                             LookupResult* lookup,
-                                             Object* receiver) {
-  Object* end = lookup->IsProperty()
-      ? lookup->holder() : Object::cast(isolate->heap()->null_value());
-  for (Object* current = receiver;
-       current != end;
-       current = current->GetPrototype()) {
-    if (current->IsJSObject() &&
-        !JSObject::cast(current)->HasFastProperties() &&
-        !current->IsJSGlobalProxy() &&
-        !current->IsJSGlobalObject()) {
-      return true;
-    }
-  }
-
-  return false;
-}
 
 
 static bool TryRemoveInvalidPrototypeDependentStub(Code* target,
@@ -686,14 +680,6 @@ void CallICBase::UpdateCaches(LookupResult* lookup,
   // Bail out if we didn't find a result.
   if (!lookup->IsProperty() || !lookup->IsCacheable()) return;
 
-  if (lookup->holder() != *object &&
-      HasNormalObjectsInPrototypeChain(
-          isolate(), lookup, object->GetPrototype())) {
-    // Suppress optimization for prototype chains with slow properties objects
-    // in the middle.
-    return;
-  }
-
   // Compute the number of arguments.
   int argc = target()->arguments_count();
   Handle<Code> code;
@@ -1008,8 +994,6 @@ void LoadIC::UpdateCaches(LookupResult* lookup,
   // Loading properties from values is not common, so don't try to
   // deal with non-JS objects here.
   if (!object->IsJSObject()) return;
-
-  if (HasNormalObjectsInPrototypeChain(isolate(), lookup, *object)) return;
 
   Handle<JSObject> receiver = Handle<JSObject>::cast(object);
   Handle<Code> code;
@@ -1876,7 +1860,7 @@ RUNTIME_FUNCTION(MaybeObject*, KeyedCallIC_Miss) {
 RUNTIME_FUNCTION(MaybeObject*, LoadIC_Miss) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 2);
-  LoadIC ic(isolate);
+  LoadIC ic(IC::NO_EXTRA_FRAME, isolate);
   IC::State state = IC::StateFrom(ic.target(), args[0], args[1]);
   return ic.Load(state, args.at<Object>(0), args.at<String>(1));
 }
@@ -1886,7 +1870,16 @@ RUNTIME_FUNCTION(MaybeObject*, LoadIC_Miss) {
 RUNTIME_FUNCTION(MaybeObject*, KeyedLoadIC_Miss) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 2);
-  KeyedLoadIC ic(isolate);
+  KeyedLoadIC ic(IC::NO_EXTRA_FRAME, isolate);
+  IC::State state = IC::StateFrom(ic.target(), args[0], args[1]);
+  return ic.Load(state, args.at<Object>(0), args.at<Object>(1), MISS);
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, KeyedLoadIC_MissFromStubFailure) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 2);
+  KeyedLoadIC ic(IC::EXTRA_CALL_FRAME, isolate);
   IC::State state = IC::StateFrom(ic.target(), args[0], args[1]);
   return ic.Load(state, args.at<Object>(0), args.at<Object>(1), MISS);
 }
@@ -1895,7 +1888,7 @@ RUNTIME_FUNCTION(MaybeObject*, KeyedLoadIC_Miss) {
 RUNTIME_FUNCTION(MaybeObject*, KeyedLoadIC_MissForceGeneric) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 2);
-  KeyedLoadIC ic(isolate);
+  KeyedLoadIC ic(IC::NO_EXTRA_FRAME, isolate);
   IC::State state = IC::StateFrom(ic.target(), args[0], args[1]);
   return ic.Load(state,
                  args.at<Object>(0),
