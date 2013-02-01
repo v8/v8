@@ -364,6 +364,54 @@ HType HType::TypeFromValue(Handle<Object> value) {
 }
 
 
+bool HValue::Dominates(HValue* dominator, HValue* dominated) {
+  if (dominator->block() != dominated->block()) {
+    // If they are in different blocks we can use the dominance relation
+    // between the blocks.
+    return dominator->block()->Dominates(dominated->block());
+  } else {
+    // Otherwise we must see which instruction comes first, considering
+    // that phis always precede regular instructions.
+    if (dominator->IsInstruction()) {
+      if (dominated->IsInstruction()) {
+        for (HInstruction* next = HInstruction::cast(dominator)->next();
+             next != NULL;
+             next = next->next()) {
+          if (next == dominated) return true;
+        }
+        return false;
+      } else if (dominated->IsPhi()) {
+        return false;
+      } else {
+        UNREACHABLE();
+      }
+    } else if (dominator->IsPhi()) {
+      if (dominated->IsInstruction()) {
+        return true;
+      } else {
+        // We cannot compare which phi comes first.
+        UNREACHABLE();
+      }
+    } else {
+      UNREACHABLE();
+    }
+    return false;
+  }
+}
+
+
+bool HValue::TestDominanceUsingProcessedFlag(HValue* dominator,
+                                             HValue* dominated) {
+  if (dominator->block() != dominated->block()) {
+    return dominator->block()->Dominates(dominated->block());
+  } else {
+    // If both arguments are in the same block we check if "dominator" has
+    // already been processed or if it is a phi: if yes it dominates the other.
+    return dominator->CheckFlag(kIDefsProcessingDone) || dominator->IsPhi();
+  }
+}
+
+
 bool HValue::IsDefinedAfter(HBasicBlock* other) const {
   return block()->block_id() > other->block_id();
 }

@@ -3587,13 +3587,49 @@ bool HGraph::Optimize(SmartArrayPointer<char>* bailout_reason) {
   HStackCheckEliminator sce(this);
   sce.Process();
 
-  if (FLAG_array_bounds_checks_elimination) EliminateRedundantBoundsChecks();
+  if (FLAG_idefs) SetupInformativeDefinitions();
+  if (FLAG_array_bounds_checks_elimination && !FLAG_idefs) {
+    EliminateRedundantBoundsChecks();
+  }
   if (FLAG_array_index_dehoisting) DehoistSimpleArrayIndexComputations();
   if (FLAG_dead_code_elimination) DeadCodeElimination();
 
   RestoreActualValues();
 
   return true;
+}
+
+
+void HGraph::SetupInformativeDefinitionsInBlock(HBasicBlock* block) {
+  for (int phi_index = 0; phi_index < block->phis()->length(); phi_index++) {
+    HPhi* phi = block->phis()->at(phi_index);
+    phi->AddInformativeDefinitions();
+    // We do not support phis that "redefine just one operand".
+    ASSERT(!phi->IsInformativeDefinition());
+  }
+
+  for (HInstruction* i = block->first(); i != NULL; i = i->next()) {
+    i->AddInformativeDefinitions();
+    i->UpdateRedefinedUsesWhileSettingUpInformativeDefinitions();
+  }
+}
+
+
+// This method is recursive, so if its stack frame is large it could
+// cause a stack overflow.
+// To keep the individual stack frames small we do the actual work inside
+// SetupInformativeDefinitionsInBlock();
+void HGraph::SetupInformativeDefinitionsRecursively(HBasicBlock* block) {
+  SetupInformativeDefinitionsInBlock(block);
+  for (int i = 0; i < block->dominated_blocks()->length(); ++i) {
+    SetupInformativeDefinitionsRecursively(block->dominated_blocks()->at(i));
+  }
+}
+
+
+void HGraph::SetupInformativeDefinitions() {
+  HPhase phase("H_Setup informative definitions", this);
+  SetupInformativeDefinitionsRecursively(entry_block());
 }
 
 

@@ -579,7 +579,10 @@ class HValue: public ZoneObject {
     // HGraph::ComputeSafeUint32Operations is responsible for setting this
     // flag.
     kUint32,
-    kLastFlag = kUint32
+    // This flag is set to true after the SetupInformativeDefinitions() pass
+    // has processed this instruction.
+    kIDefsProcessingDone,
+    kLastFlag = kIDefsProcessingDone
   };
 
   STATIC_ASSERT(kLastFlag < kBitsPerInt);
@@ -687,8 +690,8 @@ class HValue: public ZoneObject {
     return RedefinedOperandIndex() != kNoRedefinedOperand;
   }
   HValue* RedefinedOperand() {
-    ASSERT(IsInformativeDefinition());
-    return OperandAt(RedefinedOperandIndex());
+    return IsInformativeDefinition() ? OperandAt(RedefinedOperandIndex())
+                                     : NULL;
   }
 
   // This method must always return the original HValue SSA definition
@@ -696,6 +699,15 @@ class HValue: public ZoneObject {
   HValue* ActualValue() {
     return IsInformativeDefinition() ? RedefinedOperand()->ActualValue()
                                      : this;
+  }
+
+  virtual void AddInformativeDefinitions() {}
+
+  void UpdateRedefinedUsesWhileSettingUpInformativeDefinitions() {
+    UpdateRedefinedUsesInner<TestDominanceUsingProcessedFlag>();
+  }
+  void UpdateRedefinedUses() {
+    UpdateRedefinedUsesInner<Dominates>();
   }
 
   bool IsDefinedAfter(HBasicBlock* other) const;
@@ -854,6 +866,36 @@ class HValue: public ZoneObject {
   void set_representation(Representation r) {
     ASSERT(representation_.IsNone() && !r.IsNone());
     representation_ = r;
+  }
+
+  // Signature of a function testing if a HValue properly dominates another.
+  typedef bool (*DominanceTest)(HValue*, HValue*);
+
+  // Simple implementation of DominanceTest implemented walking the chain
+  // of Hinstructions (used in UpdateRedefinedUsesInner).
+  static bool Dominates(HValue* dominator, HValue* dominated);
+
+  // A fast implementation of DominanceTest that works only for the
+  // "current" instruction in the SetupInformativeDefinitions() phase.
+  // During that phase we use a flag to mark processed instructions, and by
+  // checking the flag we can quickly test if an instruction comes before or
+  // after the "current" one.
+  static bool TestDominanceUsingProcessedFlag(HValue* dominator,
+                                              HValue* dominated);
+
+  // If we are redefining an operand, update all its dominated uses (the
+  // function that checks if a use is dominated is the template argument).
+  template<DominanceTest TestDominance>
+  void UpdateRedefinedUsesInner() {
+    HValue* input = RedefinedOperand();
+    if (input != NULL) {
+      for (HUseIterator uses = input->uses(); !uses.Done(); uses.Advance()) {
+        HValue* use = uses.value();
+        if (TestDominance(this, use)) {
+          use->SetOperandAt(uses.index(), this);
+        }
+      }
+    }
   }
 
   static GVNFlagSet AllDependsOnFlagSet() {

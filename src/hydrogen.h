@@ -269,7 +269,7 @@ class HGraph: public ZoneObject {
   void Canonicalize();
   void OrderBlocks();
   void AssignDominators();
-  void ReplaceCheckedValues();
+  void SetupInformativeDefinitions();
   void EliminateRedundantBoundsChecks();
   void DehoistSimpleArrayIndexComputations();
   void DeadCodeElimination();
@@ -398,6 +398,8 @@ class HGraph: public ZoneObject {
   void InferTypes(ZoneList<HValue*>* worklist);
   void InitializeInferredTypes(int from_inclusive, int to_inclusive);
   void CheckForBackEdge(HBasicBlock* block, HBasicBlock* successor);
+  void SetupInformativeDefinitionsInBlock(HBasicBlock* block);
+  void SetupInformativeDefinitionsRecursively(HBasicBlock* block);
   void EliminateRedundantBoundsChecks(HBasicBlock* bb, BoundsCheckTable* table);
 
   Isolate* isolate_;
