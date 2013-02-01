@@ -887,6 +887,8 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space) {
     // Check CPU flags for number of registers, setting the Z condition flag.
     CheckFor32DRegs(ip);
 
+    // Push registers d0-d15, and possibly d16-d31, on the stack.
+    // If d16-d31 are not pushed, decrease the stack pointer instead.
     vstm(db_w, sp, d16, d31, ne);
     sub(sp, sp, Operand(16 * kDoubleSize), LeaveCC, eq);
     vstm(db_w, sp, d0, d15);
@@ -953,6 +955,8 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles,
     // Check CPU flags for number of registers, setting the Z condition flag.
     CheckFor32DRegs(ip);
 
+    // Pop registers d0-d15, and possibly d16-d31, from r3.
+    // If d16-d31 are not popped, increase r3 instead.
     vldm(ia_w, r3, d0, d15);
     vldm(ia_w, r3, d16, d31, ne);
     add(r3, r3, Operand(16 * kDoubleSize), LeaveCC, eq);

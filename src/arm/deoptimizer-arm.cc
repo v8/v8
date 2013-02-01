@@ -1011,6 +1011,7 @@ void Deoptimizer::EntryGenerator::Generate() {
     __ CheckFor32DRegs(ip);
 
     // Push registers d0-d13, and possibly d16-d31, on the stack.
+    // If d16-d31 are not pushed, decrease the stack pointer instead.
     __ vstm(db_w, sp, d16, d31, ne);
     __ sub(sp, sp, Operand(16 * kDoubleSize), LeaveCC, eq);
     __ vstm(db_w, sp, d0, d13);
