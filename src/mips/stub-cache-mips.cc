@@ -2893,9 +2893,11 @@ Handle<Code> StoreStubCompiler::CompileStoreGlobal(
 }
 
 
-Handle<Code> LoadStubCompiler::CompileLoadNonexistent(Handle<String> name,
-                                                      Handle<JSObject> object,
-                                                      Handle<JSObject> last) {
+Handle<Code> LoadStubCompiler::CompileLoadNonexistent(
+    Handle<String> name,
+    Handle<JSObject> object,
+    Handle<JSObject> last,
+    Handle<GlobalObject> global) {
   // ----------- S t a t e -------------
   //  -- a0    : receiver
   //  -- ra    : return address
@@ -2905,14 +2907,22 @@ Handle<Code> LoadStubCompiler::CompileLoadNonexistent(Handle<String> name,
   // Check that the receiver is not a smi.
   __ JumpIfSmi(a0, &miss);
 
+  Register scratch = a1;
+
   // Check the maps of the full prototype chain.
-  CheckPrototypes(object, a0, last, a3, a1, t0, name, &miss);
+  Register result =
+      CheckPrototypes(object, a0, last, a3, scratch, t0, name, &miss);
 
   // If the last object in the prototype chain is a global object,
   // check that the global property cell is empty.
-  if (last->IsGlobalObject()) {
-    GenerateCheckPropertyCell(
-        masm(), Handle<GlobalObject>::cast(last), name, a1, &miss);
+  if (!global.is_null()) {
+    GenerateCheckPropertyCell(masm(), global, name, scratch, &miss);
+  }
+
+  if (!last->HasFastProperties()) {
+    __ lw(scratch, FieldMemOperand(result, HeapObject::kMapOffset));
+    __ lw(scratch, FieldMemOperand(scratch, Map::kPrototypeOffset));
+    __ Branch(&miss, ne, scratch, Operand(isolate()->factory()->null_value()));
   }
 
   // Return undefined if maps of the full prototype chain is still the same.
