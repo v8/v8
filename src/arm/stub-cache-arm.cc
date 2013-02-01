@@ -2895,9 +2895,9 @@ Handle<Code> StoreStubCompiler::CompileStoreGlobal(
 
 
 Handle<Code> LoadStubCompiler::CompileLoadNonexistent(
-    Handle<String> name,
     Handle<JSObject> object,
     Handle<JSObject> last,
+    Handle<String> name,
     Handle<GlobalObject> global) {
   // ----------- S t a t e -------------
   //  -- r0    : receiver
@@ -2941,44 +2941,25 @@ Handle<Code> LoadStubCompiler::CompileLoadNonexistent(
 }
 
 
-Handle<Code> LoadStubCompiler::CompileLoadField(Handle<JSObject> object,
-                                                Handle<JSObject> holder,
-                                                PropertyIndex index,
-                                                Handle<String> name) {
-  // ----------- S t a t e -------------
-  //  -- r0    : receiver
-  //  -- r2    : name
-  //  -- lr    : return address
-  // -----------------------------------
-  Label miss;
-
-  GenerateLoadField(object, holder, r0, r3, r1, r4, index, name, &miss);
-  __ bind(&miss);
-  GenerateLoadMiss(masm(), Code::LOAD_IC);
-
-  // Return the generated code.
-  return GetCode(Code::FIELD, name);
+Register* LoadStubCompiler::registers() {
+  // receiver, name, scratch1, scratch2, scratch3, scratch4.
+  static Register registers[] = { r0, r2, r3, r1, r4, r5 };
+  return registers;
 }
 
 
-Handle<Code> LoadStubCompiler::CompileLoadCallback(
-    Handle<String> name,
-    Handle<JSObject> object,
-    Handle<JSObject> holder,
-    Handle<AccessorInfo> callback) {
-  // ----------- S t a t e -------------
-  //  -- r0    : receiver
-  //  -- r2    : name
-  //  -- lr    : return address
-  // -----------------------------------
-  Label miss;
-  GenerateLoadCallback(object, holder, r0, r2, r3, r1, r4, r5, callback, name,
-                       &miss);
-  __ bind(&miss);
-  GenerateLoadMiss(masm(), Code::LOAD_IC);
+Register* KeyedLoadStubCompiler::registers() {
+  // receiver, name, scratch1, scratch2, scratch3, scratch4.
+  static Register registers[] = { r1, r0, r2, r3, r4, r5 };
+  return registers;
+}
 
-  // Return the generated code.
-  return GetCode(Code::CALLBACKS, name);
+
+void KeyedLoadStubCompiler::GenerateNameCheck(Handle<String> name,
+                                              Register name_reg,
+                                              Label* miss) {
+  __ cmp(name_reg, Operand(name));
+  __ b(ne, miss);
 }
 
 
@@ -3020,9 +3001,9 @@ void LoadStubCompiler::GenerateLoadViaGetter(MacroAssembler* masm,
 
 
 Handle<Code> LoadStubCompiler::CompileLoadViaGetter(
-    Handle<String> name,
     Handle<JSObject> receiver,
     Handle<JSObject> holder,
+    Handle<String> name,
     Handle<JSFunction> getter) {
   // ----------- S t a t e -------------
   //  -- r0    : receiver
@@ -3042,48 +3023,6 @@ Handle<Code> LoadStubCompiler::CompileLoadViaGetter(
 
   // Return the generated code.
   return GetCode(Code::CALLBACKS, name);
-}
-
-
-Handle<Code> LoadStubCompiler::CompileLoadConstant(Handle<JSObject> object,
-                                                   Handle<JSObject> holder,
-                                                   Handle<JSFunction> value,
-                                                   Handle<String> name) {
-  // ----------- S t a t e -------------
-  //  -- r0    : receiver
-  //  -- r2    : name
-  //  -- lr    : return address
-  // -----------------------------------
-  Label miss;
-
-  GenerateLoadConstant(object, holder, r0, r3, r1, r4, value, name, &miss);
-  __ bind(&miss);
-  GenerateLoadMiss(masm(), Code::LOAD_IC);
-
-  // Return the generated code.
-  return GetCode(Code::CONSTANT_FUNCTION, name);
-}
-
-
-Handle<Code> LoadStubCompiler::CompileLoadInterceptor(Handle<JSObject> object,
-                                                      Handle<JSObject> holder,
-                                                      Handle<String> name) {
-  // ----------- S t a t e -------------
-  //  -- r0    : receiver
-  //  -- r2    : name
-  //  -- lr    : return address
-  // -----------------------------------
-  Label miss;
-
-  LookupResult lookup(isolate());
-  LookupPostInterceptor(holder, name, &lookup);
-  GenerateLoadInterceptor(object, holder, &lookup, r0, r2, r3, r1, r4, name,
-                          &miss);
-  __ bind(&miss);
-  GenerateLoadMiss(masm(), Code::LOAD_IC);
-
-  // Return the generated code.
-  return GetCode(Code::INTERCEPTOR, name);
 }
 
 
@@ -3126,105 +3065,6 @@ Handle<Code> LoadStubCompiler::CompileLoadGlobal(
 
   // Return the generated code.
   return GetCode(Code::NORMAL, name);
-}
-
-
-Handle<Code> KeyedLoadStubCompiler::CompileLoadField(Handle<String> name,
-                                                     Handle<JSObject> receiver,
-                                                     Handle<JSObject> holder,
-                                                     PropertyIndex index) {
-  // ----------- S t a t e -------------
-  //  -- lr    : return address
-  //  -- r0    : key
-  //  -- r1    : receiver
-  // -----------------------------------
-  Label miss;
-
-  // Check the key is the cached one.
-  __ cmp(r0, Operand(name));
-  __ b(ne, &miss);
-
-  GenerateLoadField(receiver, holder, r1, r2, r3, r4, index, name, &miss);
-  __ bind(&miss);
-  GenerateLoadMiss(masm(), Code::KEYED_LOAD_IC);
-
-  return GetCode(Code::FIELD, name);
-}
-
-
-Handle<Code> KeyedLoadStubCompiler::CompileLoadCallback(
-    Handle<String> name,
-    Handle<JSObject> receiver,
-    Handle<JSObject> holder,
-    Handle<AccessorInfo> callback) {
-  // ----------- S t a t e -------------
-  //  -- lr    : return address
-  //  -- r0    : key
-  //  -- r1    : receiver
-  // -----------------------------------
-  Label miss;
-
-  // Check the key is the cached one.
-  __ cmp(r0, Operand(name));
-  __ b(ne, &miss);
-
-  GenerateLoadCallback(receiver, holder, r1, r0, r2, r3, r4, r5, callback, name,
-                       &miss);
-  __ bind(&miss);
-  GenerateLoadMiss(masm(), Code::KEYED_LOAD_IC);
-
-  return GetCode(Code::CALLBACKS, name);
-}
-
-
-Handle<Code> KeyedLoadStubCompiler::CompileLoadConstant(
-    Handle<String> name,
-    Handle<JSObject> receiver,
-    Handle<JSObject> holder,
-    Handle<JSFunction> value) {
-  // ----------- S t a t e -------------
-  //  -- lr    : return address
-  //  -- r0    : key
-  //  -- r1    : receiver
-  // -----------------------------------
-  Label miss;
-
-  // Check the key is the cached one.
-  __ cmp(r0, Operand(name));
-  __ b(ne, &miss);
-
-  GenerateLoadConstant(receiver, holder, r1, r2, r3, r4, value, name, &miss);
-  __ bind(&miss);
-  GenerateLoadMiss(masm(), Code::KEYED_LOAD_IC);
-
-  // Return the generated code.
-  return GetCode(Code::CONSTANT_FUNCTION, name);
-}
-
-
-Handle<Code> KeyedLoadStubCompiler::CompileLoadInterceptor(
-    Handle<JSObject> receiver,
-    Handle<JSObject> holder,
-    Handle<String> name) {
-  // ----------- S t a t e -------------
-  //  -- lr    : return address
-  //  -- r0    : key
-  //  -- r1    : receiver
-  // -----------------------------------
-  Label miss;
-
-  // Check the key is the cached one.
-  __ cmp(r0, Operand(name));
-  __ b(ne, &miss);
-
-  LookupResult lookup(isolate());
-  LookupPostInterceptor(holder, name, &lookup);
-  GenerateLoadInterceptor(receiver, holder, &lookup, r1, r0, r2, r3, r4, name,
-                          &miss);
-  __ bind(&miss);
-  GenerateLoadMiss(masm(), Code::KEYED_LOAD_IC);
-
-  return GetCode(Code::INTERCEPTOR, name);
 }
 
 
