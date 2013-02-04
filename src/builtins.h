@@ -145,7 +145,7 @@ enum BuiltinExtraArguments {
                                     Code::kNoExtraICState)              \
   V(KeyedLoadIC_Generic,            KEYED_LOAD_IC, GENERIC,             \
                                     Code::kNoExtraICState)              \
-  V(KeyedLoadIC_String,             KEYED_LOAD_IC, MONOMORPHIC,         \
+  V(KeyedLoadIC_String,             KEYED_LOAD_IC, MEGAMORPHIC,         \
                                     Code::kNoExtraICState)              \
   V(KeyedLoadIC_IndexedInterceptor, KEYED_LOAD_IC, MONOMORPHIC,         \
                                     Code::kNoExtraICState)              \
