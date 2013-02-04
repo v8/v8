@@ -49,6 +49,7 @@ class LCodeGen;
 #define LITHIUM_CONCRETE_INSTRUCTION_LIST(V)    \
   V(AccessArgumentsAt)                          \
   V(AddI)                                       \
+  V(Allocate)                                   \
   V(AllocateObject)                             \
   V(ApplyArguments)                             \
   V(ArgumentsElements)                          \
@@ -173,6 +174,7 @@ class LCodeGen;
   V(Throw)                                      \
   V(ToFastProperties)                           \
   V(TransitionElementsKind)                     \
+  V(TrapAllocationMemento)                      \
   V(Typeof)                                     \
   V(TypeofIsAndBranch)                          \
   V(UnaryMathOperation)                         \
@@ -1577,6 +1579,7 @@ class LThisFunction: public LTemplateInstruction<1, 0, 0> {
 class LContext: public LTemplateInstruction<1, 0, 0> {
  public:
   DECLARE_CONCRETE_INSTRUCTION(Context, "context")
+  DECLARE_HYDROGEN_ACCESSOR(Context)
 };
 
 
@@ -1804,6 +1807,7 @@ class LNumberTagD: public LTemplateInstruction<1, 1, 1> {
   LOperand* temp() { return temps_[0]; }
 
   DECLARE_CONCRETE_INSTRUCTION(NumberTagD, "number-tag-d")
+  DECLARE_HYDROGEN_ACCESSOR(Change)
 };
 
 
@@ -1998,6 +2002,22 @@ class LTransitionElementsKind: public LTemplateInstruction<1, 1, 2> {
 };
 
 
+class LTrapAllocationMemento : public LTemplateInstruction<0, 1, 1> {
+ public:
+  LTrapAllocationMemento(LOperand* object,
+                         LOperand* temp) {
+    inputs_[0] = object;
+    temps_[0] = temp;
+  }
+
+  LOperand* object() { return inputs_[0]; }
+  LOperand* temp() { return temps_[0]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(TrapAllocationMemento,
+                               "trap-allocation-memento")
+};
+
+
 class LStringAdd: public LTemplateInstruction<1, 2, 0> {
  public:
   LStringAdd(LOperand* left, LOperand* right) {
@@ -2184,6 +2204,21 @@ class LAllocateObject: public LTemplateInstruction<1, 0, 1> {
 
   DECLARE_CONCRETE_INSTRUCTION(AllocateObject, "allocate-object")
   DECLARE_HYDROGEN_ACCESSOR(AllocateObject)
+};
+
+
+class LAllocate: public LTemplateInstruction<1, 1, 1> {
+ public:
+  LAllocate(LOperand* size, LOperand* temp) {
+    inputs_[0] = size;
+    temps_[0] = temp;
+  }
+
+  LOperand* size() { return inputs_[0]; }
+  LOperand* temp() { return temps_[0]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(Allocate, "allocate")
+  DECLARE_HYDROGEN_ACCESSOR(Allocate)
 };
 
 

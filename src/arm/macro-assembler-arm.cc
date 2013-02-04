@@ -884,6 +884,7 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space) {
 
   // Optionally save all double registers.
   if (save_doubles) {
+    CpuFeatures::Scope scope(VFP2);
     // Check CPU flags for number of registers, setting the Z condition flag.
     CheckFor32DRegs(ip);
 
@@ -893,7 +894,7 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space) {
     sub(sp, sp, Operand(16 * kDoubleSize), LeaveCC, eq);
     vstm(db_w, sp, d0, d15);
     // Note that d0 will be accessible at
-    //   fp - 2 * kPointerSize - DwVfpRegister::kNumRegisters * kDoubleSize,
+    //   fp - 2 * kPointerSize - DwVfpRegister::kMaxNumRegisters * kDoubleSize,
     // since the sp slot and code slot were pushed after the fp.
   }
 
@@ -948,9 +949,11 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles,
                                     Register argument_count) {
   // Optionally restore all double registers.
   if (save_doubles) {
+    CpuFeatures::Scope scope(VFP2);
     // Calculate the stack location of the saved doubles and restore them.
     const int offset = 2 * kPointerSize;
-    sub(r3, fp, Operand(offset + DwVfpRegister::kNumRegisters * kDoubleSize));
+    sub(r3, fp,
+        Operand(offset + DwVfpRegister::kMaxNumRegisters * kDoubleSize));
 
     // Check CPU flags for number of registers, setting the Z condition flag.
     CheckFor32DRegs(ip);
@@ -3903,8 +3906,7 @@ void MacroAssembler::CheckEnumCache(Register null_value, Label* call_runtime) {
 
 void MacroAssembler::TestJSArrayForAllocationSiteInfo(
     Register receiver_reg,
-    Register scratch_reg,
-    Label* allocation_info_present) {
+    Register scratch_reg) {
   Label no_info_available;
   ExternalReference new_space_start =
       ExternalReference::new_space_start(isolate());
@@ -3921,7 +3923,6 @@ void MacroAssembler::TestJSArrayForAllocationSiteInfo(
   ldr(scratch_reg, MemOperand(scratch_reg, -AllocationSiteInfo::kSize));
   cmp(scratch_reg,
       Operand(Handle<Map>(isolate()->heap()->allocation_site_info_map())));
-  b(eq, allocation_info_present);
   bind(&no_info_available);
 }
 

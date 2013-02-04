@@ -77,6 +77,8 @@ bool LCodeGen::GenerateCode() {
   // the frame (that is done in GeneratePrologue).
   FrameScope frame_scope(masm_, StackFrame::MANUAL);
 
+  support_aligned_spilled_doubles_ = info()->IsOptimizing();
+
   dynamic_frame_alignment_ = info()->IsOptimizing() &&
       ((chunk()->num_double_slots() > 2 &&
         !chunk()->graph()->is_recursive()) ||
@@ -153,7 +155,7 @@ bool LCodeGen::GeneratePrologue() {
       __ bind(&ok);
     }
 
-    if (dynamic_frame_alignment_) {
+    if (support_aligned_spilled_doubles_ && dynamic_frame_alignment_) {
       // Move state of dynamic frame alignment into edx.
       __ mov(edx, Immediate(kNoAlignmentPadding));
 
@@ -212,12 +214,16 @@ bool LCodeGen::GeneratePrologue() {
       }
     } else {
       if (FLAG_debug_code) {
+        __ sub(Operand(esp), Immediate(slots * kPointerSize));
+        __ push(eax);
         __ mov(Operand(eax), Immediate(slots));
         Label loop;
         __ bind(&loop);
-        __ push(Immediate(kSlotsZapValue));
+        __ mov(MemOperand(esp, eax, times_4, 0),
+               Immediate(kSlotsZapValue));
         __ dec(eax);
         __ j(not_zero, &loop);
+        __ pop(eax);
       } else {
         __ sub(Operand(esp), Immediate(slots * kPointerSize));
 #ifdef _MSC_VER
@@ -233,15 +239,29 @@ bool LCodeGen::GeneratePrologue() {
 #endif
       }
 
-      // Store dynamic frame alignment state in the first local.
-      if (dynamic_frame_alignment_) {
-        __ mov(Operand(ebp,
-                       JavaScriptFrameConstants::kDynamicAlignmentStateOffset),
-               edx);
-      } else {
-        __ mov(Operand(ebp,
-                       JavaScriptFrameConstants::kDynamicAlignmentStateOffset),
-               Immediate(kNoAlignmentPadding));
+      if (support_aligned_spilled_doubles_) {
+        Comment(";;; Store dynamic frame alignment tag for spilled doubles");
+        // Store dynamic frame alignment state in the first local.
+        int offset = JavaScriptFrameConstants::kDynamicAlignmentStateOffset;
+        if (dynamic_frame_alignment_) {
+          __ mov(Operand(ebp, offset), edx);
+        } else {
+          __ mov(Operand(ebp, offset), Immediate(kNoAlignmentPadding));
+        }
+      }
+    }
+
+    if (info()->saves_caller_doubles() && CpuFeatures::IsSupported(SSE2)) {
+      Comment(";;; Save clobbered callee double registers");
+      CpuFeatures::Scope scope(SSE2);
+      int count = 0;
+      BitVector* doubles = chunk()->allocated_double_registers();
+      BitVector::Iterator save_iterator(doubles);
+      while (!save_iterator.Done()) {
+        __ movdbl(MemOperand(esp, count * kDoubleSize),
+                  XMMRegister::FromAllocationIndex(save_iterator.Current()));
+        save_iterator.Advance();
+        count++;
       }
     }
   }
@@ -740,10 +760,7 @@ void LCodeGen::CallRuntime(const Runtime::Function* fun,
 }
 
 
-void LCodeGen::CallRuntimeFromDeferred(Runtime::FunctionId id,
-                                       int argc,
-                                       LInstruction* instr,
-                                       LOperand* context) {
+void LCodeGen::LoadContextFromDeferred(LOperand* context) {
   if (context->IsRegister()) {
     if (!ToRegister(context).is(esi)) {
       __ mov(esi, ToRegister(context));
@@ -757,6 +774,13 @@ void LCodeGen::CallRuntimeFromDeferred(Runtime::FunctionId id,
   } else {
     UNREACHABLE();
   }
+}
+
+void LCodeGen::CallRuntimeFromDeferred(Runtime::FunctionId id,
+                                       int argc,
+                                       LInstruction* instr,
+                                       LOperand* context) {
+  LoadContextFromDeferred(context);
 
   __ CallRuntimeSaveDoubles(id);
   RecordSafepointWithRegisters(
@@ -2644,6 +2668,19 @@ void LCodeGen::DoReturn(LReturn* instr) {
     __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
     __ CallRuntime(Runtime::kTraceExit, 1);
   }
+  if (info()->saves_caller_doubles() && CpuFeatures::IsSupported(SSE2)) {
+    ASSERT(NeedsEagerFrame());
+    CpuFeatures::Scope scope(SSE2);
+    BitVector* doubles = chunk()->allocated_double_registers();
+    BitVector::Iterator save_iterator(doubles);
+    int count = 0;
+    while (!save_iterator.Done()) {
+      __ movdbl(XMMRegister::FromAllocationIndex(save_iterator.Current()),
+                MemOperand(esp, count * kDoubleSize));
+      save_iterator.Advance();
+      count++;
+    }
+  }
   if (dynamic_frame_alignment_) {
     // Fetch the state of the dynamic frame alignment.
     __ mov(edx, Operand(ebp,
@@ -4305,9 +4342,16 @@ void LCodeGen::DoStoreKeyedGeneric(LStoreKeyedGeneric* instr) {
 }
 
 
+void LCodeGen::DoTrapAllocationMemento(LTrapAllocationMemento* instr) {
+  Register object = ToRegister(instr->object());
+  Register temp = ToRegister(instr->temp());
+  __ TestJSArrayForAllocationSiteInfo(object, temp);
+  DeoptimizeIf(equal, instr->environment());
+}
+
+
 void LCodeGen::DoTransitionElementsKind(LTransitionElementsKind* instr) {
   Register object_reg = ToRegister(instr->object());
-  Register new_map_reg = ToRegister(instr->new_map_temp());
 
   Handle<Map> from_map = instr->original_map();
   Handle<Map> to_map = instr->transitioned_map();
@@ -4322,7 +4366,7 @@ void LCodeGen::DoTransitionElementsKind(LTransitionElementsKind* instr) {
   __ cmp(FieldOperand(object_reg, HeapObject::kMapOffset), from_map);
   __ j(not_equal, &not_applicable, branch_distance);
   if (is_simple_map_transition) {
-    Register object_reg = ToRegister(instr->object());
+    Register new_map_reg = ToRegister(instr->new_map_temp());
     Handle<Map> map = instr->hydrogen()->transitioned_map();
     __ mov(FieldOperand(object_reg, HeapObject::kMapOffset),
            Immediate(map));
@@ -4331,8 +4375,23 @@ void LCodeGen::DoTransitionElementsKind(LTransitionElementsKind* instr) {
     __ RecordWriteForMap(object_reg, to_map, new_map_reg,
                          ToRegister(instr->temp()),
                          kDontSaveFPRegs);
+  } else if (FLAG_compiled_transitions) {
+    PushSafepointRegistersScope scope(this);
+    if (!object_reg.is(eax)) {
+      __ push(object_reg);
+    }
+    LoadContextFromDeferred(instr->context());
+    if (!object_reg.is(eax)) {
+      __ pop(eax);
+    }
+    __ mov(ebx, to_map);
+    TransitionElementsKindStub stub(from_kind, to_kind);
+    __ CallStub(&stub);
+    RecordSafepointWithRegisters(
+        instr->pointer_map(), 0, Safepoint::kNoLazyDeopt);
   } else if (IsFastSmiElementsKind(from_kind) &&
              IsFastDoubleElementsKind(to_kind)) {
+    Register new_map_reg = ToRegister(instr->new_map_temp());
     __ mov(new_map_reg, to_map);
     Register fixed_object_reg = ToRegister(instr->temp());
     ASSERT(fixed_object_reg.is(edx));
@@ -4342,6 +4401,7 @@ void LCodeGen::DoTransitionElementsKind(LTransitionElementsKind* instr) {
              RelocInfo::CODE_TARGET, instr);
   } else if (IsFastDoubleElementsKind(from_kind) &&
              IsFastObjectElementsKind(to_kind)) {
+    Register new_map_reg = ToRegister(instr->new_map_temp());
     __ mov(new_map_reg, to_map);
     Register fixed_object_reg = ToRegister(instr->temp());
     ASSERT(fixed_object_reg.is(edx));
@@ -4638,6 +4698,62 @@ void LCodeGen::DoNumberTagD(LNumberTagD* instr) {
 
   Register reg = ToRegister(instr->result());
 
+  bool convert_hole = false;
+  HValue* change_input = instr->hydrogen()->value();
+  if (change_input->IsLoadKeyed()) {
+    HLoadKeyed* load = HLoadKeyed::cast(change_input);
+    convert_hole = load->UsesMustHandleHole();
+  }
+
+  Label no_special_nan_handling;
+  Label done;
+  if (convert_hole) {
+    bool use_sse2 = CpuFeatures::IsSupported(SSE2);
+    if (use_sse2) {
+      CpuFeatures::Scope scope(SSE2);
+      XMMRegister input_reg = ToDoubleRegister(instr->value());
+      __ ucomisd(input_reg, input_reg);
+    } else {
+      if (!IsX87TopOfStack(instr->value())) {
+        __ fld_d(ToOperand(instr->value()));
+      }
+      __ fld(0);
+      __ fld(0);
+      __ FCmp();
+    }
+
+    __ j(parity_odd, &no_special_nan_handling);
+    __ sub(esp, Immediate(kDoubleSize));
+    if (use_sse2) {
+      CpuFeatures::Scope scope(SSE2);
+      XMMRegister input_reg = ToDoubleRegister(instr->value());
+      __ movdbl(MemOperand(esp, 0), input_reg);
+    } else {
+      __ fld(0);
+      __ fstp_d(MemOperand(esp, 0));
+    }
+    __ cmp(MemOperand(esp, sizeof(kHoleNanLower32)),
+           Immediate(kHoleNanUpper32));
+    Label canonicalize;
+    __ j(not_equal, &canonicalize);
+    __ add(esp, Immediate(kDoubleSize));
+    __ mov(reg, factory()->the_hole_value());
+    __ jmp(&done);
+    __ bind(&canonicalize);
+    __ add(esp, Immediate(kDoubleSize));
+    ExternalReference nan =
+        ExternalReference::address_of_canonical_non_hole_nan();
+    if (use_sse2) {
+      CpuFeatures::Scope scope(SSE2);
+      XMMRegister input_reg = ToDoubleRegister(instr->value());
+      __ movdbl(input_reg, Operand::StaticVariable(nan));
+    } else {
+      __ fstp(0);
+      __ fld_d(Operand::StaticVariable(nan));
+    }
+  }
+
+  __ bind(&no_special_nan_handling);
   DeferredNumberTagD* deferred = new(zone()) DeferredNumberTagD(this, instr);
   if (FLAG_inline_new) {
     Register tmp = ToRegister(instr->temp());
@@ -4656,6 +4772,7 @@ void LCodeGen::DoNumberTagD(LNumberTagD* instr) {
     }
     __ fstp_d(FieldOperand(reg, HeapNumber::kValueOffset));
   }
+  __ bind(&done);
 }
 
 
@@ -4706,44 +4823,59 @@ void LCodeGen::EmitNumberUntagD(Register input_reg,
                                 XMMRegister result_reg,
                                 bool deoptimize_on_undefined,
                                 bool deoptimize_on_minus_zero,
-                                LEnvironment* env) {
+                                LEnvironment* env,
+                                NumberUntagDMode mode) {
   Label load_smi, done;
 
-  // Smi check.
-  __ JumpIfSmi(input_reg, &load_smi, Label::kNear);
+  if (mode == NUMBER_CANDIDATE_IS_ANY_TAGGED) {
+    // Smi check.
+    __ JumpIfSmi(input_reg, &load_smi, Label::kNear);
 
-  // Heap number map check.
-  __ cmp(FieldOperand(input_reg, HeapObject::kMapOffset),
-         factory()->heap_number_map());
-  if (deoptimize_on_undefined) {
-    DeoptimizeIf(not_equal, env);
-  } else {
-    Label heap_number;
-    __ j(equal, &heap_number, Label::kNear);
+    // Heap number map check.
+    __ cmp(FieldOperand(input_reg, HeapObject::kMapOffset),
+           factory()->heap_number_map());
+    if (deoptimize_on_undefined) {
+      DeoptimizeIf(not_equal, env);
+    } else {
+      Label heap_number;
+      __ j(equal, &heap_number, Label::kNear);
 
-    __ cmp(input_reg, factory()->undefined_value());
-    DeoptimizeIf(not_equal, env);
+      __ cmp(input_reg, factory()->undefined_value());
+      DeoptimizeIf(not_equal, env);
 
-    // Convert undefined to NaN.
-    ExternalReference nan =
-        ExternalReference::address_of_canonical_non_hole_nan();
-    __ movdbl(result_reg, Operand::StaticVariable(nan));
+      // Convert undefined to NaN.
+      ExternalReference nan =
+          ExternalReference::address_of_canonical_non_hole_nan();
+      __ movdbl(result_reg, Operand::StaticVariable(nan));
+      __ jmp(&done, Label::kNear);
+
+      __ bind(&heap_number);
+    }
+    // Heap number to XMM conversion.
+    __ movdbl(result_reg, FieldOperand(input_reg, HeapNumber::kValueOffset));
+    if (deoptimize_on_minus_zero) {
+      XMMRegister xmm_scratch = xmm0;
+      __ xorps(xmm_scratch, xmm_scratch);
+      __ ucomisd(result_reg, xmm_scratch);
+      __ j(not_zero, &done, Label::kNear);
+      __ movmskpd(temp_reg, result_reg);
+      __ test_b(temp_reg, 1);
+      DeoptimizeIf(not_zero, env);
+    }
     __ jmp(&done, Label::kNear);
-
-    __ bind(&heap_number);
+  } else if (mode == NUMBER_CANDIDATE_IS_SMI_OR_HOLE) {
+    __ test(input_reg, Immediate(kSmiTagMask));
+    DeoptimizeIf(not_equal, env);
+  } else if (mode == NUMBER_CANDIDATE_IS_SMI_CONVERT_HOLE) {
+    __ test(input_reg, Immediate(kSmiTagMask));
+    __ j(zero, &load_smi);
+    ExternalReference hole_nan_reference =
+        ExternalReference::address_of_the_hole_nan();
+    __ movdbl(result_reg, Operand::StaticVariable(hole_nan_reference));
+    __ jmp(&done, Label::kNear);
+  } else {
+    ASSERT(mode == NUMBER_CANDIDATE_IS_SMI);
   }
-  // Heap number to XMM conversion.
-  __ movdbl(result_reg, FieldOperand(input_reg, HeapNumber::kValueOffset));
-  if (deoptimize_on_minus_zero) {
-    XMMRegister xmm_scratch = xmm0;
-    __ xorps(xmm_scratch, xmm_scratch);
-    __ ucomisd(result_reg, xmm_scratch);
-    __ j(not_zero, &done, Label::kNear);
-    __ movmskpd(temp_reg, result_reg);
-    __ test_b(temp_reg, 1);
-    DeoptimizeIf(not_zero, env);
-  }
-  __ jmp(&done, Label::kNear);
 
   // Smi to XMM conversion
   __ bind(&load_smi);
@@ -4889,12 +5021,30 @@ void LCodeGen::DoNumberUntagD(LNumberUntagD* instr) {
         instr->hydrogen()->deoptimize_on_minus_zero();
     Register temp_reg = deoptimize_on_minus_zero ? ToRegister(temp) : no_reg;
 
+    NumberUntagDMode mode = NUMBER_CANDIDATE_IS_ANY_TAGGED;
+    HValue* value = instr->hydrogen()->value();
+    if (value->type().IsSmi()) {
+      if (value->IsLoadKeyed()) {
+        HLoadKeyed* load = HLoadKeyed::cast(value);
+        if (load->UsesMustHandleHole()) {
+          if (load->hole_mode() == ALLOW_RETURN_HOLE) {
+            mode = NUMBER_CANDIDATE_IS_SMI_CONVERT_HOLE;
+          } else {
+            mode = NUMBER_CANDIDATE_IS_SMI_OR_HOLE;
+          }
+        } else {
+          mode = NUMBER_CANDIDATE_IS_SMI;
+        }
+      }
+    }
+
     EmitNumberUntagD(input_reg,
                      temp_reg,
                      result_reg,
                      instr->hydrogen()->deoptimize_on_undefined(),
                      deoptimize_on_minus_zero,
-                     instr->environment());
+                     instr->environment(),
+                     mode);
   } else {
     UNIMPLEMENTED();
   }
@@ -5281,6 +5431,60 @@ void LCodeGen::DoDeferredAllocateObject(LAllocateObject* instr) {
 
   PushSafepointRegistersScope scope(this);
   __ push(Immediate(Smi::FromInt(instance_size)));
+  CallRuntimeFromDeferred(
+      Runtime::kAllocateInNewSpace, 1, instr, instr->context());
+  __ StoreToSafepointRegisterSlot(result, eax);
+}
+
+
+void LCodeGen::DoAllocate(LAllocate* instr) {
+  class DeferredAllocate: public LDeferredCode {
+   public:
+    DeferredAllocate(LCodeGen* codegen, LAllocate* instr)
+        : LDeferredCode(codegen), instr_(instr) { }
+    virtual void Generate() { codegen()->DoDeferredAllocate(instr_); }
+    virtual LInstruction* instr() { return instr_; }
+   private:
+    LAllocate* instr_;
+  };
+
+  DeferredAllocate* deferred =
+      new(zone()) DeferredAllocate(this, instr);
+
+  Register size = ToRegister(instr->size());
+  Register result = ToRegister(instr->result());
+  Register temp = ToRegister(instr->temp());
+
+  HAllocate* original_instr = instr->hydrogen();
+  if (original_instr->size()->IsConstant()) {
+    UNREACHABLE();
+  } else {
+    // Allocate memory for the object.
+    AllocationFlags flags = TAG_OBJECT;
+    if (original_instr->MustAllocateDoubleAligned()) {
+      flags = static_cast<AllocationFlags>(flags | DOUBLE_ALIGNMENT);
+    }
+    __ AllocateInNewSpace(size, result, temp, no_reg,
+                          deferred->entry(), flags);
+  }
+
+  __ bind(deferred->exit());
+}
+
+
+void LCodeGen::DoDeferredAllocate(LAllocate* instr) {
+  Register size = ToRegister(instr->size());
+  Register result = ToRegister(instr->result());
+
+  __ SmiTag(size);
+  PushSafepointRegistersScope scope(this);
+  // TODO(3095996): Get rid of this. For now, we need to make the
+  // result register contain a valid pointer because it is already
+  // contained in the register pointer map.
+  if (!size.is(result)) {
+    __ StoreToSafepointRegisterSlot(result, size);
+  }
+  __ push(size);
   CallRuntimeFromDeferred(
       Runtime::kAllocateInNewSpace, 1, instr, instr->context());
   __ StoreToSafepointRegisterSlot(result, eax);

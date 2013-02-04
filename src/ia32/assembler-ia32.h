@@ -142,6 +142,7 @@ inline Register Register::FromAllocationIndex(int index)  {
 
 
 struct IntelDoubleRegister {
+  static const int kMaxNumRegisters = 8;
   static const int kMaxNumAllocatableRegisters = 7;
   static int NumAllocatableRegisters();
   static int NumRegisters();

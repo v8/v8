@@ -2171,23 +2171,34 @@ void HLoadKeyed::PrintDataTo(StringStream* stream) {
 }
 
 
-bool HLoadKeyed::RequiresHoleCheck() const {
+bool HLoadKeyed::UsesMustHandleHole() const {
   if (IsFastPackedElementsKind(elements_kind())) {
     return false;
   }
 
+  if (hole_mode() == ALLOW_RETURN_HOLE) return true;
+
   if (IsFastDoubleElementsKind(elements_kind())) {
-    return true;
+    return false;
   }
 
   for (HUseIterator it(uses()); !it.Done(); it.Advance()) {
     HValue* use = it.value();
     if (!use->IsChange()) {
-      return true;
+      return false;
     }
   }
 
-  return false;
+  return true;
+}
+
+
+bool HLoadKeyed::RequiresHoleCheck() const {
+  if (IsFastPackedElementsKind(elements_kind())) {
+    return false;
+  }
+
+  return !UsesMustHandleHole();
 }
 
 
@@ -2461,6 +2472,11 @@ HType HAllocateObject::CalculateInferredType() {
 }
 
 
+HType HAllocate::CalculateInferredType() {
+  return type_;
+}
+
+
 HType HFastLiteral::CalculateInferredType() {
   // TODO(mstarzinger): Be smarter, could also be JSArray here.
   return HType::JSObject();
@@ -2582,11 +2598,20 @@ HValue* HAdd::EnsureAndPropagateNotMinusZero(BitVector* visited) {
 
 
 bool HStoreKeyed::NeedsCanonicalization() {
-  // If value is an integer or comes from the result of a keyed load
-  // then it will be a non-hole value: no need for canonicalization.
-  if (value()->IsLoadKeyed() ||
-      (value()->IsChange() && HChange::cast(value())->from().IsInteger32())) {
+  // If value is an integer or smi or comes from the result of a keyed load or
+  // constant then it is either be a non-hole value or in the case of a constant
+  // the hole is only being stored explicitly: no need for canonicalization.
+  if (value()->IsLoadKeyed() || value()->IsConstant()) {
     return false;
+  }
+
+  if (value()->IsChange()) {
+    if (HChange::cast(value())->from().IsInteger32()) {
+      return false;
+    }
+    if (HChange::cast(value())->value()->type().IsSmi()) {
+      return false;
+    }
   }
   return true;
 }

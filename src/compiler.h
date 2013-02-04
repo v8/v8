@@ -130,6 +130,14 @@ class CompilationInfo {
     return IsNonDeferredCalling::decode(flags_);
   }
 
+  void MarkAsSavesCallerDoubles() {
+    flags_ |= SavesCallerDoubles::encode(true);
+  }
+
+  bool saves_caller_doubles() const {
+    return SavesCallerDoubles::decode(flags_);
+  }
+
   void SetFunction(FunctionLiteral* literal) {
     ASSERT(function_ == NULL);
     function_ = literal;
@@ -275,6 +283,8 @@ class CompilationInfo {
   class IsDeferredCalling: public BitField<bool, 10, 1> {};
   // If the compiled code contains calls that require building a frame
   class IsNonDeferredCalling: public BitField<bool, 11, 1> {};
+  // If the compiled code saves double caller registers that it clobbers.
+  class SavesCallerDoubles: public BitField<bool, 12, 1> {};
 
 
   unsigned flags_;

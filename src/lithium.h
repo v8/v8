@@ -686,14 +686,13 @@ class LChunk: public ZoneObject {
 
   Handle<Code> Codegen(Code::Kind kind);
 
+  void set_allocated_double_registers(BitVector* allocated_registers);
+  BitVector* allocated_double_registers() {
+    return allocated_double_registers_;
+  }
+
  protected:
-  LChunk(CompilationInfo* info, HGraph* graph)
-      : spill_slot_count_(0),
-        info_(info),
-        graph_(graph),
-        instructions_(32, graph->zone()),
-        pointer_maps_(8, graph->zone()),
-        inlined_closures_(1, graph->zone()) { }
+  LChunk(CompilationInfo* info, HGraph* graph);
 
   void RegisterDependentCodeForEmbeddedMaps(Handle<Code> code);
 
@@ -702,6 +701,7 @@ class LChunk: public ZoneObject {
  private:
   CompilationInfo* info_;
   HGraph* const graph_;
+  BitVector* allocated_double_registers_;
   ZoneList<LInstruction*> instructions_;
   ZoneList<LPointerMap*> pointer_maps_;
   ZoneList<Handle<JSFunction> > inlined_closures_;
@@ -709,6 +709,13 @@ class LChunk: public ZoneObject {
 
 
 int ElementsKindToShiftSize(ElementsKind elements_kind);
+
+enum NumberUntagDMode {
+  NUMBER_CANDIDATE_IS_SMI,
+  NUMBER_CANDIDATE_IS_SMI_OR_HOLE,
+  NUMBER_CANDIDATE_IS_SMI_CONVERT_HOLE,
+  NUMBER_CANDIDATE_IS_ANY_TAGGED
+};
 
 
 } }  // namespace v8::internal

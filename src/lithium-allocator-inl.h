@@ -144,6 +144,21 @@ void UseIterator::Advance() {
       : input_iterator_.Advance();
 }
 
+
+void LAllocator::SetLiveRangeAssignedRegister(
+    LiveRange* range,
+    int reg,
+    RegisterKind register_kind,
+    Zone* zone) {
+  if (register_kind == DOUBLE_REGISTERS) {
+    assigned_double_registers_->Add(reg);
+  } else {
+    assigned_registers_->Add(reg);
+  }
+  range->set_assigned_register(reg, register_kind, zone);
+}
+
+
 } }  // namespace v8::internal
 
 #endif  // V8_LITHIUM_ALLOCATOR_INL_H_

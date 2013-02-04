@@ -77,6 +77,7 @@ namespace internal {
   V(DebuggerStatement)                   \
   V(StringDictionaryLookup)              \
   V(ElementsTransitionAndStore)          \
+  V(TransitionElementsKind)              \
   V(StoreArrayLiteralElement)            \
   V(StubFailureTrampoline)               \
   V(ProfileEntryHook)
@@ -1215,6 +1216,40 @@ class KeyedLoadFastElementStub : public HydrogenCodeStub {
   uint32_t bit_field_;
 
   DISALLOW_COPY_AND_ASSIGN(KeyedLoadFastElementStub);
+};
+
+
+class TransitionElementsKindStub : public HydrogenCodeStub {
+ public:
+  TransitionElementsKindStub(ElementsKind from_kind,
+                             ElementsKind to_kind) {
+    bit_field_ = FromKindBits::encode(from_kind) |
+        ToKindBits::encode(to_kind);
+  }
+
+  Major MajorKey() { return TransitionElementsKind; }
+  int MinorKey() { return bit_field_; }
+
+  ElementsKind from_kind() const {
+    return FromKindBits::decode(bit_field_);
+  }
+
+  ElementsKind to_kind() const {
+    return ToKindBits::decode(bit_field_);
+  }
+
+  virtual Handle<Code> GenerateCode();
+
+  virtual void InitializeInterfaceDescriptor(
+      Isolate* isolate,
+      CodeStubInterfaceDescriptor* descriptor);
+
+ private:
+  class FromKindBits: public BitField<ElementsKind, 8, 8> {};
+  class ToKindBits: public BitField<ElementsKind, 0, 8> {};
+  uint32_t bit_field_;
+
+  DISALLOW_COPY_AND_ASSIGN(TransitionElementsKindStub);
 };
 
 

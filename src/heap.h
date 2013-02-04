@@ -224,6 +224,9 @@ namespace internal {
   V(illegal_execution_state_symbol, "illegal execution state")           \
   V(get_symbol, "get")                                                   \
   V(set_symbol, "set")                                                   \
+  V(map_field_symbol, "%map")                                            \
+  V(elements_field_symbol, "%elements")                                  \
+  V(length_field_symbol, "%length")                                      \
   V(function_class_symbol, "Function")                                   \
   V(illegal_argument_symbol, "illegal argument")                         \
   V(MakeReferenceError_symbol, "MakeReferenceError")                     \

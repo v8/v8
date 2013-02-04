@@ -1,4 +1,4 @@
-// Copyright 2012 the V8 project authors. All rights reserved.
+// Copyright 2013 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -163,13 +163,17 @@ bool LCodeGen::GeneratePrologue() {
   int slots = GetStackSlotCount();
   if (slots > 0) {
     if (FLAG_debug_code) {
+      __ subq(rsp, Immediate(slots * kPointerSize));
+      __ push(rax);
       __ Set(rax, slots);
       __ movq(kScratchRegister, kSlotsZapValue, RelocInfo::NONE64);
       Label loop;
       __ bind(&loop);
-      __ push(kScratchRegister);
+      __ movq(MemOperand(rsp, rax, times_pointer_size, 0),
+              kScratchRegister);
       __ decl(rax);
       __ j(not_zero, &loop);
+      __ pop(rax);
     } else {
       __ subq(rsp, Immediate(slots * kPointerSize));
 #ifdef _MSC_VER
@@ -183,6 +187,19 @@ bool LCodeGen::GeneratePrologue() {
         __ movq(Operand(rsp, offset), rax);
       }
 #endif
+    }
+
+    if (info()->saves_caller_doubles()) {
+      Comment(";;; Save clobbered callee double registers");
+      int count = 0;
+      BitVector* doubles = chunk()->allocated_double_registers();
+      BitVector::Iterator save_iterator(doubles);
+      while (!save_iterator.Done()) {
+        __ movsd(MemOperand(rsp, count * kDoubleSize),
+                 XMMRegister::FromAllocationIndex(save_iterator.Current()));
+        save_iterator.Advance();
+        count++;
+      }
     }
   }
 
@@ -2465,6 +2482,18 @@ void LCodeGen::DoReturn(LReturn* instr) {
     __ push(rax);
     __ CallRuntime(Runtime::kTraceExit, 1);
   }
+  if (info()->saves_caller_doubles()) {
+    ASSERT(NeedsEagerFrame());
+    BitVector* doubles = chunk()->allocated_double_registers();
+    BitVector::Iterator save_iterator(doubles);
+    int count = 0;
+    while (!save_iterator.Done()) {
+      __ movsd(XMMRegister::FromAllocationIndex(save_iterator.Current()),
+               MemOperand(rsp, count * kDoubleSize));
+      save_iterator.Advance();
+      count++;
+    }
+  }
   if (NeedsEagerFrame()) {
     __ movq(rsp, rbp);
     __ pop(rbp);
@@ -4135,7 +4164,6 @@ void LCodeGen::DoStoreKeyedGeneric(LStoreKeyedGeneric* instr) {
 
 void LCodeGen::DoTransitionElementsKind(LTransitionElementsKind* instr) {
   Register object_reg = ToRegister(instr->object());
-  Register new_map_reg = ToRegister(instr->new_map_temp());
 
   Handle<Map> from_map = instr->original_map();
   Handle<Map> to_map = instr->transitioned_map();
@@ -4145,18 +4173,31 @@ void LCodeGen::DoTransitionElementsKind(LTransitionElementsKind* instr) {
   Label not_applicable;
   __ Cmp(FieldOperand(object_reg, HeapObject::kMapOffset), from_map);
   __ j(not_equal, &not_applicable);
-  __ movq(new_map_reg, to_map, RelocInfo::EMBEDDED_OBJECT);
   if (IsSimpleMapChangeTransition(from_kind, to_kind)) {
+    Register new_map_reg = ToRegister(instr->new_map_temp());
+    __ movq(new_map_reg, to_map, RelocInfo::EMBEDDED_OBJECT);
     __ movq(FieldOperand(object_reg, HeapObject::kMapOffset), new_map_reg);
     // Write barrier.
     ASSERT_NE(instr->temp(), NULL);
     __ RecordWriteField(object_reg, HeapObject::kMapOffset, new_map_reg,
                         ToRegister(instr->temp()), kDontSaveFPRegs);
+  } else if (FLAG_compiled_transitions) {
+    PushSafepointRegistersScope scope(this);
+    if (!object_reg.is(rax)) {
+      __ movq(rax, object_reg);
+    }
+    __ Move(rbx, to_map);
+    TransitionElementsKindStub stub(from_kind, to_kind);
+    __ CallStub(&stub);
+    RecordSafepointWithRegisters(
+        instr->pointer_map(), 0, Safepoint::kNoLazyDeopt);
   } else if (IsFastSmiElementsKind(from_kind) &&
-             IsFastDoubleElementsKind(to_kind)) {
+            IsFastDoubleElementsKind(to_kind)) {
     Register fixed_object_reg = ToRegister(instr->temp());
     ASSERT(fixed_object_reg.is(rdx));
+    Register new_map_reg = ToRegister(instr->new_map_temp());
     ASSERT(new_map_reg.is(rbx));
+    __ movq(new_map_reg, to_map, RelocInfo::EMBEDDED_OBJECT);
     __ movq(fixed_object_reg, object_reg);
     CallCode(isolate()->builtins()->TransitionElementsSmiToDouble(),
              RelocInfo::CODE_TARGET, instr);
@@ -4164,7 +4205,9 @@ void LCodeGen::DoTransitionElementsKind(LTransitionElementsKind* instr) {
              IsFastObjectElementsKind(to_kind)) {
     Register fixed_object_reg = ToRegister(instr->temp());
     ASSERT(fixed_object_reg.is(rdx));
+    Register new_map_reg = ToRegister(instr->new_map_temp());
     ASSERT(new_map_reg.is(rbx));
+    __ movq(new_map_reg, to_map, RelocInfo::EMBEDDED_OBJECT);
     __ movq(fixed_object_reg, object_reg);
     CallCode(isolate()->builtins()->TransitionElementsDoubleToObject(),
              RelocInfo::CODE_TARGET, instr);
@@ -4172,6 +4215,14 @@ void LCodeGen::DoTransitionElementsKind(LTransitionElementsKind* instr) {
     UNREACHABLE();
   }
   __ bind(&not_applicable);
+}
+
+
+void LCodeGen::DoTrapAllocationMemento(LTrapAllocationMemento* instr) {
+  Register object = ToRegister(instr->object());
+  Register temp = ToRegister(instr->temp());
+  __ TestJSArrayForAllocationSiteInfo(object, temp);
+  DeoptimizeIf(equal, instr->environment());
 }
 
 
@@ -4401,6 +4452,36 @@ void LCodeGen::DoNumberTagD(LNumberTagD* instr) {
   Register reg = ToRegister(instr->result());
   Register tmp = ToRegister(instr->temp());
 
+  bool convert_hole = false;
+  HValue* change_input = instr->hydrogen()->value();
+  if (change_input->IsLoadKeyed()) {
+    HLoadKeyed* load = HLoadKeyed::cast(change_input);
+    convert_hole = load->UsesMustHandleHole();
+  }
+
+  Label no_special_nan_handling;
+  Label done;
+  if (convert_hole) {
+    XMMRegister input_reg = ToDoubleRegister(instr->value());
+    __ ucomisd(input_reg, input_reg);
+    __ j(parity_odd, &no_special_nan_handling);
+    __ subq(rsp, Immediate(kDoubleSize));
+    __ movsd(MemOperand(rsp, 0), input_reg);
+    __ cmpl(MemOperand(rsp, sizeof(kHoleNanLower32)),
+            Immediate(kHoleNanUpper32));
+    Label canonicalize;
+    __ j(not_equal, &canonicalize);
+    __ addq(rsp, Immediate(kDoubleSize));
+    __ Move(reg, factory()->the_hole_value());
+    __ jmp(&done);
+    __ bind(&canonicalize);
+    __ addq(rsp, Immediate(kDoubleSize));
+    __ Set(kScratchRegister, BitCast<uint64_t>(
+        FixedDoubleArray::canonical_not_the_hole_nan_as_double()));
+    __ movq(input_reg, kScratchRegister);
+  }
+
+  __ bind(&no_special_nan_handling);
   DeferredNumberTagD* deferred = new(zone()) DeferredNumberTagD(this, instr);
   if (FLAG_inline_new) {
     __ AllocateHeapNumber(reg, tmp, deferred->entry());
@@ -4409,6 +4490,8 @@ void LCodeGen::DoNumberTagD(LNumberTagD* instr) {
   }
   __ bind(deferred->exit());
   __ movsd(FieldOperand(reg, HeapNumber::kValueOffset), input_reg);
+
+  __ bind(&done);
 }
 
 
@@ -4454,43 +4537,58 @@ void LCodeGen::EmitNumberUntagD(Register input_reg,
                                 XMMRegister result_reg,
                                 bool deoptimize_on_undefined,
                                 bool deoptimize_on_minus_zero,
-                                LEnvironment* env) {
+                                LEnvironment* env,
+                                NumberUntagDMode mode) {
   Label load_smi, done;
 
-  // Smi check.
-  __ JumpIfSmi(input_reg, &load_smi, Label::kNear);
+  if (mode == NUMBER_CANDIDATE_IS_ANY_TAGGED) {
+    // Smi check.
+    __ JumpIfSmi(input_reg, &load_smi, Label::kNear);
 
-  // Heap number map check.
-  __ CompareRoot(FieldOperand(input_reg, HeapObject::kMapOffset),
-                 Heap::kHeapNumberMapRootIndex);
-  if (deoptimize_on_undefined) {
-    DeoptimizeIf(not_equal, env);
-  } else {
-    Label heap_number;
-    __ j(equal, &heap_number, Label::kNear);
+    // Heap number map check.
+    __ CompareRoot(FieldOperand(input_reg, HeapObject::kMapOffset),
+                   Heap::kHeapNumberMapRootIndex);
+    if (deoptimize_on_undefined) {
+      DeoptimizeIf(not_equal, env);
+    } else {
+      Label heap_number;
+      __ j(equal, &heap_number, Label::kNear);
 
-    __ CompareRoot(input_reg, Heap::kUndefinedValueRootIndex);
-    DeoptimizeIf(not_equal, env);
+      __ CompareRoot(input_reg, Heap::kUndefinedValueRootIndex);
+      DeoptimizeIf(not_equal, env);
 
-    // Convert undefined to NaN. Compute NaN as 0/0.
-    __ xorps(result_reg, result_reg);
-    __ divsd(result_reg, result_reg);
+      // Convert undefined to NaN. Compute NaN as 0/0.
+      __ xorps(result_reg, result_reg);
+      __ divsd(result_reg, result_reg);
+      __ jmp(&done, Label::kNear);
+
+      __ bind(&heap_number);
+    }
+    // Heap number to XMM conversion.
+    __ movsd(result_reg, FieldOperand(input_reg, HeapNumber::kValueOffset));
+    if (deoptimize_on_minus_zero) {
+      XMMRegister xmm_scratch = xmm0;
+      __ xorps(xmm_scratch, xmm_scratch);
+      __ ucomisd(xmm_scratch, result_reg);
+      __ j(not_equal, &done, Label::kNear);
+      __ movmskpd(kScratchRegister, result_reg);
+      __ testq(kScratchRegister, Immediate(1));
+      DeoptimizeIf(not_zero, env);
+    }
     __ jmp(&done, Label::kNear);
-
-    __ bind(&heap_number);
+  } else if (mode == NUMBER_CANDIDATE_IS_SMI_OR_HOLE) {
+      __ testq(input_reg, Immediate(kSmiTagMask));
+      DeoptimizeIf(not_equal, env);
+  } else if (mode == NUMBER_CANDIDATE_IS_SMI_CONVERT_HOLE) {
+      __ testq(input_reg, Immediate(kSmiTagMask));
+      __ j(zero, &load_smi);
+    __ Set(kScratchRegister, BitCast<uint64_t>(
+        FixedDoubleArray::hole_nan_as_double()));
+    __ movq(result_reg, kScratchRegister);
+      __ jmp(&done, Label::kNear);
+  } else {
+    ASSERT(mode == NUMBER_CANDIDATE_IS_SMI);
   }
-  // Heap number to XMM conversion.
-  __ movsd(result_reg, FieldOperand(input_reg, HeapNumber::kValueOffset));
-  if (deoptimize_on_minus_zero) {
-    XMMRegister xmm_scratch = xmm0;
-    __ xorps(xmm_scratch, xmm_scratch);
-    __ ucomisd(xmm_scratch, result_reg);
-    __ j(not_equal, &done, Label::kNear);
-    __ movmskpd(kScratchRegister, result_reg);
-    __ testq(kScratchRegister, Immediate(1));
-    DeoptimizeIf(not_zero, env);
-  }
-  __ jmp(&done, Label::kNear);
 
   // Smi to XMM conversion
   __ bind(&load_smi);
@@ -4579,10 +4677,28 @@ void LCodeGen::DoNumberUntagD(LNumberUntagD* instr) {
   Register input_reg = ToRegister(input);
   XMMRegister result_reg = ToDoubleRegister(result);
 
+  NumberUntagDMode mode = NUMBER_CANDIDATE_IS_ANY_TAGGED;
+  HValue* value = instr->hydrogen()->value();
+  if (value->type().IsSmi()) {
+    if (value->IsLoadKeyed()) {
+      HLoadKeyed* load = HLoadKeyed::cast(value);
+      if (load->UsesMustHandleHole()) {
+        if (load->hole_mode() == ALLOW_RETURN_HOLE) {
+          mode = NUMBER_CANDIDATE_IS_SMI_CONVERT_HOLE;
+        } else {
+          mode = NUMBER_CANDIDATE_IS_SMI_OR_HOLE;
+        }
+      } else {
+        mode = NUMBER_CANDIDATE_IS_SMI;
+      }
+    }
+  }
+
   EmitNumberUntagD(input_reg, result_reg,
                    instr->hydrogen()->deoptimize_on_undefined(),
                    instr->hydrogen()->deoptimize_on_minus_zero(),
-                   instr->environment());
+                   instr->environment(),
+                   mode);
 }
 
 
@@ -4889,6 +5005,58 @@ void LCodeGen::DoDeferredAllocateObject(LAllocateObject* instr) {
 
   PushSafepointRegistersScope scope(this);
   __ Push(Smi::FromInt(instance_size));
+  CallRuntimeFromDeferred(Runtime::kAllocateInNewSpace, 1, instr);
+  __ StoreToSafepointRegisterSlot(result, rax);
+}
+
+
+void LCodeGen::DoAllocate(LAllocate* instr) {
+  class DeferredAllocate: public LDeferredCode {
+   public:
+    DeferredAllocate(LCodeGen* codegen, LAllocate* instr)
+        : LDeferredCode(codegen), instr_(instr) { }
+    virtual void Generate() { codegen()->DoDeferredAllocate(instr_); }
+    virtual LInstruction* instr() { return instr_; }
+   private:
+    LAllocate* instr_;
+  };
+
+  DeferredAllocate* deferred =
+      new(zone()) DeferredAllocate(this, instr);
+
+  Register size = ToRegister(instr->size());
+  Register result = ToRegister(instr->result());
+  Register temp = ToRegister(instr->temp());
+
+  HAllocate* original_instr = instr->hydrogen();
+  if (original_instr->size()->IsConstant()) {
+    UNREACHABLE();
+  } else {
+    // Allocate memory for the object.
+    AllocationFlags flags = TAG_OBJECT;
+    if (original_instr->MustAllocateDoubleAligned()) {
+      flags = static_cast<AllocationFlags>(flags | DOUBLE_ALIGNMENT);
+    }
+    __ AllocateInNewSpace(size, result, temp, no_reg,
+                          deferred->entry(), flags);
+  }
+
+  __ bind(deferred->exit());
+}
+
+
+void LCodeGen::DoDeferredAllocate(LAllocate* instr) {
+  Register size = ToRegister(instr->size());
+  Register result = ToRegister(instr->result());
+
+  // TODO(3095996): Get rid of this. For now, we need to make the
+  // result register contain a valid pointer because it is already
+  // contained in the register pointer map.
+  __ Set(result, 0);
+
+  PushSafepointRegistersScope scope(this);
+  __ Integer32ToSmi(size, size);
+  __ push(size);
   CallRuntimeFromDeferred(Runtime::kAllocateInNewSpace, 1, instr);
   __ StoreToSafepointRegisterSlot(result, rax);
 }

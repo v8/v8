@@ -43,6 +43,7 @@ class LCodeGen;
 #define LITHIUM_CONCRETE_INSTRUCTION_LIST(V)    \
   V(AccessArgumentsAt)                          \
   V(AddI)                                       \
+  V(Allocate)                                   \
   V(AllocateObject)                             \
   V(ApplyArguments)                             \
   V(ArgumentsElements)                          \
@@ -168,6 +169,7 @@ class LCodeGen;
   V(Throw)                                      \
   V(ToFastProperties)                           \
   V(TransitionElementsKind)                     \
+  V(TrapAllocationMemento)                      \
   V(Typeof)                                     \
   V(TypeofIsAndBranch)                          \
   V(UnaryMathOperation)                         \
@@ -1466,7 +1468,8 @@ class LLoadKeyed: public LTemplateInstruction<1, 2, 0> {
   }
 
   virtual bool ClobbersDoubleRegisters() const {
-    return !IsDoubleOrFloatElementsKind(hydrogen()->elements_kind());
+    return !CpuFeatures::IsSupported(SSE2) &&
+        !IsDoubleOrFloatElementsKind(hydrogen()->elements_kind());
   }
 
   DECLARE_CONCRETE_INSTRUCTION(LoadKeyed, "load-keyed")
@@ -1642,6 +1645,7 @@ class LThisFunction: public LTemplateInstruction<1, 0, 0> {
 class LContext: public LTemplateInstruction<1, 0, 0> {
  public:
   DECLARE_CONCRETE_INSTRUCTION(Context, "context")
+  DECLARE_HYDROGEN_ACCESSOR(Context)
 };
 
 
@@ -1906,6 +1910,7 @@ class LNumberTagD: public LTemplateInstruction<1, 1, 1> {
   LOperand* temp() { return temps_[0]; }
 
   DECLARE_CONCRETE_INSTRUCTION(NumberTagD, "number-tag-d")
+  DECLARE_HYDROGEN_ACCESSOR(Change)
 };
 
 
@@ -2091,16 +2096,19 @@ class LStoreKeyedGeneric: public LTemplateInstruction<0, 4, 0> {
 };
 
 
-class LTransitionElementsKind: public LTemplateInstruction<1, 1, 2> {
+class LTransitionElementsKind: public LTemplateInstruction<0, 2, 2> {
  public:
   LTransitionElementsKind(LOperand* object,
+                          LOperand* context,
                           LOperand* new_map_temp,
                           LOperand* temp) {
     inputs_[0] = object;
+    inputs_[1] = context;
     temps_[0] = new_map_temp;
     temps_[1] = temp;
   }
 
+  LOperand* context() { return inputs_[1]; }
   LOperand* object() { return inputs_[0]; }
   LOperand* new_map_temp() { return temps_[0]; }
   LOperand* temp() { return temps_[1]; }
@@ -2115,6 +2123,22 @@ class LTransitionElementsKind: public LTemplateInstruction<1, 1, 2> {
   Handle<Map> transitioned_map() { return hydrogen()->transitioned_map(); }
   ElementsKind from_kind() { return hydrogen()->from_kind(); }
   ElementsKind to_kind() { return hydrogen()->to_kind(); }
+};
+
+
+class LTrapAllocationMemento : public LTemplateInstruction<0, 1, 1> {
+ public:
+  LTrapAllocationMemento(LOperand* object,
+                         LOperand* temp) {
+    inputs_[0] = object;
+    temps_[0] = temp;
+  }
+
+  LOperand* object() { return inputs_[0]; }
+  LOperand* temp() { return temps_[0]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(TrapAllocationMemento,
+                               "trap-allocation-memento")
 };
 
 
@@ -2312,6 +2336,23 @@ class LAllocateObject: public LTemplateInstruction<1, 1, 1> {
 
   DECLARE_CONCRETE_INSTRUCTION(AllocateObject, "allocate-object")
   DECLARE_HYDROGEN_ACCESSOR(AllocateObject)
+};
+
+
+class LAllocate: public LTemplateInstruction<1, 2, 1> {
+ public:
+  LAllocate(LOperand* context, LOperand* size, LOperand* temp) {
+    inputs_[0] = context;
+    inputs_[1] = size;
+    temps_[0] = temp;
+  }
+
+  LOperand* context() { return inputs_[0]; }
+  LOperand* size() { return inputs_[1]; }
+  LOperand* temp() { return temps_[0]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(Allocate, "allocate")
+  DECLARE_HYDROGEN_ACCESSOR(Allocate)
 };
 
 

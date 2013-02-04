@@ -643,7 +643,7 @@ LiveRange* LAllocator::FixedLiveRangeFor(int index) {
   if (result == NULL) {
     result = new(zone_) LiveRange(FixedLiveRangeID(index), zone_);
     ASSERT(result->IsFixed());
-    result->set_assigned_register(index, GENERAL_REGISTERS, zone_);
+    SetLiveRangeAssignedRegister(result, index, GENERAL_REGISTERS, zone_);
     fixed_live_ranges_[index] = result;
   }
   return result;
@@ -656,7 +656,7 @@ LiveRange* LAllocator::FixedDoubleLiveRangeFor(int index) {
   if (result == NULL) {
     result = new(zone_) LiveRange(FixedDoubleLiveRangeID(index), zone_);
     ASSERT(result->IsFixed());
-    result->set_assigned_register(index, DOUBLE_REGISTERS, zone_);
+    SetLiveRangeAssignedRegister(result, index, DOUBLE_REGISTERS, zone_);
     fixed_double_live_ranges_[index] = result;
   }
   return result;
@@ -1066,6 +1066,13 @@ void LAllocator::ResolvePhis(HBasicBlock* block) {
 bool LAllocator::Allocate(LChunk* chunk) {
   ASSERT(chunk_ == NULL);
   chunk_ = static_cast<LPlatformChunk*>(chunk);
+  assigned_registers_ =
+      new(zone()) BitVector(Register::NumAllocatableRegisters(), zone());
+  assigned_registers_->Clear();
+  assigned_double_registers_ =
+      new(zone()) BitVector(DoubleRegister::NumAllocatableRegisters(),
+                            zone());
+  assigned_double_registers_->Clear();
   MeetRegisterConstraints();
   if (!AllocationOk()) return false;
   ResolvePhis();
@@ -1808,7 +1815,7 @@ bool LAllocator::TryAllocateFreeReg(LiveRange* current) {
         TraceAlloc("Assigning preferred reg %s to live range %d\n",
                    RegisterName(register_index),
                    current->id());
-        current->set_assigned_register(register_index, mode_, zone_);
+        SetLiveRangeAssignedRegister(current, register_index, mode_, zone_);
         return true;
       }
     }
@@ -1844,7 +1851,7 @@ bool LAllocator::TryAllocateFreeReg(LiveRange* current) {
   TraceAlloc("Assigning free reg %s to live range %d\n",
              RegisterName(reg),
              current->id());
-  current->set_assigned_register(reg, mode_, zone_);
+  SetLiveRangeAssignedRegister(current, reg, mode_, zone_);
 
   return true;
 }
@@ -1934,7 +1941,7 @@ void LAllocator::AllocateBlockedReg(LiveRange* current) {
   TraceAlloc("Assigning blocked reg %s to live range %d\n",
              RegisterName(reg),
              current->id());
-  current->set_assigned_register(reg, mode_, zone_);
+  SetLiveRangeAssignedRegister(current, reg, mode_, zone_);
 
   // This register was not free. Thus we need to find and spill
   // parts of active and inactive live regions that use the same register

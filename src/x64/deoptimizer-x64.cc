@@ -533,6 +533,11 @@ void Deoptimizer::DoCompiledStubFrame(TranslationIterator* iterator,
   output_frame->SetRegister(rbp.code(), value);
   output_frame->SetFp(value);
 
+  for (int i = 0; i < XMMRegister::NumAllocatableRegisters(); ++i) {
+    double double_value = input_->GetDoubleRegister(i);
+    output_frame->SetDoubleRegister(i, double_value);
+  }
+
   intptr_t handler =
       reinterpret_cast<intptr_t>(descriptor->deoptimization_handler_);
   output_frame->SetRegister(rax.code(), descriptor->register_param_count_);
@@ -1139,13 +1144,10 @@ void Deoptimizer::EntryGenerator::Generate() {
   __ cmpq(rax, rdx);
   __ j(below, &outer_push_loop);
 
-  // In case of OSR, we have to restore the XMM registers.
-  if (type() == OSR) {
-    for (int i = 0; i < XMMRegister::NumAllocatableRegisters(); ++i) {
-      XMMRegister xmm_reg = XMMRegister::FromAllocationIndex(i);
-      int src_offset = i * kDoubleSize + double_regs_offset;
-      __ movsd(xmm_reg, Operand(rbx, src_offset));
-    }
+  for (int i = 0; i < XMMRegister::NumAllocatableRegisters(); ++i) {
+    XMMRegister xmm_reg = XMMRegister::FromAllocationIndex(i);
+    int src_offset = i * kDoubleSize + double_regs_offset;
+    __ movsd(xmm_reg, Operand(rbx, src_offset));
   }
 
   // Push state, pc, and continuation from the last output frame.

@@ -263,6 +263,7 @@ class HGraph: public ZoneObject {
   void MarkDeoptimizeOnUndefined();
   void ComputeMinusZeroChecks();
   void ComputeSafeUint32Operations();
+  void GlobalValueNumbering();
   bool ProcessArgumentsObject();
   void EliminateRedundantPhis();
   void EliminateUnreachablePhis();
@@ -291,6 +292,7 @@ class HGraph: public ZoneObject {
     undefined_constant_.set(constant);
   }
   HConstant* GetConstantUndefined() const { return undefined_constant_.get(); }
+  HConstant* GetConstant0();
   HConstant* GetConstant1();
   HConstant* GetConstantMinus1();
   HConstant* GetConstantTrue();
@@ -411,6 +413,7 @@ class HGraph: public ZoneObject {
   ZoneList<HPhi*>* phi_list_;
   ZoneList<HInstruction*>* uint32_instructions_;
   SetOncePointer<HConstant> undefined_constant_;
+  SetOncePointer<HConstant> constant_0_;
   SetOncePointer<HConstant> constant_1_;
   SetOncePointer<HConstant> constant_minus1_;
   SetOncePointer<HConstant> constant_true_;
@@ -876,6 +879,9 @@ class HGraphBuilder {
  protected:
   virtual bool BuildGraph() = 0;
 
+  HBasicBlock* CreateBasicBlock(HEnvironment* env);
+  HBasicBlock* CreateLoopHeaderBlock();
+
   // Building common constructs
   HInstruction* BuildExternalArrayElementAccess(
       HValue* external_elements,
@@ -902,6 +908,78 @@ class HGraphBuilder {
       ElementsKind elements_kind,
       bool is_store,
       Representation checked_index_representation = Representation::None());
+
+  HInstruction* BuildStoreMap(HValue* object, HValue* map, BailoutId id);
+  HInstruction* BuildStoreMap(HValue* object, Handle<Map> map, BailoutId id);
+
+  class IfBuilder {
+   public:
+    IfBuilder(HGraphBuilder* builder,
+              BailoutId id = BailoutId::StubEntry());
+    ~IfBuilder() {
+      if (!finished_) End();
+    }
+
+    void BeginTrue(HValue* left, HValue* right, Token::Value token);
+    void BeginFalse();
+    void End();
+
+   private:
+    HGraphBuilder* builder_;
+    bool finished_;
+    HBasicBlock* true_block_;
+    HBasicBlock* false_block_;
+    HBasicBlock* merge_block_;
+    BailoutId id_;
+
+    Zone* zone() { return builder_->zone(); }
+  };
+
+  class LoopBuilder {
+   public:
+    enum Direction {
+      kPreIncrement,
+      kPostIncrement,
+      kPreDecrement,
+      kPostDecrement
+    };
+
+    LoopBuilder(HGraphBuilder* builder,
+                HValue* context,
+                Direction direction,
+                BailoutId id = BailoutId::StubEntry());
+    ~LoopBuilder() {
+      ASSERT(finished_);
+    }
+
+    HValue* BeginBody(HValue* initial, HValue* terminating, Token::Value token);
+    void EndBody();
+
+   private:
+    HGraphBuilder* builder_;
+    HValue* context_;
+    HInstruction* increment_;
+    HPhi* phi_;
+    HBasicBlock* header_block_;
+    HBasicBlock* body_block_;
+    HBasicBlock* exit_block_;
+    Direction direction_;
+    BailoutId id_;
+    bool finished_;
+
+    Zone* zone() { return builder_->zone(); }
+  };
+
+  HValue* BuildAllocateElements(HContext* context,
+                                ElementsKind kind,
+                                HValue* capacity);
+
+  void BuildCopyElements(HContext* context,
+                         HValue* from_elements,
+                         ElementsKind from_elements_kind,
+                         HValue* to_elements,
+                         ElementsKind to_elements_kind,
+                         HValue* length);
 
  private:
   HGraphBuilder();
@@ -1134,9 +1212,6 @@ class HOptimizedGraphBuilder: public HGraphBuilder, public AstVisitor {
 #define DECLARE_VISIT(type) virtual void Visit##type(type* node);
   AST_NODE_LIST(DECLARE_VISIT)
 #undef DECLARE_VISIT
-
-  HBasicBlock* CreateBasicBlock(HEnvironment* env);
-  HBasicBlock* CreateLoopHeaderBlock();
 
   // Helpers for flow graph construction.
   enum GlobalPropertyAccess {
