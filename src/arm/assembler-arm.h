@@ -302,13 +302,13 @@ struct SwVfpRegister {
 
 // Double word VFP register.
 struct DwVfpRegister {
-  static const int kNumRegisters = 32;
+  static const int kMaxNumRegisters = 32;
   // A few double registers are reserved: one as a scratch register and one to
   // hold 0.0, that does not fit in the immediate field of vmov instructions.
   //  d14: 0.0
   //  d15: scratch register.
   static const int kNumReservedRegisters = 2;
-  static const int kMaxNumAllocatableRegisters = kNumRegisters -
+  static const int kMaxNumAllocatableRegisters = kMaxNumRegisters -
       kNumReservedRegisters;
 
   // Note: the number of registers can be different at snapshot and run-time.
@@ -327,7 +327,7 @@ struct DwVfpRegister {
   }
 
   bool is_valid() const {
-    return 0 <= code_ && code_ < kNumRegisters;
+    return 0 <= code_ && code_ < kMaxNumRegisters;
   }
   bool is(DwVfpRegister reg) const { return code_ == reg.code_; }
   SwVfpRegister low() const {

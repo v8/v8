@@ -59,6 +59,7 @@ class LCodeGen BASE_EMBEDDED {
         status_(UNUSED),
         translations_(info->zone()),
         deferred_(8, info->zone()),
+        support_aligned_spilled_doubles_(false),
         osr_pc_offset_(-1),
         last_lazy_deopt_pc_(0),
         frame_is_built_(false),
@@ -138,6 +139,7 @@ class LCodeGen BASE_EMBEDDED {
   void DoDeferredStringCharCodeAt(LStringCharCodeAt* instr);
   void DoDeferredStringCharFromCode(LStringCharFromCode* instr);
   void DoDeferredAllocateObject(LAllocateObject* instr);
+  void DoDeferredAllocate(LAllocate* instr);
   void DoDeferredInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr,
                                        Label* map_check);
 
@@ -321,7 +323,8 @@ class LCodeGen BASE_EMBEDDED {
                         DwVfpRegister result,
                         bool deoptimize_on_undefined,
                         bool deoptimize_on_minus_zero,
-                        LEnvironment* env);
+                        LEnvironment* env,
+                        NumberUntagDMode mode);
 
   void DeoptIfTaggedButNotSmi(LEnvironment* environment,
                               HValue* value,
@@ -415,6 +418,7 @@ class LCodeGen BASE_EMBEDDED {
   Status status_;
   TranslationBuffer translations_;
   ZoneList<LDeferredCode*> deferred_;
+  bool support_aligned_spilled_doubles_;
   int osr_pc_offset_;
   int last_lazy_deopt_pc_;
   bool frame_is_built_;

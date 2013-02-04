@@ -533,6 +533,11 @@ void Deoptimizer::DoCompiledStubFrame(TranslationIterator* iterator,
     DoTranslateCommand(iterator, 0, output_frame_offset);
   }
 
+  for (int i = 0; i < DwVfpRegister::kMaxNumRegisters; ++i) {
+    double double_value = input_->GetDoubleRegister(i);
+    output_frame->SetDoubleRegister(i, double_value);
+  }
+
   value = input_->GetRegister(fp.code());
   output_frame->SetRegister(fp.code(), value);
   output_frame->SetFp(value);
@@ -1011,6 +1016,7 @@ void Deoptimizer::EntryGenerator::Generate() {
     __ CheckFor32DRegs(ip);
 
     // Push registers d0-d13, and possibly d16-d31, on the stack.
+    // If d16-d31 are not pushed, decrease the stack pointer instead.
     __ vstm(db_w, sp, d16, d31, ne);
     __ sub(sp, sp, Operand(16 * kDoubleSize), LeaveCC, eq);
     __ vstm(db_w, sp, d0, d13);
@@ -1157,21 +1163,18 @@ void Deoptimizer::EntryGenerator::Generate() {
 
   if (CpuFeatures::IsSupported(VFP2)) {
     CpuFeatures::Scope scope(VFP2);
-    // In case of OSR, we have to restore the d registers.
-    if (type() == OSR) {
-      // Check CPU flags for number of registers, setting the Z condition flag.
-      __ CheckFor32DRegs(ip);
+    // Check CPU flags for number of registers, setting the Z condition flag.
+    __ CheckFor32DRegs(ip);
 
-      __ ldr(r1, MemOperand(r0, Deoptimizer::input_offset()));
-      int src_offset = FrameDescription::double_registers_offset();
-      for (int i = 0; i < DwVfpRegister::kNumRegisters; ++i) {
-        if (i == kDoubleRegZero.code()) continue;
-        if (i == kScratchDoubleReg.code()) continue;
+    __ ldr(r1, MemOperand(r0, Deoptimizer::input_offset()));
+    int src_offset = FrameDescription::double_registers_offset();
+    for (int i = 0; i < DwVfpRegister::kMaxNumRegisters; ++i) {
+      if (i == kDoubleRegZero.code()) continue;
+      if (i == kScratchDoubleReg.code()) continue;
 
-        const DwVfpRegister reg = DwVfpRegister::from_code(i);
-        __ vldr(reg, r1, src_offset, i < 16 ? al : ne);
-        src_offset += kDoubleSize;
-      }
+      const DwVfpRegister reg = DwVfpRegister::from_code(i);
+      __ vldr(reg, r1, src_offset, i < 16 ? al : ne);
+      src_offset += kDoubleSize;
     }
   }
 

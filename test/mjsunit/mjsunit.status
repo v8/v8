@@ -71,6 +71,7 @@ json-recursive: PASS, (PASS || FAIL) if $mode == debug
 ##############################################################################
 # Skip long running test that times out in debug mode.
 regress/regress-crbug-160010: PASS, SKIP if $mode == debug
+generated-transition-stub: PASS, SKIP if $mode == debug
 
 ##############################################################################
 # This test sets the umask on a per-process basis and hence cannot be

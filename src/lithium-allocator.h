@@ -445,6 +445,13 @@ class LAllocator BASE_EMBEDDED {
   void Verify() const;
 #endif
 
+  BitVector* assigned_registers() {
+    return assigned_registers_;
+  }
+  BitVector* assigned_double_registers() {
+    return assigned_double_registers_;
+  }
+
  private:
   void MeetRegisterConstraints();
   void ResolvePhis();
@@ -537,6 +544,11 @@ class LAllocator BASE_EMBEDDED {
                           HBasicBlock* block,
                           HBasicBlock* pred);
 
+  inline void SetLiveRangeAssignedRegister(LiveRange* range,
+                                           int reg,
+                                           RegisterKind register_kind,
+                                           Zone* zone);
+
   // Return parallel move that should be used to connect ranges split at the
   // given position.
   LParallelMove* GetConnectingParallelMove(LifetimePosition pos);
@@ -590,6 +602,9 @@ class LAllocator BASE_EMBEDDED {
 
   RegisterKind mode_;
   int num_registers_;
+
+  BitVector* assigned_registers_;
+  BitVector* assigned_double_registers_;
 
   HGraph* graph_;
 

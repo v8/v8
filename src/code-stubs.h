@@ -77,6 +77,7 @@ namespace internal {
   V(DebuggerStatement)                   \
   V(StringDictionaryLookup)              \
   V(ElementsTransitionAndStore)          \
+  V(TransitionElementsKind)              \
   V(StoreArrayLiteralElement)            \
   V(StubFailureTrampoline)               \
   V(ProfileEntryHook)
@@ -548,7 +549,12 @@ class ICStub: public PlatformCodeStub {
  public:
   explicit ICStub(Code::Kind kind) : kind_(kind) { }
   virtual int GetCodeKind() { return kind_; }
-  virtual InlineCacheState GetICState() { return MONOMORPHIC; }
+  // Currently all IC stubs do not collect explicit type feedback but rather
+  // check the instance type.
+  // TODO(verwaest): These stubs should collect proper type feedback, and should
+  // not check the instance type explicitly (perhaps unless more than
+  // kMaxPolymorphism maps are recorded).
+  virtual InlineCacheState GetICState() { return MEGAMORPHIC; }
 
   bool Describes(Code* code) {
     return GetMajorKey(code) == MajorKey() && code->stub_info() == MinorKey();
@@ -1215,6 +1221,40 @@ class KeyedLoadFastElementStub : public HydrogenCodeStub {
   uint32_t bit_field_;
 
   DISALLOW_COPY_AND_ASSIGN(KeyedLoadFastElementStub);
+};
+
+
+class TransitionElementsKindStub : public HydrogenCodeStub {
+ public:
+  TransitionElementsKindStub(ElementsKind from_kind,
+                             ElementsKind to_kind) {
+    bit_field_ = FromKindBits::encode(from_kind) |
+        ToKindBits::encode(to_kind);
+  }
+
+  Major MajorKey() { return TransitionElementsKind; }
+  int MinorKey() { return bit_field_; }
+
+  ElementsKind from_kind() const {
+    return FromKindBits::decode(bit_field_);
+  }
+
+  ElementsKind to_kind() const {
+    return ToKindBits::decode(bit_field_);
+  }
+
+  virtual Handle<Code> GenerateCode();
+
+  virtual void InitializeInterfaceDescriptor(
+      Isolate* isolate,
+      CodeStubInterfaceDescriptor* descriptor);
+
+ private:
+  class FromKindBits: public BitField<ElementsKind, 8, 8> {};
+  class ToKindBits: public BitField<ElementsKind, 0, 8> {};
+  uint32_t bit_field_;
+
+  DISALLOW_COPY_AND_ASSIGN(TransitionElementsKindStub);
 };
 
 

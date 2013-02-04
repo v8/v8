@@ -1386,8 +1386,7 @@ void MacroAssembler::AllocateInNewSpace(Register object_size,
                                         Register scratch,
                                         Label* gc_required,
                                         AllocationFlags flags) {
-  ASSERT((flags & (DOUBLE_ALIGNMENT | RESULT_CONTAINS_TOP |
-                   SIZE_IN_WORDS)) == 0);
+  ASSERT((flags & (RESULT_CONTAINS_TOP | SIZE_IN_WORDS)) == 0);
   if (!FLAG_inline_new) {
     if (emit_debug_code()) {
       // Trash the registers to simulate an allocation failure.
@@ -1406,6 +1405,19 @@ void MacroAssembler::AllocateInNewSpace(Register object_size,
   // Load address of new object into result.
   LoadAllocationTopHelper(result, scratch, flags);
 
+  // Align the next allocation. Storing the filler map without checking top is
+  // always safe because the limit of the heap is always aligned.
+  if ((flags & DOUBLE_ALIGNMENT) != 0) {
+    ASSERT(kPointerAlignment * 2 == kDoubleAlignment);
+    Label aligned;
+    test(result, Immediate(kDoubleAlignmentMask));
+    j(zero, &aligned, Label::kNear);
+    mov(Operand(result, 0),
+        Immediate(isolate()->factory()->one_pointer_filler_map()));
+    add(result, Immediate(kDoubleSize / 2));
+    bind(&aligned);
+  }
+
   // Calculate new top and bail out if new space is exhausted.
   ExternalReference new_space_allocation_limit =
       ExternalReference::new_space_allocation_limit_address(isolate());
@@ -1419,7 +1431,8 @@ void MacroAssembler::AllocateInNewSpace(Register object_size,
 
   // Tag result if requested.
   if ((flags & TAG_OBJECT) != 0) {
-    lea(result, Operand(result, kHeapObjectTag));
+    ASSERT(kHeapObjectTag == 1);
+    inc(result);
   }
 
   // Update allocation top.
@@ -3052,8 +3065,7 @@ void MacroAssembler::CheckEnumCache(Label* call_runtime) {
 
 void MacroAssembler::TestJSArrayForAllocationSiteInfo(
     Register receiver_reg,
-    Register scratch_reg,
-    Label* allocation_info_present) {
+    Register scratch_reg) {
   Label no_info_available;
 
   ExternalReference new_space_start =
@@ -3069,7 +3081,6 @@ void MacroAssembler::TestJSArrayForAllocationSiteInfo(
   j(greater, &no_info_available);
   cmp(MemOperand(scratch_reg, -AllocationSiteInfo::kSize),
       Immediate(Handle<Map>(isolate()->heap()->allocation_site_info_map())));
-  j(equal, allocation_info_present);
   bind(&no_info_available);
 }
 

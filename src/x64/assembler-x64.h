@@ -202,7 +202,7 @@ const Register no_reg = { kRegister_no_reg_Code };
 
 
 struct XMMRegister {
-  static const int kNumRegisters = 16;
+  static const int kMaxNumRegisters = 16;
   static const int kMaxNumAllocatableRegisters = 15;
   static int NumAllocatableRegisters() {
     return kMaxNumAllocatableRegisters;
@@ -243,11 +243,11 @@ struct XMMRegister {
 
   static XMMRegister from_code(int code) {
     ASSERT(code >= 0);
-    ASSERT(code < kNumRegisters);
+    ASSERT(code < kMaxNumRegisters);
     XMMRegister r = { code };
     return r;
   }
-  bool is_valid() const { return 0 <= code_ && code_ < kNumRegisters; }
+  bool is_valid() const { return 0 <= code_ && code_ < kMaxNumRegisters; }
   bool is(XMMRegister reg) const { return code_ == reg.code_; }
   int code() const {
     ASSERT(is_valid());

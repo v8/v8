@@ -1,3 +1,16 @@
+2013-02-04: Version 3.16.13
+
+        Tagged stubs that rely on instance types as MEGAMORPHIC.
+        (Chromium issue 173974)
+
+        Fixed clearing of dead dependent codes and verifing of weak
+        embedded maps on full GC. (Chromium issue 172488,172489)
+
+        Made the arm port build cleanly with Clang.
+
+        Performance and stability improvements on all platforms.
+
+
 2013-01-31: Version 3.16.12
 
         Performance and stability improvements on all platforms.

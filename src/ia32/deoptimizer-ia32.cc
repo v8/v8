@@ -644,6 +644,11 @@ void Deoptimizer::DoCompiledStubFrame(TranslationIterator* iterator,
   output_frame->SetRegister(ebp.code(), value);
   output_frame->SetFp(value);
 
+  for (int i = 0; i < XMMRegister::kNumAllocatableRegisters; ++i) {
+    double double_value = input_->GetDoubleRegister(i);
+    output_frame->SetDoubleRegister(i, double_value);
+  }
+
   intptr_t handler =
       reinterpret_cast<intptr_t>(descriptor->deoptimization_handler_);
   output_frame->SetRegister(eax.code(), descriptor->register_param_count_);
@@ -1263,15 +1268,13 @@ void Deoptimizer::EntryGenerator::Generate() {
   __ cmp(eax, edx);
   __ j(below, &outer_push_loop);
 
-  // In case of OSR, we have to restore the XMM registers.
-  if (type() == OSR) {
-    if (CpuFeatures::IsSupported(SSE2)) {
-      CpuFeatures::Scope scope(SSE2);
-      for (int i = 0; i < XMMRegister::kNumAllocatableRegisters; ++i) {
-        XMMRegister xmm_reg = XMMRegister::FromAllocationIndex(i);
-        int src_offset = i * kDoubleSize + double_regs_offset;
-        __ movdbl(xmm_reg, Operand(ebx, src_offset));
-      }
+  // In case of OSR or a failed STUB, we have to restore the XMM registers.
+  if (CpuFeatures::IsSupported(SSE2)) {
+    CpuFeatures::Scope scope(SSE2);
+    for (int i = 0; i < XMMRegister::kNumAllocatableRegisters; ++i) {
+      XMMRegister xmm_reg = XMMRegister::FromAllocationIndex(i);
+      int src_offset = i * kDoubleSize + double_regs_offset;
+      __ movdbl(xmm_reg, Operand(ebx, src_offset));
     }
   }
 

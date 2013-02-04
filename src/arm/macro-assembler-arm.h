@@ -1319,10 +1319,9 @@ class MacroAssembler: public Assembler {
   // to another type.
   // On entry, receiver_reg should point to the array object.
   // scratch_reg gets clobbered.
-  // If allocation info is present, jump to allocation_info_present
+  // If allocation info is present, condition flags are set to eq
   void TestJSArrayForAllocationSiteInfo(Register receiver_reg,
-                                        Register scratch_reg,
-                                        Label* allocation_info_present);
+                                        Register scratch_reg);
 
  private:
   void CallCFunctionHelper(Register function,
@@ -1407,7 +1406,6 @@ class CodePatcher {
 
  private:
   byte* address_;  // The address of the code being patched.
-  int instructions_;  // Number of instructions of the expected patch size.
   int size_;  // Number of bytes of the expected patch size.
   MacroAssembler masm_;  // Macro assembler used to generate the code.
 };

@@ -884,14 +884,17 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space) {
 
   // Optionally save all double registers.
   if (save_doubles) {
+    CpuFeatures::Scope scope(VFP2);
     // Check CPU flags for number of registers, setting the Z condition flag.
     CheckFor32DRegs(ip);
 
+    // Push registers d0-d15, and possibly d16-d31, on the stack.
+    // If d16-d31 are not pushed, decrease the stack pointer instead.
     vstm(db_w, sp, d16, d31, ne);
     sub(sp, sp, Operand(16 * kDoubleSize), LeaveCC, eq);
     vstm(db_w, sp, d0, d15);
     // Note that d0 will be accessible at
-    //   fp - 2 * kPointerSize - DwVfpRegister::kNumRegisters * kDoubleSize,
+    //   fp - 2 * kPointerSize - DwVfpRegister::kMaxNumRegisters * kDoubleSize,
     // since the sp slot and code slot were pushed after the fp.
   }
 
@@ -946,13 +949,17 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles,
                                     Register argument_count) {
   // Optionally restore all double registers.
   if (save_doubles) {
+    CpuFeatures::Scope scope(VFP2);
     // Calculate the stack location of the saved doubles and restore them.
     const int offset = 2 * kPointerSize;
-    sub(r3, fp, Operand(offset + DwVfpRegister::kNumRegisters * kDoubleSize));
+    sub(r3, fp,
+        Operand(offset + DwVfpRegister::kMaxNumRegisters * kDoubleSize));
 
     // Check CPU flags for number of registers, setting the Z condition flag.
     CheckFor32DRegs(ip);
 
+    // Pop registers d0-d15, and possibly d16-d31, from r3.
+    // If d16-d31 are not popped, increase r3 instead.
     vldm(ia_w, r3, d0, d15);
     vldm(ia_w, r3, d16, d31, ne);
     add(r3, r3, Operand(16 * kDoubleSize), LeaveCC, eq);
@@ -3899,8 +3906,7 @@ void MacroAssembler::CheckEnumCache(Register null_value, Label* call_runtime) {
 
 void MacroAssembler::TestJSArrayForAllocationSiteInfo(
     Register receiver_reg,
-    Register scratch_reg,
-    Label* allocation_info_present) {
+    Register scratch_reg) {
   Label no_info_available;
   ExternalReference new_space_start =
       ExternalReference::new_space_start(isolate());
@@ -3917,7 +3923,6 @@ void MacroAssembler::TestJSArrayForAllocationSiteInfo(
   ldr(scratch_reg, MemOperand(scratch_reg, -AllocationSiteInfo::kSize));
   cmp(scratch_reg,
       Operand(Handle<Map>(isolate()->heap()->allocation_site_info_map())));
-  b(eq, allocation_info_present);
   bind(&no_info_available);
 }
 
@@ -3948,7 +3953,6 @@ bool AreAliased(Register reg1,
 
 CodePatcher::CodePatcher(byte* address, int instructions)
     : address_(address),
-      instructions_(instructions),
       size_(instructions * Assembler::kInstrSize),
       masm_(NULL, address, size_ + Assembler::kGap) {
   // Create a new macro assembler pointing to the address of the code to patch.

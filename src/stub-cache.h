@@ -78,36 +78,36 @@ class StubCache {
   // Computes the right stub matching. Inserts the result in the
   // cache before returning.  This might compile a stub if needed.
   Handle<Code> ComputeLoadNonexistent(Handle<String> name,
-                                      Handle<JSObject> receiver);
+                                      Handle<JSObject> object);
 
   Handle<Code> ComputeLoadField(Handle<String> name,
-                                Handle<JSObject> receiver,
+                                Handle<JSObject> object,
                                 Handle<JSObject> holder,
                                 PropertyIndex field_index);
 
   Handle<Code> ComputeLoadCallback(Handle<String> name,
-                                   Handle<JSObject> receiver,
+                                   Handle<JSObject> object,
                                    Handle<JSObject> holder,
                                    Handle<AccessorInfo> callback);
 
   Handle<Code> ComputeLoadViaGetter(Handle<String> name,
-                                    Handle<JSObject> receiver,
+                                    Handle<JSObject> object,
                                     Handle<JSObject> holder,
                                     Handle<JSFunction> getter);
 
   Handle<Code> ComputeLoadConstant(Handle<String> name,
-                                   Handle<JSObject> receiver,
+                                   Handle<JSObject> object,
                                    Handle<JSObject> holder,
                                    Handle<JSFunction> value);
 
   Handle<Code> ComputeLoadInterceptor(Handle<String> name,
-                                      Handle<JSObject> receiver,
+                                      Handle<JSObject> object,
                                       Handle<JSObject> holder);
 
   Handle<Code> ComputeLoadNormal();
 
   Handle<Code> ComputeLoadGlobal(Handle<String> name,
-                                 Handle<JSObject> receiver,
+                                 Handle<JSObject> object,
                                  Handle<GlobalObject> holder,
                                  Handle<JSGlobalPropertyCell> cell,
                                  bool is_dont_delete);
@@ -115,28 +115,28 @@ class StubCache {
   // ---
 
   Handle<Code> ComputeKeyedLoadField(Handle<String> name,
-                                     Handle<JSObject> receiver,
+                                     Handle<JSObject> object,
                                      Handle<JSObject> holder,
                                      PropertyIndex field_index);
 
   Handle<Code> ComputeKeyedLoadCallback(Handle<String> name,
-                                        Handle<JSObject> receiver,
+                                        Handle<JSObject> object,
                                         Handle<JSObject> holder,
                                         Handle<AccessorInfo> callback);
 
   Handle<Code> ComputeKeyedLoadConstant(Handle<String> name,
-                                        Handle<JSObject> receiver,
+                                        Handle<JSObject> object,
                                         Handle<JSObject> holder,
                                         Handle<JSFunction> value);
 
   Handle<Code> ComputeKeyedLoadInterceptor(Handle<String> name,
-                                           Handle<JSObject> receiver,
+                                           Handle<JSObject> object,
                                            Handle<JSObject> holder);
 
   // ---
 
   Handle<Code> ComputeStoreField(Handle<String> name,
-                                 Handle<JSObject> receiver,
+                                 Handle<JSObject> object,
                                  int field_index,
                                  Handle<Map> transition,
                                  StrictModeFlag strict_mode);
@@ -144,30 +144,30 @@ class StubCache {
   Handle<Code> ComputeStoreNormal(StrictModeFlag strict_mode);
 
   Handle<Code> ComputeStoreGlobal(Handle<String> name,
-                                  Handle<GlobalObject> receiver,
+                                  Handle<GlobalObject> object,
                                   Handle<JSGlobalPropertyCell> cell,
                                   StrictModeFlag strict_mode);
 
   Handle<Code> ComputeStoreCallback(Handle<String> name,
-                                    Handle<JSObject> receiver,
+                                    Handle<JSObject> object,
                                     Handle<JSObject> holder,
                                     Handle<AccessorInfo> callback,
                                     StrictModeFlag strict_mode);
 
   Handle<Code> ComputeStoreViaSetter(Handle<String> name,
-                                     Handle<JSObject> receiver,
+                                     Handle<JSObject> object,
                                      Handle<JSObject> holder,
                                      Handle<JSFunction> setter,
                                      StrictModeFlag strict_mode);
 
   Handle<Code> ComputeStoreInterceptor(Handle<String> name,
-                                       Handle<JSObject> receiver,
+                                       Handle<JSObject> object,
                                        StrictModeFlag strict_mode);
 
   // ---
 
   Handle<Code> ComputeKeyedStoreField(Handle<String> name,
-                                      Handle<JSObject> receiver,
+                                      Handle<JSObject> object,
                                       int field_index,
                                       Handle<Map> transition,
                                       StrictModeFlag strict_mode);
@@ -208,7 +208,7 @@ class StubCache {
                                  Code::Kind,
                                  Code::ExtraICState extra_state,
                                  Handle<String> name,
-                                 Handle<JSObject> receiver,
+                                 Handle<JSObject> object,
                                  Handle<GlobalObject> holder,
                                  Handle<JSGlobalPropertyCell> cell,
                                  Handle<JSFunction> function);
@@ -602,41 +602,68 @@ class StubCompiler BASE_EMBEDDED {
 };
 
 
-class LoadStubCompiler: public StubCompiler {
+class BaseLoadStubCompiler: public StubCompiler {
  public:
-  explicit LoadStubCompiler(Isolate* isolate) : StubCompiler(isolate) { }
-
-  Handle<Code> CompileLoadNonexistent(Handle<String> name,
-                                      Handle<JSObject> object,
-                                      Handle<JSObject> last,
-                                      Handle<GlobalObject> global);
+  BaseLoadStubCompiler(Isolate* isolate, Register* registers)
+      : StubCompiler(isolate), registers_(registers) { }
+  virtual ~BaseLoadStubCompiler() { }
 
   Handle<Code> CompileLoadField(Handle<JSObject> object,
                                 Handle<JSObject> holder,
-                                PropertyIndex index,
-                                Handle<String> name);
+                                Handle<String> name,
+                                PropertyIndex index);
 
-  Handle<Code> CompileLoadCallback(Handle<String> name,
-                                   Handle<JSObject> object,
+  Handle<Code> CompileLoadCallback(Handle<JSObject> object,
                                    Handle<JSObject> holder,
+                                   Handle<String> name,
                                    Handle<AccessorInfo> callback);
-
-  static void GenerateLoadViaGetter(MacroAssembler* masm,
-                                    Handle<JSFunction> getter);
-
-  Handle<Code> CompileLoadViaGetter(Handle<String> name,
-                                    Handle<JSObject> receiver,
-                                    Handle<JSObject> holder,
-                                    Handle<JSFunction> getter);
 
   Handle<Code> CompileLoadConstant(Handle<JSObject> object,
                                    Handle<JSObject> holder,
-                                   Handle<JSFunction> value,
-                                   Handle<String> name);
+                                   Handle<String> name,
+                                   Handle<JSFunction> value);
 
   Handle<Code> CompileLoadInterceptor(Handle<JSObject> object,
                                       Handle<JSObject> holder,
                                       Handle<String> name);
+
+ protected:
+  Register receiver() { return registers_[0]; }
+  Register name()     { return registers_[1]; }
+  Register scratch1() { return registers_[2]; }
+  Register scratch2() { return registers_[3]; }
+  Register scratch3() { return registers_[4]; }
+  Register scratch4() { return registers_[5]; }
+
+ private:
+  virtual Code::Kind kind() = 0;
+  virtual void GenerateNameCheck(Handle<String> name,
+                                 Register name_reg,
+                                 Label* miss) { }
+  virtual Handle<Code> GetCode(Code::StubType type,
+                               Handle<String> name,
+                               InlineCacheState state = MONOMORPHIC) = 0;
+  Register* registers_;
+};
+
+
+class LoadStubCompiler: public BaseLoadStubCompiler {
+ public:
+  explicit LoadStubCompiler(Isolate* isolate)
+      : BaseLoadStubCompiler(isolate, registers()) { }
+
+  Handle<Code> CompileLoadNonexistent(Handle<JSObject> object,
+                                      Handle<JSObject> last,
+                                      Handle<String> name,
+                                      Handle<GlobalObject> global);
+
+  static void GenerateLoadViaGetter(MacroAssembler* masm,
+                                    Handle<JSFunction> getter);
+
+  Handle<Code> CompileLoadViaGetter(Handle<JSObject> object,
+                                    Handle<JSObject> holder,
+                                    Handle<String> name,
+                                    Handle<JSFunction> getter);
 
   Handle<Code> CompileLoadGlobal(Handle<JSObject> object,
                                  Handle<GlobalObject> holder,
@@ -645,32 +672,18 @@ class LoadStubCompiler: public StubCompiler {
                                  bool is_dont_delete);
 
  private:
-  Handle<Code> GetCode(Code::StubType type, Handle<String> name);
+  Register* registers();
+  virtual Code::Kind kind() { return Code::LOAD_IC; }
+  virtual Handle<Code> GetCode(Code::StubType type,
+                               Handle<String> name,
+                               InlineCacheState state = MONOMORPHIC);
 };
 
 
-class KeyedLoadStubCompiler: public StubCompiler {
+class KeyedLoadStubCompiler: public BaseLoadStubCompiler {
  public:
-  explicit KeyedLoadStubCompiler(Isolate* isolate) : StubCompiler(isolate) { }
-
-  Handle<Code> CompileLoadField(Handle<String> name,
-                                Handle<JSObject> object,
-                                Handle<JSObject> holder,
-                                PropertyIndex index);
-
-  Handle<Code> CompileLoadCallback(Handle<String> name,
-                                   Handle<JSObject> object,
-                                   Handle<JSObject> holder,
-                                   Handle<AccessorInfo> callback);
-
-  Handle<Code> CompileLoadConstant(Handle<String> name,
-                                   Handle<JSObject> object,
-                                   Handle<JSObject> holder,
-                                   Handle<JSFunction> value);
-
-  Handle<Code> CompileLoadInterceptor(Handle<JSObject> object,
-                                      Handle<JSObject> holder,
-                                      Handle<String> name);
+  explicit KeyedLoadStubCompiler(Isolate* isolate)
+      : BaseLoadStubCompiler(isolate, registers()) { }
 
   Handle<Code> CompileLoadElement(Handle<Map> receiver_map);
 
@@ -682,9 +695,14 @@ class KeyedLoadStubCompiler: public StubCompiler {
   static void GenerateLoadDictionaryElement(MacroAssembler* masm);
 
  private:
-  Handle<Code> GetCode(Code::StubType type,
-                       Handle<String> name,
-                       InlineCacheState state = MONOMORPHIC);
+  Register* registers();
+  virtual Code::Kind kind() { return Code::KEYED_LOAD_IC; }
+  virtual Handle<Code> GetCode(Code::StubType type,
+                               Handle<String> name,
+                               InlineCacheState state = MONOMORPHIC);
+  virtual void GenerateNameCheck(Handle<String> name,
+                                 Register name_reg,
+                                 Label* miss);
 };
 
 
@@ -700,7 +718,7 @@ class StoreStubCompiler: public StubCompiler {
                                  Handle<String> name);
 
   Handle<Code> CompileStoreCallback(Handle<String> name,
-                                    Handle<JSObject> receiver,
+                                    Handle<JSObject> object,
                                     Handle<JSObject> holder,
                                     Handle<AccessorInfo> callback);
 
@@ -708,7 +726,7 @@ class StoreStubCompiler: public StubCompiler {
                                      Handle<JSFunction> setter);
 
   Handle<Code> CompileStoreViaSetter(Handle<String> name,
-                                     Handle<JSObject> receiver,
+                                     Handle<JSObject> object,
                                      Handle<JSObject> holder,
                                      Handle<JSFunction> setter);
 

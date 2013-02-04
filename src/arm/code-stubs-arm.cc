@@ -49,6 +49,18 @@ void KeyedLoadFastElementStub::InitializeInterfaceDescriptor(
 }
 
 
+void TransitionElementsKindStub::InitializeInterfaceDescriptor(
+    Isolate* isolate,
+    CodeStubInterfaceDescriptor* descriptor) {
+  static Register registers[] = { r0, r1 };
+  descriptor->register_param_count_ = 2;
+  descriptor->register_params_ = registers;
+  Address entry =
+      Runtime::FunctionForId(Runtime::kTransitionElementsKind)->entry;
+  descriptor->deoptimization_handler_ = FUNCTION_ADDR(entry);
+}
+
+
 #define __ ACCESS_MASM(masm)
 
 static void EmitIdenticalObjectComparison(MacroAssembler* masm,
@@ -2075,8 +2087,8 @@ void StoreBufferOverflowStub::Generate(MacroAssembler* masm) {
     // Check CPU flags for number of registers, setting the Z condition flag.
     __ CheckFor32DRegs(scratch);
 
-    __ sub(sp, sp, Operand(kDoubleSize * DwVfpRegister::kNumRegisters));
-    for (int i = 0; i < DwVfpRegister::kNumRegisters; i++) {
+    __ sub(sp, sp, Operand(kDoubleSize * DwVfpRegister::kMaxNumRegisters));
+    for (int i = 0; i < DwVfpRegister::kMaxNumRegisters; i++) {
       DwVfpRegister reg = DwVfpRegister::from_code(i);
       __ vstr(reg, MemOperand(sp, i * kDoubleSize), i < 16 ? al : ne);
     }
@@ -2096,11 +2108,11 @@ void StoreBufferOverflowStub::Generate(MacroAssembler* masm) {
     // Check CPU flags for number of registers, setting the Z condition flag.
     __ CheckFor32DRegs(scratch);
 
-    for (int i = 0; i < DwVfpRegister::kNumRegisters; i++) {
+    for (int i = 0; i < DwVfpRegister::kMaxNumRegisters; i++) {
       DwVfpRegister reg = DwVfpRegister::from_code(i);
       __ vldr(reg, MemOperand(sp, i * kDoubleSize), i < 16 ? al : ne);
     }
-    __ add(sp, sp, Operand(kDoubleSize * DwVfpRegister::kNumRegisters));
+    __ add(sp, sp, Operand(kDoubleSize * DwVfpRegister::kMaxNumRegisters));
   }
   __ ldm(ia_w, sp, kCallerSaved | pc.bit());  // Also pop pc to get Ret(0).
 }

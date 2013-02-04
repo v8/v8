@@ -4377,6 +4377,16 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetProperty) {
 }
 
 
+RUNTIME_FUNCTION(MaybeObject*, Runtime_TransitionElementsKind) {
+  HandleScope scope(isolate);
+  RUNTIME_ASSERT(args.length() == 2);
+  CONVERT_ARG_HANDLE_CHECKED(JSArray, array, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Map, map, 1);
+  JSObject::TransitionElementsKind(array, map->elements_kind());
+  return *array;
+}
+
+
 RUNTIME_FUNCTION(MaybeObject*, Runtime_TransitionElementsSmiToDouble) {
   NoHandleAllocation ha;
   RUNTIME_ASSERT(args.length() == 1);

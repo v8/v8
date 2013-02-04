@@ -899,8 +899,8 @@ void MacroAssembler::PushCallerSaved(SaveFPRegsMode fp_mode,
   // R12 to r15 are callee save on all platforms.
   if (fp_mode == kSaveFPRegs) {
     CpuFeatures::Scope scope(SSE2);
-    subq(rsp, Immediate(kDoubleSize * XMMRegister::kNumRegisters));
-    for (int i = 0; i < XMMRegister::kNumRegisters; i++) {
+    subq(rsp, Immediate(kDoubleSize * XMMRegister::kMaxNumRegisters));
+    for (int i = 0; i < XMMRegister::kMaxNumRegisters; i++) {
       XMMRegister reg = XMMRegister::from_code(i);
       movsd(Operand(rsp, i * kDoubleSize), reg);
     }
@@ -914,11 +914,11 @@ void MacroAssembler::PopCallerSaved(SaveFPRegsMode fp_mode,
                                     Register exclusion3) {
   if (fp_mode == kSaveFPRegs) {
     CpuFeatures::Scope scope(SSE2);
-    for (int i = 0; i < XMMRegister::kNumRegisters; i++) {
+    for (int i = 0; i < XMMRegister::kMaxNumRegisters; i++) {
       XMMRegister reg = XMMRegister::from_code(i);
       movsd(reg, Operand(rsp, i * kDoubleSize));
     }
-    addq(rsp, Immediate(kDoubleSize * XMMRegister::kNumRegisters));
+    addq(rsp, Immediate(kDoubleSize * XMMRegister::kMaxNumRegisters));
   }
   for (int i = kNumberOfSavedRegs - 1; i >= 0; i--) {
     Register reg = saved_regs[i];
@@ -3423,7 +3423,7 @@ void MacroAssembler::EnterExitFrameEpilogue(int arg_stack_space,
 #endif
   // Optionally save all XMM registers.
   if (save_doubles) {
-    int space = XMMRegister::kNumRegisters * kDoubleSize +
+    int space = XMMRegister::kMaxNumRegisters * kDoubleSize +
         arg_stack_space * kPointerSize;
     subq(rsp, Immediate(space));
     int offset = -2 * kPointerSize;
@@ -3877,8 +3877,7 @@ void MacroAssembler::AllocateInNewSpace(Register object_size,
                                         Register scratch,
                                         Label* gc_required,
                                         AllocationFlags flags) {
-  ASSERT((flags & (DOUBLE_ALIGNMENT | RESULT_CONTAINS_TOP |
-                   SIZE_IN_WORDS)) == 0);
+  ASSERT((flags & (RESULT_CONTAINS_TOP | SIZE_IN_WORDS)) == 0);
   if (!FLAG_inline_new) {
     if (emit_debug_code()) {
       // Trash the registers to simulate an allocation failure.
@@ -3911,6 +3910,13 @@ void MacroAssembler::AllocateInNewSpace(Register object_size,
 
   // Update allocation top.
   UpdateAllocationTopHelper(result_end, scratch);
+
+  // Align the next allocation. Storing the filler map without checking top is
+  // always safe because the limit of the heap is always aligned.
+  if (((flags & DOUBLE_ALIGNMENT) != 0) && FLAG_debug_code) {
+    testq(result, Immediate(kDoubleAlignmentMask));
+    Check(zero, "Allocation is not double aligned");
+  }
 
   // Tag the result if requested.
   if ((flags & TAG_OBJECT) != 0) {
@@ -4606,8 +4612,7 @@ void MacroAssembler::CheckEnumCache(Register null_value, Label* call_runtime) {
 
 void MacroAssembler::TestJSArrayForAllocationSiteInfo(
     Register receiver_reg,
-    Register scratch_reg,
-    Label* allocation_info_present) {
+    Register scratch_reg) {
   Label no_info_available;
   ExternalReference new_space_start =
       ExternalReference::new_space_start(isolate());
@@ -4623,7 +4628,6 @@ void MacroAssembler::TestJSArrayForAllocationSiteInfo(
   j(greater, &no_info_available);
   CompareRoot(MemOperand(scratch_reg, -AllocationSiteInfo::kSize),
               Heap::kAllocationSiteInfoMapRootIndex);
-  j(equal, allocation_info_present);
   bind(&no_info_available);
 }
 

@@ -157,6 +157,9 @@ Heap::Heap()
       ms_count_at_last_idle_notification_(0),
       gc_count_at_last_idle_gc_(0),
       scavenges_since_last_idle_round_(kIdleScavengeThreshold),
+#ifdef VERIFY_HEAP
+      no_weak_embedded_maps_verification_scope_depth_(0),
+#endif
       promotion_queue_(this),
       configured_(false),
       chunks_queued_for_free_(NULL),

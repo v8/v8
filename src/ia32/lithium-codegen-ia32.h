@@ -63,6 +63,7 @@ class LCodeGen BASE_EMBEDDED {
         translations_(info->zone()),
         deferred_(8, info->zone()),
         dynamic_frame_alignment_(false),
+        support_aligned_spilled_doubles_(false),
         osr_pc_offset_(-1),
         last_lazy_deopt_pc_(0),
         frame_is_built_(false),
@@ -133,6 +134,7 @@ class LCodeGen BASE_EMBEDDED {
   void DoDeferredStringCharCodeAt(LStringCharCodeAt* instr);
   void DoDeferredStringCharFromCode(LStringCharFromCode* instr);
   void DoDeferredAllocateObject(LAllocateObject* instr);
+  void DoDeferredAllocate(LAllocate* instr);
   void DoDeferredInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr,
                                        Label* map_check);
 
@@ -232,6 +234,8 @@ class LCodeGen BASE_EMBEDDED {
                                LInstruction* instr,
                                LOperand* context);
 
+  void LoadContextFromDeferred(LOperand* context);
+
   enum EDIState {
     EDI_UNINITIALIZED,
     EDI_CONTAINS_TARGET
@@ -301,12 +305,14 @@ class LCodeGen BASE_EMBEDDED {
   static Condition TokenToCondition(Token::Value op, bool is_unsigned);
   void EmitGoto(int block);
   void EmitBranch(int left_block, int right_block, Condition cc);
-  void EmitNumberUntagD(Register input,
-                        Register temp,
-                        XMMRegister result,
-                        bool deoptimize_on_undefined,
-                        bool deoptimize_on_minus_zero,
-                        LEnvironment* env);
+  void EmitNumberUntagD(
+      Register input,
+      Register temp,
+      XMMRegister result,
+      bool deoptimize_on_undefined,
+      bool deoptimize_on_minus_zero,
+      LEnvironment* env,
+      NumberUntagDMode mode = NUMBER_CANDIDATE_IS_ANY_TAGGED);
 
   void DeoptIfTaggedButNotSmi(LEnvironment* environment,
                               HValue* value,
@@ -394,6 +400,7 @@ class LCodeGen BASE_EMBEDDED {
   TranslationBuffer translations_;
   ZoneList<LDeferredCode*> deferred_;
   bool dynamic_frame_alignment_;
+  bool support_aligned_spilled_doubles_;
   int osr_pc_offset_;
   int last_lazy_deopt_pc_;
   bool frame_is_built_;

@@ -864,10 +864,9 @@ class MacroAssembler: public Assembler {
   // to another type.
   // On entry, receiver_reg should point to the array object.
   // scratch_reg gets clobbered.
-  // If allocation info is present, jump to allocation_info_present
+  // If allocation info is present, conditional code is set to equal
   void TestJSArrayForAllocationSiteInfo(Register receiver_reg,
-                                        Register scratch_reg,
-                                        Label* allocation_info_present);
+                                        Register scratch_reg);
 
  private:
   bool generating_stub_;

@@ -224,6 +224,9 @@ namespace internal {
   V(illegal_execution_state_symbol, "illegal execution state")           \
   V(get_symbol, "get")                                                   \
   V(set_symbol, "set")                                                   \
+  V(map_field_symbol, "%map")                                            \
+  V(elements_field_symbol, "%elements")                                  \
+  V(length_field_symbol, "%length")                                      \
   V(function_class_symbol, "Function")                                   \
   V(illegal_argument_symbol, "illegal argument")                         \
   V(MakeReferenceError_symbol, "MakeReferenceError")                     \
@@ -1322,6 +1325,11 @@ class Heap {
 #ifdef VERIFY_HEAP
   // Verify the heap is in its normal state before or after a GC.
   void Verify();
+
+
+  bool weak_embedded_maps_verification_enabled() {
+    return no_weak_embedded_maps_verification_scope_depth_ == 0;
+  }
 #endif
 
 #ifdef DEBUG
@@ -2214,6 +2222,10 @@ class Heap {
   unsigned int gc_count_at_last_idle_gc_;
   int scavenges_since_last_idle_round_;
 
+#ifdef VERIFY_HEAP
+  int no_weak_embedded_maps_verification_scope_depth_;
+#endif
+
   static const int kMaxMarkSweepsInIdleRound = 7;
   static const int kIdleScavengeThreshold = 5;
 
@@ -2243,6 +2255,9 @@ class Heap {
   friend class MarkCompactCollector;
   friend class MarkCompactMarkingVisitor;
   friend class MapCompact;
+#ifdef VERIFY_HEAP
+  friend class NoWeakEmbeddedMapsVerificationScope;
+#endif
 
   DISALLOW_COPY_AND_ASSIGN(Heap);
 };
@@ -2302,6 +2317,14 @@ class AlwaysAllocateScope {
   // Implicitly disable artificial allocation failures.
   DisallowAllocationFailure disallow_allocation_failure_;
 };
+
+#ifdef VERIFY_HEAP
+class NoWeakEmbeddedMapsVerificationScope {
+ public:
+  inline NoWeakEmbeddedMapsVerificationScope();
+  inline ~NoWeakEmbeddedMapsVerificationScope();
+};
+#endif
 
 
 // Visitor class to verify interior pointers in spaces that do not contain

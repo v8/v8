@@ -8534,10 +8534,6 @@ void ObjectVisitor::VisitCodeEntry(Address entry_address) {
   Object* old_code = code;
   VisitPointer(&code);
   if (code != old_code) {
-    // TODO(mstarzinger): Active in release mode to flush out problems.
-    // Should be turned back into an ASSERT or removed completely.
-    Page* target_page = Page::FromAddress(reinterpret_cast<Address>(code));
-    CHECK(!target_page->IsEvacuationCandidate());
     Memory::Address_at(entry_address) = reinterpret_cast<Code*>(code)->entry();
   }
 }
@@ -9502,6 +9498,15 @@ Handle<DependentCodes> DependentCodes::Append(Handle<DependentCodes> codes,
   codes->set_code_at(append_index, *value);
   codes->set_number_of_codes(append_index + 1);
   return codes;
+}
+
+
+bool DependentCodes::Contains(Code* code) {
+  int limit = number_of_codes();
+  for (int i = 0; i < limit; i++) {
+    if (code_at(i) == code) return true;
+  }
+  return false;
 }
 
 

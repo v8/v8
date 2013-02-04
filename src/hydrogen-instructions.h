@@ -64,6 +64,7 @@ class LChunkBuilder;
   V(AbnormalExit)                              \
   V(AccessArgumentsAt)                         \
   V(Add)                                       \
+  V(Allocate)                                  \
   V(AllocateObject)                            \
   V(ApplyArguments)                            \
   V(ArgumentsElements)                         \
@@ -179,6 +180,7 @@ class LChunkBuilder;
   V(Throw)                                     \
   V(ToFastProperties)                          \
   V(TransitionElementsKind)                    \
+  V(TrapAllocationMemento)                     \
   V(Typeof)                                    \
   V(TypeofIsAndBranch)                         \
   V(UnaryMathOperation)                        \
@@ -579,7 +581,10 @@ class HValue: public ZoneObject {
     // HGraph::ComputeSafeUint32Operations is responsible for setting this
     // flag.
     kUint32,
-    kLastFlag = kUint32
+    // This flag is set to true after the SetupInformativeDefinitions() pass
+    // has processed this instruction.
+    kIDefsProcessingDone,
+    kLastFlag = kIDefsProcessingDone
   };
 
   STATIC_ASSERT(kLastFlag < kBitsPerInt);
@@ -687,8 +692,8 @@ class HValue: public ZoneObject {
     return RedefinedOperandIndex() != kNoRedefinedOperand;
   }
   HValue* RedefinedOperand() {
-    ASSERT(IsInformativeDefinition());
-    return OperandAt(RedefinedOperandIndex());
+    return IsInformativeDefinition() ? OperandAt(RedefinedOperandIndex())
+                                     : NULL;
   }
 
   // This method must always return the original HValue SSA definition
@@ -696,6 +701,15 @@ class HValue: public ZoneObject {
   HValue* ActualValue() {
     return IsInformativeDefinition() ? RedefinedOperand()->ActualValue()
                                      : this;
+  }
+
+  virtual void AddInformativeDefinitions() {}
+
+  void UpdateRedefinedUsesWhileSettingUpInformativeDefinitions() {
+    UpdateRedefinedUsesInner<TestDominanceUsingProcessedFlag>();
+  }
+  void UpdateRedefinedUses() {
+    UpdateRedefinedUsesInner<Dominates>();
   }
 
   bool IsDefinedAfter(HBasicBlock* other) const;
@@ -854,6 +868,36 @@ class HValue: public ZoneObject {
   void set_representation(Representation r) {
     ASSERT(representation_.IsNone() && !r.IsNone());
     representation_ = r;
+  }
+
+  // Signature of a function testing if a HValue properly dominates another.
+  typedef bool (*DominanceTest)(HValue*, HValue*);
+
+  // Simple implementation of DominanceTest implemented walking the chain
+  // of Hinstructions (used in UpdateRedefinedUsesInner).
+  static bool Dominates(HValue* dominator, HValue* dominated);
+
+  // A fast implementation of DominanceTest that works only for the
+  // "current" instruction in the SetupInformativeDefinitions() phase.
+  // During that phase we use a flag to mark processed instructions, and by
+  // checking the flag we can quickly test if an instruction comes before or
+  // after the "current" one.
+  static bool TestDominanceUsingProcessedFlag(HValue* dominator,
+                                              HValue* dominated);
+
+  // If we are redefining an operand, update all its dominated uses (the
+  // function that checks if a use is dominated is the template argument).
+  template<DominanceTest TestDominance>
+  void UpdateRedefinedUsesInner() {
+    HValue* input = RedefinedOperand();
+    if (input != NULL) {
+      for (HUseIterator uses = input->uses(); !uses.Done(); uses.Advance()) {
+        HValue* use = uses.value();
+        if (TestDominance(this, use)) {
+          use->SetOperandAt(uses.index(), this);
+        }
+      }
+    }
   }
 
   static GVNFlagSet AllDependsOnFlagSet() {
@@ -4118,6 +4162,106 @@ class HLoadGlobalGeneric: public HTemplateInstruction<2> {
 };
 
 
+class HAllocateObject: public HTemplateInstruction<1> {
+ public:
+  HAllocateObject(HValue* context, Handle<JSFunction> constructor)
+      : constructor_(constructor) {
+    SetOperandAt(0, context);
+    set_representation(Representation::Tagged());
+    SetGVNFlag(kChangesNewSpacePromotion);
+  }
+
+  // Maximum instance size for which allocations will be inlined.
+  static const int kMaxSize = 64 * kPointerSize;
+
+  HValue* context() { return OperandAt(0); }
+  Handle<JSFunction> constructor() { return constructor_; }
+
+  virtual Representation RequiredInputRepresentation(int index) {
+    return Representation::Tagged();
+  }
+  virtual Handle<Map> GetMonomorphicJSObjectMap() {
+    ASSERT(constructor()->has_initial_map());
+    return Handle<Map>(constructor()->initial_map());
+  }
+  virtual HType CalculateInferredType();
+
+  DECLARE_CONCRETE_INSTRUCTION(AllocateObject)
+
+ private:
+  // TODO(svenpanne) Might be safe, but leave it out until we know for sure.
+  //  virtual bool IsDeletable() const { return true; }
+
+  Handle<JSFunction> constructor_;
+};
+
+
+class HAllocate: public HTemplateInstruction<2> {
+ public:
+  enum Flags {
+    CAN_ALLOCATE_IN_NEW_SPACE = 1 << 0,
+    CAN_ALLOCATE_IN_OLD_DATA_SPACE = 1 << 1,
+    CAN_ALLOCATE_IN_OLD_POINTER_SPACE = 1 << 2,
+    ALLOCATE_DOUBLE_ALIGNED = 1 << 3
+  };
+
+  HAllocate(HValue* context, HValue* size, HType type, Flags flags)
+      : type_(type),
+        flags_(flags) {
+    ASSERT((flags & CAN_ALLOCATE_IN_OLD_DATA_SPACE) == 0);  // unimplemented
+    ASSERT((flags & CAN_ALLOCATE_IN_OLD_POINTER_SPACE) == 0);  // unimplemented
+    SetOperandAt(0, context);
+    SetOperandAt(1, size);
+    set_representation(Representation::Tagged());
+    SetGVNFlag(kChangesNewSpacePromotion);
+  }
+
+  HValue* context() { return OperandAt(0); }
+  HValue* size() { return OperandAt(1); }
+
+  virtual Representation RequiredInputRepresentation(int index) {
+    if (index == 0) {
+      return Representation::Tagged();
+    } else {
+      return Representation::Integer32();
+    }
+  }
+
+  virtual HType CalculateInferredType();
+
+  bool CanAllocateInNewSpace() const {
+    return (flags_ & CAN_ALLOCATE_IN_NEW_SPACE) != 0;
+  }
+
+  bool CanAllocateInOldDataSpace() const {
+    return (flags_ & CAN_ALLOCATE_IN_OLD_DATA_SPACE) != 0;
+  }
+
+  bool CanAllocateInOldPointerSpace() const {
+    return (flags_ & CAN_ALLOCATE_IN_OLD_POINTER_SPACE) != 0;
+  }
+
+  bool CanAllocateInOldSpace() const {
+    return CanAllocateInOldDataSpace() ||
+        CanAllocateInOldPointerSpace();
+  }
+
+  bool GuaranteedInNewSpace() const {
+    return CanAllocateInNewSpace() && !CanAllocateInOldSpace();
+  }
+
+  bool MustAllocateDoubleAligned() const {
+    return (flags_ & ALLOCATE_DOUBLE_ALIGNED) != 0;
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(Allocate)
+
+ private:
+  HType type_;
+  Flags flags_;
+};
+
+
 inline bool StoringValueNeedsWriteBarrier(HValue* value) {
   return !value->type().IsBoolean()
       && !value->type().IsSmi()
@@ -4127,8 +4271,13 @@ inline bool StoringValueNeedsWriteBarrier(HValue* value) {
 
 inline bool ReceiverObjectNeedsWriteBarrier(HValue* object,
                                             HValue* new_space_dominator) {
-  return (!object->IsAllocateObject() && !object->IsFastLiteral()) ||
-         (object != new_space_dominator);
+  if (object != new_space_dominator) return true;
+  if (object->IsFastLiteral()) return false;
+  if (object->IsAllocateObject()) return false;
+  if (object->IsAllocate()) {
+    return !HAllocate::cast(object)->GuaranteedInNewSpace();
+  }
+  return true;
 }
 
 
@@ -4460,15 +4609,23 @@ class ArrayInstructionInterface {
 };
 
 
+enum LoadKeyedHoleMode {
+  NEVER_RETURN_HOLE,
+  ALLOW_RETURN_HOLE
+};
+
+
 class HLoadKeyed
     : public HTemplateInstruction<3>, public ArrayInstructionInterface {
  public:
   HLoadKeyed(HValue* obj,
              HValue* key,
              HValue* dependency,
-             ElementsKind elements_kind)
+             ElementsKind elements_kind,
+             LoadKeyedHoleMode mode = NEVER_RETURN_HOLE)
       : bit_field_(0) {
-    bit_field_ = ElementsKindField::encode(elements_kind);
+    bit_field_ = ElementsKindField::encode(elements_kind) |
+        HoleModeField::encode(mode);
 
     SetOperandAt(0, obj);
     SetOperandAt(1, key);
@@ -4481,8 +4638,7 @@ class HLoadKeyed
              IsFastDoubleElementsKind(elements_kind));
 
       if (IsFastSmiOrObjectElementsKind(elements_kind)) {
-        if (IsFastSmiElementsKind(elements_kind) &&
-            IsFastPackedElementsKind(elements_kind)) {
+        if (IsFastSmiElementsKind(elements_kind)) {
           set_type(HType::Smi());
         }
 
@@ -4531,6 +4687,9 @@ class HLoadKeyed
   ElementsKind elements_kind() const {
     return ElementsKindField::decode(bit_field_);
   }
+  LoadKeyedHoleMode hole_mode() const {
+    return HoleModeField::decode(bit_field_);
+  }
 
   virtual Representation RequiredInputRepresentation(int index) {
     // kind_fast:       tagged[int32] (none)
@@ -4553,6 +4712,7 @@ class HLoadKeyed
 
   virtual void PrintDataTo(StringStream* stream);
 
+  bool UsesMustHandleHole() const;
   bool RequiresHoleCheck() const;
 
   virtual Range* InferRange(Zone* zone);
@@ -4577,11 +4737,13 @@ class HLoadKeyed
   // Establish some checks around our packed fields
   enum LoadKeyedBits {
     kBitsForElementsKind = 5,
-    kBitsForIndexOffset = 26,
+    kBitsForHoleMode = 1,
+    kBitsForIndexOffset = 25,
     kBitsForIsDehoisted = 1,
 
     kStartElementsKind = 0,
-    kStartIndexOffset = kStartElementsKind + kBitsForElementsKind,
+    kStartHoleMode = kStartElementsKind + kBitsForElementsKind,
+    kStartIndexOffset = kStartHoleMode + kBitsForHoleMode,
     kStartIsDehoisted = kStartIndexOffset + kBitsForIndexOffset
   };
 
@@ -4590,6 +4752,9 @@ class HLoadKeyed
   STATIC_ASSERT(kElementsKindCount <= (1 << kBitsForElementsKind));
   class ElementsKindField:
     public BitField<ElementsKind, kStartElementsKind, kBitsForElementsKind>
+    {};  // NOLINT
+  class HoleModeField:
+    public BitField<LoadKeyedHoleMode, kStartHoleMode, kBitsForHoleMode>
     {};  // NOLINT
   class IndexOffsetField:
     public BitField<uint32_t, kStartIndexOffset, kBitsForIndexOffset>
@@ -4729,11 +4894,18 @@ class HStoreKeyed
  public:
   HStoreKeyed(HValue* obj, HValue* key, HValue* val,
               ElementsKind elements_kind)
-      : elements_kind_(elements_kind), index_offset_(0), is_dehoisted_(false) {
+      : elements_kind_(elements_kind),
+      index_offset_(0),
+      is_dehoisted_(false),
+      new_space_dominator_(NULL) {
     SetOperandAt(0, obj);
     SetOperandAt(1, key);
     SetOperandAt(2, val);
 
+    if (IsFastObjectElementsKind(elements_kind)) {
+      SetFlag(kTrackSideEffectDominators);
+      SetGVNFlag(kDependsOnNewSpacePromotion);
+    }
     if (is_external()) {
       SetGVNFlag(kChangesSpecializedArrayElements);
     } else if (IsFastDoubleElementsKind(elements_kind)) {
@@ -4801,11 +4973,19 @@ class HStoreKeyed
   bool IsDehoisted() { return is_dehoisted_; }
   void SetDehoisted(bool is_dehoisted) { is_dehoisted_ = is_dehoisted; }
 
+  virtual void SetSideEffectDominator(GVNFlag side_effect, HValue* dominator) {
+    ASSERT(side_effect == kChangesNewSpacePromotion);
+    new_space_dominator_ = dominator;
+  }
+
+  HValue* new_space_dominator() const { return new_space_dominator_; }
+
   bool NeedsWriteBarrier() {
     if (value_is_smi()) {
       return false;
     } else {
-      return StoringValueNeedsWriteBarrier(value());
+      return StoringValueNeedsWriteBarrier(value()) &&
+          ReceiverObjectNeedsWriteBarrier(elements(), new_space_dominator());
     }
   }
 
@@ -4819,6 +4999,7 @@ class HStoreKeyed
   ElementsKind elements_kind_;
   uint32_t index_offset_;
   bool is_dehoisted_;
+  HValue* new_space_dominator_;
 };
 
 
@@ -4857,9 +5038,10 @@ class HStoreKeyedGeneric: public HTemplateInstruction<4> {
 };
 
 
-class HTransitionElementsKind: public HTemplateInstruction<1> {
+class HTransitionElementsKind: public HTemplateInstruction<2> {
  public:
-  HTransitionElementsKind(HValue* object,
+  HTransitionElementsKind(HValue* context,
+                          HValue* object,
                           Handle<Map> original_map,
                           Handle<Map> transitioned_map)
       : original_map_(original_map),
@@ -4867,6 +5049,7 @@ class HTransitionElementsKind: public HTemplateInstruction<1> {
         from_kind_(original_map->elements_kind()),
         to_kind_(transitioned_map->elements_kind()) {
     SetOperandAt(0, object);
+    SetOperandAt(1, context);
     SetFlag(kUseGVN);
     SetGVNFlag(kChangesElementsKind);
     if (original_map->has_fast_double_elements()) {
@@ -4885,6 +5068,7 @@ class HTransitionElementsKind: public HTemplateInstruction<1> {
   }
 
   HValue* object() { return OperandAt(0); }
+  HValue* context() { return OperandAt(1); }
   Handle<Map> original_map() { return original_map_; }
   Handle<Map> transitioned_map() { return transitioned_map_; }
   ElementsKind from_kind() { return from_kind_; }
@@ -5034,40 +5218,6 @@ class HStringLength: public HUnaryOperation {
 
  private:
   virtual bool IsDeletable() const { return true; }
-};
-
-
-class HAllocateObject: public HTemplateInstruction<1> {
- public:
-  HAllocateObject(HValue* context, Handle<JSFunction> constructor)
-      : constructor_(constructor) {
-    SetOperandAt(0, context);
-    set_representation(Representation::Tagged());
-    SetGVNFlag(kChangesNewSpacePromotion);
-  }
-
-  // Maximum instance size for which allocations will be inlined.
-  static const int kMaxSize = 64 * kPointerSize;
-
-  HValue* context() { return OperandAt(0); }
-  Handle<JSFunction> constructor() { return constructor_; }
-
-  virtual Representation RequiredInputRepresentation(int index) {
-    return Representation::Tagged();
-  }
-  virtual Handle<Map> GetMonomorphicJSObjectMap() {
-    ASSERT(constructor()->has_initial_map());
-    return Handle<Map>(constructor()->initial_map());
-  }
-  virtual HType CalculateInferredType();
-
-  DECLARE_CONCRETE_INSTRUCTION(AllocateObject)
-
- private:
-  // TODO(svenpanne) Might be safe, but leave it out until we know for sure.
-  //  virtual bool IsDeletable() const { return true; }
-
-  Handle<JSFunction> constructor_;
 };
 
 
@@ -5301,6 +5451,22 @@ class HTypeof: public HTemplateInstruction<2> {
 
  private:
   virtual bool IsDeletable() const { return true; }
+};
+
+
+class HTrapAllocationMemento : public HTemplateInstruction<1> {
+ public:
+  explicit HTrapAllocationMemento(HValue* obj) {
+    SetOperandAt(0, obj);
+  }
+
+  virtual Representation RequiredInputRepresentation(int index) {
+    return Representation::Tagged();
+  }
+
+  HValue* object() { return OperandAt(0); }
+
+  DECLARE_CONCRETE_INSTRUCTION(TrapAllocationMemento)
 };
 
 

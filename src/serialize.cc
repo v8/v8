@@ -532,6 +532,18 @@ void ExternalReferenceTable::PopulateTable(Isolate* isolate) {
       UNCLASSIFIED,
       52,
       "cpu_features");
+  Add(ExternalReference::new_space_allocation_top_address(isolate).address(),
+      UNCLASSIFIED,
+      53,
+      "Heap::NewSpaceAllocationTopAddress");
+  Add(ExternalReference::new_space_allocation_limit_address(isolate).address(),
+      UNCLASSIFIED,
+      54,
+      "Heap::NewSpaceAllocationLimitAddress");
+  Add(ExternalReference(Runtime::kAllocateInNewSpace, isolate).address(),
+      UNCLASSIFIED,
+      55,
+      "Runtime::AllocateInNewSpace");
 
   // Add a small set of deopt entry addresses to encoder without generating the
   // deopt table code, which isn't possible at deserialization time.
@@ -541,7 +553,7 @@ void ExternalReferenceTable::PopulateTable(Isolate* isolate) {
         entry,
         Deoptimizer::LAZY,
         Deoptimizer::CALCULATE_ENTRY_ADDRESS);
-    Add(address, LAZY_DEOPTIMIZATION, 53 + entry, "lazy_deopt");
+    Add(address, LAZY_DEOPTIMIZATION, 56 + entry, "lazy_deopt");
   }
 }
 

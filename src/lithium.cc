@@ -257,6 +257,16 @@ int ElementsKindToShiftSize(ElementsKind elements_kind) {
 }
 
 
+LChunk::LChunk(CompilationInfo* info, HGraph* graph)
+    : spill_slot_count_(0),
+      info_(info),
+      graph_(graph),
+      instructions_(32, graph->zone()),
+      pointer_maps_(8, graph->zone()),
+      inlined_closures_(1, graph->zone()) {
+}
+
+
 LLabel* LChunk::GetLabel(int block_id) const {
   HBasicBlock* block = graph_->blocks()->at(block_id);
   int first_instruction = block->first_instruction_index();
@@ -410,6 +420,9 @@ LChunk* LChunk::NewChunk(HGraph* graph) {
     return NULL;
   }
 
+  chunk->set_allocated_double_registers(
+      allocator.assigned_double_registers());
+
   return chunk;
 }
 
@@ -452,9 +465,33 @@ void LChunk::RegisterDependentCodeForEmbeddedMaps(Handle<Code> code) {
       }
     }
   }
+#ifdef VERIFY_HEAP
+  // This disables verification of weak embedded maps after full GC.
+  // AddDependentCode can cause a GC, which would observe the state where
+  // this code is not yet in the depended code lists of the embedded maps.
+  NoWeakEmbeddedMapsVerificationScope disable_verification_of_embedded_maps;
+#endif
   for (int i = 0; i < maps.length(); i++) {
     maps.at(i)->AddDependentCode(code);
   }
 }
+
+
+void LChunk::set_allocated_double_registers(BitVector* allocated_registers) {
+  allocated_double_registers_ = allocated_registers;
+  BitVector* doubles = allocated_double_registers();
+  BitVector::Iterator iterator(doubles);
+  while (!iterator.Done()) {
+    if (info()->saves_caller_doubles()) {
+      if (kDoubleSize == kPointerSize * 2) {
+        spill_slot_count_ += 2;
+      } else {
+        spill_slot_count_++;
+      }
+    }
+    iterator.Advance();
+  }
+}
+
 
 } }  // namespace v8::internal

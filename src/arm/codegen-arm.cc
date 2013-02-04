@@ -156,8 +156,8 @@ void ElementsTransitionGenerator::GenerateMapChangeElementsTransition(
   // -----------------------------------
   if (mode == TRACK_ALLOCATION_SITE) {
     ASSERT(allocation_site_info_found != NULL);
-    masm->TestJSArrayForAllocationSiteInfo(r2, r4,
-                                           allocation_site_info_found);
+    __ TestJSArrayForAllocationSiteInfo(r2, r4);
+    __ b(eq, allocation_site_info_found);
   }
 
   // Set transitioned map.
@@ -187,7 +187,8 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
   bool vfp2_supported = CpuFeatures::IsSupported(VFP2);
 
   if (mode == TRACK_ALLOCATION_SITE) {
-    masm->TestJSArrayForAllocationSiteInfo(r2, r4, fail);
+    __ TestJSArrayForAllocationSiteInfo(r2, r4);
+    __ b(eq, fail);
   }
 
   // Check for empty arrays, which only require a map transition and no changes
@@ -327,7 +328,8 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
   Label entry, loop, convert_hole, gc_required, only_change_map;
 
   if (mode == TRACK_ALLOCATION_SITE) {
-    masm->TestJSArrayForAllocationSiteInfo(r2, r4, fail);
+    __ TestJSArrayForAllocationSiteInfo(r2, r4);
+    __ b(eq, fail);
   }
 
   // Check for empty arrays, which only require a map transition and no changes
