@@ -626,16 +626,15 @@ var arr2 = ['alpha', 'beta'];
 var arr3 = ['hello'];
 arr3[2] = 'goodbye';
 arr3.length = 6;
-// TODO(adamk): Enable this test case when it can run in a reasonable
-// amount of time.
-//var slow_arr = new Array(1000000000);
-//slow_arr[500000000] = 'hello';
+var slow_arr = new Array(1000000000);
+slow_arr[500000000] = 'hello';
 Object.defineProperty(arr, '0', {configurable: false});
 Object.defineProperty(arr, '2', {get: function(){}});
 Object.defineProperty(arr2, '0', {get: function(){}, configurable: false});
 Object.observe(arr, observer.callback);
 Object.observe(arr2, observer.callback);
 Object.observe(arr3, observer.callback);
+Object.observe(slow_arr, observer.callback);
 arr.length = 2;
 arr.length = 0;
 arr.length = 10;
@@ -649,6 +648,7 @@ arr3.length++;
 arr3.length /= 2;
 Object.defineProperty(arr3, 'length', {value: 5});
 Object.defineProperty(arr3, 'length', {value: 10, writable: false});
+slow_arr.length = 100;
 Object.deliverChangeRecords(observer.callback);
 observer.assertCallbackRecords([
   { object: arr, name: '3', type: 'deleted', oldValue: 'd' },
@@ -669,6 +669,8 @@ observer.assertCallbackRecords([
   { object: arr3, name: 'length', type: 'updated', oldValue: 2 },
   { object: arr3, name: 'length', type: 'updated', oldValue: 1 },
   { object: arr3, name: 'length', type: 'reconfigured', oldValue: 5 },
+  { object: slow_arr, name: '500000000', type: 'deleted', oldValue: 'hello' },
+  { object: slow_arr, name: 'length', type: 'updated', oldValue: 1000000000 },
 ]);
 
 
