@@ -29,33 +29,38 @@
 
 var observationState = %GetObservationState();
 if (IS_UNDEFINED(observationState.observerInfoMap)) {
-  observationState.observerInfoMap = %CreateObjectHashTable();
-  observationState.objectInfoMap = %CreateObjectHashTable();
-  observationState.notifierTargetMap = %CreateObjectHashTable();
+  observationState.observerInfoMap = %ObservationWeakMapCreate();
+  observationState.objectInfoMap = %ObservationWeakMapCreate();
+  observationState.notifierTargetMap = %ObservationWeakMapCreate();
   observationState.pendingObservers = new InternalArray;
   observationState.observerPriority = 0;
 }
 
-function InternalObjectHashTable(tableName) {
-  this.tableName = tableName;
+function ObservationWeakMap(map) {
+  this.map_ = map;
 }
 
-InternalObjectHashTable.prototype = {
+ObservationWeakMap.prototype = {
   get: function(key) {
-    return %ObjectHashTableGet(observationState[this.tableName], key);
+    key = %UnwrapGlobalProxy(key);
+    if (!IS_SPEC_OBJECT(key)) return void 0;
+    return %WeakMapGet(this.map_, key);
   },
   set: function(key, value) {
-    observationState[this.tableName] =
-        %ObjectHashTableSet(observationState[this.tableName], key, value);
+    key = %UnwrapGlobalProxy(key);
+    if (!IS_SPEC_OBJECT(key)) return void 0;
+    %WeakMapSet(this.map_, key, value);
   },
   has: function(key) {
     return !IS_UNDEFINED(this.get(key));
   }
 };
 
-var observerInfoMap = new InternalObjectHashTable('observerInfoMap');
-var objectInfoMap = new InternalObjectHashTable('objectInfoMap');
-var notifierTargetMap = new InternalObjectHashTable('notifierTargetMap');
+var observerInfoMap =
+    new ObservationWeakMap(observationState.observerInfoMap);
+var objectInfoMap = new ObservationWeakMap(observationState.objectInfoMap);
+var notifierTargetMap =
+    new ObservationWeakMap(observationState.notifierTargetMap);
 
 function CreateObjectInfo(object) {
   var info = {

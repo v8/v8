@@ -863,15 +863,21 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_MapGetSize) {
 }
 
 
-RUNTIME_FUNCTION(MaybeObject*, Runtime_WeakMapInitialize) {
-  HandleScope scope(isolate);
-  ASSERT(args.length() == 1);
-  CONVERT_ARG_HANDLE_CHECKED(JSWeakMap, weakmap, 0);
+static JSWeakMap* WeakMapInitialize(Isolate* isolate,
+                                    Handle<JSWeakMap> weakmap) {
   ASSERT(weakmap->map()->inobject_properties() == 0);
   Handle<ObjectHashTable> table = isolate->factory()->NewObjectHashTable(0);
   weakmap->set_table(*table);
   weakmap->set_next(Smi::FromInt(0));
   return *weakmap;
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_WeakMapInitialize) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSWeakMap, weakmap, 0);
+  return WeakMapInitialize(isolate, weakmap);
 }
 
 
@@ -13414,37 +13420,28 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetObservationState) {
 }
 
 
-RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateObjectHashTable) {
-  ASSERT(args.length() == 0);
-  return ObjectHashTable::Allocate(0);
-}
-
-
-RUNTIME_FUNCTION(MaybeObject*, Runtime_ObjectHashTableGet) {
-  NoHandleAllocation ha;
-  ASSERT(args.length() == 2);
-  CONVERT_ARG_CHECKED(ObjectHashTable, table, 0);
-  Object* key = args[1];
-  if (key->IsJSGlobalProxy()) {
-    key = key->GetPrototype();
-    if (key->IsNull()) return isolate->heap()->undefined_value();
-  }
-  Object* lookup = table->Lookup(key);
-  return lookup->IsTheHole() ? isolate->heap()->undefined_value() : lookup;
-}
-
-
-RUNTIME_FUNCTION(MaybeObject*, Runtime_ObjectHashTableSet) {
+RUNTIME_FUNCTION(MaybeObject*, Runtime_ObservationWeakMapCreate) {
   HandleScope scope(isolate);
-  ASSERT(args.length() == 3);
-  CONVERT_ARG_HANDLE_CHECKED(ObjectHashTable, table, 0);
-  Handle<Object> key = args.at<Object>(1);
-  if (key->IsJSGlobalProxy()) {
-    key = handle(key->GetPrototype(), isolate);
-    if (key->IsNull()) return *table;
+  ASSERT(args.length() == 0);
+  // TODO(adamk): Currently this runtime function is only called three times per
+  // isolate. If it's called more often, the map should be moved into the
+  // strong root list.
+  Handle<Map> map =
+      isolate->factory()->NewMap(JS_WEAK_MAP_TYPE, JSWeakMap::kSize);
+  Handle<JSWeakMap> weakmap =
+      Handle<JSWeakMap>::cast(isolate->factory()->NewJSObjectFromMap(map));
+  return WeakMapInitialize(isolate, weakmap);
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_UnwrapGlobalProxy) {
+  ASSERT(args.length() == 1);
+  Object* object = args[0];
+  if (object->IsJSGlobalProxy()) {
+    object = object->GetPrototype();
+    if (object->IsNull()) return isolate->heap()->undefined_value();
   }
-  Handle<Object> value = args.at<Object>(2);
-  return *PutIntoObjectHashTable(table, key, value);
+  return object;
 }
 
 

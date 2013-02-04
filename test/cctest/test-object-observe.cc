@@ -30,6 +30,7 @@
 #include "cctest.h"
 
 using namespace v8;
+namespace i = v8::internal;
 
 namespace {
 // Need to create a new isolate when FLAG_harmony_observation is on.
@@ -396,4 +397,38 @@ TEST(HiddenPrototypeObservation) {
     // { proto, "updated", "foo", Number::New(43) }
   };
   EXPECT_RECORDS(CompileRun("records"), expected_records3);
+}
+
+
+static int NumberOfElements(i::Handle<i::JSWeakMap> map) {
+  return i::ObjectHashTable::cast(map->table())->NumberOfElements();
+}
+
+
+TEST(ObservationWeakMap) {
+  HarmonyIsolate isolate;
+  HandleScope scope;
+  LocalContext context;
+  CompileRun(
+      "var obj = {};"
+      "Object.observe(obj, function(){});"
+      "Object.getNotifier(obj);"
+      "obj = null;");
+  i::Handle<i::JSObject> observation_state = FACTORY->observation_state();
+  i::Handle<i::JSWeakMap> observerInfoMap =
+      i::Handle<i::JSWeakMap>::cast(
+          i::GetProperty(observation_state, "observerInfoMap"));
+  i::Handle<i::JSWeakMap> objectInfoMap =
+      i::Handle<i::JSWeakMap>::cast(
+          i::GetProperty(observation_state, "objectInfoMap"));
+  i::Handle<i::JSWeakMap> notifierTargetMap =
+      i::Handle<i::JSWeakMap>::cast(
+          i::GetProperty(observation_state, "notifierTargetMap"));
+  CHECK_EQ(1, NumberOfElements(observerInfoMap));
+  CHECK_EQ(1, NumberOfElements(objectInfoMap));
+  CHECK_EQ(1, NumberOfElements(notifierTargetMap));
+  HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
+  CHECK_EQ(0, NumberOfElements(observerInfoMap));
+  CHECK_EQ(0, NumberOfElements(objectInfoMap));
+  CHECK_EQ(0, NumberOfElements(notifierTargetMap));
 }
