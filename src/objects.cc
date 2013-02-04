@@ -9501,6 +9501,15 @@ Handle<DependentCodes> DependentCodes::Append(Handle<DependentCodes> codes,
 }
 
 
+bool DependentCodes::Contains(Code* code) {
+  int limit = number_of_codes();
+  for (int i = 0; i < limit; i++) {
+    if (code_at(i) == code) return true;
+  }
+  return false;
+}
+
+
 MaybeObject* JSReceiver::SetPrototype(Object* value,
                                       bool skip_hidden_prototypes) {
 #ifdef DEBUG

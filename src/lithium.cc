@@ -452,6 +452,12 @@ void LChunk::RegisterDependentCodeForEmbeddedMaps(Handle<Code> code) {
       }
     }
   }
+#ifdef VERIFY_HEAP
+  // This disables verification of weak embedded maps after full GC.
+  // AddDependentCode can cause a GC, which would observe the state where
+  // this code is not yet in the depended code lists of the embedded maps.
+  NoWeakEmbeddedMapsVerificationScope disable_verification_of_embedded_maps;
+#endif
   for (int i = 0; i < maps.length(); i++) {
     maps.at(i)->AddDependentCode(code);
   }

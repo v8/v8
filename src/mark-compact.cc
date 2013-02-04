@@ -87,7 +87,7 @@ class VerifyMarkingVisitor: public ObjectVisitor {
 
   void VisitEmbeddedPointer(RelocInfo* rinfo) {
     ASSERT(rinfo->rmode() == RelocInfo::EMBEDDED_OBJECT);
-    if (!FLAG_weak_embedded_maps_in_optimized_code ||
+    if (!FLAG_weak_embedded_maps_in_optimized_code || !FLAG_collect_maps ||
         rinfo->host()->kind() != Code::OPTIMIZED_FUNCTION ||
         !rinfo->target_object()->IsMap() ||
         !Map::cast(rinfo->target_object())->CanTransition()) {
@@ -414,6 +414,13 @@ void MarkCompactCollector::CollectGarbage() {
   }
 #endif
 
+#ifdef VERIFY_HEAP
+  if (FLAG_collect_maps && FLAG_weak_embedded_maps_in_optimized_code &&
+      heap()->weak_embedded_maps_verification_enabled()) {
+    VerifyWeakEmbeddedMapsInOptimizedCode();
+  }
+#endif
+
   Finish();
 
   if (marking_parity_ == EVEN_MARKING_PARITY) {
@@ -463,6 +470,19 @@ void MarkCompactCollector::VerifyMarkbitsAreClean() {
     MarkBit mark_bit = Marking::MarkBitFrom(obj);
     CHECK(Marking::IsWhite(mark_bit));
     CHECK_EQ(0, Page::FromAddress(obj->address())->LiveBytes());
+  }
+}
+
+
+void MarkCompactCollector::VerifyWeakEmbeddedMapsInOptimizedCode() {
+  HeapObjectIterator code_iterator(heap()->code_space());
+  for (HeapObject* obj = code_iterator.Next();
+       obj != NULL;
+       obj = code_iterator.Next()) {
+    Code* code = Code::cast(obj);
+    if (code->kind() != Code::OPTIMIZED_FUNCTION) continue;
+    if (code->marked_for_deoptimization()) continue;
+    code->VerifyEmbeddedMapsDependency();
   }
 }
 #endif  // VERIFY_HEAP
@@ -889,6 +909,7 @@ void MarkCompactCollector::Prepare(GCTracer* tracer) {
   }
 #endif
 }
+
 
 class DeoptimizeMarkedCodeFilter : public OptimizedFunctionFilter {
  public:
@@ -2367,10 +2388,10 @@ void MarkCompactCollector::ClearNonLiveDependentCodes(Map* map) {
     if (IsMarked(code) && !code->marked_for_deoptimization()) {
       if (new_number_of_codes != i) {
         codes->set_code_at(new_number_of_codes, code);
-        Object** slot = codes->code_slot_at(new_number_of_codes);
-        RecordSlot(slot, slot, code);
-        new_number_of_codes++;
       }
+      Object** slot = codes->code_slot_at(new_number_of_codes);
+      RecordSlot(slot, slot, code);
+      new_number_of_codes++;
     }
   }
   for (int i = new_number_of_codes; i < number_of_codes; i++) {

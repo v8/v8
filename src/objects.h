@@ -4547,6 +4547,10 @@ class Code: public HeapObject {
 
   void PrintDeoptLocation(int bailout_id);
 
+#ifdef VERIFY_HEAP
+  void VerifyEmbeddedMapsDependency();
+#endif
+
   // Max loop nesting marker used to postpose OSR. We don't take loop
   // nesting that is deeper than 5 levels into account.
   static const int kMaxLoopNestingMarker = 6;
@@ -4693,6 +4697,7 @@ class DependentCodes: public FixedArray {
   static Handle<DependentCodes> Append(Handle<DependentCodes> codes,
                                        Handle<Code> value);
   static inline DependentCodes* cast(Object* object);
+  bool Contains(Code* code);
  private:
   static const int kNumberOfCodesIndex = 0;
   static const int kCodesIndex = 1;
