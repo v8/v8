@@ -1791,7 +1791,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_RegExpInitializeObject) {
         JSRegExp::kIgnoreCaseFieldIndex, ignoreCase, SKIP_WRITE_BARRIER);
     regexp->InObjectPropertyAtPut(
         JSRegExp::kMultilineFieldIndex, multiline, SKIP_WRITE_BARRIER);
-    regexp->ResetLastIndex();
+    regexp->InObjectPropertyAtPut(
+        JSRegExp::kLastIndexFieldIndex, Smi::FromInt(0), SKIP_WRITE_BARRIER);
     return regexp;
   }
 
@@ -2904,8 +2905,7 @@ MUST_USE_RESULT static MaybeObject* StringReplaceAtomRegExpWithString(
 
   int matches = indices.length();
   if (matches == 0) {
-    pattern_regexp->ResetLastIndex();
-    return *subject;
+    return isolate->heap()->undefined_value();
   }
 
   // Detect integer overflow.
@@ -3006,8 +3006,7 @@ MUST_USE_RESULT static MaybeObject* StringReplaceRegExpWithString(
   int32_t* current_match = global_cache.FetchNext();
   if (current_match == NULL) {
     if (global_cache.HasException()) return Failure::Exception();
-    regexp->ResetLastIndex();
-    return *subject;
+    return isolate->heap()->undefined_value();
   }
 
   // Guessing the number of parts that the final result string is built
@@ -3105,8 +3104,7 @@ MUST_USE_RESULT static MaybeObject* StringReplaceRegExpWithEmptyString(
   int32_t* current_match = global_cache.FetchNext();
   if (current_match == NULL) {
     if (global_cache.HasException()) return Failure::Exception();
-    regexp->ResetLastIndex();
-    return *subject;
+    return isolate->heap()->undefined_value();
   }
 
   int start = current_match[0];

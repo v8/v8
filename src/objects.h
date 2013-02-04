@@ -6649,7 +6649,6 @@ class JSRegExp: public JSObject {
   inline Object* DataAtUnchecked(int index);
   inline void SetDataAtUnchecked(int index, Object* value, Heap* heap);
   inline Type TypeTagUnchecked();
-  inline void ResetLastIndex();
 
   static int code_index(bool is_ascii) {
     if (is_ascii) {

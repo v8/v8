@@ -4968,13 +4968,6 @@ void JSRegExp::SetDataAtUnchecked(int index, Object* value, Heap* heap) {
 }
 
 
-void JSRegExp::ResetLastIndex() {
-  InObjectPropertyAtPut(JSRegExp::kLastIndexFieldIndex,
-                        Smi::FromInt(0),
-                        SKIP_WRITE_BARRIER);  // It's a Smi.
-}
-
-
 ElementsKind JSObject::GetElementsKind() {
   ElementsKind kind = map()->elements_kind();
 #if DEBUG
