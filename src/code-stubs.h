@@ -549,12 +549,7 @@ class ICStub: public PlatformCodeStub {
  public:
   explicit ICStub(Code::Kind kind) : kind_(kind) { }
   virtual int GetCodeKind() { return kind_; }
-  // Currently all IC stubs do not collect explicit type feedback but rather
-  // check the instance type.
-  // TODO(verwaest): These stubs should collect proper type feedback, and should
-  // not check the instance type explicitly (perhaps unless more than
-  // kMaxPolymorphism maps are recorded).
-  virtual InlineCacheState GetICState() { return MEGAMORPHIC; }
+  virtual InlineCacheState GetICState() { return MONOMORPHIC; }
 
   bool Describes(Code* code) {
     return GetMajorKey(code) == MajorKey() && code->stub_info() == MinorKey();
