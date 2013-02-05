@@ -562,6 +562,7 @@ void IncrementalMarking::UncommitMarkingDeque() {
 
 
 void IncrementalMarking::Start() {
+  ASSERT(!heap_->mark_compact_collector()->IsConcurrentSweepingInProgress());
   if (FLAG_trace_incremental_marking) {
     PrintF("[IncrementalMarking] Start\n");
   }
@@ -570,8 +571,7 @@ void IncrementalMarking::Start() {
 
   ResetStepCounters();
 
-  if (heap_->old_pointer_space()->IsSweepingComplete() &&
-      heap_->old_data_space()->IsSweepingComplete()) {
+  if (heap_->IsSweepingComplete()) {
     StartMarking(ALLOW_COMPACTION);
   } else {
     if (FLAG_trace_incremental_marking) {

@@ -1639,8 +1639,9 @@ class Heap {
   }
 
   bool IsSweepingComplete() {
-    return old_data_space()->IsSweepingComplete() &&
-           old_pointer_space()->IsSweepingComplete();
+    return !mark_compact_collector()->IsConcurrentSweepingInProgress() &&
+           old_data_space()->IsLazySweepingComplete() &&
+           old_pointer_space()->IsLazySweepingComplete();
   }
 
   bool AdvanceSweepers(int step_size) {

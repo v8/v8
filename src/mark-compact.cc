@@ -561,6 +561,11 @@ bool MarkCompactCollector::AreSweeperThreadsActivated() {
 }
 
 
+bool MarkCompactCollector::IsConcurrentSweepingInProgress() {
+  return SweeperThread::sweeping_pending();
+}
+
+
 void MarkCompactCollector::MarkInParallel() {
   for (int i = 0; i < FLAG_marking_threads; i++) {
     heap()->isolate()->marking_threads()[i]->StartMarking();

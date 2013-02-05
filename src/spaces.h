@@ -1644,7 +1644,8 @@ class PagedSpace : public Space {
   // As size, but the bytes in lazily swept pages are estimated and the bytes
   // in the current linear allocation area are not included.
   virtual intptr_t SizeOfObjects() {
-    ASSERT(!IsSweepingComplete() || (unswept_free_bytes_ == 0));
+    // TODO(hpayer): broken when concurrent sweeping turned on
+    ASSERT(!IsLazySweepingComplete() || (unswept_free_bytes_ == 0));
     return Size() - unswept_free_bytes_ - (limit() - top());
   }
 
@@ -1763,7 +1764,7 @@ class PagedSpace : public Space {
   // is called.
   bool EnsureSweeperProgress(intptr_t size_in_bytes);
 
-  bool IsSweepingComplete() {
+  bool IsLazySweepingComplete() {
     return !first_unswept_page_->is_valid();
   }
 
