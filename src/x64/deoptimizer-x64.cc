@@ -539,7 +539,7 @@ void Deoptimizer::DoCompiledStubFrame(TranslationIterator* iterator,
       Smi::FromInt(StackFrame::STUB_FAILURE_TRAMPOLINE));
   output_frame->SetFrameSlot(output_frame_offset, value);
 
-  int caller_arg_count = 0;
+  intptr_t caller_arg_count = 0;
   if (descriptor->stack_parameter_count_ != NULL) {
     caller_arg_count =
         input_->GetRegister(descriptor->stack_parameter_count_->code());
