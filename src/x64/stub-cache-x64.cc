@@ -2839,7 +2839,7 @@ Handle<Code> LoadStubCompiler::CompileLoadNonexistent(
 
 Register* LoadStubCompiler::registers() {
   // receiver, name, scratch1, scratch2, scratch3, scratch4.
-  static Register registers[] = { rax, rcx, rbx, rdx, rdi, r8 };
+  static Register registers[] = { rax, rcx, rdx, rbx, rdi, r8 };
   return registers;
 }
 
