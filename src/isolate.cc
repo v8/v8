@@ -2120,7 +2120,7 @@ bool Isolate::Init(Deserializer* des) {
     // Ensure that the stub failure trampoline has been generated.
     HandleScope scope(this);
     CodeStub::GenerateFPStubs();
-    StubFailureTrampolineStub().GetCode();
+    StubFailureTrampolineStub::GenerateAheadOfTime();
   }
 
   if (FLAG_parallel_recompilation) optimizing_compiler_thread_.Start();

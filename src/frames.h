@@ -143,6 +143,22 @@ class StackHandler BASE_EMBEDDED {
   V(ARGUMENTS_ADAPTOR,       ArgumentsAdaptorFrame)
 
 
+class StandardFrameConstants : public AllStatic {
+ public:
+  // Fixed part of the frame consists of return address, caller fp,
+  // context and function.
+  // StandardFrame::IterateExpressions assumes that kContextOffset is the last
+  // object pointer.
+  static const int kFixedFrameSize    =  4 * kPointerSize;
+  static const int kExpressionsOffset = -3 * kPointerSize;
+  static const int kMarkerOffset      = -2 * kPointerSize;
+  static const int kContextOffset     = -1 * kPointerSize;
+  static const int kCallerFPOffset    =  0 * kPointerSize;
+  static const int kCallerPCOffset    = +1 * kPointerSize;
+  static const int kCallerSPOffset    = +2 * kPointerSize;
+};
+
+
 // Abstract base class for all stack frames.
 class StackFrame BASE_EMBEDDED {
  public:
@@ -672,15 +688,29 @@ class InternalFrame: public StandardFrame {
 };
 
 
-class StubFailureTrampolineFrame: public InternalFrame {
+class StubFailureTrampolineFrame: public StandardFrame {
  public:
+  // sizeof(Arguments) - sizeof(Arguments*) is 3 * kPointerSize), but the
+  // presubmit script complains about using sizeof() on a type.
+  static const int kFirstRegisterParameterFrameOffset =
+      StandardFrameConstants::kMarkerOffset - 3 * kPointerSize;
+
+  static const int kCallerStackParameterCountFrameOffset =
+      StandardFrameConstants::kMarkerOffset - 2 * kPointerSize;
+
   virtual Type type() const { return STUB_FAILURE_TRAMPOLINE; }
+
+  // Get the code associated with this frame.
+  // This method could be called during marking phase of GC.
+  virtual Code* unchecked_code() const;
 
   virtual void Iterate(ObjectVisitor* v) const;
 
  protected:
   inline explicit StubFailureTrampolineFrame(
       StackFrameIterator* iterator);
+
+  virtual Address GetCallerStackPointer() const;
 
  private:
   friend class StackFrameIterator;

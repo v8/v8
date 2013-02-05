@@ -2200,7 +2200,7 @@ LInstruction* LChunkBuilder::DoOsrEntry(HOsrEntry* instr) {
 
 LInstruction* LChunkBuilder::DoParameter(HParameter* instr) {
   LParameter* result = new(zone()) LParameter;
-  if (info()->IsOptimizing()) {
+  if (instr->kind() == HParameter::STACK_PARAMETER) {
     int spill_index = chunk()->GetParameterStackSlot(instr->index());
     return DefineAsSpilled(result, spill_index);
   } else {

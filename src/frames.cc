@@ -1304,11 +1304,38 @@ void InternalFrame::Iterate(ObjectVisitor* v) const {
 
 
 void StubFailureTrampolineFrame::Iterate(ObjectVisitor* v) const {
-  const int offset = StandardFrameConstants::kContextOffset;
   Object** base = &Memory::Object_at(sp());
-  Object** limit = &Memory::Object_at(fp() + offset) + 1;
+  Object** limit = &Memory::Object_at(fp() +
+                                      kFirstRegisterParameterFrameOffset);
+  v->VisitPointers(base, limit);
+  base = &Memory::Object_at(fp() + StandardFrameConstants::kMarkerOffset);
+  const int offset = StandardFrameConstants::kContextOffset;
+  limit = &Memory::Object_at(fp() + offset) + 1;
   v->VisitPointers(base, limit);
   IteratePc(v, pc_address(), LookupCode());
+}
+
+
+Address StubFailureTrampolineFrame::GetCallerStackPointer() const {
+  return fp() + StandardFrameConstants::kCallerSPOffset;
+}
+
+
+Code* StubFailureTrampolineFrame::unchecked_code() const {
+  int i = 0;
+  for (; i <= StubFailureTrampolineStub::kMaxExtraExpressionStackCount; ++i) {
+    Code* trampoline;
+    StubFailureTrampolineStub(i).FindCodeInCache(&trampoline, isolate());
+    ASSERT(trampoline != NULL);
+    Address current_pc = pc();
+    Address code_start = trampoline->instruction_start();
+    Address code_end = code_start + trampoline->instruction_size();
+    if (code_start <= current_pc && current_pc < code_end) {
+      return trampoline;
+    }
+  }
+  UNREACHABLE();
+  return NULL;
 }
 
 

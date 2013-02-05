@@ -606,6 +606,14 @@ void ElementsTransitionAndStoreStub::Generate(MacroAssembler* masm) {
 }
 
 
+void StubFailureTrampolineStub::GenerateAheadOfTime() {
+  int i = 0;
+  for (; i <= StubFailureTrampolineStub::kMaxExtraExpressionStackCount; ++i) {
+    StubFailureTrampolineStub(i).GetCode();
+  }
+}
+
+
 FunctionEntryHook ProfileEntryHookStub::entry_hook_ = NULL;
 
 

@@ -462,13 +462,19 @@ void Deoptimizer::DoCompiledStubFrame(TranslationIterator* iterator,
   // v  +-------------------------+          +-------------------------|
   //    |   COMPILED_STUB marker  |          |   STUB_FAILURE marker   |
   //    +-------------------------+          +-------------------------+
-  //    |                         |          |     stub parameter 1    |
+  //    |                         |          |   caller args.length_   |
   //    | ...                     |          +-------------------------+
-  //    |                         |          |            ...          |
+  //    |                         |          |  caller args.arguments_ |
   //    |-------------------------|<-rsp     +-------------------------+
-  //                                         |     stub parameter n    |
-  //      parameters in registers            +-------------------------+<-rsp
-  //       and spilled to stack              rax = number of parameters
+  //                                         |  caller args pointer    |
+  //                                         +-------------------------+
+  //                                         |  caller stack param 1   |
+  //      parameters in registers            +-------------------------+
+  //       and spilled to stack              |           ....          |
+  //                                         +-------------------------+
+  //                                         |  caller stack param n   |
+  //                                         +-------------------------+<-rsp
+  //                                         rax = number of parameters
   //                                         rbx = failure handler address
   //                                         rbp = saved frame
   //                                         rsi = JSFunction context
@@ -479,8 +485,14 @@ void Deoptimizer::DoCompiledStubFrame(TranslationIterator* iterator,
   CodeStubInterfaceDescriptor* descriptor =
       isolate_->code_stub_interface_descriptor(major_key);
 
+  // The output frame must have room for all pushed register parameters
+  // and the standard stack frame slots.
   int output_frame_size = StandardFrameConstants::kFixedFrameSize +
       kPointerSize * descriptor->register_param_count_;
+
+  // Include space for an argument object to the callee and optionally
+  // the space to pass the argument object to the stub failure handler.
+  output_frame_size += sizeof(Arguments) + kPointerSize;
 
   FrameDescription* output_frame =
       new(output_frame_size) FrameDescription(output_frame_size, 0);
@@ -493,11 +505,14 @@ void Deoptimizer::DoCompiledStubFrame(TranslationIterator* iterator,
       reinterpret_cast<intptr_t>(notify_failure->entry()));
 
   Code* trampoline = NULL;
-  StubFailureTrampolineStub().FindCodeInCache(&trampoline, isolate_);
+  int extra = descriptor->extra_expression_stack_count_;
+  StubFailureTrampolineStub(extra).FindCodeInCache(&trampoline, isolate_);
   ASSERT(trampoline != NULL);
   output_frame->SetPc(reinterpret_cast<intptr_t>(
       trampoline->instruction_start()));
   unsigned input_frame_size = input_->GetFrameSize();
+
+  intptr_t frame_ptr = input_->GetRegister(rbp.code());
 
   // JSFunction continuation
   unsigned input_frame_offset = input_frame_size - kPointerSize;
@@ -524,14 +539,35 @@ void Deoptimizer::DoCompiledStubFrame(TranslationIterator* iterator,
       Smi::FromInt(StackFrame::STUB_FAILURE_TRAMPOLINE));
   output_frame->SetFrameSlot(output_frame_offset, value);
 
+  int caller_arg_count = 0;
+  if (descriptor->stack_parameter_count_ != NULL) {
+    caller_arg_count =
+        input_->GetRegister(descriptor->stack_parameter_count_->code());
+  }
+
+  // Build the Arguments object for the caller's parameters and a pointer to it.
+  output_frame_offset -= kPointerSize;
+  value = frame_ptr + StandardFrameConstants::kCallerSPOffset +
+      (caller_arg_count - 1) * kPointerSize;
+  output_frame->SetFrameSlot(output_frame_offset, value);
+
+  output_frame->SetFrameSlot(output_frame_offset, value);
+  output_frame_offset -= kPointerSize;
+  output_frame->SetFrameSlot(output_frame_offset, caller_arg_count);
+
+  value = frame_ptr - (output_frame_size - output_frame_offset) -
+      StandardFrameConstants::kMarkerOffset;
+  output_frame_offset -= kPointerSize;
+  output_frame->SetFrameSlot(output_frame_offset, value);
+
+  // Copy the register parameters to the failure frame.
   for (int i = 0; i < descriptor->register_param_count_; ++i) {
     output_frame_offset -= kPointerSize;
     DoTranslateCommand(iterator, 0, output_frame_offset);
   }
 
-  value = input_->GetRegister(rbp.code());
-  output_frame->SetRegister(rbp.code(), value);
-  output_frame->SetFp(value);
+  output_frame->SetRegister(rbp.code(), frame_ptr);
+  output_frame->SetFp(frame_ptr);
 
   for (int i = 0; i < XMMRegister::NumAllocatableRegisters(); ++i) {
     double double_value = input_->GetDoubleRegister(i);
@@ -540,7 +576,11 @@ void Deoptimizer::DoCompiledStubFrame(TranslationIterator* iterator,
 
   intptr_t handler =
       reinterpret_cast<intptr_t>(descriptor->deoptimization_handler_);
-  output_frame->SetRegister(rax.code(), descriptor->register_param_count_);
+  int params = descriptor->register_param_count_;
+  if (descriptor->stack_parameter_count_ != NULL) {
+    params++;
+  }
+  output_frame->SetRegister(rax.code(), params);
   output_frame->SetRegister(rbx.code(), handler);
 }
 

@@ -1497,10 +1497,9 @@ unsigned Deoptimizer::ComputeInputFrameSize() const {
     // size matches with the stack height we can compute based on the
     // environment at the OSR entry. The code for that his built into
     // the DoComputeOsrOutputFrame function for now.
-  } else {
+  } else if (compiled_code_->kind() != Code::COMPILED_STUB) {
     unsigned stack_slots = compiled_code_->stack_slots();
-    unsigned outgoing_size = compiled_code_->kind() == Code::COMPILED_STUB
-        ? 0 : ComputeOutgoingArgumentSize();
+    unsigned outgoing_size = ComputeOutgoingArgumentSize();
     ASSERT(result == fixed_size + (stack_slots * kPointerSize) + outgoing_size);
   }
 #endif
