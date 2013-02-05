@@ -123,7 +123,9 @@ void CodeGenerator::PrintCode(Handle<Code> code, CompilationInfo* info) {
 #ifdef ENABLE_DISASSEMBLER
   bool print_code = Isolate::Current()->bootstrapper()->IsActive()
       ? FLAG_print_builtin_code
-      : (FLAG_print_code || (info->IsOptimizing() && FLAG_print_opt_code));
+      : (FLAG_print_code ||
+         (info->IsStub() && FLAG_print_code_stubs) ||
+         (info->IsOptimizing() && FLAG_print_opt_code));
   if (print_code) {
     // Print the source code if available.
     FunctionLiteral* function = info->function();
