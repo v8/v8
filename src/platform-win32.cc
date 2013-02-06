@@ -65,7 +65,13 @@ inline void MemoryBarrier() {
 #endif  // __MINGW64_VERSION_MAJOR
 
 
-#ifndef MINGW_HAS_SECURE_API
+#ifdef MINGW_HAS_SECURE_API
+#define localtime_s  v8_localtime_s
+#define fopen_s      v8_fopen_s
+#define _vsnprintf_s v8_vsnprintf_s
+#define strncpy_s    v8_strncpy_s
+#endif  // MINGW_HAS_SECURE_API
+
 
 int localtime_s(tm* out_tm, const time_t* time) {
   tm* posix_local_time_struct = localtime(time);
@@ -112,8 +118,6 @@ int strncpy_s(char* dest, size_t dest_size, const char* source, size_t count) {
   *dest = 0;
   return 0;
 }
-
-#endif  // MINGW_HAS_SECURE_API
 
 #endif  // __MINGW32__
 
@@ -202,7 +206,7 @@ UNARY_MATH_FUNCTION(log, CreateTranscendentalFunction(TranscendentalCache::LOG))
 UNARY_MATH_FUNCTION(exp, CreateExpFunction())
 UNARY_MATH_FUNCTION(sqrt, CreateSqrtFunction())
 
-#undef MATH_FUNCTION
+#undef UNARY_MATH_FUNCTION
 
 
 void lazily_initialize_fast_exp() {
@@ -812,6 +816,13 @@ void OS::StrNCpy(Vector<char> dest, const char* src, size_t n) {
 }
 
 
+#undef _TRUNCATE
+#undef STRUNCATE
+#undef localtime_s
+#undef fopen_s
+#undef _vsnprintf_s
+#undef strncpy_s
+
 // We keep the lowest and highest addresses mapped as a quick way of
 // determining that pointers are outside the heap (used mostly in assertions
 // and verification).  The estimate is conservative, i.e., not all addresses in
@@ -1217,6 +1228,11 @@ TLHELP32_FUNCTION_LIST(DLL_FUNC_LOADED)
   // NOTE: The modules are never unloaded and will stay around until the
   // application is closed.
 }
+
+#undef DBGHELP_FUNCTION_LIST
+#undef TLHELP32_FUNCTION_LIST
+#undef DLL_FUNC_VAR
+#undef DLL_FUNC_TYPE
 
 
 // Load the symbols for generating stack traces.
