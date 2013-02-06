@@ -2630,6 +2630,7 @@ TEST(Regress165495) {
 
 
 TEST(Regress169209) {
+  i::FLAG_stress_compaction = false;
   i::FLAG_allow_natives_syntax = true;
   i::FLAG_flush_code_incrementally = true;
   InitializeVM();

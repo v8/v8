@@ -242,7 +242,7 @@ static inline int FlagDependentPortOffset() {
 }
 
 
-// Helper function that simulates a fill new-space in the heap.
+// Helper function that simulates a full new-space in the heap.
 static inline void SimulateFullSpace(v8::internal::NewSpace* space) {
   int new_linear_size = static_cast<int>(
       *space->allocation_limit_address() - *space->allocation_top_address());
