@@ -776,15 +776,6 @@ void MacroAssembler::Strd(Register src1, Register src2,
 }
 
 
-void MacroAssembler::ClearFPSCRBits(const uint32_t bits_to_clear,
-                                    const Register scratch,
-                                    const Condition cond) {
-  vmrs(scratch, cond);
-  bic(scratch, scratch, Operand(bits_to_clear), LeaveCC, cond);
-  vmsr(scratch, cond);
-}
-
-
 void MacroAssembler::VFPCompareAndSetFlags(const DwVfpRegister src1,
                                            const DwVfpRegister src2,
                                            const Condition cond) {
@@ -2695,15 +2686,29 @@ void MacroAssembler::EmitECMATruncate(Register result,
 
   Label done;
 
-  // Test for values that can be exactly represented as a signed 32-bit integer.
-  TryFastDoubleToInt32(result, double_input, double_scratch, &done);
-
-  // Clear cumulative exception flags.
-  ClearFPSCRBits(kVFPExceptionMask, scratch);
-  // Try a conversion to a signed integer.
+  // Test if the value can be exactly represented as a signed integer.
   vcvt_s32_f64(double_scratch.low(), double_input);
   vmov(result, double_scratch.low());
-  // Retrieve he FPSCR.
+  vcvt_f64_s32(double_scratch, double_scratch.low());
+  // Note: this comparison is cheaper than reading the FPSCR exception bits.
+  VFPCompareAndSetFlags(double_input, double_scratch);
+  b(eq, &done);
+
+  // Check the exception flags. If they are not set, we are done.
+  // If they are set, it could be because of the conversion above, or because
+  // they were set before this code.
+  vmrs(scratch);
+  tst(scratch, Operand(kVFPOverflowExceptionBit |
+                       kVFPUnderflowExceptionBit |
+                       kVFPInvalidOpExceptionBit));
+  b(eq, &done);
+
+  // Clear cumulative exception flags.
+  bic(scratch, scratch, Operand(kVFPExceptionMask));
+  vmsr(scratch);
+  // Try a conversion to a signed integer.
+  vcvt_s32_f64(double_scratch.low(), double_input);
+  // Retrieve the FPSCR.
   vmrs(scratch);
   // Check for overflow and NaNs.
   tst(scratch, Operand(kVFPOverflowExceptionBit |
