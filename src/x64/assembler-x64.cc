@@ -1505,12 +1505,11 @@ void Assembler::movq(Register dst, void* value, RelocInfo::Mode rmode) {
 void Assembler::movq(Register dst, int64_t value, RelocInfo::Mode rmode) {
   // Non-relocatable values might not need a 64-bit representation.
   if (RelocInfo::IsNone(rmode)) {
-    // Sadly, there is no zero or sign extending move for 8-bit immediates.
-    if (is_int32(value)) {
-      movq(dst, Immediate(static_cast<int32_t>(value)));
-      return;
-    } else if (is_uint32(value)) {
+    if (is_uint32(value)) {
       movl(dst, Immediate(static_cast<int32_t>(value)));
+      return;
+    } else if (is_int32(value)) {
+      movq(dst, Immediate(static_cast<int32_t>(value)));
       return;
     }
     // Value cannot be represented by 32 bits, so do a full 64 bit immediate
