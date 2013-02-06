@@ -27,6 +27,17 @@
 
 // Platform specific code for Win32.
 
+// Secure API functions are not available using MinGW with msvcrt.dll
+// on Windows XP. Make sure MINGW_HAS_SECURE_API is not defined to
+// disable definition of secure API functions in standard headers that
+// would conflict with our own implementation.
+#ifdef __MINGW32__
+#include <_mingw.h>
+#ifdef MINGW_HAS_SECURE_API
+#undef MINGW_HAS_SECURE_API
+#endif  // MINGW_HAS_SECURE_API
+#endif  // __MINGW32__
+
 #define V8_WIN32_HEADERS_FULL
 #include "win32-headers.h"
 
@@ -63,14 +74,6 @@ inline void MemoryBarrier() {
 }
 
 #endif  // __MINGW64_VERSION_MAJOR
-
-
-#ifdef MINGW_HAS_SECURE_API
-#define localtime_s  v8_localtime_s
-#define fopen_s      v8_fopen_s
-#define _vsnprintf_s v8_vsnprintf_s
-#define strncpy_s    v8_strncpy_s
-#endif  // MINGW_HAS_SECURE_API
 
 
 int localtime_s(tm* out_tm, const time_t* time) {
@@ -818,10 +821,6 @@ void OS::StrNCpy(Vector<char> dest, const char* src, size_t n) {
 
 #undef _TRUNCATE
 #undef STRUNCATE
-#undef localtime_s
-#undef fopen_s
-#undef _vsnprintf_s
-#undef strncpy_s
 
 // We keep the lowest and highest addresses mapped as a quick way of
 // determining that pointers are outside the heap (used mostly in assertions
