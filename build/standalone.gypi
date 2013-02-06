@@ -87,6 +87,9 @@
       'Debug': {
         'cflags': [ '-g', '-O0' ],
       },
+      'Release': {
+        # Xcode insists on this empty entry.
+      },
     },
   },
   'conditions': [
