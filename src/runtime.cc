@@ -45,6 +45,7 @@
 #include "global-handles.h"
 #include "isolate-inl.h"
 #include "jsregexp.h"
+#include "jsregexp-inl.h"
 #include "json-parser.h"
 #include "json-stringifier.h"
 #include "liveedit.h"

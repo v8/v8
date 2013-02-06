@@ -362,6 +362,7 @@
             '../../src/isolate.h',
             '../../src/json-parser.h',
             '../../src/json-stringifier.h',
+            '../../src/jsregexp-inl.h',
             '../../src/jsregexp.cc',
             '../../src/jsregexp.h',
             '../../src/lazy-instance.h',
