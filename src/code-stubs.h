@@ -253,8 +253,12 @@ class PlatformCodeStub : public CodeStub {
 struct CodeStubInterfaceDescriptor {
   CodeStubInterfaceDescriptor()
       : register_param_count_(-1),
+        stack_parameter_count_(NULL),
+        extra_expression_stack_count_(0),
         register_params_(NULL) { }
   int register_param_count_;
+  const Register* stack_parameter_count_;
+  int extra_expression_stack_count_;
   Register* register_params_;
   Address deoptimization_handler_;
 };
@@ -549,12 +553,7 @@ class ICStub: public PlatformCodeStub {
  public:
   explicit ICStub(Code::Kind kind) : kind_(kind) { }
   virtual int GetCodeKind() { return kind_; }
-  // Currently all IC stubs do not collect explicit type feedback but rather
-  // check the instance type.
-  // TODO(verwaest): These stubs should collect proper type feedback, and should
-  // not check the instance type explicitly (perhaps unless more than
-  // kMaxPolymorphism maps are recorded).
-  virtual InlineCacheState GetICState() { return MEGAMORPHIC; }
+  virtual InlineCacheState GetICState() { return MONOMORPHIC; }
 
   bool Describes(Code* code) {
     return GetMajorKey(code) == MajorKey() && code->stub_info() == MinorKey();
@@ -1425,13 +1424,22 @@ class StoreArrayLiteralElementStub : public PlatformCodeStub {
 
 class StubFailureTrampolineStub : public PlatformCodeStub {
  public:
-  StubFailureTrampolineStub() {}
+  static const int kMaxExtraExpressionStackCount = 1;
+
+  explicit StubFailureTrampolineStub(int extra_expression_stack_count)
+      : extra_expression_stack_count_(extra_expression_stack_count) {}
+
+  virtual bool IsPregenerated() { return true; }
+
+  static void GenerateAheadOfTime();
 
  private:
   Major MajorKey() { return StubFailureTrampoline; }
-  int MinorKey() { return 0; }
+  int MinorKey() { return extra_expression_stack_count_; }
 
   void Generate(MacroAssembler* masm);
+
+  int extra_expression_stack_count_;
 
   DISALLOW_COPY_AND_ASSIGN(StubFailureTrampolineStub);
 };

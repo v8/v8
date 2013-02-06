@@ -153,17 +153,17 @@ class RegExpImpl {
                 bool is_global,
                 Isolate* isolate);
 
-    ~GlobalCache();
+    INLINE(~GlobalCache());
 
     // Fetch the next entry in the cache for global regexp match results.
     // This does not set the last match info.  Upon failure, NULL is returned.
     // The cause can be checked with Result().  The previous
     // result is still in available in memory when a failure happens.
-    int32_t* FetchNext();
+    INLINE(int32_t* FetchNext());
 
-    int32_t* LastSuccessfulMatch();
+    INLINE(int32_t* LastSuccessfulMatch());
 
-    inline bool HasException() { return num_matches_ < 0; }
+    INLINE(bool HasException()) { return num_matches_ < 0; }
 
    private:
     int num_matches_;

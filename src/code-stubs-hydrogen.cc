@@ -102,7 +102,8 @@ bool CodeStubGraphBuilderBase::BuildGraph() {
   HGraph* graph = this->graph();
   Zone* zone = this->zone();
   for (int i = 0; i < descriptor->register_param_count_; ++i) {
-    HParameter* param = new(zone) HParameter(i);
+    HParameter* param =
+        new(zone) HParameter(i, HParameter::REGISTER_PARAMETER);
     AddInstruction(param);
     graph->start_environment()->Push(param);
     parameters_[i] = param;

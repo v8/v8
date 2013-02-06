@@ -2911,23 +2911,14 @@ void MacroAssembler::ClampDoubleToUint8(XMMRegister input_reg,
 }
 
 
-static double kUint32Bias =
-    static_cast<double>(static_cast<uint32_t>(0xFFFFFFFF)) + 1;
-
-
 void MacroAssembler::LoadUint32(XMMRegister dst,
                                 Register src,
                                 XMMRegister scratch) {
-  Label done;
-  cmpl(src, Immediate(0));
-  movq(kScratchRegister,
-       reinterpret_cast<int64_t>(&kUint32Bias),
-       RelocInfo::NONE64);
-  movsd(scratch, Operand(kScratchRegister, 0));
-  cvtlsi2sd(dst, src);
-  j(not_sign, &done, Label::kNear);
-  addsd(dst, scratch);
-  bind(&done);
+  if (FLAG_debug_code) {
+    cmpq(src, Immediate(0xffffffff));
+    Assert(below_equal, "input GPR is expected to have upper32 cleared");
+  }
+  cvtqsi2sd(dst, src);
 }
 
 

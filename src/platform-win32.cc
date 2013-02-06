@@ -27,6 +27,17 @@
 
 // Platform specific code for Win32.
 
+// Secure API functions are not available using MinGW with msvcrt.dll
+// on Windows XP. Make sure MINGW_HAS_SECURE_API is not defined to
+// disable definition of secure API functions in standard headers that
+// would conflict with our own implementation.
+#ifdef __MINGW32__
+#include <_mingw.h>
+#ifdef MINGW_HAS_SECURE_API
+#undef MINGW_HAS_SECURE_API
+#endif  // MINGW_HAS_SECURE_API
+#endif  // __MINGW32__
+
 #define V8_WIN32_HEADERS_FULL
 #include "win32-headers.h"
 
@@ -64,8 +75,6 @@ inline void MemoryBarrier() {
 
 #endif  // __MINGW64_VERSION_MAJOR
 
-
-#ifndef MINGW_HAS_SECURE_API
 
 int localtime_s(tm* out_tm, const time_t* time) {
   tm* posix_local_time_struct = localtime(time);
@@ -112,8 +121,6 @@ int strncpy_s(char* dest, size_t dest_size, const char* source, size_t count) {
   *dest = 0;
   return 0;
 }
-
-#endif  // MINGW_HAS_SECURE_API
 
 #endif  // __MINGW32__
 
@@ -202,7 +209,7 @@ UNARY_MATH_FUNCTION(log, CreateTranscendentalFunction(TranscendentalCache::LOG))
 UNARY_MATH_FUNCTION(exp, CreateExpFunction())
 UNARY_MATH_FUNCTION(sqrt, CreateSqrtFunction())
 
-#undef MATH_FUNCTION
+#undef UNARY_MATH_FUNCTION
 
 
 void lazily_initialize_fast_exp() {
@@ -812,6 +819,9 @@ void OS::StrNCpy(Vector<char> dest, const char* src, size_t n) {
 }
 
 
+#undef _TRUNCATE
+#undef STRUNCATE
+
 // We keep the lowest and highest addresses mapped as a quick way of
 // determining that pointers are outside the heap (used mostly in assertions
 // and verification).  The estimate is conservative, i.e., not all addresses in
@@ -1217,6 +1227,11 @@ TLHELP32_FUNCTION_LIST(DLL_FUNC_LOADED)
   // NOTE: The modules are never unloaded and will stay around until the
   // application is closed.
 }
+
+#undef DBGHELP_FUNCTION_LIST
+#undef TLHELP32_FUNCTION_LIST
+#undef DLL_FUNC_VAR
+#undef DLL_FUNC_TYPE
 
 
 // Load the symbols for generating stack traces.

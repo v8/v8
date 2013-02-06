@@ -9344,6 +9344,25 @@ void JSArray::Expand(int required_size) {
 }
 
 
+// Returns false if the passed-in index is marked non-configurable,
+// which will cause the ES5 truncation operation to halt, and thus
+// no further old values need be collected.
+static bool GetOldValue(Isolate* isolate,
+                        Handle<JSObject> object,
+                        uint32_t index,
+                        List<Handle<Object> >* old_values,
+                        List<Handle<String> >* indices) {
+  PropertyAttributes attributes = object->GetLocalElementAttribute(index);
+  ASSERT(attributes != ABSENT);
+  if (attributes == DONT_DELETE) return false;
+  old_values->Add(object->GetLocalElementAccessorPair(index) == NULL
+      ? Object::GetElement(object, index)
+      : Handle<Object>::cast(isolate->factory()->the_hole_value()));
+  indices->Add(isolate->factory()->Uint32ToString(index));
+  return true;
+}
+
+
 MaybeObject* JSArray::SetElementsLength(Object* len) {
   // We should never end in here with a pixel or external array.
   ASSERT(AllowsSetElementsLength());
@@ -9363,19 +9382,28 @@ MaybeObject* JSArray::SetElementsLength(Object* len) {
   if (!new_length_handle->ToArrayIndex(&new_length))
     return Failure::InternalError();
 
-  // TODO(adamk): This loop can be very slow for arrays in dictionary mode.
-  // Find another way to iterate over arrays with dictionary elements.
-  for (uint32_t i = old_length - 1; i + 1 > new_length; --i) {
-    PropertyAttributes attributes = self->GetLocalElementAttribute(i);
-    if (attributes == ABSENT) continue;
-    // A non-configurable property will cause the truncation operation to
-    // stop at this index.
-    if (attributes == DONT_DELETE) break;
-    old_values.Add(
-        self->GetLocalElementAccessorPair(i) == NULL
-        ? Object::GetElement(self, i)
-        : Handle<Object>::cast(isolate->factory()->the_hole_value()));
-    indices.Add(isolate->factory()->Uint32ToString(i));
+  // Observed arrays should always be in dictionary mode;
+  // if they were in fast mode, the below is slower than necessary
+  // as it iterates over the array backing store multiple times.
+  ASSERT(self->HasDictionaryElements());
+  static const PropertyAttributes kNoAttrFilter = NONE;
+  int num_elements = self->NumberOfLocalElements(kNoAttrFilter);
+  if (num_elements > 0) {
+    if (old_length == static_cast<uint32_t>(num_elements)) {
+      // Simple case for arrays without holes.
+      for (uint32_t i = old_length - 1; i + 1 > new_length; --i) {
+        if (!GetOldValue(isolate, self, i, &old_values, &indices)) break;
+      }
+    } else {
+      // For sparse arrays, only iterate over existing elements.
+      Handle<FixedArray> keys = isolate->factory()->NewFixedArray(num_elements);
+      self->GetLocalElementKeys(*keys, kNoAttrFilter);
+      while (num_elements-- > 0) {
+        uint32_t index = NumberToUint32(keys->get(num_elements));
+        if (index < new_length) break;
+        if (!GetOldValue(isolate, self, index, &old_values, &indices)) break;
+      }
+    }
   }
 
   MaybeObject* result =

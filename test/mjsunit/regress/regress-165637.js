@@ -45,9 +45,9 @@ function do_slices() {
   return Date.now() - start;
 }
 
-// Reset the GC interval to be off. Needed so that the runtime of this test
+// Reset the GC stress mode to be off. Needed so that the runtime of this test
 // stays within bounds even if we run in GC stress mode.
-%SetFlags("--gc-interval=-1");
+%SetFlags("--gc-interval=-1 --noforce-marking-deque-overflows");
 
 // Should never take more than 3 seconds (if the bug is fixed, the test takes
 // considerably less time than 3 seconds).

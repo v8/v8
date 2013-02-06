@@ -11114,7 +11114,10 @@ void ApiTestFuzzer::TearDown() {
 
 
 // Lets not be needlessly self-referential.
-TEST(Threading) {
+TEST(Threading1) {
+  // TODO(mstarzinger): Disabled in GC stress mode for now, we should find the
+  // correct timeout for this an re-enable this test again
+  if (i::FLAG_stress_compaction) return;
   ApiTestFuzzer::SetUp(ApiTestFuzzer::FIRST_PART);
   ApiTestFuzzer::RunAllTests();
   ApiTestFuzzer::TearDown();

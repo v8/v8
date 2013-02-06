@@ -692,6 +692,8 @@ class MarkCompactCollector {
 
   bool AreSweeperThreadsActivated();
 
+  bool IsConcurrentSweepingInProgress();
+
   // Parallel marking support.
   void MarkInParallel();
 

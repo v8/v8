@@ -134,20 +134,6 @@ class ExitFrameConstants : public AllStatic {
 };
 
 
-class StandardFrameConstants : public AllStatic {
- public:
-  // Fixed part of the frame consists of return address, caller fp,
-  // context and function.
-  static const int kFixedFrameSize    =  4 * kPointerSize;
-  static const int kExpressionsOffset = -3 * kPointerSize;
-  static const int kMarkerOffset      = -2 * kPointerSize;
-  static const int kContextOffset     = -1 * kPointerSize;
-  static const int kCallerFPOffset    =  0 * kPointerSize;
-  static const int kCallerPCOffset    =  1 * kPointerSize;
-  static const int kCallerSPOffset    =  2 * kPointerSize;
-};
-
-
 class JavaScriptFrameConstants : public AllStatic {
  public:
   // FP-relative.

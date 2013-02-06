@@ -578,6 +578,14 @@ Handle<Code> StubCache::ComputeCallConstant(int argc,
     check = BOOLEAN_CHECK;
   }
 
+  if (check != RECEIVER_MAP_CHECK &&
+      !function->IsBuiltin() &&
+      function->shared()->is_classic_mode()) {
+    // Calling non-strict non-builtins with a value as the receiver
+    // requires boxing.
+    return Handle<Code>::null();
+  }
+
   Code::Flags flags =
       Code::ComputeMonomorphicFlags(kind, Code::CONSTANT_FUNCTION, extra_state,
                                     cache_holder, argc);
@@ -587,7 +595,7 @@ Handle<Code> StubCache::ComputeCallConstant(int argc,
 
   CallStubCompiler compiler(isolate_, argc, kind, extra_state, cache_holder);
   Handle<Code> code =
-      compiler.CompileCallConstant(object, holder, function, name, check);
+      compiler.CompileCallConstant(object, holder, name, check, function);
   code->set_check_type(check);
   ASSERT_EQ(flags, code->flags());
   PROFILE(isolate_,

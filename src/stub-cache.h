@@ -817,11 +817,19 @@ class CallStubCompiler: public StubCompiler {
                                 PropertyIndex index,
                                 Handle<String> name);
 
+  void CompileHandlerFrontend(Handle<Object> object,
+                              Handle<JSObject> holder,
+                              Handle<String> name,
+                              CheckType check,
+                              Label* success);
+
+  void CompileHandlerBackend(Handle<JSFunction> function);
+
   Handle<Code> CompileCallConstant(Handle<Object> object,
                                    Handle<JSObject> holder,
-                                   Handle<JSFunction> function,
                                    Handle<String> name,
-                                   CheckType check);
+                                   CheckType check,
+                                   Handle<JSFunction> function);
 
   Handle<Code> CompileCallInterceptor(Handle<JSObject> object,
                                       Handle<JSObject> holder,

@@ -7879,7 +7879,12 @@ void StubFailureTrampolineStub::Generate(MacroAssembler* masm) {
   bool save_fp_regs = CpuFeatures::IsSupported(VFP2);
   CEntryStub ces(1, save_fp_regs ? kSaveFPRegs : kDontSaveFPRegs);
   __ Call(ces.GetCode(), RelocInfo::CODE_TARGET);
+  int parameter_count_offset =
+      StubFailureTrampolineFrame::kCallerStackParameterCountFrameOffset;
+  __ ldr(r1, MemOperand(fp, parameter_count_offset));
   masm->LeaveFrame(StackFrame::STUB_FAILURE_TRAMPOLINE);
+  __ mov(r1, Operand(r1, LSL, kPointerSizeLog2));
+  __ add(sp, sp, r1);
   __ Ret();
 }
 

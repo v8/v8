@@ -1430,7 +1430,7 @@ TEST(TestSizeOfObjects) {
   HEAP->CollectAllGarbage(Heap::kNoGCFlags);
   HEAP->CollectAllGarbage(Heap::kNoGCFlags);
   HEAP->CollectAllGarbage(Heap::kNoGCFlags);
-  CHECK(HEAP->old_pointer_space()->IsSweepingComplete());
+  CHECK(HEAP->old_pointer_space()->IsLazySweepingComplete());
   int initial_size = static_cast<int>(HEAP->SizeOfObjects());
 
   {
@@ -1454,7 +1454,7 @@ TEST(TestSizeOfObjects) {
   CHECK_EQ(initial_size, static_cast<int>(HEAP->SizeOfObjects()));
 
   // Advancing the sweeper step-wise should not change the heap size.
-  while (!HEAP->old_pointer_space()->IsSweepingComplete()) {
+  while (!HEAP->old_pointer_space()->IsLazySweepingComplete()) {
     HEAP->old_pointer_space()->AdvanceSweeper(KB);
     CHECK_EQ(initial_size, static_cast<int>(HEAP->SizeOfObjects()));
   }
@@ -2630,6 +2630,7 @@ TEST(Regress165495) {
 
 
 TEST(Regress169209) {
+  i::FLAG_stress_compaction = false;
   i::FLAG_allow_natives_syntax = true;
   i::FLAG_flush_code_incrementally = true;
   InitializeVM();

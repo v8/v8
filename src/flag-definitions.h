@@ -344,7 +344,9 @@ DEFINE_bool(trace_opt_stats, false, "trace lazy optimization statistics")
 DEFINE_bool(opt, true, "use adaptive optimizations")
 DEFINE_bool(always_opt, false, "always try to optimize functions")
 DEFINE_bool(prepare_always_opt, false, "prepare for turning on always opt")
-DEFINE_bool(trace_deopt, false, "trace deoptimization")
+DEFINE_bool(trace_deopt, false, "trace optimize function deoptimization")
+DEFINE_bool(trace_stub_failures, false,
+            "trace deoptimization of generated code stubs")
 
 // compiler.cc
 DEFINE_int(min_preparse_length, 1024,

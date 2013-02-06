@@ -144,7 +144,8 @@ class Deoptimizer : public Malloced {
     DEBUGGER
   };
 
-  static bool TraceEnabledFor(BailoutType type);
+  static bool TraceEnabledFor(BailoutType deopt_type,
+                              StackFrame::Type frame_type);
   static const char* MessageFor(BailoutType type);
 
   int output_count() const { return output_count_; }
@@ -406,6 +407,8 @@ class Deoptimizer : public Malloced {
   List<Object*> deferred_arguments_objects_values_;
   List<ArgumentsObjectMaterializationDescriptor> deferred_arguments_objects_;
   List<HeapNumberMaterializationDescriptor> deferred_heap_numbers_;
+
+  bool trace_;
 
   static const int table_entry_size_;
 

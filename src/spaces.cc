@@ -2525,7 +2525,7 @@ bool LargeObjectSpace::ReserveSpace(int bytes) {
 
 
 bool PagedSpace::AdvanceSweeper(intptr_t bytes_to_sweep) {
-  if (IsSweepingComplete()) return true;
+  if (IsLazySweepingComplete()) return true;
 
   intptr_t freed_bytes = 0;
   Page* p = first_unswept_page_;
@@ -2553,7 +2553,7 @@ bool PagedSpace::AdvanceSweeper(intptr_t bytes_to_sweep) {
 
   heap()->FreeQueuedChunks();
 
-  return IsSweepingComplete();
+  return IsLazySweepingComplete();
 }
 
 
@@ -2575,12 +2575,14 @@ void PagedSpace::EvictEvacuationCandidatesFromFreeLists() {
 bool PagedSpace::EnsureSweeperProgress(intptr_t size_in_bytes) {
   MarkCompactCollector* collector = heap()->mark_compact_collector();
   if (collector->AreSweeperThreadsActivated()) {
-    if (FLAG_concurrent_sweeping &&
-        collector->StealMemoryFromSweeperThreads(this) < size_in_bytes) {
-      collector->WaitUntilSweepingCompleted();
-      return true;
+    if (FLAG_concurrent_sweeping) {
+      if (collector->StealMemoryFromSweeperThreads(this) < size_in_bytes) {
+        collector->WaitUntilSweepingCompleted();
+        return true;
+      }
+      return false;
     }
-    return false;
+    return true;
   } else {
     return AdvanceSweeper(size_in_bytes);
   }
@@ -2618,7 +2620,7 @@ HeapObject* PagedSpace::SlowAllocateRaw(int size_in_bytes) {
 
   // Last ditch, sweep all the remaining pages to try to find space.  This may
   // cause a pause.
-  if (!IsSweepingComplete()) {
+  if (!IsLazySweepingComplete()) {
     EnsureSweeperProgress(kMaxInt);
 
     // Retry the free list allocation.

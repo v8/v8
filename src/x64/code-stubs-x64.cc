@@ -45,6 +45,7 @@ void KeyedLoadFastElementStub::InitializeInterfaceDescriptor(
   static Register registers[] = { rdx, rax };
   descriptor->register_param_count_ = 2;
   descriptor->register_params_ = registers;
+  descriptor->stack_parameter_count_ = NULL;
   descriptor->deoptimization_handler_ =
       FUNCTION_ADDR(KeyedLoadIC_MissFromStubFailure);
 }
@@ -6635,8 +6636,14 @@ void StubFailureTrampolineStub::Generate(MacroAssembler* masm) {
   ASSERT(!Serializer::enabled());
   CEntryStub ces(1, kSaveFPRegs);
   __ Call(ces.GetCode(), RelocInfo::CODE_TARGET);
+  int parameter_count_offset =
+      StubFailureTrampolineFrame::kCallerStackParameterCountFrameOffset;
+  __ movq(rbx, MemOperand(rbp, parameter_count_offset));
   masm->LeaveFrame(StackFrame::STUB_FAILURE_TRAMPOLINE);
-  __ ret(0);  // Return to IC Miss stub, continuation still on stack.
+  __ pop(rcx);
+  __ lea(rsp, MemOperand(rsp, rbx, times_pointer_size,
+                         extra_expression_stack_count_ * kPointerSize));
+  __ jmp(rcx);  // Return to IC Miss stub, continuation still on stack.
 }
 
 

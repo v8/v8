@@ -4010,11 +4010,20 @@ class HOsrEntry: public HTemplateInstruction<0> {
 
 class HParameter: public HTemplateInstruction<0> {
  public:
-  explicit HParameter(unsigned index) : index_(index) {
+  enum ParameterKind {
+    STACK_PARAMETER,
+    REGISTER_PARAMETER
+  };
+
+  explicit HParameter(unsigned index,
+                      ParameterKind kind = STACK_PARAMETER)
+      : index_(index),
+        kind_(kind) {
     set_representation(Representation::Tagged());
   }
 
   unsigned index() const { return index_; }
+  ParameterKind kind() const { return kind_; }
 
   virtual void PrintDataTo(StringStream* stream);
 
@@ -4026,6 +4035,7 @@ class HParameter: public HTemplateInstruction<0> {
 
  private:
   unsigned index_;
+  ParameterKind kind_;
 };
 
 
