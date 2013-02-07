@@ -197,6 +197,8 @@ class ElementsAccessor {
   DISALLOW_COPY_AND_ASSIGN(ElementsAccessor);
 };
 
+void CheckArrayAbuse(JSObject* obj, const char* op, uint32_t key);
+
 } }  // namespace v8::internal
 
 #endif  // V8_ELEMENTS_H_

@@ -30,7 +30,7 @@
 #include "objects.h"
 #include "elements.h"
 #include "utils.h"
-
+#include "v8conversions.h"
 
 // Each concrete ElementsAccessor can handle exactly one ElementsKind,
 // several abstract ElementsAccessor classes are used to allow sharing
@@ -483,6 +483,63 @@ static void CopyDictionaryToDoubleElements(FixedArrayBase* from_base,
 }
 
 
+static void TraceTopFrame() {
+  StackFrameIterator it;
+  if (it.done()) {
+    PrintF("unknown location (no JavaScript frames present)");
+    return;
+  }
+  StackFrame* raw_frame = it.frame();
+  if (raw_frame->is_internal()) {
+    Isolate* isolate = Isolate::Current();
+    Code* apply_builtin = isolate->builtins()->builtin(
+        Builtins::kFunctionApply);
+    if (raw_frame->unchecked_code() == apply_builtin) {
+      PrintF("apply from ");
+      it.Advance();
+      raw_frame = it.frame();
+    }
+  }
+  JavaScriptFrame::PrintTop(stdout, false, true);
+}
+
+
+void CheckArrayAbuse(JSObject* obj, const char* op, uint32_t key) {
+  Object* raw_length = NULL;
+  const char* elements_type = "array";
+  if (obj->IsJSArray()) {
+    JSArray* array = JSArray::cast(obj);
+    raw_length = array->length();
+  } else {
+    raw_length = Smi::FromInt(obj->elements()->length());
+    elements_type = "object";
+  }
+
+  if (raw_length->IsNumber()) {
+    double n = raw_length->Number();
+    if (FastI2D(FastD2UI(n)) == n) {
+      int32_t int32_length = DoubleToInt32(n);
+      if (key >= static_cast<uint32_t>(int32_length)) {
+        PrintF("[OOB %s %s (%s length = %d, element accessed = %d) in ",
+               elements_type, op, elements_type,
+               static_cast<int>(int32_length),
+               static_cast<int>(key));
+        TraceTopFrame();
+        PrintF("]\n");
+      }
+    } else {
+      PrintF("[%s elements length not integer value in ", elements_type);
+      TraceTopFrame();
+      PrintF("]\n");
+    }
+  } else {
+    PrintF("[%s elements length not a number in ", elements_type);
+    TraceTopFrame();
+    PrintF("]\n");
+  }
+}
+
+
 // Base class for element handler implementations. Contains the
 // the common logic for objects with different ElementsKinds.
 // Subclasses must specialize method for which the element
@@ -570,6 +627,11 @@ class ElementsAccessorBase : public ElementsAccessor {
     if (backing_store == NULL) {
       backing_store = holder->elements();
     }
+
+    if (FLAG_trace_array_abuse) {
+      CheckArrayAbuse(holder, "element read", key);
+    }
+
     return ElementsAccessorSubclass::GetImpl(
         receiver, holder, key, backing_store);
   }
