@@ -747,24 +747,13 @@ class FloatingPointHelper : public AllStatic {
                                  Label* non_float,
                                  Register scratch);
 
-  // Checks that the two floating point numbers on top of the FPU stack
-  // have int32 values.
-  static void CheckFloatOperandsAreInt32(MacroAssembler* masm,
-                                         Label* non_int32);
-
   // Takes the operands in edx and eax and loads them as integers in eax
   // and ecx.
   static void LoadUnknownsAsIntegers(MacroAssembler* masm,
                                      bool use_sse3,
+                                     BinaryOpIC::TypeInfo left_type,
+                                     BinaryOpIC::TypeInfo right_type,
                                      Label* operand_conversion_failure);
-
-  // Must only be called after LoadUnknownsAsIntegers.  Assumes that the
-  // operands are pushed on the stack, and that their conversions to int32
-  // are in eax and ecx.  Checks that the original numbers were in the int32
-  // range.
-  static void CheckLoadedIntegersWereInt32(MacroAssembler* masm,
-                                           bool use_sse3,
-                                           Label* not_int32);
 
   // Assumes that operands are smis or heap numbers and loads them
   // into xmm0 and xmm1. Operands are in edx and eax.
@@ -787,9 +776,12 @@ class FloatingPointHelper : public AllStatic {
                                         Label* non_int32,
                                         Register scratch);
 
+  // Checks that |operand| has an int32 value. If |int32_result| is different
+  // from |scratch|, it will contain that int32 value.
   static void CheckSSE2OperandIsInt32(MacroAssembler* masm,
                                       Label* non_int32,
                                       XMMRegister operand,
+                                      Register int32_result,
                                       Register scratch,
                                       XMMRegister xmm_scratch);
 };
@@ -920,6 +912,18 @@ static void IntegerConvert(MacroAssembler* masm,
     __ sub(ecx, scratch2);
   }
   __ bind(&done);
+}
+
+
+// Uses SSE2 to convert the heap number in |source| to an integer. Jumps to
+// |conversion_failure| if the heap number did not contain an int32 value.
+// Result is in ecx. Trashes ebx, xmm0, and xmm1.
+static void ConvertHeapNumberToInt32(MacroAssembler* masm,
+                                     Register source,
+                                     Label* conversion_failure) {
+  __ movdbl(xmm0, FieldOperand(source, HeapNumber::kValueOffset));
+  FloatingPointHelper::CheckSSE2OperandIsInt32(
+      masm, conversion_failure, xmm0, ecx, ebx, xmm1);
 }
 
 
@@ -1797,7 +1801,7 @@ void BinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
           // Check result type if it is currently Int32.
           if (result_type_ <= BinaryOpIC::INT32) {
             FloatingPointHelper::CheckSSE2OperandIsInt32(
-                masm, &not_int32, xmm0, ecx, xmm2);
+                masm, &not_int32, xmm0, ecx, ecx, xmm2);
           }
           BinaryOpStub_GenerateHeapResultAllocation(masm, &call_runtime, mode_);
           __ movdbl(FieldOperand(eax, HeapNumber::kValueOffset), xmm0);
@@ -1809,7 +1813,6 @@ void BinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
             masm,
             ecx,
             FloatingPointHelper::ARGS_IN_REGISTERS);
-        FloatingPointHelper::CheckFloatOperandsAreInt32(masm, &not_int32);
         if (op_ == Token::MOD) {
           // The operands are now on the FPU stack, but we don't need them.
           __ fstp(0);
@@ -1851,15 +1854,9 @@ void BinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
       Label not_floats;
       Label not_int32;
       Label non_smi_result;
-      // We do not check the input arguments here, as any value is
-      // unconditionally truncated to an int32 anyway. To get the
-      // right optimized code, int32 type feedback is just right.
       bool use_sse3 = platform_specific_bit_;
-      FloatingPointHelper::LoadUnknownsAsIntegers(masm,
-                                                  use_sse3,
-                                                  &not_floats);
-      FloatingPointHelper::CheckLoadedIntegersWereInt32(masm, use_sse3,
-                                                        &not_int32);
+      FloatingPointHelper::LoadUnknownsAsIntegers(
+          masm, use_sse3, left_type_, right_type_, &not_floats);
       switch (op_) {
         case Token::BIT_OR:  __ or_(eax, ecx); break;
         case Token::BIT_AND: __ and_(eax, ecx); break;
@@ -2013,11 +2010,11 @@ void BinaryOpStub::GenerateHeapNumberStub(MacroAssembler* masm) {
         FloatingPointHelper::LoadSSE2Operands(masm, &not_floats);
         if (left_type_ == BinaryOpIC::INT32) {
           FloatingPointHelper::CheckSSE2OperandIsInt32(
-              masm, &not_floats, xmm0, ecx, xmm2);
+              masm, &not_floats, xmm0, ecx, ecx, xmm2);
         }
         if (right_type_ == BinaryOpIC::INT32) {
           FloatingPointHelper::CheckSSE2OperandIsInt32(
-              masm, &not_floats, xmm1, ecx, xmm2);
+              masm, &not_floats, xmm1, ecx, ecx, xmm2);
         }
 
         switch (op_) {
@@ -2075,9 +2072,8 @@ void BinaryOpStub::GenerateHeapNumberStub(MacroAssembler* masm) {
       // unconditionally truncated to an int32 anyway. To get the
       // right optimized code, int32 type feedback is just right.
       bool use_sse3 = platform_specific_bit_;
-      FloatingPointHelper::LoadUnknownsAsIntegers(masm,
-                                                  use_sse3,
-                                                  &not_floats);
+      FloatingPointHelper::LoadUnknownsAsIntegers(
+                masm, use_sse3, left_type_, right_type_, &not_floats);
       switch (op_) {
         case Token::BIT_OR:  __ or_(eax, ecx); break;
         case Token::BIT_AND: __ and_(eax, ecx); break;
@@ -2256,6 +2252,8 @@ void BinaryOpStub::GenerateGeneric(MacroAssembler* masm) {
       bool use_sse3 = platform_specific_bit_;
       FloatingPointHelper::LoadUnknownsAsIntegers(masm,
                                                   use_sse3,
+                                                  BinaryOpIC::GENERIC,
+                                                  BinaryOpIC::GENERIC,
                                                   &call_runtime);
       switch (op_) {
         case Token::BIT_OR:  __ or_(eax, ecx); break;
@@ -2736,16 +2734,24 @@ void TranscendentalCacheStub::GenerateOperation(
 
 // Input: edx, eax are the left and right objects of a bit op.
 // Output: eax, ecx are left and right integers for a bit op.
-void FloatingPointHelper::LoadUnknownsAsIntegers(MacroAssembler* masm,
-                                                 bool use_sse3,
-                                                 Label* conversion_failure) {
+// Warning: can clobber inputs even when it jumps to |conversion_failure|!
+void FloatingPointHelper::LoadUnknownsAsIntegers(
+    MacroAssembler* masm,
+    bool use_sse3,
+    BinaryOpIC::TypeInfo left_type,
+    BinaryOpIC::TypeInfo right_type,
+    Label* conversion_failure) {
   // Check float operands.
   Label arg1_is_object, check_undefined_arg1;
   Label arg2_is_object, check_undefined_arg2;
   Label load_arg2, done;
 
   // Test if arg1 is a Smi.
-  __ JumpIfNotSmi(edx, &arg1_is_object, Label::kNear);
+  if (left_type == BinaryOpIC::SMI) {
+    __ JumpIfNotSmi(edx, conversion_failure);
+  } else {
+    __ JumpIfNotSmi(edx, &arg1_is_object, Label::kNear);
+  }
 
   __ SmiUntag(edx);
   __ jmp(&load_arg2);
@@ -2761,17 +2767,27 @@ void FloatingPointHelper::LoadUnknownsAsIntegers(MacroAssembler* masm,
   __ bind(&arg1_is_object);
   __ mov(ebx, FieldOperand(edx, HeapObject::kMapOffset));
   __ cmp(ebx, factory->heap_number_map());
-  __ j(not_equal, &check_undefined_arg1);
-
-  // Get the untagged integer version of the edx heap number in ecx.
-  IntegerConvert(masm, edx, use_sse3, conversion_failure);
+  if (left_type == BinaryOpIC::INT32 && CpuFeatures::IsSupported(SSE2)) {
+    CpuFeatures::Scope use_sse2(SSE2);
+    __ j(not_equal, conversion_failure);
+    // Get the untagged integer version of the edx heap number in ecx.
+    ConvertHeapNumberToInt32(masm, edx, conversion_failure);
+  } else {
+    __ j(not_equal, &check_undefined_arg1);
+    // Get the untagged integer version of the edx heap number in ecx.
+    IntegerConvert(masm, edx, use_sse3, conversion_failure);
+  }
   __ mov(edx, ecx);
 
   // Here edx has the untagged integer, eax has a Smi or a heap number.
   __ bind(&load_arg2);
 
   // Test if arg2 is a Smi.
-  __ JumpIfNotSmi(eax, &arg2_is_object, Label::kNear);
+  if (right_type == BinaryOpIC::SMI) {
+    __ JumpIfNotSmi(eax, conversion_failure);
+  } else {
+    __ JumpIfNotSmi(eax, &arg2_is_object, Label::kNear);
+  }
 
   __ SmiUntag(eax);
   __ mov(ecx, eax);
@@ -2787,19 +2803,19 @@ void FloatingPointHelper::LoadUnknownsAsIntegers(MacroAssembler* masm,
   __ bind(&arg2_is_object);
   __ mov(ebx, FieldOperand(eax, HeapObject::kMapOffset));
   __ cmp(ebx, factory->heap_number_map());
-  __ j(not_equal, &check_undefined_arg2);
+  if (right_type == BinaryOpIC::INT32 && CpuFeatures::IsSupported(SSE2)) {
+    CpuFeatures::Scope use_sse2(SSE2);
+    __ j(not_equal, conversion_failure);
+    // Get the untagged integer version of the eax heap number in ecx.
+    ConvertHeapNumberToInt32(masm, eax, conversion_failure);
+  } else {
+    __ j(not_equal, &check_undefined_arg2);
+    // Get the untagged integer version of the eax heap number in ecx.
+    IntegerConvert(masm, eax, use_sse3, conversion_failure);
+  }
 
-  // Get the untagged integer version of the eax heap number in ecx.
-  IntegerConvert(masm, eax, use_sse3, conversion_failure);
   __ bind(&done);
   __ mov(eax, edx);
-}
-
-
-void FloatingPointHelper::CheckLoadedIntegersWereInt32(MacroAssembler* masm,
-                                                       bool use_sse3,
-                                                       Label* not_int32) {
-  return;
 }
 
 
@@ -2897,18 +2913,19 @@ void FloatingPointHelper::LoadSSE2Smis(MacroAssembler* masm,
 void FloatingPointHelper::CheckSSE2OperandsAreInt32(MacroAssembler* masm,
                                                     Label* non_int32,
                                                     Register scratch) {
-  CheckSSE2OperandIsInt32(masm, non_int32, xmm0, scratch, xmm2);
-  CheckSSE2OperandIsInt32(masm, non_int32, xmm1, scratch, xmm2);
+  CheckSSE2OperandIsInt32(masm, non_int32, xmm0, scratch, scratch, xmm2);
+  CheckSSE2OperandIsInt32(masm, non_int32, xmm1, scratch, scratch, xmm2);
 }
 
 
 void FloatingPointHelper::CheckSSE2OperandIsInt32(MacroAssembler* masm,
                                                   Label* non_int32,
                                                   XMMRegister operand,
+                                                  Register int32_result,
                                                   Register scratch,
                                                   XMMRegister xmm_scratch) {
-  __ cvttsd2si(scratch, Operand(operand));
-  __ cvtsi2sd(xmm_scratch, scratch);
+  __ cvttsd2si(int32_result, Operand(operand));
+  __ cvtsi2sd(xmm_scratch, int32_result);
   __ pcmpeqd(xmm_scratch, operand);
   __ movmskps(scratch, xmm_scratch);
   // Two least significant bits should be both set.
@@ -2995,12 +3012,6 @@ void FloatingPointHelper::CheckFloatOperands(MacroAssembler* masm,
 
   // Fall-through: Both operands are numbers.
   __ bind(&done);
-}
-
-
-void FloatingPointHelper::CheckFloatOperandsAreInt32(MacroAssembler* masm,
-                                                     Label* non_int32) {
-  return;
 }
 
 
