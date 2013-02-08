@@ -860,44 +860,38 @@ void LCodeGen::DeoptimizeIf(Condition cc, LEnvironment* environment) {
     __ popfd();
   }
 
+  if (FLAG_trap_on_deopt) {
+    Label done;
+    if (cc != no_condition) {
+      __ j(NegateCondition(cc), &done, Label::kNear);
+    }
+    __ int3();
+    __ bind(&done);
+  }
+
   ASSERT(info()->IsStub() || frame_is_built_);
-  bool lazy_deopt_needed = info()->IsStub();
-  if (cc == no_condition) {
-    if (FLAG_trap_on_deopt) __ int3();
-    if (lazy_deopt_needed) {
+  bool needs_lazy_deopt = info()->IsStub();
+  if (cc == no_condition && frame_is_built_) {
+    if (needs_lazy_deopt) {
       __ call(entry, RelocInfo::RUNTIME_ENTRY);
     } else {
       __ jmp(entry, RelocInfo::RUNTIME_ENTRY);
     }
   } else {
-    Label done;
-    if (FLAG_trap_on_deopt) {
-      __ j(NegateCondition(cc), &done, Label::kNear);
-      __ int3();
+    // We often have several deopts to the same entry, reuse the last
+    // jump entry if this is the case.
+    if (jump_table_.is_empty() ||
+        jump_table_.last().address != entry ||
+        jump_table_.last().needs_frame != !frame_is_built_ ||
+        jump_table_.last().is_lazy_deopt != needs_lazy_deopt) {
+      JumpTableEntry table_entry(entry, !frame_is_built_, needs_lazy_deopt);
+      jump_table_.Add(table_entry, zone());
     }
-    if (!lazy_deopt_needed && frame_is_built_) {
-      if (FLAG_trap_on_deopt) {
-        __ jmp(entry, RelocInfo::RUNTIME_ENTRY);
-      } else {
-        __ j(cc, entry, RelocInfo::RUNTIME_ENTRY);
-      }
+    if (cc == no_condition) {
+      __ jmp(&jump_table_.last().label);
     } else {
-      // We often have several deopts to the same entry, reuse the last
-      // jump entry if this is the case.
-      if (jump_table_.is_empty() ||
-          jump_table_.last().address != entry ||
-          jump_table_.last().needs_frame != !frame_is_built_ ||
-          jump_table_.last().is_lazy_deopt != lazy_deopt_needed) {
-        JumpTableEntry table_entry(entry, !frame_is_built_, lazy_deopt_needed);
-        jump_table_.Add(table_entry, zone());
-      }
-      if (FLAG_trap_on_deopt) {
-        __ jmp(&jump_table_.last().label);
-      } else {
-        __ j(cc, &jump_table_.last().label);
-      }
+      __ j(cc, &jump_table_.last().label);
     }
-    __ bind(&done);
   }
 }
 
