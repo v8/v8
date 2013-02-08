@@ -4623,6 +4623,7 @@ class HStringAdd: public HBinaryOperation {
     set_representation(Representation::Tagged());
     SetFlag(kUseGVN);
     SetGVNFlag(kDependsOnMaps);
+    SetGVNFlag(kChangesNewSpacePromotion);
   }
 
   virtual Representation RequiredInputRepresentation(int index) {
@@ -4706,7 +4707,6 @@ class HStringLength: public HUnaryOperation {
     set_representation(Representation::Tagged());
     SetFlag(kUseGVN);
     SetGVNFlag(kDependsOnMaps);
-    SetGVNFlag(kChangesNewSpacePromotion);
   }
 
   virtual Representation RequiredInputRepresentation(int index) {
