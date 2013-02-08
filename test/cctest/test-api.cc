@@ -15205,7 +15205,7 @@ THREADED_TEST(GetHeapStatistics) {
   v8::HeapStatistics heap_statistics;
   CHECK_EQ(static_cast<int>(heap_statistics.total_heap_size()), 0);
   CHECK_EQ(static_cast<int>(heap_statistics.used_heap_size()), 0);
-  v8::V8::GetHeapStatistics(&heap_statistics);
+  c1->GetIsolate()->GetHeapStatistics(&heap_statistics);
   CHECK_NE(static_cast<int>(heap_statistics.total_heap_size()), 0);
   CHECK_NE(static_cast<int>(heap_statistics.used_heap_size()), 0);
 }

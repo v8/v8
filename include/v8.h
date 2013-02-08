@@ -2840,16 +2840,6 @@ class V8EXPORT HeapStatistics {
   size_t heap_size_limit() { return heap_size_limit_; }
 
  private:
-  void set_total_heap_size(size_t size) { total_heap_size_ = size; }
-  void set_total_heap_size_executable(size_t size) {
-    total_heap_size_executable_ = size;
-  }
-  void set_total_physical_size(size_t size) {
-    total_physical_size_ = size;
-  }
-  void set_used_heap_size(size_t size) { used_heap_size_ = size; }
-  void set_heap_size_limit(size_t size) { heap_size_limit_ = size; }
-
   size_t total_heap_size_;
   size_t total_heap_size_executable_;
   size_t total_physical_size_;
@@ -2857,6 +2847,7 @@ class V8EXPORT HeapStatistics {
   size_t heap_size_limit_;
 
   friend class V8;
+  friend class Isolate;
 };
 
 
@@ -2945,6 +2936,11 @@ class V8EXPORT Isolate {
    * Returns NULL if SetData has never been called.
    */
   V8_INLINE(void* GetData());
+
+  /**
+   * Get statistics about the heap memory usage.
+   */
+  void GetHeapStatistics(HeapStatistics* heap_statistics);
 
  private:
   Isolate();
@@ -3500,10 +3496,8 @@ class V8EXPORT V8 {
    */
   static bool Dispose();
 
-  /**
-   * Get statistics about the heap memory usage.
-   */
-  static void GetHeapStatistics(HeapStatistics* heap_statistics);
+  /** Deprecated. Use Isolate::GetHeapStatistics instead. */
+  V8_DEPRECATED(static void GetHeapStatistics(HeapStatistics* heap_statistics));
 
   /**
    * Iterates through all external resources referenced from current isolate
