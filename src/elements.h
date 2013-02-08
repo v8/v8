@@ -197,7 +197,8 @@ class ElementsAccessor {
   DISALLOW_COPY_AND_ASSIGN(ElementsAccessor);
 };
 
-void CheckArrayAbuse(JSObject* obj, const char* op, uint32_t key);
+void CheckArrayAbuse(JSObject* obj, const char* op, uint32_t key,
+                     bool allow_appending = false);
 
 } }  // namespace v8::internal
 

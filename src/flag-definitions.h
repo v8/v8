@@ -363,7 +363,14 @@ DEFINE_bool(cache_prototype_transitions, true, "cache prototype transitions")
 
 // debug.cc
 DEFINE_bool(trace_debug_json, false, "trace debugging JSON request/response")
-DEFINE_bool(trace_array_abuse, false, "trace out-of-bounds array accesses")
+DEFINE_bool(trace_js_array_abuse, false,
+            "trace out-of-bounds accesses to JS arrays")
+DEFINE_bool(trace_external_array_abuse, false,
+            "trace out-of-bounds-accesses to external arrays")
+DEFINE_bool(trace_array_abuse, false,
+            "trace out-of-bounds accesses to all arrays")
+DEFINE_implication(trace_array_abuse, trace_js_array_abuse)
+DEFINE_implication(trace_array_abuse, trace_external_array_abuse)
 DEFINE_bool(debugger_auto_break, true,
             "automatically set the debug break flag when debugger commands are "
             "in the queue")

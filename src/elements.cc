@@ -504,7 +504,8 @@ static void TraceTopFrame() {
 }
 
 
-void CheckArrayAbuse(JSObject* obj, const char* op, uint32_t key) {
+void CheckArrayAbuse(JSObject* obj, const char* op, uint32_t key,
+                     bool allow_appending) {
   Object* raw_length = NULL;
   const char* elements_type = "array";
   if (obj->IsJSArray()) {
@@ -519,7 +520,9 @@ void CheckArrayAbuse(JSObject* obj, const char* op, uint32_t key) {
     double n = raw_length->Number();
     if (FastI2D(FastD2UI(n)) == n) {
       int32_t int32_length = DoubleToInt32(n);
-      if (key >= static_cast<uint32_t>(int32_length)) {
+      uint32_t compare_length = static_cast<uint32_t>(int32_length);
+      if (allow_appending) compare_length++;
+      if (key >= compare_length) {
         PrintF("[OOB %s %s (%s length = %d, element accessed = %d) in ",
                elements_type, op, elements_type,
                static_cast<int>(int32_length),
@@ -628,8 +631,14 @@ class ElementsAccessorBase : public ElementsAccessor {
       backing_store = holder->elements();
     }
 
-    if (FLAG_trace_array_abuse) {
-      CheckArrayAbuse(holder, "element read", key);
+    if (!IsExternalArrayElementsKind(ElementsTraits::Kind) &&
+        FLAG_trace_js_array_abuse) {
+      CheckArrayAbuse(holder, "elements read", key);
+    }
+
+    if (IsExternalArrayElementsKind(ElementsTraits::Kind) &&
+        FLAG_trace_external_array_abuse) {
+      CheckArrayAbuse(holder, "external elements read", key);
     }
 
     return ElementsAccessorSubclass::GetImpl(

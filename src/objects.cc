@@ -10405,9 +10405,14 @@ MaybeObject* JSObject::SetElementWithoutInterceptor(uint32_t index,
          HasDictionaryArgumentsElements() ||
          (attr & (DONT_DELETE | DONT_ENUM | READ_ONLY)) == 0);
   Isolate* isolate = GetIsolate();
-  if (FLAG_trace_array_abuse) {
-    if (IsExternalArrayElementsKind(GetElementsKind())) {
-      CheckArrayAbuse(this, "external elements write", index);
+  if (FLAG_trace_external_array_abuse &&
+      IsExternalArrayElementsKind(GetElementsKind())) {
+    CheckArrayAbuse(this, "external elements write", index);
+  }
+  if (FLAG_trace_js_array_abuse &&
+      !IsExternalArrayElementsKind(GetElementsKind())) {
+    if (IsJSArray()) {
+      CheckArrayAbuse(this, "elements write", index, true);
     }
   }
   switch (GetElementsKind()) {
