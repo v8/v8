@@ -76,8 +76,9 @@ class CodeStubGraphBuilderBase : public HGraphBuilder {
 
 bool CodeStubGraphBuilderBase::BuildGraph() {
   if (FLAG_trace_hydrogen) {
+    const char* name = CodeStub::MajorName(stub()->MajorKey(), false);
     PrintF("-----------------------------------------------------------\n");
-    PrintF("Compiling stub using hydrogen\n");
+    PrintF("Compiling stub %s using hydrogen\n", name);
     HTracer::Instance()->TraceCompilation(&info_);
   }
   HBasicBlock* next_block = graph()->CreateBasicBlock();
