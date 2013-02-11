@@ -901,7 +901,7 @@ void MarkCompactCollector::Prepare(GCTracer* tracer) {
     StartCompaction(NON_INCREMENTAL_COMPACTION);
   }
 
-  PagedSpaces spaces;
+  PagedSpaces spaces(heap());
   for (PagedSpace* space = spaces.next();
        space != NULL;
        space = spaces.next()) {

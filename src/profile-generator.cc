@@ -1095,7 +1095,7 @@ template <size_t ptr_size> struct SnapshotSizeConstants;
 template <> struct SnapshotSizeConstants<4> {
   static const int kExpectedHeapGraphEdgeSize = 12;
   static const int kExpectedHeapEntrySize = 24;
-  static const int kExpectedHeapSnapshotsCollectionSize = 96;
+  static const int kExpectedHeapSnapshotsCollectionSize = 100;
   static const int kExpectedHeapSnapshotSize = 136;
   static const size_t kMaxSerializableSnapshotRawSize = 256 * MB;
 };
@@ -1103,7 +1103,7 @@ template <> struct SnapshotSizeConstants<4> {
 template <> struct SnapshotSizeConstants<8> {
   static const int kExpectedHeapGraphEdgeSize = 24;
   static const int kExpectedHeapEntrySize = 32;
-  static const int kExpectedHeapSnapshotsCollectionSize = 144;
+  static const int kExpectedHeapSnapshotsCollectionSize = 152;
   static const int kExpectedHeapSnapshotSize = 168;
   static const uint64_t kMaxSerializableSnapshotRawSize =
       static_cast<uint64_t>(6000) * MB;
@@ -1286,9 +1286,10 @@ const SnapshotObjectId HeapObjectsMap::kFirstAvailableObjectId =
     HeapObjectsMap::kGcRootsFirstSubrootId +
     VisitorSynchronization::kNumberOfSyncTags * HeapObjectsMap::kObjectIdStep;
 
-HeapObjectsMap::HeapObjectsMap()
+HeapObjectsMap::HeapObjectsMap(Heap* heap)
     : next_id_(kFirstAvailableObjectId),
-      entries_map_(AddressesMatch) {
+      entries_map_(AddressesMatch),
+      heap_(heap) {
   // This dummy element solves a problem with entries_map_.
   // When we do lookup in HashMap we see no difference between two cases:
   // it has an entry with NULL as the value or it has created
@@ -1366,7 +1367,7 @@ void HeapObjectsMap::StopHeapObjectsTracking() {
 void HeapObjectsMap::UpdateHeapObjectsMap() {
   HEAP->CollectAllGarbage(Heap::kMakeHeapIterableMask,
                           "HeapSnapshotsCollection::UpdateHeapObjectsMap");
-  HeapIterator iterator;
+  HeapIterator iterator(heap_);
   for (HeapObject* obj = iterator.next();
        obj != NULL;
        obj = iterator.next()) {
@@ -1474,10 +1475,11 @@ size_t HeapObjectsMap::GetUsedMemorySize() const {
 }
 
 
-HeapSnapshotsCollection::HeapSnapshotsCollection()
+HeapSnapshotsCollection::HeapSnapshotsCollection(Heap* heap)
     : is_tracking_objects_(false),
       snapshots_uids_(HeapSnapshotsMatch),
-      token_enumerator_(new TokenEnumerator()) {
+      token_enumerator_(new TokenEnumerator()),
+      ids_(heap) {
 }
 
 
@@ -1538,7 +1540,7 @@ Handle<HeapObject> HeapSnapshotsCollection::FindHeapObjectById(
                           "HeapSnapshotsCollection::FindHeapObjectById");
   AssertNoAllocation no_allocation;
   HeapObject* object = NULL;
-  HeapIterator iterator(HeapIterator::kFilterUnreachable);
+  HeapIterator iterator(heap(), HeapIterator::kFilterUnreachable);
   // Make sure that object with the given id is still reachable.
   for (HeapObject* obj = iterator.next();
        obj != NULL;
@@ -2428,7 +2430,7 @@ class RootsReferencesExtractor : public ObjectVisitor {
 
 bool V8HeapExplorer::IterateAndExtractReferences(
     SnapshotFillerInterface* filler) {
-  HeapIterator iterator(HeapIterator::kFilterUnreachable);
+  HeapIterator iterator(heap_, HeapIterator::kFilterUnreachable);
 
   filler_ = filler;
   bool interrupted = false;
@@ -3079,11 +3081,13 @@ class SnapshotFiller : public SnapshotFillerInterface {
 HeapSnapshotGenerator::HeapSnapshotGenerator(
     HeapSnapshot* snapshot,
     v8::ActivityControl* control,
-    v8::HeapProfiler::ObjectNameResolver* resolver)
+    v8::HeapProfiler::ObjectNameResolver* resolver,
+    Heap* heap)
     : snapshot_(snapshot),
       control_(control),
       v8_heap_explorer_(snapshot_, this, resolver),
-      dom_explorer_(snapshot_, this) {
+      dom_explorer_(snapshot_, this),
+      heap_(heap) {
 }
 
 
@@ -3154,7 +3158,7 @@ bool HeapSnapshotGenerator::ProgressReport(bool force) {
 
 void HeapSnapshotGenerator::SetProgressTotal(int iterations_count) {
   if (control_ == NULL) return;
-  HeapIterator iterator(HeapIterator::kFilterUnreachable);
+  HeapIterator iterator(heap_, HeapIterator::kFilterUnreachable);
   progress_total_ = iterations_count * (
       v8_heap_explorer_.EstimateObjectsCount(&iterator) +
       dom_explorer_.EstimateObjectsCount());

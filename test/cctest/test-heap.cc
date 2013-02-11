@@ -820,10 +820,10 @@ TEST(StringAllocation) {
 }
 
 
-static int ObjectsFoundInHeap(Handle<Object> objs[], int size) {
+static int ObjectsFoundInHeap(Heap* heap, Handle<Object> objs[], int size) {
   // Count the number of objects found in the heap.
   int found_count = 0;
-  HeapIterator iterator;
+  HeapIterator iterator(heap);
   for (HeapObject* obj = iterator.next(); obj != NULL; obj = iterator.next()) {
     for (int i = 0; i < size; i++) {
       if (*objs[i] == obj) {
@@ -869,7 +869,7 @@ TEST(Iteration) {
   objs[next_objs_index++] = Handle<Map>(HeapObject::cast(*objs[0])->map());
 
   CHECK_EQ(objs_count, next_objs_index);
-  CHECK_EQ(objs_count, ObjectsFoundInHeap(objs, objs_count));
+  CHECK_EQ(objs_count, ObjectsFoundInHeap(HEAP, objs, objs_count));
 }
 
 
@@ -1465,7 +1465,7 @@ TEST(TestSizeOfObjectsVsHeapIteratorPrecision) {
   InitializeVM();
   HEAP->EnsureHeapIsIterable();
   intptr_t size_of_objects_1 = HEAP->SizeOfObjects();
-  HeapIterator iterator;
+  HeapIterator iterator(HEAP);
   intptr_t size_of_objects_2 = 0;
   for (HeapObject* obj = iterator.next();
        obj != NULL;
@@ -1586,7 +1586,7 @@ TEST(CollectingAllAvailableGarbageShrinksNewSpace) {
 
 static int NumberOfGlobalObjects() {
   int count = 0;
-  HeapIterator iterator;
+  HeapIterator iterator(HEAP);
   for (HeapObject* obj = iterator.next(); obj != NULL; obj = iterator.next()) {
     if (obj->IsGlobalObject()) count++;
   }

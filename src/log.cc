@@ -1394,9 +1394,10 @@ class EnumerateOptimizedFunctionsVisitor: public OptimizedFunctionVisitor {
 };
 
 
-static int EnumerateCompiledFunctions(Handle<SharedFunctionInfo>* sfis,
+static int EnumerateCompiledFunctions(Heap* heap,
+                                      Handle<SharedFunctionInfo>* sfis,
                                       Handle<Code>* code_objects) {
-  HeapIterator iterator;
+  HeapIterator iterator(heap);
   AssertNoAllocation no_alloc;
   int compiled_funcs_count = 0;
 
@@ -1562,9 +1563,10 @@ void Logger::LowLevelLogWriteBytes(const char* bytes, int size) {
 
 
 void Logger::LogCodeObjects() {
-  HEAP->CollectAllGarbage(Heap::kMakeHeapIterableMask,
+  Heap* heap = HEAP;
+  heap->CollectAllGarbage(Heap::kMakeHeapIterableMask,
                           "Logger::LogCodeObjects");
-  HeapIterator iterator;
+  HeapIterator iterator(heap);
   AssertNoAllocation no_alloc;
   for (HeapObject* obj = iterator.next(); obj != NULL; obj = iterator.next()) {
     if (obj->IsCode()) LogCodeObject(obj);
@@ -1618,13 +1620,14 @@ void Logger::LogExistingFunction(Handle<SharedFunctionInfo> shared,
 
 
 void Logger::LogCompiledFunctions() {
-  HEAP->CollectAllGarbage(Heap::kMakeHeapIterableMask,
+  Heap* heap = HEAP;
+  heap->CollectAllGarbage(Heap::kMakeHeapIterableMask,
                           "Logger::LogCompiledFunctions");
   HandleScope scope;
-  const int compiled_funcs_count = EnumerateCompiledFunctions(NULL, NULL);
+  const int compiled_funcs_count = EnumerateCompiledFunctions(heap, NULL, NULL);
   ScopedVector< Handle<SharedFunctionInfo> > sfis(compiled_funcs_count);
   ScopedVector< Handle<Code> > code_objects(compiled_funcs_count);
-  EnumerateCompiledFunctions(sfis.start(), code_objects.start());
+  EnumerateCompiledFunctions(heap, sfis.start(), code_objects.start());
 
   // During iteration, there can be heap allocation due to
   // GetScriptLineNumber call.
@@ -1638,9 +1641,10 @@ void Logger::LogCompiledFunctions() {
 
 
 void Logger::LogAccessorCallbacks() {
-  HEAP->CollectAllGarbage(Heap::kMakeHeapIterableMask,
+  Heap* heap = HEAP;
+  heap->CollectAllGarbage(Heap::kMakeHeapIterableMask,
                           "Logger::LogAccessorCallbacks");
-  HeapIterator iterator;
+  HeapIterator iterator(heap);
   AssertNoAllocation no_alloc;
   for (HeapObject* obj = iterator.next(); obj != NULL; obj = iterator.next()) {
     if (!obj->IsAccessorInfo()) continue;

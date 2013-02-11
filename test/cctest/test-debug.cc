@@ -426,7 +426,7 @@ void CheckDebuggerUnloaded(bool check_functions) {
   HEAP->CollectAllGarbage(Heap::kMakeHeapIterableMask);
 
   // Iterate the head and check that there are no debugger related objects left.
-  HeapIterator iterator;
+  HeapIterator iterator(HEAP);
   for (HeapObject* obj = iterator.next(); obj != NULL; obj = iterator.next()) {
     CHECK(!obj->IsDebugInfo());
     CHECK(!obj->IsBreakPointInfo());

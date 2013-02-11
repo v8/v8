@@ -11283,7 +11283,7 @@ THREADED_TEST(LockUnlockLock) {
 static int GetGlobalObjectsCount() {
   i::Isolate::Current()->heap()->EnsureHeapIsIterable();
   int count = 0;
-  i::HeapIterator it;
+  i::HeapIterator it(HEAP);
   for (i::HeapObject* object = it.next(); object != NULL; object = it.next())
     if (object->IsJSGlobalObject()) count++;
   return count;

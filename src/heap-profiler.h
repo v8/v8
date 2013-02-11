@@ -83,7 +83,7 @@ class HeapProfiler {
   }
 
  private:
-  HeapProfiler();
+  explicit HeapProfiler(Heap* heap);
   ~HeapProfiler();
   HeapSnapshot* TakeSnapshotImpl(
       const char* name,
@@ -100,6 +100,8 @@ class HeapProfiler {
   void StartHeapObjectsTrackingImpl();
   void StopHeapObjectsTrackingImpl();
   SnapshotObjectId PushHeapObjectsStatsImpl(OutputStream* stream);
+
+  Heap* heap() const { return snapshots_->heap(); }
 
   HeapSnapshotsCollection* snapshots_;
   unsigned next_snapshot_uid_;
