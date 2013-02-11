@@ -1104,17 +1104,14 @@ void CodeFlusher::EvictCandidate(JSFunction* function) {
 
 
 void CodeFlusher::EvictJSFunctionCandidates() {
-  Object* undefined = isolate_->heap()->undefined_value();
-
   JSFunction* candidate = jsfunction_candidates_head_;
   JSFunction* next_candidate;
   while (candidate != NULL) {
     next_candidate = GetNextCandidate(candidate);
-    ClearNextCandidate(candidate, undefined);
+    EvictCandidate(candidate);
     candidate = next_candidate;
   }
-
-  jsfunction_candidates_head_ = NULL;
+  ASSERT(jsfunction_candidates_head_ == NULL);
 }
 
 
@@ -1123,11 +1120,10 @@ void CodeFlusher::EvictSharedFunctionInfoCandidates() {
   SharedFunctionInfo* next_candidate;
   while (candidate != NULL) {
     next_candidate = GetNextCandidate(candidate);
-    ClearNextCandidate(candidate);
+    EvictCandidate(candidate);
     candidate = next_candidate;
   }
-
-  shared_function_info_candidates_head_ = NULL;
+  ASSERT(shared_function_info_candidates_head_ == NULL);
 }
 
 
