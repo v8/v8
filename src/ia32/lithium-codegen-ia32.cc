@@ -2070,9 +2070,8 @@ void LCodeGen::DoBranch(LBranch* instr) {
         __ cmp(FieldOperand(reg, HeapObject::kMapOffset),
                factory()->heap_number_map());
         __ j(not_equal, &not_heap_number, Label::kNear);
-        __ fldz();
-        __ fld_d(FieldOperand(reg, HeapNumber::kValueOffset));
-        __ FCmp();
+        __ xorps(xmm0, xmm0);
+        __ ucomisd(xmm0, FieldOperand(reg, HeapNumber::kValueOffset));
         __ j(zero, false_label);
         __ jmp(true_label);
         __ bind(&not_heap_number);
