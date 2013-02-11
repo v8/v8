@@ -325,7 +325,7 @@ TEST(APITestBasicMutation) {
       "function observer(r) { [].push.apply(records, r); };"
       "Object.observe(obj, observer);"
       "obj"));
-  obj->Set(String::New("foo"), Number::New(1));
+  obj->Set(String::New("foo"), Number::New(7));
   obj->Set(1, Number::New(2));
   // ForceSet should work just as well as Set
   obj->ForceSet(String::New("foo"), Number::New(3));
@@ -345,7 +345,9 @@ TEST(APITestBasicMutation) {
   const RecordExpectation expected_records[] = {
     { obj, "new", "foo", Handle<Value>() },
     { obj, "new", "1", Handle<Value>() },
-    { obj, "updated", "foo", Number::New(1) },
+    // Note: use 7 not 1 below, as the latter triggers a nifty VS10 compiler bug
+    // where instead of 1.0, a garbage value would be passed into Number::New.
+    { obj, "updated", "foo", Number::New(7) },
     { obj, "updated", "1", Number::New(2) },
     { obj, "updated", "1", Number::New(4) },
     { obj, "new", "1.1", Handle<Value>() },
