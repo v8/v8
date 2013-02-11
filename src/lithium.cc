@@ -257,6 +257,18 @@ int ElementsKindToShiftSize(ElementsKind elements_kind) {
 }
 
 
+int StackSlotOffset(int index) {
+  if (index >= 0) {
+    // Local or spill slot. Skip the frame pointer, function, and
+    // context in the fixed part of the frame.
+    return -(index + 3) * kPointerSize;
+  } else {
+    // Incoming parameter. Skip the return address.
+    return -(index - 1) * kPointerSize;
+  }
+}
+
+
 LChunk::LChunk(CompilationInfo* info, HGraph* graph)
     : spill_slot_count_(0),
       info_(info),
