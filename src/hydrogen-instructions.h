@@ -1546,7 +1546,7 @@ class HStackCheck: public HTemplateInstruction<1> {
     // The stack check eliminator might try to eliminate the same stack
     // check instruction multiple times.
     if (IsLinked()) {
-      DeleteFromGraph();
+      DeleteAndReplaceWith(NULL);
     }
   }
 

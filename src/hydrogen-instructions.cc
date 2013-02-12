@@ -790,6 +790,13 @@ void HInstruction::Verify() {
   // HValue::DataEquals.  The default implementation is UNREACHABLE.  We
   // don't actually care whether DataEquals returns true or false here.
   if (CheckFlag(kUseGVN)) DataEquals(this);
+
+  // Verify that all uses are in the graph.
+  for (HUseIterator use = uses(); !use.Done(); use.Advance()) {
+    if (use.value()->IsInstruction()) {
+      ASSERT(HInstruction::cast(use.value())->IsLinked());
+    }
+  }
 }
 #endif
 
