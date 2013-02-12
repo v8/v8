@@ -1497,7 +1497,6 @@ void Shell::RunShell(Isolate* isolate) {
   Context::Scope context_scope(evaluation_context_);
   HandleScope outer_scope;
   Handle<String> name = String::New("(d8)");
-  DumbLineEditor dumb_line_editor(isolate);
   LineEditor* console = LineEditor::Get();
   printf("V8 version %s [console: %s]\n", V8::GetVersion(), console->name());
   console->Open();
@@ -1902,6 +1901,7 @@ int Shell::Main(int argc, char* argv[]) {
   if (!SetOptions(argc, argv)) return 1;
   int result = 0;
   Isolate* isolate = Isolate::GetCurrent();
+  DumbLineEditor dumb_line_editor(isolate);
   {
     Initialize(isolate);
     Symbols symbols(isolate);
