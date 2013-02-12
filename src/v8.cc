@@ -115,6 +115,7 @@ void V8::TearDown() {
   LOperand::TearDownCaches();
   ExternalReference::TearDownMathExpData();
   RegisteredExtension::UnregisterAll();
+  Isolate::GlobalTearDown();
 
   is_running_ = false;
   has_been_disposed_ = true;

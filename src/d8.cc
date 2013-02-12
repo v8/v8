@@ -1378,6 +1378,7 @@ void Shell::OnExit() {
            "-------------+\n");
     delete [] counters;
   }
+  delete context_mutex_;
   delete counters_file_;
   delete counter_map_;
 #endif  // V8_SHARED

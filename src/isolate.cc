@@ -1548,6 +1548,14 @@ Isolate::ThreadDataTable::ThreadDataTable()
 }
 
 
+Isolate::ThreadDataTable::~ThreadDataTable() {
+  // TODO(svenpanne) The assertion below would fire if an embedder does not
+  // cleanly dispose all Isolates before disposing v8, so we are conservative
+  // and leave it out for now.
+  // ASSERT_EQ(NULL, list_);
+}
+
+
 Isolate::PerIsolateThreadData*
     Isolate::ThreadDataTable::Lookup(Isolate* isolate,
                                      ThreadId thread_id) {
@@ -1732,6 +1740,11 @@ void Isolate::TearDown() {
 
   // Restore the previous current isolate.
   SetIsolateThreadLocals(saved_isolate, saved_data);
+}
+
+
+void Isolate::GlobalTearDown() {
+  delete thread_data_table_;
 }
 
 

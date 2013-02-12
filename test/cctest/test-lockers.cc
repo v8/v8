@@ -289,6 +289,7 @@ TEST(IsolateNestedLocking) {
     threads.Add(new IsolateNestedLockingThread(isolate));
   }
   StartJoinAndDeleteThreads(threads);
+  isolate->Dispose();
 }
 
 
@@ -584,6 +585,7 @@ TEST(LockUnlockLockMultithreaded) {
     threads.Add(new LockUnlockLockThread(isolate, context));
   }
   StartJoinAndDeleteThreads(threads);
+  isolate->Dispose();
 }
 
 class LockUnlockLockDefaultIsolateThread : public JoinableThread {

@@ -16422,6 +16422,7 @@ TEST(IsolateDifferentContexts) {
     CHECK(v->IsNumber());
     CHECK_EQ(22, static_cast<int>(v->NumberValue()));
   }
+  isolate->Dispose();
 }
 
 class InitDefaultIsolateThread : public v8::internal::Thread {
