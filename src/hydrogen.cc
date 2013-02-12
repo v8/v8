@@ -779,6 +779,20 @@ void HGraphBuilder::AddSimulate(BailoutId id,
 }
 
 
+HBoundsCheck* HGraphBuilder::AddBoundsCheck(HValue* index,
+                                            HValue* length,
+                                            BoundsCheckKeyMode key_mode,
+                                            Representation r) {
+  HCheckSmiOrInt32* checked_index =
+      new(graph()->zone()) HCheckSmiOrInt32(index);
+  AddInstruction(checked_index);
+  HBoundsCheck* result = new(graph()->zone()) HBoundsCheck(
+      checked_index, length, key_mode, r);
+  AddInstruction(result);
+  return result;
+}
+
+
 HBasicBlock* HGraphBuilder::CreateBasicBlock(HEnvironment* env) {
   HBasicBlock* b = graph()->CreateBasicBlock();
   b->SetInitialEnvironment(env);
@@ -918,8 +932,8 @@ HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
   HInstruction* checked_key = NULL;
   if (IsExternalArrayElementsKind(elements_kind)) {
     length = AddInstruction(new(zone) HFixedArrayBaseLength(elements));
-    checked_key = AddInstruction(new(zone) HBoundsCheck(
-        key, length, ALLOW_SMI_KEY, checked_index_representation));
+    checked_key = AddBoundsCheck(
+        key, length, ALLOW_SMI_KEY, checked_index_representation);
     HLoadExternalArrayPointer* external_elements =
         new(zone) HLoadExternalArrayPointer(elements);
     AddInstruction(external_elements);
@@ -936,8 +950,8 @@ HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
   } else {
     length = AddInstruction(new(zone) HFixedArrayBaseLength(elements));
   }
-  checked_key = AddInstruction(new(zone) HBoundsCheck(
-      key, length, ALLOW_SMI_KEY, checked_index_representation));
+  checked_key = AddBoundsCheck(
+      key, length, ALLOW_SMI_KEY, checked_index_representation);
   return BuildFastElementAccess(elements, checked_key, val, mapcheck,
                                 elements_kind, is_store);
 }
@@ -6833,7 +6847,7 @@ HValue* HOptimizedGraphBuilder::HandlePolymorphicElementAccess(
         && todo_external_array) {
       HInstruction* length =
           AddInstruction(new(zone()) HFixedArrayBaseLength(elements));
-      checked_key = AddInstruction(new(zone()) HBoundsCheck(key, length));
+      checked_key = AddBoundsCheck(key, length);
       external_elements = new(zone()) HLoadExternalArrayPointer(elements);
       AddInstruction(external_elements);
     }
@@ -6875,8 +6889,7 @@ HValue* HOptimizedGraphBuilder::HandlePolymorphicElementAccess(
         HInstruction* length;
         length = AddInstruction(new(zone()) HJSArrayLength(object, typecheck,
                                                            HType::Smi()));
-        checked_key = AddInstruction(new(zone()) HBoundsCheck(key, length,
-                                                              ALLOW_SMI_KEY));
+        checked_key = AddBoundsCheck(key, length, ALLOW_SMI_KEY);
         access = AddInstruction(BuildFastElementAccess(
             elements, checked_key, val, elements_kind_branch,
             elements_kind, is_store));
@@ -6892,8 +6905,7 @@ HValue* HOptimizedGraphBuilder::HandlePolymorphicElementAccess(
 
         set_current_block(if_fastobject);
         length = AddInstruction(new(zone()) HFixedArrayBaseLength(elements));
-        checked_key = AddInstruction(new(zone()) HBoundsCheck(key, length,
-                                                              ALLOW_SMI_KEY));
+        checked_key = AddBoundsCheck(key, length, ALLOW_SMI_KEY);
         access = AddInstruction(BuildFastElementAccess(
             elements, checked_key, val, elements_kind_branch,
             elements_kind, is_store));
@@ -7042,8 +7054,7 @@ bool HOptimizedGraphBuilder::TryArgumentsAccess(Property* expr) {
           new(zone()) HArgumentsElements(false));
       HInstruction* length = AddInstruction(
           new(zone()) HArgumentsLength(elements));
-      HInstruction* checked_key =
-          AddInstruction(new(zone()) HBoundsCheck(key, length));
+      HInstruction* checked_key = AddBoundsCheck(key, length);
       result = new(zone()) HAccessArgumentsAt(elements, length, checked_key);
     } else {
       EnsureArgumentsArePushedForAccess();
@@ -7055,8 +7066,7 @@ bool HOptimizedGraphBuilder::TryArgumentsAccess(Property* expr) {
       HInstruction* length = AddInstruction(new(zone()) HConstant(
         Handle<Object>(Smi::FromInt(argument_count)),
         Representation::Integer32()));
-      HInstruction* checked_key =
-          AddInstruction(new(zone()) HBoundsCheck(key, length));
+      HInstruction* checked_key = AddBoundsCheck(key, length);
       result = new(zone()) HAccessArgumentsAt(elements, length, checked_key);
     }
   }
@@ -8770,8 +8780,7 @@ HStringCharCodeAt* HOptimizedGraphBuilder::BuildStringCharCodeAt(
   AddInstruction(HCheckInstanceType::NewIsString(string, zone()));
   HStringLength* length = new(zone()) HStringLength(string);
   AddInstruction(length);
-  HInstruction* checked_index =
-      AddInstruction(new(zone()) HBoundsCheck(index, length));
+  HInstruction* checked_index = AddBoundsCheck(index, length);
   return new(zone()) HStringCharCodeAt(context, string, checked_index);
 }
 
@@ -9599,8 +9608,7 @@ void HOptimizedGraphBuilder::GenerateArguments(CallRuntime* call) {
   HInstruction* elements = AddInstruction(
       new(zone()) HArgumentsElements(false));
   HInstruction* length = AddInstruction(new(zone()) HArgumentsLength(elements));
-  HInstruction* checked_index =
-      AddInstruction(new(zone()) HBoundsCheck(index, length));
+  HInstruction* checked_index = AddBoundsCheck(index, length);
   HAccessArgumentsAt* result =
       new(zone()) HAccessArgumentsAt(elements, length, checked_index);
   return ast_context()->ReturnInstruction(result, call->id());

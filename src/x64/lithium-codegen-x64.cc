@@ -3931,28 +3931,9 @@ void LCodeGen::DoStoreNamedGeneric(LStoreNamedGeneric* instr) {
 }
 
 
-void LCodeGen::DeoptIfTaggedButNotSmi(LEnvironment* environment,
-                                      HValue* value,
-                                      LOperand* operand) {
-  if (value->representation().IsTagged() && !value->type().IsSmi()) {
-    Condition cc;
-    if (operand->IsRegister()) {
-      cc = masm()->CheckSmi(ToRegister(operand));
-    } else {
-      cc = masm()->CheckSmi(ToOperand(operand));
-    }
-    DeoptimizeIf(NegateCondition(cc), environment);
-  }
-}
-
-
 void LCodeGen::DoBoundsCheck(LBoundsCheck* instr) {
-  DeoptIfTaggedButNotSmi(instr->environment(),
-                         instr->hydrogen()->length(),
-                         instr->length());
-  DeoptIfTaggedButNotSmi(instr->environment(),
-                         instr->hydrogen()->index(),
-                         instr->index());
+  if (instr->hydrogen()->skip_check()) return;
+
   if (instr->length()->IsRegister()) {
     Register reg = ToRegister(instr->length());
     if (!instr->hydrogen()->length()->representation().IsTagged()) {

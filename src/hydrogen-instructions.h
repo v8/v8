@@ -92,6 +92,7 @@ class LChunkBuilder;
   V(CheckNonSmi)                               \
   V(CheckPrototypeMaps)                        \
   V(CheckSmi)                                  \
+  V(CheckSmiOrInt32)                           \
   V(ClampToUint8)                              \
   V(ClassOfTestAndBranch)                      \
   V(CompareIDAndBranch)                        \
@@ -2612,6 +2613,34 @@ class HCheckSmi: public HUnaryOperation {
 };
 
 
+class HCheckSmiOrInt32: public HUnaryOperation {
+ public:
+  explicit HCheckSmiOrInt32(HValue* value) : HUnaryOperation(value) {
+    SetFlag(kFlexibleRepresentation);
+    SetFlag(kUseGVN);
+  }
+
+  virtual int RedefinedOperandIndex() { return 0; }
+  virtual Representation RequiredInputRepresentation(int index) {
+    return representation();
+  }
+  virtual void InferRepresentation(HInferRepresentation* h_infer);
+
+  virtual HValue* Canonicalize() {
+    if (representation().IsTagged() && !type().IsSmi()) {
+      return this;
+    } else {
+      return value();
+    }
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(CheckSmiOrInt32)
+
+ protected:
+  virtual bool DataEquals(HValue* other) { return true; }
+};
+
+
 class HPhi: public HValue {
  public:
   HPhi(int merged_index, Zone* zone)
@@ -2806,6 +2835,9 @@ class HConstant: public HTemplateInstruction<0> {
   int32_t Integer32Value() const {
     ASSERT(HasInteger32Value());
     return int32_value_;
+  }
+  bool HasSmiValue() const {
+    return HasInteger32Value() && Smi::IsValid(Integer32Value());
   }
   bool HasDoubleValue() const { return has_double_value_; }
   double DoubleValue() const {
@@ -3088,15 +3120,21 @@ enum BoundsCheckKeyMode {
 
 class HBoundsCheck: public HTemplateInstruction<2> {
  public:
-  HBoundsCheck(HValue* index, HValue* length,
+  // Normally HBoundsCheck should be created using the
+  // HGraphBuilder::AddBoundsCheck() helper, which also guards the index with
+  // a HCheckSmiOrInt32 check.
+  // However when building stubs, where we know that the arguments are Int32,
+  // it makes sense to invoke this constructor directly.
+  HBoundsCheck(HValue* index,
+               HValue* length,
                BoundsCheckKeyMode key_mode = DONT_ALLOW_SMI_KEY,
                Representation r = Representation::None())
-      : key_mode_(key_mode) {
+      : key_mode_(key_mode), skip_check_(false) {
     SetOperandAt(0, index);
     SetOperandAt(1, length);
     if (r.IsNone()) {
       // In the normal compilation pipeline the representation is flexible
-      // (see comment to RequiredInputRepresentation).
+      // (see InferRepresentation).
       SetFlag(kFlexibleRepresentation);
     } else {
       // When compiling stubs we want to set the representation explicitly
@@ -3105,6 +3143,9 @@ class HBoundsCheck: public HTemplateInstruction<2> {
     }
     SetFlag(kUseGVN);
   }
+
+  bool skip_check() { return skip_check_; }
+  void set_skip_check(bool skip_check) { skip_check_ = skip_check; }
 
   virtual Representation RequiredInputRepresentation(int arg_index) {
     return representation();
@@ -3126,6 +3167,7 @@ class HBoundsCheck: public HTemplateInstruction<2> {
  protected:
   virtual bool DataEquals(HValue* other) { return true; }
   BoundsCheckKeyMode key_mode_;
+  bool skip_check_;
 };
 
 

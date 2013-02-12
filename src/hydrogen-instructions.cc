@@ -829,9 +829,8 @@ void HBoundsCheck::InferRepresentation(HInferRepresentation* h_infer) {
       !length()->representation().IsTagged()) {
     r = Representation::Integer32();
   } else if (index()->representation().IsTagged() ||
-      (index()->IsConstant() &&
-       HConstant::cast(index())->HasInteger32Value() &&
-       Smi::IsValid(HConstant::cast(index())->Integer32Value()))) {
+      (index()->ActualValue()->IsConstant() &&
+       HConstant::cast(index()->ActualValue())->HasSmiValue())) {
     // If the index is tagged, or a constant that holds a Smi, allow the length
     // to be tagged, since it is usually already tagged from loading it out of
     // the length field of a JSArray. This allows for direct comparison without
@@ -2389,6 +2388,14 @@ HType HCheckNonSmi::CalculateInferredType() {
 
 HType HCheckSmi::CalculateInferredType() {
   return HType::Smi();
+}
+
+
+void HCheckSmiOrInt32::InferRepresentation(HInferRepresentation* h_infer) {
+  ASSERT(CheckFlag(kFlexibleRepresentation));
+  Representation r = value()->representation().IsTagged()
+      ? Representation::Tagged() : Representation::Integer32();
+  UpdateRepresentation(r, h_infer, "checksmiorint32");
 }
 
 

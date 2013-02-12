@@ -178,7 +178,11 @@ void CodeStubGraphBuilder<TransitionElementsKindStub>::BuildCodeStub() {
   HConstant* max_alloc_size =
       new(zone) HConstant(kMinFreeNewSpaceAfterGC, Representation::Integer32());
   AddInstruction(max_alloc_size);
-  AddInstruction(new(zone) HBoundsCheck(array_length, max_alloc_size));
+  // Since we're forcing Integer32 representation for this HBoundsCheck,
+  // there's no need to Smi-check the index.
+  AddInstruction(
+      new(zone) HBoundsCheck(array_length, max_alloc_size,
+                             DONT_ALLOW_SMI_KEY, Representation::Integer32()));
 
   current_block()->UpdateEnvironment(new(zone) HEnvironment(zone));
 

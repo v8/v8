@@ -875,6 +875,11 @@ class HGraphBuilder {
   HInstruction* AddInstruction(HInstruction* instr);
   void AddSimulate(BailoutId id,
                    RemovableSimulate removable = FIXED_SIMULATE);
+  HBoundsCheck* AddBoundsCheck(
+      HValue* index,
+      HValue* length,
+      BoundsCheckKeyMode key_mode = DONT_ALLOW_SMI_KEY,
+      Representation r = Representation::None());
 
  protected:
   virtual bool BuildGraph() = 0;
