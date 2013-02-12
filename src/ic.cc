@@ -1544,9 +1544,10 @@ Handle<Code> KeyedStoreIC::StoreElementStub(Handle<JSObject> receiver,
   if (ic_state == UNINITIALIZED || ic_state == PREMONOMORPHIC) {
     // Optimistically assume that ICs that haven't reached the MONOMORPHIC state
     // yet will do so and stay there.
+    Handle<Map> monomorphic_map = ComputeTransitionedMap(receiver, stub_kind);
     stub_kind = GetNoTransitionStubKind(stub_kind);
     return isolate()->stub_cache()->ComputeKeyedStoreElement(
-        receiver_map, stub_kind, strict_mode, grow_mode);
+        monomorphic_map, stub_kind, strict_mode, grow_mode);
   }
 
   GetReceiverMapsForStub(Handle<Code>(target()), &target_receiver_maps);
@@ -1633,8 +1634,7 @@ Handle<Map> KeyedStoreIC::ComputeTransitionedMap(Handle<JSObject> receiver,
                                                 FAST_HOLEY_DOUBLE_ELEMENTS);
     case STORE_NO_TRANSITION:
     case STORE_AND_GROW_NO_TRANSITION:
-      UNREACHABLE();
-      break;
+      return Handle<Map>(receiver->map());
   }
   return Handle<Map>::null();
 }
