@@ -1053,8 +1053,9 @@ Handle<Code> LoadIC::ComputeLoadMonomorphic(LookupResult* lookup,
       return isolate()->stub_cache()->ComputeLoadNormal();
     case CALLBACKS: {
       Handle<Object> callback(lookup->GetCallbackObject());
-      if (callback->IsAccessorInfo()) {
-        Handle<AccessorInfo> info = Handle<AccessorInfo>::cast(callback);
+      if (callback->IsExecutableAccessorInfo()) {
+        Handle<ExecutableAccessorInfo> info =
+            Handle<ExecutableAccessorInfo>::cast(callback);
         if (v8::ToCData<Address>(info->getter()) == 0) break;
         if (!info->IsCompatibleReceiver(*receiver)) break;
         return isolate()->stub_cache()->ComputeLoadCallback(
@@ -1067,6 +1068,8 @@ Handle<Code> LoadIC::ComputeLoadMonomorphic(LookupResult* lookup,
         return isolate()->stub_cache()->ComputeLoadViaGetter(
             name, receiver, holder, Handle<JSFunction>::cast(getter));
       }
+      // TODO(dcarney): Handle correctly.
+      if (callback->IsDeclaredAccessorInfo()) break;
       ASSERT(callback->IsForeign());
       // No IC support for old-style native accessors.
       break;
@@ -1282,9 +1285,10 @@ Handle<Code> KeyedLoadIC::ComputeLoadMonomorphic(LookupResult* lookup,
     }
     case CALLBACKS: {
       Handle<Object> callback_object(lookup->GetCallbackObject());
-      if (!callback_object->IsAccessorInfo()) break;
-      Handle<AccessorInfo> callback =
-          Handle<AccessorInfo>::cast(callback_object);
+      // TODO(dcarney): Handle DeclaredAccessorInfo correctly.
+      if (!callback_object->IsExecutableAccessorInfo()) break;
+      Handle<ExecutableAccessorInfo> callback =
+          Handle<ExecutableAccessorInfo>::cast(callback_object);
       if (v8::ToCData<Address>(callback->getter()) == 0) break;
       if (!callback->IsCompatibleReceiver(*receiver)) break;
       return isolate()->stub_cache()->ComputeKeyedLoadCallback(
@@ -1475,8 +1479,9 @@ Handle<Code> StoreIC::ComputeStoreMonomorphic(LookupResult* lookup,
       return isolate()->stub_cache()->ComputeStoreNormal(strict_mode);
     case CALLBACKS: {
       Handle<Object> callback(lookup->GetCallbackObject());
-      if (callback->IsAccessorInfo()) {
-        Handle<AccessorInfo> info = Handle<AccessorInfo>::cast(callback);
+      if (callback->IsExecutableAccessorInfo()) {
+        Handle<ExecutableAccessorInfo> info =
+            Handle<ExecutableAccessorInfo>::cast(callback);
         if (v8::ToCData<Address>(info->setter()) == 0) break;
         if (!holder->HasFastProperties()) break;
         if (!info->IsCompatibleReceiver(*receiver)) break;
@@ -1491,6 +1496,8 @@ Handle<Code> StoreIC::ComputeStoreMonomorphic(LookupResult* lookup,
             name, receiver, holder, Handle<JSFunction>::cast(setter),
             strict_mode);
       }
+      // TODO(dcarney): Handle correctly.
+      if (callback->IsDeclaredAccessorInfo()) break;
       ASSERT(callback->IsForeign());
       // No IC support for old-style native accessors.
       break;

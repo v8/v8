@@ -162,10 +162,11 @@ Handle<Code> StubCache::ComputeLoadField(Handle<String> name,
 }
 
 
-Handle<Code> StubCache::ComputeLoadCallback(Handle<String> name,
-                                            Handle<JSObject> receiver,
-                                            Handle<JSObject> holder,
-                                            Handle<AccessorInfo> callback) {
+Handle<Code> StubCache::ComputeLoadCallback(
+    Handle<String> name,
+    Handle<JSObject> receiver,
+    Handle<JSObject> holder,
+    Handle<ExecutableAccessorInfo> callback) {
   ASSERT(v8::ToCData<Address>(callback->getter()) != 0);
   InlineCacheHolderFlag cache_holder =
       IC::GetCodeCacheForObject(*receiver, *holder);
@@ -353,7 +354,7 @@ Handle<Code> StubCache::ComputeKeyedLoadCallback(
     Handle<String> name,
     Handle<JSObject> receiver,
     Handle<JSObject> holder,
-    Handle<AccessorInfo> callback) {
+    Handle<ExecutableAccessorInfo> callback) {
   InlineCacheHolderFlag cache_holder =
       IC::GetCodeCacheForObject(*receiver, *holder);
   Handle<JSObject> map_holder(IC::GetCodeCacheHolder(*receiver, cache_holder));
@@ -469,11 +470,12 @@ Handle<Code> StubCache::ComputeStoreGlobal(Handle<String> name,
 }
 
 
-Handle<Code> StubCache::ComputeStoreCallback(Handle<String> name,
-                                             Handle<JSObject> receiver,
-                                             Handle<JSObject> holder,
-                                             Handle<AccessorInfo> callback,
-                                             StrictModeFlag strict_mode) {
+Handle<Code> StubCache::ComputeStoreCallback(
+    Handle<String> name,
+    Handle<JSObject> receiver,
+    Handle<JSObject> holder,
+    Handle<ExecutableAccessorInfo> callback,
+    StrictModeFlag strict_mode) {
   ASSERT(v8::ToCData<Address>(callback->setter()) != 0);
   Code::Flags flags = Code::ComputeMonomorphicFlags(
       Code::STORE_IC, Code::CALLBACKS, strict_mode);
@@ -1004,7 +1006,7 @@ RUNTIME_FUNCTION(MaybeObject*, LoadCallbackProperty) {
   ASSERT(args[0]->IsJSObject());
   ASSERT(args[1]->IsJSObject());
   ASSERT(args[3]->IsSmi());
-  AccessorInfo* callback = AccessorInfo::cast(args[4]);
+  ExecutableAccessorInfo* callback = ExecutableAccessorInfo::cast(args[4]);
   Address getter_address = v8::ToCData<Address>(callback->getter());
   v8::AccessorGetter fun = FUNCTION_CAST<v8::AccessorGetter>(getter_address);
   ASSERT(fun != NULL);
@@ -1028,7 +1030,7 @@ RUNTIME_FUNCTION(MaybeObject*, LoadCallbackProperty) {
 
 RUNTIME_FUNCTION(MaybeObject*, StoreCallbackProperty) {
   JSObject* recv = JSObject::cast(args[0]);
-  AccessorInfo* callback = AccessorInfo::cast(args[1]);
+  ExecutableAccessorInfo* callback = ExecutableAccessorInfo::cast(args[1]);
   Address setter_address = v8::ToCData<Address>(callback->setter());
   v8::AccessorSetter fun = FUNCTION_CAST<v8::AccessorSetter>(setter_address);
   ASSERT(fun != NULL);
@@ -1415,7 +1417,7 @@ Handle<Code> BaseLoadStubCompiler::CompileLoadCallback(
     Handle<JSObject> object,
     Handle<JSObject> holder,
     Handle<String> name,
-    Handle<AccessorInfo> callback) {
+    Handle<ExecutableAccessorInfo> callback) {
   Label miss;
 
   GenerateNameCheck(name, this->name(), &miss);

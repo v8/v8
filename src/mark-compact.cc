@@ -287,7 +287,8 @@ class VerifyNativeContextSeparationVisitor: public ObjectVisitor {
           case TYPE_FEEDBACK_INFO_TYPE:
             object->Iterate(this);
             break;
-          case ACCESSOR_INFO_TYPE:
+          case DECLARED_ACCESSOR_INFO_TYPE:
+          case EXECUTABLE_ACCESSOR_INFO_TYPE:
           case BYTE_ARRAY_TYPE:
           case CALL_HANDLER_INFO_TYPE:
           case CODE_TYPE:

@@ -1647,8 +1647,8 @@ void Logger::LogAccessorCallbacks() {
   HeapIterator iterator(heap);
   AssertNoAllocation no_alloc;
   for (HeapObject* obj = iterator.next(); obj != NULL; obj = iterator.next()) {
-    if (!obj->IsAccessorInfo()) continue;
-    AccessorInfo* ai = AccessorInfo::cast(obj);
+    if (!obj->IsExecutableAccessorInfo()) continue;
+    ExecutableAccessorInfo* ai = ExecutableAccessorInfo::cast(obj);
     if (!ai->name()->IsString()) continue;
     String* name = String::cast(ai->name());
     Address getter_entry = v8::ToCData<Address>(ai->getter());

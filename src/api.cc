@@ -1106,7 +1106,8 @@ static i::Handle<i::AccessorInfo> MakeAccessorInfo(
       v8::AccessControl settings,
       v8::PropertyAttribute attributes,
       v8::Handle<AccessorSignature> signature) {
-  i::Handle<i::AccessorInfo> obj = FACTORY->NewAccessorInfo();
+  i::Handle<i::ExecutableAccessorInfo> obj =
+      FACTORY->NewExecutableAccessorInfo();
   SET_FIELD_WRAPPED(obj, set_getter, getter);
   SET_FIELD_WRAPPED(obj, set_setter, setter);
   if (data.IsEmpty()) data = v8::Undefined();

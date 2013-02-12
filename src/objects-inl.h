@@ -142,6 +142,11 @@ bool Object::IsExternal() {
 }
 
 
+bool Object::IsAccessorInfo() {
+  return IsExecutableAccessorInfo() || IsDeclaredAccessorInfo();
+}
+
+
 bool Object::IsInstanceOf(FunctionTemplateInfo* expected) {
   // There is a constraint on the object; check.
   if (!this->IsJSObject()) return false;
@@ -2447,6 +2452,7 @@ CAST_ACCESSOR(ExternalFloatArray)
 CAST_ACCESSOR(ExternalDoubleArray)
 CAST_ACCESSOR(ExternalPixelArray)
 CAST_ACCESSOR(Struct)
+CAST_ACCESSOR(AccessorInfo)
 
 
 #define MAKE_STRUCT_CAST(NAME, Name, name) CAST_ACCESSOR(Name)
@@ -4102,13 +4108,19 @@ ACCESSORS(GlobalObject, global_receiver, JSObject, kGlobalReceiverOffset)
 
 ACCESSORS(JSGlobalProxy, native_context, Object, kNativeContextOffset)
 
-ACCESSORS(AccessorInfo, getter, Object, kGetterOffset)
-ACCESSORS(AccessorInfo, setter, Object, kSetterOffset)
-ACCESSORS(AccessorInfo, data, Object, kDataOffset)
 ACCESSORS(AccessorInfo, name, Object, kNameOffset)
 ACCESSORS_TO_SMI(AccessorInfo, flag, kFlagOffset)
 ACCESSORS(AccessorInfo, expected_receiver_type, Object,
           kExpectedReceiverTypeOffset)
+
+ACCESSORS(DeclaredAccessorDescriptor, internal_field, Smi, kInternalFieldOffset)
+
+ACCESSORS(DeclaredAccessorInfo, descriptor, DeclaredAccessorDescriptor,
+          kDescriptorOffset)
+
+ACCESSORS(ExecutableAccessorInfo, getter, Object, kGetterOffset)
+ACCESSORS(ExecutableAccessorInfo, setter, Object, kSetterOffset)
+ACCESSORS(ExecutableAccessorInfo, data, Object, kDataOffset)
 
 ACCESSORS(AccessorPair, getter, Object, kGetterOffset)
 ACCESSORS(AccessorPair, setter, Object, kSetterOffset)

@@ -180,8 +180,8 @@ MaybeObject* JSObject::GetPropertyWithCallback(Object* receiver,
   }
 
   // api style callbacks.
-  if (structure->IsAccessorInfo()) {
-    AccessorInfo* data = AccessorInfo::cast(structure);
+  if (structure->IsExecutableAccessorInfo()) {
+    ExecutableAccessorInfo* data = ExecutableAccessorInfo::cast(structure);
     if (!data->IsCompatibleReceiver(receiver)) {
       Handle<Object> name_handle(name);
       Handle<Object> receiver_handle(receiver);
@@ -224,6 +224,11 @@ MaybeObject* JSObject::GetPropertyWithCallback(Object* receiver,
       return GetPropertyWithDefinedGetter(receiver, JSReceiver::cast(getter));
     }
     // Getter is not a function.
+    return isolate->heap()->undefined_value();
+  }
+
+  // TODO(dcarney): Handle correctly.
+  if (structure->IsDeclaredAccessorInfo()) {
     return isolate->heap()->undefined_value();
   }
 
@@ -2003,9 +2008,9 @@ MaybeObject* JSObject::SetPropertyWithCallback(Object* structure,
     return *value_handle;
   }
 
-  if (structure->IsAccessorInfo()) {
+  if (structure->IsExecutableAccessorInfo()) {
     // api style callbacks
-    AccessorInfo* data = AccessorInfo::cast(structure);
+    ExecutableAccessorInfo* data = ExecutableAccessorInfo::cast(structure);
     if (!data->IsCompatibleReceiver(this)) {
       Handle<Object> name_handle(name);
       Handle<Object> receiver_handle(this);
@@ -2050,6 +2055,11 @@ MaybeObject* JSObject::SetPropertyWithCallback(Object* structure,
           *isolate->factory()->NewTypeError("no_setter_in_callback",
                                             HandleVector(args, 2)));
     }
+  }
+
+  // TODO(dcarney): Handle correctly.
+  if (structure->IsDeclaredAccessorInfo()) {
+    return value;
   }
 
   UNREACHABLE();
@@ -9733,8 +9743,9 @@ MaybeObject* JSObject::GetElementWithCallback(Object* receiver,
   ASSERT(!structure->IsForeign());
 
   // api style callbacks.
-  if (structure->IsAccessorInfo()) {
-    Handle<AccessorInfo> data(AccessorInfo::cast(structure));
+  if (structure->IsExecutableAccessorInfo()) {
+    Handle<ExecutableAccessorInfo> data(
+        ExecutableAccessorInfo::cast(structure));
     Object* fun_obj = data->getter();
     v8::AccessorGetter call_fun = v8::ToCData<v8::AccessorGetter>(fun_obj);
     if (call_fun == NULL) return isolate->heap()->undefined_value();
@@ -9770,6 +9781,11 @@ MaybeObject* JSObject::GetElementWithCallback(Object* receiver,
     return isolate->heap()->undefined_value();
   }
 
+  if (structure->IsDeclaredAccessorInfo()) {
+    // TODO(dcarney): Handle correctly.
+    return isolate->heap()->undefined_value();
+  }
+
   UNREACHABLE();
   return NULL;
 }
@@ -9793,11 +9809,12 @@ MaybeObject* JSObject::SetElementWithCallback(Object* structure,
   // callbacks should be phased out.
   ASSERT(!structure->IsForeign());
 
-  if (structure->IsAccessorInfo()) {
+  if (structure->IsExecutableAccessorInfo()) {
     // api style callbacks
     Handle<JSObject> self(this);
     Handle<JSObject> holder_handle(JSObject::cast(holder));
-    Handle<AccessorInfo> data(AccessorInfo::cast(structure));
+    Handle<ExecutableAccessorInfo> data(
+        ExecutableAccessorInfo::cast(structure));
     Object* call_obj = data->setter();
     v8::AccessorSetter call_fun = v8::ToCData<v8::AccessorSetter>(call_obj);
     if (call_fun == NULL) return value;
@@ -9834,6 +9851,9 @@ MaybeObject* JSObject::SetElementWithCallback(Object* structure,
                                             HandleVector(args, 2)));
     }
   }
+
+  // TODO(dcarney): Handle correctly.
+  if (structure->IsDeclaredAccessorInfo()) return value;
 
   UNREACHABLE();
   return NULL;
