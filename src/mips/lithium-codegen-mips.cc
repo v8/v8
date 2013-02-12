@@ -772,7 +772,7 @@ void LCodeGen::DeoptimizeIf(Condition cc,
   RegisterEnvironmentForDeoptimization(environment, Safepoint::kNoLazyDeopt);
   ASSERT(environment->HasBeenRegistered());
   int id = environment->deoptimization_index();
-
+  ASSERT(info()->IsOptimizing() || info()->IsStub());
   Deoptimizer::BailoutType bailout_type = info()->IsStub()
       ? Deoptimizer::LAZY
       : Deoptimizer::EAGER;
@@ -783,7 +783,6 @@ void LCodeGen::DeoptimizeIf(Condition cc,
   }
 
   ASSERT(FLAG_deopt_every_n_times < 2);  // Other values not supported on MIPS.
-
   if (FLAG_deopt_every_n_times == 1 && info_->opt_count() == id) {
     __ Jump(entry, RelocInfo::RUNTIME_ENTRY);
     return;
@@ -798,10 +797,14 @@ void LCodeGen::DeoptimizeIf(Condition cc,
     __ bind(&skip);
   }
 
-  bool needs_lazy_deopt = info()->IsStub();
   ASSERT(info()->IsStub() || frame_is_built_);
-  if (cc == al && !needs_lazy_deopt) {
-    __ Jump(entry, RelocInfo::RUNTIME_ENTRY, cc, src1, src2);
+  bool needs_lazy_deopt = info()->IsStub();
+  if (cc == al && frame_is_built_) {
+    if (needs_lazy_deopt) {
+      __ Call(entry, RelocInfo::RUNTIME_ENTRY, cc, src1, src2);
+    } else {
+      __ Jump(entry, RelocInfo::RUNTIME_ENTRY, cc, src1, src2);
+    }
   } else {
     // We often have several deopts to the same entry, reuse the last
     // jump entry if this is the case.
