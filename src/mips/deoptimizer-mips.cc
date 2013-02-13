@@ -593,7 +593,7 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslationIterator* iterator,
   output_frame->SetFrameSlot(output_offset, value);
   intptr_t fp_value = top_address + output_offset;
   output_frame->SetFp(fp_value);
-  if (FLAG_trace_deopt) {
+  if (trace_) {
     PrintF("    0x%08x: [top + %d] <- 0x%08x ; caller's fp\n",
            fp_value, output_offset, value);
   }
@@ -602,7 +602,7 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslationIterator* iterator,
   output_offset -= kPointerSize;
   value = output_[frame_index - 1]->GetContext();
   output_frame->SetFrameSlot(output_offset, value);
-  if (FLAG_trace_deopt) {
+  if (trace_) {
     PrintF("    0x%08x: [top + %d] <- 0x%08x ; context\n",
            top_address + output_offset, output_offset, value);
   }
@@ -611,7 +611,7 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslationIterator* iterator,
   output_offset -= kPointerSize;
   value = reinterpret_cast<intptr_t>(Smi::FromInt(StackFrame::CONSTRUCT));
   output_frame->SetFrameSlot(output_offset, value);
-  if (FLAG_trace_deopt) {
+  if (trace_) {
     PrintF("    0x%08x: [top + %d] <- 0x%08x ; function (construct sentinel)\n",
            top_address + output_offset, output_offset, value);
   }
@@ -620,7 +620,7 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslationIterator* iterator,
   output_offset -= kPointerSize;
   value = reinterpret_cast<intptr_t>(construct_stub);
   output_frame->SetFrameSlot(output_offset, value);
-  if (FLAG_trace_deopt) {
+  if (trace_) {
     PrintF("    0x%08x: [top + %d] <- 0x%08x ; code object\n",
            top_address + output_offset, output_offset, value);
   }
@@ -629,7 +629,7 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslationIterator* iterator,
   output_offset -= kPointerSize;
   value = reinterpret_cast<uint32_t>(Smi::FromInt(height - 1));
   output_frame->SetFrameSlot(output_offset, value);
-  if (FLAG_trace_deopt) {
+  if (trace_) {
     PrintF("    0x%08x: [top + %d] <- 0x%08x ; argc (%d)\n",
            top_address + output_offset, output_offset, value, height - 1);
   }
@@ -638,7 +638,7 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslationIterator* iterator,
   output_offset -= kPointerSize;
   value = reinterpret_cast<intptr_t>(function);
   output_frame->SetFrameSlot(output_offset, value);
-  if (FLAG_trace_deopt) {
+  if (trace_) {
     PrintF("    0x%08x: [top + %d] <- 0x%08x ; constructor function\n",
            top_address + output_offset, output_offset, value);
   }
@@ -648,7 +648,7 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslationIterator* iterator,
   output_offset -= kPointerSize;
   value = output_frame->GetFrameSlot(output_frame_size - kPointerSize);
   output_frame->SetFrameSlot(output_offset, value);
-  if (FLAG_trace_deopt) {
+  if (trace_) {
     PrintF("    0x%08x: [top + %d] <- 0x%08x ; allocated receiver\n",
            top_address + output_offset, output_offset, value);
   }
@@ -672,7 +672,7 @@ void Deoptimizer::DoComputeAccessorStubFrame(TranslationIterator* iterator,
   unsigned height = 0;
   unsigned height_in_bytes = height * kPointerSize;
   const char* kind = is_setter_stub_frame ? "setter" : "getter";
-  if (FLAG_trace_deopt) {
+  if (trace_) {
     PrintF("  translating %s stub => height=%u\n", kind, height_in_bytes);
   }
 
@@ -705,7 +705,7 @@ void Deoptimizer::DoComputeAccessorStubFrame(TranslationIterator* iterator,
   output_offset -= kPointerSize;
   intptr_t value = output_[frame_index - 1]->GetPc();
   output_frame->SetFrameSlot(output_offset, value);
-  if (FLAG_trace_deopt) {
+  if (trace_) {
     PrintF("    0x%08" V8PRIxPTR ": [top + %u] <- 0x%08" V8PRIxPTR
            " ; caller's pc\n",
            top_address + output_offset, output_offset, value);
@@ -717,7 +717,7 @@ void Deoptimizer::DoComputeAccessorStubFrame(TranslationIterator* iterator,
   output_frame->SetFrameSlot(output_offset, value);
   intptr_t fp_value = top_address + output_offset;
   output_frame->SetFp(fp_value);
-  if (FLAG_trace_deopt) {
+  if (trace_) {
     PrintF("    0x%08" V8PRIxPTR ": [top + %u] <- 0x%08" V8PRIxPTR
            " ; caller's fp\n",
            fp_value, output_offset, value);
@@ -727,7 +727,7 @@ void Deoptimizer::DoComputeAccessorStubFrame(TranslationIterator* iterator,
   output_offset -= kPointerSize;
   value = output_[frame_index - 1]->GetContext();
   output_frame->SetFrameSlot(output_offset, value);
-  if (FLAG_trace_deopt) {
+  if (trace_) {
     PrintF("    0x%08" V8PRIxPTR ": [top + %u] <- 0x%08" V8PRIxPTR
            " ; context\n",
            top_address + output_offset, output_offset, value);
@@ -737,7 +737,7 @@ void Deoptimizer::DoComputeAccessorStubFrame(TranslationIterator* iterator,
   output_offset -= kPointerSize;
   value = reinterpret_cast<intptr_t>(Smi::FromInt(StackFrame::INTERNAL));
   output_frame->SetFrameSlot(output_offset, value);
-  if (FLAG_trace_deopt) {
+  if (trace_) {
     PrintF("    0x%08" V8PRIxPTR ": [top + %u] <- 0x%08" V8PRIxPTR
            " ; function (%s sentinel)\n",
            top_address + output_offset, output_offset, value, kind);
@@ -751,7 +751,7 @@ void Deoptimizer::DoComputeAccessorStubFrame(TranslationIterator* iterator,
   Code* accessor_stub = isolate_->builtins()->builtin(name);
   value = reinterpret_cast<intptr_t>(accessor_stub);
   output_frame->SetFrameSlot(output_offset, value);
-  if (FLAG_trace_deopt) {
+  if (trace_) {
     PrintF("    0x%08" V8PRIxPTR ": [top + %u] <- 0x%08" V8PRIxPTR
            " ; code object\n",
            top_address + output_offset, output_offset, value);
@@ -797,7 +797,7 @@ void Deoptimizer::DoComputeJSFrame(TranslationIterator* iterator,
   }
   unsigned height = iterator->Next();
   unsigned height_in_bytes = height * kPointerSize;
-  if (FLAG_trace_deopt) {
+  if (trace_) {
     PrintF("  translating ");
     function->PrintName();
     PrintF(" => node=%d, height=%d\n", node_id.ToInt(), height_in_bytes);
@@ -861,7 +861,7 @@ void Deoptimizer::DoComputeJSFrame(TranslationIterator* iterator,
     value = output_[frame_index - 1]->GetPc();
   }
   output_frame->SetFrameSlot(output_offset, value);
-  if (FLAG_trace_deopt) {
+  if (trace_) {
     PrintF("    0x%08x: [top + %d] <- 0x%08x ; caller's pc\n",
            top_address + output_offset, output_offset, value);
   }
@@ -884,7 +884,7 @@ void Deoptimizer::DoComputeJSFrame(TranslationIterator* iterator,
   if (is_topmost) {
     output_frame->SetRegister(fp.code(), fp_value);
   }
-  if (FLAG_trace_deopt) {
+  if (trace_) {
     PrintF("    0x%08x: [top + %d] <- 0x%08x ; caller's fp\n",
            fp_value, output_offset, value);
   }
@@ -902,7 +902,7 @@ void Deoptimizer::DoComputeJSFrame(TranslationIterator* iterator,
   output_frame->SetFrameSlot(output_offset, value);
   output_frame->SetContext(value);
   if (is_topmost) output_frame->SetRegister(cp.code(), value);
-  if (FLAG_trace_deopt) {
+  if (trace_) {
     PrintF("    0x%08x: [top + %d] <- 0x%08x ; context\n",
            top_address + output_offset, output_offset, value);
   }
@@ -915,7 +915,7 @@ void Deoptimizer::DoComputeJSFrame(TranslationIterator* iterator,
   // input frame.
   ASSERT(!is_bottommost || input_->GetFrameSlot(input_offset) == value);
   output_frame->SetFrameSlot(output_offset, value);
-  if (FLAG_trace_deopt) {
+  if (trace_) {
     PrintF("    0x%08x: [top + %d] <- 0x%08x ; function\n",
            top_address + output_offset, output_offset, value);
   }
