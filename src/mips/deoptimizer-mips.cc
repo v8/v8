@@ -526,6 +526,11 @@ void Deoptimizer::DoCompiledStubFrame(TranslationIterator* iterator,
     DoTranslateCommand(iterator, 0, output_frame_offset);
   }
 
+  for (int i = 0; i < DoubleRegister::kMaxNumRegisters; ++i) {
+    double double_value = input_->GetDoubleRegister(i);
+    output_frame->SetDoubleRegister(i, double_value);
+  }
+
   value = input_->GetRegister(fp.code());
   output_frame->SetRegister(fp.code(), value);
   output_frame->SetFp(value);
@@ -1076,11 +1081,11 @@ void Deoptimizer::EntryGenerator::Generate() {
     }
   }
 
+  int double_regs_offset = FrameDescription::double_registers_offset();
   if (CpuFeatures::IsSupported(FPU)) {
     CpuFeatures::Scope scope(FPU);
     // Copy FPU registers to
     // double_registers_[DoubleRegister::kNumAllocatableRegisters]
-    int double_regs_offset = FrameDescription::double_registers_offset();
     for (int i = 0; i < FPURegister::NumAllocatableRegisters(); ++i) {
       int dst_offset = i * kDoubleSize + double_regs_offset;
       int src_offset = i * kDoubleSize + kNumberOfRegisters * kPointerSize;
@@ -1131,16 +1136,16 @@ void Deoptimizer::EntryGenerator::Generate() {
   // Replace the current (input) frame with the output frames.
   Label outer_push_loop, inner_push_loop,
       outer_loop_header, inner_loop_header;
-  // Outer loop state: a0 = current "FrameDescription** output_",
+  // Outer loop state: t0 = current "FrameDescription** output_",
   // a1 = one past the last FrameDescription**.
   __ lw(a1, MemOperand(a0, Deoptimizer::output_count_offset()));
-  __ lw(a0, MemOperand(a0, Deoptimizer::output_offset()));  // a0 is output_.
+  __ lw(t0, MemOperand(a0, Deoptimizer::output_offset()));  // t0 is output_.
   __ sll(a1, a1, kPointerSizeLog2);  // Count to offset.
-  __ addu(a1, a0, a1);  // a1 = one past the last FrameDescription**.
+  __ addu(a1, t0, a1);  // a1 = one past the last FrameDescription**.
   __ jmp(&outer_loop_header);
   __ bind(&outer_push_loop);
   // Inner loop state: a2 = current FrameDescription*, a3 = loop index.
-  __ lw(a2, MemOperand(a0, 0));  // output_[ix]
+  __ lw(a2, MemOperand(t0, 0));  // output_[ix]
   __ lw(a3, MemOperand(a2, FrameDescription::frame_size_offset()));
   __ jmp(&inner_loop_header);
   __ bind(&inner_push_loop);
@@ -1151,10 +1156,20 @@ void Deoptimizer::EntryGenerator::Generate() {
   __ bind(&inner_loop_header);
   __ Branch(&inner_push_loop, ne, a3, Operand(zero_reg));
 
-  __ Addu(a0, a0, Operand(kPointerSize));
+  __ Addu(t0, t0, Operand(kPointerSize));
   __ bind(&outer_loop_header);
-  __ Branch(&outer_push_loop, lt, a0, Operand(a1));
+  __ Branch(&outer_push_loop, lt, t0, Operand(a1));
 
+  if (CpuFeatures::IsSupported(FPU)) {
+    CpuFeatures::Scope scope(FPU);
+
+    __ lw(a1, MemOperand(a0, Deoptimizer::input_offset()));
+    for (int i = 0; i < FPURegister::kMaxNumAllocatableRegisters; ++i) {
+      const FPURegister fpu_reg = FPURegister::FromAllocationIndex(i);
+      int src_offset = i * kDoubleSize + double_regs_offset;
+      __ ldc1(fpu_reg, MemOperand(a1, src_offset));
+    }
+  }
 
   // Push state, pc, and continuation from the last output frame.
   if (type() != OSR) {

@@ -133,6 +133,7 @@ class LCodeGen BASE_EMBEDDED {
   void DoDeferredStringCharCodeAt(LStringCharCodeAt* instr);
   void DoDeferredStringCharFromCode(LStringCharFromCode* instr);
   void DoDeferredAllocateObject(LAllocateObject* instr);
+  void DoDeferredAllocate(LAllocate* instr);
   void DoDeferredInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr,
                                        Label* map_check);
 
@@ -326,7 +327,8 @@ class LCodeGen BASE_EMBEDDED {
                         DoubleRegister result,
                         bool deoptimize_on_undefined,
                         bool deoptimize_on_minus_zero,
-                        LEnvironment* env);
+                        LEnvironment* env,
+                        NumberUntagDMode mode);
 
   // Emits optimized code for typeof x == "y".  Modifies input register.
   // Returns the condition on which a final split to

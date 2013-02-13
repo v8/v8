@@ -50,6 +50,18 @@ void KeyedLoadFastElementStub::InitializeInterfaceDescriptor(
 }
 
 
+void TransitionElementsKindStub::InitializeInterfaceDescriptor(
+    Isolate* isolate,
+    CodeStubInterfaceDescriptor* descriptor) {
+  static Register registers[] = { a0, a1 };
+  descriptor->register_param_count_ = 2;
+  descriptor->register_params_ = registers;
+  Address entry =
+      Runtime::FunctionForId(Runtime::kTransitionElementsKind)->entry;
+  descriptor->deoptimization_handler_ = FUNCTION_ADDR(entry);
+}
+
+
 #define __ ACCESS_MASM(masm)
 
 static void EmitIdenticalObjectComparison(MacroAssembler* masm,
