@@ -50,11 +50,6 @@ class SweeperThread : public Thread {
   void WaitForSweeperThread();
   intptr_t StealMemory(PagedSpace* space);
 
-  static bool sweeping_pending() { return sweeping_pending_; }
-  static void set_sweeping_pending(bool sweeping_pending) {
-    sweeping_pending_ = sweeping_pending;
-  }
-
   ~SweeperThread() {
     delete start_sweeping_semaphore_;
     delete end_sweeping_semaphore_;
@@ -73,7 +68,6 @@ class SweeperThread : public Thread {
   FreeList private_free_list_old_data_space_;
   FreeList private_free_list_old_pointer_space_;
   volatile AtomicWord stop_thread_;
-  static bool sweeping_pending_;
 };
 
 } }  // namespace v8::internal

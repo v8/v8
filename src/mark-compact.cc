@@ -66,6 +66,7 @@ MarkCompactCollector::MarkCompactCollector() :  // NOLINT
       marking_parity_(ODD_MARKING_PARITY),
       compacting_(false),
       was_marked_incrementally_(false),
+      sweeping_pending_(false),
       tracer_(NULL),
       migration_slots_buffer_(NULL),
       heap_(NULL),
@@ -527,7 +528,7 @@ void MarkCompactCollector::ClearMarkbits() {
 
 
 void MarkCompactCollector::StartSweeperThreads() {
-  SweeperThread::set_sweeping_pending(true);
+  sweeping_pending_ = true;
   for (int i = 0; i < FLAG_sweeper_threads; i++) {
     heap()->isolate()->sweeper_threads()[i]->StartSweeping();
   }
@@ -535,11 +536,11 @@ void MarkCompactCollector::StartSweeperThreads() {
 
 
 void MarkCompactCollector::WaitUntilSweepingCompleted() {
-  if (SweeperThread::sweeping_pending()) {
+  if (sweeping_pending_) {
     for (int i = 0; i < FLAG_sweeper_threads; i++) {
       heap()->isolate()->sweeper_threads()[i]->WaitForSweeperThread();
     }
-    SweeperThread::set_sweeping_pending(false);
+    sweeping_pending_ = false;
     StealMemoryFromSweeperThreads(heap()->paged_space(OLD_DATA_SPACE));
     StealMemoryFromSweeperThreads(heap()->paged_space(OLD_POINTER_SPACE));
     heap()->FreeQueuedChunks();
@@ -563,7 +564,7 @@ bool MarkCompactCollector::AreSweeperThreadsActivated() {
 
 
 bool MarkCompactCollector::IsConcurrentSweepingInProgress() {
-  return SweeperThread::sweeping_pending();
+  return sweeping_pending_;
 }
 
 

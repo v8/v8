@@ -740,6 +740,9 @@ class MarkCompactCollector {
 
   bool was_marked_incrementally_;
 
+  // True if concurrent or parallel sweeping is currently in progress.
+  bool sweeping_pending_;
+
   // A pointer to the current stack-allocated GC tracer object during a full
   // collection (NULL before and after).
   GCTracer* tracer_;

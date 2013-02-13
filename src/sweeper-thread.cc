@@ -54,9 +54,6 @@ SweeperThread::SweeperThread(Isolate* isolate)
 }
 
 
-bool SweeperThread::sweeping_pending_ = false;
-
-
 void SweeperThread::Run() {
   Isolate::SetIsolateThreadLocals(isolate_, NULL);
   while (true) {
@@ -76,6 +73,7 @@ void SweeperThread::Run() {
     end_sweeping_semaphore_->Signal();
   }
 }
+
 
 intptr_t SweeperThread::StealMemory(PagedSpace* space) {
   intptr_t free_bytes = 0;
