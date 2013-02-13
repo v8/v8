@@ -2767,14 +2767,13 @@ void FloatingPointHelper::LoadUnknownsAsIntegers(
   __ bind(&arg1_is_object);
   __ mov(ebx, FieldOperand(edx, HeapObject::kMapOffset));
   __ cmp(ebx, factory->heap_number_map());
+  __ j(not_equal, &check_undefined_arg1);
+
+  // Get the untagged integer version of the edx heap number in ecx.
   if (left_type == BinaryOpIC::INT32 && CpuFeatures::IsSupported(SSE2)) {
     CpuFeatures::Scope use_sse2(SSE2);
-    __ j(not_equal, conversion_failure);
-    // Get the untagged integer version of the edx heap number in ecx.
     ConvertHeapNumberToInt32(masm, edx, conversion_failure);
   } else {
-    __ j(not_equal, &check_undefined_arg1);
-    // Get the untagged integer version of the edx heap number in ecx.
     IntegerConvert(masm, edx, use_sse3, conversion_failure);
   }
   __ mov(edx, ecx);
@@ -2803,14 +2802,13 @@ void FloatingPointHelper::LoadUnknownsAsIntegers(
   __ bind(&arg2_is_object);
   __ mov(ebx, FieldOperand(eax, HeapObject::kMapOffset));
   __ cmp(ebx, factory->heap_number_map());
+  __ j(not_equal, &check_undefined_arg2);
+  // Get the untagged integer version of the eax heap number in ecx.
+
   if (right_type == BinaryOpIC::INT32 && CpuFeatures::IsSupported(SSE2)) {
     CpuFeatures::Scope use_sse2(SSE2);
-    __ j(not_equal, conversion_failure);
-    // Get the untagged integer version of the eax heap number in ecx.
     ConvertHeapNumberToInt32(masm, eax, conversion_failure);
   } else {
-    __ j(not_equal, &check_undefined_arg2);
-    // Get the untagged integer version of the eax heap number in ecx.
     IntegerConvert(masm, eax, use_sse3, conversion_failure);
   }
 
