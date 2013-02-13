@@ -3722,7 +3722,8 @@ void MarkCompactCollector::SweepInParallel(PagedSpace* space,
 
 void MarkCompactCollector::SweepSpace(PagedSpace* space, SweeperType sweeper) {
   space->set_was_swept_conservatively(sweeper == CONSERVATIVE ||
-                                      sweeper == LAZY_CONSERVATIVE);
+                                      sweeper == LAZY_CONSERVATIVE ||
+                                      sweeper == PARALLEL_CONSERVATIVE);
   space->ClearStats();
 
   PageIterator it(space);
@@ -3841,9 +3842,9 @@ void MarkCompactCollector::SweepSpaces() {
 #endif
   SweeperType how_to_sweep =
       FLAG_lazy_sweeping ? LAZY_CONSERVATIVE : CONSERVATIVE;
+  if (AreSweeperThreadsActivated()) how_to_sweep = PARALLEL_CONSERVATIVE;
   if (FLAG_expose_gc) how_to_sweep = CONSERVATIVE;
   if (sweep_precisely_) how_to_sweep = PRECISE;
-  if (AreSweeperThreadsActivated()) how_to_sweep = PARALLEL_CONSERVATIVE;
   // Noncompacting collections simply sweep the spaces to clear the mark
   // bits and free the nonlive blocks (for old and map spaces).  We sweep
   // the map space last because freeing non-live maps overwrites them and
@@ -3860,7 +3861,7 @@ void MarkCompactCollector::SweepSpaces() {
 
   EvacuateNewSpaceAndCandidates();
 
-  if (AreSweeperThreadsActivated()) {
+  if (how_to_sweep == PARALLEL_CONSERVATIVE) {
     // TODO(hpayer): The starting of the sweeper threads should be after
     // SweepSpace old data space.
     StartSweeperThreads();
