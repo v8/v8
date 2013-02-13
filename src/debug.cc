@@ -2005,14 +2005,15 @@ void Debug::PrepareForBreakPoints() {
     {
       // We are going to iterate heap to find all functions without
       // debug break slots.
-      isolate_->heap()->CollectAllGarbage(Heap::kMakeHeapIterableMask,
-                                          "preparing for breakpoints");
+      Heap* heap = isolate_->heap();
+      heap->CollectAllGarbage(Heap::kMakeHeapIterableMask,
+                              "preparing for breakpoints");
 
       // Ensure no GC in this scope as we are going to use gc_metadata
       // field in the Code object to mark active functions.
       AssertNoAllocation no_allocation;
 
-      Object* active_code_marker = isolate_->heap()->the_hole_value();
+      Object* active_code_marker = heap->the_hole_value();
 
       CollectActiveFunctionsFromThread(isolate_,
                                        isolate_->thread_local_top(),
@@ -2026,7 +2027,7 @@ void Debug::PrepareForBreakPoints() {
       // Scan the heap for all non-optimized functions which have no
       // debug break slots and are not active or inlined into an active
       // function and mark them for lazy compilation.
-      HeapIterator iterator;
+      HeapIterator iterator(heap);
       HeapObject* obj = NULL;
       while (((obj = iterator.next()) != NULL)) {
         if (obj->IsJSFunction()) {
@@ -2121,11 +2122,12 @@ Object* Debug::FindSharedFunctionInfoInScript(Handle<Script> script,
   int target_start_position = RelocInfo::kNoPosition;
   Handle<JSFunction> target_function;
   Handle<SharedFunctionInfo> target;
+  Heap* heap = isolate_->heap();
   while (!done) {
     { // Extra scope for iterator and no-allocation.
-      isolate_->heap()->EnsureHeapIsIterable();
+      heap->EnsureHeapIsIterable();
       AssertNoAllocation no_alloc_during_heap_iteration;
-      HeapIterator iterator;
+      HeapIterator iterator(heap);
       for (HeapObject* obj = iterator.next();
            obj != NULL; obj = iterator.next()) {
         bool found_next_candidate = false;
@@ -2185,9 +2187,7 @@ Object* Debug::FindSharedFunctionInfoInScript(Handle<Script> script,
       }  // End for loop.
     }  // End no-allocation scope.
 
-    if (target.is_null()) {
-      return isolate_->heap()->undefined_value();
-    }
+    if (target.is_null()) return heap->undefined_value();
 
     // There will be at least one break point when we are done.
     has_break_points_ = true;
@@ -2461,7 +2461,7 @@ void Debug::CreateScriptCache() {
 
   // Scan heap for Script objects.
   int count = 0;
-  HeapIterator iterator;
+  HeapIterator iterator(heap);
   AssertNoAllocation no_allocation;
 
   for (HeapObject* obj = iterator.next(); obj != NULL; obj = iterator.next()) {

@@ -291,11 +291,6 @@ class LCodeGen BASE_EMBEDDED {
       LEnvironment* env,
       NumberUntagDMode mode = NUMBER_CANDIDATE_IS_ANY_TAGGED);
 
-
-  void DeoptIfTaggedButNotSmi(LEnvironment* environment,
-                              HValue* value,
-                              LOperand* operand);
-
   // Emits optimized code for typeof x == "y".  Modifies input register.
   // Returns the condition on which a final split to
   // true and false label should be made, to optimize fallthrough.

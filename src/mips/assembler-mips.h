@@ -189,7 +189,7 @@ Register ToRegister(int num);
 
 // Coprocessor register.
 struct FPURegister {
-  static const int kNumRegisters = v8::internal::kNumFPURegisters;
+  static const int kMaxNumRegisters = v8::internal::kNumFPURegisters;
 
   // TODO(plind): Warning, inconsistent numbering here. kNumFPURegisters refers
   // to number of 32-bit FPU regs, but kNumAllocatableRegisters refers to
@@ -200,7 +200,7 @@ struct FPURegister {
   //  f28: 0.0
   //  f30: scratch register.
   static const int kNumReservedRegisters = 2;
-  static const int kMaxNumAllocatableRegisters = kNumRegisters / 2 -
+  static const int kMaxNumAllocatableRegisters = kMaxNumRegisters / 2 -
       kNumReservedRegisters;
 
   inline static int NumRegisters();
@@ -218,7 +218,7 @@ struct FPURegister {
     return r;
   }
 
-  bool is_valid() const { return 0 <= code_ && code_ < kNumFPURegisters ; }
+  bool is_valid() const { return 0 <= code_ && code_ < kMaxNumRegisters ; }
   bool is(FPURegister creg) const { return code_ == creg.code_; }
   FPURegister low() const {
     // Find low reg of a Double-reg pair, which is the reg itself.

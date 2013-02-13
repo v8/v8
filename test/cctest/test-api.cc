@@ -11283,7 +11283,7 @@ THREADED_TEST(LockUnlockLock) {
 static int GetGlobalObjectsCount() {
   i::Isolate::Current()->heap()->EnsureHeapIsIterable();
   int count = 0;
-  i::HeapIterator it;
+  i::HeapIterator it(HEAP);
   for (i::HeapObject* object = it.next(); object != NULL; object = it.next())
     if (object->IsJSGlobalObject()) count++;
   return count;
@@ -15205,7 +15205,7 @@ THREADED_TEST(GetHeapStatistics) {
   v8::HeapStatistics heap_statistics;
   CHECK_EQ(static_cast<int>(heap_statistics.total_heap_size()), 0);
   CHECK_EQ(static_cast<int>(heap_statistics.used_heap_size()), 0);
-  v8::V8::GetHeapStatistics(&heap_statistics);
+  c1->GetIsolate()->GetHeapStatistics(&heap_statistics);
   CHECK_NE(static_cast<int>(heap_statistics.total_heap_size()), 0);
   CHECK_NE(static_cast<int>(heap_statistics.used_heap_size()), 0);
 }
@@ -16422,6 +16422,7 @@ TEST(IsolateDifferentContexts) {
     CHECK(v->IsNumber());
     CHECK_EQ(22, static_cast<int>(v->NumberValue()));
   }
+  isolate->Dispose();
 }
 
 class InitDefaultIsolateThread : public v8::internal::Thread {

@@ -449,7 +449,7 @@ void Heap::GarbageCollectionPrologue() {
 
 intptr_t Heap::SizeOfObjects() {
   intptr_t total = 0;
-  AllSpaces spaces;
+  AllSpaces spaces(this);
   for (Space* space = spaces.next(); space != NULL; space = spaces.next()) {
     total += space->SizeOfObjects();
   }
@@ -458,7 +458,7 @@ intptr_t Heap::SizeOfObjects() {
 
 
 void Heap::RepairFreeListsAfterBoot() {
-  PagedSpaces spaces;
+  PagedSpaces spaces(this);
   for (PagedSpace* space = spaces.next();
        space != NULL;
        space = spaces.next()) {
@@ -5537,9 +5537,10 @@ bool Heap::IdleGlobalGC() {
 void Heap::Print() {
   if (!HasBeenSetUp()) return;
   isolate()->PrintStack();
-  AllSpaces spaces;
-  for (Space* space = spaces.next(); space != NULL; space = spaces.next())
+  AllSpaces spaces(this);
+  for (Space* space = spaces.next(); space != NULL; space = spaces.next()) {
     space->Print();
+  }
 }
 
 
@@ -6167,7 +6168,7 @@ void Heap::RecordStats(HeapStats* stats, bool take_snapshot) {
   *stats->os_error = OS::GetLastError();
       isolate()->memory_allocator()->Available();
   if (take_snapshot) {
-    HeapIterator iterator;
+    HeapIterator iterator(this);
     for (HeapObject* obj = iterator.next();
          obj != NULL;
          obj = iterator.next()) {
@@ -6412,7 +6413,7 @@ void Heap::TearDown() {
 
 void Heap::Shrink() {
   // Try to shrink all paged spaces.
-  PagedSpaces spaces;
+  PagedSpaces spaces(this);
   for (PagedSpace* space = spaces.next();
        space != NULL;
        space = spaces.next()) {
@@ -6485,19 +6486,19 @@ void Heap::PrintHandles() {
 Space* AllSpaces::next() {
   switch (counter_++) {
     case NEW_SPACE:
-      return HEAP->new_space();
+      return heap_->new_space();
     case OLD_POINTER_SPACE:
-      return HEAP->old_pointer_space();
+      return heap_->old_pointer_space();
     case OLD_DATA_SPACE:
-      return HEAP->old_data_space();
+      return heap_->old_data_space();
     case CODE_SPACE:
-      return HEAP->code_space();
+      return heap_->code_space();
     case MAP_SPACE:
-      return HEAP->map_space();
+      return heap_->map_space();
     case CELL_SPACE:
-      return HEAP->cell_space();
+      return heap_->cell_space();
     case LO_SPACE:
-      return HEAP->lo_space();
+      return heap_->lo_space();
     default:
       return NULL;
   }
@@ -6507,15 +6508,15 @@ Space* AllSpaces::next() {
 PagedSpace* PagedSpaces::next() {
   switch (counter_++) {
     case OLD_POINTER_SPACE:
-      return HEAP->old_pointer_space();
+      return heap_->old_pointer_space();
     case OLD_DATA_SPACE:
-      return HEAP->old_data_space();
+      return heap_->old_data_space();
     case CODE_SPACE:
-      return HEAP->code_space();
+      return heap_->code_space();
     case MAP_SPACE:
-      return HEAP->map_space();
+      return heap_->map_space();
     case CELL_SPACE:
-      return HEAP->cell_space();
+      return heap_->cell_space();
     default:
       return NULL;
   }
@@ -6526,26 +6527,28 @@ PagedSpace* PagedSpaces::next() {
 OldSpace* OldSpaces::next() {
   switch (counter_++) {
     case OLD_POINTER_SPACE:
-      return HEAP->old_pointer_space();
+      return heap_->old_pointer_space();
     case OLD_DATA_SPACE:
-      return HEAP->old_data_space();
+      return heap_->old_data_space();
     case CODE_SPACE:
-      return HEAP->code_space();
+      return heap_->code_space();
     default:
       return NULL;
   }
 }
 
 
-SpaceIterator::SpaceIterator()
-    : current_space_(FIRST_SPACE),
+SpaceIterator::SpaceIterator(Heap* heap)
+    : heap_(heap),
+      current_space_(FIRST_SPACE),
       iterator_(NULL),
       size_func_(NULL) {
 }
 
 
-SpaceIterator::SpaceIterator(HeapObjectCallback size_func)
-    : current_space_(FIRST_SPACE),
+SpaceIterator::SpaceIterator(Heap* heap, HeapObjectCallback size_func)
+    : heap_(heap),
+      current_space_(FIRST_SPACE),
       iterator_(NULL),
       size_func_(size_func) {
 }
@@ -6585,25 +6588,26 @@ ObjectIterator* SpaceIterator::CreateIterator() {
 
   switch (current_space_) {
     case NEW_SPACE:
-      iterator_ = new SemiSpaceIterator(HEAP->new_space(), size_func_);
+      iterator_ = new SemiSpaceIterator(heap_->new_space(), size_func_);
       break;
     case OLD_POINTER_SPACE:
-      iterator_ = new HeapObjectIterator(HEAP->old_pointer_space(), size_func_);
+      iterator_ =
+          new HeapObjectIterator(heap_->old_pointer_space(), size_func_);
       break;
     case OLD_DATA_SPACE:
-      iterator_ = new HeapObjectIterator(HEAP->old_data_space(), size_func_);
+      iterator_ = new HeapObjectIterator(heap_->old_data_space(), size_func_);
       break;
     case CODE_SPACE:
-      iterator_ = new HeapObjectIterator(HEAP->code_space(), size_func_);
+      iterator_ = new HeapObjectIterator(heap_->code_space(), size_func_);
       break;
     case MAP_SPACE:
-      iterator_ = new HeapObjectIterator(HEAP->map_space(), size_func_);
+      iterator_ = new HeapObjectIterator(heap_->map_space(), size_func_);
       break;
     case CELL_SPACE:
-      iterator_ = new HeapObjectIterator(HEAP->cell_space(), size_func_);
+      iterator_ = new HeapObjectIterator(heap_->cell_space(), size_func_);
       break;
     case LO_SPACE:
-      iterator_ = new LargeObjectIterator(HEAP->lo_space(), size_func_);
+      iterator_ = new LargeObjectIterator(heap_->lo_space(), size_func_);
       break;
   }
 
@@ -6674,15 +6678,18 @@ class UnreachableObjectsFilter : public HeapObjectsFilter {
 };
 
 
-HeapIterator::HeapIterator()
-    : filtering_(HeapIterator::kNoFiltering),
+HeapIterator::HeapIterator(Heap* heap)
+    : heap_(heap),
+      filtering_(HeapIterator::kNoFiltering),
       filter_(NULL) {
   Init();
 }
 
 
-HeapIterator::HeapIterator(HeapIterator::HeapObjectsFiltering filtering)
-    : filtering_(filtering),
+HeapIterator::HeapIterator(Heap* heap,
+                           HeapIterator::HeapObjectsFiltering filtering)
+    : heap_(heap),
+      filtering_(filtering),
       filter_(NULL) {
   Init();
 }
@@ -6695,7 +6702,7 @@ HeapIterator::~HeapIterator() {
 
 void HeapIterator::Init() {
   // Start the iteration.
-  space_iterator_ = new SpaceIterator;
+  space_iterator_ = new SpaceIterator(heap_);
   switch (filtering_) {
     case kFilterUnreachable:
       filter_ = new UnreachableObjectsFilter;
@@ -6960,9 +6967,9 @@ void Heap::TracePathToGlobal() {
 #endif
 
 
-static intptr_t CountTotalHolesSize() {
+static intptr_t CountTotalHolesSize(Heap* heap) {
   intptr_t holes_size = 0;
-  OldSpaces spaces;
+  OldSpaces spaces(heap);
   for (OldSpace* space = spaces.next();
        space != NULL;
        space = spaces.next()) {
@@ -6998,7 +7005,7 @@ GCTracer::GCTracer(Heap* heap,
     scopes_[i] = 0;
   }
 
-  in_free_list_or_wasted_before_gc_ = CountTotalHolesSize();
+  in_free_list_or_wasted_before_gc_ = CountTotalHolesSize(heap);
 
   allocated_since_last_gc_ =
       heap_->SizeOfObjects() - heap_->alive_after_last_gc_;
@@ -7125,7 +7132,7 @@ GCTracer::~GCTracer() {
     PrintF("total_size_after=%" V8_PTR_PREFIX "d ", heap_->SizeOfObjects());
     PrintF("holes_size_before=%" V8_PTR_PREFIX "d ",
            in_free_list_or_wasted_before_gc_);
-    PrintF("holes_size_after=%" V8_PTR_PREFIX "d ", CountTotalHolesSize());
+    PrintF("holes_size_after=%" V8_PTR_PREFIX "d ", CountTotalHolesSize(heap_));
 
     PrintF("allocated=%" V8_PTR_PREFIX "d ", allocated_since_last_gc_);
     PrintF("promoted=%" V8_PTR_PREFIX "d ", promoted_objects_size_);

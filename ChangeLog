@@ -1,3 +1,27 @@
+2013-02-13: Version 3.17.0
+
+        Enabled parallel sweeping.
+
+        Don't try to unlink instructions twice during GVN
+        (Chromium issue 175141)
+
+        Fixed code flusher disabling while marking incrementally.
+        (Chromium issue 173458, 168582)
+
+        Don't use TLS for space iterators.
+        (issue 2531)
+
+        Added new GetHeapStatistics API entry and deprecated old one.
+
+        Fixed DoubleStackSlot-to-DoubleStackSlot moves on ia32. Unified
+        platform-independent code.
+        (Chromium issue 173907)
+
+        Added --trace-array-abuse to help find OOB accesses.
+
+        Performance and stability improvements on all platforms.
+
+
 2013-02-06: Version 3.16.14
 
         Performance and stability improvements on all platforms.

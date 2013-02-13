@@ -53,6 +53,7 @@ static void InitializeVM() {
 
 
 TEST(MarkingDeque) {
+  InitializeVM();
   int mem_size = 20 * kPointerSize;
   byte* mem = NewArray<byte>(20*kPointerSize);
   Address low = reinterpret_cast<Address>(mem);
@@ -60,19 +61,20 @@ TEST(MarkingDeque) {
   MarkingDeque s;
   s.Initialize(low, high);
 
-  Address address = NULL;
+  Address original_address = reinterpret_cast<Address>(&s);
+  Address current_address = original_address;
   while (!s.IsFull()) {
-    s.PushBlack(HeapObject::FromAddress(address));
-    address += kPointerSize;
+    s.PushBlack(HeapObject::FromAddress(current_address));
+    current_address += kPointerSize;
   }
 
   while (!s.IsEmpty()) {
     Address value = s.Pop()->address();
-    address -= kPointerSize;
-    CHECK_EQ(address, value);
+    current_address -= kPointerSize;
+    CHECK_EQ(current_address, value);
   }
 
-  CHECK_EQ(NULL, address);
+  CHECK_EQ(original_address, current_address);
   DeleteArray(mem);
 }
 

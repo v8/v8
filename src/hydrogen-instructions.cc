@@ -405,9 +405,10 @@ bool HValue::TestDominanceUsingProcessedFlag(HValue* dominator,
   if (dominator->block() != dominated->block()) {
     return dominator->block()->Dominates(dominated->block());
   } else {
-    // If both arguments are in the same block we check if "dominator" has
-    // already been processed or if it is a phi: if yes it dominates the other.
-    return dominator->CheckFlag(kIDefsProcessingDone) || dominator->IsPhi();
+    // If both arguments are in the same block we check if dominator is a phi
+    // or if dominated has not already been processed: in either case we know
+    // that dominator precedes dominated.
+    return dominator->IsPhi() || !dominated->CheckFlag(kIDefsProcessingDone);
   }
 }
 
@@ -521,6 +522,16 @@ const char* HValue::Mnemonic() const {
     case kPhi: return "Phi";
     default: return "";
   }
+}
+
+
+bool HValue::IsInteger32Constant() {
+  return IsConstant() && HConstant::cast(this)->HasInteger32Value();
+}
+
+
+int32_t HValue::GetInteger32Constant() {
+  return HConstant::cast(this)->Integer32Value();
 }
 
 
@@ -790,8 +801,46 @@ void HInstruction::Verify() {
   // HValue::DataEquals.  The default implementation is UNREACHABLE.  We
   // don't actually care whether DataEquals returns true or false here.
   if (CheckFlag(kUseGVN)) DataEquals(this);
+
+  // Verify that all uses are in the graph.
+  for (HUseIterator use = uses(); !use.Done(); use.Advance()) {
+    if (use.value()->IsInstruction()) {
+      ASSERT(HInstruction::cast(use.value())->IsLinked());
+    }
+  }
 }
 #endif
+
+
+HNumericConstraint* HNumericConstraint::AddToGraph(
+    HValue* constrained_value,
+    NumericRelation relation,
+    HValue* related_value,
+    HInstruction* insertion_point) {
+  if (insertion_point == NULL) {
+    if (constrained_value->IsInstruction()) {
+      insertion_point = HInstruction::cast(constrained_value);
+    } else if (constrained_value->IsPhi()) {
+      insertion_point = constrained_value->block()->first();
+    } else {
+      UNREACHABLE();
+    }
+  }
+  HNumericConstraint* result =
+      new(insertion_point->block()->zone()) HNumericConstraint(
+          constrained_value, relation, related_value);
+  result->InsertAfter(insertion_point);
+  return result;
+}
+
+
+void HNumericConstraint::PrintDataTo(StringStream* stream) {
+  stream->Add("(");
+  constrained_value()->PrintNameTo(stream);
+  stream->Add(" %s ", relation().Mnemonic());
+  related_value()->PrintNameTo(stream);
+  stream->Add(")");
+}
 
 
 void HDummyUse::PrintDataTo(StringStream* stream) {
@@ -815,10 +864,38 @@ void HBinaryCall::PrintDataTo(StringStream* stream) {
 }
 
 
+void HBoundsCheck::AddInformativeDefinitions() {
+  // TODO(mmassi): Executing this code during AddInformativeDefinitions
+  // is a hack. Move it to some other HPhase.
+  if (index()->IsRelationTrue(NumericRelation::Ge(),
+                              block()->graph()->GetConstant0()) &&
+      index()->IsRelationTrue(NumericRelation::Lt(), length())) {
+    set_skip_check(true);
+  }
+}
+
+
+bool HBoundsCheck::IsRelationTrueInternal(NumericRelation relation,
+                                          HValue* related_value) {
+  if (related_value == length()) {
+    // A HBoundsCheck is smaller than the length it compared against.
+    return NumericRelation::Lt().Implies(relation);
+  } else if (related_value == block()->graph()->GetConstant0()) {
+    // A HBoundsCheck is greater than or equal to zero.
+    return NumericRelation::Ge().Implies(relation);
+  } else {
+    return false;
+  }
+}
+
+
 void HBoundsCheck::PrintDataTo(StringStream* stream) {
   index()->PrintNameTo(stream);
   stream->Add(" ");
   length()->PrintNameTo(stream);
+  if (skip_check()) {
+    stream->Add(" [DISABLED]");
+  }
 }
 
 
@@ -829,9 +906,8 @@ void HBoundsCheck::InferRepresentation(HInferRepresentation* h_infer) {
       !length()->representation().IsTagged()) {
     r = Representation::Integer32();
   } else if (index()->representation().IsTagged() ||
-      (index()->IsConstant() &&
-       HConstant::cast(index())->HasInteger32Value() &&
-       Smi::IsValid(HConstant::cast(index())->Integer32Value()))) {
+      (index()->ActualValue()->IsConstant() &&
+       HConstant::cast(index()->ActualValue())->HasSmiValue())) {
     // If the index is tagged, or a constant that holds a Smi, allow the length
     // to be tagged, since it is usually already tagged from loading it out of
     // the length field of a JSArray. This allows for direct comparison without
@@ -1476,6 +1552,38 @@ Range* HMod::InferRange(Zone* zone) {
 }
 
 
+void HPhi::AddInformativeDefinitions() {
+  if (OperandCount() == 2) {
+    for (int operand_index = 0; operand_index < 2; operand_index++) {
+      int other_operand_index = (operand_index + 1) % 2;
+
+      // Add an idef that "discards" the OSR entry block branch.
+      if (OperandAt(operand_index)->block()->is_osr_entry()) {
+        HNumericConstraint::AddToGraph(
+            this, NumericRelation::Eq(), OperandAt(other_operand_index));
+      }
+
+      static NumericRelation relations[] = {
+        NumericRelation::Ge(),
+        NumericRelation::Le()
+      };
+
+      // Check if this phi is an induction variable. If, e.g., we know that
+      // its first input is greater than the phi itself, then that must be
+      // the back edge, and the phi is always greater than its second input.
+      for (int relation_index = 0; relation_index < 2; relation_index++) {
+        if (OperandAt(operand_index)->IsRelationTrue(relations[relation_index],
+                                                     this)) {
+          HNumericConstraint::AddToGraph(this,
+                                         relations[relation_index],
+                                         OperandAt(other_operand_index));
+        }
+      }
+    }
+  }
+}
+
+
 Range* HMathMinMax::InferRange(Zone* zone) {
   if (representation().IsInteger32()) {
     Range* a = left()->range();
@@ -1937,6 +2045,16 @@ void HStringCompareAndBranch::PrintDataTo(StringStream* stream) {
 }
 
 
+void HCompareIDAndBranch::AddInformativeDefinitions() {
+  NumericRelation r = NumericRelation::FromToken(token());
+  if (r.IsNone()) return;
+
+  HNumericConstraint::AddToGraph(left(), r, right(), SuccessorAt(0)->first());
+  HNumericConstraint::AddToGraph(
+        left(), r.Negated(), right(), SuccessorAt(1)->first());
+}
+
+
 void HCompareIDAndBranch::PrintDataTo(StringStream* stream) {
   stream->Add(Token::Name(token()));
   stream->Add(" ");
@@ -2389,6 +2507,14 @@ HType HCheckNonSmi::CalculateInferredType() {
 
 HType HCheckSmi::CalculateInferredType() {
   return HType::Smi();
+}
+
+
+void HCheckSmiOrInt32::InferRepresentation(HInferRepresentation* h_infer) {
+  ASSERT(CheckFlag(kFlexibleRepresentation));
+  Representation r = value()->representation().IsTagged()
+      ? Representation::Tagged() : Representation::Integer32();
+  UpdateRepresentation(r, h_infer, "checksmiorint32");
 }
 
 

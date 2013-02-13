@@ -174,6 +174,9 @@ void LParallelMove::PrintDataTo(StringStream* stream) const {
 
 void LEnvironment::PrintTo(StringStream* stream) {
   stream->Add("[id=%d|", ast_id().ToInt());
+  if (deoptimization_index() != Safepoint::kNoDeoptimizationIndex) {
+    stream->Add("deopt_id=%d|", deoptimization_index());
+  }
   stream->Add("[parameters=%d|", parameter_count());
   stream->Add("[arguments_stack_height=%d|", arguments_stack_height());
   for (int i = 0; i < values_.length(); ++i) {

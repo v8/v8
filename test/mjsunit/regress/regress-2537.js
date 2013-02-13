@@ -1,4 +1,4 @@
-// Copyright 2012 the V8 project authors. All rights reserved.
+// Copyright 2013 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,51 +25,21 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_SWEEPER_THREAD_H_
-#define V8_SWEEPER_THREAD_H_
+// Flags: --allow-natives-syntax
 
-#include "atomicops.h"
-#include "flags.h"
-#include "platform.h"
-#include "v8utils.h"
+var large_int = 0x40000000;
 
-#include "spaces.h"
-
-#include "heap.h"
-
-namespace v8 {
-namespace internal {
-
-class SweeperThread : public Thread {
- public:
-  explicit SweeperThread(Isolate* isolate);
-
-  void Run();
-  void Stop();
-  void StartSweeping();
-  void WaitForSweeperThread();
-  intptr_t StealMemory(PagedSpace* space);
-
-  ~SweeperThread() {
-    delete start_sweeping_semaphore_;
-    delete end_sweeping_semaphore_;
-    delete stop_semaphore_;
+function foo(x, expected) {
+  assertEquals(expected, x);  // This succeeds.
+  x += 0;  // Force int32 representation so that CompareIDAndBranch is used.
+  if (3 != x) {
+    x += 0;  // Poor man's "iDef".
+    // Fails due to Smi-tagging without overflow check.
+    assertEquals(expected, x);
   }
+}
 
- private:
-  Isolate* isolate_;
-  Heap* heap_;
-  MarkCompactCollector* collector_;
-  Semaphore* start_sweeping_semaphore_;
-  Semaphore* end_sweeping_semaphore_;
-  Semaphore* stop_semaphore_;
-  FreeList free_list_old_data_space_;
-  FreeList free_list_old_pointer_space_;
-  FreeList private_free_list_old_data_space_;
-  FreeList private_free_list_old_pointer_space_;
-  volatile AtomicWord stop_thread_;
-};
-
-} }  // namespace v8::internal
-
-#endif  // V8_SWEEPER_THREAD_H_
+foo(1, 1);
+foo(3, 3);
+%OptimizeFunctionOnNextCall(foo);
+foo(large_int, large_int);

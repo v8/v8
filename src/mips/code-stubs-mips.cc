@@ -50,6 +50,18 @@ void KeyedLoadFastElementStub::InitializeInterfaceDescriptor(
 }
 
 
+void TransitionElementsKindStub::InitializeInterfaceDescriptor(
+    Isolate* isolate,
+    CodeStubInterfaceDescriptor* descriptor) {
+  static Register registers[] = { a0, a1 };
+  descriptor->register_param_count_ = 2;
+  descriptor->register_params_ = registers;
+  Address entry =
+      Runtime::FunctionForId(Runtime::kTransitionElementsKind)->entry;
+  descriptor->deoptimization_handler_ = FUNCTION_ADDR(entry);
+}
+
+
 #define __ ACCESS_MASM(masm)
 
 static void EmitIdenticalObjectComparison(MacroAssembler* masm,
@@ -7982,7 +7994,12 @@ void StubFailureTrampolineStub::Generate(MacroAssembler* masm) {
   bool save_fp_regs = CpuFeatures::IsSupported(FPU);
   CEntryStub ces(1, save_fp_regs ? kSaveFPRegs : kDontSaveFPRegs);
   __ Call(ces.GetCode(), RelocInfo::CODE_TARGET);
+  int parameter_count_offset =
+      StubFailureTrampolineFrame::kCallerStackParameterCountFrameOffset;
+  __ lw(a1, MemOperand(fp, parameter_count_offset));
   masm->LeaveFrame(StackFrame::STUB_FAILURE_TRAMPOLINE);
+  __ sll(a1, a1, kPointerSizeLog2);
+  __ Addu(sp, sp, a1);
   __ Ret();
 }
 

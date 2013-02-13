@@ -1448,6 +1448,7 @@ class MacroAssembler: public Assembler {
   // If allocation info is present, jump to allocation_info_present
   void TestJSArrayForAllocationSiteInfo(Register receiver_reg,
                                         Register scratch_reg,
+                                        Condition cond,
                                         Label* allocation_info_present);
 
  private:

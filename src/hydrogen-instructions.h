@@ -92,6 +92,7 @@ class LChunkBuilder;
   V(CheckNonSmi)                               \
   V(CheckPrototypeMaps)                        \
   V(CheckSmi)                                  \
+  V(CheckSmiOrInt32)                           \
   V(ClampToUint8)                              \
   V(ClassOfTestAndBranch)                      \
   V(CompareIDAndBranch)                        \
@@ -146,6 +147,7 @@ class LChunkBuilder;
   V(MathMinMax)                                \
   V(Mod)                                       \
   V(Mul)                                       \
+  V(NumericConstraint)                         \
   V(ObjectLiteral)                             \
   V(OsrEntry)                                  \
   V(OuterContext)                              \
@@ -549,6 +551,127 @@ enum GVNFlag {
 #undef COUNT_FLAG
 };
 
+
+class NumericRelation {
+ public:
+  enum Kind { NONE, EQ, GT, GE, LT, LE, NE };
+  static const char* MnemonicFromKind(Kind kind) {
+    switch (kind) {
+      case NONE: return "NONE";
+      case EQ: return "EQ";
+      case GT: return "GT";
+      case GE: return "GE";
+      case LT: return "LT";
+      case LE: return "LE";
+      case NE: return "NE";
+    }
+    UNREACHABLE();
+    return NULL;
+  }
+  const char* Mnemonic() const { return MnemonicFromKind(kind_); }
+
+  static NumericRelation None() { return NumericRelation(NONE); }
+  static NumericRelation Eq() { return NumericRelation(EQ); }
+  static NumericRelation Gt() { return NumericRelation(GT); }
+  static NumericRelation Ge() { return NumericRelation(GE); }
+  static NumericRelation Lt() { return NumericRelation(LT); }
+  static NumericRelation Le() { return NumericRelation(LE); }
+  static NumericRelation Ne() { return NumericRelation(NE); }
+
+  bool IsNone() { return kind_ == NONE; }
+
+  static NumericRelation FromToken(Token::Value token) {
+    switch (token) {
+      case Token::EQ: return Eq();
+      case Token::EQ_STRICT: return Eq();
+      case Token::LT: return Lt();
+      case Token::GT: return Gt();
+      case Token::LTE: return Le();
+      case Token::GTE: return Ge();
+      case Token::NE: return Ne();
+      case Token::NE_STRICT: return Ne();
+      default: return None();
+    }
+  }
+
+  // The semantics of "Reversed" is that if "x rel y" is true then also
+  // "y rel.Reversed() x" is true, and that rel.Reversed().Reversed() == rel.
+  NumericRelation Reversed() {
+    switch (kind_) {
+      case NONE: return None();
+      case EQ: return Eq();
+      case GT: return Lt();
+      case GE: return Le();
+      case LT: return Gt();
+      case LE: return Ge();
+      case NE: return Ne();
+    }
+    UNREACHABLE();
+    return None();
+  }
+
+  // The semantics of "Negated" is that if "x rel y" is true then also
+  // "!(x rel.Negated() y)" is true.
+  NumericRelation Negated() {
+    switch (kind_) {
+      case NONE: return None();
+      case EQ: return Ne();
+      case GT: return Le();
+      case GE: return Lt();
+      case LT: return Ge();
+      case LE: return Gt();
+      case NE: return Eq();
+    }
+    UNREACHABLE();
+    return None();
+  }
+
+  // The semantics of "Implies" is that if "x rel y" is true
+  // then also "x other_relation y" is true.
+  bool Implies(NumericRelation other_relation) {
+    switch (kind_) {
+      case NONE: return false;
+      case EQ: return (other_relation.kind_ == EQ)
+          || (other_relation.kind_ == GE)
+          || (other_relation.kind_ == LE);
+      case GT: return (other_relation.kind_ == GT)
+          || (other_relation.kind_ == GE)
+          || (other_relation.kind_ == NE);
+      case LT: return (other_relation.kind_ == LT)
+          || (other_relation.kind_ == LE)
+          || (other_relation.kind_ == NE);
+      case GE: return (other_relation.kind_ == GE);
+      case LE: return (other_relation.kind_ == LE);
+      case NE: return (other_relation.kind_ == NE);
+    }
+    UNREACHABLE();
+    return false;
+  }
+
+  // The semantics of "IsExtendable" is that if
+  // "rel.IsExtendable(direction)" is true then
+  // "x rel y" implies "(x + direction) rel y" .
+  bool IsExtendable(int direction) {
+    switch (kind_) {
+      case NONE: return false;
+      case EQ: return false;
+      case GT: return (direction >= 0);
+      case GE: return (direction >= 0);
+      case LT: return (direction <= 0);
+      case LE: return (direction <= 0);
+      case NE: return false;
+    }
+    UNREACHABLE();
+    return false;
+  }
+
+ private:
+  explicit NumericRelation(Kind kind) : kind_(kind) {}
+
+  Kind kind_;
+};
+
+
 typedef EnumSet<GVNFlag> GVNFlagSet;
 
 
@@ -712,6 +835,9 @@ class HValue: public ZoneObject {
     UpdateRedefinedUsesInner<Dominates>();
   }
 
+  bool IsInteger32Constant();
+  int32_t GetInteger32Constant();
+
   bool IsDefinedAfter(HBasicBlock* other) const;
 
   // Operands.
@@ -838,6 +964,24 @@ class HValue: public ZoneObject {
   virtual void Verify() = 0;
 #endif
 
+  // This method is recursive but it is guaranteed to terminate because
+  // RedefinedOperand() always dominates "this".
+  bool IsRelationTrue(NumericRelation relation, HValue* other) {
+    if (this == other) {
+      return NumericRelation::Eq().Implies(relation);
+    }
+
+    bool result = IsRelationTrueInternal(relation, other) ||
+        other->IsRelationTrueInternal(relation.Reversed(), this);
+    if (!result) {
+      HValue* redefined = RedefinedOperand();
+      if (redefined != NULL) {
+        result = redefined->IsRelationTrue(relation, other);
+      }
+    }
+    return result;
+  }
+
  protected:
   // This function must be overridden for instructions with flag kUseGVN, to
   // compare the non-Operand parts of the instruction.
@@ -898,6 +1042,12 @@ class HValue: public ZoneObject {
         }
       }
     }
+  }
+
+  // Informative definitions can override this method to state any numeric
+  // relation they provide on the redefined value.
+  virtual bool IsRelationTrueInternal(NumericRelation relation, HValue* other) {
+    return false;
   }
 
   static GVNFlagSet AllDependsOnFlagSet() {
@@ -1121,6 +1271,50 @@ class HDummyUse: public HTemplateInstruction<1> {
   virtual void PrintDataTo(StringStream* stream);
 
   DECLARE_CONCRETE_INSTRUCTION(DummyUse);
+};
+
+
+class HNumericConstraint : public HTemplateInstruction<2> {
+ public:
+  static HNumericConstraint* AddToGraph(HValue* constrained_value,
+                                        NumericRelation relation,
+                                        HValue* related_value,
+                                        HInstruction* insertion_point = NULL);
+
+  HValue* constrained_value() { return OperandAt(0); }
+  HValue* related_value() { return OperandAt(1); }
+  NumericRelation relation() { return relation_; }
+
+  virtual int RedefinedOperandIndex() { return 0; }
+
+  virtual Representation RequiredInputRepresentation(int index) {
+    return representation();
+  }
+
+  virtual void PrintDataTo(StringStream* stream);
+
+  virtual bool IsRelationTrueInternal(NumericRelation other_relation,
+                                      HValue* other_related_value) {
+    if (related_value() == other_related_value) {
+      return relation().Implies(other_relation);
+    } else {
+      return false;
+    }
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(NumericConstraint)
+
+ private:
+  HNumericConstraint(HValue* constrained_value,
+                     NumericRelation relation,
+                     HValue* related_value)
+      : relation_(relation) {
+    SetOperandAt(0, constrained_value);
+    SetOperandAt(1, related_value);
+    set_representation(constrained_value->representation());
+  }
+
+  NumericRelation relation_;
 };
 
 
@@ -1545,7 +1739,7 @@ class HStackCheck: public HTemplateInstruction<1> {
     // The stack check eliminator might try to eliminate the same stack
     // check instruction multiple times.
     if (IsLinked()) {
-      DeleteFromGraph();
+      DeleteAndReplaceWith(NULL);
     }
   }
 
@@ -2612,6 +2806,34 @@ class HCheckSmi: public HUnaryOperation {
 };
 
 
+class HCheckSmiOrInt32: public HUnaryOperation {
+ public:
+  explicit HCheckSmiOrInt32(HValue* value) : HUnaryOperation(value) {
+    SetFlag(kFlexibleRepresentation);
+    SetFlag(kUseGVN);
+  }
+
+  virtual int RedefinedOperandIndex() { return 0; }
+  virtual Representation RequiredInputRepresentation(int index) {
+    return representation();
+  }
+  virtual void InferRepresentation(HInferRepresentation* h_infer);
+
+  virtual HValue* Canonicalize() {
+    if (representation().IsTagged() && !type().IsSmi()) {
+      return this;
+    } else {
+      return value();
+    }
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(CheckSmiOrInt32)
+
+ protected:
+  virtual bool DataEquals(HValue* other) { return true; }
+};
+
+
 class HPhi: public HValue {
  public:
   HPhi(int merged_index, Zone* zone)
@@ -2647,6 +2869,8 @@ class HPhi: public HValue {
   bool IsReceiver() { return merged_index_ == 0; }
 
   int merged_index() const { return merged_index_; }
+
+  virtual void AddInformativeDefinitions();
 
   virtual void PrintTo(StringStream* stream);
 
@@ -2806,6 +3030,9 @@ class HConstant: public HTemplateInstruction<0> {
   int32_t Integer32Value() const {
     ASSERT(HasInteger32Value());
     return int32_value_;
+  }
+  bool HasSmiValue() const {
+    return HasInteger32Value() && Smi::IsValid(Integer32Value());
   }
   bool HasDoubleValue() const { return has_double_value_; }
   double DoubleValue() const {
@@ -3088,15 +3315,21 @@ enum BoundsCheckKeyMode {
 
 class HBoundsCheck: public HTemplateInstruction<2> {
  public:
-  HBoundsCheck(HValue* index, HValue* length,
+  // Normally HBoundsCheck should be created using the
+  // HGraphBuilder::AddBoundsCheck() helper, which also guards the index with
+  // a HCheckSmiOrInt32 check.
+  // However when building stubs, where we know that the arguments are Int32,
+  // it makes sense to invoke this constructor directly.
+  HBoundsCheck(HValue* index,
+               HValue* length,
                BoundsCheckKeyMode key_mode = DONT_ALLOW_SMI_KEY,
                Representation r = Representation::None())
-      : key_mode_(key_mode) {
+      : key_mode_(key_mode), skip_check_(false) {
     SetOperandAt(0, index);
     SetOperandAt(1, length);
     if (r.IsNone()) {
       // In the normal compilation pipeline the representation is flexible
-      // (see comment to RequiredInputRepresentation).
+      // (see InferRepresentation).
       SetFlag(kFlexibleRepresentation);
     } else {
       // When compiling stubs we want to set the representation explicitly
@@ -3106,12 +3339,18 @@ class HBoundsCheck: public HTemplateInstruction<2> {
     SetFlag(kUseGVN);
   }
 
+  bool skip_check() { return skip_check_; }
+  void set_skip_check(bool skip_check) { skip_check_ = skip_check; }
+
   virtual Representation RequiredInputRepresentation(int arg_index) {
     return representation();
   }
   virtual Representation observed_input_representation(int index) {
     return Representation::Integer32();
   }
+
+  virtual bool IsRelationTrueInternal(NumericRelation relation,
+                                      HValue* related_value);
 
   virtual void PrintDataTo(StringStream* stream);
   virtual void InferRepresentation(HInferRepresentation* h_infer);
@@ -3120,12 +3359,14 @@ class HBoundsCheck: public HTemplateInstruction<2> {
   HValue* length() { return OperandAt(1); }
 
   virtual int RedefinedOperandIndex() { return 0; }
+  virtual void AddInformativeDefinitions();
 
   DECLARE_CONCRETE_INSTRUCTION(BoundsCheck)
 
  protected:
   virtual bool DataEquals(HValue* other) { return true; }
   BoundsCheckKeyMode key_mode_;
+  bool skip_check_;
 };
 
 
@@ -3294,6 +3535,8 @@ class HCompareIDAndBranch: public HTemplateControlInstruction<2, 2> {
     return observed_input_representation_[index];
   }
   virtual void PrintDataTo(StringStream* stream);
+
+  virtual void AddInformativeDefinitions();
 
   DECLARE_CONCRETE_INSTRUCTION(CompareIDAndBranch)
 
@@ -3699,6 +3942,23 @@ class HAdd: public HArithmeticBinaryOperation {
 
   virtual HValue* Canonicalize();
 
+  virtual bool IsRelationTrueInternal(NumericRelation relation, HValue* other) {
+    HValue* base = NULL;
+    int32_t offset = 0;
+    if (left()->IsInteger32Constant()) {
+      base = right();
+      offset = left()->GetInteger32Constant();
+    } else if (right()->IsInteger32Constant()) {
+      base = left();
+      offset = right()->GetInteger32Constant();
+    } else {
+      return false;
+    }
+
+    return relation.IsExtendable(offset)
+        ? base->IsRelationTrue(relation, other) : false;
+  }
+
   DECLARE_CONCRETE_INSTRUCTION(Add)
 
  protected:
@@ -3723,6 +3983,17 @@ class HSub: public HArithmeticBinaryOperation {
                                HValue* context,
                                HValue* left,
                                HValue* right);
+
+  virtual bool IsRelationTrueInternal(NumericRelation relation, HValue* other) {
+    if (right()->IsInteger32Constant()) {
+      HValue* base = left();
+      int32_t offset = right()->GetInteger32Constant();
+      return relation.IsExtendable(-offset)
+          ? base->IsRelationTrue(relation, other) : false;
+    } else {
+      return false;
+    }
+  }
 
   DECLARE_CONCRETE_INSTRUCTION(Sub)
 

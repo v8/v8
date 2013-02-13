@@ -880,7 +880,7 @@ Handle<AccessorInfo> Accessors::MakeModuleExport(
     int index,
     PropertyAttributes attributes) {
   Factory* factory = name->GetIsolate()->factory();
-  Handle<AccessorInfo> info = factory->NewAccessorInfo();
+  Handle<ExecutableAccessorInfo> info = factory->NewExecutableAccessorInfo();
   info->set_property_attributes(attributes);
   info->set_all_can_read(true);
   info->set_all_can_write(true);

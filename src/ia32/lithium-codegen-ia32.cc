@@ -860,44 +860,38 @@ void LCodeGen::DeoptimizeIf(Condition cc, LEnvironment* environment) {
     __ popfd();
   }
 
+  if (FLAG_trap_on_deopt) {
+    Label done;
+    if (cc != no_condition) {
+      __ j(NegateCondition(cc), &done, Label::kNear);
+    }
+    __ int3();
+    __ bind(&done);
+  }
+
   ASSERT(info()->IsStub() || frame_is_built_);
-  bool lazy_deopt_needed = info()->IsStub();
-  if (cc == no_condition) {
-    if (FLAG_trap_on_deopt) __ int3();
-    if (lazy_deopt_needed) {
+  bool needs_lazy_deopt = info()->IsStub();
+  if (cc == no_condition && frame_is_built_) {
+    if (needs_lazy_deopt) {
       __ call(entry, RelocInfo::RUNTIME_ENTRY);
     } else {
       __ jmp(entry, RelocInfo::RUNTIME_ENTRY);
     }
   } else {
-    Label done;
-    if (FLAG_trap_on_deopt) {
-      __ j(NegateCondition(cc), &done, Label::kNear);
-      __ int3();
+    // We often have several deopts to the same entry, reuse the last
+    // jump entry if this is the case.
+    if (jump_table_.is_empty() ||
+        jump_table_.last().address != entry ||
+        jump_table_.last().needs_frame != !frame_is_built_ ||
+        jump_table_.last().is_lazy_deopt != needs_lazy_deopt) {
+      JumpTableEntry table_entry(entry, !frame_is_built_, needs_lazy_deopt);
+      jump_table_.Add(table_entry, zone());
     }
-    if (!lazy_deopt_needed && frame_is_built_) {
-      if (FLAG_trap_on_deopt) {
-        __ jmp(entry, RelocInfo::RUNTIME_ENTRY);
-      } else {
-        __ j(cc, entry, RelocInfo::RUNTIME_ENTRY);
-      }
+    if (cc == no_condition) {
+      __ jmp(&jump_table_.last().label);
     } else {
-      // We often have several deopts to the same entry, reuse the last
-      // jump entry if this is the case.
-      if (jump_table_.is_empty() ||
-          jump_table_.last().address != entry ||
-          jump_table_.last().needs_frame != !frame_is_built_ ||
-          jump_table_.last().is_lazy_deopt != lazy_deopt_needed) {
-        JumpTableEntry table_entry(entry, !frame_is_built_, lazy_deopt_needed);
-        jump_table_.Add(table_entry, zone());
-      }
-      if (FLAG_trap_on_deopt) {
-        __ jmp(&jump_table_.last().label);
-      } else {
-        __ j(cc, &jump_table_.last().label);
-      }
+      __ j(cc, &jump_table_.last().label);
     }
-    __ bind(&done);
   }
 }
 
@@ -2076,9 +2070,8 @@ void LCodeGen::DoBranch(LBranch* instr) {
         __ cmp(FieldOperand(reg, HeapObject::kMapOffset),
                factory()->heap_number_map());
         __ j(not_equal, &not_heap_number, Label::kNear);
-        __ fldz();
-        __ fld_d(FieldOperand(reg, HeapNumber::kValueOffset));
-        __ FCmp();
+        __ xorps(xmm0, xmm0);
+        __ ucomisd(xmm0, FieldOperand(reg, HeapNumber::kValueOffset));
         __ j(zero, false_label);
         __ jmp(true_label);
         __ bind(&not_heap_number);
@@ -4156,27 +4149,9 @@ void LCodeGen::DoStoreNamedGeneric(LStoreNamedGeneric* instr) {
 }
 
 
-void LCodeGen::DeoptIfTaggedButNotSmi(LEnvironment* environment,
-                                      HValue* value,
-                                      LOperand* operand) {
-  if (value->representation().IsTagged() && !value->type().IsSmi()) {
-    if (operand->IsRegister()) {
-      __ test(ToRegister(operand), Immediate(kSmiTagMask));
-    } else {
-      __ test(ToOperand(operand), Immediate(kSmiTagMask));
-    }
-    DeoptimizeIf(not_zero, environment);
-  }
-}
-
-
 void LCodeGen::DoBoundsCheck(LBoundsCheck* instr) {
-  DeoptIfTaggedButNotSmi(instr->environment(),
-                         instr->hydrogen()->length(),
-                         instr->length());
-  DeoptIfTaggedButNotSmi(instr->environment(),
-                         instr->hydrogen()->index(),
-                         instr->index());
+  if (instr->hydrogen()->skip_check()) return;
+
   if (instr->index()->IsConstantOperand()) {
     int constant_index =
         ToInteger32(LConstantOperand::cast(instr->index()));

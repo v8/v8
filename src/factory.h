@@ -202,7 +202,9 @@ class Factory {
   // the old generation).
   Handle<Struct> NewStruct(InstanceType type);
 
-  Handle<AccessorInfo> NewAccessorInfo();
+  Handle<DeclaredAccessorInfo> NewDeclaredAccessorInfo();
+
+  Handle<ExecutableAccessorInfo> NewExecutableAccessorInfo();
 
   Handle<Script> NewScript(Handle<String> source);
 

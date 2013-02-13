@@ -111,7 +111,10 @@
 //       - Foreign
 //       - SharedFunctionInfo
 //       - Struct
+//         - DeclaredAccessorDescriptor
 //         - AccessorInfo
+//           - DeclaredAccessorInfo
+//           - ExecutableAccessorInfo
 //         - AccessorPair
 //         - AccessCheckInfo
 //         - InterceptorInfo
@@ -288,7 +291,9 @@ const int kStubMinorKeyBits = kBitsPerInt - kSmiTagSize - kStubMajorKeyBits;
   V(EXTERNAL_PIXEL_ARRAY_TYPE)                                                 \
   V(FILLER_TYPE)                                                               \
                                                                                \
-  V(ACCESSOR_INFO_TYPE)                                                        \
+  V(DECLARED_ACCESSOR_DESCRIPTOR_TYPE)                                         \
+  V(DECLARED_ACCESSOR_INFO_TYPE)                                               \
+  V(EXECUTABLE_ACCESSOR_INFO_TYPE)                                             \
   V(ACCESSOR_PAIR_TYPE)                                                        \
   V(ACCESS_CHECK_INFO_TYPE)                                                    \
   V(INTERCEPTOR_INFO_TYPE)                                                     \
@@ -441,7 +446,11 @@ const int kStubMinorKeyBits = kBitsPerInt - kSmiTagSize - kStubMajorKeyBits;
 // type tags, elements in this list have to be added to the INSTANCE_TYPE_LIST
 // manually.
 #define STRUCT_LIST_ALL(V)                                                     \
-  V(ACCESSOR_INFO, AccessorInfo, accessor_info)                                \
+  V(DECLARED_ACCESSOR_DESCRIPTOR,                                              \
+    DeclaredAccessorDescriptor,                                                \
+    declared_accessor_descriptor)                                              \
+  V(DECLARED_ACCESSOR_INFO, DeclaredAccessorInfo, declared_accessor_info)      \
+  V(EXECUTABLE_ACCESSOR_INFO, ExecutableAccessorInfo, executable_accessor_info)\
   V(ACCESSOR_PAIR, AccessorPair, accessor_pair)                                \
   V(ACCESS_CHECK_INFO, AccessCheckInfo, access_check_info)                     \
   V(INTERCEPTOR_INFO, InterceptorInfo, interceptor_info)                       \
@@ -598,7 +607,9 @@ enum InstanceType {
   FILLER_TYPE,  // LAST_DATA_TYPE
 
   // Structs.
-  ACCESSOR_INFO_TYPE,
+  DECLARED_ACCESSOR_DESCRIPTOR_TYPE,
+  DECLARED_ACCESSOR_INFO_TYPE,
+  EXECUTABLE_ACCESSOR_INFO_TYPE,
   ACCESSOR_PAIR_TYPE,
   ACCESS_CHECK_INFO_TYPE,
   INTERCEPTOR_INFO_TYPE,
@@ -926,6 +937,7 @@ class Object : public MaybeObject {
 
   inline bool IsFixedArrayBase();
   inline bool IsExternal();
+  inline bool IsAccessorInfo();
 
   // Returns true if this object is an instance of the specified
   // function template.
@@ -8324,20 +8336,8 @@ class JSRegExpResult: public JSArray {
 };
 
 
-// An accessor must have a getter, but can have no setter.
-//
-// When setting a property, V8 searches accessors in prototypes.
-// If an accessor was found and it does not have a setter,
-// the request is ignored.
-//
-// If the accessor in the prototype has the READ_ONLY property attribute, then
-// a new value is added to the local object when the property is set.
-// This shadows the accessor in the prototype.
 class AccessorInfo: public Struct {
  public:
-  DECL_ACCESSORS(getter, Object)
-  DECL_ACCESSORS(setter, Object)
-  DECL_ACCESSORS(data, Object)
   DECL_ACCESSORS(name, Object)
   DECL_ACCESSORS(flag, Smi)
   DECL_ACCESSORS(expected_receiver_type, Object)
@@ -8360,13 +8360,10 @@ class AccessorInfo: public Struct {
   static inline AccessorInfo* cast(Object* obj);
 
   // Dispatched behavior.
-  DECLARE_PRINTER(AccessorInfo)
   DECLARE_VERIFIER(AccessorInfo)
 
-  static const int kGetterOffset = HeapObject::kHeaderSize;
-  static const int kSetterOffset = kGetterOffset + kPointerSize;
-  static const int kDataOffset = kSetterOffset + kPointerSize;
-  static const int kNameOffset = kDataOffset + kPointerSize;
+
+  static const int kNameOffset = HeapObject::kHeaderSize;
   static const int kFlagOffset = kNameOffset + kPointerSize;
   static const int kExpectedReceiverTypeOffset = kFlagOffset + kPointerSize;
   static const int kSize = kExpectedReceiverTypeOffset + kPointerSize;
@@ -8379,6 +8376,74 @@ class AccessorInfo: public Struct {
   class AttributesField: public BitField<PropertyAttributes, 3, 3> {};
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(AccessorInfo);
+};
+
+
+class DeclaredAccessorDescriptor: public Struct {
+ public:
+  // TODO(dcarney): Fill out this class.
+  DECL_ACCESSORS(internal_field, Smi)
+
+  static inline DeclaredAccessorDescriptor* cast(Object* obj);
+
+  // Dispatched behavior.
+  DECLARE_PRINTER(DeclaredAccessorDescriptor)
+  DECLARE_VERIFIER(DeclaredAccessorDescriptor)
+
+  static const int kInternalFieldOffset = HeapObject::kHeaderSize;
+  static const int kSize = kInternalFieldOffset + kPointerSize;
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(DeclaredAccessorDescriptor);
+};
+
+
+class DeclaredAccessorInfo: public AccessorInfo {
+ public:
+  DECL_ACCESSORS(descriptor, DeclaredAccessorDescriptor)
+
+  static inline DeclaredAccessorInfo* cast(Object* obj);
+
+  // Dispatched behavior.
+  DECLARE_PRINTER(DeclaredAccessorInfo)
+  DECLARE_VERIFIER(DeclaredAccessorInfo)
+
+  static const int kDescriptorOffset = AccessorInfo::kSize;
+  static const int kSize = kDescriptorOffset + kPointerSize;
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(DeclaredAccessorInfo);
+};
+
+
+// An accessor must have a getter, but can have no setter.
+//
+// When setting a property, V8 searches accessors in prototypes.
+// If an accessor was found and it does not have a setter,
+// the request is ignored.
+//
+// If the accessor in the prototype has the READ_ONLY property attribute, then
+// a new value is added to the local object when the property is set.
+// This shadows the accessor in the prototype.
+class ExecutableAccessorInfo: public AccessorInfo {
+ public:
+  DECL_ACCESSORS(getter, Object)
+  DECL_ACCESSORS(setter, Object)
+  DECL_ACCESSORS(data, Object)
+
+  static inline ExecutableAccessorInfo* cast(Object* obj);
+
+  // Dispatched behavior.
+  DECLARE_PRINTER(ExecutableAccessorInfo)
+  DECLARE_VERIFIER(ExecutableAccessorInfo)
+
+  static const int kGetterOffset = AccessorInfo::kSize;
+  static const int kSetterOffset = kGetterOffset + kPointerSize;
+  static const int kDataOffset = kSetterOffset + kPointerSize;
+  static const int kSize = kDataOffset + kPointerSize;
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(ExecutableAccessorInfo);
 };
 
 

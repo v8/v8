@@ -1047,10 +1047,11 @@ static void ReplaceCodeObject(Handle<Code> original,
   // Since we are not in an incremental marking phase we can write pointers
   // to code objects (that are never in new space) without worrying about
   // write barriers.
-  HEAP->CollectAllGarbage(Heap::kMakeHeapIterableMask,
+  Heap* heap = original->GetHeap();
+  heap->CollectAllGarbage(Heap::kMakeHeapIterableMask,
                           "liveedit.cc ReplaceCodeObject");
 
-  ASSERT(!HEAP->InNewSpace(*substitution));
+  ASSERT(!heap->InNewSpace(*substitution));
 
   AssertNoAllocation no_allocations_please;
 
@@ -1059,11 +1060,11 @@ static void ReplaceCodeObject(Handle<Code> original,
   // Iterate over all roots. Stack frames may have pointer into original code,
   // so temporary replace the pointers with offset numbers
   // in prologue/epilogue.
-  HEAP->IterateRoots(&visitor, VISIT_ALL);
+  heap->IterateRoots(&visitor, VISIT_ALL);
 
   // Now iterate over all pointers of all objects, including code_target
   // implicit pointers.
-  HeapIterator iterator;
+  HeapIterator iterator(heap);
   for (HeapObject* obj = iterator.next(); obj != NULL; obj = iterator.next()) {
     obj->Iterate(&visitor);
   }
@@ -1129,7 +1130,7 @@ class LiteralFixer {
                                  Visitor* visitor) {
     AssertNoAllocation no_allocations_please;
 
-    HeapIterator iterator;
+    HeapIterator iterator(shared_info->GetHeap());
     for (HeapObject* obj = iterator.next(); obj != NULL;
         obj = iterator.next()) {
       if (obj->IsJSFunction()) {

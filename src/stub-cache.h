@@ -88,7 +88,7 @@ class StubCache {
   Handle<Code> ComputeLoadCallback(Handle<String> name,
                                    Handle<JSObject> object,
                                    Handle<JSObject> holder,
-                                   Handle<AccessorInfo> callback);
+                                   Handle<ExecutableAccessorInfo> callback);
 
   Handle<Code> ComputeLoadViaGetter(Handle<String> name,
                                     Handle<JSObject> object,
@@ -119,10 +119,11 @@ class StubCache {
                                      Handle<JSObject> holder,
                                      PropertyIndex field_index);
 
-  Handle<Code> ComputeKeyedLoadCallback(Handle<String> name,
-                                        Handle<JSObject> object,
-                                        Handle<JSObject> holder,
-                                        Handle<AccessorInfo> callback);
+  Handle<Code> ComputeKeyedLoadCallback(
+      Handle<String> name,
+      Handle<JSObject> object,
+      Handle<JSObject> holder,
+      Handle<ExecutableAccessorInfo> callback);
 
   Handle<Code> ComputeKeyedLoadConstant(Handle<String> name,
                                         Handle<JSObject> object,
@@ -151,7 +152,7 @@ class StubCache {
   Handle<Code> ComputeStoreCallback(Handle<String> name,
                                     Handle<JSObject> object,
                                     Handle<JSObject> holder,
-                                    Handle<AccessorInfo> callback,
+                                    Handle<ExecutableAccessorInfo> callback,
                                     StrictModeFlag strict_mode);
 
   Handle<Code> ComputeStoreViaSetter(Handle<String> name,
@@ -553,7 +554,7 @@ class StubCompiler BASE_EMBEDDED {
                             Register scratch2,
                             Register scratch3,
                             Register scratch4,
-                            Handle<AccessorInfo> callback,
+                            Handle<ExecutableAccessorInfo> callback,
                             Handle<String> name,
                             Label* miss);
 
@@ -562,7 +563,7 @@ class StubCompiler BASE_EMBEDDED {
                                       Register scratch1,
                                       Register scratch2,
                                       Register scratch3,
-                                      Handle<AccessorInfo> callback,
+                                      Handle<ExecutableAccessorInfo> callback,
                                       Handle<String> name,
                                       Label* miss);
 
@@ -616,7 +617,7 @@ class BaseLoadStubCompiler: public StubCompiler {
   Handle<Code> CompileLoadCallback(Handle<JSObject> object,
                                    Handle<JSObject> holder,
                                    Handle<String> name,
-                                   Handle<AccessorInfo> callback);
+                                   Handle<ExecutableAccessorInfo> callback);
 
   Handle<Code> CompileLoadConstant(Handle<JSObject> object,
                                    Handle<JSObject> holder,
@@ -720,7 +721,7 @@ class StoreStubCompiler: public StubCompiler {
   Handle<Code> CompileStoreCallback(Handle<String> name,
                                     Handle<JSObject> object,
                                     Handle<JSObject> holder,
-                                    Handle<AccessorInfo> callback);
+                                    Handle<ExecutableAccessorInfo> callback);
 
   static void GenerateStoreViaSetter(MacroAssembler* masm,
                                      Handle<JSFunction> setter);

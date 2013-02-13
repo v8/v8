@@ -2339,37 +2339,40 @@ class VerifyPointersVisitor: public ObjectVisitor {
 };
 
 
-// Space iterator for iterating over all spaces of the heap.
-// Returns each space in turn, and null when it is done.
+// Space iterator for iterating over all spaces of the heap.  Returns each space
+// in turn, and null when it is done.
 class AllSpaces BASE_EMBEDDED {
  public:
+  explicit AllSpaces(Heap* heap) : heap_(heap), counter_(FIRST_SPACE) {}
   Space* next();
-  AllSpaces() { counter_ = FIRST_SPACE; }
  private:
+  Heap* heap_;
   int counter_;
 };
 
 
 // Space iterator for iterating over all old spaces of the heap: Old pointer
-// space, old data space and code space.
-// Returns each space in turn, and null when it is done.
+// space, old data space and code space.  Returns each space in turn, and null
+// when it is done.
 class OldSpaces BASE_EMBEDDED {
  public:
+  explicit OldSpaces(Heap* heap) : heap_(heap), counter_(OLD_POINTER_SPACE) {}
   OldSpace* next();
-  OldSpaces() { counter_ = OLD_POINTER_SPACE; }
  private:
+  Heap* heap_;
   int counter_;
 };
 
 
-// Space iterator for iterating over all the paged spaces of the heap:
-// Map space, old pointer space, old data space, code space and cell space.
-// Returns each space in turn, and null when it is done.
+// Space iterator for iterating over all the paged spaces of the heap: Map
+// space, old pointer space, old data space, code space and cell space.  Returns
+// each space in turn, and null when it is done.
 class PagedSpaces BASE_EMBEDDED {
  public:
+  explicit PagedSpaces(Heap* heap) : heap_(heap), counter_(OLD_POINTER_SPACE) {}
   PagedSpace* next();
-  PagedSpaces() { counter_ = OLD_POINTER_SPACE; }
  private:
+  Heap* heap_;
   int counter_;
 };
 
@@ -2379,8 +2382,8 @@ class PagedSpaces BASE_EMBEDDED {
 // returned object iterators is handled by the space iterator.
 class SpaceIterator : public Malloced {
  public:
-  SpaceIterator();
-  explicit SpaceIterator(HeapObjectCallback size_func);
+  explicit SpaceIterator(Heap* heap);
+  SpaceIterator(Heap* heap, HeapObjectCallback size_func);
   virtual ~SpaceIterator();
 
   bool has_next();
@@ -2389,6 +2392,7 @@ class SpaceIterator : public Malloced {
  private:
   ObjectIterator* CreateIterator();
 
+  Heap* heap_;
   int current_space_;  // from enum AllocationSpace.
   ObjectIterator* iterator_;  // object iterator for the current space.
   HeapObjectCallback size_func_;
@@ -2413,8 +2417,8 @@ class HeapIterator BASE_EMBEDDED {
     kFilterUnreachable
   };
 
-  HeapIterator();
-  explicit HeapIterator(HeapObjectsFiltering filtering);
+  explicit HeapIterator(Heap* heap);
+  HeapIterator(Heap* heap, HeapObjectsFiltering filtering);
   ~HeapIterator();
 
   HeapObject* next();
@@ -2427,6 +2431,7 @@ class HeapIterator BASE_EMBEDDED {
   void Shutdown();
   HeapObject* NextObject();
 
+  Heap* heap_;
   HeapObjectsFiltering filtering_;
   HeapObjectsFilter* filter_;
   // Space iterator for iterating all the spaces.

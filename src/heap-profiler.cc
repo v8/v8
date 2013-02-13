@@ -33,8 +33,8 @@
 namespace v8 {
 namespace internal {
 
-HeapProfiler::HeapProfiler()
-    : snapshots_(new HeapSnapshotsCollection()),
+HeapProfiler::HeapProfiler(Heap* heap)
+    : snapshots_(new HeapSnapshotsCollection(heap)),
       next_snapshot_uid_(1) {
 }
 
@@ -45,15 +45,16 @@ HeapProfiler::~HeapProfiler() {
 
 
 void HeapProfiler::ResetSnapshots() {
+  Heap* the_heap = heap();
   delete snapshots_;
-  snapshots_ = new HeapSnapshotsCollection();
+  snapshots_ = new HeapSnapshotsCollection(the_heap);
 }
 
 
 void HeapProfiler::SetUp() {
   Isolate* isolate = Isolate::Current();
   if (isolate->heap_profiler() == NULL) {
-    isolate->set_heap_profiler(new HeapProfiler());
+    isolate->set_heap_profiler(new HeapProfiler(isolate->heap()));
   }
 }
 
@@ -139,7 +140,7 @@ HeapSnapshot* HeapProfiler::TakeSnapshotImpl(
   bool generation_completed = true;
   switch (s_type) {
     case HeapSnapshot::kFull: {
-      HeapSnapshotGenerator generator(result, control, resolver);
+      HeapSnapshotGenerator generator(result, control, resolver, heap());
       generation_completed = generator.GenerateSnapshot();
       break;
     }

@@ -1106,7 +1106,8 @@ static i::Handle<i::AccessorInfo> MakeAccessorInfo(
       v8::AccessControl settings,
       v8::PropertyAttribute attributes,
       v8::Handle<AccessorSignature> signature) {
-  i::Handle<i::AccessorInfo> obj = FACTORY->NewAccessorInfo();
+  i::Handle<i::ExecutableAccessorInfo> obj =
+      FACTORY->NewExecutableAccessorInfo();
   SET_FIELD_WRAPPED(obj, set_getter, getter);
   SET_FIELD_WRAPPED(obj, set_setter, setter);
   if (data.IsEmpty()) data = v8::Undefined();
@@ -4407,23 +4408,18 @@ HeapStatistics::HeapStatistics(): total_heap_size_(0),
 
 
 void v8::V8::GetHeapStatistics(HeapStatistics* heap_statistics) {
-  if (!i::Isolate::Current()->IsInitialized()) {
+  i::Isolate* isolate = i::Isolate::UncheckedCurrent();
+  if (isolate == NULL || !isolate->IsInitialized()) {
     // Isolate is unitialized thus heap is not configured yet.
-    heap_statistics->set_total_heap_size(0);
-    heap_statistics->set_total_heap_size_executable(0);
-    heap_statistics->set_total_physical_size(0);
-    heap_statistics->set_used_heap_size(0);
-    heap_statistics->set_heap_size_limit(0);
+    heap_statistics->total_heap_size_ = 0;
+    heap_statistics->total_heap_size_executable_ = 0;
+    heap_statistics->total_physical_size_ = 0;
+    heap_statistics->used_heap_size_ = 0;
+    heap_statistics->heap_size_limit_ = 0;
     return;
   }
-
-  i::Heap* heap = i::Isolate::Current()->heap();
-  heap_statistics->set_total_heap_size(heap->CommittedMemory());
-  heap_statistics->set_total_heap_size_executable(
-      heap->CommittedMemoryExecutable());
-  heap_statistics->set_total_physical_size(heap->CommittedPhysicalMemory());
-  heap_statistics->set_used_heap_size(heap->SizeOfObjects());
-  heap_statistics->set_heap_size_limit(heap->MaxReserved());
+  Isolate* ext_isolate = reinterpret_cast<Isolate*>(isolate);
+  return ext_isolate->GetHeapStatistics(heap_statistics);
 }
 
 
@@ -5606,6 +5602,18 @@ void Isolate::Enter() {
 void Isolate::Exit() {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
   isolate->Exit();
+}
+
+
+void Isolate::GetHeapStatistics(HeapStatistics* heap_statistics) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  i::Heap* heap = isolate->heap();
+  heap_statistics->total_heap_size_ = heap->CommittedMemory();
+  heap_statistics->total_heap_size_executable_ =
+      heap->CommittedMemoryExecutable();
+  heap_statistics->total_physical_size_ = heap->CommittedPhysicalMemory();
+  heap_statistics->used_heap_size_ = heap->SizeOfObjects();
+  heap_statistics->heap_size_limit_ = heap->MaxReserved();
 }
 
 

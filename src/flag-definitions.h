@@ -363,6 +363,14 @@ DEFINE_bool(cache_prototype_transitions, true, "cache prototype transitions")
 
 // debug.cc
 DEFINE_bool(trace_debug_json, false, "trace debugging JSON request/response")
+DEFINE_bool(trace_js_array_abuse, false,
+            "trace out-of-bounds accesses to JS arrays")
+DEFINE_bool(trace_external_array_abuse, false,
+            "trace out-of-bounds-accesses to external arrays")
+DEFINE_bool(trace_array_abuse, false,
+            "trace out-of-bounds accesses to all arrays")
+DEFINE_implication(trace_array_abuse, trace_js_array_abuse)
+DEFINE_implication(trace_array_abuse, trace_external_array_abuse)
 DEFINE_bool(debugger_auto_break, true,
             "automatically set the debug break flag when debugger commands are "
             "in the queue")
@@ -422,7 +430,7 @@ DEFINE_bool(trace_incremental_marking, false,
             "trace progress of the incremental marking")
 DEFINE_bool(track_gc_object_stats, false,
             "track object counts and memory usage")
-DEFINE_bool(parallel_sweeping, false, "enable parallel sweeping")
+DEFINE_bool(parallel_sweeping, true, "enable parallel sweeping")
 DEFINE_bool(concurrent_sweeping, false, "enable concurrent sweeping")
 DEFINE_int(sweeper_threads, 1,
            "number of parallel and concurrent sweeping threads")

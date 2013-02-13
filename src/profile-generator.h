@@ -640,7 +640,9 @@ class HeapSnapshot {
 
 class HeapObjectsMap {
  public:
-  HeapObjectsMap();
+  explicit HeapObjectsMap(Heap* heap);
+
+  Heap* heap() const { return heap_; }
 
   void SnapshotGenerationFinished();
   SnapshotObjectId FindEntry(Address addr);
@@ -699,6 +701,7 @@ class HeapObjectsMap {
   HashMap entries_map_;
   List<EntryInfo> entries_;
   List<TimeInterval> time_intervals_;
+  Heap* heap_;
 
   DISALLOW_COPY_AND_ASSIGN(HeapObjectsMap);
 };
@@ -706,8 +709,10 @@ class HeapObjectsMap {
 
 class HeapSnapshotsCollection {
  public:
-  HeapSnapshotsCollection();
+  explicit HeapSnapshotsCollection(Heap* heap);
   ~HeapSnapshotsCollection();
+
+  Heap* heap() const { return ids_.heap(); }
 
   bool is_tracking_objects() { return is_tracking_objects_; }
   SnapshotObjectId PushHeapObjectsStats(OutputStream* stream) {
@@ -1025,7 +1030,8 @@ class HeapSnapshotGenerator : public SnapshottingProgressReportingInterface {
  public:
   HeapSnapshotGenerator(HeapSnapshot* snapshot,
                         v8::ActivityControl* control,
-                        v8::HeapProfiler::ObjectNameResolver* resolver);
+                        v8::HeapProfiler::ObjectNameResolver* resolver,
+                        Heap* heap);
   bool GenerateSnapshot();
 
  private:
@@ -1043,6 +1049,7 @@ class HeapSnapshotGenerator : public SnapshottingProgressReportingInterface {
   // Used during snapshot generation.
   int progress_counter_;
   int progress_total_;
+  Heap* heap_;
 
   DISALLOW_COPY_AND_ASSIGN(HeapSnapshotGenerator);
 };

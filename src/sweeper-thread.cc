@@ -35,8 +35,10 @@
 namespace v8 {
 namespace internal {
 
+static const int kSweeperThreadStackSize = 64 * KB;
+
 SweeperThread::SweeperThread(Isolate* isolate)
-     : Thread("SweeperThread"),
+     : Thread(Thread::Options("v8:SweeperThread", kSweeperThreadStackSize)),
        isolate_(isolate),
        heap_(isolate->heap()),
        collector_(heap_->mark_compact_collector()),
@@ -50,9 +52,6 @@ SweeperThread::SweeperThread(Isolate* isolate)
            heap_->paged_space(OLD_POINTER_SPACE)) {
   NoBarrier_Store(&stop_thread_, static_cast<AtomicWord>(false));
 }
-
-
-bool SweeperThread::sweeping_pending_ = false;
 
 
 void SweeperThread::Run() {
@@ -74,6 +73,7 @@ void SweeperThread::Run() {
     end_sweeping_semaphore_->Signal();
   }
 }
+
 
 intptr_t SweeperThread::StealMemory(PagedSpace* space) {
   intptr_t free_bytes = 0;
