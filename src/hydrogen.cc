@@ -71,7 +71,8 @@ HBasicBlock::HBasicBlock(HGraph* graph)
       parent_loop_header_(NULL),
       is_inline_return_target_(false),
       is_deoptimizing_(false),
-      dominates_loop_successors_(false) { }
+      dominates_loop_successors_(false),
+      is_osr_entry_(false) { }
 
 
 void HBasicBlock::AttachLoopInformation() {
@@ -3794,6 +3795,12 @@ bool HGraph::Optimize(SmartArrayPointer<char>* bailout_reason) {
   OrderBlocks();
   AssignDominators();
 
+  // We need to create a HConstant "zero" now so that GVN will fold every
+  // zero-valued constant in the graph together.
+  // The constant is needed to make idef-based bounds check work: the pass
+  // evaluates relations with "zero" and that zero cannot be created after GVN.
+  GetConstant0();
+
 #ifdef DEBUG
   // Do a full verify after building the graph and computing dominators.
   Verify(true);
@@ -3871,12 +3878,14 @@ void HGraph::SetupInformativeDefinitionsInBlock(HBasicBlock* block) {
   for (int phi_index = 0; phi_index < block->phis()->length(); phi_index++) {
     HPhi* phi = block->phis()->at(phi_index);
     phi->AddInformativeDefinitions();
+    phi->SetFlag(HValue::kIDefsProcessingDone);
     // We do not support phis that "redefine just one operand".
     ASSERT(!phi->IsInformativeDefinition());
   }
 
   for (HInstruction* i = block->first(); i != NULL; i = i->next()) {
     i->AddInformativeDefinitions();
+    i->SetFlag(HValue::kIDefsProcessingDone);
     i->UpdateRedefinedUsesWhileSettingUpInformativeDefinitions();
   }
 }
@@ -4897,6 +4906,7 @@ bool HOptimizedGraphBuilder::PreProcessOsrEntry(IterationStatement* statement) {
   non_osr_entry->Goto(loop_predecessor);
 
   set_current_block(osr_entry);
+  osr_entry->set_osr_entry();
   BailoutId osr_entry_id = statement->OsrEntryId();
   int first_expression_index = environment()->first_expression_index();
   int length = environment()->length();

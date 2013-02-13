@@ -91,6 +91,8 @@ class HBasicBlock: public ZoneObject {
   void set_last_instruction_index(int index) {
     last_instruction_index_ = index;
   }
+  bool is_osr_entry() { return is_osr_entry_; }
+  void set_osr_entry() { is_osr_entry_ = true; }
 
   void AttachLoopInformation();
   void DetachLoopInformation();
@@ -193,6 +195,7 @@ class HBasicBlock: public ZoneObject {
   bool is_inline_return_target_;
   bool is_deoptimizing_;
   bool dominates_loop_successors_;
+  bool is_osr_entry_;
 };
 
 
