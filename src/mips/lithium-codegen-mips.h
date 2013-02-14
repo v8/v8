@@ -275,6 +275,7 @@ class LCodeGen BASE_EMBEDDED {
                         bool is_uint32,
                         int arguments_index,
                         int arguments_count);
+  void RegisterDependentCodeForEmbeddedMaps(Handle<Code> code);
   void PopulateDeoptimizationData(Handle<Code> code);
   int DefineDeoptimizationLiteral(Handle<Object> literal);
 

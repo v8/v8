@@ -1106,8 +1106,8 @@ TEST(13) {
     __ vmov(d21, 16.0);
     __ mov(r1, Operand(372106121));
     __ mov(r2, Operand(1079146608));
-    __ vmov(d22, 0, r1);
-    __ vmov(d22, 1, r2);
+    __ vmov(d22, VmovIndexLo, r1);
+    __ vmov(d22, VmovIndexHi, r2);
     __ add(r4, r0, Operand(OFFSET_OF(T, i)));
     __ vstm(ia_w, r4, d20, d22);
 

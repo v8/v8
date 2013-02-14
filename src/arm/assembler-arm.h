@@ -637,7 +637,11 @@ extern const Instr kCmpCmnFlip;
 extern const Instr kAddSubFlip;
 extern const Instr kAndBicFlip;
 
-
+struct VmovIndex {
+  unsigned char index;
+};
+const VmovIndex VmovIndexLo = { 0 };
+const VmovIndex VmovIndexHi = { 1 };
 
 class Assembler : public AssemblerBase {
  public:
@@ -1071,7 +1075,7 @@ class Assembler : public AssemblerBase {
             const DwVfpRegister src,
             const Condition cond = al);
   void vmov(const DwVfpRegister dst,
-            int index,
+            const VmovIndex index,
             const Register src,
             const Condition cond = al);
   void vmov(const DwVfpRegister dst,

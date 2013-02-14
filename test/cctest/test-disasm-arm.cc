@@ -492,9 +492,9 @@ TEST(Vfp) {
     COMPARE(vmov(d2, -13.0),
             "eeba2b0a       vmov.f64 d2, #-13");
 
-    COMPARE(vmov(d0, 0, r0),
+    COMPARE(vmov(d0, VmovIndexLo, r0),
             "ee000b10       vmov.32 d0[0], r0");
-    COMPARE(vmov(d0, 1, r0),
+    COMPARE(vmov(d0, VmovIndexHi, r0),
             "ee200b10       vmov.32 d0[1], r0");
 
     COMPARE(vldr(s0, r0, 0),
@@ -619,9 +619,9 @@ TEST(Vfp) {
       COMPARE(vmov(d30, 16.0),
               "eef3eb00       vmov.f64 d30, #16");
 
-      COMPARE(vmov(d31, 0, r7),
+      COMPARE(vmov(d31, VmovIndexLo, r7),
               "ee0f7b90       vmov.32 d31[0], r7");
-      COMPARE(vmov(d31, 1, r7),
+      COMPARE(vmov(d31, VmovIndexHi, r7),
               "ee2f7b90       vmov.32 d31[1], r7");
 
       COMPARE(vldr(d25, r0, 0),

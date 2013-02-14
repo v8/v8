@@ -11689,6 +11689,7 @@ static bool MatchPointers(void* key1, void* key2) {
 
 
 TEST(SetJitCodeEventHandler) {
+  i::FLAG_stress_compaction = true;
   const char* script =
     "function bar() {"
     "  var sum = 0;"
@@ -11705,29 +11706,29 @@ TEST(SetJitCodeEventHandler) {
   isolate->Enter();
 
   {
+    v8::HandleScope scope;
     i::HashMap code(MatchPointers);
     code_map = &code;
 
     saw_bar = 0;
     move_events = 0;
 
-    i::FLAG_stress_compaction = true;
     V8::SetJitCodeEventHandler(v8::kJitCodeEventDefault, event_handler);
 
-    v8::HandleScope scope;
     // Generate new code objects sparsely distributed across several
     // different fragmented code-space pages.
     const int kIterations = 10;
     for (int i = 0; i < kIterations; ++i) {
       LocalContext env;
+      i::AlwaysAllocateScope always_allocate;
+      SimulateFullSpace(HEAP->code_space());
+      CompileRun(script);
 
-      v8::Handle<v8::Script> compiled_script;
-      {
-        i::AlwaysAllocateScope always_allocate;
-        SimulateFullSpace(HEAP->code_space());
-        compiled_script = v8_compile(script);
-      }
-      compiled_script->Run();
+      // Keep a strong reference to the code object in the handle scope.
+      i::Handle<i::Code> bar_code(i::Handle<i::JSFunction>::cast(
+          v8::Utils::OpenHandle(*env->Global()->Get(v8_str("bar"))))->code());
+      i::Handle<i::Code> foo_code(i::Handle<i::JSFunction>::cast(
+          v8::Utils::OpenHandle(*env->Global()->Get(v8_str("foo"))))->code());
 
       // Clear the compilation cache to get more wastage.
       ISOLATE->compilation_cache()->Clear();
@@ -11736,11 +11737,12 @@ TEST(SetJitCodeEventHandler) {
     // Force code movement.
     HEAP->CollectAllAvailableGarbage("TestSetJitCodeEventHandler");
 
+    V8::SetJitCodeEventHandler(v8::kJitCodeEventDefault, NULL);
+
     CHECK_LE(kIterations, saw_bar);
-    CHECK_NE(0, move_events);
+    CHECK_LT(0, move_events);
 
     code_map = NULL;
-    V8::SetJitCodeEventHandler(v8::kJitCodeEventDefault, NULL);
   }
 
   isolate->Exit();
@@ -11764,13 +11766,13 @@ TEST(SetJitCodeEventHandler) {
     V8::SetJitCodeEventHandler(v8::kJitCodeEventEnumExisting, event_handler);
     V8::SetJitCodeEventHandler(v8::kJitCodeEventDefault, NULL);
 
-    code_map = NULL;
-
     // We expect that we got some events. Note that if we could get code removal
     // notifications, we could compare two collections, one created by listening
     // from the time of creation of an isolate, and the other by subscribing
     // with EnumExisting.
-    CHECK_NE(0, code.occupancy());
+    CHECK_LT(0, code.occupancy());
+
+    code_map = NULL;
   }
 
   isolate->Exit();

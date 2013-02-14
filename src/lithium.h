@@ -694,8 +694,6 @@ class LChunk: public ZoneObject {
  protected:
   LChunk(CompilationInfo* info, HGraph* graph);
 
-  void RegisterDependentCodeForEmbeddedMaps(Handle<Code> code);
-
   int spill_slot_count_;
 
  private:
