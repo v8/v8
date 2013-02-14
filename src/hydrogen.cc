@@ -8004,25 +8004,28 @@ bool HOptimizedGraphBuilder::TryCallApply(Call* expr) {
     // TODO(mstarzinger): For now we just ensure arguments are pushed
     // right after HEnterInlined, but we could be smarter about this.
     EnsureArgumentsArePushedForAccess();
-    HEnvironment* arguments_env = environment()->arguments_environment();
-    int parameter_count = arguments_env->parameter_count();
+    ASSERT_EQ(environment()->arguments_environment()->parameter_count(),
+              function_state()->entry()->arguments_values()->length());
+    HEnterInlined* entry = function_state()->entry();
+    ZoneList<HValue*>* arguments_values = entry->arguments_values();
+    int arguments_count = arguments_values->length();
     PushAndAdd(new(zone()) HWrapReceiver(receiver, function));
-    for (int i = 1; i < arguments_env->parameter_count(); i++) {
-      Push(arguments_env->Lookup(i));
+    for (int i = 1; i < arguments_count; i++) {
+      Push(arguments_values->at(i));
     }
 
     Handle<JSFunction> known_function;
     if (function->IsConstant()) {
       HConstant* constant_function = HConstant::cast(function);
       known_function = Handle<JSFunction>::cast(constant_function->handle());
-      int arguments_count = parameter_count - 1;  // Excluding receiver.
-      if (TryInlineApply(known_function, expr, arguments_count)) return true;
+      int args_count = arguments_count - 1;  // Excluding receiver.
+      if (TryInlineApply(known_function, expr, args_count)) return true;
     }
 
-    Drop(parameter_count - 1);
+    Drop(arguments_count - 1);
     PushAndAdd(new(zone()) HPushArgument(Pop()));
-    for (int i = 1; i < arguments_env->parameter_count(); i++) {
-      PushAndAdd(new(zone()) HPushArgument(arguments_env->Lookup(i)));
+    for (int i = 1; i < arguments_count; i++) {
+      PushAndAdd(new(zone()) HPushArgument(arguments_values->at(i)));
     }
 
     HValue* context = environment()->LookupContext();
@@ -8030,8 +8033,8 @@ bool HOptimizedGraphBuilder::TryCallApply(Call* expr) {
         context,
         function,
         known_function,
-        parameter_count);
-    Drop(parameter_count);
+        arguments_count);
+    Drop(arguments_count);
     call->set_position(expr->position());
     ast_context()->ReturnInstruction(call, expr->id());
     return true;

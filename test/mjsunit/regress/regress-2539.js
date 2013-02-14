@@ -27,63 +27,29 @@
 
 // Flags: --allow-natives-syntax
 
-// Test inlining and deoptimization of function.apply(this, arguments)
-// calls for which the exact number of arguments is known.
-(function () {
-  "use strict";
-  function test(argumentsCount) {
-    var dispatcher = {};
-    var deoptimize = { deopt:false };
-    dispatcher["const" + argumentsCount] = 0;
-    dispatcher.func = C;
+"use strict";
+var dispatcher = {};
+dispatcher.func = C;
 
-    function A(x,y) {
-      var r = "A";
-      if (argumentsCount == 1) r += B(10);
-      if (argumentsCount == 2) r += B(10, 11);
-      if (argumentsCount == 3) r += B(10, 11, 12);
-      assertSame(1, x);
-      assertSame(2, y);
-      return r;
-    }
+function A() {
+  B(10, 11);
+}
 
-    function B(x,y) {
-      x = 0; y = 0;
-      var r = "B" + dispatcher.func.apply(this, arguments);
-      assertSame(argumentsCount, arguments.length);
-      for (var i = 0; i < arguments.length; i++) {
-        assertSame(10 + i, arguments[i]);
-      }
-      return r;
-    }
+function B(x,y) {
+  x = 0; y = 0;
+  dispatcher.func.apply(this, arguments);
+  assertSame(2, arguments.length);
+  assertSame(10, arguments[0]);
+  assertSame(11, arguments[1]);
+}
 
-    function C(x,y) {
-      x = 0; y = 0;
-      var r = "C"
-      deoptimize.deopt;
-      assertSame(argumentsCount, arguments.length);
-      for (var i = 0; i < arguments.length; i++) {
-        assertSame(10 + i, arguments[i]);
-      }
-      return r;
-    }
+function C(x,y) {
+  assertSame(2, arguments.length);
+  assertSame(10, arguments[0]);
+  assertSame(11, arguments[1]);
+}
 
-    assertEquals("ABC", A(1,2));
-    assertEquals("ABC", A(1,2));
-    %OptimizeFunctionOnNextCall(A);
-    assertEquals("ABC", A(1,2));
-    delete deoptimize.deopt;
-    assertEquals("ABC", A(1,2));
-
-    %DeoptimizeFunction(A);
-    %ClearFunctionTypeFeedback(A);
-    %DeoptimizeFunction(B);
-    %ClearFunctionTypeFeedback(B);
-    %DeoptimizeFunction(C);
-    %ClearFunctionTypeFeedback(C);
-  }
-
-  for (var a = 1; a <= 3; a++) {
-    test(a);
-  }
-})();
+A();
+A();
+%OptimizeFunctionOnNextCall(A);
+A();
