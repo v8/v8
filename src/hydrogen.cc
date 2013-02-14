@@ -7764,6 +7764,19 @@ bool HOptimizedGraphBuilder::TryInlineSetter(Handle<JSFunction> setter,
 }
 
 
+bool HOptimizedGraphBuilder::TryInlineApply(Handle<JSFunction> function,
+                                            Call* expr,
+                                            int arguments_count) {
+  return TryInline(CALL_AS_METHOD,
+                   function,
+                   arguments_count,
+                   NULL,
+                   expr->id(),
+                   expr->ReturnId(),
+                   NORMAL_RETURN);
+}
+
+
 bool HOptimizedGraphBuilder::TryInlineBuiltinFunctionCall(Call* expr,
                                                           bool drop_extra) {
   if (!expr->target()->shared()->HasBuiltinFunctionId()) return false;
@@ -7991,22 +8004,32 @@ bool HOptimizedGraphBuilder::TryCallApply(Call* expr) {
     // TODO(mstarzinger): For now we just ensure arguments are pushed
     // right after HEnterInlined, but we could be smarter about this.
     EnsureArgumentsArePushedForAccess();
-    HValue* context = environment()->LookupContext();
-
-    HValue* wrapped_receiver =
-        AddInstruction(new(zone()) HWrapReceiver(receiver, function));
-    PushAndAdd(new(zone()) HPushArgument(wrapped_receiver));
-
     HEnvironment* arguments_env = environment()->arguments_environment();
-
     int parameter_count = arguments_env->parameter_count();
+    PushAndAdd(new(zone()) HWrapReceiver(receiver, function));
+    for (int i = 1; i < arguments_env->parameter_count(); i++) {
+      Push(arguments_env->Lookup(i));
+    }
+
+    Handle<JSFunction> known_function;
+    if (function->IsConstant()) {
+      HConstant* constant_function = HConstant::cast(function);
+      known_function = Handle<JSFunction>::cast(constant_function->handle());
+      int arguments_count = parameter_count - 1;  // Excluding receiver.
+      if (TryInlineApply(known_function, expr, arguments_count)) return true;
+    }
+
+    Drop(parameter_count - 1);
+    PushAndAdd(new(zone()) HPushArgument(Pop()));
     for (int i = 1; i < arguments_env->parameter_count(); i++) {
       PushAndAdd(new(zone()) HPushArgument(arguments_env->Lookup(i)));
     }
 
+    HValue* context = environment()->LookupContext();
     HInvokeFunction* call = new(zone()) HInvokeFunction(
         context,
         function,
+        known_function,
         parameter_count);
     Drop(parameter_count);
     call->set_position(expr->position());
