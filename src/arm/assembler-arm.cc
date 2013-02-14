@@ -2121,9 +2121,9 @@ void Assembler::vmov(const DwVfpRegister dst,
         // directly to the D register using vmov.32.
         // Note: This may be slower, so we only do this when we have to.
         mov(ip, Operand(lo));
-        vmov(dst, 0, ip, cond);
+        vmov(dst, VmovIndexLo, ip, cond);
         mov(ip, Operand(hi));
-        vmov(dst, 1, ip, cond);
+        vmov(dst, VmovIndexHi, ip, cond);
       }
     } else {
       // Move the low and high parts of the double to a D register in one
@@ -2167,7 +2167,7 @@ void Assembler::vmov(const DwVfpRegister dst,
 
 
 void Assembler::vmov(const DwVfpRegister dst,
-                     int index,
+                     const VmovIndex index,
                      const Register src,
                      const Condition cond) {
   // Dd[index] = Rt
@@ -2175,11 +2175,11 @@ void Assembler::vmov(const DwVfpRegister dst,
   // cond(31-28) | 1110(27-24) | 0(23) | opc1=0index(22-21) | 0(20) |
   // Vd(19-16) | Rt(15-12) | 1011(11-8) | D(7) | opc2=00(6-5) | 1(4) | 0000(3-0)
   ASSERT(CpuFeatures::IsEnabled(VFP2));
-  ASSERT(index == 0 || index == 1);
+  ASSERT(index.index == 0 || index.index == 1);
   int vd, d;
   dst.split_code(&vd, &d);
-  emit(cond | 0xE*B24 | index*B21 | vd*B16 | src.code()*B12 | 0xB*B8 | d*B7 |
-       B4);
+  emit(cond | 0xE*B24 | index.index*B21 | vd*B16 | src.code()*B12 | 0xB*B8 |
+       d*B7 | B4);
 }
 
 
