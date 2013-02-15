@@ -398,7 +398,7 @@ THREADED_TEST(Gc) {
 
 static v8::Handle<Value> StackCheck(Local<String> name,
                                     const AccessorInfo& info) {
-  i::StackFrameIterator iter;
+  i::StackFrameIterator iter(reinterpret_cast<i::Isolate*>(info.GetIsolate()));
   for (int i = 0; !iter.done(); i++) {
     i::StackFrame* frame = iter.frame();
     CHECK(i != 0 || (frame->type() == i::StackFrame::EXIT));

@@ -2709,14 +2709,14 @@ class GlobalObjectsEnumerator : public ObjectVisitor {
 
 // Modifies heap. Must not be run during heap traversal.
 void V8HeapExplorer::TagGlobalObjects() {
-  HandleScope scope;
   Isolate* isolate = Isolate::Current();
+  HandleScope scope(isolate);
   GlobalObjectsEnumerator enumerator;
   isolate->global_handles()->IterateAllRoots(&enumerator);
   const char** urls = NewArray<const char*>(enumerator.count());
   for (int i = 0, l = enumerator.count(); i < l; ++i) {
     if (global_object_name_resolver_) {
-      HandleScope scope;
+      HandleScope scope(isolate);
       Handle<JSGlobalObject> global_obj = enumerator.at(i);
       urls[i] = global_object_name_resolver_->GetName(
           Utils::ToLocal(Handle<JSObject>::cast(global_obj)));

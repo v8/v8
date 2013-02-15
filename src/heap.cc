@@ -2704,7 +2704,7 @@ void Heap::CreateFixedStubs() {
   // for cooking and uncooking (check out frames.cc).
   // The eliminates the need for doing dictionary lookup in the
   // stub cache for these stubs.
-  HandleScope scope;
+  HandleScope scope(isolate());
   // gcc-4.4 has problem generating correct code of following snippet:
   // {  JSEntryStub stub;
   //    js_entry_code_ = *stub.GetCode();

@@ -63,8 +63,9 @@ NativesExternalStringResource::NativesExternalStringResource(
 }
 
 
-Bootstrapper::Bootstrapper()
-    : nesting_(0),
+Bootstrapper::Bootstrapper(Isolate* isolate)
+    : isolate_(isolate),
+      nesting_(0),
       extensions_cache_(Script::TYPE_EXTENSION),
       delete_these_non_arrays_on_tear_down_(NULL),
       delete_these_arrays_on_tear_down_(NULL) {
@@ -73,9 +74,7 @@ Bootstrapper::Bootstrapper()
 
 Handle<String> Bootstrapper::NativesSourceLookup(int index) {
   ASSERT(0 <= index && index < Natives::GetBuiltinsCount());
-  Isolate* isolate = Isolate::Current();
-  Factory* factory = isolate->factory();
-  Heap* heap = isolate->heap();
+  Heap* heap = isolate_->heap();
   if (heap->natives_source_cache()->get(index)->IsUndefined()) {
     // We can use external strings for the natives.
     Vector<const char> source = Natives::GetRawScriptSource(index);
@@ -84,7 +83,7 @@ Handle<String> Bootstrapper::NativesSourceLookup(int index) {
                                           source.start(),
                                           source.length());
     Handle<String> source_code =
-        factory->NewExternalStringFromAscii(resource);
+        isolate_->factory()->NewExternalStringFromAscii(resource);
     heap->natives_source_cache()->set(index, *source_code);
   }
   Handle<Object> cached_source(heap->natives_source_cache()->get(index));
@@ -230,9 +229,11 @@ class Genesis BASE_EMBEDDED {
   // provided.
   static bool InstallExtensions(Handle<Context> native_context,
                                 v8::ExtensionConfiguration* extensions);
-  static bool InstallExtension(const char* name,
+  static bool InstallExtension(Isolate* isolate,
+                               const char* name,
                                ExtensionStates* extension_states);
-  static bool InstallExtension(v8::RegisteredExtension* current,
+  static bool InstallExtension(Isolate* isolate,
+                               v8::RegisteredExtension* current,
                                ExtensionStates* extension_states);
   static void InstallSpecialObjects(Handle<Context> native_context);
   bool InstallJSBuiltins(Handle<JSBuiltinsObject> builtins);
@@ -268,8 +269,11 @@ class Genesis BASE_EMBEDDED {
 
   static bool CompileBuiltin(Isolate* isolate, int index);
   static bool CompileExperimentalBuiltin(Isolate* isolate, int index);
-  static bool CompileNative(Vector<const char> name, Handle<String> source);
-  static bool CompileScriptCached(Vector<const char> name,
+  static bool CompileNative(Isolate* isolate,
+                            Vector<const char> name,
+                            Handle<String> source);
+  static bool CompileScriptCached(Isolate* isolate,
+                                  Vector<const char> name,
                                   Handle<String> source,
                                   SourceCodeCache* cache,
                                   v8::Extension* extension,
@@ -298,13 +302,12 @@ void Bootstrapper::Iterate(ObjectVisitor* v) {
 
 
 Handle<Context> Bootstrapper::CreateEnvironment(
-    Isolate* isolate,
     Handle<Object> global_object,
     v8::Handle<v8::ObjectTemplate> global_template,
     v8::ExtensionConfiguration* extensions) {
-  HandleScope scope;
+  HandleScope scope(isolate_);
   Handle<Context> env;
-  Genesis genesis(isolate, global_object, global_template, extensions);
+  Genesis genesis(isolate_, global_object, global_template, extensions);
   env = genesis.result();
   if (!env.is_null()) {
     if (InstallExtensions(env, extensions)) {
@@ -1294,7 +1297,7 @@ bool Genesis::CompileBuiltin(Isolate* isolate, int index) {
   Vector<const char> name = Natives::GetScriptName(index);
   Handle<String> source_code =
       isolate->bootstrapper()->NativesSourceLookup(index);
-  return CompileNative(name, source_code);
+  return CompileNative(isolate, name, source_code);
 }
 
 
@@ -1304,23 +1307,25 @@ bool Genesis::CompileExperimentalBuiltin(Isolate* isolate, int index) {
   Handle<String> source_code =
       factory->NewStringFromAscii(
           ExperimentalNatives::GetRawScriptSource(index));
-  return CompileNative(name, source_code);
+  return CompileNative(isolate, name, source_code);
 }
 
 
-bool Genesis::CompileNative(Vector<const char> name, Handle<String> source) {
-  HandleScope scope;
-  Isolate* isolate = source->GetIsolate();
+bool Genesis::CompileNative(Isolate* isolate,
+                            Vector<const char> name,
+                            Handle<String> source) {
+  HandleScope scope(isolate);
 #ifdef ENABLE_DEBUGGER_SUPPORT
   isolate->debugger()->set_compiling_natives(true);
 #endif
   // During genesis, the boilerplate for stack overflow won't work until the
   // environment has been at least partially initialized. Add a stack check
   // before entering JS code to catch overflow early.
-  StackLimitCheck check(Isolate::Current());
+  StackLimitCheck check(isolate);
   if (check.HasOverflowed()) return false;
 
-  bool result = CompileScriptCached(name,
+  bool result = CompileScriptCached(isolate,
+                                    name,
                                     source,
                                     NULL,
                                     NULL,
@@ -1335,14 +1340,15 @@ bool Genesis::CompileNative(Vector<const char> name, Handle<String> source) {
 }
 
 
-bool Genesis::CompileScriptCached(Vector<const char> name,
+bool Genesis::CompileScriptCached(Isolate* isolate,
+                                  Vector<const char> name,
                                   Handle<String> source,
                                   SourceCodeCache* cache,
                                   v8::Extension* extension,
                                   Handle<Context> top_context,
                                   bool use_runtime_context) {
-  Factory* factory = source->GetIsolate()->factory();
-  HandleScope scope;
+  Factory* factory = isolate->factory();
+  HandleScope scope(isolate);
   Handle<SharedFunctionInfo> function_info;
 
   // If we can't find the function in the cache, we compile a new
@@ -1398,7 +1404,7 @@ bool Genesis::CompileScriptCached(Vector<const char> name,
 
 
 void Genesis::InstallNativeFunctions() {
-  HandleScope scope;
+  HandleScope scope(isolate());
   INSTALL_NATIVE(JSFunction, "CreateDate", create_date_fun);
   INSTALL_NATIVE(JSFunction, "ToNumber", to_number_fun);
   INSTALL_NATIVE(JSFunction, "ToString", to_string_fun);
@@ -1435,7 +1441,7 @@ void Genesis::InstallExperimentalNativeFunctions() {
 
 
 bool Genesis::InstallNatives() {
-  HandleScope scope;
+  HandleScope scope(isolate());
 
   // Create a function for the builtins object. Allocate space for the
   // JavaScript builtins, a reference to the builtins object
@@ -1896,7 +1902,7 @@ static void InstallBuiltinFunctionId(Handle<JSObject> holder,
 
 
 void Genesis::InstallBuiltinFunctionIds() {
-  HandleScope scope;
+  HandleScope scope(isolate());
 #define INSTALL_BUILTIN_ID(holder_expr, fun_name, name) \
   {                                                     \
     Handle<JSObject> holder = ResolveBuiltinIdHolder(   \
@@ -1961,10 +1967,9 @@ void Genesis::InitializeNormalizedMapCaches() {
 
 bool Bootstrapper::InstallExtensions(Handle<Context> native_context,
                                      v8::ExtensionConfiguration* extensions) {
-  Isolate* isolate = native_context->GetIsolate();
-  BootstrapperActive active;
-  SaveContext saved_context(isolate);
-  isolate->set_context(*native_context);
+  BootstrapperActive active(this);
+  SaveContext saved_context(isolate_);
+  isolate_->set_context(*native_context);
   if (!Genesis::InstallExtensions(native_context, extensions)) return false;
   Genesis::InstallSpecialObjects(native_context);
   return true;
@@ -1974,7 +1979,7 @@ bool Bootstrapper::InstallExtensions(Handle<Context> native_context,
 void Genesis::InstallSpecialObjects(Handle<Context> native_context) {
   Isolate* isolate = native_context->GetIsolate();
   Factory* factory = isolate->factory();
-  HandleScope scope;
+  HandleScope scope(isolate);
   Handle<JSGlobalObject> global(JSGlobalObject::cast(
       native_context->global_object()));
   // Expose the natives in global if a name for it is specified.
@@ -2001,7 +2006,7 @@ void Genesis::InstallSpecialObjects(Handle<Context> native_context) {
 #ifdef ENABLE_DEBUGGER_SUPPORT
   // Expose the debug global object in global if a name for it is specified.
   if (FLAG_expose_debug_as != NULL && strlen(FLAG_expose_debug_as) != 0) {
-    Debug* debug = Isolate::Current()->debug();
+    Debug* debug = isolate->debug();
     // If loading fails we just bail out without installing the
     // debugger but without tanking the whole context.
     if (!debug->Load()) return;
@@ -2050,26 +2055,22 @@ void Genesis::ExtensionStates::set_state(RegisteredExtension* extension,
 
 bool Genesis::InstallExtensions(Handle<Context> native_context,
                                 v8::ExtensionConfiguration* extensions) {
-  // TODO(isolates): Extensions on multiple isolates may take a little more
-  //                 effort. (The external API reads 'ignore'-- does that mean
-  //                 we can break the interface?)
-
-
+  Isolate* isolate = native_context->GetIsolate();
   ExtensionStates extension_states;  // All extensions have state UNVISITED.
   // Install auto extensions.
   v8::RegisteredExtension* current = v8::RegisteredExtension::first_extension();
   while (current != NULL) {
     if (current->extension()->auto_enable())
-      InstallExtension(current, &extension_states);
+      InstallExtension(isolate, current, &extension_states);
     current = current->next();
   }
 
-  if (FLAG_expose_gc) InstallExtension("v8/gc", &extension_states);
+  if (FLAG_expose_gc) InstallExtension(isolate, "v8/gc", &extension_states);
   if (FLAG_expose_externalize_string) {
-    InstallExtension("v8/externalize", &extension_states);
+    InstallExtension(isolate, "v8/externalize", &extension_states);
   }
   if (FLAG_track_gc_object_stats) {
-    InstallExtension("v8/statistics", &extension_states);
+    InstallExtension(isolate, "v8/statistics", &extension_states);
   }
 
   if (extensions == NULL) return true;
@@ -2077,7 +2078,7 @@ bool Genesis::InstallExtensions(Handle<Context> native_context,
   int count = v8::ImplementationUtilities::GetNameCount(extensions);
   const char** names = v8::ImplementationUtilities::GetNames(extensions);
   for (int i = 0; i < count; i++) {
-    if (!InstallExtension(names[i], &extension_states))
+    if (!InstallExtension(isolate, names[i], &extension_states))
       return false;
   }
 
@@ -2087,7 +2088,8 @@ bool Genesis::InstallExtensions(Handle<Context> native_context,
 
 // Installs a named extension.  This methods is unoptimized and does
 // not scale well if we want to support a large number of extensions.
-bool Genesis::InstallExtension(const char* name,
+bool Genesis::InstallExtension(Isolate* isolate,
+                               const char* name,
                                ExtensionStates* extension_states) {
   v8::RegisteredExtension* current = v8::RegisteredExtension::first_extension();
   // Loop until we find the relevant extension
@@ -2101,13 +2103,14 @@ bool Genesis::InstallExtension(const char* name,
         "v8::Context::New()", "Cannot find required extension");
     return false;
   }
-  return InstallExtension(current, extension_states);
+  return InstallExtension(isolate, current, extension_states);
 }
 
 
-bool Genesis::InstallExtension(v8::RegisteredExtension* current,
+bool Genesis::InstallExtension(Isolate* isolate,
+                               v8::RegisteredExtension* current,
                                ExtensionStates* extension_states) {
-  HandleScope scope;
+  HandleScope scope(isolate);
 
   if (extension_states->get_state(current) == INSTALLED) return true;
   // The current node has already been visited so there must be a
@@ -2122,19 +2125,21 @@ bool Genesis::InstallExtension(v8::RegisteredExtension* current,
   v8::Extension* extension = current->extension();
   // Install the extension's dependencies
   for (int i = 0; i < extension->dependency_count(); i++) {
-    if (!InstallExtension(extension->dependencies()[i], extension_states))
+    if (!InstallExtension(isolate,
+                          extension->dependencies()[i],
+                          extension_states)) {
       return false;
+    }
   }
-  Isolate* isolate = Isolate::Current();
   Handle<String> source_code =
       isolate->factory()->NewExternalStringFromAscii(extension->source());
-  bool result = CompileScriptCached(
-      CStrVector(extension->name()),
-      source_code,
-      isolate->bootstrapper()->extensions_cache(),
-      extension,
-      Handle<Context>(isolate->context()),
-      false);
+  bool result = CompileScriptCached(isolate,
+                                    CStrVector(extension->name()),
+                                    source_code,
+                                    isolate->bootstrapper()->extensions_cache(),
+                                    extension,
+                                    Handle<Context>(isolate->context()),
+                                    false);
   ASSERT(isolate->has_pending_exception() != result);
   if (!result) {
     // We print out the name of the extension that fail to install.
@@ -2152,11 +2157,10 @@ bool Genesis::InstallExtension(v8::RegisteredExtension* current,
 
 
 bool Genesis::InstallJSBuiltins(Handle<JSBuiltinsObject> builtins) {
-  HandleScope scope;
-  Factory* factory = builtins->GetIsolate()->factory();
+  HandleScope scope(isolate());
   for (int i = 0; i < Builtins::NumberOfJavaScriptBuiltins(); i++) {
     Builtins::JavaScript id = static_cast<Builtins::JavaScript>(i);
-    Handle<String> name = factory->LookupUtf8Symbol(Builtins::GetName(id));
+    Handle<String> name = factory()->LookupUtf8Symbol(Builtins::GetName(id));
     Object* function_object = builtins->GetPropertyNoExceptionThrown(*name);
     Handle<JSFunction> function
         = Handle<JSFunction>(JSFunction::cast(function_object));
@@ -2226,7 +2230,7 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
       PropertyDetails details = descs->GetDetails(i);
       switch (details.type()) {
         case FIELD: {
-          HandleScope inner;
+          HandleScope inner(isolate());
           Handle<String> key = Handle<String>(descs->GetKey(i));
           int index = descs->GetFieldIndex(i);
           Handle<Object> value = Handle<Object>(from->FastPropertyAt(index));
@@ -2236,7 +2240,7 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
           break;
         }
         case CONSTANT_FUNCTION: {
-          HandleScope inner;
+          HandleScope inner(isolate());
           Handle<String> key = Handle<String>(descs->GetKey(i));
           Handle<JSFunction> fun =
               Handle<JSFunction>(descs->GetConstantFunction(i));
@@ -2250,7 +2254,7 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
           to->LocalLookup(descs->GetKey(i), &result);
           // If the property is already there we skip it
           if (result.IsFound()) continue;
-          HandleScope inner;
+          HandleScope inner(isolate());
           ASSERT(!to->HasFastProperties());
           // Add to dictionary.
           Handle<String> key = Handle<String>(descs->GetKey(i));
@@ -2311,8 +2315,8 @@ void Genesis::TransferIndexedProperties(Handle<JSObject> from,
 
 
 void Genesis::TransferObject(Handle<JSObject> from, Handle<JSObject> to) {
-  HandleScope outer;
-  Factory* factory = from->GetIsolate()->factory();
+  HandleScope outer(isolate());
+  Factory* factory = isolate()->factory();
 
   ASSERT(!from->IsJSArray());
   ASSERT(!to->IsJSArray());
@@ -2346,20 +2350,22 @@ void Genesis::MakeFunctionInstancePrototypeWritable() {
 Genesis::Genesis(Isolate* isolate,
                  Handle<Object> global_object,
                  v8::Handle<v8::ObjectTemplate> global_template,
-                 v8::ExtensionConfiguration* extensions) : isolate_(isolate) {
+                 v8::ExtensionConfiguration* extensions)
+    : isolate_(isolate),
+      active_(isolate->bootstrapper()) {
   result_ = Handle<Context>::null();
   // If V8 isn't running and cannot be initialized, just return.
   if (!V8::IsRunning() && !V8::Initialize(NULL)) return;
 
   // Before creating the roots we must save the context and restore it
   // on all function exits.
-  HandleScope scope;
+  HandleScope scope(isolate);
   SaveContext saved_context(isolate);
 
   // During genesis, the boilerplate for stack overflow won't work until the
   // environment has been at least partially initialized. Add a stack check
   // before entering JS code to catch overflow early.
-  StackLimitCheck check(Isolate::Current());
+  StackLimitCheck check(isolate);
   if (check.HasOverflowed()) return;
 
   Handle<Context> new_context = Snapshot::NewContextFromSnapshot();

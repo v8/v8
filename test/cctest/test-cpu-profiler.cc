@@ -77,6 +77,9 @@ class TestSetup {
 
 TEST(CodeEvents) {
   InitializeVM();
+  i::Isolate* isolate = i::Isolate::Current();
+  i::Heap* heap = isolate->heap();
+  i::Factory* factory = isolate->factory();
   TestSetup test_setup;
   CpuProfilesCollection profiles;
   profiles.StartProfiling("", 1);
@@ -85,13 +88,13 @@ TEST(CodeEvents) {
   processor.Start();
 
   // Enqueue code creation events.
-  i::HandleScope scope;
+  i::HandleScope scope(isolate);
   const char* aaa_str = "aaa";
-  i::Handle<i::String> aaa_name = FACTORY->NewStringFromAscii(
+  i::Handle<i::String> aaa_name = factory->NewStringFromAscii(
       i::Vector<const char>(aaa_str, i::StrLength(aaa_str)));
   processor.CodeCreateEvent(i::Logger::FUNCTION_TAG,
                             *aaa_name,
-                            HEAP->empty_string(),
+                            heap->empty_string(),
                             0,
                             ToAddress(0x1000),
                             0x100,

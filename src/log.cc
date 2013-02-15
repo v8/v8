@@ -440,8 +440,9 @@ class Logger::NameBuffer {
 };
 
 
-Logger::Logger()
-  : ticker_(NULL),
+Logger::Logger(Isolate* isolate)
+  : isolate_(isolate),
+    ticker_(NULL),
     profiler_(NULL),
     log_events_(NULL),
     logging_nesting_(0),
@@ -718,9 +719,11 @@ void Logger::RegExpCompileEvent(Handle<JSRegExp> regexp, bool in_cache) {
 }
 
 
-void Logger::LogRuntime(Vector<const char> format, JSArray* args) {
+void Logger::LogRuntime(Isolate* isolate,
+                        Vector<const char> format,
+                        JSArray* args) {
   if (!log_->IsEnabled() || !FLAG_log_runtime) return;
-  HandleScope scope;
+  HandleScope scope(isolate);
   LogMessageBuilder msg(this);
   for (int i = 0; i < format.length(); i++) {
     char c = format[i];
@@ -1217,7 +1220,7 @@ void Logger::SuspectReadEvent(String* name, Object* obj) {
   LogMessageBuilder msg(this);
   String* class_name = obj->IsJSObject()
                        ? JSObject::cast(obj)->class_name()
-                       : HEAP->empty_string();
+                       : isolate_->heap()->empty_string();
   msg.Append("suspect-read,");
   msg.Append(class_name);
   msg.Append(',');
@@ -1563,7 +1566,7 @@ void Logger::LowLevelLogWriteBytes(const char* bytes, int size) {
 
 
 void Logger::LogCodeObjects() {
-  Heap* heap = HEAP;
+  Heap* heap = isolate_->heap();
   heap->CollectAllGarbage(Heap::kMakeHeapIterableMask,
                           "Logger::LogCodeObjects");
   HeapIterator iterator(heap);
@@ -1620,10 +1623,10 @@ void Logger::LogExistingFunction(Handle<SharedFunctionInfo> shared,
 
 
 void Logger::LogCompiledFunctions() {
-  Heap* heap = HEAP;
+  Heap* heap = isolate_->heap();
   heap->CollectAllGarbage(Heap::kMakeHeapIterableMask,
                           "Logger::LogCompiledFunctions");
-  HandleScope scope;
+  HandleScope scope(isolate_);
   const int compiled_funcs_count = EnumerateCompiledFunctions(heap, NULL, NULL);
   ScopedVector< Handle<SharedFunctionInfo> > sfis(compiled_funcs_count);
   ScopedVector< Handle<Code> > code_objects(compiled_funcs_count);
@@ -1641,7 +1644,7 @@ void Logger::LogCompiledFunctions() {
 
 
 void Logger::LogAccessorCallbacks() {
-  Heap* heap = HEAP;
+  Heap* heap = isolate_->heap();
   heap->CollectAllGarbage(Heap::kMakeHeapIterableMask,
                           "Logger::LogAccessorCallbacks");
   HeapIterator iterator(heap);
@@ -1722,7 +1725,7 @@ void Logger::SetCodeEventHandler(uint32_t options,
   code_event_handler_ = event_handler;
 
   if (code_event_handler_ != NULL && (options & kJitCodeEventEnumExisting)) {
-    HandleScope scope;
+    HandleScope scope(Isolate::Current());
     LogCodeObjects();
     LogCompiledFunctions();
   }

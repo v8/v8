@@ -364,18 +364,20 @@ TEST(PartialSerialization) {
   if (!Snapshot::HaveASnapshotToStartFrom()) {
     Serializer::Enable();
     v8::V8::Initialize();
+    Isolate* isolate = Isolate::Current();
+    Heap* heap = isolate->heap();
 
     v8::Persistent<v8::Context> env = v8::Context::New();
     ASSERT(!env.IsEmpty());
     env->Enter();
     // Make sure all builtin scripts are cached.
-    { HandleScope scope;
+    { HandleScope scope(isolate);
       for (int i = 0; i < Natives::GetBuiltinsCount(); i++) {
-        Isolate::Current()->bootstrapper()->NativesSourceLookup(i);
+        isolate->bootstrapper()->NativesSourceLookup(i);
       }
     }
-    HEAP->CollectAllGarbage(Heap::kNoGCFlags);
-    HEAP->CollectAllGarbage(Heap::kNoGCFlags);
+    heap->CollectAllGarbage(Heap::kNoGCFlags);
+    heap->CollectAllGarbage(Heap::kNoGCFlags);
 
     Object* raw_foo;
     {
@@ -496,19 +498,21 @@ TEST(ContextSerialization) {
   if (!Snapshot::HaveASnapshotToStartFrom()) {
     Serializer::Enable();
     v8::V8::Initialize();
+    Isolate* isolate = Isolate::Current();
+    Heap* heap = isolate->heap();
 
     v8::Persistent<v8::Context> env = v8::Context::New();
     ASSERT(!env.IsEmpty());
     env->Enter();
     // Make sure all builtin scripts are cached.
-    { HandleScope scope;
+    { HandleScope scope(isolate);
       for (int i = 0; i < Natives::GetBuiltinsCount(); i++) {
-        Isolate::Current()->bootstrapper()->NativesSourceLookup(i);
+        isolate->bootstrapper()->NativesSourceLookup(i);
       }
     }
     // If we don't do this then we end up with a stray root pointing at the
     // context even after we have disposed of env.
-    HEAP->CollectAllGarbage(Heap::kNoGCFlags);
+    heap->CollectAllGarbage(Heap::kNoGCFlags);
 
     int file_name_length = StrLength(FLAG_testing_serialization_file) + 10;
     Vector<char> startup_name = Vector<char>::New(file_name_length + 1);

@@ -119,7 +119,6 @@ class HandleScopeImplementer;
 // for which the handle scope has been deleted is undefined.
 class HandleScope {
  public:
-  inline HandleScope();
   explicit inline HandleScope(Isolate* isolate);
 
   inline ~HandleScope();

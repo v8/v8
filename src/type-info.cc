@@ -591,7 +591,7 @@ byte TypeFeedbackOracle::ToBooleanTypes(TypeFeedbackId ast_id) {
 void TypeFeedbackOracle::BuildDictionary(Handle<Code> code) {
   AssertNoAllocation no_allocation;
   ZoneList<RelocInfo> infos(16, zone());
-  HandleScope scope;
+  HandleScope scope(code->GetIsolate());
   GetRelocInfos(code, &infos);
   CreateDictionary(code, &infos);
   ProcessRelocInfos(&infos);

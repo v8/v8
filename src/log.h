@@ -310,7 +310,7 @@ class Logger {
   void RegExpCompileEvent(Handle<JSRegExp> regexp, bool in_cache);
 
   // Log an event reported from generated code
-  void LogRuntime(Vector<const char> format, JSArray* args);
+  void LogRuntime(Isolate* isolate, Vector<const char> format, JSArray* args);
 
   bool is_logging() {
     return logging_nesting_ > 0;
@@ -355,7 +355,7 @@ class Logger {
   class NameBuffer;
   class NameMap;
 
-  Logger();
+  explicit Logger(Isolate* isolate);
   ~Logger();
 
   // Issue code notifications.
@@ -421,6 +421,8 @@ class Logger {
 
   // Returns whether profiler's sampler is active.
   bool IsProfilerSamplerActive();
+
+  Isolate* isolate_;
 
   // The sampler used by the profiler and the sliding state window.
   Ticker* ticker_;

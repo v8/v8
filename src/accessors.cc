@@ -383,13 +383,14 @@ const AccessorDescriptor Accessors::ScriptEvalFromScript = {
 
 
 MaybeObject* Accessors::ScriptGetEvalFromScriptPosition(Object* object, void*) {
-  HandleScope scope;
-  Handle<Script> script(Script::cast(JSValue::cast(object)->value()));
+  Script* raw_script = Script::cast(JSValue::cast(object)->value());
+  HandleScope scope(raw_script->GetIsolate());
+  Handle<Script> script(raw_script);
 
   // If this is not a script compiled through eval there is no eval position.
   int compilation_type = Smi::cast(script->compilation_type())->value();
   if (compilation_type != Script::COMPILATION_TYPE_EVAL) {
-    return HEAP->undefined_value();
+    return script->GetHeap()->undefined_value();
   }
 
   // Get the function from where eval was called and find the source position
@@ -529,7 +530,7 @@ MaybeObject* Accessors::FunctionGetLength(Object* object, void*) {
   }
   // If the function isn't compiled yet, the length is not computed correctly
   // yet. Compile it now and return the right length.
-  HandleScope scope;
+  HandleScope scope(function->GetIsolate());
   Handle<JSFunction> handle(function);
   if (JSFunction::CompileLazy(handle, KEEP_EXCEPTION)) {
     return Smi::FromInt(handle->shared()->length());

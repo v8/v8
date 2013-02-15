@@ -808,9 +808,10 @@ void Isolate::PrintStack() {
 }
 
 
-static void PrintFrames(StringStream* accumulator,
+static void PrintFrames(Isolate* isolate,
+                        StringStream* accumulator,
                         StackFrame::PrintMode mode) {
-  StackFrameIterator it;
+  StackFrameIterator it(isolate);
   for (int i = 0; !it.done(); it.Advance()) {
     it.frame()->Print(accumulator, mode, i++);
   }
@@ -834,11 +835,11 @@ void Isolate::PrintStack(StringStream* accumulator) {
 
   accumulator->Add(
       "\n==== JS stack trace =========================================\n\n");
-  PrintFrames(accumulator, StackFrame::OVERVIEW);
+  PrintFrames(this, accumulator, StackFrame::OVERVIEW);
 
   accumulator->Add(
       "\n==== Details ================================================\n\n");
-  PrintFrames(accumulator, StackFrame::DETAILS);
+  PrintFrames(this, accumulator, StackFrame::DETAILS);
 
   accumulator->PrintMentionedObjectCache();
   accumulator->Add("=====================\n\n");
@@ -864,7 +865,7 @@ void Isolate::ReportFailedAccessCheck(JSObject* receiver, v8::AccessType type) {
       constructor->shared()->get_api_func_data()->access_check_info();
   if (data_obj == heap_.undefined_value()) return;
 
-  HandleScope scope;
+  HandleScope scope(this);
   Handle<JSObject> receiver_handle(receiver);
   Handle<Object> data(AccessCheckInfo::cast(data_obj)->data());
   { VMState state(this, EXTERNAL);
@@ -1007,7 +1008,7 @@ const char* const Isolate::kStackOverflowMessage =
 
 
 Failure* Isolate::StackOverflow() {
-  HandleScope scope;
+  HandleScope scope(this);
   // At this point we cannot create an Error object using its javascript
   // constructor.  Instead, we copy the pre-constructed boilerplate and
   // attach the stack trace as a hidden property.
@@ -1090,7 +1091,7 @@ Failure* Isolate::PromoteScheduledException() {
 void Isolate::PrintCurrentStackTrace(FILE* out) {
   StackTraceFrameIterator it(this);
   while (!it.done()) {
-    HandleScope scope;
+    HandleScope scope(this);
     // Find code position if recorded in relocation info.
     JavaScriptFrame* frame = it.frame();
     int pos = frame->LookupCode()->SourcePosition(frame->pc());
@@ -1186,7 +1187,7 @@ bool Isolate::IsErrorObject(Handle<Object> obj) {
 void Isolate::DoThrow(Object* exception, MessageLocation* location) {
   ASSERT(!has_pending_exception());
 
-  HandleScope scope;
+  HandleScope scope(this);
   Handle<Object> exception_handle(exception);
 
   // Determine reporting and whether the exception is caught externally.
@@ -1350,7 +1351,7 @@ void Isolate::ReportPendingMessages() {
   // the native context.  Note: We have to mark the native context here
   // since the GenerateThrowOutOfMemory stub cannot make a RuntimeCall to
   // set it.
-  HandleScope scope;
+  HandleScope scope(this);
   if (thread_local_top_.pending_exception_->IsOutOfMemory()) {
     context()->mark_out_of_memory();
   } else if (thread_local_top_.pending_exception_ ==
@@ -1361,7 +1362,7 @@ void Isolate::ReportPendingMessages() {
     if (thread_local_top_.has_pending_message_) {
       thread_local_top_.has_pending_message_ = false;
       if (!thread_local_top_.pending_message_obj_->IsTheHole()) {
-        HandleScope scope;
+        HandleScope scope(this);
         Handle<Object> message_obj(thread_local_top_.pending_message_obj_);
         if (thread_local_top_.pending_message_script_ != NULL) {
           Handle<Script> script(thread_local_top_.pending_message_script_);
@@ -1427,7 +1428,7 @@ bool Isolate::OptionalRescheduleException(bool is_bottom_call) {
       ASSERT(thread_local_top()->try_catch_handler_address() != NULL);
       Address external_handler_address =
           thread_local_top()->try_catch_handler_address();
-      JavaScriptFrameIterator it;
+      JavaScriptFrameIterator it(this);
       if (it.done() || (it.frame()->sp() > external_handler_address)) {
         clear_exception = true;
       }
@@ -1488,7 +1489,7 @@ Handle<Context> Isolate::global_context() {
 
 
 Handle<Context> Isolate::GetCallingNativeContext() {
-  JavaScriptFrameIterator it;
+  JavaScriptFrameIterator it(this);
 #ifdef ENABLE_DEBUGGER_SUPPORT
   if (debug_->InDebugger()) {
     while (!it.done()) {
@@ -1951,7 +1952,7 @@ void Isolate::PropagatePendingExceptionToExternalTryCatch() {
 
 void Isolate::InitializeLoggingAndCounters() {
   if (logger_ == NULL) {
-    logger_ = new Logger;
+    logger_ = new Logger(this);
   }
   if (counters_ == NULL) {
     counters_ = new Counters;
@@ -2007,7 +2008,7 @@ bool Isolate::Init(Deserializer* des) {
   inner_pointer_to_code_cache_ = new InnerPointerToCodeCache(this);
   write_iterator_ = new ConsStringIteratorOp();
   global_handles_ = new GlobalHandles(this);
-  bootstrapper_ = new Bootstrapper();
+  bootstrapper_ = new Bootstrapper(this);
   handle_scope_implementer_ = new HandleScopeImplementer(this);
   stub_cache_ = new StubCache(this, runtime_zone());
   regexp_stack_ = new RegExpStack();
@@ -2104,7 +2105,7 @@ bool Isolate::Init(Deserializer* des) {
   // functions found in the snapshot.
   if (!create_heap_objects &&
       (FLAG_log_code || FLAG_ll_prof || logger_->is_logging_code_events())) {
-    HandleScope scope;
+    HandleScope scope(this);
     LOG(this, LogCodeObjects());
     LOG(this, LogCompiledFunctions());
   }
