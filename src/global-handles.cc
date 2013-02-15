@@ -113,6 +113,15 @@ class GlobalHandles::Node {
   void Release(GlobalHandles* global_handles) {
     ASSERT(state() != FREE);
     set_state(FREE);
+#ifdef DEBUG
+    // Zap the values for eager trapping.
+    object_ = NULL;
+    class_id_ = v8::HeapProfiler::kPersistentHandleNoClassId;
+    set_independent(false);
+    set_partially_dependent(false);
+    weak_reference_callback_ = NULL;
+    near_death_callback_ = NULL;
+#endif
     parameter_or_next_free_.next_free = global_handles->first_free_;
     global_handles->first_free_ = this;
     DecreaseBlockUses(global_handles);
