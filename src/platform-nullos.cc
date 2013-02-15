@@ -266,6 +266,12 @@ void OS::Sleep(int milliseconds) {
 }
 
 
+int OS::NumberOfCores() {
+  UNIMPLEMENTED();
+  return 0;
+}
+
+
 void OS::Abort() {
   // Minimalistic implementation for bootstrapping.
   abort();
