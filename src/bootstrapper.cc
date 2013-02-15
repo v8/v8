@@ -204,6 +204,9 @@ class Genesis BASE_EMBEDDED {
   // Used for creating a context from scratch.
   void InstallNativeFunctions();
   void InstallExperimentalNativeFunctions();
+  Handle<JSFunction> InstallInternalArray(Handle<JSBuiltinsObject> builtins,
+                                          const char* name,
+                                          ElementsKind elements_kind);
   bool InstallNatives();
   bool InstallExperimentalNatives();
   void InstallBuiltinFunctionIds();
@@ -1440,6 +1443,60 @@ void Genesis::InstallExperimentalNativeFunctions() {
 #undef INSTALL_NATIVE
 
 
+Handle<JSFunction> Genesis::InstallInternalArray(
+    Handle<JSBuiltinsObject> builtins,
+    const char* name,
+    ElementsKind elements_kind) {
+  // --- I n t e r n a l   A r r a y ---
+  // An array constructor on the builtins object that works like
+  // the public Array constructor, except that its prototype
+  // doesn't inherit from Object.prototype.
+  // To be used only for internal work by builtins. Instances
+  // must not be leaked to user code.
+  Handle<JSFunction> array_function =
+      InstallFunction(builtins,
+                      name,
+                      JS_ARRAY_TYPE,
+                      JSArray::kSize,
+                      isolate()->initial_object_prototype(),
+                      Builtins::kInternalArrayCode,
+                      true);
+  Handle<JSObject> prototype =
+      factory()->NewJSObject(isolate()->object_function(), TENURED);
+  SetPrototype(array_function, prototype);
+
+  array_function->shared()->set_construct_stub(
+      isolate()->builtins()->builtin(Builtins::kArrayConstructCode));
+  array_function->shared()->DontAdaptArguments();
+
+  MaybeObject* maybe_map = array_function->initial_map()->Copy();
+  Map* new_map;
+  if (!maybe_map->To(&new_map)) return Handle<JSFunction>::null();
+  new_map->set_elements_kind(elements_kind);
+  array_function->set_initial_map(new_map);
+
+  // Make "length" magic on instances.
+  Handle<Map> initial_map(array_function->initial_map());
+  Handle<DescriptorArray> array_descriptors(
+      factory()->NewDescriptorArray(0, 1));
+  DescriptorArray::WhitenessWitness witness(*array_descriptors);
+
+  Handle<Foreign> array_length(factory()->NewForeign(
+      &Accessors::ArrayLength));
+  PropertyAttributes attribs = static_cast<PropertyAttributes>(
+      DONT_ENUM | DONT_DELETE);
+  initial_map->set_instance_descriptors(*array_descriptors);
+
+  {  // Add length.
+    CallbacksDescriptor d(
+        *factory()->length_symbol(), *array_length, attribs);
+    array_function->initial_map()->AppendDescriptor(&d, witness);
+  }
+
+  return array_function;
+}
+
+
 bool Genesis::InstallNatives() {
   HandleScope scope(isolate());
 
@@ -1662,58 +1719,23 @@ bool Genesis::InstallNatives() {
     native_context()->set_opaque_reference_function(*opaque_reference_fun);
   }
 
-  {  // --- I n t e r n a l   A r r a y ---
-    // An array constructor on the builtins object that works like
-    // the public Array constructor, except that its prototype
-    // doesn't inherit from Object.prototype.
-    // To be used only for internal work by builtins. Instances
-    // must not be leaked to user code.
+
+  // InternalArrays should not use Smi-Only array optimizations. There are too
+  // many places in the C++ runtime code (e.g. RegEx) that assume that
+  // elements in InternalArrays can be set to non-Smi values without going
+  // through a common bottleneck that would make the SMI_ONLY -> FAST_ELEMENT
+  // transition easy to trap. Moreover, they rarely are smi-only.
+  {
     Handle<JSFunction> array_function =
-        InstallFunction(builtins,
-                        "InternalArray",
-                        JS_ARRAY_TYPE,
-                        JSArray::kSize,
-                        isolate()->initial_object_prototype(),
-                        Builtins::kInternalArrayCode,
-                        true);
-    Handle<JSObject> prototype =
-        factory()->NewJSObject(isolate()->object_function(), TENURED);
-    SetPrototype(array_function, prototype);
-
-    array_function->shared()->set_construct_stub(
-        isolate()->builtins()->builtin(Builtins::kArrayConstructCode));
-    array_function->shared()->DontAdaptArguments();
-
-    // InternalArrays should not use Smi-Only array optimizations. There are too
-    // many places in the C++ runtime code (e.g. RegEx) that assume that
-    // elements in InternalArrays can be set to non-Smi values without going
-    // through a common bottleneck that would make the SMI_ONLY -> FAST_ELEMENT
-    // transition easy to trap. Moreover, they rarely are smi-only.
-    MaybeObject* maybe_map = array_function->initial_map()->Copy();
-    Map* new_map;
-    if (!maybe_map->To(&new_map)) return false;
-    new_map->set_elements_kind(FAST_HOLEY_ELEMENTS);
-    array_function->set_initial_map(new_map);
-
-    // Make "length" magic on instances.
-    Handle<Map> initial_map(array_function->initial_map());
-    Handle<DescriptorArray> array_descriptors(
-        factory()->NewDescriptorArray(0, 1));
-    DescriptorArray::WhitenessWitness witness(*array_descriptors);
-
-    Handle<Foreign> array_length(factory()->NewForeign(
-        &Accessors::ArrayLength));
-    PropertyAttributes attribs = static_cast<PropertyAttributes>(
-        DONT_ENUM | DONT_DELETE);
-    initial_map->set_instance_descriptors(*array_descriptors);
-
-    {  // Add length.
-      CallbacksDescriptor d(
-          *factory()->length_symbol(), *array_length, attribs);
-      array_function->initial_map()->AppendDescriptor(&d, witness);
-    }
-
+        InstallInternalArray(builtins, "InternalArray", FAST_HOLEY_ELEMENTS);
+    if (array_function.is_null()) return false;
     native_context()->set_internal_array_function(*array_function);
+  }
+
+  {
+    Handle<JSFunction> array_function =
+        InstallInternalArray(builtins, "InternalPackedArray", FAST_ELEMENTS);
+    if (array_function.is_null()) return false;
   }
 
   if (FLAG_disable_native_files) {
@@ -1789,7 +1811,9 @@ bool Genesis::InstallNatives() {
 
     // Add initial map.
     Handle<Map> initial_map =
-        factory()->NewMap(JS_ARRAY_TYPE, JSRegExpResult::kSize);
+        factory()->NewMap(JS_ARRAY_TYPE,
+                          JSRegExpResult::kSize,
+                          FAST_ELEMENTS);
     initial_map->set_constructor(*array_constructor);
 
     // Set prototype on map.

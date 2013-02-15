@@ -420,7 +420,7 @@ function StringReplaceGlobalRegExpWithFunction(subject, regexp, replace) {
     // input string and some replacements that were returned from the replace
     // function.
     var match_start = 0;
-    var override = new InternalArray(null, 0, subject);
+    var override = new InternalPackedArray(null, 0, subject);
     var receiver = %GetDefaultReceiver(replace);
     for (var i = 0; i < len; i++) {
       var elem = res[i];
@@ -820,8 +820,6 @@ function StringTrimRight() {
   }
   return %StringTrim(TO_STRING_INLINE(this), false, true);
 }
-
-var static_charcode_array = new InternalArray(4);
 
 
 // ECMA-262, section 15.5.3.2

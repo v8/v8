@@ -1117,7 +1117,7 @@ function ObjectDefineProperty(obj, p, attributes) {
 
 
 function GetOwnEnumerablePropertyNames(properties) {
-  var names = new InternalArray();
+  var names = new InternalPackedArray();
   for (var key in properties) {
     if (%HasLocalProperty(properties, key)) {
       names.push(key);
@@ -1134,7 +1134,7 @@ function ObjectDefineProperties(obj, properties) {
   }
   var props = ToObject(properties);
   var names = GetOwnEnumerablePropertyNames(props);
-  var descriptors = new InternalArray();
+  var descriptors = new InternalPackedArray();
   for (var i = 0; i < names.length; i++) {
     descriptors.push(ToPropertyDescriptor(props[names[i]]));
   }
