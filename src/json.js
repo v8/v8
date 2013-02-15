@@ -67,7 +67,7 @@ function SerializeArray(value, replacer, stack, indent, gap) {
   }
   var stepback = indent;
   indent += gap;
-  var partial = new InternalPackedArray();
+  var partial = new InternalArray();
   var len = value.length;
   for (var i = 0; i < len; i++) {
     var strP = JSONSerialize($String(i), value, replacer, stack,
@@ -97,7 +97,7 @@ function SerializeObject(value, replacer, stack, indent, gap) {
   }
   var stepback = indent;
   indent += gap;
-  var partial = new InternalPackedArray();
+  var partial = new InternalArray();
   if (IS_ARRAY(replacer)) {
     var length = replacer.length;
     for (var i = 0; i < length; i++) {

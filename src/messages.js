@@ -557,7 +557,7 @@ function ScriptNameOrSourceURL() {
     // Don't reuse lastMatchInfo here, so we create a new array with room
     // for four captures (array with length one longer than the index
     // of the fourth capture, where the numbering is zero-based).
-    var matchInfo = new InternalPackedArray(CAPTURE(3) + 1);
+    var matchInfo = new InternalArray(CAPTURE(3) + 1);
     var match =
         %_RegExpExec(sourceUrlPattern, source, sourceUrlPos - 4, matchInfo);
     if (match) {
@@ -1033,7 +1033,7 @@ function FormatErrorString(error) {
 
 
 function GetStackFrames(raw_stack) {
-  var frames = new InternalPackedArray();
+  var frames = new InternalArray();
   for (var i = 0; i < raw_stack.length; i += 4) {
     var recv = raw_stack[i];
     var fun = raw_stack[i + 1];
@@ -1047,7 +1047,7 @@ function GetStackFrames(raw_stack) {
 
 
 function FormatStackTrace(error_string, frames) {
-  var lines = new InternalPackedArray();
+  var lines = new InternalArray();
   lines.push(error_string);
   for (var i = 0; i < frames.length; i++) {
     var frame = frames[i];
