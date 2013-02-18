@@ -5837,12 +5837,12 @@ static const uintptr_t kAsciiMask = kOneInEveryByte << 7;
 // Requires: all bytes in the input word and the boundaries must be
 // ASCII (less than 0x7F).
 static inline uintptr_t AsciiRangeMask(uintptr_t w, char m, char n) {
-  // Every byte in an ASCII string is less than or equal to 0x7F.
-  ASSERT((w & (kOneInEveryByte * 0x7F)) == w);
   // Use strict inequalities since in edge cases the function could be
   // further simplified.
   ASSERT(0 < m && m < n);
 #ifndef ENABLE_LATIN_1
+  // Every byte in an ASCII string is less than or equal to 0x7F.
+  ASSERT((w & (kOneInEveryByte * 0x7F)) == w);
   ASSERT(n < 0x7F);
 #endif
   // Has high bit set in every w byte less than n.
