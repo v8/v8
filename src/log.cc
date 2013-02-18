@@ -469,12 +469,17 @@ Logger::~Logger() {
 
 
 void Logger::IssueCodeAddedEvent(Code* code,
+                                 Script* script,
                                  const char* name,
                                  size_t name_len) {
   JitCodeEvent event;
+  memset(&event, 0, sizeof(event));
   event.type = JitCodeEvent::CODE_ADDED;
   event.code_start = code->instruction_start();
   event.code_len = code->instruction_size();
+  Handle<Script> script_handle =
+      script != NULL ? Handle<Script>(script) : Handle<Script>();
+  event.script = v8::Handle<v8::Script>(ToApi<v8::Script>(script_handle));
   event.name.str = name;
   event.name.len = name_len;
 
@@ -513,6 +518,40 @@ void Logger::IssueCodeRemovedEvent(Address from) {
   code_event_handler_(&event);
 }
 
+void Logger::IssueAddCodeLinePosInfoEvent(
+    void* jit_handler_data,
+    int pc_offset,
+    int position,
+    JitCodeEvent::PositionType position_type) {
+  JitCodeEvent event;
+  memset(&event, 0, sizeof(event));
+  event.type = JitCodeEvent::CODE_ADD_LINE_POS_INFO;
+  event.user_data = jit_handler_data;
+  event.line_info.offset = pc_offset;
+  event.line_info.pos = position;
+  event.line_info.position_type = position_type;
+
+  code_event_handler_(&event);
+}
+
+void* Logger::IssueStartCodePosInfoEvent() {
+  JitCodeEvent event;
+  memset(&event, 0, sizeof(event));
+  event.type = JitCodeEvent::CODE_START_LINE_INFO_RECORDING;
+
+  code_event_handler_(&event);
+  return event.user_data;
+}
+
+void Logger::IssueEndCodePosInfoEvent(Code* code, void* jit_handler_data) {
+  JitCodeEvent event;
+  memset(&event, 0, sizeof(event));
+  event.type = JitCodeEvent::CODE_END_LINE_INFO_RECORDING;
+  event.code_start = code->instruction_start();
+  event.user_data = jit_handler_data;
+
+  code_event_handler_(&event);
+}
 
 #define DECLARE_EVENT(ignore1, name) name,
 static const char* const kLogEventsNames[Logger::NUMBER_OF_LOG_EVENTS] = {
@@ -884,7 +923,7 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag,
     name_buffer_->AppendBytes(comment);
   }
   if (code_event_handler_ != NULL) {
-    IssueCodeAddedEvent(code, name_buffer_->get(), name_buffer_->size());
+    IssueCodeAddedEvent(code, NULL, name_buffer_->get(), name_buffer_->size());
   }
   if (!log_->IsEnabled()) return;
   if (FLAG_ll_prof) {
@@ -924,7 +963,7 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag,
     name_buffer_->AppendString(name);
   }
   if (code_event_handler_ != NULL) {
-    IssueCodeAddedEvent(code, name_buffer_->get(), name_buffer_->size());
+    IssueCodeAddedEvent(code, NULL, name_buffer_->get(), name_buffer_->size());
   }
   if (!log_->IsEnabled()) return;
   if (FLAG_ll_prof) {
@@ -971,7 +1010,12 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag,
     name_buffer_->AppendString(name);
   }
   if (code_event_handler_ != NULL) {
-    IssueCodeAddedEvent(code, name_buffer_->get(), name_buffer_->size());
+    Script* script =
+        shared->script()->IsScript() ? Script::cast(shared->script()) : NULL;
+    IssueCodeAddedEvent(code,
+                        script,
+                        name_buffer_->get(),
+                        name_buffer_->size());
   }
   if (!log_->IsEnabled()) return;
   if (FLAG_ll_prof) {
@@ -1021,7 +1065,12 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag,
     name_buffer_->AppendInt(line);
   }
   if (code_event_handler_ != NULL) {
-    IssueCodeAddedEvent(code, name_buffer_->get(), name_buffer_->size());
+    Script* script =
+        shared->script()->IsScript() ? Script::cast(shared->script()) : NULL;
+    IssueCodeAddedEvent(code,
+                        script,
+                        name_buffer_->get(),
+                        name_buffer_->size());
   }
   if (!log_->IsEnabled()) return;
   if (FLAG_ll_prof) {
@@ -1062,7 +1111,7 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag, Code* code, int args_count) {
     name_buffer_->AppendInt(args_count);
   }
   if (code_event_handler_ != NULL) {
-    IssueCodeAddedEvent(code, name_buffer_->get(), name_buffer_->size());
+    IssueCodeAddedEvent(code, NULL, name_buffer_->get(), name_buffer_->size());
   }
   if (!log_->IsEnabled()) return;
   if (FLAG_ll_prof) {
@@ -1100,7 +1149,7 @@ void Logger::RegExpCodeCreateEvent(Code* code, String* source) {
     name_buffer_->AppendString(source);
   }
   if (code_event_handler_ != NULL) {
-    IssueCodeAddedEvent(code, name_buffer_->get(), name_buffer_->size());
+    IssueCodeAddedEvent(code, NULL, name_buffer_->get(), name_buffer_->size());
   }
   if (!log_->IsEnabled()) return;
   if (FLAG_ll_prof) {
@@ -1144,6 +1193,40 @@ void Logger::CodeDeleteEvent(Address from) {
   DeleteEventInternal(CODE_DELETE_EVENT, from);
 }
 
+void Logger::CodeLinePosInfoAddPositionEvent(void* jit_handler_data,
+                                     int pc_offset,
+                                     int position) {
+  if (code_event_handler_ != NULL) {
+    IssueAddCodeLinePosInfoEvent(jit_handler_data,
+                                 pc_offset,
+                                 position,
+                                 JitCodeEvent::POSITION);
+  }
+}
+
+void Logger::CodeLinePosInfoAddStatementPositionEvent(void* jit_handler_data,
+                                                      int pc_offset,
+                                                      int position) {
+  if (code_event_handler_ != NULL) {
+    IssueAddCodeLinePosInfoEvent(jit_handler_data,
+                                 pc_offset,
+                                 position,
+                                 JitCodeEvent::STATEMENT_POSITION);
+  }
+}
+
+void Logger::CodeStartLinePosInfoRecordEvent(PositionsRecorder* pos_recorder) {
+  if (code_event_handler_ != NULL) {
+      pos_recorder->AttachJITHandlerData(IssueStartCodePosInfoEvent());
+  }
+}
+
+void Logger::CodeEndLinePosInfoRecordEvent(Code* code,
+                                           void* jit_handler_data) {
+  if (code_event_handler_ != NULL) {
+    IssueEndCodePosInfoEvent(code, jit_handler_data);
+  }
+}
 
 void Logger::SnapshotPositionEvent(Address addr, int pos) {
   if (!log_->IsEnabled()) return;

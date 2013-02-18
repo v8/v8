@@ -307,6 +307,8 @@ bool FullCodeGenerator::MakeCode(CompilationInfo* info) {
 #ifdef ENABLE_GDB_JIT_INTERFACE
   masm.positions_recorder()->StartGDBJITLineInfoRecording();
 #endif
+  LOG_CODE_EVENT(isolate,
+                 CodeStartLinePosInfoRecordEvent(masm.positions_recorder()));
 
   FullCodeGenerator cgen(&masm, info);
   cgen.Generate();
@@ -344,6 +346,11 @@ bool FullCodeGenerator::MakeCode(CompilationInfo* info) {
     GDBJIT(RegisterDetailedLineInfo(*code, lineinfo));
   }
 #endif
+  if (!code.is_null()) {
+    void* line_info =
+        masm.positions_recorder()->DetachJITHandlerData();
+    LOG_CODE_EVENT(isolate, CodeEndLinePosInfoRecordEvent(*code, line_info));
+  }
   return !code.is_null();
 }
 

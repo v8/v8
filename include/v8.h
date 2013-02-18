@@ -3040,7 +3040,19 @@ struct JitCodeEvent {
   enum EventType {
     CODE_ADDED,
     CODE_MOVED,
-    CODE_REMOVED
+    CODE_REMOVED,
+    CODE_ADD_LINE_POS_INFO,
+    CODE_START_LINE_INFO_RECORDING,
+    CODE_END_LINE_INFO_RECORDING
+  };
+  // Definition of the code position type. The "POSITION" type means the place
+  // in the source code which are of interest when making stack traces to
+  // pin-point the source location of a stack frame as close as possible.
+  // The "STATEMENT_POSITION" means the place at the beginning of each
+  // statement, and is used to indicate possible break locations.
+  enum PositionType {
+    POSITION,
+    STATEMENT_POSITION
   };
 
   // Type of event.
@@ -3049,6 +3061,13 @@ struct JitCodeEvent {
   void* code_start;
   // Size of the instructions.
   size_t code_len;
+  // Script info for CODE_ADDED event.
+  Handle<Script> script;
+  // User-defined data for *_LINE_INFO_* event. It's used to hold the source
+  // code line information which is returned from the
+  // CODE_START_LINE_INFO_RECORDING event. And it's passed to subsequent
+  // CODE_ADD_LINE_POS_INFO and CODE_END_LINE_INFO_RECORDING events.
+  void* user_data;
 
   union {
     // Only valid for CODE_ADDED.
@@ -3059,6 +3078,17 @@ struct JitCodeEvent {
       // Number of chars in str.
       size_t len;
     } name;
+
+    // Only valid for CODE_ADD_LINE_POS_INFO
+    struct {
+      // PC offset
+      size_t offset;
+      // Code postion
+      size_t pos;
+      // The position type.
+      PositionType position_type;
+    } line_info;
+
     // New location of instructions. Only valid for CODE_MOVED.
     void* new_code_start;
   };
