@@ -836,8 +836,7 @@ function StringFromCharCode(code) {
     var code = %_Arguments(i);
     if (!%_IsSmi(code)) code = ToNumber(code) & 0xffff;
     if (code < 0) code = code & 0xffff;
-    // TODO(dcarney): Fix for Latin-1.
-    if (code > 0x7f) break;
+    if (code > 0xff) break;
     %_OneByteSeqStringSetChar(one_byte, i, code);
   }
   if (i == n) return one_byte;

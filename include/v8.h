@@ -40,6 +40,8 @@
 
 // TODO(svenpanne) Remove me when the Chrome bindings are adapted.
 #define V8_DISABLE_DEPRECATIONS 1
+// TODO(dcarney): Remove once Latin-1 transitions in WebKit has stuck.
+#define V8_ONE_BYTE_STRINGS_ENABLED 1
 
 #include "v8stdint.h"
 
