@@ -1210,14 +1210,15 @@ void StubCompiler::GenerateLoadConstant(Handle<JSObject> object,
 }
 
 
-void StubCompiler::GenerateDictionaryLoadCallback(Register receiver,
-                                                  Register name_reg,
-                                                  Register scratch1,
-                                                  Register scratch2,
-                                                  Register scratch3,
-                                                  Handle<AccessorInfo> callback,
-                                                  Handle<String> name,
-                                                  Label* miss) {
+void StubCompiler::GenerateDictionaryLoadCallback(
+    Register receiver,
+    Register name_reg,
+    Register scratch1,
+    Register scratch2,
+    Register scratch3,
+    Handle<ExecutableAccessorInfo> callback,
+    Handle<String> name,
+    Label* miss) {
   ASSERT(!receiver.is(scratch1));
   ASSERT(!receiver.is(scratch2));
   ASSERT(!receiver.is(scratch3));
@@ -1248,17 +1249,18 @@ void StubCompiler::GenerateDictionaryLoadCallback(Register receiver,
 }
 
 
-void StubCompiler::GenerateLoadCallback(Handle<JSObject> object,
-                                        Handle<JSObject> holder,
-                                        Register receiver,
-                                        Register name_reg,
-                                        Register scratch1,
-                                        Register scratch2,
-                                        Register scratch3,
-                                        Register scratch4,
-                                        Handle<AccessorInfo> callback,
-                                        Handle<String> name,
-                                        Label* miss) {
+void StubCompiler::GenerateLoadCallback(
+    Handle<JSObject> object,
+    Handle<JSObject> holder,
+    Register receiver,
+    Register name_reg,
+    Register scratch1,
+    Register scratch2,
+    Register scratch3,
+    Register scratch4,
+    Handle<ExecutableAccessorInfo> callback,
+    Handle<String> name,
+    Label* miss) {
   // Check that the receiver isn't a smi.
   __ JumpIfSmi(receiver, miss, scratch1);
 
@@ -1277,7 +1279,8 @@ void StubCompiler::GenerateLoadCallback(Handle<JSObject> object,
   __ mov(scratch2, sp);  // scratch2 = AccessorInfo::args_
   if (heap()->InNewSpace(callback->data())) {
     __ li(scratch3, callback);
-    __ lw(scratch3, FieldMemOperand(scratch3, AccessorInfo::kDataOffset));
+    __ lw(scratch3,
+          FieldMemOperand(scratch3, ExecutableAccessorInfo::kDataOffset));
   } else {
     __ li(scratch3, Handle<Object>(callback->data()));
   }
@@ -1341,8 +1344,9 @@ void StubCompiler::GenerateLoadInterceptor(Handle<JSObject> object,
     if (lookup->IsField()) {
       compile_followup_inline = true;
     } else if (lookup->type() == CALLBACKS &&
-        lookup->GetCallbackObject()->IsAccessorInfo()) {
-      AccessorInfo* callback = AccessorInfo::cast(lookup->GetCallbackObject());
+        lookup->GetCallbackObject()->IsExecutableAccessorInfo()) {
+      ExecutableAccessorInfo* callback =
+          ExecutableAccessorInfo::cast(lookup->GetCallbackObject());
       compile_followup_inline = callback->getter() != NULL &&
           callback->IsCompatibleReceiver(*object);
     }
@@ -1422,8 +1426,8 @@ void StubCompiler::GenerateLoadInterceptor(Handle<JSObject> object,
       // We found CALLBACKS property in prototype chain of interceptor's
       // holder.
       ASSERT(lookup->type() == CALLBACKS);
-      Handle<AccessorInfo> callback(
-          AccessorInfo::cast(lookup->GetCallbackObject()));
+      Handle<ExecutableAccessorInfo> callback(
+          ExecutableAccessorInfo::cast(lookup->GetCallbackObject()));
       ASSERT(callback->getter() != NULL);
 
       // Tail call to runtime.
@@ -1433,7 +1437,7 @@ void StubCompiler::GenerateLoadInterceptor(Handle<JSObject> object,
 
       __ Push(receiver, holder_reg);
       __ lw(scratch3,
-            FieldMemOperand(scratch2, AccessorInfo::kDataOffset));
+            FieldMemOperand(scratch2, ExecutableAccessorInfo::kDataOffset));
       __ li(scratch1, Operand(ExternalReference::isolate_address()));
       __ Push(scratch3, scratch1, scratch2, name_reg);
 
@@ -2694,7 +2698,7 @@ Handle<Code> StoreStubCompiler::CompileStoreCallback(
     Handle<String> name,
     Handle<JSObject> receiver,
     Handle<JSObject> holder,
-    Handle<AccessorInfo> callback) {
+    Handle<ExecutableAccessorInfo> callback) {
   // ----------- S t a t e -------------
   //  -- a0    : value
   //  -- a1    : receiver
