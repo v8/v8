@@ -76,7 +76,7 @@ class GlobalHandles::Node {
   ~Node() {
     // TODO(1428): if it's a weak handle we should have invoked its callback.
     // Zap the values for eager trapping.
-    object_ = NULL;
+    object_ = reinterpret_cast<Object*>(kGlobalHandleZapValue);
     class_id_ = v8::HeapProfiler::kPersistentHandleNoClassId;
     index_ = 0;
     set_independent(false);
@@ -113,9 +113,10 @@ class GlobalHandles::Node {
   void Release(GlobalHandles* global_handles) {
     ASSERT(state() != FREE);
     set_state(FREE);
-#ifdef DEBUG
+    // TODO(176056): Enable as soon as WebKit bindings are fixed.
+#ifdef DEBUG_TODO
     // Zap the values for eager trapping.
-    object_ = NULL;
+    object_ = reinterpret_cast<Object*>(kGlobalHandleZapValue);
     class_id_ = v8::HeapProfiler::kPersistentHandleNoClassId;
     set_independent(false);
     set_partially_dependent(false);
