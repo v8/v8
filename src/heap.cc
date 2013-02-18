@@ -3600,7 +3600,9 @@ MaybeObject* Heap::AllocateExternalStringFromAscii(
     return Failure::OutOfMemoryException(0x5);
   }
 
+#ifndef ENABLE_LATIN_1
   ASSERT(String::IsAscii(resource->data(), static_cast<int>(length)));
+#endif  // ENABLE_LATIN_1
 
   Map* map = external_ascii_string_map();
   Object* result;
