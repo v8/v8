@@ -1811,9 +1811,7 @@ bool Genesis::InstallNatives() {
 
     // Add initial map.
     Handle<Map> initial_map =
-        factory()->NewMap(JS_ARRAY_TYPE,
-                          JSRegExpResult::kSize,
-                          FAST_ELEMENTS);
+        factory()->NewMap(JS_ARRAY_TYPE, JSRegExpResult::kSize);
     initial_map->set_constructor(*array_constructor);
 
     // Set prototype on map.
