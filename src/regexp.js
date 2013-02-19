@@ -385,7 +385,7 @@ function RegExpMakeCaptureGetter(n) {
 // pairs for the match and all the captured substrings), the invariant is
 // that there are at least two capture indeces.  The array also contains
 // the subject string for the last successful match.
-var lastMatchInfo = new InternalArray(
+var lastMatchInfo = new InternalPackedArray(
     2,                 // REGEXP_NUMBER_OF_CAPTURES
     "",                // Last subject.
     void 0,            // Last input - settable with RegExpSetInput.

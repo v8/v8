@@ -420,7 +420,7 @@ function StringReplaceGlobalRegExpWithFunction(subject, regexp, replace) {
     // input string and some replacements that were returned from the replace
     // function.
     var match_start = 0;
-    var override = new InternalArray(null, 0, subject);
+    var override = new InternalPackedArray(null, 0, subject);
     var receiver = %GetDefaultReceiver(replace);
     for (var i = 0; i < len; i++) {
       var elem = res[i];
@@ -821,8 +821,6 @@ function StringTrimRight() {
   return %StringTrim(TO_STRING_INLINE(this), false, true);
 }
 
-var static_charcode_array = new InternalArray(4);
-
 
 // ECMA-262, section 15.5.3.2
 function StringFromCharCode(code) {
@@ -838,8 +836,7 @@ function StringFromCharCode(code) {
     var code = %_Arguments(i);
     if (!%_IsSmi(code)) code = ToNumber(code) & 0xffff;
     if (code < 0) code = code & 0xffff;
-    // TODO(dcarney): Fix for Latin-1.
-    if (code > 0x7f) break;
+    if (code > 0xff) break;
     %_OneByteSeqStringSetChar(one_byte, i, code);
   }
   if (i == n) return one_byte;

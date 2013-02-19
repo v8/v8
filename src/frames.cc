@@ -88,14 +88,6 @@ class StackHandlerIterator BASE_EMBEDDED {
 
 
 #define INITIALIZE_SINGLETON(type, field) field##_(this),
-StackFrameIterator::StackFrameIterator()
-    : isolate_(Isolate::Current()),
-      STACK_FRAME_TYPE_LIST(INITIALIZE_SINGLETON)
-      frame_(NULL), handler_(NULL),
-      thread_(isolate_->thread_local_top()),
-      fp_(NULL), sp_(NULL), advance_(&StackFrameIterator::AdvanceWithHandler) {
-  Reset();
-}
 StackFrameIterator::StackFrameIterator(Isolate* isolate)
     : isolate_(isolate),
       STACK_FRAME_TYPE_LIST(INITIALIZE_SINGLETON)
@@ -208,11 +200,6 @@ StackFrame* StackFrameIterator::SingletonFor(StackFrame::Type type) {
 
 
 // -------------------------------------------------------------------------
-
-
-StackTraceFrameIterator::StackTraceFrameIterator() {
-  if (!done() && !IsValidFrame()) Advance();
-}
 
 
 StackTraceFrameIterator::StackTraceFrameIterator(Isolate* isolate)
@@ -783,13 +770,14 @@ void JavaScriptFrame::Summarize(List<FrameSummary>* functions) {
 }
 
 
-void JavaScriptFrame::PrintTop(FILE* file,
+void JavaScriptFrame::PrintTop(Isolate* isolate,
+                               FILE* file,
                                bool print_args,
                                bool print_line_number) {
   // constructor calls
-  HandleScope scope;
+  HandleScope scope(isolate);
   AssertNoAllocation no_allocation;
-  JavaScriptFrameIterator it;
+  JavaScriptFrameIterator it(isolate);
   while (!it.done()) {
     if (it.frame()->is_java_script()) {
       JavaScriptFrame* frame = it.frame();
@@ -1084,7 +1072,7 @@ void StackFrame::PrintIndex(StringStream* accumulator,
 void JavaScriptFrame::Print(StringStream* accumulator,
                             PrintMode mode,
                             int index) const {
-  HandleScope scope;
+  HandleScope scope(isolate());
   Object* receiver = this->receiver();
   Object* function = this->function();
 
@@ -1500,9 +1488,9 @@ static StackFrame* AllocateFrameCopy(StackFrame* frame, Zone* zone) {
   return NULL;
 }
 
-Vector<StackFrame*> CreateStackMap(Zone* zone) {
+Vector<StackFrame*> CreateStackMap(Isolate* isolate, Zone* zone) {
   ZoneList<StackFrame*> list(10, zone);
-  for (StackFrameIterator it; !it.done(); it.Advance()) {
+  for (StackFrameIterator it(isolate); !it.done(); it.Advance()) {
     StackFrame* frame = AllocateFrameCopy(it.frame(), zone);
     list.Add(frame, zone);
   }

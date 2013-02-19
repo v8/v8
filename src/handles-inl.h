@@ -76,17 +76,6 @@ inline T** Handle<T>::location() const {
 }
 
 
-HandleScope::HandleScope() {
-  Isolate* isolate = Isolate::Current();
-  v8::ImplementationUtilities::HandleScopeData* current =
-      isolate->handle_scope_data();
-  isolate_ = isolate;
-  prev_next_ = current->next;
-  prev_limit_ = current->limit;
-  current->level++;
-}
-
-
 HandleScope::HandleScope(Isolate* isolate) {
   ASSERT(isolate == Isolate::Current());
   v8::ImplementationUtilities::HandleScopeData* current =

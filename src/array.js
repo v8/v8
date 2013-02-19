@@ -1559,6 +1559,12 @@ function SetUpArray() {
     "push", getFunction("push", ArrayPush),
     "splice", getFunction("splice", ArraySplice)
   ));
+
+  SetUpLockedPrototype(InternalPackedArray, $Array(), $Array(
+    "join", getFunction("join", ArrayJoin),
+    "pop", getFunction("pop", ArrayPop),
+    "push", getFunction("push", ArrayPush)
+  ));
 }
 
 SetUpArray();

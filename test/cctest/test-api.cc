@@ -11588,6 +11588,7 @@ TEST(SetFunctionEntryHook) {
 
 
 static i::HashMap* code_map = NULL;
+static i::HashMap* jitcode_line_info = NULL;
 static int saw_bar = 0;
 static int move_events = 0;
 
@@ -11627,6 +11628,10 @@ static bool FunctionNameIs(const char* expected,
 static void event_handler(const v8::JitCodeEvent* event) {
   CHECK(event != NULL);
   CHECK(code_map != NULL);
+  CHECK(jitcode_line_info != NULL);
+
+  class DummyJitCodeLineInfo {
+  };
 
   switch (event->type) {
     case v8::JitCodeEvent::CODE_ADDED: {
@@ -11675,6 +11680,43 @@ static void event_handler(const v8::JitCodeEvent* event) {
       // Object/code removal events are currently not dispatched from the GC.
       CHECK(false);
       break;
+
+    // For CODE_START_LINE_INFO_RECORDING event, we will create one
+    // DummyJitCodeLineInfo data structure pointed by event->user_dat. We
+    // record it in jitcode_line_info.
+    case v8::JitCodeEvent::CODE_START_LINE_INFO_RECORDING: {
+        DummyJitCodeLineInfo* line_info = new DummyJitCodeLineInfo();
+        v8::JitCodeEvent* temp_event = const_cast<v8::JitCodeEvent*>(event);
+        temp_event->user_data = line_info;
+        i::HashMap::Entry* entry =
+            jitcode_line_info->Lookup(line_info,
+                                      i::ComputePointerHash(line_info),
+                                      true);
+        entry->value = reinterpret_cast<void*>(line_info);
+      }
+      break;
+    // For these two events, we will check whether the event->user_data
+    // data structure is created before during CODE_START_LINE_INFO_RECORDING
+    // event. And delete it in CODE_END_LINE_INFO_RECORDING event handling.
+    case v8::JitCodeEvent::CODE_END_LINE_INFO_RECORDING: {
+        CHECK(event->user_data != NULL);
+        uint32_t hash = i::ComputePointerHash(event->user_data);
+        i::HashMap::Entry* entry =
+            jitcode_line_info->Lookup(event->user_data, hash, false);
+        CHECK(entry != NULL);
+        delete reinterpret_cast<DummyJitCodeLineInfo*>(event->user_data);
+      }
+      break;
+
+    case v8::JitCodeEvent::CODE_ADD_LINE_POS_INFO: {
+        CHECK(event->user_data != NULL);
+        uint32_t hash = i::ComputePointerHash(event->user_data);
+        i::HashMap::Entry* entry =
+            jitcode_line_info->Lookup(event->user_data, hash, false);
+        CHECK(entry != NULL);
+      }
+      break;
+
     default:
       // Impossible event.
       CHECK(false);
@@ -11710,6 +11752,9 @@ TEST(SetJitCodeEventHandler) {
     i::HashMap code(MatchPointers);
     code_map = &code;
 
+    i::HashMap lineinfo(MatchPointers);
+    jitcode_line_info = &lineinfo;
+
     saw_bar = 0;
     move_events = 0;
 
@@ -11743,6 +11788,7 @@ TEST(SetJitCodeEventHandler) {
     CHECK_LT(0, move_events);
 
     code_map = NULL;
+    jitcode_line_info = NULL;
   }
 
   isolate->Exit();
@@ -11763,9 +11809,13 @@ TEST(SetJitCodeEventHandler) {
     i::HashMap code(MatchPointers);
     code_map = &code;
 
+    i::HashMap lineinfo(MatchPointers);
+    jitcode_line_info = &lineinfo;
+
     V8::SetJitCodeEventHandler(v8::kJitCodeEventEnumExisting, event_handler);
     V8::SetJitCodeEventHandler(v8::kJitCodeEventDefault, NULL);
 
+    jitcode_line_info = NULL;
     // We expect that we got some events. Note that if we could get code removal
     // notifications, we could compare two collections, one created by listening
     // from the time of creation of an isolate, and the other by subscribing

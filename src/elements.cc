@@ -483,8 +483,8 @@ static void CopyDictionaryToDoubleElements(FixedArrayBase* from_base,
 }
 
 
-static void TraceTopFrame() {
-  StackFrameIterator it;
+static void TraceTopFrame(Isolate* isolate) {
+  StackFrameIterator it(isolate);
   if (it.done()) {
     PrintF("unknown location (no JavaScript frames present)");
     return;
@@ -500,7 +500,7 @@ static void TraceTopFrame() {
       raw_frame = it.frame();
     }
   }
-  JavaScriptFrame::PrintTop(stdout, false, true);
+  JavaScriptFrame::PrintTop(isolate, stdout, false, true);
 }
 
 
@@ -527,17 +527,17 @@ void CheckArrayAbuse(JSObject* obj, const char* op, uint32_t key,
                elements_type, op, elements_type,
                static_cast<int>(int32_length),
                static_cast<int>(key));
-        TraceTopFrame();
+        TraceTopFrame(obj->GetIsolate());
         PrintF("]\n");
       }
     } else {
       PrintF("[%s elements length not integer value in ", elements_type);
-      TraceTopFrame();
+      TraceTopFrame(obj->GetIsolate());
       PrintF("]\n");
     }
   } else {
     PrintF("[%s elements length not a number in ", elements_type);
-    TraceTopFrame();
+    TraceTopFrame(obj->GetIsolate());
     PrintF("]\n");
   }
 }

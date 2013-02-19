@@ -71,6 +71,8 @@ const Address kZapValue =
     reinterpret_cast<Address>(V8_UINT64_C(0xdeadbeedbeadbeef));
 const Address kHandleZapValue =
     reinterpret_cast<Address>(V8_UINT64_C(0x1baddead0baddeaf));
+const Address kGlobalHandleZapValue =
+    reinterpret_cast<Address>(V8_UINT64_C(0x1baffed00baffedf));
 const Address kFromSpaceZapValue =
     reinterpret_cast<Address>(V8_UINT64_C(0x1beefdad0beefdaf));
 const uint64_t kDebugZapValue = V8_UINT64_C(0xbadbaddbbadbaddb);
@@ -79,6 +81,7 @@ const uint64_t kFreeListZapValue = 0xfeed1eaffeed1eaf;
 #else
 const Address kZapValue = reinterpret_cast<Address>(0xdeadbeef);
 const Address kHandleZapValue = reinterpret_cast<Address>(0xbaddeaf);
+const Address kGlobalHandleZapValue = reinterpret_cast<Address>(0xbaffedf);
 const Address kFromSpaceZapValue = reinterpret_cast<Address>(0xbeefdaf);
 const uint32_t kSlotsZapValue = 0xbeefdeef;
 const uint32_t kDebugZapValue = 0xbadbaddb;

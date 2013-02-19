@@ -80,7 +80,6 @@ static void InitializeVM() {
     v8::ExtensionConfiguration config(1, extensions);
     env = v8::Context::New(&config);
   }
-  v8::HandleScope scope;
   env->Enter();
 }
 
@@ -1099,7 +1098,7 @@ TEST(TrivialSlice) {
   // actually creates a new string (it should not).
   FLAG_string_slices = true;
   InitializeVM();
-  HandleScope scope;
+  v8::HandleScope scope;
   v8::Local<v8::Value> result;
   Handle<String> string;
   const char* init = "var str = 'abcdefghijklmnopqrstuvwxyz';";
@@ -1128,7 +1127,7 @@ TEST(SliceFromSlice) {
   // actually creates a new string (it should not).
   FLAG_string_slices = true;
   InitializeVM();
-  HandleScope scope;
+  v8::HandleScope scope;
   v8::Local<v8::Value> result;
   Handle<String> string;
   const char* init = "var str = 'abcdefghijklmnopqrstuvwxyz';";
@@ -1196,7 +1195,7 @@ TEST(RobustSubStringStub) {
   // If not recognized, those unsafe arguments lead to out-of-bounds reads.
   FLAG_allow_natives_syntax = true;
   InitializeVM();
-  HandleScope scope;
+  v8::HandleScope scope;
   v8::Local<v8::Value> result;
   Handle<String> string;
   CompileRun("var short = 'abcdef';");
@@ -1240,7 +1239,7 @@ TEST(RobustSubStringStub) {
 TEST(RegExpOverflow) {
   // Result string has the length 2^32, causing a 32-bit integer overflow.
   InitializeVM();
-  HandleScope scope;
+  v8::HandleScope scope;
   LocalContext context;
   v8::V8::IgnoreOutOfMemoryException();
   v8::Local<v8::Value> result = CompileRun(
@@ -1256,7 +1255,7 @@ TEST(RegExpOverflow) {
 
 TEST(StringReplaceAtomTwoByteResult) {
   InitializeVM();
-  HandleScope scope;
+  v8::HandleScope scope;
   LocalContext context;
   v8::Local<v8::Value> result = CompileRun(
       "var subject = 'ascii~only~string~'; "

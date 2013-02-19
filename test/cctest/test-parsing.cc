@@ -439,7 +439,7 @@ void TestCharacterStream(const char* ascii_source,
                          unsigned end = 0) {
   if (end == 0) end = length;
   unsigned sub_length = end - start;
-  i::HandleScope test_scope;
+  i::HandleScope test_scope(i::Isolate::Current());
   i::SmartArrayPointer<i::uc16> uc16_buffer(new i::uc16[length]);
   for (unsigned i = 0; i < length; i++) {
     uc16_buffer[i] = static_cast<i::uc16>(ascii_source[i]);

@@ -303,11 +303,12 @@ bool JSProxy::HasElementWithHandler(uint32_t index) {
 
 MaybeObject* Object::GetPropertyWithDefinedGetter(Object* receiver,
                                                   JSReceiver* getter) {
-  HandleScope scope;
+  Isolate* isolate = getter->GetIsolate();
+  HandleScope scope(isolate);
   Handle<JSReceiver> fun(getter);
   Handle<Object> self(receiver);
 #ifdef ENABLE_DEBUGGER_SUPPORT
-  Debug* debug = fun->GetHeap()->isolate()->debug();
+  Debug* debug = isolate->debug();
   // Handle stepping into a getter if step into is active.
   // TODO(rossberg): should this apply to getters that are function proxies?
   if (debug->StepInActive() && fun->IsJSFunction()) {
@@ -1200,7 +1201,7 @@ void JSObject::PrintElementsTransition(
     PrintF(file, " -> ");
     PrintElementsKind(file, to_kind);
     PrintF(file, "] in ");
-    JavaScriptFrame::PrintTop(file, false, true);
+    JavaScriptFrame::PrintTop(GetIsolate(), file, false, true);
     PrintF(file, " for ");
     ShortPrint(file);
     PrintF(file, " from ");
@@ -1753,7 +1754,7 @@ void JSObject::EnqueueChangeRecord(Handle<JSObject> object,
                                    Handle<String> name,
                                    Handle<Object> old_value) {
   Isolate* isolate = object->GetIsolate();
-  HandleScope scope;
+  HandleScope scope(isolate);
   Handle<String> type = isolate->factory()->LookupUtf8Symbol(type_str);
   if (object->IsJSGlobalObject()) {
     object = handle(JSGlobalObject::cast(*object)->global_receiver(), isolate);

@@ -76,6 +76,7 @@ class Profiler;
 class Semaphore;
 class Ticker;
 class Isolate;
+class PositionsRecorder;
 
 #undef LOG
 #define LOG(isolate, Call)                          \
@@ -246,6 +247,19 @@ class Logger {
   void CodeMoveEvent(Address from, Address to);
   // Emits a code delete event.
   void CodeDeleteEvent(Address from);
+  // Emits a code line info add event with Postion type.
+  void CodeLinePosInfoAddPositionEvent(void* jit_handler_data,
+                                       int pc_offset,
+                                       int position);
+  // Emits a code line info add event with StatementPostion type.
+  void CodeLinePosInfoAddStatementPositionEvent(void* jit_handler_data,
+                                                int pc_offset,
+                                                int position);
+  // Emits a code line info start to record event
+  void CodeStartLinePosInfoRecordEvent(PositionsRecorder* pos_recorder);
+  // Emits a code line info finish record event.
+  // It's the callee's responsibility to dispose the parameter jit_handler_data.
+  void CodeEndLinePosInfoRecordEvent(Code* code, void* jit_handler_data);
 
   void SharedFunctionInfoMoveEvent(Address from, Address to);
 
@@ -310,10 +324,14 @@ class Logger {
   void RegExpCompileEvent(Handle<JSRegExp> regexp, bool in_cache);
 
   // Log an event reported from generated code
-  void LogRuntime(Vector<const char> format, JSArray* args);
+  void LogRuntime(Isolate* isolate, Vector<const char> format, JSArray* args);
 
   bool is_logging() {
     return logging_nesting_ > 0;
+  }
+
+  bool is_code_event_handler_enabled() {
+    return code_event_handler_ != NULL;
   }
 
   bool is_logging_code_events() {
@@ -355,14 +373,22 @@ class Logger {
   class NameBuffer;
   class NameMap;
 
-  Logger();
+  explicit Logger(Isolate* isolate);
   ~Logger();
 
   // Issue code notifications.
-  void IssueCodeAddedEvent(Code* code, const char* name, size_t name_len);
+  void IssueCodeAddedEvent(Code* code,
+                           Script* script,
+                           const char* name,
+                           size_t name_len);
   void IssueCodeMovedEvent(Address from, Address to);
   void IssueCodeRemovedEvent(Address from);
-
+  void IssueAddCodeLinePosInfoEvent(void* jit_handler_data,
+                                    int pc_offset,
+                                    int position,
+                                    JitCodeEvent::PositionType position_Type);
+  void* IssueStartCodePosInfoEvent();
+  void IssueEndCodePosInfoEvent(Code* code, void* jit_handler_data);
   // Emits the profiler's first message.
   void ProfilerBeginEvent();
 
@@ -421,6 +447,8 @@ class Logger {
 
   // Returns whether profiler's sampler is active.
   bool IsProfilerSamplerActive();
+
+  Isolate* isolate_;
 
   // The sampler used by the profiler and the sliding state window.
   Ticker* ticker_;

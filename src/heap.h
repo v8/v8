@@ -1596,13 +1596,13 @@ class Heap {
   }
 
   // Returns maximum GC pause.
-  int get_max_gc_pause() { return max_gc_pause_; }
+  double get_max_gc_pause() { return max_gc_pause_; }
 
   // Returns maximum size of objects alive after GC.
   intptr_t get_max_alive_after_gc() { return max_alive_after_gc_; }
 
   // Returns minimal interval between two subsequent collections.
-  int get_min_in_mutator() { return min_in_mutator_; }
+  double get_min_in_mutator() { return min_in_mutator_; }
 
   // TODO(hpayer): remove, should be handled by GCTracer
   void AddMarkingTime(double marking_time) {
@@ -2184,16 +2184,16 @@ class Heap {
   size_t object_sizes_last_time_[OBJECT_STATS_COUNT];
 
   // Maximum GC pause.
-  int max_gc_pause_;
+  double max_gc_pause_;
 
   // Total time spent in GC.
-  int total_gc_time_ms_;
+  double total_gc_time_ms_;
 
   // Maximum size of objects alive after GC.
   intptr_t max_alive_after_gc_;
 
   // Minimal interval between two subsequent collections.
-  int min_in_mutator_;
+  double min_in_mutator_;
 
   // Size of objects alive after last GC.
   intptr_t alive_after_last_gc_;

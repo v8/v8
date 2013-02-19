@@ -1099,21 +1099,21 @@ RUNTIME_FUNCTION(MaybeObject*, LoadPropertyWithInterceptorOnly) {
 }
 
 
-static MaybeObject* ThrowReferenceError(String* name) {
+static MaybeObject* ThrowReferenceError(Isolate* isolate, String* name) {
   // If the load is non-contextual, just return the undefined result.
   // Note that both keyed and non-keyed loads may end up here, so we
   // can't use either LoadIC or KeyedLoadIC constructors.
-  IC ic(IC::NO_EXTRA_FRAME, Isolate::Current());
+  IC ic(IC::NO_EXTRA_FRAME, isolate);
   ASSERT(ic.target()->is_load_stub() || ic.target()->is_keyed_load_stub());
   if (!ic.SlowIsUndeclaredGlobal()) return HEAP->undefined_value();
 
   // Throw a reference error.
-  HandleScope scope;
+  HandleScope scope(isolate);
   Handle<String> name_handle(name);
   Handle<Object> error =
       FACTORY->NewReferenceError("not_defined",
                                   HandleVector(&name_handle, 1));
-  return Isolate::Current()->Throw(*error);
+  return isolate->Throw(*error);
 }
 
 
@@ -1175,7 +1175,7 @@ RUNTIME_FUNCTION(MaybeObject*, LoadPropertyWithInterceptorForLoad) {
 
   // If the property is present, return it.
   if (attr != ABSENT) return result;
-  return ThrowReferenceError(String::cast(args[0]));
+  return ThrowReferenceError(isolate, String::cast(args[0]));
 }
 
 

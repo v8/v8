@@ -561,7 +561,10 @@ class JavaScriptFrame: public StandardFrame {
     return static_cast<JavaScriptFrame*>(frame);
   }
 
-  static void PrintTop(FILE* file, bool print_args, bool print_line_number);
+  static void PrintTop(Isolate* isolate,
+                       FILE* file,
+                       bool print_args,
+                       bool print_line_number);
 
  protected:
   inline explicit JavaScriptFrame(StackFrameIterator* iterator);
@@ -738,10 +741,6 @@ class ConstructFrame: public InternalFrame {
 
 class StackFrameIterator BASE_EMBEDDED {
  public:
-  // An iterator that iterates over the current thread's stack,
-  // and uses current isolate.
-  StackFrameIterator();
-
   // An iterator that iterates over the isolate's current thread's stack,
   explicit StackFrameIterator(Isolate* isolate);
 
@@ -801,8 +800,6 @@ class StackFrameIterator BASE_EMBEDDED {
 template<typename Iterator>
 class JavaScriptFrameIteratorTemp BASE_EMBEDDED {
  public:
-  JavaScriptFrameIteratorTemp() { if (!done()) Advance(); }
-
   inline explicit JavaScriptFrameIteratorTemp(Isolate* isolate);
 
   inline JavaScriptFrameIteratorTemp(Isolate* isolate, ThreadLocalTop* top);
@@ -961,6 +958,8 @@ class SafeStackTraceFrameIterator: public SafeJavaScriptFrameIterator {
 
 class StackFrameLocator BASE_EMBEDDED {
  public:
+  explicit StackFrameLocator(Isolate* isolate) : iterator_(isolate) {}
+
   // Find the nth JavaScript frame on the stack. The caller must
   // guarantee that such a frame exists.
   JavaScriptFrame* FindJavaScriptFrame(int n);
@@ -972,7 +971,7 @@ class StackFrameLocator BASE_EMBEDDED {
 
 // Reads all frames on the current stack and copies them into the current
 // zone memory.
-Vector<StackFrame*> CreateStackMap(Zone* zone);
+Vector<StackFrame*> CreateStackMap(Isolate* isolate, Zone* zone);
 
 } }  // namespace v8::internal
 

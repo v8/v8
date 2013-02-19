@@ -64,15 +64,14 @@ void IC::TraceIC(const char* type,
                  State old_state,
                  Code* new_target) {
   if (FLAG_trace_ic) {
-    State new_state = StateFrom(new_target,
-                                HEAP->undefined_value(),
-                                HEAP->undefined_value());
+    Object* undef = new_target->GetHeap()->undefined_value();
+    State new_state = StateFrom(new_target, undef, undef);
     PrintF("[%s in ", type);
-    StackFrameIterator it;
+    Isolate* isolate = new_target->GetIsolate();
+    StackFrameIterator it(isolate);
     while (it.frame()->fp() != this->fp()) it.Advance();
     StackFrame* raw_frame = it.frame();
     if (raw_frame->is_internal()) {
-      Isolate* isolate = new_target->GetIsolate();
       Code* apply_builtin = isolate->builtins()->builtin(
           Builtins::kFunctionApply);
       if (raw_frame->unchecked_code() == apply_builtin) {
@@ -81,7 +80,7 @@ void IC::TraceIC(const char* type,
         raw_frame = it.frame();
       }
     }
-    JavaScriptFrame::PrintTop(stdout, false, true);
+    JavaScriptFrame::PrintTop(isolate, stdout, false, true);
     bool new_can_grow =
         Code::GetKeyedAccessGrowMode(new_target->extra_ic_state()) ==
         ALLOW_JSARRAY_GROWTH;
@@ -94,17 +93,17 @@ void IC::TraceIC(const char* type,
   }
 }
 
-#define TRACE_GENERIC_IC(type, reason)                          \
+#define TRACE_GENERIC_IC(isolate, type, reason)                 \
   do {                                                          \
     if (FLAG_trace_ic) {                                        \
       PrintF("[%s patching generic stub in ", type);            \
-      JavaScriptFrame::PrintTop(stdout, false, true);           \
+      JavaScriptFrame::PrintTop(isolate, stdout, false, true);  \
       PrintF(" (%s)]\n", reason);                               \
     }                                                           \
   } while (false)
 
 #else
-#define TRACE_GENERIC_IC(type, reason)
+#define TRACE_GENERIC_IC(isolate, type, reason)
 #endif  // DEBUG
 
 #define TRACE_IC(type, name, old_state, new_target)             \
@@ -128,7 +127,7 @@ IC::IC(FrameDepth depth, Isolate* isolate) : isolate_(isolate) {
     fp = Memory::Address_at(fp + StandardFrameConstants::kCallerFPOffset);
   }
 #ifdef DEBUG
-  StackFrameIterator it;
+  StackFrameIterator it(isolate);
   for (int i = 0; i < depth + 1; i++) it.Advance();
   StackFrame* frame = it.frame();
   ASSERT(fp == frame->fp() && pc_address == frame->pc_address());
@@ -140,11 +139,11 @@ IC::IC(FrameDepth depth, Isolate* isolate) : isolate_(isolate) {
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
 Address IC::OriginalCodeAddress() const {
-  HandleScope scope;
+  HandleScope scope(isolate());
   // Compute the JavaScript frame for the frame pointer of this IC
   // structure. We need this to be able to find the function
   // corresponding to the frame.
-  StackFrameIterator it;
+  StackFrameIterator it(isolate());
   while (it.frame()->fp() != this->fp()) it.Advance();
   JavaScriptFrame* frame = JavaScriptFrame::cast(it.frame());
   // Find the function on the stack and both the active code for the
@@ -453,7 +452,7 @@ Handle<Object> CallICBase::TryCallAsFunction(Handle<Object> object) {
     // Patch the receiver and use the delegate as the function to
     // invoke. This is used for invoking objects as if they were functions.
     const int argc = target()->arguments_count();
-    StackFrameLocator locator;
+    StackFrameLocator locator(isolate());
     JavaScriptFrame* frame = locator.FindJavaScriptFrame(0);
     int index = frame->ComputeExpressionsCount() - (argc + 1);
     frame->SetExpression(index, *object);
@@ -481,7 +480,7 @@ void CallICBase::ReceiverToObjectIfRequired(Handle<Object> callee,
   if (object->IsString() || object->IsNumber() || object->IsBoolean()) {
     // Change the receiver to the result of calling ToObject on it.
     const int argc = this->target()->arguments_count();
-    StackFrameLocator locator;
+    StackFrameLocator locator(isolate());
     JavaScriptFrame* frame = locator.FindJavaScriptFrame(0);
     int index = frame->ComputeExpressionsCount() - (argc + 1);
     frame->SetExpression(index, *isolate()->factory()->ToObject(object));
@@ -1162,7 +1161,7 @@ Handle<Code> KeyedLoadIC::LoadElementStub(Handle<JSObject> receiver) {
   // via megamorphic stubs, since they don't have a map in their relocation info
   // and so the stubs can't be harvested for the object needed for a map check.
   if (target()->type() != Code::NORMAL) {
-    TRACE_GENERIC_IC("KeyedIC", "non-NORMAL target type");
+    TRACE_GENERIC_IC(isolate(), "KeyedIC", "non-NORMAL target type");
     return generic_stub();
   }
 
@@ -1204,14 +1203,14 @@ Handle<Code> KeyedLoadIC::LoadElementStub(Handle<JSObject> receiver) {
   if (!AddOneReceiverMapIfMissing(&target_receiver_maps, receiver_map)) {
     // If the miss wasn't due to an unseen map, a polymorphic stub
     // won't help, use the generic stub.
-    TRACE_GENERIC_IC("KeyedIC", "same map added twice");
+    TRACE_GENERIC_IC(isolate(), "KeyedIC", "same map added twice");
     return generic_stub();
   }
 
   // If the maximum number of receiver maps has been exceeded, use the generic
   // version of the IC.
   if (target_receiver_maps.length() > kMaxKeyedPolymorphism) {
-    TRACE_GENERIC_IC("KeyedIC", "max polymorph exceeded");
+    TRACE_GENERIC_IC(isolate(), "KeyedIC", "max polymorph exceeded");
     return generic_stub();
   }
 
@@ -1254,7 +1253,7 @@ MaybeObject* KeyedLoadIC::Load(State state,
         }
       }
     } else {
-      TRACE_GENERIC_IC("KeyedLoadIC", "force generic");
+      TRACE_GENERIC_IC(isolate(), "KeyedLoadIC", "force generic");
     }
     ASSERT(!stub.is_null());
     set_target(*stub);
@@ -1542,7 +1541,7 @@ Handle<Code> KeyedStoreIC::StoreElementStub(Handle<JSObject> receiver,
   // via megamorphic stubs, since they don't have a map in their relocation info
   // and so the stubs can't be harvested for the object needed for a map check.
   if (target()->type() != Code::NORMAL) {
-    TRACE_GENERIC_IC("KeyedIC", "non-NORMAL target type");
+    TRACE_GENERIC_IC(isolate(), "KeyedIC", "non-NORMAL target type");
     return strict_mode == kStrictMode ? generic_stub_strict() : generic_stub();
   }
 
@@ -1597,14 +1596,14 @@ Handle<Code> KeyedStoreIC::StoreElementStub(Handle<JSObject> receiver,
   if (!map_added) {
     // If the miss wasn't due to an unseen map, a polymorphic stub
     // won't help, use the generic stub.
-    TRACE_GENERIC_IC("KeyedIC", "same map added twice");
+    TRACE_GENERIC_IC(isolate(), "KeyedIC", "same map added twice");
     return strict_mode == kStrictMode ? generic_stub_strict() : generic_stub();
   }
 
   // If the maximum number of receiver maps has been exceeded, use the generic
   // version of the IC.
   if (target_receiver_maps.length() > kMaxKeyedPolymorphism) {
-    TRACE_GENERIC_IC("KeyedIC", "max polymorph exceeded");
+    TRACE_GENERIC_IC(isolate(), "KeyedIC", "max polymorph exceeded");
     return strict_mode == kStrictMode ? generic_stub_strict() : generic_stub();
   }
 
@@ -1753,7 +1752,7 @@ MaybeObject* KeyedStoreIC::Store(State state,
         }
       }
     } else {
-      TRACE_GENERIC_IC("KeyedStoreIC", "force generic");
+      TRACE_GENERIC_IC(isolate(), "KeyedStoreIC", "force generic");
     }
     ASSERT(!stub.is_null());
     set_target(*stub);
@@ -1906,7 +1905,7 @@ RUNTIME_FUNCTION(MaybeObject*, KeyedLoadIC_MissForceGeneric) {
 
 // Used from ic-<arch>.cc.
 RUNTIME_FUNCTION(MaybeObject*, StoreIC_Miss) {
-  HandleScope scope;
+  HandleScope scope(isolate);
   ASSERT(args.length() == 3);
   StoreIC ic(isolate);
   IC::State state = IC::StateFrom(ic.target(), args[0], args[1]);
@@ -2149,7 +2148,7 @@ RUNTIME_FUNCTION(MaybeObject*, UnaryOp_Patch) {
   if (!code.is_null()) {
     if (FLAG_trace_ic) {
       PrintF("[UnaryOpIC in ");
-      JavaScriptFrame::PrintTop(stdout, false, true);
+      JavaScriptFrame::PrintTop(isolate, stdout, false, true);
       PrintF(" (%s->%s)#%s @ %p]\n",
              UnaryOpIC::GetName(previous_type),
              UnaryOpIC::GetName(type),
@@ -2278,7 +2277,7 @@ RUNTIME_FUNCTION(MaybeObject*, BinaryOp_Patch) {
 #ifdef DEBUG
     if (FLAG_trace_ic) {
       PrintF("[BinaryOpIC in ");
-      JavaScriptFrame::PrintTop(stdout, false, true);
+      JavaScriptFrame::PrintTop(isolate, stdout, false, true);
       PrintF(" ((%s+%s)->((%s+%s)->%s))#%s @ %p]\n",
              BinaryOpIC::GetName(previous_left),
              BinaryOpIC::GetName(previous_right),
@@ -2480,7 +2479,7 @@ CompareIC::State CompareIC::TargetState(State old_state,
 
 
 void CompareIC::UpdateCaches(Handle<Object> x, Handle<Object> y) {
-  HandleScope scope;
+  HandleScope scope(isolate());
   State previous_left, previous_right, previous_state;
   ICCompareStub::DecodeMinorKey(target()->stub_info(), &previous_left,
                                 &previous_right, &previous_state, NULL);
@@ -2497,7 +2496,7 @@ void CompareIC::UpdateCaches(Handle<Object> x, Handle<Object> y) {
 #ifdef DEBUG
   if (FLAG_trace_ic) {
     PrintF("[CompareIC in ");
-    JavaScriptFrame::PrintTop(stdout, false, true);
+    JavaScriptFrame::PrintTop(isolate(), stdout, false, true);
     PrintF(" ((%s+%s=%s)->(%s+%s=%s))#%s @ %p]\n",
            GetStateName(previous_left),
            GetStateName(previous_right),

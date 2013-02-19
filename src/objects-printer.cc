@@ -69,7 +69,7 @@ void HeapObject::PrintHeader(FILE* out, const char* id) {
 void HeapObject::HeapObjectPrint(FILE* out) {
   InstanceType instance_type = map()->instance_type();
 
-  HandleScope scope;
+  HandleScope scope(GetIsolate());
   if (instance_type < FIRST_NONSTRING_TYPE) {
     String::cast(this)->StringPrint(out);
     return;

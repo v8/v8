@@ -4560,7 +4560,6 @@ Persistent<Context> v8::Context::New(
 
     // Create the environment.
     env = isolate->bootstrapper()->CreateEnvironment(
-        isolate,
         Utils::OpenHandle(*global_object, true),
         proxy_template,
         extensions);
@@ -6558,8 +6557,10 @@ void Testing::PrepareStressRun(int run) {
 }
 
 
+// TODO(svenpanne) Deprecate this.
 void Testing::DeoptimizeAll() {
-  i::HandleScope scope;
+  i::Isolate* isolate = i::Isolate::Current();
+  i::HandleScope scope(isolate);
   internal::Deoptimizer::DeoptimizeAll();
 }
 

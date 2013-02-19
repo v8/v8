@@ -82,6 +82,7 @@
         'test-mark-compact.cc',
         'test-object-observe.cc',
         'test-parsing.cc',
+        'test-platform.cc',
         'test-platform-tls.cc',
         'test-profile-generator.cc',
         'test-random.cc',
