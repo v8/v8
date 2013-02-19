@@ -139,8 +139,8 @@ Heap::Heap()
       survival_rate_(0),
       previous_survival_rate_trend_(Heap::STABLE),
       survival_rate_trend_(Heap::STABLE),
-      max_gc_pause_(0),
-      total_gc_time_ms_(0),
+      max_gc_pause_(0.0),
+      total_gc_time_ms_(0.0),
       max_alive_after_gc_(0),
       min_in_mutator_(kMaxInt),
       alive_after_last_gc_(0),
@@ -396,7 +396,7 @@ void Heap::PrintShortHeapStatistics() {
            this->SizeOfObjects() / KB,
            this->Available() / KB,
            this->CommittedMemory() / KB);
-  PrintPID("Total time spent in GC  : %d ms\n", total_gc_time_ms_);
+  PrintPID("Total time spent in GC  : %.1f ms\n", total_gc_time_ms_);
 }
 
 
@@ -6350,13 +6350,13 @@ void Heap::TearDown() {
     PrintF("\n");
     PrintF("gc_count=%d ", gc_count_);
     PrintF("mark_sweep_count=%d ", ms_count_);
-    PrintF("max_gc_pause=%d ", get_max_gc_pause());
-    PrintF("total_gc_time=%d ", total_gc_time_ms_);
-    PrintF("min_in_mutator=%d ", get_min_in_mutator());
+    PrintF("max_gc_pause=%.1f ", get_max_gc_pause());
+    PrintF("total_gc_time=%.1f ", total_gc_time_ms_);
+    PrintF("min_in_mutator=%.1f ", get_min_in_mutator());
     PrintF("max_alive_after_gc=%" V8_PTR_PREFIX "d ",
            get_max_alive_after_gc());
-    PrintF("total_marking_time=%f ", marking_time());
-    PrintF("total_sweeping_time=%f ", sweeping_time());
+    PrintF("total_marking_time=%.1f ", marking_time());
+    PrintF("total_sweeping_time=%.1f ", sweeping_time());
     PrintF("\n\n");
   }
 
@@ -7035,7 +7035,7 @@ GCTracer::~GCTracer() {
   heap_->alive_after_last_gc_ = heap_->SizeOfObjects();
   heap_->last_gc_end_timestamp_ = OS::TimeCurrentMillis();
 
-  int time = static_cast<int>(heap_->last_gc_end_timestamp_ - start_time_);
+  double time = heap_->last_gc_end_timestamp_ - start_time_;
 
   // Update cumulative GC statistics if required.
   if (FLAG_print_cumulative_gc_stat) {
@@ -7045,7 +7045,7 @@ GCTracer::~GCTracer() {
                                      heap_->alive_after_last_gc_);
     if (!first_gc) {
       heap_->min_in_mutator_ = Min(heap_->min_in_mutator_,
-                                   static_cast<int>(spent_in_mutator_));
+                                   spent_in_mutator_);
     }
   } else if (FLAG_trace_gc_verbose) {
     heap_->total_gc_time_ms_ += time;
@@ -7072,16 +7072,16 @@ GCTracer::~GCTracer() {
            end_memory_size_mb);
 
     if (external_time > 0) PrintF("%d / ", external_time);
-    PrintF("%d ms", time);
+    PrintF("%.1f ms", time);
     if (steps_count_ > 0) {
       if (collector_ == SCAVENGER) {
-        PrintF(" (+ %d ms in %d steps since last GC)",
-               static_cast<int>(steps_took_since_last_gc_),
+        PrintF(" (+ %.1f ms in %d steps since last GC)",
+               steps_took_since_last_gc_,
                steps_count_since_last_gc_);
       } else {
-        PrintF(" (+ %d ms in %d steps since start of marking, "
-                   "biggest step %f ms)",
-               static_cast<int>(steps_took_),
+        PrintF(" (+ %.1f ms in %d steps since start of marking, "
+                   "biggest step %.1f ms)",
+               steps_took_,
                steps_count_,
                longest_step_);
       }
@@ -7097,8 +7097,8 @@ GCTracer::~GCTracer() {
 
     PrintF(".\n");
   } else {
-    PrintF("pause=%d ", time);
-    PrintF("mutator=%d ", static_cast<int>(spent_in_mutator_));
+    PrintF("pause=%.1f ", time);
+    PrintF("mutator=%.1f ", spent_in_mutator_);
     PrintF("gc=");
     switch (collector_) {
       case SCAVENGER:
@@ -7112,23 +7112,19 @@ GCTracer::~GCTracer() {
     }
     PrintF(" ");
 
-    PrintF("external=%d ", static_cast<int>(scopes_[Scope::EXTERNAL]));
-    PrintF("mark=%d ", static_cast<int>(scopes_[Scope::MC_MARK]));
-    PrintF("sweep=%d ", static_cast<int>(scopes_[Scope::MC_SWEEP]));
-    PrintF("sweepns=%d ", static_cast<int>(scopes_[Scope::MC_SWEEP_NEWSPACE]));
-    PrintF("evacuate=%d ", static_cast<int>(scopes_[Scope::MC_EVACUATE_PAGES]));
-    PrintF("new_new=%d ",
-           static_cast<int>(scopes_[Scope::MC_UPDATE_NEW_TO_NEW_POINTERS]));
-    PrintF("root_new=%d ",
-           static_cast<int>(scopes_[Scope::MC_UPDATE_ROOT_TO_NEW_POINTERS]));
-    PrintF("old_new=%d ",
-           static_cast<int>(scopes_[Scope::MC_UPDATE_OLD_TO_NEW_POINTERS]));
-    PrintF("compaction_ptrs=%d ",
-           static_cast<int>(scopes_[Scope::MC_UPDATE_POINTERS_TO_EVACUATED]));
-    PrintF("intracompaction_ptrs=%d ", static_cast<int>(scopes_[
-        Scope::MC_UPDATE_POINTERS_BETWEEN_EVACUATED]));
-    PrintF("misc_compaction=%d ",
-           static_cast<int>(scopes_[Scope::MC_UPDATE_MISC_POINTERS]));
+    PrintF("external=%.1f ", scopes_[Scope::EXTERNAL]);
+    PrintF("mark=%.1f ", scopes_[Scope::MC_MARK]);
+    PrintF("sweep=%.1f ", scopes_[Scope::MC_SWEEP]);
+    PrintF("sweepns=%.1f ", scopes_[Scope::MC_SWEEP_NEWSPACE]);
+    PrintF("evacuate=%.1f ", scopes_[Scope::MC_EVACUATE_PAGES]);
+    PrintF("new_new=%.1f ", scopes_[Scope::MC_UPDATE_NEW_TO_NEW_POINTERS]);
+    PrintF("root_new=%.1f ", scopes_[Scope::MC_UPDATE_ROOT_TO_NEW_POINTERS]);
+    PrintF("old_new=%.1f ", scopes_[Scope::MC_UPDATE_OLD_TO_NEW_POINTERS]);
+    PrintF("compaction_ptrs=%.1f ",
+        scopes_[Scope::MC_UPDATE_POINTERS_TO_EVACUATED]);
+    PrintF("intracompaction_ptrs=%.1f ",
+        scopes_[Scope::MC_UPDATE_POINTERS_BETWEEN_EVACUATED]);
+    PrintF("misc_compaction=%.1f ", scopes_[Scope::MC_UPDATE_MISC_POINTERS]);
 
     PrintF("total_size_before=%" V8_PTR_PREFIX "d ", start_object_size_);
     PrintF("total_size_after=%" V8_PTR_PREFIX "d ", heap_->SizeOfObjects());
@@ -7144,11 +7140,11 @@ GCTracer::~GCTracer() {
 
     if (collector_ == SCAVENGER) {
       PrintF("stepscount=%d ", steps_count_since_last_gc_);
-      PrintF("stepstook=%d ", static_cast<int>(steps_took_since_last_gc_));
+      PrintF("stepstook=%.1f ", steps_took_since_last_gc_);
     } else {
       PrintF("stepscount=%d ", steps_count_);
-      PrintF("stepstook=%d ", static_cast<int>(steps_took_));
-      PrintF("longeststep=%.f ", longest_step_);
+      PrintF("stepstook=%.1f ", steps_took_);
+      PrintF("longeststep=%.1f ", longest_step_);
     }
 
     PrintF("\n");
