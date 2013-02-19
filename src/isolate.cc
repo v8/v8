@@ -2016,8 +2016,6 @@ bool Isolate::Init(Deserializer* des) {
   date_cache_ = new DateCache();
   code_stub_interface_descriptors_ =
       new CodeStubInterfaceDescriptor[CodeStub::NUMBER_OF_IDS];
-  memset(code_stub_interface_descriptors_, 0,
-         kPointerSize * CodeStub::NUMBER_OF_IDS);
 
   // Enable logging before setting up the heap
   logger_->SetUp();

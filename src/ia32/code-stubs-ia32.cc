@@ -48,7 +48,6 @@ void KeyedLoadFastElementStub::InitializeInterfaceDescriptor(
   static Register registers[] = { edx, ecx };
   descriptor->register_param_count_ = 2;
   descriptor->register_params_ = registers;
-  descriptor->stack_parameter_count_ = NULL;
   descriptor->deoptimization_handler_ =
       FUNCTION_ADDR(KeyedLoadIC_MissFromStubFailure);
 }
