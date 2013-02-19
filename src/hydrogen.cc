@@ -4384,7 +4384,12 @@ void HGraph::RestoreActualValues() {
         instruction != NULL;
         instruction = instruction->next()) {
       if (instruction->ActualValue() != instruction) {
-        instruction->ReplaceAllUsesWith(instruction->ActualValue());
+        ASSERT(instruction->IsInformativeDefinition());
+        if (instruction->IsPurelyInformativeDefinition()) {
+          instruction->DeleteAndReplaceWith(instruction->RedefinedOperand());
+        } else {
+          instruction->ReplaceAllUsesWith(instruction->ActualValue());
+        }
       }
     }
   }

@@ -819,6 +819,11 @@ class HValue: public ZoneObject {
                                      : NULL;
   }
 
+  // A purely informative definition is an idef that will not emit code and
+  // should therefore be removed from the graph in the RestoreActualValues
+  // phase (so that live ranges will be shorter).
+  virtual bool IsPurelyInformativeDefinition() { return false; }
+
   // This method must always return the original HValue SSA definition
   // (regardless of any iDef of this value).
   HValue* ActualValue() {
@@ -1286,6 +1291,7 @@ class HNumericConstraint : public HTemplateInstruction<2> {
   NumericRelation relation() { return relation_; }
 
   virtual int RedefinedOperandIndex() { return 0; }
+  virtual bool IsPurelyInformativeDefinition() { return true; }
 
   virtual Representation RequiredInputRepresentation(int index) {
     return representation();
@@ -3363,6 +3369,7 @@ class HBoundsCheck: public HTemplateInstruction<2> {
   HValue* length() { return OperandAt(1); }
 
   virtual int RedefinedOperandIndex() { return 0; }
+  virtual bool IsPurelyInformativeDefinition() { return skip_check(); }
   virtual void AddInformativeDefinitions();
 
   DECLARE_CONCRETE_INSTRUCTION(BoundsCheck)
