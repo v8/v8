@@ -1,3 +1,17 @@
+2013-02-19: Version 3.17.2
+
+        Removed bogus check for TOP register in deoptimizer.
+        (Chromium issue 176943)
+
+        Made the Isolate parameter mandatory for internal HandleScopes.
+        (issue 2487)
+
+        Fixed f.apply() optimization when declared arguments are mutated.
+        (issue 2539)
+
+        Performance and stability improvements on all platforms.
+
+
 2013-02-14: Version 3.17.1
 
         Performance and stability improvements on all platforms.
