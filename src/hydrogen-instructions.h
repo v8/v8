@@ -2819,6 +2819,10 @@ class HCheckSmiOrInt32: public HUnaryOperation {
   }
   virtual void InferRepresentation(HInferRepresentation* h_infer);
 
+  virtual Representation observed_input_representation(int index) {
+    return Representation::Integer32();
+  }
+
   virtual HValue* Canonicalize() {
     if (representation().IsTagged() && !type().IsSmi()) {
       return this;
