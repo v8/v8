@@ -409,6 +409,12 @@ class RelocInfo BASE_EMBEDDED {
   // debugger.
   INLINE(bool IsPatchedDebugBreakSlotSequence());
 
+#ifdef DEBUG
+  // Check whether the given code contains relocation information that
+  // either is position-relative or movable by the garbage collector.
+  static bool RequiresRelocation(const CodeDesc& desc);
+#endif
+
 #ifdef ENABLE_DISASSEMBLER
   // Printing
   static const char* RelocModeName(Mode rmode);

@@ -1588,6 +1588,7 @@ void Deoptimizer::EnsureCodeForDeoptimizationEntry(BailoutType type,
   GenerateDeoptimizationEntries(&masm, entry_count, type);
   CodeDesc desc;
   masm.GetCode(&desc);
+  ASSERT(!RelocInfo::RequiresRelocation(desc));
 
   MemoryChunk* chunk = type == EAGER
       ? data->eager_deoptimization_entry_code_
