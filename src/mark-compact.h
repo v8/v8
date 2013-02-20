@@ -608,6 +608,7 @@ class MarkCompactCollector {
   static void VerifyMarkbitsAreClean(PagedSpace* space);
   static void VerifyMarkbitsAreClean(NewSpace* space);
   void VerifyWeakEmbeddedMapsInOptimizedCode();
+  void VerifyOmittedPrototypeChecks();
 #endif
 
   // Sweep a single page from the given space conservatively.
@@ -833,8 +834,8 @@ class MarkCompactCollector {
   void ClearNonLivePrototypeTransitions(Map* map);
   void ClearNonLiveMapTransitions(Map* map, MarkBit map_mark);
 
-  void ClearAndDeoptimizeDependentCodes(Map* map);
-  void ClearNonLiveDependentCodes(Map* map);
+  void ClearAndDeoptimizeDependentCode(Map* map);
+  void ClearNonLiveDependentCode(Map* map);
 
   // Marking detaches initial maps from SharedFunctionInfo objects
   // to make this reference weak. We need to reattach initial maps

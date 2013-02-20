@@ -88,6 +88,10 @@ void LCodeGen::FinishCode(Handle<Code> code) {
     RegisterDependentCodeForEmbeddedMaps(code);
   }
   PopulateDeoptimizationData(code);
+  for (int i = 0 ; i < prototype_maps_.length(); i++) {
+    prototype_maps_.at(i)->AddDependentCode(
+        DependentCode::kPrototypeCheckGroup, code);
+  }
 }
 
 
@@ -869,7 +873,7 @@ void LCodeGen::RegisterDependentCodeForEmbeddedMaps(Handle<Code> code) {
   NoWeakEmbeddedMapsVerificationScope disable_verification_of_embedded_maps;
 #endif
   for (int i = 0; i < maps.length(); i++) {
-    maps.at(i)->AddDependentCode(code);
+    maps.at(i)->AddDependentCode(DependentCode::kWeaklyEmbeddedGroup, code);
   }
 }
 
@@ -5154,13 +5158,21 @@ void LCodeGen::DoCheckPrototypeMaps(LCheckPrototypeMaps* instr) {
 
   ASSERT(prototypes->length() == maps->length());
 
-  for (int i = 0; i < prototypes->length(); i++) {
-    __ LoadHeapObject(prototype_reg, prototypes->at(i));
-    __ lw(map_reg, FieldMemOperand(prototype_reg, HeapObject::kMapOffset));
-    DoCheckMapCommon(map_reg,
-                     maps->at(i),
-                     ALLOW_ELEMENT_TRANSITION_MAPS,
-                     instr->environment());
+  if (instr->hydrogen()->CanOmitPrototypeChecks()) {
+    for (int i = 0; i < maps->length(); i++) {
+      prototype_maps_.Add(maps->at(i), info()->zone());
+    }
+    __ LoadHeapObject(prototype_reg,
+                      prototypes->at(prototypes->length() - 1));
+  } else {
+    for (int i = 0; i < prototypes->length(); i++) {
+      __ LoadHeapObject(prototype_reg, prototypes->at(i));
+      __ lw(map_reg, FieldMemOperand(prototype_reg, HeapObject::kMapOffset));
+      DoCheckMapCommon(map_reg,
+                       maps->at(i),
+                       ALLOW_ELEMENT_TRANSITION_MAPS,
+                       instr->environment());
+    }
   }
 }
 

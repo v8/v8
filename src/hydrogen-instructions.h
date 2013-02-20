@@ -2767,6 +2767,13 @@ class HCheckPrototypeMaps: public HTemplateInstruction<0> {
     return hash;
   }
 
+  bool CanOmitPrototypeChecks() {
+    for (int i = 0; i < maps()->length(); i++) {
+      if (!maps()->at(i)->CanOmitPrototypeChecks()) return false;
+    }
+    return true;
+  }
+
  protected:
   virtual bool DataEquals(HValue* other) {
     HCheckPrototypeMaps* b = HCheckPrototypeMaps::cast(other);

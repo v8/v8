@@ -873,7 +873,7 @@ class MaybeObject BASE_EMBEDDED {
   V(TransitionArray)                           \
   V(DeoptimizationInputData)                   \
   V(DeoptimizationOutputData)                  \
-  V(DependentCodes)                            \
+  V(DependentCode)                            \
   V(TypeFeedbackCells)                         \
   V(FixedArray)                                \
   V(FixedDoubleArray)                          \
@@ -4695,24 +4695,71 @@ class Code: public HeapObject {
 
 
 // This class describes the layout of dependent codes array of a map. The
-// first element contains the number of codes as a Smi. The subsequent
-// elements contain code objects. The suffix of the array can be filled with the
-// undefined value if the number of codes is less than the length of the array.
-class DependentCodes: public FixedArray {
+// array is partitioned into several groups of dependent codes. Each group
+// contains codes with the same dependency on the map. The array has the
+// following layout for n dependency groups:
+//
+// +----+----+-----+----+---------+----------+-----+---------+-----------+
+// | C1 | C2 | ... | Cn | group 1 |  group 2 | ... | group n | undefined |
+// +----+----+-----+----+---------+----------+-----+---------+-----------+
+//
+// The first n elements are Smis, each of them specifies the number of codes
+// in the corresponding group. The subsequent elements contain grouped code
+// objects. The suffix of the array can be filled with the undefined value if
+// the number of codes is less than the length of the array. The order of the
+// code objects within a group is not preserved.
+//
+// All code indexes used in the class are counted starting from the first
+// code object of the first group. In other words, code index 0 corresponds
+// to array index n = kCodesStartIndex.
+
+class DependentCode: public FixedArray {
  public:
-  inline int number_of_codes();
-  inline void set_number_of_codes(int value);
+  enum DependencyGroup {
+    // Group of code that weakly embed this map and depend on being
+    // deoptimized when the map is garbage collected.
+    kWeaklyEmbeddedGroup,
+    // Group of code that omit run-time prototype checks for prototypes
+    // described by this map. The group is deoptimized whenever an object
+    // described by this map changes shape (and transitions to a new map),
+    // possibly invalidating the assumptions embedded in the code.
+    kPrototypeCheckGroup,
+    kGroupCount = kPrototypeCheckGroup + 1
+  };
+
+  // Array for holding the index of the first code object of each group.
+  // The last element stores the total number of code objects.
+  class GroupStartIndexes {
+   public:
+    explicit GroupStartIndexes(DependentCode* entries);
+    void Recompute(DependentCode* entries);
+    int at(int i) { return start_indexes_[i]; }
+    int number_of_entries() { return start_indexes_[kGroupCount]; }
+   private:
+    int start_indexes_[kGroupCount + 1];
+  };
+
+  bool Contains(DependencyGroup group, Code* code);
+  static Handle<DependentCode> Insert(Handle<DependentCode> entries,
+                                       DependencyGroup group,
+                                       Handle<Code> value);
+  void DeoptimizeDependentCodeGroup(DependentCode::DependencyGroup group);
+
+  // The following low-level accessors should only be used by this class
+  // and the mark compact collector.
+  inline int number_of_entries(DependencyGroup group);
+  inline void set_number_of_entries(DependencyGroup group, int value);
   inline Code* code_at(int i);
   inline void set_code_at(int i, Code* value);
   inline Object** code_slot_at(int i);
   inline void clear_code_at(int i);
-  static Handle<DependentCodes> Append(Handle<DependentCodes> codes,
-                                       Handle<Code> value);
-  static inline DependentCodes* cast(Object* object);
-  bool Contains(Code* code);
+  static inline DependentCode* cast(Object* object);
+
  private:
-  static const int kNumberOfCodesIndex = 0;
-  static const int kCodesIndex = 1;
+  // Make a room at the end of the given group by moving out the first
+  // code objects of the subsequent groups.
+  inline void ExtendGroup(DependencyGroup group);
+  static const int kCodesStartIndex = kGroupCount;
 };
 
 
@@ -4945,8 +4992,8 @@ class Map: public HeapObject {
   // [stub cache]: contains stubs compiled for this map.
   DECL_ACCESSORS(code_cache, Object)
 
-  // [dependent codes]: list of optimized codes that have this map embedded.
-  DECL_ACCESSORS(dependent_codes, DependentCodes)
+  // [dependent code]: list of optimized codes that have this map embedded.
+  DECL_ACCESSORS(dependent_code, DependentCode)
 
   // [back pointer]: points back to the parent map from which a transition
   // leads to this map. The field overlaps with prototype transitions and the
@@ -5163,7 +5210,15 @@ class Map: public HeapObject {
     return instance_type() >= FIRST_JS_OBJECT_TYPE;
   }
 
-  inline void AddDependentCode(Handle<Code> code);
+  // Fires when the layout of an object with a leaf map changes.
+  // This includes adding transitions to the leaf map or changing
+  // the descriptor array.
+  inline void NotifyLeafMapLayoutChange();
+
+  inline bool CanOmitPrototypeChecks();
+
+  inline void AddDependentCode(DependentCode::DependencyGroup group,
+                               Handle<Code> code);
 
   // Dispatched behavior.
   DECLARE_PRINTER(Map)
@@ -5171,6 +5226,7 @@ class Map: public HeapObject {
 
 #ifdef VERIFY_HEAP
   void SharedMapVerify();
+  void VerifyOmittedPrototypeChecks();
 #endif
 
   inline int visitor_id();
@@ -5213,8 +5269,8 @@ class Map: public HeapObject {
   static const int kDescriptorsOffset =
       kTransitionsOrBackPointerOffset + kPointerSize;
   static const int kCodeCacheOffset = kDescriptorsOffset + kPointerSize;
-  static const int kDependentCodesOffset = kCodeCacheOffset + kPointerSize;
-  static const int kBitField3Offset = kDependentCodesOffset + kPointerSize;
+  static const int kDependentCodeOffset = kCodeCacheOffset + kPointerSize;
+  static const int kBitField3Offset = kDependentCodeOffset + kPointerSize;
   static const int kSize = kBitField3Offset + kPointerSize;
 
   // Layout of pointer fields. Heap iteration code relies on them

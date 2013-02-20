@@ -245,6 +245,9 @@ DEFINE_int(parallel_recompilation_queue_length, 2,
 DEFINE_bool(manual_parallel_recompilation, false,
             "disable automatic optimization")
 DEFINE_implication(manual_parallel_recompilation, parallel_recompilation)
+DEFINE_bool(omit_prototype_checks_for_leaf_maps, true,
+            "do not emit prototype checks if all prototypes have leaf maps, "
+            "deoptimize the optimized code if the layout of the maps changes.")
 
 // Experimental profiler changes.
 DEFINE_bool(experimental_profiler, true, "enable all profiler experiments")

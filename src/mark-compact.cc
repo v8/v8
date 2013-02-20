@@ -421,6 +421,9 @@ void MarkCompactCollector::CollectGarbage() {
       heap()->weak_embedded_maps_verification_enabled()) {
     VerifyWeakEmbeddedMapsInOptimizedCode();
   }
+  if (FLAG_collect_maps && FLAG_omit_prototype_checks_for_leaf_maps) {
+    VerifyOmittedPrototypeChecks();
+  }
 #endif
 
   Finish();
@@ -485,6 +488,17 @@ void MarkCompactCollector::VerifyWeakEmbeddedMapsInOptimizedCode() {
     if (code->kind() != Code::OPTIMIZED_FUNCTION) continue;
     if (code->marked_for_deoptimization()) continue;
     code->VerifyEmbeddedMapsDependency();
+  }
+}
+
+
+void MarkCompactCollector::VerifyOmittedPrototypeChecks() {
+  HeapObjectIterator iterator(heap()->map_space());
+  for (HeapObject* obj = iterator.Next();
+       obj != NULL;
+       obj = iterator.Next()) {
+    Map* map = Map::cast(obj);
+    map->VerifyOmittedPrototypeChecks();
   }
 }
 #endif  // VERIFY_HEAP
@@ -2292,9 +2306,9 @@ void MarkCompactCollector::ClearNonLiveReferences() {
     ClearNonLiveMapTransitions(map, map_mark);
 
     if (map_mark.Get()) {
-      ClearNonLiveDependentCodes(map);
+      ClearNonLiveDependentCode(map);
     } else {
-      ClearAndDeoptimizeDependentCodes(map);
+      ClearAndDeoptimizeDependentCode(map);
     }
   }
 }
@@ -2364,43 +2378,54 @@ void MarkCompactCollector::ClearNonLiveMapTransitions(Map* map,
 }
 
 
-void MarkCompactCollector::ClearAndDeoptimizeDependentCodes(Map* map) {
+void MarkCompactCollector::ClearAndDeoptimizeDependentCode(Map* map) {
   AssertNoAllocation no_allocation_scope;
-  DependentCodes* codes = map->dependent_codes();
-  int number_of_codes = codes->number_of_codes();
-  if (number_of_codes == 0) return;
-  for (int i = 0; i < number_of_codes; i++) {
-    Code* code = codes->code_at(i);
+  DependentCode* entries = map->dependent_code();
+  DependentCode::GroupStartIndexes starts(entries);
+  int number_of_entries = starts.number_of_entries();
+  if (number_of_entries == 0) return;
+  for (int i = 0; i < number_of_entries; i++) {
+    Code* code = entries->code_at(i);
     if (IsMarked(code) && !code->marked_for_deoptimization()) {
       code->set_marked_for_deoptimization(true);
     }
-    codes->clear_code_at(i);
+    entries->clear_code_at(i);
   }
-  map->set_dependent_codes(DependentCodes::cast(heap()->empty_fixed_array()));
+  map->set_dependent_code(DependentCode::cast(heap()->empty_fixed_array()));
 }
 
 
-void MarkCompactCollector::ClearNonLiveDependentCodes(Map* map) {
+void MarkCompactCollector::ClearNonLiveDependentCode(Map* map) {
   AssertNoAllocation no_allocation_scope;
-  DependentCodes* codes = map->dependent_codes();
-  int number_of_codes = codes->number_of_codes();
-  if (number_of_codes == 0) return;
-  int new_number_of_codes = 0;
-  for (int i = 0; i < number_of_codes; i++) {
-    Code* code = codes->code_at(i);
-    if (IsMarked(code) && !code->marked_for_deoptimization()) {
-      if (new_number_of_codes != i) {
-        codes->set_code_at(new_number_of_codes, code);
+  DependentCode* entries = map->dependent_code();
+  DependentCode::GroupStartIndexes starts(entries);
+  int number_of_entries = starts.number_of_entries();
+  if (number_of_entries == 0) return;
+  int new_number_of_entries = 0;
+  // Go through all groups, remove dead codes and compact.
+  for (int g = 0; g < DependentCode::kGroupCount; g++) {
+    int group_number_of_entries = 0;
+    for (int i = starts.at(g); i < starts.at(g + 1); i++) {
+      Code* code = entries->code_at(i);
+      if (IsMarked(code) && !code->marked_for_deoptimization()) {
+        if (new_number_of_entries + group_number_of_entries != i) {
+          entries->set_code_at(new_number_of_entries +
+                               group_number_of_entries, code);
+        }
+        Object** slot = entries->code_slot_at(new_number_of_entries +
+                                              group_number_of_entries);
+        RecordSlot(slot, slot, code);
+        group_number_of_entries++;
       }
-      Object** slot = codes->code_slot_at(new_number_of_codes);
-      RecordSlot(slot, slot, code);
-      new_number_of_codes++;
     }
+    entries->set_number_of_entries(
+        static_cast<DependentCode::DependencyGroup>(g),
+        group_number_of_entries);
+    new_number_of_entries += group_number_of_entries;
   }
-  for (int i = new_number_of_codes; i < number_of_codes; i++) {
-    codes->clear_code_at(i);
+  for (int i = new_number_of_entries; i < number_of_entries; i++) {
+    entries->clear_code_at(i);
   }
-  codes->set_number_of_codes(new_number_of_codes);
 }
 
 

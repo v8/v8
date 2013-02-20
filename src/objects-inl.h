@@ -589,7 +589,7 @@ bool Object::IsDeoptimizationOutputData() {
 }
 
 
-bool Object::IsDependentCodes() {
+bool Object::IsDependentCode() {
   if (!IsFixedArray()) return false;
   // There's actually no way to see the difference between a fixed array and
   // a dependent codes array.
@@ -2397,7 +2397,7 @@ CAST_ACCESSOR(FixedDoubleArray)
 CAST_ACCESSOR(DescriptorArray)
 CAST_ACCESSOR(DeoptimizationInputData)
 CAST_ACCESSOR(DeoptimizationOutputData)
-CAST_ACCESSOR(DependentCodes)
+CAST_ACCESSOR(DependentCode)
 CAST_ACCESSOR(TypeFeedbackCells)
 CAST_ACCESSOR(SymbolTable)
 CAST_ACCESSOR(JSFunctionResultCache)
@@ -3431,44 +3431,68 @@ bool Map::is_observed() {
 }
 
 
-void Map::AddDependentCode(Handle<Code> code) {
-  Handle<DependentCodes> codes =
-      DependentCodes::Append(Handle<DependentCodes>(dependent_codes()), code);
-  if (*codes != dependent_codes()) {
-    set_dependent_codes(*codes);
+void Map::NotifyLeafMapLayoutChange() {
+  dependent_code()->DeoptimizeDependentCodeGroup(
+      DependentCode::kPrototypeCheckGroup);
+}
+
+
+bool Map::CanOmitPrototypeChecks() {
+  return !HasTransitionArray() && !is_dictionary_map() &&
+         FLAG_omit_prototype_checks_for_leaf_maps;
+}
+
+
+void Map::AddDependentCode(DependentCode::DependencyGroup group,
+                           Handle<Code> code) {
+  Handle<DependentCode> codes =
+      DependentCode::Insert(Handle<DependentCode>(dependent_code()),
+                             group, code);
+  if (*codes != dependent_code()) {
+    set_dependent_code(*codes);
   }
 }
 
 
-int DependentCodes::number_of_codes() {
+int DependentCode::number_of_entries(DependencyGroup group) {
   if (length() == 0) return 0;
-  return Smi::cast(get(kNumberOfCodesIndex))->value();
+  return Smi::cast(get(group))->value();
 }
 
 
-void DependentCodes::set_number_of_codes(int value) {
-  set(kNumberOfCodesIndex, Smi::FromInt(value));
+void DependentCode::set_number_of_entries(DependencyGroup group, int value) {
+  set(group, Smi::FromInt(value));
 }
 
 
-Code* DependentCodes::code_at(int i) {
-  return Code::cast(get(kCodesIndex + i));
+Code* DependentCode::code_at(int i) {
+  return Code::cast(get(kCodesStartIndex + i));
 }
 
 
-void DependentCodes::set_code_at(int i, Code* value) {
-  set(kCodesIndex + i, value);
+void DependentCode::set_code_at(int i, Code* value) {
+  set(kCodesStartIndex + i, value);
 }
 
 
-Object** DependentCodes::code_slot_at(int i) {
+Object** DependentCode::code_slot_at(int i) {
   return HeapObject::RawField(
-      this, FixedArray::OffsetOfElementAt(kCodesIndex + i));
+      this, FixedArray::OffsetOfElementAt(kCodesStartIndex + i));
 }
 
 
-void DependentCodes::clear_code_at(int i) {
-  set_undefined(kCodesIndex + i);
+void DependentCode::clear_code_at(int i) {
+  set_undefined(kCodesStartIndex + i);
+}
+
+
+void DependentCode::ExtendGroup(DependencyGroup group) {
+  GroupStartIndexes starts(this);
+  for (int g = kGroupCount - 1; g > group; g--) {
+    if (starts.at(g) < starts.at(g + 1)) {
+      set_code_at(starts.at(g + 1), code_at(starts.at(g)));
+    }
+  }
 }
 
 
@@ -4094,7 +4118,7 @@ HeapObject* Map::UncheckedPrototypeTransitions() {
 
 
 ACCESSORS(Map, code_cache, Object, kCodeCacheOffset)
-ACCESSORS(Map, dependent_codes, DependentCodes, kDependentCodesOffset)
+ACCESSORS(Map, dependent_code, DependentCode, kDependentCodeOffset)
 ACCESSORS(Map, constructor, Object, kConstructorOffset)
 
 ACCESSORS(JSFunction, shared, SharedFunctionInfo, kSharedFunctionInfoOffset)
