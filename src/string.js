@@ -203,16 +203,6 @@ function StringMatch(regexp) {
 }
 
 
-// SubString is an internal function that returns the sub string of 'string'.
-// If resulting string is of length 1, we use the one character cache
-// otherwise we call the runtime system.
-function SubString(string, start, end) {
-  // Use the one character string cache.
-  if (start + 1 == end) return %_StringCharAt(string, start);
-  return %_SubString(string, start, end);
-}
-
-
 // This has the same size as the lastMatchInfo array, and can be used for
 // functions that expect that structure to be returned.  It is used when the
 // needle is a string rather than a regexp.  In this case we can't update
@@ -296,7 +286,7 @@ function StringReplace(search, replace) {
   if (start < 0) return subject;
   var end = start + search.length;
 
-  var result = SubString(subject, 0, start);
+  var result = %_SubString(subject, 0, start);
 
   // Compute the string to replace with.
   if (IS_SPEC_FUNCTION(replace)) {
@@ -309,7 +299,7 @@ function StringReplace(search, replace) {
     result = ExpandReplacement(replace, subject, reusableMatchInfo, result);
   }
 
-  return result + SubString(subject, end, subject.length);
+  return result + %_SubString(subject, end, subject.length);
 }
 
 
@@ -323,7 +313,7 @@ function ExpandReplacement(string, subject, matchInfo, result) {
     return result;
   }
 
-  if (next > 0) result += SubString(string, 0, next);
+  if (next > 0) result += %_SubString(string, 0, next);
 
   while (true) {
     var expansion = '$';
@@ -335,13 +325,14 @@ function ExpandReplacement(string, subject, matchInfo, result) {
         result += '$';
       } else if (peek == 38) {  // $& - match
         ++position;
-        result += SubString(subject, matchInfo[CAPTURE0], matchInfo[CAPTURE1]);
+        result +=
+          %_SubString(subject, matchInfo[CAPTURE0], matchInfo[CAPTURE1]);
       } else if (peek == 96) {  // $` - prefix
         ++position;
-        result += SubString(subject, 0, matchInfo[CAPTURE0]);
+        result += %_SubString(subject, 0, matchInfo[CAPTURE0]);
       } else if (peek == 39) {  // $' - suffix
         ++position;
-        result += SubString(subject, matchInfo[CAPTURE1], subject.length);
+        result += %_SubString(subject, matchInfo[CAPTURE1], subject.length);
       } else {
         result += '$';
       }
@@ -356,14 +347,14 @@ function ExpandReplacement(string, subject, matchInfo, result) {
     // haven't reached the end, we need to append the suffix.
     if (next < 0) {
       if (position < length) {
-        result += SubString(string, position, length);
+        result += %_SubString(string, position, length);
       }
       return result;
     }
 
     // Append substring between the previous and the next $ character.
     if (next > position) {
-      result += SubString(string, position, next);
+      result += %_SubString(string, position, next);
     }
   }
   return result;
@@ -379,7 +370,7 @@ function CaptureString(string, lastCaptureInfo, index) {
   // If start isn't valid, return undefined.
   if (start < 0) return;
   var end = lastCaptureInfo[CAPTURE(scaled + 1)];
-  return SubString(string, start, end);
+  return %_SubString(string, start, end);
 }
 
 
@@ -475,7 +466,7 @@ function StringReplaceNonGlobalRegExpWithFunction(subject, regexp, replace) {
     return subject;
   }
   var index = matchInfo[CAPTURE0];
-  var result = SubString(subject, 0, index);
+  var result = %_SubString(subject, 0, index);
   var endOfMatch = matchInfo[CAPTURE1];
   // Compute the parameter list consisting of the match, captures, index,
   // and subject for the replace function invocation.
@@ -485,7 +476,7 @@ function StringReplaceNonGlobalRegExpWithFunction(subject, regexp, replace) {
   var receiver = %GetDefaultReceiver(replace);
   if (m == 1) {
     // No captures, only the match, which is always valid.
-    var s = SubString(subject, index, endOfMatch);
+    var s = %_SubString(subject, index, endOfMatch);
     // Don't call directly to avoid exposing the built-in global object.
     replacement = %_CallFunction(receiver, s, index, subject, replace);
   } else {
@@ -502,7 +493,7 @@ function StringReplaceNonGlobalRegExpWithFunction(subject, regexp, replace) {
   result += replacement;  // The add method converts to string if necessary.
   // Can't use matchInfo any more from here, since the function could
   // overwrite it.
-  return result + SubString(subject, endOfMatch, subject.length);
+  return result + %_SubString(subject, endOfMatch, subject.length);
 }
 
 
@@ -568,7 +559,7 @@ function StringSlice(start, end) {
     return '';
   }
 
-  return SubString(s, start_i, end_i);
+  return %_SubString(s, start_i, end_i);
 }
 
 
@@ -629,13 +620,13 @@ function StringSplitOnRegExp(subject, separator, limit, length) {
   while (true) {
 
     if (startIndex === length) {
-      result.push(SubString(subject, currentIndex, length));
+      result.push(%_SubString(subject, currentIndex, length));
       break;
     }
 
     var matchInfo = DoRegExpExec(separator, subject, startIndex);
     if (matchInfo == null || length === (startMatch = matchInfo[CAPTURE0])) {
-      result.push(SubString(subject, currentIndex, length));
+      result.push(%_SubString(subject, currentIndex, length));
       break;
     }
     var endIndex = matchInfo[CAPTURE1];
@@ -646,11 +637,7 @@ function StringSplitOnRegExp(subject, separator, limit, length) {
       continue;
     }
 
-    if (currentIndex + 1 == startMatch) {
-      result.push(%_StringCharAt(subject, currentIndex));
-    } else {
-      result.push(%_SubString(subject, currentIndex, startMatch));
-    }
+    result.push(%_SubString(subject, currentIndex, startMatch));
 
     if (result.length === limit) break;
 
@@ -659,11 +646,7 @@ function StringSplitOnRegExp(subject, separator, limit, length) {
       var start = matchInfo[i++];
       var end = matchInfo[i++];
       if (end != -1) {
-        if (start + 1 == end) {
-          result.push(%_StringCharAt(subject, start));
-        } else {
-          result.push(%_SubString(subject, start, end));
-        }
+        result.push(%_SubString(subject, start, end));
       } else {
         result.push(void 0);
       }
@@ -707,9 +690,7 @@ function StringSubstring(start, end) {
     }
   }
 
-  return ((start_i + 1 == end_i)
-          ? %_StringCharAt(s, start_i)
-          : %_SubString(s, start_i, end_i));
+  return %_SubString(s, start_i, end_i);
 }
 
 
@@ -751,9 +732,7 @@ function StringSubstr(start, n) {
   var end = start + len;
   if (end > s.length) end = s.length;
 
-  return ((start + 1 == end)
-          ? %_StringCharAt(s, start)
-          : %_SubString(s, start, end));
+  return %_SubString(s, start, end);
 }
 
 

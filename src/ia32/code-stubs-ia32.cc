@@ -5692,23 +5692,6 @@ void StringCharFromCodeGenerator::GenerateSlow(
 }
 
 
-// -------------------------------------------------------------------------
-// StringCharAtGenerator
-
-void StringCharAtGenerator::GenerateFast(MacroAssembler* masm) {
-  char_code_at_generator_.GenerateFast(masm);
-  char_from_code_generator_.GenerateFast(masm);
-}
-
-
-void StringCharAtGenerator::GenerateSlow(
-    MacroAssembler* masm,
-    const RuntimeCallHelper& call_helper) {
-  char_code_at_generator_.GenerateSlow(masm, call_helper);
-  char_from_code_generator_.GenerateSlow(masm, call_helper);
-}
-
-
 void StringAddStub::Generate(MacroAssembler* masm) {
   Label call_runtime, call_builtin;
   Builtins::JavaScript builtin_id = Builtins::ADD;
@@ -6375,6 +6358,10 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   __ ret(3 * kPointerSize);
   __ bind(&not_original_string);
 
+  Label single_char;
+  __ cmp(ecx, Immediate(Smi::FromInt(1)));
+  __ j(equal, &single_char);
+
   // eax: string
   // ebx: instance type
   // ecx: sub string length (smi)
@@ -6545,6 +6532,17 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   // Just jump to runtime to create the sub string.
   __ bind(&runtime);
   __ TailCallRuntime(Runtime::kSubString, 3, 1);
+
+  __ bind(&single_char);
+  // eax: string
+  // ebx: instance type
+  // ecx: sub string length (smi)
+  // edx: from index (smi)
+  StringCharAtGenerator generator(
+      eax, edx, ecx, eax, &runtime, &runtime, &runtime, STRING_INDEX_IS_NUMBER);
+  generator.GenerateFast(masm);
+  __ ret(3 * kPointerSize);
+  generator.SkipSlow(masm, &runtime);
 }
 
 

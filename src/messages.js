@@ -562,7 +562,7 @@ function ScriptNameOrSourceURL() {
         %_RegExpExec(sourceUrlPattern, source, sourceUrlPos - 4, matchInfo);
     if (match) {
       this.cachedNameOrSourceURL =
-          SubString(source, matchInfo[CAPTURE(2)], matchInfo[CAPTURE(3)]);
+          %_SubString(source, matchInfo[CAPTURE(2)], matchInfo[CAPTURE(3)]);
     }
   }
   return this.cachedNameOrSourceURL;

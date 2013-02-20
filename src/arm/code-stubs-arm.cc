@@ -5882,23 +5882,6 @@ void StringCharFromCodeGenerator::GenerateSlow(
 }
 
 
-// -------------------------------------------------------------------------
-// StringCharAtGenerator
-
-void StringCharAtGenerator::GenerateFast(MacroAssembler* masm) {
-  char_code_at_generator_.GenerateFast(masm);
-  char_from_code_generator_.GenerateFast(masm);
-}
-
-
-void StringCharAtGenerator::GenerateSlow(
-    MacroAssembler* masm,
-    const RuntimeCallHelper& call_helper) {
-  char_code_at_generator_.GenerateSlow(masm, call_helper);
-  char_from_code_generator_.GenerateSlow(masm, call_helper);
-}
-
-
 void StringHelper::GenerateCopyCharacters(MacroAssembler* masm,
                                           Register dest,
                                           Register src,
@@ -6306,6 +6289,10 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   ASSERT(is_string == eq);
   __ b(NegateCondition(is_string), &runtime);
 
+  Label single_char;
+  __ cmp(r2, Operand(1));
+  __ b(eq, &single_char);
+
   // Short-cut for the case of trivial substring.
   Label return_r0;
   // r0: original string
@@ -6459,12 +6446,25 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   __ bind(&return_r0);
   Counters* counters = masm->isolate()->counters();
   __ IncrementCounter(counters->sub_string_native(), 1, r3, r4);
-  __ add(sp, sp, Operand(3 * kPointerSize));
+  __ Drop(3);
   __ Ret();
 
   // Just jump to runtime to create the sub string.
   __ bind(&runtime);
   __ TailCallRuntime(Runtime::kSubString, 3, 1);
+
+  __ bind(&single_char);
+  // r0: original string
+  // r1: instance type
+  // r2: length
+  // r3: from index (untagged)
+  __ SmiTag(r3, r3);
+  StringCharAtGenerator generator(
+      r0, r3, r2, r0, &runtime, &runtime, &runtime, STRING_INDEX_IS_NUMBER);
+  generator.GenerateFast(masm);
+  __ Drop(3);
+  __ Ret();
+  generator.SkipSlow(masm, &runtime);
 }
 
 

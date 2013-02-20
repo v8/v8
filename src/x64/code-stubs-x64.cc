@@ -4757,23 +4757,6 @@ void StringCharFromCodeGenerator::GenerateSlow(
 }
 
 
-// -------------------------------------------------------------------------
-// StringCharAtGenerator
-
-void StringCharAtGenerator::GenerateFast(MacroAssembler* masm) {
-  char_code_at_generator_.GenerateFast(masm);
-  char_from_code_generator_.GenerateFast(masm);
-}
-
-
-void StringCharAtGenerator::GenerateSlow(
-    MacroAssembler* masm,
-    const RuntimeCallHelper& call_helper) {
-  char_code_at_generator_.GenerateSlow(masm, call_helper);
-  char_from_code_generator_.GenerateSlow(masm, call_helper);
-}
-
-
 void StringAddStub::Generate(MacroAssembler* masm) {
   Label call_runtime, call_builtin;
   Builtins::JavaScript builtin_id = Builtins::ADD;
@@ -5394,6 +5377,11 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   __ IncrementCounter(counters->sub_string_native(), 1);
   __ ret(kArgumentsSize);
   __ bind(&not_original_string);
+
+  Label single_char;
+  __ SmiCompare(rcx, Smi::FromInt(1));
+  __ j(equal, &single_char);
+
   __ SmiToInteger32(rcx, rcx);
 
   // rax: string
@@ -5554,6 +5542,17 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   // Just jump to runtime to create the sub string.
   __ bind(&runtime);
   __ TailCallRuntime(Runtime::kSubString, 3, 1);
+
+  __ bind(&single_char);
+  // rax: string
+  // rbx: instance type
+  // rcx: sub string length (smi)
+  // rdx: from index (smi)
+  StringCharAtGenerator generator(
+      rax, rdx, rcx, rax, &runtime, &runtime, &runtime, STRING_INDEX_IS_NUMBER);
+  generator.GenerateFast(masm);
+  __ ret(kArgumentsSize);
+  generator.SkipSlow(masm, &runtime);
 }
 
 
