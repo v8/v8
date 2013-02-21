@@ -28,7 +28,7 @@
 #include "v8.h"
 
 #include "heap-profiler.h"
-#include "profile-generator.h"
+#include "heap-snapshot-generator-inl.h"
 
 namespace v8 {
 namespace internal {
