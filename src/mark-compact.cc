@@ -1293,9 +1293,9 @@ class MarkCompactMarkingVisitor
 
   // Visit all unmarked objects pointed to by [start, end).
   // Returns false if the operation fails (lack of stack space).
-  static inline bool VisitUnmarkedObjects(Heap* heap,
+  INLINE(static bool VisitUnmarkedObjects(Heap* heap,
                                           Object** start,
-                                          Object** end) {
+                                          Object** end)) {
     // Return false is we are close to the stack limit.
     StackLimitCheck check(heap->isolate());
     if (check.HasOverflowed()) return false;

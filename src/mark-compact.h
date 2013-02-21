@@ -53,59 +53,59 @@ class Marking {
       : heap_(heap) {
   }
 
-  static inline MarkBit MarkBitFrom(Address addr);
+  INLINE(static MarkBit MarkBitFrom(Address addr));
 
-  static inline MarkBit MarkBitFrom(HeapObject* obj) {
+  INLINE(static MarkBit MarkBitFrom(HeapObject* obj)) {
     return MarkBitFrom(reinterpret_cast<Address>(obj));
   }
 
   // Impossible markbits: 01
   static const char* kImpossibleBitPattern;
-  static inline bool IsImpossible(MarkBit mark_bit) {
+  INLINE(static bool IsImpossible(MarkBit mark_bit)) {
     return !mark_bit.Get() && mark_bit.Next().Get();
   }
 
   // Black markbits: 10 - this is required by the sweeper.
   static const char* kBlackBitPattern;
-  static inline bool IsBlack(MarkBit mark_bit) {
+  INLINE(static bool IsBlack(MarkBit mark_bit)) {
     return mark_bit.Get() && !mark_bit.Next().Get();
   }
 
   // White markbits: 00 - this is required by the mark bit clearer.
   static const char* kWhiteBitPattern;
-  static inline bool IsWhite(MarkBit mark_bit) {
+  INLINE(static bool IsWhite(MarkBit mark_bit)) {
     return !mark_bit.Get();
   }
 
   // Grey markbits: 11
   static const char* kGreyBitPattern;
-  static inline bool IsGrey(MarkBit mark_bit) {
+  INLINE(static bool IsGrey(MarkBit mark_bit)) {
     return mark_bit.Get() && mark_bit.Next().Get();
   }
 
-  static inline void MarkBlack(MarkBit mark_bit) {
+  INLINE(static void MarkBlack(MarkBit mark_bit)) {
     mark_bit.Set();
     mark_bit.Next().Clear();
   }
 
-  static inline void BlackToGrey(MarkBit markbit) {
+  INLINE(static void BlackToGrey(MarkBit markbit)) {
     markbit.Next().Set();
   }
 
-  static inline void WhiteToGrey(MarkBit markbit) {
+  INLINE(static void WhiteToGrey(MarkBit markbit)) {
     markbit.Set();
     markbit.Next().Set();
   }
 
-  static inline void GreyToBlack(MarkBit markbit) {
+  INLINE(static void GreyToBlack(MarkBit markbit)) {
     markbit.Next().Clear();
   }
 
-  static inline void BlackToGrey(HeapObject* obj) {
+  INLINE(static void BlackToGrey(HeapObject* obj)) {
     BlackToGrey(MarkBitFrom(obj));
   }
 
-  static inline void AnyToGrey(MarkBit markbit) {
+  INLINE(static void AnyToGrey(MarkBit markbit)) {
     markbit.Set();
     markbit.Next().Set();
   }
@@ -194,7 +194,7 @@ class MarkingDeque {
   // Push the (marked) object on the marking stack if there is room,
   // otherwise mark the object as overflowed and wait for a rescan of the
   // heap.
-  inline void PushBlack(HeapObject* object) {
+  INLINE(void PushBlack(HeapObject* object)) {
     ASSERT(object->IsHeapObject());
     if (IsFull()) {
       Marking::BlackToGrey(object);
@@ -206,7 +206,7 @@ class MarkingDeque {
     }
   }
 
-  inline void PushGrey(HeapObject* object) {
+  INLINE(void PushGrey(HeapObject* object)) {
     ASSERT(object->IsHeapObject());
     if (IsFull()) {
       SetOverflowed();
@@ -216,7 +216,7 @@ class MarkingDeque {
     }
   }
 
-  inline HeapObject* Pop() {
+  INLINE(HeapObject* Pop()) {
     ASSERT(!IsEmpty());
     top_ = ((top_ - 1) & mask_);
     HeapObject* object = array_[top_];
@@ -224,7 +224,7 @@ class MarkingDeque {
     return object;
   }
 
-  inline void UnshiftGrey(HeapObject* object) {
+  INLINE(void UnshiftGrey(HeapObject* object)) {
     ASSERT(object->IsHeapObject());
     if (IsFull()) {
       SetOverflowed();
@@ -366,10 +366,10 @@ class SlotsBuffer {
     return buffer != NULL && buffer->chain_length_ >= kChainLengthThreshold;
   }
 
-  static bool AddTo(SlotsBufferAllocator* allocator,
-                    SlotsBuffer** buffer_address,
-                    ObjectSlot slot,
-                    AdditionMode mode) {
+  INLINE(static bool AddTo(SlotsBufferAllocator* allocator,
+                           SlotsBuffer** buffer_address,
+                           ObjectSlot slot,
+                           AdditionMode mode)) {
     SlotsBuffer* buffer = *buffer_address;
     if (buffer == NULL || buffer->IsFull()) {
       if (mode == FAIL_ON_OVERFLOW && ChainLengthThresholdReached(buffer)) {
@@ -634,7 +634,7 @@ class MarkCompactCollector {
         IsEvacuationCandidate();
   }
 
-  void EvictEvacuationCandidate(Page* page) {
+  INLINE(void EvictEvacuationCandidate(Page* page)) {
     if (FLAG_trace_fragmentation) {
       PrintF("Page %p is too popular. Disabling evacuation.\n",
              reinterpret_cast<void*>(page));
