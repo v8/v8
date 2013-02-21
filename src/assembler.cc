@@ -689,6 +689,21 @@ RelocIterator::RelocIterator(const CodeDesc& desc, int mode_mask) {
 // Implementation of RelocInfo
 
 
+#ifdef DEBUG
+bool RelocInfo::RequiresRelocation(const CodeDesc& desc) {
+  // Ensure there are no code targets or embedded objects present in the
+  // deoptimization entries, they would require relocation after code
+  // generation.
+  int mode_mask = RelocInfo::kCodeTargetMask |
+                  RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT) |
+                  RelocInfo::ModeMask(RelocInfo::GLOBAL_PROPERTY_CELL) |
+                  RelocInfo::kApplyMask;
+  RelocIterator it(desc, mode_mask);
+  return !it.done();
+}
+#endif
+
+
 #ifdef ENABLE_DISASSEMBLER
 const char* RelocInfo::RelocModeName(RelocInfo::Mode rmode) {
   switch (rmode) {
@@ -1380,6 +1395,21 @@ ExternalReference ExternalReference::page_flags(Page* page) {
 
 ExternalReference ExternalReference::ForDeoptEntry(Address entry) {
   return ExternalReference(entry);
+}
+
+
+double power_helper(double x, double y) {
+  int y_int = static_cast<int>(y);
+  if (y == y_int) {
+    return power_double_int(x, y_int);  // Returns 1 if exponent is 0.
+  }
+  if (y == 0.5) {
+    return (isinf(x)) ? V8_INFINITY : fast_sqrt(x + 0.0);  // Convert -0 to +0.
+  }
+  if (y == -0.5) {
+    return (isinf(x)) ? 0 : 1.0 / fast_sqrt(x + 0.0);  // Convert -0 to +0.
+  }
+  return power_double_double(x, y);
 }
 
 

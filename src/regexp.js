@@ -132,21 +132,13 @@ function BuildResultFromMatchInfo(lastMatchInfo, s) {
   var start = lastMatchInfo[CAPTURE0];
   var end = lastMatchInfo[CAPTURE1];
   var result = %_RegExpConstructResult(numResults, start, s);
-  if (start + 1 == end) {
-    result[0] = %_StringCharAt(s, start);
-  } else {
-    result[0] = %_SubString(s, start, end);
-  }
+  result[0] = %_SubString(s, start, end);
   var j = REGEXP_FIRST_CAPTURE + 2;
   for (var i = 1; i < numResults; i++) {
     start = lastMatchInfo[j++];
     if (start != -1) {
       end = lastMatchInfo[j];
-      if (start + 1 == end) {
-        result[i] = %_StringCharAt(s, start);
-      } else {
-        result[i] = %_SubString(s, start, end);
-      }
+      result[i] = %_SubString(s, start, end);
     }
     j++;
   }
@@ -270,7 +262,7 @@ function TrimRegExp(regexp) {
   if (!%_ObjectEquals(regexp_key, regexp)) {
     regexp_key = regexp;
     regexp_val =
-      new $RegExp(SubString(regexp.source, 2, regexp.source.length),
+      new $RegExp(%_SubString(regexp.source, 2, regexp.source.length),
                   (regexp.ignoreCase ? regexp.multiline ? "im" : "i"
                                      : regexp.multiline ? "m" : ""));
   }
@@ -300,9 +292,9 @@ function RegExpGetLastMatch() {
     return OVERRIDE_MATCH(lastMatchInfoOverride);
   }
   var regExpSubject = LAST_SUBJECT(lastMatchInfo);
-  return SubString(regExpSubject,
-                   lastMatchInfo[CAPTURE0],
-                   lastMatchInfo[CAPTURE1]);
+  return %_SubString(regExpSubject,
+                     lastMatchInfo[CAPTURE0],
+                     lastMatchInfo[CAPTURE1]);
 }
 
 
@@ -321,7 +313,7 @@ function RegExpGetLastParen() {
   var start = lastMatchInfo[CAPTURE(length - 2)];
   var end = lastMatchInfo[CAPTURE(length - 1)];
   if (start != -1 && end != -1) {
-    return SubString(regExpSubject, start, end);
+    return %_SubString(regExpSubject, start, end);
   }
   return "";
 }
@@ -338,7 +330,7 @@ function RegExpGetLeftContext() {
     start_index = OVERRIDE_POS(override);
     subject = OVERRIDE_SUBJECT(override);
   }
-  return SubString(subject, 0, start_index);
+  return %_SubString(subject, 0, start_index);
 }
 
 
@@ -354,7 +346,7 @@ function RegExpGetRightContext() {
     var match = OVERRIDE_MATCH(override);
     start_index = OVERRIDE_POS(override) + match.length;
   }
-  return SubString(subject, start_index, subject.length);
+  return %_SubString(subject, start_index, subject.length);
 }
 
 
@@ -374,7 +366,7 @@ function RegExpMakeCaptureGetter(n) {
     var matchStart = lastMatchInfo[CAPTURE(index)];
     var matchEnd = lastMatchInfo[CAPTURE(index + 1)];
     if (matchStart == -1 || matchEnd == -1) return '';
-    return SubString(LAST_SUBJECT(lastMatchInfo), matchStart, matchEnd);
+    return %_SubString(LAST_SUBJECT(lastMatchInfo), matchStart, matchEnd);
   };
 }
 

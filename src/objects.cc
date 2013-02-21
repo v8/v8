@@ -3635,6 +3635,7 @@ MaybeObject* JSObject::NormalizeProperties(PropertyNormalizationMode mode,
   }
 
   set_map(new_map);
+  map_of_this->NotifyLeafMapLayoutChange();
 
   set_properties(dictionary);
 
@@ -5303,6 +5304,7 @@ MaybeObject* Map::CopyDropDescriptors() {
   result->set_pre_allocated_property_fields(pre_allocated_property_fields());
   result->set_is_shared(false);
   result->ClearCodeCache(GetHeap());
+  NotifyLeafMapLayoutChange();
   return result;
 }
 
@@ -9512,40 +9514,99 @@ void Map::ZapPrototypeTransitions() {
 }
 
 
-Handle<DependentCodes> DependentCodes::Append(Handle<DependentCodes> codes,
-                                              Handle<Code> value) {
-  int append_index = codes->number_of_codes();
-  if (append_index > 0 && codes->code_at(append_index - 1) == *value) {
-    // Do not append the code if it is already in the array.
-    // It is sufficient to just check only the last element because
-    // we process embedded maps of an optimized code in one batch.
-    return codes;
-  }
-  if (codes->length() < kCodesIndex + append_index + 1) {
-    Factory* factory = codes->GetIsolate()->factory();
-    int capacity = kCodesIndex + append_index + 1;
-    if (capacity > 5) capacity = capacity * 5 / 4;
-    Handle<DependentCodes> new_codes = Handle<DependentCodes>::cast(
-        factory->CopySizeFixedArray(codes, capacity));
-    // The number of codes can change after GC.
-    append_index = codes->number_of_codes();
-    for (int i = 0; i < append_index; i++) {
-      codes->clear_code_at(i);
-    }
-    codes = new_codes;
-  }
-  codes->set_code_at(append_index, *value);
-  codes->set_number_of_codes(append_index + 1);
-  return codes;
+DependentCode::GroupStartIndexes::GroupStartIndexes(DependentCode* entries) {
+  Recompute(entries);
 }
 
 
-bool DependentCodes::Contains(Code* code) {
-  int limit = number_of_codes();
-  for (int i = 0; i < limit; i++) {
+void DependentCode::GroupStartIndexes::Recompute(DependentCode* entries) {
+  start_indexes_[0] = 0;
+  for (int g = 1; g <= kGroupCount; g++) {
+    int count = entries->number_of_entries(static_cast<DependencyGroup>(g - 1));
+    start_indexes_[g] = start_indexes_[g - 1] + count;
+  }
+}
+
+
+Handle<DependentCode> DependentCode::Insert(Handle<DependentCode> entries,
+                                            DependencyGroup group,
+                                            Handle<Code> value) {
+  GroupStartIndexes starts(*entries);
+  int start = starts.at(group);
+  int end = starts.at(group + 1);
+  int number_of_entries = starts.number_of_entries();
+  if (start < end && entries->code_at(end - 1) == *value) {
+    // Do not append the code if it is already in the array.
+    // It is sufficient to just check only the last element because
+    // we process embedded maps of an optimized code in one batch.
+    return entries;
+  }
+  if (entries->length() < kCodesStartIndex + number_of_entries + 1) {
+    Factory* factory = entries->GetIsolate()->factory();
+    int capacity = kCodesStartIndex + number_of_entries + 1;
+    if (capacity > 5) capacity = capacity * 5 / 4;
+    Handle<DependentCode> new_entries = Handle<DependentCode>::cast(
+        factory->CopySizeFixedArray(entries, capacity));
+    // The number of codes can change after GC.
+    starts.Recompute(*entries);
+    start = starts.at(group);
+    end = starts.at(group + 1);
+    number_of_entries = starts.number_of_entries();
+    for (int i = 0; i < number_of_entries; i++) {
+      entries->clear_code_at(i);
+    }
+    // If the old fixed array was empty, we need to reset counters of the
+    // new array.
+    if (number_of_entries == 0) {
+      for (int g = 0; g < kGroupCount; g++) {
+        new_entries->set_number_of_entries(static_cast<DependencyGroup>(g), 0);
+      }
+    }
+    entries = new_entries;
+  }
+  entries->ExtendGroup(group);
+  entries->set_code_at(end, *value);
+  entries->set_number_of_entries(group, end + 1 - start);
+  return entries;
+}
+
+
+bool DependentCode::Contains(DependencyGroup group, Code* code) {
+  GroupStartIndexes starts(this);
+  int number_of_entries = starts.at(kGroupCount);
+  for (int i = 0; i < number_of_entries; i++) {
     if (code_at(i) == code) return true;
   }
   return false;
+}
+
+
+class DeoptimizeDependentCodeFilter : public OptimizedFunctionFilter {
+ public:
+  virtual bool TakeFunction(JSFunction* function) {
+    return function->code()->marked_for_deoptimization();
+  }
+};
+
+
+void DependentCode::DeoptimizeDependentCodeGroup(
+    DependentCode::DependencyGroup group) {
+  AssertNoAllocation no_allocation_scope;
+  DependentCode::GroupStartIndexes starts(this);
+  int start = starts.at(group);
+  int end = starts.at(group + 1);
+  int number_of_entries = starts.at(DependentCode::kGroupCount);
+  if (start == end) return;
+  for (int i = start; i < end; i++) {
+    Code* code = code_at(i);
+    code->set_marked_for_deoptimization(true);
+  }
+  for (int src = end, dst = start; src < number_of_entries; src++, dst++) {
+    set_code_at(dst, code_at(src));
+  }
+  set_number_of_entries(group, 0);
+  DeoptimizeDependentCodeFilter filter;
+  Deoptimizer::DeoptimizeAllFunctionsWith(&filter);
 }
 
 

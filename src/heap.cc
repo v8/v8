@@ -2205,8 +2205,8 @@ MaybeObject* Heap::AllocateMap(InstanceType instance_type,
   map->set_inobject_properties(0);
   map->set_pre_allocated_property_fields(0);
   map->set_code_cache(empty_fixed_array(), SKIP_WRITE_BARRIER);
-  map->set_dependent_codes(DependentCodes::cast(empty_fixed_array()),
-                           SKIP_WRITE_BARRIER);
+  map->set_dependent_code(DependentCode::cast(empty_fixed_array()),
+                          SKIP_WRITE_BARRIER);
   map->init_back_pointer(undefined_value());
   map->set_unused_property_fields(0);
   map->set_instance_descriptors(empty_descriptor_array());
@@ -2342,18 +2342,18 @@ bool Heap::CreateInitialMaps() {
 
   // Fix the instance_descriptors for the existing maps.
   meta_map()->set_code_cache(empty_fixed_array());
-  meta_map()->set_dependent_codes(DependentCodes::cast(empty_fixed_array()));
+  meta_map()->set_dependent_code(DependentCode::cast(empty_fixed_array()));
   meta_map()->init_back_pointer(undefined_value());
   meta_map()->set_instance_descriptors(empty_descriptor_array());
 
   fixed_array_map()->set_code_cache(empty_fixed_array());
-  fixed_array_map()->set_dependent_codes(
-      DependentCodes::cast(empty_fixed_array()));
+  fixed_array_map()->set_dependent_code(
+      DependentCode::cast(empty_fixed_array()));
   fixed_array_map()->init_back_pointer(undefined_value());
   fixed_array_map()->set_instance_descriptors(empty_descriptor_array());
 
   oddball_map()->set_code_cache(empty_fixed_array());
-  oddball_map()->set_dependent_codes(DependentCodes::cast(empty_fixed_array()));
+  oddball_map()->set_dependent_code(DependentCode::cast(empty_fixed_array()));
   oddball_map()->init_back_pointer(undefined_value());
   oddball_map()->set_instance_descriptors(empty_descriptor_array());
 

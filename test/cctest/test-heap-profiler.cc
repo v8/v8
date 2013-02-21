@@ -360,6 +360,45 @@ TEST(HeapSnapshotInternalReferences) {
 #define CHECK_NE_SNAPSHOT_OBJECT_ID(a, b) \
   CHECK((a) != (b))  // NOLINT
 
+TEST(HeapSnapshotAddressReuse) {
+  v8::HandleScope scope;
+  LocalContext env;
+
+  CompileRun(
+      "function A() {}\n"
+      "var a = [];\n"
+      "for (var i = 0; i < 10000; ++i)\n"
+      "  a[i] = new A();\n");
+  const v8::HeapSnapshot* snapshot1 =
+      v8::HeapProfiler::TakeSnapshot(v8_str("snapshot1"));
+  v8::SnapshotObjectId maxId1 = snapshot1->GetMaxSnapshotJSObjectId();
+
+  CompileRun(
+      "for (var i = 0; i < 10000; ++i)\n"
+      "  a[i] = new A();\n");
+  HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
+
+  const v8::HeapSnapshot* snapshot2 =
+      v8::HeapProfiler::TakeSnapshot(v8_str("snapshot2"));
+  const v8::HeapGraphNode* global2 = GetGlobalObject(snapshot2);
+
+  const v8::HeapGraphNode* array_node =
+      GetProperty(global2, v8::HeapGraphEdge::kProperty, "a");
+  CHECK_NE(NULL, array_node);
+  int wrong_count = 0;
+  for (int i = 0, count = array_node->GetChildrenCount(); i < count; ++i) {
+    const v8::HeapGraphEdge* prop = array_node->GetChild(i);
+    if (prop->GetType() != v8::HeapGraphEdge::kElement)
+      continue;
+    v8::SnapshotObjectId id = prop->GetToNode()->GetId();
+    if (id < maxId1)
+      ++wrong_count;
+  }
+  // FIXME: Object ids should be unique but it is not so at the moment.
+  CHECK_NE(0, wrong_count);
+}
+
+
 TEST(HeapEntryIdsAndArrayShift) {
   v8::HandleScope scope;
   LocalContext env;

@@ -1717,6 +1717,12 @@ LInstruction* LChunkBuilder::DoNumericConstraint(HNumericConstraint* instr) {
 }
 
 
+LInstruction* LChunkBuilder::DoInductionVariableAnnotation(
+    HInductionVariableAnnotation* instr) {
+  return NULL;
+}
+
+
 LInstruction* LChunkBuilder::DoBoundsCheck(HBoundsCheck* instr) {
   return AssignEnvironment(new(zone()) LBoundsCheck(
       UseRegisterOrConstantAtStart(instr->index()),

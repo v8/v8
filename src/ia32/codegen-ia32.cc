@@ -94,7 +94,7 @@ UnaryMathFunction CreateTranscendentalFunction(TranscendentalCache::Type type) {
 
   CodeDesc desc;
   masm.GetCode(&desc);
-  ASSERT(desc.reloc_size == 0);
+  ASSERT(!RelocInfo::RequiresRelocation(desc));
 
   CPU::FlushICache(buffer, actual_size);
   OS::ProtectCode(buffer, actual_size);
@@ -132,6 +132,7 @@ UnaryMathFunction CreateExpFunction() {
 
   CodeDesc desc;
   masm.GetCode(&desc);
+  ASSERT(!RelocInfo::RequiresRelocation(desc));
 
   CPU::FlushICache(buffer, actual_size);
   OS::ProtectCode(buffer, actual_size);
@@ -164,7 +165,7 @@ UnaryMathFunction CreateSqrtFunction() {
 
   CodeDesc desc;
   masm.GetCode(&desc);
-  ASSERT(desc.reloc_size == 0);
+  ASSERT(!RelocInfo::RequiresRelocation(desc));
 
   CPU::FlushICache(buffer, actual_size);
   OS::ProtectCode(buffer, actual_size);
@@ -374,7 +375,7 @@ OS::MemCopyFunction CreateMemCopyFunction() {
 
   CodeDesc desc;
   masm.GetCode(&desc);
-  ASSERT(desc.reloc_size == 0);
+  ASSERT(!RelocInfo::RequiresRelocation(desc));
 
   CPU::FlushICache(buffer, actual_size);
   OS::ProtectCode(buffer, actual_size);

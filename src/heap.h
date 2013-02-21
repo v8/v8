@@ -1373,10 +1373,10 @@ class Heap {
   MUST_USE_RESULT MaybeObject* CreateSymbol(String* str);
 
   // Write barrier support for address[offset] = o.
-  inline void RecordWrite(Address address, int offset);
+  INLINE(void RecordWrite(Address address, int offset));
 
   // Write barrier support for address[start : start + len[ = o.
-  inline void RecordWrites(Address address, int start, int len);
+  INLINE(void RecordWrites(Address address, int start, int len));
 
   // Given an address occupied by a live code object, return that object.
   Object* FindCodeObject(Address a);

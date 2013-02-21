@@ -1060,6 +1060,13 @@ class StringCharCodeAtGenerator {
   void GenerateSlow(MacroAssembler* masm,
                     const RuntimeCallHelper& call_helper);
 
+  // Skip handling slow case and directly jump to bailout.
+  void SkipSlow(MacroAssembler* masm, Label* bailout) {
+    masm->bind(&index_not_smi_);
+    masm->bind(&call_runtime_);
+    masm->jmp(bailout);
+  }
+
  private:
   Register object_;
   Register index_;
@@ -1099,6 +1106,12 @@ class StringCharFromCodeGenerator {
   // deferred code). Always jumps back to the fast case.
   void GenerateSlow(MacroAssembler* masm,
                     const RuntimeCallHelper& call_helper);
+
+  // Skip handling slow case and directly jump to bailout.
+  void SkipSlow(MacroAssembler* masm, Label* bailout) {
+    masm->bind(&slow_case_);
+    masm->jmp(bailout);
+  }
 
  private:
   Register code_;
@@ -1142,13 +1155,25 @@ class StringCharAtGenerator {
 
   // Generates the fast case code. On the fallthrough path |result|
   // register contains the result.
-  void GenerateFast(MacroAssembler* masm);
+  void GenerateFast(MacroAssembler* masm) {
+    char_code_at_generator_.GenerateFast(masm);
+    char_from_code_generator_.GenerateFast(masm);
+  }
 
   // Generates the slow case code. Must not be naturally
   // reachable. Expected to be put after a ret instruction (e.g., in
   // deferred code). Always jumps back to the fast case.
   void GenerateSlow(MacroAssembler* masm,
-                    const RuntimeCallHelper& call_helper);
+                    const RuntimeCallHelper& call_helper) {
+    char_code_at_generator_.GenerateSlow(masm, call_helper);
+    char_from_code_generator_.GenerateSlow(masm, call_helper);
+  }
+
+  // Skip handling slow case and directly jump to bailout.
+  void SkipSlow(MacroAssembler* masm, Label* bailout) {
+    char_code_at_generator_.SkipSlow(masm, bailout);
+    char_from_code_generator_.SkipSlow(masm, bailout);
+  }
 
  private:
   StringCharCodeAtGenerator char_code_at_generator_;

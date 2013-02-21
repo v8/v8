@@ -42,6 +42,7 @@
 #include "execution.h"
 #include "global-handles.h"
 #include "heap-profiler.h"
+#include "heap-snapshot-generator-inl.h"
 #include "messages.h"
 #ifdef COMPRESS_STARTUP_DATA_BZ2
 #include "natives.h"

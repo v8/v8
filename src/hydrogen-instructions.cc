@@ -27,6 +27,7 @@
 
 #include "v8.h"
 
+#include "double.h"
 #include "factory.h"
 #include "hydrogen.h"
 
@@ -843,6 +844,27 @@ void HNumericConstraint::PrintDataTo(StringStream* stream) {
 }
 
 
+HInductionVariableAnnotation* HInductionVariableAnnotation::AddToGraph(
+    HPhi* phi,
+    NumericRelation relation,
+    int operand_index) {
+  HInductionVariableAnnotation* result =
+      new(phi->block()->zone()) HInductionVariableAnnotation(phi, relation,
+                                                             operand_index);
+  result->InsertAfter(phi->block()->first());
+  return result;
+}
+
+
+void HInductionVariableAnnotation::PrintDataTo(StringStream* stream) {
+  stream->Add("(");
+  RedefinedOperand()->PrintNameTo(stream);
+  stream->Add(" %s ", relation().Mnemonic());
+  induction_base()->PrintNameTo(stream);
+  stream->Add(")");
+}
+
+
 void HDummyUse::PrintDataTo(StringStream* stream) {
   value()->PrintNameTo(stream);
 }
@@ -1554,14 +1576,13 @@ Range* HMod::InferRange(Zone* zone) {
 
 void HPhi::AddInformativeDefinitions() {
   if (OperandCount() == 2) {
+    // If one of the operands is an OSR block give up (this cannot be an
+    // induction variable).
+    if (OperandAt(0)->block()->is_osr_entry() ||
+        OperandAt(1)->block()->is_osr_entry()) return;
+
     for (int operand_index = 0; operand_index < 2; operand_index++) {
       int other_operand_index = (operand_index + 1) % 2;
-
-      // Add an idef that "discards" the OSR entry block branch.
-      if (OperandAt(operand_index)->block()->is_osr_entry()) {
-        HNumericConstraint::AddToGraph(
-            this, NumericRelation::Eq(), OperandAt(other_operand_index));
-      }
 
       static NumericRelation relations[] = {
         NumericRelation::Ge(),
@@ -1574,13 +1595,33 @@ void HPhi::AddInformativeDefinitions() {
       for (int relation_index = 0; relation_index < 2; relation_index++) {
         if (OperandAt(operand_index)->IsRelationTrue(relations[relation_index],
                                                      this)) {
-          HNumericConstraint::AddToGraph(this,
-                                         relations[relation_index],
-                                         OperandAt(other_operand_index));
+          HInductionVariableAnnotation::AddToGraph(this,
+                                                   relations[relation_index],
+                                                   other_operand_index);
         }
       }
     }
   }
+}
+
+
+bool HPhi::IsRelationTrueInternal(NumericRelation relation, HValue* other) {
+  if (CheckFlag(kNumericConstraintEvaluationInProgress)) return false;
+
+  SetFlag(kNumericConstraintEvaluationInProgress);
+  bool result = true;
+  for (int i = 0; i < OperandCount(); i++) {
+    // Skip OSR entry blocks
+    if (OperandAt(i)->block()->is_osr_entry()) continue;
+
+    if (!OperandAt(i)->IsRelationTrue(relation, other)) {
+      result = false;
+      break;
+    }
+  }
+  ClearFlag(kNumericConstraintEvaluationInProgress);
+
+  return result;
 }
 
 
@@ -2744,24 +2785,20 @@ bool HStoreKeyed::NeedsCanonicalization() {
 
 
 #define H_CONSTANT_INT32(val)                                                  \
-new(zone) HConstant(FACTORY->NewNumberFromInt(val, TENURED),                   \
-                    Representation::Integer32())
+new(zone) HConstant(static_cast<int32_t>(val), Representation::Integer32())
 #define H_CONSTANT_DOUBLE(val)                                                 \
-new(zone) HConstant(FACTORY->NewNumber(val, TENURED),                          \
-                    Representation::Double())
+new(zone) HConstant(static_cast<double>(val), Representation::Double())
 
 #define DEFINE_NEW_H_SIMPLE_ARITHMETIC_INSTR(HInstr, op)                       \
-HInstruction* HInstr::New##HInstr(Zone* zone,                                  \
-                                  HValue* context,                             \
-                                  HValue* left,                                \
-                                  HValue* right) {                             \
-  if (left->IsConstant() && right->IsConstant()) {                             \
+HInstruction* HInstr::New(                                                     \
+    Zone* zone, HValue* context, HValue* left, HValue* right) {                \
+  if (FLAG_fold_constants && left->IsConstant() && right->IsConstant()) {      \
     HConstant* c_left = HConstant::cast(left);                                 \
     HConstant* c_right = HConstant::cast(right);                               \
     if ((c_left->HasNumberValue() && c_right->HasNumberValue())) {             \
       double double_res = c_left->DoubleValue() op c_right->DoubleValue();     \
       if (TypeInfo::IsInt32Double(double_res)) {                               \
-        return H_CONSTANT_INT32(static_cast<int32_t>(double_res));             \
+        return H_CONSTANT_INT32(double_res);                                   \
       }                                                                        \
       return H_CONSTANT_DOUBLE(double_res);                                    \
     }                                                                          \
@@ -2777,11 +2814,168 @@ DEFINE_NEW_H_SIMPLE_ARITHMETIC_INSTR(HSub, -)
 #undef DEFINE_NEW_H_SIMPLE_ARITHMETIC_INSTR
 
 
-HInstruction* HMod::NewHMod(Zone* zone,
-                            HValue* context,
-                            HValue* left,
-                            HValue* right) {
-  if (left->IsConstant() && right->IsConstant()) {
+HInstruction* HStringAdd::New(
+    Zone* zone, HValue* context, HValue* left, HValue* right) {
+  if (FLAG_fold_constants && left->IsConstant() && right->IsConstant()) {
+    HConstant* c_right = HConstant::cast(right);
+    HConstant* c_left = HConstant::cast(left);
+    if (c_left->HasStringValue() && c_right->HasStringValue()) {
+      return new(zone) HConstant(FACTORY->NewConsString(c_left->StringValue(),
+                                                        c_right->StringValue()),
+                                 Representation::Tagged());
+    }
+  }
+  return new(zone) HStringAdd(context, left, right);
+}
+
+
+HInstruction* HStringCharFromCode::New(
+    Zone* zone, HValue* context, HValue* char_code) {
+  if (FLAG_fold_constants && char_code->IsConstant()) {
+    HConstant* c_code = HConstant::cast(char_code);
+    if (c_code->HasNumberValue()) {
+      if (isfinite(c_code->DoubleValue())) {
+        uint32_t code = c_code->NumberValueAsInteger32() & 0xffff;
+        return new(zone) HConstant(LookupSingleCharacterStringFromCode(code),
+                                   Representation::Tagged());
+      }
+      return new(zone) HConstant(FACTORY->empty_string(),
+                                 Representation::Tagged());
+    }
+  }
+  return new(zone) HStringCharFromCode(context, char_code);
+}
+
+
+HInstruction* HStringLength::New(Zone* zone, HValue* string) {
+  if (FLAG_fold_constants && string->IsConstant()) {
+    HConstant* c_string = HConstant::cast(string);
+    if (c_string->HasStringValue()) {
+      return H_CONSTANT_INT32(c_string->StringValue()->length());
+    }
+  }
+  return new(zone) HStringLength(string);
+}
+
+
+HInstruction* HUnaryMathOperation::New(
+    Zone* zone, HValue* context, HValue* value, BuiltinFunctionId op) {
+  do {
+    if (!FLAG_fold_constants) break;
+    if (!value->IsConstant()) break;
+    HConstant* constant = HConstant::cast(value);
+    if (!constant->HasNumberValue()) break;
+    double d = constant->DoubleValue();
+    if (isnan(d)) {  // NaN poisons everything.
+      return H_CONSTANT_DOUBLE(OS::nan_value());
+    }
+    if (isinf(d)) {  // +Infinity and -Infinity.
+      switch (op) {
+        case kMathSin:
+        case kMathCos:
+        case kMathTan:
+          return H_CONSTANT_DOUBLE(OS::nan_value());
+        case kMathExp:
+          return H_CONSTANT_DOUBLE((d > 0.0) ? d : 0.0);
+        case kMathLog:
+        case kMathSqrt:
+          return H_CONSTANT_DOUBLE((d > 0.0) ? d : OS::nan_value());
+        case kMathPowHalf:
+        case kMathAbs:
+          return H_CONSTANT_DOUBLE((d > 0.0) ? d : -d);
+        case kMathRound:
+        case kMathFloor:
+          return H_CONSTANT_DOUBLE(d);
+        default:
+          UNREACHABLE();
+          break;
+      }
+    }
+    switch (op) {
+      case kMathSin:
+        return H_CONSTANT_DOUBLE(fast_sin(d));
+      case kMathCos:
+        return H_CONSTANT_DOUBLE(fast_cos(d));
+      case kMathTan:
+        return H_CONSTANT_DOUBLE(fast_tan(d));
+      case kMathExp:
+        return H_CONSTANT_DOUBLE(fast_exp(d));
+      case kMathLog:
+        return H_CONSTANT_DOUBLE(fast_log(d));
+      case kMathSqrt:
+        return H_CONSTANT_DOUBLE(fast_sqrt(d));
+      case kMathPowHalf:
+        return H_CONSTANT_DOUBLE(power_double_double(d, 0.5));
+      case kMathAbs:
+        return H_CONSTANT_DOUBLE((d >= 0.0) ? d + 0.0 : -d);
+      case kMathRound:
+        // -0.5 .. -0.0 round to -0.0.
+        if ((d >= -0.5 && Double(d).Sign() < 0)) return H_CONSTANT_DOUBLE(-0.0);
+        // Doubles are represented as Significant * 2 ^ Exponent. If the
+        // Exponent is not negative, the double value is already an integer.
+        if (Double(d).Exponent() >= 0) return H_CONSTANT_DOUBLE(d);
+        return H_CONSTANT_DOUBLE(floor(d + 0.5));
+      case kMathFloor:
+        return H_CONSTANT_DOUBLE(floor(d));
+      default:
+        UNREACHABLE();
+        break;
+    }
+  } while (false);
+  return new(zone) HUnaryMathOperation(context, value, op);
+}
+
+
+HInstruction* HPower::New(Zone* zone, HValue* left, HValue* right) {
+  if (FLAG_fold_constants && left->IsConstant() && right->IsConstant()) {
+    HConstant* c_left = HConstant::cast(left);
+    HConstant* c_right = HConstant::cast(right);
+    if (c_left->HasNumberValue() && c_right->HasNumberValue()) {
+      double result = power_helper(c_left->DoubleValue(),
+                                   c_right->DoubleValue());
+      return H_CONSTANT_DOUBLE(isnan(result) ?  OS::nan_value() : result);
+    }
+  }
+  return new(zone) HPower(left, right);
+}
+
+
+HInstruction* HMathMinMax::New(
+    Zone* zone, HValue* context, HValue* left, HValue* right, Operation op) {
+  if (FLAG_fold_constants && left->IsConstant() && right->IsConstant()) {
+    HConstant* c_left = HConstant::cast(left);
+    HConstant* c_right = HConstant::cast(right);
+    if (c_left->HasNumberValue() && c_right->HasNumberValue()) {
+      double d_left = c_left->DoubleValue();
+      double d_right = c_right->DoubleValue();
+      if (op == kMathMin) {
+        if (d_left > d_right) return H_CONSTANT_DOUBLE(d_right);
+        if (d_left < d_right) return H_CONSTANT_DOUBLE(d_left);
+        if (d_left == d_right) {
+          // Handle +0 and -0.
+          return H_CONSTANT_DOUBLE((Double(d_left).Sign() == -1) ? d_left
+                                                                 : d_right);
+        }
+      } else {
+        if (d_left < d_right) return H_CONSTANT_DOUBLE(d_right);
+        if (d_left > d_right) return H_CONSTANT_DOUBLE(d_left);
+        if (d_left == d_right) {
+          // Handle +0 and -0.
+          return H_CONSTANT_DOUBLE((Double(d_left).Sign() == -1) ? d_right
+                                                                 : d_left);
+        }
+      }
+      // All comparisons failed, must be NaN.
+      return H_CONSTANT_DOUBLE(OS::nan_value());
+    }
+  }
+  return new(zone) HMathMinMax(context, left, right, op);
+}
+
+
+HInstruction* HMod::New(
+    Zone* zone, HValue* context, HValue* left, HValue* right) {
+  if (FLAG_fold_constants && left->IsConstant() && right->IsConstant()) {
     HConstant* c_left = HConstant::cast(left);
     HConstant* c_right = HConstant::cast(right);
     if (c_left->HasInteger32Value() && c_right->HasInteger32Value()) {
@@ -2800,21 +2994,23 @@ HInstruction* HMod::NewHMod(Zone* zone,
 }
 
 
-HInstruction* HDiv::NewHDiv(Zone* zone,
-                            HValue* context,
-                            HValue* left,
-                            HValue* right) {
+HInstruction* HDiv::New(
+    Zone* zone, HValue* context, HValue* left, HValue* right) {
   // If left and right are constant values, try to return a constant value.
-  if (left->IsConstant() && right->IsConstant()) {
+  if (FLAG_fold_constants && left->IsConstant() && right->IsConstant()) {
     HConstant* c_left = HConstant::cast(left);
     HConstant* c_right = HConstant::cast(right);
     if ((c_left->HasNumberValue() && c_right->HasNumberValue())) {
       if (c_right->DoubleValue() != 0) {
         double double_res = c_left->DoubleValue() / c_right->DoubleValue();
         if (TypeInfo::IsInt32Double(double_res)) {
-          return H_CONSTANT_INT32(static_cast<int32_t>(double_res));
+          return H_CONSTANT_INT32(double_res);
         }
         return H_CONSTANT_DOUBLE(double_res);
+      } else {
+        int sign = Double(c_left->DoubleValue()).Sign() *
+                   Double(c_right->DoubleValue()).Sign();  // Right could be -0.
+        return H_CONSTANT_DOUBLE(sign * V8_INFINITY);
       }
     }
   }
@@ -2822,12 +3018,9 @@ HInstruction* HDiv::NewHDiv(Zone* zone,
 }
 
 
-HInstruction* HBitwise::NewHBitwise(Zone* zone,
-                                    Token::Value op,
-                                    HValue* context,
-                                    HValue* left,
-                                    HValue* right) {
-  if (left->IsConstant() && right->IsConstant()) {
+HInstruction* HBitwise::New(
+    Zone* zone, Token::Value op, HValue* context, HValue* left, HValue* right) {
+  if (FLAG_fold_constants && left->IsConstant() && right->IsConstant()) {
     HConstant* c_left = HConstant::cast(left);
     HConstant* c_right = HConstant::cast(right);
     if ((c_left->HasNumberValue() && c_right->HasNumberValue())) {
@@ -2856,11 +3049,9 @@ HInstruction* HBitwise::NewHBitwise(Zone* zone,
 
 
 #define DEFINE_NEW_H_BITWISE_INSTR(HInstr, result)                             \
-HInstruction* HInstr::New##HInstr(Zone* zone,                                  \
-                                  HValue* context,                             \
-                                  HValue* left,                                \
-                                  HValue* right) {                             \
-  if (left->IsConstant() && right->IsConstant()) {                             \
+HInstruction* HInstr::New(                                                     \
+    Zone* zone, HValue* context, HValue* left, HValue* right) {                \
+  if (FLAG_fold_constants && left->IsConstant() && right->IsConstant()) {      \
     HConstant* c_left = HConstant::cast(left);                                 \
     HConstant* c_right = HConstant::cast(right);                               \
     if ((c_left->HasNumberValue() && c_right->HasNumberValue())) {             \
@@ -2879,19 +3070,16 @@ c_left->NumberValueAsInteger32() << (c_right->NumberValueAsInteger32() & 0x1f))
 #undef DEFINE_NEW_H_BITWISE_INSTR
 
 
-HInstruction* HShr::NewHShr(Zone* zone,
-                            HValue* context,
-                            HValue* left,
-                            HValue* right) {
-  if (left->IsConstant() && right->IsConstant()) {
+HInstruction* HShr::New(
+    Zone* zone, HValue* context, HValue* left, HValue* right) {
+  if (FLAG_fold_constants && left->IsConstant() && right->IsConstant()) {
     HConstant* c_left = HConstant::cast(left);
     HConstant* c_right = HConstant::cast(right);
     if ((c_left->HasNumberValue() && c_right->HasNumberValue())) {
       int32_t left_val = c_left->NumberValueAsInteger32();
       int32_t right_val = c_right->NumberValueAsInteger32() & 0x1f;
       if ((right_val == 0) && (left_val < 0)) {
-        return H_CONSTANT_DOUBLE(
-            static_cast<double>(static_cast<uint32_t>(left_val)));
+        return H_CONSTANT_DOUBLE(static_cast<uint32_t>(left_val));
       }
       return H_CONSTANT_INT32(static_cast<uint32_t>(left_val) >> right_val);
     }

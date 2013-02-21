@@ -426,7 +426,7 @@ void StaticMarkingVisitor<StaticVisitor>::MarkMapContents(
   // Mark prototype dependent codes array but do not push it onto marking
   // stack, this will make references from it weak. We will clean dead
   // codes when we iterate over maps in ClearNonLiveTransitions.
-  Object** slot = HeapObject::RawField(map, Map::kDependentCodesOffset);
+  Object** slot = HeapObject::RawField(map, Map::kDependentCodeOffset);
   HeapObject* obj = HeapObject::cast(*slot);
   heap->mark_compact_collector()->RecordSlot(slot, slot, obj);
   StaticVisitor::MarkObjectWithoutPush(heap, obj);

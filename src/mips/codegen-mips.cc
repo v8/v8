@@ -101,6 +101,7 @@ UnaryMathFunction CreateExpFunction() {
 
   CodeDesc desc;
   masm.GetCode(&desc);
+  ASSERT(!RelocInfo::RequiresRelocation(desc));
 
   CPU::FlushICache(buffer, actual_size);
   OS::ProtectCode(buffer, actual_size);

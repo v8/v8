@@ -213,6 +213,7 @@ DEFINE_bool(array_bounds_checks_elimination, true,
 DEFINE_bool(array_index_dehoisting, true,
             "perform array index dehoisting")
 DEFINE_bool(dead_code_elimination, true, "use dead code elimination")
+DEFINE_bool(fold_constants, true, "use constant folding")
 DEFINE_bool(trace_dead_code_elimination, false, "trace dead code elimination")
 DEFINE_bool(unreachable_code_elimination, false,
             "eliminate unreachable code (hidden behind soft deopts)")
@@ -245,6 +246,9 @@ DEFINE_int(parallel_recompilation_queue_length, 2,
 DEFINE_bool(manual_parallel_recompilation, false,
             "disable automatic optimization")
 DEFINE_implication(manual_parallel_recompilation, parallel_recompilation)
+DEFINE_bool(omit_prototype_checks_for_leaf_maps, true,
+            "do not emit prototype checks if all prototypes have leaf maps, "
+            "deoptimize the optimized code if the layout of the maps changes.")
 
 // Experimental profiler changes.
 DEFINE_bool(experimental_profiler, true, "enable all profiler experiments")

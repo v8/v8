@@ -84,6 +84,7 @@ SOURCES = {
     global-handles.cc
     handles.cc
     heap-profiler.cc
+    heap-snapshot-generator.cc
     heap.cc
     hydrogen-instructions.cc
     hydrogen.cc
