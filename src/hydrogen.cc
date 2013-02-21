@@ -3620,6 +3620,16 @@ void TestContext::BuildBranch(HValue* value) {
   if (value != NULL && value->CheckFlag(HValue::kIsArguments)) {
     builder->Bailout("arguments object value in a test context");
   }
+  if (value->IsConstant()) {
+    HConstant* constant_value = HConstant::cast(value);
+    if (constant_value->ToBoolean()) {
+      builder->current_block()->Goto(if_true(), builder->function_state());
+    } else {
+      builder->current_block()->Goto(if_false(), builder->function_state());
+    }
+    builder->set_current_block(NULL);
+    return;
+  }
   HBasicBlock* empty_true = builder->graph()->CreateBasicBlock();
   HBasicBlock* empty_false = builder->graph()->CreateBasicBlock();
   TypeFeedbackId test_id = condition()->test_id();
@@ -3627,8 +3637,8 @@ void TestContext::BuildBranch(HValue* value) {
   HBranch* test = new(zone()) HBranch(value, empty_true, empty_false, expected);
   builder->current_block()->Finish(test);
 
-  empty_true->Goto(if_true(), owner()->function_state());
-  empty_false->Goto(if_false(), owner()->function_state());
+  empty_true->Goto(if_true(), builder->function_state());
+  empty_false->Goto(if_false(), builder->function_state());
   builder->set_current_block(NULL);
 }
 
@@ -9037,6 +9047,17 @@ void HOptimizedGraphBuilder::VisitLogicalExpression(BinaryOperation* expr) {
   } else if (ast_context()->IsValue()) {
     CHECK_ALIVE(VisitForValue(expr->left()));
     ASSERT(current_block() != NULL);
+    HValue* left_value = Top();
+
+    if (left_value->IsConstant()) {
+      HConstant* left_constant = HConstant::cast(left_value);
+      if ((is_logical_and && left_constant->ToBoolean()) ||
+          (!is_logical_and && !left_constant->ToBoolean())) {
+        Drop(1);  // left_value.
+        CHECK_BAILOUT(VisitForValue(expr->right()));
+      }
+      return ast_context()->ReturnValue(Pop());
+    }
 
     // We need an extra block to maintain edge-split form.
     HBasicBlock* empty_block = graph()->CreateBasicBlock();
@@ -9044,8 +9065,8 @@ void HOptimizedGraphBuilder::VisitLogicalExpression(BinaryOperation* expr) {
     TypeFeedbackId test_id = expr->left()->test_id();
     ToBooleanStub::Types expected(oracle()->ToBooleanTypes(test_id));
     HBranch* test = is_logical_and
-      ? new(zone()) HBranch(Top(), eval_right, empty_block, expected)
-      : new(zone()) HBranch(Top(), empty_block, eval_right, expected);
+      ? new(zone()) HBranch(left_value, eval_right, empty_block, expected)
+      : new(zone()) HBranch(left_value, empty_block, eval_right, expected);
     current_block()->Finish(test);
 
     set_current_block(eval_right);

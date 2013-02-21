@@ -2784,11 +2784,9 @@ bool HStoreKeyed::NeedsCanonicalization() {
 
 
 #define H_CONSTANT_INT32(val)                                                  \
-new(zone) HConstant(FACTORY->NewNumberFromInt(val, TENURED),                   \
-                    Representation::Integer32())
+new(zone) HConstant(val, Representation::Integer32())
 #define H_CONSTANT_DOUBLE(val)                                                 \
-new(zone) HConstant(FACTORY->NewNumber(val, TENURED),                          \
-                    Representation::Double())
+new(zone) HConstant(val, Representation::Double())
 
 #define DEFINE_NEW_H_SIMPLE_ARITHMETIC_INSTR(HInstr, op)                       \
 HInstruction* HInstr::New##HInstr(Zone* zone,                                  \
@@ -2933,7 +2931,8 @@ HInstruction* HShr::NewHShr(Zone* zone,
         return H_CONSTANT_DOUBLE(
             static_cast<double>(static_cast<uint32_t>(left_val)));
       }
-      return H_CONSTANT_INT32(static_cast<uint32_t>(left_val) >> right_val);
+      return H_CONSTANT_INT32(static_cast<int32_t>(
+          static_cast<uint32_t>(left_val) >> right_val));
     }
   }
   return new(zone) HShr(context, left, right);
