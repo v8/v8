@@ -784,11 +784,16 @@ HBoundsCheck* HGraphBuilder::AddBoundsCheck(HValue* index,
                                             HValue* length,
                                             BoundsCheckKeyMode key_mode,
                                             Representation r) {
-  HCheckSmiOrInt32* checked_index =
-      new(graph()->zone()) HCheckSmiOrInt32(index);
-  AddInstruction(checked_index);
+  if (!index->type().IsSmi()) {
+    index = new(graph()->zone()) HCheckSmiOrInt32(index);
+    AddInstruction(HCheckSmiOrInt32::cast(index));
+  }
+  if (!length->type().IsSmi()) {
+    length = new(graph()->zone()) HCheckSmiOrInt32(length);
+    AddInstruction(HCheckSmiOrInt32::cast(length));
+  }
   HBoundsCheck* result = new(graph()->zone()) HBoundsCheck(
-      checked_index, length, key_mode, r);
+      index, length, key_mode, r);
   AddInstruction(result);
   return result;
 }
