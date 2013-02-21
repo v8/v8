@@ -478,6 +478,7 @@
             '../../src/unicode-inl.h',
             '../../src/unicode.cc',
             '../../src/unicode.h',
+            '../../src/uri.h',
             '../../src/utils-inl.h',
             '../../src/utils.cc',
             '../../src/utils.h',
