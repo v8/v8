@@ -2373,6 +2373,58 @@ class HBitNot: public HUnaryOperation {
 
 class HUnaryMathOperation: public HTemplateInstruction<2> {
  public:
+  static HInstruction* New(Zone* zone,
+                           HValue* context,
+                           HValue* value,
+                           BuiltinFunctionId op);
+
+  HValue* context() { return OperandAt(0); }
+  HValue* value() { return OperandAt(1); }
+
+  virtual void PrintDataTo(StringStream* stream);
+
+  virtual HType CalculateInferredType();
+
+  virtual HValue* EnsureAndPropagateNotMinusZero(BitVector* visited);
+
+  virtual Representation RequiredInputRepresentation(int index) {
+    if (index == 0) {
+      return Representation::Tagged();
+    } else {
+      switch (op_) {
+        case kMathFloor:
+        case kMathRound:
+        case kMathSqrt:
+        case kMathPowHalf:
+        case kMathLog:
+        case kMathExp:
+        case kMathSin:
+        case kMathCos:
+        case kMathTan:
+          return Representation::Double();
+        case kMathAbs:
+          return representation();
+        default:
+          UNREACHABLE();
+          return Representation::None();
+      }
+    }
+  }
+
+  virtual HValue* Canonicalize();
+
+  BuiltinFunctionId op() const { return op_; }
+  const char* OpName() const;
+
+  DECLARE_CONCRETE_INSTRUCTION(UnaryMathOperation)
+
+ protected:
+  virtual bool DataEquals(HValue* other) {
+    HUnaryMathOperation* b = HUnaryMathOperation::cast(other);
+    return op_ == b->op();
+  }
+
+ private:
   HUnaryMathOperation(HValue* context, HValue* value, BuiltinFunctionId op)
       : op_(op) {
     SetOperandAt(0, context);
@@ -2406,54 +2458,6 @@ class HUnaryMathOperation: public HTemplateInstruction<2> {
     SetFlag(kUseGVN);
   }
 
-  HValue* context() { return OperandAt(0); }
-  HValue* value() { return OperandAt(1); }
-
-  virtual void PrintDataTo(StringStream* stream);
-
-  virtual HType CalculateInferredType();
-
-  virtual HValue* EnsureAndPropagateNotMinusZero(BitVector* visited);
-
-  virtual Representation RequiredInputRepresentation(int index) {
-    if (index == 0) {
-      return Representation::Tagged();
-    } else {
-      switch (op_) {
-        case kMathFloor:
-        case kMathRound:
-        case kMathCeil:
-        case kMathSqrt:
-        case kMathPowHalf:
-        case kMathLog:
-        case kMathExp:
-        case kMathSin:
-        case kMathCos:
-        case kMathTan:
-          return Representation::Double();
-        case kMathAbs:
-          return representation();
-        default:
-          UNREACHABLE();
-          return Representation::None();
-      }
-    }
-  }
-
-  virtual HValue* Canonicalize();
-
-  BuiltinFunctionId op() const { return op_; }
-  const char* OpName() const;
-
-  DECLARE_CONCRETE_INSTRUCTION(UnaryMathOperation)
-
- protected:
-  virtual bool DataEquals(HValue* other) {
-    HUnaryMathOperation* b = HUnaryMathOperation::cast(other);
-    return op_ == b->op();
-  }
-
- private:
   virtual bool IsDeletable() const { return true; }
 
   BuiltinFunctionId op_;
@@ -3115,6 +3119,15 @@ class HConstant: public HTemplateInstruction<0> {
     // represented as an int32, we store the (in some cases lossy)
     // representation of the number in int32_value_.
     return int32_value_;
+  }
+  bool HasStringValue() const {
+    if (has_double_value_ || has_int32_value_) return false;
+    ASSERT(!handle_.is_null());
+    return handle_->IsString();
+  }
+  Handle<String> StringValue() const {
+    ASSERT(HasStringValue());
+    return Handle<String>::cast(handle_);
   }
 
   bool ToBoolean();
@@ -3936,13 +3949,7 @@ class HInstanceOfKnownGlobal: public HTemplateInstruction<2> {
 
 class HPower: public HTemplateInstruction<2> {
  public:
-  HPower(HValue* left, HValue* right) {
-    SetOperandAt(0, left);
-    SetOperandAt(1, right);
-    set_representation(Representation::Double());
-    SetFlag(kUseGVN);
-    SetGVNFlag(kChangesNewSpacePromotion);
-  }
+  static HInstruction* New(Zone* zone, HValue* left, HValue* right);
 
   HValue* left() { return OperandAt(0); }
   HValue* right() const { return OperandAt(1); }
@@ -3962,6 +3969,14 @@ class HPower: public HTemplateInstruction<2> {
   virtual bool DataEquals(HValue* other) { return true; }
 
  private:
+  HPower(HValue* left, HValue* right) {
+    SetOperandAt(0, left);
+    SetOperandAt(1, right);
+    set_representation(Representation::Double());
+    SetFlag(kUseGVN);
+    SetGVNFlag(kChangesNewSpacePromotion);
+  }
+
   virtual bool IsDeletable() const {
     return !right()->representation().IsTagged();
   }
@@ -3990,10 +4005,10 @@ class HRandom: public HTemplateInstruction<1> {
 
 class HAdd: public HArithmeticBinaryOperation {
  public:
-  HAdd(HValue* context, HValue* left, HValue* right)
-      : HArithmeticBinaryOperation(context, left, right) {
-    SetFlag(kCanOverflow);
-  }
+  static HInstruction* New(Zone* zone,
+                           HValue* context,
+                           HValue* left,
+                           HValue* right);
 
   // Add is only commutative if two integer values are added and not if two
   // tagged values are added (because it might be a String concatenation).
@@ -4002,11 +4017,6 @@ class HAdd: public HArithmeticBinaryOperation {
   }
 
   virtual HValue* EnsureAndPropagateNotMinusZero(BitVector* visited);
-
-  static HInstruction* NewHAdd(Zone* zone,
-                               HValue* context,
-                               HValue* left,
-                               HValue* right);
 
   virtual HType CalculateInferredType();
 
@@ -4035,24 +4045,25 @@ class HAdd: public HArithmeticBinaryOperation {
   virtual bool DataEquals(HValue* other) { return true; }
 
   virtual Range* InferRange(Zone* zone);
+
+ private:
+  HAdd(HValue* context, HValue* left, HValue* right)
+      : HArithmeticBinaryOperation(context, left, right) {
+    SetFlag(kCanOverflow);
+  }
 };
 
 
 class HSub: public HArithmeticBinaryOperation {
  public:
-  HSub(HValue* context, HValue* left, HValue* right)
-      : HArithmeticBinaryOperation(context, left, right) {
-    SetFlag(kCanOverflow);
-  }
+  static HInstruction* New(Zone* zone,
+                           HValue* context,
+                           HValue* left,
+                           HValue* right);
 
   virtual HValue* EnsureAndPropagateNotMinusZero(BitVector* visited);
 
   virtual HValue* Canonicalize();
-
-  static HInstruction* NewHSub(Zone* zone,
-                               HValue* context,
-                               HValue* left,
-                               HValue* right);
 
   virtual bool IsRelationTrueInternal(NumericRelation relation, HValue* other) {
     if (right()->IsInteger32Constant()) {
@@ -4071,15 +4082,21 @@ class HSub: public HArithmeticBinaryOperation {
   virtual bool DataEquals(HValue* other) { return true; }
 
   virtual Range* InferRange(Zone* zone);
+
+ private:
+  HSub(HValue* context, HValue* left, HValue* right)
+      : HArithmeticBinaryOperation(context, left, right) {
+    SetFlag(kCanOverflow);
+  }
 };
 
 
 class HMul: public HArithmeticBinaryOperation {
  public:
-  HMul(HValue* context, HValue* left, HValue* right)
-      : HArithmeticBinaryOperation(context, left, right) {
-    SetFlag(kCanOverflow);
-  }
+  static HInstruction* New(Zone* zone,
+                           HValue* context,
+                           HValue* left,
+                           HValue* right);
 
   virtual HValue* EnsureAndPropagateNotMinusZero(BitVector* visited);
 
@@ -4088,26 +4105,27 @@ class HMul: public HArithmeticBinaryOperation {
     return !representation().IsTagged();
   }
 
-  static HInstruction* NewHMul(Zone* zone,
-                               HValue* context,
-                               HValue* left,
-                               HValue* right);
-
   DECLARE_CONCRETE_INSTRUCTION(Mul)
 
  protected:
   virtual bool DataEquals(HValue* other) { return true; }
 
   virtual Range* InferRange(Zone* zone);
+
+ private:
+  HMul(HValue* context, HValue* left, HValue* right)
+      : HArithmeticBinaryOperation(context, left, right) {
+    SetFlag(kCanOverflow);
+  }
 };
 
 
 class HMod: public HArithmeticBinaryOperation {
  public:
-  HMod(HValue* context, HValue* left, HValue* right)
-      : HArithmeticBinaryOperation(context, left, right) {
-    SetFlag(kCanBeDivByZero);
-  }
+  static HInstruction* New(Zone* zone,
+                           HValue* context,
+                           HValue* left,
+                           HValue* right);
 
   bool HasPowerOf2Divisor() {
     if (right()->IsConstant() &&
@@ -4120,11 +4138,6 @@ class HMod: public HArithmeticBinaryOperation {
   }
 
   virtual HValue* EnsureAndPropagateNotMinusZero(BitVector* visited);
-
-  static HInstruction* NewHMod(Zone* zone,
-                               HValue* context,
-                               HValue* left,
-                               HValue* right);
 
   DECLARE_CONCRETE_INSTRUCTION(Mod)
 
@@ -4132,16 +4145,21 @@ class HMod: public HArithmeticBinaryOperation {
   virtual bool DataEquals(HValue* other) { return true; }
 
   virtual Range* InferRange(Zone* zone);
+
+ private:
+  HMod(HValue* context, HValue* left, HValue* right)
+      : HArithmeticBinaryOperation(context, left, right) {
+    SetFlag(kCanBeDivByZero);
+  }
 };
 
 
 class HDiv: public HArithmeticBinaryOperation {
  public:
-  HDiv(HValue* context, HValue* left, HValue* right)
-      : HArithmeticBinaryOperation(context, left, right) {
-    SetFlag(kCanBeDivByZero);
-    SetFlag(kCanOverflow);
-  }
+  static HInstruction* New(Zone* zone,
+                           HValue* context,
+                           HValue* left,
+                           HValue* right);
 
   bool HasPowerOf2Divisor() {
     if (right()->IsConstant() &&
@@ -4155,17 +4173,19 @@ class HDiv: public HArithmeticBinaryOperation {
 
   virtual HValue* EnsureAndPropagateNotMinusZero(BitVector* visited);
 
-  static HInstruction* NewHDiv(Zone* zone,
-                               HValue* context,
-                               HValue* left,
-                               HValue* right);
-
   DECLARE_CONCRETE_INSTRUCTION(Div)
 
  protected:
   virtual bool DataEquals(HValue* other) { return true; }
 
   virtual Range* InferRange(Zone* zone);
+
+ private:
+  HDiv(HValue* context, HValue* left, HValue* right)
+      : HArithmeticBinaryOperation(context, left, right) {
+    SetFlag(kCanBeDivByZero);
+    SetFlag(kCanOverflow);
+  }
 };
 
 
@@ -4173,9 +4193,11 @@ class HMathMinMax: public HArithmeticBinaryOperation {
  public:
   enum Operation { kMathMin, kMathMax };
 
-  HMathMinMax(HValue* context, HValue* left, HValue* right, Operation op)
-      : HArithmeticBinaryOperation(context, left, right),
-        operation_(op) { }
+  static HInstruction* New(Zone* zone,
+                           HValue* context,
+                           HValue* left,
+                           HValue* right,
+                           Operation op);
 
   virtual Representation RequiredInputRepresentation(int index) {
     return index == 0 ? Representation::Tagged()
@@ -4213,30 +4235,27 @@ class HMathMinMax: public HArithmeticBinaryOperation {
   virtual Range* InferRange(Zone* zone);
 
  private:
+  HMathMinMax(HValue* context, HValue* left, HValue* right, Operation op)
+      : HArithmeticBinaryOperation(context, left, right),
+        operation_(op) { }
+
   Operation operation_;
 };
 
 
 class HBitwise: public HBitwiseBinaryOperation {
  public:
-  HBitwise(Token::Value op, HValue* context, HValue* left, HValue* right)
-      : HBitwiseBinaryOperation(context, left, right), op_(op) {
-        ASSERT(op == Token::BIT_AND ||
-               op == Token::BIT_OR ||
-               op == Token::BIT_XOR);
-      }
+  static HInstruction* New(Zone* zone,
+                           Token::Value op,
+                           HValue* context,
+                           HValue* left,
+                           HValue* right);
 
   Token::Value op() const { return op_; }
 
   virtual bool IsCommutative() const { return true; }
 
   virtual HValue* Canonicalize();
-
-  static HInstruction* NewHBitwise(Zone* zone,
-                                   Token::Value op,
-                                   HValue* context,
-                                   HValue* left,
-                                   HValue* right);
 
   virtual void PrintDataTo(StringStream* stream);
 
@@ -4250,78 +4269,81 @@ class HBitwise: public HBitwiseBinaryOperation {
   virtual Range* InferRange(Zone* zone);
 
  private:
+  HBitwise(Token::Value op, HValue* context, HValue* left, HValue* right)
+      : HBitwiseBinaryOperation(context, left, right), op_(op) {
+    ASSERT(op == Token::BIT_AND || op == Token::BIT_OR || op == Token::BIT_XOR);
+  }
+
   Token::Value op_;
 };
 
 
 class HShl: public HBitwiseBinaryOperation {
  public:
-  HShl(HValue* context, HValue* left, HValue* right)
-      : HBitwiseBinaryOperation(context, left, right) { }
+  static HInstruction* New(Zone* zone,
+                           HValue* context,
+                           HValue* left,
+                           HValue* right);
 
   virtual Range* InferRange(Zone* zone);
-
-  static HInstruction* NewHShl(Zone* zone,
-                               HValue* context,
-                               HValue* left,
-                               HValue* right);
 
   DECLARE_CONCRETE_INSTRUCTION(Shl)
 
  protected:
   virtual bool DataEquals(HValue* other) { return true; }
+
+ private:
+  HShl(HValue* context, HValue* left, HValue* right)
+      : HBitwiseBinaryOperation(context, left, right) { }
 };
 
 
 class HShr: public HBitwiseBinaryOperation {
  public:
-  HShr(HValue* context, HValue* left, HValue* right)
-      : HBitwiseBinaryOperation(context, left, right) { }
+  static HInstruction* New(Zone* zone,
+                           HValue* context,
+                           HValue* left,
+                           HValue* right);
 
   virtual Range* InferRange(Zone* zone);
-
-  static HInstruction* NewHShr(Zone* zone,
-                               HValue* context,
-                               HValue* left,
-                               HValue* right);
 
   DECLARE_CONCRETE_INSTRUCTION(Shr)
 
  protected:
   virtual bool DataEquals(HValue* other) { return true; }
+
+ private:
+  HShr(HValue* context, HValue* left, HValue* right)
+      : HBitwiseBinaryOperation(context, left, right) { }
 };
 
 
 class HSar: public HBitwiseBinaryOperation {
  public:
-  HSar(HValue* context, HValue* left, HValue* right)
-      : HBitwiseBinaryOperation(context, left, right) { }
+  static HInstruction* New(Zone* zone,
+                           HValue* context,
+                           HValue* left,
+                           HValue* right);
 
   virtual Range* InferRange(Zone* zone);
-
-  static HInstruction* NewHSar(Zone* zone,
-                               HValue* context,
-                               HValue* left,
-                               HValue* right);
 
   DECLARE_CONCRETE_INSTRUCTION(Sar)
 
  protected:
   virtual bool DataEquals(HValue* other) { return true; }
+
+ private:
+  HSar(HValue* context, HValue* left, HValue* right)
+      : HBitwiseBinaryOperation(context, left, right) { }
 };
 
 
 class HRor: public HBitwiseBinaryOperation {
  public:
   HRor(HValue* context, HValue* left, HValue* right)
-      : HBitwiseBinaryOperation(context, left, right) {
+       : HBitwiseBinaryOperation(context, left, right) {
     ChangeRepresentation(Representation::Integer32());
   }
-
-  static HInstruction* NewHRor(Zone* zone,
-                               HValue* context,
-                               HValue* left,
-                               HValue* right);
 
   DECLARE_CONCRETE_INSTRUCTION(Ror)
 
@@ -5446,13 +5468,10 @@ class HTransitionElementsKind: public HTemplateInstruction<2> {
 
 class HStringAdd: public HBinaryOperation {
  public:
-  HStringAdd(HValue* context, HValue* left, HValue* right)
-      : HBinaryOperation(context, left, right) {
-    set_representation(Representation::Tagged());
-    SetFlag(kUseGVN);
-    SetGVNFlag(kDependsOnMaps);
-    SetGVNFlag(kChangesNewSpacePromotion);
-  }
+  static HInstruction* New(Zone* zone,
+                           HValue* context,
+                           HValue* left,
+                           HValue* right);
 
   virtual Representation RequiredInputRepresentation(int index) {
     return Representation::Tagged();
@@ -5467,8 +5486,17 @@ class HStringAdd: public HBinaryOperation {
  protected:
   virtual bool DataEquals(HValue* other) { return true; }
 
+
+ private:
+  HStringAdd(HValue* context, HValue* left, HValue* right)
+      : HBinaryOperation(context, left, right) {
+    set_representation(Representation::Tagged());
+    SetFlag(kUseGVN);
+    SetGVNFlag(kDependsOnMaps);
+    SetGVNFlag(kChangesNewSpacePromotion);
+  }
+
   // TODO(svenpanne) Might be safe, but leave it out until we know for sure.
-  // private:
   //  virtual bool IsDeletable() const { return true; }
 };
 
@@ -5513,13 +5541,9 @@ class HStringCharCodeAt: public HTemplateInstruction<3> {
 
 class HStringCharFromCode: public HTemplateInstruction<2> {
  public:
-  HStringCharFromCode(HValue* context, HValue* char_code) {
-    SetOperandAt(0, context);
-    SetOperandAt(1, char_code);
-    set_representation(Representation::Tagged());
-    SetFlag(kUseGVN);
-    SetGVNFlag(kChangesNewSpacePromotion);
-  }
+  static HInstruction* New(Zone* zone,
+                           HValue* context,
+                           HValue* char_code);
 
   virtual Representation RequiredInputRepresentation(int index) {
     return index == 0
@@ -5535,19 +5559,23 @@ class HStringCharFromCode: public HTemplateInstruction<2> {
 
   DECLARE_CONCRETE_INSTRUCTION(StringCharFromCode)
 
+ private:
+  HStringCharFromCode(HValue* context, HValue* char_code) {
+    SetOperandAt(0, context);
+    SetOperandAt(1, char_code);
+    set_representation(Representation::Tagged());
+    SetFlag(kUseGVN);
+    SetGVNFlag(kChangesNewSpacePromotion);
+  }
+
   // TODO(svenpanne) Might be safe, but leave it out until we know for sure.
-  // private:
-  //  virtual bool IsDeletable() const { return true; }
+  // virtual bool IsDeletable() const { return true; }
 };
 
 
 class HStringLength: public HUnaryOperation {
  public:
-  explicit HStringLength(HValue* string) : HUnaryOperation(string) {
-    set_representation(Representation::Tagged());
-    SetFlag(kUseGVN);
-    SetGVNFlag(kDependsOnMaps);
-  }
+  static HInstruction* New(Zone* zone, HValue* string);
 
   virtual Representation RequiredInputRepresentation(int index) {
     return Representation::Tagged();
@@ -5568,6 +5596,12 @@ class HStringLength: public HUnaryOperation {
   }
 
  private:
+  explicit HStringLength(HValue* string) : HUnaryOperation(string) {
+    set_representation(Representation::Tagged());
+    SetFlag(kUseGVN);
+    SetGVNFlag(kDependsOnMaps);
+  }
+
   virtual bool IsDeletable() const { return true; }
 };
 

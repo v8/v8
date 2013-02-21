@@ -213,6 +213,7 @@ DEFINE_bool(array_bounds_checks_elimination, true,
 DEFINE_bool(array_index_dehoisting, true,
             "perform array index dehoisting")
 DEFINE_bool(dead_code_elimination, true, "use dead code elimination")
+DEFINE_bool(fold_constants, true, "use constant folding")
 DEFINE_bool(trace_dead_code_elimination, false, "trace dead code elimination")
 DEFINE_bool(unreachable_code_elimination, false,
             "eliminate unreachable code (hidden behind soft deopts)")

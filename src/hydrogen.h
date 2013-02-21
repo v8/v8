@@ -1294,9 +1294,9 @@ class HOptimizedGraphBuilder: public HGraphBuilder, public AstVisitor {
                                HValue* value,
                                NilValue nil);
 
-  HStringCharCodeAt* BuildStringCharCodeAt(HValue* context,
-                                           HValue* string,
-                                           HValue* index);
+  HInstruction* BuildStringCharCodeAt(HValue* context,
+                                      HValue* string,
+                                      HValue* index);
   HInstruction* BuildBinaryOperation(BinaryOperation* expr,
                                      HValue* left,
                                      HValue* right);

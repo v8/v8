@@ -1398,6 +1398,21 @@ ExternalReference ExternalReference::ForDeoptEntry(Address entry) {
 }
 
 
+double power_helper(double x, double y) {
+  int y_int = static_cast<int>(y);
+  if (y == y_int) {
+    return power_double_int(x, y_int);  // Returns 1 if exponent is 0.
+  }
+  if (y == 0.5) {
+    return (isinf(x)) ? V8_INFINITY : fast_sqrt(x + 0.0);  // Convert -0 to +0.
+  }
+  if (y == -0.5) {
+    return (isinf(x)) ? 0 : 1.0 / fast_sqrt(x + 0.0);  // Convert -0 to +0.
+  }
+  return power_double_double(x, y);
+}
+
+
 // Helper function to compute x^y, where y is known to be an
 // integer. Uses binary decomposition to limit the number of
 // multiplications; see the discussion in "Hacker's Delight" by Henry
