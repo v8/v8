@@ -843,6 +843,27 @@ void HNumericConstraint::PrintDataTo(StringStream* stream) {
 }
 
 
+HInductionVariableAnnotation* HInductionVariableAnnotation::AddToGraph(
+    HPhi* phi,
+    NumericRelation relation,
+    int operand_index) {
+  HInductionVariableAnnotation* result =
+      new(phi->block()->zone()) HInductionVariableAnnotation(phi, relation,
+                                                             operand_index);
+  result->InsertAfter(phi->block()->first());
+  return result;
+}
+
+
+void HInductionVariableAnnotation::PrintDataTo(StringStream* stream) {
+  stream->Add("(");
+  RedefinedOperand()->PrintNameTo(stream);
+  stream->Add(" %s ", relation().Mnemonic());
+  induction_base()->PrintNameTo(stream);
+  stream->Add(")");
+}
+
+
 void HDummyUse::PrintDataTo(StringStream* stream) {
   value()->PrintNameTo(stream);
 }
@@ -1554,14 +1575,13 @@ Range* HMod::InferRange(Zone* zone) {
 
 void HPhi::AddInformativeDefinitions() {
   if (OperandCount() == 2) {
+    // If one of the operands is an OSR block give up (this cannot be an
+    // induction variable).
+    if (OperandAt(0)->block()->is_osr_entry() ||
+        OperandAt(1)->block()->is_osr_entry()) return;
+
     for (int operand_index = 0; operand_index < 2; operand_index++) {
       int other_operand_index = (operand_index + 1) % 2;
-
-      // Add an idef that "discards" the OSR entry block branch.
-      if (OperandAt(operand_index)->block()->is_osr_entry()) {
-        HNumericConstraint::AddToGraph(
-            this, NumericRelation::Eq(), OperandAt(other_operand_index));
-      }
 
       static NumericRelation relations[] = {
         NumericRelation::Ge(),
@@ -1574,13 +1594,33 @@ void HPhi::AddInformativeDefinitions() {
       for (int relation_index = 0; relation_index < 2; relation_index++) {
         if (OperandAt(operand_index)->IsRelationTrue(relations[relation_index],
                                                      this)) {
-          HNumericConstraint::AddToGraph(this,
-                                         relations[relation_index],
-                                         OperandAt(other_operand_index));
+          HInductionVariableAnnotation::AddToGraph(this,
+                                                   relations[relation_index],
+                                                   other_operand_index);
         }
       }
     }
   }
+}
+
+
+bool HPhi::IsRelationTrueInternal(NumericRelation relation, HValue* other) {
+  if (CheckFlag(kNumericConstraintEvaluationInProgress)) return false;
+
+  SetFlag(kNumericConstraintEvaluationInProgress);
+  bool result = true;
+  for (int i = 0; i < OperandCount(); i++) {
+    // Skip OSR entry blocks
+    if (OperandAt(i)->block()->is_osr_entry()) continue;
+
+    if (!OperandAt(i)->IsRelationTrue(relation, other)) {
+      result = false;
+      break;
+    }
+  }
+  ClearFlag(kNumericConstraintEvaluationInProgress);
+
+  return result;
 }
 
 

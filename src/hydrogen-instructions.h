@@ -119,6 +119,7 @@ class LChunkBuilder;
   V(Goto)                                      \
   V(HasCachedArrayIndexAndBranch)              \
   V(HasInstanceTypeAndBranch)                  \
+  V(InductionVariableAnnotation)               \
   V(In)                                        \
   V(InstanceOf)                                \
   V(InstanceOfKnownGlobal)                     \
@@ -704,6 +705,9 @@ class HValue: public ZoneObject {
     // HGraph::ComputeSafeUint32Operations is responsible for setting this
     // flag.
     kUint32,
+    // If a phi is involved in the evaluation of a numeric constraint the
+    // recursion can cause an endless cycle: we use this flag to exit the loop.
+    kNumericConstraintEvaluationInProgress,
     // This flag is set to true after the SetupInformativeDefinitions() pass
     // has processed this instruction.
     kIDefsProcessingDone,
@@ -2955,6 +2959,8 @@ class HPhi: public HValue {
     inputs_[index] = value;
   }
 
+  virtual bool IsRelationTrueInternal(NumericRelation relation, HValue* other);
+
  private:
   ZoneList<HValue*> inputs_;
   int merged_index_;
@@ -2964,6 +2970,52 @@ class HPhi: public HValue {
   int phi_id_;
   bool is_live_;
   bool is_convertible_to_integer_;
+};
+
+
+class HInductionVariableAnnotation : public HUnaryOperation {
+ public:
+  static HInductionVariableAnnotation* AddToGraph(HPhi* phi,
+                                                  NumericRelation relation,
+                                                  int operand_index);
+
+  NumericRelation relation() { return relation_; }
+  HValue* induction_base() { return phi_->OperandAt(operand_index_); }
+
+  virtual int RedefinedOperandIndex() { return 0; }
+  virtual bool IsPurelyInformativeDefinition() { return true; }
+  virtual Representation RequiredInputRepresentation(int index) {
+    return representation();
+  }
+
+  virtual void PrintDataTo(StringStream* stream);
+
+  virtual bool IsRelationTrueInternal(NumericRelation other_relation,
+                                      HValue* other_related_value) {
+    if (induction_base() == other_related_value) {
+      return relation().Implies(other_relation);
+    } else {
+      return false;
+    }
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(InductionVariableAnnotation)
+
+ private:
+  HInductionVariableAnnotation(HPhi* phi,
+                               NumericRelation relation,
+                               int operand_index)
+      : HUnaryOperation(phi),
+    phi_(phi), relation_(relation), operand_index_(operand_index) {
+    set_representation(phi->representation());
+  }
+
+  // We need to store the phi both here and in the instruction operand because
+  // the operand can change if a new idef of the phi is added between the phi
+  // and this instruction (inserting an idef updates every use).
+  HPhi* phi_;
+  NumericRelation relation_;
+  int operand_index_;
 };
 
 
