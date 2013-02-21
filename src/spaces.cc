@@ -2578,6 +2578,7 @@ bool PagedSpace::EnsureSweeperProgress(intptr_t size_in_bytes) {
     if (FLAG_concurrent_sweeping) {
       if (collector->StealMemoryFromSweeperThreads(this) < size_in_bytes) {
         collector->WaitUntilSweepingCompleted();
+        collector->FinalizeSweeping();
         return true;
       }
       return false;

@@ -557,7 +557,6 @@ void MarkCompactCollector::WaitUntilSweepingCompleted() {
     sweeping_pending_ = false;
     StealMemoryFromSweeperThreads(heap()->paged_space(OLD_DATA_SPACE));
     StealMemoryFromSweeperThreads(heap()->paged_space(OLD_POINTER_SPACE));
-    heap()->FreeQueuedChunks();
   }
 }
 
@@ -579,6 +578,13 @@ bool MarkCompactCollector::AreSweeperThreadsActivated() {
 
 bool MarkCompactCollector::IsConcurrentSweepingInProgress() {
   return sweeping_pending_;
+}
+
+
+void MarkCompactCollector::FinalizeSweeping() {
+  ASSERT(sweeping_pending_ == false);
+  ReleaseEvacuationCandidates();
+  heap()->FreeQueuedChunks();
 }
 
 
@@ -901,6 +907,7 @@ void MarkCompactCollector::Prepare(GCTracer* tracer) {
   if (AreSweeperThreadsActivated() && FLAG_concurrent_sweeping) {
     // Instead of waiting we could also abort the sweeper threads here.
     WaitUntilSweepingCompleted();
+    FinalizeSweeping();
   }
 
   // Clear marking bits if incremental marking is aborted.
@@ -3305,6 +3312,11 @@ void MarkCompactCollector::EvacuateNewSpaceAndCandidates() {
 
   slots_buffer_allocator_.DeallocateChain(&migration_slots_buffer_);
   ASSERT(migration_slots_buffer_ == NULL);
+}
+
+
+void MarkCompactCollector::ReleaseEvacuationCandidates() {
+  int npages = evacuation_candidates_.length();
   for (int i = 0; i < npages; i++) {
     Page* p = evacuation_candidates_[i];
     if (!p->IsEvacuationCandidate()) continue;
@@ -3749,7 +3761,8 @@ void MarkCompactCollector::SweepInParallel(PagedSpace* space,
 void MarkCompactCollector::SweepSpace(PagedSpace* space, SweeperType sweeper) {
   space->set_was_swept_conservatively(sweeper == CONSERVATIVE ||
                                       sweeper == LAZY_CONSERVATIVE ||
-                                      sweeper == PARALLEL_CONSERVATIVE);
+                                      sweeper == PARALLEL_CONSERVATIVE ||
+                                      sweeper == CONCURRENT_CONSERVATIVE);
   space->ClearStats();
 
   PageIterator it(space);
@@ -3823,6 +3836,7 @@ void MarkCompactCollector::SweepSpace(PagedSpace* space, SweeperType sweeper) {
         lazy_sweeping_active = true;
         break;
       }
+      case CONCURRENT_CONSERVATIVE:
       case PARALLEL_CONSERVATIVE: {
         if (FLAG_gc_verbose) {
           PrintF("Sweeping 0x%" V8PRIxPTR " conservatively in parallel.\n",
@@ -3868,7 +3882,8 @@ void MarkCompactCollector::SweepSpaces() {
 #endif
   SweeperType how_to_sweep =
       FLAG_lazy_sweeping ? LAZY_CONSERVATIVE : CONSERVATIVE;
-  if (AreSweeperThreadsActivated()) how_to_sweep = PARALLEL_CONSERVATIVE;
+  if (FLAG_parallel_sweeping) how_to_sweep = PARALLEL_CONSERVATIVE;
+  if (FLAG_concurrent_sweeping) how_to_sweep = CONCURRENT_CONSERVATIVE;
   if (FLAG_expose_gc) how_to_sweep = CONSERVATIVE;
   if (sweep_precisely_) how_to_sweep = PRECISE;
   // Noncompacting collections simply sweep the spaces to clear the mark
@@ -3880,12 +3895,14 @@ void MarkCompactCollector::SweepSpaces() {
   SweepSpace(heap()->old_pointer_space(), how_to_sweep);
   SweepSpace(heap()->old_data_space(), how_to_sweep);
 
-  if (how_to_sweep == PARALLEL_CONSERVATIVE) {
+  if (how_to_sweep == PARALLEL_CONSERVATIVE ||
+      how_to_sweep == CONCURRENT_CONSERVATIVE) {
     // TODO(hpayer): fix race with concurrent sweeper
     StartSweeperThreads();
-    if (FLAG_parallel_sweeping && !FLAG_concurrent_sweeping) {
-      WaitUntilSweepingCompleted();
-    }
+  }
+
+  if (how_to_sweep == PARALLEL_CONSERVATIVE) {
+    WaitUntilSweepingCompleted();
   }
 
   RemoveDeadInvalidatedCode();
@@ -3902,6 +3919,10 @@ void MarkCompactCollector::SweepSpaces() {
 
   // Deallocate unmarked objects and clear marked bits for marked objects.
   heap_->lo_space()->FreeUnmarkedObjects();
+
+  if (how_to_sweep != CONCURRENT_CONSERVATIVE) {
+    FinalizeSweeping();
+  }
 }
 
 

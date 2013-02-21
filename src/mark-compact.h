@@ -595,6 +595,7 @@ class MarkCompactCollector {
     CONSERVATIVE,
     LAZY_CONSERVATIVE,
     PARALLEL_CONSERVATIVE,
+    CONCURRENT_CONSERVATIVE,
     PRECISE
   };
 
@@ -695,6 +696,8 @@ class MarkCompactCollector {
 
   bool IsConcurrentSweepingInProgress();
 
+  void FinalizeSweeping();
+
   // Parallel marking support.
   void MarkInParallel();
 
@@ -707,6 +710,8 @@ class MarkCompactCollector {
   bool MarkInvalidatedCode();
   void RemoveDeadInvalidatedCode();
   void ProcessInvalidatedCode(ObjectVisitor* visitor);
+
+  void ReleaseEvacuationCandidates();
 
   void StartSweeperThreads();
 
