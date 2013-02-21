@@ -2785,11 +2785,9 @@ bool HStoreKeyed::NeedsCanonicalization() {
 
 
 #define H_CONSTANT_INT32(val)                                                  \
-new(zone) HConstant(FACTORY->NewNumberFromInt(val, TENURED),                   \
-                    Representation::Integer32())
+new(zone) HConstant(static_cast<int32_t>(val), Representation::Integer32())
 #define H_CONSTANT_DOUBLE(val)                                                 \
-new(zone) HConstant(FACTORY->NewNumber(val, TENURED),                          \
-                    Representation::Double())
+new(zone) HConstant(static_cast<double>(val), Representation::Double())
 
 #define DEFINE_NEW_H_SIMPLE_ARITHMETIC_INSTR(HInstr, op)                       \
 HInstruction* HInstr::New(                                                     \
