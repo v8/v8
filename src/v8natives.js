@@ -1246,16 +1246,16 @@ function ObjectIsSealed(obj) {
   if (%IsJSProxy(obj)) {
     return false;
   }
+  if (%IsExtensible(obj)) {
+    return false;
+  }
   var names = ObjectGetOwnPropertyNames(obj);
   for (var i = 0; i < names.length; i++) {
     var name = names[i];
     var desc = GetOwnProperty(obj, name);
     if (desc.isConfigurable()) return false;
   }
-  if (!ObjectIsExtensible(obj)) {
-    return true;
-  }
-  return false;
+  return true;
 }
 
 
@@ -1267,6 +1267,9 @@ function ObjectIsFrozen(obj) {
   if (%IsJSProxy(obj)) {
     return false;
   }
+  if (%IsExtensible(obj)) {
+    return false;
+  }
   var names = ObjectGetOwnPropertyNames(obj);
   for (var i = 0; i < names.length; i++) {
     var name = names[i];
@@ -1274,10 +1277,7 @@ function ObjectIsFrozen(obj) {
     if (IsDataDescriptor(desc) && desc.isWritable()) return false;
     if (desc.isConfigurable()) return false;
   }
-  if (!ObjectIsExtensible(obj)) {
-    return true;
-  }
-  return false;
+  return true;
 }
 
 
