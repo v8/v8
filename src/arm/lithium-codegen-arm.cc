@@ -4472,10 +4472,14 @@ void LCodeGen::DoStoreKeyedFixedDoubleArray(LStoreKeyed* instr) {
   if (instr->NeedsCanonicalization()) {
     // Check for NaN. All NaNs must be canonicalized.
     __ VFPCompareAndSetFlags(value, value);
+    Label after_canonicalization;
+
     // Only load canonical NaN if the comparison above set the overflow.
+    __ b(vc, &after_canonicalization);
     __ Vmov(value,
-            FixedDoubleArray::canonical_not_the_hole_nan_as_double(),
-            no_reg, vs);
+            FixedDoubleArray::canonical_not_the_hole_nan_as_double());
+
+    __ bind(&after_canonicalization);
   }
 
   __ vstr(value, scratch, instr->additional_index() << element_size_shift);

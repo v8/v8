@@ -2067,8 +2067,7 @@ static bool FitsVMOVDoubleImmediate(double d, uint32_t *encoding) {
 
 void Assembler::vmov(const DwVfpRegister dst,
                      double imm,
-                     const Register scratch,
-                     const Condition cond) {
+                     const Register scratch) {
   ASSERT(CpuFeatures::IsEnabled(VFP2));
 
   uint32_t enc;
@@ -2081,7 +2080,7 @@ void Assembler::vmov(const DwVfpRegister dst,
     // Vd(15-12) | 101(11-9) | sz=1(8) | imm4L(3-0)
     int vd, d;
     dst.split_code(&vd, &d);
-    emit(cond | 0x1D*B23 | d*B22 | 0x3*B20 | vd*B12 | 0x5*B9 | B8 | enc);
+    emit(al | 0x1D*B23 | d*B22 | 0x3*B20 | vd*B12 | 0x5*B9 | B8 | enc);
   } else if (FLAG_enable_vldr_imm) {
     // TODO(jfb) Temporarily turned off until we have constant blinding or
     //           some equivalent mitigation: an attacker can otherwise control
@@ -2099,7 +2098,7 @@ void Assembler::vmov(const DwVfpRegister dst,
     //           that's tricky because vldr has a limited reach. Furthermore
     //           it breaks load locality.
     RecordRelocInfo(imm);
-    vldr(dst, MemOperand(pc, 0), cond);
+    vldr(dst, MemOperand(pc, 0));
   } else {
     // Synthesise the double from ARM immediates.
     uint32_t lo, hi;
@@ -2110,27 +2109,27 @@ void Assembler::vmov(const DwVfpRegister dst,
         // Move the low part of the double into the lower of the corresponsing S
         // registers of D register dst.
         mov(ip, Operand(lo));
-        vmov(dst.low(), ip, cond);
+        vmov(dst.low(), ip);
 
         // Move the high part of the double into the higher of the
         // corresponsing S registers of D register dst.
         mov(ip, Operand(hi));
-        vmov(dst.high(), ip, cond);
+        vmov(dst.high(), ip);
       } else {
         // D16-D31 does not have S registers, so move the low and high parts
         // directly to the D register using vmov.32.
         // Note: This may be slower, so we only do this when we have to.
         mov(ip, Operand(lo));
-        vmov(dst, VmovIndexLo, ip, cond);
+        vmov(dst, VmovIndexLo, ip);
         mov(ip, Operand(hi));
-        vmov(dst, VmovIndexHi, ip, cond);
+        vmov(dst, VmovIndexHi, ip);
       }
     } else {
       // Move the low and high parts of the double to a D register in one
       // instruction.
       mov(ip, Operand(lo));
       mov(scratch, Operand(hi));
-      vmov(dst, ip, scratch, cond);
+      vmov(dst, ip, scratch);
     }
   }
 }
