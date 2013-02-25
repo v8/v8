@@ -148,7 +148,7 @@ endif
 ARCHES = ia32 x64 arm mipsel
 DEFAULT_ARCHES = ia32 x64 arm
 MODES = release debug
-ANDROID_ARCHES = android_ia32 android_arm
+ANDROID_ARCHES = android_ia32 android_arm android_mipsel
 
 # List of files that trigger Makefile regeneration:
 GYPFILES = build/all.gyp build/common.gypi build/standalone.gypi \
