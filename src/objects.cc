@@ -9601,8 +9601,14 @@ void DependentCode::DeoptimizeDependentCodeGroup(
     Code* code = code_at(i);
     code->set_marked_for_deoptimization(true);
   }
+  // Compact the array by moving all subsequent groups to fill in the new holes.
   for (int src = end, dst = start; src < number_of_entries; src++, dst++) {
     set_code_at(dst, code_at(src));
+  }
+  // Now the holes are at the end of the array, zap them for heap-verifier.
+  int removed = end - start;
+  for (int i = number_of_entries - removed; i < number_of_entries; i++) {
+    clear_code_at(i);
   }
   set_number_of_entries(group, 0);
   DeoptimizeDependentCodeFilter filter;
