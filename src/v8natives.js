@@ -1018,9 +1018,13 @@ function ObjectGetOwnPropertyNames(obj) {
 
   // Get the local element names.
   var propertyNames = %GetLocalElementNames(obj);
+  for (var i = 0; i < propertyNames.length; ++i) {
+    propertyNames[i] = %_NumberToString(propertyNames[i]);
+  }
 
   // Get names for indexed interceptor properties.
-  if (%GetInterceptorInfo(obj) & 1) {
+  var interceptorInfo = %GetInterceptorInfo(obj);
+  if ((interceptorInfo & 1) != 0) {
     var indexedInterceptorNames =
         %GetIndexedInterceptorElementNames(obj);
     if (indexedInterceptorNames) {
@@ -1034,8 +1038,7 @@ function ObjectGetOwnPropertyNames(obj) {
   propertyNames = propertyNames.concat(%GetLocalPropertyNames(obj));
 
   // Get names for named interceptor properties if any.
-
-  if (%GetInterceptorInfo(obj) & 2) {
+  if ((interceptorInfo & 2) != 0) {
     var namedInterceptorNames =
         %GetNamedInterceptorPropertyNames(obj);
     if (namedInterceptorNames) {
@@ -1043,21 +1046,24 @@ function ObjectGetOwnPropertyNames(obj) {
     }
   }
 
-  // Property names are expected to be unique strings.
-  var propertySet = { __proto__: null };
-  var j = 0;
-  for (var i = 0; i < propertyNames.length; ++i) {
-    var name = ToString(propertyNames[i]);
-    // We need to check for the exact property value since for intrinsic
-    // properties like toString if(propertySet["toString"]) will always
-    // succeed.
-    if (propertySet[name] === true) {
-      continue;
+  // Property names are expected to be unique strings,
+  // but interceptors can interfere with that assumption.
+  if (interceptorInfo != 0) {
+    var propertySet = { __proto__: null };
+    var j = 0;
+    for (var i = 0; i < propertyNames.length; ++i) {
+      var name = ToString(propertyNames[i]);
+      // We need to check for the exact property value since for intrinsic
+      // properties like toString if(propertySet["toString"]) will always
+      // succeed.
+      if (propertySet[name] === true) {
+        continue;
+      }
+      propertySet[name] = true;
+      propertyNames[j++] = name;
     }
-    propertySet[name] = true;
-    propertyNames[j++] = name;
+    propertyNames.length = j;
   }
-  propertyNames.length = j;
 
   return propertyNames;
 }
