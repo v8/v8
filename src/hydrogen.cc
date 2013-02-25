@@ -641,37 +641,49 @@ HGraphBuilder::IfBuilder::IfBuilder(HGraphBuilder* builder, BailoutId id)
   HEnvironment* env = builder->environment();
   HEnvironment* true_env = env->Copy();
   HEnvironment* false_env = env->Copy();
-  HEnvironment* merge_env = env->Copy();
-  true_block_ = builder->CreateBasicBlock(true_env);
-  false_block_ = builder->CreateBasicBlock(false_env);
-  merge_block_ = builder->CreateBasicBlock(merge_env);
+  first_true_block_ = builder->CreateBasicBlock(true_env);
+  last_true_block_ = NULL;
+  first_false_block_ = builder->CreateBasicBlock(false_env);
 }
 
 
-void HGraphBuilder::IfBuilder::BeginTrue(HValue* left,
-                                         HValue* right,
-                                         Token::Value token) {
+HInstruction* HGraphBuilder::IfBuilder::BeginTrue(
+    HValue* left,
+    HValue* right,
+    Token::Value token,
+    Representation input_representation) {
   HCompareIDAndBranch* compare =
       new(zone()) HCompareIDAndBranch(left, right, token);
-  compare->ChangeRepresentation(Representation::Integer32());
-  compare->SetSuccessorAt(0, true_block_);
-  compare->SetSuccessorAt(1, false_block_);
+  compare->set_observed_input_representation(input_representation,
+                                             input_representation);
+  compare->ChangeRepresentation(input_representation);
+  compare->SetSuccessorAt(0, first_true_block_);
+  compare->SetSuccessorAt(1, first_false_block_);
   builder_->current_block()->Finish(compare);
-  builder_->set_current_block(true_block_);
+  builder_->set_current_block(first_true_block_);
+  return compare;
 }
 
 
 void HGraphBuilder::IfBuilder::BeginFalse() {
-  builder_->current_block()->Goto(merge_block_);
-  builder_->set_current_block(false_block_);
+  last_true_block_ = builder_->current_block();
+  ASSERT(!last_true_block_->IsFinished());
+  builder_->set_current_block(first_false_block_);
 }
 
 
 void HGraphBuilder::IfBuilder::End() {
   ASSERT(!finished_);
-  builder_->current_block()->Goto(merge_block_);
-  builder_->set_current_block(merge_block_);
+  ASSERT(!last_true_block_->IsFinished());
+  HBasicBlock* last_false_block = builder_->current_block();
+  ASSERT(!last_false_block->IsFinished());
+  HEnvironment* merge_env =
+      last_true_block_->last_environment()->Copy();
+  merge_block_ = builder_->CreateBasicBlock(merge_env);
+  last_true_block_->Goto(merge_block_);
+  last_false_block->Goto(merge_block_);
   merge_block_->SetJoinId(id_);
+  builder_->set_current_block(merge_block_);
   finished_ = true;
 }
 
@@ -685,31 +697,38 @@ HGraphBuilder::LoopBuilder::LoopBuilder(HGraphBuilder* builder,
       direction_(direction),
       id_(id),
       finished_(false) {
-  HEnvironment* env = builder_->environment();
-  HEnvironment* body_env = env->Copy();
-  HEnvironment* exit_env = env->Copy();
   header_block_ = builder->CreateLoopHeaderBlock();
-  body_block_ = builder->CreateBasicBlock(body_env);
-  exit_block_ = builder->CreateBasicBlock(exit_env);
+  body_block_ = NULL;
+  exit_block_ = NULL;
 }
 
 
-HValue* HGraphBuilder::LoopBuilder::BeginBody(HValue* initial,
-                                              HValue* terminating,
-                                              Token::Value token) {
-  phi_ = new(zone()) HPhi(0, zone());
+HValue* HGraphBuilder::LoopBuilder::BeginBody(
+    HValue* initial,
+    HValue* terminating,
+    Token::Value token,
+    Representation input_representation) {
+  HEnvironment* env = builder_->environment();
+  phi_ = new(zone()) HPhi(env->values()->length(), zone());
   header_block_->AddPhi(phi_);
   phi_->AddInput(initial);
   phi_->ChangeRepresentation(Representation::Integer32());
-  HEnvironment* env = builder_->environment();
   env->Push(initial);
   builder_->current_block()->Goto(header_block_);
-  builder_->set_current_block(header_block_);
+
+  HEnvironment* body_env = env->Copy();
+  HEnvironment* exit_env = env->Copy();
+  body_block_ = builder_->CreateBasicBlock(body_env);
+  exit_block_ = builder_->CreateBasicBlock(exit_env);
+  // Remove the phi from the expression stack
+  body_env->Pop();
 
   builder_->set_current_block(header_block_);
   HCompareIDAndBranch* compare =
       new(zone()) HCompareIDAndBranch(phi_, terminating, token);
-  compare->ChangeRepresentation(Representation::Integer32());
+  compare->set_observed_input_representation(input_representation,
+                                             input_representation);
+  compare->ChangeRepresentation(input_representation);
   compare->SetSuccessorAt(0, body_block_);
   compare->SetSuccessorAt(1, exit_block_);
   builder_->current_block()->Finish(compare);
@@ -747,11 +766,15 @@ void HGraphBuilder::LoopBuilder::EndBody() {
     builder_->AddInstruction(increment_);
   }
 
+  // Push the new increment value on the expression stack to merge into the phi.
   builder_->environment()->Push(increment_);
   builder_->current_block()->Goto(header_block_);
   header_block_->loop_information()->RegisterBackEdge(body_block_);
-  header_block_->SetJoinId(BailoutId::StubEntry());
+  header_block_->SetJoinId(id_);
+
   builder_->set_current_block(exit_block_);
+  // Pop the phi from the expression stack
+  builder_->environment()->Pop();
   finished_ = true;
 }
 
@@ -1150,8 +1173,11 @@ HGraph::HGraph(CompilationInfo* info)
       has_soft_deoptimize_(false),
       type_change_checksum_(0) {
   if (info->IsStub()) {
+    HydrogenCodeStub* stub = info->code_stub();
+    int param_count =
+        stub->GetInterfaceDescriptor(isolate_)->register_param_count_;
     start_environment_ =
-        new(zone_) HEnvironment(zone_);
+        new(zone_) HEnvironment(zone_, param_count);
   } else {
     start_environment_ =
         new(zone_) HEnvironment(NULL, info->scope(), info->closure(), zone_);
@@ -10098,11 +10124,11 @@ HEnvironment::HEnvironment(HEnvironment* outer,
 }
 
 
-HEnvironment::HEnvironment(Zone* zone)
+HEnvironment::HEnvironment(Zone* zone, int parameter_count)
     : values_(0, zone),
       frame_type_(STUB),
-      parameter_count_(0),
-      specials_count_(0),
+      parameter_count_(parameter_count),
+      specials_count_(1),
       local_count_(0),
       outer_(NULL),
       entry_(NULL),
@@ -10110,7 +10136,7 @@ HEnvironment::HEnvironment(Zone* zone)
       push_count_(0),
       ast_id_(BailoutId::None()),
       zone_(zone) {
-  Initialize(0, 0, 0);
+  Initialize(parameter_count, 0, 0);
 }
 
 

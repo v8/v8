@@ -56,7 +56,14 @@ static LChunk* OptimizeGraph(HGraph* graph) {
 class CodeStubGraphBuilderBase : public HGraphBuilder {
  public:
   CodeStubGraphBuilderBase(Isolate* isolate, HydrogenCodeStub* stub)
-      : HGraphBuilder(&info_), info_(stub, isolate), context_(NULL) {}
+      : HGraphBuilder(&info_), info_(stub, isolate), context_(NULL) {
+    int major_key = stub->MajorKey();
+    descriptor_ = info_.isolate()->code_stub_interface_descriptor(major_key);
+    if (descriptor_->register_param_count_ < 0) {
+      stub->InitializeInterfaceDescriptor(info_.isolate(), descriptor_);
+    }
+    parameters_.Reset(new HParameter*[descriptor_->register_param_count_]);
+  }
   virtual bool BuildGraph();
 
  protected:
@@ -70,6 +77,7 @@ class CodeStubGraphBuilderBase : public HGraphBuilder {
  private:
   SmartArrayPointer<HParameter*> parameters_;
   CompilationInfoWithZone info_;
+  CodeStubInterfaceDescriptor* descriptor_;
   HContext* context_;
 };
 
@@ -81,37 +89,33 @@ bool CodeStubGraphBuilderBase::BuildGraph() {
     PrintF("Compiling stub %s using hydrogen\n", name);
     HTracer::Instance()->TraceCompilation(&info_);
   }
-  HBasicBlock* next_block = graph()->CreateBasicBlock();
-  next_block->SetInitialEnvironment(graph()->start_environment());
-  HGoto* jump = new(zone()) HGoto(next_block);
-  graph()->entry_block()->Finish(jump);
+
+  Zone* zone = this->zone();
+  HEnvironment* start_environment =
+      new(zone) HEnvironment(zone, descriptor_->register_param_count_);
+  HBasicBlock* next_block = CreateBasicBlock(start_environment);
+
+  current_block()->Goto(next_block);
+  next_block->SetJoinId(BailoutId::StubEntry());
   set_current_block(next_block);
 
-  int major_key = stub()->MajorKey();
-  CodeStubInterfaceDescriptor* descriptor =
-      info_.isolate()->code_stub_interface_descriptor(major_key);
-  if (descriptor->register_param_count_ < 0) {
-    stub()->InitializeInterfaceDescriptor(info_.isolate(), descriptor);
-  }
-  parameters_.Reset(new HParameter*[descriptor->register_param_count_]);
-
-  HConstant* undefined_constant = new(zone()) HConstant(
+  HConstant* undefined_constant = new(zone) HConstant(
       isolate()->factory()->undefined_value(), Representation::Tagged());
   AddInstruction(undefined_constant);
   graph()->set_undefined_constant(undefined_constant);
 
-  HGraph* graph = this->graph();
-  Zone* zone = this->zone();
-  for (int i = 0; i < descriptor->register_param_count_; ++i) {
+  int param_count = descriptor_->register_param_count_;
+  for (int i = 0; i < param_count; ++i) {
     HParameter* param =
         new(zone) HParameter(i, HParameter::REGISTER_PARAMETER);
     AddInstruction(param);
-    graph->start_environment()->Push(param);
+    start_environment->Bind(i, param);
     parameters_[i] = param;
   }
 
   context_ = new(zone) HContext();
   AddInstruction(context_);
+  start_environment->Bind(param_count, context_);
 
   AddSimulate(BailoutId::StubEntry());
 
@@ -183,8 +187,6 @@ void CodeStubGraphBuilder<TransitionElementsKindStub>::BuildCodeStub() {
   AddInstruction(
       new(zone) HBoundsCheck(array_length, max_alloc_size,
                              DONT_ALLOW_SMI_KEY, Representation::Integer32()));
-
-  current_block()->UpdateEnvironment(new(zone) HEnvironment(zone));
 
   IfBuilder if_builder(this);
 

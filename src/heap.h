@@ -480,10 +480,13 @@ class Heap {
                      intptr_t max_executable_size);
   bool ConfigureHeapDefault();
 
-  // Initializes the global object heap. If create_heap_objects is true,
-  // also creates the basic non-mutable objects.
+  // Prepares the heap, setting up memory areas that are needed in the isolate
+  // without actually creating any objects.
+  bool SetUp();
+
+  // Bootstraps the object heap with the core set of objects required to run.
   // Returns whether it succeeded.
-  bool SetUp(bool create_heap_objects);
+  bool CreateHeapObjects();
 
   // Destroys all memory allocated by the heap.
   void TearDown();

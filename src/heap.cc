@@ -6209,7 +6209,7 @@ static void InitializeGCOnce() {
   MarkCompactCollector::Initialize();
 }
 
-bool Heap::SetUp(bool create_heap_objects) {
+bool Heap::SetUp() {
 #ifdef DEBUG
   allocation_timeout_ = FLAG_gc_interval;
 #endif
@@ -6300,17 +6300,6 @@ bool Heap::SetUp(bool create_heap_objects) {
     }
   }
 
-  if (create_heap_objects) {
-    // Create initial maps.
-    if (!CreateInitialMaps()) return false;
-    if (!CreateApiObjects()) return false;
-
-    // Create initial objects
-    if (!CreateInitialObjects()) return false;
-
-    native_contexts_list_ = undefined_value();
-  }
-
   LOG(isolate_, IntPtrTEvent("heap-capacity", Capacity()));
   LOG(isolate_, IntPtrTEvent("heap-available", Available()));
 
@@ -6318,6 +6307,18 @@ bool Heap::SetUp(bool create_heap_objects) {
 
   if (FLAG_parallel_recompilation) relocation_mutex_ = OS::CreateMutex();
 
+  return true;
+}
+
+bool Heap::CreateHeapObjects() {
+  // Create initial maps.
+  if (!CreateInitialMaps()) return false;
+  if (!CreateApiObjects()) return false;
+
+  // Create initial objects
+  if (!CreateInitialObjects()) return false;
+
+  native_contexts_list_ = undefined_value();
   return true;
 }
 

@@ -460,7 +460,7 @@ class HEnvironment: public ZoneObject {
                Handle<JSFunction> closure,
                Zone* zone);
 
-  explicit HEnvironment(Zone* zone);
+  HEnvironment(Zone* zone, int parameter_count);
 
   HEnvironment* arguments_environment() {
     return outer()->frame_type() == ARGUMENTS_ADAPTOR ? outer() : this;
@@ -928,15 +928,20 @@ class HGraphBuilder {
       if (!finished_) End();
     }
 
-    void BeginTrue(HValue* left, HValue* right, Token::Value token);
+    HInstruction* BeginTrue(
+        HValue* left,
+        HValue* right,
+        Token::Value token,
+        Representation input_representation = Representation::Integer32());
     void BeginFalse();
     void End();
 
    private:
     HGraphBuilder* builder_;
     bool finished_;
-    HBasicBlock* true_block_;
-    HBasicBlock* false_block_;
+    HBasicBlock* first_true_block_;
+    HBasicBlock* last_true_block_;
+    HBasicBlock* first_false_block_;
     HBasicBlock* merge_block_;
     BailoutId id_;
 
@@ -960,7 +965,11 @@ class HGraphBuilder {
       ASSERT(finished_);
     }
 
-    HValue* BeginBody(HValue* initial, HValue* terminating, Token::Value token);
+    HValue* BeginBody(
+        HValue* initial,
+        HValue* terminating,
+        Token::Value token,
+        Representation input_representation = Representation::Integer32());
     void EndBody();
 
    private:

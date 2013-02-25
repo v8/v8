@@ -1673,7 +1673,7 @@ int FrameDescription::ComputeParametersCount() {
       return reinterpret_cast<Smi*>(*GetFrameSlotPointer(0))->value();
     }
     case StackFrame::STUB:
-      return 0;
+      return -1;  // Minus receiver.
     default:
       UNREACHABLE();
       return 0;

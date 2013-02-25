@@ -2039,10 +2039,17 @@ bool Isolate::Init(Deserializer* des) {
   }
 
   // SetUp the object heap.
-  const bool create_heap_objects = (des == NULL);
   ASSERT(!heap_.HasBeenSetUp());
-  if (!heap_.SetUp(create_heap_objects)) {
+  if (!heap_.SetUp()) {
     V8::FatalProcessOutOfMemory("heap setup");
+    return false;
+  }
+
+  deoptimizer_data_ = new DeoptimizerData;
+
+  const bool create_heap_objects = (des == NULL);
+  if (create_heap_objects && !heap_.CreateHeapObjects()) {
+    V8::FatalProcessOutOfMemory("heap object creation");
     return false;
   }
 
@@ -2075,8 +2082,6 @@ bool Isolate::Init(Deserializer* des) {
 #ifdef ENABLE_DEBUGGER_SUPPORT
   debug_->SetUp(create_heap_objects);
 #endif
-
-  deoptimizer_data_ = new DeoptimizerData;
 
   // If we are deserializing, read the state into the now-empty heap.
   if (!create_heap_objects) {
