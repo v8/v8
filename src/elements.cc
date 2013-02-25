@@ -1576,7 +1576,7 @@ class DictionaryElementsAccessor
         if (mode == JSObject::STRICT_DELETION) {
           // Deleting a non-configurable property in strict mode.
           HandleScope scope(isolate);
-          Handle<Object> holder(obj);
+          Handle<Object> holder(obj, isolate);
           Handle<Object> name = isolate->factory()->NewNumberFromUint(key);
           Handle<Object> args[2] = { name, holder };
           Handle<Object> error =

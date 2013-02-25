@@ -704,27 +704,29 @@ void HandleScope::Leave() {
 
 
 int HandleScope::NumberOfHandles() {
-  EnsureInitializedForIsolate(
-      i::Isolate::Current(), "HandleScope::NumberOfHandles");
-  return i::HandleScope::NumberOfHandles();
+  i::Isolate* isolate = i::Isolate::Current();
+  if (!EnsureInitializedForIsolate(isolate, "HandleScope::NumberOfHandles")) {
+    return 0;
+  }
+  return i::HandleScope::NumberOfHandles(isolate);
 }
 
 
 i::Object** HandleScope::CreateHandle(i::Object* value) {
-  return i::HandleScope::CreateHandle(value, i::Isolate::Current());
+  return i::HandleScope::CreateHandle(i::Isolate::Current(), value);
 }
 
 
 i::Object** HandleScope::CreateHandle(i::Isolate* isolate, i::Object* value) {
   ASSERT(isolate == i::Isolate::Current());
-  return i::HandleScope::CreateHandle(value, isolate);
+  return i::HandleScope::CreateHandle(isolate, value);
 }
 
 
 i::Object** HandleScope::CreateHandle(i::HeapObject* value) {
   ASSERT(value->IsHeapObject());
   return reinterpret_cast<i::Object**>(
-      i::HandleScope::CreateHandle(value, value->GetIsolate()));
+      i::HandleScope::CreateHandle(value->GetIsolate(), value));
 }
 
 
@@ -938,7 +940,7 @@ void Template::Set(v8::Handle<String> name, v8::Handle<Data> value,
   if (IsDeadCheck(isolate, "v8::Template::Set()")) return;
   ENTER_V8(isolate);
   i::HandleScope scope(isolate);
-  i::Handle<i::Object> list(Utils::OpenHandle(this)->property_list());
+  i::Handle<i::Object> list(Utils::OpenHandle(this)->property_list(), isolate);
   if (list->IsUndefined()) {
     list = NeanderArray().value();
     Utils::OpenHandle(this)->set_property_list(*list);
@@ -964,7 +966,8 @@ Local<ObjectTemplate> FunctionTemplate::PrototypeTemplate() {
     return Local<ObjectTemplate>();
   }
   ENTER_V8(isolate);
-  i::Handle<i::Object> result(Utils::OpenHandle(this)->prototype_template());
+  i::Handle<i::Object> result(Utils::OpenHandle(this)->prototype_template(),
+                              isolate);
   if (result->IsUndefined()) {
     result = Utils::OpenHandle(*ObjectTemplate::New());
     Utils::OpenHandle(this)->set_prototype_template(*result);
@@ -1144,7 +1147,8 @@ void FunctionTemplate::AddInstancePropertyAccessor(
   i::Handle<i::AccessorInfo> obj = MakeAccessorInfo(name, getter, setter, data,
                                                     settings, attributes,
                                                     signature);
-  i::Handle<i::Object> list(Utils::OpenHandle(this)->property_accessors());
+  i::Handle<i::Object> list(Utils::OpenHandle(this)->property_accessors(),
+                            isolate);
   if (list->IsUndefined()) {
     list = NeanderArray().value();
     Utils::OpenHandle(this)->set_property_accessors(*list);
@@ -1694,10 +1698,10 @@ Local<Value> Script::Id() {
     i::HandleScope scope(isolate);
     i::Handle<i::SharedFunctionInfo> function_info = OpenScript(this);
     i::Handle<i::Script> script(i::Script::cast(function_info->script()));
-    i::Handle<i::Object> id(script->id());
+    i::Handle<i::Object> id(script->id(), isolate);
     raw_id = *id;
   }
-  i::Handle<i::Object> id(raw_id);
+  i::Handle<i::Object> id(raw_id, isolate);
   return Utils::ToLocal(id);
 }
 
@@ -1783,7 +1787,7 @@ v8::Local<Value> v8::TryCatch::StackTrace() const {
     i::Handle<i::JSObject> obj(i::JSObject::cast(raw_obj), isolate_);
     i::Handle<i::String> name = isolate_->factory()->stack_symbol();
     if (!obj->HasProperty(*name)) return v8::Local<Value>();
-    i::Handle<i::Object> value = i::GetProperty(obj, name);
+    i::Handle<i::Object> value = i::GetProperty(isolate_, obj, name);
     if (value.is_null()) return v8::Local<Value>();
     return v8::Utils::ToLocal(scope.CloseAndEscape(value));
   } else {
@@ -1829,7 +1833,7 @@ Local<String> Message::Get() const {
   ENTER_V8(isolate);
   HandleScope scope;
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
-  i::Handle<i::String> raw_result = i::MessageHandler::GetMessage(obj);
+  i::Handle<i::String> raw_result = i::MessageHandler::GetMessage(isolate, obj);
   Local<String> result = Utils::ToLocal(raw_result);
   return scope.Close(result);
 }
@@ -1846,8 +1850,10 @@ v8::Handle<Value> Message::GetScriptResourceName() const {
       i::Handle<i::JSMessageObject>::cast(Utils::OpenHandle(this));
   // Return this.script.name.
   i::Handle<i::JSValue> script =
-      i::Handle<i::JSValue>::cast(i::Handle<i::Object>(message->script()));
-  i::Handle<i::Object> resource_name(i::Script::cast(script->value())->name());
+      i::Handle<i::JSValue>::cast(i::Handle<i::Object>(message->script(),
+                                                       isolate));
+  i::Handle<i::Object> resource_name(i::Script::cast(script->value())->name(),
+                                     isolate);
   return scope.Close(Utils::ToLocal(resource_name));
 }
 
@@ -1863,8 +1869,9 @@ v8::Handle<Value> Message::GetScriptData() const {
       i::Handle<i::JSMessageObject>::cast(Utils::OpenHandle(this));
   // Return this.script.data.
   i::Handle<i::JSValue> script =
-      i::Handle<i::JSValue>::cast(i::Handle<i::Object>(message->script()));
-  i::Handle<i::Object> data(i::Script::cast(script->value())->data());
+      i::Handle<i::JSValue>::cast(i::Handle<i::Object>(message->script(),
+                                                       isolate));
+  i::Handle<i::Object> data(i::Script::cast(script->value())->data(), isolate);
   return scope.Close(Utils::ToLocal(data));
 }
 
@@ -1878,7 +1885,7 @@ v8::Handle<v8::StackTrace> Message::GetStackTrace() const {
   HandleScope scope;
   i::Handle<i::JSMessageObject> message =
       i::Handle<i::JSMessageObject>::cast(Utils::OpenHandle(this));
-  i::Handle<i::Object> stackFramesObj(message->stack_frames());
+  i::Handle<i::Object> stackFramesObj(message->stack_frames(), isolate);
   if (!stackFramesObj->IsJSArray()) return v8::Handle<v8::StackTrace>();
   i::Handle<i::JSArray> stackTrace =
       i::Handle<i::JSArray>::cast(stackFramesObj);
@@ -2430,7 +2437,7 @@ Local<Boolean> Value::ToBoolean() const {
     }
     LOG_API(isolate, "ToBoolean");
     ENTER_V8(isolate);
-    i::Handle<i::Object> val = i::Execution::ToBoolean(obj);
+    i::Handle<i::Object> val = i::Execution::ToBoolean(isolate, obj);
     return Local<Boolean>(ToApi<Boolean>(val));
   }
 }
@@ -2594,7 +2601,7 @@ bool Value::BooleanValue() const {
     if (IsDeadCheck(isolate, "v8::Value::BooleanValue()")) return false;
     LOG_API(isolate, "BooleanValue");
     ENTER_V8(isolate);
-    i::Handle<i::Object> value = i::Execution::ToBoolean(obj);
+    i::Handle<i::Object> value = i::Execution::ToBoolean(isolate, obj);
     return value->IsTrue();
   }
 }
@@ -2697,7 +2704,7 @@ Local<Uint32> Value::ToArrayIndex() const {
   if (str->AsArrayIndex(&index)) {
     i::Handle<i::Object> value;
     if (index <= static_cast<uint32_t>(i::Smi::kMaxValue)) {
-      value = i::Handle<i::Object>(i::Smi::FromInt(index));
+      value = i::Handle<i::Object>(i::Smi::FromInt(index), isolate);
     } else {
       value = isolate->factory()->NewNumber(index);
     }
@@ -2906,7 +2913,7 @@ Local<Value> v8::Object::Get(v8::Handle<Value> key) {
   i::Handle<i::Object> self = Utils::OpenHandle(this);
   i::Handle<i::Object> key_obj = Utils::OpenHandle(*key);
   EXCEPTION_PREAMBLE(isolate);
-  i::Handle<i::Object> result = i::GetProperty(self, key_obj);
+  i::Handle<i::Object> result = i::GetProperty(isolate, self, key_obj);
   has_pending_exception = result.is_null();
   EXCEPTION_BAILOUT_CHECK(isolate, Local<Value>());
   return Utils::ToLocal(result);
@@ -2952,7 +2959,7 @@ Local<Value> v8::Object::GetPrototype() {
              return Local<v8::Value>());
   ENTER_V8(isolate);
   i::Handle<i::Object> self = Utils::OpenHandle(this);
-  i::Handle<i::Object> result(self->GetPrototype());
+  i::Handle<i::Object> result(self->GetPrototype(), isolate);
   return Utils::ToLocal(result);
 }
 
@@ -3041,7 +3048,7 @@ Local<String> v8::Object::ObjectProtoToString() {
   ENTER_V8(isolate);
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
 
-  i::Handle<i::Object> name(self->class_name());
+  i::Handle<i::Object> name(self->class_name(), isolate);
 
   // Native implementation of Object.prototype.toString (v8natives.js):
   //   var c = %ClassOf(this);
@@ -3094,7 +3101,7 @@ Local<Value> v8::Object::GetConstructor() {
              return Local<v8::Function>());
   ENTER_V8(isolate);
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
-  i::Handle<i::Object> constructor(self->GetConstructor());
+  i::Handle<i::Object> constructor(self->GetConstructor(), isolate);
   return Utils::ToLocal(constructor);
 }
 
@@ -3725,7 +3732,7 @@ Local<v8::Value> Function::Call(v8::Handle<v8::Object> recv, int argc,
     EXCEPTION_BAILOUT_CHECK_DO_CALLBACK(isolate, Local<Object>());
     raw_result = *returned;
   }
-  i::Handle<i::Object> result(raw_result);
+  i::Handle<i::Object> result(raw_result, isolate);
   return Utils::ToLocal(result);
 }
 
@@ -3741,13 +3748,15 @@ void Function::SetName(v8::Handle<v8::String> name) {
 
 Handle<Value> Function::GetName() const {
   i::Handle<i::JSFunction> func = Utils::OpenHandle(this);
-  return Utils::ToLocal(i::Handle<i::Object>(func->shared()->name()));
+  return Utils::ToLocal(i::Handle<i::Object>(func->shared()->name(),
+                                             func->GetIsolate()));
 }
 
 
 Handle<Value> Function::GetInferredName() const {
   i::Handle<i::JSFunction> func = Utils::OpenHandle(this);
-  return Utils::ToLocal(i::Handle<i::Object>(func->shared()->inferred_name()));
+  return Utils::ToLocal(i::Handle<i::Object>(func->shared()->inferred_name(),
+                                             func->GetIsolate()));
 }
 
 
@@ -3793,7 +3802,7 @@ Handle<Value> Function::GetScriptId() const {
   if (!func->shared()->script()->IsScript())
     return v8::Undefined();
   i::Handle<i::Script> script(i::Script::cast(func->shared()->script()));
-  return Utils::ToLocal(i::Handle<i::Object>(script->id()));
+  return Utils::ToLocal(i::Handle<i::Object>(script->id(), func->GetIsolate()));
 }
 
 int String::Length() const {
@@ -4616,7 +4625,7 @@ Handle<Value> v8::Context::GetSecurityToken() {
   }
   i::Handle<i::Context> env = Utils::OpenHandle(this);
   i::Object* security_token = env->security_token();
-  i::Handle<i::Object> token_handle(security_token);
+  i::Handle<i::Object> token_handle(security_token, isolate);
   return Utils::ToLocal(token_handle);
 }
 
@@ -4752,7 +4761,7 @@ void Context::SetErrorMessageForCodeGenerationFromStrings(
   i::Object** ctx = reinterpret_cast<i::Object**>(this);
   i::Handle<i::Context> context =
       i::Handle<i::Context>::cast(i::Handle<i::Object>(ctx));
-  i::Handle<i::Object> error_handle = Utils::OpenHandle(*error);
+  i::Handle<i::String> error_handle = Utils::OpenHandle(*error);
   context->set_error_message_for_code_gen_from_strings(*error_handle);
 }
 
@@ -5037,8 +5046,10 @@ Local<v8::Value> v8::BooleanObject::New(bool value) {
   EnsureInitializedForIsolate(isolate, "v8::BooleanObject::New()");
   LOG_API(isolate, "BooleanObject::New");
   ENTER_V8(isolate);
-  i::Handle<i::Object> boolean(value ? isolate->heap()->true_value()
-                                     : isolate->heap()->false_value());
+  i::Handle<i::Object> boolean(value
+                               ? isolate->heap()->true_value()
+                               : isolate->heap()->false_value(),
+                               isolate);
   i::Handle<i::Object> obj = isolate->factory()->ToObject(boolean);
   return Utils::ToLocal(obj);
 }
@@ -5692,7 +5703,7 @@ Local<Value> Exception::RangeError(v8::Handle<v8::String> raw_message) {
     i::Handle<i::Object> result = isolate->factory()->NewRangeError(message);
     error = *result;
   }
-  i::Handle<i::Object> result(error);
+  i::Handle<i::Object> result(error, isolate);
   return Utils::ToLocal(result);
 }
 
@@ -5709,7 +5720,7 @@ Local<Value> Exception::ReferenceError(v8::Handle<v8::String> raw_message) {
         isolate->factory()->NewReferenceError(message);
     error = *result;
   }
-  i::Handle<i::Object> result(error);
+  i::Handle<i::Object> result(error, isolate);
   return Utils::ToLocal(result);
 }
 
@@ -5725,7 +5736,7 @@ Local<Value> Exception::SyntaxError(v8::Handle<v8::String> raw_message) {
     i::Handle<i::Object> result = isolate->factory()->NewSyntaxError(message);
     error = *result;
   }
-  i::Handle<i::Object> result(error);
+  i::Handle<i::Object> result(error, isolate);
   return Utils::ToLocal(result);
 }
 
@@ -5741,7 +5752,7 @@ Local<Value> Exception::TypeError(v8::Handle<v8::String> raw_message) {
     i::Handle<i::Object> result = isolate->factory()->NewTypeError(message);
     error = *result;
   }
-  i::Handle<i::Object> result(error);
+  i::Handle<i::Object> result(error, isolate);
   return Utils::ToLocal(result);
 }
 
@@ -5757,7 +5768,7 @@ Local<Value> Exception::Error(v8::Handle<v8::String> raw_message) {
     i::Handle<i::Object> result = isolate->factory()->NewError(message);
     error = *result;
   }
-  i::Handle<i::Object> result(error);
+  i::Handle<i::Object> result(error, isolate);
   return Utils::ToLocal(result);
 }
 
@@ -5961,7 +5972,7 @@ Local<Value> Debug::GetMirror(v8::Handle<v8::Value> obj) {
   i::Handle<i::JSObject> debug(isolate_debug->debug_context()->global_object());
   i::Handle<i::String> name = isolate->factory()->LookupOneByteSymbol(
       STATIC_ASCII_VECTOR("MakeMirror"));
-  i::Handle<i::Object> fun_obj = i::GetProperty(debug, name);
+  i::Handle<i::Object> fun_obj = i::GetProperty(isolate, debug, name);
   i::Handle<i::JSFunction> fun = i::Handle<i::JSFunction>::cast(fun_obj);
   v8::Handle<v8::Function> v8_fun = Utils::ToLocal(fun);
   const int kArgc = 1;

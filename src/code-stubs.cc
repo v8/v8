@@ -308,12 +308,10 @@ bool ICCompareStub::FindCodeInSpecialCache(Code** code_out, Isolate* isolate) {
       static_cast<Code::Kind>(GetCodeKind()),
       UNINITIALIZED);
   ASSERT(op_ == Token::EQ || op_ == Token::EQ_STRICT);
-  Handle<Object> probe(
-      known_map_->FindInCodeCache(
-        strict() ?
-            *factory->strict_compare_ic_symbol() :
-            *factory->compare_ic_symbol(),
-        flags));
+  String* symbol = strict() ?
+      *factory->strict_compare_ic_symbol() :
+      *factory->compare_ic_symbol();
+  Handle<Object> probe(known_map_->FindInCodeCache(symbol, flags), isolate);
   if (probe->IsCode()) {
     *code_out = Code::cast(*probe);
 #ifdef DEBUG

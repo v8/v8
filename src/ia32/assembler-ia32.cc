@@ -2487,7 +2487,7 @@ void Assembler::emit_sse_operand(Register dst, XMMRegister src) {
 
 
 void Assembler::Print() {
-  Disassembler::Decode(stdout, buffer_, pc_);
+  Disassembler::Decode(isolate(), stdout, buffer_, pc_);
 }
 
 

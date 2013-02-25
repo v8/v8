@@ -58,62 +58,65 @@ TEST(HeapMaps) {
 }
 
 
-static void CheckOddball(Object* obj, const char* string) {
+static void CheckOddball(Isolate* isolate, Object* obj, const char* string) {
   CHECK(obj->IsOddball());
   bool exc;
-  Object* print_string = *Execution::ToString(Handle<Object>(obj), &exc);
+  Object* print_string =
+      *Execution::ToString(Handle<Object>(obj, isolate), &exc);
   CHECK(String::cast(print_string)->IsUtf8EqualTo(CStrVector(string)));
 }
 
 
-static void CheckSmi(int value, const char* string) {
+static void CheckSmi(Isolate* isolate, int value, const char* string) {
   bool exc;
   Object* print_string =
-      *Execution::ToString(Handle<Object>(Smi::FromInt(value)), &exc);
+      *Execution::ToString(Handle<Object>(Smi::FromInt(value), isolate), &exc);
   CHECK(String::cast(print_string)->IsUtf8EqualTo(CStrVector(string)));
 }
 
 
-static void CheckNumber(double value, const char* string) {
+static void CheckNumber(Isolate* isolate, double value, const char* string) {
   Object* obj = HEAP->NumberFromDouble(value)->ToObjectChecked();
   CHECK(obj->IsNumber());
   bool exc;
-  Object* print_string = *Execution::ToString(Handle<Object>(obj), &exc);
+  Object* print_string =
+      *Execution::ToString(Handle<Object>(obj, isolate), &exc);
   CHECK(String::cast(print_string)->IsUtf8EqualTo(CStrVector(string)));
 }
 
 
-static void CheckFindCodeObject() {
+static void CheckFindCodeObject(Isolate* isolate) {
   // Test FindCodeObject
 #define __ assm.
 
-  Assembler assm(Isolate::Current(), NULL, 0);
+  Assembler assm(isolate, NULL, 0);
 
   __ nop();  // supported on all architectures
 
   CodeDesc desc;
   assm.GetCode(&desc);
-  Object* code = HEAP->CreateCode(
+  Heap* heap = isolate->heap();
+  Object* code = heap->CreateCode(
       desc,
       Code::ComputeFlags(Code::STUB),
-      Handle<Object>(HEAP->undefined_value()))->ToObjectChecked();
+      Handle<Code>())->ToObjectChecked();
   CHECK(code->IsCode());
 
   HeapObject* obj = HeapObject::cast(code);
   Address obj_addr = obj->address();
 
   for (int i = 0; i < obj->Size(); i += kPointerSize) {
-    Object* found = HEAP->FindCodeObject(obj_addr + i);
+    Object* found = heap->FindCodeObject(obj_addr + i);
     CHECK_EQ(code, found);
   }
 
-  Object* copy = HEAP->CreateCode(
+  Object* copy = heap->CreateCode(
       desc,
       Code::ComputeFlags(Code::STUB),
-      Handle<Object>(HEAP->undefined_value()))->ToObjectChecked();
+      Handle<Code>())->ToObjectChecked();
   CHECK(copy->IsCode());
   HeapObject* obj_copy = HeapObject::cast(copy);
-  Object* not_right = HEAP->FindCodeObject(obj_copy->address() +
+  Object* not_right = heap->FindCodeObject(obj_copy->address() +
                                            obj_copy->Size() / 2);
   CHECK(not_right != code);
 }
@@ -121,50 +124,52 @@ static void CheckFindCodeObject() {
 
 TEST(HeapObjects) {
   InitializeVM();
+  Isolate* isolate = Isolate::Current();
+  Heap* heap = isolate->heap();
 
   v8::HandleScope sc;
-  Object* value = HEAP->NumberFromDouble(1.000123)->ToObjectChecked();
+  Object* value = heap->NumberFromDouble(1.000123)->ToObjectChecked();
   CHECK(value->IsHeapNumber());
   CHECK(value->IsNumber());
   CHECK_EQ(1.000123, value->Number());
 
-  value = HEAP->NumberFromDouble(1.0)->ToObjectChecked();
+  value = heap->NumberFromDouble(1.0)->ToObjectChecked();
   CHECK(value->IsSmi());
   CHECK(value->IsNumber());
   CHECK_EQ(1.0, value->Number());
 
-  value = HEAP->NumberFromInt32(1024)->ToObjectChecked();
+  value = heap->NumberFromInt32(1024)->ToObjectChecked();
   CHECK(value->IsSmi());
   CHECK(value->IsNumber());
   CHECK_EQ(1024.0, value->Number());
 
-  value = HEAP->NumberFromInt32(Smi::kMinValue)->ToObjectChecked();
+  value = heap->NumberFromInt32(Smi::kMinValue)->ToObjectChecked();
   CHECK(value->IsSmi());
   CHECK(value->IsNumber());
   CHECK_EQ(Smi::kMinValue, Smi::cast(value)->value());
 
-  value = HEAP->NumberFromInt32(Smi::kMaxValue)->ToObjectChecked();
+  value = heap->NumberFromInt32(Smi::kMaxValue)->ToObjectChecked();
   CHECK(value->IsSmi());
   CHECK(value->IsNumber());
   CHECK_EQ(Smi::kMaxValue, Smi::cast(value)->value());
 
 #ifndef V8_TARGET_ARCH_X64
   // TODO(lrn): We need a NumberFromIntptr function in order to test this.
-  value = HEAP->NumberFromInt32(Smi::kMinValue - 1)->ToObjectChecked();
+  value = heap->NumberFromInt32(Smi::kMinValue - 1)->ToObjectChecked();
   CHECK(value->IsHeapNumber());
   CHECK(value->IsNumber());
   CHECK_EQ(static_cast<double>(Smi::kMinValue - 1), value->Number());
 #endif
 
   MaybeObject* maybe_value =
-      HEAP->NumberFromUint32(static_cast<uint32_t>(Smi::kMaxValue) + 1);
+      heap->NumberFromUint32(static_cast<uint32_t>(Smi::kMaxValue) + 1);
   value = maybe_value->ToObjectChecked();
   CHECK(value->IsHeapNumber());
   CHECK(value->IsNumber());
   CHECK_EQ(static_cast<double>(static_cast<uint32_t>(Smi::kMaxValue) + 1),
            value->Number());
 
-  maybe_value = HEAP->NumberFromUint32(static_cast<uint32_t>(1) << 31);
+  maybe_value = heap->NumberFromUint32(static_cast<uint32_t>(1) << 31);
   value = maybe_value->ToObjectChecked();
   CHECK(value->IsHeapNumber());
   CHECK(value->IsNumber());
@@ -172,33 +177,33 @@ TEST(HeapObjects) {
            value->Number());
 
   // nan oddball checks
-  CHECK(HEAP->nan_value()->IsNumber());
-  CHECK(isnan(HEAP->nan_value()->Number()));
+  CHECK(heap->nan_value()->IsNumber());
+  CHECK(isnan(heap->nan_value()->Number()));
 
   Handle<String> s = FACTORY->NewStringFromAscii(CStrVector("fisk hest "));
   CHECK(s->IsString());
   CHECK_EQ(10, s->length());
 
-  String* object_symbol = String::cast(HEAP->Object_symbol());
+  String* object_symbol = String::cast(heap->Object_symbol());
   CHECK(
       Isolate::Current()->context()->global_object()->HasLocalProperty(
           object_symbol));
 
   // Check ToString for oddballs
-  CheckOddball(HEAP->true_value(), "true");
-  CheckOddball(HEAP->false_value(), "false");
-  CheckOddball(HEAP->null_value(), "null");
-  CheckOddball(HEAP->undefined_value(), "undefined");
+  CheckOddball(isolate, heap->true_value(), "true");
+  CheckOddball(isolate, heap->false_value(), "false");
+  CheckOddball(isolate, heap->null_value(), "null");
+  CheckOddball(isolate, heap->undefined_value(), "undefined");
 
   // Check ToString for Smis
-  CheckSmi(0, "0");
-  CheckSmi(42, "42");
-  CheckSmi(-42, "-42");
+  CheckSmi(isolate, 0, "0");
+  CheckSmi(isolate, 42, "42");
+  CheckSmi(isolate, -42, "-42");
 
   // Check ToString for Numbers
-  CheckNumber(1.1, "1.1");
+  CheckNumber(isolate, 1.1, "1.1");
 
-  CheckFindCodeObject();
+  CheckFindCodeObject(isolate);
 }
 
 
@@ -1210,7 +1215,7 @@ TEST(TestCodeFlushingIncrementalAbort) {
   // is running so that incremental marking aborts and code flushing is
   // disabled.
   int position = 0;
-  Handle<Object> breakpoint_object(Smi::FromInt(0));
+  Handle<Object> breakpoint_object(Smi::FromInt(0), isolate);
   isolate->debug()->SetBreakPoint(function, breakpoint_object, &position);
   isolate->debug()->ClearAllBreakPoints();
 
@@ -1357,14 +1362,16 @@ TEST(TestInternalWeakLists) {
 
 // Count the number of native contexts in the weak list of native contexts
 // causing a GC after the specified number of elements.
-static int CountNativeContextsWithGC(int n) {
+static int CountNativeContextsWithGC(Isolate* isolate, int n) {
+  Heap* heap = isolate->heap();
   int count = 0;
-  Handle<Object> object(HEAP->native_contexts_list());
+  Handle<Object> object(heap->native_contexts_list(), isolate);
   while (!object->IsUndefined()) {
     count++;
-    if (count == n) HEAP->CollectAllGarbage(Heap::kNoGCFlags);
+    if (count == n) heap->CollectAllGarbage(Heap::kNoGCFlags);
     object =
-        Handle<Object>(Context::cast(*object)->get(Context::NEXT_CONTEXT_LINK));
+        Handle<Object>(Context::cast(*object)->get(Context::NEXT_CONTEXT_LINK),
+                       isolate);
   }
   return count;
 }
@@ -1377,13 +1384,16 @@ static int CountOptimizedUserFunctionsWithGC(v8::Handle<v8::Context> context,
                                              int n) {
   int count = 0;
   Handle<Context> icontext = v8::Utils::OpenHandle(*context);
-  Handle<Object> object(icontext->get(Context::OPTIMIZED_FUNCTIONS_LIST));
+  Isolate* isolate = icontext->GetIsolate();
+  Handle<Object> object(icontext->get(Context::OPTIMIZED_FUNCTIONS_LIST),
+                        isolate);
   while (object->IsJSFunction() &&
          !Handle<JSFunction>::cast(object)->IsBuiltin()) {
     count++;
-    if (count == n) HEAP->CollectAllGarbage(Heap::kNoGCFlags);
+    if (count == n) isolate->heap()->CollectAllGarbage(Heap::kNoGCFlags);
     object = Handle<Object>(
-        Object::cast(JSFunction::cast(*object)->next_function_link()));
+        Object::cast(JSFunction::cast(*object)->next_function_link()),
+        isolate);
   }
   return count;
 }
@@ -1391,6 +1401,7 @@ static int CountOptimizedUserFunctionsWithGC(v8::Handle<v8::Context> context,
 
 TEST(TestInternalWeakListsTraverseWithGC) {
   v8::V8::Initialize();
+  Isolate* isolate = Isolate::Current();
 
   static const int kNumTestContexts = 10;
 
@@ -1404,7 +1415,7 @@ TEST(TestInternalWeakListsTraverseWithGC) {
   for (int i = 0; i < kNumTestContexts; i++) {
     ctx[i] = v8::Context::New();
     CHECK_EQ(i + 1, CountNativeContexts());
-    CHECK_EQ(i + 1, CountNativeContextsWithGC(i / 2 + 1));
+    CHECK_EQ(i + 1, CountNativeContextsWithGC(isolate, i / 2 + 1));
   }
 
   bool opt = (FLAG_always_opt && i::V8::UseCrankshaft());
@@ -2487,6 +2498,7 @@ TEST(ReleaseStackTraceData) {
 TEST(Regression144230) {
   InitializeVM();
   Isolate* isolate = Isolate::Current();
+  Heap* heap = isolate->heap();
   v8::HandleScope scope;
 
   // First make sure that the uninitialized CallIC stub is on a single page
@@ -2494,7 +2506,7 @@ TEST(Regression144230) {
   {
     v8::HandleScope inner_scope;
     AlwaysAllocateScope always_allocate;
-    SimulateFullSpace(HEAP->code_space());
+    SimulateFullSpace(heap->code_space());
     isolate->stub_cache()->ComputeCallInitialize(9, RelocInfo::CODE_TARGET);
   }
 
@@ -2503,7 +2515,7 @@ TEST(Regression144230) {
   {
     v8::HandleScope inner_scope;
     AlwaysAllocateScope always_allocate;
-    SimulateFullSpace(HEAP->code_space());
+    SimulateFullSpace(heap->code_space());
     CompileRun("var o = { f:function(a,b,c,d,e,f,g,h,i) {}};"
                "function call() { o.f(1,2,3,4,5,6,7,8,9); };"
                "call();");
@@ -2519,7 +2531,7 @@ TEST(Regression144230) {
                "       'f' + i + '();');"
                "}");
   }
-  HEAP->CollectAllGarbage(Heap::kNoGCFlags);
+  heap->CollectAllGarbage(Heap::kNoGCFlags);
 
   // Fourth is the tricky part. Make sure the code containing the CallIC is
   // visited first without clearing the IC. The shared function info is then
@@ -2530,12 +2542,12 @@ TEST(Regression144230) {
   JSFunction* call = JSFunction::cast(maybe_call->ToObjectChecked());
   USE(global->SetProperty(*name, Smi::FromInt(0), NONE, kNonStrictMode));
   isolate->compilation_cache()->Clear();
-  call->shared()->set_ic_age(HEAP->global_ic_age() + 1);
-  Handle<Object> call_code(call->code());
-  Handle<Object> call_function(call);
+  call->shared()->set_ic_age(heap->global_ic_age() + 1);
+  Handle<Object> call_code(call->code(), isolate);
+  Handle<Object> call_function(call, isolate);
 
   // Now we are ready to mess up the heap.
-  HEAP->CollectAllGarbage(Heap::kReduceMemoryFootprintMask);
+  heap->CollectAllGarbage(Heap::kReduceMemoryFootprintMask);
 
   // Either heap verification caught the problem already or we go kaboom once
   // the CallIC is executed the next time.

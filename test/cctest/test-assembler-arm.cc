@@ -59,17 +59,18 @@ TEST(0) {
   InitializeVM();
   v8::HandleScope scope;
 
-  Assembler assm(Isolate::Current(), NULL, 0);
+  Isolate* isolate = Isolate::Current();
+  Assembler assm(isolate, NULL, 0);
 
   __ add(r0, r0, Operand(r1));
   __ mov(pc, Operand(lr));
 
   CodeDesc desc;
   assm.GetCode(&desc);
-  Object* code = HEAP->CreateCode(
+  Object* code = isolate->heap()->CreateCode(
       desc,
       Code::ComputeFlags(Code::STUB),
-      Handle<Object>(HEAP->undefined_value()))->ToObjectChecked();
+      Handle<Code>())->ToObjectChecked();
   CHECK(code->IsCode());
 #ifdef DEBUG
   Code::cast(code)->Print();
@@ -85,7 +86,8 @@ TEST(1) {
   InitializeVM();
   v8::HandleScope scope;
 
-  Assembler assm(Isolate::Current(), NULL, 0);
+  Isolate* isolate = Isolate::Current();
+  Assembler assm(isolate, NULL, 0);
   Label L, C;
 
   __ mov(r1, Operand(r0));
@@ -103,10 +105,10 @@ TEST(1) {
 
   CodeDesc desc;
   assm.GetCode(&desc);
-  Object* code = HEAP->CreateCode(
+  Object* code = isolate->heap()->CreateCode(
       desc,
       Code::ComputeFlags(Code::STUB),
-      Handle<Object>(HEAP->undefined_value()))->ToObjectChecked();
+      Handle<Code>())->ToObjectChecked();
   CHECK(code->IsCode());
 #ifdef DEBUG
   Code::cast(code)->Print();
@@ -122,7 +124,8 @@ TEST(2) {
   InitializeVM();
   v8::HandleScope scope;
 
-  Assembler assm(Isolate::Current(), NULL, 0);
+  Isolate* isolate = Isolate::Current();
+  Assembler assm(isolate, NULL, 0);
   Label L, C;
 
   __ mov(r1, Operand(r0));
@@ -149,10 +152,10 @@ TEST(2) {
 
   CodeDesc desc;
   assm.GetCode(&desc);
-  Object* code = HEAP->CreateCode(
+  Object* code = isolate->heap()->CreateCode(
       desc,
       Code::ComputeFlags(Code::STUB),
-      Handle<Object>(HEAP->undefined_value()))->ToObjectChecked();
+      Handle<Code>())->ToObjectChecked();
   CHECK(code->IsCode());
 #ifdef DEBUG
   Code::cast(code)->Print();
@@ -175,7 +178,8 @@ TEST(3) {
   } T;
   T t;
 
-  Assembler assm(Isolate::Current(), NULL, 0);
+  Isolate* isolate = Isolate::Current();
+  Assembler assm(isolate, NULL, 0);
   Label L, C;
 
   __ mov(ip, Operand(sp));
@@ -197,10 +201,10 @@ TEST(3) {
 
   CodeDesc desc;
   assm.GetCode(&desc);
-  Object* code = HEAP->CreateCode(
+  Object* code = isolate->heap()->CreateCode(
       desc,
       Code::ComputeFlags(Code::STUB),
-      Handle<Object>(HEAP->undefined_value()))->ToObjectChecked();
+      Handle<Code>())->ToObjectChecked();
   CHECK(code->IsCode());
 #ifdef DEBUG
   Code::cast(code)->Print();
@@ -242,7 +246,8 @@ TEST(4) {
 
   // Create a function that accepts &t, and loads, manipulates, and stores
   // the doubles and floats.
-  Assembler assm(Isolate::Current(), NULL, 0);
+  Isolate* isolate = Isolate::Current();
+  Assembler assm(isolate, NULL, 0);
   Label L, C;
 
 
@@ -314,10 +319,10 @@ TEST(4) {
 
     CodeDesc desc;
     assm.GetCode(&desc);
-    Object* code = HEAP->CreateCode(
+    Object* code = isolate->heap()->CreateCode(
         desc,
         Code::ComputeFlags(Code::STUB),
-        Handle<Object>(HEAP->undefined_value()))->ToObjectChecked();
+        Handle<Code>())->ToObjectChecked();
     CHECK(code->IsCode());
 #ifdef DEBUG
     Code::cast(code)->Print();
@@ -360,7 +365,8 @@ TEST(5) {
   InitializeVM();
   v8::HandleScope scope;
 
-  Assembler assm(Isolate::Current(), NULL, 0);
+  Isolate* isolate = Isolate::Current();
+  Assembler assm(isolate, NULL, 0);
 
   if (CpuFeatures::IsSupported(ARMv7)) {
     CpuFeatures::Scope scope(ARMv7);
@@ -374,10 +380,10 @@ TEST(5) {
 
     CodeDesc desc;
     assm.GetCode(&desc);
-    Object* code = HEAP->CreateCode(
+    Object* code = isolate->heap()->CreateCode(
         desc,
         Code::ComputeFlags(Code::STUB),
-        Handle<Object>(HEAP->undefined_value()))->ToObjectChecked();
+        Handle<Code>())->ToObjectChecked();
     CHECK(code->IsCode());
 #ifdef DEBUG
     Code::cast(code)->Print();
@@ -396,7 +402,8 @@ TEST(6) {
   InitializeVM();
   v8::HandleScope scope;
 
-  Assembler assm(Isolate::Current(), NULL, 0);
+  Isolate* isolate = Isolate::Current();
+  Assembler assm(isolate, NULL, 0);
 
   if (CpuFeatures::IsSupported(ARMv7)) {
     CpuFeatures::Scope scope(ARMv7);
@@ -409,10 +416,10 @@ TEST(6) {
 
     CodeDesc desc;
     assm.GetCode(&desc);
-    Object* code = HEAP->CreateCode(
+    Object* code = isolate->heap()->CreateCode(
         desc,
         Code::ComputeFlags(Code::STUB),
-        Handle<Object>(HEAP->undefined_value()))->ToObjectChecked();
+        Handle<Code>())->ToObjectChecked();
     CHECK(code->IsCode());
 #ifdef DEBUG
     Code::cast(code)->Print();
@@ -439,7 +446,8 @@ static void TestRoundingMode(VCVTTypes types,
   InitializeVM();
   v8::HandleScope scope;
 
-  Assembler assm(Isolate::Current(), NULL, 0);
+  Isolate* isolate = Isolate::Current();
+  Assembler assm(isolate, NULL, 0);
 
   if (CpuFeatures::IsSupported(VFP3)) {
     CpuFeatures::Scope scope(VFP3);
@@ -485,10 +493,10 @@ static void TestRoundingMode(VCVTTypes types,
 
     CodeDesc desc;
     assm.GetCode(&desc);
-    Object* code = HEAP->CreateCode(
+    Object* code = isolate->heap()->CreateCode(
         desc,
         Code::ComputeFlags(Code::STUB),
-        Handle<Object>(HEAP->undefined_value()))->ToObjectChecked();
+        Handle<Code>())->ToObjectChecked();
     CHECK(code->IsCode());
 #ifdef DEBUG
     Code::cast(code)->Print();
@@ -642,7 +650,8 @@ TEST(8) {
 
   // Create a function that uses vldm/vstm to move some double and
   // single precision values around in memory.
-  Assembler assm(Isolate::Current(), NULL, 0);
+  Isolate* isolate = Isolate::Current();
+  Assembler assm(isolate, NULL, 0);
 
   if (CpuFeatures::IsSupported(VFP2)) {
     CpuFeatures::Scope scope(VFP2);
@@ -671,10 +680,10 @@ TEST(8) {
 
     CodeDesc desc;
     assm.GetCode(&desc);
-    Object* code = HEAP->CreateCode(
+    Object* code = isolate->heap()->CreateCode(
         desc,
         Code::ComputeFlags(Code::STUB),
-        Handle<Object>(HEAP->undefined_value()))->ToObjectChecked();
+        Handle<Code>())->ToObjectChecked();
     CHECK(code->IsCode());
 #ifdef DEBUG
     Code::cast(code)->Print();
@@ -753,7 +762,8 @@ TEST(9) {
 
   // Create a function that uses vldm/vstm to move some double and
   // single precision values around in memory.
-  Assembler assm(Isolate::Current(), NULL, 0);
+  Isolate* isolate = Isolate::Current();
+  Assembler assm(isolate, NULL, 0);
 
   if (CpuFeatures::IsSupported(VFP2)) {
     CpuFeatures::Scope scope(VFP2);
@@ -786,10 +796,10 @@ TEST(9) {
 
     CodeDesc desc;
     assm.GetCode(&desc);
-    Object* code = HEAP->CreateCode(
+    Object* code = isolate->heap()->CreateCode(
         desc,
         Code::ComputeFlags(Code::STUB),
-        Handle<Object>(HEAP->undefined_value()))->ToObjectChecked();
+        Handle<Code>())->ToObjectChecked();
     CHECK(code->IsCode());
 #ifdef DEBUG
     Code::cast(code)->Print();
@@ -868,7 +878,8 @@ TEST(10) {
 
   // Create a function that uses vldm/vstm to move some double and
   // single precision values around in memory.
-  Assembler assm(Isolate::Current(), NULL, 0);
+  Isolate* isolate = Isolate::Current();
+  Assembler assm(isolate, NULL, 0);
 
   if (CpuFeatures::IsSupported(VFP2)) {
     CpuFeatures::Scope scope(VFP2);
@@ -897,10 +908,10 @@ TEST(10) {
 
     CodeDesc desc;
     assm.GetCode(&desc);
-    Object* code = HEAP->CreateCode(
+    Object* code = isolate->heap()->CreateCode(
         desc,
         Code::ComputeFlags(Code::STUB),
-        Handle<Object>(HEAP->undefined_value()))->ToObjectChecked();
+        Handle<Code>())->ToObjectChecked();
     CHECK(code->IsCode());
 #ifdef DEBUG
     Code::cast(code)->Print();
@@ -964,7 +975,8 @@ TEST(11) {
   i.a = 0xabcd0001;
   i.b = 0xabcd0000;
 
-  Assembler assm(Isolate::Current(), NULL, 0);
+  Isolate* isolate = Isolate::Current();
+  Assembler assm(isolate, NULL, 0);
 
   // Test HeapObject untagging.
   __ ldr(r1, MemOperand(r0, OFFSET_OF(I, a)));
@@ -994,10 +1006,10 @@ TEST(11) {
 
   CodeDesc desc;
   assm.GetCode(&desc);
-  Object* code = HEAP->CreateCode(
+  Object* code = isolate->heap()->CreateCode(
       desc,
       Code::ComputeFlags(Code::STUB),
-      Handle<Object>(HEAP->undefined_value()))->ToObjectChecked();
+      Handle<Code>())->ToObjectChecked();
   CHECK(code->IsCode());
 #ifdef DEBUG
   Code::cast(code)->Print();
@@ -1051,7 +1063,8 @@ TEST(13) {
 
   // Create a function that accepts &t, and loads, manipulates, and stores
   // the doubles and floats.
-  Assembler assm(Isolate::Current(), NULL, 0);
+  Isolate* isolate = Isolate::Current();
+  Assembler assm(isolate, NULL, 0);
   Label L, C;
 
 
@@ -1115,10 +1128,10 @@ TEST(13) {
 
     CodeDesc desc;
     assm.GetCode(&desc);
-    Object* code = HEAP->CreateCode(
+    Object* code = isolate->heap()->CreateCode(
         desc,
         Code::ComputeFlags(Code::STUB),
-        Handle<Object>(HEAP->undefined_value()))->ToObjectChecked();
+        Handle<Code>())->ToObjectChecked();
     CHECK(code->IsCode());
 #ifdef DEBUG
     Code::cast(code)->Print();

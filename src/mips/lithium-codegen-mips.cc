@@ -5418,7 +5418,8 @@ void LCodeGen::EmitDeepCopy(Handle<JSObject> object,
   // Copy in-object properties.
   for (int i = 0; i < inobject_properties; i++) {
     int total_offset = object_offset + object->GetInObjectPropertyOffset(i);
-    Handle<Object> value = Handle<Object>(object->InObjectPropertyAt(i));
+    Handle<Object> value = Handle<Object>(object->InObjectPropertyAt(i),
+                                          isolate());
     if (value->IsJSObject()) {
       Handle<JSObject> value_object = Handle<JSObject>::cast(value);
       __ Addu(a2, result, Operand(*offset));
@@ -5472,7 +5473,7 @@ void LCodeGen::EmitDeepCopy(Handle<JSObject> object,
       Handle<FixedArray> fast_elements = Handle<FixedArray>::cast(elements);
       for (int i = 0; i < elements_length; i++) {
         int total_offset = elements_offset + FixedArray::OffsetOfElementAt(i);
-        Handle<Object> value(fast_elements->get(i));
+        Handle<Object> value(fast_elements->get(i), isolate());
         if (value->IsJSObject()) {
           Handle<JSObject> value_object = Handle<JSObject>::cast(value);
           __ Addu(a2, result, Operand(*offset));

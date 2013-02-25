@@ -416,7 +416,7 @@ Representation LChunk::LookupLiteralRepresentation(
 
 
 LChunk* LChunk::NewChunk(HGraph* graph) {
-  NoHandleAllocation no_handles;
+  NoHandleAllocation no_handles(graph->isolate());
   AssertNoAllocation no_gc;
 
   int values = graph->GetMaximumValueID();

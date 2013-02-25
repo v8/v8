@@ -673,7 +673,8 @@ class Isolate {
       // Scope currently can only be used for regular exceptions, not
       // failures like OOM or termination exception.
       isolate_(isolate),
-      pending_exception_(isolate_->pending_exception()->ToObjectUnchecked()),
+      pending_exception_(isolate_->pending_exception()->ToObjectUnchecked(),
+                         isolate_),
       catcher_(isolate_->catcher())
     { }
 
@@ -813,9 +814,9 @@ class Isolate {
   ISOLATE_INIT_ARRAY_LIST(GLOBAL_ARRAY_ACCESSOR)
 #undef GLOBAL_ARRAY_ACCESSOR
 
-#define NATIVE_CONTEXT_FIELD_ACCESSOR(index, type, name)      \
-  Handle<type> name() {                                       \
-    return Handle<type>(context()->native_context()->name()); \
+#define NATIVE_CONTEXT_FIELD_ACCESSOR(index, type, name)            \
+  Handle<type> name() {                                             \
+    return Handle<type>(context()->native_context()->name(), this); \
   }
   NATIVE_CONTEXT_FIELDS(NATIVE_CONTEXT_FIELD_ACCESSOR)
 #undef NATIVE_CONTEXT_FIELD_ACCESSOR

@@ -444,15 +444,15 @@ void ExternalReferenceTable::PopulateTable(Isolate* isolate) {
       UNCLASSIFIED,
       30,
       "TranscendentalCache::caches()");
-  Add(ExternalReference::handle_scope_next_address().address(),
+  Add(ExternalReference::handle_scope_next_address(isolate).address(),
       UNCLASSIFIED,
       31,
       "HandleScope::next");
-  Add(ExternalReference::handle_scope_limit_address().address(),
+  Add(ExternalReference::handle_scope_limit_address(isolate).address(),
       UNCLASSIFIED,
       32,
       "HandleScope::limit");
-  Add(ExternalReference::handle_scope_level_address().address(),
+  Add(ExternalReference::handle_scope_level_address(isolate).address(),
       UNCLASSIFIED,
       33,
       "HandleScope::level");

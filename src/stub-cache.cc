@@ -114,7 +114,7 @@ Handle<Code> StubCache::ComputeLoadNonexistent(Handle<String> name,
   Handle<GlobalObject> global;
   do {
     current = Handle<JSObject>::cast(next);
-    next = Handle<Object>(current->GetPrototype());
+    next = Handle<Object>(current->GetPrototype(), isolate_);
     if (current->IsGlobalObject()) {
       global = Handle<GlobalObject>::cast(current);
       cache_name = name;

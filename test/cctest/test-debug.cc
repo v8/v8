@@ -143,7 +143,8 @@ class DebugLocalContext {
   inline v8::Context* operator*() { return *context_; }
   inline bool IsReady() { return !context_.IsEmpty(); }
   void ExposeDebug() {
-    v8::internal::Isolate* isolate = v8::internal::Isolate::Current();
+    v8::internal::Isolate* isolate =
+        reinterpret_cast<v8::internal::Isolate*>(context_->GetIsolate());
     v8::internal::Debug* debug = isolate->debug();
     // Expose the debug context global object in the global object for testing.
     debug->Load();
@@ -155,8 +156,9 @@ class DebugLocalContext {
     Handle<v8::internal::String> debug_string =
         FACTORY->LookupOneByteSymbol(STATIC_ASCII_VECTOR("debug"));
     SetProperty(isolate, global, debug_string,
-        Handle<Object>(debug->debug_context()->global_proxy()), DONT_ENUM,
-        ::v8::internal::kNonStrictMode);
+                Handle<Object>(debug->debug_context()->global_proxy(), isolate),
+                DONT_ENUM,
+                ::v8::internal::kNonStrictMode);
   }
 
  private:
@@ -198,10 +200,11 @@ static bool HasDebugInfo(v8::Handle<v8::Function> fun) {
 // number.
 static int SetBreakPoint(Handle<v8::internal::JSFunction> fun, int position) {
   static int break_point = 0;
-  v8::internal::Debug* debug = v8::internal::Isolate::Current()->debug();
+  v8::internal::Isolate* isolate = fun->GetIsolate();
+  v8::internal::Debug* debug = isolate->debug();
   debug->SetBreakPoint(
       fun,
-      Handle<Object>(v8::internal::Smi::FromInt(++break_point)),
+      Handle<Object>(v8::internal::Smi::FromInt(++break_point), isolate),
       &position);
   return break_point;
 }
@@ -282,9 +285,10 @@ static int SetScriptBreakPointByNameFromJS(const char* script_name,
 
 // Clear a break point.
 static void ClearBreakPoint(int break_point) {
-  v8::internal::Debug* debug = v8::internal::Isolate::Current()->debug();
+  v8::internal::Isolate* isolate = v8::internal::Isolate::Current();
+  v8::internal::Debug* debug = isolate->debug();
   debug->ClearBreakPoint(
-      Handle<Object>(v8::internal::Smi::FromInt(break_point)));
+      Handle<Object>(v8::internal::Smi::FromInt(break_point), isolate));
 }
 
 

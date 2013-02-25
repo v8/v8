@@ -1000,7 +1000,8 @@ TEST(CachedHashOverflow) {
   // We incorrectly allowed strings to be tagged as array indices even if their
   // values didn't fit in the hash field.
   // See http://code.google.com/p/v8/issues/detail?id=728
-  ZoneScope zone(Isolate::Current()->runtime_zone(), DELETE_ON_EXIT);
+  Isolate* isolate = Isolate::Current();
+  ZoneScope zone(isolate->runtime_zone(), DELETE_ON_EXIT);
 
   InitializeVM();
   v8::HandleScope handle_scope;
@@ -1017,16 +1018,15 @@ TEST(CachedHashOverflow) {
       NULL
   };
 
-  Handle<Smi> fortytwo(Smi::FromInt(42));
-  Handle<Smi> thirtyseven(Smi::FromInt(37));
-  Handle<Object> results[] = {
-      FACTORY->undefined_value(),
-      fortytwo,
-      FACTORY->undefined_value(),
-      FACTORY->undefined_value(),
-      thirtyseven,
-      fortytwo,
-      thirtyseven  // Bug yielded 42 here.
+  Handle<Smi> fortytwo(Smi::FromInt(42), isolate);
+  Handle<Smi> thirtyseven(Smi::FromInt(37), isolate);
+  Handle<Object> results[] = { isolate->factory()->undefined_value(),
+                               fortytwo,
+                               isolate->factory()->undefined_value(),
+                               isolate->factory()->undefined_value(),
+                               thirtyseven,
+                               fortytwo,
+                               thirtyseven  // Bug yielded 42 here.
   };
 
   const char* line;

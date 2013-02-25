@@ -1157,18 +1157,21 @@ ExternalReference ExternalReference::new_space_allocation_limit_address(
 }
 
 
-ExternalReference ExternalReference::handle_scope_level_address() {
-  return ExternalReference(HandleScope::current_level_address());
+ExternalReference ExternalReference::handle_scope_level_address(
+    Isolate* isolate) {
+  return ExternalReference(HandleScope::current_level_address(isolate));
 }
 
 
-ExternalReference ExternalReference::handle_scope_next_address() {
-  return ExternalReference(HandleScope::current_next_address());
+ExternalReference ExternalReference::handle_scope_next_address(
+    Isolate* isolate) {
+  return ExternalReference(HandleScope::current_next_address(isolate));
 }
 
 
-ExternalReference ExternalReference::handle_scope_limit_address() {
-  return ExternalReference(HandleScope::current_limit_address());
+ExternalReference ExternalReference::handle_scope_limit_address(
+    Isolate* isolate) {
+  return ExternalReference(HandleScope::current_limit_address(isolate));
 }
 
 

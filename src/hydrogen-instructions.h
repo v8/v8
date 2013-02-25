@@ -233,11 +233,9 @@ class LChunkBuilder;
 
 
 #ifdef DEBUG
-#define ASSERT_ALLOCATION_DISABLED do {                                  \
-    OptimizingCompilerThread* thread =                                   \
-      ISOLATE->optimizing_compiler_thread();                             \
-    ASSERT(thread->IsOptimizerThread() || !HEAP->IsAllocationAllowed()); \
-  } while (0)
+#define ASSERT_ALLOCATION_DISABLED                                       \
+  ASSERT(isolate()->optimizing_compiler_thread()->IsOptimizerThread() || \
+         !isolate()->heap()->IsAllocationAllowed())
 #else
 #define ASSERT_ALLOCATION_DISABLED do {} while (0)
 #endif
@@ -452,7 +450,7 @@ class HType {
     return IsHeapNumber() || IsString() || IsNonPrimitive();
   }
 
-  static HType TypeFromValue(Handle<Object> value);
+  static HType TypeFromValue(Isolate* isolate, Handle<Object> value);
 
   const char* ToString();
 
@@ -763,6 +761,9 @@ class HValue: public ZoneObject {
   HBasicBlock* block() const { return block_; }
   void SetBlock(HBasicBlock* block);
   int LoopWeight() const;
+
+  // Note: Never call this method for an unlinked value.
+  Isolate* isolate() const;
 
   int id() const { return id_; }
   void set_id(int id) { id_ = id; }
@@ -2766,7 +2767,7 @@ class HCheckPrototypeMaps: public HTemplateInstruction<0> {
   virtual intptr_t Hashcode() {
     ASSERT_ALLOCATION_DISABLED;
     // Dereferencing to use the object's raw address for hashing is safe.
-    AllowHandleDereference allow_handle_deref;
+    AllowHandleDereference allow_handle_deref(isolate());
     intptr_t hash = 0;
     for (int i = 0; i < prototypes_.length(); i++) {
       hash = 17 * hash + reinterpret_cast<intptr_t>(*prototypes_[i]);
@@ -3070,11 +3071,11 @@ class HConstant: public HTemplateInstruction<0> {
     }
 
     ASSERT(!handle_.is_null());
-    Heap* heap = HEAP;
+    Heap* heap = isolate()->heap();
     // We should have handled minus_zero_value and nan_value in the
     // has_double_value_ clause above.
     // Dereferencing is safe to compare against singletons.
-    AllowHandleDereference allow_handle_deref;
+    AllowHandleDereference allow_handle_deref(isolate());
     ASSERT(*handle_ != heap->minus_zero_value());
     ASSERT(*handle_ != heap->nan_value());
     return *handle_ == heap->undefined_value() ||
@@ -3147,7 +3148,7 @@ class HConstant: public HTemplateInstruction<0> {
     } else {
       ASSERT(!handle_.is_null());
       // Dereferencing to use the object's raw address for hashing is safe.
-      AllowHandleDereference allow_handle_deref;
+      AllowHandleDereference allow_handle_deref(isolate());
       hash = reinterpret_cast<intptr_t>(*handle_);
     }
 
@@ -4478,7 +4479,7 @@ class HLoadGlobalCell: public HTemplateInstruction<0> {
   virtual intptr_t Hashcode() {
     ASSERT_ALLOCATION_DISABLED;
     // Dereferencing to use the object's raw address for hashing is safe.
-    AllowHandleDereference allow_handle_deref;
+    AllowHandleDereference allow_handle_deref(isolate());
     return reinterpret_cast<intptr_t>(*cell_);
   }
 

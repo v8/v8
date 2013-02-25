@@ -394,8 +394,8 @@ OptimizingCompiler::Status OptimizingCompiler::CreateGraph() {
 
 OptimizingCompiler::Status OptimizingCompiler::OptimizeGraph() {
   AssertNoAllocation no_gc;
-  NoHandleAllocation no_handles;
-  NoHandleDereference no_deref;
+  NoHandleAllocation no_handles(isolate());
+  NoHandleDereference no_deref(isolate());
 
   ASSERT(last_status() == SUCCEEDED);
   Timer t(this, &time_taken_to_optimize_);

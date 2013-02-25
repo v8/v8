@@ -573,7 +573,8 @@ static MaybeObject* ConstructArgumentsObjectForInlinedFunction(
     JavaScriptFrame* frame,
     Handle<JSFunction> inlined_function,
     int inlined_frame_index) {
-  Factory* factory = Isolate::Current()->factory();
+  Isolate* isolate = inlined_function->GetIsolate();
+  Factory* factory = isolate->factory();
   Vector<SlotRef> args_slots =
       SlotRef::ComputeSlotMappingForArguments(
           frame,
@@ -584,7 +585,7 @@ static MaybeObject* ConstructArgumentsObjectForInlinedFunction(
       factory->NewArgumentsObject(inlined_function, args_count);
   Handle<FixedArray> array = factory->NewFixedArray(args_count);
   for (int i = 0; i < args_count; ++i) {
-    Handle<Object> value = args_slots[i].GetValue();
+    Handle<Object> value = args_slots[i].GetValue(isolate);
     array->set(i, *value);
   }
   arguments->set_elements(*array);
@@ -807,14 +808,16 @@ MaybeObject* Accessors::ObjectSetPrototype(JSObject* receiver_raw,
   Isolate* isolate = receiver_raw->GetIsolate();
   HandleScope scope(isolate);
   Handle<JSObject> receiver(receiver_raw);
-  Handle<Object> value(value_raw);
-  Handle<Object> old_value(GetPrototypeSkipHiddenPrototypes(*receiver));
+  Handle<Object> value(value_raw, isolate);
+  Handle<Object> old_value(GetPrototypeSkipHiddenPrototypes(*receiver),
+                           isolate);
 
   MaybeObject* result = receiver->SetPrototype(*value, kSkipHiddenPrototypes);
   Handle<Object> hresult;
   if (!result->ToHandle(&hresult, isolate)) return result;
 
-  Handle<Object> new_value(GetPrototypeSkipHiddenPrototypes(*receiver));
+  Handle<Object> new_value(GetPrototypeSkipHiddenPrototypes(*receiver),
+                           isolate);
   if (!new_value->SameValue(*old_value)) {
     JSObject::EnqueueChangeRecord(receiver, "prototype",
                                   isolate->factory()->Proto_symbol(),
@@ -843,15 +846,15 @@ static v8::Handle<v8::Value> ModuleGetExport(
   ASSERT(context->IsModuleContext());
   int slot = info.Data()->Int32Value();
   Object* value = context->get(slot);
+  Isolate* isolate = instance->GetIsolate();
   if (value->IsTheHole()) {
     Handle<String> name = v8::Utils::OpenHandle(*property);
-    Isolate* isolate = instance->GetIsolate();
     isolate->ScheduleThrow(
         *isolate->factory()->NewReferenceError("not_defined",
                                                HandleVector(&name, 1)));
     return v8::Handle<v8::Value>();
   }
-  return v8::Utils::ToLocal(Handle<Object>(value));
+  return v8::Utils::ToLocal(Handle<Object>(value, isolate));
 }
 
 

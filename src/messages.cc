@@ -46,7 +46,7 @@ void MessageHandler::DefaultMessageReport(Isolate* isolate,
     PrintF("%s\n", *str);
   } else {
     HandleScope scope(isolate);
-    Handle<Object> data(loc->script()->name());
+    Handle<Object> data(loc->script()->name(), isolate);
     SmartArrayPointer<char> data_str;
     if (data->IsString())
       data_str = Handle<String>::cast(data)->ToCString(DISALLOW_NULLS);
@@ -113,7 +113,7 @@ void MessageHandler::ReportMessage(Isolate* isolate,
   if (isolate->has_pending_exception()) {
     isolate->pending_exception()->ToObject(&exception_object);
   }
-  Handle<Object> exception_handle(exception_object);
+  Handle<Object> exception_handle(exception_object, isolate);
 
   Isolate::ExceptionScope exception_scope(isolate);
   isolate->clear_pending_exception();
@@ -149,28 +149,30 @@ void MessageHandler::ReportMessage(Isolate* isolate,
 }
 
 
-Handle<String> MessageHandler::GetMessage(Handle<Object> data) {
+Handle<String> MessageHandler::GetMessage(Isolate* isolate,
+                                          Handle<Object> data) {
+  Factory* factory = isolate->factory();
   Handle<String> fmt_str =
-      FACTORY->LookupOneByteSymbol(STATIC_ASCII_VECTOR("FormatMessage"));
+      factory->LookupOneByteSymbol(STATIC_ASCII_VECTOR("FormatMessage"));
   Handle<JSFunction> fun =
       Handle<JSFunction>(
           JSFunction::cast(
-              Isolate::Current()->js_builtins_object()->
+              isolate->js_builtins_object()->
               GetPropertyNoExceptionThrown(*fmt_str)));
   Handle<JSMessageObject> message = Handle<JSMessageObject>::cast(data);
-  Handle<Object> argv[] = { Handle<Object>(message->type()),
-                            Handle<Object>(message->arguments()) };
+  Handle<Object> argv[] = { Handle<Object>(message->type(), isolate),
+                            Handle<Object>(message->arguments(), isolate) };
 
   bool caught_exception;
   Handle<Object> result =
       Execution::TryCall(fun,
-                         Isolate::Current()->js_builtins_object(),
+                         isolate->js_builtins_object(),
                          ARRAY_SIZE(argv),
                          argv,
                          &caught_exception);
 
   if (caught_exception || !result->IsString()) {
-    return FACTORY->LookupOneByteSymbol(STATIC_ASCII_VECTOR("<error>"));
+    return factory->LookupOneByteSymbol(STATIC_ASCII_VECTOR("<error>"));
   }
   Handle<String> result_string = Handle<String>::cast(result);
   // A string that has been obtained from JS code in this way is
@@ -187,7 +189,7 @@ SmartArrayPointer<char> MessageHandler::GetLocalizedMessage(
     Isolate* isolate,
     Handle<Object> data) {
   HandleScope scope(isolate);
-  return GetMessage(data)->ToCString(DISALLOW_NULLS);
+  return GetMessage(isolate, data)->ToCString(DISALLOW_NULLS);
 }
 
 

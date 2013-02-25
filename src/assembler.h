@@ -724,9 +724,9 @@ class ExternalReference BASE_EMBEDDED {
   static ExternalReference power_double_double_function(Isolate* isolate);
   static ExternalReference power_double_int_function(Isolate* isolate);
 
-  static ExternalReference handle_scope_next_address();
-  static ExternalReference handle_scope_limit_address();
-  static ExternalReference handle_scope_level_address();
+  static ExternalReference handle_scope_next_address(Isolate* isolate);
+  static ExternalReference handle_scope_limit_address(Isolate* isolate);
+  static ExternalReference handle_scope_level_address(Isolate* isolate);
 
   static ExternalReference scheduled_exception_address(Isolate* isolate);
   static ExternalReference address_of_pending_message_obj(Isolate* isolate);
