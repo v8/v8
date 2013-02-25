@@ -106,7 +106,7 @@ static Handle<Object> Invoke(bool is_construct,
     // Save and restore context around invocation and block the
     // allocation of handles without explicit handle scopes.
     SaveContext save(isolate);
-    NoHandleAllocation na;
+    NoHandleAllocation na(isolate);
     JSEntryFunction stub_entry = FUNCTION_CAST<JSEntryFunction>(code->entry());
 
     // Call the function through the right JS entry stub.
@@ -124,7 +124,7 @@ static Handle<Object> Invoke(bool is_construct,
 
   // Update the pending exception flag and return the value.
   *has_pending_exception = value->IsException();
-  ASSERT(*has_pending_exception == Isolate::Current()->has_pending_exception());
+  ASSERT(*has_pending_exception == isolate->has_pending_exception());
   if (*has_pending_exception) {
     isolate->ReportPendingMessages();
     if (isolate->pending_exception()->IsOutOfMemory()) {
@@ -169,7 +169,9 @@ Handle<Object> Execution::Call(Handle<Object> callable,
       // Under some circumstances, 'global' can be the JSBuiltinsObject
       // In that case, don't rewrite.  (FWIW, the same holds for
       // GetIsolate()->global_object()->global_receiver().)
-      if (!global->IsJSBuiltinsObject()) receiver = Handle<Object>(global);
+      if (!global->IsJSBuiltinsObject()) {
+        receiver = Handle<Object>(global, func->GetIsolate());
+      }
     } else {
       receiver = ToObject(receiver, pending_exception);
     }
@@ -184,7 +186,7 @@ Handle<Object> Execution::New(Handle<JSFunction> func,
                               int argc,
                               Handle<Object> argv[],
                               bool* pending_exception) {
-  return Invoke(true, func, Isolate::Current()->global_object(), argc, argv,
+  return Invoke(true, func, func->GetIsolate()->global_object(), argc, argv,
                 pending_exception);
 }
 
@@ -206,9 +208,9 @@ Handle<Object> Execution::TryCall(Handle<JSFunction> func,
   Handle<Object> result = Invoke(false, func, receiver, argc, args,
                                  caught_exception);
 
+  Isolate* isolate = func->GetIsolate();
   if (*caught_exception) {
     ASSERT(catcher.HasCaught());
-    Isolate* isolate = Isolate::Current();
     ASSERT(isolate->has_pending_exception());
     ASSERT(isolate->external_caught_exception());
     if (isolate->is_out_of_memory() && !isolate->ignore_out_of_memory()) {
@@ -223,8 +225,8 @@ Handle<Object> Execution::TryCall(Handle<JSFunction> func,
     isolate->OptionalRescheduleException(true);
   }
 
-  ASSERT(!Isolate::Current()->has_pending_exception());
-  ASSERT(!Isolate::Current()->external_caught_exception());
+  ASSERT(!isolate->has_pending_exception());
+  ASSERT(!isolate->external_caught_exception());
   return result;
 }
 
@@ -242,7 +244,7 @@ Handle<Object> Execution::GetFunctionDelegate(Handle<Object> object) {
   while (fun->IsJSFunctionProxy()) {
     fun = JSFunctionProxy::cast(fun)->call_trap();
   }
-  if (fun->IsJSFunction()) return Handle<Object>(fun);
+  if (fun->IsJSFunction()) return Handle<Object>(fun, isolate);
 
   // Objects created through the API can have an instance-call handler
   // that should be used when calling the object as a function.
@@ -266,7 +268,7 @@ Handle<Object> Execution::TryGetFunctionDelegate(Handle<Object> object,
   while (fun->IsJSFunctionProxy()) {
     fun = JSFunctionProxy::cast(fun)->call_trap();
   }
-  if (fun->IsJSFunction()) return Handle<Object>(fun);
+  if (fun->IsJSFunction()) return Handle<Object>(fun, isolate);
 
   // Objects created through the API can have an instance-call handler
   // that should be used when calling the object as a function.
@@ -299,7 +301,7 @@ Handle<Object> Execution::GetConstructorDelegate(Handle<Object> object) {
   while (fun->IsJSFunctionProxy()) {
     fun = JSFunctionProxy::cast(fun)->call_trap();
   }
-  if (fun->IsJSFunction()) return Handle<Object>(fun);
+  if (fun->IsJSFunction()) return Handle<Object>(fun, isolate);
 
   // Objects created through the API can have an instance-call handler
   // that should be used when calling the object as a function.
@@ -327,7 +329,7 @@ Handle<Object> Execution::TryGetConstructorDelegate(
   while (fun->IsJSFunctionProxy()) {
     fun = JSFunctionProxy::cast(fun)->call_trap();
   }
-  if (fun->IsJSFunction()) return Handle<Object>(fun);
+  if (fun->IsJSFunction()) return Handle<Object>(fun, isolate);
 
   // Objects created through the API can have an instance-call handler
   // that should be used when calling the object as a function.
@@ -599,7 +601,7 @@ void StackGuard::InitThread(const ExecutionAccess& lock) {
   } while (false)
 
 
-Handle<Object> Execution::ToBoolean(Handle<Object> obj) {
+Handle<Object> Execution::ToBoolean(Isolate* isolate, Handle<Object> obj) {
   // See the similar code in runtime.js:ToBoolean.
   if (obj->IsBoolean()) return obj;
   bool result = true;
@@ -611,7 +613,7 @@ Handle<Object> Execution::ToBoolean(Handle<Object> obj) {
     double value = obj->Number();
     result = !((value == 0) || isnan(value));
   }
-  return Handle<Object>(HEAP->ToBoolean(result));
+  return Handle<Object>(isolate->heap()->ToBoolean(result), isolate);
 }
 
 
@@ -682,7 +684,8 @@ Handle<Object> Execution::CharAt(Handle<String> string, uint32_t index) {
   }
 
   Handle<Object> char_at =
-      GetProperty(isolate->js_builtins_object(),
+      GetProperty(isolate,
+                  isolate->js_builtins_object(),
                   factory->char_at_symbol());
   if (!char_at->IsJSFunction()) {
     return factory->undefined_value();

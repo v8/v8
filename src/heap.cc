@@ -5571,7 +5571,7 @@ void Heap::ReportHeapStatistics(const char* title) {
   PrintF("old_gen_limit_factor_ %d\n", old_gen_limit_factor_);
 
   PrintF("\n");
-  PrintF("Number of handles : %d\n", HandleScope::NumberOfHandles());
+  PrintF("Number of handles : %d\n", HandleScope::NumberOfHandles(isolate_));
   isolate_->global_handles()->PrintStats();
   PrintF("\n");
 

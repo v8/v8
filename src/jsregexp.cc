@@ -270,7 +270,7 @@ static void SetAtomLastCapture(FixedArray* array,
                                String* subject,
                                int from,
                                int to) {
-  NoHandleAllocation no_handles;
+  NoHandleAllocation no_handles(array->GetIsolate());
   RegExpImpl::SetLastCaptureCount(array, 2);
   RegExpImpl::SetLastSubject(array, subject);
   RegExpImpl::SetLastInput(array, subject);
@@ -353,7 +353,7 @@ Handle<Object> RegExpImpl::AtomExec(Handle<JSRegExp> re,
   if (res == RegExpImpl::RE_FAILURE) return isolate->factory()->null_value();
 
   ASSERT_EQ(res, RegExpImpl::RE_SUCCESS);
-  NoHandleAllocation no_handles;
+  NoHandleAllocation no_handles(isolate);
   FixedArray* array = FixedArray::cast(last_match_info->elements());
   SetAtomLastCapture(array, *subject, output_registers[0], output_registers[1]);
   return last_match_info;

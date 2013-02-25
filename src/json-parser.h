@@ -228,7 +228,8 @@ Handle<Object> JsonParser<seq_ascii>::ParseJson(Handle<String> source,
         break;
       default:
         message = "unexpected_token";
-        Handle<Object> name = LookupSingleCharacterStringFromCode(c0_);
+        Handle<Object> name =
+            LookupSingleCharacterStringFromCode(isolate_, c0_);
         Handle<FixedArray> element = factory->NewFixedArray(1);
         element->set(0, *name);
         array = factory->NewJSArrayWithElements(element);

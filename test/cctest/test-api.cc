@@ -13572,7 +13572,8 @@ THREADED_TEST(PixelArray) {
                       "sum;");
   CHECK_EQ(28, result->Int32Value());
 
-  i::Handle<i::Smi> value(i::Smi::FromInt(2));
+  i::Handle<i::Smi> value(i::Smi::FromInt(2),
+                          reinterpret_cast<i::Isolate*>(context->GetIsolate()));
   i::Handle<i::Object> no_failure;
   no_failure =
       i::JSObject::SetElement(jsobj, 1, value, NONE, i::kNonStrictMode);

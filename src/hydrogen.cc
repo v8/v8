@@ -500,7 +500,7 @@ class ReachabilityAnalyzer BASE_EMBEDDED {
 
 void HGraph::Verify(bool do_full_verify) const {
   // Allow dereferencing for debug mode verification.
-  AllowHandleDereference allow_handle_deref;
+  AllowHandleDereference allow_handle_deref(isolate());
   for (int i = 0; i < blocks_.length(); i++) {
     HBasicBlock* block = blocks_.at(i);
 
@@ -953,7 +953,7 @@ HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
       AddInstruction(new(zone) HLoadElements(object, mapcheck));
   if (is_store && (fast_elements || fast_smi_only_elements)) {
     HCheckMaps* check_cow_map = new(zone) HCheckMaps(
-        elements, Isolate::Current()->factory()->fixed_array_map(), zone);
+        elements, graph()->isolate()->factory()->fixed_array_map(), zone);
     check_cow_map->ClearGVNFlag(kDependsOnElementsKind);
     AddInstruction(check_cow_map);
   }
@@ -5179,7 +5179,7 @@ void HOptimizedGraphBuilder::VisitForInStatement(ForInStatement* stmt) {
   HInstruction* enum_length = AddInstruction(new(zone()) HMapEnumLength(map));
 
   HInstruction* start_index = AddInstruction(new(zone()) HConstant(
-      Handle<Object>(Smi::FromInt(0)), Representation::Integer32()));
+      Handle<Object>(Smi::FromInt(0), isolate()), Representation::Integer32()));
 
   Push(map);
   Push(array);
@@ -5529,12 +5529,13 @@ static bool LookupAccessorPair(Handle<Map> map,
                                Handle<String> name,
                                Handle<AccessorPair>* accessors,
                                Handle<JSObject>* holder) {
-  LookupResult lookup(map->GetIsolate());
+  Isolate* isolate = map->GetIsolate();
+  LookupResult lookup(isolate);
 
   // Check for a JavaScript accessor directly in the map.
   map->LookupDescriptor(NULL, *name, &lookup);
   if (lookup.IsPropertyCallbacks()) {
-    Handle<Object> callback(lookup.GetValueFromMap(*map));
+    Handle<Object> callback(lookup.GetValueFromMap(*map), isolate);
     if (!callback->IsAccessorPair()) return false;
     *accessors = Handle<AccessorPair>::cast(callback);
     *holder = Handle<JSObject>();
@@ -5547,7 +5548,7 @@ static bool LookupAccessorPair(Handle<Map> map,
   // Check for a JavaScript accessor somewhere in the proto chain.
   LookupInPrototypes(map, name, &lookup);
   if (lookup.IsPropertyCallbacks()) {
-    Handle<Object> callback(lookup.GetValue());
+    Handle<Object> callback(lookup.GetValue(), isolate);
     if (!callback->IsAccessorPair()) return false;
     *accessors = Handle<AccessorPair>::cast(callback);
     *holder = Handle<JSObject>(lookup.holder());
@@ -5597,9 +5598,10 @@ static bool IsFastLiteral(Handle<JSObject> boilerplate,
   ASSERT(max_depth >= 0 && *max_properties >= 0);
   if (max_depth == 0) return false;
 
+  Isolate* isolate = boilerplate->GetIsolate();
   Handle<FixedArrayBase> elements(boilerplate->elements());
   if (elements->length() > 0 &&
-      elements->map() != boilerplate->GetHeap()->fixed_cow_array_map()) {
+      elements->map() != isolate->heap()->fixed_cow_array_map()) {
     if (boilerplate->HasFastDoubleElements()) {
       *total_size += FixedDoubleArray::SizeFor(elements->length());
     } else if (boilerplate->HasFastObjectElements()) {
@@ -5607,7 +5609,7 @@ static bool IsFastLiteral(Handle<JSObject> boilerplate,
       int length = elements->length();
       for (int i = 0; i < length; i++) {
         if ((*max_properties)-- == 0) return false;
-        Handle<Object> value(fast_elements->get(i));
+        Handle<Object> value(fast_elements->get(i), isolate);
         if (value->IsJSObject()) {
           Handle<JSObject> value_object = Handle<JSObject>::cast(value);
           if (!IsFastLiteral(value_object,
@@ -5631,7 +5633,7 @@ static bool IsFastLiteral(Handle<JSObject> boilerplate,
     int nof = boilerplate->map()->inobject_properties();
     for (int i = 0; i < nof; i++) {
       if ((*max_properties)-- == 0) return false;
-      Handle<Object> value(boilerplate->InObjectPropertyAt(i));
+      Handle<Object> value(boilerplate->InObjectPropertyAt(i), isolate);
       if (value->IsJSObject()) {
         Handle<JSObject> value_object = Handle<JSObject>::cast(value);
         if (!IsFastLiteral(value_object,
@@ -5660,7 +5662,8 @@ void HOptimizedGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
   // Check whether to use fast or slow deep-copying for boilerplate.
   int total_size = 0;
   int max_properties = HFastLiteral::kMaxLiteralProperties;
-  Handle<Object> boilerplate(closure->literals()->get(expr->literal_index()));
+  Handle<Object> boilerplate(closure->literals()->get(expr->literal_index()),
+                             isolate());
   if (boilerplate->IsJSObject() &&
       IsFastLiteral(Handle<JSObject>::cast(boilerplate),
                     HFastLiteral::kMaxLiteralDepth,
@@ -5765,7 +5768,8 @@ void HOptimizedGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
   HInstruction* literal;
 
   Handle<FixedArray> literals(environment()->closure()->literals());
-  Handle<Object> raw_boilerplate(literals->get(expr->literal_index()));
+  Handle<Object> raw_boilerplate(literals->get(expr->literal_index()),
+                                 isolate());
 
   if (raw_boilerplate->IsUndefined()) {
     raw_boilerplate = Runtime::CreateArrayLiteralBoilerplate(
@@ -5837,7 +5841,7 @@ void HOptimizedGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
     AddInstruction(elements);
 
     HValue* key = AddInstruction(
-        new(zone()) HConstant(Handle<Object>(Smi::FromInt(i)),
+        new(zone()) HConstant(Handle<Object>(Smi::FromInt(i), isolate()),
                               Representation::Integer32()));
 
     switch (boilerplate_elements_kind) {
@@ -7097,8 +7101,8 @@ bool HOptimizedGraphBuilder::TryArgumentsAccess(Property* expr) {
       int argument_count = environment()->
           arguments_environment()->parameter_count() - 1;
       result = new(zone()) HConstant(
-        Handle<Object>(Smi::FromInt(argument_count)),
-        Representation::Integer32());
+          Handle<Object>(Smi::FromInt(argument_count), isolate()),
+          Representation::Integer32());
     }
   } else {
     Push(graph()->GetArgumentsObject());
@@ -7121,8 +7125,8 @@ bool HOptimizedGraphBuilder::TryArgumentsAccess(Property* expr) {
       int argument_count = environment()->
           arguments_environment()->parameter_count() - 1;
       HInstruction* length = AddInstruction(new(zone()) HConstant(
-        Handle<Object>(Smi::FromInt(argument_count)),
-        Representation::Integer32()));
+          Handle<Object>(Smi::FromInt(argument_count), isolate()),
+          Representation::Integer32()));
       HInstruction* checked_key = AddBoundsCheck(key, length);
       result = new(zone()) HAccessArgumentsAt(elements, length, checked_key);
     }
@@ -7933,7 +7937,8 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinMethodCall(
                 HUnaryMathOperation::New(zone(), context, left, kMathPowHalf);
           } else if (exponent == -0.5) {
             HConstant* double_one =
-                new(zone()) HConstant(Handle<Object>(Smi::FromInt(1)),
+                new(zone()) HConstant(Handle<Object>(Smi::FromInt(1),
+                                                     isolate()),
                                       Representation::Double());
             AddInstruction(double_one);
             HInstruction* sqrt =

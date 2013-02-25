@@ -485,7 +485,7 @@ class FrameSummary BASE_EMBEDDED {
                Code* code,
                int offset,
                bool is_constructor)
-      : receiver_(receiver),
+      : receiver_(receiver, function->GetIsolate()),
         function_(function),
         code_(code),
         offset_(offset),

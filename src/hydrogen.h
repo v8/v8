@@ -250,7 +250,7 @@ class HGraph: public ZoneObject {
  public:
   explicit HGraph(CompilationInfo* info);
 
-  Isolate* isolate() { return isolate_; }
+  Isolate* isolate() const { return isolate_; }
   Zone* zone() const { return zone_; }
   CompilationInfo* info() const { return info_; }
 

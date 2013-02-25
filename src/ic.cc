@@ -434,7 +434,7 @@ static void LookupForRead(Handle<Object> object,
       return;
     }
 
-    Handle<Object> proto(holder->GetPrototype());
+    Handle<Object> proto(holder->GetPrototype(), name->GetIsolate());
     if (proto->IsNull()) {
       ASSERT(!lookup->IsFound());
       return;
@@ -465,7 +465,8 @@ Handle<Object> CallICBase::TryCallAsFunction(Handle<Object> object) {
 void CallICBase::ReceiverToObjectIfRequired(Handle<Object> callee,
                                             Handle<Object> object) {
   while (callee->IsJSFunctionProxy()) {
-    callee = Handle<Object>(JSFunctionProxy::cast(*callee)->call_trap());
+    callee = Handle<Object>(JSFunctionProxy::cast(*callee)->call_trap(),
+                            isolate());
   }
 
   if (callee->IsJSFunction()) {
@@ -784,7 +785,7 @@ MaybeObject* KeyedCallIC::LoadFunction(State state,
     TRACE_IC("KeyedCallIC", key, state, target());
   }
 
-  Handle<Object> result = GetProperty(object, key);
+  Handle<Object> result = GetProperty(isolate(), object, key);
   RETURN_IF_EMPTY_HANDLE(isolate(), result);
 
   // Make receiver an object if the callee requires it. Strict mode or builtin
@@ -837,7 +838,7 @@ MaybeObject* LoadIC::Load(State state,
       }
       // Get the string if we have a string wrapper object.
       Handle<Object> string = object->IsJSValue()
-          ? Handle<Object>(Handle<JSValue>::cast(object)->value())
+          ? Handle<Object>(Handle<JSValue>::cast(object)->value(), isolate())
           : object;
       return Smi::FromInt(String::cast(*string)->length());
     }
@@ -1051,7 +1052,7 @@ Handle<Code> LoadIC::ComputeLoadMonomorphic(LookupResult* lookup,
       if (!holder.is_identical_to(receiver)) break;
       return isolate()->stub_cache()->ComputeLoadNormal();
     case CALLBACKS: {
-      Handle<Object> callback(lookup->GetCallbackObject());
+      Handle<Object> callback(lookup->GetCallbackObject(), isolate());
       if (callback->IsExecutableAccessorInfo()) {
         Handle<ExecutableAccessorInfo> info =
             Handle<ExecutableAccessorInfo>::cast(callback);
@@ -1060,7 +1061,8 @@ Handle<Code> LoadIC::ComputeLoadMonomorphic(LookupResult* lookup,
         return isolate()->stub_cache()->ComputeLoadCallback(
             name, receiver, holder, info);
       } else if (callback->IsAccessorPair()) {
-        Handle<Object> getter(Handle<AccessorPair>::cast(callback)->getter());
+        Handle<Object> getter(Handle<AccessorPair>::cast(callback)->getter(),
+                              isolate());
         if (!getter->IsJSFunction()) break;
         if (holder->IsGlobalObject()) break;
         if (!holder->HasFastProperties()) break;
@@ -1094,7 +1096,7 @@ static Handle<Object> TryConvertKey(Handle<Object> key, Isolate* isolate) {
     } else {
       int int_value = FastD2I(value);
       if (value == int_value && Smi::IsValid(int_value)) {
-        key = Handle<Smi>(Smi::FromInt(int_value));
+        key = Handle<Smi>(Smi::FromInt(int_value), isolate);
       }
     }
   } else if (key->IsUndefined()) {
@@ -1135,7 +1137,7 @@ static void GetReceiverMapsForStub(Handle<Code> stub,
       int mask = RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT);
       for (RelocIterator it(*stub, mask); !it.done(); it.next()) {
         RelocInfo* info = it.rinfo();
-        Handle<Object> object(info->target_object());
+        Handle<Object> object(info->target_object(), stub->GetIsolate());
         ASSERT(object->IsMap());
         AddOneReceiverMapIfMissing(result, Handle<Map>::cast(object));
       }
@@ -1283,7 +1285,7 @@ Handle<Code> KeyedLoadIC::ComputeLoadMonomorphic(LookupResult* lookup,
           name, receiver, holder, constant);
     }
     case CALLBACKS: {
-      Handle<Object> callback_object(lookup->GetCallbackObject());
+      Handle<Object> callback_object(lookup->GetCallbackObject(), isolate());
       // TODO(dcarney): Handle DeclaredAccessorInfo correctly.
       if (!callback_object->IsExecutableAccessorInfo()) break;
       Handle<ExecutableAccessorInfo> callback =
@@ -1477,7 +1479,7 @@ Handle<Code> StoreIC::ComputeStoreMonomorphic(LookupResult* lookup,
       if (!holder.is_identical_to(receiver)) break;
       return isolate()->stub_cache()->ComputeStoreNormal(strict_mode);
     case CALLBACKS: {
-      Handle<Object> callback(lookup->GetCallbackObject());
+      Handle<Object> callback(lookup->GetCallbackObject(), isolate());
       if (callback->IsExecutableAccessorInfo()) {
         Handle<ExecutableAccessorInfo> info =
             Handle<ExecutableAccessorInfo>::cast(callback);
@@ -1487,7 +1489,8 @@ Handle<Code> StoreIC::ComputeStoreMonomorphic(LookupResult* lookup,
         return isolate()->stub_cache()->ComputeStoreCallback(
             name, receiver, holder, info, strict_mode);
       } else if (callback->IsAccessorPair()) {
-        Handle<Object> setter(Handle<AccessorPair>::cast(callback)->setter());
+        Handle<Object> setter(Handle<AccessorPair>::cast(callback)->setter(),
+                              isolate());
         if (!setter->IsJSFunction()) break;
         if (holder->IsGlobalObject()) break;
         if (!holder->HasFastProperties()) break;
@@ -1919,7 +1922,7 @@ RUNTIME_FUNCTION(MaybeObject*, StoreIC_Miss) {
 
 
 RUNTIME_FUNCTION(MaybeObject*, StoreIC_ArrayLength) {
-  NoHandleAllocation nha;
+  NoHandleAllocation nha(isolate);
 
   ASSERT(args.length() == 2);
   JSArray* receiver = JSArray::cast(args[0]);
@@ -1947,7 +1950,7 @@ RUNTIME_FUNCTION(MaybeObject*, StoreIC_ArrayLength) {
 // it is necessary to extend the properties array of a
 // JSObject.
 RUNTIME_FUNCTION(MaybeObject*, SharedStoreIC_ExtendStorage) {
-  NoHandleAllocation na;
+  NoHandleAllocation na(isolate);
   ASSERT(args.length() == 3);
 
   // Convert the parameters
@@ -1996,7 +1999,7 @@ RUNTIME_FUNCTION(MaybeObject*, KeyedStoreIC_Miss) {
 
 
 RUNTIME_FUNCTION(MaybeObject*, KeyedStoreIC_Slow) {
-  NoHandleAllocation na;
+  NoHandleAllocation na(isolate);
   ASSERT(args.length() == 3);
   KeyedStoreIC ic(isolate);
   Code::ExtraICState extra_ic_state = ic.target()->extra_ic_state();
@@ -2518,7 +2521,7 @@ void CompareIC::UpdateCaches(Handle<Object> x, Handle<Object> y) {
 
 // Used from ICCompareStub::GenerateMiss in code-stubs-<arch>.cc.
 RUNTIME_FUNCTION(Code*, CompareIC_Miss) {
-  NoHandleAllocation na;
+  NoHandleAllocation na(isolate);
   ASSERT(args.length() == 3);
   CompareIC ic(isolate, static_cast<Token::Value>(args.smi_at(2)));
   ic.UpdateCaches(args.at<Object>(0), args.at<Object>(1));

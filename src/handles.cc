@@ -45,8 +45,7 @@ namespace v8 {
 namespace internal {
 
 
-int HandleScope::NumberOfHandles() {
-  Isolate* isolate = Isolate::Current();
+int HandleScope::NumberOfHandles(Isolate* isolate) {
   HandleScopeImplementer* impl = isolate->handle_scope_implementer();
   int n = impl->blocks()->length();
   if (n == 0) return 0;
@@ -55,8 +54,7 @@ int HandleScope::NumberOfHandles() {
 }
 
 
-Object** HandleScope::Extend() {
-  Isolate* isolate = Isolate::Current();
+Object** HandleScope::Extend(Isolate* isolate) {
   v8::ImplementationUtilities::HandleScopeData* current =
       isolate->handle_scope_data();
 
@@ -97,7 +95,6 @@ Object** HandleScope::Extend() {
 
 
 void HandleScope::DeleteExtensions(Isolate* isolate) {
-  ASSERT(isolate == Isolate::Current());
   v8::ImplementationUtilities::HandleScopeData* current =
       isolate->handle_scope_data();
   isolate->handle_scope_implementer()->DeleteExtensions(current->limit);
@@ -112,21 +109,18 @@ void HandleScope::ZapRange(Object** start, Object** end) {
 }
 
 
-Address HandleScope::current_level_address() {
-  return reinterpret_cast<Address>(
-      &Isolate::Current()->handle_scope_data()->level);
+Address HandleScope::current_level_address(Isolate* isolate) {
+  return reinterpret_cast<Address>(&isolate->handle_scope_data()->level);
 }
 
 
-Address HandleScope::current_next_address() {
-  return reinterpret_cast<Address>(
-      &Isolate::Current()->handle_scope_data()->next);
+Address HandleScope::current_next_address(Isolate* isolate) {
+  return reinterpret_cast<Address>(&isolate->handle_scope_data()->next);
 }
 
 
-Address HandleScope::current_limit_address() {
-  return reinterpret_cast<Address>(
-      &Isolate::Current()->handle_scope_data()->limit);
+Address HandleScope::current_limit_address(Isolate* isolate) {
+  return reinterpret_cast<Address>(&isolate->handle_scope_data()->limit);
 }
 
 
@@ -287,9 +281,9 @@ Handle<Object> GetProperty(Handle<JSReceiver> obj,
 }
 
 
-Handle<Object> GetProperty(Handle<Object> obj,
+Handle<Object> GetProperty(Isolate* isolate,
+                           Handle<Object> obj,
                            Handle<Object> key) {
-  Isolate* isolate = Isolate::Current();
   CALL_HEAP_FUNCTION(isolate,
                      Runtime::GetObjectProperty(isolate, obj, key), Object);
 }
@@ -315,8 +309,8 @@ Handle<Object> SetPrototype(Handle<JSObject> obj, Handle<Object> value) {
 }
 
 
-Handle<Object> LookupSingleCharacterStringFromCode(uint32_t index) {
-  Isolate* isolate = Isolate::Current();
+Handle<Object> LookupSingleCharacterStringFromCode(Isolate* isolate,
+                                                   uint32_t index) {
   CALL_HEAP_FUNCTION(
       isolate,
       isolate->heap()->LookupSingleCharacterStringFromCode(index), Object);
@@ -371,7 +365,7 @@ Handle<JSValue> GetScriptWrapper(Handle<Script> script) {
     return Handle<JSValue>(
         reinterpret_cast<JSValue**>(script->wrapper()->foreign_address()));
   }
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = script->GetIsolate();
   // Construct a new script wrapper.
   isolate->counters()->script_wrappers()->Increment();
   Handle<JSFunction> constructor = isolate->script_function();
@@ -612,7 +606,8 @@ Handle<Object> GetScriptNameOrSourceURL(Handle<Script> script) {
       isolate->factory()->LookupOneByteSymbol(
           STATIC_ASCII_VECTOR("nameOrSourceURL"));
   Handle<JSValue> script_wrapper = GetScriptWrapper(script);
-  Handle<Object> property = GetProperty(script_wrapper,
+  Handle<Object> property = GetProperty(isolate,
+                                        script_wrapper,
                                         name_or_source_url_key);
   ASSERT(property->IsJSFunction());
   Handle<JSFunction> method = Handle<JSFunction>::cast(property);
@@ -898,7 +893,6 @@ Handle<ObjectHashTable> PutIntoObjectHashTable(Handle<ObjectHashTable> table,
 
 DeferredHandleScope::DeferredHandleScope(Isolate* isolate)
     : impl_(isolate->handle_scope_implementer()) {
-  ASSERT(impl_->isolate() == Isolate::Current());
   impl_->BeginDeferredScope();
   v8::ImplementationUtilities::HandleScopeData* data =
       impl_->isolate()->handle_scope_data();

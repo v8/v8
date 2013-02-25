@@ -1969,11 +1969,11 @@ void MacroAssembler::PrepareCallApiFunction(int argc) {
 void MacroAssembler::CallApiFunctionAndReturn(Address function_address,
                                               int stack_space) {
   ExternalReference next_address =
-      ExternalReference::handle_scope_next_address();
+      ExternalReference::handle_scope_next_address(isolate());
   ExternalReference limit_address =
-      ExternalReference::handle_scope_limit_address();
+      ExternalReference::handle_scope_limit_address(isolate());
   ExternalReference level_address =
-      ExternalReference::handle_scope_level_address();
+      ExternalReference::handle_scope_level_address(isolate());
 
   // Allocate HandleScope in callee-save registers.
   mov(ebx, Operand::StaticVariable(next_address));

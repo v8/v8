@@ -36,9 +36,10 @@ namespace internal {
 
 
 static LChunk* OptimizeGraph(HGraph* graph) {
+  Isolate* isolate =  graph->isolate();
   AssertNoAllocation no_gc;
-  NoHandleAllocation no_handles;
-  NoHandleDereference no_deref;
+  NoHandleAllocation no_handles(isolate);
+  NoHandleDereference no_deref(isolate);
 
   ASSERT(graph != NULL);
   SmartArrayPointer<char> bailout_reason;

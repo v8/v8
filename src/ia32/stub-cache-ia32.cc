@@ -492,7 +492,7 @@ static void GenerateFastApiCall(MacroAssembler* masm,
   // Pass the additional arguments.
   __ mov(Operand(esp, 2 * kPointerSize), edi);
   Handle<CallHandlerInfo> api_call_info = optimization.api_call_info();
-  Handle<Object> call_data(api_call_info->data());
+  Handle<Object> call_data(api_call_info->data(), masm->isolate());
   if (masm->isolate()->heap()->InNewSpace(*call_data)) {
     __ mov(ecx, api_call_info);
     __ mov(ebx, FieldOperand(ecx, CallHandlerInfo::kDataOffset));
@@ -1156,7 +1156,7 @@ void StubCompiler::GenerateLoadCallback(
     __ mov(scratch1, Immediate(callback));
     __ push(FieldOperand(scratch1, ExecutableAccessorInfo::kDataOffset));
   } else {
-    __ push(Immediate(Handle<Object>(callback->data())));
+    __ push(Immediate(Handle<Object>(callback->data(), isolate())));
   }
   __ push(Immediate(reinterpret_cast<int>(isolate())));
 
@@ -3307,7 +3307,8 @@ Handle<Code> ConstructStubCompiler::CompileConstructStub(
       __ mov(Operand(edx, i * kPointerSize), ebx);
     } else {
       // Set the property to the constant value.
-      Handle<Object> constant(shared->GetThisPropertyAssignmentConstant(i));
+      Handle<Object> constant(shared->GetThisPropertyAssignmentConstant(i),
+                              isolate());
       __ mov(Operand(edx, i * kPointerSize), Immediate(constant));
     }
   }

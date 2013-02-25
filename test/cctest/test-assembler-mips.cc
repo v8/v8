@@ -76,7 +76,7 @@ TEST(MIPS0) {
   Object* code = HEAP->CreateCode(
       desc,
       Code::ComputeFlags(Code::STUB),
-      Handle<Object>(HEAP->undefined_value()))->ToObjectChecked();
+      Handle<Code>())->ToObjectChecked();
   CHECK(code->IsCode());
   F2 f = FUNCTION_CAST<F2>(Code::cast(code)->entry());
   int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 0xab0, 0xc, 0, 0, 0));
@@ -114,7 +114,7 @@ TEST(MIPS1) {
   Object* code = HEAP->CreateCode(
       desc,
       Code::ComputeFlags(Code::STUB),
-      Handle<Object>(HEAP->undefined_value()))->ToObjectChecked();
+      Handle<Code>())->ToObjectChecked();
   CHECK(code->IsCode());
   F1 f = FUNCTION_CAST<F1>(Code::cast(code)->entry());
   int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 50, 0, 0, 0, 0));
@@ -254,7 +254,7 @@ TEST(MIPS2) {
   Object* code = HEAP->CreateCode(
       desc,
       Code::ComputeFlags(Code::STUB),
-      Handle<Object>(HEAP->undefined_value()))->ToObjectChecked();
+      Handle<Code>())->ToObjectChecked();
   CHECK(code->IsCode());
   F2 f = FUNCTION_CAST<F2>(Code::cast(code)->entry());
   int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 0xab0, 0xc, 0, 0, 0));
@@ -329,7 +329,7 @@ TEST(MIPS3) {
     Object* code = HEAP->CreateCode(
         desc,
         Code::ComputeFlags(Code::STUB),
-        Handle<Object>(HEAP->undefined_value()))->ToObjectChecked();
+        Handle<Code>())->ToObjectChecked();
     CHECK(code->IsCode());
     F3 f = FUNCTION_CAST<F3>(Code::cast(code)->entry());
     t.a = 1.5e14;
@@ -398,7 +398,7 @@ TEST(MIPS4) {
     Object* code = HEAP->CreateCode(
         desc,
         Code::ComputeFlags(Code::STUB),
-        Handle<Object>(HEAP->undefined_value()))->ToObjectChecked();
+        Handle<Code>())->ToObjectChecked();
     CHECK(code->IsCode());
     F3 f = FUNCTION_CAST<F3>(Code::cast(code)->entry());
     t.a = 1.5e22;
@@ -467,7 +467,7 @@ TEST(MIPS5) {
     Object* code = HEAP->CreateCode(
         desc,
         Code::ComputeFlags(Code::STUB),
-        Handle<Object>(HEAP->undefined_value()))->ToObjectChecked();
+        Handle<Code>())->ToObjectChecked();
     CHECK(code->IsCode());
     F3 f = FUNCTION_CAST<F3>(Code::cast(code)->entry());
     t.a = 1.5e4;
@@ -540,7 +540,7 @@ TEST(MIPS6) {
   Object* code = HEAP->CreateCode(
       desc,
       Code::ComputeFlags(Code::STUB),
-      Handle<Object>(HEAP->undefined_value()))->ToObjectChecked();
+      Handle<Code>())->ToObjectChecked();
   CHECK(code->IsCode());
   F3 f = FUNCTION_CAST<F3>(Code::cast(code)->entry());
   t.ui = 0x11223344;
@@ -619,7 +619,7 @@ TEST(MIPS7) {
     Object* code = HEAP->CreateCode(
         desc,
         Code::ComputeFlags(Code::STUB),
-        Handle<Object>(HEAP->undefined_value()))->ToObjectChecked();
+        Handle<Code>())->ToObjectChecked();
     CHECK(code->IsCode());
     F3 f = FUNCTION_CAST<F3>(Code::cast(code)->entry());
     t.a = 1.5e14;
@@ -718,7 +718,7 @@ TEST(MIPS8) {
   Object* code = HEAP->CreateCode(
       desc,
       Code::ComputeFlags(Code::STUB),
-      Handle<Object>(HEAP->undefined_value()))->ToObjectChecked();
+      Handle<Code>())->ToObjectChecked();
   CHECK(code->IsCode());
   F3 f = FUNCTION_CAST<F3>(Code::cast(code)->entry());
   t.input = 0x12345678;
@@ -765,7 +765,7 @@ TEST(MIPS9) {
   Object* code = HEAP->CreateCode(
       desc,
       Code::ComputeFlags(Code::STUB),
-      Handle<Object>(HEAP->undefined_value()))->ToObjectChecked();
+      Handle<Code>())->ToObjectChecked();
   CHECK(code->IsCode());
 }
 
@@ -826,7 +826,7 @@ TEST(MIPS10) {
     Object* code = HEAP->CreateCode(
         desc,
         Code::ComputeFlags(Code::STUB),
-        Handle<Object>(HEAP->undefined_value()))->ToObjectChecked();
+        Handle<Code>())->ToObjectChecked();
     CHECK(code->IsCode());
     F3 f = FUNCTION_CAST<F3>(Code::cast(code)->entry());
     t.a = 2.147483647e9;       // 0x7fffffff -> 0x41DFFFFFFFC00000 as double.
@@ -958,7 +958,7 @@ TEST(MIPS11) {
   Object* code = HEAP->CreateCode(
       desc,
       Code::ComputeFlags(Code::STUB),
-      Handle<Object>(HEAP->undefined_value()))->ToObjectChecked();
+      Handle<Code>())->ToObjectChecked();
   CHECK(code->IsCode());
   F3 f = FUNCTION_CAST<F3>(Code::cast(code)->entry());
   t.reg_init = 0xaabbccdd;
@@ -1062,7 +1062,7 @@ TEST(MIPS12) {
   Object* code = HEAP->CreateCode(
       desc,
       Code::ComputeFlags(Code::STUB),
-      Handle<Object>(HEAP->undefined_value()))->ToObjectChecked();
+      Handle<Code>())->ToObjectChecked();
   CHECK(code->IsCode());
   F3 f = FUNCTION_CAST<F3>(Code::cast(code)->entry());
   t.x = 1;
@@ -1121,7 +1121,7 @@ TEST(MIPS13) {
     Object* code = HEAP->CreateCode(
         desc,
         Code::ComputeFlags(Code::STUB),
-        Handle<Object>(HEAP->undefined_value()))->ToObjectChecked();
+        Handle<Code>())->ToObjectChecked();
     CHECK(code->IsCode());
     F3 f = FUNCTION_CAST<F3>(Code::cast(code)->entry());
 
@@ -1245,7 +1245,7 @@ TEST(MIPS14) {
     Object* code = HEAP->CreateCode(
         desc,
         Code::ComputeFlags(Code::STUB),
-        Handle<Object>(HEAP->undefined_value()))->ToObjectChecked();
+        Handle<Code>())->ToObjectChecked();
     CHECK(code->IsCode());
     F3 f = FUNCTION_CAST<F3>(Code::cast(code)->entry());
 

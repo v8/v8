@@ -424,6 +424,7 @@ class OptimizingCompiler: public ZoneObject {
 
   Status last_status() const { return last_status_; }
   CompilationInfo* info() const { return info_; }
+  Isolate* isolate() const { return info()->isolate(); }
 
   MUST_USE_RESULT Status AbortOptimization() {
     info_->AbortOptimization();

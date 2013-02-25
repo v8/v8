@@ -327,14 +327,11 @@ void Context::ClearOptimizedFunctions() {
 
 
 Handle<Object> Context::ErrorMessageForCodeGenerationFromStrings() {
-  Handle<Object> result(error_message_for_code_gen_from_strings());
-  if (result->IsUndefined()) {
-    const char* error =
-        "Code generation from strings disallowed for this context";
-    Isolate* isolate = Isolate::Current();
-    result = isolate->factory()->NewStringFromAscii(i::CStrVector(error));
-  }
-  return result;
+  Handle<Object> result(error_message_for_code_gen_from_strings(),
+                        GetIsolate());
+  if (!result->IsUndefined()) return result;
+  return GetIsolate()->factory()->NewStringFromAscii(i::CStrVector(
+      "Code generation from strings disallowed for this context"));
 }
 
 
@@ -343,7 +340,7 @@ bool Context::IsBootstrappingOrValidParentContext(
     Object* object, Context* child) {
   // During bootstrapping we allow all objects to pass as
   // contexts. This is necessary to fix circular dependencies.
-  if (Isolate::Current()->bootstrapper()->IsActive()) return true;
+  if (child->GetIsolate()->bootstrapper()->IsActive()) return true;
   if (!object->IsContext()) return false;
   Context* context = Context::cast(object);
   return context->IsNativeContext() || context->IsGlobalContext() ||

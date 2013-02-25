@@ -826,7 +826,8 @@ void Deoptimizer::MaterializeHeapObjects(JavaScriptFrameIterator* it) {
   // Handlify all argument object values before triggering any allocation.
   List<Handle<Object> > values(deferred_arguments_objects_values_.length());
   for (int i = 0; i < deferred_arguments_objects_values_.length(); ++i) {
-    values.Add(Handle<Object>(deferred_arguments_objects_values_[i]));
+    values.Add(Handle<Object>(deferred_arguments_objects_values_[i],
+                              isolate_));
   }
 
   // Play it safe and clear all unhandlified values before we continue.
@@ -2006,7 +2007,8 @@ SlotRef SlotRef::ComputeSlotForNextArgument(TranslationIterator* iterator,
 
     case Translation::LITERAL: {
       int literal_index = iterator->Next();
-      return SlotRef(data->LiteralArray()->get(literal_index));
+      return SlotRef(data->GetIsolate(),
+                     data->LiteralArray()->get(literal_index));
     }
 
     case Translation::COMPILED_STUB_FRAME:

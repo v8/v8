@@ -733,36 +733,35 @@ class SlotRef BASE_EMBEDDED {
   SlotRef(Address addr, SlotRepresentation representation)
       : addr_(addr), representation_(representation) { }
 
-  explicit SlotRef(Object* literal)
-      : literal_(literal), representation_(LITERAL) { }
+  SlotRef(Isolate* isolate, Object* literal)
+      : literal_(literal, isolate), representation_(LITERAL) { }
 
-  Handle<Object> GetValue() {
+  Handle<Object> GetValue(Isolate* isolate) {
     switch (representation_) {
       case TAGGED:
-        return Handle<Object>(Memory::Object_at(addr_));
+        return Handle<Object>(Memory::Object_at(addr_), isolate);
 
       case INT32: {
         int value = Memory::int32_at(addr_);
         if (Smi::IsValid(value)) {
-          return Handle<Object>(Smi::FromInt(value));
+          return Handle<Object>(Smi::FromInt(value), isolate);
         } else {
-          return Isolate::Current()->factory()->NewNumberFromInt(value);
+          return isolate->factory()->NewNumberFromInt(value);
         }
       }
 
       case UINT32: {
         uint32_t value = Memory::uint32_at(addr_);
         if (value <= static_cast<uint32_t>(Smi::kMaxValue)) {
-          return Handle<Object>(Smi::FromInt(static_cast<int>(value)));
+          return Handle<Object>(Smi::FromInt(static_cast<int>(value)), isolate);
         } else {
-          return Isolate::Current()->factory()->NewNumber(
-            static_cast<double>(value));
+          return isolate->factory()->NewNumber(static_cast<double>(value));
         }
       }
 
       case DOUBLE: {
         double value = Memory::double_at(addr_);
-        return Isolate::Current()->factory()->NewNumber(value);
+        return isolate->factory()->NewNumber(value);
       }
 
       case LITERAL:

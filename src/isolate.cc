@@ -627,7 +627,7 @@ Handle<JSArray> Isolate::CaptureSimpleStackTrace(Handle<JSObject> error_object,
         Handle<Object> recv = frames[i].receiver();
         Handle<JSFunction> fun = frames[i].function();
         Handle<Code> code = frames[i].code();
-        Handle<Smi> offset(Smi::FromInt(frames[i].offset()));
+        Handle<Smi> offset(Smi::FromInt(frames[i].offset()), this);
         elements->set(cursor++, *recv);
         elements->set(cursor++, *fun);
         elements->set(cursor++, *code);
@@ -710,13 +710,13 @@ Handle<JSArray> Isolate::CaptureCurrentStackTrace(
               this,
               JSObject::SetLocalPropertyIgnoreAttributes(
                   stack_frame, column_key,
-                  Handle<Smi>(Smi::FromInt(column_offset + 1)), NONE));
+                  Handle<Smi>(Smi::FromInt(column_offset + 1), this), NONE));
         }
         CHECK_NOT_EMPTY_HANDLE(
             this,
             JSObject::SetLocalPropertyIgnoreAttributes(
                 stack_frame, line_key,
-                Handle<Smi>(Smi::FromInt(line_number + 1)), NONE));
+                Handle<Smi>(Smi::FromInt(line_number + 1), this), NONE));
       }
 
       if (options & StackTrace::kScriptName) {
@@ -867,7 +867,7 @@ void Isolate::ReportFailedAccessCheck(JSObject* receiver, v8::AccessType type) {
 
   HandleScope scope(this);
   Handle<JSObject> receiver_handle(receiver);
-  Handle<Object> data(AccessCheckInfo::cast(data_obj)->data());
+  Handle<Object> data(AccessCheckInfo::cast(data_obj)->data(), this);
   { VMState state(this, EXTERNAL);
     thread_local_top()->failed_access_check_callback_(
       v8::Utils::ToLocal(receiver_handle),
@@ -1014,7 +1014,7 @@ Failure* Isolate::StackOverflow() {
   // attach the stack trace as a hidden property.
   Handle<String> key = factory()->stack_overflow_symbol();
   Handle<JSObject> boilerplate =
-      Handle<JSObject>::cast(GetProperty(js_builtins_object(), key));
+      Handle<JSObject>::cast(GetProperty(this, js_builtins_object(), key));
   Handle<JSObject> exception = Copy(boilerplate);
   DoThrow(*exception, NULL);
 
@@ -1095,10 +1095,10 @@ void Isolate::PrintCurrentStackTrace(FILE* out) {
     // Find code position if recorded in relocation info.
     JavaScriptFrame* frame = it.frame();
     int pos = frame->LookupCode()->SourcePosition(frame->pc());
-    Handle<Object> pos_obj(Smi::FromInt(pos));
+    Handle<Object> pos_obj(Smi::FromInt(pos), this);
     // Fetch function and receiver.
     Handle<JSFunction> fun(JSFunction::cast(frame->function()));
-    Handle<Object> recv(frame->receiver());
+    Handle<Object> recv(frame->receiver(), this);
     // Advance to the next JavaScript frame and determine if the
     // current frame is the top-level frame.
     it.Advance();
@@ -1188,7 +1188,7 @@ void Isolate::DoThrow(Object* exception, MessageLocation* location) {
   ASSERT(!has_pending_exception());
 
   HandleScope scope(this);
-  Handle<Object> exception_handle(exception);
+  Handle<Object> exception_handle(exception, this);
 
   // Determine reporting and whether the exception is caught externally.
   bool catchable_by_javascript = is_catchable_by_javascript(exception);
@@ -1363,7 +1363,8 @@ void Isolate::ReportPendingMessages() {
       thread_local_top_.has_pending_message_ = false;
       if (!thread_local_top_.pending_message_obj_->IsTheHole()) {
         HandleScope scope(this);
-        Handle<Object> message_obj(thread_local_top_.pending_message_obj_);
+        Handle<Object> message_obj(thread_local_top_.pending_message_obj_,
+                                   this);
         if (thread_local_top_.pending_message_script_ != NULL) {
           Handle<Script> script(thread_local_top_.pending_message_script_);
           int start_pos = thread_local_top_.pending_message_start_pos_;

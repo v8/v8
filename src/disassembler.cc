@@ -111,11 +111,12 @@ static void DumpBuffer(FILE* f, StringBuilder* out) {
 static const int kOutBufferSize = 2048 + String::kMaxShortPrintLength;
 static const int kRelocInfoPosition = 57;
 
-static int DecodeIt(FILE* f,
+static int DecodeIt(Isolate* isolate,
+                    FILE* f,
                     const V8NameConverter& converter,
                     byte* begin,
                     byte* end) {
-  NoHandleAllocation ha;
+  NoHandleAllocation ha(isolate);
   AssertNoAllocation no_alloc;
   ExternalReferenceEncoder ref_encoder;
   Heap* heap = HEAP;
@@ -282,7 +283,7 @@ static int DecodeIt(FILE* f,
           out.AddFormatted(" (id = %d)", static_cast<int>(relocinfo.data()));
         }
       } else if (rmode == RelocInfo::RUNTIME_ENTRY &&
-                 Isolate::Current()->deoptimizer_data() != NULL) {
+                 isolate->deoptimizer_data() != NULL) {
         // A runtime entry reloinfo might be a deoptimization bailout.
         Address addr = relocinfo.target_address();
         int id = Deoptimizer::GetDeoptimizationId(addr, Deoptimizer::EAGER);
@@ -319,14 +320,15 @@ static int DecodeIt(FILE* f,
 }
 
 
-int Disassembler::Decode(FILE* f, byte* begin, byte* end) {
+int Disassembler::Decode(Isolate* isolate, FILE* f, byte* begin, byte* end) {
   V8NameConverter defaultConverter(NULL);
-  return DecodeIt(f, defaultConverter, begin, end);
+  return DecodeIt(isolate, f, defaultConverter, begin, end);
 }
 
 
 // Called by Code::CodePrint.
 void Disassembler::Decode(FILE* f, Code* code) {
+  Isolate* isolate = code->GetIsolate();
   int decode_size = (code->kind() == Code::OPTIMIZED_FUNCTION ||
                      code->kind() == Code::COMPILED_STUB)
       ? static_cast<int>(code->safepoint_table_offset())
@@ -340,13 +342,15 @@ void Disassembler::Decode(FILE* f, Code* code) {
   byte* begin = code->instruction_start();
   byte* end = begin + decode_size;
   V8NameConverter v8NameConverter(code);
-  DecodeIt(f, v8NameConverter, begin, end);
+  DecodeIt(isolate, f, v8NameConverter, begin, end);
 }
 
 #else  // ENABLE_DISASSEMBLER
 
 void Disassembler::Dump(FILE* f, byte* begin, byte* end) {}
-int Disassembler::Decode(FILE* f, byte* begin, byte* end) { return 0; }
+int Disassembler::Decode(Isolate* isolate, FILE* f, byte* begin, byte* end) {
+  return 0;
+}
 void Disassembler::Decode(FILE* f, Code* code) {}
 
 #endif  // ENABLE_DISASSEMBLER

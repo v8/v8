@@ -701,13 +701,13 @@ void MacroAssembler::CallApiFunctionAndReturn(Address function_address,
 
   Factory* factory = isolate()->factory();
   ExternalReference next_address =
-      ExternalReference::handle_scope_next_address();
+      ExternalReference::handle_scope_next_address(isolate());
   const int kNextOffset = 0;
   const int kLimitOffset = Offset(
-      ExternalReference::handle_scope_limit_address(),
+      ExternalReference::handle_scope_limit_address(isolate()),
       next_address);
   const int kLevelOffset = Offset(
-      ExternalReference::handle_scope_level_address(),
+      ExternalReference::handle_scope_level_address(isolate()),
       next_address);
   ExternalReference scheduled_exception_address =
       ExternalReference::scheduled_exception_address(isolate());

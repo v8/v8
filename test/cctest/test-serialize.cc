@@ -478,7 +478,7 @@ DEPENDENT_TEST(PartialDeserialization, PartialSerialization) {
       CHECK(root->IsString());
     }
     v8::HandleScope handle_scope;
-    Handle<Object> root_handle(root);
+    Handle<Object> root_handle(root, Isolate::Current());
 
 
     Object* root2;
@@ -576,7 +576,7 @@ DEPENDENT_TEST(ContextDeserialization, ContextSerialization) {
       CHECK(root->IsContext());
     }
     v8::HandleScope handle_scope;
-    Handle<Object> root_handle(root);
+    Handle<Object> root_handle(root, Isolate::Current());
 
 
     Object* root2;

@@ -37,25 +37,17 @@
 namespace v8 {
 namespace internal {
 
-inline Isolate* GetIsolateForHandle(Object* obj) {
-  return Isolate::Current();
-}
-
-inline Isolate* GetIsolateForHandle(HeapObject* obj) {
-  return obj->GetIsolate();
-}
-
 template<typename T>
 Handle<T>::Handle(T* obj) {
   ASSERT(!obj->IsFailure());
-  location_ = HandleScope::CreateHandle(obj, GetIsolateForHandle(obj));
+  location_ = HandleScope::CreateHandle(obj->GetIsolate(), obj);
 }
 
 
 template<typename T>
 Handle<T>::Handle(T* obj, Isolate* isolate) {
   ASSERT(!obj->IsFailure());
-  location_ = HandleScope::CreateHandle(obj, isolate);
+  location_ = HandleScope::CreateHandle(isolate, obj);
 }
 
 
@@ -77,7 +69,6 @@ inline T** Handle<T>::location() const {
 
 
 HandleScope::HandleScope(Isolate* isolate) {
-  ASSERT(isolate == Isolate::Current());
   v8::ImplementationUtilities::HandleScopeData* current =
       isolate->handle_scope_data();
   isolate_ = isolate;
@@ -92,7 +83,6 @@ HandleScope::~HandleScope() {
 }
 
 void HandleScope::CloseScope() {
-  ASSERT(isolate_ == Isolate::Current());
   v8::ImplementationUtilities::HandleScopeData* current =
       isolate_->handle_scope_data();
   current->next = prev_next_;
@@ -116,7 +106,7 @@ Handle<T> HandleScope::CloseAndEscape(Handle<T> handle_value) {
       isolate_->handle_scope_data();
   // Allocate one handle in the parent scope.
   ASSERT(current->level > 0);
-  Handle<T> result(CreateHandle<T>(value, isolate_));
+  Handle<T> result(CreateHandle<T>(isolate_, value));
   // Reinitialize the current scope (so that it's ready
   // to be used or closed again).
   prev_next_ = current->next;
@@ -127,13 +117,12 @@ Handle<T> HandleScope::CloseAndEscape(Handle<T> handle_value) {
 
 
 template <typename T>
-T** HandleScope::CreateHandle(T* value, Isolate* isolate) {
-  ASSERT(isolate == Isolate::Current());
+T** HandleScope::CreateHandle(Isolate* isolate, T* value) {
   v8::ImplementationUtilities::HandleScopeData* current =
       isolate->handle_scope_data();
 
   internal::Object** cur = current->next;
-  if (cur == current->limit) cur = Extend();
+  if (cur == current->limit) cur = Extend(isolate);
   // Update the current next field, set the value in the created
   // handle, and return the result.
   ASSERT(cur < current->limit);
@@ -146,10 +135,10 @@ T** HandleScope::CreateHandle(T* value, Isolate* isolate) {
 
 
 #ifdef DEBUG
-inline NoHandleAllocation::NoHandleAllocation() {
-  Isolate* isolate = Isolate::Current();
+inline NoHandleAllocation::NoHandleAllocation(Isolate* isolate)
+    : isolate_(isolate) {
   v8::ImplementationUtilities::HandleScopeData* current =
-      isolate->handle_scope_data();
+      isolate_->handle_scope_data();
 
   active_ = !isolate->optimizing_compiler_thread()->IsOptimizerThread();
   if (active_) {
@@ -168,42 +157,42 @@ inline NoHandleAllocation::~NoHandleAllocation() {
     // Restore state in current handle scope to re-enable handle
     // allocations.
     v8::ImplementationUtilities::HandleScopeData* data =
-        Isolate::Current()->handle_scope_data();
+        isolate_->handle_scope_data();
     ASSERT_EQ(0, data->level);
     data->level = level_;
   }
 }
 
 
-NoHandleDereference::NoHandleDereference() {
+NoHandleDereference::NoHandleDereference(Isolate* isolate)
+    : isolate_(isolate) {
   // The guard is set on a per-isolate basis, so it affects all threads.
   // That's why we can only use it when running without parallel recompilation.
   if (FLAG_parallel_recompilation) return;
-  Isolate* isolate = Isolate::Current();
   old_state_ = isolate->allow_handle_deref();
-  isolate->set_allow_handle_deref(false);
+  isolate_->set_allow_handle_deref(false);
 }
 
 
 NoHandleDereference::~NoHandleDereference() {
   if (FLAG_parallel_recompilation) return;
-  Isolate::Current()->set_allow_handle_deref(old_state_);
+  isolate_->set_allow_handle_deref(old_state_);
 }
 
 
-AllowHandleDereference::AllowHandleDereference() {
+AllowHandleDereference::AllowHandleDereference(Isolate* isolate)
+    : isolate_(isolate) {
   // The guard is set on a per-isolate basis, so it affects all threads.
   // That's why we can only use it when running without parallel recompilation.
   if (FLAG_parallel_recompilation) return;
-  Isolate* isolate = Isolate::Current();
   old_state_ = isolate->allow_handle_deref();
-  isolate->set_allow_handle_deref(true);
+  isolate_->set_allow_handle_deref(true);
 }
 
 
 AllowHandleDereference::~AllowHandleDereference() {
   if (FLAG_parallel_recompilation) return;
-  Isolate::Current()->set_allow_handle_deref(old_state_);
+  isolate_->set_allow_handle_deref(old_state_);
 }
 #endif
 

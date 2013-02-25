@@ -784,7 +784,7 @@ class MacroAssembler: public Assembler {
 
   // Push a handle value.
   void Push(Handle<Object> handle) { push(Immediate(handle)); }
-  void Push(Smi* smi) { Push(Handle<Smi>(smi)); }
+  void Push(Smi* smi) { Push(Handle<Smi>(smi, isolate())); }
 
   Handle<Object> CodeObject() {
     ASSERT(!code_object_.is_null());

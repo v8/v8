@@ -76,6 +76,12 @@ int HValue::LoopWeight() const {
 }
 
 
+Isolate* HValue::isolate() const {
+  ASSERT(block() != NULL);
+  return block()->graph()->isolate();
+}
+
+
 void HValue::AssumeRepresentation(Representation r) {
   if (CheckFlag(kFlexibleRepresentation)) {
     ChangeRepresentation(r);
@@ -342,10 +348,10 @@ const char* HType::ToString() {
 }
 
 
-HType HType::TypeFromValue(Handle<Object> value) {
+HType HType::TypeFromValue(Isolate* isolate, Handle<Object> value) {
   // Handle dereferencing is safe here: an object's type as checked below
   // never changes.
-  AllowHandleDereference allow_handle_deref;
+  AllowHandleDereference allow_handle_deref(isolate);
 
   HType result = HType::Tagged();
   if (value->IsSmi()) {
@@ -1299,7 +1305,7 @@ HValue* HCheckInstanceType::Canonicalize() {
 
   if (check_ == IS_SYMBOL && value()->IsConstant()) {
     // Dereferencing is safe here: a symbol cannot become a non-symbol.
-    AllowHandleDereference allow_handle_deref;
+    AllowHandleDereference allow_handle_deref(isolate());
     if (HConstant::cast(value())->handle()->IsSymbol()) return NULL;
   }
   return this;
@@ -1805,7 +1811,7 @@ HConstant::HConstant(Handle<Object> handle, Representation r)
       has_int32_value_(false),
       has_double_value_(false) {
   // Dereferencing here is safe: the value of a number object does not change.
-  AllowHandleDereference allow_handle_deref;
+  AllowHandleDereference allow_handle_deref(Isolate::Current());
   SetFlag(kUseGVN);
   if (handle_->IsNumber()) {
     double n = handle_->Number();
@@ -1886,7 +1892,7 @@ bool HConstant::ToBoolean() {
   }
   // Dereferencing is safe: singletons do not change and strings are
   // immutable.
-  AllowHandleDereference allow_handle_deref;
+  AllowHandleDereference allow_handle_deref(isolate());
   if (handle_->IsTrue()) return true;
   if (handle_->IsFalse()) return false;
   if (handle_->IsUndefined()) return false;
@@ -2574,7 +2580,7 @@ HType HConstant::CalculateInferredType() {
     return Smi::IsValid(int32_value_) ? HType::Smi() : HType::HeapNumber();
   }
   if (has_double_value_) return HType::HeapNumber();
-  return HType::TypeFromValue(handle_);
+  return HType::TypeFromValue(isolate(), handle_);
 }
 
 
@@ -2833,13 +2839,15 @@ HInstruction* HStringCharFromCode::New(
     Zone* zone, HValue* context, HValue* char_code) {
   if (FLAG_fold_constants && char_code->IsConstant()) {
     HConstant* c_code = HConstant::cast(char_code);
+    Isolate* isolate = Isolate::Current();
     if (c_code->HasNumberValue()) {
       if (isfinite(c_code->DoubleValue())) {
         uint32_t code = c_code->NumberValueAsInteger32() & 0xffff;
-        return new(zone) HConstant(LookupSingleCharacterStringFromCode(code),
+        return new(zone) HConstant(LookupSingleCharacterStringFromCode(isolate,
+                                                                       code),
                                    Representation::Tagged());
       }
-      return new(zone) HConstant(FACTORY->empty_string(),
+      return new(zone) HConstant(isolate->factory()->empty_string(),
                                  Representation::Tagged());
     }
   }

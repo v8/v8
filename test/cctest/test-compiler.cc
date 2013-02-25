@@ -101,9 +101,9 @@ static MaybeObject* GetGlobalProperty(const char* name) {
 
 static void SetGlobalProperty(const char* name, Object* value) {
   Isolate* isolate = Isolate::Current();
-  Handle<Object> object(value);
-  Handle<String> symbol = FACTORY->LookupUtf8Symbol(name);
-  Handle<JSObject> global(Isolate::Current()->context()->global_object());
+  Handle<Object> object(value, isolate);
+  Handle<String> symbol = isolate->factory()->LookupUtf8Symbol(name);
+  Handle<JSObject> global(isolate->context()->global_object());
   SetProperty(isolate, global, symbol, object, NONE, kNonStrictMode);
 }
 
@@ -265,11 +265,11 @@ TEST(UncaughtThrow) {
   Handle<JSFunction> fun = Compile(source);
   CHECK(!fun.is_null());
   bool has_pending_exception;
-  Handle<JSObject> global(Isolate::Current()->context()->global_object());
+  Isolate* isolate = fun->GetIsolate();
+  Handle<JSObject> global(isolate->context()->global_object());
   Execution::Call(fun, global, 0, NULL, &has_pending_exception);
   CHECK(has_pending_exception);
-  CHECK_EQ(42.0, Isolate::Current()->pending_exception()->
-           ToObjectChecked()->Number());
+  CHECK_EQ(42.0, isolate->pending_exception()->ToObjectChecked()->Number());
 }
 
 
@@ -287,6 +287,7 @@ TEST(C2JSFrames) {
 
   Handle<JSFunction> fun0 = Compile(source);
   CHECK(!fun0.is_null());
+  Isolate* isolate = fun0->GetIsolate();
 
   // Run the generated code to populate the global object with 'foo'.
   bool has_pending_exception;
@@ -297,9 +298,9 @@ TEST(C2JSFrames) {
   Object* foo_symbol =
       FACTORY->LookupOneByteSymbol(STATIC_ASCII_VECTOR("foo"))->
         ToObjectChecked();
-  MaybeObject* fun1_object = Isolate::Current()->context()->global_object()->
+  MaybeObject* fun1_object = isolate->context()->global_object()->
       GetProperty(String::cast(foo_symbol));
-  Handle<Object> fun1(fun1_object->ToObjectChecked());
+  Handle<Object> fun1(fun1_object->ToObjectChecked(), isolate);
   CHECK(fun1->IsJSFunction());
 
   Handle<Object> argv[] =
