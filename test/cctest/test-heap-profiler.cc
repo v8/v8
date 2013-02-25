@@ -394,8 +394,7 @@ TEST(HeapSnapshotAddressReuse) {
     if (id < maxId1)
       ++wrong_count;
   }
-  // FIXME: Object ids should be unique but it is not so at the moment.
-  CHECK_NE(0, wrong_count);
+  CHECK_EQ(0, wrong_count);
 }
 
 
