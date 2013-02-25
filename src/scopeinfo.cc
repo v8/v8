@@ -362,29 +362,6 @@ int ScopeInfo::FunctionContextSlotIndex(String* name, VariableMode* mode) {
 }
 
 
-bool ScopeInfo::CopyContextLocalsToScopeObject(
-    Isolate* isolate,
-    Handle<Context> context,
-    Handle<JSObject> scope_object) {
-  // Fill all context locals to the context extension.
-  int start = ContextLocalNameEntriesIndex();
-  int end = start + ContextLocalCount();
-  for (int i = start; i < end; ++i) {
-    int context_index = Context::MIN_CONTEXT_SLOTS + i - start;
-    RETURN_IF_EMPTY_HANDLE_VALUE(
-        isolate,
-        SetProperty(isolate,
-                    scope_object,
-                    Handle<String>(String::cast(get(i))),
-                    Handle<Object>(context->get(context_index), isolate),
-                    ::NONE,
-                    kNonStrictMode),
-        false);
-  }
-  return true;
-}
-
-
 int ScopeInfo::ParameterEntriesIndex() {
   ASSERT(length() > 0);
   return kVariablePartIndex;

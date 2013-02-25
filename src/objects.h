@@ -3559,13 +3559,6 @@ class ScopeInfo : public FixedArray {
   // must be a symbol (canonicalized).
   int FunctionContextSlotIndex(String* name, VariableMode* mode);
 
-
-  // Copies all the context locals into an object used to materialize a scope.
-  bool CopyContextLocalsToScopeObject(Isolate* isolate,
-                                      Handle<Context> context,
-                                      Handle<JSObject> scope_object);
-
-
   static Handle<ScopeInfo> Create(Scope* scope, Zone* zone);
 
   // Serializes empty scope info.
