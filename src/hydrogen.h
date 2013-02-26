@@ -920,10 +920,30 @@ class HGraphBuilder {
   HInstruction* BuildStoreMap(HValue* object, HValue* map, BailoutId id);
   HInstruction* BuildStoreMap(HValue* object, Handle<Map> map, BailoutId id);
 
+  class CheckBuilder {
+   public:
+    CheckBuilder(HGraphBuilder* builder, BailoutId id);
+    ~CheckBuilder() {
+      if (!finished_) End();
+    }
+
+    void CheckNotUndefined(HValue* value);
+    void CheckIntegerEq(HValue* left, HValue* right);
+    void End();
+
+   private:
+    Zone* zone() { return builder_->zone(); }
+
+    HGraphBuilder* builder_;
+    bool finished_;
+    HBasicBlock* failure_block_;
+    HBasicBlock* merge_block_;
+    BailoutId id_;
+  };
+
   class IfBuilder {
    public:
-    IfBuilder(HGraphBuilder* builder,
-              BailoutId id = BailoutId::StubEntry());
+    IfBuilder(HGraphBuilder* builder, BailoutId id);
     ~IfBuilder() {
       if (!finished_) End();
     }
@@ -937,6 +957,8 @@ class HGraphBuilder {
     void End();
 
    private:
+    Zone* zone() { return builder_->zone(); }
+
     HGraphBuilder* builder_;
     bool finished_;
     HBasicBlock* first_true_block_;
@@ -944,8 +966,6 @@ class HGraphBuilder {
     HBasicBlock* first_false_block_;
     HBasicBlock* merge_block_;
     BailoutId id_;
-
-    Zone* zone() { return builder_->zone(); }
   };
 
   class LoopBuilder {
@@ -960,7 +980,7 @@ class HGraphBuilder {
     LoopBuilder(HGraphBuilder* builder,
                 HValue* context,
                 Direction direction,
-                BailoutId id = BailoutId::StubEntry());
+                BailoutId id);
     ~LoopBuilder() {
       ASSERT(finished_);
     }
@@ -973,6 +993,8 @@ class HGraphBuilder {
     void EndBody();
 
    private:
+    Zone* zone() { return builder_->zone(); }
+
     HGraphBuilder* builder_;
     HValue* context_;
     HInstruction* increment_;
@@ -983,8 +1005,6 @@ class HGraphBuilder {
     Direction direction_;
     BailoutId id_;
     bool finished_;
-
-    Zone* zone() { return builder_->zone(); }
   };
 
   HValue* BuildAllocateElements(HContext* context,

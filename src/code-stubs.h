@@ -264,8 +264,6 @@ struct CodeStubInterfaceDescriptor {
 };
 
 
-class HGraph;
-struct Register;
 class HydrogenCodeStub : public CodeStub {
  public:
   // Retrieve the code for the stub. Generate the code if needed.
@@ -475,7 +473,7 @@ class FastCloneShallowArrayStub : public PlatformCodeStub {
 };
 
 
-class FastCloneShallowObjectStub : public PlatformCodeStub {
+class FastCloneShallowObjectStub : public HydrogenCodeStub {
  public:
   // Maximum number of properties in copied object.
   static const int kMaximumClonedProperties = 6;
@@ -485,13 +483,21 @@ class FastCloneShallowObjectStub : public PlatformCodeStub {
     ASSERT_LE(length_, kMaximumClonedProperties);
   }
 
-  void Generate(MacroAssembler* masm);
+  int length() const { return length_; }
+
+  virtual Handle<Code> GenerateCode();
+
+  virtual void InitializeInterfaceDescriptor(
+      Isolate* isolate,
+      CodeStubInterfaceDescriptor* descriptor);
 
  private:
   int length_;
 
   Major MajorKey() { return FastCloneShallowObject; }
   int MinorKey() { return length_; }
+
+  DISALLOW_COPY_AND_ASSIGN(FastCloneShallowObjectStub);
 };
 
 
@@ -1222,9 +1228,6 @@ class KeyedLoadFastElementStub : public HydrogenCodeStub {
         IsJSArrayBits::encode(is_js_array);
   }
 
-  Major MajorKey() { return KeyedLoadElement; }
-  int MinorKey() { return bit_field_; }
-
   bool is_js_array() const {
     return IsJSArrayBits::decode(bit_field_);
   }
@@ -1244,6 +1247,9 @@ class KeyedLoadFastElementStub : public HydrogenCodeStub {
   class ElementsKindBits: public BitField<ElementsKind, 0, 8> {};
   uint32_t bit_field_;
 
+  Major MajorKey() { return KeyedLoadElement; }
+  int MinorKey() { return bit_field_; }
+
   DISALLOW_COPY_AND_ASSIGN(KeyedLoadFastElementStub);
 };
 
@@ -1255,9 +1261,6 @@ class TransitionElementsKindStub : public HydrogenCodeStub {
     bit_field_ = FromKindBits::encode(from_kind) |
         ToKindBits::encode(to_kind);
   }
-
-  Major MajorKey() { return TransitionElementsKind; }
-  int MinorKey() { return bit_field_; }
 
   ElementsKind from_kind() const {
     return FromKindBits::decode(bit_field_);
@@ -1277,6 +1280,9 @@ class TransitionElementsKindStub : public HydrogenCodeStub {
   class FromKindBits: public BitField<ElementsKind, 8, 8> {};
   class ToKindBits: public BitField<ElementsKind, 0, 8> {};
   uint32_t bit_field_;
+
+  Major MajorKey() { return TransitionElementsKind; }
+  int MinorKey() { return bit_field_; }
 
   DISALLOW_COPY_AND_ASSIGN(TransitionElementsKindStub);
 };

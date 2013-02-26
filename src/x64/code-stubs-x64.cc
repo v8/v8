@@ -39,6 +39,18 @@ namespace v8 {
 namespace internal {
 
 
+void FastCloneShallowObjectStub::InitializeInterfaceDescriptor(
+    Isolate* isolate,
+    CodeStubInterfaceDescriptor* descriptor) {
+  static Register registers[] = { rax, rbx, rcx, rdx };
+  descriptor->register_param_count_ = 4;
+  descriptor->register_params_ = registers;
+  descriptor->stack_parameter_count_ = NULL;
+  descriptor->deoptimization_handler_ =
+      Runtime::FunctionForId(Runtime::kCreateObjectLiteralShallow)->entry;
+}
+
+
 void KeyedLoadFastElementStub::InitializeInterfaceDescriptor(
     Isolate* isolate,
     CodeStubInterfaceDescriptor* descriptor) {
@@ -481,49 +493,6 @@ void FastCloneShallowArrayStub::Generate(MacroAssembler* masm) {
 
   __ bind(&slow_case);
   __ TailCallRuntime(Runtime::kCreateArrayLiteralShallow, 3, 1);
-}
-
-
-void FastCloneShallowObjectStub::Generate(MacroAssembler* masm) {
-  // Stack layout on entry:
-  //
-  // [rsp + kPointerSize]: object literal flags.
-  // [rsp + (2 * kPointerSize)]: constant properties.
-  // [rsp + (3 * kPointerSize)]: literal index.
-  // [rsp + (4 * kPointerSize)]: literals array.
-
-  // Load boilerplate object into ecx and check if we need to create a
-  // boilerplate.
-  Label slow_case;
-  __ movq(rcx, Operand(rsp, 4 * kPointerSize));
-  __ movq(rax, Operand(rsp, 3 * kPointerSize));
-  SmiIndex index = masm->SmiToIndex(rax, rax, kPointerSizeLog2);
-  __ movq(rcx,
-          FieldOperand(rcx, index.reg, index.scale, FixedArray::kHeaderSize));
-  __ CompareRoot(rcx, Heap::kUndefinedValueRootIndex);
-  __ j(equal, &slow_case);
-
-  // Check that the boilerplate contains only fast properties and we can
-  // statically determine the instance size.
-  int size = JSObject::kHeaderSize + length_ * kPointerSize;
-  __ movq(rax, FieldOperand(rcx, HeapObject::kMapOffset));
-  __ movzxbq(rax, FieldOperand(rax, Map::kInstanceSizeOffset));
-  __ cmpq(rax, Immediate(size >> kPointerSizeLog2));
-  __ j(not_equal, &slow_case);
-
-  // Allocate the JS object and copy header together with all in-object
-  // properties from the boilerplate.
-  __ AllocateInNewSpace(size, rax, rbx, rdx, &slow_case, TAG_OBJECT);
-  for (int i = 0; i < size; i += kPointerSize) {
-    __ movq(rbx, FieldOperand(rcx, i));
-    __ movq(FieldOperand(rax, i), rbx);
-  }
-
-  // Return and remove the on-stack parameters.
-  __ ret(4 * kPointerSize);
-
-  __ bind(&slow_case);
-  __ TailCallRuntime(Runtime::kCreateObjectLiteralShallow, 4, 1);
 }
 
 

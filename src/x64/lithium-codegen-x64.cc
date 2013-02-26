@@ -2496,6 +2496,14 @@ void LCodeGen::DoDeferredInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr,
 }
 
 
+void LCodeGen::DoInstanceSize(LInstanceSize* instr) {
+  Register object = ToRegister(instr->object());
+  Register result = ToRegister(instr->result());
+  __ movq(result, FieldOperand(object, HeapObject::kMapOffset));
+  __ movzxbq(result, FieldOperand(result, Map::kInstanceSizeOffset));
+}
+
+
 void LCodeGen::DoCmpT(LCmpT* instr) {
   Token::Value op = instr->op();
 
@@ -5051,21 +5059,20 @@ void LCodeGen::DoAllocate(LAllocate* instr) {
   DeferredAllocate* deferred =
       new(zone()) DeferredAllocate(this, instr);
 
-  Register size = ToRegister(instr->size());
   Register result = ToRegister(instr->result());
   Register temp = ToRegister(instr->temp());
 
-  HAllocate* original_instr = instr->hydrogen();
-  if (original_instr->size()->IsConstant()) {
-    UNREACHABLE();
+  // Allocate memory for the object.
+  AllocationFlags flags = TAG_OBJECT;
+  if (instr->hydrogen()->MustAllocateDoubleAligned()) {
+    flags = static_cast<AllocationFlags>(flags | DOUBLE_ALIGNMENT);
+  }
+  if (instr->size()->IsConstantOperand()) {
+    int32_t size = ToInteger32(LConstantOperand::cast(instr->size()));
+    __ AllocateInNewSpace(size, result, temp, no_reg, deferred->entry(), flags);
   } else {
-    // Allocate memory for the object.
-    AllocationFlags flags = TAG_OBJECT;
-    if (original_instr->MustAllocateDoubleAligned()) {
-      flags = static_cast<AllocationFlags>(flags | DOUBLE_ALIGNMENT);
-    }
-    __ AllocateInNewSpace(size, result, temp, no_reg,
-                          deferred->entry(), flags);
+    Register size = ToRegister(instr->size());
+    __ AllocateInNewSpace(size, result, temp, no_reg, deferred->entry(), flags);
   }
 
   __ bind(deferred->exit());
@@ -5304,26 +5311,34 @@ void LCodeGen::DoObjectLiteral(LObjectLiteral* instr) {
   Handle<FixedArray> constant_properties =
       instr->hydrogen()->constant_properties();
 
-  // Set up the parameters to the stub/runtime call.
-  __ PushHeapObject(literals);
-  __ Push(Smi::FromInt(instr->hydrogen()->literal_index()));
-  __ Push(constant_properties);
   int flags = instr->hydrogen()->fast_elements()
       ? ObjectLiteral::kFastElements
       : ObjectLiteral::kNoFlags;
   flags |= instr->hydrogen()->has_function()
       ? ObjectLiteral::kHasFunction
       : ObjectLiteral::kNoFlags;
-  __ Push(Smi::FromInt(flags));
 
-  // Pick the right runtime function or stub to call.
+  // Set up the parameters to the stub/runtime call and pick the right
+  // runtime function or stub to call.
   int properties_count = constant_properties->length() / 2;
   if (instr->hydrogen()->depth() > 1) {
+    __ PushHeapObject(literals);
+    __ Push(Smi::FromInt(instr->hydrogen()->literal_index()));
+    __ Push(constant_properties);
+    __ Push(Smi::FromInt(flags));
     CallRuntime(Runtime::kCreateObjectLiteral, 4, instr);
   } else if (flags != ObjectLiteral::kFastElements ||
       properties_count > FastCloneShallowObjectStub::kMaximumClonedProperties) {
+    __ PushHeapObject(literals);
+    __ Push(Smi::FromInt(instr->hydrogen()->literal_index()));
+    __ Push(constant_properties);
+    __ Push(Smi::FromInt(flags));
     CallRuntime(Runtime::kCreateObjectLiteralShallow, 4, instr);
   } else {
+    __ LoadHeapObject(rax, literals);
+    __ Move(rbx, Smi::FromInt(instr->hydrogen()->literal_index()));
+    __ Move(rcx, constant_properties);
+    __ Move(rdx, Smi::FromInt(flags));
     FastCloneShallowObjectStub stub(properties_count);
     CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
   }

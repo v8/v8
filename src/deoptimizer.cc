@@ -779,7 +779,7 @@ void Deoptimizer::DoComputeOutputFrames() {
         DoComputeAccessorStubFrame(&iterator, i, true);
         break;
       case Translation::COMPILED_STUB_FRAME:
-        DoCompiledStubFrame(&iterator, i);
+        DoComputeCompiledStubFrame(&iterator, i);
         break;
       case Translation::BEGIN:
       case Translation::REGISTER:

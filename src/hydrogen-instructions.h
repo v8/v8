@@ -123,6 +123,7 @@ class LChunkBuilder;
   V(In)                                        \
   V(InstanceOf)                                \
   V(InstanceOfKnownGlobal)                     \
+  V(InstanceSize)                              \
   V(InvokeFunction)                            \
   V(IsConstructCallAndBranch)                  \
   V(IsNilAndBranch)                            \
@@ -3945,6 +3946,26 @@ class HInstanceOfKnownGlobal: public HTemplateInstruction<2> {
 
  private:
   Handle<JSFunction> function_;
+};
+
+
+// TODO(mstarzinger): This instruction should be modeled as a load of the map
+// field followed by a load of the instance size field once HLoadNamedField is
+// flexible enough to accommodate byte-field loads.
+class HInstanceSize: public HTemplateInstruction<1> {
+ public:
+  explicit HInstanceSize(HValue* object) {
+    SetOperandAt(0, object);
+    set_representation(Representation::Integer32());
+  }
+
+  HValue* object() { return OperandAt(0); }
+
+  virtual Representation RequiredInputRepresentation(int index) {
+    return Representation::Tagged();
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(InstanceSize)
 };
 
 

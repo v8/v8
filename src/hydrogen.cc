@@ -634,16 +634,64 @@ HConstant* HGraph::GetConstantHole() {
 }
 
 
+HGraphBuilder::CheckBuilder::CheckBuilder(HGraphBuilder* builder, BailoutId id)
+    : builder_(builder),
+      finished_(false),
+      id_(id) {
+  HEnvironment* env = builder->environment();
+  failure_block_ = builder->CreateBasicBlock(env->Copy());
+  merge_block_ = builder->CreateBasicBlock(env->Copy());
+}
+
+
+void HGraphBuilder::CheckBuilder::CheckNotUndefined(HValue* value) {
+  HEnvironment* env = builder_->environment();
+  HIsNilAndBranch* compare =
+      new(zone()) HIsNilAndBranch(value, kStrictEquality, kUndefinedValue);
+  HBasicBlock* success_block = builder_->CreateBasicBlock(env->Copy());
+  HBasicBlock* failure_block = builder_->CreateBasicBlock(env->Copy());
+  compare->SetSuccessorAt(0, failure_block);
+  compare->SetSuccessorAt(1, success_block);
+  failure_block->Goto(failure_block_);
+  builder_->current_block()->Finish(compare);
+  builder_->set_current_block(success_block);
+}
+
+
+void HGraphBuilder::CheckBuilder::CheckIntegerEq(HValue* left, HValue* right) {
+  HEnvironment* env = builder_->environment();
+  HCompareIDAndBranch* compare =
+      new(zone()) HCompareIDAndBranch(left, right, Token::EQ);
+  compare->AssumeRepresentation(Representation::Integer32());
+  HBasicBlock* success_block = builder_->CreateBasicBlock(env->Copy());
+  HBasicBlock* failure_block = builder_->CreateBasicBlock(env->Copy());
+  compare->SetSuccessorAt(0, success_block);
+  compare->SetSuccessorAt(1, failure_block);
+  failure_block->Goto(failure_block_);
+  builder_->current_block()->Finish(compare);
+  builder_->set_current_block(success_block);
+}
+
+
+void HGraphBuilder::CheckBuilder::End() {
+  ASSERT(!finished_);
+  builder_->current_block()->Goto(merge_block_);
+  failure_block_->FinishExitWithDeoptimization(HDeoptimize::kUseAll);
+  failure_block_->SetJoinId(id_);
+  builder_->set_current_block(merge_block_);
+  merge_block_->SetJoinId(id_);
+  finished_ = true;
+}
+
+
 HGraphBuilder::IfBuilder::IfBuilder(HGraphBuilder* builder, BailoutId id)
     : builder_(builder),
       finished_(false),
       id_(id) {
   HEnvironment* env = builder->environment();
-  HEnvironment* true_env = env->Copy();
-  HEnvironment* false_env = env->Copy();
-  first_true_block_ = builder->CreateBasicBlock(true_env);
+  first_true_block_ = builder->CreateBasicBlock(env->Copy());
   last_true_block_ = NULL;
-  first_false_block_ = builder->CreateBasicBlock(false_env);
+  first_false_block_ = builder->CreateBasicBlock(env->Copy());
 }
 
 
@@ -1071,7 +1119,8 @@ void HGraphBuilder::BuildCopyElements(HContext* context,
                                       HValue* to_elements,
                                       ElementsKind to_elements_kind,
                                       HValue* length) {
-  LoopBuilder builder(this, context, LoopBuilder::kPostIncrement);
+  LoopBuilder builder(this, context, LoopBuilder::kPostIncrement,
+                      BailoutId::StubEntry());
 
   HValue* key = builder.BeginBody(graph()->GetConstant0(),
                                   length, Token::LT);

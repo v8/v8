@@ -138,6 +138,60 @@ class CodeStubGraphBuilder: public CodeStubGraphBuilderBase {
 
 
 template <>
+void CodeStubGraphBuilder<FastCloneShallowObjectStub>::BuildCodeStub() {
+  Zone* zone = this->zone();
+  Factory* factory = isolate()->factory();
+
+  HInstruction* boilerplate =
+      AddInstruction(new(zone) HLoadKeyed(GetParameter(0),
+                                          GetParameter(1),
+                                          NULL,
+                                          FAST_ELEMENTS));
+
+  CheckBuilder builder(this, BailoutId::StubEntry());
+  builder.CheckNotUndefined(boilerplate);
+
+  int size = JSObject::kHeaderSize + casted_stub()->length() * kPointerSize;
+  HValue* boilerplate_size =
+      AddInstruction(new(zone) HInstanceSize(boilerplate));
+  HValue* size_in_words =
+      AddInstruction(new(zone) HConstant(size >> kPointerSizeLog2,
+                                         Representation::Integer32()));
+  builder.CheckIntegerEq(boilerplate_size, size_in_words);
+
+  HValue* size_in_bytes =
+      AddInstruction(new(zone) HConstant(size, Representation::Integer32()));
+  HInstruction* object =
+      AddInstruction(new(zone) HAllocate(context(),
+                                         size_in_bytes,
+                                         HType::JSObject(),
+                                         HAllocate::CAN_ALLOCATE_IN_NEW_SPACE));
+
+  for (int i = 0; i < size; i += kPointerSize) {
+    HInstruction* value =
+        AddInstruction(new(zone) HLoadNamedField(boilerplate, true, i));
+    AddInstruction(new(zone) HStoreNamedField(object,
+                                              factory->empty_symbol(),
+                                              value,
+                                              true, i));
+    AddSimulate(BailoutId::StubEntry());
+  }
+
+  builder.End();
+
+  HReturn* ret = new(zone) HReturn(object, context());
+  current_block()->Finish(ret);
+}
+
+
+Handle<Code> FastCloneShallowObjectStub::GenerateCode() {
+  CodeStubGraphBuilder<FastCloneShallowObjectStub> builder(this);
+  LChunk* chunk = OptimizeGraph(builder.CreateGraph());
+  return chunk->Codegen(Code::COMPILED_STUB);
+}
+
+
+template <>
 void CodeStubGraphBuilder<KeyedLoadFastElementStub>::BuildCodeStub() {
   Zone* zone = this->zone();
 
@@ -189,7 +243,7 @@ void CodeStubGraphBuilder<TransitionElementsKindStub>::BuildCodeStub() {
       new(zone) HBoundsCheck(array_length, max_alloc_size,
                              DONT_ALLOW_SMI_KEY, Representation::Integer32()));
 
-  IfBuilder if_builder(this);
+  IfBuilder if_builder(this, BailoutId::StubEntry());
 
   if_builder.BeginTrue(array_length, graph()->GetConstant0(), Token::EQ);
 
@@ -219,7 +273,8 @@ void CodeStubGraphBuilder<TransitionElementsKindStub>::BuildCodeStub() {
       : AddInstruction(new(zone) HConstant(nan_double,
                                            Representation::Double()));
 
-  LoopBuilder builder(this, context(), LoopBuilder::kPostIncrement);
+  LoopBuilder builder(this, context(), LoopBuilder::kPostIncrement,
+                      BailoutId::StubEntry());
 
   HValue* zero = graph()->GetConstant0();
   HValue* start = IsFastElementsKind(to_kind) ? zero : array_length;

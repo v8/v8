@@ -38,6 +38,18 @@ namespace v8 {
 namespace internal {
 
 
+void FastCloneShallowObjectStub::InitializeInterfaceDescriptor(
+    Isolate* isolate,
+    CodeStubInterfaceDescriptor* descriptor) {
+  static Register registers[] = { r3, r2, r1, r0 };
+  descriptor->register_param_count_ = 4;
+  descriptor->register_params_ = registers;
+  descriptor->stack_parameter_count_ = NULL;
+  descriptor->deoptimization_handler_ =
+      Runtime::FunctionForId(Runtime::kCreateObjectLiteralShallow)->entry;
+}
+
+
 void KeyedLoadFastElementStub::InitializeInterfaceDescriptor(
     Isolate* isolate,
     CodeStubInterfaceDescriptor* descriptor) {
@@ -497,49 +509,6 @@ void FastCloneShallowArrayStub::Generate(MacroAssembler* masm) {
 
   __ bind(&slow_case);
   __ TailCallRuntime(Runtime::kCreateArrayLiteralShallow, 3, 1);
-}
-
-
-void FastCloneShallowObjectStub::Generate(MacroAssembler* masm) {
-  // Stack layout on entry:
-  //
-  // [sp]: object literal flags.
-  // [sp + kPointerSize]: constant properties.
-  // [sp + (2 * kPointerSize)]: literal index.
-  // [sp + (3 * kPointerSize)]: literals array.
-
-  // Load boilerplate object into r3 and check if we need to create a
-  // boilerplate.
-  Label slow_case;
-  __ ldr(r3, MemOperand(sp, 3 * kPointerSize));
-  __ ldr(r0, MemOperand(sp, 2 * kPointerSize));
-  __ add(r3, r3, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
-  __ ldr(r3, MemOperand(r3, r0, LSL, kPointerSizeLog2 - kSmiTagSize));
-  __ CompareRoot(r3, Heap::kUndefinedValueRootIndex);
-  __ b(eq, &slow_case);
-
-  // Check that the boilerplate contains only fast properties and we can
-  // statically determine the instance size.
-  int size = JSObject::kHeaderSize + length_ * kPointerSize;
-  __ ldr(r0, FieldMemOperand(r3, HeapObject::kMapOffset));
-  __ ldrb(r0, FieldMemOperand(r0, Map::kInstanceSizeOffset));
-  __ cmp(r0, Operand(size >> kPointerSizeLog2));
-  __ b(ne, &slow_case);
-
-  // Allocate the JS object and copy header together with all in-object
-  // properties from the boilerplate.
-  __ AllocateInNewSpace(size, r0, r1, r2, &slow_case, TAG_OBJECT);
-  for (int i = 0; i < size; i += kPointerSize) {
-    __ ldr(r1, FieldMemOperand(r3, i));
-    __ str(r1, FieldMemOperand(r0, i));
-  }
-
-  // Return and remove the on-stack parameters.
-  __ add(sp, sp, Operand(4 * kPointerSize));
-  __ Ret();
-
-  __ bind(&slow_case);
-  __ TailCallRuntime(Runtime::kCreateObjectLiteralShallow, 4, 1);
 }
 
 

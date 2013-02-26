@@ -42,6 +42,18 @@ namespace v8 {
 namespace internal {
 
 
+void FastCloneShallowObjectStub::InitializeInterfaceDescriptor(
+    Isolate* isolate,
+    CodeStubInterfaceDescriptor* descriptor) {
+  static Register registers[] = { eax, ebx, ecx, edx };
+  descriptor->register_param_count_ = 4;
+  descriptor->register_params_ = registers;
+  descriptor->stack_parameter_count_ = NULL;
+  descriptor->deoptimization_handler_ =
+      Runtime::FunctionForId(Runtime::kCreateObjectLiteralShallow)->entry;
+}
+
+
 void KeyedLoadFastElementStub::InitializeInterfaceDescriptor(
     Isolate* isolate,
     CodeStubInterfaceDescriptor* descriptor) {
@@ -490,52 +502,6 @@ void FastCloneShallowArrayStub::Generate(MacroAssembler* masm) {
 
   __ bind(&slow_case);
   __ TailCallRuntime(Runtime::kCreateArrayLiteralShallow, 3, 1);
-}
-
-
-void FastCloneShallowObjectStub::Generate(MacroAssembler* masm) {
-  // Stack layout on entry:
-  //
-  // [esp + kPointerSize]: object literal flags.
-  // [esp + (2 * kPointerSize)]: constant properties.
-  // [esp + (3 * kPointerSize)]: literal index.
-  // [esp + (4 * kPointerSize)]: literals array.
-
-  // Load boilerplate object into ecx and check if we need to create a
-  // boilerplate.
-  Label slow_case;
-  __ mov(ecx, Operand(esp, 4 * kPointerSize));
-  __ mov(eax, Operand(esp, 3 * kPointerSize));
-  STATIC_ASSERT(kPointerSize == 4);
-  STATIC_ASSERT(kSmiTagSize == 1);
-  STATIC_ASSERT(kSmiTag == 0);
-  __ mov(ecx, FieldOperand(ecx, eax, times_half_pointer_size,
-                           FixedArray::kHeaderSize));
-  Factory* factory = masm->isolate()->factory();
-  __ cmp(ecx, factory->undefined_value());
-  __ j(equal, &slow_case);
-
-  // Check that the boilerplate contains only fast properties and we can
-  // statically determine the instance size.
-  int size = JSObject::kHeaderSize + length_ * kPointerSize;
-  __ mov(eax, FieldOperand(ecx, HeapObject::kMapOffset));
-  __ movzx_b(eax, FieldOperand(eax, Map::kInstanceSizeOffset));
-  __ cmp(eax, Immediate(size >> kPointerSizeLog2));
-  __ j(not_equal, &slow_case);
-
-  // Allocate the JS object and copy header together with all in-object
-  // properties from the boilerplate.
-  __ AllocateInNewSpace(size, eax, ebx, edx, &slow_case, TAG_OBJECT);
-  for (int i = 0; i < size; i += kPointerSize) {
-    __ mov(ebx, FieldOperand(ecx, i));
-    __ mov(FieldOperand(eax, i), ebx);
-  }
-
-  // Return and remove the on-stack parameters.
-  __ ret(4 * kPointerSize);
-
-  __ bind(&slow_case);
-  __ TailCallRuntime(Runtime::kCreateObjectLiteralShallow, 4, 1);
 }
 
 
