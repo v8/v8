@@ -5248,7 +5248,7 @@ static MaybeObject* SlowQuoteJsonString(Isolate* isolate,
   int quoted_length = kSpaceForQuotes;
   while (read_cursor < end) {
     Char c = *(read_cursor++);
-    if (sizeof(Char) > 1u && static_cast<unsigned>(c) >= kQuoteTableLength) {
+    if (static_cast<unsigned>(c) >= kQuoteTableLength) {
       quoted_length++;
     } else {
       quoted_length += JsonQuoteLengths[static_cast<unsigned>(c)];
@@ -5270,7 +5270,7 @@ static MaybeObject* SlowQuoteJsonString(Isolate* isolate,
   read_cursor = characters.start();
   while (read_cursor < end) {
     Char c = *(read_cursor++);
-    if (sizeof(Char) > 1u && static_cast<unsigned>(c) >= kQuoteTableLength) {
+    if (static_cast<unsigned>(c) >= kQuoteTableLength) {
       *(write_cursor++) = c;
     } else {
       int len = JsonQuoteLengths[static_cast<unsigned>(c)];
@@ -5298,8 +5298,7 @@ static inline SinkChar* WriteQuoteJsonString(
   *(write_cursor++) = '"';
   while (read_cursor < end) {
     SourceChar c = *(read_cursor++);
-    if (sizeof(SourceChar) > 1u &&
-        static_cast<unsigned>(c) >= kQuoteTableLength) {
+    if (static_cast<unsigned>(c) >= kQuoteTableLength) {
       *(write_cursor++) = static_cast<SinkChar>(c);
     } else {
       int len = JsonQuoteLengths[static_cast<unsigned>(c)];
