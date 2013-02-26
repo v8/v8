@@ -3373,11 +3373,6 @@ PropertyAttributes JSObject::GetElementAttributeWithReceiver(
     return GetElementAttributeWithInterceptor(receiver, index, continue_search);
   }
 
-  // Handle [] on String objects.
-  if (this->IsStringObjectWithCharacterAt(index)) {
-    return static_cast<PropertyAttributes>(READ_ONLY | DONT_DELETE);
-  }
-
   return GetElementAttributeWithoutInterceptor(
       receiver, index, continue_search);
 }
@@ -3429,28 +3424,25 @@ PropertyAttributes JSObject::GetElementAttributeWithInterceptor(
 
 PropertyAttributes JSObject::GetElementAttributeWithoutInterceptor(
       JSReceiver* receiver, uint32_t index, bool continue_search) {
-  Isolate* isolate = GetIsolate();
-  HandleScope scope(isolate);
-  Handle<JSReceiver> hreceiver(receiver);
-  Handle<JSObject> holder(this);
-  PropertyAttributes attr = holder->GetElementsAccessor()->GetAttributes(
-      *hreceiver, *holder, index);
+  PropertyAttributes attr = GetElementsAccessor()->GetAttributes(
+      receiver, this, index);
   if (attr != ABSENT) return attr;
 
-  if (holder->IsStringObjectWithCharacterAt(index)) {
+  // Handle [] on String objects.
+  if (IsStringObjectWithCharacterAt(index)) {
     return static_cast<PropertyAttributes>(READ_ONLY | DONT_DELETE);
   }
 
   if (!continue_search) return ABSENT;
 
-  Object* pt = holder->GetPrototype();
+  Object* pt = GetPrototype();
   if (pt->IsJSProxy()) {
     // We need to follow the spec and simulate a call to [[GetOwnProperty]].
-    return JSProxy::cast(pt)->GetElementAttributeWithHandler(*hreceiver, index);
+    return JSProxy::cast(pt)->GetElementAttributeWithHandler(receiver, index);
   }
   if (pt->IsNull()) return ABSENT;
   return JSObject::cast(pt)->GetElementAttributeWithReceiver(
-      *hreceiver, index, true);
+      receiver, index, true);
 }
 
 

@@ -17197,6 +17197,27 @@ TEST(HasOwnProperty) {
 }
 
 
+TEST(IndexedInterceptorWithStringProto) {
+  v8::HandleScope scope;
+  Handle<ObjectTemplate> templ = ObjectTemplate::New();
+  templ->SetIndexedPropertyHandler(NULL,
+                                   NULL,
+                                   HasOwnPropertyIndexedPropertyQuery);
+  LocalContext context;
+  context->Global()->Set(v8_str("obj"), templ->NewInstance());
+  CompileRun("var s = new String('foobar'); obj.__proto__ = s;");
+  // These should be intercepted.
+  CHECK(CompileRun("42 in obj")->BooleanValue());
+  CHECK(CompileRun("'42' in obj")->BooleanValue());
+  // These should fall through to the String prototype.
+  CHECK(CompileRun("0 in obj")->BooleanValue());
+  CHECK(CompileRun("'0' in obj")->BooleanValue());
+  // And these should both fail.
+  CHECK(!CompileRun("32 in obj")->BooleanValue());
+  CHECK(!CompileRun("'32' in obj")->BooleanValue());
+}
+
+
 void CheckCodeGenerationAllowed() {
   Handle<Value> result = CompileRun("eval('42')");
   CHECK_EQ(42, result->Int32Value());
