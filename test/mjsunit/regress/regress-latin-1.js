@@ -76,3 +76,15 @@ assertTrue(/[\u039b-\u039d]/i.test('\u00b5'));
 assertFalse(/[^\u039b-\u039d]/i.test('\u00b5'));
 assertFalse(/[\u039b-\u039d]/.test('\u00b5'));
 assertTrue(/[^\u039b-\u039d]/.test('\u00b5'));
+
+// Check a regression in QuoteJsonSlow and WriteQuoteJsonString
+for (var testNumber = 0; testNumber < 2; testNumber++) {
+  var testString = "\xdc";
+  var loopLength = testNumber == 0 ? 0 : 20;
+  for (var i = 0; i < loopLength; i++ ) {
+    testString += testString;
+  }
+  var stringified = JSON.stringify({"test" : testString}, null, 0);
+  var stringifiedExpected = '{"test":"' + testString + '"}';
+  assertEquals(stringifiedExpected, stringified);
+}
