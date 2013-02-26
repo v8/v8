@@ -5082,8 +5082,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   const int kSubjectOffset = 2 * kPointerSize;
   const int kJSRegExpOffset = 3 * kPointerSize;
 
-  Label runtime, invoke_regexp;
-
+  Label runtime;
   // Allocation of registers for this function. These are in callee save
   // registers and will be preserved by the call to the native RegExp code, as
   // this code is called using the normal C calling convention. When calling
@@ -5130,68 +5129,48 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // Check that the number of captures fit in the static offsets vector buffer.
   __ ldr(r2,
          FieldMemOperand(regexp_data, JSRegExp::kIrregexpCaptureCountOffset));
-  // Calculate number of capture registers (number_of_captures + 1) * 2. This
-  // uses the asumption that smis are 2 * their untagged value.
+  // Check (number_of_captures + 1) * 2 <= offsets vector size
+  // Or          number_of_captures * 2 <= offsets vector size - 2
+  // Multiplying by 2 comes for free since r2 is smi-tagged.
   STATIC_ASSERT(kSmiTag == 0);
   STATIC_ASSERT(kSmiTagSize + kSmiShiftSize == 1);
-  __ add(r2, r2, Operand(2));  // r2 was a smi.
-  // Check that the static offsets vector buffer is large enough.
-  __ cmp(r2, Operand(Isolate::kJSRegexpStaticOffsetsVectorSize));
+  STATIC_ASSERT(Isolate::kJSRegexpStaticOffsetsVectorSize >= 2);
+  __ cmp(r2, Operand(Isolate::kJSRegexpStaticOffsetsVectorSize - 2));
   __ b(hi, &runtime);
-
-  // r2: Number of capture registers
-  // regexp_data: RegExp data (FixedArray)
-  // Check that the second argument is a string.
-  __ ldr(subject, MemOperand(sp, kSubjectOffset));
-  __ JumpIfSmi(subject, &runtime);
-  Condition is_string = masm->IsObjectStringType(subject, r0);
-  __ b(NegateCondition(is_string), &runtime);
-  // Get the length of the string to r3.
-  __ ldr(r3, FieldMemOperand(subject, String::kLengthOffset));
-
-  // r2: Number of capture registers
-  // r3: Length of subject string as a smi
-  // subject: Subject string
-  // regexp_data: RegExp data (FixedArray)
-  // Check that the third argument is a positive smi less than the subject
-  // string length. A negative value will be greater (unsigned comparison).
-  __ ldr(r0, MemOperand(sp, kPreviousIndexOffset));
-  __ JumpIfNotSmi(r0, &runtime);
-  __ cmp(r3, Operand(r0));
-  __ b(ls, &runtime);
-
-  // r2: Number of capture registers
-  // subject: Subject string
-  // regexp_data: RegExp data (FixedArray)
-  // Check that the fourth object is a JSArray object.
-  __ ldr(r0, MemOperand(sp, kLastMatchInfoOffset));
-  __ JumpIfSmi(r0, &runtime);
-  __ CompareObjectType(r0, r1, r1, JS_ARRAY_TYPE);
-  __ b(ne, &runtime);
-  // Check that the JSArray is in fast case.
-  __ ldr(last_match_info_elements,
-         FieldMemOperand(r0, JSArray::kElementsOffset));
-  __ ldr(r0, FieldMemOperand(last_match_info_elements, HeapObject::kMapOffset));
-  __ CompareRoot(r0, Heap::kFixedArrayMapRootIndex);
-  __ b(ne, &runtime);
-  // Check that the last match info has space for the capture registers and the
-  // additional information.
-  __ ldr(r0,
-         FieldMemOperand(last_match_info_elements, FixedArray::kLengthOffset));
-  __ add(r2, r2, Operand(RegExpImpl::kLastMatchOverhead));
-  __ cmp(r2, Operand(r0, ASR, kSmiTagSize));
-  __ b(gt, &runtime);
 
   // Reset offset for possibly sliced string.
   __ mov(r9, Operand::Zero());
-  // subject: Subject string
-  // regexp_data: RegExp data (FixedArray)
-  // Check the representation and encoding of the subject string.
-  Label seq_string;
+  __ ldr(subject, MemOperand(sp, kSubjectOffset));
+  __ JumpIfSmi(subject, &runtime);
+  __ mov(r3, subject);  // Make a copy of the original subject string.
   __ ldr(r0, FieldMemOperand(subject, HeapObject::kMapOffset));
   __ ldrb(r0, FieldMemOperand(r0, Map::kInstanceTypeOffset));
-  // First check for flat string.  None of the following string type tests will
-  // succeed if subject is not a string or a short external string.
+  // subject: subject string
+  // r3: subject string
+  // r0: subject string instance type
+  // regexp_data: RegExp data (FixedArray)
+  // Handle subject string according to its encoding and representation:
+  // (1) Sequential string?  If yes, go to (5).
+  // (2) Anything but sequential or cons?  If yes, go to (6).
+  // (3) Cons string.  If the string is flat, replace subject with first string.
+  //     Otherwise bailout.
+  // (4) Is subject external?  If yes, go to (7).
+  // (5) Sequential string.  Load regexp code according to encoding.
+  // (E) Carry on.
+  /// [...]
+
+  // Deferred code at the end of the stub:
+  // (6) Not a long external string?  If yes, go to (8).
+  // (7) External string.  Make it, offset-wise, look like a sequential string.
+  //     Go to (5).
+  // (8) Short external string or not a string?  If yes, bail out to runtime.
+  // (9) Sliced string.  Replace subject with parent.  Go to (4).
+
+  Label seq_string /* 5 */, external_string /* 7 */,
+        check_underlying /* 4 */, not_seq_nor_cons /* 6 */,
+        not_long_external /* 8 */;
+
+  // (1) Sequential string?  If yes, go to (5).
   __ and_(r1,
           r0,
           Operand(kIsNotStringMask |
@@ -5199,76 +5178,61 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
                   kShortExternalStringMask),
           SetCC);
   STATIC_ASSERT((kStringTag | kSeqStringTag) == 0);
-  __ b(eq, &seq_string);
+  __ b(eq, &seq_string);  // Go to (5).
 
-  // subject: Subject string
-  // regexp_data: RegExp data (FixedArray)
-  // r1: whether subject is a string and if yes, its string representation
-  // Check for flat cons string or sliced string.
-  // A flat cons string is a cons string where the second part is the empty
-  // string. In that case the subject string is just the first part of the cons
-  // string. Also in this case the first part of the cons string is known to be
-  // a sequential string or an external string.
-  // In the case of a sliced string its offset has to be taken into account.
-  Label cons_string, external_string, check_encoding;
+  // (2) Anything but sequential or cons?  If yes, go to (6).
   STATIC_ASSERT(kConsStringTag < kExternalStringTag);
   STATIC_ASSERT(kSlicedStringTag > kExternalStringTag);
   STATIC_ASSERT(kIsNotStringMask > kExternalStringTag);
   STATIC_ASSERT(kShortExternalStringTag > kExternalStringTag);
   __ cmp(r1, Operand(kExternalStringTag));
-  __ b(lt, &cons_string);
-  __ b(eq, &external_string);
+  __ b(ge, &not_seq_nor_cons);  // Go to (6).
 
-  // Catch non-string subject or short external string.
-  STATIC_ASSERT(kNotStringTag != 0 && kShortExternalStringTag !=0);
-  __ tst(r1, Operand(kIsNotStringMask | kShortExternalStringMask));
-  __ b(ne, &runtime);
-
-  // String is sliced.
-  __ ldr(r9, FieldMemOperand(subject, SlicedString::kOffsetOffset));
-  __ mov(r9, Operand(r9, ASR, kSmiTagSize));
-  __ ldr(subject, FieldMemOperand(subject, SlicedString::kParentOffset));
-  // r9: offset of sliced string, smi-tagged.
-  __ jmp(&check_encoding);
-  // String is a cons string, check whether it is flat.
-  __ bind(&cons_string);
+  // (3) Cons string.  Check that it's flat.
+  // Replace subject with first string and reload instance type.
   __ ldr(r0, FieldMemOperand(subject, ConsString::kSecondOffset));
   __ CompareRoot(r0, Heap::kEmptyStringRootIndex);
   __ b(ne, &runtime);
   __ ldr(subject, FieldMemOperand(subject, ConsString::kFirstOffset));
-  // Is first part of cons or parent of slice a flat string?
-  __ bind(&check_encoding);
+
+  // (4) Is subject external?  If yes, go to (7).
+  __ bind(&check_underlying);
   __ ldr(r0, FieldMemOperand(subject, HeapObject::kMapOffset));
   __ ldrb(r0, FieldMemOperand(r0, Map::kInstanceTypeOffset));
   STATIC_ASSERT(kSeqStringTag == 0);
   __ tst(r0, Operand(kStringRepresentationMask));
-  __ b(ne, &external_string);
+  // The underlying external string is never a short external string.
+  STATIC_CHECK(ExternalString::kMaxShortLength < ConsString::kMinLength);
+  STATIC_CHECK(ExternalString::kMaxShortLength < SlicedString::kMinLength);
+  __ b(ne, &external_string);  // Go to (7).
 
+  // (5) Sequential string.  Load regexp code according to encoding.
   __ bind(&seq_string);
-  // subject: Subject string
-  // regexp_data: RegExp data (FixedArray)
-  // r0: Instance type of subject string
+  // subject: sequential subject string (or look-alike, external string)
+  // r3: original subject string
+  // Load previous index and check range before r3 is overwritten.  We have to
+  // use r3 instead of subject here because subject might have been only made
+  // to look like a sequential string when it actually is an external string.
+  __ ldr(r1, MemOperand(sp, kPreviousIndexOffset));
+  __ JumpIfNotSmi(r1, &runtime);
+  __ ldr(r3, FieldMemOperand(r3, String::kLengthOffset));
+  __ cmp(r3, Operand(r1));
+  __ b(ls, &runtime);
+  __ mov(r1, Operand(r1, ASR, kSmiTagSize));
+
   STATIC_ASSERT(4 == kOneByteStringTag);
   STATIC_ASSERT(kTwoByteStringTag == 0);
-  // Find the code object based on the assumptions above.
   __ and_(r0, r0, Operand(kStringEncodingMask));
   __ mov(r3, Operand(r0, ASR, 2), SetCC);
   __ ldr(r7, FieldMemOperand(regexp_data, JSRegExp::kDataAsciiCodeOffset), ne);
   __ ldr(r7, FieldMemOperand(regexp_data, JSRegExp::kDataUC16CodeOffset), eq);
 
+  // (E) Carry on.  String handling is done.
+  // r7: irregexp code
   // Check that the irregexp code has been generated for the actual string
   // encoding. If it has, the field contains a code object otherwise it contains
   // a smi (code flushing support).
   __ JumpIfSmi(r7, &runtime);
-
-  // r3: encoding of subject string (1 if ASCII, 0 if two_byte);
-  // r7: code
-  // subject: Subject string
-  // regexp_data: RegExp data (FixedArray)
-  // Load used arguments before starting to push arguments for call to native
-  // RegExp code to avoid handling changing stack height.
-  __ ldr(r1, MemOperand(sp, kPreviousIndexOffset));
-  __ mov(r1, Operand(r1, ASR, kSmiTagSize));
 
   // r1: previous index
   // r3: encoding of subject string (1 if ASCII, 0 if two_byte);
@@ -5349,10 +5313,8 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // subject: subject string (callee saved)
   // regexp_data: RegExp data (callee saved)
   // last_match_info_elements: Last match info elements (callee saved)
-
   // Check the result.
   Label success;
-
   __ cmp(r0, Operand(1));
   // We expect exactly one result since we force the called regexp to behave
   // as non-global.
@@ -5398,9 +5360,28 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ ldr(r1,
          FieldMemOperand(regexp_data, JSRegExp::kIrregexpCaptureCountOffset));
   // Calculate number of capture registers (number_of_captures + 1) * 2.
+  // Multiplying by 2 comes for free since r1 is smi-tagged.
   STATIC_ASSERT(kSmiTag == 0);
   STATIC_ASSERT(kSmiTagSize + kSmiShiftSize == 1);
   __ add(r1, r1, Operand(2));  // r1 was a smi.
+
+  __ ldr(r0, MemOperand(sp, kLastMatchInfoOffset));
+  __ JumpIfSmi(r0, &runtime);
+  __ CompareObjectType(r0, r2, r2, JS_ARRAY_TYPE);
+  __ b(ne, &runtime);
+  // Check that the JSArray is in fast case.
+  __ ldr(last_match_info_elements,
+         FieldMemOperand(r0, JSArray::kElementsOffset));
+  __ ldr(r0, FieldMemOperand(last_match_info_elements, HeapObject::kMapOffset));
+  __ CompareRoot(r0, Heap::kFixedArrayMapRootIndex);
+  __ b(ne, &runtime);
+  // Check that the last match info has space for the capture registers and the
+  // additional information.
+  __ ldr(r0,
+         FieldMemOperand(last_match_info_elements, FixedArray::kLengthOffset));
+  __ add(r2, r1, Operand(RegExpImpl::kLastMatchOverhead));
+  __ cmp(r2, Operand(r0, ASR, kSmiTagSize));
+  __ b(gt, &runtime);
 
   // r1: number of capture registers
   // r4: subject string
@@ -5415,10 +5396,11 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ mov(r2, subject);
   __ RecordWriteField(last_match_info_elements,
                       RegExpImpl::kLastSubjectOffset,
-                      r2,
+                      subject,
                       r7,
                       kLRHasNotBeenSaved,
                       kDontSaveFPRegs);
+  __ mov(subject, r2);
   __ str(subject,
          FieldMemOperand(last_match_info_elements,
                          RegExpImpl::kLastInputOffset));
@@ -5458,8 +5440,17 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ add(sp, sp, Operand(4 * kPointerSize));
   __ Ret();
 
-  // External string.  Short external strings have already been ruled out.
-  // r0: scratch
+  // Do the runtime call to execute the regexp.
+  __ bind(&runtime);
+  __ TailCallRuntime(Runtime::kRegExpExec, 4, 1);
+
+  // Deferred code for string handling.
+  // (6) Not a long external string?  If yes, go to (8).
+  __ bind(&not_seq_nor_cons);
+  // Compare flags are still set.
+  __ b(gt, &not_long_external);  // Go to (8).
+
+  // (7) External string.  Make it, offset-wise, look like a sequential string.
   __ bind(&external_string);
   __ ldr(r0, FieldMemOperand(subject, HeapObject::kMapOffset));
   __ ldrb(r0, FieldMemOperand(r0, Map::kInstanceTypeOffset));
@@ -5476,11 +5467,20 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ sub(subject,
          subject,
          Operand(SeqTwoByteString::kHeaderSize - kHeapObjectTag));
-  __ jmp(&seq_string);
+  __ jmp(&seq_string);    // Go to (5).
 
-  // Do the runtime call to execute the regexp.
-  __ bind(&runtime);
-  __ TailCallRuntime(Runtime::kRegExpExec, 4, 1);
+  // (8) Short external string or not a string?  If yes, bail out to runtime.
+  __ bind(&not_long_external);
+  STATIC_ASSERT(kNotStringTag != 0 && kShortExternalStringTag !=0);
+  __ tst(r1, Operand(kIsNotStringMask | kShortExternalStringMask));
+  __ b(ne, &runtime);
+
+  // (9) Sliced string.  Replace subject with parent.  Go to (4).
+  // Load offset into r9 and replace subject string with parent.
+  __ ldr(r9, FieldMemOperand(subject, SlicedString::kOffsetOffset));
+  __ mov(r9, Operand(r9, ASR, kSmiTagSize));
+  __ ldr(subject, FieldMemOperand(subject, SlicedString::kParentOffset));
+  __ jmp(&check_underlying);  // Go to (4).
 #endif  // V8_INTERPRETED_REGEXP
 }
 
@@ -7532,7 +7532,6 @@ struct AheadOfTimeWriteBarrierStubList {
 static const AheadOfTimeWriteBarrierStubList kAheadOfTime[] = {
   // Used in RegExpExecStub.
   { REG(r6), REG(r4), REG(r7), EMIT_REMEMBERED_SET },
-  { REG(r6), REG(r2), REG(r7), EMIT_REMEMBERED_SET },
   // Used in CompileArrayPushCall.
   // Also used in StoreIC::GenerateNormal via GenerateDictionaryStore.
   // Also used in KeyedStoreIC::GenerateGeneric.
