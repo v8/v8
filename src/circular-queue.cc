@@ -33,18 +33,16 @@ namespace v8 {
 namespace internal {
 
 
-SamplingCircularQueue::SamplingCircularQueue(int record_size_in_bytes,
-                                             int desired_chunk_size_in_bytes,
-                                             int buffer_size_in_chunks)
+SamplingCircularQueue::SamplingCircularQueue(
+    int record_size_in_bytes,
+    int desired_chunk_size_in_bytes,
+    int buffer_size_in_chunks,
+    bool keep_producer_consumer_distance)
     : record_size_(record_size_in_bytes / sizeof(Cell)),
       chunk_size_in_bytes_(desired_chunk_size_in_bytes / record_size_in_bytes *
                         record_size_in_bytes),
       chunk_size_(chunk_size_in_bytes_ / sizeof(Cell)),
       buffer_size_(chunk_size_ * buffer_size_in_chunks),
-      // The distance ensures that producer and consumer never step on
-      // each other's chunks and helps eviction of produced data from
-      // the CPU cache (having that chunk size is bigger than the cache.)
-      producer_consumer_distance_(2 * chunk_size_),
       buffer_(NewArray<Cell>(buffer_size_ + 1)) {
   ASSERT(buffer_size_in_chunks > 2);
   // Clean up the whole buffer to avoid encountering a random kEnd
@@ -74,7 +72,13 @@ SamplingCircularQueue::SamplingCircularQueue(int record_size_in_bytes,
   ASSERT(reinterpret_cast<byte*>(consumer_pos_ + 1) <=
          positions_ + positions_size);
   consumer_pos_->dequeue_chunk_pos = buffer_;
-  consumer_pos_->dequeue_chunk_poll_pos = buffer_ + producer_consumer_distance_;
+  consumer_pos_->dequeue_chunk_poll_pos = buffer_;
+  // The distance ensures that producer and consumer never step on
+  // each other's chunks and helps eviction of produced data from
+  // the CPU cache (having that chunk size is bigger than the cache.)
+  if (keep_producer_consumer_distance) {
+    consumer_pos_->dequeue_chunk_poll_pos += 2 * chunk_size_;
+  }
   consumer_pos_->dequeue_pos = NULL;
 }
 
