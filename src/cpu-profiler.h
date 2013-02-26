@@ -245,11 +245,9 @@ class CpuProfiler {
   static void SetterCallbackEvent(String* name, Address entry_point);
   static void SharedFunctionInfoMoveEvent(Address from, Address to);
 
-  // TODO(isolates): this doesn't have to use atomics anymore.
-
   static INLINE(bool is_profiling(Isolate* isolate)) {
     CpuProfiler* profiler = isolate->cpu_profiler();
-    return profiler != NULL && NoBarrier_Load(&profiler->is_profiling_);
+    return profiler != NULL && profiler->is_profiling_;
   }
 
  private:
@@ -271,7 +269,7 @@ class CpuProfiler {
   ProfilerEventsProcessor* processor_;
   int saved_logging_nesting_;
   bool need_to_stop_sampler_;
-  Atomic32 is_profiling_;
+  bool is_profiling_;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(CpuProfiler);

@@ -491,7 +491,7 @@ void CpuProfiler::StartProcessorIfNotStarted() {
     isolate->logger()->logging_nesting_ = 0;
     generator_ = new ProfileGenerator(profiles_);
     processor_ = new ProfilerEventsProcessor(generator_);
-    NoBarrier_Store(&is_profiling_, true);
+    is_profiling_ = true;
     processor_->Start();
     // Enumerate stuff we already have in the heap.
     if (isolate->heap()->HasBeenSetUp()) {
@@ -552,7 +552,7 @@ void CpuProfiler::StopProcessor() {
     sampler->Stop();
     need_to_stop_sampler_ = false;
   }
-  NoBarrier_Store(&is_profiling_, false);
+  is_profiling_ = false;
   processor_->Stop();
   processor_->Join();
   delete processor_;
