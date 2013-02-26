@@ -2164,7 +2164,6 @@ void LCodeGen::DoCmpIDAndBranch(LCmpIDAndBranch* instr) {
   int false_block = chunk_->LookupDestination(instr->false_block_id());
   int true_block = chunk_->LookupDestination(instr->true_block_id());
   Condition cc = TokenToCondition(instr->op(), instr->is_double());
-  CpuFeatures::Scope scope(SSE2);
 
   if (left->IsConstantOperand() && right->IsConstantOperand()) {
     // We can statically evaluate the comparison.
@@ -2176,6 +2175,7 @@ void LCodeGen::DoCmpIDAndBranch(LCmpIDAndBranch* instr) {
     EmitGoto(next_block);
   } else {
     if (instr->is_double()) {
+      CpuFeatures::Scope scope(SSE2);
       // Don't base result on EFLAGS when a NaN is involved. Instead
       // jump to the false block.
       __ ucomisd(ToDoubleRegister(left), ToDoubleRegister(right));
