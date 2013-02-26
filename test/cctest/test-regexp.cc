@@ -861,7 +861,7 @@ TEST(MacroAssemblerNativeSimpleUC16) {
 
   int captures[4] = {42, 37, 87, 117};
   const uc16 input_data[6] = {'f', 'o', 'o', 'f', 'o',
-                              static_cast<uc16>('\xa0')};
+                              static_cast<uc16>(0x2603)};
   Handle<String> input =
       factory->NewStringFromTwoByte(Vector<const uc16>(input_data, 6));
   Handle<SeqTwoByteString> seq_input = Handle<SeqTwoByteString>::cast(input);
@@ -882,7 +882,7 @@ TEST(MacroAssemblerNativeSimpleUC16) {
   CHECK_EQ(-1, captures[3]);
 
   const uc16 input_data2[9] = {'b', 'a', 'r', 'b', 'a', 'r', 'b', 'a',
-                               static_cast<uc16>('\xa0')};
+                               static_cast<uc16>(0x2603)};
   input = factory->NewStringFromTwoByte(Vector<const uc16>(input_data2, 9));
   seq_input = Handle<SeqTwoByteString>::cast(input);
   start_adr = seq_input->GetCharsAddress();
