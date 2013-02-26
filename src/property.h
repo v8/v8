@@ -201,16 +201,6 @@ class LookupResult BASE_EMBEDDED {
     number_ = number;
   }
 
-  void ConstantResult(JSObject* holder) {
-    lookup_type_ = CONSTANT_TYPE;
-    holder_ = holder;
-    details_ =
-        PropertyDetails(static_cast<PropertyAttributes>(DONT_ENUM |
-                                                        DONT_DELETE),
-                        CALLBACKS);
-    number_ = -1;
-  }
-
   void DictionaryResult(JSObject* holder, int entry) {
     lookup_type_ = DICTIONARY_TYPE;
     holder_ = holder;
@@ -427,10 +417,7 @@ class LookupResult BASE_EMBEDDED {
   }
 
   Object* GetCallbackObject() {
-    if (lookup_type_ == CONSTANT_TYPE) {
-      return HEAP->prototype_accessors();
-    }
-    ASSERT(!IsTransition());
+    ASSERT(type() == CALLBACKS && !IsTransition());
     return GetValue();
   }
 
@@ -466,8 +453,7 @@ class LookupResult BASE_EMBEDDED {
     TRANSITION_TYPE,
     DICTIONARY_TYPE,
     HANDLER_TYPE,
-    INTERCEPTOR_TYPE,
-    CONSTANT_TYPE
+    INTERCEPTOR_TYPE
   } lookup_type_;
 
   JSReceiver* holder_;

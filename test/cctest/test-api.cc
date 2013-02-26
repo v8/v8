@@ -1849,8 +1849,8 @@ THREADED_TEST(PropertyHandlerInPrototype) {
   Local<v8::Object> top = templ->GetFunction()->NewInstance();
   Local<v8::Object> middle = templ->GetFunction()->NewInstance();
 
-  bottom->Set(v8_str("__proto__"), middle);
-  middle->Set(v8_str("__proto__"), top);
+  bottom->SetPrototype(middle);
+  middle->SetPrototype(top);
   env->Global()->Set(v8_str("obj"), bottom);
 
   // Indexed and named get.
@@ -9670,7 +9670,7 @@ THREADED_TEST(InterceptorCallICCacheableNotNeeded) {
   call_ic_function4 =
       v8_compile("function f(x) { return x - 1; }; f")->Run();
   v8::Handle<Value> value = CompileRun(
-    "o.__proto__.x = function(x) { return x + 1; };"
+    "Object.getPrototypeOf(o).x = function(x) { return x + 1; };"
     "var result = 0;"
     "for (var i = 0; i < 1000; i++) {"
     "  result = o.x(42);"
