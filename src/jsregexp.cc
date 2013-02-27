@@ -687,7 +687,7 @@ Handle<JSArray> RegExpImpl::SetLastMatchInfo(Handle<JSArray> last_match_info,
                                              Handle<String> subject,
                                              int capture_count,
                                              int32_t* match) {
-  CHECK(last_match_info->HasFastObjectElements());
+  ASSERT(last_match_info->HasFastObjectElements());
   int capture_register_count = (capture_count + 1) * 2;
   last_match_info->EnsureSize(capture_register_count + kLastMatchOverhead);
   AssertNoAllocation no_gc;

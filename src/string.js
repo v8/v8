@@ -219,60 +219,79 @@ function StringReplace(search, replace) {
   }
   var subject = TO_STRING_INLINE(this);
 
-  // Delegate to one of the regular expression variants if necessary.
+  // Decision tree for dispatch
+  // .. regexp search
+  // .... string replace
+  // ...... non-global search
+  // ........ empty string replace
+  // ........ non-empty string replace (with $-expansion)
+  // ...... global search
+  // ........ no need to circumvent last match info override
+  // ........ need to circument last match info override
+  // .... function replace
+  // ...... global search
+  // ...... non-global search
+  // .. string search
+  // .... special case that replaces with one single character
+  // ...... function replace
+  // ...... string replace (with $-expansion)
+
   if (IS_REGEXP(search)) {
-    // Emulate RegExp.prototype.exec's side effect in step 5, even though
+    // Emulate RegExp.prototype.exec's side effect in step 5, even if
     // value is discarded.
     ToInteger(search.lastIndex);
     %_Log('regexp', 'regexp-replace,%0r,%1S', [search, subject]);
-    if (IS_SPEC_FUNCTION(replace)) {
-      if (search.global) {
-        return StringReplaceGlobalRegExpWithFunction(subject, search, replace);
-      } else {
-        return StringReplaceNonGlobalRegExpWithFunction(subject,
-                                                        search,
-                                                        replace);
-      }
-    } else {
-      if (lastMatchInfoOverride == null) {
-        var answer = %StringReplaceRegExpWithString(subject,
-                                                    search,
-                                                    TO_STRING_INLINE(replace),
-                                                    lastMatchInfo);
-        if (IS_UNDEFINED(answer)) {  // No match.  Return subject string.
-          search.lastIndex = 0;
+
+    if (!IS_SPEC_FUNCTION(replace)) {
+      if (!search.global) {
+        // Non-global regexp search, string replace.
+        var match = DoRegExpExec(search, subject, 0);
+        if (match == null) {
+          search.lastIndex = 0
           return subject;
         }
-        if (search.global) search.lastIndex = 0;
-        return answer;
+        replace = TO_STRING_INLINE(replace);
+        if (replace.length == 0) {
+          return %_SubString(subject, 0, match[CAPTURE0]) +
+                 %_SubString(subject, match[CAPTURE1], subject.length)
+        }
+        return ExpandReplacement(replace, subject, lastMatchInfo,
+                                 %_SubString(subject, 0, match[CAPTURE0])) +
+               %_SubString(subject, match[CAPTURE1], subject.length);
+      }
+
+      // Global regexp search, string replace.
+      search.lastIndex = 0;
+      if (lastMatchInfoOverride == null) {
+        return %StringReplaceGlobalRegExpWithString(
+            subject, search, replace, lastMatchInfo);
       } else {
         // We use this hack to detect whether StringReplaceRegExpWithString
         // found at least one hit. In that case we need to remove any
         // override.
         var saved_subject = lastMatchInfo[LAST_SUBJECT_INDEX];
         lastMatchInfo[LAST_SUBJECT_INDEX] = 0;
-        var answer = %StringReplaceRegExpWithString(subject,
-                                                    search,
-                                                    TO_STRING_INLINE(replace),
-                                                    lastMatchInfo);
-        if (IS_UNDEFINED(answer)) {  // No match.  Return subject string.
-          search.lastIndex = 0;
-          lastMatchInfo[LAST_SUBJECT_INDEX] = saved_subject;
-          return subject;
-        }
+        var answer = %StringReplaceGlobalRegExpWithString(
+            subject, search, replace, lastMatchInfo);
         if (%_IsSmi(lastMatchInfo[LAST_SUBJECT_INDEX])) {
           lastMatchInfo[LAST_SUBJECT_INDEX] = saved_subject;
         } else {
           lastMatchInfoOverride = null;
         }
-        if (search.global) search.lastIndex = 0;
         return answer;
       }
     }
+
+    if (search.global) {
+      // Global regexp search, function replace.
+      return StringReplaceGlobalRegExpWithFunction(subject, search, replace);
+    }
+    // Non-global regexp search, function replace.
+    return StringReplaceNonGlobalRegExpWithFunction(subject, search, replace);
   }
 
-  // Convert the search argument to a string and search for it.
   search = TO_STRING_INLINE(search);
+
   if (search.length == 1 &&
       subject.length > 0xFF &&
       IS_STRING(replace) &&
@@ -295,8 +314,10 @@ function StringReplace(search, replace) {
   } else {
     reusableMatchInfo[CAPTURE0] = start;
     reusableMatchInfo[CAPTURE1] = end;
-    replace = TO_STRING_INLINE(replace);
-    result = ExpandReplacement(replace, subject, reusableMatchInfo, result);
+    result = ExpandReplacement(TO_STRING_INLINE(replace),
+                               subject,
+                               reusableMatchInfo,
+                               result);
   }
 
   return result + %_SubString(subject, end, subject.length);
@@ -333,6 +354,31 @@ function ExpandReplacement(string, subject, matchInfo, result) {
       } else if (peek == 39) {  // $' - suffix
         ++position;
         result += %_SubString(subject, matchInfo[CAPTURE1], subject.length);
+      } else if (peek >= 48 && peek <= 57) {
+        // Valid indices are $1 .. $9, $01 .. $09 and $10 .. $99
+        var scaled_index = (peek - 48) << 1;
+        var advance = 1;
+        var number_of_captures = NUMBER_OF_CAPTURES(matchInfo);
+        if (position + 1 < string.length) {
+          var next = %_StringCharCodeAt(string, position + 1);
+          if (next >= 48 && next <= 57) {
+            var new_scaled_index = scaled_index * 10 + ((next - 48) << 1);
+            if (new_scaled_index < number_of_captures) {
+              scaled_index = new_scaled_index;
+              advance = 2;
+            }
+          }
+        }
+        if (scaled_index != 0 && scaled_index < number_of_captures) {
+          var start = matchInfo[CAPTURE(scaled_index)];
+          if (start >= 0) {
+            result +=
+              %_SubString(subject, start, matchInfo[CAPTURE(scaled_index + 1)]);
+          }
+          position += advance;
+        } else {
+          result += '$';
+        }
       } else {
         result += '$';
       }
