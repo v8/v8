@@ -1081,36 +1081,6 @@ void PagedSpace::ReleasePage(Page* page) {
 }
 
 
-void PagedSpace::ReleaseAllUnusedPages() {
-  PageIterator it(this);
-  while (it.has_next()) {
-    Page* page = it.next();
-    if (!page->WasSwept()) {
-      if (page->LiveBytes() == 0) ReleasePage(page);
-    } else {
-      HeapObject* obj = HeapObject::FromAddress(page->area_start());
-      if (obj->IsFreeSpace() &&
-          FreeSpace::cast(obj)->size() == AreaSize()) {
-        // Sometimes we allocate memory from free list but don't
-        // immediately initialize it (e.g. see PagedSpace::ReserveSpace
-        // called from Heap::ReserveSpace that can cause GC before
-        // reserved space is actually initialized).
-        // Thus we can't simply assume that obj represents a valid
-        // node still owned by a free list
-        // Instead we should verify that the page is fully covered
-        // by free list items.
-        FreeList::SizeStats sizes;
-        free_list_.CountFreeListItems(page, &sizes);
-        if (sizes.Total() == AreaSize()) {
-          ReleasePage(page);
-        }
-      }
-    }
-  }
-  heap()->FreeQueuedChunks();
-}
-
-
 #ifdef DEBUG
 void PagedSpace::Print() { }
 #endif
