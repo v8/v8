@@ -1517,10 +1517,11 @@ Handle<Code> KeyedLoadStubCompiler::CompileLoadElementPolymorphic(
       if (IsFastElementsKind(elements_kind) ||
           IsExternalArrayElementsKind(elements_kind)) {
         cached_stub =
-            KeyedLoadFastElementStub(is_js_array, elements_kind).GetCode();
+            KeyedLoadFastElementStub(is_js_array,
+                                     elements_kind).GetCode(isolate());
       } else {
         ASSERT(elements_kind == DICTIONARY_ELEMENTS);
-        cached_stub = KeyedLoadDictionaryElementStub().GetCode();
+        cached_stub = KeyedLoadDictionaryElementStub().GetCode(isolate());
       }
     }
 
@@ -1584,12 +1585,12 @@ Handle<Code> KeyedStoreStubCompiler::CompileStoreElementPolymorphic(
           transitioned_map->elements_kind(),
           is_js_array,
           strict_mode_,
-          grow_mode_).GetCode();
+          grow_mode_).GetCode(isolate());
     } else {
       cached_stub = KeyedStoreElementStub(
           is_js_array,
           elements_kind,
-          grow_mode_).GetCode();
+          grow_mode_).GetCode(isolate());
     }
     ASSERT(!cached_stub.is_null());
     handler_ics.Add(cached_stub);

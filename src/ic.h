@@ -771,7 +771,7 @@ class CompareIC: public IC {
 
 
   // Factory method for getting an uninitialized compare stub.
-  static Handle<Code> GetUninitialized(Token::Value op);
+  static Handle<Code> GetUninitialized(Isolate* isolate, Token::Value op);
 
   // Helper function for computing the condition for a compare operation.
   static Condition ComputeCondition(Token::Value op);

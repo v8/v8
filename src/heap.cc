@@ -2689,13 +2689,13 @@ bool Heap::CreateApiObjects() {
 
 void Heap::CreateJSEntryStub() {
   JSEntryStub stub;
-  set_js_entry_code(*stub.GetCode());
+  set_js_entry_code(*stub.GetCode(isolate()));
 }
 
 
 void Heap::CreateJSConstructEntryStub() {
   JSConstructEntryStub stub;
-  set_js_construct_entry_code(*stub.GetCode());
+  set_js_construct_entry_code(*stub.GetCode(isolate()));
 }
 
 
@@ -2720,7 +2720,7 @@ void Heap::CreateFixedStubs() {
   // create them if we need them during the creation of another stub.
   // Stub creation mixes raw pointers and handles in an unsafe manner so
   // we cannot create stubs while we are creating stubs.
-  CodeStub::GenerateStubsAheadOfTime();
+  CodeStub::GenerateStubsAheadOfTime(isolate());
 }
 
 

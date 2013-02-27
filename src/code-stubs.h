@@ -126,7 +126,7 @@ class CodeStub BASE_EMBEDDED {
   };
 
   // Retrieve the code for the stub. Generate the code if needed.
-  Handle<Code> GetCode();
+  Handle<Code> GetCode(Isolate* isolate);
 
   static Major MajorKeyFromKey(uint32_t key) {
     return static_cast<Major>(MajorKeyBits::decode(key));
@@ -154,8 +154,8 @@ class CodeStub BASE_EMBEDDED {
   // See comment above, where Instanceof is defined.
   virtual bool IsPregenerated() { return false; }
 
-  static void GenerateStubsAheadOfTime();
-  static void GenerateFPStubs();
+  static void GenerateStubsAheadOfTime(Isolate* isolate);
+  static void GenerateFPStubs(Isolate* isolate);
 
   // Some stubs put untagged junk on the stack that cannot be scanned by the
   // GC.  This means that we must be statically sure that no GC can occur while
@@ -844,7 +844,7 @@ class CEntryStub : public PlatformCodeStub {
   // their code generation.  On machines that always have gp registers (x64) we
   // can generate both variants ahead of time.
   virtual bool IsPregenerated();
-  static void GenerateAheadOfTime();
+  static void GenerateAheadOfTime(Isolate* isolate);
 
  private:
   void GenerateCore(MacroAssembler* masm,
@@ -1462,7 +1462,7 @@ class StubFailureTrampolineStub : public PlatformCodeStub {
 
   virtual bool IsPregenerated() { return true; }
 
-  static void GenerateAheadOfTime();
+  static void GenerateAheadOfTime(Isolate* isolate);
 
  private:
   Major MajorKey() { return StubFailureTrampoline; }

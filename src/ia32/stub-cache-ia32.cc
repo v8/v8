@@ -2922,7 +2922,9 @@ Handle<Code> KeyedStoreStubCompiler::CompileStoreElement(
   ElementsKind elements_kind = receiver_map->elements_kind();
   bool is_jsarray = receiver_map->instance_type() == JS_ARRAY_TYPE;
   Handle<Code> stub =
-      KeyedStoreElementStub(is_jsarray, elements_kind, grow_mode_).GetCode();
+      KeyedStoreElementStub(is_jsarray,
+                            elements_kind,
+                            grow_mode_).GetCode(isolate());
 
   __ DispatchMap(edx, receiver_map, stub, DO_SMI_CHECK);
 
@@ -3164,11 +3166,11 @@ Handle<Code> KeyedLoadStubCompiler::CompileLoadElement(
       receiver_map->has_external_array_elements()) {
     Handle<Code> stub = KeyedLoadFastElementStub(
         receiver_map->instance_type() == JS_ARRAY_TYPE,
-        elements_kind).GetCode();
+        elements_kind).GetCode(isolate());
     __ DispatchMap(edx, receiver_map, stub, DO_SMI_CHECK);
   } else {
     Handle<Code> stub =
-        KeyedLoadDictionaryElementStub().GetCode();
+        KeyedLoadDictionaryElementStub().GetCode(isolate());
     __ DispatchMap(edx, receiver_map, stub, DO_SMI_CHECK);
   }
 

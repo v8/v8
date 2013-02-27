@@ -105,8 +105,7 @@ Handle<Code> PlatformCodeStub::GenerateCode() {
 }
 
 
-Handle<Code> CodeStub::GetCode() {
-  Isolate* isolate = Isolate::Current();
+Handle<Code> CodeStub::GetCode(Isolate* isolate) {
   Factory* factory = isolate->factory();
   Heap* heap = isolate->heap();
   Code* code;
@@ -604,10 +603,10 @@ void ElementsTransitionAndStoreStub::Generate(MacroAssembler* masm) {
 }
 
 
-void StubFailureTrampolineStub::GenerateAheadOfTime() {
+void StubFailureTrampolineStub::GenerateAheadOfTime(Isolate* isolate) {
   int i = 0;
   for (; i <= StubFailureTrampolineStub::kMaxExtraExpressionStackCount; ++i) {
-    StubFailureTrampolineStub(i).GetCode();
+    StubFailureTrampolineStub(i).GetCode(isolate);
   }
 }
 

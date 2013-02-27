@@ -4971,32 +4971,32 @@ bool CEntryStub::IsPregenerated() {
 }
 
 
-void CodeStub::GenerateStubsAheadOfTime() {
-  CEntryStub::GenerateAheadOfTime();
-  StoreBufferOverflowStub::GenerateFixedRegStubsAheadOfTime();
+void CodeStub::GenerateStubsAheadOfTime(Isolate* isolate) {
+  CEntryStub::GenerateAheadOfTime(isolate);
+  StoreBufferOverflowStub::GenerateFixedRegStubsAheadOfTime(isolate);
   // It is important that the store buffer overflow stubs are generated first.
-  RecordWriteStub::GenerateFixedRegStubsAheadOfTime();
+  RecordWriteStub::GenerateFixedRegStubsAheadOfTime(isolate);
 }
 
 
-void CodeStub::GenerateFPStubs() {
+void CodeStub::GenerateFPStubs(Isolate* isolate) {
   if (CpuFeatures::IsSupported(SSE2)) {
     CEntryStub save_doubles(1, kSaveFPRegs);
     // Stubs might already be in the snapshot, detect that and don't regenerate,
     // which would lead to code stub initialization state being messed up.
     Code* save_doubles_code;
-    if (!save_doubles.FindCodeInCache(&save_doubles_code, ISOLATE)) {
-      save_doubles_code = *(save_doubles.GetCode());
+    if (!save_doubles.FindCodeInCache(&save_doubles_code, isolate)) {
+      save_doubles_code = *(save_doubles.GetCode(isolate));
     }
     save_doubles_code->set_is_pregenerated(true);
-    save_doubles_code->GetIsolate()->set_fp_stubs_generated(true);
+    isolate->set_fp_stubs_generated(true);
   }
 }
 
 
-void CEntryStub::GenerateAheadOfTime() {
+void CEntryStub::GenerateAheadOfTime(Isolate* isolate) {
   CEntryStub stub(1, kDontSaveFPRegs);
-  Handle<Code> code = stub.GetCode();
+  Handle<Code> code = stub.GetCode(isolate);
   code->set_is_pregenerated(true);
 }
 
@@ -6817,7 +6817,7 @@ void ICCompareStub::GenerateHeapNumbers(MacroAssembler* masm) {
   __ bind(&generic_stub);
   ICCompareStub stub(op_, CompareIC::GENERIC, CompareIC::GENERIC,
                      CompareIC::GENERIC);
-  __ jmp(stub.GetCode(), RelocInfo::CODE_TARGET);
+  __ jmp(stub.GetCode(masm->isolate()), RelocInfo::CODE_TARGET);
 
   __ bind(&maybe_undefined1);
   if (Token::IsOrderedRelationalCompareOp(op_)) {
@@ -7322,19 +7322,20 @@ bool RecordWriteStub::IsPregenerated() {
 }
 
 
-void StoreBufferOverflowStub::GenerateFixedRegStubsAheadOfTime() {
+void StoreBufferOverflowStub::GenerateFixedRegStubsAheadOfTime(
+    Isolate* isolate) {
   StoreBufferOverflowStub stub1(kDontSaveFPRegs);
-  stub1.GetCode()->set_is_pregenerated(true);
+  stub1.GetCode(isolate)->set_is_pregenerated(true);
 
   CpuFeatures::TryForceFeatureScope scope(SSE2);
   if (CpuFeatures::IsSupported(SSE2)) {
     StoreBufferOverflowStub stub2(kSaveFPRegs);
-    stub2.GetCode()->set_is_pregenerated(true);
+    stub2.GetCode(isolate)->set_is_pregenerated(true);
   }
 }
 
 
-void RecordWriteStub::GenerateFixedRegStubsAheadOfTime() {
+void RecordWriteStub::GenerateFixedRegStubsAheadOfTime(Isolate* isolate) {
   for (const AheadOfTimeWriteBarrierStubList* entry = kAheadOfTime;
        !entry->object.is(no_reg);
        entry++) {
@@ -7343,7 +7344,7 @@ void RecordWriteStub::GenerateFixedRegStubsAheadOfTime() {
                          entry->address,
                          entry->action,
                          kDontSaveFPRegs);
-    stub.GetCode()->set_is_pregenerated(true);
+    stub.GetCode(isolate)->set_is_pregenerated(true);
   }
 }
 
@@ -7639,7 +7640,7 @@ void StubFailureTrampolineStub::Generate(MacroAssembler* masm) {
   ASSERT(!Serializer::enabled());
   bool save_fp_regs = CpuFeatures::IsSupported(SSE2);
   CEntryStub ces(1, save_fp_regs ? kSaveFPRegs : kDontSaveFPRegs);
-  __ call(ces.GetCode(), RelocInfo::CODE_TARGET);
+  __ call(ces.GetCode(masm->isolate()), RelocInfo::CODE_TARGET);
   int parameter_count_offset =
       StubFailureTrampolineFrame::kCallerStackParameterCountFrameOffset;
   __ mov(ebx, MemOperand(ebp, parameter_count_offset));
