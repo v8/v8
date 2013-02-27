@@ -567,6 +567,11 @@ TEST(Vfp) {
     COMPARE(vmla(d6, d4, d5, cc),
             "3e046b05       vmla.f64cc d6, d4, d5");
 
+    COMPARE(vmls(d2, d1, d0),
+            "ee012b40       vmls.f64 d2, d1, d0");
+    COMPARE(vmls(d6, d4, d5, cc),
+            "3e046b45       vmls.f64cc d6, d4, d5");
+
     COMPARE(vcvt_u32_f64(s0, d0),
             "eebc0bc0       vcvt.u32.f64 s0, d0");
     COMPARE(vcvt_s32_f64(s0, d0),

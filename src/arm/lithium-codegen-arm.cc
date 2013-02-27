@@ -1478,6 +1478,18 @@ void LCodeGen::DoMultiplyAddD(LMultiplyAddD* instr) {
 }
 
 
+void LCodeGen::DoMultiplySubD(LMultiplySubD* instr) {
+  DwVfpRegister minuend = ToDoubleRegister(instr->minuend());
+  DwVfpRegister multiplier = ToDoubleRegister(instr->multiplier());
+  DwVfpRegister multiplicand = ToDoubleRegister(instr->multiplicand());
+
+  // This is computed in-place.
+  ASSERT(minuend.is(ToDoubleRegister(instr->result())));
+
+  __ vmls(minuend, multiplier, multiplicand);
+}
+
+
 void LCodeGen::DoMathFloorOfDiv(LMathFloorOfDiv* instr) {
   const Register result = ToRegister(instr->result());
   const Register left = ToRegister(instr->left());

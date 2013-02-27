@@ -1368,16 +1368,23 @@ LInstruction* LChunkBuilder::DoMul(HMul* instr) {
     return DefineAsRegister(mul);
 
   } else if (instr->representation().IsDouble()) {
-    if (instr->UseCount() == 1 && instr->uses().value()->IsAdd()) {
-      HAdd* add = HAdd::cast(instr->uses().value());
-      if (instr == add->left()) {
-        // This mul is the lhs of an add. The add and mul will be folded
-        // into a multiply-add.
+    if (instr->UseCount() == 1 && (instr->uses().value()->IsAdd() ||
+                                   instr->uses().value()->IsSub())) {
+      HBinaryOperation* use = HBinaryOperation::cast(instr->uses().value());
+
+      if (use->IsAdd() && instr == use->left()) {
+        // This mul is the lhs of an add. The add and mul will be folded into a
+        // multiply-add in DoAdd.
         return NULL;
       }
-      if (instr == add->right() && !add->left()->IsMul()) {
+      if (instr == use->right() && use->IsAdd() && !use->left()->IsMul()) {
         // This mul is the rhs of an add, where the lhs is not another mul.
-        // The add and mul will be folded into a multiply-add.
+        // The add and mul will be folded into a multiply-add in DoAdd.
+        return NULL;
+      }
+      if (instr == use->right() && use->IsSub()) {
+        // This mul is the rhs of a sub. The sub and mul will be folded into a
+        // multiply-sub in DoSub.
         return NULL;
       }
     }
@@ -1408,6 +1415,10 @@ LInstruction* LChunkBuilder::DoSub(HSub* instr) {
     }
     return result;
   } else if (instr->representation().IsDouble()) {
+    if (instr->right()->IsMul()) {
+      return DoMultiplySub(instr->left(), HMul::cast(instr->right()));
+    }
+
     return DoArithmeticD(Token::SUB, instr);
   } else {
     return DoArithmeticT(Token::SUB, instr);
@@ -1441,6 +1452,18 @@ LInstruction* LChunkBuilder::DoMultiplyAdd(HMul* mul, HValue* addend) {
                                                      multiplicand_op));
 }
 
+
+LInstruction* LChunkBuilder::DoMultiplySub(HValue* minuend, HMul* mul) {
+  LOperand* minuend_op = UseRegisterAtStart(minuend);
+  LOperand* multiplier_op = UseRegisterAtStart(mul->left());
+  LOperand* multiplicand_op = UseRegisterAtStart(mul->right());
+
+  return DefineSameAsFirst(new(zone()) LMultiplySubD(minuend_op,
+                                                     multiplier_op,
+                                                     multiplicand_op));
+}
+
+
 LInstruction* LChunkBuilder::DoAdd(HAdd* instr) {
   if (instr->representation().IsInteger32()) {
     ASSERT(instr->left()->representation().IsInteger32());
@@ -1454,8 +1477,9 @@ LInstruction* LChunkBuilder::DoAdd(HAdd* instr) {
     }
     return result;
   } else if (instr->representation().IsDouble()) {
-    if (instr->left()->IsMul())
+    if (instr->left()->IsMul()) {
       return DoMultiplyAdd(HMul::cast(instr->left()), instr->right());
+    }
 
     if (instr->right()->IsMul()) {
       ASSERT(!instr->left()->IsMul());
