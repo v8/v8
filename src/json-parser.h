@@ -291,7 +291,6 @@ Handle<Object> JsonParser<seq_ascii>::ParseJsonValue() {
 // Parse a JSON object. Position must be right at '{'.
 template <bool seq_ascii>
 Handle<Object> JsonParser<seq_ascii>::ParseJsonObject() {
-  Handle<Object> prototype;
   Handle<JSObject> json_object =
       factory()->NewJSObject(object_constructor(), pretenure_);
   ASSERT_EQ(c0_, '{');
@@ -346,22 +345,17 @@ Handle<Object> JsonParser<seq_ascii>::ParseJsonObject() {
       Handle<Object> value = ParseJsonValue();
       if (value.is_null()) return ReportUnexpectedCharacter();
 
-      if (key->Equals(isolate()->heap()->Proto_symbol())) {
-        prototype = value;
+      if (JSObject::TryTransitionToField(json_object, key)) {
+        int index = json_object->LastAddedFieldIndex();
+        json_object->FastPropertyAtPut(index, *value);
       } else {
-        if (JSObject::TryTransitionToField(json_object, key)) {
-          int index = json_object->LastAddedFieldIndex();
-          json_object->FastPropertyAtPut(index, *value);
-        } else {
-          JSObject::SetLocalPropertyIgnoreAttributes(
-              json_object, key, value, NONE);
-        }
+        JSObject::SetLocalPropertyIgnoreAttributes(
+            json_object, key, value, NONE);
       }
     } while (MatchSkipWhiteSpace(','));
     if (c0_ != '}') {
       return ReportUnexpectedCharacter();
     }
-    if (!prototype.is_null()) SetPrototype(json_object, prototype);
   }
   AdvanceSkipWhitespace();
   return json_object;

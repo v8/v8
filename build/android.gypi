@@ -181,6 +181,11 @@
                   '-L<(android_stlport_libs)/armeabi',
                 ],
               }],
+              ['target_arch=="mipsel"', {
+                'ldflags': [
+                  '-L<(android_stlport_libs)/mips',
+                ],
+              }],
               ['target_arch=="ia32"', {
                 'ldflags': [
                   '-L<(android_stlport_libs)/x86',
@@ -192,6 +197,16 @@
             # The x86 toolchain currently has problems with stack-protector.
             'cflags!': [
               '-fstack-protector',
+            ],
+            'cflags': [
+              '-fno-stack-protector',
+            ],
+          }],
+          ['target_arch=="mipsel"', {
+            # The mips toolchain currently has problems with stack-protector.
+            'cflags!': [
+              '-fstack-protector',
+              '-U__linux__'
             ],
             'cflags': [
               '-fno-stack-protector',

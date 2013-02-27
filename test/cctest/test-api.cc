@@ -1849,8 +1849,8 @@ THREADED_TEST(PropertyHandlerInPrototype) {
   Local<v8::Object> top = templ->GetFunction()->NewInstance();
   Local<v8::Object> middle = templ->GetFunction()->NewInstance();
 
-  bottom->Set(v8_str("__proto__"), middle);
-  middle->Set(v8_str("__proto__"), top);
+  bottom->SetPrototype(middle);
+  middle->SetPrototype(top);
   env->Global()->Set(v8_str("obj"), bottom);
 
   // Indexed and named get.
@@ -7554,9 +7554,18 @@ THREADED_TEST(AccessControlGetOwnPropertyNames) {
 }
 
 
+static v8::Handle<v8::Array> IndexedPropertyEnumerator(const AccessorInfo&) {
+  v8::Handle<v8::Array> result = v8::Array::New(2);
+  result->Set(0, v8::Integer::New(7));
+  result->Set(1, v8::Object::New());
+  return result;
+}
+
+
 static v8::Handle<v8::Array> NamedPropertyEnumerator(const AccessorInfo& info) {
-  v8::Handle<v8::Array> result = v8::Array::New(1);
+  v8::Handle<v8::Array> result = v8::Array::New(2);
   result->Set(0, v8_str("x"));
+  result->Set(1, v8::Object::New());
   return result;
 }
 
@@ -7565,7 +7574,10 @@ THREADED_TEST(GetOwnPropertyNamesWithInterceptor) {
   v8::HandleScope handle_scope;
   v8::Handle<v8::ObjectTemplate> obj_template = v8::ObjectTemplate::New();
 
+  obj_template->Set(v8_str("7"), v8::Integer::New(7));
   obj_template->Set(v8_str("x"), v8::Integer::New(42));
+  obj_template->SetIndexedPropertyHandler(NULL, NULL, NULL, NULL,
+                                          IndexedPropertyEnumerator);
   obj_template->SetNamedPropertyHandler(NULL, NULL, NULL, NULL,
                                         NamedPropertyEnumerator);
 
@@ -7573,9 +7585,17 @@ THREADED_TEST(GetOwnPropertyNamesWithInterceptor) {
   v8::Handle<v8::Object> global = context->Global();
   global->Set(v8_str("object"), obj_template->NewInstance());
 
-  v8::Handle<Value> value =
-      CompileRun("Object.getOwnPropertyNames(object).join(',')");
-  CHECK_EQ(v8_str("x"), value);
+  v8::Handle<v8::Value> result =
+      CompileRun("Object.getOwnPropertyNames(object)");
+  CHECK(result->IsArray());
+  v8::Handle<v8::Array> result_array = v8::Handle<v8::Array>::Cast(result);
+  CHECK_EQ(3, result_array->Length());
+  CHECK(result_array->Get(0)->IsString());
+  CHECK(result_array->Get(1)->IsString());
+  CHECK(result_array->Get(2)->IsString());
+  CHECK_EQ(v8_str("7"), result_array->Get(0));
+  CHECK_EQ(v8_str("[object Object]"), result_array->Get(1));
+  CHECK_EQ(v8_str("x"), result_array->Get(2));
 }
 
 
@@ -9650,7 +9670,7 @@ THREADED_TEST(InterceptorCallICCacheableNotNeeded) {
   call_ic_function4 =
       v8_compile("function f(x) { return x - 1; }; f")->Run();
   v8::Handle<Value> value = CompileRun(
-    "o.__proto__.x = function(x) { return x + 1; };"
+    "Object.getPrototypeOf(o).x = function(x) { return x + 1; };"
     "var result = 0;"
     "for (var i = 0; i < 1000; i++) {"
     "  result = o.x(42);"
@@ -17174,6 +17194,27 @@ TEST(HasOwnProperty) {
     CHECK(!instance->HasOwnProperty(v8_str("foo")));
     CHECK(instance->HasOwnProperty(v8_str("bar")));
   }
+}
+
+
+TEST(IndexedInterceptorWithStringProto) {
+  v8::HandleScope scope;
+  Handle<ObjectTemplate> templ = ObjectTemplate::New();
+  templ->SetIndexedPropertyHandler(NULL,
+                                   NULL,
+                                   HasOwnPropertyIndexedPropertyQuery);
+  LocalContext context;
+  context->Global()->Set(v8_str("obj"), templ->NewInstance());
+  CompileRun("var s = new String('foobar'); obj.__proto__ = s;");
+  // These should be intercepted.
+  CHECK(CompileRun("42 in obj")->BooleanValue());
+  CHECK(CompileRun("'42' in obj")->BooleanValue());
+  // These should fall through to the String prototype.
+  CHECK(CompileRun("0 in obj")->BooleanValue());
+  CHECK(CompileRun("'0' in obj")->BooleanValue());
+  // And these should both fail.
+  CHECK(!CompileRun("32 in obj")->BooleanValue());
+  CHECK(!CompileRun("'32' in obj")->BooleanValue());
 }
 
 

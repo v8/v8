@@ -345,8 +345,8 @@ class Deoptimizer : public Malloced {
   void DoComputeAccessorStubFrame(TranslationIterator* iterator,
                                   int frame_index,
                                   bool is_setter_stub_frame);
-  void DoCompiledStubFrame(TranslationIterator* iterator,
-                           int frame_index);
+  void DoComputeCompiledStubFrame(TranslationIterator* iterator,
+                                  int frame_index);
   void DoTranslateCommand(TranslationIterator* iterator,
                           int frame_index,
                           unsigned output_offset);

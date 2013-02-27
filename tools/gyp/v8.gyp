@@ -68,8 +68,8 @@
                   'USING_V8_SHARED',
                 ],
               },
-              'conditions': [
-                ['OS=="android"', {
+              'target_conditions': [
+                ['OS=="android" and _toolset=="target"', {
                   'libraries': [
                     '-llog',
                   ],
@@ -77,6 +77,8 @@
                     'src/common/android/include',
                   ],
                 }],
+              ],
+              'conditions': [
                 ['OS=="mac"', {
                   'xcode_settings': {
                     'OTHER_LDFLAGS': ['-dynamiclib', '-all_load']

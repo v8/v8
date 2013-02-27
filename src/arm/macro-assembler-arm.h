@@ -480,8 +480,7 @@ class MacroAssembler: public Assembler {
 
   void Vmov(const DwVfpRegister dst,
             const double imm,
-            const Register scratch = no_reg,
-            const Condition cond = al);
+            const Register scratch = no_reg);
 
   // Enter exit frame.
   // stack_space - extra stack space, used for alignment before call to C.

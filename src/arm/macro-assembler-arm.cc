@@ -812,19 +812,18 @@ void MacroAssembler::VFPCompareAndLoadFlags(const DwVfpRegister src1,
 
 void MacroAssembler::Vmov(const DwVfpRegister dst,
                           const double imm,
-                          const Register scratch,
-                          const Condition cond) {
+                          const Register scratch) {
   ASSERT(CpuFeatures::IsEnabled(VFP2));
   static const DoubleRepresentation minus_zero(-0.0);
   static const DoubleRepresentation zero(0.0);
   DoubleRepresentation value(imm);
   // Handle special values first.
   if (value.bits == zero.bits) {
-    vmov(dst, kDoubleRegZero, cond);
+    vmov(dst, kDoubleRegZero);
   } else if (value.bits == minus_zero.bits) {
-    vneg(dst, kDoubleRegZero, cond);
+    vneg(dst, kDoubleRegZero);
   } else {
-    vmov(dst, imm, scratch, cond);
+    vmov(dst, imm, scratch);
   }
 }
 

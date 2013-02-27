@@ -950,10 +950,11 @@ Handle<GlobalObject> Factory::NewGlobalObject(
 
 
 
-Handle<JSObject> Factory::NewJSObjectFromMap(Handle<Map> map) {
+Handle<JSObject> Factory::NewJSObjectFromMap(Handle<Map> map,
+                                             PretenureFlag pretenure) {
   CALL_HEAP_FUNCTION(
       isolate(),
-      isolate()->heap()->AllocateJSObjectFromMap(*map, NOT_TENURED),
+      isolate()->heap()->AllocateJSObjectFromMap(*map, pretenure),
       JSObject);
 }
 

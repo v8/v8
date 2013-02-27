@@ -404,21 +404,33 @@ void HeapObjectsMap::MoveObject(Address from, Address to) {
   ASSERT(from != NULL);
   if (from == to) return;
   void* from_value = entries_map_.Remove(from, AddressHash(from));
-  if (from_value == NULL) return;
-  int from_entry_info_index =
-      static_cast<int>(reinterpret_cast<intptr_t>(from_value));
-  entries_.at(from_entry_info_index).addr = to;
-  HashMap::Entry* to_entry = entries_map_.Lookup(to, AddressHash(to), true);
-  if (to_entry->value != NULL) {
-    int to_entry_info_index =
-        static_cast<int>(reinterpret_cast<intptr_t>(to_entry->value));
-    // Without this operation we will have two EntryInfo's with the same
-    // value in addr field. It is bad because later at RemoveDeadEntries
-    // one of this entry will be removed with the corresponding entries_map_
-    // entry.
-    entries_.at(to_entry_info_index).addr = NULL;
+  if (from_value == NULL) {
+    // It may occur that some untracked object moves to an address X and there
+    // is a tracked object at that address. In this case we should remove the
+    // entry as we know that the object has died.
+    void* to_value = entries_map_.Remove(to, AddressHash(to));
+    if (to_value != NULL) {
+      int to_entry_info_index =
+          static_cast<int>(reinterpret_cast<intptr_t>(to_value));
+      entries_.at(to_entry_info_index).addr = NULL;
+    }
+  } else {
+    HashMap::Entry* to_entry = entries_map_.Lookup(to, AddressHash(to), true);
+    if (to_entry->value != NULL) {
+      // We found the existing entry with to address for an old object.
+      // Without this operation we will have two EntryInfo's with the same
+      // value in addr field. It is bad because later at RemoveDeadEntries
+      // one of this entry will be removed with the corresponding entries_map_
+      // entry.
+      int to_entry_info_index =
+          static_cast<int>(reinterpret_cast<intptr_t>(to_entry->value));
+      entries_.at(to_entry_info_index).addr = NULL;
+    }
+    int from_entry_info_index =
+        static_cast<int>(reinterpret_cast<intptr_t>(from_value));
+    entries_.at(from_entry_info_index).addr = to;
+    to_entry->value = from_value;
   }
-  to_entry->value = reinterpret_cast<void*>(from_entry_info_index);
 }
 
 
