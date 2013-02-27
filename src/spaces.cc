@@ -68,11 +68,11 @@ HeapObjectIterator::HeapObjectIterator(PagedSpace* space,
 HeapObjectIterator::HeapObjectIterator(Page* page,
                                        HeapObjectCallback size_func) {
   Space* owner = page->owner();
-  ASSERT(owner == HEAP->old_pointer_space() ||
-         owner == HEAP->old_data_space() ||
-         owner == HEAP->map_space() ||
-         owner == HEAP->cell_space() ||
-         owner == HEAP->code_space());
+  ASSERT(owner == page->heap()->old_pointer_space() ||
+         owner == page->heap()->old_data_space() ||
+         owner == page->heap()->map_space() ||
+         owner == page->heap()->cell_space() ||
+         owner == page->heap()->code_space());
   Initialize(reinterpret_cast<PagedSpace*>(owner),
              page->area_start(),
              page->area_end(),
@@ -2004,7 +2004,7 @@ void FreeListNode::set_size(Heap* heap, int size_in_bytes) {
 
 FreeListNode* FreeListNode::next() {
   ASSERT(IsFreeListNode(this));
-  if (map() == HEAP->raw_unchecked_free_space_map()) {
+  if (map() == GetHeap()->raw_unchecked_free_space_map()) {
     ASSERT(map() == NULL || Size() >= kNextOffset + kPointerSize);
     return reinterpret_cast<FreeListNode*>(
         Memory::Address_at(address() + kNextOffset));
@@ -2017,7 +2017,7 @@ FreeListNode* FreeListNode::next() {
 
 FreeListNode** FreeListNode::next_address() {
   ASSERT(IsFreeListNode(this));
-  if (map() == HEAP->raw_unchecked_free_space_map()) {
+  if (map() == GetHeap()->raw_unchecked_free_space_map()) {
     ASSERT(Size() >= kNextOffset + kPointerSize);
     return reinterpret_cast<FreeListNode**>(address() + kNextOffset);
   } else {
@@ -2031,7 +2031,7 @@ void FreeListNode::set_next(FreeListNode* next) {
   // While we are booting the VM the free space map will actually be null.  So
   // we have to make sure that we don't try to use it for anything at that
   // stage.
-  if (map() == HEAP->raw_unchecked_free_space_map()) {
+  if (map() == GetHeap()->raw_unchecked_free_space_map()) {
     ASSERT(map() == NULL || Size() >= kNextOffset + kPointerSize);
     Memory::Address_at(address() + kNextOffset) =
         reinterpret_cast<Address>(next);
@@ -2242,7 +2242,7 @@ FreeListNode* FreeList::FindNodeFor(int size_in_bytes, int* node_size) {
       break;
     }
 
-    ASSERT((*cur)->map() == HEAP->raw_unchecked_free_space_map());
+    ASSERT((*cur)->map() == heap_->raw_unchecked_free_space_map());
     FreeSpace* cur_as_free_space = reinterpret_cast<FreeSpace*>(*cur);
     int size = cur_as_free_space->Size();
     if (size >= size_in_bytes) {
@@ -2378,7 +2378,7 @@ intptr_t FreeListCategory::SumFreeList() {
   intptr_t sum = 0;
   FreeListNode* cur = top_;
   while (cur != NULL) {
-    ASSERT(cur->map() == HEAP->raw_unchecked_free_space_map());
+    ASSERT(cur->map() == cur->GetHeap()->raw_unchecked_free_space_map());
     FreeSpace* cur_as_free_space = reinterpret_cast<FreeSpace*>(cur);
     sum += cur_as_free_space->Size();
     cur = cur->next();
