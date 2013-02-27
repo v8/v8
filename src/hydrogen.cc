@@ -7625,7 +7625,7 @@ bool HOptimizedGraphBuilder::TryInline(CallKind call_kind,
       TraceInline(target, caller, "could not generate deoptimization info");
       return false;
     }
-    if (target_shared->scope_info() == ScopeInfo::Empty()) {
+    if (target_shared->scope_info() == ScopeInfo::Empty(isolate())) {
       // The scope info might not have been set if a lazily compiled
       // function is inlined before being called for the first time.
       Handle<ScopeInfo> target_scope_info =

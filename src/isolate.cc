@@ -2148,6 +2148,7 @@ bool Isolate::Init(Deserializer* des) {
     // the snapshot.
     HandleScope scope(this);
     Deoptimizer::EnsureCodeForDeoptimizationEntry(
+        this,
         Deoptimizer::LAZY,
         kDeoptTableSerializeEntryCount - 1);
   }

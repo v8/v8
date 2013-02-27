@@ -268,19 +268,19 @@ Handle<Value> Shell::Write(const Arguments& args) {
       Exit(1);
     }
   }
-  return Undefined();
+  return Undefined(args.GetIsolate());
 }
 
 
 Handle<Value> Shell::EnableProfiler(const Arguments& args) {
   V8::ResumeProfiler();
-  return Undefined();
+  return Undefined(args.GetIsolate());
 }
 
 
 Handle<Value> Shell::DisableProfiler(const Arguments& args) {
   V8::PauseProfiler();
-  return Undefined();
+  return Undefined(args.GetIsolate());
 }
 
 
@@ -342,7 +342,7 @@ Handle<Value> Shell::Load(const Arguments& args) {
       return Throw("Error executing file");
     }
   }
-  return Undefined();
+  return Undefined(args.GetIsolate());
 }
 
 static int32_t convertToInt(Local<Value> value_in, TryCatch* try_catch) {
@@ -407,7 +407,9 @@ Handle<Value> Shell::CreateExternalArrayBuffer(Isolate* isolate,
 
   buffer->SetIndexedPropertiesToExternalArrayData(
       data, v8::kExternalByteArray, length);
-  buffer->Set(Symbols::byteLength(isolate), Int32::New(length), ReadOnly);
+  buffer->Set(Symbols::byteLength(isolate),
+              Int32::New(length, isolate),
+              ReadOnly);
 
   return buffer;
 }
@@ -451,12 +453,21 @@ Handle<Object> Shell::CreateExternalArray(Isolate* isolate,
   array->SetIndexedPropertiesToExternalArrayData(
       static_cast<uint8_t*>(data) + byteOffset, type, length);
   array->SetHiddenValue(Symbols::ArrayMarkerPropName(isolate),
-                        Int32::New(type));
-  array->Set(Symbols::byteLength(isolate), Int32::New(byteLength), ReadOnly);
-  array->Set(Symbols::byteOffset(isolate), Int32::New(byteOffset), ReadOnly);
-  array->Set(Symbols::length(isolate), Int32::New(length), ReadOnly);
-  array->Set(Symbols::BYTES_PER_ELEMENT(isolate), Int32::New(element_size));
-  array->Set(Symbols::buffer(isolate), buffer, ReadOnly);
+                        Int32::New(type, isolate));
+  array->Set(Symbols::byteLength(isolate),
+             Int32::New(byteLength, isolate),
+             ReadOnly);
+  array->Set(Symbols::byteOffset(isolate),
+             Int32::New(byteOffset, isolate),
+             ReadOnly);
+  array->Set(Symbols::length(isolate),
+             Int32::New(length, isolate),
+             ReadOnly);
+  array->Set(Symbols::BYTES_PER_ELEMENT(isolate),
+             Int32::New(element_size, isolate));
+  array->Set(Symbols::buffer(isolate),
+             buffer,
+             ReadOnly);
 
   return array;
 }
@@ -549,7 +560,7 @@ Handle<Value> Shell::CreateExternalArray(const Arguments& args,
     Handle<Object> global = Context::GetCurrent()->Global();
     Handle<Value> array_buffer = global->Get(Symbols::ArrayBuffer(isolate));
     ASSERT(!try_catch.HasCaught() && array_buffer->IsFunction());
-    Handle<Value> buffer_args[] = { Uint32::New(byteLength) };
+    Handle<Value> buffer_args[] = { Uint32::New(byteLength, isolate) };
     Handle<Value> result = Handle<Function>::Cast(array_buffer)->NewInstance(
         1, buffer_args);
     if (try_catch.HasCaught()) return result;
@@ -614,7 +625,7 @@ Handle<Value> Shell::ArrayBufferSlice(const Arguments& args) {
   }
 
   Local<Function> constructor = Local<Function>::Cast(self->GetConstructor());
-  Handle<Value> new_args[] = { Uint32::New(end - begin) };
+  Handle<Value> new_args[] = { Uint32::New(end - begin, isolate) };
   Handle<Value> result = constructor->NewInstance(1, new_args);
   if (try_catch.HasCaught()) return result;
   Handle<Object> buffer = result->ToObject();
@@ -681,7 +692,7 @@ Handle<Value> Shell::ArraySubArray(const Arguments& args) {
 
   Local<Function> constructor = Local<Function>::Cast(self->GetConstructor());
   Handle<Value> construct_args[] = {
-    buffer, Uint32::New(byteOffset), Uint32::New(length)
+    buffer, Uint32::New(byteOffset, isolate), Uint32::New(length, isolate)
   };
   return constructor->NewInstance(3, construct_args);
 }
@@ -823,7 +834,7 @@ Handle<Value> Shell::ArraySet(const Arguments& args) {
     }
   }
 
-  return Undefined();
+  return Undefined(args.GetIsolate());
 }
 
 
@@ -889,7 +900,7 @@ Handle<Value> Shell::Uint8ClampedArray(const Arguments& args) {
 
 Handle<Value> Shell::Yield(const Arguments& args) {
   v8::Unlocker unlocker(args.GetIsolate());
-  return Undefined();
+  return Undefined(args.GetIsolate());
 }
 
 
@@ -897,7 +908,7 @@ Handle<Value> Shell::Quit(const Arguments& args) {
   int exit_code = args[0]->Int32Value();
   OnExit();
   exit(exit_code);
-  return Undefined();
+  return Undefined(args.GetIsolate());
 }
 
 
@@ -1100,8 +1111,8 @@ void Shell::InstallUtilityScript(Isolate* isolate) {
   HandleScope scope;
   // If we use the utility context, we have to set the security tokens so that
   // utility, evaluation and debug context can all access each other.
-  utility_context_->SetSecurityToken(Undefined());
-  evaluation_context_->SetSecurityToken(Undefined());
+  utility_context_->SetSecurityToken(Undefined(isolate));
+  evaluation_context_->SetSecurityToken(Undefined(isolate));
   Context::Scope utility_scope(utility_context_);
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
@@ -1454,7 +1465,7 @@ Handle<Value> Shell::ReadBuffer(const Arguments& args) {
   buffer->SetIndexedPropertiesToExternalArrayData(
       data, kExternalUnsignedByteArray, length);
   buffer->Set(Symbols::byteLength(isolate),
-      Int32::New(static_cast<int32_t>(length)), ReadOnly);
+      Int32::New(static_cast<int32_t>(length), isolate), ReadOnly);
   return buffer;
 }
 

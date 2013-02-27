@@ -255,6 +255,7 @@ class Deoptimizer : public Malloced {
 
 
   static Address GetDeoptimizationEntry(
+      Isolate* isolate,
       int id,
       BailoutType type,
       GetEntryMode mode = ENSURE_ENTRY_CODE);
@@ -316,7 +317,8 @@ class Deoptimizer : public Malloced {
 
   static size_t GetMaxDeoptTableSize();
 
-  static void EnsureCodeForDeoptimizationEntry(BailoutType type,
+  static void EnsureCodeForDeoptimizationEntry(Isolate* isolate,
+                                               BailoutType type,
                                                int max_entry_id);
 
  private:

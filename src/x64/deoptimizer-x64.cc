@@ -85,7 +85,8 @@ void Deoptimizer::DeoptimizeFunctionWithPreparedFunctionList(
     // There is room enough to write a long call instruction because we pad
     // LLazyBailout instructions with nops if necessary.
     CodePatcher patcher(call_address, Assembler::kCallInstructionLength);
-    patcher.masm()->Call(GetDeoptimizationEntry(i, LAZY), RelocInfo::NONE64);
+    patcher.masm()->Call(GetDeoptimizationEntry(isolate, i, LAZY),
+                         RelocInfo::NONE64);
     ASSERT(prev_call_address == NULL ||
            call_address >= prev_call_address + patch_size());
     ASSERT(call_address + patch_size() <= code->instruction_end());

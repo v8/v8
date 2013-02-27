@@ -882,7 +882,7 @@ bool Compiler::CompileLazy(CompilationInfo* info) {
 
       if (info->IsOptimizing()) {
         Handle<Code> code = info->code();
-        ASSERT(shared->scope_info() != ScopeInfo::Empty());
+        ASSERT(shared->scope_info() != ScopeInfo::Empty(isolate));
         info->closure()->ReplaceCode(*code);
         InsertCodeIntoOptimizedCodeMap(info);
         return true;
@@ -983,7 +983,7 @@ void Compiler::InstallOptimizedCode(OptimizingCompiler* optimizing_compiler) {
   InstallCodeCommon(*info);
   if (status == OptimizingCompiler::SUCCEEDED) {
     Handle<Code> code = info->code();
-    ASSERT(info->shared_info()->scope_info() != ScopeInfo::Empty());
+    ASSERT(info->shared_info()->scope_info() != ScopeInfo::Empty(isolate));
     info->closure()->ReplaceCode(*code);
     if (info->shared_info()->SearchOptimizedCodeMap(
             info->closure()->context()->native_context()) == -1) {
@@ -1004,7 +1004,8 @@ Handle<SharedFunctionInfo> Compiler::BuildFunctionInfo(FunctionLiteral* literal,
   info.SetScope(literal->scope());
   info.SetLanguageMode(literal->scope()->language_mode());
 
-  LiveEditFunctionTracker live_edit_tracker(info.isolate(), literal);
+  Isolate* isolate = info.isolate();
+  LiveEditFunctionTracker live_edit_tracker(isolate, literal);
   // Determine if the function can be lazily compiled. This is necessary to
   // allow some of our builtin JS files to be lazily compiled. These
   // builtins cannot be handled lazily by the parser, since we have to know
@@ -1018,11 +1019,11 @@ Handle<SharedFunctionInfo> Compiler::BuildFunctionInfo(FunctionLiteral* literal,
   bool allow_lazy = literal->AllowsLazyCompilation() &&
       !DebuggerWantsEagerCompilation(&info, allow_lazy_without_ctx);
 
-  Handle<ScopeInfo> scope_info(ScopeInfo::Empty());
+  Handle<ScopeInfo> scope_info(ScopeInfo::Empty(isolate));
 
   // Generate code
   if (FLAG_lazy && allow_lazy && !literal->is_parenthesized()) {
-    Handle<Code> code = info.isolate()->builtins()->LazyCompile();
+    Handle<Code> code = isolate->builtins()->LazyCompile();
     info.SetCode(code);
   } else if (GenerateCode(&info)) {
     ASSERT(!info.code().is_null());

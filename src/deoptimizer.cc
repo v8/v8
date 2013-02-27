@@ -634,18 +634,19 @@ void Deoptimizer::DeleteFrameDescriptions() {
 }
 
 
-Address Deoptimizer::GetDeoptimizationEntry(int id,
+Address Deoptimizer::GetDeoptimizationEntry(Isolate* isolate,
+                                            int id,
                                             BailoutType type,
                                             GetEntryMode mode) {
   ASSERT(id >= 0);
   if (id >= kMaxNumberOfEntries) return NULL;
   MemoryChunk* base = NULL;
   if (mode == ENSURE_ENTRY_CODE) {
-    EnsureCodeForDeoptimizationEntry(type, id);
+    EnsureCodeForDeoptimizationEntry(isolate, type, id);
   } else {
     ASSERT(mode == CALCULATE_ENTRY_ADDRESS);
   }
-  DeoptimizerData* data = Isolate::Current()->deoptimizer_data();
+  DeoptimizerData* data = isolate->deoptimizer_data();
   if (type == EAGER) {
     base = data->eager_deoptimization_entry_code_;
   } else {
@@ -1572,14 +1573,15 @@ void Deoptimizer::AddDoubleValue(intptr_t slot_address, double value) {
 }
 
 
-void Deoptimizer::EnsureCodeForDeoptimizationEntry(BailoutType type,
+void Deoptimizer::EnsureCodeForDeoptimizationEntry(Isolate* isolate,
+                                                   BailoutType type,
                                                    int max_entry_id) {
   // We cannot run this if the serializer is enabled because this will
   // cause us to emit relocation information for the external
   // references. This is fine because the deoptimizer's code section
   // isn't meant to be serialized at all.
   ASSERT(type == EAGER || type == LAZY);
-  DeoptimizerData* data = Isolate::Current()->deoptimizer_data();
+  DeoptimizerData* data = isolate->deoptimizer_data();
   int entry_count = (type == EAGER)
       ? data->eager_deoptimization_entry_code_entries_
       : data->lazy_deoptimization_entry_code_entries_;
@@ -1588,7 +1590,7 @@ void Deoptimizer::EnsureCodeForDeoptimizationEntry(BailoutType type,
   while (max_entry_id >= entry_count) entry_count *= 2;
   ASSERT(entry_count <= Deoptimizer::kMaxNumberOfEntries);
 
-  MacroAssembler masm(Isolate::Current(), NULL, 16 * KB);
+  MacroAssembler masm(isolate, NULL, 16 * KB);
   masm.set_emit_debug_code(false);
   GenerateDeoptimizationEntries(&masm, entry_count, type);
   CodeDesc desc;

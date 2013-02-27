@@ -3367,7 +3367,7 @@ bool v8::Object::SetHiddenValue(v8::Handle<v8::String> key,
   i::HandleScope scope(isolate);
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
   i::Handle<i::String> key_obj = Utils::OpenHandle(*key);
-  i::Handle<i::String> key_symbol = FACTORY->LookupSymbol(key_obj);
+  i::Handle<i::String> key_symbol = isolate->factory()->LookupSymbol(key_obj);
   i::Handle<i::Object> value_obj = Utils::OpenHandle(*value);
   i::Handle<i::Object> result =
       i::JSObject::SetHiddenProperty(self, key_symbol, value_obj);

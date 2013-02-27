@@ -844,7 +844,8 @@ void LCodeGen::DeoptimizeIf(Condition cc, LEnvironment* environment) {
   Deoptimizer::BailoutType bailout_type = info()->IsStub()
       ? Deoptimizer::LAZY
       : Deoptimizer::EAGER;
-  Address entry = Deoptimizer::GetDeoptimizationEntry(id, bailout_type);
+  Address entry =
+      Deoptimizer::GetDeoptimizationEntry(isolate(), id, bailout_type);
   if (entry == NULL) {
     Abort("bailout was not prepared");
     return;

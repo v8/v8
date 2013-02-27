@@ -157,7 +157,7 @@ void Deoptimizer::DeoptimizeFunctionWithPreparedFunctionList(
     // Patch lazy deoptimization entry.
     Address call_address = code_start_address + deopt_data->Pc(i)->value();
     CodePatcher patcher(call_address, patch_size());
-    Address deopt_entry = GetDeoptimizationEntry(i, LAZY);
+    Address deopt_entry = GetDeoptimizationEntry(isolate, i, LAZY);
     patcher.masm()->call(deopt_entry, RelocInfo::NONE32);
     // We use RUNTIME_ENTRY for deoptimization bailouts.
     RelocInfo rinfo(call_address + 1,  // 1 after the call opcode.
