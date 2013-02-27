@@ -243,6 +243,8 @@ function StringReplace(search, replace) {
     %_Log('regexp', 'regexp-replace,%0r,%1S', [search, subject]);
 
     if (!IS_SPEC_FUNCTION(replace)) {
+      replace = TO_STRING_INLINE(replace);
+
       if (!search.global) {
         // Non-global regexp search, string replace.
         var match = DoRegExpExec(search, subject, 0);
@@ -250,7 +252,6 @@ function StringReplace(search, replace) {
           search.lastIndex = 0
           return subject;
         }
-        replace = TO_STRING_INLINE(replace);
         if (replace.length == 0) {
           return %_SubString(subject, 0, match[CAPTURE0]) +
                  %_SubString(subject, match[CAPTURE1], subject.length)

@@ -216,9 +216,17 @@ assertEquals('She sells sea$schells by the sea$schore.',
 
 var replace_obj = { length: 0, toString: function() { return "x"; }};
 assertEquals("axc", "abc".replace(/b/, replace_obj));
+assertEquals("axc", "abc".replace(/b/g, replace_obj));
 
 var search_obj = { length: 1, toString: function() { return "b"; }};
 assertEquals("axc", "abc".replace(search_obj, function() { return "x"; }));
+
+var side_effect_flag = false;
+var replace_obj_side_effects = {
+    toString: function() { side_effect_flag = true; return "x" }
+}
+assertEquals("abc", "abc".replace(/z/g, function() { return "x"; }));
+assertTrue(side_effect_flag);  // Side effect triggers even without a match.
 
 var regexp99pattern = "";
 var subject = "";
