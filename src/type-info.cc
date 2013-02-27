@@ -216,8 +216,7 @@ Handle<Map> TypeFeedbackOracle::StoreMonomorphicReceiverType(
 void TypeFeedbackOracle::LoadReceiverTypes(Property* expr,
                                            Handle<String> name,
                                            SmallMapList* types) {
-  Code::Flags flags =
-      Code::ComputeMonomorphicFlags(Code::LOAD_IC, Code::NORMAL);
+  Code::Flags flags = Code::ComputeMonomorphicFlags(Code::LOAD_IC);
   CollectReceiverTypes(expr->PropertyFeedbackId(), name, flags, types);
 }
 
@@ -225,8 +224,7 @@ void TypeFeedbackOracle::LoadReceiverTypes(Property* expr,
 void TypeFeedbackOracle::StoreReceiverTypes(Assignment* expr,
                                             Handle<String> name,
                                             SmallMapList* types) {
-  Code::Flags flags =
-      Code::ComputeMonomorphicFlags(Code::STORE_IC, Code::NORMAL);
+  Code::Flags flags = Code::ComputeMonomorphicFlags(Code::STORE_IC);
   CollectReceiverTypes(expr->AssignmentFeedbackId(), name, flags, types);
 }
 
@@ -243,10 +241,10 @@ void TypeFeedbackOracle::CallReceiverTypes(Call* expr,
       CallIC::Contextual::encode(call_kind == CALL_AS_FUNCTION);
 
   Code::Flags flags = Code::ComputeMonomorphicFlags(Code::CALL_IC,
-                                                    Code::NORMAL,
                                                     extra_ic_state,
-                                                    OWN_MAP,
-                                                    arity);
+                                                    Code::NORMAL,
+                                                    arity,
+                                                    OWN_MAP);
   CollectReceiverTypes(expr->CallFeedbackId(), name, flags, types);
 }
 

@@ -4468,10 +4468,10 @@ class Code: public HeapObject {
 
   static inline Flags ComputeMonomorphicFlags(
       Kind kind,
-      StubType type,
       ExtraICState extra_ic_state = kNoExtraICState,
-      InlineCacheHolderFlag holder = OWN_MAP,
-      int argc = -1);
+      StubType type = NORMAL,
+      int argc = -1,
+      InlineCacheHolderFlag holder = OWN_MAP);
 
   static inline InlineCacheState ExtractICStateFromFlags(Flags flags);
   static inline StubType ExtractTypeFromFlags(Flags flags);
