@@ -1168,126 +1168,124 @@ Register StubCompiler::CheckPrototypes(Handle<JSObject> object,
 }
 
 
-void StubCompiler::GenerateLoadField(Handle<JSObject> object,
-                                     Handle<JSObject> holder,
-                                     Register receiver,
-                                     Register scratch1,
-                                     Register scratch2,
-                                     Register scratch3,
-                                     PropertyIndex index,
-                                     Handle<String> name,
-                                     Label* miss) {
-  // Check that the receiver isn't a smi.
-  __ JumpIfSmi(receiver, miss);
+void BaseLoadStubCompiler::HandlerFrontendFooter(Label* success,
+                                                 Label* miss) {
+  __ b(success);
+  __ bind(miss);
+  GenerateLoadMiss(masm(), kind());
+}
 
-  // Check that the maps haven't changed.
-  Register reg = CheckPrototypes(
-      object, receiver, holder, scratch1, scratch2, scratch3, name, miss);
+
+Register BaseLoadStubCompiler::CallbackHandlerFrontend(
+    Handle<JSObject> object,
+    Register object_reg,
+    Handle<JSObject> holder,
+    Handle<String> name,
+    Label* success,
+    FrontendCheckType check,
+    Handle<ExecutableAccessorInfo> callback) {
+  Label miss;
+
+  Register reg = HandlerFrontendHeader(
+      object, object_reg, holder, name, &miss, check);
+
+  if (!holder->HasFastProperties() && !holder->IsJSGlobalObject()) {
+    ASSERT(!reg.is(scratch2()));
+    ASSERT(!reg.is(scratch3()));
+    ASSERT(!reg.is(scratch4()));
+
+    // Load the properties dictionary.
+    Register dictionary = scratch4();
+    __ ldr(dictionary, FieldMemOperand(reg, JSObject::kPropertiesOffset));
+
+    // Probe the dictionary.
+    Label probe_done;
+    StringDictionaryLookupStub::GeneratePositiveLookup(masm(),
+                                                       &miss,
+                                                       &probe_done,
+                                                       dictionary,
+                                                       this->name(),
+                                                       scratch2(),
+                                                       scratch3());
+    __ bind(&probe_done);
+
+    // If probing finds an entry in the dictionary, scratch3 contains the
+    // pointer into the dictionary. Check that the value is the callback.
+    Register pointer = scratch3();
+    const int kElementsStartOffset = StringDictionary::kHeaderSize +
+        StringDictionary::kElementsStartIndex * kPointerSize;
+    const int kValueOffset = kElementsStartOffset + kPointerSize;
+    __ ldr(scratch2(), FieldMemOperand(pointer, kValueOffset));
+    __ cmp(scratch2(), Operand(callback));
+    __ b(ne, &miss);
+  }
+
+  HandlerFrontendFooter(success, &miss);
+  return reg;
+}
+
+
+void BaseLoadStubCompiler::NonexistentHandlerFrontend(
+    Handle<JSObject> object,
+    Handle<JSObject> last,
+    Handle<String> name,
+    Label* success,
+    Handle<GlobalObject> global) {
+  Label miss;
+
+  Register reg = HandlerFrontendHeader(
+      object, receiver(), last, name, &miss, PERFORM_INITIAL_CHECKS);
+
+  // If the last object in the prototype chain is a global object,
+  // check that the global property cell is empty.
+  if (!global.is_null()) {
+    GenerateCheckPropertyCell(masm(), global, name, scratch2(), &miss);
+  }
+
+  if (!last->HasFastProperties()) {
+    __ ldr(scratch2(), FieldMemOperand(reg, HeapObject::kMapOffset));
+    __ ldr(scratch2(), FieldMemOperand(scratch2(), Map::kPrototypeOffset));
+    __ cmp(scratch2(), Operand(isolate()->factory()->null_value()));
+    __ b(ne, &miss);
+  }
+
+  HandlerFrontendFooter(success, &miss);
+}
+
+
+void BaseLoadStubCompiler::GenerateLoadField(Register reg,
+                                             Handle<JSObject> holder,
+                                             PropertyIndex index) {
   GenerateFastPropertyLoad(masm(), r0, reg, holder, index);
   __ Ret();
 }
 
 
-void StubCompiler::GenerateLoadConstant(Handle<JSObject> object,
-                                        Handle<JSObject> holder,
-                                        Register receiver,
-                                        Register scratch1,
-                                        Register scratch2,
-                                        Register scratch3,
-                                        Handle<JSFunction> value,
-                                        Handle<String> name,
-                                        Label* miss) {
-  // Check that the receiver isn't a smi.
-  __ JumpIfSmi(receiver, miss);
-
-  // Check that the maps haven't changed.
-  CheckPrototypes(
-      object, receiver, holder, scratch1, scratch2, scratch3, name, miss);
-
+void BaseLoadStubCompiler::GenerateLoadConstant(Handle<JSFunction> value) {
   // Return the constant value.
   __ LoadHeapObject(r0, value);
   __ Ret();
 }
 
 
-void StubCompiler::GenerateDictionaryLoadCallback(
-    Register receiver,
-    Register name_reg,
-    Register scratch1,
-    Register scratch2,
-    Register scratch3,
-    Handle<ExecutableAccessorInfo> callback,
-    Handle<String> name,
-    Label* miss) {
-  ASSERT(!receiver.is(scratch1));
-  ASSERT(!receiver.is(scratch2));
-  ASSERT(!receiver.is(scratch3));
-
-  // Load the properties dictionary.
-  Register dictionary = scratch1;
-  __ ldr(dictionary, FieldMemOperand(receiver, JSObject::kPropertiesOffset));
-
-  // Probe the dictionary.
-  Label probe_done;
-  StringDictionaryLookupStub::GeneratePositiveLookup(masm(),
-                                                     miss,
-                                                     &probe_done,
-                                                     dictionary,
-                                                     name_reg,
-                                                     scratch2,
-                                                     scratch3);
-  __ bind(&probe_done);
-
-  // If probing finds an entry in the dictionary, scratch3 contains the
-  // pointer into the dictionary. Check that the value is the callback.
-  Register pointer = scratch3;
-  const int kElementsStartOffset = StringDictionary::kHeaderSize +
-      StringDictionary::kElementsStartIndex * kPointerSize;
-  const int kValueOffset = kElementsStartOffset + kPointerSize;
-  __ ldr(scratch2, FieldMemOperand(pointer, kValueOffset));
-  __ cmp(scratch2, Operand(callback));
-  __ b(ne, miss);
-}
-
-
-void StubCompiler::GenerateLoadCallback(
-    Handle<JSObject> object,
-    Handle<JSObject> holder,
-    Register receiver,
-    Register name_reg,
-    Register scratch1,
-    Register scratch2,
-    Register scratch3,
-    Register scratch4,
-    Handle<ExecutableAccessorInfo> callback,
-    Handle<String> name,
-    Label* miss) {
-  // Check that the receiver isn't a smi.
-  __ JumpIfSmi(receiver, miss);
-
-  // Check that the maps haven't changed.
-  Register reg = CheckPrototypes(object, receiver, holder, scratch1,
-                                 scratch2, scratch3, name, miss);
-
-  if (!holder->HasFastProperties() && !holder->IsJSGlobalObject()) {
-    GenerateDictionaryLoadCallback(
-        reg, name_reg, scratch2, scratch3, scratch4, callback, name, miss);
-  }
-
+void BaseLoadStubCompiler::GenerateLoadCallback(
+    Register reg,
+    Handle<ExecutableAccessorInfo> callback) {
   // Build AccessorInfo::args_ list on the stack and push property name below
   // the exit frame to make GC aware of them and store pointers to them.
-  __ push(receiver);
-  __ mov(scratch2, sp);  // scratch2 = AccessorInfo::args_
+  __ push(receiver());
+  __ mov(scratch2(), sp);  // scratch2 = AccessorInfo::args_
   if (heap()->InNewSpace(callback->data())) {
-    __ Move(scratch3, callback);
-    __ ldr(scratch3,
-           FieldMemOperand(scratch3, ExecutableAccessorInfo::kDataOffset));
+    __ Move(scratch3(), callback);
+    __ ldr(scratch3(), FieldMemOperand(scratch3(),
+                                       ExecutableAccessorInfo::kDataOffset));
   } else {
-    __ Move(scratch3, Handle<Object>(callback->data(), isolate()));
+    __ Move(scratch3(), Handle<Object>(callback->data(),
+                                       callback->GetIsolate()));
   }
-  __ Push(reg, scratch3);
-  __ mov(scratch3, Operand(ExternalReference::isolate_address()));
-  __ Push(scratch3, name_reg);
+  __ Push(reg, scratch3());
+  __ mov(scratch3(), Operand(ExternalReference::isolate_address()));
+  __ Push(scratch3(), name());
   __ mov(r0, sp);  // r0 = Handle<String>
 
   const int kApiStackSpace = 1;
@@ -1296,7 +1294,7 @@ void StubCompiler::GenerateLoadCallback(
 
   // Create AccessorInfo instance on the stack above the exit frame with
   // scratch2 (internal::Object** args_) as the data.
-  __ str(scratch2, MemOperand(sp, 1 * kPointerSize));
+  __ str(scratch2(), MemOperand(sp, 1 * kPointerSize));
   __ add(r1, sp, Operand(1 * kPointerSize));  // r1 = AccessorInfo&
 
   const int kStackUnwindSpace = 5;
@@ -1310,21 +1308,14 @@ void StubCompiler::GenerateLoadCallback(
 }
 
 
-void StubCompiler::GenerateLoadInterceptor(Handle<JSObject> object,
-                                           Handle<JSObject> interceptor_holder,
-                                           LookupResult* lookup,
-                                           Register receiver,
-                                           Register name_reg,
-                                           Register scratch1,
-                                           Register scratch2,
-                                           Register scratch3,
-                                           Handle<String> name,
-                                           Label* miss) {
+void BaseLoadStubCompiler::GenerateLoadInterceptor(
+    Register holder_reg,
+    Handle<JSObject> object,
+    Handle<JSObject> interceptor_holder,
+    LookupResult* lookup,
+    Handle<String> name) {
   ASSERT(interceptor_holder->HasNamedInterceptor());
   ASSERT(!interceptor_holder->GetNamedInterceptor()->getter()->IsUndefined());
-
-  // Check that the receiver isn't a smi.
-  __ JumpIfSmi(receiver, miss);
 
   // So far the most popular follow ups for interceptor loads are FIELD
   // and CALLBACKS, so inline only them, other cases may be added
@@ -1346,17 +1337,14 @@ void StubCompiler::GenerateLoadInterceptor(Handle<JSObject> object,
     // Compile the interceptor call, followed by inline code to load the
     // property from further up the prototype chain if the call fails.
     // Check that the maps haven't changed.
-    Register holder_reg = CheckPrototypes(object, receiver, interceptor_holder,
-                                          scratch1, scratch2, scratch3,
-                                          name, miss);
-    ASSERT(holder_reg.is(receiver) || holder_reg.is(scratch1));
+    ASSERT(holder_reg.is(receiver()) || holder_reg.is(scratch1()));
 
     // Preserve the receiver register explicitly whenever it is different from
     // the holder and it is needed should the interceptor return without any
     // result. The CALLBACKS case needs the receiver to be passed into C++ code,
     // the FIELD case might cause a miss during the prototype check.
     bool must_perfrom_prototype_check = *interceptor_holder != lookup->holder();
-    bool must_preserve_receiver_reg = !receiver.is(holder_reg) &&
+    bool must_preserve_receiver_reg = !receiver().is(holder_reg) &&
         (lookup->type() == CALLBACKS || must_perfrom_prototype_check);
 
     // Save necessary data before invoking an interceptor.
@@ -1364,93 +1352,42 @@ void StubCompiler::GenerateLoadInterceptor(Handle<JSObject> object,
     {
       FrameScope frame_scope(masm(), StackFrame::INTERNAL);
       if (must_preserve_receiver_reg) {
-        __ Push(receiver, holder_reg, name_reg);
+        __ Push(receiver(), holder_reg, this->name());
       } else {
-        __ Push(holder_reg, name_reg);
+        __ Push(holder_reg, this->name());
       }
       // Invoke an interceptor.  Note: map checks from receiver to
       // interceptor's holder has been compiled before (see a caller
       // of this method.)
       CompileCallLoadPropertyWithInterceptor(masm(),
-                                             receiver,
+                                             receiver(),
                                              holder_reg,
-                                             name_reg,
+                                             this->name(),
                                              interceptor_holder);
       // Check if interceptor provided a value for property.  If it's
       // the case, return immediately.
       Label interceptor_failed;
-      __ LoadRoot(scratch1, Heap::kNoInterceptorResultSentinelRootIndex);
-      __ cmp(r0, scratch1);
+      __ LoadRoot(scratch1(), Heap::kNoInterceptorResultSentinelRootIndex);
+      __ cmp(r0, scratch1());
       __ b(eq, &interceptor_failed);
       frame_scope.GenerateLeaveFrame();
       __ Ret();
 
       __ bind(&interceptor_failed);
-      __ pop(name_reg);
+      __ pop(this->name());
       __ pop(holder_reg);
       if (must_preserve_receiver_reg) {
-        __ pop(receiver);
+        __ pop(receiver());
       }
       // Leave the internal frame.
     }
-    // Check that the maps from interceptor's holder to lookup's holder
-    // haven't changed.  And load lookup's holder into |holder| register.
-    if (must_perfrom_prototype_check) {
-      holder_reg = CheckPrototypes(interceptor_holder,
-                                   holder_reg,
-                                   Handle<JSObject>(lookup->holder()),
-                                   scratch1,
-                                   scratch2,
-                                   scratch3,
-                                   name,
-                                   miss);
-    }
 
-    if (lookup->IsField()) {
-      // We found FIELD property in prototype chain of interceptor's holder.
-      // Retrieve a field from field's holder.
-      GenerateFastPropertyLoad(masm(), r0, holder_reg,
-                               Handle<JSObject>(lookup->holder()),
-                               lookup->GetFieldIndex());
-      __ Ret();
-    } else {
-      // We found CALLBACKS property in prototype chain of interceptor's
-      // holder.
-      ASSERT(lookup->type() == CALLBACKS);
-      Handle<ExecutableAccessorInfo> callback(
-          ExecutableAccessorInfo::cast(lookup->GetCallbackObject()));
-      ASSERT(callback->getter() != NULL);
-
-      // Tail call to runtime.
-      // Important invariant in CALLBACKS case: the code above must be
-      // structured to never clobber |receiver| register.
-      __ Move(scratch2, callback);
-      // holder_reg is either receiver or scratch1.
-      if (!receiver.is(holder_reg)) {
-        ASSERT(scratch1.is(holder_reg));
-        __ Push(receiver, holder_reg);
-      } else {
-        __ push(receiver);
-        __ push(holder_reg);
-      }
-      __ ldr(scratch3,
-             FieldMemOperand(scratch2, ExecutableAccessorInfo::kDataOffset));
-      __ mov(scratch1, Operand(ExternalReference::isolate_address()));
-      __ Push(scratch3, scratch1, scratch2, name_reg);
-
-      ExternalReference ref =
-          ExternalReference(IC_Utility(IC::kLoadCallbackProperty),
-                            masm()->isolate());
-      __ TailCallExternalReference(ref, 6, 1);
-    }
+    GenerateLoadPostInterceptor(holder_reg, interceptor_holder, name, lookup);
   } else {  // !compile_followup_inline
     // Call the runtime system to load the interceptor.
     // Check that the maps haven't changed.
-    Register holder_reg = CheckPrototypes(object, receiver, interceptor_holder,
-                                          scratch1, scratch2, scratch3,
-                                          name, miss);
-    PushInterceptorArguments(masm(), receiver, holder_reg,
-                             name_reg, interceptor_holder);
+    PushInterceptorArguments(masm(), receiver(), holder_reg,
+                             this->name(), interceptor_holder);
 
     ExternalReference ref =
         ExternalReference(IC_Utility(IC::kLoadPropertyWithInterceptorForLoad),
@@ -2908,42 +2845,15 @@ Handle<Code> LoadStubCompiler::CompileLoadNonexistent(
     Handle<JSObject> last,
     Handle<String> name,
     Handle<GlobalObject> global) {
-  // ----------- S t a t e -------------
-  //  -- r0    : receiver
-  //  -- lr    : return address
-  // -----------------------------------
-  Label miss;
+  Label success;
 
-  // Check that receiver is not a smi.
-  __ JumpIfSmi(r0, &miss);
+  NonexistentHandlerFrontend(object, last, name, &success, global);
 
-
-  Register scratch = r1;
-
-  // Check the maps of the full prototype chain.
-  Register result =
-      CheckPrototypes(object, r0, last, r3, scratch, r4, name, &miss);
-
-  // If the last object in the prototype chain is a global object,
-  // check that the global property cell is empty.
-  if (!global.is_null()) {
-    GenerateCheckPropertyCell(masm(), global, name, scratch, &miss);
-  }
-
-  if (!last->HasFastProperties()) {
-    __ ldr(scratch, FieldMemOperand(result, HeapObject::kMapOffset));
-    __ ldr(scratch, FieldMemOperand(scratch, Map::kPrototypeOffset));
-    __ cmp(scratch, Operand(isolate()->factory()->null_value()));
-    __ b(ne, &miss);
-  }
-
+  __ bind(&success);
   // Return undefined if maps of the full prototype chain are still the
   // same and no global property with this name contains a value.
   __ LoadRoot(r0, Heap::kUndefinedValueRootIndex);
   __ Ret();
-
-  __ bind(&miss);
-  GenerateLoadMiss(masm(), Code::LOAD_IC);
 
   // Return the generated code.
   return GetCode(Code::NONEXISTENT, factory()->empty_string());
@@ -3009,48 +2919,16 @@ void LoadStubCompiler::GenerateLoadViaGetter(MacroAssembler* masm,
 #define __ ACCESS_MASM(masm())
 
 
-Handle<Code> LoadStubCompiler::CompileLoadViaGetter(
-    Handle<JSObject> receiver,
-    Handle<JSObject> holder,
-    Handle<String> name,
-    Handle<JSFunction> getter) {
-  // ----------- S t a t e -------------
-  //  -- r0    : receiver
-  //  -- r2    : name
-  //  -- lr    : return address
-  // -----------------------------------
-  Label miss;
-
-  // Check that the maps haven't changed.
-  __ JumpIfSmi(r0, &miss);
-  CheckPrototypes(receiver, r0, holder, r3, r4, r1, name, &miss);
-
-  GenerateLoadViaGetter(masm(), getter);
-
-  __ bind(&miss);
-  GenerateLoadMiss(masm(), Code::LOAD_IC);
-
-  // Return the generated code.
-  return GetCode(Code::CALLBACKS, name);
-}
-
-
 Handle<Code> LoadStubCompiler::CompileLoadGlobal(
     Handle<JSObject> object,
-    Handle<GlobalObject> holder,
+    Handle<GlobalObject> global,
     Handle<JSGlobalPropertyCell> cell,
     Handle<String> name,
     bool is_dont_delete) {
-  // ----------- S t a t e -------------
-  //  -- r0    : receiver
-  //  -- r2    : name
-  //  -- lr    : return address
-  // -----------------------------------
-  Label miss;
+  Label success, miss;
 
-  // Check that the map of the global has not changed.
-  __ JumpIfSmi(r0, &miss);
-  CheckPrototypes(object, r0, holder, r3, r4, r1, name, &miss);
+  HandlerFrontendHeader(object, receiver(), Handle<JSObject>::cast(global),
+                        name, &miss, PERFORM_INITIAL_CHECKS);
 
   // Get the value from the cell.
   __ mov(r3, Operand(cell));
@@ -3063,14 +2941,13 @@ Handle<Code> LoadStubCompiler::CompileLoadGlobal(
     __ b(eq, &miss);
   }
 
-  __ mov(r0, r4);
+  HandlerFrontendFooter(&success, &miss);
+  __ bind(&success);
+
   Counters* counters = masm()->isolate()->counters();
   __ IncrementCounter(counters->named_load_global_stub(), 1, r1, r3);
+  __ mov(r0, r4);
   __ Ret();
-
-  __ bind(&miss);
-  __ IncrementCounter(counters->named_load_global_stub_miss(), 1, r1, r3);
-  GenerateLoadMiss(masm(), Code::LOAD_IC);
 
   // Return the generated code.
   return GetCode(Code::NORMAL, name);

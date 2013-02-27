@@ -50,7 +50,6 @@ namespace internal {
   ICU(KeyedStoreIC_MissForceGeneric)                  \
   ICU(KeyedStoreIC_Slow)                              \
   /* Utilities for IC stubs. */                       \
-  ICU(LoadCallbackProperty)                           \
   ICU(StoreCallbackProperty)                          \
   ICU(LoadPropertyWithInterceptorOnly)                \
   ICU(LoadPropertyWithInterceptorForLoad)             \

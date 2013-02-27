@@ -1016,32 +1016,6 @@ void StubCache::CollectMatchingMaps(SmallMapList* types,
 // StubCompiler implementation.
 
 
-RUNTIME_FUNCTION(MaybeObject*, LoadCallbackProperty) {
-  ASSERT(args[0]->IsJSObject());
-  ASSERT(args[1]->IsJSObject());
-  ASSERT(args[3]->IsSmi());
-  ExecutableAccessorInfo* callback = ExecutableAccessorInfo::cast(args[4]);
-  Address getter_address = v8::ToCData<Address>(callback->getter());
-  v8::AccessorGetter fun = FUNCTION_CAST<v8::AccessorGetter>(getter_address);
-  ASSERT(fun != NULL);
-  ASSERT(callback->IsCompatibleReceiver(args[0]));
-  v8::AccessorInfo info(&args[0]);
-  HandleScope scope(isolate);
-  v8::Handle<v8::Value> result;
-  {
-    // Leaving JavaScript.
-    VMState state(isolate, EXTERNAL);
-    ExternalCallbackScope call_scope(isolate, getter_address);
-    result = fun(v8::Utils::ToLocal(args.at<String>(5)), info);
-  }
-  RETURN_IF_SCHEDULED_EXCEPTION(isolate);
-  if (result.IsEmpty()) return HEAP->undefined_value();
-  Handle<Object> result_internal = v8::Utils::OpenHandle(*result);
-  result_internal->VerifyApiCallResultType();
-  return *result_internal;
-}
-
-
 RUNTIME_FUNCTION(MaybeObject*, StoreCallbackProperty) {
   JSObject* recv = JSObject::cast(args[0]);
   ExecutableAccessorInfo* callback = ExecutableAccessorInfo::cast(args[1]);
@@ -1409,40 +1383,53 @@ void StubCompiler::LookupPostInterceptor(Handle<JSObject> holder,
 #define __ ACCESS_MASM(masm())
 
 
+Register BaseLoadStubCompiler::HandlerFrontendHeader(Handle<JSObject> object,
+                                                     Register object_reg,
+                                                     Handle<JSObject> holder,
+                                                     Handle<String> name,
+                                                     Label* miss,
+                                                     FrontendCheckType check) {
+  if (check == PERFORM_INITIAL_CHECKS) {
+    GenerateNameCheck(name, this->name(), miss);
+    // Check that the receiver isn't a smi.
+    __ JumpIfSmi(object_reg, miss);
+  }
+
+  // Check the prototype chain.
+  return CheckPrototypes(object, object_reg, holder,
+                         scratch1(), scratch2(), scratch3(),
+                         name, miss);
+}
+
+
+Register BaseLoadStubCompiler::HandlerFrontend(Handle<JSObject> object,
+                                               Register object_reg,
+                                               Handle<JSObject> holder,
+                                               Handle<String> name,
+                                               Label* success,
+                                               FrontendCheckType check) {
+  Label miss;
+
+  Register reg = HandlerFrontendHeader(
+      object, object_reg, holder, name, &miss, check);
+
+  HandlerFrontendFooter(success, &miss);
+  return reg;
+}
+
+
 Handle<Code> BaseLoadStubCompiler::CompileLoadField(Handle<JSObject> object,
                                                     Handle<JSObject> holder,
                                                     Handle<String> name,
                                                     PropertyIndex index) {
-  Label miss;
-
-  GenerateNameCheck(name, this->name(), &miss);
-  GenerateLoadField(object, holder, receiver(),
-                    scratch1(), scratch2(), scratch3(),
-                    index, name, &miss);
-  __ bind(&miss);
-  GenerateLoadMiss(masm(), kind());
+  Label success;
+  Register reg = HandlerFrontend(object, receiver(), holder, name,
+                                 &success, PERFORM_INITIAL_CHECKS);
+  __ bind(&success);
+  GenerateLoadField(reg, holder, index);
 
   // Return the generated code.
   return GetCode(Code::FIELD, name);
-}
-
-
-Handle<Code> BaseLoadStubCompiler::CompileLoadCallback(
-    Handle<JSObject> object,
-    Handle<JSObject> holder,
-    Handle<String> name,
-    Handle<ExecutableAccessorInfo> callback) {
-  Label miss;
-
-  GenerateNameCheck(name, this->name(), &miss);
-  GenerateLoadCallback(object, holder, receiver(), this->name(),
-                       scratch1(), scratch2(), scratch3(), scratch4(),
-                       callback, name, &miss);
-  __ bind(&miss);
-  GenerateLoadMiss(masm(), kind());
-
-  // Return the generated code.
-  return GetCode(Code::CALLBACKS, name);
 }
 
 
@@ -1451,17 +1438,32 @@ Handle<Code> BaseLoadStubCompiler::CompileLoadConstant(
     Handle<JSObject> holder,
     Handle<String> name,
     Handle<JSFunction> value) {
-  Label miss;
-
-  GenerateNameCheck(name, this->name(), &miss);
-  GenerateLoadConstant(object, holder, receiver(),
-                       scratch1(), scratch2(), scratch3(),
-                       value, name, &miss);
-  __ bind(&miss);
-  GenerateLoadMiss(masm(), kind());
+  Label success;
+  HandlerFrontend(object, receiver(), holder, name,
+                  &success, PERFORM_INITIAL_CHECKS);
+  __ bind(&success);
+  GenerateLoadConstant(value);
 
   // Return the generated code.
   return GetCode(Code::CONSTANT_FUNCTION, name);
+}
+
+
+Handle<Code> BaseLoadStubCompiler::CompileLoadCallback(
+    Handle<JSObject> object,
+    Handle<JSObject> holder,
+    Handle<String> name,
+    Handle<ExecutableAccessorInfo> callback) {
+  Label success;
+
+  Register reg = CallbackHandlerFrontend(
+      object, receiver(), holder, name, &success,
+      PERFORM_INITIAL_CHECKS, callback);
+  __ bind(&success);
+  GenerateLoadCallback(reg, callback);
+
+  // Return the generated code.
+  return GetCode(Code::CALLBACKS, name);
 }
 
 
@@ -1469,23 +1471,68 @@ Handle<Code> BaseLoadStubCompiler::CompileLoadInterceptor(
     Handle<JSObject> object,
     Handle<JSObject> holder,
     Handle<String> name) {
-  Label miss;
+  Label success;
 
   LookupResult lookup(isolate());
   LookupPostInterceptor(holder, name, &lookup);
 
-  GenerateNameCheck(name, this->name(), &miss);
+  Register reg = HandlerFrontend(object, receiver(), holder, name,
+                                 &success, PERFORM_INITIAL_CHECKS);
+  __ bind(&success);
   // TODO(368): Compile in the whole chain: all the interceptors in
   // prototypes and ultimate answer.
-  GenerateLoadInterceptor(object, holder, &lookup, receiver(), this->name(),
-                          scratch1(), scratch2(), scratch3(),
-                          name, &miss);
-
-  __ bind(&miss);
-  GenerateLoadMiss(masm(), kind());
+  GenerateLoadInterceptor(reg, object, holder, &lookup, name);
 
   // Return the generated code.
   return GetCode(Code::INTERCEPTOR, name);
+}
+
+
+void BaseLoadStubCompiler::GenerateLoadPostInterceptor(
+    Register interceptor_reg,
+    Handle<JSObject> interceptor_holder,
+    Handle<String> name,
+    LookupResult* lookup) {
+  Label success;
+  Handle<JSObject> holder(lookup->holder());
+  if (lookup->IsField()) {
+    // We found FIELD property in prototype chain of interceptor's holder.
+    // Retrieve a field from field's holder.
+    Register reg = HandlerFrontend(interceptor_holder, interceptor_reg, holder,
+                                   name, &success, SKIP_INITIAL_CHECKS);
+    __ bind(&success);
+    GenerateLoadField(reg, holder, lookup->GetFieldIndex());
+  } else {
+    // We found CALLBACKS property in prototype chain of interceptor's
+    // holder.
+    ASSERT(lookup->type() == CALLBACKS);
+    Handle<ExecutableAccessorInfo> callback(
+        ExecutableAccessorInfo::cast(lookup->GetCallbackObject()));
+    ASSERT(callback->getter() != NULL);
+
+    Register reg = CallbackHandlerFrontend(
+        interceptor_holder, interceptor_reg, holder,
+        name, &success, SKIP_INITIAL_CHECKS, callback);
+    __ bind(&success);
+    GenerateLoadCallback(reg, callback);
+  }
+}
+
+
+Handle<Code> LoadStubCompiler::CompileLoadViaGetter(
+    Handle<JSObject> object,
+    Handle<JSObject> holder,
+    Handle<String> name,
+    Handle<JSFunction> getter) {
+  Label success;
+  HandlerFrontend(object, receiver(), holder, name,
+                  &success, PERFORM_INITIAL_CHECKS);
+
+  __ bind(&success);
+  GenerateLoadViaGetter(masm(), getter);
+
+  // Return the generated code.
+  return GetCode(Code::CALLBACKS, name);
 }
 
 

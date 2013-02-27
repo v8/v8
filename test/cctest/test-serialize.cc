@@ -108,8 +108,6 @@ TEST(ExternalReferenceEncoder) {
            Encode(encoder, Builtins::kArrayCode));
   CHECK_EQ(make_code(v8::internal::RUNTIME_FUNCTION, Runtime::kAbort),
            Encode(encoder, Runtime::kAbort));
-  CHECK_EQ(make_code(IC_UTILITY, IC::kLoadCallbackProperty),
-           Encode(encoder, IC_Utility(IC::kLoadCallbackProperty)));
   ExternalReference keyed_load_function_prototype =
       ExternalReference(isolate->counters()->keyed_load_function_prototype());
   CHECK_EQ(make_code(STATS_COUNTER, Counters::k_keyed_load_function_prototype),
@@ -148,8 +146,6 @@ TEST(ExternalReferenceDecoder) {
   CHECK_EQ(AddressOf(Runtime::kAbort),
            decoder.Decode(make_code(v8::internal::RUNTIME_FUNCTION,
                                     Runtime::kAbort)));
-  CHECK_EQ(AddressOf(IC_Utility(IC::kLoadCallbackProperty)),
-           decoder.Decode(make_code(IC_UTILITY, IC::kLoadCallbackProperty)));
   ExternalReference keyed_load_function =
       ExternalReference(isolate->counters()->keyed_load_function_prototype());
   CHECK_EQ(keyed_load_function.address(),
