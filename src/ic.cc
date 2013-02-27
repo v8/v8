@@ -174,16 +174,17 @@ static bool TryRemoveInvalidPrototypeDependentStub(Code* target,
   InlineCacheHolderFlag cache_holder =
       Code::ExtractCacheHolderFromFlags(target->flags());
 
+  Isolate* isolate = target->GetIsolate();
   if (cache_holder == OWN_MAP && !receiver->IsJSObject()) {
     // The stub was generated for JSObject but called for non-JSObject.
     // IC::GetCodeCacheHolder is not applicable.
     return false;
   } else if (cache_holder == PROTOTYPE_MAP &&
-             receiver->GetPrototype()->IsNull()) {
+             receiver->GetPrototype(isolate)->IsNull()) {
     // IC::GetCodeCacheHolder is not applicable.
     return false;
   }
-  Map* map = IC::GetCodeCacheHolder(receiver, cache_holder)->map();
+  Map* map = IC::GetCodeCacheHolder(isolate, receiver, cache_holder)->map();
 
   // Decide whether the inline cache failed because of changes to the
   // receiver itself or changes to one of its prototypes.
@@ -734,7 +735,7 @@ void CallICBase::UpdateCaches(LookupResult* lookup,
       // GenerateMonomorphicCacheProbe. It is not the map which holds the stub.
       Handle<JSObject> cache_object = object->IsJSObject()
           ? Handle<JSObject>::cast(object)
-          : Handle<JSObject>(JSObject::cast(object->GetPrototype()));
+          : Handle<JSObject>(JSObject::cast(object->GetPrototype(isolate())));
       // Update the stub cache.
       UpdateMegamorphicCache(cache_object->map(), *name, *code);
       break;

@@ -647,7 +647,7 @@ Handle<FixedArray> GetKeysInFixedArrayFor(Handle<JSReceiver> object,
   // Only collect keys if access is permitted.
   for (Handle<Object> p = object;
        *p != isolate->heap()->null_value();
-       p = Handle<Object>(p->GetPrototype(), isolate)) {
+       p = Handle<Object>(p->GetPrototype(isolate), isolate)) {
     if (p->IsJSProxy()) {
       Handle<JSProxy> proxy(JSProxy::cast(*p), isolate);
       Handle<Object> args[] = { proxy };

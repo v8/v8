@@ -42,8 +42,8 @@ namespace internal {
 
 
 template <class C>
-static C* FindInstanceOf(Object* obj) {
-  for (Object* cur = obj; !cur->IsNull(); cur = cur->GetPrototype()) {
+static C* FindInstanceOf(Isolate* isolate, Object* obj) {
+  for (Object* cur = obj; !cur->IsNull(); cur = cur->GetPrototype(isolate)) {
     if (Is<C>(cur)) return C::cast(cur);
   }
   return NULL;
@@ -77,7 +77,7 @@ MaybeObject* Accessors::ReadOnlySetAccessor(JSObject*, Object* value, void*) {
 
 MaybeObject* Accessors::ArrayGetLength(Object* object, void*) {
   // Traverse the prototype chain until we reach an array.
-  JSArray* holder = FindInstanceOf<JSArray>(object);
+  JSArray* holder = FindInstanceOf<JSArray>(Isolate::Current(), object);
   return holder == NULL ? Smi::FromInt(0) : holder->length();
 }
 
@@ -442,18 +442,19 @@ const AccessorDescriptor Accessors::ScriptEvalFromFunctionName = {
 
 
 MaybeObject* Accessors::FunctionGetPrototype(Object* object, void*) {
-  Heap* heap = Isolate::Current()->heap();
-  JSFunction* function = FindInstanceOf<JSFunction>(object);
-  if (function == NULL) return heap->undefined_value();
+  Isolate* isolate = Isolate::Current();
+  JSFunction* function = FindInstanceOf<JSFunction>(isolate, object);
+  if (function == NULL) return isolate->heap()->undefined_value();
   while (!function->should_have_prototype()) {
-    function = FindInstanceOf<JSFunction>(function->GetPrototype());
+    function = FindInstanceOf<JSFunction>(isolate, function->GetPrototype());
     // There has to be one because we hit the getter.
     ASSERT(function != NULL);
   }
 
   if (!function->has_prototype()) {
     Object* prototype;
-    { MaybeObject* maybe_prototype = heap->AllocateFunctionPrototype(function);
+    { MaybeObject* maybe_prototype
+          = isolate->heap()->AllocateFunctionPrototype(function);
       if (!maybe_prototype->ToObject(&prototype)) return maybe_prototype;
     }
     Object* result;
@@ -470,7 +471,7 @@ MaybeObject* Accessors::FunctionSetPrototype(JSObject* object,
                                              void*) {
   Isolate* isolate = object->GetIsolate();
   Heap* heap = isolate->heap();
-  JSFunction* function_raw = FindInstanceOf<JSFunction>(object);
+  JSFunction* function_raw = FindInstanceOf<JSFunction>(isolate, object);
   if (function_raw == NULL) return heap->undefined_value();
   if (!function_raw->should_have_prototype()) {
     // Since we hit this accessor, object will have no prototype property.
@@ -522,7 +523,8 @@ const AccessorDescriptor Accessors::FunctionPrototype = {
 
 
 MaybeObject* Accessors::FunctionGetLength(Object* object, void*) {
-  JSFunction* function = FindInstanceOf<JSFunction>(object);
+  Isolate* isolate = Isolate::Current();
+  JSFunction* function = FindInstanceOf<JSFunction>(isolate, object);
   if (function == NULL) return Smi::FromInt(0);
   // Check if already compiled.
   if (function->shared()->is_compiled()) {
@@ -530,7 +532,7 @@ MaybeObject* Accessors::FunctionGetLength(Object* object, void*) {
   }
   // If the function isn't compiled yet, the length is not computed correctly
   // yet. Compile it now and return the right length.
-  HandleScope scope(function->GetIsolate());
+  HandleScope scope(isolate);
   Handle<JSFunction> handle(function);
   if (JSFunction::CompileLazy(handle, KEEP_EXCEPTION)) {
     return Smi::FromInt(handle->shared()->length());
@@ -552,8 +554,11 @@ const AccessorDescriptor Accessors::FunctionLength = {
 
 
 MaybeObject* Accessors::FunctionGetName(Object* object, void*) {
-  JSFunction* holder = FindInstanceOf<JSFunction>(object);
-  return holder == NULL ? HEAP->undefined_value() : holder->shared()->name();
+  Isolate* isolate = Isolate::Current();
+  JSFunction* holder = FindInstanceOf<JSFunction>(isolate, object);
+  return holder == NULL
+      ? isolate->heap()->undefined_value()
+      : holder->shared()->name();
 }
 
 
@@ -599,7 +604,7 @@ static MaybeObject* ConstructArgumentsObjectForInlinedFunction(
 MaybeObject* Accessors::FunctionGetArguments(Object* object, void*) {
   Isolate* isolate = Isolate::Current();
   HandleScope scope(isolate);
-  JSFunction* holder = FindInstanceOf<JSFunction>(object);
+  JSFunction* holder = FindInstanceOf<JSFunction>(isolate, object);
   if (holder == NULL) return isolate->heap()->undefined_value();
   Handle<JSFunction> function(holder, isolate);
 
@@ -723,7 +728,7 @@ MaybeObject* Accessors::FunctionGetCaller(Object* object, void*) {
   Isolate* isolate = Isolate::Current();
   HandleScope scope(isolate);
   AssertNoAllocation no_alloc;
-  JSFunction* holder = FindInstanceOf<JSFunction>(object);
+  JSFunction* holder = FindInstanceOf<JSFunction>(isolate, object);
   if (holder == NULL) return isolate->heap()->undefined_value();
   if (holder->shared()->native()) return isolate->heap()->null_value();
   Handle<JSFunction> function(holder, isolate);
@@ -782,18 +787,19 @@ const AccessorDescriptor Accessors::FunctionCaller = {
 //
 
 
-static inline Object* GetPrototypeSkipHiddenPrototypes(Object* receiver) {
-  Object* current = receiver->GetPrototype();
+static inline Object* GetPrototypeSkipHiddenPrototypes(Isolate* isolate,
+                                                       Object* receiver) {
+  Object* current = receiver->GetPrototype(isolate);
   while (current->IsJSObject() &&
          JSObject::cast(current)->map()->is_hidden_prototype()) {
-    current = current->GetPrototype();
+    current = current->GetPrototype(isolate);
   }
   return current;
 }
 
 
 MaybeObject* Accessors::ObjectGetPrototype(Object* receiver, void*) {
-  return GetPrototypeSkipHiddenPrototypes(receiver);
+  return GetPrototypeSkipHiddenPrototypes(Isolate::Current(), receiver);
 }
 
 
@@ -809,14 +815,14 @@ MaybeObject* Accessors::ObjectSetPrototype(JSObject* receiver_raw,
   HandleScope scope(isolate);
   Handle<JSObject> receiver(receiver_raw);
   Handle<Object> value(value_raw, isolate);
-  Handle<Object> old_value(GetPrototypeSkipHiddenPrototypes(*receiver),
+  Handle<Object> old_value(GetPrototypeSkipHiddenPrototypes(isolate, *receiver),
                            isolate);
 
   MaybeObject* result = receiver->SetPrototype(*value, kSkipHiddenPrototypes);
   Handle<Object> hresult;
   if (!result->ToHandle(&hresult, isolate)) return result;
 
-  Handle<Object> new_value(GetPrototypeSkipHiddenPrototypes(*receiver),
+  Handle<Object> new_value(GetPrototypeSkipHiddenPrototypes(isolate, *receiver),
                            isolate);
   if (!new_value->SameValue(*old_value)) {
     JSObject::EnqueueChangeRecord(receiver, "prototype",

@@ -5989,8 +5989,10 @@ HInstruction* HOptimizedGraphBuilder::BuildStoreNamedField(
       proto = proto_result.holder();
     } else {
       // Otherwise, find the top prototype.
-      while (proto->GetPrototype()->IsJSObject()) proto = proto->GetPrototype();
-      ASSERT(proto->GetPrototype()->IsNull());
+      while (proto->GetPrototype(isolate())->IsJSObject()) {
+        proto = proto->GetPrototype(isolate());
+      }
+      ASSERT(proto->GetPrototype(isolate())->IsNull());
     }
     ASSERT(proto->IsJSObject());
     AddInstruction(new(zone()) HCheckPrototypeMaps(

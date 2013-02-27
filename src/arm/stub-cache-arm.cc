@@ -1945,8 +1945,9 @@ Handle<Code> CallStubCompiler::CompileStringCharCodeAtCall(
                                             r0,
                                             &miss);
   ASSERT(!object.is_identical_to(holder));
-  CheckPrototypes(Handle<JSObject>(JSObject::cast(object->GetPrototype())),
-                  r0, holder, r1, r3, r4, name, &miss);
+  CheckPrototypes(
+      Handle<JSObject>(JSObject::cast(object->GetPrototype(isolate()))),
+      r0, holder, r1, r3, r4, name, &miss);
 
   Register receiver = r1;
   Register index = r4;
@@ -2025,8 +2026,9 @@ Handle<Code> CallStubCompiler::CompileStringCharAtCall(
                                             r0,
                                             &miss);
   ASSERT(!object.is_identical_to(holder));
-  CheckPrototypes(Handle<JSObject>(JSObject::cast(object->GetPrototype())),
-                  r0, holder, r1, r3, r4, name, &miss);
+  CheckPrototypes(
+      Handle<JSObject>(JSObject::cast(object->GetPrototype(isolate()))),
+      r0, holder, r1, r3, r4, name, &miss);
 
   Register receiver = r0;
   Register index = r4;
@@ -2490,7 +2492,7 @@ void CallStubCompiler::CompileHandlerFrontend(Handle<Object> object,
       GenerateDirectLoadGlobalFunctionPrototype(
           masm(), Context::STRING_FUNCTION_INDEX, r0, &miss);
       CheckPrototypes(
-          Handle<JSObject>(JSObject::cast(object->GetPrototype())),
+          Handle<JSObject>(JSObject::cast(object->GetPrototype(isolate()))),
           r0, holder, r3, r1, r4, name, &miss);
       break;
 
@@ -2505,7 +2507,7 @@ void CallStubCompiler::CompileHandlerFrontend(Handle<Object> object,
       GenerateDirectLoadGlobalFunctionPrototype(
           masm(), Context::NUMBER_FUNCTION_INDEX, r0, &miss);
       CheckPrototypes(
-          Handle<JSObject>(JSObject::cast(object->GetPrototype())),
+          Handle<JSObject>(JSObject::cast(object->GetPrototype(isolate()))),
           r0, holder, r3, r1, r4, name, &miss);
       break;
     }
@@ -2523,7 +2525,7 @@ void CallStubCompiler::CompileHandlerFrontend(Handle<Object> object,
       GenerateDirectLoadGlobalFunctionPrototype(
           masm(), Context::BOOLEAN_FUNCTION_INDEX, r0, &miss);
       CheckPrototypes(
-          Handle<JSObject>(JSObject::cast(object->GetPrototype())),
+          Handle<JSObject>(JSObject::cast(object->GetPrototype(isolate()))),
           r0, holder, r3, r1, r4, name, &miss);
       break;
     }

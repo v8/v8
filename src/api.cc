@@ -2959,7 +2959,7 @@ Local<Value> v8::Object::GetPrototype() {
              return Local<v8::Value>());
   ENTER_V8(isolate);
   i::Handle<i::Object> self = Utils::OpenHandle(this);
-  i::Handle<i::Object> result(self->GetPrototype(), isolate);
+  i::Handle<i::Object> result(self->GetPrototype(isolate), isolate);
   return Utils::ToLocal(result);
 }
 

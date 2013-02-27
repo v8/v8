@@ -533,11 +533,13 @@ void StringStream::PrintFunction(Object* f, Object* receiver, Code** code) {
 void StringStream::PrintPrototype(JSFunction* fun, Object* receiver) {
   Object* name = fun->shared()->name();
   bool print_name = false;
-  Heap* heap = HEAP;
-  for (Object* p = receiver; p != heap->null_value(); p = p->GetPrototype()) {
+  Isolate* isolate = fun->GetIsolate();
+  for (Object* p = receiver;
+       p != isolate->heap()->null_value();
+       p = p->GetPrototype(isolate)) {
     if (p->IsJSObject()) {
       Object* key = JSObject::cast(p)->SlowReverseLookup(fun);
-      if (key != heap->undefined_value()) {
+      if (key != isolate->heap()->undefined_value()) {
         if (!name->IsString() ||
             !key->IsString() ||
             !String::cast(name)->Equals(String::cast(key))) {

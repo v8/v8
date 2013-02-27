@@ -135,7 +135,7 @@ void Object::Lookup(String* name, LookupResult* result) {
   if (IsJSReceiver()) {
     holder = this;
   } else {
-    Context* native_context = Isolate::Current()->context()->native_context();
+    Context* native_context = result->isolate()->context()->native_context();
     if (IsNumber()) {
       holder = native_context->number_function()->instance_prototype();
     } else if (IsString()) {
@@ -613,7 +613,8 @@ MaybeObject* Object::GetProperty(Object* receiver,
   // Make sure that the top context does not change when doing
   // callbacks or interceptor calls.
   AssertNoContextChange ncc;
-  Heap* heap = name->GetHeap();
+  Isolate* isolate = name->GetIsolate();
+  Heap* heap = isolate->heap();
 
   // Traverse the prototype chain from the current object (this) to
   // the holder and check for access rights. This avoids traversing the
@@ -626,8 +627,10 @@ MaybeObject* Object::GetProperty(Object* receiver,
     Object* last = result->IsProperty()
         ? result->holder()
         : Object::cast(heap->null_value());
-    ASSERT(this != this->GetPrototype());
-    for (Object* current = this; true; current = current->GetPrototype()) {
+    ASSERT(this != this->GetPrototype(isolate));
+    for (Object* current = this;
+         true;
+         current = current->GetPrototype(isolate)) {
       if (current->IsAccessCheckNeeded()) {
         // Check if we're allowed to read from the current object. Note
         // that even though we may not actually end up loading the named
@@ -687,18 +690,18 @@ MaybeObject* Object::GetProperty(Object* receiver,
 
 
 MaybeObject* Object::GetElementWithReceiver(Object* receiver, uint32_t index) {
-  Heap* heap = IsSmi()
-      ? Isolate::Current()->heap()
-      : HeapObject::cast(this)->GetHeap();
+  Isolate* isolate = IsSmi()
+      ? Isolate::Current()
+      : HeapObject::cast(this)->GetIsolate();
+  Heap* heap = isolate->heap();
   Object* holder = this;
 
   // Iterate up the prototype chain until an element is found or the null
   // prototype is encountered.
   for (holder = this;
        holder != heap->null_value();
-       holder = holder->GetPrototype()) {
+       holder = holder->GetPrototype(isolate)) {
     if (!holder->IsJSObject()) {
-      Isolate* isolate = heap->isolate();
       Context* native_context = isolate->context()->native_context();
       if (holder->IsNumber()) {
         holder = native_context->number_function()->instance_prototype();
@@ -744,10 +747,9 @@ MaybeObject* Object::GetElementWithReceiver(Object* receiver, uint32_t index) {
 }
 
 
-Object* Object::GetPrototype() {
+Object* Object::GetPrototype(Isolate* isolate) {
   if (IsSmi()) {
-    Heap* heap = Isolate::Current()->heap();
-    Context* context = heap->isolate()->context()->native_context();
+    Context* context = isolate->context()->native_context();
     return context->number_function()->instance_prototype();
   }
 
@@ -758,8 +760,7 @@ Object* Object::GetPrototype() {
   if (heap_object->IsJSReceiver()) {
     return heap_object->map()->prototype();
   }
-  Heap* heap = heap_object->GetHeap();
-  Context* context = heap->isolate()->context()->native_context();
+  Context* context = isolate->context()->native_context();
 
   if (heap_object->IsHeapNumber()) {
     return context->number_function()->instance_prototype();
@@ -770,7 +771,7 @@ Object* Object::GetPrototype() {
   if (heap_object->IsBoolean()) {
     return context->boolean_function()->instance_prototype();
   } else {
-    return heap->null_value();
+    return isolate->heap()->null_value();
   }
 }
 
@@ -2100,10 +2101,10 @@ MaybeObject* JSObject::SetElementWithCallbackSetterInPrototypes(
   Heap* heap = GetHeap();
   for (Object* pt = GetPrototype();
        pt != heap->null_value();
-       pt = pt->GetPrototype()) {
+       pt = pt->GetPrototype(GetIsolate())) {
     if (pt->IsJSProxy()) {
       String* name;
-      MaybeObject* maybe = GetHeap()->Uint32ToString(index);
+      MaybeObject* maybe = heap->Uint32ToString(index);
       if (!maybe->To<String>(&name)) {
         *found = true;  // Force abort
         return maybe;
@@ -2503,10 +2504,11 @@ void JSObject::LookupRealNamedProperty(String* name, LookupResult* result) {
 
 void JSObject::LookupRealNamedPropertyInPrototypes(String* name,
                                                    LookupResult* result) {
-  Heap* heap = GetHeap();
+  Isolate* isolate = GetIsolate();
+  Heap* heap = isolate->heap();
   for (Object* pt = GetPrototype();
        pt != heap->null_value();
-       pt = pt->GetPrototype()) {
+       pt = pt->GetPrototype(isolate)) {
     if (pt->IsJSProxy()) {
       return result->HandlerResult(JSProxy::cast(pt));
     }
@@ -8149,13 +8151,14 @@ bool SharedFunctionInfo::CanGenerateInlineConstructor(Object* prototype) {
     return false;
   }
 
-  Heap* heap = GetHeap();
+  Isolate* isolate = GetIsolate();
+  Heap* heap = isolate->heap();
 
   // Traverse the proposed prototype chain looking for properties of the
   // same names as are set by the inline constructor.
   for (Object* obj = prototype;
        obj != heap->null_value();
-       obj = obj->GetPrototype()) {
+       obj = obj->GetPrototype(isolate)) {
     JSReceiver* receiver = JSReceiver::cast(obj);
     for (int i = 0; i < this_property_assignments_count(); i++) {
       LookupResult result(heap->isolate());
@@ -9611,7 +9614,8 @@ MaybeObject* JSReceiver::SetPrototype(Object* value,
   int size = Size();
 #endif
 
-  Heap* heap = GetHeap();
+  Isolate* isolate = GetIsolate();
+  Heap* heap = isolate->heap();
   // Silently ignore the change if value is not a JSObject or null.
   // SpiderMonkey behaves this way.
   if (!value->IsJSReceiver() && !value->IsNull()) return value;
@@ -9625,22 +9629,24 @@ MaybeObject* JSReceiver::SetPrototype(Object* value,
   // or [[Extensible]] must not violate the invariants defined in the preceding
   // paragraph.
   if (!this->map()->is_extensible()) {
-    HandleScope scope(heap->isolate());
-    Handle<Object> handle(this, heap->isolate());
-    return heap->isolate()->Throw(
-        *FACTORY->NewTypeError("non_extensible_proto",
-                               HandleVector<Object>(&handle, 1)));
+    HandleScope scope(isolate);
+    Handle<Object> handle(this, isolate);
+    return isolate->Throw(
+        *isolate->factory()->NewTypeError("non_extensible_proto",
+                                          HandleVector<Object>(&handle, 1)));
   }
 
   // Before we can set the prototype we need to be sure
   // prototype cycles are prevented.
   // It is sufficient to validate that the receiver is not in the new prototype
   // chain.
-  for (Object* pt = value; pt != heap->null_value(); pt = pt->GetPrototype()) {
+  for (Object* pt = value;
+       pt != heap->null_value();
+       pt = pt->GetPrototype(isolate)) {
     if (JSReceiver::cast(pt) == this) {
       // Cycle detected.
-      HandleScope scope(heap->isolate());
-      return heap->isolate()->Throw(
+      HandleScope scope(isolate);
+      return isolate->Throw(
           *FACTORY->NewError("cyclic_proto", HandleVector<Object>(NULL, 0)));
     }
   }
@@ -9654,7 +9660,7 @@ MaybeObject* JSReceiver::SetPrototype(Object* value,
     while (current_proto->IsJSObject() &&
           JSReceiver::cast(current_proto)->map()->is_hidden_prototype()) {
       real_receiver = JSReceiver::cast(current_proto);
-      current_proto = current_proto->GetPrototype();
+      current_proto = current_proto->GetPrototype(isolate);
     }
   }
 

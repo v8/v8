@@ -129,7 +129,8 @@ class IC {
                                                             JSObject* holder);
   static inline InlineCacheHolderFlag GetCodeCacheForObject(JSObject* object,
                                                             JSObject* holder);
-  static inline JSObject* GetCodeCacheHolder(Object* object,
+  static inline JSObject* GetCodeCacheHolder(Isolate* isolate,
+                                             Object* object,
                                              InlineCacheHolderFlag holder);
 
  protected:

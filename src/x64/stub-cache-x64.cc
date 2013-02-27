@@ -1827,8 +1827,9 @@ Handle<Code> CallStubCompiler::CompileStringCharCodeAtCall(
                                             rax,
                                             &miss);
   ASSERT(!object.is_identical_to(holder));
-  CheckPrototypes(Handle<JSObject>(JSObject::cast(object->GetPrototype())),
-                  rax, holder, rbx, rdx, rdi, name, &miss);
+  CheckPrototypes(
+      Handle<JSObject>(JSObject::cast(object->GetPrototype(isolate()))),
+      rax, holder, rbx, rdx, rdi, name, &miss);
 
   Register receiver = rbx;
   Register index = rdi;
@@ -1905,8 +1906,9 @@ Handle<Code> CallStubCompiler::CompileStringCharAtCall(
                                             rax,
                                             &miss);
   ASSERT(!object.is_identical_to(holder));
-  CheckPrototypes(Handle<JSObject>(JSObject::cast(object->GetPrototype())),
-                  rax, holder, rbx, rdx, rdi, name, &miss);
+  CheckPrototypes(
+      Handle<JSObject>(JSObject::cast(object->GetPrototype(isolate()))),
+      rax, holder, rbx, rdx, rdi, name, &miss);
 
   Register receiver = rax;
   Register index = rdi;
@@ -2245,7 +2247,7 @@ void CallStubCompiler::CompileHandlerFrontend(Handle<Object> object,
       GenerateDirectLoadGlobalFunctionPrototype(
           masm(), Context::STRING_FUNCTION_INDEX, rax, &miss);
       CheckPrototypes(
-          Handle<JSObject>(JSObject::cast(object->GetPrototype())),
+          Handle<JSObject>(JSObject::cast(object->GetPrototype(isolate()))),
           rax, holder, rbx, rdx, rdi, name, &miss);
       break;
 
@@ -2260,7 +2262,7 @@ void CallStubCompiler::CompileHandlerFrontend(Handle<Object> object,
       GenerateDirectLoadGlobalFunctionPrototype(
           masm(), Context::NUMBER_FUNCTION_INDEX, rax, &miss);
       CheckPrototypes(
-          Handle<JSObject>(JSObject::cast(object->GetPrototype())),
+          Handle<JSObject>(JSObject::cast(object->GetPrototype(isolate()))),
           rax, holder, rbx, rdx, rdi, name, &miss);
       break;
     }
@@ -2276,7 +2278,7 @@ void CallStubCompiler::CompileHandlerFrontend(Handle<Object> object,
       GenerateDirectLoadGlobalFunctionPrototype(
           masm(), Context::BOOLEAN_FUNCTION_INDEX, rax, &miss);
       CheckPrototypes(
-          Handle<JSObject>(JSObject::cast(object->GetPrototype())),
+          Handle<JSObject>(JSObject::cast(object->GetPrototype(isolate()))),
           rax, holder, rbx, rdx, rdi, name, &miss);
       break;
     }

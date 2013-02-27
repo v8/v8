@@ -147,7 +147,8 @@ Handle<Code> StubCache::ComputeLoadField(Handle<String> name,
                                          PropertyIndex field) {
   InlineCacheHolderFlag cache_holder =
       IC::GetCodeCacheForObject(*receiver, *holder);
-  Handle<JSObject> map_holder(IC::GetCodeCacheHolder(*receiver, cache_holder));
+  Handle<JSObject> map_holder(
+      IC::GetCodeCacheHolder(isolate_, *receiver, cache_holder));
   Code::Flags flags = Code::ComputeMonomorphicFlags(Code::LOAD_IC, Code::FIELD);
   Handle<Object> probe(map_holder->map()->FindInCodeCache(*name, flags),
                        isolate_);
@@ -170,7 +171,8 @@ Handle<Code> StubCache::ComputeLoadCallback(
   ASSERT(v8::ToCData<Address>(callback->getter()) != 0);
   InlineCacheHolderFlag cache_holder =
       IC::GetCodeCacheForObject(*receiver, *holder);
-  Handle<JSObject> map_holder(IC::GetCodeCacheHolder(*receiver, cache_holder));
+  Handle<JSObject> map_holder(
+      IC::GetCodeCacheHolder(isolate_, *receiver, cache_holder));
   Code::Flags flags =
       Code::ComputeMonomorphicFlags(Code::LOAD_IC, Code::CALLBACKS);
   Handle<Object> probe(map_holder->map()->FindInCodeCache(*name, flags),
@@ -193,7 +195,8 @@ Handle<Code> StubCache::ComputeLoadViaGetter(Handle<String> name,
                                              Handle<JSFunction> getter) {
   InlineCacheHolderFlag cache_holder =
       IC::GetCodeCacheForObject(*receiver, *holder);
-  Handle<JSObject> map_holder(IC::GetCodeCacheHolder(*receiver, cache_holder));
+  Handle<JSObject> map_holder(
+      IC::GetCodeCacheHolder(isolate_, *receiver, cache_holder));
   Code::Flags flags =
       Code::ComputeMonomorphicFlags(Code::LOAD_IC, Code::CALLBACKS);
   Handle<Object> probe(map_holder->map()->FindInCodeCache(*name, flags),
@@ -216,7 +219,8 @@ Handle<Code> StubCache::ComputeLoadConstant(Handle<String> name,
                                             Handle<JSFunction> value) {
   InlineCacheHolderFlag cache_holder =
       IC::GetCodeCacheForObject(*receiver, *holder);
-  Handle<JSObject> map_holder(IC::GetCodeCacheHolder(*receiver, cache_holder));
+  Handle<JSObject> map_holder(
+      IC::GetCodeCacheHolder(isolate_, *receiver, cache_holder));
   Code::Flags flags =
       Code::ComputeMonomorphicFlags(Code::LOAD_IC, Code::CONSTANT_FUNCTION);
   Handle<Object> probe(map_holder->map()->FindInCodeCache(*name, flags),
@@ -238,7 +242,8 @@ Handle<Code> StubCache::ComputeLoadInterceptor(Handle<String> name,
                                                Handle<JSObject> holder) {
   InlineCacheHolderFlag cache_holder =
       IC::GetCodeCacheForObject(*receiver, *holder);
-  Handle<JSObject> map_holder(IC::GetCodeCacheHolder(*receiver, cache_holder));
+  Handle<JSObject> map_holder(
+      IC::GetCodeCacheHolder(isolate_, *receiver, cache_holder));
   Code::Flags flags =
       Code::ComputeMonomorphicFlags(Code::LOAD_IC, Code::INTERCEPTOR);
   Handle<Object> probe(map_holder->map()->FindInCodeCache(*name, flags),
@@ -267,7 +272,8 @@ Handle<Code> StubCache::ComputeLoadGlobal(Handle<String> name,
                                           bool is_dont_delete) {
   InlineCacheHolderFlag cache_holder =
       IC::GetCodeCacheForObject(*receiver, *holder);
-  Handle<JSObject> map_holder(IC::GetCodeCacheHolder(*receiver, cache_holder));
+  Handle<JSObject> map_holder(
+      IC::GetCodeCacheHolder(isolate_, *receiver, cache_holder));
   Code::Flags flags =
       Code::ComputeMonomorphicFlags(Code::LOAD_IC, Code::NORMAL);
   Handle<Object> probe(map_holder->map()->FindInCodeCache(*name, flags),
@@ -290,7 +296,8 @@ Handle<Code> StubCache::ComputeKeyedLoadField(Handle<String> name,
                                               PropertyIndex field) {
   InlineCacheHolderFlag cache_holder =
       IC::GetCodeCacheForObject(*receiver, *holder);
-  Handle<JSObject> map_holder(IC::GetCodeCacheHolder(*receiver, cache_holder));
+  Handle<JSObject> map_holder(
+      IC::GetCodeCacheHolder(isolate_, *receiver, cache_holder));
   Code::Flags flags =
       Code::ComputeMonomorphicFlags(Code::KEYED_LOAD_IC, Code::FIELD);
   Handle<Object> probe(map_holder->map()->FindInCodeCache(*name, flags),
@@ -312,7 +319,8 @@ Handle<Code> StubCache::ComputeKeyedLoadConstant(Handle<String> name,
                                                  Handle<JSFunction> value) {
   InlineCacheHolderFlag cache_holder =
       IC::GetCodeCacheForObject(*receiver, *holder);
-  Handle<JSObject> map_holder(IC::GetCodeCacheHolder(*receiver, cache_holder));
+  Handle<JSObject> map_holder(
+      IC::GetCodeCacheHolder(isolate_, *receiver, cache_holder));
   Code::Flags flags = Code::ComputeMonomorphicFlags(Code::KEYED_LOAD_IC,
                                                     Code::CONSTANT_FUNCTION);
   Handle<Object> probe(map_holder->map()->FindInCodeCache(*name, flags),
@@ -334,7 +342,8 @@ Handle<Code> StubCache::ComputeKeyedLoadInterceptor(Handle<String> name,
                                                     Handle<JSObject> holder) {
   InlineCacheHolderFlag cache_holder =
       IC::GetCodeCacheForObject(*receiver, *holder);
-  Handle<JSObject> map_holder(IC::GetCodeCacheHolder(*receiver, cache_holder));
+  Handle<JSObject> map_holder(
+      IC::GetCodeCacheHolder(isolate_, *receiver, cache_holder));
   Code::Flags flags =
       Code::ComputeMonomorphicFlags(Code::KEYED_LOAD_IC, Code::INTERCEPTOR);
   Handle<Object> probe(map_holder->map()->FindInCodeCache(*name, flags),
@@ -357,7 +366,8 @@ Handle<Code> StubCache::ComputeKeyedLoadCallback(
     Handle<ExecutableAccessorInfo> callback) {
   InlineCacheHolderFlag cache_holder =
       IC::GetCodeCacheForObject(*receiver, *holder);
-  Handle<JSObject> map_holder(IC::GetCodeCacheHolder(*receiver, cache_holder));
+  Handle<JSObject> map_holder(
+      IC::GetCodeCacheHolder(isolate_, *receiver, cache_holder));
   Code::Flags flags =
       Code::ComputeMonomorphicFlags(Code::KEYED_LOAD_IC, Code::CALLBACKS);
   Handle<Object> probe(map_holder->map()->FindInCodeCache(*name, flags),
@@ -568,7 +578,8 @@ Handle<Code> StubCache::ComputeCallConstant(int argc,
   // Compute the check type and the map.
   InlineCacheHolderFlag cache_holder =
       IC::GetCodeCacheForObject(*object, *holder);
-  Handle<JSObject> map_holder(IC::GetCodeCacheHolder(*object, cache_holder));
+  Handle<JSObject> map_holder(
+      IC::GetCodeCacheHolder(isolate_, *object, cache_holder));
 
   // Compute check type based on receiver/holder.
   CheckType check = RECEIVER_MAP_CHECK;
@@ -618,7 +629,8 @@ Handle<Code> StubCache::ComputeCallField(int argc,
   // Compute the check type and the map.
   InlineCacheHolderFlag cache_holder =
       IC::GetCodeCacheForObject(*object, *holder);
-  Handle<JSObject> map_holder(IC::GetCodeCacheHolder(*object, cache_holder));
+  Handle<JSObject> map_holder(
+      IC::GetCodeCacheHolder(isolate_, *object, cache_holder));
 
   // TODO(1233596): We cannot do receiver map check for non-JS objects
   // because they may be represented as immediates without a
@@ -656,7 +668,8 @@ Handle<Code> StubCache::ComputeCallInterceptor(int argc,
   // Compute the check type and the map.
   InlineCacheHolderFlag cache_holder =
       IC::GetCodeCacheForObject(*object, *holder);
-  Handle<JSObject> map_holder(IC::GetCodeCacheHolder(*object, cache_holder));
+  Handle<JSObject> map_holder(
+      IC::GetCodeCacheHolder(isolate_, *object, cache_holder));
 
   // TODO(1233596): We cannot do receiver map check for non-JS objects
   // because they may be represented as immediates without a
@@ -695,7 +708,8 @@ Handle<Code> StubCache::ComputeCallGlobal(int argc,
                                           Handle<JSFunction> function) {
   InlineCacheHolderFlag cache_holder =
       IC::GetCodeCacheForObject(*receiver, *holder);
-  Handle<JSObject> map_holder(IC::GetCodeCacheHolder(*receiver, cache_holder));
+  Handle<JSObject> map_holder(
+      IC::GetCodeCacheHolder(isolate_, *receiver, cache_holder));
   Code::Flags flags =
       Code::ComputeMonomorphicFlags(kind, Code::NORMAL, extra_state,
                                     cache_holder, argc);

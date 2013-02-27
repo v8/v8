@@ -959,7 +959,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetPrototype) {
       isolate->ReportFailedAccessCheck(JSObject::cast(obj), v8::ACCESS_GET);
       return isolate->heap()->undefined_value();
     }
-    obj = obj->GetPrototype();
+    obj = obj->GetPrototype(isolate);
   } while (obj->IsJSObject() &&
            JSObject::cast(obj)->map()->is_hidden_prototype());
   return obj;
@@ -973,7 +973,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_IsInPrototypeChain) {
   Object* O = args[0];
   Object* V = args[1];
   while (true) {
-    Object* prototype = V->GetPrototype();
+    Object* prototype = V->GetPrototype(isolate);
     if (prototype->IsNull()) return isolate->heap()->false_value();
     if (O == prototype) return isolate->heap()->true_value();
     V = prototype;
@@ -3899,7 +3899,7 @@ MaybeObject* Runtime::GetElementOrCharAt(Isolate* isolate,
   }
 
   if (object->IsString() || object->IsNumber() || object->IsBoolean()) {
-    return object->GetPrototype()->GetElement(index);
+    return object->GetPrototype(isolate)->GetElement(index);
   }
 
   return object->GetElement(index);
@@ -12039,7 +12039,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugEvaluate) {
   // Skip the global proxy as it has no properties and always delegates to the
   // real global object.
   if (result->IsJSGlobalProxy()) {
-    result = Handle<JSObject>(JSObject::cast(result->GetPrototype()));
+    result = Handle<JSObject>(JSObject::cast(result->GetPrototype(isolate)));
   }
 
   return *result;
@@ -12153,7 +12153,8 @@ static int DebugReferencedBy(HeapIterator* iterator,
                              Object* instance_filter, int max_references,
                              FixedArray* instances, int instances_size,
                              JSFunction* arguments_function) {
-  NoHandleAllocation ha(target->GetIsolate());
+  Isolate* isolate = target->GetIsolate();
+  NoHandleAllocation ha(isolate);
   AssertNoAllocation no_alloc;
 
   // Iterate the heap.
@@ -12179,7 +12180,7 @@ static int DebugReferencedBy(HeapIterator* iterator,
         if (!instance_filter->IsUndefined()) {
           Object* V = obj;
           while (true) {
-            Object* prototype = V->GetPrototype();
+            Object* prototype = V->GetPrototype(isolate);
             if (prototype->IsNull()) {
               break;
             }
@@ -13249,7 +13250,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_UnwrapGlobalProxy) {
   ASSERT(args.length() == 1);
   Object* object = args[0];
   if (object->IsJSGlobalProxy()) {
-    object = object->GetPrototype();
+    object = object->GetPrototype(isolate);
     if (object->IsNull()) return isolate->heap()->undefined_value();
   }
   return object;

@@ -1192,7 +1192,7 @@ bool Isolate::IsErrorObject(Handle<Object> obj) {
       js_builtins_object()->GetPropertyNoExceptionThrown(error_key);
 
   for (Object* prototype = *obj; !prototype->IsNull();
-       prototype = prototype->GetPrototype()) {
+       prototype = prototype->GetPrototype(this)) {
     if (!prototype->IsJSObject()) return false;
     if (JSObject::cast(prototype)->map()->constructor() == error_constructor) {
       return true;
