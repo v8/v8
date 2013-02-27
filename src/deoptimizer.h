@@ -675,7 +675,7 @@ class Translation BASE_EMBEDDED {
   void StoreUint32StackSlot(int index);
   void StoreDoubleStackSlot(int index);
   void StoreLiteral(int literal_id);
-  void StoreArgumentsObject(int args_index, int args_length);
+  void StoreArgumentsObject(bool args_known, int args_index, int args_length);
   void MarkDuplicate();
 
   Zone* zone() const { return zone_; }

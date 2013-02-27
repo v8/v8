@@ -8980,8 +8980,7 @@ void DeoptimizationInputData::DeoptimizationInputDataPrint(FILE* out) {
 
         case Translation::UINT32_REGISTER: {
           int reg_code = iterator.Next();
-          PrintF(out,
-                 "{input=%s (unsigned)}",
+          PrintF(out, "{input=%s (unsigned)}",
                  converter.NameOfCPURegister(reg_code));
           break;
         }
@@ -9024,9 +9023,11 @@ void DeoptimizationInputData::DeoptimizationInputDataPrint(FILE* out) {
         }
 
         case Translation::ARGUMENTS_OBJECT: {
+          bool args_known = iterator.Next();
           int args_index = iterator.Next();
           int args_length = iterator.Next();
-          PrintF(out, "{index=%d, length=%d}", args_index, args_length);
+          PrintF(out, "{index=%d, length=%d, known=%d}",
+                 args_index, args_length, args_known);
           break;
         }
       }
