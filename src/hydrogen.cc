@@ -2706,7 +2706,8 @@ void HGlobalValueNumberer::AnalyzeGraph() {
           map->Add(instr, zone());
         }
       }
-      if (instr->CheckFlag(HValue::kTrackSideEffectDominators)) {
+      if (instr->IsLinked() &&
+          instr->CheckFlag(HValue::kTrackSideEffectDominators)) {
         for (int i = 0; i < kNumberOfTrackedSideEffects; i++) {
           HValue* other = dominators->at(i);
           GVNFlag changes_flag = HValue::ChangesFlagFromInt(i);
