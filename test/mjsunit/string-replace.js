@@ -225,7 +225,7 @@ var side_effect_flag = false;
 var replace_obj_side_effects = {
     toString: function() { side_effect_flag = true; return "x" }
 }
-assertEquals("abc", "abc".replace(/z/g, function() { return "x"; }));
+assertEquals("abc", "abc".replace(/z/g, replace_obj_side_effects));
 assertTrue(side_effect_flag);  // Side effect triggers even without a match.
 
 var regexp99pattern = "";
