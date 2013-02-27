@@ -407,23 +407,13 @@ Operand LCodeGen::ToOperand(LOperand* op) const {
   if (op->IsRegister()) return Operand(ToRegister(op));
   if (op->IsDoubleRegister()) return Operand(ToDoubleRegister(op));
   ASSERT(op->IsStackSlot() || op->IsDoubleStackSlot());
-  int index = op->index();
-  if (index >= 0) {
-    // Local or spill slot. Skip the frame pointer, function, and
-    // context in the fixed part of the frame.
-    return Operand(ebp, -(index + 3) * kPointerSize);
-  } else {
-    // Incoming parameter. Skip the return address.
-    return Operand(ebp, -(index - 1) * kPointerSize);
-  }
+  return Operand(ebp, StackSlotOffset(op->index()));
 }
 
 
 Operand LCodeGen::HighOperand(LOperand* op) {
   ASSERT(op->IsDoubleStackSlot());
-  int index = op->index();
-  int offset = (index >= 0) ? index + 3 : index - 1;
-  return Operand(ebp, -offset * kPointerSize);
+  return Operand(ebp, StackSlotOffset(op->index()) + kPointerSize);
 }
 
 

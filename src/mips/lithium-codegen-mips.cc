@@ -433,30 +433,13 @@ MemOperand LCodeGen::ToMemOperand(LOperand* op) const {
   ASSERT(!op->IsRegister());
   ASSERT(!op->IsDoubleRegister());
   ASSERT(op->IsStackSlot() || op->IsDoubleStackSlot());
-  int index = op->index();
-  if (index >= 0) {
-    // Local or spill slot. Skip the frame pointer, function, and
-    // context in the fixed part of the frame.
-    return MemOperand(fp, -(index + 3) * kPointerSize);
-  } else {
-    // Incoming parameter. Skip the return address.
-    return MemOperand(fp, -(index - 1) * kPointerSize);
-  }
+  return MemOperand(fp, StackSlotOffset(op->index()));
 }
 
 
 MemOperand LCodeGen::ToHighMemOperand(LOperand* op) const {
   ASSERT(op->IsDoubleStackSlot());
-  int index = op->index();
-  if (index >= 0) {
-    // Local or spill slot. Skip the frame pointer, function, context,
-    // and the first word of the double in the fixed part of the frame.
-    return MemOperand(fp, -(index + 3) * kPointerSize + kPointerSize);
-  } else {
-    // Incoming parameter. Skip the return address and the first word of
-    // the double.
-    return MemOperand(fp, -(index - 1) * kPointerSize + kPointerSize);
-  }
+  return MemOperand(fp, StackSlotOffset(op->index()) + kPointerSize);
 }
 
 

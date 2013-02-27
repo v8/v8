@@ -705,6 +705,7 @@ class LChunk: public ZoneObject {
 
 
 int ElementsKindToShiftSize(ElementsKind elements_kind);
+int StackSlotOffset(int index);
 
 
 } }  // namespace v8::internal
