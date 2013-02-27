@@ -1,3 +1,11 @@
+2013-02-27: Version 3.17.5
+
+        Made __proto__ a foreign callback on Object.prototype.
+        (issue 621, issue 1949 and issue 2441)
+
+        Performance and stability improvements on all platforms.
+
+
 2013-02-25: Version 3.17.4
 
         Performance and stability improvements on all platforms.
