@@ -136,7 +136,7 @@ int SystemThreadManager::NumberOfParallelSystemThreads(
   int number_of_threads = Min(OS::NumberOfCores(), kMaxThreads);
   ASSERT(number_of_threads > 0);
   if (number_of_threads ==  1) {
-    return 1;
+    return 0;
   }
   if (type == PARALLEL_SWEEPING) {
     return number_of_threads;
@@ -2173,6 +2173,8 @@ bool Isolate::Init(Deserializer* des) {
       marking_thread_[i] = new MarkingThread(this);
       marking_thread_[i]->Start();
     }
+  } else {
+    FLAG_parallel_marking = false;
   }
 
   if (FLAG_sweeper_threads == 0) {
@@ -2192,6 +2194,9 @@ bool Isolate::Init(Deserializer* des) {
       sweeper_thread_[i] = new SweeperThread(this);
       sweeper_thread_[i]->Start();
     }
+  } else {
+    FLAG_concurrent_sweeping = false;
+    FLAG_parallel_sweeping = false;
   }
   return true;
 }
