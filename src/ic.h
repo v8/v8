@@ -709,7 +709,7 @@ class UnaryOpIC: public IC {
   enum TypeInfo {
     UNINITIALIZED,
     SMI,
-    HEAP_NUMBER,
+    NUMBER,
     GENERIC
   };
 
@@ -734,7 +734,7 @@ class BinaryOpIC: public IC {
     UNINITIALIZED,
     SMI,
     INT32,
-    HEAP_NUMBER,
+    NUMBER,
     ODDBALL,
     STRING,  // Only used for addition operation.
     GENERIC
@@ -752,14 +752,20 @@ class BinaryOpIC: public IC {
 
 class CompareIC: public IC {
  public:
+  // The type/state lattice is defined by the following inequations:
+  //   UNINITIALIZED < ...
+  //   ... < GENERIC
+  //   SMI < NUMBER
+  //   SYMBOL < STRING
+  //   KNOWN_OBJECT < OBJECT
   enum State {
     UNINITIALIZED,
     SMI,
-    HEAP_NUMBER,
+    NUMBER,
     SYMBOL,
     STRING,
-    OBJECT,
-    KNOWN_OBJECTS,
+    OBJECT,         // JSObject
+    KNOWN_OBJECT,   // JSObject with specific map (faster check)
     GENERIC
   };
 

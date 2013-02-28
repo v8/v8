@@ -193,8 +193,8 @@ void BinaryOpStub::Generate(MacroAssembler* masm) {
     case BinaryOpIC::INT32:
       GenerateInt32Stub(masm);
       break;
-    case BinaryOpIC::HEAP_NUMBER:
-      GenerateHeapNumberStub(masm);
+    case BinaryOpIC::NUMBER:
+      GenerateNumberStub(masm);
       break;
     case BinaryOpIC::ODDBALL:
       GenerateOddballStub(masm);
@@ -364,8 +364,8 @@ void ICCompareStub::Generate(MacroAssembler* masm) {
     case CompareIC::SMI:
       GenerateSmis(masm);
       break;
-    case CompareIC::HEAP_NUMBER:
-      GenerateHeapNumbers(masm);
+    case CompareIC::NUMBER:
+      GenerateNumbers(masm);
       break;
     case CompareIC::STRING:
       GenerateStrings(masm);
@@ -376,7 +376,7 @@ void ICCompareStub::Generate(MacroAssembler* masm) {
     case CompareIC::OBJECT:
       GenerateObjects(masm);
       break;
-    case CompareIC::KNOWN_OBJECTS:
+    case CompareIC::KNOWN_OBJECT:
       ASSERT(*known_map_ != NULL);
       GenerateKnownObjects(masm);
       break;

@@ -120,9 +120,9 @@ class UnaryOpStub: public PlatformCodeStub {
   void GenerateSmiCodeSub(MacroAssembler* masm, Label* non_smi, Label* slow);
   void GenerateSmiCodeBitNot(MacroAssembler* masm, Label* slow);
 
-  void GenerateHeapNumberStub(MacroAssembler* masm);
-  void GenerateHeapNumberStubSub(MacroAssembler* masm);
-  void GenerateHeapNumberStubBitNot(MacroAssembler* masm);
+  void GenerateNumberStub(MacroAssembler* masm);
+  void GenerateNumberStubSub(MacroAssembler* masm);
+  void GenerateNumberStubBitNot(MacroAssembler* masm);
   void GenerateHeapNumberCodeSub(MacroAssembler* masm, Label* slow);
   void GenerateHeapNumberCodeBitNot(MacroAssembler* masm, Label* slow);
 

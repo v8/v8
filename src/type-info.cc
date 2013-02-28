@@ -319,14 +319,14 @@ static TypeInfo TypeFromCompareType(CompareIC::State state) {
       return TypeInfo::Uninitialized();
     case CompareIC::SMI:
       return TypeInfo::Smi();
-    case CompareIC::HEAP_NUMBER:
+    case CompareIC::NUMBER:
       return TypeInfo::Number();
     case CompareIC::SYMBOL:
       return TypeInfo::Symbol();
     case CompareIC::STRING:
       return TypeInfo::String();
     case CompareIC::OBJECT:
-    case CompareIC::KNOWN_OBJECTS:
+    case CompareIC::KNOWN_OBJECT:
       // TODO(kasperl): We really need a type for JS objects here.
       return TypeInfo::NonPrimitive();
     case CompareIC::GENERIC:
@@ -368,7 +368,7 @@ Handle<Map> TypeFeedbackOracle::GetCompareMap(CompareOperation* expr) {
   Handle<Code> code = Handle<Code>::cast(object);
   if (!code->is_compare_ic_stub()) return Handle<Map>::null();
   CompareIC::State state = ICCompareStub::CompareState(code->stub_info());
-  if (state != CompareIC::KNOWN_OBJECTS) {
+  if (state != CompareIC::KNOWN_OBJECT) {
     return Handle<Map>::null();
   }
   Map* first_map = code->FindFirstMap();
@@ -390,7 +390,7 @@ TypeInfo TypeFeedbackOracle::UnaryType(UnaryOperation* expr) {
   switch (type) {
     case UnaryOpIC::SMI:
       return TypeInfo::Smi();
-    case UnaryOpIC::HEAP_NUMBER:
+    case UnaryOpIC::NUMBER:
       return TypeInfo::Double();
     default:
       return unknown;
@@ -404,7 +404,7 @@ static TypeInfo TypeFromBinaryOpType(BinaryOpIC::TypeInfo binary_type) {
     case BinaryOpIC::UNINITIALIZED:  return TypeInfo::Uninitialized();
     case BinaryOpIC::SMI:            return TypeInfo::Smi();
     case BinaryOpIC::INT32:          return TypeInfo::Integer32();
-    case BinaryOpIC::HEAP_NUMBER:    return TypeInfo::Double();
+    case BinaryOpIC::NUMBER:         return TypeInfo::Double();
     case BinaryOpIC::ODDBALL:        return TypeInfo::Unknown();
     case BinaryOpIC::STRING:         return TypeInfo::String();
     case BinaryOpIC::GENERIC:        return TypeInfo::Unknown();
@@ -471,7 +471,7 @@ TypeInfo TypeFeedbackOracle::IncrementType(CountOperation* expr) {
       return TypeInfo::Smi();
     case BinaryOpIC::INT32:
       return TypeInfo::Integer32();
-    case BinaryOpIC::HEAP_NUMBER:
+    case BinaryOpIC::NUMBER:
       return TypeInfo::Double();
     case BinaryOpIC::STRING:
     case BinaryOpIC::GENERIC:
