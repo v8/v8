@@ -1084,7 +1084,16 @@ LInstruction* LChunkBuilder::DoUnaryMathOperation(HUnaryMathOperation* instr) {
     LMathExp* result = new(zone()) LMathExp(value, temp1, temp2);
     return DefineAsRegister(result);
   } else {
-    LOperand* input = UseRegisterAtStart(instr->value());
+    LOperand* input;
+    if (op == kMathRound &&
+        (!CpuFeatures::IsSupported(SSE4_1) ||
+         instr->CheckFlag(HValue::kBailoutOnMinusZero))) {
+      // Math.round implemented without roundsd.  Input may be overwritten.
+      ASSERT(instr->value()->representation().IsDouble());
+      input = UseTempRegister(instr->value());
+    } else {
+      input = UseRegisterAtStart(instr->value());
+    }
     LUnaryMathOperation* result = new(zone()) LUnaryMathOperation(input);
     switch (op) {
       case kMathAbs:

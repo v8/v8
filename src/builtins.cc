@@ -1222,7 +1222,7 @@ static inline Object* FindHidden(Heap* heap,
                                  Object* object,
                                  FunctionTemplateInfo* type) {
   if (object->IsInstanceOf(type)) return object;
-  Object* proto = object->GetPrototype();
+  Object* proto = object->GetPrototype(heap->isolate());
   if (proto->IsJSObject() &&
       JSObject::cast(proto)->map()->is_hidden_prototype()) {
     return FindHidden(heap, proto, type);

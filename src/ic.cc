@@ -174,16 +174,17 @@ static bool TryRemoveInvalidPrototypeDependentStub(Code* target,
   InlineCacheHolderFlag cache_holder =
       Code::ExtractCacheHolderFromFlags(target->flags());
 
+  Isolate* isolate = target->GetIsolate();
   if (cache_holder == OWN_MAP && !receiver->IsJSObject()) {
     // The stub was generated for JSObject but called for non-JSObject.
     // IC::GetCodeCacheHolder is not applicable.
     return false;
   } else if (cache_holder == PROTOTYPE_MAP &&
-             receiver->GetPrototype()->IsNull()) {
+             receiver->GetPrototype(isolate)->IsNull()) {
     // IC::GetCodeCacheHolder is not applicable.
     return false;
   }
-  Map* map = IC::GetCodeCacheHolder(receiver, cache_holder)->map();
+  Map* map = IC::GetCodeCacheHolder(isolate, receiver, cache_holder)->map();
 
   // Decide whether the inline cache failed because of changes to the
   // receiver itself or changes to one of its prototypes.
@@ -398,7 +399,7 @@ void CompareIC::Clear(Address address, Code* target) {
   ICCompareStub::DecodeMinorKey(target->stub_info(), NULL, NULL,
                                 &handler_state, &op);
   // Only clear CompareICs that can retain objects.
-  if (handler_state != KNOWN_OBJECTS) return;
+  if (handler_state != KNOWN_OBJECT) return;
   SetTargetAtAddress(address, GetRawUninitialized(op));
   PatchInlinedSmiCode(address, DISABLE_INLINED_SMI_CHECK);
 }
@@ -734,7 +735,7 @@ void CallICBase::UpdateCaches(LookupResult* lookup,
       // GenerateMonomorphicCacheProbe. It is not the map which holds the stub.
       Handle<JSObject> cache_object = object->IsJSObject()
           ? Handle<JSObject>::cast(object)
-          : Handle<JSObject>(JSObject::cast(object->GetPrototype()));
+          : Handle<JSObject>(JSObject::cast(object->GetPrototype(isolate())));
       // Update the stub cache.
       UpdateMegamorphicCache(cache_object->map(), *name, *code);
       break;
@@ -822,10 +823,10 @@ MaybeObject* LoadIC::Load(State state,
         stub = pre_monomorphic_stub();
       } else if (state == PREMONOMORPHIC) {
         StringLengthStub string_length_stub(kind(), !object->IsString());
-        stub = string_length_stub.GetCode();
+        stub = string_length_stub.GetCode(isolate());
       } else if (state == MONOMORPHIC && object->IsStringWrapper()) {
         StringLengthStub string_length_stub(kind(), true);
-        stub = string_length_stub.GetCode();
+        stub = string_length_stub.GetCode(isolate());
       } else if (state != MEGAMORPHIC) {
         ASSERT(state != GENERIC);
         stub = megamorphic_stub();
@@ -851,7 +852,7 @@ MaybeObject* LoadIC::Load(State state,
         stub = pre_monomorphic_stub();
       } else if (state == PREMONOMORPHIC) {
         ArrayLengthStub array_length_stub(kind());
-        stub = array_length_stub.GetCode();
+        stub = array_length_stub.GetCode(isolate());
       } else if (state != MEGAMORPHIC) {
         ASSERT(state != GENERIC);
         stub = megamorphic_stub();
@@ -874,7 +875,7 @@ MaybeObject* LoadIC::Load(State state,
         stub = pre_monomorphic_stub();
       } else if (state == PREMONOMORPHIC) {
         FunctionPrototypeStub function_prototype_stub(kind());
-        stub = function_prototype_stub.GetCode();
+        stub = function_prototype_stub.GetCode(isolate());
       } else if (state != MEGAMORPHIC) {
         ASSERT(state != GENERIC);
         stub = megamorphic_stub();
@@ -1398,7 +1399,8 @@ MaybeObject* StoreIC::Store(State state,
       name->Equals(isolate()->heap()->length_symbol()) &&
       Handle<JSArray>::cast(receiver)->AllowsSetElementsLength() &&
       receiver->HasFastProperties()) {
-    Handle<Code> stub = StoreArrayLengthStub(kind(), strict_mode).GetCode();
+    Handle<Code> stub =
+        StoreArrayLengthStub(kind(), strict_mode).GetCode(isolate());
     set_target(*stub);
     TRACE_IC("StoreIC", name, state, *stub);
     return receiver->SetProperty(*name, *value, NONE, strict_mode, store_mode);
@@ -2040,7 +2042,7 @@ const char* UnaryOpIC::GetName(TypeInfo type_info) {
   switch (type_info) {
     case UNINITIALIZED: return "Uninitialized";
     case SMI: return "Smi";
-    case HEAP_NUMBER: return "HeapNumbers";
+    case NUMBER: return "Number";
     case GENERIC: return "Generic";
     default: return "Invalid";
   }
@@ -2052,7 +2054,7 @@ UnaryOpIC::State UnaryOpIC::ToState(TypeInfo type_info) {
     case UNINITIALIZED:
       return ::v8::internal::UNINITIALIZED;
     case SMI:
-    case HEAP_NUMBER:
+    case NUMBER:
       return MONOMORPHIC;
     case GENERIC:
       return ::v8::internal::GENERIC;
@@ -2067,7 +2069,7 @@ UnaryOpIC::TypeInfo UnaryOpIC::GetTypeInfo(Handle<Object> operand) {
   if (operand_type.IsSmi()) {
     return SMI;
   } else if (operand_type.IsNumber()) {
-    return HEAP_NUMBER;
+    return NUMBER;
   } else {
     return GENERIC;
   }
@@ -2075,24 +2077,22 @@ UnaryOpIC::TypeInfo UnaryOpIC::GetTypeInfo(Handle<Object> operand) {
 
 
 UnaryOpIC::TypeInfo UnaryOpIC::ComputeNewType(
-    UnaryOpIC::TypeInfo current_type,
-    UnaryOpIC::TypeInfo previous_type) {
+    TypeInfo current_type,
+    TypeInfo previous_type) {
   switch (previous_type) {
-    case UnaryOpIC::UNINITIALIZED:
+    case UNINITIALIZED:
       return current_type;
-    case UnaryOpIC::SMI:
-      return (current_type == UnaryOpIC::GENERIC)
-          ? UnaryOpIC::GENERIC
-          : UnaryOpIC::HEAP_NUMBER;
-    case UnaryOpIC::HEAP_NUMBER:
-      return UnaryOpIC::GENERIC;
-    case UnaryOpIC::GENERIC:
+    case SMI:
+      return (current_type == GENERIC) ? GENERIC : NUMBER;
+    case NUMBER:
+      return GENERIC;
+    case GENERIC:
       // We should never do patching if we are in GENERIC state.
       UNREACHABLE();
-      return UnaryOpIC::GENERIC;
+      return GENERIC;
   }
   UNREACHABLE();
-  return UnaryOpIC::GENERIC;
+  return GENERIC;
 }
 
 
@@ -2104,9 +2104,9 @@ void BinaryOpIC::patch(Code* code) {
 const char* BinaryOpIC::GetName(TypeInfo type_info) {
   switch (type_info) {
     case UNINITIALIZED: return "Uninitialized";
-    case SMI: return "SMI";
+    case SMI: return "Smi";
     case INT32: return "Int32";
-    case HEAP_NUMBER: return "HeapNumber";
+    case NUMBER: return "Number";
     case ODDBALL: return "Oddball";
     case STRING: return "String";
     case GENERIC: return "Generic";
@@ -2121,7 +2121,7 @@ BinaryOpIC::State BinaryOpIC::ToState(TypeInfo type_info) {
       return ::v8::internal::UNINITIALIZED;
     case SMI:
     case INT32:
-    case HEAP_NUMBER:
+    case NUMBER:
     case ODDBALL:
     case STRING:
       return MONOMORPHIC;
@@ -2147,7 +2147,7 @@ RUNTIME_FUNCTION(MaybeObject*, UnaryOp_Patch) {
   type = UnaryOpIC::ComputeNewType(type, previous_type);
 
   UnaryOpStub stub(op, mode, type);
-  Handle<Code> code = stub.GetCode();
+  Handle<Code> code = stub.GetCode(isolate);
   if (!code.is_null()) {
     if (FLAG_trace_ic) {
       PrintF("[UnaryOpIC in ");
@@ -2197,7 +2197,7 @@ static BinaryOpIC::TypeInfo TypeInfoFromValue(Handle<Object> value,
     if (kSmiValueSize == 32) return BinaryOpIC::SMI;
     return BinaryOpIC::INT32;
   }
-  if (type.IsNumber()) return BinaryOpIC::HEAP_NUMBER;
+  if (type.IsNumber()) return BinaryOpIC::NUMBER;
   if (type.IsString()) return BinaryOpIC::STRING;
   if (value->IsUndefined()) {
     if (op == Token::BIT_AND ||
@@ -2261,7 +2261,7 @@ RUNTIME_FUNCTION(MaybeObject*, BinaryOp_Patch) {
       // That is the only way to get here from the Smi stub.
       // With 32-bit Smis, all overflows give heap numbers, but with
       // 31-bit Smis, most operations overflow to int32 results.
-      result_type = BinaryOpIC::HEAP_NUMBER;
+      result_type = BinaryOpIC::NUMBER;
     } else {
       // Other operations on SMIs that overflow yield int32s.
       result_type = BinaryOpIC::INT32;
@@ -2270,12 +2270,12 @@ RUNTIME_FUNCTION(MaybeObject*, BinaryOp_Patch) {
   if (new_overall == BinaryOpIC::INT32 &&
       previous_overall == BinaryOpIC::INT32) {
     if (new_left == previous_left && new_right == previous_right) {
-      result_type = BinaryOpIC::HEAP_NUMBER;
+      result_type = BinaryOpIC::NUMBER;
     }
   }
 
   BinaryOpStub stub(key, new_left, new_right, result_type);
-  Handle<Code> code = stub.GetCode();
+  Handle<Code> code = stub.GetCode(isolate);
   if (!code.is_null()) {
 #ifdef DEBUG
     if (FLAG_trace_ic) {
@@ -2365,9 +2365,9 @@ Code* CompareIC::GetRawUninitialized(Token::Value op) {
 }
 
 
-Handle<Code> CompareIC::GetUninitialized(Token::Value op) {
+Handle<Code> CompareIC::GetUninitialized(Isolate* isolate, Token::Value op) {
   ICCompareStub stub(op, UNINITIALIZED, UNINITIALIZED, UNINITIALIZED);
-  return stub.GetCode();
+  return stub.GetCode(isolate);
 }
 
 
@@ -2375,11 +2375,11 @@ const char* CompareIC::GetStateName(State state) {
   switch (state) {
     case UNINITIALIZED: return "UNINITIALIZED";
     case SMI: return "SMI";
-    case HEAP_NUMBER: return "HEAP_NUMBER";
-    case OBJECT: return "OBJECTS";
-    case KNOWN_OBJECTS: return "KNOWN_OBJECTS";
+    case NUMBER: return "NUMBER";
     case SYMBOL: return "SYMBOL";
     case STRING: return "STRING";
+    case OBJECT: return "OBJECT";
+    case KNOWN_OBJECT: return "KNOWN_OBJECT";
     case GENERIC: return "GENERIC";
     default:
       UNREACHABLE();
@@ -2393,17 +2393,17 @@ static CompareIC::State InputState(CompareIC::State old_state,
   switch (old_state) {
     case CompareIC::UNINITIALIZED:
       if (value->IsSmi()) return CompareIC::SMI;
-      if (value->IsHeapNumber()) return CompareIC::HEAP_NUMBER;
+      if (value->IsHeapNumber()) return CompareIC::NUMBER;
       if (value->IsSymbol()) return CompareIC::SYMBOL;
       if (value->IsString()) return CompareIC::STRING;
       if (value->IsJSObject()) return CompareIC::OBJECT;
       break;
     case CompareIC::SMI:
       if (value->IsSmi()) return CompareIC::SMI;
-      if (value->IsHeapNumber()) return CompareIC::HEAP_NUMBER;
+      if (value->IsHeapNumber()) return CompareIC::NUMBER;
       break;
-    case CompareIC::HEAP_NUMBER:
-      if (value->IsNumber()) return CompareIC::HEAP_NUMBER;
+    case CompareIC::NUMBER:
+      if (value->IsNumber()) return CompareIC::NUMBER;
       break;
     case CompareIC::SYMBOL:
       if (value->IsSymbol()) return CompareIC::SYMBOL;
@@ -2417,7 +2417,7 @@ static CompareIC::State InputState(CompareIC::State old_state,
       break;
     case CompareIC::GENERIC:
       break;
-    case CompareIC::KNOWN_OBJECTS:
+    case CompareIC::KNOWN_OBJECT:
       UNREACHABLE();
       break;
   }
@@ -2434,13 +2434,13 @@ CompareIC::State CompareIC::TargetState(State old_state,
   switch (old_state) {
     case UNINITIALIZED:
       if (x->IsSmi() && y->IsSmi()) return SMI;
-      if (x->IsNumber() && y->IsNumber()) return HEAP_NUMBER;
+      if (x->IsNumber() && y->IsNumber()) return NUMBER;
       if (Token::IsOrderedRelationalCompareOp(op_)) {
         // Ordered comparisons treat undefined as NaN, so the
-        // HEAP_NUMBER stub will do the right thing.
+        // NUMBER stub will do the right thing.
         if ((x->IsNumber() && y->IsUndefined()) ||
             (y->IsNumber() && x->IsUndefined())) {
-          return HEAP_NUMBER;
+          return NUMBER;
         }
       }
       if (x->IsSymbol() && y->IsSymbol()) {
@@ -2452,27 +2452,31 @@ CompareIC::State CompareIC::TargetState(State old_state,
       if (!Token::IsEqualityOp(op_)) return GENERIC;
       if (x->IsJSObject() && y->IsJSObject()) {
         if (Handle<JSObject>::cast(x)->map() ==
-            Handle<JSObject>::cast(y)->map() &&
-            Token::IsEqualityOp(op_)) {
-          return KNOWN_OBJECTS;
+            Handle<JSObject>::cast(y)->map()) {
+          return KNOWN_OBJECT;
         } else {
           return OBJECT;
         }
       }
       return GENERIC;
     case SMI:
-      return x->IsNumber() && y->IsNumber()
-          ? HEAP_NUMBER
-          : GENERIC;
+      return x->IsNumber() && y->IsNumber() ? NUMBER : GENERIC;
     case SYMBOL:
       ASSERT(Token::IsEqualityOp(op_));
       return x->IsString() && y->IsString() ? STRING : GENERIC;
-    case HEAP_NUMBER:
-      if (old_left == SMI && x->IsHeapNumber()) return HEAP_NUMBER;
-      if (old_right == SMI && y->IsHeapNumber()) return HEAP_NUMBER;
+    case NUMBER:
+      // If the failure was due to one side changing from smi to heap number,
+      // then keep the state (if other changed at the same time, we will get
+      // a second miss and then go to generic).
+      if (old_left == SMI && x->IsHeapNumber()) return NUMBER;
+      if (old_right == SMI && y->IsHeapNumber()) return NUMBER;
+      return GENERIC;
+    case KNOWN_OBJECT:
+      ASSERT(Token::IsEqualityOp(op_));
+      if (x->IsJSObject() && y->IsJSObject()) return OBJECT;
+      return GENERIC;
     case STRING:
     case OBJECT:
-    case KNOWN_OBJECTS:
     case GENERIC:
       return GENERIC;
   }
@@ -2491,10 +2495,10 @@ void CompareIC::UpdateCaches(Handle<Object> x, Handle<Object> y) {
   State state = TargetState(previous_state, previous_left, previous_right,
                             HasInlinedSmiCode(address()), x, y);
   ICCompareStub stub(op_, new_left, new_right, state);
-  if (state == KNOWN_OBJECTS) {
+  if (state == KNOWN_OBJECT) {
     stub.set_known_map(Handle<Map>(Handle<JSObject>::cast(x)->map()));
   }
-  set_target(*stub.GetCode());
+  set_target(*stub.GetCode(isolate()));
 
 #ifdef DEBUG
   if (FLAG_trace_ic) {
@@ -2508,7 +2512,7 @@ void CompareIC::UpdateCaches(Handle<Object> x, Handle<Object> y) {
            GetStateName(new_right),
            GetStateName(state),
            Token::Name(op_),
-           static_cast<void*>(*stub.GetCode()));
+           static_cast<void*>(*stub.GetCode(isolate())));
   }
 #endif
 
@@ -2542,7 +2546,7 @@ RUNTIME_FUNCTION(MaybeObject*, ToBoolean_Patch) {
   old_types.TraceTransition(new_types);
 
   ToBooleanStub stub(tos, new_types);
-  Handle<Code> code = stub.GetCode();
+  Handle<Code> code = stub.GetCode(isolate);
   ToBooleanIC ic(isolate);
   ic.patch(*code);
   return Smi::FromInt(to_boolean_value ? 1 : 0);

@@ -1019,7 +1019,7 @@ class Object : public MaybeObject {
                                                       uint32_t index);
 
   // Return the object's prototype (might be Heap::null_value()).
-  Object* GetPrototype();
+  Object* GetPrototype(Isolate* isolate);
 
   // Returns the permanent hash code associated with this object depending on
   // the actual object type.  Might return a failure in case no hash was
@@ -3569,7 +3569,7 @@ class ScopeInfo : public FixedArray {
   static Handle<ScopeInfo> Create(Scope* scope, Zone* zone);
 
   // Serializes empty scope info.
-  static ScopeInfo* Empty();
+  static ScopeInfo* Empty(Isolate* isolate);
 
 #ifdef DEBUG
   void Print();
@@ -4468,10 +4468,10 @@ class Code: public HeapObject {
 
   static inline Flags ComputeMonomorphicFlags(
       Kind kind,
-      StubType type,
       ExtraICState extra_ic_state = kNoExtraICState,
-      InlineCacheHolderFlag holder = OWN_MAP,
-      int argc = -1);
+      StubType type = NORMAL,
+      int argc = -1,
+      InlineCacheHolderFlag holder = OWN_MAP);
 
   static inline InlineCacheState ExtractICStateFromFlags(Flags flags);
   static inline StubType ExtractTypeFromFlags(Flags flags);

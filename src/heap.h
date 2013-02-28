@@ -1384,9 +1384,6 @@ class Heap {
   // Given an address occupied by a live code object, return that object.
   Object* FindCodeObject(Address a);
 
-  // Invoke Shrink on shrinkable spaces.
-  void Shrink();
-
   enum HeapState { NOT_IN_GC, SCAVENGE, MARK_COMPACT };
   inline HeapState gc_state() { return gc_state_; }
 

@@ -385,7 +385,7 @@ void MacroAssembler::DebugBreak() {
   Set(eax, Immediate(0));
   mov(ebx, Immediate(ExternalReference(Runtime::kDebugBreak, isolate())));
   CEntryStub ces(1);
-  call(ces.GetCode(), RelocInfo::DEBUG_BREAK);
+  call(ces.GetCode(isolate()), RelocInfo::DEBUG_BREAK);
 }
 #endif
 
@@ -1802,13 +1802,13 @@ void MacroAssembler::TryGetFunctionPrototype(Register function,
 
 void MacroAssembler::CallStub(CodeStub* stub, TypeFeedbackId ast_id) {
   ASSERT(AllowThisStubCall(stub));  // Calls are not allowed in some stubs.
-  call(stub->GetCode(), RelocInfo::CODE_TARGET, ast_id);
+  call(stub->GetCode(isolate()), RelocInfo::CODE_TARGET, ast_id);
 }
 
 
 void MacroAssembler::TailCallStub(CodeStub* stub) {
   ASSERT(allow_stub_calls_ || stub->CompilingCallsToThisStubIsGCSafe());
-  jmp(stub->GetCode(), RelocInfo::CODE_TARGET);
+  jmp(stub->GetCode(isolate()), RelocInfo::CODE_TARGET);
 }
 
 
@@ -2097,7 +2097,7 @@ void MacroAssembler::JumpToExternalReference(const ExternalReference& ext) {
   // Set the entry point and jump to the C entry runtime stub.
   mov(ebx, Immediate(ext));
   CEntryStub ces(1);
-  jmp(ces.GetCode(), RelocInfo::CODE_TARGET);
+  jmp(ces.GetCode(isolate()), RelocInfo::CODE_TARGET);
 }
 
 

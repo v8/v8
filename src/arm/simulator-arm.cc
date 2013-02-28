@@ -2783,20 +2783,26 @@ void Simulator::DecodeTypeVFP(Instruction* instr) {
       double dm_value = get_double_from_d_register(vm);
       double dd_value = dn_value * dm_value;
       set_d_register_from_double(vd, dd_value);
-    } else if ((instr->Opc1Value() == 0x0) && !(instr->Opc3Value() & 0x1)) {
-      // vmla
+    } else if ((instr->Opc1Value() == 0x0)) {
+      // vmla, vmls
+      const bool is_vmls = (instr->Opc3Value() & 0x1);
+
       if (instr->SzValue() != 0x1) {
         UNREACHABLE();  // Not used by V8.
       }
 
-      double dd_value = get_double_from_d_register(vd);
-      double dn_value = get_double_from_d_register(vn);
-      double dm_value = get_double_from_d_register(vm);
+      const double dd_val = get_double_from_d_register(vd);
+      const double dn_val = get_double_from_d_register(vn);
+      const double dm_val = get_double_from_d_register(vm);
 
-      // Note: we do the mul and add in separate steps to avoid getting a result
-      // with too high precision.
-      set_d_register_from_double(vd, dn_value * dm_value);
-      set_d_register_from_double(vd, get_double_from_d_register(vd) + dd_value);
+      // Note: we do the mul and add/sub in separate steps to avoid getting a
+      // result with too high precision.
+      set_d_register_from_double(vd, dn_val * dm_val);
+      if (is_vmls) {
+        set_d_register_from_double(vd, dd_val - get_double_from_d_register(vd));
+      } else {
+        set_d_register_from_double(vd, dd_val + get_double_from_d_register(vd));
+      }
     } else if ((instr->Opc1Value() == 0x4) && !(instr->Opc3Value() & 0x1)) {
       // vdiv
       if (instr->SzValue() != 0x1) {

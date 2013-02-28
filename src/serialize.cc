@@ -547,9 +547,10 @@ void ExternalReferenceTable::PopulateTable(Isolate* isolate) {
 
   // Add a small set of deopt entry addresses to encoder without generating the
   // deopt table code, which isn't possible at deserialization time.
-  HandleScope scope(Isolate::Current());
+  HandleScope scope(isolate);
   for (int entry = 0; entry < kDeoptTableSerializeEntryCount; ++entry) {
     Address address = Deoptimizer::GetDeoptimizationEntry(
+        isolate,
         entry,
         Deoptimizer::LAZY,
         Deoptimizer::CALCULATE_ENTRY_ADDRESS);

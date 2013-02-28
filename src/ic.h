@@ -50,7 +50,6 @@ namespace internal {
   ICU(KeyedStoreIC_MissForceGeneric)                  \
   ICU(KeyedStoreIC_Slow)                              \
   /* Utilities for IC stubs. */                       \
-  ICU(LoadCallbackProperty)                           \
   ICU(StoreCallbackProperty)                          \
   ICU(LoadPropertyWithInterceptorOnly)                \
   ICU(LoadPropertyWithInterceptorForLoad)             \
@@ -129,7 +128,8 @@ class IC {
                                                             JSObject* holder);
   static inline InlineCacheHolderFlag GetCodeCacheForObject(JSObject* object,
                                                             JSObject* holder);
-  static inline JSObject* GetCodeCacheHolder(Object* object,
+  static inline JSObject* GetCodeCacheHolder(Isolate* isolate,
+                                             Object* object,
                                              InlineCacheHolderFlag holder);
 
  protected:
@@ -709,7 +709,7 @@ class UnaryOpIC: public IC {
   enum TypeInfo {
     UNINITIALIZED,
     SMI,
-    HEAP_NUMBER,
+    NUMBER,
     GENERIC
   };
 
@@ -734,7 +734,7 @@ class BinaryOpIC: public IC {
     UNINITIALIZED,
     SMI,
     INT32,
-    HEAP_NUMBER,
+    NUMBER,
     ODDBALL,
     STRING,  // Only used for addition operation.
     GENERIC
@@ -752,14 +752,20 @@ class BinaryOpIC: public IC {
 
 class CompareIC: public IC {
  public:
+  // The type/state lattice is defined by the following inequations:
+  //   UNINITIALIZED < ...
+  //   ... < GENERIC
+  //   SMI < NUMBER
+  //   SYMBOL < STRING
+  //   KNOWN_OBJECT < OBJECT
   enum State {
     UNINITIALIZED,
     SMI,
-    HEAP_NUMBER,
+    NUMBER,
     SYMBOL,
     STRING,
-    OBJECT,
-    KNOWN_OBJECTS,
+    OBJECT,         // JSObject
+    KNOWN_OBJECT,   // JSObject with specific map (faster check)
     GENERIC
   };
 
@@ -771,7 +777,7 @@ class CompareIC: public IC {
 
 
   // Factory method for getting an uninitialized compare stub.
-  static Handle<Code> GetUninitialized(Token::Value op);
+  static Handle<Code> GetUninitialized(Isolate* isolate, Token::Value op);
 
   // Helper function for computing the condition for a compare operation.
   static Condition ComputeCondition(Token::Value op);

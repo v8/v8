@@ -1087,7 +1087,7 @@ void JavaScriptFrame::Print(StringStream* accumulator,
   // doesn't contain scope info, scope_info will return 0 for the number of
   // parameters, stack local variables, context local variables, stack slots,
   // or context slots.
-  Handle<ScopeInfo> scope_info(ScopeInfo::Empty());
+  Handle<ScopeInfo> scope_info(ScopeInfo::Empty(isolate()));
 
   if (function->IsJSFunction()) {
     Handle<SharedFunctionInfo> shared(JSFunction::cast(function)->shared());

@@ -3825,10 +3825,10 @@ Code::Flags Code::ComputeFlags(Kind kind,
 
 
 Code::Flags Code::ComputeMonomorphicFlags(Kind kind,
-                                          StubType type,
                                           ExtraICState extra_ic_state,
-                                          InlineCacheHolderFlag holder,
-                                          int argc) {
+                                          StubType type,
+                                          int argc,
+                                          InlineCacheHolderFlag holder) {
   return ComputeFlags(kind, MONOMORPHIC, extra_ic_state, type, argc, holder);
 }
 

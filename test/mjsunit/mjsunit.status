@@ -69,8 +69,8 @@ unicode-case-overoptimization: PASS, TIMEOUT if ($arch == arm || $arch == androi
 json-recursive: PASS, (PASS || FAIL) if $mode == debug
 
 ##############################################################################
-# Skip long running test that times out in debug mode.
-regress/regress-crbug-160010: PASS, SKIP if $mode == debug
+# Skip long running test that times out in debug mode or goes OOM on android.
+regress/regress-crbug-160010: PASS, SKIP if ($mode == debug || $arch == android_arm)
 generated-transition-stub: PASS, SKIP if $mode == debug
 
 ##############################################################################

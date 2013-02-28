@@ -105,7 +105,7 @@ Variable* VariableMap::Lookup(Handle<String> name) {
 // Implementation of Scope
 
 Scope::Scope(Scope* outer_scope, ScopeType type, Zone* zone)
-    : isolate_(Isolate::Current()),
+    : isolate_(zone->isolate()),
       inner_scopes_(4, zone),
       variables_(zone),
       internals_(4, zone),

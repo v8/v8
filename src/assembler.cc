@@ -91,6 +91,7 @@ namespace internal {
 struct DoubleConstant BASE_EMBEDDED {
   double min_int;
   double one_half;
+  double minus_one_half;
   double minus_zero;
   double zero;
   double uint8_max_value;
@@ -853,6 +854,7 @@ void RelocInfo::Verify() {
 void ExternalReference::SetUp() {
   double_constants.min_int = kMinInt;
   double_constants.one_half = 0.5;
+  double_constants.minus_one_half = -0.5;
   double_constants.minus_zero = -0.0;
   double_constants.uint8_max_value = 255;
   double_constants.zero = 0.0;
@@ -1206,6 +1208,12 @@ ExternalReference ExternalReference::address_of_min_int() {
 
 ExternalReference ExternalReference::address_of_one_half() {
   return ExternalReference(reinterpret_cast<void*>(&double_constants.one_half));
+}
+
+
+ExternalReference ExternalReference::address_of_minus_one_half() {
+  return ExternalReference(
+      reinterpret_cast<void*>(&double_constants.minus_one_half));
 }
 
 

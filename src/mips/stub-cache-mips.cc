@@ -1946,8 +1946,9 @@ Handle<Code> CallStubCompiler::CompileStringCharCodeAtCall(
                                             v0,
                                             &miss);
   ASSERT(!object.is_identical_to(holder));
-  CheckPrototypes(Handle<JSObject>(JSObject::cast(object->GetPrototype())),
-                  v0, holder, a1, a3, t0, name, &miss);
+  CheckPrototypes(
+      Handle<JSObject>(JSObject::cast(object->GetPrototype(isolate()))),
+      v0, holder, a1, a3, t0, name, &miss);
 
   Register receiver = a1;
   Register index = t1;
@@ -2026,8 +2027,9 @@ Handle<Code> CallStubCompiler::CompileStringCharAtCall(
                                             v0,
                                             &miss);
   ASSERT(!object.is_identical_to(holder));
-  CheckPrototypes(Handle<JSObject>(JSObject::cast(object->GetPrototype())),
-                  v0, holder, a1, a3, t0, name, &miss);
+  CheckPrototypes(
+      Handle<JSObject>(JSObject::cast(object->GetPrototype(isolate()))),
+      v0, holder, a1, a3, t0, name, &miss);
 
   Register receiver = v0;
   Register index = t1;
@@ -2483,7 +2485,7 @@ void CallStubCompiler::CompileHandlerFrontend(Handle<Object> object,
       GenerateDirectLoadGlobalFunctionPrototype(
           masm(), Context::STRING_FUNCTION_INDEX, a0, &miss);
       CheckPrototypes(
-          Handle<JSObject>(JSObject::cast(object->GetPrototype())),
+          Handle<JSObject>(JSObject::cast(object->GetPrototype(isolate()))),
           a0, holder, a3, a1, t0, name, &miss);
       break;
 
@@ -2498,7 +2500,7 @@ void CallStubCompiler::CompileHandlerFrontend(Handle<Object> object,
       GenerateDirectLoadGlobalFunctionPrototype(
           masm(), Context::NUMBER_FUNCTION_INDEX, a0, &miss);
       CheckPrototypes(
-          Handle<JSObject>(JSObject::cast(object->GetPrototype())),
+          Handle<JSObject>(JSObject::cast(object->GetPrototype(isolate()))),
           a0, holder, a3, a1, t0, name, &miss);
       break;
     }
@@ -2514,7 +2516,7 @@ void CallStubCompiler::CompileHandlerFrontend(Handle<Object> object,
       GenerateDirectLoadGlobalFunctionPrototype(
           masm(), Context::BOOLEAN_FUNCTION_INDEX, a0, &miss);
       CheckPrototypes(
-          Handle<JSObject>(JSObject::cast(object->GetPrototype())),
+          Handle<JSObject>(JSObject::cast(object->GetPrototype(isolate()))),
           a0, holder, a3, a1, t0, name, &miss);
       break;
     }
@@ -3079,11 +3081,11 @@ Handle<Code> KeyedLoadStubCompiler::CompileLoadElement(
       receiver_map->has_external_array_elements()) {
     Handle<Code> stub = KeyedLoadFastElementStub(
         receiver_map->instance_type() == JS_ARRAY_TYPE,
-        elements_kind).GetCode();
+        elements_kind).GetCode(isolate());
     __ DispatchMap(a1, a2, receiver_map, stub, DO_SMI_CHECK);
   } else {
     Handle<Code> stub =
-        KeyedLoadDictionaryElementStub().GetCode();
+        KeyedLoadDictionaryElementStub().GetCode(isolate());
     __ DispatchMap(a1, a2, receiver_map, stub, DO_SMI_CHECK);
   }
 
@@ -3175,7 +3177,9 @@ Handle<Code> KeyedStoreStubCompiler::CompileStoreElement(
   ElementsKind elements_kind = receiver_map->elements_kind();
   bool is_js_array = receiver_map->instance_type() == JS_ARRAY_TYPE;
   Handle<Code> stub =
-      KeyedStoreElementStub(is_js_array, elements_kind, grow_mode_).GetCode();
+      KeyedStoreElementStub(is_js_array,
+                            elements_kind,
+                            grow_mode_).GetCode(isolate());
 
   __ DispatchMap(a2, a3, receiver_map, stub, DO_SMI_CHECK);
 

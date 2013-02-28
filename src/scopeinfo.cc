@@ -149,8 +149,8 @@ Handle<ScopeInfo> ScopeInfo::Create(Scope* scope, Zone* zone) {
 }
 
 
-ScopeInfo* ScopeInfo::Empty() {
-  return reinterpret_cast<ScopeInfo*>(HEAP->empty_fixed_array());
+ScopeInfo* ScopeInfo::Empty(Isolate* isolate) {
+  return reinterpret_cast<ScopeInfo*>(isolate->heap()->empty_fixed_array());
 }
 
 

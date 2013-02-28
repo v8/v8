@@ -591,7 +591,6 @@ void Heap::CollectAllAvailableGarbage(const char* gc_reason) {
   mark_compact_collector()->SetFlags(kNoGCFlags);
   new_space_.Shrink();
   UncommitFromSpace();
-  Shrink();
   incremental_marking()->UncommitMarkingDeque();
 }
 
@@ -789,11 +788,6 @@ void Heap::EnsureFromSpaceIsCommitted() {
   if (new_space_.CommitFromSpaceIfNeeded()) return;
 
   // Committing memory to from space failed.
-  // Try shrinking and try again.
-  Shrink();
-  if (new_space_.CommitFromSpaceIfNeeded()) return;
-
-  // Committing memory to from space failed again.
   // Memory is exhausted and we will die.
   V8::FatalProcessOutOfMemory("Committing semi space failed.");
 }
@@ -820,7 +814,6 @@ void Heap::ClearJSFunctionResultCaches() {
     context = Context::cast(context)->get(Context::NEXT_CONTEXT_LINK);
   }
 }
-
 
 
 void Heap::ClearNormalizedMapCaches() {
@@ -2689,13 +2682,13 @@ bool Heap::CreateApiObjects() {
 
 void Heap::CreateJSEntryStub() {
   JSEntryStub stub;
-  set_js_entry_code(*stub.GetCode());
+  set_js_entry_code(*stub.GetCode(isolate()));
 }
 
 
 void Heap::CreateJSConstructEntryStub() {
   JSConstructEntryStub stub;
-  set_js_construct_entry_code(*stub.GetCode());
+  set_js_construct_entry_code(*stub.GetCode(isolate()));
 }
 
 
@@ -2720,7 +2713,7 @@ void Heap::CreateFixedStubs() {
   // create them if we need them during the creation of another stub.
   // Stub creation mixes raw pointers and handles in an unsafe manner so
   // we cannot create stubs while we are creating stubs.
-  CodeStub::GenerateStubsAheadOfTime();
+  CodeStub::GenerateStubsAheadOfTime(isolate());
 }
 
 
@@ -3278,7 +3271,7 @@ MaybeObject* Heap::AllocateSharedFunctionInfo(Object* name) {
   Code* illegal = isolate_->builtins()->builtin(Builtins::kIllegal);
   share->set_code(illegal);
   share->ClearOptimizedCodeMap();
-  share->set_scope_info(ScopeInfo::Empty());
+  share->set_scope_info(ScopeInfo::Empty(isolate_));
   Code* construct_stub =
       isolate_->builtins()->builtin(Builtins::kJSConstructStubGeneric);
   share->set_construct_stub(construct_stub);
@@ -6411,17 +6404,6 @@ void Heap::TearDown() {
   isolate_->memory_allocator()->TearDown();
 
   delete relocation_mutex_;
-}
-
-
-void Heap::Shrink() {
-  // Try to shrink all paged spaces.
-  PagedSpaces spaces(this);
-  for (PagedSpace* space = spaces.next();
-       space != NULL;
-       space = spaces.next()) {
-    space->ReleaseAllUnusedPages();
-  }
 }
 
 

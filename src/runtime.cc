@@ -959,7 +959,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetPrototype) {
       isolate->ReportFailedAccessCheck(JSObject::cast(obj), v8::ACCESS_GET);
       return isolate->heap()->undefined_value();
     }
-    obj = obj->GetPrototype();
+    obj = obj->GetPrototype(isolate);
   } while (obj->IsJSObject() &&
            JSObject::cast(obj)->map()->is_hidden_prototype());
   return obj;
@@ -973,7 +973,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_IsInPrototypeChain) {
   Object* O = args[0];
   Object* V = args[1];
   while (true) {
-    Object* prototype = V->GetPrototype();
+    Object* prototype = V->GetPrototype(isolate);
     if (prototype->IsNull()) return isolate->heap()->false_value();
     if (O == prototype) return isolate->heap()->true_value();
     V = prototype;
@@ -2898,7 +2898,7 @@ void FindStringIndicesDispatch(Isolate* isolate,
 
 
 template<typename ResultSeqString>
-MUST_USE_RESULT static MaybeObject* StringReplaceAtomRegExpWithString(
+MUST_USE_RESULT static MaybeObject* StringReplaceGlobalAtomRegExpWithString(
     Isolate* isolate,
     Handle<String> subject,
     Handle<JSRegExp> pattern_regexp,
@@ -2921,9 +2921,7 @@ MUST_USE_RESULT static MaybeObject* StringReplaceAtomRegExpWithString(
       isolate, *subject, pattern, &indices, 0xffffffff, zone);
 
   int matches = indices.length();
-  if (matches == 0) {
-    return isolate->heap()->undefined_value();
-  }
+  if (matches == 0) return *subject;
 
   // Detect integer overflow.
   int64_t result_len_64 =
@@ -2983,7 +2981,7 @@ MUST_USE_RESULT static MaybeObject* StringReplaceAtomRegExpWithString(
 }
 
 
-MUST_USE_RESULT static MaybeObject* StringReplaceRegExpWithString(
+MUST_USE_RESULT static MaybeObject* StringReplaceGlobalRegExpWithString(
     Isolate* isolate,
     Handle<String> subject,
     Handle<JSRegExp> regexp,
@@ -2992,7 +2990,6 @@ MUST_USE_RESULT static MaybeObject* StringReplaceRegExpWithString(
   ASSERT(subject->IsFlat());
   ASSERT(replacement->IsFlat());
 
-  bool is_global = regexp->GetFlags().is_global();
   int capture_count = regexp->CaptureCount();
   int subject_length = subject->length();
 
@@ -3005,33 +3002,30 @@ MUST_USE_RESULT static MaybeObject* StringReplaceRegExpWithString(
                                                      subject_length);
 
   // Shortcut for simple non-regexp global replacements
-  if (is_global &&
-      regexp->TypeTag() == JSRegExp::ATOM &&
-      simple_replace) {
+  if (regexp->TypeTag() == JSRegExp::ATOM && simple_replace) {
     if (subject->IsOneByteConvertible() &&
         replacement->IsOneByteConvertible()) {
-      return StringReplaceAtomRegExpWithString<SeqOneByteString>(
+      return StringReplaceGlobalAtomRegExpWithString<SeqOneByteString>(
           isolate, subject, regexp, replacement, last_match_info);
     } else {
-      return StringReplaceAtomRegExpWithString<SeqTwoByteString>(
+      return StringReplaceGlobalAtomRegExpWithString<SeqTwoByteString>(
           isolate, subject, regexp, replacement, last_match_info);
     }
   }
 
-  RegExpImpl::GlobalCache global_cache(regexp, subject, is_global, isolate);
+  RegExpImpl::GlobalCache global_cache(regexp, subject, true, isolate);
   if (global_cache.HasException()) return Failure::Exception();
 
   int32_t* current_match = global_cache.FetchNext();
   if (current_match == NULL) {
     if (global_cache.HasException()) return Failure::Exception();
-    return isolate->heap()->undefined_value();
+    return *subject;
   }
 
   // Guessing the number of parts that the final result string is built
   // from. Global regexps can match any number of times, so we guess
   // conservatively.
-  int expected_parts =
-      (compiled_replacement.parts() + 1) * (is_global ? 4 : 1) + 1;
+  int expected_parts = (compiled_replacement.parts() + 1) * 4 + 1;
   ReplacementStringBuilder builder(isolate->heap(),
                                    subject,
                                    expected_parts);
@@ -3063,9 +3057,6 @@ MUST_USE_RESULT static MaybeObject* StringReplaceRegExpWithString(
     }
     prev = end;
 
-    // Only continue checking for global regexps.
-    if (!is_global) break;
-
     current_match = global_cache.FetchNext();
   } while (current_match != NULL);
 
@@ -3086,43 +3077,32 @@ MUST_USE_RESULT static MaybeObject* StringReplaceRegExpWithString(
 
 
 template <typename ResultSeqString>
-MUST_USE_RESULT static MaybeObject* StringReplaceRegExpWithEmptyString(
+MUST_USE_RESULT static MaybeObject* StringReplaceGlobalRegExpWithEmptyString(
     Isolate* isolate,
     Handle<String> subject,
     Handle<JSRegExp> regexp,
     Handle<JSArray> last_match_info) {
   ASSERT(subject->IsFlat());
 
-  bool is_global = regexp->GetFlags().is_global();
-
   // Shortcut for simple non-regexp global replacements
-  if (is_global &&
-      regexp->TypeTag() == JSRegExp::ATOM) {
+  if (regexp->TypeTag() == JSRegExp::ATOM) {
     Handle<String> empty_string = isolate->factory()->empty_string();
     if (subject->IsOneByteRepresentation()) {
-      return StringReplaceAtomRegExpWithString<SeqOneByteString>(
-          isolate,
-          subject,
-          regexp,
-          empty_string,
-          last_match_info);
+      return StringReplaceGlobalAtomRegExpWithString<SeqOneByteString>(
+          isolate, subject, regexp, empty_string, last_match_info);
     } else {
-      return StringReplaceAtomRegExpWithString<SeqTwoByteString>(
-          isolate,
-          subject,
-          regexp,
-          empty_string,
-          last_match_info);
+      return StringReplaceGlobalAtomRegExpWithString<SeqTwoByteString>(
+          isolate, subject, regexp, empty_string, last_match_info);
     }
   }
 
-  RegExpImpl::GlobalCache global_cache(regexp, subject, is_global, isolate);
+  RegExpImpl::GlobalCache global_cache(regexp, subject, true, isolate);
   if (global_cache.HasException()) return Failure::Exception();
 
   int32_t* current_match = global_cache.FetchNext();
   if (current_match == NULL) {
     if (global_cache.HasException()) return Failure::Exception();
-    return isolate->heap()->undefined_value();
+    return *subject;
   }
 
   int start = current_match[0];
@@ -3142,23 +3122,6 @@ MUST_USE_RESULT static MaybeObject* StringReplaceRegExpWithEmptyString(
         isolate->factory()->NewRawTwoByteString(new_length));
   }
 
-  if (!is_global) {
-    RegExpImpl::SetLastMatchInfo(
-        last_match_info, subject, capture_count, current_match);
-    if (start == end) {
-      return *subject;
-    } else {
-      if (start > 0) {
-        String::WriteToFlat(*subject, answer->GetChars(), 0, start);
-      }
-      if (end < subject_length) {
-        String::WriteToFlat(
-            *subject, answer->GetChars() + start, end, subject_length);
-      }
-      return *answer;
-    }
-  }
-
   int prev = 0;
   int position = 0;
 
@@ -3167,8 +3130,7 @@ MUST_USE_RESULT static MaybeObject* StringReplaceRegExpWithEmptyString(
     end = current_match[1];
     if (prev < start) {
       // Add substring subject[prev;start] to answer string.
-      String::WriteToFlat(
-          *subject, answer->GetChars() + position, prev, start);
+      String::WriteToFlat(*subject, answer->GetChars() + position, prev, start);
       position += start - prev;
     }
     prev = end;
@@ -3210,7 +3172,7 @@ MUST_USE_RESULT static MaybeObject* StringReplaceRegExpWithEmptyString(
 }
 
 
-RUNTIME_FUNCTION(MaybeObject*, Runtime_StringReplaceRegExpWithString) {
+RUNTIME_FUNCTION(MaybeObject*, Runtime_StringReplaceGlobalRegExpWithString) {
   ASSERT(args.length() == 4);
 
   HandleScope scope(isolate);
@@ -3220,21 +3182,23 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringReplaceRegExpWithString) {
   CONVERT_ARG_HANDLE_CHECKED(JSRegExp, regexp, 1);
   CONVERT_ARG_HANDLE_CHECKED(JSArray, last_match_info, 3);
 
-  if (!subject->IsFlat()) subject = FlattenGetString(subject);
+  ASSERT(regexp->GetFlags().is_global());
 
-  if (!replacement->IsFlat()) replacement = FlattenGetString(replacement);
+  if (!subject->IsFlat()) subject = FlattenGetString(subject);
 
   if (replacement->length() == 0) {
     if (subject->IsOneByteConvertible()) {
-      return StringReplaceRegExpWithEmptyString<SeqOneByteString>(
+      return StringReplaceGlobalRegExpWithEmptyString<SeqOneByteString>(
           isolate, subject, regexp, last_match_info);
     } else {
-      return StringReplaceRegExpWithEmptyString<SeqTwoByteString>(
+      return StringReplaceGlobalRegExpWithEmptyString<SeqTwoByteString>(
           isolate, subject, regexp, last_match_info);
     }
   }
 
-  return StringReplaceRegExpWithString(
+  if (!replacement->IsFlat()) replacement = FlattenGetString(replacement);
+
+  return StringReplaceGlobalRegExpWithString(
       isolate, subject, regexp, replacement, last_match_info);
 }
 
@@ -3899,7 +3863,7 @@ MaybeObject* Runtime::GetElementOrCharAt(Isolate* isolate,
   }
 
   if (object->IsString() || object->IsNumber() || object->IsBoolean()) {
-    return object->GetPrototype()->GetElement(index);
+    return object->GetPrototype(isolate)->GetElement(index);
   }
 
   return object->GetElement(index);
@@ -8051,7 +8015,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CompileForOnStackReplacement) {
     PrintF("]\n");
   }
   InterruptStub interrupt_stub;
-  Handle<Code> check_code = interrupt_stub.GetCode();
+  Handle<Code> check_code = interrupt_stub.GetCode(isolate);
   Handle<Code> replacement_code = isolate->builtins()->OnStackReplacement();
   Deoptimizer::RevertStackCheckCode(*unoptimized,
                                     *check_code,
@@ -10403,7 +10367,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetFrameDetails) {
   Handle<JSFunction> function(JSFunction::cast(frame_inspector.GetFunction()));
   Handle<SharedFunctionInfo> shared(function->shared());
   Handle<ScopeInfo> scope_info(shared->scope_info());
-  ASSERT(*scope_info != ScopeInfo::Empty());
+  ASSERT(*scope_info != ScopeInfo::Empty(isolate));
 
   // Get the locals names and values into a temporary array.
   //
@@ -12039,7 +12003,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugEvaluate) {
   // Skip the global proxy as it has no properties and always delegates to the
   // real global object.
   if (result->IsJSGlobalProxy()) {
-    result = Handle<JSObject>(JSObject::cast(result->GetPrototype()));
+    result = Handle<JSObject>(JSObject::cast(result->GetPrototype(isolate)));
   }
 
   return *result;
@@ -12153,7 +12117,8 @@ static int DebugReferencedBy(HeapIterator* iterator,
                              Object* instance_filter, int max_references,
                              FixedArray* instances, int instances_size,
                              JSFunction* arguments_function) {
-  NoHandleAllocation ha(target->GetIsolate());
+  Isolate* isolate = target->GetIsolate();
+  NoHandleAllocation ha(isolate);
   AssertNoAllocation no_alloc;
 
   // Iterate the heap.
@@ -12179,7 +12144,7 @@ static int DebugReferencedBy(HeapIterator* iterator,
         if (!instance_filter->IsUndefined()) {
           Object* V = obj;
           while (true) {
-            Object* prototype = V->GetPrototype();
+            Object* prototype = V->GetPrototype(isolate);
             if (prototype->IsNull()) {
               break;
             }
@@ -13249,7 +13214,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_UnwrapGlobalProxy) {
   ASSERT(args.length() == 1);
   Object* object = args[0];
   if (object->IsJSGlobalProxy()) {
-    object = object->GetPrototype();
+    object = object->GetPrototype(isolate);
     if (object->IsNull()) return isolate->heap()->undefined_value();
   }
   return object;

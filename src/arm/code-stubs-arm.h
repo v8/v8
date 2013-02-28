@@ -66,7 +66,7 @@ class StoreBufferOverflowStub: public PlatformCodeStub {
   void Generate(MacroAssembler* masm);
 
   virtual bool IsPregenerated();
-  static void GenerateFixedRegStubsAheadOfTime();
+  static void GenerateFixedRegStubsAheadOfTime(Isolate* isolate);
   virtual bool SometimesSetsUpAFrame() { return false; }
 
  private:
@@ -119,9 +119,9 @@ class UnaryOpStub: public PlatformCodeStub {
   void GenerateSmiCodeSub(MacroAssembler* masm, Label* non_smi, Label* slow);
   void GenerateSmiCodeBitNot(MacroAssembler* masm, Label* slow);
 
-  void GenerateHeapNumberStub(MacroAssembler* masm);
-  void GenerateHeapNumberStubSub(MacroAssembler* masm);
-  void GenerateHeapNumberStubBitNot(MacroAssembler* masm);
+  void GenerateNumberStub(MacroAssembler* masm);
+  void GenerateNumberStubSub(MacroAssembler* masm);
+  void GenerateNumberStubBitNot(MacroAssembler* masm);
   void GenerateHeapNumberCodeSub(MacroAssembler* masm, Label* slow);
   void GenerateHeapNumberCodeBitNot(MacroAssembler* masm, Label* slow);
 
@@ -305,7 +305,7 @@ class WriteInt32ToHeapNumberStub : public PlatformCodeStub {
         scratch_(scratch) { }
 
   bool IsPregenerated();
-  static void GenerateFixedRegStubsAheadOfTime();
+  static void GenerateFixedRegStubsAheadOfTime(Isolate* isolate);
 
  private:
   Register the_int_;
@@ -379,7 +379,7 @@ class RecordWriteStub: public PlatformCodeStub {
   };
 
   virtual bool IsPregenerated();
-  static void GenerateFixedRegStubsAheadOfTime();
+  static void GenerateFixedRegStubsAheadOfTime(Isolate* isolate);
   virtual bool SometimesSetsUpAFrame() { return false; }
 
   static void PatchBranchIntoNop(MacroAssembler* masm, int pos) {

@@ -287,6 +287,20 @@ class ThreadLocalTop BASE_EMBEDDED {
 };
 
 
+class SystemThreadManager {
+ public:
+  enum ParallelSystemComponent {
+    PARALLEL_SWEEPING,
+    CONCURRENT_SWEEPING,
+    PARALLEL_MARKING
+  };
+
+  static int NumberOfParallelSystemThreads(ParallelSystemComponent type);
+
+  static const int kMaxThreads = 4;
+};
+
+
 #ifdef ENABLE_DEBUGGER_SUPPORT
 
 #define ISOLATE_DEBUGGER_INIT_LIST(V)                                          \

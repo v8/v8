@@ -630,11 +630,11 @@ void FloatingPointHelper::LoadSmis(MacroAssembler* masm,
     __ mov(scratch1, Operand(r0));
     ConvertToDoubleStub stub1(r3, r2, scratch1, scratch2);
     __ push(lr);
-    __ Call(stub1.GetCode());
+    __ Call(stub1.GetCode(masm->isolate()));
     // Write Smi from r1 to r1 and r0 in double format.
     __ mov(scratch1, Operand(r1));
     ConvertToDoubleStub stub2(r1, r0, scratch1, scratch2);
-    __ Call(stub2.GetCode());
+    __ Call(stub2.GetCode(masm->isolate()));
     __ pop(lr);
   }
 }
@@ -692,7 +692,7 @@ void FloatingPointHelper::LoadNumber(MacroAssembler* masm,
     __ mov(scratch1, Operand(object));
     ConvertToDoubleStub stub(dst2, dst1, scratch1, scratch2);
     __ push(lr);
-    __ Call(stub.GetCode());
+    __ Call(stub.GetCode(masm->isolate()));
     __ pop(lr);
   }
 
@@ -1120,11 +1120,12 @@ bool WriteInt32ToHeapNumberStub::IsPregenerated() {
 }
 
 
-void WriteInt32ToHeapNumberStub::GenerateFixedRegStubsAheadOfTime() {
+void WriteInt32ToHeapNumberStub::GenerateFixedRegStubsAheadOfTime(
+    Isolate* isolate) {
   WriteInt32ToHeapNumberStub stub1(r1, r0, r2);
   WriteInt32ToHeapNumberStub stub2(r2, r0, r3);
-  stub1.GetCode()->set_is_pregenerated(true);
-  stub2.GetCode()->set_is_pregenerated(true);
+  stub1.GetCode(isolate)->set_is_pregenerated(true);
+  stub2.GetCode(isolate)->set_is_pregenerated(true);
 }
 
 
@@ -1316,7 +1317,7 @@ static void EmitSmiNonsmiComparison(MacroAssembler* masm,
     // Convert lhs to a double in r2, r3.
     __ mov(r7, Operand(lhs));
     ConvertToDoubleStub stub1(r3, r2, r7, r6);
-    __ Call(stub1.GetCode());
+    __ Call(stub1.GetCode(masm->isolate()));
     // Load rhs to a double in r0, r1.
     __ Ldrd(r0, r1, FieldMemOperand(rhs, HeapNumber::kValueOffset));
     __ pop(lr);
@@ -1358,7 +1359,7 @@ static void EmitSmiNonsmiComparison(MacroAssembler* masm,
     // Convert rhs to a double in r0, r1.
     __ mov(r7, Operand(rhs));
     ConvertToDoubleStub stub2(r1, r0, r7, r6);
-    __ Call(stub2.GetCode());
+    __ Call(stub2.GetCode(masm->isolate()));
     __ pop(lr);
   }
   // Fall through to both_loaded_as_doubles.
@@ -1710,7 +1711,7 @@ static void ICCompareStub_CheckInputType(MacroAssembler* masm,
   Label ok;
   if (expected == CompareIC::SMI) {
     __ JumpIfNotSmi(input, fail);
-  } else if (expected == CompareIC::HEAP_NUMBER) {
+  } else if (expected == CompareIC::NUMBER) {
     __ JumpIfSmi(input, &ok);
     __ CheckMap(input, scratch, Heap::kHeapNumberMapRootIndex, fail,
                 DONT_DO_SMI_CHECK);
@@ -2110,8 +2111,8 @@ void UnaryOpStub::Generate(MacroAssembler* masm) {
     case UnaryOpIC::SMI:
       GenerateSmiStub(masm);
       break;
-    case UnaryOpIC::HEAP_NUMBER:
-      GenerateHeapNumberStub(masm);
+    case UnaryOpIC::NUMBER:
+      GenerateNumberStub(masm);
       break;
     case UnaryOpIC::GENERIC:
       GenerateGenericStub(masm);
@@ -2191,13 +2192,13 @@ void UnaryOpStub::GenerateSmiCodeBitNot(MacroAssembler* masm,
 
 
 // TODO(svenpanne): Use virtual functions instead of switch.
-void UnaryOpStub::GenerateHeapNumberStub(MacroAssembler* masm) {
+void UnaryOpStub::GenerateNumberStub(MacroAssembler* masm) {
   switch (op_) {
     case Token::SUB:
-      GenerateHeapNumberStubSub(masm);
+      GenerateNumberStubSub(masm);
       break;
     case Token::BIT_NOT:
-      GenerateHeapNumberStubBitNot(masm);
+      GenerateNumberStubBitNot(masm);
       break;
     default:
       UNREACHABLE();
@@ -2205,7 +2206,7 @@ void UnaryOpStub::GenerateHeapNumberStub(MacroAssembler* masm) {
 }
 
 
-void UnaryOpStub::GenerateHeapNumberStubSub(MacroAssembler* masm) {
+void UnaryOpStub::GenerateNumberStubSub(MacroAssembler* masm) {
   Label non_smi, slow, call_builtin;
   GenerateSmiCodeSub(masm, &non_smi, &call_builtin);
   __ bind(&non_smi);
@@ -2217,7 +2218,7 @@ void UnaryOpStub::GenerateHeapNumberStubSub(MacroAssembler* masm) {
 }
 
 
-void UnaryOpStub::GenerateHeapNumberStubBitNot(MacroAssembler* masm) {
+void UnaryOpStub::GenerateNumberStubBitNot(MacroAssembler* masm) {
   Label non_smi, slow;
   GenerateSmiCodeBitNot(masm, &non_smi);
   __ bind(&non_smi);
@@ -2318,7 +2319,7 @@ void UnaryOpStub::GenerateHeapNumberCodeBitNot(
     // WriteInt32ToHeapNumberStub does not trigger GC, so we do not
     // have to set up a frame.
     WriteInt32ToHeapNumberStub stub(r1, r0, r2);
-    __ Jump(stub.GetCode(), RelocInfo::CODE_TARGET);
+    __ Jump(stub.GetCode(masm->isolate()), RelocInfo::CODE_TARGET);
   }
 
   __ bind(&impossible);
@@ -2679,8 +2680,7 @@ void BinaryOpStub_GenerateFPOperation(MacroAssembler* masm,
               masm, right, destination, d7, d8, r2, r3, heap_number_map,
               scratch1, scratch2, s0, miss);
         } else {
-          Label* fail = (right_type == BinaryOpIC::HEAP_NUMBER) ? miss
-                                                                : not_numbers;
+          Label* fail = (right_type == BinaryOpIC::NUMBER) ? miss : not_numbers;
           FloatingPointHelper::LoadNumber(
               masm, destination, right, d7, r2, r3, heap_number_map,
               scratch1, scratch2, fail);
@@ -2692,8 +2692,7 @@ void BinaryOpStub_GenerateFPOperation(MacroAssembler* masm,
               masm, left, destination, d6, d8, r0, r1, heap_number_map,
               scratch1, scratch2, s0, miss);
         } else {
-          Label* fail = (left_type == BinaryOpIC::HEAP_NUMBER) ? miss
-                                                               : not_numbers;
+          Label* fail = (left_type == BinaryOpIC::NUMBER) ? miss : not_numbers;
           FloatingPointHelper::LoadNumber(
               masm, destination, left, d6, r0, r1, heap_number_map,
               scratch1, scratch2, fail);
@@ -3089,7 +3088,7 @@ void BinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
         __ bind(&return_heap_number);
         // Return a heap number, or fall through to type transition or runtime
         // call if we can't.
-        if (result_type_ >= ((op_ == Token::DIV) ? BinaryOpIC::HEAP_NUMBER
+        if (result_type_ >= ((op_ == Token::DIV) ? BinaryOpIC::NUMBER
                                                  : BinaryOpIC::INT32)) {
           // We are using vfp registers so r5 is available.
           heap_number_result = r5;
@@ -3313,11 +3312,11 @@ void BinaryOpStub::GenerateOddballStub(MacroAssembler* masm) {
   }
   __ bind(&done);
 
-  GenerateHeapNumberStub(masm);
+  GenerateNumberStub(masm);
 }
 
 
-void BinaryOpStub::GenerateHeapNumberStub(MacroAssembler* masm) {
+void BinaryOpStub::GenerateNumberStub(MacroAssembler* masm) {
   Label call_runtime, transition;
   BinaryOpStub_GenerateFPOperation(
       masm, left_type_, right_type_, false,
@@ -3874,15 +3873,15 @@ bool CEntryStub::IsPregenerated() {
 }
 
 
-void CodeStub::GenerateStubsAheadOfTime() {
-  CEntryStub::GenerateAheadOfTime();
-  WriteInt32ToHeapNumberStub::GenerateFixedRegStubsAheadOfTime();
-  StoreBufferOverflowStub::GenerateFixedRegStubsAheadOfTime();
-  RecordWriteStub::GenerateFixedRegStubsAheadOfTime();
+void CodeStub::GenerateStubsAheadOfTime(Isolate* isolate) {
+  CEntryStub::GenerateAheadOfTime(isolate);
+  WriteInt32ToHeapNumberStub::GenerateFixedRegStubsAheadOfTime(isolate);
+  StoreBufferOverflowStub::GenerateFixedRegStubsAheadOfTime(isolate);
+  RecordWriteStub::GenerateFixedRegStubsAheadOfTime(isolate);
 }
 
 
-void CodeStub::GenerateFPStubs() {
+void CodeStub::GenerateFPStubs(Isolate* isolate) {
   SaveFPRegsMode mode = CpuFeatures::IsSupported(VFP2)
       ? kSaveFPRegs
       : kDontSaveFPRegs;
@@ -3896,11 +3895,11 @@ void CodeStub::GenerateFPStubs() {
   if (!save_doubles.FindCodeInCache(&save_doubles_code, ISOLATE)) {
     if (CpuFeatures::IsSupported(VFP2)) {
       CpuFeatures::Scope scope2(VFP2);
-      save_doubles_code = *save_doubles.GetCode();
-      store_buffer_overflow_code = *stub.GetCode();
+      save_doubles_code = *save_doubles.GetCode(isolate);
+      store_buffer_overflow_code = *stub.GetCode(isolate);
     } else {
-      save_doubles_code = *save_doubles.GetCode();
-      store_buffer_overflow_code = *stub.GetCode();
+      save_doubles_code = *save_doubles.GetCode(isolate);
+      store_buffer_overflow_code = *stub.GetCode(isolate);
     }
     save_doubles_code->set_is_pregenerated(true);
     store_buffer_overflow_code->set_is_pregenerated(true);
@@ -3909,9 +3908,9 @@ void CodeStub::GenerateFPStubs() {
 }
 
 
-void CEntryStub::GenerateAheadOfTime() {
+void CEntryStub::GenerateAheadOfTime(Isolate* isolate) {
   CEntryStub stub(1, kDontSaveFPRegs);
-  Handle<Code> code = stub.GetCode();
+  Handle<Code> code = stub.GetCode(isolate);
   code->set_is_pregenerated(true);
 }
 
@@ -6940,8 +6939,8 @@ void ICCompareStub::GenerateSmis(MacroAssembler* masm) {
 }
 
 
-void ICCompareStub::GenerateHeapNumbers(MacroAssembler* masm) {
-  ASSERT(state_ == CompareIC::HEAP_NUMBER);
+void ICCompareStub::GenerateNumbers(MacroAssembler* masm) {
+  ASSERT(state_ == CompareIC::NUMBER);
 
   Label generic_stub;
   Label unordered, maybe_undefined1, maybe_undefined2;
@@ -7004,7 +7003,7 @@ void ICCompareStub::GenerateHeapNumbers(MacroAssembler* masm) {
   __ bind(&generic_stub);
   ICCompareStub stub(op_, CompareIC::GENERIC, CompareIC::GENERIC,
                      CompareIC::GENERIC);
-  __ Jump(stub.GetCode(), RelocInfo::CODE_TARGET);
+  __ Jump(stub.GetCode(masm->isolate()), RelocInfo::CODE_TARGET);
 
   __ bind(&maybe_undefined1);
   if (Token::IsOrderedRelationalCompareOp(op_)) {
@@ -7222,8 +7221,9 @@ void DirectCEntryStub::GenerateCall(MacroAssembler* masm,
 
 void DirectCEntryStub::GenerateCall(MacroAssembler* masm,
                                     Register target) {
-  __ mov(lr, Operand(reinterpret_cast<intptr_t>(GetCode().location()),
-                     RelocInfo::CODE_TARGET));
+  intptr_t code =
+      reinterpret_cast<intptr_t>(GetCode(masm->isolate()).location());
+  __ mov(lr, Operand(code, RelocInfo::CODE_TARGET));
 
   // Prevent literal pool emission during calculation of return address.
   Assembler::BlockConstPoolScope block_const_pool(masm);
@@ -7556,13 +7556,14 @@ bool StoreBufferOverflowStub::IsPregenerated() {
 }
 
 
-void StoreBufferOverflowStub::GenerateFixedRegStubsAheadOfTime() {
+void StoreBufferOverflowStub::GenerateFixedRegStubsAheadOfTime(
+    Isolate* isolate) {
   StoreBufferOverflowStub stub1(kDontSaveFPRegs);
-  stub1.GetCode()->set_is_pregenerated(true);
+  stub1.GetCode(isolate)->set_is_pregenerated(true);
 }
 
 
-void RecordWriteStub::GenerateFixedRegStubsAheadOfTime() {
+void RecordWriteStub::GenerateFixedRegStubsAheadOfTime(Isolate* isolate) {
   for (const AheadOfTimeWriteBarrierStubList* entry = kAheadOfTime;
        !entry->object.is(no_reg);
        entry++) {
@@ -7571,7 +7572,7 @@ void RecordWriteStub::GenerateFixedRegStubsAheadOfTime() {
                          entry->address,
                          entry->action,
                          kDontSaveFPRegs);
-    stub.GetCode()->set_is_pregenerated(true);
+    stub.GetCode(isolate)->set_is_pregenerated(true);
   }
 }
 
@@ -7846,7 +7847,7 @@ void StubFailureTrampolineStub::Generate(MacroAssembler* masm) {
   ASSERT(!Serializer::enabled());
   bool save_fp_regs = CpuFeatures::IsSupported(VFP2);
   CEntryStub ces(1, save_fp_regs ? kSaveFPRegs : kDontSaveFPRegs);
-  __ Call(ces.GetCode(), RelocInfo::CODE_TARGET);
+  __ Call(ces.GetCode(masm->isolate()), RelocInfo::CODE_TARGET);
   int parameter_count_offset =
       StubFailureTrampolineFrame::kCallerStackParameterCountFrameOffset;
   __ ldr(r1, MemOperand(fp, parameter_count_offset));

@@ -1,3 +1,13 @@
+2013-02-28: Version 3.17.6
+
+        Fixed materialization of arguments objects with unknown values.
+        (Chromium issue 163530)
+
+        Set default number of sweeper threads to at most four.
+
+        Performance and stability improvements on all platforms.
+
+
 2013-02-27: Version 3.17.5
 
         Made __proto__ a foreign callback on Object.prototype.

@@ -126,7 +126,7 @@ class CodeStub BASE_EMBEDDED {
   };
 
   // Retrieve the code for the stub. Generate the code if needed.
-  Handle<Code> GetCode();
+  Handle<Code> GetCode(Isolate* isolate);
 
   static Major MajorKeyFromKey(uint32_t key) {
     return static_cast<Major>(MajorKeyBits::decode(key));
@@ -154,8 +154,8 @@ class CodeStub BASE_EMBEDDED {
   // See comment above, where Instanceof is defined.
   virtual bool IsPregenerated() { return false; }
 
-  static void GenerateStubsAheadOfTime();
-  static void GenerateFPStubs();
+  static void GenerateStubsAheadOfTime(Isolate* isolate);
+  static void GenerateFPStubs(Isolate* isolate);
 
   // Some stubs put untagged junk on the stack that cannot be scanned by the
   // GC.  This means that we must be statically sure that no GC can occur while
@@ -736,7 +736,7 @@ class BinaryOpStub: public PlatformCodeStub {
   void GenerateBothStringStub(MacroAssembler* masm);
   void GenerateGeneric(MacroAssembler* masm);
   void GenerateGenericStub(MacroAssembler* masm);
-  void GenerateHeapNumberStub(MacroAssembler* masm);
+  void GenerateNumberStub(MacroAssembler* masm);
   void GenerateInt32Stub(MacroAssembler* masm);
   void GenerateLoadArguments(MacroAssembler* masm);
   void GenerateOddballStub(MacroAssembler* masm);
@@ -808,7 +808,7 @@ class ICCompareStub: public PlatformCodeStub {
   virtual int GetCodeKind() { return Code::COMPARE_IC; }
 
   void GenerateSmis(MacroAssembler* masm);
-  void GenerateHeapNumbers(MacroAssembler* masm);
+  void GenerateNumbers(MacroAssembler* masm);
   void GenerateSymbols(MacroAssembler* masm);
   void GenerateStrings(MacroAssembler* masm);
   void GenerateObjects(MacroAssembler* masm);
@@ -821,7 +821,7 @@ class ICCompareStub: public PlatformCodeStub {
 
   virtual void AddToSpecialCache(Handle<Code> new_object);
   virtual bool FindCodeInSpecialCache(Code** code_out, Isolate* isolate);
-  virtual bool UseSpecialCache() { return state_ == CompareIC::KNOWN_OBJECTS; }
+  virtual bool UseSpecialCache() { return state_ == CompareIC::KNOWN_OBJECT; }
 
   Token::Value op_;
   CompareIC::State left_;
@@ -844,7 +844,7 @@ class CEntryStub : public PlatformCodeStub {
   // their code generation.  On machines that always have gp registers (x64) we
   // can generate both variants ahead of time.
   virtual bool IsPregenerated();
-  static void GenerateAheadOfTime();
+  static void GenerateAheadOfTime(Isolate* isolate);
 
  private:
   void GenerateCore(MacroAssembler* masm,
@@ -1462,7 +1462,7 @@ class StubFailureTrampolineStub : public PlatformCodeStub {
 
   virtual bool IsPregenerated() { return true; }
 
-  static void GenerateAheadOfTime();
+  static void GenerateAheadOfTime(Isolate* isolate);
 
  private:
   Major MajorKey() { return StubFailureTrampoline; }

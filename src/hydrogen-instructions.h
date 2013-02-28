@@ -3182,6 +3182,8 @@ class HConstant: public HTemplateInstruction<0> {
   }
 
  private:
+  void Initialize(Representation r);
+
   virtual bool IsDeletable() const { return true; }
 
   // If this is a numerical constant, handle_ either points to to the

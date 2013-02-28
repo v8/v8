@@ -2959,7 +2959,7 @@ Local<Value> v8::Object::GetPrototype() {
              return Local<v8::Value>());
   ENTER_V8(isolate);
   i::Handle<i::Object> self = Utils::OpenHandle(this);
-  i::Handle<i::Object> result(self->GetPrototype(), isolate);
+  i::Handle<i::Object> result(self->GetPrototype(isolate), isolate);
   return Utils::ToLocal(result);
 }
 
@@ -3367,7 +3367,7 @@ bool v8::Object::SetHiddenValue(v8::Handle<v8::String> key,
   i::HandleScope scope(isolate);
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
   i::Handle<i::String> key_obj = Utils::OpenHandle(*key);
-  i::Handle<i::String> key_symbol = FACTORY->LookupSymbol(key_obj);
+  i::Handle<i::String> key_symbol = isolate->factory()->LookupSymbol(key_obj);
   i::Handle<i::Object> value_obj = Utils::OpenHandle(*value);
   i::Handle<i::Object> result =
       i::JSObject::SetHiddenProperty(self, key_symbol, value_obj);
@@ -5327,14 +5327,18 @@ void V8::IgnoreOutOfMemoryException() {
 }
 
 
-bool V8::AddMessageListener(MessageCallback that) {
+bool V8::AddMessageListener(MessageCallback that, Handle<Value> data) {
   i::Isolate* isolate = i::Isolate::Current();
   EnsureInitializedForIsolate(isolate, "v8::V8::AddMessageListener()");
   ON_BAILOUT(isolate, "v8::V8::AddMessageListener()", return false);
   ENTER_V8(isolate);
   i::HandleScope scope(isolate);
   NeanderArray listeners(isolate->factory()->message_listeners());
-  listeners.add(isolate->factory()->NewForeign(FUNCTION_ADDR(that)));
+  NeanderObject obj(2);
+  obj.set(0, *isolate->factory()->NewForeign(FUNCTION_ADDR(that)));
+  obj.set(1, data.IsEmpty() ? isolate->heap()->undefined_value()
+                            : *Utils::OpenHandle(*data));
+  listeners.add(obj.value());
   return true;
 }
 
@@ -5349,7 +5353,8 @@ void V8::RemoveMessageListeners(MessageCallback that) {
   for (int i = 0; i < listeners.length(); i++) {
     if (listeners.get(i)->IsUndefined()) continue;  // skip deleted ones
 
-    i::Handle<i::Foreign> callback_obj(i::Foreign::cast(listeners.get(i)));
+    NeanderObject listener(i::JSObject::cast(listeners.get(i)));
+    i::Handle<i::Foreign> callback_obj(i::Foreign::cast(listener.get(0)));
     if (callback_obj->foreign_address() == FUNCTION_ADDR(that)) {
       listeners.set(i, isolate->heap()->undefined_value());
     }

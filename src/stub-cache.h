@@ -402,7 +402,6 @@ class StubCache {
 
 
 // Support functions for IC stubs for callbacks.
-DECLARE_RUNTIME_FUNCTION(MaybeObject*, LoadCallbackProperty);
 DECLARE_RUNTIME_FUNCTION(MaybeObject*, StoreCallbackProperty);
 
 
@@ -536,58 +535,6 @@ class StubCompiler BASE_EMBEDDED {
   MacroAssembler* masm() { return &masm_; }
   void set_failure(Failure* failure) { failure_ = failure; }
 
-  void GenerateLoadField(Handle<JSObject> object,
-                         Handle<JSObject> holder,
-                         Register receiver,
-                         Register scratch1,
-                         Register scratch2,
-                         Register scratch3,
-                         PropertyIndex index,
-                         Handle<String> name,
-                         Label* miss);
-
-  void GenerateLoadCallback(Handle<JSObject> object,
-                            Handle<JSObject> holder,
-                            Register receiver,
-                            Register name_reg,
-                            Register scratch1,
-                            Register scratch2,
-                            Register scratch3,
-                            Register scratch4,
-                            Handle<ExecutableAccessorInfo> callback,
-                            Handle<String> name,
-                            Label* miss);
-
-  void GenerateDictionaryLoadCallback(Register receiver,
-                                      Register name_reg,
-                                      Register scratch1,
-                                      Register scratch2,
-                                      Register scratch3,
-                                      Handle<ExecutableAccessorInfo> callback,
-                                      Handle<String> name,
-                                      Label* miss);
-
-  void GenerateLoadConstant(Handle<JSObject> object,
-                            Handle<JSObject> holder,
-                            Register receiver,
-                            Register scratch1,
-                            Register scratch2,
-                            Register scratch3,
-                            Handle<JSFunction> value,
-                            Handle<String> name,
-                            Label* miss);
-
-  void GenerateLoadInterceptor(Handle<JSObject> object,
-                               Handle<JSObject> holder,
-                               LookupResult* lookup,
-                               Register receiver,
-                               Register name_reg,
-                               Register scratch1,
-                               Register scratch2,
-                               Register scratch3,
-                               Handle<String> name,
-                               Label* miss);
-
   static void LookupPostInterceptor(Handle<JSObject> holder,
                                     Handle<String> name,
                                     LookupResult* lookup);
@@ -601,6 +548,9 @@ class StubCompiler BASE_EMBEDDED {
   MacroAssembler masm_;
   Failure* failure_;
 };
+
+
+enum FrontendCheckType { PERFORM_INITIAL_CHECKS, SKIP_INITIAL_CHECKS };
 
 
 class BaseLoadStubCompiler: public StubCompiler {
@@ -629,6 +579,50 @@ class BaseLoadStubCompiler: public StubCompiler {
                                       Handle<String> name);
 
  protected:
+  Register HandlerFrontendHeader(Handle<JSObject> object,
+                                 Register object_reg,
+                                 Handle<JSObject> holder,
+                                 Handle<String> name,
+                                 Label* success,
+                                 FrontendCheckType check);
+  void HandlerFrontendFooter(Label* success, Label* miss);
+
+  Register HandlerFrontend(Handle<JSObject> object,
+                           Register object_reg,
+                           Handle<JSObject> holder,
+                           Handle<String> name,
+                           Label* success,
+                           FrontendCheckType check);
+  Register CallbackHandlerFrontend(Handle<JSObject> object,
+                                   Register object_reg,
+                                   Handle<JSObject> holder,
+                                   Handle<String> name,
+                                   Label* success,
+                                   FrontendCheckType check,
+                                   Handle<ExecutableAccessorInfo> callback);
+  void NonexistentHandlerFrontend(Handle<JSObject> object,
+                                  Handle<JSObject> last,
+                                  Handle<String> name,
+                                  Label* success,
+                                  Handle<GlobalObject> global);
+
+  void GenerateLoadField(Register reg,
+                         Handle<JSObject> holder,
+                         PropertyIndex index);
+  void GenerateLoadConstant(Handle<JSFunction> value);
+  void GenerateLoadCallback(Register reg,
+                            Handle<ExecutableAccessorInfo> callback);
+  void GenerateLoadInterceptor(Register holder_reg,
+                               Handle<JSObject> object,
+                               Handle<JSObject> holder,
+                               LookupResult* lookup,
+                               Handle<String> name);
+  void GenerateLoadPostInterceptor(Register reg,
+                                   Handle<JSObject> interceptor_holder,
+                                   Handle<String> name,
+                                   LookupResult* lookup);
+
+
   Register receiver() { return registers_[0]; }
   Register name()     { return registers_[1]; }
   Register scratch1() { return registers_[2]; }

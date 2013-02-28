@@ -131,6 +131,24 @@ v8::TryCatch* ThreadLocalTop::TryCatchHandler() {
 }
 
 
+int SystemThreadManager::NumberOfParallelSystemThreads(
+    ParallelSystemComponent type) {
+  int number_of_threads = Min(OS::NumberOfCores(), kMaxThreads);
+  ASSERT(number_of_threads > 0);
+  if (number_of_threads ==  1) {
+    return 0;
+  }
+  if (type == PARALLEL_SWEEPING) {
+    return number_of_threads;
+  } else if (type == CONCURRENT_SWEEPING) {
+    return number_of_threads - 1;
+  } else if (type == PARALLEL_MARKING) {
+    return number_of_threads;
+  }
+  return 1;
+}
+
+
 // Create a dummy thread that will wait forever on a semaphore. The only
 // purpose for this thread is to have some stack area to save essential data
 // into for use by a stacks only core dump (aka minidump).
@@ -1174,7 +1192,7 @@ bool Isolate::IsErrorObject(Handle<Object> obj) {
       js_builtins_object()->GetPropertyNoExceptionThrown(error_key);
 
   for (Object* prototype = *obj; !prototype->IsNull();
-       prototype = prototype->GetPrototype()) {
+       prototype = prototype->GetPrototype(this)) {
     if (!prototype->IsJSObject()) return false;
     if (JSObject::cast(prototype)->map()->constructor() == error_constructor) {
       return true;
@@ -1754,7 +1772,7 @@ void Isolate::Deinit() {
   if (state_ == INITIALIZED) {
     TRACE_ISOLATE(deinit);
 
-    if (FLAG_concurrent_sweeping || FLAG_parallel_sweeping) {
+    if (FLAG_sweeper_threads > 0) {
       for (int i = 0; i < FLAG_sweeper_threads; i++) {
         sweeper_thread_[i]->Stop();
         delete sweeper_thread_[i];
@@ -1762,7 +1780,7 @@ void Isolate::Deinit() {
       delete[] sweeper_thread_;
     }
 
-    if (FLAG_parallel_marking) {
+    if (FLAG_marking_threads > 0) {
       for (int i = 0; i < FLAG_marking_threads; i++) {
         marking_thread_[i]->Stop();
         delete marking_thread_[i];
@@ -2130,6 +2148,7 @@ bool Isolate::Init(Deserializer* des) {
     // the snapshot.
     HandleScope scope(this);
     Deoptimizer::EnsureCodeForDeoptimizationEntry(
+        this,
         Deoptimizer::LAZY,
         kDeoptTableSerializeEntryCount - 1);
   }
@@ -2137,32 +2156,47 @@ bool Isolate::Init(Deserializer* des) {
   if (!Serializer::enabled()) {
     // Ensure that the stub failure trampoline has been generated.
     HandleScope scope(this);
-    CodeStub::GenerateFPStubs();
-    StubFailureTrampolineStub::GenerateAheadOfTime();
+    CodeStub::GenerateFPStubs(this);
+    StubFailureTrampolineStub::GenerateAheadOfTime(this);
   }
 
   if (FLAG_parallel_recompilation) optimizing_compiler_thread_.Start();
 
-  if (FLAG_parallel_marking) {
-    if (FLAG_marking_threads < 1) {
-      FLAG_marking_threads = 1;
-    }
+  if (FLAG_parallel_marking && FLAG_marking_threads == 0) {
+    FLAG_marking_threads = SystemThreadManager::
+        NumberOfParallelSystemThreads(
+            SystemThreadManager::PARALLEL_MARKING);
+  }
+  if (FLAG_marking_threads > 0) {
     marking_thread_ = new MarkingThread*[FLAG_marking_threads];
     for (int i = 0; i < FLAG_marking_threads; i++) {
       marking_thread_[i] = new MarkingThread(this);
       marking_thread_[i]->Start();
     }
+  } else {
+    FLAG_parallel_marking = false;
   }
 
-  if (FLAG_parallel_sweeping || FLAG_concurrent_sweeping) {
-    if (FLAG_sweeper_threads < 1) {
-      FLAG_sweeper_threads = 1;
+  if (FLAG_sweeper_threads == 0) {
+    if (FLAG_concurrent_sweeping) {
+      FLAG_sweeper_threads = SystemThreadManager::
+          NumberOfParallelSystemThreads(
+              SystemThreadManager::CONCURRENT_SWEEPING);
+    } else if (FLAG_parallel_sweeping) {
+      FLAG_sweeper_threads = SystemThreadManager::
+          NumberOfParallelSystemThreads(
+              SystemThreadManager::PARALLEL_SWEEPING);
     }
+  }
+  if (FLAG_sweeper_threads > 0) {
     sweeper_thread_ = new SweeperThread*[FLAG_sweeper_threads];
     for (int i = 0; i < FLAG_sweeper_threads; i++) {
       sweeper_thread_[i] = new SweeperThread(this);
       sweeper_thread_[i]->Start();
     }
+  } else {
+    FLAG_concurrent_sweeping = false;
+    FLAG_parallel_sweeping = false;
   }
   return true;
 }

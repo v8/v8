@@ -73,7 +73,7 @@ void Deoptimizer::DeoptimizeFunctionWithPreparedFunctionList(
   for (int i = 0; i < deopt_data->DeoptCount(); i++) {
     if (deopt_data->Pc(i)->value() == -1) continue;
     Address call_address = code_start_address + deopt_data->Pc(i)->value();
-    Address deopt_entry = GetDeoptimizationEntry(i, LAZY);
+    Address deopt_entry = GetDeoptimizationEntry(isolate, i, LAZY);
     int call_size_in_bytes = MacroAssembler::CallSize(deopt_entry,
                                                       RelocInfo::NONE32);
     int call_size_in_words = call_size_in_bytes / Assembler::kInstrSize;

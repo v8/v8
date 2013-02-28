@@ -1108,6 +1108,7 @@ int Decoder::DecodeType7(Instruction* instr) {
 // Dd = vsub(Dn, Dm)
 // Dd = vmul(Dn, Dm)
 // Dd = vmla(Dn, Dm)
+// Dd = vmls(Dn, Dm)
 // Dd = vdiv(Dn, Dm)
 // vcmp(Dd, Dm)
 // vmrs
@@ -1123,16 +1124,16 @@ void Decoder::DecodeTypeVFP(Instruction* instr) {
       if ((instr->Opc2Value() == 0x0) && (instr->Opc3Value() == 0x1)) {
         // vmov register to register.
         if (instr->SzValue() == 0x1) {
-          Format(instr, "vmov.f64'cond 'Dd, 'Dm");
+          Format(instr, "vmov'cond.f64 'Dd, 'Dm");
         } else {
-          Format(instr, "vmov.f32'cond 'Sd, 'Sm");
+          Format(instr, "vmov'cond.f32 'Sd, 'Sm");
         }
       } else if ((instr->Opc2Value() == 0x0) && (instr->Opc3Value() == 0x3)) {
         // vabs
-        Format(instr, "vabs.f64'cond 'Dd, 'Dm");
+        Format(instr, "vabs'cond.f64 'Dd, 'Dm");
       } else if ((instr->Opc2Value() == 0x1) && (instr->Opc3Value() == 0x1)) {
         // vneg
-        Format(instr, "vneg.f64'cond 'Dd, 'Dm");
+        Format(instr, "vneg'cond.f64 'Dd, 'Dm");
       } else if ((instr->Opc2Value() == 0x7) && (instr->Opc3Value() == 0x3)) {
         DecodeVCVTBetweenDoubleAndSingle(instr);
       } else if ((instr->Opc2Value() == 0x8) && (instr->Opc3Value() & 0x1)) {
@@ -1144,10 +1145,10 @@ void Decoder::DecodeTypeVFP(Instruction* instr) {
                  (instr->Opc3Value() & 0x1)) {
         DecodeVCMP(instr);
       } else if (((instr->Opc2Value() == 0x1)) && (instr->Opc3Value() == 0x3)) {
-        Format(instr, "vsqrt.f64'cond 'Dd, 'Dm");
+        Format(instr, "vsqrt'cond.f64 'Dd, 'Dm");
       } else if (instr->Opc3Value() == 0x0) {
         if (instr->SzValue() == 0x1) {
-          Format(instr, "vmov.f64'cond 'Dd, 'd");
+          Format(instr, "vmov'cond.f64 'Dd, 'd");
         } else {
           Unknown(instr);  // Not used by V8.
         }
@@ -1157,28 +1158,34 @@ void Decoder::DecodeTypeVFP(Instruction* instr) {
     } else if (instr->Opc1Value() == 0x3) {
       if (instr->SzValue() == 0x1) {
         if (instr->Opc3Value() & 0x1) {
-          Format(instr, "vsub.f64'cond 'Dd, 'Dn, 'Dm");
+          Format(instr, "vsub'cond.f64 'Dd, 'Dn, 'Dm");
         } else {
-          Format(instr, "vadd.f64'cond 'Dd, 'Dn, 'Dm");
+          Format(instr, "vadd'cond.f64 'Dd, 'Dn, 'Dm");
         }
       } else {
         Unknown(instr);  // Not used by V8.
       }
     } else if ((instr->Opc1Value() == 0x2) && !(instr->Opc3Value() & 0x1)) {
       if (instr->SzValue() == 0x1) {
-        Format(instr, "vmul.f64'cond 'Dd, 'Dn, 'Dm");
+        Format(instr, "vmul'cond.f64 'Dd, 'Dn, 'Dm");
       } else {
         Unknown(instr);  // Not used by V8.
       }
     } else if ((instr->Opc1Value() == 0x0) && !(instr->Opc3Value() & 0x1)) {
       if (instr->SzValue() == 0x1) {
-        Format(instr, "vmla.f64'cond 'Dd, 'Dn, 'Dm");
+        Format(instr, "vmla'cond.f64 'Dd, 'Dn, 'Dm");
+      } else {
+        Unknown(instr);  // Not used by V8.
+      }
+    } else if ((instr->Opc1Value() == 0x0) && (instr->Opc3Value() & 0x1)) {
+      if (instr->SzValue() == 0x1) {
+        Format(instr, "vmls'cond.f64 'Dd, 'Dn, 'Dm");
       } else {
         Unknown(instr);  // Not used by V8.
       }
     } else if ((instr->Opc1Value() == 0x4) && !(instr->Opc3Value() & 0x1)) {
       if (instr->SzValue() == 0x1) {
-        Format(instr, "vdiv.f64'cond 'Dd, 'Dn, 'Dm");
+        Format(instr, "vdiv'cond.f64 'Dd, 'Dn, 'Dm");
       } else {
         Unknown(instr);  // Not used by V8.
       }
@@ -1193,9 +1200,9 @@ void Decoder::DecodeTypeVFP(Instruction* instr) {
                (instr->VCValue() == 0x1) &&
                (instr->Bit(23) == 0x0)) {
       if (instr->Bit(21) == 0x0) {
-        Format(instr, "vmov.32'cond 'Dd[0], 'rt");
+        Format(instr, "vmov'cond.32 'Dd[0], 'rt");
       } else {
-        Format(instr, "vmov.32'cond 'Dd[1], 'rt");
+        Format(instr, "vmov'cond.32 'Dd[1], 'rt");
       }
     } else if ((instr->VCValue() == 0x0) &&
                (instr->VAValue() == 0x7) &&
@@ -1244,9 +1251,9 @@ void Decoder::DecodeVCMP(Instruction* instr) {
 
   if (dp_operation && !raise_exception_for_qnan) {
     if (instr->Opc2Value() == 0x4) {
-      Format(instr, "vcmp.f64'cond 'Dd, 'Dm");
+      Format(instr, "vcmp'cond.f64 'Dd, 'Dm");
     } else if (instr->Opc2Value() == 0x5) {
-      Format(instr, "vcmp.f64'cond 'Dd, #0.0");
+      Format(instr, "vcmp'cond.f64 'Dd, #0.0");
     } else {
       Unknown(instr);  // invalid
     }
@@ -1263,9 +1270,9 @@ void Decoder::DecodeVCVTBetweenDoubleAndSingle(Instruction* instr) {
   bool double_to_single = (instr->SzValue() == 1);
 
   if (double_to_single) {
-    Format(instr, "vcvt.f32.f64'cond 'Sd, 'Dm");
+    Format(instr, "vcvt'cond.f32.f64 'Sd, 'Dm");
   } else {
-    Format(instr, "vcvt.f64.f32'cond 'Dd, 'Sm");
+    Format(instr, "vcvt'cond.f64.f32 'Dd, 'Sm");
   }
 }
 
@@ -1282,15 +1289,15 @@ void Decoder::DecodeVCVTBetweenFloatingPointAndInteger(Instruction* instr) {
 
     if (dp_operation) {
       if (unsigned_integer) {
-        Format(instr, "vcvt.u32.f64'cond 'Sd, 'Dm");
+        Format(instr, "vcvt'cond.u32.f64 'Sd, 'Dm");
       } else {
-        Format(instr, "vcvt.s32.f64'cond 'Sd, 'Dm");
+        Format(instr, "vcvt'cond.s32.f64 'Sd, 'Dm");
       }
     } else {
       if (unsigned_integer) {
-        Format(instr, "vcvt.u32.f32'cond 'Sd, 'Sm");
+        Format(instr, "vcvt'cond.u32.f32 'Sd, 'Sm");
       } else {
-        Format(instr, "vcvt.s32.f32'cond 'Sd, 'Sm");
+        Format(instr, "vcvt'cond.s32.f32 'Sd, 'Sm");
       }
     }
   } else {
@@ -1298,15 +1305,15 @@ void Decoder::DecodeVCVTBetweenFloatingPointAndInteger(Instruction* instr) {
 
     if (dp_operation) {
       if (unsigned_integer) {
-        Format(instr, "vcvt.f64.u32'cond 'Dd, 'Sm");
+        Format(instr, "vcvt'cond.f64.u32 'Dd, 'Sm");
       } else {
-        Format(instr, "vcvt.f64.s32'cond 'Dd, 'Sm");
+        Format(instr, "vcvt'cond.f64.s32 'Dd, 'Sm");
       }
     } else {
       if (unsigned_integer) {
-        Format(instr, "vcvt.f32.u32'cond 'Sd, 'Sm");
+        Format(instr, "vcvt'cond.f32.u32 'Sd, 'Sm");
       } else {
-        Format(instr, "vcvt.f32.s32'cond 'Sd, 'Sm");
+        Format(instr, "vcvt'cond.f32.s32 'Sd, 'Sm");
       }
     }
   }

@@ -69,7 +69,7 @@ class StoreBufferOverflowStub: public PlatformCodeStub {
   void Generate(MacroAssembler* masm);
 
   virtual bool IsPregenerated() { return true; }
-  static void GenerateFixedRegStubsAheadOfTime();
+  static void GenerateFixedRegStubsAheadOfTime(Isolate* isolate);
   virtual bool SometimesSetsUpAFrame() { return false; }
 
  private:
@@ -131,9 +131,9 @@ class UnaryOpStub: public PlatformCodeStub {
                              Label::Distance non_smi_near = Label::kFar);
   void GenerateSmiCodeUndo(MacroAssembler* masm);
 
-  void GenerateHeapNumberStub(MacroAssembler* masm);
-  void GenerateHeapNumberStubSub(MacroAssembler* masm);
-  void GenerateHeapNumberStubBitNot(MacroAssembler* masm);
+  void GenerateNumberStub(MacroAssembler* masm);
+  void GenerateNumberStubSub(MacroAssembler* masm);
+  void GenerateNumberStubBitNot(MacroAssembler* masm);
   void GenerateHeapNumberCodeSub(MacroAssembler* masm, Label* slow);
   void GenerateHeapNumberCodeBitNot(MacroAssembler* masm, Label* slow);
 
@@ -406,7 +406,7 @@ class RecordWriteStub: public PlatformCodeStub {
   };
 
   virtual bool IsPregenerated();
-  static void GenerateFixedRegStubsAheadOfTime();
+  static void GenerateFixedRegStubsAheadOfTime(Isolate* isolate);
   virtual bool SometimesSetsUpAFrame() { return false; }
 
   static const byte kTwoByteNopInstruction = 0x3c;  // Cmpb al, #imm8.

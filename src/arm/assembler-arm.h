@@ -1142,6 +1142,10 @@ class Assembler : public AssemblerBase {
             const DwVfpRegister src1,
             const DwVfpRegister src2,
             const Condition cond = al);
+  void vmls(const DwVfpRegister dst,
+            const DwVfpRegister src1,
+            const DwVfpRegister src2,
+            const Condition cond = al);
   void vdiv(const DwVfpRegister dst,
             const DwVfpRegister src1,
             const DwVfpRegister src2,

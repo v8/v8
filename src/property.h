@@ -183,9 +183,11 @@ class LookupResult BASE_EMBEDDED {
   }
 
   ~LookupResult() {
-    ASSERT(isolate_->top_lookup_result() == this);
-    isolate_->SetTopLookupResult(next_);
+    ASSERT(isolate()->top_lookup_result() == this);
+    isolate()->SetTopLookupResult(next_);
   }
+
+  Isolate* isolate() const { return isolate_; }
 
   void DescriptorResult(JSObject* holder, PropertyDetails details, int number) {
     lookup_type_ = DESCRIPTOR_TYPE;
@@ -342,7 +344,7 @@ class LookupResult BASE_EMBEDDED {
       case INTERCEPTOR:
       case TRANSITION:
       case NONEXISTENT:
-        return Isolate::Current()->heap()->the_hole_value();
+        return isolate()->heap()->the_hole_value();
     }
     UNREACHABLE();
     return NULL;
