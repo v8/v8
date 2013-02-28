@@ -123,26 +123,12 @@ class Symbols {
 };
 
 
-LineEditor *LineEditor::first_ = NULL;
+LineEditor *LineEditor::current_ = NULL;
 
 
 LineEditor::LineEditor(Type type, const char* name)
-    : type_(type),
-      name_(name),
-      next_(first_) {
-  first_ = this;
-}
-
-
-LineEditor* LineEditor::Get() {
-  LineEditor* current = first_;
-  LineEditor* best = current;
-  while (current != NULL) {
-    if (current->type_ > best->type_)
-      best = current;
-    current = current->next_;
-  }
-  return best;
+    : type_(type), name_(name) {
+  if (current_ == NULL || current_->type_ < type) current_ = this;
 }
 
 
