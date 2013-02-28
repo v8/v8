@@ -32,6 +32,7 @@
     'use_system_v8%': 0,
     'msvs_use_common_release': 0,
     'gcc_version%': 'unknown',
+    'CXX%': '${CXX:-$(which g++)}',  # Used to assemble a shell command.
     'v8_compress_startup_data%': 'off',
     'v8_target_arch%': '<(target_arch)',
 
@@ -202,7 +203,7 @@
           'V8_TARGET_ARCH_MIPS',
         ],
         'variables': {
-          'mipscompiler': '<!($(echo ${CXX:-$(which g++)}) -v 2>&1 | grep -q "^Target: mips" && echo "yes" || echo "no")',
+          'mipscompiler': '<!($(echo <(CXX)) -v 2>&1 | grep -q "^Target: mips" && echo "yes" || echo "no")',
         },
         'conditions': [
           ['mipscompiler=="yes"', {
@@ -320,7 +321,7 @@
           }],
           ['_toolset=="target"', {
             'variables': {
-              'm32flag': '<!((echo | $(echo ${CXX_target:-${CXX:-$(which g++)}}) -m32 -E - > /dev/null 2>&1) && echo "-m32" || true)',
+              'm32flag': '<!((echo | $(echo ${CXX_target:-<(CXX)}) -m32 -E - > /dev/null 2>&1) && echo "-m32" || true)',
               'clang%': 0,
             },
             'conditions': [

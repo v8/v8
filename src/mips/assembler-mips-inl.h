@@ -91,7 +91,7 @@ int Register::NumAllocatableRegisters() {
 
 int DoubleRegister::NumRegisters() {
   if (CpuFeatures::IsSupported(FPU)) {
-    return FPURegister::kNumRegisters;
+    return FPURegister::kMaxNumRegisters;
   } else {
     return 1;
   }
