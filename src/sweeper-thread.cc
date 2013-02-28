@@ -76,16 +76,14 @@ void SweeperThread::Run() {
 
 
 intptr_t SweeperThread::StealMemory(PagedSpace* space) {
-  intptr_t free_bytes = 0;
   if (space->identity() == OLD_POINTER_SPACE) {
-    free_bytes = space->free_list()->Concatenate(&free_list_old_pointer_space_);
-    space->AddToAccountingStats(free_bytes);
+    return space->free_list()->Concatenate(&free_list_old_pointer_space_);
   } else if (space->identity() == OLD_DATA_SPACE) {
-    free_bytes = space->free_list()->Concatenate(&free_list_old_data_space_);
-    space->AddToAccountingStats(free_bytes);
+    return space->free_list()->Concatenate(&free_list_old_data_space_);
   }
-  return free_bytes;
+  return 0;
 }
+
 
 void SweeperThread::Stop() {
   Release_Store(&stop_thread_, static_cast<AtomicWord>(true));

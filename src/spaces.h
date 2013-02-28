@@ -1630,6 +1630,11 @@ class PagedSpace : public Space {
     accounting_stats_.ClearSizeWaste();
   }
 
+  // Increases the number of available bytes of that space.
+  void AddToAccountingStats(intptr_t bytes) {
+    accounting_stats_.DeallocateBytes(bytes);
+  }
+
   // Available bytes without growing.  These are the bytes on the free list.
   // The bytes in the linear allocation area are not included in this total
   // because updating the stats would slow down allocation.  New pages are
@@ -1749,9 +1754,17 @@ class PagedSpace : public Space {
     unswept_free_bytes_ += (p->area_size() - p->LiveBytes());
   }
 
+  void DecrementUnsweptFreeBytes(int by) {
+    unswept_free_bytes_ -= by;
+  }
+
   void DecreaseUnsweptFreeBytes(Page* p) {
     ASSERT(ShouldBeSweptLazily(p));
     unswept_free_bytes_ -= (p->area_size() - p->LiveBytes());
+  }
+
+  void ResetUnsweptFreeBytes() {
+    unswept_free_bytes_ = 0;
   }
 
   bool AdvanceSweeper(intptr_t bytes_to_sweep);
@@ -1786,10 +1799,6 @@ class PagedSpace : public Space {
 
  protected:
   FreeList* free_list() { return &free_list_; }
-
-  void AddToAccountingStats(intptr_t bytes) {
-    accounting_stats_.DeallocateBytes(bytes);
-  }
 
   int area_size_;
 

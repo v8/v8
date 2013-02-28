@@ -557,6 +557,8 @@ void MarkCompactCollector::WaitUntilSweepingCompleted() {
     sweeping_pending_ = false;
     StealMemoryFromSweeperThreads(heap()->paged_space(OLD_DATA_SPACE));
     StealMemoryFromSweeperThreads(heap()->paged_space(OLD_POINTER_SPACE));
+    heap()->paged_space(OLD_DATA_SPACE)->ResetUnsweptFreeBytes();
+    heap()->paged_space(OLD_POINTER_SPACE)->ResetUnsweptFreeBytes();
   }
 }
 
@@ -567,6 +569,8 @@ intptr_t MarkCompactCollector::
   for (int i = 0; i < FLAG_sweeper_threads; i++) {
     freed_bytes += heap()->isolate()->sweeper_threads()[i]->StealMemory(space);
   }
+  space->AddToAccountingStats(freed_bytes);
+  space->DecrementUnsweptFreeBytes(freed_bytes);
   return freed_bytes;
 }
 
@@ -3843,6 +3847,7 @@ void MarkCompactCollector::SweepSpace(PagedSpace* space, SweeperType sweeper) {
                  reinterpret_cast<intptr_t>(p));
         }
         p->set_parallel_sweeping(1);
+        space->IncreaseUnsweptFreeBytes(p);
         break;
       }
       case PRECISE: {
