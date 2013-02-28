@@ -756,14 +756,14 @@ class CompareIC: public IC {
   //   UNINITIALIZED < ...
   //   ... < GENERIC
   //   SMI < NUMBER
-  //   SYMBOL < STRING
+  //   INTERNALIZED_STRING < STRING
   //   KNOWN_OBJECT < OBJECT
   enum State {
     UNINITIALIZED,
     SMI,
     NUMBER,
-    SYMBOL,
     STRING,
+    INTERNALIZED_STRING,
     OBJECT,         // JSObject
     KNOWN_OBJECT,   // JSObject with specific map (faster check)
     GENERIC

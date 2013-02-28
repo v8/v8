@@ -204,15 +204,15 @@ bool Object::IsSpecFunction() {
 }
 
 
-bool Object::IsSymbol() {
+bool Object::IsInternalizedString() {
   if (!this->IsHeapObject()) return false;
   uint32_t type = HeapObject::cast(this)->map()->instance_type();
-  // Because the symbol tag is non-zero and no non-string types have the
-  // symbol bit set we can test for symbols with a very simple test
-  // operation.
-  STATIC_ASSERT(kSymbolTag != 0);
-  ASSERT(kNotStringTag + kIsSymbolMask > LAST_TYPE);
-  return (type & kIsSymbolMask) != 0;
+  // Because the internalized tag is non-zero and no non-string types have the
+  // internalized bit set we can test for internalized strings with a very
+  // simple test operation.
+  STATIC_ASSERT(kInternalizedTag != 0);
+  ASSERT(kNotStringTag + kIsInternalizedMask > LAST_TYPE);
+  return (type & kIsInternalizedMask) != 0;
 }
 
 
@@ -293,10 +293,10 @@ StringShape::StringShape(InstanceType t)
 }
 
 
-bool StringShape::IsSymbol() {
+bool StringShape::IsInternalized() {
   ASSERT(valid());
-  STATIC_ASSERT(kSymbolTag != 0);
-  return (type_ & kIsSymbolMask) != 0;
+  STATIC_ASSERT(kInternalizedTag != 0);
+  return (type_ & kIsInternalizedMask) != 0;
 }
 
 
@@ -685,13 +685,13 @@ bool Object::IsHashTable() {
 
 bool Object::IsDictionary() {
   return IsHashTable() &&
-      this != HeapObject::cast(this)->GetHeap()->symbol_table();
+      this != HeapObject::cast(this)->GetHeap()->string_table();
 }
 
 
-bool Object::IsSymbolTable() {
+bool Object::IsStringTable() {
   return IsHashTable() &&
-      this == HeapObject::cast(this)->GetHeap()->raw_unchecked_symbol_table();
+      this == HeapObject::cast(this)->GetHeap()->raw_unchecked_string_table();
 }
 
 
@@ -2358,7 +2358,7 @@ int HashTable<Shape, Key>::FindEntry(Isolate* isolate, Key key) {
   while (true) {
     Object* element = KeyAt(entry);
     // Empty entry. Uses raw unchecked accessors because it is called by the
-    // symbol table during bootstrapping.
+    // string table during bootstrapping.
     if (element == isolate->heap()->raw_unchecked_undefined_value()) break;
     if (element != isolate->heap()->raw_unchecked_the_hole_value() &&
         Shape::IsMatch(key, element)) return entry;
@@ -2399,7 +2399,7 @@ CAST_ACCESSOR(DeoptimizationInputData)
 CAST_ACCESSOR(DeoptimizationOutputData)
 CAST_ACCESSOR(DependentCode)
 CAST_ACCESSOR(TypeFeedbackCells)
-CAST_ACCESSOR(SymbolTable)
+CAST_ACCESSOR(StringTable)
 CAST_ACCESSOR(JSFunctionResultCache)
 CAST_ACCESSOR(NormalizedMapCache)
 CAST_ACCESSOR(ScopeInfo)
@@ -2488,7 +2488,8 @@ void String::set_hash_field(uint32_t value) {
 
 bool String::Equals(String* other) {
   if (other == this) return true;
-  if (StringShape(this).IsSymbol() && StringShape(other).IsSymbol()) {
+  if (StringShape(this).IsInternalized() &&
+      StringShape(other).IsInternalized()) {
     return false;
   }
   return SlowEquals(other);
@@ -3217,9 +3218,10 @@ int Map::pre_allocated_property_fields() {
 int HeapObject::SizeFromMap(Map* map) {
   int instance_size = map->instance_size();
   if (instance_size != kVariableSizeSentinel) return instance_size;
-  // We can ignore the "symbol" bit becase it is only set for symbols
-  // and implies a string type.
-  int instance_type = static_cast<int>(map->instance_type()) & ~kIsSymbolMask;
+  // We can ignore the "internalized" bit becase it is only set for strings
+  // and thus implies a string type.
+  int instance_type =
+      static_cast<int>(map->instance_type()) & ~kIsInternalizedMask;
   // Only inline the most frequent cases.
   if (instance_type == FIXED_ARRAY_TYPE) {
     return FixedArray::BodyDescriptor::SizeOf(map, this);

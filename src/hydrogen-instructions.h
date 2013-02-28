@@ -2652,8 +2652,9 @@ class HCheckInstanceType: public HUnaryOperation {
   static HCheckInstanceType* NewIsString(HValue* value, Zone* zone) {
     return new(zone) HCheckInstanceType(value, IS_STRING);
   }
-  static HCheckInstanceType* NewIsSymbol(HValue* value, Zone* zone) {
-    return new(zone) HCheckInstanceType(value, IS_SYMBOL);
+  static HCheckInstanceType* NewIsInternalizedString(
+      HValue* value, Zone* zone) {
+    return new(zone) HCheckInstanceType(value, IS_INTERNALIZED_STRING);
   }
 
   virtual void PrintDataTo(StringStream* stream);
@@ -2684,7 +2685,7 @@ class HCheckInstanceType: public HUnaryOperation {
     IS_SPEC_OBJECT,
     IS_JS_ARRAY,
     IS_STRING,
-    IS_SYMBOL,
+    IS_INTERNALIZED_STRING,
     LAST_INTERVAL_CHECK = IS_JS_ARRAY
   };
 

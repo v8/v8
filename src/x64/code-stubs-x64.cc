@@ -2350,7 +2350,7 @@ void ArrayLengthStub::Generate(MacroAssembler* masm) {
     //  -- rdx    : receiver
     //  -- rsp[0] : return address
     // -----------------------------------
-    __ Cmp(rax, masm->isolate()->factory()->length_symbol());
+    __ Cmp(rax, masm->isolate()->factory()->length_string());
     receiver = rdx;
   } else {
     ASSERT(kind() == Code::LOAD_IC);
@@ -2377,7 +2377,7 @@ void FunctionPrototypeStub::Generate(MacroAssembler* masm) {
     //  -- rdx    : receiver
     //  -- rsp[0] : return address
     // -----------------------------------
-    __ Cmp(rax, masm->isolate()->factory()->prototype_symbol());
+    __ Cmp(rax, masm->isolate()->factory()->prototype_string());
     receiver = rdx;
   } else {
     ASSERT(kind() == Code::LOAD_IC);
@@ -2404,7 +2404,7 @@ void StringLengthStub::Generate(MacroAssembler* masm) {
     //  -- rdx    : receiver
     //  -- rsp[0] : return address
     // -----------------------------------
-    __ Cmp(rax, masm->isolate()->factory()->length_symbol());
+    __ Cmp(rax, masm->isolate()->factory()->length_string());
     receiver = rdx;
   } else {
     ASSERT(kind() == Code::LOAD_IC);
@@ -2442,7 +2442,7 @@ void StoreArrayLengthStub::Generate(MacroAssembler* masm) {
   Register value = rax;
   Register scratch = rbx;
   if (kind() == Code::KEYED_STORE_IC) {
-    __ Cmp(rcx, masm->isolate()->factory()->length_symbol());
+    __ Cmp(rcx, masm->isolate()->factory()->length_string());
   }
 
   // Check that the receiver isn't a smi.
@@ -3014,7 +3014,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // (4) Cons string.  Check that it's flat.
   // Replace subject with first string and reload instance type.
   __ CompareRoot(FieldOperand(rdi, ConsString::kSecondOffset),
-                 Heap::kEmptyStringRootIndex);
+                 Heap::kempty_stringRootIndex);
   __ j(not_equal, &runtime);
   __ movq(rdi, FieldOperand(rdi, ConsString::kFirstOffset));
   __ bind(&check_underlying);
@@ -3557,24 +3557,24 @@ static void CheckInputType(MacroAssembler* masm,
     __ CompareMap(input, masm->isolate()->factory()->heap_number_map(), NULL);
     __ j(not_equal, fail);
   }
-  // We could be strict about symbol/string here, but as long as
+  // We could be strict about internalized/non-internalized here, but as long as
   // hydrogen doesn't care, the stub doesn't have to care either.
   __ bind(&ok);
 }
 
 
-static void BranchIfNonSymbol(MacroAssembler* masm,
-                              Label* label,
-                              Register object,
-                              Register scratch) {
+static void BranchIfNotInternalizedString(MacroAssembler* masm,
+                                          Label* label,
+                                          Register object,
+                                          Register scratch) {
   __ JumpIfSmi(object, label);
   __ movq(scratch, FieldOperand(object, HeapObject::kMapOffset));
   __ movzxbq(scratch,
              FieldOperand(scratch, Map::kInstanceTypeOffset));
-  // Ensure that no non-strings have the symbol bit set.
-  STATIC_ASSERT(LAST_TYPE < kNotStringTag + kIsSymbolMask);
-  STATIC_ASSERT(kSymbolTag != 0);
-  __ testb(scratch, Immediate(kIsSymbolMask));
+  // Ensure that no non-strings have the internalized bit set.
+  STATIC_ASSERT(LAST_TYPE < kNotStringTag + kIsInternalizedMask);
+  STATIC_ASSERT(kInternalizedTag != 0);
+  __ testb(scratch, Immediate(kIsInternalizedMask));
   __ j(zero, label);
 }
 
@@ -3742,15 +3742,17 @@ void ICCompareStub::GenerateGeneric(MacroAssembler* masm) {
   // The number comparison code did not provide a valid result.
   __ bind(&non_number_comparison);
 
-  // Fast negative check for symbol-to-symbol equality.
+  // Fast negative check for internalized-to-internalized equality.
   Label check_for_strings;
   if (cc == equal) {
-    BranchIfNonSymbol(masm, &check_for_strings, rax, kScratchRegister);
-    BranchIfNonSymbol(masm, &check_for_strings, rdx, kScratchRegister);
+    BranchIfNotInternalizedString(
+        masm, &check_for_strings, rax, kScratchRegister);
+    BranchIfNotInternalizedString(
+        masm, &check_for_strings, rdx, kScratchRegister);
 
-    // We've already checked for object identity, so if both operands
-    // are symbols they aren't equal. Register eax (not rax) already holds a
-    // non-zero value, which indicates not equal, so just return.
+    // We've already checked for object identity, so if both operands are
+    // internalized strings they aren't equal. Register eax (not rax) already
+    // holds a non-zero value, which indicates not equal, so just return.
     __ ret(0);
   }
 
@@ -4817,8 +4819,8 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   // Look at the length of the result of adding the two strings.
   STATIC_ASSERT(String::kMaxLength <= Smi::kMaxValue / 2);
   __ SmiAdd(rbx, rbx, rcx);
-  // Use the symbol table when adding two one character strings, as it
-  // helps later optimizations to return a symbol here.
+  // Use the string table when adding two one character strings, as it
+  // helps later optimizations to return an internalized string here.
   __ SmiCompare(rbx, Smi::FromInt(2));
   __ j(not_equal, &longer_than_two);
 
@@ -4830,10 +4832,10 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   __ movzxbq(rbx, FieldOperand(rax, SeqOneByteString::kHeaderSize));
   __ movzxbq(rcx, FieldOperand(rdx, SeqOneByteString::kHeaderSize));
 
-  // Try to lookup two character string in symbol table. If it is not found
+  // Try to lookup two character string in string table. If it is not found
   // just allocate a new one.
   Label make_two_character_string, make_flat_ascii_string;
-  StringHelper::GenerateTwoCharacterSymbolTableProbe(
+  StringHelper::GenerateTwoCharacterStringTableProbe(
       masm, rbx, rcx, r14, r11, rdi, r15, &make_two_character_string);
   __ IncrementCounter(counters->string_add_native(), 1);
   __ ret(2 * kPointerSize);
@@ -5132,7 +5134,7 @@ void StringHelper::GenerateCopyCharactersREP(MacroAssembler* masm,
   __ bind(&done);
 }
 
-void StringHelper::GenerateTwoCharacterSymbolTableProbe(MacroAssembler* masm,
+void StringHelper::GenerateTwoCharacterStringTableProbe(MacroAssembler* masm,
                                                         Register c1,
                                                         Register c2,
                                                         Register scratch1,
@@ -5144,7 +5146,7 @@ void StringHelper::GenerateTwoCharacterSymbolTableProbe(MacroAssembler* masm,
   Register scratch = scratch3;
 
   // Make sure that both characters are not digits as such strings has a
-  // different hash algorithm. Don't try to look for these in the symbol table.
+  // different hash algorithm. Don't try to look for these in the string table.
   Label not_array_index;
   __ leal(scratch, Operand(c1, -'0'));
   __ cmpl(scratch, Immediate(static_cast<int>('9' - '0')));
@@ -5168,14 +5170,14 @@ void StringHelper::GenerateTwoCharacterSymbolTableProbe(MacroAssembler* masm,
   // chars: two character string, char 1 in byte 0 and char 2 in byte 1.
   // hash:  hash of two character string.
 
-  // Load the symbol table.
-  Register symbol_table = c2;
-  __ LoadRoot(symbol_table, Heap::kSymbolTableRootIndex);
+  // Load the string table.
+  Register string_table = c2;
+  __ LoadRoot(string_table, Heap::kStringTableRootIndex);
 
-  // Calculate capacity mask from the symbol table capacity.
+  // Calculate capacity mask from the string table capacity.
   Register mask = scratch2;
   __ SmiToInteger32(mask,
-                    FieldOperand(symbol_table, SymbolTable::kCapacityOffset));
+                    FieldOperand(string_table, StringTable::kCapacityOffset));
   __ decl(mask);
 
   Register map = scratch4;
@@ -5183,31 +5185,31 @@ void StringHelper::GenerateTwoCharacterSymbolTableProbe(MacroAssembler* masm,
   // Registers
   // chars:        two character string, char 1 in byte 0 and char 2 in byte 1.
   // hash:         hash of two character string (32-bit int)
-  // symbol_table: symbol table
+  // string_table: string table
   // mask:         capacity mask (32-bit int)
   // map:          -
   // scratch:      -
 
-  // Perform a number of probes in the symbol table.
+  // Perform a number of probes in the string table.
   static const int kProbes = 4;
-  Label found_in_symbol_table;
+  Label found_in_string_table;
   Label next_probe[kProbes];
   Register candidate = scratch;  // Scratch register contains candidate.
   for (int i = 0; i < kProbes; i++) {
-    // Calculate entry in symbol table.
+    // Calculate entry in string table.
     __ movl(scratch, hash);
     if (i > 0) {
-      __ addl(scratch, Immediate(SymbolTable::GetProbeOffset(i)));
+      __ addl(scratch, Immediate(StringTable::GetProbeOffset(i)));
     }
     __ andl(scratch, mask);
 
-    // Load the entry from the symbol table.
-    STATIC_ASSERT(SymbolTable::kEntrySize == 1);
+    // Load the entry from the string table.
+    STATIC_ASSERT(StringTable::kEntrySize == 1);
     __ movq(candidate,
-            FieldOperand(symbol_table,
+            FieldOperand(string_table,
                          scratch,
                          times_pointer_size,
-                         SymbolTable::kElementsStartOffset));
+                         StringTable::kElementsStartOffset));
 
     // If entry is undefined no string with this hash can be found.
     Label is_string;
@@ -5220,7 +5222,7 @@ void StringHelper::GenerateTwoCharacterSymbolTableProbe(MacroAssembler* masm,
     if (FLAG_debug_code) {
       __ LoadRoot(kScratchRegister, Heap::kTheHoleValueRootIndex);
       __ cmpq(kScratchRegister, candidate);
-      __ Assert(equal, "oddball in symbol table is not undefined or the hole");
+      __ Assert(equal, "oddball in string table is not undefined or the hole");
     }
     __ jmp(&next_probe[i]);
 
@@ -5244,7 +5246,7 @@ void StringHelper::GenerateTwoCharacterSymbolTableProbe(MacroAssembler* masm,
     __ movl(temp, FieldOperand(candidate, SeqOneByteString::kHeaderSize));
     __ andl(temp, Immediate(0x0000ffff));
     __ cmpl(chars, temp);
-    __ j(equal, &found_in_symbol_table);
+    __ j(equal, &found_in_string_table);
     __ bind(&next_probe[i]);
   }
 
@@ -5253,7 +5255,7 @@ void StringHelper::GenerateTwoCharacterSymbolTableProbe(MacroAssembler* masm,
 
   // Scratch register contains result when we fall through to here.
   Register result = candidate;
-  __ bind(&found_in_symbol_table);
+  __ bind(&found_in_string_table);
   if (!result.is(rax)) {
     __ movq(rax, result);
   }
@@ -5384,7 +5386,7 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   // Cons string.  Check whether it is flat, then fetch first part.
   // Flat cons strings have an empty second part.
   __ CompareRoot(FieldOperand(rax, ConsString::kSecondOffset),
-                 Heap::kEmptyStringRootIndex);
+                 Heap::kempty_stringRootIndex);
   __ j(not_equal, &runtime);
   __ movq(rdi, FieldOperand(rax, ConsString::kFirstOffset));
   // Update instance type.
@@ -5831,8 +5833,8 @@ void ICCompareStub::GenerateNumbers(MacroAssembler* masm) {
 }
 
 
-void ICCompareStub::GenerateSymbols(MacroAssembler* masm) {
-  ASSERT(state_ == CompareIC::SYMBOL);
+void ICCompareStub::GenerateInternalizedStrings(MacroAssembler* masm) {
+  ASSERT(state_ == CompareIC::INTERNALIZED_STRING);
   ASSERT(GetCondition() == equal);
 
   // Registers containing left and right operands respectively.
@@ -5846,17 +5848,17 @@ void ICCompareStub::GenerateSymbols(MacroAssembler* masm) {
   Condition cond = masm->CheckEitherSmi(left, right, tmp1);
   __ j(cond, &miss, Label::kNear);
 
-  // Check that both operands are symbols.
+  // Check that both operands are internalized strings.
   __ movq(tmp1, FieldOperand(left, HeapObject::kMapOffset));
   __ movq(tmp2, FieldOperand(right, HeapObject::kMapOffset));
   __ movzxbq(tmp1, FieldOperand(tmp1, Map::kInstanceTypeOffset));
   __ movzxbq(tmp2, FieldOperand(tmp2, Map::kInstanceTypeOffset));
-  STATIC_ASSERT(kSymbolTag != 0);
+  STATIC_ASSERT(kInternalizedTag != 0);
   __ and_(tmp1, tmp2);
-  __ testb(tmp1, Immediate(kIsSymbolMask));
+  __ testb(tmp1, Immediate(kIsInternalizedMask));
   __ j(zero, &miss, Label::kNear);
 
-  // Symbols are compared by identity.
+  // Internalized strings are compared by identity.
   Label done;
   __ cmpq(left, right);
   // Make sure rax is non-zero. At this point input operands are
@@ -5915,13 +5917,13 @@ void ICCompareStub::GenerateStrings(MacroAssembler* masm) {
   // Handle not identical strings.
   __ bind(&not_same);
 
-  // Check that both strings are symbols. If they are, we're done
+  // Check that both strings are internalized strings. If they are, we're done
   // because we already know they are not identical.
   if (equality) {
     Label do_compare;
-    STATIC_ASSERT(kSymbolTag != 0);
+    STATIC_ASSERT(kInternalizedTag != 0);
     __ and_(tmp1, tmp2);
-    __ testb(tmp1, Immediate(kIsSymbolMask));
+    __ testb(tmp1, Immediate(kIsInternalizedMask));
     __ j(zero, &do_compare, Label::kNear);
     // Make sure rax is non-zero. At this point input operands are
     // guaranteed to be non-zero.
@@ -6069,10 +6071,10 @@ void StringDictionaryLookupStub::GenerateNegativeLookup(MacroAssembler* masm,
     __ CompareRoot(entity_name, Heap::kTheHoleValueRootIndex);
     __ j(equal, &the_hole, Label::kNear);
 
-    // Check if the entry name is not a symbol.
+    // Check if the entry name is not an internalized string.
     __ movq(entity_name, FieldOperand(entity_name, HeapObject::kMapOffset));
     __ testb(FieldOperand(entity_name, Map::kInstanceTypeOffset),
-             Immediate(kIsSymbolMask));
+             Immediate(kIsInternalizedMask));
     __ j(zero, miss);
 
     __ bind(&the_hole);
@@ -6201,14 +6203,14 @@ void StringDictionaryLookupStub::Generate(MacroAssembler* masm) {
     __ j(equal, &in_dictionary);
 
     if (i != kTotalProbes - 1 && mode_ == NEGATIVE_LOOKUP) {
-      // If we hit a non symbol key during negative lookup
+      // If we hit a non internalized string key during negative lookup
       // we have to bailout as this key might be equal to the
       // key we are looking for.
 
-      // Check if the entry name is not a symbol.
+      // Check if the entry name is not an internalized string.
       __ movq(scratch, FieldOperand(scratch, HeapObject::kMapOffset));
       __ testb(FieldOperand(scratch, Map::kInstanceTypeOffset),
-               Immediate(kIsSymbolMask));
+               Immediate(kIsInternalizedMask));
       __ j(zero, &maybe_in_dictionary);
     }
   }

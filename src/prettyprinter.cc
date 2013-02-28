@@ -362,7 +362,7 @@ void PrettyPrinter::VisitThrow(Throw* node) {
 void PrettyPrinter::VisitProperty(Property* node) {
   Expression* key = node->key();
   Literal* literal = key->AsLiteral();
-  if (literal != NULL && literal->handle()->IsSymbol()) {
+  if (literal != NULL && literal->handle()->IsInternalizedString()) {
     Print("(");
     Visit(node->obj());
     Print(").");
@@ -1068,7 +1068,7 @@ void AstPrinter::VisitProperty(Property* node) {
   IndentedScope indent(this, "PROPERTY", node);
   Visit(node->obj());
   Literal* literal = node->key()->AsLiteral();
-  if (literal != NULL && literal->handle()->IsSymbol()) {
+  if (literal != NULL && literal->handle()->IsInternalizedString()) {
     PrintLiteralIndented("NAME", literal->handle(), false);
   } else {
     PrintIndentedVisit("KEY", node->key());

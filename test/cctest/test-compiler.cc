@@ -94,17 +94,19 @@ static void InitializeVM() {
 
 
 static MaybeObject* GetGlobalProperty(const char* name) {
-  Handle<String> symbol = FACTORY->LookupUtf8Symbol(name);
-  return Isolate::Current()->context()->global_object()->GetProperty(*symbol);
+  Handle<String> internalized_name = FACTORY->InternalizeUtf8String(name);
+  return Isolate::Current()->context()->global_object()->GetProperty(
+      *internalized_name);
 }
 
 
 static void SetGlobalProperty(const char* name, Object* value) {
   Isolate* isolate = Isolate::Current();
   Handle<Object> object(value, isolate);
-  Handle<String> symbol = isolate->factory()->LookupUtf8Symbol(name);
+  Handle<String> internalized_name =
+      isolate->factory()->InternalizeUtf8String(name);
   Handle<JSObject> global(isolate->context()->global_object());
-  SetProperty(isolate, global, symbol, object, NONE, kNonStrictMode);
+  SetProperty(isolate, global, internalized_name, object, NONE, kNonStrictMode);
 }
 
 
@@ -295,16 +297,16 @@ TEST(C2JSFrames) {
   Execution::Call(fun0, global, 0, NULL, &has_pending_exception);
   CHECK(!has_pending_exception);
 
-  Object* foo_symbol =
-      FACTORY->LookupOneByteSymbol(STATIC_ASCII_VECTOR("foo"))->
+  Object* foo_string =
+      FACTORY->InternalizeOneByteString(STATIC_ASCII_VECTOR("foo"))->
         ToObjectChecked();
   MaybeObject* fun1_object = isolate->context()->global_object()->
-      GetProperty(String::cast(foo_symbol));
+      GetProperty(String::cast(foo_string));
   Handle<Object> fun1(fun1_object->ToObjectChecked(), isolate);
   CHECK(fun1->IsJSFunction());
 
   Handle<Object> argv[] =
-    { FACTORY->LookupOneByteSymbol(STATIC_ASCII_VECTOR("hello")) };
+    { FACTORY->InternalizeOneByteString(STATIC_ASCII_VECTOR("hello")) };
   Execution::Call(Handle<JSFunction>::cast(fun1),
                   global,
                   ARRAY_SIZE(argv),

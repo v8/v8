@@ -171,7 +171,7 @@ void CodeStubGraphBuilder<FastCloneShallowObjectStub>::BuildCodeStub() {
     HInstruction* value =
         AddInstruction(new(zone) HLoadNamedField(boilerplate, true, i));
     AddInstruction(new(zone) HStoreNamedField(object,
-                                              factory->empty_symbol(),
+                                              factory->empty_string(),
                                               value,
                                               true, i));
     AddSimulate(BailoutId::StubEntry());
@@ -290,14 +290,14 @@ void CodeStubGraphBuilder<TransitionElementsKindStub>::BuildCodeStub() {
                     to_kind, array_length);
 
   AddInstruction(new(zone) HStoreNamedField(js_array,
-                                            factory->elements_field_symbol(),
+                                            factory->elements_field_string(),
                                             new_elements, true,
                                             JSArray::kElementsOffset));
   AddSimulate(BailoutId::StubEntry());
 
   if_builder.End();
 
-  AddInstruction(new(zone) HStoreNamedField(js_array, factory->length_symbol(),
+  AddInstruction(new(zone) HStoreNamedField(js_array, factory->length_string(),
                                             map, true, JSArray::kMapOffset));
   AddSimulate(BailoutId::StubEntry());
 

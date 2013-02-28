@@ -157,41 +157,39 @@ Handle<TypeFeedbackInfo> Factory::NewTypeFeedbackInfo() {
 }
 
 
-// Symbols are created in the old generation (data space).
-Handle<String> Factory::LookupUtf8Symbol(Vector<const char> string) {
+// Internalized strings are created in the old generation (data space).
+Handle<String> Factory::InternalizeUtf8String(Vector<const char> string) {
   CALL_HEAP_FUNCTION(isolate(),
-                     isolate()->heap()->LookupUtf8Symbol(string),
+                     isolate()->heap()->InternalizeUtf8String(string),
                      String);
 }
 
-// Symbols are created in the old generation (data space).
-Handle<String> Factory::LookupSymbol(Handle<String> string) {
+// Internalized strings are created in the old generation (data space).
+Handle<String> Factory::InternalizeString(Handle<String> string) {
   CALL_HEAP_FUNCTION(isolate(),
-                     isolate()->heap()->LookupSymbol(*string),
+                     isolate()->heap()->InternalizeString(*string),
                      String);
 }
 
-Handle<String> Factory::LookupOneByteSymbol(Vector<const uint8_t> string) {
+Handle<String> Factory::InternalizeOneByteString(Vector<const uint8_t> string) {
   CALL_HEAP_FUNCTION(isolate(),
-                     isolate()->heap()->LookupOneByteSymbol(string),
-                     String);
-}
-
-
-Handle<String> Factory::LookupOneByteSymbol(Handle<SeqOneByteString> string,
-                                          int from,
-                                          int length) {
-  CALL_HEAP_FUNCTION(isolate(),
-                     isolate()->heap()->LookupOneByteSymbol(string,
-                                                          from,
-                                                          length),
+                     isolate()->heap()->InternalizeOneByteString(string),
                      String);
 }
 
 
-Handle<String> Factory::LookupTwoByteSymbol(Vector<const uc16> string) {
+Handle<String> Factory::InternalizeOneByteString(
+    Handle<SeqOneByteString> string, int from, int length) {
   CALL_HEAP_FUNCTION(isolate(),
-                     isolate()->heap()->LookupTwoByteSymbol(string),
+                     isolate()->heap()->InternalizeOneByteString(
+                         string, from, length),
+                     String);
+}
+
+
+Handle<String> Factory::InternalizeTwoByteString(Vector<const uc16> string) {
+  CALL_HEAP_FUNCTION(isolate(),
+                     isolate()->heap()->InternalizeTwoByteString(string),
                      String);
 }
 
@@ -751,7 +749,7 @@ Handle<String> Factory::EmergencyNewError(const char* type,
 Handle<Object> Factory::NewError(const char* maker,
                                  const char* type,
                                  Handle<JSArray> args) {
-  Handle<String> make_str = LookupUtf8Symbol(maker);
+  Handle<String> make_str = InternalizeUtf8String(maker);
   Handle<Object> fun_obj(
       isolate()->js_builtins_object()->GetPropertyNoExceptionThrown(*make_str),
       isolate());
@@ -761,7 +759,7 @@ Handle<Object> Factory::NewError(const char* maker,
     return EmergencyNewError(type, args);
   }
   Handle<JSFunction> fun = Handle<JSFunction>::cast(fun_obj);
-  Handle<Object> type_obj = LookupUtf8Symbol(type);
+  Handle<Object> type_obj = InternalizeUtf8String(type);
   Handle<Object> argv[] = { type_obj, args };
 
   // Invoke the JavaScript factory method. If an exception is thrown while
@@ -783,7 +781,7 @@ Handle<Object> Factory::NewError(Handle<String> message) {
 
 Handle<Object> Factory::NewError(const char* constructor,
                                  Handle<String> message) {
-  Handle<String> constr = LookupUtf8Symbol(constructor);
+  Handle<String> constr = InternalizeUtf8String(constructor);
   Handle<JSFunction> fun = Handle<JSFunction>(
       JSFunction::cast(isolate()->js_builtins_object()->
                        GetPropertyNoExceptionThrown(*constr)));
@@ -861,7 +859,7 @@ Handle<JSFunction> Factory::NewFunctionWithPrototype(Handle<String> name,
   // Currently safe because it is only invoked from Genesis.
   CHECK_NOT_EMPTY_HANDLE(isolate(),
                          JSObject::SetLocalPropertyIgnoreAttributes(
-                             prototype, constructor_symbol(),
+                             prototype, constructor_string(),
                              function, DONT_ENUM));
   return function;
 }
@@ -919,9 +917,9 @@ Handle<Code> Factory::CopyCode(Handle<Code> code, Vector<byte> reloc_info) {
 }
 
 
-Handle<String> Factory::SymbolFromString(Handle<String> value) {
+Handle<String> Factory::InternalizedStringFromString(Handle<String> value) {
   CALL_HEAP_FUNCTION(isolate(),
-                     isolate()->heap()->LookupSymbol(*value), String);
+                     isolate()->heap()->InternalizeString(*value), String);
 }
 
 
@@ -1267,7 +1265,7 @@ Handle<JSFunction> Factory::CreateApiFunction(
   ASSERT(type != INVALID_TYPE);
 
   Handle<JSFunction> result =
-      NewFunction(Factory::empty_symbol(),
+      NewFunction(Factory::empty_string(),
                   type,
                   instance_size,
                   code,
@@ -1452,9 +1450,9 @@ void Factory::ConfigureInstance(Handle<FunctionTemplateInfo> desc,
 
 Handle<Object> Factory::GlobalConstantFor(Handle<String> name) {
   Heap* h = isolate()->heap();
-  if (name->Equals(h->undefined_symbol())) return undefined_value();
-  if (name->Equals(h->nan_symbol())) return nan_value();
-  if (name->Equals(h->infinity_symbol())) return infinity_value();
+  if (name->Equals(h->undefined_string())) return undefined_value();
+  if (name->Equals(h->nan_string())) return nan_value();
+  if (name->Equals(h->infinity_string())) return infinity_value();
   return Handle<Object>::null();
 }
 

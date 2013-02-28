@@ -481,9 +481,9 @@ double InternalStringToDouble(UnicodeCache* unicode_cache,
     sign = NEGATIVE;
   }
 
-  static const char kInfinitySymbol[] = "Infinity";
-  if (*current == kInfinitySymbol[0]) {
-    if (!SubStringEquals(&current, end, kInfinitySymbol)) {
+  static const char kInfinityString[] = "Infinity";
+  if (*current == kInfinityString[0]) {
+    if (!SubStringEquals(&current, end, kInfinityString)) {
       return JunkStringValue();
     }
 

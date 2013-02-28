@@ -65,12 +65,12 @@ class TypeInfo {
   static TypeInfo Integer32() { return TypeInfo(kInteger32); }
   // We know it's a Smi.
   static TypeInfo Smi() { return TypeInfo(kSmi); }
-  // We know it's a Symbol.
-  static TypeInfo Symbol() { return TypeInfo(kSymbol); }
   // We know it's a heap number.
   static TypeInfo Double() { return TypeInfo(kDouble); }
   // We know it's a string.
   static TypeInfo String() { return TypeInfo(kString); }
+  // We know it's an internalized string.
+  static TypeInfo InternalizedString() { return TypeInfo(kInternalizedString); }
   // We know it's a non-primitive (object) type.
   static TypeInfo NonPrimitive() { return TypeInfo(kNonPrimitive); }
   // We haven't started collecting info yet.
@@ -140,14 +140,14 @@ class TypeInfo {
     return ((type_ & kSmi) == kSmi);
   }
 
-  inline bool IsSymbol() {
+  inline bool IsInternalizedString() {
     ASSERT(type_ != kUninitialized);
-    return ((type_ & kSymbol) == kSymbol);
+    return ((type_ & kInternalizedString) == kInternalizedString);
   }
 
-  inline bool IsNonSymbol() {
+  inline bool IsNonInternalizedString() {
     ASSERT(type_ != kUninitialized);
-    return ((type_ & kSymbol) == kString);
+    return ((type_ & kInternalizedString) == kString);
   }
 
   inline bool IsInteger32() {
@@ -181,7 +181,7 @@ class TypeInfo {
       case kNumber: return "Number";
       case kInteger32: return "Integer32";
       case kSmi: return "Smi";
-      case kSymbol: return "Symbol";
+      case kInternalizedString: return "InternalizedString";
       case kDouble: return "Double";
       case kString: return "String";
       case kNonPrimitive: return "Object";
@@ -193,16 +193,16 @@ class TypeInfo {
 
  private:
   enum Type {
-    kUnknown = 0,          // 0000000
-    kPrimitive = 0x10,     // 0010000
-    kNumber = 0x11,        // 0010001
-    kInteger32 = 0x13,     // 0010011
-    kSmi = 0x17,           // 0010111
-    kDouble = 0x19,        // 0011001
-    kString = 0x30,        // 0110000
-    kSymbol = 0x32,        // 0110010
-    kNonPrimitive = 0x40,  // 1000000
-    kUninitialized = 0x7f  // 1111111
+    kUnknown = 0,                // 0000000
+    kPrimitive = 0x10,           // 0010000
+    kNumber = 0x11,              // 0010001
+    kInteger32 = 0x13,           // 0010011
+    kSmi = 0x17,                 // 0010111
+    kDouble = 0x19,              // 0011001
+    kString = 0x30,              // 0110000
+    kInternalizedString = 0x32,  // 0110010
+    kNonPrimitive = 0x40,        // 1000000
+    kUninitialized = 0x7f        // 1111111
   };
 
   explicit inline TypeInfo(Type t) : type_(t) { }

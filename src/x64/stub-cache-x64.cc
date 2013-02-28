@@ -110,14 +110,14 @@ static void ProbeTable(Isolate* isolate,
 // the property. This function may return false negatives, so miss_label
 // must always call a backup property check that is complete.
 // This function is safe to call if the receiver has fast properties.
-// Name must be a symbol and receiver must be a heap object.
+// Name must be an internalized string and receiver must be a heap object.
 static void GenerateDictionaryNegativeLookup(MacroAssembler* masm,
                                              Label* miss_label,
                                              Register receiver,
                                              Handle<String> name,
                                              Register r0,
                                              Register r1) {
-  ASSERT(name->IsSymbol());
+  ASSERT(name->IsInternalizedString());
   Counters* counters = masm->isolate()->counters();
   __ IncrementCounter(counters->negative_lookups(), 1);
   __ IncrementCounter(counters->negative_lookups_miss(), 1);
@@ -949,8 +949,8 @@ Register StubCompiler::CheckPrototypes(Handle<JSObject> object,
     if (!current->HasFastProperties() &&
         !current->IsJSGlobalObject() &&
         !current->IsJSGlobalProxy()) {
-      if (!name->IsSymbol()) {
-        name = factory()->LookupSymbol(name);
+      if (!name->IsInternalizedString()) {
+        name = factory()->InternalizeString(name);
       }
       ASSERT(current->property_dictionary()->FindEntry(*name) ==
              StringDictionary::kNotFound);
@@ -1877,7 +1877,7 @@ Handle<Code> CallStubCompiler::CompileStringCharAtCall(
 
   if (index_out_of_range.is_linked()) {
     __ bind(&index_out_of_range);
-    __ LoadRoot(rax, Heap::kEmptyStringRootIndex);
+    __ LoadRoot(rax, Heap::kempty_stringRootIndex);
     __ ret((argc + 1) * kPointerSize);
   }
   __ bind(&miss);
@@ -2180,7 +2180,7 @@ void CallStubCompiler::CompileHandlerFrontend(Handle<Object> object,
       break;
 
     case STRING_CHECK:
-      // Check that the object is a two-byte string or a symbol.
+      // Check that the object is a string.
       __ CmpObjectType(rdx, FIRST_NONSTRING_TYPE, rax);
       __ j(above_equal, &miss);
       // Check that the maps starting from the prototype haven't changed.

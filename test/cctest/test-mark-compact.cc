@@ -184,8 +184,8 @@ TEST(MarkCompactCollector) {
                            JSObject::kHeaderSize)->ToObjectChecked();
 
   // allocate a garbage
-  String* func_name =
-      String::cast(HEAP->LookupUtf8Symbol("theFunction")->ToObjectChecked());
+  String* func_name = String::cast(
+      HEAP->InternalizeUtf8String("theFunction")->ToObjectChecked());
   SharedFunctionInfo* function_share = SharedFunctionInfo::cast(
       HEAP->AllocateSharedFunctionInfo(func_name)->ToObjectChecked());
   JSFunction* function = JSFunction::cast(
@@ -203,8 +203,8 @@ TEST(MarkCompactCollector) {
       HEAP->AllocateJSObject(function)->ToObjectChecked());
   HEAP->CollectGarbage(OLD_POINTER_SPACE);
 
-  func_name =
-      String::cast(HEAP->LookupUtf8Symbol("theFunction")->ToObjectChecked());
+  func_name = String::cast(
+      HEAP->InternalizeUtf8String("theFunction")->ToObjectChecked());
   CHECK(Isolate::Current()->context()->global_object()->
         HasLocalProperty(func_name));
   Object* func_value = Isolate::Current()->context()->global_object()->
@@ -214,11 +214,11 @@ TEST(MarkCompactCollector) {
 
   obj = JSObject::cast(HEAP->AllocateJSObject(function)->ToObjectChecked());
   String* obj_name =
-      String::cast(HEAP->LookupUtf8Symbol("theObject")->ToObjectChecked());
+      String::cast(HEAP->InternalizeUtf8String("theObject")->ToObjectChecked());
   Isolate::Current()->context()->global_object()->SetProperty(
       obj_name, obj, NONE, kNonStrictMode)->ToObjectChecked();
   String* prop_name =
-      String::cast(HEAP->LookupUtf8Symbol("theSlot")->ToObjectChecked());
+      String::cast(HEAP->InternalizeUtf8String("theSlot")->ToObjectChecked());
   obj->SetProperty(prop_name,
                    Smi::FromInt(23),
                    NONE,
@@ -227,7 +227,7 @@ TEST(MarkCompactCollector) {
   HEAP->CollectGarbage(OLD_POINTER_SPACE);
 
   obj_name =
-      String::cast(HEAP->LookupUtf8Symbol("theObject")->ToObjectChecked());
+      String::cast(HEAP->InternalizeUtf8String("theObject")->ToObjectChecked());
   CHECK(Isolate::Current()->context()->global_object()->
         HasLocalProperty(obj_name));
   CHECK(Isolate::Current()->context()->global_object()->
@@ -235,7 +235,7 @@ TEST(MarkCompactCollector) {
   obj = JSObject::cast(Isolate::Current()->context()->global_object()->
                        GetProperty(obj_name)->ToObjectChecked());
   prop_name =
-      String::cast(HEAP->LookupUtf8Symbol("theSlot")->ToObjectChecked());
+      String::cast(HEAP->InternalizeUtf8String("theSlot")->ToObjectChecked());
   CHECK(obj->GetProperty(prop_name) == Smi::FromInt(23));
 }
 

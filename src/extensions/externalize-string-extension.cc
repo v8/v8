@@ -99,7 +99,7 @@ v8::Handle<v8::Value> ExternalizeStringExtension::Externalize(
     SimpleAsciiStringResource* resource = new SimpleAsciiStringResource(
         reinterpret_cast<char*>(data), string->length());
     result = string->MakeExternal(resource);
-    if (result && !string->IsSymbol()) {
+    if (result && !string->IsInternalizedString()) {
       HEAP->external_string_table()->AddString(*string);
     }
     if (!result) delete resource;
@@ -109,7 +109,7 @@ v8::Handle<v8::Value> ExternalizeStringExtension::Externalize(
     SimpleTwoByteStringResource* resource = new SimpleTwoByteStringResource(
         data, string->length());
     result = string->MakeExternal(resource);
-    if (result && !string->IsSymbol()) {
+    if (result && !string->IsInternalizedString()) {
       HEAP->external_string_table()->AddString(*string);
     }
     if (!result) delete resource;

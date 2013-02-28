@@ -77,7 +77,7 @@
 //           - DescriptorArray
 //           - HashTable
 //             - Dictionary
-//             - SymbolTable
+//             - StringTable
 //             - CompilationCacheTable
 //             - CodeCacheHashTable
 //             - MapCache
@@ -234,8 +234,8 @@ const int kStubMinorKeyBits = kBitsPerInt - kSmiTagSize - kStubMajorKeyBits;
 // encoding is mentioned explicitly in the name.  Likewise, the default
 // representation is considered sequential.  It is not mentioned in the
 // name.  The other representations (e.g. CONS, EXTERNAL) are explicitly
-// mentioned.  Finally, the string is either a SYMBOL_TYPE (if it is a
-// symbol) or a STRING_TYPE (if it is not a symbol).
+// mentioned.  Finally, the string is either a STRING_TYPE (if it is a normal
+// string) or a INTERNALIZED_STRING_TYPE (if it is a internalized string).
 //
 // NOTE: The following things are some that depend on the string types having
 // instance_types that are less than those of all other types:
@@ -246,28 +246,28 @@ const int kStubMinorKeyBits = kBitsPerInt - kSmiTagSize - kStubMajorKeyBits;
 // JSObject for GC purposes. The first four entries here have typeof
 // 'object', whereas JS_FUNCTION_TYPE has typeof 'function'.
 #define INSTANCE_TYPE_LIST_ALL(V)                                              \
-  V(SYMBOL_TYPE)                                                               \
-  V(ASCII_SYMBOL_TYPE)                                                         \
-  V(CONS_SYMBOL_TYPE)                                                          \
-  V(CONS_ASCII_SYMBOL_TYPE)                                                    \
-  V(EXTERNAL_SYMBOL_TYPE)                                                      \
-  V(EXTERNAL_SYMBOL_WITH_ASCII_DATA_TYPE)                                      \
-  V(EXTERNAL_ASCII_SYMBOL_TYPE)                                                \
-  V(SHORT_EXTERNAL_SYMBOL_TYPE)                                                \
-  V(SHORT_EXTERNAL_SYMBOL_WITH_ASCII_DATA_TYPE)                                \
-  V(SHORT_EXTERNAL_ASCII_SYMBOL_TYPE)                                          \
   V(STRING_TYPE)                                                               \
   V(ASCII_STRING_TYPE)                                                         \
   V(CONS_STRING_TYPE)                                                          \
   V(CONS_ASCII_STRING_TYPE)                                                    \
   V(SLICED_STRING_TYPE)                                                        \
   V(EXTERNAL_STRING_TYPE)                                                      \
-  V(EXTERNAL_STRING_WITH_ASCII_DATA_TYPE)                                      \
   V(EXTERNAL_ASCII_STRING_TYPE)                                                \
+  V(EXTERNAL_STRING_WITH_ASCII_DATA_TYPE)                                      \
   V(SHORT_EXTERNAL_STRING_TYPE)                                                \
-  V(SHORT_EXTERNAL_STRING_WITH_ASCII_DATA_TYPE)                                \
   V(SHORT_EXTERNAL_ASCII_STRING_TYPE)                                          \
-  V(PRIVATE_EXTERNAL_ASCII_STRING_TYPE)                                        \
+  V(SHORT_EXTERNAL_STRING_WITH_ASCII_DATA_TYPE)                                \
+                                                                               \
+  V(INTERNALIZED_STRING_TYPE)                                                  \
+  V(ASCII_INTERNALIZED_STRING_TYPE)                                            \
+  V(CONS_INTERNALIZED_STRING_TYPE)                                             \
+  V(CONS_ASCII_INTERNALIZED_STRING_TYPE)                                       \
+  V(EXTERNAL_INTERNALIZED_STRING_TYPE)                                         \
+  V(EXTERNAL_ASCII_INTERNALIZED_STRING_TYPE)                                   \
+  V(EXTERNAL_INTERNALIZED_STRING_WITH_ASCII_DATA_TYPE)                         \
+  V(SHORT_EXTERNAL_INTERNALIZED_STRING_TYPE)                                   \
+  V(SHORT_EXTERNAL_ASCII_INTERNALIZED_STRING_TYPE)                             \
+  V(SHORT_EXTERNAL_INTERNALIZED_STRING_WITH_ASCII_DATA_TYPE)                   \
                                                                                \
   V(MAP_TYPE)                                                                  \
   V(CODE_TYPE)                                                                 \
@@ -347,46 +347,6 @@ const int kStubMinorKeyBits = kBitsPerInt - kSmiTagSize - kStubMajorKeyBits;
 // Since string types are not consecutive, this macro is used to
 // iterate over them.
 #define STRING_TYPE_LIST(V)                                                    \
-  V(SYMBOL_TYPE,                                                               \
-    kVariableSizeSentinel,                                                     \
-    symbol,                                                                    \
-    Symbol)                                                                    \
-  V(ASCII_SYMBOL_TYPE,                                                         \
-    kVariableSizeSentinel,                                                     \
-    ascii_symbol,                                                              \
-    AsciiSymbol)                                                               \
-  V(CONS_SYMBOL_TYPE,                                                          \
-    ConsString::kSize,                                                         \
-    cons_symbol,                                                               \
-    ConsSymbol)                                                                \
-  V(CONS_ASCII_SYMBOL_TYPE,                                                    \
-    ConsString::kSize,                                                         \
-    cons_ascii_symbol,                                                         \
-    ConsAsciiSymbol)                                                           \
-  V(EXTERNAL_SYMBOL_TYPE,                                                      \
-    ExternalTwoByteString::kSize,                                              \
-    external_symbol,                                                           \
-    ExternalSymbol)                                                            \
-  V(EXTERNAL_SYMBOL_WITH_ASCII_DATA_TYPE,                                      \
-    ExternalTwoByteString::kSize,                                              \
-    external_symbol_with_ascii_data,                                           \
-    ExternalSymbolWithAsciiData)                                               \
-  V(EXTERNAL_ASCII_SYMBOL_TYPE,                                                \
-    ExternalAsciiString::kSize,                                                \
-    external_ascii_symbol,                                                     \
-    ExternalAsciiSymbol)                                                       \
-  V(SHORT_EXTERNAL_SYMBOL_TYPE,                                                \
-    ExternalTwoByteString::kShortSize,                                         \
-    short_external_symbol,                                                     \
-    ShortExternalSymbol)                                                       \
-  V(SHORT_EXTERNAL_SYMBOL_WITH_ASCII_DATA_TYPE,                                \
-    ExternalTwoByteString::kShortSize,                                         \
-    short_external_symbol_with_ascii_data,                                     \
-    ShortExternalSymbolWithAsciiData)                                          \
-  V(SHORT_EXTERNAL_ASCII_SYMBOL_TYPE,                                          \
-    ExternalAsciiString::kShortSize,                                           \
-    short_external_ascii_symbol,                                               \
-    ShortExternalAsciiSymbol)                                                  \
   V(STRING_TYPE,                                                               \
     kVariableSizeSentinel,                                                     \
     string,                                                                    \
@@ -415,26 +375,67 @@ const int kStubMinorKeyBits = kBitsPerInt - kSmiTagSize - kStubMajorKeyBits;
     ExternalTwoByteString::kSize,                                              \
     external_string,                                                           \
     ExternalString)                                                            \
-  V(EXTERNAL_STRING_WITH_ASCII_DATA_TYPE,                                      \
-    ExternalTwoByteString::kSize,                                              \
-    external_string_with_ascii_data,                                           \
-    ExternalStringWithAsciiData)                                               \
   V(EXTERNAL_ASCII_STRING_TYPE,                                                \
     ExternalAsciiString::kSize,                                                \
     external_ascii_string,                                                     \
     ExternalAsciiString)                                                       \
+  V(EXTERNAL_STRING_WITH_ASCII_DATA_TYPE,                                      \
+    ExternalTwoByteString::kSize,                                              \
+    external_string_with_ascii_data,                                           \
+    ExternalStringWithAsciiData)                                               \
   V(SHORT_EXTERNAL_STRING_TYPE,                                                \
     ExternalTwoByteString::kShortSize,                                         \
     short_external_string,                                                     \
     ShortExternalString)                                                       \
+  V(SHORT_EXTERNAL_ASCII_STRING_TYPE,                                          \
+    ExternalAsciiString::kShortSize,                                           \
+    short_external_ascii_string,                                               \
+    ShortExternalAsciiString)                                                  \
   V(SHORT_EXTERNAL_STRING_WITH_ASCII_DATA_TYPE,                                \
     ExternalTwoByteString::kShortSize,                                         \
     short_external_string_with_ascii_data,                                     \
     ShortExternalStringWithAsciiData)                                          \
-  V(SHORT_EXTERNAL_ASCII_STRING_TYPE,                                          \
+                                                                               \
+  V(INTERNALIZED_STRING_TYPE,                                                  \
+    kVariableSizeSentinel,                                                     \
+    internalized_string,                                                       \
+    InternalizedString)                                                        \
+  V(ASCII_INTERNALIZED_STRING_TYPE,                                            \
+    kVariableSizeSentinel,                                                     \
+    ascii_internalized_string,                                                 \
+    AsciiInternalizedString)                                                   \
+  V(CONS_INTERNALIZED_STRING_TYPE,                                             \
+    ConsString::kSize,                                                         \
+    cons_internalized_string,                                                  \
+    ConsInternalizedString)                                                    \
+  V(CONS_ASCII_INTERNALIZED_STRING_TYPE,                                       \
+    ConsString::kSize,                                                         \
+    cons_ascii_internalized_string,                                            \
+    ConsAsciiInternalizedString)                                               \
+  V(EXTERNAL_INTERNALIZED_STRING_TYPE,                                         \
+    ExternalTwoByteString::kSize,                                              \
+    external_internalized_string,                                              \
+    ExternalInternalizedString)                                                \
+  V(EXTERNAL_ASCII_INTERNALIZED_STRING_TYPE,                                   \
+    ExternalAsciiString::kSize,                                                \
+    external_ascii_internalized_string,                                        \
+    ExternalAsciiInternalizedString)                                           \
+  V(EXTERNAL_INTERNALIZED_STRING_WITH_ASCII_DATA_TYPE,                         \
+    ExternalTwoByteString::kSize,                                              \
+    external_internalized_string_with_ascii_data,                              \
+    ExternalInternalizedStringWithAsciiData)                                   \
+  V(SHORT_EXTERNAL_INTERNALIZED_STRING_TYPE,                                   \
+    ExternalTwoByteString::kShortSize,                                         \
+    short_external_internalized_string,                                        \
+    ShortExternalInternalizedString)                                           \
+  V(SHORT_EXTERNAL_ASCII_INTERNALIZED_STRING_TYPE,                             \
     ExternalAsciiString::kShortSize,                                           \
-    short_external_ascii_string,                                               \
-    ShortExternalAsciiString)
+    short_external_ascii_internalized_string,                                  \
+    ShortExternalAsciiInternalizedString)                                      \
+  V(SHORT_EXTERNAL_INTERNALIZED_STRING_WITH_ASCII_DATA_TYPE,                   \
+    ExternalTwoByteString::kShortSize,                                         \
+    short_external_internalized_string_with_ascii_data,                        \
+    ShortExternalInternalizedStringWithAsciiData)                              \
 
 // A struct is a simple object a set of object-valued fields.  Including an
 // object type in this causes the compiler to generate most of the boilerplate
@@ -485,12 +486,12 @@ const uint32_t kIsNotStringMask = 0x80;
 const uint32_t kStringTag = 0x0;
 const uint32_t kNotStringTag = 0x80;
 
-// Bit 6 indicates that the object is a symbol (if set) or not (if cleared).
+// Bit 6 indicates that the object is an internalized string (if set) or not.
 // There are not enough types that the non-string types (with bit 7 set) can
 // have bit 6 set too.
-const uint32_t kIsSymbolMask = 0x40;
-const uint32_t kNotSymbolTag = 0x0;
-const uint32_t kSymbolTag = 0x40;
+const uint32_t kIsInternalizedMask = 0x40;
+const uint32_t kNotInternalizedTag = 0x0;
+const uint32_t kInternalizedTag = 0x40;
 
 // If bit 7 is clear then bit 2 indicates whether the string consists of
 // two-byte characters or one-byte characters.
@@ -533,54 +534,51 @@ const uint32_t kShortExternalStringTag = 0x10;
 
 
 // A ConsString with an empty string as the right side is a candidate
-// for being shortcut by the garbage collector unless it is a
-// symbol. It's not common to have non-flat symbols, so we do not
-// shortcut them thereby avoiding turning symbols into strings. See
-// heap.cc and mark-compact.cc.
+// for being shortcut by the garbage collector unless it is internalized.
+// It's not common to have non-flat internalized strings, so we do not
+// shortcut them thereby avoiding turning internalized strings into strings.
+// See heap.cc and mark-compact.cc.
 const uint32_t kShortcutTypeMask =
     kIsNotStringMask |
-    kIsSymbolMask |
+    kIsInternalizedMask |
     kStringRepresentationMask;
 const uint32_t kShortcutTypeTag = kConsStringTag;
 
 
 enum InstanceType {
   // String types.
-  SYMBOL_TYPE = kTwoByteStringTag | kSymbolTag | kSeqStringTag,
-  ASCII_SYMBOL_TYPE = kOneByteStringTag | kSymbolTag | kSeqStringTag,
-  CONS_SYMBOL_TYPE = kTwoByteStringTag | kSymbolTag | kConsStringTag,
-  CONS_ASCII_SYMBOL_TYPE = kOneByteStringTag | kSymbolTag | kConsStringTag,
-  SHORT_EXTERNAL_SYMBOL_TYPE = kTwoByteStringTag | kSymbolTag |
-                               kExternalStringTag | kShortExternalStringTag,
-  SHORT_EXTERNAL_SYMBOL_WITH_ASCII_DATA_TYPE =
-      kTwoByteStringTag | kSymbolTag | kExternalStringTag |
-      kAsciiDataHintTag | kShortExternalStringTag,
-  SHORT_EXTERNAL_ASCII_SYMBOL_TYPE = kOneByteStringTag | kExternalStringTag |
-                                     kSymbolTag | kShortExternalStringTag,
-  EXTERNAL_SYMBOL_TYPE = kTwoByteStringTag | kSymbolTag | kExternalStringTag,
-  EXTERNAL_SYMBOL_WITH_ASCII_DATA_TYPE =
-      kTwoByteStringTag | kSymbolTag | kExternalStringTag | kAsciiDataHintTag,
-  EXTERNAL_ASCII_SYMBOL_TYPE =
-      kOneByteStringTag | kSymbolTag | kExternalStringTag,
   STRING_TYPE = kTwoByteStringTag | kSeqStringTag,
   ASCII_STRING_TYPE = kOneByteStringTag | kSeqStringTag,
   CONS_STRING_TYPE = kTwoByteStringTag | kConsStringTag,
   CONS_ASCII_STRING_TYPE = kOneByteStringTag | kConsStringTag,
   SLICED_STRING_TYPE = kTwoByteStringTag | kSlicedStringTag,
   SLICED_ASCII_STRING_TYPE = kOneByteStringTag | kSlicedStringTag,
-  SHORT_EXTERNAL_STRING_TYPE =
-      kTwoByteStringTag | kExternalStringTag | kShortExternalStringTag,
-  SHORT_EXTERNAL_STRING_WITH_ASCII_DATA_TYPE =
-      kTwoByteStringTag | kExternalStringTag |
-      kAsciiDataHintTag | kShortExternalStringTag,
-  SHORT_EXTERNAL_ASCII_STRING_TYPE =
-      kOneByteStringTag | kExternalStringTag | kShortExternalStringTag,
   EXTERNAL_STRING_TYPE = kTwoByteStringTag | kExternalStringTag,
-  EXTERNAL_STRING_WITH_ASCII_DATA_TYPE =
-      kTwoByteStringTag | kExternalStringTag | kAsciiDataHintTag,
-  // LAST_STRING_TYPE
   EXTERNAL_ASCII_STRING_TYPE = kOneByteStringTag | kExternalStringTag,
-  PRIVATE_EXTERNAL_ASCII_STRING_TYPE = EXTERNAL_ASCII_STRING_TYPE,
+  EXTERNAL_STRING_WITH_ASCII_DATA_TYPE =
+      EXTERNAL_STRING_TYPE | kAsciiDataHintTag,
+  SHORT_EXTERNAL_STRING_TYPE = EXTERNAL_STRING_TYPE | kShortExternalStringTag,
+  SHORT_EXTERNAL_ASCII_STRING_TYPE =
+      EXTERNAL_ASCII_STRING_TYPE | kShortExternalStringTag,
+  SHORT_EXTERNAL_STRING_WITH_ASCII_DATA_TYPE =
+      EXTERNAL_STRING_WITH_ASCII_DATA_TYPE | kShortExternalStringTag,
+
+  INTERNALIZED_STRING_TYPE = STRING_TYPE | kInternalizedTag,
+  ASCII_INTERNALIZED_STRING_TYPE = ASCII_STRING_TYPE | kInternalizedTag,
+  CONS_INTERNALIZED_STRING_TYPE = CONS_STRING_TYPE | kInternalizedTag,
+  CONS_ASCII_INTERNALIZED_STRING_TYPE =
+      CONS_ASCII_STRING_TYPE | kInternalizedTag,
+  EXTERNAL_INTERNALIZED_STRING_TYPE = EXTERNAL_STRING_TYPE | kInternalizedTag,
+  EXTERNAL_ASCII_INTERNALIZED_STRING_TYPE =
+      EXTERNAL_ASCII_STRING_TYPE | kInternalizedTag,
+  EXTERNAL_INTERNALIZED_STRING_WITH_ASCII_DATA_TYPE =
+      EXTERNAL_STRING_WITH_ASCII_DATA_TYPE | kInternalizedTag,
+  SHORT_EXTERNAL_INTERNALIZED_STRING_TYPE =
+      SHORT_EXTERNAL_STRING_TYPE | kInternalizedTag,
+  SHORT_EXTERNAL_ASCII_INTERNALIZED_STRING_TYPE =
+      SHORT_EXTERNAL_ASCII_STRING_TYPE | kInternalizedTag,
+  SHORT_EXTERNAL_INTERNALIZED_STRING_WITH_ASCII_DATA_TYPE =
+      SHORT_EXTERNAL_STRING_WITH_ASCII_DATA_TYPE | kInternalizedTag,
 
   // Objects allocated in their own spaces (never in new space).
   MAP_TYPE = kNotStringTag,  // FIRST_NONSTRING_TYPE
@@ -711,7 +709,7 @@ STATIC_CHECK(FOREIGN_TYPE == Internals::kForeignType);
   V(DICTIONARY_PROPERTIES_SUB_TYPE)           \
   V(MAP_CODE_CACHE_SUB_TYPE)                  \
   V(SCOPE_INFO_SUB_TYPE)                      \
-  V(SYMBOL_TABLE_SUB_TYPE)                    \
+  V(STRING_TABLE_SUB_TYPE)                    \
   V(DESCRIPTOR_ARRAY_SUB_TYPE)                \
   V(TRANSITION_ARRAY_SUB_TYPE)
 
@@ -842,7 +840,6 @@ class MaybeObject BASE_EMBEDDED {
 #define HEAP_OBJECT_TYPE_LIST(V)               \
   V(HeapNumber)                                \
   V(String)                                    \
-  V(Symbol)                                    \
   V(SeqString)                                 \
   V(ExternalString)                            \
   V(ConsString)                                \
@@ -850,7 +847,8 @@ class MaybeObject BASE_EMBEDDED {
   V(ExternalTwoByteString)                     \
   V(ExternalAsciiString)                       \
   V(SeqTwoByteString)                          \
-  V(SeqOneByteString)                            \
+  V(SeqOneByteString)                          \
+  V(InternalizedString)                        \
                                                \
   V(ExternalArray)                             \
   V(ExternalByteArray)                         \
@@ -899,7 +897,7 @@ class MaybeObject BASE_EMBEDDED {
   V(JSRegExp)                                  \
   V(HashTable)                                 \
   V(Dictionary)                                \
-  V(SymbolTable)                               \
+  V(StringTable)                               \
   V(JSFunctionResultCache)                     \
   V(NormalizedMapCache)                        \
   V(CompilationCacheTable)                     \
@@ -1798,7 +1796,7 @@ class JSObject: public JSReceiver {
   //
   // Hidden properties are not local properties of the object itself.
   // Instead they are stored in an auxiliary structure kept as a local
-  // property with a special name Heap::hidden_symbol(). But if the
+  // property with a special name Heap::hidden_string(). But if the
   // receiver is a JSGlobalProxy then the auxiliary object is a property
   // of its prototype, and if it's a detached proxy, then you can't have
   // hidden properties.
@@ -1817,7 +1815,7 @@ class JSObject: public JSReceiver {
   // Deletes a hidden property. Deleting a non-existing property is
   // considered successful.
   void DeleteHiddenProperty(String* key);
-  // Returns true if the object has a property with the hidden symbol as name.
+  // Returns true if the object has a property with the hidden string as name.
   bool HasHiddenProperties();
 
   static int GetIdentityHash(Handle<JSObject> obj);
@@ -3016,7 +3014,7 @@ class HashTableKey {
 };
 
 
-class SymbolTableShape : public BaseShape<HashTableKey*> {
+class StringTableShape : public BaseShape<HashTableKey*> {
  public:
   static inline bool IsMatch(HashTableKey* key, Object* value) {
     return key->IsMatch(value);
@@ -3037,44 +3035,47 @@ class SymbolTableShape : public BaseShape<HashTableKey*> {
 
 class SeqOneByteString;
 
-// SymbolTable.
+// StringTable.
 //
 // No special elements in the prefix and the element size is 1
-// because only the symbol itself (the key) needs to be stored.
-class SymbolTable: public HashTable<SymbolTableShape, HashTableKey*> {
+// because only the string itself (the key) needs to be stored.
+class StringTable: public HashTable<StringTableShape, HashTableKey*> {
  public:
-  // Find symbol in the symbol table.  If it is not there yet, it is
-  // added.  The return value is the symbol table which might have
-  // been enlarged.  If the return value is not a failure, the symbol
-  // pointer *s is set to the symbol found.
-  MUST_USE_RESULT MaybeObject* LookupUtf8Symbol(Vector<const char> str,
-                                                Object** s);
-  MUST_USE_RESULT MaybeObject* LookupOneByteSymbol(Vector<const uint8_t> str,
-                                                   Object** s);
-  MUST_USE_RESULT MaybeObject* LookupSubStringOneByteSymbol(
+  // Find string in the string table.  If it is not there yet, it is
+  // added.  The return value is the string table which might have
+  // been enlarged.  If the return value is not a failure, the string
+  // pointer *s is set to the string found.
+  MUST_USE_RESULT MaybeObject* LookupUtf8String(
+      Vector<const char> str,
+      Object** s);
+  MUST_USE_RESULT MaybeObject* LookupOneByteString(
+      Vector<const uint8_t> str,
+      Object** s);
+  MUST_USE_RESULT MaybeObject* LookupSubStringOneByteString(
       Handle<SeqOneByteString> str,
       int from,
       int length,
       Object** s);
-  MUST_USE_RESULT MaybeObject* LookupTwoByteSymbol(Vector<const uc16> str,
-                                                   Object** s);
+  MUST_USE_RESULT MaybeObject* LookupTwoByteString(
+      Vector<const uc16> str,
+      Object** s);
   MUST_USE_RESULT MaybeObject* LookupString(String* key, Object** s);
 
-  // Looks up a symbol that is equal to the given string and returns
-  // true if it is found, assigning the symbol to the given output
+  // Looks up a string that is equal to the given string and returns
+  // true if it is found, assigning the string to the given output
   // parameter.
-  bool LookupSymbolIfExists(String* str, String** symbol);
-  bool LookupTwoCharsSymbolIfExists(uint16_t c1, uint16_t c2, String** symbol);
+  bool LookupStringIfExists(String* str, String** result);
+  bool LookupTwoCharsStringIfExists(uint16_t c1, uint16_t c2, String** result);
 
   // Casting.
-  static inline SymbolTable* cast(Object* obj);
+  static inline StringTable* cast(Object* obj);
 
  private:
   MUST_USE_RESULT MaybeObject* LookupKey(HashTableKey* key, Object** s);
 
   template <bool seq_ascii> friend class JsonParser;
 
-  DISALLOW_IMPLICIT_CONSTRUCTORS(SymbolTable);
+  DISALLOW_IMPLICIT_CONSTRUCTORS(StringTable);
 };
 
 
@@ -3102,7 +3103,7 @@ class MapCacheShape : public BaseShape<HashTableKey*> {
 
 // MapCache.
 //
-// Maps keys that are a fixed array of symbols to a map.
+// Maps keys that are a fixed array of internalized strings to a map.
 // Used for canonicalize maps for object literals.
 class MapCache: public HashTable<MapCacheShape, HashTableKey*> {
  public:
@@ -3535,13 +3536,13 @@ class ScopeInfo : public FixedArray {
 
   // Lookup support for serialized scope info. Returns the
   // the stack slot index for a given slot name if the slot is
-  // present; otherwise returns a value < 0. The name must be a symbol
-  // (canonicalized).
+  // present; otherwise returns a value < 0. The name must be an internalized
+  // string.
   int StackSlotIndex(String* name);
 
   // Lookup support for serialized scope info. Returns the
   // context slot index for a given slot name if the slot is present; otherwise
-  // returns a value < 0. The name must be a symbol (canonicalized).
+  // returns a value < 0. The name must be an internalized string.
   // If the slot is present and mode != NULL, sets *mode to the corresponding
   // mode for that variable.
   int ContextSlotIndex(String* name,
@@ -3550,13 +3551,13 @@ class ScopeInfo : public FixedArray {
 
   // Lookup support for serialized scope info. Returns the
   // parameter index for a given parameter name if the parameter is present;
-  // otherwise returns a value < 0. The name must be a symbol (canonicalized).
+  // otherwise returns a value < 0. The name must be an internalized string.
   int ParameterIndex(String* name);
 
   // Lookup support for serialized scope info. Returns the function context
   // slot index if the function name is present and context-allocated (named
   // function expressions, only), otherwise returns a value < 0. The name
-  // must be a symbol (canonicalized).
+  // must be an internalized string.
   int FunctionContextSlotIndex(String* name, VariableMode* mode);
 
 
@@ -7174,7 +7175,7 @@ class StringShape BASE_EMBEDDED {
   inline bool IsExternalTwoByte();
   inline bool IsSequentialAscii();
   inline bool IsSequentialTwoByte();
-  inline bool IsSymbol();
+  inline bool IsInternalized();
   inline StringRepresentationTag representation_tag();
   inline uint32_t encoding_tag();
   inline uint32_t full_representation_tag();
@@ -8892,10 +8893,10 @@ class BreakPointInfo: public Struct {
 #undef DECLARE_VERIFIER
 
 #define VISITOR_SYNCHRONIZATION_TAGS_LIST(V)                            \
-  V(kSymbolTable, "symbol_table", "(Symbols)")                          \
+  V(kStringTable, "string_table", "(Internalized strings)")             \
   V(kExternalStringsTable, "external_strings_table", "(External strings)") \
   V(kStrongRootList, "strong_root_list", "(Strong roots)")              \
-  V(kSymbol, "symbol", "(Symbol)")                                      \
+  V(kInternalizedString, "internalized_string", "(Internal string)")    \
   V(kBootstrapper, "bootstrapper", "(Bootstrapper)")                    \
   V(kTop, "top", "(Isolate)")                                           \
   V(kRelocatable, "relocatable", "(Relocatable)")                       \

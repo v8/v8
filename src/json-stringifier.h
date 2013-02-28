@@ -165,7 +165,7 @@ class BasicJsonStringifier BASE_EMBEDDED {
   // (indirect) handle to it in the outermost handle scope.
   Handle<JSValue> accumulator_store_;
   Handle<String> current_part_;
-  Handle<String> tojson_symbol_;
+  Handle<String> tojson_string_;
   Handle<JSArray> stack_;
   int current_index_;
   int part_length_;
@@ -251,8 +251,8 @@ BasicJsonStringifier::BasicJsonStringifier(Isolate* isolate)
                            factory_->ToObject(factory_->empty_string()));
   part_length_ = kInitialPartLength;
   current_part_ = factory_->NewRawOneByteString(kInitialPartLength);
-  tojson_symbol_ =
-      factory_->LookupOneByteSymbol(STATIC_ASCII_VECTOR("toJSON"));
+  tojson_string_ =
+      factory_->InternalizeOneByteString(STATIC_ASCII_VECTOR("toJSON"));
   stack_ = factory_->NewJSArray(8);
 }
 
@@ -297,11 +297,11 @@ void BasicJsonStringifier::Append_(const Char* chars) {
 Handle<Object> BasicJsonStringifier::ApplyToJsonFunction(
     Handle<Object> object, Handle<Object> key) {
   LookupResult lookup(isolate_);
-  JSObject::cast(*object)->LookupRealNamedProperty(*tojson_symbol_, &lookup);
+  JSObject::cast(*object)->LookupRealNamedProperty(*tojson_string_, &lookup);
   if (!lookup.IsProperty()) return object;
   PropertyAttributes attr;
   Handle<Object> fun =
-      Object::GetProperty(object, object, &lookup, tojson_symbol_, &attr);
+      Object::GetProperty(object, object, &lookup, tojson_string_, &attr);
   if (!fun->IsJSFunction()) return object;
 
   // Call toJSON function.
@@ -434,17 +434,17 @@ BasicJsonStringifier::Result BasicJsonStringifier::SerializeJSValue(
     Handle<JSValue> object) {
   bool has_exception = false;
   String* class_name = object->class_name();
-  if (class_name == isolate_->heap()->String_symbol()) {
+  if (class_name == isolate_->heap()->String_string()) {
     Handle<Object> value = Execution::ToString(object, &has_exception);
     if (has_exception) return EXCEPTION;
     SerializeString(Handle<String>::cast(value));
-  } else if (class_name == isolate_->heap()->Number_symbol()) {
+  } else if (class_name == isolate_->heap()->Number_string()) {
     Handle<Object> value = Execution::ToNumber(object, &has_exception);
     if (has_exception) return EXCEPTION;
     if (value->IsSmi()) return SerializeSmi(Smi::cast(*value));
     SerializeHeapNumber(Handle<HeapNumber>::cast(value));
   } else {
-    ASSERT(class_name == isolate_->heap()->Boolean_symbol());
+    ASSERT(class_name == isolate_->heap()->Boolean_string());
     Object* value = JSValue::cast(*object)->value();
     ASSERT(value->IsBoolean());
     AppendAscii(value->IsTrue() ? "true" : "false");

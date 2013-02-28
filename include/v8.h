@@ -4221,7 +4221,7 @@ class Internals {
   static const int kNullValueRootIndex = 7;
   static const int kTrueValueRootIndex = 8;
   static const int kFalseValueRootIndex = 9;
-  static const int kEmptySymbolRootIndex = 119;
+  static const int kEmptyStringRootIndex = 118;
 
   static const int kNodeClassIdOffset = 1 * kApiPointerSize;
   static const int kNodeFlagsOffset = 1 * kApiPointerSize + 3;
@@ -4671,7 +4671,7 @@ Local<String> String::Empty(Isolate* isolate) {
   typedef internal::Object* S;
   typedef internal::Internals I;
   if (!I::IsInitialized(isolate)) return Empty();
-  S* slot = I::GetRoot(isolate, I::kEmptySymbolRootIndex);
+  S* slot = I::GetRoot(isolate, I::kEmptyStringRootIndex);
   return Local<String>(reinterpret_cast<String*>(slot));
 }
 

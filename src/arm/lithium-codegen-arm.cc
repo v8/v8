@@ -2680,12 +2680,12 @@ void LCodeGen::EmitClassOfTest(Label* is_true,
   __ ldr(temp, FieldMemOperand(temp, JSFunction::kSharedFunctionInfoOffset));
   __ ldr(temp, FieldMemOperand(temp,
                                SharedFunctionInfo::kInstanceClassNameOffset));
-  // The class name we are testing against is a symbol because it's a literal.
-  // The name in the constructor is a symbol because of the way the context is
-  // booted.  This routine isn't expected to work for random API-created
+  // The class name we are testing against is internalized since it's a literal.
+  // The name in the constructor is internalized because of the way the context
+  // is booted.  This routine isn't expected to work for random API-created
   // classes and it doesn't have to because you can't access it with natives
-  // syntax.  Since both sides are symbols it is sufficient to use an identity
-  // comparison.
+  // syntax.  Since both sides are internalized it is sufficient to use an
+  // identity comparison.
   __ cmp(temp, Operand(class_name));
   // End with the answer in flags.
 }
@@ -6042,14 +6042,14 @@ Condition LCodeGen::EmitTypeofIs(Label* true_label,
                                  Handle<String> type_name) {
   Condition final_branch_condition = kNoCondition;
   Register scratch = scratch0();
-  if (type_name->Equals(heap()->number_symbol())) {
+  if (type_name->Equals(heap()->number_string())) {
     __ JumpIfSmi(input, true_label);
     __ ldr(input, FieldMemOperand(input, HeapObject::kMapOffset));
     __ LoadRoot(ip, Heap::kHeapNumberMapRootIndex);
     __ cmp(input, Operand(ip));
     final_branch_condition = eq;
 
-  } else if (type_name->Equals(heap()->string_symbol())) {
+  } else if (type_name->Equals(heap()->string_string())) {
     __ JumpIfSmi(input, false_label);
     __ CompareObjectType(input, input, scratch, FIRST_NONSTRING_TYPE);
     __ b(ge, false_label);
@@ -6057,17 +6057,17 @@ Condition LCodeGen::EmitTypeofIs(Label* true_label,
     __ tst(ip, Operand(1 << Map::kIsUndetectable));
     final_branch_condition = eq;
 
-  } else if (type_name->Equals(heap()->boolean_symbol())) {
+  } else if (type_name->Equals(heap()->boolean_string())) {
     __ CompareRoot(input, Heap::kTrueValueRootIndex);
     __ b(eq, true_label);
     __ CompareRoot(input, Heap::kFalseValueRootIndex);
     final_branch_condition = eq;
 
-  } else if (FLAG_harmony_typeof && type_name->Equals(heap()->null_symbol())) {
+  } else if (FLAG_harmony_typeof && type_name->Equals(heap()->null_string())) {
     __ CompareRoot(input, Heap::kNullValueRootIndex);
     final_branch_condition = eq;
 
-  } else if (type_name->Equals(heap()->undefined_symbol())) {
+  } else if (type_name->Equals(heap()->undefined_string())) {
     __ CompareRoot(input, Heap::kUndefinedValueRootIndex);
     __ b(eq, true_label);
     __ JumpIfSmi(input, false_label);
@@ -6077,7 +6077,7 @@ Condition LCodeGen::EmitTypeofIs(Label* true_label,
     __ tst(ip, Operand(1 << Map::kIsUndetectable));
     final_branch_condition = ne;
 
-  } else if (type_name->Equals(heap()->function_symbol())) {
+  } else if (type_name->Equals(heap()->function_string())) {
     STATIC_ASSERT(NUM_OF_CALLABLE_SPEC_OBJECT_TYPES == 2);
     __ JumpIfSmi(input, false_label);
     __ CompareObjectType(input, scratch, input, JS_FUNCTION_TYPE);
@@ -6085,7 +6085,7 @@ Condition LCodeGen::EmitTypeofIs(Label* true_label,
     __ cmp(input, Operand(JS_FUNCTION_PROXY_TYPE));
     final_branch_condition = eq;
 
-  } else if (type_name->Equals(heap()->object_symbol())) {
+  } else if (type_name->Equals(heap()->object_string())) {
     __ JumpIfSmi(input, false_label);
     if (!FLAG_harmony_typeof) {
       __ CompareRoot(input, Heap::kNullValueRootIndex);

@@ -477,26 +477,32 @@ static const char* TypeToString(InstanceType type) {
     case INVALID_TYPE: return "INVALID";
     case MAP_TYPE: return "MAP";
     case HEAP_NUMBER_TYPE: return "HEAP_NUMBER";
-    case SYMBOL_TYPE: return "SYMBOL";
-    case ASCII_SYMBOL_TYPE: return "ASCII_SYMBOL";
-    case CONS_SYMBOL_TYPE: return "CONS_SYMBOL";
-    case CONS_ASCII_SYMBOL_TYPE: return "CONS_ASCII_SYMBOL";
-    case EXTERNAL_ASCII_SYMBOL_TYPE:
-    case EXTERNAL_SYMBOL_WITH_ASCII_DATA_TYPE:
-    case EXTERNAL_SYMBOL_TYPE: return "EXTERNAL_SYMBOL";
-    case SHORT_EXTERNAL_ASCII_SYMBOL_TYPE:
-    case SHORT_EXTERNAL_SYMBOL_WITH_ASCII_DATA_TYPE:
-    case SHORT_EXTERNAL_SYMBOL_TYPE: return "SHORT_EXTERNAL_SYMBOL";
-    case ASCII_STRING_TYPE: return "ASCII_STRING";
     case STRING_TYPE: return "TWO_BYTE_STRING";
+    case ASCII_STRING_TYPE: return "ASCII_STRING";
     case CONS_STRING_TYPE:
-    case CONS_ASCII_STRING_TYPE: return "CONS_STRING";
+    case CONS_ASCII_STRING_TYPE:
+      return "CONS_STRING";
+    case EXTERNAL_STRING_TYPE:
     case EXTERNAL_ASCII_STRING_TYPE:
     case EXTERNAL_STRING_WITH_ASCII_DATA_TYPE:
-    case EXTERNAL_STRING_TYPE: return "EXTERNAL_STRING";
+      return "EXTERNAL_STRING";
+    case SHORT_EXTERNAL_STRING_TYPE:
     case SHORT_EXTERNAL_ASCII_STRING_TYPE:
     case SHORT_EXTERNAL_STRING_WITH_ASCII_DATA_TYPE:
-    case SHORT_EXTERNAL_STRING_TYPE: return "SHORT_EXTERNAL_STRING";
+      return "SHORT_EXTERNAL_STRING";
+    case INTERNALIZED_STRING_TYPE: return "INTERNALIZED_STRING";
+    case ASCII_INTERNALIZED_STRING_TYPE: return "ASCII_INTERNALIZED_STRING";
+    case CONS_INTERNALIZED_STRING_TYPE: return "CONS_INTERNALIZED_STRING";
+    case CONS_ASCII_INTERNALIZED_STRING_TYPE:
+      return "CONS_ASCII_INTERNALIZED_STRING";
+    case EXTERNAL_INTERNALIZED_STRING_TYPE:
+    case EXTERNAL_ASCII_INTERNALIZED_STRING_TYPE:
+    case EXTERNAL_INTERNALIZED_STRING_WITH_ASCII_DATA_TYPE:
+      return "EXTERNAL_INTERNALIZED_STRING";
+    case SHORT_EXTERNAL_INTERNALIZED_STRING_TYPE:
+    case SHORT_EXTERNAL_ASCII_INTERNALIZED_STRING_TYPE:
+    case SHORT_EXTERNAL_INTERNALIZED_STRING_WITH_ASCII_DATA_TYPE:
+      return "SHORT_EXTERNAL_INTERNALIZED_STRING";
     case FIXED_ARRAY_TYPE: return "FIXED_ARRAY";
     case BYTE_ARRAY_TYPE: return "BYTE_ARRAY";
     case FREE_SPACE_TYPE: return "FREE_SPACE";
@@ -668,7 +674,7 @@ void JSMessageObject::JSMessageObjectPrint(FILE* out) {
 
 
 void String::StringPrint(FILE* out) {
-  if (StringShape(this).IsSymbol()) {
+  if (StringShape(this).IsInternalized()) {
     PrintF(out, "#");
   } else if (StringShape(this).IsCons()) {
     PrintF(out, "c\"");
@@ -690,7 +696,7 @@ void String::StringPrint(FILE* out) {
     PrintF(out, "%s", truncated_epilogue);
   }
 
-  if (!StringShape(this).IsSymbol()) PrintF(out, "\"");
+  if (!StringShape(this).IsInternalized()) PrintF(out, "\"");
 }
 
 

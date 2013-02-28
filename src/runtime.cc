@@ -290,40 +290,41 @@ static Handle<Map> ComputeObjectLiteralMap(
   Isolate* isolate = context->GetIsolate();
   int properties_length = constant_properties->length();
   int number_of_properties = properties_length / 2;
-  // Check that there are only symbols and array indices among keys.
-  int number_of_symbol_keys = 0;
+  // Check that there are only internal strings and array indices among keys.
+  int number_of_string_keys = 0;
   for (int p = 0; p != properties_length; p += 2) {
     Object* key = constant_properties->get(p);
     uint32_t element_index = 0;
-    if (key->IsSymbol()) {
-      number_of_symbol_keys++;
+    if (key->IsInternalizedString()) {
+      number_of_string_keys++;
     } else if (key->ToArrayIndex(&element_index)) {
       // An index key does not require space in the property backing store.
       number_of_properties--;
     } else {
-      // Bail out as a non-symbol non-index key makes caching impossible.
+      // Bail out as a non-internalized-string non-index key makes caching
+      // impossible.
       // ASSERT to make sure that the if condition after the loop is false.
-      ASSERT(number_of_symbol_keys != number_of_properties);
+      ASSERT(number_of_string_keys != number_of_properties);
       break;
     }
   }
-  // If we only have symbols and array indices among keys then we can
-  // use the map cache in the native context.
+  // If we only have internalized strings and array indices among keys then we
+  // can use the map cache in the native context.
   const int kMaxKeys = 10;
-  if ((number_of_symbol_keys == number_of_properties) &&
-      (number_of_symbol_keys < kMaxKeys)) {
+  if ((number_of_string_keys == number_of_properties) &&
+      (number_of_string_keys < kMaxKeys)) {
     // Create the fixed array with the key.
     Handle<FixedArray> keys =
-        isolate->factory()->NewFixedArray(number_of_symbol_keys);
-    if (number_of_symbol_keys > 0) {
+        isolate->factory()->NewFixedArray(number_of_string_keys);
+    if (number_of_string_keys > 0) {
       int index = 0;
       for (int p = 0; p < properties_length; p += 2) {
         Object* key = constant_properties->get(p);
-        if (key->IsSymbol()) {
+        if (key->IsInternalizedString()) {
           keys->set(index++, key);
         }
       }
-      ASSERT(index == number_of_symbol_keys);
+      ASSERT(index == number_of_string_keys);
     }
     *is_result_from_cache = true;
     return isolate->factory()->ObjectLiteralMapFromCache(context, keys);
@@ -396,7 +397,7 @@ static Handle<Object> CreateObjectLiteralBoilerplate(
     }
     Handle<Object> result;
     uint32_t element_index = 0;
-    if (key->IsSymbol()) {
+    if (key->IsInternalizedString()) {
       if (Handle<String>::cast(key)->AsArrayIndex(&element_index)) {
         // Array index as string (uint32).
         result = JSObject::SetOwnElement(
@@ -954,7 +955,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetPrototype) {
   do {
     if (obj->IsAccessCheckNeeded() &&
         !isolate->MayNamedAccess(JSObject::cast(obj),
-                                 isolate->heap()->Proto_symbol(),
+                                 isolate->heap()->proto_string(),
                                  v8::ACCESS_GET)) {
       isolate->ReportFailedAccessCheck(JSObject::cast(obj), v8::ACCESS_GET);
       return isolate->heap()->undefined_value();
@@ -1779,7 +1780,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_RegExpInitializeObject) {
   CONVERT_ARG_CHECKED(String, source, 1);
   // If source is the empty string we set it to "(?:)" instead as
   // suggested by ECMA-262, 5th, section 15.10.4.1.
-  if (source->length() == 0) source = isolate->heap()->query_colon_symbol();
+  if (source->length() == 0) source = isolate->heap()->query_colon_string();
 
   Object* global = args[2];
   if (!global->IsTrue()) global = isolate->heap()->false_value();
@@ -1816,27 +1817,27 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_RegExpInitializeObject) {
       static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE);
   Heap* heap = isolate->heap();
   MaybeObject* result;
-  result = regexp->SetLocalPropertyIgnoreAttributes(heap->source_symbol(),
+  result = regexp->SetLocalPropertyIgnoreAttributes(heap->source_string(),
                                                     source,
                                                     final);
   // TODO(jkummerow): Turn these back into ASSERTs when we can be certain
   // that it never fires in Release mode in the wild.
   CHECK(!result->IsFailure());
-  result = regexp->SetLocalPropertyIgnoreAttributes(heap->global_symbol(),
+  result = regexp->SetLocalPropertyIgnoreAttributes(heap->global_string(),
                                                     global,
                                                     final);
   CHECK(!result->IsFailure());
   result =
-      regexp->SetLocalPropertyIgnoreAttributes(heap->ignore_case_symbol(),
+      regexp->SetLocalPropertyIgnoreAttributes(heap->ignore_case_string(),
                                                ignoreCase,
                                                final);
   CHECK(!result->IsFailure());
-  result = regexp->SetLocalPropertyIgnoreAttributes(heap->multiline_symbol(),
+  result = regexp->SetLocalPropertyIgnoreAttributes(heap->multiline_string(),
                                                     multiline,
                                                     final);
   CHECK(!result->IsFailure());
   result =
-      regexp->SetLocalPropertyIgnoreAttributes(heap->last_index_symbol(),
+      regexp->SetLocalPropertyIgnoreAttributes(heap->last_index_string(),
                                                Smi::FromInt(0),
                                                writable);
   CHECK(!result->IsFailure());
@@ -1860,7 +1861,7 @@ static Handle<JSFunction> InstallBuiltin(Isolate* isolate,
                                          Handle<JSObject> holder,
                                          const char* name,
                                          Builtins::Name builtin_name) {
-  Handle<String> key = isolate->factory()->LookupUtf8Symbol(name);
+  Handle<String> key = isolate->factory()->InternalizeUtf8String(name);
   Handle<Code> code(isolate->builtins()->builtin(builtin_name));
   Handle<JSFunction> optimized =
       isolate->factory()->NewFunction(key,
@@ -2084,7 +2085,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_FunctionSetReadOnlyPrototype) {
   RUNTIME_ASSERT(args.length() == 1);
   CONVERT_ARG_CHECKED(JSFunction, function, 0);
 
-  String* name = isolate->heap()->prototype_symbol();
+  String* name = isolate->heap()->prototype_string();
 
   if (function->HasFastProperties()) {
     // Construct a new field descriptor with updated attributes.
@@ -3768,13 +3769,13 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NumberToRadixString) {
   // Slow case.
   CONVERT_DOUBLE_ARG_CHECKED(value, 0);
   if (isnan(value)) {
-    return *isolate->factory()->nan_symbol();
+    return *isolate->factory()->nan_string();
   }
   if (isinf(value)) {
     if (value < 0) {
-      return *isolate->factory()->minus_infinity_symbol();
+      return *isolate->factory()->minus_infinity_string();
     }
-    return *isolate->factory()->infinity_symbol();
+    return *isolate->factory()->infinity_string();
   }
   char* str = DoubleToRadixCString(value, radix);
   MaybeObject* result =
@@ -4756,7 +4757,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetLocalPropertyNames) {
     int dest_pos = 0;
     for (int i = 0; i < total_property_count; i++) {
       Object* name = old_names->get(i);
-      if (name == isolate->heap()->hidden_symbol()) {
+      if (name == isolate->heap()->hidden_string()) {
         continue;
       }
       names->set(dest_pos++, name);
@@ -4917,8 +4918,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetArgumentsProperty) {
   }
 
   // Handle special arguments properties.
-  if (key->Equals(isolate->heap()->length_symbol())) return Smi::FromInt(n);
-  if (key->Equals(isolate->heap()->callee_symbol())) {
+  if (key->Equals(isolate->heap()->length_string())) return Smi::FromInt(n);
+  if (key->Equals(isolate->heap()->callee_string())) {
     Object* function = frame->function();
     if (function->IsJSFunction() &&
         !JSFunction::cast(function)->shared()->is_classic_mode()) {
@@ -4956,38 +4957,38 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Typeof) {
   NoHandleAllocation ha(isolate);
 
   Object* obj = args[0];
-  if (obj->IsNumber()) return isolate->heap()->number_symbol();
+  if (obj->IsNumber()) return isolate->heap()->number_string();
   HeapObject* heap_obj = HeapObject::cast(obj);
 
   // typeof an undetectable object is 'undefined'
   if (heap_obj->map()->is_undetectable()) {
-    return isolate->heap()->undefined_symbol();
+    return isolate->heap()->undefined_string();
   }
 
   InstanceType instance_type = heap_obj->map()->instance_type();
   if (instance_type < FIRST_NONSTRING_TYPE) {
-    return isolate->heap()->string_symbol();
+    return isolate->heap()->string_string();
   }
 
   switch (instance_type) {
     case ODDBALL_TYPE:
       if (heap_obj->IsTrue() || heap_obj->IsFalse()) {
-        return isolate->heap()->boolean_symbol();
+        return isolate->heap()->boolean_string();
       }
       if (heap_obj->IsNull()) {
         return FLAG_harmony_typeof
-            ? isolate->heap()->null_symbol()
-            : isolate->heap()->object_symbol();
+            ? isolate->heap()->null_string()
+            : isolate->heap()->object_string();
       }
       ASSERT(heap_obj->IsUndefined());
-      return isolate->heap()->undefined_symbol();
+      return isolate->heap()->undefined_string();
     case JS_FUNCTION_TYPE:
     case JS_FUNCTION_PROXY_TYPE:
-      return isolate->heap()->function_symbol();
+      return isolate->heap()->function_string();
     default:
       // For any kind of object not handled above, the spec rule for
       // host objects gives that it is okay to return "object"
-      return isolate->heap()->object_symbol();
+      return isolate->heap()->object_string();
   }
 }
 
@@ -6319,7 +6320,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringBuilderConcat) {
 
   int special_length = special->length();
   if (!array->HasFastObjectElements()) {
-    return isolate->Throw(isolate->heap()->illegal_argument_symbol());
+    return isolate->Throw(isolate->heap()->illegal_argument_string());
   }
   FixedArray* fixed_array = FixedArray::cast(array->elements());
   if (fixed_array->length() < array_length) {
@@ -6353,21 +6354,21 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringBuilderConcat) {
         // Get the position and check that it is a positive smi.
         i++;
         if (i >= array_length) {
-          return isolate->Throw(isolate->heap()->illegal_argument_symbol());
+          return isolate->Throw(isolate->heap()->illegal_argument_string());
         }
         Object* next_smi = fixed_array->get(i);
         if (!next_smi->IsSmi()) {
-          return isolate->Throw(isolate->heap()->illegal_argument_symbol());
+          return isolate->Throw(isolate->heap()->illegal_argument_string());
         }
         pos = Smi::cast(next_smi)->value();
         if (pos < 0) {
-          return isolate->Throw(isolate->heap()->illegal_argument_symbol());
+          return isolate->Throw(isolate->heap()->illegal_argument_string());
         }
       }
       ASSERT(pos >= 0);
       ASSERT(len >= 0);
       if (pos > special_length || len > special_length - pos) {
-        return isolate->Throw(isolate->heap()->illegal_argument_symbol());
+        return isolate->Throw(isolate->heap()->illegal_argument_string());
       }
       increment = len;
     } else if (elt->IsString()) {
@@ -6379,7 +6380,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringBuilderConcat) {
       }
     } else {
       ASSERT(!elt->IsTheHole());
-      return isolate->Throw(isolate->heap()->illegal_argument_symbol());
+      return isolate->Throw(isolate->heap()->illegal_argument_string());
     }
     if (increment > String::kMaxLength - position) {
       isolate->context()->mark_out_of_memory();
@@ -6429,7 +6430,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringBuilderJoin) {
   CONVERT_ARG_CHECKED(String, separator, 2);
 
   if (!array->HasFastObjectElements()) {
-    return isolate->Throw(isolate->heap()->illegal_argument_symbol());
+    return isolate->Throw(isolate->heap()->illegal_argument_string());
   }
   FixedArray* fixed_array = FixedArray::cast(array->elements());
   if (fixed_array->length() < array_length) {
@@ -6455,7 +6456,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringBuilderJoin) {
     Object* element_obj = fixed_array->get(i);
     if (!element_obj->IsString()) {
       // TODO(1161): handle this case.
-      return isolate->Throw(isolate->heap()->illegal_argument_symbol());
+      return isolate->Throw(isolate->heap()->illegal_argument_string());
     }
     String* element = String::cast(element_obj);
     int increment = element->length();
@@ -7451,11 +7452,11 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_FunctionBindArguments) {
   bound_function->set_function_bindings(*new_bindings);
 
   // Update length.
-  Handle<String> length_symbol = isolate->factory()->length_symbol();
+  Handle<String> length_string = isolate->factory()->length_string();
   Handle<Object> new_length(args.at<Object>(3));
   PropertyAttributes attr =
       static_cast<PropertyAttributes>(DONT_DELETE | DONT_ENUM | READ_ONLY);
-  ForceSetProperty(bound_function, length_symbol, new_length, attr);
+  ForceSetProperty(bound_function, length_string, new_length, attr);
   return *bound_function;
 }
 
@@ -7708,7 +7709,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ForceParallelRecompile) {
   HandleScope handle_scope(isolate);
   ASSERT(FLAG_parallel_recompilation && FLAG_manual_parallel_recompilation);
   if (!isolate->optimizing_compiler_thread()->IsQueueAvailable()) {
-    return isolate->Throw(*isolate->factory()->LookupOneByteSymbol(
+    return isolate->Throw(*isolate->factory()->InternalizeOneByteString(
         STATIC_ASCII_VECTOR("Recompile queue is full.")));
   }
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, fun, 0);
@@ -10163,7 +10164,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CheckExecutionState) {
   if (isolate->debug()->break_id() == 0 ||
       break_id != isolate->debug()->break_id()) {
     return isolate->Throw(
-        isolate->heap()->illegal_execution_state_symbol());
+        isolate->heap()->illegal_execution_state_string());
   }
 
   return isolate->heap()->true_value();
@@ -11686,7 +11687,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_PrepareStep) {
     if (!maybe_check->ToObject(&check)) return maybe_check;
   }
   if (!args[1]->IsNumber() || !args[2]->IsNumber()) {
-    return isolate->Throw(isolate->heap()->illegal_argument_symbol());
+    return isolate->Throw(isolate->heap()->illegal_argument_string());
   }
 
   // Get the step action and check validity.
@@ -11696,13 +11697,13 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_PrepareStep) {
       step_action != StepOut &&
       step_action != StepInMin &&
       step_action != StepMin) {
-    return isolate->Throw(isolate->heap()->illegal_argument_symbol());
+    return isolate->Throw(isolate->heap()->illegal_argument_string());
   }
 
   // Get the number of steps.
   int step_count = NumberToInt32(args[2]);
   if (step_count < 1) {
-    return isolate->Throw(isolate->heap()->illegal_argument_symbol());
+    return isolate->Throw(isolate->heap()->illegal_argument_string());
   }
 
   // Clear all current stepping setup.
@@ -11801,7 +11802,7 @@ static Handle<Object> GetArgumentsObject(Isolate* isolate,
   // does not support eval) then create an 'arguments' object.
   int index;
   if (scope_info->StackLocalCount() > 0) {
-    index = scope_info->StackSlotIndex(isolate->heap()->arguments_symbol());
+    index = scope_info->StackSlotIndex(isolate->heap()->arguments_string());
     if (index != -1) {
       return Handle<Object>(frame->GetExpression(index), isolate);
     }
@@ -11811,7 +11812,7 @@ static Handle<Object> GetArgumentsObject(Isolate* isolate,
     VariableMode mode;
     InitializationFlag init_flag;
     index = scope_info->ContextSlotIndex(
-        isolate->heap()->arguments_symbol(), &mode, &init_flag);
+        isolate->heap()->arguments_string(), &mode, &init_flag);
     if (index != -1) {
       return Handle<Object>(function_context->get(index), isolate);
     }
@@ -12669,7 +12670,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_LiveEditRestartFrame) {
   const char* error_message =
       LiveEdit::RestartFrame(it.frame(), isolate->runtime_zone());
   if (error_message) {
-    return *(isolate->factory()->LookupUtf8Symbol(error_message));
+    return *(isolate->factory()->InternalizeUtf8String(error_message));
   }
   return heap->true_value();
 }
@@ -12859,7 +12860,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_MarkOneShotGetter) {
   ASSERT_EQ(args.length(), 1);
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, fun, 0);
   HandleScope scope(isolate);
-  Handle<String> key = isolate->factory()->hidden_stack_trace_symbol();
+  Handle<String> key = isolate->factory()->hidden_stack_trace_string();
   JSObject::SetHiddenProperty(fun, key, key);
   return *fun;
 }
@@ -12871,7 +12872,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetOverflowedStackTrace) {
   HandleScope scope(isolate);
   ASSERT_EQ(args.length(), 1);
   CONVERT_ARG_CHECKED(JSObject, error_object, 0);
-  String* key = isolate->heap()->hidden_stack_trace_symbol();
+  String* key = isolate->heap()->hidden_stack_trace_string();
   Object* result = error_object->GetHiddenProperty(key);
   RUNTIME_ASSERT(result->IsJSArray() ||
                  result->IsString() ||
@@ -12886,7 +12887,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetOverflowedStackTrace) {
   ASSERT_EQ(args.length(), 2);
   CONVERT_ARG_HANDLE_CHECKED(JSObject, error_object, 0);
   CONVERT_ARG_HANDLE_CHECKED(HeapObject, value, 1);
-  Handle<String> key = isolate->factory()->hidden_stack_trace_symbol();
+  Handle<String> key = isolate->factory()->hidden_stack_trace_string();
   if (value->IsUndefined()) {
     error_object->DeleteHiddenProperty(*key);
   } else {
@@ -13246,14 +13247,14 @@ MaybeObject* Runtime::InitializeIntrinsicFunctionNames(Heap* heap,
   ASSERT(dictionary != NULL);
   ASSERT(StringDictionary::cast(dictionary)->NumberOfElements() == 0);
   for (int i = 0; i < kNumFunctions; ++i) {
-    Object* name_symbol;
-    { MaybeObject* maybe_name_symbol =
-          heap->LookupUtf8Symbol(kIntrinsicFunctions[i].name);
-      if (!maybe_name_symbol->ToObject(&name_symbol)) return maybe_name_symbol;
+    Object* name_string;
+    { MaybeObject* maybe_name_string =
+          heap->InternalizeUtf8String(kIntrinsicFunctions[i].name);
+      if (!maybe_name_string->ToObject(&name_string)) return maybe_name_string;
     }
     StringDictionary* string_dictionary = StringDictionary::cast(dictionary);
     { MaybeObject* maybe_dictionary = string_dictionary->Add(
-          String::cast(name_symbol),
+          String::cast(name_string),
           Smi::FromInt(i),
           PropertyDetails(NONE, NORMAL));
       if (!maybe_dictionary->ToObject(&dictionary)) {
@@ -13267,7 +13268,7 @@ MaybeObject* Runtime::InitializeIntrinsicFunctionNames(Heap* heap,
 }
 
 
-const Runtime::Function* Runtime::FunctionForSymbol(Handle<String> name) {
+const Runtime::Function* Runtime::FunctionForName(Handle<String> name) {
   Heap* heap = name->GetHeap();
   int entry = heap->intrinsic_function_names()->FindEntry(*name);
   if (entry != kNotFound) {

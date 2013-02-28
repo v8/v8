@@ -173,7 +173,7 @@ TEST(Regress2060a) {
   LocalContext context;
   v8::HandleScope scope;
   Handle<JSFunction> function =
-      FACTORY->NewFunction(FACTORY->function_symbol(), FACTORY->null_value());
+      FACTORY->NewFunction(FACTORY->function_string(), FACTORY->null_value());
   Handle<JSObject> key = FACTORY->NewJSObject(function);
   Handle<JSWeakMap> weakmap = AllocateJSWeakMap();
 
@@ -209,7 +209,7 @@ TEST(Regress2060b) {
   LocalContext context;
   v8::HandleScope scope;
   Handle<JSFunction> function =
-      FACTORY->NewFunction(FACTORY->function_symbol(), FACTORY->null_value());
+      FACTORY->NewFunction(FACTORY->function_string(), FACTORY->null_value());
 
   // Start second old-space page so that keys land on evacuation candidate.
   Page* first_page = HEAP->old_pointer_space()->anchor()->next_page();

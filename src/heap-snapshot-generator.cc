@@ -1019,7 +1019,7 @@ void V8HeapExplorer::ExtractJSObjectReferences(
   ExtractElementReferences(js_obj, entry);
   ExtractInternalReferences(js_obj, entry);
   SetPropertyReference(
-      obj, entry, heap_->Proto_symbol(), js_obj->GetPrototype());
+      obj, entry, heap_->proto_string(), js_obj->GetPrototype());
   if (obj->IsJSFunction()) {
     JSFunction* js_fun = JSFunction::cast(js_obj);
     Object* proto_or_map = js_fun->prototype_or_initial_map();
@@ -1027,13 +1027,13 @@ void V8HeapExplorer::ExtractJSObjectReferences(
       if (!proto_or_map->IsMap()) {
         SetPropertyReference(
             obj, entry,
-            heap_->prototype_symbol(), proto_or_map,
+            heap_->prototype_string(), proto_or_map,
             NULL,
             JSFunction::kPrototypeOrInitialMapOffset);
       } else {
         SetPropertyReference(
             obj, entry,
-            heap_->prototype_symbol(), js_fun->prototype());
+            heap_->prototype_string(), js_fun->prototype());
       }
     }
     SharedFunctionInfo* shared_info = js_fun->shared();
@@ -1323,7 +1323,7 @@ void V8HeapExplorer::ExtractPropertyReferences(JSObject* js_obj, int entry) {
           String* k = descs->GetKey(i);
           if (index < js_obj->map()->inobject_properties()) {
             Object* value = js_obj->InObjectPropertyAt(index);
-            if (k != heap_->hidden_symbol()) {
+            if (k != heap_->hidden_string()) {
               SetPropertyReference(
                   js_obj, entry,
                   k, value,
@@ -1338,7 +1338,7 @@ void V8HeapExplorer::ExtractPropertyReferences(JSObject* js_obj, int entry) {
             }
           } else {
             Object* value = js_obj->FastPropertyAt(index);
-            if (k != heap_->hidden_symbol()) {
+            if (k != heap_->hidden_string()) {
               SetPropertyReference(js_obj, entry, k, value);
             } else {
               TagObject(value, "(hidden properties)");
@@ -1388,7 +1388,7 @@ void V8HeapExplorer::ExtractPropertyReferences(JSObject* js_obj, int entry) {
         Object* value = target->IsJSGlobalPropertyCell()
             ? JSGlobalPropertyCell::cast(target)->value()
             : target;
-        if (k != heap_->hidden_symbol()) {
+        if (k != heap_->hidden_string()) {
           SetPropertyReference(js_obj, entry, String::cast(k), value);
         } else {
           TagObject(value, "(hidden properties)");
@@ -1438,15 +1438,15 @@ void V8HeapExplorer::ExtractInternalReferences(JSObject* js_obj, int entry) {
 
 String* V8HeapExplorer::GetConstructorName(JSObject* object) {
   Heap* heap = object->GetHeap();
-  if (object->IsJSFunction()) return heap->closure_symbol();
+  if (object->IsJSFunction()) return heap->closure_string();
   String* constructor_name = object->constructor_name();
-  if (constructor_name == heap->Object_symbol()) {
+  if (constructor_name == heap->Object_string()) {
     // Look up an immediate "constructor" property, if it is a function,
     // return its name. This is for instances of binding objects, which
     // have prototype constructor type "Object".
     Object* constructor_prop = NULL;
     LookupResult result(heap->isolate());
-    object->LocalLookupRealNamedProperty(heap->constructor_symbol(), &result);
+    object->LocalLookupRealNamedProperty(heap->constructor_string(), &result);
     if (!result.IsFound()) return object->constructor_name();
 
     constructor_prop = result.GetLazyValue();
@@ -1768,9 +1768,9 @@ const char* V8HeapExplorer::GetStrongGcSubrootName(Object* object) {
 #define STRUCT_MAP_NAME(NAME, Name, name) NAME_ENTRY(name##_map)
     STRUCT_LIST(STRUCT_MAP_NAME)
 #undef STRUCT_MAP_NAME
-#define SYMBOL_NAME(name, str) NAME_ENTRY(name)
-    SYMBOL_LIST(SYMBOL_NAME)
-#undef SYMBOL_NAME
+#define STRING_NAME(name, str) NAME_ENTRY(name)
+    INTERNALIZED_STRING_LIST(STRING_NAME)
+#undef STRING_NAME
 #undef NAME_ENTRY
     CHECK(!strong_gc_subroot_names_.is_empty());
   }

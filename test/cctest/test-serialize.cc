@@ -288,8 +288,8 @@ static void SanityCheck() {
 #endif
   CHECK(Isolate::Current()->global_object()->IsJSObject());
   CHECK(Isolate::Current()->native_context()->IsContext());
-  CHECK(HEAP->symbol_table()->IsSymbolTable());
-  CHECK(!FACTORY->LookupOneByteSymbol(
+  CHECK(HEAP->string_table()->IsStringTable());
+  CHECK(!FACTORY->InternalizeOneByteString(
       STATIC_ASCII_VECTOR("Empty"))->IsFailure());
 }
 

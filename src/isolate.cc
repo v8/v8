@@ -541,11 +541,11 @@ Handle<String> Isolate::StackTraceString() {
     OS::PrintError(
       "If you are lucky you may find a partial stack dump on stdout.\n\n");
     incomplete_message_->OutputToStdOut();
-    return factory()->empty_symbol();
+    return factory()->empty_string();
   } else {
     OS::Abort();
     // Unreachable
-    return factory()->empty_symbol();
+    return factory()->empty_string();
   }
 }
 
@@ -662,7 +662,7 @@ Handle<JSArray> Isolate::CaptureSimpleStackTrace(Handle<JSObject> error_object,
 void Isolate::CaptureAndSetDetailedStackTrace(Handle<JSObject> error_object) {
   if (capture_stack_trace_for_uncaught_exceptions_) {
     // Capture stack trace for a detailed exception message.
-    Handle<String> key = factory()->hidden_stack_trace_symbol();
+    Handle<String> key = factory()->hidden_stack_trace_string();
     Handle<JSArray> stack_trace = CaptureCurrentStackTrace(
         stack_trace_for_uncaught_exceptions_frame_limit_,
         stack_trace_for_uncaught_exceptions_options_);
@@ -678,20 +678,20 @@ Handle<JSArray> Isolate::CaptureCurrentStackTrace(
   Handle<JSArray> stack_trace = factory()->NewJSArray(frame_limit);
 
   Handle<String> column_key =
-      factory()->LookupOneByteSymbol(STATIC_ASCII_VECTOR("column"));
+      factory()->InternalizeOneByteString(STATIC_ASCII_VECTOR("column"));
   Handle<String> line_key =
-      factory()->LookupOneByteSymbol(STATIC_ASCII_VECTOR("lineNumber"));
+      factory()->InternalizeOneByteString(STATIC_ASCII_VECTOR("lineNumber"));
   Handle<String> script_key =
-      factory()->LookupOneByteSymbol(STATIC_ASCII_VECTOR("scriptName"));
+      factory()->InternalizeOneByteString(STATIC_ASCII_VECTOR("scriptName"));
   Handle<String> script_name_or_source_url_key =
-      factory()->LookupOneByteSymbol(
+      factory()->InternalizeOneByteString(
           STATIC_ASCII_VECTOR("scriptNameOrSourceURL"));
   Handle<String> function_key =
-      factory()->LookupOneByteSymbol(STATIC_ASCII_VECTOR("functionName"));
+      factory()->InternalizeOneByteString(STATIC_ASCII_VECTOR("functionName"));
   Handle<String> eval_key =
-      factory()->LookupOneByteSymbol(STATIC_ASCII_VECTOR("isEval"));
+      factory()->InternalizeOneByteString(STATIC_ASCII_VECTOR("isEval"));
   Handle<String> constructor_key =
-      factory()->LookupOneByteSymbol(STATIC_ASCII_VECTOR("isConstructor"));
+      factory()->InternalizeOneByteString(STATIC_ASCII_VECTOR("isConstructor"));
 
   StackTraceFrameIterator it(this);
   int frames_seen = 0;
@@ -934,7 +934,7 @@ bool Isolate::MayNamedAccess(JSObject* receiver, Object* key,
 
   // Skip checks for hidden properties access.  Note, we do not
   // require existence of a context in this case.
-  if (key == heap_.hidden_symbol()) return true;
+  if (key == heap_.hidden_string()) return true;
 
   // Check for compatibility between the security tokens in the
   // current lexical context and the accessed object.
@@ -1030,7 +1030,7 @@ Failure* Isolate::StackOverflow() {
   // At this point we cannot create an Error object using its javascript
   // constructor.  Instead, we copy the pre-constructed boilerplate and
   // attach the stack trace as a hidden property.
-  Handle<String> key = factory()->stack_overflow_symbol();
+  Handle<String> key = factory()->stack_overflow_string();
   Handle<JSObject> boilerplate =
       Handle<JSObject>::cast(GetProperty(this, js_builtins_object(), key));
   Handle<JSObject> exception = Copy(boilerplate);
@@ -1047,7 +1047,7 @@ Failure* Isolate::StackOverflow() {
   Handle<JSArray> stack_trace = CaptureSimpleStackTrace(
       exception, factory()->undefined_value(), limit);
   JSObject::SetHiddenProperty(exception,
-                              factory()->hidden_stack_trace_symbol(),
+                              factory()->hidden_stack_trace_string(),
                               stack_trace);
   return Failure::Exception();
 }
@@ -1081,7 +1081,7 @@ Failure* Isolate::ReThrow(MaybeObject* exception) {
 
 
 Failure* Isolate::ThrowIllegalOperation() {
-  return Throw(heap_.illegal_access_symbol());
+  return Throw(heap_.illegal_access_string());
 }
 
 
@@ -1187,7 +1187,7 @@ bool Isolate::IsErrorObject(Handle<Object> obj) {
   if (!obj->IsJSObject()) return false;
 
   String* error_key =
-      *(factory()->LookupOneByteSymbol(STATIC_ASCII_VECTOR("$Error")));
+      *(factory()->InternalizeOneByteString(STATIC_ASCII_VECTOR("$Error")));
   Object* error_constructor =
       js_builtins_object()->GetPropertyNoExceptionThrown(error_key);
 
@@ -1243,7 +1243,7 @@ void Isolate::DoThrow(Object* exception, MessageLocation* location) {
       if (capture_stack_trace_for_uncaught_exceptions_) {
         if (IsErrorObject(exception_handle)) {
           // We fetch the stack trace that corresponds to this error object.
-          String* key = heap()->hidden_stack_trace_symbol();
+          String* key = heap()->hidden_stack_trace_string();
           Object* stack_property =
               JSObject::cast(*exception_handle)->GetHiddenProperty(key);
           // Property lookup may have failed.  In this case it's probably not
@@ -1268,8 +1268,8 @@ void Isolate::DoThrow(Object* exception, MessageLocation* location) {
         bool failed = false;
         exception_arg = Execution::ToDetailString(exception_arg, &failed);
         if (failed) {
-          exception_arg =
-              factory()->LookupOneByteSymbol(STATIC_ASCII_VECTOR("exception"));
+          exception_arg = factory()->InternalizeOneByteString(
+              STATIC_ASCII_VECTOR("exception"));
         }
       }
       Handle<Object> message_obj = MessageHandler::MakeMessageObject(

@@ -131,7 +131,7 @@ class Variable: public ZoneObject {
 
   // True if the variable is named eval and not known to be shadowed.
   bool is_possibly_eval(Isolate* isolate) const {
-    return IsVariable(isolate->factory()->eval_symbol());
+    return IsVariable(isolate->factory()->eval_string());
   }
 
   Variable* local_if_not_shadowed() const {

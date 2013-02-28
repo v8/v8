@@ -112,32 +112,33 @@ bool inline Heap::IsOneByte(String* str, int chars) {
 }
 
 
-MaybeObject* Heap::AllocateSymbolFromUtf8(Vector<const char> str,
-                                          int chars,
-                                          uint32_t hash_field) {
+MaybeObject* Heap::AllocateInternalizedStringFromUtf8(
+    Vector<const char> str, int chars, uint32_t hash_field) {
   if (IsOneByte(str, chars)) {
-    return AllocateOneByteSymbol(Vector<const uint8_t>::cast(str), hash_field);
+    return AllocateOneByteInternalizedString(
+        Vector<const uint8_t>::cast(str), hash_field);
   }
-  return AllocateInternalSymbol<false>(str, chars, hash_field);
+  return AllocateInternalizedStringImpl<false>(str, chars, hash_field);
 }
 
 
 template<typename T>
-MaybeObject* Heap::AllocateInternalSymbol(T t, int chars, uint32_t hash_field) {
+MaybeObject* Heap::AllocateInternalizedStringImpl(
+    T t, int chars, uint32_t hash_field) {
   if (IsOneByte(t, chars)) {
-    return AllocateInternalSymbol<true>(t, chars, hash_field);
+    return AllocateInternalizedStringImpl<true>(t, chars, hash_field);
   }
-  return AllocateInternalSymbol<false>(t, chars, hash_field);
+  return AllocateInternalizedStringImpl<false>(t, chars, hash_field);
 }
 
 
-MaybeObject* Heap::AllocateOneByteSymbol(Vector<const uint8_t> str,
-                                       uint32_t hash_field) {
+MaybeObject* Heap::AllocateOneByteInternalizedString(Vector<const uint8_t> str,
+                                                     uint32_t hash_field) {
   if (str.length() > SeqOneByteString::kMaxLength) {
     return Failure::OutOfMemoryException(0x2);
   }
   // Compute map and object size.
-  Map* map = ascii_symbol_map();
+  Map* map = ascii_internalized_string_map();
   int size = SeqOneByteString::SizeFor(str.length());
 
   // Allocate string.
@@ -165,13 +166,13 @@ MaybeObject* Heap::AllocateOneByteSymbol(Vector<const uint8_t> str,
 }
 
 
-MaybeObject* Heap::AllocateTwoByteSymbol(Vector<const uc16> str,
-                                         uint32_t hash_field) {
+MaybeObject* Heap::AllocateTwoByteInternalizedString(Vector<const uc16> str,
+                                                     uint32_t hash_field) {
   if (str.length() > SeqTwoByteString::kMaxLength) {
     return Failure::OutOfMemoryException(0x3);
   }
   // Compute map and object size.
-  Map* map = symbol_map();
+  Map* map = internalized_string_map();
   int size = SeqTwoByteString::SizeFor(str.length());
 
   // Allocate string.

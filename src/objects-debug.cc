@@ -469,7 +469,7 @@ void JSMessageObject::JSMessageObjectVerify() {
 void String::StringVerify() {
   CHECK(IsString());
   CHECK(length() >= 0 && length() <= Smi::kMaxValue);
-  if (IsSymbol()) {
+  if (IsInternalizedString()) {
     CHECK(!HEAP->InNewSpace(this));
   }
   if (IsConsString()) {

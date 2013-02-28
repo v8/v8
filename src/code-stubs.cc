@@ -295,8 +295,8 @@ void ICCompareStub::AddToSpecialCache(Handle<Code> new_object) {
   Factory* factory = isolate->factory();
   return Map::UpdateCodeCache(known_map_,
                               strict() ?
-                                  factory->strict_compare_ic_symbol() :
-                                  factory->compare_ic_symbol(),
+                                  factory->strict_compare_ic_string() :
+                                  factory->compare_ic_string(),
                               new_object);
 }
 
@@ -307,10 +307,13 @@ bool ICCompareStub::FindCodeInSpecialCache(Code** code_out, Isolate* isolate) {
       static_cast<Code::Kind>(GetCodeKind()),
       UNINITIALIZED);
   ASSERT(op_ == Token::EQ || op_ == Token::EQ_STRICT);
-  String* symbol = strict() ?
-      *factory->strict_compare_ic_symbol() :
-      *factory->compare_ic_symbol();
-  Handle<Object> probe(known_map_->FindInCodeCache(symbol, flags), isolate);
+  Handle<Object> probe(
+      known_map_->FindInCodeCache(
+        strict() ?
+            *factory->strict_compare_ic_string() :
+            *factory->compare_ic_string(),
+        flags),
+      isolate);
   if (probe->IsCode()) {
     *code_out = Code::cast(*probe);
 #ifdef DEBUG
@@ -370,8 +373,8 @@ void ICCompareStub::Generate(MacroAssembler* masm) {
     case CompareIC::STRING:
       GenerateStrings(masm);
       break;
-    case CompareIC::SYMBOL:
-      GenerateSymbols(masm);
+    case CompareIC::INTERNALIZED_STRING:
+      GenerateInternalizedStrings(masm);
       break;
     case CompareIC::OBJECT:
       GenerateObjects(masm);

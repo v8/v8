@@ -61,8 +61,6 @@ namespace internal {
   V(Map, global_property_cell_map, GlobalPropertyCellMap)                      \
   V(Map, shared_function_info_map, SharedFunctionInfoMap)                      \
   V(Map, meta_map, MetaMap)                                                    \
-  V(Map, ascii_symbol_map, AsciiSymbolMap)                                     \
-  V(Map, ascii_string_map, AsciiStringMap)                                     \
   V(Map, heap_number_map, HeapNumberMap)                                       \
   V(Map, native_context_map, NativeContextMap)                                 \
   V(Map, fixed_array_map, FixedArrayMap)                                       \
@@ -74,7 +72,6 @@ namespace internal {
   V(Map, hash_table_map, HashTableMap)                                         \
   V(FixedArray, empty_fixed_array, EmptyFixedArray)                            \
   V(ByteArray, empty_byte_array, EmptyByteArray)                               \
-  V(String, empty_string, EmptyString)                                         \
   V(DescriptorArray, empty_descriptor_array, EmptyDescriptorArray)             \
   V(Smi, stack_limit, StackLimit)                                              \
   V(Oddball, arguments_marker, ArgumentsMarker)                                \
@@ -91,28 +88,40 @@ namespace internal {
   V(Object, termination_exception, TerminationException)                       \
   V(Smi, hash_seed, HashSeed)                                                  \
   V(Map, string_map, StringMap)                                                \
-  V(Map, symbol_map, SymbolMap)                                                \
+  V(Map, ascii_string_map, AsciiStringMap)                                     \
   V(Map, cons_string_map, ConsStringMap)                                       \
   V(Map, cons_ascii_string_map, ConsAsciiStringMap)                            \
   V(Map, sliced_string_map, SlicedStringMap)                                   \
   V(Map, sliced_ascii_string_map, SlicedAsciiStringMap)                        \
-  V(Map, cons_symbol_map, ConsSymbolMap)                                       \
-  V(Map, cons_ascii_symbol_map, ConsAsciiSymbolMap)                            \
-  V(Map, external_symbol_map, ExternalSymbolMap)                               \
-  V(Map, external_symbol_with_ascii_data_map, ExternalSymbolWithAsciiDataMap)  \
-  V(Map, external_ascii_symbol_map, ExternalAsciiSymbolMap)                    \
   V(Map, external_string_map, ExternalStringMap)                               \
   V(Map, external_string_with_ascii_data_map, ExternalStringWithAsciiDataMap)  \
   V(Map, external_ascii_string_map, ExternalAsciiStringMap)                    \
-  V(Map, short_external_symbol_map, ShortExternalSymbolMap)                    \
-  V(Map,                                                                       \
-    short_external_symbol_with_ascii_data_map,                                 \
-    ShortExternalSymbolWithAsciiDataMap)                                       \
-  V(Map, short_external_ascii_symbol_map, ShortExternalAsciiSymbolMap)         \
   V(Map, short_external_string_map, ShortExternalStringMap)                    \
   V(Map,                                                                       \
     short_external_string_with_ascii_data_map,                                 \
     ShortExternalStringWithAsciiDataMap)                                       \
+  V(Map, internalized_string_map, InternalizedStringMap)                       \
+  V(Map, ascii_internalized_string_map, AsciiInternalizedStringMap)            \
+  V(Map, cons_internalized_string_map, ConsInternalizedStringMap)              \
+  V(Map, cons_ascii_internalized_string_map, ConsAsciiInternalizedStringMap)   \
+  V(Map,                                                                       \
+    external_internalized_string_map,                                          \
+    ExternalInternalizedStringMap)                                             \
+  V(Map,                                                                       \
+    external_internalized_string_with_ascii_data_map,                          \
+    ExternalInternalizedStringWithAsciiDataMap)                                \
+  V(Map,                                                                       \
+    external_ascii_internalized_string_map,                                    \
+    ExternalAsciiInternalizedStringMap)                                        \
+  V(Map,                                                                       \
+    short_external_internalized_string_map,                                    \
+    ShortExternalInternalizedStringMap)                                        \
+  V(Map,                                                                       \
+    short_external_internalized_string_with_ascii_data_map,                    \
+    ShortExternalInternalizedStringWithAsciiDataMap)                           \
+  V(Map,                                                                       \
+    short_external_ascii_internalized_string_map,                              \
+    ShortExternalAsciiInternalizedStringMap)                                   \
   V(Map, short_external_ascii_string_map, ShortExternalAsciiStringMap)         \
   V(Map, undetectable_string_map, UndetectableStringMap)                       \
   V(Map, undetectable_ascii_string_map, UndetectableAsciiStringMap)            \
@@ -160,103 +169,103 @@ namespace internal {
 
 #define ROOT_LIST(V)                                  \
   STRONG_ROOT_LIST(V)                                 \
-  V(SymbolTable, symbol_table, SymbolTable)
+  V(StringTable, string_table, StringTable)
 
-#define SYMBOL_LIST(V)                                                   \
-  V(Array_symbol, "Array")                                               \
-  V(Object_symbol, "Object")                                             \
-  V(Proto_symbol, "__proto__")                                           \
-  V(StringImpl_symbol, "StringImpl")                                     \
-  V(arguments_symbol, "arguments")                                       \
-  V(Arguments_symbol, "Arguments")                                       \
-  V(call_symbol, "call")                                                 \
-  V(apply_symbol, "apply")                                               \
-  V(caller_symbol, "caller")                                             \
-  V(boolean_symbol, "boolean")                                           \
-  V(Boolean_symbol, "Boolean")                                           \
-  V(callee_symbol, "callee")                                             \
-  V(constructor_symbol, "constructor")                                   \
-  V(code_symbol, ".code")                                                \
-  V(result_symbol, ".result")                                            \
-  V(dot_for_symbol, ".for.")                                             \
-  V(catch_var_symbol, ".catch-var")                                      \
-  V(empty_symbol, "")                                                    \
-  V(eval_symbol, "eval")                                                 \
-  V(function_symbol, "function")                                         \
-  V(length_symbol, "length")                                             \
-  V(module_symbol, "module")                                             \
-  V(name_symbol, "name")                                                 \
-  V(native_symbol, "native")                                             \
-  V(null_symbol, "null")                                                 \
-  V(number_symbol, "number")                                             \
-  V(Number_symbol, "Number")                                             \
-  V(nan_symbol, "NaN")                                                   \
-  V(RegExp_symbol, "RegExp")                                             \
-  V(source_symbol, "source")                                             \
-  V(global_symbol, "global")                                             \
-  V(ignore_case_symbol, "ignoreCase")                                    \
-  V(multiline_symbol, "multiline")                                       \
-  V(input_symbol, "input")                                               \
-  V(index_symbol, "index")                                               \
-  V(last_index_symbol, "lastIndex")                                      \
-  V(object_symbol, "object")                                             \
-  V(prototype_symbol, "prototype")                                       \
-  V(string_symbol, "string")                                             \
-  V(String_symbol, "String")                                             \
-  V(Date_symbol, "Date")                                                 \
-  V(this_symbol, "this")                                                 \
-  V(to_string_symbol, "toString")                                        \
-  V(char_at_symbol, "CharAt")                                            \
-  V(undefined_symbol, "undefined")                                       \
-  V(value_of_symbol, "valueOf")                                          \
-  V(stack_symbol, "stack")                                               \
-  V(InitializeVarGlobal_symbol, "InitializeVarGlobal")                   \
-  V(InitializeConstGlobal_symbol, "InitializeConstGlobal")               \
-  V(KeyedLoadElementMonomorphic_symbol,                                  \
+#define INTERNALIZED_STRING_LIST(V)                                      \
+  V(Array_string, "Array")                                               \
+  V(Object_string, "Object")                                             \
+  V(proto_string, "__proto__")                                           \
+  V(StringImpl_string, "StringImpl")                                     \
+  V(arguments_string, "arguments")                                       \
+  V(Arguments_string, "Arguments")                                       \
+  V(call_string, "call")                                                 \
+  V(apply_string, "apply")                                               \
+  V(caller_string, "caller")                                             \
+  V(boolean_string, "boolean")                                           \
+  V(Boolean_string, "Boolean")                                           \
+  V(callee_string, "callee")                                             \
+  V(constructor_string, "constructor")                                   \
+  V(code_string, ".code")                                                \
+  V(result_string, ".result")                                            \
+  V(dot_for_string, ".for.")                                             \
+  V(catch_var_string, ".catch-var")                                      \
+  V(empty_string, "")                                                    \
+  V(eval_string, "eval")                                                 \
+  V(function_string, "function")                                         \
+  V(length_string, "length")                                             \
+  V(module_string, "module")                                             \
+  V(name_string, "name")                                                 \
+  V(native_string, "native")                                             \
+  V(null_string, "null")                                                 \
+  V(number_string, "number")                                             \
+  V(Number_string, "Number")                                             \
+  V(nan_string, "NaN")                                                   \
+  V(RegExp_string, "RegExp")                                             \
+  V(source_string, "source")                                             \
+  V(global_string, "global")                                             \
+  V(ignore_case_string, "ignoreCase")                                    \
+  V(multiline_string, "multiline")                                       \
+  V(input_string, "input")                                               \
+  V(index_string, "index")                                               \
+  V(last_index_string, "lastIndex")                                      \
+  V(object_string, "object")                                             \
+  V(prototype_string, "prototype")                                       \
+  V(string_string, "string")                                             \
+  V(String_string, "String")                                             \
+  V(Date_string, "Date")                                                 \
+  V(this_string, "this")                                                 \
+  V(to_string_string, "toString")                                        \
+  V(char_at_string, "CharAt")                                            \
+  V(undefined_string, "undefined")                                       \
+  V(value_of_string, "valueOf")                                          \
+  V(stack_string, "stack")                                               \
+  V(InitializeVarGlobal_string, "InitializeVarGlobal")                   \
+  V(InitializeConstGlobal_string, "InitializeConstGlobal")               \
+  V(KeyedLoadElementMonomorphic_string,                                  \
     "KeyedLoadElementMonomorphic")                                       \
-  V(KeyedStoreElementMonomorphic_symbol,                                 \
+  V(KeyedStoreElementMonomorphic_string,                                 \
     "KeyedStoreElementMonomorphic")                                      \
-  V(KeyedStoreAndGrowElementMonomorphic_symbol,                          \
+  V(KeyedStoreAndGrowElementMonomorphic_string,                          \
     "KeyedStoreAndGrowElementMonomorphic")                               \
-  V(stack_overflow_symbol, "kStackOverflowBoilerplate")                  \
-  V(illegal_access_symbol, "illegal access")                             \
-  V(out_of_memory_symbol, "out-of-memory")                               \
-  V(illegal_execution_state_symbol, "illegal execution state")           \
-  V(get_symbol, "get")                                                   \
-  V(set_symbol, "set")                                                   \
-  V(map_field_symbol, "%map")                                            \
-  V(elements_field_symbol, "%elements")                                  \
-  V(length_field_symbol, "%length")                                      \
-  V(function_class_symbol, "Function")                                   \
-  V(illegal_argument_symbol, "illegal argument")                         \
-  V(MakeReferenceError_symbol, "MakeReferenceError")                     \
-  V(MakeSyntaxError_symbol, "MakeSyntaxError")                           \
-  V(MakeTypeError_symbol, "MakeTypeError")                               \
-  V(invalid_lhs_in_assignment_symbol, "invalid_lhs_in_assignment")       \
-  V(invalid_lhs_in_for_in_symbol, "invalid_lhs_in_for_in")               \
-  V(invalid_lhs_in_postfix_op_symbol, "invalid_lhs_in_postfix_op")       \
-  V(invalid_lhs_in_prefix_op_symbol, "invalid_lhs_in_prefix_op")         \
-  V(illegal_return_symbol, "illegal_return")                             \
-  V(illegal_break_symbol, "illegal_break")                               \
-  V(illegal_continue_symbol, "illegal_continue")                         \
-  V(unknown_label_symbol, "unknown_label")                               \
-  V(redeclaration_symbol, "redeclaration")                               \
-  V(failure_symbol, "<failure>")                                         \
-  V(space_symbol, " ")                                                   \
-  V(exec_symbol, "exec")                                                 \
-  V(zero_symbol, "0")                                                    \
-  V(global_eval_symbol, "GlobalEval")                                    \
-  V(identity_hash_symbol, "v8::IdentityHash")                            \
-  V(closure_symbol, "(closure)")                                         \
-  V(use_strict, "use strict")                                            \
-  V(dot_symbol, ".")                                                     \
-  V(anonymous_function_symbol, "(anonymous function)")                   \
-  V(compare_ic_symbol, "==")                                             \
-  V(strict_compare_ic_symbol, "===")                                     \
-  V(infinity_symbol, "Infinity")                                         \
-  V(minus_infinity_symbol, "-Infinity")                                  \
-  V(hidden_stack_trace_symbol, "v8::hidden_stack_trace")                 \
-  V(query_colon_symbol, "(?:)")
+  V(stack_overflow_string, "kStackOverflowBoilerplate")                  \
+  V(illegal_access_string, "illegal access")                             \
+  V(out_of_memory_string, "out-of-memory")                               \
+  V(illegal_execution_state_string, "illegal execution state")           \
+  V(get_string, "get")                                                   \
+  V(set_string, "set")                                                   \
+  V(map_field_string, "%map")                                            \
+  V(elements_field_string, "%elements")                                  \
+  V(length_field_string, "%length")                                      \
+  V(function_class_string, "Function")                                   \
+  V(illegal_argument_string, "illegal argument")                         \
+  V(MakeReferenceError_string, "MakeReferenceError")                     \
+  V(MakeSyntaxError_string, "MakeSyntaxError")                           \
+  V(MakeTypeError_string, "MakeTypeError")                               \
+  V(invalid_lhs_in_assignment_string, "invalid_lhs_in_assignment")       \
+  V(invalid_lhs_in_for_in_string, "invalid_lhs_in_for_in")               \
+  V(invalid_lhs_in_postfix_op_string, "invalid_lhs_in_postfix_op")       \
+  V(invalid_lhs_in_prefix_op_string, "invalid_lhs_in_prefix_op")         \
+  V(illegal_return_string, "illegal_return")                             \
+  V(illegal_break_string, "illegal_break")                               \
+  V(illegal_continue_string, "illegal_continue")                         \
+  V(unknown_label_string, "unknown_label")                               \
+  V(redeclaration_string, "redeclaration")                               \
+  V(failure_string, "<failure>")                                         \
+  V(space_string, " ")                                                   \
+  V(exec_string, "exec")                                                 \
+  V(zero_string, "0")                                                    \
+  V(global_eval_string, "GlobalEval")                                    \
+  V(identity_hash_string, "v8::IdentityHash")                            \
+  V(closure_string, "(closure)")                                         \
+  V(use_strict_string, "use strict")                                     \
+  V(dot_string, ".")                                                     \
+  V(anonymous_function_string, "(anonymous function)")                   \
+  V(compare_ic_string, "==")                                             \
+  V(strict_compare_ic_string, "===")                                     \
+  V(infinity_string, "Infinity")                                         \
+  V(minus_infinity_string, "-Infinity")                                  \
+  V(hidden_stack_trace_string, "v8::hidden_stack_trace")                 \
+  V(query_colon_string, "(?:)")                                          \
 
 // Forward declarations.
 class GCTracer;
@@ -763,20 +772,20 @@ class Heap {
       Vector<const uc16> str,
       PretenureFlag pretenure = NOT_TENURED);
 
-  // Allocates a symbol in old space based on the character stream.
-  // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
-  // failed.
+  // Allocates an internalized string in old space based on the character
+  // stream. Returns Failure::RetryAfterGC(requested_bytes, space) if the
+  // allocation failed.
   // Please note this function does not perform a garbage collection.
-  MUST_USE_RESULT inline MaybeObject* AllocateSymbolFromUtf8(
+  MUST_USE_RESULT inline MaybeObject* AllocateInternalizedStringFromUtf8(
       Vector<const char> str,
       int chars,
       uint32_t hash_field);
 
-  MUST_USE_RESULT inline MaybeObject* AllocateOneByteSymbol(
+  MUST_USE_RESULT inline MaybeObject* AllocateOneByteInternalizedString(
         Vector<const uint8_t> str,
         uint32_t hash_field);
 
-  MUST_USE_RESULT inline MaybeObject* AllocateTwoByteSymbol(
+  MUST_USE_RESULT inline MaybeObject* AllocateTwoByteInternalizedString(
         Vector<const uc16> str,
         uint32_t hash_field);
 
@@ -784,11 +793,11 @@ class Heap {
   static inline bool IsOneByte(T t, int chars);
 
   template<typename T>
-  MUST_USE_RESULT inline MaybeObject* AllocateInternalSymbol(
+  MUST_USE_RESULT inline MaybeObject* AllocateInternalizedStringImpl(
       T t, int chars, uint32_t hash_field);
 
   template<bool is_one_byte, typename T>
-  MUST_USE_RESULT MaybeObject* AllocateInternalSymbol(
+  MUST_USE_RESULT MaybeObject* AllocateInternalizedStringImpl(
       T t, int chars, uint32_t hash_field);
 
   // Allocates and partially initializes a String.  There are two String
@@ -1085,27 +1094,28 @@ class Heap {
   // the provided data as the relocation information.
   MUST_USE_RESULT MaybeObject* CopyCode(Code* code, Vector<byte> reloc_info);
 
-  // Finds the symbol for string in the symbol table.
-  // If not found, a new symbol is added to the table and returned.
+  // Finds the internalized copy for string in the string table.
+  // If not found, a new string is added to the table and returned.
   // Returns Failure::RetryAfterGC(requested_bytes, space) if allocation
   // failed.
   // Please note this function does not perform a garbage collection.
-  MUST_USE_RESULT MaybeObject* LookupUtf8Symbol(Vector<const char> str);
-  MUST_USE_RESULT MaybeObject* LookupUtf8Symbol(const char* str) {
-    return LookupUtf8Symbol(CStrVector(str));
+  MUST_USE_RESULT MaybeObject* InternalizeUtf8String(Vector<const char> str);
+  MUST_USE_RESULT MaybeObject* InternalizeUtf8String(const char* str) {
+    return InternalizeUtf8String(CStrVector(str));
   }
-  MUST_USE_RESULT MaybeObject* LookupOneByteSymbol(Vector<const uint8_t> str);
-  MUST_USE_RESULT MaybeObject* LookupTwoByteSymbol(Vector<const uc16> str);
-  MUST_USE_RESULT MaybeObject* LookupSymbol(String* str);
-  MUST_USE_RESULT MaybeObject* LookupOneByteSymbol(
+  MUST_USE_RESULT MaybeObject* InternalizeOneByteString(
+      Vector<const uint8_t> str);
+  MUST_USE_RESULT MaybeObject* InternalizeTwoByteString(Vector<const uc16> str);
+  MUST_USE_RESULT MaybeObject* InternalizeString(String* str);
+  MUST_USE_RESULT MaybeObject* InternalizeOneByteString(
       Handle<SeqOneByteString> string, int from, int length);
 
-  bool LookupSymbolIfExists(String* str, String** symbol);
-  bool LookupTwoCharsSymbolIfExists(String* str, String** symbol);
+  bool InternalizeStringIfExists(String* str, String** result);
+  bool InternalizeTwoCharsStringIfExists(String* str, String** result);
 
-  // Compute the matching symbol map for a string if possible.
+  // Compute the matching internalized string map for a string if possible.
   // NULL is returned if string is in new space or not flattened.
-  Map* SymbolMapForString(String* str);
+  Map* InternalizedStringMapForString(String* str);
 
   // Tries to flatten a string before compare operation.
   //
@@ -1233,15 +1243,15 @@ class Heap {
   STRUCT_LIST(STRUCT_MAP_ACCESSOR)
 #undef STRUCT_MAP_ACCESSOR
 
-#define SYMBOL_ACCESSOR(name, str) String* name() {                            \
+#define STRING_ACCESSOR(name, str) String* name() {                            \
     return String::cast(roots_[k##name##RootIndex]);                           \
   }
-  SYMBOL_LIST(SYMBOL_ACCESSOR)
-#undef SYMBOL_ACCESSOR
+  INTERNALIZED_STRING_LIST(STRING_ACCESSOR)
+#undef STRING_ACCESSOR
 
-  // The hidden_symbol is special because it is the empty string, but does
+  // The hidden_string is special because it is the empty string, but does
   // not match the empty string.
-  String* hidden_symbol() { return hidden_symbol_; }
+  String* hidden_string() { return hidden_string_; }
 
   void set_native_contexts_list(Object* object) {
     native_contexts_list_ = object;
@@ -1367,13 +1377,13 @@ class Heap {
   // Print short heap statistics.
   void PrintShortHeapStatistics();
 
-  // Makes a new symbol object
+  // Makes a new internalized string object
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.
   // Please note this function does not perform a garbage collection.
-  MUST_USE_RESULT MaybeObject* CreateSymbol(
+  MUST_USE_RESULT MaybeObject* CreateInternalizedString(
       const char* str, int length, int hash);
-  MUST_USE_RESULT MaybeObject* CreateSymbol(String* str);
+  MUST_USE_RESULT MaybeObject* CreateInternalizedString(String* str);
 
   // Write barrier support for address[offset] = o.
   INLINE(void RecordWrite(Address address, int offset));
@@ -1490,17 +1500,17 @@ class Heap {
     STRONG_ROOT_LIST(ROOT_INDEX_DECLARATION)
 #undef ROOT_INDEX_DECLARATION
 
-#define SYMBOL_INDEX_DECLARATION(name, str) k##name##RootIndex,
-    SYMBOL_LIST(SYMBOL_INDEX_DECLARATION)
-#undef SYMBOL_DECLARATION
+#define STRING_INDEX_DECLARATION(name, str) k##name##RootIndex,
+    INTERNALIZED_STRING_LIST(STRING_INDEX_DECLARATION)
+#undef STRING_DECLARATION
 
     // Utility type maps
 #define DECLARE_STRUCT_MAP(NAME, Name, name) k##Name##MapRootIndex,
     STRUCT_LIST(DECLARE_STRUCT_MAP)
 #undef DECLARE_STRUCT_MAP
 
-    kSymbolTableRootIndex,
-    kStrongRootListLength = kSymbolTableRootIndex,
+    kStringTableRootIndex,
+    kStrongRootListLength = kStringTableRootIndex,
     kRootListLength
   };
 
@@ -1508,7 +1518,7 @@ class Heap {
   STATIC_CHECK(kNullValueRootIndex == Internals::kNullValueRootIndex);
   STATIC_CHECK(kTrueValueRootIndex == Internals::kTrueValueRootIndex);
   STATIC_CHECK(kFalseValueRootIndex == Internals::kFalseValueRootIndex);
-  STATIC_CHECK(kempty_symbolRootIndex == Internals::kEmptySymbolRootIndex);
+  STATIC_CHECK(kempty_stringRootIndex == Internals::kEmptyStringRootIndex);
 
   // Generated code can embed direct references to non-writable roots if
   // they are in new space.
@@ -1914,7 +1924,7 @@ class Heap {
     RootListIndex index;
   };
 
-  struct ConstantSymbolTable {
+  struct ConstantStringTable {
     const char* contents;
     RootListIndex index;
   };
@@ -1926,12 +1936,12 @@ class Heap {
   };
 
   static const StringTypeTable string_type_table[];
-  static const ConstantSymbolTable constant_symbol_table[];
+  static const ConstantStringTable constant_string_table[];
   static const StructTable struct_table[];
 
-  // The special hidden symbol which is an empty string, but does not match
+  // The special hidden string which is an empty string, but does not match
   // any string when looked up in properties.
-  String* hidden_symbol_;
+  String* hidden_string_;
 
   // GC callback function, called before and after mark-compact GC.
   // Allocations in the callback function are disallowed.
@@ -2173,7 +2183,7 @@ class Heap {
 
   void ClearObjectStats(bool clear_last_time_stats = false);
 
-  static const int kInitialSymbolTableSize = 2048;
+  static const int kInitialStringTableSize = 2048;
   static const int kInitialEvalCacheSize = 64;
   static const int kInitialNumberStringCacheSize = 256;
 
@@ -2509,7 +2519,7 @@ class DescriptorLookupCache {
   // Lookup descriptor index for (map, name).
   // If absent, kAbsent is returned.
   int Lookup(Map* source, String* name) {
-    if (!StringShape(name).IsSymbol()) return kAbsent;
+    if (!StringShape(name).IsInternalized()) return kAbsent;
     int index = Hash(source, name);
     Key& key = keys_[index];
     if ((key.source == source) && (key.name == name)) return results_[index];
@@ -2519,7 +2529,7 @@ class DescriptorLookupCache {
   // Update an element in the cache.
   void Update(Map* source, String* name, int result) {
     ASSERT(result != kAbsent);
-    if (StringShape(name).IsSymbol()) {
+    if (StringShape(name).IsInternalized()) {
       int index = Hash(source, name);
       Key& key = keys_[index];
       key.source = source;

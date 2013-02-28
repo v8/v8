@@ -127,7 +127,7 @@ Heap::Heap()
       amount_of_external_allocated_memory_at_last_global_gc_(0),
       old_gen_exhausted_(false),
       store_buffer_rebuilder_(store_buffer()),
-      hidden_symbol_(NULL),
+      hidden_string_(NULL),
       global_gc_prologue_callback_(NULL),
       global_gc_epilogue_callback_(NULL),
       gc_safe_size_of_old_object_(NULL),
@@ -492,10 +492,10 @@ void Heap::GarbageCollectionEpilogue() {
   isolate_->counters()->alive_after_last_gc()->Set(
       static_cast<int>(SizeOfObjects()));
 
-  isolate_->counters()->symbol_table_capacity()->Set(
-      symbol_table()->Capacity());
+  isolate_->counters()->string_table_capacity()->Set(
+      string_table()->Capacity());
   isolate_->counters()->number_of_symbols()->Set(
-      symbol_table()->NumberOfElements());
+      string_table()->NumberOfElements());
 
   if (CommittedMemory() > 0) {
     isolate_->counters()->external_fragmentation_total()->AddSample(
@@ -704,24 +704,25 @@ void Heap::MoveElements(FixedArray* array,
 
 
 #ifdef VERIFY_HEAP
-// Helper class for verifying the symbol table.
-class SymbolTableVerifier : public ObjectVisitor {
+// Helper class for verifying the string table.
+class StringTableVerifier : public ObjectVisitor {
  public:
   void VisitPointers(Object** start, Object** end) {
     // Visit all HeapObject pointers in [start, end).
     for (Object** p = start; p < end; p++) {
       if ((*p)->IsHeapObject()) {
-        // Check that the symbol is actually a symbol.
-        CHECK((*p)->IsTheHole() || (*p)->IsUndefined() || (*p)->IsSymbol());
+        // Check that the string is actually internalized.
+        CHECK((*p)->IsTheHole() || (*p)->IsUndefined() ||
+              (*p)->IsInternalizedString());
       }
     }
   }
 };
 
 
-static void VerifySymbolTable() {
-  SymbolTableVerifier verifier;
-  HEAP->symbol_table()->IterateElements(&verifier);
+static void VerifyStringTable() {
+  StringTableVerifier verifier;
+  HEAP->string_table()->IterateElements(&verifier);
 }
 #endif  // VERIFY_HEAP
 
@@ -876,7 +877,7 @@ bool Heap::PerformGarbageCollection(GarbageCollector collector,
 
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap) {
-    VerifySymbolTable();
+    VerifyStringTable();
   }
 #endif
 
@@ -1001,7 +1002,7 @@ bool Heap::PerformGarbageCollection(GarbageCollector collector,
 
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap) {
-    VerifySymbolTable();
+    VerifyStringTable();
   }
 #endif
 
@@ -1618,10 +1619,11 @@ void Heap::ProcessWeakReferences(WeakObjectRetainer* retainer) {
 void Heap::VisitExternalResources(v8::ExternalResourceVisitor* visitor) {
   AssertNoAllocation no_allocation;
 
-  // Both the external string table and the symbol table may contain
+  // Both the external string table and the string table may contain
   // external strings, but neither lists them exhaustively, nor is the
   // intersection set empty.  Therefore we iterate over the external string
-  // table first, ignoring symbols, and then over the symbol table.
+  // table first, ignoring internalized strings, and then over the
+  // internalized string table.
 
   class ExternalStringTableVisitorAdapter : public ObjectVisitor {
    public:
@@ -1629,9 +1631,9 @@ void Heap::VisitExternalResources(v8::ExternalResourceVisitor* visitor) {
         v8::ExternalResourceVisitor* visitor) : visitor_(visitor) {}
     virtual void VisitPointers(Object** start, Object** end) {
       for (Object** p = start; p < end; p++) {
-        // Visit non-symbol external strings,
-        // since symbols are listed in the symbol table.
-        if (!(*p)->IsSymbol()) {
+        // Visit non-internalized external strings,
+        // since internalized strings are listed in the string table.
+        if (!(*p)->IsInternalizedString()) {
           ASSERT((*p)->IsExternalString());
           visitor_->VisitExternalString(Utils::ToLocal(
               Handle<String>(String::cast(*p))));
@@ -1644,14 +1646,14 @@ void Heap::VisitExternalResources(v8::ExternalResourceVisitor* visitor) {
 
   external_string_table_.Iterate(&external_string_table_visitor);
 
-  class SymbolTableVisitorAdapter : public ObjectVisitor {
+  class StringTableVisitorAdapter : public ObjectVisitor {
    public:
-    explicit SymbolTableVisitorAdapter(
+    explicit StringTableVisitorAdapter(
         v8::ExternalResourceVisitor* visitor) : visitor_(visitor) {}
     virtual void VisitPointers(Object** start, Object** end) {
       for (Object** p = start; p < end; p++) {
         if ((*p)->IsExternalString()) {
-          ASSERT((*p)->IsSymbol());
+          ASSERT((*p)->IsInternalizedString());
           visitor_->VisitExternalString(Utils::ToLocal(
               Handle<String>(String::cast(*p))));
         }
@@ -1659,9 +1661,9 @@ void Heap::VisitExternalResources(v8::ExternalResourceVisitor* visitor) {
     }
    private:
     v8::ExternalResourceVisitor* visitor_;
-  } symbol_table_visitor(visitor);
+  } string_table_visitor(visitor);
 
-  symbol_table()->IterateElements(&symbol_table_visitor);
+  string_table()->IterateElements(&string_table_visitor);
 }
 
 
@@ -2271,11 +2273,11 @@ const Heap::StringTypeTable Heap::string_type_table[] = {
 };
 
 
-const Heap::ConstantSymbolTable Heap::constant_symbol_table[] = {
-#define CONSTANT_SYMBOL_ELEMENT(name, contents)                                \
+const Heap::ConstantStringTable Heap::constant_string_table[] = {
+#define CONSTANT_STRING_ELEMENT(name, contents)                                \
   {contents, k##name##RootIndex},
-  SYMBOL_LIST(CONSTANT_SYMBOL_ELEMENT)
-#undef CONSTANT_SYMBOL_ELEMENT
+  INTERNALIZED_STRING_LIST(CONSTANT_STRING_ELEMENT)
+#undef CONSTANT_STRING_ELEMENT
 };
 
 
@@ -2738,17 +2740,17 @@ bool Heap::CreateInitialObjects() {
   set_infinity_value(HeapNumber::cast(obj));
 
   // The hole has not been created yet, but we want to put something
-  // predictable in the gaps in the symbol table, so lets make that Smi zero.
+  // predictable in the gaps in the string table, so lets make that Smi zero.
   set_the_hole_value(reinterpret_cast<Oddball*>(Smi::FromInt(0)));
 
-  // Allocate initial symbol table.
-  { MaybeObject* maybe_obj = SymbolTable::Allocate(kInitialSymbolTableSize);
+  // Allocate initial string table.
+  { MaybeObject* maybe_obj = StringTable::Allocate(kInitialStringTableSize);
     if (!maybe_obj->ToObject(&obj)) return false;
   }
-  // Don't use set_symbol_table() due to asserts.
-  roots_[kSymbolTableRootIndex] = obj;
+  // Don't use set_string_table() due to asserts.
+  roots_[kStringTableRootIndex] = obj;
 
-  // Finish initializing oddballs after creating symboltable.
+  // Finish initializing oddballs after creating the string table.
   { MaybeObject* maybe_obj =
         undefined_value()->Initialize("undefined",
                                       nan_value(),
@@ -2804,31 +2806,25 @@ bool Heap::CreateInitialObjects() {
   }
   set_termination_exception(obj);
 
-  // Allocate the empty string.
-  { MaybeObject* maybe_obj = AllocateRawOneByteString(0, TENURED);
-    if (!maybe_obj->ToObject(&obj)) return false;
-  }
-  set_empty_string(String::cast(obj));
-
-  for (unsigned i = 0; i < ARRAY_SIZE(constant_symbol_table); i++) {
+  for (unsigned i = 0; i < ARRAY_SIZE(constant_string_table); i++) {
     { MaybeObject* maybe_obj =
-          LookupUtf8Symbol(constant_symbol_table[i].contents);
+          InternalizeUtf8String(constant_string_table[i].contents);
       if (!maybe_obj->ToObject(&obj)) return false;
     }
-    roots_[constant_symbol_table[i].index] = String::cast(obj);
+    roots_[constant_string_table[i].index] = String::cast(obj);
   }
 
-  // Allocate the hidden symbol which is used to identify the hidden properties
+  // Allocate the hidden string which is used to identify the hidden properties
   // in JSObjects. The hash code has a special value so that it will not match
   // the empty string when searching for the property. It cannot be part of the
   // loop above because it needs to be allocated manually with the special
-  // hash code in place. The hash code for the hidden_symbol is zero to ensure
+  // hash code in place. The hash code for the hidden_string is zero to ensure
   // that it will always be at the first entry in property descriptors.
-  { MaybeObject* maybe_obj =
-        AllocateOneByteSymbol(OneByteVector("", 0), String::kEmptyStringHash);
+  { MaybeObject* maybe_obj = AllocateOneByteInternalizedString(
+      OneByteVector("", 0), String::kEmptyStringHash);
     if (!maybe_obj->ToObject(&obj)) return false;
   }
-  hidden_symbol_ = String::cast(obj);
+  hidden_string_ = String::cast(obj);
 
   // Allocate the foreign for __proto__.
   { MaybeObject* maybe_obj =
@@ -2950,7 +2946,7 @@ bool Heap::RootCanBeWrittenAfterInitialization(Heap::RootListIndex root_index) {
     kConstructStubDeoptPCOffsetRootIndex,
     kGetterStubDeoptPCOffsetRootIndex,
     kSetterStubDeoptPCOffsetRootIndex,
-    kSymbolTableRootIndex,
+    kStringTableRootIndex,
   };
 
   for (unsigned int i = 0; i < ARRAY_SIZE(writable_roots); i++) {
@@ -2966,10 +2962,10 @@ Object* RegExpResultsCache::Lookup(Heap* heap,
                                    Object* key_pattern,
                                    ResultsCacheType type) {
   FixedArray* cache;
-  if (!key_string->IsSymbol()) return Smi::FromInt(0);
+  if (!key_string->IsInternalizedString()) return Smi::FromInt(0);
   if (type == STRING_SPLIT_SUBSTRINGS) {
     ASSERT(key_pattern->IsString());
-    if (!key_pattern->IsSymbol()) return Smi::FromInt(0);
+    if (!key_pattern->IsInternalizedString()) return Smi::FromInt(0);
     cache = heap->string_split_cache();
   } else {
     ASSERT(type == REGEXP_MULTIPLE_INDICES);
@@ -3000,10 +2996,10 @@ void RegExpResultsCache::Enter(Heap* heap,
                                FixedArray* value_array,
                                ResultsCacheType type) {
   FixedArray* cache;
-  if (!key_string->IsSymbol()) return;
+  if (!key_string->IsInternalizedString()) return;
   if (type == STRING_SPLIT_SUBSTRINGS) {
     ASSERT(key_pattern->IsString());
-    if (!key_pattern->IsSymbol()) return;
+    if (!key_pattern->IsInternalizedString()) return;
     cache = heap->string_split_cache();
   } else {
     ASSERT(type == REGEXP_MULTIPLE_INDICES);
@@ -3035,14 +3031,14 @@ void RegExpResultsCache::Enter(Heap* heap,
     }
   }
   // If the array is a reasonably short list of substrings, convert it into a
-  // list of symbols.
+  // list of internalized strings.
   if (type == STRING_SPLIT_SUBSTRINGS && value_array->length() < 100) {
     for (int i = 0; i < value_array->length(); i++) {
       String* str = String::cast(value_array->get(i));
-      Object* symbol;
-      MaybeObject* maybe_symbol = heap->LookupSymbol(str);
-      if (maybe_symbol->ToObject(&symbol)) {
-        value_array->set(i, symbol);
+      Object* internalized_str;
+      MaybeObject* maybe_string = heap->InternalizeString(str);
+      if (maybe_string->ToObject(&internalized_str)) {
+        value_array->set(i, internalized_str);
       }
     }
   }
@@ -3275,7 +3271,7 @@ MaybeObject* Heap::AllocateSharedFunctionInfo(Object* name) {
   Code* construct_stub =
       isolate_->builtins()->builtin(Builtins::kJSConstructStubGeneric);
   share->set_construct_stub(construct_stub);
-  share->set_instance_class_name(Object_symbol());
+  share->set_instance_class_name(Object_string());
   share->set_function_data(undefined_value(), SKIP_WRITE_BARRIER);
   share->set_script(undefined_value(), SKIP_WRITE_BARRIER);
   share->set_debug_info(undefined_value(), SKIP_WRITE_BARRIER);
@@ -3341,12 +3337,12 @@ MUST_USE_RESULT static inline MaybeObject* MakeOrFindTwoCharacterString(
     Heap* heap,
     uint16_t c1,
     uint16_t c2) {
-  String* symbol;
+  String* result;
   // Numeric strings have a different hash algorithm not known by
-  // LookupTwoCharsSymbolIfExists, so we skip this step for such strings.
+  // LookupTwoCharsStringIfExists, so we skip this step for such strings.
   if ((!Between(c1, '0', '9') || !Between(c2, '0', '9')) &&
-      heap->symbol_table()->LookupTwoCharsSymbolIfExists(c1, c2, &symbol)) {
-    return symbol;
+      heap->string_table()->LookupTwoCharsStringIfExists(c1, c2, &result)) {
+    return result;
   // Now we know the length is 2, we might as well make use of that fact
   // when building the new string.
   } else if (static_cast<unsigned>(c1 | c2) <= String::kMaxOneByteCharCodeU) {
@@ -3387,7 +3383,7 @@ MaybeObject* Heap::AllocateConsString(String* first, String* second) {
   int length = first_length + second_length;
 
   // Optimization for 2-byte strings often used as keys in a decompression
-  // dictionary.  Check whether we already have the string in the symbol
+  // dictionary.  Check whether we already have the string in the string
   // table to prevent creation of many unneccesary strings.
   if (length == 2) {
     uint16_t c1 = first->Get(0);
@@ -3502,8 +3498,8 @@ MaybeObject* Heap::AllocateSubString(String* buffer,
     return LookupSingleCharacterStringFromCode(buffer->Get(start));
   } else if (length == 2) {
     // Optimization for 2-byte strings often used as keys in a decompression
-    // dictionary.  Check whether we already have the string in the symbol
-    // table to prevent creation of many unneccesary strings.
+    // dictionary.  Check whether we already have the string in the string
+    // table to prevent creation of many unnecessary strings.
     uint16_t c1 = buffer->Get(start);
     uint16_t c2 = buffer->Get(start + 1);
     return MakeOrFindTwoCharacterString(this, c1, c2);
@@ -3650,7 +3646,7 @@ MaybeObject* Heap::LookupSingleCharacterStringFromCode(uint16_t code) {
     buffer[0] = static_cast<uint8_t>(code);
     Object* result;
     MaybeObject* maybe_result =
-        LookupOneByteSymbol(Vector<const uint8_t>(buffer, 1));
+        InternalizeOneByteString(Vector<const uint8_t>(buffer, 1));
 
     if (!maybe_result->ToObject(&result)) return maybe_result;
     single_character_string_cache()->set(code, result);
@@ -3959,7 +3955,7 @@ MaybeObject* Heap::AllocateFunctionPrototype(JSFunction* function) {
   // constructor to the function.
   MaybeObject* maybe_failure =
       JSObject::cast(prototype)->SetLocalPropertyIgnoreAttributes(
-          constructor_symbol(), function, DONT_ENUM);
+          constructor_string(), function, DONT_ENUM);
   if (maybe_failure->IsFailure()) return maybe_failure;
 
   return prototype;
@@ -4098,7 +4094,7 @@ MaybeObject* Heap::AllocateInitialMap(JSFunction* fun) {
       DescriptorArray::WhitenessWitness witness(descriptors);
       for (int i = 0; i < count; i++) {
         String* name = fun->shared()->GetThisPropertyAssignmentName(i);
-        ASSERT(name->IsSymbol());
+        ASSERT(name->IsInternalizedString());
         FieldDescriptor field(name, i, NONE, i + 1);
         descriptors->Set(i, &field, witness);
       }
@@ -4528,7 +4524,8 @@ MaybeObject* Heap::ReinitializeJSReceiver(
   SharedFunctionInfo* shared = NULL;
   if (type == JS_FUNCTION_TYPE) {
     String* name;
-    maybe = LookupOneByteSymbol(STATIC_ASCII_VECTOR("<freezing call trap>"));
+    maybe =
+        InternalizeOneByteString(STATIC_ASCII_VECTOR("<freezing call trap>"));
     if (!maybe->To<String>(&name)) return maybe;
     maybe = AllocateSharedFunctionInfo(name);
     if (!maybe->To<SharedFunctionInfo>(&shared)) return maybe;
@@ -4662,25 +4659,27 @@ MaybeObject* Heap::AllocateStringFromTwoByte(Vector<const uc16> string,
 }
 
 
-Map* Heap::SymbolMapForString(String* string) {
-  // If the string is in new space it cannot be used as a symbol.
+Map* Heap::InternalizedStringMapForString(String* string) {
+  // If the string is in new space it cannot be used as internalized.
   if (InNewSpace(string)) return NULL;
 
-  // Find the corresponding symbol map for strings.
+  // Find the corresponding internalized string map for strings.
   switch (string->map()->instance_type()) {
-    case STRING_TYPE: return symbol_map();
-    case ASCII_STRING_TYPE: return ascii_symbol_map();
-    case CONS_STRING_TYPE: return cons_symbol_map();
-    case CONS_ASCII_STRING_TYPE: return cons_ascii_symbol_map();
-    case EXTERNAL_STRING_TYPE: return external_symbol_map();
-    case EXTERNAL_ASCII_STRING_TYPE: return external_ascii_symbol_map();
+    case STRING_TYPE: return internalized_string_map();
+    case ASCII_STRING_TYPE: return ascii_internalized_string_map();
+    case CONS_STRING_TYPE: return cons_internalized_string_map();
+    case CONS_ASCII_STRING_TYPE: return cons_ascii_internalized_string_map();
+    case EXTERNAL_STRING_TYPE: return external_internalized_string_map();
+    case EXTERNAL_ASCII_STRING_TYPE:
+      return external_ascii_internalized_string_map();
     case EXTERNAL_STRING_WITH_ASCII_DATA_TYPE:
-      return external_symbol_with_ascii_data_map();
-    case SHORT_EXTERNAL_STRING_TYPE: return short_external_symbol_map();
+      return external_internalized_string_with_ascii_data_map();
+    case SHORT_EXTERNAL_STRING_TYPE:
+      return short_external_internalized_string_map();
     case SHORT_EXTERNAL_ASCII_STRING_TYPE:
-      return short_external_ascii_symbol_map();
+      return short_external_ascii_internalized_string_map();
     case SHORT_EXTERNAL_STRING_WITH_ASCII_DATA_TYPE:
-      return short_external_symbol_with_ascii_data_map();
+      return short_external_internalized_string_with_ascii_data_map();
     default: return NULL;  // No match found.
   }
 }
@@ -4734,9 +4733,8 @@ static inline void WriteTwoByteData(String* s, uint16_t* chars, int len) {
 
 
 template<bool is_one_byte, typename T>
-MaybeObject* Heap::AllocateInternalSymbol(T t,
-                                          int chars,
-                                          uint32_t hash_field) {
+MaybeObject* Heap::AllocateInternalizedStringImpl(
+    T t, int chars, uint32_t hash_field) {
   ASSERT(chars >= 0);
   // Compute map and object size.
   int size;
@@ -4746,13 +4744,13 @@ MaybeObject* Heap::AllocateInternalSymbol(T t,
     if (chars > SeqOneByteString::kMaxLength) {
       return Failure::OutOfMemoryException(0x9);
     }
-    map = ascii_symbol_map();
+    map = ascii_internalized_string_map();
     size = SeqOneByteString::SizeFor(chars);
   } else {
     if (chars > SeqTwoByteString::kMaxLength) {
       return Failure::OutOfMemoryException(0xa);
     }
-    map = symbol_map();
+    map = internalized_string_map();
     size = SeqTwoByteString::SizeFor(chars);
   }
 
@@ -4783,13 +4781,13 @@ MaybeObject* Heap::AllocateInternalSymbol(T t,
 
 // Need explicit instantiations.
 template
-MaybeObject* Heap::AllocateInternalSymbol<true>(String*, int, uint32_t);
+MaybeObject* Heap::AllocateInternalizedStringImpl<true>(String*, int, uint32_t);
 template
-MaybeObject* Heap::AllocateInternalSymbol<false>(String*, int, uint32_t);
+MaybeObject* Heap::AllocateInternalizedStringImpl<false>(
+    String*, int, uint32_t);
 template
-MaybeObject* Heap::AllocateInternalSymbol<false>(Vector<const char>,
-                                                 int,
-                                                 uint32_t);
+MaybeObject* Heap::AllocateInternalizedStringImpl<false>(
+    Vector<const char>, int, uint32_t);
 
 
 MaybeObject* Heap::AllocateRawOneByteString(int length,
@@ -5661,93 +5659,93 @@ void Heap::Verify() {
 #endif
 
 
-MaybeObject* Heap::LookupUtf8Symbol(Vector<const char> string) {
-  Object* symbol = NULL;
+MaybeObject* Heap::InternalizeUtf8String(Vector<const char> string) {
+  Object* result = NULL;
   Object* new_table;
   { MaybeObject* maybe_new_table =
-        symbol_table()->LookupUtf8Symbol(string, &symbol);
+        string_table()->LookupUtf8String(string, &result);
     if (!maybe_new_table->ToObject(&new_table)) return maybe_new_table;
   }
-  // Can't use set_symbol_table because SymbolTable::cast knows that
-  // SymbolTable is a singleton and checks for identity.
-  roots_[kSymbolTableRootIndex] = new_table;
-  ASSERT(symbol != NULL);
-  return symbol;
+  // Can't use set_string_table because StringTable::cast knows that
+  // StringTable is a singleton and checks for identity.
+  roots_[kStringTableRootIndex] = new_table;
+  ASSERT(result != NULL);
+  return result;
 }
 
 
-MaybeObject* Heap::LookupOneByteSymbol(Vector<const uint8_t> string) {
-  Object* symbol = NULL;
+MaybeObject* Heap::InternalizeOneByteString(Vector<const uint8_t> string) {
+  Object* result = NULL;
   Object* new_table;
   { MaybeObject* maybe_new_table =
-        symbol_table()->LookupOneByteSymbol(string, &symbol);
+        string_table()->LookupOneByteString(string, &result);
     if (!maybe_new_table->ToObject(&new_table)) return maybe_new_table;
   }
-  // Can't use set_symbol_table because SymbolTable::cast knows that
-  // SymbolTable is a singleton and checks for identity.
-  roots_[kSymbolTableRootIndex] = new_table;
-  ASSERT(symbol != NULL);
-  return symbol;
+  // Can't use set_string_table because StringTable::cast knows that
+  // StringTable is a singleton and checks for identity.
+  roots_[kStringTableRootIndex] = new_table;
+  ASSERT(result != NULL);
+  return result;
 }
 
 
-MaybeObject* Heap::LookupOneByteSymbol(Handle<SeqOneByteString> string,
+MaybeObject* Heap::InternalizeOneByteString(Handle<SeqOneByteString> string,
                                      int from,
                                      int length) {
-  Object* symbol = NULL;
+  Object* result = NULL;
   Object* new_table;
   { MaybeObject* maybe_new_table =
-        symbol_table()->LookupSubStringOneByteSymbol(string,
+        string_table()->LookupSubStringOneByteString(string,
                                                    from,
                                                    length,
-                                                   &symbol);
+                                                   &result);
     if (!maybe_new_table->ToObject(&new_table)) return maybe_new_table;
   }
-  // Can't use set_symbol_table because SymbolTable::cast knows that
-  // SymbolTable is a singleton and checks for identity.
-  roots_[kSymbolTableRootIndex] = new_table;
-  ASSERT(symbol != NULL);
-  return symbol;
+  // Can't use set_string_table because StringTable::cast knows that
+  // StringTable is a singleton and checks for identity.
+  roots_[kStringTableRootIndex] = new_table;
+  ASSERT(result != NULL);
+  return result;
 }
 
 
-MaybeObject* Heap::LookupTwoByteSymbol(Vector<const uc16> string) {
-  Object* symbol = NULL;
+MaybeObject* Heap::InternalizeTwoByteString(Vector<const uc16> string) {
+  Object* result = NULL;
   Object* new_table;
   { MaybeObject* maybe_new_table =
-        symbol_table()->LookupTwoByteSymbol(string, &symbol);
+        string_table()->LookupTwoByteString(string, &result);
     if (!maybe_new_table->ToObject(&new_table)) return maybe_new_table;
   }
-  // Can't use set_symbol_table because SymbolTable::cast knows that
-  // SymbolTable is a singleton and checks for identity.
-  roots_[kSymbolTableRootIndex] = new_table;
-  ASSERT(symbol != NULL);
-  return symbol;
+  // Can't use set_string_table because StringTable::cast knows that
+  // StringTable is a singleton and checks for identity.
+  roots_[kStringTableRootIndex] = new_table;
+  ASSERT(result != NULL);
+  return result;
 }
 
 
-MaybeObject* Heap::LookupSymbol(String* string) {
-  if (string->IsSymbol()) return string;
-  Object* symbol = NULL;
+MaybeObject* Heap::InternalizeString(String* string) {
+  if (string->IsInternalizedString()) return string;
+  Object* result = NULL;
   Object* new_table;
   { MaybeObject* maybe_new_table =
-        symbol_table()->LookupString(string, &symbol);
+        string_table()->LookupString(string, &result);
     if (!maybe_new_table->ToObject(&new_table)) return maybe_new_table;
   }
-  // Can't use set_symbol_table because SymbolTable::cast knows that
-  // SymbolTable is a singleton and checks for identity.
-  roots_[kSymbolTableRootIndex] = new_table;
-  ASSERT(symbol != NULL);
-  return symbol;
+  // Can't use set_string_table because StringTable::cast knows that
+  // StringTable is a singleton and checks for identity.
+  roots_[kStringTableRootIndex] = new_table;
+  ASSERT(result != NULL);
+  return result;
 }
 
 
-bool Heap::LookupSymbolIfExists(String* string, String** symbol) {
-  if (string->IsSymbol()) {
-    *symbol = string;
+bool Heap::InternalizeStringIfExists(String* string, String** result) {
+  if (string->IsInternalizedString()) {
+    *result = string;
     return true;
   }
-  return symbol_table()->LookupSymbolIfExists(string, symbol);
+  return string_table()->LookupStringIfExists(string, result);
 }
 
 
@@ -5975,8 +5973,8 @@ void Heap::IterateRoots(ObjectVisitor* v, VisitMode mode) {
 
 
 void Heap::IterateWeakRoots(ObjectVisitor* v, VisitMode mode) {
-  v->VisitPointer(reinterpret_cast<Object**>(&roots_[kSymbolTableRootIndex]));
-  v->Synchronize(VisitorSynchronization::kSymbolTable);
+  v->VisitPointer(reinterpret_cast<Object**>(&roots_[kStringTableRootIndex]));
+  v->Synchronize(VisitorSynchronization::kStringTable);
   if (mode != VISIT_ALL_IN_SCAVENGE &&
       mode != VISIT_ALL_IN_SWEEP_NEWSPACE) {
     // Scavenge collections have special processing for this.
@@ -5991,8 +5989,8 @@ void Heap::IterateStrongRoots(ObjectVisitor* v, VisitMode mode) {
   v->VisitPointers(&roots_[0], &roots_[kStrongRootListLength]);
   v->Synchronize(VisitorSynchronization::kStrongRootList);
 
-  v->VisitPointer(BitCast<Object**>(&hidden_symbol_));
-  v->Synchronize(VisitorSynchronization::kSymbol);
+  v->VisitPointer(BitCast<Object**>(&hidden_string_));
+  v->Synchronize(VisitorSynchronization::kInternalizedString);
 
   isolate_->bootstrapper()->Iterate(v);
   v->Synchronize(VisitorSynchronization::kBootstrapper);
@@ -7169,9 +7167,9 @@ int KeyedLookupCache::Lookup(Map* map, String* name) {
 
 
 void KeyedLookupCache::Update(Map* map, String* name, int field_offset) {
-  String* symbol;
-  if (HEAP->LookupSymbolIfExists(name, &symbol)) {
-    int index = (Hash(map, symbol) & kHashMask);
+  String* internalized_name;
+  if (HEAP->InternalizeStringIfExists(name, &internalized_name)) {
+    int index = (Hash(map, internalized_name) & kHashMask);
     // After a GC there will be free slots, so we use them in order (this may
     // help to get the most frequently used one in position 0).
     for (int i = 0; i< kEntriesPerBucket; i++) {
@@ -7179,7 +7177,7 @@ void KeyedLookupCache::Update(Map* map, String* name, int field_offset) {
       Object* free_entry_indicator = NULL;
       if (key.map == free_entry_indicator) {
         key.map = map;
-        key.name = symbol;
+        key.name = internalized_name;
         field_offsets_[index + i] = field_offset;
         return;
       }
@@ -7196,7 +7194,7 @@ void KeyedLookupCache::Update(Map* map, String* name, int field_offset) {
     // Write the new first entry.
     Key& key = keys_[index];
     key.map = map;
-    key.name = symbol;
+    key.name = internalized_name;
     field_offsets_[index] = field_offset;
   }
 }
@@ -7329,7 +7327,7 @@ void ErrorObjectList::DeferredFormatStackTrace(Isolate* isolate) {
   if (nested_ || list_.is_empty() || isolate->has_pending_exception()) return;
   nested_ = true;
   HandleScope scope(isolate);
-  Handle<String> stack_key = isolate->factory()->stack_symbol();
+  Handle<String> stack_key = isolate->factory()->stack_string();
   int write_index = 0;
   int budget = kBudgetPerGC;
   for (int i = 0; i < list_.length(); i++) {
@@ -7353,7 +7351,7 @@ void ErrorObjectList::DeferredFormatStackTrace(Isolate* isolate) {
       Object* getter_obj = AccessorPair::cast(callback)->getter();
       if (!getter_obj->IsJSFunction()) continue;
       getter_fun = JSFunction::cast(getter_obj);
-      String* key = isolate->heap()->hidden_stack_trace_symbol();
+      String* key = isolate->heap()->hidden_stack_trace_string();
       if (key != getter_fun->GetHiddenProperty(key)) continue;
     }
 

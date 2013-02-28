@@ -756,7 +756,7 @@ void CallICBase::UpdateCaches(LookupResult* lookup,
 MaybeObject* KeyedCallIC::LoadFunction(State state,
                                        Handle<Object> object,
                                        Handle<Object> key) {
-  if (key->IsSymbol()) {
+  if (key->IsInternalizedString()) {
     return CallICBase::LoadFunction(state,
                                     Code::kNoExtraICState,
                                     object,
@@ -817,7 +817,7 @@ MaybeObject* LoadIC::Load(State state,
     // objects is read-only and therefore always returns the length of
     // the underlying string value.  See ECMA-262 15.5.5.1.
     if ((object->IsString() || object->IsStringWrapper()) &&
-        name->Equals(isolate()->heap()->length_symbol())) {
+        name->Equals(isolate()->heap()->length_string())) {
       Handle<Code> stub;
       if (state == UNINITIALIZED) {
         stub = pre_monomorphic_stub();
@@ -846,7 +846,7 @@ MaybeObject* LoadIC::Load(State state,
 
     // Use specialized code for getting the length of arrays.
     if (object->IsJSArray() &&
-        name->Equals(isolate()->heap()->length_symbol())) {
+        name->Equals(isolate()->heap()->length_string())) {
       Handle<Code> stub;
       if (state == UNINITIALIZED) {
         stub = pre_monomorphic_stub();
@@ -868,7 +868,7 @@ MaybeObject* LoadIC::Load(State state,
 
     // Use specialized code for getting prototype of functions.
     if (object->IsJSFunction() &&
-        name->Equals(isolate()->heap()->prototype_symbol()) &&
+        name->Equals(isolate()->heap()->prototype_string()) &&
         Handle<JSFunction>::cast(object)->should_have_prototype()) {
       Handle<Code> stub;
       if (state == UNINITIALIZED) {
@@ -1093,7 +1093,7 @@ static Handle<Object> TryConvertKey(Handle<Object> key, Isolate* isolate) {
   if (key->IsHeapNumber()) {
     double value = Handle<HeapNumber>::cast(key)->value();
     if (isnan(value)) {
-      key = isolate->factory()->nan_symbol();
+      key = isolate->factory()->nan_string();
     } else {
       int int_value = FastD2I(value);
       if (value == int_value && Smi::IsValid(int_value)) {
@@ -1101,7 +1101,7 @@ static Handle<Object> TryConvertKey(Handle<Object> key, Isolate* isolate) {
       }
     }
   } else if (key->IsUndefined()) {
-    key = isolate->factory()->undefined_symbol();
+    key = isolate->factory()->undefined_string();
   }
   return key;
 }
@@ -1226,11 +1226,11 @@ MaybeObject* KeyedLoadIC::Load(State state,
                                Handle<Object> object,
                                Handle<Object> key,
                                ICMissMode miss_mode) {
-  // Check for values that can be converted into a symbol directly or
-  // is representable as a smi.
+  // Check for values that can be converted into an internalized string directly
+  // or is representable as a smi.
   key = TryConvertKey(key, isolate());
 
-  if (key->IsSymbol()) {
+  if (key->IsInternalizedString()) {
     return LoadIC::Load(state, object, Handle<String>::cast(key));
   }
 
@@ -1367,7 +1367,7 @@ MaybeObject* StoreIC::Store(State state,
 
   // The length property of string values is read-only. Throw in strict mode.
   if (strict_mode == kStrictMode && object->IsString() &&
-      name->Equals(isolate()->heap()->length_symbol())) {
+      name->Equals(isolate()->heap()->length_string())) {
     return TypeError("strict_read_only_property", object, name);
   }
 
@@ -1396,7 +1396,7 @@ MaybeObject* StoreIC::Store(State state,
   // property.
   if (FLAG_use_ic &&
       receiver->IsJSArray() &&
-      name->Equals(isolate()->heap()->length_symbol()) &&
+      name->Equals(isolate()->heap()->length_string()) &&
       Handle<JSArray>::cast(receiver)->AllowsSetElementsLength() &&
       receiver->HasFastProperties()) {
     Handle<Code> stub =
@@ -1723,11 +1723,11 @@ MaybeObject* KeyedStoreIC::Store(State state,
                                  Handle<Object> key,
                                  Handle<Object> value,
                                  ICMissMode miss_mode) {
-  // Check for values that can be converted into a symbol directly or
-  // is representable as a smi.
+  // Check for values that can be converted into an internalized string directly
+  // or is representable as a smi.
   key = TryConvertKey(key, isolate());
 
-  if (key->IsSymbol()) {
+  if (key->IsInternalizedString()) {
     return StoreIC::Store(state,
                           strict_mode,
                           object,
@@ -1936,7 +1936,7 @@ RUNTIME_FUNCTION(MaybeObject*, StoreIC_ArrayLength) {
 #ifdef DEBUG
   // The length property has to be a writable callback property.
   LookupResult debug_lookup(isolate);
-  receiver->LocalLookup(isolate->heap()->length_symbol(), &debug_lookup);
+  receiver->LocalLookup(isolate->heap()->length_string(), &debug_lookup);
   ASSERT(debug_lookup.IsPropertyCallbacks() && !debug_lookup.IsReadOnly());
 #endif
 
@@ -2376,7 +2376,7 @@ const char* CompareIC::GetStateName(State state) {
     case UNINITIALIZED: return "UNINITIALIZED";
     case SMI: return "SMI";
     case NUMBER: return "NUMBER";
-    case SYMBOL: return "SYMBOL";
+    case INTERNALIZED_STRING: return "INTERNALIZED_STRING";
     case STRING: return "STRING";
     case OBJECT: return "OBJECT";
     case KNOWN_OBJECT: return "KNOWN_OBJECT";
@@ -2394,7 +2394,7 @@ static CompareIC::State InputState(CompareIC::State old_state,
     case CompareIC::UNINITIALIZED:
       if (value->IsSmi()) return CompareIC::SMI;
       if (value->IsHeapNumber()) return CompareIC::NUMBER;
-      if (value->IsSymbol()) return CompareIC::SYMBOL;
+      if (value->IsInternalizedString()) return CompareIC::INTERNALIZED_STRING;
       if (value->IsString()) return CompareIC::STRING;
       if (value->IsJSObject()) return CompareIC::OBJECT;
       break;
@@ -2405,12 +2405,13 @@ static CompareIC::State InputState(CompareIC::State old_state,
     case CompareIC::NUMBER:
       if (value->IsNumber()) return CompareIC::NUMBER;
       break;
-    case CompareIC::SYMBOL:
-      if (value->IsSymbol()) return CompareIC::SYMBOL;
+    case CompareIC::INTERNALIZED_STRING:
+      if (value->IsInternalizedString()) return CompareIC::INTERNALIZED_STRING;
       if (value->IsString()) return CompareIC::STRING;
       break;
     case CompareIC::STRING:
-      if (value->IsSymbol() || value->IsString()) return CompareIC::STRING;
+      if (value->IsInternalizedString() || value->IsString())
+        return CompareIC::STRING;
       break;
     case CompareIC::OBJECT:
       if (value->IsJSObject()) return CompareIC::OBJECT;
@@ -2443,10 +2444,10 @@ CompareIC::State CompareIC::TargetState(State old_state,
           return NUMBER;
         }
       }
-      if (x->IsSymbol() && y->IsSymbol()) {
-        // We compare symbols as strings if we need to determine
+      if (x->IsInternalizedString() && y->IsInternalizedString()) {
+        // We compare internalized strings as plain ones if we need to determine
         // the order in a non-equality compare.
-        return Token::IsEqualityOp(op_) ? SYMBOL : STRING;
+        return Token::IsEqualityOp(op_) ? INTERNALIZED_STRING : STRING;
       }
       if (x->IsString() && y->IsString()) return STRING;
       if (!Token::IsEqualityOp(op_)) return GENERIC;
@@ -2461,7 +2462,7 @@ CompareIC::State CompareIC::TargetState(State old_state,
       return GENERIC;
     case SMI:
       return x->IsNumber() && y->IsNumber() ? NUMBER : GENERIC;
-    case SYMBOL:
+    case INTERNALIZED_STRING:
       ASSERT(Token::IsEqualityOp(op_));
       return x->IsString() && y->IsString() ? STRING : GENERIC;
     case NUMBER:

@@ -797,9 +797,9 @@ class MarkCompactCollector {
   // Mark the heap roots and all objects reachable from them.
   void MarkRoots(RootMarkingVisitor* visitor);
 
-  // Mark the symbol table specially.  References to symbols from the
-  // symbol table are weak.
-  void MarkSymbolTable();
+  // Mark the string table specially.  References to internalized strings from
+  // the string table are weak.
+  void MarkStringTable();
 
   // Mark objects in implicit references groups if their parent object
   // is marked.

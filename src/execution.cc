@@ -683,10 +683,8 @@ Handle<Object> Execution::CharAt(Handle<String> string, uint32_t index) {
     return factory->undefined_value();
   }
 
-  Handle<Object> char_at =
-      GetProperty(isolate,
-                  isolate->js_builtins_object(),
-                  factory->char_at_symbol());
+  Handle<Object> char_at = GetProperty(
+      isolate, isolate->js_builtins_object(), factory->char_at_string());
   if (!char_at->IsJSFunction()) {
     return factory->undefined_value();
   }
@@ -787,7 +785,7 @@ Handle<String> Execution::GetStackTraceLine(Handle<Object> recv,
                                   args,
                                   &caught_exception);
   if (caught_exception || !result->IsString()) {
-      return isolate->factory()->empty_symbol();
+      return isolate->factory()->empty_string();
   }
 
   return Handle<String>::cast(result);

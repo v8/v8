@@ -613,8 +613,9 @@ THREADED_TEST(UsingExternalString) {
     // Trigger GCs so that the newly allocated string moves to old gen.
     HEAP->CollectGarbage(i::NEW_SPACE);  // in survivor space now
     HEAP->CollectGarbage(i::NEW_SPACE);  // in old gen now
-    i::Handle<i::String> isymbol = FACTORY->SymbolFromString(istring);
-    CHECK(isymbol->IsSymbol());
+    i::Handle<i::String> isymbol =
+        FACTORY->InternalizedStringFromString(istring);
+    CHECK(isymbol->IsInternalizedString());
   }
   HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
   HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
@@ -631,8 +632,9 @@ THREADED_TEST(UsingExternalAsciiString) {
     // Trigger GCs so that the newly allocated string moves to old gen.
     HEAP->CollectGarbage(i::NEW_SPACE);  // in survivor space now
     HEAP->CollectGarbage(i::NEW_SPACE);  // in old gen now
-    i::Handle<i::String> isymbol = FACTORY->SymbolFromString(istring);
-    CHECK(isymbol->IsSymbol());
+    i::Handle<i::String> isymbol =
+        FACTORY->InternalizedStringFromString(istring);
+    CHECK(isymbol->IsInternalizedString());
   }
   HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
   HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
@@ -3774,7 +3776,7 @@ THREADED_TEST(Equality) {
   CHECK_EQ(v8_num(1.00), v8_num(1));
   CHECK_NE(v8_num(1), v8_num(2));
 
-  // Assume String is not symbol.
+  // Assume String is not internalized.
   CHECK(v8_str("a")->StrictEquals(v8_str("a")));
   CHECK(!v8_str("a")->StrictEquals(v8_str("b")));
   CHECK(!v8_str("5")->StrictEquals(v8_num(5)));
@@ -12880,7 +12882,7 @@ static void MorphAString(i::String* string,
                          UC16VectorResource* uc16_resource) {
   CHECK(i::StringShape(string).IsExternal());
   if (string->IsOneByteRepresentation()) {
-    // Check old map is not symbol or long.
+    // Check old map is not internalized or long.
     CHECK(string->map() == HEAP->external_ascii_string_map());
     // Morph external string to be TwoByte string.
     string->set_map(HEAP->external_string_map());
@@ -12888,7 +12890,7 @@ static void MorphAString(i::String* string,
          i::ExternalTwoByteString::cast(string);
     morphed->set_resource(uc16_resource);
   } else {
-    // Check old map is not symbol or long.
+    // Check old map is not internalized or long.
     CHECK(string->map() == HEAP->external_string_map());
     // Morph external string to be ASCII string.
     string->set_map(HEAP->external_ascii_string_map());
@@ -15342,8 +15344,8 @@ TEST(VisitExternalStrings) {
   HEAP->CollectAllAvailableGarbage();  // Tenure string.
   // Turn into a symbol.
   i::Handle<i::String> string3_i = v8::Utils::OpenHandle(*string3);
-  CHECK(!HEAP->LookupSymbol(*string3_i)->IsFailure());
-  CHECK(string3_i->IsSymbol());
+  CHECK(!HEAP->InternalizeString(*string3_i)->IsFailure());
+  CHECK(string3_i->IsInternalizedString());
 
   // We need to add usages for string* to avoid warnings in GCC 4.7
   CHECK(string0->IsExternal());
@@ -17845,7 +17847,7 @@ TEST(StringEmpty) {
   v8::HandleScope scope;
   LocalContext context;
   v8::Isolate* isolate = v8::Isolate::GetCurrent();
-  i::Handle<i::Object> empty_string = FACTORY->empty_symbol();
+  i::Handle<i::Object> empty_string = FACTORY->empty_string();
   CHECK(*v8::Utils::OpenHandle(*v8::String::Empty()) == *empty_string);
   CHECK(*v8::Utils::OpenHandle(*v8::String::Empty(isolate)) == *empty_string);
 

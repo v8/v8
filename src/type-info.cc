@@ -321,8 +321,8 @@ static TypeInfo TypeFromCompareType(CompareIC::State state) {
       return TypeInfo::Smi();
     case CompareIC::NUMBER:
       return TypeInfo::Number();
-    case CompareIC::SYMBOL:
-      return TypeInfo::Symbol();
+    case CompareIC::INTERNALIZED_STRING:
+      return TypeInfo::InternalizedString();
     case CompareIC::STRING:
       return TypeInfo::String();
     case CompareIC::OBJECT:

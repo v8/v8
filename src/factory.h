@@ -79,16 +79,16 @@ class Factory {
 
   Handle<TypeFeedbackInfo> NewTypeFeedbackInfo();
 
-  Handle<String> LookupUtf8Symbol(Vector<const char> str);
-  Handle<String> LookupUtf8Symbol(const char* str) {
-    return LookupUtf8Symbol(CStrVector(str));
+  Handle<String> InternalizeUtf8String(Vector<const char> str);
+  Handle<String> InternalizeUtf8String(const char* str) {
+    return InternalizeUtf8String(CStrVector(str));
   }
-  Handle<String> LookupSymbol(Handle<String> str);
-  Handle<String> LookupOneByteSymbol(Vector<const uint8_t> str);
-  Handle<String> LookupOneByteSymbol(Handle<SeqOneByteString>,
+  Handle<String> InternalizeString(Handle<String> str);
+  Handle<String> InternalizeOneByteString(Vector<const uint8_t> str);
+  Handle<String> InternalizeOneByteString(Handle<SeqOneByteString>,
                                    int from,
                                    int length);
-  Handle<String> LookupTwoByteSymbol(Vector<const uc16> str);
+  Handle<String> InternalizeTwoByteString(Vector<const uc16> str);
 
 
   // String creation functions.  Most of the string creation functions take
@@ -195,8 +195,8 @@ class Factory {
                                   Handle<Context> previous,
                                   Handle<ScopeInfo> scope_info);
 
-  // Return the Symbol matching the passed in string.
-  Handle<String> SymbolFromString(Handle<String> value);
+  // Return the internalized version of the passed in string.
+  Handle<String> InternalizedStringFromString(Handle<String> value);
 
   // Allocate a new struct.  The struct is pretenured (allocated directly in
   // the old generation).
@@ -434,16 +434,16 @@ class Factory {
   ROOT_LIST(ROOT_ACCESSOR)
 #undef ROOT_ACCESSOR_ACCESSOR
 
-#define SYMBOL_ACCESSOR(name, str)                                             \
+#define STRING_ACCESSOR(name, str)                                             \
   inline Handle<String> name() {                                               \
     return Handle<String>(BitCast<String**>(                                   \
         &isolate()->heap()->roots_[Heap::k##name##RootIndex]));                \
   }
-  SYMBOL_LIST(SYMBOL_ACCESSOR)
-#undef SYMBOL_ACCESSOR
+  INTERNALIZED_STRING_LIST(STRING_ACCESSOR)
+#undef STRING_ACCESSOR
 
-  Handle<String> hidden_symbol() {
-    return Handle<String>(&isolate()->heap()->hidden_symbol_);
+  Handle<String> hidden_string() {
+    return Handle<String>(&isolate()->heap()->hidden_string_);
   }
 
   Handle<SharedFunctionInfo> NewSharedFunctionInfo(

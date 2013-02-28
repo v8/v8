@@ -262,7 +262,7 @@ void LogMessageBuilder::AppendDetailed(String* str, bool show_impl_info) {
     Append(str->IsOneByteRepresentation() ? 'a' : '2');
     if (StringShape(str).IsExternal())
       Append('e');
-    if (StringShape(str).IsSymbol())
+    if (StringShape(str).IsInternalized())
       Append('#');
     Append(":%i:", str->length());
   }

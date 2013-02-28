@@ -52,8 +52,8 @@ namespace internal {
 static bool Match(void* key1, void* key2) {
   String* name1 = *reinterpret_cast<String**>(key1);
   String* name2 = *reinterpret_cast<String**>(key2);
-  ASSERT(name1->IsSymbol());
-  ASSERT(name2->IsSymbol());
+  ASSERT(name1->IsInternalizedString());
+  ASSERT(name2->IsInternalizedString());
   return name1 == name2;
 }
 
@@ -182,7 +182,7 @@ void Scope::SetDefaults(ScopeType type,
                         Handle<ScopeInfo> scope_info) {
   outer_scope_ = outer_scope;
   type_ = type;
-  scope_name_ = isolate_->factory()->empty_symbol();
+  scope_name_ = isolate_->factory()->empty_string();
   dynamics_ = NULL;
   receiver_ = NULL;
   function_ = NULL;
@@ -335,7 +335,7 @@ void Scope::Initialize() {
   if (is_declaration_scope()) {
     Variable* var =
         variables_.Declare(this,
-                           isolate_->factory()->this_symbol(),
+                           isolate_->factory()->this_string(),
                            VAR,
                            false,
                            Variable::THIS,
@@ -352,7 +352,7 @@ void Scope::Initialize() {
     // Note that it might never be accessed, in which case it won't be
     // allocated during variable allocation.
     variables_.Declare(this,
-                       isolate_->factory()->arguments_symbol(),
+                       isolate_->factory()->arguments_string(),
                        VAR,
                        true,
                        Variable::ARGUMENTS,
@@ -1198,7 +1198,7 @@ bool Scope::MustAllocateInContext(Variable* var) {
 bool Scope::HasArgumentsParameter() {
   for (int i = 0; i < params_.length(); i++) {
     if (params_[i]->name().is_identical_to(
-            isolate_->factory()->arguments_symbol())) {
+            isolate_->factory()->arguments_string())) {
       return true;
     }
   }
@@ -1218,7 +1218,7 @@ void Scope::AllocateHeapSlot(Variable* var) {
 
 void Scope::AllocateParameterLocals() {
   ASSERT(is_function_scope());
-  Variable* arguments = LocalLookup(isolate_->factory()->arguments_symbol());
+  Variable* arguments = LocalLookup(isolate_->factory()->arguments_string());
   ASSERT(arguments != NULL);  // functions have 'arguments' declared implicitly
 
   bool uses_nonstrict_arguments = false;
@@ -1274,7 +1274,7 @@ void Scope::AllocateParameterLocals() {
 
 void Scope::AllocateNonParameterLocal(Variable* var) {
   ASSERT(var->scope() == this);
-  ASSERT(!var->IsVariable(isolate_->factory()->result_symbol()) ||
+  ASSERT(!var->IsVariable(isolate_->factory()->result_string()) ||
          !var->IsStackLocal());
   if (var->IsUnallocated() && MustAllocate(var)) {
     if (MustAllocateInContext(var)) {
@@ -1359,7 +1359,7 @@ void Scope::AllocateModulesRecursively(Scope* host_scope) {
   if (already_resolved()) return;
   if (is_module_scope()) {
     ASSERT(interface_->IsFrozen());
-    Handle<String> name = isolate_->factory()->LookupOneByteSymbol(
+    Handle<String> name = isolate_->factory()->InternalizeOneByteString(
         STATIC_ASCII_VECTOR(".module"));
     ASSERT(module_var_ == NULL);
     module_var_ = host_scope->NewInternal(name);

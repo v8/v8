@@ -6125,7 +6125,7 @@ void StringHelper::GenerateCopyCharactersLong(MacroAssembler* masm,
 }
 
 
-void StringHelper::GenerateTwoCharacterSymbolTableProbe(MacroAssembler* masm,
+void StringHelper::GenerateTwoCharacterStringTableProbe(MacroAssembler* masm,
                                                         Register c1,
                                                         Register c2,
                                                         Register scratch1,
@@ -6175,41 +6175,41 @@ void StringHelper::GenerateTwoCharacterSymbolTableProbe(MacroAssembler* masm,
 
   // Load symbol table.
   // Load address of first element of the symbol table.
-  Register symbol_table = c2;
-  __ LoadRoot(symbol_table, Heap::kSymbolTableRootIndex);
+  Register string_table = c2;
+  __ LoadRoot(string_table, Heap::kStringTableRootIndex);
 
   Register undefined = scratch4;
   __ LoadRoot(undefined, Heap::kUndefinedValueRootIndex);
 
   // Calculate capacity mask from the symbol table capacity.
   Register mask = scratch2;
-  __ lw(mask, FieldMemOperand(symbol_table, SymbolTable::kCapacityOffset));
+  __ lw(mask, FieldMemOperand(string_table, StringTable::kCapacityOffset));
   __ sra(mask, mask, 1);
   __ Addu(mask, mask, -1);
 
   // Calculate untagged address of the first element of the symbol table.
-  Register first_symbol_table_element = symbol_table;
-  __ Addu(first_symbol_table_element, symbol_table,
-         Operand(SymbolTable::kElementsStartOffset - kHeapObjectTag));
+  Register first_string_table_element = string_table;
+  __ Addu(first_string_table_element, string_table,
+         Operand(StringTable::kElementsStartOffset - kHeapObjectTag));
 
   // Registers.
   // chars: two character string, char 1 in byte 0 and char 2 in byte 1.
   // hash:  hash of two character string
   // mask:  capacity mask
-  // first_symbol_table_element: address of the first element of
+  // first_string_table_element: address of the first element of
   //                             the symbol table
   // undefined: the undefined object
   // scratch: -
 
   // Perform a number of probes in the symbol table.
   const int kProbes = 4;
-  Label found_in_symbol_table;
+  Label found_in_string_table;
   Label next_probe[kProbes];
   Register candidate = scratch5;  // Scratch register contains candidate.
   for (int i = 0; i < kProbes; i++) {
     // Calculate entry in symbol table.
     if (i > 0) {
-      __ Addu(candidate, hash, Operand(SymbolTable::GetProbeOffset(i)));
+      __ Addu(candidate, hash, Operand(StringTable::GetProbeOffset(i)));
     } else {
       __ mov(candidate, hash);
     }
@@ -6217,9 +6217,9 @@ void StringHelper::GenerateTwoCharacterSymbolTableProbe(MacroAssembler* masm,
     __ And(candidate, candidate, Operand(mask));
 
     // Load the entry from the symble table.
-    STATIC_ASSERT(SymbolTable::kEntrySize == 1);
+    STATIC_ASSERT(StringTable::kEntrySize == 1);
     __ sll(scratch, candidate, kPointerSizeLog2);
-    __ Addu(scratch, scratch, first_symbol_table_element);
+    __ Addu(scratch, scratch, first_string_table_element);
     __ lw(candidate, MemOperand(scratch));
 
     // If entry is undefined no string with this hash can be found.
@@ -6250,7 +6250,7 @@ void StringHelper::GenerateTwoCharacterSymbolTableProbe(MacroAssembler* masm,
     // Check if the two characters match.
     // Assumes that word load is little endian.
     __ lhu(scratch, FieldMemOperand(candidate, SeqOneByteString::kHeaderSize));
-    __ Branch(&found_in_symbol_table, eq, chars, Operand(scratch));
+    __ Branch(&found_in_string_table, eq, chars, Operand(scratch));
     __ bind(&next_probe[i]);
   }
 
@@ -6259,7 +6259,7 @@ void StringHelper::GenerateTwoCharacterSymbolTableProbe(MacroAssembler* masm,
 
   // Scratch register contains result when we fall through to here.
   Register result = candidate;
-  __ bind(&found_in_symbol_table);
+  __ bind(&found_in_string_table);
   __ mov(v0, result);
 }
 
@@ -6796,7 +6796,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   // Try to lookup two character string in symbol table. If it is not found
   // just allocate a new one.
   Label make_two_character_string;
-  StringHelper::GenerateTwoCharacterSymbolTableProbe(
+  StringHelper::GenerateTwoCharacterStringTableProbe(
       masm, a2, a3, t2, t3, t0, t1, t5, &make_two_character_string);
   __ IncrementCounter(counters->string_add_native(), 1, a2, a3);
   __ DropAndRet(2);

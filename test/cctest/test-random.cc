@@ -83,10 +83,10 @@ TEST(CrankshaftRandom) {
 
   CompileRun("function f() { return Math.random(); }");
 
-  Object* symbol = FACTORY->LookupOneByteSymbol(STATIC_ASCII_VECTOR("f"))->
+  Object* string = FACTORY->InternalizeOneByteString(STATIC_ASCII_VECTOR("f"))->
       ToObjectChecked();
   MaybeObject* fun_object =
-      context->global_object()->GetProperty(String::cast(symbol));
+      context->global_object()->GetProperty(String::cast(string));
   Handle<JSFunction> fun(JSFunction::cast(fun_object->ToObjectChecked()));
 
   // Optimize function.

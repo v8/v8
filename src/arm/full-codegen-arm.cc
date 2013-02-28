@@ -1631,7 +1631,7 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
         ASSERT(!CompileTimeValue::IsCompileTimeValue(property->value()));
         // Fall through.
       case ObjectLiteral::Property::COMPUTED:
-        if (key->handle()->IsSymbol()) {
+        if (key->handle()->IsInternalizedString()) {
           if (property->emit_store()) {
             VisitForAccumulatorValue(value);
             __ mov(r2, Operand(key->handle()));
@@ -2691,7 +2691,7 @@ void FullCodeGenerator::EmitIsStringWrapperSafeForDefaultValueOf(
   __ cmp(r2, ip);
   __ b(eq, if_false);
 
-  // Look for valueOf symbol in the descriptor array, and indicate false if
+  // Look for valueOf name in the descriptor array, and indicate false if
   // found. Since we omit an enumeration index check, if it is added via a
   // transition that shares its descriptor array, this is a false positive.
   Label entry, loop, done;
@@ -2716,10 +2716,10 @@ void FullCodeGenerator::EmitIsStringWrapperSafeForDefaultValueOf(
   __ add(r2, r2, Operand(r3, LSL, kPointerSizeLog2 - kSmiTagSize));
 
   // Loop through all the keys in the descriptor array. If one of these is the
-  // symbol valueOf the result is false.
-  // The use of ip to store the valueOf symbol asumes that it is not otherwise
+  // string "valueOf" the result is false.
+  // The use of ip to store the valueOf string assumes that it is not otherwise
   // used in the loop below.
-  __ mov(ip, Operand(FACTORY->value_of_symbol()));
+  __ mov(ip, Operand(FACTORY->value_of_string()));
   __ jmp(&entry);
   __ bind(&loop);
   __ ldr(r3, MemOperand(r4, 0));
@@ -2954,12 +2954,12 @@ void FullCodeGenerator::EmitClassOf(CallRuntime* expr) {
 
   // Functions have class 'Function'.
   __ bind(&function);
-  __ LoadRoot(r0, Heap::kfunction_class_symbolRootIndex);
+  __ LoadRoot(r0, Heap::kfunction_class_stringRootIndex);
   __ jmp(&done);
 
   // Objects with a non-function constructor have class 'Object'.
   __ bind(&non_function_constructor);
-  __ LoadRoot(r0, Heap::kObject_symbolRootIndex);
+  __ LoadRoot(r0, Heap::kObject_stringRootIndex);
   __ jmp(&done);
 
   // Non-JS objects have class null.
@@ -3324,7 +3324,7 @@ void FullCodeGenerator::EmitStringCharAt(CallRuntime* expr) {
   __ bind(&index_out_of_range);
   // When the index is out of range, the spec requires us to return
   // the empty string.
-  __ LoadRoot(result, Heap::kEmptyStringRootIndex);
+  __ LoadRoot(result, Heap::kempty_stringRootIndex);
   __ jmp(&done);
 
   __ bind(&need_conversion);
@@ -3633,7 +3633,7 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(CallRuntime* expr) {
   __ ldr(array_length, FieldMemOperand(array, JSArray::kLengthOffset));
   __ SmiUntag(array_length, SetCC);
   __ b(ne, &non_trivial_array);
-  __ LoadRoot(r0, Heap::kEmptyStringRootIndex);
+  __ LoadRoot(r0, Heap::kempty_stringRootIndex);
   __ b(&done);
 
   __ bind(&non_trivial_array);
@@ -4246,13 +4246,13 @@ void FullCodeGenerator::EmitLiteralCompareTypeof(Expression* expr,
   }
   PrepareForBailoutBeforeSplit(expr, true, if_true, if_false);
 
-  if (check->Equals(isolate()->heap()->number_symbol())) {
+  if (check->Equals(isolate()->heap()->number_string())) {
     __ JumpIfSmi(r0, if_true);
     __ ldr(r0, FieldMemOperand(r0, HeapObject::kMapOffset));
     __ LoadRoot(ip, Heap::kHeapNumberMapRootIndex);
     __ cmp(r0, ip);
     Split(eq, if_true, if_false, fall_through);
-  } else if (check->Equals(isolate()->heap()->string_symbol())) {
+  } else if (check->Equals(isolate()->heap()->string_string())) {
     __ JumpIfSmi(r0, if_false);
     // Check for undetectable objects => false.
     __ CompareObjectType(r0, r0, r1, FIRST_NONSTRING_TYPE);
@@ -4260,16 +4260,16 @@ void FullCodeGenerator::EmitLiteralCompareTypeof(Expression* expr,
     __ ldrb(r1, FieldMemOperand(r0, Map::kBitFieldOffset));
     __ tst(r1, Operand(1 << Map::kIsUndetectable));
     Split(eq, if_true, if_false, fall_through);
-  } else if (check->Equals(isolate()->heap()->boolean_symbol())) {
+  } else if (check->Equals(isolate()->heap()->boolean_string())) {
     __ CompareRoot(r0, Heap::kTrueValueRootIndex);
     __ b(eq, if_true);
     __ CompareRoot(r0, Heap::kFalseValueRootIndex);
     Split(eq, if_true, if_false, fall_through);
   } else if (FLAG_harmony_typeof &&
-             check->Equals(isolate()->heap()->null_symbol())) {
+             check->Equals(isolate()->heap()->null_string())) {
     __ CompareRoot(r0, Heap::kNullValueRootIndex);
     Split(eq, if_true, if_false, fall_through);
-  } else if (check->Equals(isolate()->heap()->undefined_symbol())) {
+  } else if (check->Equals(isolate()->heap()->undefined_string())) {
     __ CompareRoot(r0, Heap::kUndefinedValueRootIndex);
     __ b(eq, if_true);
     __ JumpIfSmi(r0, if_false);
@@ -4279,14 +4279,14 @@ void FullCodeGenerator::EmitLiteralCompareTypeof(Expression* expr,
     __ tst(r1, Operand(1 << Map::kIsUndetectable));
     Split(ne, if_true, if_false, fall_through);
 
-  } else if (check->Equals(isolate()->heap()->function_symbol())) {
+  } else if (check->Equals(isolate()->heap()->function_string())) {
     __ JumpIfSmi(r0, if_false);
     STATIC_ASSERT(NUM_OF_CALLABLE_SPEC_OBJECT_TYPES == 2);
     __ CompareObjectType(r0, r0, r1, JS_FUNCTION_TYPE);
     __ b(eq, if_true);
     __ cmp(r1, Operand(JS_FUNCTION_PROXY_TYPE));
     Split(eq, if_true, if_false, fall_through);
-  } else if (check->Equals(isolate()->heap()->object_symbol())) {
+  } else if (check->Equals(isolate()->heap()->object_string())) {
     __ JumpIfSmi(r0, if_false);
     if (!FLAG_harmony_typeof) {
       __ CompareRoot(r0, Heap::kNullValueRootIndex);

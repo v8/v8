@@ -809,7 +809,7 @@ class ICCompareStub: public PlatformCodeStub {
 
   void GenerateSmis(MacroAssembler* masm);
   void GenerateNumbers(MacroAssembler* masm);
-  void GenerateSymbols(MacroAssembler* masm);
+  void GenerateInternalizedStrings(MacroAssembler* masm);
   void GenerateStrings(MacroAssembler* masm);
   void GenerateObjects(MacroAssembler* masm);
   void GenerateMiss(MacroAssembler* masm);

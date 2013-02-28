@@ -76,7 +76,7 @@ Variable::Variable(Scope* scope,
     initialization_flag_(initialization_flag),
     interface_(interface) {
   // Names must be canonicalized for fast equality checks.
-  ASSERT(name->IsSymbol());
+  ASSERT(name->IsInternalizedString());
   // Var declared variables never need initialization.
   ASSERT(!(mode == VAR && initialization_flag == kNeedsInitialization));
 }

@@ -1639,7 +1639,7 @@ void Builtins::Generate_StringConstructCode(MacroAssembler* masm) {
   // Load the empty string into rbx, remove the receiver from the
   // stack, and jump back to the case where the argument is a string.
   __ bind(&no_arguments);
-  __ LoadRoot(rbx, Heap::kEmptyStringRootIndex);
+  __ LoadRoot(rbx, Heap::kempty_stringRootIndex);
   __ pop(rcx);
   __ lea(rsp, Operand(rsp, kPointerSize));
   __ push(rcx);

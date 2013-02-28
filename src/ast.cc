@@ -97,7 +97,7 @@ VariableProxy::VariableProxy(Isolate* isolate,
       position_(position),
       interface_(interface) {
   // Names must be canonicalized for fast equality checks.
-  ASSERT(name->IsSymbol());
+  ASSERT(name->IsInternalizedString());
 }
 
 
@@ -182,8 +182,8 @@ ObjectLiteral::Property::Property(Literal* key,
   key_ = key;
   value_ = value;
   Object* k = *key->handle();
-  if (k->IsSymbol() &&
-      isolate->heap()->Proto_symbol()->Equals(String::cast(k))) {
+  if (k->IsInternalizedString() &&
+      isolate->heap()->proto_string()->Equals(String::cast(k))) {
     kind_ = PROTOTYPE;
   } else if (value_->AsMaterializedLiteral() != NULL) {
     kind_ = MATERIALIZED_LITERAL;
@@ -483,9 +483,9 @@ void CaseClause::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
   if (info.IsUninitialized()) info = TypeInfo::Unknown();
   if (info.IsSmi()) {
     compare_type_ = SMI_ONLY;
-  } else if (info.IsSymbol()) {
-    compare_type_ = SYMBOL_ONLY;
-  } else if (info.IsNonSymbol()) {
+  } else if (info.IsInternalizedString()) {
+    compare_type_ = NAME_ONLY;
+  } else if (info.IsNonInternalizedString()) {
     compare_type_ = STRING_ONLY;
   } else if (info.IsNonPrimitive()) {
     compare_type_ = OBJECT_ONLY;

@@ -100,7 +100,7 @@ static void GenerateStringDictionaryReceiverCheck(MacroAssembler* masm,
 // storage. This function may fail to load a property even though it is
 // in the dictionary, so code at miss_label must always call a backup
 // property load that is complete. This function is safe to call if
-// name is not a symbol, and will jump to the miss_label in that
+// name is not internalized, and will jump to the miss_label in that
 // case. The generated code assumes that the receiver has slow
 // properties, is not a global object and does not have interceptors.
 static void GenerateDictionaryLoad(MacroAssembler* masm,
@@ -157,7 +157,7 @@ static void GenerateDictionaryLoad(MacroAssembler* masm,
 // storage. This function may fail to store a property eventhough it
 // is in the dictionary, so code at miss_label must always call a
 // backup property store that is complete. This function is safe to
-// call if name is not a symbol, and will jump to the miss_label in
+// call if name is not internalized, and will jump to the miss_label in
 // that case. The generated code assumes that the receiver has slow
 // properties, is not a global object and does not have interceptors.
 static void GenerateDictionaryStore(MacroAssembler* masm,
@@ -292,31 +292,31 @@ static void GenerateFastArrayLoad(MacroAssembler* masm,
 }
 
 
-// Checks whether a key is an array index string or a symbol string.
-// Falls through if the key is a symbol.
+// Checks whether a key is an array index string or an internalized string.
+// Falls through if the key is an internalized string.
 static void GenerateKeyStringCheck(MacroAssembler* masm,
                                    Register key,
                                    Register map,
                                    Register hash,
                                    Label* index_string,
-                                   Label* not_symbol) {
+                                   Label* not_internalized) {
   // Register use:
   //   key - holds the key and is unchanged. Assumed to be non-smi.
   // Scratch registers:
   //   map - used to hold the map of the key.
   //   hash - used to hold the hash of the key.
   __ CmpObjectType(key, FIRST_NONSTRING_TYPE, map);
-  __ j(above_equal, not_symbol);
+  __ j(above_equal, not_internalized);
 
   // Is the string an array index, with cached numeric value?
   __ mov(hash, FieldOperand(key, String::kHashFieldOffset));
   __ test(hash, Immediate(String::kContainsCachedArrayIndexMask));
   __ j(zero, index_string);
 
-  // Is the string a symbol?
-  STATIC_ASSERT(kSymbolTag != 0);
-  __ test_b(FieldOperand(map, Map::kInstanceTypeOffset), kIsSymbolMask);
-  __ j(zero, not_symbol);
+  // Is the string internalized?
+  STATIC_ASSERT(kInternalizedTag != 0);
+  __ test_b(FieldOperand(map, Map::kInstanceTypeOffset), kIsInternalizedMask);
+  __ j(zero, not_internalized);
 }
 
 
@@ -484,7 +484,7 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   __ xor_(eax, edi);
   __ and_(eax, KeyedLookupCache::kCapacityMask & KeyedLookupCache::kHashMask);
 
-  // Load the key (consisting of map and symbol) from the cache and
+  // Load the key (consisting of map and internalized string) from the cache and
   // check for match.
   Label load_in_object_property;
   static const int kEntriesPerBucket = KeyedLookupCache::kEntriesPerBucket;
@@ -1198,7 +1198,7 @@ void KeyedCallIC::GenerateMegamorphic(MacroAssembler* masm, int argc) {
   __ bind(&check_string);
   GenerateKeyStringCheck(masm, ecx, eax, ebx, &index_string, &slow_call);
 
-  // The key is known to be a symbol.
+  // The key is known to be an internalized string.
   // If the receiver is a regular JS object with slow properties then do
   // a quick inline probe of the receiver's dictionary.
   // Otherwise do the monomorphic cache probe.
@@ -1224,7 +1224,7 @@ void KeyedCallIC::GenerateMegamorphic(MacroAssembler* masm, int argc) {
   __ bind(&slow_call);
   // This branch is taken if:
   // - the receiver requires boxing or access check,
-  // - the key is neither smi nor symbol,
+  // - the key is neither smi nor an internalized string,
   // - the value loaded is not a function,
   // - there is hope that the runtime will create a monomorphic call stub
   //   that will get fetched next time.

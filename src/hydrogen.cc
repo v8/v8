@@ -1075,7 +1075,7 @@ HValue* HGraphBuilder::BuildAllocateElements(HContext* context,
   BuildStoreMap(elements, map, BailoutId::StubEntry());
 
   Handle<String> fixed_array_length_field_name =
-      isolate->factory()->length_field_symbol();
+      isolate->factory()->length_field_string();
   HInstruction* store_length =
       new(zone) HStoreNamedField(elements, fixed_array_length_field_name,
                                  capacity, true, FixedArray::kLengthOffset);
@@ -1092,7 +1092,7 @@ HInstruction* HGraphBuilder::BuildStoreMap(HValue* object,
   Zone* zone = this->zone();
   Isolate* isolate = graph()->isolate();
   Factory* factory = isolate->factory();
-  Handle<String> map_field_name = factory->map_field_symbol();
+  Handle<String> map_field_name = factory->map_field_string();
   HInstruction* store_map =
       new(zone) HStoreNamedField(object, map_field_name, map,
                                  true, JSObject::kMapOffset);
@@ -5752,7 +5752,7 @@ void HOptimizedGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
         ASSERT(!CompileTimeValue::IsCompileTimeValue(value));
         // Fall through.
       case ObjectLiteral::Property::COMPUTED:
-        if (key->handle()->IsSymbol()) {
+        if (key->handle()->IsInternalizedString()) {
           if (property->emit_store()) {
             property->RecordTypeFeedback(oracle());
             CHECK_ALIVE(VisitForValue(value));
@@ -9437,11 +9437,12 @@ void HOptimizedGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
       default:
         return Bailout("Unsupported non-primitive compare");
     }
-  } else if (overall_type_info.IsSymbol() && Token::IsEqualityOp(op)) {
+  } else if (overall_type_info.IsInternalizedString() &&
+             Token::IsEqualityOp(op)) {
     AddInstruction(new(zone()) HCheckNonSmi(left));
-    AddInstruction(HCheckInstanceType::NewIsSymbol(left, zone()));
+    AddInstruction(HCheckInstanceType::NewIsInternalizedString(left, zone()));
     AddInstruction(new(zone()) HCheckNonSmi(right));
-    AddInstruction(HCheckInstanceType::NewIsSymbol(right, zone()));
+    AddInstruction(HCheckInstanceType::NewIsInternalizedString(right, zone()));
     HCompareObjectEqAndBranch* result =
         new(zone()) HCompareObjectEqAndBranch(left, right);
     result->set_position(expr->position());
@@ -9871,7 +9872,7 @@ void HOptimizedGraphBuilder::GenerateSetValueOf(CallRuntime* call) {
 
   // Create in-object property store to kValueOffset.
   set_current_block(if_js_value);
-  Handle<String> name = isolate()->factory()->undefined_symbol();
+  Handle<String> name = isolate()->factory()->undefined_string();
   AddInstruction(new(zone()) HStoreNamedField(object,
                                               name,
                                               value,

@@ -63,7 +63,7 @@ Code* StubCache::Set(String* name, Map* map, Code* code) {
   // Validate that the name does not move on scavenge, and that we
   // can use identity checks instead of string equality checks.
   ASSERT(!heap()->InNewSpace(name));
-  ASSERT(name->IsSymbol());
+  ASSERT(name->IsInternalizedString());
 
   // The state bits are not important to the hash function because
   // the stub cache only contains monomorphic stubs. Make sure that
@@ -410,7 +410,7 @@ Handle<Code> StubCache::ComputeStoreField(Handle<String> name,
 Handle<Code> StubCache::ComputeKeyedLoadElement(Handle<Map> receiver_map) {
   Code::Flags flags = Code::ComputeMonomorphicFlags(Code::KEYED_LOAD_IC);
   Handle<String> name =
-      isolate()->factory()->KeyedLoadElementMonomorphic_symbol();
+      isolate()->factory()->KeyedLoadElementMonomorphic_string();
 
   Handle<Object> probe(receiver_map->FindInCodeCache(*name, flags), isolate_);
   if (probe->IsCode()) return Handle<Code>::cast(probe);
@@ -438,8 +438,8 @@ Handle<Code> StubCache::ComputeKeyedStoreElement(
          stub_kind == KeyedStoreIC::STORE_AND_GROW_NO_TRANSITION);
 
   Handle<String> name = stub_kind == KeyedStoreIC::STORE_NO_TRANSITION
-      ? isolate()->factory()->KeyedStoreElementMonomorphic_symbol()
-      : isolate()->factory()->KeyedStoreAndGrowElementMonomorphic_symbol();
+      ? isolate()->factory()->KeyedStoreElementMonomorphic_string()
+      : isolate()->factory()->KeyedStoreAndGrowElementMonomorphic_string();
 
   Handle<Object> probe(receiver_map->FindInCodeCache(*name, flags), isolate_);
   if (probe->IsCode()) return Handle<Code>::cast(probe);

@@ -1104,7 +1104,7 @@ Register StubCompiler::CheckPrototypes(Handle<JSObject> object,
         !current->IsJSGlobalObject() &&
         !current->IsJSGlobalProxy()) {
       if (!name->IsSymbol()) {
-        name = factory()->LookupSymbol(name);
+        name = factory()->InternalizeString(name);
       }
       ASSERT(current->property_dictionary()->FindEntry(*name) ==
              StringDictionary::kNotFound);
