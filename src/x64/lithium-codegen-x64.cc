@@ -3543,7 +3543,7 @@ void LCodeGen::DoMathRound(LUnaryMathOperation* instr) {
   if (CpuFeatures::IsSupported(SSE4_1) && !minus_zero_check) {
     CpuFeatures::Scope scope(SSE4_1);
     __ addsd(xmm_scratch, input_reg);
-    __ roundsd(xmm_scratch, input_reg, Assembler::kRoundDown);
+    __ roundsd(xmm_scratch, xmm_scratch, Assembler::kRoundDown);
     __ cvttsd2si(output_reg, xmm_scratch);
     // Overflow is signalled with minint.
     __ cmpl(output_reg, Immediate(0x80000000));
