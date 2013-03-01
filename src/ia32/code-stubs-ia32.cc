@@ -37,6 +37,7 @@
 #include "runtime.h"
 #include "stub-cache.h"
 #include "codegen.h"
+#include "runtime.h"
 
 namespace v8 {
 namespace internal {
@@ -60,6 +61,7 @@ void KeyedLoadFastElementStub::InitializeInterfaceDescriptor(
   static Register registers[] = { edx, ecx };
   descriptor->register_param_count_ = 2;
   descriptor->register_params_ = registers;
+  descriptor->stack_parameter_count_ = NULL;
   descriptor->deoptimization_handler_ =
       FUNCTION_ADDR(KeyedLoadIC_MissFromStubFailure);
 }
@@ -73,6 +75,44 @@ void TransitionElementsKindStub::InitializeInterfaceDescriptor(
   descriptor->register_params_ = registers;
   descriptor->deoptimization_handler_ =
       Runtime::FunctionForId(Runtime::kTransitionElementsKind)->entry;
+}
+
+
+static void InitializeArrayConstructorDescriptor(Isolate* isolate,
+    CodeStubInterfaceDescriptor* descriptor) {
+  // register state
+  // edi -- constructor function
+  // ebx -- type info cell with elements kind
+  // eax -- number of arguments to the constructor function
+  static Register registers[] = { edi, ebx };
+  descriptor->register_param_count_ = 2;
+  // stack param count needs (constructor pointer, and single argument)
+  descriptor->stack_parameter_count_ = &eax;
+  descriptor->register_params_ = registers;
+  descriptor->extra_expression_stack_count_ = 1;
+  descriptor->deoptimization_handler_ =
+      FUNCTION_ADDR(ArrayConstructor_StubFailure);
+}
+
+
+void ArrayNoArgumentConstructorStub::InitializeInterfaceDescriptor(
+    Isolate* isolate,
+    CodeStubInterfaceDescriptor* descriptor) {
+  InitializeArrayConstructorDescriptor(isolate, descriptor);
+}
+
+
+void ArraySingleArgumentConstructorStub::InitializeInterfaceDescriptor(
+    Isolate* isolate,
+    CodeStubInterfaceDescriptor* descriptor) {
+  InitializeArrayConstructorDescriptor(isolate, descriptor);
+}
+
+
+void ArrayNArgumentsConstructorStub::InitializeInterfaceDescriptor(
+    Isolate* isolate,
+    CodeStubInterfaceDescriptor* descriptor) {
+  InitializeArrayConstructorDescriptor(isolate, descriptor);
 }
 
 
@@ -4787,12 +4827,13 @@ void InterruptStub::Generate(MacroAssembler* masm) {
 }
 
 
-static void GenerateRecordCallTarget(MacroAssembler* masm) {
+static void GenerateRecordCallTargetNoArray(MacroAssembler* masm) {
   // Cache the called function in a global property cell.  Cache states
   // are uninitialized, monomorphic (indicated by a JSFunction), and
   // megamorphic.
   // ebx : cache cell for call target
   // edi : the function to call
+  ASSERT(!FLAG_optimize_constructed_arrays);
   Isolate* isolate = masm->isolate();
   Label initialize, done;
 
@@ -4818,6 +4859,82 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
 
   // An uninitialized cache is patched with the function.
   __ bind(&initialize);
+  __ mov(FieldOperand(ebx, JSGlobalPropertyCell::kValueOffset), edi);
+  // No need for a write barrier here - cells are rescanned.
+
+  __ bind(&done);
+}
+
+
+static void GenerateRecordCallTarget(MacroAssembler* masm) {
+  // Cache the called function in a global property cell.  Cache states
+  // are uninitialized, monomorphic (indicated by a JSFunction), and
+  // megamorphic.
+  // ebx : cache cell for call target
+  // edi : the function to call
+  ASSERT(FLAG_optimize_constructed_arrays);
+  Isolate* isolate = masm->isolate();
+  Label initialize, done, miss, megamorphic, not_array_function;
+
+  // Load the cache state into ecx.
+  __ mov(ecx, FieldOperand(ebx, JSGlobalPropertyCell::kValueOffset));
+
+  // A monomorphic cache hit or an already megamorphic state: invoke the
+  // function without changing the state.
+  __ cmp(ecx, edi);
+  __ j(equal, &done);
+  __ cmp(ecx, Immediate(TypeFeedbackCells::MegamorphicSentinel(isolate)));
+  __ j(equal, &done);
+
+  // Special handling of the Array() function, which caches not only the
+  // monomorphic Array function but the initial ElementsKind with special
+  // sentinels
+  Handle<Object> terminal_kind_sentinel =
+      TypeFeedbackCells::MonomorphicArraySentinel(isolate,
+                                                  LAST_FAST_ELEMENTS_KIND);
+  __ cmp(ecx, Immediate(terminal_kind_sentinel));
+  __ j(above, &miss);
+  // Load the global or builtins object from the current context
+  __ LoadGlobalContext(ecx);
+  // Make sure the function is the Array() function
+  __ cmp(edi, Operand(ecx,
+                      Context::SlotOffset(Context::ARRAY_FUNCTION_INDEX)));
+  __ j(not_equal, &megamorphic);
+  __ jmp(&done);
+
+  __ bind(&miss);
+
+  // A monomorphic miss (i.e, here the cache is not uninitialized) goes
+  // megamorphic.
+  __ cmp(ecx, Immediate(TypeFeedbackCells::UninitializedSentinel(isolate)));
+  __ j(equal, &initialize);
+  // MegamorphicSentinel is an immortal immovable object (undefined) so no
+  // write-barrier is needed.
+  __ bind(&megamorphic);
+  __ mov(FieldOperand(ebx, JSGlobalPropertyCell::kValueOffset),
+         Immediate(TypeFeedbackCells::MegamorphicSentinel(isolate)));
+  __ jmp(&done, Label::kNear);
+
+  // An uninitialized cache is patched with the function or sentinel to
+  // indicate the ElementsKind if function is the Array constructor.
+  __ bind(&initialize);
+  __ LoadGlobalContext(ecx);
+  // Make sure the function is the Array() function
+  __ cmp(edi, Operand(ecx,
+                      Context::SlotOffset(Context::ARRAY_FUNCTION_INDEX)));
+  __ j(not_equal, &not_array_function);
+
+  // The target function is the Array constructor, install a sentinel value in
+  // the constructor's type info cell that will track the initial ElementsKind
+  // that should be used for the array when its constructed.
+  Handle<Object> initial_kind_sentinel =
+      TypeFeedbackCells::MonomorphicArraySentinel(isolate,
+          GetInitialFastElementsKind());
+  __ mov(FieldOperand(ebx, JSGlobalPropertyCell::kValueOffset),
+         Immediate(initial_kind_sentinel));
+  __ jmp(&done);
+
+  __ bind(&not_array_function);
   __ mov(FieldOperand(ebx, JSGlobalPropertyCell::kValueOffset), edi);
   // No need for a write barrier here - cells are rescanned.
 
@@ -4856,7 +4973,11 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
   __ j(not_equal, &slow);
 
   if (RecordCallTarget()) {
-    GenerateRecordCallTarget(masm);
+    if (FLAG_optimize_constructed_arrays) {
+      GenerateRecordCallTarget(masm);
+    } else {
+      GenerateRecordCallTargetNoArray(masm);
+    }
   }
 
   // Fast-case: Just invoke the function.
@@ -4929,14 +5050,20 @@ void CallConstructStub::Generate(MacroAssembler* masm) {
   __ j(not_equal, &slow);
 
   if (RecordCallTarget()) {
-    GenerateRecordCallTarget(masm);
+    if (FLAG_optimize_constructed_arrays) {
+      GenerateRecordCallTarget(masm);
+    } else {
+      GenerateRecordCallTargetNoArray(masm);
+    }
   }
 
   // Jump to the function-specific construct stub.
-  __ mov(ebx, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
-  __ mov(ebx, FieldOperand(ebx, SharedFunctionInfo::kConstructStubOffset));
-  __ lea(ebx, FieldOperand(ebx, Code::kHeaderSize));
-  __ jmp(ebx);
+  Register jmp_reg = FLAG_optimize_constructed_arrays ? ecx : ebx;
+  __ mov(jmp_reg, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
+  __ mov(jmp_reg, FieldOperand(jmp_reg,
+                               SharedFunctionInfo::kConstructStubOffset));
+  __ lea(jmp_reg, FieldOperand(jmp_reg, Code::kHeaderSize));
+  __ jmp(jmp_reg);
 
   // edi: called object
   // eax: number of arguments

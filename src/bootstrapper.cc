@@ -1487,8 +1487,14 @@ Handle<JSFunction> Genesis::InstallInternalArray(
       factory()->NewJSObject(isolate()->object_function(), TENURED);
   SetPrototype(array_function, prototype);
 
+  // TODO(mvstanton): For performance reasons, this code would have to
+  // be changed to successfully run with FLAG_optimize_constructed_arrays.
+  // The next checkin to enable FLAG_optimize_constructed_arrays by
+  // default will address this.
+  CHECK(!FLAG_optimize_constructed_arrays);
   array_function->shared()->set_construct_stub(
       isolate()->builtins()->builtin(Builtins::kArrayConstructCode));
+
   array_function->shared()->DontAdaptArguments();
 
   MaybeObject* maybe_map = array_function->initial_map()->Copy();
@@ -1743,7 +1749,6 @@ bool Genesis::InstallNatives() {
     SetPrototype(opaque_reference_fun, prototype);
     native_context()->set_opaque_reference_function(*opaque_reference_fun);
   }
-
 
   // InternalArrays should not use Smi-Only array optimizations. There are too
   // many places in the C++ runtime code (e.g. RegEx) that assume that

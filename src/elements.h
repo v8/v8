@@ -200,6 +200,9 @@ class ElementsAccessor {
 void CheckArrayAbuse(JSObject* obj, const char* op, uint32_t key,
                      bool allow_appending = false);
 
+MUST_USE_RESULT MaybeObject* ArrayConstructInitializeElements(
+    JSArray* array, Arguments* args);
+
 } }  // namespace v8::internal
 
 #endif  // V8_ELEMENTS_H_

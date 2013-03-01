@@ -186,9 +186,67 @@ BUILTIN(EmptyFunction) {
 }
 
 
+#define CONVERT_ARG_STUB_CALLER_ARGS(name)                           \
+  Arguments* name = reinterpret_cast<Arguments*>(args[0]);
+
+
+RUNTIME_FUNCTION(MaybeObject*, ArrayConstructor_StubFailure) {
+  CONVERT_ARG_STUB_CALLER_ARGS(caller_args);
+  // ASSERT(args.length() == 3);
+  Handle<JSFunction> function = args.at<JSFunction>(1);
+  Handle<Object> type_info = args.at<Object>(2);
+
+  JSArray* array = NULL;
+  bool holey = false;
+  if (caller_args->length() == 1 && (*caller_args)[0]->IsSmi()) {
+    int value = Smi::cast((*caller_args)[0])->value();
+    holey = (value > 0 && value < JSObject::kInitialMaxFastElementArray);
+  }
+
+  ASSERT(function->has_initial_map());
+  ElementsKind kind = function->initial_map()->elements_kind();
+  if (holey) {
+    kind = GetHoleyElementsKind(kind);
+  }
+
+  MaybeObject* maybe_array;
+  if (*type_info != isolate->heap()->undefined_value()) {
+    JSGlobalPropertyCell* cell = JSGlobalPropertyCell::cast(*type_info);
+    if (cell->value()->IsSmi()) {
+      Smi* smi = Smi::cast(cell->value());
+      ElementsKind to_kind = static_cast<ElementsKind>(smi->value());
+      if (holey && !IsFastHoleyElementsKind(to_kind)) {
+        to_kind = GetHoleyElementsKind(to_kind);
+        // Update the allocation site info to reflect the advice alteration.
+        cell->set_value(Smi::FromInt(to_kind));
+      }
+
+      AllocationSiteMode mode = AllocationSiteInfo::GetMode(to_kind);
+      if (mode == TRACK_ALLOCATION_SITE) {
+        maybe_array = isolate->heap()->AllocateEmptyJSArrayWithAllocationSite(
+            kind, type_info);
+      } else {
+        maybe_array = isolate->heap()->AllocateEmptyJSArray(kind);
+      }
+      if (!maybe_array->To(&array)) return maybe_array;
+    }
+  }
+
+  if (array == NULL) {
+    maybe_array = isolate->heap()->AllocateEmptyJSArray(kind);
+    if (!maybe_array->To(&array)) return maybe_array;
+  }
+
+  maybe_array = ArrayConstructInitializeElements(array, caller_args);
+  if (maybe_array->IsFailure()) return maybe_array;
+  return array;
+}
+
+
 static MaybeObject* ArrayCodeGenericCommon(Arguments* args,
                                            Isolate* isolate,
                                            JSFunction* constructor) {
+  ASSERT(args->length() >= 1);
   Heap* heap = isolate->heap();
   isolate->counters()->array_function_runtime()->Increment();
 
@@ -197,8 +255,29 @@ static MaybeObject* ArrayCodeGenericCommon(Arguments* args,
     array = JSArray::cast((*args)[0]);
     // Initialize elements and length in case later allocations fail so that the
     // array object is initialized in a valid state.
-    array->set_length(Smi::FromInt(0));
-    array->set_elements(heap->empty_fixed_array());
+    MaybeObject* maybe_array = array->Initialize(0);
+    if (maybe_array->IsFailure()) return maybe_array;
+
+    if (FLAG_optimize_constructed_arrays) {
+      AllocationSiteInfo* info = AllocationSiteInfo::FindForJSObject(array);
+      ElementsKind to_kind = array->GetElementsKind();
+      if (info != NULL && info->GetElementsKindPayload(&to_kind)) {
+        if (IsMoreGeneralElementsKindTransition(array->GetElementsKind(),
+                                                to_kind)) {
+          // We have advice that we should change the elements kind
+          if (FLAG_trace_track_allocation_sites) {
+            PrintF("AllocationSiteInfo: pre-transitioning array %p(%s->%s)\n",
+                   reinterpret_cast<void*>(array),
+                   ElementsKindToString(array->GetElementsKind()),
+                   ElementsKindToString(to_kind));
+          }
+
+          maybe_array = array->TransitionElementsKind(to_kind);
+          if (maybe_array->IsFailure()) return maybe_array;
+        }
+      }
+    }
+
     if (!FLAG_smi_only_arrays) {
       Context* native_context = isolate->context()->native_context();
       if (array->GetElementsKind() == GetInitialFastElementsKind() &&
@@ -215,97 +294,10 @@ static MaybeObject* ArrayCodeGenericCommon(Arguments* args,
     if (!maybe_obj->To(&array)) return maybe_obj;
   }
 
-  // Optimize the case where there is one argument and the argument is a
-  // small smi.
-  if (args->length() == 2) {
-    Object* obj = (*args)[1];
-    if (obj->IsSmi()) {
-      int len = Smi::cast(obj)->value();
-      if (len >= 0 && len < JSObject::kInitialMaxFastElementArray) {
-        Object* fixed_array;
-        { MaybeObject* maybe_obj = heap->AllocateFixedArrayWithHoles(len);
-          if (!maybe_obj->ToObject(&fixed_array)) return maybe_obj;
-        }
-        ElementsKind elements_kind = array->GetElementsKind();
-        if (!IsFastHoleyElementsKind(elements_kind)) {
-          elements_kind = GetHoleyElementsKind(elements_kind);
-          MaybeObject* maybe_array =
-              array->TransitionElementsKind(elements_kind);
-          if (maybe_array->IsFailure()) return maybe_array;
-        }
-        // We do not use SetContent to skip the unnecessary elements type check.
-        array->set_elements(FixedArray::cast(fixed_array));
-        array->set_length(Smi::cast(obj));
-        return array;
-      }
-    }
-    // Take the argument as the length.
-    { MaybeObject* maybe_obj = array->Initialize(0);
-      if (!maybe_obj->ToObject(&obj)) return maybe_obj;
-    }
-    return array->SetElementsLength((*args)[1]);
-  }
-
-  // Optimize the case where there are no parameters passed.
-  if (args->length() == 1) {
-    return array->Initialize(JSArray::kPreallocatedArrayElements);
-  }
-
-  // Set length and elements on the array.
-  int number_of_elements = args->length() - 1;
-  MaybeObject* maybe_object =
-      array->EnsureCanContainElements(args, 1, number_of_elements,
-                                      ALLOW_CONVERTED_DOUBLE_ELEMENTS);
-  if (maybe_object->IsFailure()) return maybe_object;
-
-  // Allocate an appropriately typed elements array.
-  MaybeObject* maybe_elms;
-  ElementsKind elements_kind = array->GetElementsKind();
-  if (IsFastDoubleElementsKind(elements_kind)) {
-    maybe_elms = heap->AllocateUninitializedFixedDoubleArray(
-        number_of_elements);
-  } else {
-    maybe_elms = heap->AllocateFixedArrayWithHoles(number_of_elements);
-  }
-  FixedArrayBase* elms;
-  if (!maybe_elms->To(&elms)) return maybe_elms;
-
-  // Fill in the content
-  switch (array->GetElementsKind()) {
-    case FAST_HOLEY_SMI_ELEMENTS:
-    case FAST_SMI_ELEMENTS: {
-      FixedArray* smi_elms = FixedArray::cast(elms);
-      for (int index = 0; index < number_of_elements; index++) {
-        smi_elms->set(index, (*args)[index+1], SKIP_WRITE_BARRIER);
-      }
-      break;
-    }
-    case FAST_HOLEY_ELEMENTS:
-    case FAST_ELEMENTS: {
-      AssertNoAllocation no_gc;
-      WriteBarrierMode mode = elms->GetWriteBarrierMode(no_gc);
-      FixedArray* object_elms = FixedArray::cast(elms);
-      for (int index = 0; index < number_of_elements; index++) {
-        object_elms->set(index, (*args)[index+1], mode);
-      }
-      break;
-    }
-    case FAST_HOLEY_DOUBLE_ELEMENTS:
-    case FAST_DOUBLE_ELEMENTS: {
-      FixedDoubleArray* double_elms = FixedDoubleArray::cast(elms);
-      for (int index = 0; index < number_of_elements; index++) {
-        double_elms->set(index, (*args)[index+1]->Number());
-      }
-      break;
-    }
-    default:
-      UNREACHABLE();
-      break;
-  }
-
-  array->set_elements(elms);
-  array->set_length(Smi::FromInt(number_of_elements));
-  return array;
+  Arguments adjusted_arguments(args->length() - 1, args->arguments() - 1);
+  ASSERT(adjusted_arguments.length() < 1 ||
+         adjusted_arguments[0] == (*args)[1]);
+  return ArrayConstructInitializeElements(array, &adjusted_arguments);
 }
 
 

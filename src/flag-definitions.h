@@ -222,6 +222,8 @@ DEFINE_bool(unreachable_code_elimination, false,
             "eliminate unreachable code (hidden behind soft deopts)")
 DEFINE_bool(track_allocation_sites, true,
             "Use allocation site info to reduce transitions")
+DEFINE_bool(optimize_constructed_arrays, false,
+            "Use allocation site info on constructed arrays")
 DEFINE_bool(trace_osr, false, "trace on-stack replacement")
 DEFINE_int(stress_runs, 0, "number of stress runs")
 DEFINE_bool(optimize_closures, true, "optimize closures")

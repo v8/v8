@@ -4269,6 +4269,15 @@ void MacroAssembler::LoadGlobalFunction(int index, Register function) {
 }
 
 
+void MacroAssembler::LoadArrayFunction(Register function) {
+  movq(function,
+       Operand(rsi, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
+  movq(function, FieldOperand(function, GlobalObject::kGlobalContextOffset));
+  movq(function,
+       Operand(function, Context::SlotOffset(Context::ARRAY_FUNCTION_INDEX)));
+}
+
+
 void MacroAssembler::LoadGlobalFunctionInitialMap(Register function,
                                                   Register map) {
   // Load the initial map.  The global functions all have initial maps.

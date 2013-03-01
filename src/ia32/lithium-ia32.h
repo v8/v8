@@ -62,6 +62,7 @@ class LCodeGen;
   V(CallKnownGlobal)                            \
   V(CallNamed)                                  \
   V(CallNew)                                    \
+  V(CallNewArray)                               \
   V(CallRuntime)                                \
   V(CallStub)                                   \
   V(CheckFunction)                              \
@@ -1840,6 +1841,25 @@ class LCallNew: public LTemplateInstruction<1, 2, 0> {
 
   DECLARE_CONCRETE_INSTRUCTION(CallNew, "call-new")
   DECLARE_HYDROGEN_ACCESSOR(CallNew)
+
+  virtual void PrintDataTo(StringStream* stream);
+
+  int arity() const { return hydrogen()->argument_count() - 1; }
+};
+
+
+class LCallNewArray: public LTemplateInstruction<1, 2, 0> {
+ public:
+  LCallNewArray(LOperand* context, LOperand* constructor) {
+    inputs_[0] = context;
+    inputs_[1] = constructor;
+  }
+
+  LOperand* context() { return inputs_[0]; }
+  LOperand* constructor() { return inputs_[1]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(CallNewArray, "call-new-array")
+  DECLARE_HYDROGEN_ACCESSOR(CallNewArray)
 
   virtual void PrintDataTo(StringStream* stream);
 

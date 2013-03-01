@@ -306,11 +306,61 @@ void CodeStubGraphBuilder<TransitionElementsKindStub>::BuildCodeStub() {
 }
 
 
+template <>
+void CodeStubGraphBuilder<ArrayNoArgumentConstructorStub>::BuildCodeStub() {
+  HInstruction* deopt = new(zone()) HSoftDeoptimize();
+  AddInstruction(deopt);
+  current_block()->MarkAsDeoptimizing();
+  HReturn* ret = new(zone()) HReturn(GetParameter(0), context());
+  current_block()->Finish(ret);
+}
+
+
+Handle<Code> ArrayNoArgumentConstructorStub::GenerateCode() {
+  CodeStubGraphBuilder<ArrayNoArgumentConstructorStub> builder(this);
+  LChunk* chunk = OptimizeGraph(builder.CreateGraph());
+  return chunk->Codegen(Code::COMPILED_STUB);
+}
+
+
+template <>
+void CodeStubGraphBuilder<ArraySingleArgumentConstructorStub>::BuildCodeStub() {
+  HInstruction* deopt = new(zone()) HSoftDeoptimize();
+  AddInstruction(deopt);
+  current_block()->MarkAsDeoptimizing();
+  HReturn* ret = new(zone()) HReturn(GetParameter(0), context());
+  current_block()->Finish(ret);
+}
+
+
 Handle<Code> TransitionElementsKindStub::GenerateCode() {
   CodeStubGraphBuilder<TransitionElementsKindStub> builder(this);
   LChunk* chunk = OptimizeGraph(builder.CreateGraph());
   return chunk->Codegen(Code::COMPILED_STUB);
 }
 
+
+Handle<Code> ArraySingleArgumentConstructorStub::GenerateCode() {
+  CodeStubGraphBuilder<ArraySingleArgumentConstructorStub> builder(this);
+  LChunk* chunk = OptimizeGraph(builder.CreateGraph());
+  return chunk->Codegen(Code::COMPILED_STUB);
+}
+
+
+template <>
+void CodeStubGraphBuilder<ArrayNArgumentsConstructorStub>::BuildCodeStub() {
+  HInstruction* deopt = new(zone()) HSoftDeoptimize();
+  AddInstruction(deopt);
+  current_block()->MarkAsDeoptimizing();
+  HReturn* ret = new(zone()) HReturn(GetParameter(0), context());
+  current_block()->Finish(ret);
+}
+
+
+Handle<Code> ArrayNArgumentsConstructorStub::GenerateCode() {
+  CodeStubGraphBuilder<ArrayNArgumentsConstructorStub> builder(this);
+  LChunk* chunk = OptimizeGraph(builder.CreateGraph());
+  return chunk->Codegen(Code::COMPILED_STUB);
+}
 
 } }  // namespace v8::internal

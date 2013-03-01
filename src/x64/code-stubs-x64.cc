@@ -73,6 +73,44 @@ void TransitionElementsKindStub::InitializeInterfaceDescriptor(
 }
 
 
+static void InitializeArrayConstructorDescriptor(Isolate* isolate,
+    CodeStubInterfaceDescriptor* descriptor) {
+  // register state
+  // rdi -- constructor function
+  // rbx -- type info cell with elements kind
+  // rax -- number of arguments to the constructor function
+  static Register registers[] = { rdi, rbx };
+  descriptor->register_param_count_ = 2;
+  // stack param count needs (constructor pointer, and single argument)
+  descriptor->stack_parameter_count_ = &rax;
+  descriptor->register_params_ = registers;
+  descriptor->extra_expression_stack_count_ = 1;
+  descriptor->deoptimization_handler_ =
+      FUNCTION_ADDR(ArrayConstructor_StubFailure);
+}
+
+
+void ArrayNoArgumentConstructorStub::InitializeInterfaceDescriptor(
+    Isolate* isolate,
+    CodeStubInterfaceDescriptor* descriptor) {
+  InitializeArrayConstructorDescriptor(isolate, descriptor);
+}
+
+
+void ArraySingleArgumentConstructorStub::InitializeInterfaceDescriptor(
+    Isolate* isolate,
+    CodeStubInterfaceDescriptor* descriptor) {
+  InitializeArrayConstructorDescriptor(isolate, descriptor);
+}
+
+
+void ArrayNArgumentsConstructorStub::InitializeInterfaceDescriptor(
+    Isolate* isolate,
+    CodeStubInterfaceDescriptor* descriptor) {
+  InitializeArrayConstructorDescriptor(isolate, descriptor);
+}
+
+
 #define __ ACCESS_MASM(masm)
 
 void ToNumberStub::Generate(MacroAssembler* masm) {
@@ -3852,12 +3890,13 @@ void InterruptStub::Generate(MacroAssembler* masm) {
 }
 
 
-static void GenerateRecordCallTarget(MacroAssembler* masm) {
+static void GenerateRecordCallTargetNoArray(MacroAssembler* masm) {
   // Cache the called function in a global property cell.  Cache states
   // are uninitialized, monomorphic (indicated by a JSFunction), and
   // megamorphic.
   // rbx : cache cell for call target
   // rdi : the function to call
+  ASSERT(!FLAG_optimize_constructed_arrays);
   Isolate* isolate = masm->isolate();
   Label initialize, done;
 
@@ -3883,6 +3922,79 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
 
   // An uninitialized cache is patched with the function.
   __ bind(&initialize);
+  __ movq(FieldOperand(rbx, JSGlobalPropertyCell::kValueOffset), rdi);
+  // No need for a write barrier here - cells are rescanned.
+
+  __ bind(&done);
+}
+
+
+static void GenerateRecordCallTarget(MacroAssembler* masm) {
+  // Cache the called function in a global property cell.  Cache states
+  // are uninitialized, monomorphic (indicated by a JSFunction), and
+  // megamorphic.
+  // rbx : cache cell for call target
+  // rdi : the function to call
+  ASSERT(FLAG_optimize_constructed_arrays);
+  Isolate* isolate = masm->isolate();
+  Label initialize, done, miss, megamorphic, not_array_function;
+
+  // Load the cache state into rcx.
+  __ movq(rcx, FieldOperand(rbx, JSGlobalPropertyCell::kValueOffset));
+
+  // A monomorphic cache hit or an already megamorphic state: invoke the
+  // function without changing the state.
+  __ cmpq(rcx, rdi);
+  __ j(equal, &done);
+  __ Cmp(rcx, TypeFeedbackCells::MegamorphicSentinel(isolate));
+  __ j(equal, &done);
+
+  // Special handling of the Array() function, which caches not only the
+  // monomorphic Array function but the initial ElementsKind with special
+  // sentinels
+  Handle<Object> terminal_kind_sentinel =
+      TypeFeedbackCells::MonomorphicArraySentinel(isolate,
+                                                  LAST_FAST_ELEMENTS_KIND);
+  __ Cmp(rcx, terminal_kind_sentinel);
+  __ j(not_equal, &miss);
+  // Make sure the function is the Array() function
+  __ LoadArrayFunction(rcx);
+  __ cmpq(rdi, rcx);
+  __ j(not_equal, &megamorphic);
+  __ jmp(&done);
+
+  __ bind(&miss);
+
+  // A monomorphic miss (i.e, here the cache is not uninitialized) goes
+  // megamorphic.
+  __ Cmp(rcx, TypeFeedbackCells::UninitializedSentinel(isolate));
+  __ j(equal, &initialize);
+  // MegamorphicSentinel is an immortal immovable object (undefined) so no
+  // write-barrier is needed.
+  __ bind(&megamorphic);
+  __ Move(FieldOperand(rbx, JSGlobalPropertyCell::kValueOffset),
+          TypeFeedbackCells::MegamorphicSentinel(isolate));
+  __ jmp(&done, Label::kNear);
+
+  // An uninitialized cache is patched with the function or sentinel to
+  // indicate the ElementsKind if function is the Array constructor.
+  __ bind(&initialize);
+  // Make sure the function is the Array() function
+  __ LoadArrayFunction(rcx);
+  __ cmpq(rdi, rcx);
+  __ j(not_equal, &not_array_function);
+
+  // The target function is the Array constructor, install a sentinel value in
+  // the constructor's type info cell that will track the initial ElementsKind
+  // that should be used for the array when its constructed.
+  Handle<Object> initial_kind_sentinel =
+      TypeFeedbackCells::MonomorphicArraySentinel(isolate,
+          GetInitialFastElementsKind());
+  __ Move(FieldOperand(rbx, JSGlobalPropertyCell::kValueOffset),
+          initial_kind_sentinel);
+  __ jmp(&done);
+
+  __ bind(&not_array_function);
   __ movq(FieldOperand(rbx, JSGlobalPropertyCell::kValueOffset), rdi);
   // No need for a write barrier here - cells are rescanned.
 
@@ -3921,7 +4033,11 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
   __ j(not_equal, &slow);
 
   if (RecordCallTarget()) {
-    GenerateRecordCallTarget(masm);
+    if (FLAG_optimize_constructed_arrays) {
+      GenerateRecordCallTarget(masm);
+    } else {
+      GenerateRecordCallTargetNoArray(masm);
+    }
   }
 
   // Fast-case: Just invoke the function.
@@ -3996,14 +4112,20 @@ void CallConstructStub::Generate(MacroAssembler* masm) {
   __ j(not_equal, &slow);
 
   if (RecordCallTarget()) {
-    GenerateRecordCallTarget(masm);
+    if (FLAG_optimize_constructed_arrays) {
+      GenerateRecordCallTarget(masm);
+    } else {
+      GenerateRecordCallTargetNoArray(masm);
+    }
   }
 
   // Jump to the function-specific construct stub.
-  __ movq(rbx, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
-  __ movq(rbx, FieldOperand(rbx, SharedFunctionInfo::kConstructStubOffset));
-  __ lea(rbx, FieldOperand(rbx, Code::kHeaderSize));
-  __ jmp(rbx);
+  Register jmp_reg = FLAG_optimize_constructed_arrays ? rcx : rbx;
+  __ movq(jmp_reg, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
+  __ movq(jmp_reg, FieldOperand(jmp_reg,
+                                SharedFunctionInfo::kConstructStubOffset));
+  __ lea(jmp_reg, FieldOperand(jmp_reg, Code::kHeaderSize));
+  __ jmp(jmp_reg);
 
   // rdi: called object
   // rax: number of arguments

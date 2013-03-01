@@ -3904,6 +3904,28 @@ MaybeObject* Heap::CopyCode(Code* code, Vector<byte> reloc_info) {
 }
 
 
+MaybeObject* Heap::AllocateWithAllocationSite(Map* map, AllocationSpace space,
+    Handle<Object> allocation_site_info_payload) {
+  ASSERT(gc_state_ == NOT_IN_GC);
+  ASSERT(map->instance_type() != MAP_TYPE);
+  // If allocation failures are disallowed, we may allocate in a different
+  // space when new space is full and the object is not a large object.
+  AllocationSpace retry_space =
+      (space != NEW_SPACE) ? space : TargetSpaceId(map->instance_type());
+  int size = map->instance_size() + AllocationSiteInfo::kSize;
+  Object* result;
+  MaybeObject* maybe_result = AllocateRaw(size, space, retry_space);
+  if (!maybe_result->ToObject(&result)) return maybe_result;
+  // No need for write barrier since object is white and map is in old space.
+  HeapObject::cast(result)->set_map_no_write_barrier(map);
+  AllocationSiteInfo* alloc_info = reinterpret_cast<AllocationSiteInfo*>(
+      reinterpret_cast<Address>(result) + map->instance_size());
+  alloc_info->set_map_no_write_barrier(allocation_site_info_map());
+  alloc_info->set_payload(*allocation_site_info_payload, SKIP_WRITE_BARRIER);
+  return result;
+}
+
+
 MaybeObject* Heap::Allocate(Map* map, AllocationSpace space) {
   ASSERT(gc_state_ == NOT_IN_GC);
   ASSERT(map->instance_type() != MAP_TYPE);
@@ -3911,11 +3933,10 @@ MaybeObject* Heap::Allocate(Map* map, AllocationSpace space) {
   // space when new space is full and the object is not a large object.
   AllocationSpace retry_space =
       (space != NEW_SPACE) ? space : TargetSpaceId(map->instance_type());
+  int size = map->instance_size();
   Object* result;
-  { MaybeObject* maybe_result =
-        AllocateRaw(map->instance_size(), space, retry_space);
-    if (!maybe_result->ToObject(&result)) return maybe_result;
-  }
+  MaybeObject* maybe_result = AllocateRaw(size, space, retry_space);
+  if (!maybe_result->ToObject(&result)) return maybe_result;
   // No need for write barrier since object is white and map is in old space.
   HeapObject::cast(result)->set_map_no_write_barrier(map);
   return result;
@@ -4183,9 +4204,47 @@ MaybeObject* Heap::AllocateJSObjectFromMap(Map* map, PretenureFlag pretenure) {
       (pretenure == TENURED) ? OLD_POINTER_SPACE : NEW_SPACE;
   if (map->instance_size() > Page::kMaxNonCodeHeapObjectSize) space = LO_SPACE;
   Object* obj;
-  { MaybeObject* maybe_obj = Allocate(map, space);
-    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
+  MaybeObject* maybe_obj = Allocate(map, space);
+  if (!maybe_obj->To(&obj)) return maybe_obj;
+
+  // Initialize the JSObject.
+  InitializeJSObjectFromMap(JSObject::cast(obj),
+                            FixedArray::cast(properties),
+                            map);
+  ASSERT(JSObject::cast(obj)->HasFastElements());
+  return obj;
+}
+
+
+MaybeObject* Heap::AllocateJSObjectFromMapWithAllocationSite(Map* map,
+    Handle<Object> allocation_site_info_payload) {
+  // JSFunctions should be allocated using AllocateFunction to be
+  // properly initialized.
+  ASSERT(map->instance_type() != JS_FUNCTION_TYPE);
+
+  // Both types of global objects should be allocated using
+  // AllocateGlobalObject to be properly initialized.
+  ASSERT(map->instance_type() != JS_GLOBAL_OBJECT_TYPE);
+  ASSERT(map->instance_type() != JS_BUILTINS_OBJECT_TYPE);
+
+  // Allocate the backing storage for the properties.
+  int prop_size =
+      map->pre_allocated_property_fields() +
+      map->unused_property_fields() -
+      map->inobject_properties();
+  ASSERT(prop_size >= 0);
+  Object* properties;
+  { MaybeObject* maybe_properties = AllocateFixedArray(prop_size);
+    if (!maybe_properties->ToObject(&properties)) return maybe_properties;
   }
+
+  // Allocate the JSObject.
+  AllocationSpace space = NEW_SPACE;
+  if (map->instance_size() > Page::kMaxNonCodeHeapObjectSize) space = LO_SPACE;
+  Object* obj;
+  MaybeObject* maybe_obj = AllocateWithAllocationSite(map, space,
+      allocation_site_info_payload);
+  if (!maybe_obj->To(&obj)) return maybe_obj;
 
   // Initialize the JSObject.
   InitializeJSObjectFromMap(JSObject::cast(obj),
@@ -4219,6 +4278,51 @@ MaybeObject* Heap::AllocateJSObject(JSFunction* constructor,
 }
 
 
+MaybeObject* Heap::AllocateJSObjectWithAllocationSite(JSFunction* constructor,
+    Handle<Object> allocation_site_info_payload) {
+  // Allocate the initial map if absent.
+  if (!constructor->has_initial_map()) {
+    Object* initial_map;
+    { MaybeObject* maybe_initial_map = AllocateInitialMap(constructor);
+      if (!maybe_initial_map->ToObject(&initial_map)) return maybe_initial_map;
+    }
+    constructor->set_initial_map(Map::cast(initial_map));
+    Map::cast(initial_map)->set_constructor(constructor);
+  }
+  // Allocate the object based on the constructors initial map, or the payload
+  // advice
+  Map* initial_map = constructor->initial_map();
+
+  JSGlobalPropertyCell* cell = JSGlobalPropertyCell::cast(
+      *allocation_site_info_payload);
+  Smi* smi = Smi::cast(cell->value());
+  ElementsKind to_kind = static_cast<ElementsKind>(smi->value());
+  AllocationSiteMode mode = TRACK_ALLOCATION_SITE;
+  if (to_kind != initial_map->elements_kind()) {
+    MaybeObject* maybe_new_map = constructor->GetElementsTransitionMap(
+        isolate(), to_kind);
+    if (!maybe_new_map->To(&initial_map)) return maybe_new_map;
+    // Possibly alter the mode, since we found an updated elements kind
+    // in the type info cell.
+    mode = AllocationSiteInfo::GetMode(to_kind);
+  }
+
+  MaybeObject* result;
+  if (mode == TRACK_ALLOCATION_SITE) {
+    result = AllocateJSObjectFromMapWithAllocationSite(initial_map,
+        allocation_site_info_payload);
+  } else {
+    result = AllocateJSObjectFromMap(initial_map, NOT_TENURED);
+  }
+#ifdef DEBUG
+  // Make sure result is NOT a global object if valid.
+  Object* non_failure;
+  ASSERT(!result->ToObject(&non_failure) || !non_failure->IsGlobalObject());
+#endif
+  return result;
+}
+
+
 MaybeObject* Heap::AllocateJSModule(Context* context, ScopeInfo* scope_info) {
   // Allocate a fresh map. Modules do not have a prototype.
   Map* map;
@@ -4240,10 +4344,13 @@ MaybeObject* Heap::AllocateJSArrayAndStorage(
     int capacity,
     ArrayStorageAllocationMode mode,
     PretenureFlag pretenure) {
-  ASSERT(capacity >= length);
   MaybeObject* maybe_array = AllocateJSArray(elements_kind, pretenure);
   JSArray* array;
   if (!maybe_array->To(&array)) return maybe_array;
+
+  // TODO(mvstanton): this body of code is duplicate with AllocateJSArrayStorage
+  // for performance reasons.
+  ASSERT(capacity >= length);
 
   if (capacity == 0) {
     array->set_length(Smi::FromInt(0));
@@ -4253,6 +4360,60 @@ MaybeObject* Heap::AllocateJSArrayAndStorage(
 
   FixedArrayBase* elms;
   MaybeObject* maybe_elms = NULL;
+  if (IsFastDoubleElementsKind(elements_kind)) {
+    if (mode == DONT_INITIALIZE_ARRAY_ELEMENTS) {
+      maybe_elms = AllocateUninitializedFixedDoubleArray(capacity);
+    } else {
+      ASSERT(mode == INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE);
+      maybe_elms = AllocateFixedDoubleArrayWithHoles(capacity);
+    }
+  } else {
+    ASSERT(IsFastSmiOrObjectElementsKind(elements_kind));
+    if (mode == DONT_INITIALIZE_ARRAY_ELEMENTS) {
+      maybe_elms = AllocateUninitializedFixedArray(capacity);
+    } else {
+      ASSERT(mode == INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE);
+      maybe_elms = AllocateFixedArrayWithHoles(capacity);
+    }
+  }
+  if (!maybe_elms->To(&elms)) return maybe_elms;
+
+  array->set_elements(elms);
+  array->set_length(Smi::FromInt(length));
+  return array;
+}
+
+
+MaybeObject* Heap::AllocateJSArrayAndStorageWithAllocationSite(
+    ElementsKind elements_kind,
+    int length,
+    int capacity,
+    Handle<Object> allocation_site_payload,
+    ArrayStorageAllocationMode mode) {
+  MaybeObject* maybe_array = AllocateJSArrayWithAllocationSite(elements_kind,
+      allocation_site_payload);
+  JSArray* array;
+  if (!maybe_array->To(&array)) return maybe_array;
+  return AllocateJSArrayStorage(array, length, capacity, mode);
+}
+
+
+MaybeObject* Heap::AllocateJSArrayStorage(
+    JSArray* array,
+    int length,
+    int capacity,
+    ArrayStorageAllocationMode mode) {
+  ASSERT(capacity >= length);
+
+  if (capacity == 0) {
+    array->set_length(Smi::FromInt(0));
+    array->set_elements(empty_fixed_array());
+    return array;
+  }
+
+  FixedArrayBase* elms;
+  MaybeObject* maybe_elms = NULL;
+  ElementsKind elements_kind = array->GetElementsKind();
   if (IsFastDoubleElementsKind(elements_kind)) {
     if (mode == DONT_INITIALIZE_ARRAY_ELEMENTS) {
       maybe_elms = AllocateUninitializedFixedDoubleArray(capacity);
@@ -4407,8 +4568,7 @@ MaybeObject* Heap::AllocateGlobalObject(JSFunction* constructor) {
 }
 
 
-MaybeObject* Heap::CopyJSObject(JSObject* source,
-                                AllocationSiteMode mode) {
+MaybeObject* Heap::CopyJSObject(JSObject* source) {
   // Never used to copy functions.  If functions need to be copied we
   // have to be careful to clear the literals array.
   SLOW_ASSERT(!source->IsJSFunction());
@@ -4418,25 +4578,13 @@ MaybeObject* Heap::CopyJSObject(JSObject* source,
   int object_size = map->instance_size();
   Object* clone;
 
-  bool track_origin = mode == TRACK_ALLOCATION_SITE &&
-      map->CanTrackAllocationSite();
-
   WriteBarrierMode wb_mode = UPDATE_WRITE_BARRIER;
 
   // If we're forced to always allocate, we use the general allocation
   // functions which may leave us with an object in old space.
-  int adjusted_object_size = object_size;
   if (always_allocate()) {
-    // We'll only track origin if we are certain to allocate in new space
-    if (track_origin) {
-      const int kMinFreeNewSpaceAfterGC = InitialSemiSpaceSize() * 3/4;
-      if ((object_size + AllocationSiteInfo::kSize) < kMinFreeNewSpaceAfterGC) {
-        adjusted_object_size += AllocationSiteInfo::kSize;
-      }
-    }
-
     { MaybeObject* maybe_clone =
-          AllocateRaw(adjusted_object_size, NEW_SPACE, OLD_POINTER_SPACE);
+          AllocateRaw(object_size, NEW_SPACE, OLD_POINTER_SPACE);
       if (!maybe_clone->ToObject(&clone)) return maybe_clone;
     }
     Address clone_address = HeapObject::cast(clone)->address();
@@ -4449,9 +4597,106 @@ MaybeObject* Heap::CopyJSObject(JSObject* source,
                  (object_size - JSObject::kHeaderSize) / kPointerSize);
   } else {
     wb_mode = SKIP_WRITE_BARRIER;
-    if (track_origin) {
+
+    { MaybeObject* maybe_clone = new_space_.AllocateRaw(object_size);
+      if (!maybe_clone->ToObject(&clone)) return maybe_clone;
+    }
+    SLOW_ASSERT(InNewSpace(clone));
+    // Since we know the clone is allocated in new space, we can copy
+    // the contents without worrying about updating the write barrier.
+    CopyBlock(HeapObject::cast(clone)->address(),
+              source->address(),
+              object_size);
+  }
+
+  SLOW_ASSERT(
+      JSObject::cast(clone)->GetElementsKind() == source->GetElementsKind());
+  FixedArrayBase* elements = FixedArrayBase::cast(source->elements());
+  FixedArray* properties = FixedArray::cast(source->properties());
+  // Update elements if necessary.
+  if (elements->length() > 0) {
+    Object* elem;
+    { MaybeObject* maybe_elem;
+      if (elements->map() == fixed_cow_array_map()) {
+        maybe_elem = FixedArray::cast(elements);
+      } else if (source->HasFastDoubleElements()) {
+        maybe_elem = CopyFixedDoubleArray(FixedDoubleArray::cast(elements));
+      } else {
+        maybe_elem = CopyFixedArray(FixedArray::cast(elements));
+      }
+      if (!maybe_elem->ToObject(&elem)) return maybe_elem;
+    }
+    JSObject::cast(clone)->set_elements(FixedArrayBase::cast(elem), wb_mode);
+  }
+  // Update properties if necessary.
+  if (properties->length() > 0) {
+    Object* prop;
+    { MaybeObject* maybe_prop = CopyFixedArray(properties);
+      if (!maybe_prop->ToObject(&prop)) return maybe_prop;
+    }
+    JSObject::cast(clone)->set_properties(FixedArray::cast(prop), wb_mode);
+  }
+  // Return the new clone.
+  return clone;
+}
+
+
+MaybeObject* Heap::CopyJSObjectWithAllocationSite(JSObject* source) {
+  // Never used to copy functions.  If functions need to be copied we
+  // have to be careful to clear the literals array.
+  SLOW_ASSERT(!source->IsJSFunction());
+
+  // Make the clone.
+  Map* map = source->map();
+  int object_size = map->instance_size();
+  Object* clone;
+
+  ASSERT(map->CanTrackAllocationSite());
+  ASSERT(map->instance_type() == JS_ARRAY_TYPE);
+  WriteBarrierMode wb_mode = UPDATE_WRITE_BARRIER;
+
+  // If we're forced to always allocate, we use the general allocation
+  // functions which may leave us with an object in old space.
+  int adjusted_object_size = object_size;
+  if (always_allocate()) {
+    // We'll only track origin if we are certain to allocate in new space
+    const int kMinFreeNewSpaceAfterGC = InitialSemiSpaceSize() * 3/4;
+    if ((object_size + AllocationSiteInfo::kSize) < kMinFreeNewSpaceAfterGC) {
       adjusted_object_size += AllocationSiteInfo::kSize;
     }
+
+    { MaybeObject* maybe_clone =
+          AllocateRaw(adjusted_object_size, NEW_SPACE, OLD_POINTER_SPACE);
+      if (!maybe_clone->ToObject(&clone)) return maybe_clone;
+    }
+    Address clone_address = HeapObject::cast(clone)->address();
+    CopyBlock(clone_address,
+              source->address(),
+              object_size);
+    // Update write barrier for all fields that lie beyond the header.
+    int write_barrier_offset = adjusted_object_size > object_size
+        ? JSArray::kSize + AllocationSiteInfo::kSize
+        : JSObject::kHeaderSize;
+    if (((object_size - write_barrier_offset) / kPointerSize) > 0) {
+      RecordWrites(clone_address,
+                   write_barrier_offset,
+                   (object_size - write_barrier_offset) / kPointerSize);
+    }
+
+    // Track allocation site information, if we failed to allocate it inline.
+    if (InNewSpace(clone) &&
+        adjusted_object_size == object_size) {
+      MaybeObject* maybe_alloc_info =
+          AllocateStruct(ALLOCATION_SITE_INFO_TYPE);
+      AllocationSiteInfo* alloc_info;
+      if (maybe_alloc_info->To(&alloc_info)) {
+        alloc_info->set_map_no_write_barrier(allocation_site_info_map());
+        alloc_info->set_payload(source, SKIP_WRITE_BARRIER);
+      }
+    }
+  } else {
+    wb_mode = SKIP_WRITE_BARRIER;
+    adjusted_object_size += AllocationSiteInfo::kSize;
 
     { MaybeObject* maybe_clone = new_space_.AllocateRaw(adjusted_object_size);
       if (!maybe_clone->ToObject(&clone)) return maybe_clone;
@@ -4467,8 +4712,8 @@ MaybeObject* Heap::CopyJSObject(JSObject* source,
   if (adjusted_object_size > object_size) {
     AllocationSiteInfo* alloc_info = reinterpret_cast<AllocationSiteInfo*>(
         reinterpret_cast<Address>(clone) + object_size);
-    alloc_info->set_map(allocation_site_info_map());
-    alloc_info->set_payload(source);
+    alloc_info->set_map_no_write_barrier(allocation_site_info_map());
+    alloc_info->set_payload(source, SKIP_WRITE_BARRIER);
   }
 
   SLOW_ASSERT(
@@ -4897,6 +5142,25 @@ MaybeObject* Heap::AllocateJSArray(
   }
 
   return AllocateJSObjectFromMap(map, pretenure);
+}
+
+
+MaybeObject* Heap::AllocateJSArrayWithAllocationSite(
+    ElementsKind elements_kind,
+    Handle<Object> allocation_site_info_payload) {
+  Context* native_context = isolate()->context()->native_context();
+  JSFunction* array_function = native_context->array_function();
+  Map* map = array_function->initial_map();
+  Object* maybe_map_array = native_context->js_array_maps();
+  if (!maybe_map_array->IsUndefined()) {
+    Object* maybe_transitioned_map =
+        FixedArray::cast(maybe_map_array)->get(elements_kind);
+    if (!maybe_transitioned_map->IsUndefined()) {
+      map = Map::cast(maybe_transitioned_map);
+    }
+  }
+  return AllocateJSObjectFromMapWithAllocationSite(map,
+      allocation_site_info_payload);
 }
 
 

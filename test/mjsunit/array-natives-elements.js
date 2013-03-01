@@ -27,6 +27,7 @@
 
 // Flags: --allow-natives-syntax --smi-only-arrays
 // Flags: --noparallel-recompilation
+// Flags: --notrack-allocation-sites
 
 // Test element kind of objects.
 // Since --smi-only-arrays affects builtins, its default setting at compile time

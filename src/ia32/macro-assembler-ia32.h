@@ -249,6 +249,8 @@ class MacroAssembler: public Assembler {
                            Register map_out,
                            bool can_have_holes);
 
+  void LoadGlobalContext(Register global_context);
+
   // Load the global function with the given index.
   void LoadGlobalFunction(int index, Register function);
 

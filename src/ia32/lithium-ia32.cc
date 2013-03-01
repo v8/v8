@@ -367,6 +367,19 @@ void LCallNew::PrintDataTo(StringStream* stream) {
 }
 
 
+void LCallNewArray::PrintDataTo(StringStream* stream) {
+  stream->Add("= ");
+  context()->PrintTo(stream);
+  stream->Add(" ");
+  constructor()->PrintTo(stream);
+  stream->Add(" #%d / ", arity());
+  ASSERT(hydrogen()->property_cell()->value()->IsSmi());
+  ElementsKind kind = static_cast<ElementsKind>(
+      Smi::cast(hydrogen()->property_cell()->value())->value());
+  stream->Add(" (%s) ", ElementsKindToString(kind));
+}
+
+
 void LAccessArgumentsAt::PrintDataTo(StringStream* stream) {
   arguments()->PrintTo(stream);
 
@@ -1217,6 +1230,16 @@ LInstruction* LChunkBuilder::DoCallNew(HCallNew* instr) {
   LOperand* constructor = UseFixed(instr->constructor(), edi);
   argument_count_ -= instr->argument_count();
   LCallNew* result = new(zone()) LCallNew(context, constructor);
+  return MarkAsCall(DefineFixed(result, eax), instr);
+}
+
+
+LInstruction* LChunkBuilder::DoCallNewArray(HCallNewArray* instr) {
+  ASSERT(FLAG_optimize_constructed_arrays);
+  LOperand* context = UseFixed(instr->context(), esi);
+  LOperand* constructor = UseFixed(instr->constructor(), edi);
+  argument_count_ -= instr->argument_count();
+  LCallNewArray* result = new(zone()) LCallNewArray(context, constructor);
   return MarkAsCall(DefineFixed(result, eax), instr);
 }
 

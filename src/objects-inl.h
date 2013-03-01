@@ -5747,6 +5747,12 @@ Handle<Object> TypeFeedbackCells::MegamorphicSentinel(Isolate* isolate) {
 }
 
 
+Handle<Object> TypeFeedbackCells::MonomorphicArraySentinel(Isolate* isolate,
+    ElementsKind elements_kind) {
+  return Handle<Object>(Smi::FromInt(static_cast<int>(elements_kind)), isolate);
+}
+
+
 Object* TypeFeedbackCells::RawUninitializedSentinel(Heap* heap) {
   return heap->the_hole_value();
 }

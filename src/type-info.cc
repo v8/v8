@@ -163,8 +163,13 @@ bool TypeFeedbackOracle::CallIsMonomorphic(Call* expr) {
 
 
 bool TypeFeedbackOracle::CallNewIsMonomorphic(CallNew* expr) {
-  Handle<Object> value = GetInfo(expr->CallNewFeedbackId());
-  return value->IsJSFunction();
+  Handle<Object> info = GetInfo(expr->CallNewFeedbackId());
+  if (info->IsSmi()) {
+    ASSERT(static_cast<ElementsKind>(Smi::cast(*info)->value()) <=
+           LAST_FAST_ELEMENTS_KIND);
+    return Isolate::Current()->global_context()->array_function();
+  }
+  return info->IsJSFunction();
 }
 
 
@@ -288,9 +293,32 @@ Handle<JSFunction> TypeFeedbackOracle::GetCallTarget(Call* expr) {
 
 
 Handle<JSFunction> TypeFeedbackOracle::GetCallNewTarget(CallNew* expr) {
-  return Handle<JSFunction>::cast(GetInfo(expr->CallNewFeedbackId()));
+  Handle<Object> info = GetInfo(expr->CallNewFeedbackId());
+  if (info->IsSmi()) {
+    ASSERT(static_cast<ElementsKind>(Smi::cast(*info)->value()) <=
+           LAST_FAST_ELEMENTS_KIND);
+    return Handle<JSFunction>(Isolate::Current()->global_context()->
+                              array_function());
+  } else {
+    return Handle<JSFunction>::cast(info);
+  }
 }
 
+
+ElementsKind TypeFeedbackOracle::GetCallNewElementsKind(CallNew* expr) {
+  Handle<Object> info = GetInfo(expr->CallNewFeedbackId());
+  if (info->IsSmi()) {
+    return static_cast<ElementsKind>(Smi::cast(*info)->value());
+  } else {
+    // TODO(mvstanton): avoided calling GetInitialFastElementsKind() for perf
+    // reasons. Is there a better fix?
+    if (FLAG_packed_arrays) {
+      return FAST_SMI_ELEMENTS;
+    } else {
+      return FAST_HOLEY_SMI_ELEMENTS;
+    }
+  }
+}
 
 Handle<Map> TypeFeedbackOracle::GetObjectLiteralStoreMap(
     ObjectLiteral::Property* prop) {

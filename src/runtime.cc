@@ -80,9 +80,6 @@ namespace internal {
   RUNTIME_ASSERT(args[index]->Is##Type());                           \
   Handle<Type> name = args.at<Type>(index);
 
-#define CONVERT_ARG_STUB_CALLER_ARGS(name)                           \
-  Arguments* name = reinterpret_cast<Arguments*>(args[0]);
-
 // Cast the given object to a boolean and store it in a variable with
 // the given name.  If the object is not a boolean call IllegalOperation
 // and return.
@@ -677,7 +674,11 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateArrayLiteralShallow) {
   JSObject* boilerplate_object = JSObject::cast(*boilerplate);
   AllocationSiteMode mode = AllocationSiteInfo::GetMode(
       boilerplate_object->GetElementsKind());
-  return isolate->heap()->CopyJSObject(boilerplate_object, mode);
+  if (mode == TRACK_ALLOCATION_SITE) {
+    return isolate->heap()->CopyJSObjectWithAllocationSite(boilerplate_object);
+  }
+
+  return isolate->heap()->CopyJSObject(boilerplate_object);
 }
 
 

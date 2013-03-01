@@ -73,6 +73,9 @@ namespace internal {
   V(CEntry)                              \
   V(JSEntry)                             \
   V(KeyedLoadElement)                    \
+  V(ArrayNoArgumentConstructor)          \
+  V(ArraySingleArgumentConstructor)      \
+  V(ArrayNArgumentsConstructor)          \
   V(KeyedStoreElement)                   \
   V(DebuggerStatement)                   \
   V(StringDictionaryLookup)              \
@@ -1286,6 +1289,63 @@ class TransitionElementsKindStub : public HydrogenCodeStub {
   int MinorKey() { return bit_field_; }
 
   DISALLOW_COPY_AND_ASSIGN(TransitionElementsKindStub);
+};
+
+
+class ArrayNoArgumentConstructorStub : public HydrogenCodeStub {
+ public:
+  ArrayNoArgumentConstructorStub() {
+  }
+
+  Major MajorKey() { return ArrayNoArgumentConstructor; }
+  int MinorKey() { return 0; }
+
+  virtual Handle<Code> GenerateCode();
+
+  virtual void InitializeInterfaceDescriptor(
+      Isolate* isolate,
+      CodeStubInterfaceDescriptor* descriptor);
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(ArrayNoArgumentConstructorStub);
+};
+
+
+class ArraySingleArgumentConstructorStub : public HydrogenCodeStub {
+ public:
+  ArraySingleArgumentConstructorStub() {
+  }
+
+  Major MajorKey() { return ArraySingleArgumentConstructor; }
+  int MinorKey() { return 0; }
+
+  virtual Handle<Code> GenerateCode();
+
+  virtual void InitializeInterfaceDescriptor(
+      Isolate* isolate,
+      CodeStubInterfaceDescriptor* descriptor);
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(ArraySingleArgumentConstructorStub);
+};
+
+
+class ArrayNArgumentsConstructorStub : public HydrogenCodeStub {
+ public:
+  ArrayNArgumentsConstructorStub() {
+  }
+
+  Major MajorKey() { return ArrayNArgumentsConstructor; }
+  int MinorKey() { return 0; }
+
+  virtual Handle<Code> GenerateCode();
+
+  virtual void InitializeInterfaceDescriptor(
+      Isolate* isolate,
+      CodeStubInterfaceDescriptor* descriptor);
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(ArrayNArgumentsConstructorStub);
 };
 
 

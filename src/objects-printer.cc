@@ -1039,7 +1039,18 @@ void TypeSwitchInfo::TypeSwitchInfoPrint(FILE* out) {
 void AllocationSiteInfo::AllocationSiteInfoPrint(FILE* out) {
   HeapObject::PrintHeader(out, "AllocationSiteInfo");
   PrintF(out, " - payload: ");
-  if (payload()->IsJSArray()) {
+  if (payload()->IsJSGlobalPropertyCell()) {
+    JSGlobalPropertyCell* cell = JSGlobalPropertyCell::cast(payload());
+    Object* cell_contents = cell->value();
+    if (cell_contents->IsSmi()) {
+      ElementsKind kind = static_cast<ElementsKind>(
+          Smi::cast(cell_contents)->value());
+      PrintF(out, "Array allocation with ElementsKind ");
+      PrintElementsKind(out, kind);
+      PrintF(out, "\n");
+      return;
+    }
+  } else if (payload()->IsJSArray()) {
     PrintF(out, "Array literal ");
     payload()->ShortPrint(out);
     PrintF(out, "\n");

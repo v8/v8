@@ -2051,7 +2051,7 @@ class JSObject: public JSReceiver {
                                                ElementsKind to_kind);
 
   MUST_USE_RESULT MaybeObject* TransitionElementsKind(ElementsKind to_kind);
-  MUST_USE_RESULT MaybeObject* PossiblyTransitionArrayBoilerplate(
+  MUST_USE_RESULT MaybeObject* UpdateAllocationSiteInfo(
       ElementsKind to_kind);
 
   // Replaces an existing transition with a transition to a map with a FIELD.
@@ -4202,6 +4202,11 @@ class TypeFeedbackCells: public FixedArray {
 
   // The object that indicates a megamorphic state.
   static inline Handle<Object> MegamorphicSentinel(Isolate* isolate);
+
+  // The object that indicates a monomorphic state of Array with
+  // ElementsKind
+  static inline Handle<Object> MonomorphicArraySentinel(Isolate* isolate,
+      ElementsKind elements_kind);
 
   // A raw version of the uninitialized sentinel that's safe to read during
   // garbage collection (e.g., for patching the cache).
@@ -7083,7 +7088,9 @@ class AllocationSiteInfo: public Struct {
 
   static const int kPayloadOffset = HeapObject::kHeaderSize;
   static const int kSize = kPayloadOffset + kPointerSize;
+  static const uint32_t kMaximumArrayBytesToPretransition = 8 * 1024;
 
+  bool GetElementsKindPayload(ElementsKind* kind);
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(AllocationSiteInfo);
 };
@@ -8405,7 +8412,7 @@ class JSArray: public JSObject {
   // Initialize the array with the given capacity. The function may
   // fail due to out-of-memory situations, but only if the requested
   // capacity is non-zero.
-  MUST_USE_RESULT MaybeObject* Initialize(int capacity);
+  MUST_USE_RESULT MaybeObject* Initialize(int capacity, int length = 0);
 
   // Initializes the array to a certain length.
   inline bool AllowsSetElementsLength();

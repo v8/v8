@@ -605,6 +605,7 @@ void CallNew::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
   is_monomorphic_ = oracle->CallNewIsMonomorphic(this);
   if (is_monomorphic_) {
     target_ = oracle->GetCallNewTarget(this);
+    elements_kind_ = oracle->GetCallNewElementsKind(this);
   }
 }
 

@@ -1,4 +1,4 @@
-// Copyright 2012 the V8 project authors. All rights reserved.
+// Copyright 2013 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -7530,6 +7530,21 @@ AllocationSiteInfo* AllocationSiteInfo::FindForJSObject(JSObject* object) {
 }
 
 
+bool AllocationSiteInfo::GetElementsKindPayload(ElementsKind* kind) {
+  ASSERT(kind != NULL);
+  if (payload()->IsJSGlobalPropertyCell()) {
+    JSGlobalPropertyCell* cell = JSGlobalPropertyCell::cast(payload());
+    Object* cell_contents = cell->value();
+    if (cell_contents->IsSmi()) {
+      *kind = static_cast<ElementsKind>(
+          Smi::cast(cell_contents)->value());
+      return true;
+    }
+  }
+  return false;
+}
+
+
 // Heuristic: We only need to create allocation site info if the boilerplate
 // elements kind is the initial elements kind.
 AllocationSiteMode AllocationSiteInfo::GetMode(
@@ -9353,19 +9368,10 @@ MaybeObject* JSObject::SetFastDoubleElementsCapacityAndLength(
 }
 
 
-MaybeObject* JSArray::Initialize(int capacity) {
-  Heap* heap = GetHeap();
+MaybeObject* JSArray::Initialize(int capacity, int length) {
   ASSERT(capacity >= 0);
-  set_length(Smi::FromInt(0));
-  FixedArray* new_elements;
-  if (capacity == 0) {
-    new_elements = heap->empty_fixed_array();
-  } else {
-    MaybeObject* maybe_obj = heap->AllocateFixedArrayWithHoles(capacity);
-    if (!maybe_obj->To(&new_elements)) return maybe_obj;
-  }
-  set_elements(new_elements);
-  return this;
+  return GetHeap()->AllocateJSArrayStorage(this, length, capacity,
+                                           INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE);
 }
 
 
@@ -10054,8 +10060,8 @@ MaybeObject* JSObject::SetFastElement(uint32_t index,
         ? FAST_HOLEY_DOUBLE_ELEMENTS
         : FAST_DOUBLE_ELEMENTS;
 
-    MaybeObject* trans = PossiblyTransitionArrayBoilerplate(to_kind);
-    if (trans->IsFailure()) return trans;
+    MaybeObject* maybe_failure = UpdateAllocationSiteInfo(to_kind);
+    if (maybe_failure->IsFailure()) return maybe_failure;
 
     MaybeObject* maybe =
         SetFastDoubleElementsCapacityAndLength(new_capacity, array_length);
@@ -10071,8 +10077,8 @@ MaybeObject* JSObject::SetFastElement(uint32_t index,
         ? FAST_HOLEY_ELEMENTS
         : FAST_ELEMENTS;
 
-    MaybeObject* trans = PossiblyTransitionArrayBoilerplate(kind);
-    if (trans->IsFailure()) return trans;
+    MaybeObject* maybe_failure = UpdateAllocationSiteInfo(kind);
+    if (maybe_failure->IsFailure()) return maybe_failure;
 
     MaybeObject* maybe_new_map = GetElementsTransitionMap(GetIsolate(),
                                                           kind);
@@ -10619,38 +10625,53 @@ Handle<Object> JSObject::TransitionElementsKind(Handle<JSObject> object,
 }
 
 
-MaybeObject* JSObject::PossiblyTransitionArrayBoilerplate(
-    ElementsKind to_kind) {
-  MaybeObject* ret = NULL;
+MaybeObject* JSObject::UpdateAllocationSiteInfo(ElementsKind to_kind) {
   if (!FLAG_track_allocation_sites || !IsJSArray()) {
-    return ret;
+    return this;
   }
 
   AllocationSiteInfo* info = AllocationSiteInfo::FindForJSObject(this);
   if (info == NULL) {
-    return ret;
+    return this;
   }
 
-  ASSERT(info->payload()->IsJSArray());
-  JSArray* payload = JSArray::cast(info->payload());
-  ElementsKind kind = payload->GetElementsKind();
-  if (IsMoreGeneralElementsKindTransition(kind, to_kind)) {
-    // If the array is huge, it's not likely to be defined in a local
-    // function, so we shouldn't make new instances of it very often.
-    uint32_t length = 0;
-    CHECK(payload->length()->ToArrayIndex(&length));
-    if (length <= 8 * 1024) {
-      ret = payload->TransitionElementsKind(to_kind);
-      if (FLAG_trace_track_allocation_sites) {
-        PrintF(
-            "AllocationSiteInfo: JSArray %p boilerplate updated %s->%s\n",
-            reinterpret_cast<void*>(this),
-            ElementsKindToString(kind),
-            ElementsKindToString(to_kind));
+  if (info->payload()->IsJSArray()) {
+    JSArray* payload = JSArray::cast(info->payload());
+    ElementsKind kind = payload->GetElementsKind();
+    if (AllocationSiteInfo::GetMode(kind, to_kind) == TRACK_ALLOCATION_SITE) {
+      // If the array is huge, it's not likely to be defined in a local
+      // function, so we shouldn't make new instances of it very often.
+      uint32_t length = 0;
+      CHECK(payload->length()->ToArrayIndex(&length));
+      if (length <= AllocationSiteInfo::kMaximumArrayBytesToPretransition) {
+        if (FLAG_trace_track_allocation_sites) {
+          PrintF(
+              "AllocationSiteInfo: JSArray %p boilerplate updated %s->%s\n",
+              reinterpret_cast<void*>(this),
+              ElementsKindToString(kind),
+              ElementsKindToString(to_kind));
+        }
+        return payload->TransitionElementsKind(to_kind);
+      }
+    }
+  } else if (info->payload()->IsJSGlobalPropertyCell()) {
+    JSGlobalPropertyCell* cell = JSGlobalPropertyCell::cast(info->payload());
+    Object* cell_contents = cell->value();
+    if (cell_contents->IsSmi()) {
+      ElementsKind kind = static_cast<ElementsKind>(
+          Smi::cast(cell_contents)->value());
+      if (AllocationSiteInfo::GetMode(kind, to_kind) == TRACK_ALLOCATION_SITE) {
+        if (FLAG_trace_track_allocation_sites) {
+          PrintF("AllocationSiteInfo: JSArray %p info updated %s->%s\n",
+                 reinterpret_cast<void*>(this),
+                 ElementsKindToString(kind),
+                 ElementsKindToString(to_kind));
+        }
+        cell->set_value(Smi::FromInt(to_kind));
       }
     }
   }
-  return ret;
+  return this;
 }
 
 
@@ -10664,8 +10685,8 @@ MaybeObject* JSObject::TransitionElementsKind(ElementsKind to_kind) {
 
   if (from_kind == to_kind) return this;
 
-  MaybeObject* trans = PossiblyTransitionArrayBoilerplate(to_kind);
-  if (trans->IsFailure()) return trans;
+  MaybeObject* maybe_failure = UpdateAllocationSiteInfo(to_kind);
+  if (maybe_failure->IsFailure()) return maybe_failure;
 
   Isolate* isolate = GetIsolate();
   if (elements() == isolate->heap()->empty_fixed_array() ||

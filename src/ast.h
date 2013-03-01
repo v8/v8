@@ -1595,6 +1595,7 @@ class CallNew: public Expression {
   Handle<JSFunction> target() { return target_; }
 
   BailoutId ReturnId() const { return return_id_; }
+  ElementsKind elements_kind() const { return elements_kind_; }
 
  protected:
   CallNew(Isolate* isolate,
@@ -1606,7 +1607,8 @@ class CallNew: public Expression {
         arguments_(arguments),
         pos_(pos),
         is_monomorphic_(false),
-        return_id_(GetNextId(isolate)) { }
+        return_id_(GetNextId(isolate)),
+        elements_kind_(GetInitialFastElementsKind()) { }
 
  private:
   Expression* expression_;
@@ -1617,6 +1619,7 @@ class CallNew: public Expression {
   Handle<JSFunction> target_;
 
   const BailoutId return_id_;
+  ElementsKind elements_kind_;
 };
 
 

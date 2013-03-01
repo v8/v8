@@ -601,7 +601,12 @@ class Heap {
   // failed.
   // Please note this does not perform a garbage collection.
   MUST_USE_RESULT MaybeObject* AllocateJSObject(
-      JSFunction* constructor, PretenureFlag pretenure = NOT_TENURED);
+      JSFunction* constructor,
+      PretenureFlag pretenure = NOT_TENURED);
+
+  MUST_USE_RESULT MaybeObject* AllocateJSObjectWithAllocationSite(
+      JSFunction* constructor,
+      Handle<Object> allocation_site_info_payload);
 
   MUST_USE_RESULT MaybeObject* AllocateJSModule(Context* context,
                                                 ScopeInfo* scope_info);
@@ -615,6 +620,10 @@ class Heap {
                                      pretenure);
   }
 
+  inline MUST_USE_RESULT MaybeObject* AllocateEmptyJSArrayWithAllocationSite(
+      ElementsKind elements_kind,
+      Handle<Object> allocation_site_payload);
+
   // Allocate a JSArray with a specified length but elements that are left
   // uninitialized.
   MUST_USE_RESULT MaybeObject* AllocateJSArrayAndStorage(
@@ -623,6 +632,19 @@ class Heap {
       int capacity,
       ArrayStorageAllocationMode mode = DONT_INITIALIZE_ARRAY_ELEMENTS,
       PretenureFlag pretenure = NOT_TENURED);
+
+  MUST_USE_RESULT MaybeObject* AllocateJSArrayAndStorageWithAllocationSite(
+      ElementsKind elements_kind,
+      int length,
+      int capacity,
+      Handle<Object> allocation_site_payload,
+      ArrayStorageAllocationMode mode = DONT_INITIALIZE_ARRAY_ELEMENTS);
+
+  MUST_USE_RESULT MaybeObject* AllocateJSArrayStorage(
+      JSArray* array,
+      int length,
+      int capacity,
+      ArrayStorageAllocationMode mode = DONT_INITIALIZE_ARRAY_ELEMENTS);
 
   // Allocate a JSArray with no elements
   MUST_USE_RESULT MaybeObject* AllocateJSArrayWithElements(
@@ -640,9 +662,9 @@ class Heap {
   // Returns a deep copy of the JavaScript object.
   // Properties and elements are copied too.
   // Returns failure if allocation failed.
-  MUST_USE_RESULT MaybeObject* CopyJSObject(
-      JSObject* source,
-      AllocationSiteMode mode = DONT_TRACK_ALLOCATION_SITE);
+  MUST_USE_RESULT MaybeObject* CopyJSObject(JSObject* source);
+
+  MUST_USE_RESULT MaybeObject* CopyJSObjectWithAllocationSite(JSObject* source);
 
   // Allocates the function prototype.
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
@@ -685,11 +707,17 @@ class Heap {
   MUST_USE_RESULT MaybeObject* AllocateJSObjectFromMap(
       Map* map, PretenureFlag pretenure = NOT_TENURED);
 
+  MUST_USE_RESULT MaybeObject* AllocateJSObjectFromMapWithAllocationSite(
+      Map* map, Handle<Object> allocation_site_info_payload);
+
   // Allocates a heap object based on the map.
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.
   // Please note this function does not perform a garbage collection.
   MUST_USE_RESULT MaybeObject* Allocate(Map* map, AllocationSpace space);
+
+  MUST_USE_RESULT MaybeObject* AllocateWithAllocationSite(Map* map,
+      AllocationSpace space, Handle<Object> allocation_site_info_payload);
 
   // Allocates a JS Map in the heap.
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
@@ -2034,6 +2062,10 @@ class Heap {
   MUST_USE_RESULT MaybeObject* AllocateJSArray(
       ElementsKind elements_kind,
       PretenureFlag pretenure = NOT_TENURED);
+
+  MUST_USE_RESULT MaybeObject* AllocateJSArrayWithAllocationSite(
+      ElementsKind elements_kind,
+      Handle<Object> allocation_site_info_payload);
 
   // Allocate empty fixed array.
   MUST_USE_RESULT MaybeObject* AllocateEmptyFixedArray();

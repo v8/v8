@@ -27,6 +27,7 @@
 
 #include "v8.h"
 
+#include "arguments.h"
 #include "objects.h"
 #include "elements.h"
 #include "utils.h"
@@ -1972,5 +1973,101 @@ MUST_USE_RESULT MaybeObject* ElementsAccessorBase<ElementsAccessorSubclass,
   return array;
 }
 
+
+MUST_USE_RESULT MaybeObject* ArrayConstructInitializeElements(
+    JSArray* array, Arguments* args) {
+  Heap* heap = array->GetIsolate()->heap();
+
+  // Optimize the case where there is one argument and the argument is a
+  // small smi.
+  if (args->length() == 1) {
+    Object* obj = (*args)[0];
+    if (obj->IsSmi()) {
+      int len = Smi::cast(obj)->value();
+      if (len > 0 && len < JSObject::kInitialMaxFastElementArray) {
+        ElementsKind elements_kind = array->GetElementsKind();
+        MaybeObject* maybe_array = array->Initialize(len, len);
+        if (maybe_array->IsFailure()) return maybe_array;
+
+        if (!IsFastHoleyElementsKind(elements_kind)) {
+          elements_kind = GetHoleyElementsKind(elements_kind);
+          maybe_array = array->TransitionElementsKind(elements_kind);
+          if (maybe_array->IsFailure()) return maybe_array;
+        }
+
+        return array;
+      } else if (len == 0) {
+        return array->Initialize(JSArray::kPreallocatedArrayElements);
+      }
+    }
+
+    // Take the argument as the length.
+    MaybeObject* maybe_obj = array->Initialize(0);
+    if (!maybe_obj->To(&obj)) return maybe_obj;
+
+    return array->SetElementsLength((*args)[0]);
+  }
+
+  // Optimize the case where there are no parameters passed.
+  if (args->length() == 0) {
+    return array->Initialize(JSArray::kPreallocatedArrayElements);
+  }
+
+  // Set length and elements on the array.
+  int number_of_elements = args->length();
+  MaybeObject* maybe_object =
+      array->EnsureCanContainElements(args, 0, number_of_elements,
+                                      ALLOW_CONVERTED_DOUBLE_ELEMENTS);
+  if (maybe_object->IsFailure()) return maybe_object;
+
+  // Allocate an appropriately typed elements array.
+  MaybeObject* maybe_elms;
+  ElementsKind elements_kind = array->GetElementsKind();
+  if (IsFastDoubleElementsKind(elements_kind)) {
+    maybe_elms = heap->AllocateUninitializedFixedDoubleArray(
+        number_of_elements);
+  } else {
+    maybe_elms = heap->AllocateFixedArrayWithHoles(number_of_elements);
+  }
+  FixedArrayBase* elms;
+  if (!maybe_elms->To(&elms)) return maybe_elms;
+
+  // Fill in the content
+  switch (array->GetElementsKind()) {
+    case FAST_HOLEY_SMI_ELEMENTS:
+    case FAST_SMI_ELEMENTS: {
+      FixedArray* smi_elms = FixedArray::cast(elms);
+      for (int index = 0; index < number_of_elements; index++) {
+        smi_elms->set(index, (*args)[index], SKIP_WRITE_BARRIER);
+      }
+      break;
+    }
+    case FAST_HOLEY_ELEMENTS:
+    case FAST_ELEMENTS: {
+      AssertNoAllocation no_gc;
+      WriteBarrierMode mode = elms->GetWriteBarrierMode(no_gc);
+      FixedArray* object_elms = FixedArray::cast(elms);
+      for (int index = 0; index < number_of_elements; index++) {
+        object_elms->set(index, (*args)[index], mode);
+      }
+      break;
+    }
+    case FAST_HOLEY_DOUBLE_ELEMENTS:
+    case FAST_DOUBLE_ELEMENTS: {
+      FixedDoubleArray* double_elms = FixedDoubleArray::cast(elms);
+      for (int index = 0; index < number_of_elements; index++) {
+        double_elms->set(index, (*args)[index]->Number());
+      }
+      break;
+    }
+    default:
+      UNREACHABLE();
+      break;
+  }
+
+  array->set_elements(elms);
+  array->set_length(Smi::FromInt(number_of_elements));
+  return array;
+}
 
 } }  // namespace v8::internal
