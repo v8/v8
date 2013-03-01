@@ -183,6 +183,13 @@ bool Object::NonFailureIsHeapObject() {
 
 
 TYPE_CHECKER(HeapNumber, HEAP_NUMBER_TYPE)
+TYPE_CHECKER(Symbol, SYMBOL_TYPE)
+
+
+bool Object::IsName() {
+  return Object::IsHeapObject()
+    && HeapObject::cast(this)->map()->instance_type() <= LAST_NAME_TYPE;
+}
 
 
 bool Object::IsString() {
@@ -2416,6 +2423,7 @@ CAST_ACCESSOR(ConsString)
 CAST_ACCESSOR(ExternalString)
 CAST_ACCESSOR(ExternalAsciiString)
 CAST_ACCESSOR(ExternalTwoByteString)
+CAST_ACCESSOR(Symbol)
 CAST_ACCESSOR(JSReceiver)
 CAST_ACCESSOR(JSObject)
 CAST_ACCESSOR(Smi)
@@ -2473,12 +2481,12 @@ SMI_ACCESSORS(FreeSpace, size, kSizeOffset)
 SMI_ACCESSORS(String, length, kLengthOffset)
 
 
-uint32_t String::hash_field() {
+uint32_t Name::hash_field() {
   return READ_UINT32_FIELD(this, kHashFieldOffset);
 }
 
 
-void String::set_hash_field(uint32_t value) {
+void Name::set_hash_field(uint32_t value) {
   WRITE_UINT32_FIELD(this, kHashFieldOffset, value);
 #if V8_HOST_ARCH_64_BIT
   WRITE_UINT32_FIELD(this, kHashFieldOffset + kIntSize, 0);
@@ -5267,22 +5275,22 @@ SeededNumberDictionary* JSObject::element_dictionary() {
 }
 
 
-bool String::IsHashFieldComputed(uint32_t field) {
+bool Name::IsHashFieldComputed(uint32_t field) {
   return (field & kHashNotComputedMask) == 0;
 }
 
 
-bool String::HasHashCode() {
+bool Name::HasHashCode() {
   return IsHashFieldComputed(hash_field());
 }
 
 
-uint32_t String::Hash() {
+uint32_t Name::Hash() {
   // Fast case: has hash code already been computed?
   uint32_t field = hash_field();
   if (IsHashFieldComputed(field)) return field >> kHashShift;
-  // Slow case: compute hash code and set it.
-  return ComputeAndSetHash();
+  // Slow case: compute hash code and set it. Has to be a string.
+  return String::cast(this)->ComputeAndSetHash();
 }
 
 

@@ -2380,6 +2380,11 @@ bool Heap::CreateInitialMaps() {
   }
   set_heap_number_map(Map::cast(obj));
 
+  { MaybeObject* maybe_obj = AllocateMap(SYMBOL_TYPE, Symbol::kSize);
+    if (!maybe_obj->ToObject(&obj)) return false;
+  }
+  set_symbol_map(Map::cast(obj));
+
   { MaybeObject* maybe_obj = AllocateMap(FOREIGN_TYPE, Foreign::kSize);
     if (!maybe_obj->ToObject(&obj)) return false;
   }
@@ -5161,6 +5166,34 @@ MaybeObject* Heap::AllocateHashTable(int length, PretenureFlag pretenure) {
   reinterpret_cast<HeapObject*>(result)->set_map_no_write_barrier(
       hash_table_map());
   ASSERT(result->IsHashTable());
+  return result;
+}
+
+
+MaybeObject* Heap::AllocateSymbol(PretenureFlag pretenure) {
+  // Statically ensure that it is safe to allocate symbols in paged spaces.
+  STATIC_ASSERT(Symbol::kSize <= Page::kNonCodeObjectAreaSize);
+  AllocationSpace space = (pretenure == TENURED) ? OLD_DATA_SPACE : NEW_SPACE;
+
+  Object* result;
+  MaybeObject* maybe = AllocateRaw(Symbol::kSize, space, OLD_DATA_SPACE);
+  if (!maybe->ToObject(&result)) return maybe;
+
+  HeapObject::cast(result)->set_map_no_write_barrier(symbol_map());
+
+  // Generate a random hash value.
+  int hash;
+  int attempts = 0;
+  do {
+    hash = V8::RandomPrivate(isolate()) & Name::kHashBitMask;
+    attempts++;
+  } while (hash == 0 && attempts < 30);
+  if (hash == 0) hash = 1;  // never return 0
+
+  Symbol::cast(result)->set_hash_field(
+      Name::kIsNotArrayIndexMask | (hash << Name::kHashShift));
+
+  ASSERT(result->IsSymbol());
   return result;
 }
 

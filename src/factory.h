@@ -166,6 +166,9 @@ class Factory {
   Handle<String> NewExternalStringFromTwoByte(
       const ExternalTwoByteString::Resource* resource);
 
+  // Create a symbol.
+  Handle<Symbol> NewSymbol();
+
   // Create a global (but otherwise uninitialized) context.
   Handle<Context> NewNativeContext();
 

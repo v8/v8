@@ -87,6 +87,7 @@ namespace internal {
   V(FixedArray, regexp_multiple_cache, RegExpMultipleCache)                    \
   V(Object, termination_exception, TerminationException)                       \
   V(Smi, hash_seed, HashSeed)                                                  \
+  V(Map, symbol_map, SymbolMap)                                                \
   V(Map, string_map, StringMap)                                                \
   V(Map, ascii_string_map, AsciiStringMap)                                     \
   V(Map, cons_string_map, ConsStringMap)                                       \
@@ -843,6 +844,13 @@ class Heap {
       ExternalArrayType array_type,
       void* external_pointer,
       PretenureFlag pretenure);
+
+  // Allocate a symbol.
+  // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
+  // failed.
+  // Please note this does not perform a garbage collection.
+  MUST_USE_RESULT MaybeObject* AllocateSymbol(
+      PretenureFlag pretenure = NOT_TENURED);
 
   // Allocate a tenured JS global property cell.
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation

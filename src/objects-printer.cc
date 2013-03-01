@@ -76,6 +76,9 @@ void HeapObject::HeapObjectPrint(FILE* out) {
   }
 
   switch (instance_type) {
+    case SYMBOL_TYPE:
+      Symbol::cast(this)->SymbolPrint(out);
+      break;
     case MAP_TYPE:
       Map::cast(this)->MapPrint(out);
       break;
@@ -477,6 +480,7 @@ static const char* TypeToString(InstanceType type) {
     case INVALID_TYPE: return "INVALID";
     case MAP_TYPE: return "MAP";
     case HEAP_NUMBER_TYPE: return "HEAP_NUMBER";
+    case SYMBOL_TYPE: return "SYMBOL";
     case STRING_TYPE: return "TWO_BYTE_STRING";
     case ASCII_STRING_TYPE: return "ASCII_STRING";
     case CONS_STRING_TYPE:
@@ -542,6 +546,12 @@ static const char* TypeToString(InstanceType type) {
 #undef MAKE_STRUCT_CASE
     default: return "UNKNOWN";
   }
+}
+
+
+void Symbol::SymbolPrint(FILE* out) {
+  HeapObject::PrintHeader(out, "Symbol");
+  PrintF(out, " - hash: %d\n", Hash());
 }
 
 

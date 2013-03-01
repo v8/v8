@@ -95,15 +95,25 @@
 //           - ExternalIntArray
 //           - ExternalUnsignedIntArray
 //           - ExternalFloatArray
-//       - String
-//         - SeqString
-//           - SeqOneByteString
-//           - SeqTwoByteString
-//         - SlicedString
-//         - ConsString
-//         - ExternalString
-//           - ExternalAsciiString
-//           - ExternalTwoByteString
+//       - Name
+//         - String
+//           - SeqString
+//             - SeqOneByteString
+//             - SeqTwoByteString
+//           - SlicedString
+//           - ConsString
+//           - ExternalString
+//             - ExternalAsciiString
+//             - ExternalTwoByteString
+//           - InternalizedString
+//             - SeqInternalizedString
+//               - SeqOneByteInternalizedString
+//               - SeqTwoByteInternalizedString
+//             - ConsInternalizedString
+//             - ExternalInternalizedString
+//               - ExternalAsciiInternalizedString
+//               - ExternalTwoByteInternalizedString
+//         - Symbol
 //       - HeapNumber
 //       - Code
 //       - Map
@@ -269,6 +279,7 @@ const int kStubMinorKeyBits = kBitsPerInt - kSmiTagSize - kStubMajorKeyBits;
   V(SHORT_EXTERNAL_ASCII_INTERNALIZED_STRING_TYPE)                             \
   V(SHORT_EXTERNAL_INTERNALIZED_STRING_WITH_ASCII_DATA_TYPE)                   \
                                                                                \
+  V(SYMBOL_TYPE)                                                               \
   V(MAP_TYPE)                                                                  \
   V(CODE_TYPE)                                                                 \
   V(ODDBALL_TYPE)                                                              \
@@ -580,8 +591,11 @@ enum InstanceType {
   SHORT_EXTERNAL_INTERNALIZED_STRING_WITH_ASCII_DATA_TYPE =
       SHORT_EXTERNAL_STRING_WITH_ASCII_DATA_TYPE | kInternalizedTag,
 
+  // Non-string names
+  SYMBOL_TYPE = kNotStringTag,  // LAST_NAME_TYPE, FIRST_NONSTRING_TYPE
+
   // Objects allocated in their own spaces (never in new space).
-  MAP_TYPE = kNotStringTag,  // FIRST_NONSTRING_TYPE
+  MAP_TYPE,
   CODE_TYPE,
   ODDBALL_TYPE,
   JS_GLOBAL_PROPERTY_CELL_TYPE,
@@ -663,7 +677,8 @@ enum InstanceType {
   FIRST_TYPE = 0x0,
   LAST_TYPE = JS_FUNCTION_TYPE,
   INVALID_TYPE = FIRST_TYPE - 1,
-  FIRST_NONSTRING_TYPE = MAP_TYPE,
+  LAST_NAME_TYPE = SYMBOL_TYPE,
+  FIRST_NONSTRING_TYPE = SYMBOL_TYPE,
   // Boundaries for testing for an external array.
   FIRST_EXTERNAL_ARRAY_TYPE = EXTERNAL_BYTE_ARRAY_TYPE,
   LAST_EXTERNAL_ARRAY_TYPE = EXTERNAL_PIXEL_ARRAY_TYPE,
@@ -839,6 +854,7 @@ class MaybeObject BASE_EMBEDDED {
 
 #define HEAP_OBJECT_TYPE_LIST(V)               \
   V(HeapNumber)                                \
+  V(Name)                                      \
   V(String)                                    \
   V(SeqString)                                 \
   V(ExternalString)                            \
@@ -849,6 +865,7 @@ class MaybeObject BASE_EMBEDDED {
   V(SeqTwoByteString)                          \
   V(SeqOneByteString)                          \
   V(InternalizedString)                        \
+  V(Symbol)                                    \
                                                \
   V(ExternalArray)                             \
   V(ExternalByteArray)                         \
@@ -7199,6 +7216,102 @@ class StringShape BASE_EMBEDDED {
 };
 
 
+// The Name abstract class captures anything that can be used as a property
+// name, i.e., strings and symbols.  All names store a hash value.
+class Name: public HeapObject {
+ public:
+  // Get and set the hash field of the name.
+  inline uint32_t hash_field();
+  inline void set_hash_field(uint32_t value);
+
+  // Tells whether the hash code has been computed.
+  inline bool HasHashCode();
+
+  // Returns a hash value used for the property table
+  inline uint32_t Hash();
+
+  // Casting.
+  static inline Name* cast(Object* obj);
+
+  // Layout description.
+  static const int kHashFieldOffset = HeapObject::kHeaderSize;
+  static const int kSize = kHashFieldOffset + kPointerSize;
+
+  // Mask constant for checking if a name has a computed hash code
+  // and if it is a string that is an array index.  The least significant bit
+  // indicates whether a hash code has been computed.  If the hash code has
+  // been computed the 2nd bit tells whether the string can be used as an
+  // array index.
+  static const int kHashNotComputedMask = 1;
+  static const int kIsNotArrayIndexMask = 1 << 1;
+  static const int kNofHashBitFields = 2;
+
+  // Shift constant retrieving hash code from hash field.
+  static const int kHashShift = kNofHashBitFields;
+
+  // Only these bits are relevant in the hash, since the top two are shifted
+  // out.
+  static const uint32_t kHashBitMask = 0xffffffffu >> kHashShift;
+
+  // Array index strings this short can keep their index in the hash field.
+  static const int kMaxCachedArrayIndexLength = 7;
+
+  // For strings which are array indexes the hash value has the string length
+  // mixed into the hash, mainly to avoid a hash value of zero which would be
+  // the case for the string '0'. 24 bits are used for the array index value.
+  static const int kArrayIndexValueBits = 24;
+  static const int kArrayIndexLengthBits =
+      kBitsPerInt - kArrayIndexValueBits - kNofHashBitFields;
+
+  STATIC_CHECK((kArrayIndexLengthBits > 0));
+
+  static const int kArrayIndexHashLengthShift =
+      kArrayIndexValueBits + kNofHashBitFields;
+
+  static const int kArrayIndexHashMask = (1 << kArrayIndexHashLengthShift) - 1;
+
+  static const int kArrayIndexValueMask =
+      ((1 << kArrayIndexValueBits) - 1) << kHashShift;
+
+  // Check that kMaxCachedArrayIndexLength + 1 is a power of two so we
+  // could use a mask to test if the length of string is less than or equal to
+  // kMaxCachedArrayIndexLength.
+  STATIC_CHECK(IS_POWER_OF_TWO(kMaxCachedArrayIndexLength + 1));
+
+  static const int kContainsCachedArrayIndexMask =
+      (~kMaxCachedArrayIndexLength << kArrayIndexHashLengthShift) |
+      kIsNotArrayIndexMask;
+
+  // Value of empty hash field indicating that the hash is not computed.
+  static const int kEmptyHashField =
+      kIsNotArrayIndexMask | kHashNotComputedMask;
+
+ protected:
+  static inline bool IsHashFieldComputed(uint32_t field);
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(Name);
+};
+
+
+// ES6 symbols.
+class Symbol: public Name {
+ public:
+  // Casting.
+  static inline Symbol* cast(Object* obj);
+
+  // Dispatched behavior.
+  DECLARE_PRINTER(Symbol)
+  DECLARE_VERIFIER(Symbol)
+
+  // Layout description.
+  static const int kSize = Name::kSize;
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(Symbol);
+};
+
+
 // The String abstract class captures JavaScript string values:
 //
 // Ecma-262:
@@ -7207,7 +7320,7 @@ class StringShape BASE_EMBEDDED {
 //    ordered sequence of zero or more 16-bit unsigned integer values.
 //
 // All string values have a length field.
-class String: public HeapObject {
+class String: public Name {
  public:
   enum Encoding { ONE_BYTE_ENCODING, TWO_BYTE_ENCODING };
 
@@ -7259,10 +7372,6 @@ class String: public HeapObject {
   // Get and set the length of the string.
   inline int length();
   inline void set_length(int value);
-
-  // Get and set the hash field of the string.
-  inline uint32_t hash_field();
-  inline void set_hash_field(uint32_t value);
 
   // Returns whether this string has only ASCII chars, i.e. all of them can
   // be ASCII encoded.  This might be the case even if the string is
@@ -7364,12 +7473,6 @@ class String: public HeapObject {
   SmartArrayPointer<uc16> ToWideCString(
       RobustnessFlag robustness_flag = FAST_STRING_TRAVERSAL);
 
-  // Tells whether the hash code has been computed.
-  inline bool HasHashCode();
-
-  // Returns a hash value used for the property table
-  inline uint32_t Hash();
-
   bool ComputeArrayIndex(uint32_t* index);
 
   // Externalization.
@@ -7402,69 +7505,18 @@ class String: public HeapObject {
   inline bool IsFlat();
 
   // Layout description.
-  static const int kLengthOffset = HeapObject::kHeaderSize;
-  static const int kHashFieldOffset = kLengthOffset + kPointerSize;
-  static const int kSize = kHashFieldOffset + kPointerSize;
+  static const int kLengthOffset = Name::kSize;
+  static const int kSize = kLengthOffset + kPointerSize;
 
   // Maximum number of characters to consider when trying to convert a string
   // value into an array index.
   static const int kMaxArrayIndexSize = 10;
+  STATIC_CHECK(kMaxArrayIndexSize < (1 << kArrayIndexLengthBits));
 
   // Max char codes.
   static const int32_t kMaxOneByteCharCode = unibrow::Latin1::kMaxChar;
   static const uint32_t kMaxOneByteCharCodeU = unibrow::Latin1::kMaxChar;
   static const int kMaxUtf16CodeUnit = 0xffff;
-
-  // Mask constant for checking if a string has a computed hash code
-  // and if it is an array index.  The least significant bit indicates
-  // whether a hash code has been computed.  If the hash code has been
-  // computed the 2nd bit tells whether the string can be used as an
-  // array index.
-  static const int kHashNotComputedMask = 1;
-  static const int kIsNotArrayIndexMask = 1 << 1;
-  static const int kNofHashBitFields = 2;
-
-  // Shift constant retrieving hash code from hash field.
-  static const int kHashShift = kNofHashBitFields;
-
-  // Only these bits are relevant in the hash, since the top two are shifted
-  // out.
-  static const uint32_t kHashBitMask = 0xffffffffu >> kHashShift;
-
-  // Array index strings this short can keep their index in the hash
-  // field.
-  static const int kMaxCachedArrayIndexLength = 7;
-
-  // For strings which are array indexes the hash value has the string length
-  // mixed into the hash, mainly to avoid a hash value of zero which would be
-  // the case for the string '0'. 24 bits are used for the array index value.
-  static const int kArrayIndexValueBits = 24;
-  static const int kArrayIndexLengthBits =
-      kBitsPerInt - kArrayIndexValueBits - kNofHashBitFields;
-
-  STATIC_CHECK((kArrayIndexLengthBits > 0));
-  STATIC_CHECK(kMaxArrayIndexSize < (1 << kArrayIndexLengthBits));
-
-  static const int kArrayIndexHashLengthShift =
-      kArrayIndexValueBits + kNofHashBitFields;
-
-  static const int kArrayIndexHashMask = (1 << kArrayIndexHashLengthShift) - 1;
-
-  static const int kArrayIndexValueMask =
-      ((1 << kArrayIndexValueBits) - 1) << kHashShift;
-
-  // Check that kMaxCachedArrayIndexLength + 1 is a power of two so we
-  // could use a mask to test if the length of string is less than or equal to
-  // kMaxCachedArrayIndexLength.
-  STATIC_CHECK(IS_POWER_OF_TWO(kMaxCachedArrayIndexLength + 1));
-
-  static const int kContainsCachedArrayIndexMask =
-      (~kMaxCachedArrayIndexLength << kArrayIndexHashLengthShift) |
-      kIsNotArrayIndexMask;
-
-  // Value of empty hash field indicating that the hash is not computed.
-  static const int kEmptyHashField =
-      kIsNotArrayIndexMask | kHashNotComputedMask;
 
   // Value of hash field containing computed hash equal to zero.
   static const int kEmptyStringHash = kIsNotArrayIndexMask;
@@ -7547,12 +7599,12 @@ class String: public HeapObject {
                            unsigned length);
 
  private:
+  friend class Name;
+
   // Try to flatten the top level ConsString that is hiding behind this
   // string.  This is a no-op unless the string is a ConsString.  Flatten
   // mutates the ConsString and might return a failure.
   MUST_USE_RESULT MaybeObject* SlowTryFlatten(PretenureFlag pretenure);
-
-  static inline bool IsHashFieldComputed(uint32_t field);
 
   // Slow case of String::Equals.  This implementation works on any strings
   // but it is most efficient on strings that are almost flat.

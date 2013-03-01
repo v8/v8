@@ -283,6 +283,14 @@ Handle<String> Factory::NewExternalStringFromTwoByte(
 }
 
 
+Handle<Symbol> Factory::NewSymbol() {
+  CALL_HEAP_FUNCTION(
+      isolate(),
+      isolate()->heap()->AllocateSymbol(),
+      Symbol);
+}
+
+
 Handle<Context> Factory::NewNativeContext() {
   CALL_HEAP_FUNCTION(
       isolate(),

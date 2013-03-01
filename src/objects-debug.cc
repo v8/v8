@@ -80,6 +80,9 @@ void HeapObject::HeapObjectVerify() {
   }
 
   switch (instance_type) {
+    case SYMBOL_TYPE:
+      Symbol::cast(this)->SymbolVerify();
+      break;
     case MAP_TYPE:
       Map::cast(this)->MapVerify();
       break;
@@ -210,6 +213,13 @@ void HeapObject::HeapObjectVerify() {
 void HeapObject::VerifyHeapPointer(Object* p) {
   CHECK(p->IsHeapObject());
   CHECK(HEAP->Contains(HeapObject::cast(p)));
+}
+
+
+void Symbol::SymbolVerify() {
+  CHECK(IsSymbol());
+  CHECK(HasHashCode());
+  CHECK_GT(Hash(), 0);
 }
 
 
