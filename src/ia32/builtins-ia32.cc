@@ -1496,17 +1496,19 @@ void Builtins::Generate_ArrayConstructCode(MacroAssembler* masm) {
     __ CmpObjectType(ecx, MAP_TYPE, ecx);
     __ Assert(equal, "Unexpected initial map for Array function");
 
-    // We should either have undefined in ebx or a valid jsglobalpropertycell
-    Label okay_here;
-    Handle<Object> undefined_sentinel(
-        masm->isolate()->heap()->undefined_value(), masm->isolate());
-    Handle<Map> global_property_cell_map(
-        masm->isolate()->heap()->global_property_cell_map());
-    __ cmp(ebx, Immediate(undefined_sentinel));
-    __ j(equal, &okay_here);
-    __ cmp(FieldOperand(ebx, 0), Immediate(global_property_cell_map));
-    __ Assert(equal, "Expected property cell in register ebx");
-    __ bind(&okay_here);
+    if (FLAG_optimize_constructed_arrays) {
+      // We should either have undefined in ebx or a valid jsglobalpropertycell
+      Label okay_here;
+      Handle<Object> undefined_sentinel(
+          masm->isolate()->heap()->undefined_value(), masm->isolate());
+      Handle<Map> global_property_cell_map(
+          masm->isolate()->heap()->global_property_cell_map());
+      __ cmp(ebx, Immediate(undefined_sentinel));
+      __ j(equal, &okay_here);
+      __ cmp(FieldOperand(ebx, 0), Immediate(global_property_cell_map));
+      __ Assert(equal, "Expected property cell in register ebx");
+      __ bind(&okay_here);
+    }
   }
 
   if (FLAG_optimize_constructed_arrays) {

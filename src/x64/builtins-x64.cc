@@ -1524,17 +1524,19 @@ void Builtins::Generate_ArrayConstructCode(MacroAssembler* masm) {
     __ CmpObjectType(rcx, MAP_TYPE, rcx);
     __ Check(equal, "Unexpected initial map for Array function");
 
-    // We should either have undefined in ebx or a valid jsglobalpropertycell
-    Label okay_here;
-    Handle<Object> undefined_sentinel(
-        masm->isolate()->factory()->undefined_value());
-    Handle<Map> global_property_cell_map(
-        masm->isolate()->heap()->global_property_cell_map());
-    __ Cmp(rbx, undefined_sentinel);
-    __ j(equal, &okay_here);
-    __ Cmp(FieldOperand(rbx, 0), global_property_cell_map);
-    __ Assert(equal, "Expected property cell in register rbx");
-    __ bind(&okay_here);
+    if (FLAG_optimize_constructed_arrays) {
+      // We should either have undefined in ebx or a valid jsglobalpropertycell
+      Label okay_here;
+      Handle<Object> undefined_sentinel(
+          masm->isolate()->factory()->undefined_value());
+      Handle<Map> global_property_cell_map(
+          masm->isolate()->heap()->global_property_cell_map());
+      __ Cmp(rbx, undefined_sentinel);
+      __ j(equal, &okay_here);
+      __ Cmp(FieldOperand(rbx, 0), global_property_cell_map);
+      __ Assert(equal, "Expected property cell in register rbx");
+      __ bind(&okay_here);
+    }
   }
 
   if (FLAG_optimize_constructed_arrays) {

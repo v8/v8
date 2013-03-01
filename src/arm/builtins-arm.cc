@@ -557,18 +557,20 @@ void Builtins::Generate_ArrayConstructCode(MacroAssembler* masm) {
     __ CompareObjectType(r1, r3, r4, MAP_TYPE);
     __ Assert(eq, "Unexpected initial map for Array function");
 
-    // We should either have undefined in r2 or a valid jsglobalpropertycell
-    Label okay_here;
-    Handle<Object> undefined_sentinel(
-        masm->isolate()->heap()->undefined_value(), masm->isolate());
-    Handle<Map> global_property_cell_map(
-        masm->isolate()->heap()->global_property_cell_map());
-    __ cmp(r2, Operand(undefined_sentinel));
-    __ b(eq, &okay_here);
-    __ ldr(r3, FieldMemOperand(r2, 0));
-    __ cmp(r3, Operand(global_property_cell_map));
-    __ Assert(eq, "Expected property cell in register ebx");
-    __ bind(&okay_here);
+    if (FLAG_optimize_constructed_arrays) {
+      // We should either have undefined in r2 or a valid jsglobalpropertycell
+      Label okay_here;
+      Handle<Object> undefined_sentinel(
+          masm->isolate()->heap()->undefined_value(), masm->isolate());
+      Handle<Map> global_property_cell_map(
+          masm->isolate()->heap()->global_property_cell_map());
+      __ cmp(r2, Operand(undefined_sentinel));
+      __ b(eq, &okay_here);
+      __ ldr(r3, FieldMemOperand(r2, 0));
+      __ cmp(r3, Operand(global_property_cell_map));
+      __ Assert(eq, "Expected property cell in register ebx");
+      __ bind(&okay_here);
+    }
   }
 
   if (FLAG_optimize_constructed_arrays) {
