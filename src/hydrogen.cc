@@ -4753,7 +4753,19 @@ void HOptimizedGraphBuilder::VisitReturnStatement(ReturnStatement* stmt) {
       typecheck->SetSuccessorAt(1, not_spec_object);
       current_block()->Finish(typecheck);
       if_spec_object->AddLeaveInlined(return_value, state);
-      not_spec_object->AddLeaveInlined(receiver, state);
+      if (!FLAG_harmony_symbols) {
+        not_spec_object->AddLeaveInlined(receiver, state);
+      } else {
+        HHasInstanceTypeAndBranch* symbolcheck =
+          new(zone()) HHasInstanceTypeAndBranch(return_value, SYMBOL_TYPE);
+        HBasicBlock* is_symbol = graph()->CreateBasicBlock();
+        HBasicBlock* not_symbol = graph()->CreateBasicBlock();
+        symbolcheck->SetSuccessorAt(0, is_symbol);
+        symbolcheck->SetSuccessorAt(1, not_symbol);
+        not_spec_object->Finish(symbolcheck);
+        is_symbol->AddLeaveInlined(return_value, state);
+        not_symbol->AddLeaveInlined(receiver, state);
+      }
     }
   } else if (state->inlining_kind() == SETTER_CALL_RETURN) {
     // Return from an inlined setter call. The returned value is never used, the
@@ -9659,6 +9671,16 @@ void HOptimizedGraphBuilder::GenerateIsSpecObject(CallRuntime* call) {
       new(zone()) HHasInstanceTypeAndBranch(value,
                                             FIRST_SPEC_OBJECT_TYPE,
                                             LAST_SPEC_OBJECT_TYPE);
+  return ast_context()->ReturnControl(result, call->id());
+}
+
+
+void HOptimizedGraphBuilder::GenerateIsSymbol(CallRuntime* call) {
+  ASSERT(call->arguments()->length() == 1);
+  CHECK_ALIVE(VisitForValue(call->arguments()->at(0)));
+  HValue* value = Pop();
+  HHasInstanceTypeAndBranch* result =
+      new(zone()) HHasInstanceTypeAndBranch(value, SYMBOL_TYPE);
   return ast_context()->ReturnControl(result, call->id());
 }
 

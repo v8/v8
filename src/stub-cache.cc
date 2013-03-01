@@ -584,6 +584,8 @@ Handle<Code> StubCache::ComputeCallConstant(int argc,
   CheckType check = RECEIVER_MAP_CHECK;
   if (object->IsString()) {
     check = STRING_CHECK;
+  } else if (object->IsSymbol()) {
+    check = SYMBOL_CHECK;
   } else if (object->IsNumber()) {
     check = NUMBER_CHECK;
   } else if (object->IsBoolean()) {
@@ -633,7 +635,8 @@ Handle<Code> StubCache::ComputeCallField(int argc,
   // TODO(1233596): We cannot do receiver map check for non-JS objects
   // because they may be represented as immediates without a
   // map. Instead, we check against the map in the holder.
-  if (object->IsNumber() || object->IsBoolean() || object->IsString()) {
+  if (object->IsNumber() || object->IsSymbol() ||
+      object->IsBoolean() || object->IsString()) {
     object = holder;
   }
 
@@ -671,7 +674,8 @@ Handle<Code> StubCache::ComputeCallInterceptor(int argc,
   // TODO(1233596): We cannot do receiver map check for non-JS objects
   // because they may be represented as immediates without a
   // map. Instead, we check against the map in the holder.
-  if (object->IsNumber() || object->IsBoolean() || object->IsString()) {
+  if (object->IsNumber() || object->IsSymbol() ||
+      object->IsBoolean() || object->IsString()) {
     object = holder;
   }
 

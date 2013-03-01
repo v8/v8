@@ -142,6 +142,8 @@ void Object::Lookup(String* name, LookupResult* result) {
       holder = native_context->string_function()->instance_prototype();
     } else if (IsBoolean()) {
       holder = native_context->boolean_function()->instance_prototype();
+    } else if (IsSymbol()) {
+      holder = native_context->symbol_delegate();
     } else {
       Isolate::Current()->PushStackTraceAndDie(
           0xDEAD0000, this, JSReceiver::cast(this)->map(), 0xDEAD0001);
@@ -624,7 +626,7 @@ MaybeObject* Object::GetProperty(Object* receiver,
   // holder in the prototype chain.
   // Proxy handlers do not use the proxy's prototype, so we can skip this.
   if (!result->IsHandler()) {
-    Object* last = result->IsProperty()
+    Object* last = result->IsProperty() && !receiver->IsSymbol()
         ? result->holder()
         : Object::cast(heap->null_value());
     ASSERT(this != this->GetPrototype(isolate));
@@ -709,6 +711,8 @@ MaybeObject* Object::GetElementWithReceiver(Object* receiver, uint32_t index) {
         holder = native_context->string_function()->instance_prototype();
       } else if (holder->IsBoolean()) {
         holder = native_context->boolean_function()->instance_prototype();
+      } else if (holder->IsSymbol()) {
+        holder = native_context->symbol_delegate();
       } else if (holder->IsJSProxy()) {
         return JSProxy::cast(holder)->GetElementWithHandler(receiver, index);
       } else {
@@ -776,6 +780,16 @@ Object* Object::GetPrototype(Isolate* isolate) {
 }
 
 
+Object* Object::GetDelegate(Isolate* isolate) {
+  if (IsSymbol()) {
+    Heap* heap = Symbol::cast(this)->GetHeap();
+    Context* context = heap->isolate()->context()->native_context();
+    return context->symbol_delegate();
+  }
+  return GetPrototype(isolate);
+}
+
+
 MaybeObject* Object::GetHash(CreationFlag flag) {
   // The object is either a number, a string, an odd-ball,
   // a real JS object, or a Harmony proxy.
@@ -783,8 +797,8 @@ MaybeObject* Object::GetHash(CreationFlag flag) {
     uint32_t hash = ComputeLongHash(double_to_uint64(Number()));
     return Smi::FromInt(hash & Smi::kMaxValue);
   }
-  if (IsString()) {
-    uint32_t hash = String::cast(this)->Hash();
+  if (IsName()) {
+    uint32_t hash = Name::cast(this)->Hash();
     return Smi::FromInt(hash);
   }
   if (IsOddball()) {

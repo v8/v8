@@ -327,6 +327,7 @@ debug-debugger.js
 
 
 EXPERIMENTAL_LIBRARY_FILES = '''
+symbol.js
 proxy.js
 collection.js
 '''.split()

@@ -383,6 +383,10 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     __ CmpObjectType(eax, FIRST_SPEC_OBJECT_TYPE, ecx);
     __ j(above_equal, &exit);
 
+    // Symbols are "objects".
+    __ CmpInstanceType(ecx, SYMBOL_TYPE);
+    __ j(equal, &exit);
+
     // Throw away the result of the constructor invocation and use the
     // on-stack receiver as the result.
     __ bind(&use_receiver);

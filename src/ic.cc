@@ -179,7 +179,7 @@ static bool TryRemoveInvalidPrototypeDependentStub(Code* target,
     // The stub was generated for JSObject but called for non-JSObject.
     // IC::GetCodeCacheHolder is not applicable.
     return false;
-  } else if (cache_holder == PROTOTYPE_MAP &&
+  } else if (cache_holder == DELEGATE_MAP &&
              receiver->GetPrototype(isolate)->IsNull()) {
     // IC::GetCodeCacheHolder is not applicable.
     return false;
@@ -2378,6 +2378,7 @@ const char* CompareIC::GetStateName(State state) {
     case NUMBER: return "NUMBER";
     case INTERNALIZED_STRING: return "INTERNALIZED_STRING";
     case STRING: return "STRING";
+    case UNIQUE_NAME: return "UNIQUE_NAME";
     case OBJECT: return "OBJECT";
     case KNOWN_OBJECT: return "KNOWN_OBJECT";
     case GENERIC: return "GENERIC";
@@ -2396,6 +2397,7 @@ static CompareIC::State InputState(CompareIC::State old_state,
       if (value->IsHeapNumber()) return CompareIC::NUMBER;
       if (value->IsInternalizedString()) return CompareIC::INTERNALIZED_STRING;
       if (value->IsString()) return CompareIC::STRING;
+      if (value->IsSymbol()) return CompareIC::UNIQUE_NAME;
       if (value->IsJSObject()) return CompareIC::OBJECT;
       break;
     case CompareIC::SMI:
@@ -2408,10 +2410,13 @@ static CompareIC::State InputState(CompareIC::State old_state,
     case CompareIC::INTERNALIZED_STRING:
       if (value->IsInternalizedString()) return CompareIC::INTERNALIZED_STRING;
       if (value->IsString()) return CompareIC::STRING;
+      if (value->IsSymbol()) return CompareIC::UNIQUE_NAME;
       break;
     case CompareIC::STRING:
-      if (value->IsInternalizedString() || value->IsString())
-        return CompareIC::STRING;
+      if (value->IsString()) return CompareIC::STRING;
+      break;
+    case CompareIC::UNIQUE_NAME:
+      if (value->IsUniqueName()) return CompareIC::UNIQUE_NAME;
       break;
     case CompareIC::OBJECT:
       if (value->IsJSObject()) return CompareIC::OBJECT;
@@ -2451,6 +2456,7 @@ CompareIC::State CompareIC::TargetState(State old_state,
       }
       if (x->IsString() && y->IsString()) return STRING;
       if (!Token::IsEqualityOp(op_)) return GENERIC;
+      if (x->IsUniqueName() && y->IsUniqueName()) return UNIQUE_NAME;
       if (x->IsJSObject() && y->IsJSObject()) {
         if (Handle<JSObject>::cast(x)->map() ==
             Handle<JSObject>::cast(y)->map()) {
@@ -2464,7 +2470,9 @@ CompareIC::State CompareIC::TargetState(State old_state,
       return x->IsNumber() && y->IsNumber() ? NUMBER : GENERIC;
     case INTERNALIZED_STRING:
       ASSERT(Token::IsEqualityOp(op_));
-      return x->IsString() && y->IsString() ? STRING : GENERIC;
+      if (x->IsString() && y->IsString()) return STRING;
+      if (x->IsUniqueName() && y->IsUniqueName()) return UNIQUE_NAME;
+      return GENERIC;
     case NUMBER:
       // If the failure was due to one side changing from smi to heap number,
       // then keep the state (if other changed at the same time, we will get
@@ -2477,6 +2485,7 @@ CompareIC::State CompareIC::TargetState(State old_state,
       if (x->IsJSObject() && y->IsJSObject()) return OBJECT;
       return GENERIC;
     case STRING:
+    case UNIQUE_NAME:
     case OBJECT:
     case GENERIC:
       return GENERIC;

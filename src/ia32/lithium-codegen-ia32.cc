@@ -5968,7 +5968,13 @@ Condition LCodeGen::EmitTypeofIs(Label* true_label,
       __ cmp(input, factory()->null_value());
       __ j(equal, true_label);
     }
-    __ CmpObjectType(input, FIRST_NONCALLABLE_SPEC_OBJECT_TYPE, input);
+    if (FLAG_harmony_symbols) {
+      __ CmpObjectType(input, SYMBOL_TYPE, input);
+      __ j(equal, true_label);
+      __ CmpInstanceType(input, FIRST_NONCALLABLE_SPEC_OBJECT_TYPE);
+    } else {
+      __ CmpObjectType(input, FIRST_NONCALLABLE_SPEC_OBJECT_TYPE, input);
+    }
     __ j(below, false_label);
     __ CmpInstanceType(input, LAST_NONCALLABLE_SPEC_OBJECT_TYPE);
     __ j(above, false_label);

@@ -6091,8 +6091,15 @@ Condition LCodeGen::EmitTypeofIs(Label* true_label,
       __ CompareRoot(input, Heap::kNullValueRootIndex);
       __ b(eq, true_label);
     }
-    __ CompareObjectType(input, input, scratch,
-                         FIRST_NONCALLABLE_SPEC_OBJECT_TYPE);
+    if (FLAG_harmony_symbols) {
+      __ CompareObjectType(input, input, scratch, SYMBOL_TYPE);
+      __ b(eq, true_label);
+      __ CompareInstanceType(input, scratch,
+                             FIRST_NONCALLABLE_SPEC_OBJECT_TYPE);
+    } else {
+      __ CompareObjectType(input, input, scratch,
+                           FIRST_NONCALLABLE_SPEC_OBJECT_TYPE);
+    }
     __ b(lt, false_label);
     __ CompareInstanceType(input, scratch, LAST_NONCALLABLE_SPEC_OBJECT_TYPE);
     __ b(gt, false_label);

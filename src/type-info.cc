@@ -265,6 +265,8 @@ Handle<JSObject> TypeFeedbackOracle::GetPrototypeForPrimitiveCheck(
     case RECEIVER_MAP_CHECK:
       UNREACHABLE();
       break;
+    case SYMBOL_CHECK:
+      return Handle<JSObject>(native_context_->symbol_delegate());
     case STRING_CHECK:
       function = native_context_->string_function();
       break;

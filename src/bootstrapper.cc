@@ -1446,6 +1446,9 @@ void Genesis::InstallNativeFunctions() {
 }
 
 void Genesis::InstallExperimentalNativeFunctions() {
+  if (FLAG_harmony_symbols) {
+    INSTALL_NATIVE(JSObject, "SymbolDelegate", symbol_delegate);
+  }
   if (FLAG_harmony_proxies) {
     INSTALL_NATIVE(JSFunction, "DerivedHasTrap", derived_has_trap);
     INSTALL_NATIVE(JSFunction, "DerivedGetTrap", derived_get_trap);
@@ -1893,6 +1896,11 @@ bool Genesis::InstallExperimentalNatives() {
   for (int i = ExperimentalNatives::GetDebuggerCount();
        i < ExperimentalNatives::GetBuiltinsCount();
        i++) {
+    if (FLAG_harmony_symbols &&
+        strcmp(ExperimentalNatives::GetScriptName(i).start(),
+               "native symbol.js") == 0) {
+      if (!CompileExperimentalBuiltin(isolate(), i)) return false;
+    }
     if (FLAG_harmony_proxies &&
         strcmp(ExperimentalNatives::GetScriptName(i).start(),
                "native proxy.js") == 0) {

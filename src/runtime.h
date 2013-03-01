@@ -296,6 +296,9 @@ namespace internal {
   /* Harmony modules */ \
   F(IsJSModule, 1, 1) \
   \
+  /* Harmony symbols */ \
+  F(CreateSymbol, 0, 1) \
+  \
   /* Harmony proxies */ \
   F(CreateJSProxy, 2, 1) \
   F(CreateJSFunctionProxy, 4, 1) \
@@ -509,6 +512,7 @@ namespace internal {
 #define INLINE_FUNCTION_LIST(F) \
   F(IsSmi, 1, 1)                                                             \
   F(IsNonNegativeSmi, 1, 1)                                                  \
+  F(IsSymbol, 1, 1)                                                          \
   F(IsArray, 1, 1)                                                           \
   F(IsRegExp, 1, 1)                                                          \
   F(IsConstructCall, 0, 1)                                                   \
@@ -542,7 +546,7 @@ namespace internal {
 
 
 // ----------------------------------------------------------------------------
-// INLINE_AND_RUNTIME_FUNCTION_LIST defines all inlined functions accessed
+// INLINE_RUNTIME_FUNCTION_LIST defines all inlined functions accessed
 // with a native call of the form %_name from within JS code that also have
 // a corresponding runtime function, that is called for slow cases.
 // Entries have the form F(name, number of arguments, number of return values).

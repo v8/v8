@@ -764,6 +764,7 @@ class CompareIC: public IC {
     NUMBER,
     STRING,
     INTERNALIZED_STRING,
+    UNIQUE_NAME,    // Symbol or InternalizedString
     OBJECT,         // JSObject
     KNOWN_OBJECT,   // JSObject with specific map (faster check)
     GENERIC

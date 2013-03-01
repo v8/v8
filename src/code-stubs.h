@@ -794,9 +794,9 @@ class ICCompareStub: public PlatformCodeStub {
 
  private:
   class OpField: public BitField<int, 0, 3> { };
-  class LeftStateField: public BitField<int, 3, 3> { };
-  class RightStateField: public BitField<int, 6, 3> { };
-  class HandlerStateField: public BitField<int, 9, 3> { };
+  class LeftStateField: public BitField<int, 3, 4> { };
+  class RightStateField: public BitField<int, 7, 4> { };
+  class HandlerStateField: public BitField<int, 11, 4> { };
 
   virtual void FinishCode(Handle<Code> code) {
     code->set_stub_info(MinorKey());
@@ -811,6 +811,7 @@ class ICCompareStub: public PlatformCodeStub {
   void GenerateNumbers(MacroAssembler* masm);
   void GenerateInternalizedStrings(MacroAssembler* masm);
   void GenerateStrings(MacroAssembler* masm);
+  void GenerateUniqueNames(MacroAssembler* masm);
   void GenerateObjects(MacroAssembler* masm);
   void GenerateMiss(MacroAssembler* masm);
   void GenerateKnownObjects(MacroAssembler* masm);

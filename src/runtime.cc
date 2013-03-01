@@ -681,6 +681,13 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateArrayLiteralShallow) {
 }
 
 
+RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateSymbol) {
+  NoHandleAllocation ha(isolate);
+  ASSERT(args.length() == 0);
+  return isolate->heap()->AllocateSymbol();
+}
+
+
 RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateJSProxy) {
   ASSERT(args.length() == 2);
   CONVERT_ARG_CHECKED(JSReceiver, handler, 0);

@@ -376,6 +376,9 @@ void ICCompareStub::Generate(MacroAssembler* masm) {
     case CompareIC::INTERNALIZED_STRING:
       GenerateInternalizedStrings(masm);
       break;
+    case CompareIC::UNIQUE_NAME:
+      GenerateUniqueNames(masm);
+      break;
     case CompareIC::OBJECT:
       GenerateObjects(masm);
       break;

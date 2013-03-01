@@ -677,7 +677,10 @@ enum InstanceType {
   FIRST_TYPE = 0x0,
   LAST_TYPE = JS_FUNCTION_TYPE,
   INVALID_TYPE = FIRST_TYPE - 1,
+  FIRST_NAME_TYPE = FIRST_TYPE,
   LAST_NAME_TYPE = SYMBOL_TYPE,
+  FIRST_UNIQUE_NAME_TYPE = INTERNALIZED_STRING_TYPE,
+  LAST_UNIQUE_NAME_TYPE = SYMBOL_TYPE,
   FIRST_NONSTRING_TYPE = SYMBOL_TYPE,
   // Boundaries for testing for an external array.
   FIRST_EXTERNAL_ARRAY_TYPE = EXTERNAL_BYTE_ARRAY_TYPE,
@@ -855,6 +858,7 @@ class MaybeObject BASE_EMBEDDED {
 #define HEAP_OBJECT_TYPE_LIST(V)               \
   V(HeapNumber)                                \
   V(Name)                                      \
+  V(UniqueName)                                \
   V(String)                                    \
   V(SeqString)                                 \
   V(ExternalString)                            \
@@ -1035,6 +1039,9 @@ class Object : public MaybeObject {
 
   // Return the object's prototype (might be Heap::null_value()).
   Object* GetPrototype(Isolate* isolate);
+
+  // Return the prototype, or the method holder for a value-like object.
+  Object* GetDelegate(Isolate* isolate);
 
   // Returns the permanent hash code associated with this object depending on
   // the actual object type.  Might return a failure in case no hash was

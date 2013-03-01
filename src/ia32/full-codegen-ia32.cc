@@ -2560,6 +2560,7 @@ void FullCodeGenerator::EmitIsObject(CallRuntime* expr) {
 
 
 void FullCodeGenerator::EmitIsSpecObject(CallRuntime* expr) {
+  // TODO(rossberg): incorporate symbols.
   ZoneList<Expression*>* args = expr->arguments();
   ASSERT(args->length() == 1);
 
@@ -2691,6 +2692,28 @@ void FullCodeGenerator::EmitIsStringWrapperSafeForDefaultValueOf(
   __ jmp(if_true);
 
   PrepareForBailoutBeforeSplit(expr, true, if_true, if_false);
+  context()->Plug(if_true, if_false);
+}
+
+
+void FullCodeGenerator::EmitIsSymbol(CallRuntime* expr) {
+  ZoneList<Expression*>* args = expr->arguments();
+  ASSERT(args->length() == 1);
+
+  VisitForAccumulatorValue(args->at(0));
+
+  Label materialize_true, materialize_false;
+  Label* if_true = NULL;
+  Label* if_false = NULL;
+  Label* fall_through = NULL;
+  context()->PrepareTest(&materialize_true, &materialize_false,
+                         &if_true, &if_false, &fall_through);
+
+  __ JumpIfSmi(eax, if_false);
+  __ CmpObjectType(eax, SYMBOL_TYPE, ebx);
+  PrepareForBailoutBeforeSplit(expr, true, if_true, if_false);
+  Split(equal, if_true, if_false, fall_through);
+
   context()->Plug(if_true, if_false);
 }
 
@@ -4274,6 +4297,10 @@ void FullCodeGenerator::EmitLiteralCompareTypeof(Expression* expr,
     __ JumpIfSmi(eax, if_false);
     if (!FLAG_harmony_typeof) {
       __ cmp(eax, isolate()->factory()->null_value());
+      __ j(equal, if_true);
+    }
+    if (FLAG_harmony_symbols) {
+      __ CmpObjectType(eax, SYMBOL_TYPE, edx);
       __ j(equal, if_true);
     }
     __ CmpObjectType(eax, FIRST_NONCALLABLE_SPEC_OBJECT_TYPE, edx);

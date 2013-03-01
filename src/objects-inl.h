@@ -186,15 +186,19 @@ TYPE_CHECKER(HeapNumber, HEAP_NUMBER_TYPE)
 TYPE_CHECKER(Symbol, SYMBOL_TYPE)
 
 
-bool Object::IsName() {
-  return Object::IsHeapObject()
-    && HeapObject::cast(this)->map()->instance_type() <= LAST_NAME_TYPE;
-}
-
-
 bool Object::IsString() {
   return Object::IsHeapObject()
     && HeapObject::cast(this)->map()->instance_type() < FIRST_NONSTRING_TYPE;
+}
+
+
+bool Object::IsName() {
+  return IsString() || IsSymbol();
+}
+
+
+bool Object::IsUniqueName() {
+  return IsInternalizedString() || IsSymbol();
 }
 
 
@@ -2429,6 +2433,7 @@ CAST_ACCESSOR(JSObject)
 CAST_ACCESSOR(Smi)
 CAST_ACCESSOR(HeapObject)
 CAST_ACCESSOR(HeapNumber)
+CAST_ACCESSOR(Name)
 CAST_ACCESSOR(Oddball)
 CAST_ACCESSOR(JSGlobalPropertyCell)
 CAST_ACCESSOR(SharedFunctionInfo)
