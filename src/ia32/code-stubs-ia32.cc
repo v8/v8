@@ -6913,14 +6913,14 @@ void ICCompareStub::GenerateUniqueNames(MacroAssembler* masm) {
   Label succeed1;
   __ test(tmp1, Immediate(kIsInternalizedMask));
   __ j(not_zero, &succeed1);
-  __ cmpb(tmp1, static_cast<int8_t>(SYMBOL_TYPE));
+  __ cmpb(tmp1, static_cast<uint8_t>(SYMBOL_TYPE));
   __ j(not_equal, &miss);
   __ bind(&succeed1);
 
   Label succeed2;
   __ test(tmp2, Immediate(kIsInternalizedMask));
   __ j(not_zero, &succeed2);
-  __ cmpb(tmp2, static_cast<int8_t>(SYMBOL_TYPE));
+  __ cmpb(tmp2, static_cast<uint8_t>(SYMBOL_TYPE));
   __ j(not_equal, &miss);
   __ bind(&succeed2);
 
