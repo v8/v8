@@ -6261,7 +6261,7 @@ void NameDictionaryLookupStub::GenerateNegativeLookup(MacroAssembler* masm,
              Immediate(kIsInternalizedMask));
     __ j(not_zero, &good, Label::kNear);
     __ cmpb(FieldOperand(entity_name, Map::kInstanceTypeOffset),
-            Immediate(static_cast<int8_t>(SYMBOL_TYPE)));
+            Immediate(static_cast<uint8_t>(SYMBOL_TYPE)));
     __ j(not_equal, miss);
 
     __ bind(&good);
@@ -6395,7 +6395,7 @@ void NameDictionaryLookupStub::Generate(MacroAssembler* masm) {
                Immediate(kIsInternalizedMask));
       __ j(not_zero, &cont);
       __ cmpb(FieldOperand(scratch, Map::kInstanceTypeOffset),
-              Immediate(static_cast<int8_t>(SYMBOL_TYPE)));
+              Immediate(static_cast<uint8_t>(SYMBOL_TYPE)));
       __ j(not_equal, &maybe_in_dictionary);
       __ bind(&cont);
     }
