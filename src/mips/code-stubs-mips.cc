@@ -1577,12 +1577,13 @@ static void EmitStrictTwoHeapObjectCompare(MacroAssembler* masm,
     // Check for oddballs: true, false, null, undefined.
     __ Branch(&return_not_equal, eq, a3, Operand(ODDBALL_TYPE));
 
-    // Now that we have the types we might as well check for symbol-symbol.
-    // Ensure that no non-strings have the symbol bit set.
-    STATIC_ASSERT(LAST_TYPE < kNotStringTag + kIsSymbolMask);
-    STATIC_ASSERT(kSymbolTag != 0);
+    // Now that we have the types we might as well check for
+    // internalized-internalized.
+    // Ensure that no non-strings have the internalized bit set.
+    STATIC_ASSERT(LAST_TYPE < kNotStringTag + kIsInternalizedMask);
+    STATIC_ASSERT(kInternalizedTag != 0);
     __ And(t2, a2, Operand(a3));
-    __ And(t0, t2, Operand(kIsSymbolMask));
+    __ And(t0, t2, Operand(kIsInternalizedMask));
     __ Branch(&return_not_equal, ne, t0, Operand(zero_reg));
 }
 
@@ -1620,30 +1621,30 @@ static void EmitCheckForTwoHeapNumbers(MacroAssembler* masm,
 }
 
 
-// Fast negative check for symbol-to-symbol equality.
-static void EmitCheckForSymbolsOrObjects(MacroAssembler* masm,
-                                         Register lhs,
-                                         Register rhs,
-                                         Label* possible_strings,
-                                         Label* not_both_strings) {
+// Fast negative check for internalized-to-internalized equality.
+static void EmitCheckForInternalizedStringsOrObjects(MacroAssembler* masm,
+                                                     Register lhs,
+                                                     Register rhs,
+                                                     Label* possible_strings,
+                                                     Label* not_both_strings) {
   ASSERT((lhs.is(a0) && rhs.is(a1)) ||
          (lhs.is(a1) && rhs.is(a0)));
 
   // a2 is object type of lhs.
-  // Ensure that no non-strings have the symbol bit set.
+  // Ensure that no non-strings have the internalized bit set.
   Label object_test;
-  STATIC_ASSERT(kSymbolTag != 0);
+  STATIC_ASSERT(kInternalizedTag != 0);
   __ And(at, a2, Operand(kIsNotStringMask));
   __ Branch(&object_test, ne, at, Operand(zero_reg));
-  __ And(at, a2, Operand(kIsSymbolMask));
+  __ And(at, a2, Operand(kIsInternalizedMask));
   __ Branch(possible_strings, eq, at, Operand(zero_reg));
   __ GetObjectType(rhs, a3, a3);
   __ Branch(not_both_strings, ge, a3, Operand(FIRST_NONSTRING_TYPE));
-  __ And(at, a3, Operand(kIsSymbolMask));
+  __ And(at, a3, Operand(kIsInternalizedMask));
   __ Branch(possible_strings, eq, at, Operand(zero_reg));
 
-  // Both are symbols. We already checked they weren't the same pointer
-  // so they are not equal.
+  // Both are internalized strings. We already checked they weren't the same
+  // pointer so they are not equal.
   __ Ret(USE_DELAY_SLOT);
   __ li(v0, Operand(1));   // Non-zero indicates not equal.
 
@@ -1789,7 +1790,7 @@ static void ICCompareStub_CheckInputType(MacroAssembler* masm,
     __ CheckMap(input, scratch, Heap::kHeapNumberMapRootIndex, fail,
                 DONT_DO_SMI_CHECK);
   }
-  // We could be strict about symbol/string here, but as long as
+  // We could be strict about internalized/string here, but as long as
   // hydrogen doesn't care, the stub doesn't have to care either.
   __ bind(&ok);
 }
@@ -1902,25 +1903,28 @@ void ICCompareStub::GenerateGeneric(MacroAssembler* masm) {
     EmitStrictTwoHeapObjectCompare(masm, lhs, rhs);
   }
 
-  Label check_for_symbols;
+  Label check_for_internalized_strings;
   Label flat_string_check;
   // Check for heap-number-heap-number comparison. Can jump to slow case,
   // or load both doubles and jump to the code that handles
-  // that case. If the inputs are not doubles then jumps to check_for_symbols.
+  // that case. If the inputs are not doubles then jumps to
+  // check_for_internalized_strings.
   // In this case a2 will contain the type of lhs_.
   EmitCheckForTwoHeapNumbers(masm,
                              lhs,
                              rhs,
                              &both_loaded_as_doubles,
-                             &check_for_symbols,
+                             &check_for_internalized_strings,
                              &flat_string_check);
 
-  __ bind(&check_for_symbols);
+  __ bind(&check_for_internalized_strings);
   if (cc == eq && !strict()) {
-    // Returns an answer for two symbols or two detectable objects.
+    // Returns an answer for two internalized strings or two
+    // detectable objects.
     // Otherwise jumps to string case or not both strings case.
     // Assumes that a2 is the type of lhs_ on entry.
-    EmitCheckForSymbolsOrObjects(masm, lhs, rhs, &flat_string_check, &slow);
+    EmitCheckForInternalizedStringsOrObjects(
+        masm, lhs, rhs, &flat_string_check, &slow);
   }
 
   // Check for both being sequential ASCII strings, and inline if that is the
@@ -4534,7 +4538,7 @@ void ArrayLengthStub::Generate(MacroAssembler* masm) {
     //  -- a1    : receiver
     // -----------------------------------
     __ Branch(&miss, ne, a0,
-        Operand(masm->isolate()->factory()->length_symbol()));
+        Operand(masm->isolate()->factory()->length_string()));
     receiver = a1;
   } else {
     ASSERT(kind() == Code::LOAD_IC);
@@ -4563,7 +4567,7 @@ void FunctionPrototypeStub::Generate(MacroAssembler* masm) {
     //  -- a1    : receiver
     // -----------------------------------
     __ Branch(&miss, ne, a0,
-        Operand(masm->isolate()->factory()->prototype_symbol()));
+        Operand(masm->isolate()->factory()->prototype_string()));
     receiver = a1;
   } else {
     ASSERT(kind() == Code::LOAD_IC);
@@ -4592,7 +4596,7 @@ void StringLengthStub::Generate(MacroAssembler* masm) {
     //  -- a1    : receiver
     // -----------------------------------
     __ Branch(&miss, ne, a0,
-        Operand(masm->isolate()->factory()->length_symbol()));
+        Operand(masm->isolate()->factory()->length_string()));
     receiver = a1;
   } else {
     ASSERT(kind() == Code::LOAD_IC);
@@ -4630,7 +4634,7 @@ void StoreArrayLengthStub::Generate(MacroAssembler* masm) {
     //  -- a2    : receiver
     // -----------------------------------
     __ Branch(&miss, ne, a1,
-        Operand(masm->isolate()->factory()->length_symbol()));
+        Operand(masm->isolate()->factory()->length_string()));
     receiver = a2;
     value = a0;
   } else {
@@ -5224,7 +5228,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // (3) Cons string.  Check that it's flat.
   // Replace subject with first string and reload instance type.
   __ lw(a0, FieldMemOperand(subject, ConsString::kSecondOffset));
-  __ LoadRoot(a1, Heap::kEmptyStringRootIndex);
+  __ LoadRoot(a1, Heap::kempty_stringRootIndex);
   __ Branch(&runtime, ne, a0, Operand(a1));
   __ lw(subject, FieldMemOperand(subject, ConsString::kFirstOffset));
 
@@ -6102,7 +6106,7 @@ void StringHelper::GenerateTwoCharacterStringTableProbe(MacroAssembler* masm,
   Register scratch = scratch3;
 
   // Make sure that both characters are not digits as such strings has a
-  // different hash algorithm. Don't try to look for these in the symbol table.
+  // different hash algorithm. Don't try to look for these in the string table.
   Label not_array_index;
   __ Subu(scratch, c1, Operand(static_cast<int>('0')));
   __ Branch(&not_array_index,
@@ -6137,21 +6141,21 @@ void StringHelper::GenerateTwoCharacterStringTableProbe(MacroAssembler* masm,
   // chars: two character string, char 1 in byte 0 and char 2 in byte 1.
   // hash:  hash of two character string.
 
-  // Load symbol table.
-  // Load address of first element of the symbol table.
+  // Load string table.
+  // Load address of first element of the string table.
   Register string_table = c2;
   __ LoadRoot(string_table, Heap::kStringTableRootIndex);
 
   Register undefined = scratch4;
   __ LoadRoot(undefined, Heap::kUndefinedValueRootIndex);
 
-  // Calculate capacity mask from the symbol table capacity.
+  // Calculate capacity mask from the string table capacity.
   Register mask = scratch2;
   __ lw(mask, FieldMemOperand(string_table, StringTable::kCapacityOffset));
   __ sra(mask, mask, 1);
   __ Addu(mask, mask, -1);
 
-  // Calculate untagged address of the first element of the symbol table.
+  // Calculate untagged address of the first element of the string table.
   Register first_string_table_element = string_table;
   __ Addu(first_string_table_element, string_table,
          Operand(StringTable::kElementsStartOffset - kHeapObjectTag));
@@ -6161,17 +6165,17 @@ void StringHelper::GenerateTwoCharacterStringTableProbe(MacroAssembler* masm,
   // hash:  hash of two character string
   // mask:  capacity mask
   // first_string_table_element: address of the first element of
-  //                             the symbol table
+  //                             the string table
   // undefined: the undefined object
   // scratch: -
 
-  // Perform a number of probes in the symbol table.
+  // Perform a number of probes in the string table.
   const int kProbes = 4;
   Label found_in_string_table;
   Label next_probe[kProbes];
   Register candidate = scratch5;  // Scratch register contains candidate.
   for (int i = 0; i < kProbes; i++) {
-    // Calculate entry in symbol table.
+    // Calculate entry in string table.
     if (i > 0) {
       __ Addu(candidate, hash, Operand(StringTable::GetProbeOffset(i)));
     } else {
@@ -6195,7 +6199,7 @@ void StringHelper::GenerateTwoCharacterStringTableProbe(MacroAssembler* masm,
     // Must be the hole (deleted entry).
     if (FLAG_debug_code) {
       __ LoadRoot(scratch, Heap::kTheHoleValueRootIndex);
-      __ Assert(eq, "oddball in symbol table is not undefined or the hole",
+      __ Assert(eq, "oddball in string table is not undefined or the hole",
           scratch, Operand(candidate));
     }
     __ jmp(&next_probe[i]);
@@ -6356,7 +6360,7 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   __ Branch(&sliced_string, ne, t0, Operand(zero_reg));
   // Cons string.  Check whether it is flat, then fetch first part.
   __ lw(t1, FieldMemOperand(v0, ConsString::kSecondOffset));
-  __ LoadRoot(t0, Heap::kEmptyStringRootIndex);
+  __ LoadRoot(t0, Heap::kempty_stringRootIndex);
   __ Branch(&runtime, ne, t1, Operand(t0));
   __ lw(t1, FieldMemOperand(v0, ConsString::kFirstOffset));
   // Update instance type.
@@ -6739,8 +6743,8 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   // Adding two lengths can't overflow.
   STATIC_ASSERT(String::kMaxLength < String::kMaxLength * 2);
   __ Addu(t2, a2, Operand(a3));
-  // Use the symbol table when adding two one character strings, as it
-  // helps later optimizations to return a symbol here.
+  // Use the string table when adding two one character strings, as it
+  // helps later optimizations to return a string here.
   __ Branch(&longer_than_two, ne, t2, Operand(2));
 
   // Check that both strings are non-external ASCII strings.
@@ -6757,7 +6761,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   __ lbu(a2, FieldMemOperand(a0, SeqOneByteString::kHeaderSize));
   __ lbu(a3, FieldMemOperand(a1, SeqOneByteString::kHeaderSize));
 
-  // Try to lookup two character string in symbol table. If it is not found
+  // Try to lookup two character string in string table. If it is not found
   // just allocate a new one.
   Label make_two_character_string;
   StringHelper::GenerateTwoCharacterStringTableProbe(
@@ -7102,7 +7106,7 @@ void ICCompareStub::GenerateNumbers(MacroAssembler* masm) {
 }
 
 
-void ICCompareStub::GenerateSymbols(MacroAssembler* masm) {
+void ICCompareStub::GenerateInternalizedStrings(MacroAssembler* masm) {
   ASSERT(state_ == CompareIC::SYMBOL);
   Label miss;
 
@@ -7115,14 +7119,14 @@ void ICCompareStub::GenerateSymbols(MacroAssembler* masm) {
   // Check that both operands are heap objects.
   __ JumpIfEitherSmi(left, right, &miss);
 
-  // Check that both operands are symbols.
+  // Check that both operands are internalized strings.
   __ lw(tmp1, FieldMemOperand(left, HeapObject::kMapOffset));
   __ lw(tmp2, FieldMemOperand(right, HeapObject::kMapOffset));
   __ lbu(tmp1, FieldMemOperand(tmp1, Map::kInstanceTypeOffset));
   __ lbu(tmp2, FieldMemOperand(tmp2, Map::kInstanceTypeOffset));
-  STATIC_ASSERT(kSymbolTag != 0);
+  STATIC_ASSERT(kInternalizedTag != 0);
   __ And(tmp1, tmp1, Operand(tmp2));
-  __ And(tmp1, tmp1, kIsSymbolMask);
+  __ And(tmp1, tmp1, kIsInternalizedMask);
   __ Branch(&miss, eq, tmp1, Operand(zero_reg));
   // Make sure a0 is non-zero. At this point input operands are
   // guaranteed to be non-zero.
@@ -7130,7 +7134,7 @@ void ICCompareStub::GenerateSymbols(MacroAssembler* masm) {
   STATIC_ASSERT(EQUAL == 0);
   STATIC_ASSERT(kSmiTag == 0);
   __ mov(v0, right);
-  // Symbols are compared by identity.
+  // Internalized strings are compared by identity.
   __ Ret(ne, left, Operand(right));
   __ li(v0, Operand(Smi::FromInt(EQUAL)));
   __ Ret();
@@ -7180,13 +7184,13 @@ void ICCompareStub::GenerateStrings(MacroAssembler* masm) {
 
   // Handle not identical strings.
 
-  // Check that both strings are symbols. If they are, we're done
+  // Check that both strings are internalized strings. If they are, we're done
   // because we already know they are not identical.
   if (equality) {
     ASSERT(GetCondition() == eq);
-    STATIC_ASSERT(kSymbolTag != 0);
+    STATIC_ASSERT(kInternalizedTag != 0);
     __ And(tmp3, tmp1, Operand(tmp2));
-    __ And(tmp5, tmp3, Operand(kIsSymbolMask));
+    __ And(tmp5, tmp3, Operand(kIsInternalizedMask));
     Label is_symbol;
     __ Branch(&is_symbol, eq, tmp5, Operand(zero_reg));
     // Make sure a0 is non-zero. At this point input operands are
@@ -7389,11 +7393,11 @@ void StringDictionaryLookupStub::GenerateNegativeLookup(MacroAssembler* masm,
       Label the_hole;
       __ Branch(&the_hole, eq, entity_name, Operand(tmp));
 
-      // Check if the entry name is not a symbol.
+      // Check if the entry name is not a internalized string.
       __ lw(entity_name, FieldMemOperand(entity_name, HeapObject::kMapOffset));
       __ lbu(entity_name,
              FieldMemOperand(entity_name, Map::kInstanceTypeOffset));
-      __ And(scratch0, entity_name, Operand(kIsSymbolMask));
+      __ And(scratch0, entity_name, Operand(kIsInternalizedMask));
       __ Branch(miss, eq, scratch0, Operand(zero_reg));
 
       __ bind(&the_hole);
@@ -7569,11 +7573,11 @@ void StringDictionaryLookupStub::Generate(MacroAssembler* masm) {
     __ Branch(&in_dictionary, eq, entry_key, Operand(key));
 
     if (i != kTotalProbes - 1 && mode_ == NEGATIVE_LOOKUP) {
-      // Check if the entry name is not a symbol.
+      // Check if the entry name is not a internalized string.
       __ lw(entry_key, FieldMemOperand(entry_key, HeapObject::kMapOffset));
       __ lbu(entry_key,
              FieldMemOperand(entry_key, Map::kInstanceTypeOffset));
-      __ And(result, entry_key, Operand(kIsSymbolMask));
+      __ And(result, entry_key, Operand(kIsInternalizedMask));
       __ Branch(&maybe_in_dictionary, eq, result, Operand(zero_reg));
     }
   }

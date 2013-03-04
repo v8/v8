@@ -121,14 +121,14 @@ static void ProbeTable(Isolate* isolate,
 // the property. This function may return false negatives, so miss_label
 // must always call a backup property check that is complete.
 // This function is safe to call if the receiver has fast properties.
-// Name must be a symbol and receiver must be a heap object.
+// Name must be internalized and receiver must be a heap object.
 static void GenerateDictionaryNegativeLookup(MacroAssembler* masm,
                                              Label* miss_label,
                                              Register receiver,
                                              Handle<String> name,
                                              Register scratch0,
                                              Register scratch1) {
-  ASSERT(name->IsSymbol());
+  ASSERT(name->IsInternalizedString());
   Counters* counters = masm->isolate()->counters();
   __ IncrementCounter(counters->negative_lookups(), 1, scratch0, scratch1);
   __ IncrementCounter(counters->negative_lookups_miss(), 1, scratch0, scratch1);
@@ -1103,7 +1103,7 @@ Register StubCompiler::CheckPrototypes(Handle<JSObject> object,
     if (!current->HasFastProperties() &&
         !current->IsJSGlobalObject() &&
         !current->IsJSGlobalProxy()) {
-      if (!name->IsSymbol()) {
+      if (!name->IsInternalizedString()) {
         name = factory()->InternalizeString(name);
       }
       ASSERT(current->property_dictionary()->FindEntry(*name) ==
@@ -2001,7 +2001,7 @@ Handle<Code> CallStubCompiler::CompileStringCharAtCall(
 
   if (index_out_of_range.is_linked()) {
     __ bind(&index_out_of_range);
-    __ LoadRoot(v0, Heap::kEmptyStringRootIndex);
+    __ LoadRoot(v0, Heap::kempty_stringRootIndex);
     __ Drop(argc + 1);
     __ Ret();
   }
@@ -2420,7 +2420,7 @@ void CallStubCompiler::CompileHandlerFrontend(Handle<Object> object,
       break;
 
     case STRING_CHECK:
-      // Check that the object is a two-byte string or a symbol.
+      // Check that the object is a string.
       __ GetObjectType(a1, a3, a3);
       __ Branch(&miss, Ugreater_equal, a3, Operand(FIRST_NONSTRING_TYPE));
       // Check that the maps starting from the prototype haven't changed.

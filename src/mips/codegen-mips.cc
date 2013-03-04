@@ -475,7 +475,7 @@ void StringCharLoadGenerator::Generate(MacroAssembler* masm,
   // the string.
   __ bind(&cons_string);
   __ lw(result, FieldMemOperand(string, ConsString::kSecondOffset));
-  __ LoadRoot(at, Heap::kEmptyStringRootIndex);
+  __ LoadRoot(at, Heap::kempty_stringRootIndex);
   __ Branch(call_runtime, ne, result, Operand(at));
   // Get the first of the two strings and load its instance type.
   __ lw(string, FieldMemOperand(string, ConsString::kFirstOffset));

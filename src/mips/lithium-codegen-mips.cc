@@ -2327,12 +2327,12 @@ void LCodeGen::EmitClassOfTest(Label* is_true,
   __ lw(temp, FieldMemOperand(temp, JSFunction::kSharedFunctionInfoOffset));
   __ lw(temp, FieldMemOperand(temp,
                                SharedFunctionInfo::kInstanceClassNameOffset));
-  // The class name we are testing against is a symbol because it's a literal.
-  // The name in the constructor is a symbol because of the way the context is
-  // booted.  This routine isn't expected to work for random API-created
+  // The class name we are testing against is internalized since it's a literal.
+  // The name in the constructor is internalized because of the way the context
+  // is booted.  This routine isn't expected to work for random API-created
   // classes and it doesn't have to because you can't access it with natives
-  // syntax.  Since both sides are symbols it is sufficient to use an identity
-  // comparison.
+  // syntax.  Since both sides are internalized it is sufficient to use an
+  // identity comparison.
 
   // End with the address of this class_name instance in temp register.
   // On MIPS, the caller must do the comparison with Handle<String>class_name.
@@ -5720,7 +5720,7 @@ Condition LCodeGen::EmitTypeofIs(Label* true_label,
   // register.
   Condition final_branch_condition = kNoCondition;
   Register scratch = scratch0();
-  if (type_name->Equals(heap()->number_symbol())) {
+  if (type_name->Equals(heap()->number_string())) {
     __ JumpIfSmi(input, true_label);
     __ lw(input, FieldMemOperand(input, HeapObject::kMapOffset));
     __ LoadRoot(at, Heap::kHeapNumberMapRootIndex);
@@ -5728,7 +5728,7 @@ Condition LCodeGen::EmitTypeofIs(Label* true_label,
     cmp2 = Operand(at);
     final_branch_condition = eq;
 
-  } else if (type_name->Equals(heap()->string_symbol())) {
+  } else if (type_name->Equals(heap()->string_string())) {
     __ JumpIfSmi(input, false_label);
     __ GetObjectType(input, input, scratch);
     __ Branch(USE_DELAY_SLOT, false_label,
@@ -5741,7 +5741,7 @@ Condition LCodeGen::EmitTypeofIs(Label* true_label,
     cmp2 = Operand(zero_reg);
     final_branch_condition = eq;
 
-  } else if (type_name->Equals(heap()->boolean_symbol())) {
+  } else if (type_name->Equals(heap()->boolean_string())) {
     __ LoadRoot(at, Heap::kTrueValueRootIndex);
     __ Branch(USE_DELAY_SLOT, true_label, eq, at, Operand(input));
     __ LoadRoot(at, Heap::kFalseValueRootIndex);
@@ -5749,13 +5749,13 @@ Condition LCodeGen::EmitTypeofIs(Label* true_label,
     cmp2 = Operand(input);
     final_branch_condition = eq;
 
-  } else if (FLAG_harmony_typeof && type_name->Equals(heap()->null_symbol())) {
+  } else if (FLAG_harmony_typeof && type_name->Equals(heap()->null_string())) {
     __ LoadRoot(at, Heap::kNullValueRootIndex);
     cmp1 = at;
     cmp2 = Operand(input);
     final_branch_condition = eq;
 
-  } else if (type_name->Equals(heap()->undefined_symbol())) {
+  } else if (type_name->Equals(heap()->undefined_string())) {
     __ LoadRoot(at, Heap::kUndefinedValueRootIndex);
     __ Branch(USE_DELAY_SLOT, true_label, eq, at, Operand(input));
     // The first instruction of JumpIfSmi is an And - it is safe in the delay
@@ -5769,7 +5769,7 @@ Condition LCodeGen::EmitTypeofIs(Label* true_label,
     cmp2 = Operand(zero_reg);
     final_branch_condition = ne;
 
-  } else if (type_name->Equals(heap()->function_symbol())) {
+  } else if (type_name->Equals(heap()->function_string())) {
     STATIC_ASSERT(NUM_OF_CALLABLE_SPEC_OBJECT_TYPES == 2);
     __ JumpIfSmi(input, false_label);
     __ GetObjectType(input, scratch, input);
@@ -5778,7 +5778,7 @@ Condition LCodeGen::EmitTypeofIs(Label* true_label,
     cmp2 = Operand(JS_FUNCTION_PROXY_TYPE);
     final_branch_condition = eq;
 
-  } else if (type_name->Equals(heap()->object_symbol())) {
+  } else if (type_name->Equals(heap()->object_string())) {
     __ JumpIfSmi(input, false_label);
     if (!FLAG_harmony_typeof) {
       __ LoadRoot(at, Heap::kNullValueRootIndex);
