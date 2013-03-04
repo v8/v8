@@ -71,7 +71,7 @@ function GetCompletions(global, last, full) {
         result.push(name);
       }
     }
-    current = ToInspectableObject(current.__proto__);
+    current = ToInspectableObject(Object.getPrototypeOf(current));
   }
   return result;
 }

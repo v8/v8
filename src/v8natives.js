@@ -94,7 +94,7 @@ function SetUpLockedPrototype(constructor, fields, methods) {
     %SetProperty(prototype, key, f, DONT_ENUM | DONT_DELETE | READ_ONLY);
     %SetNativeFlag(f);
   }
-  prototype.__proto__ = null;
+  %SetPrototype(prototype, null);
   %ToFastProperties(prototype);
 }
 
@@ -1074,8 +1074,7 @@ function ObjectCreate(proto, properties) {
   if (!IS_SPEC_OBJECT(proto) && proto !== null) {
     throw MakeTypeError("proto_object_or_null", [proto]);
   }
-  var obj = new $Object();
-  obj.__proto__ = proto;
+  var obj = { __proto__: proto };
   if (!IS_UNDEFINED(properties)) ObjectDefineProperties(obj, properties);
   return obj;
 }

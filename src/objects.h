@@ -4872,7 +4872,7 @@ class Map: public HeapObject {
   inline bool function_with_prototype();
 
   // Tells whether the instance with this map should be ignored by the
-  // __proto__ accessor.
+  // Object.getPrototypeOf() function and the __proto__ accessor.
   inline void set_is_hidden_prototype() {
     set_bit_field(bit_field() | (1 << kIsHiddenPrototype));
   }

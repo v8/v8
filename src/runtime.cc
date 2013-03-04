@@ -975,6 +975,15 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetPrototype) {
 }
 
 
+RUNTIME_FUNCTION(MaybeObject*, Runtime_SetPrototype) {
+  NoHandleAllocation ha(isolate);
+  ASSERT(args.length() == 2);
+  CONVERT_ARG_CHECKED(JSReceiver, input_obj, 0);
+  CONVERT_ARG_CHECKED(Object, prototype, 1);
+  return input_obj->SetPrototype(prototype, true);
+}
+
+
 RUNTIME_FUNCTION(MaybeObject*, Runtime_IsInPrototypeChain) {
   NoHandleAllocation ha(isolate);
   ASSERT(args.length() == 2);

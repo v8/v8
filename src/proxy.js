@@ -77,8 +77,7 @@ function DerivedConstructTrap(callTrap) {
   return function() {
     var proto = this.prototype
     if (!IS_SPEC_OBJECT(proto)) proto = $Object.prototype
-    var obj = new $Object()
-    obj.__proto__ = proto
+    var obj = { __proto__: proto };
     var result = %Apply(callTrap, obj, arguments, 0, %_ArgumentsLength());
     return IS_SPEC_OBJECT(result) ? result : obj
   }
