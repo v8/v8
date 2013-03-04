@@ -493,8 +493,7 @@ Handle<JSFunction> Genesis::CreateEmptyFunction(Isolate* isolate) {
 
     Handle<Foreign> object_prototype(
         factory->NewForeign(&Accessors::ObjectPrototype));
-    PropertyAttributes attribs = static_cast<PropertyAttributes>(
-        DONT_ENUM | DONT_DELETE);
+    PropertyAttributes attribs = static_cast<PropertyAttributes>(DONT_ENUM);
     object_prototype_map->set_instance_descriptors(*prototype_descriptors);
 
     {  // Add __proto__.

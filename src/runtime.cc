@@ -4099,6 +4099,14 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DefineOrRedefineDataProperty) {
     if (callback->IsAccessorInfo()) {
       return isolate->heap()->undefined_value();
     }
+    // TODO(mstarzinger): The __proto__ property should actually be a real
+    // JavaScript accessor instead of a foreign callback. But for now we just
+    // avoid changing the writability and configurability attribute of this
+    // property.
+    Handle<Name> proto_string = isolate->factory()->proto_string();
+    if (callback->IsForeign() && proto_string->Equals(*name)) {
+      attr = static_cast<PropertyAttributes>(attr & ~(READ_ONLY | DONT_DELETE));
+    }
     // Avoid redefining foreign callback as data property, just use the stored
     // setter to update the value instead.
     // TODO(mstarzinger): So far this only works if property attributes don't
