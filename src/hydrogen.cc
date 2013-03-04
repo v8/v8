@@ -10511,11 +10511,13 @@ void HTracer::TraceCompilation(CompilationInfo* info) {
 
 
 void HTracer::TraceLithium(const char* name, LChunk* chunk) {
+  AllowHandleDereference allow_handle_deref(chunk->graph()->isolate());
   Trace(name, chunk->graph(), chunk);
 }
 
 
 void HTracer::TraceHydrogen(const char* name, HGraph* graph) {
+  AllowHandleDereference allow_handle_deref(graph->isolate());
   Trace(name, graph, NULL);
 }
 
@@ -10823,7 +10825,6 @@ void HPhase::End() const {
   // phase name matches the command line parameter FLAG_trace_phase.
   if (FLAG_trace_hydrogen &&
       OS::StrChr(const_cast<char*>(FLAG_trace_phase), name_[0]) != NULL) {
-    AllowHandleDereference allow_handle_deref(graph_->isolate());
     if (graph_ != NULL) HTracer::Instance()->TraceHydrogen(name_, graph_);
     if (chunk_ != NULL) HTracer::Instance()->TraceLithium(name_, chunk_);
     if (allocator_ != NULL) {
