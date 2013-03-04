@@ -550,16 +550,15 @@ void MarkCompactCollector::StartSweeperThreads() {
 
 
 void MarkCompactCollector::WaitUntilSweepingCompleted() {
-  if (sweeping_pending_) {
-    for (int i = 0; i < FLAG_sweeper_threads; i++) {
-      heap()->isolate()->sweeper_threads()[i]->WaitForSweeperThread();
-    }
-    sweeping_pending_ = false;
-    StealMemoryFromSweeperThreads(heap()->paged_space(OLD_DATA_SPACE));
-    StealMemoryFromSweeperThreads(heap()->paged_space(OLD_POINTER_SPACE));
-    heap()->paged_space(OLD_DATA_SPACE)->ResetUnsweptFreeBytes();
-    heap()->paged_space(OLD_POINTER_SPACE)->ResetUnsweptFreeBytes();
+  ASSERT(sweeping_pending_ == true);
+  for (int i = 0; i < FLAG_sweeper_threads; i++) {
+    heap()->isolate()->sweeper_threads()[i]->WaitForSweeperThread();
   }
+  sweeping_pending_ = false;
+  StealMemoryFromSweeperThreads(heap()->paged_space(OLD_DATA_SPACE));
+  StealMemoryFromSweeperThreads(heap()->paged_space(OLD_POINTER_SPACE));
+  heap()->paged_space(OLD_DATA_SPACE)->ResetUnsweptFreeBytes();
+  heap()->paged_space(OLD_POINTER_SPACE)->ResetUnsweptFreeBytes();
 }
 
 
@@ -908,7 +907,7 @@ void MarkCompactCollector::Prepare(GCTracer* tracer) {
 
   ASSERT(!FLAG_never_compact || !FLAG_always_compact);
 
-  if (AreSweeperThreadsActivated() && FLAG_concurrent_sweeping) {
+  if (IsConcurrentSweepingInProgress()) {
     // Instead of waiting we could also abort the sweeper threads here.
     WaitUntilSweepingCompleted();
     FinalizeSweeping();

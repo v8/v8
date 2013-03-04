@@ -2545,7 +2545,7 @@ void PagedSpace::EvictEvacuationCandidatesFromFreeLists() {
 bool PagedSpace::EnsureSweeperProgress(intptr_t size_in_bytes) {
   MarkCompactCollector* collector = heap()->mark_compact_collector();
   if (collector->AreSweeperThreadsActivated()) {
-    if (FLAG_concurrent_sweeping) {
+    if (collector->IsConcurrentSweepingInProgress()) {
       if (collector->StealMemoryFromSweeperThreads(this) < size_in_bytes) {
         collector->WaitUntilSweepingCompleted();
         collector->FinalizeSweeping();
