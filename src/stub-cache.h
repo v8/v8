@@ -74,6 +74,26 @@ class StubCache {
 
   void Initialize();
 
+  Handle<JSObject> StubHolder(Handle<JSObject> receiver,
+                              Handle<JSObject> holder);
+
+  Handle<Code> FindStub(Handle<String> name,
+                        Handle<JSObject> stub_holder,
+                        Code::Kind kind,
+                        Code::StubType type,
+                        Code::IcFragment fragment);
+
+  Handle<Code> FindHandler(Handle<String> name,
+                           Handle<JSObject> stub_holder,
+                           Code::Kind kind,
+                           Code::StubType type);
+
+  Handle<Code> ComputeMonomorphicIC(Handle<JSObject> receiver,
+                                    Handle<Code> handler,
+                                    Handle<String> name);
+  Handle<Code> ComputeKeyedMonomorphicIC(Handle<JSObject> receiver,
+                                         Handle<Code> handler,
+                                         Handle<String> name);
 
   // Computes the right stub matching. Inserts the result in the
   // cache before returning.  This might compile a stub if needed.
@@ -104,7 +124,8 @@ class StubCache {
                                       Handle<JSObject> object,
                                       Handle<JSObject> holder);
 
-  Handle<Code> ComputeLoadNormal();
+  Handle<Code> ComputeLoadNormal(Handle<String> name,
+                                 Handle<JSObject> object);
 
   Handle<Code> ComputeLoadGlobal(Handle<String> name,
                                  Handle<JSObject> object,
@@ -244,6 +265,10 @@ class StubCache {
   Handle<Code> ComputeStoreElementPolymorphic(MapHandleList* receiver_maps,
                                               KeyedAccessGrowMode grow_mode,
                                               StrictModeFlag strict_mode);
+
+  Handle<Code> ComputePolymorphicIC(MapHandleList* receiver_maps,
+                                    CodeHandleList* handlers,
+                                    Handle<String> name);
 
   // Finds the Code object stored in the Heap::non_monomorphic_cache().
   Code* FindCallInitialize(int argc, RelocInfo::Mode mode, Code::Kind kind);
@@ -414,6 +439,10 @@ DECLARE_RUNTIME_FUNCTION(MaybeObject*, CallInterceptorProperty);
 DECLARE_RUNTIME_FUNCTION(MaybeObject*, KeyedLoadPropertyWithInterceptor);
 
 
+enum PrototypeCheckType { CHECK_ALL_MAPS, SKIP_RECEIVER };
+enum IcCheckType { ELEMENT, PROPERTY };
+
+
 // The stub compilers compile stubs for the stub cache.
 class StubCompiler BASE_EMBEDDED {
  public:
@@ -455,6 +484,11 @@ class StubCompiler BASE_EMBEDDED {
                                        Register src,
                                        Handle<JSObject> holder,
                                        PropertyIndex index);
+  static void DoGenerateFastPropertyLoad(MacroAssembler* masm,
+                                         Register dst,
+                                         Register src,
+                                         bool inobject,
+                                         int index);
 
   static void GenerateLoadArrayLength(MacroAssembler* masm,
                                       Register receiver,
@@ -512,9 +546,10 @@ class StubCompiler BASE_EMBEDDED {
                            Register scratch1,
                            Register scratch2,
                            Handle<String> name,
-                           Label* miss) {
+                           Label* miss,
+                           PrototypeCheckType check = CHECK_ALL_MAPS) {
     return CheckPrototypes(object, object_reg, holder, holder_reg, scratch1,
-                           scratch2, name, kInvalidProtoDepth, miss);
+                           scratch2, name, kInvalidProtoDepth, miss, check);
   }
 
   Register CheckPrototypes(Handle<JSObject> object,
@@ -525,7 +560,8 @@ class StubCompiler BASE_EMBEDDED {
                            Register scratch2,
                            Handle<String> name,
                            int save_at_depth,
-                           Label* miss);
+                           Label* miss,
+                           PrototypeCheckType check = CHECK_ALL_MAPS);
 
 
  protected:
@@ -542,6 +578,8 @@ class StubCompiler BASE_EMBEDDED {
   Isolate* isolate() { return isolate_; }
   Heap* heap() { return isolate()->heap(); }
   Factory* factory() { return isolate()->factory(); }
+
+  void GenerateTailCall(Handle<Code> code);
 
  private:
   Isolate* isolate_;
@@ -578,27 +616,33 @@ class BaseLoadStubCompiler: public StubCompiler {
                                       Handle<JSObject> holder,
                                       Handle<String> name);
 
+  Handle<Code> CompileMonomorphicIC(Handle<Map> receiver_map,
+                                    Handle<Code> handler,
+                                    Handle<String> name);
+  Handle<Code> CompilePolymorphicIC(MapHandleList* receiver_maps,
+                                    CodeHandleList* handlers,
+                                    Handle<String> name,
+                                    Code::StubType type,
+                                    IcCheckType check);
+
  protected:
   Register HandlerFrontendHeader(Handle<JSObject> object,
                                  Register object_reg,
                                  Handle<JSObject> holder,
                                  Handle<String> name,
-                                 Label* success,
-                                 FrontendCheckType check);
+                                 Label* success);
   void HandlerFrontendFooter(Label* success, Label* miss);
 
   Register HandlerFrontend(Handle<JSObject> object,
                            Register object_reg,
                            Handle<JSObject> holder,
                            Handle<String> name,
-                           Label* success,
-                           FrontendCheckType check);
+                           Label* success);
   Register CallbackHandlerFrontend(Handle<JSObject> object,
                                    Register object_reg,
                                    Handle<JSObject> holder,
                                    Handle<String> name,
                                    Label* success,
-                                   FrontendCheckType check,
                                    Handle<ExecutableAccessorInfo> callback);
   void NonexistentHandlerFrontend(Handle<JSObject> object,
                                   Handle<JSObject> last,
@@ -622,6 +666,10 @@ class BaseLoadStubCompiler: public StubCompiler {
                                    Handle<String> name,
                                    LookupResult* lookup);
 
+  Handle<Code> GetCode(Code::IcFragment fragment,
+                       Code::StubType type,
+                       Handle<String> name,
+                       InlineCacheState state = MONOMORPHIC);
 
   Register receiver() { return registers_[0]; }
   Register name()     { return registers_[1]; }
@@ -632,12 +680,11 @@ class BaseLoadStubCompiler: public StubCompiler {
 
  private:
   virtual Code::Kind kind() = 0;
+  virtual Logger::LogEventsAndTags log_kind(Handle<Code> code) = 0;
+  virtual void JitEvent(Handle<String> name, Handle<Code> code) = 0;
   virtual void GenerateNameCheck(Handle<String> name,
                                  Register name_reg,
                                  Label* miss) { }
-  virtual Handle<Code> GetCode(Code::StubType type,
-                               Handle<String> name,
-                               InlineCacheState state = MONOMORPHIC) = 0;
   Register* registers_;
 };
 
@@ -666,12 +713,16 @@ class LoadStubCompiler: public BaseLoadStubCompiler {
                                  Handle<String> name,
                                  bool is_dont_delete);
 
+  static Register receiver() { return registers()[0]; }
+
  private:
-  Register* registers();
+  static Register* registers();
   virtual Code::Kind kind() { return Code::LOAD_IC; }
-  virtual Handle<Code> GetCode(Code::StubType type,
-                               Handle<String> name,
-                               InlineCacheState state = MONOMORPHIC);
+  virtual Logger::LogEventsAndTags log_kind(Handle<Code> code) {
+    return code->ic_state() == MONOMORPHIC
+        ? Logger::LOAD_IC_TAG : Logger::LOAD_POLYMORPHIC_IC_TAG;
+  }
+  virtual void JitEvent(Handle<String> name, Handle<Code> code);
 };
 
 
@@ -682,19 +733,23 @@ class KeyedLoadStubCompiler: public BaseLoadStubCompiler {
 
   Handle<Code> CompileLoadElement(Handle<Map> receiver_map);
 
-  Handle<Code> CompileLoadPolymorphic(MapHandleList* receiver_maps,
-                                      CodeHandleList* handler_ics);
+  void CompileElementHandlers(MapHandleList* receiver_maps,
+                              CodeHandleList* handlers);
 
   Handle<Code> CompileLoadElementPolymorphic(MapHandleList* receiver_maps);
 
   static void GenerateLoadDictionaryElement(MacroAssembler* masm);
 
+  static Register receiver() { return registers()[0]; }
+
  private:
-  Register* registers();
+  static Register* registers();
   virtual Code::Kind kind() { return Code::KEYED_LOAD_IC; }
-  virtual Handle<Code> GetCode(Code::StubType type,
-                               Handle<String> name,
-                               InlineCacheState state = MONOMORPHIC);
+  virtual Logger::LogEventsAndTags log_kind(Handle<Code> code) {
+    return code->ic_state() == MONOMORPHIC
+        ? Logger::KEYED_LOAD_IC_TAG : Logger::KEYED_LOAD_POLYMORPHIC_IC_TAG;
+  }
+  virtual void JitEvent(Handle<String> name, Handle<Code> code);
   virtual void GenerateNameCheck(Handle<String> name,
                                  Register name_reg,
                                  Label* miss);

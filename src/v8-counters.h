@@ -98,7 +98,7 @@ namespace internal {
   SC(alive_after_last_gc, V8.AliveAfterLastGC)                        \
   SC(objs_since_last_young, V8.ObjsSinceLastYoung)                    \
   SC(objs_since_last_full, V8.ObjsSinceLastFull)                      \
-  SC(symbol_table_capacity, V8.SymbolTableCapacity)                   \
+  SC(string_table_capacity, V8.StringTableCapacity)                   \
   SC(number_of_symbols, V8.NumberOfSymbols)                           \
   SC(script_wrappers, V8.ScriptWrappers)                              \
   SC(call_initialize_stubs, V8.CallInitializeStubs)                   \

@@ -276,7 +276,7 @@ Handle<Object> SetPropertyWithInterceptor(Handle<JSObject> object,
 Handle<Object> GetProperty(Handle<JSReceiver> obj,
                            const char* name) {
   Isolate* isolate = obj->GetIsolate();
-  Handle<String> str = isolate->factory()->LookupUtf8Symbol(name);
+  Handle<String> str = isolate->factory()->InternalizeUtf8String(name);
   CALL_HEAP_FUNCTION(isolate, obj->GetProperty(*str), Object);
 }
 
@@ -603,7 +603,7 @@ v8::Handle<v8::Array> GetKeysForIndexedInterceptor(Handle<JSReceiver> receiver,
 Handle<Object> GetScriptNameOrSourceURL(Handle<Script> script) {
   Isolate* isolate = script->GetIsolate();
   Handle<String> name_or_source_url_key =
-      isolate->factory()->LookupOneByteSymbol(
+      isolate->factory()->InternalizeOneByteString(
           STATIC_ASCII_VECTOR("nameOrSourceURL"));
   Handle<JSValue> script_wrapper = GetScriptWrapper(script);
   Handle<Object> property = GetProperty(isolate,

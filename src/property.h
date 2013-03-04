@@ -48,9 +48,9 @@ class Descriptor BASE_EMBEDDED {
     return Smi::cast(value)->value();
   }
 
-  MUST_USE_RESULT MaybeObject* KeyToSymbol() {
-    if (!StringShape(key_).IsSymbol()) {
-      MaybeObject* maybe_result = HEAP->LookupSymbol(key_);
+  MUST_USE_RESULT MaybeObject* KeyToInternalizedString() {
+    if (!StringShape(key_).IsInternalized()) {
+      MaybeObject* maybe_result = HEAP->InternalizeString(key_);
       if (!maybe_result->To(&key_)) return maybe_result;
     }
     return key_;
@@ -153,6 +153,18 @@ class PropertyIndex {
   int header_index() {
     ASSERT(is_header_index());
     return value();
+  }
+
+  bool is_inobject(Handle<JSObject> holder) {
+    if (is_header_index()) return true;
+    return field_index() < holder->map()->inobject_properties();
+  }
+
+  int translate(Handle<JSObject> holder) {
+    if (is_header_index()) return header_index();
+    int index = field_index() - holder->map()->inobject_properties();
+    if (index >= 0) return index;
+    return index + holder->map()->instance_size() / kPointerSize;
   }
 
  private:

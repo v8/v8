@@ -1356,9 +1356,9 @@ void PartialSerializer::SerializeObject(
   // should go through the root array or through the partial snapshot cache.
   // If this is not the case you may have to add something to the root array.
   ASSERT(!startup_serializer_->address_mapper()->IsMapped(heap_object));
-  // All the symbols that the partial snapshot needs should be either in the
-  // root table or in the partial snapshot cache.
-  ASSERT(!heap_object->IsSymbol());
+  // All the internalized strings that the partial snapshot needs should be
+  // either in the root table or in the partial snapshot cache.
+  ASSERT(!heap_object->IsInternalizedString());
 
   if (address_mapper_.IsMapped(heap_object)) {
     int space = SpaceOfObject(heap_object);

@@ -128,6 +128,11 @@ StaticVisitorBase::VisitorId StaticVisitorBase::GetVisitorId(
                                  kVisitDataObjectGeneric,
                                  Foreign::kSize);
 
+    case SYMBOL_TYPE:
+      return GetVisitorIdForSize(kVisitDataObject,
+                                 kVisitDataObjectGeneric,
+                                 Symbol::kSize);
+
     case FILLER_TYPE:
       return kVisitDataObjectGeneric;
 

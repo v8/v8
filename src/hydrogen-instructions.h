@@ -83,6 +83,7 @@ class LChunkBuilder;
   V(CallKnownGlobal)                           \
   V(CallNamed)                                 \
   V(CallNew)                                   \
+  V(CallNewArray)                              \
   V(CallRuntime)                               \
   V(CallStub)                                  \
   V(Change)                                    \
@@ -2210,6 +2211,25 @@ class HCallNew: public HBinaryCall {
 };
 
 
+class HCallNewArray: public HCallNew {
+ public:
+  HCallNewArray(HValue* context, HValue* constructor, int argument_count,
+              Handle<JSGlobalPropertyCell> type_cell)
+      : HCallNew(context, constructor, argument_count),
+        type_cell_(type_cell) {
+  }
+
+  Handle<JSGlobalPropertyCell> property_cell() const {
+    return type_cell_;
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(CallNewArray)
+
+ private:
+  Handle<JSGlobalPropertyCell> type_cell_;
+};
+
+
 class HCallRuntime: public HCall<1> {
  public:
   HCallRuntime(HValue* context,
@@ -2652,8 +2672,9 @@ class HCheckInstanceType: public HUnaryOperation {
   static HCheckInstanceType* NewIsString(HValue* value, Zone* zone) {
     return new(zone) HCheckInstanceType(value, IS_STRING);
   }
-  static HCheckInstanceType* NewIsSymbol(HValue* value, Zone* zone) {
-    return new(zone) HCheckInstanceType(value, IS_SYMBOL);
+  static HCheckInstanceType* NewIsInternalizedString(
+      HValue* value, Zone* zone) {
+    return new(zone) HCheckInstanceType(value, IS_INTERNALIZED_STRING);
   }
 
   virtual void PrintDataTo(StringStream* stream);
@@ -2684,7 +2705,7 @@ class HCheckInstanceType: public HUnaryOperation {
     IS_SPEC_OBJECT,
     IS_JS_ARRAY,
     IS_STRING,
-    IS_SYMBOL,
+    IS_INTERNALIZED_STRING,
     LAST_INTERVAL_CHECK = IS_JS_ARRAY
   };
 

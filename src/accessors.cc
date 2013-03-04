@@ -103,7 +103,7 @@ MaybeObject* Accessors::ArraySetLength(JSObject* object, Object* value, void*) {
   // causes an infinite loop.
   if (!object->IsJSArray()) {
     return object->SetLocalPropertyIgnoreAttributes(
-        isolate->heap()->length_symbol(), value, NONE);
+        isolate->heap()->length_string(), value, NONE);
   }
 
   value = FlattenNumber(value);
@@ -475,7 +475,7 @@ MaybeObject* Accessors::FunctionSetPrototype(JSObject* object,
   if (function_raw == NULL) return heap->undefined_value();
   if (!function_raw->should_have_prototype()) {
     // Since we hit this accessor, object will have no prototype property.
-    return object->SetLocalPropertyIgnoreAttributes(heap->prototype_symbol(),
+    return object->SetLocalPropertyIgnoreAttributes(heap->prototype_string(),
                                                     value_raw,
                                                     NONE);
   }
@@ -503,7 +503,7 @@ MaybeObject* Accessors::FunctionSetPrototype(JSObject* object,
 
   if (is_observed && !old_value->SameValue(*value)) {
     JSObject::EnqueueChangeRecord(
-        function, "updated", isolate->factory()->prototype_symbol(), old_value);
+        function, "updated", isolate->factory()->prototype_string(), old_value);
   }
 
   return *function;
@@ -630,7 +630,7 @@ MaybeObject* Accessors::FunctionGetArguments(Object* object, void*) {
         // If there is an arguments variable in the stack, we return that.
         Handle<ScopeInfo> scope_info(function->shared()->scope_info());
         int index = scope_info->StackSlotIndex(
-            isolate->heap()->arguments_symbol());
+            isolate->heap()->arguments_string());
         if (index >= 0) {
           Handle<Object> arguments(frame->GetExpression(index), isolate);
           if (!arguments->IsArgumentsMarker()) return *arguments;
@@ -826,7 +826,7 @@ MaybeObject* Accessors::ObjectSetPrototype(JSObject* receiver_raw,
                            isolate);
   if (!new_value->SameValue(*old_value)) {
     JSObject::EnqueueChangeRecord(receiver, "prototype",
-                                  isolate->factory()->Proto_symbol(),
+                                  isolate->factory()->proto_string(),
                                   old_value);
   }
   return *hresult;

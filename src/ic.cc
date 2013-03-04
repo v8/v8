@@ -179,7 +179,7 @@ static bool TryRemoveInvalidPrototypeDependentStub(Code* target,
     // The stub was generated for JSObject but called for non-JSObject.
     // IC::GetCodeCacheHolder is not applicable.
     return false;
-  } else if (cache_holder == PROTOTYPE_MAP &&
+  } else if (cache_holder == DELEGATE_MAP &&
              receiver->GetPrototype(isolate)->IsNull()) {
     // IC::GetCodeCacheHolder is not applicable.
     return false;
@@ -756,7 +756,7 @@ void CallICBase::UpdateCaches(LookupResult* lookup,
 MaybeObject* KeyedCallIC::LoadFunction(State state,
                                        Handle<Object> object,
                                        Handle<Object> key) {
-  if (key->IsSymbol()) {
+  if (key->IsInternalizedString()) {
     return CallICBase::LoadFunction(state,
                                     Code::kNoExtraICState,
                                     object,
@@ -817,7 +817,7 @@ MaybeObject* LoadIC::Load(State state,
     // objects is read-only and therefore always returns the length of
     // the underlying string value.  See ECMA-262 15.5.5.1.
     if ((object->IsString() || object->IsStringWrapper()) &&
-        name->Equals(isolate()->heap()->length_symbol())) {
+        name->Equals(isolate()->heap()->length_string())) {
       Handle<Code> stub;
       if (state == UNINITIALIZED) {
         stub = pre_monomorphic_stub();
@@ -846,7 +846,7 @@ MaybeObject* LoadIC::Load(State state,
 
     // Use specialized code for getting the length of arrays.
     if (object->IsJSArray() &&
-        name->Equals(isolate()->heap()->length_symbol())) {
+        name->Equals(isolate()->heap()->length_string())) {
       Handle<Code> stub;
       if (state == UNINITIALIZED) {
         stub = pre_monomorphic_stub();
@@ -868,7 +868,7 @@ MaybeObject* LoadIC::Load(State state,
 
     // Use specialized code for getting prototype of functions.
     if (object->IsJSFunction() &&
-        name->Equals(isolate()->heap()->prototype_symbol()) &&
+        name->Equals(isolate()->heap()->prototype_string()) &&
         Handle<JSFunction>::cast(object)->should_have_prototype()) {
       Handle<Code> stub;
       if (state == UNINITIALIZED) {
@@ -935,6 +935,71 @@ MaybeObject* LoadIC::Load(State state,
 }
 
 
+static bool AddOneReceiverMapIfMissing(MapHandleList* receiver_maps,
+                                       Handle<Map> new_receiver_map) {
+  ASSERT(!new_receiver_map.is_null());
+  for (int current = 0; current < receiver_maps->length(); ++current) {
+    if (!receiver_maps->at(current).is_null() &&
+        receiver_maps->at(current).is_identical_to(new_receiver_map)) {
+      return false;
+    }
+  }
+  receiver_maps->Add(new_receiver_map);
+  return true;
+}
+
+
+bool IC::UpdatePolymorphicIC(State state,
+                             StrictModeFlag strict_mode,
+                             Handle<JSObject> receiver,
+                             Handle<String> name,
+                             Handle<Code> code) {
+  if (code->type() == Code::NORMAL) return false;
+  if (target()->ic_state() == MONOMORPHIC &&
+      target()->type() == Code::NORMAL) {
+    return false;
+  }
+  MapHandleList receiver_maps;
+  CodeHandleList handlers;
+  target()->FindAllMaps(&receiver_maps);
+  int number_of_maps = receiver_maps.length();
+  if (number_of_maps == 0 || number_of_maps >= 4) return false;
+
+  target()->FindAllCode(&handlers, receiver_maps.length());
+
+  if (!AddOneReceiverMapIfMissing(&receiver_maps,
+                                  Handle<Map>(receiver->map()))) {
+    return false;
+  }
+
+  handlers.Add(code);
+  Handle<Code> ic = isolate()->stub_cache()->ComputePolymorphicIC(
+      &receiver_maps, &handlers, name);
+  set_target(*ic);
+  return true;
+}
+
+
+void LoadIC::UpdateMonomorphicIC(Handle<JSObject> receiver,
+                                 Handle<Code> handler,
+                                 Handle<String> name) {
+  if (handler->type() == Code::NORMAL) return set_target(*handler);
+  Handle<Code> ic = isolate()->stub_cache()->ComputeMonomorphicIC(
+      receiver, handler, name);
+  set_target(*ic);
+}
+
+
+void KeyedLoadIC::UpdateMonomorphicIC(Handle<JSObject> receiver,
+                                      Handle<Code> handler,
+                                      Handle<String> name) {
+  if (handler->type() == Code::NORMAL) return set_target(*handler);
+  Handle<Code> ic = isolate()->stub_cache()->ComputeKeyedMonomorphicIC(
+      receiver, handler, name);
+  set_target(*ic);
+}
+
+
 void IC::PatchCache(State state,
                     StrictModeFlag strict_mode,
                     Handle<JSObject> receiver,
@@ -944,14 +1009,18 @@ void IC::PatchCache(State state,
     case UNINITIALIZED:
     case PREMONOMORPHIC:
     case MONOMORPHIC_PROTOTYPE_FAILURE:
-      set_target(*code);
+      UpdateMonomorphicIC(receiver, code, name);
       break;
     case MONOMORPHIC:
       // Only move to megamorphic if the target changes.
       if (target() != *code) {
-        // We are transitioning from monomorphic to megamorphic case.
-        // Place the current monomorphic stub and stub compiled for
-        // the receiver into stub cache.
+        if (target()->is_load_stub()) {
+          if (UpdatePolymorphicIC(state, strict_mode, receiver, name, code)) {
+            break;
+          }
+        }
+        // We are transitioning from monomorphic to megamorphic case.  Place the
+        // stub compiled for the receiver into stub cache.
         Map* map = target()->FindFirstMap();
         if (map != NULL) {
           UpdateMegamorphicCache(map, *name, target());
@@ -967,18 +1036,66 @@ void IC::PatchCache(State state,
       UpdateMegamorphicCache(receiver->map(), *name, *code);
       break;
     case POLYMORPHIC:
-      // When trying to patch a polymorphic stub with anything other than
-      // another polymorphic stub, go generic.
-      // TODO(verwaest): Currently we always go generic since no polymorphic
-      // stubs enter this code path. Replace with proper updating once named
-      // load/store can also be polymorphic.
-      set_target((strict_mode == kStrictMode)
-                 ? *generic_stub_strict()
-                 : *generic_stub());
+      if (target()->is_load_stub()) {
+        if (UpdatePolymorphicIC(state, strict_mode, receiver, name, code)) {
+          break;
+        }
+        MapHandleList receiver_maps;
+        CodeHandleList handlers;
+        target()->FindAllMaps(&receiver_maps);
+        target()->FindAllCode(&handlers, receiver_maps.length());
+        for (int i = 0; i < receiver_maps.length(); i++) {
+          UpdateMegamorphicCache(*receiver_maps.at(i), *name, *handlers.at(i));
+        }
+        UpdateMegamorphicCache(receiver->map(), *name, *code);
+        set_target(*megamorphic_stub());
+      } else {
+        // When trying to patch a polymorphic keyed load/store element stub
+        // with anything other than another polymorphic stub, go generic.
+        set_target((strict_mode == kStrictMode)
+                   ? *generic_stub_strict()
+                   : *generic_stub());
+      }
       break;
     case DEBUG_STUB:
       break;
     case GENERIC:
+      UNREACHABLE();
+      break;
+  }
+}
+
+
+static void GetReceiverMapsForStub(Handle<Code> stub,
+                                   MapHandleList* result) {
+  ASSERT(stub->is_inline_cache_stub());
+  switch (stub->ic_state()) {
+    case MONOMORPHIC: {
+      Map* map = stub->FindFirstMap();
+      if (map != NULL) {
+        result->Add(Handle<Map>(map));
+      }
+      break;
+    }
+    case POLYMORPHIC: {
+      AssertNoAllocation no_allocation;
+      int mask = RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT);
+      for (RelocIterator it(*stub, mask); !it.done(); it.next()) {
+        RelocInfo* info = it.rinfo();
+        Handle<Object> object(info->target_object(), stub->GetIsolate());
+        if (object->IsString()) break;
+        ASSERT(object->IsMap());
+        AddOneReceiverMapIfMissing(result, Handle<Map>::cast(object));
+      }
+      break;
+    }
+    case MEGAMORPHIC:
+      break;
+    case UNINITIALIZED:
+    case PREMONOMORPHIC:
+    case MONOMORPHIC_PROTOTYPE_FAILURE:
+    case GENERIC:
+    case DEBUG_STUB:
       UNREACHABLE();
       break;
   }
@@ -1004,7 +1121,7 @@ void LoadIC::UpdateCaches(LookupResult* lookup,
     // setting the monomorphic state.
     code = pre_monomorphic_stub();
   } else {
-    code = ComputeLoadMonomorphic(lookup, receiver, name);
+    code = ComputeLoadHandler(lookup, receiver, name);
     if (code.is_null()) return;
   }
 
@@ -1020,9 +1137,9 @@ void IC::UpdateMegamorphicCache(Map* map, String* name, Code* code) {
 }
 
 
-Handle<Code> LoadIC::ComputeLoadMonomorphic(LookupResult* lookup,
-                                            Handle<JSObject> receiver,
-                                            Handle<String> name) {
+Handle<Code> LoadIC::ComputeLoadHandler(LookupResult* lookup,
+                                        Handle<JSObject> receiver,
+                                        Handle<String> name) {
   if (!lookup->IsProperty()) {
     // Nonexistent property. The result is undefined.
     return isolate()->stub_cache()->ComputeLoadNonexistent(name, receiver);
@@ -1051,7 +1168,7 @@ Handle<Code> LoadIC::ComputeLoadMonomorphic(LookupResult* lookup,
       // property must be found in the receiver for the stub to be
       // applicable.
       if (!holder.is_identical_to(receiver)) break;
-      return isolate()->stub_cache()->ComputeLoadNormal();
+      return isolate()->stub_cache()->ComputeLoadNormal(name, receiver);
     case CALLBACKS: {
       Handle<Object> callback(lookup->GetCallbackObject(), isolate());
       if (callback->IsExecutableAccessorInfo()) {
@@ -1093,7 +1210,7 @@ static Handle<Object> TryConvertKey(Handle<Object> key, Isolate* isolate) {
   if (key->IsHeapNumber()) {
     double value = Handle<HeapNumber>::cast(key)->value();
     if (isnan(value)) {
-      key = isolate->factory()->nan_symbol();
+      key = isolate->factory()->nan_string();
     } else {
       int int_value = FastD2I(value);
       if (value == int_value && Smi::IsValid(int_value)) {
@@ -1101,59 +1218,9 @@ static Handle<Object> TryConvertKey(Handle<Object> key, Isolate* isolate) {
       }
     }
   } else if (key->IsUndefined()) {
-    key = isolate->factory()->undefined_symbol();
+    key = isolate->factory()->undefined_string();
   }
   return key;
-}
-
-
-static bool AddOneReceiverMapIfMissing(MapHandleList* receiver_maps,
-                                       Handle<Map> new_receiver_map) {
-  ASSERT(!new_receiver_map.is_null());
-  for (int current = 0; current < receiver_maps->length(); ++current) {
-    if (!receiver_maps->at(current).is_null() &&
-        receiver_maps->at(current).is_identical_to(new_receiver_map)) {
-      return false;
-    }
-  }
-  receiver_maps->Add(new_receiver_map);
-  return true;
-}
-
-
-static void GetReceiverMapsForStub(Handle<Code> stub,
-                                   MapHandleList* result) {
-  ASSERT(stub->is_inline_cache_stub());
-  ASSERT(stub->is_keyed_load_stub() || stub->is_keyed_store_stub());
-  switch (stub->ic_state()) {
-    case MONOMORPHIC: {
-      Map* map = stub->FindFirstMap();
-      if (map != NULL) {
-        result->Add(Handle<Map>(map));
-      }
-      break;
-    }
-    case POLYMORPHIC: {
-      AssertNoAllocation no_allocation;
-      int mask = RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT);
-      for (RelocIterator it(*stub, mask); !it.done(); it.next()) {
-        RelocInfo* info = it.rinfo();
-        Handle<Object> object(info->target_object(), stub->GetIsolate());
-        ASSERT(object->IsMap());
-        AddOneReceiverMapIfMissing(result, Handle<Map>::cast(object));
-      }
-      break;
-    }
-    case MEGAMORPHIC:
-      break;
-    case UNINITIALIZED:
-    case PREMONOMORPHIC:
-    case MONOMORPHIC_PROTOTYPE_FAILURE:
-    case GENERIC:
-    case DEBUG_STUB:
-      UNREACHABLE();
-      break;
-  }
 }
 
 
@@ -1226,11 +1293,11 @@ MaybeObject* KeyedLoadIC::Load(State state,
                                Handle<Object> object,
                                Handle<Object> key,
                                ICMissMode miss_mode) {
-  // Check for values that can be converted into a symbol directly or
-  // is representable as a smi.
+  // Check for values that can be converted into an internalized string directly
+  // or is representable as a smi.
   key = TryConvertKey(key, isolate());
 
-  if (key->IsSymbol()) {
+  if (key->IsInternalizedString()) {
     return LoadIC::Load(state, object, Handle<String>::cast(key));
   }
 
@@ -1268,9 +1335,9 @@ MaybeObject* KeyedLoadIC::Load(State state,
 }
 
 
-Handle<Code> KeyedLoadIC::ComputeLoadMonomorphic(LookupResult* lookup,
-                                                 Handle<JSObject> receiver,
-                                                 Handle<String> name) {
+Handle<Code> KeyedLoadIC::ComputeLoadHandler(LookupResult* lookup,
+                                             Handle<JSObject> receiver,
+                                             Handle<String> name) {
   // Bail out if we didn't find a result.
   if (!lookup->IsProperty()) return Handle<Code>::null();
 
@@ -1367,7 +1434,7 @@ MaybeObject* StoreIC::Store(State state,
 
   // The length property of string values is read-only. Throw in strict mode.
   if (strict_mode == kStrictMode && object->IsString() &&
-      name->Equals(isolate()->heap()->length_symbol())) {
+      name->Equals(isolate()->heap()->length_string())) {
     return TypeError("strict_read_only_property", object, name);
   }
 
@@ -1396,7 +1463,7 @@ MaybeObject* StoreIC::Store(State state,
   // property.
   if (FLAG_use_ic &&
       receiver->IsJSArray() &&
-      name->Equals(isolate()->heap()->length_symbol()) &&
+      name->Equals(isolate()->heap()->length_string()) &&
       Handle<JSArray>::cast(receiver)->AllowsSetElementsLength() &&
       receiver->HasFastProperties()) {
     Handle<Code> stub =
@@ -1723,11 +1790,11 @@ MaybeObject* KeyedStoreIC::Store(State state,
                                  Handle<Object> key,
                                  Handle<Object> value,
                                  ICMissMode miss_mode) {
-  // Check for values that can be converted into a symbol directly or
-  // is representable as a smi.
+  // Check for values that can be converted into an internalized string directly
+  // or is representable as a smi.
   key = TryConvertKey(key, isolate());
 
-  if (key->IsSymbol()) {
+  if (key->IsInternalizedString()) {
     return StoreIC::Store(state,
                           strict_mode,
                           object,
@@ -1936,7 +2003,7 @@ RUNTIME_FUNCTION(MaybeObject*, StoreIC_ArrayLength) {
 #ifdef DEBUG
   // The length property has to be a writable callback property.
   LookupResult debug_lookup(isolate);
-  receiver->LocalLookup(isolate->heap()->length_symbol(), &debug_lookup);
+  receiver->LocalLookup(isolate->heap()->length_string(), &debug_lookup);
   ASSERT(debug_lookup.IsPropertyCallbacks() && !debug_lookup.IsReadOnly());
 #endif
 
@@ -2376,8 +2443,9 @@ const char* CompareIC::GetStateName(State state) {
     case UNINITIALIZED: return "UNINITIALIZED";
     case SMI: return "SMI";
     case NUMBER: return "NUMBER";
-    case SYMBOL: return "SYMBOL";
+    case INTERNALIZED_STRING: return "INTERNALIZED_STRING";
     case STRING: return "STRING";
+    case UNIQUE_NAME: return "UNIQUE_NAME";
     case OBJECT: return "OBJECT";
     case KNOWN_OBJECT: return "KNOWN_OBJECT";
     case GENERIC: return "GENERIC";
@@ -2394,8 +2462,9 @@ static CompareIC::State InputState(CompareIC::State old_state,
     case CompareIC::UNINITIALIZED:
       if (value->IsSmi()) return CompareIC::SMI;
       if (value->IsHeapNumber()) return CompareIC::NUMBER;
-      if (value->IsSymbol()) return CompareIC::SYMBOL;
+      if (value->IsInternalizedString()) return CompareIC::INTERNALIZED_STRING;
       if (value->IsString()) return CompareIC::STRING;
+      if (value->IsSymbol()) return CompareIC::UNIQUE_NAME;
       if (value->IsJSObject()) return CompareIC::OBJECT;
       break;
     case CompareIC::SMI:
@@ -2405,12 +2474,16 @@ static CompareIC::State InputState(CompareIC::State old_state,
     case CompareIC::NUMBER:
       if (value->IsNumber()) return CompareIC::NUMBER;
       break;
-    case CompareIC::SYMBOL:
-      if (value->IsSymbol()) return CompareIC::SYMBOL;
+    case CompareIC::INTERNALIZED_STRING:
+      if (value->IsInternalizedString()) return CompareIC::INTERNALIZED_STRING;
       if (value->IsString()) return CompareIC::STRING;
+      if (value->IsSymbol()) return CompareIC::UNIQUE_NAME;
       break;
     case CompareIC::STRING:
-      if (value->IsSymbol() || value->IsString()) return CompareIC::STRING;
+      if (value->IsString()) return CompareIC::STRING;
+      break;
+    case CompareIC::UNIQUE_NAME:
+      if (value->IsUniqueName()) return CompareIC::UNIQUE_NAME;
       break;
     case CompareIC::OBJECT:
       if (value->IsJSObject()) return CompareIC::OBJECT;
@@ -2443,13 +2516,14 @@ CompareIC::State CompareIC::TargetState(State old_state,
           return NUMBER;
         }
       }
-      if (x->IsSymbol() && y->IsSymbol()) {
-        // We compare symbols as strings if we need to determine
+      if (x->IsInternalizedString() && y->IsInternalizedString()) {
+        // We compare internalized strings as plain ones if we need to determine
         // the order in a non-equality compare.
-        return Token::IsEqualityOp(op_) ? SYMBOL : STRING;
+        return Token::IsEqualityOp(op_) ? INTERNALIZED_STRING : STRING;
       }
       if (x->IsString() && y->IsString()) return STRING;
       if (!Token::IsEqualityOp(op_)) return GENERIC;
+      if (x->IsUniqueName() && y->IsUniqueName()) return UNIQUE_NAME;
       if (x->IsJSObject() && y->IsJSObject()) {
         if (Handle<JSObject>::cast(x)->map() ==
             Handle<JSObject>::cast(y)->map()) {
@@ -2461,9 +2535,11 @@ CompareIC::State CompareIC::TargetState(State old_state,
       return GENERIC;
     case SMI:
       return x->IsNumber() && y->IsNumber() ? NUMBER : GENERIC;
-    case SYMBOL:
+    case INTERNALIZED_STRING:
       ASSERT(Token::IsEqualityOp(op_));
-      return x->IsString() && y->IsString() ? STRING : GENERIC;
+      if (x->IsString() && y->IsString()) return STRING;
+      if (x->IsUniqueName() && y->IsUniqueName()) return UNIQUE_NAME;
+      return GENERIC;
     case NUMBER:
       // If the failure was due to one side changing from smi to heap number,
       // then keep the state (if other changed at the same time, we will get
@@ -2476,6 +2552,7 @@ CompareIC::State CompareIC::TargetState(State old_state,
       if (x->IsJSObject() && y->IsJSObject()) return OBJECT;
       return GENERIC;
     case STRING:
+    case UNIQUE_NAME:
     case OBJECT:
     case GENERIC:
       return GENERIC;

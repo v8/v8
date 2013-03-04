@@ -280,7 +280,7 @@ InitializationFlag ScopeInfo::ContextLocalInitFlag(int var) {
 
 
 int ScopeInfo::StackSlotIndex(String* name) {
-  ASSERT(name->IsSymbol());
+  ASSERT(name->IsInternalizedString());
   if (length() > 0) {
     int start = StackLocalEntriesIndex();
     int end = StackLocalEntriesIndex() + StackLocalCount();
@@ -297,7 +297,7 @@ int ScopeInfo::StackSlotIndex(String* name) {
 int ScopeInfo::ContextSlotIndex(String* name,
                                 VariableMode* mode,
                                 InitializationFlag* init_flag) {
-  ASSERT(name->IsSymbol());
+  ASSERT(name->IsInternalizedString());
   ASSERT(mode != NULL);
   ASSERT(init_flag != NULL);
   if (length() > 0) {
@@ -329,7 +329,7 @@ int ScopeInfo::ContextSlotIndex(String* name,
 
 
 int ScopeInfo::ParameterIndex(String* name) {
-  ASSERT(name->IsSymbol());
+  ASSERT(name->IsInternalizedString());
   if (length() > 0) {
     // We must read parameters from the end since for
     // multiply declared parameters the value of the
@@ -349,7 +349,7 @@ int ScopeInfo::ParameterIndex(String* name) {
 
 
 int ScopeInfo::FunctionContextSlotIndex(String* name, VariableMode* mode) {
-  ASSERT(name->IsSymbol());
+  ASSERT(name->IsInternalizedString());
   ASSERT(mode != NULL);
   if (length() > 0) {
     if (FunctionVariableField::decode(Flags()) == CONTEXT &&
@@ -442,13 +442,13 @@ void ContextSlotCache::Update(Object* data,
                               VariableMode mode,
                               InitializationFlag init_flag,
                               int slot_index) {
-  String* symbol;
+  String* internalized_name;
   ASSERT(slot_index > kNotFound);
-  if (HEAP->LookupSymbolIfExists(name, &symbol)) {
-    int index = Hash(data, symbol);
+  if (HEAP->InternalizeStringIfExists(name, &internalized_name)) {
+    int index = Hash(data, internalized_name);
     Key& key = keys_[index];
     key.data = data;
-    key.name = symbol;
+    key.name = internalized_name;
     // Please note value only takes a uint as index.
     values_[index] = Value(mode, init_flag, slot_index - kNotFound).raw();
 #ifdef DEBUG
@@ -470,8 +470,8 @@ void ContextSlotCache::ValidateEntry(Object* data,
                                      VariableMode mode,
                                      InitializationFlag init_flag,
                                      int slot_index) {
-  String* symbol;
-  if (HEAP->LookupSymbolIfExists(name, &symbol)) {
+  String* internalized_name;
+  if (HEAP->InternalizeStringIfExists(name, &internalized_name)) {
     int index = Hash(data, name);
     Key& key = keys_[index];
     ASSERT(key.data == data);

@@ -35,8 +35,8 @@ namespace internal {
 static bool Match(void* key1, void* key2) {
   String* name1 = *static_cast<String**>(key1);
   String* name2 = *static_cast<String**>(key2);
-  ASSERT(name1->IsSymbol());
-  ASSERT(name2->IsSymbol());
+  ASSERT(name1->IsInternalizedString());
+  ASSERT(name2->IsInternalizedString());
   return name1 == name2;
 }
 

@@ -2342,13 +2342,13 @@ void LCodeGen::EmitClassOfTest(Label* is_true,
   __ movq(temp, FieldOperand(temp, JSFunction::kSharedFunctionInfoOffset));
   __ movq(temp, FieldOperand(temp,
                              SharedFunctionInfo::kInstanceClassNameOffset));
-  // The class name we are testing against is a symbol because it's a literal.
-  // The name in the constructor is a symbol because of the way the context is
-  // booted.  This routine isn't expected to work for random API-created
+  // The class name we are testing against is internalized since it's a literal.
+  // The name in the constructor is internalized because of the way the context
+  // is booted.  This routine isn't expected to work for random API-created
   // classes and it doesn't have to because you can't access it with natives
-  // syntax.  Since both sides are symbols it is sufficient to use an identity
-  // comparison.
-  ASSERT(class_name->IsSymbol());
+  // syntax.  Since both sides are internalized it is sufficient to use an
+  // identity comparison.
+  ASSERT(class_name->IsInternalizedString());
   __ Cmp(temp, class_name);
   // End with the answer in the z flag.
 }
@@ -3534,69 +3534,57 @@ void LCodeGen::DoMathRound(LUnaryMathOperation* instr) {
   static int64_t one_half = V8_INT64_C(0x3FE0000000000000);  // 0.5
   static int64_t minus_one_half = V8_INT64_C(0xBFE0000000000000);  // -0.5
 
-  bool minus_zero_check =
-      instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero);
-
+  Label done, round_to_zero, below_one_half, do_not_compensate, restore;
   __ movq(kScratchRegister, one_half, RelocInfo::NONE64);
   __ movq(xmm_scratch, kScratchRegister);
+  __ ucomisd(xmm_scratch, input_reg);
+  __ j(above, &below_one_half);
 
-  if (CpuFeatures::IsSupported(SSE4_1) && !minus_zero_check) {
-    CpuFeatures::Scope scope(SSE4_1);
-    __ addsd(xmm_scratch, input_reg);
-    __ roundsd(xmm_scratch, xmm_scratch, Assembler::kRoundDown);
-    __ cvttsd2si(output_reg, xmm_scratch);
-    // Overflow is signalled with minint.
-    __ cmpl(output_reg, Immediate(0x80000000));
-    __ RecordComment("D2I conversion overflow");
-    DeoptimizeIf(equal, instr->environment());
-  } else {
-    Label done, round_to_zero, below_one_half, do_not_compensate;
-    __ ucomisd(xmm_scratch, input_reg);
-    __ j(above, &below_one_half);
+  // CVTTSD2SI rounds towards zero, since 0.5 <= x, we use floor(0.5 + x).
+  __ addsd(xmm_scratch, input_reg);
+  __ cvttsd2si(output_reg, xmm_scratch);
+  // Overflow is signalled with minint.
+  __ cmpl(output_reg, Immediate(0x80000000));
+  __ RecordComment("D2I conversion overflow");
+  DeoptimizeIf(equal, instr->environment());
+  __ jmp(&done);
 
-    // CVTTSD2SI rounds towards zero, since 0.5 <= x, we use floor(0.5 + x).
-    __ addsd(xmm_scratch, input_reg);
-    __ cvttsd2si(output_reg, xmm_scratch);
-    // Overflow is signalled with minint.
-    __ cmpl(output_reg, Immediate(0x80000000));
-    __ RecordComment("D2I conversion overflow");
-    DeoptimizeIf(equal, instr->environment());
-    __ jmp(&done);
+  __ bind(&below_one_half);
+  __ movq(kScratchRegister, minus_one_half, RelocInfo::NONE64);
+  __ movq(xmm_scratch, kScratchRegister);
+  __ ucomisd(xmm_scratch, input_reg);
+  __ j(below_equal, &round_to_zero);
 
-    __ bind(&below_one_half);
-    __ movq(kScratchRegister, minus_one_half, RelocInfo::NONE64);
-    __ movq(xmm_scratch, kScratchRegister);
-    __ ucomisd(xmm_scratch, input_reg);
-    __ j(below_equal, &round_to_zero);
+  // CVTTSD2SI rounds towards zero, we use ceil(x - (-0.5)) and then
+  // compare and compensate.
+  __ movq(kScratchRegister, input_reg);  // Back up input_reg.
+  __ subsd(input_reg, xmm_scratch);
+  __ cvttsd2si(output_reg, input_reg);
+  // Catch minint due to overflow, and to prevent overflow when compensating.
+  __ cmpl(output_reg, Immediate(0x80000000));
+  __ RecordComment("D2I conversion overflow");
+  DeoptimizeIf(equal, instr->environment());
 
-    // CVTTSD2SI rounds towards zero, we use ceil(x - (-0.5)) and then
-    // compare and compensate.
-    __ subsd(input_reg, xmm_scratch);
-    __ cvttsd2si(output_reg, input_reg);
-    // Catch minint due to overflow, and to prevent overflow when compensating.
-    __ cmpl(output_reg, Immediate(0x80000000));
-    __ RecordComment("D2I conversion overflow");
-    DeoptimizeIf(equal, instr->environment());
+  __ cvtlsi2sd(xmm_scratch, output_reg);
+  __ ucomisd(input_reg, xmm_scratch);
+  __ j(equal, &restore, Label::kNear);
+  __ subl(output_reg, Immediate(1));
+  // No overflow because we already ruled out minint.
+  __ bind(&restore);
+  __ movq(input_reg, kScratchRegister);  // Restore input_reg.
+  __ jmp(&done);
 
-    __ cvtlsi2sd(xmm_scratch, output_reg);
-    __ ucomisd(input_reg, xmm_scratch);
-    __ j(equal, &done, Label::kNear);
-    __ subl(output_reg, Immediate(1));
-    // No overflow because we already ruled out minint.
-    __ jmp(&done);
-
-    __ bind(&round_to_zero);
-    // We return 0 for the input range [+0, 0.5[, or [-0.5, 0.5[ if
-    // we can ignore the difference between a result of -0 and +0.
-    if (minus_zero_check) {
-      __ movq(output_reg, input_reg);
-      __ testq(output_reg, output_reg);
-      __ RecordComment("Minus zero");
-      DeoptimizeIf(negative, instr->environment());
-    }
-    __ Set(output_reg, 0);
-    __ bind(&done);
+  __ bind(&round_to_zero);
+  // We return 0 for the input range [+0, 0.5[, or [-0.5, 0.5[ if
+  // we can ignore the difference between a result of -0 and +0.
+  if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
+    __ movq(output_reg, input_reg);
+    __ testq(output_reg, output_reg);
+    __ RecordComment("Minus zero");
+    DeoptimizeIf(negative, instr->environment());
   }
+  __ Set(output_reg, 0);
+  __ bind(&done);
 }
 
 
@@ -3925,9 +3913,27 @@ void LCodeGen::DoCallNew(LCallNew* instr) {
   ASSERT(ToRegister(instr->constructor()).is(rdi));
   ASSERT(ToRegister(instr->result()).is(rax));
 
-  CallConstructStub stub(NO_CALL_FUNCTION_FLAGS);
   __ Set(rax, instr->arity());
+  if (FLAG_optimize_constructed_arrays) {
+    // No cell in ebx for construct type feedback in optimized code
+    Handle<Object> undefined_value(isolate()->factory()->undefined_value());
+    __ Move(rbx, undefined_value);
+  }
+  CallConstructStub stub(NO_CALL_FUNCTION_FLAGS);
   CallCode(stub.GetCode(isolate()), RelocInfo::CONSTRUCT_CALL, instr);
+}
+
+
+void LCodeGen::DoCallNewArray(LCallNewArray* instr) {
+  ASSERT(ToRegister(instr->constructor()).is(rdi));
+  ASSERT(ToRegister(instr->result()).is(rax));
+  ASSERT(FLAG_optimize_constructed_arrays);
+
+  __ Set(rax, instr->arity());
+  __ Move(rbx, instr->hydrogen()->property_cell());
+  Handle<Code> array_construct_code =
+      isolate()->builtins()->ArrayConstructCode();
+  CallCode(array_construct_code, RelocInfo::CONSTRUCT_CALL, instr);
 }
 
 
@@ -5503,14 +5509,14 @@ Condition LCodeGen::EmitTypeofIs(Label* true_label,
                                  Register input,
                                  Handle<String> type_name) {
   Condition final_branch_condition = no_condition;
-  if (type_name->Equals(heap()->number_symbol())) {
+  if (type_name->Equals(heap()->number_string())) {
     __ JumpIfSmi(input, true_label);
     __ CompareRoot(FieldOperand(input, HeapObject::kMapOffset),
                    Heap::kHeapNumberMapRootIndex);
 
     final_branch_condition = equal;
 
-  } else if (type_name->Equals(heap()->string_symbol())) {
+  } else if (type_name->Equals(heap()->string_string())) {
     __ JumpIfSmi(input, false_label);
     __ CmpObjectType(input, FIRST_NONSTRING_TYPE, input);
     __ j(above_equal, false_label);
@@ -5518,17 +5524,17 @@ Condition LCodeGen::EmitTypeofIs(Label* true_label,
              Immediate(1 << Map::kIsUndetectable));
     final_branch_condition = zero;
 
-  } else if (type_name->Equals(heap()->boolean_symbol())) {
+  } else if (type_name->Equals(heap()->boolean_string())) {
     __ CompareRoot(input, Heap::kTrueValueRootIndex);
     __ j(equal, true_label);
     __ CompareRoot(input, Heap::kFalseValueRootIndex);
     final_branch_condition = equal;
 
-  } else if (FLAG_harmony_typeof && type_name->Equals(heap()->null_symbol())) {
+  } else if (FLAG_harmony_typeof && type_name->Equals(heap()->null_string())) {
     __ CompareRoot(input, Heap::kNullValueRootIndex);
     final_branch_condition = equal;
 
-  } else if (type_name->Equals(heap()->undefined_symbol())) {
+  } else if (type_name->Equals(heap()->undefined_string())) {
     __ CompareRoot(input, Heap::kUndefinedValueRootIndex);
     __ j(equal, true_label);
     __ JumpIfSmi(input, false_label);
@@ -5538,7 +5544,7 @@ Condition LCodeGen::EmitTypeofIs(Label* true_label,
              Immediate(1 << Map::kIsUndetectable));
     final_branch_condition = not_zero;
 
-  } else if (type_name->Equals(heap()->function_symbol())) {
+  } else if (type_name->Equals(heap()->function_string())) {
     STATIC_ASSERT(NUM_OF_CALLABLE_SPEC_OBJECT_TYPES == 2);
     __ JumpIfSmi(input, false_label);
     __ CmpObjectType(input, JS_FUNCTION_TYPE, input);
@@ -5546,13 +5552,19 @@ Condition LCodeGen::EmitTypeofIs(Label* true_label,
     __ CmpInstanceType(input, JS_FUNCTION_PROXY_TYPE);
     final_branch_condition = equal;
 
-  } else if (type_name->Equals(heap()->object_symbol())) {
+  } else if (type_name->Equals(heap()->object_string())) {
     __ JumpIfSmi(input, false_label);
     if (!FLAG_harmony_typeof) {
       __ CompareRoot(input, Heap::kNullValueRootIndex);
       __ j(equal, true_label);
     }
-    __ CmpObjectType(input, FIRST_NONCALLABLE_SPEC_OBJECT_TYPE, input);
+    if (FLAG_harmony_symbols) {
+      __ CmpObjectType(input, SYMBOL_TYPE, input);
+      __ j(equal, true_label);
+      __ CmpInstanceType(input, FIRST_NONCALLABLE_SPEC_OBJECT_TYPE);
+    } else {
+      __ CmpObjectType(input, FIRST_NONCALLABLE_SPEC_OBJECT_TYPE, input);
+    }
     __ j(below, false_label);
     __ CmpInstanceType(input, LAST_NONCALLABLE_SPEC_OBJECT_TYPE);
     __ j(above, false_label);

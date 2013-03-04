@@ -1075,7 +1075,7 @@ HValue* HGraphBuilder::BuildAllocateElements(HContext* context,
   BuildStoreMap(elements, map, BailoutId::StubEntry());
 
   Handle<String> fixed_array_length_field_name =
-      isolate->factory()->length_field_symbol();
+      isolate->factory()->length_field_string();
   HInstruction* store_length =
       new(zone) HStoreNamedField(elements, fixed_array_length_field_name,
                                  capacity, true, FixedArray::kLengthOffset);
@@ -1092,7 +1092,7 @@ HInstruction* HGraphBuilder::BuildStoreMap(HValue* object,
   Zone* zone = this->zone();
   Isolate* isolate = graph()->isolate();
   Factory* factory = isolate->factory();
-  Handle<String> map_field_name = factory->map_field_symbol();
+  Handle<String> map_field_name = factory->map_field_string();
   HInstruction* store_map =
       new(zone) HStoreNamedField(object, map_field_name, map,
                                  true, JSObject::kMapOffset);
@@ -4753,7 +4753,19 @@ void HOptimizedGraphBuilder::VisitReturnStatement(ReturnStatement* stmt) {
       typecheck->SetSuccessorAt(1, not_spec_object);
       current_block()->Finish(typecheck);
       if_spec_object->AddLeaveInlined(return_value, state);
-      not_spec_object->AddLeaveInlined(receiver, state);
+      if (!FLAG_harmony_symbols) {
+        not_spec_object->AddLeaveInlined(receiver, state);
+      } else {
+        HHasInstanceTypeAndBranch* symbolcheck =
+          new(zone()) HHasInstanceTypeAndBranch(return_value, SYMBOL_TYPE);
+        HBasicBlock* is_symbol = graph()->CreateBasicBlock();
+        HBasicBlock* not_symbol = graph()->CreateBasicBlock();
+        symbolcheck->SetSuccessorAt(0, is_symbol);
+        symbolcheck->SetSuccessorAt(1, not_symbol);
+        not_spec_object->Finish(symbolcheck);
+        is_symbol->AddLeaveInlined(return_value, state);
+        not_symbol->AddLeaveInlined(receiver, state);
+      }
     }
   } else if (state->inlining_kind() == SETTER_CALL_RETURN) {
     // Return from an inlined setter call. The returned value is never used, the
@@ -5752,7 +5764,7 @@ void HOptimizedGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
         ASSERT(!CompileTimeValue::IsCompileTimeValue(value));
         // Fall through.
       case ObjectLiteral::Property::COMPUTED:
-        if (key->handle()->IsSymbol()) {
+        if (key->handle()->IsInternalizedString()) {
           if (property->emit_store()) {
             property->RecordTypeFeedback(oracle());
             CHECK_ALIVE(VisitForValue(value));
@@ -8478,8 +8490,21 @@ void HOptimizedGraphBuilder::VisitCallNew(CallNew* expr) {
     CHECK_ALIVE(VisitArgument(expr->expression()));
     HValue* constructor = HPushArgument::cast(Top())->argument();
     CHECK_ALIVE(VisitArgumentList(expr->arguments()));
-    HInstruction* call =
-        new(zone()) HCallNew(context, constructor, argument_count);
+    HCallNew* call;
+    if (FLAG_optimize_constructed_arrays &&
+        !(expr->target().is_null()) &&
+        *(expr->target()) == isolate()->global_context()->array_function()) {
+      Handle<Object> feedback = oracle()->GetInfo(expr->CallNewFeedbackId());
+      ASSERT(feedback->IsSmi());
+      Handle<JSGlobalPropertyCell> cell =
+          isolate()->factory()->NewJSGlobalPropertyCell(feedback);
+      AddInstruction(new(zone()) HCheckFunction(constructor,
+          Handle<JSFunction>(isolate()->global_context()->array_function())));
+      call = new(zone()) HCallNewArray(context, constructor, argument_count,
+                                       cell);
+    } else {
+      call = new(zone()) HCallNew(context, constructor, argument_count);
+    }
     Drop(argument_count);
     call->set_position(expr->position());
     return ast_context()->ReturnInstruction(call, expr->id());
@@ -9437,11 +9462,12 @@ void HOptimizedGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
       default:
         return Bailout("Unsupported non-primitive compare");
     }
-  } else if (overall_type_info.IsSymbol() && Token::IsEqualityOp(op)) {
+  } else if (overall_type_info.IsInternalizedString() &&
+             Token::IsEqualityOp(op)) {
     AddInstruction(new(zone()) HCheckNonSmi(left));
-    AddInstruction(HCheckInstanceType::NewIsSymbol(left, zone()));
+    AddInstruction(HCheckInstanceType::NewIsInternalizedString(left, zone()));
     AddInstruction(new(zone()) HCheckNonSmi(right));
-    AddInstruction(HCheckInstanceType::NewIsSymbol(right, zone()));
+    AddInstruction(HCheckInstanceType::NewIsInternalizedString(right, zone()));
     HCompareObjectEqAndBranch* result =
         new(zone()) HCompareObjectEqAndBranch(left, right);
     result->set_position(expr->position());
@@ -9662,6 +9688,16 @@ void HOptimizedGraphBuilder::GenerateIsSpecObject(CallRuntime* call) {
 }
 
 
+void HOptimizedGraphBuilder::GenerateIsSymbol(CallRuntime* call) {
+  ASSERT(call->arguments()->length() == 1);
+  CHECK_ALIVE(VisitForValue(call->arguments()->at(0)));
+  HValue* value = Pop();
+  HHasInstanceTypeAndBranch* result =
+      new(zone()) HHasInstanceTypeAndBranch(value, SYMBOL_TYPE);
+  return ast_context()->ReturnControl(result, call->id());
+}
+
+
 void HOptimizedGraphBuilder::GenerateIsFunction(CallRuntime* call) {
   ASSERT(call->arguments()->length() == 1);
   CHECK_ALIVE(VisitForValue(call->arguments()->at(0)));
@@ -9871,7 +9907,7 @@ void HOptimizedGraphBuilder::GenerateSetValueOf(CallRuntime* call) {
 
   // Create in-object property store to kValueOffset.
   set_current_block(if_js_value);
-  Handle<String> name = isolate()->factory()->undefined_symbol();
+  Handle<String> name = isolate()->factory()->undefined_string();
   AddInstruction(new(zone()) HStoreNamedField(object,
                                               name,
                                               value,
@@ -10475,11 +10511,13 @@ void HTracer::TraceCompilation(CompilationInfo* info) {
 
 
 void HTracer::TraceLithium(const char* name, LChunk* chunk) {
+  AllowHandleDereference allow_handle_deref(chunk->graph()->isolate());
   Trace(name, chunk->graph(), chunk);
 }
 
 
 void HTracer::TraceHydrogen(const char* name, HGraph* graph) {
+  AllowHandleDereference allow_handle_deref(graph->isolate());
   Trace(name, graph, NULL);
 }
 

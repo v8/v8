@@ -92,6 +92,7 @@
         'test-sockets.cc',
         'test-spaces.cc',
         'test-strings.cc',
+        'test-symbols.cc',
         'test-strtod.cc',
         'test-thread-termination.cc',
         'test-threads.cc',

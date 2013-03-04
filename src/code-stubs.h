@@ -73,6 +73,9 @@ namespace internal {
   V(CEntry)                              \
   V(JSEntry)                             \
   V(KeyedLoadElement)                    \
+  V(ArrayNoArgumentConstructor)          \
+  V(ArraySingleArgumentConstructor)      \
+  V(ArrayNArgumentsConstructor)          \
   V(KeyedStoreElement)                   \
   V(DebuggerStatement)                   \
   V(StringDictionaryLookup)              \
@@ -80,7 +83,9 @@ namespace internal {
   V(TransitionElementsKind)              \
   V(StoreArrayLiteralElement)            \
   V(StubFailureTrampoline)               \
-  V(ProfileEntryHook)
+  V(ProfileEntryHook)                    \
+  /* IC Handler stubs */                 \
+  V(LoadField)
 
 // List of code stubs only used on ARM platforms.
 #ifdef V8_TARGET_ARCH_ARM
@@ -184,6 +189,9 @@ class CodeStub BASE_EMBEDDED {
   }
   virtual Code::ExtraICState GetExtraICState() {
     return Code::kNoExtraICState;
+  }
+  virtual Code::StubType GetStubType() {
+    return Code::NORMAL;
   }
 
   // Returns whether the code generated for this stub needs to be allocated as
@@ -608,6 +616,7 @@ class StringLengthStub: public ICStub {
   virtual void Generate(MacroAssembler* masm);
 
  private:
+  STATIC_ASSERT(KindBits::kSize == 4);
   class WrapperModeBits: public BitField<bool, 4, 1> {};
   virtual CodeStub::Major MajorKey() { return StringLength; }
   virtual int MinorKey() {
@@ -629,6 +638,7 @@ class StoreICStub: public ICStub {
   }
 
  private:
+  STATIC_ASSERT(KindBits::kSize == 4);
   class StrictModeBits: public BitField<bool, 4, 1> {};
   virtual int MinorKey() {
     return KindBits::encode(kind()) | StrictModeBits::encode(strict_mode_);
@@ -646,6 +656,48 @@ class StoreArrayLengthStub: public StoreICStub {
 
  private:
   virtual CodeStub::Major MajorKey() { return StoreArrayLength; }
+};
+
+
+class HandlerStub: public ICStub {
+ public:
+  explicit HandlerStub(Code::Kind kind) : ICStub(kind) { }
+
+ protected:
+  virtual Code::ExtraICState GetExtraICState() {
+    return Code::HANDLER_FRAGMENT;
+  }
+};
+
+
+class LoadFieldStub: public HandlerStub {
+ public:
+  LoadFieldStub(Register reg, bool inobject, int index)
+      : HandlerStub(Code::LOAD_IC),
+        reg_(reg),
+        inobject_(inobject),
+        index_(index) { }
+  virtual void Generate(MacroAssembler* masm);
+
+ protected:
+  virtual Code::StubType GetStubType() { return Code::FIELD; }
+
+ private:
+  STATIC_ASSERT(KindBits::kSize == 4);
+  class RegisterBits: public BitField<int, 4, 6> {};
+  class InobjectBits: public BitField<bool, 10, 1> {};
+  class IndexBits: public BitField<int, 11, 11> {};
+  virtual CodeStub::Major MajorKey() { return LoadField; }
+  virtual int MinorKey() {
+    return KindBits::encode(kind())
+        | RegisterBits::encode(reg_.code())
+        | InobjectBits::encode(inobject_)
+        | IndexBits::encode(index_);
+  }
+
+  Register reg_;
+  bool inobject_;
+  int index_;
 };
 
 
@@ -794,9 +846,9 @@ class ICCompareStub: public PlatformCodeStub {
 
  private:
   class OpField: public BitField<int, 0, 3> { };
-  class LeftStateField: public BitField<int, 3, 3> { };
-  class RightStateField: public BitField<int, 6, 3> { };
-  class HandlerStateField: public BitField<int, 9, 3> { };
+  class LeftStateField: public BitField<int, 3, 4> { };
+  class RightStateField: public BitField<int, 7, 4> { };
+  class HandlerStateField: public BitField<int, 11, 4> { };
 
   virtual void FinishCode(Handle<Code> code) {
     code->set_stub_info(MinorKey());
@@ -809,8 +861,9 @@ class ICCompareStub: public PlatformCodeStub {
 
   void GenerateSmis(MacroAssembler* masm);
   void GenerateNumbers(MacroAssembler* masm);
-  void GenerateSymbols(MacroAssembler* masm);
+  void GenerateInternalizedStrings(MacroAssembler* masm);
   void GenerateStrings(MacroAssembler* masm);
+  void GenerateUniqueNames(MacroAssembler* masm);
   void GenerateObjects(MacroAssembler* masm);
   void GenerateMiss(MacroAssembler* masm);
   void GenerateKnownObjects(MacroAssembler* masm);
@@ -1285,6 +1338,63 @@ class TransitionElementsKindStub : public HydrogenCodeStub {
   int MinorKey() { return bit_field_; }
 
   DISALLOW_COPY_AND_ASSIGN(TransitionElementsKindStub);
+};
+
+
+class ArrayNoArgumentConstructorStub : public HydrogenCodeStub {
+ public:
+  ArrayNoArgumentConstructorStub() {
+  }
+
+  Major MajorKey() { return ArrayNoArgumentConstructor; }
+  int MinorKey() { return 0; }
+
+  virtual Handle<Code> GenerateCode();
+
+  virtual void InitializeInterfaceDescriptor(
+      Isolate* isolate,
+      CodeStubInterfaceDescriptor* descriptor);
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(ArrayNoArgumentConstructorStub);
+};
+
+
+class ArraySingleArgumentConstructorStub : public HydrogenCodeStub {
+ public:
+  ArraySingleArgumentConstructorStub() {
+  }
+
+  Major MajorKey() { return ArraySingleArgumentConstructor; }
+  int MinorKey() { return 0; }
+
+  virtual Handle<Code> GenerateCode();
+
+  virtual void InitializeInterfaceDescriptor(
+      Isolate* isolate,
+      CodeStubInterfaceDescriptor* descriptor);
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(ArraySingleArgumentConstructorStub);
+};
+
+
+class ArrayNArgumentsConstructorStub : public HydrogenCodeStub {
+ public:
+  ArrayNArgumentsConstructorStub() {
+  }
+
+  Major MajorKey() { return ArrayNArgumentsConstructor; }
+  int MinorKey() { return 0; }
+
+  virtual Handle<Code> GenerateCode();
+
+  virtual void InitializeInterfaceDescriptor(
+      Isolate* isolate,
+      CodeStubInterfaceDescriptor* descriptor);
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(ArrayNArgumentsConstructorStub);
 };
 
 

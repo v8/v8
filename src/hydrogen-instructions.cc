@@ -1303,10 +1303,11 @@ HValue* HCheckInstanceType::Canonicalize() {
     return NULL;
   }
 
-  if (check_ == IS_SYMBOL && value()->IsConstant()) {
-    // Dereferencing is safe here: a symbol cannot become a non-symbol.
+  if (check_ == IS_INTERNALIZED_STRING && value()->IsConstant()) {
+    // Dereferencing is safe here:
+    // an internalized string cannot become non-internalized.
     AllowHandleDereference allow_handle_deref(isolate());
-    if (HConstant::cast(value())->handle()->IsSymbol()) return NULL;
+    if (HConstant::cast(value())->handle()->IsInternalizedString()) return NULL;
   }
   return this;
 }
@@ -1336,9 +1337,9 @@ void HCheckInstanceType::GetCheckMaskAndTag(uint8_t* mask, uint8_t* tag) {
       *mask = kIsNotStringMask;
       *tag = kStringTag;
       return;
-    case IS_SYMBOL:
-      *mask = kIsSymbolMask;
-      *tag = kSymbolTag;
+    case IS_INTERNALIZED_STRING:
+      *mask = kIsInternalizedMask;
+      *tag = kInternalizedTag;
       return;
     default:
       UNREACHABLE();
@@ -1396,7 +1397,7 @@ const char* HCheckInstanceType::GetCheckName() {
     case IS_SPEC_OBJECT: return "object";
     case IS_JS_ARRAY: return "array";
     case IS_STRING: return "string";
-    case IS_SYMBOL: return "symbol";
+    case IS_INTERNALIZED_STRING: return "internalized_string";
   }
   UNREACHABLE();
   return "";

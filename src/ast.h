@@ -968,7 +968,7 @@ class CaseClause: public ZoneObject {
   TypeFeedbackId CompareId() { return compare_id_; }
   void RecordTypeFeedback(TypeFeedbackOracle* oracle);
   bool IsSmiCompare() { return compare_type_ == SMI_ONLY; }
-  bool IsSymbolCompare() { return compare_type_ == SYMBOL_ONLY; }
+  bool IsNameCompare() { return compare_type_ == NAME_ONLY; }
   bool IsStringCompare() { return compare_type_ == STRING_ONLY; }
   bool IsObjectCompare() { return compare_type_ == OBJECT_ONLY; }
 
@@ -980,7 +980,7 @@ class CaseClause: public ZoneObject {
   enum CompareTypeFeedback {
     NONE,
     SMI_ONLY,
-    SYMBOL_ONLY,
+    NAME_ONLY,
     STRING_ONLY,
     OBJECT_ONLY
   };
@@ -1171,7 +1171,7 @@ class Literal: public Expression {
   DECLARE_NODE_TYPE(Literal)
 
   virtual bool IsPropertyName() {
-    if (handle_->IsSymbol()) {
+    if (handle_->IsInternalizedString()) {
       uint32_t ignored;
       return !String::cast(*handle_)->AsArrayIndex(&ignored);
     }
@@ -1595,6 +1595,7 @@ class CallNew: public Expression {
   Handle<JSFunction> target() { return target_; }
 
   BailoutId ReturnId() const { return return_id_; }
+  ElementsKind elements_kind() const { return elements_kind_; }
 
  protected:
   CallNew(Isolate* isolate,
@@ -1606,7 +1607,8 @@ class CallNew: public Expression {
         arguments_(arguments),
         pos_(pos),
         is_monomorphic_(false),
-        return_id_(GetNextId(isolate)) { }
+        return_id_(GetNextId(isolate)),
+        elements_kind_(GetInitialFastElementsKind()) { }
 
  private:
   Expression* expression_;
@@ -1617,6 +1619,7 @@ class CallNew: public Expression {
   Handle<JSFunction> target_;
 
   const BailoutId return_id_;
+  ElementsKind elements_kind_;
 };
 
 

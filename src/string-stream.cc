@@ -493,7 +493,7 @@ void StringStream::PrintFunction(Object* f, Object* receiver, Code** code) {
       // Common case: on-stack function present and resolved.
       PrintPrototype(fun, receiver);
       *code = fun->code();
-    } else if (f->IsSymbol()) {
+    } else if (f->IsInternalizedString()) {
       // Unresolved and megamorphic calls: Instead of the function
       // we have the function name on the stack.
       PrintName(f);

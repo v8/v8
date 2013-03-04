@@ -1745,7 +1745,7 @@ class PagedSpace : public Space {
     first_unswept_page_ = first;
   }
 
-  void IncrementUnsweptFreeBytes(int by) {
+  void IncrementUnsweptFreeBytes(intptr_t by) {
     unswept_free_bytes_ += by;
   }
 
@@ -1754,7 +1754,7 @@ class PagedSpace : public Space {
     unswept_free_bytes_ += (p->area_size() - p->LiveBytes());
   }
 
-  void DecrementUnsweptFreeBytes(int by) {
+  void DecrementUnsweptFreeBytes(intptr_t by) {
     unswept_free_bytes_ -= by;
   }
 

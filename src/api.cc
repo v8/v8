@@ -1785,7 +1785,7 @@ v8::Local<Value> v8::TryCatch::StackTrace() const {
     if (!raw_obj->IsJSObject()) return v8::Local<Value>();
     i::HandleScope scope(isolate_);
     i::Handle<i::JSObject> obj(i::JSObject::cast(raw_obj), isolate_);
-    i::Handle<i::String> name = isolate_->factory()->stack_symbol();
+    i::Handle<i::String> name = isolate_->factory()->stack_string();
     if (!obj->HasProperty(*name)) return v8::Local<Value>();
     i::Handle<i::Object> value = i::GetProperty(isolate_, obj, name);
     if (value.is_null()) return v8::Local<Value>();
@@ -1899,7 +1899,8 @@ static i::Handle<i::Object> CallV8HeapFunction(const char* name,
                                                i::Handle<i::Object> argv[],
                                                bool* has_pending_exception) {
   i::Isolate* isolate = i::Isolate::Current();
-  i::Handle<i::String> fmt_str = isolate->factory()->LookupUtf8Symbol(name);
+  i::Handle<i::String> fmt_str =
+      isolate->factory()->InternalizeUtf8String(name);
   i::Object* object_fun =
       isolate->js_builtins_object()->GetPropertyNoExceptionThrown(*fmt_str);
   i::Handle<i::JSFunction> fun =
@@ -2292,7 +2293,7 @@ bool Value::IsDate() const {
   i::Isolate* isolate = i::Isolate::Current();
   if (IsDeadCheck(isolate, "v8::Value::IsDate()")) return false;
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
-  return obj->HasSpecificClassOf(isolate->heap()->Date_symbol());
+  return obj->HasSpecificClassOf(isolate->heap()->Date_string());
 }
 
 
@@ -2300,7 +2301,7 @@ bool Value::IsStringObject() const {
   i::Isolate* isolate = i::Isolate::Current();
   if (IsDeadCheck(isolate, "v8::Value::IsStringObject()")) return false;
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
-  return obj->HasSpecificClassOf(isolate->heap()->String_symbol());
+  return obj->HasSpecificClassOf(isolate->heap()->String_string());
 }
 
 
@@ -2308,16 +2309,16 @@ bool Value::IsNumberObject() const {
   i::Isolate* isolate = i::Isolate::Current();
   if (IsDeadCheck(isolate, "v8::Value::IsNumberObject()")) return false;
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
-  return obj->HasSpecificClassOf(isolate->heap()->Number_symbol());
+  return obj->HasSpecificClassOf(isolate->heap()->Number_string());
 }
 
 
 static i::Object* LookupBuiltin(i::Isolate* isolate,
                                 const char* builtin_name) {
-  i::Handle<i::String> symbol =
-      isolate->factory()->LookupUtf8Symbol(builtin_name);
+  i::Handle<i::String> string =
+      isolate->factory()->InternalizeUtf8String(builtin_name);
   i::Handle<i::JSBuiltinsObject> builtins = isolate->js_builtins_object();
-  return builtins->GetPropertyNoExceptionThrown(*symbol);
+  return builtins->GetPropertyNoExceptionThrown(*string);
 }
 
 
@@ -2355,7 +2356,7 @@ bool Value::IsBooleanObject() const {
   i::Isolate* isolate = i::Isolate::Current();
   if (IsDeadCheck(isolate, "v8::Value::IsBooleanObject()")) return false;
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
-  return obj->HasSpecificClassOf(isolate->heap()->Boolean_symbol());
+  return obj->HasSpecificClassOf(isolate->heap()->Boolean_string());
 }
 
 
@@ -2547,7 +2548,7 @@ void v8::Date::CheckCast(v8::Value* that) {
   i::Isolate* isolate = i::Isolate::Current();
   if (IsDeadCheck(isolate, "v8::Date::Cast()")) return;
   i::Handle<i::Object> obj = Utils::OpenHandle(that);
-  ApiCheck(obj->HasSpecificClassOf(isolate->heap()->Date_symbol()),
+  ApiCheck(obj->HasSpecificClassOf(isolate->heap()->Date_string()),
            "v8::Date::Cast()",
            "Could not convert to date");
 }
@@ -2557,7 +2558,7 @@ void v8::StringObject::CheckCast(v8::Value* that) {
   i::Isolate* isolate = i::Isolate::Current();
   if (IsDeadCheck(isolate, "v8::StringObject::Cast()")) return;
   i::Handle<i::Object> obj = Utils::OpenHandle(that);
-  ApiCheck(obj->HasSpecificClassOf(isolate->heap()->String_symbol()),
+  ApiCheck(obj->HasSpecificClassOf(isolate->heap()->String_string()),
            "v8::StringObject::Cast()",
            "Could not convert to StringObject");
 }
@@ -2567,7 +2568,7 @@ void v8::NumberObject::CheckCast(v8::Value* that) {
   i::Isolate* isolate = i::Isolate::Current();
   if (IsDeadCheck(isolate, "v8::NumberObject::Cast()")) return;
   i::Handle<i::Object> obj = Utils::OpenHandle(that);
-  ApiCheck(obj->HasSpecificClassOf(isolate->heap()->Number_symbol()),
+  ApiCheck(obj->HasSpecificClassOf(isolate->heap()->Number_string()),
            "v8::NumberObject::Cast()",
            "Could not convert to NumberObject");
 }
@@ -2577,7 +2578,7 @@ void v8::BooleanObject::CheckCast(v8::Value* that) {
   i::Isolate* isolate = i::Isolate::Current();
   if (IsDeadCheck(isolate, "v8::BooleanObject::Cast()")) return;
   i::Handle<i::Object> obj = Utils::OpenHandle(that);
-  ApiCheck(obj->HasSpecificClassOf(isolate->heap()->Boolean_symbol()),
+  ApiCheck(obj->HasSpecificClassOf(isolate->heap()->Boolean_string()),
            "v8::BooleanObject::Cast()",
            "Could not convert to BooleanObject");
 }
@@ -3367,10 +3368,11 @@ bool v8::Object::SetHiddenValue(v8::Handle<v8::String> key,
   i::HandleScope scope(isolate);
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
   i::Handle<i::String> key_obj = Utils::OpenHandle(*key);
-  i::Handle<i::String> key_symbol = isolate->factory()->LookupSymbol(key_obj);
+  i::Handle<i::String> key_string =
+      isolate->factory()->InternalizeString(key_obj);
   i::Handle<i::Object> value_obj = Utils::OpenHandle(*value);
   i::Handle<i::Object> result =
-      i::JSObject::SetHiddenProperty(self, key_symbol, value_obj);
+      i::JSObject::SetHiddenProperty(self, key_string, value_obj);
   return *result == *self;
 }
 
@@ -3382,8 +3384,8 @@ v8::Local<v8::Value> v8::Object::GetHiddenValue(v8::Handle<v8::String> key) {
   ENTER_V8(isolate);
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
   i::Handle<i::String> key_obj = Utils::OpenHandle(*key);
-  i::Handle<i::String> key_symbol = FACTORY->LookupSymbol(key_obj);
-  i::Handle<i::Object> result(self->GetHiddenProperty(*key_symbol), isolate);
+  i::Handle<i::String> key_string = FACTORY->InternalizeString(key_obj);
+  i::Handle<i::Object> result(self->GetHiddenProperty(*key_string), isolate);
   if (result->IsUndefined()) return v8::Local<v8::Value>();
   return Utils::ToLocal(result);
 }
@@ -3396,8 +3398,8 @@ bool v8::Object::DeleteHiddenValue(v8::Handle<v8::String> key) {
   i::HandleScope scope(isolate);
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
   i::Handle<i::String> key_obj = Utils::OpenHandle(*key);
-  i::Handle<i::String> key_symbol = FACTORY->LookupSymbol(key_obj);
-  self->DeleteHiddenProperty(*key_symbol);
+  i::Handle<i::String> key_string = FACTORY->InternalizeString(key_obj);
+  self->DeleteHiddenProperty(*key_string);
   return true;
 }
 
@@ -4827,7 +4829,7 @@ Local<String> v8::String::Empty() {
     return v8::Local<String>();
   }
   LOG_API(isolate, "String::Empty()");
-  return Utils::ToLocal(isolate->factory()->empty_symbol());
+  return Utils::ToLocal(isolate->factory()->empty_string());
 }
 
 
@@ -4952,7 +4954,7 @@ bool v8::String::MakeExternal(v8::String::ExternalStringResource* resource) {
   }
   CHECK(resource && resource->data());
   bool result = obj->MakeExternal(resource);
-  if (result && !obj->IsSymbol()) {
+  if (result && !obj->IsInternalizedString()) {
     isolate->heap()->external_string_table()->AddString(*obj);
   }
   return result;
@@ -4989,7 +4991,7 @@ bool v8::String::MakeExternal(
   }
   CHECK(resource && resource->data());
   bool result = obj->MakeExternal(resource);
-  if (result && !obj->IsSymbol()) {
+  if (result && !obj->IsInternalizedString()) {
     isolate->heap()->external_string_table()->AddString(*obj);
   }
   return result;
@@ -5127,8 +5129,9 @@ void v8::Date::DateTimeConfigurationChangeNotification() {
 
   i::HandleScope scope(isolate);
   // Get the function ResetDateCache (defined in date.js).
-  i::Handle<i::String> func_name_str = isolate->factory()->LookupOneByteSymbol(
-      STATIC_ASCII_VECTOR("ResetDateCache"));
+  i::Handle<i::String> func_name_str =
+      isolate->factory()->InternalizeOneByteString(
+          STATIC_ASCII_VECTOR("ResetDateCache"));
   i::MaybeObject* result =
       isolate->js_builtins_object()->GetProperty(*func_name_str);
   i::Object* object_func;
@@ -5158,7 +5161,7 @@ static i::Handle<i::String> RegExpFlagsToString(RegExp::Flags flags) {
   if ((flags & RegExp::kMultiline) != 0) flags_buf[num_flags++] = 'm';
   if ((flags & RegExp::kIgnoreCase) != 0) flags_buf[num_flags++] = 'i';
   ASSERT(num_flags <= static_cast<int>(ARRAY_SIZE(flags_buf)));
-  return FACTORY->LookupOneByteSymbol(
+  return FACTORY->InternalizeOneByteString(
       i::Vector<const uint8_t>(flags_buf, num_flags));
 }
 
@@ -5263,7 +5266,7 @@ Local<String> v8::String::NewSymbol(const char* data, int length) {
   LOG_API(isolate, "String::NewSymbol(char)");
   ENTER_V8(isolate);
   if (length == -1) length = i::StrLength(data);
-  i::Handle<i::String> result = isolate->factory()->LookupUtf8Symbol(
+  i::Handle<i::String> result = isolate->factory()->InternalizeUtf8String(
       i::Vector<const char>(data, length));
   return Utils::ToLocal(result);
 }
@@ -5975,7 +5978,7 @@ Local<Value> Debug::GetMirror(v8::Handle<v8::Value> obj) {
   i::Debug* isolate_debug = isolate->debug();
   isolate_debug->Load();
   i::Handle<i::JSObject> debug(isolate_debug->debug_context()->global_object());
-  i::Handle<i::String> name = isolate->factory()->LookupOneByteSymbol(
+  i::Handle<i::String> name = isolate->factory()->InternalizeOneByteString(
       STATIC_ASCII_VECTOR("MakeMirror"));
   i::Handle<i::Object> fun_obj = i::GetProperty(isolate, debug, name);
   i::Handle<i::JSFunction> fun = i::Handle<i::JSFunction>::cast(fun_obj);
@@ -6038,11 +6041,11 @@ Handle<String> CpuProfileNode::GetFunctionName() const {
   const i::CodeEntry* entry = node->entry();
   if (!entry->has_name_prefix()) {
     return Handle<String>(ToApi<String>(
-        isolate->factory()->LookupUtf8Symbol(entry->name())));
+        isolate->factory()->InternalizeUtf8String(entry->name())));
   } else {
     return Handle<String>(ToApi<String>(isolate->factory()->NewConsString(
-        isolate->factory()->LookupUtf8Symbol(entry->name_prefix()),
-        isolate->factory()->LookupUtf8Symbol(entry->name()))));
+        isolate->factory()->InternalizeUtf8String(entry->name_prefix()),
+        isolate->factory()->InternalizeUtf8String(entry->name()))));
   }
 }
 
@@ -6051,7 +6054,7 @@ Handle<String> CpuProfileNode::GetScriptResourceName() const {
   i::Isolate* isolate = i::Isolate::Current();
   IsDeadCheck(isolate, "v8::CpuProfileNode::GetScriptResourceName");
   const i::ProfileNode* node = reinterpret_cast<const i::ProfileNode*>(this);
-  return Handle<String>(ToApi<String>(isolate->factory()->LookupUtf8Symbol(
+  return Handle<String>(ToApi<String>(isolate->factory()->InternalizeUtf8String(
       node->entry()->resource_name())));
 }
 
@@ -6137,7 +6140,7 @@ Handle<String> CpuProfile::GetTitle() const {
   i::Isolate* isolate = i::Isolate::Current();
   IsDeadCheck(isolate, "v8::CpuProfile::GetTitle");
   const i::CpuProfile* profile = reinterpret_cast<const i::CpuProfile*>(this);
-  return Handle<String>(ToApi<String>(isolate->factory()->LookupUtf8Symbol(
+  return Handle<String>(ToApi<String>(isolate->factory()->InternalizeUtf8String(
       profile->title())));
 }
 
@@ -6234,12 +6237,12 @@ Handle<Value> HeapGraphEdge::GetName() const {
     case i::HeapGraphEdge::kInternal:
     case i::HeapGraphEdge::kProperty:
     case i::HeapGraphEdge::kShortcut:
-      return Handle<String>(ToApi<String>(isolate->factory()->LookupUtf8Symbol(
-          edge->name())));
+      return Handle<String>(ToApi<String>(
+          isolate->factory()->InternalizeUtf8String(edge->name())));
     case i::HeapGraphEdge::kElement:
     case i::HeapGraphEdge::kHidden:
-      return Handle<Number>(ToApi<Number>(isolate->factory()->NewNumberFromInt(
-          edge->index())));
+      return Handle<Number>(ToApi<Number>(
+          isolate->factory()->NewNumberFromInt(edge->index())));
     default: UNREACHABLE();
   }
   return v8::Undefined();
@@ -6278,7 +6281,7 @@ HeapGraphNode::Type HeapGraphNode::GetType() const {
 Handle<String> HeapGraphNode::GetName() const {
   i::Isolate* isolate = i::Isolate::Current();
   IsDeadCheck(isolate, "v8::HeapGraphNode::GetName");
-  return Handle<String>(ToApi<String>(isolate->factory()->LookupUtf8Symbol(
+  return Handle<String>(ToApi<String>(isolate->factory()->InternalizeUtf8String(
       ToInternal(this)->name())));
 }
 
@@ -6357,7 +6360,7 @@ unsigned HeapSnapshot::GetUid() const {
 Handle<String> HeapSnapshot::GetTitle() const {
   i::Isolate* isolate = i::Isolate::Current();
   IsDeadCheck(isolate, "v8::HeapSnapshot::GetTitle");
-  return Handle<String>(ToApi<String>(isolate->factory()->LookupUtf8Symbol(
+  return Handle<String>(ToApi<String>(isolate->factory()->InternalizeUtf8String(
       ToInternal(this)->title())));
 }
 

@@ -274,6 +274,7 @@ class LCodeGen BASE_EMBEDDED {
                         LOperand* op,
                         bool is_tagged,
                         bool is_uint32,
+                        bool arguments_known,
                         int arguments_index,
                         int arguments_count);
   void RegisterDependentCodeForEmbeddedMaps(Handle<Code> code);

@@ -121,7 +121,7 @@ TEST(StressJS) {
   v8::HandleScope scope;
   env->Enter();
   Handle<JSFunction> function =
-      FACTORY->NewFunction(FACTORY->function_symbol(), FACTORY->null_value());
+      FACTORY->NewFunction(FACTORY->function_string(), FACTORY->null_value());
   // Force the creation of an initial map and set the code to
   // something empty.
   FACTORY->NewJSObject(function);

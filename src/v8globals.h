@@ -276,6 +276,7 @@ enum InlineCacheState {
 enum CheckType {
   RECEIVER_MAP_CHECK,
   STRING_CHECK,
+  SYMBOL_CHECK,
   NUMBER_CHECK,
   BOOLEAN_CHECK
 };
@@ -293,7 +294,7 @@ enum CallFunctionFlags {
 
 enum InlineCacheHolderFlag {
   OWN_MAP,  // For fast properties objects.
-  PROTOTYPE_MAP  // For slow properties objects (except GlobalObjects).
+  DELEGATE_MAP  // For slow properties objects (except GlobalObjects).
 };
 
 

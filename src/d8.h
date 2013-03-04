@@ -128,12 +128,11 @@ class LineEditor {
   virtual void AddHistory(const char* str) { }
 
   const char* name() { return name_; }
-  static LineEditor* Get();
+  static LineEditor* Get() { return current_; }
  private:
   Type type_;
   const char* name_;
-  LineEditor* next_;
-  static LineEditor* first_;
+  static LineEditor* current_;
 };
 
 

@@ -1,4 +1,4 @@
-// Copyright 2012 the V8 project authors. All rights reserved.
+// Copyright 2013 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -142,6 +142,8 @@ void Object::Lookup(String* name, LookupResult* result) {
       holder = native_context->string_function()->instance_prototype();
     } else if (IsBoolean()) {
       holder = native_context->boolean_function()->instance_prototype();
+    } else if (IsSymbol()) {
+      holder = native_context->symbol_delegate();
     } else {
       Isolate::Current()->PushStackTraceAndDie(
           0xDEAD0000, this, JSReceiver::cast(this)->map(), 0xDEAD0001);
@@ -624,7 +626,7 @@ MaybeObject* Object::GetProperty(Object* receiver,
   // holder in the prototype chain.
   // Proxy handlers do not use the proxy's prototype, so we can skip this.
   if (!result->IsHandler()) {
-    Object* last = result->IsProperty()
+    Object* last = result->IsProperty() && !receiver->IsSymbol()
         ? result->holder()
         : Object::cast(heap->null_value());
     ASSERT(this != this->GetPrototype(isolate));
@@ -709,6 +711,8 @@ MaybeObject* Object::GetElementWithReceiver(Object* receiver, uint32_t index) {
         holder = native_context->string_function()->instance_prototype();
       } else if (holder->IsBoolean()) {
         holder = native_context->boolean_function()->instance_prototype();
+      } else if (holder->IsSymbol()) {
+        holder = native_context->symbol_delegate();
       } else if (holder->IsJSProxy()) {
         return JSProxy::cast(holder)->GetElementWithHandler(receiver, index);
       } else {
@@ -776,6 +780,16 @@ Object* Object::GetPrototype(Isolate* isolate) {
 }
 
 
+Object* Object::GetDelegate(Isolate* isolate) {
+  if (IsSymbol()) {
+    Heap* heap = Symbol::cast(this)->GetHeap();
+    Context* context = heap->isolate()->context()->native_context();
+    return context->symbol_delegate();
+  }
+  return GetPrototype(isolate);
+}
+
+
 MaybeObject* Object::GetHash(CreationFlag flag) {
   // The object is either a number, a string, an odd-ball,
   // a real JS object, or a Harmony proxy.
@@ -783,8 +797,8 @@ MaybeObject* Object::GetHash(CreationFlag flag) {
     uint32_t hash = ComputeLongHash(double_to_uint64(Number()));
     return Smi::FromInt(hash & Smi::kMaxValue);
   }
-  if (IsString()) {
-    uint32_t hash = String::cast(this)->Hash();
+  if (IsName()) {
+    uint32_t hash = Name::cast(this)->Hash();
     return Smi::FromInt(hash);
   }
   if (IsOddball()) {
@@ -966,28 +980,33 @@ bool String::MakeExternal(v8::String::ExternalStringResource* resource) {
     return false;
   }
   bool is_ascii = this->IsOneByteRepresentation();
-  bool is_symbol = this->IsSymbol();
+  bool is_internalized = this->IsInternalizedString();
 
   // Morph the object to an external string by adjusting the map and
   // reinitializing the fields.
   if (size >= ExternalString::kSize) {
     this->set_map_no_write_barrier(
-        is_symbol
-            ? (is_ascii ?  heap->external_symbol_with_ascii_data_map()
-                        :  heap->external_symbol_map())
-            : (is_ascii ?  heap->external_string_with_ascii_data_map()
-                        :  heap->external_string_map()));
+        is_internalized
+            ? (is_ascii
+                   ? heap->external_internalized_string_with_ascii_data_map()
+                   : heap->external_internalized_string_map())
+            : (is_ascii
+                   ? heap->external_string_with_ascii_data_map()
+                   : heap->external_string_map()));
   } else {
     this->set_map_no_write_barrier(
-        is_symbol
-            ? (is_ascii ?  heap->short_external_symbol_with_ascii_data_map()
-                        :  heap->short_external_symbol_map())
-            : (is_ascii ?  heap->short_external_string_with_ascii_data_map()
-                        :  heap->short_external_string_map()));
+        is_internalized
+            ? (is_ascii
+                   ? heap->
+                       short_external_internalized_string_with_ascii_data_map()
+                   : heap->short_external_internalized_string_map())
+            : (is_ascii
+                   ? heap->short_external_string_with_ascii_data_map()
+                   : heap->short_external_string_map()));
   }
   ExternalTwoByteString* self = ExternalTwoByteString::cast(this);
   self->set_resource(resource);
-  if (is_symbol) self->Hash();  // Force regeneration of the hash value.
+  if (is_internalized) self->Hash();  // Force regeneration of the hash value.
 
   // Fill the remainder of the string with dead wood.
   int new_size = this->Size();  // Byte size of the external String object.
@@ -1017,22 +1036,22 @@ bool String::MakeExternal(v8::String::ExternalAsciiStringResource* resource) {
   if (size < ExternalString::kShortSize) {
     return false;
   }
-  bool is_symbol = this->IsSymbol();
+  bool is_internalized = this->IsInternalizedString();
 
   // Morph the object to an external string by adjusting the map and
   // reinitializing the fields.  Use short version if space is limited.
   if (size >= ExternalString::kSize) {
     this->set_map_no_write_barrier(
-        is_symbol ? heap->external_ascii_symbol_map()
-                  : heap->external_ascii_string_map());
+        is_internalized ? heap->external_ascii_internalized_string_map()
+                        : heap->external_ascii_string_map());
   } else {
     this->set_map_no_write_barrier(
-        is_symbol ? heap->short_external_ascii_symbol_map()
-                  : heap->short_external_ascii_string_map());
+        is_internalized ? heap->short_external_ascii_internalized_string_map()
+                        : heap->short_external_ascii_string_map());
   }
   ExternalAsciiString* self = ExternalAsciiString::cast(this);
   self->set_resource(resource);
-  if (is_symbol) self->Hash();  // Force regeneration of the hash value.
+  if (is_internalized) self->Hash();  // Force regeneration of the hash value.
 
   // Fill the remainder of the string with dead wood.
   int new_size = this->Size();  // Byte size of the external String object.
@@ -1320,6 +1339,9 @@ void HeapObject::HeapObjectShortPrint(StringStream* accumulator) {
         accumulator->Add("<Odd Oddball>");
       break;
     }
+    case SYMBOL_TYPE:
+      accumulator->Add("<Symbol: %d>", Symbol::cast(this)->Hash());
+      break;
     case HEAP_NUMBER_TYPE:
       accumulator->Add("<Number: ");
       HeapNumber::cast(this)->HeapNumberPrint(accumulator);
@@ -1428,6 +1450,7 @@ void HeapObject::IterateBody(InstanceType type, int object_size,
     case JS_GLOBAL_PROPERTY_CELL_TYPE:
       JSGlobalPropertyCell::BodyDescriptor::IterateBody(this, v);
       break;
+    case SYMBOL_TYPE:
     case HEAP_NUMBER_TYPE:
     case FILLER_TYPE:
     case BYTE_ARRAY_TYPE:
@@ -1502,14 +1525,14 @@ void HeapNumber::HeapNumberPrint(StringStream* accumulator) {
 
 String* JSReceiver::class_name() {
   if (IsJSFunction() && IsJSFunctionProxy()) {
-    return GetHeap()->function_class_symbol();
+    return GetHeap()->function_class_string();
   }
   if (map()->constructor()->IsJSFunction()) {
     JSFunction* constructor = JSFunction::cast(map()->constructor());
     return String::cast(constructor->shared()->instance_class_name());
   }
   // If the constructor is not present, return "Object".
-  return GetHeap()->Object_symbol();
+  return GetHeap()->Object_string();
 }
 
 
@@ -1525,7 +1548,7 @@ String* JSReceiver::constructor_name() {
   }
   // TODO(rossberg): what about proxies?
   // If the constructor is not present, return "Object".
-  return GetHeap()->Object_symbol();
+  return GetHeap()->Object_string();
 }
 
 
@@ -1574,11 +1597,11 @@ MaybeObject* JSObject::AddFastProperty(String* name,
              name, map()->NumberOfOwnDescriptors()));
 
   // Normalize the object if the name is an actual string (not the
-  // hidden symbols) and is not a real identifier.
+  // hidden strings) and is not a real identifier.
   // Normalize the object if it will have too many fast properties.
   Isolate* isolate = GetHeap()->isolate();
   if ((!IsIdentifier(isolate->unicode_cache(), name)
-       && name != isolate->heap()->hidden_symbol()) ||
+       && name != isolate->heap()->hidden_string()) ||
       (map()->unused_property_fields() == 0 &&
        TooManyFastProperties(properties()->length(), store_mode))) {
     Object* obj;
@@ -1756,7 +1779,7 @@ void JSObject::EnqueueChangeRecord(Handle<JSObject> object,
                                    Handle<Object> old_value) {
   Isolate* isolate = object->GetIsolate();
   HandleScope scope(isolate);
-  Handle<String> type = isolate->factory()->LookupUtf8Symbol(type_str);
+  Handle<String> type = isolate->factory()->InternalizeUtf8String(type_str);
   if (object->IsJSGlobalObject()) {
     object = handle(JSGlobalObject::cast(*object)->global_receiver(), isolate);
   }
@@ -2268,13 +2291,13 @@ void Map::AppendCallbackDescriptors(Handle<Map> map,
 
   ASSERT(array->NumberOfSlackDescriptors() >= nof_callbacks);
 
-  // Ensure the keys are symbols before writing them into the instance
-  // descriptor. Since it may cause a GC, it has to be done before we
+  // Ensure the keys are internalized strings before writing them into the
+  // instance descriptor. Since it may cause a GC, it has to be done before we
   // temporarily put the heap in an invalid state while appending descriptors.
   for (int i = 0; i < nof_callbacks; ++i) {
     Handle<AccessorInfo> entry(AccessorInfo::cast(callbacks.get(i)));
     Handle<String> key =
-        isolate->factory()->SymbolFromString(
+        isolate->factory()->InternalizedStringFromString(
             Handle<String>(String::cast(entry->name())));
     entry->set_name(*key);
   }
@@ -2662,15 +2685,16 @@ MUST_USE_RESULT MaybeObject* JSProxy::SetPropertyViaPrototypesWithHandler(
   if (has_pending_exception) return Failure::Exception();
 
   // [[GetProperty]] requires to check that all properties are configurable.
-  Handle<String> configurable_name = isolate->factory()->LookupOneByteSymbol(
-      STATIC_ASCII_VECTOR("configurable_"));
+  Handle<String> configurable_name =
+      isolate->factory()->InternalizeOneByteString(
+          STATIC_ASCII_VECTOR("configurable_"));
   Handle<Object> configurable(
       v8::internal::GetProperty(isolate, desc, configurable_name));
   ASSERT(!isolate->has_pending_exception());
   ASSERT(configurable->IsTrue() || configurable->IsFalse());
   if (configurable->IsFalse()) {
     Handle<String> trap =
-        isolate->factory()->LookupOneByteSymbol(
+        isolate->factory()->InternalizeOneByteString(
             STATIC_ASCII_VECTOR("getPropertyDescriptor"));
     Handle<Object> args[] = { handler, trap, name };
     Handle<Object> error = isolate->factory()->NewTypeError(
@@ -2681,7 +2705,7 @@ MUST_USE_RESULT MaybeObject* JSProxy::SetPropertyViaPrototypesWithHandler(
 
   // Check for DataDescriptor.
   Handle<String> hasWritable_name =
-      isolate->factory()->LookupOneByteSymbol(
+      isolate->factory()->InternalizeOneByteString(
           STATIC_ASCII_VECTOR("hasWritable_"));
   Handle<Object> hasWritable(
       v8::internal::GetProperty(isolate, desc, hasWritable_name));
@@ -2689,7 +2713,7 @@ MUST_USE_RESULT MaybeObject* JSProxy::SetPropertyViaPrototypesWithHandler(
   ASSERT(hasWritable->IsTrue() || hasWritable->IsFalse());
   if (hasWritable->IsTrue()) {
     Handle<String> writable_name =
-        isolate->factory()->LookupOneByteSymbol(
+        isolate->factory()->InternalizeOneByteString(
             STATIC_ASCII_VECTOR("writable_"));
     Handle<Object> writable(
         v8::internal::GetProperty(isolate, desc, writable_name));
@@ -2705,7 +2729,7 @@ MUST_USE_RESULT MaybeObject* JSProxy::SetPropertyViaPrototypesWithHandler(
   }
 
   // We have an AccessorDescriptor.
-  Handle<String> set_name = isolate->factory()->LookupOneByteSymbol(
+  Handle<String> set_name = isolate->factory()->InternalizeOneByteString(
       STATIC_ASCII_VECTOR("set_"));
   Handle<Object> setter(v8::internal::GetProperty(isolate, desc, set_name));
   ASSERT(!isolate->has_pending_exception());
@@ -2738,7 +2762,7 @@ MUST_USE_RESULT MaybeObject* JSProxy::DeletePropertyWithHandler(
   Object* bool_result = result->ToBoolean();
   if (mode == STRICT_DELETION && bool_result == GetHeap()->false_value()) {
     Handle<Object> handler(receiver->handler(), isolate);
-    Handle<String> trap_name = isolate->factory()->LookupOneByteSymbol(
+    Handle<String> trap_name = isolate->factory()->InternalizeOneByteString(
         STATIC_ASCII_VECTOR("delete"));
     Handle<Object> args[] = { handler, trap_name };
     Handle<Object> error = isolate->factory()->NewTypeError(
@@ -2785,21 +2809,21 @@ MUST_USE_RESULT PropertyAttributes JSProxy::GetPropertyAttributeWithHandler(
   if (has_pending_exception) return NONE;
 
   // Convert result to PropertyAttributes.
-  Handle<String> enum_n = isolate->factory()->LookupOneByteSymbol(
+  Handle<String> enum_n = isolate->factory()->InternalizeOneByteString(
       STATIC_ASCII_VECTOR("enumerable"));
   Handle<Object> enumerable(v8::internal::GetProperty(isolate, desc, enum_n));
   if (isolate->has_pending_exception()) return NONE;
-  Handle<String> conf_n = isolate->factory()->LookupOneByteSymbol(
+  Handle<String> conf_n = isolate->factory()->InternalizeOneByteString(
       STATIC_ASCII_VECTOR("configurable"));
   Handle<Object> configurable(v8::internal::GetProperty(isolate, desc, conf_n));
   if (isolate->has_pending_exception()) return NONE;
-  Handle<String> writ_n = isolate->factory()->LookupOneByteSymbol(
+  Handle<String> writ_n = isolate->factory()->InternalizeOneByteString(
       STATIC_ASCII_VECTOR("writable"));
   Handle<Object> writable(v8::internal::GetProperty(isolate, desc, writ_n));
   if (isolate->has_pending_exception()) return NONE;
 
   if (configurable->IsFalse()) {
-    Handle<String> trap = isolate->factory()->LookupOneByteSymbol(
+    Handle<String> trap = isolate->factory()->InternalizeOneByteString(
         STATIC_ASCII_VECTOR("getPropertyDescriptor"));
     Handle<Object> args[] = { handler, trap, name };
     Handle<Object> error = isolate->factory()->NewTypeError(
@@ -2860,7 +2884,7 @@ MUST_USE_RESULT Handle<Object> JSProxy::CallTrap(const char* name,
   Isolate* isolate = GetIsolate();
   Handle<Object> handler(this->handler(), isolate);
 
-  Handle<String> trap_name = isolate->factory()->LookupUtf8Symbol(name);
+  Handle<String> trap_name = isolate->factory()->InternalizeUtf8String(name);
   Handle<Object> trap(v8::internal::GetProperty(isolate, handler, trap_name));
   if (isolate->has_pending_exception()) return trap;
 
@@ -2901,13 +2925,13 @@ MaybeObject* JSObject::SetPropertyForResult(LookupResult* lookup,
   AssertNoContextChange ncc;
 
   // Optimization for 2-byte strings often used as keys in a decompression
-  // dictionary.  We make these short keys into symbols to avoid constantly
+  // dictionary.  We internalize these short keys to avoid constantly
   // reallocating them.
-  if (!name_raw->IsSymbol() && name_raw->length() <= 2) {
-    Object* symbol_version;
-    { MaybeObject* maybe_symbol_version = heap->LookupSymbol(name_raw);
-      if (maybe_symbol_version->ToObject(&symbol_version)) {
-        name_raw = String::cast(symbol_version);
+  if (!name_raw->IsInternalizedString() && name_raw->length() <= 2) {
+    Object* internalized_version;
+    { MaybeObject* maybe_string_version = heap->InternalizeString(name_raw);
+      if (maybe_string_version->ToObject(&internalized_version)) {
+        name_raw = String::cast(internalized_version);
       }
     }
   }
@@ -3780,7 +3804,7 @@ Smi* JSReceiver::GenerateIdentityHash() {
 
 
 MaybeObject* JSObject::SetIdentityHash(Smi* hash, CreationFlag flag) {
-  MaybeObject* maybe = SetHiddenProperty(GetHeap()->identity_hash_symbol(),
+  MaybeObject* maybe = SetHiddenProperty(GetHeap()->identity_hash_string(),
                                          hash);
   if (maybe->IsFailure()) return maybe;
   return this;
@@ -3796,14 +3820,14 @@ int JSObject::GetIdentityHash(Handle<JSObject> obj) {
 
 
 MaybeObject* JSObject::GetIdentityHash(CreationFlag flag) {
-  Object* stored_value = GetHiddenProperty(GetHeap()->identity_hash_symbol());
+  Object* stored_value = GetHiddenProperty(GetHeap()->identity_hash_string());
   if (stored_value->IsSmi()) return stored_value;
 
   // Do not generate permanent identity hash code if not requested.
   if (flag == OMIT_CREATION) return GetHeap()->undefined_value();
 
   Smi* hash = GenerateIdentityHash();
-  MaybeObject* result = SetHiddenProperty(GetHeap()->identity_hash_symbol(),
+  MaybeObject* result = SetHiddenProperty(GetHeap()->identity_hash_string(),
                                           hash);
   if (result->IsFailure()) return result;
   if (result->ToObjectUnchecked()->IsUndefined()) {
@@ -3825,7 +3849,7 @@ MaybeObject* JSProxy::GetIdentityHash(CreationFlag flag) {
 
 
 Object* JSObject::GetHiddenProperty(String* key) {
-  ASSERT(key->IsSymbol());
+  ASSERT(key->IsInternalizedString());
   if (IsJSGlobalProxy()) {
     // For a proxy, use the prototype as target object.
     Object* proxy_parent = GetPrototype();
@@ -3841,7 +3865,7 @@ Object* JSObject::GetHiddenProperty(String* key) {
 
   if (inline_value->IsSmi()) {
     // Handle inline-stored identity hash.
-    if (key == GetHeap()->identity_hash_symbol()) {
+    if (key == GetHeap()->identity_hash_string()) {
       return inline_value;
     } else {
       return GetHeap()->undefined_value();
@@ -3867,7 +3891,7 @@ Handle<Object> JSObject::SetHiddenProperty(Handle<JSObject> obj,
 
 
 MaybeObject* JSObject::SetHiddenProperty(String* key, Object* value) {
-  ASSERT(key->IsSymbol());
+  ASSERT(key->IsInternalizedString());
   if (IsJSGlobalProxy()) {
     // For a proxy, use the prototype as target object.
     Object* proxy_parent = GetPrototype();
@@ -3883,7 +3907,7 @@ MaybeObject* JSObject::SetHiddenProperty(String* key, Object* value) {
 
   // If there is no backing store yet, store the identity hash inline.
   if (value->IsSmi() &&
-      key == GetHeap()->identity_hash_symbol() &&
+      key == GetHeap()->identity_hash_string() &&
       (inline_value->IsUndefined() || inline_value->IsSmi())) {
     return SetHiddenPropertiesHashTable(value);
   }
@@ -3908,7 +3932,7 @@ MaybeObject* JSObject::SetHiddenProperty(String* key, Object* value) {
 
 
 void JSObject::DeleteHiddenProperty(String* key) {
-  ASSERT(key->IsSymbol());
+  ASSERT(key->IsInternalizedString());
   if (IsJSGlobalProxy()) {
     // For a proxy, use the prototype as target object.
     Object* proxy_parent = GetPrototype();
@@ -3924,7 +3948,7 @@ void JSObject::DeleteHiddenProperty(String* key) {
   Object* inline_value = hidden_lookup->ToObjectUnchecked();
 
   // We never delete (inline-stored) identity hashes.
-  ASSERT(key != GetHeap()->identity_hash_symbol());
+  ASSERT(key != GetHeap()->identity_hash_string());
   if (inline_value->IsUndefined() || inline_value->IsSmi()) return;
 
   ObjectHashTable* hashtable = ObjectHashTable::cast(inline_value);
@@ -3936,7 +3960,7 @@ void JSObject::DeleteHiddenProperty(String* key) {
 
 bool JSObject::HasHiddenProperties() {
   return GetPropertyAttributePostInterceptor(this,
-                                             GetHeap()->hidden_symbol(),
+                                             GetHeap()->hidden_string(),
                                              false) != ABSENT;
 }
 
@@ -3947,13 +3971,13 @@ MaybeObject* JSObject::GetHiddenPropertiesHashTable(
   Object* inline_value;
   if (HasFastProperties()) {
     // If the object has fast properties, check whether the first slot
-    // in the descriptor array matches the hidden symbol. Since the
-    // hidden symbols hash code is zero (and no other string has hash
+    // in the descriptor array matches the hidden string. Since the
+    // hidden strings hash code is zero (and no other string has hash
     // code zero) it will always occupy the first entry if present.
     DescriptorArray* descriptors = this->map()->instance_descriptors();
     if (descriptors->number_of_descriptors() > 0) {
       int sorted_index = descriptors->GetSortedKeyIndex(0);
-      if (descriptors->GetKey(sorted_index) == GetHeap()->hidden_symbol() &&
+      if (descriptors->GetKey(sorted_index) == GetHeap()->hidden_string() &&
           sorted_index < map()->NumberOfOwnDescriptors()) {
         ASSERT(descriptors->GetType(sorted_index) == FIELD);
         inline_value =
@@ -3966,12 +3990,12 @@ MaybeObject* JSObject::GetHiddenPropertiesHashTable(
     }
   } else {
     PropertyAttributes attributes;
-    // You can't install a getter on a property indexed by the hidden symbol,
+    // You can't install a getter on a property indexed by the hidden string,
     // so we can be sure that GetLocalPropertyPostInterceptor returns a real
     // object.
     inline_value =
         GetLocalPropertyPostInterceptor(this,
-                                        GetHeap()->hidden_symbol(),
+                                        GetHeap()->hidden_string(),
                                         &attributes)->ToObjectUnchecked();
   }
 
@@ -3991,7 +4015,7 @@ MaybeObject* JSObject::GetHiddenPropertiesHashTable(
     // We were storing the identity hash inline and now allocated an actual
     // dictionary.  Put the identity hash into the new dictionary.
     MaybeObject* insert_result =
-        hashtable->Put(GetHeap()->identity_hash_symbol(), inline_value);
+        hashtable->Put(GetHeap()->identity_hash_string(), inline_value);
     ObjectHashTable* new_table;
     if (!insert_result->To(&new_table)) return insert_result;
     // We expect no resizing for the first insert.
@@ -3999,7 +4023,7 @@ MaybeObject* JSObject::GetHiddenPropertiesHashTable(
   }
 
   MaybeObject* store_result =
-      SetPropertyPostInterceptor(GetHeap()->hidden_symbol(),
+      SetPropertyPostInterceptor(GetHeap()->hidden_string(),
                                  hashtable,
                                  DONT_ENUM,
                                  kNonStrictMode,
@@ -4016,13 +4040,13 @@ MaybeObject* JSObject::SetHiddenPropertiesHashTable(Object* value) {
   ASSERT(HasHiddenProperties() != value->IsSmi());
   if (HasFastProperties()) {
     // If the object has fast properties, check whether the first slot
-    // in the descriptor array matches the hidden symbol. Since the
-    // hidden symbols hash code is zero (and no other string has hash
+    // in the descriptor array matches the hidden string. Since the
+    // hidden strings hash code is zero (and no other string has hash
     // code zero) it will always occupy the first entry if present.
     DescriptorArray* descriptors = this->map()->instance_descriptors();
     if (descriptors->number_of_descriptors() > 0) {
       int sorted_index = descriptors->GetSortedKeyIndex(0);
-      if (descriptors->GetKey(sorted_index) == GetHeap()->hidden_symbol() &&
+      if (descriptors->GetKey(sorted_index) == GetHeap()->hidden_string() &&
           sorted_index < map()->NumberOfOwnDescriptors()) {
         ASSERT(descriptors->GetType(sorted_index) == FIELD);
         this->FastPropertyAtPut(descriptors->GetFieldIndex(sorted_index),
@@ -4032,7 +4056,7 @@ MaybeObject* JSObject::SetHiddenPropertiesHashTable(Object* value) {
     }
   }
   MaybeObject* store_result =
-      SetPropertyPostInterceptor(GetHeap()->hidden_symbol(),
+      SetPropertyPostInterceptor(GetHeap()->hidden_string(),
                                  value,
                                  DONT_ENUM,
                                  kNonStrictMode,
@@ -5492,8 +5516,8 @@ MaybeObject* Map::CopyAddDescriptor(Descriptor* descriptor,
                                     TransitionFlag flag) {
   DescriptorArray* descriptors = instance_descriptors();
 
-  // Ensure the key is a symbol.
-  MaybeObject* maybe_failure = descriptor->KeyToSymbol();
+  // Ensure the key is an internalized string.
+  MaybeObject* maybe_failure = descriptor->KeyToInternalizedString();
   if (maybe_failure->IsFailure()) return maybe_failure;
 
   int old_size = NumberOfOwnDescriptors();
@@ -5536,8 +5560,8 @@ MaybeObject* Map::CopyInsertDescriptor(Descriptor* descriptor,
                                        TransitionFlag flag) {
   DescriptorArray* old_descriptors = instance_descriptors();
 
-  // Ensure the key is a symbol.
-  MaybeObject* maybe_result = descriptor->KeyToSymbol();
+  // Ensure the key is an internalized string.
+  MaybeObject* maybe_result = descriptor->KeyToInternalizedString();
   if (maybe_result->IsFailure()) return maybe_result;
 
   // We replace the key if it is already present.
@@ -5573,8 +5597,8 @@ MaybeObject* Map::CopyReplaceDescriptor(DescriptorArray* descriptors,
                                         Descriptor* descriptor,
                                         int insertion_index,
                                         TransitionFlag flag) {
-  // Ensure the key is a symbol.
-  MaybeObject* maybe_failure = descriptor->KeyToSymbol();
+  // Ensure the key is an internalized string.
+  MaybeObject* maybe_failure = descriptor->KeyToInternalizedString();
   if (maybe_failure->IsFailure()) return maybe_failure;
 
   String* key = descriptor->GetKey();
@@ -7266,7 +7290,7 @@ bool String::SlowEquals(String* other) {
 
 
 bool String::MarkAsUndetectable() {
-  if (StringShape(this).IsSymbol()) return false;
+  if (StringShape(this).IsInternalized()) return false;
 
   Map* map = this->map();
   Heap* heap = GetHeap();
@@ -7503,6 +7527,21 @@ AllocationSiteInfo* AllocationSiteInfo::FindForJSObject(JSObject* object) {
     }
   }
   return NULL;
+}
+
+
+bool AllocationSiteInfo::GetElementsKindPayload(ElementsKind* kind) {
+  ASSERT(kind != NULL);
+  if (payload()->IsJSGlobalPropertyCell()) {
+    JSGlobalPropertyCell* cell = JSGlobalPropertyCell::cast(payload());
+    Object* cell_contents = cell->value();
+    if (cell_contents->IsSmi()) {
+      *kind = static_cast<ElementsKind>(
+          Smi::cast(cell_contents)->value());
+      return true;
+    }
+  }
+  return false;
 }
 
 
@@ -8090,12 +8129,13 @@ Context* JSFunction::NativeContextFromLiterals(FixedArray* literals) {
 MaybeObject* Oddball::Initialize(const char* to_string,
                                  Object* to_number,
                                  byte kind) {
-  String* symbol;
-  { MaybeObject* maybe_symbol =
-        Isolate::Current()->heap()->LookupUtf8Symbol(CStrVector(to_string));
-    if (!maybe_symbol->To(&symbol)) return maybe_symbol;
+  String* internalized_to_string;
+  { MaybeObject* maybe_string =
+      Isolate::Current()->heap()->InternalizeUtf8String(
+          CStrVector(to_string));
+    if (!maybe_string->To(&internalized_to_string)) return maybe_string;
   }
-  set_to_string(symbol);
+  set_to_string(internalized_to_string);
   set_to_number(to_number);
   set_kind(kind);
   return this;
@@ -8709,6 +8749,46 @@ Map* Code::FindFirstMap() {
     if (object->IsMap()) return Map::cast(object);
   }
   return NULL;
+}
+
+
+void Code::FindAllMaps(MapHandleList* maps) {
+  ASSERT(is_inline_cache_stub());
+  AssertNoAllocation no_allocation;
+  int mask = RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT);
+  for (RelocIterator it(this, mask); !it.done(); it.next()) {
+    RelocInfo* info = it.rinfo();
+    Object* object = info->target_object();
+    if (object->IsMap()) maps->Add(Handle<Map>(Map::cast(object)));
+  }
+}
+
+
+Code* Code::FindFirstCode() {
+  ASSERT(is_inline_cache_stub());
+  AssertNoAllocation no_allocation;
+  int mask = RelocInfo::ModeMask(RelocInfo::CODE_TARGET);
+  for (RelocIterator it(this, mask); !it.done(); it.next()) {
+    RelocInfo* info = it.rinfo();
+    return Code::GetCodeFromTargetAddress(info->target_address());
+  }
+  return NULL;
+}
+
+
+void Code::FindAllCode(CodeHandleList* code_list, int length) {
+  ASSERT(is_inline_cache_stub());
+  AssertNoAllocation no_allocation;
+  int mask = RelocInfo::ModeMask(RelocInfo::CODE_TARGET);
+  int i = 0;
+  for (RelocIterator it(this, mask); !it.done(); it.next()) {
+    if (i++ == length) return;
+    RelocInfo* info = it.rinfo();
+    Code* code = Code::GetCodeFromTargetAddress(info->target_address());
+    ASSERT(code->is_load_stub());
+    code_list->Add(Handle<Code>(code));
+  }
+  UNREACHABLE();
 }
 
 
@@ -9328,19 +9408,10 @@ MaybeObject* JSObject::SetFastDoubleElementsCapacityAndLength(
 }
 
 
-MaybeObject* JSArray::Initialize(int capacity) {
-  Heap* heap = GetHeap();
+MaybeObject* JSArray::Initialize(int capacity, int length) {
   ASSERT(capacity >= 0);
-  set_length(Smi::FromInt(0));
-  FixedArray* new_elements;
-  if (capacity == 0) {
-    new_elements = heap->empty_fixed_array();
-  } else {
-    MaybeObject* maybe_obj = heap->AllocateFixedArrayWithHoles(capacity);
-    if (!maybe_obj->To(&new_elements)) return maybe_obj;
-  }
-  set_elements(new_elements);
-  return this;
+  return GetHeap()->AllocateJSArrayStorage(this, length, capacity,
+                                           INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE);
 }
 
 
@@ -9424,7 +9495,7 @@ MaybeObject* JSArray::SetElementsLength(Object* len) {
           self, "deleted", indices[i], old_values[i]);
     }
     JSObject::EnqueueChangeRecord(
-        self, "updated", isolate->factory()->length_symbol(),
+        self, "updated", isolate->factory()->length_string(),
         old_length_handle);
   }
   return *hresult;
@@ -10029,8 +10100,8 @@ MaybeObject* JSObject::SetFastElement(uint32_t index,
         ? FAST_HOLEY_DOUBLE_ELEMENTS
         : FAST_DOUBLE_ELEMENTS;
 
-    MaybeObject* trans = PossiblyTransitionArrayBoilerplate(to_kind);
-    if (trans->IsFailure()) return trans;
+    MaybeObject* maybe_failure = UpdateAllocationSiteInfo(to_kind);
+    if (maybe_failure->IsFailure()) return maybe_failure;
 
     MaybeObject* maybe =
         SetFastDoubleElementsCapacityAndLength(new_capacity, array_length);
@@ -10046,8 +10117,8 @@ MaybeObject* JSObject::SetFastElement(uint32_t index,
         ? FAST_HOLEY_ELEMENTS
         : FAST_ELEMENTS;
 
-    MaybeObject* trans = PossiblyTransitionArrayBoilerplate(kind);
-    if (trans->IsFailure()) return trans;
+    MaybeObject* maybe_failure = UpdateAllocationSiteInfo(kind);
+    if (maybe_failure->IsFailure()) return maybe_failure;
 
     MaybeObject* maybe_new_map = GetElementsTransitionMap(GetIsolate(),
                                                           kind);
@@ -10460,7 +10531,7 @@ MaybeObject* JSObject::SetElement(uint32_t index,
     if (self->IsJSArray() &&
         !old_length->SameValue(Handle<JSArray>::cast(self)->length())) {
       EnqueueChangeRecord(
-          self, "updated", isolate->factory()->length_symbol(), old_length);
+          self, "updated", isolate->factory()->length_string(), old_length);
     }
   } else if (old_value->IsTheHole()) {
     EnqueueChangeRecord(self, "reconfigured", name, old_value);
@@ -10594,38 +10665,53 @@ Handle<Object> JSObject::TransitionElementsKind(Handle<JSObject> object,
 }
 
 
-MaybeObject* JSObject::PossiblyTransitionArrayBoilerplate(
-    ElementsKind to_kind) {
-  MaybeObject* ret = NULL;
+MaybeObject* JSObject::UpdateAllocationSiteInfo(ElementsKind to_kind) {
   if (!FLAG_track_allocation_sites || !IsJSArray()) {
-    return ret;
+    return this;
   }
 
   AllocationSiteInfo* info = AllocationSiteInfo::FindForJSObject(this);
   if (info == NULL) {
-    return ret;
+    return this;
   }
 
-  ASSERT(info->payload()->IsJSArray());
-  JSArray* payload = JSArray::cast(info->payload());
-  ElementsKind kind = payload->GetElementsKind();
-  if (IsMoreGeneralElementsKindTransition(kind, to_kind)) {
-    // If the array is huge, it's not likely to be defined in a local
-    // function, so we shouldn't make new instances of it very often.
-    uint32_t length = 0;
-    CHECK(payload->length()->ToArrayIndex(&length));
-    if (length <= 8 * 1024) {
-      ret = payload->TransitionElementsKind(to_kind);
-      if (FLAG_trace_track_allocation_sites) {
-        PrintF(
-            "AllocationSiteInfo: JSArray %p boilerplate updated %s->%s\n",
-            reinterpret_cast<void*>(this),
-            ElementsKindToString(kind),
-            ElementsKindToString(to_kind));
+  if (info->payload()->IsJSArray()) {
+    JSArray* payload = JSArray::cast(info->payload());
+    ElementsKind kind = payload->GetElementsKind();
+    if (AllocationSiteInfo::GetMode(kind, to_kind) == TRACK_ALLOCATION_SITE) {
+      // If the array is huge, it's not likely to be defined in a local
+      // function, so we shouldn't make new instances of it very often.
+      uint32_t length = 0;
+      CHECK(payload->length()->ToArrayIndex(&length));
+      if (length <= AllocationSiteInfo::kMaximumArrayBytesToPretransition) {
+        if (FLAG_trace_track_allocation_sites) {
+          PrintF(
+              "AllocationSiteInfo: JSArray %p boilerplate updated %s->%s\n",
+              reinterpret_cast<void*>(this),
+              ElementsKindToString(kind),
+              ElementsKindToString(to_kind));
+        }
+        return payload->TransitionElementsKind(to_kind);
+      }
+    }
+  } else if (info->payload()->IsJSGlobalPropertyCell()) {
+    JSGlobalPropertyCell* cell = JSGlobalPropertyCell::cast(info->payload());
+    Object* cell_contents = cell->value();
+    if (cell_contents->IsSmi()) {
+      ElementsKind kind = static_cast<ElementsKind>(
+          Smi::cast(cell_contents)->value());
+      if (AllocationSiteInfo::GetMode(kind, to_kind) == TRACK_ALLOCATION_SITE) {
+        if (FLAG_trace_track_allocation_sites) {
+          PrintF("AllocationSiteInfo: JSArray %p info updated %s->%s\n",
+                 reinterpret_cast<void*>(this),
+                 ElementsKindToString(kind),
+                 ElementsKindToString(to_kind));
+        }
+        cell->set_value(Smi::FromInt(to_kind));
       }
     }
   }
-  return ret;
+  return this;
 }
 
 
@@ -10639,8 +10725,8 @@ MaybeObject* JSObject::TransitionElementsKind(ElementsKind to_kind) {
 
   if (from_kind == to_kind) return this;
 
-  MaybeObject* trans = PossiblyTransitionArrayBoilerplate(to_kind);
-  if (trans->IsFailure()) return trans;
+  MaybeObject* maybe_failure = UpdateAllocationSiteInfo(to_kind);
+  if (maybe_failure->IsFailure()) return maybe_failure;
 
   Isolate* isolate = GetIsolate();
   if (elements() == isolate->heap()->empty_fixed_array() ||
@@ -11642,10 +11728,10 @@ class RegExpKey : public HashTableKey {
   Smi* flags_;
 };
 
-// Utf8SymbolKey carries a vector of chars as key.
-class Utf8SymbolKey : public HashTableKey {
+// Utf8StringKey carries a vector of chars as key.
+class Utf8StringKey : public HashTableKey {
  public:
-  explicit Utf8SymbolKey(Vector<const char> string, uint32_t seed)
+  explicit Utf8StringKey(Vector<const char> string, uint32_t seed)
       : string_(string), hash_field_(0), seed_(seed) { }
 
   bool IsMatch(Object* string) {
@@ -11666,7 +11752,7 @@ class Utf8SymbolKey : public HashTableKey {
 
   MaybeObject* AsObject() {
     if (hash_field_ == 0) Hash();
-    return Isolate::Current()->heap()->AllocateSymbolFromUtf8(
+    return Isolate::Current()->heap()->AllocateInternalizedStringFromUtf8(
         string_, chars_, hash_field_);
   }
 
@@ -11678,9 +11764,9 @@ class Utf8SymbolKey : public HashTableKey {
 
 
 template <typename Char>
-class SequentialSymbolKey : public HashTableKey {
+class SequentialStringKey : public HashTableKey {
  public:
-  explicit SequentialSymbolKey(Vector<const Char> string, uint32_t seed)
+  explicit SequentialStringKey(Vector<const Char> string, uint32_t seed)
       : string_(string), hash_field_(0), seed_(seed) { }
 
   uint32_t Hash() {
@@ -11705,10 +11791,10 @@ class SequentialSymbolKey : public HashTableKey {
 
 
 
-class OneByteSymbolKey : public SequentialSymbolKey<uint8_t> {
+class OneByteStringKey : public SequentialStringKey<uint8_t> {
  public:
-  OneByteSymbolKey(Vector<const uint8_t> str, uint32_t seed)
-      : SequentialSymbolKey<uint8_t>(str, seed) { }
+  OneByteStringKey(Vector<const uint8_t> str, uint32_t seed)
+      : SequentialStringKey<uint8_t>(str, seed) { }
 
   bool IsMatch(Object* string) {
     return String::cast(string)->IsOneByteEqualTo(string_);
@@ -11716,16 +11802,16 @@ class OneByteSymbolKey : public SequentialSymbolKey<uint8_t> {
 
   MaybeObject* AsObject() {
     if (hash_field_ == 0) Hash();
-    return HEAP->AllocateOneByteSymbol(string_, hash_field_);
+    return HEAP->AllocateOneByteInternalizedString(string_, hash_field_);
   }
 };
 
 
-class SubStringOneByteSymbolKey : public HashTableKey {
+class SubStringOneByteStringKey : public HashTableKey {
  public:
-  explicit SubStringOneByteSymbolKey(Handle<SeqOneByteString> string,
-                                   int from,
-                                   int length)
+  explicit SubStringOneByteStringKey(Handle<SeqOneByteString> string,
+                                     int from,
+                                     int length)
       : string_(string), from_(from), length_(length) { }
 
   uint32_t Hash() {
@@ -11752,7 +11838,7 @@ class SubStringOneByteSymbolKey : public HashTableKey {
   MaybeObject* AsObject() {
     if (hash_field_ == 0) Hash();
     Vector<const uint8_t> chars(string_->GetChars() + from_, length_);
-    return HEAP->AllocateOneByteSymbol(chars, hash_field_);
+    return HEAP->AllocateOneByteInternalizedString(chars, hash_field_);
   }
 
  private:
@@ -11763,10 +11849,10 @@ class SubStringOneByteSymbolKey : public HashTableKey {
 };
 
 
-class TwoByteSymbolKey : public SequentialSymbolKey<uc16> {
+class TwoByteStringKey : public SequentialStringKey<uc16> {
  public:
-  explicit TwoByteSymbolKey(Vector<const uc16> str, uint32_t seed)
-      : SequentialSymbolKey<uc16>(str, seed) { }
+  explicit TwoByteStringKey(Vector<const uc16> str, uint32_t seed)
+      : SequentialStringKey<uc16>(str, seed) { }
 
   bool IsMatch(Object* string) {
     return String::cast(string)->IsTwoByteEqualTo(string_);
@@ -11774,15 +11860,15 @@ class TwoByteSymbolKey : public SequentialSymbolKey<uc16> {
 
   MaybeObject* AsObject() {
     if (hash_field_ == 0) Hash();
-    return HEAP->AllocateTwoByteSymbol(string_, hash_field_);
+    return HEAP->AllocateTwoByteInternalizedString(string_, hash_field_);
   }
 };
 
 
-// SymbolKey carries a string/symbol object as key.
-class SymbolKey : public HashTableKey {
+// InternalizedStringKey carries a string/internalized-string object as key.
+class InternalizedStringKey : public HashTableKey {
  public:
-  explicit SymbolKey(String* string)
+  explicit InternalizedStringKey(String* string)
       : string_(string) { }
 
   bool IsMatch(Object* string) {
@@ -11796,21 +11882,20 @@ class SymbolKey : public HashTableKey {
   }
 
   MaybeObject* AsObject() {
-    // Attempt to flatten the string, so that symbols will most often
-    // be flat strings.
+    // Attempt to flatten the string, so that internalized strings will most
+    // often be flat strings.
     string_ = string_->TryFlattenGetString();
     Heap* heap = string_->GetHeap();
-    // Transform string to symbol if possible.
-    Map* map = heap->SymbolMapForString(string_);
+    // Internalize the string if possible.
+    Map* map = heap->InternalizedStringMapForString(string_);
     if (map != NULL) {
       string_->set_map_no_write_barrier(map);
-      ASSERT(string_->IsSymbol());
+      ASSERT(string_->IsInternalizedString());
       return string_;
     }
-    // Otherwise allocate a new symbol.
-    return heap->AllocateInternalSymbol(string_,
-                                        string_->length(),
-                                        string_->hash_field());
+    // Otherwise allocate a new internalized string.
+    return heap->AllocateInternalizedStringImpl(
+        string_, string_->length(), string_->hash_field());
   }
 
   static uint32_t StringHash(Object* obj) {
@@ -11861,18 +11946,18 @@ MaybeObject* HashTable<Shape, Key>::Allocate(int at_least_space_for,
 
 // Find entry for key otherwise return kNotFound.
 int StringDictionary::FindEntry(String* key) {
-  if (!key->IsSymbol()) {
+  if (!key->IsInternalizedString()) {
     return HashTable<StringDictionaryShape, String*>::FindEntry(key);
   }
 
-  // Optimized for symbol key. Knowledge of the key type allows:
-  // 1. Move the check if the key is a symbol out of the loop.
-  // 2. Avoid comparing hash codes in symbol to symbol comparison.
-  // 3. Detect a case when a dictionary key is not a symbol but the key is.
-  //    In case of positive result the dictionary key may be replaced by
-  //    the symbol with minimal performance penalty. It gives a chance to
-  //    perform further lookups in code stubs (and significant performance boost
-  //    a certain style of code).
+  // Optimized for internalized string key. Knowledge of the key type allows:
+  // 1. Move the check if the key is internalized out of the loop.
+  // 2. Avoid comparing hash codes in internalized-to-internalized comparison.
+  // 3. Detect a case when a dictionary key is not internalized but the key is.
+  //    In case of positive result the dictionary key may be replaced by the
+  //    internalized string with minimal performance penalty. It gives a chance
+  //    to perform further lookups in code stubs (and significant performance
+  //    boost a certain style of code).
 
   // EnsureCapacity will guarantee the hash table is never full.
   uint32_t capacity = Capacity();
@@ -11884,11 +11969,11 @@ int StringDictionary::FindEntry(String* key) {
     Object* element = get(index);
     if (element->IsUndefined()) break;  // Empty entry.
     if (key == element) return entry;
-    if (!element->IsSymbol() &&
+    if (!element->IsInternalizedString() &&
         !element->IsTheHole() &&
         String::cast(element)->Equals(key)) {
-      // Replace a non-symbol key by the equivalent symbol for faster further
-      // lookups.
+      // Replace a key that is not an internalized string by the equivalent
+      // internalized string for faster further lookups.
       set(index, key);
       return entry;
     }
@@ -12009,7 +12094,7 @@ uint32_t HashTable<Shape, Key>::FindInsertionEntry(uint32_t hash) {
 // Force instantiation of template instances class.
 // Please note this list is compiler dependent.
 
-template class HashTable<SymbolTableShape, HashTableKey*>;
+template class HashTable<StringTableShape, HashTableKey*>;
 
 template class HashTable<CompilationCacheShape, HashTableKey*>;
 
@@ -12566,13 +12651,13 @@ MaybeObject* GlobalObject::EnsurePropertyCell(String* name) {
 }
 
 
-MaybeObject* SymbolTable::LookupString(String* string, Object** s) {
-  SymbolKey key(string);
+MaybeObject* StringTable::LookupString(String* string, Object** s) {
+  InternalizedStringKey key(string);
   return LookupKey(&key, s);
 }
 
 
-// This class is used for looking up two character strings in the symbol table.
+// This class is used for looking up two character strings in the string table.
 // If we don't have a hit we don't want to waste much time so we unroll the
 // string hash calculation loop here for speed.  Doesn't work if the two
 // characters form a decimal integer, since such strings have a different hash
@@ -12623,7 +12708,7 @@ class TwoCharHashTableKey : public HashTableKey {
   }
 
   Object* AsObject() {
-    // The TwoCharHashTableKey is only used for looking in the symbol
+    // The TwoCharHashTableKey is only used for looking in the string
     // table, not for adding to it.
     UNREACHABLE();
     return NULL;
@@ -12636,97 +12721,95 @@ class TwoCharHashTableKey : public HashTableKey {
 };
 
 
-bool SymbolTable::LookupSymbolIfExists(String* string, String** symbol) {
-  SymbolKey key(string);
+bool StringTable::LookupStringIfExists(String* string, String** result) {
+  InternalizedStringKey key(string);
   int entry = FindEntry(&key);
   if (entry == kNotFound) {
     return false;
   } else {
-    String* result = String::cast(KeyAt(entry));
-    ASSERT(StringShape(result).IsSymbol());
-    *symbol = result;
+    *result = String::cast(KeyAt(entry));
+    ASSERT(StringShape(*result).IsInternalized());
     return true;
   }
 }
 
 
-bool SymbolTable::LookupTwoCharsSymbolIfExists(uint16_t c1,
+bool StringTable::LookupTwoCharsStringIfExists(uint16_t c1,
                                                uint16_t c2,
-                                               String** symbol) {
+                                               String** result) {
   TwoCharHashTableKey key(c1, c2, GetHeap()->HashSeed());
   int entry = FindEntry(&key);
   if (entry == kNotFound) {
     return false;
   } else {
-    String* result = String::cast(KeyAt(entry));
-    ASSERT(StringShape(result).IsSymbol());
-    *symbol = result;
+    *result = String::cast(KeyAt(entry));
+    ASSERT(StringShape(*result).IsInternalized());
     return true;
   }
 }
 
 
-MaybeObject* SymbolTable::LookupUtf8Symbol(Vector<const char> str,
+MaybeObject* StringTable::LookupUtf8String(Vector<const char> str,
                                            Object** s) {
-  Utf8SymbolKey key(str, GetHeap()->HashSeed());
+  Utf8StringKey key(str, GetHeap()->HashSeed());
   return LookupKey(&key, s);
 }
 
 
-MaybeObject* SymbolTable::LookupOneByteSymbol(Vector<const uint8_t> str,
+MaybeObject* StringTable::LookupOneByteString(Vector<const uint8_t> str,
                                               Object** s) {
-  OneByteSymbolKey key(str, GetHeap()->HashSeed());
+  OneByteStringKey key(str, GetHeap()->HashSeed());
   return LookupKey(&key, s);
 }
 
 
-MaybeObject* SymbolTable::LookupSubStringOneByteSymbol(
+MaybeObject* StringTable::LookupSubStringOneByteString(
     Handle<SeqOneByteString> str,
     int from,
     int length,
     Object** s) {
-  SubStringOneByteSymbolKey key(str, from, length);
+  SubStringOneByteStringKey key(str, from, length);
   return LookupKey(&key, s);
 }
 
 
-MaybeObject* SymbolTable::LookupTwoByteSymbol(Vector<const uc16> str,
+MaybeObject* StringTable::LookupTwoByteString(Vector<const uc16> str,
                                               Object** s) {
-  TwoByteSymbolKey key(str, GetHeap()->HashSeed());
+  TwoByteStringKey key(str, GetHeap()->HashSeed());
   return LookupKey(&key, s);
 }
 
-MaybeObject* SymbolTable::LookupKey(HashTableKey* key, Object** s) {
+MaybeObject* StringTable::LookupKey(HashTableKey* key, Object** s) {
   int entry = FindEntry(key);
 
-  // Symbol already in table.
+  // String already in table.
   if (entry != kNotFound) {
     *s = KeyAt(entry);
     return this;
   }
 
-  // Adding new symbol. Grow table if needed.
+  // Adding new string. Grow table if needed.
   Object* obj;
   { MaybeObject* maybe_obj = EnsureCapacity(1, key);
     if (!maybe_obj->ToObject(&obj)) return maybe_obj;
   }
 
-  // Create symbol object.
-  Object* symbol;
-  { MaybeObject* maybe_symbol = key->AsObject();
-    if (!maybe_symbol->ToObject(&symbol)) return maybe_symbol;
+  // Create string object.
+  Object* string;
+  { MaybeObject* maybe_string = key->AsObject();
+    if (!maybe_string->ToObject(&string)) return maybe_string;
   }
 
-  // If the symbol table grew as part of EnsureCapacity, obj is not
-  // the current symbol table and therefore we cannot use
-  // SymbolTable::cast here.
-  SymbolTable* table = reinterpret_cast<SymbolTable*>(obj);
+  // If the string table grew as part of EnsureCapacity, obj is not
+  // the current string table and therefore we cannot use
+  // StringTable::cast here.
+  StringTable* table = reinterpret_cast<StringTable*>(obj);
 
-  // Add the new symbol and return it along with the symbol table.
+  // Add the new string and return it along with the string table.
   entry = table->FindInsertionEntry(key->Hash());
-  table->set(EntryToIndex(entry), symbol);
+  table->set(EntryToIndex(entry), string);
   table->ElementAdded();
-  *s = symbol;
+  *s = string;
   return table;
 }
 
@@ -12866,42 +12949,42 @@ void CompilationCacheTable::Remove(Object* value) {
 }
 
 
-// SymbolsKey used for HashTable where key is array of symbols.
-class SymbolsKey : public HashTableKey {
+// StringsKey used for HashTable where key is array of internalzied strings.
+class StringsKey : public HashTableKey {
  public:
-  explicit SymbolsKey(FixedArray* symbols) : symbols_(symbols) { }
+  explicit StringsKey(FixedArray* strings) : strings_(strings) { }
 
-  bool IsMatch(Object* symbols) {
-    FixedArray* o = FixedArray::cast(symbols);
-    int len = symbols_->length();
+  bool IsMatch(Object* strings) {
+    FixedArray* o = FixedArray::cast(strings);
+    int len = strings_->length();
     if (o->length() != len) return false;
     for (int i = 0; i < len; i++) {
-      if (o->get(i) != symbols_->get(i)) return false;
+      if (o->get(i) != strings_->get(i)) return false;
     }
     return true;
   }
 
-  uint32_t Hash() { return HashForObject(symbols_); }
+  uint32_t Hash() { return HashForObject(strings_); }
 
   uint32_t HashForObject(Object* obj) {
-    FixedArray* symbols = FixedArray::cast(obj);
-    int len = symbols->length();
+    FixedArray* strings = FixedArray::cast(obj);
+    int len = strings->length();
     uint32_t hash = 0;
     for (int i = 0; i < len; i++) {
-      hash ^= String::cast(symbols->get(i))->Hash();
+      hash ^= String::cast(strings->get(i))->Hash();
     }
     return hash;
   }
 
-  Object* AsObject() { return symbols_; }
+  Object* AsObject() { return strings_; }
 
  private:
-  FixedArray* symbols_;
+  FixedArray* strings_;
 };
 
 
 Object* MapCache::Lookup(FixedArray* array) {
-  SymbolsKey key(array);
+  StringsKey key(array);
   int entry = FindEntry(&key);
   if (entry == kNotFound) return GetHeap()->undefined_value();
   return get(EntryToIndex(entry) + 1);
@@ -12909,7 +12992,7 @@ Object* MapCache::Lookup(FixedArray* array) {
 
 
 MaybeObject* MapCache::Put(FixedArray* array, Map* value) {
-  SymbolsKey key(array);
+  StringsKey key(array);
   Object* obj;
   { MaybeObject* maybe_obj = EnsureCapacity(1, &key);
     if (!maybe_obj->ToObject(&obj)) return maybe_obj;
@@ -13428,9 +13511,10 @@ MaybeObject* StringDictionary::TransformPropertiesToFastFor(
     Object* k = KeyAt(i);
     if (IsKey(k)) {
       Object* value = ValueAt(i);
-      // Ensure the key is a symbol before writing into the instance descriptor.
+      // Ensure the key is an internalized string before writing into the
+      // instance descriptor.
       String* key;
-      MaybeObject* maybe_key = heap->LookupSymbol(String::cast(k));
+      MaybeObject* maybe_key = heap->InternalizeString(String::cast(k));
       if (!maybe_key->To(&key)) return maybe_key;
 
       PropertyDetails details = DetailsAt(i);

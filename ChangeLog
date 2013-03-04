@@ -1,3 +1,14 @@
+2013-03-04: Version 3.17.7
+
+        Limited recursion in regexp compilation by a budget.
+        (Chromium issue 178790)
+
+        ES6 symbols: Implemented Symbol intrinsic and basic functionality
+        (issue 2158)
+
+        Performance and stability improvements on all platforms.
+
+
 2013-02-28: Version 3.17.6
 
         Fixed materialization of arguments objects with unknown values.

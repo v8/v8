@@ -794,6 +794,7 @@
             ],
             'experimental_library_files': [
               '../../src/macros.py',
+              '../../src/symbol.js',
               '../../src/proxy.js',
               '../../src/collection.js',
               '../../src/object-observe.js'

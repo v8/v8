@@ -171,7 +171,7 @@ void CodeStubGraphBuilder<FastCloneShallowObjectStub>::BuildCodeStub() {
     HInstruction* value =
         AddInstruction(new(zone) HLoadNamedField(boilerplate, true, i));
     AddInstruction(new(zone) HStoreNamedField(object,
-                                              factory->empty_symbol(),
+                                              factory->empty_string(),
                                               value,
                                               true, i));
     AddSimulate(BailoutId::StubEntry());
@@ -290,18 +290,45 @@ void CodeStubGraphBuilder<TransitionElementsKindStub>::BuildCodeStub() {
                     to_kind, array_length);
 
   AddInstruction(new(zone) HStoreNamedField(js_array,
-                                            factory->elements_field_symbol(),
+                                            factory->elements_field_string(),
                                             new_elements, true,
                                             JSArray::kElementsOffset));
   AddSimulate(BailoutId::StubEntry());
 
   if_builder.End();
 
-  AddInstruction(new(zone) HStoreNamedField(js_array, factory->length_symbol(),
+  AddInstruction(new(zone) HStoreNamedField(js_array, factory->length_string(),
                                             map, true, JSArray::kMapOffset));
   AddSimulate(BailoutId::StubEntry());
 
   HReturn* ret = new(zone) HReturn(js_array, context());
+  current_block()->Finish(ret);
+}
+
+
+template <>
+void CodeStubGraphBuilder<ArrayNoArgumentConstructorStub>::BuildCodeStub() {
+  HInstruction* deopt = new(zone()) HSoftDeoptimize();
+  AddInstruction(deopt);
+  current_block()->MarkAsDeoptimizing();
+  HReturn* ret = new(zone()) HReturn(GetParameter(0), context());
+  current_block()->Finish(ret);
+}
+
+
+Handle<Code> ArrayNoArgumentConstructorStub::GenerateCode() {
+  CodeStubGraphBuilder<ArrayNoArgumentConstructorStub> builder(this);
+  LChunk* chunk = OptimizeGraph(builder.CreateGraph());
+  return chunk->Codegen(Code::COMPILED_STUB);
+}
+
+
+template <>
+void CodeStubGraphBuilder<ArraySingleArgumentConstructorStub>::BuildCodeStub() {
+  HInstruction* deopt = new(zone()) HSoftDeoptimize();
+  AddInstruction(deopt);
+  current_block()->MarkAsDeoptimizing();
+  HReturn* ret = new(zone()) HReturn(GetParameter(0), context());
   current_block()->Finish(ret);
 }
 
@@ -312,5 +339,28 @@ Handle<Code> TransitionElementsKindStub::GenerateCode() {
   return chunk->Codegen(Code::COMPILED_STUB);
 }
 
+
+Handle<Code> ArraySingleArgumentConstructorStub::GenerateCode() {
+  CodeStubGraphBuilder<ArraySingleArgumentConstructorStub> builder(this);
+  LChunk* chunk = OptimizeGraph(builder.CreateGraph());
+  return chunk->Codegen(Code::COMPILED_STUB);
+}
+
+
+template <>
+void CodeStubGraphBuilder<ArrayNArgumentsConstructorStub>::BuildCodeStub() {
+  HInstruction* deopt = new(zone()) HSoftDeoptimize();
+  AddInstruction(deopt);
+  current_block()->MarkAsDeoptimizing();
+  HReturn* ret = new(zone()) HReturn(GetParameter(0), context());
+  current_block()->Finish(ret);
+}
+
+
+Handle<Code> ArrayNArgumentsConstructorStub::GenerateCode() {
+  CodeStubGraphBuilder<ArrayNArgumentsConstructorStub> builder(this);
+  LChunk* chunk = OptimizeGraph(builder.CreateGraph());
+  return chunk->Codegen(Code::COMPILED_STUB);
+}
 
 } }  // namespace v8::internal

@@ -2409,12 +2409,23 @@ void MacroAssembler::LoadInitialArrayMap(
 }
 
 
+void MacroAssembler::LoadGlobalContext(Register global_context) {
+  // Load the global or builtins object from the current context.
+  mov(global_context,
+      Operand(esi, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
+  // Load the native context from the global or builtins object.
+  mov(global_context,
+      FieldOperand(global_context, GlobalObject::kNativeContextOffset));
+}
+
+
 void MacroAssembler::LoadGlobalFunction(int index, Register function) {
   // Load the global or builtins object from the current context.
   mov(function,
       Operand(esi, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
   // Load the native context from the global or builtins object.
-  mov(function, FieldOperand(function, GlobalObject::kNativeContextOffset));
+  mov(function,
+      FieldOperand(function, GlobalObject::kNativeContextOffset));
   // Load the function from the native context.
   mov(function, Operand(function, Context::SlotOffset(index)));
 }

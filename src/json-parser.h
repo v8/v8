@@ -102,10 +102,10 @@ class JsonParser BASE_EMBEDDED {
   Handle<String> ParseJsonString() {
     return ScanJsonString<false>();
   }
-  Handle<String> ParseJsonSymbol() {
+  Handle<String> ParseJsonInternalizedString() {
     return ScanJsonString<true>();
   }
-  template <bool is_symbol>
+  template <bool is_internalized>
   Handle<String> ScanJsonString();
   // Creates a new string and copies prefix[start..end] into the beginning
   // of it. Then scans the rest of the string, adding characters after the
@@ -338,7 +338,7 @@ Handle<Object> JsonParser<seq_ascii>::ParseJsonObject() {
       c0_ = '"';
 #endif
 
-      Handle<String> key = ParseJsonSymbol();
+      Handle<String> key = ParseJsonInternalizedString();
       if (key.is_null() || c0_ != ':') return ReportUnexpectedCharacter();
 
       AdvanceSkipWhitespace();
@@ -601,7 +601,7 @@ Handle<String> JsonParser<seq_ascii>::SlowScanJsonString(
 
 
 template <bool seq_ascii>
-template <bool is_symbol>
+template <bool is_internalized>
 Handle<String> JsonParser<seq_ascii>::ScanJsonString() {
   ASSERT_EQ('"', c0_);
   Advance();
@@ -610,10 +610,10 @@ Handle<String> JsonParser<seq_ascii>::ScanJsonString() {
     return factory()->empty_string();
   }
 
-  if (seq_ascii && is_symbol) {
-    // Fast path for existing symbols.  If the the string being parsed is not
-    // a known symbol, contains backslashes or unexpectedly reaches the end of
-    // string, return with an empty handle.
+  if (seq_ascii && is_internalized) {
+    // Fast path for existing internalized strings.  If the the string being
+    // parsed is not a known internalized string, contains backslashes or
+    // unexpectedly reaches the end of string, return with an empty handle.
     uint32_t running_hash = isolate()->heap()->HashSeed();
     int position = position_;
     uc32 c0 = c0_;
@@ -647,12 +647,12 @@ Handle<String> JsonParser<seq_ascii>::ScanJsonString() {
         ? StringHasher::GetHashCore(running_hash) : length;
     Vector<const uint8_t> string_vector(
         seq_source_->GetChars() + position_, length);
-    SymbolTable* symbol_table = isolate()->heap()->symbol_table();
-    uint32_t capacity = symbol_table->Capacity();
-    uint32_t entry = SymbolTable::FirstProbe(hash, capacity);
+    StringTable* string_table = isolate()->heap()->string_table();
+    uint32_t capacity = string_table->Capacity();
+    uint32_t entry = StringTable::FirstProbe(hash, capacity);
     uint32_t count = 1;
     while (true) {
-      Object* element = symbol_table->KeyAt(entry);
+      Object* element = string_table->KeyAt(entry);
       if (element == isolate()->heap()->undefined_value()) {
         // Lookup failure.
         break;
@@ -665,7 +665,7 @@ Handle<String> JsonParser<seq_ascii>::ScanJsonString() {
         AdvanceSkipWhitespace();
         return Handle<String>(String::cast(element), isolate());
       }
-      entry = SymbolTable::NextProbe(entry, count++, capacity);
+      entry = StringTable::NextProbe(entry, count++, capacity);
     }
   }
 
@@ -690,8 +690,8 @@ Handle<String> JsonParser<seq_ascii>::ScanJsonString() {
   } while (c0_ != '"');
   int length = position_ - beg_pos;
   Handle<String> result;
-  if (seq_ascii && is_symbol) {
-    result = factory()->LookupOneByteSymbol(seq_source_, beg_pos, length);
+  if (seq_ascii && is_internalized) {
+    result = factory()->InternalizeOneByteString(seq_source_, beg_pos, length);
   } else {
     result = factory()->NewRawOneByteString(length, pretenure_);
     uint8_t* dest = SeqOneByteString::cast(*result)->GetChars();

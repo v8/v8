@@ -842,7 +842,7 @@ bool Debug::Load() {
   isolate_->set_context(*context);
 
   // Expose the builtins object in the debugger context.
-  Handle<String> key = isolate_->factory()->LookupOneByteSymbol(
+  Handle<String> key = isolate_->factory()->InternalizeOneByteString(
       STATIC_ASCII_VECTOR("builtins"));
   Handle<GlobalObject> global = Handle<GlobalObject>(context->global_object());
   RETURN_IF_EMPTY_HANDLE_VALUE(
@@ -1109,13 +1109,13 @@ bool Debug::CheckBreakPoint(Handle<Object> break_point_object) {
   if (!break_point_object->IsJSObject()) return true;
 
   // Get the function IsBreakPointTriggered (defined in debug-debugger.js).
-  Handle<String> is_break_point_triggered_symbol =
-      factory->LookupOneByteSymbol(
+  Handle<String> is_break_point_triggered_string =
+      factory->InternalizeOneByteString(
           STATIC_ASCII_VECTOR("IsBreakPointTriggered"));
   Handle<JSFunction> check_break_point =
     Handle<JSFunction>(JSFunction::cast(
         debug_context()->global_object()->GetPropertyNoExceptionThrown(
-            *is_break_point_triggered_symbol)));
+            *is_break_point_triggered_string)));
 
   // Get the break id as an object.
   Handle<Object> break_id = factory->NewNumberFromInt(Debug::break_id());
@@ -2441,7 +2441,7 @@ void Debug::ClearMirrorCache() {
   ASSERT(isolate_->context() == *Debug::debug_context());
 
   // Clear the mirror cache.
-  Handle<String> function_name = isolate_->factory()->LookupOneByteSymbol(
+  Handle<String> function_name = isolate_->factory()->InternalizeOneByteString(
       STATIC_ASCII_VECTOR("ClearMirrorCache"));
   Handle<Object> fun(
       isolate_->global_object()->GetPropertyNoExceptionThrown(*function_name),
@@ -2570,7 +2570,7 @@ Handle<Object> Debugger::MakeJSObject(Vector<const char> constructor_name,
 
   // Create the execution state object.
   Handle<String> constructor_str =
-      isolate_->factory()->LookupUtf8Symbol(constructor_name);
+      isolate_->factory()->InternalizeUtf8String(constructor_name);
   Handle<Object> constructor(
       isolate_->global_object()->GetPropertyNoExceptionThrown(*constructor_str),
       isolate_);
@@ -2800,13 +2800,13 @@ void Debugger::OnAfterCompile(Handle<Script> script,
   // script. Make sure that these break points are set.
 
   // Get the function UpdateScriptBreakPoints (defined in debug-debugger.js).
-  Handle<String> update_script_break_points_symbol =
-      isolate_->factory()->LookupOneByteSymbol(
+  Handle<String> update_script_break_points_string =
+      isolate_->factory()->InternalizeOneByteString(
           STATIC_ASCII_VECTOR("UpdateScriptBreakPoints"));
   Handle<Object> update_script_break_points =
       Handle<Object>(
           debug->debug_context()->global_object()->GetPropertyNoExceptionThrown(
-              *update_script_break_points_symbol),
+              *update_script_break_points_string),
           isolate_);
   if (!update_script_break_points->IsJSFunction()) {
     return;
