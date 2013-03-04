@@ -338,6 +338,7 @@ bool TypeFeedbackOracle::LoadIsStub(Property* expr, ICStub* stub) {
   if (!object->IsCode()) return false;
   Handle<Code> code = Handle<Code>::cast(object);
   if (!code->is_load_stub()) return false;
+  if (code->ic_state() != MONOMORPHIC) return false;
   return stub->Describes(*code);
 }
 
@@ -514,6 +515,29 @@ TypeInfo TypeFeedbackOracle::IncrementType(CountOperation* expr) {
 }
 
 
+static void AddMapIfMissing(Handle<Map> map, SmallMapList* list,
+                            Zone* zone) {
+  for (int i = 0; i < list->length(); ++i) {
+    if (list->at(i).is_identical_to(map)) return;
+  }
+  list->Add(map, zone);
+}
+
+
+void TypeFeedbackOracle::CollectPolymorphicMaps(Handle<Code> code,
+                                                SmallMapList* types) {
+  MapHandleList maps;
+  code->FindAllMaps(&maps);
+  types->Reserve(maps.length(), zone());
+  for (int i = 0; i < maps.length(); i++) {
+    Handle<Map> map(maps.at(i));
+    if (!CanRetainOtherContext(*map, *native_context_)) {
+      AddMapIfMissing(map, types, zone());
+    }
+  }
+}
+
+
 void TypeFeedbackOracle::CollectReceiverTypes(TypeFeedbackId ast_id,
                                               Handle<String> name,
                                               Code::Flags flags,
@@ -527,6 +551,8 @@ void TypeFeedbackOracle::CollectReceiverTypes(TypeFeedbackId ast_id,
     ASSERT(Handle<Code>::cast(object)->ic_state() == GENERIC);
   } else if (object->IsMap()) {
     types->Add(Handle<Map>::cast(object), zone());
+  } else if (Handle<Code>::cast(object)->ic_state() == POLYMORPHIC) {
+    CollectPolymorphicMaps(Handle<Code>::cast(object), types);
   } else if (FLAG_collect_megamorphic_maps_from_stub_cache &&
       Handle<Code>::cast(object)->ic_state() == MEGAMORPHIC) {
     types->Reserve(4, zone());
@@ -574,15 +600,6 @@ bool TypeFeedbackOracle::CanRetainOtherContext(JSFunction* function,
 }
 
 
-static void AddMapIfMissing(Handle<Map> map, SmallMapList* list,
-                            Zone* zone) {
-  for (int i = 0; i < list->length(); ++i) {
-    if (list->at(i).is_identical_to(map)) return;
-  }
-  list->Add(map, zone);
-}
-
-
 void TypeFeedbackOracle::CollectKeyedReceiverTypes(TypeFeedbackId ast_id,
                                                    SmallMapList* types) {
   Handle<Object> object = GetInfo(ast_id);
@@ -590,18 +607,7 @@ void TypeFeedbackOracle::CollectKeyedReceiverTypes(TypeFeedbackId ast_id,
   Handle<Code> code = Handle<Code>::cast(object);
   if (code->kind() == Code::KEYED_LOAD_IC ||
       code->kind() == Code::KEYED_STORE_IC) {
-    AssertNoAllocation no_allocation;
-    int mask = RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT);
-    for (RelocIterator it(*code, mask); !it.done(); it.next()) {
-      RelocInfo* info = it.rinfo();
-      Object* object = info->target_object();
-      if (object->IsMap()) {
-        Map* map = Map::cast(object);
-        if (!CanRetainOtherContext(map, *native_context_)) {
-          AddMapIfMissing(Handle<Map>(map), types, zone());
-        }
-      }
-    }
+    CollectPolymorphicMaps(code, types);
   }
 }
 

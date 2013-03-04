@@ -3408,6 +3408,12 @@ void StoreArrayLengthStub::Generate(MacroAssembler* masm) {
 }
 
 
+void LoadFieldStub::Generate(MacroAssembler* masm) {
+  StubCompiler::DoGenerateFastPropertyLoad(masm, eax, reg_, inobject_, index_);
+  __ ret(0);
+}
+
+
 void ArgumentsAccessStub::GenerateReadElement(MacroAssembler* masm) {
   // The key is in edx and the parameter count is in eax.
 

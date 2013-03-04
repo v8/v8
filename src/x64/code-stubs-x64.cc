@@ -2523,6 +2523,12 @@ void StoreArrayLengthStub::Generate(MacroAssembler* masm) {
 }
 
 
+void LoadFieldStub::Generate(MacroAssembler* masm) {
+  StubCompiler::DoGenerateFastPropertyLoad(masm, rax, reg_, inobject_, index_);
+  __ ret(0);
+}
+
+
 void ArgumentsAccessStub::GenerateReadElement(MacroAssembler* masm) {
   // The key is in rdx and the parameter count is in rax.
 

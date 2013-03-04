@@ -2422,7 +2422,7 @@ TEST(IncrementalMarkingClearsPolymorhpicIC) {
               v8::Context::GetCurrent()->Global()->Get(v8_str("f"))));
 
   Code* ic_before = FindFirstIC(f->shared()->code(), Code::LOAD_IC);
-  CHECK(ic_before->ic_state() == MEGAMORPHIC);
+  CHECK(ic_before->ic_state() == POLYMORPHIC);
 
   // Fire context dispose notification.
   v8::V8::ContextDisposedNotification();

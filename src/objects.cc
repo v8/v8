@@ -8752,6 +8752,46 @@ Map* Code::FindFirstMap() {
 }
 
 
+void Code::FindAllMaps(MapHandleList* maps) {
+  ASSERT(is_inline_cache_stub());
+  AssertNoAllocation no_allocation;
+  int mask = RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT);
+  for (RelocIterator it(this, mask); !it.done(); it.next()) {
+    RelocInfo* info = it.rinfo();
+    Object* object = info->target_object();
+    if (object->IsMap()) maps->Add(Handle<Map>(Map::cast(object)));
+  }
+}
+
+
+Code* Code::FindFirstCode() {
+  ASSERT(is_inline_cache_stub());
+  AssertNoAllocation no_allocation;
+  int mask = RelocInfo::ModeMask(RelocInfo::CODE_TARGET);
+  for (RelocIterator it(this, mask); !it.done(); it.next()) {
+    RelocInfo* info = it.rinfo();
+    return Code::GetCodeFromTargetAddress(info->target_address());
+  }
+  return NULL;
+}
+
+
+void Code::FindAllCode(CodeHandleList* code_list, int length) {
+  ASSERT(is_inline_cache_stub());
+  AssertNoAllocation no_allocation;
+  int mask = RelocInfo::ModeMask(RelocInfo::CODE_TARGET);
+  int i = 0;
+  for (RelocIterator it(this, mask); !it.done(); it.next()) {
+    if (i++ == length) return;
+    RelocInfo* info = it.rinfo();
+    Code* code = Code::GetCodeFromTargetAddress(info->target_address());
+    ASSERT(code->is_load_stub());
+    code_list->Add(Handle<Code>(code));
+  }
+  UNREACHABLE();
+}
+
+
 void Code::ClearInlineCaches() {
   int mask = RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |
              RelocInfo::ModeMask(RelocInfo::CONSTRUCT_CALL) |

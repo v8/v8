@@ -133,7 +133,7 @@ enum BuiltinExtraArguments {
   V(LoadIC_PreMonomorphic,          LOAD_IC, PREMONOMORPHIC,            \
                                     Code::kNoExtraICState)              \
   V(LoadIC_Normal,                  LOAD_IC, MONOMORPHIC,               \
-                                    Code::kNoExtraICState)              \
+                                    Code::IC_FRAGMENT)                  \
   V(LoadIC_Megamorphic,             LOAD_IC, MEGAMORPHIC,               \
                                     Code::kNoExtraICState)              \
   V(LoadIC_Getter_ForDeopt,         LOAD_IC, MONOMORPHIC,               \

@@ -165,6 +165,16 @@ class IC {
   static inline void SetTargetAtAddress(Address address, Code* target);
   static void PostPatching(Address address, Code* target, Code* old_target);
 
+  virtual void UpdateMonomorphicIC(Handle<JSObject> receiver,
+                                   Handle<Code> handler,
+                                   Handle<String> name) {
+    set_target(*handler);
+  }
+  bool UpdatePolymorphicIC(State state,
+                           StrictModeFlag strict_mode,
+                           Handle<JSObject> receiver,
+                           Handle<String> name,
+                           Handle<Code> code);
   void PatchCache(State state,
                   StrictModeFlag strict_mode,
                   Handle<JSObject> receiver,
@@ -377,9 +387,12 @@ class LoadIC: public IC {
                     State state,
                     Handle<Object> object,
                     Handle<String> name);
-  virtual Handle<Code> ComputeLoadMonomorphic(LookupResult* lookup,
-                                              Handle<JSObject> receiver,
-                                              Handle<String> name);
+  virtual void UpdateMonomorphicIC(Handle<JSObject> receiver,
+                                   Handle<Code> handler,
+                                   Handle<String> name);
+  virtual Handle<Code> ComputeLoadHandler(LookupResult* lookup,
+                                          Handle<JSObject> receiver,
+                                          Handle<String> name);
 
  private:
   // Stub accessors.
@@ -448,9 +461,12 @@ class KeyedLoadIC: public LoadIC {
   }
 
   // Update the inline cache.
-  virtual Handle<Code> ComputeLoadMonomorphic(LookupResult* lookup,
-                                              Handle<JSObject> receiver,
-                                              Handle<String> name);
+  virtual void UpdateMonomorphicIC(Handle<JSObject> receiver,
+                                   Handle<Code> handler,
+                                   Handle<String> name);
+  virtual Handle<Code> ComputeLoadHandler(LookupResult* lookup,
+                                          Handle<JSObject> receiver,
+                                          Handle<String> name);
   virtual void UpdateMegamorphicCache(Map* map, String* name, Code* code) { }
 
  private:

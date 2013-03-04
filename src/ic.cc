@@ -935,6 +935,71 @@ MaybeObject* LoadIC::Load(State state,
 }
 
 
+static bool AddOneReceiverMapIfMissing(MapHandleList* receiver_maps,
+                                       Handle<Map> new_receiver_map) {
+  ASSERT(!new_receiver_map.is_null());
+  for (int current = 0; current < receiver_maps->length(); ++current) {
+    if (!receiver_maps->at(current).is_null() &&
+        receiver_maps->at(current).is_identical_to(new_receiver_map)) {
+      return false;
+    }
+  }
+  receiver_maps->Add(new_receiver_map);
+  return true;
+}
+
+
+bool IC::UpdatePolymorphicIC(State state,
+                             StrictModeFlag strict_mode,
+                             Handle<JSObject> receiver,
+                             Handle<String> name,
+                             Handle<Code> code) {
+  if (code->type() == Code::NORMAL) return false;
+  if (target()->ic_state() == MONOMORPHIC &&
+      target()->type() == Code::NORMAL) {
+    return false;
+  }
+  MapHandleList receiver_maps;
+  CodeHandleList handlers;
+  target()->FindAllMaps(&receiver_maps);
+  int number_of_maps = receiver_maps.length();
+  if (number_of_maps == 0 || number_of_maps >= 4) return false;
+
+  target()->FindAllCode(&handlers, receiver_maps.length());
+
+  if (!AddOneReceiverMapIfMissing(&receiver_maps,
+                                  Handle<Map>(receiver->map()))) {
+    return false;
+  }
+
+  handlers.Add(code);
+  Handle<Code> ic = isolate()->stub_cache()->ComputePolymorphicIC(
+      &receiver_maps, &handlers, name);
+  set_target(*ic);
+  return true;
+}
+
+
+void LoadIC::UpdateMonomorphicIC(Handle<JSObject> receiver,
+                                 Handle<Code> handler,
+                                 Handle<String> name) {
+  if (handler->type() == Code::NORMAL) return set_target(*handler);
+  Handle<Code> ic = isolate()->stub_cache()->ComputeMonomorphicIC(
+      receiver, handler, name);
+  set_target(*ic);
+}
+
+
+void KeyedLoadIC::UpdateMonomorphicIC(Handle<JSObject> receiver,
+                                      Handle<Code> handler,
+                                      Handle<String> name) {
+  if (handler->type() == Code::NORMAL) return set_target(*handler);
+  Handle<Code> ic = isolate()->stub_cache()->ComputeKeyedMonomorphicIC(
+      receiver, handler, name);
+  set_target(*ic);
+}
+
+
 void IC::PatchCache(State state,
                     StrictModeFlag strict_mode,
                     Handle<JSObject> receiver,
@@ -944,14 +1009,18 @@ void IC::PatchCache(State state,
     case UNINITIALIZED:
     case PREMONOMORPHIC:
     case MONOMORPHIC_PROTOTYPE_FAILURE:
-      set_target(*code);
+      UpdateMonomorphicIC(receiver, code, name);
       break;
     case MONOMORPHIC:
       // Only move to megamorphic if the target changes.
       if (target() != *code) {
-        // We are transitioning from monomorphic to megamorphic case.
-        // Place the current monomorphic stub and stub compiled for
-        // the receiver into stub cache.
+        if (target()->is_load_stub()) {
+          if (UpdatePolymorphicIC(state, strict_mode, receiver, name, code)) {
+            break;
+          }
+        }
+        // We are transitioning from monomorphic to megamorphic case.  Place the
+        // stub compiled for the receiver into stub cache.
         Map* map = target()->FindFirstMap();
         if (map != NULL) {
           UpdateMegamorphicCache(map, *name, target());
@@ -967,18 +1036,66 @@ void IC::PatchCache(State state,
       UpdateMegamorphicCache(receiver->map(), *name, *code);
       break;
     case POLYMORPHIC:
-      // When trying to patch a polymorphic stub with anything other than
-      // another polymorphic stub, go generic.
-      // TODO(verwaest): Currently we always go generic since no polymorphic
-      // stubs enter this code path. Replace with proper updating once named
-      // load/store can also be polymorphic.
-      set_target((strict_mode == kStrictMode)
-                 ? *generic_stub_strict()
-                 : *generic_stub());
+      if (target()->is_load_stub()) {
+        if (UpdatePolymorphicIC(state, strict_mode, receiver, name, code)) {
+          break;
+        }
+        MapHandleList receiver_maps;
+        CodeHandleList handlers;
+        target()->FindAllMaps(&receiver_maps);
+        target()->FindAllCode(&handlers, receiver_maps.length());
+        for (int i = 0; i < receiver_maps.length(); i++) {
+          UpdateMegamorphicCache(*receiver_maps.at(i), *name, *handlers.at(i));
+        }
+        UpdateMegamorphicCache(receiver->map(), *name, *code);
+        set_target(*megamorphic_stub());
+      } else {
+        // When trying to patch a polymorphic keyed load/store element stub
+        // with anything other than another polymorphic stub, go generic.
+        set_target((strict_mode == kStrictMode)
+                   ? *generic_stub_strict()
+                   : *generic_stub());
+      }
       break;
     case DEBUG_STUB:
       break;
     case GENERIC:
+      UNREACHABLE();
+      break;
+  }
+}
+
+
+static void GetReceiverMapsForStub(Handle<Code> stub,
+                                   MapHandleList* result) {
+  ASSERT(stub->is_inline_cache_stub());
+  switch (stub->ic_state()) {
+    case MONOMORPHIC: {
+      Map* map = stub->FindFirstMap();
+      if (map != NULL) {
+        result->Add(Handle<Map>(map));
+      }
+      break;
+    }
+    case POLYMORPHIC: {
+      AssertNoAllocation no_allocation;
+      int mask = RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT);
+      for (RelocIterator it(*stub, mask); !it.done(); it.next()) {
+        RelocInfo* info = it.rinfo();
+        Handle<Object> object(info->target_object(), stub->GetIsolate());
+        if (object->IsString()) break;
+        ASSERT(object->IsMap());
+        AddOneReceiverMapIfMissing(result, Handle<Map>::cast(object));
+      }
+      break;
+    }
+    case MEGAMORPHIC:
+      break;
+    case UNINITIALIZED:
+    case PREMONOMORPHIC:
+    case MONOMORPHIC_PROTOTYPE_FAILURE:
+    case GENERIC:
+    case DEBUG_STUB:
       UNREACHABLE();
       break;
   }
@@ -1004,7 +1121,7 @@ void LoadIC::UpdateCaches(LookupResult* lookup,
     // setting the monomorphic state.
     code = pre_monomorphic_stub();
   } else {
-    code = ComputeLoadMonomorphic(lookup, receiver, name);
+    code = ComputeLoadHandler(lookup, receiver, name);
     if (code.is_null()) return;
   }
 
@@ -1020,9 +1137,9 @@ void IC::UpdateMegamorphicCache(Map* map, String* name, Code* code) {
 }
 
 
-Handle<Code> LoadIC::ComputeLoadMonomorphic(LookupResult* lookup,
-                                            Handle<JSObject> receiver,
-                                            Handle<String> name) {
+Handle<Code> LoadIC::ComputeLoadHandler(LookupResult* lookup,
+                                        Handle<JSObject> receiver,
+                                        Handle<String> name) {
   if (!lookup->IsProperty()) {
     // Nonexistent property. The result is undefined.
     return isolate()->stub_cache()->ComputeLoadNonexistent(name, receiver);
@@ -1051,7 +1168,7 @@ Handle<Code> LoadIC::ComputeLoadMonomorphic(LookupResult* lookup,
       // property must be found in the receiver for the stub to be
       // applicable.
       if (!holder.is_identical_to(receiver)) break;
-      return isolate()->stub_cache()->ComputeLoadNormal();
+      return isolate()->stub_cache()->ComputeLoadNormal(name, receiver);
     case CALLBACKS: {
       Handle<Object> callback(lookup->GetCallbackObject(), isolate());
       if (callback->IsExecutableAccessorInfo()) {
@@ -1104,56 +1221,6 @@ static Handle<Object> TryConvertKey(Handle<Object> key, Isolate* isolate) {
     key = isolate->factory()->undefined_string();
   }
   return key;
-}
-
-
-static bool AddOneReceiverMapIfMissing(MapHandleList* receiver_maps,
-                                       Handle<Map> new_receiver_map) {
-  ASSERT(!new_receiver_map.is_null());
-  for (int current = 0; current < receiver_maps->length(); ++current) {
-    if (!receiver_maps->at(current).is_null() &&
-        receiver_maps->at(current).is_identical_to(new_receiver_map)) {
-      return false;
-    }
-  }
-  receiver_maps->Add(new_receiver_map);
-  return true;
-}
-
-
-static void GetReceiverMapsForStub(Handle<Code> stub,
-                                   MapHandleList* result) {
-  ASSERT(stub->is_inline_cache_stub());
-  ASSERT(stub->is_keyed_load_stub() || stub->is_keyed_store_stub());
-  switch (stub->ic_state()) {
-    case MONOMORPHIC: {
-      Map* map = stub->FindFirstMap();
-      if (map != NULL) {
-        result->Add(Handle<Map>(map));
-      }
-      break;
-    }
-    case POLYMORPHIC: {
-      AssertNoAllocation no_allocation;
-      int mask = RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT);
-      for (RelocIterator it(*stub, mask); !it.done(); it.next()) {
-        RelocInfo* info = it.rinfo();
-        Handle<Object> object(info->target_object(), stub->GetIsolate());
-        ASSERT(object->IsMap());
-        AddOneReceiverMapIfMissing(result, Handle<Map>::cast(object));
-      }
-      break;
-    }
-    case MEGAMORPHIC:
-      break;
-    case UNINITIALIZED:
-    case PREMONOMORPHIC:
-    case MONOMORPHIC_PROTOTYPE_FAILURE:
-    case GENERIC:
-    case DEBUG_STUB:
-      UNREACHABLE();
-      break;
-  }
 }
 
 
@@ -1268,9 +1335,9 @@ MaybeObject* KeyedLoadIC::Load(State state,
 }
 
 
-Handle<Code> KeyedLoadIC::ComputeLoadMonomorphic(LookupResult* lookup,
-                                                 Handle<JSObject> receiver,
-                                                 Handle<String> name) {
+Handle<Code> KeyedLoadIC::ComputeLoadHandler(LookupResult* lookup,
+                                             Handle<JSObject> receiver,
+                                             Handle<String> name) {
   // Bail out if we didn't find a result.
   if (!lookup->IsProperty()) return Handle<Code>::null();
 

@@ -3097,9 +3097,9 @@ Handle<Code> KeyedLoadStubCompiler::CompileLoadElement(
 }
 
 
-Handle<Code> KeyedLoadStubCompiler::CompileLoadPolymorphic(
+Handle<Code> BaseLoadStubCompiler::CompilePolymorphicIC(
     MapHandleList* receiver_maps,
-    CodeHandleList* handler_ics) {
+    CodeHandleList* handlers) {
   // ----------- S t a t e -------------
   //  -- ra    : return address
   //  -- a0    : key
@@ -3111,13 +3111,12 @@ Handle<Code> KeyedLoadStubCompiler::CompileLoadPolymorphic(
   int receiver_count = receiver_maps->length();
   __ lw(a2, FieldMemOperand(a1, HeapObject::kMapOffset));
   for (int current = 0; current < receiver_count; ++current) {
-    __ Jump(handler_ics->at(current), RelocInfo::CODE_TARGET,
+    __ Jump(handlers->at(current), RelocInfo::CODE_TARGET,
         eq, a2, Operand(receiver_maps->at(current)));
   }
 
   __ bind(&miss);
-  Handle<Code> miss_ic = isolate()->builtins()->KeyedLoadIC_Miss();
-  __ Jump(miss_ic, RelocInfo::CODE_TARGET);
+  GenerateLoadMiss(masm(), kind());
 
   // Return the generated code.
   return GetCode(Code::NORMAL, factory()->empty_string(), POLYMORPHIC);

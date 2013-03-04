@@ -155,6 +155,18 @@ class PropertyIndex {
     return value();
   }
 
+  bool is_inobject(Handle<JSObject> holder) {
+    if (is_header_index()) return true;
+    return field_index() < holder->map()->inobject_properties();
+  }
+
+  int translate(Handle<JSObject> holder) {
+    if (is_header_index()) return header_index();
+    int index = field_index() - holder->map()->inobject_properties();
+    if (index >= 0) return index;
+    return index + holder->map()->instance_size() / kPointerSize;
+  }
+
  private:
   static const int kHeaderIndexBit = 1 << 31;
   static const int kIndexMask = ~kHeaderIndexBit;

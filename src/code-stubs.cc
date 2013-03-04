@@ -98,7 +98,10 @@ Handle<Code> PlatformCodeStub::GenerateCode() {
 
   // Copy the generated code into a heap object.
   Code::Flags flags = Code::ComputeFlags(
-      static_cast<Code::Kind>(GetCodeKind()), GetICState(), GetExtraICState());
+      static_cast<Code::Kind>(GetCodeKind()),
+      GetICState(),
+      GetExtraICState(),
+      GetStubType());
   Handle<Code> new_object = factory->NewCode(
       desc, flags, masm.CodeObject(), NeedsImmovableCode());
   return new_object;

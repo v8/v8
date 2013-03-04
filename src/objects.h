@@ -4282,6 +4282,11 @@ class Code: public HeapObject {
     NONEXISTENT
   };
 
+  enum IcFragment {
+    IC_FRAGMENT,
+    HANDLER_FRAGMENT
+  };
+
   enum {
     NUMBER_OF_KINDS = LAST_IC_KIND + 1
   };
@@ -4464,6 +4469,11 @@ class Code: public HeapObject {
 
   // Find the first map in an IC stub.
   Map* FindFirstMap();
+  void FindAllMaps(MapHandleList* maps);
+
+  // Find the first code in an IC stub.
+  Code* FindFirstCode();
+  void FindAllCode(CodeHandleList* code_list, int length);
 
   class ExtraICStateStrictMode: public BitField<StrictModeFlag, 0, 1> {};
   class ExtraICStateKeyedAccessGrowMode:

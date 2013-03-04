@@ -83,7 +83,9 @@ namespace internal {
   V(TransitionElementsKind)              \
   V(StoreArrayLiteralElement)            \
   V(StubFailureTrampoline)               \
-  V(ProfileEntryHook)
+  V(ProfileEntryHook)                    \
+  /* IC Handler stubs */                 \
+  V(LoadField)
 
 // List of code stubs only used on ARM platforms.
 #ifdef V8_TARGET_ARCH_ARM
@@ -187,6 +189,9 @@ class CodeStub BASE_EMBEDDED {
   }
   virtual Code::ExtraICState GetExtraICState() {
     return Code::kNoExtraICState;
+  }
+  virtual Code::StubType GetStubType() {
+    return Code::NORMAL;
   }
 
   // Returns whether the code generated for this stub needs to be allocated as
@@ -611,6 +616,7 @@ class StringLengthStub: public ICStub {
   virtual void Generate(MacroAssembler* masm);
 
  private:
+  STATIC_ASSERT(KindBits::kSize == 4);
   class WrapperModeBits: public BitField<bool, 4, 1> {};
   virtual CodeStub::Major MajorKey() { return StringLength; }
   virtual int MinorKey() {
@@ -632,6 +638,7 @@ class StoreICStub: public ICStub {
   }
 
  private:
+  STATIC_ASSERT(KindBits::kSize == 4);
   class StrictModeBits: public BitField<bool, 4, 1> {};
   virtual int MinorKey() {
     return KindBits::encode(kind()) | StrictModeBits::encode(strict_mode_);
@@ -649,6 +656,48 @@ class StoreArrayLengthStub: public StoreICStub {
 
  private:
   virtual CodeStub::Major MajorKey() { return StoreArrayLength; }
+};
+
+
+class HandlerStub: public ICStub {
+ public:
+  explicit HandlerStub(Code::Kind kind) : ICStub(kind) { }
+
+ protected:
+  virtual Code::ExtraICState GetExtraICState() {
+    return Code::HANDLER_FRAGMENT;
+  }
+};
+
+
+class LoadFieldStub: public HandlerStub {
+ public:
+  LoadFieldStub(Register reg, bool inobject, int index)
+      : HandlerStub(Code::LOAD_IC),
+        reg_(reg),
+        inobject_(inobject),
+        index_(index) { }
+  virtual void Generate(MacroAssembler* masm);
+
+ protected:
+  virtual Code::StubType GetStubType() { return Code::FIELD; }
+
+ private:
+  STATIC_ASSERT(KindBits::kSize == 4);
+  class RegisterBits: public BitField<int, 4, 6> {};
+  class InobjectBits: public BitField<bool, 10, 1> {};
+  class IndexBits: public BitField<int, 11, 11> {};
+  virtual CodeStub::Major MajorKey() { return LoadField; }
+  virtual int MinorKey() {
+    return KindBits::encode(kind())
+        | RegisterBits::encode(reg_.code())
+        | InobjectBits::encode(inobject_)
+        | IndexBits::encode(index_);
+  }
+
+  Register reg_;
+  bool inobject_;
+  int index_;
 };
 
 

@@ -3822,12 +3822,6 @@ Code::Flags Code::ComputeFlags(Kind kind,
                                StubType type,
                                int argc,
                                InlineCacheHolderFlag holder) {
-  // Extra IC state is only allowed for call IC stubs or for store IC
-  // stubs.
-  ASSERT(extra_ic_state == kNoExtraICState ||
-         kind == CALL_IC ||
-         kind == STORE_IC ||
-         kind == KEYED_STORE_IC);
   // Compute the bit mask.
   int bits = KindField::encode(kind)
       | ICStateField::encode(ic_state)
