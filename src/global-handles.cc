@@ -113,10 +113,10 @@ class GlobalHandles::Node {
   void Release(GlobalHandles* global_handles) {
     ASSERT(state() != FREE);
     set_state(FREE);
-    // TODO(176056): Enable as soon as WebKit bindings are fixed.
-#ifdef DEBUG_TODO
-    // Zap the values for eager trapping.
+    // TODO(mstarzinger): Put behind debug flag once embedders are stabilized.
     object_ = reinterpret_cast<Object*>(kGlobalHandleZapValue);
+#ifdef DEBUG
+    // Zap the values for eager trapping.
     class_id_ = v8::HeapProfiler::kPersistentHandleNoClassId;
     set_independent(false);
     set_partially_dependent(false);
