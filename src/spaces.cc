@@ -2476,6 +2476,12 @@ bool PagedSpace::ReserveSpace(int size_in_bytes) {
 }
 
 
+intptr_t PagedSpace::SizeOfObjects() {
+  ASSERT(!heap()->IsSweepingComplete() || (unswept_free_bytes_ == 0));
+  return Size() - unswept_free_bytes_ - (limit() - top());
+}
+
+
 // After we have booted, we have created a map which represents free space
 // on the heap.  If there was already a free list then the elements on it
 // were created with the wrong FreeSpaceMap (normally NULL), so we need to
