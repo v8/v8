@@ -2496,6 +2496,14 @@ void LCodeGen::DoDeferredInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr,
 }
 
 
+void LCodeGen::DoInstanceSize(LInstanceSize* instr) {
+  Register object = ToRegister(instr->object());
+  Register result = ToRegister(instr->result());
+  __ lw(result, FieldMemOperand(object, HeapObject::kMapOffset));
+  __ lbu(result, FieldMemOperand(result, Map::kInstanceSizeOffset));
+}
+
+
 void LCodeGen::DoCmpT(LCmpT* instr) {
   Token::Value op = instr->op();
 
@@ -5275,26 +5283,31 @@ void LCodeGen::DoAllocate(LAllocate* instr) {
   DeferredAllocate* deferred =
       new(zone()) DeferredAllocate(this, instr);
 
-  Register size = ToRegister(instr->size());
   Register result = ToRegister(instr->result());
   Register scratch = ToRegister(instr->temp1());
   Register scratch2 = ToRegister(instr->temp2());
 
-  HAllocate* original_instr = instr->hydrogen();
-  if (original_instr->size()->IsConstant()) {
-    UNREACHABLE();
-  } else {
-    // Allocate memory for the object.
-    AllocationFlags flags = TAG_OBJECT;
-    if (original_instr->MustAllocateDoubleAligned()) {
-      flags = static_cast<AllocationFlags>(flags | DOUBLE_ALIGNMENT);
-    }
+  // Allocate memory for the object.
+  AllocationFlags flags = TAG_OBJECT;
+  if (instr->hydrogen()->MustAllocateDoubleAligned()) {
+    flags = static_cast<AllocationFlags>(flags | DOUBLE_ALIGNMENT);
+  }
+  if (instr->size()->IsConstantOperand()) {
+    int32_t size = ToInteger32(LConstantOperand::cast(instr->size()));
     __ AllocateInNewSpace(size,
                           result,
                           scratch,
                           scratch2,
                           deferred->entry(),
-                          TAG_OBJECT);
+                          flags);
+  } else {
+    Register size = ToRegister(instr->size());
+    __ AllocateInNewSpace(size,
+                          result,
+                          scratch,
+                          scratch2,
+                          deferred->entry(),
+                          flags);
   }
 
   __ bind(deferred->exit());
@@ -5545,21 +5558,22 @@ void LCodeGen::DoObjectLiteral(LObjectLiteral* instr) {
       instr->hydrogen()->constant_properties();
 
   // Set up the parameters to the stub/runtime call.
-  __ LoadHeapObject(t0, literals);
-  __ li(a3, Operand(Smi::FromInt(instr->hydrogen()->literal_index())));
-  __ li(a2, Operand(constant_properties));
+  __ LoadHeapObject(a3, literals);
+  __ li(a2, Operand(Smi::FromInt(instr->hydrogen()->literal_index())));
+  __ li(a1, Operand(constant_properties));
   int flags = instr->hydrogen()->fast_elements()
       ? ObjectLiteral::kFastElements
       : ObjectLiteral::kNoFlags;
-  __ li(a1, Operand(Smi::FromInt(flags)));
-  __ Push(t0, a3, a2, a1);
+  __ li(a0, Operand(Smi::FromInt(flags)));
 
   // Pick the right runtime function or stub to call.
   int properties_count = constant_properties->length() / 2;
   if (instr->hydrogen()->depth() > 1) {
+    __ Push(a3, a2, a1, a0);
     CallRuntime(Runtime::kCreateObjectLiteral, 4, instr);
   } else if (flags != ObjectLiteral::kFastElements ||
       properties_count > FastCloneShallowObjectStub::kMaximumClonedProperties) {
+    __ Push(a3, a2, a1, a0);
     CallRuntime(Runtime::kCreateObjectLiteralShallow, 4, instr);
   } else {
     FastCloneShallowObjectStub stub(properties_count);
