@@ -6210,12 +6210,13 @@ void ICCompareStub::GenerateMiss(MacroAssembler* masm) {
 }
 
 
-void StringDictionaryLookupStub::GenerateNegativeLookup(MacroAssembler* masm,
-                                                        Label* miss,
-                                                        Label* done,
-                                                        Register properties,
-                                                        Handle<String> name,
-                                                        Register r0) {
+void NameDictionaryLookupStub::GenerateNegativeLookup(MacroAssembler* masm,
+                                                      Label* miss,
+                                                      Label* done,
+                                                      Register properties,
+                                                      Handle<Name> name,
+                                                      Register r0) {
+  ASSERT(name->IsUniqueName());
   // If names of slots in range from 1 to kProbes - 1 for the hash value are
   // not equal to the name and kProbes-th slot is not used (its name is the
   // undefined value), it guarantees the hash table doesn't contain the
@@ -6229,10 +6230,10 @@ void StringDictionaryLookupStub::GenerateNegativeLookup(MacroAssembler* masm,
     __ SmiToInteger32(index, FieldOperand(properties, kCapacityOffset));
     __ decl(index);
     __ and_(index,
-            Immediate(name->Hash() + StringDictionary::GetProbeOffset(i)));
+            Immediate(name->Hash() + NameDictionary::GetProbeOffset(i)));
 
     // Scale the index by multiplying by the entry size.
-    ASSERT(StringDictionary::kEntrySize == 3);
+    ASSERT(NameDictionary::kEntrySize == 3);
     __ lea(index, Operand(index, index, times_2, 0));  // index *= 3.
 
     Register entity_name = r0;
@@ -6246,27 +6247,27 @@ void StringDictionaryLookupStub::GenerateNegativeLookup(MacroAssembler* masm,
     __ j(equal, done);
 
     // Stop if found the property.
-    __ Cmp(entity_name, Handle<String>(name));
+    __ Cmp(entity_name, Handle<Name>(name));
     __ j(equal, miss);
 
-    Label the_hole;
+    Label good;
     // Check for the hole and skip.
     __ CompareRoot(entity_name, Heap::kTheHoleValueRootIndex);
-    __ j(equal, &the_hole, Label::kNear);
+    __ j(equal, &good, Label::kNear);
 
-    // Check if the entry name is not an internalized string.
+    // Check if the entry name is not a unique name.
     __ movq(entity_name, FieldOperand(entity_name, HeapObject::kMapOffset));
     __ testb(FieldOperand(entity_name, Map::kInstanceTypeOffset),
              Immediate(kIsInternalizedMask));
-    __ j(zero, miss);
+    __ j(not_zero, &good, Label::kNear);
+    __ cmpb(FieldOperand(entity_name, Map::kInstanceTypeOffset),
+            Immediate(static_cast<int8_t>(SYMBOL_TYPE)));
+    __ j(not_equal, miss);
 
-    __ bind(&the_hole);
+    __ bind(&good);
   }
 
-  StringDictionaryLookupStub stub(properties,
-                                  r0,
-                                  r0,
-                                  StringDictionaryLookupStub::NEGATIVE_LOOKUP);
+  NameDictionaryLookupStub stub(properties, r0, r0, NEGATIVE_LOOKUP);
   __ Push(Handle<Object>(name));
   __ push(Immediate(name->Hash()));
   __ CallStub(&stub);
@@ -6276,38 +6277,38 @@ void StringDictionaryLookupStub::GenerateNegativeLookup(MacroAssembler* masm,
 }
 
 
-// Probe the string dictionary in the |elements| register. Jump to the
+// Probe the name dictionary in the |elements| register. Jump to the
 // |done| label if a property with the given name is found leaving the
 // index into the dictionary in |r1|. Jump to the |miss| label
 // otherwise.
-void StringDictionaryLookupStub::GeneratePositiveLookup(MacroAssembler* masm,
-                                                        Label* miss,
-                                                        Label* done,
-                                                        Register elements,
-                                                        Register name,
-                                                        Register r0,
-                                                        Register r1) {
+void NameDictionaryLookupStub::GeneratePositiveLookup(MacroAssembler* masm,
+                                                      Label* miss,
+                                                      Label* done,
+                                                      Register elements,
+                                                      Register name,
+                                                      Register r0,
+                                                      Register r1) {
   ASSERT(!elements.is(r0));
   ASSERT(!elements.is(r1));
   ASSERT(!name.is(r0));
   ASSERT(!name.is(r1));
 
-  __ AssertString(name);
+  __ AssertName(name);
 
   __ SmiToInteger32(r0, FieldOperand(elements, kCapacityOffset));
   __ decl(r0);
 
   for (int i = 0; i < kInlinedProbes; i++) {
     // Compute the masked index: (hash + i + i * i) & mask.
-    __ movl(r1, FieldOperand(name, String::kHashFieldOffset));
-    __ shrl(r1, Immediate(String::kHashShift));
+    __ movl(r1, FieldOperand(name, Name::kHashFieldOffset));
+    __ shrl(r1, Immediate(Name::kHashShift));
     if (i > 0) {
-      __ addl(r1, Immediate(StringDictionary::GetProbeOffset(i)));
+      __ addl(r1, Immediate(NameDictionary::GetProbeOffset(i)));
     }
     __ and_(r1, r0);
 
     // Scale the index by multiplying by the entry size.
-    ASSERT(StringDictionary::kEntrySize == 3);
+    ASSERT(NameDictionary::kEntrySize == 3);
     __ lea(r1, Operand(r1, r1, times_2, 0));  // r1 = r1 * 3
 
     // Check if the key is identical to the name.
@@ -6316,13 +6317,10 @@ void StringDictionaryLookupStub::GeneratePositiveLookup(MacroAssembler* masm,
     __ j(equal, done);
   }
 
-  StringDictionaryLookupStub stub(elements,
-                                  r0,
-                                  r1,
-                                  POSITIVE_LOOKUP);
+  NameDictionaryLookupStub stub(elements, r0, r1, POSITIVE_LOOKUP);
   __ push(name);
-  __ movl(r0, FieldOperand(name, String::kHashFieldOffset));
-  __ shrl(r0, Immediate(String::kHashShift));
+  __ movl(r0, FieldOperand(name, Name::kHashFieldOffset));
+  __ shrl(r0, Immediate(Name::kHashShift));
   __ push(r0);
   __ CallStub(&stub);
 
@@ -6332,7 +6330,7 @@ void StringDictionaryLookupStub::GeneratePositiveLookup(MacroAssembler* masm,
 }
 
 
-void StringDictionaryLookupStub::Generate(MacroAssembler* masm) {
+void NameDictionaryLookupStub::Generate(MacroAssembler* masm) {
   // This stub overrides SometimesSetsUpAFrame() to return false.  That means
   // we cannot call anything that could cause a GC from this stub.
   // Stack frame on entry:
@@ -6340,7 +6338,7 @@ void StringDictionaryLookupStub::Generate(MacroAssembler* masm) {
   //  esp[1 * kPointerSize]: key's hash.
   //  esp[2 * kPointerSize]: key.
   // Registers:
-  //  dictionary_: StringDictionary to probe.
+  //  dictionary_: NameDictionary to probe.
   //  result_: used as scratch.
   //  index_: will hold an index of entry if lookup is successful.
   //          might alias with result_.
@@ -6364,12 +6362,12 @@ void StringDictionaryLookupStub::Generate(MacroAssembler* masm) {
     // Compute the masked index: (hash + i + i * i) & mask.
     __ movq(scratch, Operand(rsp, 2 * kPointerSize));
     if (i > 0) {
-      __ addl(scratch, Immediate(StringDictionary::GetProbeOffset(i)));
+      __ addl(scratch, Immediate(NameDictionary::GetProbeOffset(i)));
     }
     __ and_(scratch, Operand(rsp, 0));
 
     // Scale the index by multiplying by the entry size.
-    ASSERT(StringDictionary::kEntrySize == 3);
+    ASSERT(NameDictionary::kEntrySize == 3);
     __ lea(index_, Operand(scratch, scratch, times_2, 0));  // index *= 3.
 
     // Having undefined at this place means the name is not contained.
@@ -6386,15 +6384,20 @@ void StringDictionaryLookupStub::Generate(MacroAssembler* masm) {
     __ j(equal, &in_dictionary);
 
     if (i != kTotalProbes - 1 && mode_ == NEGATIVE_LOOKUP) {
-      // If we hit a non internalized string key during negative lookup
-      // we have to bailout as this key might be equal to the
+      // If we hit a key that is not a unique name during negative
+      // lookup we have to bailout as this key might be equal to the
       // key we are looking for.
 
-      // Check if the entry name is not an internalized string.
+      // Check if the entry name is not a unique name.
+      Label cont;
       __ movq(scratch, FieldOperand(scratch, HeapObject::kMapOffset));
       __ testb(FieldOperand(scratch, Map::kInstanceTypeOffset),
                Immediate(kIsInternalizedMask));
-      __ j(zero, &maybe_in_dictionary);
+      __ j(not_zero, &cont);
+      __ cmpb(FieldOperand(scratch, Map::kInstanceTypeOffset),
+              Immediate(static_cast<int8_t>(SYMBOL_TYPE)));
+      __ j(not_equal, &maybe_in_dictionary);
+      __ bind(&cont);
     }
   }
 

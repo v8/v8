@@ -48,15 +48,15 @@ class Descriptor BASE_EMBEDDED {
     return Smi::cast(value)->value();
   }
 
-  MUST_USE_RESULT MaybeObject* KeyToInternalizedString() {
-    if (!StringShape(key_).IsInternalized()) {
-      MaybeObject* maybe_result = HEAP->InternalizeString(key_);
+  MUST_USE_RESULT MaybeObject* KeyToUniqueName() {
+    if (!key_->IsUniqueName()) {
+      MaybeObject* maybe_result = HEAP->InternalizeString(String::cast(key_));
       if (!maybe_result->To(&key_)) return maybe_result;
     }
     return key_;
   }
 
-  String* GetKey() { return key_; }
+  Name* GetKey() { return key_; }
   Object* GetValue() { return value_; }
   PropertyDetails GetDetails() { return details_; }
 
@@ -71,25 +71,25 @@ class Descriptor BASE_EMBEDDED {
   void SetSortedKeyIndex(int index) { details_ = details_.set_pointer(index); }
 
  private:
-  String* key_;
+  Name* key_;
   Object* value_;
   PropertyDetails details_;
 
  protected:
   Descriptor() : details_(Smi::FromInt(0)) {}
 
-  void Init(String* key, Object* value, PropertyDetails details) {
+  void Init(Name* key, Object* value, PropertyDetails details) {
     key_ = key;
     value_ = value;
     details_ = details;
   }
 
-  Descriptor(String* key, Object* value, PropertyDetails details)
+  Descriptor(Name* key, Object* value, PropertyDetails details)
       : key_(key),
         value_(value),
         details_(details) { }
 
-  Descriptor(String* key,
+  Descriptor(Name* key,
              Object* value,
              PropertyAttributes attributes,
              PropertyType type,
@@ -104,7 +104,7 @@ class Descriptor BASE_EMBEDDED {
 
 class FieldDescriptor: public Descriptor {
  public:
-  FieldDescriptor(String* key,
+  FieldDescriptor(Name* key,
                   int field_index,
                   PropertyAttributes attributes,
                   int index = 0)
@@ -114,7 +114,7 @@ class FieldDescriptor: public Descriptor {
 
 class ConstantFunctionDescriptor: public Descriptor {
  public:
-  ConstantFunctionDescriptor(String* key,
+  ConstantFunctionDescriptor(Name* key,
                              JSFunction* function,
                              PropertyAttributes attributes,
                              int index)
@@ -124,7 +124,7 @@ class ConstantFunctionDescriptor: public Descriptor {
 
 class CallbacksDescriptor:  public Descriptor {
  public:
-  CallbacksDescriptor(String* key,
+  CallbacksDescriptor(Name* key,
                       Object* foreign,
                       PropertyAttributes attributes,
                       int index = 0)

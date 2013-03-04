@@ -577,7 +577,10 @@ BasicJsonStringifier::Result BasicJsonStringifier::SerializeJSObject(
       object->elements()->length() == 0) {
     Handle<Map> map(object->map());
     for (int i = 0; i < map->NumberOfOwnDescriptors(); i++) {
-      Handle<String> key(map->instance_descriptors()->GetKey(i), isolate_);
+      Handle<Name> name(map->instance_descriptors()->GetKey(i), isolate_);
+      // TODO(rossberg): Should this throw?
+      if (!name->IsString()) continue;
+      Handle<String> key = Handle<String>::cast(name);
       PropertyDetails details = map->instance_descriptors()->GetDetails(i);
       if (details.IsDontEnum() || details.IsDeleted()) continue;
       Handle<Object> property;

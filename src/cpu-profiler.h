@@ -136,10 +136,10 @@ class ProfilerEventsProcessor : public Thread {
 
   // Events adding methods. Called by VM threads.
   void CallbackCreateEvent(Logger::LogEventsAndTags tag,
-                           const char* prefix, String* name,
+                           const char* prefix, Name* name,
                            Address start);
   void CodeCreateEvent(Logger::LogEventsAndTags tag,
-                       String* name,
+                       Name* name,
                        String* resource_name, int line_number,
                        Address start, unsigned size,
                        Address shared);
@@ -229,15 +229,15 @@ class CpuProfiler {
 
   // Must be called via PROFILE macro, otherwise will crash when
   // profiling is not enabled.
-  static void CallbackEvent(String* name, Address entry_point);
+  static void CallbackEvent(Name* name, Address entry_point);
   static void CodeCreateEvent(Logger::LogEventsAndTags tag,
                               Code* code, const char* comment);
   static void CodeCreateEvent(Logger::LogEventsAndTags tag,
-                              Code* code, String* name);
+                              Code* code, Name* name);
   static void CodeCreateEvent(Logger::LogEventsAndTags tag,
                               Code* code,
                               SharedFunctionInfo* shared,
-                              String* name);
+                              Name* name);
   static void CodeCreateEvent(Logger::LogEventsAndTags tag,
                               Code* code,
                               SharedFunctionInfo* shared,
@@ -247,9 +247,9 @@ class CpuProfiler {
   static void CodeMovingGCEvent() {}
   static void CodeMoveEvent(Address from, Address to);
   static void CodeDeleteEvent(Address from);
-  static void GetterCallbackEvent(String* name, Address entry_point);
+  static void GetterCallbackEvent(Name* name, Address entry_point);
   static void RegExpCodeCreateEvent(Code* code, String* source);
-  static void SetterCallbackEvent(String* name, Address entry_point);
+  static void SetterCallbackEvent(Name* name, Address entry_point);
   static void SharedFunctionInfoMoveEvent(Address from, Address to);
 
   static INLINE(bool is_profiling(Isolate* isolate)) {

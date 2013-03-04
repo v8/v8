@@ -70,11 +70,11 @@ Handle<FixedDoubleArray> Factory::NewFixedDoubleArray(int size,
 }
 
 
-Handle<StringDictionary> Factory::NewStringDictionary(int at_least_space_for) {
+Handle<NameDictionary> Factory::NewNameDictionary(int at_least_space_for) {
   ASSERT(0 <= at_least_space_for);
   CALL_HEAP_FUNCTION(isolate(),
-                     StringDictionary::Allocate(at_least_space_for),
-                     StringDictionary);
+                     NameDictionary::Allocate(at_least_space_for),
+                     NameDictionary);
 }
 
 

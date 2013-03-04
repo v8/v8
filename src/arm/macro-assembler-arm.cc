@@ -1225,6 +1225,16 @@ void MacroAssembler::IsObjectJSStringType(Register object,
 }
 
 
+void MacroAssembler::IsObjectNameType(Register object,
+                                      Register scratch,
+                                      Label* fail) {
+  ldr(scratch, FieldMemOperand(object, HeapObject::kMapOffset));
+  ldrb(scratch, FieldMemOperand(scratch, Map::kInstanceTypeOffset));
+  cmp(scratch, Operand(LAST_NAME_TYPE));
+  b(hi, fail);
+}
+
+
 #ifdef ENABLE_DEBUGGER_SUPPORT
 void MacroAssembler::DebugBreak() {
   mov(r0, Operand::Zero());
@@ -3192,6 +3202,20 @@ void MacroAssembler::AssertString(Register object) {
     CompareInstanceType(object, object, FIRST_NONSTRING_TYPE);
     pop(object);
     Check(lo, "Operand is not a string");
+  }
+}
+
+
+void MacroAssembler::AssertName(Register object) {
+  if (emit_debug_code()) {
+    STATIC_ASSERT(kSmiTag == 0);
+    tst(object, Operand(kSmiTagMask));
+    Check(ne, "Operand is a smi and not a name");
+    push(object);
+    ldr(object, FieldMemOperand(object, HeapObject::kMapOffset));
+    CompareInstanceType(object, object, LAST_NAME_TYPE);
+    pop(object);
+    Check(le, "Operand is not a name");
   }
 }
 

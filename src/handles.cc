@@ -260,7 +260,7 @@ Handle<Object> ForceDeleteProperty(Handle<JSObject> object,
 
 
 Handle<Object> SetPropertyWithInterceptor(Handle<JSObject> object,
-                                          Handle<String> key,
+                                          Handle<Name> key,
                                           Handle<Object> value,
                                           PropertyAttributes attributes,
                                           StrictModeFlag strict_mode) {
@@ -291,7 +291,7 @@ Handle<Object> GetProperty(Isolate* isolate,
 
 Handle<Object> GetPropertyWithInterceptor(Handle<JSObject> receiver,
                                           Handle<JSObject> holder,
-                                          Handle<String> name,
+                                          Handle<Name> name,
                                           PropertyAttributes* attributes) {
   Isolate* isolate = receiver->GetIsolate();
   CALL_HEAP_FUNCTION(isolate,
@@ -625,7 +625,7 @@ static bool ContainsOnlyValidKeys(Handle<FixedArray> array) {
   int len = array->length();
   for (int i = 0; i < len; i++) {
     Object* e = array->get(i);
-    if (!(e->IsString() || e->IsNumber())) return false;
+    if (!(e->IsName() || e->IsNumber())) return false;
   }
   return true;
 }
@@ -831,7 +831,7 @@ Handle<FixedArray> GetEnumPropertyKeys(Handle<JSObject> object,
 
     return ReduceFixedArrayTo(storage, enum_size);
   } else {
-    Handle<StringDictionary> dictionary(object->property_dictionary());
+    Handle<NameDictionary> dictionary(object->property_dictionary());
 
     int length = dictionary->NumberOfElements();
     if (length == 0) {
@@ -852,7 +852,7 @@ Handle<FixedArray> GetEnumPropertyKeys(Handle<JSObject> object,
     // many properties were added but subsequently deleted.
     int next_enumeration = dictionary->NextEnumerationIndex();
     if (!object->IsGlobalObject() && next_enumeration > (length * 3) / 2) {
-      StringDictionary::DoGenerateNewEnumerationIndices(dictionary);
+      NameDictionary::DoGenerateNewEnumerationIndices(dictionary);
       next_enumeration = dictionary->NextEnumerationIndex();
     }
 

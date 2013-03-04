@@ -115,7 +115,7 @@ TestSet()
 
 
 function TestMap() {
-  var map = new Map;
+  var map = new Map
   for (var i in symbols) {
     map.set(symbols[i], i)
   }
@@ -125,3 +125,100 @@ function TestMap() {
   }
 }
 TestMap()
+
+
+
+function TestKeySet(obj) {
+  // Set the even symbols via assignment.
+  for (var i = 0; i < symbols.length; i += 2) {
+    obj[symbols[i]] = i
+  }
+}
+
+
+function TestKeyDefine(obj) {
+  // Set the odd symbols via defineProperty (as non-enumerable).
+  for (var i = 1; i < symbols.length; i += 2) {
+    Object.defineProperty(obj, symbols[i], {value: i, configurable: true})
+  }
+}
+
+
+function TestKeyGet(obj) {
+  var obj2 = Object.create(obj)
+  for (var i in symbols) {
+    assertEquals(i|0, obj[symbols[i]])
+    assertEquals(i|0, obj2[symbols[i]])
+  }
+}
+
+
+function TestKeyHas() {
+  for (var i in symbols) {
+    assertTrue(symbols[i] in obj)
+    assertTrue(Object.hasOwnProperty.call(obj, symbols[i]))
+  }
+}
+
+
+function TestKeyEnum(obj) {
+  // TODO(rossberg): symbols should not show up at all in for-in.
+  var found = [];
+  names: for (var name in obj) {
+    for (var i in symbols) {
+      if (name === symbols[i]) {
+        found[i] = true;
+        continue names;
+      }
+    }
+  }
+  // All even symbols should have been enumerated.
+  for (var i = 0; i < symbols.length; i += 2) {
+    assertTrue(i in found)
+  }
+}
+
+
+function TestKeyKeys(obj) {
+  // TODO(rossberg): symbols should not be returned by Object.keys.
+  assertEquals(symbols.length / 2, Object.keys(obj).length)
+  assertTrue(symbols.length <= Object.getOwnPropertyNames(obj).length)
+}
+
+
+function TestKeyDescriptor(obj) {
+  for (var i in symbols) {
+    var desc = Object.getOwnPropertyDescriptor(obj, symbols[i]);
+    assertEquals(i|0, desc.value)
+    assertTrue(desc.configurable)
+    assertEquals(i % 2 == 0, desc.writable)
+    assertEquals(i % 2 == 0, desc.enumerable)
+    assertEquals(i % 2 == 0,
+        Object.prototype.propertyIsEnumerable.call(obj, symbols[i]))
+  }
+}
+
+
+function TestKeyDelete(obj) {
+  for (var i in symbols) {
+    delete obj[symbols[i]]
+  }
+  for (var i in symbols) {
+    assertEquals(undefined, Object.getOwnPropertyDescriptor(obj, symbols[i]))
+  }
+}
+
+
+var objs = [{}, [], Object.create(null), Object(1), new Map, function(){}]
+
+for (var i in objs) {
+  var obj = objs[i]
+  TestKeySet(obj)
+  TestKeyDefine(obj)
+  TestKeyGet(obj)
+  TestKeyHas(obj)
+  TestKeyEnum(obj)
+  TestKeyKeys(obj)
+  TestKeyDescriptor(obj)
+  TestKeyDelete(obj)
+}

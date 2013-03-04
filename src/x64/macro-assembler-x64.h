@@ -922,6 +922,15 @@ class MacroAssembler: public Assembler {
                                Register map,
                                Register instance_type);
 
+  // Check if the object in register heap_object is a name. Afterwards the
+  // register map contains the object map and the register instance_type
+  // contains the instance_type. The registers map and instance_type can be the
+  // same in which case it contains the instance type afterwards. Either of the
+  // registers map and instance_type can be the same as heap_object.
+  Condition IsObjectNameType(Register heap_object,
+                             Register map,
+                             Register instance_type);
+
   // FCmp compares and pops the two values on top of the FPU stack.
   // The flag results are similar to integer cmp, but requires unsigned
   // jcc instructions (je, ja, jae, jb, jbe, je, and jz).
@@ -964,6 +973,9 @@ class MacroAssembler: public Assembler {
 
   // Abort execution if argument is not a string, enabled via --debug-code.
   void AssertString(Register object);
+
+  // Abort execution if argument is not a name, enabled via --debug-code.
+  void AssertName(Register object);
 
   // Abort execution if argument is not the root value with the given index,
   // enabled via --debug-code.

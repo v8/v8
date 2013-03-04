@@ -2294,7 +2294,7 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
       switch (details.type()) {
         case FIELD: {
           HandleScope inner(isolate());
-          Handle<String> key = Handle<String>(descs->GetKey(i));
+          Handle<Name> key = Handle<Name>(descs->GetKey(i));
           int index = descs->GetFieldIndex(i);
           Handle<Object> value = Handle<Object>(from->FastPropertyAt(index),
                                                 isolate());
@@ -2305,7 +2305,7 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
         }
         case CONSTANT_FUNCTION: {
           HandleScope inner(isolate());
-          Handle<String> key = Handle<String>(descs->GetKey(i));
+          Handle<Name> key = Handle<Name>(descs->GetKey(i));
           Handle<JSFunction> fun =
               Handle<JSFunction>(descs->GetConstantFunction(i));
           CHECK_NOT_EMPTY_HANDLE(isolate(),
@@ -2321,7 +2321,7 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
           HandleScope inner(isolate());
           ASSERT(!to->HasFastProperties());
           // Add to dictionary.
-          Handle<String> key = Handle<String>(descs->GetKey(i));
+          Handle<Name> key = Handle<Name>(descs->GetKey(i));
           Handle<Object> callbacks(descs->GetCallbacksObject(i), isolate());
           PropertyDetails d = PropertyDetails(details.attributes(),
                                               CALLBACKS,
@@ -2341,19 +2341,19 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
       }
     }
   } else {
-    Handle<StringDictionary> properties =
-        Handle<StringDictionary>(from->property_dictionary());
+    Handle<NameDictionary> properties =
+        Handle<NameDictionary>(from->property_dictionary());
     int capacity = properties->Capacity();
     for (int i = 0; i < capacity; i++) {
       Object* raw_key(properties->KeyAt(i));
       if (properties->IsKey(raw_key)) {
-        ASSERT(raw_key->IsString());
+        ASSERT(raw_key->IsName());
         // If the property is already there we skip it.
         LookupResult result(isolate());
-        to->LocalLookup(String::cast(raw_key), &result);
+        to->LocalLookup(Name::cast(raw_key), &result);
         if (result.IsFound()) continue;
         // Set the property.
-        Handle<String> key = Handle<String>(String::cast(raw_key));
+        Handle<Name> key = Handle<Name>(Name::cast(raw_key));
         Handle<Object> value = Handle<Object>(properties->ValueAt(i),
                                               isolate());
         if (value->IsJSGlobalPropertyCell()) {

@@ -922,7 +922,7 @@ void JSObject::IncrementSpillStatistics(SpillInformation* info) {
     info->number_of_fast_used_fields_   += map()->NextFreePropertyIndex();
     info->number_of_fast_unused_fields_ += map()->unused_property_fields();
   } else {
-    StringDictionary* dict = property_dictionary();
+    NameDictionary* dict = property_dictionary();
     info->number_of_slow_used_properties_ += dict->NumberOfElements();
     info->number_of_slow_unused_properties_ +=
         dict->Capacity() - dict->NumberOfElements();
@@ -1013,10 +1013,10 @@ void JSObject::SpillInformation::Print() {
 
 bool DescriptorArray::IsSortedNoDuplicates(int valid_entries) {
   if (valid_entries == -1) valid_entries = number_of_descriptors();
-  String* current_key = NULL;
+  Name* current_key = NULL;
   uint32_t current = 0;
   for (int i = 0; i < number_of_descriptors(); i++) {
-    String* key = GetSortedKey(i);
+    Name* key = GetSortedKey(i);
     if (key == current_key) {
       PrintDescriptors();
       return false;
@@ -1035,10 +1035,10 @@ bool DescriptorArray::IsSortedNoDuplicates(int valid_entries) {
 
 bool TransitionArray::IsSortedNoDuplicates(int valid_entries) {
   ASSERT(valid_entries == -1);
-  String* current_key = NULL;
+  Name* current_key = NULL;
   uint32_t current = 0;
   for (int i = 0; i < number_of_transitions(); i++) {
-    String* key = GetSortedKey(i);
+    Name* key = GetSortedKey(i);
     if (key == current_key) {
       PrintTransitions();
       return false;

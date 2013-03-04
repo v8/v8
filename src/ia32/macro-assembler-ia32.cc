@@ -643,6 +643,16 @@ Condition MacroAssembler::IsObjectStringType(Register heap_object,
 }
 
 
+Condition MacroAssembler::IsObjectNameType(Register heap_object,
+                                           Register map,
+                                           Register instance_type) {
+  mov(map, FieldOperand(heap_object, HeapObject::kMapOffset));
+  movzx_b(instance_type, FieldOperand(map, Map::kInstanceTypeOffset));
+  cmpb(instance_type, static_cast<int8_t>(LAST_NAME_TYPE));
+  return below_equal;
+}
+
+
 void MacroAssembler::IsObjectJSObjectType(Register heap_object,
                                           Register map,
                                           Register scratch,
@@ -706,6 +716,19 @@ void MacroAssembler::AssertString(Register object) {
     CmpInstanceType(object, FIRST_NONSTRING_TYPE);
     pop(object);
     Check(below, "Operand is not a string");
+  }
+}
+
+
+void MacroAssembler::AssertName(Register object) {
+  if (emit_debug_code()) {
+    test(object, Immediate(kSmiTagMask));
+    Check(not_equal, "Operand is a smi and not a name");
+    push(object);
+    mov(object, FieldOperand(object, HeapObject::kMapOffset));
+    CmpInstanceType(object, LAST_NAME_TYPE);
+    pop(object);
+    Check(below_equal, "Operand is not a name");
   }
 }
 

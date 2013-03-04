@@ -78,7 +78,7 @@ namespace internal {
   V(ArrayNArgumentsConstructor)          \
   V(KeyedStoreElement)                   \
   V(DebuggerStatement)                   \
-  V(StringDictionaryLookup)              \
+  V(NameDictionaryLookup)                \
   V(ElementsTransitionAndStore)          \
   V(TransitionElementsKind)              \
   V(StoreArrayLiteralElement)            \

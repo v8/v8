@@ -259,7 +259,7 @@ void JSObject::PrintProperties(FILE* out) {
     DescriptorArray* descs = map()->instance_descriptors();
     for (int i = 0; i < map()->NumberOfOwnDescriptors(); i++) {
       PrintF(out, "   ");
-      descs->GetKey(i)->StringPrint(out);
+      descs->GetKey(i)->NamePrint(out);
       PrintF(out, ": ");
       switch (descs->GetType(i)) {
         case FIELD: {
@@ -417,7 +417,7 @@ void JSObject::PrintTransitions(FILE* out) {
   TransitionArray* transitions = map()->transitions();
   for (int i = 0; i < transitions->number_of_transitions(); i++) {
     PrintF(out, "   ");
-    transitions->GetKey(i)->StringPrint(out);
+    transitions->GetKey(i)->NamePrint(out);
     PrintF(out, ": ");
     switch (transitions->GetTargetDetails(i).type()) {
       case FIELD: {
@@ -707,6 +707,14 @@ void String::StringPrint(FILE* out) {
   }
 
   if (!StringShape(this).IsInternalized()) PrintF(out, "\"");
+}
+
+
+void Name::NamePrint(FILE* out) {
+  if (IsString())
+    String::cast(this)->StringPrint(out);
+  else
+    ShortPrint();
 }
 
 
@@ -1136,7 +1144,7 @@ void TransitionArray::PrintTransitions(FILE* out) {
   PrintF(out, "Transition array  %d\n", number_of_transitions());
   for (int i = 0; i < number_of_transitions(); i++) {
     PrintF(out, " %d: ", i);
-    GetKey(i)->StringPrint(out);
+    GetKey(i)->NamePrint(out);
     PrintF(out, ": ");
     switch (GetTargetDetails(i).type()) {
       case FIELD: {

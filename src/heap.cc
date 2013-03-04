@@ -2865,14 +2865,14 @@ bool Heap::CreateInitialObjects() {
   CreateFixedStubs();
 
   // Allocate the dictionary of intrinsic function names.
-  { MaybeObject* maybe_obj = StringDictionary::Allocate(Runtime::kNumFunctions);
+  { MaybeObject* maybe_obj = NameDictionary::Allocate(Runtime::kNumFunctions);
     if (!maybe_obj->ToObject(&obj)) return false;
   }
   { MaybeObject* maybe_obj = Runtime::InitializeIntrinsicFunctionNames(this,
                                                                        obj);
     if (!maybe_obj->ToObject(&obj)) return false;
   }
-  set_intrinsic_function_names(StringDictionary::cast(obj));
+  set_intrinsic_function_names(NameDictionary::cast(obj));
 
   { MaybeObject* maybe_obj = AllocateInitialNumberStringCache();
     if (!maybe_obj->ToObject(&obj)) return false;
@@ -4066,9 +4066,9 @@ MaybeObject* Heap::AllocateArgumentsObject(Object* callee, int length) {
 static bool HasDuplicates(DescriptorArray* descriptors) {
   int count = descriptors->number_of_descriptors();
   if (count > 1) {
-    String* prev_key = descriptors->GetKey(0);
+    Name* prev_key = descriptors->GetKey(0);
     for (int i = 1; i != count; i++) {
-      String* current_key = descriptors->GetKey(i);
+      Name* current_key = descriptors->GetKey(i);
       if (prev_key == current_key) return true;
       prev_key = current_key;
     }
@@ -4521,9 +4521,9 @@ MaybeObject* Heap::AllocateGlobalObject(JSFunction* constructor) {
   int initial_size = map->instance_type() == JS_GLOBAL_OBJECT_TYPE ? 64 : 512;
 
   // Allocate a dictionary object for backing storage.
-  StringDictionary* dictionary;
+  NameDictionary* dictionary;
   MaybeObject* maybe_dictionary =
-      StringDictionary::Allocate(
+      NameDictionary::Allocate(
           map->NumberOfOwnDescriptors() * 2 + initial_size);
   if (!maybe_dictionary->To(&dictionary)) return maybe_dictionary;
 
@@ -7443,7 +7443,7 @@ const char* GCTracer::CollectorString() {
 }
 
 
-int KeyedLookupCache::Hash(Map* map, String* name) {
+int KeyedLookupCache::Hash(Map* map, Name* name) {
   // Uses only lower 32 bits if pointers are larger.
   uintptr_t addr_hash =
       static_cast<uint32_t>(reinterpret_cast<uintptr_t>(map)) >> kMapHashShift;
@@ -7451,7 +7451,7 @@ int KeyedLookupCache::Hash(Map* map, String* name) {
 }
 
 
-int KeyedLookupCache::Lookup(Map* map, String* name) {
+int KeyedLookupCache::Lookup(Map* map, Name* name) {
   int index = (Hash(map, name) & kHashMask);
   for (int i = 0; i < kEntriesPerBucket; i++) {
     Key& key = keys_[index + i];
@@ -7463,37 +7463,43 @@ int KeyedLookupCache::Lookup(Map* map, String* name) {
 }
 
 
-void KeyedLookupCache::Update(Map* map, String* name, int field_offset) {
-  String* internalized_name;
-  if (HEAP->InternalizeStringIfExists(name, &internalized_name)) {
-    int index = (Hash(map, internalized_name) & kHashMask);
-    // After a GC there will be free slots, so we use them in order (this may
-    // help to get the most frequently used one in position 0).
-    for (int i = 0; i< kEntriesPerBucket; i++) {
-      Key& key = keys_[index];
-      Object* free_entry_indicator = NULL;
-      if (key.map == free_entry_indicator) {
-        key.map = map;
-        key.name = internalized_name;
-        field_offsets_[index + i] = field_offset;
-        return;
-      }
+void KeyedLookupCache::Update(Map* map, Name* name, int field_offset) {
+  if (!name->IsUniqueName()) {
+    String* internalized_string;
+    if (!HEAP->InternalizeStringIfExists(
+            String::cast(name), &internalized_string)) {
+      return;
     }
-    // No free entry found in this bucket, so we move them all down one and
-    // put the new entry at position zero.
-    for (int i = kEntriesPerBucket - 1; i > 0; i--) {
-      Key& key = keys_[index + i];
-      Key& key2 = keys_[index + i - 1];
-      key = key2;
-      field_offsets_[index + i] = field_offsets_[index + i - 1];
-    }
-
-    // Write the new first entry.
-    Key& key = keys_[index];
-    key.map = map;
-    key.name = internalized_name;
-    field_offsets_[index] = field_offset;
+    name = internalized_string;
   }
+
+  int index = (Hash(map, name) & kHashMask);
+  // After a GC there will be free slots, so we use them in order (this may
+  // help to get the most frequently used one in position 0).
+  for (int i = 0; i< kEntriesPerBucket; i++) {
+    Key& key = keys_[index];
+    Object* free_entry_indicator = NULL;
+    if (key.map == free_entry_indicator) {
+      key.map = map;
+      key.name = name;
+      field_offsets_[index + i] = field_offset;
+      return;
+    }
+  }
+  // No free entry found in this bucket, so we move them all down one and
+  // put the new entry at position zero.
+  for (int i = kEntriesPerBucket - 1; i > 0; i--) {
+    Key& key = keys_[index + i];
+    Key& key2 = keys_[index + i - 1];
+    key = key2;
+    field_offsets_[index + i] = field_offsets_[index + i - 1];
+  }
+
+  // Write the new first entry.
+  Key& key = keys_[index];
+  key.map = map;
+  key.name = name;
+  field_offsets_[index] = field_offset;
 }
 
 

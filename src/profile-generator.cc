@@ -153,14 +153,17 @@ const char* StringsStorage::GetVFormatted(const char* format, va_list args) {
 }
 
 
-const char* StringsStorage::GetName(String* name) {
+const char* StringsStorage::GetName(Name* name) {
   if (name->IsString()) {
-    int length = Min(kMaxNameSize, name->length());
+    String* str = String::cast(name);
+    int length = Min(kMaxNameSize, str->length());
     SmartArrayPointer<char> data =
-        name->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL, 0, length);
+        str->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL, 0, length);
     uint32_t hash = StringHasher::HashSequentialString(
         *data, length, name->GetHeap()->HashSeed());
     return AddOrDisposeString(data.Detach(), hash);
+  } else if (name->IsSymbol()) {
+    return "<symbol>";
   }
   return "";
 }
@@ -782,7 +785,7 @@ List<CpuProfile*>* CpuProfilesCollection::Profiles(int security_token_id) {
 
 
 CodeEntry* CpuProfilesCollection::NewCodeEntry(Logger::LogEventsAndTags tag,
-                                               String* name,
+                                               Name* name,
                                                String* resource_name,
                                                int line_number) {
   CodeEntry* entry = new CodeEntry(tag,
@@ -811,7 +814,7 @@ CodeEntry* CpuProfilesCollection::NewCodeEntry(Logger::LogEventsAndTags tag,
 
 CodeEntry* CpuProfilesCollection::NewCodeEntry(Logger::LogEventsAndTags tag,
                                                const char* name_prefix,
-                                               String* name) {
+                                               Name* name) {
   CodeEntry* entry = new CodeEntry(tag,
                                    name_prefix,
                                    GetName(name),

@@ -130,14 +130,14 @@ static void ProbeTable(Isolate* isolate,
 // the property. This function may return false negatives, so miss_label
 // must always call a backup property check that is complete.
 // This function is safe to call if the receiver has fast properties.
-// Name must be internalized and receiver must be a heap object.
+// Name must be unique and receiver must be a heap object.
 static void GenerateDictionaryNegativeLookup(MacroAssembler* masm,
                                              Label* miss_label,
                                              Register receiver,
-                                             Handle<String> name,
+                                             Handle<Name> name,
                                              Register scratch0,
                                              Register scratch1) {
-  ASSERT(name->IsInternalizedString());
+  ASSERT(name->IsUniqueName());
   Counters* counters = masm->isolate()->counters();
   __ IncrementCounter(counters->negative_lookups(), 1, scratch0, scratch1);
   __ IncrementCounter(counters->negative_lookups_miss(), 1, scratch0, scratch1);
@@ -173,13 +173,13 @@ static void GenerateDictionaryNegativeLookup(MacroAssembler* masm,
   __ ldr(properties, FieldMemOperand(receiver, JSObject::kPropertiesOffset));
 
 
-  StringDictionaryLookupStub::GenerateNegativeLookup(masm,
-                                                     miss_label,
-                                                     &done,
-                                                     receiver,
-                                                     properties,
-                                                     name,
-                                                     scratch1);
+  NameDictionaryLookupStub::GenerateNegativeLookup(masm,
+                                                   miss_label,
+                                                   &done,
+                                                   receiver,
+                                                   properties,
+                                                   name,
+                                                   scratch1);
   __ bind(&done);
   __ DecrementCounter(counters->negative_lookups_miss(), 1, scratch0, scratch1);
 }
@@ -228,7 +228,7 @@ void StubCache::GenerateProbe(MacroAssembler* masm,
   __ JumpIfSmi(receiver, &miss);
 
   // Get the map of the receiver and compute the hash.
-  __ ldr(scratch, FieldMemOperand(name, String::kHashFieldOffset));
+  __ ldr(scratch, FieldMemOperand(name, Name::kHashFieldOffset));
   __ ldr(ip, FieldMemOperand(receiver, HeapObject::kMapOffset));
   __ add(scratch, scratch, Operand(ip));
   uint32_t mask = kPrimaryTableSize - 1;
@@ -443,7 +443,7 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
                                       Handle<JSObject> object,
                                       int index,
                                       Handle<Map> transition,
-                                      Handle<String> name,
+                                      Handle<Name> name,
                                       Register receiver_reg,
                                       Register name_reg,
                                       Register scratch1,
@@ -774,7 +774,7 @@ class CallInterceptorCompiler BASE_EMBEDDED {
   void Compile(MacroAssembler* masm,
                Handle<JSObject> object,
                Handle<JSObject> holder,
-               Handle<String> name,
+               Handle<Name> name,
                LookupResult* lookup,
                Register receiver,
                Register scratch1,
@@ -805,7 +805,7 @@ class CallInterceptorCompiler BASE_EMBEDDED {
                         Register scratch3,
                         Handle<JSObject> interceptor_holder,
                         LookupResult* lookup,
-                        Handle<String> name,
+                        Handle<Name> name,
                         const CallOptimization& optimization,
                         Label* miss_label) {
     ASSERT(optimization.is_constant_call());
@@ -899,7 +899,7 @@ class CallInterceptorCompiler BASE_EMBEDDED {
                       Register scratch1,
                       Register scratch2,
                       Register scratch3,
-                      Handle<String> name,
+                      Handle<Name> name,
                       Handle<JSObject> interceptor_holder,
                       Label* miss_label) {
     Register holder =
@@ -956,7 +956,7 @@ class CallInterceptorCompiler BASE_EMBEDDED {
 // property.
 static void GenerateCheckPropertyCell(MacroAssembler* masm,
                                       Handle<GlobalObject> global,
-                                      Handle<String> name,
+                                      Handle<Name> name,
                                       Register scratch,
                                       Label* miss) {
   Handle<JSGlobalPropertyCell> cell =
@@ -976,7 +976,7 @@ static void GenerateCheckPropertyCell(MacroAssembler* masm,
 static void GenerateCheckPropertyCells(MacroAssembler* masm,
                                        Handle<JSObject> object,
                                        Handle<JSObject> holder,
-                                       Handle<String> name,
+                                       Handle<Name> name,
                                        Register scratch,
                                        Label* miss) {
   Handle<JSObject> current = object;
@@ -1078,7 +1078,7 @@ Register StubCompiler::CheckPrototypes(Handle<JSObject> object,
                                        Register holder_reg,
                                        Register scratch1,
                                        Register scratch2,
-                                       Handle<String> name,
+                                       Handle<Name> name,
                                        int save_at_depth,
                                        Label* miss,
                                        PrototypeCheckType check) {
@@ -1110,11 +1110,12 @@ Register StubCompiler::CheckPrototypes(Handle<JSObject> object,
     if (!current->HasFastProperties() &&
         !current->IsJSGlobalObject() &&
         !current->IsJSGlobalProxy()) {
-      if (!name->IsInternalizedString()) {
-        name = factory()->InternalizeString(name);
+      if (!name->IsUniqueName()) {
+        ASSERT(name->IsString());
+        name = factory()->InternalizeString(Handle<String>::cast(name));
       }
       ASSERT(current->property_dictionary()->FindEntry(*name) ==
-             StringDictionary::kNotFound);
+             NameDictionary::kNotFound);
 
       GenerateDictionaryNegativeLookup(masm(), miss, reg, name,
                                        scratch1, scratch2);
@@ -1198,7 +1199,7 @@ Register BaseLoadStubCompiler::CallbackHandlerFrontend(
     Handle<JSObject> object,
     Register object_reg,
     Handle<JSObject> holder,
-    Handle<String> name,
+    Handle<Name> name,
     Label* success,
     Handle<ExecutableAccessorInfo> callback) {
   Label miss;
@@ -1216,20 +1217,20 @@ Register BaseLoadStubCompiler::CallbackHandlerFrontend(
 
     // Probe the dictionary.
     Label probe_done;
-    StringDictionaryLookupStub::GeneratePositiveLookup(masm(),
-                                                       &miss,
-                                                       &probe_done,
-                                                       dictionary,
-                                                       this->name(),
-                                                       scratch2(),
-                                                       scratch3());
+    NameDictionaryLookupStub::GeneratePositiveLookup(masm(),
+                                                     &miss,
+                                                     &probe_done,
+                                                     dictionary,
+                                                     this->name(),
+                                                     scratch2(),
+                                                     scratch3());
     __ bind(&probe_done);
 
     // If probing finds an entry in the dictionary, scratch3 contains the
     // pointer into the dictionary. Check that the value is the callback.
     Register pointer = scratch3();
-    const int kElementsStartOffset = StringDictionary::kHeaderSize +
-        StringDictionary::kElementsStartIndex * kPointerSize;
+    const int kElementsStartOffset = NameDictionary::kHeaderSize +
+        NameDictionary::kElementsStartIndex * kPointerSize;
     const int kValueOffset = kElementsStartOffset + kPointerSize;
     __ ldr(scratch2(), FieldMemOperand(pointer, kValueOffset));
     __ cmp(scratch2(), Operand(callback));
@@ -1244,7 +1245,7 @@ Register BaseLoadStubCompiler::CallbackHandlerFrontend(
 void BaseLoadStubCompiler::NonexistentHandlerFrontend(
     Handle<JSObject> object,
     Handle<JSObject> last,
-    Handle<String> name,
+    Handle<Name> name,
     Label* success,
     Handle<GlobalObject> global) {
   Label miss;
@@ -1301,7 +1302,7 @@ void BaseLoadStubCompiler::GenerateLoadCallback(
   __ Push(reg, scratch3());
   __ mov(scratch3(), Operand(ExternalReference::isolate_address()));
   __ Push(scratch3(), name());
-  __ mov(r0, sp);  // r0 = Handle<String>
+  __ mov(r0, sp);  // r0 = Handle<Name>
 
   const int kApiStackSpace = 1;
   FrameScope frame_scope(masm(), StackFrame::MANUAL);
@@ -1328,7 +1329,7 @@ void BaseLoadStubCompiler::GenerateLoadInterceptor(
     Handle<JSObject> object,
     Handle<JSObject> interceptor_holder,
     LookupResult* lookup,
-    Handle<String> name) {
+    Handle<Name> name) {
   ASSERT(interceptor_holder->HasNamedInterceptor());
   ASSERT(!interceptor_holder->GetNamedInterceptor()->getter()->IsUndefined());
 
@@ -1412,7 +1413,7 @@ void BaseLoadStubCompiler::GenerateLoadInterceptor(
 }
 
 
-void CallStubCompiler::GenerateNameCheck(Handle<String> name, Label* miss) {
+void CallStubCompiler::GenerateNameCheck(Handle<Name> name, Label* miss) {
   if (kind_ == Code::KEYED_CALL_IC) {
     __ cmp(r2, Operand(name));
     __ b(ne, miss);
@@ -1422,7 +1423,7 @@ void CallStubCompiler::GenerateNameCheck(Handle<String> name, Label* miss) {
 
 void CallStubCompiler::GenerateGlobalReceiverCheck(Handle<JSObject> object,
                                                    Handle<JSObject> holder,
-                                                   Handle<String> name,
+                                                   Handle<Name> name,
                                                    Label* miss) {
   ASSERT(holder->IsGlobalObject());
 
@@ -1480,7 +1481,7 @@ void CallStubCompiler::GenerateMissBranch() {
 Handle<Code> CallStubCompiler::CompileCallField(Handle<JSObject> object,
                                                 Handle<JSObject> holder,
                                                 PropertyIndex index,
-                                                Handle<String> name) {
+                                                Handle<Name> name) {
   // ----------- S t a t e -------------
   //  -- r2    : name
   //  -- lr    : return address
@@ -2397,7 +2398,7 @@ Handle<Code> CallStubCompiler::CompileFastApiCall(
 
 void CallStubCompiler::CompileHandlerFrontend(Handle<Object> object,
                                               Handle<JSObject> holder,
-                                              Handle<String> name,
+                                              Handle<Name> name,
                                               CheckType check,
                                               Label* success) {
   // ----------- S t a t e -------------
@@ -2509,13 +2510,13 @@ void CallStubCompiler::CompileHandlerBackend(Handle<JSFunction> function) {
 Handle<Code> CallStubCompiler::CompileCallConstant(
     Handle<Object> object,
     Handle<JSObject> holder,
-    Handle<String> name,
+    Handle<Name> name,
     CheckType check,
     Handle<JSFunction> function) {
   if (HasCustomCallGenerator(function)) {
     Handle<Code> code = CompileCustomCall(object, holder,
                                           Handle<JSGlobalPropertyCell>::null(),
-                                          function, name);
+                                          function, Handle<String>::cast(name));
     // A null handle means bail out to the regular compiler code below.
     if (!code.is_null()) return code;
   }
@@ -2526,7 +2527,6 @@ Handle<Code> CallStubCompiler::CompileCallConstant(
   __ bind(&success);
   CompileHandlerBackend(function);
 
-
   // Return the generated code.
   return GetCode(function);
 }
@@ -2534,7 +2534,7 @@ Handle<Code> CallStubCompiler::CompileCallConstant(
 
 Handle<Code> CallStubCompiler::CompileCallInterceptor(Handle<JSObject> object,
                                                       Handle<JSObject> holder,
-                                                      Handle<String> name) {
+                                                      Handle<Name> name) {
   // ----------- S t a t e -------------
   //  -- r2    : name
   //  -- lr    : return address
@@ -2575,13 +2575,14 @@ Handle<Code> CallStubCompiler::CompileCallGlobal(
     Handle<GlobalObject> holder,
     Handle<JSGlobalPropertyCell> cell,
     Handle<JSFunction> function,
-    Handle<String> name) {
+    Handle<Name> name) {
   // ----------- S t a t e -------------
   //  -- r2    : name
   //  -- lr    : return address
   // -----------------------------------
   if (HasCustomCallGenerator(function)) {
-    Handle<Code> code = CompileCustomCall(object, holder, cell, function, name);
+    Handle<Code> code = CompileCustomCall(
+        object, holder, cell, function, Handle<String>::cast(name));
     // A null handle means bail out to the regular compiler code below.
     if (!code.is_null()) return code;
   }
@@ -2631,7 +2632,7 @@ Handle<Code> CallStubCompiler::CompileCallGlobal(
 Handle<Code> StoreStubCompiler::CompileStoreField(Handle<JSObject> object,
                                                   int index,
                                                   Handle<Map> transition,
-                                                  Handle<String> name) {
+                                                  Handle<Name> name) {
   // ----------- S t a t e -------------
   //  -- r0    : value
   //  -- r1    : receiver
@@ -2659,7 +2660,7 @@ Handle<Code> StoreStubCompiler::CompileStoreField(Handle<JSObject> object,
 
 
 Handle<Code> StoreStubCompiler::CompileStoreCallback(
-    Handle<String> name,
+    Handle<Name> name,
     Handle<JSObject> receiver,
     Handle<JSObject> holder,
     Handle<ExecutableAccessorInfo> callback) {
@@ -2743,7 +2744,7 @@ void StoreStubCompiler::GenerateStoreViaSetter(
 
 
 Handle<Code> StoreStubCompiler::CompileStoreViaSetter(
-    Handle<String> name,
+    Handle<Name> name,
     Handle<JSObject> receiver,
     Handle<JSObject> holder,
     Handle<JSFunction> setter) {
@@ -2772,7 +2773,7 @@ Handle<Code> StoreStubCompiler::CompileStoreViaSetter(
 
 Handle<Code> StoreStubCompiler::CompileStoreInterceptor(
     Handle<JSObject> receiver,
-    Handle<String> name) {
+    Handle<Name> name) {
   // ----------- S t a t e -------------
   //  -- r0    : value
   //  -- r1    : receiver
@@ -2818,7 +2819,7 @@ Handle<Code> StoreStubCompiler::CompileStoreInterceptor(
 Handle<Code> StoreStubCompiler::CompileStoreGlobal(
     Handle<GlobalObject> object,
     Handle<JSGlobalPropertyCell> cell,
-    Handle<String> name) {
+    Handle<Name> name) {
   // ----------- S t a t e -------------
   //  -- r0    : value
   //  -- r1    : receiver
@@ -2864,7 +2865,7 @@ Handle<Code> StoreStubCompiler::CompileStoreGlobal(
 Handle<Code> LoadStubCompiler::CompileLoadNonexistent(
     Handle<JSObject> object,
     Handle<JSObject> last,
-    Handle<String> name,
+    Handle<Name> name,
     Handle<GlobalObject> global) {
   Label success;
 
@@ -2895,7 +2896,7 @@ Register* KeyedLoadStubCompiler::registers() {
 }
 
 
-void KeyedLoadStubCompiler::GenerateNameCheck(Handle<String> name,
+void KeyedLoadStubCompiler::GenerateNameCheck(Handle<Name> name,
                                               Register name_reg,
                                               Label* miss) {
   __ cmp(name_reg, Operand(name));
@@ -2944,7 +2945,7 @@ Handle<Code> LoadStubCompiler::CompileLoadGlobal(
     Handle<JSObject> object,
     Handle<GlobalObject> global,
     Handle<JSGlobalPropertyCell> cell,
-    Handle<String> name,
+    Handle<Name> name,
     bool is_dont_delete) {
   Label success, miss;
 
@@ -3008,7 +3009,7 @@ Handle<Code> KeyedLoadStubCompiler::CompileLoadElement(
 Handle<Code> BaseLoadStubCompiler::CompilePolymorphicIC(
     MapHandleList* receiver_maps,
     CodeHandleList* handlers,
-    Handle<String> name,
+    Handle<Name> name,
     Code::StubType type,
     IcCheckType check) {
   Label miss;
@@ -3041,7 +3042,7 @@ Handle<Code> BaseLoadStubCompiler::CompilePolymorphicIC(
 Handle<Code> KeyedStoreStubCompiler::CompileStoreField(Handle<JSObject> object,
                                                        int index,
                                                        Handle<Map> transition,
-                                                       Handle<String> name) {
+                                                       Handle<Name> name) {
   // ----------- S t a t e -------------
   //  -- r0    : value
   //  -- r1    : name

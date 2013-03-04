@@ -33,7 +33,7 @@
 namespace v8 {
 namespace internal {
 
-const char* StringsStorage::GetFunctionName(String* name) {
+const char* StringsStorage::GetFunctionName(Name* name) {
   return GetFunctionName(GetName(name));
 }
 

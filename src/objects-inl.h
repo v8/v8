@@ -902,13 +902,13 @@ Object* Object::GetElementNoExceptionThrown(uint32_t index) {
 }
 
 
-MaybeObject* Object::GetProperty(String* key) {
+MaybeObject* Object::GetProperty(Name* key) {
   PropertyAttributes attributes;
   return GetPropertyWithReceiver(this, key, &attributes);
 }
 
 
-MaybeObject* Object::GetProperty(String* key, PropertyAttributes* attributes) {
+MaybeObject* Object::GetProperty(Name* key, PropertyAttributes* attributes) {
   return GetPropertyWithReceiver(this, key, attributes);
 }
 
@@ -1493,7 +1493,7 @@ MaybeObject* JSObject::AddFastPropertyUsingMap(Map* map) {
 
 
 bool JSObject::TryTransitionToField(Handle<JSObject> object,
-                                    Handle<String> key) {
+                                    Handle<Name> key) {
   if (!object->map()->HasTransitionArray()) return false;
   Handle<TransitionArray> transitions(object->map()->transitions());
   int transition = transitions->Search(*key);
@@ -2021,7 +2021,7 @@ void DescriptorArray::SetNumberOfDescriptors(int number_of_descriptors) {
 // there are three entries in this array it should be called with low=0 and
 // high=2.
 template<SearchMode search_mode, typename T>
-int BinarySearch(T* array, String* name, int low, int high, int valid_entries) {
+int BinarySearch(T* array, Name* name, int low, int high, int valid_entries) {
   uint32_t hash = name->Hash();
   int limit = high;
 
@@ -2029,7 +2029,7 @@ int BinarySearch(T* array, String* name, int low, int high, int valid_entries) {
 
   while (low != high) {
     int mid = (low + high) / 2;
-    String* mid_name = array->GetSortedKey(mid);
+    Name* mid_name = array->GetSortedKey(mid);
     uint32_t mid_hash = mid_name->Hash();
 
     if (mid_hash >= hash) {
@@ -2041,7 +2041,7 @@ int BinarySearch(T* array, String* name, int low, int high, int valid_entries) {
 
   for (; low <= limit; ++low) {
     int sort_index = array->GetSortedKeyIndex(low);
-    String* entry = array->GetKey(sort_index);
+    Name* entry = array->GetKey(sort_index);
     if (entry->Hash() != hash) break;
     if (entry->Equals(name)) {
       if (search_mode == ALL_ENTRIES || sort_index < valid_entries) {
@@ -2058,12 +2058,12 @@ int BinarySearch(T* array, String* name, int low, int high, int valid_entries) {
 // Perform a linear search in this fixed array. len is the number of entry
 // indices that are valid.
 template<SearchMode search_mode, typename T>
-int LinearSearch(T* array, String* name, int len, int valid_entries) {
+int LinearSearch(T* array, Name* name, int len, int valid_entries) {
   uint32_t hash = name->Hash();
   if (search_mode == ALL_ENTRIES) {
     for (int number = 0; number < len; number++) {
       int sorted_index = array->GetSortedKeyIndex(number);
-      String* entry = array->GetKey(sorted_index);
+      Name* entry = array->GetKey(sorted_index);
       uint32_t current_hash = entry->Hash();
       if (current_hash > hash) break;
       if (current_hash == hash && entry->Equals(name)) return sorted_index;
@@ -2071,7 +2071,7 @@ int LinearSearch(T* array, String* name, int len, int valid_entries) {
   } else {
     ASSERT(len >= valid_entries);
     for (int number = 0; number < valid_entries; number++) {
-      String* entry = array->GetKey(number);
+      Name* entry = array->GetKey(number);
       uint32_t current_hash = entry->Hash();
       if (current_hash == hash && entry->Equals(name)) return number;
     }
@@ -2081,7 +2081,7 @@ int LinearSearch(T* array, String* name, int len, int valid_entries) {
 
 
 template<SearchMode search_mode, typename T>
-int Search(T* array, String* name, int valid_entries) {
+int Search(T* array, Name* name, int valid_entries) {
   if (search_mode == VALID_ENTRIES) {
     SLOW_ASSERT(array->IsSortedNoDuplicates(valid_entries));
   } else {
@@ -2105,12 +2105,12 @@ int Search(T* array, String* name, int valid_entries) {
 }
 
 
-int DescriptorArray::Search(String* name, int valid_descriptors) {
+int DescriptorArray::Search(Name* name, int valid_descriptors) {
   return internal::Search<VALID_ENTRIES>(this, name, valid_descriptors);
 }
 
 
-int DescriptorArray::SearchWithCache(String* name, Map* map) {
+int DescriptorArray::SearchWithCache(Name* name, Map* map) {
   int number_of_own_descriptors = map->NumberOfOwnDescriptors();
   if (number_of_own_descriptors == 0) return kNotFound;
 
@@ -2127,7 +2127,7 @@ int DescriptorArray::SearchWithCache(String* name, Map* map) {
 
 
 void Map::LookupDescriptor(JSObject* holder,
-                           String* name,
+                           Name* name,
                            LookupResult* result) {
   DescriptorArray* descriptors = this->instance_descriptors();
   int number = descriptors->SearchWithCache(name, this);
@@ -2137,7 +2137,7 @@ void Map::LookupDescriptor(JSObject* holder,
 
 
 void Map::LookupTransition(JSObject* holder,
-                           String* name,
+                           Name* name,
                            LookupResult* result) {
   if (HasTransitionArray()) {
     TransitionArray* transition_array = transitions();
@@ -2168,9 +2168,9 @@ Object** DescriptorArray::GetDescriptorEndSlot(int descriptor_number) {
 }
 
 
-String* DescriptorArray::GetKey(int descriptor_number) {
+Name* DescriptorArray::GetKey(int descriptor_number) {
   ASSERT(descriptor_number < number_of_descriptors());
-  return String::cast(get(ToKeyIndex(descriptor_number)));
+  return Name::cast(get(ToKeyIndex(descriptor_number)));
 }
 
 
@@ -2179,7 +2179,7 @@ int DescriptorArray::GetSortedKeyIndex(int descriptor_number) {
 }
 
 
-String* DescriptorArray::GetSortedKey(int descriptor_number) {
+Name* DescriptorArray::GetSortedKey(int descriptor_number) {
   return GetKey(GetSortedKeyIndex(descriptor_number));
 }
 
@@ -2293,7 +2293,7 @@ void DescriptorArray::Append(Descriptor* desc,
   int insertion;
 
   for (insertion = descriptor_number; insertion > 0; --insertion) {
-    String* key = GetSortedKey(insertion - 1);
+    Name* key = GetSortedKey(insertion - 1);
     if (key->Hash() <= hash) break;
     SetSortedKey(insertion, GetSortedKeyIndex(insertion - 1));
   }
@@ -2314,7 +2314,7 @@ void DescriptorArray::Append(Descriptor* desc) {
   int insertion;
 
   for (insertion = descriptor_number; insertion > 0; --insertion) {
-    String* key = GetSortedKey(insertion - 1);
+    Name* key = GetSortedKey(insertion - 1);
     if (key->Hash() <= hash) break;
     SetSortedKey(insertion, GetSortedKeyIndex(insertion - 1));
   }
@@ -2428,12 +2428,12 @@ CAST_ACCESSOR(ExternalString)
 CAST_ACCESSOR(ExternalAsciiString)
 CAST_ACCESSOR(ExternalTwoByteString)
 CAST_ACCESSOR(Symbol)
+CAST_ACCESSOR(Name)
 CAST_ACCESSOR(JSReceiver)
 CAST_ACCESSOR(JSObject)
 CAST_ACCESSOR(Smi)
 CAST_ACCESSOR(HeapObject)
 CAST_ACCESSOR(HeapNumber)
-CAST_ACCESSOR(Name)
 CAST_ACCESSOR(Oddball)
 CAST_ACCESSOR(JSGlobalPropertyCell)
 CAST_ACCESSOR(SharedFunctionInfo)
@@ -2499,10 +2499,16 @@ void Name::set_hash_field(uint32_t value) {
 }
 
 
+bool Name::Equals(Name* other) {
+  if (other == this) return true;
+  if (this->IsUniqueName() && other->IsUniqueName()) return false;
+  return String::cast(this)->SlowEquals(String::cast(other));
+}
+
+
 bool String::Equals(String* other) {
   if (other == this) return true;
-  if (StringShape(this).IsInternalized() &&
-      StringShape(other).IsInternalized()) {
+  if (this->IsInternalizedString() && other->IsInternalizedString()) {
     return false;
   }
   return SlowEquals(other);
@@ -3231,7 +3237,7 @@ int Map::pre_allocated_property_fields() {
 int HeapObject::SizeFromMap(Map* map) {
   int instance_size = map->instance_size();
   if (instance_size != kVariableSizeSentinel) return instance_size;
-  // We can ignore the "internalized" bit becase it is only set for strings
+  // We can ignore the "internalized" bit because it is only set for strings
   // and thus implies a string type.
   int instance_type =
       static_cast<int>(map->instance_type()) & ~kIsInternalizedMask;
@@ -4013,7 +4019,7 @@ bool Map::CanHaveMoreTransitions() {
 }
 
 
-MaybeObject* Map::AddTransition(String* key,
+MaybeObject* Map::AddTransition(Name* key,
                                 Map* target,
                                 SimpleTransitionFlag flag) {
   if (HasTransitionArray()) return transitions()->CopyInsert(key, target);
@@ -5262,9 +5268,9 @@ MaybeObject* JSObject::EnsureWritableFastElements() {
 }
 
 
-StringDictionary* JSObject::property_dictionary() {
+NameDictionary* JSObject::property_dictionary() {
   ASSERT(!HasFastProperties());
-  return StringDictionary::cast(properties());
+  return NameDictionary::cast(properties());
 }
 
 
@@ -5387,6 +5393,11 @@ uint32_t StringHasher::HashSequentialString(const schar* chars,
 }
 
 
+bool Name::AsArrayIndex(uint32_t* index) {
+  return IsString() && String::cast(this)->AsArrayIndex(index);
+}
+
+
 bool String::AsArrayIndex(uint32_t* index) {
   uint32_t field = hash_field();
   if (IsHashFieldComputed(field) && (field & kIsNotArrayIndexMask)) {
@@ -5406,7 +5417,7 @@ Object* JSReceiver::GetConstructor() {
 }
 
 
-bool JSReceiver::HasProperty(String* name) {
+bool JSReceiver::HasProperty(Name* name) {
   if (IsJSProxy()) {
     return JSProxy::cast(this)->HasPropertyWithHandler(name);
   }
@@ -5414,7 +5425,7 @@ bool JSReceiver::HasProperty(String* name) {
 }
 
 
-bool JSReceiver::HasLocalProperty(String* name) {
+bool JSReceiver::HasLocalProperty(Name* name) {
   if (IsJSProxy()) {
     return JSProxy::cast(this)->HasPropertyWithHandler(name);
   }
@@ -5422,7 +5433,7 @@ bool JSReceiver::HasLocalProperty(String* name) {
 }
 
 
-PropertyAttributes JSReceiver::GetPropertyAttribute(String* key) {
+PropertyAttributes JSReceiver::GetPropertyAttribute(Name* key) {
   uint32_t index;
   if (IsJSObject() && key->AsArrayIndex(&index)) {
     return GetElementAttribute(index);
@@ -5547,7 +5558,7 @@ void Dictionary<Shape, Key>::SetEntry(int entry,
                                       Object* key,
                                       Object* value,
                                       PropertyDetails details) {
-  ASSERT(!key->IsString() ||
+  ASSERT(!key->IsName() ||
          details.IsDeleted() ||
          details.dictionary_index() > 0);
   int index = HashTable<Shape, Key>::EntryToIndex(entry);
@@ -5592,25 +5603,25 @@ MaybeObject* NumberDictionaryShape::AsObject(uint32_t key) {
 }
 
 
-bool StringDictionaryShape::IsMatch(String* key, Object* other) {
+bool NameDictionaryShape::IsMatch(Name* key, Object* other) {
   // We know that all entries in a hash table had their hash keys created.
   // Use that knowledge to have fast failure.
-  if (key->Hash() != String::cast(other)->Hash()) return false;
-  return key->Equals(String::cast(other));
+  if (key->Hash() != Name::cast(other)->Hash()) return false;
+  return key->Equals(Name::cast(other));
 }
 
 
-uint32_t StringDictionaryShape::Hash(String* key) {
+uint32_t NameDictionaryShape::Hash(Name* key) {
   return key->Hash();
 }
 
 
-uint32_t StringDictionaryShape::HashForObject(String* key, Object* other) {
-  return String::cast(other)->Hash();
+uint32_t NameDictionaryShape::HashForObject(Name* key, Object* other) {
+  return Name::cast(other)->Hash();
 }
 
 
-MaybeObject* StringDictionaryShape::AsObject(String* key) {
+MaybeObject* NameDictionaryShape::AsObject(Name* key) {
   return key;
 }
 

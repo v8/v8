@@ -1320,7 +1320,7 @@ void V8HeapExplorer::ExtractPropertyReferences(JSObject* js_obj, int entry) {
         case FIELD: {
           int index = descs->GetFieldIndex(i);
 
-          String* k = descs->GetKey(i);
+          Name* k = descs->GetKey(i);
           if (index < js_obj->map()->inobject_properties()) {
             Object* value = js_obj->InObjectPropertyAt(index);
             if (k != heap_->hidden_string()) {
@@ -1378,7 +1378,7 @@ void V8HeapExplorer::ExtractPropertyReferences(JSObject* js_obj, int entry) {
       }
     }
   } else {
-    StringDictionary* dictionary = js_obj->property_dictionary();
+    NameDictionary* dictionary = js_obj->property_dictionary();
     int length = dictionary->Capacity();
     for (int i = 0; i < length; ++i) {
       Object* k = dictionary->KeyAt(i);
@@ -1688,19 +1688,20 @@ void V8HeapExplorer::SetWeakReference(HeapObject* parent_obj,
 
 void V8HeapExplorer::SetPropertyReference(HeapObject* parent_obj,
                                           int parent_entry,
-                                          String* reference_name,
+                                          Name* reference_name,
                                           Object* child_obj,
                                           const char* name_format_string,
                                           int field_offset) {
   HeapEntry* child_entry = GetEntry(child_obj);
   if (child_entry != NULL) {
-    HeapGraphEdge::Type type = reference_name->length() > 0 ?
-        HeapGraphEdge::kProperty : HeapGraphEdge::kInternal;
-    const char* name = name_format_string  != NULL ?
-        collection_->names()->GetFormatted(
-            name_format_string,
-            *reference_name->ToCString(DISALLOW_NULLS,
-                                       ROBUST_STRING_TRAVERSAL)) :
+    HeapGraphEdge::Type type =
+        reference_name->IsSymbol() || String::cast(reference_name)->length() > 0
+            ? HeapGraphEdge::kProperty : HeapGraphEdge::kInternal;
+    const char* name = name_format_string != NULL && reference_name->IsString()
+        ? collection_->names()->GetFormatted(
+              name_format_string,
+              *String::cast(reference_name)->ToCString(
+                  DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL)) :
         collection_->names()->GetName(reference_name);
 
     filler_->SetNamedReference(type,

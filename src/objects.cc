@@ -130,7 +130,7 @@ Object* Object::ToBoolean() {
 }
 
 
-void Object::Lookup(String* name, LookupResult* result) {
+void Object::Lookup(Name* name, LookupResult* result) {
   Object* holder = NULL;
   if (IsJSReceiver()) {
     holder = this;
@@ -155,7 +155,7 @@ void Object::Lookup(String* name, LookupResult* result) {
 
 
 MaybeObject* Object::GetPropertyWithReceiver(Object* receiver,
-                                             String* name,
+                                             Name* name,
                                              PropertyAttributes* attributes) {
   LookupResult result(name->GetIsolate());
   Lookup(name, &result);
@@ -167,7 +167,7 @@ MaybeObject* Object::GetPropertyWithReceiver(Object* receiver,
 
 MaybeObject* JSObject::GetPropertyWithCallback(Object* receiver,
                                                Object* structure,
-                                               String* name) {
+                                               Name* name) {
   Isolate* isolate = name->GetIsolate();
   // To accommodate both the old and the new api we switch on the
   // data structure used to store the callbacks.  Eventually foreign
@@ -194,12 +194,15 @@ MaybeObject* JSObject::GetPropertyWithCallback(Object* receiver,
                                                         ARRAY_SIZE(args)));
       return isolate->Throw(*error);
     }
+    // TODO(rossberg): Handling symbols in the API requires changing the API,
+    // so we do not support it for now.
+    if (name->IsSymbol()) return isolate->heap()->undefined_value();
     Object* fun_obj = data->getter();
     v8::AccessorGetter call_fun = v8::ToCData<v8::AccessorGetter>(fun_obj);
     if (call_fun == NULL) return isolate->heap()->undefined_value();
     HandleScope scope(isolate);
     JSObject* self = JSObject::cast(receiver);
-    Handle<String> key(name);
+    Handle<String> key(String::cast(name));
     LOG(isolate, ApiNamedPropertyAccess("load", self, name));
     CustomArguments args(isolate, data->data(), self, this);
     v8::AccessorInfo info(args.end());
@@ -240,7 +243,7 @@ MaybeObject* JSObject::GetPropertyWithCallback(Object* receiver,
 
 
 MaybeObject* JSProxy::GetPropertyWithHandler(Object* receiver_raw,
-                                             String* name_raw) {
+                                             Name* name_raw) {
   Isolate* isolate = GetIsolate();
   HandleScope scope(isolate);
   Handle<Object> receiver(receiver_raw, isolate);
@@ -255,11 +258,12 @@ MaybeObject* JSProxy::GetPropertyWithHandler(Object* receiver_raw,
 }
 
 
-Handle<Object> Object::GetProperty(Handle<Object> object, Handle<String> name) {
+Handle<Object> Object::GetProperty(Handle<Object> object, Handle<Name> name) {
   // TODO(rossberg): The index test should not be here but in the GetProperty
   // method (or somewhere else entirely). Needs more global clean-up.
   uint32_t index;
-  if (name->AsArrayIndex(&index)) return GetElement(object, index);
+  if (name->AsArrayIndex(&index))
+    return GetElement(object, index);
   Isolate* isolate = object->IsHeapObject()
       ? Handle<HeapObject>::cast(object)->GetIsolate()
       : Isolate::Current();
@@ -332,7 +336,7 @@ MaybeObject* Object::GetPropertyWithDefinedGetter(Object* receiver,
 MaybeObject* JSObject::GetPropertyWithFailedAccessCheck(
     Object* receiver,
     LookupResult* result,
-    String* name,
+    Name* name,
     PropertyAttributes* attributes) {
   if (result->IsProperty()) {
     switch (result->type()) {
@@ -392,7 +396,7 @@ MaybeObject* JSObject::GetPropertyWithFailedAccessCheck(
 PropertyAttributes JSObject::GetPropertyAttributeWithFailedAccessCheck(
     Object* receiver,
     LookupResult* result,
-    String* name,
+    Name* name,
     bool continue_search) {
   if (result->IsProperty()) {
     switch (result->type()) {
@@ -478,7 +482,7 @@ Object* JSObject::SetNormalizedProperty(LookupResult* result, Object* value) {
 
 
 Handle<Object> JSObject::SetNormalizedProperty(Handle<JSObject> object,
-                                               Handle<String> key,
+                                               Handle<Name> key,
                                                Handle<Object> value,
                                                PropertyDetails details) {
   CALL_HEAP_FUNCTION(object->GetIsolate(),
@@ -487,12 +491,12 @@ Handle<Object> JSObject::SetNormalizedProperty(Handle<JSObject> object,
 }
 
 
-MaybeObject* JSObject::SetNormalizedProperty(String* name,
+MaybeObject* JSObject::SetNormalizedProperty(Name* name,
                                              Object* value,
                                              PropertyDetails details) {
   ASSERT(!HasFastProperties());
   int entry = property_dictionary()->FindEntry(name);
-  if (entry == StringDictionary::kNotFound) {
+  if (entry == NameDictionary::kNotFound) {
     Object* store_value = value;
     if (IsGlobalObject()) {
       Heap* heap = name->GetHeap();
@@ -505,7 +509,7 @@ MaybeObject* JSObject::SetNormalizedProperty(String* name,
           property_dictionary()->Add(name, store_value, details);
       if (!maybe_dict->ToObject(&dict)) return maybe_dict;
     }
-    set_properties(StringDictionary::cast(dict));
+    set_properties(NameDictionary::cast(dict));
     return value;
   }
 
@@ -536,11 +540,11 @@ MaybeObject* JSObject::SetNormalizedProperty(String* name,
 }
 
 
-MaybeObject* JSObject::DeleteNormalizedProperty(String* name, DeleteMode mode) {
+MaybeObject* JSObject::DeleteNormalizedProperty(Name* name, DeleteMode mode) {
   ASSERT(!HasFastProperties());
-  StringDictionary* dictionary = property_dictionary();
+  NameDictionary* dictionary = property_dictionary();
   int entry = dictionary->FindEntry(name);
-  if (entry != StringDictionary::kNotFound) {
+  if (entry != NameDictionary::kNotFound) {
     // If we have a global object set the cell to the hole.
     if (IsGlobalObject()) {
       PropertyDetails details = dictionary->DetailsAt(entry);
@@ -596,7 +600,7 @@ bool JSObject::IsDirty() {
 Handle<Object> Object::GetProperty(Handle<Object> object,
                                    Handle<Object> receiver,
                                    LookupResult* result,
-                                   Handle<String> key,
+                                   Handle<Name> key,
                                    PropertyAttributes* attributes) {
   Isolate* isolate = object->IsHeapObject()
       ? Handle<HeapObject>::cast(object)->GetIsolate()
@@ -610,7 +614,7 @@ Handle<Object> Object::GetProperty(Handle<Object> object,
 
 MaybeObject* Object::GetProperty(Object* receiver,
                                  LookupResult* result,
-                                 String* name,
+                                 Name* name,
                                  PropertyAttributes* attributes) {
   // Make sure that the top context does not change when doing
   // callbacks or interceptor calls.
@@ -791,7 +795,7 @@ Object* Object::GetDelegate(Isolate* isolate) {
 
 
 MaybeObject* Object::GetHash(CreationFlag flag) {
-  // The object is either a number, a string, an odd-ball,
+  // The object is either a number, a name, an odd-ball,
   // a real JS object, or a Harmony proxy.
   if (IsNumber()) {
     uint32_t hash = ComputeLongHash(double_to_uint64(Number()));
@@ -817,7 +821,7 @@ MaybeObject* Object::GetHash(CreationFlag flag) {
 bool Object::SameValue(Object* other) {
   if (other == this) return true;
 
-  // The object is either a number, a string, an odd-ball,
+  // The object is either a number, a name, an odd-ball,
   // a real JS object, or a Harmony proxy.
   if (IsNumber() && other->IsNumber()) {
     double this_value = Number();
@@ -1553,7 +1557,7 @@ String* JSReceiver::constructor_name() {
 
 
 MaybeObject* JSObject::AddFastPropertyUsingMap(Map* new_map,
-                                               String* name,
+                                               Name* name,
                                                Object* value,
                                                int field_index) {
   if (map()->unused_property_fields() == 0) {
@@ -1570,8 +1574,10 @@ MaybeObject* JSObject::AddFastPropertyUsingMap(Map* new_map,
 }
 
 
-static bool IsIdentifier(UnicodeCache* cache, String* string) {
+static bool IsIdentifier(UnicodeCache* cache, Name* name) {
   // Checks whether the buffer contains an identifier (no escape).
+  if (!name->IsString()) return false;
+  String* string = String::cast(name);
   if (string->length() == 0) return false;
   ConsStringIteratorOp op;
   StringCharacterStream stream(string, &op);
@@ -1587,7 +1593,7 @@ static bool IsIdentifier(UnicodeCache* cache, String* string) {
 }
 
 
-MaybeObject* JSObject::AddFastProperty(String* name,
+MaybeObject* JSObject::AddFastProperty(Name* name,
                                        Object* value,
                                        PropertyAttributes attributes,
                                        StoreFromKeyed store_mode) {
@@ -1596,7 +1602,7 @@ MaybeObject* JSObject::AddFastProperty(String* name,
          map()->instance_descriptors()->Search(
              name, map()->NumberOfOwnDescriptors()));
 
-  // Normalize the object if the name is an actual string (not the
+  // Normalize the object if the name is an actual name (not the
   // hidden strings) and is not a real identifier.
   // Normalize the object if it will have too many fast properties.
   Isolate* isolate = GetHeap()->isolate();
@@ -1651,7 +1657,7 @@ MaybeObject* JSObject::AddFastProperty(String* name,
 
 
 MaybeObject* JSObject::AddConstantFunctionProperty(
-    String* name,
+    Name* name,
     JSFunction* function,
     PropertyAttributes attributes) {
   // Allocate new instance descriptors with (name, function) added
@@ -1676,16 +1682,16 @@ MaybeObject* JSObject::AddConstantFunctionProperty(
 
 
 // Add property in slow mode
-MaybeObject* JSObject::AddSlowProperty(String* name,
+MaybeObject* JSObject::AddSlowProperty(Name* name,
                                        Object* value,
                                        PropertyAttributes attributes) {
   ASSERT(!HasFastProperties());
-  StringDictionary* dict = property_dictionary();
+  NameDictionary* dict = property_dictionary();
   Object* store_value = value;
   if (IsGlobalObject()) {
     // In case name is an orphaned property reuse the cell.
     int entry = dict->FindEntry(name);
-    if (entry != StringDictionary::kNotFound) {
+    if (entry != NameDictionary::kNotFound) {
       store_value = dict->ValueAt(entry);
       JSGlobalPropertyCell::cast(store_value)->set_value(value);
       // Assign an enumeration index to the property and update
@@ -1708,12 +1714,12 @@ MaybeObject* JSObject::AddSlowProperty(String* name,
   { MaybeObject* maybe_result = dict->Add(name, store_value, details);
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
-  if (dict != result) set_properties(StringDictionary::cast(result));
+  if (dict != result) set_properties(NameDictionary::cast(result));
   return value;
 }
 
 
-MaybeObject* JSObject::AddProperty(String* name,
+MaybeObject* JSObject::AddProperty(Name* name,
                                    Object* value,
                                    PropertyAttributes attributes,
                                    StrictModeFlag strict_mode,
@@ -1729,7 +1735,7 @@ MaybeObject* JSObject::AddProperty(String* name,
     if (strict_mode == kNonStrictMode) {
       return value;
     } else {
-      Handle<Object> args[1] = {Handle<String>(name)};
+      Handle<Object> args[1] = {Handle<Name>(name)};
       return isolate->Throw(
           *FACTORY->NewTypeError("object_not_extensible",
                                  HandleVector(args, 1)));
@@ -1775,7 +1781,7 @@ MaybeObject* JSObject::AddProperty(String* name,
 
 void JSObject::EnqueueChangeRecord(Handle<JSObject> object,
                                    const char* type_str,
-                                   Handle<String> name,
+                                   Handle<Name> name,
                                    Handle<Object> old_value) {
   Isolate* isolate = object->GetIsolate();
   HandleScope scope(isolate);
@@ -1808,7 +1814,7 @@ void JSObject::DeliverChangeRecords(Isolate* isolate) {
 
 
 MaybeObject* JSObject::SetPropertyPostInterceptor(
-    String* name,
+    Name* name,
     Object* value,
     PropertyAttributes attributes,
     StrictModeFlag strict_mode,
@@ -1833,10 +1839,10 @@ MaybeObject* JSObject::SetPropertyPostInterceptor(
 }
 
 
-MaybeObject* JSObject::ReplaceSlowProperty(String* name,
+MaybeObject* JSObject::ReplaceSlowProperty(Name* name,
                                            Object* value,
                                            PropertyAttributes attributes) {
-  StringDictionary* dictionary = property_dictionary();
+  NameDictionary* dictionary = property_dictionary();
   int old_index = dictionary->FindEntry(name);
   int new_enumeration_index = 0;  // 0 means "Use the next available index."
   if (old_index != -1) {
@@ -1851,7 +1857,7 @@ MaybeObject* JSObject::ReplaceSlowProperty(String* name,
 
 MaybeObject* JSObject::ConvertTransitionToMapTransition(
     int transition_index,
-    String* name,
+    Name* name,
     Object* new_value,
     PropertyAttributes attributes) {
   Map* old_map = map();
@@ -1897,7 +1903,7 @@ MaybeObject* JSObject::ConvertTransitionToMapTransition(
 }
 
 
-MaybeObject* JSObject::ConvertDescriptorToField(String* name,
+MaybeObject* JSObject::ConvertDescriptorToField(Name* name,
                                                 Object* new_value,
                                                 PropertyAttributes attributes) {
   if (map()->unused_property_fields() == 0 &&
@@ -1940,14 +1946,16 @@ MaybeObject* JSObject::ConvertDescriptorToField(String* name,
 
 
 MaybeObject* JSObject::SetPropertyWithInterceptor(
-    String* name,
+    Name* name,
     Object* value,
     PropertyAttributes attributes,
     StrictModeFlag strict_mode) {
+  // TODO(rossberg): Support symbols in the API.
+  if (name->IsSymbol()) return value;
   Isolate* isolate = GetIsolate();
   HandleScope scope(isolate);
   Handle<JSObject> this_handle(this);
-  Handle<String> name_handle(name);
+  Handle<String> name_handle(String::cast(name));
   Handle<Object> value_handle(value, isolate);
   Handle<InterceptorInfo> interceptor(GetNamedInterceptor());
   if (!interceptor->setter()->IsUndefined()) {
@@ -1983,7 +1991,7 @@ MaybeObject* JSObject::SetPropertyWithInterceptor(
 
 
 Handle<Object> JSReceiver::SetProperty(Handle<JSReceiver> object,
-                                       Handle<String> key,
+                                       Handle<Name> key,
                                        Handle<Object> value,
                                        PropertyAttributes attributes,
                                        StrictModeFlag strict_mode) {
@@ -1993,7 +2001,7 @@ Handle<Object> JSReceiver::SetProperty(Handle<JSReceiver> object,
 }
 
 
-MaybeObject* JSReceiver::SetProperty(String* name,
+MaybeObject* JSReceiver::SetProperty(Name* name,
                                      Object* value,
                                      PropertyAttributes attributes,
                                      StrictModeFlag strict_mode,
@@ -2008,7 +2016,7 @@ MaybeObject* JSReceiver::SetProperty(String* name,
 
 
 MaybeObject* JSObject::SetPropertyWithCallback(Object* structure,
-                                               String* name,
+                                               Name* name,
                                                Object* value,
                                                JSObject* holder,
                                                StrictModeFlag strict_mode) {
@@ -2046,10 +2054,12 @@ MaybeObject* JSObject::SetPropertyWithCallback(Object* structure,
                                                         ARRAY_SIZE(args)));
       return isolate->Throw(*error);
     }
+    // TODO(rossberg): Support symbols in the API.
+    if (name->IsSymbol()) return value;
     Object* call_obj = data->setter();
     v8::AccessorSetter call_fun = v8::ToCData<v8::AccessorSetter>(call_obj);
     if (call_fun == NULL) return value;
-    Handle<String> key(name);
+    Handle<String> key(String::cast(name));
     LOG(isolate, ApiNamedPropertyAccess("store", this, name));
     CustomArguments args(isolate, data->data(), this, JSObject::cast(holder));
     v8::AccessorInfo info(args.end());
@@ -2073,7 +2083,7 @@ MaybeObject* JSObject::SetPropertyWithCallback(Object* structure,
       if (strict_mode == kNonStrictMode) {
         return value;
       }
-      Handle<String> key(name);
+      Handle<Name> key(name);
       Handle<Object> holder_handle(holder, isolate);
       Handle<Object> args[2] = { key, holder_handle };
       return isolate->Throw(
@@ -2158,7 +2168,7 @@ MaybeObject* JSObject::SetElementWithCallbackSetterInPrototypes(
 }
 
 MaybeObject* JSObject::SetPropertyViaPrototypes(
-    String* name,
+    Name* name,
     Object* value,
     PropertyAttributes attributes,
     StrictModeFlag strict_mode,
@@ -2291,15 +2301,17 @@ void Map::AppendCallbackDescriptors(Handle<Map> map,
 
   ASSERT(array->NumberOfSlackDescriptors() >= nof_callbacks);
 
-  // Ensure the keys are internalized strings before writing them into the
+  // Ensure the keys are unique names before writing them into the
   // instance descriptor. Since it may cause a GC, it has to be done before we
   // temporarily put the heap in an invalid state while appending descriptors.
   for (int i = 0; i < nof_callbacks; ++i) {
     Handle<AccessorInfo> entry(AccessorInfo::cast(callbacks.get(i)));
-    Handle<String> key =
-        isolate->factory()->InternalizedStringFromString(
-            Handle<String>(String::cast(entry->name())));
-    entry->set_name(*key);
+    if (!entry->name()->IsUniqueName()) {
+      Handle<String> key =
+          isolate->factory()->InternalizedStringFromString(
+              Handle<String>(String::cast(entry->name())));
+      entry->set_name(*key);
+    }
   }
 
   int nof = map->NumberOfOwnDescriptors();
@@ -2309,7 +2321,7 @@ void Map::AppendCallbackDescriptors(Handle<Map> map,
   // precedence over previously added callbacks with that name.
   for (int i = nof_callbacks - 1; i >= 0; i--) {
     AccessorInfo* entry = AccessorInfo::cast(callbacks.get(i));
-    String* key = String::cast(entry->name());
+    Name* key = Name::cast(entry->name());
     // Check if a descriptor with this name already exists before writing.
     if (array->Search(key, nof) == DescriptorArray::kNotFound) {
       CallbacksDescriptor desc(key, entry, entry->property_attributes());
@@ -2468,8 +2480,7 @@ MaybeObject* JSObject::GetElementsTransitionMapSlow(ElementsKind to_kind) {
 }
 
 
-void JSObject::LocalLookupRealNamedProperty(String* name,
-                                            LookupResult* result) {
+void JSObject::LocalLookupRealNamedProperty(Name* name, LookupResult* result) {
   if (IsJSGlobalProxy()) {
     Object* proto = GetPrototype();
     if (proto->IsNull()) return result->NotFound();
@@ -2496,7 +2507,7 @@ void JSObject::LocalLookupRealNamedProperty(String* name,
   }
 
   int entry = property_dictionary()->FindEntry(name);
-  if (entry != StringDictionary::kNotFound) {
+  if (entry != NameDictionary::kNotFound) {
     Object* value = property_dictionary()->ValueAt(entry);
     if (IsGlobalObject()) {
       PropertyDetails d = property_dictionary()->DetailsAt(entry);
@@ -2517,7 +2528,7 @@ void JSObject::LocalLookupRealNamedProperty(String* name,
 }
 
 
-void JSObject::LookupRealNamedProperty(String* name, LookupResult* result) {
+void JSObject::LookupRealNamedProperty(Name* name, LookupResult* result) {
   LocalLookupRealNamedProperty(name, result);
   if (result->IsFound()) return;
 
@@ -2525,7 +2536,7 @@ void JSObject::LookupRealNamedProperty(String* name, LookupResult* result) {
 }
 
 
-void JSObject::LookupRealNamedPropertyInPrototypes(String* name,
+void JSObject::LookupRealNamedPropertyInPrototypes(Name* name,
                                                    LookupResult* result) {
   Isolate* isolate = GetIsolate();
   Heap* heap = isolate->heap();
@@ -2546,7 +2557,7 @@ void JSObject::LookupRealNamedPropertyInPrototypes(String* name,
 // We only need to deal with CALLBACKS and INTERCEPTORS
 MaybeObject* JSObject::SetPropertyWithFailedAccessCheck(
     LookupResult* result,
-    String* name,
+    Name* name,
     Object* value,
     bool check_prototype,
     StrictModeFlag strict_mode) {
@@ -2601,7 +2612,7 @@ MaybeObject* JSObject::SetPropertyWithFailedAccessCheck(
 
 
 MaybeObject* JSReceiver::SetProperty(LookupResult* result,
-                                     String* key,
+                                     Name* key,
                                      Object* value,
                                      PropertyAttributes attributes,
                                      StrictModeFlag strict_mode,
@@ -2616,7 +2627,7 @@ MaybeObject* JSReceiver::SetProperty(LookupResult* result,
 }
 
 
-bool JSProxy::HasPropertyWithHandler(String* name_raw) {
+bool JSProxy::HasPropertyWithHandler(Name* name_raw) {
   Isolate* isolate = GetIsolate();
   HandleScope scope(isolate);
   Handle<Object> receiver(this, isolate);
@@ -2633,7 +2644,7 @@ bool JSProxy::HasPropertyWithHandler(String* name_raw) {
 
 MUST_USE_RESULT MaybeObject* JSProxy::SetPropertyWithHandler(
     JSReceiver* receiver_raw,
-    String* name_raw,
+    Name* name_raw,
     Object* value_raw,
     PropertyAttributes attributes,
     StrictModeFlag strict_mode) {
@@ -2653,7 +2664,7 @@ MUST_USE_RESULT MaybeObject* JSProxy::SetPropertyWithHandler(
 
 MUST_USE_RESULT MaybeObject* JSProxy::SetPropertyViaPrototypesWithHandler(
     JSReceiver* receiver_raw,
-    String* name_raw,
+    Name* name_raw,
     Object* value_raw,
     PropertyAttributes attributes,
     StrictModeFlag strict_mode,
@@ -2661,7 +2672,7 @@ MUST_USE_RESULT MaybeObject* JSProxy::SetPropertyViaPrototypesWithHandler(
   Isolate* isolate = GetIsolate();
   Handle<JSProxy> proxy(this);
   Handle<JSReceiver> receiver(receiver_raw);
-  Handle<String> name(name_raw);
+  Handle<Name> name(name_raw);
   Handle<Object> value(value_raw, isolate);
   Handle<Object> handler(this->handler(), isolate);  // Trap might morph proxy.
 
@@ -2748,7 +2759,7 @@ MUST_USE_RESULT MaybeObject* JSProxy::SetPropertyViaPrototypesWithHandler(
 
 
 MUST_USE_RESULT MaybeObject* JSProxy::DeletePropertyWithHandler(
-    String* name_raw, DeleteMode mode) {
+    Name* name_raw, DeleteMode mode) {
   Isolate* isolate = GetIsolate();
   HandleScope scope(isolate);
   Handle<JSProxy> receiver(this);
@@ -2786,7 +2797,7 @@ MUST_USE_RESULT MaybeObject* JSProxy::DeleteElementWithHandler(
 
 MUST_USE_RESULT PropertyAttributes JSProxy::GetPropertyAttributeWithHandler(
     JSReceiver* receiver_raw,
-    String* name_raw) {
+    Name* name_raw) {
   Isolate* isolate = GetIsolate();
   HandleScope scope(isolate);
   Handle<JSProxy> proxy(this);
@@ -2913,7 +2924,7 @@ void JSObject::AddFastPropertyUsingMap(Handle<JSObject> object,
 
 
 MaybeObject* JSObject::SetPropertyForResult(LookupResult* lookup,
-                                            String* name_raw,
+                                            Name* name_raw,
                                             Object* value_raw,
                                             PropertyAttributes attributes,
                                             StrictModeFlag strict_mode,
@@ -2927,9 +2938,11 @@ MaybeObject* JSObject::SetPropertyForResult(LookupResult* lookup,
   // Optimization for 2-byte strings often used as keys in a decompression
   // dictionary.  We internalize these short keys to avoid constantly
   // reallocating them.
-  if (!name_raw->IsInternalizedString() && name_raw->length() <= 2) {
+  if (name_raw->IsString() && !name_raw->IsInternalizedString() &&
+      String::cast(name_raw)->length() <= 2) {
     Object* internalized_version;
-    { MaybeObject* maybe_string_version = heap->InternalizeString(name_raw);
+    { MaybeObject* maybe_string_version =
+        heap->InternalizeString(String::cast(name_raw));
       if (maybe_string_version->ToObject(&internalized_version)) {
         name_raw = String::cast(internalized_version);
       }
@@ -2959,7 +2972,7 @@ MaybeObject* JSObject::SetPropertyForResult(LookupResult* lookup,
   // SetPropertyViaPrototypes might call back into JavaScript.
   HandleScope scope(isolate);
   Handle<JSObject> self(this);
-  Handle<String> name(name_raw);
+  Handle<Name> name(name_raw);
   Handle<Object> value(value_raw, isolate);
 
   if (!lookup->IsProperty() && !self->IsJSContextExtensionObject()) {
@@ -3092,7 +3105,7 @@ MaybeObject* JSObject::SetPropertyForResult(LookupResult* lookup,
 // doesn't handle function prototypes correctly.
 Handle<Object> JSObject::SetLocalPropertyIgnoreAttributes(
     Handle<JSObject> object,
-    Handle<String> key,
+    Handle<Name> key,
     Handle<Object> value,
     PropertyAttributes attributes) {
   CALL_HEAP_FUNCTION(
@@ -3103,7 +3116,7 @@ Handle<Object> JSObject::SetLocalPropertyIgnoreAttributes(
 
 
 MaybeObject* JSObject::SetLocalPropertyIgnoreAttributes(
-    String* name_raw,
+    Name* name_raw,
     Object* value_raw,
     PropertyAttributes attributes) {
   // Make sure that the top context does not change when doing callbacks or
@@ -3143,7 +3156,7 @@ MaybeObject* JSObject::SetLocalPropertyIgnoreAttributes(
   // From this point on everything needs to be handlified.
   HandleScope scope(isolate);
   Handle<JSObject> self(this);
-  Handle<String> name(name_raw);
+  Handle<Name> name(name_raw);
   Handle<Object> value(value_raw, isolate);
 
   Handle<Object> old_value(isolate->heap()->the_hole_value(), isolate);
@@ -3239,7 +3252,7 @@ MaybeObject* JSObject::SetLocalPropertyIgnoreAttributes(
 
 PropertyAttributes JSObject::GetPropertyAttributePostInterceptor(
       JSObject* receiver,
-      String* name,
+      Name* name,
       bool continue_search) {
   // Check local property, ignore interceptor.
   LookupResult result(GetIsolate());
@@ -3260,8 +3273,11 @@ PropertyAttributes JSObject::GetPropertyAttributePostInterceptor(
 
 PropertyAttributes JSObject::GetPropertyAttributeWithInterceptor(
       JSObject* receiver,
-      String* name,
+      Name* name,
       bool continue_search) {
+  // TODO(rossberg): Support symbols in the API.
+  if (name->IsSymbol()) return ABSENT;
+
   Isolate* isolate = GetIsolate();
 
   // Make sure that the top context does not change when doing
@@ -3272,7 +3288,7 @@ PropertyAttributes JSObject::GetPropertyAttributeWithInterceptor(
   Handle<InterceptorInfo> interceptor(GetNamedInterceptor());
   Handle<JSObject> receiver_handle(receiver);
   Handle<JSObject> holder_handle(this);
-  Handle<String> name_handle(name);
+  Handle<String> name_handle(String::cast(name));
   CustomArguments args(isolate, interceptor->data(), receiver, this);
   v8::AccessorInfo info(args.end());
   if (!interceptor->query()->IsUndefined()) {
@@ -3311,7 +3327,7 @@ PropertyAttributes JSObject::GetPropertyAttributeWithInterceptor(
 
 PropertyAttributes JSReceiver::GetPropertyAttributeWithReceiver(
       JSReceiver* receiver,
-      String* key) {
+      Name* key) {
   uint32_t index = 0;
   if (IsJSObject() && key->AsArrayIndex(&index)) {
     return JSObject::cast(this)->GetElementAttributeWithReceiver(
@@ -3327,7 +3343,7 @@ PropertyAttributes JSReceiver::GetPropertyAttributeWithReceiver(
 PropertyAttributes JSReceiver::GetPropertyAttributeForResult(
     JSReceiver* receiver,
     LookupResult* lookup,
-    String* name,
+    Name* name,
     bool continue_search) {
   // Check access rights if needed.
   if (IsAccessCheckNeeded()) {
@@ -3361,7 +3377,7 @@ PropertyAttributes JSReceiver::GetPropertyAttributeForResult(
 }
 
 
-PropertyAttributes JSReceiver::GetLocalPropertyAttribute(String* name) {
+PropertyAttributes JSReceiver::GetLocalPropertyAttribute(Name* name) {
   // Check whether the name is an array index.
   uint32_t index = 0;
   if (IsJSObject() && name->AsArrayIndex(&index)) {
@@ -3528,7 +3544,7 @@ void NormalizedMapCache::Clear() {
 
 
 void JSObject::UpdateMapCodeCache(Handle<JSObject> object,
-                                  Handle<String> name,
+                                  Handle<Name> name,
                                   Handle<Code> code) {
   Isolate* isolate = object->GetIsolate();
   CALL_HEAP_FUNCTION_VOID(isolate,
@@ -3536,7 +3552,7 @@ void JSObject::UpdateMapCodeCache(Handle<JSObject> object,
 }
 
 
-MaybeObject* JSObject::UpdateMapCodeCache(String* name, Code* code) {
+MaybeObject* JSObject::UpdateMapCodeCache(Name* name, Code* code) {
   if (map()->is_shared()) {
     // Fast case maps are never marked as shared.
     ASSERT(!HasFastProperties());
@@ -3582,8 +3598,8 @@ MaybeObject* JSObject::NormalizeProperties(PropertyNormalizationMode mode,
   } else {
     property_count += 2;  // Make space for two more properties.
   }
-  StringDictionary* dictionary;
-  MaybeObject* maybe_dictionary = StringDictionary::Allocate(property_count);
+  NameDictionary* dictionary;
+  MaybeObject* maybe_dictionary = NameDictionary::Allocate(property_count);
   if (!maybe_dictionary->To(&dictionary)) return maybe_dictionary;
 
   DescriptorArray* descs = map_of_this->instance_descriptors();
@@ -3848,8 +3864,8 @@ MaybeObject* JSProxy::GetIdentityHash(CreationFlag flag) {
 }
 
 
-Object* JSObject::GetHiddenProperty(String* key) {
-  ASSERT(key->IsInternalizedString());
+Object* JSObject::GetHiddenProperty(Name* key) {
+  ASSERT(key->IsUniqueName());
   if (IsJSGlobalProxy()) {
     // For a proxy, use the prototype as target object.
     Object* proxy_parent = GetPrototype();
@@ -3882,7 +3898,7 @@ Object* JSObject::GetHiddenProperty(String* key) {
 
 
 Handle<Object> JSObject::SetHiddenProperty(Handle<JSObject> obj,
-                                           Handle<String> key,
+                                           Handle<Name> key,
                                            Handle<Object> value) {
   CALL_HEAP_FUNCTION(obj->GetIsolate(),
                      obj->SetHiddenProperty(*key, *value),
@@ -3890,8 +3906,8 @@ Handle<Object> JSObject::SetHiddenProperty(Handle<JSObject> obj,
 }
 
 
-MaybeObject* JSObject::SetHiddenProperty(String* key, Object* value) {
-  ASSERT(key->IsInternalizedString());
+MaybeObject* JSObject::SetHiddenProperty(Name* key, Object* value) {
+  ASSERT(key->IsUniqueName());
   if (IsJSGlobalProxy()) {
     // For a proxy, use the prototype as target object.
     Object* proxy_parent = GetPrototype();
@@ -3931,8 +3947,8 @@ MaybeObject* JSObject::SetHiddenProperty(String* key, Object* value) {
 }
 
 
-void JSObject::DeleteHiddenProperty(String* key) {
-  ASSERT(key->IsInternalizedString());
+void JSObject::DeleteHiddenProperty(Name* key) {
+  ASSERT(key->IsUniqueName());
   if (IsJSGlobalProxy()) {
     // For a proxy, use the prototype as target object.
     Object* proxy_parent = GetPrototype();
@@ -3972,7 +3988,7 @@ MaybeObject* JSObject::GetHiddenPropertiesHashTable(
   if (HasFastProperties()) {
     // If the object has fast properties, check whether the first slot
     // in the descriptor array matches the hidden string. Since the
-    // hidden strings hash code is zero (and no other string has hash
+    // hidden strings hash code is zero (and no other name has hash
     // code zero) it will always occupy the first entry if present.
     DescriptorArray* descriptors = this->map()->instance_descriptors();
     if (descriptors->number_of_descriptors() > 0) {
@@ -4041,7 +4057,7 @@ MaybeObject* JSObject::SetHiddenPropertiesHashTable(Object* value) {
   if (HasFastProperties()) {
     // If the object has fast properties, check whether the first slot
     // in the descriptor array matches the hidden string. Since the
-    // hidden strings hash code is zero (and no other string has hash
+    // hidden strings hash code is zero (and no other name has hash
     // code zero) it will always occupy the first entry if present.
     DescriptorArray* descriptors = this->map()->instance_descriptors();
     if (descriptors->number_of_descriptors() > 0) {
@@ -4066,7 +4082,7 @@ MaybeObject* JSObject::SetHiddenPropertiesHashTable(Object* value) {
 }
 
 
-MaybeObject* JSObject::DeletePropertyPostInterceptor(String* name,
+MaybeObject* JSObject::DeletePropertyPostInterceptor(Name* name,
                                                      DeleteMode mode) {
   // Check local property, ignore interceptor.
   LookupResult result(GetIsolate());
@@ -4083,11 +4099,14 @@ MaybeObject* JSObject::DeletePropertyPostInterceptor(String* name,
 }
 
 
-MaybeObject* JSObject::DeletePropertyWithInterceptor(String* name) {
+MaybeObject* JSObject::DeletePropertyWithInterceptor(Name* name) {
+  // TODO(rossberg): Support symbols in the API.
+  if (name->IsSymbol()) return GetHeap()->false_value();
+
   Isolate* isolate = GetIsolate();
   HandleScope scope(isolate);
   Handle<InterceptorInfo> interceptor(GetNamedInterceptor());
-  Handle<String> name_handle(name);
+  Handle<String> name_handle(String::cast(name));
   Handle<JSObject> this_handle(this);
   if (!interceptor->deleter()->IsUndefined()) {
     v8::NamedPropertyDeleter deleter =
@@ -4230,17 +4249,17 @@ MaybeObject* JSObject::DeleteElement(uint32_t index, DeleteMode mode) {
 
 
 Handle<Object> JSObject::DeleteProperty(Handle<JSObject> obj,
-                              Handle<String> prop) {
+                                        Handle<Name> prop) {
   CALL_HEAP_FUNCTION(obj->GetIsolate(),
                      obj->DeleteProperty(*prop, JSObject::NORMAL_DELETION),
                      Object);
 }
 
 
-MaybeObject* JSObject::DeleteProperty(String* name, DeleteMode mode) {
+MaybeObject* JSObject::DeleteProperty(Name* name, DeleteMode mode) {
   Isolate* isolate = GetIsolate();
   // ECMA-262, 3rd, 8.6.2.5
-  ASSERT(name->IsString());
+  ASSERT(name->IsName());
 
   // Check access rights if needed.
   if (IsAccessCheckNeeded() &&
@@ -4280,7 +4299,7 @@ MaybeObject* JSObject::DeleteProperty(String* name, DeleteMode mode) {
   // From this point on everything needs to be handlified.
   HandleScope scope(isolate);
   Handle<JSObject> self(this);
-  Handle<String> hname(name);
+  Handle<Name> hname(name);
 
   Handle<Object> old_value = isolate->factory()->the_hole_value();
   bool is_observed = FLAG_harmony_observation && self->map()->is_observed();
@@ -4325,7 +4344,7 @@ MaybeObject* JSReceiver::DeleteElement(uint32_t index, DeleteMode mode) {
 }
 
 
-MaybeObject* JSReceiver::DeleteProperty(String* name, DeleteMode mode) {
+MaybeObject* JSReceiver::DeleteProperty(Name* name, DeleteMode mode) {
   if (IsJSProxy()) {
     return JSProxy::cast(this)->DeletePropertyWithHandler(name, mode);
   }
@@ -4557,7 +4576,7 @@ int Map::NumberOfDescribedProperties(DescriptorFlag which,
 }
 
 
-int Map::PropertyIndexFor(String* name) {
+int Map::PropertyIndexFor(Name* name) {
   DescriptorArray* descs = instance_descriptors();
   int limit = NumberOfOwnDescriptors();
   for (int i = 0; i < limit; i++) {
@@ -4581,7 +4600,7 @@ int Map::NextFreePropertyIndex() {
 }
 
 
-AccessorDescriptor* Map::FindAccessor(String* name) {
+AccessorDescriptor* Map::FindAccessor(Name* name) {
   DescriptorArray* descs = instance_descriptors();
   int number_of_own_descriptors = NumberOfOwnDescriptors();
   for (int i = 0; i < number_of_own_descriptors; i++) {
@@ -4594,8 +4613,8 @@ AccessorDescriptor* Map::FindAccessor(String* name) {
 
 
 void JSReceiver::LocalLookup(
-    String* name, LookupResult* result, bool search_hidden_prototypes) {
-  ASSERT(name->IsString());
+    Name* name, LookupResult* result, bool search_hidden_prototypes) {
+  ASSERT(name->IsName());
 
   Heap* heap = GetHeap();
 
@@ -4639,7 +4658,7 @@ void JSReceiver::LocalLookup(
 }
 
 
-void JSReceiver::Lookup(String* name, LookupResult* result) {
+void JSReceiver::Lookup(Name* name, LookupResult* result) {
   // Ecma-262 3rd 8.6.2.4
   Heap* heap = GetHeap();
   for (Object* current = this;
@@ -4653,7 +4672,7 @@ void JSReceiver::Lookup(String* name, LookupResult* result) {
 
 
 // Search object and its prototype chain for callback properties.
-void JSObject::LookupCallbackProperty(String* name, LookupResult* result) {
+void JSObject::LookupCallbackProperty(Name* name, LookupResult* result) {
   Heap* heap = GetHeap();
   for (Object* current = this;
        current != heap->null_value() && current->IsJSObject();
@@ -4759,7 +4778,7 @@ MaybeObject* JSObject::DefineElementAccessor(uint32_t index,
 }
 
 
-MaybeObject* JSObject::CreateAccessorPairFor(String* name) {
+MaybeObject* JSObject::CreateAccessorPairFor(Name* name) {
   LookupResult result(GetHeap()->isolate());
   LocalLookupRealNamedProperty(name, &result);
   if (result.IsPropertyCallbacks()) {
@@ -4778,7 +4797,7 @@ MaybeObject* JSObject::CreateAccessorPairFor(String* name) {
 }
 
 
-MaybeObject* JSObject::DefinePropertyAccessor(String* name,
+MaybeObject* JSObject::DefinePropertyAccessor(Name* name,
                                               Object* getter,
                                               Object* setter,
                                               PropertyAttributes attributes) {
@@ -4815,7 +4834,7 @@ MaybeObject* JSObject::DefinePropertyAccessor(String* name,
 }
 
 
-bool JSObject::CanSetCallback(String* name) {
+bool JSObject::CanSetCallback(Name* name) {
   ASSERT(!IsAccessCheckNeeded() ||
          GetIsolate()->MayNamedAccess(this, name, v8::ACCESS_SET));
 
@@ -4877,7 +4896,7 @@ MaybeObject* JSObject::SetElementCallback(uint32_t index,
 }
 
 
-MaybeObject* JSObject::SetPropertyCallback(String* name,
+MaybeObject* JSObject::SetPropertyCallback(Name* name,
                                            Object* structure,
                                            PropertyAttributes attributes) {
   // Normalize object to make this operation simple.
@@ -4909,7 +4928,7 @@ MaybeObject* JSObject::SetPropertyCallback(String* name,
 
 
 void JSObject::DefineAccessor(Handle<JSObject> object,
-                              Handle<String> name,
+                              Handle<Name> name,
                               Handle<Object> getter,
                               Handle<Object> setter,
                               PropertyAttributes attributes) {
@@ -4918,7 +4937,7 @@ void JSObject::DefineAccessor(Handle<JSObject> object,
       object->DefineAccessor(*name, *getter, *setter, attributes));
 }
 
-MaybeObject* JSObject::DefineAccessor(String* name_raw,
+MaybeObject* JSObject::DefineAccessor(Name* name_raw,
                                       Object* getter_raw,
                                       Object* setter_raw,
                                       PropertyAttributes attributes) {
@@ -4943,14 +4962,14 @@ MaybeObject* JSObject::DefineAccessor(String* name_raw,
   AssertNoContextChange ncc;
 
   // Try to flatten before operating on the string.
-  name_raw->TryFlatten();
+  if (name_raw->IsString()) String::cast(name_raw)->TryFlatten();
 
   if (!CanSetCallback(name_raw)) return isolate->heap()->undefined_value();
 
   // From this point on everything needs to be handlified.
   HandleScope scope(isolate);
   Handle<JSObject> self(this);
-  Handle<String> name(name_raw);
+  Handle<Name> name(name_raw);
   Handle<Object> getter(getter_raw, isolate);
   Handle<Object> setter(setter_raw, isolate);
 
@@ -5021,7 +5040,7 @@ static MaybeObject* TryAccessorTransition(JSObject* self,
 }
 
 
-MaybeObject* JSObject::DefineFastAccessor(String* name,
+MaybeObject* JSObject::DefineFastAccessor(Name* name,
                                           AccessorComponent component,
                                           Object* accessor,
                                           PropertyAttributes attributes) {
@@ -5104,7 +5123,7 @@ MaybeObject* JSObject::DefineFastAccessor(String* name,
 
 MaybeObject* JSObject::DefineAccessor(AccessorInfo* info) {
   Isolate* isolate = GetIsolate();
-  String* name = String::cast(info->name());
+  Name* name = Name::cast(info->name());
   // Check access rights if needed.
   if (IsAccessCheckNeeded() &&
       !isolate->MayNamedAccess(this, name, v8::ACCESS_SET)) {
@@ -5124,7 +5143,7 @@ MaybeObject* JSObject::DefineAccessor(AccessorInfo* info) {
   AssertNoContextChange ncc;
 
   // Try to flatten before operating on the string.
-  name->TryFlatten();
+  if (name->IsString()) String::cast(name)->TryFlatten();
 
   if (!CanSetCallback(name)) return isolate->heap()->undefined_value();
 
@@ -5184,7 +5203,7 @@ MaybeObject* JSObject::DefineAccessor(AccessorInfo* info) {
 }
 
 
-Object* JSObject::LookupAccessor(String* name, AccessorComponent component) {
+Object* JSObject::LookupAccessor(Name* name, AccessorComponent component) {
   Heap* heap = GetHeap();
 
   // Make sure that the top context does not change when doing callbacks or
@@ -5335,7 +5354,7 @@ MaybeObject* Map::ShareDescriptor(DescriptorArray* descriptors,
   MaybeObject* maybe_result = CopyDropDescriptors();
   if (!maybe_result->To(&result)) return maybe_result;
 
-  String* name = descriptor->GetKey();
+  Name* name = descriptor->GetKey();
 
   TransitionArray* transitions;
   MaybeObject* maybe_transitions =
@@ -5400,7 +5419,7 @@ MaybeObject* Map::ShareDescriptor(DescriptorArray* descriptors,
 
 
 MaybeObject* Map::CopyReplaceDescriptors(DescriptorArray* descriptors,
-                                         String* name,
+                                         Name* name,
                                          TransitionFlag flag,
                                          int descriptor_index) {
   ASSERT(descriptors->IsSortedNoDuplicates());
@@ -5516,8 +5535,8 @@ MaybeObject* Map::CopyAddDescriptor(Descriptor* descriptor,
                                     TransitionFlag flag) {
   DescriptorArray* descriptors = instance_descriptors();
 
-  // Ensure the key is an internalized string.
-  MaybeObject* maybe_failure = descriptor->KeyToInternalizedString();
+  // Ensure the key is unique.
+  MaybeObject* maybe_failure = descriptor->KeyToUniqueName();
   if (maybe_failure->IsFailure()) return maybe_failure;
 
   int old_size = NumberOfOwnDescriptors();
@@ -5549,7 +5568,7 @@ MaybeObject* Map::CopyAddDescriptor(Descriptor* descriptor,
     new_descriptors->Append(descriptor, witness);
   }
 
-  String* key = descriptor->GetKey();
+  Name* key = descriptor->GetKey();
   int insertion_index = new_descriptors->number_of_descriptors() - 1;
 
   return CopyReplaceDescriptors(new_descriptors, key, flag, insertion_index);
@@ -5560,8 +5579,8 @@ MaybeObject* Map::CopyInsertDescriptor(Descriptor* descriptor,
                                        TransitionFlag flag) {
   DescriptorArray* old_descriptors = instance_descriptors();
 
-  // Ensure the key is an internalized string.
-  MaybeObject* maybe_result = descriptor->KeyToInternalizedString();
+  // Ensure the key is unique.
+  MaybeObject* maybe_result = descriptor->KeyToUniqueName();
   if (maybe_result->IsFailure()) return maybe_result;
 
   // We replace the key if it is already present.
@@ -5597,11 +5616,11 @@ MaybeObject* Map::CopyReplaceDescriptor(DescriptorArray* descriptors,
                                         Descriptor* descriptor,
                                         int insertion_index,
                                         TransitionFlag flag) {
-  // Ensure the key is an internalized string.
-  MaybeObject* maybe_failure = descriptor->KeyToInternalizedString();
+  // Ensure the key is unique.
+  MaybeObject* maybe_failure = descriptor->KeyToUniqueName();
   if (maybe_failure->IsFailure()) return maybe_failure;
 
-  String* key = descriptor->GetKey();
+  Name* key = descriptor->GetKey();
   ASSERT(key == descriptors->GetKey(insertion_index));
 
   int new_size = NumberOfOwnDescriptors();
@@ -5632,7 +5651,7 @@ MaybeObject* Map::CopyReplaceDescriptor(DescriptorArray* descriptors,
 
 
 void Map::UpdateCodeCache(Handle<Map> map,
-                          Handle<String> name,
+                          Handle<Name> name,
                           Handle<Code> code) {
   Isolate* isolate = map->GetIsolate();
   CALL_HEAP_FUNCTION_VOID(isolate,
@@ -5640,7 +5659,7 @@ void Map::UpdateCodeCache(Handle<Map> map,
 }
 
 
-MaybeObject* Map::UpdateCodeCache(String* name, Code* code) {
+MaybeObject* Map::UpdateCodeCache(Name* name, Code* code) {
   ASSERT(!is_shared() || code->allowed_in_shared_map_code_cache());
 
   // Allocate the code cache if not present.
@@ -5657,7 +5676,7 @@ MaybeObject* Map::UpdateCodeCache(String* name, Code* code) {
 }
 
 
-Object* Map::FindInCodeCache(String* name, Code::Flags flags) {
+Object* Map::FindInCodeCache(Name* name, Code::Flags flags) {
   // Do a lookup if a code cache exists.
   if (!code_cache()->IsFixedArray()) {
     return CodeCache::cast(code_cache())->Lookup(name, flags);
@@ -5676,7 +5695,7 @@ int Map::IndexInCodeCache(Object* name, Code* code) {
 }
 
 
-void Map::RemoveFromCodeCache(String* name, Code* code, int index) {
+void Map::RemoveFromCodeCache(Name* name, Code* code, int index) {
   // No GC is supposed to happen between a call to IndexInCodeCache and
   // RemoveFromCodeCache so the code cache must be there.
   ASSERT(!code_cache()->IsFixedArray());
@@ -5879,7 +5898,7 @@ void Map::TraverseTransitionTree(TraverseCallback callback, void* data) {
 }
 
 
-MaybeObject* CodeCache::Update(String* name, Code* code) {
+MaybeObject* CodeCache::Update(Name* name, Code* code) {
   // The number of monomorphic stubs for normal load/store/call IC's can grow to
   // a large number and therefore they need to go into a hash table. They are
   // used to load global properties from cells.
@@ -5901,7 +5920,7 @@ MaybeObject* CodeCache::Update(String* name, Code* code) {
 }
 
 
-MaybeObject* CodeCache::UpdateDefaultCache(String* name, Code* code) {
+MaybeObject* CodeCache::UpdateDefaultCache(Name* name, Code* code) {
   // When updating the default code cache we disregard the type encoded in the
   // flags. This allows call constant stubs to overwrite call field
   // stubs, etc.
@@ -5924,7 +5943,7 @@ MaybeObject* CodeCache::UpdateDefaultCache(String* name, Code* code) {
       cache->set(i + kCodeCacheEntryCodeOffset, code);
       return this;
     }
-    if (name->Equals(String::cast(key))) {
+    if (name->Equals(Name::cast(key))) {
       Code::Flags found =
           Code::cast(cache->get(i + kCodeCacheEntryCodeOffset))->flags();
       if (Code::RemoveTypeFromFlags(found) == flags) {
@@ -5961,7 +5980,7 @@ MaybeObject* CodeCache::UpdateDefaultCache(String* name, Code* code) {
 }
 
 
-MaybeObject* CodeCache::UpdateNormalTypeCache(String* name, Code* code) {
+MaybeObject* CodeCache::UpdateNormalTypeCache(Name* name, Code* code) {
   // Adding a new entry can cause a new cache to be allocated.
   CodeCacheHashTable* cache = CodeCacheHashTable::cast(normal_type_cache());
   Object* new_cache;
@@ -5973,7 +5992,7 @@ MaybeObject* CodeCache::UpdateNormalTypeCache(String* name, Code* code) {
 }
 
 
-Object* CodeCache::Lookup(String* name, Code::Flags flags) {
+Object* CodeCache::Lookup(Name* name, Code::Flags flags) {
   if (Code::ExtractTypeFromFlags(flags) == Code::NORMAL) {
     return LookupNormalTypeCache(name, flags);
   } else {
@@ -5982,7 +6001,7 @@ Object* CodeCache::Lookup(String* name, Code::Flags flags) {
 }
 
 
-Object* CodeCache::LookupDefaultCache(String* name, Code::Flags flags) {
+Object* CodeCache::LookupDefaultCache(Name* name, Code::Flags flags) {
   FixedArray* cache = default_cache();
   int length = cache->length();
   for (int i = 0; i < length; i += kCodeCacheEntrySize) {
@@ -5990,7 +6009,7 @@ Object* CodeCache::LookupDefaultCache(String* name, Code::Flags flags) {
     // Skip deleted elements.
     if (key->IsNull()) continue;
     if (key->IsUndefined()) return key;
-    if (name->Equals(String::cast(key))) {
+    if (name->Equals(Name::cast(key))) {
       Code* code = Code::cast(cache->get(i + kCodeCacheEntryCodeOffset));
       if (code->flags() == flags) {
         return code;
@@ -6001,7 +6020,7 @@ Object* CodeCache::LookupDefaultCache(String* name, Code::Flags flags) {
 }
 
 
-Object* CodeCache::LookupNormalTypeCache(String* name, Code::Flags flags) {
+Object* CodeCache::LookupNormalTypeCache(Name* name, Code::Flags flags) {
   if (!normal_type_cache()->IsUndefined()) {
     CodeCacheHashTable* cache = CodeCacheHashTable::cast(normal_type_cache());
     return cache->Lookup(name, flags);
@@ -6015,7 +6034,7 @@ int CodeCache::GetIndex(Object* name, Code* code) {
   if (code->type() == Code::NORMAL) {
     if (normal_type_cache()->IsUndefined()) return -1;
     CodeCacheHashTable* cache = CodeCacheHashTable::cast(normal_type_cache());
-    return cache->GetIndex(String::cast(name), code->flags());
+    return cache->GetIndex(Name::cast(name), code->flags());
   }
 
   FixedArray* array = default_cache();
@@ -6031,7 +6050,7 @@ void CodeCache::RemoveByIndex(Object* name, Code* code, int index) {
   if (code->type() == Code::NORMAL) {
     ASSERT(!normal_type_cache()->IsUndefined());
     CodeCacheHashTable* cache = CodeCacheHashTable::cast(normal_type_cache());
-    ASSERT(cache->GetIndex(String::cast(name), code->flags()) == index);
+    ASSERT(cache->GetIndex(Name::cast(name), code->flags()) == index);
     cache->RemoveByIndex(index);
   } else {
     FixedArray* array = default_cache();
@@ -6052,10 +6071,10 @@ void CodeCache::RemoveByIndex(Object* name, Code* code, int index) {
 // lookup not to create a new entry.
 class CodeCacheHashTableKey : public HashTableKey {
  public:
-  CodeCacheHashTableKey(String* name, Code::Flags flags)
+  CodeCacheHashTableKey(Name* name, Code::Flags flags)
       : name_(name), flags_(flags), code_(NULL) { }
 
-  CodeCacheHashTableKey(String* name, Code* code)
+  CodeCacheHashTableKey(Name* name, Code* code)
       : name_(name),
         flags_(code->flags()),
         code_(code) { }
@@ -6064,7 +6083,7 @@ class CodeCacheHashTableKey : public HashTableKey {
   bool IsMatch(Object* other) {
     if (!other->IsFixedArray()) return false;
     FixedArray* pair = FixedArray::cast(other);
-    String* name = String::cast(pair->get(0));
+    Name* name = Name::cast(pair->get(0));
     Code::Flags flags = Code::cast(pair->get(1))->flags();
     if (flags != flags_) {
       return false;
@@ -6072,7 +6091,7 @@ class CodeCacheHashTableKey : public HashTableKey {
     return name_->Equals(name);
   }
 
-  static uint32_t NameFlagsHashHelper(String* name, Code::Flags flags) {
+  static uint32_t NameFlagsHashHelper(Name* name, Code::Flags flags) {
     return name->Hash() ^ flags;
   }
 
@@ -6080,7 +6099,7 @@ class CodeCacheHashTableKey : public HashTableKey {
 
   uint32_t HashForObject(Object* obj) {
     FixedArray* pair = FixedArray::cast(obj);
-    String* name = String::cast(pair->get(0));
+    Name* name = Name::cast(pair->get(0));
     Code* code = Code::cast(pair->get(1));
     return NameFlagsHashHelper(name, code->flags());
   }
@@ -6098,14 +6117,14 @@ class CodeCacheHashTableKey : public HashTableKey {
   }
 
  private:
-  String* name_;
+  Name* name_;
   Code::Flags flags_;
   // TODO(jkummerow): We should be able to get by without this.
   Code* code_;
 };
 
 
-Object* CodeCacheHashTable::Lookup(String* name, Code::Flags flags) {
+Object* CodeCacheHashTable::Lookup(Name* name, Code::Flags flags) {
   CodeCacheHashTableKey key(name, flags);
   int entry = FindEntry(&key);
   if (entry == kNotFound) return GetHeap()->undefined_value();
@@ -6113,7 +6132,7 @@ Object* CodeCacheHashTable::Lookup(String* name, Code::Flags flags) {
 }
 
 
-MaybeObject* CodeCacheHashTable::Put(String* name, Code* code) {
+MaybeObject* CodeCacheHashTable::Put(Name* name, Code* code) {
   CodeCacheHashTableKey key(name, code);
   Object* obj;
   { MaybeObject* maybe_obj = EnsureCapacity(1, &key);
@@ -6136,7 +6155,7 @@ MaybeObject* CodeCacheHashTable::Put(String* name, Code* code) {
 }
 
 
-int CodeCacheHashTable::GetIndex(String* name, Code::Flags flags) {
+int CodeCacheHashTable::GetIndex(Name* name, Code::Flags flags) {
   CodeCacheHashTableKey key(name, flags);
   int entry = FindEntry(&key);
   return (entry == kNotFound) ? -1 : entry;
@@ -6333,7 +6352,7 @@ MaybeObject* FixedArray::AddKeysFromJSArray(JSArray* array) {
   if (FLAG_enable_slow_asserts) {
     for (int i = 0; i < result->length(); i++) {
       Object* current = result->get(i);
-      ASSERT(current->IsNumber() || current->IsString());
+      ASSERT(current->IsNumber() || current->IsName());
     }
   }
 #endif
@@ -6351,7 +6370,7 @@ MaybeObject* FixedArray::UnionOfKeys(FixedArray* other) {
   if (FLAG_enable_slow_asserts) {
     for (int i = 0; i < result->length(); i++) {
       Object* current = result->get(i);
-      ASSERT(current->IsNumber() || current->IsString());
+      ASSERT(current->IsNumber() || current->IsName());
     }
   }
 #endif
@@ -7737,7 +7756,7 @@ void Map::ClearNonLiveTransitions(Heap* heap) {
       }
     } else {
       if (i != transition_index) {
-        String* key = t->GetKey(i);
+        Name* key = t->GetKey(i);
         t->SetKey(transition_index, key);
         Object** key_slot = t->GetKeySlot(transition_index);
         collector->RecordSlot(key_slot, key_slot, key);
@@ -9780,7 +9799,7 @@ MaybeObject* JSObject::EnsureCanContainElements(Arguments* args,
 }
 
 
-PropertyType JSObject::GetLocalPropertyType(String* name) {
+PropertyType JSObject::GetLocalPropertyType(Name* name) {
   uint32_t index = 0;
   if (name->AsArrayIndex(&index)) {
     return GetLocalElementType(index);
@@ -9796,7 +9815,7 @@ PropertyType JSObject::GetLocalElementType(uint32_t index) {
 }
 
 
-AccessorPair* JSObject::GetLocalPropertyAccessorPair(String* name) {
+AccessorPair* JSObject::GetLocalPropertyAccessorPair(Name* name) {
   uint32_t index = 0;
   if (name->AsArrayIndex(&index)) {
     return GetLocalElementAccessorPair(index);
@@ -11096,7 +11115,7 @@ InterceptorInfo* JSObject::GetIndexedInterceptor() {
 
 MaybeObject* JSObject::GetPropertyPostInterceptor(
     Object* receiver,
-    String* name,
+    Name* name,
     PropertyAttributes* attributes) {
   // Check local property in holder, ignore interceptor.
   LookupResult result(GetIsolate());
@@ -11114,7 +11133,7 @@ MaybeObject* JSObject::GetPropertyPostInterceptor(
 
 MaybeObject* JSObject::GetLocalPropertyPostInterceptor(
     Object* receiver,
-    String* name,
+    Name* name,
     PropertyAttributes* attributes) {
   // Check local property in holder, ignore interceptor.
   LookupResult result(GetIsolate());
@@ -11128,14 +11147,17 @@ MaybeObject* JSObject::GetLocalPropertyPostInterceptor(
 
 MaybeObject* JSObject::GetPropertyWithInterceptor(
     Object* receiver,
-    String* name,
+    Name* name,
     PropertyAttributes* attributes) {
+  // TODO(rossberg): Support symbols in the API.
+  if (name->IsSymbol()) return GetHeap()->undefined_value();
+
   Isolate* isolate = GetIsolate();
   InterceptorInfo* interceptor = GetNamedInterceptor();
   HandleScope scope(isolate);
   Handle<Object> receiver_handle(receiver, isolate);
   Handle<JSObject> holder_handle(this);
-  Handle<String> name_handle(name);
+  Handle<String> name_handle(String::cast(name));
 
   if (!interceptor->getter()->IsUndefined()) {
     v8::NamedPropertyGetter getter =
@@ -11168,7 +11190,7 @@ MaybeObject* JSObject::GetPropertyWithInterceptor(
 }
 
 
-bool JSObject::HasRealNamedProperty(String* key) {
+bool JSObject::HasRealNamedProperty(Name* key) {
   // Check access rights if needed.
   Isolate* isolate = GetIsolate();
   if (IsAccessCheckNeeded()) {
@@ -11248,7 +11270,7 @@ bool JSObject::HasRealElementProperty(uint32_t index) {
 }
 
 
-bool JSObject::HasRealNamedCallbackProperty(String* key) {
+bool JSObject::HasRealNamedCallbackProperty(Name* key) {
   // Check access rights if needed.
   Isolate* isolate = GetIsolate();
   if (IsAccessCheckNeeded()) {
@@ -11406,7 +11428,7 @@ void JSObject::GetLocalPropertyNames(FixedArray* storage, int index) {
   } else {
     property_dictionary()->CopyKeysTo(storage,
                                       index,
-                                      StringDictionary::UNSORTED);
+                                      NameDictionary::UNSORTED);
   }
 }
 
@@ -11945,15 +11967,15 @@ MaybeObject* HashTable<Shape, Key>::Allocate(int at_least_space_for,
 
 
 // Find entry for key otherwise return kNotFound.
-int StringDictionary::FindEntry(String* key) {
-  if (!key->IsInternalizedString()) {
-    return HashTable<StringDictionaryShape, String*>::FindEntry(key);
+int NameDictionary::FindEntry(Name* key) {
+  if (!key->IsUniqueName()) {
+    return HashTable<NameDictionaryShape, Name*>::FindEntry(key);
   }
 
-  // Optimized for internalized string key. Knowledge of the key type allows:
-  // 1. Move the check if the key is internalized out of the loop.
-  // 2. Avoid comparing hash codes in internalized-to-internalized comparison.
-  // 3. Detect a case when a dictionary key is not internalized but the key is.
+  // Optimized for unique names. Knowledge of the key type allows:
+  // 1. Move the check if the key is unique out of the loop.
+  // 2. Avoid comparing hash codes in unique-to-unique comparison.
+  // 3. Detect a case when a dictionary key is not unique but the key is.
   //    In case of positive result the dictionary key may be replaced by the
   //    internalized string with minimal performance penalty. It gives a chance
   //    to perform further lookups in code stubs (and significant performance
@@ -11969,15 +11991,15 @@ int StringDictionary::FindEntry(String* key) {
     Object* element = get(index);
     if (element->IsUndefined()) break;  // Empty entry.
     if (key == element) return entry;
-    if (!element->IsInternalizedString() &&
+    if (!element->IsUniqueName() &&
         !element->IsTheHole() &&
-        String::cast(element)->Equals(key)) {
-      // Replace a key that is not an internalized string by the equivalent
+        Name::cast(element)->Equals(key)) {
+      // Replace a key that is a non-internalized string by the equivalent
       // internalized string for faster further lookups.
       set(index, key);
       return entry;
     }
-    ASSERT(element->IsTheHole() || !String::cast(element)->Equals(key));
+    ASSERT(element->IsTheHole() || !Name::cast(element)->Equals(key));
     entry = NextProbe(entry, count++, capacity);
   }
   return kNotFound;
@@ -12104,7 +12126,7 @@ template class HashTable<ObjectHashTableShape<1>, Object*>;
 
 template class HashTable<ObjectHashTableShape<2>, Object*>;
 
-template class Dictionary<StringDictionaryShape, String*>;
+template class Dictionary<NameDictionaryShape, Name*>;
 
 template class Dictionary<SeededNumberDictionaryShape, uint32_t>;
 
@@ -12116,8 +12138,7 @@ template MaybeObject* Dictionary<SeededNumberDictionaryShape, uint32_t>::
 template MaybeObject* Dictionary<UnseededNumberDictionaryShape, uint32_t>::
     Allocate(int at_least_space_for);
 
-template MaybeObject* Dictionary<StringDictionaryShape, String*>::Allocate(
-    int);
+template MaybeObject* Dictionary<NameDictionaryShape, Name*>::Allocate(int n);
 
 template MaybeObject* Dictionary<SeededNumberDictionaryShape, uint32_t>::AtPut(
     uint32_t, Object*);
@@ -12131,7 +12152,7 @@ template Object* Dictionary<SeededNumberDictionaryShape, uint32_t>::
 template Object* Dictionary<UnseededNumberDictionaryShape, uint32_t>::
     SlowReverseLookup(Object* value);
 
-template Object* Dictionary<StringDictionaryShape, String*>::SlowReverseLookup(
+template Object* Dictionary<NameDictionaryShape, Name*>::SlowReverseLookup(
     Object*);
 
 template void Dictionary<SeededNumberDictionaryShape, uint32_t>::CopyKeysTo(
@@ -12139,32 +12160,31 @@ template void Dictionary<SeededNumberDictionaryShape, uint32_t>::CopyKeysTo(
     PropertyAttributes,
     Dictionary<SeededNumberDictionaryShape, uint32_t>::SortMode);
 
-template Object* Dictionary<StringDictionaryShape, String*>::DeleteProperty(
+template Object* Dictionary<NameDictionaryShape, Name*>::DeleteProperty(
     int, JSObject::DeleteMode);
 
 template Object* Dictionary<SeededNumberDictionaryShape, uint32_t>::
     DeleteProperty(int, JSObject::DeleteMode);
 
-template MaybeObject* Dictionary<StringDictionaryShape, String*>::Shrink(
-    String*);
+template MaybeObject* Dictionary<NameDictionaryShape, Name*>::Shrink(Name* n);
 
 template MaybeObject* Dictionary<SeededNumberDictionaryShape, uint32_t>::Shrink(
     uint32_t);
 
-template void Dictionary<StringDictionaryShape, String*>::CopyKeysTo(
+template void Dictionary<NameDictionaryShape, Name*>::CopyKeysTo(
     FixedArray*,
     int,
-    Dictionary<StringDictionaryShape, String*>::SortMode);
+    Dictionary<NameDictionaryShape, Name*>::SortMode);
 
 template int
-Dictionary<StringDictionaryShape, String*>::NumberOfElementsFilterAttributes(
+Dictionary<NameDictionaryShape, Name*>::NumberOfElementsFilterAttributes(
     PropertyAttributes);
 
-template MaybeObject* Dictionary<StringDictionaryShape, String*>::Add(
-    String*, Object*, PropertyDetails);
+template MaybeObject* Dictionary<NameDictionaryShape, Name*>::Add(
+    Name*, Object*, PropertyDetails);
 
 template MaybeObject*
-Dictionary<StringDictionaryShape, String*>::GenerateNewEnumerationIndices();
+Dictionary<NameDictionaryShape, Name*>::GenerateNewEnumerationIndices();
 
 template int
 Dictionary<SeededNumberDictionaryShape, uint32_t>::
@@ -12182,8 +12202,8 @@ template MaybeObject* Dictionary<SeededNumberDictionaryShape, uint32_t>::
 template MaybeObject* Dictionary<UnseededNumberDictionaryShape, uint32_t>::
     EnsureCapacity(int, uint32_t);
 
-template MaybeObject* Dictionary<StringDictionaryShape, String*>::
-    EnsureCapacity(int, String*);
+template MaybeObject* Dictionary<NameDictionaryShape, Name*>::
+    EnsureCapacity(int, Name*);
 
 template MaybeObject* Dictionary<SeededNumberDictionaryShape, uint32_t>::
     AddEntry(uint32_t, Object*, PropertyDetails, uint32_t);
@@ -12191,14 +12211,14 @@ template MaybeObject* Dictionary<SeededNumberDictionaryShape, uint32_t>::
 template MaybeObject* Dictionary<UnseededNumberDictionaryShape, uint32_t>::
     AddEntry(uint32_t, Object*, PropertyDetails, uint32_t);
 
-template MaybeObject* Dictionary<StringDictionaryShape, String*>::AddEntry(
-    String*, Object*, PropertyDetails, uint32_t);
+template MaybeObject* Dictionary<NameDictionaryShape, Name*>::AddEntry(
+    Name*, Object*, PropertyDetails, uint32_t);
 
 template
 int Dictionary<SeededNumberDictionaryShape, uint32_t>::NumberOfEnumElements();
 
 template
-int Dictionary<StringDictionaryShape, String*>::NumberOfEnumElements();
+int Dictionary<NameDictionaryShape, Name*>::NumberOfEnumElements();
 
 template
 int HashTable<SeededNumberDictionaryShape, uint32_t>::FindEntry(uint32_t);
@@ -12616,7 +12636,7 @@ JSGlobalPropertyCell* GlobalObject::GetPropertyCell(LookupResult* result) {
 
 Handle<JSGlobalPropertyCell> GlobalObject::EnsurePropertyCell(
     Handle<GlobalObject> global,
-    Handle<String> name) {
+    Handle<Name> name) {
   Isolate* isolate = global->GetIsolate();
   CALL_HEAP_FUNCTION(isolate,
                      global->EnsurePropertyCell(*name),
@@ -12624,10 +12644,10 @@ Handle<JSGlobalPropertyCell> GlobalObject::EnsurePropertyCell(
 }
 
 
-MaybeObject* GlobalObject::EnsurePropertyCell(String* name) {
+MaybeObject* GlobalObject::EnsurePropertyCell(Name* name) {
   ASSERT(!HasFastProperties());
   int entry = property_dictionary()->FindEntry(name);
-  if (entry == StringDictionary::kNotFound) {
+  if (entry == NameDictionary::kNotFound) {
     Heap* heap = GetHeap();
     Object* cell;
     { MaybeObject* maybe_cell =
@@ -12641,7 +12661,7 @@ MaybeObject* GlobalObject::EnsurePropertyCell(String* name) {
           property_dictionary()->Add(name, cell, details);
       if (!maybe_dictionary->ToObject(&dictionary)) return maybe_dictionary;
     }
-    set_properties(StringDictionary::cast(dictionary));
+    set_properties(NameDictionary::cast(dictionary));
     return cell;
   } else {
     Object* value = property_dictionary()->ValueAt(entry);
@@ -12949,7 +12969,7 @@ void CompilationCacheTable::Remove(Object* value) {
 }
 
 
-// StringsKey used for HashTable where key is array of internalzied strings.
+// StringsKey used for HashTable where key is array of internalized strings.
 class StringsKey : public HashTableKey {
  public:
   explicit StringsKey(FixedArray* strings) : strings_(strings) { }
@@ -13021,8 +13041,8 @@ MaybeObject* Dictionary<Shape, Key>::Allocate(int at_least_space_for) {
 }
 
 
-void StringDictionary::DoGenerateNewEnumerationIndices(
-    Handle<StringDictionary> dictionary) {
+void NameDictionary::DoGenerateNewEnumerationIndices(
+    Handle<NameDictionary> dictionary) {
   CALL_HEAP_FUNCTION_VOID(dictionary->GetIsolate(),
                           dictionary->GenerateNewEnumerationIndices());
 }
@@ -13192,8 +13212,8 @@ MaybeObject* Dictionary<Shape, Key>::AddEntry(Key key,
     SetNextEnumerationIndex(index + 1);
   }
   SetEntry(entry, k, value, details);
-  ASSERT((Dictionary<Shape, Key>::KeyAt(entry)->IsNumber()
-          || Dictionary<Shape, Key>::KeyAt(entry)->IsString()));
+  ASSERT((Dictionary<Shape, Key>::KeyAt(entry)->IsNumber() ||
+          Dictionary<Shape, Key>::KeyAt(entry)->IsName()));
   HashTable<Shape, Key>::ElementAdded();
   return this;
 }
@@ -13346,7 +13366,7 @@ void Dictionary<Shape, Key>::CopyKeysTo(
 }
 
 
-FixedArray* StringDictionary::CopyEnumKeysTo(FixedArray* storage) {
+FixedArray* NameDictionary::CopyEnumKeysTo(FixedArray* storage) {
   int length = storage->length();
   ASSERT(length >= NumberOfEnumElements());
   Heap* heap = GetHeap();
@@ -13430,7 +13450,7 @@ Object* Dictionary<Shape, Key>::SlowReverseLookup(Object* value) {
 }
 
 
-MaybeObject* StringDictionary::TransformPropertiesToFastFor(
+MaybeObject* NameDictionary::TransformPropertiesToFastFor(
     JSObject* obj, int unused_property_fields) {
   // Make sure we preserve dictionary representation if there are too many
   // descriptors.
@@ -13511,11 +13531,15 @@ MaybeObject* StringDictionary::TransformPropertiesToFastFor(
     Object* k = KeyAt(i);
     if (IsKey(k)) {
       Object* value = ValueAt(i);
-      // Ensure the key is an internalized string before writing into the
-      // instance descriptor.
-      String* key;
-      MaybeObject* maybe_key = heap->InternalizeString(String::cast(k));
-      if (!maybe_key->To(&key)) return maybe_key;
+      Name* key;
+      if (k->IsSymbol()) {
+        key = Symbol::cast(k);
+      } else {
+        // Ensure the key is a unique name before writing into the
+        // instance descriptor.
+        MaybeObject* maybe_key = heap->InternalizeString(String::cast(k));
+        if (!maybe_key->To(&key)) return maybe_key;
+      }
 
       PropertyDetails details = DetailsAt(i);
       ASSERT(details.descriptor_index() == details.dictionary_index());

@@ -316,14 +316,14 @@ class NumberToStringStub: public PlatformCodeStub {
 };
 
 
-class StringDictionaryLookupStub: public PlatformCodeStub {
+class NameDictionaryLookupStub: public PlatformCodeStub {
  public:
   enum LookupMode { POSITIVE_LOOKUP, NEGATIVE_LOOKUP };
 
-  StringDictionaryLookupStub(Register dictionary,
-                             Register result,
-                             Register index,
-                             LookupMode mode)
+  NameDictionaryLookupStub(Register dictionary,
+                           Register result,
+                           Register index,
+                           LookupMode mode)
       : dictionary_(dictionary), result_(result), index_(index), mode_(mode) { }
 
   void Generate(MacroAssembler* masm);
@@ -332,7 +332,7 @@ class StringDictionaryLookupStub: public PlatformCodeStub {
                                      Label* miss,
                                      Label* done,
                                      Register properties,
-                                     Handle<String> name,
+                                     Handle<Name> name,
                                      Register r0);
 
   static void GeneratePositiveLookup(MacroAssembler* masm,
@@ -350,14 +350,14 @@ class StringDictionaryLookupStub: public PlatformCodeStub {
   static const int kTotalProbes = 20;
 
   static const int kCapacityOffset =
-      StringDictionary::kHeaderSize +
-      StringDictionary::kCapacityIndex * kPointerSize;
+      NameDictionary::kHeaderSize +
+      NameDictionary::kCapacityIndex * kPointerSize;
 
   static const int kElementsStartOffset =
-      StringDictionary::kHeaderSize +
-      StringDictionary::kElementsStartIndex * kPointerSize;
+      NameDictionary::kHeaderSize +
+      NameDictionary::kElementsStartIndex * kPointerSize;
 
-  Major MajorKey() { return StringDictionaryLookup; }
+  Major MajorKey() { return NameDictionaryLookup; }
 
   int MinorKey() {
     return DictionaryBits::encode(dictionary_.code()) |

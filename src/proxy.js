@@ -189,6 +189,6 @@ function ProxyEnumerate(proxy) {
   if (IS_UNDEFINED(handler.enumerate)) {
     return %Apply(DerivedEnumerateTrap, handler, [], 0, 0)
   } else {
-    return ToStringArray(handler.enumerate(), "enumerate")
+    return ToNameArray(handler.enumerate(), "enumerate")
   }
 }

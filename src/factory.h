@@ -60,7 +60,7 @@ class Factory {
   Handle<UnseededNumberDictionary> NewUnseededNumberDictionary(
       int at_least_space_for);
 
-  Handle<StringDictionary> NewStringDictionary(int at_least_space_for);
+  Handle<NameDictionary> NewNameDictionary(int at_least_space_for);
 
   Handle<ObjectHashSet> NewObjectHashSet(int at_least_space_for);
 
