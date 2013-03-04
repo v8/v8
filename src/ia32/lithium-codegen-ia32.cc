@@ -3733,77 +3733,64 @@ void LCodeGen::DoMathFloor(LUnaryMathOperation* instr) {
   }
 }
 
-void LCodeGen::DoMathRound(LUnaryMathOperation* instr) {
+void LCodeGen::DoMathRound(LMathRound* instr) {
   CpuFeatures::Scope scope(SSE2);
   Register output_reg = ToRegister(instr->result());
   XMMRegister input_reg = ToDoubleRegister(instr->value());
   XMMRegister xmm_scratch = xmm0;
+  XMMRegister input_temp = ToDoubleRegister(instr->temp());
   ExternalReference one_half = ExternalReference::address_of_one_half();
   ExternalReference minus_one_half =
       ExternalReference::address_of_minus_one_half();
-  bool minus_zero_check =
-      instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero);
 
+  Label done, round_to_zero, below_one_half, do_not_compensate;
   __ movdbl(xmm_scratch, Operand::StaticVariable(one_half));
+  __ ucomisd(xmm_scratch, input_reg);
+  __ j(above, &below_one_half);
 
-  if (CpuFeatures::IsSupported(SSE4_1) && !minus_zero_check) {
-    CpuFeatures::Scope scope(SSE4_1);
+  // CVTTSD2SI rounds towards zero, since 0.5 <= x, we use floor(0.5 + x).
+  __ addsd(xmm_scratch, input_reg);
+  __ cvttsd2si(output_reg, Operand(xmm_scratch));
+  // Overflow is signalled with minint.
+  __ cmp(output_reg, 0x80000000u);
+  __ RecordComment("D2I conversion overflow");
+  DeoptimizeIf(equal, instr->environment());
+  __ jmp(&done);
 
-    __ addsd(xmm_scratch, input_reg);
-    __ roundsd(xmm_scratch, xmm_scratch, Assembler::kRoundDown);
-    __ cvttsd2si(output_reg, Operand(xmm_scratch));
-    // Overflow is signalled with minint.
-    __ cmp(output_reg, 0x80000000u);
-    __ RecordComment("D2I conversion overflow");
-    DeoptimizeIf(equal, instr->environment());
-  } else {
-    Label done, round_to_zero, below_one_half, do_not_compensate;
-    __ ucomisd(xmm_scratch, input_reg);
-    __ j(above, &below_one_half);
+  __ bind(&below_one_half);
+  __ movdbl(xmm_scratch, Operand::StaticVariable(minus_one_half));
+  __ ucomisd(xmm_scratch, input_reg);
+  __ j(below_equal, &round_to_zero);
 
-    // CVTTSD2SI rounds towards zero, since 0.5 <= x, we use floor(0.5 + x).
-    __ addsd(xmm_scratch, input_reg);
-    __ cvttsd2si(output_reg, Operand(xmm_scratch));
-    // Overflow is signalled with minint.
-    __ cmp(output_reg, 0x80000000u);
-    __ RecordComment("D2I conversion overflow");
-    DeoptimizeIf(equal, instr->environment());
-    __ jmp(&done);
+  // CVTTSD2SI rounds towards zero, we use ceil(x - (-0.5)) and then
+  // compare and compensate.
+  __ movsd(input_temp, input_reg);  // Do not alter input_reg.
+  __ subsd(input_temp, xmm_scratch);
+  __ cvttsd2si(output_reg, Operand(input_temp));
+  // Catch minint due to overflow, and to prevent overflow when compensating.
+  __ cmp(output_reg, 0x80000000u);
+  __ RecordComment("D2I conversion overflow");
+  DeoptimizeIf(equal, instr->environment());
 
-    __ bind(&below_one_half);
-    __ movdbl(xmm_scratch, Operand::StaticVariable(minus_one_half));
-    __ ucomisd(xmm_scratch, input_reg);
-    __ j(below_equal, &round_to_zero);
+  __ cvtsi2sd(xmm_scratch, output_reg);
+  __ ucomisd(xmm_scratch, input_temp);
+  __ j(equal, &done);
+  __ sub(output_reg, Immediate(1));
+  // No overflow because we already ruled out minint.
+  __ jmp(&done);
 
-    // CVTTSD2SI rounds towards zero, we use ceil(x - (-0.5)) and then
-    // compare and compensate.
-    __ subsd(input_reg, xmm_scratch);
-    __ cvttsd2si(output_reg, Operand(input_reg));
-    // Catch minint due to overflow, and to prevent overflow when compensating.
-    __ cmp(output_reg, 0x80000000u);
-    __ RecordComment("D2I conversion overflow");
-    DeoptimizeIf(equal, instr->environment());
-
-    __ cvtsi2sd(xmm_scratch, output_reg);
-    __ ucomisd(xmm_scratch, input_reg);
-    __ j(equal, &done);
-    __ sub(output_reg, Immediate(1));
-    // No overflow because we already ruled out minint.
-    __ jmp(&done);
-
-    __ bind(&round_to_zero);
-    // We return 0 for the input range [+0, 0.5[, or [-0.5, 0.5[ if
-    // we can ignore the difference between a result of -0 and +0.
-    if (minus_zero_check) {
-      // If the sign is positive, we return +0.
-      __ movmskpd(output_reg, input_reg);
-      __ test(output_reg, Immediate(1));
-      __ RecordComment("Minus zero");
-      DeoptimizeIf(not_zero, instr->environment());
-    }
-    __ Set(output_reg, Immediate(0));
-    __ bind(&done);
+  __ bind(&round_to_zero);
+  // We return 0 for the input range [+0, 0.5[, or [-0.5, 0.5[ if
+  // we can ignore the difference between a result of -0 and +0.
+  if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
+    // If the sign is positive, we return +0.
+    __ movmskpd(output_reg, input_reg);
+    __ test(output_reg, Immediate(1));
+    __ RecordComment("Minus zero");
+    DeoptimizeIf(not_zero, instr->environment());
   }
+  __ Set(output_reg, Immediate(0));
+  __ bind(&done);
 }
 
 
@@ -4034,9 +4021,6 @@ void LCodeGen::DoUnaryMathOperation(LUnaryMathOperation* instr) {
       break;
     case kMathFloor:
       DoMathFloor(instr);
-      break;
-    case kMathRound:
-      DoMathRound(instr);
       break;
     case kMathSqrt:
       DoMathSqrt(instr);

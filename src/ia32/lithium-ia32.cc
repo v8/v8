@@ -314,6 +314,12 @@ void LMathPowHalf::PrintDataTo(StringStream* stream) {
 }
 
 
+void LMathRound::PrintDataTo(StringStream* stream) {
+  stream->Add("/round ");
+  value()->PrintTo(stream);
+}
+
+
 void LLoadContextSlot::PrintDataTo(StringStream* stream) {
   context()->PrintTo(stream);
   stream->Add("[%d]", slot_index());
@@ -1158,21 +1164,16 @@ LInstruction* LChunkBuilder::DoUnaryMathOperation(HUnaryMathOperation* instr) {
                                                                   input);
     return MarkAsCall(DefineFixedDouble(result, xmm1), instr);
   } else {
-    LOperand* input;
-    if (op == kMathRound &&
-        (!CpuFeatures::IsSupported(SSE4_1) ||
-         instr->CheckFlag(HValue::kBailoutOnMinusZero))) {
-      // Math.round implemented without roundsd.  Input may be overwritten.
-      ASSERT(instr->value()->representation().IsDouble());
-      input = UseTempRegister(instr->value());
-    } else {
-      input = UseRegisterAtStart(instr->value());
-    }
+    LOperand* input = UseRegisterAtStart(instr->value());
     LOperand* context = UseAny(instr->context());  // Deferred use by MathAbs.
     if (op == kMathPowHalf) {
       LOperand* temp = TempRegister();
       LMathPowHalf* result = new(zone()) LMathPowHalf(context, input, temp);
       return DefineSameAsFirst(result);
+    } else if (op == kMathRound) {
+      LOperand* temp = FixedTemp(xmm4);
+      LMathRound* result = new(zone()) LMathRound(context, input, temp);
+      return AssignEnvironment(DefineAsRegister(result));
     }
     LUnaryMathOperation* result = new(zone()) LUnaryMathOperation(context,
                                                                   input);
@@ -1180,8 +1181,6 @@ LInstruction* LChunkBuilder::DoUnaryMathOperation(HUnaryMathOperation* instr) {
       case kMathAbs:
         return AssignEnvironment(AssignPointerMap(DefineSameAsFirst(result)));
       case kMathFloor:
-        return AssignEnvironment(DefineAsRegister(result));
-      case kMathRound:
         return AssignEnvironment(DefineAsRegister(result));
       case kMathSqrt:
         return DefineSameAsFirst(result);

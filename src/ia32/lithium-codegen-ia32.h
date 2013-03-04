@@ -286,7 +286,6 @@ class LCodeGen BASE_EMBEDDED {
   void EmitIntegerMathAbs(LUnaryMathOperation* instr);
   void DoMathAbs(LUnaryMathOperation* instr);
   void DoMathFloor(LUnaryMathOperation* instr);
-  void DoMathRound(LUnaryMathOperation* instr);
   void DoMathSqrt(LUnaryMathOperation* instr);
   void DoMathLog(LUnaryMathOperation* instr);
   void DoMathTan(LUnaryMathOperation* instr);
