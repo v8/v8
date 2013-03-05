@@ -1772,6 +1772,8 @@ void Isolate::Deinit() {
   if (state_ == INITIALIZED) {
     TRACE_ISOLATE(deinit);
 
+    if (FLAG_parallel_recompilation) optimizing_compiler_thread_.Stop();
+
     if (FLAG_sweeper_threads > 0) {
       for (int i = 0; i < FLAG_sweeper_threads; i++) {
         sweeper_thread_[i]->Stop();
@@ -1787,8 +1789,6 @@ void Isolate::Deinit() {
       }
       delete[] marking_thread_;
     }
-
-    if (FLAG_parallel_recompilation) optimizing_compiler_thread_.Stop();
 
     if (FLAG_hydrogen_stats) HStatistics::Instance()->Print();
 
@@ -2197,6 +2197,11 @@ bool Isolate::Init(Deserializer* des) {
   } else {
     FLAG_concurrent_sweeping = false;
     FLAG_parallel_sweeping = false;
+  }
+  if (FLAG_parallel_recompilation &&
+      SystemThreadManager::NumberOfParallelSystemThreads(
+          SystemThreadManager::PARALLEL_RECOMPILATION) == 0) {
+    FLAG_parallel_recompilation = false;
   }
   return true;
 }

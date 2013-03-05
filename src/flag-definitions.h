@@ -248,6 +248,8 @@ DEFINE_bool(parallel_recompilation, false,
 DEFINE_bool(trace_parallel_recompilation, false, "track parallel recompilation")
 DEFINE_int(parallel_recompilation_queue_length, 2,
            "the length of the parallel compilation queue")
+DEFINE_int(parallel_recompilation_delay, 0,
+           "artificial compilation delay in ms")
 DEFINE_bool(manual_parallel_recompilation, false,
             "disable automatic optimization")
 DEFINE_implication(manual_parallel_recompilation, parallel_recompilation)

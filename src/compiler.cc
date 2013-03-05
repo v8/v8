@@ -963,6 +963,17 @@ void Compiler::RecompileParallel(Handle<JSFunction> closure) {
 
 void Compiler::InstallOptimizedCode(OptimizingCompiler* optimizing_compiler) {
   SmartPointer<CompilationInfo> info(optimizing_compiler->info());
+  // Function may have been optimized meanwhile by OSR.
+  if (FLAG_use_osr) {
+    // Function may have already been optimized meanwhile by OSR.
+    if (!info->code().is_null() &&
+        info->code()->kind() == Code::OPTIMIZED_FUNCTION) {
+      return;
+    }
+    // OSR may also have caused optimization to be disabled.
+    if (info->shared_info()->optimization_disabled()) return;
+  }
+
   Isolate* isolate = info->isolate();
   VMState state(isolate, PARALLEL_COMPILER);
   Logger::TimerEventScope timer(

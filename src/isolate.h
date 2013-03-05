@@ -292,7 +292,8 @@ class SystemThreadManager {
   enum ParallelSystemComponent {
     PARALLEL_SWEEPING,
     CONCURRENT_SWEEPING,
-    PARALLEL_MARKING
+    PARALLEL_MARKING,
+    PARALLEL_RECOMPILATION
   };
 
   static int NumberOfParallelSystemThreads(ParallelSystemComponent type);

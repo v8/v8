@@ -7682,31 +7682,36 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_LazyCompile) {
 }
 
 
-RUNTIME_FUNCTION(MaybeObject*, Runtime_LazyRecompile) {
-  HandleScope scope(isolate);
-  ASSERT(args.length() == 1);
-  Handle<JSFunction> function = args.at<JSFunction>(0);
-
+bool AllowOptimization(Isolate* isolate, Handle<JSFunction> function) {
   // If the function is not compiled ignore the lazy
   // recompilation. This can happen if the debugger is activated and
   // the function is returned to the not compiled state.
-  if (!function->shared()->is_compiled()) {
-    function->ReplaceCode(function->shared()->code());
-    return function->code();
-  }
+  if (!function->shared()->is_compiled()) return false;
 
   // If the function is not optimizable or debugger is active continue using the
   // code from the full compiler.
   if (!FLAG_crankshaft ||
-      !function->shared()->code()->optimizable() ||
+      function->shared()->optimization_disabled() ||
       isolate->DebuggerHasBreakPoints()) {
     if (FLAG_trace_opt) {
       PrintF("[failed to optimize ");
       function->PrintName();
       PrintF(": is code optimizable: %s, is debugger enabled: %s]\n",
-          function->shared()->code()->optimizable() ? "T" : "F",
+          function->shared()->optimization_disabled() ? "F" : "T",
           isolate->DebuggerHasBreakPoints() ? "T" : "F");
     }
+    return false;
+  }
+  return true;
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_LazyRecompile) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 1);
+  Handle<JSFunction> function = args.at<JSFunction>(0);
+
+  if (!AllowOptimization(isolate, function)) {
     function->ReplaceCode(function->shared()->code());
     return function->code();
   }
@@ -7728,8 +7733,14 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_LazyRecompile) {
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_ParallelRecompile) {
   HandleScope handle_scope(isolate);
+  Handle<JSFunction> function = args.at<JSFunction>(0);
+  if (!AllowOptimization(isolate, function)) {
+    function->ReplaceCode(function->shared()->code());
+    return function->code();
+  }
+  function->shared()->code()->set_profiler_ticks(0);
   ASSERT(FLAG_parallel_recompilation);
-  Compiler::RecompileParallel(args.at<JSFunction>(0));
+  Compiler::RecompileParallel(function);
   return isolate->heap()->undefined_value();
 }
 
@@ -7913,10 +7924,13 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_OptimizeFunctionOnNextCall) {
   if (args.length() == 2 &&
       unoptimized->kind() == Code::FUNCTION) {
     CONVERT_ARG_HANDLE_CHECKED(String, type, 1);
-    CHECK(type->IsOneByteEqualTo(STATIC_ASCII_VECTOR("osr")));
-    isolate->runtime_profiler()->AttemptOnStackReplacement(*function);
-    unoptimized->set_allow_osr_at_loop_nesting_level(
-        Code::kMaxLoopNestingMarker);
+    if (type->IsOneByteEqualTo(STATIC_ASCII_VECTOR("osr"))) {
+      isolate->runtime_profiler()->AttemptOnStackReplacement(*function);
+      unoptimized->set_allow_osr_at_loop_nesting_level(
+          Code::kMaxLoopNestingMarker);
+    } else if (type->IsOneByteEqualTo(STATIC_ASCII_VECTOR("parallel"))) {
+      function->MarkForParallelRecompilation();
+    }
   }
 
   return isolate->heap()->undefined_value();
