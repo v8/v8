@@ -4989,6 +4989,7 @@ int Code::stub_info() {
 void Code::set_stub_info(int value) {
   ASSERT(kind() == COMPARE_IC ||
          kind() == BINARY_OP_IC ||
+         kind() == STUB ||
          kind() == LOAD_IC ||
          kind() == KEYED_LOAD_IC ||
          kind() == STORE_IC ||

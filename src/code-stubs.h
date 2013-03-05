@@ -251,6 +251,7 @@ class PlatformCodeStub : public CodeStub {
   virtual Handle<Code> GenerateCode();
 
   virtual int GetCodeKind() { return Code::STUB; }
+  virtual int GetStubFlags() { return -1; }
 
  protected:
   // Generates the assembler code for the stub.
@@ -662,11 +663,8 @@ class StoreArrayLengthStub: public StoreICStub {
 class HandlerStub: public ICStub {
  public:
   explicit HandlerStub(Code::Kind kind) : ICStub(kind) { }
-
- protected:
-  virtual Code::ExtraICState GetExtraICState() {
-    return Code::HANDLER_FRAGMENT;
-  }
+  virtual int GetCodeKind() { return Code::STUB; }
+  virtual int GetStubFlags() { return kind(); }
 };
 
 

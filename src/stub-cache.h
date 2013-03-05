@@ -77,16 +77,15 @@ class StubCache {
   Handle<JSObject> StubHolder(Handle<JSObject> receiver,
                               Handle<JSObject> holder);
 
+  Handle<Code> FindIC(Handle<Name> name,
+                      Handle<JSObject> stub_holder,
+                      Code::Kind kind,
+                      Code::StubType type);
+
   Handle<Code> FindStub(Handle<Name> name,
                         Handle<JSObject> stub_holder,
                         Code::Kind kind,
-                        Code::StubType type,
-                        Code::IcFragment fragment);
-
-  Handle<Code> FindHandler(Handle<Name> name,
-                           Handle<JSObject> stub_holder,
-                           Code::Kind kind,
-                           Code::StubType type);
+                        Code::StubType type);
 
   Handle<Code> ComputeMonomorphicIC(Handle<JSObject> receiver,
                                     Handle<Code> handler,
@@ -666,10 +665,14 @@ class BaseLoadStubCompiler: public StubCompiler {
                                    Handle<Name> name,
                                    LookupResult* lookup);
 
-  Handle<Code> GetCode(Code::IcFragment fragment,
+  Handle<Code> GetICCode(Code::Kind kind,
+                         Code::StubType type,
+                         Handle<Name> name,
+                         InlineCacheState state = MONOMORPHIC);
+
+  Handle<Code> GetCode(Code::Kind kind,
                        Code::StubType type,
-                       Handle<Name> name,
-                       InlineCacheState state = MONOMORPHIC);
+                       Handle<Name> name);
 
   Register receiver() { return registers_[0]; }
   Register name()     { return registers_[1]; }
@@ -719,6 +722,7 @@ class LoadStubCompiler: public BaseLoadStubCompiler {
   static Register* registers();
   virtual Code::Kind kind() { return Code::LOAD_IC; }
   virtual Logger::LogEventsAndTags log_kind(Handle<Code> code) {
+    if (!code->is_inline_cache_stub()) return Logger::STUB_TAG;
     return code->ic_state() == MONOMORPHIC
         ? Logger::LOAD_IC_TAG : Logger::LOAD_POLYMORPHIC_IC_TAG;
   }
@@ -746,6 +750,7 @@ class KeyedLoadStubCompiler: public BaseLoadStubCompiler {
   static Register* registers();
   virtual Code::Kind kind() { return Code::KEYED_LOAD_IC; }
   virtual Logger::LogEventsAndTags log_kind(Handle<Code> code) {
+    if (!code->is_inline_cache_stub()) return Logger::STUB_TAG;
     return code->ic_state() == MONOMORPHIC
         ? Logger::KEYED_LOAD_IC_TAG : Logger::KEYED_LOAD_POLYMORPHIC_IC_TAG;
   }

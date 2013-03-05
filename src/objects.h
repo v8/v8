@@ -4280,11 +4280,6 @@ class Code: public HeapObject {
     NONEXISTENT
   };
 
-  enum IcFragment {
-    IC_FRAGMENT,
-    HANDLER_FRAGMENT
-  };
-
   enum {
     NUMBER_OF_KINDS = LAST_IC_KIND + 1
   };

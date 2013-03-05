@@ -2771,7 +2771,7 @@ Handle<Code> LoadStubCompiler::CompileLoadNonexistent(
   __ ret(0);
 
   // Return the generated code.
-  return GetCode(Code::HANDLER_FRAGMENT, Code::NONEXISTENT, name);
+  return GetCode(kind(), Code::NONEXISTENT, name);
 }
 
 
@@ -2871,7 +2871,7 @@ Handle<Code> LoadStubCompiler::CompileLoadGlobal(
   __ ret(0);
 
   // Return the generated code.
-  return GetCode(Code::IC_FRAGMENT, Code::NORMAL, name);
+  return GetICCode(kind(), Code::NORMAL, name);
 }
 
 
@@ -2898,7 +2898,7 @@ Handle<Code> KeyedLoadStubCompiler::CompileLoadElement(
   GenerateLoadMiss(masm(), Code::KEYED_LOAD_IC);
 
   // Return the generated code.
-  return GetCode(Code::IC_FRAGMENT, Code::NORMAL, factory()->empty_string());
+  return GetICCode(kind(), Code::NORMAL, factory()->empty_string());
 }
 
 
@@ -2930,7 +2930,7 @@ Handle<Code> BaseLoadStubCompiler::CompilePolymorphicIC(
   // Return the generated code.
   InlineCacheState state =
       receiver_maps->length() > 1 ? POLYMORPHIC : MONOMORPHIC;
-  return GetCode(Code::IC_FRAGMENT, type, name, state);
+  return GetICCode(kind(), type, name, state);
 }
 
 

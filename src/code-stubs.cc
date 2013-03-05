@@ -101,7 +101,8 @@ Handle<Code> PlatformCodeStub::GenerateCode() {
       static_cast<Code::Kind>(GetCodeKind()),
       GetICState(),
       GetExtraICState(),
-      GetStubType());
+      GetStubType(),
+      GetStubFlags());
   Handle<Code> new_object = factory->NewCode(
       desc, flags, masm.CodeObject(), NeedsImmovableCode());
   return new_object;

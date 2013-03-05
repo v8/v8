@@ -109,12 +109,12 @@ Handle<JSObject> StubCache::StubHolder(Handle<JSObject> receiver,
 }
 
 
-Handle<Code> StubCache::FindStub(Handle<Name> name,
-                                 Handle<JSObject> stub_holder,
-                                 Code::Kind kind,
-                                 Code::StubType type,
-                                 Code::IcFragment fragment) {
-  Code::Flags flags = Code::ComputeMonomorphicFlags(kind, fragment, type);
+Handle<Code> StubCache::FindIC(Handle<Name> name,
+                               Handle<JSObject> stub_holder,
+                               Code::Kind kind,
+                               Code::StubType type) {
+  Code::Flags flags = Code::ComputeMonomorphicFlags(
+      kind, Code::kNoExtraICState, type);
   Handle<Object> probe(stub_holder->map()->FindInCodeCache(*name, flags),
                        isolate_);
   if (probe->IsCode()) return Handle<Code>::cast(probe);
@@ -122,19 +122,29 @@ Handle<Code> StubCache::FindStub(Handle<Name> name,
 }
 
 
-Handle<Code> StubCache::FindHandler(Handle<Name> name,
-                                    Handle<JSObject> handler_holder,
-                                    Code::Kind kind,
-                                    Code::StubType type) {
-  return FindStub(name, handler_holder, kind, type, Code::HANDLER_FRAGMENT);
+Handle<Code> StubCache::FindStub(Handle<Name> name,
+                                 Handle<JSObject> stub_holder,
+                                 Code::Kind kind,
+                                 Code::StubType type) {
+  ASSERT(type != Code::NORMAL);
+  int extra_flags = -1;
+  if (kind == Code::LOAD_IC || kind == Code::KEYED_LOAD_IC) {
+    extra_flags = kind;
+    kind = Code::STUB;
+  }
+  Code::Flags flags = Code::ComputeMonomorphicFlags(
+      kind, Code::kNoExtraICState, type, extra_flags);
+  Handle<Object> probe(stub_holder->map()->FindInCodeCache(*name, flags),
+                       isolate_);
+  if (probe->IsCode()) return Handle<Code>::cast(probe);
+  return Handle<Code>::null();
 }
 
 
 Handle<Code> StubCache::ComputeMonomorphicIC(Handle<JSObject> receiver,
                                              Handle<Code> handler,
                                              Handle<Name> name) {
-  Handle<Code> ic = FindStub(name, receiver, Code::LOAD_IC,
-                             handler->type(), Code::IC_FRAGMENT);
+  Handle<Code> ic = FindIC(name, receiver, Code::LOAD_IC, handler->type());
   if (!ic.is_null()) return ic;
 
   LoadStubCompiler ic_compiler(isolate());
@@ -149,8 +159,8 @@ Handle<Code> StubCache::ComputeMonomorphicIC(Handle<JSObject> receiver,
 Handle<Code> StubCache::ComputeKeyedMonomorphicIC(Handle<JSObject> receiver,
                                                   Handle<Code> handler,
                                                   Handle<Name> name) {
-  Handle<Code> ic = FindStub(name, receiver, Code::KEYED_LOAD_IC,
-                             handler->type(), Code::IC_FRAGMENT);
+  Handle<Code> ic = FindIC(
+      name, receiver, Code::KEYED_LOAD_IC, handler->type());
   if (!ic.is_null()) return ic;
 
   KeyedLoadStubCompiler ic_compiler(isolate());
@@ -187,7 +197,7 @@ Handle<Code> StubCache::ComputeLoadNonexistent(Handle<Name> name,
 
   // Compile the stub that is either shared for all names or
   // name specific if there are global objects involved.
-  Handle<Code> handler = FindHandler(
+  Handle<Code> handler = FindStub(
       cache_name, receiver, Code::LOAD_IC, Code::NONEXISTENT);
   if (!handler.is_null()) return handler;
 
@@ -211,7 +221,7 @@ Handle<Code> StubCache::ComputeLoadField(Handle<Name> name,
   }
 
   Handle<JSObject> stub_holder = StubHolder(receiver, holder);
-  Handle<Code> stub = FindHandler(
+  Handle<Code> stub = FindStub(
       name, stub_holder, Code::LOAD_IC, Code::FIELD);
   if (!stub.is_null()) return stub;
 
@@ -230,7 +240,7 @@ Handle<Code> StubCache::ComputeLoadCallback(
     Handle<ExecutableAccessorInfo> callback) {
   ASSERT(v8::ToCData<Address>(callback->getter()) != 0);
   Handle<JSObject> stub_holder = StubHolder(receiver, holder);
-  Handle<Code> stub = FindHandler(
+  Handle<Code> stub = FindStub(
       name, stub_holder, Code::LOAD_IC, Code::CALLBACKS);
   if (!stub.is_null()) return stub;
 
@@ -247,7 +257,7 @@ Handle<Code> StubCache::ComputeLoadViaGetter(Handle<Name> name,
                                              Handle<JSObject> holder,
                                              Handle<JSFunction> getter) {
   Handle<JSObject> stub_holder = StubHolder(receiver, holder);
-  Handle<Code> stub = FindHandler(
+  Handle<Code> stub = FindStub(
       name, stub_holder, Code::LOAD_IC, Code::CALLBACKS);
   if (!stub.is_null()) return stub;
 
@@ -264,7 +274,7 @@ Handle<Code> StubCache::ComputeLoadConstant(Handle<Name> name,
                                             Handle<JSObject> holder,
                                             Handle<JSFunction> value) {
   Handle<JSObject> stub_holder = StubHolder(receiver, holder);
-  Handle<Code> handler = FindHandler(
+  Handle<Code> handler = FindStub(
       name, stub_holder, Code::LOAD_IC, Code::CONSTANT_FUNCTION);
   if (!handler.is_null()) return handler;
 
@@ -280,7 +290,7 @@ Handle<Code> StubCache::ComputeLoadInterceptor(Handle<Name> name,
                                                Handle<JSObject> receiver,
                                                Handle<JSObject> holder) {
   Handle<JSObject> stub_holder = StubHolder(receiver, holder);
-  Handle<Code> stub = FindHandler(
+  Handle<Code> stub = FindStub(
       name, stub_holder, Code::LOAD_IC, Code::INTERCEPTOR);
   if (!stub.is_null()) return stub;
 
@@ -304,8 +314,7 @@ Handle<Code> StubCache::ComputeLoadGlobal(Handle<Name> name,
                                           Handle<JSGlobalPropertyCell> cell,
                                           bool is_dont_delete) {
   Handle<JSObject> stub_holder = StubHolder(receiver, holder);
-  Handle<Code> stub = FindStub(
-      name, stub_holder, Code::LOAD_IC, Code::NORMAL, Code::IC_FRAGMENT);
+  Handle<Code> stub = FindIC(name, stub_holder, Code::LOAD_IC, Code::NORMAL);
   if (!stub.is_null()) return stub;
 
   LoadStubCompiler compiler(isolate_);
@@ -328,7 +337,7 @@ Handle<Code> StubCache::ComputeKeyedLoadField(Handle<Name> name,
   }
 
   Handle<JSObject> stub_holder = StubHolder(receiver, holder);
-  Handle<Code> stub = FindHandler(
+  Handle<Code> stub = FindStub(
       name, stub_holder, Code::KEYED_LOAD_IC, Code::FIELD);
   if (!stub.is_null()) return stub;
 
@@ -345,7 +354,7 @@ Handle<Code> StubCache::ComputeKeyedLoadConstant(Handle<Name> name,
                                                  Handle<JSObject> holder,
                                                  Handle<JSFunction> value) {
   Handle<JSObject> stub_holder = StubHolder(receiver, holder);
-  Handle<Code> handler = FindHandler(
+  Handle<Code> handler = FindStub(
       name, stub_holder, Code::KEYED_LOAD_IC, Code::CONSTANT_FUNCTION);
   if (!handler.is_null()) return handler;
 
@@ -360,7 +369,7 @@ Handle<Code> StubCache::ComputeKeyedLoadInterceptor(Handle<Name> name,
                                                     Handle<JSObject> receiver,
                                                     Handle<JSObject> holder) {
   Handle<JSObject> stub_holder = StubHolder(receiver, holder);
-  Handle<Code> stub = FindHandler(
+  Handle<Code> stub = FindStub(
       name, stub_holder, Code::KEYED_LOAD_IC, Code::INTERCEPTOR);
   if (!stub.is_null()) return stub;
 
@@ -378,7 +387,7 @@ Handle<Code> StubCache::ComputeKeyedLoadCallback(
     Handle<JSObject> holder,
     Handle<ExecutableAccessorInfo> callback) {
   Handle<JSObject> stub_holder = StubHolder(receiver, holder);
-  Handle<Code> stub = FindHandler(
+  Handle<Code> stub = FindStub(
       name, stub_holder, Code::KEYED_LOAD_IC, Code::CALLBACKS);
   if (!stub.is_null()) return stub;
 
@@ -895,8 +904,10 @@ Handle<Code> StubCache::ComputePolymorphicIC(MapHandleList* receiver_maps,
                                              CodeHandleList* handlers,
                                              Handle<Name> name) {
   LoadStubCompiler ic_compiler(isolate_);
+  Code::StubType type = handlers->length() == 1 ? handlers->at(0)->type()
+                                                : Code::NORMAL;
   Handle<Code> ic = ic_compiler.CompilePolymorphicIC(
-      receiver_maps, handlers, name, Code::NORMAL, PROPERTY);
+      receiver_maps, handlers, name, type, PROPERTY);
   return ic;
 }
 
@@ -981,7 +992,7 @@ void StubCache::CollectMatchingMaps(SmallMapList* types,
                                     Zone* zone) {
   for (int i = 0; i < kPrimaryTableSize; i++) {
     if (primary_[i].key == name) {
-      Map* map = primary_[i].value->FindFirstMap();
+      Map* map = primary_[i].map;
       // Map can be NULL, if the stub is constant function call
       // with a primitive receiver.
       if (map == NULL) continue;
@@ -996,7 +1007,7 @@ void StubCache::CollectMatchingMaps(SmallMapList* types,
 
   for (int i = 0; i < kSecondaryTableSize; i++) {
     if (secondary_[i].key == name) {
-      Map* map = secondary_[i].value->FindFirstMap();
+      Map* map = secondary_[i].map;
       // Map can be NULL, if the stub is constant function call
       // with a primitive receiver.
       if (map == NULL) continue;
@@ -1005,7 +1016,7 @@ void StubCache::CollectMatchingMaps(SmallMapList* types,
       int primary_offset = PrimaryOffset(name, flags, map);
       Entry* primary_entry = entry(primary_, primary_offset);
       if (primary_entry->key == name) {
-        Map* primary_map = primary_entry->value->FindFirstMap();
+        Map* primary_map = primary_entry->map;
         if (map == primary_map) continue;
       }
 
@@ -1448,7 +1459,7 @@ Handle<Code> BaseLoadStubCompiler::CompileLoadField(Handle<JSObject> object,
   GenerateLoadMiss(masm(), kind());
 
   // Return the generated code.
-  return GetCode(Code::HANDLER_FRAGMENT, Code::FIELD, name);
+  return GetCode(kind(), Code::FIELD, name);
 }
 
 
@@ -1463,7 +1474,7 @@ Handle<Code> BaseLoadStubCompiler::CompileLoadConstant(
   GenerateLoadConstant(value);
 
   // Return the generated code.
-  return GetCode(Code::HANDLER_FRAGMENT, Code::CONSTANT_FUNCTION, name);
+  return GetCode(kind(), Code::CONSTANT_FUNCTION, name);
 }
 
 
@@ -1480,7 +1491,7 @@ Handle<Code> BaseLoadStubCompiler::CompileLoadCallback(
   GenerateLoadCallback(reg, callback);
 
   // Return the generated code.
-  return GetCode(Code::HANDLER_FRAGMENT, Code::CALLBACKS, name);
+  return GetCode(kind(), Code::CALLBACKS, name);
 }
 
 
@@ -1500,7 +1511,7 @@ Handle<Code> BaseLoadStubCompiler::CompileLoadInterceptor(
   GenerateLoadInterceptor(reg, object, holder, &lookup, name);
 
   // Return the generated code.
-  return GetCode(Code::HANDLER_FRAGMENT, Code::INTERCEPTOR, name);
+  return GetCode(kind(), Code::INTERCEPTOR, name);
 }
 
 
@@ -1567,7 +1578,7 @@ Handle<Code> LoadStubCompiler::CompileLoadViaGetter(
   GenerateLoadViaGetter(masm(), getter);
 
   // Return the generated code.
-  return GetCode(Code::HANDLER_FRAGMENT, Code::CALLBACKS, name);
+  return GetCode(kind(), Code::CALLBACKS, name);
 }
 
 
@@ -1584,11 +1595,25 @@ void KeyedLoadStubCompiler::JitEvent(Handle<Name> name, Handle<Code> code) {
 }
 
 
-Handle<Code> BaseLoadStubCompiler::GetCode(Code::IcFragment fragment,
+Handle<Code> BaseLoadStubCompiler::GetICCode(Code::Kind kind,
+                                             Code::StubType type,
+                                             Handle<Name> name,
+                                             InlineCacheState state) {
+  Code::Flags flags = Code::ComputeFlags(
+      kind, state, Code::kNoExtraICState, type);
+  Handle<Code> code = GetCodeWithFlags(flags, name);
+  PROFILE(isolate(), CodeCreateEvent(log_kind(code), *code, *name));
+  JitEvent(name, code);
+  return code;
+}
+
+
+Handle<Code> BaseLoadStubCompiler::GetCode(Code::Kind kind,
                                            Code::StubType type,
-                                           Handle<Name> name,
-                                           InlineCacheState state) {
-  Code::Flags flags = Code::ComputeFlags(kind(), state, fragment, type);
+                                           Handle<Name> name) {
+  ASSERT(type != Code::NORMAL);
+  Code::Flags flags = Code::ComputeFlags(
+      Code::STUB, MONOMORPHIC, Code::kNoExtraICState, type, kind);
   Handle<Code> code = GetCodeWithFlags(flags, name);
   PROFILE(isolate(), CodeCreateEvent(log_kind(code), *code, *name));
   JitEvent(name, code);
