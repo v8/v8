@@ -58,7 +58,7 @@ typedef int32_t Atomic32;
 #ifdef V8_HOST_ARCH_64_BIT
 // We need to be able to go between Atomic64 and AtomicWord implicitly.  This
 // means Atomic64 and AtomicWord should be the same type on 64-bit.
-#if defined(__APPLE__)
+#if defined(__ILP32__) || defined(__APPLE__)
 // MacOS is an exception to the implicit conversion rule above,
 // because it uses long for intptr_t.
 typedef int64_t Atomic64;
