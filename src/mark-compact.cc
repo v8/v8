@@ -1061,16 +1061,6 @@ void CodeFlusher::ProcessSharedFunctionInfoCandidates() {
 }
 
 
-bool CodeFlusher::ContainsCandidate(SharedFunctionInfo* shared_info) {
-  SharedFunctionInfo* candidate = shared_function_info_candidates_head_;
-  while (candidate != NULL) {
-    if (candidate == shared_info) return true;
-    candidate = GetNextCandidate(candidate);
-  }
-  return false;
-}
-
-
 void CodeFlusher::EvictCandidate(SharedFunctionInfo* shared_info) {
   // Make sure previous flushing decisions are revisited.
   isolate_->heap()->incremental_marking()->RecordWrites(shared_info);

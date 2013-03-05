@@ -423,10 +423,6 @@ class CodeFlusher {
     if (GetNextCandidate(shared_info) == NULL) {
       SetNextCandidate(shared_info, shared_function_info_candidates_head_);
       shared_function_info_candidates_head_ = shared_info;
-    } else {
-      // TODO(mstarzinger): Active in release mode to flush out problems.
-      // Should be turned back into an ASSERT or removed completely.
-      CHECK(ContainsCandidate(shared_info));
     }
   }
 
@@ -437,8 +433,6 @@ class CodeFlusher {
       jsfunction_candidates_head_ = function;
     }
   }
-
-  bool ContainsCandidate(SharedFunctionInfo* shared_info);
 
   void EvictCandidate(SharedFunctionInfo* shared_info);
   void EvictCandidate(JSFunction* function);
