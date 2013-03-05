@@ -3761,10 +3761,10 @@ void MarkCompactCollector::SweepSpace(PagedSpace* space, SweeperType sweeper) {
 
   PageIterator it(space);
 
-  intptr_t freed_bytes = 0;
   int pages_swept = 0;
   bool lazy_sweeping_active = false;
   bool unused_page_present = false;
+  bool parallel_sweeping_active = false;
 
   while (it.has_next()) {
     Page* p = it.next();
@@ -3800,15 +3800,6 @@ void MarkCompactCollector::SweepSpace(PagedSpace* space, SweeperType sweeper) {
       unused_page_present = true;
     }
 
-    if (lazy_sweeping_active) {
-      if (FLAG_gc_verbose) {
-        PrintF("Sweeping 0x%" V8PRIxPTR " lazily postponed.\n",
-               reinterpret_cast<intptr_t>(p));
-      }
-      space->IncreaseUnsweptFreeBytes(p);
-      continue;
-    }
-
     switch (sweeper) {
       case CONSERVATIVE: {
         if (FLAG_gc_verbose) {
@@ -3820,24 +3811,42 @@ void MarkCompactCollector::SweepSpace(PagedSpace* space, SweeperType sweeper) {
         break;
       }
       case LAZY_CONSERVATIVE: {
-        if (FLAG_gc_verbose) {
-          PrintF("Sweeping 0x%" V8PRIxPTR " conservatively as needed.\n",
-                 reinterpret_cast<intptr_t>(p));
+        if (lazy_sweeping_active) {
+          if (FLAG_gc_verbose) {
+            PrintF("Sweeping 0x%" V8PRIxPTR " lazily postponed.\n",
+                   reinterpret_cast<intptr_t>(p));
+          }
+          space->IncreaseUnsweptFreeBytes(p);
+        } else {
+          if (FLAG_gc_verbose) {
+            PrintF("Sweeping 0x%" V8PRIxPTR " conservatively.\n",
+                   reinterpret_cast<intptr_t>(p));
+          }
+          SweepConservatively<SWEEP_SEQUENTIALLY>(space, NULL, p);
+          pages_swept++;
+          space->SetPagesToSweep(p->next_page());
+          lazy_sweeping_active = true;
         }
-        freed_bytes += SweepConservatively<SWEEP_SEQUENTIALLY>(space, NULL, p);
-        pages_swept++;
-        space->SetPagesToSweep(p->next_page());
-        lazy_sweeping_active = true;
         break;
       }
       case CONCURRENT_CONSERVATIVE:
       case PARALLEL_CONSERVATIVE: {
-        if (FLAG_gc_verbose) {
-          PrintF("Sweeping 0x%" V8PRIxPTR " conservatively in parallel.\n",
-                 reinterpret_cast<intptr_t>(p));
+        if (!parallel_sweeping_active) {
+          if (FLAG_gc_verbose) {
+            PrintF("Sweeping 0x%" V8PRIxPTR " conservatively.\n",
+                   reinterpret_cast<intptr_t>(p));
+          }
+          SweepConservatively<SWEEP_SEQUENTIALLY>(space, NULL, p);
+          pages_swept++;
+          parallel_sweeping_active = true;
+        } else {
+          if (FLAG_gc_verbose) {
+            PrintF("Sweeping 0x%" V8PRIxPTR " conservatively in parallel.\n",
+                   reinterpret_cast<intptr_t>(p));
+          }
+          p->set_parallel_sweeping(1);
+          space->IncreaseUnsweptFreeBytes(p);
         }
-        p->set_parallel_sweeping(1);
-        space->IncreaseUnsweptFreeBytes(p);
         break;
       }
       case PRECISE: {
