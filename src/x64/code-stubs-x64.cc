@@ -2481,6 +2481,7 @@ void StoreArrayLengthStub::Generate(MacroAssembler* masm) {
   Register scratch = rbx;
   if (kind() == Code::KEYED_STORE_IC) {
     __ Cmp(rcx, masm->isolate()->factory()->length_string());
+    __ j(not_equal, &miss);
   }
 
   // Check that the receiver isn't a smi.
