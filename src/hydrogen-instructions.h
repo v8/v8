@@ -2868,7 +2868,7 @@ class HCheckSmiOrInt32: public HUnaryOperation {
   }
 
   virtual HValue* Canonicalize() {
-    if (representation().IsTagged() && !type().IsSmi()) {
+    if (representation().IsTagged() && !value()->type().IsSmi()) {
       return this;
     } else {
       return value();
