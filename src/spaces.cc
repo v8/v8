@@ -2553,9 +2553,11 @@ bool PagedSpace::EnsureSweeperProgress(intptr_t size_in_bytes) {
   if (collector->AreSweeperThreadsActivated()) {
     if (collector->IsConcurrentSweepingInProgress()) {
       if (collector->StealMemoryFromSweeperThreads(this) < size_in_bytes) {
-        collector->WaitUntilSweepingCompleted();
-        collector->FinalizeSweeping();
-        return true;
+        if (!collector->sequential_sweeping()) {
+          collector->WaitUntilSweepingCompleted();
+          collector->FinalizeSweeping();
+          return true;
+        }
       }
       return false;
     }

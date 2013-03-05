@@ -1765,9 +1765,9 @@ class PagedSpace : public Space {
 
   bool AdvanceSweeper(intptr_t bytes_to_sweep);
 
-  // When parallel sweeper threads are active this function waits
-  // for them to complete, otherwise AdvanceSweeper with size_in_bytes
-  // is called.
+  // When parallel sweeper threads are active and the main thread finished
+  // its sweeping phase, this function waits for them to complete, otherwise
+  // AdvanceSweeper with size_in_bytes is called.
   bool EnsureSweeperProgress(intptr_t size_in_bytes);
 
   bool IsLazySweepingComplete() {

@@ -692,6 +692,14 @@ class MarkCompactCollector {
 
   void FinalizeSweeping();
 
+  void set_sequential_sweeping(bool sequential_sweeping) {
+    sequential_sweeping_ = sequential_sweeping;
+  }
+
+  bool sequential_sweeping() const {
+    return sequential_sweeping_;
+  }
+
   // Parallel marking support.
   void MarkInParallel();
 
@@ -742,6 +750,8 @@ class MarkCompactCollector {
 
   // True if concurrent or parallel sweeping is currently in progress.
   bool sweeping_pending_;
+
+  bool sequential_sweeping_;
 
   // A pointer to the current stack-allocated GC tracer object during a full
   // collection (NULL before and after).
@@ -895,6 +905,22 @@ class MarkCompactCollector {
   List<Code*> invalidated_code_;
 
   friend class Heap;
+};
+
+
+class SequentialSweepingScope BASE_EMBEDDED {
+ public:
+  explicit SequentialSweepingScope(MarkCompactCollector *collector) :
+    collector_(collector) {
+    collector_->set_sequential_sweeping(true);
+  }
+
+  ~SequentialSweepingScope() {
+    collector_->set_sequential_sweeping(false);
+  }
+
+ private:
+  MarkCompactCollector* collector_;
 };
 
 
