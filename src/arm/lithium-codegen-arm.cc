@@ -1411,6 +1411,42 @@ void LCodeGen::DoDivI(LDivI* instr) {
     LDivI* instr_;
   };
 
+  if (instr->hydrogen()->HasPowerOf2Divisor()) {
+    Register dividend = ToRegister(instr->left());
+    int32_t divisor =
+        HConstant::cast(instr->hydrogen()->right())->Integer32Value();
+    int32_t test_value = 0;
+    int32_t power = 0;
+
+    if (divisor > 0) {
+      test_value = divisor - 1;
+      power = WhichPowerOf2(divisor);
+    } else {
+      // Check for (0 / -x) that will produce negative zero.
+      if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
+        __ tst(dividend, Operand(dividend));
+        DeoptimizeIf(eq, instr->environment());
+      }
+      // Check for (kMinInt / -1).
+      if (divisor == -1 && instr->hydrogen()->CheckFlag(HValue::kCanOverflow)) {
+        __ cmp(dividend, Operand(kMinInt));
+        DeoptimizeIf(eq, instr->environment());
+      }
+      test_value = - divisor - 1;
+      power = WhichPowerOf2(-divisor);
+    }
+
+    if (test_value != 0) {
+      // Deoptimize if remainder is not 0.
+      __ tst(dividend, Operand(test_value));
+      DeoptimizeIf(ne, instr->environment());
+      __ mov(dividend, Operand(dividend, ASR, power));
+    }
+    if (divisor < 0) __ rsb(dividend, dividend, Operand(0));
+
+    return;
+  }
+
   const Register left = ToRegister(instr->left());
   const Register right = ToRegister(instr->right());
   const Register scratch = scratch0();
