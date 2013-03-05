@@ -540,7 +540,7 @@ class RecordWriteStub: public PlatformCodeStub {
       if (!scratch0_.is(eax) && !scratch1_.is(eax)) masm->push(eax);
       if (!scratch0_.is(edx) && !scratch1_.is(edx)) masm->push(edx);
       if (mode == kSaveFPRegs) {
-        CpuFeatures::Scope scope(SSE2);
+        CpuFeatureScope scope(masm, SSE2);
         masm->sub(esp,
                   Immediate(kDoubleSize * (XMMRegister::kNumRegisters - 1)));
         // Save all XMM registers except XMM0.
@@ -554,7 +554,7 @@ class RecordWriteStub: public PlatformCodeStub {
     inline void RestoreCallerSaveRegisters(MacroAssembler*masm,
                                            SaveFPRegsMode mode) {
       if (mode == kSaveFPRegs) {
-        CpuFeatures::Scope scope(SSE2);
+        CpuFeatureScope scope(masm, SSE2);
         // Restore all XMM registers except XMM0.
         for (int i = XMMRegister::kNumRegisters - 1; i > 0; i--) {
           XMMRegister reg = XMMRegister::from_code(i);

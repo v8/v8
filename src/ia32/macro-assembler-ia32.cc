@@ -527,7 +527,7 @@ void MacroAssembler::StoreNumberToDoubleElements(
   ExternalReference canonical_nan_reference =
       ExternalReference::address_of_canonical_non_hole_nan();
   if (CpuFeatures::IsSupported(SSE2) && specialize_for_processor) {
-    CpuFeatures::Scope use_sse2(SSE2);
+    CpuFeatureScope use_sse2(this, SSE2);
     movdbl(scratch2, FieldOperand(maybe_number, HeapNumber::kValueOffset));
     bind(&have_double_value);
     movdbl(FieldOperand(elements, key, times_4,
@@ -549,7 +549,7 @@ void MacroAssembler::StoreNumberToDoubleElements(
   j(zero, &not_nan);
   bind(&is_nan);
   if (CpuFeatures::IsSupported(SSE2) && specialize_for_processor) {
-    CpuFeatures::Scope use_sse2(SSE2);
+    CpuFeatureScope use_sse2(this, SSE2);
     movdbl(scratch2, Operand::StaticVariable(canonical_nan_reference));
   } else {
     fld_d(Operand::StaticVariable(canonical_nan_reference));
@@ -562,7 +562,7 @@ void MacroAssembler::StoreNumberToDoubleElements(
   mov(scratch1, maybe_number);
   SmiUntag(scratch1);
   if (CpuFeatures::IsSupported(SSE2) && specialize_for_processor) {
-    CpuFeatures::Scope fscope(SSE2);
+    CpuFeatureScope fscope(this, SSE2);
     cvtsi2sd(scratch2, scratch1);
     movdbl(FieldOperand(elements, key, times_4,
                         FixedDoubleArray::kHeaderSize - elements_offset),
@@ -790,7 +790,7 @@ void MacroAssembler::EnterExitFramePrologue() {
 void MacroAssembler::EnterExitFrameEpilogue(int argc, bool save_doubles) {
   // Optionally save all XMM registers.
   if (save_doubles) {
-    CpuFeatures::Scope scope(SSE2);
+    CpuFeatureScope scope(this, SSE2);
     int space = XMMRegister::kNumRegisters * kDoubleSize + argc * kPointerSize;
     sub(esp, Immediate(space));
     const int offset = -2 * kPointerSize;
@@ -836,7 +836,7 @@ void MacroAssembler::EnterApiExitFrame(int argc) {
 void MacroAssembler::LeaveExitFrame(bool save_doubles) {
   // Optionally restore all XMM registers.
   if (save_doubles) {
-    CpuFeatures::Scope scope(SSE2);
+    CpuFeatureScope scope(this, SSE2);
     const int offset = -2 * kPointerSize;
     for (int i = 0; i < XMMRegister::kNumRegisters; i++) {
       XMMRegister reg = XMMRegister::from_code(i);

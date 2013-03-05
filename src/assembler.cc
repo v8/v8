@@ -115,6 +115,7 @@ static double* math_exp_log_table_array = NULL;
 AssemblerBase::AssemblerBase(Isolate* isolate, void* buffer, int buffer_size)
     : isolate_(isolate),
       jit_cookie_(0),
+      enabled_cpu_features_(0),
       emit_debug_code_(FLAG_debug_code),
       predictable_code_size_(false) {
   if (FLAG_mask_constants_with_cookie && isolate != NULL)  {
@@ -177,6 +178,36 @@ PredictableCodeSizeScope::~PredictableCodeSizeScope() {
   }
   assembler_->set_predictable_code_size(old_value_);
 }
+
+
+// -----------------------------------------------------------------------------
+// Implementation of CpuFeatureScope
+
+#ifdef DEBUG
+CpuFeatureScope::CpuFeatureScope(AssemblerBase* assembler, CpuFeature f)
+    : assembler_(assembler) {
+  ASSERT(CpuFeatures::IsSupported(f));
+  ASSERT(!Serializer::enabled() ||
+         !CpuFeatures::IsFoundByRuntimeProbingOnly(f));
+  old_enabled_ = assembler_->enabled_cpu_features();
+  uint64_t mask = static_cast<uint64_t>(1) << f;
+  // TODO(svenpanne) This special case below doesn't belong here!
+#if V8_TARGET_ARCH_ARM
+  // VFP2 and ARMv7 are implied by VFP3.
+  if (f == VFP3) {
+    mask |=
+        static_cast<uint64_t>(1) << VFP2 |
+        static_cast<uint64_t>(1) << ARMv7;
+  }
+#endif
+  assembler_->set_enabled_cpu_features(old_enabled_ | mask);
+}
+
+
+CpuFeatureScope::~CpuFeatureScope() {
+  assembler_->set_enabled_cpu_features(old_enabled_);
+}
+#endif
 
 
 // -----------------------------------------------------------------------------

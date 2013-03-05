@@ -2047,7 +2047,7 @@ Handle<Code> CallStubCompiler::CompileMathFloorCall(
     return Handle<Code>::null();
   }
 
-  CpuFeatures::Scope use_sse2(SSE2);
+  CpuFeatureScope use_sse2(masm(), SSE2);
 
   const int argc = arguments().immediate();
 
@@ -3198,7 +3198,7 @@ Handle<Code> ConstructStubCompiler::CompileConstructStub(
       __ mov(ebx, edi);
       __ cmp(eax, arg_number);
       if (CpuFeatures::IsSupported(CMOV)) {
-        CpuFeatures::Scope use_cmov(CMOV);
+        CpuFeatureScope use_cmov(masm(), CMOV);
         __ cmov(above, ebx, Operand(ecx, arg_number * -kPointerSize));
       } else {
         Label not_passed;
@@ -3311,7 +3311,7 @@ static void GenerateSmiKeyCheck(MacroAssembler* masm,
   // Check that key is a smi and if SSE2 is available a heap number
   // containing a smi and branch if the check fails.
   if (CpuFeatures::IsSupported(SSE2)) {
-    CpuFeatures::Scope use_sse2(SSE2);
+    CpuFeatureScope use_sse2(masm, SSE2);
     Label key_ok;
     __ JumpIfSmi(key, &key_ok);
     __ cmp(FieldOperand(key, HeapObject::kMapOffset),
@@ -3448,7 +3448,7 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
         if ((elements_kind == EXTERNAL_INT_ELEMENTS ||
              elements_kind == EXTERNAL_UNSIGNED_INT_ELEMENTS) &&
             CpuFeatures::IsSupported(SSE3)) {
-          CpuFeatures::Scope scope(SSE3);
+          CpuFeatureScope scope(masm, SSE3);
           // fisttp stores values as signed integers. To represent the
           // entire range of int and unsigned int arrays, store as a
           // 64-bit int and discard the high 32 bits.
@@ -3473,7 +3473,7 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
           __ mov(Operand(edi, ecx, times_2, 0), ebx);
         } else {
           ASSERT(CpuFeatures::IsSupported(SSE2));
-          CpuFeatures::Scope scope(SSE2);
+          CpuFeatureScope scope(masm, SSE2);
           __ cvttsd2si(ebx, FieldOperand(eax, HeapNumber::kValueOffset));
           __ cmp(ebx, 0x80000000u);
           __ j(equal, &slow);

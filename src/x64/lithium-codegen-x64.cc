@@ -3474,7 +3474,7 @@ void LCodeGen::DoMathFloor(LUnaryMathOperation* instr) {
   XMMRegister input_reg = ToDoubleRegister(instr->value());
 
   if (CpuFeatures::IsSupported(SSE4_1)) {
-    CpuFeatures::Scope scope(SSE4_1);
+    CpuFeatureScope scope(masm(), SSE4_1);
     if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
       // Deoptimize if minus zero.
       __ movq(output_reg, input_reg);

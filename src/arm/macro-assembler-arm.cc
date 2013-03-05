@@ -292,7 +292,7 @@ void MacroAssembler::Move(Register dst, Register src, Condition cond) {
 
 void MacroAssembler::Move(DwVfpRegister dst, DwVfpRegister src) {
   ASSERT(CpuFeatures::IsSupported(VFP2));
-  CpuFeatures::Scope scope(VFP2);
+  CpuFeatureScope scope(this, VFP2);
   if (!dst.is(src)) {
     vmov(dst, src);
   }
@@ -717,7 +717,7 @@ void MacroAssembler::Ldrd(Register dst1, Register dst2,
 
   // Generate two ldr instructions if ldrd is not available.
   if (CpuFeatures::IsSupported(ARMv7) && !predictable_code_size()) {
-    CpuFeatures::Scope scope(ARMv7);
+    CpuFeatureScope scope(this, ARMv7);
     ldrd(dst1, dst2, src, cond);
   } else {
     if ((src.am() == Offset) || (src.am() == NegOffset)) {
@@ -759,7 +759,7 @@ void MacroAssembler::Strd(Register src1, Register src2,
 
   // Generate two str instructions if strd is not available.
   if (CpuFeatures::IsSupported(ARMv7) && !predictable_code_size()) {
-    CpuFeatures::Scope scope(ARMv7);
+    CpuFeatureScope scope(this, ARMv7);
     strd(src1, src2, dst, cond);
   } else {
     MemOperand dst2(dst);
@@ -813,7 +813,7 @@ void MacroAssembler::VFPCompareAndLoadFlags(const DwVfpRegister src1,
 void MacroAssembler::Vmov(const DwVfpRegister dst,
                           const double imm,
                           const Register scratch) {
-  ASSERT(CpuFeatures::IsEnabled(VFP2));
+  ASSERT(IsEnabled(VFP2));
   static const DoubleRepresentation minus_zero(-0.0);
   static const DoubleRepresentation zero(0.0);
   DoubleRepresentation value(imm);
@@ -875,7 +875,7 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space) {
 
   // Optionally save all double registers.
   if (save_doubles) {
-    CpuFeatures::Scope scope(VFP2);
+    CpuFeatureScope scope(this, VFP2);
     // Check CPU flags for number of registers, setting the Z condition flag.
     CheckFor32DRegs(ip);
 
@@ -940,7 +940,7 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles,
                                     Register argument_count) {
   // Optionally restore all double registers.
   if (save_doubles) {
-    CpuFeatures::Scope scope(VFP2);
+    CpuFeatureScope scope(this, VFP2);
     // Calculate the stack location of the saved doubles and restore them.
     const int offset = 2 * kPointerSize;
     sub(r3, fp,
@@ -2080,7 +2080,7 @@ void MacroAssembler::StoreNumberToDoubleElements(Register value_reg,
                                           scratch4,
                                           s2);
   if (destination == FloatingPointHelper::kVFPRegisters) {
-    CpuFeatures::Scope scope(VFP2);
+    CpuFeatureScope scope(this, VFP2);
     vstr(d0, scratch1, 0);
   } else {
     str(mantissa_reg, MemOperand(scratch1, 0));
@@ -2446,7 +2446,7 @@ void MacroAssembler::ConvertToInt32(Register source,
                                     DwVfpRegister double_scratch,
                                     Label *not_int32) {
   if (CpuFeatures::IsSupported(VFP2)) {
-    CpuFeatures::Scope scope(VFP2);
+    CpuFeatureScope scope(this, VFP2);
     sub(scratch, source, Operand(kHeapObjectTag));
     vldr(double_scratch, scratch, HeapNumber::kValueOffset);
     vcvt_s32_f64(double_scratch.low(), double_scratch);
@@ -2559,7 +2559,7 @@ void MacroAssembler::EmitVFPTruncate(VFPRoundingMode rounding_mode,
   ASSERT(!double_input.is(double_scratch));
 
   ASSERT(CpuFeatures::IsSupported(VFP2));
-  CpuFeatures::Scope scope(VFP2);
+  CpuFeatureScope scope(this, VFP2);
   Register prev_fpscr = result;
   Label done;
 
@@ -2685,7 +2685,7 @@ void MacroAssembler::EmitECMATruncate(Register result,
                                       Register scratch,
                                       Register input_high,
                                       Register input_low) {
-  CpuFeatures::Scope scope(VFP2);
+  CpuFeatureScope scope(this, VFP2);
   ASSERT(!input_high.is(result));
   ASSERT(!input_low.is(result));
   ASSERT(!input_low.is(input_high));

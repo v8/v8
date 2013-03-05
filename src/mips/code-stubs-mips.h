@@ -484,7 +484,7 @@ class RecordWriteStub: public PlatformCodeStub {
     void SaveCallerSaveRegisters(MacroAssembler* masm, SaveFPRegsMode mode) {
       masm->MultiPush((kJSCallerSaved | ra.bit()) & ~scratch1_.bit());
       if (mode == kSaveFPRegs) {
-        CpuFeatures::Scope scope(FPU);
+        CpuFeatureScope scope(masm, FPU);
         masm->MultiPushFPU(kCallerSavedFPU);
       }
     }
@@ -492,7 +492,7 @@ class RecordWriteStub: public PlatformCodeStub {
     inline void RestoreCallerSaveRegisters(MacroAssembler*masm,
                                            SaveFPRegsMode mode) {
       if (mode == kSaveFPRegs) {
-        CpuFeatures::Scope scope(FPU);
+        CpuFeatureScope scope(masm, FPU);
         masm->MultiPopFPU(kCallerSavedFPU);
       }
       masm->MultiPop((kJSCallerSaved | ra.bit()) & ~scratch1_.bit());

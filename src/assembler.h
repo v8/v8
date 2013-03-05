@@ -68,6 +68,14 @@ class AssemblerBase: public Malloced {
   bool predictable_code_size() const { return predictable_code_size_; }
   void set_predictable_code_size(bool value) { predictable_code_size_ = value; }
 
+  uint64_t enabled_cpu_features() const { return enabled_cpu_features_; }
+  void set_enabled_cpu_features(uint64_t features) {
+    enabled_cpu_features_ = features;
+  }
+  bool IsEnabled(CpuFeature f) {
+    return (enabled_cpu_features_ & (static_cast<uint64_t>(1) << f)) != 0;
+  }
+
   // Overwrite a host NaN with a quiet target NaN.  Used by mksnapshot for
   // cross-snapshotting.
   static void QuietNaN(HeapObject* nan) { }
@@ -89,6 +97,7 @@ class AssemblerBase: public Malloced {
  private:
   Isolate* isolate_;
   int jit_cookie_;
+  uint64_t enabled_cpu_features_;
   bool emit_debug_code_;
   bool predictable_code_size_;
 };
@@ -106,6 +115,22 @@ class PredictableCodeSizeScope {
   int expected_size_;
   int start_offset_;
   bool old_value_;
+};
+
+
+// Enable a specified feature within a scope.
+class CpuFeatureScope BASE_EMBEDDED {
+ public:
+#ifdef DEBUG
+  CpuFeatureScope(AssemblerBase* assembler, CpuFeature f);
+  ~CpuFeatureScope();
+
+ private:
+  AssemblerBase* assembler_;
+  uint64_t old_enabled_;
+#else
+  CpuFeatureScope(AssemblerBase* assembler, CpuFeature f) {}
+#endif
 };
 
 

@@ -868,7 +868,7 @@ void Deoptimizer::EntryGenerator::Generate() {
       kDoubleSize * FPURegister::kMaxNumAllocatableRegisters;
 
   if (CpuFeatures::IsSupported(FPU)) {
-    CpuFeatures::Scope scope(FPU);
+    CpuFeatureScope scope(masm(), FPU);
     // Save all FPU registers before messing with them.
     __ Subu(sp, sp, Operand(kDoubleRegsSize));
     for (int i = 0; i < FPURegister::kMaxNumAllocatableRegisters; ++i) {
@@ -951,7 +951,7 @@ void Deoptimizer::EntryGenerator::Generate() {
 
   int double_regs_offset = FrameDescription::double_registers_offset();
   if (CpuFeatures::IsSupported(FPU)) {
-    CpuFeatures::Scope scope(FPU);
+    CpuFeatureScope scope(masm(), FPU);
     // Copy FPU registers to
     // double_registers_[DoubleRegister::kNumAllocatableRegisters]
     for (int i = 0; i < FPURegister::NumAllocatableRegisters(); ++i) {
@@ -1029,7 +1029,7 @@ void Deoptimizer::EntryGenerator::Generate() {
   __ Branch(&outer_push_loop, lt, t0, Operand(a1));
 
   if (CpuFeatures::IsSupported(FPU)) {
-    CpuFeatures::Scope scope(FPU);
+    CpuFeatureScope scope(masm(), FPU);
 
     __ lw(a1, MemOperand(a0, Deoptimizer::input_offset()));
     for (int i = 0; i < FPURegister::kMaxNumAllocatableRegisters; ++i) {

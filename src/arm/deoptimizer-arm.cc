@@ -876,7 +876,7 @@ void Deoptimizer::EntryGenerator::Generate() {
       kDoubleSize * DwVfpRegister::kMaxNumAllocatableRegisters;
 
   if (CpuFeatures::IsSupported(VFP2)) {
-    CpuFeatures::Scope scope(VFP2);
+    CpuFeatureScope scope(masm(), VFP2);
     // Save all allocatable VFP registers before messing with them.
     ASSERT(kDoubleRegZero.code() == 14);
     ASSERT(kScratchDoubleReg.code() == 15);
@@ -951,7 +951,7 @@ void Deoptimizer::EntryGenerator::Generate() {
   }
 
   if (CpuFeatures::IsSupported(VFP2)) {
-    CpuFeatures::Scope scope(VFP2);
+    CpuFeatureScope scope(masm(), VFP2);
     // Copy VFP registers to
     // double_registers_[DoubleRegister::kMaxNumAllocatableRegisters]
     int double_regs_offset = FrameDescription::double_registers_offset();
@@ -1031,7 +1031,7 @@ void Deoptimizer::EntryGenerator::Generate() {
   __ b(lt, &outer_push_loop);
 
   if (CpuFeatures::IsSupported(VFP2)) {
-    CpuFeatures::Scope scope(VFP2);
+    CpuFeatureScope scope(masm(), VFP2);
     // Check CPU flags for number of registers, setting the Z condition flag.
     __ CheckFor32DRegs(ip);
 

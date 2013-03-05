@@ -324,7 +324,7 @@ void LGapResolver::EmitMove(int index) {
     }
 
   } else if (source->IsDoubleRegister()) {
-    CpuFeatures::Scope scope(SSE2);
+    CpuFeatureScope scope(cgen_->masm(), SSE2);
     XMMRegister src = cgen_->ToDoubleRegister(source);
     if (destination->IsDoubleRegister()) {
       XMMRegister dst = cgen_->ToDoubleRegister(destination);
@@ -335,7 +335,7 @@ void LGapResolver::EmitMove(int index) {
       __ movdbl(dst, src);
     }
   } else if (source->IsDoubleStackSlot()) {
-    CpuFeatures::Scope scope(SSE2);
+    CpuFeatureScope scope(cgen_->masm(), SSE2);
     ASSERT(destination->IsDoubleRegister() ||
            destination->IsDoubleStackSlot());
     Operand src = cgen_->ToOperand(source);
@@ -411,7 +411,7 @@ void LGapResolver::EmitSwap(int index) {
       __ mov(src, tmp0);
     }
   } else if (source->IsDoubleRegister() && destination->IsDoubleRegister()) {
-    CpuFeatures::Scope scope(SSE2);
+    CpuFeatureScope scope(cgen_->masm(), SSE2);
     // XMM register-register swap. We rely on having xmm0
     // available as a fixed scratch register.
     XMMRegister src = cgen_->ToDoubleRegister(source);
@@ -421,7 +421,7 @@ void LGapResolver::EmitSwap(int index) {
     __ movaps(dst, xmm0);
 
   } else if (source->IsDoubleRegister() || destination->IsDoubleRegister()) {
-    CpuFeatures::Scope scope(SSE2);
+    CpuFeatureScope scope(cgen_->masm(), SSE2);
     // XMM register-memory swap.  We rely on having xmm0
     // available as a fixed scratch register.
     ASSERT(source->IsDoubleStackSlot() || destination->IsDoubleStackSlot());
@@ -435,7 +435,7 @@ void LGapResolver::EmitSwap(int index) {
     __ movdbl(reg, Operand(xmm0));
 
   } else if (source->IsDoubleStackSlot() && destination->IsDoubleStackSlot()) {
-    CpuFeatures::Scope scope(SSE2);
+    CpuFeatureScope scope(cgen_->masm(), SSE2);
     // Double-width memory-to-memory.  Spill on demand to use a general
     // purpose temporary register and also rely on having xmm0 available as
     // a fixed scratch register.

@@ -180,7 +180,7 @@ TEST(AssemblerIa323) {
   Assembler assm(isolate, buffer, sizeof buffer);
 
   CHECK(CpuFeatures::IsSupported(SSE2));
-  { CpuFeatures::Scope fscope(SSE2);
+  { CpuFeatureScope fscope(&assm, SSE2);
     __ cvttss2si(eax, Operand(esp, 4));
     __ ret(0);
   }
@@ -216,7 +216,7 @@ TEST(AssemblerIa324) {
   Assembler assm(isolate, buffer, sizeof buffer);
 
   CHECK(CpuFeatures::IsSupported(SSE2));
-  CpuFeatures::Scope fscope(SSE2);
+  CpuFeatureScope fscope(&assm, SSE2);
   __ cvttsd2si(eax, Operand(esp, 4));
   __ ret(0);
 
@@ -269,12 +269,11 @@ TEST(AssemblerIa326) {
   if (!CpuFeatures::IsSupported(SSE2)) return;
 
   v8::HandleScope scope;
-  CHECK(CpuFeatures::IsSupported(SSE2));
-  CpuFeatures::Scope fscope(SSE2);
   v8::internal::byte buffer[256];
   Isolate* isolate = Isolate::Current();
   Assembler assm(isolate, buffer, sizeof buffer);
 
+  CpuFeatureScope fscope(&assm, SSE2);
   __ movdbl(xmm0, Operand(esp, 1 * kPointerSize));
   __ movdbl(xmm1, Operand(esp, 3 * kPointerSize));
   __ addsd(xmm0, xmm1);
@@ -316,11 +315,10 @@ TEST(AssemblerIa328) {
   if (!CpuFeatures::IsSupported(SSE2)) return;
 
   v8::HandleScope scope;
-  CHECK(CpuFeatures::IsSupported(SSE2));
-  CpuFeatures::Scope fscope(SSE2);
   v8::internal::byte buffer[256];
   Isolate* isolate = Isolate::Current();
   Assembler assm(isolate, buffer, sizeof buffer);
+  CpuFeatureScope fscope(&assm, SSE2);
   __ mov(eax, Operand(esp, 4));
   __ cvtsi2sd(xmm0, eax);
   // Copy xmm0 to st(0) using eight bytes of stack.

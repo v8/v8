@@ -3048,7 +3048,7 @@ void FullCodeGenerator::EmitRandomHeapNumber(CallRuntime* expr) {
     __ lw(a0, FieldMemOperand(a0, GlobalObject::kNativeContextOffset));
     __ CallCFunction(ExternalReference::random_uint32_function(isolate()), 1);
 
-    CpuFeatures::Scope scope(FPU);
+    CpuFeatureScope scope(masm(), FPU);
     // 0x41300000 is the top half of 1.0 x 2^20 as a double.
     __ li(a1, Operand(0x41300000));
     // Move 0x41300000xxxxxxxx (x = random bits in v0) to FPU.

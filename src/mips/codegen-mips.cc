@@ -72,7 +72,7 @@ UnaryMathFunction CreateExpFunction() {
   MacroAssembler masm(NULL, buffer, static_cast<int>(actual_size));
 
   {
-    CpuFeatures::Scope use_fpu(FPU);
+    CpuFeatureScope use_fpu(&masm, FPU);
     DoubleRegister input = f12;
     DoubleRegister result = f0;
     DoubleRegister double_scratch1 = f4;
@@ -278,7 +278,7 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
 
   // Normal smi, convert to double and store.
   if (fpu_supported) {
-    CpuFeatures::Scope scope(FPU);
+    CpuFeatureScope scope(masm, FPU);
     __ mtc1(t5, f0);
     __ cvt_d_w(f0, f0);
     __ sdc1(f0, MemOperand(t3));

@@ -505,10 +505,10 @@ class Displacement BASE_EMBEDDED {
 
 
 // CpuFeatures keeps track of which features are supported by the target CPU.
-// Supported features must be enabled by a Scope before use.
+// Supported features must be enabled by a CpuFeatureScope before use.
 // Example:
-//   if (CpuFeatures::IsSupported(SSE2)) {
-//     CpuFeatures::Scope fscope(SSE2);
+//   if (assembler->IsSupported(SSE2)) {
+//     CpuFeatureScope fscope(assembler, SSE2);
 //     // Generate SSE2 floating point code.
 //   } else {
 //     // Generate standard x87 floating point code.
@@ -530,54 +530,11 @@ class CpuFeatures : public AllStatic {
     return (supported_ & (static_cast<uint64_t>(1) << f)) != 0;
   }
 
-#ifdef DEBUG
-  // Check whether a feature is currently enabled.
-  static bool IsEnabled(CpuFeature f) {
+  static bool IsFoundByRuntimeProbingOnly(CpuFeature f) {
     ASSERT(initialized_);
-    Isolate* isolate = Isolate::UncheckedCurrent();
-    if (isolate == NULL) {
-      // When no isolate is available, work as if we're running in
-      // release mode.
-      return IsSupported(f);
-    }
-    uint64_t enabled = isolate->enabled_cpu_features();
-    return (enabled & (static_cast<uint64_t>(1) << f)) != 0;
+    return (found_by_runtime_probing_only_ &
+            (static_cast<uint64_t>(1) << f)) != 0;
   }
-#endif
-
-  // Enable a specified feature within a scope.
-  class Scope BASE_EMBEDDED {
-#ifdef DEBUG
-
-   public:
-    explicit Scope(CpuFeature f) {
-      uint64_t mask = static_cast<uint64_t>(1) << f;
-      ASSERT(CpuFeatures::IsSupported(f));
-      ASSERT(!Serializer::enabled() ||
-             (CpuFeatures::found_by_runtime_probing_ & mask) == 0);
-      isolate_ = Isolate::UncheckedCurrent();
-      old_enabled_ = 0;
-      if (isolate_ != NULL) {
-        old_enabled_ = isolate_->enabled_cpu_features();
-        isolate_->set_enabled_cpu_features(old_enabled_ | mask);
-      }
-    }
-    ~Scope() {
-      ASSERT_EQ(Isolate::UncheckedCurrent(), isolate_);
-      if (isolate_ != NULL) {
-        isolate_->set_enabled_cpu_features(old_enabled_);
-      }
-    }
-
-   private:
-    Isolate* isolate_;
-    uint64_t old_enabled_;
-#else
-
-   public:
-    explicit Scope(CpuFeature f) {}
-#endif
-  };
 
   class TryForceFeatureScope BASE_EMBEDDED {
    public:
@@ -610,7 +567,7 @@ class CpuFeatures : public AllStatic {
   static bool initialized_;
 #endif
   static uint64_t supported_;
-  static uint64_t found_by_runtime_probing_;
+  static uint64_t found_by_runtime_probing_only_;
 
   friend class ExternalReference;
   DISALLOW_COPY_AND_ASSIGN(CpuFeatures);

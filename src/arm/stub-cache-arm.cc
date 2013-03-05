@@ -1004,7 +1004,7 @@ static void StoreIntAsFloat(MacroAssembler* masm,
                             Register scratch1,
                             Register scratch2) {
   if (CpuFeatures::IsSupported(VFP2)) {
-    CpuFeatures::Scope scope(VFP2);
+    CpuFeatureScope scope(masm, VFP2);
     __ vmov(s0, ival);
     __ add(scratch1, dst, Operand(wordoffset, LSL, 2));
     __ vcvt_f32_s32(s0, s0);
@@ -2118,7 +2118,7 @@ Handle<Code> CallStubCompiler::CompileMathFloorCall(
     return Handle<Code>::null();
   }
 
-  CpuFeatures::Scope scope_vfp2(VFP2);
+  CpuFeatureScope scope_vfp2(masm(), VFP2);
   const int argc = arguments().immediate();
   // If the object is not a JSObject or we got an unexpected number of
   // arguments, bail out to the regular call.
@@ -3379,7 +3379,7 @@ static void GenerateSmiKeyCheck(MacroAssembler* masm,
                                 DwVfpRegister double_scratch1,
                                 Label* fail) {
   if (CpuFeatures::IsSupported(VFP2)) {
-    CpuFeatures::Scope scope(VFP2);
+    CpuFeatureScope scope(masm, VFP2);
     Label key_ok;
     // Check for smi or a smi inside a heap number.  We convert the heap
     // number and check if the conversion is exact and fits into the smi
@@ -3491,7 +3491,7 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
           d0, r6, r7,  // These are: double_dst, dst_mantissa, dst_exponent.
           r4, s2);  // These are: scratch2, single_scratch.
       if (destination == FloatingPointHelper::kVFPRegisters) {
-        CpuFeatures::Scope scope(VFP2);
+        CpuFeatureScope scope(masm, VFP2);
         __ vstr(d0, r3, 0);
       } else {
         __ str(r6, MemOperand(r3, 0));
@@ -3527,7 +3527,7 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
     // +/-Infinity into integer arrays basically undefined. For more
     // reproducible behavior, convert these to zero.
     if (CpuFeatures::IsSupported(VFP2)) {
-      CpuFeatures::Scope scope(VFP2);
+      CpuFeatureScope scope(masm, VFP2);
 
       if (elements_kind == EXTERNAL_FLOAT_ELEMENTS) {
         // vldr requires offset to be a multiple of 4 so we can not

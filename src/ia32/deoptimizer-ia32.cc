@@ -977,7 +977,7 @@ void Deoptimizer::EntryGenerator::Generate() {
                               XMMRegister::kNumAllocatableRegisters;
   __ sub(esp, Immediate(kDoubleRegsSize));
   if (CpuFeatures::IsSupported(SSE2)) {
-    CpuFeatures::Scope scope(SSE2);
+    CpuFeatureScope scope(masm(), SSE2);
     for (int i = 0; i < XMMRegister::kNumAllocatableRegisters; ++i) {
       XMMRegister xmm_reg = XMMRegister::FromAllocationIndex(i);
       int offset = i * kDoubleSize;
@@ -1032,7 +1032,7 @@ void Deoptimizer::EntryGenerator::Generate() {
 
   int double_regs_offset = FrameDescription::double_registers_offset();
   if (CpuFeatures::IsSupported(SSE2)) {
-    CpuFeatures::Scope scope(SSE2);
+    CpuFeatureScope scope(masm(), SSE2);
     // Fill in the double input registers.
     for (int i = 0; i < XMMRegister::kNumAllocatableRegisters; ++i) {
       int dst_offset = i * kDoubleSize + double_regs_offset;
@@ -1133,7 +1133,7 @@ void Deoptimizer::EntryGenerator::Generate() {
 
   // In case of OSR or a failed STUB, we have to restore the XMM registers.
   if (CpuFeatures::IsSupported(SSE2)) {
-    CpuFeatures::Scope scope(SSE2);
+    CpuFeatureScope scope(masm(), SSE2);
     for (int i = 0; i < XMMRegister::kNumAllocatableRegisters; ++i) {
       XMMRegister xmm_reg = XMMRegister::FromAllocationIndex(i);
       int src_offset = i * kDoubleSize + double_regs_offset;

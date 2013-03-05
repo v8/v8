@@ -260,7 +260,7 @@ bool LCodeGen::GeneratePrologue() {
 
     if (info()->saves_caller_doubles() && CpuFeatures::IsSupported(SSE2)) {
       Comment(";;; Save clobbered callee double registers");
-      CpuFeatures::Scope scope(SSE2);
+      CpuFeatureScope scope(masm(), SSE2);
       int count = 0;
       BitVector* doubles = chunk()->allocated_double_registers();
       BitVector::Iterator save_iterator(doubles);
@@ -1695,8 +1695,8 @@ void LCodeGen::DoConstantD(LConstantD* instr) {
     int32_t lower = static_cast<int32_t>(int_val);
     int32_t upper = static_cast<int32_t>(int_val >> (kBitsPerInt));
     if (CpuFeatures::IsSupported(SSE4_1)) {
-      CpuFeatures::Scope scope1(SSE2);
-      CpuFeatures::Scope scope2(SSE4_1);
+      CpuFeatureScope scope1(masm(), SSE2);
+      CpuFeatureScope scope2(masm(), SSE4_1);
       if (lower != 0) {
         __ Set(temp, Immediate(lower));
         __ movd(res, Operand(temp));
@@ -1708,7 +1708,7 @@ void LCodeGen::DoConstantD(LConstantD* instr) {
         __ pinsrd(res, Operand(temp), 1);
       }
     } else {
-      CpuFeatures::Scope scope(SSE2);
+      CpuFeatureScope scope(masm(), SSE2);
       __ Set(temp, Immediate(upper));
       __ movd(res, Operand(temp));
       __ psllq(res, 32);
@@ -1871,7 +1871,7 @@ void LCodeGen::DoAddI(LAddI* instr) {
 
 
 void LCodeGen::DoMathMinMax(LMathMinMax* instr) {
-  CpuFeatures::Scope scope(SSE2);
+  CpuFeatureScope scope(masm(), SSE2);
   LOperand* left = instr->left();
   LOperand* right = instr->right();
   ASSERT(left->Equals(instr->result()));
@@ -1933,7 +1933,7 @@ void LCodeGen::DoMathMinMax(LMathMinMax* instr) {
 
 
 void LCodeGen::DoArithmeticD(LArithmeticD* instr) {
-  CpuFeatures::Scope scope(SSE2);
+  CpuFeatureScope scope(masm(), SSE2);
   XMMRegister left = ToDoubleRegister(instr->left());
   XMMRegister right = ToDoubleRegister(instr->right());
   XMMRegister result = ToDoubleRegister(instr->result());
@@ -2018,7 +2018,7 @@ void LCodeGen::EmitBranch(int left_block, int right_block, Condition cc) {
 void LCodeGen::DoBranch(LBranch* instr) {
   int true_block = chunk_->LookupDestination(instr->true_block_id());
   int false_block = chunk_->LookupDestination(instr->false_block_id());
-  CpuFeatures::Scope scope(SSE2);
+  CpuFeatureScope scope(masm(), SSE2);
 
   Representation r = instr->hydrogen()->value()->representation();
   if (r.IsInteger32()) {
@@ -2188,7 +2188,7 @@ void LCodeGen::DoCmpIDAndBranch(LCmpIDAndBranch* instr) {
     EmitGoto(next_block);
   } else {
     if (instr->is_double()) {
-      CpuFeatures::Scope scope(SSE2);
+      CpuFeatureScope scope(masm(), SSE2);
       // Don't base result on EFLAGS when a NaN is involved. Instead
       // jump to the false block.
       __ ucomisd(ToDoubleRegister(left), ToDoubleRegister(right));
@@ -2706,7 +2706,7 @@ void LCodeGen::DoReturn(LReturn* instr) {
   }
   if (info()->saves_caller_doubles() && CpuFeatures::IsSupported(SSE2)) {
     ASSERT(NeedsEagerFrame());
-    CpuFeatures::Scope scope(SSE2);
+    CpuFeatureScope scope(masm(), SSE2);
     BitVector* doubles = chunk()->allocated_double_registers();
     BitVector::Iterator save_iterator(doubles);
     int count = 0;
@@ -3119,7 +3119,7 @@ void LCodeGen::DoLoadKeyedExternalArray(LLoadKeyed* instr) {
       instr->additional_index()));
   if (elements_kind == EXTERNAL_FLOAT_ELEMENTS) {
     if (CpuFeatures::IsSupported(SSE2)) {
-      CpuFeatures::Scope scope(SSE2);
+      CpuFeatureScope scope(masm(), SSE2);
       XMMRegister result(ToDoubleRegister(instr->result()));
       __ movss(result, operand);
       __ cvtss2sd(result, result);
@@ -3129,7 +3129,7 @@ void LCodeGen::DoLoadKeyedExternalArray(LLoadKeyed* instr) {
     }
   } else if (elements_kind == EXTERNAL_DOUBLE_ELEMENTS) {
     if (CpuFeatures::IsSupported(SSE2)) {
-      CpuFeatures::Scope scope(SSE2);
+      CpuFeatureScope scope(masm(), SSE2);
       __ movdbl(ToDoubleRegister(instr->result()), operand);
     } else {
       __ fld_d(operand);
@@ -3223,7 +3223,7 @@ void LCodeGen::DoLoadKeyedFixedDoubleArray(LLoadKeyed* instr) {
       FixedDoubleArray::kHeaderSize - kHeapObjectTag,
       instr->additional_index());
   if (CpuFeatures::IsSupported(SSE2)) {
-    CpuFeatures::Scope scope(SSE2);
+    CpuFeatureScope scope(masm(), SSE2);
     XMMRegister result = ToDoubleRegister(instr->result());
     __ movdbl(result, double_load_operand);
   } else {
@@ -3647,7 +3647,7 @@ void LCodeGen::DoMathAbs(LUnaryMathOperation* instr) {
   ASSERT(instr->value()->Equals(instr->result()));
   Representation r = instr->hydrogen()->value()->representation();
 
-  CpuFeatures::Scope scope(SSE2);
+  CpuFeatureScope scope(masm(), SSE2);
   if (r.IsDouble()) {
     XMMRegister  scratch = xmm0;
     XMMRegister input_reg = ToDoubleRegister(instr->value());
@@ -3669,13 +3669,13 @@ void LCodeGen::DoMathAbs(LUnaryMathOperation* instr) {
 
 
 void LCodeGen::DoMathFloor(LUnaryMathOperation* instr) {
-  CpuFeatures::Scope scope(SSE2);
+  CpuFeatureScope scope(masm(), SSE2);
   XMMRegister xmm_scratch = xmm0;
   Register output_reg = ToRegister(instr->result());
   XMMRegister input_reg = ToDoubleRegister(instr->value());
 
   if (CpuFeatures::IsSupported(SSE4_1)) {
-    CpuFeatures::Scope scope(SSE4_1);
+    CpuFeatureScope scope(masm(), SSE4_1);
     if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
       // Deoptimize on negative zero.
       Label non_zero;
@@ -3734,7 +3734,7 @@ void LCodeGen::DoMathFloor(LUnaryMathOperation* instr) {
 }
 
 void LCodeGen::DoMathRound(LMathRound* instr) {
-  CpuFeatures::Scope scope(SSE2);
+  CpuFeatureScope scope(masm(), SSE2);
   Register output_reg = ToRegister(instr->result());
   XMMRegister input_reg = ToDoubleRegister(instr->value());
   XMMRegister xmm_scratch = xmm0;
@@ -3795,7 +3795,7 @@ void LCodeGen::DoMathRound(LMathRound* instr) {
 
 
 void LCodeGen::DoMathSqrt(LUnaryMathOperation* instr) {
-  CpuFeatures::Scope scope(SSE2);
+  CpuFeatureScope scope(masm(), SSE2);
   XMMRegister input_reg = ToDoubleRegister(instr->value());
   ASSERT(ToDoubleRegister(instr->result()).is(input_reg));
   __ sqrtsd(input_reg, input_reg);
@@ -3803,7 +3803,7 @@ void LCodeGen::DoMathSqrt(LUnaryMathOperation* instr) {
 
 
 void LCodeGen::DoMathPowHalf(LMathPowHalf* instr) {
-  CpuFeatures::Scope scope(SSE2);
+  CpuFeatureScope scope(masm(), SSE2);
   XMMRegister xmm_scratch = xmm0;
   XMMRegister input_reg = ToDoubleRegister(instr->value());
   Register scratch = ToRegister(instr->temp());
@@ -3880,7 +3880,7 @@ void LCodeGen::DoRandom(LRandom* instr) {
 
   DeferredDoRandom* deferred = new(zone()) DeferredDoRandom(this, instr);
 
-  CpuFeatures::Scope scope(SSE2);
+  CpuFeatureScope scope(masm(), SSE2);
   // Having marked this instruction as a call we can use any
   // registers.
   ASSERT(ToDoubleRegister(instr->result()).is(xmm1));
@@ -3948,7 +3948,7 @@ void LCodeGen::DoDeferredRandom(LRandom* instr) {
 
 
 void LCodeGen::DoMathLog(LUnaryMathOperation* instr) {
-  CpuFeatures::Scope scope(SSE2);
+  CpuFeatureScope scope(masm(), SSE2);
   ASSERT(instr->value()->Equals(instr->result()));
   XMMRegister input_reg = ToDoubleRegister(instr->value());
   Label positive, done, zero;
@@ -3980,7 +3980,7 @@ void LCodeGen::DoMathLog(LUnaryMathOperation* instr) {
 
 
 void LCodeGen::DoMathExp(LMathExp* instr) {
-  CpuFeatures::Scope scope(SSE2);
+  CpuFeatureScope scope(masm(), SSE2);
   XMMRegister input = ToDoubleRegister(instr->value());
   XMMRegister result = ToDoubleRegister(instr->result());
   Register temp1 = ToRegister(instr->temp1());
@@ -4270,11 +4270,11 @@ void LCodeGen::DoStoreKeyedExternalArray(LStoreKeyed* instr) {
       0,
       instr->additional_index()));
   if (elements_kind == EXTERNAL_FLOAT_ELEMENTS) {
-    CpuFeatures::Scope scope(SSE2);
+    CpuFeatureScope scope(masm(), SSE2);
     __ cvtsd2ss(xmm0, ToDoubleRegister(instr->value()));
     __ movss(operand, xmm0);
   } else if (elements_kind == EXTERNAL_DOUBLE_ELEMENTS) {
-    CpuFeatures::Scope scope(SSE2);
+    CpuFeatureScope scope(masm(), SSE2);
     __ movdbl(operand, ToDoubleRegister(instr->value()));
   } else {
     Register value = ToRegister(instr->value());
@@ -4310,7 +4310,7 @@ void LCodeGen::DoStoreKeyedExternalArray(LStoreKeyed* instr) {
 
 
 void LCodeGen::DoStoreKeyedFixedDoubleArray(LStoreKeyed* instr) {
-  CpuFeatures::Scope scope(SSE2);
+  CpuFeatureScope scope(masm(), SSE2);
   XMMRegister value = ToDoubleRegister(instr->value());
 
   if (instr->NeedsCanonicalization()) {
@@ -4585,7 +4585,7 @@ void LCodeGen::DoStringAdd(LStringAdd* instr) {
 
 void LCodeGen::DoInteger32ToDouble(LInteger32ToDouble* instr) {
   if (CpuFeatures::IsSupported(SSE2)) {
-    CpuFeatures::Scope scope(SSE2);
+    CpuFeatureScope scope(masm(), SSE2);
     LOperand* input = instr->value();
     ASSERT(input->IsRegister() || input->IsStackSlot());
     LOperand* output = instr->result();
@@ -4598,7 +4598,7 @@ void LCodeGen::DoInteger32ToDouble(LInteger32ToDouble* instr) {
 
 
 void LCodeGen::DoUint32ToDouble(LUint32ToDouble* instr) {
-  CpuFeatures::Scope scope(SSE2);
+  CpuFeatureScope scope(masm(), SSE2);
   LOperand* input = instr->value();
   LOperand* output = instr->result();
   LOperand* temp = instr->temp();
@@ -4677,7 +4677,7 @@ void LCodeGen::DoDeferredNumberTagI(LInstruction* instr,
     __ SmiUntag(reg);
     __ xor_(reg, 0x80000000);
     if (CpuFeatures::IsSupported(SSE2)) {
-      CpuFeatures::Scope feature_scope(SSE2);
+      CpuFeatureScope feature_scope(masm(), SSE2);
       __ cvtsi2sd(xmm0, Operand(reg));
     } else {
       __ push(reg);
@@ -4686,7 +4686,7 @@ void LCodeGen::DoDeferredNumberTagI(LInstruction* instr,
     }
   } else {
     if (CpuFeatures::IsSupported(SSE2)) {
-      CpuFeatures::Scope feature_scope(SSE2);
+      CpuFeatureScope feature_scope(masm(), SSE2);
       __ LoadUint32(xmm0, reg, xmm1);
     } else {
       // There's no fild variant for unsigned values, so zero-extend to a 64-bit
@@ -4726,7 +4726,7 @@ void LCodeGen::DoDeferredNumberTagI(LInstruction* instr,
   // number.
   __ bind(&done);
   if (CpuFeatures::IsSupported(SSE2)) {
-    CpuFeatures::Scope feature_scope(SSE2);
+    CpuFeatureScope feature_scope(masm(), SSE2);
     __ movdbl(FieldOperand(reg, HeapNumber::kValueOffset), xmm0);
   } else {
     __ fstp_d(FieldOperand(reg, HeapNumber::kValueOffset));
@@ -4760,7 +4760,7 @@ void LCodeGen::DoNumberTagD(LNumberTagD* instr) {
   if (convert_hole) {
     bool use_sse2 = CpuFeatures::IsSupported(SSE2);
     if (use_sse2) {
-      CpuFeatures::Scope scope(SSE2);
+      CpuFeatureScope scope(masm(), SSE2);
       XMMRegister input_reg = ToDoubleRegister(instr->value());
       __ ucomisd(input_reg, input_reg);
     } else {
@@ -4775,7 +4775,7 @@ void LCodeGen::DoNumberTagD(LNumberTagD* instr) {
     __ j(parity_odd, &no_special_nan_handling);
     __ sub(esp, Immediate(kDoubleSize));
     if (use_sse2) {
-      CpuFeatures::Scope scope(SSE2);
+      CpuFeatureScope scope(masm(), SSE2);
       XMMRegister input_reg = ToDoubleRegister(instr->value());
       __ movdbl(MemOperand(esp, 0), input_reg);
     } else {
@@ -4794,7 +4794,7 @@ void LCodeGen::DoNumberTagD(LNumberTagD* instr) {
     ExternalReference nan =
         ExternalReference::address_of_canonical_non_hole_nan();
     if (use_sse2) {
-      CpuFeatures::Scope scope(SSE2);
+      CpuFeatureScope scope(masm(), SSE2);
       XMMRegister input_reg = ToDoubleRegister(instr->value());
       __ movdbl(input_reg, Operand::StaticVariable(nan));
     } else {
@@ -4813,7 +4813,7 @@ void LCodeGen::DoNumberTagD(LNumberTagD* instr) {
   }
   __ bind(deferred->exit());
   if (CpuFeatures::IsSupported(SSE2)) {
-    CpuFeatures::Scope scope(SSE2);
+    CpuFeatureScope scope(masm(), SSE2);
     XMMRegister input_reg = ToDoubleRegister(instr->value());
     __ movdbl(FieldOperand(reg, HeapNumber::kValueOffset), input_reg);
   } else {
@@ -4956,7 +4956,7 @@ void LCodeGen::DoDeferredTaggedToI(LTaggedToI* instr) {
 
     __ bind(&heap_number);
     if (CpuFeatures::IsSupported(SSE3)) {
-      CpuFeatures::Scope scope(SSE3);
+      CpuFeatureScope scope(masm(), SSE3);
       Label convert;
       // Use more powerful conversion when sse3 is available.
       // Load x87 register with heap number.
@@ -4981,7 +4981,7 @@ void LCodeGen::DoDeferredTaggedToI(LTaggedToI* instr) {
       __ mov(input_reg, Operand(esp, 0));  // Low word of answer is the result.
       __ add(Operand(esp), Immediate(kDoubleSize));
     } else {
-      CpuFeatures::Scope scope(SSE2);
+      CpuFeatureScope scope(masm(), SSE2);
       XMMRegister xmm_temp = ToDoubleRegister(instr->temp());
       __ movdbl(xmm0, FieldOperand(input_reg, HeapNumber::kValueOffset));
       __ cvttsd2si(input_reg, Operand(xmm0));
@@ -4996,7 +4996,7 @@ void LCodeGen::DoDeferredTaggedToI(LTaggedToI* instr) {
       DeoptimizeIf(parity_even, instr->environment());  // NaN.
     }
   } else if (CpuFeatures::IsSupported(SSE2)) {
-    CpuFeatures::Scope scope(SSE2);
+    CpuFeatureScope scope(masm(), SSE2);
     // Deoptimize if we don't have a heap number.
     __ RecordComment("Deferred TaggedToI: not a heap number");
     DeoptimizeIf(not_equal, instr->environment());
@@ -5063,7 +5063,7 @@ void LCodeGen::DoNumberUntagD(LNumberUntagD* instr) {
   ASSERT(result->IsDoubleRegister());
 
   if (CpuFeatures::IsSupported(SSE2)) {
-    CpuFeatures::Scope scope(SSE2);
+    CpuFeatureScope scope(masm(), SSE2);
     Register input_reg = ToRegister(input);
     XMMRegister result_reg = ToDoubleRegister(result);
 
@@ -5106,7 +5106,7 @@ void LCodeGen::DoDoubleToI(LDoubleToI* instr) {
   ASSERT(input->IsDoubleRegister());
   LOperand* result = instr->result();
   ASSERT(result->IsRegister());
-  CpuFeatures::Scope scope(SSE2);
+  CpuFeatureScope scope(masm(), SSE2);
 
   XMMRegister input_reg = ToDoubleRegister(input);
   Register result_reg = ToRegister(result);
@@ -5118,7 +5118,7 @@ void LCodeGen::DoDoubleToI(LDoubleToI* instr) {
     __ cmp(result_reg, 0x80000000u);
     if (CpuFeatures::IsSupported(SSE3)) {
       // This will deoptimize if the exponent of the input in out of range.
-      CpuFeatures::Scope scope(SSE3);
+      CpuFeatureScope scope(masm(), SSE3);
       Label convert, done;
       __ j(not_equal, &done, Label::kNear);
       __ sub(Operand(esp), Immediate(kDoubleSize));
@@ -5323,7 +5323,7 @@ void LCodeGen::DoCheckMaps(LCheckMaps* instr) {
 
 
 void LCodeGen::DoClampDToUint8(LClampDToUint8* instr) {
-  CpuFeatures::Scope scope(SSE2);
+  CpuFeatureScope scope(masm(), SSE2);
   XMMRegister value_reg = ToDoubleRegister(instr->unclamped());
   Register result_reg = ToRegister(instr->result());
   __ ClampDoubleToUint8(value_reg, xmm0, result_reg);
@@ -5338,7 +5338,7 @@ void LCodeGen::DoClampIToUint8(LClampIToUint8* instr) {
 
 
 void LCodeGen::DoClampTToUint8(LClampTToUint8* instr) {
-  CpuFeatures::Scope scope(SSE2);
+  CpuFeatureScope scope(masm(), SSE2);
 
   ASSERT(instr->unclamped()->Equals(instr->result()));
   Register input_reg = ToRegister(instr->unclamped());

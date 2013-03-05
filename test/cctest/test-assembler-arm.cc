@@ -252,7 +252,7 @@ TEST(4) {
 
 
   if (CpuFeatures::IsSupported(VFP3)) {
-    CpuFeatures::Scope scope(VFP3);
+    CpuFeatureScope scope(&assm, VFP3);
 
     __ mov(ip, Operand(sp));
     __ stm(db_w, sp, r4.bit() | fp.bit() | lr.bit());
@@ -370,7 +370,7 @@ TEST(5) {
   Assembler assm(isolate, NULL, 0);
 
   if (CpuFeatures::IsSupported(ARMv7)) {
-    CpuFeatures::Scope scope(ARMv7);
+    CpuFeatureScope scope(&assm, ARMv7);
     // On entry, r0 = 0xAAAAAAAA = 0b10..10101010.
     __ ubfx(r0, r0, 1, 12);  // 0b00..010101010101 = 0x555
     __ sbfx(r0, r0, 0, 5);   // 0b11..111111110101 = -11
@@ -407,7 +407,7 @@ TEST(6) {
   Assembler assm(isolate, NULL, 0);
 
   if (CpuFeatures::IsSupported(ARMv7)) {
-    CpuFeatures::Scope scope(ARMv7);
+    CpuFeatureScope scope(&assm, ARMv7);
     __ usat(r1, 8, Operand(r0));           // Sat 0xFFFF to 0-255 = 0xFF.
     __ usat(r2, 12, Operand(r0, ASR, 9));  // Sat (0xFFFF>>9) to 0-4095 = 0x7F.
     __ usat(r3, 1, Operand(r0, LSL, 16));  // Sat (0xFFFF<<16) to 0-1 = 0x0.
@@ -451,7 +451,7 @@ static void TestRoundingMode(VCVTTypes types,
   Assembler assm(isolate, NULL, 0);
 
   if (CpuFeatures::IsSupported(VFP3)) {
-    CpuFeatures::Scope scope(VFP3);
+    CpuFeatureScope scope(&assm, VFP3);
 
     Label wrong_exception;
 
@@ -655,7 +655,7 @@ TEST(8) {
   Assembler assm(isolate, NULL, 0);
 
   if (CpuFeatures::IsSupported(VFP2)) {
-    CpuFeatures::Scope scope(VFP2);
+    CpuFeatureScope scope(&assm, VFP2);
 
     __ mov(ip, Operand(sp));
     __ stm(db_w, sp, r4.bit() | fp.bit() | lr.bit());
@@ -767,7 +767,7 @@ TEST(9) {
   Assembler assm(isolate, NULL, 0);
 
   if (CpuFeatures::IsSupported(VFP2)) {
-    CpuFeatures::Scope scope(VFP2);
+    CpuFeatureScope scope(&assm, VFP2);
 
     __ mov(ip, Operand(sp));
     __ stm(db_w, sp, r4.bit() | fp.bit() | lr.bit());
@@ -883,7 +883,7 @@ TEST(10) {
   Assembler assm(isolate, NULL, 0);
 
   if (CpuFeatures::IsSupported(VFP2)) {
-    CpuFeatures::Scope scope(VFP2);
+    CpuFeatureScope scope(&assm, VFP2);
 
     __ mov(ip, Operand(sp));
     __ stm(db_w, sp, r4.bit() | fp.bit() | lr.bit());
@@ -1070,7 +1070,7 @@ TEST(13) {
 
 
   if (CpuFeatures::IsSupported(VFP3)) {
-    CpuFeatures::Scope scope(VFP3);
+    CpuFeatureScope scope(&assm, VFP3);
 
     __ stm(db_w, sp, r4.bit() | lr.bit());
 

@@ -424,7 +424,7 @@ TEST(Vfp) {
   SET_UP();
 
   if (CpuFeatures::IsSupported(VFP3)) {
-    CpuFeatures::Scope scope(VFP3);
+    CpuFeatureScope scope(&assm, VFP3);
     COMPARE(vmov(d0, r2, r3),
             "ec432b10       vmov d0, r2, r3");
     COMPARE(vmov(r2, r3, d0),
@@ -834,7 +834,7 @@ TEST(LoadStore) {
           "e7210002       str r0, [r1, -r2]!");
 
   if (CpuFeatures::IsSupported(ARMv7)) {
-    CpuFeatures::Scope scope(ARMv7);
+    CpuFeatureScope scope(&assm, ARMv7);
     COMPARE(ldrd(r0, r1, MemOperand(r1)),
             "e1c100d0       ldrd r0, [r1, #+0]");
     COMPARE(ldrd(r2, r3, MemOperand(r3, 127)),

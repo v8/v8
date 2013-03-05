@@ -998,7 +998,7 @@ static void StoreIntAsFloat(MacroAssembler* masm,
                             Register scratch1,
                             Register scratch2) {
   if (CpuFeatures::IsSupported(FPU)) {
-    CpuFeatures::Scope scope(FPU);
+    CpuFeatureScope scope(masm, FPU);
     __ mtc1(ival, f0);
     __ cvt_s_w(f0, f0);
     __ sll(scratch1, wordoffset, 2);
@@ -2108,7 +2108,7 @@ Handle<Code> CallStubCompiler::CompileMathFloorCall(
     return Handle<Code>::null();
   }
 
-  CpuFeatures::Scope scope_fpu(FPU);
+  CpuFeatureScope scope_fpu(masm(), FPU);
   const int argc = arguments().immediate();
   // If the object is not a JSObject or we got an unexpected number of
   // arguments, bail out to the regular call.
@@ -3353,7 +3353,7 @@ static void GenerateSmiKeyCheck(MacroAssembler* masm,
                                 FPURegister double_scratch1,
                                 Label* fail) {
   if (CpuFeatures::IsSupported(FPU)) {
-    CpuFeatures::Scope scope(FPU);
+    CpuFeatureScope scope(masm, FPU);
     Label key_ok;
     // Check for smi or a smi inside a heap number.  We convert the heap
     // number and check if the conversion is exact and fits into the smi
@@ -3489,7 +3489,7 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
           f0, t2, t3,  // These are: double_dst, dst_mantissa, dst_exponent.
           t0, f2);  // These are: scratch2, single_scratch.
       if (destination == FloatingPointHelper::kFPURegisters) {
-        CpuFeatures::Scope scope(FPU);
+        CpuFeatureScope scope(masm(), FPU);
         __ sdc1(f0, MemOperand(a3, 0));
       } else {
         __ sw(t2, MemOperand(a3, 0));
@@ -3527,7 +3527,7 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
     // reproducible behavior, convert these to zero.
 
     if (CpuFeatures::IsSupported(FPU)) {
-      CpuFeatures::Scope scope(FPU);
+      CpuFeatureScope scope(masm, FPU);
 
       __ ldc1(f0, FieldMemOperand(a0, HeapNumber::kValueOffset));
 

@@ -651,7 +651,7 @@ void FloatingPointHelper::LoadSmis(MacroAssembler* masm,
                                    Register scratch1,
                                    Register scratch2) {
   if (CpuFeatures::IsSupported(VFP2)) {
-    CpuFeatures::Scope scope(VFP2);
+    CpuFeatureScope scope(masm, VFP2);
     __ mov(scratch1, Operand(r0, ASR, kSmiTagSize));
     __ vmov(d7.high(), scratch1);
     __ vcvt_f64_s32(d7, d7.high());
@@ -702,7 +702,7 @@ void FloatingPointHelper::LoadNumber(MacroAssembler* masm,
   // Handle loading a double from a heap number.
   if (CpuFeatures::IsSupported(VFP2) &&
       destination == kVFPRegisters) {
-    CpuFeatures::Scope scope(VFP2);
+    CpuFeatureScope scope(masm, VFP2);
     // Load the double from tagged HeapNumber to double register.
     __ sub(scratch1, object, Operand(kHeapObjectTag));
     __ vldr(dst, scratch1, HeapNumber::kValueOffset);
@@ -716,7 +716,7 @@ void FloatingPointHelper::LoadNumber(MacroAssembler* masm,
   // Handle loading a double from a smi.
   __ bind(&is_smi);
   if (CpuFeatures::IsSupported(VFP2)) {
-    CpuFeatures::Scope scope(VFP2);
+    CpuFeatureScope scope(masm, VFP2);
     // Convert smi to double using VFP instructions.
     __ vmov(dst.high(), scratch1);
     __ vcvt_f64_s32(dst, dst.high());
@@ -792,7 +792,7 @@ void FloatingPointHelper::ConvertIntToDouble(MacroAssembler* masm,
   Label done;
 
   if (CpuFeatures::IsSupported(VFP2)) {
-    CpuFeatures::Scope scope(VFP2);
+    CpuFeatureScope scope(masm, VFP2);
     __ vmov(single_scratch, int_scratch);
     __ vcvt_f64_s32(double_dst, single_scratch);
     if (destination == kCoreRegisters) {
@@ -886,7 +886,7 @@ void FloatingPointHelper::LoadNumberAsInt32Double(MacroAssembler* masm,
 
   // Load the number.
   if (CpuFeatures::IsSupported(VFP2)) {
-    CpuFeatures::Scope scope(VFP2);
+    CpuFeatureScope scope(masm, VFP2);
     // Load the double value.
     __ sub(scratch1, object, Operand(kHeapObjectTag));
     __ vldr(double_dst, scratch1, HeapNumber::kValueOffset);
@@ -983,7 +983,7 @@ void FloatingPointHelper::LoadNumberAsInt32(MacroAssembler* masm,
   // Object is a heap number.
   // Convert the floating point value to a 32-bit integer.
   if (CpuFeatures::IsSupported(VFP2)) {
-    CpuFeatures::Scope scope(VFP2);
+    CpuFeatureScope scope(masm, VFP2);
 
     // Load the double value.
     __ sub(scratch1, object, Operand(kHeapObjectTag));
@@ -1118,7 +1118,7 @@ void FloatingPointHelper::CallCCodeForDoubleOperation(
   __ push(lr);
   __ PrepareCallCFunction(0, 2, scratch);
   if (masm->use_eabi_hardfloat()) {
-    CpuFeatures::Scope scope(VFP2);
+    CpuFeatureScope scope(masm, VFP2);
     __ vmov(d0, r0, r1);
     __ vmov(d1, r2, r3);
   }
@@ -1130,7 +1130,7 @@ void FloatingPointHelper::CallCCodeForDoubleOperation(
   // Store answer in the overwritable heap number. Double returned in
   // registers r0 and r1 or in d0.
   if (masm->use_eabi_hardfloat()) {
-    CpuFeatures::Scope scope(VFP2);
+    CpuFeatureScope scope(masm, VFP2);
     __ vstr(d0,
             FieldMemOperand(heap_number_result, HeapNumber::kValueOffset));
   } else {
@@ -1345,7 +1345,7 @@ static void EmitSmiNonsmiComparison(MacroAssembler* masm,
   // Lhs is a smi, rhs is a number.
   if (CpuFeatures::IsSupported(VFP2)) {
     // Convert lhs to a double in d7.
-    CpuFeatures::Scope scope(VFP2);
+    CpuFeatureScope scope(masm, VFP2);
     __ SmiToDoubleVFPRegister(lhs, d7, r7, s15);
     // Load the double from rhs, tagged HeapNumber r0, to d6.
     __ sub(r7, rhs, Operand(kHeapObjectTag));
@@ -1384,7 +1384,7 @@ static void EmitSmiNonsmiComparison(MacroAssembler* masm,
 
   // Rhs is a smi, lhs is a heap number.
   if (CpuFeatures::IsSupported(VFP2)) {
-    CpuFeatures::Scope scope(VFP2);
+    CpuFeatureScope scope(masm, VFP2);
     // Load the double from lhs, tagged HeapNumber r1, to d7.
     __ sub(r7, lhs, Operand(kHeapObjectTag));
     __ vldr(d7, r7, HeapNumber::kValueOffset);
@@ -1496,7 +1496,7 @@ static void EmitTwoNonNanDoubleComparison(MacroAssembler* masm,
     __ push(lr);
     __ PrepareCallCFunction(0, 2, r5);
     if (masm->use_eabi_hardfloat()) {
-      CpuFeatures::Scope scope(VFP2);
+      CpuFeatureScope scope(masm, VFP2);
       __ vmov(d0, r0, r1);
       __ vmov(d1, r2, r3);
     }
@@ -1573,7 +1573,7 @@ static void EmitCheckForTwoHeapNumbers(MacroAssembler* masm,
   // Both are heap numbers.  Load them up then jump to the code we have
   // for that.
   if (CpuFeatures::IsSupported(VFP2)) {
-    CpuFeatures::Scope scope(VFP2);
+    CpuFeatureScope scope(masm, VFP2);
     __ sub(r7, rhs, Operand(kHeapObjectTag));
     __ vldr(d6, r7, HeapNumber::kValueOffset);
     __ sub(r7, lhs, Operand(kHeapObjectTag));
@@ -1663,7 +1663,7 @@ void NumberToStringStub::GenerateLookupNumberStringCache(MacroAssembler* masm,
   if (!object_is_smi) {
     __ JumpIfSmi(object, &is_smi);
     if (CpuFeatures::IsSupported(VFP2)) {
-      CpuFeatures::Scope scope(VFP2);
+      CpuFeatureScope scope(masm, VFP2);
       __ CheckMap(object,
                   scratch1,
                   Heap::kHeapNumberMapRootIndex,
@@ -1814,7 +1814,7 @@ void ICCompareStub::GenerateGeneric(MacroAssembler* masm) {
   Isolate* isolate = masm->isolate();
   if (CpuFeatures::IsSupported(VFP2)) {
     __ bind(&lhs_not_nan);
-    CpuFeatures::Scope scope(VFP2);
+    CpuFeatureScope scope(masm, VFP2);
     Label no_nan;
     // ARMv7 VFP3 instructions to implement double precision comparison.
     __ VFPCompareAndSetFlags(d7, d6);
@@ -1994,7 +1994,7 @@ void ToBooleanStub::Generate(MacroAssembler* masm) {
     __ b(ne, &not_heap_number);
 
     if (CpuFeatures::IsSupported(VFP2)) {
-      CpuFeatures::Scope scope(VFP2);
+      CpuFeatureScope scope(masm, VFP2);
 
       __ vldr(d1, FieldMemOperand(tos_, HeapNumber::kValueOffset));
       __ VFPCompareAndSetFlags(d1, 0.0);
@@ -2094,7 +2094,7 @@ void StoreBufferOverflowStub::Generate(MacroAssembler* masm) {
   const Register scratch = r1;
 
   if (save_doubles_ == kSaveFPRegs) {
-    CpuFeatures::Scope scope(VFP2);
+    CpuFeatureScope scope(masm, VFP2);
     // Check CPU flags for number of registers, setting the Z condition flag.
     __ CheckFor32DRegs(scratch);
 
@@ -2114,7 +2114,7 @@ void StoreBufferOverflowStub::Generate(MacroAssembler* masm) {
       ExternalReference::store_buffer_overflow_function(masm->isolate()),
       argument_count);
   if (save_doubles_ == kSaveFPRegs) {
-    CpuFeatures::Scope scope(VFP2);
+    CpuFeatureScope scope(masm, VFP2);
 
     // Check CPU flags for number of registers, setting the Z condition flag.
     __ CheckFor32DRegs(scratch);
@@ -2350,7 +2350,7 @@ void UnaryOpStub::GenerateHeapNumberCodeBitNot(
 
   if (CpuFeatures::IsSupported(VFP2)) {
     // Convert the int32 in r1 to the heap number in r0. r2 is corrupted.
-    CpuFeatures::Scope scope(VFP2);
+    CpuFeatureScope scope(masm, VFP2);
     __ vmov(s0, r1);
     __ vcvt_f64_s32(d0, s0);
     __ sub(r2, r0, Operand(kHeapObjectTag));
@@ -2745,7 +2745,7 @@ void BinaryOpStub_GenerateFPOperation(MacroAssembler* masm,
         // Using VFP registers:
         // d6: Left value
         // d7: Right value
-        CpuFeatures::Scope scope(VFP2);
+        CpuFeatureScope scope(masm, VFP2);
         switch (op) {
           case Token::ADD:
             __ vadd(d5, d6, d7);
@@ -2877,7 +2877,7 @@ void BinaryOpStub_GenerateFPOperation(MacroAssembler* masm,
       if (CpuFeatures::IsSupported(VFP2)) {
         // Convert the int32 in r2 to the heap number in r0. r3 is corrupted. As
         // mentioned above SHR needs to always produce a positive result.
-        CpuFeatures::Scope scope(VFP2);
+        CpuFeatureScope scope(masm, VFP2);
         __ vmov(s0, r2);
         if (op == Token::SHR) {
           __ vcvt_f64_u32(d0, s0);
@@ -3069,7 +3069,7 @@ void BinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
                                                    &transition);
 
       if (destination == FloatingPointHelper::kVFPRegisters) {
-        CpuFeatures::Scope scope(VFP2);
+        CpuFeatureScope scope(masm, VFP2);
         Label return_heap_number;
         switch (op_) {
           case Token::ADD:
@@ -3278,7 +3278,7 @@ void BinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
                                                 mode_);
 
       if (CpuFeatures::IsSupported(VFP2)) {
-        CpuFeatures::Scope scope(VFP2);
+        CpuFeatureScope scope(masm, VFP2);
         if (op_ != Token::SHR) {
           // Convert the result to a floating point value.
           __ vmov(double_scratch.low(), r2);
@@ -3481,7 +3481,7 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
   const bool tagged = (argument_type_ == TAGGED);
 
   if (CpuFeatures::IsSupported(VFP2)) {
-    CpuFeatures::Scope scope(VFP2);
+    CpuFeatureScope scope(masm, VFP2);
     if (tagged) {
       // Argument is a number and is on stack and in r0.
       // Load argument and check if it is a smi.
@@ -3583,7 +3583,7 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
     __ TailCallExternalReference(runtime_function, 1, 1);
   } else {
     ASSERT(CpuFeatures::IsSupported(VFP2));
-    CpuFeatures::Scope scope(VFP2);
+    CpuFeatureScope scope(masm, VFP2);
 
     Label no_update;
     Label skip_cache;
@@ -3644,7 +3644,7 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
 
 void TranscendentalCacheStub::GenerateCallCFunction(MacroAssembler* masm,
                                                     Register scratch) {
-  ASSERT(CpuFeatures::IsEnabled(VFP2));
+  ASSERT(masm->IsEnabled(VFP2));
   Isolate* isolate = masm->isolate();
 
   __ push(lr);
@@ -3705,7 +3705,7 @@ void InterruptStub::Generate(MacroAssembler* masm) {
 
 
 void MathPowStub::Generate(MacroAssembler* masm) {
-  CpuFeatures::Scope vfp2_scope(VFP2);
+  CpuFeatureScope vfp2_scope(masm, VFP2);
   const Register base = r1;
   const Register exponent = r2;
   const Register heapnumbermap = r5;
@@ -3931,21 +3931,15 @@ void CodeStub::GenerateFPStubs(Isolate* isolate) {
   // These stubs might already be in the snapshot, detect that and don't
   // regenerate, which would lead to code stub initialization state being messed
   // up.
-  Code* save_doubles_code = NULL;
-  Code* store_buffer_overflow_code = NULL;
-  if (!save_doubles.FindCodeInCache(&save_doubles_code, ISOLATE)) {
-    if (CpuFeatures::IsSupported(VFP2)) {
-      CpuFeatures::Scope scope2(VFP2);
-      save_doubles_code = *save_doubles.GetCode(isolate);
-      store_buffer_overflow_code = *stub.GetCode(isolate);
-    } else {
-      save_doubles_code = *save_doubles.GetCode(isolate);
-      store_buffer_overflow_code = *stub.GetCode(isolate);
-    }
+  Code* save_doubles_code;
+  if (!save_doubles.FindCodeInCache(&save_doubles_code, isolate)) {
+    save_doubles_code = *save_doubles.GetCode(isolate);
     save_doubles_code->set_is_pregenerated(true);
+
+    Code* store_buffer_overflow_code = *stub.GetCode(isolate);
     store_buffer_overflow_code->set_is_pregenerated(true);
   }
-  ISOLATE->set_fp_stubs_generated(true);
+  isolate->set_fp_stubs_generated(true);
 }
 
 
@@ -4192,7 +4186,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   __ stm(db_w, sp, kCalleeSaved | lr.bit());
 
   if (CpuFeatures::IsSupported(VFP2)) {
-    CpuFeatures::Scope scope(VFP2);
+    CpuFeatureScope scope(masm, VFP2);
     // Save callee-saved vfp registers.
     __ vstm(db_w, sp, kFirstCalleeSavedDoubleReg, kLastCalleeSavedDoubleReg);
     // Set up the reserved register for 0.0.
@@ -4346,7 +4340,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
 #endif
 
   if (CpuFeatures::IsSupported(VFP2)) {
-    CpuFeatures::Scope scope(VFP2);
+    CpuFeatureScope scope(masm, VFP2);
     // Restore callee-saved vfp registers.
     __ vldm(ia_w, sp, kFirstCalleeSavedDoubleReg, kLastCalleeSavedDoubleReg);
   }
@@ -7090,7 +7084,7 @@ void ICCompareStub::GenerateNumbers(MacroAssembler* masm) {
   // Inlining the double comparison and falling back to the general compare
   // stub if NaN is involved or VFP2 is unsupported.
   if (CpuFeatures::IsSupported(VFP2)) {
-    CpuFeatures::Scope scope(VFP2);
+    CpuFeatureScope scope(masm, VFP2);
 
     // Load left and right operand.
     Label done, left, left_smi, right_smi;
