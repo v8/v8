@@ -2151,10 +2151,7 @@ Handle<Code> CallStubCompiler::CompileMathFloorCall(
 
   __ CheckMap(r0, r1, Heap::kHeapNumberMapRootIndex, &slow, DONT_DO_SMI_CHECK);
 
-  Label wont_fit_smi, no_vfp_exception, restore_fpscr_and_return;
-
-  // If vfp3 is enabled, we use the fpu rounding with the RM (round towards
-  // minus infinity) mode.
+  Label smi_check, just_return;
 
   // Load the HeapNumber value.
   // We will need access to the value in the core registers, so we load it
@@ -2164,72 +2161,45 @@ Handle<Code> CallStubCompiler::CompileMathFloorCall(
   __ Ldrd(r4, r5, FieldMemOperand(r0, HeapNumber::kValueOffset));
   __ vmov(d1, r4, r5);
 
-  // Backup FPSCR.
-  __ vmrs(r3);
-  // Set custom FPCSR:
-  //  - Set rounding mode to "Round towards Minus Infinity"
-  //    (i.e. bits [23:22] = 0b10).
-  //  - Clear vfp cumulative exception flags (bits [3:0]).
-  //  - Make sure Flush-to-zero mode control bit is unset (bit 22).
-  __ bic(r9, r3,
-      Operand(kVFPExceptionMask | kVFPRoundingModeMask | kVFPFlushToZeroMask));
-  __ orr(r9, r9, Operand(kRoundToMinusInf));
-  __ vmsr(r9);
-
-  // Convert the argument to an integer.
-  __ vcvt_s32_f64(s0, d1, kFPSCRRounding);
-
-  // Use vcvt latency to start checking for special cases.
-  // Get the argument exponent and clear the sign bit.
-  __ bic(r6, r5, Operand(HeapNumber::kSignMask));
-  __ mov(r6, Operand(r6, LSR, HeapNumber::kMantissaBitsInTopWord));
-
-  // Retrieve FPSCR and check for vfp exceptions.
-  __ vmrs(r9);
-  __ tst(r9, Operand(kVFPExceptionMask));
-  __ b(&no_vfp_exception, eq);
-
-  // Check for NaN, Infinity, and -Infinity.
+  // Check for NaN, Infinities and -0.
   // They are invariant through a Math.Floor call, so just
   // return the original argument.
-  __ sub(r7, r6, Operand(HeapNumber::kExponentMask
-        >> HeapNumber::kMantissaBitsInTopWord), SetCC);
-  __ b(&restore_fpscr_and_return, eq);
-  // We had an overflow or underflow in the conversion. Check if we
-  // have a big exponent.
-  __ cmp(r7, Operand(HeapNumber::kMantissaBits));
-  // If greater or equal, the argument is already round and in r0.
-  __ b(&restore_fpscr_and_return, ge);
-  __ b(&wont_fit_smi);
+  __ Sbfx(r3, r5, HeapNumber::kExponentShift, HeapNumber::kExponentBits);
+  __ cmp(r3, Operand(-1));
+  __ b(eq, &just_return);
+  __ eor(r3, r5, Operand(0x80000000u));
+  __ orr(r3, r3, r4, SetCC);
+  __ b(eq, &just_return);
+  // Test for values that can be exactly represented as a
+  // signed 32-bit integer.
+  __ TryDoubleToInt32Exact(r0, d1, d2);
+  // If exact, check smi
+  __ b(eq, &smi_check);
+  __ cmp(r5, Operand(0));
 
-  __ bind(&no_vfp_exception);
-  // Move the result back to general purpose register r0.
-  __ vmov(r0, s0);
-  // Check if the result fits into a smi.
+  // If input is in ]+0, +inf[, the cmp has cleared overflow and negative
+  // (V=0 and N=0), the two following instructions won't execute and
+  // we fall through smi_check to check if the result can fit into a smi.
+
+  // If input is in ]-inf, -0[, sub one and, go to slow if we have
+  // an overflow. Else we fall through smi check.
+  // Hint: if x is a negative, non integer number,
+  // floor(x) <=> round_to_zero(x) - 1.
+  __ sub(r0, r0, Operand(1), SetCC, mi);
+  __ b(vs, &slow);
+
+  __ bind(&smi_check);
+  // Check if the result can fit into an smi. If we had an overflow,
+  // the result is either 0x80000000 or 0x7FFFFFFF and won't fit into an smi.
   __ add(r1, r0, Operand(0x40000000), SetCC);
-  __ b(&wont_fit_smi, mi);
+  // If result doesn't fit into an smi, branch to slow.
+  __ b(&slow, mi);
   // Tag the result.
-  STATIC_ASSERT(kSmiTag == 0);
   __ mov(r0, Operand(r0, LSL, kSmiTagSize));
 
-  // Check for -0.
-  __ cmp(r0, Operand::Zero());
-  __ b(&restore_fpscr_and_return, ne);
-  // r5 already holds the HeapNumber exponent.
-  __ tst(r5, Operand(HeapNumber::kSignMask));
-  // If our HeapNumber is negative it was -0, so load its address and return.
-  // Else r0 is loaded with 0, so we can also just return.
-  __ ldr(r0, MemOperand(sp, 0 * kPointerSize), ne);
-
-  __ bind(&restore_fpscr_and_return);
-  // Restore FPSCR and return.
-  __ vmsr(r3);
+  __ bind(&just_return);
   __ Drop(argc + 1);
   __ Ret();
-
-  __ bind(&wont_fit_smi);
-  // Restore FPCSR and fall to slow case.
-  __ vmsr(r3);
 
   __ bind(&slow);
   // Tail call the full function. We do not have to patch the receiver
@@ -3392,12 +3362,7 @@ static void GenerateSmiKeyCheck(MacroAssembler* masm,
                 DONT_DO_SMI_CHECK);
     __ sub(ip, key, Operand(kHeapObjectTag));
     __ vldr(double_scratch0, ip, HeapNumber::kValueOffset);
-    __ EmitVFPTruncate(kRoundToZero,
-                       scratch0,
-                       double_scratch0,
-                       scratch1,
-                       double_scratch1,
-                       kCheckForInexactConversion);
+    __ TryDoubleToInt32Exact(scratch0, double_scratch0, double_scratch1);
     __ b(ne, fail);
     __ TrySmiTag(scratch0, fail, scratch1);
     __ mov(key, scratch0);

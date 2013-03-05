@@ -944,27 +944,26 @@ class MacroAssembler: public Assembler {
                       DwVfpRegister double_scratch,
                       Label *not_int32);
 
-  // Try to convert a double to a signed 32-bit integer. If the double value
-  // can be exactly represented as an integer, the code jumps to 'done' and
-  // 'result' contains the integer value. Otherwise, the code falls through.
-  void TryFastDoubleToInt32(Register result,
-                            DwVfpRegister double_input,
-                            DwVfpRegister double_scratch,
-                            Label* done);
+  // Check if a double can be exactly represented as a signed 32-bit integer.
+  // Z flag set to one if true.
+  void TestDoubleIsInt32(DwVfpRegister double_input,
+                         DwVfpRegister double_scratch);
 
-  // Truncates a double using a specific rounding mode, and writes the value
-  // to the result register.
-  // Clears the z flag (ne condition) if an overflow occurs.
-  // If kCheckForInexactConversion is passed, the z flag is also cleared if the
-  // conversion was inexact, i.e. if the double value could not be converted
-  // exactly to a 32-bit integer.
-  void EmitVFPTruncate(VFPRoundingMode rounding_mode,
-                       Register result,
-                       DwVfpRegister double_input,
-                       Register scratch,
-                       DwVfpRegister double_scratch,
-                       CheckForInexactConversion check
-                           = kDontCheckForInexactConversion);
+  // Try to convert a double to a signed 32-bit integer.
+  // Z flag set to one and result assigned if the conversion is exact.
+  void TryDoubleToInt32Exact(Register result,
+                             DwVfpRegister double_input,
+                             DwVfpRegister double_scratch);
+
+  // Floor a double and writes the value to the result register.
+  // Go to exact if the conversion is exact (to be able to test -0),
+  // fall through calling code if an overflow occurred, else go to done.
+  void TryInt32Floor(Register result,
+                     DwVfpRegister double_input,
+                     Register input_high,
+                     DwVfpRegister double_scratch,
+                     Label* done,
+                     Label* exact);
 
   // Helper for EmitECMATruncate.
   // This will truncate a floating-point value outside of the signed 32bit

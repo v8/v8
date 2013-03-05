@@ -891,13 +891,7 @@ void FloatingPointHelper::LoadNumberAsInt32Double(MacroAssembler* masm,
     __ sub(scratch1, object, Operand(kHeapObjectTag));
     __ vldr(double_dst, scratch1, HeapNumber::kValueOffset);
 
-    __ EmitVFPTruncate(kRoundToZero,
-                       scratch1,
-                       double_dst,
-                       scratch2,
-                       double_scratch,
-                       kCheckForInexactConversion);
-
+    __ TestDoubleIsInt32(double_dst, double_scratch);
     // Jump to not_int32 if the operation did not succeed.
     __ b(ne, not_int32);
 
@@ -989,13 +983,7 @@ void FloatingPointHelper::LoadNumberAsInt32(MacroAssembler* masm,
     __ sub(scratch1, object, Operand(kHeapObjectTag));
     __ vldr(double_scratch0, scratch1, HeapNumber::kValueOffset);
 
-    __ EmitVFPTruncate(kRoundToZero,
-                       dst,
-                       double_scratch0,
-                       scratch1,
-                       double_scratch1,
-                       kCheckForInexactConversion);
-
+    __ TryDoubleToInt32Exact(dst, double_scratch0, double_scratch1);
     // Jump to not_int32 if the operation did not succeed.
     __ b(ne, not_int32);
   } else {
@@ -3094,16 +3082,14 @@ void BinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
           // Otherwise return a heap number if allowed, or jump to type
           // transition.
 
-          __ EmitVFPTruncate(kRoundToZero,
-                             scratch1,
-                             d5,
-                             scratch2,
-                             d8);
-
           if (result_type_ <= BinaryOpIC::INT32) {
+            __ TryDoubleToInt32Exact(scratch1, d5, d8);
             // If the ne condition is set, result does
             // not fit in a 32-bit integer.
             __ b(ne, &transition);
+          } else {
+            __ vcvt_s32_f64(s8, d5);
+            __ vmov(scratch1, s8);
           }
 
           // Check if the result fits in a smi.

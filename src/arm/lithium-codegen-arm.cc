@@ -3934,25 +3934,22 @@ void LCodeGen::DoMathFloor(LUnaryMathOperation* instr) {
   CpuFeatureScope scope(masm(), VFP2);
   DwVfpRegister input = ToDoubleRegister(instr->value());
   Register result = ToRegister(instr->result());
-  Register scratch = scratch0();
+  Register input_high = scratch0();
+  Label done, exact;
 
-  __ EmitVFPTruncate(kRoundToMinusInf,
-                     result,
-                     input,
-                     scratch,
-                     double_scratch0());
-  DeoptimizeIf(ne, instr->environment());
+  __ vmov(input_high, input.high());
+  __ TryInt32Floor(result, input, input_high, double_scratch0(), &done, &exact);
+  DeoptimizeIf(al, instr->environment());
 
+  __ bind(&exact);
   if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
     // Test for -0.
-    Label done;
     __ cmp(result, Operand::Zero());
     __ b(ne, &done);
-    __ vmov(scratch, input.high());
-    __ tst(scratch, Operand(HeapNumber::kSignMask));
-    DeoptimizeIf(ne, instr->environment());
-    __ bind(&done);
+    __ cmp(input_high, Operand::Zero());
+    DeoptimizeIf(mi, instr->environment());
   }
+  __ bind(&done);
 }
 
 
@@ -3961,63 +3958,37 @@ void LCodeGen::DoMathRound(LUnaryMathOperation* instr) {
   DwVfpRegister input = ToDoubleRegister(instr->value());
   Register result = ToRegister(instr->result());
   DwVfpRegister double_scratch1 = ToDoubleRegister(instr->temp());
-  Register scratch = scratch0();
-  Label done, check_sign_on_zero;
+  DwVfpRegister input_plus_dot_five = double_scratch1;
+  Register input_high = scratch0();
+  DwVfpRegister dot_five = double_scratch0();
+  Label convert, done;
 
-  // Extract exponent bits.
-  __ vmov(result, input.high());
-  __ ubfx(scratch,
-          result,
-          HeapNumber::kExponentShift,
-          HeapNumber::kExponentBits);
-
-  // If the number is in ]-0.5, +0.5[, the result is +/- 0.
-  __ cmp(scratch, Operand(HeapNumber::kExponentBias - 2));
-  __ mov(result, Operand::Zero(), LeaveCC, le);
+  __ Vmov(dot_five, 0.5, scratch0());
+  __ vabs(double_scratch1, input);
+  __ VFPCompareAndSetFlags(double_scratch1, dot_five);
+  // If input is in [-0.5, -0], the result is -0.
+  // If input is in [+0, +0.5[, the result is +0.
+  // If the input is +0.5, the result is 1.
+  __ b(hi, &convert);  // Out of [-0.5, +0.5].
   if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
-    __ b(le, &check_sign_on_zero);
-  } else {
-    __ b(le, &done);
+    __ vmov(input_high, input.high());
+    __ cmp(input_high, Operand::Zero());
+    DeoptimizeIf(mi, instr->environment());  // [-0.5, -0].
   }
+  __ VFPCompareAndSetFlags(input, dot_five);
+  __ mov(result, Operand(1), LeaveCC, eq);  // +0.5.
+  // Remaining cases: [+0, +0.5[ or [-0.5, +0.5[, depending on
+  // flag kBailoutOnMinusZero.
+  __ mov(result, Operand::Zero(), LeaveCC, ne);
+  __ b(&done);
 
-  // The following conversion will not work with numbers
-  // outside of ]-2^32, 2^32[.
-  __ cmp(scratch, Operand(HeapNumber::kExponentBias + 32));
-  DeoptimizeIf(ge, instr->environment());
-
-  __ Vmov(double_scratch0(), 0.5, scratch);
-  __ vadd(double_scratch0(), input, double_scratch0());
-
-  // Save the original sign for later comparison.
-  __ and_(scratch, result, Operand(HeapNumber::kSignMask));
-
-  // Check sign of the result: if the sign changed, the input
-  // value was in ]0.5, 0[ and the result should be -0.
-  __ vmov(result, double_scratch0().high());
-  __ eor(result, result, Operand(scratch), SetCC);
-  if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
-    DeoptimizeIf(mi, instr->environment());
-  } else {
-    __ mov(result, Operand::Zero(), LeaveCC, mi);
-    __ b(mi, &done);
-  }
-
-  __ EmitVFPTruncate(kRoundToMinusInf,
-                     result,
-                     double_scratch0(),
-                     scratch,
-                     double_scratch1);
-  DeoptimizeIf(ne, instr->environment());
-
-  if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
-    // Test for -0.
-    __ cmp(result, Operand::Zero());
-    __ b(ne, &done);
-    __ bind(&check_sign_on_zero);
-    __ vmov(scratch, input.high());
-    __ tst(scratch, Operand(HeapNumber::kSignMask));
-    DeoptimizeIf(ne, instr->environment());
-  }
+  __ bind(&convert);
+  __ vadd(input_plus_dot_five, input, dot_five);
+  __ vmov(input_high, input_plus_dot_five.high());
+  // Reuse dot_five (double_scratch0) as we no longer need this value.
+  __ TryInt32Floor(result, input_plus_dot_five, input_high, double_scratch0(),
+                   &done, &done);
+  DeoptimizeIf(al, instr->environment());
   __ bind(&done);
 }
 
@@ -5289,12 +5260,7 @@ void LCodeGen::DoDeferredTaggedToI(LTaggedToI* instr) {
 
     __ sub(ip, input_reg, Operand(kHeapObjectTag));
     __ vldr(double_scratch, ip, HeapNumber::kValueOffset);
-    __ EmitVFPTruncate(kRoundToZero,
-                       input_reg,
-                       double_scratch,
-                       scratch1,
-                       double_scratch2,
-                       kCheckForInexactConversion);
+    __ TryDoubleToInt32Exact(input_reg, double_scratch, double_scratch2);
     DeoptimizeIf(ne, instr->environment());
 
     if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
@@ -5390,15 +5356,8 @@ void LCodeGen::DoDoubleToI(LDoubleToI* instr) {
                         scratch2,
                         scratch3);
   } else {
-    __ EmitVFPTruncate(kRoundToMinusInf,
-                       result_reg,
-                       double_input,
-                       scratch1,
-                       double_scratch,
-                       kCheckForInexactConversion);
-
-    // Deoptimize if we had a vfp invalid exception,
-    // including inexact operation.
+    __ TryDoubleToInt32Exact(result_reg, double_input, double_scratch);
+    // Deoptimize if the input wasn't a int32 (inside a double).
     DeoptimizeIf(ne, instr->environment());
   }
     __ bind(&done);

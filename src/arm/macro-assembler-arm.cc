@@ -2535,74 +2535,76 @@ void MacroAssembler::ConvertToInt32(Register source,
 }
 
 
-void MacroAssembler::TryFastDoubleToInt32(Register result,
-                                          DwVfpRegister double_input,
-                                          DwVfpRegister double_scratch,
-                                          Label* done) {
+void MacroAssembler::TestDoubleIsInt32(DwVfpRegister double_input,
+                                       DwVfpRegister double_scratch) {
   ASSERT(!double_input.is(double_scratch));
+  ASSERT(CpuFeatures::IsSupported(VFP2));
+  CpuFeatureScope scope(this, VFP2);
+
+  vcvt_s32_f64(double_scratch.low(), double_input);
+  vcvt_f64_s32(double_scratch, double_scratch.low());
+  VFPCompareAndSetFlags(double_input, double_scratch);
+}
+
+
+void MacroAssembler::TryDoubleToInt32Exact(Register result,
+                                           DwVfpRegister double_input,
+                                           DwVfpRegister double_scratch) {
+  ASSERT(!double_input.is(double_scratch));
+  ASSERT(CpuFeatures::IsSupported(VFP2));
+  CpuFeatureScope scope(this, VFP2);
 
   vcvt_s32_f64(double_scratch.low(), double_input);
   vmov(result, double_scratch.low());
   vcvt_f64_s32(double_scratch, double_scratch.low());
   VFPCompareAndSetFlags(double_input, double_scratch);
-  b(eq, done);
 }
 
 
-void MacroAssembler::EmitVFPTruncate(VFPRoundingMode rounding_mode,
-                                     Register result,
-                                     DwVfpRegister double_input,
-                                     Register scratch,
-                                     DwVfpRegister double_scratch,
-                                     CheckForInexactConversion check_inexact) {
-  ASSERT(!result.is(scratch));
+void MacroAssembler::TryInt32Floor(Register result,
+                                   DwVfpRegister double_input,
+                                   Register input_high,
+                                   DwVfpRegister double_scratch,
+                                   Label* done,
+                                   Label* exact) {
+  ASSERT(!result.is(input_high));
   ASSERT(!double_input.is(double_scratch));
-
   ASSERT(CpuFeatures::IsSupported(VFP2));
   CpuFeatureScope scope(this, VFP2);
-  Register prev_fpscr = result;
-  Label done;
+  Label negative, exception;
 
-  // Test for values that can be exactly represented as a signed 32-bit integer.
-  TryFastDoubleToInt32(result, double_input, double_scratch, &done);
+  // Test for NaN and infinities.
+  Sbfx(result, input_high,
+       HeapNumber::kExponentShift, HeapNumber::kExponentBits);
+  cmp(result, Operand(-1));
+  b(eq, &exception);
+  // Test for values that can be exactly represented as a
+  // signed 32-bit integer.
+  TryDoubleToInt32Exact(result, double_input, double_scratch);
+  // If exact, return (result already fetched).
+  b(eq, exact);
+  cmp(input_high, Operand::Zero());
+  b(mi, &negative);
 
-  // Convert to integer, respecting rounding mode.
-  int32_t check_inexact_conversion =
-    (check_inexact == kCheckForInexactConversion) ? kVFPInexactExceptionBit : 0;
+  // Input is in ]+0, +inf[.
+  // If result equals 0x7fffffff input was out of range or
+  // in ]0x7fffffff, 0x80000000[. We ignore this last case which
+  // could fits into an int32, that means we always think input was
+  // out of range and always go to exception.
+  // If result < 0x7fffffff, go to done, result fetched.
+  cmn(result, Operand(1));
+  b(mi, &exception);
+  b(done);
 
-  // Set custom FPCSR:
-  //  - Set rounding mode.
-  //  - Clear vfp cumulative exception flags.
-  //  - Make sure Flush-to-zero mode control bit is unset.
-  vmrs(prev_fpscr);
-  bic(scratch,
-      prev_fpscr,
-      Operand(kVFPExceptionMask |
-              check_inexact_conversion |
-              kVFPRoundingModeMask |
-              kVFPFlushToZeroMask));
-  // 'Round To Nearest' is encoded by 0b00 so no bits need to be set.
-  if (rounding_mode != kRoundToNearest) {
-    orr(scratch, scratch, Operand(rounding_mode));
-  }
-  vmsr(scratch);
-
-  // Convert the argument to an integer.
-  vcvt_s32_f64(double_scratch.low(),
-               double_input,
-               (rounding_mode == kRoundToZero) ? kDefaultRoundToZero
-                                               : kFPSCRRounding);
-
-  // Retrieve FPSCR.
-  vmrs(scratch);
-  // Restore FPSCR.
-  vmsr(prev_fpscr);
-  // Move the converted value into the result register.
-  vmov(result, double_scratch.low());
-  // Check for vfp exceptions.
-  tst(scratch, Operand(kVFPExceptionMask | check_inexact_conversion));
-
-  bind(&done);
+  // Input is in ]-inf, -0[.
+  // If x is a non integer negative number,
+  // floor(x) <=> round_to_zero(x) - 1.
+  bind(&negative);
+  sub(result, result, Operand(1), SetCC);
+  // If result is still negative, go to done, result fetched.
+  // Else, we had an overflow and we fall through exception.
+  b(mi, done);
+  bind(&exception);
 }
 
 
@@ -2697,33 +2699,25 @@ void MacroAssembler::EmitECMATruncate(Register result,
   Label done;
 
   // Test if the value can be exactly represented as a signed integer.
-  vcvt_s32_f64(double_scratch.low(), double_input);
-  vmov(result, double_scratch.low());
-  vcvt_f64_s32(double_scratch, double_scratch.low());
-  // Note: this comparison is cheaper than reading the FPSCR exception bits.
-  VFPCompareAndSetFlags(double_input, double_scratch);
+  TryDoubleToInt32Exact(result, double_input, double_scratch);
   b(eq, &done);
 
   // Check the exception flags. If they are not set, we are done.
   // If they are set, it could be because of the conversion above, or because
   // they were set before this code.
   vmrs(scratch);
-  tst(scratch, Operand(kVFPOverflowExceptionBit |
-                       kVFPUnderflowExceptionBit |
-                       kVFPInvalidOpExceptionBit));
+  tst(scratch, Operand(kVFPInvalidOpExceptionBit));
   b(eq, &done);
 
   // Clear cumulative exception flags.
-  bic(scratch, scratch, Operand(kVFPExceptionMask));
+  bic(scratch, scratch, Operand(kVFPInvalidOpExceptionBit));
   vmsr(scratch);
   // Try a conversion to a signed integer.
   vcvt_s32_f64(double_scratch.low(), double_input);
   // Retrieve the FPSCR.
   vmrs(scratch);
-  // Check for overflow and NaNs.
-  tst(scratch, Operand(kVFPOverflowExceptionBit |
-                       kVFPUnderflowExceptionBit |
-                       kVFPInvalidOpExceptionBit));
+  // Check for invalid conversions (out of range and NaNs).
+  tst(scratch, Operand(kVFPInvalidOpExceptionBit));
   // If we had no exceptions we are done.
   b(eq, &done);
 
