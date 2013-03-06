@@ -2648,6 +2648,32 @@ void String::Visit(
 }
 
 
+// TODO(dcarney): Remove this class after conversion to VisitFlat.
+class ConsStringCaptureOp {
+ public:
+  inline ConsStringCaptureOp() : cons_string_(NULL) {}
+  inline String* Operate(String* string, unsigned*, int32_t*, unsigned*) {
+    cons_string_ = ConsString::cast(string);
+    return NULL;
+  }
+  ConsString* cons_string_;
+};
+
+
+template<class Visitor>
+ConsString* String::VisitFlat(Visitor* visitor,
+                              String* string,
+                              int offset,
+                              int length,
+                              int32_t type) {
+  ASSERT(length >= 0 && length == string->length());
+  ASSERT(offset >= 0 && offset <= length);
+  ConsStringCaptureOp op;
+  Visit(string, offset, *visitor, op, type, static_cast<unsigned>(length));
+  return op.cons_string_;
+}
+
+
 uint16_t SeqOneByteString::SeqOneByteStringGet(int index) {
   ASSERT(index >= 0 && index < length());
   return READ_BYTE_FIELD(this, kHeaderSize + index * kCharSize);

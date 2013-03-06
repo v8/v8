@@ -3831,68 +3831,200 @@ bool String::IsOneByte() const {
 }
 
 
-class Utf8LengthVisitor {
+class Utf8LengthHelper : public i::AllStatic {
  public:
-  explicit Utf8LengthVisitor()
-    : utf8_length_(0),
-      last_character_(unibrow::Utf16::kNoPreviousCharacter) {}
+  enum State {
+    kEndsWithLeadingSurrogate = 1 << 0,
+    kStartsWithTrailingSurrogate = 1 << 1,
+    kLeftmostEdgeIsCalculated = 1 << 2,
+    kRightmostEdgeIsCalculated = 1 << 3,
+    kLeftmostEdgeIsSurrogate = 1 << 4,
+    kRightmostEdgeIsSurrogate = 1 << 5
+  };
 
-  inline int GetLength() {
-    return utf8_length_;
+  static const uint8_t kInitialState = 0;
+
+  static inline bool EndsWithSurrogate(uint8_t state) {
+    return state & kEndsWithLeadingSurrogate;
   }
 
-  template<typename Char>
-  inline void Visit(const Char* chars, unsigned length) {
-    ASSERT(length > 0);
-    // TODO(dcarney) Add back ascii fast path.
-    int utf8_length = 0;
-    int last_character = last_character_;
-    for (unsigned i = 0; i < length; i++) {
-      uint16_t c = chars[i];
-      utf8_length += unibrow::Utf8::Length(c, last_character);
-      last_character = c;
+  static inline bool StartsWithSurrogate(uint8_t state) {
+    return state & kStartsWithTrailingSurrogate;
+  }
+
+  class Visitor {
+   public:
+    explicit Visitor()
+      : utf8_length_(0),
+        state_(kInitialState) {}
+
+    template<typename Char>
+    inline void Visit(const Char* chars, int length) {
+      int utf8_length = 0;
+      int last_character = unibrow::Utf16::kNoPreviousCharacter;
+      for (int i = 0; i < length; i++) {
+        uint16_t c = chars[i];
+        utf8_length += unibrow::Utf8::Length(c, last_character);
+        if (sizeof(Char) > 1) {
+          last_character = c;
+        }
+      }
+      utf8_length_ = utf8_length;
     }
-    last_character_ = last_character;
-    utf8_length_ += utf8_length;
+
+    void VisitOneByteString(const uint8_t* chars, int length) {
+      Visit(chars, length);
+      state_ = kInitialState;
+    }
+
+    void VisitTwoByteString(const uint16_t* chars, int length) {
+      Visit(chars, length);
+      uint8_t state = 0;
+      if (unibrow::Utf16::IsTrailSurrogate(chars[0])) {
+        state |= kStartsWithTrailingSurrogate;
+      }
+      if (unibrow::Utf16::IsLeadSurrogate(chars[length-1])) {
+        state |= kEndsWithLeadingSurrogate;
+      }
+      state_ = state;
+    }
+
+    static i::ConsString* VisitFlat(i::String* string,
+                                    int* length,
+                                    uint8_t* state) {
+      Visitor visitor;
+      i::ConsString* cons_string = i::String::VisitFlat(&visitor, string);
+      *length = visitor.utf8_length_;
+      *state = visitor.state_;
+      return cons_string;
+    }
+
+   private:
+    int utf8_length_;
+    uint8_t state_;
+    DISALLOW_COPY_AND_ASSIGN(Visitor);
+  };
+
+  static inline void MergeLeafLeft(int* length,
+                                   uint8_t* state,
+                                   uint8_t leaf_state) {
+    bool edge_surrogate = StartsWithSurrogate(leaf_state);
+    if (!(*state & kLeftmostEdgeIsCalculated)) {
+      ASSERT(!(*state & kLeftmostEdgeIsSurrogate));
+      *state |= kLeftmostEdgeIsCalculated
+          | (edge_surrogate ? kLeftmostEdgeIsSurrogate : 0);
+    } else if (EndsWithSurrogate(*state) && edge_surrogate) {
+      *length -= unibrow::Utf8::kBytesSavedByCombiningSurrogates;
+    }
+    if (EndsWithSurrogate(leaf_state)) {
+      *state |= kEndsWithLeadingSurrogate;
+    } else {
+      *state &= ~kEndsWithLeadingSurrogate;
+    }
   }
 
-  inline void VisitOneByteString(const uint8_t* chars, unsigned length) {
-    Visit(chars, length);
+  static inline void MergeLeafRight(int* length,
+                                    uint8_t* state,
+                                    uint8_t leaf_state) {
+    bool edge_surrogate = EndsWithSurrogate(leaf_state);
+    if (!(*state & kRightmostEdgeIsCalculated)) {
+      ASSERT(!(*state & kRightmostEdgeIsSurrogate));
+      *state |= (kRightmostEdgeIsCalculated
+          | (edge_surrogate ? kRightmostEdgeIsSurrogate : 0));
+    } else if (edge_surrogate && StartsWithSurrogate(*state)) {
+      *length -= unibrow::Utf8::kBytesSavedByCombiningSurrogates;
+    }
+    if (StartsWithSurrogate(leaf_state)) {
+      *state |= kStartsWithTrailingSurrogate;
+    } else {
+      *state &= ~kStartsWithTrailingSurrogate;
+    }
   }
 
-  inline void VisitTwoByteString(const uint16_t* chars, unsigned length) {
-    Visit(chars, length);
+  static inline void MergeTerminal(int* length,
+                                   uint8_t state,
+                                   uint8_t* state_out) {
+    ASSERT((state & kLeftmostEdgeIsCalculated) &&
+           (state & kRightmostEdgeIsCalculated));
+    if (EndsWithSurrogate(state) && StartsWithSurrogate(state)) {
+      *length -= unibrow::Utf8::kBytesSavedByCombiningSurrogates;
+    }
+    *state_out = kInitialState |
+        (state & kLeftmostEdgeIsSurrogate ? kStartsWithTrailingSurrogate : 0) |
+        (state & kRightmostEdgeIsSurrogate ? kEndsWithLeadingSurrogate : 0);
+  }
+
+  static int Calculate(i::ConsString* current, uint8_t* state_out) {
+    using namespace internal;
+    int total_length = 0;
+    uint8_t state = kInitialState;
+    while (true) {
+      i::String* left = current->first();
+      i::String* right = current->second();
+      uint8_t right_leaf_state;
+      uint8_t left_leaf_state;
+      int leaf_length;
+      ConsString* left_as_cons =
+          Visitor::VisitFlat(left, &leaf_length, &left_leaf_state);
+      if (left_as_cons == NULL) {
+        total_length += leaf_length;
+        MergeLeafLeft(&total_length, &state, left_leaf_state);
+      }
+      ConsString* right_as_cons =
+          Visitor::VisitFlat(right, &leaf_length, &right_leaf_state);
+      if (right_as_cons == NULL) {
+        total_length += leaf_length;
+        MergeLeafRight(&total_length, &state, right_leaf_state);
+        // Terminal node.
+        if (left_as_cons == NULL) {
+          MergeTerminal(&total_length, state, state_out);
+          return total_length;
+        }
+      } else if (left_as_cons != NULL) {
+        // Both strings are ConsStrings.
+        // Recurse on smallest.
+        if (left->length() < right->length()) {
+          total_length += Calculate(left_as_cons, &left_leaf_state);
+          MergeLeafLeft(&total_length, &state, left_leaf_state);
+          current = right_as_cons;
+          continue;
+        } else {
+          total_length += Calculate(right_as_cons, &right_leaf_state);
+          MergeLeafRight(&total_length, &state, right_leaf_state);
+          current = left_as_cons;
+          continue;
+        }
+      }
+      // 1 leaf node. Do in place descent.
+      if (left_as_cons != NULL) {
+        current = left_as_cons;
+      } else {
+        ASSERT(right_as_cons != NULL);
+        current = right_as_cons;
+      }
+    }
+    UNREACHABLE();
+    return 0;
+  }
+
+  static inline int Calculate(i::ConsString* current) {
+    uint8_t state = kInitialState;
+    return Calculate(current, &state);
   }
 
  private:
-  int utf8_length_;
-  int last_character_;
-  DISALLOW_COPY_AND_ASSIGN(Utf8LengthVisitor);
+  DISALLOW_IMPLICIT_CONSTRUCTORS(Utf8LengthHelper);
 };
 
 
 static int Utf8Length(i::String* str, i::Isolate* isolate) {
-  unsigned length = static_cast<unsigned>(str->length());
+  int length = str->length();
   if (length == 0) return 0;
-  int32_t type = str->map()->instance_type();
-  Utf8LengthVisitor visitor;
-  // Non ConsString branch.
-  if ((type & i::kStringRepresentationMask) != i::kConsStringTag) {
-    i::ConsStringNullOp null_op;
-    i::String::Visit(str, 0, visitor, null_op, type, length);
-    return visitor.GetLength();
-  }
-  i::ConsStringIteratorOp* op = isolate->write_iterator();
-  unsigned offset = 0;
-  i::String* leaf = op->Operate(str, &offset, &type, &length);
-  ASSERT(leaf != NULL);
-  while (leaf != NULL) {
-    i::ConsStringNullOp null_op;
-    ASSERT(offset == 0);
-    i::String::Visit(leaf, 0, visitor, null_op, type, length);
-    leaf = op->ContinueOperation(&type, &length);
-  }
-  return visitor.GetLength();
+  uint8_t state;
+  i::ConsString* cons_string =
+      Utf8LengthHelper::Visitor::VisitFlat(str, &length, &state);
+  if (cons_string == NULL) return length;
+  return Utf8LengthHelper::Calculate(cons_string);
 }
 
 
@@ -3906,12 +4038,14 @@ int String::Utf8Length() const {
 
 class Utf8WriterVisitor {
  public:
-  Utf8WriterVisitor(char* buffer, int capacity)
+  Utf8WriterVisitor(
+      char* buffer, int capacity, bool skip_capacity_check)
     : early_termination_(false),
       last_character_(unibrow::Utf16::kNoPreviousCharacter),
       buffer_(buffer),
       start_(buffer),
       capacity_(capacity),
+      skip_capacity_check_(capacity == -1 || skip_capacity_check),
       utf16_chars_read_(0) {
   }
 
@@ -3935,7 +4069,7 @@ class Utf8WriterVisitor {
     // Can't encode using last_character as gcc has array bounds issues.
     int written = Utf8::Encode(temp_buffer,
                                character,
-                               unibrow::Utf16::kNoPreviousCharacter);
+                               Utf16::kNoPreviousCharacter);
     // Won't fit.
     if (written > remaining) return 0;
     // Copy over the character from temp_buffer.
@@ -3948,45 +4082,55 @@ class Utf8WriterVisitor {
   template<typename Char>
   void Visit(const Char* chars, const int length) {
     using namespace unibrow;
-    // TODO(dcarney): Add back ascii fast path.
     ASSERT(!early_termination_);
-    ASSERT(length > 0);
+    if (length == 0) return;
     // Copy state to stack.
     char* buffer = buffer_;
-    int last_character = last_character_;
+    int last_character =
+        sizeof(Char) == 1 ? Utf16::kNoPreviousCharacter : last_character_;
     int i = 0;
     // Do a fast loop where there is no exit capacity check.
     while (true) {
       int fast_length;
-      if (capacity_ == -1) {
+      if (skip_capacity_check_) {
         fast_length = length;
       } else {
         int remaining_capacity = capacity_ - static_cast<int>(buffer - start_);
         // Need enough space to write everything but one character.
         STATIC_ASSERT(Utf16::kMaxExtraUtf8BytesForOneUtf16CodeUnit == 3);
-        int writable_length = (remaining_capacity - 3)/3;
+        int max_size_per_char =  sizeof(Char) == 1 ? 2 : 3;
+        int writable_length =
+            (remaining_capacity - max_size_per_char)/max_size_per_char;
         // Need to drop into slow loop.
         if (writable_length <= 0) break;
         fast_length = i + writable_length;
         if (fast_length > length) fast_length = length;
       }
       // Write the characters to the stream.
-      for (; i < fast_length; i++) {
-        uint16_t character = *chars++;
-        buffer += Utf8::Encode(buffer, character, last_character);
-        last_character = character;
-        ASSERT(capacity_ == -1 || (buffer - start_) <= capacity_);
+      if (sizeof(Char) == 1) {
+        for (; i < fast_length; i++) {
+          buffer +=
+              Utf8::Encode(buffer, *chars++, Utf16::kNoPreviousCharacter);
+          ASSERT(capacity_ == -1 || (buffer - start_) <= capacity_);
+        }
+      } else {
+        for (; i < fast_length; i++) {
+          uint16_t character = *chars++;
+          buffer += Utf8::Encode(buffer, character, last_character);
+          last_character = character;
+          ASSERT(capacity_ == -1 || (buffer - start_) <= capacity_);
+        }
       }
       // Array is fully written. Exit.
       if (fast_length == length) {
         // Write state back out to object.
         last_character_ = last_character;
         buffer_ = buffer;
-        utf16_chars_read_ += i;
+        utf16_chars_read_ += length;
         return;
       }
     }
-    ASSERT(capacity_ != -1);
+    ASSERT(!skip_capacity_check_);
     // Slow loop. Must check capacity on each iteration.
     int remaining_capacity = capacity_ - static_cast<int>(buffer - start_);
     ASSERT(remaining_capacity >= 0);
@@ -4014,15 +4158,15 @@ class Utf8WriterVisitor {
     return early_termination_;
   }
 
-  inline void VisitOneByteString(const uint8_t* chars, unsigned length) {
-    Visit(chars, static_cast<int>(length));
+  inline void VisitOneByteString(const uint8_t* chars, int length) {
+    Visit(chars, length);
   }
 
-  inline void VisitTwoByteString(const uint16_t* chars, unsigned length) {
-    Visit(chars, static_cast<int>(length));
+  inline void VisitTwoByteString(const uint16_t* chars, int length) {
+    Visit(chars, length);
   }
 
-  inline int CompleteWrite(bool write_null, int* utf16_chars_read_out) {
+  int CompleteWrite(bool write_null, int* utf16_chars_read_out) {
     // Write out number of utf16 characters written to the stream.
     if (utf16_chars_read_out != NULL) {
       *utf16_chars_read_out = utf16_chars_read_;
@@ -4042,9 +4186,30 @@ class Utf8WriterVisitor {
   char* buffer_;
   char* const start_;
   int capacity_;
+  bool const skip_capacity_check_;
   int utf16_chars_read_;
   DISALLOW_IMPLICIT_CONSTRUCTORS(Utf8WriterVisitor);
 };
+
+
+static bool RecursivelySerializeToUtf8(i::String* current,
+                                      Utf8WriterVisitor* writer,
+                                      int recursion_budget) {
+  while (!writer->IsDone()) {
+    i::ConsString* cons_string = i::String::VisitFlat(writer, current);
+    if (cons_string == NULL) return true;  // Leaf node.
+    if (recursion_budget <= 0) return false;
+    // Must write the left branch first.
+    i::String* first = cons_string->first();
+    bool success = RecursivelySerializeToUtf8(first,
+                                              writer,
+                                              recursion_budget - 1);
+    if (!success) return false;
+    // Inline tail recurse for right branch.
+    current = cons_string->second();
+  }
+  return true;
+}
 
 
 int String::WriteUtf8(char* buffer,
@@ -4059,23 +4224,41 @@ int String::WriteUtf8(char* buffer,
   if (options & HINT_MANY_WRITES_EXPECTED) {
     FlattenString(str);  // Flatten the string for efficiency.
   }
-  Utf8WriterVisitor writer(buffer, capacity);
-  i::ConsStringIteratorOp* op = isolate->write_iterator();
-  op->Reset();
-  int32_t type = str->map()->instance_type();
-  unsigned str_length = static_cast<unsigned>(str->length());
-  if (str_length != 0) {
-    i::String::Visit(*str, 0, writer, *op, type, str_length);
-    while (!writer.IsDone()) {
-      unsigned length_out;
-      i::String* next = op->ContinueOperation(&type, &length_out);
-      if (next == NULL) break;
-      // TODO(dcarney): need an asserting null op.
-      i::ConsStringNullOp null_op;
-      i::String::Visit(next, 0, writer, null_op, type, length_out);
+  const int string_length = str->length();
+  bool write_null = !(options & NO_NULL_TERMINATION);
+  // First check if we can just write the string without checking capacity.
+  if (capacity == -1 || capacity / 3 >= string_length) {
+    Utf8WriterVisitor writer(buffer, capacity, true);
+    const int kMaxRecursion = 100;
+    bool success = RecursivelySerializeToUtf8(*str, &writer, kMaxRecursion);
+    if (success) return writer.CompleteWrite(write_null, nchars_ref);
+  } else if (capacity >= string_length) {
+    // First check that the buffer is large enough.
+    int utf8_bytes = v8::Utf8Length(*str, str->GetIsolate());
+    if (utf8_bytes <= capacity) {
+      // ASCII fast path.
+      if (utf8_bytes == string_length) {
+        WriteOneByte(reinterpret_cast<uint8_t*>(buffer), 0, capacity, options);
+        if (nchars_ref != NULL) *nchars_ref = string_length;
+        if (write_null && (utf8_bytes+1 <= capacity)) {
+          return string_length + 1;
+        }
+        return string_length;
+      }
+      if (write_null && (utf8_bytes+1 > capacity)) {
+        options |= NO_NULL_TERMINATION;
+      }
+      // Recurse once without a capacity limit.
+      // This will get into the first branch above.
+      // TODO(dcarney) Check max left rec. in Utf8Length and fall through.
+      return WriteUtf8(buffer, -1, nchars_ref, options);
     }
   }
-  return writer.CompleteWrite(!(options & NO_NULL_TERMINATION), nchars_ref);
+  // Recursive slow path can potentially be unreasonable slow. Flatten.
+  str = FlattenGetString(str);
+  Utf8WriterVisitor writer(buffer, capacity, false);
+  i::String::VisitFlat(&writer, *str);
+  return writer.CompleteWrite(write_null, nchars_ref);
 }
 
 

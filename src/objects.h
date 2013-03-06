@@ -7337,6 +7337,8 @@ class Symbol: public Name {
 };
 
 
+class ConsString;
+
 // The String abstract class captures JavaScript string values:
 //
 // Ecma-262:
@@ -7615,6 +7617,7 @@ class String: public Name {
     return NonOneByteStart(chars, length) >= length;
   }
 
+  // TODO(dcarney): Replace all instances of this with VisitFlat.
   template<class Visitor, class ConsOp>
   static inline void Visit(String* string,
                            unsigned offset,
@@ -7622,6 +7625,21 @@ class String: public Name {
                            ConsOp& cons_op,
                            int32_t type,
                            unsigned length);
+
+  template<class Visitor>
+  static inline ConsString* VisitFlat(Visitor* visitor,
+                                      String* string,
+                                      int offset,
+                                      int length,
+                                      int32_t type);
+
+  template<class Visitor>
+  static inline ConsString* VisitFlat(Visitor* visitor,
+                                      String* string,
+                                      int offset = 0) {
+    int32_t type = string->map()->instance_type();
+    return VisitFlat(visitor, string, offset, string->length(), type);
+  }
 
  private:
   friend class Name;
