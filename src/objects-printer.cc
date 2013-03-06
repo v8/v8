@@ -599,6 +599,8 @@ void Map::MapPrint(FILE* out) {
   constructor()->ShortPrint(out);
   PrintF(out, "\n - code cache: ");
   code_cache()->ShortPrint(out);
+  PrintF(out, "\n - dependent code: ");
+  dependent_code()->ShortPrint(out);
   PrintF(out, "\n");
 }
 
