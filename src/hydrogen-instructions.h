@@ -4672,6 +4672,8 @@ class HAllocate: public HTemplateInstruction<2> {
     return (flags_ & ALLOCATE_DOUBLE_ALIGNED) != 0;
   }
 
+  virtual void PrintDataTo(StringStream* stream);
+
   DECLARE_CONCRETE_INSTRUCTION(Allocate)
 
  private:

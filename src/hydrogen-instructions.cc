@@ -2661,6 +2661,11 @@ HType HAllocate::CalculateInferredType() {
 }
 
 
+void HAllocate::PrintDataTo(StringStream* stream) {
+  size()->PrintNameTo(stream);
+}
+
+
 HType HFastLiteral::CalculateInferredType() {
   // TODO(mstarzinger): Be smarter, could also be JSArray here.
   return HType::JSObject();
