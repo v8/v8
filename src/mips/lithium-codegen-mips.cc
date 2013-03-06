@@ -3965,9 +3965,29 @@ void LCodeGen::DoCallNew(LCallNew* instr) {
   ASSERT(ToRegister(instr->constructor()).is(a1));
   ASSERT(ToRegister(instr->result()).is(v0));
 
-  CallConstructStub stub(NO_CALL_FUNCTION_FLAGS);
   __ li(a0, Operand(instr->arity()));
+  if (FLAG_optimize_constructed_arrays) {
+    // No cell in a2 for construct type feedback in optimized code
+    Handle<Object> undefined_value(isolate()->heap()->undefined_value(),
+                                   isolate());
+    __ li(a2, Operand(undefined_value));
+  }
+  CallConstructStub stub(NO_CALL_FUNCTION_FLAGS);
   CallCode(stub.GetCode(isolate()), RelocInfo::CONSTRUCT_CALL, instr);
+}
+
+
+void LCodeGen::DoCallNewArray(LCallNewArray* instr) {
+  ASSERT(ToRegister(instr->constructor()).is(a1));
+  ASSERT(ToRegister(instr->result()).is(v0));
+  ASSERT(FLAG_optimize_constructed_arrays);
+
+  __ li(a0, Operand(instr->arity()));
+  __ li(a2, Operand(instr->hydrogen()->property_cell()));
+  Handle<Code> array_construct_code =
+      isolate()->builtins()->ArrayConstructCode();
+
+  CallCode(array_construct_code, RelocInfo::CONSTRUCT_CALL, instr);
 }
 
 
