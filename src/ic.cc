@@ -59,6 +59,17 @@ char IC::TransitionMarkFromState(IC::State state) {
   return 0;
 }
 
+
+const char* GetTransitionMarkModifier(KeyedAccessStoreMode mode) {
+  if (mode == STORE_NO_TRANSITION_HANDLE_COW) return ".COW";
+  if (mode == STORE_NO_TRANSITION_IGNORE_OUT_OF_BOUNDS) {
+    return ".IGNORE_OOB";
+  }
+  if (IsGrowStoreMode(mode)) return ".GROW";
+  return "";
+}
+
+
 void IC::TraceIC(const char* type,
                  Handle<Object> name,
                  State old_state,
@@ -81,13 +92,13 @@ void IC::TraceIC(const char* type,
       }
     }
     JavaScriptFrame::PrintTop(isolate, stdout, false, true);
-    bool new_can_grow =
-        Code::GetKeyedAccessGrowMode(new_target->extra_ic_state()) ==
-        ALLOW_JSARRAY_GROWTH;
+    Code::ExtraICState state = new_target->extra_ic_state();
+    const char* modifier =
+        GetTransitionMarkModifier(Code::GetKeyedAccessStoreMode(state));
     PrintF(" (%c->%c%s)",
            TransitionMarkFromState(old_state),
            TransitionMarkFromState(new_state),
-           new_can_grow ? ".GROW" : "");
+           modifier);
     name->Print();
     PrintF("]\n");
   }
@@ -1634,13 +1645,8 @@ Handle<Code> StoreIC::ComputeStoreMonomorphic(LookupResult* lookup,
 
 
 Handle<Code> KeyedStoreIC::StoreElementStub(Handle<JSObject> receiver,
-                                            StubKind stub_kind,
+                                            KeyedAccessStoreMode store_mode,
                                             StrictModeFlag strict_mode) {
-  State ic_state = target()->ic_state();
-  KeyedAccessGrowMode grow_mode = IsGrowStubKind(stub_kind)
-      ? ALLOW_JSARRAY_GROWTH
-      : DO_NOT_ALLOW_JSARRAY_GROWTH;
-
   // Don't handle megamorphic property accesses for INTERCEPTORS or CALLBACKS
   // via megamorphic stubs, since they don't have a map in their relocation info
   // and so the stubs can't be harvested for the object needed for a map check.
@@ -1649,42 +1655,76 @@ Handle<Code> KeyedStoreIC::StoreElementStub(Handle<JSObject> receiver,
     return strict_mode == kStrictMode ? generic_stub_strict() : generic_stub();
   }
 
+  if ((store_mode == STORE_NO_TRANSITION_HANDLE_COW ||
+       store_mode == STORE_NO_TRANSITION_IGNORE_OUT_OF_BOUNDS)) {
+    // TODO(danno): We'll soon handle MONOMORPHIC ICs that also support
+    // copying COW arrays and silently ignoring some OOB stores into external
+    // arrays, but for now use the generic.
+    TRACE_GENERIC_IC(isolate(), "KeyedIC", "COW/OOB external array");
+    return strict_mode == kStrictMode
+        ? generic_stub_strict()
+        : generic_stub();
+  }
+
+  State ic_state = target()->ic_state();
   Handle<Map> receiver_map(receiver->map());
-  MapHandleList target_receiver_maps;
   if (ic_state == UNINITIALIZED || ic_state == PREMONOMORPHIC) {
     // Optimistically assume that ICs that haven't reached the MONOMORPHIC state
     // yet will do so and stay there.
-    Handle<Map> monomorphic_map = ComputeTransitionedMap(receiver, stub_kind);
-    stub_kind = GetNoTransitionStubKind(stub_kind);
+    Handle<Map> monomorphic_map = ComputeTransitionedMap(receiver, store_mode);
+    store_mode = GetNonTransitioningStoreMode(store_mode);
     return isolate()->stub_cache()->ComputeKeyedStoreElement(
-        monomorphic_map, stub_kind, strict_mode, grow_mode);
+        monomorphic_map, strict_mode, store_mode);
   }
 
-  GetReceiverMapsForStub(Handle<Code>(target()), &target_receiver_maps);
+  MapHandleList target_receiver_maps;
+  target()->FindAllMaps(&target_receiver_maps);
   if (target_receiver_maps.length() == 0) {
-    // Optimistically assume that ICs that haven't reached the MONOMORPHIC state
-    // yet will do so and stay there.
-    stub_kind = GetNoTransitionStubKind(stub_kind);
-    return isolate()->stub_cache()->ComputeKeyedStoreElement(
-        receiver_map, stub_kind, strict_mode, grow_mode);
+    // In the case that there is a non-map-specific IC is installed (e.g. keyed
+    // stores into properties in dictionary mode), then there will be not
+    // receiver maps in the target.
+    return strict_mode == kStrictMode
+        ? generic_stub_strict()
+        : generic_stub();
   }
-  // The first time a receiver is seen that is a transitioned version of the
-  // previous monomorphic receiver type, assume the new ElementsKind is the
-  // monomorphic type. This benefits global arrays that only transition
-  // once, and all call sites accessing them are faster if they remain
-  // monomorphic. If this optimistic assumption is not true, the IC will
-  // miss again and it will become polymorphic and support both the
-  // untransitioned and transitioned maps.
-  if (ic_state == MONOMORPHIC &&
-      IsTransitionStubKind(stub_kind) &&
-      IsMoreGeneralElementsKindTransition(
-          target_receiver_maps.at(0)->elements_kind(),
-          receiver->GetElementsKind())) {
-    Handle<Map> monomorphic_map = ComputeTransitionedMap(receiver, stub_kind);
-    ASSERT(*monomorphic_map != *receiver_map);
-    stub_kind = GetNoTransitionStubKind(stub_kind);
-    return isolate()->stub_cache()->ComputeKeyedStoreElement(
-        monomorphic_map, stub_kind, strict_mode, grow_mode);
+
+  // There are several special cases where an IC that is MONOMORPHIC can still
+  // transition to a different GetNonTransitioningStoreMode IC that handles a
+  // superset of the original IC. Handle those here if the receiver map hasn't
+  // changed or it has transitioned to a more general kind.
+  KeyedAccessStoreMode old_store_mode =
+      Code::GetKeyedAccessStoreMode(target()->extra_ic_state());
+  Handle<Map> previous_receiver_map = target_receiver_maps.at(0);
+  if (ic_state == MONOMORPHIC && old_store_mode == STANDARD_STORE) {
+      // If the "old" and "new" maps are in the same elements map family, stay
+      // MONOMORPHIC and use the map for the most generic ElementsKind.
+    Handle<Map> transitioned_receiver_map = receiver_map;
+    if (IsTransitionStoreMode(store_mode)) {
+      transitioned_receiver_map =
+          ComputeTransitionedMap(receiver, store_mode);
+    }
+    ElementsKind transitioned_kind =
+        transitioned_receiver_map->elements_kind();
+    bool more_general_transition =
+        IsMoreGeneralElementsKindTransition(
+            previous_receiver_map->elements_kind(),
+            transitioned_kind);
+    Map* transitioned_previous_map = more_general_transition
+        ? previous_receiver_map->LookupElementsTransitionMap(transitioned_kind)
+        : NULL;
+    if (transitioned_previous_map == *transitioned_receiver_map) {
+      // Element family is the same, use the "worst" case map.
+      store_mode = GetNonTransitioningStoreMode(store_mode);
+      return isolate()->stub_cache()->ComputeKeyedStoreElement(
+          transitioned_receiver_map, strict_mode, store_mode);
+    } else if (*previous_receiver_map == receiver->map()) {
+      if (IsGrowStoreMode(store_mode)) {
+        // A "normal" IC that handles stores can switch to a version that can
+        // grow at the end of the array and still stay MONOMORPHIC.
+        return isolate()->stub_cache()->ComputeKeyedStoreElement(
+            receiver_map, strict_mode, store_mode);
+      }
+    }
   }
 
   ASSERT(ic_state != GENERIC);
@@ -1692,9 +1732,11 @@ Handle<Code> KeyedStoreIC::StoreElementStub(Handle<JSObject> receiver,
   bool map_added =
       AddOneReceiverMapIfMissing(&target_receiver_maps, receiver_map);
 
-  if (IsTransitionStubKind(stub_kind)) {
-    Handle<Map> new_map = ComputeTransitionedMap(receiver, stub_kind);
-    map_added |= AddOneReceiverMapIfMissing(&target_receiver_maps, new_map);
+  if (IsTransitionStoreMode(store_mode)) {
+    Handle<Map> transitioned_receiver_map =
+        ComputeTransitionedMap(receiver, store_mode);
+    map_added |= AddOneReceiverMapIfMissing(&target_receiver_maps,
+                                            transitioned_receiver_map);
   }
 
   if (!map_added) {
@@ -1711,19 +1753,29 @@ Handle<Code> KeyedStoreIC::StoreElementStub(Handle<JSObject> receiver,
     return strict_mode == kStrictMode ? generic_stub_strict() : generic_stub();
   }
 
-  if ((Code::GetKeyedAccessGrowMode(target()->extra_ic_state()) ==
-       ALLOW_JSARRAY_GROWTH)) {
-    grow_mode = ALLOW_JSARRAY_GROWTH;
+  // Make sure all polymorphic handlers have the same store mode, otherwise the
+  // generic stub must be used.
+  store_mode = GetNonTransitioningStoreMode(store_mode);
+  if (old_store_mode != STANDARD_STORE) {
+    if (store_mode == STANDARD_STORE) {
+      store_mode = old_store_mode;
+    } else if (store_mode != old_store_mode) {
+      TRACE_GENERIC_IC(isolate(), "KeyedIC", "store mode mismatch");
+      return strict_mode == kStrictMode
+          ? generic_stub_strict()
+          : generic_stub();
+    }
   }
 
   return isolate()->stub_cache()->ComputeStoreElementPolymorphic(
-      &target_receiver_maps, grow_mode, strict_mode);
+      &target_receiver_maps, store_mode, strict_mode);
 }
 
 
-Handle<Map> KeyedStoreIC::ComputeTransitionedMap(Handle<JSObject> receiver,
-                                                 StubKind stub_kind) {
-  switch (stub_kind) {
+Handle<Map> KeyedStoreIC::ComputeTransitionedMap(
+    Handle<JSObject> receiver,
+    KeyedAccessStoreMode store_mode) {
+  switch (store_mode) {
     case STORE_TRANSITION_SMI_TO_OBJECT:
     case STORE_TRANSITION_DOUBLE_TO_OBJECT:
     case STORE_AND_GROW_TRANSITION_SMI_TO_OBJECT:
@@ -1742,7 +1794,11 @@ Handle<Map> KeyedStoreIC::ComputeTransitionedMap(Handle<JSObject> receiver,
     case STORE_AND_GROW_TRANSITION_HOLEY_SMI_TO_DOUBLE:
       return JSObject::GetElementsTransitionMap(receiver,
                                                 FAST_HOLEY_DOUBLE_ELEMENTS);
-    case STORE_NO_TRANSITION:
+    case STORE_NO_TRANSITION_IGNORE_OUT_OF_BOUNDS:
+      ASSERT(receiver->map()->has_external_array_elements());
+      // Fall through
+    case STORE_NO_TRANSITION_HANDLE_COW:
+    case STANDARD_STORE:
     case STORE_AND_GROW_NO_TRANSITION:
       return Handle<Map>(receiver->map());
   }
@@ -1750,15 +1806,23 @@ Handle<Map> KeyedStoreIC::ComputeTransitionedMap(Handle<JSObject> receiver,
 }
 
 
-KeyedStoreIC::StubKind KeyedStoreIC::GetStubKind(Handle<JSObject> receiver,
-                                                 Handle<Object> key,
-                                                 Handle<Object> value) {
+bool IsOutOfBoundsAccess(Handle<JSObject> receiver,
+                         int index) {
+  if (receiver->IsJSArray()) {
+    return JSArray::cast(*receiver)->length()->IsSmi() &&
+        index >= Smi::cast(JSArray::cast(*receiver)->length())->value();
+  }
+  return index >= receiver->elements()->length();
+}
+
+
+KeyedAccessStoreMode KeyedStoreIC::GetStoreMode(Handle<JSObject> receiver,
+                                                Handle<Object> key,
+                                                Handle<Object> value) {
   ASSERT(key->IsSmi());
   int index = Smi::cast(*key)->value();
-  bool allow_growth = receiver->IsJSArray() &&
-      JSArray::cast(*receiver)->length()->IsSmi() &&
-      index >= Smi::cast(JSArray::cast(*receiver)->length())->value();
-
+  bool oob_access = IsOutOfBoundsAccess(receiver, index);
+  bool allow_growth = receiver->IsJSArray() && oob_access;
   if (allow_growth) {
     // Handle growing array in stub if necessary.
     if (receiver->HasFastSmiElements()) {
@@ -1811,7 +1875,12 @@ KeyedStoreIC::StubKind KeyedStoreIC::GetStubKind(Handle<JSObject> receiver,
         }
       }
     }
-    return STORE_NO_TRANSITION;
+    if (!FLAG_trace_external_array_abuse &&
+        receiver->map()->has_external_array_elements() && oob_access) {
+      return STORE_NO_TRANSITION_IGNORE_OUT_OF_BOUNDS;
+    } else {
+      return STANDARD_STORE;
+    }
   }
 }
 
@@ -1851,8 +1920,8 @@ MaybeObject* KeyedStoreIC::Store(State state,
             isolate()->heap()->non_strict_arguments_elements_map()) {
           stub = non_strict_arguments_stub();
         } else if (key->IsSmi() && (target() != *non_strict_arguments_stub())) {
-          StubKind stub_kind = GetStubKind(receiver, key, value);
-          stub = StoreElementStub(receiver, stub_kind, strict_mode);
+          KeyedAccessStoreMode store_mode = GetStoreMode(receiver, key, value);
+          stub = StoreElementStub(receiver, store_mode, strict_mode);
         }
       }
     } else {

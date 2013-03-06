@@ -226,8 +226,6 @@ namespace internal {
     "KeyedLoadElementMonomorphic")                                       \
   V(KeyedStoreElementMonomorphic_string,                                 \
     "KeyedStoreElementMonomorphic")                                      \
-  V(KeyedStoreAndGrowElementMonomorphic_string,                          \
-    "KeyedStoreAndGrowElementMonomorphic")                               \
   V(stack_overflow_string, "kStackOverflowBoilerplate")                  \
   V(illegal_access_string, "illegal access")                             \
   V(out_of_memory_string, "out-of-memory")                               \
@@ -266,7 +264,7 @@ namespace internal {
   V(infinity_string, "Infinity")                                         \
   V(minus_infinity_string, "-Infinity")                                  \
   V(hidden_stack_trace_string, "v8::hidden_stack_trace")                 \
-  V(query_colon_string, "(?:)")                                          \
+  V(query_colon_string, "(?:)")
 
 // Forward declarations.
 class GCTracer;

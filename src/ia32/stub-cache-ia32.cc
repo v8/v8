@@ -2883,7 +2883,7 @@ Handle<Code> KeyedStoreStubCompiler::CompileStoreElement(
   Handle<Code> stub =
       KeyedStoreElementStub(is_jsarray,
                             elements_kind,
-                            grow_mode_).GetCode(isolate());
+                            store_mode_).GetCode(isolate());
 
   __ DispatchMap(edx, receiver_map, stub, DO_SMI_CHECK);
 
@@ -3538,7 +3538,7 @@ void KeyedStoreStubCompiler::GenerateStoreFastElement(
     MacroAssembler* masm,
     bool is_js_array,
     ElementsKind elements_kind,
-    KeyedAccessGrowMode grow_mode) {
+    KeyedAccessStoreMode store_mode) {
   // ----------- S t a t e -------------
   //  -- eax    : value
   //  -- ecx    : key
@@ -3563,7 +3563,7 @@ void KeyedStoreStubCompiler::GenerateStoreFastElement(
   if (is_js_array) {
     // Check that the key is within bounds.
     __ cmp(ecx, FieldOperand(edx, JSArray::kLengthOffset));  // smis.
-    if (grow_mode == ALLOW_JSARRAY_GROWTH) {
+    if (IsGrowStoreMode(store_mode)) {
       __ j(above_equal, &grow);
     } else {
       __ j(above_equal, &miss_force_generic);
@@ -3615,7 +3615,7 @@ void KeyedStoreStubCompiler::GenerateStoreFastElement(
   Handle<Code> ic_miss = masm->isolate()->builtins()->KeyedStoreIC_Miss();
   __ jmp(ic_miss, RelocInfo::CODE_TARGET);
 
-  if (is_js_array && grow_mode == ALLOW_JSARRAY_GROWTH) {
+  if (is_js_array && IsGrowStoreMode(store_mode)) {
     // Handle transition requiring the array to grow.
     __ bind(&grow);
 
@@ -3693,7 +3693,7 @@ void KeyedStoreStubCompiler::GenerateStoreFastElement(
 void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
     MacroAssembler* masm,
     bool is_js_array,
-    KeyedAccessGrowMode grow_mode) {
+    KeyedAccessStoreMode store_mode) {
   // ----------- S t a t e -------------
   //  -- eax    : value
   //  -- ecx    : key
@@ -3716,7 +3716,7 @@ void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
   if (is_js_array) {
     // Check that the key is within bounds.
     __ cmp(ecx, FieldOperand(edx, JSArray::kLengthOffset));  // smis.
-    if (grow_mode == ALLOW_JSARRAY_GROWTH) {
+    if (IsGrowStoreMode(store_mode)) {
       __ j(above_equal, &grow);
     } else {
       __ j(above_equal, &miss_force_generic);
@@ -3743,7 +3743,7 @@ void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
   Handle<Code> ic_miss = masm->isolate()->builtins()->KeyedStoreIC_Miss();
   __ jmp(ic_miss, RelocInfo::CODE_TARGET);
 
-  if (is_js_array && grow_mode == ALLOW_JSARRAY_GROWTH) {
+  if (is_js_array && IsGrowStoreMode(store_mode)) {
     // Handle transition requiring the array to grow.
     __ bind(&grow);
 

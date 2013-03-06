@@ -152,10 +152,74 @@ enum CompareMapMode {
   ALLOW_ELEMENT_TRANSITION_MAPS
 };
 
-enum KeyedAccessGrowMode {
-  DO_NOT_ALLOW_JSARRAY_GROWTH,
-  ALLOW_JSARRAY_GROWTH
+enum KeyedAccessStoreMode {
+  STANDARD_STORE,
+  STORE_TRANSITION_SMI_TO_OBJECT,
+  STORE_TRANSITION_SMI_TO_DOUBLE,
+  STORE_TRANSITION_DOUBLE_TO_OBJECT,
+  STORE_TRANSITION_HOLEY_SMI_TO_OBJECT,
+  STORE_TRANSITION_HOLEY_SMI_TO_DOUBLE,
+  STORE_TRANSITION_HOLEY_DOUBLE_TO_OBJECT,
+  STORE_AND_GROW_NO_TRANSITION,
+  STORE_AND_GROW_TRANSITION_SMI_TO_OBJECT,
+  STORE_AND_GROW_TRANSITION_SMI_TO_DOUBLE,
+  STORE_AND_GROW_TRANSITION_DOUBLE_TO_OBJECT,
+  STORE_AND_GROW_TRANSITION_HOLEY_SMI_TO_OBJECT,
+  STORE_AND_GROW_TRANSITION_HOLEY_SMI_TO_DOUBLE,
+  STORE_AND_GROW_TRANSITION_HOLEY_DOUBLE_TO_OBJECT,
+  STORE_NO_TRANSITION_IGNORE_OUT_OF_BOUNDS,
+  STORE_NO_TRANSITION_HANDLE_COW
 };
+
+
+static const int kGrowICDelta = STORE_AND_GROW_NO_TRANSITION -
+    STANDARD_STORE;
+STATIC_ASSERT(STANDARD_STORE == 0);
+STATIC_ASSERT(kGrowICDelta ==
+              STORE_AND_GROW_TRANSITION_SMI_TO_OBJECT -
+              STORE_TRANSITION_SMI_TO_OBJECT);
+STATIC_ASSERT(kGrowICDelta ==
+              STORE_AND_GROW_TRANSITION_SMI_TO_DOUBLE -
+              STORE_TRANSITION_SMI_TO_DOUBLE);
+STATIC_ASSERT(kGrowICDelta ==
+              STORE_AND_GROW_TRANSITION_DOUBLE_TO_OBJECT -
+              STORE_TRANSITION_DOUBLE_TO_OBJECT);
+
+
+static inline KeyedAccessStoreMode GetGrowStoreMode(
+    KeyedAccessStoreMode store_mode) {
+  if (store_mode < STORE_AND_GROW_NO_TRANSITION) {
+    store_mode = static_cast<KeyedAccessStoreMode>(
+        static_cast<int>(store_mode) + kGrowICDelta);
+  }
+  return store_mode;
+}
+
+
+static inline bool IsTransitionStoreMode(KeyedAccessStoreMode store_mode) {
+  return store_mode > STANDARD_STORE &&
+      store_mode <= STORE_AND_GROW_TRANSITION_HOLEY_DOUBLE_TO_OBJECT &&
+      store_mode != STORE_AND_GROW_NO_TRANSITION;
+}
+
+
+static inline KeyedAccessStoreMode GetNonTransitioningStoreMode(
+    KeyedAccessStoreMode store_mode) {
+  if (store_mode >= STORE_NO_TRANSITION_IGNORE_OUT_OF_BOUNDS) {
+    return store_mode;
+  }
+  if (store_mode >= STORE_AND_GROW_NO_TRANSITION) {
+    return STORE_AND_GROW_NO_TRANSITION;
+  }
+  return STANDARD_STORE;
+}
+
+
+static inline bool IsGrowStoreMode(KeyedAccessStoreMode store_mode) {
+  return store_mode >= STORE_AND_GROW_NO_TRANSITION &&
+      store_mode <= STORE_AND_GROW_TRANSITION_HOLEY_DOUBLE_TO_OBJECT;
+}
+
 
 // Setter that skips the write barrier if mode is SKIP_WRITE_BARRIER.
 enum WriteBarrierMode { SKIP_WRITE_BARRIER, UPDATE_WRITE_BARRIER };
@@ -4469,24 +4533,22 @@ class Code: public HeapObject {
   void FindAllCode(CodeHandleList* code_list, int length);
 
   class ExtraICStateStrictMode: public BitField<StrictModeFlag, 0, 1> {};
-  class ExtraICStateKeyedAccessGrowMode:
-      public BitField<KeyedAccessGrowMode, 1, 1> {};  // NOLINT
-
-  static const int kExtraICStateGrowModeShift = 1;
+  class ExtraICStateKeyedAccessStoreMode:
+      public BitField<KeyedAccessStoreMode, 1, 4> {};  // NOLINT
 
   static inline StrictModeFlag GetStrictMode(ExtraICState extra_ic_state) {
     return ExtraICStateStrictMode::decode(extra_ic_state);
   }
 
-  static inline KeyedAccessGrowMode GetKeyedAccessGrowMode(
+  static inline KeyedAccessStoreMode GetKeyedAccessStoreMode(
       ExtraICState extra_ic_state) {
-    return ExtraICStateKeyedAccessGrowMode::decode(extra_ic_state);
+    return ExtraICStateKeyedAccessStoreMode::decode(extra_ic_state);
   }
 
   static inline ExtraICState ComputeExtraICState(
-      KeyedAccessGrowMode grow_mode,
+      KeyedAccessStoreMode store_mode,
       StrictModeFlag strict_mode) {
-    return ExtraICStateKeyedAccessGrowMode::encode(grow_mode) |
+    return ExtraICStateKeyedAccessStoreMode::encode(store_mode) |
         ExtraICStateStrictMode::encode(strict_mode);
   }
 
@@ -4650,8 +4712,8 @@ class Code: public HeapObject {
   class TypeField: public BitField<StubType, 3, 3> {};
   class CacheHolderField: public BitField<InlineCacheHolderFlag, 6, 1> {};
   class KindField: public BitField<Kind, 7, 4> {};
-  class ExtraICStateField: public BitField<ExtraICState, 11, 2> {};
-  class IsPregeneratedField: public BitField<bool, 13, 1> {};
+  class ExtraICStateField: public BitField<ExtraICState, 11, 5> {};
+  class IsPregeneratedField: public BitField<bool, 16, 1> {};
 
   // KindSpecificFlags1 layout (STUB and OPTIMIZED_FUNCTION)
   static const int kStackSlotsFirstBit = 0;
@@ -4708,7 +4770,7 @@ class Code: public HeapObject {
   class StackCheckTableOffsetField: public BitField<int, 0, 31> {};
 
   // Signed field cannot be encoded using the BitField class.
-  static const int kArgumentsCountShift = 14;
+  static const int kArgumentsCountShift = 17;
   static const int kArgumentsCountMask = ~((1 << kArgumentsCountShift) - 1);
 
   // This constant should be encodable in an ARM instruction.

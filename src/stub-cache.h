@@ -196,9 +196,8 @@ class StubCache {
   Handle<Code> ComputeKeyedLoadElement(Handle<Map> receiver_map);
 
   Handle<Code> ComputeKeyedStoreElement(Handle<Map> receiver_map,
-                                        KeyedStoreIC::StubKind stub_kind,
                                         StrictModeFlag strict_mode,
-                                        KeyedAccessGrowMode grow_mode);
+                                        KeyedAccessStoreMode store_mode);
 
   // ---
 
@@ -262,7 +261,7 @@ class StubCache {
 
   Handle<Code> ComputeLoadElementPolymorphic(MapHandleList* receiver_maps);
   Handle<Code> ComputeStoreElementPolymorphic(MapHandleList* receiver_maps,
-                                              KeyedAccessGrowMode grow_mode,
+                                              KeyedAccessStoreMode store_mode,
                                               StrictModeFlag strict_mode);
 
   Handle<Code> ComputePolymorphicIC(MapHandleList* receiver_maps,
@@ -803,10 +802,10 @@ class KeyedStoreStubCompiler: public StubCompiler {
  public:
   KeyedStoreStubCompiler(Isolate* isolate,
                          StrictModeFlag strict_mode,
-                         KeyedAccessGrowMode grow_mode)
+                         KeyedAccessStoreMode store_mode)
     : StubCompiler(isolate),
       strict_mode_(strict_mode),
-      grow_mode_(grow_mode) { }
+      store_mode_(store_mode) { }
 
   Handle<Code> CompileStoreField(Handle<JSObject> object,
                                  int index,
@@ -824,11 +823,11 @@ class KeyedStoreStubCompiler: public StubCompiler {
   static void GenerateStoreFastElement(MacroAssembler* masm,
                                        bool is_js_array,
                                        ElementsKind element_kind,
-                                       KeyedAccessGrowMode grow_mode);
+                                       KeyedAccessStoreMode store_mode);
 
   static void GenerateStoreFastDoubleElement(MacroAssembler* masm,
                                              bool is_js_array,
-                                             KeyedAccessGrowMode grow_mode);
+                                             KeyedAccessStoreMode store_mode);
 
   static void GenerateStoreExternalArray(MacroAssembler* masm,
                                          ElementsKind elements_kind);
@@ -841,7 +840,7 @@ class KeyedStoreStubCompiler: public StubCompiler {
                        InlineCacheState state = MONOMORPHIC);
 
   StrictModeFlag strict_mode_;
-  KeyedAccessGrowMode grow_mode_;
+  KeyedAccessStoreMode store_mode_;
 };
 
 

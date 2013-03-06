@@ -438,28 +438,26 @@ Handle<Code> StubCache::ComputeKeyedLoadElement(Handle<Map> receiver_map) {
 
 Handle<Code> StubCache::ComputeKeyedStoreElement(
     Handle<Map> receiver_map,
-    KeyedStoreIC::StubKind stub_kind,
     StrictModeFlag strict_mode,
-    KeyedAccessGrowMode grow_mode) {
+    KeyedAccessStoreMode store_mode) {
   Code::ExtraICState extra_state =
-      Code::ComputeExtraICState(grow_mode, strict_mode);
+      Code::ComputeExtraICState(store_mode, strict_mode);
   Code::Flags flags = Code::ComputeMonomorphicFlags(
       Code::KEYED_STORE_IC, extra_state);
 
-  ASSERT(stub_kind == KeyedStoreIC::STORE_NO_TRANSITION ||
-         stub_kind == KeyedStoreIC::STORE_AND_GROW_NO_TRANSITION);
+  ASSERT(store_mode == STANDARD_STORE ||
+         store_mode == STORE_AND_GROW_NO_TRANSITION);
 
-  Handle<Name> name = stub_kind == KeyedStoreIC::STORE_NO_TRANSITION
-      ? isolate()->factory()->KeyedStoreElementMonomorphic_string()
-      : isolate()->factory()->KeyedStoreAndGrowElementMonomorphic_string();
-
+  Handle<String> name =
+      isolate()->factory()->KeyedStoreElementMonomorphic_string();
   Handle<Object> probe(receiver_map->FindInCodeCache(*name, flags), isolate_);
   if (probe->IsCode()) return Handle<Code>::cast(probe);
 
-  KeyedStoreStubCompiler compiler(isolate(), strict_mode, grow_mode);
+  KeyedStoreStubCompiler compiler(isolate(), strict_mode, store_mode);
   Handle<Code> code = compiler.CompileStoreElement(receiver_map);
 
   Map::UpdateCodeCache(receiver_map, name, code);
+  ASSERT(Code::GetKeyedAccessStoreMode(code->extra_ic_state()) == store_mode);
   return code;
 }
 
@@ -556,8 +554,7 @@ Handle<Code> StubCache::ComputeKeyedStoreField(Handle<Name> name,
                        isolate_);
   if (probe->IsCode()) return Handle<Code>::cast(probe);
 
-  KeyedStoreStubCompiler compiler(isolate(), strict_mode,
-                                  DO_NOT_ALLOW_JSARRAY_GROWTH);
+  KeyedStoreStubCompiler compiler(isolate(), strict_mode, STANDARD_STORE);
   Handle<Code> code =
       compiler.CompileStoreField(receiver, field_index, transition, name);
   JSObject::UpdateMapCodeCache(receiver, name, code);
@@ -914,18 +911,20 @@ Handle<Code> StubCache::ComputePolymorphicIC(MapHandleList* receiver_maps,
 
 Handle<Code> StubCache::ComputeStoreElementPolymorphic(
     MapHandleList* receiver_maps,
-    KeyedAccessGrowMode grow_mode,
+    KeyedAccessStoreMode store_mode,
     StrictModeFlag strict_mode) {
+  ASSERT(store_mode == STANDARD_STORE ||
+         store_mode == STORE_AND_GROW_NO_TRANSITION);
   Handle<PolymorphicCodeCache> cache =
       isolate_->factory()->polymorphic_code_cache();
-  Code::ExtraICState extra_state = Code::ComputeExtraICState(grow_mode,
+  Code::ExtraICState extra_state = Code::ComputeExtraICState(store_mode,
                                                              strict_mode);
   Code::Flags flags =
       Code::ComputeFlags(Code::KEYED_STORE_IC, POLYMORPHIC, extra_state);
   Handle<Object> probe = cache->Lookup(receiver_maps, flags);
   if (probe->IsCode()) return Handle<Code>::cast(probe);
 
-  KeyedStoreStubCompiler compiler(isolate_, strict_mode, grow_mode);
+  KeyedStoreStubCompiler compiler(isolate_, strict_mode, store_mode);
   Handle<Code> code = compiler.CompileStoreElementPolymorphic(receiver_maps);
   PolymorphicCodeCache::Update(cache, receiver_maps, flags, code);
   return code;
@@ -1664,7 +1663,7 @@ Handle<Code> KeyedStoreStubCompiler::GetCode(Code::StubType type,
                                              Handle<Name> name,
                                              InlineCacheState state) {
   Code::ExtraICState extra_state =
-      Code::ComputeExtraICState(grow_mode_, strict_mode_);
+      Code::ComputeExtraICState(store_mode_, strict_mode_);
   Code::Flags flags =
       Code::ComputeFlags(Code::KEYED_STORE_IC, state, extra_state, type);
   Handle<Code> code = GetCodeWithFlags(flags, name);
@@ -1698,12 +1697,12 @@ Handle<Code> KeyedStoreStubCompiler::CompileStoreElementPolymorphic(
           transitioned_map->elements_kind(),
           is_js_array,
           strict_mode_,
-          grow_mode_).GetCode(isolate());
+          store_mode_).GetCode(isolate());
     } else {
       cached_stub = KeyedStoreElementStub(
           is_js_array,
           elements_kind,
-          grow_mode_).GetCode(isolate());
+          store_mode_).GetCode(isolate());
     }
     ASSERT(!cached_stub.is_null());
     handlers.Add(cached_stub);

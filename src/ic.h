@@ -584,43 +584,6 @@ enum KeyedStoreIncrementLength {
 
 class KeyedStoreIC: public StoreIC {
  public:
-  enum StubKind {
-    STORE_NO_TRANSITION,
-    STORE_TRANSITION_SMI_TO_OBJECT,
-    STORE_TRANSITION_SMI_TO_DOUBLE,
-    STORE_TRANSITION_DOUBLE_TO_OBJECT,
-    STORE_TRANSITION_HOLEY_SMI_TO_OBJECT,
-    STORE_TRANSITION_HOLEY_SMI_TO_DOUBLE,
-    STORE_TRANSITION_HOLEY_DOUBLE_TO_OBJECT,
-    STORE_AND_GROW_NO_TRANSITION,
-    STORE_AND_GROW_TRANSITION_SMI_TO_OBJECT,
-    STORE_AND_GROW_TRANSITION_SMI_TO_DOUBLE,
-    STORE_AND_GROW_TRANSITION_DOUBLE_TO_OBJECT,
-    STORE_AND_GROW_TRANSITION_HOLEY_SMI_TO_OBJECT,
-    STORE_AND_GROW_TRANSITION_HOLEY_SMI_TO_DOUBLE,
-    STORE_AND_GROW_TRANSITION_HOLEY_DOUBLE_TO_OBJECT
-  };
-
-  static const int kGrowICDelta = STORE_AND_GROW_NO_TRANSITION -
-      STORE_NO_TRANSITION;
-  STATIC_ASSERT(kGrowICDelta ==
-                STORE_AND_GROW_TRANSITION_SMI_TO_OBJECT -
-                STORE_TRANSITION_SMI_TO_OBJECT);
-  STATIC_ASSERT(kGrowICDelta ==
-                STORE_AND_GROW_TRANSITION_SMI_TO_DOUBLE -
-                STORE_TRANSITION_SMI_TO_DOUBLE);
-  STATIC_ASSERT(kGrowICDelta ==
-                STORE_AND_GROW_TRANSITION_DOUBLE_TO_OBJECT -
-                STORE_TRANSITION_DOUBLE_TO_OBJECT);
-
-  static inline StubKind GetGrowStubKind(StubKind stub_kind) {
-    if (stub_kind < STORE_AND_GROW_NO_TRANSITION) {
-      stub_kind = static_cast<StubKind>(static_cast<int>(stub_kind) +
-                                        kGrowICDelta);
-    }
-    return stub_kind;
-  }
-
   explicit KeyedStoreIC(Isolate* isolate) : StoreIC(isolate) {
     ASSERT(target()->is_keyed_store_stub());
   }
@@ -662,7 +625,7 @@ class KeyedStoreIC: public StoreIC {
   }
 
   Handle<Code> StoreElementStub(Handle<JSObject> receiver,
-                                StubKind stub_kind,
+                                KeyedAccessStoreMode store_mode,
                                 StrictModeFlag strict_mode);
 
  private:
@@ -692,27 +655,12 @@ class KeyedStoreIC: public StoreIC {
 
   static void Clear(Address address, Code* target);
 
-  StubKind GetStubKind(Handle<JSObject> receiver,
-                       Handle<Object> key,
-                       Handle<Object> value);
-
-  static bool IsTransitionStubKind(StubKind stub_kind) {
-    return stub_kind > STORE_NO_TRANSITION &&
-        stub_kind != STORE_AND_GROW_NO_TRANSITION;
-  }
-
-  static bool IsGrowStubKind(StubKind stub_kind) {
-    return stub_kind >= STORE_AND_GROW_NO_TRANSITION;
-  }
-
-  static StubKind GetNoTransitionStubKind(StubKind stub_kind) {
-    if (!IsTransitionStubKind(stub_kind)) return stub_kind;
-    if (IsGrowStubKind(stub_kind)) return STORE_AND_GROW_NO_TRANSITION;
-    return STORE_NO_TRANSITION;
-  }
+  KeyedAccessStoreMode GetStoreMode(Handle<JSObject> receiver,
+                                    Handle<Object> key,
+                                    Handle<Object> value);
 
   Handle<Map> ComputeTransitionedMap(Handle<JSObject> receiver,
-                                     StubKind stub_kind);
+                                     KeyedAccessStoreMode store_mode);
 
   friend class IC;
 };
@@ -836,7 +784,6 @@ class ToBooleanIC: public IC {
 enum InlinedSmiCheck { ENABLE_INLINED_SMI_CHECK, DISABLE_INLINED_SMI_CHECK };
 void PatchInlinedSmiCode(Address address, InlinedSmiCheck check);
 
-DECLARE_RUNTIME_FUNCTION(MaybeObject*, KeyedLoadIC_Miss);
 DECLARE_RUNTIME_FUNCTION(MaybeObject*, KeyedLoadIC_MissFromStubFailure);
 
 } }  // namespace v8::internal
