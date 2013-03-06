@@ -61,6 +61,7 @@ class HBasicBlock: public ZoneObject {
   int block_id() const { return block_id_; }
   void set_block_id(int id) { block_id_ = id; }
   HGraph* graph() const { return graph_; }
+  Isolate* isolate() const;
   const ZoneList<HPhi*>* phis() const { return &phis_; }
   HInstruction* first() const { return first_; }
   HInstruction* last() const { return last_; }
@@ -870,7 +871,8 @@ class HGraphBuilder {
     return current_block()->last_environment();
   }
   Zone* zone() const { return info_->zone(); }
-  HGraph* graph() { return graph_; }
+  HGraph* graph() const { return graph_; }
+  Isolate* isolate() const { return graph_->isolate(); }
 
   HGraph* CreateGraph();
 
@@ -1534,26 +1536,6 @@ class HSideEffectMap BASE_EMBEDDED {
 
 class HStatistics: public Malloced {
  public:
-  void Initialize(CompilationInfo* info);
-  void Print();
-  void SaveTiming(const char* name, int64_t ticks, unsigned size);
-  static HStatistics* Instance() {
-    static SetOncePointer<HStatistics> instance;
-    if (!instance.is_set()) {
-      instance.set(new HStatistics());
-    }
-    return instance.get();
-  }
-
-  void IncrementSubtotals(int64_t create_graph,
-                          int64_t optimize_graph,
-                          int64_t generate_code) {
-    create_graph_ += create_graph;
-    optimize_graph_ += optimize_graph;
-    generate_code_ += generate_code;
-  }
-
- private:
   HStatistics()
       : timing_(5),
         names_(5),
@@ -1565,6 +1547,19 @@ class HStatistics: public Malloced {
         full_code_gen_(0),
         source_size_(0) { }
 
+  void Initialize(CompilationInfo* info);
+  void Print();
+  void SaveTiming(const char* name, int64_t ticks, unsigned size);
+
+  void IncrementSubtotals(int64_t create_graph,
+                          int64_t optimize_graph,
+                          int64_t generate_code) {
+    create_graph_ += create_graph;
+    optimize_graph_ += optimize_graph;
+    generate_code_ += generate_code;
+  }
+
+ private:
   List<int64_t> timing_;
   List<const char*> names_;
   List<unsigned> sizes_;
@@ -1589,10 +1584,10 @@ class HPhase BASE_EMBEDDED {
 
  private:
   void Init(Isolate* isolate,
-             const char* name,
-             HGraph* graph,
-             LChunk* chunk,
-             LAllocator* allocator);
+            const char* name,
+            HGraph* graph,
+            LChunk* chunk,
+            LAllocator* allocator);
 
   Isolate* isolate_;
   const char* name_;

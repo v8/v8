@@ -234,9 +234,9 @@ void OptimizingCompiler::RecordOptimizationStats() {
            compilation_time);
   }
   if (FLAG_hydrogen_stats) {
-    HStatistics::Instance()->IncrementSubtotals(time_taken_to_create_graph_,
-                                                time_taken_to_optimize_,
-                                                time_taken_to_codegen_);
+    isolate()->GetHStatistics()->IncrementSubtotals(time_taken_to_create_graph_,
+                                                    time_taken_to_optimize_,
+                                                    time_taken_to_codegen_);
   }
 }
 

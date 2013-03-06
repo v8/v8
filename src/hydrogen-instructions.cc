@@ -78,7 +78,7 @@ int HValue::LoopWeight() const {
 
 Isolate* HValue::isolate() const {
   ASSERT(block() != NULL);
-  return block()->graph()->isolate();
+  return block()->isolate();
 }
 
 

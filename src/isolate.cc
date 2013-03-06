@@ -1792,7 +1792,7 @@ void Isolate::Deinit() {
       delete[] marking_thread_;
     }
 
-    if (FLAG_hydrogen_stats) HStatistics::Instance()->Print();
+    if (FLAG_hydrogen_stats) GetHStatistics()->Print();
 
     // We must stop the logger before we tear down other components.
     logger_->EnsureTickerStopped();
@@ -2315,6 +2315,12 @@ void Isolate::UnlinkDeferredHandles(DeferredHandles* deferred) {
   if (deferred->previous_ != NULL) {
     deferred->previous_->next_ = deferred->next_;
   }
+}
+
+
+HStatistics* Isolate::GetHStatistics() {
+  if (hstatistics() == NULL) set_hstatistics(new HStatistics());
+  return hstatistics();
 }
 
 

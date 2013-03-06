@@ -68,6 +68,7 @@ class Factory;
 class FunctionInfoListener;
 class HandleScopeImplementer;
 class HeapProfiler;
+class HStatistics;
 class HTracer;
 class InlineRuntimeFunctionsTable;
 class NoAllocationStringAllocator;
@@ -373,6 +374,7 @@ typedef List<HeapObject*, PreallocatedStorageAllocationPolicy> DebugObjectCache;
   V(CpuProfiler*, cpu_profiler, NULL)                                          \
   V(HeapProfiler*, heap_profiler, NULL)                                        \
   V(bool, observer_delivery_pending, false)                                    \
+  V(HStatistics*, hstatistics, NULL)                                           \
   V(HTracer*, htracer, NULL)                                                   \
   ISOLATE_DEBUGGER_INIT_LIST(V)
 
@@ -1102,6 +1104,7 @@ class Isolate {
     return sweeper_thread_;
   }
 
+  HStatistics* GetHStatistics();
   HTracer* GetHTracer();
 
  private:

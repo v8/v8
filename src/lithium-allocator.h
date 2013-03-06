@@ -423,6 +423,7 @@ class LAllocator BASE_EMBEDDED {
 
   LPlatformChunk* chunk() const { return chunk_; }
   HGraph* graph() const { return graph_; }
+  Isolate* isolate() const { return graph_->isolate(); }
   Zone* zone() const { return zone_; }
 
   int GetVirtualRegister() {
