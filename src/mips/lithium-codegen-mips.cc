@@ -1826,7 +1826,7 @@ void LCodeGen::DoBranch(LBranch* instr) {
     CpuFeatureScope scope(masm(), FPU);
     DoubleRegister reg = ToDoubleRegister(instr->value());
     // Test the double value. Zero and NaN are false.
-    EmitBranchF(true_block, false_block, ne, reg, kDoubleRegZero);
+    EmitBranchF(true_block, false_block, nue, reg, kDoubleRegZero);
   } else {
     ASSERT(r.IsTagged());
     Register reg = ToRegister(instr->value());

@@ -1125,23 +1125,19 @@ void MacroAssembler::BranchF(Label* target,
     // have been handled by the caller.
     // Unsigned conditions are treated as their signed counterpart.
     switch (cc) {
-      case Uless:
-      case less:
+      case lt:
         c(OLT, D, cmp1, cmp2);
         bc1t(target);
         break;
-      case Ugreater:
-      case greater:
+      case gt:
         c(ULE, D, cmp1, cmp2);
         bc1f(target);
         break;
-      case Ugreater_equal:
-      case greater_equal:
+      case ge:
         c(ULT, D, cmp1, cmp2);
         bc1f(target);
         break;
-      case Uless_equal:
-      case less_equal:
+      case le:
         c(OLE, D, cmp1, cmp2);
         bc1t(target);
         break;
@@ -1149,8 +1145,16 @@ void MacroAssembler::BranchF(Label* target,
         c(EQ, D, cmp1, cmp2);
         bc1t(target);
         break;
+      case ueq:
+        c(UEQ, D, cmp1, cmp2);
+        bc1t(target);
+        break;
       case ne:
         c(EQ, D, cmp1, cmp2);
+        bc1f(target);
+        break;
+      case nue:
+        c(UEQ, D, cmp1, cmp2);
         bc1f(target);
         break;
       default:
