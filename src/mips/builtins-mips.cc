@@ -568,7 +568,7 @@ void Builtins::Generate_ArrayConstructCode(MacroAssembler* masm) {
     __ And(t0, a3, Operand(kSmiTagMask));
     __ Assert(ne, "Unexpected initial map for Array function (3)",
               t0, Operand(zero_reg));
-    __ GetObjectType(a1, a3, t0);
+    __ GetObjectType(a3, a3, t0);
     __ Assert(eq, "Unexpected initial map for Array function (4)",
               t0, Operand(MAP_TYPE));
 

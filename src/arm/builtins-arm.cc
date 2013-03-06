@@ -554,7 +554,7 @@ void Builtins::Generate_ArrayConstructCode(MacroAssembler* masm) {
     __ ldr(r3, FieldMemOperand(r1, JSFunction::kPrototypeOrInitialMapOffset));
     __ tst(r3, Operand(kSmiTagMask));
     __ Assert(ne, "Unexpected initial map for Array function");
-    __ CompareObjectType(r1, r3, r4, MAP_TYPE);
+    __ CompareObjectType(r3, r3, r4, MAP_TYPE);
     __ Assert(eq, "Unexpected initial map for Array function");
 
     if (FLAG_optimize_constructed_arrays) {
