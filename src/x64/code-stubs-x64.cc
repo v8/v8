@@ -2389,6 +2389,7 @@ void ArrayLengthStub::Generate(MacroAssembler* masm) {
     //  -- rsp[0] : return address
     // -----------------------------------
     __ Cmp(rax, masm->isolate()->factory()->length_string());
+    __ j(not_equal, &miss);
     receiver = rdx;
   } else {
     ASSERT(kind() == Code::LOAD_IC);
@@ -2416,6 +2417,7 @@ void FunctionPrototypeStub::Generate(MacroAssembler* masm) {
     //  -- rsp[0] : return address
     // -----------------------------------
     __ Cmp(rax, masm->isolate()->factory()->prototype_string());
+    __ j(not_equal, &miss);
     receiver = rdx;
   } else {
     ASSERT(kind() == Code::LOAD_IC);
@@ -2443,6 +2445,7 @@ void StringLengthStub::Generate(MacroAssembler* masm) {
     //  -- rsp[0] : return address
     // -----------------------------------
     __ Cmp(rax, masm->isolate()->factory()->length_string());
+    __ j(not_equal, &miss);
     receiver = rdx;
   } else {
     ASSERT(kind() == Code::LOAD_IC);
