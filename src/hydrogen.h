@@ -1581,51 +1581,44 @@ class HPhase BASE_EMBEDDED {
  public:
   static const char* const kFullCodeGen;
 
-  explicit HPhase(const char* name) { Begin(name, NULL, NULL, NULL); }
-  HPhase(const char* name, HGraph* graph) {
-    Begin(name, graph, NULL, NULL);
-  }
-  HPhase(const char* name, LChunk* chunk) {
-    Begin(name, NULL, chunk, NULL);
-  }
-  HPhase(const char* name, LAllocator* allocator) {
-    Begin(name, NULL, NULL, allocator);
-  }
-
-  ~HPhase() {
-    End();
-  }
+  HPhase(const char* name, Isolate* isolate);
+  HPhase(const char* name, HGraph* graph);
+  HPhase(const char* name, LChunk* chunk);
+  HPhase(const char* name, LAllocator* allocator);
+  ~HPhase();
 
  private:
-  void Begin(const char* name,
+  void Init(Isolate* isolate,
+             const char* name,
              HGraph* graph,
              LChunk* chunk,
              LAllocator* allocator);
-  void End() const;
 
-  int64_t start_;
+  Isolate* isolate_;
   const char* name_;
   HGraph* graph_;
   LChunk* chunk_;
   LAllocator* allocator_;
+  int64_t start_ticks_;
   unsigned start_allocation_size_;
 };
 
 
 class HTracer: public Malloced {
  public:
+  explicit HTracer(int isolate_id)
+      : trace_(&string_allocator_), indent_(0) {
+    OS::SNPrintF(filename_,
+                 "hydrogen-%d-%d.cfg",
+                 OS::GetCurrentProcessId(),
+                 isolate_id);
+    WriteChars(filename_.start(), "", 0, false);
+  }
+
   void TraceCompilation(CompilationInfo* info);
   void TraceHydrogen(const char* name, HGraph* graph);
   void TraceLithium(const char* name, LChunk* chunk);
   void TraceLiveRanges(const char* name, LAllocator* allocator);
-
-  static HTracer* Instance() {
-    static SetOncePointer<HTracer> instance;
-    if (!instance.is_set()) {
-      instance.set(new HTracer("hydrogen.cfg"));
-    }
-    return instance.get();
-  }
 
  private:
   class Tag BASE_EMBEDDED {
@@ -1650,11 +1643,6 @@ class HTracer: public Malloced {
     HTracer* tracer_;
     const char* name_;
   };
-
-  explicit HTracer(const char* filename)
-      : filename_(filename), trace_(&string_allocator_), indent_(0) {
-    WriteChars(filename, "", 0, false);
-  }
 
   void TraceLiveRange(LiveRange* range, const char* type, Zone* zone);
   void Trace(const char* name, HGraph* graph, LChunk* chunk);
@@ -1691,7 +1679,7 @@ class HTracer: public Malloced {
     }
   }
 
-  const char* filename_;
+  EmbeddedVector<char, 64> filename_;
   HeapStringAllocator string_allocator_;
   StringStream trace_;
   int indent_;

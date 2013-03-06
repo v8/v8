@@ -830,7 +830,7 @@ void HGraphBuilder::LoopBuilder::EndBody() {
 HGraph* HGraphBuilder::CreateGraph() {
   graph_ = new(zone()) HGraph(info_);
   if (FLAG_hydrogen_stats) HStatistics::Instance()->Initialize(info_);
-  HPhase phase("H_Block building");
+  HPhase phase("H_Block building", graph()->isolate());
   set_current_block(graph()->entry_block());
   if (!BuildGraph()) return NULL;
   return graph_;
@@ -1553,7 +1553,7 @@ class PostorderProcessor : public ZoneObject {
 
 
 void HGraph::OrderBlocks() {
-  HPhase phase("H_Block ordering");
+  HPhase phase("H_Block ordering", isolate());
   BitVector visited(blocks_.length(), zone());
 
   ZoneList<HBasicBlock*> reverse_result(8, zone());
@@ -10713,7 +10713,7 @@ void HTracer::TraceLiveRange(LiveRange* range, const char* type,
 
 
 void HTracer::FlushToFile() {
-  AppendChars(filename_, *trace_.ToCString(), trace_.length(), false);
+  AppendChars(filename_.start(), *trace_.ToCString(), trace_.length(), false);
   trace_.Reset();
 }
 
@@ -10798,10 +10798,33 @@ void HStatistics::SaveTiming(const char* name, int64_t ticks, unsigned size) {
 
 const char* const HPhase::kFullCodeGen = "Full code generator";
 
-void HPhase::Begin(const char* name,
-                   HGraph* graph,
-                   LChunk* chunk,
-                   LAllocator* allocator) {
+
+HPhase::HPhase(const char* name, Isolate* isolate) {
+  Init(isolate, name, NULL, NULL, NULL);
+}
+
+
+HPhase::HPhase(const char* name, HGraph* graph) {
+  Init(graph->isolate(), name, graph, NULL, NULL);
+}
+
+
+HPhase::HPhase(const char* name, LChunk* chunk) {
+  Init(chunk->graph()->isolate(), name, NULL, chunk, NULL);
+}
+
+
+HPhase::HPhase(const char* name, LAllocator* allocator) {
+  Init(allocator->graph()->isolate(), name, NULL, NULL, allocator);
+}
+
+
+void HPhase::Init(Isolate* isolate,
+                  const char* name,
+                  HGraph* graph,
+                  LChunk* chunk,
+                  LAllocator* allocator) {
+  isolate_ = isolate;
   name_ = name;
   graph_ = graph;
   chunk_ = chunk;
@@ -10809,26 +10832,32 @@ void HPhase::Begin(const char* name,
   if (allocator != NULL && chunk_ == NULL) {
     chunk_ = allocator->chunk();
   }
-  if (FLAG_hydrogen_stats) start_ = OS::Ticks();
-  start_allocation_size_ = Zone::allocation_size_;
+  if (FLAG_hydrogen_stats) {
+    start_ticks_ = OS::Ticks();
+    start_allocation_size_ = Zone::allocation_size_;
+  }
 }
 
 
-void HPhase::End() const {
+HPhase::~HPhase() {
   if (FLAG_hydrogen_stats) {
-    int64_t end = OS::Ticks();
+    int64_t ticks = OS::Ticks() - start_ticks_;
     unsigned size = Zone::allocation_size_ - start_allocation_size_;
-    HStatistics::Instance()->SaveTiming(name_, end - start_, size);
+    HStatistics::Instance()->SaveTiming(name_, ticks, size);
   }
 
   // Produce trace output if flag is set so that the first letter of the
   // phase name matches the command line parameter FLAG_trace_phase.
   if (FLAG_trace_hydrogen &&
       OS::StrChr(const_cast<char*>(FLAG_trace_phase), name_[0]) != NULL) {
-    if (graph_ != NULL) HTracer::Instance()->TraceHydrogen(name_, graph_);
-    if (chunk_ != NULL) HTracer::Instance()->TraceLithium(name_, chunk_);
+    if (graph_ != NULL) {
+      isolate_->GetHTracer()->TraceHydrogen(name_, graph_);
+    }
+    if (chunk_ != NULL) {
+      isolate_->GetHTracer()->TraceLithium(name_, chunk_);
+    }
     if (allocator_ != NULL) {
-      HTracer::Instance()->TraceLiveRanges(name_, allocator_);
+      isolate_->GetHTracer()->TraceLiveRanges(name_, allocator_);
     }
   }
 

@@ -277,7 +277,7 @@ OptimizingCompiler::Status OptimizingCompiler::CreateGraph() {
   // Fall back to using the full code generator if it's not possible
   // to use the Hydrogen-based optimizing compiler. We already have
   // generated code for this from the shared function object.
-  if (AlwaysFullCompiler(info()->isolate())) {
+  if (AlwaysFullCompiler(isolate())) {
     info()->SetCode(code);
     return SetLastStatus(BAILED_OUT);
   }
@@ -330,7 +330,7 @@ OptimizingCompiler::Status OptimizingCompiler::CreateGraph() {
   // performance of the hydrogen-based compiler.
   bool should_recompile = !info()->shared_info()->has_deoptimization_support();
   if (should_recompile || FLAG_hydrogen_stats) {
-    HPhase phase(HPhase::kFullCodeGen);
+    HPhase phase(HPhase::kFullCodeGen, isolate());
     CompilationInfoWithZone unoptimized(info()->shared_info());
     // Note that we use the same AST that we will use for generating the
     // optimized code.
@@ -360,18 +360,18 @@ OptimizingCompiler::Status OptimizingCompiler::CreateGraph() {
   if (FLAG_trace_hydrogen) {
     PrintF("-----------------------------------------------------------\n");
     PrintF("Compiling method %s using hydrogen\n", *name->ToCString());
-    HTracer::Instance()->TraceCompilation(info());
+    isolate()->GetHTracer()->TraceCompilation(info());
   }
   Handle<Context> native_context(
       info()->closure()->context()->native_context());
   oracle_ = new(info()->zone()) TypeFeedbackOracle(
-      code, native_context, info()->isolate(), info()->zone());
+      code, native_context, isolate(), info()->zone());
   graph_builder_ = new(info()->zone()) HOptimizedGraphBuilder(info(), oracle_);
 
   Timer t(this, &time_taken_to_create_graph_);
   graph_ = graph_builder_->CreateGraph();
 
-  if (info()->isolate()->has_pending_exception()) {
+  if (isolate()->has_pending_exception()) {
     info()->SetCode(Handle<Code>::null());
     return SetLastStatus(FAILED);
   }

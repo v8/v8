@@ -338,7 +338,7 @@ Thread::LocalStorageKey Isolate::thread_id_key_;
 Thread::LocalStorageKey Isolate::per_isolate_thread_data_key_;
 Mutex* Isolate::process_wide_mutex_ = OS::CreateMutex();
 Isolate::ThreadDataTable* Isolate::thread_data_table_ = NULL;
-
+Atomic32 Isolate::isolate_counter_ = 0;
 
 Isolate::PerIsolateThreadData* Isolate::AllocatePerIsolateThreadData(
     ThreadId thread_id) {
@@ -1624,7 +1624,8 @@ void Isolate::ThreadDataTable::RemoveAllThreads(Isolate* isolate) {
 #define TRACE_ISOLATE(tag)                                              \
   do {                                                                  \
     if (FLAG_trace_isolates) {                                          \
-      PrintF("Isolate %p " #tag "\n", reinterpret_cast<void*>(this));   \
+      PrintF("Isolate %p (id %d)" #tag "\n",                            \
+             reinterpret_cast<void*>(this), id());                      \
     }                                                                   \
   } while (false)
 #else
@@ -1684,6 +1685,7 @@ Isolate::Isolate()
       optimizing_compiler_thread_(this),
       marking_thread_(NULL),
       sweeper_thread_(NULL) {
+  id_ = NoBarrier_AtomicIncrement(&isolate_counter_, 1);
   TRACE_ISOLATE(constructor);
 
   memset(isolate_addresses_, 0,
@@ -2313,6 +2315,12 @@ void Isolate::UnlinkDeferredHandles(DeferredHandles* deferred) {
   if (deferred->previous_ != NULL) {
     deferred->previous_->next_ = deferred->next_;
   }
+}
+
+
+HTracer* Isolate::GetHTracer() {
+  if (htracer() == NULL) set_htracer(new HTracer(id()));
+  return htracer();
 }
 
 
