@@ -7516,11 +7516,9 @@ bool RecordWriteStub::IsPregenerated() {
 
 void StoreBufferOverflowStub::GenerateFixedRegStubsAheadOfTime(
     Isolate* isolate) {
-  StoreBufferOverflowStub stub1(kDontSaveFPRegs);
-  stub1.GetCode(isolate)->set_is_pregenerated(true);
-
-  CpuFeatures::TryForceFeatureScope scope(SSE2);
-  if (CpuFeatures::IsSupported(SSE2)) {
+  StoreBufferOverflowStub stub(kDontSaveFPRegs);
+  stub.GetCode(isolate)->set_is_pregenerated(true);
+  if (CpuFeatures::IsSafeForSnapshot(SSE2)) {
     StoreBufferOverflowStub stub2(kSaveFPRegs);
     stub2.GetCode(isolate)->set_is_pregenerated(true);
   }

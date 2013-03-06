@@ -186,9 +186,7 @@ PredictableCodeSizeScope::~PredictableCodeSizeScope() {
 #ifdef DEBUG
 CpuFeatureScope::CpuFeatureScope(AssemblerBase* assembler, CpuFeature f)
     : assembler_(assembler) {
-  ASSERT(CpuFeatures::IsSupported(f));
-  ASSERT(!Serializer::enabled() ||
-         !CpuFeatures::IsFoundByRuntimeProbingOnly(f));
+  ASSERT(CpuFeatures::IsSafeForSnapshot(f));
   old_enabled_ = assembler_->enabled_cpu_features();
   uint64_t mask = static_cast<uint64_t>(1) << f;
   // TODO(svenpanne) This special case below doesn't belong here!

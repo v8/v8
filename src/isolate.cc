@@ -2156,8 +2156,10 @@ bool Isolate::Init(Deserializer* des) {
   }
 
   if (!Serializer::enabled()) {
-    // Ensure that the stub failure trampoline has been generated.
+    // Ensure that all stubs which need to be generated ahead of time, but
+    // cannot be serialized into the snapshot have been generated.
     HandleScope scope(this);
+    StoreBufferOverflowStub::GenerateFixedRegStubsAheadOfTime(this);
     CodeStub::GenerateFPStubs(this);
     StubFailureTrampolineStub::GenerateAheadOfTime(this);
   }

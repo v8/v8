@@ -1409,12 +1409,6 @@ void Builtins::Generate_NotifyOSR(MacroAssembler* masm) {
 
 
 void Builtins::Generate_OnStackReplacement(MacroAssembler* masm) {
-  CpuFeatures::TryForceFeatureScope scope(VFP3);
-  if (!CpuFeatures::IsSupported(FPU)) {
-    __ Abort("Unreachable code: Cannot optimize without FPU support.");
-    return;
-  }
-
   // Lookup the function in the JavaScript frame and push it as an
   // argument to the on-stack replacement function.
   __ lw(a0, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));

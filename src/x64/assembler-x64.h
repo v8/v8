@@ -474,6 +474,11 @@ class CpuFeatures : public AllStatic {
             (static_cast<uint64_t>(1) << f)) != 0;
   }
 
+  static bool IsSafeForSnapshot(CpuFeature f) {
+    return (IsSupported(f) &&
+            (!Serializer::enabled() || !IsFoundByRuntimeProbingOnly(f)));
+  }
+
  private:
   // Safe defaults include SSE2 and CMOV for X64. It is always available, if
   // anyone checks, but they shouldn't need to check.

@@ -536,31 +536,10 @@ class CpuFeatures : public AllStatic {
             (static_cast<uint64_t>(1) << f)) != 0;
   }
 
-  class TryForceFeatureScope BASE_EMBEDDED {
-   public:
-    explicit TryForceFeatureScope(CpuFeature f)
-        : old_supported_(CpuFeatures::supported_) {
-      if (CanForce()) {
-        CpuFeatures::supported_ |= (static_cast<uint64_t>(1) << f);
-      }
-    }
-
-    ~TryForceFeatureScope() {
-      if (CanForce()) {
-        CpuFeatures::supported_ = old_supported_;
-      }
-    }
-
-   private:
-    static bool CanForce() {
-      // It's only safe to temporarily force support of CPU features
-      // when there's only a single isolate, which is guaranteed when
-      // the serializer is enabled.
-      return Serializer::enabled();
-    }
-
-    const uint64_t old_supported_;
-  };
+  static bool IsSafeForSnapshot(CpuFeature f) {
+    return (IsSupported(f) &&
+            (!Serializer::enabled() || !IsFoundByRuntimeProbingOnly(f)));
+  }
 
  private:
 #ifdef DEBUG
