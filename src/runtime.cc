@@ -4890,7 +4890,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_LocalKeys) {
   Handle<FixedArray> copy = isolate->factory()->NewFixedArray(length);
   for (int i = 0; i < length; i++) {
     Object* entry = contents->get(i);
-    if (entry->IsName()) {
+    if (entry->IsString()) {
       copy->set(i, entry);
     } else {
       ASSERT(entry->IsNumber());

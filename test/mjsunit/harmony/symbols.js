@@ -178,26 +178,14 @@ function TestKeyHas() {
 
 
 function TestKeyEnum(obj) {
-  // TODO(rossberg): symbols should not show up at all in for-in.
-  var found = [];
-  names: for (var name in obj) {
-    for (var i in symbols) {
-      if (name === symbols[i]) {
-        found[i] = true;
-        continue names;
-      }
-    }
-  }
-  // All even symbols should have been enumerated.
-  for (var i = 0; i < symbols.length; i += 2) {
-    assertTrue(i in found)
+  for (var name in obj) {
+    assertFalse(%_IsSymbol(name))
   }
 }
 
 
 function TestKeyKeys(obj) {
-  // TODO(rossberg): symbols should not be returned by Object.keys.
-  assertEquals(symbols.length / 2, Object.keys(obj).length)
+  assertEquals(0, Object.keys(obj).length)
   assertTrue(symbols.length <= Object.getOwnPropertyNames(obj).length)
 }
 

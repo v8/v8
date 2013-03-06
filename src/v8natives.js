@@ -346,8 +346,7 @@ function ObjectKeys(obj) {
   if (%IsJSProxy(obj)) {
     var handler = %GetHandler(obj);
     var names = CallTrap0(handler, "keys", DerivedKeysTrap);
-    // TODO(rossberg): filter non-string keys.
-    return ToNameArray(names, "keys");
+    return ToNameArray(names, "keys", false);
   }
   return %LocalKeys(obj);
 }
@@ -983,7 +982,7 @@ function ObjectGetOwnPropertyDescriptor(obj, p) {
 
 
 // For Harmony proxies
-function ToNameArray(obj, trap) {
+function ToNameArray(obj, trap, includeSymbols) {
   if (!IS_SPEC_OBJECT(obj)) {
     throw MakeTypeError("proxy_non_object_prop_names", [obj, trap]);
   }
@@ -992,6 +991,7 @@ function ToNameArray(obj, trap) {
   var names = { __proto__: null };  // TODO(rossberg): use sets once ready.
   for (var index = 0; index < n; index++) {
     var s = ToName(obj[index]);
+    if (IS_SYMBOL(s) && !includeSymbols) continue;
     if (%HasLocalProperty(names, s)) {
       throw MakeTypeError("proxy_repeated_prop_name", [obj, trap, s]);
     }
@@ -1011,7 +1011,7 @@ function ObjectGetOwnPropertyNames(obj) {
   if (%IsJSProxy(obj)) {
     var handler = %GetHandler(obj);
     var names = CallTrap0(handler, "getOwnPropertyNames", void 0);
-    return ToNameArray(names, "getOwnPropertyNames");
+    return ToNameArray(names, "getOwnPropertyNames", true);
   }
 
   // Find all the indexed properties.

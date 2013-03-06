@@ -3513,7 +3513,9 @@ MaybeObject* NormalizedMapCache::Get(JSObject* obj,
         ASSERT(memcmp(Map::cast(fresh)->address(),
                       Map::cast(result)->address(),
                       Map::kCodeCacheOffset) == 0);
-        int offset = Map::kCodeCacheOffset + kPointerSize;
+        STATIC_ASSERT(Map::kDependentCodeOffset ==
+                      Map::kCodeCacheOffset + kPointerSize);
+        int offset = Map::kDependentCodeOffset + kPointerSize;
         ASSERT(memcmp(Map::cast(fresh)->address() + offset,
                       Map::cast(result)->address() + offset,
                       Map::kSize - offset) == 0);
@@ -4570,7 +4572,10 @@ int Map::NumberOfDescribedProperties(DescriptorFlag which,
       ? descs->number_of_descriptors()
       : NumberOfOwnDescriptors();
   for (int i = 0; i < limit; i++) {
-    if ((descs->GetDetails(i).attributes() & filter) == 0) result++;
+    if ((descs->GetDetails(i).attributes() & filter) == 0 &&
+        ((filter & SYMBOLIC) == 0 || !descs->GetKey(i)->IsSymbol())) {
+      result++;
+    }
   }
   return result;
 }
@@ -11290,7 +11295,7 @@ int JSObject::NumberOfLocalProperties(PropertyAttributes filter) {
   if (HasFastProperties()) {
     Map* map = this->map();
     if (filter == NONE) return map->NumberOfOwnDescriptors();
-    if (filter == DONT_ENUM) {
+    if (filter & DONT_ENUM) {
       int result = map->EnumLength();
       if (result != Map::kInvalidEnumCache) return result;
     }
@@ -13324,7 +13329,8 @@ int Dictionary<Shape, Key>::NumberOfElementsFilterAttributes(
   int result = 0;
   for (int i = 0; i < capacity; i++) {
     Object* k = HashTable<Shape, Key>::KeyAt(i);
-    if (HashTable<Shape, Key>::IsKey(k)) {
+    if (HashTable<Shape, Key>::IsKey(k) &&
+        ((filter & SYMBOLIC) == 0 || !k->IsSymbol())) {
       PropertyDetails details = DetailsAt(i);
       if (details.IsDeleted()) continue;
       PropertyAttributes attr = details.attributes();
@@ -13379,7 +13385,7 @@ FixedArray* NameDictionary::CopyEnumKeysTo(FixedArray* storage) {
   // that are deleted or not enumerable.
   for (int i = 0; i < capacity; i++) {
      Object* k = KeyAt(i);
-     if (IsKey(k)) {
+     if (IsKey(k) && !k->IsSymbol()) {
        PropertyDetails details = DetailsAt(i);
        if (details.IsDeleted() || details.IsDontEnum()) continue;
        properties++;
