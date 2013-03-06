@@ -1223,10 +1223,11 @@ class Map(HeapObject):
     p.Print("- kind: %s" % (self.Decode(3, 5, bitfield2)))
 
     bitfield3 = self.ObjectField(self.BitField3Offset())
-    p.Print("- EnumLength: %d NumberOfOwnDescriptors: %d OwnsDescriptors: %s" % (
-        self.Decode(0, 11, bitfield3),
-        self.Decode(11, 11, bitfield3),
-        self.Decode(25, 1, bitfield3)))
+    p.Print(
+        "- EnumLength: %d NumberOfOwnDescriptors: %d OwnsDescriptors: %s" % (
+            self.Decode(0, 11, bitfield3),
+            self.Decode(11, 11, bitfield3),
+            self.Decode(25, 1, bitfield3)))
     p.Print("- IsShared: %s" % (self.Decode(22, 1, bitfield3)))
     p.Print("- FunctionWithPrototype: %s" % (self.Decode(23, 1, bitfield3)))
     p.Print("- DictionaryMap: %s" % (self.Decode(24, 1, bitfield3)))
