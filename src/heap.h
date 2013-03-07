@@ -1310,10 +1310,14 @@ class Heap {
 
   // Returns whether the object resides in new space.
   inline bool InNewSpace(Object* object);
-  inline bool InNewSpace(Address addr);
-  inline bool InNewSpacePage(Address addr);
+  inline bool InNewSpace(Address address);
+  inline bool InNewSpacePage(Address address);
   inline bool InFromSpace(Object* object);
   inline bool InToSpace(Object* object);
+
+  // Returns whether the object resides in old pointer space.
+  inline bool InOldPointerSpace(Address address);
+  inline bool InOldPointerSpace(Object* object);
 
   // Checks whether an address/object in the heap (including auxiliary
   // area and unused area).

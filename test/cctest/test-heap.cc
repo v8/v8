@@ -2044,6 +2044,65 @@ TEST(OptimizedAllocationAlwaysInNewSpace) {
 }
 
 
+// Test pretenuring of array literals allocated with HAllocate.
+TEST(OptimizedPretenuringArrayLiterals) {
+  i::FLAG_allow_natives_syntax = true;
+  InitializeVM();
+  if (!i::V8::UseCrankshaft() || i::FLAG_always_opt) return;
+  if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
+  v8::HandleScope scope;
+
+  AlwaysAllocateScope always_allocate;
+  v8::Local<v8::Value> res = CompileRun(
+      "function f() {"
+      "  var numbers = new Array(1, 2, 3);"
+      "  numbers[0] = 3.14;"
+      "  return numbers;"
+      "};"
+      "f(); f(); f();"
+      "%OptimizeFunctionOnNextCall(f);"
+      "f();");
+  CHECK_EQ(static_cast<int>(3.14),
+           v8::Object::Cast(*res)->Get(v8_str("0"))->Int32Value());
+
+  Handle<JSObject> o =
+      v8::Utils::OpenHandle(*v8::Handle<v8::Object>::Cast(res));
+
+  // TODO(hpayer): remove InNewSpace check and test if object was allocated
+  // in old pointer space.
+  CHECK(!HEAP->InOldPointerSpace(*o));
+  CHECK(HEAP->InNewSpace(*o));
+}
+
+
+// Test regular array literals allocation.
+TEST(OptimizedAllocationArrayLiterals) {
+  i::FLAG_allow_natives_syntax = true;
+  InitializeVM();
+  if (!i::V8::UseCrankshaft() || i::FLAG_always_opt) return;
+  if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
+  v8::HandleScope scope;
+
+  AlwaysAllocateScope always_allocate;
+  v8::Local<v8::Value> res = CompileRun(
+      "function f() {"
+      "  var numbers = new Array(1, 2, 3);"
+      "  numbers[0] = 3.14;"
+      "  return numbers;"
+      "};"
+      "f(); f(); f();"
+      "%OptimizeFunctionOnNextCall(f);"
+      "f();");
+  CHECK_EQ(static_cast<int>(3.14),
+           v8::Object::Cast(*res)->Get(v8_str("0"))->Int32Value());
+
+  Handle<JSObject> o =
+      v8::Utils::OpenHandle(*v8::Handle<v8::Object>::Cast(res));
+
+  CHECK(HEAP->InNewSpace(*o));
+}
+
+
 static int CountMapTransitions(Map* map) {
   return map->transitions()->number_of_transitions();
 }
