@@ -173,7 +173,7 @@ static void TestPrimitiveValue(
   int internal_field = 6;
   v8::Handle<v8::DeclaredAccessorDescriptor> descriptor =
       OOD::NewInternalFieldDereference(helper->isolate_, internal_field)
-      ->NewRawShift(helper->isolate_, index*sizeof(T))
+      ->NewRawShift(helper->isolate_, static_cast<uint16_t>(index*sizeof(T)))
       ->NewPrimitiveValue(helper->isolate_, data_type, 0);
   v8::Handle<v8::Value> expected = Convert(value, helper->isolate_);
   helper->array_->Reset();
@@ -199,7 +199,7 @@ static void TestBitmaskCompare(T bitmask,
   int internal_field = 4;
   v8::Handle<v8::RawOperationDescriptor> raw_descriptor =
       OOD::NewInternalFieldDereference(helper->isolate_, internal_field)
-      ->NewRawShift(helper->isolate_, index*sizeof(T));
+      ->NewRawShift(helper->isolate_, static_cast<uint16_t>(index*sizeof(T)));
   v8::Handle<v8::DeclaredAccessorDescriptor> descriptor;
   switch (sizeof(T)) {
     case 1:
@@ -250,7 +250,7 @@ TEST(PointerCompareRead) {
   void* ptr = helper.isolate_;
   v8::Handle<v8::DeclaredAccessorDescriptor> descriptor =
       OOD::NewInternalFieldDereference(helper.isolate_, internal_field)
-      ->NewRawShift(helper.isolate_, index*sizeof(ptr))
+      ->NewRawShift(helper.isolate_, static_cast<uint16_t>(index*sizeof(ptr)))
       ->NewPointerCompare(helper.isolate_, ptr);
   AlignedArray* array = *helper.array_;
   VerifyRead(descriptor, internal_field, array, v8::False(helper.isolate_));
@@ -271,7 +271,8 @@ TEST(PointerDereferenceRead) {
       OOD::NewInternalFieldDereference(helper.isolate_, internal_field)
       ->NewRawShift(helper.isolate_, first_index*kPointerSize)
       ->NewRawDereference(helper.isolate_)
-      ->NewRawShift(helper.isolate_, second_index*sizeof(int16_t))
+      ->NewRawShift(helper.isolate_,
+                    static_cast<uint16_t>(second_index*sizeof(int16_t)))
       ->NewPrimitiveValue(helper.isolate_, v8::kDescriptorInt16Type, 0);
   AlignedArray* array = *helper.array_;
   array->As<uintptr_t**>()[first_index] =
