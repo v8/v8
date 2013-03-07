@@ -1183,8 +1183,8 @@ class Literal: public Expression {
     return Handle<String>::cast(handle_);
   }
 
-  virtual bool ToBooleanIsTrue() { return handle_->ToBoolean()->IsTrue(); }
-  virtual bool ToBooleanIsFalse() { return handle_->ToBoolean()->IsFalse(); }
+  virtual bool ToBooleanIsTrue() { return handle_->BooleanValue(); }
+  virtual bool ToBooleanIsFalse() { return !handle_->BooleanValue(); }
 
   // Identity testers.
   bool IsNull() const {

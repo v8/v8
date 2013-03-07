@@ -1055,7 +1055,7 @@ class Object : public MaybeObject {
   inline bool HasSpecificClassOf(String* name);
 
   MUST_USE_RESULT MaybeObject* ToObject();             // ECMA-262 9.9.
-  Object* ToBoolean();                                 // ECMA-262 9.2.
+  bool BooleanValue();                                 // ECMA-262 9.2.
 
   // Convert to a JSObject if needed.
   // native_context is used when creating wrapper object.
@@ -1465,7 +1465,8 @@ class HeapNumber: public HeapObject {
   static inline HeapNumber* cast(Object* obj);
 
   // Dispatched behavior.
-  Object* HeapNumberToBoolean();
+  bool HeapNumberBooleanValue();
+
   inline void HeapNumberPrint() {
     HeapNumberPrint(stdout);
   }

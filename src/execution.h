@@ -91,9 +91,6 @@ class Execution : public AllStatic {
                                 Handle<Object> argv[],
                                 bool* caught_exception);
 
-  // ECMA-262 9.2
-  static Handle<Object> ToBoolean(Isolate* isolate, Handle<Object> obj);
-
   // ECMA-262 9.3
   static Handle<Object> ToNumber(Handle<Object> obj, bool* exc);
 

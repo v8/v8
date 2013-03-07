@@ -4977,7 +4977,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ToBool) {
   NoHandleAllocation ha(isolate);
   ASSERT(args.length() == 1);
 
-  return args[0]->ToBoolean();
+  return isolate->heap()->ToBoolean(args[0]->BooleanValue());
 }
 
 

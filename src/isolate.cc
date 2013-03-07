@@ -754,7 +754,7 @@ Handle<JSArray> Isolate::CaptureCurrentStackTrace(
 
       if (options & StackTrace::kFunctionName) {
         Handle<Object> fun_name(fun->shared()->name(), this);
-        if (fun_name->ToBoolean()->IsFalse()) {
+        if (!fun_name->BooleanValue()) {
           fun_name = Handle<Object>(fun->shared()->inferred_name(), this);
         }
         CHECK_NOT_EMPTY_HANDLE(this,

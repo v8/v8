@@ -3222,7 +3222,7 @@ Expression* Parser::ParseUnaryExpression(bool* ok) {
       Handle<Object> literal = expression->AsLiteral()->handle();
       if (op == Token::NOT) {
         // Convert the literal to a boolean condition and negate it.
-        bool condition = literal->ToBoolean()->IsTrue();
+        bool condition = literal->BooleanValue();
         Handle<Object> result(isolate()->heap()->ToBoolean(!condition),
                               isolate());
         return factory()->NewLiteral(result);
