@@ -1,3 +1,38 @@
+2013-03-07: Version 3.17.8
+
+        Added missing license headers. (Chromium issue 98597)
+
+        Inserted missing type cast in JSON.stringify. (issue 2570)
+
+        Reverted "Send SIGPROF signals on the profiler event processor thread"
+        (issue 2571)
+
+        Fixed Array.length, String.length and Function.prototype LoadICs on x64.
+        (issue 2568)
+
+        ES6 symbols: filter symbols form for-in loops and Object.keys.
+        (issue 2158)
+
+        Properly handle misses for StoreArrayLengthStub on ia32 and x64
+        (issue 2566)
+
+        Fixed x32 handling of Atomic64. (Chromium issue chromium-os:36866)
+
+        Removed "library" variable from standalone.gypi. (Chromium issue 111541)
+
+        Fixed HCheckSmiOrInt <-> HBoundsCheck interaction wrt. representations.
+        (issue 2556)
+
+        Enabled zapping of disposed global handles in release mode.
+        (Chromium issue 176056)
+
+        Added workaround for redefinition of __proto__ property. (issue 2565)
+
+        ES6 symbols: Allow symbols as property names. (issue 2158)
+
+        Performance and stability improvements on all platforms.
+
+
 2013-03-04: Version 3.17.7
 
         Limited recursion in regexp compilation by a budget.
