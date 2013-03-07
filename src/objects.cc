@@ -215,7 +215,7 @@ static MaybeObject* GetPrimitiveValue(
     const PrimitiveValueDescriptor& descriptor,
     char* ptr,
     Heap* heap) {
-  int32_t int32_value;
+  int32_t int32_value = 0;
   switch (descriptor.data_type) {
     case kDescriptorInt8Type:
       int32_value = *CheckedCast<int8_t>(ptr);
