@@ -40,6 +40,13 @@ static const int kPrologueOffsetNotSet = -1;
 class ScriptDataImpl;
 class HydrogenCodeStub;
 
+// ParseRestriction is used to restrict the set of valid statements in a
+// unit of compilation.  Restriction violations cause a syntax error.
+enum ParseRestriction {
+  NO_PARSE_RESTRICTION,         // All expressions are allowed.
+  ONLY_SINGLE_FUNCTION_LITERAL  // Only a single FunctionLiteral expression.
+};
+
 // CompilationInfo encapsulates some information known at compile time.  It
 // is constructed based on the resources available at compile-time.
 class CompilationInfo {
@@ -55,9 +62,7 @@ class CompilationInfo {
     ASSERT(Isolate::Current() == isolate_);
     return isolate_;
   }
-  Zone* zone() {
-    return zone_;
-  }
+  Zone* zone() { return zone_; }
   bool is_lazy() const { return IsLazy::decode(flags_); }
   bool is_eval() const { return IsEval::decode(flags_); }
   bool is_global() const { return IsGlobal::decode(flags_); }
@@ -136,6 +141,14 @@ class CompilationInfo {
 
   bool saves_caller_doubles() const {
     return SavesCallerDoubles::decode(flags_);
+  }
+
+  void SetParseRestriction(ParseRestriction restriction) {
+    flags_ = ParseRestricitonField::update(flags_, restriction);
+  }
+
+  ParseRestriction parse_restriction() const {
+    return ParseRestricitonField::decode(flags_);
   }
 
   void SetFunction(FunctionLiteral* literal) {
@@ -285,7 +298,8 @@ class CompilationInfo {
   class IsNonDeferredCalling: public BitField<bool, 11, 1> {};
   // If the compiled code saves double caller registers that it clobbers.
   class SavesCallerDoubles: public BitField<bool, 12, 1> {};
-
+  // If the set of valid statements is restricted.
+  class ParseRestricitonField: public BitField<ParseRestriction, 13, 1> {};
 
   unsigned flags_;
 
@@ -502,6 +516,7 @@ class Compiler : public AllStatic {
                                                 Handle<Context> context,
                                                 bool is_global,
                                                 LanguageMode language_mode,
+                                                ParseRestriction restriction,
                                                 int scope_position);
 
   // Compile from function info (used for lazy compilation). Returns true on

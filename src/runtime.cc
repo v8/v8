@@ -8957,8 +8957,9 @@ bool CodeGenerationFromStringsAllowed(Isolate* isolate,
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_CompileString) {
   HandleScope scope(isolate);
-  ASSERT_EQ(1, args.length());
+  ASSERT_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(String, source, 0);
+  CONVERT_BOOLEAN_ARG_CHECKED(function_literal_only, 1);
 
   // Extract native context.
   Handle<Context> context(isolate->context()->native_context());
@@ -8974,8 +8975,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CompileString) {
   }
 
   // Compile source string in the native context.
+  ParseRestriction restriction = function_literal_only
+      ? ONLY_SINGLE_FUNCTION_LITERAL : NO_PARSE_RESTRICTION;
   Handle<SharedFunctionInfo> shared = Compiler::CompileEval(
-      source, context, true, CLASSIC_MODE, RelocInfo::kNoPosition);
+      source, context, true, CLASSIC_MODE, restriction, RelocInfo::kNoPosition);
   if (shared.is_null()) return Failure::Exception();
   Handle<JSFunction> fun =
       isolate->factory()->NewFunctionFromSharedFunctionInfo(shared,
@@ -9011,6 +9014,7 @@ static ObjectPair CompileGlobalEval(Isolate* isolate,
       Handle<Context>(isolate->context()),
       context->IsNativeContext(),
       language_mode,
+      NO_PARSE_RESTRICTION,
       scope_position);
   if (shared.is_null()) return MakePair(Failure::Exception(), NULL);
   Handle<JSFunction> compiled =
@@ -12003,6 +12007,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugEvaluate) {
                             context,
                             context->IsNativeContext(),
                             CLASSIC_MODE,
+                            NO_PARSE_RESTRICTION,
                             RelocInfo::kNoPosition);
   if (shared.is_null()) return Failure::Exception();
   Handle<JSFunction> compiled_function =
@@ -12109,6 +12114,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugEvaluateGlobal) {
                             context,
                             is_global,
                             CLASSIC_MODE,
+                            NO_PARSE_RESTRICTION,
                             RelocInfo::kNoPosition);
   if (shared.is_null()) return Failure::Exception();
   Handle<JSFunction> compiled_function =

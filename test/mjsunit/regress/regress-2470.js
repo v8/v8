@@ -1,4 +1,4 @@
-// Copyright 2012 the V8 project authors. All rights reserved.
+// Copyright 2013 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,10 +25,18 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-var x = 0;
-try {
-  Function("}), x = this, (function() {");
-} catch(e) {
-  print("Caught " + e);
-}
-assertTrue(x === 0);
+// Test whether the opening parenthesis can be eaten up by a comment.
+assertThrows('Function("/*", "*/){");', SyntaxError);
+
+// Test whether the function literal can be closed prematurely.
+assertThrows('Function("});(function(){");', SyntaxError);
+
+// Test whether block comments are handled correctly.
+assertDoesNotThrow('Function("/*", "*/", "/**/");');
+assertDoesNotThrow('Function("/*", "a", "*/", "/**/");');
+assertThrows('Function("a", "/*", "*/", "/**/");', SyntaxError);
+
+// Test whether line comments are handled correctly.
+assertDoesNotThrow('Function("//", "//")');
+assertDoesNotThrow('Function("//", "//", "//")');
+assertThrows('Function("a", "//", "//")', SyntaxError);

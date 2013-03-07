@@ -681,6 +681,7 @@ Handle<SharedFunctionInfo> Compiler::CompileEval(Handle<String> source,
                                                  Handle<Context> context,
                                                  bool is_global,
                                                  LanguageMode language_mode,
+                                                 ParseRestriction restriction,
                                                  int scope_position) {
   Isolate* isolate = source->GetIsolate();
   int source_length = source->length();
@@ -707,6 +708,7 @@ Handle<SharedFunctionInfo> Compiler::CompileEval(Handle<String> source,
     info.MarkAsEval();
     if (is_global) info.MarkAsGlobal();
     info.SetLanguageMode(language_mode);
+    info.SetParseRestriction(restriction);
     info.SetContext(context);
     result = MakeFunctionInfo(&info);
     if (!result.is_null()) {
