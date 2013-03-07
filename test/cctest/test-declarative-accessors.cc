@@ -203,16 +203,22 @@ static void TestBitmaskCompare(T bitmask,
   v8::Handle<v8::DeclaredAccessorDescriptor> descriptor;
   switch (sizeof(T)) {
     case 1:
-      descriptor =raw_descriptor->NewBitmaskCompare8(
-          helper->isolate_, bitmask, compare_value);
+      descriptor = raw_descriptor->NewBitmaskCompare8(
+            helper->isolate_,
+            static_cast<uint8_t>(bitmask),
+            static_cast<uint8_t>(compare_value));
       break;
     case 2:
       descriptor = raw_descriptor->NewBitmaskCompare16(
-          helper->isolate_, bitmask, compare_value);
+          helper->isolate_,
+          static_cast<uint16_t>(bitmask),
+          static_cast<uint16_t>(compare_value));
       break;
     case 4:
       descriptor = raw_descriptor->NewBitmaskCompare32(
-          helper->isolate_, bitmask, compare_value);
+          helper->isolate_,
+          static_cast<uint32_t>(bitmask),
+          static_cast<uint32_t>(compare_value));
       break;
     default:
       CHECK(false);
