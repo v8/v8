@@ -124,9 +124,7 @@ class TickSampleEventRecord {
 // methods called by event producers: VM and stack sampler threads.
 class ProfilerEventsProcessor : public Thread {
  public:
-  ProfilerEventsProcessor(ProfileGenerator* generator,
-                          Sampler* sampler,
-                          int period_in_useconds);
+  explicit ProfilerEventsProcessor(ProfileGenerator* generator);
   virtual ~ProfilerEventsProcessor() {}
 
   // Thread control.
@@ -175,16 +173,11 @@ class ProfilerEventsProcessor : public Thread {
   // Called from events processing thread (Run() method.)
   bool ProcessCodeEvent(unsigned* dequeue_order);
   bool ProcessTicks(unsigned dequeue_order);
-  void ProcessEventsAndDoSample(unsigned* dequeue_order);
-  void ProcessEventsAndYield(unsigned* dequeue_order);
 
   INLINE(static bool FilterOutCodeCreateEvent(Logger::LogEventsAndTags tag));
 
   ProfileGenerator* generator_;
-  Sampler* sampler_;
   bool running_;
-  // Sampling period in microseconds.
-  const int period_in_useconds_;
   UnboundQueue<CodeEventsContainer> events_buffer_;
   SamplingCircularQueue ticks_buffer_;
   UnboundQueue<TickSampleEventRecord> ticks_from_vm_buffer_;

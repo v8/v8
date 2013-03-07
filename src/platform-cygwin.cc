@@ -776,21 +776,4 @@ void Sampler::Stop() {
 }
 
 
-bool Sampler::CanSampleOnProfilerEventsProcessorThread() {
-  return false;
-}
-
-
-void Sampler::DoSample() {
-}
-
-
-void Sampler::StartProfiling() {
-}
-
-
-void Sampler::StopProfiling() {
-}
-
-
 } }  // namespace v8::internal
